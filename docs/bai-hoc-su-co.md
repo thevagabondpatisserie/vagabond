@@ -373,6 +373,31 @@ Chốt validate không bảo vệ được API dùng db.set_value. Chuyển sang
 Nháp tặng đã mang kho/64181, khi tắt công tắc cùng lúc đổi thành thu tiền, hạ dấu trước làm nhánh return bỏ qua dọn kho. Dọn chuyển loại trước khi tính dấu mới; ca thuần bắt update_stock còn 1, ca bench lưu-ghi sổ-hủy và đọc GL/SLE/Bin. Nguồn finding 3996732355, cùng lỗi 3996733712 trên nhánh tích hợp #293.
 
 
+### #296: gom cửa lưu không được làm yếu đối soát quầy
+
+Quầy kiểm cả tiền SePay và quyền sở hữu dòng giao dịch, trong khi đường Sales có nguồn đối chiếu khác. Khi gom điều kiện vào _chuan_bi_ghi_so, giữ nhánh nguồn và kiểm bằng lời gọi API thật. Cửa Lưu đơn chỉ save nháp; quyết định duyệt được commit riêng trước bước ghi sổ có savepoint để lỗi kho/GL không xoá quyết định. Ca bench mới cố tình lỗi sau GL/SLE, phải đọc lại nháp và hai sổ rỗng. Chưa coi ca mô phỏng là bằng chứng đã chạy bench.
+
+### #296 ngày 13/09: hộp mùa vụ và khôi phục bill hủy
+
+- Hộp nhận vỏ từ nhà in; ruột đã tính ở bánh lẻ. Ẩn Bếp làm ở dòng hộp và chặn cả hai tên ô API, vẫn cho sửa về 0. Không tự sửa dữ liệu lịch sử.
+- Bill hủy có thể đã được thay thế bằng bill nhận cùng sao kê. Gỡ dấu hủy phải kiểm chủ trước, giữ dấu và lịch sử nếu giao dịch đã có bill khác nhận.
+- Kiểm quyền UI bằng cách chạy màn Doanh thu Sales thật trong DOM giả với Sales User và ba vai kế toán/quản trị; kiểm nút đã render, không chỉ helper quyền.
+
 ### #299: chốt ca chỉ đếm tiền mặt cần nhận biết phiên bản máy chủ
 
 JSON chỉ có Tiền mặt vẫn hợp cú pháp của backend cũ nhưng biến chuyển khoản/thẻ thành thiếu tiền. UI phải đọc chi_dem_tien_mat trước khi cho chốt. Không dùng flt để xác nhận số đếm: chữ sai biến thành0, NaN/Infinity qua so sánh âm; chuỗi5.000 phải đọc là5000 hoặc chặn, không âm thầm nhận5. Giữ các phương thức được cấu hình dù số máy bằng0. Ca API mở-chốt-reload giữ số nộp quỹ, Node kiểm backend cũ và payload. #290D2: báo cáo CK đọc cùng mã Pancake với ghi sổ, chọn một đường khớp, không cộng hai lần cùng tiền.
+
+### #298 thư NCC: đầy đủ người nhận và không nhận xếp hàng là đã gửi
+
+Email Supplier, Contact chính và mọi Contact Email liên kết đúng NCC phải được gom, bỏ trùng rồi chia To/CC. Gửi thử chỉ một địa chỉ. Bản sao kế toán là queue riêng, tiêu đề có BAN SAO; UNC mang mã APP và không gửi khi không đọc được tệp. Frappe 16.27.1 email.sendmail tạo Queue trong transaction; dùng delayed=True, giữ hai queue và dấu hồ sơ nguyên tử, không SMTP trong POST. Retry không tạo lại queue. Bằng chứng phải đọc recipient status; cờ email_da_gui lịch sử không chứng minh Sent. Bench đọc MIME/queue thật, stub duy nhất cấu hình SMTP và cấm EmailQueue.send.
+
+Email CC gõ sai chỉ chặn gửi thật, không chặn tạo/đọc APP. Snapshot email chính giữ riêng; danh sách đã gửi dùng Small Text để không mất địa chỉ khi vượt 140 ký tự. Xem thử thiếu UNC vẫn mở kèm cảnh báo. Validation dự kiến không tạo Error Log/popup thừa; thư Error phải xử lý queue cũ. Bench dựng Email Account object đầy đủ, không thay bằng None vì lõi đọc always_bcc. Nguồn: review 5650925436 và run 34736267340.
+
+### #298: quyền kế toán không phải giao của hai nhóm vai
+
+Gọi _kiem_quyen bán hàng rồi kiểm Accounts làm kế toán độc lập thấy nút nhưng bị từ chối. Bỏ lớp bán hàng khỏi cửa ghi sổ riêng; Sales/Guest vẫn bị chặn. Ca cũ stub _kiem_quyen nên xanh giả: nạp hàm thật làm bản cũ đỏ hai assertion (Accounts User/Manager); thêm bench User thật, ghi sổ và đọc GL. Nguồn review3998728970.
+
+Cửa ghi sổ qua được chưa đủ: nút từng đơn còn gọi luu_xhd trước chot_mot_don, màn danh sách/cấu hình/tìm đơn cũng qua quyền đọc. Review5651172671 dẫn tới ca kiểm 8 API ở 6 vai; bản cũ đỏ16 assertion của kế toán. Dùng cửa đọc/lưu riêng cho Sales hoặc Accounts, giữ ghi sổ chỉ Accounts và OTP đổi ngày như cũ; bench đi luu_thanh_toan -> luu_xhd -> chot_mot_don, đọc GL thật.
+# Quyền kế toán sau ghi sổ
+
+- PR298: kiểm trọn cả bước phát hành lại khi lần tự động chưa gửi được. Cổng lưu và ghi sổ đúng vẫn chưa đủ nếu nút phát hành lại còn dùng tập Sales. Kiểm User Accounts độc lập tới cửa mạng bị chặn trong bench, không gửi hóa đơn thật.

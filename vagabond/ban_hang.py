@@ -73,6 +73,12 @@ def _kiem_quyen():
 		frappe.throw("Tài khoản của bạn chưa được cấp quyền ghi nhận doanh số.")
 
 
+def _kiem_quyen_doc_luu_don():
+	"""Các bước đọc/lưu đơn phục vụ Sales và kế toán trước khi ghi sổ."""
+	if not (QUYEN_BAN_HANG | {"Accounts User", "Accounts Manager"}) & set(frappe.get_roles()):
+		frappe.throw("Tài khoản của bạn chưa được cấp quyền xem và xử lý đơn bán hàng.")
+
+
 # ---------- Ma OTP quan ly (anh Viet 09/08/2026) ----------
 # Hoa don quay la tien that da thu cua khach. De nhan vien tu do sua/xoa
 # thi rat de gian lan, nen moi thao tac sua/xoa deu phai co ma OTP 6 so
@@ -828,7 +834,7 @@ def cau_hinh_ban_hang():
 
 	App KHONG hardcode danh sach nua - sua o day la ca app doi theo.
 	"""
-	_kiem_quyen()
+	_kiem_quyen_doc_luu_don()
 	pt = []
 	for ten, q in pt_thanh_toan.bang_tham_chieu().items():
 		pt.append(
@@ -1908,7 +1914,7 @@ def bang_doanh_so(ngay=None):
 	KHONG lay hoa don quay: cua hang nao thi cua hang do tu quan trong man
 	Doanh thu Cua hang, khong gop chung dung (anh Viet nhac 10/08/2026).
 	"""
-	_kiem_quyen()
+	_kiem_quyen_doc_luu_don()
 	ngay = getdate(ngay or nowdate())
 	sis = frappe.db.get_all(
 		"Sales Invoice",
@@ -2042,7 +2048,7 @@ def _gan_giam_dong(sis):
 @frappe.whitelist()
 def chot_doanh_so(ngay=None):
 	"""Submit ca loat SI nhap cua ngay. Loan Anh bam sau khi ra soat."""
-	_kiem_quyen()
+	_kiem_quyen_ghi_so()
 	ngay = getdate(ngay or nowdate())
 	c = cfg()
 	quay_bat = [q.strip().upper() for q in str(c.get("tu_ghi_so_quay") or "").replace(",", "\n").splitlines() if q.strip()]
@@ -2080,16 +2086,17 @@ def chot_doanh_so(ngay=None):
 			si.submit()
 			frappe.db.commit()
 			xong += 1
-		except Exception:
+		except Exception as e:
 			frappe.db.rollback()
+			frappe.local.message_log = []
 			frappe.log_error(frappe.get_traceback(), "ban_hang chot: %s" % ten)
-			loi.append("Đơn %s ghi sổ lỗi, xem Error Log." % nhan)
+			loi.append("Đơn %s chưa ghi sổ: %s" % (nhan, giau_khoa(str(e))[:500]))
 			continue
 		da_xuat, bao = _tu_xuat_hddt(si.name)
 		if da_xuat:
 			hddt += 1
 		elif bao:
-			loi.append("Đơn %s ghi sổ xong nhưng chưa xuất được hoá đơn điện tử, máy sẽ tự xuất lại sau." % nhan)
+			loi.append("Đơn %s ghi sổ xong nhưng chưa xuất được hoá đơn điện tử: %s" % (nhan, bao))
 	frappe.db.commit()
 	return {"da_chot": xong, "da_xuat_hddt": hddt, "loi": loi}
 
@@ -2416,7 +2423,7 @@ def dong_bo_doanh_so_tu_dong():
 @frappe.whitelist()
 def luu_thanh_toan(si_name, pt=None, ma_tham_chieu=None):
 	"""Sales luu phuong thuc thanh toan + ma tham chieu, chua ghi so."""
-	_kiem_quyen()
+	_kiem_quyen_doc_luu_don()
 	si = frappe.db.get_value(
 		"Sales Invoice", si_name,
 		["name", "custom_nguon", "docstatus", "vgb_pt_thanh_toan", "vgb_ma_tham_chieu"],
@@ -2487,8 +2494,14 @@ def _soat_sepay(si, sepay=None):
 	)
 
 
-def _chuan_bi_ghi_so(si, sepay=None):
-	"""Kiem cac dieu kien bat buoc truoc khi submit mot hoa don sales."""
+def _chuan_bi_ghi_so(si, sepay=None, cho_cho_duyet=False):
+	"""Một cửa cho lưu đơn, kế toán và nhịp tự động (#296).
+
+	Lưu đơn tặng được chờ duyệt; submit vẫn phải qua hook duyệt của Document.
+	Core sales_invoice.py:on_submit ghi SLE rồi GL, nên mọi kiểm tra ở trước submit.
+	"""
+	if si.get("vgb_huy") or si.get("vgb_tam_tinh"):
+		frappe.throw("Đơn đã huỷ hoặc còn tạm tính. Kiểm lại trạng thái trước khi lưu đơn hoặc ghi sổ.")
 	pt = _nan_pt_theo_nguon(si)
 	if not pt:
 		frappe.throw(
@@ -2496,7 +2509,15 @@ def _chuan_bi_ghi_so(si, sepay=None):
 			% (si.custom_pancake_display_id or si.name)
 		)
 	si.vgb_pt_thanh_toan = pt
-	_soat_sepay(si, sepay)
+	if pt == "Chuyển khoản" and si.get("vgb_quay"):
+		g = _sepay_cho_bill(si)
+		nhan = flt(g.get("nhan"))
+		if nhan < flt(si.grand_total) - 1:
+			frappe.throw("Bill %s: ngân hàng mới nhận %s đ trên tổng %s đ. Chờ tiền về hoặc kiểm lại mã tham chiếu."
+				% (si.name, _tien(nhan), _tien(si.grand_total)))
+		_chiem_gd_bill(si, g.get("gd") or [])
+	else:
+		_soat_sepay(si, sepay)
 	si.vgb_ma_tham_chieu = _chuan_ma_tham_chieu(pt, si.vgb_ma_tham_chieu)
 	_kiem_trung_ma(pt, si.vgb_ma_tham_chieu, bo_qua=si.name)
 	# Ban cong no ma khong biet no cua AI thi cuoi thang khong doi duoc.
@@ -2511,6 +2532,16 @@ def _chuan_bi_ghi_so(si, sepay=None):
 		)
 	if not (si.vgb_xhd_ten or "").strip():
 		si.vgb_xhd_ten = XHD_MAC_DINH
+	if pt == "Hàng tặng":
+		from vagabond import hang_tang
+		thieu = hang_tang.thieu_gi(si, so_anh=len(hang_tang._anh_cua_to(si.name)))
+		if thieu:
+			frappe.throw("<br>".join(hang_tang.THIEU[m] for m in thieu))
+		if cho_cho_duyet:
+			if si.get("vgb_tang_duyet") not in (hang_tang.TT_CHO, hang_tang.TT_DUYET):
+				frappe.throw("Trong khối Hàng tặng, bấm Lưu và gửi giám đốc duyệt trước khi lưu đơn.")
+		else:
+			hang_tang.truoc_khi_ghi_so(si)
 
 	# Core Document._submit đặt docstatus=1 TRƯỚC before_validate.
 	# Combo còn mã gốc phải qua lưu nháp để rã, không bỏ hook bảo vệ tờ đã chốt.
@@ -2528,7 +2559,7 @@ def luu_khach_no(si_name, khach=None):
 	đổi party là sai sổ), chi ghi vao truong phu vgb_khach_no de man Cong
 	no phai thu va phieu de nghi thanh toan goi dung ten nguoi phai tra.
 	"""
-	_kiem_quyen()
+	_kiem_quyen_doc_luu_don()
 	si = frappe.get_doc("Sales Invoice", si_name)
 	ma = (khach or "").strip()
 	if ma and not frappe.db.exists("Customer", ma):
@@ -2549,7 +2580,7 @@ def luu_khach_no(si_name, khach=None):
 @frappe.whitelist()
 def chot_mot_don(si_name, pt=None, ma_tham_chieu=None, khach=None):
 	"""Submit mot don le, sales ra soat xong don nao chot don do."""
-	_kiem_quyen()
+	_kiem_quyen_ghi_so()
 	si = frappe.get_doc("Sales Invoice", si_name)
 	if not si.custom_pancake_id:
 		frappe.throw("Phiếu này không phải doanh thu sales.")
@@ -2638,7 +2669,7 @@ def luu_xhd(si_name, ten=None, mst=None, dia_chi=None, email=None):
 	moi don la mot hoa don rieng, sai thong tin nguoi mua thi phai sua trong
 	don do chu khong the gop sang don khac.
 	"""
-	_kiem_quyen()
+	_kiem_quyen_doc_luu_don()
 	from vagabond.minvoice_an_toan import da_gui
 	si = frappe.get_doc("Sales Invoice", si_name, for_update=True)
 	if not si:
@@ -2678,60 +2709,56 @@ QUYEN_SUA_NGAY = {"System Manager", "Accounts Manager", "Accounts User", "Sales 
 
 @frappe.whitelist()
 def doi_ngay_hoa_don(si_name, ngay=None, otp=None, ly_do=""):
-	"""Chuyen mot hoa don CHUA GHI SO sang ngay khac, mac dinh la hom nay.
+	"""Đổi ngày nháp theo quyết định kế toán, có OTP và dấu vết.
 
-	Vi sao can (chi Dung 12/08/2026): luat ke toan bat xuat hoa don dien tu
-	NGAY TRONG NGAY ban hang. Mot don cua hom qua bi truc trac - sai ma so
-	thue, chua ve tien, m-invoice loi - thi sua xong van khong xuat duoc hoa
-	don mang ngay hom qua nua. Cach dung la keo don do sang ngay dang thao
-	tac roi ghi so, hoa don dien tu se mang dung ngay xuat.
-
-	Chi doi duoc hoa don CON NHAP. Hoa don da ghi so la so tien da vao so
-	sach ngay do; muon doi ngay thi ke toan phai huy roi lap lai, khong the
-	sua ngam ngay sau lung so cai.
+	Không suy từ việc nhà cung cấp nhận ngày cũ thành kết luận về hạn pháp lý.
 	"""
-	_kiem_quyen()
+	_kiem_quyen_doc_luu_don()
 	if not QUYEN_SUA_NGAY & set(frappe.get_roles()):
 		frappe.throw(
 			"Chỉ quản lý hoặc kế toán mới được đổi ngày hoá đơn. "
 			"Bạn cần đổi thì báo chị Dung."
 		)
 	si = frappe.get_doc("Sales Invoice", si_name)
+	moi = _kiem_ngay_ban_nhap(si, ngay or nowdate())
+	if getdate(si.posting_date) == moi:
+		return {"ok": 1, "ngay": str(moi), "doi": 0}
+	cach = _otp_kiem(otp, "đổi ngày hoá đơn")
+	ket = _doi_ngay_ban_nhap(si, str(moi), ly_do, cach)
+	frappe.db.commit()
+	return ket
+
+
+def _kiem_ngay_ban_nhap(si, ngay):
+	"""Kiểm trước khi tiêu OTP, cũng dùng ở cửa nội bộ Giám đốc duyệt."""
+	from vagabond.minvoice_an_toan import da_gui
 	if si.docstatus != 0:
-		frappe.throw(
-			"Hoá đơn %s đã ghi sổ nên không đổi ngày được. Số tiền đã vào sổ "
-			"ngày %s rồi; muốn đổi thì phải huỷ hoá đơn rồi lập lại."
-			% (si.name, si.posting_date)
-		)
-	if si.get("custom_hddt_so"):
-		frappe.throw(
-			"Hoá đơn %s đã xuất hoá đơn điện tử số %s nên không đổi ngày được."
-			% (si.name, si.custom_hddt_so)
-		)
-	moi = getdate(ngay or nowdate())
+		frappe.throw("Hoá đơn %s đã ghi sổ hoặc huỷ, không đổi ngày được." % si.name)
+	if da_gui(si):
+		frappe.throw("Hoá đơn %s đã gửi hoặc đang chờ đối chiếu HĐĐT, không đổi ngày được." % si.name)
+	moi = getdate(ngay)
 	if moi > getdate(nowdate()):
 		frappe.throw("Không đẩy hoá đơn sang ngày tương lai được.")
+	return moi
+
+
+def _doi_ngay_ban_nhap(si, ngay, ly_do, cach):
+	"""Dùng chung cho OTP kế toán và Giám đốc duyệt quà, không phải API.
+
+	ERPNext accounts_controller.py:validate_payment_schedule_dates so hạn với
+	posting_date. Bỏ lịch cũ để core dựng lại khi save, không bỏ validation.
+	"""
+	moi = _kiem_ngay_ban_nhap(si, ngay)
 	cu = si.posting_date
 	if getdate(cu) == moi:
 		return {"ok": 1, "ngay": str(moi), "doi": 0}
-	cach = _otp_kiem(otp, "đổi ngày hoá đơn")
 	si.set_posting_time = 1
 	si.posting_date = str(moi)
-	# Phai XOA lich thanh toan cu truoc khi doi ngay. Cac dong payment_schedule
-	# van giu han thanh toan cua ngay cu, ERPNext so han cu voi ngay moi roi
-	# bao "Ngay den han khong the truoc Posting Date" va chan luon (bat duoc
-	# 12/08/2026 tren don HDB-2026-01520). Xoa di thi may tu dung lai theo
-	# dieu khoan thanh toan cua khach.
 	si.payment_schedule = []
 	si.due_date = str(moi)
 	si.flags.ignore_permissions = True
 	si.save()
-	_ghi_vet(
-		si.name,
-		"Đổi ngày hoá đơn %s sang %s%s" % (cu, moi, (" - " + ly_do) if ly_do else ""),
-		cach,
-	)
-	frappe.db.commit()
+	_ghi_vet(si.name, "Đổi ngày hoá đơn %s sang %s%s" % (cu, moi, (" - " + ly_do) if ly_do else ""), cach)
 	return {"ok": 1, "ngay": str(moi), "ngay_cu": str(cu), "doi": 1}
 
 
@@ -2756,10 +2783,11 @@ def _ghi_so_mot_don(si, sepay=None, cho_xuat=True):
 		finally:
 			si.flags.vgb_hoan_phat_hanh = co_cu
 		frappe.db.commit()
-	except Exception:
+	except Exception as e:
 		frappe.db.rollback()
+		frappe.local.message_log = []
 		frappe.log_error(frappe.get_traceback(), "ban_hang tu ghi so: %s" % si.name)
-		return 0, 0, "Đơn %s ghi sổ lỗi, xem Error Log." % nhan
+		return 0, 0, "Đơn %s chưa ghi sổ: %s" % (nhan, giau_khoa(str(e))[:500])
 	if not cho_xuat:
 		return 1, 0, ""  # Cửa chuỗi ghi cảnh báo hoãn phát hành riêng.
 	da_xuat, bao = _tu_xuat_hddt(si.name)
@@ -3677,7 +3705,7 @@ def _quet_don_treo(so_ngay=14):
 @frappe.whitelist()
 def don_treo(so_ngay=14):
 	"""Man 'Đơn còn treo' tren app: don nao chua ghi so duoc, va vi sao."""
-	_kiem_quyen()
+	_kiem_quyen_doc_luu_don()
 	ds = _quet_don_treo(so_ngay)
 	dem, tien = {}, {}
 	for r in ds:
@@ -3708,7 +3736,7 @@ def keo_va_ghi_so(ds=None, so_ngay=14, chay_thu=1):
 
 	chay_thu=1 chi liet ke, khong ghi gi. Luon chay thu mot lan truoc.
 	"""
-	_kiem_quyen()
+	_kiem_quyen_ghi_so()
 	if not QUYEN_SUA_NGAY & set(frappe.get_roles()):
 		frappe.throw("Chỉ quản lý hoặc kế toán mới kéo được ngày hoá đơn.")
 	chay_thu = cint(chay_thu)
@@ -4639,7 +4667,7 @@ def _tach_thue(gross, ts):
 @frappe.whitelist()
 def xuat_hoa_don_dien_tu(si_name):
 	"""Day mot SI sang m-invoice o trang thai CHO KY. Khong ky tu dong."""
-	_kiem_quyen()
+	_kiem_quyen_doc_luu_don()
 	si = frappe.get_doc("Sales Invoice", si_name)
 	if si.docstatus != 1:
 		frappe.throw("Hoá đơn %s chưa chốt, chốt doanh số trước rồi mới xuất HĐĐT." % si_name)
@@ -4853,7 +4881,7 @@ def xuat_hddt_con_thieu(ngay=None, so_ngay=7):
 	Dung cho ba viec: don ghi so truoc khi co co che tu xuat; don ma
 	m-invoice tu choi luc do (mat mang, het so); va cron chay lai moi gio.
 	"""
-	_kiem_quyen()
+	_kiem_quyen_doc_luu_don()
 	return _xuat_hddt_con_thieu(ngay, so_ngay)
 
 
@@ -6125,54 +6153,44 @@ def _chiem_gd_bill(si, ds_gd):
 	si.vgb_gd_sepay = chiem_sao_ke.gom_gd(ds_gd)
 
 
+def _kiem_quyen_ghi_so():
+	# Kế toán độc lập không cần mang thêm vai bán hàng (#298 review3998728970).
+	if not {"Accounts Manager", "Accounts User", "System Manager"} & set(frappe.get_roles()):
+		frappe.throw("Chỉ kế toán được ghi sổ thủ công. Tại quầy, bấm Lưu đơn để máy xử lý theo lịch.")
+
+
 @frappe.whitelist()
-def pos_ghi_so(name):
-	"""Ghi so mot bill NGAY TAI QUAY. Chuyen khoan thi ngan hang phai nhan
-	du tien theo ma bill VGB moi cho ghi (giong nguyen tac ben Sales)."""
+def pos_luu_don(name, pt=None, ma_tham_chieu=None, ghi_chu=None):
+	"""Lưu nháp đã đủ điều kiện, không submit và không phát hành (#296)."""
 	_kiem_quyen()
 	si = _pos_lay(name)
 	if si.docstatus != 0:
-		frappe.throw("Bill này đã ghi sổ rồi.")
-	if frappe.utils.cint(si.get("vgb_huy")):
-		frappe.throw(
-			"Bill này đã huỷ nên không ghi sổ được. Muốn dùng lại thì báo kế toán "
-			"gỡ dấu huỷ, hoặc lập bill mới."
-		)
-	if frappe.utils.cint(si.get("vgb_tam_tinh")):
-		frappe.throw("Bill còn tạm tính. Khách thanh toán xong thì bấm Chốt trước, rồi mới ghi sổ.")
-	pt = _nan_pt_theo_nguon(si)
-	if not pt:
-		frappe.throw("Bill chưa chọn phương thức thanh toán.")
-	si.vgb_pt_thanh_toan = pt
-	if pt == "Chuyển khoản":
-		# Hoi CA BA duong khop, xem doan mo ta cua `_sepay_cho_bill`. Truoc
-		# 27/08/2026 cho nay chi hoi ma bill VGB, nen bill cua don Pancake
-		# tra qua tai khoan ao MB vinh vien doc ra 0 du tien da ve.
-		g = _sepay_cho_bill(si)
-		nhan = flt(g.get("nhan"))
-		if nhan < flt(si.grand_total) - 1:
-			frappe.throw(
-				"Bill %s ghi Chuyển khoản nhưng ngân hàng mới nhận %s đ trên tổng %s đ. "
-				"Chờ tiền về rồi ghi sổ, hoặc khách chuyển sai nội dung thì tìm mã giao "
-				"dịch trong sao kê gõ vào ô Mã tham chiếu."
-				% (si.name, _tien(nhan), _tien(si.grand_total))
-			)
-		# MOT DONG SAO KE CHI DUOC GACH CHO MOT BILL.
-		#
-		# Truoc day bang ket qua gom theo MA chu khong theo bill, nen hai bill
-		# mang cung mot ma tham chieu deu doc ra cung so tien va CA HAI deu
-		# qua duoc cua ben tren roi ghi so. Mot lan khach chuyen 200.000 tra
-		# duoc hai bill 200.000. Ma tham chieu thi cashier go tay duoc, va ma
-		# bill sinh ngau nhien nam ky tu nen cung co ngay trung that.
-		#
-		# Nay ghi ro nhung dong sao ke da gach cho bill nay, va truoc khi ghi
-		# so thi hoi lai xem dong nao da co chu chua - hoi ca cac luong khac
-		# nhu phieu cong no, khong chi trong pham vi bill quay.
-		_chiem_gd_bill(si, g.get("gd") or [])
-	else:
-		si.vgb_ma_tham_chieu = _chuan_ma_tham_chieu(pt, si.vgb_ma_tham_chieu)
-	if not (si.vgb_xhd_ten or "").strip():
-		si.vgb_xhd_ten = XHD_MAC_DINH
+		frappe.throw("Đơn đã ghi sổ hoặc đã huỷ, không lưu nháp được nữa.")
+	if pt:
+		pt = _kiem_pt(pt, si.custom_nguon)
+		ma_tham_chieu = luat_thanh_toan.ma_can_ghi(
+			ma_tham_chieu, si.vgb_ma_tham_chieu, pt, si.vgb_pt_thanh_toan)
+		si.vgb_pt_thanh_toan = pt
+		si.vgb_pt_do_may = 0
+	if ma_tham_chieu is not None:
+		si.vgb_ma_tham_chieu = ma_tham_chieu
+	if ghi_chu is not None:
+		si.vgb_ghi_chu = (ghi_chu or "").strip()
+	_chuan_bi_ghi_so(si, cho_cho_duyet=True)
+	si.flags.ignore_permissions = True
+	si.save()
+	frappe.db.commit()
+	return {"ok": 1, "name": si.name, "docstatus": si.docstatus}
+
+
+@frappe.whitelist()
+def pos_ghi_so(name):
+	"""Cửa tương thích cho kế toán; nhân viên quầy chỉ được lưu đơn."""
+	_kiem_quyen_ghi_so()
+	si = _pos_lay(name)
+	if si.docstatus != 0:
+		frappe.throw("Bill này đã ghi sổ hoặc đã huỷ rồi.")
+	_chuan_bi_ghi_so(si)
 	si.flags.ignore_permissions = True
 	si.submit()
 	frappe.db.commit()
@@ -6959,7 +6977,7 @@ def tim_don(tu_khoa="", so_dong=40):
 	Tra ve danh sach gon de man hinh bay ra, moi dong du de nhan ra don va
 	bam vao mo chi tiet.
 	"""
-	_kiem_quyen()
+	_kiem_quyen_doc_luu_don()
 	tu = chuan_tim(tu_khoa)
 	if len(tu) < 3:
 		return {"ds": [], "vi_sao": "Vui lòng gõ ít nhất 3 ký tự rồi tìm."}

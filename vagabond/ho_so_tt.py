@@ -30,7 +30,7 @@ import re
 import frappe
 from frappe.utils import add_days, cint, flt, getdate, now_datetime, nowdate
 
-from vagabond import chon_ncc
+from vagabond import chon_ncc, thu_ncc
 from vagabond.lib import cfg
 
 # Truoc buoc nao thi con go uy nhiem chi ra duoc. Lay tu tra_tien_app de hai
@@ -1857,7 +1857,9 @@ def chi_tiet(name):
 			# o nay, va man hinh van phai hien dung.
 			"so_ncc": len({((d.get("ben_ban") or d.get("ncc_hd") or "").strip()) for d in dong
 			               if (d.get("ben_ban") or d.get("ncc_hd") or "").strip()}),
-			"email_ncc": doc.email_ncc or "",
+			"email_ncc": ", ".join(thu_ncc.nguon_email_ncc(doc.nha_cung_cap, doc.email_ncc)),
+			"thu_bang_chung": thu_ncc.bang_chung(doc.name),
+			"thu_mo_hang_doi": bool(frappe.has_permission("Email Queue", "read")),
 			"trang_thai": doc.trang_thai,
 			"nhan": "Đã duyệt, cần kiểm tra lại" if canh_bao else NHAN.get(doc.trang_thai, doc.trang_thai),
 			"tong_tien": flt(doc.tong_tien), "da_tra": flt(doc.da_tra),
@@ -2485,16 +2487,13 @@ def _tu_gui_thu_bao(doc, gui_thu=1):
 		return {"gui": 0, "vi_sao": "Hồ sơ đã gửi thư báo trước đó. Kiểm lịch sử thư; chỉ bấm Gửi lại nếu cần thông báo lại."}
 	if (doc.loai or LOAI_NCC) in (LOAI_HU, LOAI_HU_HD):
 		return {"gui": 0, "vi_sao": "Hồ sơ hoàn ứng không gửi thư báo cho nhà cung cấp."}
-	toi = (doc.email_ncc or "").strip()
-	if not toi or "@" not in toi:
-		return {
-			"gui": 0,
-			"vi_sao": "Nhà cung cấp %s chưa có email nên chưa gửi thư báo được."
-			% (doc.ten_ncc or doc.nha_cung_cap or ""),
-		}
+	tin_cu = list(frappe.local.message_log or [])
 	try:
-		gui_email_ncc(doc.name, email=toi, gui_that=1)
-		return {"gui": 1, "toi": toi}
+		ket = gui_email_ncc(doc.name, gui_that=1)
+		return {"gui": 1, "toi": ket.get("toi", ""), "xep_hang": 1}
+	except frappe.ValidationError as loi:
+		frappe.local.message_log = tin_cu
+		return {"gui": 0, "vi_sao": str(loi)[:200]}
 	except Exception as loi:
 		frappe.log_error(frappe.get_traceback(), "ho_so_tt: tu gui thu bao thanh toan")
 		return {"gui": 0, "vi_sao": "Gửi thư báo chưa được: %s" % str(loi)[:200]}
@@ -3057,6 +3056,8 @@ def gui_email_ncc(name, email=None, gui_that=1, thu_nghiem=0):
 	from vagabond.tra_tien_app import ds_unc_tho
 
 	_kiem(VAI_LAP | VAI_FIN, "gửi thư báo nhà cung cấp")
+	if cint(gui_that):
+		frappe.db.get_value("Vagabond Ho So TT", name, "name", for_update=True)
 	doc = frappe.get_doc("Vagabond Ho So TT", name)
 	# Ho so hoan ung: tien cong ty chuyen la chuyen cho NGUOI DA UNG, con
 	# nha cung cap thi da duoc tra tien tu luc mua. Gui thu "chung toi da
@@ -3077,67 +3078,87 @@ def gui_email_ncc(name, email=None, gui_that=1, thu_nghiem=0):
 			"Hồ sơ chưa ở trạng thái Đã thanh toán, gửi thư báo lúc này là "
 			"báo nhầm cho nhà cung cấp. Muốn xem mặt lá thư thì bấm Gửi thử."
 		)
-	noi_dung = _thu_html(doc)
-	if not cint(gui_that):
-		return {"xem_truoc": 1, "html": noi_dung, "toi": email or doc.email_ncc or ""}
-
-	toi = (email or doc.email_ncc or "").strip()
-	if not toi or "@" not in toi:
-		frappe.throw(
-			"Chưa có email của nhà cung cấp %s. Anh chị điền email vào hồ sơ "
-			"nhà cung cấp bên Next, hoặc gõ tay vào ô gửi tới." % (doc.ten_ncc or doc.nha_cung_cap)
-		)
-
+	from vagabond import thu_ncc
 	thu = cint(thu_nghiem)
-	dinh = _tep_dinh_thu(ds_unc_tho(doc.name))
+	try:
+		ds = (thu_ncc.nguon_email_ncc(doc.nha_cung_cap, email, doc.email_ncc) if not cint(gui_that)
+			else thu_ncc.tach_email(email) if thu else thu_ncc.dia_chi_ncc(doc.nha_cung_cap, email, doc.email_ncc))
+	except ValueError as e:
+		frappe.throw(str(e))
+	if thu and len(ds) != 1:
+		frappe.throw("Gửi thử chỉ nhận đúng một địa chỉ email, không CC ai.")
+	if cint(gui_that) and not ds:
+		frappe.throw("Chưa có email NCC. Điền email trên nhà cung cấp hoặc liên hệ rồi gửi lại.")
+	dinh = _tep_dinh_thu(ds_unc_tho(doc.name), doc.name, nghiem=bool(cint(gui_that) and not thu))
+	noi_dung = _thu_html(doc, dinh)
+	if not dinh:
+		noi_dung = "<p><b>BẢN XEM THỬ: chưa có UNC đọc được, chưa đủ điều kiện gửi NCC.</b></p>" + noi_dung
+	if not cint(gui_that):
+		return {"xem_truoc": 1, "html": noi_dung, "toi": ds[0] if ds else "", "cc": ds[1:]}
+	if not dinh and not thu:
+		frappe.throw("Chưa đính UNC. Đính uỷ nhiệm chi đọc được vào hồ sơ rồi gửi lại.")
+	# Frappe16.27.1 email.sendmail xây Email Queue trong transaction;
+	# delayed=True không tạo callback SMTP. Hai thư và dấu hồ sơ commit cùng nhau.
+	if not thu and (cint(doc.email_da_gui) or thu_ncc.bang_chung(name)):
+		return {"ok": 1, "da_co": 1, "toi": doc.email_gui_toi or ", ".join(ds), "thu_bang_chung": thu_ncc.bang_chung(name)}
+	if not thu and doc.trang_thai != TT_DA_TRA:
+		frappe.throw("Hồ sơ không còn Đã thanh toán. Kiểm lại trạng thái trước khi gửi thư.")
 	tieu_de = "%s%s - Thông báo thanh toán và đề nghị đối chiếu công nợ (%s)" % (
-		"[GỬI THỬ] " if thu else "", TEN_TIEM, doc.name
-	)
-	frappe.sendmail(
-		recipients=[toi],
-		cc=[] if thu else [EMAIL_KE_TOAN],
-		sender=EMAIL_THU_MUA,
-		subject=tieu_de,
-		message=noi_dung,
-		attachments=dinh,
-		# Gan thu vao chinh ho so: mo ho so ben Next la thay da gui gi, gui
-		# luc nao, gui cho ai. Khong gan thi ban thu duy nhat nam trong hop
-		# thu ca nhan cua nguoi bam nut.
-		reference_doctype="Vagabond Ho So TT",
-		reference_name=doc.name,
-		delayed=False,
-		retry=2,
-	)
-	if thu:
-		_ghi_vet(doc.name, "Gửi thử thư báo thanh toán tới %s" % toi)
-		return {"ok": 1, "toi": toi, "thu_nghiem": 1, "tep": len(dinh)}
-	doc.db_set("email_da_gui", 1, update_modified=False)
-	doc.db_set("email_gui_luc", now_datetime(), update_modified=False)
-	doc.db_set("email_gui_toi", toi, update_modified=False)
+		"[GỬI THỬ] " if thu else "", TEN_TIEM, doc.name)
+	frappe.db.savepoint("thu_ncc_hai_ban")
+	try:
+		q = frappe.sendmail(recipients=ds[:1], cc=[] if thu else ds[1:], sender=EMAIL_THU_MUA,
+			subject=tieu_de, message=noi_dung, attachments=dinh,
+			reference_doctype="Vagabond Ho So TT", reference_name=doc.name,
+			message_id=None if thu else thu_ncc.ma_thu(name,"ncc"), delayed=True, retry=2,
+			expose_recipients="header")
+		if not q:
+			frappe.throw("Chưa tạo được thư. Kiểm hộp thư gửi và địa chỉ NCC.")
+		if {r.recipient.lower() for r in q.recipients} != set(ds):
+			frappe.throw("Có email NCC chưa được đưa vào thư. Kiểm địa chỉ hoặc trạng thái ngừng nhận thư rồi thử lại.")
+		if not thu:
+			from vagabond.thu_khung import h
+			ban_sao = "<p><b>BẢN SAO KẾ TOÁN</b><br>Thư NCC được xếp hàng lúc %s.<br>Gửi tới: %s<br>CC: %s</p>" % (h(str(now_datetime())),h(ds[0]),h(", ".join(ds[1:])))
+			q2 = frappe.sendmail(recipients=[EMAIL_KE_TOAN], cc=[], sender=EMAIL_THU_MUA,
+				subject="[BAN SAO] " + tieu_de, message=ban_sao+noi_dung, attachments=dinh,
+				reference_doctype="Vagabond Ho So TT", reference_name=doc.name,
+				message_id=thu_ncc.ma_thu(name,"ke-toan"), delayed=True, retry=2, expose_recipients="header")
+			if not q2:
+				frappe.throw("Chưa tạo được bản sao kế toán. Chưa xếp hàng thư NCC; kiểm hộp thư rồi thử lại.")
+			doc.db_set("email_da_gui", 1, update_modified=False)
+			doc.db_set("email_gui_luc", now_datetime(), update_modified=False)
+			doc.db_set("email_gui_toi", ", ".join(ds), update_modified=False)
+	except Exception:
+		frappe.db.rollback(save_point="thu_ncc_hai_ban")
+		raise
 	frappe.db.commit()
-	_ghi_vet(doc.name, "Gửi thư báo thanh toán tới %s, kèm %d tệp." % (toi, len(dinh)))
-	return {"ok": 1, "toi": toi, "tep": len(dinh)}
+	_ghi_vet(doc.name, "%s thư tới %s, CC %s, kèm %d tệp; xem trạng thái hàng đợi để biết đã gửi." % ("Xếp hàng gửi thử" if thu else "Xếp hàng", ds[0], ", ".join(ds[1:]), len(dinh)))
+	return {"ok": 1, "toi": ds[0], "cc": [] if thu else ds[1:], "thu_nghiem": thu, "tep": len(dinh), "xep_hang": 1}
 
 
-def _tep_dinh_thu(ds_tep):
+def _tep_dinh_thu(ds_tep, ma="APP", nghiem=True):
 	"""Đọc nội dung tệp lên để đính vào thư.
 
 	Đính bằng NỘI DUNG chứ không bằng đường dẫn: uỷ nhiệm chi để chế độ
 	riêng tư, gửi đường dẫn đi thì nhà cung cấp bấm vào chỉ thấy màn đăng
-	nhập. Tệp nào đọc không được thì bỏ qua và ghi nhật ký, không làm hỏng
-	cả lá thư.
+	nhập. Tệp nào đọc không được thì báo để đính lại, không gửi thiếu UNC.
 	"""
 	ra = []
-	for f in ds_tep or []:
+	for stt, f in enumerate(ds_tep or [], 1):
 		try:
 			tep = frappe.get_doc("File", f.name)
-			ra.append({"fname": tep.file_name or f.name, "fcontent": tep.get_content()})
+			from vagabond.thu_ncc import ten_unc
+			noi_dung = tep.get_content()
+			if not noi_dung:
+				raise ValueError("Tệp UNC trống.")
+			ra.append({"fname": ten_unc(ma, stt, tep.file_name or f.name), "fcontent": noi_dung})
 		except Exception:
-			frappe.log_error(frappe.get_traceback(), "ho_so_tt: doc tep dinh thu")
+			if nghiem:
+				frappe.throw("Không đọc được tệp UNC %s. Đính lại tệp rồi gửi thư." % f.name)
 	return ra
 
 
-def _thu_html(doc):
+def _thu_html(doc, dinh=None):
 	"""Nội dung thư báo thanh toán. Tách riêng để xem trước được mà không gửi.
 
 	Từ 03/09/2026 đi qua khuôn thư chung (vagabond/thu_khung.py). Bản trước
@@ -3166,12 +3187,14 @@ def _thu_html(doc):
 	if doc.noi_dung_ck:
 		chi_tiet_tra.append("Nội dung chuyển khoản: <b>%s</b>" % h(doc.noi_dung_ck))
 	chi_tiet_tra.append("Mã hồ sơ bên chúng tôi: <b>%s</b>" % h(doc.name))
+	for tep in dinh or []:
+		chi_tiet_tra.append("Tệp uỷ nhiệm chi: <b>%s</b>" % h(tep["fname"]))
 
 	than = (
 		_tk.doan("Kính gửi <b>%s</b>," % h(doc.ten_ncc or doc.nha_cung_cap))
 		+ _tk.doan(
 			"%s xin thông báo đã <b>thanh toán</b> cho quý công ty số tiền <b>%s đ</b> "
-			"cho %d hoá đơn dưới đây. Uỷ nhiệm chi của giao dịch được đính kèm trong thư này."
+			"cho %d hoá đơn dưới đây. Vui lòng xem danh sách tệp uỷ nhiệm chi ở phần Thông tin thanh toán."
 			% (TEN_TIEM, _tien(doc.tong_tien), len(doc.dong))
 		)
 		+ bang

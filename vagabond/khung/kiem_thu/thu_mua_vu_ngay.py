@@ -633,3 +633,30 @@ def _():
 
 	# 3. Neu co chot_tay khong ton tai thi man hinh khong hien duoc dau.
 	dung("kết quả có mang cờ chốt_tay", "chot_tay" in r["2026-08-24"]["B1"])
+
+
+@ca('#296 API mùa vụ chặn nhập sản xuất cho hộp, cho sửa về 0')
+def hop_khong_bep():
+	from types import SimpleNamespace as NS
+	from vagabond.khung.kiem_thu.thu_su_co_290 import D, nap
+	from unittest.mock import patch
+	import sys
+	for ma,truong,so,chan in [('HOPA','san_xuat',100,True),('HOPA','sx_dau_mua',100,True),('HOPA','san_xuat',0,False),('LE1','san_xuat',100,False)]:
+		vet=[];dong=D(ma_hang=ma,co_the_ban=0,san_xuat=0)
+		doc=D(tinh_trang='Mo',dong=[dong],dinh_muc=[NS(as_dict=lambda:DM[0])],save=lambda:vet.append('save'))
+		def nem(s):raise ValueError(s)
+		g=dict(frappe=NS(get_doc=lambda *a:doc,throw=nem,db=NS(commit=lambda:None)),DT='Mua',SUA_DUOC={'san_xuat','sx_dau_mua'},cint=lambda x:int(x or 0),ma_la_hop=_mv().ma_la_hop)
+		with patch.dict(sys.modules, {'vagabond.ban_hang':NS(_kiem_quyen=lambda:None)}):
+			try:nap('mua_vu.py','luu_o',g)('MUA',ma,truong,so)
+			except ValueError as e:dung('đúng câu hộp',chan and 'Hộp chỉ nhận' in str(e))
+			else:dung('không lọt hộp',not chan)
+		la('chặn trước lưu',len(vet),0 if chan else 1)
+
+
+@ca('#296 DOM mùa vụ không có nút Bếp làm cho hộp')
+def hop_dom():
+	import subprocess
+	from pathlib import Path
+	p=Path(__file__).parent/'hanh_vi'/'mua_vu_hop.cjs'
+	kq=subprocess.run(['node',str(p)],capture_output=True,text=True,timeout=20)
+	la(kq.stdout+kq.stderr,kq.returncode,0)

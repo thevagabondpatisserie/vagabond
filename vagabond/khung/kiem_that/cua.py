@@ -16,6 +16,8 @@ from vagabond.khung.kiem_that import nen
 
 # Nạp các mô đun ca kiểm. Thêm bộ ca mới thì thêm tên vào đây, giống cách
 # `khung/kiem_thu/chay.py` làm.
+from vagabond.khung.kiem_that import thu_luu_duyet_296
+from vagabond.khung.kiem_that import thu_thu_ncc
 from vagabond.khung.kiem_that import thu_su_co_290
 from vagabond.khung.kiem_that import thu_chot_ca_296
 from vagabond.khung.kiem_that import thu_combo_261  # noqa: F401,E402

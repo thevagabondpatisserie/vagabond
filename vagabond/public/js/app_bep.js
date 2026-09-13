@@ -10225,6 +10225,11 @@ function vgbLuot() {
     con: function (l) { return l === so; }
   };
 }
+/* #296: cùng phạm vi quyền với máy chủ; không bày nút ghi sổ cho quầy. */
+function dsDuocGhiSo() {
+  return ['Accounts User', 'Accounts Manager', 'System Manager'].some(hasRole);
+}
+
 /* ---------- Doanh thu Sales: ra soat, chot le tung don, nhap tay ---------- */
 var dsNgay = null;
 var dsLoc = 'tat_ca', dsLocNg = '', dsLocHd = '';
@@ -10374,7 +10379,7 @@ async function scrDoanhSo() {
     '</div><div style="color:#98a2b3;font-size:18px">›</div></div></div>';
 
   var foot = '<div style="display:flex;gap:10px"><button class="btn gh" data-ds="dongbo" style="flex:1">🔄 Đồng bộ Pancake</button>' +
-    (nhap.length ? '<button class="btn" data-ds="chot" style="flex:2">Ghi sổ hoá đơn bán hàng (' + nhap.length + ' đơn)</button>' : '') + '</div>';
+    (nhap.length && dsDuocGhiSo() ? '<button class="btn" data-ds="chot" style="flex:2">Ghi sổ hoá đơn bán hàng (' + nhap.length + ' đơn)</button>' : '') + '</div>';
   var b = frame('Doanh thu Sales', html, { footer: foot, action: '➕', onAction: function () { go(scrDsNhapTay); } });
   var di = document.getElementById('dsDate');
   if (di) di.onchange = function () { if (di.value && di.value <= today()) { dsNgay = di.value; dsLoc = 'tat_ca'; dsLocNg = ''; go(scrDoanhSo, true); } };
@@ -10864,7 +10869,7 @@ async function scrDsView(name, can) {
     foot = '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
       '<button class="btn gh" id="dsvHuy" style="margin:0;flex:1 1 44%;color:#b3261e;border-color:#fecaca">🚫 Huỷ đơn</button>' +
       '<button class="btn gh" id="dsvHuyHoan" style="margin:0;flex:1 1 44%;color:#b45309;border-color:#fde68a">↩️ Huỷ đơn và hoàn tiền</button>' +
-      '<button class="btn" id="dsvChot" style="margin:0;flex:1 1 100%">Ghi sổ hoá đơn bán hàng</button></div>';
+      (dsDuocGhiSo() ? '<button class="btn" id="dsvChot" style="margin:0;flex:1 1 100%">Ghi sổ hoá đơn bán hàng</button>' : '<div>Đơn chờ máy ghi sổ theo lịch; cần xử lý ngay thì báo kế toán.</div>') + '</div>';
   } else if (d.docstatus === 0) {
     /* Da bam Huy don roi moi nho ra khach da chuyen tien. Van phai co duong
        tra tien, khong thi phai nho ke toan lap tay tren Desk. */
@@ -11517,7 +11522,7 @@ async function scrDsView(name, can) {
     var ok = await confirmSheet(
       'Chuyển đơn sang hôm nay',
       'Đơn #' + (d.custom_pancake_display_id || d.name) + ' đang mang ngày ' + d.posting_date +
-      '.\nChuyển sang ' + today() + ' để hoá đơn điện tử xuất đúng ngày theo luật thuế.\n\n' +
+      '.\nChuyển sang ' + today() + ' theo lựa chọn xử lý của kế toán.\n\n' +
       'Doanh thu của đơn sẽ tính vào ngày mới, không còn nằm ở ngày cũ.',
       'Chuyển sang hôm nay');
     if (!ok) return;
@@ -13905,7 +13910,7 @@ function posQrSheet(soPhieu, tien, siName, nguon, maDiem) {
         var bao = ov.querySelector('#qrsBao');
         if (bao) { bao.style.color = '#15803d'; bao.innerHTML = '✅ <b>ĐÃ NHẬN ĐỦ ' + money(kq.nhan) + ' đ</b> - SePay khớp nội dung ' + h(soPhieu) + '.'; }
         var ny = ov.querySelector('[data-y]');
-        if (ny && siName) { ny.textContent = '📒 Ghi sổ luôn - Hoá đơn mới'; ny.setAttribute('data-gs', '1'); }
+        if (ny && siName) { ny.textContent = 'Lưu đơn - Hoá đơn mới'; ny.setAttribute('data-gs', '1'); }
       }
     } catch (e) { }
   }, 5000);
@@ -13923,8 +13928,8 @@ function posQrSheet(soPhieu, tien, siName, nguon, maDiem) {
     var ghiSo = !!(e.target.hasAttribute('data-gs') && siName);
     if (ghiSo) {
       busy(true);
-      try { await api('vagabond.ban_hang.pos_ghi_so', { name: siName }); busy(false); toast('Đã ghi sổ ' + siName); }
-      catch (er) { busy(false); toast((er && er.message) || 'Ghi sổ lỗi', 4000); }
+      try { await api('vagabond.ban_hang.pos_luu_don', { name: siName }); busy(false); toast('Đã lưu đơn nháp ' + siName); }
+      catch (er) { busy(false); toast((er && er.message) || 'Chưa lưu được đơn', 4000); return; }
     }
     clearInterval(pid); ov.remove(); posHomNayTxt = null; go(ghiSo ? scrPosDs : scrPosQuay, true);
   };
@@ -14974,7 +14979,7 @@ async function scrPosBill(name) {
       (nhap
         ? (tamTinh
           ? '<button class="btn" id="pbChot" style="flex:1;margin:0">✅ Chốt hoá đơn - khách đã trả</button>'
-          : '<button class="btn" id="pbGhiSo" style="flex:1;margin:0">📒 Ghi sổ tại quầy</button>')
+          : '<button class="btn" id="pbLuuDon" style="flex:1;margin:0">Lưu đơn</button>')
         : '<div style="flex:1;display:flex;align-items:center;justify-content:center;color:#15803d;font-weight:700">✅ Đã ghi sổ</div>') +
       '</div>' +
       /* Tem hien khi bill co bat ky mon nao; phieu lam mon chi hien khi co
@@ -15206,10 +15211,9 @@ async function scrPosBill(name) {
     if (!PB_PT) return toast('Chọn phương thức thanh toán trước.');
     busy(true);
     try {
-      await api('vagabond.ban_hang.pos_chot', { name: d.name, pt: PB_PT, ma_tham_chieu: docO('pbMtc'), ghi_chu: docO('pbGhiChu') });
-      if (chot) await api('vagabond.ban_hang.pos_ghi_so', { name: d.name });
+      await api(chot ? 'vagabond.ban_hang.pos_luu_don' : 'vagabond.ban_hang.pos_chot', { name: d.name, pt: PB_PT, ma_tham_chieu: docO('pbMtc'), ghi_chu: docO('pbGhiChu') });
       busy(false);
-      toast(chot ? 'Đã ghi sổ ' + d.name : 'Đã chốt hoá đơn ' + d.name);
+      toast(chot ? 'Đã lưu đơn nháp ' + d.name : 'Đã chốt hoá đơn ' + d.name);
       posHomNayTxt = null;
       go(scrPosDs, true);
     } catch (e) { busy(false); toast((e && e.message) || 'Lỗi, thử lại.', 4500); }
@@ -15237,10 +15241,10 @@ async function scrPosBill(name) {
       go(function () { scrPosBill(name); }, true);
     } catch (e) { busy(false); toast((e && e.message) || 'Lỗi, thử lại.', 5000); }
   };
-  var ng = document.getElementById('pbGhiSo');
+  var ng = document.getElementById('pbLuuDon');
   if (ng) ng.onclick = async function () {
-    var ok = await confirmSheet('Ghi sổ hoá đơn ' + money(d.grand_total) + ' đ',
-      'Ghi sổ là chốt doanh thu chính thức tại quầy ' + (posQuay ? posQuay.ma : '') + '. Chuyển khoản thì máy tự kiểm SePay đủ tiền mới cho ghi.', 'Ghi sổ');
+    var ok = await confirmSheet('Lưu đơn ' + money(d.grand_total) + ' đ',
+      'Máy kiểm thông tin thanh toán rồi lưu nháp để xử lý theo lịch. Hàng tặng cần gửi Giám đốc duyệt trước.', 'Lưu đơn');
     if (ok) luuVe(true);
   };
 
@@ -19035,9 +19039,10 @@ function mvDsSpHtml(ds) {
       (banLe || x.trong_hop
         ? '<span style="color:#aeb4bf;font-size:11px">tổng ' + money(banLe + (x.trong_hop || 0)) + '</span>'
         : '<span style="color:#aeb4bf;font-size:11px">chưa có đơn nào</span>') +
+      (x.la_hop ? '<span>Hộp chỉ nhận số nhà in giao. Ruột tính từ các dòng bánh lẻ.</span>' :
       '<button data-mvsx="' + h(x.ma_hang) + '" style="margin-left:auto;border:1.5px solid #0f766e;' +
       'background:#fff;color:#0f766e;border-radius:8px;padding:5px 11px;font-size:11.5px;font-weight:800">' +
-      '✏️ Bếp làm ' + money(x.san_xuat) + '</button>' +
+      '✏️ Bếp làm ' + money(x.san_xuat) + '</button>' ) +
       '<button data-mvnhain="' + h(x.ma_hang) + '" style="border:1.5px solid #7c3aed;' +
       'background:#fff;color:#7c3aed;border-radius:8px;padding:5px 11px;font-size:11.5px;font-weight:800">' +
       '🖨️ Nhà in ' + money(x.nha_in_giao || 0) + '</button>' +
@@ -21757,7 +21762,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '487';
+var APPVER = '488';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -31543,11 +31548,11 @@ async function scrDonTreo() {
      hom nay khong dua vao: chuoi cuoi ngay toi 23h se lo, khong can keo
      ngay cua chinh no. */
   var sanSangCu = rows.filter(function (r) { return r.ly_do === 'san_sang' && !r.hom_nay; });
-  if (sanSangCu.length) {
+  if (sanSangCu.length && dsDuocGhiSo()) {
     var tienCu = sanSangCu.reduce(function (a, r) { return a + Number(r.grand_total || 0); }, 0);
     html += '<div class="sec">Xử cả loạt</div><div class="card" style="padding:12px 14px;font-size:13px;line-height:1.6;color:#374151">' +
       '<b>' + sanSangCu.length + ' đơn của ngày cũ đã đủ điều kiện</b>, tổng ' + money(tienCu) + ' đ.<br>' +
-      'Luật bắt xuất hoá đơn điện tử <b>trong ngày bán</b>, nên đơn cũ phải kéo sang hôm nay rồi mới ghi sổ được. ' +
+      'Kế toán có thể chọn đổi ngày lập sang hôm nay rồi ghi sổ. Doanh thu sẽ tính vào ngày mới. ' +
       'Ngày bán thật vẫn giữ trong ô ghi chú của từng đơn.' +
       '<div style="margin-top:10px"><button class="btn gh" data-dt="keo" style="width:100%">📥 Kéo ' + sanSangCu.length + ' đơn sang hôm nay và ghi sổ</button></div></div>';
   }
@@ -34217,13 +34222,19 @@ async function scrHoSoTTView(name) {
     var daTra = hs.trang_thai === 'Da thanh toan';
     html += '<div class="sec">Thư báo nhà cung cấp</div><div class="card" style="padding:12px 14px;font-size:13px;line-height:1.6;color:#374151">' +
       (hs.email_da_gui
-        ? '✉️ Đã gửi tới <b>' + h(hs.email_gui_toi) + '</b>' + (hs.email_gui_luc ? ' lúc ' + h(hs.email_gui_luc) : '') + '.<br>Gửi lại được nếu nhà cung cấp báo chưa nhận.'
+        ? '✉️ Đã ghi nhận yêu cầu gửi tới <b>' + h(hs.email_gui_toi) + '</b>' + (hs.email_gui_luc ? ' lúc ' + h(hs.email_gui_luc) : '') + '.<br>Xem trạng thái từng người nhận bên dưới; không tự gửi lại thư cũ.'
         : (daTra ? 'Chưa gửi thư báo. ' : 'Thư tự gửi ngay khi ghi nhận thanh toán. ') +
           'Email đang lưu trên hồ sơ nhà cung cấp: <b>' + h(hs.email_ncc || '(chưa có)') + '</b>') +
+      (hs.thu_bang_chung || []).map(function (q) {
+        return '<div style="margin-top:8px"><b>' + (q.loai === 'ncc' ? 'Thư NCC' : 'Bản sao kế toán') + '</b>: ' + h(q.trang_thai) +
+          '<br>' + (q.nguoi_nhan || []).map(function (r) { return h(r.recipient) + ': ' + h(r.status); }).join('<br>') +
+          (q.cc ? '<br>CC: ' + h(q.cc) : '') + '<br>Tệp UNC: ' + (q.tep || []).map(h).join(', ') +
+          (q.trang_thai === 'Error' ? (hs.thu_mo_hang_doi ? '<br>Thư đang lỗi. Mở <a href="/app/email-queue/' + encodeURIComponent(q.ma) + '">hàng đợi thư này</a> để kiểm lỗi và thử lại, không tạo thư mới.' : '<br>Thư đang lỗi. Nhờ quản trị viên kiểm hàng đợi ' + h(q.ma) + ' và thử lại trên thư cũ.') : '') + '</div>';
+      }).join('') +
       '<div style="display:flex;gap:8px;margin-top:10px">' +
       '<button class="btn gh" data-hsv="xemthu" style="flex:1;margin:0">👁 Xem trước</button>' +
       '<button class="btn gh" data-hsv="guithuthu" style="flex:1;margin:0">🧪 Gửi thử</button>' +
-      (daTra ? '<button class="btn" data-hsv="guithu" style="flex:1;margin:0">✉️ ' + (hs.email_da_gui ? 'Gửi lại' : 'Gửi thư báo') + '</button>' : '') +
+      (daTra ? '<button class="btn" data-hsv="guithu" style="flex:1;margin:0">✉️ ' + (hs.email_da_gui ? 'Kiểm thư đã tạo' : 'Gửi thư báo') + '</button>' : '') +
       '</div>' +
       '<div style="font-size:11.5px;color:#98a2b3;margin-top:8px;line-height:1.5">' +
       'Gửi thử đi đúng một địa chỉ anh chị gõ vào, tiêu đề có chữ GỬI THỬ, không gửi bản sao cho ai.</div></div>';
@@ -34483,15 +34494,16 @@ async function hsHanh(k, hs) {
     try {
       await api('vagabond.ho_so_tt.gui_email_ncc', { name: hs.ma, email: toiThu, gui_that: 1, thu_nghiem: 1 });
       busy(false);
-      toast('Đã gửi thử tới ' + toiThu + '. Thư có chữ GỬI THỬ ở tiêu đề.', 5200);
+      toast('Đã xếp hàng gửi thử tới ' + toiThu + '. Thư có chữ GỬI THỬ ở tiêu đề.', 5200);
     } catch (e) { busy(false); return baoTin(errMsg(e) || 'Không gửi thử được'); }
     return;
   }
   if (k === 'guithu') {
-    var toi = await hoiNhap('Gửi thư báo thanh toán tới email nào?', hs.email_ncc || '');
+    if (hs.email_da_gui || (hs.thu_bang_chung || []).length) return go(function () { scrHoSoTTView(hs.ma); }, true);
+    var toi = await hoiNhap('Email nhận chính (các email NCC đã khai khác sẽ được CC)?', hs.email_ncc || '');
     if (!toi) return;
     busy(true);
-    try { await api('vagabond.ho_so_tt.gui_email_ncc', { name: hs.ma, email: toi, gui_that: 1 }); busy(false); toast('Đã gửi thư tới ' + toi, 3500); }
+    try { await api('vagabond.ho_so_tt.gui_email_ncc', { name: hs.ma, email: toi, gui_that: 1 }); busy(false); toast('Đã tiếp nhận. Xem hàng đợi để biết từng địa chỉ đã gửi hay chưa.', 3500); }
     catch (e) { busy(false); return baoTin((e && e.message) || 'Gửi thư lỗi'); }
     return go(function () { scrHoSoTTView(hs.ma); }, true);
   }
@@ -46827,11 +46839,14 @@ async function dtgBam(ev) {
   if (t) {
     var ma = t.getAttribute('data-dtgok');
     var y = await hoiChu('Duyệt đơn hàng tặng',
-      'Duyệt xong đơn này mới ghi sổ được. Ghi thêm ý kiến nếu cần, để trống cũng được.',
+      'Duyệt sẽ đổi đơn nháp sang hôm nay, ghi sổ và gửi phát hành theo cấu hình. Nếu kẹt, máy giữ quyết định duyệt và báo rõ lý do. Ghi thêm ý kiến nếu cần.',
       '', { nhieu_dong: 1, goi_y: 'Ví dụ: đồng ý tặng, trừ vào ngân sách marketing tháng 8' });
     if (y === null) return;
     try {
-      await api('vagabond.hang_tang.duyet', { name: ma, y_kien: y || '' });
+      var kq = await api('vagabond.hang_tang.duyet', { name: ma, y_kien: y || '' });
+      if (kq.loi) await baoTin(kq.loi, 'Kết quả duyệt hàng tặng');
+      else if (kq.thong_bao) await baoTin(kq.thong_bao, 'Đã ghi sổ, chờ phát hành');
+      else toast(kq.xuat_hddt ? 'Đã duyệt, ghi sổ và gửi phát hành HĐĐT.' : 'Đã duyệt.');
     } catch (e) { return baoTin(errMsg(e), 'Không duyệt được'); }
     delete dtgChiTiet[ma];
     return go(scrDuyetTang, true);

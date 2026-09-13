@@ -127,7 +127,7 @@ def _():
 	dss = _doc("doi_soat_sepay.py")
 	# Bill quay: phai giu lai ma dong sao ke va hoi truoc khi ghi so.
 	dung("bill quầy có cửa chiếm dụng", "def _chiem_gd_bill(" in bh)
-	khuc = bh.split("def pos_ghi_so(")[1].split("\n@frappe.whitelist()")[0]
+	khuc = bh.split("def _chuan_bi_ghi_so(")[1].split("\n@frappe.whitelist()")[0]
 	dung("ghi sổ có gọi cửa đó", "_chiem_gd_bill(si, g.get(\"gd\") or [])" in khuc)
 	dung("bill quầy có ô ghi dòng sao kê", '"fieldname": "vgb_gd_sepay"' in bh)
 	# Cong no: phai co truong ma_gd va cua chiem dung.
@@ -456,8 +456,8 @@ def _chon_duong_rong():
 def _man_quay_hoi_du_ba_duong():
 	ma = io.open(os.path.join(GOI, "ban_hang.py"), encoding="utf-8").read()
 	# Buoc ghi so.
-	i = ma.find("def pos_ghi_so")
-	dung("tìm thấy pos_ghi_so", i > 0)
+	i = ma.find("def _chuan_bi_ghi_so")
+	dung("tìm thấy cửa chung chuẩn bị ghi sổ", i > 0)
 	than = ma[i:i + 3000]
 	dung("ghi sổ hỏi qua đường gộp", "_sepay_cho_bill(si)" in than)
 	dung("không còn hỏi mỗi mã bill", "_sepay_bill(ma)" not in than)

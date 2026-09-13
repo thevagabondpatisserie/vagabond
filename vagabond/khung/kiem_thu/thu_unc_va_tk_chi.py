@@ -278,10 +278,10 @@ def _thu_nghiem():
 	than = _than_ham(s, "def gui_email_ncc(")
 	khuc = than[: than.find("def _tep_dinh_thu")]
 	dung("co duong gui thu", "thu_nghiem" in khuc)
-	dung("gui thu thi khong cc ai", "cc=[] if thu else [EMAIL_KE_TOAN]" in khuc)
-	i_thu = khuc.find("if thu:")
+	dung("gui thu thi khong cc ai", "cc=[] if thu else ds[1:]" in khuc)
+	i_thu = khuc.find("if not thu:")
 	i_dau = khuc.find('doc.db_set("email_da_gui"')
-	dung("thoat truoc khi danh dau da gui", 0 < i_thu < i_dau)
+	dung("chi danh dau trong nhanh gui that", 0 < i_thu < i_dau)
 	dung("tieu de mang chu gui thu", '"[GỬI THỬ] " if thu else ""' in khuc)
 
 
@@ -328,7 +328,7 @@ def _dinh_thu():
 	khuc = than[: than.find("def _thu_html")]
 	dung("doc noi dung tep", "get_content()" in khuc)
 	dung("khong gui duong dan", "file_url" not in khuc)
-	dung("hong mot tep khong lam hong ca thu", "log_error" in khuc)
+	dung("UNC hong phai bao de dinh lai", "Không đọc được tệp UNC" in khuc)
 
 
 @ca("thu bao: co khoi de nghi doi chieu cong no, co moc thoi gian")
@@ -360,7 +360,7 @@ def _tu_gui():
 	than = _than_ham(s, "def _tu_gui_thu_bao(")
 	khuc = than[: than.find("def _tao_but_toan(")]
 	dung("ho so hoan ung thi khong gui", "LOAI_HU" in khuc)
-	dung("thieu email thi noi ro", "chưa có email" in khuc)
+	dung("loi gui duoc tra ve man hinh", "Gửi thư báo chưa được" in khuc)
 	dung("nuot loi", "except Exception" in khuc)
 	dung("ghi nhat ky khi hong", "log_error" in khuc)
 

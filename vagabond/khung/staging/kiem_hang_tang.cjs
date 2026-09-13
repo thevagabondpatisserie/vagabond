@@ -1,4 +1,4 @@
-// Duyệt và ghi sổ từ app. CLI kế tiếp đối chiếu SLE/GL; chưa kiểm hủy/HĐĐT.
+// #296: một cú duyệt tự ghi sổ; CLI kế tiếp đối chiếu SLE/GL, không gửi HĐĐT thật.
 const fs = require('fs');
 const path = require('path');
 const {chromium} = require('playwright');
@@ -25,7 +25,11 @@ const {chromium} = require('playwright');
     await p.locator('#hqIn').fill('Duyet ca thu staging257');
     const duyet = p.waitForResponse(r => r.url().includes('/api/method/vagabond.hang_tang.duyet'));
     await p.locator('[data-hqok]').click();
-    if (!(await duyet).ok()) throw new Error('Duyệt hàng tặng thất bại');
+    const rDuyet = await duyet, kDuyet = await rDuyet.json();
+    ket.duyet = kDuyet;
+    if (!rDuyet.ok() || kDuyet.message?.ghi_so !== 1 || kDuyet.message?.loi)
+      throw new Error('Duyệt chưa tự ghi sổ: ' + JSON.stringify(kDuyet));
+    if (kDuyet.message?.xuat_hddt) throw new Error('Ca chỉ ghi sổ không được nhận đã xuất HĐĐT');
     await p.goto(goc + '/hoa-don-ban');
     const sepay = p.waitForResponse(r => r.url().includes('/api/method/vgb_gd_sepay'))
       .then(r => ({r}), e => ({e}));
@@ -40,13 +44,6 @@ const {chromium} = require('playwright');
         !Array.isArray(duLieu.message?.giao_dich) || duLieu.message.giao_dich.length)
       throw new Error('API SePay không trả đúng đơn thử chưa chuyển khoản');
     await p.locator('#dsvSepay').getByText('Chưa nhận được chuyển khoản nào mang mã đơn này.', {exact: true}).waitFor();
-    await p.locator('#dsvChot').click();
-    const ghi = p.waitForResponse(r => r.url().includes('/api/method/vagabond.ban_hang.chot_mot_don'), {timeout: 60000});
-    await p.locator('[data-hkok]').click();
-    const r = await ghi;
-    const kq = await r.json();
-    if (!r.ok() || !kq.message?.ok || kq.message.name !== f.hoa_don) throw new Error('Ghi sổ hàng tặng thất bại');
-    if (kq.message.da_xuat_hddt) throw new Error('Ca chỉ ghi sổ không được nhận đã xuất HĐĐT');
     // Trang mới đọc lại chứng từ, không dùng thẻ trước POST làm bằng chứng.
     await p.goto(goc + '/hoa-don-ban');
     await p.locator('[data-hdb="' + f.hoa_don + '"]').click();

@@ -58,7 +58,8 @@ def _dung(dieu, ten):
 def _duyet(hd):
     from vagabond import hang_tang
     hd.save(ignore_permissions=True)
-    hang_tang.duyet(hd.name, 'Kiểm bench giao dịch thật #243, không giao bánh')
+    # Fixture cần nháp đã duyệt để hai tiến trình cùng tranh kho lúc submit.
+    hang_tang._ghi_duyet(hd, 'Kiểm bench giao dịch thật #243, không giao bánh')
     hd.reload()
     hd.flags.ignore_permissions = True
 

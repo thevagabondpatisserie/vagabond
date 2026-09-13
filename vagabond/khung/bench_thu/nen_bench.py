@@ -155,6 +155,10 @@ def dung():
 		{"fieldname": "vgb_ma_tham_chieu", "fieldtype": "Data", "label": "Mã tham chiếu đối soát", "insert_after": "customer"},
 		{"fieldname": "vgb_quay", "fieldtype": "Data", "label": "Quay", "insert_after": "customer"},
 		{"fieldname": "vgb_huy", "fieldtype": "Check", "label": "Đã huỷ", "read_only": 1, "insert_after": "customer"},
+		# Cấu trúc lịch sử trong staging/cau_truc_cu.json: API hủy ghi đủ dấu vết.
+		{'fieldname': 'vgb_huy_ly_do', 'fieldtype': 'Small Text', 'label': 'Lý do huỷ', 'read_only': 1, 'insert_after': 'vgb_huy'},
+		{'fieldname': 'vgb_huy_luc', 'fieldtype': 'Datetime', 'label': 'Huỷ lúc', 'read_only': 1, 'insert_after': 'vgb_huy'},
+		{'fieldname': 'vgb_huy_boi', 'fieldtype': 'Data', 'label': 'Người huỷ', 'read_only': 1, 'insert_after': 'vgb_huy'},
 		{"fieldname": "vgb_tam_tinh", "fieldtype": "Check", "label": "Tam tinh", "insert_after": "customer"},
 		{"fieldname": "vgb_xhd_ten", "fieldtype": "Data", "label": "XHD ten", "insert_after": "customer"},
 		{"fieldname": "vgb_xhd_mst", "fieldtype": "Data", "label": "XHD mst", "insert_after": "customer"},
@@ -169,7 +173,7 @@ def dung():
 		{"fieldname": "custom_minvoice_ngay_day", "fieldtype": "Data", "label": "MInvoice ngay day", "insert_after": "customer"},
 	])
 	_truong("Customer", [{"fieldname": "vgb_hang", "fieldtype": "Data", "label": "Hang", "insert_after": "customer_name"}])
-	_truong("Supplier", [{"fieldname": "custom_ma_ncc", "fieldtype": "Data", "label": "Mã NCC", "insert_after": "supplier_name"}])
+	_truong("Supplier", [{"fieldname": "custom_ma_ncc", "fieldtype": "Data", "label": "Mã NCC", "insert_after": "supplier_name"}, {"fieldname": "email_cc", "fieldtype": "Small Text", "label": "Email phụ cần CC", "insert_after": "email_id"}])
 	_truong("Purchase Invoice", [
 		{"fieldname": "custom_minvoice_id", "fieldtype": "Data", "label": "MInvoice id", "insert_after": "supplier"},
 	])

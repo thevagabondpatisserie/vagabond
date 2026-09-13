@@ -893,7 +893,7 @@ async function scrPosBill(name) {
       (nhap
         ? (tamTinh
           ? '<button class="btn" id="pbChot" style="flex:1;margin:0">✅ Chốt hoá đơn - khách đã trả</button>'
-          : '<button class="btn" id="pbGhiSo" style="flex:1;margin:0">📒 Ghi sổ tại quầy</button>')
+          : '<button class="btn" id="pbLuuDon" style="flex:1;margin:0">Lưu đơn</button>')
         : '<div style="flex:1;display:flex;align-items:center;justify-content:center;color:#15803d;font-weight:700">✅ Đã ghi sổ</div>') +
       '</div>' +
       /* Tem hien khi bill co bat ky mon nao; phieu lam mon chi hien khi co
@@ -1125,10 +1125,9 @@ async function scrPosBill(name) {
     if (!PB_PT) return toast('Chọn phương thức thanh toán trước.');
     busy(true);
     try {
-      await api('vagabond.ban_hang.pos_chot', { name: d.name, pt: PB_PT, ma_tham_chieu: docO('pbMtc'), ghi_chu: docO('pbGhiChu') });
-      if (chot) await api('vagabond.ban_hang.pos_ghi_so', { name: d.name });
+      await api(chot ? 'vagabond.ban_hang.pos_luu_don' : 'vagabond.ban_hang.pos_chot', { name: d.name, pt: PB_PT, ma_tham_chieu: docO('pbMtc'), ghi_chu: docO('pbGhiChu') });
       busy(false);
-      toast(chot ? 'Đã ghi sổ ' + d.name : 'Đã chốt hoá đơn ' + d.name);
+      toast(chot ? 'Đã lưu đơn nháp ' + d.name : 'Đã chốt hoá đơn ' + d.name);
       posHomNayTxt = null;
       go(scrPosDs, true);
     } catch (e) { busy(false); toast((e && e.message) || 'Lỗi, thử lại.', 4500); }
@@ -1156,10 +1155,10 @@ async function scrPosBill(name) {
       go(function () { scrPosBill(name); }, true);
     } catch (e) { busy(false); toast((e && e.message) || 'Lỗi, thử lại.', 5000); }
   };
-  var ng = document.getElementById('pbGhiSo');
+  var ng = document.getElementById('pbLuuDon');
   if (ng) ng.onclick = async function () {
-    var ok = await confirmSheet('Ghi sổ hoá đơn ' + money(d.grand_total) + ' đ',
-      'Ghi sổ là chốt doanh thu chính thức tại quầy ' + (posQuay ? posQuay.ma : '') + '. Chuyển khoản thì máy tự kiểm SePay đủ tiền mới cho ghi.', 'Ghi sổ');
+    var ok = await confirmSheet('Lưu đơn ' + money(d.grand_total) + ' đ',
+      'Máy kiểm thông tin thanh toán rồi lưu nháp để xử lý theo lịch. Hàng tặng cần gửi Giám đốc duyệt trước.', 'Lưu đơn');
     if (ok) luuVe(true);
   };
 

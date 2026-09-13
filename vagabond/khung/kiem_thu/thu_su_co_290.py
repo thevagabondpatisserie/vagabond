@@ -29,7 +29,7 @@ def quay_cu():
     def doc(dt,**kw):
         loc.append(kw['filters']); return []
     f=NS(db=NS(get_all=doc,commit=lambda:None))
-    g=dict(frappe=f,_kiem_quyen=lambda:None,getdate=lambda x:x,nowdate=lambda:'2026-09-12',cfg=lambda:D(pancake_shop_id='SHOP',tu_ghi_so_quay='TCV'),_sepay_theo_don=lambda *a:{})
+    g=dict(frappe=f,_kiem_quyen_ghi_so=lambda:None,_kiem_quyen=lambda:None,getdate=lambda x:x,nowdate=lambda:'2026-09-12',cfg=lambda:D(pancake_shop_id='SHOP',tu_ghi_so_quay='TCV'),_sepay_theo_don=lambda *a:{})
     nap('ban_hang.py','chot_doanh_so',g)('2026-09-11')
     la('giữ ngày chọn',loc[0]['posting_date'],'2026-09-11')
     la('Sales có nguồn Pancake',loc[0]['custom_pancake_id'],['!=',''])
@@ -123,7 +123,7 @@ def bo_qua_qua():
         ds[trang]=d
     def doc(dt,**kw): return list(ds) if kw['pluck']=='name' else []
     f=NS(db=NS(get_all=doc,commit=lambda:None),get_doc=lambda dt,n:ds[n])
-    g=dict(frappe=f,_kiem_quyen=lambda:None,getdate=lambda x:x,nowdate=lambda:'2026-09-12',cfg=lambda:D(pancake_shop_id='SHOP',tu_ghi_so_quay=''),_sepay_theo_don=lambda *a:{},ghi_so_dieu_kien=ghi_so_dieu_kien,_chuan_bi_ghi_so=lambda *a:None,_tu_xuat_hddt=lambda *a:(False,''))
+    g=dict(frappe=f,_kiem_quyen_ghi_so=lambda:None,_kiem_quyen=lambda:None,getdate=lambda x:x,nowdate=lambda:'2026-09-12',cfg=lambda:D(pancake_shop_id='SHOP',tu_ghi_so_quay=''),_sepay_theo_don=lambda *a:{},ghi_so_dieu_kien=ghi_so_dieu_kien,_chuan_bi_ghi_so=lambda *a:None,_tu_xuat_hddt=lambda *a:(False,''))
     r=nap('ban_hang.py','chot_doanh_so',g)('2026-09-11')
     la('chỉ tờ duyệt',da_ghi,['Đã duyệt']);la('không báo lỗi giả',r['loi'],[])
 
@@ -136,7 +136,7 @@ def luu_qua_co_tien_tay():
     d.save=lambda **kw: (ttn.dat_pt_chinh(d),ghi.append('save'))
     d.set=lambda k,v:d.__setitem__(k,v)
     f=NS(db=NS(get_value=lambda *a,**k:d,set_value=lambda *a,**k:ghi.append('set'),commit=lambda:ghi.append('commit')),get_doc=lambda *a:d,throw=lambda s:(_ for _ in ()).throw(RuntimeError(s)))
-    g=dict(frappe=f,_kiem_quyen=lambda:None,_kiem_pt=lambda p,n:p,luat_thanh_toan=NS(ma_can_ghi=lambda *a:''),_chuan_ma_tham_chieu=lambda *a,**k:'')
+    g=dict(frappe=f,_kiem_quyen_ghi_so=lambda:None,_kiem_quyen_doc_luu_don=lambda:None,_kiem_quyen=lambda:None,_kiem_pt=lambda p,n:p,luat_thanh_toan=NS(ma_can_ghi=lambda *a:''),_chuan_ma_tham_chieu=lambda *a,**k:'')
     try: nap('ban_hang.py','luu_thanh_toan',g)('SI',pt='Hàng tặng')
     except Exception as e: dung('câu hướng dẫn dòng tay','dòng thanh toán' in str(e))
     else: dung('không cho ghi trạng thái kẹt',False)

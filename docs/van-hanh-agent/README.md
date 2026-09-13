@@ -10,10 +10,12 @@ phải worker hay bằng chứng automation đã bật. Codex làm chính, Claud
 2. Đọc issue/PR và comment mới trực tiếp trên GitHub, xác minh branch/SHA,
    owner/phạm vi đang claim. Issue là nguồn trạng thái hiện hành; ghi chú
    trong git có thể cũ. Không sửa chồng người đang làm cùng phạm vi.
-3. Tìm `cong-viec/issue-N.md`, rồi dùng rg tìm từ khóa trong docs và
-   docs/bai-hoc-su-co.md. Chỉ mở nguồn liên quan, không nạp mọi nhật ký.
-4. Fetch main và đúng nhánh PR. Thiếu remote/quyền/mạng phải ghi blocked;
-   không nhận commit chỉ có ở runner là đã đẩy lên PR.
+3. Fetch main và đúng nhánh PR, chuyển sang checkout của PR trước khi đọc
+   bàn giao. Thiếu remote/quyền/mạng phải ghi blocked; không nhận commit
+   chỉ có ở runner là đã đẩy lên PR.
+4. Tìm `cong-viec/issue-N.md` trên checkout vừa đồng bộ, rồi dùng rg tìm từ
+   khóa trong docs và docs/bai-hoc-su-co.md. Chỉ mở nguồn liên quan, không
+   nạp mọi nhật ký. Nếu đã đọc trước fetch, đọc lại sau khi chuyển nhánh.
 
 ## Ghi trước khi kết thúc lượt có thay đổi thực chất
 
@@ -38,6 +40,7 @@ phải worker hay bằng chứng automation đã bật. Codex làm chính, Claud
 ## Mục lục
 
 - [Issue 294: cloud và lưu bàn giao](cong-viec/issue-294.md)
+- [Issue 296: lưu đơn và thư NCC](cong-viec/issue-296.md)
 - [Mẫu bàn giao](mau-ban-giao.md)
 - [Luồng cloud cần nghiệm thu](luong-cloud.md)
 

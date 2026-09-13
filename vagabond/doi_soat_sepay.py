@@ -277,7 +277,10 @@ def chu_cua_giao_dich(ds_gd, bo_qua_loai=None, bo_qua_phieu=None, bo_qua_hoa_don
 		if bo_qua_hoa_don:
 			loc_hd.append(["name", "!=", bo_qua_hoa_don])
 		for r in frappe.get_all(HD_BAN["doctype"], filters=loc_hd,
-				fields=["name", HD_BAN["truong"]], limit_page_length=0):
+				fields=["name", "docstatus", "vgb_huy", HD_BAN["truong"]], limit_page_length=0):
+			# Nháp đã huỷ mềm không giữ tiền; tờ đã ghi sổ vẫn phải đối soát.
+			if cint(r.get("docstatus")) == 0 and cint(r.get("vgb_huy")):
+				continue
 			for ma in chiem_sao_ke.tach_gd(r.get(HD_BAN["truong"])):
 				if ma in muon and ma not in ra:
 					ra[ma] = "%s %s" % (HD_BAN["ten_man"], r["name"])

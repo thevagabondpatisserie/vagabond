@@ -301,7 +301,7 @@
   },
   {
    "fieldname": "email_gui_toi",
-   "fieldtype": "Data",
+   "fieldtype": "Small Text",
    "label": "Gui toi",
    "read_only": 1
   },

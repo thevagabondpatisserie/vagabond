@@ -271,11 +271,14 @@ async function dtgBam(ev) {
   if (t) {
     var ma = t.getAttribute('data-dtgok');
     var y = await hoiChu('Duyệt đơn hàng tặng',
-      'Duyệt xong đơn này mới ghi sổ được. Ghi thêm ý kiến nếu cần, để trống cũng được.',
+      'Duyệt sẽ đổi đơn nháp sang hôm nay, ghi sổ và gửi phát hành theo cấu hình. Nếu kẹt, máy giữ quyết định duyệt và báo rõ lý do. Ghi thêm ý kiến nếu cần.',
       '', { nhieu_dong: 1, goi_y: 'Ví dụ: đồng ý tặng, trừ vào ngân sách marketing tháng 8' });
     if (y === null) return;
     try {
-      await api('vagabond.hang_tang.duyet', { name: ma, y_kien: y || '' });
+      var kq = await api('vagabond.hang_tang.duyet', { name: ma, y_kien: y || '' });
+      if (kq.loi) await baoTin(kq.loi, 'Kết quả duyệt hàng tặng');
+      else if (kq.thong_bao) await baoTin(kq.thong_bao, 'Đã ghi sổ, chờ phát hành');
+      else toast(kq.xuat_hddt ? 'Đã duyệt, ghi sổ và gửi phát hành HĐĐT.' : 'Đã duyệt.');
     } catch (e) { return baoTin(errMsg(e), 'Không duyệt được'); }
     delete dtgChiTiet[ma];
     return go(scrDuyetTang, true);
