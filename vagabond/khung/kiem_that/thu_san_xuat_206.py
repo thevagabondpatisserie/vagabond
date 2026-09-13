@@ -249,3 +249,105 @@ def _gio_hoan_tat_app():
 	la('GL cân', sum(float(d.debit) for d in gl), sum(float(d.credit) for d in gl))
 	la('giá trị kho ròng không đổi', round(sum(float(d.stock_value_difference) for d in sle),2), 0)
 	lenh.reload(); la('lệnh sản xuất đủ', float(lenh.produced_qty), 2)
+
+
+# Khải #206: ảnh lô âm không chứng minh giá vốn sai. Hai phép kiểm dưới đây
+# tách số lượng từng lô khỏi giá bình quân. Chỉ có dữ liệu thử trong savepoint.
+def _hai_lo_khai(so_cu, so_moi, gia_cu, gia_moi, can):
+	from frappe.utils import add_days, nowdate
+	from vagabond.khung.kiem_that.thu_nhan_nvl import _lo, _bat_serial_batch_neu_chua
+	_bat_serial_batch_neu_chua()
+	cty, kho, nvl, tp, _ = _nen(theo_lo=1)
+	# Nos thường bắt số nguyên. Tạo đơn vị lẻ riêng cho ca, không sửa UOM thật.
+	dvt = 'KT206-gram-' + uuid.uuid4().hex[:8]
+	frappe.get_doc({'doctype': 'UOM', 'uom_name': dvt, 'must_be_whole_number': 0}).insert()
+	nen._DA_TAO.append(('UOM', dvt))
+	it = frappe.get_doc('Item', nvl)
+	it.stock_uom = dvt
+	it.valuation_method = 'Moving Average'
+	it.set('uoms', [{'uom': dvt, 'conversion_factor': 1}])
+	it.save()
+	frappe.clear_document_cache('Item', nvl)
+	bom = frappe.get_doc({'doctype': 'BOM', 'item': tp, 'company': cty,
+		'quantity': 1, 'is_active': 1, 'is_default': 1,
+		'items': [{'item_code': nvl, 'qty': can, 'uom': dvt, 'rate': gia_cu}]})
+	bom.insert(); nen._DA_TAO.append(('BOM', bom.name)); bom.submit()
+	lo = []
+	for i, (so, gia) in enumerate([(so_cu, gia_cu), (so_moi, gia_moi)]):
+		b = _lo(nvl, 'KT206-KHAI-' + uuid.uuid4().hex[:10], add_days(nowdate(), 10 + 20*i))
+		lo.append(b)
+		nhap = nhap_kho(item_code=nvl, qty=so, company=cty, to_warehouse=kho[0], rate=gia, do_not_save=True)
+		nhap.items[0].batch_no = b
+		nhap.items[0].use_serial_batch_fields = 1
+		nhap.items[0].allow_zero_valuation_rate = 0
+		nhap.insert(); nen._DA_TAO.append(('Stock Entry', nhap.name)); nhap.submit()
+	wo = _lenh(cty, kho, tp, bom, kho[0]); wo.submit()
+	return kho, nvl, tp, lo, wo
+
+
+def _xuat_khai(wo, nvl, kho):
+	phieu = frappe.get_doc(make_stock_entry(wo.name, 'Manufacture', qty=1))
+	phieu.insert(); nen._DA_TAO.append(('Stock Entry', phieu.name))
+	phieu.save(); phieu.submit(); phieu.reload()
+	sle = frappe.get_all('Stock Ledger Entry', filters={
+		'voucher_type': 'Stock Entry', 'voucher_no': phieu.name, 'is_cancelled': 0},
+		fields=['item_code', 'warehouse', 'actual_qty', 'stock_value_difference'])
+	nl = [d for d in sle if d.item_code == nvl]
+	dung('sổ nguyên liệu phải có thật', bool(nl))
+	la('đúng kho nguyên liệu', {d.warehouse for d in nl}, {kho})
+	la('giá trị kho ròng cân', round(sum(float(d.stock_value_difference) for d in sle), 2), 0)
+	gl = so_cai_cua(phieu)
+	la('GL cân', round(sum(float(d.debit)-float(d.credit) for d in gl), 2), 0)
+	return phieu, nl
+
+
+@ca('206 Khải: 704+2000 gram, hai lần 403.431, chia lô thật và huỷ phục hồi')
+def _khai_chia_lo():
+	from vagabond.khung.kiem_that.thu_nhan_nvl import _ton_lo
+	kho, nvl, tp, lo, wo = _hai_lo_khai(704, 2000, 340, 340, 403.431)
+	mot, _ = _xuat_khai(wo, nvl, kho[0])
+	la('lô cũ sau lượt đầu', round(_ton_lo(lo[0], kho[0]), 3), 300.569)
+	la('chưa đụng lô mới', _ton_lo(lo[1], kho[0]), 2000)
+	hai, nl = _xuat_khai(wo, nvl, kho[0])
+	la('tổng xuất lượt hai', round(sum(float(d.actual_qty) for d in nl), 3), -403.431)
+	la('lô cũ dùng hết', round(_ton_lo(lo[0], kho[0]), 3), 0)
+	la('lô mới góp 102.862', round(_ton_lo(lo[1], kho[0]), 3), 1897.138)
+	la('WO cộng đúng tiêu hao', round(get_consumed_qty(wo.name, nvl), 3), 806.862)
+	hai.cancel(); hai.reload(); wo.reload()
+	la('huỷ lượt hai về đúng sản lượng', float(wo.produced_qty), 1)
+	la('huỷ trả lô cũ', round(_ton_lo(lo[0], kho[0]), 3), 300.569)
+	la('huỷ trả lô mới', _ton_lo(lo[1], kho[0]), 2000)
+	mot.cancel(); wo.reload()
+	la('huỷ cả hai trả đủ lô cũ', _ton_lo(lo[0], kho[0]), 704)
+	la('huỷ cả hai trả đủ lô mới', _ton_lo(lo[1], kho[0]), 2000)
+	la('WO hết tiêu hao', get_consumed_qty(wo.name, nvl), 0)
+	la('WO hết sản lượng', float(wo.produced_qty), 0)
+
+
+def _khai_gia(binh_quan):
+	# ERPNext de591661, stock/serial_batch_bundle.py:prepare_batches:
+	# Moving Average + do_not_use_batchwise_valuation -> non_batchwise.
+	# Nhập lúc cờ TẮT để cả hai Batch thực sự có use_batchwise_valuation=1.
+	# Bật sau nhập rồi xuất mới chứng minh nhánh xử lý cả lô đang tồn.
+	from vagabond.khung.kiem_that.thu_nhan_nvl import _ton_lo
+	frappe.db.set_single_value('Stock Settings', 'do_not_use_batchwise_valuation', 0)
+	kho, nvl, tp, lo, wo = _hai_lo_khai(10, 10, 1000, 3000, 4)
+	for b in lo:
+		la('nền lô có định giá riêng', frappe.db.get_value('Batch', b, 'use_batchwise_valuation'), 1)
+	frappe.db.set_single_value('Stock Settings', 'do_not_use_batchwise_valuation', binh_quan)
+	phieu, nl = _xuat_khai(wo, nvl, kho[0])
+	la('giữ theo dõi Batch', frappe.db.get_value('Item', nvl, 'has_batch_no'), 1)
+	la('vẫn rút đúng lô cũ', _ton_lo(lo[0], kho[0]), 6)
+	la('không rút lô mới', _ton_lo(lo[1], kho[0]), 10)
+	la('giá vốn thực ghi sổ', round(-sum(float(d.stock_value_difference) for d in nl), 2),
+		8000 if binh_quan else 4000)
+
+
+@ca('206 Khải giá vốn: cờ tắt lấy giá lô 1000, đối chứng có chịu lực')
+def _khai_gia_lo():
+	_khai_gia(0)
+
+
+@ca('206 Khải giá vốn: giữ Batch cũ, bật bình quân, xuất giá 2000 từ SLE thật')
+def _khai_gia_binh_quan():
+	_khai_gia(1)

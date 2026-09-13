@@ -401,3 +401,7 @@ Cửa ghi sổ qua được chưa đủ: nút từng đơn còn gọi luu_xhd tr
 # Quyền kế toán sau ghi sổ
 
 - PR298: kiểm trọn cả bước phát hành lại khi lần tự động chưa gửi được. Cổng lưu và ghi sổ đúng vẫn chưa đủ nếu nút phát hành lại còn dùng tập Sales. Kiểm User Accounts độc lập tới cửa mạng bị chặn trong bench, không gửi hóa đơn thật.
+
+## 13/09/2026 - Lô thiếu số lượng không chứng minh giá vốn sai (#206)
+
+Ảnh cũ PSX-2026-00061 báo thiếu 102.862 g ở một lô; đọc site mới thấy phiếu nháp đã chia đúng hai lô. Phải đọc lại chứng từ trước khi sửa theo ảnh. ERPNext v16.28.0 `serial_batch_bundle.py:prepare_batches` hỗ trợ giữ Batch và dùng Moving Average qua `do_not_use_batchwise_valuation`; không kết luận phải bỏ Batch từ lỗi số lượng. Kiểm riêng SLE theo lô và giá trị xuất với hai giá nhập khác nhau, có đối chứng cờ tắt/bật. Nguồn: Issue206 comment5651811587 và ba ca Khải trong `thu_san_xuat_206.py`. Chưa có quyền đổi cấu hình/danh mục từ lời khuyên của bot.

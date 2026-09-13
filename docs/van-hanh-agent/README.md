@@ -39,6 +39,8 @@ phải worker hay bằng chứng automation đã bật. Codex làm chính, Claud
 
 ## Mục lục
 
+- [Issue 206: lô và giá vốn sản xuất](cong-viec/issue-206.md)
+
 - [Issue 294: cloud và lưu bàn giao](cong-viec/issue-294.md)
 - [Issue 296: lưu đơn và thư NCC](cong-viec/issue-296.md)
 - [Mẫu bàn giao](mau-ban-giao.md)
