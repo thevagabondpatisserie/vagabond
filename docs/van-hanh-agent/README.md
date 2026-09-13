@@ -63,3 +63,5 @@ lớn vào từ đầu. Không tự rewrite lịch sử hoặc xóa bằng chứ
 
 Đọc chọn lọc giảm token; ghi Markdown không tự huấn luyện lại model. Hiệu
 quả phụ thuộc lượt sau thực sự đọc, xác minh và dùng bài học đúng phạm vi.
+
+- [Issue303: Gelatine Mass phantom](cong-viec/issue-303.md)
