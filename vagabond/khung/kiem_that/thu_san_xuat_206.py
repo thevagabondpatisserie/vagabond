@@ -367,6 +367,7 @@ def _nhap_lo_qua_han():
 	doc.insert(); nen._DA_TAO.append(('Stock Entry', doc.name)); doc.submit(); doc.reload()
 	la('nhập đủ vào lô cũ', _ton_lo(lo, kho[0]), 12)
 	dung('cảnh báo trên phiếu đã lưu', lo in (doc.remarks or ''))
+	_kiem_phieu_kho_han(doc, nvl, kho[0], 2, 2000)
 	doc.cancel()
 	la('huỷ trả đúng tồn trước nhận', _ton_lo(lo, kho[0]), 10)
 
@@ -382,3 +383,44 @@ def _khai_fefo():
 	_xuat_khai(wo, nvl, kho[0])
 	la('giữ lô nhập trước nhưng hạn xa', _ton_lo(lo[0], kho[0]), 10)
 	la('lấy lô nhập sau nhưng hạn gần', _ton_lo(lo[1], kho[0]), 6)
+
+
+
+def _kiem_phieu_kho_han(doc, ma, kho, so, gia):
+	from vagabond.lo_het_han import DAU_CAU
+	la('cảnh báo đúng một lần', (doc.remarks or '').count(DAU_CAU), 1)
+	sle = frappe.get_all('Stock Ledger Entry', filters={'voucher_type': 'Stock Entry',
+		'voucher_no': doc.name, 'is_cancelled': 0, 'item_code': ma, 'warehouse': kho},
+		fields=['actual_qty', 'stock_value_difference', 'serial_and_batch_bundle'])
+	dung('SLE không rỗng và giữ gói lô', bool(sle) and all(d.serial_and_batch_bundle for d in sle))
+	la('số lượng SLE', sum(float(d.actual_qty) for d in sle), so)
+	la('giá trị SLE', sum(float(d.stock_value_difference) for d in sle), gia)
+
+
+def _xuat_chuyen_han(chuyen):
+	from vagabond.khung.kiem_that.thu_nhan_nvl import _ton_lo
+	cty, kho, ma, lo, wo = _nen_qua_han()
+	# Công tắc BẬT mới chạm hồi quy F4, core vẫn cho xuất/chuyển lô quá hạn.
+	frappe.db.set_single_value('Vagabond Settings', 'chan_lo_het_han', 1)
+	doc = nhap_kho(item_code=ma, qty=2, company=cty, from_warehouse=kho[0],
+		to_warehouse=kho[1] if chuyen else None, rate=1000, do_not_save=True)
+	doc.items[0].batch_no = lo; doc.items[0].use_serial_batch_fields = 1
+	doc.insert(); nen._DA_TAO.append(('Stock Entry', doc.name)); doc.submit(); doc.reload()
+	_kiem_phieu_kho_han(doc, ma, kho[0], -2, -2000)
+	la('trừ lô nguồn', _ton_lo(lo, kho[0]), 8)
+	if chuyen:
+		_kiem_phieu_kho_han(doc, ma, kho[1], 2, 2000)
+		la('giữ lô đến', _ton_lo(lo, kho[1]), 2)
+	doc.cancel()
+	la('huỷ trả lô nguồn', _ton_lo(lo, kho[0]), 10)
+	if chuyen: la('huỷ nhả lô đến', _ton_lo(lo, kho[1]), 0)
+
+
+@ca('206 F4 thật: xuất lô quá hạn khi công tắc bật, SLE/huỷ đúng')
+def _xuat_han_bat():
+	_xuat_chuyen_han(False)
+
+
+@ca('206 F4 thật: chuyển lô quá hạn khi công tắc bật, hai kho/huỷ đúng')
+def _chuyen_han_bat():
+	_xuat_chuyen_han(True)

@@ -143,7 +143,7 @@ def cau_ghi_chu(cac_lo):
 		("Dòng %s: " % x[3] if len(x) > 3 and x[3] else "")
 		+ "%s lô %s hạn %s" % (x[0], x[1], ngay_goc(x[2])) for x in cac_lo
 	)
-	return "%s %s. Ô chặn hạn dùng trong Vagabond Settings đang tắt." % (DAU_CAU, phan)
+	return "%s %s. Kiểm tra chất lượng thực tế trước khi sử dụng." % (DAU_CAU, phan)
 
 
 def them_ghi_chu(cu, moi):
@@ -182,6 +182,15 @@ def dang_chan():
 		return 0
 
 
+def _chan_han_phieu(doc):
+	"""Core de591661 StockController.validate_serialized_batch miễn hạn cho
+	Material Issue/Transfer. Công tắc không được dựng thêm chặn hai luồng này.
+	Kiểm lô vô hiệu hoá vẫn áp riêng, không phụ thuộc công tắc HSD.
+	"""
+	return bool(dang_chan()) and getattr(doc, "purpose", None) not in (
+		"Material Issue", "Material Transfer")
+
+
 def _ho_so_lo(ten):
 	ho = frappe.db.get_value("Batch", ten, ["disabled", "expiry_date"], as_dict=True)
 	if not ho:
@@ -211,7 +220,7 @@ def _kiem_lo_va_ghi_vet(doc, chan=False):
 		for ten in sorted(x for x in lo if x):
 			ho = _ho_so_lo(ten)
 			if cint(ho.get("disabled")):
-				frappe.throw("Lô %s của mã %s đang bị TẮT nên không xuất được. "
+				frappe.throw("Lô %s của mã %s đang bị TẮT nên không dùng được. "
 					"Kiểm tra lại lô đã chọn." % (ten, dong.item_code))
 			han = ho.get("expiry_date")
 			if han and doc.posting_date and getdate(doc.posting_date) > getdate(han):
@@ -235,7 +244,7 @@ def _thay_kiem_serial(goc):
 		if (getattr(self, "purpose", None) not in PHIEU_BI_CHAN
 				or cint(getattr(self, "docstatus", 0)) == 2):
 			return goc(self)
-		if dang_chan():
+		if _chan_han_phieu(self):
 			_kiem_lo_va_ghi_vet(self, chan=True)
 			return goc(self)
 		from erpnext.stock.doctype.serial_no.serial_no import get_serial_nos
@@ -257,7 +266,7 @@ def _thay_the(goc):
 	def validate_batch(self):
 		if getattr(self, "purpose", None) not in PHIEU_BI_CHAN:
 			return goc(self)
-		chan = dang_chan()
+		chan = _chan_han_phieu(self)
 		_kiem_lo_va_ghi_vet(self, chan=chan)
 		if chan:
 			return goc(self)

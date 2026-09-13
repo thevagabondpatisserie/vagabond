@@ -324,3 +324,27 @@ def _doi_cau_canh_bao():
 	dung('không ghi nhầm đã xuất khi nhận hàng', 'Đã xuất' not in ra)
 	dung('giữ ghi tay', ra.startswith('Bếp ghi tay\n'))
 	la('lưu lại không lặp', lhh.them_ghi_chu(ra, moi), ra)
+
+
+@ca('206 F4: bật chốt giữ miễn hạn xuất/chuyển; lô tắt luôn chặn')
+def _ma_tran_chot_kho():
+	from unittest.mock import patch, Mock
+	from types import SimpleNamespace
+	import sys
+	for loai in ['Material Receipt', 'Material Issue', 'Material Transfer']:
+		for chan in [0, 1]:
+			for tat in [0, 1]:
+				for boc in [lhh._thay_the, lhh._thay_kiem_serial]:
+					p = _Phieu(loai, '2026-09-13', [_Dong('BOT', 'LO-CU')])
+					loi = None
+					with patch.object(lhh, 'dang_chan', return_value=chan), \
+						patch.object(lhh, '_ho_so_lo', return_value={'disabled': tat, 'expiry_date': '2026-09-01'}), \
+						patch.dict(sys.modules, {'erpnext.stock.doctype.serial_no.serial_no': SimpleNamespace(get_serial_nos=lambda x: x.splitlines())}):
+						try: boc(Mock())(p)
+						except Exception as e: loi = str(e)
+					la('%s chốt%s tắt%s có chặn' % (loai, chan, tat), bool(loi), bool(tat or (chan and loai == 'Material Receipt')))
+					if tat:
+						dung('câu trung tính đúng lô', loi and 'không dùng được' in loi and 'LO-CU' in loi)
+					elif not loi:
+						dung('có cảnh báo', lhh.DAU_CAU in p.remarks)
+						dung('không báo sai công tắc đang tắt', 'đang tắt' not in p.remarks)

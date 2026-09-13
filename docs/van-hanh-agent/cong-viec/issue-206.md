@@ -35,3 +35,11 @@ Còn chờ anh Việt chốt phạm vi bỏ Batch (NVLT trước hay toàn bộ)
 Claude review ba ca mới và cách diễn giải bằng chứng, Codex sửa finding rồi đọc bench hai lượt. Ca bench không thay UAT sản xuất bằng tài khoản Khải, không xác nhận mọi phần tồn đọng #206 đã xong.
 
 Bench34744299841 trên15706c56 đã SUCCESS, ba ca Khải đạt cả hai lượt. F1 Claude dựa trí nhớ được đối chứng bằng source de591661 và bench. F2 thêm cờ từng Batch sau xuất, qty=-4 và SLE giữ bundle; F3 bỏ save/reload thừa. SHA mới cần bench lại.
+
+## Sửa review F4-F7 ngày 13/09
+
+Giữ ngoại lệ core cho Material Issue/Transfer khi bật chặn HSD; Material Receipt vẫn chặn khi bật. Lô disabled luôn bị chặn, câu lỗi trung tính. Ma trận 24 tổ hợp qua cả hai wrapper; thêm ca bench xuất/chuyển khi công tắc bật, kiểm SLE số lượng/giá trị/gói lô và huỷ trả tồn. Ca nhận bổ sung cảnh báo đúng một lần và SLE 2/2000. FEFO chỉ được khẳng định cho dòng chưa gán lô qua lo_hang.gan_lo, không cho mọi bundle Desk.
+
+Local 2950/2950, kiem_truoc_deploy.sh rc0. Bench 34748648065 trên8827 startup_failure trước tạo job; chưa xác định nguyên nhân, chưa có bằng chứng tích hợp bản này. Giữ Draft, chưa merge/deploy.
+
+Theo chỉ dẫn mới anh Việt, AGENTS.md và CLAUDE.md yêu cầu mọi comment làm việc tag @claude và nhắc tag @codex khi trả lời. Tag không thay biên nhận worker và không cấp phép code trùng với Codex local. Phạm vi nhận mua/Purchase Receipt vẫn chưa được thay đổi trong PR này.
