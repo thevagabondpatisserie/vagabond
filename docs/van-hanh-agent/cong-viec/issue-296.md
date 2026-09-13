@@ -12,7 +12,7 @@ Thư NCC trước đây chỉ lấy địa chỉ đầu; nay gom Supplier.email_
 
 - SHA 8b57f49 tích hợp nghiệp vụ: local 2944/0, CI/bench xanh, Claude chốt comment5650286616.
 - SHA 99434a87 thêm thư: bench34736267340 đỏ vì mock outgoing None thiếu always_bcc, không phải bằng chứng queue đạt.
-- SHA 0d970c6: sửa F1-F5 review5650925436; local2946/0/gate rc0, Claude chốt5651020223; bench34736765830 cần đọc kết quả cuối.
+- SHA 0d970c6: sửa F1-F5 review5650925436; local2946/0/gate rc0, Claude chốt5651020223; bench34736765830 đạt 187/188 hai lượt, sạch. Ca rollback và email sai đạt; ca gửi đủ đã qua số queue/4 địa chỉ/143 ký tự/retry, còn lệch kỳ vọng header bản sao (placeholder lõi) và dấu chấm mã APP đã đổi thành gạch trong tên tệp. Bản sau cho header To bản sao rõ và sửa kỳ vọng tên tệp đúng quy tắc.
 - Code c5e09d422cff9ca72761583f8877d83cf14ffc8f thêm kiểm quyền đọc Email Queue cho link xử lý lỗi, tích hợp main cuối. Cổng trước delta tài liệu rc0. Commit bàn giao này chỉ thêm tài liệu, CI cuối đọc trực tiếp trên PR.
 
 ## Còn lại và bàn giao

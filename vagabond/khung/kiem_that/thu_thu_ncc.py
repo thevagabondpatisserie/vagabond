@@ -39,7 +39,7 @@ def gui_du():
             else:la('kế toán riêng',ds,{hs.EMAIL_KE_TOAN})
             tep=[p for p in m.walk() if p.get_filename()]
             dung('có UNC thật trong MIME',len(tep)>0)
-            dung('tên UNC nhận diện',all(p.get_filename().startswith('UNC-'+h.name+'-') for p in tep))
+            dung('tên UNC nhận diện',all(p.get_filename().startswith('UNC-'+h.name.replace('.','-')+'-') for p in tep))
         hs.gui_email_ncc(h.name)
         la('retry không thêm',frappe.db.count('Email Queue',{'reference_name':h.name}),2)
         la('đủ bằng chứng',len(thu_ncc.bang_chung(h.name)),2)

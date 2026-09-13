@@ -3122,7 +3122,7 @@ def gui_email_ncc(name, email=None, gui_that=1, thu_nghiem=0):
 			q2 = frappe.sendmail(recipients=[EMAIL_KE_TOAN], cc=[], sender=EMAIL_THU_MUA,
 				subject="[BAN SAO] " + tieu_de, message=ban_sao+noi_dung, attachments=dinh,
 				reference_doctype="Vagabond Ho So TT", reference_name=doc.name,
-				message_id=thu_ncc.ma_thu(name,"ke-toan"), delayed=True, retry=2)
+				message_id=thu_ncc.ma_thu(name,"ke-toan"), delayed=True, retry=2, expose_recipients="header")
 			if not q2:
 				frappe.throw("Chưa tạo được bản sao kế toán. Chưa xếp hàng thư NCC; kiểm hộp thư rồi thử lại.")
 			doc.db_set("email_da_gui", 1, update_modified=False)
