@@ -402,6 +402,19 @@ Cửa ghi sổ qua được chưa đủ: nút từng đơn còn gọi luu_xhd tr
 
 - PR298: kiểm trọn cả bước phát hành lại khi lần tự động chưa gửi được. Cổng lưu và ghi sổ đúng vẫn chưa đủ nếu nút phát hành lại còn dùng tập Sales. Kiểm User Accounts độc lập tới cửa mạng bị chặn trong bench, không gửi hóa đơn thật.
 
+## 13/09/2026 - Lô thiếu số lượng không chứng minh giá vốn sai (#206)
+
+Ảnh cũ PSX-2026-00061 báo thiếu 102.862 g ở một lô; đọc site mới thấy phiếu nháp đã chia đúng hai lô. Phải đọc lại chứng từ trước khi sửa theo ảnh. ERPNext v16.28.0 `serial_batch_bundle.py:prepare_batches` hỗ trợ giữ Batch và dùng Moving Average qua `do_not_use_batchwise_valuation`; không kết luận phải bỏ Batch từ lỗi số lượng. Kiểm riêng SLE theo lô và giá trị xuất với hai giá nhập khác nhau, có đối chứng cờ tắt/bật. Nguồn: Issue206 comment5651811587 và ba ca Khải trong `thu_san_xuat_206.py`. Chưa có quyền đổi cấu hình/danh mục từ lời khuyên của bot.
+
+## 13/09/2026 - Cảnh báo hạn phải khớp loại chứng từ (#206)
+
+Mở chốt HSD riêng StockEntry không đồng nghĩa mở Purchase Receipt hoặc API nhận mua. Mỗi cửa cần ca insert/submit riêng. Dùng câu cảnh báo trung tính khi mở rộng từ xuất sang nhập, giữ tương thích tiền tố ghi chú cũ để không lặp câu qua save. Bản thử PR302 giữ công tắc và kiểm serial/lô tắt; không đổi HSD hoặc sổ lịch sử để né core.
+
+F4 review5652321851: core miễn HSD cho cả Material Issue và Material Transfer. Mở rộng danh sách wrapper không được vô tình siết lại khi bật công tắc. Kiểm ma trận loại phiếu x công tắc x lô tắt ở cả hai wrapper, thêm SLE/huỷ thật cho hai luồng. Câu cảnh báo không nói công tắc tắt khi luồng được miễn hạn với công tắc bật.
+
+### #302: chặn hạn có thể nằm ở lúc tạo Batch
+
+Chuyển cảnh báo ở Stock Entry và API nhận mua chưa đủ: ERPNext de591661 Batch.set_expiry_date còn ép HSD khi Item.has_expiry_date bật, hoặc tự cộng shelf life. Phải kiểm tới Batch vừa tạo và SLE, không lấy thuộc tính han_su_dung gắn tạm lên Purchase Receipt Item làm bằng chứng HSD đã lưu. Khi đọc sổ kho thô để thấy lô disabled, phải trừ lại cả giữ POS và Stock Reservation Entry.
 ## 13/09/2026 - #303: kiểm lại phantom Gelatine trước khi đổi mã
 
 Triệu chứng được báo là Mass sai nhóm. Repo đã từng sửa chính thức phantom bằng is_phantom_bom/is_phantom_item và dựng lại bảng nổ. Không chỉ đổi is_stock_item hoặc tên Powder: phải đọc BOM con/cha, bảng nổ và tiêu hao thật. Công cụ chẩn đoán chỉ nhận mã cụ thể, thiếu mã dừng, không chạy truy vấn bảng con không lọc khi BOM rỗng.
@@ -414,3 +427,17 @@ Nguồn chọn món lọc disabled/is_sales_item và giới hạn số dòng, n�
 nguyên danh sách ấy để tìm ảnh đơn cũ. Tra Item.image theo đúng mã ở các đơn
 đã lọc số điện thoại, gom một lô; tập rỗng không truy vấn. Ca kiểm đưa đơn của
 số gần giống và số rác vào cùng phản hồi Pancake để giữ ranh giới khách.
+
+### 13/09/2026 - Lô và HSD chỉ cảnh báo, tồn kho không bao giờ âm
+
+Đổi chính sách thì phải đổi ca đối chứng đúng đại lượng: 50 tốt + 280 quá hạn + 100 lô tắt nay là 430 khả dụng. Xin500 vẫn phải thiếu70; xin400 cần dùng70 từ lô tắt và lưu cảnh báo. Gói Desk cấp chưa đủ lượng dòng phải được bù, không biến kiểm tổng lượng gói thành một chốt mới chặn người dùng.
+
+### 13/09/2026 - HSD ở phiếu nhập nháp, #302 F16
+
+Thuộc tính han_su_dung trên dict PR Item không có trong meta nên nhập/xóa ngày trên app không tới Batch. Kiểm payload UI chưa đủ: phải đọc Batch.expiry_date sau submit. Cửa mới phải giữ quyền Document, retry cùng phiếu và rollback lô nếu submit lỗi; không sửa HSD lô có sổ kho. Đọc cả inline review mới sau khi chuyển Ready, không coi biên nhận cũ là chốt cuối.
+
+- #302 F17: get_doc(dict) rồi đặt name không có nghĩa là bản mới được save theo đường insert. Bench ném Batch not found trước submit. Phải insert rõ nhánh mới. Hai số qty và sl cùng payload vẫn cần một nguồn chốt; một Batch không thể nhận hai hạn theo thứ tự dòng. Không dùng throw cho lô lịch sử/gói nếu chỉ cần giữ nguyên ngày và cảnh báo.
+
+- #302 F24: đọc dữ liệu thất bại không phải giá trị rỗng. API cần trạng thái giữ riêng với xóa chủ động; kiểm cả lô chưa có SLE vì guard lịch sử không bảo vệ nó. Ca UI mock lỗi/thiếu phải theo tới payload, ca bench đọc lại ngày DB.
+
+- #302 F26: khóa bản DB rồi vẫn get_doc(payload) chưa bảo vệ giá/quy cách/ngày. Dùng bản DB, chỉ áp trường thao tác đã cho phép; giá tạm tính từ nguồn cùng công ty/tiền tệ trên máy chủ. Câu cảnh báo quá hạn ngưỡng0 phải đổi cả trạng thái dat trước khi gọi hàm dựng câu.

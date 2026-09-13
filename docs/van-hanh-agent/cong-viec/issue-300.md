@@ -1,6 +1,6 @@
 # Issue 300: nền chung và lịch sử thành viên
 
-Owner Codex, nhánh `codex/300-members-shared`, nền main `808af6fd`.
+Owner Codex, nhánh `codex/300-members-shared`, nền main `dad6b224` (v489 đã merge).
 Anh Việt giao ngày 14/09: code, mở PR, Claude review, gom chờ deploy sau v489.
 Không đổi APPVER hoặc PR 302 đang phát hành.
 
