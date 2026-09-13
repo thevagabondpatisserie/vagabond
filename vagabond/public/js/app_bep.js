@@ -19021,9 +19021,10 @@ function mvDsSpHtml(ds) {
       (banLe || x.trong_hop
         ? '<span style="color:#aeb4bf;font-size:11px">tổng ' + money(banLe + (x.trong_hop || 0)) + '</span>'
         : '<span style="color:#aeb4bf;font-size:11px">chưa có đơn nào</span>') +
+      (x.la_hop ? '<span>Hộp chỉ nhận số nhà in giao. Ruột tính từ các dòng bánh lẻ.</span>' :
       '<button data-mvsx="' + h(x.ma_hang) + '" style="margin-left:auto;border:1.5px solid #0f766e;' +
       'background:#fff;color:#0f766e;border-radius:8px;padding:5px 11px;font-size:11.5px;font-weight:800">' +
-      '✏️ Bếp làm ' + money(x.san_xuat) + '</button>' +
+      '✏️ Bếp làm ' + money(x.san_xuat) + '</button>' ) +
       '<button data-mvnhain="' + h(x.ma_hang) + '" style="border:1.5px solid #7c3aed;' +
       'background:#fff;color:#7c3aed;border-radius:8px;padding:5px 11px;font-size:11.5px;font-weight:800">' +
       '🖨️ Nhà in ' + money(x.nha_in_giao || 0) + '</button>' +

@@ -56,5 +56,17 @@ function ham(src, ten) {
     assert.strictEqual(di.length,loi?0:1);
     assert(bao.some(m=>m.includes(loi?'Giao dịch đã có chủ':'Đã lưu đơn nháp')));
   }
-  console.log('8/8 ca xử lý Lưu đơn, QR và Duyệt đạt');
+  for (const vai of ['Sales User','Accounts User','Accounts Manager','System Manager']) {
+    const doc=require('./dom_gia.js').taiLieuGia();
+    const c=vm.createContext({document:doc,hasRole:r=>r===vai,today:()=> '2026-09-13',h:String,money:String,
+      api:async()=>({rows:[{name:'SI296',docstatus:0}]}),getList:async()=>[],
+      chipNgay:()=>'',locNguonPt:()=>[],locHddt:()=>[],locTim:()=>({k:'tat_ca',loc:()=>true}),
+      locHang:()=>'',locKhoiTong:()=>'',khachTrenDon:()=>({}),
+      frame:(ten,html,opt)=>{doc.body.innerHTML=html+(opt?.footer||'');return doc.body;}});
+    vm.runInContext(fs.readFileSync(path.join(bep,'08-doanh-so-sales.js'),'utf8'),c);
+    c.veODate=()=>{};c.timDonGan=()=>{};c.chipNgay=()=>'';c.dsChips=()=>'';
+    await c.scrDoanhSo();
+    assert.strictEqual(!!doc.body.querySelector('[data-ds="chot"]'),vai!=='Sales User');
+  }
+  console.log('12/12 ca xử lý Lưu đơn, QR, Duyệt và quyền ghi sổ đạt');
 })().catch(e=>{console.error(e);process.exit(1);});

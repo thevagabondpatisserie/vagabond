@@ -1901,6 +1901,9 @@ def luu_o(mua=None, ma_hang=None, truong=None, gia_tri=None):
 	for d in doc.dong:
 		if d.ma_hang == ma_hang:
 			if truong in ("san_xuat", "sx_dau_mua"):
+				# Hộp chỉ có vỏ từ nhà in; ruột đã đếm ở các dòng bánh lẻ.
+				if cint(gia_tri) > 0 and ma_hang in ma_la_hop([m.as_dict() for m in doc.get("dinh_muc") or []]):
+					frappe.throw("Hộp chỉ nhận số nhà in giao. Ruột tính từ các dòng bánh lẻ. Đặt Bếp làm của hộp về 0.")
 				# O "San xuat" nay CHI DOC, no la tong cua hai thu. Nguoi go
 				# vao o do that ra dang dat lai phan "bep lam truoc khi mo so
 				# ngay", nen ghi vao dung o do. Man hinh cu goi ten "san_xuat"

@@ -107,4 +107,9 @@ def huy_nhap_nha_tien():
         cu.reload();la('huỷ mềm',cu.vgb_huy,1);la('còn nháp',cu.docstatus,0)
         ban_hang.pos_luu_don(moi.name)
     moi.reload();la('bill mới giữ tiền',doi_soat_sepay.chu_cua_giao_dich([gd]).get(gd),'hoá đơn bán '+moi.name)
+    from vagabond import chung_tu
+    try:chung_tu.bo_danh_dau_huy('Sales Invoice',cu.name)
+    except frappe.ValidationError as e:dung('phục hồi báo bill đang giữ',moi.name in str(e))
+    else:dung('không phục hồi chủ thứ hai',False)
+    cu.reload();la('vẫn giữ dấu hủy',cu.vgb_huy,1)
     la('không sổ cái',_gl(cu)+_gl(moi),[])

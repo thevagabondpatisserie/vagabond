@@ -226,6 +226,12 @@ def bo_danh_dau_huy(doctype, name):
 	_kiem_quyen_huy(doc, cho_chu_phieu=False)
 	if not cint(doc.get("vgb_huy") or 0):
 		return {"ok": 1, "chua_huy": 1}
+	# Bill thay thế có thể đã nhận tiền khi bill này đang hủy. Giữ lịch sử,
+	# nhưng không phục hồi một chủ giao dịch thứ hai.
+	if doctype == "Sales Invoice" and cint(doc.docstatus) == 0 and doc.get("vgb_gd_sepay"):
+		from vagabond.ban_hang import _chiem_gd_bill
+		from vagabond.chiem_sao_ke import tach_gd
+		_chiem_gd_bill(doc, tach_gd(doc.vgb_gd_sepay))
 	gt = {"vgb_huy": 0, "vgb_huy_ly_do": "", "vgb_huy_luc": None, "vgb_huy_boi": ""}
 	them = ""
 	ma_cu = (doc.get("vgb_ma_pancake_huy") or "").strip()

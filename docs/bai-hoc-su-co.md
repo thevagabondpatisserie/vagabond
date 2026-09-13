@@ -369,3 +369,9 @@ Nháp tặng đã mang kho/64181, khi tắt công tắc cùng lúc đổi thành
 ### #296: gom cửa lưu không được làm yếu đối soát quầy
 
 Quầy kiểm cả tiền SePay và quyền sở hữu dòng giao dịch, trong khi đường Sales có nguồn đối chiếu khác. Khi gom điều kiện vào _chuan_bi_ghi_so, giữ nhánh nguồn và kiểm bằng lời gọi API thật. Cửa Lưu đơn chỉ save nháp; quyết định duyệt được commit riêng trước bước ghi sổ có savepoint để lỗi kho/GL không xoá quyết định. Ca bench mới cố tình lỗi sau GL/SLE, phải đọc lại nháp và hai sổ rỗng. Chưa coi ca mô phỏng là bằng chứng đã chạy bench.
+
+### #296 ngày 13/09: hộp mùa vụ và khôi phục bill hủy
+
+- Hộp nhận vỏ từ nhà in; ruột đã tính ở bánh lẻ. Ẩn Bếp làm ở dòng hộp và chặn cả hai tên ô API, vẫn cho sửa về 0. Không tự sửa dữ liệu lịch sử.
+- Bill hủy có thể đã được thay thế bằng bill nhận cùng sao kê. Gỡ dấu hủy phải kiểm chủ trước, giữ dấu và lịch sử nếu giao dịch đã có bill khác nhận.
+- Kiểm quyền UI bằng cách chạy màn Doanh thu Sales thật trong DOM giả với Sales User và ba vai kế toán/quản trị; kiểm nút đã render, không chỉ helper quyền.
