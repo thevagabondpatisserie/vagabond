@@ -12511,6 +12511,10 @@ async function posMoCa() {
    khac hien so may SAU khi chot de doi chieu bang mat, khong bat go. */
 async function scrChotCa() {
   if (!posQuay || !caPos || !caPos.dang_mo) return go(scrPosQuay, true);
+  if (!caPos.chi_dem_tien_mat) {
+    frame('Chốt ca', '<div class="card">Máy chủ chưa sẵn sàng chốt ca chỉ đếm tiền mặt. Tải lại ứng dụng sau khi cập nhật hoàn tất; chưa chốt ca ở bước này.</div>');
+    return;
+  }
   var dsPt = (caPos.phuong_thuc || []).filter(function (t) { return t !== 'Tiền mặt'; });
   var html = '<div class="card" style="padding:13px 14px">' +
     '<b style="font-size:15px">Chốt ca ' + h(caPos.ma) + ' · ' + h(posQuay.ten) + '</b>' +
@@ -12534,12 +12538,15 @@ async function scrChotCa() {
   html += '<button class="btn" id="caChotNut" style="width:100%">Chốt ca và xem đối soát</button>';
   var b = frame('Chốt ca', html);
   var oTm = document.getElementById('caDemTienMat');
-  oTm.oninput = function () { oTm.value = oTm.value.replace(/[^0-9]/g, ''); };
   document.getElementById('caChotNut').onclick = async function () {
     if (oTm.value === '') return toast('Chưa gõ số tiền mặt đếm được. Két không có tiền thì gõ 0.', 4500);
-    /* Van gui dang JSON {Tien mat: so} de may chu ban cu (nhan JSON du
-       phuong thuc) va ban moi (chi doc dong Tien mat) deu doc duoc. */
-    var dem = { 'Tiền mặt': Number(oTm.value) || 0 };
+    /* Chỉ gửi khi máy chủ đã công bố hỗ trợ đếm tiền mặt ở đầu màn. */
+    var chuoiTien = oTm.value.trim();
+    if (/^[0-9]{1,3}(\.[0-9]{3})+$/.test(chuoiTien) || /^[0-9]{1,3}(,[0-9]{3})+$/.test(chuoiTien))
+      chuoiTien = chuoiTien.replace(/[.,]/g, '');
+    if (!/^[0-9]+$/.test(chuoiTien) || !Number.isSafeInteger(Number(chuoiTien)))
+      return toast('Số tiền mặt không hợp lệ. Gõ lại số tiền nguyên không âm.', 4500);
+    var dem = { 'Tiền mặt': Number(chuoiTien) };
     var ghiChu = (document.getElementById('caGhiChu') || {}).value || '';
     busy(true);
     var k;

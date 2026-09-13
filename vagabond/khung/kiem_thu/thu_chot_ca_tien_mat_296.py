@@ -77,7 +77,7 @@ def _doc_so():
 
 @ca("#296.3 đọc số tiền mặt: thiếu, âm, không phải số đều ném lỗi")
 def _doc_so_hong():
-	for x in ["", None, "-5", "abc", {"Chuyển khoản": 1}, "{}"]:
+	for x in ["", None, "-5", "abc", {"Chuyển khoản": 1}, "{}", "nan", "inf", float('nan'), float('inf'), {"Tiền mặt":"abc"}, True, "1.5", 1.5, "1..000"]:
 		try:
 			cq.doc_tien_mat_dem(x)
 			dung("phải ném lỗi với %r" % (x,), False)
@@ -115,4 +115,28 @@ def _hanh_vi():
 	js = os.path.join(os.path.dirname(__file__), "hanh_vi", "chot_ca_296.js")
 	r = subprocess.run(["node", js], capture_output=True, text=True, timeout=30, cwd=GOC)
 	la(r.stdout + r.stderr, r.returncode, 0)
-	dung("đủ 7 ca", "PASS 7" in r.stdout)
+	dung("đủ 9 ca", "PASS 9" in r.stdout)
+
+
+@ca('#299 một dấu nghìn và JSON cũ không đổi nghĩa số tiền')
+def dau_nghin():
+	la('5.000 là năm nghìn',cq.doc_tien_mat_dem('5.000'),5000)
+	la('chỉ đọc dòng tiền mặt',cq.doc_tien_mat_dem({'Tiền mặt':'5.000','Chuyển khoản':-9}),5000)
+
+
+@ca('#290 D2 bảng chốt ca dùng mã Pancake, không cộng trùng hai cách khớp')
+def sepay_sales():
+	from types import SimpleNamespace as NS
+	from vagabond.khung.kiem_thu.thu_su_co_290 import D, nap
+	from vagabond import chiem_sao_ke
+	for co_ma_bill in (False,True):
+		d=D(name='SI',grand_total=100000,docstatus=0,custom_nguon='Pancake',custom_pancake_display_id='296',vgb_pt_thanh_toan='Chuyển khoản',vgb_ma_tham_chieu='VGB296',vgb_tam_tinh=0)
+		vet=[]
+		def doc(shop, ids):vet.append(ids);return {'296':{'nhan':100000,'gd':['GD1']}}
+		g=dict(frappe=NS(get_all=lambda *a,**kw:[d],utils=NS(cint=lambda x:int(x or 0))),
+			_kiem_quyen=lambda:None,_loc_diem_ban=lambda q:{},getdate=lambda x:x,nowdate=lambda:'2026-09-13',flt=lambda x:float(x or 0),
+			_sepay_theo_ma_bill=lambda *a:({'VGB296':{'nhan':100000,'gd':['GD1']}} if co_ma_bill else {},[]),
+			_sepay_theo_don=doc,cfg=lambda:D(pancake_shop_id='SHOP'),chiem_sao_ke=chiem_sao_ke,
+			pt_thanh_toan=NS(chua_ve_tien=lambda:[],ve_sau=lambda:[],khong_thu=lambda:[]))
+		k=nap('ban_hang.py','pos_chot_ca',g)('SALES')
+		la('đọc đúng mã đơn một lần',vet,[['296']]);la('đủ tiền',k['ck_ve'],100000);la('không thiếu giả',k['ck_thieu'],[])

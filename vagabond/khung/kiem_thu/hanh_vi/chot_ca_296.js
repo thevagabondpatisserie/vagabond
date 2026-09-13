@@ -88,16 +88,7 @@ function dungMan(canh) {
     },
   };
   that.globalThis = that;
-  var bay = new Proxy(that, {
-    has: function () { return true; },
-    get: function (t, k) {
-      if (k in t) return t[k];
-      if (typeof k === 'symbol') return undefined;
-      if (k in globalThis) return globalThis[k];
-      throw new ReferenceError('Ten toan cuc "' + k + '" chua duoc dat');
-    },
-    set: function (t, k, v) { t[k] = v; return true; },
-  });
+
 
   var nen = docTep('00-nen.js');
   var quay = docTep('09-tinh-tien-quay.js');
@@ -107,7 +98,7 @@ function dungMan(canh) {
     layHam(quay, 'caLechChu'),
     layHam(quay, 'scrDoiSoatCa'),
   ].join('\n;\n');
-  vm.runInNewContext(ma, bay, { filename: '09-tinh-tien-quay.js' });
+  vm.runInNewContext(ma, that, { filename: '09-tinh-tien-quay.js' });
   return { g: that, tai: tai, khung: khung, goiApi: goiApi, toast: daToast, hoi: hoi };
 }
 
@@ -127,6 +118,21 @@ async function ca(ten, ham) {
 }
 
 (async function () {
+  await ca('may chu cu khong co co ho tro thi khong gui so dem', async function () {
+    var m = dungMan(); delete m.g.caPos.chi_dem_tien_mat;
+    await m.g.scrChotCa();
+    dung('khong co nut chot', !m.tai.getElementById('caChotNut'));
+    bang('khong goi API', m.goiApi.length, 0);
+    dung('noi ro cho cap nhat', m.khung.innerHTML.includes('chưa sẵn sàng'));
+  });
+  await ca('chu sai, am, NaN khong bien thanh 0; dau nghin doc dung', async function () {
+    for (var so of ['abc', '-5', 'NaN', 'Infinity', '1.5']) {
+      var m = dungMan(); await bamChot(m, so);
+      bang('khong gui '+so, m.goiApi.length, 0);
+    }
+    var m = dungMan(); await bamChot(m, '5.000');
+    bang('nam nghin', JSON.parse(m.goiApi[0].ts.dem)['Tiền mặt'], 5000);
+  });
   await ca('man chot ca chi ve MOT o dem, khong con o nao theo phuong thuc', async function () {
     var m = dungMan();
     await m.g.scrChotCa();

@@ -46,6 +46,8 @@ do vận chuyển tiền không trộn vào nhau.
 """
 
 import json
+import math
+import re
 
 import frappe
 from frappe.utils import cint, flt, get_datetime, now_datetime, nowdate
@@ -165,40 +167,38 @@ def doc_so_dem(tho):
 
 
 def doc_tien_mat_dem(dem):
-	"""Đọc số TIỀN MẶT thu ngân đếm được từ tham số `dem`. THUẦN.
+	"""Đọc số tiền mặt nguyên, hữu hạn; không biến chữ sai thành 0.
 
-	Nhận ba dạng, vì app trên máy quầy có thể đang chạy bản cũ lúc máy chủ
-	đã lên bản mới: một con số hoặc chuỗi số (bản mới), một dict hoặc chuỗi
-	JSON tên phương thức sang tiền (bản cũ gửi đủ mọi ô). Dạng dict thì chỉ
-	lấy dòng Tiền mặt, các dòng khác BỎ, vì từ 12/09/2026 thu ngân không
-	đếm những thứ đó nữa (#296 mục 3).
-
-	Thiếu dòng tiền mặt hay số âm thì ném ValueError, để chot_ca báo thẳng.
+	JSON bản cũ chỉ lấy Tiền mặt. Chuỗi 5.000 nghĩa là năm nghìn đồng;
+	không đoán dấu thập phân hoặc gỡ dấu tùy tiện khỏi một chuỗi sai.
 	"""
-	if isinstance(dem, (int, float)) and not isinstance(dem, bool):
-		tien = flt(dem)
-	else:
-		chuoi = str(dem if dem is not None else "").strip()
-		if isinstance(dem, dict) or chuoi.startswith("{"):
-			so = doc_so_dem(dem)
-			if TIEN_MAT not in so:
-				raise ValueError("Chưa có số tiền mặt đếm được.")
-			tien = so[TIEN_MAT]
-		else:
-			if chuoi == "":
-				raise ValueError("Chưa có số tiền mặt đếm được.")
-			try:
-				tien = float(chuoi)
-			except ValueError:
-				# Có máy gõ "5.350.000" theo thói quen dấu chấm nghìn. Bỏ dấu
-				# rồi đọc lại; vẫn không ra số thì báo thẳng, không đoán.
-				try:
-					tien = float(chuoi.replace(".", "").replace(",", ""))
-				except ValueError:
-					raise ValueError("Số tiền mặt đếm được không phải là số: %s" % chuoi)
-	if tien < 0:
-		raise ValueError("Số đếm của %s là số âm." % TIEN_MAT)
-	return flt(tien)
+	if isinstance(dem, str) and dem.strip().startswith("{"):
+		try:
+			dem = json.loads(dem)
+		except (ValueError, TypeError):
+			raise ValueError("Số tiền mặt đếm được không đúng định dạng.")
+	if isinstance(dem, dict):
+		if TIEN_MAT not in dem:
+			raise ValueError("Chưa có số tiền mặt đếm được.")
+		dem = dem[TIEN_MAT]
+	if isinstance(dem, bool) or dem is None:
+		raise ValueError("Chưa có số tiền mặt hợp lệ.")
+	if isinstance(dem, str):
+		chuoi = dem.strip()
+		if re.fullmatch(r"[0-9]{1,3}(?:\.[0-9]{3})+", chuoi):
+			chuoi = chuoi.replace(".", "")
+		elif re.fullmatch(r"[0-9]{1,3}(?:,[0-9]{3})+", chuoi):
+			chuoi = chuoi.replace(",", "")
+		elif not re.fullmatch(r"[0-9]+", chuoi):
+			raise ValueError("Gõ số tiền mặt nguyên không âm, ví dụ 5000 hoặc 5.000.")
+		dem = chuoi
+	try:
+		tien = float(dem)
+	except (ValueError, TypeError, OverflowError):
+		raise ValueError("Số tiền mặt đếm được không hợp lệ.")
+	if not math.isfinite(tien) or tien < 0 or not tien.is_integer():
+		raise ValueError("Số tiền mặt phải là số nguyên không âm và hữu hạn.")
+	return tien
 
 
 def ghep_chi_tien_mat(pt_may, tien_mat_dem, tien_le_dau_ca=0.0, so_bill=None):
@@ -519,6 +519,8 @@ def chot_ca(quay, dem, ly_do_lech="", ghi_chu=""):
 	doc = frappe.get_doc(CA, ten)
 	luc = now_datetime()
 	pt_may, so_bill = _doanh_thu_he_thong(quay, doc.mo_luc, luc)
+	for pt in _pt_cua_diem(quay):
+		pt_may.setdefault(pt, 0.0)
 	# Tien bên thứ ba đang giữ (Grab Dine-Out), khách còn nợ (Công nợ) và
 	# hàng tặng KHÔNG nằm trong két, nên không đưa vào bảng đối soát. Bày ra
 	# riêng để quản lý biết còn bao nhiêu phải đi đòi.

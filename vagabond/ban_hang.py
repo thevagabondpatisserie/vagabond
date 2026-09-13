@@ -6282,7 +6282,7 @@ def pos_chot_ca(quay=None, ngay=None):
 		"Sales Invoice",
 		filters=loc,
 		fields=[
-			"name", "grand_total", "docstatus", "custom_nguon",
+			"name", "grand_total", "docstatus", "custom_nguon", "custom_pancake_display_id",
 			"vgb_tam_tinh", "vgb_pt_thanh_toan", "vgb_ma_tham_chieu", "vgb_huy",
 		],
 		limit_page_length=0,
@@ -6294,6 +6294,11 @@ def pos_chot_ca(quay=None, ngay=None):
 	sepay, _bo_qua = _sepay_theo_ma_bill(
 		[r.vgb_ma_tham_chieu for r in ds if (r.vgb_pt_thanh_toan or "") == "Chuyển khoản"]
 	)
+	# #290 D2: Sales khớp theo mã đơn Pancake, cùng nguồn với cửa ghi sổ.
+	ma_don = sorted({str(r.get("custom_pancake_display_id")) for r in ds
+		if r.get("custom_pancake_display_id") and r.vgb_pt_thanh_toan == "Chuyển khoản"
+		and not frappe.utils.cint(r.vgb_tam_tinh)})
+	theo_don = _sepay_theo_don(cfg().pancake_shop_id, ma_don) if ma_don else {}
 	pt_tong = {}
 	tam_tinh = {"so": 0, "tien": 0.0}
 	ck_ve = 0.0
@@ -6314,7 +6319,11 @@ def pos_chot_ca(quay=None, ngay=None):
 		o["so"] += 1
 		o["tien"] += flt(r.grand_total)
 		if (r.vgb_pt_thanh_toan or "") == "Chuyển khoản":
-			g = sepay.get(str(r.vgb_ma_tham_chieu or "").upper()) or {}
+			# Một giao dịch xuất hiện ở hai cách khớp không được cộng hai lần.
+			_duong, g = chiem_sao_ke.chon_duong_khop([
+				("ma_bill", sepay.get(str(r.vgb_ma_tham_chieu or "").upper()) or {}),
+				("so_don_pancake", (theo_don or {}).get(str(r.get("custom_pancake_display_id") or "")) or {}),
+			], flt(r.grand_total))
 			nhan = flt(g.get("nhan"))
 			ck_ve += min(nhan, flt(r.grand_total))
 			if nhan < flt(r.grand_total) - 1:
