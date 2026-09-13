@@ -33,6 +33,7 @@ QT-24  Cau bao loi phai noi nguoi dung lam gi tiep.
 """
 
 import json
+import math
 
 import frappe
 from frappe.utils import add_days, cint, flt, getdate, nowdate
@@ -405,7 +406,7 @@ def _lo_nhan_thuc_te(r, han):
 	# nhãn/trống, không sửa chính sách shelf life của những cửa khác.
 	han = getdate(han) if han else None
 	if r.get("serial_and_batch_bundle"):
-		frappe.throw("Dòng %s đã chia gói lô. Mở phiếu trên Desk để kiểm từng lô trước khi nhận." % r.item_code)
+		return None, "Dòng %s đã chia gói lô, giữ HSD từng lô đã lưu; ngày vừa nhập không áp cho cả gói. Kiểm từng lô trên Desk." % r.item_code
 	if r.get("batch_no"):
 		b = frappe.get_doc("Batch", r.batch_no, for_update=True)
 		if b.item != r.item_code:
@@ -417,16 +418,20 @@ def _lo_nhan_thuc_te(r, han):
 				left join `tabSerial and Batch Entry` e on e.parent=s.serial_and_batch_bundle
 				where s.batch_no=%s or e.batch_no=%s limit 1""", (b.name,b.name))
 			if da_dung:
-				frappe.throw("Lô %s đã có sổ kho. Giữ HSD đã lưu hoặc chọn lô mới trên phiếu, không sửa hạn lịch sử." % b.name)
+				return b.expiry_date, "Lô %s đã có sổ kho, giữ HSD đã lưu %s; ngày nhãn %s không được ghi đè." % (b.name, str(b.expiry_date or "chưa có"), str(han or "chưa có"))
 	else:
 		b = frappe.get_doc({"doctype":"Batch", "item":r.item_code})
 		from vagabond.ma_phieu_sx import nho_nguoi_go_lo, dat_ten_lo
 		nho_nguoi_go_lo(b); dat_ten_lo(b)
 	b.expiry_date = han
 	b.flags.vgb_hsd_thuc_te = True
-	b.save(ignore_permissions=True)
+	if r.get("batch_no"):
+		b.save(ignore_permissions=True)
+	else:
+		b.insert(ignore_permissions=True)
 	r.batch_no = b.name
 	r.use_serial_batch_fields = 1
+	return han, None
 
 
 @frappe.whitelist(methods=["POST"])
@@ -444,7 +449,7 @@ def ghi_phieu_nhap(doc, dong=None):
 	goc = frappe.get_doc("Purchase Receipt", data["name"], for_update=True)
 	goc.check_permission("write"); goc.check_permission("submit")
 	if goc.docstatus == 1:
-		return {"phieu":goc.name, "canh_bao_han":[goc.remarks] if any(t in (goc.remarks or "") for t in ("Chưa có hạn sử dụng", "Hạn dùng cần kiểm tra")) else [], "da_ghi":1}
+		return {"phieu":goc.name, "canh_bao_han":[t.strip()[len("Kiểm tra HSD: "):] for t in (goc.remarks or "").split(" | ") if t.strip().startswith("Kiểm tra HSD: ")], "da_ghi":1}
 	if goc.docstatus != 0 or cint(goc.get("is_return")):
 		frappe.throw("Chỉ nhận hàng trên phiếu nháp nhập mua, không phải phiếu trả.")
 	if str(data.get("modified")) != str(goc.modified):
@@ -456,12 +461,21 @@ def ghi_phieu_nhap(doc, dong=None):
 	goc_dong = {r.name:r for r in goc.items}
 	if not pr.items or set(nhap) != {r.name for r in pr.items}:
 		frappe.throw("HSD và dòng nhận không khớp. Mở lại phiếu rồi thử lại.")
+	han_theo_lo = {}
 	for r in pr.items:
 		x = goc_dong.get(r.name)
 		if not x or r.item_code != x.item_code or r.warehouse != x.warehouse or r.batch_no != x.batch_no or r.serial_and_batch_bundle != x.serial_and_batch_bundle:
 			frappe.throw("Mã hàng, kho hoặc lô đã đổi. Lưu phiếu rồi mở lại màn nhận hàng.")
-		if flt(r.qty) <= 0 or flt(r.qty) > flt(x.qty) + EPS:
+		sl = nhap[r.name]["sl"]
+		if not math.isfinite(sl) or sl <= 0 or sl > flt(x.qty) + EPS:
 			frappe.throw("Số thực nhận phải lớn hơn 0 và không vượt phiếu nháp.")
+		r.qty = r.received_qty = sl
+		r.rejected_qty = 0
+		if r.get("batch_no"):
+			han = str(getdate(nhap[r.name]["hsd"])) if nhap[r.name]["hsd"] else ""
+			if r.batch_no in han_theo_lo and han_theo_lo[r.batch_no] != han:
+				frappe.throw("Hai dòng cùng lô %s nhưng HSD khác nhau. Một lô chỉ có một hạn, sửa các dòng cho khớp." % r.batch_no)
+			han_theo_lo[r.batch_no] = han
 	canh = []
 	moc = "nhan_nhap_" + frappe.generate_hash(length=10)
 	frappe.db.savepoint(moc)
@@ -469,11 +483,16 @@ def ghi_phieu_nhap(doc, dong=None):
 		for r in pr.items:
 			han = nhap[r.name]["hsd"]
 			if cint(frappe.db.get_value("Item", r.item_code, "has_batch_no")):
-				_lo_nhan_thuc_te(r, han)
-			cau = _han_nhan_cua_dong(r, han)
-			if cau: canh.append(cau)
+				han, luu_y = _lo_nhan_thuc_te(r, han)
+				if luu_y: canh.append(luu_y)
+			# Gói lô giữ ngày riêng của từng lô, không lấy ô ngày chung để
+			# mô tả sai dữ liệu vừa ghi. Hook chứng từ vẫn kiểm từng lô.
+			if not r.get("serial_and_batch_bundle"):
+				cau = _han_nhan_cua_dong(r, han)
+				if cau: canh.append(cau)
+		canh = list(dict.fromkeys(canh))
 		if canh:
-			pr.remarks = ((pr.get("remarks") or "") + " | " + "; ".join(canh)).strip(" |")
+			pr.remarks = ((pr.get("remarks") or "") + " | " + " | ".join("Kiểm tra HSD: " + c for c in canh)).strip(" |")
 		pr.submit()
 	except Exception:
 		frappe.db.rollback(save_point=moc)

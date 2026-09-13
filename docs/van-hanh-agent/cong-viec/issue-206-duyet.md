@@ -12,3 +12,7 @@ Theo quyết định anh Việt ngày 13/09 và đặc tả PR302 comment5653018
 Các file Excel tiền tố mã, cặp thay thế và tem tách riêng. Gelatine phantom đã có PR306 kiểm riêng, không tự đổi công thức hay tạo mã mới.
 
 Cổng trước phát hành: local, CI, Claude review và bench trên SHA cuối; hai lượt bench không còn chứng từ/số lượng lệch. Ca thật phải chạm ghi sổ/hủy, không lấy mock thay kết quả Document. Anh Việt duyệt nội dung nghiệm thu cuối trước merge/deploy v489.
+
+### Nhận phiếu nháp có lô sẵn
+
+Lô đã có lịch sử kho hoặc gói nhiều lô giữ HSD đã lưu, vẫn nhận hàng và báo rõ ngày nhập chung không ghi đè hạn lịch sử. Lô chưa có sổ được lưu ngày nhãn hoặc để trống. Hai dòng cùng một lô mà khai hai HSD khác nhau là dữ liệu mâu thuẫn: yêu cầu sửa cho khớp trước khi ghi, không tự chọn một ngày. Số nhận lấy từ số thực đếm, kiểm lại với phiếu gốc tại máy chủ.

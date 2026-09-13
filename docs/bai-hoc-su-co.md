@@ -428,3 +428,5 @@ Ngày13/09 đối chiếu live #303: Mass đã là phantom,34/34 dòng cha hoạ
 ### 13/09/2026 - HSD ở phiếu nhập nháp, #302 F16
 
 Thuộc tính han_su_dung trên dict PR Item không có trong meta nên nhập/xóa ngày trên app không tới Batch. Kiểm payload UI chưa đủ: phải đọc Batch.expiry_date sau submit. Cửa mới phải giữ quyền Document, retry cùng phiếu và rollback lô nếu submit lỗi; không sửa HSD lô có sổ kho. Đọc cả inline review mới sau khi chuyển Ready, không coi biên nhận cũ là chốt cuối.
+
+- #302 F17: get_doc(dict) rồi đặt name không có nghĩa là bản mới được save theo đường insert. Bench ném Batch not found trước submit. Phải insert rõ nhánh mới. Hai số qty và sl cùng payload vẫn cần một nguồn chốt; một Batch không thể nhận hai hạn theo thứ tự dòng. Không dùng throw cho lô lịch sử/gói nếu chỉ cần giữ nguyên ngày và cảnh báo.

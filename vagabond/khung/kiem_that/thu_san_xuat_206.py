@@ -538,6 +538,71 @@ def _nhan_nhap_han_that():
 		pr.cancel();la('huỷ trả tồn',float(frappe.db.get_value('Bin',{'item_code':ma,'warehouse':kho},'actual_qty')),0)
 
 
+def _nhap_lo_chon_san(kieu):
+	from frappe.utils import today, add_days, nowtime
+	from vagabond import nhan_hang
+	from vagabond.khung.kiem_that.he_so_252 import _luu
+	from vagabond.khung.kiem_that.gram_bom_252 import _kho_rieng
+	from vagabond.khung.kiem_that.thu_nhan_nvl import _lo, _nhap, _ton_lo
+	cty=cong_ty(); kho,tk=_kho_rieng(cty,'489-CHON')
+	ma=_mon_thu('KT489-CHON-'+uuid.uuid4().hex[:10],theo_lo=1)
+	han_cu=add_days(today(),30); han_moi=add_days(today(),60)
+	lo=_lo(ma,'KT489-CHONLO-'+uuid.uuid4().hex[:10],han_cu)
+	truoc=10 if kieu=='co_so' else 0
+	if truoc: _nhap(ma,kho,[(lo,truoc)],cty)
+	so_dong=2 if kieu=='hai_dong' else 1
+	pr=_luu(frappe.get_doc(dict(doctype='Purchase Receipt',company=cty,
+		supplier=nen.mot_nha_cung_cap(),currency='VND',conversion_rate=1,posting_date=today(),
+		items=[dict(item_code=ma,qty=10,rate=1000,warehouse=kho,batch_no=lo,use_serial_batch_fields=1) for _ in range(so_dong)])))
+	if kieu=='goi':
+		from erpnext.stock.serial_batch_bundle import SerialBatchCreation
+		sb=SerialBatchCreation(dict(item_code=ma,warehouse=kho,company=cty,type_of_transaction='Inward',
+			voucher_type='Purchase Receipt',voucher_no=pr.name,qty=1,batches={lo:1},do_not_submit=1,
+			posting_date=today(),posting_time=nowtime())).make_serial_and_batch_bundle()
+		nen._DA_TAO.append(('Serial and Batch Bundle',sb.name))
+		pr.items[0].qty=pr.items[0].received_qty=1
+		pr.items[0].batch_no=None;pr.items[0].use_serial_batch_fields=0;pr.items[0].serial_and_batch_bundle=sb.name
+		pr.save()
+	pr.reload(); payload=pr.as_dict()
+	dong=[dict(dong=r.name,sl=1,hsd=han_moi) for r in pr.items]
+	if kieu=='hai_dong':
+		dong[1]['hsd']=''
+		try: nhan_hang.ghi_phieu_nhap(payload,dong)
+		except frappe.ValidationError as e: dung('bắt đúng mâu thuẫn', 'HSD khác nhau' in str(e))
+		else: raise AssertionError('Hai hạn cho một lô phải chặn trước khi ghi')
+		la('không ghi đè lô',str(frappe.db.get_value('Batch',lo,'expiry_date')),han_cu)
+		la('còn nháp',frappe.db.get_value('Purchase Receipt',pr.name,'docstatus'),0)
+		dong[1]['hsd']=han_moi
+	if kieu=='chua_so':
+		dong[0]['sl']=11
+		try: nhan_hang.ghi_phieu_nhap(payload,dong)
+		except frappe.ValidationError as e: dung('chặn vượt số DB','không vượt phiếu nháp' in str(e))
+		else: raise AssertionError('Phải chặn vượt nháp')
+		dong[0]['sl']=1
+	ra=nhan_hang.ghi_phieu_nhap(payload,dong);pr.reload()
+	la('ghi sổ được',pr.docstatus,1)
+	la('số đếm thắng qty10 của payload',[float(r.qty) for r in pr.items],[1.0]*so_dong)
+	la('hạn đúng chính sách',str(frappe.db.get_value('Batch',lo,'expiry_date')),han_cu if kieu in ('co_so','goi') else han_moi)
+	if kieu in ('co_so','goi'):
+		dung('có cảnh báo giữ hạn',any(('đã có sổ kho' if kieu=='co_so' else 'đã chia gói lô') in c for c in ra['canh_bao_han']))
+		la('retry giữ đúng cảnh báo',nhan_hang.ghi_phieu_nhap(payload,dong)['canh_bao_han'],ra['canh_bao_han'])
+	la('tồn đúng số đếm',_ton_lo(lo,kho),truoc+so_dong)
+	pr.cancel();la('hủy trả đúng tồn',_ton_lo(lo,kho),truoc)
+
+
+@ca('489 PR nháp: lô chưa sổ đổi ngày, số đếm thắng qty payload, vượt nháp bị chặn')
+def _nhap_chua_so(): _nhap_lo_chon_san('chua_so')
+
+@ca('489 PR nháp: lô có sổ giữ hạn, cảnh báo nhưng vẫn nhận và hủy đúng')
+def _nhap_co_so(): _nhap_lo_chon_san('co_so')
+
+@ca('489 PR nháp: gói lô giữ hạn riêng, cảnh báo nhưng vẫn nhận và hủy đúng')
+def _nhap_co_goi(): _nhap_lo_chon_san('goi')
+
+@ca('489 PR nháp: hai dòng một lô không ghi đè hai hạn, cùng hạn ghi đủ hai dòng')
+def _nhap_hai_han(): _nhap_lo_chon_san('hai_dong')
+
+
 def _mua_ban_lo_cu(dt):
 	from frappe.utils import today, add_days
 	from vagabond.khung.kiem_that.thu_nhan_nvl import _lo, _nhap, _ton_lo

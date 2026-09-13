@@ -64,3 +64,7 @@ Review inline3999893083/085 và Claude3999893690/714: màn nhận không tự đ
 ## F16 - màn nhận PR nháp (13/09)
 
 Đã xác nhận ô han_su_dung không có trên PR Item: frappe.client.submit bỏ ngày người nhập. Thay bằng ghi_phieu_nhap, kiểm quyền trên phiếu DB, khóa phiếu/retry, kiểm modified và dòng gốc; tạo/cập nhật Batch chưa có SLE với ngày nhãn/trống, giữ HSD lịch sử. Không commit, savepoint hoàn tác Batch khi submit lỗi. UI gửi ngày cả khi trống và hiện cảnh báo trước back. Node phủ cả scrRecvDoc và scrNhpDon. Thêm bench nhập/xóa/ngày tốt, retry, lỗi sau tạo Batch và Guest. F15 kiểm remarks sạch cũng đã thêm. Còn giới hạn: gói lô sẵn yêu cầu kiểm từng lô trên Desk; không tự gán một ngày cho nhiều lô. Chưa merge/deploy; bench/review SHA mới cần chạy.
+
+## F17-F20 và hai inline P1 (13/09)
+
+Bench37fc1f8 xác nhận lỗi thật Batch chưa tồn tại vì save sau khi đặt name. Sửa insert cho lô mới/save cho lô cũ. Lô có SLE và gói có sẵn nay giữ hạn và cảnh báo, vẫn submit; không còn hai throw HSD mới. Máy chủ lấy qty/received_qty từ sl đã kiểm hữu hạn, dương, không vượt nháp DB. Gom HSD cùng batch trước khi ghi, chặn dữ liệu hai hạn mâu thuẫn, không chọn tùy ý ngày nào. F20 lỗi đọc Batch trên UI chỉ nhắc; retry lọc câu HSD riêng. Thêm bốn ca bench lô chưa sổ/có sổ/gói/hai dòng, kèm qty10 nhưng đếm1 và vượt11. Local2960/2960, cổng rc0. Chờ bench/review SHA mới, chưa merge/deploy.

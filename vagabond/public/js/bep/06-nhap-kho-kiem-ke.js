@@ -257,8 +257,8 @@ async function scrRecvDoc(name) {
     try {
       var cacLo = await getList('Batch', { fields: ['name', 'expiry_date'], filters: { name: ['in', loDaChon] }, limit_page_length: 0 });
       cacLo.forEach(function (x) { hanLo[x.name] = x.expiry_date || ''; });
-      if (loDaChon.some(function (x) { return !Object.prototype.hasOwnProperty.call(hanLo, x); })) throw new Error('Chưa đọc được HSD lô đã chọn. Mở phiếu trên Desk để kiểm tra.');
-    } catch (eLo) { toast(errMsg(eLo)); return back(); }
+      if (loDaChon.some(function (x) { return !Object.prototype.hasOwnProperty.call(hanLo, x); })) toast('Chưa đọc đủ HSD lô. Máy chủ sẽ giữ hạn của lô đã có sổ và báo khi ghi nhận.', 7000);
+    } catch (eLo) { toast('Chưa đọc được HSD lô. Vẫn nhận được; máy chủ sẽ giữ hạn lô đã có sổ và báo rõ.', 7000); }
   }
   var poRow = {};
   var poKeys = [];
