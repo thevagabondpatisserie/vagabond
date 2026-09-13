@@ -17,3 +17,5 @@ Mac đã mở. Đọc System Console (không commit): Mass BTPB00059 is_stock_it
 Sửa306-1/2/3: chuyển ba ca riêng vào cổng khung; thêm ca thứ4 chốt trạng thái BOM huỷ và BOM chỉ có trong bảng nổ. Đọc default_bom/custom_chang_btp; gắn trạng thái và dang_chay cho BOM/dòng cha/bảng nổ. Ghi rõ mã phải đúng hoa/thường.
 
 Thêm hai ca bench fixture riêng, tỷ lệ minh hoạ không phải công thức tiệm: Work Order nổ một/nhiều cấp, hoàn tất hai phần, trừ đúng NVL và giá trị, Mass không có Bin/SLE, GL cân, huỷ trả tồn/sản lượng. Chưa chạy bench SHA mới; không nhận hai ca viết ra là đã đạt. Retry qua API hoàn tất và nghiệm thu thao tác Khải vẫn chưa phủ. Không sửa runtime, cấu hình hoặc chứng từ live.
+
+Bổ sung306-5/306-6: chốt bảng nổ chỉ có hai NVL đúng lượng; sau huỷ chốt giá trị Bin NVL, Bin TP cả số/giá trị về0, không GL hiệu lực và WO không Completed. Bench34757934708 trênbb161d1d đã SUCCESS; bản bổ sung cần bench SHA mới, không lấy kết quả cũ thay thế.

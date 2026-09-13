@@ -36,6 +36,8 @@ def _chay(nhieu_cap):
         {'item_code': nuoc, 'qty': 3, 'uom': uom, 'rate': 2000}], phantom=1)
     cha = _bom(tp, cty, 1, [{'item_code': mass, 'qty': 4, 'uom': uom,
         'bom_no': con.name, 'is_phantom_item': 1, 'do_not_explode': 0}])
+    bang_no = frappe.get_all('BOM Explosion Item', filters={'parent': cha.name, 'parenttype': 'BOM'}, fields=['item_code','stock_qty'])
+    la('bảng nổ chỉ có NVL đúng lượng', {x.item_code: float(x.stock_qty) for x in bang_no}, {bot: 1.0, nuoc: 3.0})
     for ma, gia in [(bot,1000),(nuoc,2000)]:
         d = nhap(item_code=ma, qty=10, company=cty, to_warehouse=kho[0], rate=gia, do_not_save=True)
         d.insert(); nen._DA_TAO.append(('Stock Entry', d.name)); d.submit()
@@ -63,10 +65,19 @@ def _chay(nhieu_cap):
         if not gl: la('không GL thì SLE ròng0', sum(float(x.stock_value_difference) for x in sle), 0)
     la('Mass không phát sinh SLE', frappe.db.count('Stock Ledger Entry', {'item_code': mass}), 0)
     la('Mass không phát sinh Bin', frappe.db.count('Bin', {'item_code': mass}), 0)
-    for d in reversed(phieu): d.cancel()
+    for d in reversed(phieu):
+        d.cancel()
+        la('huỷ không còn GL hiệu lực', frappe.db.count('GL Entry', {'voucher_type': 'Stock Entry', 'voucher_no': d.name, 'is_cancelled': 0}), 0)
     for ma in [bot, nuoc]:
         la('huỷ trả đủ NVL', float(frappe.db.get_value('Bin', {'item_code':ma,'warehouse':kho[0]}, 'actual_qty')), 10)
+    for ma, gia in [(bot,10000),(nuoc,20000),(tp,0)]:
+        k = kho[1] if ma == tp else kho[0]
+        bin = frappe.db.get_value('Bin', {'item_code':ma,'warehouse':k}, ['actual_qty','stock_value'], as_dict=True)
+        dung('Bin tồn tại sau huỷ', bool(bin))
+        la('huỷ trả giá trị kho', float(bin.stock_value), gia)
+        if ma == tp: la('huỷ trả hết TP', float(bin.actual_qty), 0)
     wo.reload(); la('huỷ trả sản lượng', float(wo.produced_qty), 0)
+    dung('huỷ không còn Completed', wo.status != 'Completed')
 
 
 @ca('#303 thật: phantom một cấp trừ NVL, không tồn Mass, huỷ trả đủ')
