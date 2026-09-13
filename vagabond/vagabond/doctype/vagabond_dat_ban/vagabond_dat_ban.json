@@ -54,7 +54,8 @@
     {
       "fieldname": "khu_vuc",
       "fieldtype": "Data",
-      "label": "Khu vực mong muốn"
+      "label": "Khu vực mong muốn",
+      "read_only": 1
     },
     {
       "fieldname": "tre_em",

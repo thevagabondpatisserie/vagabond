@@ -56,3 +56,7 @@ Header live dat-ban.js trước deploy trả Cache-Control max-age=31536000,
 immutable. Đã thêm query SHA256 nội dung cho bốn JS/CSS trên ba trang; chạy
 python3 dung_web_order.py sau sửa asset. Ca kiểm tính lại hash, chặn URL cũ
 khi nội dung thay đổi. Không bắt khách tự xóa cache để thấy tính năng mới.
+
+### Inline4000485067: khu vực trên Desk
+
+Khu khách chọn được giữ nguyên, Desk chỉ đọc trường này; nhân viên ghi điều phối vào Ghi chú xử lý. Các vai trò trong schema chỉ có đọc/ghi, không tạo mới; form công khai vẫn chọn từ cấu hình. Không thêm ô gõ tay hay đổi yêu cầu gốc. Ca schema giữ read_only cùng ca backend bất biến đã có.

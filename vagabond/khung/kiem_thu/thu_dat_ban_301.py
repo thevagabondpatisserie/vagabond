@@ -79,6 +79,7 @@ def schema_seed():
     d=json.loads((GOC/'vagabond/vagabond/doctype/vagabond_dat_ban/vagabond_dat_ban.json').read_text())
     ds={x['fieldname']:x for x in d['fields']}
     for t in ('dip','khu_vuc','tre_em','email','banh_kem_theo'):dung(t,t in ds and not ds[t].get('reqd'))
+    la('Desk chỉ đọc khu khách đã chọn', ds['khu_vuc'].get('read_only'), 1)
     for t in ('di_ung','kenh_lien_he','sdt_lien_he'):dung('không thêm '+t,t not in ds)
     for cu in ('', 'Khu riêng'):
         vet=[];db=D(gia=cu)
