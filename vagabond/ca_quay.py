@@ -29,6 +29,14 @@ Ba, tiền mặt là phương thức duy nhất mang tiền lẻ đầu ca. Ph�
 két = tiền lẻ đầu ca + doanh thu tiền mặt. Các phương thức khác (chuyển
 khoản, thẻ, ví) không có khái niệm đầu ca.
 
+Bốn (anh Việt chốt 12/09/2026, issue #296 mục 3): CHỈ ĐẾM TIỀN MẶT. Thu
+ngân không "đếm" được tiền chuyển khoản, tiền thẻ hay tiền ví, nên bắt gõ
+các ô đó chỉ là bắt gõ lại số máy, và mỗi ô gõ sai là một dòng lệch giả
+phải bịa lý do. Từ nay màn chốt ca có MỘT ô đếm là tiền mặt; các phương
+thức khác vẫn nằm trong biên bản với số máy để đối chiếu, nhưng không có
+số đếm và không tính lệch. Lệch chuyển khoản bắt ở bảng đối soát SePay
+(#290 D2), không bắt ở ca.
+
 Lệch ca thuộc về ai
 -------------------
 Lệch bắt ở đây là lệch CỦA CA: giữa số thu ngân đếm và số máy ghi nhận
@@ -154,6 +162,68 @@ def doc_so_dem(tho):
 			raise ValueError("Số đếm của %s là số âm." % t)
 		ra[t] = tien
 	return ra
+
+
+def doc_tien_mat_dem(dem):
+	"""Đọc số TIỀN MẶT thu ngân đếm được từ tham số `dem`. THUẦN.
+
+	Nhận ba dạng, vì app trên máy quầy có thể đang chạy bản cũ lúc máy chủ
+	đã lên bản mới: một con số hoặc chuỗi số (bản mới), một dict hoặc chuỗi
+	JSON tên phương thức sang tiền (bản cũ gửi đủ mọi ô). Dạng dict thì chỉ
+	lấy dòng Tiền mặt, các dòng khác BỎ, vì từ 12/09/2026 thu ngân không
+	đếm những thứ đó nữa (#296 mục 3).
+
+	Thiếu dòng tiền mặt hay số âm thì ném ValueError, để chot_ca báo thẳng.
+	"""
+	if isinstance(dem, (int, float)) and not isinstance(dem, bool):
+		tien = flt(dem)
+	else:
+		chuoi = str(dem if dem is not None else "").strip()
+		if isinstance(dem, dict) or chuoi.startswith("{"):
+			so = doc_so_dem(dem)
+			if TIEN_MAT not in so:
+				raise ValueError("Chưa có số tiền mặt đếm được.")
+			tien = so[TIEN_MAT]
+		else:
+			if chuoi == "":
+				raise ValueError("Chưa có số tiền mặt đếm được.")
+			try:
+				tien = float(chuoi)
+			except ValueError:
+				# Có máy gõ "5.350.000" theo thói quen dấu chấm nghìn. Bỏ dấu
+				# rồi đọc lại; vẫn không ra số thì báo thẳng, không đoán.
+				try:
+					tien = float(chuoi.replace(".", "").replace(",", ""))
+				except ValueError:
+					raise ValueError("Số tiền mặt đếm được không phải là số: %s" % chuoi)
+	if tien < 0:
+		raise ValueError("Số đếm của %s là số âm." % TIEN_MAT)
+	return flt(tien)
+
+
+def ghep_chi_tien_mat(pt_may, tien_mat_dem, tien_le_dau_ca=0.0, so_bill=None):
+	"""Bảng đối soát khi thu ngân CHỈ đếm tiền mặt. THUẦN.
+
+	Đây là NGUỒN DUY NHẤT dựng bảng cho chot_ca (điều 18 CLAUDE.md), không
+	tự ghép riêng ở chỗ khác. Nó đi qua ghep_doi_soat để giữ cùng một luật
+	về cột phải có và thứ tự dòng, nhưng cho các phương thức không phải tiền
+	mặt thì số đếm được ĐẶT BẰNG số máy: dòng đó không lệch, không đòi lý
+	do, chỉ còn là số máy bày ra để thu ngân đối chiếu bằng mắt với app
+	ngân hàng hay máy POS thẻ.
+
+	Vì sao đặt đếm = máy chứ không đặt 0: đặt 0 thì tổng đếm của ca chỉ còn
+	tiền mặt, tổng máy vẫn đủ mọi phương thức, hai con số trên biên bản
+	không còn so được với nhau. Đặt bằng máy thì tổng đếm và tổng máy chỉ
+	lệch đúng bằng lệch tiền mặt, là điều biên bản muốn nói.
+
+	Dòng Tiền mặt luôn có mặt kể cả máy ghi 0 tiền mặt: thu ngân đếm ra 0
+	hay 50.000 thì đều phải lộ lên bảng.
+	"""
+	pt_may = dict(pt_may or {})
+	pt_may.setdefault(TIEN_MAT, 0.0)
+	pt_dem = {t: flt(so) for t, so in pt_may.items() if t != TIEN_MAT}
+	pt_dem[TIEN_MAT] = flt(tien_mat_dem)
+	return ghep_doi_soat(pt_may, pt_dem, tien_le_dau_ca, so_bill)
 
 
 # ========================================================= chạm vào hệ
@@ -355,7 +425,7 @@ def tinh_trang(quay):
 	pt = _pt_cua_diem(quay)
 	ten = _ca_dang_mo(quay)
 	if not ten:
-		return {"dang_mo": 0, "phuong_thuc": pt}
+		return {"dang_mo": 0, "phuong_thuc": pt, "chi_dem_tien_mat": 1}
 	d = frappe.db.get_value(
 		CA, ten, ["name", "mo_luc", "nguoi_mo", "tien_le_dau_ca"], as_dict=True
 	)
@@ -365,7 +435,10 @@ def tinh_trang(quay):
 		"mo_luc": str(d.mo_luc),
 		"nguoi_mo": d.nguoi_mo,
 		"tien_le_dau_ca": flt(d.tien_le_dau_ca),
+		# Danh sách này chỉ để màn hình KỂ TÊN các phương thức sẽ hiện số máy
+		# sau khi chốt. Ô đếm chỉ có một, là tiền mặt (#296 mục 3).
 		"phuong_thuc": pt,
+		"chi_dem_tien_mat": 1,
 	}
 
 
@@ -422,14 +495,16 @@ def mo_ca(quay, tien_le_dau_ca=0):
 
 @frappe.whitelist()
 def chot_ca(quay, dem, ly_do_lech="", ghi_chu=""):
-	"""Chốt ca mù: nhận số thu ngân đếm, so với số máy, ghi cứng biên bản.
+	"""Chốt ca mù: nhận số TIỀN MẶT thu ngân đếm, so với số máy, ghi biên bản.
 
-	`dem` là JSON tên phương thức sang số tiền thu ngân đếm được. Máy tính
+	`dem` là số tiền mặt đếm được (bản app từ v487), hoặc JSON tên phương
+	thức sang tiền của bản app cũ, khi đó chỉ lấy dòng Tiền mặt. Máy tính
 	doanh thu hệ thống TẠI ĐÂY, sau khi đã nhận số đếm, nên thu ngân không
 	có cách nào nhìn thấy số máy trước lúc gõ.
 
-	Có dòng lệch từ 1.000đ mà không gõ lý do thì máy trả bảng đối soát về
-	kèm cờ `can_ly_do`, KHÔNG chốt. Màn hình cho gõ lý do rồi gọi lại.
+	Chỉ dòng tiền mặt có lệch. Lệch từ 1.000đ mà không gõ lý do thì máy trả
+	bảng đối soát về kèm cờ `can_ly_do`, KHÔNG chốt. Màn hình cho gõ lý do
+	rồi gọi lại.
 	"""
 	_kiem_quyen()
 	quay = (quay or "").strip()
@@ -437,11 +512,9 @@ def chot_ca(quay, dem, ly_do_lech="", ghi_chu=""):
 	if not ten:
 		frappe.throw("Điểm bán này không có ca nào đang mở.")
 	try:
-		so_dem = doc_so_dem(dem)
+		tien_mat_dem = doc_tien_mat_dem(dem)
 	except ValueError as e:
-		frappe.throw(str(e))
-	if not so_dem:
-		frappe.throw("Chưa có số đếm nào. Gõ số tiền đếm được của từng phương thức, kể cả bằng 0.")
+		frappe.throw("%s Gõ số tiền mặt đếm được trong két, kể cả bằng 0." % str(e))
 
 	doc = frappe.get_doc(CA, ten)
 	luc = now_datetime()
@@ -450,7 +523,7 @@ def chot_ca(quay, dem, ly_do_lech="", ghi_chu=""):
 	# hàng tặng KHÔNG nằm trong két, nên không đưa vào bảng đối soát. Bày ra
 	# riêng để quản lý biết còn bao nhiêu phải đi đòi.
 	pt_may, pt_ngoai = loc_trong_ket(pt_may, _ngoai_ket())
-	bang = ghep_doi_soat(pt_may, so_dem, doc.tien_le_dau_ca, so_bill)
+	bang = ghep_chi_tien_mat(pt_may, tien_mat_dem, doc.tien_le_dau_ca, so_bill)
 
 	if can_ly_do(bang) and not (ly_do_lech or "").strip():
 		return {
@@ -458,9 +531,10 @@ def chot_ca(quay, dem, ly_do_lech="", ghi_chu=""):
 			"bang": bang,
 			"ngoai_ket": pt_ngoai,
 			"tong_lech": tong_lech(bang),
+			"chi_dem_tien_mat": 1,
 			"nhac": (
-				"Có phương thức lệch từ %s đồng. Gõ lý do (đếm sót, trả nhầm "
-				"tiền thừa, khách chuyển thiếu...) rồi bấm chốt lại."
+				"Tiền mặt lệch từ %s đồng so với máy. Gõ lý do (đếm sót, trả "
+				"nhầm tiền thừa, chi vặt chưa ghi phiếu...) rồi bấm chốt lại."
 				% int(NGUONG_LECH)
 			),
 		}
@@ -477,7 +551,7 @@ def chot_ca(quay, dem, ly_do_lech="", ghi_chu=""):
 	doc.tong_dem = sum(flt(d["dem"]) for d in bang)
 	doc.tong_lech = sum(flt(d["lech"]) for d in bang)
 	# Số tiền mặt đếm được lúc chốt: chính là số phiếu nộp quỹ sẽ kỳ vọng.
-	doc.tien_mat_dem = flt(so_dem.get(TIEN_MAT))
+	doc.tien_mat_dem = tien_mat_dem
 	doc.save(ignore_permissions=True)
 	frappe.db.commit()
 	return {
@@ -487,6 +561,7 @@ def chot_ca(quay, dem, ly_do_lech="", ghi_chu=""):
 		"ngoai_ket": pt_ngoai,
 		"tong_lech": tong_lech(bang),
 		"tien_mat_dem": flt(doc.tien_mat_dem),
+		"chi_dem_tien_mat": 1,
 	}
 
 
