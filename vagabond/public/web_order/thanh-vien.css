@@ -1,0 +1,31 @@
+/* #300: bố cục hồ sơ và biểu mẫu; nhận diện lấy từ nen.css. */
+.trang-dich-vu main{max-width:920px;padding-top:38px;padding-bottom:calc(70px + env(safe-area-inset-bottom))}
+.logo-chu{font-family:'Vagabond Sans',var(--sans);font-size:28px;color:var(--cyan)}
+.hd .tab{flex:none;min-height:44px;display:flex;align-items:center}
+.nhan{font:11px var(--sans);letter-spacing:.18em;color:var(--fog);text-transform:uppercase}
+.trang-dich-vu .h1{font-size:clamp(52px,12vw,100px);margin:22px 0}
+.trang-dich-vu h2{font-family:'Vagabond Sans',var(--sans);font-size:30px;font-weight:400;text-transform:uppercase;color:var(--amber);line-height:1.2}
+.phu{color:var(--fog)}
+.trang-dich-vu .noi-dung{display:block;padding:28px 0;border-top:1px solid var(--line);margin-top:24px}
+.trang-dich-vu [hidden]{display:none!important}
+.hang-ngang{display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap}
+.the-hang{width:100%;max-width:460px;height:auto;margin:24px 0}
+.so-diem{font-family:'Vagabond Sans',var(--sans);font-size:52px;color:var(--cyan)}
+.trang-dich-vu button{min-height:44px;border:1px solid var(--line);padding:10px 20px;font-size:13px}
+.trang-dich-vu button.chinh,.trang-dich-vu button[aria-pressed=true]{background:var(--cyan);color:var(--bg);border-color:var(--cyan)}
+.trang-dich-vu button:disabled{opacity:.5;cursor:wait}
+.trang-dich-vu :focus-visible{outline:2px solid var(--cyan);outline-offset:4px}
+.trang-dich-vu label{display:block;margin:18px 0 10px;font-size:14px}
+.trang-dich-vu input,.trang-dich-vu textarea{display:block;width:100%;min-width:0;min-height:44px;margin-top:8px;background:var(--bg-2);color:var(--paper);border:1px solid var(--line);border-radius:0;padding:12px;font:16px var(--qualy);color-scheme:dark}
+.trang-dich-vu textarea{min-height:100px;resize:vertical}
+.luoi{display:grid;grid-template-columns:1fr 1fr;gap:20px}.chip{display:flex;flex-wrap:wrap;gap:8px}.gui-rong{width:100%;margin-top:24px}
+.thong-bao{padding:16px 0;color:var(--fog)}.loi{color:var(--amber)}
+.don{padding:24px 0;border-bottom:1px solid var(--line-2)}
+.don h3{font-size:15px;font-weight:400}.don .tong{color:var(--cyan);font-size:18px}
+.trang-thai-don{font:13px var(--sans);border:1px solid currentColor;padding:5px 10px;display:inline-block}
+.trang-thai-don.xanh{color:var(--cyan)}.trang-thai-don.vang{color:var(--amber)}.trang-thai-don.xam{color:var(--fog)}
+.mon-don{display:flex;gap:16px;align-items:center;margin-top:16px;min-width:0}
+.mon-don .ph{width:68px;height:68px;flex:0 0 68px;display:grid;place-items:center;background:var(--bg-2);border:1px solid var(--line-2);overflow:hidden}
+.mon-don .ph img{width:100%;height:100%;object-fit:cover}.mon-don .c-name{font-family:'Vagabond Sans',var(--sans);text-transform:uppercase;color:var(--amber);font-size:21px;line-height:1.2;overflow-wrap:anywhere}
+@media(max-width:600px){.luoi{grid-template-columns:1fr}.trang-dich-vu main{padding-top:28px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation:none!important;transition:none!important}}

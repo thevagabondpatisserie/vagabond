@@ -421,6 +421,13 @@ Triệu chứng được báo là Mass sai nhóm. Repo đã từng sửa chính 
 
 Ngày13/09 đối chiếu live #303: Mass đã là phantom,34/34 dòng cha hoạt động đúng và không còn lá Mass trong bảng nổ. Không lấy ảnh/cấu hình cũ làm lý do tạo mã mới. Báo cáo phải gắn trạng thái BOM đã huỷ/đang chạy để tránh nhận lịch sử là lỗi hiện tại; ca công cụ phải được đăng ký vào chay.py, không chỉ chạy riêng.
 
+### #300: ảnh lịch sử không lấy từ danh mục đang bán
+
+Nguồn chọn món lọc disabled/is_sales_item và giới hạn số dòng, nên không dùng
+nguyên danh sách ấy để tìm ảnh đơn cũ. Tra Item.image theo đúng mã ở các đơn
+đã lọc số điện thoại, gom một lô; tập rỗng không truy vấn. Ca kiểm đưa đơn của
+số gần giống và số rác vào cùng phản hồi Pancake để giữ ranh giới khách.
+
 ### 13/09/2026 - Lô và HSD chỉ cảnh báo, tồn kho không bao giờ âm
 
 Đổi chính sách thì phải đổi ca đối chứng đúng đại lượng: 50 tốt + 280 quá hạn + 100 lô tắt nay là 430 khả dụng. Xin500 vẫn phải thiếu70; xin400 cần dùng70 từ lô tắt và lưu cảnh báo. Gói Desk cấp chưa đủ lượng dòng phải được bù, không biến kiểm tổng lượng gói thành một chốt mới chặn người dùng.
@@ -434,3 +441,7 @@ Thuộc tính han_su_dung trên dict PR Item không có trong meta nên nhập/x
 - #302 F24: đọc dữ liệu thất bại không phải giá trị rỗng. API cần trạng thái giữ riêng với xóa chủ động; kiểm cả lô chưa có SLE vì guard lịch sử không bảo vệ nó. Ca UI mock lỗi/thiếu phải theo tới payload, ca bench đọc lại ngày DB.
 
 - #302 F26: khóa bản DB rồi vẫn get_doc(payload) chưa bảo vệ giá/quy cách/ngày. Dùng bản DB, chỉ áp trường thao tác đã cho phép; giá tạm tính từ nguồn cùng công ty/tiền tệ trên máy chủ. Câu cảnh báo quá hạn ngưỡng0 phải đổi cả trạng thái dat trước khi gọi hàm dựng câu.
+
+#300 review: ngày Pancake phải qua ngay_pancake.ngay_tu_iso, không cắt chuỗi
+UTC tại trình duyệt. Ảnh mã có hậu tố size phải thử mã gốc sau mã thô; ca kiểm
+giữ riêng ảnh chính xác và ảnh dự phòng. Nguồn Claude run34771893366.

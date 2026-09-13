@@ -16,6 +16,15 @@ Hai nguon gop lai lam mot:
     kho nhung van phai chon duoc y het mon thuong.
 """
 
+# phần thuần
+import re
+
+
+def ma_goc(ma):
+	"""Hậu tố size Pancake, cùng quy tắc đã dùng ở ban_hang._dong_hang."""
+	return re.sub(r"(MINI|[SML])\d{1,2}CM$", "", str(ma or "").strip(), flags=re.IGNORECASE)
+
+
 import frappe
 from frappe.utils import flt
 
@@ -34,6 +43,20 @@ NHOM_AN = [
 ]
 
 TEP_ANH_MAC_DINH = ""
+
+
+def anh_theo_ma(ds_ma):
+	"""Ảnh Item theo đúng các mã đã lọc quyền, kể cả món cũ ngừng bán."""
+	ma = sorted({str(x).strip() for x in ds_ma if x and str(x).strip()})
+	if not ma:
+		return {}
+	can_tra = sorted(set(ma) | {ma_goc(x) for x in ma})
+	anh = {x["name"]: x.get("image") or "" for x in frappe.get_all(
+		"Item", filters={"name": ["in", can_tra]}, fields=["name", "image"],
+		limit_page_length=0,
+	)}
+	return {x: anh.get(x) or anh.get(ma_goc(x), "") for x in ma}
+
 
 
 def _bang_gia_ban():
