@@ -26,7 +26,7 @@ VIỆC CẦN LÀM NGAY (tên người - việc - hạn)
 
 ĐÃ KIỂM TRÊN SITE THẬT
 - Màn <tên màn trên app>: <thấy gì, số bao nhiêu>.
-- Patch Log ghi vNNN. Doctype <X> đã có trường <Y>.
+- Màn <tên màn>: đã thấy <nút hoặc thông tin mới> và thử <thao tác> thành công.
 
 CÒN TỒN (chưa làm trong bản này)
 - ...
@@ -106,14 +106,14 @@ CÒN TỒN
 - POS đổi "Ghi sổ tại quầy" thành "Lưu đơn", duyệt đơn tặng tự chuyển ngày và
   ghi sổ: đang chờ làm ở issue #296.
 
-Kỹ thuật: PR #291 #292 #293, SHA cdca9731, issue #290 #283 #247.
+Kỹ thuật: PR #291 #292 #293, SHA cdca973129a8793a6ca7eb053f65cfd82b5fcbac, issue #290 #283 #247.
 ```
 
 Khối Telegram tương ứng:
 
 ```
 <!-- telegram-release
-{"version":"v486","sha":"cdca9731","live_verified":true,"features":["Một đơn kẹt không còn giữ cả ngày, các đơn khác vẫn ghi sổ và xuất hoá đơn.","Nút Ghi sổ hoá đơn bán hàng gom cả bill quầy.","Đơn tặng gửi duyệt lại về Chờ duyệt, lý do không mất khi đồng bộ Pancake.","Công tắc Hàng tặng xuất kho thật, mặc định tắt.","Chọn combo chưa khai báo thì màn chọn món báo ngay lý do."]}
+{"version":"v486","sha":"cdca973129a8793a6ca7eb053f65cfd82b5fcbac","live_verified":true,"features":["Một đơn kẹt không còn giữ cả ngày, các đơn khác vẫn ghi sổ và xuất hoá đơn.","Nút Ghi sổ hoá đơn bán hàng gom cả bill quầy.","Đơn tặng gửi duyệt lại về Chờ duyệt, lý do không mất khi đồng bộ Pancake.","Công tắc Hàng tặng xuất kho thật, mặc định tắt.","Chọn combo chưa khai báo thì màn chọn món báo ngay lý do."]}
 -->
 ```
 
