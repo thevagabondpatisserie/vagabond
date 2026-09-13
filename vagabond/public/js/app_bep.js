@@ -12501,40 +12501,52 @@ async function posMoCa() {
   } catch (e) { busy(false); baoTin((e && e.message) || 'Không mở được ca', 'Mở ca'); }
 }
 
-/* Man chot ca: moi phuong thuc mot o, go xong bam chot. Co lech thi may
-   tra bang doi soat ve va doi ly do roi moi chot that. */
+/* Man chot ca: MOT o dem la tien mat, go xong bam chot. Co lech thi may
+   tra bang doi soat ve va doi ly do roi moi chot that.
+
+   Truoc v487 man nay ve moi phuong thuc mot o (tien mat, chuyen khoan,
+   the, vi...). Anh Viet 12/09/2026 (#296 muc 3): thu ngan khong "dem"
+   duoc tien chuyen khoan, cac o do chi la go lai so may, go sai la mot
+   dong lech gia phai bia ly do. Nay chi con o tien mat; cac phuong thuc
+   khac hien so may SAU khi chot de doi chieu bang mat, khong bat go. */
 async function scrChotCa() {
   if (!posQuay || !caPos || !caPos.dang_mo) return go(scrPosQuay, true);
-  var dsPt = caPos.phuong_thuc || ['Tiền mặt'];
+  if (!caPos.chi_dem_tien_mat) {
+    frame('Chốt ca', '<div class="card">Máy chủ chưa sẵn sàng chốt ca chỉ đếm tiền mặt. Tải lại ứng dụng sau khi cập nhật hoàn tất; chưa chốt ca ở bước này.</div>');
+    return;
+  }
+  var dsPt = (caPos.phuong_thuc || []).filter(function (t) { return t !== 'Tiền mặt'; });
   var html = '<div class="card" style="padding:13px 14px">' +
     '<b style="font-size:15px">Chốt ca ' + h(caPos.ma) + ' · ' + h(posQuay.ten) + '</b>' +
     '<div style="font-size:12.5px;color:#6b7280;margin-top:3px">Mở lúc ' + h(String(caPos.mo_luc).slice(11, 16)) +
     ' · tiền lẻ đầu ca ' + money(caPos.tien_le_dau_ca) + ' đ</div>' +
     '<div style="margin-top:9px;background:#fff6e5;border:1.5px solid #fde3a7;border-radius:9px;padding:9px 12px;font-size:12.5px;color:#8a5b00">' +
-    'Đếm tiền TRƯỚC rồi mới gõ. Máy cố ý không hiện số hệ thống ở bước này - gõ đúng số mình đếm được, kể cả bằng 0.</div></div>';
-  html += '<div class="sec">Số đếm được theo từng phương thức</div><div class="card" style="padding:12px 14px">' +
-    dsPt.map(function (t, i) {
-      return '<div style="display:flex;align-items:center;gap:10px;padding:7px 0' +
-        (i ? ';border-top:1px solid #f2f4f7' : '') + '">' +
-        '<div style="flex:1;font-size:14px;font-weight:600">' + h(t) + '</div>' +
-        '<input class="tin caDem" data-pt="' + h(t) + '" inputmode="numeric" placeholder="0" style="width:150px;text-align:right;margin:0">' +
-        '</div>';
-    }).join('') + '</div>';
+    'Đếm tiền mặt trong két TRƯỚC rồi mới gõ. Máy cố ý không hiện số hệ thống ở bước này - gõ đúng số mình đếm được, kể cả bằng 0.</div></div>';
+  html += '<div class="sec">Tiền mặt đếm được trong két</div><div class="card" style="padding:12px 14px">' +
+    '<div style="display:flex;align-items:center;gap:10px;padding:7px 0">' +
+    '<div style="flex:1;font-size:14px;font-weight:600">Tiền mặt</div>' +
+    '<input class="tin" id="caDemTienMat" inputmode="numeric" placeholder="0" style="width:150px;text-align:right;margin:0">' +
+    '</div></div>';
+  if (dsPt.length) {
+    html += '<div class="card" style="padding:11px 14px;font-size:12.5px;color:#6b7280;line-height:1.6">' +
+      'Không cần đếm <b>' + h(dsPt.join(', ')) + '</b>: sau khi chốt, máy hiện số hệ thống của từng phương thức để đối chiếu với app ngân hàng hay máy thẻ.</div>';
+  }
   html += '<div class="card" style="padding:12px 14px">' +
     '<div class="h2" style="margin-bottom:6px">Ghi chú ca (không bắt buộc)</div>' +
     '<input class="tin" id="caGhiChu" style="margin:0" placeholder="Bàn giao cho ai, sự cố trong ca...">' +
     '</div>';
   html += '<button class="btn" id="caChotNut" style="width:100%">Chốt ca và xem đối soát</button>';
   var b = frame('Chốt ca', html);
-  b.querySelectorAll('.caDem').forEach(function (o) {
-    o.oninput = function () { o.value = o.value.replace(/[^0-9]/g, ''); };
-  });
+  var oTm = document.getElementById('caDemTienMat');
   document.getElementById('caChotNut').onclick = async function () {
-    var dem = {};
-    b.querySelectorAll('.caDem').forEach(function (o) {
-      if (o.value !== '') dem[o.getAttribute('data-pt')] = Number(o.value) || 0;
-    });
-    if (!Object.keys(dem).length) return toast('Chưa gõ số đếm nào. Ô nào không có tiền thì gõ 0.', 4500);
+    if (oTm.value === '') return toast('Chưa gõ số tiền mặt đếm được. Két không có tiền thì gõ 0.', 4500);
+    /* Chỉ gửi khi máy chủ đã công bố hỗ trợ đếm tiền mặt ở đầu màn. */
+    var chuoiTien = oTm.value.trim();
+    if (/^[0-9]{1,3}(\.[0-9]{3})+$/.test(chuoiTien) || /^[0-9]{1,3}(,[0-9]{3})+$/.test(chuoiTien))
+      chuoiTien = chuoiTien.replace(/[.,]/g, '');
+    if (!/^[0-9]+$/.test(chuoiTien) || !Number.isSafeInteger(Number(chuoiTien)))
+      return toast('Số tiền mặt không hợp lệ. Gõ lại số tiền nguyên không âm.', 4500);
+    var dem = { 'Tiền mặt': Number(chuoiTien) };
     var ghiChu = (document.getElementById('caGhiChu') || {}).value || '';
     busy(true);
     var k;
@@ -12555,30 +12567,36 @@ async function scrChotCa() {
 }
 
 function caLechChu(bang) {
-  return (bang || []).filter(function (d) { return Math.abs(d.lech) >= 1; })
+  return (bang || []).filter(function (d) { return d.phuong_thuc === 'Tiền mặt' && Math.abs(d.lech) >= 1; })
     .map(function (d) { return d.phuong_thuc + ': ' + (d.lech > 0 ? 'thừa ' : 'thiếu ') + money(Math.abs(d.lech)) + ' đ'; })
     .join('; ');
 }
 
-/* Bang doi soat sau khi chot: xanh la khop, do la lech, kem cot phai co
-   (may cong tien le dau ca cho dong Tien mat). */
+/* Bang doi soat sau khi chot: dong Tien mat xanh la khop, do la lech, kem
+   cot phai co (may cong tien le dau ca). Cac phuong thuc khac chi co so
+   may de doi chieu, khong co so dem, khong co lech (#296 muc 3). */
 function scrDoiSoatCa(k) {
   var html = '<div class="card" style="padding:13px 14px">' +
     '<b style="font-size:15px">Đối soát ca ' + h(k.ma || '') + '</b>' +
     '<div style="font-size:13px;margin-top:4px;color:' + (k.tong_lech >= 1 ? '#b3261e' : '#0f766e') + ';font-weight:700">' +
-    (k.tong_lech >= 1 ? 'Tổng lệch ' + money(k.tong_lech) + ' đ' : 'Khớp toàn bộ ✓') + '</div></div>';
+    (k.tong_lech >= 1 ? 'Tiền mặt lệch ' + money(k.tong_lech) + ' đ' : 'Tiền mặt khớp ✓') + '</div></div>';
   html += '<div class="card" style="padding:6px 14px">' +
     '<table style="width:100%;border-collapse:collapse;font-size:13px">' +
     '<tr style="color:#98a2b3;font-size:11.5px"><td style="padding:7px 0">PHƯƠNG THỨC</td>' +
     '<td style="text-align:right">PHẢI CÓ</td><td style="text-align:right">ĐÃ ĐẾM</td><td style="text-align:right">LỆCH</td></tr>' +
     (k.bang || []).map(function (d) {
       var lech = Math.round(d.lech);
+      var tienMat = d.phuong_thuc === 'Tiền mặt';
       return '<tr style="border-top:1px solid #f2f4f7">' +
         '<td style="padding:8px 0">' + h(d.phuong_thuc) + (d.so_bill ? ' <span style="color:#98a2b3;font-size:11px">(' + d.so_bill + ' bill)</span>' : '') + '</td>' +
         '<td style="text-align:right">' + money(d.phai_co) + '</td>' +
-        '<td style="text-align:right">' + money(d.dem) + '</td>' +
-        '<td style="text-align:right;font-weight:700;color:' + (Math.abs(lech) >= 1 ? '#b3261e' : '#0f766e') + '">' +
-        (lech > 0 ? '+' : '') + money(lech) + '</td></tr>';
+        (tienMat
+          ? '<td style="text-align:right">' + money(d.dem) + '</td>' +
+            '<td style="text-align:right;font-weight:700;color:' + (Math.abs(lech) >= 1 ? '#b3261e' : '#0f766e') + '">' +
+            (lech > 0 ? '+' : '') + money(lech) + '</td>'
+          : '<td style="text-align:right;color:#98a2b3">không đếm</td>' +
+            '<td style="text-align:right;color:#98a2b3">không tính lệch</td>') +
+        '</tr>';
     }).join('') + '</table></div>';
   html += '<div class="card" style="padding:11px 14px;font-size:12.5px;color:#6b7280;line-height:1.6">' +
     'Tiền mặt đếm được <b>' + money(k.tien_mat_dem || 0) + ' đ</b> của ca này sẽ thành tiền kỳ vọng ' +
@@ -21739,7 +21757,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '486';
+var APPVER = '487';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }

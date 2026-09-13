@@ -371,3 +371,8 @@ Chốt validate không bảo vệ được API dùng db.set_value. Chuyển sang
 ### 12/09/2026 - Tắt chính sách không được che trạng thái cần dọn (#291)
 
 Nháp tặng đã mang kho/64181, khi tắt công tắc cùng lúc đổi thành thu tiền, hạ dấu trước làm nhánh return bỏ qua dọn kho. Dọn chuyển loại trước khi tính dấu mới; ca thuần bắt update_stock còn 1, ca bench lưu-ghi sổ-hủy và đọc GL/SLE/Bin. Nguồn finding 3996732355, cùng lỗi 3996733712 trên nhánh tích hợp #293.
+
+
+### #299: chốt ca chỉ đếm tiền mặt cần nhận biết phiên bản máy chủ
+
+JSON chỉ có Tiền mặt vẫn hợp cú pháp của backend cũ nhưng biến chuyển khoản/thẻ thành thiếu tiền. UI phải đọc chi_dem_tien_mat trước khi cho chốt. Không dùng flt để xác nhận số đếm: chữ sai biến thành0, NaN/Infinity qua so sánh âm; chuỗi5.000 phải đọc là5000 hoặc chặn, không âm thầm nhận5. Giữ các phương thức được cấu hình dù số máy bằng0. Ca API mở-chốt-reload giữ số nộp quỹ, Node kiểm backend cũ và payload. #290D2: báo cáo CK đọc cùng mã Pancake với ghi sổ, chọn một đường khớp, không cộng hai lần cùng tiền.
