@@ -20,3 +20,5 @@ Thư NCC trước đây chỉ lấy địa chỉ đầu; nay gom Supplier.email_
 Codex kiểm bench SHA cuối, đọc Claude delta quyền, Ready/merge PR 298, deploy một lần v488 (patch487 rồi488). Bắt buộc chọn site để migrate email_gui_toi từ Data sang Small Text. Kiểm Patch Log, schema, bundle và màn liên quan trên site thật. Console đã xác minh email_cc có và hộp Purchasing bật outgoing; chưa gửi thư thật, chưa chứng minh hộp nhận đã nhận.
 
 Theo review5651020223 còn việc không chặn: bang_chung parse MIME khi mở hồ sơ có UNC lớn, cần đo/tối ưu ở lượt sau; API gọi tay retry vẫn kiểm UNC trước da_co. Không mở quyền Email Queue cho kế toán, ai thiếu quyền được hướng dẫn nhờ quản trị viên.
+
+Review tự động3998728970 bắt giao vai bán hàng/kế toán. Ca quyền cũ stub _kiem_quyen; thay bằng hàm thật làm đỏ hai assertion trên e562c202. Sửa cửa ghi sổ chỉ yêu cầu vai kế toán, thêm bench User Accounts độc lập và Sales bị chặn. Bench e562c202 trước delta đã đạt188/188 hai lượt sạch và browser success (34737358134), cần bench mới cho delta quyền. Chưa merge/deploy PR298.

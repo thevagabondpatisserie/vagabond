@@ -66,14 +66,16 @@ def sepay():
 
 @ca('#296 quyền ghi sổ tay kiểm trước khi đọc chứng từ')
 def quyen():
-    for vai in ('Sales User','Sales Manager','Accounts User','Accounts Manager','System Manager'):
+    for vai in ('Guest','Sales User','Sales Manager','Accounts User','Accounts Manager','System Manager'):
         vet=[];g=nen(don(),vet);g['frappe'].get_roles=lambda:[vai]
+        g['QUYEN_BAN_HANG']={'System Manager','Sales User','Sales Manager','Bộ phận đặt hàng'}
+        nap('ban_hang.py','_kiem_quyen',g)
         nap('ban_hang.py','_kiem_quyen_ghi_so',g)
         def doc(n):vet.append('doc');return don()
         g['_pos_lay']=doc;g['_chuan_bi_ghi_so']=lambda s:nem('đã qua quyền')
         try:nap('ban_hang.py','pos_ghi_so',g)('SI296')
         except ValueError:pass
-        la('chặn trước đọc bill',vet,[] if vai.startswith('Sales') else ['doc'])
+        la('chặn trước đọc bill',vet,['doc'] if vai in ('Accounts User','Accounts Manager','System Manager') else [])
 
 
 @ca('#296 cửa đổi ngày giữ tờ đã gửi hoặc chưa rõ, không sửa lịch thanh toán')

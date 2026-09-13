@@ -6148,7 +6148,7 @@ def _chiem_gd_bill(si, ds_gd):
 
 
 def _kiem_quyen_ghi_so():
-	_kiem_quyen()
+	# Kế toán độc lập không cần mang thêm vai bán hàng (#298 review3998728970).
 	if not {"Accounts Manager", "Accounts User", "System Manager"} & set(frappe.get_roles()):
 		frappe.throw("Chỉ kế toán được ghi sổ thủ công. Tại quầy, bấm Lưu đơn để máy xử lý theo lịch.")
 

@@ -113,3 +113,30 @@ def huy_nhap_nha_tien():
     else:dung('không phục hồi chủ thứ hai',False)
     cu.reload();la('vẫn giữ dấu hủy',cu.vgb_huy,1)
     la('không sổ cái',_gl(cu)+_gl(moi),[])
+
+
+@ca('#298 kế toán chỉ có vai Accounts ghi sổ thật; Sales không được ghi')
+def quyen_ke_toan_doc_lap():
+    from vagabond.khung.kiem_that.nen import _DA_TAO
+    cu=frappe.session.user
+    u=frappe.get_doc({'doctype':'User','email':'kt298-'+frappe.generate_hash(length=10)+'@example.invalid','first_name':'Kiểm quyền ghi sổ','enabled':1,'send_welcome_email':0,'roles':[{'role':'Sales User'}]})
+    u.insert(ignore_permissions=True);_DA_TAO.append(('User',u.name))
+    try:
+        for vai in ('Sales User','Accounts User','Accounts Manager'):
+            frappe.set_user('Administrator')
+            hd=_hoa_don(False);hd.vgb_quay='TCV';hd.custom_nguon='Tại chỗ';hd.vgb_pt_thanh_toan='Tiền mặt';hd.save(ignore_permissions=True)
+            u.set('roles',[{'role':vai}]);u.save(ignore_permissions=True)
+            frappe.clear_cache(user=u.name);frappe.set_user(u.name)
+            if vai!='Sales User':
+                dung('không có vai bán hàng ẩn',not ban_hang.QUYEN_BAN_HANG.intersection(frappe.get_roles()))
+                ket=ban_hang.pos_ghi_so(hd.name)
+                la('API ghi sổ',ket['ok'],1)
+            else:
+                try:ban_hang.pos_ghi_so(hd.name)
+                except frappe.ValidationError as e:dung('đúng chốt kế toán','Chỉ kế toán' in str(e))
+                else:dung('Sales phải bị chặn',False)
+            frappe.set_user('Administrator');hd.reload()
+            la('trạng thái thật',hd.docstatus,0 if vai=='Sales User' else 1)
+            dung('GL theo quyền',bool(_gl(hd))==(vai!='Sales User'))
+    finally:
+        frappe.set_user(cu)
