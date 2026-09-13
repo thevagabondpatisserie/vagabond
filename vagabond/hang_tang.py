@@ -1025,8 +1025,10 @@ def _ghi_so_sau_duyet(name):
 	sales_invoice.py:on_submit ghi kho trước GL. Điểm lưu bao trọn hai sổ.
 	"""
 	from vagabond import ban_hang
-	ket = {"ok": 1, "trang_thai": TT_DUYET, "ghi_so": 0, "xuat_hddt": 0, "loi": ""}
+	ket = {"ok": 1, "trang_thai": TT_DUYET, "ghi_so": 0, "xuat_hddt": 0, "loi": "", "thong_bao": ""}
 	frappe.db.savepoint("tang_sau_duyet")
+	hang_doi = [(getattr(frappe.db, k), getattr(frappe.db, k)._functions.copy())
+		for k in ("before_commit", "after_commit", "before_rollback", "after_rollback")]
 	try:
 		frappe.db.get_value(SI, name, "name", for_update=True)
 		si = frappe.get_doc(SI, name)
@@ -1049,6 +1051,8 @@ def _ghi_so_sau_duyet(name):
 			si.flags.vgb_hoan_phat_hanh = co_cu
 	except Exception as e:
 		frappe.db.rollback(save_point="tang_sau_duyet")
+		for bo, cu in hang_doi:
+			bo._functions = cu
 		frappe.local.message_log = []
 		ket["loi"] = "Đã duyệt, đơn còn nháp. Chưa ghi sổ: %s" % ban_hang.giau_khoa(str(e))[:500]
 		return ket
@@ -1058,7 +1062,10 @@ def _ghi_so_sau_duyet(name):
 		xuat, loi = ban_hang._tu_xuat_hddt(name)
 		ket["xuat_hddt"] = int(bool(xuat))
 		if not xuat:
-			ket["loi"] = "Đã duyệt và ghi sổ, chưa phát hành HĐĐT. " + (loi or "Kiểm tra công tắc và cấu hình phát hành trong Cài đặt.")
+			if loi:
+				ket["loi"] = "Đã duyệt và ghi sổ, chưa phát hành HĐĐT: " + loi
+			else:
+				ket["thong_bao"] = "Đã duyệt và ghi sổ. HĐĐT chưa phát hành vì công tắc tự xuất đang tắt hoặc chưa khai cấu hình. Kế toán kiểm trong Cài đặt."
 	except Exception as e:
 		ket["loi"] = "Đã duyệt và ghi sổ, chưa xác minh được phát hành HĐĐT: %s" % ban_hang.giau_khoa(str(e))[:500]
 	return ket

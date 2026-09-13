@@ -10225,6 +10225,11 @@ function vgbLuot() {
     con: function (l) { return l === so; }
   };
 }
+/* #296: cùng phạm vi quyền với máy chủ; không bày nút ghi sổ cho quầy. */
+function dsDuocGhiSo() {
+  return ['Accounts User', 'Accounts Manager', 'System Manager'].some(hasRole);
+}
+
 /* ---------- Doanh thu Sales: ra soat, chot le tung don, nhap tay ---------- */
 var dsNgay = null;
 var dsLoc = 'tat_ca', dsLocNg = '', dsLocHd = '';
@@ -10374,7 +10379,7 @@ async function scrDoanhSo() {
     '</div><div style="color:#98a2b3;font-size:18px">›</div></div></div>';
 
   var foot = '<div style="display:flex;gap:10px"><button class="btn gh" data-ds="dongbo" style="flex:1">🔄 Đồng bộ Pancake</button>' +
-    (nhap.length ? '<button class="btn" data-ds="chot" style="flex:2">Ghi sổ hoá đơn bán hàng (' + nhap.length + ' đơn)</button>' : '') + '</div>';
+    (nhap.length && dsDuocGhiSo() ? '<button class="btn" data-ds="chot" style="flex:2">Ghi sổ hoá đơn bán hàng (' + nhap.length + ' đơn)</button>' : '') + '</div>';
   var b = frame('Doanh thu Sales', html, { footer: foot, action: '➕', onAction: function () { go(scrDsNhapTay); } });
   var di = document.getElementById('dsDate');
   if (di) di.onchange = function () { if (di.value && di.value <= today()) { dsNgay = di.value; dsLoc = 'tat_ca'; dsLocNg = ''; go(scrDoanhSo, true); } };
@@ -10864,7 +10869,7 @@ async function scrDsView(name, can) {
     foot = '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
       '<button class="btn gh" id="dsvHuy" style="margin:0;flex:1 1 44%;color:#b3261e;border-color:#fecaca">🚫 Huỷ đơn</button>' +
       '<button class="btn gh" id="dsvHuyHoan" style="margin:0;flex:1 1 44%;color:#b45309;border-color:#fde68a">↩️ Huỷ đơn và hoàn tiền</button>' +
-      '<button class="btn" id="dsvChot" style="margin:0;flex:1 1 100%">Ghi sổ hoá đơn bán hàng</button></div>';
+      (dsDuocGhiSo() ? '<button class="btn" id="dsvChot" style="margin:0;flex:1 1 100%">Ghi sổ hoá đơn bán hàng</button>' : '<div>Đơn chờ máy ghi sổ theo lịch; cần xử lý ngay thì báo kế toán.</div>') + '</div>';
   } else if (d.docstatus === 0) {
     /* Da bam Huy don roi moi nho ra khach da chuyen tien. Van phai co duong
        tra tien, khong thi phai nho ke toan lap tay tren Desk. */
@@ -11517,7 +11522,7 @@ async function scrDsView(name, can) {
     var ok = await confirmSheet(
       'Chuyển đơn sang hôm nay',
       'Đơn #' + (d.custom_pancake_display_id || d.name) + ' đang mang ngày ' + d.posting_date +
-      '.\nChuyển sang ' + today() + ' để hoá đơn điện tử xuất đúng ngày theo luật thuế.\n\n' +
+      '.\nChuyển sang ' + today() + ' theo lựa chọn xử lý của kế toán.\n\n' +
       'Doanh thu của đơn sẽ tính vào ngày mới, không còn nằm ở ngày cũ.',
       'Chuyển sang hôm nay');
     if (!ok) return;
@@ -13887,7 +13892,7 @@ function posQrSheet(soPhieu, tien, siName, nguon, maDiem) {
         var bao = ov.querySelector('#qrsBao');
         if (bao) { bao.style.color = '#15803d'; bao.innerHTML = '✅ <b>ĐÃ NHẬN ĐỦ ' + money(kq.nhan) + ' đ</b> - SePay khớp nội dung ' + h(soPhieu) + '.'; }
         var ny = ov.querySelector('[data-y]');
-        if (ny && siName) { ny.textContent = '📒 Ghi sổ luôn - Hoá đơn mới'; ny.setAttribute('data-gs', '1'); }
+        if (ny && siName) { ny.textContent = 'Lưu đơn - Hoá đơn mới'; ny.setAttribute('data-gs', '1'); }
       }
     } catch (e) { }
   }, 5000);
@@ -13905,8 +13910,8 @@ function posQrSheet(soPhieu, tien, siName, nguon, maDiem) {
     var ghiSo = !!(e.target.hasAttribute('data-gs') && siName);
     if (ghiSo) {
       busy(true);
-      try { await api('vagabond.ban_hang.pos_ghi_so', { name: siName }); busy(false); toast('Đã ghi sổ ' + siName); }
-      catch (er) { busy(false); toast((er && er.message) || 'Ghi sổ lỗi', 4000); }
+      try { await api('vagabond.ban_hang.pos_luu_don', { name: siName }); busy(false); toast('Đã lưu đơn nháp ' + siName); }
+      catch (er) { busy(false); toast((er && er.message) || 'Chưa lưu được đơn', 4000); return; }
     }
     clearInterval(pid); ov.remove(); posHomNayTxt = null; go(ghiSo ? scrPosDs : scrPosQuay, true);
   };
@@ -31524,11 +31529,11 @@ async function scrDonTreo() {
      hom nay khong dua vao: chuoi cuoi ngay toi 23h se lo, khong can keo
      ngay cua chinh no. */
   var sanSangCu = rows.filter(function (r) { return r.ly_do === 'san_sang' && !r.hom_nay; });
-  if (sanSangCu.length) {
+  if (sanSangCu.length && dsDuocGhiSo()) {
     var tienCu = sanSangCu.reduce(function (a, r) { return a + Number(r.grand_total || 0); }, 0);
     html += '<div class="sec">Xử cả loạt</div><div class="card" style="padding:12px 14px;font-size:13px;line-height:1.6;color:#374151">' +
       '<b>' + sanSangCu.length + ' đơn của ngày cũ đã đủ điều kiện</b>, tổng ' + money(tienCu) + ' đ.<br>' +
-      'Luật bắt xuất hoá đơn điện tử <b>trong ngày bán</b>, nên đơn cũ phải kéo sang hôm nay rồi mới ghi sổ được. ' +
+      'Kế toán có thể chọn đổi ngày lập sang hôm nay rồi ghi sổ. Doanh thu sẽ tính vào ngày mới. ' +
       'Ngày bán thật vẫn giữ trong ô ghi chú của từng đơn.' +
       '<div style="margin-top:10px"><button class="btn gh" data-dt="keo" style="width:100%">📥 Kéo ' + sanSangCu.length + ' đơn sang hôm nay và ghi sổ</button></div></div>';
   }
@@ -46814,6 +46819,7 @@ async function dtgBam(ev) {
     try {
       var kq = await api('vagabond.hang_tang.duyet', { name: ma, y_kien: y || '' });
       if (kq.loi) await baoTin(kq.loi, 'Kết quả duyệt hàng tặng');
+      else if (kq.thong_bao) await baoTin(kq.thong_bao, 'Đã ghi sổ, chờ phát hành');
       else toast(kq.xuat_hddt ? 'Đã duyệt, ghi sổ và gửi phát hành HĐĐT.' : 'Đã duyệt.');
     } catch (e) { return baoTin(errMsg(e), 'Không duyệt được'); }
     delete dtgChiTiet[ma];

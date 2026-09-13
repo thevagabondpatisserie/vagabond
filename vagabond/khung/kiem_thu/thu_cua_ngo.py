@@ -35,6 +35,21 @@ GOI = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))
 
 # Danh sach cua ngo tung mo dun. Chot ngay 19/08/2026.
 CUA_NGO = {
+	# #296: chốt cả danh sách để cửa Lưu đơn không mất whitelist.
+	"ban_hang.py": [
+		"otp_hien_tai", "pos_anh_quay_luu", "cau_hinh_ban_hang", "dong_bo_doanh_so",
+		"bang_doanh_so", "chot_doanh_so", "ds_don_trung", "go_don_trung",
+		"ra_trung_toan_bo", "luu_thanh_toan", "luu_khach_no", "chot_mot_don",
+		"luu_xhd", "doi_ngay_hoa_don", "don_treo", "keo_va_ghi_so",
+		"cai_dat_cuoi_ngay", "luu_cai_dat_cuoi_ngay", "chay_cuoi_ngay_ngay_bay_gio", "bu_email_xhd",
+		"tao_don_tay", "pos_bill_them", "ai_lam_gi", "xuat_hoa_don_dien_tu",
+		"xuat_hddt_con_thieu", "pos_kiem_sepay", "pos_do_tien", "pos_gan_tien",
+		"pos_ds_bill", "pos_chot", "pos_xoa", "pos_sua_don",
+		"pos_luu_don", "pos_ghi_so", "pos_ds_tuy_chon", "pos_ds_khuyen_mai",
+		"pos_chot_ca", "pos_link_xhd", "xhd_khach_xem", "xhd_khach_luu",
+		"xhd_khach_tra_mst", "ghi_hoa_don_thay_the", "go_hoa_don_thay_the", "bien_ban_thay_the",
+		"dinh_bien_ban_thay_the", "go_bien_ban_thay_the", "tai_bien_ban_thay_the", "tim_don",
+	],
 	"can_tru_san.py": ["diem_ban", "doi_chieu", "thu_lai"],
 	"minvoice_an_toan.py": ["kiem_goi", "mo_lai", "phan_loai_phan_hoi"],
 	# Them 10/09/2026 (#266): xu to da ghi so cua mot ngay chua co HDDT, giu

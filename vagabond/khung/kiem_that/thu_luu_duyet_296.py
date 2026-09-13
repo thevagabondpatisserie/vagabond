@@ -17,7 +17,8 @@ def luu():
         ket=ban_hang.pos_luu_don(hd.name,pt='Tiền mặt',ghi_chu='Lưu đơn fixture 296')
     hd.reload();la('nháp thật',hd.docstatus,0);la('API báo nháp',ket['docstatus'],0)
     la('không GL',_gl(hd),[]);la('không SLE',_sle(hd),[])
-    hd.vgb_pt_thanh_toan='';hd.save(ignore_permissions=True)
+    # Dựng nháp thiếu ô đã tồn từ nguồn cũ; save hiện tại vốn đã chặn ô trống.
+    hd.db_set('vgb_pt_thanh_toan','');hd.reload()
     try:ban_hang.pos_luu_don(hd.name)
     except frappe.ValidationError as e:dung('lý do đọc được','phương thức' in str(e))
     else:dung('phải chặn đơn thiếu phương thức',False)
@@ -36,12 +37,22 @@ def duyet_ngay_cu():
         la('ngày hôm nay',str(doc.posting_date),today())
         dung('GL có thật',bool(_gl(doc)));dung('SLE có thật',bool(_sle(doc)))
         goi.append(ten);return True,''
-    with patch.object(ban_hang,'_tu_xuat_hddt',side_effect=xuat):
+    commit=frappe.db.commit
+    goi_commit=[]
+    def soat_commit(*a,**kw):
+        # Đếm Ý ĐỊNH commit trước khi Database.commit gặp cờ cách ly bench.
+        import inspect
+        stack={f.function for f in inspect.stack()}
+        dung('không commit trong save/submit',not stack.intersection({'_save','_submit','submit','save'}))
+        goi_commit.append(1)
+        return commit(*a,**kw)
+    with patch.object(ban_hang,'_tu_xuat_hddt',side_effect=xuat), patch.object(frappe.db,'commit',side_effect=soat_commit):
         ket=hang_tang.duyet(hd.name,'Duyệt fixture cũ qua API thật')
     hd.reload();la('duyệt',hd.vgb_tang_duyet,hang_tang.TT_DUYET)
     la('kết quả', (ket['ghi_so'],ket['xuat_hddt'],ket['loi']),(1,1,''))
     la('một lần gọi',goi,[hd.name]);la('xuất đúng lượng',sum(d.actual_qty for d in _sle(hd)),-2)
     dung('GL cân',abs(sum(d.debit-d.credit for d in _gl(hd)))<0.01)
+    la('chỉ commit quyết định và commit sổ',len(goi_commit),2)
 
 
 @ca('#296 duyệt thiếu kho: giữ Đã duyệt và nháp, trả lỗi, không GL/SLE/phát hành')
@@ -62,9 +73,38 @@ def loi_sau_so():
     def hong(doc):
         goc(doc)
         dung('đột biến đã chạm GL thật',bool(_gl(doc)))
+        frappe.db.after_commit.add(viec_loi)
         raise frappe.ValidationError('Lỗi thử sau khi sổ đã ghi')
+    def viec_loi():
+        raise AssertionError('Callback của đơn lỗi không được chạy')
     with patch.object(lop,'submit',hong), patch.object(ban_hang,'_tu_xuat_hddt',side_effect=AssertionError('Không gửi')):
         ket=hang_tang.duyet(hd.name,'Duyệt fixture lỗi sau GL')
     hd.reload();la('nháp',hd.docstatus,0);la('giữ duyệt',hd.vgb_tang_duyet,hang_tang.TT_DUYET)
     dung('đúng điểm lỗi','Lỗi thử sau khi sổ đã ghi' in ket['loi'])
     la('GL đã lùi',_gl(hd),[]);la('SLE đã lùi',_sle(hd),[])
+    dung('không sót callback',viec_loi not in frappe.db.after_commit._functions)
+
+
+@ca('#298 R2 lưu chuyển khoản, huỷ mềm, bill thay thế được nhận cùng giao dịch')
+def huy_nhap_nha_tien():
+    from vagabond import doi_soat_sepay
+    ds=[]
+    for i in range(2):
+        hd=_hoa_don(False);hd.vgb_quay='TCV';hd.custom_nguon='Tại chỗ'
+        hd.vgb_pt_thanh_toan='Chuyển khoản';hd.vgb_ma_tham_chieu='VGB296R2'
+        hd.save(ignore_permissions=True);ds.append(hd)
+    cu,moi=ds
+    gd='THU296-'+frappe.generate_hash(length=12)
+    # Chỉ giả kết quả ngân hàng; cửa hỏi chủ, save, huỷ và DB đều là thật.
+    with patch.object(ban_hang,'_sepay_cho_bill',return_value={'nhan':cu.grand_total,'gd':[gd]}):
+        ban_hang.pos_luu_don(cu.name)
+        cu.reload();dung('đã giữ giao dịch',gd in cu.vgb_gd_sepay)
+        try:ban_hang.pos_luu_don(moi.name)
+        except frappe.ValidationError as e:dung('chặn đúng chủ',cu.name in str(e))
+        else:dung('hai nháp không cùng nhận tiền',False)
+        with patch.object(ban_hang,'_otp_kiem',return_value='OTP fixture đã xác nhận'):
+            ban_hang.pos_xoa(cu.name,otp='fixture',ly_do='Huỷ nháp fixture để lập bill thay thế')
+        cu.reload();la('huỷ mềm',cu.vgb_huy,1);la('còn nháp',cu.docstatus,0)
+        ban_hang.pos_luu_don(moi.name)
+    moi.reload();la('bill mới giữ tiền',doi_soat_sepay.chu_cua_giao_dich([gd]).get(gd),'hoá đơn bán '+moi.name)
+    la('không sổ cái',_gl(cu)+_gl(moi),[])

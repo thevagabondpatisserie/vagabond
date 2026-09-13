@@ -1750,7 +1750,7 @@ function posQrSheet(soPhieu, tien, siName, nguon, maDiem) {
         var bao = ov.querySelector('#qrsBao');
         if (bao) { bao.style.color = '#15803d'; bao.innerHTML = '✅ <b>ĐÃ NHẬN ĐỦ ' + money(kq.nhan) + ' đ</b> - SePay khớp nội dung ' + h(soPhieu) + '.'; }
         var ny = ov.querySelector('[data-y]');
-        if (ny && siName) { ny.textContent = '📒 Ghi sổ luôn - Hoá đơn mới'; ny.setAttribute('data-gs', '1'); }
+        if (ny && siName) { ny.textContent = 'Lưu đơn - Hoá đơn mới'; ny.setAttribute('data-gs', '1'); }
       }
     } catch (e) { }
   }, 5000);
@@ -1768,8 +1768,8 @@ function posQrSheet(soPhieu, tien, siName, nguon, maDiem) {
     var ghiSo = !!(e.target.hasAttribute('data-gs') && siName);
     if (ghiSo) {
       busy(true);
-      try { await api('vagabond.ban_hang.pos_ghi_so', { name: siName }); busy(false); toast('Đã ghi sổ ' + siName); }
-      catch (er) { busy(false); toast((er && er.message) || 'Ghi sổ lỗi', 4000); }
+      try { await api('vagabond.ban_hang.pos_luu_don', { name: siName }); busy(false); toast('Đã lưu đơn nháp ' + siName); }
+      catch (er) { busy(false); toast((er && er.message) || 'Chưa lưu được đơn', 4000); return; }
     }
     clearInterval(pid); ov.remove(); posHomNayTxt = null; go(ghiSo ? scrPosDs : scrPosQuay, true);
   };

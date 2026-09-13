@@ -2080,16 +2080,17 @@ def chot_doanh_so(ngay=None):
 			si.submit()
 			frappe.db.commit()
 			xong += 1
-		except Exception:
+		except Exception as e:
 			frappe.db.rollback()
+			frappe.local.message_log = []
 			frappe.log_error(frappe.get_traceback(), "ban_hang chot: %s" % ten)
-			loi.append("Đơn %s ghi sổ lỗi, xem Error Log." % nhan)
+			loi.append("Đơn %s chưa ghi sổ: %s" % (nhan, giau_khoa(str(e))[:500]))
 			continue
 		da_xuat, bao = _tu_xuat_hddt(si.name)
 		if da_xuat:
 			hddt += 1
 		elif bao:
-			loi.append("Đơn %s ghi sổ xong nhưng chưa xuất được hoá đơn điện tử, máy sẽ tự xuất lại sau." % nhan)
+			loi.append("Đơn %s ghi sổ xong nhưng chưa xuất được hoá đơn điện tử: %s" % (nhan, bao))
 	frappe.db.commit()
 	return {"da_chot": xong, "da_xuat_hddt": hddt, "loi": loi}
 
@@ -2532,7 +2533,7 @@ def _chuan_bi_ghi_so(si, sepay=None, cho_cho_duyet=False):
 			frappe.throw("<br>".join(hang_tang.THIEU[m] for m in thieu))
 		if cho_cho_duyet:
 			if si.get("vgb_tang_duyet") not in (hang_tang.TT_CHO, hang_tang.TT_DUYET):
-				frappe.throw("Bấm Gửi duyệt hàng tặng trước khi lưu đơn.")
+				frappe.throw("Trong khối Hàng tặng, bấm Lưu và gửi giám đốc duyệt trước khi lưu đơn.")
 		else:
 			hang_tang.truoc_khi_ghi_so(si)
 
@@ -2713,18 +2714,17 @@ def doi_ngay_hoa_don(si_name, ngay=None, otp=None, ly_do=""):
 			"Bạn cần đổi thì báo chị Dung."
 		)
 	si = frappe.get_doc("Sales Invoice", si_name)
+	moi = _kiem_ngay_ban_nhap(si, ngay or nowdate())
+	if getdate(si.posting_date) == moi:
+		return {"ok": 1, "ngay": str(moi), "doi": 0}
 	cach = _otp_kiem(otp, "đổi ngày hoá đơn")
-	ket = _doi_ngay_ban_nhap(si, ngay or nowdate(), ly_do, cach)
+	ket = _doi_ngay_ban_nhap(si, str(moi), ly_do, cach)
 	frappe.db.commit()
 	return ket
 
 
-def _doi_ngay_ban_nhap(si, ngay, ly_do, cach):
-	"""Dùng chung cho OTP kế toán và Giám đốc duyệt quà, không phải API.
-
-	ERPNext accounts_controller.py:validate_payment_schedule_dates so hạn với
-	posting_date. Bỏ lịch cũ để core dựng lại khi save, không bỏ validation.
-	"""
+def _kiem_ngay_ban_nhap(si, ngay):
+	"""Kiểm trước khi tiêu OTP, cũng dùng ở cửa nội bộ Giám đốc duyệt."""
 	from vagabond.minvoice_an_toan import da_gui
 	if si.docstatus != 0:
 		frappe.throw("Hoá đơn %s đã ghi sổ hoặc huỷ, không đổi ngày được." % si.name)
@@ -2733,6 +2733,16 @@ def _doi_ngay_ban_nhap(si, ngay, ly_do, cach):
 	moi = getdate(ngay)
 	if moi > getdate(nowdate()):
 		frappe.throw("Không đẩy hoá đơn sang ngày tương lai được.")
+	return moi
+
+
+def _doi_ngay_ban_nhap(si, ngay, ly_do, cach):
+	"""Dùng chung cho OTP kế toán và Giám đốc duyệt quà, không phải API.
+
+	ERPNext accounts_controller.py:validate_payment_schedule_dates so hạn với
+	posting_date. Bỏ lịch cũ để core dựng lại khi save, không bỏ validation.
+	"""
+	moi = _kiem_ngay_ban_nhap(si, ngay)
 	cu = si.posting_date
 	if getdate(cu) == moi:
 		return {"ok": 1, "ngay": str(moi), "doi": 0}
@@ -2742,7 +2752,7 @@ def _doi_ngay_ban_nhap(si, ngay, ly_do, cach):
 	si.due_date = str(moi)
 	si.flags.ignore_permissions = True
 	si.save()
-	_ghi_vet(si.name, "Đổi ngày hoá đơn %s sang %s - %s" % (cu, moi, ly_do), cach)
+	_ghi_vet(si.name, "Đổi ngày hoá đơn %s sang %s%s" % (cu, moi, (" - " + ly_do) if ly_do else ""), cach)
 	return {"ok": 1, "ngay": str(moi), "ngay_cu": str(cu), "doi": 1}
 
 

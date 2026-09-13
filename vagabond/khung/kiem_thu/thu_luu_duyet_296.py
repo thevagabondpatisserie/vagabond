@@ -81,6 +81,7 @@ def ngay():
     for co in ('custom_minvoice_id','custom_hddt_id','custom_hddt_so','vgb_hddt_cho_doi_chieu'):
         d=don();d[co]='DA-GUI';d.posting_date='2026-09-11';vet=[];g=nen(d,vet)
         g.update(getdate=date.fromisoformat,nowdate=lambda:'2026-09-13')
+        nap('ban_hang.py','_kiem_ngay_ban_nhap',g)
         try:nap('ban_hang.py','_doi_ngay_ban_nhap',g)(d,'2026-09-13','thử','duyệt')
         except ValueError:pass
         else:dung('phải chặn dấu '+co,False)
@@ -94,3 +95,29 @@ def giao_dien():
     p=Path(__file__).parent/'hanh_vi'/'luu_duyet_296.cjs'
     kq=subprocess.run(['node',str(p)],capture_output=True,text=True,timeout=20)
     la('hành vi node: '+kq.stdout+kq.stderr,kq.returncode,0)
+
+
+@ca('#298 R5 ngày không đổi hoặc tờ bị chặn không tiêu OTP')
+def otp():
+    for trang in ('cùng ngày','đã ghi','chờ đối chiếu','đổi'):
+        d=don();vet=[];g=nen(d,vet)
+        d.posting_date='2026-09-13' if trang=='cùng ngày' else '2026-09-11'
+        if trang=='đã ghi':d.docstatus=1
+        if trang=='chờ đối chiếu':d.vgb_hddt_cho_doi_chieu=1
+        g['frappe'].get_doc=lambda *a:d;g['frappe'].get_roles=lambda:['Accounts User']
+        g.update(getdate=date.fromisoformat,nowdate=lambda:'2026-09-13',QUYEN_SUA_NGAY={'Accounts User'},
+            _otp_kiem=lambda *a:vet.append('otp'),_ghi_vet=lambda *a:None)
+        for ten in ('_kiem_ngay_ban_nhap','_doi_ngay_ban_nhap','doi_ngay_hoa_don'):nap('ban_hang.py',ten,g)
+        try:g['doi_ngay_hoa_don'](d.name,otp='mã thử')
+        except ValueError:dung('chỉ chặn tờ không được đổi',trang in ('đã ghi','chờ đối chiếu'))
+        la('OTP chỉ khi đổi',vet,['otp','save','commit'] if trang=='đổi' else [])
+
+
+@ca('#298 R2 chỉ nhả giao dịch của nháp huỷ mềm, giữ chủ của tờ đã ghi sổ')
+def nha_giao_dich():
+    for tt,huy in ((0,0),(0,1),(1,1)):
+        d=D(name='CU',docstatus=tt,vgb_huy=huy,vgb_gd_sepay='GD296')
+        g=dict(frappe=NS(get_all=lambda *a,**k:[d]),nap_so=lambda:None,_SO={},
+            HD_BAN={'doctype':'Sales Invoice','truong':'vgb_gd_sepay','ten_man':'hoá đơn bán'},cint=lambda x:int(x or 0))
+        ket=nap('doi_soat_sepay.py','chu_cua_giao_dich',g)(['GD296'])
+        la('chủ đang hiệu lực',ket,{} if (tt,huy)==(0,1) else {'GD296':'hoá đơn bán CU'})

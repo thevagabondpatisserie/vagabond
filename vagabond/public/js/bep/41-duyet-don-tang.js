@@ -277,6 +277,7 @@ async function dtgBam(ev) {
     try {
       var kq = await api('vagabond.hang_tang.duyet', { name: ma, y_kien: y || '' });
       if (kq.loi) await baoTin(kq.loi, 'Kết quả duyệt hàng tặng');
+      else if (kq.thong_bao) await baoTin(kq.thong_bao, 'Đã ghi sổ, chờ phát hành');
       else toast(kq.xuat_hddt ? 'Đã duyệt, ghi sổ và gửi phát hành HĐĐT.' : 'Đã duyệt.');
     } catch (e) { return baoTin(errMsg(e), 'Không duyệt được'); }
     delete dtgChiTiet[ma];

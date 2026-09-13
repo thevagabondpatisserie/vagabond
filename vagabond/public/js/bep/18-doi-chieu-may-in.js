@@ -1386,11 +1386,11 @@ async function scrDonTreo() {
      hom nay khong dua vao: chuoi cuoi ngay toi 23h se lo, khong can keo
      ngay cua chinh no. */
   var sanSangCu = rows.filter(function (r) { return r.ly_do === 'san_sang' && !r.hom_nay; });
-  if (sanSangCu.length) {
+  if (sanSangCu.length && dsDuocGhiSo()) {
     var tienCu = sanSangCu.reduce(function (a, r) { return a + Number(r.grand_total || 0); }, 0);
     html += '<div class="sec">Xử cả loạt</div><div class="card" style="padding:12px 14px;font-size:13px;line-height:1.6;color:#374151">' +
       '<b>' + sanSangCu.length + ' đơn của ngày cũ đã đủ điều kiện</b>, tổng ' + money(tienCu) + ' đ.<br>' +
-      'Luật bắt xuất hoá đơn điện tử <b>trong ngày bán</b>, nên đơn cũ phải kéo sang hôm nay rồi mới ghi sổ được. ' +
+      'Kế toán có thể chọn đổi ngày lập sang hôm nay rồi ghi sổ. Doanh thu sẽ tính vào ngày mới. ' +
       'Ngày bán thật vẫn giữ trong ô ghi chú của từng đơn.' +
       '<div style="margin-top:10px"><button class="btn gh" data-dt="keo" style="width:100%">📥 Kéo ' + sanSangCu.length + ' đơn sang hôm nay và ghi sổ</button></div></div>';
   }
