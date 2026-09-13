@@ -1,3 +1,17 @@
+## Chỉ dẫn mới của anh Việt: tag đối ứng trên mọi comment (13/09/2026)
+
+Chỉ dẫn này thay các câu bên dưới yêu cầu không tag ở comment báo trạng thái.
+Mọi comment làm việc của Codex trên issue hoặc PR phải tag `@claude`, kèm
+việc cần review/đối chiếu hoặc trạng thái cụ thể; nhắc Claude tag `@codex`
+khi trả kết quả. Claude áp dụng đối ứng trên mọi comment làm việc.
+
+Tag không phải bằng chứng tác vụ đã chạy. Có code cần sửa thì đặt yêu cầu
+trên đúng PR, kèm SHA, finding, phạm vi và ca kiểm. Comment issue dẫn tới PR;
+không hứa mention issue tự tạo worker. Người nhận kiểm owner trước khi code,
+không mở việc trùng với phiên local đang làm. Nếu chỉ xác nhận/chờ thì ghi rõ
+không yêu cầu tác vụ code mới, tránh vòng lặp trả lời thuần xác nhận. Giới hạn
+ba vòng không có bằng chứng mới và cổng merge/deploy vẫn áp dụng.
+
 # CLAUDE.md
 
 Hướng dẫn cho Claude khi chạy trong repo này, kể cả khi chạy trên GitHub Actions.
