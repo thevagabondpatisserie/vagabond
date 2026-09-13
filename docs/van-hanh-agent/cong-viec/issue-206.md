@@ -56,3 +56,5 @@ Phần này thay các kết luận lịch sử về công tắc/disabled/phạm 
 
 
 F9-F13 vòng mới: DN dùng vgb_dien_giai có thật và ca đọc DB sau reload. Batch chỉ giữ trống theo dữ liệu API nhận mua; lô mới ở cửa khác giữ cộng shelf life, lô đã lưu không bị điền lại hạn. Ca tồn430 xin500 chặn thiếu70, xin400 tự vét lô tắt. Gói core cấp thiếu được bù đủ; cảnh báo ghi rõ lô nguồn/bù. Bản chốt issue-206-duyet đã viết lại; gỡ cả Section Break trống. Đã merge306 vào main808af6fd và tích hợp vào nhánh này. Xung đột bài học giữ cả hai phần.
+
+F14: mỗi lượt kiểm dọn các câu HSD/lô tắt do ứng dụng tạo trước khi dựng lại từ lô hiện tại. Đổi từ lô xấu sang lô tốt không để lại vết sai; ca hai lượt kiểm cả năm loại phiếu và giữ ghi tay. Câu bù lô giữ như lịch sử thao tác máy đã thực hiện, không mô tả chất lượng hiện tại.

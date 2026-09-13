@@ -117,6 +117,10 @@ def _kiem_lo_va_ghi_vet(doc):
 	Không đổi Batch.expiry_date, không đổi purpose, không bắt rồi nuốt lỗi
 	của lõi. Hỏng việc đọc gói thì phải dừng, không xuất mất dấu vết.
 	"""
+	truong = _o_ghi_chu(doc)
+	cu = getattr(doc, truong, "") or ""
+	setattr(doc, truong, "\n".join(x for x in cu.splitlines() if not x.strip().startswith(
+		(DAU_CAU, "Phiếu dùng lô đã tắt:", "Cảnh báo lô quá hạn:", "Cảnh báo lô tắt:", "Đã xuất lô quá hạn:"))))
 	cac_lo = []
 	lo_tat = []
 	for dong in doc.get("items") or []:

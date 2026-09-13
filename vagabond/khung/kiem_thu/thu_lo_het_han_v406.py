@@ -371,3 +371,19 @@ def _batch_khong_han():
 		la('có cảnh báo',bao.call_count,1)
 		b.expiry_date='2026-08-01'; b.set_expiry_date()
 		la('giữ ngày gõ',b.expiry_date,'2026-08-01')
+
+
+@ca('489 F14 đổi sang lô tốt dọn cảnh báo cũ, giữ ghi tay ở kho và DN')
+def _doi_lo_tot():
+	from unittest.mock import patch
+	for dt in ['Stock Entry','Delivery Note','Purchase Receipt','Purchase Invoice','Sales Invoice']:
+		p=_Phieu('Manufacture','2026-09-13',[_Dong('BOT','LO-CU')]); p.doctype=dt
+		o='vgb_dien_giai' if dt=='Delivery Note' else 'remarks'
+		setattr(p,o,'Người dùng ghi tay')
+		with patch.object(lhh,'_ho_so_lo',return_value={'disabled':1,'expiry_date':'2026-09-01'}):
+			lhh._kiem_lo_va_ghi_vet(p)
+		dung('có cả hai dấu trước khi đổi',lhh.DAU_CAU in getattr(p,o) and 'Phiếu dùng lô đã tắt:' in getattr(p,o))
+		p._dong[0].batch_no='LO-TOT'
+		with patch.object(lhh,'_ho_so_lo',return_value={'disabled':0,'expiry_date':'2027-01-01'}):
+			lhh._kiem_lo_va_ghi_vet(p)
+		la('dọn đúng vết cũ, giữ ghi tay',getattr(p,o),'Người dùng ghi tay')
