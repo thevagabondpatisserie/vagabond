@@ -69,3 +69,5 @@ quả phụ thuộc lượt sau thực sự đọc, xác minh và dùng bài h�
 - [Issue303: Gelatine Mass phantom](cong-viec/issue-303.md)
 
 - [Issue 300: nền chung và lịch sử thành viên](cong-viec/issue-300.md)
+
+- [Issue 301: đặt bàn và Lark FOH](cong-viec/issue-301.md)

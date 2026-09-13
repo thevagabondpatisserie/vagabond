@@ -31,7 +31,7 @@ def tin():
     s=soan(d)
     for chu in ('10/09','1 trẻ em','Dịp: Sinh nhật','Khu vực: Bàn ghế cao','Email: a@example.com','Bánh kèm theo: Bánh','Ghi chú: Nến','/app/vagabond-dat-ban/TEST'):dung(chu,chu in s)
     s=soan(dict(nd,tre_em=0,dip='Không có dịp riêng',url='TEST'))
-    for chu in ('Dịp:','Khu vực:','Email:','Bánh kèm theo:','Ghi chú:','0 trẻ em','SĐT liên hệ','—','–'):dung('bỏ '+chu,chu not in s)
+    for chu in ('Dịp:','Khu vực:','Email:','Bánh kèm theo:','Ghi chú:','0 trẻ em','SĐT liên hệ',chr(0x2014),chr(0x2013)):dung('bỏ '+chu,chu not in s)
 
 @ca('#301 hook chỉ tạo mới, xếp sau commit, trống cấu hình không gửi hoặc báo lỗi')
 def hook():
