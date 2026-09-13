@@ -2418,7 +2418,8 @@ async function scrHoSoTTView(name) {
       (hs.thu_bang_chung || []).map(function (q) {
         return '<div style="margin-top:8px"><b>' + (q.loai === 'ncc' ? 'Thư NCC' : 'Bản sao kế toán') + '</b>: ' + h(q.trang_thai) +
           '<br>' + (q.nguoi_nhan || []).map(function (r) { return h(r.recipient) + ': ' + h(r.status); }).join('<br>') +
-          (q.cc ? '<br>CC: ' + h(q.cc) : '') + '</div>';
+          (q.cc ? '<br>CC: ' + h(q.cc) : '') + '<br>Tệp UNC: ' + (q.tep || []).map(h).join(', ') +
+          (q.trang_thai === 'Error' ? '<br>Thư đang lỗi. Kế toán mở <a href="/app/email-queue/' + encodeURIComponent(q.ma) + '">hàng đợi thư này</a> để kiểm lỗi và thử lại, không tạo thư mới.' : '') + '</div>';
       }).join('') +
       '<div style="display:flex;gap:8px;margin-top:10px">' +
       '<button class="btn gh" data-hsv="xemthu" style="flex:1;margin:0">👁 Xem trước</button>' +
@@ -2683,11 +2684,12 @@ async function hsHanh(k, hs) {
     try {
       await api('vagabond.ho_so_tt.gui_email_ncc', { name: hs.ma, email: toiThu, gui_that: 1, thu_nghiem: 1 });
       busy(false);
-      toast('Đã gửi thử tới ' + toiThu + '. Thư có chữ GỬI THỬ ở tiêu đề.', 5200);
+      toast('Đã xếp hàng gửi thử tới ' + toiThu + '. Thư có chữ GỬI THỬ ở tiêu đề.', 5200);
     } catch (e) { busy(false); return baoTin(errMsg(e) || 'Không gửi thử được'); }
     return;
   }
   if (k === 'guithu') {
+    if (hs.email_da_gui || (hs.thu_bang_chung || []).length) return go(function () { scrHoSoTTView(hs.ma); }, true);
     var toi = await hoiNhap('Email nhận chính (các email NCC đã khai khác sẽ được CC)?', hs.email_ncc || '');
     if (!toi) return;
     busy(true);

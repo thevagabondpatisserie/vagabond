@@ -383,3 +383,5 @@ JSON chỉ có Tiền mặt vẫn hợp cú pháp của backend cũ nhưng biế
 ### #298 thư NCC: đầy đủ người nhận và không nhận xếp hàng là đã gửi
 
 Email Supplier, Contact chính và mọi Contact Email liên kết đúng NCC phải được gom, bỏ trùng rồi chia To/CC. Gửi thử chỉ một địa chỉ. Bản sao kế toán là queue riêng, tiêu đề có BAN SAO; UNC mang mã APP và không gửi khi không đọc được tệp. Frappe 16.27.1 email.sendmail tạo Queue trong transaction; dùng delayed=True, giữ hai queue và dấu hồ sơ nguyên tử, không SMTP trong POST. Retry không tạo lại queue. Bằng chứng phải đọc recipient status; cờ email_da_gui lịch sử không chứng minh Sent. Bench đọc MIME/queue thật, stub duy nhất cấu hình SMTP và cấm EmailQueue.send.
+
+Email CC gõ sai chỉ chặn gửi thật, không chặn tạo/đọc APP. Snapshot email chính giữ riêng; danh sách đã gửi dùng Small Text để không mất địa chỉ khi vượt 140 ký tự. Xem thử thiếu UNC vẫn mở kèm cảnh báo. Validation dự kiến không tạo Error Log/popup thừa; thư Error phải xử lý queue cũ. Bench dựng Email Account object đầy đủ, không thay bằng None vì lõi đọc always_bcc. Nguồn: review 5650925436 và run 34736267340.
