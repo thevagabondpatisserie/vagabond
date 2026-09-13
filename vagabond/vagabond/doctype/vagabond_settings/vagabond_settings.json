@@ -106,6 +106,7 @@
   "push_khoa_rieng",
   "sec_gui_thu",
   "webhook_bao_dong",
+  "webhook_dat_ban",
   "cb_gui_thu",
   "email_bao_dong_lan_cuoi",
   "email_da_cuu_su_co_1608",
@@ -685,6 +686,12 @@
    "fieldtype": "Data",
    "label": "Webhook nhom quan tri (bao dong do)",
    "description": "Dan duong dan webhook cua nhom Lark, Slack, Google Chat hoac cau Zalo vao day. De trong thi may chi bao bang thu toi o Email nhan thu canh bao. Tu 16/08/2026 ca tiem khong gui duoc email nao suot nhieu ngay ma khong ai biet, o nay sinh ra tu do."
+  },
+  {
+   "fieldname": "webhook_dat_ban",
+   "fieldtype": "Data",
+   "label": "Webhook nhóm đặt bàn (Lark)",
+   "description": "Nhóm riêng của FOH. Để trống thì không gửi thông báo đặt bàn."
   },
   {
    "fieldname": "cb_gui_thu",

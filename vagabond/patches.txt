@@ -272,3 +272,6 @@ vagabond.patches.dong_bo_cau_truc #v488
 
 vagabond.patches.go_chan_han_v489
 vagabond.patches.dong_bo_cau_truc #v489
+
+vagabond.patches.dat_ban_foh_301
+vagabond.patches.dong_bo_cau_truc #v490

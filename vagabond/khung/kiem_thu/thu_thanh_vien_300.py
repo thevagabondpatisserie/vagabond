@@ -72,3 +72,14 @@ def ma_da_biet():
     la('size về gốc',r['BANH1S16CM'],'/files/goc.jpg')
     la('ưu tiên mã thật',r['BANH1S18CM'],'/files/rieng.jpg')
     la('mini',r['BANH1MINI12CM'],'/files/goc.jpg')
+
+@ca('#310 JS/CSS đổi nội dung phải đổi URL để vượt cache immutable trên site')
+def ma_bam_asset():
+    import hashlib
+    for ten in ('vagabond/trang/banh.html','vagabond/www/thanh-vien.html','vagabond/www/dat-ban.html'):
+        s=(GOC/ten).read_text()
+        for tep in ('nen.css','thanh-vien.css','thanh-vien.js','dat-ban.js'):
+            duong='/assets/vagabond/web_order/'+tep
+            if duong not in s:continue
+            bam=hashlib.sha256((GOC/'vagabond/public/web_order'/tep).read_bytes()).hexdigest()[:12]
+            dung(ten+' '+tep,duong+'?v='+bam in s)

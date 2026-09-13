@@ -39,7 +39,7 @@ JS = os.path.join(GOI, "public", "js")
 
 # Chan "em" dung mot minh. Khong tinh "0.86em" (don vi CSS), "them", "kem",
 # "emp" (ten lop CSS): do la chu khac chu khong phai dai tu.
-DAI_TU = re.compile(r"(?<![A-Za-zÀ-ỹ0-9.])[Ee]m(?![A-Za-zÀ-ỹ])")
+DAI_TU = re.compile(r"(?<![A-Za-zÀ-ỹ0-9._])[Ee]m(?![A-Za-zÀ-ỹ_])")
 
 CHUA_TEP_PY = {"mau_chuan.py"}
 CHUA_HANG = ("LOI_NHAN_MAU", "LOI_NHAN_HD_MAU")
@@ -51,6 +51,12 @@ CAU_SALES_GUI_KHACH = {
 	"Sau khi nhận cọc đợt 1 bên em sẽ lên lịch sản xuất ngay ạ.",
 	"Anh chị cần điều chỉnh chỗ nào thì báo em, bên em gửi lại bản mới ạ.",
 }
+
+
+def _xung_em(chu):
+	# "Trẻ em" là danh từ nghiệp vụ đặt bàn, không phải hệ thống tự xưng.
+	# Chỉ bỏ cụm này, vẫn bắt "trẻ em ... báo em" trong cùng câu.
+	return DAI_TU.search(re.sub(r"\btrẻ\s+em\b", "trẻ nhỏ", chu, flags=re.IGNORECASE))
 
 
 def _vung_chua(cay):
@@ -93,7 +99,7 @@ def _soi_python():
 					continue
 				if any(a <= nut.lineno <= b for a, b in chua):
 					continue
-				if DAI_TU.search(nut.value):
+				if _xung_em(nut.value):
 					ra.append("%s:%d %s" % (os.path.relpath(p, GOI), nut.lineno,
 											nut.value.replace("\n", " ")[:70]))
 	return ra
@@ -169,7 +175,7 @@ def _soi_js():
 			for dong, than in _chuoi_js(io.open(p, encoding="utf-8").read()):
 				if than in CAU_SALES_GUI_KHACH:
 					continue
-				if DAI_TU.search(than):
+				if _xung_em(than):
 					ra.append("%s:%d %s" % (os.path.relpath(p, GOI), dong, than[:70]))
 	return ra
 
@@ -193,3 +199,11 @@ def _():
 	so_js = sum(1 for g, _tm, ts in os.walk(JS) if "vendor" not in g
 				for t in ts if t.endswith(".js") and t != "app_bep.js")
 	la("thấy đủ tệp nguồn hai bên", [so_py > 40, so_js > 20], [True, True])
+
+
+@ca("#301 bộ soi phân biệt trẻ em, tên trường và đại từ trong cùng câu")
+def tre_em():
+	for chu in ("tre_em", "Số trẻ em từ 0 đến số khách", "2 trẻ em", "Trẻ em"):
+		la(chu, bool(_xung_em(chu)), False)
+	for chu in ("Báo em", "Trẻ em cần ghế, báo em nhé", "em sẽ xử lý"):
+		la(chu, bool(_xung_em(chu)), True)

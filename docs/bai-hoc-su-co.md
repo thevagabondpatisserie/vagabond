@@ -445,3 +445,12 @@ Thuộc tính han_su_dung trên dict PR Item không có trong meta nên nhập/x
 #300 review: ngày Pancake phải qua ngay_pancake.ngay_tu_iso, không cắt chuỗi
 UTC tại trình duyệt. Ảnh mã có hậu tố size phải thử mã gốc sau mã thô; ca kiểm
 giữ riêng ảnh chính xác và ảnh dự phòng. Nguồn Claude run34771893366.
+
+### #301: callback sau commit và danh từ trẻ em
+
+Frappe enqueue_after_commit chỉ chuyển lệnh xếp Redis vào callback; lỗi ở
+callback không nằm trong try của after_insert. Bao đúng callback sau commit
+để không trả lỗi đặt bàn sau khi phiếu đã lưu. HTTP200 từ Lark vẫn có thể
+mang mã lỗi nghiệp vụ; cần đọc cả mã trước khi nhận gửi thành công.
+Bộ soi xưng hô từng bắt nhầm tre_em và "trẻ em". Chỉ loại danh từ/tên trường,
+vẫn có đối chứng bắt "trẻ em cần ghế, báo em nhé", không miễn cả tệp.

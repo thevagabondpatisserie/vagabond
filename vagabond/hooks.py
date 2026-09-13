@@ -267,6 +267,7 @@ scheduler_events = {
 # Mot don Pancake chi duoc mot hoa don ban hang. Kiem o day de bat duoc moi
 # duong tao hoa don, khong rieng man Doanh thu Sales.
 doc_events = {
+	"Vagabond Dat Ban": {"after_insert": "vagabond.dat_ban.bao_dat_ban_moi"},
 	"MInvoice NCC Map": {"validate": "vagabond.quy_cach_ncc.kiem"},
 	# Khoa xoa vinh vien chung tu, dat o "*" chu khong liet ke tung doctype:
 	# liet ke thi hom nao them mot loai chung tu moi la lai quen, ma quen o
