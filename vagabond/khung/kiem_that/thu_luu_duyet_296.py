@@ -152,5 +152,14 @@ def quyen_ke_toan_doc_lap():
             frappe.set_user('Administrator');sales.reload()
             la('đơn Sales sau chuỗi UI',sales.docstatus,0 if vai=='Sales User' else 1)
             dung('GL đơn Sales theo quyền',bool(_gl(sales))==(vai!='Sales User'))
+            if vai!='Sales User':
+                frappe.set_user(u.name)
+                with patch.object(ban_hang,'_minvoice_login',side_effect=RuntimeError('KT298: dừng trước mạng')) as login:
+                    try:ban_hang.xuat_hoa_don_dien_tu(sales.name)
+                    except RuntimeError as e:la('đến cửa nhà cung cấp',str(e),'KT298: dừng trước mạng')
+                    else:dung('không gửi thật',False)
+                    la('đúng một lần đến cửa mạng',login.call_count,1)
+                frappe.set_user('Administrator');sales.reload()
+                dung('không tạo cờ phát hành',not sales.custom_minvoice_id and not sales.custom_hddt_so)
     finally:
         frappe.set_user(cu)

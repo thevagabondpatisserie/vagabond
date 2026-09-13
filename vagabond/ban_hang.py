@@ -4667,7 +4667,7 @@ def _tach_thue(gross, ts):
 @frappe.whitelist()
 def xuat_hoa_don_dien_tu(si_name):
 	"""Day mot SI sang m-invoice o trang thai CHO KY. Khong ky tu dong."""
-	_kiem_quyen()
+	_kiem_quyen_doc_luu_don()
 	si = frappe.get_doc("Sales Invoice", si_name)
 	if si.docstatus != 1:
 		frappe.throw("Hoá đơn %s chưa chốt, chốt doanh số trước rồi mới xuất HĐĐT." % si_name)
@@ -4881,7 +4881,7 @@ def xuat_hddt_con_thieu(ngay=None, so_ngay=7):
 	Dung cho ba viec: don ghi so truoc khi co co che tu xuat; don ma
 	m-invoice tu choi luc do (mat mang, het so); va cron chay lai moi gio.
 	"""
-	_kiem_quyen()
+	_kiem_quyen_doc_luu_don()
 	return _xuat_hddt_con_thieu(ngay, so_ngay)
 
 

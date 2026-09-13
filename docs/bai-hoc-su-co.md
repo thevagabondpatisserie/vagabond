@@ -398,3 +398,6 @@ Email CC gõ sai chỉ chặn gửi thật, không chặn tạo/đọc APP. Snap
 Gọi _kiem_quyen bán hàng rồi kiểm Accounts làm kế toán độc lập thấy nút nhưng bị từ chối. Bỏ lớp bán hàng khỏi cửa ghi sổ riêng; Sales/Guest vẫn bị chặn. Ca cũ stub _kiem_quyen nên xanh giả: nạp hàm thật làm bản cũ đỏ hai assertion (Accounts User/Manager); thêm bench User thật, ghi sổ và đọc GL. Nguồn review3998728970.
 
 Cửa ghi sổ qua được chưa đủ: nút từng đơn còn gọi luu_xhd trước chot_mot_don, màn danh sách/cấu hình/tìm đơn cũng qua quyền đọc. Review5651172671 dẫn tới ca kiểm 8 API ở 6 vai; bản cũ đỏ16 assertion của kế toán. Dùng cửa đọc/lưu riêng cho Sales hoặc Accounts, giữ ghi sổ chỉ Accounts và OTP đổi ngày như cũ; bench đi luu_thanh_toan -> luu_xhd -> chot_mot_don, đọc GL thật.
+# Quyền kế toán sau ghi sổ
+
+- PR298: kiểm trọn cả bước phát hành lại khi lần tự động chưa gửi được. Cổng lưu và ghi sổ đúng vẫn chưa đủ nếu nút phát hành lại còn dùng tập Sales. Kiểm User Accounts độc lập tới cửa mạng bị chặn trong bench, không gửi hóa đơn thật.

@@ -24,3 +24,6 @@ Theo review5651020223 còn việc không chặn: bang_chung parse MIME khi mở 
 Review tự động3998728970 bắt giao vai bán hàng/kế toán. Ca quyền cũ stub _kiem_quyen; thay bằng hàm thật làm đỏ hai assertion trên e562c202. Sửa cửa ghi sổ chỉ yêu cầu vai kế toán, thêm bench User Accounts độc lập và Sales bị chặn. Bench e562c202 trước delta đã đạt188/188 hai lượt sạch và browser success (34737358134), cần bench mới cho delta quyền. Chưa merge/deploy PR298.
 
 Review5651172671: trước chot_mot_don còn luu_xhd chặn Accounts. Rà cả mở màn/cấu hình/tìm đơn/đơn treo/lưu khách và đổi ngày; 8 cửa đọc/lưu dùng Sales hoặc Accounts, cửa ghi sổ chỉ Accounts, chốt OTP và ngày giữ nguyên. Ca quyền mới bắt16 assertion trên47682f49; mở rộng bench đúng chuỗi lưu phương thức -> XHD -> chốt đơn Sales, đọc GL và giữ Sales không ghi được.
+# Chốt kế toán phát hành lại sau ghi sổ
+
+Review 5651227224 tìm thêm hai API phát hành còn giữ cửa Sales. Đã đổi `xuat_hoa_don_dien_tu` và `xuat_hddt_con_thieu` sang cùng tập Sales hoặc Accounts, không sửa các chốt HĐĐT phía sau. Ca quyền nạp nguồn 98890af2 bắt đúng 4 assertion; nguồn mới và toàn cổng local đạt 2947/0, rc 0. Bench nối sau chốt đơn, dùng Accounts độc lập gọi cửa phát hành và bắt đúng điểm `_minvoice_login` trước mạng; không tạo cờ hay gửi nhà cung cấp. Chưa có kết quả bench SHA mới, chưa deploy.
