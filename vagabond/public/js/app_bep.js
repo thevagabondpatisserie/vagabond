@@ -7665,7 +7665,7 @@ async function rcvScanOpen() {
 var rcvD = null;
 
 function hsdNote(x) {
-  if (!x.hsd) return 'Món này chưa có hạn chuẩn, xem bao bì rồi điền giúp.';
+  if (!x.hsd) return 'Chưa nhập HSD trên bao bì. Có thể để trống khi chưa biết.';
   if (x.dflt) return 'Máy tự tính sẵn: ' + dmy(x.hsd) + '. Bao bì ghi hạn khác thì bấm vào sửa lại.';
   return 'Lấy theo bao bì: ' + dmy(x.hsd) + ', khác với hạn chuẩn.';
 }
@@ -7721,8 +7721,8 @@ async function scrRecvDoc(name) {
         uom: r.uom || r.stock_uom || '', wh: r.warehouse, ord: tran,
         tren: tren, po: po,
         got: tran, sl: slf[r.item_code] || 0,
-        hsd: r.han_su_dung || (slf[r.item_code] ? addDays(base, slf[r.item_code]) : ''),
-        dflt: r.han_su_dung ? 0 : 1, batch: bat[r.item_code] ? 1 : 0, ok: 0
+        hsd: r.han_su_dung || '',
+        dflt: 0, batch: bat[r.item_code] ? 1 : 0, ok: 0
       };
     })
   };
@@ -7895,12 +7895,12 @@ async function scrRecvDoc(name) {
     Array.prototype.forEach.call(b.querySelectorAll('[data-h]'), function (el) {
       el.onchange = function () {
         var i = parseInt(el.dataset.h, 10), x = L[i];
-        if (!el.value && x.sl) el.value = addDays(base, x.sl);
         x.hsd = el.value || '';
-        x.dflt = (x.sl && x.hsd === addDays(base, x.sl)) ? 1 : 0;
+        x.dflt = 0;
         el.classList.toggle('ed', !x.dflt);
         var nt = b.querySelector('[data-hn="' + i + '"]');
         if (nt) { nt.textContent = hsdNote(x); nt.classList.toggle('ed', !x.dflt); }
+        syncRow(i);
       };
     });
     var sb = document.getElementById('rcvSub');
@@ -7965,9 +7965,11 @@ function nhpNhac(x) {
   if (x.batHsd && (x.got || 0) > 0.0001 && !x.hsd) {
     ra.push('<span style="color:#b45309">Chưa có hạn sử dụng. Vẫn nhận được; kiểm tra nhãn hàng và bổ sung khi biết.</span>');
   }
-  if (x.hsdMin && x.hsd) {
+  if (x.hsd) {
     var con = Math.round((new Date(x.hsd) - new Date(today())) / 86400000);
-    if (con < x.hsdMin) {
+    if (con < 0) {
+      ra.push('<span style="color:#b45309">Hạn dùng đã qua ' + (-con) + ' ngày. Vẫn nhận được; kiểm tra chất lượng thực tế.</span>');
+    } else if (x.hsdMin && con < x.hsdMin) {
       ra.push('<span style="color:#b45309">Hạn dùng chỉ còn ' + con + ' ngày, mặt hàng này cần ít nhất ' +
         x.hsdMin + ' ngày theo mức nhắc. Vẫn nhận được; kiểm tra chất lượng thực tế.</span>');
     }
@@ -8007,14 +8009,14 @@ async function scrNhpDon(don) {
         /* MAC DINH BANG CON LAI. Day la chot chan chong nhap trung lo. */
         got: m.sl_con,
         batch: m.co_lo ? 1 : 0, sl: m.han_chuan || 0,
-        hsd: m.han_chuan ? addDays(base, m.han_chuan) : '',
+        hsd: '',
         /* Dung sai giao thua va han dung toi thieu (v406, hoc tu SAP). Man
            hinh noi TRUOC, khong de nguoi ta dem xong bam Luu moi biet la
            may khong nhan. */
         duCP: m.du_cho_phep || 0,
         hsdMin: m.hsd_toi_thieu || 0,
         batHsd: m.bat_buoc_hsd ? 1 : 0,
-        dflt: 1, ok: 0
+        dflt: 0, ok: 0
       };
     })
   };
@@ -8065,6 +8067,9 @@ async function scrNhpDon(don) {
       }
       if (r.thieu_gia && r.thieu_gia.length) {
         setTimeout(function () { toast('Có ' + r.thieu_gia.length + ' món nhập khi chưa có giá. Vui lòng báo kế toán bổ sung giá.', 7000); }, 1400);
+      }
+      if (r.canh_bao_han && r.canh_bao_han.length) {
+        await confirmSheet('Đã nhận hàng - kiểm tra hạn dùng', r.canh_bao_han.join('\n') + '\nPhiếu đã ghi sổ. Kiểm tra chất lượng thực tế trước khi sử dụng.', 'Đã xem');
       }
       toast('✓ Đã nhận hàng đợt ' + r.dot + ', phiếu ' + r.phieu + '.' +
         (r.con_lai > 0.0001 ? ' Đơn còn nợ ' + num(r.con_lai) + ' đơn vị của ' + r.so_mon_con + ' món.' : ' Đơn đã nhận đủ.'), 6000);
@@ -8183,12 +8188,12 @@ async function scrNhpDon(don) {
     Array.prototype.forEach.call(b.querySelectorAll('[data-nh]'), function (el) {
       el.onchange = function () {
         var i = parseInt(el.dataset.nh, 10), x = L[i];
-        if (!el.value && x.sl) el.value = addDays(base, x.sl);
         x.hsd = el.value || '';
-        x.dflt = (x.sl && x.hsd === addDays(base, x.sl)) ? 1 : 0;
+        x.dflt = 0;
         el.classList.toggle('ed', !x.dflt);
         var nt = b.querySelector('[data-nhn="' + i + '"]');
         if (nt) { nt.textContent = hsdNote(x); nt.classList.toggle('ed', !x.dflt); }
+        syncRow(i);
       };
     });
     var sb = document.getElementById('nhpSub');

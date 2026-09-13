@@ -387,3 +387,11 @@ def _doi_lo_tot():
 		with patch.object(lhh,'_ho_so_lo',return_value={'disabled':0,'expiry_date':'2027-01-01'}):
 			lhh._kiem_lo_va_ghi_vet(p)
 		la('dọn đúng vết cũ, giữ ghi tay',getattr(p,o),'Người dùng ghi tay')
+
+
+@ca('489 app nhận mua: xóa HSD, min0 quá hạn, payload và cảnh báo trước rời màn')
+def _app_han():
+	import subprocess
+	r=subprocess.run(['node',os.path.join(GOI,'khung','kiem_thu','hanh_vi','kiem_nhan_han_489.js')],
+		cwd=os.path.dirname(GOI),capture_output=True,text=True,timeout=20)
+	dung(r.stdout+r.stderr,r.returncode==0)

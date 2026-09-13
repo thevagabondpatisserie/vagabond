@@ -462,7 +462,7 @@ def _nhan_mua_han_that():
 	cty = cong_ty(); kho, tk = _kho_rieng(cty, '489-NHAN')
 	ma = _mon_thu('KT489-NHAN-' + uuid.uuid4().hex[:10], theo_lo=1)
 	it = frappe.get_doc('Item', ma); it.has_expiry_date=1; it.shelf_life_in_days=90; it.save()
-	for han in [None, add_days(today(), -1)]:
+	for han in [None, add_days(today(), -1), add_days(today(), 3650)]:
 		po = _luu(frappe.get_doc(dict(doctype='Purchase Order', company=cty,
 			supplier=nen.mot_nha_cung_cap(), currency='VND', conversion_rate=1,
 			transaction_date=today(), schedule_date=today(),
@@ -475,7 +475,10 @@ def _nhan_mua_han_that():
 		lo = d.batch_no or frappe.db.get_value('Serial and Batch Entry', {'parent':d.serial_and_batch_bundle},'batch_no')
 		nen._DA_TAO.append(('Batch',lo))
 		la('đúng hạn hoặc trống',str(frappe.db.get_value('Batch',lo,'expiry_date') or ''),str(han or ''))
-		dung('cảnh báo lưu trên phiếu', ('Chưa có hạn sử dụng' if not han else 'Hạn dùng cần kiểm tra') in pr.remarks)
+		can_canh_bao = not han or str(han) < today()
+		la('API trả cảnh báo',bool(ra['canh_bao_han']),can_canh_bao)
+		if can_canh_bao:
+			dung('cảnh báo lưu trên phiếu', ('Chưa có hạn sử dụng' if not han else 'Hạn dùng cần kiểm tra') in pr.remarks)
 		la('tồn đã nhận',float(frappe.db.get_value('Bin',{'item_code':ma,'warehouse':kho},'actual_qty')),1)
 		pr.cancel()
 		la('huỷ trả tồn',float(frappe.db.get_value('Bin',{'item_code':ma,'warehouse':kho},'actual_qty')),0)
@@ -493,12 +496,16 @@ def _mua_ban_lo_cu(dt):
 	frappe.db.set_value('Batch',lo,{'expiry_date':add_days(today(),-1),'disabled':1})
 	frappe.clear_document_cache('Batch',lo)
 	mua=dt.startswith('Purchase')
-	gia=1000 if mua else 1
+	gia=1000 if mua else (108 if dt=='Sales Invoice' else 1)
 	du_lieu=dict(doctype=dt,company=cty,currency='VND',conversion_rate=1,
 		posting_date=today(),due_date=today(),update_stock=1,ignore_pricing_rule=1,
 		bill_no='KT489-'+uuid.uuid4().hex[:10],bill_date=today(),
 		items=[dict(item_code=ma,qty=1,rate=gia,warehouse=kho,batch_no=lo,use_serial_batch_fields=1)])
 	du_lieu['supplier' if mua else 'customer']=nen.mot_nha_cung_cap() if mua else nen._mot('Customer',{'disabled':0})
+	if dt=='Sales Invoice':
+		from vagabond.hang_tang_so_cai import tai_khoan
+		du_lieu['taxes']=[dict(charge_type='On Net Total',account_head=tai_khoan(cty,'33311','Liability'),
+			rate=8,description='VAT fixture489 đã gồm giá',included_in_print_rate=1)]
 	d=_luu(frappe.get_doc(du_lieu)); d.submit(); d.reload()
 	la('ghi sổ thật',d.docstatus,1)
 	truong='vgb_dien_giai' if dt=='Delivery Note' else 'remarks'

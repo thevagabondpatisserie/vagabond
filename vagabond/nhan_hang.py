@@ -590,6 +590,7 @@ def tao_phieu(don, dong=None, anh1=None, anh2=None, scan=None, ghi_chu=None):
 		"so_mon_con": sau.get("so_mon_con") or 0,
 		"thieu_gia": thieu_gia,
 		"nhan_du": du_trong_nguong,
+		"canh_bao_han": canh_bao_han,
 	}
 
 # ------------------------------------------------- dong phan con lai lai
