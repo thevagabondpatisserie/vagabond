@@ -2419,7 +2419,7 @@ async function scrHoSoTTView(name) {
         return '<div style="margin-top:8px"><b>' + (q.loai === 'ncc' ? 'Thư NCC' : 'Bản sao kế toán') + '</b>: ' + h(q.trang_thai) +
           '<br>' + (q.nguoi_nhan || []).map(function (r) { return h(r.recipient) + ': ' + h(r.status); }).join('<br>') +
           (q.cc ? '<br>CC: ' + h(q.cc) : '') + '<br>Tệp UNC: ' + (q.tep || []).map(h).join(', ') +
-          (q.trang_thai === 'Error' ? '<br>Thư đang lỗi. Kế toán mở <a href="/app/email-queue/' + encodeURIComponent(q.ma) + '">hàng đợi thư này</a> để kiểm lỗi và thử lại, không tạo thư mới.' : '') + '</div>';
+          (q.trang_thai === 'Error' ? (hs.thu_mo_hang_doi ? '<br>Thư đang lỗi. Mở <a href="/app/email-queue/' + encodeURIComponent(q.ma) + '">hàng đợi thư này</a> để kiểm lỗi và thử lại, không tạo thư mới.' : '<br>Thư đang lỗi. Nhờ quản trị viên kiểm hàng đợi ' + h(q.ma) + ' và thử lại trên thư cũ.') : '') + '</div>';
       }).join('') +
       '<div style="display:flex;gap:8px;margin-top:10px">' +
       '<button class="btn gh" data-hsv="xemthu" style="flex:1;margin:0">👁 Xem trước</button>' +

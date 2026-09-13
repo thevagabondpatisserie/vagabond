@@ -1859,6 +1859,7 @@ def chi_tiet(name):
 			               if (d.get("ben_ban") or d.get("ncc_hd") or "").strip()}),
 			"email_ncc": ", ".join(thu_ncc.nguon_email_ncc(doc.nha_cung_cap, doc.email_ncc)),
 			"thu_bang_chung": thu_ncc.bang_chung(doc.name),
+			"thu_mo_hang_doi": bool(frappe.has_permission("Email Queue", "read")),
 			"trang_thai": doc.trang_thai,
 			"nhan": "Đã duyệt, cần kiểm tra lại" if canh_bao else NHAN.get(doc.trang_thai, doc.trang_thai),
 			"tong_tien": flt(doc.tong_tien), "da_tra": flt(doc.da_tra),
