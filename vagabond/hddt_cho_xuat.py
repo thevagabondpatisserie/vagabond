@@ -919,22 +919,16 @@ def ngay_cu_dang_cho():
 
 
 def ngay_cu_can_bao_ve():
-	"""Ngày CŨ mà cửa m-invoice của nó CHƯA ĐƯỢC PHÉP đóng.
+	"""Chỉ tờ đã ghi sổ chưa có HĐĐT mới giữ cửa ngày cũ (#290).
 
-	Tập RỘNG, và cố ý rộng hơn tập tự phát hành (#266 vòng 5, Codex bắt đúng):
-	bản trước chỉ bảo vệ những tờ đã đủ điều kiện tự gửi, nên ba nhóm sau
-	KHÔNG được bảo vệ, mà đó lại chính là ba nhóm của đêm 09/09:
-	  - tờ đang GIỮ CỜ đối chiếu (117 tờ TCV),
-	  - đơn còn NHÁP chưa ghi sổ được (59 đơn Sales),
-	  - tờ cũ chưa được đánh dấu vgb_hddt_ngay_xuat.
-	Nằm trong tập này KHÔNG có nghĩa được tự gỡ cờ hay tự ghi sổ; nó chỉ có
-	nghĩa là chưa được để một tờ ngày mới ra trước và đóng cửa của nó.
-	Đọc lỗi thì NÉM, không trả rỗng.
+	Nháp kẹt duyệt/kho thuộc danh sách đơn treo, không giữ cả ngày kế tiếp.
+	Tờ đã ghi sổ còn cờ đối chiếu hay chưa đánh dấu ngày xuất vẫn được bảo vệ.
+	Lỗi đọc vẫn ném để không hiểu nhầm là đã hết nợ.
 	"""
 	try:
 		rows = frappe.db.sql("""select posting_date, custom_nguon, vgb_quay
 			from `tabSales Invoice`
-			where docstatus in (0, 1) and ifnull(vgb_huy, 0) = 0 and ifnull(vgb_tam_tinh, 0) = 0
+			where docstatus = 1 and ifnull(vgb_huy, 0) = 0 and ifnull(vgb_tam_tinh, 0) = 0
 			  and grand_total > 0
 			  and ifnull(custom_hddt_so, '') = '' and ifnull(custom_minvoice_id, '') = ''
 			  and ifnull(custom_hddt_id, '') = ''

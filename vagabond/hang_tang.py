@@ -713,6 +713,14 @@ def luu_thong_tin(name, loai=None, ly_do=None, anh=None):
 		si.vgb_tang_loai = lo
 	if ly_do is not None:
 		si.vgb_tang_ly_do = chuoi(ly_do)
+	# Gửi lại là một yêu cầu duyệt mới, không mang ý kiến từ chối cũ.
+	if chuoi(si.get("vgb_tang_duyet")) == TT_TU_CHOI:
+		si.vgb_tang_duyet = TT_CHO
+		si.vgb_tang_y_kien = ""
+		si.vgb_tang_dau_van = ""
+		si.vgb_tang_nguoi_duyet = None
+		si.vgb_tang_luc_duyet = None
+
 	si.flags.ignore_permissions = True
 	si.save()
 	if isinstance(anh, str):

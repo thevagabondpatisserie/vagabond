@@ -21,6 +21,7 @@ def _luu(d):
 
 
 def _nen(so_tai_khoan='1551'):
+    frappe.db.set_single_value('Vagabond Settings','hang_tang_xuat_kho_that',1)
     ct,tk,mau=_nen_thue()
     for truong, gia_tri in (('enable_serial_and_batch_no_for_item',1), ('use_serial_batch_fields',1), ('allow_negative_stock',0)):
         frappe.db.set_single_value('Stock Settings',truong,gia_tri)

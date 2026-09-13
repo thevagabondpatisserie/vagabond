@@ -1115,6 +1115,7 @@ async function scrHoSoTTTao() {
   }
 
   if (!laHU && hsTaoNcc && hsCoQuyenCanCoc()) html += '<button class="btn gh" id="hsCanCoc">' + (hsCocLan ? 'Kiểm kết quả lần cấn trước' : 'Cấn cọc đã chi vào hóa đơn đã chọn') + '</button>';
+  if (!laHU && hsTaoNcc && !hsCoQuyenCanCoc()) html += '<p id="hsCanCocNhac" style="font-size:13px;color:#64748b">Cấn cọc do kế toán thực hiện</p>';
   html += '<div class="card" style="padding:12px 14px"><input class="tin" id="hsGc" placeholder="Ghi chú cho hồ sơ (không bắt buộc)" value="' + h(hsTaoGhiChu) + '"></div>';
 
   var foot = '<div style="display:flex;gap:8px">' +
@@ -1982,6 +1983,7 @@ async function scrChiCongTyTao() {
   }
 
   if (hopLe && huNguoi && hsCoQuyenCanCoc()) html += '<button class="btn gh" id="huCanCoc">' + (hsCocLan ? 'Kiểm kết quả lần cấn trước' : 'Cấn cọc đã chi vào hóa đơn đã chọn') + '</button>';
+  if (hopLe && huNguoi && !hsCoQuyenCanCoc()) html += '<p id="huCanCocNhac" style="font-size:13px;color:#64748b">Cấn cọc do kế toán thực hiện</p>';
   html += '<div class="card" style="padding:12px 14px"><input class="tin" id="huGc" placeholder="Ghi chú cho hồ sơ (không bắt buộc)" value="' + h(huGhiChu) + '"></div>';
 
   var foot = '<div style="display:flex;gap:8px">' +

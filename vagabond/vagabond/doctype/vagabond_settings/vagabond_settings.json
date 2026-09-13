@@ -80,6 +80,7 @@
   "gemini_api_key",
   "sec_vgb_tu_dong",
   "tu_xuat_hddt",
+  "hang_tang_xuat_kho_that",
   "cb_vgb_tu_dong",
   "email_canh_bao",
   "sec_diem",
@@ -517,6 +518,13 @@
    "label": "Tự xuất hoá đơn điện tử ngay khi ghi sổ",
    "default": "1",
    "description": "Áp dụng cho mọi nguồn đơn, kể cả đơn nhập tay GrabFood, ShopeeFood, BeFood, GreenSM."
+  },
+  {
+   "fieldname": "hang_tang_xuat_kho_that",
+   "fieldtype": "Check",
+   "label": "Hàng tặng xuất kho thật",
+   "default": "0",
+   "description": "Chỉ bật khi kho điểm bán đã có tồn thực tế. Tắt: ghi VAT hàng tặng, chờ giá vốn và không sinh sổ kho; không thay chứng từ đã ghi sổ."
   },
   {
    "fieldname": "cb_vgb_tu_dong",

@@ -26,7 +26,7 @@ def _f(cu=0):
         if dt=='Account': return '64181' if ten=='64181' else '632'
         return 'CC'
     return SimpleNamespace(throw=nem,get_cached_value=gt,
-        db=SimpleNamespace(exists=lambda *a:False,get_value=lambda *a,**k:To(docstatus=0,vgb_tang_kho_moi=cu)))
+        db=SimpleNamespace(get_single_value=lambda *a:1,exists=lambda *a:False,get_value=lambda *a,**k:To(docstatus=0,vgb_tang_kho_moi=cu)))
 
 
 def _chuan(d,cu=0):

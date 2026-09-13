@@ -1122,7 +1122,8 @@ async function kmSheetCombo(ma) {
       '<div style="background:#f0fdfa;border:1.5px solid #7fe5f6;border-radius:9px;padding:11px 13px;margin-bottom:12px;font-size:12px;color:#0b7c93;line-height:1.6">' +
       'Khi tính tiền, cashier bấm combo thì máy <b>rã ra thành từng món thành phần</b> rồi đặt một dòng giảm giá bên dưới. Bill in từng món thật, kèm mã và tên combo.</div>' +
       kmO('TÊN COMBO', 'cbTen', s.ten, 'Ví dụ: Combo sáng cà phê + bánh mì') +
-      '<button class="btn out" id="cbMaHang" style="width:100%;margin:8px 0">Mã hàng combo: ' + h(s.ma_hang || 'Chọn mã KMCB') + '</button>';
+      '<button class="btn out" id="cbMaHang" style="width:100%;margin:8px 0">Mã hàng combo: ' + h(s.ma_hang || 'Chọn mã KMCB') + '</button>' +
+      (s.bat && !s.ma_hang ? '<div role="status" style="font-size:13px;color:#92400e;background:#fffbeb;padding:10px;border-radius:8px">Combo đang bật nhưng chưa gắn mã hàng KMCB. Chọn mã hàng để thu ngân tìm hoặc quét mã combo tại quầy.</div>' : '');
 
     /* ----- Mon co san: luon vao bill ----- */
     var monBB = [];
