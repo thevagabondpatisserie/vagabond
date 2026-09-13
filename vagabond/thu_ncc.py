@@ -40,6 +40,8 @@ def dia_chi_ncc(ma,*them):
     if ma:
         ncc=frappe.db.get_value('Supplier',ma,['email_id','supplier_primary_contact'],as_dict=True) or {}
         nguon.append(ncc.get('email_id'))
+        if frappe.get_meta('Supplier').has_field('email_cc'):
+            nguon.append(frappe.db.get_value('Supplier',ma,'email_cc'))
         # Dynamic Link được giới hạn cả DocType và mã NCC, không lấy liên hệ của NCC khác.
         ds=frappe.db.sql("""select distinct c.name,c.email_id from `tabContact` c
             left join `tabDynamic Link` l on l.parent=c.name and l.parenttype='Contact'

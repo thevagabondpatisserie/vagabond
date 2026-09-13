@@ -3119,8 +3119,7 @@ def _tep_dinh_thu(ds_tep, ma="APP"):
 
 	Đính bằng NỘI DUNG chứ không bằng đường dẫn: uỷ nhiệm chi để chế độ
 	riêng tư, gửi đường dẫn đi thì nhà cung cấp bấm vào chỉ thấy màn đăng
-	nhập. Tệp nào đọc không được thì bỏ qua và ghi nhật ký, không làm hỏng
-	cả lá thư.
+	nhập. Tệp nào đọc không được thì báo để đính lại, không gửi thiếu UNC.
 	"""
 	ra = []
 	for stt, f in enumerate(ds_tep or [], 1):

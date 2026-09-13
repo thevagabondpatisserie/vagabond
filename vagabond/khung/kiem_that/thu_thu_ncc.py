@@ -12,6 +12,7 @@ def nen_thu():
     h,g=_nen();_ghi(h,g);h.reload()
     n=frappe.get_doc({'doctype':'Supplier','supplier_name':'KTTHU-'+frappe.generate_hash(length=10),'supplier_type':'Company'})
     n.insert(ignore_permissions=True);_DA_TAO.append(('Supplier',n.name))
+    n.db_set('email_cc','bon@example.com; phu@example.com')
     c=frappe.get_doc({'doctype':'Contact','first_name':'KTTHU','email_ids':[{'email_id':'chinh@example.com','is_primary':1},{'email_id':'phu@example.com'},{'email_id':'ba@example.com'}], 'links':[{'link_doctype':'Supplier','link_name':n.name}]})
     c.insert(ignore_permissions=True);_DA_TAO.append(('Contact',c.name))
     h.db_set('nha_cung_cap',n.name);h.db_set('email_ncc','chinh@example.com; phu@example.com')
@@ -32,8 +33,8 @@ def gui_du():
             m=message_from_string(r.message)
             ds={x[1] for x in getaddresses(m.get_all('To',[])+m.get_all('Cc',[]))}
             if r.message_id==thu_ncc.ma_thu(h.name,'ncc'):
-                la('đủ ba email NCC',ds,{'chinh@example.com','phu@example.com','ba@example.com'})
-                la('hai CC',len(getaddresses(m.get_all('Cc',[]))),2)
+                la('đủ bốn email NCC',ds,{'chinh@example.com','phu@example.com','ba@example.com','bon@example.com'})
+                la('ba CC',len(getaddresses(m.get_all('Cc',[]))),3)
             else:la('kế toán riêng',ds,{hs.EMAIL_KE_TOAN})
             tep=[p for p in m.walk() if p.get_filename()]
             dung('có UNC thật trong MIME',len(tep)>0)

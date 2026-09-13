@@ -173,7 +173,7 @@ def dung():
 		{"fieldname": "custom_minvoice_ngay_day", "fieldtype": "Data", "label": "MInvoice ngay day", "insert_after": "customer"},
 	])
 	_truong("Customer", [{"fieldname": "vgb_hang", "fieldtype": "Data", "label": "Hang", "insert_after": "customer_name"}])
-	_truong("Supplier", [{"fieldname": "custom_ma_ncc", "fieldtype": "Data", "label": "Mã NCC", "insert_after": "supplier_name"}])
+	_truong("Supplier", [{"fieldname": "custom_ma_ncc", "fieldtype": "Data", "label": "Mã NCC", "insert_after": "supplier_name"}, {"fieldname": "email_cc", "fieldtype": "Small Text", "label": "Email phụ cần CC", "insert_after": "email_id"}])
 	_truong("Purchase Invoice", [
 		{"fieldname": "custom_minvoice_id", "fieldtype": "Data", "label": "MInvoice id", "insert_after": "supplier"},
 	])
