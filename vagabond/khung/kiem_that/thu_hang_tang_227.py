@@ -48,7 +48,7 @@ def _hoa_don(tang=True):
 		frappe.db.set_value("Sales Invoice", hd.name, "vgb_tang_kho_moi", 0)
 		hd.reload()
 	if tang:
-		hang_tang.duyet(hd.name, "Ca kiểm trong điểm lưu, không giao quà thật")
+		hang_tang._ghi_duyet(hd, "Ca kiểm trong điểm lưu, không giao quà thật")
 		hd.reload()
 		hd.flags.ignore_permissions = True
 	return hd

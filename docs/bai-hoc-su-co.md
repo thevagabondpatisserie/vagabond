@@ -364,3 +364,8 @@ Chốt validate không bảo vệ được API dùng db.set_value. Chuyển sang
 ### 12/09/2026 - Tắt chính sách không được che trạng thái cần dọn (#291)
 
 Nháp tặng đã mang kho/64181, khi tắt công tắc cùng lúc đổi thành thu tiền, hạ dấu trước làm nhánh return bỏ qua dọn kho. Dọn chuyển loại trước khi tính dấu mới; ca thuần bắt update_stock còn 1, ca bench lưu-ghi sổ-hủy và đọc GL/SLE/Bin. Nguồn finding 3996732355, cùng lỗi 3996733712 trên nhánh tích hợp #293.
+
+
+### #296: gom cửa lưu không được làm yếu đối soát quầy
+
+Quầy kiểm cả tiền SePay và quyền sở hữu dòng giao dịch, trong khi đường Sales có nguồn đối chiếu khác. Khi gom điều kiện vào _chuan_bi_ghi_so, giữ nhánh nguồn và kiểm bằng lời gọi API thật. Cửa Lưu đơn chỉ save nháp; quyết định duyệt được commit riêng trước bước ghi sổ có savepoint để lỗi kho/GL không xoá quyết định. Ca bench mới cố tình lỗi sau GL/SLE, phải đọc lại nháp và hai sổ rỗng. Chưa coi ca mô phỏng là bằng chứng đã chạy bench.

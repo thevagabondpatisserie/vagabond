@@ -115,7 +115,7 @@ def _tang():
     from vagabond import hang_tang
     hd,tk=_dung([108000,110000],[8,10],tang=True)
     # Sửa món làm mất duyệt; duyệt lại đúng nội dung vừa lưu trước submit.
-    hang_tang.duyet(hd.name,'Ca kiểm thuế hỗn hợp trong điểm lưu')
+    hang_tang._ghi_duyet(hd,'Ca kiểm thuế hỗn hợp trong điểm lưu')
     hd.reload()
     ds=_doi_chieu(hd,tk)
     la('VAT tặng',hd.vgb_tang_tien_thue,sum(d['vat'] for d in ds))

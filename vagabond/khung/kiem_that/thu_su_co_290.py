@@ -14,7 +14,7 @@ def kho_tat():
     frappe.db.set_single_value('Vagabond Settings','hang_tang_xuat_kho_that',0)
     hd.items[0].qty=8  # Kho chỉ có 5 từ fixture sản xuất, không nới tồn.
     hd.save(ignore_permissions=True)
-    hang_tang.duyet(hd.name,'Duyệt fixture 8 bánh khi chưa triển khai kho')
+    hang_tang._ghi_duyet(hd,'Duyệt fixture 8 bánh khi chưa triển khai kho')
     hd.reload();hd.flags.ignore_permissions=True;hd.submit();hd.reload()
     la('đã ghi sổ',hd.docstatus,1);la('không xuất kho',hd.update_stock,0)
     la('không có SLE',_sle(hd),[]);la('chờ giá vốn',hd.vgb_tang_cho_gia_von,1)
@@ -35,7 +35,7 @@ def dong_bo_tang():
     hd.save(ignore_permissions=True);hd.reload()
     ban_hang.pos_chot(hd.name,pt='Hàng tặng')
     hang_tang.luu_thong_tin(hd.name,loai='marketing',ly_do='Tặng sự kiện tiệm sau khi Sales chọn tay')
-    hang_tang.duyet(hd.name,'Duyệt quà fixture đồng bộ')
+    hang_tang._ghi_duyet(hd,'Duyệt quà fixture đồng bộ')
     hd.reload()
     la('lựa chọn tay hạ cờ máy',hd.vgb_pt_do_may,0)
     la('bảng máy cũ đã gỡ',list(hd.get(ttn.BANG) or []),[])

@@ -981,6 +981,7 @@ def duyet(name, y_kien=""):
 	"""
 	_quyen()
 	_chan_neu_khong_duyet()
+	frappe.db.get_value(SI, name, "name", for_update=True)
 	si = frappe.get_doc(SI, name)
 	if not la_don_tang(si):
 		frappe.throw("Đơn %s không trả bằng %s nên không nằm trong luồng duyệt."
@@ -996,6 +997,15 @@ def duyet(name, y_kien=""):
 			title="Đơn còn thiếu thông tin, chưa duyệt được",
 		)
 
+	_ghi_duyet(si, y_kien)
+	# Quyết định đã duyệt tồn tại kể cả khi kho hoặc phát hành đang kẹt.
+	frappe.db.commit()
+	return _ghi_so_sau_duyet(name)
+
+
+def _ghi_duyet(si, y_kien=""):
+	"""Ghi quyết định nội bộ; cửa duyet kiểm quyền và điều kiện trước khi gọi."""
+	name = si.name
 	frappe.db.set_value(SI, name, {
 		"vgb_tang_duyet": TT_DUYET,
 		"vgb_tang_nguoi_duyet": frappe.session.user,
@@ -1003,11 +1013,55 @@ def duyet(name, y_kien=""):
 		"vgb_tang_y_kien": chuoi(y_kien),
 		"vgb_tang_dau_van": _dau_van_cua_to(si),
 	}, update_modified=False)
-	frappe.db.commit()
 	_ghi_vet(name, "Duyệt đơn hàng tặng %s đ%s" % (
 		"{:,.0f}".format(flt(si.grand_total)),
 		(", ý kiến: " + chuoi(y_kien)) if chuoi(y_kien) else ""))
-	return {"ok": 1, "trang_thai": TT_DUYET}
+
+
+def _ghi_so_sau_duyet(name):
+	"""Khoá lại chứng từ sau commit duyệt; một lỗi không để lại GL/SLE dở dang.
+
+	Frappe document.py chạy validate/before_submit rồi on_submit; ERPNext
+	sales_invoice.py:on_submit ghi kho trước GL. Điểm lưu bao trọn hai sổ.
+	"""
+	from vagabond import ban_hang
+	ket = {"ok": 1, "trang_thai": TT_DUYET, "ghi_so": 0, "xuat_hddt": 0, "loi": ""}
+	frappe.db.savepoint("tang_sau_duyet")
+	try:
+		frappe.db.get_value(SI, name, "name", for_update=True)
+		si = frappe.get_doc(SI, name)
+		if cint(si.docstatus) == 1:
+			# Lượt trước đã ghi sổ: không tự phát hành lại sau mất phản hồi.
+			ket.update(ghi_so=1, loi="Đơn đã ghi sổ. Xem trạng thái HĐĐT trên đơn; không bấm phát hành lại.")
+			return ket
+		if si.get("vgb_tang_duyet") != TT_DUYET:
+			frappe.throw("Đơn đã thay đổi sau khi duyệt. Mở lại đơn để kiểm tra và duyệt lại.")
+		ban_hang._doi_ngay_ban_nhap(si, frappe.utils.nowdate(),
+			"Tự đổi ngày khi duyệt hàng tặng", "Giám đốc duyệt hàng tặng")
+		ban_hang._chuan_bi_ghi_so(si)
+		si.flags.ignore_permissions = True
+		co_cu = si.flags.get("vgb_hoan_phat_hanh")
+		# Chỉ phát hành sau commit sổ, qua một cửa chung với đầy đủ công tắc.
+		si.flags.vgb_hoan_phat_hanh = True
+		try:
+			si.submit()
+		finally:
+			si.flags.vgb_hoan_phat_hanh = co_cu
+	except Exception as e:
+		frappe.db.rollback(save_point="tang_sau_duyet")
+		frappe.local.message_log = []
+		ket["loi"] = "Đã duyệt, đơn còn nháp. Chưa ghi sổ: %s" % ban_hang.giau_khoa(str(e))[:500]
+		return ket
+	frappe.db.commit()
+	ket["ghi_so"] = 1
+	try:
+		xuat, loi = ban_hang._tu_xuat_hddt(name)
+		ket["xuat_hddt"] = int(bool(xuat))
+		if not xuat:
+			ket["loi"] = "Đã duyệt và ghi sổ, chưa phát hành HĐĐT. " + (loi or "Kiểm tra công tắc và cấu hình phát hành trong Cài đặt.")
+	except Exception as e:
+		ket["loi"] = "Đã duyệt và ghi sổ, chưa xác minh được phát hành HĐĐT: %s" % ban_hang.giau_khoa(str(e))[:500]
+	return ket
 
 
 @frappe.whitelist()

@@ -56,7 +56,7 @@ def _nen(so_tai_khoan='1551'):
         customer=frappe.db.get_value('Customer',{'disabled':0,'is_internal_customer':0},'name'),
         taxes_and_charges=mau.name,vgb_pt_thanh_toan='Hàng tặng',vgb_tang_loai='marketing',
         vgb_tang_ly_do='Ca kiểm giá vốn từ mẻ sản xuất #243',items=[dict(item_code=tp,qty=2,rate=108000)]))
-    _luu(hd);hang_tang.duyet(hd.name,'Ca kiểm trong điểm lưu, không giao bánh thật')
+    _luu(hd);hang_tang._ghi_duyet(hd,'Ca kiểm trong điểm lưu, không giao bánh thật')
     hd.reload();hd.flags.ignore_permissions=True
     return hd,kho,lo.name
 
@@ -131,7 +131,7 @@ def _thieu_ton():
     frappe.db.set_single_value('Stock Settings','allow_negative_stock',1)
     frappe.clear_document_cache('Stock Settings')
     hd.items[0].qty=6;hd.save(ignore_permissions=True)
-    hang_tang.duyet(hd.name,'Kiểm thiếu tồn, không giao thật');hd.reload();hd.flags.ignore_permissions=True
+    hang_tang._ghi_duyet(hd,'Kiểm thiếu tồn, không giao thật');hd.reload();hd.flags.ignore_permissions=True
     try: hd.submit()
     except frappe.ValidationError as e: dung('chỉ đúng thiếu hàng',kho in str(e))
     else: dung('phải chặn',False)
