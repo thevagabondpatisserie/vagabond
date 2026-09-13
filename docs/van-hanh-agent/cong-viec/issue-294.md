@@ -28,3 +28,9 @@ thu theo luong-cloud.md. Chưa có executor trực tiếp, vì vậy không nh�
 automation hoặc nhận model đã đạt khi chưa có metadata phiên. Không bật
 receiver riêng lẻ để nhận là đã tự làm; không dùng API key mới hoặc chuyển
 sang desktop khi anh đã chọn cloud. Chưa merge/deploy ERP.
+
+## Bổ sung bằng chứng ngày 13/09/2026
+
+Theo [biên nhận ngày 12/09](https://github.com/thevagabondpatisserie/vagabond/pull/295#issuecomment-5647045885), lịch hourly đã resume với prompt điều phối qua mention, không gọi trùng mã bàn giao. Đây là mốc được báo lúc đó, chưa kiểm lại trạng thái lịch ngày 13/09.
+
+Tác vụ VGB294-CLOUD-01 tạo commit local 1e3d4fec nhưng shell push thiếu credentials. Codex desktop dùng nút Update branch trong giao diện cloud để đưa lên SHA d191206. Đây là publish qua UI có người điều khiển, chưa phải bằng chứng tự push không giám sát. CUA ở mốc trên là công cụ điều khiển giao diện.
