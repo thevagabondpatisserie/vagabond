@@ -379,3 +379,7 @@ Quầy kiểm cả tiền SePay và quyền sở hữu dòng giao dịch, trong 
 ### #299: chốt ca chỉ đếm tiền mặt cần nhận biết phiên bản máy chủ
 
 JSON chỉ có Tiền mặt vẫn hợp cú pháp của backend cũ nhưng biến chuyển khoản/thẻ thành thiếu tiền. UI phải đọc chi_dem_tien_mat trước khi cho chốt. Không dùng flt để xác nhận số đếm: chữ sai biến thành0, NaN/Infinity qua so sánh âm; chuỗi5.000 phải đọc là5000 hoặc chặn, không âm thầm nhận5. Giữ các phương thức được cấu hình dù số máy bằng0. Ca API mở-chốt-reload giữ số nộp quỹ, Node kiểm backend cũ và payload. #290D2: báo cáo CK đọc cùng mã Pancake với ghi sổ, chọn một đường khớp, không cộng hai lần cùng tiền.
+
+### #298 thư NCC: đầy đủ người nhận và không nhận xếp hàng là đã gửi
+
+Email Supplier, Contact chính và mọi Contact Email liên kết đúng NCC phải được gom, bỏ trùng rồi chia To/CC. Gửi thử chỉ một địa chỉ. Bản sao kế toán là queue riêng, tiêu đề có BAN SAO; UNC mang mã APP và không gửi khi không đọc được tệp. Frappe 16.27.1 email.sendmail tạo Queue trong transaction; dùng delayed=True, giữ hai queue và dấu hồ sơ nguyên tử, không SMTP trong POST. Retry không tạo lại queue. Bằng chứng phải đọc recipient status; cờ email_da_gui lịch sử không chứng minh Sent. Bench đọc MIME/queue thật, stub duy nhất cấu hình SMTP và cấm EmailQueue.send.

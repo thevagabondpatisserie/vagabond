@@ -34222,13 +34222,18 @@ async function scrHoSoTTView(name) {
     var daTra = hs.trang_thai === 'Da thanh toan';
     html += '<div class="sec">Thư báo nhà cung cấp</div><div class="card" style="padding:12px 14px;font-size:13px;line-height:1.6;color:#374151">' +
       (hs.email_da_gui
-        ? '✉️ Đã gửi tới <b>' + h(hs.email_gui_toi) + '</b>' + (hs.email_gui_luc ? ' lúc ' + h(hs.email_gui_luc) : '') + '.<br>Gửi lại được nếu nhà cung cấp báo chưa nhận.'
+        ? '✉️ Đã ghi nhận yêu cầu gửi tới <b>' + h(hs.email_gui_toi) + '</b>' + (hs.email_gui_luc ? ' lúc ' + h(hs.email_gui_luc) : '') + '.<br>Xem trạng thái từng người nhận bên dưới; không tự gửi lại thư cũ.'
         : (daTra ? 'Chưa gửi thư báo. ' : 'Thư tự gửi ngay khi ghi nhận thanh toán. ') +
           'Email đang lưu trên hồ sơ nhà cung cấp: <b>' + h(hs.email_ncc || '(chưa có)') + '</b>') +
+      (hs.thu_bang_chung || []).map(function (q) {
+        return '<div style="margin-top:8px"><b>' + (q.loai === 'ncc' ? 'Thư NCC' : 'Bản sao kế toán') + '</b>: ' + h(q.trang_thai) +
+          '<br>' + (q.nguoi_nhan || []).map(function (r) { return h(r.recipient) + ': ' + h(r.status); }).join('<br>') +
+          (q.cc ? '<br>CC: ' + h(q.cc) : '') + '</div>';
+      }).join('') +
       '<div style="display:flex;gap:8px;margin-top:10px">' +
       '<button class="btn gh" data-hsv="xemthu" style="flex:1;margin:0">👁 Xem trước</button>' +
       '<button class="btn gh" data-hsv="guithuthu" style="flex:1;margin:0">🧪 Gửi thử</button>' +
-      (daTra ? '<button class="btn" data-hsv="guithu" style="flex:1;margin:0">✉️ ' + (hs.email_da_gui ? 'Gửi lại' : 'Gửi thư báo') + '</button>' : '') +
+      (daTra ? '<button class="btn" data-hsv="guithu" style="flex:1;margin:0">✉️ ' + (hs.email_da_gui ? 'Kiểm thư đã tạo' : 'Gửi thư báo') + '</button>' : '') +
       '</div>' +
       '<div style="font-size:11.5px;color:#98a2b3;margin-top:8px;line-height:1.5">' +
       'Gửi thử đi đúng một địa chỉ anh chị gõ vào, tiêu đề có chữ GỬI THỬ, không gửi bản sao cho ai.</div></div>';
@@ -34493,10 +34498,10 @@ async function hsHanh(k, hs) {
     return;
   }
   if (k === 'guithu') {
-    var toi = await hoiNhap('Gửi thư báo thanh toán tới email nào?', hs.email_ncc || '');
+    var toi = await hoiNhap('Email nhận chính (các email NCC đã khai khác sẽ được CC)?', hs.email_ncc || '');
     if (!toi) return;
     busy(true);
-    try { await api('vagabond.ho_so_tt.gui_email_ncc', { name: hs.ma, email: toi, gui_that: 1 }); busy(false); toast('Đã gửi thư tới ' + toi, 3500); }
+    try { await api('vagabond.ho_so_tt.gui_email_ncc', { name: hs.ma, email: toi, gui_that: 1 }); busy(false); toast('Đã tiếp nhận. Xem hàng đợi để biết từng địa chỉ đã gửi hay chưa.', 3500); }
     catch (e) { busy(false); return baoTin((e && e.message) || 'Gửi thư lỗi'); }
     return go(function () { scrHoSoTTView(hs.ma); }, true);
   }
