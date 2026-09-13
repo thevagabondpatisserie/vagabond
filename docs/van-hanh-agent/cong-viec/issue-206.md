@@ -72,3 +72,7 @@ Bench37fc1f8 xác nhận lỗi thật Batch chưa tồn tại vì save sau khi �
 ## F24 và F21/F22 - 13/09
 
 Bench76d9832 xanh nhưng inline F24 phát hiện lookup Batch lỗi/thiếu biến thành xóa ngày. App nay gửi giu=1/hsd=null cho dòng chưa đọc được và chưa sửa ô; onchange đặt giu=0 nên xóa chủ động vẫn gửi trống. Máy chủ đọc và khóa Batch, thay ngày chưa biết bằng ngày DB trước kiểm mâu thuẫn, không save nhánh giữ; trả cảnh báo riêng. Node phủ lookup reject/thiếu, chưa chạm và chủ động xóa. Bench thêm lô chưa SLE có hạn: giữ khi lookup lỗi, xóa khi chủ động. F21 retry tách cả xuống dòng, kiểm cả lô quá hạn; F22 lượng gói khác số đếm trả hướng dẫn sửa gói trên Desk. Chờ bench/review SHA mới, không dùng kết quả76d9832 cho bản sửa.
+
+## F26 và kết quả benchafd8c85 - 13/09
+
+Benchafd8c85:210đạt/2hỏng mỗi lượt. Cảnh báo quá hạn min0 có chuỗi rỗng do cau_han_dung nhận dat1: sửa dat0 trước dựng câu. Ca giữ/xóa gọi hai fixture kho riêng trong một ca gây lỗi stock_value_diff ở fixture thứ hai; tách hai ca để mỗi ca được nen cách ly cache, cần bench chứng minh lại. F26 dựng pr từ goc DB đã khóa, chỉ áp số đếm/HSD/ảnh, bỏ tin payloaditems/giá/UOM/ngày/thuế. Giá tạm chuyển khỏi UI sang DB cùng công ty/tiền tệ, giữ thứ tự PR rồi PO. Thêm ca giả rate1/hệ số10/ngày cũ vẫn SLE1 và1000; ca rate0 lấy giá1234 từ PR thật. Chưa nhận đạt trước bench SHA mới.

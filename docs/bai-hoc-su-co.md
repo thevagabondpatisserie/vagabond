@@ -432,3 +432,5 @@ Thuộc tính han_su_dung trên dict PR Item không có trong meta nên nhập/x
 - #302 F17: get_doc(dict) rồi đặt name không có nghĩa là bản mới được save theo đường insert. Bench ném Batch not found trước submit. Phải insert rõ nhánh mới. Hai số qty và sl cùng payload vẫn cần một nguồn chốt; một Batch không thể nhận hai hạn theo thứ tự dòng. Không dùng throw cho lô lịch sử/gói nếu chỉ cần giữ nguyên ngày và cảnh báo.
 
 - #302 F24: đọc dữ liệu thất bại không phải giá trị rỗng. API cần trạng thái giữ riêng với xóa chủ động; kiểm cả lô chưa có SLE vì guard lịch sử không bảo vệ nó. Ca UI mock lỗi/thiếu phải theo tới payload, ca bench đọc lại ngày DB.
+
+- #302 F26: khóa bản DB rồi vẫn get_doc(payload) chưa bảo vệ giá/quy cách/ngày. Dùng bản DB, chỉ áp trường thao tác đã cho phép; giá tạm tính từ nguồn cùng công ty/tiền tệ trên máy chủ. Câu cảnh báo quá hạn ngưỡng0 phải đổi cả trạng thái dat trước khi gọi hàm dựng câu.

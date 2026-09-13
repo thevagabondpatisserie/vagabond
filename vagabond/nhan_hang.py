@@ -399,6 +399,7 @@ def _han_nhan_cua_dong(r, han):
 		return "Chưa có hạn sử dụng: " + ten if kho_sap.bat_buoc_han_dung(theo_lo, toi_thieu) else None
 	kq = kho_sap.soat_han_dung(getdate(han), getdate(nowdate()), toi_thieu)
 	if not kq["dat"] or (kq.get("con") is not None and kq["con"] < 0):
+		kq["dat"] = 0
 		return "Hạn dùng cần kiểm tra: " + kho_sap.cau_han_dung(ten, kq)
 
 
@@ -437,6 +438,34 @@ def _lo_nhan_thuc_te(r, han, giu=False):
 	return han, None
 
 
+
+def _gia_nhan_nhap(pr):
+	"""Giá tạm lấy từ chứng từ cùng công ty/tiền tệ, không tin rate app."""
+	thieu = []
+	for r in pr.items:
+		if flt(r.rate) > 0: continue
+		gia = None
+		if not r.get("purchase_order"):
+			for dt in ("Purchase Receipt", "Purchase Order"):
+				rows = frappe.db.sql("""select d.rate,d.conversion_factor
+					from `tab%s Item` d join `tab%s` p on p.name=d.parent
+					where p.docstatus=1 and p.company=%%s and p.currency=%%s
+					and d.item_code=%%s and d.rate>0 and d.conversion_factor>0
+					order by d.creation desc limit 1""" % (dt,dt),
+					(pr.company,pr.currency,r.item_code),as_dict=True)
+				if rows:
+					gia=rows[0];break
+		if gia:
+			r.rate=round(flt(gia.rate)/flt(gia.conversion_factor)*flt(r.conversion_factor or 1),2)
+			pr.remarks=((pr.get("remarks") or "")+" | Máy lấy giá mua gần nhất cho "+(r.item_name or r.item_code)).strip(" |")
+		else:
+			r.allow_zero_valuation_rate=1
+			thieu.append(r.item_name or r.item_code)
+	if thieu:
+		pr.remarks=((pr.get("remarks") or "")+" | Nhập kho khi chưa có giá: "+", ".join(thieu)+" - kế toán bổ sung giá sau.").strip(" |")
+	return thieu
+
+
 @frappe.whitelist(methods=["POST"])
 def ghi_phieu_nhap(doc, dong=None):
 	"""Thay frappe.client.submit cho PR nháp, giữ quyền và validation lõi.
@@ -457,18 +486,17 @@ def ghi_phieu_nhap(doc, dong=None):
 		frappe.throw("Chỉ nhận hàng trên phiếu nháp nhập mua, không phải phiếu trả.")
 	if str(data.get("modified")) != str(goc.modified):
 		frappe.throw("Phiếu vừa được sửa. Mở lại phiếu để lấy số liệu mới rồi nhận hàng.")
-	pr = frappe.get_doc(data)
-	pr.flags = frappe._dict()
-	pr.docstatus = 0
+	pr = goc
 	nhap = _doc_dong(dong)
 	goc_dong = {r.name:r for r in goc.items}
-	if not pr.items or set(nhap) != {r.name for r in pr.items}:
+	if not nhap or not set(nhap).issubset(goc_dong):
 		frappe.throw("HSD và dòng nhận không khớp. Mở lại phiếu rồi thử lại.")
+	pr.set("items", [r for r in pr.items if r.name in nhap])
+	for truong in ("custom_hinh_nhan_hang_1", "custom_hinh_nhan_hang_2", "custom_scan_bien_ban"):
+		if truong in data: pr.set(truong, data[truong] or "")
 	han_theo_lo = {}
 	for r in pr.items:
 		x = goc_dong.get(r.name)
-		if not x or r.item_code != x.item_code or r.warehouse != x.warehouse or r.batch_no != x.batch_no or r.serial_and_batch_bundle != x.serial_and_batch_bundle:
-			frappe.throw("Mã hàng, kho hoặc lô đã đổi. Lưu phiếu rồi mở lại màn nhận hàng.")
 		sl = nhap[r.name]["sl"]
 		if not math.isfinite(sl) or sl <= 0 or sl > flt(x.qty) + EPS:
 			frappe.throw("Số thực nhận phải lớn hơn 0 và không vượt phiếu nháp.")
@@ -501,11 +529,12 @@ def ghi_phieu_nhap(doc, dong=None):
 		canh = list(dict.fromkeys(canh))
 		if canh:
 			pr.remarks = ((pr.get("remarks") or "") + " | " + " | ".join("Kiểm tra HSD: " + c for c in canh)).strip(" |")
+		thieu_gia = _gia_nhan_nhap(pr)
 		pr.submit()
 	except Exception:
 		frappe.db.rollback(save_point=moc)
 		raise
-	return {"phieu":pr.name, "canh_bao_han":canh}
+	return {"phieu":pr.name, "canh_bao_han":canh, "thieu_gia":thieu_gia}
 
 
 @frappe.whitelist()

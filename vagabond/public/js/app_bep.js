@@ -7781,63 +7781,12 @@ async function scrRecvDoc(name) {
     if (!await confirmSheet('Xác nhận nhập kho?', msg, 'Nhập kho')) return;
     busy(1);
     try {
-      var d = rcvD.doc, byRow = {};
-      if (rcvD.anh1) d.custom_hinh_nhan_hang_1 = rcvD.anh1;
-      if (rcvD.anh2) d.custom_hinh_nhan_hang_2 = rcvD.anh2;
-      if (rcvD.scan) d.custom_scan_bien_ban = rcvD.scan;
-      L.forEach(function (x) { byRow[x.row] = x; });
-      d.items = d.items.filter(function (r) { var x = byRow[r.name]; return x && x.got > 0; });
-      d.items.forEach(function (r) {
-        var x = byRow[r.name];
-        r.qty = x.got; r.received_qty = x.got; r.rejected_qty = 0;
-      });
-      /* Bo sung gia tam cho dong chua co gia tren don */
-      var zeroRows = d.items.filter(function (r) { return !((r.rate || 0) > 0); });
-      var chuaGia = [];
-      if (zeroRows.length) {
-        var zc = [];
-        zeroRows.forEach(function (r) { if (zc.indexOf(r.item_code) < 0) zc.push(r.item_code); });
-        var lastP = {};
-        try {
-          var pri = await getList('Purchase Receipt Item', {
-            parent: 'Purchase Receipt',
-            fields: ['item_code', 'rate', 'conversion_factor', 'creation'],
-            filters: { item_code: ['in', zc], docstatus: 1, rate: ['>', 0] },
-            order_by: 'creation desc', limit_page_length: 0
-          });
-          pri.forEach(function (x) { if (!lastP[x.item_code]) lastP[x.item_code] = x; });
-        } catch (e1) { }
-        var conCan = zc.filter(function (c0) { return !lastP[c0]; });
-        if (conCan.length) {
-          try {
-            var poi = await getList('Purchase Order Item', {
-              parent: 'Purchase Order',
-              fields: ['item_code', 'rate', 'conversion_factor', 'creation'],
-              filters: { item_code: ['in', conCan], docstatus: 1, rate: ['>', 0] },
-              order_by: 'creation desc', limit_page_length: 0
-            });
-            poi.forEach(function (x) { if (!lastP[x.item_code]) lastP[x.item_code] = x; });
-          } catch (e2) { }
-        }
-        zeroRows.forEach(function (r) {
-          var gg = r.purchase_order ? null : lastP[r.item_code];
-          if (gg) {
-            var donVi = (gg.rate || 0) / (gg.conversion_factor || 1);
-            r.rate = Math.round(donVi * (r.conversion_factor || 1) * 100) / 100;
-          } else {
-            r.allow_zero_valuation_rate = 1;
-            chuaGia.push(r.item_name || r.item_code);
-          }
-        });
-        d.remarks = (d.remarks || '') + (chuaGia.length
-          ? ' | Nhap kho khi chua co gia: ' + chuaGia.join(', ') + ' - ke toan bo sung gia sau.'
-          : ' | May tu lay gia mua gan nhat cho ' + zeroRows.length + ' dong chua co gia tren don.');
-        if (chuaGia.length) setTimeout(function () { toast('Có ' + chuaGia.length + ' món nhập kho khi chưa có giá. Vui lòng báo kế toán bổ sung giá.', 7000); }, 1400);
-      }
-
+      var d = { doctype: 'Purchase Receipt', name: rcvD.name, modified: rcvD.doc.modified,
+        custom_hinh_nhan_hang_1: rcvD.anh1 || '', custom_hinh_nhan_hang_2: rcvD.anh2 || '', custom_scan_bien_ban: rcvD.scan || '' };
       var nhan = await api('vagabond.nhan_hang.ghi_phieu_nhap', { doc: d, dong: JSON.stringify(keep.map(function (x) { return { dong: x.row, sl: x.got, hsd: x.giu ? null : (x.hsd || ''), giu: x.giu || 0 }; })) });
       if (nhan.canh_bao_han && nhan.canh_bao_han.length) await confirmSheet('Đã nhận hàng - kiểm tra hạn dùng', nhan.canh_bao_han.join('\n'), 'Đã xem');
       busy(0);
+      if (nhan.thieu_gia && nhan.thieu_gia.length) toast('Có món chưa có giá: ' + nhan.thieu_gia.join(', ') + '. Báo kế toán bổ sung giá.', 7000);
       rcv.tab = 'xong';
       toast('✓ Đã nhập kho phiếu ' + rcvD.name + '. Phiếu nằm ở tab Đã nhập kho.');
       return back();

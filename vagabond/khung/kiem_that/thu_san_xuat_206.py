@@ -566,6 +566,9 @@ def _nhap_lo_chon_san(kieu):
 		pr.items[0].batch_no=None;pr.items[0].use_serial_batch_fields=0;pr.items[0].serial_and_batch_bundle=sb.name
 		pr.save()
 	pr.reload(); payload=pr.as_dict()
+	if kieu=='chua_so':
+		payload['items'][0].update(rate=1,conversion_factor=10,uom='SAI',stock_uom='SAI')
+		payload['posting_date']='2000-01-01'
 	dong=[dict(dong=r.name,sl=1,hsd=han_moi) for r in pr.items]
 	if kieu in ('giu','xoa'):
 		dong[0].update(hsd='',giu=1 if kieu=='giu' else 0)
@@ -591,6 +594,13 @@ def _nhap_lo_chon_san(kieu):
 		dong[0]['sl']=1
 	ra=nhan_hang.ghi_phieu_nhap(payload,dong);pr.reload()
 	la('ghi sổ được',pr.docstatus,1)
+	if kieu=='chua_so':
+		la('giá máy chủ',float(pr.items[0].rate),1000)
+		la('hệ số máy chủ',float(pr.items[0].conversion_factor),1)
+		la('ngày máy chủ',str(pr.posting_date),today())
+		sle=frappe.get_all('Stock Ledger Entry',filters={'voucher_type':'Purchase Receipt','voucher_no':pr.name,'is_cancelled':0},fields=['actual_qty','stock_value_difference'])
+		la('SLE giá DB',sum(float(x.stock_value_difference) for x in sle),1000)
+		la('SLE lượng DB',sum(float(x.actual_qty) for x in sle),1)
 	la('số đếm thắng qty10 của payload',[float(r.qty) for r in pr.items],[1.0]*so_dong)
 	la('hạn đúng chính sách',str(frappe.db.get_value('Batch',lo,'expiry_date') or ''),han_cu if kieu in ('co_so','goi','giu') else ('' if kieu=='xoa' else han_moi))
 	if kieu in ('giu','xoa'):
@@ -618,7 +628,32 @@ def _nhap_hai_han(): _nhap_lo_chon_san('hai_dong')
 @ca('489 PR nháp: đọc HSD lỗi giữ hạn lô chưa sổ, xóa chủ động vẫn xóa được')
 def _nhap_giu_han_loi():
 	_nhap_lo_chon_san('giu')
+
+@ca('489 PR nháp: xóa HSD chủ động trên lô chưa sổ vẫn xóa được')
+def _nhap_xoa_han_chu_dong():
 	_nhap_lo_chon_san('xoa')
+
+
+@ca('489 PR nháp: giá tạm do máy chủ lấy từ chứng từ cùng công ty, payload không đổi giá vốn')
+def _nhap_gia_may_chu():
+	from frappe.utils import today
+	from vagabond import nhan_hang
+	from vagabond.khung.kiem_that.he_so_252 import _luu
+	from vagabond.khung.kiem_that.gram_bom_252 import _kho_rieng
+	cty=cong_ty();kho,tk=_kho_rieng(cty,'489-GIA')
+	ma=_mon_thu('KT489-GIA-'+uuid.uuid4().hex[:10])
+	def tao(gia):
+		return _luu(frappe.get_doc(dict(doctype='Purchase Receipt',company=cty,
+			supplier=nen.mot_nha_cung_cap(),currency='VND',conversion_rate=1,posting_date=today(),
+			items=[dict(item_code=ma,qty=1,rate=gia,warehouse=kho,allow_zero_valuation_rate=1)])))
+	cu=tao(1234);cu.submit()
+	pr=tao(0);pr.reload();payload=pr.as_dict();payload['items'][0].rate=99999
+	ra=nhan_hang.ghi_phieu_nhap(payload,[dict(dong=pr.items[0].name,sl=1,hsd='')]);pr.reload()
+	la('giá mua gần nhất từ DB',float(pr.items[0].rate),1234)
+	la('không thiếu giá',ra['thieu_gia'],[])
+	sle=frappe.get_all('Stock Ledger Entry',filters={'voucher_type':'Purchase Receipt','voucher_no':pr.name,'is_cancelled':0},fields=['actual_qty','stock_value_difference'])
+	la('giá vốn thật',sum(float(x.stock_value_difference) for x in sle),1234)
+	pr.cancel();cu.cancel()
 
 
 def _mua_ban_lo_cu(dt):
