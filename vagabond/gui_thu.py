@@ -607,9 +607,11 @@ def ban_webhook(cau, url=None):
 			if not isinstance(goi, dict) or goi.get("code", goi.get("StatusCode")) != 0:
 				return False
 		return True
-	except Exception:
+	except Exception as e:
 		if not rieng:
-			frappe.log_error("Kiểm tra cấu hình webhook nhóm quản trị.", "gui_thu: ban webhook loi")
+			frappe.log_error("Lỗi %s, HTTP %s. Kiểm tra cấu hình webhook nhóm quản trị." %
+				(type(e).__name__, getattr(getattr(e, "response", None), "status_code", "không có")),
+				"gui_thu: ban webhook loi")
 		return False
 
 

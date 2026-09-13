@@ -75,6 +75,8 @@ def chuan_hoa(du_lieu, cau_hinh, luc):
 
 def soan_tin_dat_ban(doc):
     """Tin dành cho FOH; bỏ dòng tuỳ chọn rỗng để đọc nhanh trên điện thoại."""
+    # Giữ nội dung gốc trong phiếu; khi gửi nhóm, mỗi giá trị chỉ ở một dòng.
+    doc = {k: re.sub(r'\s+', ' ', v).strip() if isinstance(v, str) else v for k, v in doc.items()}
     ngay = datetime.strptime(str(doc.get('ngay'))[:10], '%Y-%m-%d').strftime('%d/%m')
     dong = ['YÊU CẦU ĐẶT BÀN MỚI',
             'Tên: %s, SĐT: %s' % (doc.get('ten'), doc.get('sdt')),
@@ -174,7 +176,7 @@ def kiem_phieu(doc):
     cu = doc.get_doc_before_save()
     if cu:
         for ten in ('ten', 'sdt', 'ngay', 'gio', 'so_khach', 'co_so', 'ghi_chu', 'bam_noi_dung', 'dip', 'khu_vuc', 'tre_em', 'email', 'banh_kem_theo'):
-            if str(cu.get(ten)) != str(doc.get(ten)):
+            if str(cu.get(ten) or "") != str(doc.get(ten) or ""):
                 frappe.throw('Giữ nguyên yêu cầu khách đã gửi. Ghi thay đổi vào ghi chú xử lý.')
         chuyen = {'Chờ xác nhận':{'Đã xác nhận','Đã hủy'}, 'Đã xác nhận':{'Đã đến','Đã hủy'}, 'Đã đến':set(), 'Đã hủy':set()}
         if doc.trang_thai != cu.trang_thai and doc.trang_thai not in chuyen.get(cu.trang_thai, set()):
@@ -216,6 +218,7 @@ def _xep_lark(ten):
 def gui_lark(ten):
     """Đọc phiếu sau commit; Lark lỗi không tác động trạng thái đặt bàn."""
     from vagabond.gui_thu import ban_webhook
+    from vagabond import diem_ban
     if getattr(frappe.flags, 'vagabond_kiem_that', False):
         return
     try:
@@ -223,6 +226,7 @@ def gui_lark(ten):
         if not url:
             return
         doc = frappe.get_doc(DOCTYPE, ten).as_dict()
+        doc['ten_co_so'] = (diem_ban.theo_ma(doc.get('co_so')) or {}).get('ten') or doc.get('co_so')
         doc['url'] = frappe.utils.get_url_to_form(DOCTYPE, ten)
         if not ban_webhook(soan_tin_dat_ban(doc), url=url):
             _loi_lark(ten)

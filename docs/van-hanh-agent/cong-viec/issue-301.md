@@ -40,3 +40,14 @@ sender cũ. Kiểm migration trên bench/CI; sau deploy kiểm form thật390px 
 nhóm Lark thử được quản lý cấu hình. Chưa có biên nhận Lark thật.
 Phiên cloud trước chỉ báo local commit, không có nhánh remote; không lấy
 những biên nhận đó làm bằng chứng phiên bản đã lên repo hoặc site.
+
+## Anh Việt duyệt deploy ngày14/09
+
+PR309 đã merge tại ce432a5b; PR310 đổi base về main. Trước phát hành đã sửa
+F1 của Claude: NULL/rỗng tương đương, vẫn chặn đổi nội dung thật. F2 đưa tên
+cơ sở vào tin; F3 log webhook cũ giữ loại lỗi/HTTP, bỏ URL/thân lỗi. Finding
+4000398428: formatter gom khoảng trắng mỗi giá trị thành một dòng, bảo vệ cả
+phiếu đã lưu, không đổi nội dung gốc. Hai ca đối chứng trả code về bản cũ
+đều đỏ, bản sửa đạt. Cổng+CI giả lập2977 ca đạt,27 ca cổng con.
+Đang chờ review delta/CI cuối và kết nối trình duyệt để deploy; chưa nhận
+bản code đã merge hoặc CI xanh là site đã cập nhật.

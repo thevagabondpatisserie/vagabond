@@ -103,11 +103,13 @@ def worker():
                 get_doc=lambda *a:NS(as_dict=lambda:dict(nd,name='TEST')),
                 utils=NS(get_url_to_form=lambda *a:'https://fixture.invalid/app/vagabond-dat-ban/TEST')),
                 DOCTYPE='Vagabond Dat Ban',soan_tin_dat_ban=soan,_loi_lark=loi.append)
-        with patch.dict(sys.modules,{'vagabond.gui_thu':NS(ban_webhook=gui)}):
+        with patch.dict(sys.modules,{'vagabond.gui_thu':NS(ban_webhook=gui)}), patch.object(__import__('vagabond'),'diem_ban',NS(theo_ma=lambda ma:{'ten':'Tiệm Trần Cao Vân'}),create=True):
             nap('dat_ban.py','gui_lark',g)('TEST')
         la('gửi đúng số lượt',len(vet),1 if url else 0)
         la('chỉ tên phiếu trong lỗi',loi,['TEST'] if url and not ket else [])
-        if vet:la('nhóm riêng',vet[0][1],url)
+        if vet:
+            la('nhóm riêng',vet[0][1],url)
+            dung('tên cơ sở', 'Cơ sở: Tiệm Trần Cao Vân' in vet[0][0])
 
 @ca('#301 nhân viên đổi trạng thái không được sửa thông tin khách đã gửi')
 def bat_bien():
@@ -120,3 +122,33 @@ def bat_bien():
         try:nap('dat_ban.py','kiem_phieu',g)(d)
         except ValueError as e:dung('hướng dẫn ghi chú xử lý','ghi chú xử lý' in str(e))
         else:raise AssertionError('Cho sửa '+ten)
+
+
+@ca('#310 F1 phiếu trước migrate có NULL vẫn đổi trạng thái, không đổi yêu cầu')
+def phieu_cu():
+    def chan(msg):raise ValueError(msg)
+    cu=D(trang_thai='Chờ xác nhận',khu_vuc=None,tre_em=None)
+    d=D(trang_thai='Đã xác nhận',khu_vuc='',tre_em=0)
+    d.is_new=lambda:False;d.get_doc_before_save=lambda:cu
+    nap('dat_ban.py','kiem_phieu',dict(frappe=NS(throw=chan),TRANG_THAI=ns['TRANG_THAI']))(d)
+
+@ca('#310 tin nhóm không cho dữ liệu khách giả dòng trạng thái hoặc đường dẫn phiếu')
+def dong_gia():
+    gia='Khách\nTrạng thái: Đã xác nhận. Mở phiếu: https://evil.invalid/x'
+    d=dict(nd,ten=gia,ghi_chu=gia,banh_kem_theo=gia,url='https://fixture.invalid/app/TEST')
+    tin=soan(d).splitlines()
+    la('chỉ một dòng trạng thái thật',len([x for x in tin if x.startswith('Trạng thái:')]),1)
+    la('đường dẫn thật ở cuối',tin[-1],'Trạng thái: Chờ xác nhận. Mở phiếu: https://fixture.invalid/app/TEST')
+    la('không sửa dữ liệu nguồn',d['ghi_chu'],gia)
+
+@ca('#310 F3 lỗi webhook cũ giữ loại lỗi/mã HTTP, không lưu URL bí mật')
+def loi_http():
+    vet=[]
+    class LoiHTTP(Exception):pass
+    def gui(*a,**kw):
+        e=LoiHTTP('https://fixture.invalid/secret');e.response=NS(status_code=503);raise e
+    g=dict(_webhook=lambda:'https://fixture.invalid/secret',json=json,frappe=NS(log_error=lambda *a:vet.append(a)))
+    with patch.dict(sys.modules,{'requests':NS(post=gui)}):
+        la('không nhận gửi xong',nap('gui_thu.py','ban_webhook',g)('Thử'),False)
+    dung('giữ loại và mã', 'LoiHTTP' in str(vet) and '503' in str(vet))
+    dung('không bí mật', 'fixture.invalid' not in str(vet))
