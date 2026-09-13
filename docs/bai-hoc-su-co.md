@@ -405,3 +405,5 @@ Cửa ghi sổ qua được chưa đủ: nút từng đơn còn gọi luu_xhd tr
 ## 13/09/2026 - #303: kiểm lại phantom Gelatine trước khi đổi mã
 
 Triệu chứng được báo là Mass sai nhóm. Repo đã từng sửa chính thức phantom bằng is_phantom_bom/is_phantom_item và dựng lại bảng nổ. Không chỉ đổi is_stock_item hoặc tên Powder: phải đọc BOM con/cha, bảng nổ và tiêu hao thật. Công cụ chẩn đoán chỉ nhận mã cụ thể, thiếu mã dừng, không chạy truy vấn bảng con không lọc khi BOM rỗng.
+
+Ngày13/09 đối chiếu live #303: Mass đã là phantom,34/34 dòng cha hoạt động đúng và không còn lá Mass trong bảng nổ. Không lấy ảnh/cấu hình cũ làm lý do tạo mã mới. Báo cáo phải gắn trạng thái BOM đã huỷ/đang chạy để tránh nhận lịch sử là lỗi hiện tại; ca công cụ phải được đăng ký vào chay.py, không chỉ chạy riêng.
