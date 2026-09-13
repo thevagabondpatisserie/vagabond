@@ -143,7 +143,12 @@ Không phát tin tính năng chỉ vì CI xanh hoặc PR merge.
 Tin gửi tự động qua kênh đã ghép cho anh Việt, dùng lịch đối soát hiện tại,
 không gọi model. Cùng SHA và nội dung ở nhiều PR chỉ tạo một tin. Đổi nội dung
 tính năng tạo tin đính chính; không sửa comment chỉ để phát lại. Bản tin
-vẫn dùng pending trướcHTTP và không tự retry khi mất phản hồi. Nhánh trạng
+vẫn dùng pending trước HTTP và theo đúng chính sách ở mục "Đối chiếu tin chưa
+rõ kết quả": mất phản hồi thì gửi lại đúng một lần sau 10 phút với nhãn
+`(gửi lại)`, lần hai vẫn mất phản hồi thì chuyển sang `can_doi_chieu` và
+không gửi lần ba. Vì vậy một bản tin có thể xuất hiện tối đa hai lần trong
+chat, lần sau có nhãn; người vận hành đối chiếu chứ không nhận là đã gửi.
+Nhánh trạng
 thái chỉ chứa SHA/hash/mốc, không lưu nội dung tính năng. Snapshot giữ30ngày;
 đăng lại một bản rất cũ sau thời hạn đó có thể báo lại.
 
