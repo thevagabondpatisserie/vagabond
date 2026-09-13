@@ -136,7 +136,7 @@ def luu_qua_co_tien_tay():
     d.save=lambda **kw: (ttn.dat_pt_chinh(d),ghi.append('save'))
     d.set=lambda k,v:d.__setitem__(k,v)
     f=NS(db=NS(get_value=lambda *a,**k:d,set_value=lambda *a,**k:ghi.append('set'),commit=lambda:ghi.append('commit')),get_doc=lambda *a:d,throw=lambda s:(_ for _ in ()).throw(RuntimeError(s)))
-    g=dict(frappe=f,_kiem_quyen_ghi_so=lambda:None,_kiem_quyen=lambda:None,_kiem_pt=lambda p,n:p,luat_thanh_toan=NS(ma_can_ghi=lambda *a:''),_chuan_ma_tham_chieu=lambda *a,**k:'')
+    g=dict(frappe=f,_kiem_quyen_ghi_so=lambda:None,_kiem_quyen_doc_luu_don=lambda:None,_kiem_quyen=lambda:None,_kiem_pt=lambda p,n:p,luat_thanh_toan=NS(ma_can_ghi=lambda *a:''),_chuan_ma_tham_chieu=lambda *a,**k:'')
     try: nap('ban_hang.py','luu_thanh_toan',g)('SI',pt='Hàng tặng')
     except Exception as e: dung('câu hướng dẫn dòng tay','dòng thanh toán' in str(e))
     else: dung('không cho ghi trạng thái kẹt',False)

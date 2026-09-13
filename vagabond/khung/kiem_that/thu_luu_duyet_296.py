@@ -138,5 +138,19 @@ def quyen_ke_toan_doc_lap():
             frappe.set_user('Administrator');hd.reload()
             la('trạng thái thật',hd.docstatus,0 if vai=='Sales User' else 1)
             dung('GL theo quyền',bool(_gl(hd))==(vai!='Sales User'))
+            # Đúng chuỗi nút từng đơn: lưu phương thức, lưu XHD rồi chốt.
+            sales=_hoa_don(False);sales.custom_pancake_id='KT298-'+frappe.generate_hash(length=10)
+            sales.custom_nguon='Tại chỗ';sales.vgb_quay='';sales.vgb_pt_thanh_toan='Tiền mặt'
+            sales.save(ignore_permissions=True);frappe.set_user(u.name)
+            ban_hang.luu_thanh_toan(sales.name,pt='Tiền mặt')
+            ban_hang.luu_xhd(sales.name,ten=ban_hang.XHD_MAC_DINH)
+            with patch.object(ban_hang,'_tu_xuat_hddt',return_value=(False,'Không phát hành trong bench')):
+                try:ban_hang.chot_mot_don(sales.name,pt='Tiền mặt')
+                except frappe.ValidationError as e:
+                    dung('chỉ Sales bị chặn',vai=='Sales User' and 'Chỉ kế toán' in str(e))
+                else:dung('chỉ kế toán được ghi',vai!='Sales User')
+            frappe.set_user('Administrator');sales.reload()
+            la('đơn Sales sau chuỗi UI',sales.docstatus,0 if vai=='Sales User' else 1)
+            dung('GL đơn Sales theo quyền',bool(_gl(sales))==(vai!='Sales User'))
     finally:
         frappe.set_user(cu)

@@ -73,6 +73,12 @@ def _kiem_quyen():
 		frappe.throw("Tài khoản của bạn chưa được cấp quyền ghi nhận doanh số.")
 
 
+def _kiem_quyen_doc_luu_don():
+	"""Các bước đọc/lưu đơn phục vụ Sales và kế toán trước khi ghi sổ."""
+	if not (QUYEN_BAN_HANG | {"Accounts User", "Accounts Manager"}) & set(frappe.get_roles()):
+		frappe.throw("Tài khoản của bạn chưa được cấp quyền xem và xử lý đơn bán hàng.")
+
+
 # ---------- Ma OTP quan ly (anh Viet 09/08/2026) ----------
 # Hoa don quay la tien that da thu cua khach. De nhan vien tu do sua/xoa
 # thi rat de gian lan, nen moi thao tac sua/xoa deu phai co ma OTP 6 so
@@ -828,7 +834,7 @@ def cau_hinh_ban_hang():
 
 	App KHONG hardcode danh sach nua - sua o day la ca app doi theo.
 	"""
-	_kiem_quyen()
+	_kiem_quyen_doc_luu_don()
 	pt = []
 	for ten, q in pt_thanh_toan.bang_tham_chieu().items():
 		pt.append(
@@ -1908,7 +1914,7 @@ def bang_doanh_so(ngay=None):
 	KHONG lay hoa don quay: cua hang nao thi cua hang do tu quan trong man
 	Doanh thu Cua hang, khong gop chung dung (anh Viet nhac 10/08/2026).
 	"""
-	_kiem_quyen()
+	_kiem_quyen_doc_luu_don()
 	ngay = getdate(ngay or nowdate())
 	sis = frappe.db.get_all(
 		"Sales Invoice",
@@ -2417,7 +2423,7 @@ def dong_bo_doanh_so_tu_dong():
 @frappe.whitelist()
 def luu_thanh_toan(si_name, pt=None, ma_tham_chieu=None):
 	"""Sales luu phuong thuc thanh toan + ma tham chieu, chua ghi so."""
-	_kiem_quyen()
+	_kiem_quyen_doc_luu_don()
 	si = frappe.db.get_value(
 		"Sales Invoice", si_name,
 		["name", "custom_nguon", "docstatus", "vgb_pt_thanh_toan", "vgb_ma_tham_chieu"],
@@ -2553,7 +2559,7 @@ def luu_khach_no(si_name, khach=None):
 	đổi party là sai sổ), chi ghi vao truong phu vgb_khach_no de man Cong
 	no phai thu va phieu de nghi thanh toan goi dung ten nguoi phai tra.
 	"""
-	_kiem_quyen()
+	_kiem_quyen_doc_luu_don()
 	si = frappe.get_doc("Sales Invoice", si_name)
 	ma = (khach or "").strip()
 	if ma and not frappe.db.exists("Customer", ma):
@@ -2663,7 +2669,7 @@ def luu_xhd(si_name, ten=None, mst=None, dia_chi=None, email=None):
 	moi don la mot hoa don rieng, sai thong tin nguoi mua thi phai sua trong
 	don do chu khong the gop sang don khac.
 	"""
-	_kiem_quyen()
+	_kiem_quyen_doc_luu_don()
 	from vagabond.minvoice_an_toan import da_gui
 	si = frappe.get_doc("Sales Invoice", si_name, for_update=True)
 	if not si:
@@ -2707,7 +2713,7 @@ def doi_ngay_hoa_don(si_name, ngay=None, otp=None, ly_do=""):
 
 	Không suy từ việc nhà cung cấp nhận ngày cũ thành kết luận về hạn pháp lý.
 	"""
-	_kiem_quyen()
+	_kiem_quyen_doc_luu_don()
 	if not QUYEN_SUA_NGAY & set(frappe.get_roles()):
 		frappe.throw(
 			"Chỉ quản lý hoặc kế toán mới được đổi ngày hoá đơn. "
@@ -3699,7 +3705,7 @@ def _quet_don_treo(so_ngay=14):
 @frappe.whitelist()
 def don_treo(so_ngay=14):
 	"""Man 'Đơn còn treo' tren app: don nao chua ghi so duoc, va vi sao."""
-	_kiem_quyen()
+	_kiem_quyen_doc_luu_don()
 	ds = _quet_don_treo(so_ngay)
 	dem, tien = {}, {}
 	for r in ds:
@@ -6971,7 +6977,7 @@ def tim_don(tu_khoa="", so_dong=40):
 	Tra ve danh sach gon de man hinh bay ra, moi dong du de nhan ra don va
 	bam vao mo chi tiet.
 	"""
-	_kiem_quyen()
+	_kiem_quyen_doc_luu_don()
 	tu = chuan_tim(tu_khoa)
 	if len(tu) < 3:
 		return {"ds": [], "vi_sao": "Vui lòng gõ ít nhất 3 ký tự rồi tìm."}

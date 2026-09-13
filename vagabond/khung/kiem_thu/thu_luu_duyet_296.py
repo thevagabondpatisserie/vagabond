@@ -21,7 +21,7 @@ def nen(d, vet):
     d.save = lambda: vet.append('save')
     d.submit = lambda: vet.append('submit')
     return dict(frappe=NS(throw=nem, db=NS(commit=lambda: vet.append('commit'))),
-        _kiem_quyen=lambda: None, _pos_lay=lambda n:d, _nan_pt_theo_nguon=lambda s:s.vgb_pt_thanh_toan,
+        _kiem_quyen=lambda: None, _kiem_quyen_doc_luu_don=lambda: None, _pos_lay=lambda n:d, _nan_pt_theo_nguon=lambda s:s.vgb_pt_thanh_toan,
         _chuan_ma_tham_chieu=lambda p,m:m, _kiem_trung_ma=lambda *a,**k:None,
         _soat_sepay=lambda *a:None, XHD_MAC_DINH='Bán cho người tiêu dùng',
         flt=lambda x:float(x or 0), _tien=lambda x:str(x), KHACH_LE='LE')
@@ -123,3 +123,24 @@ def nha_giao_dich():
             HD_BAN={'doctype':'Sales Invoice','truong':'vgb_gd_sepay','ten_man':'hoá đơn bán'},cint=lambda x:int(x or 0))
         ket=nap('doi_soat_sepay.py','chu_cua_giao_dich',g)(['GD296'])
         la('chủ đang hiệu lực',ket,{} if (tt,huy)==(0,1) else {'GD296':'hoá đơn bán CU'})
+
+
+@ca('#298 kế toán đi qua các bước đọc/lưu trước ghi sổ, Guest bị chặn')
+def quyen_truoc_ghi_so():
+    from unittest.mock import patch
+    import sys
+    from pathlib import Path
+    nguon=(Path(__file__).resolve().parents[2]/'ban_hang.py').read_text()
+    for vai in ('Guest','Sales User','Sales Manager','Accounts User','Accounts Manager','System Manager'):
+        for ten in ('bang_doanh_so','cau_hinh_ban_hang','tim_don','don_treo','luu_xhd','luu_thanh_toan','luu_khach_no','doi_ngay_hoa_don'):
+            vet=[]
+            def doc(*a,**kw):vet.append('qua_quyen');raise ValueError('Dừng sau quyền')
+            g=dict(frappe=NS(get_roles=lambda:[vai],throw=nem,get_doc=doc,db=NS(get_value=doc)),QUYEN_BAN_HANG={'System Manager','Sales User','Sales Manager','Bộ phận đặt hàng'},QUYEN_SUA_NGAY={'System Manager','Sales Manager','Accounts User','Accounts Manager'},getdate=doc,pt_thanh_toan=NS(bang_tham_chieu=doc),chuan_tim=doc,_quet_don_treo=doc)
+            nap('ban_hang.py','_kiem_quyen',g)
+            if 'def _kiem_quyen_doc_luu_don(' in nguon:nap('ban_hang.py','_kiem_quyen_doc_luu_don',g)
+            try:
+                with patch.dict(sys.modules,{'vagabond.minvoice_an_toan':NS(da_gui=lambda d:False)}):
+                    nap('ban_hang.py',ten,g)('SI298') if ten!='cau_hinh_ban_hang' else nap('ban_hang.py',ten,g)()
+            except ValueError:pass
+            mong=vai!='Guest' and not (ten=='doi_ngay_hoa_don' and vai=='Sales User')
+            la(ten+' / '+vai,vet,['qua_quyen'] if mong else [])
