@@ -18,6 +18,7 @@ from vagabond.khung.kiem_that import nen
 # `khung/kiem_thu/chay.py` làm.
 from vagabond.khung.kiem_that import thu_luu_duyet_296
 from vagabond.khung.kiem_that import thu_su_co_290
+from vagabond.khung.kiem_that import thu_chot_ca_296
 from vagabond.khung.kiem_that import thu_combo_261  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_can_tru_262  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_doi_chieu_app_247  # noqa: F401,E402

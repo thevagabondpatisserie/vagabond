@@ -375,3 +375,7 @@ Quầy kiểm cả tiền SePay và quyền sở hữu dòng giao dịch, trong 
 - Hộp nhận vỏ từ nhà in; ruột đã tính ở bánh lẻ. Ẩn Bếp làm ở dòng hộp và chặn cả hai tên ô API, vẫn cho sửa về 0. Không tự sửa dữ liệu lịch sử.
 - Bill hủy có thể đã được thay thế bằng bill nhận cùng sao kê. Gỡ dấu hủy phải kiểm chủ trước, giữ dấu và lịch sử nếu giao dịch đã có bill khác nhận.
 - Kiểm quyền UI bằng cách chạy màn Doanh thu Sales thật trong DOM giả với Sales User và ba vai kế toán/quản trị; kiểm nút đã render, không chỉ helper quyền.
+
+### #299: chốt ca chỉ đếm tiền mặt cần nhận biết phiên bản máy chủ
+
+JSON chỉ có Tiền mặt vẫn hợp cú pháp của backend cũ nhưng biến chuyển khoản/thẻ thành thiếu tiền. UI phải đọc chi_dem_tien_mat trước khi cho chốt. Không dùng flt để xác nhận số đếm: chữ sai biến thành0, NaN/Infinity qua so sánh âm; chuỗi5.000 phải đọc là5000 hoặc chặn, không âm thầm nhận5. Giữ các phương thức được cấu hình dù số máy bằng0. Ca API mở-chốt-reload giữ số nộp quỹ, Node kiểm backend cũ và payload. #290D2: báo cáo CK đọc cùng mã Pancake với ghi sổ, chọn một đường khớp, không cộng hai lần cùng tiền.
