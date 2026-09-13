@@ -415,3 +415,8 @@ F4 review5652321851: core miễn HSD cho cả Material Issue và Material Transf
 ### #302: chặn hạn có thể nằm ở lúc tạo Batch
 
 Chuyển cảnh báo ở Stock Entry và API nhận mua chưa đủ: ERPNext de591661 Batch.set_expiry_date còn ép HSD khi Item.has_expiry_date bật, hoặc tự cộng shelf life. Phải kiểm tới Batch vừa tạo và SLE, không lấy thuộc tính han_su_dung gắn tạm lên Purchase Receipt Item làm bằng chứng HSD đã lưu. Khi đọc sổ kho thô để thấy lô disabled, phải trừ lại cả giữ POS và Stock Reservation Entry.
+## 13/09/2026 - #303: kiểm lại phantom Gelatine trước khi đổi mã
+
+Triệu chứng được báo là Mass sai nhóm. Repo đã từng sửa chính thức phantom bằng is_phantom_bom/is_phantom_item và dựng lại bảng nổ. Không chỉ đổi is_stock_item hoặc tên Powder: phải đọc BOM con/cha, bảng nổ và tiêu hao thật. Công cụ chẩn đoán chỉ nhận mã cụ thể, thiếu mã dừng, không chạy truy vấn bảng con không lọc khi BOM rỗng.
+
+Ngày13/09 đối chiếu live #303: Mass đã là phantom,34/34 dòng cha hoạt động đúng và không còn lá Mass trong bảng nổ. Không lấy ảnh/cấu hình cũ làm lý do tạo mã mới. Báo cáo phải gắn trạng thái BOM đã huỷ/đang chạy để tránh nhận lịch sử là lỗi hiện tại; ca công cụ phải được đăng ký vào chay.py, không chỉ chạy riêng.
