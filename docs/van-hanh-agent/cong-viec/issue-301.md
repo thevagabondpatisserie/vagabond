@@ -51,3 +51,8 @@ phiếu đã lưu, không đổi nội dung gốc. Hai ca đối chứng trả c
 đều đỏ, bản sửa đạt. Cổng+CI giả lập2977 ca đạt,27 ca cổng con.
 Đang chờ review delta/CI cuối và kết nối trình duyệt để deploy; chưa nhận
 bản code đã merge hoặc CI xanh là site đã cập nhật.
+
+Header live dat-ban.js trước deploy trả Cache-Control max-age=31536000,
+immutable. Đã thêm query SHA256 nội dung cho bốn JS/CSS trên ba trang; chạy
+python3 dung_web_order.py sau sửa asset. Ca kiểm tính lại hash, chặn URL cũ
+khi nội dung thay đổi. Không bắt khách tự xóa cache để thấy tính năng mới.
