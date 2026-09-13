@@ -36,6 +36,17 @@ NHOM_AN = [
 TEP_ANH_MAC_DINH = ""
 
 
+def anh_theo_ma(ds_ma):
+	"""Ảnh Item theo đúng các mã đã lọc quyền, kể cả món cũ ngừng bán."""
+	ma = sorted({str(x) for x in ds_ma if x})
+	if not ma:
+		return {}
+	return {x["name"]: x.get("image") or "" for x in frappe.get_all(
+		"Item", filters={"name": ["in", ma]}, fields=["name", "image"],
+		limit_page_length=0,
+	)}
+
+
 def _bang_gia_ban():
 	return (
 		frappe.db.get_single_value("Selling Settings", "selling_price_list")

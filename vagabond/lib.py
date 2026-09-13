@@ -2,6 +2,28 @@
 
 import re
 
+# phần thuần
+PANCAKE_BO_QUA = frozenset({6, 7})
+
+
+def nhan_trang_thai_pancake(status, status_name=None):
+	"""Nhãn khách đọc; trạng thái lạ không được giả nhận đã giao."""
+	ma = {"0": "new", "6": "cancelled", "7": "removed"}.get(str(status))
+	ten = ma or str(status_name or "").strip().lower()
+	bang = {
+		"new": ("Đơn mới", "vang"),
+		"confirmed": ("Đã xác nhận", "vang"),
+		"shipping": ("Đang giao", "vang"),
+		"delivered": ("Đã giao", "xanh"),
+		"cancelled": ("Đã huỷ", "xam"),
+		"canceled": ("Đã huỷ", "xam"),
+		"removed": ("Đã xoá", "xam"),
+		"returned": ("Đã hoàn hàng", "xam"),
+	}
+	nhan, mau = bang.get(ten, ("Tiệm đang cập nhật trạng thái", "xam"))
+	return {"nhan": nhan, "mau": mau}
+
+
 import frappe
 
 GOONG = "https://rsapi.goong.io"

@@ -407,3 +407,10 @@ Cửa ghi sổ qua được chưa đủ: nút từng đơn còn gọi luu_xhd tr
 Triệu chứng được báo là Mass sai nhóm. Repo đã từng sửa chính thức phantom bằng is_phantom_bom/is_phantom_item và dựng lại bảng nổ. Không chỉ đổi is_stock_item hoặc tên Powder: phải đọc BOM con/cha, bảng nổ và tiêu hao thật. Công cụ chẩn đoán chỉ nhận mã cụ thể, thiếu mã dừng, không chạy truy vấn bảng con không lọc khi BOM rỗng.
 
 Ngày13/09 đối chiếu live #303: Mass đã là phantom,34/34 dòng cha hoạt động đúng và không còn lá Mass trong bảng nổ. Không lấy ảnh/cấu hình cũ làm lý do tạo mã mới. Báo cáo phải gắn trạng thái BOM đã huỷ/đang chạy để tránh nhận lịch sử là lỗi hiện tại; ca công cụ phải được đăng ký vào chay.py, không chỉ chạy riêng.
+
+### #300: ảnh lịch sử không lấy từ danh mục đang bán
+
+Nguồn chọn món lọc disabled/is_sales_item và giới hạn số dòng, nên không dùng
+nguyên danh sách ấy để tìm ảnh đơn cũ. Tra Item.image theo đúng mã ở các đơn
+đã lọc số điện thoại, gom một lô; tập rỗng không truy vấn. Ca kiểm đưa đơn của
+số gần giống và số rác vào cùng phản hồi Pancake để giữ ranh giới khách.

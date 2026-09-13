@@ -29,8 +29,8 @@ import requests
 from frappe.rate_limiter import rate_limit
 from frappe.utils import add_days, now_datetime
 
-from vagabond import zalo
-from vagabond.lib import PANCAKE, TIMEOUT, cfg, key, sdt, sdt84
+from vagabond import zalo, chon_mon
+from vagabond.lib import PANCAKE, TIMEOUT, cfg, key, sdt, sdt84, nhan_trang_thai_pancake
 
 OTP_SONG_PHUT = 5
 OTP_SAI_TOI_DA = 5
@@ -218,17 +218,23 @@ def _don_pancake(c, k, sdt_noi_dia, gioi_han=30, bao_loi=False):
 					"sl": it.get("quantity") or 0,
 				}
 			)
+		nhan = nhan_trang_thai_pancake(o.get("status"), o.get("status_name"))
 		ra.append(
 			{
 				"ma_don": str(o.get("id") or o.get("system_id") or ""),
 				"luc_tao": o.get("inserted_at") or "",
 				"ngay_giao": o.get("estimate_delivery_date") or "",
-				"trang_thai": o.get("status_name") or "",
+				"trang_thai": nhan["nhan"],
+				"mau_trang_thai": nhan["mau"],
 				"tong": int(o.get("total_price") or 0),
 				"dia_chi": (o.get("shipping_address") or {}).get("full_address") or "",
 				"mon": mon,
 			}
 		)
+	anh = chon_mon.anh_theo_ma(m["ma"] for o in ra for m in o["mon"])
+	for o in ra:
+		for m in o["mon"]:
+			m["hinh"] = anh.get(m["ma"], "")
 	return ra
 
 

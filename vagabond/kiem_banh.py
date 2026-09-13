@@ -47,7 +47,9 @@ def _mang():
 
 	return requests
 
-BO_QUA_TT = {6, 7}  # da huy, da xoa
+from vagabond.lib import PANCAKE_BO_QUA
+
+BO_QUA_TT = PANCAKE_BO_QUA  # cùng nguồn trạng thái với lịch sử thành viên
 MAX_TRANG = 10
 
 # Theo doi banh o (BAWC) va banh si (BAWS) - anh Viet mo them BAWS 02/08.
