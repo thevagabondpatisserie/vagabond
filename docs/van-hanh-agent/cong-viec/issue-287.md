@@ -23,7 +23,9 @@ biên nhận theo sender hiện hành. Pending giữa lượt đang chạy chưa
 
 ## Kiểm
 
-59 ca Telegram (bao gồm mã hoá fixture), đều đạt. Ba đột biến đồnghồ,
+62 ca Telegram (bao gồm mã hoá fixture), đều đạt. Ba đột biến đồnghồ,
 receipt,lọc nhóm đều bị bắt. Bundle v489 khớp1495f56c, predeployrc0 trên
 runtimePython/Nodebundled. KhôngsửaERP,khôngcầnbenchkếtoán/khochoPRnày.
-Chờ CI và Claude review SHA trên PR; chưa merge bản sender mới, chưa bật nhóm.
+Đã sửa F1/F2 từ Claude5655060350: nhóm mất nguồn không gửi fallback, giữ vết;
+ca lỗi nhóm lần1/retry/lần2 và kênh riêng tiếp tục đã bổ sung.
+Tài liệu mâu thuẫn đã lấy commit Claude2afa713f. Chờ CI và Claude review SHA mới; chưa merge bản sender mới, chưa bật nhóm.

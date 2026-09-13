@@ -111,8 +111,9 @@ class Nhom(unittest.TestCase):
                 assert s['pending']
                 self.sent.append((chat, text, nhom))
                 if chat == '1' and self.hong: raise Loi('Timeout Telegram')
+                if nhom and self.hong_nhom: raise Loi('Timeout nhóm')
                 return len(self.sent)
-        self.bot = BotNhom(); self.hong = False
+        self.bot = BotNhom(); self.hong = False; self.hong_nhom = False
         self.events = {'release:a': {'at': '2026-09-12T00:01:00Z', 'text': 'Riêng https://github.com SHA',
             'text_nhom': 'Vagabond | Cập nhật v489 | 2026-09-12\n- Tính năng', 'entity': 'release:a', 'signature': 'sig'},
             'comment:b': {'at': '2026-09-12T00:01:01Z', 'text': 'Kỹ thuật'}}
@@ -135,6 +136,39 @@ class Nhom(unittest.TestCase):
         self.assertTrue(self.k.state['pending'])
         self.assertIsNone(self.k.state['bo_phan']['pending'])
         self.assertEqual(len([x for x in self.sent if x[2]]),1)
+    def test_nhom_mat_nguon_khong_gui_tin_ky_thuat(self):
+        self.hong_nhom = True
+        with self.assertRaises(Loi): chay(self.k,self.bot,'1',chat_nhom='-1001')
+        self.events.clear(); self.hong_nhom = False
+        self.clock.return_value = '2026-09-12T00:13:00Z'
+        self.assertEqual(chay(self.k,self.bot,'1',chat_nhom='-1001'),0)
+        self.assertEqual(len([x for x in self.sent if x[2]]),1)
+        self.assertIn('release:a',self.k.state['bo_phan']['can_doi_chieu'])
+        self.assertIsNone(self.k.state['bo_phan']['pending'])
+    def test_nhom_hong_khong_chan_rieng_va_gui_lai_dung_features(self):
+        self.hong_nhom = True
+        with self.assertRaises(Loi): chay(self.k,self.bot,'1',chat_nhom='-1001')
+        self.assertEqual(len([x for x in self.sent if not x[2]]),2)
+        self.assertIsNone(self.k.state['pending'])
+        self.assertTrue(self.k.state['bo_phan']['pending'])
+        self.hong_nhom = False; self.clock.return_value = '2026-09-12T00:13:00Z'
+        self.assertEqual(chay(self.k,self.bot,'1',chat_nhom='-1001'),1)
+        tin=[x[1] for x in self.sent if x[2]][-1]
+        self.assertEqual(tin,'(gửi lại)\n'+self.events['release:a']['text_nhom'])
+        self.assertNotIn('github',tin)
+    def test_nhom_hong_hai_lan_giu_vet_va_nhan_release_moi(self):
+        self.hong_nhom = True
+        with self.assertRaises(Loi): chay(self.k,self.bot,'1',chat_nhom='-1001')
+        self.clock.return_value = '2026-09-12T00:13:00Z'
+        with self.assertRaises(Loi): chay(self.k,self.bot,'1',chat_nhom='-1001')
+        self.clock.return_value = '2026-09-12T00:24:00Z'; self.hong_nhom = False
+        self.events.pop('comment:b')  # Nguồn thật đã lọc comment trước cursor.
+        self.events['release:b'] = {'at':'2026-09-12T00:23:00Z','text':'Tin riêng mới',
+            'text_nhom':'Tính năng mới','entity':'release:b','signature':'moi'}
+        self.assertEqual(chay(self.k,self.bot,'1',chat_nhom='-1001'),2)
+        self.assertIn('release:a',self.k.state['bo_phan']['can_doi_chieu'])
+        self.assertEqual(len([x for x in self.sent if x[2]]),3)
+        self.assertEqual(self.sent[-1][1],'Tính năng mới')
     def test_bot_kiem_phan_hoi_dung_chat_nhom(self):
         from unittest.mock import Mock
         h=Mock();h.goi.return_value={'ok':True,'result':{'message_id':7,'chat':{'id':-1001}}}

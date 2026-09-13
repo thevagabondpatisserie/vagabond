@@ -103,8 +103,8 @@ thông báo được phép gửi lại đúng một lần sau10phút với nhãn
   rồi ghi seen. PUT mất phản hồi đọc lại: cùng nội dung coi thành công; cùng
   SHA mới thử PUT lại một lần; SHA khác dừng, không ghi đè trạng thái khác.
 - Pending có receipt: chỉ đóng dấu, không gửi lại. Chưa có receipt và đủ
-  10phút: đọc lại nguồn để gửi có nhãn. Nguồn không còn dùng tin ngắn chỉ rõ
-  mất phản hồi; không lưu nội dung tin trong nhánh trạng thái.
+  10phút: đọc lại nguồn để gửi có nhãn. Nguồn không còn: kênh riêng dùng tin ngắn chỉ rõ mất phản hồi; nhóm
+  chuyển thẳng sang can_doi_chieu, không gửi câu kỹ thuật thay features; không lưu nội dung tin trong nhánh trạng thái.
 - Lần gửi lại cũng mất phản hồi: sau10phút chuyển vết sang `can_doi_chieu`,
   không gửi lần ba, nhường kênh cho tin mới. Đây KHÔNG phải bằng chứng đã gửi;
   người vận hành đối chiếu mã trong Actions và chat. Không tự xóa vết này.

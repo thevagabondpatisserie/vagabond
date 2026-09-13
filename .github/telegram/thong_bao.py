@@ -353,12 +353,14 @@ def chay_kenh(gh, tg, chat, gom=False, nhom=False, han=None):
         dem += 1
 
     if p:
-        if p.get('gui_lai'):
+        if p.get('gui_lai') or (nhom and p['key'] not in events):
+            # Nhóm chỉ nhận features còn xác minh được; mất nguồn không gửi tin kỹ thuật.
             # Đã thử đúng một lần: giữ vết chưa rõ để người đối chiếu, nhường kênh cho tin khác.
             state['can_doi_chieu'][p['key']] = dict(p)
             ghi_xong(state, p)
             sha = luu_chac(gh, state, sha)
-            print('Cần đối chiếu mã tin ' + p['code'] + '; đã hết một lần gửi lại.', flush=True)
+            ly_do = 'đã hết một lần gửi lại' if p.get('gui_lai') else 'nhóm không còn nguồn release hợp lệ'
+            print('Cần đối chiếu mã tin ' + p['code'] + '; ' + ly_do + '.', flush=True)
         else:
             if time.monotonic() >= han:
                 raise Loi('Đọc nguồn quá5phút; giữ pending cho lượt sau.')

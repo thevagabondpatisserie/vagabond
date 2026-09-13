@@ -446,3 +446,8 @@ biên nhận trước khi đóng pending; PUT lỗi chỉ retry cùngSHA hoặc 
 nội dung đã ghi. Hai lần mất phản hồi giữ vết cần đối chiếu, không gửi vô hạn.
 Seen/entity/cursor/receipt nhóm tách riêng để nhóm lỗi không làm mất tin riêng
 và ngược lại. Đây chỉ là đánh đổi cho thông báo đã duyệt, không dùng choHĐĐT.
+
+
+Issue287/PR312, review F1: nguồn release bị sửa hoặc gỡ làm key cũ mất.
+Nhóm chỉ nhận features hợp lệ nên không dùng fallback kỹ thuật như chat
+riêng; giữ vết cần đối chiếu và kiểm cả đường lỗi nhóm, không chỉ lỗi riêng.
