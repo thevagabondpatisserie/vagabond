@@ -223,6 +223,9 @@ và thêm khối `telegram-release` theo docs/thong-bao-telegram.md vào biên n
 `[ĐÃ DEPLOY]`, dùng SHA thực tế đã lên site. Đây là nội dung dành riêng cho
 Telegram của anh Việt, không chép log/chứng từ; cùng đợt chỉ một bản tin,
 không gọi model trong sender. Quyền này không phải quyền gửi email nhân viên.
+Biên nhận `[ĐÃ DEPLOY]` viết theo docs/mau-tin-phat-hanh.md: mỗi bộ phận một
+khối Trước đây / Từ nay / Bạn cần làm, phần Đã kiểm trên site thật ghi tên
+màn và con số, phần Còn tồn ghi thật; không tên hàm, tệp, trường, nhánh.
 
 Khối chỉ được gửi khi comment do tài khoản chủ repo đăng với association
 OWNER. Codex local dùng kết nối GitHub của chủ repo đã được xác minh, có thể
@@ -230,3 +233,12 @@ OWNER. Codex local dùng kết nối GitHub của chủ repo đã được xác 
 khối và chuyển cho phiên phát hành có kết nối phù hợp; không nhận là đã gửi.
 Sau đăng phải kiểm dấu release trong trạng thái sender hoặc phản hồi gửi,
 không coi comment được tạo là tin Telegram đã tới.
+
+## Bàn giao chung với Codex trên cloud
+
+Đọc docs/van-hanh-agent/README.md và bản issue liên quan trước khi nhận việc.
+Khi kết thúc lượt có thay đổi thực chất, dùng cùng mẫu bàn giao và cùng tệp
+issue, không lập kho nhật ký Claude riêng. Reviewer không sửa chồng nhánh
+Codex đang claim: ghi bổ sung trên PR để owner cập nhật bản bàn giao chung.
+Không chép toàn bộ hội thoại/log vào git; xác minh trạng thái hiện tại từ
+GitHub, không nhận ghi chú cũ là bằng chứng đã deploy.
