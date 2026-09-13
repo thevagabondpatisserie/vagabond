@@ -196,7 +196,7 @@ def _het_han_chan():
 		frappe.clear_document_cache('Batch', lo)
 		doc.insert(); nen._DA_TAO.append(('Stock Entry', doc.name)); doc.submit(); doc.reload()
 		la('ghi sổ lô tắt', doc.docstatus, 1)
-		dung('cảnh báo đúng lô', 'Cảnh báo lô tắt:' in doc.remarks and lo in doc.remarks)
+		dung('cảnh báo đúng lô', 'Phiếu dùng lô đã tắt:' in doc.remarks and lo in doc.remarks)
 		doc.cancel(); wo.reload()
 		la('huỷ trả sản lượng', float(wo.produced_qty), 0)
 
@@ -479,3 +479,65 @@ def _nhan_mua_han_that():
 		la('tồn đã nhận',float(frappe.db.get_value('Bin',{'item_code':ma,'warehouse':kho},'actual_qty')),1)
 		pr.cancel()
 		la('huỷ trả tồn',float(frappe.db.get_value('Bin',{'item_code':ma,'warehouse':kho},'actual_qty')),0)
+
+
+def _mua_ban_lo_cu(dt):
+	from frappe.utils import today, add_days
+	from vagabond.khung.kiem_that.thu_nhan_nvl import _lo, _nhap, _ton_lo
+	from vagabond.khung.kiem_that.he_so_252 import _luu
+	from vagabond.khung.kiem_that.gram_bom_252 import _kho_rieng
+	cty=cong_ty(); kho,tk=_kho_rieng(cty,'489-MB')
+	ma=_mon_thu('KT489-MB-'+uuid.uuid4().hex[:10],theo_lo=1)
+	lo=_lo(ma,'KT489-LO-'+uuid.uuid4().hex[:10],add_days(today(),30))
+	_nhap(ma,kho,[(lo,10)],cty)
+	frappe.db.set_value('Batch',lo,{'expiry_date':add_days(today(),-1),'disabled':1})
+	frappe.clear_document_cache('Batch',lo)
+	mua=dt.startswith('Purchase')
+	gia=1000 if mua else 1
+	du_lieu=dict(doctype=dt,company=cty,currency='VND',conversion_rate=1,
+		posting_date=today(),due_date=today(),update_stock=1,ignore_pricing_rule=1,
+		bill_no='KT489-'+uuid.uuid4().hex[:10],bill_date=today(),
+		items=[dict(item_code=ma,qty=1,rate=gia,warehouse=kho,batch_no=lo,use_serial_batch_fields=1)])
+	du_lieu['supplier' if mua else 'customer']=nen.mot_nha_cung_cap() if mua else nen._mot('Customer',{'disabled':0})
+	d=_luu(frappe.get_doc(du_lieu)); d.submit(); d.reload()
+	la('ghi sổ thật',d.docstatus,1)
+	truong='vgb_dien_giai' if dt=='Delivery Note' else 'remarks'
+	vet=frappe.db.get_value(dt,d.name,truong) or ''
+	dung('cảnh báo lưu DB cả hạn và tắt', 'Phiếu dùng lô quá hạn:' in vet and 'Phiếu dùng lô đã tắt:' in vet)
+	sle=frappe.get_all('Stock Ledger Entry',filters={'voucher_type':dt,'voucher_no':d.name,'is_cancelled':0},fields=['actual_qty','warehouse'])
+	la('SLE đúng kho',{x.warehouse for x in sle},{kho})
+	la('SLE đúng lượng',sum(float(x.actual_qty) for x in sle),1 if mua else -1)
+	la('tồn lô',_ton_lo(lo,kho),11 if mua else 9)
+	d.cancel(); la('huỷ trả tồn',_ton_lo(lo,kho),10)
+
+
+@ca('489 thật: Purchase Receipt lô tắt/quá hạn cảnh báo, SLE và huỷ')
+def _pr_cu(): _mua_ban_lo_cu('Purchase Receipt')
+
+
+@ca('489 thật: Purchase Invoice có kho lô tắt/quá hạn cảnh báo, SLE và huỷ')
+def _pi_cu(): _mua_ban_lo_cu('Purchase Invoice')
+
+
+@ca('489 thật: Delivery Note lô tắt/quá hạn cảnh báo, SLE và huỷ')
+def _dn_cu(): _mua_ban_lo_cu('Delivery Note')
+
+
+@ca('489 thật: Sales Invoice có kho lô tắt/quá hạn cảnh báo, SLE và huỷ')
+def _si_cu(): _mua_ban_lo_cu('Sales Invoice')
+
+
+@ca('489 thật: Batch mới giữ shelf life ngoài API, thiếu shelf life chỉ cảnh báo, không điền lại lô cũ')
+def _shelf_life_that():
+	from frappe.utils import today, add_days
+	from vagabond.khung.kiem_that.thu_nhan_nvl import _lo
+	ma=_mon_thu('KT489-SHELF-'+uuid.uuid4().hex[:10],theo_lo=1)
+	it=frappe.get_doc('Item',ma); it.has_expiry_date=1; it.shelf_life_in_days=90; it.save()
+	b=frappe.get_doc(dict(doctype='Batch',item=ma,batch_id='KT489-S-'+uuid.uuid4().hex[:10],manufacturing_date=today()))
+	b.insert(); nen._DA_TAO.append(('Batch',b.name)); b.reload()
+	la('giữ tự tính lô mới khác API',str(b.expiry_date),str(add_days(today(),90)))
+	it.shelf_life_in_days=0; it.save()
+	ten=_lo(ma,'KT489-NO-'+uuid.uuid4().hex[:10],None)
+	b=frappe.get_doc('Batch',ten); la('thiếu shelf life vẫn tạo',b.expiry_date,None)
+	it.shelf_life_in_days=90; it.save(); b.save(); b.reload()
+	la('không suy lại hạn lô đã lưu',b.expiry_date,None)

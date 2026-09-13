@@ -22,7 +22,7 @@ PHIEU_BI_CHAN = (
 	"Material Transfer",
 )
 
-DAU_CAU = "Cảnh báo lô quá hạn:"
+DAU_CAU = "Phiếu dùng lô quá hạn:"
 
 def ngay_goc(x):
 	"""Đưa ngày về dạng so sánh được: chuỗi YYYY-MM-DD. THUẦN."""
@@ -82,7 +82,7 @@ def them_ghi_chu(cu, moi):
 	if moi in cu:
 		return cu
 	# Lưu lần hai thì thay câu cũ của mình chứ không xếp chồng.
-	dong = [d for d in cu.splitlines() if not d.strip().startswith((DAU_CAU, "Đã xuất lô quá hạn:"))]
+	dong = [d for d in cu.splitlines() if not d.strip().startswith((DAU_CAU, "Đã xuất lô quá hạn:", "Cảnh báo lô quá hạn:"))]
 	dong.append(moi)
 	return "\n".join(d for d in dong if d.strip())
 
@@ -102,9 +102,13 @@ def _ho_so_lo(ten):
 	return ho
 
 
+def _o_ghi_chu(doc):
+	return "vgb_dien_giai" if getattr(doc, "doctype", None) == "Delivery Note" else "remarks"
+
+
 def _ghi_vet(doc, cac_lo):
-	cau = cau_ghi_chu(cac_lo)
-	doc.remarks = them_ghi_chu(getattr(doc, "remarks", ""), cau)
+	truong = _o_ghi_chu(doc)
+	setattr(doc, truong, them_ghi_chu(getattr(doc, truong, ""), cau_ghi_chu(cac_lo)))
 
 
 def _kiem_lo_va_ghi_vet(doc):
@@ -132,10 +136,11 @@ def _kiem_lo_va_ghi_vet(doc):
 	if cac_lo:
 		_ghi_vet(doc, cac_lo)
 	if lo_tat:
-		cu = getattr(doc, "remarks", "") or ""
-		cu = "\n".join(x for x in cu.splitlines() if not x.startswith("Cảnh báo lô tắt:"))
-		doc.remarks = (cu + "\nCảnh báo lô tắt: " + "; ".join(sorted(set(lo_tat)))
-			+ ". Kiểm tra chất lượng thực tế trước khi sử dụng.").strip()
+		truong = _o_ghi_chu(doc)
+		cu = getattr(doc, truong, "") or ""
+		cu = "\n".join(x for x in cu.splitlines() if not x.startswith("Phiếu dùng lô đã tắt:"))
+		setattr(doc, truong, (cu + "\nPhiếu dùng lô đã tắt: " + "; ".join(sorted(set(lo_tat)))
+			+ ". Kiểm tra chất lượng thực tế trước khi sử dụng.").strip())
 
 
 def _trong_pham_vi(doc):
@@ -258,6 +263,17 @@ def mo_han_lo(doc, method=None):
 	if getattr(lop.set_expiry_date, '_vagabond', False):
 		return
 	def giu_han_da_nhap(self):
+		# Giữ nguyên hạn của lô đã lưu; API nhận mua chủ động để trống khi
+		# chưa biết ngày trên nhãn. Lô mới ở các cửa khác giữ tính shelf life.
+		if not self.expiry_date and self.is_new() and not self.flags.get("vgb_hsd_thuc_te"):
+			from frappe.utils import add_days
+			co_han, so_ngay = frappe.db.get_value("Item", self.item, ["has_expiry_date", "shelf_life_in_days"])
+			if co_han and so_ngay:
+				if (not self.manufacturing_date and self.reference_doctype in
+						["Stock Entry", "Purchase Receipt", "Purchase Invoice"] and self.reference_name):
+					self.manufacturing_date = frappe.db.get_value(self.reference_doctype, self.reference_name, "posting_date")
+				if self.manufacturing_date:
+					self.expiry_date = add_days(self.manufacturing_date, so_ngay)
 		if not self.expiry_date:
 			frappe.msgprint('Lô %s chưa có hạn sử dụng. Kiểm tra nhãn hàng khi sử dụng.' % (self.name or self.item),
 				title='Kiểm tra hạn dùng', indicator='orange')

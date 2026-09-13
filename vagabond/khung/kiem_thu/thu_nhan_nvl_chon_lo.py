@@ -542,10 +542,10 @@ def _bu_lo_hanh_vi():
 		def as_dict(self): return dict(self)
 		def set(self, k, v): self[k] = [D(x) for x in v] if k in ('items', 'entries') else v
 		def save(self): self['saved'] = True
-	def chay(qty, goi=False, kho_goi='K', nhieu=False, he_so=1):
+	def chay(qty, goi=False, kho_goi='K', nhieu=False, he_so=1, goi_thieu=False):
 		g = D(item_code='M', warehouse=kho_goi, type_of_transaction='Outward',
-			voucher_type='Stock Entry', docstatus=0, entries=[D(batch_no='A', qty=-qty*he_so)])
-		p = D(name='P', remarks='Ghi tay')
+			voucher_type='Stock Entry', docstatus=0, entries=[D(batch_no='A', qty=-80 if goi_thieu else -qty*he_so)])
+		p = D(name='P', remarks='Ghi tay', purpose='Material Transfer')
 		p.set('items', [dict(item_code='M', s_warehouse='K', qty=qty, conversion_factor=he_so,
 			name='D1', batch_no=None if goi else 'A', serial_and_batch_bundle='G' if goi else None)])
 		if nhieu: p['items'].append(D(item_code='M', s_warehouse='K', qty=30, name='D2', batch_no='B'))
@@ -556,7 +556,7 @@ def _bu_lo_hanh_vi():
 				(lh,'_xep_het_han_truoc',lambda ton:list(ton.items())),
 				(lh,'_kho_khac_con',lambda *a:[]), (lh,'_ten_hang',lambda *a:'M'),
 				(lh.frappe,'get_cached_value',lambda *a:0),
-				(lh.frappe,'get_doc',lambda *a:g), (lh.frappe.db,'get_value',lambda *a,**k:'M')]:
+				(lh.frappe,'get_doc',lambda *a:g), (lh.frappe.db,'exists',lambda *a,**k:False), (lh.frappe.db,'get_value',lambda *a,**k:'M')]:
 				st.enter_context(patch.object(obj,ten,side_effect=ham,create=True))
 			lh._bo_sung_lo_tay(p)
 		return p,g
@@ -565,6 +565,32 @@ def _bu_lo_hanh_vi():
 		phan = {d.batch_no:abs(d.qty) for d in g.entries} if goi else {d['batch_no']:d['qty']*10 for d in p['items']}
 		la('đúng lượng theo UOM',phan,{'A':100,'B':30})
 		dung('giữ ghi tay và cảnh báo',p.remarks.startswith('Ghi tay') and 'Đã bù phần thiếu' in p.remarks)
+	p,g=chay(130,goi=True,goi_thieu=True)
+	la('gói core chỉ cấp80 vẫn bù đủ130',sum(abs(x.qty) for x in g.entries),130)
 	for kw in [dict(qty=200), dict(qty=130,nhieu=True), dict(qty=130,goi=True,kho_goi='SAI')]:
 		try: chay(**kw); dung('phải chặn tồn/kho sai',False)
 		except lh.frappe.ValidationError: pass
+
+
+@ca('489 vòng vét đọc cả lô tắt dù core có hàng tốt, trừ POS và SRE')
+def _ton_lo_tat_va_giu():
+	from unittest.mock import patch
+	from types import SimpleNamespace
+	import sys
+	class R(dict):
+		__getattr__=dict.get
+	def doc(dt, **kw):
+		if dt=='Stock Ledger Entry':
+			return [dict(batch_no=None,actual_qty=150,serial_and_batch_bundle='G')]
+		if dt=='Serial and Batch Entry':
+			return [dict(batch_no='TOT',qty=50),dict(batch_no='TAT',qty=100)]
+		raise AssertionError(dt)
+	core=SimpleNamespace(get_reserved_batches_for_pos=lambda k:{('TAT','K'):{'qty':-20}},
+		get_reserved_batches_for_sre=lambda k:{('TAT','K'):{'qty':-30}})
+	with patch.dict(sys.modules, {
+		'erpnext.stock.doctype.batch.batch':SimpleNamespace(get_batch_qty=lambda **kw:[{'batch_no':'TOT','qty':50}]),
+		'erpnext.stock.doctype.serial_and_batch_bundle.serial_and_batch_bundle':core}), \
+		patch.object(lh.frappe,'_dict',R,create=True), \
+		patch.object(lh.frappe,'get_all',side_effect=doc,create=True), \
+		patch.object(lh,'_bo_lo_khong_dung',side_effect=lambda x,*a:x):
+		la('không mất lô tắt, không ăn giữ',lh._ton_tung_lo('M','K',True),{'TOT':50,'TAT':50})

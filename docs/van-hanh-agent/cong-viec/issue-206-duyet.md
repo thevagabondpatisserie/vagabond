@@ -1,26 +1,14 @@
-# Bản đề xuất phần lệnh sản xuất để anh Việt duyệt
+# Bản chốt lô và hạn dùng, PR #302 / v489
 
-Bản này theo trao đổi mới nhất: giữ lô và FEFO, thay hướng bỏ toàn bộ Batch/FIFO trước đó. Code thử trên PR302; chưa merge/deploy hoặc đổi cấu hình site.
+Theo quyết định anh Việt ngày 13/09 và đặc tả PR302 comment5653018176. Đây là nội dung triển khai để nghiệm thu; chưa chứng minh đã deploy.
 
-## Đề nghị chốt
+1. Giữ Batch và lịch sử lô. FEFO chọn hàng còn hạn với HSD gần trước, lô không biết hạn sau hàng có hạn còn tốt, lô hết hạn/tắt là vòng vét cuối. Không dùng thứ tự mã lô làm thứ tự lấy hàng.
+2. Lô đã chọn thiếu thì giữ phần đủ, bù từ lô khác cùng mã và kho. Bao gồm lô tay và gói nháp trên Desk, cả gói cấp chưa đủ lượng dòng. Nhiều dòng dùng chung số tồn; vẫn chặn kho thật thiếu, sai mã/kho/serial/UOM hoặc gói không thuộc chứng từ.
+3. HSD và trạng thái tắt chỉ cảnh báo. Bỏ hẳn công tắc chặn, patch gỡ Custom Field và giá trị Single. Phiếu ghi rõ lô quá hạn/tắt và phần bù lô. Không sửa HSD hoặc chứng từ cũ.
+4. Nhận mua thiếu/cận HSD vẫn ghi được. Tạo Batch mới với HSD đã nhập hoặc để trống, không tự cộng shelf life thay ngày trên nhãn ở API nhận mua. Lô mới ở các cửa khác giữ tính shelf life; lô đã lưu không bị suy lại hạn. Cảnh báo được lưu trên phiếu và hiện ở màn nhận.
+5. Phạm vi: bảy purpose Stock Entry trong lo_het_han.PHIEU_BI_CHAN; Purchase Receipt, Purchase Invoice cập nhật kho, Delivery Note và Sales Invoice cập nhật kho. Chỉ thay phép kiểm hạn trên controller tương ứng, không thay StockController chung. Stock Reconciliation chưa đổi và chưa nằm trong nghiệm thu này.
+6. Giữ mã máy cấp LO-yymmdd-nnnnnn, giữ mã NCC đã nhập. Không đổi phương pháp giá vốn, không bật tồn âm, không đổi tên Item/BOM/dữ liệu kho thật.
 
-1. Giữ Batch cho nguyên liệu, bán thành phẩm, thành phẩm để máy tự chia số lượng, giữ tem và tra lịch sử.
-2. Với dòng chưa có lô/gói do Vagabond tự chọn, hàng còn hạn: chọn HSD gần nhất trước, dù nhập sau. Một lô thiếu thì lấy tiếp lô khác trong đúng kho. Lô không có HSD xếp sau lô có HSD. Không chọn theo chữ/số trong mã lô. Dòng đã có gói hoặc chọn lô tay được giữ nguyên; thứ tự Desk tự sinh gói theo Stock Settings chưa được ca này chứng minh.
-3. HSD không chặn thao tác sản xuất và phiếu kho khi công tắc chặn tắt; lô quá hạn có cảnh báo lưu trên phiếu. Đề xuất giữ ưu tiên hàng còn hạn trước, lô quá hạn chỉ dùng khi thiếu phần còn hạn, như cơ chế hiện có. Không tự đưa hàng quá hạn lên đầu FEFO.
-4. Máy cấp mã `LO-yymmdd-nnnnnn`, ví dụ `LO-260913-000751`. Ngày là ngày tạo theo giờ site; đuôi tăng liên tục. Nhân viên không phải nhớ mẫu hoặc tự đếm. Giữ mã/lịch sử cũ.
-5. Tách mã lô nội bộ với số lô NCC. Số lô NCC/HSD bao bì là thông tin nhập thực tế, không thay HSD thật bằng ngày nhập cộng số ngày chỉ để đổi thứ tự chọn. Cần rà trường và màn nhận trước khi làm phần này.
-6. Giữ chặn thiếu tồn thật, sai kho, sai đơn vị, sai serial và lô đã bị người dùng vô hiệu hoá. Giữ cách tính giá vốn hiện tại; không tự bật cờ giá bình quân toàn site trong PR này.
+Các file Excel tiền tố mã, cặp thay thế và tem tách riêng. Gelatine phantom đã có PR306 kiểm riêng, không tự đổi công thức hay tạo mã mới.
 
-## Code thử đã có trong PR
-
-- Giữ nguyên FEFO; thêm ca Work Order/Stock Entry thật chứng minh nhập sau, hạn gần thì xuất trước.
-- Mở rộng cơ chế cảnh báo HSD từ bốn luồng sản xuất sang phiếu Stock Entry nhập/xuất/chuyển kho. Khi chốt bật: phiếu nhập vẫn bị chặn hết hạn theo core; phiếu xuất/chuyển chỉ cảnh báo như core, không tạo chặn HSD mới. Ba loại được bổ sung kiểm lô vô hiệu hoá, độc lập công tắc HSD. Không tự tắt chốt trên site bằng patch.
-- Câu cảnh báo dùng chung cho nhập và xuất, không ghi nhầm đã xuất trên phiếu nhập. Giữ tương thích ghi chú cũ khi lưu lại.
-- Ca nhập kho vào lô quá hạn: ghi sổ, cảnh báo, huỷ trả tồn. Ba ca chia lô và giá vốn cũ đã bench đạt; bổ sung bất biến theo review Claude.
-
-## Chưa được coi là xong toàn bộ
-
-- Cửa nhận mua hàng `nhan_hang.py` còn chốt bắt nhập HSD/cận hạn riêng; chưa đổi trong bản thử Stock Entry này. Phiếu mua/bán không dùng chung lớp StockEntry. Cần code và ca thật cho từng cửa trước khi hứa mọi chứng từ không chặn HSD.
-- Chưa bổ sung giao diện số lô NCC, chưa nghiệm thu tem trên máy in thật.
-- Kho nguyên liệu từng bếp, thay Elle/Pauls/Bacardi/ISC, sửa Gelatine Mass, cấu trúc BTP cấp1/cấp2 và chống bấm hoàn tất trùng còn là các mục riêng của issue206. Không đổi mã/danh mục hàng loạt trong PR này.
-- Bench SHA mới và Claude review phải đạt; anh Việt duyệt bản cuối rồi mới ghép đợt deploy. Không đóng issue206 chỉ vì PR302 xanh.
+Cổng trước phát hành: local, CI, Claude review và bench trên SHA cuối; hai lượt bench không còn chứng từ/số lượng lệch. Ca thật phải chạm ghi sổ/hủy, không lấy mock thay kết quả Document. Anh Việt duyệt nội dung nghiệm thu cuối trước merge/deploy v489.

@@ -482,6 +482,8 @@ def tao_phieu(don, dong=None, anh1=None, anh2=None, scan=None, ghi_chu=None):
 				thieu_han.append(ten_mon[khoa])
 			continue
 		kq = kho_sap.soat_han_dung(getdate(hsd), hom_nay, toi_thieu)
+		if kq.get("con") is not None and kq["con"] < 0:
+			kq["dat"] = 0  # quá hạn vẫn cần nhắc khi mức tối thiểu đang là 0
 		if not kq["dat"]:
 			han_ngan.append(kho_sap.cau_han_dung(ten_mon[khoa], kq))
 	canh_bao_han = []
@@ -526,6 +528,7 @@ def tao_phieu(don, dong=None, anh1=None, anh2=None, scan=None, ghi_chu=None):
 			# core tự chuyển nó sang Batch.expiry_date.
 			b = frappe.get_doc({"doctype": "Batch", "item": r.item_code,
 				"expiry_date": la[khoa].get("hsd") or None})
+			b.flags.vgb_hsd_thuc_te = True
 			from vagabond.ma_phieu_sx import nho_nguoi_go_lo, dat_ten_lo
 			nho_nguoi_go_lo(b); dat_ten_lo(b)
 			b.insert(ignore_permissions=True)

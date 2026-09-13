@@ -518,7 +518,9 @@ def _bo_sung_lo_tay(doc):
 	Gói nháp được cập nhật tại chỗ sau khi kiểm liên kết; không xóa gói hay
 	sửa gói đã ghi sổ. Các mã quản serial giữ nguyên đường kiểm của core.
 	"""
-	tui, moi, doi, da_gap_goi = {}, [], False, set()
+	if getattr(doc, "purpose", None) not in lo_het_han.PHIEU_BI_CHAN:
+		return
+	tui, moi, doi, da_gap_goi, nhac = {}, [], False, set(), []
 	for d in doc.items:
 		lo, goi = d.get("batch_no"), d.get("serial_and_batch_bundle")
 		ma, kho = d.get("item_code"), d.get("s_warehouse")
@@ -538,13 +540,15 @@ def _bo_sung_lo_tay(doc):
 					or (g.voucher_no and g.voucher_no != doc.name)
 					or (g.voucher_detail_no and g.voucher_detail_no != d.name)):
 				frappe.throw("Gói lô %s không thuộc dòng/kho nháp này. Kiểm tra lại gói đã chọn." % goi)
+			if frappe.db.exists("Stock Entry Detail", {"serial_and_batch_bundle": goi, "parent": ["!=", doc.name or ""]}):
+				frappe.throw("Gói %s đang thuộc phiếu khác, không được sửa." % goi)
 			chon = {}
 			for e in g.entries:
 				if not e.batch_no or e.serial_no:
 					frappe.throw("Gói %s không phải gói lô thuần hợp lệ." % goi)
 				chon[e.batch_no] = chon.get(e.batch_no, 0) + abs(flt(e.qty))
-			if abs(sum(chon.values()) - can) > LI_TI:
-				frappe.throw("Số lượng gói %s khác số lượng dòng. Kiểm tra lại trước khi bù lô." % goi)
+			if sum(chon.values()) - can > LI_TI:
+				frappe.throw("Số lượng gói %s lớn hơn số lượng dòng. Kiểm tra lại trước khi bù lô." % goi)
 		else:
 			chon = {lo: can}
 		for ten in chon:
@@ -579,10 +583,11 @@ def _bo_sung_lo_tay(doc):
 				x = _boc(d, giu_ten=i == 0)
 				x.update(qty=round(so / he_so, 6), batch_no=ten, use_serial_batch_fields=1)
 				moi.append(x)
+		nhac.append("Lô %s không đủ, đã lấy thêm từ lô %s (%s, kho %s)." % (", ".join(chon), ", ".join(l for l, q in lay_them), ma, kho))
 		doi = True
 	if doi:
 		doc.set("items", moi)
-		cau = "Đã bù phần thiếu của lô đã chọn bằng lô khác cùng mã trong đúng kho."
+		cau = "Đã bù phần thiếu: " + " ".join(dict.fromkeys(nhac))
 		if cau not in (doc.get("remarks") or ""):
 			doc.remarks = ((doc.get("remarks") or "") + "\n" + cau).strip()
 
@@ -698,7 +703,7 @@ def gan_lo(doc, method=None):
 	except frappe.ValidationError:
 		raise
 	except Exception:
-		# Hỏng ở đây không được kéo đổ cả phiếu: để ERPNext xử như trước.
+		# Chưa đọc đủ tồn/giữ hàng thì không được cấp hàng theo số đoán.
 		frappe.log_error(frappe.get_traceback(), "lo_hang: gan lo tu dong")
 		raise
 

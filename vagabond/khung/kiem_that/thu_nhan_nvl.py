@@ -545,13 +545,13 @@ def _qua_han_dung_duoc():
 	la("MR đã chuyển 100", float(mr.items[0].ordered_qty or 0), 100.0)
 
 
-@ca("lo qua han: xin 400 khi chi co 330 dung duoc (lo TAT khong tinh) thi bi chan 'Thieu hang', khong tao phieu")
+@ca("lo qua han: xin 500 khi co 430 ke ca lo tat thi bi chan 'Thieu hang', khong tao phieu")
 def _qua_han_van_thieu():
 	if not _co_o_ma_lan():
 		dung("site chưa có ô vgb_ma_lan_nhan trên Stock Entry (chưa migrate bản này)", False)
 		return
 	cty, tu_kho, den_kho, ma, lo_ok, lo_qh, lo_tat = _canh_qua_han()
-	mr = khong_nem("phiếu yêu cầu 400", lambda: _yeu_cau(ma, tu_kho, den_kho, 400, cty))
+	mr = khong_nem("phiếu yêu cầu 500", lambda: _yeu_cau(ma, tu_kho, den_kho, 500, cty))
 	if not mr:
 		return
 	so_se = frappe.db.count("Stock Entry", {"docstatus": ["!=", 2]})
@@ -559,7 +559,7 @@ def _qua_han_van_thieu():
 	frappe.db.savepoint(sp)
 	loi = ""
 	try:
-		_nhan_qua_cua("KTTH-LAN-NHAN-QH02", mr, tu_kho, den_kho, ma, 400, cty)
+		_nhan_qua_cua("KTTH-LAN-NHAN-QH02", mr, tu_kho, den_kho, ma, 500, cty)
 	except Exception as e:
 		loi = nen.cau_loi(e)
 		frappe.db.rollback(save_point=sp)
@@ -567,3 +567,10 @@ def _qua_han_van_thieu():
 	dung("câu báo nói còn thiếu và không đủ", "không đủ" in loi and "còn thiếu 70" in loi)
 	la("không tạo thêm phiếu", frappe.db.count("Stock Entry", {"docstatus": ["!=", 2]}), so_se)
 	la("tồn kho xuất nguyên 430", _ton_kho(ma, tu_kho), 430.0)
+
+	kq = _nhan_qua_cua("KTTH-LAN-NHAN-QH03", mr, tu_kho, den_kho, ma, 400, cty)
+	se = frappe.get_doc("Stock Entry", kq["name"]); nen._DA_TAO.append((se.doctype,se.name))
+	la("đủ 400 khi tính lô tắt", se.docstatus, 1)
+	la("lô tắt còn 30", _ton_lo(lo_tat,tu_kho),30)
+	dung("vết lô tắt", "Phiếu dùng lô đã tắt:" in se.remarks and lo_tat in se.remarks)
+	se.cancel(); la("huỷ trả đủ 430", _ton_kho(ma,tu_kho),430)

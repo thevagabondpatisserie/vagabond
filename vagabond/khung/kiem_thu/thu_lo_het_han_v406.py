@@ -94,7 +94,7 @@ def _cach_va():
 	src = _py("lo_het_han.py")
 	dung("thay validate_batch", "StockEntry.validate_batch = _thay_the(goc)" in src)
 	dung("lặp lại được", "_DA_THAY" in src)
-	dung("lô tắt có dấu vết", "Cảnh báo lô tắt:" in src)
+	dung("lô tắt có dấu vết", "Phiếu dùng lô đã tắt:" in src)
 	hooks = _py("hooks.py")
 	dung("không thêm lớp thay Stock Entry",
 		'"Stock Entry": "vagabond' not in hooks)
@@ -334,7 +334,7 @@ def _ma_tran_chot_kho():
 					boc(goc)(p)
 					goc.assert_not_called()
 				dung('cảnh báo quá hạn', lhh.DAU_CAU in p.remarks)
-				if tat: dung('cảnh báo tắt', 'Cảnh báo lô tắt:' in p.remarks)
+				if tat: dung('cảnh báo tắt', 'Phiếu dùng lô đã tắt:' in p.remarks)
 
 
 @ca('489 bốn controller mua bán chỉ cảnh báo HSD, giữ serial sai lô')
@@ -348,7 +348,7 @@ def _mua_ban_han():
 		with patch.object(lhh,'_ho_so_lo',return_value={'expiry_date':'2026-09-01','disabled':1}), \
 			patch.dict(sys.modules,{'erpnext.stock.doctype.serial_no.serial_no':SimpleNamespace(get_serial_nos=lambda x:[x])}):
 			ham=lhh._thay_kiem_serial(goc); ham(p)
-			dung(dt+' cảnh báo',lhh.DAU_CAU in p.remarks and 'Cảnh báo lô tắt:' in p.remarks)
+			dung(dt+' cảnh báo',lhh.DAU_CAU in getattr(p, lhh._o_ghi_chu(p)) and 'Phiếu dùng lô đã tắt:' in getattr(p, lhh._o_ghi_chu(p)))
 			goc.assert_not_called()
 			p._dong[0].serial_no='S'; p._dong[0].idx=1
 			with patch.object(lhh.frappe,'_',side_effect=lambda x:x,create=True), \
@@ -361,7 +361,8 @@ def _mua_ban_han():
 def _batch_khong_han():
 	from unittest.mock import patch
 	class B:
-		name='LO'; item='BOT'; expiry_date=None
+		name='LO'; item='BOT'; expiry_date=None; flags={'vgb_hsd_thuc_te':True}
+		def is_new(self): return True
 		def set_expiry_date(self): raise AssertionError('Core bắt hạn')
 	b=B()
 	with patch.object(lhh.frappe,'msgprint',create=True) as bao:

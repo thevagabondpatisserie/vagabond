@@ -53,3 +53,6 @@ Phần này thay các kết luận lịch sử về công tắc/disabled/phạm 
 - Cửa nhận mua tạo Batch mới với đúng HSD nhận được hoặc để trống. Batch không tự suy HSD từ shelf life và không ép nhập hạn. Không sửa ngày trên lô cũ. Câu nhắc giao diện không còn nói phải điền mới nhận được.
 - Thêm ca hành vi UOM/tay/gói/nhiều dòng/thiếu tồn/sai kho và bốn controller; ca bench tay/gói 100+50 cần130, thiếu200, hủy; API nhận mua thiếu HSD/quá hạn.
 - APPVER 489. Chưa deploy. Ca bench mới cần kết quả thực tế trước kết luận; cần tiếp tục nghiệm thu đủ bốn loại chứng từ mua/bán trên bench và thao tác thật. Stock Reconciliation chưa đổi.
+
+
+F9-F13 vòng mới: DN dùng vgb_dien_giai có thật và ca đọc DB sau reload. Batch chỉ giữ trống theo dữ liệu API nhận mua; lô mới ở cửa khác giữ cộng shelf life, lô đã lưu không bị điền lại hạn. Ca tồn430 xin500 chặn thiếu70, xin400 tự vét lô tắt. Gói core cấp thiếu được bù đủ; cảnh báo ghi rõ lô nguồn/bù. Bản chốt issue-206-duyet đã viết lại; gỡ cả Section Break trống. Đã merge306 vào main808af6fd và tích hợp vào nhánh này. Xung đột bài học giữ cả hai phần.
