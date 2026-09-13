@@ -577,7 +577,7 @@ def _webhook():
 	).strip()
 
 
-def ban_webhook(cau):
+def ban_webhook(cau, url=None):
 	"""Đẩy một tin nhắn báo động tới webhook nhóm quản trị.
 
 	Viết theo dạng chung `{"text": ...}` chứ không viết riêng cho Zalo hay
@@ -587,22 +587,29 @@ def ban_webhook(cau):
 
 	Không có URL thì thôi, không coi là lỗi: cảnh báo còn đường thư dự phòng.
 	"""
-	url = _webhook()
+	rieng = url is not None
+	url = str(url if rieng else _webhook()).strip()
 	if not url:
 		return False
 	try:
 		import requests
 
-		requests.post(
+		r = requests.post(
 			url,
 			data=json.dumps({"text": cau, "msg_type": "text",
 				"content": {"text": cau}}, ensure_ascii=False).encode("utf-8"),
 			headers={"Content-Type": "application/json"},
 			timeout=10,
 		)
+		r.raise_for_status()
+		if rieng:
+			goi = r.json()
+			if not isinstance(goi, dict) or goi.get("code", goi.get("StatusCode")) != 0:
+				return False
 		return True
 	except Exception:
-		frappe.log_error(frappe.get_traceback(), "gui_thu: ban webhook loi")
+		if not rieng:
+			frappe.log_error("Kiểm tra cấu hình webhook nhóm quản trị.", "gui_thu: ban webhook loi")
 		return False
 
 

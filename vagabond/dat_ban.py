@@ -4,10 +4,13 @@ Không coi gửi form là đã có bàn. Lịch mở được quản lý riêng;
 cho tới khi quản lý chọn cơ sở và khung giờ thật.
 """
 # phần thuần
+from functools import partial
 import hashlib
 import json
 import re
 from datetime import datetime, timedelta
+
+DIP = ('Không có dịp riêng', 'Sinh nhật', 'Kỷ niệm', 'Hẹn hò', 'Gặp đối tác', 'Họp nhóm', 'Khác')
 
 TRANG_THAI = ('Chờ xác nhận', 'Đã xác nhận', 'Đã đến', 'Đã hủy')
 
@@ -45,7 +48,48 @@ def chuan_hoa(du_lieu, cau_hinh, luc):
     ghi_chu = str(du_lieu.get('ghi_chu') or '').strip()
     if len(ghi_chu) > 1000:
         raise ValueError('Ghi chú tối đa 1.000 ký tự.')
-    return {'ten':ten, 'sdt':sdt, 'co_so':cau_hinh['co_so'], 'ngay':str(ngay), 'gio':gio, 'so_khach':so, 'ghi_chu':ghi_chu}
+    dip = str(du_lieu.get('dip') or '').strip()
+    khu = str(du_lieu.get('khu_vuc') or '').strip()
+    if dip and dip not in DIP:
+        raise ValueError('Chọn dịp trong danh sách trên form.')
+    if khu and khu not in cau_hinh.get('khu_vuc', []):
+        raise ValueError('Khu vực này không thuộc cơ sở đang nhận đặt bàn. Chọn lại khu vực.')
+    tre = du_lieu.get('tre_em')
+    if tre is None or tre == '':
+        tre = 0
+    try:
+        n = int(tre)
+        if str(n) != str(tre) or not 0 <= n <= so:
+            raise ValueError()
+    except (TypeError, ValueError):
+        raise ValueError('Số trẻ em phải là số nguyên từ 0 đến tổng số khách.')
+    email = str(du_lieu.get('email') or '').strip()
+    if email and (len(email) > 140 or not re.fullmatch(r'[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+', email)):
+        raise ValueError('Kiểm tra lại email, ví dụ ten@example.com, hoặc để trống.')
+    banh = str(du_lieu.get('banh_kem_theo') or '').strip()
+    if len(banh) > 1000:
+        raise ValueError('Bánh muốn đặt sẵn tối đa 1.000 ký tự.')
+    return {'ten':ten, 'sdt':sdt, 'co_so':cau_hinh['co_so'], 'ngay':str(ngay), 'gio':gio, 'so_khach':so, 'ghi_chu':ghi_chu,
+            'dip':dip, 'khu_vuc':khu, 'tre_em':n, 'email':email, 'banh_kem_theo':banh}
+
+
+def soan_tin_dat_ban(doc):
+    """Tin dành cho FOH; bỏ dòng tuỳ chọn rỗng để đọc nhanh trên điện thoại."""
+    ngay = datetime.strptime(str(doc.get('ngay'))[:10], '%Y-%m-%d').strftime('%d/%m')
+    dong = ['YÊU CẦU ĐẶT BÀN MỚI',
+            'Tên: %s, SĐT: %s' % (doc.get('ten'), doc.get('sdt')),
+            'Cơ sở: %s' % (doc.get('ten_co_so') or doc.get('co_so')),
+            'Ngày giờ: %s lúc %s' % (ngay, doc.get('gio')),
+            'Số khách: %s' % doc.get('so_khach')]
+    if doc.get('tre_em'):
+        dong[-1] += ', trong đó %s trẻ em' % doc['tre_em']
+    for ten, nhan in [('dip','Dịp'), ('khu_vuc','Khu vực'), ('banh_kem_theo','Bánh kèm theo'), ('ghi_chu','Ghi chú'), ('email','Email')]:
+        gia = doc.get(ten)
+        if gia and not (ten == 'dip' and gia == 'Không có dịp riêng'):
+            dong.append('%s: %s' % (nhan, gia))
+    dong.append('Trạng thái: Chờ xác nhận. Mở phiếu: %s' % doc.get('url', ''))
+    return '\n'.join(dong)
+
 
 
 import frappe
@@ -62,7 +106,8 @@ def _cau_hinh():
     return {'bat':bool(d.bat and co_so and co_so.get('bat') and co_so.get('quay')),
             'co_so':d.co_so, 'ten_co_so':(co_so or {}).get('ten', ''),
             'dia_chi':(co_so or {}).get('dia_chi', ''), 'khung_gio':str(d.khung_gio or '').split(),
-            'toi_da_khach':d.toi_da_khach or 8, 'toi_da_ngay':d.toi_da_ngay or 30}
+            'khu_vuc':list(dict.fromkeys(x.strip() for x in str(d.get('khu_vuc') or '').splitlines() if x.strip())),
+            'dip':list(DIP), 'toi_da_khach':d.toi_da_khach or 8, 'toi_da_ngay':d.toi_da_ngay or 30}
 
 
 @frappe.whitelist(allow_guest=True)
@@ -123,12 +168,12 @@ def kiem_phieu(doc):
         if doc.trang_thai != 'Chờ xác nhận':
             frappe.throw('Yêu cầu mới phải bắt đầu ở trạng thái Chờ xác nhận.')
         try:
-            chuan_hoa(doc.as_dict(), _cau_hinh(), frappe.utils.now_datetime())
+            doc.update(chuan_hoa(doc.as_dict(), _cau_hinh(), frappe.utils.now_datetime()))
         except ValueError as e:
             frappe.throw(str(e))
     cu = doc.get_doc_before_save()
     if cu:
-        for ten in ('ten', 'sdt', 'ngay', 'gio', 'so_khach', 'co_so', 'ghi_chu', 'bam_noi_dung'):
+        for ten in ('ten', 'sdt', 'ngay', 'gio', 'so_khach', 'co_so', 'ghi_chu', 'bam_noi_dung', 'dip', 'khu_vuc', 'tre_em', 'email', 'banh_kem_theo'):
             if str(cu.get(ten)) != str(doc.get(ten)):
                 frappe.throw('Giữ nguyên yêu cầu khách đã gửi. Ghi thay đổi vào ghi chú xử lý.')
         chuyen = {'Chờ xác nhận':{'Đã xác nhận','Đã hủy'}, 'Đã xác nhận':{'Đã đến','Đã hủy'}, 'Đã đến':set(), 'Đã hủy':set()}
@@ -136,3 +181,50 @@ def kiem_phieu(doc):
             frappe.throw('Không thể chuyển ngược trạng thái. Ghi rõ kết quả trong ghi chú xử lý.')
     if doc.trang_thai not in TRANG_THAI:
         frappe.throw('Chọn trạng thái đặt bàn hợp lệ.')
+
+
+def _loi_lark(ten):
+    # Không đưa URL chứa khóa hoặc nội dung khách vào Error Log.
+    frappe.log_error(title='Đặt bàn: chưa gửi được Lark',
+                     message='Phiếu %s. Kiểm tra webhook nhóm đặt bàn và hàng đợi.' % ten)
+
+
+def bao_dat_ban_moi(doc, method=None):
+    """Chỉ móc after_insert; lỗi hàng đợi không làm mất yêu cầu khách."""
+    if getattr(frappe.flags, 'vagabond_kiem_that', False):
+        return
+    try:
+        if not frappe.db.get_single_value('Vagabond Settings', 'webhook_dat_ban'):
+            return
+        frappe.db.after_commit.add(partial(_xep_lark, doc.name))
+    except Exception:
+        _loi_lark(doc.name)
+
+
+def _xep_lark(ten):
+    # Frappe background_jobs.enqueue_after_commit chỉ hoãn q.enqueue_call;
+    # CallbackManager.run không bắt lỗi Redis. Bao ở chính callback sau commit
+    # để lỗi xếp hàng không đổi phản hồi thành thất bại sau khi phiếu đã lưu.
+    try:
+        frappe.enqueue('vagabond.dat_ban.gui_lark', ten=ten, queue='short')
+    except Exception:
+        _loi_lark(ten)
+        # Chỉ chạy sau commit phiếu: giao dịch mới này chỉ lưu Error Log.
+        frappe.db.commit()
+
+
+def gui_lark(ten):
+    """Đọc phiếu sau commit; Lark lỗi không tác động trạng thái đặt bàn."""
+    from vagabond.gui_thu import ban_webhook
+    if getattr(frappe.flags, 'vagabond_kiem_that', False):
+        return
+    try:
+        url = str(frappe.db.get_single_value('Vagabond Settings', 'webhook_dat_ban') or '').strip()
+        if not url:
+            return
+        doc = frappe.get_doc(DOCTYPE, ten).as_dict()
+        doc['url'] = frappe.utils.get_url_to_form(DOCTYPE, ten)
+        if not ban_webhook(soan_tin_dat_ban(doc), url=url):
+            _loi_lark(ten)
+    except Exception:
+        _loi_lark(ten)
