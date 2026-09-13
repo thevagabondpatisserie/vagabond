@@ -25,3 +25,14 @@ không phải nghiệm thu production. Không gửi OTP, không thay hồ sơ th
 Claude review SHA trên PR; CI GitHub; kiểm mobile trên site sau deploy.
 Chưa có bench/site thật cho lịch sử hồ sơ. Không nhận kiểm thuần là bench.
 Issue 301 nối từ nền này trong PR riêng; khi gộp giữ đủ cả hai phạm vi.
+
+## Vòng review Claude ngày 14/09
+
+Review comment5654897108 và biên nhận Claude run34771893366:
+- F1: đọc ngay_dat bằng ngay_pancake.ngay_tu_iso trên máy chủ; UI hiện
+  dd/mm/yyyy để phân biệt lịch sử nhiều năm. 19/09 17:30Z thành 20/09.
+- F2: mã3 đã giao, mã16 đã thu tiền theo TT_DOANH_SO trong ban_hang.py.
+- F3: tra mã thô và mã bỏ hậu tố size trong một lô, ưu tiên ảnh mã thô.
+- Finding4000331199: tham số hàm trạng thái đã dùng tiếng Việt không dấu.
+Cổng trên phần sửa đạt trong môi trường chặn requests. Claude chưa chạy được
+cổng vì sandbox của reviewer; review mã độc lập không thay bằng chứng chạy.

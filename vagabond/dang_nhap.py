@@ -30,6 +30,7 @@ from frappe.rate_limiter import rate_limit
 from frappe.utils import add_days, now_datetime
 
 from vagabond import zalo, chon_mon
+from vagabond.ngay_pancake import ngay_tu_iso
 from vagabond.lib import PANCAKE, TIMEOUT, cfg, key, sdt, sdt84, nhan_trang_thai_pancake
 
 OTP_SONG_PHUT = 5
@@ -223,6 +224,7 @@ def _don_pancake(c, k, sdt_noi_dia, gioi_han=30, bao_loi=False):
 			{
 				"ma_don": str(o.get("id") or o.get("system_id") or ""),
 				"luc_tao": o.get("inserted_at") or "",
+				"ngay_dat": ngay_tu_iso(o.get("inserted_at")),
 				"ngay_giao": o.get("estimate_delivery_date") or "",
 				"trang_thai": nhan["nhan"],
 				"mau_trang_thai": nhan["mau"],

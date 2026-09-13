@@ -26,11 +26,11 @@ function phanTu(the = 'div') {
   await nut.onclick();
   assert.match(tim('don').children[0].textContent,/chưa khả dụng/);
   assert.ok(!tim('don').children.some(x=>x.the==='button'||x.textContent.includes('Chưa có đơn')));
-  duLieu = {...duLieu,don_chua_mo:false,don:[{ma_don:'300',luc_tao:'2026-09-14T09:00:00',tong:125000,trang_thai:'Đã giao',mau_trang_thai:'xanh',mon:[{ten:'Bánh <script>',sl:2,hinh:'/files/banh.jpg'},{ten:'Bánh 2',sl:1,hinh:'javascript:alert(1)'}]}]};
+  duLieu = {...duLieu,don_chua_mo:false,don:[{ma_don:'300',luc_tao:'2026-09-19T17:30:00Z',ngay_dat:'2026-09-20',tong:125000,trang_thai:'Đã giao',mau_trang_thai:'xanh',mon:[{ten:'Bánh <script>',sl:2,hinh:'/files/banh.jpg'},{ten:'Bánh 2',sl:1,hinh:'javascript:alert(1)'}]}]};
   await nut.onclick();
   const dong=tim('don').children[0];
   assert.equal(dong.className,'don');
-  assert.match(dong.children[0].children[0].textContent,/14\/09/);
+  assert.match(dong.children[0].children[0].textContent,/20\/09\/2026/);
   assert.equal(dong.children[0].children[1].textContent,'Đã giao');
   assert.match(dong.children[0].children[1].className,/xanh/);
   assert.equal(dong.children[1].textContent,'125.000 đ');

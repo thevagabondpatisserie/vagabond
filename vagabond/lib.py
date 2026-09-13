@@ -6,15 +6,16 @@ import re
 PANCAKE_BO_QUA = frozenset({6, 7})
 
 
-def nhan_trang_thai_pancake(status, status_name=None):
+def nhan_trang_thai_pancake(trang_thai, ten_trang_thai=None):
 	"""Nhãn khách đọc; trạng thái lạ không được giả nhận đã giao."""
-	ma = {"0": "new", "6": "cancelled", "7": "removed"}.get(str(status))
-	ten = ma or str(status_name or "").strip().lower()
+	ma = {"0": "new", "3": "delivered", "16": "received_money", "6": "cancelled", "7": "removed"}.get(str(trang_thai))
+	ten = ma or str(ten_trang_thai or "").strip().lower()
 	bang = {
 		"new": ("Đơn mới", "vang"),
 		"confirmed": ("Đã xác nhận", "vang"),
 		"shipping": ("Đang giao", "vang"),
 		"delivered": ("Đã giao", "xanh"),
+		"received_money": ("Đã thu tiền", "xanh"),
 		"cancelled": ("Đã huỷ", "xam"),
 		"canceled": ("Đã huỷ", "xam"),
 		"removed": ("Đã xoá", "xam"),
