@@ -12,6 +12,12 @@ def execute():
 		ghi = "Tự chuyển từ Chờ giám đốc sang Chờ kế toán theo quy trình #317 ngày 14/09/2026."
 		frappe.db.set_value("Vagabond De Nghi Chi", ten, "trang_thai", "Cho ke toan")
 		frappe.get_doc("Vagabond De Nghi Chi", ten).add_comment("Info", ghi)
+		# Cùng cơ chế giao việc với duyệt thường, nhưng không bắn chuông khi migrate.
+		from vagabond.giao_viec import giao_vai
+		from vagabond.de_nghi_chi import VAI_BUOC, TT_CHO_KE_TOAN
+		kq = giao_vai("Vagabond De Nghi Chi", ten, sorted(VAI_BUOC[TT_CHO_KE_TOAN]), ghi, bao=0)
+		if not kq.get("giao"):
+			frappe.throw("Chưa giao được phiếu %s cho kế toán. Kiểm người giữ vai kế toán rồi chạy lại migrate." % ten)
 	if not frappe.db.exists("DocType", "RnD Purchase Request"):
 		return
 	from frappe.custom.doctype.property_setter.property_setter import make_property_setter

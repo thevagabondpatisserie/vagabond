@@ -506,3 +506,7 @@ Một hàm chỉ nhận tổng tiền đã đẩy cả Chi phí và Hoàn ứng 
 ## PR318: bàn giao Cloud và nút quay lại
 
 Có commit trong tác vụ Cloud chưa đồng nghĩa nhánh PR đổi. Ngày 14/09, bản Cloud chỉ lên GitHub sau thao tác Update branch; phải kiểm SHA remote. Bản đó còn APPVER493 trong khi patch492 và chỉ sửa nút chân màn. Kiểm lại bundle/patch và chạy cả nút đầu màn, chân màn, API lỗi; không nhận có chuỗi nút là bằng chứng điều hướng.
+
+### PR318: biên nhận khác với số tệp và chuyển bước phải chuyển việc
+
+Một biên nhận có thể nhiều ảnh; số URL không phải số chứng từ. Giữ kiểm cùng số hoá đơn/MST/ngày, yêu cầu ít nhất một tệp, không chặn hai mặt của cùng biên nhận. Patch chuyển trạng thái phải giao lại ToDo bằng cửa giao việc chung (không bắn chuông migrate), không chỉ sửa nhãn. Hướng dẫn duyệt và dữ liệu người lập phải đúng cả danh sách chính lẫn lịch sử. Nguồn inline review4005492308/4005492320/4005492328/4005635209.

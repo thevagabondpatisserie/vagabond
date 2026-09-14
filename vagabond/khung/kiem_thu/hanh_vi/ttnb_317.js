@@ -22,6 +22,11 @@ async function kiem(loi, nut, nac = 2) {
   assert.strictEqual(JSON.stringify(c.ttnbLoc), loc, 'Không được mất bộ lọc');
 }
 (async () => {
+  const c = {window: {}, console, soTien: Number}; vm.createContext(c); vm.runInContext(src, c);
+  function phieu(nv, tien) {return {loai_nghiep_vu:nv, cac_khoan:[{so_tien:tien}]};}
+  assert(!c.dncHuongDuyet(phieu('Hoàn ứng', 3000000), 2000000).includes('giám đốc'));
+  assert(c.dncHuongDuyet(phieu('Tạm ứng', 3000000), 2000000).includes('giám đốc'));
+  assert(c.dncHuongDuyet(phieu('Chi phí', 500001), 2000000).includes('phiếu chi APP'));
   await kiem(false, 'vgbBack');
   await kiem(false, 'ttnbVeDanhSach');
   await kiem(true, 'vgbBack');

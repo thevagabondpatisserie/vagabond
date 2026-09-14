@@ -19,3 +19,7 @@ Toàn bộ gộp chuyển và khớp sao kê theo lô được giữ ở nhánh 
 ## Delta sau053fa009
 
 F4 đã đọc site: autoname naming_series:, series RND-.YY.-, patch đổi series phù hợp. Quyền đọc hiện chỉ System Manager và Mua hàng R&D; đã hỏi anh phạm vi vai, chưa mở quyền. F5 sửa lọc Người lập cho vai mua hàng đã được xem toàn bộ; F6 từ nấc gốc push danh sách để còn Home. Bench053fa009 đỏ215/217 cảhai lượt, sạchrollback; cùng nguyên nhân fixture SePay không có biên nhận theo luật317. Bổ sung File thử thật trước insert, không tắt validator. ChờbenchSHA mới.
+
+## Lượt nền sau3a541850
+
+Bench3a541850 đạt217/217 hai lượt, sạchrollback; Claude chốt F5/F6/fixture. Đang sửa inlineP2: patchgiaoToDo sangkếtoán khôngchuông; nhiềuảnh cùngbiênnhận; hướngdẫnduyệt theoloại; tênngườilập/quáhạn trêncảlịchsử/danhsách. Local2994/2994 vàcổngđạt trướcpush. Chưađóng F2hoànứngcũ/quyềnYCPS, khôngmerge/deploynền.

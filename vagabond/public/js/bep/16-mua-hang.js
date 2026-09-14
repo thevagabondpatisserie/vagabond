@@ -1080,6 +1080,16 @@ function dncDoc() {
 
 /* Cập nhật con số tổng NGAY trên màn, không vẽ lại cả trang.
    Vẽ lại cả trang mỗi lần gõ một chữ số thì ô đang gõ mất con trỏ. */
+function dncHuongDuyet(f, nguong) {
+  var tong = dncTong(f), nv = f.loai_nghiep_vu || 'Chi phí';
+  if (nv === 'Chi phí' && tong > 500000) return 'Trên 500.000 đ: lập YCPS rồi thanh toán qua phiếu chi APP.';
+  if (nv === 'Tạm ứng') return (tong > 500000 ? 'Cần YCPS hợp lệ. ' : '') +
+    (tong >= nguong ? 'Tạm ứng này cần giám đốc duyệt thêm một cấp.' : 'Tạm ứng đi từ mua hàng sang kế toán.');
+  if (nv === 'Hoàn ứng') return 'Hoàn ứng đi từ mua hàng sang kế toán.' +
+    (tong > 500000 ? ' Trên 500.000 đ cần YCPS kế thừa từ tạm ứng đã chi.' : '');
+  return 'Phiếu đi từ mua hàng sang kế toán.';
+}
+
 function dncNhayTong() {
   var f = dncDoc();
   var o = document.getElementById('dncTongSo');
@@ -1087,9 +1097,7 @@ function dncNhayTong() {
   var c = document.getElementById('dncTongCanh');
   if (c) {
     var nguong = (dncDm && dncDm.nguong_giam_doc) || 2000000;
-    c.innerHTML = dncTong(f) >= nguong
-      ? 'Từ ' + money(nguong) + ' đ trở lên nên phiếu này cần <b>giám đốc duyệt thêm một cấp</b>.'
-      : 'Dưới ' + money(nguong) + ' đ nên phiếu đi thẳng từ mua hàng sang kế toán.';
+    c.textContent = dncHuongDuyet(f, nguong);
   }
 }
 
@@ -1220,9 +1228,7 @@ function dncVe(lichSu) {
     '<div style="flex:1;font-size:13.5px;font-weight:700;color:#0f766e">Tổng tiền phiếu</div>' +
     '<div id="dncTongSo" style="font-size:20px;font-weight:800;color:#0f766e">' + money(tong) + ' đ</div></div>' +
     '<div id="dncTongCanh" style="font-size:11.5px;color:#0f766e;margin-top:5px;line-height:1.55">' +
-    (tong >= nguong
-      ? 'Từ ' + money(nguong) + ' đ trở lên nên phiếu này cần <b>giám đốc duyệt thêm một cấp</b>.'
-      : 'Dưới ' + money(nguong) + ' đ nên phiếu đi thẳng từ mua hàng sang kế toán.') + '</div></div>';
+    h(dncHuongDuyet(f, nguong)) + '</div></div>';
 
   html += '<div class="sec">Thời hạn và diễn giải</div><div class="card" style="padding:12px 14px">' +
     '<div style="font-size:11.5px;color:#6b7280;margin-bottom:3px">Cần trả trước ngày</div>' +
@@ -1568,7 +1574,7 @@ function ttnbVe(kq) {
         '<div style="flex:1;min-width:0"><b style="font-size:14px">' + h(x.tieu_de || x.name) + '</b>' +
         '<div style="font-size:11.5px;color:#98a2b3;margin-top:2px">' + h(x.name) +
         (x.so_khoan > 1 ? ' · ' + x.so_khoan + ' khoản' : '') +
-        ' · ' + h(String(x.creation || '').slice(0, 10)) + '</div></div>' +
+        ' · ' + h(String(x.creation || '').slice(0, 10)) + ' · ' + h(x.ten_nguoi_tao || 'Chưa có họ tên') + '</div></div>' +
         '<div style="text-align:right"><b style="font-size:15px">' + money(x.tien) + ' đ</b>' +
         '<div style="font-size:11px;font-weight:700;color:' + ttnbMau(x.trang_thai) + '">' +
         h(x.nhan_trang_thai || '') + (x.qua_han ? '<span style="color:#b45309"> · Quá hạn</span>' : '') + '</div></div>' +

@@ -9,3 +9,5 @@ Cần tiền trước thì bấm Xin tạm ứng. Trên 500.000đ phải chọn 
 Chi phí và hoàn ứng sau khi người phụ trách duyệt sẽ chuyển thẳng tới kế toán. Chỉ tạm ứng từ 2.000.000đ mới qua giám đốc. Khi trả thẳng nhà cung cấp bằng chuyển khoản, cần đính uỷ nhiệm chi hoặc biên lai trước khi chuyển tới kế toán; hoàn tiền nhân viên chỉ cần chứng từ mua hàng.
 
 Nút Xuất Excel lấy đúng bộ lọc ngày, trạng thái, tìm kiếm và người lập đang chọn. Nhân viên chỉ xem và xuất phạm vi được cấp.
+
+Một biên nhận có thể có nhiều ảnh (mặt trước, mặt sau hoặc ảnh bổ sung). Tải các ảnh của cùng biên nhận vào một phiếu; không gộp chứng từ khác nhau. Màn lịch sử và danh sách đều hiện người lập, hạn thanh toán; hướng dẫn duyệt dựa theo loại phiếu.

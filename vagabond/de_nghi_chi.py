@@ -504,8 +504,8 @@ def ly_do_chan_vat(phieu):
 		str(d.get("mst") or "").strip(), str(d.get("ngay_hoa_don") or "")[:10]) for d in dong}
 	if len(chung_tu) > 1:
 		return "Mỗi hoá đơn một phiếu, tách phiếu ra."
-	if not co_hoa_don_vat(p) and p.get("_so_tep_phieu") != 1:
-		return "Mỗi phiếu không hoá đơn VAT phải đính kèm đúng một biên nhận. Mỗi hoá đơn một phiếu, tách phiếu ra."
+	if not co_hoa_don_vat(p) and (p.get("_so_tep_phieu") or 0) < 1:
+		return "Mỗi phiếu không hoá đơn VAT phải đính kèm biên nhận (có thể gồm nhiều ảnh của cùng một biên nhận). Mỗi hoá đơn một phiếu, tách phiếu ra."
 	return None
 
 
@@ -1319,6 +1319,9 @@ def danh_sach(trang_thai="", so_dong=100):
 	)
 	# Số dòng và tiêu đề rút gọn: danh sách phải nói được "phiếu này có mấy
 	# khoản" mà không phải mở từng phiếu ra.
+	ten_nguoi = {u.name: u.full_name for u in frappe.get_all("User",
+		filters={"name": ["in", list({d.get("nguoi_tao") for d in ds if d.get("nguoi_tao")}) or [""]]},
+		fields=["name", "full_name"], limit_page_length=0)}
 	dem, dau = {}, {}
 	if ds:
 		for r in frappe.get_all(
@@ -1331,10 +1334,13 @@ def danh_sach(trang_thai="", so_dong=100):
 			dem[r["parent"]] = dem.get(r["parent"], 0) + 1
 			dau.setdefault(r["parent"], r.get("noi_dung") or "")
 	for d in ds:
+		d["ten_nguoi_tao"] = ten_nguoi.get(d.get("nguoi_tao")) or "Chưa có họ tên"
+		d["qua_han"] = bool(d.get("ngay_can_tt") and str(d.get("ngay_can_tt"))[:10] < nowdate()
+			and d.get("trang_thai") in (TT_CHO_KE_TOAN, TT_HOAN_TAT))
 		d["nhan_trang_thai"] = NHAN_TRANG_THAI.get(d["trang_thai"]) or d["trang_thai"]
 		d["so_khoan"] = dem.get(d["name"], 0)
 		d["tien"] = tien_phieu(d)
-		d["can_giam_doc"] = 1 if can_giam_doc_duyet(d["tien"]) else 0
+		d["can_giam_doc"] = 1 if buoc_ke_tiep(d["tien"], d.get("loai_nghiep_vu")) == TT_CHO_GIAM_DOC else 0
 		# Tiêu đề: phiếu mới lấy nội dung khoản đầu, phiếu cũ lấy trường cũ.
 		d["tieu_de"] = dau.get(d["name"]) or d.get("ten_khoan_chi") or "(chưa đặt tên)"
 		if d["so_khoan"] > 1:

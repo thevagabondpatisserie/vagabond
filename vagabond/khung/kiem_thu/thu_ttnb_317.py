@@ -23,8 +23,9 @@ def _chung_tu():
 	dung('hai số', 'tách phiếu' in dc.ly_do_chan_vat(p))
 	p['cac_khoan'][1]['so_hoa_don']=''
 	dung('một có một không', dc.ly_do_chan_vat(p))
-	for n in (0,2):
-		dung('số tệp không đúng', dc.ly_do_chan_vat(phieu(_so_tep_phieu=n)))
+	for n in (0,):
+		dung('thiếu biên nhận', dc.ly_do_chan_vat(phieu(_so_tep_phieu=n)))
+	la('hai ảnh cùng biên nhận được nhận', dc.ly_do_chan_vat(phieu(_so_tep_phieu=2)), None)
 
 
 @ca('#317 tạm ứng và hoàn ứng chỉ miễn trần khi đã xác minh YCPS')
@@ -111,3 +112,38 @@ def _nguoi_lap_mua_hang():
 		la('vai mua hàng thấy nút', kq['duoc_duyet'], 1)
 		ds = next(k for k in goi if 'ten_khoan_chi' in k.get('fields', []))
 		la('máy chủ lọc người đã chọn', ds['filters'].get('nguoi_tao'), 'nguoi-duoc-chon')
+
+
+@ca('#317 lịch sử trả tên người lập và quá hạn, không báo hoàn ứng phải qua giám đốc')
+def _lich_su_dau_vet():
+	from unittest.mock import patch
+	from types import SimpleNamespace
+	def doc(dt, **kw):
+		if dt == 'User': return [SimpleNamespace(name='nguoi-thu', full_name='Người thử')]
+		if dt == dc.DT: return [dict(name='PHIEU-THU', nguoi_tao='nguoi-thu', trang_thai=dc.TT_CHO_KE_TOAN,
+			ngay_can_tt='2026-09-01', tong_tien=3000000, loai_nghiep_vu=dc.NV_HOAN_UNG)]
+		return []
+	with patch.object(dc, '_vai', return_value=dc.VAI_DUYET), \
+		patch.object(dc.frappe, 'get_all', side_effect=doc), patch.object(dc, 'nowdate', return_value='2026-09-14'):
+		r = dc.danh_sach()['ds'][0]
+		la('tên thật trong payload lịch sử', r['ten_nguoi_tao'], 'Người thử')
+		dung('hiện quá hạn', r['qua_han'])
+		la('hoàn ứng không qua giám đốc', r['can_giam_doc'], 0)
+
+
+@ca('#317 patch chuyển bước phải giao lại kế toán, không gửi thông báo migrate')
+def _patch_giao_lai():
+	import sys
+	from unittest.mock import patch, Mock
+	from types import SimpleNamespace
+	from vagabond.patches import ycps_317
+	giao = Mock(return_value={'giao': 1})
+	with patch.dict(sys.modules, {'vagabond.giao_viec': SimpleNamespace(giao_vai=giao)}), \
+		patch.object(dc.frappe, 'get_all', return_value=['PHIEU-THU']), \
+		patch.object(dc.frappe.db, 'get_value', return_value=''), \
+		patch.object(dc.frappe.db, 'set_value'), \
+		patch.object(dc.frappe.db, 'exists', return_value=False), \
+		patch.object(dc.frappe, 'get_doc', return_value=SimpleNamespace(add_comment=Mock())):
+		ycps_317.execute()
+		la('giao đúng phiếu', giao.call_args.args[:3], (dc.DT, 'PHIEU-THU', sorted(dc.VAI_BUOC[dc.TT_CHO_KE_TOAN])))
+		la('không bắn chuông', giao.call_args.kwargs, {'bao': 0})
