@@ -846,16 +846,22 @@ def _phieu_kiem_317(doc, gui=False):
 			and la_tam_ung(tu.get("loai_nghiep_vu")) and tu.get("trang_thai") == TT_DA_CHI) else None
 		p["_hoan_ung_cu"] = bool(tu and tu.get("nguoi_tao") == doc.nguoi_tao
 			and la_tam_ung(tu.get("loai_nghiep_vu")) and tu.get("trang_thai") == TT_DA_CHI
-			and not tu.get("quy_tac_317") and not tu.get("yeu_cau_phat_sinh"))
+			and not tu.get("yeu_cau_phat_sinh")
+			and (not tu.get("quy_tac_317") or tien_phieu(frappe.get_doc(DT, doc.get("thuoc_tam_ung"))) <= NGUONG_MUA_VAT))
+		if ma and not frappe.db.exists("RnD Purchase Request", ma):
+			ma = str(doc.get("yeu_cau_phat_sinh") or "").strip() or None
 		doc.yeu_cau_phat_sinh = ma
 	elif not la_tam_ung(doc.get("loai_nghiep_vu")):
 		ma = None
 		doc.yeu_cau_phat_sinh = None
 	if ma:
-		yc = frappe.get_doc("RnD Purchase Request", ma)
-		if yc.owner != doc.nguoi_tao and not frappe.has_permission("RnD Purchase Request", "read", doc=yc, user=doc.nguoi_tao):
+		try:
+			yc = frappe.get_doc("RnD Purchase Request", ma)
+		except frappe.DoesNotExistError:
+			yc = None
+		if yc and yc.owner != doc.nguoi_tao and not frappe.has_permission("RnD Purchase Request", "read", doc=yc, user=doc.nguoi_tao):
 			frappe.throw("Chỉ được chọn YCPS của mình hoặc YCPS đã được cấp quyền đọc.", frappe.PermissionError)
-		p["_ycps_hop_le"] = yc.get("trang_thai") not in ("Huỷ", "Hủy")
+		p["_ycps_hop_le"] = bool(yc and yc.get("trang_thai") not in ("Huỷ", "Hủy"))
 		p["_ycps_ke_thua"] = bool(p["_ycps_hop_le"] and doc.get("loai_nghiep_vu") == NV_HOAN_UNG)
 	tep = set()
 	for d in cac_dong(doc):
@@ -1034,7 +1040,7 @@ def duyet(ma_phieu, ghi_chu=None):
 
 	ngoai_le = _phieu_kiem_317(doc).get("_hoan_ung_cu") if doc.trang_thai == TT_CHO_KE_TOAN else False
 	if ngoai_le and not (ghi_chu or "").strip():
-		frappe.throw("Hoàn ứng tạm ứng cũ thiếu YCPS: kế toán kiểm chứng từ và nhập lý do chấp nhận ngoại lệ.")
+		frappe.throw("Hoàn ứng thiếu YCPS: kế toán kiểm chứng từ và nhập lý do chấp nhận ngoại lệ.")
 	nguoi, luc = frappe.session.user, now_datetime()
 
 	if doc.trang_thai == TT_CHO_DUYET:
@@ -1060,7 +1066,7 @@ def duyet(ma_phieu, ghi_chu=None):
 		doc.ghi_chu = ((doc.ghi_chu or "") + "\n" + ghi_chu).strip()
 	doc.save(ignore_permissions=True)
 	if ngoai_le:
-		doc.add_comment("Info", "Kế toán đã kiểm chứng từ hoàn ứng tạm ứng cũ %s thiếu YCPS. Lý do: %s" % (doc.thuoc_tam_ung, ghi_chu.strip()))
+		doc.add_comment("Info", "Kế toán đã kiểm chứng từ hoàn ứng tạm ứng %s thiếu YCPS. Lý do: %s" % (doc.thuoc_tam_ung, ghi_chu.strip()))
 	_bao_buoc_ke_tiep(doc)
 	return {
 		"ok": 1, "trang_thai": doc.trang_thai,

@@ -514,3 +514,5 @@ Một biên nhận có thể nhiều ảnh; số URL không phải số chứng 
 
 ### PR318: hoàn ứng cũ và quyền YCPS
 Ngoại lệ dựa trên phiếu nguồn đọc từ DB (đã chi, cùng người, quy tắc cũ, thiếu YCPS), không nhận cờ client. Kế toán phải ghi lý do trước đổi trạng thái. Picker chỉ trả thông tin cần chọn của owner hiện tại, không cấp quyền đọc toàn bộ DocType để chữa lỗi chọn phiếu.
+
+PR318 F7/F8: tổng hoàn ứng có thể vượt số ứng nhỏ hợp lệ. Kiểm số ứng từ bảng kê nguồn, cho kế toán xử lý có lý do, không mở ngoại lệ mọi nguồn mới thiếu YCPS. Tham chiếu bị xoá không được làm màn chi tiết chết; trả không hợp lệ và giữ đường sửa.

@@ -27265,7 +27265,7 @@ async function ttnbCt(ma) {
   }
 
   if (d.hoan_ung_cu && d.trang_thai === 'Cho ke toan' && d.duoc_duyet_buoc_nay) {
-    html += '<div class="card"><label>Đã kiểm chứng từ - lý do chấp nhận hoàn ứng cũ thiếu YCPS</label><textarea id="ttnbLyDoCu" class="inp" placeholder="Nhập lý do kế toán chấp nhận ngoại lệ"></textarea></div>';
+    html += '<div class="card"><label>Đã kiểm chứng từ - lý do chấp nhận hoàn ứng thiếu YCPS</label><textarea id="ttnbLyDoCu" class="inp" placeholder="Nhập lý do kế toán chấp nhận ngoại lệ"></textarea></div>';
   }
   var chan = '';
   if (d.duoc_duyet_buoc_nay) {

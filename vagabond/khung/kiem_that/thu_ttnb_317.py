@@ -45,3 +45,34 @@ def hoan_ung_cu():
 	p.reload(); la('chờ ngân hàng sau duyệt', p.trang_thai, dc.TT_HOAN_TAT)
 	la('có lịch sử ngoại lệ', bool(frappe.db.exists('Comment', {'reference_doctype': p.doctype,
 		'reference_name': p.name, 'content': ['like', '%thiếu YCPS%']})), True)
+
+
+@ca('#317 tạm ứng nhỏ mới: chi thực tế vượt ứng vẫn tới kế toán kiểm ngoại lệ')
+def hoan_ung_nho():
+	tu = _phieu_cho_chi(400000)
+	frappe.db.set_value(tu.doctype, tu.name, {'loai_nghiep_vu': dc.NV_TAM_UNG,
+		'trang_thai': dc.TT_DA_CHI, 'quy_tac_317': 1, 'yeu_cau_phat_sinh': None})
+	p = _phieu_cho_chi(600000)
+	frappe.db.set_value(p.doctype, p.name, {'loai_nghiep_vu': dc.NV_HOAN_UNG,
+		'thuoc_tam_ung': tu.name, 'trang_thai': dc.TT_CHO_KE_TOAN, 'quy_tac_317': 1})
+	p.reload(); p.save(ignore_permissions=True)
+	la('nguồn nhỏ hợp lệ không YCPS', dc._phieu_kiem_317(p).get('_hoan_ung_cu'), True)
+	try:
+		dc.duyet(p.name)
+	except frappe.ValidationError as e:
+		la('vẫn bắt lý do', 'lý do' in str(e), True)
+	else:
+		raise AssertionError('Thiếu lý do vẫn duyệt được')
+	dc.duyet(p.name, ghi_chu='Đã kiểm chứng từ chi thực tế vượt số tạm ứng nhỏ.')
+	p.reload(); la('chờ chi sau kiểm', p.trang_thai, dc.TT_HOAN_TAT)
+
+
+@ca('#317 YCPS mất: vẫn mở chi tiết và trả ngữ cảnh không hợp lệ')
+def ycps_da_mat():
+	p = _phieu_cho_chi(617123)
+	frappe.db.set_value(p.doctype, p.name, {'loai_nghiep_vu': dc.NV_TAM_UNG,
+		'yeu_cau_phat_sinh': 'YCPS-KIEM-DA-MAT-317', 'quy_tac_317': 1})
+	p.reload()
+	la('YCPS mất không hợp lệ', dc._phieu_kiem_317(p).get('_ycps_hop_le'), False)
+	ra = dc.chi_tiet(p.name)
+	la('vẫn mở đúng phiếu', ra.get('name'), p.name)
