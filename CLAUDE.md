@@ -1,16 +1,11 @@
-## Chỉ dẫn mới của anh Việt: tag đối ứng trên mọi comment (13/09/2026)
+## Quy tắc mới 14/09/2026: tiết kiệm token và gọi bot đúng việc
 
-Chỉ dẫn này thay các câu bên dưới yêu cầu không tag ở comment báo trạng thái.
-Mọi comment làm việc của Codex trên issue hoặc PR phải tag `@claude`, kèm
-việc cần review/đối chiếu hoặc trạng thái cụ thể; nhắc Claude tag `@codex`
-khi trả kết quả. Claude áp dụng đối ứng trên mọi comment làm việc.
-
-Tag không phải bằng chứng tác vụ đã chạy. Có code cần sửa thì đặt yêu cầu
-trên đúng PR, kèm SHA, finding, phạm vi và ca kiểm. Comment issue dẫn tới PR;
-không hứa mention issue tự tạo worker. Người nhận kiểm owner trước khi code,
-không mở việc trùng với phiên local đang làm. Nếu chỉ xác nhận/chờ thì ghi rõ
-không yêu cầu tác vụ code mới, tránh vòng lặp trả lời thuần xác nhận. Giới hạn
-ba vòng không có bằng chứng mới và cổng merge/deploy vẫn áp dụng.
+Đọc [quy tắc dùng chung](docs/van-hanh-agent/tiet-kiem-token.md). Mục này thay
+luật 13/09 yêu cầu mọi comment đều tag đối ứng: chỉ tag khi có yêu cầu hành
+động. Review dùng `@claude review delta <FULL_HEAD_SHA>`, ghi SHA đã review,
+base, phạm vi và bằng chứng. Nếu đạt thì chốt SHA không tag lại; có finding
+cần sửa mới tag Codex. Không review trùng, không tự tạo lịch polling chờ sửa.
+Giữ nguyên quyền, owner và cổng phát hành; đây chưa phải khóa chi phí bằng máy.
 
 # CLAUDE.md
 

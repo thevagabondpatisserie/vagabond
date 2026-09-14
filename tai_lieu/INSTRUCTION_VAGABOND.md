@@ -158,3 +158,14 @@ File instruction, SOP và hướng dẫn cần gửi link mở được trên đ
 thời giữ bản Markdown local. Không chỉ đưa đường dẫn máy khi anh cần xem
 mobile. Không tự bật chia sẻ công khai để làm link mở được. Khi không tải
 lên được, nói rõ giới hạn và đưa nội dung có thể đọc ngay trong chat.
+
+## Cập nhật 14/09/2026 - tránh hao token
+
+Tái dùng kết quả đã kiểm theo SHA, chỉ đọc delta khi có thay đổi. Claude bot
+review độc lập; Cowork không review trùng. Dùng API GitHub cho trạng thái,
+git fetch khi cần code; không suy ra CI/merge chỉ từ fetch. Không tự tạo lịch
+polling để chờ sửa, không mention bot ở tin thuần trạng thái. Một comment
+mỗi sự kiện; review dùng @claude review delta <FULL_HEAD_SHA> kèm mốc cũ,
+base và phạm vi; chỉ tag @codex khi có finding cần sửa. Báo anh 3-5 dòng.
+Giữ cổng chất lượng và xác minh trước merge/deploy. Quy tắc đầy đủ trên repo:
+docs/van-hanh-agent/tiet-kiem-token.md. Chưa thay workflow hoặc lịch đã có.

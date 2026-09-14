@@ -471,6 +471,14 @@ mang mã lỗi nghiệp vụ; cần đọc cả mã trước khi nhận gửi th
 Bộ soi xưng hô từng bắt nhầm tre_em và "trẻ em". Chỉ loại danh từ/tên trường,
 vẫn có đối chứng bắt "trẻ em cần ghế, báo em nhé", không miễn cả tệp.
 
+### 14/09: tag trạng thái cũng khởi động bot
+
+Workflow claude.yml kiểm contains(body, '@claude'); câu chỉ báo trạng thái
+vẫn vào lượt bot. Không giải quyết bằng thêm câu "không cần làm" sau mention.
+Chỉ mention khi giao việc; đạt thì chốt SHA không gọi lại. Một comment mỗi
+sự kiện, delta review và bằng chứng theo SHA theo docs/van-hanh-agent/tiet-kiem-token.md.
+Đây là quy tắc vận hành, chưa thay trigger hoặc khóa số lượt bằng workflow.
+
 ## 14/09/2026 - Issue 308: kiểm đủ vòng vét mã thay
 
 Một hàm có vét lô cảnh báo cho mã gốc chưa chứng minh mã thay cũng được vét.
