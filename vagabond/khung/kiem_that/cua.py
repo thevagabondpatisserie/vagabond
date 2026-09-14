@@ -79,6 +79,7 @@ def chay(im=1):
 			+ frappe.as_json(kq))
 	return kq
 
+from vagabond.khung.kiem_that import thu_ttnb_317  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_phan_bo_app  # noqa: F401,E402
 
 from vagabond.khung.kiem_that import thu_phantom_303  # noqa: F401,E402

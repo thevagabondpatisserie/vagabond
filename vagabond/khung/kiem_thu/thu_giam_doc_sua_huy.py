@@ -209,7 +209,7 @@ def _dnc_khong_di_tiep():
 	# Webhook SePay chi quet phieu dang cho chi, nen phieu huy khong the tu
 	# nhay sang Da chi.
 	dung("webhook chỉ quét phiếu chờ chi",
-		'filters={"trang_thai": ["in", [TT_CHO_KE_TOAN, TT_HOAN_TAT]]}' in _ham(s, "_phieu_cho_chi"))
+		'filters={"trang_thai": ["in", [TT_CHO_KE_TOAN, TT_HOAN_TAT]]' in _ham(s, "_phieu_cho_chi"))
 
 
 @ca("v418 phiếu đã huỷ không nối được vào hồ sơ hoàn ứng")

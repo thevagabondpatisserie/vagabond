@@ -495,3 +495,6 @@ bench riêng, không suy ra từ ca thuần.
 - Kiểm giá trị kho sau huỷ: cộng stock_value_difference của cả dòng SLE đã
   huỷ không tương đương tồn hiệu lực. Đọc is_cancelled theo core và đối
   chiếu Bin actual_qty/stock_value; không bỏ assertion giá trị để cổng xanh.
+
+### #317: lô chuyển khoản không phải mã giao dịch ngân hàng
+`ma_gd` là Link Bank Transaction. Ghi mã tạm vào đây làm lẫn việc chuẩn bị chuyển và tiền đã ra. Dùng `lo_chuyen` riêng; một tài khoản thụ hưởng một lô, chỉ ghi mã giao dịch thật khi khớp tổng. Các phiếu đã vào lô không được khớp lẻ. Cần bench thử lại và lỗi giữa chừng trước phát hành.
