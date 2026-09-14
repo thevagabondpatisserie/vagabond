@@ -66,6 +66,19 @@ phiên gặp chặn phải đăng comment có link nếu còn quyền làm việ
 ngắt trước khi đăng thì kênh này không tự nhìn thấy. Cần duyệt vẫn thực hiện
 ở GitHub/Codex/Claude tương ứng, không coi phản hồi Telegram là native approval.
 
+### Báo riêng khi từng PR sẵn sàng deploy (anh Việt chốt 14/09/2026)
+
+Ngay khi MỘT PR đủ điều kiện phát hành, Codex phải đăng `[SẴN SÀNG DEPLOY]`
+trên chính PR đó để sender báo Telegram cho anh, kể cả đang chờ gom với PR khác.
+Không chờ cả đợt hoàn tất mới báo. Nội dung gồm số PR, tính năng tiếng Việt,
+full SHA đã kiểm, kết quả local/CI/bench/review cần thiết và việc đang chờ anh duyệt.
+
+Chỉ báo khi hết finding chặn, đã tích hợp đúng nền và phiên bản, các cổng cần
+thiết xanh trên bản cuối. CI xanh riêng lẻ hoặc còn phụ thuộc PR khác chưa
+xong chưa đủ điều kiện. Mỗi PR/SHA chỉ báo một lần; SHA đổi thì kiểm lại trước
+khi báo bản mới. Không tag agent ở tin thuần trạng thái. Sau đăng kiểm trạng
+thái sender, chỉ nhận đã gửi Telegram khi có bằng chứng gửi thành công.
+
 ## Kỹ thuật ghép và bật
 
 1. Merge sau kiểm/review. Workflow gửi luôn checkout default branch, không
