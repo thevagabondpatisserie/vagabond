@@ -855,7 +855,7 @@ def _phieu_kiem_317(doc, gui=False):
 	elif not la_tam_ung(doc.get("loai_nghiep_vu")):
 		ma = None
 		doc.yeu_cau_phat_sinh = None
-	if ma:
+	if ma and frappe.db.exists("RnD Purchase Request", ma):
 		try:
 			yc = frappe.get_doc("RnD Purchase Request", ma)
 		except frappe.DoesNotExistError:

@@ -14,7 +14,9 @@ def _phieu_lich_su(tien):
 	p = _phieu_cho_chi(min(tien, 400000))
 	for dong in p.cac_khoan:
 		frappe.db.set_value(dong.doctype, dong.name, 'so_tien', tien)
+	frappe.db.set_value(p.doctype, p.name, {'tong_tien': tien, 'so_tien': tien}, update_modified=False)
 	p.reload()
+	la('tổng cha snapshot đúng', p.tong_tien, tien)
 	la('số tiền snapshot đúng', dc.tien_phieu(p), tien)
 	return p
 

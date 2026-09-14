@@ -519,3 +519,6 @@ PR318 F7/F8: tổng hoàn ứng có thể vượt số ứng nhỏ hợp lệ. K
 
 ### PR318 F12 - fixture bị chính luật mới chặn
 Ngày15/09, bench332733a6 có4ca chưa tới assertion vì helper tạo Chi phí mới trên500k. Dựng snapshot thử dưới trần rồi cập nhật dòng trong savepoint, xác nhận số tiền saureload, giữ save/duyet thật ở bước được kiểm. Không tắt validator, không nhận ca đỏ lúc dựng là bằng chứng nghiệp vụ.
+
+### PR318 - kiểm tồn tại trước nạp chứng từ đã mất
+Bench cd453810 đạt220/221: get_doc nạp controller trước khi báo thiếu phiếu, DocType stub không có module gâyImportError. Kiểmexists trướcget_doc để đường thiếuphiếu hoạt động; không bắtmọiImportError vì sẽ che DocType cònphiếu nhưng cấu hìnhhỏng.
