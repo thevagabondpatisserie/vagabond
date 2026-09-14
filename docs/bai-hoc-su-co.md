@@ -470,3 +470,20 @@ callback không nằm trong try của after_insert. Bao đúng callback sau comm
 mang mã lỗi nghiệp vụ; cần đọc cả mã trước khi nhận gửi thành công.
 Bộ soi xưng hô từng bắt nhầm tre_em và "trẻ em". Chỉ loại danh từ/tên trường,
 vẫn có đối chứng bắt "trẻ em cần ghế, báo em nhé", không miễn cả tệp.
+
+## 14/09/2026 - Issue 308: kiểm đủ vòng vét mã thay
+
+Một hàm có vét lô cảnh báo cho mã gốc chưa chứng minh mã thay cũng được vét.
+Ca kiểm phải gọi gan_lo qua trường hợp mã gốc hết và mã thay chỉ có lô cảnh
+báo, giữ thử cả giới hạn kho, mã được duyệt và tồn đã chọn tay. Trước sửa
+ba ca đỏ; sau sửa các ca thuần đạt. Chứng từ thật/SLE/giá vốn/huỷ phải chờ
+bench riêng, không suy ra từ ca thuần.
+
+- Issue308 bench: tạo Item Alternative thật cần Item gốc cho phép thay thế
+  (allow_alternative_item). Lỗi fixture trước insert/submit không chứng minh
+  luồng ghi sổ. Ca chống trừ trùng chọn tay cần nhu cầu vượt phần còn lại;
+  chỉ thử vừa đủ không bắt được việc bỏ phép trừ.
+
+- Kiểm giá trị kho sau huỷ: cộng stock_value_difference của cả dòng SLE đã
+  huỷ không tương đương tồn hiệu lực. Đọc is_cancelled theo core và đối
+  chiếu Bin actual_qty/stock_value; không bỏ assertion giá trị để cổng xanh.

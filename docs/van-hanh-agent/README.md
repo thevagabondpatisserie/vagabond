@@ -73,3 +73,5 @@ quả phụ thuộc lượt sau thực sự đọc, xác minh và dùng bài h�
 - [Issue 300: nền chung và lịch sử thành viên](cong-viec/issue-300.md)
 
 - [Issue 301: đặt bàn và Lark FOH](cong-viec/issue-301.md)
+
+- [Issue 308: lô cảnh báo của mã thay thế](cong-viec/issue-308.md)
