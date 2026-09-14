@@ -495,3 +495,9 @@ bench riêng, không suy ra từ ca thuần.
 - Kiểm giá trị kho sau huỷ: cộng stock_value_difference của cả dòng SLE đã
   huỷ không tương đương tồn hiệu lực. Đọc is_cancelled theo core và đối
   chiếu Bin actual_qty/stock_value; không bỏ assertion giá trị để cổng xanh.
+
+### Telegram xin duyệt: link không thay phương án
+Anh Việt không biết tìm quyết định trong comment kỹ thuật. Khối telegram-approval
+chỉ chuyển nội dung chủ repo soạn riêng (việc, đề xuất, ảnh hưởng, câu hỏi),
+không tự sao chép toàn comment hoặc log. Kênh vẫn một chiều; không nhận là đã
+có phê duyệt từ việc gửi tin hay phản hồi chưa được xử lý.

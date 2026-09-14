@@ -379,3 +379,22 @@ class PhatHanh(unittest.TestCase):
         self.kho.trang = lambda path, khoa=None: [c] if path.startswith('/pulls/comments?') else []
         self.assertEqual(chay(self.kho, self.bot, '1'), 1)
         self.assertNotIn(self.data['features'][0], self.bot.sent[0])
+
+
+class CanDuyet(unittest.TestCase):
+    def test_chi_noi_dung_chu_repo_soan_rieng(self):
+        from thong_bao import ban_can_duyet, REPO
+        c = {'user': {'login': REPO.split('/')[0]}, 'author_association': 'OWNER',
+             'body': '[CẦN DUYỆT]\nKhông chuyển đoạn log này\n<!-- telegram-approval ' + json.dumps({
+                 'van_de': 'Phiếu cũ', 'de_xuat': 'Kế toán kiểm', 'anh_huong': 'Giữ dấu vết',
+                 'cau_hoi': 'Anh duyệt phương án này?'} , ensure_ascii=False) + ' -->'}
+        out = ban_can_duyet(c)
+        self.assertIn('Kế toán kiểm', out)
+        self.assertNotIn('đoạn log', out)
+        c['author_association'] = 'CONTRIBUTOR'
+        self.assertIsNone(ban_can_duyet(c))
+    def test_khoi_sai_khong_gui_noi_dung(self):
+        from thong_bao import ban_can_duyet, REPO
+        for data in ('{}', '[]', '{invalid'):
+            self.assertIsNone(ban_can_duyet({'user': {'login': REPO.split('/')[0]},
+                'author_association': 'OWNER', 'body': '[CẦN DUYỆT]\n<!-- telegram-approval ' + data + ' -->'}))
