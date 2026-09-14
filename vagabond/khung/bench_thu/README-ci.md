@@ -4,7 +4,7 @@ Workflow `Bench tich hop SHA` chạy khi PR vào main cập nhật, hoặc bấm
 
 Nền dùng một lần trên Ubuntu 24.04:
 
-- Frappe `f33ac3f00ab818e21b25ddbec93efb653fd9aa1b`.
+- Frappe16.33.1 `988e54f3c4c291e2077a83809663f123731abe76` (mục tiêu nâng core issue311; giữ ERPNext hiện tại).
 - ERPNext `de591661b9ba0bd3f62ac25b99b5c85c723515f6`.
 - Bench `c9d12503d9d7fbfd94086c3de3cd4ac23dd44823`.
 - Python 3.14 và Node 24 theo pyproject/package của Frappe trên.

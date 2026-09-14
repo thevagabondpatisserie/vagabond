@@ -33,7 +33,7 @@ npm install --global yarn@1.22.22
 nguon="$RUNNER_TEMP/vgb-core"
 mkdir -p "$nguon"
 git clone --branch version-16 --single-branch https://github.com/frappe/frappe.git "$nguon/frappe"
-git -C "$nguon/frappe" checkout -b vgb-pinned f33ac3f00ab818e21b25ddbec93efb653fd9aa1b
+git -C "$nguon/frappe" checkout -b vgb-pinned 988e54f3c4c291e2077a83809663f123731abe76
 git clone --branch version-16 --single-branch https://github.com/frappe/erpnext.git "$nguon/erpnext"
 git -C "$nguon/erpnext" checkout -b vgb-pinned de591661b9ba0bd3f62ac25b99b5c85c723515f6
 bench init "$VGB_BENCH" --python "$(command -v python)" --frappe-path "$nguon/frappe" --frappe-branch vgb-pinned --skip-assets --skip-redis-config-generation --no-backups

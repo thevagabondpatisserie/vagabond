@@ -78,3 +78,5 @@ quả phụ thuộc lượt sau thực sự đọc, xác minh và dùng bài h�
 - [Issue 301: đặt bàn và Lark FOH](cong-viec/issue-301.md)
 
 - [Issue 308: lô cảnh báo của mã thay thế](cong-viec/issue-308.md)
+
+- [Issue311: kiểm cập nhật Frappe](cong-viec/issue-311.md)
