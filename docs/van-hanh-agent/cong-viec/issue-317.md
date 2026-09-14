@@ -15,3 +15,7 @@ Toàn bộ gộp chuyển và khớp sao kê theo lô được giữ ở nhánh 
 - Chạy tầng thuần, kiểm bundle, cổng trước deploy và kịch bản DOM giả cho danh sách, nút quay lại.
 - Bench hai lượt trên SHA cuối phải trả `chung_tu_con_sot=[]`, `so_luong_lech={}`. Chưa kiểm site thật, chưa deploy.
 - Xác minh `autoname` của RnD Purchase Request trên site trước phát hành. F2 quyền đọc YCPS cho nhân viên ngoài R&D cần anh Việt chốt nếu site chưa cấp.
+
+## Delta sau053fa009
+
+F4 đã đọc site: autoname naming_series:, series RND-.YY.-, patch đổi series phù hợp. Quyền đọc hiện chỉ System Manager và Mua hàng R&D; đã hỏi anh phạm vi vai, chưa mở quyền. F5 sửa lọc Người lập cho vai mua hàng đã được xem toàn bộ; F6 từ nấc gốc push danh sách để còn Home. Bench053fa009 đỏ215/217 cảhai lượt, sạchrollback; cùng nguyên nhân fixture SePay không có biên nhận theo luật317. Bổ sung File thử thật trước insert, không tắt validator. ChờbenchSHA mới.

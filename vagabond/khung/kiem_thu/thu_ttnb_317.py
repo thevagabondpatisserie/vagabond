@@ -93,3 +93,21 @@ def _duyet_cua_that():
 				la('không bắt UNC của nhân viên', loi, '')
 				la('đã lưu đúng bàn kế toán', d.trang_thai, dc.TT_CHO_KE_TOAN)
 				dung('cửa duyệt đã lưu', d.get('da_luu'))
+
+
+@ca('#317 người mua hàng chọn Người lập thì truy vấn thật áp đúng bộ lọc')
+def _nguoi_lap_mua_hang():
+	from unittest.mock import patch
+	from copy import deepcopy
+	goi = []
+	def doc(dt, **kw):
+		goi.append(deepcopy(kw))
+		return []
+	import sys
+	from types import SimpleNamespace
+	with patch.dict(sys.modules, {'vagabond.ban_hang': SimpleNamespace(_kiem_quyen=lambda: None)}), patch.object(dc, '_vai', return_value=dc.VAI_DUYET), \
+		patch.object(dc.frappe, 'get_all', side_effect=doc):
+		kq = dc.ds_man(so_ngay=0, nguoi_lap='nguoi-duoc-chon')
+		la('vai mua hàng thấy nút', kq['duoc_duyet'], 1)
+		ds = next(k for k in goi if 'ten_khoan_chi' in k.get('fields', []))
+		la('máy chủ lọc người đã chọn', ds['filters'].get('nguoi_tao'), 'nguoi-duoc-chon')

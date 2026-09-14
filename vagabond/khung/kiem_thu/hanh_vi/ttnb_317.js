@@ -3,10 +3,10 @@
 const fs = require('fs'), vm = require('vm'), path = require('path'), assert = require('assert');
 const dg = require('./dom_gia');
 const src = fs.readFileSync(path.resolve(__dirname, '../../../public/js/bep/16-mua-hang.js'), 'utf8');
-async function kiem(loi, nut) {
+async function kiem(loi, nut, nac = 2) {
   const document = dg.taiLieuGia();
   let dich;
-  const c = {document, console, window: {}, h: x => String(x || ''), money: x => String(x || 0),
+  const c = {document, console, window: {}, S: {stack: Array(nac).fill(null)}, h: x => String(x || ''), money: x => String(x || 0),
     frame: (title, html, opt) => {document.body.innerHTML = '<button id="vgbBack"></button>' + html + ((opt || {}).footer || ''); return document.body;},
     api: async () => {if (loi) throw Error('Lỗi thử'); return {name:'TTNB-THU', tien:10, trang_thai:'Cho ke toan', duoc_duyet_buoc_nay:1};},
     go: (fn, replace) => {dich = {fn, replace};}
@@ -18,12 +18,13 @@ async function kiem(loi, nut) {
   const b = document.getElementById(nut);
   assert(b && typeof b.onclick === 'function', 'Nút quay lại chưa gắn hành vi');
   b.onclick();
-  assert(dich && dich.fn === c.scrTTNB && dich.replace, 'Quay lại phải về danh sách TTNB');
+  assert(dich && dich.fn === c.scrTTNB && dich.replace === (nac > 1), 'Quay lại phải về danh sách TTNB');
   assert.strictEqual(JSON.stringify(c.ttnbLoc), loc, 'Không được mất bộ lọc');
 }
 (async () => {
   await kiem(false, 'vgbBack');
   await kiem(false, 'ttnbVeDanhSach');
   await kiem(true, 'vgbBack');
-  console.log('TTNB #317: 3 ca quay lại đạt');
+  await kiem(false, 'ttnbVeDanhSach', 1);
+  console.log('TTNB #317: 4 ca quay lại đạt');
 })().catch(e => {console.error(e); process.exitCode = 1;});

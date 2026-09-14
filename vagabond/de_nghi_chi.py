@@ -1235,7 +1235,7 @@ def ds_man(chip="tat_ca", so_ngay=30, tim="", so_dong=100, nguoi_lap=""):
 		hoac = [["name", "like", "%" + tim + "%"], ["ten_khoan_chi", "like", "%" + tim + "%"]]
 
 	nguoi = frappe.get_all(DT, filters=goc, fields=["nguoi_tao"], distinct=True, limit_page_length=0)
-	if nguoi_lap and (_vai() & (VAI_KE_TOAN | VAI_GIAM_DOC)):
+	if nguoi_lap and (_vai() & (VAI_DUYET | VAI_KE_TOAN | VAI_GIAM_DOC)):
 		goc["nguoi_tao"] = nguoi_lap
 	loc = dict(goc)
 	tt = trang_thai_theo_chip(chip)
@@ -2052,7 +2052,7 @@ def xuat_excel(chip="tat_ca", so_ngay=30, tim="", nguoi_lap=""):
 	loc = {}
 	if not (_vai() & (VAI_DUYET | VAI_GIAM_DOC | VAI_KE_TOAN)):
 		loc["nguoi_tao"] = frappe.session.user
-	elif nguoi_lap and (_vai() & (VAI_KE_TOAN | VAI_GIAM_DOC)):
+	elif nguoi_lap and (_vai() & (VAI_DUYET | VAI_KE_TOAN | VAI_GIAM_DOC)):
 		loc["nguoi_tao"] = nguoi_lap
 	if cint(so_ngay) > 0:
 		loc["creation"] = [">=", frappe.utils.add_days(nowdate(), -cint(so_ngay))]

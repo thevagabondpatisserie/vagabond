@@ -1750,7 +1750,7 @@ function ttnbGanNutVe() {
      sách TTNB. Giữ nguyên ttnbLoc để không mất chip, ngày và ô tìm. */
   ['vgbBack', 'ttnbVeDanhSach'].forEach(function (id) {
     var nut = document.getElementById(id);
-    if (nut) nut.onclick = function () { go(scrTTNB, true); };
+    if (nut) nut.onclick = function () { go(scrTTNB, S.stack.length > 1); };
   });
 }
 
