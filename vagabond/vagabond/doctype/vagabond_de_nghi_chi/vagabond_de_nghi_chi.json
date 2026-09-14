@@ -60,7 +60,9 @@
   "huy_boi",
   "ten_nguoi_huy",
   "huy_luc",
-  "ly_do_huy"
+  "ly_do_huy",
+  "yeu_cau_phat_sinh",
+  "quy_tac_317"
  ],
  "fields": [
   {
@@ -415,6 +417,21 @@
    "fieldtype": "Small Text",
    "label": "Ly do huy",
    "read_only": 1
+  },
+  {
+   "fieldname": "yeu_cau_phat_sinh",
+   "label": "Yêu cầu mua hàng phát sinh",
+   "fieldtype": "Link",
+   "options": "RnD Purchase Request",
+   "depends_on": "eval:doc.loai_nghiep_vu == 'Tạm ứng' || doc.loai_nghiep_vu == 'Hoàn ứng'"
+  },
+  {
+   "fieldname": "quy_tac_317",
+   "label": "Áp quy tắc mua phát sinh",
+   "fieldtype": "Check",
+   "read_only": 1,
+   "hidden": 1,
+   "default": "0"
   }
  ],
  "index_web_pages_for_search": 1,

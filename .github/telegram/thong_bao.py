@@ -143,6 +143,29 @@ class Telegram:
 
 
 
+def ban_can_duyet(c):
+    """Chỉ gửi phần phương án chủ repo soạn riêng, không sao chép log/comment."""
+    body = c.get('body') or ''
+    if (c.get('user', {}).get('login') != REPO.split('/')[0]
+            or c.get('author_association') != 'OWNER'
+            or not body.splitlines() or body.splitlines()[0].strip() != '[CẦN DUYỆT]'):
+        return None
+    blocks = re.findall(r'<!-- telegram-approval\s*([\s\S]*?)-->', body)
+    if len(blocks) != 1 or len(blocks[0]) > 2500:
+        return None
+    try:
+        x = json.loads(blocks[0])
+    except (ValueError, TypeError):
+        return None
+    keys = ('van_de', 'de_xuat', 'anh_huong', 'cau_hoi')
+    if not isinstance(x, dict) or set(x) != set(keys):
+        return None
+    if any(not isinstance(x[k], str) or not x[k].strip() or len(x[k]) > 500 or any(ord(ch) < 32 for ch in x[k]) for k in keys):
+        return None
+    return '\n'.join(label + ': ' + x[k].strip() for k, label in zip(keys,
+        ('Việc cần quyết', 'Em đề xuất', 'Ảnh hưởng', 'Anh duyệt giúp')))
+
+
 def ban_phat_hanh(c):
     """Chỉ chuyển bản tin được chủ repo soạn riêng cho Telegram sau kiểm live.
 
@@ -214,6 +237,11 @@ def thu_thap(gh, state):
                    '[SẴN SÀNG DEPLOY]': 'Đề nghị phát hành', '[ĐÃ DEPLOY]': 'Báo cáo phát hành'}
             nhom = muc.get(dau[0].strip() if dau else '', loai)
             text = f"Vagabond | {nhom}{nhan}\nTừ: {rut(c['user']['login'], 60)}\n{link}"
+            tom_tat = ban_can_duyet(c)
+            if tom_tat:
+                text += '\n' + tom_tat + '\nTrả lời trong Codex; bot Telegram chưa nhận lệnh duyệt.'
+            elif dau and dau[0].strip() == '[CẦN DUYỆT]' and 'telegram-approval' in (c.get('body') or ''):
+                text += '\nKhối phương án chưa hợp lệ hoặc chưa đúng người đăng; chưa gửi nội dung cần duyệt.'
             if (dau and dau[0].strip() == '[ĐÃ DEPLOY]'
                     and '<!-- telegram-release' in (c.get('body') or '')):
                 text += '\nKhối bản tin chưa hợp lệ hoặc chưa đúng người đăng; chưa gửi tóm tắt tính năng.'

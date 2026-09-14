@@ -219,6 +219,7 @@ def trang_thai_theo_chip(chip):
 # Một phiếu 50 nghìn tiền đá và một phiếu 50 triệu mua máy không nên đi cùng
 # một đường.
 NGUONG_GIAM_DOC = 2000000.0
+NGUONG_MUA_VAT = 500000.0
 
 
 # ============================================================ phép THUẦN
@@ -241,9 +242,9 @@ def can_giam_doc_duyet(so_tien, nguong=NGUONG_GIAM_DOC):
 	return flt(so_tien) >= flt(nguong)
 
 
-def buoc_ke_tiep(so_tien, nguong=NGUONG_GIAM_DOC):
+def buoc_ke_tiep(so_tien, loai_nghiep_vu=None, nguong=NGUONG_GIAM_DOC):
 	"""Duyệt xong ở bước mua hàng thì rơi vào đâu. THUẦN."""
-	return TT_CHO_GIAM_DOC if can_giam_doc_duyet(so_tien, nguong) else TT_CHO_KE_TOAN
+	return TT_CHO_GIAM_DOC if (loai_nghiep_vu or "").strip() == "Tạm ứng" and can_giam_doc_duyet(so_tien, nguong) else TT_CHO_KE_TOAN
 
 
 def tien_phieu(phieu):
@@ -484,6 +485,30 @@ def co_hoa_don_vat(phieu):
 	return False
 
 
+def ly_do_chan_vat(phieu):
+	"""#317: một chứng từ một phiếu, tổng từ bảng kê, không tin tổng gửi lên."""
+	p = phieu or {}
+	nv = (p.get("loai_nghiep_vu") or "").strip()
+	tien = tien_phieu(p)
+	if la_tam_ung(nv):
+		if tien > NGUONG_MUA_VAT and not p.get("_ycps_hop_le"):
+			return "Tạm ứng trên 500.000 phải chọn Yêu cầu mua hàng phát sinh (YCPS) hợp lệ."
+		return None
+	if nv not in (NV_CHI_PHI, NV_HOAN_UNG):
+		return None
+	if tien > NGUONG_MUA_VAT and not (nv == NV_HOAN_UNG and (p.get("_ycps_ke_thua") or p.get("_hoan_ung_cu"))):
+		return "Hoá đơn trên 500.000 không đi thanh toán nội bộ. Lập Yêu cầu mua hàng phát sinh (YCPS) rồi thanh toán qua phiếu chi APP."
+	dong = cac_dong(p)
+	# Cùng số nhưng khác người bán/ngày vẫn là hai chứng từ khác nhau.
+	chung_tu = {(str(d.get("so_hoa_don") or "").strip(),
+		str(d.get("mst") or "").strip(), str(d.get("ngay_hoa_don") or "")[:10]) for d in dong}
+	if len(chung_tu) > 1:
+		return "Mỗi hoá đơn một phiếu, tách phiếu ra."
+	if not co_hoa_don_vat(p) and (p.get("_so_tep_phieu") or 0) < 1:
+		return "Mỗi phiếu không hoá đơn VAT phải đính kèm biên nhận (có thể gồm nhiều ảnh của cùng một biên nhận). Mỗi hoá đơn một phiếu, tách phiếu ra."
+	return None
+
+
 def ly_do_chan(phieu):
 	"""Phiếu này có bị chặn thẳng không, và vì sao. THUẦN.
 
@@ -491,6 +516,10 @@ def ly_do_chan(phieu):
 	đi đường khác. Trả về câu giải thích, hoặc None nếu không chặn.
 	"""
 	p = phieu or {}
+	if p.get("_ap_quy_tac_317"):
+		chan = ly_do_chan_vat(p)
+		if chan:
+			return chan
 	# Soi TỪNG DÒNG, không soi trường phan_loai trên phiếu cha nữa. Một phiếu
 	# mười dòng mà dòng thứ bảy là cái máy đánh trứng thì vẫn phải chặn, chứ
 	# không phải chỉ chặn khi cả phiếu là tài sản cố định.
@@ -794,6 +823,86 @@ def trung_hoa_don(doc):
 	return ra
 
 
+def _doc_ycps_317(ma):
+	"""Thiếu DocType/phiếu trả None; không che module hỏng của phiếu còn tồn tại."""
+	if not ma or not frappe.db.exists("DocType", "RnD Purchase Request"):
+		return None
+	try:
+		if not frappe.db.exists("RnD Purchase Request", ma):
+			return None
+		return frappe.get_doc("RnD Purchase Request", ma)
+	except frappe.DoesNotExistError:
+		return None
+
+
+def _trang_thai_ycps_317(ma):
+	"""Đọc nhẹ cho danh sách tạm ứng, không nạp controller và bảng con."""
+	if not ma or not frappe.db.exists("DocType", "RnD Purchase Request"):
+		return None
+	try:
+		return frappe.db.get_value("RnD Purchase Request", ma,
+			["trang_thai", "docstatus"], as_dict=True)
+	except frappe.DoesNotExistError:
+		return None
+
+
+def _ycps_hop_le_317(yc):
+	return bool(yc and yc.get("docstatus") != 2 and yc.get("trang_thai") not in ("Huỷ", "Hủy"))
+
+
+def _phieu_kiem_317(doc, gui=False):
+	"""Context từ DB, không nhận cờ miễn trần/phiếu cũ từ máy khách."""
+	p = _kem_dm(doc)
+	cu = None if doc.is_new() else frappe.db.get_value(DT, doc.name,
+		["quy_tac_317", "trang_thai"], as_dict=True)
+	ap = doc.is_new() or gui or bool((cu or {}).get("quy_tac_317"))
+	if cu and cu.get("trang_thai") in (TT_NHAP, TT_TRA_LAI) and doc.trang_thai != cu.get("trang_thai"):
+		ap = True
+	p["_ycps_hop_le"] = False
+	p["_ycps_ke_thua"] = False
+	p["_hoan_ung_cu"] = False
+	p["_ap_quy_tac_317"] = ap
+	doc.quy_tac_317 = 1 if ap else 0
+	if not ap:
+		return p
+	ma = str(doc.get("yeu_cau_phat_sinh") or "").strip()
+	if doc.get("loai_nghiep_vu") == NV_HOAN_UNG:
+		tu = frappe.db.get_value(DT, doc.get("thuoc_tam_ung"),
+			["nguoi_tao", "loai_nghiep_vu", "trang_thai", "yeu_cau_phat_sinh", "quy_tac_317"], as_dict=True) or {}
+		ma = tu.get("yeu_cau_phat_sinh") if (tu.get("nguoi_tao") == doc.nguoi_tao
+			and la_tam_ung(tu.get("loai_nghiep_vu")) and tu.get("trang_thai") == TT_DA_CHI) else None
+		p["_hoan_ung_cu"] = bool(tu and tu.get("nguoi_tao") == doc.nguoi_tao
+			and la_tam_ung(tu.get("loai_nghiep_vu")) and tu.get("trang_thai") == TT_DA_CHI
+			and not tu.get("yeu_cau_phat_sinh")
+			and (not tu.get("quy_tac_317") or tien_phieu(frappe.get_doc(DT, doc.get("thuoc_tam_ung"))) <= NGUONG_MUA_VAT))
+		if ma and not _ycps_hop_le_317(_doc_ycps_317(ma)):
+			ma = str(doc.get("yeu_cau_phat_sinh") or "").strip() or None
+		doc.yeu_cau_phat_sinh = ma
+	elif not la_tam_ung(doc.get("loai_nghiep_vu")):
+		ma = None
+		doc.yeu_cau_phat_sinh = None
+	if ma:
+		yc = _doc_ycps_317(ma)
+		if yc and yc.owner != doc.nguoi_tao and yc.get("nguoi_yeu_cau") != doc.nguoi_tao and not frappe.has_permission("RnD Purchase Request", "read", doc=yc, user=doc.nguoi_tao):
+			frappe.throw("Chỉ được chọn YCPS của mình hoặc YCPS đã được cấp quyền đọc.", frappe.PermissionError)
+		p["_ycps_hop_le"] = _ycps_hop_le_317(yc)
+		p["_ycps_ke_thua"] = bool(p["_ycps_hop_le"] and doc.get("loai_nghiep_vu") == NV_HOAN_UNG)
+	tep = set()
+	for d in cac_dong(doc):
+		tep.update(tep_dinh_kem.doc_ds(d.get("tep")))
+	if not doc.is_new():
+		tep.update(frappe.get_all("File", filters={"attached_to_doctype": DT,
+			"attached_to_name": doc.name}, pluck="file_url", limit_page_length=0))
+	for url in tep:
+		f = frappe.db.get_value("File", {"file_url": url}, ["name", "owner", "attached_to_doctype", "attached_to_name"], as_dict=True)
+		if not f or (f.attached_to_name and (f.attached_to_name != doc.name or f.attached_to_doctype != DT)):
+			frappe.throw("Biên nhận không tồn tại hoặc thuộc chứng từ khác. Chọn lại tệp.")
+		if not f.attached_to_name and f.owner != frappe.session.user and "System Manager" not in _vai():
+			frappe.throw("Chỉ người tải biên nhận được dùng tệp này.")
+	p["_so_tep_phieu"] = len(tep)
+	return p
+
+
 def truoc_khi_luu(doc, method=None):
 	"""Điền hộ những gì điền được, và chặn những gì phải chặn. Gọi từ before_validate."""
 	if not doc.get("nguoi_tao"):
@@ -801,7 +910,7 @@ def truoc_khi_luu(doc, method=None):
 	if not doc.get("trang_thai"):
 		doc.trang_thai = TT_NHAP
 
-	chan = ly_do_chan(_kem_dm(doc))
+	chan = ly_do_chan(_phieu_kiem_317(doc))
 	if chan:
 		frappe.throw(chan)
 
@@ -901,7 +1010,10 @@ def gui_duyet(ma_phieu):
 	# Vẫn chấp nhận tệp đính ở cấp PHIẾU cho phiếu lập trước ngày đó và cho
 	# phiếu đính thêm trên Desk: dòng nào tự có tệp thì tính tệp của nó,
 	# dòng nào không có thì mượn cờ chung của phiếu.
-	d_dict = _kem_dm(doc)
+	d_dict = _phieu_kiem_317(doc, gui=True)
+	chan = ly_do_chan(d_dict)
+	if chan:
+		frappe.throw(chan)
 	co_tep_phieu = bool(_so_tep(ma_phieu))
 	for d in d_dict.get("cac_khoan") or []:
 		rieng = tep_dinh_kem.doc_ds(d.get("tep"))
@@ -950,18 +1062,23 @@ def duyet(ma_phieu, ghi_chu=None):
 	if not duoc:
 		frappe.throw(vi_sao)
 
+	ngoai_le = _phieu_kiem_317(doc).get("_hoan_ung_cu") if doc.trang_thai == TT_CHO_KE_TOAN else False
+	if ngoai_le and not (ghi_chu or "").strip():
+		frappe.throw("Hoàn ứng thiếu YCPS: kế toán kiểm chứng từ và nhập lý do chấp nhận ngoại lệ.")
 	nguoi, luc = frappe.session.user, now_datetime()
 
 	if doc.trang_thai == TT_CHO_DUYET:
 		# Uyên chi tiền thật ở bước này, nên uỷ nhiệm chi phải có trước khi
 		# chuyển sang kế toán. Đếm tệp lần hai chứ không tin lần đếm lúc gửi:
 		# giữa hai lần đó phiếu đã đi qua tay người khác.
-		if cint(doc.get("phuong_thuc") == PT_CHUYEN_KHOAN) and _so_tep(ma_phieu) < 2:
+		if ((doc.get("hinh_thuc") or "") == HT_NCC
+				and (doc.get("phuong_thuc") or "") == PT_CHUYEN_KHOAN
+				and _so_tep(ma_phieu) < 2):
 			frappe.throw(
 				"Chuyển sang kế toán thì phải có uỷ nhiệm chi hoặc biên lai chuyển khoản đính kèm. Vui lòng đính thêm rồi bấm lại."
 			)
 		doc.duyet_boi, doc.duyet_luc = nguoi, luc
-		doc.trang_thai = buoc_ke_tiep(tien_phieu(doc))
+		doc.trang_thai = buoc_ke_tiep(tien_phieu(doc), doc.get("loai_nghiep_vu"))
 	elif doc.trang_thai == TT_CHO_GIAM_DOC:
 		doc.gd_boi, doc.gd_luc = nguoi, luc
 		doc.trang_thai = TT_CHO_KE_TOAN
@@ -972,6 +1089,12 @@ def duyet(ma_phieu, ghi_chu=None):
 	if (ghi_chu or "").strip():
 		doc.ghi_chu = ((doc.ghi_chu or "") + "\n" + ghi_chu).strip()
 	doc.save(ignore_permissions=True)
+	if doc.trang_thai == TT_HOAN_TAT and doc.get("loai_nghiep_vu") == NV_HOAN_UNG and doc.get("yeu_cau_phat_sinh"):
+		goc = frappe.db.get_value(DT, doc.get("thuoc_tam_ung"), "yeu_cau_phat_sinh")
+		if goc and goc != doc.yeu_cau_phat_sinh:
+			doc.add_comment("Info", "YCPS nguồn %s không còn hợp lệ; hoàn ứng dùng YCPS thay thế %s, đã kiểm quyền người lập." % (goc, doc.yeu_cau_phat_sinh))
+	if ngoai_le:
+		doc.add_comment("Info", "Kế toán đã kiểm chứng từ hoàn ứng tạm ứng %s thiếu YCPS. Lý do: %s" % (doc.thuoc_tam_ung, ghi_chu.strip()))
 	_bao_buoc_ke_tiep(doc)
 	return {
 		"ok": 1, "trang_thai": doc.trang_thai,
@@ -1127,7 +1250,7 @@ def tra_lai(ma_phieu, ly_do):
 
 
 @frappe.whitelist()
-def ds_man(chip="tat_ca", so_ngay=30, tim="", so_dong=100):
+def ds_man(chip="tat_ca", so_ngay=30, tim="", so_dong=100, nguoi_lap=""):
 	"""Danh sách phiếu cho MÀN DANH SÁCH, kèm số đếm từng chip.
 
 	Anh Việt 20/08/2026: *"Bất kỳ phân hệ nào có nút Tạo phiếu thì bắt buộc
@@ -1155,6 +1278,9 @@ def ds_man(chip="tat_ca", so_ngay=30, tim="", so_dong=100):
 	if tim:
 		hoac = [["name", "like", "%" + tim + "%"], ["ten_khoan_chi", "like", "%" + tim + "%"]]
 
+	nguoi = frappe.get_all(DT, filters=goc, fields=["nguoi_tao"], distinct=True, limit_page_length=0)
+	if nguoi_lap and (_vai() & (VAI_DUYET | VAI_KE_TOAN | VAI_GIAM_DOC)):
+		goc["nguoi_tao"] = nguoi_lap
 	loc = dict(goc)
 	tt = trang_thai_theo_chip(chip)
 	if tt:
@@ -1170,6 +1296,8 @@ def ds_man(chip="tat_ca", so_ngay=30, tim="", so_dong=100):
 		order_by="creation desc",
 		limit_page_length=max(1, min(500, cint(so_dong) or 100)),
 	)
+	ten_nguoi = {u.name: u.full_name for u in frappe.get_all("User", filters={"name": ["in", list({d.get("nguoi_tao") for d in nguoi if d.get("nguoi_tao")}) or [""]]}, fields=["name", "full_name"], limit_page_length=0)}
+	tong_loc = sum(tien_phieu(d) for d in frappe.get_all(DT, filters=loc, or_filters=hoac, fields=["tong_tien", "so_tien"], limit_page_length=0))
 	dem_dong = {}
 	if ds:
 		for r in frappe.get_all(
@@ -1179,6 +1307,8 @@ def ds_man(chip="tat_ca", so_ngay=30, tim="", so_dong=100):
 		):
 			dem_dong[r["parent"]] = dem_dong.get(r["parent"], 0) + 1
 	for d in ds:
+		d["ten_nguoi_tao"] = ten_nguoi.get(d.get("nguoi_tao")) or "Chưa có họ tên"
+		d["qua_han"] = bool(d.get("ngay_can_tt") and str(d["ngay_can_tt"])[:10] < nowdate() and d.get("trang_thai") in (TT_CHO_KE_TOAN, TT_HOAN_TAT))
 		d["nhan_trang_thai"] = NHAN_TRANG_THAI.get(d["trang_thai"]) or d["trang_thai"]
 		d["tien"] = tien_phieu(d)
 		d["so_khoan"] = dem_dong.get(d["name"], 0)
@@ -1197,6 +1327,7 @@ def ds_man(chip="tat_ca", so_ngay=30, tim="", so_dong=100):
 		))
 	return {
 		"ds": ds, "dem": dem, "chip": chip, "so_ngay": sn, "tim": tim,
+		"tong_loc": tong_loc, "nguoi_lap": [{"value": k, "label": v or "Chưa có họ tên"} for k, v in ten_nguoi.items()],
 		"chip_trang_thai": [{"k": k, "ten": t} for k, t, _n in CHIP_TRANG_THAI],
 		"chip_thoi_gian": [{"k": k, "ten": t} for k, t in CHIP_THOI_GIAN],
 		"duoc_duyet": 1 if (_vai() & (VAI_DUYET | VAI_GIAM_DOC | VAI_KE_TOAN)) else 0,
@@ -1232,6 +1363,9 @@ def danh_sach(trang_thai="", so_dong=100):
 	)
 	# Số dòng và tiêu đề rút gọn: danh sách phải nói được "phiếu này có mấy
 	# khoản" mà không phải mở từng phiếu ra.
+	ten_nguoi = {u.name: u.full_name for u in frappe.get_all("User",
+		filters={"name": ["in", list({d.get("nguoi_tao") for d in ds if d.get("nguoi_tao")}) or [""]]},
+		fields=["name", "full_name"], limit_page_length=0)}
 	dem, dau = {}, {}
 	if ds:
 		for r in frappe.get_all(
@@ -1244,10 +1378,13 @@ def danh_sach(trang_thai="", so_dong=100):
 			dem[r["parent"]] = dem.get(r["parent"], 0) + 1
 			dau.setdefault(r["parent"], r.get("noi_dung") or "")
 	for d in ds:
+		d["ten_nguoi_tao"] = ten_nguoi.get(d.get("nguoi_tao")) or "Chưa có họ tên"
+		d["qua_han"] = bool(d.get("ngay_can_tt") and str(d.get("ngay_can_tt"))[:10] < nowdate()
+			and d.get("trang_thai") in (TT_CHO_KE_TOAN, TT_HOAN_TAT))
 		d["nhan_trang_thai"] = NHAN_TRANG_THAI.get(d["trang_thai"]) or d["trang_thai"]
 		d["so_khoan"] = dem.get(d["name"], 0)
 		d["tien"] = tien_phieu(d)
-		d["can_giam_doc"] = 1 if can_giam_doc_duyet(d["tien"]) else 0
+		d["can_giam_doc"] = 1 if buoc_ke_tiep(d["tien"], d.get("loai_nghiep_vu")) == TT_CHO_GIAM_DOC else 0
 		# Tiêu đề: phiếu mới lấy nội dung khoản đầu, phiếu cũ lấy trường cũ.
 		d["tieu_de"] = dau.get(d["name"]) or d.get("ten_khoan_chi") or "(chưa đặt tên)"
 		if d["so_khoan"] > 1:
@@ -1314,7 +1451,7 @@ def tao(du_lieu=None, gui_luon=0):
 	for f in (
 		"loai_nghiep_vu", "dien_giai", "hinh_thuc", "nha_cung_cap",
 		"phuong_thuc", "ten_tk", "so_tk", "ngan_hang", "thuoc_tam_ung",
-		"ghi_chu",
+		"ghi_chu", "yeu_cau_phat_sinh",
 	):
 		v = d.get(f)
 		doc.set(f, (str(v).strip() if isinstance(v, str) else v) or None)
@@ -1455,9 +1592,9 @@ def tam_ung_cua_toi(nguoi=None):
 		filters={
 			"loai_nghiep_vu": NV_TAM_UNG,
 			"nguoi_tao": nguoi,
-			"trang_thai": TT_HOAN_TAT,
+			"trang_thai": TT_DA_CHI,
 		},
-		fields=["name", "ten_khoan_chi", "tong_tien", "so_tien", "creation", "ngay_can_tt"],
+		fields=["name", "ten_khoan_chi", "tong_tien", "so_tien", "creation", "ngay_can_tt", "yeu_cau_phat_sinh"],
 		order_by="creation desc",
 		limit_page_length=0,
 	):
@@ -1468,6 +1605,7 @@ def tam_ung_cua_toi(nguoi=None):
 			"ma": r["name"],
 			"ten": r.get("ten_khoan_chi") or "",
 			"ngay": str(r.get("creation") or "")[:10],
+			"ycps_can_thay": bool(r.get("yeu_cau_phat_sinh") and not _ycps_hop_le_317(_trang_thai_ycps_317(r.get("yeu_cau_phat_sinh")))),
 			"da_ung": ung,
 			"da_hoan_ung": hoan,
 			"con_no": con,
@@ -1505,6 +1643,7 @@ def chi_tiet(ma_phieu=None):
 	# Tính lại ở máy chủ chứ không trả trường đã lưu: nếu vì lý do gì đó
 	# trường `tong_tien` lệch với bảng kê thì màn hình phải thấy số ĐÚNG.
 	ra["tien"] = tien_phieu(ra)
+	ra["hoan_ung_cu"] = 1 if _phieu_kiem_317(doc).get("_hoan_ung_cu") else 0
 	ra["can_giam_doc"] = 1 if can_giam_doc_duyet(ra["tien"]) else 0
 	ra["so_tep"] = _so_tep(ma_phieu)
 	# Nút Duyệt chỉ vẽ khi MÁY CHỦ nói người đang xem duyệt được ở BƯỚC HIỆN
@@ -1525,7 +1664,7 @@ def chi_tiet(ma_phieu=None):
 	# co giao dich nao gan vao. Tinh o may chu chu khong de man tu suy, y het
 	# nep cua man Phieu hoan tien.
 	ra["khop_duoc"] = 1 if (
-		doc.trang_thai in (TT_CHO_KE_TOAN, TT_HOAN_TAT) and not (doc.get("ma_gd") or "").strip()
+		doc.trang_thai == TT_HOAN_TAT and not (doc.get("ma_gd") or "").strip()
 	) else 0
 	ra["tep"] = [
 		{
@@ -1718,6 +1857,12 @@ def _gd_da_chiem_ttnb(tru_phieu=None):
 	return ra
 
 
+def _loi_phieu_chua_duyet(doc):
+	if doc.get("trang_thai") != TT_HOAN_TAT:
+		return "Kế toán chưa duyệt phiếu. Kiểm chứng từ và duyệt trước khi đối soát tiền ra."
+	return None
+
+
 def _phieu_cho_chi():
 	"""Các phiếu đã duyệt xong, đang chờ tiền ra.
 
@@ -1727,7 +1872,7 @@ def _phieu_cho_chi():
 	"""
 	return frappe.get_all(
 		DT,
-		filters={"trang_thai": ["in", [TT_CHO_KE_TOAN, TT_HOAN_TAT]]},
+		filters={"trang_thai": TT_HOAN_TAT},
 		fields=["name", "tong_tien", "so_tien", "trang_thai"],
 		limit_page_length=0,
 	)
@@ -1786,11 +1931,12 @@ def _khai_doi_soat():
 		chieu=dss.RA,
 		ma_do=lambda d: d.name,
 		so_tien=lambda d: flt(d.get("tong_tien")) or flt(d.get("so_tien")),
-		dang_cho={"trang_thai": ["in", [TT_CHO_KE_TOAN, TT_HOAN_TAT]]},
+		dang_cho={"trang_thai": TT_HOAN_TAT},
 		khi_khop=_khi_khop_ttnb,
 		ten_man="Thanh toán nội bộ",
 		loc_chiem={"trang_thai": ["!=", TT_TRA_LAI]},
 		loi_giao_dich=_loi_nguon_chi_ttnb,
+		loi_phieu=_loi_phieu_chua_duyet,
 	)
 
 
@@ -1827,7 +1973,7 @@ def khop_tay(phieu=None, gd=None):
 			"Phiếu %s đã ở trạng thái Đã chi với giao dịch %s rồi. Khớp lại là "
 			"ghi hai lần cho một lần tiền ra." % (phieu, d.get("ma_gd") or "(không rõ)")
 		)
-	if d.trang_thai not in (TT_CHO_KE_TOAN, TT_HOAN_TAT):
+	if d.trang_thai != TT_HOAN_TAT:
 		frappe.throw(
 			"Phiếu %s đang ở trạng thái %s, chưa qua hết chuỗi duyệt nên chưa "
 			"khớp lệnh chi được." % (phieu, d.trang_thai)
@@ -1953,3 +2099,49 @@ def khi_co_giao_dich(ma_bt):
 			return
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "de_nghi_chi: khop ngay sau webhook loi")
+
+
+@frappe.whitelist()
+def xuat_excel(chip="tat_ca", so_ngay=30, tim="", nguoi_lap=""):
+	"""Xuất đúng phạm vi người dùng được xem, mọi dòng của bộ lọc."""
+	import base64
+	from frappe.utils.xlsxutils import make_xlsx
+	from vagabond.ban_hang import _kiem_quyen
+	_kiem_quyen()
+	loc = {}
+	if not (_vai() & (VAI_DUYET | VAI_GIAM_DOC | VAI_KE_TOAN)):
+		loc["nguoi_tao"] = frappe.session.user
+	elif nguoi_lap and (_vai() & (VAI_DUYET | VAI_KE_TOAN | VAI_GIAM_DOC)):
+		loc["nguoi_tao"] = nguoi_lap
+	if cint(so_ngay) > 0:
+		loc["creation"] = [">=", frappe.utils.add_days(nowdate(), -cint(so_ngay))]
+	if trang_thai_theo_chip(chip):
+		loc["trang_thai"] = ["in", trang_thai_theo_chip(chip)]
+	hoac = [["name", "like", "%" + tim + "%"], ["ten_khoan_chi", "like", "%" + tim + "%"]] if tim else None
+	ten = frappe.get_all(DT, filters=loc, or_filters=hoac, pluck="name", order_by="creation desc", limit_page_length=0)
+	bang = [["Mã phiếu", "Ngày lập", "Người lập", "Loại nghiệp vụ", "Phân loại", "Tên khoản chi", "Số hoá đơn", "Ngày hoá đơn", "MST người bán", "Hoá đơn VAT", "Tiền khoản", "Tổng phiếu", "Trạng thái", "Người duyệt", "Ngày duyệt", "Mã giao dịch", "Ngày đã chi", "Mã tạm ứng", "Mã YCPS"]]
+	for ma in ten:
+		d = frappe.get_doc(DT, ma)
+		for i, k in enumerate(cac_dong(d) or [{}]):
+			bang.append([d.name, str(d.creation), frappe.get_cached_value("User", d.nguoi_tao, "full_name") or "", d.loai_nghiep_vu, k.get("phan_loai"), k.get("noi_dung") or d.ten_khoan_chi, k.get("so_hoa_don"), str(k.get("ngay_hoa_don") or ""), k.get("mst"), "Có" if k.get("so_hoa_don") else "Không", flt(k.get("so_tien")), tien_phieu(d) if i == 0 else None, NHAN_TRANG_THAI.get(d.trang_thai), d.get("duyet_boi") or "", str(d.get("duyet_luc") or ""), d.ma_gd, str(d.ngay_da_chi or ""), d.thuoc_tam_ung, d.yeu_cau_phat_sinh])
+	# Nội dung do người dùng nhập phải là chữ, không thành công thức Excel.
+	bang = [[("\'" + v if isinstance(v, str) and v.lstrip().startswith(("=", "+", "-", "@")) else v) for v in row] for row in bang]
+	tep = make_xlsx(bang, "Thanh toan noi bo")
+	return {"ten_file": "thanh-toan-noi-bo-%s.xlsx" % nowdate(), "b64": base64.b64encode(tep.getvalue()).decode()}
+
+
+@frappe.whitelist()
+def ycps_cua_toi():
+	"""Chỉ trả mã/mục đích YCPS liên quan, không mở quyền toàn DocType."""
+	if frappe.session.user == "Guest":
+		frappe.throw("Cần đăng nhập để chọn YCPS.", frappe.PermissionError)
+	if not frappe.db.exists("DocType", "RnD Purchase Request"):
+		frappe.throw("Chưa có phân hệ YCPS. Nhờ quản trị kiểm cấu hình yêu cầu mua hàng.")
+	duoc_chia = frappe.get_all("DocShare", filters={"share_doctype": "RnD Purchase Request",
+		"user": frappe.session.user, "read": 1}, pluck="share_name", limit_page_length=0)
+	lien_quan = {"owner": frappe.session.user, "name": ["in", duoc_chia]}
+	if frappe.get_meta("RnD Purchase Request").has_field("nguoi_yeu_cau"):
+		lien_quan["nguoi_yeu_cau"] = frappe.session.user
+	return {"ds": frappe.get_all("RnD Purchase Request", filters={
+		"trang_thai": ["not in", ["Huỷ", "Hủy"]], "docstatus": ["!=", 2]}, or_filters=lien_quan,
+		fields=["name", "muc_dich"], limit_page_length=0)}

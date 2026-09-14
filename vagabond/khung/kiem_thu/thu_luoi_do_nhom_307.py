@@ -123,7 +123,7 @@ def _bao_cao():
 	dung("cột có tồn và nhóm", {c["fieldname"] for c in bc.COT} >= {"item_code", "item_group", "ton", "brand"})
 
 
-@ca("#307 lưới đỡ: patch có trong patches.txt và trước dòng dong_bo_cau_truc v492")
+@ca("#307 lưới đỡ: patch có trong patches.txt và trước dòng dong_bo_cau_truc v493")
 def _patch():
 	import io
 	import os
@@ -131,8 +131,8 @@ def _patch():
 	with io.open(os.path.join(goc, "patches.txt"), encoding="utf-8") as f:
 		s = f.read()
 	dung("có dòng patch", "vagabond.patches.luoi_do_nhom_307" in s)
-	dung("đứng trước dong_bo_cau_truc #v492",
-		s.index("vagabond.patches.luoi_do_nhom_307") < s.index("dong_bo_cau_truc #v492"))
+	dung("đứng trước dong_bo_cau_truc #v493",
+		s.index("vagabond.patches.luoi_do_nhom_307") < s.index("dong_bo_cau_truc #v493"))
 	with io.open(os.path.join(goc, "truong_tu_them.py"), encoding="utf-8") as f:
 		t = f.read()
 	dung("ô gương được dựng sau kho_san_xuat",

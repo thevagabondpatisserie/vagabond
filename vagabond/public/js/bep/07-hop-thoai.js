@@ -393,7 +393,7 @@ function rndLineSheet(line, mode) {
 
 /* ---- 15a. Danh sach phieu ---- */
 async function scrRndList() {
-  frame('Mua hàng test', '<div class="emp"><div class="e1">⏳</div></div>');
+  frame('Mua hàng phát sinh', '<div class="emp"><div class="e1">⏳</div></div>');
   await loadMasters();
   var docs = [];
   try {
@@ -415,12 +415,12 @@ async function scrRndList() {
       (rndTre(d) ? '<span class="st r" style="margin-right:5px">Trễ hạn</span>' : '') +
       '<span class="st ' + s.c + '">' + h(s.t) + '</span></div>';
   }
-  var body = '<div class="rcvh">Phiếu này dành cho <b>hàng mua về test</b>: không tạo mã, không theo dõi tồn kho. Ghi rõ tên hàng, số lượng, link tham khảo và ảnh chụp màn hình để bạn thu mua khỏi phải hỏi lại. Mua xong bấm <b>Hoàn thành phiếu</b>.</div>';
+  var body = '<div class="rcvh">Phiếu này dành cho <b>hàng ngoài danh mục hoặc trên 500.000 một hoá đơn</b>: không tạo mã, không theo dõi tồn kho. Ghi rõ tên hàng, số lượng, link tham khảo và ảnh chụp màn hình để bạn thu mua khỏi phải hỏi lại. Mua xong bấm <b>Hoàn thành phiếu</b>.</div>';
   if (dang.length) body += '<div class="sec">Đang chờ mua</div><div class="lst">' + dang.map(row).join('') + '</div>';
   if (xong.length) body += '<div class="sec">Đã hoàn thành</div><div class="lst">' + xong.map(row).join('') + '</div>';
   if (huy.length) body += '<div class="sec">Đã huỷ</div><div class="lst">' + huy.map(row).join('') + '</div>';
-  if (!docs.length) body += '<div class="emp"><div class="e1">🧪</div><div class="e2">Chưa có phiếu nào.<br>Bấm dấu + để tạo yêu cầu mua hàng test.</div></div>';
-  var b = frame('Mua hàng test', body, { fab: true, onFab: function () { rnd.newf = null; go(scrRndNew); } });
+  if (!docs.length) body += '<div class="emp"><div class="e1">🧪</div><div class="e2">Chưa có phiếu nào.<br>Bấm dấu + để tạo yêu cầu mua hàng phát sinh.</div></div>';
+  var b = frame('Mua hàng phát sinh', body, { fab: true, onFab: function () { rnd.newf = null; go(scrRndNew); } });
   b.onclick = function (e) {
     var r = e.target.closest('[data-p]'); if (!r) return;
     go(function () { scrRndDoc(r.dataset.p); });
@@ -433,7 +433,7 @@ async function scrRndNew() {
   if (!rnd.newf) rnd.newf = { muc_dich: '', ngay_can: '', ghi_chu: '', anh_dinh_kem: '', items: [] };
   var f = rnd.newf;
   function draw() {
-    var body = '<div class="rcvh">Gom tất cả thứ cần mua để test vào <b>một phiếu</b> theo từng đợt, khỏi nhắn lẻ tẻ qua Lark. Hàng này không nhập kho và không tạo mã.</div>' +
+    var body = '<div class="rcvh">Ghi hàng cần mua phát sinh vào <b>một phiếu</b> theo từng đợt, khỏi nhắn lẻ tẻ qua Lark. Hàng này không nhập kho và không tạo mã.</div>' +
       '<div class="card">' +
       '<div class="fld" data-m><div class="fi">🧪</div><div class="ft"><div class="fl">Mục đích / dự án</div><div class="fv' + (f.muc_dich ? '' : ' ph') + '">' + h(f.muc_dich || 'Bắt buộc - vd: Test bánh dứa MD2') + '</div></div><div class="fc">&#8250;</div></div>' +
       '<div class="fld" data-d><div class="fi">📅</div><div class="ft"><div class="fl">Ngày cần hàng</div><div class="fv' + (f.ngay_can ? '' : ' ph') + '">' + h(f.ngay_can ? dmy(f.ngay_can) : 'Chưa chọn') + '</div></div><div class="fc">&#8250;</div></div>' +
@@ -457,7 +457,7 @@ async function scrRndNew() {
       body += '<div class="emp"><div class="e1">🛒</div><div class="e2">Chưa có dòng nào.<br>Bấm nút bên dưới để thêm hàng.<br><span style="font-size:13px;color:#8a90a0">Mỗi dòng có ô dán link tham khảo và ô tải ảnh lên.</span></div></div>';
     }
     body += '<div style="padding:4px 14px 10px"><button class="btn gh" id="rndAdd">+ Thêm hàng cần mua</button></div>';
-    var b = frame('Yêu cầu mua hàng test', body, { footer: '<button class="btn" id="rndSave">Gửi yêu cầu</button>' });
+    var b = frame('Yêu cầu mua hàng phát sinh', body, { footer: '<button class="btn" id="rndSave">Gửi yêu cầu</button>' });
     rndGanAnh(b, 'ph', function () { return rndAnhDs(f.anh_dinh_kem); }, function (ds) { f.anh_dinh_kem = rndAnhChuoi(ds); draw(); });
     b.onclick = function (e) {
       if (e.target.closest('[data-m]')) {
@@ -513,7 +513,7 @@ async function rndCreate() {
 
 /* ---- 15c. Xem va xu ly phieu ---- */
 async function scrRndDoc(name) {
-  frame('Phiếu mua test', '<div class="emp"><div class="e1">⏳</div></div>');
+  frame('Phiếu mua phát sinh', '<div class="emp"><div class="e1">⏳</div></div>');
   await loadMasters();
   var doc = null;
   try { doc = await api('frappe.client.get', { doctype: 'RnD Purchase Request', name: name }); }
@@ -601,7 +601,7 @@ async function scrRndDoc(name) {
       ft = '<button class="btn" id="rndDone">Hoàn thành phiếu' + (chua ? ' (' + chua + ' dòng chưa mua)' : '') + '</button>';
       if (mine) ft += '<button class="btn gh" id="rndCancel" style="margin-top:9px">Huỷ phiếu</button>';
     }
-    var b = frame('Phiếu mua test', body, ft ? { footer: ft } : {});
+    var b = frame('Phiếu mua phát sinh', body, ft ? { footer: ft } : {});
     rndGanAnh(b, 'ph', function () { return rndAnhDs(doc.anh_dinh_kem); }, function (ds) {
       doc.anh_dinh_kem = rndAnhChuoi(ds); save('Đã cập nhật ảnh');
     });
@@ -655,7 +655,7 @@ async function scrRndDoc(name) {
         var d2 = {
           doctype: 'Purchase Invoice', company: COMPANY, supplier: RND_NCC_LE,
           posting_date: today(), set_posting_time: 1, bill_no: doc.name,
-          remarks: 'Mua hàng test theo phiếu ' + doc.name + (doc.muc_dich ? ' - ' + doc.muc_dich : ''),
+          remarks: 'Mua hàng phát sinh theo phiếu ' + doc.name + (doc.muc_dich ? ' - ' + doc.muc_dich : ''),
           items: ds.map(function (x) {
             return {
               item_code: x.can_hoa_don ? 'CP-MUANHO-HD' : 'CP-MUANHO-KHD',

@@ -379,3 +379,43 @@ class PhatHanh(unittest.TestCase):
         self.kho.trang = lambda path, khoa=None: [c] if path.startswith('/pulls/comments?') else []
         self.assertEqual(chay(self.kho, self.bot, '1'), 1)
         self.assertNotIn(self.data['features'][0], self.bot.sent[0])
+
+
+class CanDuyet(unittest.TestCase):
+    def test_chi_noi_dung_chu_repo_soan_rieng(self):
+        from thong_bao import ban_can_duyet, REPO
+        c = {'user': {'login': REPO.split('/')[0]}, 'author_association': 'OWNER',
+             'body': '[CẦN DUYỆT]\nKhông chuyển đoạn log này\n<!-- telegram-approval ' + json.dumps({
+                 'van_de': 'Phiếu cũ', 'de_xuat': 'Kế toán kiểm', 'anh_huong': 'Giữ dấu vết',
+                 'cau_hoi': 'Anh duyệt phương án này?'} , ensure_ascii=False) + ' -->'}
+        out = ban_can_duyet(c)
+        self.assertIn('Kế toán kiểm', out)
+        self.assertNotIn('đoạn log', out)
+        c['author_association'] = 'CONTRIBUTOR'
+        self.assertIsNone(ban_can_duyet(c))
+    def test_khoi_sai_khong_gui_noi_dung(self):
+        from thong_bao import ban_can_duyet, REPO
+        for data in ('{}', '[]', '{invalid'):
+            self.assertIsNone(ban_can_duyet({'user': {'login': REPO.split('/')[0]},
+                'author_association': 'OWNER', 'body': '[CẦN DUYỆT]\n<!-- telegram-approval ' + data + ' -->'}))
+
+
+class CanDuyetThuThap(unittest.TestCase):
+    def test_noi_dung_chi_kenh_rieng_va_khoi_sai_co_canh_bao(self):
+        from thong_bao import REPO
+        c = {'id': 99, 'created_at': '2026-09-12T00:01:00Z', 'updated_at': '2026-09-12T00:01:00Z',
+             'html_url': 'https://github.com/thevagabondpatisserie/vagabond/issues/287#issuecomment-99',
+             'user': {'login': REPO.split('/')[0]}, 'author_association': 'OWNER'}
+        kho = Kho()
+        kho.trang = lambda path, *args: [c] if path.startswith('/issues/comments') else []
+        data = dict(van_de='Việc', de_xuat='Đề xuất riêng', anh_huong='Ảnh hưởng', cau_hoi='Anh duyệt?')
+        for val, ok in ((json.dumps(data), True), ('{sai', False),
+                        (json.dumps(dict(data, de_xuat='hai\ndòng')), False)):
+            c['body'] = '[CẦN DUYỆT]\n<!-- telegram-approval ' + val + ' -->'
+            event = next(iter(thu_thap(kho, kho.state).values()))
+            self.assertNotIn('text_nhom', event)
+            if ok:
+                self.assertIn('Đề xuất riêng', event['text'])
+            else:
+                self.assertIn('chưa gửi nội dung cần duyệt', event['text'])
+                self.assertNotIn('hai\ndòng', event['text'])

@@ -278,6 +278,9 @@ vagabond.patches.dong_bo_cau_truc #v490
 
 vagabond.patches.dong_bo_cau_truc #v491
 
+vagabond.patches.ycps_317
+vagabond.patches.dong_bo_cau_truc #v492
+
 vagabond.patches.tai_khoan_btp_307
 vagabond.patches.luoi_do_nhom_307
-vagabond.patches.dong_bo_cau_truc #v492
+vagabond.patches.dong_bo_cau_truc #v493

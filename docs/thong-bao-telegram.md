@@ -202,3 +202,20 @@ nhóm bắt đầu từ mốc kích hoạt, không phát hàng loạt bản tin 
 5. Chạy đối soát để tạo mốc nhóm, rồi bản tin release được duyệt kế tiếp.
    Kiểm receipt từng kênh trước khi nói nhóm đã nhận. Tin ghép thử không chứng
    minh bản tin release thật đã chạy. Chưa có nhóm thì code sẵn, chưa bật nhóm.
+
+## Phương án cần duyệt phải đọc được ngay trên Telegram
+
+Theo anh Việt 14/09/2026, không bắt anh mở GitHub để tìm phương án. Chủ repo
+soạn riêng khối sau trong comment có dòng đầu `[CẦN DUYỆT]`:
+
+```text
+<!-- telegram-approval
+{"van_de":"Việc đang vướng","de_xuat":"Phương án đề xuất","anh_huong":"Ảnh hưởng cần biết","cau_hoi":"Anh duyệt phương án này nhé?"}
+-->
+```
+
+Bot chỉ gửi khối hợp lệ do OWNER là chủ repo đăng, mỗi ô tối đa 500 ký tự và chỉ một dòng (không xuống dòng, tab hay ký tự điều khiển);
+không sao chép phần log/comment bên ngoài. Nội dung này chỉ tới kênh riêng
+của anh. Kèm link nguồn và nhắc trả lời trong Codex: bot Telegram hiện chưa
+nhận lệnh duyệt. Codex tự ghi quyết định của anh lên PR, không hỏi lại.
+Khối sai định dạng hoặc sai người đăng nhận metadata kèm cảnh báo chưa gửi nội dung cần duyệt; không tự đoán.

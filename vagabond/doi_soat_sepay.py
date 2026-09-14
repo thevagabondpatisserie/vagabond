@@ -122,7 +122,7 @@ MO_DUN_KHAI = ("cong_no", "de_nghi_chi", "hoan_tien")
 
 def khai(loai, doctype, chieu, ma_do, so_tien, dang_cho, khi_khop=None,
 		ten_man="", truong_gd="ma_gd", loc_chiem=None,
-		truong_nguoi="", truong_luc="", loi_giao_dich=None):
+		truong_nguoi="", truong_luc="", loi_giao_dich=None, loi_phieu=None):
 	"""Khai một luồng đối soát vào sổ chung.
 
 	  loai       khoa ngan, man hinh goi cua ngo bang khoa nay
@@ -140,7 +140,7 @@ def khai(loai, doctype, chieu, ma_do, so_tien, dang_cho, khi_khop=None,
 		"dang_cho": dang_cho, "khi_khop": khi_khop, "ten_man": ten_man or loai,
 		"truong_gd": truong_gd, "loc_chiem": loc_chiem or {},
 		"truong_nguoi": truong_nguoi, "truong_luc": truong_luc,
-		"loi_giao_dich": loi_giao_dich,
+		"loi_giao_dich": loi_giao_dich, "loi_phieu": loi_phieu,
 	}
 
 
@@ -346,6 +346,8 @@ def tu_dong(loai, ma_phieu=None, so_ngay=45):
 	cho = []
 	for p in phieu:
 		doc = frappe.get_doc(b["doctype"], p["name"])
+		if b.get("loi_phieu") and b["loi_phieu"](doc):
+			continue
 		ma = str(b["ma_do"](doc) or "").strip()
 		if not ma:
 			continue
@@ -455,6 +457,9 @@ def khop_tay(loai, ma_phieu, ma_gd):
 	nap_so()
 	b = _ban(loai)
 	doc = frappe.get_doc(b["doctype"], ma_phieu)
+	loi_phieu = b["loi_phieu"](doc) if b.get("loi_phieu") else None
+	if loi_phieu:
+		frappe.throw(loi_phieu)
 	gd = str(ma_gd or "").strip()
 	if not gd:
 		frappe.throw("Chưa chọn dòng sao kê nào.")

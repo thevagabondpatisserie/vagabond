@@ -1655,8 +1655,8 @@ async function scrHome() {
   if (isRnd()) {
     var rdn = 0;
     try { rdn = (await nenDemDanhSach('RnD Purchase Request', { fields: ['name'], filters: { trang_thai: ['in', ['Mới tạo', 'Đang xử lý']] }, limit_page_length: 0 })).length; } catch (e) { }
-    html += '<div class="sec">Mua hàng test (R&amp;D)</div><div class="card">' +
-      card('🧪', 'Yêu cầu mua hàng test', 'Hàng test không tạo mã, không nhập kho', rdn, 'RND') + '</div>';
+    html += '<div class="sec">Mua hàng phát sinh (R&amp;D)</div><div class="card">' +
+      card('🧪', 'Yêu cầu mua hàng phát sinh', 'Hàng ngoài danh mục hoặc trên 500.000 một hoá đơn', rdn, 'RND') + '</div>';
   }
   var kkn = 0;
   try { kkn = (await nenDemDanhSach('Phieu Kiem Ke', { fields: ['name'], filters: { trang_thai: 'Đang kiểm' }, limit_page_length: 0 })).length; } catch (e) { }
@@ -9738,7 +9738,7 @@ function rndLineSheet(line, mode) {
 
 /* ---- 15a. Danh sach phieu ---- */
 async function scrRndList() {
-  frame('Mua hàng test', '<div class="emp"><div class="e1">⏳</div></div>');
+  frame('Mua hàng phát sinh', '<div class="emp"><div class="e1">⏳</div></div>');
   await loadMasters();
   var docs = [];
   try {
@@ -9760,12 +9760,12 @@ async function scrRndList() {
       (rndTre(d) ? '<span class="st r" style="margin-right:5px">Trễ hạn</span>' : '') +
       '<span class="st ' + s.c + '">' + h(s.t) + '</span></div>';
   }
-  var body = '<div class="rcvh">Phiếu này dành cho <b>hàng mua về test</b>: không tạo mã, không theo dõi tồn kho. Ghi rõ tên hàng, số lượng, link tham khảo và ảnh chụp màn hình để bạn thu mua khỏi phải hỏi lại. Mua xong bấm <b>Hoàn thành phiếu</b>.</div>';
+  var body = '<div class="rcvh">Phiếu này dành cho <b>hàng ngoài danh mục hoặc trên 500.000 một hoá đơn</b>: không tạo mã, không theo dõi tồn kho. Ghi rõ tên hàng, số lượng, link tham khảo và ảnh chụp màn hình để bạn thu mua khỏi phải hỏi lại. Mua xong bấm <b>Hoàn thành phiếu</b>.</div>';
   if (dang.length) body += '<div class="sec">Đang chờ mua</div><div class="lst">' + dang.map(row).join('') + '</div>';
   if (xong.length) body += '<div class="sec">Đã hoàn thành</div><div class="lst">' + xong.map(row).join('') + '</div>';
   if (huy.length) body += '<div class="sec">Đã huỷ</div><div class="lst">' + huy.map(row).join('') + '</div>';
-  if (!docs.length) body += '<div class="emp"><div class="e1">🧪</div><div class="e2">Chưa có phiếu nào.<br>Bấm dấu + để tạo yêu cầu mua hàng test.</div></div>';
-  var b = frame('Mua hàng test', body, { fab: true, onFab: function () { rnd.newf = null; go(scrRndNew); } });
+  if (!docs.length) body += '<div class="emp"><div class="e1">🧪</div><div class="e2">Chưa có phiếu nào.<br>Bấm dấu + để tạo yêu cầu mua hàng phát sinh.</div></div>';
+  var b = frame('Mua hàng phát sinh', body, { fab: true, onFab: function () { rnd.newf = null; go(scrRndNew); } });
   b.onclick = function (e) {
     var r = e.target.closest('[data-p]'); if (!r) return;
     go(function () { scrRndDoc(r.dataset.p); });
@@ -9778,7 +9778,7 @@ async function scrRndNew() {
   if (!rnd.newf) rnd.newf = { muc_dich: '', ngay_can: '', ghi_chu: '', anh_dinh_kem: '', items: [] };
   var f = rnd.newf;
   function draw() {
-    var body = '<div class="rcvh">Gom tất cả thứ cần mua để test vào <b>một phiếu</b> theo từng đợt, khỏi nhắn lẻ tẻ qua Lark. Hàng này không nhập kho và không tạo mã.</div>' +
+    var body = '<div class="rcvh">Ghi hàng cần mua phát sinh vào <b>một phiếu</b> theo từng đợt, khỏi nhắn lẻ tẻ qua Lark. Hàng này không nhập kho và không tạo mã.</div>' +
       '<div class="card">' +
       '<div class="fld" data-m><div class="fi">🧪</div><div class="ft"><div class="fl">Mục đích / dự án</div><div class="fv' + (f.muc_dich ? '' : ' ph') + '">' + h(f.muc_dich || 'Bắt buộc - vd: Test bánh dứa MD2') + '</div></div><div class="fc">&#8250;</div></div>' +
       '<div class="fld" data-d><div class="fi">📅</div><div class="ft"><div class="fl">Ngày cần hàng</div><div class="fv' + (f.ngay_can ? '' : ' ph') + '">' + h(f.ngay_can ? dmy(f.ngay_can) : 'Chưa chọn') + '</div></div><div class="fc">&#8250;</div></div>' +
@@ -9802,7 +9802,7 @@ async function scrRndNew() {
       body += '<div class="emp"><div class="e1">🛒</div><div class="e2">Chưa có dòng nào.<br>Bấm nút bên dưới để thêm hàng.<br><span style="font-size:13px;color:#8a90a0">Mỗi dòng có ô dán link tham khảo và ô tải ảnh lên.</span></div></div>';
     }
     body += '<div style="padding:4px 14px 10px"><button class="btn gh" id="rndAdd">+ Thêm hàng cần mua</button></div>';
-    var b = frame('Yêu cầu mua hàng test', body, { footer: '<button class="btn" id="rndSave">Gửi yêu cầu</button>' });
+    var b = frame('Yêu cầu mua hàng phát sinh', body, { footer: '<button class="btn" id="rndSave">Gửi yêu cầu</button>' });
     rndGanAnh(b, 'ph', function () { return rndAnhDs(f.anh_dinh_kem); }, function (ds) { f.anh_dinh_kem = rndAnhChuoi(ds); draw(); });
     b.onclick = function (e) {
       if (e.target.closest('[data-m]')) {
@@ -9858,7 +9858,7 @@ async function rndCreate() {
 
 /* ---- 15c. Xem va xu ly phieu ---- */
 async function scrRndDoc(name) {
-  frame('Phiếu mua test', '<div class="emp"><div class="e1">⏳</div></div>');
+  frame('Phiếu mua phát sinh', '<div class="emp"><div class="e1">⏳</div></div>');
   await loadMasters();
   var doc = null;
   try { doc = await api('frappe.client.get', { doctype: 'RnD Purchase Request', name: name }); }
@@ -9946,7 +9946,7 @@ async function scrRndDoc(name) {
       ft = '<button class="btn" id="rndDone">Hoàn thành phiếu' + (chua ? ' (' + chua + ' dòng chưa mua)' : '') + '</button>';
       if (mine) ft += '<button class="btn gh" id="rndCancel" style="margin-top:9px">Huỷ phiếu</button>';
     }
-    var b = frame('Phiếu mua test', body, ft ? { footer: ft } : {});
+    var b = frame('Phiếu mua phát sinh', body, ft ? { footer: ft } : {});
     rndGanAnh(b, 'ph', function () { return rndAnhDs(doc.anh_dinh_kem); }, function (ds) {
       doc.anh_dinh_kem = rndAnhChuoi(ds); save('Đã cập nhật ảnh');
     });
@@ -10000,7 +10000,7 @@ async function scrRndDoc(name) {
         var d2 = {
           doctype: 'Purchase Invoice', company: COMPANY, supplier: RND_NCC_LE,
           posting_date: today(), set_posting_time: 1, bill_no: doc.name,
-          remarks: 'Mua hàng test theo phiếu ' + doc.name + (doc.muc_dich ? ' - ' + doc.muc_dich : ''),
+          remarks: 'Mua hàng phát sinh theo phiếu ' + doc.name + (doc.muc_dich ? ' - ' + doc.muc_dich : ''),
           items: ds.map(function (x) {
             return {
               item_code: x.can_hoa_don ? 'CP-MUANHO-HD' : 'CP-MUANHO-KHD',
@@ -21727,7 +21727,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '492';
+var APPVER = '493';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -26474,6 +26474,16 @@ function dncDoc() {
 
 /* Cập nhật con số tổng NGAY trên màn, không vẽ lại cả trang.
    Vẽ lại cả trang mỗi lần gõ một chữ số thì ô đang gõ mất con trỏ. */
+function dncHuongDuyet(f, nguong) {
+  var tong = dncTong(f), nv = f.loai_nghiep_vu || 'Chi phí';
+  if (nv === 'Chi phí' && tong > 500000) return 'Trên 500.000 đ: lập YCPS rồi thanh toán qua phiếu chi APP.';
+  if (nv === 'Tạm ứng') return (tong > 500000 ? 'Cần YCPS hợp lệ. ' : '') +
+    (tong >= nguong ? 'Tạm ứng này cần giám đốc duyệt thêm một cấp.' : 'Tạm ứng đi từ mua hàng sang kế toán.');
+  if (nv === 'Hoàn ứng') return 'Hoàn ứng đi từ mua hàng sang kế toán.' +
+    (tong > 500000 ? ' Trên 500.000 đ cần YCPS kế thừa từ tạm ứng đã chi.' : '');
+  return 'Phiếu đi từ mua hàng sang kế toán.';
+}
+
 function dncNhayTong() {
   var f = dncDoc();
   var o = document.getElementById('dncTongSo');
@@ -26481,9 +26491,7 @@ function dncNhayTong() {
   var c = document.getElementById('dncTongCanh');
   if (c) {
     var nguong = (dncDm && dncDm.nguong_giam_doc) || 2000000;
-    c.innerHTML = dncTong(f) >= nguong
-      ? 'Từ ' + money(nguong) + ' đ trở lên nên phiếu này cần <b>giám đốc duyệt thêm một cấp</b>.'
-      : 'Dưới ' + money(nguong) + ' đ nên phiếu đi thẳng từ mua hàng sang kế toán.';
+    c.textContent = dncHuongDuyet(f, nguong);
   }
 }
 
@@ -26582,10 +26590,11 @@ function dncVe(lichSu) {
 
   var html = '<div class="card" style="padding:12px 14px;font-size:13px;line-height:1.65;color:#374151">' +
     'Bạn ứng tiền túi mua đồ cho tiệm, hoặc cần công ty trả thẳng cho người bán thì lập phiếu ở đây. ' +
-    'Một phiếu ghi được <b>nhiều khoản</b>, đi chợ một buổi về thì gộp hết vào một phiếu, ' +
-    'không phải lập từng cái.</div>';
+    'Mỗi hoá đơn hoặc biên nhận một phiếu, tối đa <b>500.000 đ</b>. Nhiều dòng cùng một chứng từ được ghi chung. ' +
+    'Trên mức này lập Yêu cầu mua hàng phát sinh (YCPS).</div>';
 
   html += chip('Loại nghiệp vụ', dm.loai_nghiep_vu, 'loai_nghiep_vu');
+  if (f.loai_nghiep_vu === 'Tạm ứng') html += '<button class="btn gh" id="dncYcps">' + h(f.yeu_cau_phat_sinh || 'Chọn YCPS (bắt buộc khi trên 500.000)') + '</button>';
 
   /* Hoàn ứng thì phải nói rõ hoàn cho lần tạm ứng nào, nếu không thì bảng
      cấn trừ không bao giờ khớp. */
@@ -26600,6 +26609,7 @@ function dncVe(lichSu) {
         'Đã ứng <b>' + money(tu.da_ung) + ' đ</b>, đã hoàn <b>' + money(tu.da_hoan_ung) + ' đ</b>. ' +
         h(tu.nhac || '') + '</div>';
     }
+    if (tu && tu.ycps_can_thay) html += '<div class="hint">YCPS gốc không còn hợp lệ. Chọn YCPS thay thế trước khi gửi kế toán.</div><button class="btn gh" id="dncYcps">' + h(f.yeu_cau_phat_sinh || 'Chọn YCPS thay thế') + '</button>';
     html += '</div>';
   }
 
@@ -26613,9 +26623,7 @@ function dncVe(lichSu) {
     '<div style="flex:1;font-size:13.5px;font-weight:700;color:#0f766e">Tổng tiền phiếu</div>' +
     '<div id="dncTongSo" style="font-size:20px;font-weight:800;color:#0f766e">' + money(tong) + ' đ</div></div>' +
     '<div id="dncTongCanh" style="font-size:11.5px;color:#0f766e;margin-top:5px;line-height:1.55">' +
-    (tong >= nguong
-      ? 'Từ ' + money(nguong) + ' đ trở lên nên phiếu này cần <b>giám đốc duyệt thêm một cấp</b>.'
-      : 'Dưới ' + money(nguong) + ' đ nên phiếu đi thẳng từ mua hàng sang kế toán.') + '</div></div>';
+    h(dncHuongDuyet(f, nguong)) + '</div></div>';
 
   html += '<div class="sec">Thời hạn và diễn giải</div><div class="card" style="padding:12px 14px">' +
     '<div style="font-size:11.5px;color:#6b7280;margin-bottom:3px">Cần trả trước ngày</div>' +
@@ -26648,7 +26656,8 @@ function dncVe(lichSu) {
         return '<div style="display:flex;gap:10px;padding:11px 14px;border-bottom:1px solid #f2f4f7">' +
           '<div style="flex:1;min-width:0"><b style="font-size:13.5px">' + h(x.tieu_de || x.ten_khoan_chi || x.name) + '</b>' +
           '<div style="font-size:11.5px;color:#98a2b3;margin-top:2px">' + h(x.name) +
-          (x.so_khoan > 1 ? ' · ' + x.so_khoan + ' khoản' : '') + '</div></div>' +
+          ' · ' + h(x.ten_nguoi_tao || '') + (x.qua_han ? ' · Quá hạn thanh toán' : '') +
+        (x.so_khoan > 1 ? ' · ' + x.so_khoan + ' khoản' : '') + '</div></div>' +
           '<div style="text-align:right"><b style="font-size:13.5px">' + money(x.tien != null ? x.tien : x.so_tien) + ' đ</b>' +
           '<div style="font-size:11px;font-weight:700;color:#6b7280">' + h(x.nhan_trang_thai || '') + '</div></div></div>';
       }).join('') + '</div>';
@@ -26695,6 +26704,7 @@ function dncVe(lichSu) {
     dncDoc();
     dncForm[p[0]] = p[1];
     if (p[0] === 'loai_nghiep_vu') {
+      dncForm.yeu_cau_phat_sinh = '';
       /* Đổi loại nghiệp vụ thì bảng phân loại đổi theo, nên phải xoá lựa
          chọn cũ ở mọi khoản - giữ lại là lưu xuống một phân loại không
          thuộc loại này. */
@@ -26764,6 +26774,15 @@ function dncVe(lichSu) {
     nhChon(dncForm.ngan_hang, function (v) { dncForm.ngan_hang = v; dncVe(lichSu); });
   };
 
+  var nYc = document.getElementById('dncYcps');
+  if (nYc) nYc.onclick = async function () {
+    dncDoc();
+    try {
+      var yc = (await api('vagabond.de_nghi_chi.ycps_cua_toi', {})).ds || [];
+      if (!yc.length) return baoTin('Chưa có YCPS liên quan. Nhờ nhóm Mua hàng R&D lập phiếu và chia sẻ quyền đọc cho bạn, rồi quay lại chọn.');
+      sheet('Chọn Yêu cầu mua hàng phát sinh', yc.map(function(x) { return {value: x.name, label: x.name + ' · ' + (x.muc_dich || '')}; }), f.yeu_cau_phat_sinh || '', function(x) { f.yeu_cau_phat_sinh = x.value; dncVe(lichSu); }, true);
+    } catch(e) { baoTin(e.message || 'Chưa đọc được yêu cầu mua hàng.'); }
+  };
   var nTu = document.getElementById('dncTu');
   if (nTu) nTu.onclick = async function () {
     dncDoc();
@@ -26780,7 +26799,7 @@ function dncVe(lichSu) {
         return { value: x.ma, label: x.ma + ' · ' + money(x.da_ung) + ' đ', phu: (x.ten || '') + ' · ' + (x.nhac || '') };
       }),
       dncForm.thuoc_tam_ung || '',
-      function (it) { dncForm.thuoc_tam_ung = it.value; dncVe(lichSu); }, true);
+      function (it) { dncForm.yeu_cau_phat_sinh = ''; dncForm.thuoc_tam_ung = it.value; dncVe(lichSu); }, true);
   };
 
   var luu = async function (gui) {
@@ -26937,6 +26956,9 @@ function ttnbVe(kq) {
         (on ? '800' : '600') + ';white-space:nowrap">' + h(c.ten) + '</button>';
     }).join('') + '</div>';
 
+  html += '<div class="card" style="padding:12px">Tổng theo bộ lọc: <b>' + money(kq.tong_loc || 0) + ' đ</b></div>' +
+    '<button class="btn gh" id="ttnbExcel">Xuất Excel</button>' +
+    (kq.duoc_duyet ? '<button class="btn gh" id="ttnbNguoi">Người lập</button>' : '');
   if (!ds.length) {
     html += '<div class="emp"><div class="e1">🧾</div><div>' +
       (ttnbLoc.tim ? 'Không có phiếu nào khớp "' + h(ttnbLoc.tim) + '".' : 'Chưa có phiếu nào ở nhóm này.') +
@@ -26949,10 +26971,10 @@ function ttnbVe(kq) {
         '<div style="flex:1;min-width:0"><b style="font-size:14px">' + h(x.tieu_de || x.name) + '</b>' +
         '<div style="font-size:11.5px;color:#98a2b3;margin-top:2px">' + h(x.name) +
         (x.so_khoan > 1 ? ' · ' + x.so_khoan + ' khoản' : '') +
-        ' · ' + h(String(x.creation || '').slice(0, 10)) + '</div></div>' +
+        ' · ' + h(String(x.creation || '').slice(0, 10)) + ' · ' + h(x.ten_nguoi_tao || 'Chưa có họ tên') + '</div></div>' +
         '<div style="text-align:right"><b style="font-size:15px">' + money(x.tien) + ' đ</b>' +
         '<div style="font-size:11px;font-weight:700;color:' + ttnbMau(x.trang_thai) + '">' +
-        h(x.nhan_trang_thai || '') + '</div></div>' +
+        h(x.nhan_trang_thai || '') + (x.qua_han ? '<span style="color:#b45309"> · Quá hạn</span>' : '') + '</div></div>' +
         '<div style="flex:none;color:#c9cfda;font-size:17px">›</div></div>' +
         (x.trang_thai === 'Da chi'
           ? '<div style="font-size:11.5px;color:#065f46;margin-top:5px">Tiền đã ra khỏi tài khoản' +
@@ -26964,7 +26986,7 @@ function ttnbVe(kq) {
   }
 
   var chan = '<div style="display:flex;gap:8px">' +
-    '<button class="btn" id="ttnbMoi" style="margin:0;flex:2">➕ Lập phiếu mới</button>' +
+    '<button class="btn" id="ttnbMoi" style="margin:0;flex:2">➕ Lập phiếu mới</button><button class="btn gh" id="ttnbUng">Xin tạm ứng</button>' +
     (kq.duoc_duyet
       ? '<button class="btn gh" id="ttnbSoat" style="margin:0;flex:1">🔄 Đối soát</button>'
       : '') + '</div>';
@@ -26989,6 +27011,12 @@ function ttnbVe(kq) {
     n.onclick = function () { ttnbCt(n.getAttribute('data-p')); };
   });
 
+  var nUng = document.getElementById('ttnbUng');
+  if (nUng) nUng.onclick = function() { dncForm = dncMoi(); dncForm.loai_nghiep_vu = 'Tạm ứng'; go(scrDeNghiChi); };
+  var nNguoi = document.getElementById('ttnbNguoi');
+  if (nNguoi) nNguoi.onclick = function() { sheet('Người lập', [{value: '', label: 'Tất cả'}].concat(kq.nguoi_lap || []), ttnbLoc.nguoi_lap || '', function(x) { ttnbLoc.nguoi_lap=x.value; chay(); }, true); };
+  var nExcel = document.getElementById('ttnbExcel');
+  if (nExcel) nExcel.onclick = async function() { try { var r=await api('vagabond.de_nghi_chi.xuat_excel', ttnbLoc); bcTaiVe(r.ten_file,r.b64,'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'); } catch(e) { baoTin(e.message || 'Chưa xuất được Excel.'); } };
   var nMoi = document.getElementById('ttnbMoi');
   if (nMoi) nMoi.onclick = function () { dncForm = null; go(scrDeNghiChi); };
   var nSoat = document.getElementById('ttnbSoat');
@@ -27015,11 +27043,8 @@ function ttnbVe(kq) {
 Anh Việt 24/08/2026: mọi màn cần đối soát SePay đều phải có đối soát tự động
 và nút thủ công ở kế bên.
 
-Màn này là màn CẦN nút thủ công nhất trong cả hệ, mà trước v294 lại không có.
-Đây là đường DUY NHẤT webhook SePay gọi thẳng: tiền về là phiếu tự nhảy sang
-"Đã chi" mà không ai bấm nút nào. Nên khi kế toán gõ nội dung thiếu một chữ,
-phiếu nằm mãi ở "Chờ kế toán" và không có đường nào để người nhìn sao kê rồi
-chỉ đúng dòng.
+Kế toán phải duyệt phiếu trước khi khớp tiền. Phiếu Chờ kế toán hiện lời
+nhắc; chỉ phiếu Chờ chi mới mở khớp tự động hoặc chọn dòng sao kê thủ công.
 
 Hai nút này gọi thẳng tầng chung `vagabond.doi_soat_sepay`, cùng một cửa với
 màn Phiếu hoàn tiền. */
@@ -27030,6 +27055,7 @@ function ttnbKhopSepay(d) {
         'border-radius:9px;padding:9px 11px;margin-top:9px;line-height:1.6">' +
         'Lệnh chi đã khớp sao kê, giao dịch <b>' + h(d.ma_gd) + '</b>.</div>';
     }
+    if (d.trang_thai === 'Cho ke toan') return '<div style="padding:9px 0;font-size:13px">Duyệt phiếu trước, sau đó mới khớp sao kê.</div>';
     return '';
   }
   return '<button class="btn gh" id="ttnbKsAuto" style="margin:9px 0 0;width:100%">🔄 Khớp SePay</button>' +
@@ -27120,13 +27146,24 @@ async function ttnbKhopTay(d, gd, tien) {
   ttnbCt(d.name);
 }
 
+function ttnbGanNutVe() {
+  /* Chi tiết có thể mở từ thông báo, nên nút đầu trang cũng phải về danh
+     sách TTNB. Giữ nguyên ttnbLoc để không mất chip, ngày và ô tìm. */
+  ['vgbBack', 'ttnbVeDanhSach'].forEach(function (id) {
+    var nut = document.getElementById(id);
+    if (nut) nut.onclick = function () { go(scrTTNB, S.stack.length > 1); };
+  });
+}
+
 async function ttnbCt(ma) {
   frame('Phiếu thanh toán nội bộ', '<div class="emp"><div class="e1">⏳</div><div>Đang mở...</div></div>');
+  ttnbGanNutVe();
   var d;
   try { d = await api('vagabond.de_nghi_chi.chi_tiet', { ma_phieu: ma }); }
   catch (e) {
     frame('Phiếu thanh toán nội bộ', '<div class="emp"><div class="e1">⚠️</div><div>' +
       h((e && e.message) || 'Không mở được phiếu') + '</div></div>');
+    ttnbGanNutVe();
     return;
   }
   var dong = function (n, g, dam) {
@@ -27228,12 +27265,19 @@ async function ttnbCt(ma) {
       'và rời khỏi hộp việc của mọi người. Phiếu đã chi tiền thật thì không huỷ được nữa.</div></div>';
   }
 
+  if (d.hoan_ung_cu && d.trang_thai === 'Cho ke toan' && d.duoc_duyet_buoc_nay) {
+    html += '<div class="card"><label>Đã kiểm chứng từ - lý do chấp nhận hoàn ứng thiếu YCPS</label><textarea id="ttnbLyDoCu" class="inp" placeholder="Nhập lý do kế toán chấp nhận ngoại lệ"></textarea></div>';
+  }
   var chan = '';
   if (d.duoc_duyet_buoc_nay) {
-    chan += '<button class="btn" id="ttnbDuyet" style="margin:0;flex:2">✅ Duyệt thanh toán nội bộ</button>' +
+    chan += '<button class="btn" id="ttnbDuyet" style="margin:0;flex:2">✅ ' +
+      (d.trang_thai === 'Cho ke toan' ? 'Duyệt và chi' : 'Duyệt thanh toán nội bộ') + '</button>' +
       '<button class="btn" id="ttnbTra" style="margin:0;flex:1;background:#b3261e;border-color:#b3261e">Trả lại</button>';
   }
-  var b = frame('Phiếu thanh toán nội bộ', html, chan ? { footer: '<div style="display:flex;gap:8px">' + chan + '</div>' } : undefined);
+  chan += '<button class="btn gh" id="ttnbVeDanhSach" style="margin:0;flex:1">← Quay lại</button>';
+  var b = frame('Phiếu thanh toán nội bộ', html, { footer: '<div style="display:flex;gap:8px">' + chan + '</div>' });
+
+  ttnbGanNutVe();
 
   var nKa = document.getElementById('ttnbKsAuto');
   if (nKa) nKa.onclick = function () { ttnbKhopAuto(d); };
@@ -27248,11 +27292,14 @@ async function ttnbCt(ma) {
   };
   var nD = document.getElementById('ttnbDuyet');
   if (nD) nD.onclick = async function () {
+    var oLyDo = document.getElementById('ttnbLyDoCu');
+    var lyDoCu = oLyDo ? oLyDo.value.trim() : '';
+    if (oLyDo && !lyDoCu) return baoTin('Kế toán cần kiểm chứng từ và nhập lý do chấp nhận ngoại lệ.');
     if (!await hoiCo('Duyệt thanh toán nội bộ',
       'Duyệt phiếu ' + h(d.name) + ' số tiền ' + money(d.tien) + ' đ?', 'Duyệt')) return;
     busy(true);
     try {
-      var r = await api('vagabond.de_nghi_chi.duyet', { ma_phieu: d.name });
+      var r = await api('vagabond.de_nghi_chi.duyet', { ma_phieu: d.name, ghi_chu: lyDoCu });
       busy(false);
       toast('Đã duyệt, phiếu chuyển sang ' + h(r.nhan_trang_thai || r.trang_thai || ''), 4500);
       ttnbCt(d.name);
