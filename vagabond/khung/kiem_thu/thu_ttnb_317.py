@@ -147,3 +147,21 @@ def _patch_giao_lai():
 		ycps_317.execute()
 		la('giao đúng phiếu', giao.call_args.args[:3], (dc.DT, 'PHIEU-THU', sorted(dc.VAI_BUOC[dc.TT_CHO_KE_TOAN])))
 		la('không bắn chuông', giao.call_args.kwargs, {'bao': 0})
+
+
+@ca('#317 chọn YCPS: chỉ mã của người đăng nhập, không nhận người dùng từ client')
+def _ycps_cua_toi():
+	from unittest.mock import patch
+	from types import SimpleNamespace
+	with patch.object(dc.frappe, 'session', SimpleNamespace(user='nhan-vien')), \
+		patch.object(dc.frappe, 'get_all', return_value=[{'name': 'YCPS-1', 'muc_dich': 'Mua hàng'}]) as doc:
+		la('chỉ trả dữ liệu cần chọn', dc.ycps_cua_toi()['ds'][0]['name'], 'YCPS-1')
+		la('lọc owner phía server', doc.call_args.kwargs['filters']['owner'], 'nhan-vien')
+		la('không lộ toàn bộ phiếu', doc.call_args.kwargs['fields'], ['name', 'muc_dich'])
+
+
+@ca('#317 ngoại lệ chỉ hoàn ứng cũ, không nới chi phí hoặc tạm ứng mới')
+def _ngoai_le_cu():
+	la('hoàn ứng cũ có chứng từ', dc.ly_do_chan_vat(phieu(600000, loai_nghiep_vu=dc.NV_HOAN_UNG, _hoan_ung_cu=True)), None)
+	dung('chi phí vẫn chặn', dc.ly_do_chan_vat(phieu(600000, _hoan_ung_cu=True)))
+	dung('tạm ứng mới vẫn chặn', dc.ly_do_chan_vat(phieu(600000, loai_nghiep_vu=dc.NV_TAM_UNG, _hoan_ung_cu=True)))

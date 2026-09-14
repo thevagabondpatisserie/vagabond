@@ -17,3 +17,31 @@ def duyet_chi_phi():
 	p.reload()
 	la('kế toán duyệt chưa phải ngân hàng đã chi', p.trang_thai, dc.TT_HOAN_TAT)
 	la('không tự sinh giao dịch ngân hàng', p.ma_gd or '', '')
+
+
+@ca('#317 hoàn ứng cũ: kế toán phải ghi lý do, phiếu mới không được miễn YCPS')
+def hoan_ung_cu():
+	tu = _phieu_cho_chi(617123)
+	frappe.db.set_value(tu.doctype, tu.name, {'loai_nghiep_vu': dc.NV_TAM_UNG,
+		'trang_thai': dc.TT_DA_CHI, 'quy_tac_317': 0, 'yeu_cau_phat_sinh': None})
+	p = _phieu_cho_chi(617123)
+	frappe.db.set_value(p.doctype, p.name, {'loai_nghiep_vu': dc.NV_HOAN_UNG,
+		'thuoc_tam_ung': tu.name, 'trang_thai': dc.TT_CHO_KE_TOAN, 'quy_tac_317': 1})
+	p.reload()
+	la('DB xác nhận nguồn cũ', dc._phieu_kiem_317(p).get('_hoan_ung_cu'), True)
+	try:
+		dc.duyet(p.name)
+	except frappe.ValidationError as e:
+		la('chặn vì thiếu lý do', 'lý do' in str(e), True)
+	else:
+		raise AssertionError('Không được duyệt ngoại lệ thiếu lý do')
+	p.reload(); la('chưa đổi trạng thái', p.trang_thai, dc.TT_CHO_KE_TOAN)
+	# Đổi nguồn sang quy tắc mới phải mất ngoại lệ, dù client gửi cờ giả.
+	frappe.db.set_value(tu.doctype, tu.name, 'quy_tac_317', 1)
+	p._hoan_ung_cu = True
+	la('nguồn mới không được miễn', dc._phieu_kiem_317(p).get('_hoan_ung_cu'), False)
+	frappe.db.set_value(tu.doctype, tu.name, 'quy_tac_317', 0)
+	dc.duyet(p.name, ghi_chu='Đã kiểm biên nhận, đối chiếu khoản tạm ứng lịch sử.')
+	p.reload(); la('chờ ngân hàng sau duyệt', p.trang_thai, dc.TT_HOAN_TAT)
+	la('có lịch sử ngoại lệ', bool(frappe.db.exists('Comment', {'reference_doctype': p.doctype,
+		'reference_name': p.name, 'content': ['like', '%thiếu YCPS%']})), True)

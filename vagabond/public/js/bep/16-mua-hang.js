@@ -1382,7 +1382,7 @@ function dncVe(lichSu) {
   if (nYc) nYc.onclick = async function () {
     dncDoc();
     try {
-      var yc = await getList('RnD Purchase Request', { fields: ['name', 'muc_dich'], filters: {trang_thai: ['!=', 'Huỷ']}, limit_page_length: 0 });
+      var yc = (await api('vagabond.de_nghi_chi.ycps_cua_toi', {})).ds || [];
       sheet('Chọn Yêu cầu mua hàng phát sinh', yc.map(function(x) { return {value: x.name, label: x.name + ' · ' + (x.muc_dich || '')}; }), f.yeu_cau_phat_sinh || '', function(x) { f.yeu_cau_phat_sinh = x.value; dncVe(lichSu); }, true);
     } catch(e) { baoTin(e.message || 'Chưa đọc được yêu cầu mua hàng.'); }
   };
@@ -1870,6 +1870,9 @@ async function ttnbCt(ma) {
       'và rời khỏi hộp việc của mọi người. Phiếu đã chi tiền thật thì không huỷ được nữa.</div></div>';
   }
 
+  if (d.hoan_ung_cu && d.trang_thai === 'Cho ke toan' && d.duoc_duyet_buoc_nay) {
+    html += '<div class="card"><label>Đã kiểm chứng từ - lý do chấp nhận hoàn ứng cũ thiếu YCPS</label><textarea id="ttnbLyDoCu" class="inp" placeholder="Nhập lý do kế toán chấp nhận ngoại lệ"></textarea></div>';
+  }
   var chan = '';
   if (d.duoc_duyet_buoc_nay) {
     chan += '<button class="btn" id="ttnbDuyet" style="margin:0;flex:2">✅ ' +
@@ -1894,11 +1897,14 @@ async function ttnbCt(ma) {
   };
   var nD = document.getElementById('ttnbDuyet');
   if (nD) nD.onclick = async function () {
+    var oLyDo = document.getElementById('ttnbLyDoCu');
+    var lyDoCu = oLyDo ? oLyDo.value.trim() : '';
+    if (oLyDo && !lyDoCu) return baoTin('Kế toán cần kiểm chứng từ và nhập lý do chấp nhận ngoại lệ.');
     if (!await hoiCo('Duyệt thanh toán nội bộ',
       'Duyệt phiếu ' + h(d.name) + ' số tiền ' + money(d.tien) + ' đ?', 'Duyệt')) return;
     busy(true);
     try {
-      var r = await api('vagabond.de_nghi_chi.duyet', { ma_phieu: d.name });
+      var r = await api('vagabond.de_nghi_chi.duyet', { ma_phieu: d.name, ghi_chu: lyDoCu });
       busy(false);
       toast('Đã duyệt, phiếu chuyển sang ' + h(r.nhan_trang_thai || r.trang_thai || ''), 4500);
       ttnbCt(d.name);

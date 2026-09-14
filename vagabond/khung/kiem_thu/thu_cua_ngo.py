@@ -211,7 +211,7 @@ CUA_NGO = {
 	# chi DOC, dua ra danh sach don vi cua nha cung cap ma Mon chua khai.
 	# `cap_nhat_tu_hoa_don` va `_chay` la moc doc_events, KHONG mo ra ngoai.
 	"bang_gia_nhap.py": ["can_khai_don_vi"],
-	"de_nghi_chi.py": ["xuat_excel",
+	"de_nghi_chi.py": ["xuat_excel", "ycps_cua_toi",
 		"danh_muc", "danh_sach",
 		# doi_soat va ds_man them 20/08/2026: man Danh sach TTNB co chip
 		# trang thai va chip thoi gian, va doi soat dong tien ra tu OCB.

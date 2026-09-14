@@ -510,3 +510,7 @@ Có commit trong tác vụ Cloud chưa đồng nghĩa nhánh PR đổi. Ngày 14
 ### PR318: biên nhận khác với số tệp và chuyển bước phải chuyển việc
 
 Một biên nhận có thể nhiều ảnh; số URL không phải số chứng từ. Giữ kiểm cùng số hoá đơn/MST/ngày, yêu cầu ít nhất một tệp, không chặn hai mặt của cùng biên nhận. Patch chuyển trạng thái phải giao lại ToDo bằng cửa giao việc chung (không bắn chuông migrate), không chỉ sửa nhãn. Hướng dẫn duyệt và dữ liệu người lập phải đúng cả danh sách chính lẫn lịch sử. Nguồn inline review4005492308/4005492320/4005492328/4005635209.
+
+
+### PR318: hoàn ứng cũ và quyền YCPS
+Ngoại lệ dựa trên phiếu nguồn đọc từ DB (đã chi, cùng người, quy tắc cũ, thiếu YCPS), không nhận cờ client. Kế toán phải ghi lý do trước đổi trạng thái. Picker chỉ trả thông tin cần chọn của owner hiện tại, không cấp quyền đọc toàn bộ DocType để chữa lỗi chọn phiếu.

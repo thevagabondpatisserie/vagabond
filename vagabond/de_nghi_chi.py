@@ -496,7 +496,7 @@ def ly_do_chan_vat(phieu):
 		return None
 	if nv not in (NV_CHI_PHI, NV_HOAN_UNG):
 		return None
-	if tien > NGUONG_MUA_VAT and not (nv == NV_HOAN_UNG and p.get("_ycps_ke_thua")):
+	if tien > NGUONG_MUA_VAT and not (nv == NV_HOAN_UNG and (p.get("_ycps_ke_thua") or p.get("_hoan_ung_cu"))):
 		return "Hoá đơn trên 500.000 không đi thanh toán nội bộ. Lập Yêu cầu mua hàng phát sinh (YCPS) rồi thanh toán qua phiếu chi APP."
 	dong = cac_dong(p)
 	# Cùng số nhưng khác người bán/ngày vẫn là hai chứng từ khác nhau.
@@ -833,6 +833,7 @@ def _phieu_kiem_317(doc, gui=False):
 		ap = True
 	p["_ycps_hop_le"] = False
 	p["_ycps_ke_thua"] = False
+	p["_hoan_ung_cu"] = False
 	p["_ap_quy_tac_317"] = ap
 	doc.quy_tac_317 = 1 if ap else 0
 	if not ap:
@@ -840,16 +841,20 @@ def _phieu_kiem_317(doc, gui=False):
 	ma = str(doc.get("yeu_cau_phat_sinh") or "").strip()
 	if doc.get("loai_nghiep_vu") == NV_HOAN_UNG:
 		tu = frappe.db.get_value(DT, doc.get("thuoc_tam_ung"),
-			["nguoi_tao", "loai_nghiep_vu", "trang_thai", "yeu_cau_phat_sinh"], as_dict=True) or {}
+			["nguoi_tao", "loai_nghiep_vu", "trang_thai", "yeu_cau_phat_sinh", "quy_tac_317"], as_dict=True) or {}
 		ma = tu.get("yeu_cau_phat_sinh") if (tu.get("nguoi_tao") == doc.nguoi_tao
 			and la_tam_ung(tu.get("loai_nghiep_vu")) and tu.get("trang_thai") == TT_DA_CHI) else None
+		p["_hoan_ung_cu"] = bool(tu and tu.get("nguoi_tao") == doc.nguoi_tao
+			and la_tam_ung(tu.get("loai_nghiep_vu")) and tu.get("trang_thai") == TT_DA_CHI
+			and not tu.get("quy_tac_317") and not tu.get("yeu_cau_phat_sinh"))
 		doc.yeu_cau_phat_sinh = ma
 	elif not la_tam_ung(doc.get("loai_nghiep_vu")):
 		ma = None
 		doc.yeu_cau_phat_sinh = None
 	if ma:
 		yc = frappe.get_doc("RnD Purchase Request", ma)
-		yc.check_permission("read")
+		if yc.owner != doc.nguoi_tao and not frappe.has_permission("RnD Purchase Request", "read", doc=yc, user=doc.nguoi_tao):
+			frappe.throw("Chỉ được chọn YCPS của mình hoặc YCPS đã được cấp quyền đọc.", frappe.PermissionError)
 		p["_ycps_hop_le"] = yc.get("trang_thai") not in ("Huỷ", "Hủy")
 		p["_ycps_ke_thua"] = bool(p["_ycps_hop_le"] and doc.get("loai_nghiep_vu") == NV_HOAN_UNG)
 	tep = set()
@@ -1027,6 +1032,9 @@ def duyet(ma_phieu, ghi_chu=None):
 	if not duoc:
 		frappe.throw(vi_sao)
 
+	ngoai_le = _phieu_kiem_317(doc).get("_hoan_ung_cu") if doc.trang_thai == TT_CHO_KE_TOAN else False
+	if ngoai_le and not (ghi_chu or "").strip():
+		frappe.throw("Hoàn ứng tạm ứng cũ thiếu YCPS: kế toán kiểm chứng từ và nhập lý do chấp nhận ngoại lệ.")
 	nguoi, luc = frappe.session.user, now_datetime()
 
 	if doc.trang_thai == TT_CHO_DUYET:
@@ -1051,6 +1059,8 @@ def duyet(ma_phieu, ghi_chu=None):
 	if (ghi_chu or "").strip():
 		doc.ghi_chu = ((doc.ghi_chu or "") + "\n" + ghi_chu).strip()
 	doc.save(ignore_permissions=True)
+	if ngoai_le:
+		doc.add_comment("Info", "Kế toán đã kiểm chứng từ hoàn ứng tạm ứng cũ %s thiếu YCPS. Lý do: %s" % (doc.thuoc_tam_ung, ghi_chu.strip()))
 	_bao_buoc_ke_tiep(doc)
 	return {
 		"ok": 1, "trang_thai": doc.trang_thai,
@@ -1598,6 +1608,7 @@ def chi_tiet(ma_phieu=None):
 	# Tính lại ở máy chủ chứ không trả trường đã lưu: nếu vì lý do gì đó
 	# trường `tong_tien` lệch với bảng kê thì màn hình phải thấy số ĐÚNG.
 	ra["tien"] = tien_phieu(ra)
+	ra["hoan_ung_cu"] = 1 if _phieu_kiem_317(doc).get("_hoan_ung_cu") else 0
 	ra["can_giam_doc"] = 1 if can_giam_doc_duyet(ra["tien"]) else 0
 	ra["so_tep"] = _so_tep(ma_phieu)
 	# Nút Duyệt chỉ vẽ khi MÁY CHỦ nói người đang xem duyệt được ở BƯỚC HIỆN
@@ -2075,3 +2086,12 @@ def xuat_excel(chip="tat_ca", so_ngay=30, tim="", nguoi_lap=""):
 	bang = [[("\'" + v if isinstance(v, str) and v.lstrip().startswith(("=", "+", "-", "@")) else v) for v in row] for row in bang]
 	tep = make_xlsx(bang, "Thanh toan noi bo")
 	return {"ten_file": "thanh-toan-noi-bo-%s.xlsx" % nowdate(), "b64": base64.b64encode(tep.getvalue()).decode()}
+
+
+@frappe.whitelist()
+def ycps_cua_toi():
+	"""Chỉ trả mã/mục đích phiếu của người đăng nhập, không mở quyền toàn DocType."""
+	if frappe.session.user == "Guest":
+		frappe.throw("Cần đăng nhập để chọn YCPS.", frappe.PermissionError)
+	return {"ds": frappe.get_all("RnD Purchase Request", filters={"owner": frappe.session.user,
+		"trang_thai": ["not in", ["Huỷ", "Hủy"]]}, fields=["name", "muc_dich"], limit_page_length=0)}
