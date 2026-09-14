@@ -201,8 +201,8 @@ soạn riêng khối sau trong comment có dòng đầu `[CẦN DUYỆT]`:
 -->
 ```
 
-Bot chỉ gửi khối hợp lệ do OWNER là chủ repo đăng, mỗi ô tối đa 500 ký tự;
+Bot chỉ gửi khối hợp lệ do OWNER là chủ repo đăng, mỗi ô tối đa 500 ký tự và chỉ một dòng (không xuống dòng, tab hay ký tự điều khiển);
 không sao chép phần log/comment bên ngoài. Nội dung này chỉ tới kênh riêng
 của anh. Kèm link nguồn và nhắc trả lời trong Codex: bot Telegram hiện chưa
 nhận lệnh duyệt. Codex tự ghi quyết định của anh lên PR, không hỏi lại.
-Khối sai định dạng chỉ nhận thông báo metadata như trước, không tự đoán.
+Khối sai định dạng hoặc sai người đăng nhận metadata kèm cảnh báo chưa gửi nội dung cần duyệt; không tự đoán.
