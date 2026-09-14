@@ -398,6 +398,10 @@ def khi_luu_cau_hinh(doc, method=None):
 	if not any(doc.has_value_changed(o) for o in O_CAU_HINH.values()):
 		return
 	cau_hinh = {o: doc.get(o) for o in O_CAU_HINH.values()}
+	# Lần cài app đầu, Single mới báo các ô đều đổi dù cùng đang trống.
+	# Chưa có tài khoản để nạp thì không đòi công ty hoặc ghi nhóm/món.
+	if not any(cau_hinh.values()):
+		return
 	cty = cong_ty_ap_dung(cau_hinh)
 	from vagabond import luoi_do_nhom
 	kq = luoi_do_nhom.ap_dung(cty, chi_btp=True, cau_hinh=cau_hinh)

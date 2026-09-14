@@ -184,3 +184,52 @@ def _cong_ty_cau_hinh():
 		ct_tai_khoan[0] = "Vagabond"
 		tkb.kiem_o_cau_hinh(CHUNG)
 		la("công ty đích không suy từ tài khoản", tkb.cong_ty_ap_dung(CHUNG), "Vagabond")
+
+
+@ca('#307 lưu Settings gọi nạp nhóm và món đúng cấu hình mới, lỗi thì không đi tiếp')
+def _luu_settings():
+	from unittest.mock import patch
+	from types import SimpleNamespace
+	from vagabond import luoi_do_nhom as ldn
+	class CauHinh(dict):
+		def has_value_changed(self, o):
+			return self.doi
+	for doi, loi in ((True, 0), (False, 0), (True, 1)):
+		doc = CauHinh({o: '1552-THU' for o in tkb.O_CAU_HINH.values()}); doc.doi = doi
+		mon = SimpleNamespace(name='BTP-DA-KHAI')
+		def bao(cau):
+			raise ValueError(cau)
+		with patch.object(tkb, 'cong_ty_ap_dung', return_value='CONG-TY-THU'), \
+			patch.object(ldn, 'ap_dung', return_value={'dem': {'loi': loi}}) as nhom, \
+			patch.object(tkb.frappe, 'get_all', return_value=[mon.name]) as ds, \
+			patch.object(tkb.frappe, 'get_doc', return_value=mon), \
+			patch.object(tkb.frappe, 'clear_cache', create=True), \
+			patch.object(tkb.frappe, 'throw', side_effect=bao), \
+			patch.object(tkb, 'ap_dung') as gan:
+			bi_chan = False
+			try:
+				tkb.khi_luu_cau_hinh(doc)
+			except ValueError:
+				bi_chan = True
+			la('lỗi nhóm phải chặn', bi_chan, bool(doi and loi))
+			la('chỉ chạy khi đổi cấu hình', nhom.call_count, int(doi))
+			if doi:
+				la('nạp riêng BTP với giá trị mới', nhom.call_args.kwargs,
+					{'chi_btp': True, 'cau_hinh': dict(doc)})
+			if doi and not loi:
+				la('chỉ món đã chọn chặng', ds.call_args.kwargs['filters'],
+					{'is_stock_item': 1, 'custom_chang_btp': ['!=', '']})
+				la('ghi món xuống DB', gan.call_args.args, (mon, dict(doc)))
+				la('chế độ ghi', gan.call_args.kwargs, {'ghi_db': True})
+			else:
+				la('không ghi món khi không đổi hoặc nhóm lỗi', gan.call_count, 0)
+
+
+@ca('#307 Settings mới cả hai ô trống không chặn cài app khi chưa có công ty')
+def _settings_moi_trong():
+	from unittest.mock import patch
+	from types import SimpleNamespace
+	doc = SimpleNamespace(has_value_changed=lambda o: True, get=lambda o: None)
+	with patch.object(tkb, 'cong_ty_ap_dung', side_effect=AssertionError('không được hỏi công ty')) as cty:
+		tkb.khi_luu_cau_hinh(doc)
+		la('không có tài khoản để nạp', cty.call_count, 0)

@@ -170,3 +170,37 @@ làm hàng rào cho lần nâng lõi sau.
 Đã sửa bảng 152/153, Nhân bán thành phẩm và bỏ qua Demo; Item hook thiếu công ty mặc định chỉ nhắc. Còn hook lưu Settings, đổi món dịch vụ/tài sản chưa có SLE và bench GL hai lượt; chưa đủ cổng merge. Phiên bản cuối493 sau PR318v492.
 
 Bổ sung local: lưu Settings nạp lại nhóm BTP và món đã chọn chặng, dùng cấu hình vừa lưu. Patch chỉ bỏ theo tồn của tài sản/dịch vụ chưa có SLE; báo cáo cổng giữ các món đã có SLE cho Khải. Đã nối ba ca GL thật (món/nhóm/cờ tắt); hai ca phantom một/nhiều cấp hiện hữu tiếp tục chạy trong bench. Chưa có kết quả bench SHA mới.
+
+## Bảng đã đọc trực tiếp site ngày14/09/2026
+
+Nguồn Console chỉ đọc Item Group, Item (is_stock_item=1, gồm cả mã disabled), Account và Item Default. Chưa áp dữ liệu. Tài khoản1552 chưa có trên site; không tự tạo. Khải phân loại món sau.
+
+| Nhóm lá/nhánh | Món theo tồn | Tài khoản dự kiến hoặc xử lý |
+|---|---:|---|
+| Nguyên vật liệu Thô | 370 | 152 |
+| Bao bì | 45 | 152 |
+| Công cụ Dụng cụ | 263 | 153 |
+| Văn phòng phẩm | 24 | 153 |
+| Tài sản Cố định | 13 | Không gán; chỉ bỏ tồn nếu chưa từng có SLE |
+| Dịch vụ | 1 | Không gán; chỉ bỏ tồn nếu chưa từng có SLE |
+| Bán thành phẩm Bánh | 12 | tk_ton_btp_cap1; trống thì bỏ qua và nhắc |
+| Bán thành phẩm Nước | 26 | tk_ton_btp_cap1; trống thì bỏ qua và nhắc |
+| Nhân bán thành phẩm | 64 | tk_ton_btp_cap1; trống thì bỏ qua và nhắc |
+| Bánh khô | 19 | 1551 |
+| Bánh lạnh | 50 | 1551 |
+| Bánh nướng | 47 | 1551 |
+| Bánh ổ sinh nhật | 106 | 1551 |
+| Bánh Wholesale | 19 | 1551 |
+| Hộp bánh theo mùa | 20 | 1551 |
+| Phụ kiện cho bánh | 5 | 1551 |
+| Topping cho món bánh | 6 | 1551 |
+| Khuyến mãi dạng Combo | 10 | 1551 theo nhánh Bán ra đã duyệt |
+| Khoá học Sonneto | 1 | 1551 theo nhánh Bán ra đã duyệt |
+| Thành phẩm dưới Sản xuất | 0 | 1551 khi có nhóm/món phù hợp |
+| Chưa phân loại | 1 | Không gán |
+| Uncategory | 1 | Không gán |
+| Demo Item Group | 10 | Không gán |
+
+Tổng nhánh Bán ra đang theo tồn:283. Các nhóm còn lại không có món theo tồn trong phép đo. Công ty chính có152,153,1551 hợp lệ; cả hai công ty đang tắt enable_item_wise_inventory_account. Các dòng mặc định nhóm đã đọc đang trống tài khoản tồn kho. Số món này là ảnh chụp khi đo, không dùng để ghi đè dữ liệu lúc migrate; patch đọc lại site và giữ tài khoản khai tay.
+
+Bench721c782 dừng khi cài app: Single mới coi ô trống là đổi, on_update đòi công ty trước khi setup xong. Đây là lỗi hook đã sửa bằng bỏ qua khi cả hai tài khoản đều trống, có ca tái hiện. Chưa tới GL, không báo GL đỏ hoặc xanh cho lượt này.
