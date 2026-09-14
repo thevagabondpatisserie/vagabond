@@ -720,3 +720,83 @@ def _shelf_life_that():
 	b=frappe.get_doc('Batch',ten); la('thiếu shelf life vẫn tạo',b.expiry_date,None)
 	it.shelf_life_in_days=90; it.save(); b.save(); b.reload()
 	la('không suy lại hạn lô đã lưu',b.expiry_date,None)
+
+
+def _308_thay_lo_canh_bao(tat):
+	"""Stock Entry giữ original_item cho consumed_qty (core stock_entry.py).
+
+	SLE vẫn ghi item_code thực xuất; stock_ledger.make_sl_entries đảo lượng
+	khi huỷ. Kiểm cả giá vốn thực và đảo lượng, không chỉ helper chọn lô.
+	"""
+	from frappe.utils import nowdate, add_days
+	from vagabond.khung.kiem_that.thu_nhan_nvl import _lo, _bat_serial_batch_neu_chua
+	_bat_serial_batch_neu_chua()
+	cty, kho, goc, tp, bom = _nen(theo_lo=1)
+	thay = _mon_thu('KT308-' + uuid.uuid4().hex[:10], theo_lo=1)
+	# ItemAlternative.has_alternative_item yêu cầu cờ trên Item gốc.
+	it = frappe.get_doc('Item', goc)
+	it.allow_alternative_item = 1; it.save()
+	cap = frappe.get_doc({'doctype': 'Item Alternative', 'item_code': goc,
+		'alternative_item_code': thay, 'two_way': 0}).insert()
+	nen._DA_TAO.append(('Item Alternative', cap.name))
+	lo = _lo(thay, 'KT308-' + uuid.uuid4().hex[:10], add_days(nowdate(), 30))
+	nhap = nhap_kho(item_code=thay, qty=10, company=cty,
+		to_warehouse=kho[0], rate=1700, do_not_save=True)
+	nhap.items[0].batch_no = lo
+	nhap.items[0].use_serial_batch_fields = 1
+	nhap.items[0].allow_zero_valuation_rate = 0
+	nhap.insert(); nen._DA_TAO.append(('Stock Entry', nhap.name)); nhap.submit()
+	frappe.db.set_value('Batch', lo, 'disabled' if tat else 'expiry_date',
+		1 if tat else add_days(nowdate(), -5))
+	frappe.clear_document_cache('Batch', lo)
+	wo = _lenh(cty, kho, tp, bom, kho[0]); wo.submit()
+	doc = frappe.get_doc(make_stock_entry(wo.name, 'Manufacture', qty=1))
+	doc.insert(); nen._DA_TAO.append(('Stock Entry', doc.name))
+	doc.save(); doc.submit(); doc.reload()
+	rows = [d for d in doc.items if d.s_warehouse]
+	la('chỉ xuất mã thay', [(d.item_code, d.original_item) for d in rows], [(thay, goc)])
+	canh_bao = 'Phiếu dùng lô đã tắt:' if tat else 'Phiếu dùng lô quá hạn:'
+	dung('lưu cảnh báo đúng mã và lô', all(x in (doc.remarks or '') for x in [canh_bao, thay, lo]))
+	sle = frappe.get_all('Stock Ledger Entry', filters={'voucher_no': doc.name, 'is_cancelled': 0},
+		fields=['item_code', 'warehouse', 'actual_qty', 'stock_value_difference', 'serial_and_batch_bundle', 'batch_no'])
+	nl = [d for d in sle if d.item_code == thay]
+	la('trừ đúng lượng mã thay', sum(float(d.actual_qty) for d in nl), -1)
+	la('đúng kho', {d.warehouse for d in nl}, {kho[0]})
+	la('giá vốn mã thay', sum(float(d.stock_value_difference) for d in nl), -1700)
+	dung('không ghi tồn mã gốc', not [d for d in sle if d.item_code == goc])
+	for d in nl:
+		if d.serial_and_batch_bundle:
+			la('đúng lô trong gói', set(frappe.get_all('Serial and Batch Entry',
+				filters={'parent': d.serial_and_batch_bundle}, pluck='batch_no')), {lo})
+		else:
+			la('đúng lô sổ', d.batch_no, lo)
+	la('NVL gốc được ghi nhận tiêu hao', get_consumed_qty(wo.name, goc), 1)
+	gl = so_cai_cua(doc)
+	la('GL cân', sum(float(d.debit) for d in gl), sum(float(d.credit) for d in gl))
+	la('giá trị chuyển NVL sang TP cân', round(sum(float(d.stock_value_difference) for d in sle), 2), 0)
+	doc.cancel(); wo.reload()
+	la('huỷ trả sản lượng', float(wo.produced_qty), 0)
+	la('huỷ trả tiêu hao gốc', get_consumed_qty(wo.name, goc), 0)
+	tong = frappe.db.sql('''select sum(actual_qty), sum(stock_value_difference)
+		from `tabStock Ledger Entry` where item_code=%s and warehouse=%s
+		and is_cancelled=0''', (thay, kho[0]))[0]
+	la('huỷ trả đủ tồn mã thay', float(tong[0]), 10)
+	la('huỷ trả đủ giá trị', float(tong[1]), 17000)
+	# Core stock_ledger.set_as_cancel loại cả cặp SLE khỏi sổ hiệu lực.
+	# Không cộng stock_value_difference của dòng đã huỷ; đối chiếu thêm
+	# Bin độc lập để không chỉ có một truy vấn tự chứng minh chính nó.
+	ton = frappe.db.get_value('Bin', {'item_code': thay, 'warehouse': kho[0]},
+		['actual_qty', 'stock_value'], as_dict=True)
+	la('Bin trả lượng sau huỷ', float(ton.actual_qty), 10)
+	la('Bin trả giá trị sau huỷ', float(ton.stock_value), 17000)
+
+
+
+@ca('308 thật: mã thay chỉ có lô quá hạn, Manufacture SLE giá vốn và huỷ')
+def _308_qua_han():
+	_308_thay_lo_canh_bao(False)
+
+
+@ca('308 thật: mã thay chỉ có lô tắt, Manufacture SLE giá vốn và huỷ')
+def _308_lo_tat():
+	_308_thay_lo_canh_bao(True)

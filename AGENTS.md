@@ -398,7 +398,7 @@ khóa chung. Không sửa vào phạm vi agent khác đã claim. Chạy prefligh
 khi sửa, bàn giao theo docs/van-hanh-agent/README.md (thay mẫu handoff
 cũ), và review chéo trước khi tạo PR.
 
-### 9b. Luật tag đối ứng giữa hai agent
+### 9b. Luật gọi bot giữa hai agent
 
 Đối xứng cho cả hai chiều: Claude gọi Codex bằng `@codex`, Codex gọi Claude
 bằng `@claude`. Cùng một bộ luật, không bên nào có ngoại lệ. Nguồn đầy đủ về
