@@ -495,3 +495,12 @@ bench riêng, không suy ra từ ca thuần.
 - Kiểm giá trị kho sau huỷ: cộng stock_value_difference của cả dòng SLE đã
   huỷ không tương đương tồn hiệu lực. Đọc is_cancelled theo core và đối
   chiếu Bin actual_qty/stock_value; không bỏ assertion giá trị để cổng xanh.
+
+## 14/09/2026 - Issue 307: máy GitHub Actions không clone được lõi ERPNext
+
+Bản Claude chạy trên Actions bị chặn mọi đường ra mạng (git clone, gh api,
+WebFetch), nên không dán được nguyên văn hàm lõi như AGENTS.md mục 5 đòi.
+Không được suy từ trí nhớ thay cho trích dẫn. Cách làm: đặt tên ô lõi ở
+một hằng duy nhất, hook kiểm meta trước khi ghi, patch dừng migrate nếu ô
+không có, và ghi rõ trên PR điểm nào chưa đối chiếu để người có bench
+(checkout pinned) đối chiếu trước khi merge. Nguồn: #307, PR A.

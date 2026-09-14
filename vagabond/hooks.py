@@ -404,7 +404,9 @@ doc_events = {
 	# duoc 23 tren 23 ma Banh khuon C2 mang co nay, tuc ca lo bi bat chu
 	# khong phai lo tay mot lan. Xem dau muc trong phantom.py.
 	"Item": {"validate": ["vagabond.phantom.chan_lam_tuoi_sai_chang",
-		"vagabond.san_xuat_desktop.kiem_mon", "vagabond.gram_bom_252.kiem_mon"]},
+		"vagabond.san_xuat_desktop.kiem_mon", "vagabond.gram_bom_252.kiem_mon",
+		# #307: o Chang ban thanh pham dien tai khoan ton kho vao Item Default.
+		"vagabond.tai_khoan_btp.khi_luu_mon"]},
 	# Nguyen lieu thay the: may soat cap va dien cac o cot ngay luc luu.
 	# Chi la o tro giup, hong thi ghi Error Log chu KHONG chan ai luu.
 	"Item Alternative": {"validate": "vagabond.nvl_thay_the.khi_luu"},
