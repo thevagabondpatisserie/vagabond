@@ -525,3 +525,7 @@ Bench cd453810 đạt220/221: get_doc nạp controller trước khi báo thiếu
 
 ### PR318 F13 - đường thay phải có nút và xoá dữ liệu sót
 Máy chủ cho thay YCPS không đủ nếu Hoàn ứng không có picker. Cờ nguồn không hợp lệ phải từ máy chủ, hiện nút theo cờ, xoá lựa chọn khi đổi loại/đổi nguồn. Ca DOM bấm chip thật và kiểm cả hiện/ẩn theo cờ, không chỉ dò chuỗi HTML.
+
+### PR318: chốt duyệt phải bảo vệ cả đối soát chung
+
+Phiếu Chờ kế toán từng có thể đi tới khớp tiền qua cửa chung dù cửa duyệt yêu cầu lý do ngoại lệ. Chỉ lọc danh sách không đủ vì API theo mã bỏ qua danh sách. Thêm kiểm trạng thái chứng từ tại cửa khớp tay chung và tự động, trước khi đọc/ghi giao dịch; bench gọi cả cửa riêng lẫn cửa chung, chốt trạng thái chưa đổi. Không sửa luật các luồng khác khi bổ sung callback tùy chọn.

@@ -110,3 +110,21 @@ def nguon_moi_vuot_tran():
 		la('lỗi đúng trần', '500.000' in str(e), True)
 	else:
 		raise AssertionError('Nguồn mới vượt trần thiếu YCPS vẫn lưu được')
+
+
+@ca('#317 đối soát không được đi vòng kế toán, kể cả gọi tầng chung')
+def doi_soat_cho_ke_toan():
+	from vagabond import doi_soat_sepay as chung
+	p = _phieu_lich_su(400000)
+	frappe.db.set_value(p.doctype, p.name, 'trang_thai', dc.TT_CHO_KE_TOAN)
+	la('không có trong hàng chờ chi', p.name in [r['name'] for r in dc._phieu_cho_chi()], False)
+	for ham in (lambda: dc.khop_tay(p.name, 'GD-KIEM-317'),
+		lambda: chung.khop_tay('ttnb', p.name, 'GD-KIEM-317')):
+		try:
+			ham()
+		except frappe.ValidationError as e:
+			la('chặn trước khi đọc/gắn giao dịch', 'duyệt' in str(e), True)
+		else:
+			raise AssertionError('Chưa duyệt vẫn vào đối soát')
+	p.reload(); la('vẫn chờ kế toán', p.trang_thai, dc.TT_CHO_KE_TOAN)
+	la('chưa gắn sao kê', p.ma_gd or '', '')

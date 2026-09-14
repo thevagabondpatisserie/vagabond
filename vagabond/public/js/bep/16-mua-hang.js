@@ -1385,6 +1385,7 @@ function dncVe(lichSu) {
     dncDoc();
     try {
       var yc = (await api('vagabond.de_nghi_chi.ycps_cua_toi', {})).ds || [];
+      if (!yc.length) return baoTin('Chưa có YCPS liên quan. Nhờ nhóm Mua hàng R&D lập phiếu và chia sẻ quyền đọc cho bạn, rồi quay lại chọn.');
       sheet('Chọn Yêu cầu mua hàng phát sinh', yc.map(function(x) { return {value: x.name, label: x.name + ' · ' + (x.muc_dich || '')}; }), f.yeu_cau_phat_sinh || '', function(x) { f.yeu_cau_phat_sinh = x.value; dncVe(lichSu); }, true);
     } catch(e) { baoTin(e.message || 'Chưa đọc được yêu cầu mua hàng.'); }
   };

@@ -36,3 +36,11 @@ F12 15/09 00:34: bench332733a6 xác nhận217/221 hai lượt, bốn ca317 dừn
 15/09 00:53: bench cd453810 đã220/221 x2; ngoại lệ cũ/nguồn nhỏ/nguồn vượt trần đã qua. CaYCPSmất đỏ vì Frappe nạp controller của DocType stub trước khi némDoesNotExistError. Thêmexists trướcget_doc để nguồn không tồn tại không cần nạpcontroller; không bắtImportError để che cấu hìnhDocType hỏng khi phiếu còn tồn tại. Giữca mởchi_tiet đểchứngminh runtime. F13/F14 cònmở.
 
 15/09 01:12 F13/F16/F17: dùng helper đọc YCPS chung kiểm DocType/phiếu tồn tại trướcget_doc, không cheImportError; ca thuần chốt không nạp controller khi thiếu. tam_ung_cua_toi trả cờ ycps_can_thay từ máy chủ; Hoàn ứng hiện picker khi cờ đúng, đổi loại hoặc đổi nguồn xoáYCPS sót. DOM chạy dncVe và bấm chip thật, kiểmcả cờTrue/False. Local2998/2998,patch27,cổngrc0. Bench4e7af66a221/221x2 sạch đãđọc; bảnmới chờbench. F14metadataYCPS vẫnchưađọcđược vìCUAtimeout; cửađốisoát/lýdo vẫn mở.
+
+### Delta 15/09: đóng đường đối soát trước duyệt
+
+- F18: picker loại docstatus 2. F19: đọc hai cột trạng thái YCPS thay vì nạp Document trong danh sách tạm ứng.
+- Đối soát TTNB chỉ nhận Chờ chi sau kế toán duyệt, cả cửa riêng, cửa chung và tự động theo mã. Thêm bench gọi hai cửa khớp tay trên phiếu Chờ kế toán, kiểm không đổi trạng thái.
+- Giữ lựa chọn naming series cũ; chỉ thêm mẫu YCPS và đổi mặc định. Dấu vết YCPS thay thế chỉ ghi ở bước duyệt cuối.
+- YCPS liên quan gồm chủ phiếu, người yêu cầu hoặc được chia sẻ quyền đọc; không cấp quyền toàn DocType. Khi rỗng, app hướng dẫn nhờ Mua hàng R&D lập/chia sẻ.
+- Local 3000/3000, patch 27, toàn cổng rc0. Bench SHA mới và review delta còn chờ. F14 metadata live chưa xác minh vì kết nối Mac timeout; chưa merge/deploy.

@@ -835,6 +835,17 @@ def _doc_ycps_317(ma):
 		return None
 
 
+def _trang_thai_ycps_317(ma):
+	"""Đọc nhẹ cho danh sách tạm ứng, không nạp controller và bảng con."""
+	if not ma or not frappe.db.exists("DocType", "RnD Purchase Request"):
+		return None
+	try:
+		return frappe.db.get_value("RnD Purchase Request", ma,
+			["trang_thai", "docstatus"], as_dict=True)
+	except frappe.DoesNotExistError:
+		return None
+
+
 def _ycps_hop_le_317(yc):
 	return bool(yc and yc.get("docstatus") != 2 and yc.get("trang_thai") not in ("Huỷ", "Hủy"))
 
@@ -872,7 +883,7 @@ def _phieu_kiem_317(doc, gui=False):
 		doc.yeu_cau_phat_sinh = None
 	if ma:
 		yc = _doc_ycps_317(ma)
-		if yc and yc.owner != doc.nguoi_tao and not frappe.has_permission("RnD Purchase Request", "read", doc=yc, user=doc.nguoi_tao):
+		if yc and yc.owner != doc.nguoi_tao and yc.get("nguoi_yeu_cau") != doc.nguoi_tao and not frappe.has_permission("RnD Purchase Request", "read", doc=yc, user=doc.nguoi_tao):
 			frappe.throw("Chỉ được chọn YCPS của mình hoặc YCPS đã được cấp quyền đọc.", frappe.PermissionError)
 		p["_ycps_hop_le"] = _ycps_hop_le_317(yc)
 		p["_ycps_ke_thua"] = bool(p["_ycps_hop_le"] and doc.get("loai_nghiep_vu") == NV_HOAN_UNG)
@@ -1078,7 +1089,7 @@ def duyet(ma_phieu, ghi_chu=None):
 	if (ghi_chu or "").strip():
 		doc.ghi_chu = ((doc.ghi_chu or "") + "\n" + ghi_chu).strip()
 	doc.save(ignore_permissions=True)
-	if doc.get("loai_nghiep_vu") == NV_HOAN_UNG and doc.get("yeu_cau_phat_sinh"):
+	if doc.trang_thai == TT_HOAN_TAT and doc.get("loai_nghiep_vu") == NV_HOAN_UNG and doc.get("yeu_cau_phat_sinh"):
 		goc = frappe.db.get_value(DT, doc.get("thuoc_tam_ung"), "yeu_cau_phat_sinh")
 		if goc and goc != doc.yeu_cau_phat_sinh:
 			doc.add_comment("Info", "YCPS nguồn %s không còn hợp lệ; hoàn ứng dùng YCPS thay thế %s, đã kiểm quyền người lập." % (goc, doc.yeu_cau_phat_sinh))
@@ -1594,7 +1605,7 @@ def tam_ung_cua_toi(nguoi=None):
 			"ma": r["name"],
 			"ten": r.get("ten_khoan_chi") or "",
 			"ngay": str(r.get("creation") or "")[:10],
-			"ycps_can_thay": bool(r.get("yeu_cau_phat_sinh") and not _ycps_hop_le_317(_doc_ycps_317(r.get("yeu_cau_phat_sinh")))),
+			"ycps_can_thay": bool(r.get("yeu_cau_phat_sinh") and not _ycps_hop_le_317(_trang_thai_ycps_317(r.get("yeu_cau_phat_sinh")))),
 			"da_ung": ung,
 			"da_hoan_ung": hoan,
 			"con_no": con,
@@ -1653,7 +1664,7 @@ def chi_tiet(ma_phieu=None):
 	# co giao dich nao gan vao. Tinh o may chu chu khong de man tu suy, y het
 	# nep cua man Phieu hoan tien.
 	ra["khop_duoc"] = 1 if (
-		doc.trang_thai in (TT_CHO_KE_TOAN, TT_HOAN_TAT) and not (doc.get("ma_gd") or "").strip()
+		doc.trang_thai == TT_HOAN_TAT and not (doc.get("ma_gd") or "").strip()
 	) else 0
 	ra["tep"] = [
 		{
@@ -1846,6 +1857,12 @@ def _gd_da_chiem_ttnb(tru_phieu=None):
 	return ra
 
 
+def _loi_phieu_chua_duyet(doc):
+	if doc.get("trang_thai") != TT_HOAN_TAT:
+		return "Kế toán chưa duyệt phiếu. Kiểm chứng từ và duyệt trước khi đối soát tiền ra."
+	return None
+
+
 def _phieu_cho_chi():
 	"""Các phiếu đã duyệt xong, đang chờ tiền ra.
 
@@ -1855,7 +1872,7 @@ def _phieu_cho_chi():
 	"""
 	return frappe.get_all(
 		DT,
-		filters={"trang_thai": ["in", [TT_CHO_KE_TOAN, TT_HOAN_TAT]]},
+		filters={"trang_thai": TT_HOAN_TAT},
 		fields=["name", "tong_tien", "so_tien", "trang_thai"],
 		limit_page_length=0,
 	)
@@ -1914,11 +1931,12 @@ def _khai_doi_soat():
 		chieu=dss.RA,
 		ma_do=lambda d: d.name,
 		so_tien=lambda d: flt(d.get("tong_tien")) or flt(d.get("so_tien")),
-		dang_cho={"trang_thai": ["in", [TT_CHO_KE_TOAN, TT_HOAN_TAT]]},
+		dang_cho={"trang_thai": TT_HOAN_TAT},
 		khi_khop=_khi_khop_ttnb,
 		ten_man="Thanh toán nội bộ",
 		loc_chiem={"trang_thai": ["!=", TT_TRA_LAI]},
 		loi_giao_dich=_loi_nguon_chi_ttnb,
+		loi_phieu=_loi_phieu_chua_duyet,
 	)
 
 
@@ -1955,7 +1973,7 @@ def khop_tay(phieu=None, gd=None):
 			"Phiếu %s đã ở trạng thái Đã chi với giao dịch %s rồi. Khớp lại là "
 			"ghi hai lần cho một lần tiền ra." % (phieu, d.get("ma_gd") or "(không rõ)")
 		)
-	if d.trang_thai not in (TT_CHO_KE_TOAN, TT_HOAN_TAT):
+	if d.trang_thai != TT_HOAN_TAT:
 		frappe.throw(
 			"Phiếu %s đang ở trạng thái %s, chưa qua hết chuỗi duyệt nên chưa "
 			"khớp lệnh chi được." % (phieu, d.trang_thai)
@@ -2114,8 +2132,16 @@ def xuat_excel(chip="tat_ca", so_ngay=30, tim="", nguoi_lap=""):
 
 @frappe.whitelist()
 def ycps_cua_toi():
-	"""Chỉ trả mã/mục đích phiếu của người đăng nhập, không mở quyền toàn DocType."""
+	"""Chỉ trả mã/mục đích YCPS liên quan, không mở quyền toàn DocType."""
 	if frappe.session.user == "Guest":
 		frappe.throw("Cần đăng nhập để chọn YCPS.", frappe.PermissionError)
-	return {"ds": frappe.get_all("RnD Purchase Request", filters={"owner": frappe.session.user,
-		"trang_thai": ["not in", ["Huỷ", "Hủy"]]}, fields=["name", "muc_dich"], limit_page_length=0)}
+	if not frappe.db.exists("DocType", "RnD Purchase Request"):
+		frappe.throw("Chưa có phân hệ YCPS. Nhờ quản trị kiểm cấu hình yêu cầu mua hàng.")
+	duoc_chia = frappe.get_all("DocShare", filters={"share_doctype": "RnD Purchase Request",
+		"user": frappe.session.user, "read": 1}, pluck="share_name", limit_page_length=0)
+	lien_quan = {"owner": frappe.session.user, "name": ["in", duoc_chia]}
+	if frappe.get_meta("RnD Purchase Request").has_field("nguoi_yeu_cau"):
+		lien_quan["nguoi_yeu_cau"] = frappe.session.user
+	return {"ds": frappe.get_all("RnD Purchase Request", filters={
+		"trang_thai": ["not in", ["Huỷ", "Hủy"]], "docstatus": ["!=", 2]}, or_filters=lien_quan,
+		fields=["name", "muc_dich"], limit_page_length=0)}

@@ -4710,7 +4710,7 @@ la("chi quet phieu da duyet xong", "_phieu_cho_chi()" in _ds42, True)
 _pcc42 = _dnc42.split("def _phieu_cho_chi(")[1].split("\n@frappe.whitelist()")[0]
 la("phieu cho chi khong gom phieu Nhap", "TT_NHAP" in _pcc42, False)
 la("phieu cho chi la phieu da qua duyet",
-   "TT_CHO_KE_TOAN" in _pcc42 and "TT_HOAN_TAT" in _pcc42, True)
+   'filters={"trang_thai": TT_HOAN_TAT}' in _pcc42, True)
 # Bai hoc v238: mot dong tien ra chi khop cho MOT phieu.
 la("khoa trung giao dich", "_gd_da_chiem_ttnb(" in _ds42, True)
 la("noi dung khop roi van phai so tien", 'abs(flt(g["withdrawal"]) - tien) > 1' in _ds42, True)

@@ -154,10 +154,15 @@ def _ycps_cua_toi():
 	from unittest.mock import patch
 	from types import SimpleNamespace
 	with patch.object(dc.frappe, 'session', SimpleNamespace(user='nhan-vien')), \
-		patch.object(dc.frappe, 'get_all', return_value=[{'name': 'YCPS-1', 'muc_dich': 'Mua hàng'}]) as doc:
+		patch.object(dc.frappe.db, 'exists', return_value=True), \
+		patch.object(dc.frappe, 'get_meta', create=True, return_value=SimpleNamespace(has_field=lambda x: True)), \
+		patch.object(dc.frappe, 'get_all', side_effect=[['YCPS-CHIA'], [{'name': 'YCPS-1', 'muc_dich': 'Mua hàng'}]]) as doc:
 		la('chỉ trả dữ liệu cần chọn', dc.ycps_cua_toi()['ds'][0]['name'], 'YCPS-1')
-		la('lọc owner phía server', doc.call_args.kwargs['filters']['owner'], 'nhan-vien')
+		la('không chọn phiếu đã cancel', doc.call_args.kwargs['filters']['docstatus'], ['!=', 2])
+		la('lọc owner phía server', doc.call_args.kwargs['or_filters']['owner'], 'nhan-vien')
 		la('không lộ toàn bộ phiếu', doc.call_args.kwargs['fields'], ['name', 'muc_dich'])
+		la('người yêu cầu đúng user', doc.call_args.kwargs['or_filters']['nguoi_yeu_cau'], 'nhan-vien')
+		la('chỉ phiếu được chia sẻ', doc.call_args.kwargs['or_filters']['name'], ['in', ['YCPS-CHIA']])
 
 
 @ca('#317 ngoại lệ chỉ hoàn ứng cũ, không nới chi phí hoặc tạm ứng mới')
@@ -202,3 +207,37 @@ def _ycps_khong_ton_tai():
 			patch.object(dc.frappe, 'get_doc') as nap:
 			la('thiếu trả None', dc._doc_ycps_317('YCPS-MAT'), None)
 			la('không nạp controller', nap.call_count, 0)
+
+
+@ca('#317 dấu vết thay YCPS chỉ ghi ở lần kế toán duyệt cuối')
+def _dau_vet_mot_lan():
+	from unittest.mock import patch, Mock
+	from types import SimpleNamespace
+	class D(dict):
+		__getattr__ = dict.get
+		__setattr__ = dict.__setitem__
+		def save(self, **kw): pass
+	p = D(name='HOAN', nguoi_tao='nhan-vien', trang_thai=dc.TT_CHO_DUYET,
+		loai_nghiep_vu=dc.NV_HOAN_UNG, thuoc_tam_ung='UNG', yeu_cau_phat_sinh='YCPS-MOI', cac_khoan=[{'so_tien': 100}])
+	p.add_comment = Mock()
+	with patch.object(dc.frappe, 'get_doc', return_value=p), \
+		patch.object(dc.frappe.db, 'get_value', return_value='YCPS-CU'), \
+		patch.object(dc.frappe, 'session', SimpleNamespace(user='ke-toan')), \
+		patch.object(dc, '_vai', return_value={'System Manager'}), \
+		patch.object(dc, '_phieu_kiem_317', return_value={}), \
+		patch.object(dc, '_bao_buoc_ke_tiep'):
+		dc.duyet(p.name)
+		la('bước mua hàng chưa ghi thay nguồn', p.add_comment.call_count, 0)
+		dc.duyet(p.name)
+		la('bước kế toán ghi đúng một lần', p.add_comment.call_count, 1)
+
+
+@ca('#317 đọc trạng thái YCPS không nạp Document')
+def _ycps_doc_nhe():
+	from unittest.mock import patch
+	with patch.object(dc.frappe.db, 'exists', return_value=True), \
+		patch.object(dc.frappe.db, 'get_value', return_value={'trang_thai': 'Mới tạo', 'docstatus': 2}) as doc, \
+		patch.object(dc.frappe, 'get_doc') as day_du:
+		dung('phiếu cancel không hợp lệ', not dc._ycps_hop_le_317(dc._trang_thai_ycps_317('YCPS-1')))
+		la('chỉ hai cột cần thiết', doc.call_args.args[2], ['trang_thai', 'docstatus'])
+		day_du.assert_not_called()

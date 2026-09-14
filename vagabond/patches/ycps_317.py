@@ -21,7 +21,11 @@ def execute():
 	if not frappe.db.exists("DocType", "RnD Purchase Request"):
 		return
 	from frappe.custom.doctype.property_setter.property_setter import make_property_setter
-	for prop in ("options", "default"):
-		make_property_setter("RnD Purchase Request", "naming_series", prop,
-			"YCPS-.YY.-.MM.-.####", "Text" if prop == "options" else "Data")
+	truong = frappe.get_meta("RnD Purchase Request").get_field("naming_series")
+	moi = "YCPS-.YY.-.MM.-.####"
+	cu = [x.strip() for x in (truong.options or "").splitlines() if x.strip()]
+	if moi not in cu:
+		cu.append(moi)
+	make_property_setter("RnD Purchase Request", "naming_series", "options", "\n".join(cu), "Text")
+	make_property_setter("RnD Purchase Request", "naming_series", "default", moi, "Data")
 	frappe.clear_cache(doctype="RnD Purchase Request")
