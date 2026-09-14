@@ -227,3 +227,5 @@ Theo Claude comment5665332461, câu audit nay phân biệt đổi cấu hình v�
 Checkpoint 14/09 21:48: bench e06eaa2c đỏ 217/219 x2 do truy vấn COUNT dạng chuỗi bị core từ chối trong Settings.on_update. Đã chuyển sang SQL cố định có tham số; chờ bench SHA mới, không đổi dữ liệu production.
 
 Cùng lượt xử inline 4006256568: so chặng chuẩn hoá qua chang_ap_dung để mã lịch sử và nhãn hiện tại tương đương, giữ lựa chọn xoá trắng. Ca bench đổi từ btp_so_cap sang BTP sơ cấp qua Item.save, rồi kiểm đổi Settings không lấp lại.
+
+Checkpoint 14/09 22:08: bench 26716050 đã xanh. Sửa finding Claude 5665925666 về SUM trong báo cáo cổng; thêm ca execute báo cáo đọc món thiếu tài khoản và tồn 2 sau nhập, 0 sau huỷ. Chờ bench SHA mới; không merge/deploy nền.

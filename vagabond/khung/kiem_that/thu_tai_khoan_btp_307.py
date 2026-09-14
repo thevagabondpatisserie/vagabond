@@ -103,3 +103,29 @@ def _nhom():
 @ca('#307 GL thật: cờ tắt giữ tài khoản kho dù món khai tài khoản riêng')
 def _tat():
 	_chay(False, True)
+
+
+@ca('#307 báo cáo cổng: execute đọc Bin thật và trả đúng tồn món thiếu tài khoản')
+def _bao_cao():
+	from vagabond.vagabond.report.mon_theo_ton_chua_co_tai_khoan.mon_theo_ton_chua_co_tai_khoan import execute
+	cty, tag = cong_ty(), uuid.uuid4().hex[:8]
+	frappe.db.set_value('Company', cty, 'enable_item_wise_inventory_account', 0)
+	frappe.clear_cache(doctype='Company')
+	g = frappe.get_doc({'doctype': 'Item Group', 'item_group_name': 'KT307-BC-' + tag,
+		'parent_item_group': 'All Item Groups', 'is_group': 0})
+	g.insert(ignore_permissions=True); _DA_TAO.append((g.doctype, g.name))
+	ma = _mon_thu('KT307-BC-' + tag)
+	d = frappe.get_doc('Item', ma); d.item_group = g.name; d.brand = None
+	for r in d.get('item_defaults') or []:
+		r.default_inventory_account = None
+	d.save(ignore_permissions=True)
+	p = _luu(make_stock_entry(item_code=ma, qty=2, company=cty, to_warehouse=mot_kho(cty),
+		rate=3170, do_not_save=True))
+	cot, dong = execute({'company': cty})
+	la('cột tồn là số', next(r['fieldtype'] for r in cot if r['fieldname'] == 'ton'), 'Float')
+	dich = [r for r in dong if r['item_code'] == ma]
+	la('món thiếu tài khoản có đúng một dòng', len(dich), 1)
+	la('tồn từ Bin sau nhập thật', dich[0]['ton'], 2.0)
+	p.cancel()
+	_, dong = execute({'company': cty})
+	la('tồn sau huỷ nhập', next(r['ton'] for r in dong if r['item_code'] == ma), 0.0)

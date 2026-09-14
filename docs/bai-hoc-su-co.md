@@ -540,3 +540,5 @@ Bench3c31739d chưa tới BTP vì fixture thiếu tọa độ bếp mà Settings
 
 ### PR316: truy vấn tổng hợp trên Frappe mới
 Bench e06eaa2c chặn lưu Settings vì get_all không nhận hàm SQL dạng chuỗi trong fields. Dùng SQL cố định với tham số cho phép đếm nhóm; giữ ca bench đi qua Settings.save để kiểm truy vấn thật, không chỉ helper. Hai lượt cũ 217/219, rollback sạch; chưa dùng làm bằng chứng GL đạt.
+
+PR316 bổ sung: rà toàn app các fields có SUM/COUNT khi gặp lỗi hàm gộp. Báo cáo cổng còn SUM dạng chuỗi, đã sửa và thêm bench execute đọc tồn từ Bin sau nhập/huỷ thật. Scan 14/09 không còn mẫu này trong code chạy, chỉ còn chuỗi đối chứng test.

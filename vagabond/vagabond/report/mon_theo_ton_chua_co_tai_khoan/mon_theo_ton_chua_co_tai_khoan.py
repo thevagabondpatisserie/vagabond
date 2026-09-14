@@ -70,8 +70,8 @@ def execute(filters=None):
 			fields=["parent", "parenttype"], limit_page_length=0):
 		co.setdefault(r.parenttype, set()).add(r.parent)
 	ton = {}
-	for r in frappe.get_all("Bin", fields=["item_code", "sum(actual_qty) as ton"],
-			group_by="item_code", limit_page_length=0):
+	for r in frappe.db.sql("select item_code, sum(actual_qty) as ton from `tabBin` group by item_code",
+			as_dict=True):
 		ton[r.item_code] = r.ton
 	dong = loc_chua_co(cac_mon, co["Item"], co["Item Group"], co["Brand"], ton)
 	from vagabond.luoi_do_nhom import mon_khong_quan_ton
