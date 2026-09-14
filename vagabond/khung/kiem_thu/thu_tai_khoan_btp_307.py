@@ -157,3 +157,30 @@ def _hook():
 		g = f.read()
 	dung("gac_tk_kho vẫn chặn 155", 'DAU_THANH_PHAM = "155"' in g)
 	dung("gac_tk_kho không nhắc tới tai_khoan_btp", "tai_khoan_btp" not in g)
+
+
+@ca("#316 validator cấu hình chặn tài khoản khác công ty qua cửa thật")
+def _cong_ty_cau_hinh():
+	from types import SimpleNamespace
+	from unittest.mock import patch
+	class LoiCauHinh(Exception):
+		pass
+	def bao(loi):
+		raise LoiCauHinh(loi)
+	ct_tai_khoan = ["Demo"]
+	gia = SimpleNamespace(
+		db=SimpleNamespace(
+			get_single_value=lambda *a: "Vagabond",
+			get_value=lambda *a, **k: dict(company=ct_tai_khoan[0], is_group=0,
+				disabled=0, account_type="Stock", account_currency="VND")),
+		throw=bao)
+	with patch.object(tkb, "frappe", gia):
+		loi = ""
+		try:
+			tkb.kiem_o_cau_hinh(CHUNG)
+		except LoiCauHinh as e:
+			loi = str(e)
+		dung("cửa validate phải báo đúng hai công ty", "Demo" in loi and "Vagabond" in loi)
+		ct_tai_khoan[0] = "Vagabond"
+		tkb.kiem_o_cau_hinh(CHUNG)
+		la("công ty đích không suy từ tài khoản", tkb.cong_ty_ap_dung(CHUNG), "Vagabond")

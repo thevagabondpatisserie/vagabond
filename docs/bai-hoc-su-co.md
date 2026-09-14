@@ -515,3 +515,6 @@ nhóm LÁ có món theo tồn, và trước ngày bật cờ phải có báo cá
 đều trống" rỗng. Không đặt tài khoản ở nhóm gốc rồi tin là đủ. Bảng tên
 nhóm và tài khoản thật phải đọc từ site bằng lệnh chỉ đọc và dán lên PR
 duyệt, không suy từ trí nhớ. Nguồn: PR #316 comment anh Việt 14/09 chiều.
+
+### #316: không suy công ty đích từ Account đầu vào
+Validator truyền None vào kiểm công ty đã nhận Account Demo trong cấu hình BTP. Nếu lại suy công ty đích từ chính Account này, phép kiểm sau cũng tự hợp thức hóa lựa chọn sai. Lấy công ty mặc định độc lập, lọc cùng công ty ở patch và có ca gọi cửa validate thật với Account khác công ty.

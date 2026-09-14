@@ -253,26 +253,29 @@ def co_o_item_default():
 
 
 def cong_ty_ap_dung(cau_hinh):
-	"""Công ty của dòng Item Default được ghi: công ty của tài khoản cấu hình,
-	không có thì công ty mặc định của site. Không đụng công ty khác."""
-	for o in O_CAU_HINH.values():
-		tk = (cau_hinh or {}).get(o)
-		if tk:
-			ct = frappe.get_cached_value("Account", tk, "company")
-			if ct:
-				return ct
-	return frappe.db.get_single_value("Global Defaults", "default_company")
+	"""Cấu hình toàn site phải theo công ty mặc định, không theo Account nhập vào.
+
+	Nếu suy công ty từ tài khoản, chọn nhầm Account của công ty Demo sẽ
+	đổi luôn công ty đích và vượt qua mọi phép kiểm phía sau.
+	"""
+	ct = frappe.db.get_single_value("Global Defaults", "default_company")
+	if not ct:
+		frappe.throw("Chưa có công ty mặc định. Khai công ty trong Global Defaults trước khi cấu hình tài khoản tồn kho.")
+	return ct
 
 
 def kiem_o_cau_hinh(doc, method=None):
 	"""Validate Vagabond Settings: hai ô tài khoản BTP phải là tài khoản kho hợp lệ."""
+	if not any(doc.get(o) for o in O_CAU_HINH.values()):
+		return
+	ct = cong_ty_ap_dung(doc)
 	for o in O_CAU_HINH.values():
 		tk = doc.get(o)
 		if not tk:
 			continue
 		r = frappe.db.get_value("Account", tk, ["company", "is_group", "disabled",
 			"account_type", "account_currency"], as_dict=True)
-		loi = loi_tai_khoan(r, None)
+		loi = loi_tai_khoan(r, ct)
 		if loi:
 			frappe.throw("Ô %s: %s" % (o, loi))
 

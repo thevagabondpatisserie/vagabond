@@ -2,7 +2,7 @@
 
 - Nguồn: issue #307 (con của #206), anh Việt duyệt 13/09/2026 sau trao đổi
   với Khải. Điều phối lại 14/09/2026 11:45: chia hai PR.
-- Owner `claude[bot]`, nhánh `claude/issue-307-20260914-0450`, nền main
+- Owner tích hợp/sửa: Codex local (anh Việt giao 14/09); Claude review. Nhánh nhánh `claude/issue-307-20260914-0450`, nền main
   `6886899d` (sau v491). PR A là bản này; PR B (hai báo cáo, bench) làm sau.
 - Mục tiêu PR A: hai ô cấu hình, hook validate Item, patch nạp một lần,
   ca thuần, APPVER 492. Không đổi cờ thật, không đụng chứng từ, không nới
@@ -156,3 +156,11 @@ làm hàng rào cho lần nâng lõi sau.
   đặc tả, thêm ca "món chỉ có tài khoản ở nhóm" ghi sổ đúng khi cờ bật;
   chạy hai lượt `chung_tu_con_sot=[]`, `so_luong_lech={}`.
 - Chưa cập nhật nhật ký local trên máy anh Việt (phiên cloud).
+
+## Codex tiếp quản sau 1c8f8871 (14/09)
+
+- Sửa validator: lấy công ty mặc định độc lập với Account; hai ô cấu hình phải cùng công ty đó. Patch tìm 1552 cũng lọc đúng công ty.
+- Ca hồi quy gọi kiem_o_cau_hinh thật với DB giả, không chỉ gọi loi_tai_khoan. Chứng minh Account Demo bị chặn và Account đúng công ty được nhận.
+- Đã đo chỉ đọc site và đăng comment5662316882. 22 nhóm có món theo tồn (gồm cả disabled); cần đo lại đúng filter disabled=0 của báo cáo trước duyệt mapping. Nhánh Mua vào có công cụ, tài sản, dịch vụ; không duyệt gán tất cả152. Còn nhóm Demo và ngoài cây. Phép đọc Account loại Stock chưa thấy1552.
+- Khải tự phân loại món. Chưa bật cờ, chưa sửa Account hoặc Item live.
+- Chưa sẵn sàng merge: còn kiểm mapping/manual account/report và bench GL trên SHA cuối. Không dùng báo cáo rỗng làm đủ bằng chứng tài khoản hợp lệ hay cho phép bật cờ.

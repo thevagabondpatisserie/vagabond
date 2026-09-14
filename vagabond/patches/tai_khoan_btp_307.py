@@ -17,7 +17,7 @@ def _dat_mac_dinh():
 	if all(cau_hinh.values()):
 		return cau_hinh
 	cac_tk = frappe.get_all("Account", filters={"account_number": ["like", tkb.SO_HIEU_BTP + "%"],
-		"account_type": "Stock"}, fields=["name", "account_number", "is_group", "disabled"])
+		"account_type": "Stock", "company": tkb.cong_ty_ap_dung(cau_hinh)}, fields=["name", "account_number", "is_group", "disabled"])
 	mac_dinh = tkb.chon_mac_dinh(cac_tk)
 	if not mac_dinh:
 		return cau_hinh
