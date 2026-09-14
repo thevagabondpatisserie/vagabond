@@ -40,8 +40,12 @@ def _chay(bat, rieng):
 	g.insert(ignore_permissions=True); _DA_TAO.append((g.doctype, g.name))
 	ma = _mon_thu('KT307-' + tag)
 	d = frappe.get_doc('Item', ma); d.item_group = g.name
-	if rieng:
-		d.append('item_defaults', {'company': cty, 'default_inventory_account': tk1})
+	# Item.insert đã có thể dựng dòng công ty mặc định. Thêm dòng thứ hai
+	# làm validate_item_defaults chặn trước khi ca đi tới GL.
+	dong = next((r for r in d.get('item_defaults') or [] if r.company == cty), None)
+	if dong is None:
+		dong = d.append('item_defaults', {'company': cty})
+	dong.default_inventory_account = tk1 if rieng else None
 	d.save(ignore_permissions=True)
 	p = _luu(make_stock_entry(item_code=ma, qty=2, company=cty, to_warehouse=kho,
 		rate=3170, do_not_save=True))

@@ -204,3 +204,7 @@ Nguồn Console chỉ đọc Item Group, Item (is_stock_item=1, gồm cả mã d
 Tổng nhánh Bán ra đang theo tồn:283. Các nhóm còn lại không có món theo tồn trong phép đo. Công ty chính có152,153,1551 hợp lệ; cả hai công ty đang tắt enable_item_wise_inventory_account. Các dòng mặc định nhóm đã đọc đang trống tài khoản tồn kho. Số món này là ảnh chụp khi đo, không dùng để ghi đè dữ liệu lúc migrate; patch đọc lại site và giữ tài khoản khai tay.
 
 Bench721c782 dừng khi cài app: Single mới coi ô trống là đổi, on_update đòi công ty trước khi setup xong. Đây là lỗi hook đã sửa bằng bỏ qua khi cả hai tài khoản đều trống, có ca tái hiện. Chưa tới GL, không báo GL đỏ hoặc xanh cho lượt này.
+
+## Lượt nền 14/09 20:39
+
+Bench48ffd469 chạy219ca,217đạt/2đỏ ở cảhai lượt, rollback sạch. Ca nhóm đã ghi/huỷGL đạt; hai ca món riêng/cờ tắt chưa tới GL vì fixture thêm Item Default trùng công ty. Đã sửa dùng dòng do Item.insert tạo, không thêm trùng. Lõi item.py validate_item_defaults chặn nhiều dòng cùng công ty. ChờbenchSHA mới; không sửa production.

@@ -522,3 +522,7 @@ Validator truyền None vào kiểm công ty đã nhận Account Demo trong cấ
 ## PR316: nhóm mua vào không đồng nghĩa tài khoản152
 
 Theo chốt 14/09, công cụ và văn phòng phẩm dùng153; tài sản/dịch vụ không gán tài khoản tồn kho. Không tự bỏ theo tồn nếu đã có SLE kể cả đã huỷ. Lưu cấu hình BTP phải truyền giá trị mới vào bước nạp nhóm, tránh đọc lại cache cấu hình cũ; không đè tài khoản khai tay. Cổng phải giữ ngoại lệ có lịch sử cho Khải xử lý.
+
+### PR316: fixture Item Default đã có dòng công ty
+
+Bench48ffd469 chặn hai ca trước GL vì fixture append dòng công ty đã được Item.insert dựng. Dùng lại dòng hiện hữu hoặc thêm khi chưa có; đọc validate_item_defaults của lõi. Không gọi lỗi này là sai GL hay bỏ validation để làm xanh.
