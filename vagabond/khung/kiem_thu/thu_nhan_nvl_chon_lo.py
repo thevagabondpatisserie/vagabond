@@ -622,6 +622,19 @@ def _308_chung_tui():
 		dong('A', 'Kho A', 3), dong('A', 'Kho A', 1)], {},
 		qua_han={('B', 'Kho A'): {'B-cu': 6}}, thay_the={'A': ['B']})
 	la('tổng không vượt sáu', sum(r['qty'] for r in ra), 6)
+	ra = chay_gan_lo('Manufacture', [dong('B', 'Kho A', 2, lo='B-cu'),
+		dong('A', 'Kho A', 4)], {},
+		qua_han={('B', 'Kho A'): {'B-cu': 6}}, thay_the={'A': ['B']})
+	la('máy lấy đúng phần còn sau chọn tay', _gon(ra)[1:], [('B', 'B-cu', 4.0)])
+	try:
+		chay_gan_lo('Manufacture', [dong('B', 'Kho A', 2, lo='B-cu'),
+			dong('A', 'Kho A', 5)], {},
+			qua_han={('B', 'Kho A'): {'B-cu': 6}}, thay_the={'A': ['B']})
+	except lh.frappe.ValidationError:
+		pass
+	else:
+		dung('máy không được lấy phần đã chọn tay', False)
+
 	try:
 		chay_gan_lo('Manufacture', [dong('A', 'Kho A', 4), dong('A', 'Kho A', 3)], {},
 			qua_han={('B', 'Kho A'): {'B-cu': 6}}, thay_the={'A': ['B']})
@@ -650,3 +663,15 @@ def _308_khong_doi_lo_thanh_tot():
 		thay_the={'A': ['B'], 'C': ['B']})
 	la('dòng sau ưu tiên cảnh báo mã gốc trước mã thay', _gon(ra),
 		[('B', 'B-cu', 1.0), ('C', 'C-cu', 1.0)])
+
+
+@ca('308 túi mã thay trở thành túi gốc ở dòng sau vẫn ưu tiên hàng tốt')
+def _308_tui_thay_thanh_goc():
+	# A chỉ thay bằng B, không đi bắc cầu sang C. Dòng sau yêu cầu B
+	# được thay bằng C, nên B-cu còn dư phải đứng sau C-moi.
+	ra = chay_gan_lo('Manufacture', [dong('A', 'Kho A', 1), dong('B', 'Kho A', 1)],
+		{('C', 'Kho A'): {'C-moi': 2}},
+		qua_han={('B', 'Kho A'): {'B-cu': 6}},
+		thay_the={'A': ['B'], 'B': ['C']})
+	la('túi gốc đã vét không chen trước hàng tốt mã thay', _gon(ra),
+		[('B', 'B-cu', 1.0), ('C', 'C-moi', 1.0)])

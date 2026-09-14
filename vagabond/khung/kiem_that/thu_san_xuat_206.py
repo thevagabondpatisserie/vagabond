@@ -733,6 +733,9 @@ def _308_thay_lo_canh_bao(tat):
 	_bat_serial_batch_neu_chua()
 	cty, kho, goc, tp, bom = _nen(theo_lo=1)
 	thay = _mon_thu('KT308-' + uuid.uuid4().hex[:10], theo_lo=1)
+	# ItemAlternative.has_alternative_item yêu cầu cờ trên Item gốc.
+	it = frappe.get_doc('Item', goc)
+	it.allow_alternative_item = 1; it.save()
 	cap = frappe.get_doc({'doctype': 'Item Alternative', 'item_code': goc,
 		'alternative_item_code': thay, 'two_way': 0}).insert()
 	nen._DA_TAO.append(('Item Alternative', cap.name))

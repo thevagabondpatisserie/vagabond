@@ -679,7 +679,7 @@ def gan_lo(doc, method=None):
 						_ten_hang(d, ma), ma, kho, thieu,
 						d.get("stock_uom") or d.get("uom") or "",
 						_kho_khac_con(ma, kho),
-						[(m, k, t) for m in _cac_ma_thay_the(ma) for k, t in _kho_khac_con(m, kho)] if thay_ma else [],
+						[(m, k, t) for m in cac_ma_thay for k, t in _kho_khac_con(m, kho)],
 					),
 					title="Thiếu hàng trong kho",
 				)

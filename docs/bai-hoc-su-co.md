@@ -478,3 +478,8 @@ Ca kiểm phải gọi gan_lo qua trường hợp mã gốc hết và mã thay c
 báo, giữ thử cả giới hạn kho, mã được duyệt và tồn đã chọn tay. Trước sửa
 ba ca đỏ; sau sửa các ca thuần đạt. Chứng từ thật/SLE/giá vốn/huỷ phải chờ
 bench riêng, không suy ra từ ca thuần.
+
+- Issue308 bench: tạo Item Alternative thật cần Item gốc cho phép thay thế
+  (allow_alternative_item). Lỗi fixture trước insert/submit không chứng minh
+  luồng ghi sổ. Ca chống trừ trùng chọn tay cần nhu cầu vượt phần còn lại;
+  chỉ thử vừa đủ không bắt được việc bỏ phép trừ.
