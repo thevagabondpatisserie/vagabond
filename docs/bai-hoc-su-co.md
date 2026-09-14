@@ -502,3 +502,7 @@ bench riêng, không suy ra từ ca thuần.
 ### #317: cấp duyệt phải đi theo loại nghiệp vụ, không chỉ theo số tiền
 
 Một hàm chỉ nhận tổng tiền đã đẩy cả Chi phí và Hoàn ứng lớn lên giám đốc, dù quy trình mới chỉ giữ cấp này cho Tạm ứng. Hàm chọn bước phải nhận cả loại nghiệp vụ; patch chỉ chuyển các phiếu chưa chi đang Chờ giám đốc, ghi lý do và không chạm phiếu Đã chi hoặc Đã huỷ. Uỷ nhiệm chi cũng phải chốt đồng thời đúng người nhận và phương thức: chỉ trả nhà cung cấp bằng chuyển khoản mới bắt buộc, hoàn tiền nhân viên dùng chứng từ mua. Nguồn: Issue #317 và PR #318.
+
+## PR318: bàn giao Cloud và nút quay lại
+
+Có commit trong tác vụ Cloud chưa đồng nghĩa nhánh PR đổi. Ngày 14/09, bản Cloud chỉ lên GitHub sau thao tác Update branch; phải kiểm SHA remote. Bản đó còn APPVER493 trong khi patch492 và chỉ sửa nút chân màn. Kiểm lại bundle/patch và chạy cả nút đầu màn, chân màn, API lỗi; không nhận có chuỗi nút là bằng chứng điều hướng.

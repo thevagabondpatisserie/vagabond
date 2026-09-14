@@ -59,3 +59,37 @@ def _giao_dien_duyet():
 	dung('có nút quay lại', 'id="ttnbVeDanhSach"' in js and 'go(scrTTNB, true)' in js)
 	dung('có nhãn duyệt và chi', "'Duyệt và chi'" in js)
 	dung('đã ẩn gộp chuyển', 'id="ttnbGop"' not in js and 'vagabond.ttnb_lo.gop' not in js)
+
+
+@ca('#317 gọi cửa duyệt thật: hoàn ứng một tệp đạt, UNC nhà cung cấp vẫn chặn')
+def _duyet_cua_that():
+	from unittest.mock import patch
+	from types import SimpleNamespace
+	class Phieu(dict):
+		__getattr__ = dict.get
+		__setattr__ = dict.__setitem__
+		def save(self, **kw):
+			self['da_luu'] = True
+	for hinh, chan in ((dc.HT_NCC, True), ('Hoàn tiền nhân viên', False)):
+		d = Phieu(name='TTNB-THU', trang_thai=dc.TT_CHO_DUYET, nguoi_tao='nguoi-lap',
+			loai_nghiep_vu=dc.NV_HOAN_UNG, hinh_thuc=hinh, phuong_thuc=dc.PT_CHUYEN_KHOAN,
+			cac_khoan=[{'so_tien': 2000000}])
+		def bao(cau):
+			raise ValueError(cau)
+		with patch.object(dc.frappe, 'get_doc', return_value=d), \
+			patch.object(dc.frappe, 'session', SimpleNamespace(user='ke-toan')), \
+			patch.object(dc.frappe, 'throw', side_effect=bao), \
+			patch.object(dc, '_vai', return_value=dc.VAI_GIAM_DOC), \
+			patch.object(dc, '_so_tep', return_value=1), \
+			patch.object(dc, '_bao_buoc_ke_tiep'):
+			loi = ''
+			try:
+				dc.duyet(d.name)
+			except ValueError as e:
+				loi = str(e)
+			if chan:
+				dung('thiếu UNC không lưu', 'uỷ nhiệm chi' in loi and not d.get('da_luu'))
+			else:
+				la('không bắt UNC của nhân viên', loi, '')
+				la('đã lưu đúng bàn kế toán', d.trang_thai, dc.TT_CHO_KE_TOAN)
+				dung('cửa duyệt đã lưu', d.get('da_luu'))

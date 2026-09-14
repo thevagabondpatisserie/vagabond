@@ -21727,7 +21727,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '493';
+var APPVER = '492';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -27139,13 +27139,24 @@ async function ttnbKhopTay(d, gd, tien) {
   ttnbCt(d.name);
 }
 
+function ttnbGanNutVe() {
+  /* Chi tiết có thể mở từ thông báo, nên nút đầu trang cũng phải về danh
+     sách TTNB. Giữ nguyên ttnbLoc để không mất chip, ngày và ô tìm. */
+  ['vgbBack', 'ttnbVeDanhSach'].forEach(function (id) {
+    var nut = document.getElementById(id);
+    if (nut) nut.onclick = function () { go(scrTTNB, true); };
+  });
+}
+
 async function ttnbCt(ma) {
   frame('Phiếu thanh toán nội bộ', '<div class="emp"><div class="e1">⏳</div><div>Đang mở...</div></div>');
+  ttnbGanNutVe();
   var d;
   try { d = await api('vagabond.de_nghi_chi.chi_tiet', { ma_phieu: ma }); }
   catch (e) {
     frame('Phiếu thanh toán nội bộ', '<div class="emp"><div class="e1">⚠️</div><div>' +
       h((e && e.message) || 'Không mở được phiếu') + '</div></div>');
+    ttnbGanNutVe();
     return;
   }
   var dong = function (n, g, dam) {
@@ -27256,8 +27267,7 @@ async function ttnbCt(ma) {
   chan += '<button class="btn gh" id="ttnbVeDanhSach" style="margin:0;flex:1">← Quay lại</button>';
   var b = frame('Phiếu thanh toán nội bộ', html, { footer: '<div style="display:flex;gap:8px">' + chan + '</div>' });
 
-  var nVe = document.getElementById('ttnbVeDanhSach');
-  if (nVe) nVe.onclick = function () { go(scrTTNB, true); };
+  ttnbGanNutVe();
 
   var nKa = document.getElementById('ttnbKsAuto');
   if (nKa) nKa.onclick = function () { ttnbKhopAuto(d); };
