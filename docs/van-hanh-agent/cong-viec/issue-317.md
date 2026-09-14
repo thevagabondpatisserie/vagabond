@@ -44,3 +44,7 @@ F12 15/09 00:34: bench332733a6 xác nhận217/221 hai lượt, bốn ca317 dừn
 - Giữ lựa chọn naming series cũ; chỉ thêm mẫu YCPS và đổi mặc định. Dấu vết YCPS thay thế chỉ ghi ở bước duyệt cuối.
 - YCPS liên quan gồm chủ phiếu, người yêu cầu hoặc được chia sẻ quyền đọc; không cấp quyền toàn DocType. Khi rỗng, app hướng dẫn nhờ Mua hàng R&D lập/chia sẻ.
 - Local 3000/3000, patch 27, toàn cổng rc0. Bench SHA mới và review delta còn chờ. F14 metadata live chưa xác minh vì kết nối Mac timeout; chưa merge/deploy.
+
+### Delta F20/F21
+
+Đã thêm lời nhắc duyệt trước khớp sao kê cho Chờ kế toán, ca chạy hàm UI thật chốt không hiện ở Chờ duyệt. Patch bỏ qua đổi series nếu không có trường naming_series, có ca thuần không gọi Property Setter. Đồng bộ main d86c5c4d, giữ cả hai phần bài học. Local 3001/3001 và toàn cổng rc0. Bench eeb56a6 đạt 222/222 hai lượt, sạch; không thay bench SHA mới. F22 đã gửi anh hai lựa chọn lập hộ/chia sẻ, chưa thay quy trình khi chưa có trả lời.

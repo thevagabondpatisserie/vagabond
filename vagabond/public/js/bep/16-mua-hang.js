@@ -1649,11 +1649,8 @@ function ttnbVe(kq) {
 Anh Việt 24/08/2026: mọi màn cần đối soát SePay đều phải có đối soát tự động
 và nút thủ công ở kế bên.
 
-Màn này là màn CẦN nút thủ công nhất trong cả hệ, mà trước v294 lại không có.
-Đây là đường DUY NHẤT webhook SePay gọi thẳng: tiền về là phiếu tự nhảy sang
-"Đã chi" mà không ai bấm nút nào. Nên khi kế toán gõ nội dung thiếu một chữ,
-phiếu nằm mãi ở "Chờ kế toán" và không có đường nào để người nhìn sao kê rồi
-chỉ đúng dòng.
+Kế toán phải duyệt phiếu trước khi khớp tiền. Phiếu Chờ kế toán hiện lời
+nhắc; chỉ phiếu Chờ chi mới mở khớp tự động hoặc chọn dòng sao kê thủ công.
 
 Hai nút này gọi thẳng tầng chung `vagabond.doi_soat_sepay`, cùng một cửa với
 màn Phiếu hoàn tiền. */
@@ -1664,6 +1661,7 @@ function ttnbKhopSepay(d) {
         'border-radius:9px;padding:9px 11px;margin-top:9px;line-height:1.6">' +
         'Lệnh chi đã khớp sao kê, giao dịch <b>' + h(d.ma_gd) + '</b>.</div>';
     }
+    if (d.trang_thai === 'Cho ke toan') return '<div style="padding:9px 0;font-size:13px">Duyệt phiếu trước, sau đó mới khớp sao kê.</div>';
     return '';
   }
   return '<button class="btn gh" id="ttnbKsAuto" style="margin:9px 0 0;width:100%">🔄 Khớp SePay</button>' +

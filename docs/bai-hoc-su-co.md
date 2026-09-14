@@ -529,3 +529,12 @@ Máy chủ cho thay YCPS không đủ nếu Hoàn ứng không có picker. Cờ 
 ### PR318: chốt duyệt phải bảo vệ cả đối soát chung
 
 Phiếu Chờ kế toán từng có thể đi tới khớp tiền qua cửa chung dù cửa duyệt yêu cầu lý do ngoại lệ. Chỉ lọc danh sách không đủ vì API theo mã bỏ qua danh sách. Thêm kiểm trạng thái chứng từ tại cửa khớp tay chung và tự động, trước khi đọc/ghi giao dịch; bench gọi cả cửa riêng lẫn cửa chung, chốt trạng thái chưa đổi. Không sửa luật các luồng khác khi bổ sung callback tùy chọn.
+### Telegram xin duyệt: link không thay phương án
+Anh Việt không biết tìm quyết định trong comment kỹ thuật. Khối telegram-approval
+chỉ chuyển nội dung chủ repo soạn riêng (việc, đề xuất, ảnh hưởng, câu hỏi),
+không tự sao chép toàn comment hoặc log. Kênh vẫn một chiều; không nhận là đã
+có phê duyệt từ việc gửi tin hay phản hồi chưa được xử lý.
+
+### PR318 F20/F21: thay điều kiện phải có đường chỉ dẫn
+
+Ẩn khớp sao kê trước duyệt phải giải thích bước tiếp cho kế toán. Patch cấu hình series phải kiểm trường tồn tại trước truy cập options, vì DocType tồn tại không chứng minh trường còn tồn tại. Hai đường có ca hồi quy trong delta F20/F21.

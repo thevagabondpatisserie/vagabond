@@ -42,6 +42,11 @@ function kiemChonYcps() {
 }
 (async () => {
   kiemChonYcps();
+  const nhac = {window:{}, console}; vm.createContext(nhac); vm.runInContext(src, nhac);
+  for (const tt of ['Cho ke toan', 'Cho duyet']) {
+    const html = nhac.ttnbKhopSepay({khop_duoc:0, trang_thai:tt});
+    assert.strictEqual(html.includes('Duyệt phiếu trước'), tt === 'Cho ke toan');
+  }
   const c = {window: {}, console, soTien: Number}; vm.createContext(c); vm.runInContext(src, c);
   function phieu(nv, tien) {return {loai_nghiep_vu:nv, cac_khoan:[{so_tien:tien}]};}
   assert(!c.dncHuongDuyet(phieu('Hoàn ứng', 3000000), 2000000).includes('giám đốc'));

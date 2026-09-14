@@ -22,6 +22,8 @@ def execute():
 		return
 	from frappe.custom.doctype.property_setter.property_setter import make_property_setter
 	truong = frappe.get_meta("RnD Purchase Request").get_field("naming_series")
+	if not truong:
+		return
 	moi = "YCPS-.YY.-.MM.-.####"
 	cu = [x.strip() for x in (truong.options or "").splitlines() if x.strip()]
 	if moi not in cu:

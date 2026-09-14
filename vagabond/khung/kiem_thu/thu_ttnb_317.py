@@ -241,3 +241,18 @@ def _ycps_doc_nhe():
 		dung('phiếu cancel không hợp lệ', not dc._ycps_hop_le_317(dc._trang_thai_ycps_317('YCPS-1')))
 		la('chỉ hai cột cần thiết', doc.call_args.args[2], ['trang_thai', 'docstatus'])
 		day_du.assert_not_called()
+
+
+@ca('#317 patch không ép naming series trên DocType không có trường đó')
+def _ycps_khong_co_series():
+	from unittest.mock import Mock, patch
+	from types import SimpleNamespace
+	import sys
+	from vagabond.patches import ycps_317
+	setter = Mock()
+	with patch.object(dc.frappe, 'get_all', return_value=[]), \
+		patch.object(dc.frappe.db, 'exists', return_value=True), \
+		patch.object(dc.frappe, 'get_meta', create=True, return_value=SimpleNamespace(get_field=lambda x: None)), \
+		patch.dict(sys.modules, {'frappe.custom.doctype.property_setter.property_setter': SimpleNamespace(make_property_setter=setter)}):
+		ycps_317.execute()
+		setter.assert_not_called()
