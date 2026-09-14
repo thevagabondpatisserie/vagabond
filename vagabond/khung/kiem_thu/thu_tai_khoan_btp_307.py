@@ -246,3 +246,5 @@ def _doi_cau_hinh():
 		k = tkb.quyet_dinh('BTPB-THU', 1, 'BTP sơ cấp', 'BTP sơ cấp', tk, moi,
 			tay_doi=tay, cau_hinh_cu=cu)
 		la('quyết định tài khoản ' + str(tk), k['hanh_dong'], mong)
+		if tk == 'TK-CU' and not tay:
+			dung('ghi đúng đổi cấu hình, không đổi chặng', 'Đổi cấu hình' in k['ghi_chu'] and 'Đổi chặng' not in k['ghi_chu'])

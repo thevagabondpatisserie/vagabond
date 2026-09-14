@@ -177,7 +177,9 @@ def quyet_dinh(ma, is_stock_item, khai_tay, khai_tay_cu, tk_hien_co, cau_hinh, t
 			% tk_hien_co)
 		return kq
 	ghi_chu = "Chặng %s: tài khoản tồn kho %s." % (TEN_CHANG[moi], tk)
-	if tk_hien_co:
+	if tk_hien_co and moi == cu:
+		ghi_chu = "Đổi cấu hình tài khoản BTP: máy cập nhật %s bằng %s." % (tk_hien_co, tk)
+	elif tk_hien_co:
 		ghi_chu = "Đổi chặng sang %s: máy ghi đè tài khoản tồn kho %s bằng %s." % (
 			TEN_CHANG[moi], tk_hien_co, tk)
 	kq.update(hanh_dong=GHI, ghi_chu=ghi_chu)
@@ -315,7 +317,7 @@ def ap_dung(doc, cau_hinh=None, ghi_db=False, cau_hinh_cu=None):
 	tk_dong = (dong.get(TRUONG_ITEM_DEFAULT) if dong else None) or None
 	# Ô điền tay: người vừa đổi thì ý người thắng dòng Item Default.
 	tk_hien_co, tay_doi = doc_o_tay(doc.get(O_TAY), o_tay_cu, tk_dong)
-	if doc.get("custom_chang_btp") != khai_cu or tk_hien_co:
+	if _chu(doc.get("custom_chang_btp")) != _chu(khai_cu) or tk_hien_co:
 		giu_trong = False
 	elif tay_doi:
 		giu_trong = True

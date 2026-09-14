@@ -49,6 +49,9 @@ def _chay(bat, rieng):
 	if rieng:
 		# Đi đúng cửa sản phẩm: chặng đã khai khi cấu hình trống, rồi kế toán lưu Settings.
 		cfg = frappe.get_single('Vagabond Settings')
+		# Toạ độ giả trong savepoint để Settings.validate chạy đủ, không gọi dịch vụ giao hàng.
+		cfg.kitchen_lat = cfg.kitchen_lat or 10
+		cfg.kitchen_lng = cfg.kitchen_lng or 106
 		cfg.tk_ton_btp_cap1 = None; cfg.tk_ton_btp_cap2 = None
 		cfg.save(ignore_permissions=True)
 		d.custom_chang_btp = 'BTP sơ cấp'

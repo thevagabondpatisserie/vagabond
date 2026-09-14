@@ -531,3 +531,8 @@ Bench48ffd469 chặn hai ca trước GL vì fixture append dòng công ty đã �
 ### PR316: kiểm chức năng tự điền trước khi kiểm GL
 
 Bench gán tài khoản tay chỉ chứng minh lõi ERPNext đọc Item Default, không chứng minh Settings và chặng BTP chạy đúng. Ca phải lưu Settings thật và đọc lại món trước khi ghi GL. Khi đổi cấu hình cần giữ cấu hình cũ để nhận ra giá trị cần cập nhật; xoá trắng là lựa chọn phải giữ qua lần lưu tiếp theo. Patch không được báo hoàn tất nếu bộ nạp còn lỗi. Nguồn review4005553556/3564 và4005662193/2200.
+
+
+### PR316: lưu Settings thật cần cả cấu hình nền
+
+Bench3c31739d chưa tới BTP vì fixture thiếu tọa độ bếp mà Settings.validate bắt buộc. Khi kiểm on_update bằng save thật, dựng cả điều kiện nền của document thay vì tắt validator. Audit phải nói đổi cấu hình khi chặng giữ nguyên, không dùng chung câu đổi chặng. Nguồn run34853835218 và review5665332461.
