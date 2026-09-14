@@ -69,3 +69,7 @@ lớn vào từ đầu. Không tự rewrite lịch sử hoặc xóa bằng chứ
 quả phụ thuộc lượt sau thực sự đọc, xác minh và dùng bài học đúng phạm vi.
 
 - [Issue303: Gelatine Mass phantom](cong-viec/issue-303.md)
+
+- [Issue 300: nền chung và lịch sử thành viên](cong-viec/issue-300.md)
+
+- [Issue 301: đặt bàn và Lark FOH](cong-viec/issue-301.md)

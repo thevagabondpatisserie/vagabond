@@ -421,6 +421,13 @@ Triệu chứng được báo là Mass sai nhóm. Repo đã từng sửa chính 
 
 Ngày13/09 đối chiếu live #303: Mass đã là phantom,34/34 dòng cha hoạt động đúng và không còn lá Mass trong bảng nổ. Không lấy ảnh/cấu hình cũ làm lý do tạo mã mới. Báo cáo phải gắn trạng thái BOM đã huỷ/đang chạy để tránh nhận lịch sử là lỗi hiện tại; ca công cụ phải được đăng ký vào chay.py, không chỉ chạy riêng.
 
+### #300: ảnh lịch sử không lấy từ danh mục đang bán
+
+Nguồn chọn món lọc disabled/is_sales_item và giới hạn số dòng, nên không dùng
+nguyên danh sách ấy để tìm ảnh đơn cũ. Tra Item.image theo đúng mã ở các đơn
+đã lọc số điện thoại, gom một lô; tập rỗng không truy vấn. Ca kiểm đưa đơn của
+số gần giống và số rác vào cùng phản hồi Pancake để giữ ranh giới khách.
+
 ### 13/09/2026 - Lô và HSD chỉ cảnh báo, tồn kho không bao giờ âm
 
 Đổi chính sách thì phải đổi ca đối chứng đúng đại lượng: 50 tốt + 280 quá hạn + 100 lô tắt nay là 430 khả dụng. Xin500 vẫn phải thiếu70; xin400 cần dùng70 từ lô tắt và lưu cảnh báo. Gói Desk cấp chưa đủ lượng dòng phải được bù, không biến kiểm tổng lượng gói thành một chốt mới chặn người dùng.
@@ -451,3 +458,15 @@ và ngược lại. Đây chỉ là đánh đổi cho thông báo đã duyệt, 
 Issue287/PR312, review F1: nguồn release bị sửa hoặc gỡ làm key cũ mất.
 Nhóm chỉ nhận features hợp lệ nên không dùng fallback kỹ thuật như chat
 riêng; giữ vết cần đối chiếu và kiểm cả đường lỗi nhóm, không chỉ lỗi riêng.
+#300 review: ngày Pancake phải qua ngay_pancake.ngay_tu_iso, không cắt chuỗi
+UTC tại trình duyệt. Ảnh mã có hậu tố size phải thử mã gốc sau mã thô; ca kiểm
+giữ riêng ảnh chính xác và ảnh dự phòng. Nguồn Claude run34771893366.
+
+### #301: callback sau commit và danh từ trẻ em
+
+Frappe enqueue_after_commit chỉ chuyển lệnh xếp Redis vào callback; lỗi ở
+callback không nằm trong try của after_insert. Bao đúng callback sau commit
+để không trả lỗi đặt bàn sau khi phiếu đã lưu. HTTP200 từ Lark vẫn có thể
+mang mã lỗi nghiệp vụ; cần đọc cả mã trước khi nhận gửi thành công.
+Bộ soi xưng hô từng bắt nhầm tre_em và "trẻ em". Chỉ loại danh từ/tên trường,
+vẫn có đối chứng bắt "trẻ em cần ghế, báo em nhé", không miễn cả tệp.
