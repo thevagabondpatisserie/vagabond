@@ -594,3 +594,50 @@ def _ton_lo_tat_va_giu():
 		patch.object(lh.frappe,'get_all',side_effect=doc,create=True), \
 		patch.object(lh,'_bo_lo_khong_dung',side_effect=lambda x,*a:x):
 		la('không mất lô tắt, không ăn giữ',lh._ton_tung_lo('M','K',True),{'TOT':50,'TAT':50})
+
+
+@ca('308 mã gốc hết: lấy lô cảnh báo của mã thay thế đã duyệt trong đúng kho')
+def _308_thay_canh_bao():
+	ra = chay_gan_lo('Manufacture', [dong('A', 'Kho A', 6)], {},
+		qua_han={('B', 'Kho A'): {'B-cu': 6}}, thay_the={'A': ['B']})
+	la('lấy đủ mã thay', _gon(ra), [('B', 'B-cu', 6.0)])
+	la('giữ liên kết NVL của lệnh', ra[0].get('original_item'), 'A')
+
+
+@ca('308 ưu tiên hàng tốt cả hai mã rồi mới vét cảnh báo gốc và thay')
+def _308_thu_tu():
+	for can, mong in [(5, {'A-moi': 2, 'B-moi': 3}),
+		(7, {'A-moi': 2, 'B-moi': 3, 'A-cu': 2}),
+		(10, {'A-moi': 2, 'B-moi': 3, 'A-cu': 2, 'B-cu': 3})]:
+		ra = chay_gan_lo('Manufacture', [dong('A', 'Kho A', can)],
+			{('A', 'Kho A'): {'A-moi': 2}, ('B', 'Kho A'): {'B-moi': 3}},
+			qua_han={('A', 'Kho A'): {'A-cu': 2}, ('B', 'Kho A'): {'B-cu': 8}},
+			thay_the={'A': ['B']})
+		la('phần lấy theo từng mức nhu cầu', {r['batch_no']: r['qty'] for r in ra}, mong)
+
+
+@ca('308 vét mã thay chia sẻ tồn và trừ lô chọn tay, không cấp trùng')
+def _308_chung_tui():
+	ra = chay_gan_lo('Manufacture', [dong('B', 'Kho A', 2, lo='B-cu'),
+		dong('A', 'Kho A', 3), dong('A', 'Kho A', 1)], {},
+		qua_han={('B', 'Kho A'): {'B-cu': 6}}, thay_the={'A': ['B']})
+	la('tổng không vượt sáu', sum(r['qty'] for r in ra), 6)
+	try:
+		chay_gan_lo('Manufacture', [dong('A', 'Kho A', 4), dong('A', 'Kho A', 3)], {},
+			qua_han={('B', 'Kho A'): {'B-cu': 6}}, thay_the={'A': ['B']})
+	except lh.frappe.ValidationError:
+		return
+	dung('thiếu thật phải chặn', False)
+
+
+@ca('308 không vét mã chưa duyệt, sai kho hoặc luồng không cho thay')
+def _308_pham_vi():
+	for purpose, thay, kho in [('Manufacture', {}, 'Kho A'),
+		('Manufacture', {'A': ['B']}, 'Kho B'),
+		('Material Transfer', {'A': ['B']}, 'Kho A')]:
+		try:
+			chay_gan_lo(purpose, [dong('A', 'Kho A', 1)], {},
+				qua_han={('B', kho): {'B-cu': 6}}, thay_the=thay)
+		except lh.frappe.ValidationError:
+			continue
+		dung('phải chặn ngoài phạm vi đã duyệt', False)
