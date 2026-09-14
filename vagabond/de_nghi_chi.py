@@ -848,7 +848,8 @@ def _phieu_kiem_317(doc, gui=False):
 			and la_tam_ung(tu.get("loai_nghiep_vu")) and tu.get("trang_thai") == TT_DA_CHI
 			and not tu.get("yeu_cau_phat_sinh")
 			and (not tu.get("quy_tac_317") or tien_phieu(frappe.get_doc(DT, doc.get("thuoc_tam_ung"))) <= NGUONG_MUA_VAT))
-		if ma and not frappe.db.exists("RnD Purchase Request", ma):
+		if ma and (not frappe.db.exists("RnD Purchase Request", ma)
+				or frappe.db.get_value("RnD Purchase Request", ma, "trang_thai") in ("Huỷ", "Hủy")):
 			ma = str(doc.get("yeu_cau_phat_sinh") or "").strip() or None
 		doc.yeu_cau_phat_sinh = ma
 	elif not la_tam_ung(doc.get("loai_nghiep_vu")):
@@ -1065,6 +1066,10 @@ def duyet(ma_phieu, ghi_chu=None):
 	if (ghi_chu or "").strip():
 		doc.ghi_chu = ((doc.ghi_chu or "") + "\n" + ghi_chu).strip()
 	doc.save(ignore_permissions=True)
+	if doc.get("loai_nghiep_vu") == NV_HOAN_UNG and doc.get("yeu_cau_phat_sinh"):
+		goc = frappe.db.get_value(DT, doc.get("thuoc_tam_ung"), "yeu_cau_phat_sinh")
+		if goc and goc != doc.yeu_cau_phat_sinh:
+			doc.add_comment("Info", "YCPS nguồn %s không còn hợp lệ; hoàn ứng dùng YCPS thay thế %s, đã kiểm quyền người lập." % (goc, doc.yeu_cau_phat_sinh))
 	if ngoai_le:
 		doc.add_comment("Info", "Kế toán đã kiểm chứng từ hoàn ứng tạm ứng %s thiếu YCPS. Lý do: %s" % (doc.thuoc_tam_ung, ghi_chu.strip()))
 	_bao_buoc_ke_tiep(doc)

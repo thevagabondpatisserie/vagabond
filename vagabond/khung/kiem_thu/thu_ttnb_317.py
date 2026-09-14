@@ -165,3 +165,30 @@ def _ngoai_le_cu():
 	la('hoàn ứng cũ có chứng từ', dc.ly_do_chan_vat(phieu(600000, loai_nghiep_vu=dc.NV_HOAN_UNG, _hoan_ung_cu=True)), None)
 	dung('chi phí vẫn chặn', dc.ly_do_chan_vat(phieu(600000, _hoan_ung_cu=True)))
 	dung('tạm ứng mới vẫn chặn', dc.ly_do_chan_vat(phieu(600000, loai_nghiep_vu=dc.NV_TAM_UNG, _hoan_ung_cu=True)))
+
+
+@ca('#317 YCPS nguồn huỷ: nhận phiếu thay thế thuộc người lập, không đổi nguồn')
+def _ycps_huy_thay_the():
+	from unittest.mock import patch
+	from types import SimpleNamespace
+	class D(dict):
+		__getattr__ = dict.get
+		__setattr__ = dict.__setitem__
+		def is_new(self): return False
+	p = D(name='HOAN', nguoi_tao='nhan-vien', trang_thai=dc.TT_CHO_KE_TOAN,
+		loai_nghiep_vu=dc.NV_HOAN_UNG, thuoc_tam_ung='UNG', yeu_cau_phat_sinh='YCPS-MOI', cac_khoan=[])
+	tu = D(nguoi_tao='nhan-vien', loai_nghiep_vu=dc.NV_TAM_UNG,
+		trang_thai=dc.TT_DA_CHI, quy_tac_317=1, yeu_cau_phat_sinh='YCPS-HUY')
+	def doc(dt, name, *args, **kw):
+		if dt == dc.DT: return tu if name == 'UNG' else D(quy_tac_317=1, trang_thai=dc.TT_CHO_KE_TOAN)
+		if dt == 'RnD Purchase Request': return 'Huỷ'
+		return None
+	with patch.object(dc, '_kem_dm', side_effect=lambda d: dict(d)), \
+		patch.object(dc.frappe.db, 'get_value', side_effect=doc), \
+		patch.object(dc.frappe.db, 'exists', return_value=True), \
+		patch.object(dc.frappe, 'get_doc', return_value=D(owner='nhan-vien', trang_thai='Đã duyệt')), \
+		patch.object(dc.frappe, 'get_all', return_value=[]):
+		ra = dc._phieu_kiem_317(p)
+		la('phiếu mới hợp lệ', ra['_ycps_hop_le'], True)
+		la('chọn phiếu mới giữ nguyên', p.yeu_cau_phat_sinh, 'YCPS-MOI')
+		la('không sửa YCPS gốc', tu.yeu_cau_phat_sinh, 'YCPS-HUY')

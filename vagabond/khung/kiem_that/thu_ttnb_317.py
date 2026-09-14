@@ -76,3 +76,21 @@ def ycps_da_mat():
 	la('YCPS mất không hợp lệ', dc._phieu_kiem_317(p).get('_ycps_hop_le'), False)
 	ra = dc.chi_tiet(p.name)
 	la('vẫn mở đúng phiếu', ra.get('name'), p.name)
+
+
+@ca('#317 nguồn mới trên trần thiếu YCPS: không miễn và không lưu hoàn ứng')
+def nguon_moi_vuot_tran():
+	tu = _phieu_cho_chi(800000)
+	frappe.db.set_value(tu.doctype, tu.name, {'loai_nghiep_vu': dc.NV_TAM_UNG,
+		'trang_thai': dc.TT_DA_CHI, 'quy_tac_317': 1, 'yeu_cau_phat_sinh': None})
+	p = _phieu_cho_chi(900000)
+	frappe.db.set_value(p.doctype, p.name, {'loai_nghiep_vu': dc.NV_HOAN_UNG,
+		'thuoc_tam_ung': tu.name, 'quy_tac_317': 1})
+	p.reload()
+	la('không miễn trần nguồn mới', dc._phieu_kiem_317(p).get('_hoan_ung_cu'), False)
+	try:
+		p.save(ignore_permissions=True)
+	except frappe.ValidationError as e:
+		la('lỗi đúng trần', '500.000' in str(e), True)
+	else:
+		raise AssertionError('Nguồn mới vượt trần thiếu YCPS vẫn lưu được')
