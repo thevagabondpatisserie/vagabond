@@ -124,3 +124,10 @@ Khối Telegram tương ứng:
 - Phần "Đã kiểm trên site thật" có tên màn và con số? Có / Không
 - Phần "Còn tồn" có ghi thật lỗi còn lại? Có / Không
 - Có dấu em dash hay en dash? Có thì sửa
+
+
+## Nhóm Telegram bộ phận (Issue287,14/09/2026)
+
+`features` là chính nội dung nhóm nhân viên đọc, mỗi ý nói thay đổi và việc
+cần làm, không mã SHA/PR/link GitHub. Bot chỉ thêm tiêu đề/ngày; tin review
+và CI ở kênh riêng. Chỉ báo đã gửi nhóm khi có receipt của kênh bộ phận.

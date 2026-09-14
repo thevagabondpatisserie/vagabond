@@ -1,7 +1,7 @@
 """Issue287: báo việc cần xem trên mobile, không dùng model và không chép nội dung kín.
 
-Dấu đang gửi được lưu TRƯỚC HTTP. Mất phản hồi thì giữ dấu để người vận hành
-đối chiếu, không đoán là chưa gửi rồi gửi lặp. Nhánh trạng thái không được checkout.
+Dấu đang gửi được lưu TRƯỚC HTTP. Sau10phút chỉ thử lại một lần có nhãn;
+chấp nhận trùng tin thông báo theo duyệt287, không áp dụng cho chứng từ. Nhánh trạng thái không được checkout.
 """
 import base64
 import datetime as dt
@@ -58,7 +58,8 @@ class HTTP:
         except Exception as e:
             # URL Telegram chứa token: không in ngoại lệ gốc hay response body.
             so = e.code if isinstance(e, urllib.error.HTTPError) else 'khong-ro'
-            raise Loi('Lỗi HTTP ' + str(so) + '; kiểm Actions và đối chiếu trước khi thử lại.') from None
+            nguon = 'Telegram' if url.startswith('https://api.telegram.org/') else 'GitHub'
+            raise Loi('Lỗi HTTP ' + str(so) + ' từ ' + nguon + '; kiểm Actions và đối chiếu trước khi thử lại.') from None
 
 
 class GitHub:
@@ -131,9 +132,9 @@ class Telegram:
         if self.goi('getMe').get('username', '').lower() != 'vagabonderpbot':
             raise Loi('Secret không thuộc bot VagabondERPBot; dừng ghép/gửi.')
 
-    def gui(self, chat, text):
-        if not re.fullmatch(r'[1-9]\d*', str(chat)):
-            raise Loi('Chỉ gửi tới private chat đã ghép.')
+    def gui(self, chat, text, nhom=False):
+        if not re.fullmatch(r'-[1-9]\d*' if nhom else r'[1-9]\d*', str(chat)):
+            raise Loi('Chỉ gửi tới đúng loại chat đã ghép.')
         x = self.goi('sendMessage', {'chat_id': str(chat), 'text': text,
             'link_preview_options': {'is_disabled': True}})
         if str(x.get('chat', {}).get('id')) != str(chat) or not x.get('message_id'):
@@ -179,9 +180,11 @@ def thu_thap(gh, state):
     since = urllib.parse.quote(lui(state['cursor'], 120), safe='')
     ket = {}
 
-    def them(khoa, moc, text, entity=None, signature=None):
+    def them(khoa, moc, text, entity=None, signature=None, text_nhom=None):
         if moc and moc >= state['start']:
             e = {'at': moc, 'text': text}
+            if text_nhom:
+                e['text_nhom'] = text_nhom
             if entity:
                 e.update(entity=entity, signature=signature)
                 e['silent'] = state.get('entities', {}).get(entity, {}).get('signature') == signature
@@ -201,7 +204,9 @@ def thu_thap(gh, state):
                         + '\nĐã deploy và kiểm site thật (theo xác nhận phát hành).\n'
                         + '\n'.join('- ' + f.strip() for f in release['features'])
                         + '\nChi tiết: ' + link)
-                them(entity + ':' + c['updated_at'] + ':' + signature, c['updated_at'], text, entity, signature)
+                text_nhom = ('Vagabond | Cập nhật ' + release['version'] + ' | ' + c['updated_at'][:10]
+                             + '\n' + '\n'.join('- ' + f.strip() for f in release['features']))
+                them(entity + ':' + c['updated_at'] + ':' + signature, c['updated_at'], text, entity, signature, text_nhom)
                 continue
             nhan = ' (đã sửa)' if c['updated_at'] != c['created_at'] else ''
             dau = (c.get('body') or '').splitlines()[:1]
@@ -261,29 +266,112 @@ def thu_thap(gh, state):
     return ket
 
 
-def chay(gh, tg, chat, gom=False):
-    if not re.fullmatch(r'[1-9]\d*', str(chat)):
-        raise Loi('Thiếu TELEGRAM_CHAT_ID private; chưa ghi dấu gửi.')
+def luu_chac(gh, state, sha):
+    """Chỉ thử lại PUT khi cùng SHA, hoặc nhận lần PUT mất phản hồi đã thành công."""
+    try:
+        return gh.luu(state, sha)
+    except Loi:
+        moi, ma_moi = gh.doc()
+        if moi == state:
+            return ma_moi
+        if ma_moi != sha:
+            raise Loi('GitHub: trạng thái đã đổi; không ghi đè phiên khác.') from None
+        return gh.luu(state, ma_moi)
+
+
+def ghi_xong(state, p):
+    state['seen'][p['key']] = p['at']
+    if p.get('entity'):
+        state['entities'][p['entity']] = {'signature': p['signature'], 'at': p['at']}
+    state['pending'] = None
+
+
+def tin_mat_nguon(p, nhom):
+    # Nhóm nhân viên không nhận link GitHub hoặc mã kỹ thuật.
+    if nhom:
+        return 'Vagabond | Bản tin trước mất phản hồi. Vui lòng hỏi quản lý về bản cập nhật gần nhất.'
+    k = p['key']
+    link = WEB
+    m = re.fullmatch(r'comment:/issues/comments:(\d+):.+', k)
+    if m:
+        link += '/issues/287'  # Nguồn đã mất: đầu mối đối chiếu, không dựng URL comment giả.
+    m = re.fullmatch(r'run:(\d+):\d+', k)
+    if m:
+        link += '/actions/runs/' + m[1]
+    return 'Vagabond | Tin ' + p['code'] + ' mất phản hồi lúc ' + p['at'] + '.\nĐối chiếu: ' + link
+
+
+def chay_kenh(gh, tg, chat, gom=False, nhom=False, han=None):
+    if not re.fullmatch(r'-[1-9]\d*' if nhom else r'[1-9]\d*', str(chat)):
+        raise Loi('Thiếu hoặc sai loại chat Telegram; chưa ghi dấu gửi.')
     state, sha = gh.doc()
-    if state['pending']:
-        raise Loi('Có lần gửi chưa rõ kết quả. Đối chiếu mã sự kiện trong Telegram trước khi xử lý dấu pending.')
-    moc = gio()
-    han = time.monotonic() + 300
-    if gom and state['cursor'] > lui(moc, 180):
-        return 0
     state.setdefault('entities', {})
+    state.setdefault('bien_nhan', {})
+    state.setdefault('can_doi_chieu', {})
+    moc = gio()
+    if han is None:
+        han = time.monotonic() + 300
+    p = state.get('pending')
+    if p and p.get('message_id'):
+        ghi_xong(state, p)
+        sha = luu_chac(gh, state, sha)
+        p = None
+    if p and not p.get('ghi_luc'):
+        # Dữ liệu cũ dùng at của sự kiện, không phải giờ gửi: bắt đầu đếm từ lúc nâng cấp.
+        p['ghi_luc'] = moc
+        sha = luu_chac(gh, state, sha)
+    if p and p['ghi_luc'] > lui(moc, 600):
+        raise Loi('Tin đang chờ phản hồi chưa đủ10phút; giữ dấu, không gửi trùng.')
+    if gom and not p and state['cursor'] > lui(moc, 180):
+        return 0
     events = thu_thap(gh, state)
+    if nhom:
+        events = {k: e for k, e in events.items() if e.get('text_nhom')}
     tg.kiem_bot()
     dem = 0
+
+    def gui(khoa, e, lap=False):
+        nonlocal sha, dem
+        y = {'key': khoa, 'at': e['at'], 'code': ma(khoa), 'ghi_luc': gio(), 'gui_lai': int(lap)}
+        if e.get('entity'):
+            y.update(entity=e['entity'], signature=e['signature'])
+        state['pending'] = y
+        sha = luu_chac(gh, state, sha)
+        text = e.get('text_nhom', e['text']) if nhom else e['text']
+        text = ('(gửi lại)\n' if lap else '') + text
+        if not nhom:
+            text += '\nMã tin: ' + y['code']
+        mid = tg.gui(chat, text, nhom=True) if nhom else tg.gui(chat, text)
+        # Log ngay sau OK: dù GitHub ngắt sau đó vẫn có receipt để vận hành đối chiếu.
+        print('Đã gửi mã tin ' + y['code'] + ', message_id ' + str(mid)
+              + ', kênh ' + ('bộ phận' if nhom else 'riêng'), flush=True)
+        y['message_id'] = mid
+        state['bien_nhan'][y['code']] = {'message_id': mid, 'at': gio()}
+        sha = luu_chac(gh, state, sha)
+        ghi_xong(state, y)
+        sha = luu_chac(gh, state, sha)
+        dem += 1
+
+    if p:
+        if p.get('gui_lai') or (nhom and p['key'] not in events):
+            # Nhóm chỉ nhận features còn xác minh được; mất nguồn không gửi tin kỹ thuật.
+            # Đã thử đúng một lần: giữ vết chưa rõ để người đối chiếu, nhường kênh cho tin khác.
+            state['can_doi_chieu'][p['key']] = dict(p)
+            ghi_xong(state, p)
+            sha = luu_chac(gh, state, sha)
+            ly_do = 'đã hết một lần gửi lại' if p.get('gui_lai') else 'nhóm không còn nguồn release hợp lệ'
+            print('Cần đối chiếu mã tin ' + p['code'] + '; ' + ly_do + '.', flush=True)
+        else:
+            if time.monotonic() >= han:
+                raise Loi('Đọc nguồn quá5phút; giữ pending cho lượt sau.')
+            e = events.get(p['key']) or {'at': p['at'], 'text': tin_mat_nguon(p, nhom),
+                                        **{k: p[k] for k in ('entity', 'signature') if k in p}}
+            gui(p['key'], e, lap=True)
     for khoa, e in sorted(events.items(), key=lambda x: (x[1]['at'], x[0])):
-        if khoa in state['seen']:
+        if khoa in state['seen'] or khoa in state['can_doi_chieu']:
             continue
-        # Giới hạn lượt, chưa đẩy cursor nên phần còn lại được đọc ở lượt sau.
-        silent = e.get('silent')
-        if e.get('entity', '').startswith('release:'):
-            # Cùng lượt có thể nhận nhiều PR hoặc đính chính A -> B -> A.
-            # So trạng thái sau tin vừa gửi, không dùng snapshot đầu lượt.
-            silent = state['entities'].get(e['entity'], {}).get('signature') == e['signature']
+        silent = (e.get('entity') and
+                  state['entities'].get(e['entity'], {}).get('signature') == e.get('signature'))
         if silent:
             state['entities'][e['entity']] = {'signature': e['signature'], 'at': e['at']}
             continue
@@ -293,24 +381,46 @@ def chay(gh, tg, chat, gom=False):
             if dem == 0:
                 raise Loi('Đọc nguồn quá5phút, còn tin chưa gửi; kiểm độ chậm API trước khi chạy lại.')
             return dem
-        state['pending'] = {'key': khoa, 'at': e['at'], 'code': ma(khoa)}
-        if e.get('entity'):
-            state['pending'].update(entity=e['entity'], signature=e['signature'])
-        sha = gh.luu(state, sha)
-        tg.gui(chat, e['text'] + '\nMã tin: ' + ma(khoa))
-        state['seen'][khoa] = e['at']
-        if e.get('entity'):
-            state['entities'][e['entity']] = {'signature': e['signature'], 'at': e['at']}
-        state['pending'] = None
-        sha = gh.luu(state, sha)
-        dem += 1
+        gui(khoa, e)
     state['cursor'] = moc
-    # Nguồn comment/item/review đã lọc since; run giữ đúng cửa7ngày.
     state['seen'] = {k: at for k, at in state['seen'].items()
                      if at >= lui(moc, 7 * 86400 if k.startswith('run:') else 120)}
     state['entities'] = {k: e for k, e in state['entities'].items()
                          if e['at'] >= lui(moc, 30 * 86400)}
-    gh.luu(state, sha)
+    state['bien_nhan'] = {k: e for k, e in state['bien_nhan'].items()
+                          if e['at'] >= lui(moc, 30 * 86400)}
+    luu_chac(gh, state, sha)
+    return dem
+
+
+class KenhNhom:
+    """Kho riêng trong cùng tệp; không lưu chat ID, không dùng seen của chat cá nhân."""
+    def __init__(self, gh):
+        self.gh = gh
+    def doc(self):
+        self.goc, sha = self.gh.doc()
+        if 'bo_phan' not in self.goc:
+            moc = gio()
+            self.goc['bo_phan'] = {'start': moc, 'cursor': moc, 'seen': {}, 'entities': {}, 'pending': None}
+            sha = self.gh.luu(self.goc, sha)
+        return self.goc['bo_phan'], sha
+    def luu(self, state, sha):
+        self.goc['bo_phan'] = state
+        return self.gh.luu(self.goc, sha)
+    def trang(self, *args):
+        return self.gh.trang(*args)
+
+
+def chay(gh, tg, chat, gom=False, chat_nhom=''):
+    dem, loi = 0, []
+    han = time.monotonic() + 300
+    for kho, dich, nhom in [(gh, chat, False)] + ([(KenhNhom(gh), chat_nhom, True)] if chat_nhom else []):
+        try:
+            dem += chay_kenh(kho, tg, dich, gom=gom, nhom=nhom, han=han)
+        except Loi as e:
+            loi.append(('Bộ phận: ' if nhom else 'Riêng: ') + str(e))
+    if loi:
+        raise Loi('; '.join(loi))
     return dem
 
 
@@ -322,7 +432,8 @@ def main():
         return
     dem = chay(gh, Telegram(HTTP(), os.environ.get('TELEGRAM_BOT_TOKEN', '')),
                os.environ.get('TELEGRAM_CHAT_ID', ''),
-               gom=os.getenv('GITHUB_EVENT_NAME') != 'workflow_dispatch')
+               gom=os.getenv('GITHUB_EVENT_NAME') != 'workflow_dispatch',
+               chat_nhom=os.environ.get('TELEGRAM_CHAT_ID_BO_PHAN', ''))
     print('Đã gửi ' + str(dem) + ' thông báo; không dùng model.')
 
 
