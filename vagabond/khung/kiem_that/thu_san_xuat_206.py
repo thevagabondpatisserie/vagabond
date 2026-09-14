@@ -778,9 +778,18 @@ def _308_thay_lo_canh_bao(tat):
 	la('huỷ trả sản lượng', float(wo.produced_qty), 0)
 	la('huỷ trả tiêu hao gốc', get_consumed_qty(wo.name, goc), 0)
 	tong = frappe.db.sql('''select sum(actual_qty), sum(stock_value_difference)
-		from `tabStock Ledger Entry` where item_code=%s and warehouse=%s''', (thay, kho[0]))[0]
+		from `tabStock Ledger Entry` where item_code=%s and warehouse=%s
+		and is_cancelled=0''', (thay, kho[0]))[0]
 	la('huỷ trả đủ tồn mã thay', float(tong[0]), 10)
 	la('huỷ trả đủ giá trị', float(tong[1]), 17000)
+	# Core stock_ledger.set_as_cancel loại cả cặp SLE khỏi sổ hiệu lực.
+	# Không cộng stock_value_difference của dòng đã huỷ; đối chiếu thêm
+	# Bin độc lập để không chỉ có một truy vấn tự chứng minh chính nó.
+	ton = frappe.db.get_value('Bin', {'item_code': thay, 'warehouse': kho[0]},
+		['actual_qty', 'stock_value'], as_dict=True)
+	la('Bin trả lượng sau huỷ', float(ton.actual_qty), 10)
+	la('Bin trả giá trị sau huỷ', float(ton.stock_value), 17000)
+
 
 
 @ca('308 thật: mã thay chỉ có lô quá hạn, Manufacture SLE giá vốn và huỷ')

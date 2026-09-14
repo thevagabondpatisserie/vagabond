@@ -483,3 +483,7 @@ bench riêng, không suy ra từ ca thuần.
   (allow_alternative_item). Lỗi fixture trước insert/submit không chứng minh
   luồng ghi sổ. Ca chống trừ trùng chọn tay cần nhu cầu vượt phần còn lại;
   chỉ thử vừa đủ không bắt được việc bỏ phép trừ.
+
+- Kiểm giá trị kho sau huỷ: cộng stock_value_difference của cả dòng SLE đã
+  huỷ không tương đương tồn hiệu lực. Đọc is_cancelled theo core và đối
+  chiếu Bin actual_qty/stock_value; không bỏ assertion giá trị để cổng xanh.

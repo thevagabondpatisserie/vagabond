@@ -38,3 +38,15 @@ item_alternative.has_alternative_item yêu cầu cờ này. Đã save cờ trên
 thử trước khi tạo cặp, không đổi dữ liệu thật. Chờ bench mới.
 
 Đã tích hợp main5cf2e073 (PR312), không đổi phiên bản491.
+
+## Bench lượt b605892 và phép kiểm huỷ
+
+Claude5658481399 đã chốt F1/F2/F4, không finding code mới. Bench34801927753
+vẫn214/216 cả hai lượt: hai ca308 chỉ còn lỗi tổng giá trị sau huỷ15300
+so với17000. Ghi sổ/cảnh báo/mã thay/giá vốn1700/consumed/huỷ lượng đều đạt.
+
+Phép kiểm cũ cộng cả SLE is_cancelled=1. Core stock_ledger.set_as_cancel
+đánh dấu sổ gốc; sổ huỷ không phải dòng đối ứng giá trị dùng để cộng toàn
+bảng. Đổi truy vấn sang sổ hiệu lực is_cancelled=0, thêm đối chứng Bin
+actual_qty=10 và stock_value=17000. Chờ bench mới để xác nhận cả hai nguồn,
+không nhận phép kiểm đã xanh trước khi chạy.
