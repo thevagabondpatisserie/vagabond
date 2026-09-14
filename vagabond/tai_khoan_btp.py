@@ -77,6 +77,7 @@ SO_HIEU_BTP = "1552"
 # Người đổi ô gương thì máy chép xuống dòng; không đổi thì ô gương chép lại
 # giá trị dòng khi lưu.
 O_TAY = "custom_tk_ton_kho_tay"
+O_GIU_TRONG = "custom_tk_ton_giu_trong"
 NHAN_O_TAY = "Tài khoản tồn kho (điền tay)"
 
 TRUONG_MOI = {"Item": [
@@ -90,6 +91,8 @@ TRUONG_MOI = {"Item": [
 			"thành phẩm thì máy tự điền theo chặng; đổi chặng là máy ghi đè. "
 			"Để trống thì lõi tìm ở nhóm món rồi nhãn hiệu.",
 	},
+	{"fieldname": O_GIU_TRONG, "label": "Giữ tài khoản riêng trống", "fieldtype": "Check",
+	 "default": "0", "hidden": 1, "read_only": 1, "insert_after": O_TAY},
 ]}
 
 # Năm kết luận của phép quyết định, để hook và patch cùng đọc một luật.
@@ -133,7 +136,7 @@ def tai_khoan_theo_chang(chang, cau_hinh):
 	return ((cau_hinh or {}).get(O_CAU_HINH[chang]) or "").strip() or None
 
 
-def quyet_dinh(ma, is_stock_item, khai_tay, khai_tay_cu, tk_hien_co, cau_hinh):
+def quyet_dinh(ma, is_stock_item, khai_tay, khai_tay_cu, tk_hien_co, cau_hinh, tay_doi=False, cau_hinh_cu=None):
 	"""Phải làm gì với tài khoản tồn kho của món. THUẦN.
 
 	Trả về dict(hanh_dong, tai_khoan, chang, ghi_chu). `khai_tay_cu` là ô
@@ -158,6 +161,9 @@ def quyet_dinh(ma, is_stock_item, khai_tay, khai_tay_cu, tk_hien_co, cau_hinh):
 				kq.update(hanh_dong=GIU, ghi_chu="Bỏ chặng %s nhưng giữ tài khoản điền tay %s "
 					"(khác giá trị máy điền)." % (TEN_CHANG[cu], tk_hien_co))
 		return kq
+	if moi == cu and tay_doi:
+		kq.update(hanh_dong=GIU, tai_khoan=tk_hien_co, ghi_chu="Giữ lựa chọn tài khoản điền tay, kể cả xoá trắng.")
+		return kq
 	tk = tai_khoan_theo_chang(moi, cau_hinh)
 	if not tk:
 		kq.update(hanh_dong=NHAC, ghi_chu="Chưa khai ô %s trên Vagabond Settings."
@@ -166,7 +172,7 @@ def quyet_dinh(ma, is_stock_item, khai_tay, khai_tay_cu, tk_hien_co, cau_hinh):
 	kq["tai_khoan"] = tk
 	if tk_hien_co == tk:
 		return kq
-	if moi == cu and tk_hien_co:
+	if moi == cu and tk_hien_co and tk_hien_co != tai_khoan_theo_chang(cu, cau_hinh_cu):
 		kq.update(hanh_dong=GIU, ghi_chu="Giữ tài khoản khai tay %s vì chặng không đổi."
 			% tk_hien_co)
 		return kq
@@ -280,7 +286,7 @@ def kiem_o_cau_hinh(doc, method=None):
 			frappe.throw("Ô %s: %s" % (o, loi))
 
 
-def ap_dung(doc, cau_hinh=None, ghi_db=False):
+def ap_dung(doc, cau_hinh=None, ghi_db=False, cau_hinh_cu=None):
 	"""Áp luật lên một Item đã nạp. Trả về dict quyết định.
 
 	`ghi_db=False` (hook validate): chỉ sửa trên doc, Frappe ghi khi lưu.
@@ -292,13 +298,14 @@ def ap_dung(doc, cau_hinh=None, ghi_db=False):
 		cau = "Chưa có công ty mặc định. Đã giữ tài khoản của món; kế toán khai Global Defaults rồi lưu lại."
 		frappe.msgprint(cau, indicator="orange", alert=True)
 		return {"hanh_dong": BO_QUA, "tai_khoan": None, "ghi_chu": cau}
-	khai_cu, o_tay_cu = None, None
+	khai_cu, o_tay_cu, giu_trong = None, None, False
 	# Chỉ hỏi cột ô gương khi nó đã được dựng, để lần migrate đầu (hook
 	# chạy trước truong_tu_them) không ném lỗi thiếu cột.
-	cot = ["custom_chang_btp"] + ([O_TAY] if doc.meta.has_field(O_TAY) else [])
+	cot = ["custom_chang_btp"] + ([O_TAY] if doc.meta.has_field(O_TAY) else []) + ([O_GIU_TRONG] if doc.meta.has_field(O_GIU_TRONG) else [])
 	if not doc.is_new():
 		r = frappe.db.get_value("Item", doc.name, cot, as_dict=True) or {}
 		khai_cu, o_tay_cu = r.get("custom_chang_btp"), r.get(O_TAY)
+		giu_trong = bool(r.get(O_GIU_TRONG))
 	cty = cong_ty_ap_dung(cau_hinh)
 	dong = None
 	for d in doc.get("item_defaults") or []:
@@ -308,8 +315,18 @@ def ap_dung(doc, cau_hinh=None, ghi_db=False):
 	tk_dong = (dong.get(TRUONG_ITEM_DEFAULT) if dong else None) or None
 	# Ô điền tay: người vừa đổi thì ý người thắng dòng Item Default.
 	tk_hien_co, tay_doi = doc_o_tay(doc.get(O_TAY), o_tay_cu, tk_dong)
+	if doc.get("custom_chang_btp") != khai_cu or tk_hien_co:
+		giu_trong = False
+	elif tay_doi:
+		giu_trong = True
+	# Đọc cờ cũ từ DB, không tin giá trị hidden do client gửi lên.
+	if doc.meta.has_field(O_GIU_TRONG):
+		doc.set(O_GIU_TRONG, int(giu_trong))
+		if ghi_db and not doc.is_new():
+			frappe.db.set_value("Item", doc.name, O_GIU_TRONG, int(giu_trong), update_modified=False)
 	kq = quyet_dinh(doc.item_code or doc.name, doc.is_stock_item,
-		doc.get("custom_chang_btp"), khai_cu, tk_hien_co, cau_hinh)
+		doc.get("custom_chang_btp"), khai_cu, tk_hien_co, cau_hinh,
+		tay_doi=tay_doi or giu_trong, cau_hinh_cu=cau_hinh_cu)
 	hd = kq["hanh_dong"]
 	kq["tay_doi"] = tay_doi
 	if hd == NHAC:
@@ -404,10 +421,12 @@ def khi_luu_cau_hinh(doc, method=None):
 		return
 	cty = cong_ty_ap_dung(cau_hinh)
 	from vagabond import luoi_do_nhom
-	kq = luoi_do_nhom.ap_dung(cty, chi_btp=True, cau_hinh=cau_hinh)
+	cu = doc.get_doc_before_save()
+	cau_hinh_cu = {o: cu.get(o) if cu else None for o in O_CAU_HINH.values()}
+	kq = luoi_do_nhom.ap_dung(cty, chi_btp=True, cau_hinh=cau_hinh, cau_hinh_cu=cau_hinh_cu)
 	if kq["dem"]["loi"]:
 		frappe.throw("Chưa nạp được tài khoản cho nhóm BTP. Chưa lưu cấu hình; kiểm nhật ký lỗi rồi thử lại.")
 	for ten in frappe.get_all("Item", filters={"is_stock_item": 1,
 		"custom_chang_btp": ["!=", ""]}, pluck="name", limit_page_length=0):
-		ap_dung(frappe.get_doc("Item", ten), cau_hinh, ghi_db=True)
+		ap_dung(frappe.get_doc("Item", ten), cau_hinh, ghi_db=True, cau_hinh_cu=cau_hinh_cu)
 	frappe.clear_cache(doctype="Item")

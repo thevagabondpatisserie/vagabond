@@ -161,3 +161,26 @@ def _giu_lich_su_sle():
 		ldn.bo_theo_ton_chua_phat_sinh()
 		la('chỉ món mới được đổi', ghi.call_args_list[0].args, ('Item', 'MOI', 'is_stock_item', 0))
 		la('món có lịch sử không bị sửa', ghi.call_count, 1)
+
+
+@ca('#307 nhóm: đổi cấu hình cũ chỉ cập nhật giá trị máy, giữ khai tay')
+def _doi_tai_khoan_nhom():
+	la('nhóm theo máy đổi', ldn.quyet_nhom('CU', 'MOI', '', 'CU')['hanh_dong'], ldn.GAN)
+	la('nhóm khai tay giữ', ldn.quyet_nhom('TAY', 'MOI', '', 'CU')['hanh_dong'], ldn.GIU)
+
+
+@ca('#307 patch không ghi hoàn tất khi nạp nhóm còn lỗi')
+def _patch_loi():
+	from unittest.mock import patch
+	from vagabond.patches import luoi_do_nhom_307 as p
+	def bao(cau):
+		raise ValueError(cau)
+	with patch.object(ldn, 'bo_theo_ton_chua_phat_sinh', return_value=[]), \
+		patch.object(ldn, 'ap_dung', return_value={'dem': {'loi': 1}, 'bang': []}), \
+		patch.object(p.frappe, 'throw', side_effect=bao):
+		loi = ''
+		try:
+			p.execute()
+		except ValueError as e:
+			loi = str(e)
+		dung('dừng migrate có câu hướng dẫn', 'migrate' in loi)

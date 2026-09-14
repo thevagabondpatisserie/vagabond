@@ -192,6 +192,8 @@ def _luu_settings():
 	from types import SimpleNamespace
 	from vagabond import luoi_do_nhom as ldn
 	class CauHinh(dict):
+		def get_doc_before_save(self):
+			return None
 		def has_value_changed(self, o):
 			return self.doi
 	for doi, loi in ((True, 0), (False, 0), (True, 1)):
@@ -215,12 +217,12 @@ def _luu_settings():
 			la('chỉ chạy khi đổi cấu hình', nhom.call_count, int(doi))
 			if doi:
 				la('nạp riêng BTP với giá trị mới', nhom.call_args.kwargs,
-					{'chi_btp': True, 'cau_hinh': dict(doc)})
+					{'chi_btp': True, 'cau_hinh': dict(doc), 'cau_hinh_cu': {o: None for o in tkb.O_CAU_HINH.values()}})
 			if doi and not loi:
 				la('chỉ món đã chọn chặng', ds.call_args.kwargs['filters'],
 					{'is_stock_item': 1, 'custom_chang_btp': ['!=', '']})
 				la('ghi món xuống DB', gan.call_args.args, (mon, dict(doc)))
-				la('chế độ ghi', gan.call_args.kwargs, {'ghi_db': True})
+				la('chế độ ghi', gan.call_args.kwargs, {'ghi_db': True, 'cau_hinh_cu': {o: None for o in tkb.O_CAU_HINH.values()}})
 			else:
 				la('không ghi món khi không đổi hoặc nhóm lỗi', gan.call_count, 0)
 
@@ -233,3 +235,14 @@ def _settings_moi_trong():
 	with patch.object(tkb, 'cong_ty_ap_dung', side_effect=AssertionError('không được hỏi công ty')) as cty:
 		tkb.khi_luu_cau_hinh(doc)
 		la('không có tài khoản để nạp', cty.call_count, 0)
+
+
+@ca('#307 thay cấu hình: đổi giá trị máy đã điền, giữ giá trị tay và xoá trắng')
+def _doi_cau_hinh():
+	cu = {'tk_ton_btp_cap1': 'TK-CU'}
+	moi = {'tk_ton_btp_cap1': 'TK-MOI'}
+	for tk, tay, mong in (('TK-CU', False, tkb.GHI), ('TK-TAY', False, tkb.GIU),
+		(None, True, tkb.GIU), ('TK-CU', True, tkb.GIU)):
+		k = tkb.quyet_dinh('BTPB-THU', 1, 'BTP sơ cấp', 'BTP sơ cấp', tk, moi,
+			tay_doi=tay, cau_hinh_cu=cu)
+		la('quyết định tài khoản ' + str(tk), k['hanh_dong'], mong)

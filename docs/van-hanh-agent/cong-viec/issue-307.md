@@ -208,3 +208,10 @@ Bench721c782 dừng khi cài app: Single mới coi ô trống là đổi, on_upd
 ## Lượt nền 14/09 20:39
 
 Bench48ffd469 chạy219ca,217đạt/2đỏ ở cảhai lượt, rollback sạch. Ca nhóm đã ghi/huỷGL đạt; hai ca món riêng/cờ tắt chưa tới GL vì fixture thêm Item Default trùng công ty. Đã sửa dùng dòng do Item.insert tạo, không thêm trùng. Lõi item.py validate_item_defaults chặn nhiều dòng cùng công ty. ChờbenchSHA mới; không sửa production.
+
+
+## Sửa P1 sau2239dd72
+
+Nguồn inline4005553556,4005553564,4005662193,4005662200. Hook Settings giữ cấu hình trước lần lưu và truyền cùng cấu hình mới. Món/nhóm đang trùng tài khoản cấu hình cũ được cập nhật, giá trị khác được giữ. Lựa chọn xoá trắng trên món có cờ ẩn đọc từDB để còn hiệu lực qua lần lưu khác và đổi Settings; đổi chặng thì áp lại theo chặng mới. Patch nhóm dừng nếu có lỗi, không đánh dấu hoàn tất giả.
+
+Bench được đổi để dùng món BTPB có chặng: lưu Settings trống, khai chặng, lưu hai lần tài khoản cấu hình khác nhau, đọc ô gương rồi ghi/huỷ GL; sau đó xoá trắng và lưu tiếp, đổi Settings vẫn phải trống. Đây là code ca kiểm mới, chưa có kết quả runtime. Local3011/3011,patch27/27,cổngrc0. Bản2239dd72 trước đó đã đạt219/219hai lượt sạch; không dùng thay bằng chứng SHA mới.

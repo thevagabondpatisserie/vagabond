@@ -17,6 +17,8 @@ def execute():
 		print("luoi_do_nhom_307: %s: %s" % (m["name"],
 			"giữ theo tồn vì đã có SLE, Khải cần xử lý" if m["co_sle"] else "đã bỏ theo tồn"))
 	kq = luoi_do_nhom.ap_dung()
+	if kq["dem"]["loi"]:
+		frappe.throw("Chưa ghi được tài khoản cho một số nhóm món. Kiểm nhật ký lỗi rồi chạy lại migrate.")
 	print("luoi_do_nhom_307: %s" % kq["dem"])
 	for r in kq["bang"]:
 		if r["hanh_dong"] != luoi_do_nhom.GAN:

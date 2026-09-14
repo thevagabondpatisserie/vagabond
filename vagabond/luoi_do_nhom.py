@@ -140,12 +140,14 @@ def tai_khoan_duy_nhat(cac_tk):
 	return {so: ten[0] for so, ten in dem.items() if len(ten) == 1}
 
 
-def quyet_nhom(tk_hien_co, tk_du_kien, ly_do):
+def quyet_nhom(tk_hien_co, tk_du_kien, ly_do, tk_may_cu=None):
 	"""Làm gì với một nhóm lá. THUẦN. Trả về dict(hanh_dong, tai_khoan, ly_do)."""
 	tk_hien_co = (tk_hien_co or "").strip() or None
 	if tk_hien_co:
 		if tk_hien_co == tk_du_kien:
 			return dict(hanh_dong=BO_QUA, tai_khoan=tk_hien_co, ly_do="đã đúng, không đổi")
+		if tk_du_kien and tk_hien_co == tk_may_cu:
+			return dict(hanh_dong=GAN, tai_khoan=tk_du_kien, ly_do="Cập nhật tài khoản theo cấu hình BTP đã đổi")
 		return dict(hanh_dong=GIU, tai_khoan=tk_hien_co,
 			ly_do="nhóm đã có tài khoản khai tay, giữ (dự kiến %s)" % (tk_du_kien or "không có"))
 	if not tk_du_kien:
@@ -223,7 +225,7 @@ def xem_bang(cong_ty=None):
 	return bang
 
 
-def ap_dung(cong_ty=None, chi_btp=False, cau_hinh=None):
+def ap_dung(cong_ty=None, chi_btp=False, cau_hinh=None, cau_hinh_cu=None):
 	"""Ghi Item Group Default cho các dòng GAN. Idempotent, không đè khai tay.
 
 	Ghi thẳng dòng Item Default (parenttype Item Group), không save() Item
@@ -239,6 +241,9 @@ def ap_dung(cong_ty=None, chi_btp=False, cau_hinh=None):
 	for r in bang:
 		if chi_btp and not (r.get("goc") == GOC_SAN_XUAT and (_chu(r.get("nhanh")).startswith(CHU_NHANH_BTP) or _chu(r.get("nhanh")) == "nhân bán thành phẩm")):
 			continue
+		if chi_btp and cau_hinh_cu:
+			tk, ly_do = tai_khoan_du_kien(r["nhom"], d["cha"], d["tk_theo_so"], d["tk_btp_cap1"])
+			r.update(quyet_nhom(r.get("tk_hien_co"), tk, ly_do, cau_hinh_cu.get(O_BTP_CAP1)))
 		if r["hanh_dong"] != GAN:
 			dem[r["hanh_dong"]] += 1
 			continue

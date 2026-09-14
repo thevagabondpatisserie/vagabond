@@ -38,15 +38,30 @@ def _chay(bat, rieng):
 		'parent_item_group': 'All Item Groups', 'is_group': 0,
 		'item_group_defaults': [{'company': cty, 'default_inventory_account': tk2}]})
 	g.insert(ignore_permissions=True); _DA_TAO.append((g.doctype, g.name))
-	ma = _mon_thu('KT307-' + tag)
+	ma = _mon_thu(('BTPB-KT307-' if rieng else 'KT307-') + tag)
 	d = frappe.get_doc('Item', ma); d.item_group = g.name
 	# Item.insert đã có thể dựng dòng công ty mặc định. Thêm dòng thứ hai
 	# làm validate_item_defaults chặn trước khi ca đi tới GL.
 	dong = next((r for r in d.get('item_defaults') or [] if r.company == cty), None)
 	if dong is None:
 		dong = d.append('item_defaults', {'company': cty})
-	dong.default_inventory_account = tk1 if rieng else None
+	dong.default_inventory_account = None
+	if rieng:
+		# Đi đúng cửa sản phẩm: chặng đã khai khi cấu hình trống, rồi kế toán lưu Settings.
+		cfg = frappe.get_single('Vagabond Settings')
+		cfg.tk_ton_btp_cap1 = None; cfg.tk_ton_btp_cap2 = None
+		cfg.save(ignore_permissions=True)
+		d.custom_chang_btp = 'BTP sơ cấp'
 	d.save(ignore_permissions=True)
+	if rieng:
+		cfg.tk_ton_btp_cap1 = tk2; cfg.tk_ton_btp_cap2 = tk2
+		cfg.save(ignore_permissions=True)
+		d.reload()
+		la('Settings lần đầu tự điền món', d.custom_tk_ton_kho_tay, tk2)
+		cfg.tk_ton_btp_cap1 = tk1; cfg.tk_ton_btp_cap2 = tk1
+		cfg.save(ignore_permissions=True)
+		d.reload()
+		la('Settings lần hai cập nhật giá trị máy', d.custom_tk_ton_kho_tay, tk1)
 	p = _luu(make_stock_entry(item_code=ma, qty=2, company=cty, to_warehouse=kho,
 		rate=3170, do_not_save=True))
 	p.reload()
@@ -57,6 +72,14 @@ def _chay(bat, rieng):
 	la('GL cân', sum(float(r.debit)-float(r.credit) for r in gl), 0)
 	p.cancel()
 	la('huỷ hết GL hiệu lực', len(so_cai_cua(p)), 0)
+	if rieng:
+		d.reload(); d.custom_tk_ton_kho_tay = None; d.save(ignore_permissions=True)
+		d.reload(); d.description = 'Đã xoá tài khoản riêng'; d.save(ignore_permissions=True)
+		d.reload()
+		la('xoá trắng vẫn trống qua lần lưu khác', d.custom_tk_ton_kho_tay or '', '')
+		cfg.tk_ton_btp_cap1 = tk2; cfg.tk_ton_btp_cap2 = tk2
+		cfg.save(ignore_permissions=True); d.reload()
+		la('đổi cấu hình không lấp lựa chọn trống', d.custom_tk_ton_kho_tay or '', '')
 
 
 @ca('#307 GL thật: cờ bật ưu tiên tài khoản riêng trên món')

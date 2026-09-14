@@ -526,3 +526,8 @@ Theo chốt 14/09, công cụ và văn phòng phẩm dùng153; tài sản/dịch
 ### PR316: fixture Item Default đã có dòng công ty
 
 Bench48ffd469 chặn hai ca trước GL vì fixture append dòng công ty đã được Item.insert dựng. Dùng lại dòng hiện hữu hoặc thêm khi chưa có; đọc validate_item_defaults của lõi. Không gọi lỗi này là sai GL hay bỏ validation để làm xanh.
+
+
+### PR316: kiểm chức năng tự điền trước khi kiểm GL
+
+Bench gán tài khoản tay chỉ chứng minh lõi ERPNext đọc Item Default, không chứng minh Settings và chặng BTP chạy đúng. Ca phải lưu Settings thật và đọc lại món trước khi ghi GL. Khi đổi cấu hình cần giữ cấu hình cũ để nhận ra giá trị cần cập nhật; xoá trắng là lựa chọn phải giữ qua lần lưu tiếp theo. Patch không được báo hoàn tất nếu bộ nạp còn lỗi. Nguồn review4005553556/3564 và4005662193/2200.
