@@ -5,9 +5,23 @@ from vagabond.khung.kiem_that.nen import ca, la
 from vagabond.khung.kiem_that.thu_sepay_mb_247 import _phieu_cho_chi
 
 
+def _phieu_lich_su(tien):
+	"""Dựng snapshot lịch sử trong savepoint, không tắt validator đang kiểm.
+
+	Phiếu mới phải qua trần 500.000; sau insert hợp lệ mới dựng số tiền của
+	chứng từ cũ/nguồn bất thường. Các bước save/duyet được kiểm vẫn chạy thật.
+	"""
+	p = _phieu_cho_chi(min(tien, 400000))
+	for dong in p.cac_khoan:
+		frappe.db.set_value(dong.doctype, dong.name, 'so_tien', tien)
+	p.reload()
+	la('số tiền snapshot đúng', dc.tien_phieu(p), tien)
+	return p
+
+
 @ca('#317 chi phí qua kế toán, lưu lại vẫn chờ ngân hàng xác nhận')
 def duyet_chi_phi():
-	p = _phieu_cho_chi(317123)
+	p = _phieu_lich_su(317123)
 	frappe.db.set_value(p.doctype, p.name, {'trang_thai': dc.TT_CHO_DUYET,
 		'quy_tac_317': 0, 'phuong_thuc': 'Tiền mặt'})
 	dc.duyet(p.name)
@@ -21,10 +35,10 @@ def duyet_chi_phi():
 
 @ca('#317 hoàn ứng cũ: kế toán phải ghi lý do, phiếu mới không được miễn YCPS')
 def hoan_ung_cu():
-	tu = _phieu_cho_chi(617123)
+	tu = _phieu_lich_su(617123)
 	frappe.db.set_value(tu.doctype, tu.name, {'loai_nghiep_vu': dc.NV_TAM_UNG,
 		'trang_thai': dc.TT_DA_CHI, 'quy_tac_317': 0, 'yeu_cau_phat_sinh': None})
-	p = _phieu_cho_chi(617123)
+	p = _phieu_lich_su(617123)
 	frappe.db.set_value(p.doctype, p.name, {'loai_nghiep_vu': dc.NV_HOAN_UNG,
 		'thuoc_tam_ung': tu.name, 'trang_thai': dc.TT_CHO_KE_TOAN, 'quy_tac_317': 1})
 	p.reload()
@@ -49,10 +63,10 @@ def hoan_ung_cu():
 
 @ca('#317 tạm ứng nhỏ mới: chi thực tế vượt ứng vẫn tới kế toán kiểm ngoại lệ')
 def hoan_ung_nho():
-	tu = _phieu_cho_chi(400000)
+	tu = _phieu_lich_su(400000)
 	frappe.db.set_value(tu.doctype, tu.name, {'loai_nghiep_vu': dc.NV_TAM_UNG,
 		'trang_thai': dc.TT_DA_CHI, 'quy_tac_317': 1, 'yeu_cau_phat_sinh': None})
-	p = _phieu_cho_chi(600000)
+	p = _phieu_lich_su(600000)
 	frappe.db.set_value(p.doctype, p.name, {'loai_nghiep_vu': dc.NV_HOAN_UNG,
 		'thuoc_tam_ung': tu.name, 'trang_thai': dc.TT_CHO_KE_TOAN, 'quy_tac_317': 1})
 	p.reload(); p.save(ignore_permissions=True)
@@ -69,7 +83,7 @@ def hoan_ung_nho():
 
 @ca('#317 YCPS mất: vẫn mở chi tiết và trả ngữ cảnh không hợp lệ')
 def ycps_da_mat():
-	p = _phieu_cho_chi(617123)
+	p = _phieu_lich_su(617123)
 	frappe.db.set_value(p.doctype, p.name, {'loai_nghiep_vu': dc.NV_TAM_UNG,
 		'yeu_cau_phat_sinh': 'YCPS-KIEM-DA-MAT-317', 'quy_tac_317': 1})
 	p.reload()
@@ -80,10 +94,10 @@ def ycps_da_mat():
 
 @ca('#317 nguồn mới trên trần thiếu YCPS: không miễn và không lưu hoàn ứng')
 def nguon_moi_vuot_tran():
-	tu = _phieu_cho_chi(800000)
+	tu = _phieu_lich_su(800000)
 	frappe.db.set_value(tu.doctype, tu.name, {'loai_nghiep_vu': dc.NV_TAM_UNG,
 		'trang_thai': dc.TT_DA_CHI, 'quy_tac_317': 1, 'yeu_cau_phat_sinh': None})
-	p = _phieu_cho_chi(900000)
+	p = _phieu_lich_su(900000)
 	frappe.db.set_value(p.doctype, p.name, {'loai_nghiep_vu': dc.NV_HOAN_UNG,
 		'thuoc_tam_ung': tu.name, 'quy_tac_317': 1})
 	p.reload()
