@@ -70,6 +70,28 @@ TRUONG_ITEM_DEFAULT = "default_inventory_account"
 # đúng một tài khoản con còn dùng.
 SO_HIEU_BTP = "1552"
 
+# Ô điền tay trên hồ sơ món (anh Việt chốt 14/09/2026 chiều). Nó là GƯƠNG
+# của ô TRUONG_ITEM_DEFAULT trên dòng Item Default của công ty, đặt ngay
+# dưới ô Chặng để kế toán thấy và sửa được mà không phải mở bảng con. Nguồn
+# sự thật vẫn là dòng Item Default (lõi đọc ở đó); ô gương chỉ là lối vào.
+# Người đổi ô gương thì máy chép xuống dòng; không đổi thì ô gương chép lại
+# giá trị dòng khi lưu.
+O_TAY = "custom_tk_ton_kho_tay"
+NHAN_O_TAY = "Tài khoản tồn kho (điền tay)"
+
+TRUONG_MOI = {"Item": [
+	{
+		"fieldname": O_TAY, "label": NHAN_O_TAY,
+		"fieldtype": "Link", "options": "Account",
+		"insert_after": "custom_chang_btp",
+		"description": "Tài khoản tồn kho riêng của món này khi Company bật "
+			"tài khoản tồn kho theo món. Chính là ô Tài khoản tồn kho trên dòng "
+			"Item Default của công ty, đưa lên đây cho dễ sửa. Món có Chặng bán "
+			"thành phẩm thì máy tự điền theo chặng; đổi chặng là máy ghi đè. "
+			"Để trống thì lõi tìm ở nhóm món rồi nhãn hiệu.",
+	},
+]}
+
 # Năm kết luận của phép quyết định, để hook và patch cùng đọc một luật.
 GIU = "giu"          # kế toán đã khai tay khác, chặng không đổi: tôn trọng
 GHI = "ghi"          # ghi (hoặc ghi đè) tài khoản theo chặng
@@ -124,11 +146,17 @@ def quyet_dinh(ma, is_stock_item, khai_tay, khai_tay_cu, tk_hien_co, cau_hinh):
 	kq = dict(hanh_dong=BO_QUA, tai_khoan=None, chang=moi, ghi_chu="")
 	if moi is None:
 		# Ra khỏi phạm vi (xoá chặng, đổi sang thành phần, tắt theo tồn).
-		# Chỉ xoá khi trước đó máy có lý do để đã ghi, để không đụng tài
-		# khoản kế toán khai tay cho món ngoài phạm vi.
+		# Chỉ xoá giá trị MÁY đã điền: giá trị đang có phải đúng bằng cái
+		# máy điền cho chặng cũ. Khác đi là người điền tay (anh Việt chốt
+		# 14/09/2026 chiều), giữ nguyên và nói rõ.
 		if cu is not None and tk_hien_co:
-			kq.update(hanh_dong=XOA, ghi_chu="Bỏ chặng %s, món quay về hạch toán theo kho."
-				% TEN_CHANG[cu])
+			tk_may_cu = tai_khoan_theo_chang(cu, cau_hinh)
+			if tk_hien_co == tk_may_cu:
+				kq.update(hanh_dong=XOA, ghi_chu="Bỏ chặng %s, xoá tài khoản máy điền %s, "
+					"món quay về lưới đỡ theo nhóm món hoặc theo kho." % (TEN_CHANG[cu], tk_hien_co))
+			else:
+				kq.update(hanh_dong=GIU, ghi_chu="Bỏ chặng %s nhưng giữ tài khoản điền tay %s "
+					"(khác giá trị máy điền)." % (TEN_CHANG[cu], tk_hien_co))
 		return kq
 	tk = tai_khoan_theo_chang(moi, cau_hinh)
 	if not tk:
@@ -169,6 +197,34 @@ def loi_tai_khoan(tk, cong_ty):
 	if (tk.get("account_currency") or "VND") != "VND":
 		return "Tài khoản phải là VND."
 	return ""
+
+
+def doc_o_tay(o_tay, o_tay_cu, tk_dong):
+	"""Giá trị tài khoản đang có hiệu lực trước khi xét chặng. THUẦN.
+
+	Trả về (tk_hien_co, tay_doi). Người đổi ô gương so với bản trong cơ sở
+	dữ liệu thì ý người thắng dòng Item Default (kể cả xoá trắng để bỏ tài
+	khoản riêng). Không đổi thì dòng Item Default là sự thật.
+	"""
+	o_tay = (o_tay or "").strip() or None
+	o_tay_cu = (o_tay_cu or "").strip() or None
+	tk_dong = (tk_dong or "").strip() or None
+	if o_tay != o_tay_cu:
+		return o_tay, True
+	return tk_dong, False
+
+
+def gia_tri_cuoi(hanh_dong, tai_khoan, tk_hien_co):
+	"""Giá trị sẽ nằm trên dòng Item Default sau lần lưu này. THUẦN.
+
+	Máy ghi (GHI) hay xoá (XOA) thì theo máy. Còn lại theo `tk_hien_co`, tức
+	là ô điền tay nếu người vừa đổi, hoặc chính dòng cũ.
+	"""
+	if hanh_dong == GHI:
+		return tai_khoan
+	if hanh_dong == XOA:
+		return None
+	return (tk_hien_co or "").strip() or None
 
 
 def chon_mac_dinh(cac_tk):
@@ -229,35 +285,45 @@ def ap_dung(doc, cau_hinh=None, ghi_db=False):
 	không kích các validate khác trên dữ liệu cũ.
 	"""
 	cau_hinh = cau_hinh if cau_hinh is not None else doc_cau_hinh()
-	khai_cu = None
+	khai_cu, o_tay_cu = None, None
+	# Chỉ hỏi cột ô gương khi nó đã được dựng, để lần migrate đầu (hook
+	# chạy trước truong_tu_them) không ném lỗi thiếu cột.
+	cot = ["custom_chang_btp"] + ([O_TAY] if doc.meta.has_field(O_TAY) else [])
 	if not doc.is_new():
-		khai_cu = frappe.db.get_value("Item", doc.name, "custom_chang_btp")
+		r = frappe.db.get_value("Item", doc.name, cot, as_dict=True) or {}
+		khai_cu, o_tay_cu = r.get("custom_chang_btp"), r.get(O_TAY)
 	cty = cong_ty_ap_dung(cau_hinh)
 	dong = None
 	for d in doc.get("item_defaults") or []:
 		if d.company == cty:
 			dong = d
 			break
-	tk_hien_co = dong.get(TRUONG_ITEM_DEFAULT) if dong else None
+	tk_dong = (dong.get(TRUONG_ITEM_DEFAULT) if dong else None) or None
+	# Ô điền tay: người vừa đổi thì ý người thắng dòng Item Default.
+	tk_hien_co, tay_doi = doc_o_tay(doc.get(O_TAY), o_tay_cu, tk_dong)
 	kq = quyet_dinh(doc.item_code or doc.name, doc.is_stock_item,
 		doc.get("custom_chang_btp"), khai_cu, tk_hien_co, cau_hinh)
 	hd = kq["hanh_dong"]
+	kq["tay_doi"] = tay_doi
 	if hd == NHAC:
 		frappe.msgprint("Món %s ở chặng %s nhưng %s Kế toán khai tài khoản tồn kho BTP "
 			"trong Vagabond Settings rồi lưu lại món." % (doc.name, TEN_CHANG[kq["chang"]],
 			kq["ghi_chu"]), indicator="orange", alert=True)
-		return kq
-	if hd not in (GHI, XOA):
+	gia_tri = gia_tri_cuoi(hd, kq["tai_khoan"], tk_hien_co)
+	kq["gia_tri"] = gia_tri
+	if gia_tri == tk_dong:
+		# Không có gì phải ghi xuống dòng; chỉ giữ ô gương khớp với dòng.
+		_dat_o_tay(doc, gia_tri, ghi_db)
 		return kq
 	if not co_o_item_default():
-		frappe.log_error("Item Default không có ô %s, không ghi tài khoản BTP cho %s"
+		frappe.log_error("Item Default không có ô %s, không ghi tài khoản tồn kho cho %s"
 			% (TRUONG_ITEM_DEFAULT, doc.name), "tai_khoan_btp")
 		frappe.msgprint("Chưa đối chiếu được ô tài khoản tồn kho theo món với lõi "
-			"ERPNext. Chưa ghi tài khoản BTP; báo người kỹ thuật.", indicator="orange", alert=True)
+			"ERPNext. Chưa ghi tài khoản; báo người kỹ thuật.", indicator="orange", alert=True)
 		return kq
-	gia_tri = kq["tai_khoan"] if hd == GHI else None
 	if dong is None:
-		if hd == XOA:
+		if gia_tri is None:
+			_dat_o_tay(doc, None, ghi_db)
 			return kq
 		dong = doc.append("item_defaults", {"company": cty})
 	dong.set(TRUONG_ITEM_DEFAULT, gia_tri)
@@ -269,15 +335,49 @@ def ap_dung(doc, cau_hinh=None, ghi_db=False):
 			dong.parent, dong.parenttype, dong.parentfield = doc.name, "Item", "item_defaults"
 			dong.idx = len(doc.get("item_defaults") or [])
 			dong.db_insert()
-	if hd == GHI and tk_hien_co and not doc.is_new():
+	_dat_o_tay(doc, gia_tri, ghi_db)
+	if hd == GHI and tk_dong and not doc.is_new():
 		doc.add_comment("Comment", kq["ghi_chu"])
 	return kq
 
 
-def khi_luu_mon(doc, method=None):
-	"""Hook validate Item. Không bao giờ chặn lưu món vì lỗi của lớp này."""
-	if not la_ma_btp(doc.item_code or doc.name):
+def _dat_o_tay(doc, gia_tri, ghi_db):
+	"""Ô gương luôn khớp dòng Item Default sau khi lưu."""
+	if not doc.meta.has_field(O_TAY):
 		return
+	doc.set(O_TAY, gia_tri)
+	if ghi_db and not doc.is_new():
+		frappe.db.set_value("Item", doc.name, O_TAY, gia_tri, update_modified=False)
+
+
+def dung():
+	"""Dựng ô gương trên Item và cho cột tài khoản hiện trong lưới Item Default.
+
+	Gọi từ truong_tu_them.dung() sau mỗi lần migrate. Lặp lại được:
+	create_custom_fields(update=True) và make_property_setter ghi đè đúng
+	một bản ghi. Item Default là bảng con dùng chung cho Item, Item Group và
+	Brand, nên nhãn tiếng Việt hiện ở cả ba nơi; đó là điều mong muốn vì
+	lưới đỡ theo nhóm món (luoi_do_nhom.py) cũng khai ở ô này.
+	"""
+	from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
+	from frappe.custom.doctype.property_setter.property_setter import make_property_setter
+
+	create_custom_fields(TRUONG_MOI, update=True)
+	if not co_o_item_default():
+		frappe.log_error("Item Default không có ô %s" % TRUONG_ITEM_DEFAULT, "tai_khoan_btp.dung")
+		return
+	make_property_setter("Item Default", TRUONG_ITEM_DEFAULT, "in_list_view", 1, "Check",
+		validate_fields_for_doctype=False)
+	make_property_setter("Item Default", TRUONG_ITEM_DEFAULT, "label", NHAN_O_TAY, "Data",
+		validate_fields_for_doctype=False)
+
+
+def khi_luu_mon(doc, method=None):
+	"""Hook validate Item. Không bao giờ chặn lưu món vì lỗi của lớp này.
+
+	Chạy cho MỌI món, không chỉ mã BTP: ô điền tay áp cho cả nguyên liệu và
+	thành phẩm; luật theo chặng tự trả BO_QUA khi mã không phải BTP.
+	"""
 	try:
 		ap_dung(doc)
 	except frappe.ValidationError:

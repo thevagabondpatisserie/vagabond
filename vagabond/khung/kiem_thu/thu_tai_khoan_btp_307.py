@@ -74,6 +74,39 @@ def _xoa():
 	la("sang thành phần cũng xoá", k["hanh_dong"], tkb.XOA)
 	k = tkb.quyet_dinh("BTPB-1", 1, "", "", "1551 - Thành phẩm - TV", CH)
 	la("trước không áp thì không đụng tài khoản khai tay", k["hanh_dong"], tkb.BO_QUA)
+	# Anh Việt chốt 14/09 chiều: chỉ xoá giá trị MÁY điền; khác giá trị máy
+	# sẽ điền là người điền tay, giữ.
+	k = tkb.quyet_dinh("BTPB-1", 1, "", "BTP sơ cấp", "1551 - Thành phẩm - TV", CH)
+	la("xoá chặng nhưng tài khoản do người điền tay: giữ", k["hanh_dong"], tkb.GIU)
+	dung("ghi chú nói giữ điền tay", "điền tay" in k["ghi_chu"])
+	k = tkb.quyet_dinh("BTPB-1", 1, "", "BTP sơ cấp", CH["tk_ton_btp_cap1"], TRONG)
+	la("cấu hình trống thì máy chưa từng điền, giữ", k["hanh_dong"], tkb.GIU)
+
+
+@ca("#307 ô điền tay: người đổi thì thắng dòng, không đổi thì dòng là sự thật")
+def _o_tay():
+	la("không đổi, đọc dòng", tkb.doc_o_tay(None, None, "1551 - TP"), ("1551 - TP", False))
+	la("không đổi, cả hai rỗng", tkb.doc_o_tay("", None, None), (None, False))
+	la("người điền mới", tkb.doc_o_tay("1561 - HH", None, None), ("1561 - HH", True))
+	la("người sửa khác dòng", tkb.doc_o_tay("1561 - HH", "1551 - TP", "1551 - TP"), ("1561 - HH", True))
+	la("người xoá trắng để bỏ", tkb.doc_o_tay("", "1551 - TP", "1551 - TP"), (None, True))
+	la("ghi theo máy", tkb.gia_tri_cuoi(tkb.GHI, "1552 - BTP", "1551 - TP"), "1552 - BTP")
+	la("xoá theo máy", tkb.gia_tri_cuoi(tkb.XOA, None, "1552 - BTP"), None)
+	la("giữ tay", tkb.gia_tri_cuoi(tkb.GIU, "1552 - BTP", "1551 - TP"), "1551 - TP")
+	la("ngoài phạm vi vẫn nhận điền tay", tkb.gia_tri_cuoi(tkb.BO_QUA, None, "1561 - HH"), "1561 - HH")
+	la("nhắc thì không đụng", tkb.gia_tri_cuoi(tkb.NHAC, None, None), None)
+	# Chuỗi thao tác kế toán: món NVL (ngoài phạm vi BTP) điền tay tài khoản.
+	tk, doi = tkb.doc_o_tay("1561 - HH", None, None)
+	k = tkb.quyet_dinh("NVLT-1", 1, "", "", tk, CH)
+	la("NVL không thuộc luật chặng", k["hanh_dong"], tkb.BO_QUA)
+	la("nhưng giá trị cuối là ô tay", tkb.gia_tri_cuoi(k["hanh_dong"], k["tai_khoan"], tk), "1561 - HH")
+	# Đổi chặng cùng lúc điền tay: chặng đổi thì máy thắng.
+	tk, doi = tkb.doc_o_tay("1561 - HH", "1551 - TP", "1551 - TP")
+	k = tkb.quyet_dinh("BTPB-1", 1, "BTP sẵn sàng", "BTP sơ cấp", tk, CH)
+	la("đổi chặng: máy ghi đè", tkb.gia_tri_cuoi(k["hanh_dong"], k["tai_khoan"], tk), CH["tk_ton_btp_cap2"])
+	dung("ô Item có gương và nhãn", tkb.TRUONG_MOI["Item"][0]["fieldname"] == tkb.O_TAY
+		and tkb.TRUONG_MOI["Item"][0]["insert_after"] == "custom_chang_btp"
+		and tkb.TRUONG_MOI["Item"][0]["label"] == "Tài khoản tồn kho (điền tay)")
 	k = tkb.quyet_dinh("BAWC-1", 1, "", "BTP sơ cấp", "1551 - Thành phẩm - TV", CH)
 	la("thành phẩm ngoài phạm vi", k["hanh_dong"], tkb.BO_QUA)
 

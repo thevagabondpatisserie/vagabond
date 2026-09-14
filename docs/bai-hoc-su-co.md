@@ -504,3 +504,14 @@ Không được suy từ trí nhớ thay cho trích dẫn. Cách làm: đặt t�
 một hằng duy nhất, hook kiểm meta trước khi ghi, patch dừng migrate nếu ô
 không có, và ghi rõ trên PR điểm nào chưa đối chiếu để người có bench
 (checkout pinned) đối chiếu trước khi merge. Nguồn: #307, PR A.
+
+## 14/09/2026 - Issue 307: tài khoản theo món không quay về kho, nhóm không leo cha
+
+Anh Việt đọc lõi de591661: bật `enable_item_wise_inventory_account` thì
+lõi tìm Item Default, Item Group Default, Brand rồi CHẶN chứng từ, không
+lấy tài khoản kho làm dự phòng. `get_item_group_defaults` chỉ đọc đúng
+nhóm trên hồ sơ món, không leo nhóm cha. Hệ quả: lưới đỡ phải gán cho từng
+nhóm LÁ có món theo tồn, và trước ngày bật cờ phải có báo cáo "món ba nấc
+đều trống" rỗng. Không đặt tài khoản ở nhóm gốc rồi tin là đủ. Bảng tên
+nhóm và tài khoản thật phải đọc từ site bằng lệnh chỉ đọc và dán lên PR
+duyệt, không suy từ trí nhớ. Nguồn: PR #316 comment anh Việt 14/09 chiều.
