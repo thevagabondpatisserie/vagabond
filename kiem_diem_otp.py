@@ -4518,19 +4518,19 @@ _duyet41 = _dnc41.split("def duyet(")[1].split("\n@frappe.whitelist()")[0]
 la("buoc duyet ke tiep KHONG doc truong so_tien cu",
    "buoc_ke_tiep(doc.so_tien)" in _duyet41, False)
 la("buoc duyet ke tiep doc so tien that",
-   "buoc_ke_tiep(tien_phieu(doc))" in _duyet41, True)
+   "buoc_ke_tiep(tien_phieu(doc), doc.get(\"loai_nghiep_vu\"))" in _duyet41, True)
 
 # Phep chay THAT: mot phieu 50 trieu nam o bang ke phai len giam doc.
 _phieu41 = {"so_tien": 0, "tong_tien": 0, "cac_khoan": [
 	{"so_tien": 30000000}, {"so_tien": 20000000}]}
 la("cong bang ke ra dung tong", H41_cong(_phieu41), 50000000)
 la("phieu 50 trieu o bang ke VAN phai len giam doc",
-   H41_buoc(H41_tien(_phieu41)), "Cho giam doc")
+	H41_buoc(H41_tien(_phieu41), "Tạm ứng"), "Cho giam doc")
 # Phieu mot dong cu, tien con nam o truong cu.
 la("phieu cu doc duoc so tien tu truong cu",
    H41_tien({"so_tien": 5000000, "cac_khoan": []}), 5000000)
-la("phieu cu 5 trieu cung len giam doc",
-   H41_buoc(H41_tien({"so_tien": 5000000, "cac_khoan": []})), "Cho giam doc")
+la("phieu chi phi cu 5 trieu ve thang ke toan",
+   H41_buoc(H41_tien({"so_tien": 5000000, "cac_khoan": []}), "Chi phí"), "Cho ke toan")
 la("phieu nho di thang xuong ke toan",
    H41_buoc(H41_tien({"so_tien": 0, "cac_khoan": [{"so_tien": 50000}]})), "Cho ke toan")
 

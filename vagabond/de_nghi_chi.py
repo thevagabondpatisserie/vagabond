@@ -242,9 +242,9 @@ def can_giam_doc_duyet(so_tien, nguong=NGUONG_GIAM_DOC):
 	return flt(so_tien) >= flt(nguong)
 
 
-def buoc_ke_tiep(so_tien, nguong=NGUONG_GIAM_DOC):
+def buoc_ke_tiep(so_tien, loai_nghiep_vu=None, nguong=NGUONG_GIAM_DOC):
 	"""Duyệt xong ở bước mua hàng thì rơi vào đâu. THUẦN."""
-	return TT_CHO_GIAM_DOC if can_giam_doc_duyet(so_tien, nguong) else TT_CHO_KE_TOAN
+	return TT_CHO_GIAM_DOC if (loai_nghiep_vu or "").strip() == "Tạm ứng" and can_giam_doc_duyet(so_tien, nguong) else TT_CHO_KE_TOAN
 
 
 def tien_phieu(phieu):
@@ -870,15 +870,6 @@ def _phieu_kiem_317(doc, gui=False):
 
 def truoc_khi_luu(doc, method=None):
 	"""Điền hộ những gì điền được, và chặn những gì phải chặn. Gọi từ before_validate."""
-	if not doc.is_new():
-		cu_lo = frappe.db.get_value(DT, doc.name, ["lo_chuyen", "so_tk", "ngan_hang", "tong_tien", "trang_thai"], as_dict=True) or {}
-		doc.lo_chuyen = cu_lo.get("lo_chuyen")
-		if cu_lo.get("lo_chuyen"):
-			if any(doc.get(k) != cu_lo.get(k) for k in ("so_tk", "ngan_hang", "trang_thai")) or abs(cong_bang_ke(doc) - float(cu_lo.get("tong_tien") or 0)) > 0.01:
-				frappe.throw("Phiếu đã vào lô chuyển khoản, không đổi số tiền, người nhận hoặc trạng thái riêng lẻ.")
-			doc.lo_chuyen = cu_lo["lo_chuyen"]
-	else:
-		doc.lo_chuyen = None
 	if not doc.get("nguoi_tao"):
 		doc.nguoi_tao = frappe.session.user
 	if not doc.get("trang_thai"):
@@ -1042,12 +1033,14 @@ def duyet(ma_phieu, ghi_chu=None):
 		# Uyên chi tiền thật ở bước này, nên uỷ nhiệm chi phải có trước khi
 		# chuyển sang kế toán. Đếm tệp lần hai chứ không tin lần đếm lúc gửi:
 		# giữa hai lần đó phiếu đã đi qua tay người khác.
-		if cint(doc.get("phuong_thuc") == PT_CHUYEN_KHOAN) and _so_tep(ma_phieu) < 2:
+		if ((doc.get("hinh_thuc") or "") == HT_NCC
+				and (doc.get("phuong_thuc") or "") == PT_CHUYEN_KHOAN
+				and _so_tep(ma_phieu) < 2):
 			frappe.throw(
 				"Chuyển sang kế toán thì phải có uỷ nhiệm chi hoặc biên lai chuyển khoản đính kèm. Vui lòng đính thêm rồi bấm lại."
 			)
 		doc.duyet_boi, doc.duyet_luc = nguoi, luc
-		doc.trang_thai = buoc_ke_tiep(tien_phieu(doc))
+		doc.trang_thai = buoc_ke_tiep(tien_phieu(doc), doc.get("loai_nghiep_vu"))
 	elif doc.trang_thai == TT_CHO_GIAM_DOC:
 		doc.gd_boi, doc.gd_luc = nguoi, luc
 		doc.trang_thai = TT_CHO_KE_TOAN
@@ -1089,8 +1082,6 @@ def huy(ma_phieu, ly_do):
 	giam_doc_sua_huy.chan("huỷ phiếu thanh toán nội bộ")
 	ly_do = giam_doc_sua_huy.doc_ly_do(ly_do)
 	doc = frappe.get_doc(DT, ma_phieu)
-	if doc.get("lo_chuyen"):
-		frappe.throw("Phiếu thuộc lô chuyển khoản, không xử lý riêng lẻ.")
 	giam_doc_sua_huy.da_huy(doc, TT_HUY)
 
 	if doc.trang_thai == TT_DA_CHI:
@@ -1187,8 +1178,6 @@ def tra_lai(ma_phieu, ly_do):
 	if not (ly_do or "").strip():
 		frappe.throw("Phải ghi lý do trả lại thì người lập mới biết đường sửa.")
 	doc = frappe.get_doc(DT, ma_phieu)
-	if doc.get("lo_chuyen"):
-		frappe.throw("Phiếu thuộc lô chuyển khoản, không xử lý riêng lẻ.")
 	duoc, vi_sao = duoc_duyet_khong(
 		doc.trang_thai, _vai(), doc.nguoi_tao == frappe.session.user
 	)
@@ -1258,7 +1247,7 @@ def ds_man(chip="tat_ca", so_ngay=30, tim="", so_dong=100, nguoi_lap=""):
 		fields=[
 			"name", "ten_khoan_chi", "loai_nghiep_vu", "so_tien", "tong_tien",
 			"trang_thai", "nguoi_tao", "creation", "ngay_can_tt", "phuong_thuc",
-			"hinh_thuc", "nha_cung_cap", "ma_gd", "ngay_da_chi", "thuoc_tam_ung", "lo_chuyen",
+			"hinh_thuc", "nha_cung_cap", "ma_gd", "ngay_da_chi", "thuoc_tam_ung",
 		],
 		order_by="creation desc",
 		limit_page_length=max(1, min(500, cint(so_dong) or 100)),
@@ -1295,7 +1284,6 @@ def ds_man(chip="tat_ca", so_ngay=30, tim="", so_dong=100, nguoi_lap=""):
 	return {
 		"ds": ds, "dem": dem, "chip": chip, "so_ngay": sn, "tim": tim,
 		"tong_loc": tong_loc, "nguoi_lap": [{"value": k, "label": v or "Chưa có họ tên"} for k, v in ten_nguoi.items()],
-		"duoc_gop": bool(_vai() & (VAI_KE_TOAN | VAI_GIAM_DOC)),
 		"chip_trang_thai": [{"k": k, "ten": t} for k, t, _n in CHIP_TRANG_THAI],
 		"chip_thoi_gian": [{"k": k, "ten": t} for k, t in CHIP_THOI_GIAN],
 		"duoc_duyet": 1 if (_vai() & (VAI_DUYET | VAI_GIAM_DOC | VAI_KE_TOAN)) else 0,
@@ -1554,7 +1542,7 @@ def tam_ung_cua_toi(nguoi=None):
 		filters={
 			"loai_nghiep_vu": NV_TAM_UNG,
 			"nguoi_tao": nguoi,
-			"trang_thai": TT_HOAN_TAT,
+			"trang_thai": TT_DA_CHI,
 		},
 		fields=["name", "ten_khoan_chi", "tong_tien", "so_tien", "creation", "ngay_can_tt"],
 		order_by="creation desc",
@@ -1826,7 +1814,7 @@ def _phieu_cho_chi():
 	"""
 	return frappe.get_all(
 		DT,
-		filters={"trang_thai": ["in", [TT_CHO_KE_TOAN, TT_HOAN_TAT]], "lo_chuyen": ["is", "not set"]},
+		filters={"trang_thai": ["in", [TT_CHO_KE_TOAN, TT_HOAN_TAT]]},
 		fields=["name", "tong_tien", "so_tien", "trang_thai"],
 		limit_page_length=0,
 	)
@@ -1883,7 +1871,7 @@ def _khai_doi_soat():
 		loai="ttnb",
 		doctype=DT,
 		chieu=dss.RA,
-		ma_do=lambda d: "" if d.get("lo_chuyen") else d.name,
+		ma_do=lambda d: d.name,
 		so_tien=lambda d: flt(d.get("tong_tien")) or flt(d.get("so_tien")),
 		dang_cho={"trang_thai": ["in", [TT_CHO_KE_TOAN, TT_HOAN_TAT]]},
 		khi_khop=_khi_khop_ttnb,
@@ -1921,8 +1909,6 @@ def khop_tay(phieu=None, gd=None):
 	if not frappe.db.exists(DT, phieu):
 		frappe.throw("Không tìm thấy phiếu %s. Vui lòng tải lại danh sách." % phieu)
 	d = frappe.get_doc(DT, phieu)
-	if d.get("lo_chuyen"):
-		frappe.throw("Phiếu thuộc lô chuyển khoản, đối soát bằng mã lô.")
 	if d.trang_thai == TT_DA_CHI:
 		frappe.throw(
 			"Phiếu %s đã ở trạng thái Đã chi với giao dịch %s rồi. Khớp lại là "
@@ -1947,6 +1933,8 @@ def doi_soat(so_ngay=30):
 
 	_kiem_quyen()
 	ds = _phieu_cho_chi()
+	if not ds:
+		return {"da_khop": 0, "xem_xet": [], "ghi_chu": "Không có phiếu nào đang chờ chi."}
 
 	try:
 		gds = frappe.db.sql(
@@ -1960,8 +1948,7 @@ def doi_soat(so_ngay=30):
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "de_nghi_chi: doc sao ke loi")
 		return {"da_khop": 0, "xem_xet": [], "ghi_chu": "Chưa đọc được sao kê ngân hàng."}
-	from vagabond.ttnb_lo import khop
-	gds = [g for g in gds if not _loi_nguon_chi_ttnb(g) and not khop(g)]
+	gds = [g for g in gds if not _loi_nguon_chi_ttnb(g)]
 
 	da_chiem = _gd_da_chiem_ttnb()
 	da, xem = 0, []
@@ -2032,9 +2019,6 @@ def khi_co_giao_dich(ma_bt):
 		if not g or flt(g.get("withdrawal")) <= 0:
 			return
 		if _loi_nguon_chi_ttnb(g):
-			return
-		from vagabond.ttnb_lo import khop
-		if khop(g):
 			return
 		mo_ta = "%s %s" % (g.get("description") or "", g.get("reference_number") or "")
 		da_chiem = _gd_da_chiem_ttnb()

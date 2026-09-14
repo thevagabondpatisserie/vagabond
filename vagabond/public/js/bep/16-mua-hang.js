@@ -1555,7 +1555,7 @@ function ttnbVe(kq) {
 
   html += '<div class="card" style="padding:12px">Tổng theo bộ lọc: <b>' + money(kq.tong_loc || 0) + ' đ</b></div>' +
     '<button class="btn gh" id="ttnbExcel">Xuất Excel</button>' +
-    (kq.duoc_gop ? '<button class="btn gh" id="ttnbNguoi">Người lập</button><button class="btn gh" id="ttnbGop">Gộp chuyển các phiếu đã chọn</button>' : '');
+    (kq.duoc_duyet ? '<button class="btn gh" id="ttnbNguoi">Người lập</button>' : '');
   if (!ds.length) {
     html += '<div class="emp"><div class="e1">🧾</div><div>' +
       (ttnbLoc.tim ? 'Không có phiếu nào khớp "' + h(ttnbLoc.tim) + '".' : 'Chưa có phiếu nào ở nhóm này.') +
@@ -1563,7 +1563,7 @@ function ttnbVe(kq) {
       'Bấm nút bên dưới để lập phiếu mới.</div></div>';
   } else {
     html += '<div class="card">' + ds.map(function (x) {
-      return (kq.duoc_gop && (x.trang_thai === 'Cho ke toan' || x.trang_thai === 'Hoan tat') && x.phuong_thuc === 'Chuyển khoản' && !x.ma_gd ? '<label style="display:block;padding:12px"><input type="checkbox" class="ttnbChon" value="' + h(x.name) + '"> Chọn ' + h(x.name) + '</label>' : '') + '<div class="ttnbMo" data-p="' + h(x.name) + '" style="padding:12px 14px;border-bottom:1px solid #f2f4f7;cursor:pointer">' +
+      return '<div class="ttnbMo" data-p="' + h(x.name) + '" style="padding:12px 14px;border-bottom:1px solid #f2f4f7;cursor:pointer">' +
         '<div style="display:flex;align-items:center;gap:9px">' +
         '<div style="flex:1;min-width:0"><b style="font-size:14px">' + h(x.tieu_de || x.name) + '</b>' +
         '<div style="font-size:11.5px;color:#98a2b3;margin-top:2px">' + h(x.name) +
@@ -1614,19 +1614,6 @@ function ttnbVe(kq) {
   if (nNguoi) nNguoi.onclick = function() { sheet('Người lập', [{value: '', label: 'Tất cả'}].concat(kq.nguoi_lap || []), ttnbLoc.nguoi_lap || '', function(x) { ttnbLoc.nguoi_lap=x.value; chay(); }, true); };
   var nExcel = document.getElementById('ttnbExcel');
   if (nExcel) nExcel.onclick = async function() { try { var r=await api('vagabond.de_nghi_chi.xuat_excel', ttnbLoc); bcTaiVe(r.ten_file,r.b64,'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'); } catch(e) { baoTin(e.message || 'Chưa xuất được Excel.'); } };
-  var nGop = document.getElementById('ttnbGop');
-  if (nGop) nGop.onclick = async function() {
-    var chon=[]; b.querySelectorAll('.ttnbChon').forEach(function(x) { if(x.checked) chon.push(x.value); });
-    if(!chon.length) return baoTin('Chọn ít nhất một phiếu chờ chi.');
-    try {
-      var r=await api('vagabond.ttnb_lo.gop', {phieu:JSON.stringify(chon)});
-      var noi=(r.lo || []).map(function(x) { return x.ten_tk + ' · ' + x.ngan_hang + ' · ' + x.so_tk + '\n' + money(x.tong_tien) + ' đ · ' + x.phieu.length + ' phiếu\n' + x.noi_dung; }).join('\n\n');
-      if(!await confirmSheet('Xác nhận lô chuyển', noi + '\n\nKế toán tự chuyển trên ngân hàng. Thao tác này chỉ ghi lô.')) return;
-      r=await api('vagabond.ttnb_lo.gop', {phieu:JSON.stringify(chon),xac_nhan:1});
-      baoTin((r.lo || []).map(function(x) { return x.noi_dung; }).join('\n'), 'Đã ghi lô, chưa chuyển tiền');
-      chay();
-    } catch(e) { baoTin(e.message || 'Chưa gộp được. Tải lại danh sách.'); }
-  };
   var nMoi = document.getElementById('ttnbMoi');
   if (nMoi) nMoi.onclick = function () { dncForm = null; go(scrDeNghiChi); };
   var nSoat = document.getElementById('ttnbSoat');
@@ -1868,10 +1855,15 @@ async function ttnbCt(ma) {
 
   var chan = '';
   if (d.duoc_duyet_buoc_nay) {
-    chan += '<button class="btn" id="ttnbDuyet" style="margin:0;flex:2">✅ Duyệt thanh toán nội bộ</button>' +
+    chan += '<button class="btn" id="ttnbDuyet" style="margin:0;flex:2">✅ ' +
+      (d.trang_thai === 'Cho ke toan' ? 'Duyệt và chi' : 'Duyệt thanh toán nội bộ') + '</button>' +
       '<button class="btn" id="ttnbTra" style="margin:0;flex:1;background:#b3261e;border-color:#b3261e">Trả lại</button>';
   }
-  var b = frame('Phiếu thanh toán nội bộ', html, chan ? { footer: '<div style="display:flex;gap:8px">' + chan + '</div>' } : undefined);
+  chan += '<button class="btn gh" id="ttnbVeDanhSach" style="margin:0;flex:1">← Quay lại</button>';
+  var b = frame('Phiếu thanh toán nội bộ', html, { footer: '<div style="display:flex;gap:8px">' + chan + '</div>' });
+
+  var nVe = document.getElementById('ttnbVeDanhSach');
+  if (nVe) nVe.onclick = function () { go(scrTTNB, true); };
 
   var nKa = document.getElementById('ttnbKsAuto');
   if (nKa) nKa.onclick = function () { ttnbKhopAuto(d); };

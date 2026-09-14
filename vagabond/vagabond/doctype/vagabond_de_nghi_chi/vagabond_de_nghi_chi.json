@@ -62,8 +62,7 @@
   "huy_luc",
   "ly_do_huy",
   "yeu_cau_phat_sinh",
-  "quy_tac_317",
-  "lo_chuyen"
+  "quy_tac_317"
  ],
  "fields": [
   {
@@ -433,12 +432,6 @@
    "read_only": 1,
    "hidden": 1,
    "default": "0"
-  },
-  {
-   "fieldname": "lo_chuyen",
-   "label": "Lô chuyển khoản",
-   "fieldtype": "Data",
-   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,

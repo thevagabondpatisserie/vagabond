@@ -1,7 +1,6 @@
-"""#317: biên mua vặt và chia lô theo đúng người nhận."""
+"""#317: biên mua vặt và đường duyệt đúng theo loại nghiệp vụ."""
 from vagabond.khung.kiem_thu.nen import ca, dung, la
 from vagabond import de_nghi_chi as dc
-from vagabond.ttnb_lo import chia_lo
 
 
 def phieu(tien=500000, **kw):
@@ -36,11 +35,27 @@ def _ung():
 	la('kế thừa đã xác minh',dc.ly_do_chan_vat(phieu(600000,loai_nghiep_vu='Hoàn ứng',_ycps_ke_thua=True)),None)
 
 
-@ca('#317 ba phiếu hai tài khoản tạo hai lô, retry không đổi mã')
-def _lo():
-	ds=[dict(name=str(i),ngan_hang='MB',so_tk='1' if i<3 else '2',ten_tk='A',tong_tien=100) for i in (1,2,3)]
-	lo=chia_lo(ds)
-	la('hai người nhận',len(lo),2)
-	la('tổng bảo toàn',sum(x['tong_tien'] for x in lo),300)
-	la('đổi thứ tự vẫn cùng lô',lo,chia_lo(list(reversed(ds))))
-	dung('mã lô để đối soát',all(x['ma_lo'] in x['noi_dung'] for x in lo))
+@ca('#317 chỉ tạm ứng lớn qua giám đốc, chi phí và hoàn ứng về kế toán')
+def _duyet_theo_loai():
+	la('tạm ứng lớn qua giám đốc', dc.buoc_ke_tiep(2000000, dc.NV_TAM_UNG), dc.TT_CHO_GIAM_DOC)
+	la('chi phí lớn về kế toán', dc.buoc_ke_tiep(2000000, dc.NV_CHI_PHI), dc.TT_CHO_KE_TOAN)
+	la('hoàn ứng lớn về kế toán', dc.buoc_ke_tiep(2000000, dc.NV_HOAN_UNG), dc.TT_CHO_KE_TOAN)
+
+
+@ca('#317 uỷ nhiệm chi chỉ bắt buộc khi trả nhà cung cấp bằng chuyển khoản')
+def _uy_nhiem_chi():
+	src = open(dc.__file__, encoding='utf-8').read()
+	i = src.index('\ndef duyet(')
+	j = src.index('\ndef huy(', i)
+	than = src[i:j]
+	dung('chặn đúng hình thức nhà cung cấp', 'doc.get("hinh_thuc") or "") == HT_NCC' in than)
+	dung('chặn đúng chuyển khoản', 'doc.get("phuong_thuc") or "") == PT_CHUYEN_KHOAN' in than)
+
+
+@ca('#317 màn chi tiết có nút quay về danh sách và nhãn kế toán duyệt và chi')
+def _giao_dien_duyet():
+	import os
+	js = open(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'public/js/bep/16-mua-hang.js'), encoding='utf-8').read()
+	dung('có nút quay lại', 'id="ttnbVeDanhSach"' in js and 'go(scrTTNB, true)' in js)
+	dung('có nhãn duyệt và chi', "'Duyệt và chi'" in js)
+	dung('đã ẩn gộp chuyển', 'id="ttnbGop"' not in js and 'vagabond.ttnb_lo.gop' not in js)

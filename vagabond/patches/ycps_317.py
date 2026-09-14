@@ -3,6 +3,18 @@ import frappe
 
 
 def execute():
+	# Phiếu đang chờ giám đốc chưa chi tiền nên được chuyển an toàn sang đúng
+	# bàn kế toán. Giữ nguyên phiếu đã chi, đã huỷ và mã phiếu lịch sử.
+	for ten in frappe.get_all("Vagabond De Nghi Chi", filters={
+		"trang_thai": "Cho giam doc",
+		"loai_nghiep_vu": ["in", ["Chi phí", "Hoàn ứng"]],
+	}, pluck="name", limit_page_length=0):
+		cu = frappe.db.get_value("Vagabond De Nghi Chi", ten, "ghi_chu") or ""
+		ghi = "Tự chuyển từ Chờ giám đốc sang Chờ kế toán theo quy trình #317 ngày 14/09/2026."
+		frappe.db.set_value("Vagabond De Nghi Chi", ten, {
+			"trang_thai": "Cho ke toan",
+			"ghi_chu": (cu + "\n" + ghi).strip(),
+		}, update_modified=False)
 	if not frappe.db.exists("DocType", "RnD Purchase Request"):
 		return
 	from frappe.custom.doctype.property_setter.property_setter import make_property_setter

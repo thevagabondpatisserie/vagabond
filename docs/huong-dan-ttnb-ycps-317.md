@@ -2,10 +2,10 @@
 
 Bản hướng dẫn cho tính năng đang kiểm, chưa phát hành.
 
-Mỗi hoá đơn hoặc biên nhận lập một phiếu. Nhiều dòng cùng chứng từ được ghi chung. Chi phí tới500.000đ dùng Thanh toán nội bộ; trên500.000đ hoặc hàng ngoài danh mục dùng Yêu cầu mua hàng phát sinh (YCPS). Mốc bằng500.000đ vẫn được.
+Mỗi hoá đơn hoặc biên nhận lập một phiếu. Nhiều dòng cùng chứng từ được ghi chung. Chi phí tới 500.000đ dùng Thanh toán nội bộ; trên 500.000đ hoặc hàng ngoài danh mục dùng Yêu cầu mua hàng phát sinh (YCPS). Mốc bằng 500.000đ vẫn được.
 
-Cần tiền trước thì bấm Xin tạm ứng. Trên500.000đ phải chọn YCPS hợp lệ. Khi hoàn ứng, chọn đúng mã tạm ứng của mình; hệ thống kế thừa YCPS từ phiếu tạm ứng đã chi.
+Cần tiền trước thì bấm Xin tạm ứng. Trên 500.000đ phải chọn YCPS hợp lệ. Khi hoàn ứng, chọn đúng mã tạm ứng đã chi của mình; hệ thống kế thừa YCPS từ phiếu đó.
 
-Kế toán chọn các phiếu chờ chi bằng chuyển khoản rồi bấm Gộp chuyển. Kiểm tên, ngân hàng, số tài khoản và tổng tiền từng lô trước xác nhận. Đây chỉ là chuẩn bị lô; kế toán vẫn chuyển tiền trên ngân hàng, dùng nguyên nội dung có mã lô. Hai tài khoản thụ hưởng là hai lần chuyển riêng. Chỉ sau khi sao kê khớp tổng, phiếu mới thành Đã chi.
+Chi phí và hoàn ứng sau khi người phụ trách duyệt sẽ chuyển thẳng tới kế toán. Chỉ tạm ứng từ 2.000.000đ mới qua giám đốc. Khi trả thẳng nhà cung cấp bằng chuyển khoản, cần đính uỷ nhiệm chi hoặc biên lai trước khi chuyển tới kế toán; hoàn tiền nhân viên chỉ cần chứng từ mua hàng.
 
-Nút Xuất Excel lấy đúng bộ lọc ngày, trạng thái, tìm kiếm và người lập đang chọn. Nhân viên chỉ xem/xuất phạm vi được cấp.
+Nút Xuất Excel lấy đúng bộ lọc ngày, trạng thái, tìm kiếm và người lập đang chọn. Nhân viên chỉ xem và xuất phạm vi được cấp.
