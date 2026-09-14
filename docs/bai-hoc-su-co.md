@@ -536,3 +536,7 @@ Bench gán tài khoản tay chỉ chứng minh lõi ERPNext đọc Item Default,
 ### PR316: lưu Settings thật cần cả cấu hình nền
 
 Bench3c31739d chưa tới BTP vì fixture thiếu tọa độ bếp mà Settings.validate bắt buộc. Khi kiểm on_update bằng save thật, dựng cả điều kiện nền của document thay vì tắt validator. Audit phải nói đổi cấu hình khi chặng giữ nguyên, không dùng chung câu đổi chặng. Nguồn run34853835218 và review5665332461.
+
+
+### PR316: truy vấn tổng hợp trên Frappe mới
+Bench e06eaa2c chặn lưu Settings vì get_all không nhận hàm SQL dạng chuỗi trong fields. Dùng SQL cố định với tham số cho phép đếm nhóm; giữ ca bench đi qua Settings.save để kiểm truy vấn thật, không chỉ helper. Hai lượt cũ 217/219, rollback sạch; chưa dùng làm bằng chứng GL đạt.

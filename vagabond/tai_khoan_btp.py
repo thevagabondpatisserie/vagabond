@@ -317,7 +317,8 @@ def ap_dung(doc, cau_hinh=None, ghi_db=False, cau_hinh_cu=None):
 	tk_dong = (dong.get(TRUONG_ITEM_DEFAULT) if dong else None) or None
 	# Ô điền tay: người vừa đổi thì ý người thắng dòng Item Default.
 	tk_hien_co, tay_doi = doc_o_tay(doc.get(O_TAY), o_tay_cu, tk_dong)
-	if _chu(doc.get("custom_chang_btp")) != _chu(khai_cu) or tk_hien_co:
+	if (chang_ap_dung(doc.name, doc.get("is_stock_item"), doc.get("custom_chang_btp"))
+			!= chang_ap_dung(doc.name, doc.get("is_stock_item"), khai_cu)) or tk_hien_co:
 		giu_trong = False
 	elif tay_doi:
 		giu_trong = True

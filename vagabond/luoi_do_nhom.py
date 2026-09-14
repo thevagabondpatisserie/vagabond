@@ -198,8 +198,9 @@ def doc_du_lieu(cong_ty=None, cau_hinh=None):
 	cha = {g.name: g.parent_item_group for g in frappe.get_all("Item Group",
 		fields=["name", "parent_item_group"], limit_page_length=0)}
 	nhom_co_ton = {}
-	for r in frappe.get_all("Item", filters={"is_stock_item": 1, "disabled": 0},
-			fields=["item_group", "count(name) as so"], group_by="item_group"):
+	for r in frappe.db.sql("""select item_group, count(name) as so
+		from `tabItem` where is_stock_item = %s and disabled = %s
+		group by item_group""", (1, 0), as_dict=True):
 		if r.item_group:
 			nhom_co_ton[r.item_group] = int(r.so or 0)
 	tk_nhom = {}

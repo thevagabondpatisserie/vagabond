@@ -80,6 +80,11 @@ def _chay(bat, rieng):
 		d.reload(); d.description = 'Đã xoá tài khoản riêng'; d.save(ignore_permissions=True)
 		d.reload()
 		la('xoá trắng vẫn trống qua lần lưu khác', d.custom_tk_ton_kho_tay or '', '')
+		# Mô phỏng mã chặng lịch sử, rồi người dùng lưu cùng chặng bằng nhãn mới.
+		frappe.db.set_value('Item', d.name, 'custom_chang_btp', 'btp_so_cap')
+		d.reload(); d.custom_chang_btp = 'BTP sơ cấp'; d.save(ignore_permissions=True)
+		d.reload()
+		la('đổi nhãn cùng chặng giữ xoá trắng', d.custom_tk_ton_kho_tay or '', '')
 		cfg.tk_ton_btp_cap1 = tk2; cfg.tk_ton_btp_cap2 = tk2
 		cfg.save(ignore_permissions=True); d.reload()
 		la('đổi cấu hình không lấp lựa chọn trống', d.custom_tk_ton_kho_tay or '', '')

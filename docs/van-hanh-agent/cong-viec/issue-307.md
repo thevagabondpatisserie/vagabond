@@ -222,3 +222,8 @@ Bench được đổi để dùng món BTPB có chặng: lưu Settings trống, 
 Bench 34853835218: 217/219 ở cả hai lượt, hoàn nguyên sạch. Hai ca BTP dừng ở Settings.validate vì fixture thiếu kitchen_lat/kitchen_lng, chưa tới chức năng tự điền. Đã đặt tọa độ giả 10/106 trong chính document Settings thử và savepoint, không tắt validate và không gọi dịch vụ giao hàng. Không sửa site thật.
 
 Theo Claude comment5665332461, câu audit nay phân biệt đổi cấu hình với đổi chặng; ca thuần kiểm ghi_chu. Chuẩn hoá so sánh chặng để NULL/chuỗi rỗng không bị hiểu là đổi chặng. Chờ bench SHA mới, không dùng kết quả tài khoản gán tay của2239dd72 thay bằng chứng tự điền.
+
+
+Checkpoint 14/09 21:48: bench e06eaa2c đỏ 217/219 x2 do truy vấn COUNT dạng chuỗi bị core từ chối trong Settings.on_update. Đã chuyển sang SQL cố định có tham số; chờ bench SHA mới, không đổi dữ liệu production.
+
+Cùng lượt xử inline 4006256568: so chặng chuẩn hoá qua chang_ap_dung để mã lịch sử và nhãn hiện tại tương đương, giữ lựa chọn xoá trắng. Ca bench đổi từ btp_so_cap sang BTP sơ cấp qua Item.save, rồi kiểm đổi Settings không lấp lại.
