@@ -3,6 +3,9 @@
 Áp dụng cloud và local, theo Issue #294. Đây là quy trình lưu bàn giao, không
 phải worker hay bằng chứng automation đã bật. Codex làm chính, Claude review.
 
+Quy tắc mới: [tiết kiệm token và mẫu tag](tiet-kiem-token.md). Tái dùng mốc
+đã kiểm theo SHA; chỉ lấy delta khi có sự kiện mới, không đọc lại từ đầu.
+
 ## Đọc trước khi làm
 
 1. Đọc AGENTS.md, instruction hiện hành và mục lục này. Claude đọc thêm
