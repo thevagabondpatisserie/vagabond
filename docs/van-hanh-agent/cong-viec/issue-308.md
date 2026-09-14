@@ -6,7 +6,7 @@
 
 ## Kết quả
 
-`gan_lo` trước đây vét lô cảnh báo của mã gốc nhưng bỏ mã thay. Ba ca gọi gan_lo thật với cửa DB giả đỏ vì thiếu hàng; sau sửa 2982/2982 ca thuần đạt.
+`gan_lo` trước đây vét lô cảnh báo của mã gốc nhưng bỏ mã thay. Ba ca gọi gan_lo thật với cửa DB giả đỏ vì thiếu hàng; sau sửa đầu 2982/2982 ca thuần đạt. Bổ sung một ca nhiều dòng đã bắt lỗi lô cảnh báo còn dư bị tính thành hàng tốt ở dòng sau; thêm bộ lọc chi_tot ở vòng hàng tốt để giữ đúng thứ tự. Cổng SHA mới phải chạy lại.
 
 Đã thêm vòng vét mã thay sau vòng vét mã gốc. Giữ danh sách mã đã duyệt, đúng kho, đơn vị gốc, original_item và túi tồn dùng chung có trừ phần chọn tay. Không thay chính sách phê duyệt mã thay (issue305 xử lý riêng).
 

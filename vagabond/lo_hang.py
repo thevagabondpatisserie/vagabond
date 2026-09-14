@@ -110,7 +110,7 @@ def duoc_thay_ma(purpose):
 	return (purpose or "").strip() in LUONG_DUOC_THAY_MA
 
 
-def rut_tu_kho(muc, can):
+def rut_tu_kho(muc, can, chi_tot=False):
 	"""Rút `can` đơn vị ra khỏi một túi lô, TRỪ LUÔN phần đã rút. THUẦN.
 
 	`muc` là {"con": [(tên lô, còn lại)] đã xếp theo thứ tự ưu tiên}.
@@ -120,7 +120,12 @@ def rut_tu_kho(muc, can):
 	dòng thì cả hai dòng cùng nhìn thấy một phần tồn, cùng lấy, và phiếu
 	ghi ra nhiều hơn số kho thật có. Nên cả phiếu chung MỘT túi.
 	"""
-	phan, thieu = chia_theo_lo(can, muc.get("con") or [])
+	# Túi dùng chung có thể đã vét ở dòng trước. Vòng hàng tốt không
+	# được coi lô cảnh báo còn dư là hàng tốt ở dòng sau (#308).
+	con = muc.get("con") or []
+	if chi_tot and muc.get("vet"):
+		con = [(ten, so) for ten, so in con if ten in (muc.get("goc") or {})]
+	phan, thieu = chia_theo_lo(can, con)
 	if phan:
 		da_lay = {}
 		for ten, so in phan:
@@ -634,7 +639,7 @@ def gan_lo(doc, method=None):
 			he_so = flt(d.get("conversion_factor")) or 1
 			can_goc = flt(d.qty) * he_so
 			muc = _tui_lo(bo, ma, kho, da_dung=da_dung)
-			phan, thieu = rut_tu_kho(muc, can_goc)
+			phan, thieu = rut_tu_kho(muc, can_goc, chi_tot=True)
 
 			# Thiếu thì thử MÃ THAY THẾ đã duyệt trước khi chặn: hết bơ
 			# Avonmore mà bơ Anchor còn đầy kệ thì bếp không việc gì phải
@@ -648,7 +653,7 @@ def gan_lo(doc, method=None):
 			if thieu > LI_TI and thay_ma:
 				for ma_thay in cac_ma_thay:
 					muc_thay = _tui_lo(bo, ma_thay, kho, da_dung=da_dung)
-					p2, thieu = rut_tu_kho(muc_thay, thieu)
+					p2, thieu = rut_tu_kho(muc_thay, thieu, chi_tot=True)
 					for ten_lo, so in p2:
 						phan_thay.append((ma_thay, ten_lo, so))
 					if thieu <= LI_TI:

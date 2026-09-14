@@ -641,3 +641,12 @@ def _308_pham_vi():
 		except lh.frappe.ValidationError:
 			continue
 		dung('phải chặn ngoài phạm vi đã duyệt', False)
+
+
+@ca('308 nhiều dòng: lô cảnh báo đã vét không trở thành hàng tốt ở dòng sau')
+def _308_khong_doi_lo_thanh_tot():
+	ra = chay_gan_lo('Manufacture', [dong('A', 'Kho A', 1), dong('C', 'Kho A', 1)], {},
+		qua_han={('B', 'Kho A'): {'B-cu': 6}, ('C', 'Kho A'): {'C-cu': 1}},
+		thay_the={'A': ['B'], 'C': ['B']})
+	la('dòng sau ưu tiên cảnh báo mã gốc trước mã thay', _gon(ra),
+		[('B', 'B-cu', 1.0), ('C', 'C-cu', 1.0)])
