@@ -21,7 +21,27 @@ async function kiem(loi, nut, nac = 2) {
   assert(dich && dich.fn === c.scrTTNB && dich.replace === (nac > 1), 'Quay lại phải về danh sách TTNB');
   assert.strictEqual(JSON.stringify(c.ttnbLoc), loc, 'Không được mất bộ lọc');
 }
+function kiemChonYcps() {
+  const document = dg.taiLieuGia();
+  const c = {document, window:{}, console, h:x=>String(x||''), money:String, soTien:Number,
+    kmHangChip:x=>x, posChipNut:(attrs, text)=>'<button '+attrs+'>'+text+'</button>',
+    frame:(title,html,opt)=>{document.body.innerHTML=html+(opt.footer||'');return document.body;}};
+  vm.createContext(c); vm.runInContext(src,c);
+  const query=document.body.querySelectorAll.bind(document.body);
+  document.body.querySelectorAll=sel=>sel==='input[id^="dnk_so_tien_"]'?[]:query(sel); // Phiếu thử không có dòng tiền.
+  c.dncDm={loai_nghiep_vu:['Tạm ứng','Hoàn ứng']};
+  c.dncForm={loai_nghiep_vu:'Hoàn ứng', thuoc_tam_ung:'UNG', cac_khoan:[]};
+  for (const can of [true,false]) {
+    c.dncTamUng=[{ma:'UNG',ycps_can_thay:can}];c.dncVe([]);
+    assert.strictEqual(!!document.getElementById('dncYcps'),can,'Picker hoàn ứng theo cờ máy chủ');
+  }
+  c.dncForm.loai_nghiep_vu='Tạm ứng';c.dncForm.yeu_cau_phat_sinh='YCPS-CU';c.dncVe([]);
+  const btn=document.body.querySelectorAll('[data-dnc]').find(x=>x.getAttribute('data-dnc')==='loai_nghiep_vu|Hoàn ứng');
+  btn.click();
+  assert.strictEqual(c.dncForm.yeu_cau_phat_sinh,'','Đổi loại phải xoá YCPS sót');
+}
 (async () => {
+  kiemChonYcps();
   const c = {window: {}, console, soTien: Number}; vm.createContext(c); vm.runInContext(src, c);
   function phieu(nv, tien) {return {loai_nghiep_vu:nv, cac_khoan:[{so_tien:tien}]};}
   assert(!c.dncHuongDuyet(phieu('Hoàn ứng', 3000000), 2000000).includes('giám đốc'));

@@ -186,9 +186,19 @@ def _ycps_huy_thay_the():
 	with patch.object(dc, '_kem_dm', side_effect=lambda d: dict(d)), \
 		patch.object(dc.frappe.db, 'get_value', side_effect=doc), \
 		patch.object(dc.frappe.db, 'exists', return_value=True), \
-		patch.object(dc.frappe, 'get_doc', return_value=D(owner='nhan-vien', trang_thai='Đã duyệt')), \
+		patch.object(dc.frappe, 'get_doc', side_effect=lambda dt, ma: D(owner='nhan-vien', trang_thai='Huỷ' if ma == 'YCPS-HUY' else 'Đã duyệt')), \
 		patch.object(dc.frappe, 'get_all', return_value=[]):
 		ra = dc._phieu_kiem_317(p)
 		la('phiếu mới hợp lệ', ra['_ycps_hop_le'], True)
 		la('chọn phiếu mới giữ nguyên', p.yeu_cau_phat_sinh, 'YCPS-MOI')
 		la('không sửa YCPS gốc', tu.yeu_cau_phat_sinh, 'YCPS-HUY')
+
+
+@ca('#317 YCPS thiếu DocType hoặc phiếu: không nạp controller')
+def _ycps_khong_ton_tai():
+	from unittest.mock import patch
+	for co_dt in (False, True):
+		with patch.object(dc.frappe.db, 'exists', side_effect=lambda dt, ma: co_dt if dt == 'DocType' else False), \
+			patch.object(dc.frappe, 'get_doc') as nap:
+			la('thiếu trả None', dc._doc_ycps_317('YCPS-MAT'), None)
+			la('không nạp controller', nap.call_count, 0)

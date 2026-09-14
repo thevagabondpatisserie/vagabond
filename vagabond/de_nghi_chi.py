@@ -823,6 +823,22 @@ def trung_hoa_don(doc):
 	return ra
 
 
+def _doc_ycps_317(ma):
+	"""Thiếu DocType/phiếu trả None; không che module hỏng của phiếu còn tồn tại."""
+	if not ma or not frappe.db.exists("DocType", "RnD Purchase Request"):
+		return None
+	try:
+		if not frappe.db.exists("RnD Purchase Request", ma):
+			return None
+		return frappe.get_doc("RnD Purchase Request", ma)
+	except frappe.DoesNotExistError:
+		return None
+
+
+def _ycps_hop_le_317(yc):
+	return bool(yc and yc.get("docstatus") != 2 and yc.get("trang_thai") not in ("Huỷ", "Hủy"))
+
+
 def _phieu_kiem_317(doc, gui=False):
 	"""Context từ DB, không nhận cờ miễn trần/phiếu cũ từ máy khách."""
 	p = _kem_dm(doc)
@@ -848,21 +864,17 @@ def _phieu_kiem_317(doc, gui=False):
 			and la_tam_ung(tu.get("loai_nghiep_vu")) and tu.get("trang_thai") == TT_DA_CHI
 			and not tu.get("yeu_cau_phat_sinh")
 			and (not tu.get("quy_tac_317") or tien_phieu(frappe.get_doc(DT, doc.get("thuoc_tam_ung"))) <= NGUONG_MUA_VAT))
-		if ma and (not frappe.db.exists("RnD Purchase Request", ma)
-				or frappe.db.get_value("RnD Purchase Request", ma, "trang_thai") in ("Huỷ", "Hủy")):
+		if ma and not _ycps_hop_le_317(_doc_ycps_317(ma)):
 			ma = str(doc.get("yeu_cau_phat_sinh") or "").strip() or None
 		doc.yeu_cau_phat_sinh = ma
 	elif not la_tam_ung(doc.get("loai_nghiep_vu")):
 		ma = None
 		doc.yeu_cau_phat_sinh = None
-	if ma and frappe.db.exists("RnD Purchase Request", ma):
-		try:
-			yc = frappe.get_doc("RnD Purchase Request", ma)
-		except frappe.DoesNotExistError:
-			yc = None
+	if ma:
+		yc = _doc_ycps_317(ma)
 		if yc and yc.owner != doc.nguoi_tao and not frappe.has_permission("RnD Purchase Request", "read", doc=yc, user=doc.nguoi_tao):
 			frappe.throw("Chỉ được chọn YCPS của mình hoặc YCPS đã được cấp quyền đọc.", frappe.PermissionError)
-		p["_ycps_hop_le"] = bool(yc and yc.get("trang_thai") not in ("Huỷ", "Hủy"))
+		p["_ycps_hop_le"] = _ycps_hop_le_317(yc)
 		p["_ycps_ke_thua"] = bool(p["_ycps_hop_le"] and doc.get("loai_nghiep_vu") == NV_HOAN_UNG)
 	tep = set()
 	for d in cac_dong(doc):
@@ -1571,7 +1583,7 @@ def tam_ung_cua_toi(nguoi=None):
 			"nguoi_tao": nguoi,
 			"trang_thai": TT_DA_CHI,
 		},
-		fields=["name", "ten_khoan_chi", "tong_tien", "so_tien", "creation", "ngay_can_tt"],
+		fields=["name", "ten_khoan_chi", "tong_tien", "so_tien", "creation", "ngay_can_tt", "yeu_cau_phat_sinh"],
 		order_by="creation desc",
 		limit_page_length=0,
 	):
@@ -1582,6 +1594,7 @@ def tam_ung_cua_toi(nguoi=None):
 			"ma": r["name"],
 			"ten": r.get("ten_khoan_chi") or "",
 			"ngay": str(r.get("creation") or "")[:10],
+			"ycps_can_thay": bool(r.get("yeu_cau_phat_sinh") and not _ycps_hop_le_317(_doc_ycps_317(r.get("yeu_cau_phat_sinh")))),
 			"da_ung": ung,
 			"da_hoan_ung": hoan,
 			"con_no": con,

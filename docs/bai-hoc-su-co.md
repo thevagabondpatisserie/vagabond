@@ -522,3 +522,6 @@ Ngày15/09, bench332733a6 có4ca chưa tới assertion vì helper tạo Chi phí
 
 ### PR318 - kiểm tồn tại trước nạp chứng từ đã mất
 Bench cd453810 đạt220/221: get_doc nạp controller trước khi báo thiếu phiếu, DocType stub không có module gâyImportError. Kiểmexists trướcget_doc để đường thiếuphiếu hoạt động; không bắtmọiImportError vì sẽ che DocType cònphiếu nhưng cấu hìnhhỏng.
+
+### PR318 F13 - đường thay phải có nút và xoá dữ liệu sót
+Máy chủ cho thay YCPS không đủ nếu Hoàn ứng không có picker. Cờ nguồn không hợp lệ phải từ máy chủ, hiện nút theo cờ, xoá lựa chọn khi đổi loại/đổi nguồn. Ca DOM bấm chip thật và kiểm cả hiện/ẩn theo cờ, không chỉ dò chuỗi HTML.

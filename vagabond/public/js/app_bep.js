@@ -26609,6 +26609,7 @@ function dncVe(lichSu) {
         'Đã ứng <b>' + money(tu.da_ung) + ' đ</b>, đã hoàn <b>' + money(tu.da_hoan_ung) + ' đ</b>. ' +
         h(tu.nhac || '') + '</div>';
     }
+    if (tu && tu.ycps_can_thay) html += '<div class="hint">YCPS gốc không còn hợp lệ. Chọn YCPS thay thế trước khi gửi kế toán.</div><button class="btn gh" id="dncYcps">' + h(f.yeu_cau_phat_sinh || 'Chọn YCPS thay thế') + '</button>';
     html += '</div>';
   }
 
@@ -26703,6 +26704,7 @@ function dncVe(lichSu) {
     dncDoc();
     dncForm[p[0]] = p[1];
     if (p[0] === 'loai_nghiep_vu') {
+      dncForm.yeu_cau_phat_sinh = '';
       /* Đổi loại nghiệp vụ thì bảng phân loại đổi theo, nên phải xoá lựa
          chọn cũ ở mọi khoản - giữ lại là lưu xuống một phân loại không
          thuộc loại này. */
@@ -26796,7 +26798,7 @@ function dncVe(lichSu) {
         return { value: x.ma, label: x.ma + ' · ' + money(x.da_ung) + ' đ', phu: (x.ten || '') + ' · ' + (x.nhac || '') };
       }),
       dncForm.thuoc_tam_ung || '',
-      function (it) { dncForm.thuoc_tam_ung = it.value; dncVe(lichSu); }, true);
+      function (it) { dncForm.yeu_cau_phat_sinh = ''; dncForm.thuoc_tam_ung = it.value; dncVe(lichSu); }, true);
   };
 
   var luu = async function (gui) {
