@@ -160,7 +160,7 @@ def ban_can_duyet(c):
     keys = ('van_de', 'de_xuat', 'anh_huong', 'cau_hoi')
     if not isinstance(x, dict) or set(x) != set(keys):
         return None
-    if any(not isinstance(x[k], str) or not x[k].strip() or len(x[k]) > 500 for k in keys):
+    if any(not isinstance(x[k], str) or not x[k].strip() or len(x[k]) > 500 or any(ord(ch) < 32 for ch in x[k]) for k in keys):
         return None
     return '\n'.join(label + ': ' + x[k].strip() for k, label in zip(keys,
         ('Việc cần quyết', 'Em đề xuất', 'Ảnh hưởng', 'Anh duyệt giúp')))
@@ -240,6 +240,8 @@ def thu_thap(gh, state):
             tom_tat = ban_can_duyet(c)
             if tom_tat:
                 text += '\n' + tom_tat + '\nTrả lời trong Codex; bot Telegram chưa nhận lệnh duyệt.'
+            elif dau and dau[0].strip() == '[CẦN DUYỆT]' and 'telegram-approval' in (c.get('body') or ''):
+                text += '\nKhối phương án chưa hợp lệ hoặc chưa đúng người đăng; chưa gửi nội dung cần duyệt.'
             if (dau and dau[0].strip() == '[ĐÃ DEPLOY]'
                     and '<!-- telegram-release' in (c.get('body') or '')):
                 text += '\nKhối bản tin chưa hợp lệ hoặc chưa đúng người đăng; chưa gửi tóm tắt tính năng.'
