@@ -518,3 +518,7 @@ duyệt, không suy từ trí nhớ. Nguồn: PR #316 comment anh Việt 14/09 c
 
 ### #316: không suy công ty đích từ Account đầu vào
 Validator truyền None vào kiểm công ty đã nhận Account Demo trong cấu hình BTP. Nếu lại suy công ty đích từ chính Account này, phép kiểm sau cũng tự hợp thức hóa lựa chọn sai. Lấy công ty mặc định độc lập, lọc cùng công ty ở patch và có ca gọi cửa validate thật với Account khác công ty.
+
+## PR316: nhóm mua vào không đồng nghĩa tài khoản152
+
+Theo chốt 14/09, công cụ và văn phòng phẩm dùng153; tài sản/dịch vụ không gán tài khoản tồn kho. Không tự bỏ theo tồn nếu đã có SLE kể cả đã huỷ. Lưu cấu hình BTP phải truyền giá trị mới vào bước nạp nhóm, tránh đọc lại cache cấu hình cũ; không đè tài khoản khai tay. Cổng phải giữ ngoại lệ có lịch sử cho Khải xử lý.

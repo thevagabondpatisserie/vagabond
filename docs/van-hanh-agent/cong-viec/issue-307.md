@@ -2,7 +2,7 @@
 
 - Nguồn: issue #307 (con của #206), anh Việt duyệt 13/09/2026 sau trao đổi
   với Khải. Điều phối lại 14/09/2026 11:45: chia hai PR.
-- Owner tích hợp/sửa: Codex local (anh Việt giao 14/09); Claude review. Nhánh nhánh `claude/issue-307-20260914-0450`, nền main
+- Owner tích hợp/sửa: Codex local (anh Việt giao 14/09); Claude review. Nhánh `claude/issue-307-20260914-0450`, nền main
   `6886899d` (sau v491). PR A là bản này; PR B (hai báo cáo, bench) làm sau.
 - Mục tiêu PR A: hai ô cấu hình, hook validate Item, patch nạp một lần,
   ca thuần, APPVER 492. Không đổi cờ thật, không đụng chứng từ, không nới
@@ -164,3 +164,9 @@ làm hàng rào cho lần nâng lõi sau.
 - Đã đo chỉ đọc site và đăng comment5662316882. 22 nhóm có món theo tồn (gồm cả disabled); cần đo lại đúng filter disabled=0 của báo cáo trước duyệt mapping. Nhánh Mua vào có công cụ, tài sản, dịch vụ; không duyệt gán tất cả152. Còn nhóm Demo và ngoài cây. Phép đọc Account loại Stock chưa thấy1552.
 - Khải tự phân loại món. Chưa bật cờ, chưa sửa Account hoặc Item live.
 - Chưa sẵn sàng merge: còn kiểm mapping/manual account/report và bench GL trên SHA cuối. Không dùng báo cáo rỗng làm đủ bằng chứng tài khoản hợp lệ hay cho phép bật cờ.
+
+## Delta đang làm theo comment5663898833
+
+Đã sửa bảng 152/153, Nhân bán thành phẩm và bỏ qua Demo; Item hook thiếu công ty mặc định chỉ nhắc. Còn hook lưu Settings, đổi món dịch vụ/tài sản chưa có SLE và bench GL hai lượt; chưa đủ cổng merge. Phiên bản cuối493 sau PR318v492.
+
+Bổ sung local: lưu Settings nạp lại nhóm BTP và món đã chọn chặng, dùng cấu hình vừa lưu. Patch chỉ bỏ theo tồn của tài sản/dịch vụ chưa có SLE; báo cáo cổng giữ các món đã có SLE cho Khải. Đã nối ba ca GL thật (món/nhóm/cờ tắt); hai ca phantom một/nhiều cấp hiện hữu tiếp tục chạy trong bench. Chưa có kết quả bench SHA mới.

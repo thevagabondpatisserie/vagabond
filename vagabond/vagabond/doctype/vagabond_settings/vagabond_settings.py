@@ -11,3 +11,7 @@ class VagabondSettings(Document):
 		# #307: hai ô tài khoản tồn kho BTP phải là tài khoản kho hợp lệ.
 		from vagabond.tai_khoan_btp import kiem_o_cau_hinh
 		kiem_o_cau_hinh(self)
+
+	def on_update(self):
+		from vagabond.tai_khoan_btp import khi_luu_cau_hinh
+		khi_luu_cau_hinh(self)

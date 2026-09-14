@@ -16,6 +16,7 @@ nhãn cột và câu chữ vẫn tiếng Việt có dấu. Phần thuần nằm 
 # phần thuần
 
 COT = [
+	{"fieldname": "ly_do", "label": "Cần xử lý", "fieldtype": "Data", "width": 300},
 	{"fieldname": "item_code", "label": "Mã món", "fieldtype": "Link", "options": "Item", "width": 160},
 	{"fieldname": "item_name", "label": "Tên món", "fieldtype": "Data", "width": 260},
 	{"fieldname": "item_group", "label": "Nhóm món", "fieldtype": "Link", "options": "Item Group", "width": 200},
@@ -73,6 +74,19 @@ def execute(filters=None):
 			group_by="item_code", limit_page_length=0):
 		ton[r.item_code] = r.ton
 	dong = loc_chua_co(cac_mon, co["Item"], co["Item Group"], co["Brand"], ton)
+	from vagabond.luoi_do_nhom import mon_khong_quan_ton
+	dac_biet = {m["name"] for m in mon_khong_quan_ton() if m["co_sle"]}
+	theo_ma = {r["item_code"]: r for r in dong}
+	for m in cac_mon:
+		if m.name in dac_biet:
+			r = theo_ma.get(m.name)
+			if r is None:
+				r = {"item_code": m.name, "item_name": m.item_name, "item_group": m.item_group,
+					"brand": m.brand, "stock_uom": m.stock_uom, "ton": float(ton.get(m.name) or 0)}
+				dong.append(r)
+			r["ly_do"] = "Tài sản/dịch vụ đã có sổ kho; Khải cần xử lý trước khi bật cờ."
+	for r in dong:
+		r.setdefault("ly_do", "Chưa có tài khoản tồn kho cho công ty đã chọn.")
 	if not dong:
 		frappe.msgprint("Mọi món theo tồn đã có tài khoản ở ít nhất một nấc. Có thể bật "
 			"tài khoản tồn kho theo món trên Company %s đúng ngày cắt." % cong_ty,

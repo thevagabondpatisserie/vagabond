@@ -14,8 +14,8 @@ from vagabond.vagabond.report.mon_theo_ton_chua_co_tai_khoan import (
 # Cây nhóm giả, tên KHÔNG lấy làm bằng chứng về site thật.
 CHA = {
 	"All Item Groups": "",
-	"Mua vào": "All Item Groups", "Nguyên liệu khô": "Mua vào", "Bao bì": "Mua vào",
-	"Bột": "Nguyên liệu khô",
+	"Mua vào": "All Item Groups", "Nguyên vật liệu Thô": "Mua vào", "Bao bì": "Mua vào",
+	"Bột": "Nguyên vật liệu Thô",
 	"Bán ra": "All Item Groups", "Bánh lẻ": "Bán ra",
 	"Sản xuất": "All Item Groups",
 	"Bán thành phẩm Bánh": "Sản xuất", "Ruột bánh": "Bán thành phẩm Bánh",
@@ -28,8 +28,8 @@ BTP1 = "1552 - BTP - TV"
 
 @ca("#307 lưới đỡ: đường lên gốc, gốc nghiệp vụ và nhánh ngay dưới gốc")
 def _goc():
-	la("đường lên", ldn.duong_len_goc("Bột", CHA), ["Bột", "Nguyên liệu khô", "Mua vào", "All Item Groups"])
-	la("gốc Mua vào", ldn.nhom_goc_va_nhanh("Bột", CHA), ("mua vào", "Nguyên liệu khô"))
+	la("đường lên", ldn.duong_len_goc("Bột", CHA), ["Bột", "Nguyên vật liệu Thô", "Mua vào", "All Item Groups"])
+	la("gốc Mua vào", ldn.nhom_goc_va_nhanh("Bột", CHA), ("mua vào", "Nguyên vật liệu Thô"))
 	la("con trực tiếp: nhánh là chính nó", ldn.nhom_goc_va_nhanh("Bao bì", CHA), ("mua vào", "Bao bì"))
 	la("nhánh BTP", ldn.nhom_goc_va_nhanh("Ruột bánh", CHA), ("sản xuất", "Bán thành phẩm Bánh"))
 	la("ngoài ba gốc", ldn.nhom_goc_va_nhanh("Ship", CHA), (None, None))
@@ -93,16 +93,16 @@ def _bang():
 
 @ca("#307 lưới đỡ: nhóm cha có tài khoản KHÔNG đỡ được nhóm con (lõi không leo cha)")
 def _khong_leo_cha():
-	# Chỉ nhóm cha "Nguyên liệu khô" có tài khoản; món ở nhóm lá "Bột" vẫn
+	# Chỉ nhóm cha "Nguyên vật liệu Thô" có tài khoản; món ở nhóm lá "Bột" vẫn
 	# bị báo thiếu, đúng get_item_group_defaults của lõi de591661.
 	mon = [dict(name="NVLT-1", item_name="Bột mì", item_group="Bột", brand=None, stock_uom="Gram")]
-	ra = bc.loc_chua_co(mon, set(), {"Nguyên liệu khô"}, set(), {"NVLT-1": 5000})
+	ra = bc.loc_chua_co(mon, set(), {"Nguyên vật liệu Thô"}, set(), {"NVLT-1": 5000})
 	la("vẫn thiếu", [r["item_code"] for r in ra], ["NVLT-1"])
 	la("kèm tồn", ra[0]["ton"], 5000.0)
 	ra = bc.loc_chua_co(mon, set(), {"Bột"}, set(), {})
 	la("đúng nhóm lá thì đủ", ra, [])
 	# Lưới đỡ cũng gán cho nhóm lá, không gán cho nhóm trung gian không có món.
-	bang = ldn.bang_du_kien({"Bột": 1}, CHA, {"Nguyên liệu khô": TK["152"]}, TK, BTP1)
+	bang = ldn.bang_du_kien({"Bột": 1}, CHA, {"Nguyên vật liệu Thô": TK["152"]}, TK, BTP1)
 	la("gán cho lá dù cha đã có", (bang[0]["nhom"], bang[0]["hanh_dong"]), ("Bột", ldn.GAN))
 
 
@@ -137,3 +137,27 @@ def _patch():
 		t = f.read()
 	dung("ô gương được dựng sau kho_san_xuat",
 		t.index("kho_san_xuat.TRUONG_MOI") < t.index("tai_khoan_btp.dung()"))
+
+
+@ca("#307 phân biệt 152, 153 và nhóm không quản tồn theo bảng đã duyệt")
+def _nhom_mua_da_duyet():
+	for nhom, so in (("Nguyên vật liệu Thô", "152"), ("Bao bì", "152"),
+		("Công cụ Dụng cụ", "153"), ("Văn phòng phẩm", "153"),
+		("Tài sản Cố định", None), ("Dịch vụ", None), ("Demo", None)):
+		cha = {nhom: "Mua vào"}
+		la(nhom, ldn.tai_khoan_du_kien(nhom, cha, {"152": "TK152", "153": "TK153"}, None)[0],
+			"TK" + so if so else None)
+	la("Nhân bán thành phẩm dùng cấu hình BTP", ldn.tai_khoan_du_kien("Nhân bán thành phẩm",
+		{"Nhân bán thành phẩm": "Sản xuất"}, TK, BTP1)[0], BTP1)
+
+
+@ca('#307 món tài sản dịch vụ: có SLE giữ nguyên, chưa có SLE mới bỏ tồn')
+def _giu_lich_su_sle():
+	from unittest.mock import patch
+	with patch.object(ldn, 'mon_khong_quan_ton', return_value=[
+		{'name': 'MOI', 'co_sle': False}, {'name': 'CU', 'co_sle': True}]), \
+		patch.object(ldn.frappe.db, 'set_value') as ghi, \
+		patch.object(ldn.frappe, 'clear_cache', create=True):
+		ldn.bo_theo_ton_chua_phat_sinh()
+		la('chỉ món mới được đổi', ghi.call_args_list[0].args, ('Item', 'MOI', 'is_stock_item', 0))
+		la('món có lịch sử không bị sửa', ghi.call_count, 1)

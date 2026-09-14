@@ -13,6 +13,9 @@ from vagabond import luoi_do_nhom
 
 
 def execute():
+	for m in luoi_do_nhom.bo_theo_ton_chua_phat_sinh():
+		print("luoi_do_nhom_307: %s: %s" % (m["name"],
+			"giữ theo tồn vì đã có SLE, Khải cần xử lý" if m["co_sle"] else "đã bỏ theo tồn"))
 	kq = luoi_do_nhom.ap_dung()
 	print("luoi_do_nhom_307: %s" % kq["dem"])
 	for r in kq["bang"]:

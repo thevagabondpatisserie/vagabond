@@ -288,6 +288,10 @@ def ap_dung(doc, cau_hinh=None, ghi_db=False):
 	không kích các validate khác trên dữ liệu cũ.
 	"""
 	cau_hinh = cau_hinh if cau_hinh is not None else doc_cau_hinh()
+	if not ghi_db and not frappe.db.get_single_value("Global Defaults", "default_company"):
+		cau = "Chưa có công ty mặc định. Đã giữ tài khoản của món; kế toán khai Global Defaults rồi lưu lại."
+		frappe.msgprint(cau, indicator="orange", alert=True)
+		return {"hanh_dong": BO_QUA, "tai_khoan": None, "ghi_chu": cau}
 	khai_cu, o_tay_cu = None, None
 	# Chỉ hỏi cột ô gương khi nó đã được dựng, để lần migrate đầu (hook
 	# chạy trước truong_tu_them) không ném lỗi thiếu cột.
@@ -387,3 +391,19 @@ def khi_luu_mon(doc, method=None):
 		raise
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "tai_khoan_btp.khi_luu_mon %s" % doc.name)
+
+
+def khi_luu_cau_hinh(doc, method=None):
+	"""Kế toán khai tài khoản rồi lưu Settings: nạp chặng đã chọn, giữ khai tay."""
+	if not any(doc.has_value_changed(o) for o in O_CAU_HINH.values()):
+		return
+	cau_hinh = {o: doc.get(o) for o in O_CAU_HINH.values()}
+	cty = cong_ty_ap_dung(cau_hinh)
+	from vagabond import luoi_do_nhom
+	kq = luoi_do_nhom.ap_dung(cty, chi_btp=True, cau_hinh=cau_hinh)
+	if kq["dem"]["loi"]:
+		frappe.throw("Chưa nạp được tài khoản cho nhóm BTP. Chưa lưu cấu hình; kiểm nhật ký lỗi rồi thử lại.")
+	for ten in frappe.get_all("Item", filters={"is_stock_item": 1,
+		"custom_chang_btp": ["!=", ""]}, pluck="name", limit_page_length=0):
+		ap_dung(frappe.get_doc("Item", ten), cau_hinh, ghi_db=True)
+	frappe.clear_cache(doctype="Item")

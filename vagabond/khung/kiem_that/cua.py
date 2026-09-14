@@ -82,3 +82,5 @@ def chay(im=1):
 from vagabond.khung.kiem_that import thu_phan_bo_app  # noqa: F401,E402
 
 from vagabond.khung.kiem_that import thu_phantom_303  # noqa: F401,E402
+
+from vagabond.khung.kiem_that import thu_tai_khoan_btp_307  # noqa: F401,E402

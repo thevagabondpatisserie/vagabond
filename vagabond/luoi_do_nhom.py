@@ -104,11 +104,16 @@ def tai_khoan_du_kien(nhom, cha, tk_theo_so, tk_btp_cap1):
 	goc, nhanh = nhom_goc_va_nhanh(nhom, cha)
 	if goc is None:
 		return None, "không thuộc ba gốc Mua vào, Bán ra, Sản xuất"
+	if any(_chu(t) in {"chưa phân loại", "uncategory", "demo"} for t in duong_len_goc(nhom, cha)):
+		return None, "nhóm chưa phân loại hoặc dữ liệu Demo, không tự gán"
 	if goc == GOC_MUA_VAO:
-		so = SO_HIEU_MUA_VAO
+		so = {"nguyên vật liệu thô": "152", "bao bì": "152",
+			"công cụ dụng cụ": "153", "văn phòng phẩm": "153"}.get(_chu(nhanh))
+		if not so:
+			return None, "nhánh mua vào không thuộc nhóm theo tồn đã duyệt"
 	elif goc == GOC_BAN_RA:
 		so = SO_HIEU_THANH_PHAM
-	elif nhanh is not None and _chu(nhanh).startswith(CHU_NHANH_BTP):
+	elif nhanh is not None and (_chu(nhanh).startswith(CHU_NHANH_BTP) or _chu(nhanh) == "nhân bán thành phẩm"):
 		tk = (tk_btp_cap1 or "").strip() or None
 		if not tk:
 			return None, "gốc Sản xuất nhánh BTP nhưng ô %s trên Vagabond Settings trống" % O_BTP_CAP1
@@ -184,9 +189,9 @@ import frappe
 from vagabond.tai_khoan_btp import TRUONG_ITEM_DEFAULT, co_o_item_default, cong_ty_ap_dung, doc_cau_hinh
 
 
-def doc_du_lieu(cong_ty=None):
+def doc_du_lieu(cong_ty=None, cau_hinh=None):
 	"""Đọc cây nhóm, số món theo tồn, tài khoản đã khai và bảng tài khoản từ site."""
-	cau_hinh = doc_cau_hinh()
+	cau_hinh = cau_hinh if cau_hinh is not None else doc_cau_hinh()
 	cong_ty = cong_ty or cong_ty_ap_dung(cau_hinh)
 	cha = {g.name: g.parent_item_group for g in frappe.get_all("Item Group",
 		fields=["name", "parent_item_group"], limit_page_length=0)}
@@ -218,7 +223,7 @@ def xem_bang(cong_ty=None):
 	return bang
 
 
-def ap_dung(cong_ty=None):
+def ap_dung(cong_ty=None, chi_btp=False, cau_hinh=None):
 	"""Ghi Item Group Default cho các dòng GAN. Idempotent, không đè khai tay.
 
 	Ghi thẳng dòng Item Default (parenttype Item Group), không save() Item
@@ -228,10 +233,12 @@ def ap_dung(cong_ty=None):
 	if not co_o_item_default():
 		frappe.throw("Item Default không có ô %s. Đối chiếu lại lõi ERPNext trước khi "
 			"phát hành lưới đỡ #307." % TRUONG_ITEM_DEFAULT)
-	d = doc_du_lieu(cong_ty)
+	d = doc_du_lieu(cong_ty, cau_hinh)
 	bang = bang_du_kien(d["nhom_co_ton"], d["cha"], d["tk_nhom"], d["tk_theo_so"], d["tk_btp_cap1"])
 	dem = {GAN: 0, GIU: 0, BO_QUA: 0, "loi": 0}
 	for r in bang:
+		if chi_btp and not (r.get("goc") == GOC_SAN_XUAT and (_chu(r.get("nhanh")).startswith(CHU_NHANH_BTP) or _chu(r.get("nhanh")) == "nhân bán thành phẩm")):
+			continue
 		if r["hanh_dong"] != GAN:
 			dem[r["hanh_dong"]] += 1
 			continue
@@ -254,3 +261,28 @@ def ap_dung(cong_ty=None):
 			frappe.log_error(frappe.get_traceback(), "luoi_do_nhom %s" % r["nhom"])
 	frappe.clear_cache(doctype="Item Group")
 	return dict(bang=bang, dem=dem)
+
+
+def mon_khong_quan_ton(cha=None):
+	"""Đọc món tài sản/dịch vụ còn theo tồn; có SLE phải để Khải xử lý riêng."""
+	if cha is None:
+		cha = {g.name: g.parent_item_group for g in frappe.get_all("Item Group",
+			fields=["name", "parent_item_group"], limit_page_length=0)}
+	ra = []
+	for m in frappe.get_all("Item", filters={"is_stock_item": 1},
+			fields=["name", "item_group"], limit_page_length=0):
+		goc, nhanh = nhom_goc_va_nhanh(m.item_group, cha)
+		if goc == GOC_MUA_VAO and _chu(nhanh) in {"tài sản cố định", "dịch vụ"}:
+			ra.append({"name": m.name, "item_group": m.item_group,
+				"co_sle": bool(frappe.db.exists("Stock Ledger Entry", {"item_code": m.name}))})
+	return ra
+
+
+def bo_theo_ton_chua_phat_sinh():
+	"""Chỉ migrate món chưa từng có SLE; không xoá lịch sử kể cả SLE đã huỷ."""
+	ra = mon_khong_quan_ton()
+	for m in ra:
+		if not m["co_sle"]:
+			frappe.db.set_value("Item", m["name"], "is_stock_item", 0)
+	frappe.clear_cache(doctype="Item")
+	return ra
