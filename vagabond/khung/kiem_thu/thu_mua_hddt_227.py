@@ -306,3 +306,17 @@ def _nguon_thieu_321():
 		g['tong_tien'] = -600
 		b.qty = -6
 		la("giữ chiều điều chỉnh giảm", lg.sai_luong(t, g), [])
+
+
+@ca("#321: tên Item cũ chỉ phục hồi bằng ánh xạ NCC duy nhất")
+def _ten_cu_321():
+	from vagabond import luong_hoa_don_goc as lg
+	g = dict(tong_tien=600, chi_tiet=[dict(ten="Tên NCC", dvtinh="Hộp", sluong=6, dgia=100)])
+	t = To(supplier="NCC", items=[To(idx=1,item_code="MON",item_name="Tên nội bộ",qty=6,conversion_factor=500)])
+	with patch.object(lg.frappe, "get_all", lambda *a, **k: [dict(ten_hang_ncc="Tên NCC",ma_hang="MON")]), patch.object(lg.frappe.db, "get_value", lambda *a: 1), patch.object(mc, "don_vi_theo_ma", lambda *a: ("Hộp",500)):
+		la("tên cũ có căn cứ mapping", lg.sai_luong(t,g), [])
+		t.items[0].qty = 3
+		dung("phục hồi tên không bỏ kiểm lượng", bool(lg.sai_luong(t,g)))
+		t.items[0].qty = 6
+		t.items[0].ten_hang_ncc = "Nguồn khác"
+		dung("không đè tên nguồn đã khai", bool(lg.sai_luong(t,g)))

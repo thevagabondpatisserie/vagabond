@@ -608,3 +608,5 @@ căn cứ tự sửa chứng từ đã ghi sổ hoặc bù thêm kho.
 PR321 review inline: số tiền còn lại trên phiếu có thể gồm món thừa hoặc khác đơn vị. Không gọi tổng này là số nối được; phải phân biệt số dư với điều kiện ghép từng dòng.
 
 PR321: bộ chuẩn hóa tiền có thể đặt qty1 khi thiếu đơn giá; không tái sử dụng qty đó làm lượng nguồn. Kiểm nguồn phải xét cả dòng bị bỏ khỏi chứng từ, không chỉ những dòng còn lại.
+
+PR321 audit: tên Item cũ khác tên NCC không chứng minh mất dòng. Chỉ phục hồi căn cứ bằng mapping duy nhất, và vẫn kiểm lượng; không dùng tổng tiền để suy tên.

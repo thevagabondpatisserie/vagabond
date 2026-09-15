@@ -48,3 +48,13 @@ chuẩn hóa thành1 khi thiếu giá. Đã lặp hợp tên hai phía, loại n
 không quản kho hiện hữu; đọc sluong nguyên gốc, không dùng bộ chuẩn hóa tiền.
 Thêm ca thuần và Document.submit mất món. Còn audit nháp trên site, thiếu
 quy cách lịch sử và review/bench SHA mới; chưa đủ merge.
+
+## Audit dữ liệu nháp và nhận diện tên cũ
+
+Rà chỉ đọc trên production tìm được dòng cũ giữ tên Item nội bộ thay vì
+ten_hang_ncc; phép kiểm tên tuyệt đối có thể chặn oan. Đã thêm fallback chỉ
+khi thiếu ten_hang_ncc và mapping NCC xác định duy nhất tên nguồn cho mã
+Item trên chính hóa đơn nguồn. Không dùng vị trí, qty/rate hay tổng để đoán.
+Có hồi quy giữ chặn lượng và không ghi đè tên nguồn đã khai. Cần audit lại
+bằng resolver cuối và bench/review trước merge; số đếm sơ bộ không phải
+kết quả chạy toàn bộ guard. Không nhận tất cả nháp đều sai.

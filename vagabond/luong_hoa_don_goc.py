@@ -11,16 +11,35 @@ from vagabond import dung_lai_hddt as dl, minvoice_chung_tu as mc
 
 def sai_luong(doc, g):
 	"""Đọc-only; trả lý do chưa chứng minh được lượng hàng tồn kho."""
+	# Dòng cũ có thể chỉ giữ tên Item nội bộ. Chỉ phục hồi tên nguồn bằng
+	# ánh xạ NCC duy nhất, không đoán theo vị trí hoặc tổng tiền.
+	alias = {}
+	if doc.get("supplier"):
+		for r in frappe.get_all("Anh Xa Mat Hang NCC", filters={"nha_cung_cap": doc.get("supplier")},
+			fields=["ten_hang_ncc", "ma_hang"], limit_page_length=0):
+			alias.setdefault(dl.khoa_ten(r.get("ten_hang_ncc")), set()).add(r.get("ma_hang"))
+	nguon_tho = mc.dong_hang_hoa(dl.doc_chi_tiet(g.get("chi_tiet")))
+	ten_theo_ma = {}
+	for r in nguon_tho:
+		ten = dl.khoa_ten(r.get("ten"))
+		mas = alias.get(ten, set())
+		if len(mas) == 1 and None not in mas and "" not in mas:
+			ten_theo_ma.setdefault(next(iter(mas)), set()).add(ten)
+	def ten_dong(d):
+		ten = dl.khoa_ten(dl.ten_ncc_cua_dong(d))
+		if not d.get("ten_hang_ncc") and len(ten_theo_ma.get(d.get("item_code"), set())) == 1:
+			return next(iter(ten_theo_ma[d.get("item_code")]))
+		return ten
 	nhom = {}
 	ngoai_kho = set()
 	for d in doc.get("items") or []:
 		ma = d.get("item_code")
 		if ma and not frappe.db.get_value("Item", ma, "is_stock_item"):
-			ngoai_kho.add(dl.khoa_ten(dl.ten_ncc_cua_dong(d)))
+			ngoai_kho.add(ten_dong(d))
 			continue
-		nhom.setdefault(dl.khoa_ten(dl.ten_ncc_cua_dong(d)), []).append(d)
+		nhom.setdefault(ten_dong(d), []).append(d)
 	nguon = {}
-	for d in mc.dong_hang_hoa(dl.doc_chi_tiet(g.get("chi_tiet"))):
+	for d in nguon_tho:
 		r = {"ten": d.get("ten") or "", "dvt": d.get("dvtinh"), "sl": d.get("sluong")}
 		if mc.dau_cua_to(g.get("tong_tien")) < 0 and r["sl"] is not None:
 			r["sl"] = -abs(flt(r["sl"]))
