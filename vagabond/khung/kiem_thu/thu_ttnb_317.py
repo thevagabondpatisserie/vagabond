@@ -292,7 +292,8 @@ def _patch_thieu_ke_toan():
 	from types import SimpleNamespace
 	from vagabond.patches import ycps_317
 	ghi = Mock()
-	with patch.dict(sys.modules, {'vagabond.giao_viec': SimpleNamespace(giao_vai=Mock(return_value={'giao':0}))}), \
+	go = Mock()
+	with patch.dict(sys.modules, {'vagabond.giao_viec': SimpleNamespace(giao_vai=Mock(return_value={'giao':0}), go_giao=go)}), \
 		patch.object(dc.frappe, 'get_all', return_value=['P']), \
 		patch.object(dc.frappe.db, 'set_value') as doi, \
 		patch.object(dc.frappe.db, 'exists', return_value=False), \
@@ -302,3 +303,4 @@ def _patch_thieu_ke_toan():
 		la('chuyển đúng bàn', doi.call_args.args[-1], 'Cho ke toan')
 		la('có dấu vết cảnh báo', ghi.call_count, 2)
 		la('có log quản trị', log.call_count, 1)
+		la('đóng giao việc bước cũ', go.call_args.args, (dc.DT, 'P'))

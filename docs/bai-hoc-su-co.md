@@ -592,3 +592,7 @@ Khi cùng thêm import bench hoặc patch cuối tệp, giữ cả hai suite và
 ### PR316/318: quyền tệp mới khác quyền xử lý chứng từ cũ
 
 Kiểm người tải trên mọi lần đọc/duyệt làm kế toán bị chặn bởi biên nhận nhân viên đã lưu trước. So URL với bảng kê persisted từ DB; chỉ URL mới chưa gắn chứng từ cần đối chiếu chủ tải. Không lấy danh sách cũ từ client. Giao việc không có người nhận không phải lỗi cấu trúc dữ liệu: patch giữ trạng thái và dấu vết cảnh báo, không làm sập cả migrate chỉ vì giao=0.
+
+### PR316 inline4011368627: chuyển bàn khi danh sách nhận rỗng
+
+Giao việc trả sớm khi không có người nhận nên chưa đóng ToDo cũ. Patch đổi trạng thái cần gọi go_giao ở nhánh này để ToDo và _assign không còn trỏ giám đốc; giữ dấu vết Closed và cảnh báo cần giao lại.
