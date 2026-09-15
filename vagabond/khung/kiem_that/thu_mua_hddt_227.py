@@ -218,6 +218,17 @@ def _nguon_luong_321():
 	dung("báo cáo đọc chứng từ thật đã ghi sổ", any(r["hoa_don"] == hd.name for r in bao_cao))
 	dung("sổ cái đã sinh", len(nen.so_cai_cua(hd)) > 0)
 
+	# Chỉ đổi fixture nguồn trong bench để chạm throw thật của resolver.
+	raw = frappe.parse_json(g.chi_tiet)
+	raw[0]["dvtinh"] = "TEST-UNKNOWN-UOM-321"
+	g.db_set("chi_tiet", frappe.as_json(raw))
+	truoc = len(getattr(frappe.local, "message_log", None) or [])
+	co_cu = frappe.flags.get("mute_messages")
+	_, bao_cao, _ = execute(dict(hoa_don=hd.name))
+	dung("thiếu quy cách vẫn nằm trên báo cáo", any(r["nhom"] == "Lượng/quy cách" for r in bao_cao))
+	la("không để lại hộp thoại throw", len(getattr(frappe.local, "message_log", None) or []), truoc)
+	la("khôi phục cờ mute", frappe.flags.get("mute_messages"), co_cu)
+
 
 
 @ca("#321: bỏ một món nguồn và bù giá món khác chỉ cảnh báo, vẫn ghi sổ")

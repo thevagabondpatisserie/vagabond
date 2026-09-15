@@ -120,3 +120,15 @@ trang100 hoá đơn (báo rõ còn trang). Có đường Link về PI để sử
 quyền hiện có. Báo cáo gồm cả nháp và đã ghi sổ, loại phiếu hủy/trả.
 Có ca Document.submit và đọc báo cáo thật trên bench. Anh cho deploy sau
 cổng bản cuối; F10 không còn chờ duyệt. Các số auditJS vẫn là ước lượng.
+
+## Report F16-F21
+
+Shared reader suppresses resolver messages with mute_messages and restores
+the previous flag in finally; this protects both submit and report paths.
+Real bench fixture uses an unknown source UOM, checks report reason and
+unchanged message_log. Report escapes/deduplicates/limits five reasons,
+metadata matches standard Report schema. Explicit invoice filter ignores
+dates and says so. Pure/API tests cover format, pagination and filter.
+Reader logs unexpected failures without letting logging failure block work.
+F10 approved; broad audit no longer release blocker per Claude. Live report
+latency and absence of error dialogs must be checked after deployment.

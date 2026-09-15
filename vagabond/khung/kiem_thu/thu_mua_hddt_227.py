@@ -409,3 +409,21 @@ def _nhom_co_cau_truc_321():
 	with patch.object(dl, '_goc', return_value=g), patch.object(lg, 'sai_luong', return_value=[{'nhom':'luong','chu':'Thông điệp mới'}]), patch.object(lg.frappe, 'msgprint', create=True) as bao:
 		lg.kiem_truoc_ghi_so(To(custom_minvoice_id='SOURCE'))
 		dung('thay văn xuôi vẫn đúng hướng dẫn', 'Đối chiếu lượng và quy cách' in bao.call_args[0][0])
+
+
+@ca("#323 báo cáo nguồn: escape, trần mục, phân trang và lọc mã")
+def _bao_cao_nguon_323():
+	from vagabond.vagabond.report.doi_chieu_nguon_hoa_don_mua import doi_chieu_nguon_hoa_don_mua as rp
+	msg = rp.gom_ly_do(['<script>'] * 2 + ['M%s' % i for i in range(7)])
+	dung('escape HTML', '<script>' not in msg and '&lt;script&gt;' in msg)
+	la('khử lặp', msg.count('&lt;script&gt;'), 1)
+	dung('trần năm', 'M3' in msg and 'M4' not in msg and 'Còn 3 mục' in msg)
+	ds = [To(name='P%s' % i, posting_date='2026-09-15', supplier='NCC') for i in range(101)]
+	with patch.object(rp.frappe, 'get_list', return_value=ds, create=True) as lay, patch.object(rp.frappe, 'get_doc', return_value=To()) as doc, patch.object(rp, 'doc_canh_bao', return_value=[]):
+		_, rows, message = rp.execute(dict(hoa_don='PI-TEST', page=2))
+		la('đọc đúng trang', lay.call_args.kwargs['limit_start'], 100)
+		la('đọc thêm một để biết còn trang', lay.call_args.kwargs['limit_page_length'], 101)
+		la('chỉ kiểm một trăm phiếu', doc.call_count, 100)
+		dung('báo còn dữ liệu dù trang không cảnh báo', 'Còn dữ liệu' in message)
+		dung('lọc mã bỏ ngày', 'posting_date' not in lay.call_args.kwargs['filters'])
+		la('mã lọc đúng', lay.call_args.kwargs['filters']['name'], 'PI-TEST')

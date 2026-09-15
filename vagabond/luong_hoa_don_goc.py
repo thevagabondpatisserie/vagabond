@@ -83,11 +83,19 @@ def doc_canh_bao(doc):
 	"""Chỉ đọc, dùng chung cho báo cáo và popup, không ghi dữ liệu."""
 	if doc.get("is_return") or not doc.get("custom_minvoice_id"):
 		return []
+	cu = frappe.flags.get("mute_messages")
+	frappe.flags.mute_messages = True
 	try:
 		g = dl._goc(doc.get("custom_minvoice_id"))
 		return sai_luong(doc, g, kem_nhom=True) if g else [{"nhom": "nguon", "chu": "Chưa đọc được hoá đơn nguồn để kiểm lượng."}]
 	except Exception:
-		return [{"nhom": "nguon", "chu": "Chưa kiểm được lượng theo hoá đơn nguồn."}]
+		try:
+			frappe.log_error(title="Kiem nguon hoa don mua", message=frappe.get_traceback())
+		except Exception:
+			pass  # Lỗi ghi log cũng không được chặn kế toán.
+		return [{"nhom": "nguon", "chu": "Chưa kiểm được lượng theo hoá đơn nguồn. Thử lại hoặc báo quản trị."}]
+	finally:
+		frappe.flags.mute_messages = cu
 
 
 def kiem_truoc_ghi_so(doc, method=None):

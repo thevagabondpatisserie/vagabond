@@ -663,3 +663,10 @@ Thiếu ánh xạ tên nguồn không nên bật popup mỗi lần ghi sổ. The
 F10, chỉ nhóm lượng/quy cách bật popup; báo cáo chung đọc lại dữ liệu hiện
 tại và giữ quyền chứng từ. Phân trang phải báo rõ còn dữ liệu, không gọi
 trang rỗng là toàn hệ thống đã sạch. PR323.
+
+### Catching an exception does not clear Frappe messages
+
+frappe.throw can append a client dialog before raising. A read-only scan
+that catches it must mute messages in a scoped try/finally and restore
+the prior flag. Test message_log on the real resolver, not only returned
+errors. Applies to source report and advisory submit hook, PR323 F16.
