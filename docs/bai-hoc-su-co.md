@@ -670,3 +670,7 @@ frappe.throw can append a client dialog before raising. A read-only scan
 that catches it must mute messages in a scoped try/finally and restore
 the prior flag. Test message_log on the real resolver, not only returned
 errors. Applies to source report and advisory submit hook, PR323 F16.
+
+## Issue 325: lọc phạm vi trước giới hạn
+
+Chip chỉ hiện tài khoản SePay thì API ứng viên cũng phải lọc cùng mapping trước giới hạn truy vấn. Mapping rỗng phải trả rỗng, không ngầm lấy mọi tài khoản. Giữ ca kiểm caller truyền phạm vi xuống query để tránh helper đúng nhưng đường gọi bỏ quên bộ lọc.

@@ -65,6 +65,16 @@ viên cho người nhìn. Không có mã thì máy trả về "không", không �
 import importlib
 import re
 
+def nhan_gon_ngan_hang(ten, so):
+	"""Nhãn thao tác ngắn, luôn giữ riêng bốn số cuối để phân biệt tài khoản."""
+	ten = str(ten or "Ngân hàng chưa khai").strip()
+	gon = ten.split(" - ", 1)[0].strip()
+	if len(gon) > 14:
+		gon = gon[:13] + "…"
+	duoi = re.sub(r"[^0-9]", "", str(so or ""))[-4:]
+	return gon + (" · " + duoi if duoi else " · chưa có số")
+
+
 import frappe
 from frappe.utils import cint, flt
 
@@ -293,23 +303,23 @@ def nhan_tai_khoan():
 	"""Một lượt đọc nhãn; chip chỉ lấy tài khoản có trong bản đồ SePay."""
 	from vagabond.sepay import _ban_do
 	mapped = set((_ban_do() or {}).values())
-	nhan, chip, chua = {}, [], []
+	nhan, chip = {}, []
 	for r in frappe.get_all("Bank Account", fields=["name", "bank", "bank_account_no", "disabled"], limit_page_length=0):
-		duoi = re.sub(r"[^0-9]", "", r.get("bank_account_no") or "")[-4:]
-		chu = (r.get("bank") or "Ngân hàng chưa khai") + (" · " + duoi if duoi else " · chưa có số tài khoản")
+		chu = nhan_gon_ngan_hang(r.get("bank"), r.get("bank_account_no"))
+		# Giữ nhãn cho sao kê lịch sử; chỉ mapping quyết định tài khoản được chọn.
 		nhan[r["name"]] = chu
-		if not r.get("disabled"):
-			if r["name"] in mapped:
-				chip.append({"ma": r["name"], "nhan": chu})
-			else:
-				chua.append(chu)
-	return nhan, chip, chua
+		if r["name"] in mapped and not r.get("disabled"):
+			chip.append({"ma": r["name"], "nhan": chu, "ten_day_du": r.get("bank") or "Ngân hàng chưa khai"})
+	return nhan, chip, []
 
 
-def dong_sao_ke(chieu, so_ngay=45, tu_ngay=None, tai_khoan=None, nhan=None):
+
+def dong_sao_ke(chieu, so_ngay=45, tu_ngay=None, tai_khoan=None, nhan=None, tai_khoan_cho_phep=None):
 	"""Các dòng sao kê đúng chiều tiền trong khoảng ngày. Chạm hệ."""
 	from frappe.utils import add_days, nowdate
 
+	if tai_khoan_cho_phep is not None and not tai_khoan_cho_phep:
+		return []
 	n = max(1, min(cint(so_ngay) or 45, 180))
 	moc = str(tu_ngay or "")[:10] or nowdate()
 	cot = "withdrawal" if chieu == RA else "deposit"
@@ -319,7 +329,7 @@ def dong_sao_ke(chieu, so_ngay=45, tu_ngay=None, tai_khoan=None, nhan=None):
 			["date", "between", [add_days(moc, -n), add_days(moc, 1)]],
 			[cot, ">", 0],
 			["docstatus", "<", 2],
-		] + ([["bank_account", "=", tai_khoan]] if tai_khoan else []),
+		] + ([["bank_account", "=", tai_khoan]] if tai_khoan else []) + ([["bank_account", "in", tai_khoan_cho_phep]] if tai_khoan_cho_phep is not None else []),
 		fields=["name", "date", "deposit", "withdrawal", "description",
 			"reference_number", "bank_account"],
 		order_by="date desc", limit_page_length=500,
@@ -439,10 +449,9 @@ def ung_vien(loai, ma_phieu, so_ngay=45, tu_khoa="", tai_khoan=""):
 	chiem = da_chiem(loai, tru_phieu=ma_phieu)
 	tk = str(tu_khoa or "").strip().lower()
 	nhan, chip, chua = nhan_tai_khoan()
-	if not {"AP Kiểm soát (FIN)", "Accounts User", "Accounts Manager", "System Manager"} & set(frappe.get_roles()):
-		chua = []
+	cho_phep = [t["ma"] for t in chip]
 	tho = []
-	for g in dong_sao_ke(b["chieu"], so_ngay, tai_khoan=tai_khoan, nhan=nhan):
+	for g in dong_sao_ke(b["chieu"], so_ngay, tai_khoan=tai_khoan, nhan=nhan, tai_khoan_cho_phep=cho_phep):
 		if _loi_giao_dich(b, g):
 			continue
 		if chiem.get(g["name"]):
@@ -456,7 +465,7 @@ def ung_vien(loai, ma_phieu, so_ngay=45, tu_khoa="", tai_khoan=""):
 		})
 	return {
 		"rows": xep_ung_vien(tho, ma, tien)[:60],
-		"tai_khoan_sepay": chip, "chua_noi_sepay": chua,
+		"tai_khoan_sepay": chip, "chua_noi_sepay": [],
 		"ma_do": ma, "so_tien": tien, "ten_man": b["ten_man"],
 		"ma_gd_dang_gan": doc.get(b["truong_gd"]) or "",
 		"nhac": ("" if ma else

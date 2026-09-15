@@ -312,7 +312,7 @@ def _ma_khong_gach():
 	dung("không ăn mã dài hơn", not dss.co_ma(nd + "2", ma))
 
 
-@ca("SePay: chip theo mapping, nhãn chỉ bốn số cuối, tài khoản chưa nối ở chẩn đoán")
+@ca("SePay: chip theo mapping, nhãn chỉ bốn số cuối, không trả tài khoản chưa nối")
 def _chip_mapping():
 	from unittest.mock import patch
 	from vagabond import sepay
@@ -322,7 +322,7 @@ def _chip_mapping():
 		nhan, chip, chua = dss.nhan_tai_khoan()
 		la("chỉ mapped có chip", [x['ma'] for x in chip], ['A'])
 		la("đuôi bốn số", nhan['A'], 'MB · 5678')
-		la("chưa nối có chẩn đoán", chua, ['Ngân hàng B · 4321'])
+		la("không còn chẩn đoán chưa nối", chua, [])
 
 
 @ca("SePay: lọc tài khoản trước trần 500 giữ dòng tài khoản ít giao dịch")
@@ -345,10 +345,42 @@ def _quyen_chan_doan_323():
 	import sys
 	from types import SimpleNamespace
 	ban = dict(doctype='TEST', ma_do=lambda d: 'TEST', so_tien=lambda d: 1, chieu=dss.RA, ten_man='TEST', truong_gd='gd')
-	for roles, can in [(['Sales User'], []), (['Accounts User'], ['Chưa nối'])]:
-		with patch.dict(sys.modules, {'vagabond.ban_hang': SimpleNamespace(_kiem_quyen=lambda: None)}), patch.object(dss, 'nap_so'), patch.object(dss, '_ban', return_value=ban), patch.object(dss.frappe, 'get_doc', return_value={}), patch.object(dss.frappe, 'get_roles', return_value=roles), patch.object(dss, 'da_chiem', return_value={}), patch.object(dss, 'nhan_tai_khoan', return_value=({'TK': 'Nhãn'}, [], ['Chưa nối'])) as nhan, patch.object(dss, 'dong_sao_ke', return_value=[]) as dong:
+	for roles, can in [(['Sales User'], []), (['Accounts User'], [])]:
+		with patch.dict(sys.modules, {'vagabond.ban_hang': SimpleNamespace(_kiem_quyen=lambda: None)}), patch.object(dss, 'nap_so'), patch.object(dss, '_ban', return_value=ban), patch.object(dss.frappe, 'get_doc', return_value={}), patch.object(dss.frappe, 'get_roles', return_value=roles), patch.object(dss, 'da_chiem', return_value={}), patch.object(dss, 'nhan_tai_khoan', return_value=({'TK': 'Nhãn'}, [{'ma':'TK','nhan':'Nhãn'}], ['Chưa nối'])) as nhan, patch.object(dss, 'dong_sao_ke', return_value=[]) as dong:
 			kq = dss.ung_vien('ttnb', 'TEST', tai_khoan='TK')
 			la('phạm vi chẩn đoán', kq['chua_noi_sepay'], can)
+			la('mapping truyền xuống cửa sao kê', dong.call_args.kwargs['tai_khoan_cho_phep'], ['TK'])
 			la('lọc truyền xuống query', dong.call_args.kwargs['tai_khoan'], 'TK')
 			la('nhãn dùng lại', dong.call_args.kwargs['nhan'], {'TK': 'Nhãn'})
 			la('chỉ đọc nhãn một lần', nhan.call_count, 1)
+
+
+@ca("#325: chỉ mapping enabled có chip; nhãn lịch sử vẫn đủ")
+def _tai_khoan_325():
+	from unittest.mock import patch
+	from vagabond import sepay
+	ds = [dict(name='CT', bank='MB - Ngân hàng TMCP Quân đội', bank_account_no='12340615'),
+		dict(name='CN', bank='ACB', bank_account_no='99996066', party='Nguoi', party_type='Supplier'),
+		dict(name='NCC', bank='NCC', bank_account_no='1111', party='NCC'),
+		dict(name='KH', bank='KH', bank_account_no='2222', party='KH'),
+		dict(name='TAT', bank='MB', bank_account_no='3333', disabled=1)]
+	with patch.object(sepay, '_ban_do', return_value={'1':'CT','2':'CN','3':'TAT'}), patch.object(dss.frappe, 'get_all', return_value=ds):
+		nhan, chip, chua = dss.nhan_tai_khoan()
+		la('hai tài khoản mapped enabled', [x['ma'] for x in chip], ['CT','CN'])
+		la('nhãn gọn', chip[0]['nhan'], 'MB · 0615')
+		la('tên đầy đủ', chip[0]['ten_day_du'], ds[0]['bank'])
+		la('giữ nhãn lịch sử', len(nhan), 5)
+		la('không phát danh sách ngoài mapping', chua, [])
+	la('cắt tên dài giữ đuôi', dss.nhan_gon_ngan_hang('ABCDEFGHIJKLMNOPQ', '12345678'), 'ABCDEFGHIJKLM… · 5678')
+
+
+@ca("#325: lọc mapping trước limit; mapping rỗng không lấy sao kê toàn hệ")
+def _sao_ke_mapping_325():
+	from unittest.mock import patch
+	with patch.object(dss.frappe, 'get_all', return_value=[]) as lay:
+		dss.dong_sao_ke(dss.RA, nhan={}, tai_khoan_cho_phep=['CT','CN'])
+		dung('mapping ở query trước limit', ['bank_account','in',['CT','CN']] in lay.call_args.kwargs['filters'])
+		la('giữ limit', lay.call_args.kwargs['limit_page_length'], 500)
+		lay.reset_mock()
+		la('mapping rỗng', dss.dong_sao_ke(dss.RA, nhan={}, tai_khoan_cho_phep=[]), [])
+		la('không query khi mapping rỗng', lay.call_count, 0)

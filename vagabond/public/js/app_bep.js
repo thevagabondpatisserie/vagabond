@@ -21727,7 +21727,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '495';
+var APPVER = '496';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -27098,10 +27098,9 @@ async function ttnbFormGdRa(d, taiKhoan) {
     '<div style="font-size:13px;font-weight:800">' + h(d.name) + ' · ' + money(d.tien) + ' đ</div>' +
     '<div style="font-size:12px;color:#6b7280;margin-top:4px;line-height:1.6">' +
     'Máy dò theo mã <b>' + h(kq.ma_do || d.name) + '</b> trong nội dung chuyển khoản.</div></div>';
-  html += '<div class="chips">' + [{ma:'', nhan:'Tất cả'}].concat(kq.tai_khoan_sepay || []).map(function (t) {
-    return '<button class="chip' + (taiKhoan === t.ma ? ' on' : '') + '" data-sepaytk="' + h(t.ma) + '">' + h(t.nhan) + '</button>';
+  html += '<div class="chips" style="padding:2px 12px 10px">' + [{ma:'', nhan:'Tất cả'}].concat(kq.tai_khoan_sepay || []).map(function (t) {
+    return '<button class="chip' + (taiKhoan === t.ma ? ' on' : '') + '" data-sepaytk="' + h(t.ma) + '" title="' + h(t.ten_day_du || t.nhan) + '" style="min-height:44px">' + h(t.nhan) + '</button>';
   }).join('') + '</div>';
-  if ((kq.chua_noi_sepay || []).length) html += '<div class="card" style="font-size:13px">Chưa nối SePay: ' + h(kq.chua_noi_sepay.join(', ')) + '. Các tài khoản này chưa có chip lọc.</div>';
   if (!rows.length) {
     html += '<div class="emp"><div class="e1">🔍</div><div class="e2">Không có dòng tiền ra ' +
       'nào còn trống trong 45 ngày qua.</div><div style="font-size:12px;color:#9ca3af;' +
