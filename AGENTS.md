@@ -116,7 +116,7 @@ tiến, đó là bỏ đi hai năm.
 Anh Việt đã yêu cầu nhiều lần, lần cuối 03/09/2026 với ảnh hai màn xuất kho
 "rất thô sơ, không đồng bộ với giao diện đẹp của app". Bản đầy đủ nằm ở
 project doc `nguyen-tac-thiet-ke-man-hinh-app-va-de-xuat-kho-theo-sap`. Mười
-lăm điều dưới đây là bắt buộc cho MỌI màn mới và MỌI màn sửa; ca kiểm
+tám điều dưới đây là bắt buộc cho MỌI màn mới và MỌI màn sửa; ca kiểm
 `thu_nguyen_tac_man_hinh.py` canh những điều soi được bằng chuỗi.
 
 1. **Dùng khung có sẵn, không tự vẽ.** `frame`, `card`, hàng chip, bottom
@@ -158,6 +158,29 @@ lăm điều dưới đây là bắt buộc cho MỌI màn mới và MỌI màn 
 15. **Có ca kiểm giữ nguyên tắc.** Số ô `<select` trong từng tệp `bep/` chỉ
     được GIẢM so với mốc ghi trong `thu_nguyen_tac_man_hinh.py`; tệp mới
     không được có ô nào. Nguyên tắc không có ca kiểm thì ba tuần sau lại bị bỏ.
+16. **Danh sách phải lọc đúng phạm vi trước khi bày ra.** Trước khi đổ một
+    bảng dùng chung ra màn hình, hỏi "bảng này có chứa dòng của bên khác
+    không". Bank Account chứa tài khoản nhà cung cấp và khách; Contact và
+    Address chứa khách; Item chứa cả nguyên liệu lẫn thành phẩm. Bày nhầm
+    phạm vi thì màn dài gấp mười và người dùng hết tin số. Ca kiểm phải chốt
+    phạm vi bằng một phép đếm, không chỉ bằng chuỗi. Sự cố v495, màn Khớp
+    SePay thủ công liệt kê hơn sáu chục tài khoản của nhà cung cấp.
+17. **Khối chỉ để đọc không được lấn chỗ của khối để bấm.** Cảnh báo, giải
+    thích, danh sách ngoài lề: tối đa hai dòng; dài hơn thì thu về một dòng
+    đếm số, bấm mới mở, và đặt XUỐNG DƯỚI khối hành động. Không bao giờ nối
+    một danh sách không rõ độ dài bằng join rồi in thẳng: luôn là đếm số,
+    vài mục đầu, rồi "và N nữa". Ở 390x844, thứ người dùng đến để bấm phải
+    nằm trong màn đầu khi có ít nhất một dòng.
+18. **Nhãn trên chip và trên dòng phải gọn.** Chip tối đa khoảng 16 ký tự
+    nhìn thấy; tên dài rút thành mã ngắn cộng bốn số cuối, ví dụ "MB · 0615",
+    tên đầy đủ để trong title. Hàng chip cuộn ngang phải chừa lề hai bên để
+    chữ không bị cắt ở mép.
+
+Khi giao việc có đổi màn hình cho Codex, áp
+[skill dẫn giao diện](.agents/skills/vagabond-uxui-giao-viec/SKILL.md): issue
+phải có khối "Giao diện" với thứ tự khối, nhãn chính xác, ba trạng thái 0 và 1
+và nhiều dòng, phép đo ở 390x844 và ảnh chụp site thật. Codex dựng đúng cái
+được mô tả; phần không mô tả thì ra bản thô.
 
 ---
 
