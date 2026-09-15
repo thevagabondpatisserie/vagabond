@@ -30184,7 +30184,8 @@ function dcmCanCuConLai(s) {
   return '<div class="card" style="padding:14px;font-size:13px;line-height:1.6;background:#fffbeb">' +
     '<b>Phiếu nhập đã được dùng cho hoá đơn khác</b><br>' +
     'Tiền hàng gốc các phiếu đã chọn: ' + money(s.tien_pnk_goc) + ' đ. ' +
-    'Phần còn được nối cho tờ này: ' + money(s.tien_pnk) + ' đ.<br>' +
+    'Tiền hàng còn lại trên các phiếu: ' + money(s.tien_pnk) + ' đ.<br>' +
+    'Số tiền này có thể gồm món không thuộc hoá đơn hoặc khác đơn vị; cần đối chiếu từng món bên dưới.<br>' +
     'Nhờ kế toán kiểm tra đầu nối của ' + h(s.hd_da_dung.join(', ')) + '. ' +
     'Nếu đầu nối đó đúng, chọn phiếu nhập còn hàng của lần giao tương ứng. ' +
     'Nếu nối nhầm, kế toán cần xử lý chứng từ đó trước. Không nhập thêm kho hoặc tăng số lượng để vượt cảnh báo.' +
@@ -30493,7 +30494,7 @@ async function scrDcmXem(name) {
         '<div style="flex:1;min-width:0"><b style="font-size:13.5px">' + h(p.name) + '</b>' +
         '<div style="font-size:11.5px;color:#98a2b3">' + ngayNgan(p.ngay) + ' · ' + p.so_mon + ' món, trùng ' + p.so_mon_trung +
         (p.da_hoa_don ? ' · đã hoá đơn ' + num(Math.round(p.da_hoa_don)) + '%' : '') + '</div></div>' +
-        '<span style="text-align:right;font-size:13px">Tiền gốc<br><b>' + money(p.tien) + ' đ</b></span></div>';
+        '<span style="text-align:right;white-space:nowrap;font-size:13px">Tiền gốc<br><b>' + money(p.tien) + ' đ</b></span></div>';
     }).join('') + '</div>';
   }
 

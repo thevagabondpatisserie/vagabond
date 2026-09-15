@@ -604,3 +604,5 @@ số tiền gốc không có nhãn. Người dùng cộng các số đó và tư
 Giữ hàng rào lượng, ghi rõ tiền gốc và phần còn từ cùng nguồn lượng máy chủ;
 hướng dẫn kiểm đầu nối hóa đơn đã dùng trước. Không lấy triệu chứng này làm
 căn cứ tự sửa chứng từ đã ghi sổ hoặc bù thêm kho.
+
+PR321 review inline: số tiền còn lại trên phiếu có thể gồm món thừa hoặc khác đơn vị. Không gọi tổng này là số nối được; phải phân biệt số dư với điều kiện ghép từng dòng.

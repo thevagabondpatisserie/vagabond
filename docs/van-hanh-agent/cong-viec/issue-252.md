@@ -22,3 +22,11 @@ nhận deploy bản hiển thị là đã giải quyết chứng từ đang kẹ
 
 Claude review delta, CI/bench trên SHA PR. Codex chờ xác nhận nguồn chứng từ
 trong phiên người dùng trước khi đề xuất xử lý dữ liệu đã ghi sổ.
+
+## Sửa review inline sau 0c57543
+
+Claude chốt 0c57543 và bench34930695223 thành công. Review inline4012083523
+chỉ ra tiền còn lại còn gồm món thừa/khác đơn vị, không được gọi toàn bộ là
+nối được. Đổi nhãn thành Tiền hàng còn lại trên các phiếu và giải thích giới
+hạn; bổ sung khẳng định render, giữ nowrap cho tiền gốc theo nit Claude.
+Chờ CI/review delta mới; không đổi thuật toán hoặc chứng từ.

@@ -262,6 +262,8 @@ async function chayHet() {
     vm.runInContext(layHam(docTep('18-doi-chieu-may-in.js'), 'dcmCanCuConLai'), g);
     var html = g.dcmCanCuConLai({hd_da_dung:['HD-TEST'], tien_pnk_goc:100, tien_pnk:60});
     dung('giữ hai số riêng', html.includes('100 đ') && html.includes('60 đ'));
+    dung('không nhận toàn bộ số dư là nối được', html.includes('Tiền hàng còn lại trên các phiếu') && !html.includes('Phần còn được nối'));
+    dung('nêu rõ giới hạn món và đơn vị', html.includes('món không thuộc hoá đơn hoặc khác đơn vị'));
     dung('chỉ đúng chứng từ cần kiểm', html.includes('HD-TEST') && html.includes('kế toán'));
     dung('không gợi ý bù kho', html.includes('Không nhập thêm kho'));
     bang('không cảnh báo khi chưa ai dùng', g.dcmCanCuConLai({hd_da_dung:[]}), '');
