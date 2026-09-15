@@ -610,3 +610,13 @@ PR321 review inline: số tiền còn lại trên phiếu có thể gồm món t
 PR321: bộ chuẩn hóa tiền có thể đặt qty1 khi thiếu đơn giá; không tái sử dụng qty đó làm lượng nguồn. Kiểm nguồn phải xét cả dòng bị bỏ khỏi chứng từ, không chỉ những dòng còn lại.
 
 PR321 audit: tên Item cũ khác tên NCC không chứng minh mất dòng. Chỉ phục hồi căn cứ bằng mapping duy nhất, và vẫn kiểm lượng; không dùng tổng tiền để suy tên.
+
+## PR321 - chỉ cảnh báo theo chốt anh Việt 15/09/2026
+
+Chỉ dẫn mới thay thiết kế chặn lượng ở các commit trước: kiểm lượng nguồn
+không chặn lưu/ghi sổ, kể cả thiếu nguồn hoặc lỗi đọc. Hiện cảnh báo có
+đường mở Purchase Invoice để sửa tay theo quyền và vòng đời chứng từ hiện có.
+Không tự thay qty/rate/đầu nối hoặc bỏ kiểm lõi ERP. Ca tích hợp được đổi
+sang Document.submit thành công, docstatus1 và có GL dù lượng nguồn lệch.
+Cảnh báo phiếu nhập còn lại ẩn khi đã khớp. Cần bench và Claude review
+trên SHA mới; không dùng cổng xanh của thiết kế chặn cũ để chốt bản này.

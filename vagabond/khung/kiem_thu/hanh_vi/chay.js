@@ -266,6 +266,7 @@ async function chayHet() {
     dung('nêu rõ giới hạn món và đơn vị', html.includes('món không thuộc hoá đơn hoặc khác đơn vị'));
     dung('chỉ đúng chứng từ cần kiểm', html.includes('HD-TEST') && html.includes('kế toán'));
     dung('không gợi ý bù kho', html.includes('Không nhập thêm kho'));
+    bang('đã khớp không cảnh báo', g.dcmCanCuConLai({khop:1, hd_da_dung:['HD'], tien_pnk:60, tien_pnk_goc:100}), '');
     bang('không cảnh báo khi chưa ai dùng', g.dcmCanCuConLai({hd_da_dung:[]}), '');
     dung('escape tên chứng từ', !g.dcmCanCuConLai({hd_da_dung:['<img>'], tien_pnk_goc:100, tien_pnk:60}).includes('<img>'));
   });

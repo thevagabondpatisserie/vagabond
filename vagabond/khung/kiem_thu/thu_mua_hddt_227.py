@@ -268,13 +268,10 @@ def _luong_nguon_321():
 	with patch.object(dl, "_goc", lambda *a: g), patch.object(lg.frappe.db, "get_value", lambda *a: 1), patch.object(mc, "don_vi_theo_ma", lambda *a: ("Hộp", 500)):
 		loi = lg.sai_luong(t, g)
 		dung("bắt lượng giảm dù tổng tiền không đổi", bool(loi))
-		with patch.object(lg.frappe, "throw", side_effect=ValueError("chan")):
-			try:
-				lg.kiem_truoc_ghi_so(t)
-			except ValueError:
-				pass
-			else:
-				dung("cửa ghi sổ phải chặn", False)
+		with patch.object(lg.frappe, "msgprint", create=True) as bao:
+			lg.kiem_truoc_ghi_so(t)
+			dung("lệch chỉ cảnh báo", bao.called)
+
 		t.items = [dong(1, 500), dong(5, 500)]
 		la("tách qua hai phiếu vẫn đủ lượng", lg.sai_luong(t, g), [])
 		t.items = [dong(3, 1000, 200)]
@@ -286,6 +283,33 @@ def _luong_nguon_321():
 		dung("không tự đoán khi tên nguồn mất", bool(lg.sai_luong(t, g)))
 
 
+@ca("#321: tên nguồn dài cắt cùng phía chứng từ vẫn kiểm đúng lượng")
+def _ten_dai_321():
+	from vagabond import luong_hoa_don_goc as lg
+	ten = 'Món thử ' * 25
+	g = dict(tong_tien=600, chi_tiet=[dict(ten=ten, dvtinh='Hộp', sluong=6)])
+	d = To(idx=1, item_code='TEST', ten_hang_ncc=ten[:140], qty=6, conversion_factor=500)
+	t = To(items=[d])
+	with patch.object(lg.frappe.db, 'get_value', return_value=1), patch.object(mc, 'don_vi_theo_ma', return_value=('Hộp', 500)):
+		la('tên dài đúng lượng không cảnh báo oan', lg.sai_luong(t, g), [])
+		d.qty = 3
+		dung('tên dài sai lượng vẫn cảnh báo', bool(lg.sai_luong(t, g)))
+
+
+@ca("#321: mất nguồn hoặc lỗi đọc chỉ cảnh báo, có đường sửa tay")
+def _canh_bao_khong_chan_321():
+	from vagabond import luong_hoa_don_goc as lg
+	t = To(name='PI/TEST', custom_minvoice_id='SOURCE')
+	for loi_doc in (None, RuntimeError('nguồn lỗi')):
+		with patch.object(dl, "_goc", return_value=None, side_effect=loi_doc), patch.object(lg.frappe, "msgprint", create=True) as bao:
+			lg.kiem_truoc_ghi_so(t)
+			dung("không đọc nguồn vẫn báo và trả về", bao.called)
+			dung("đường sửa tay đúng chứng từ", '/desk/purchase-invoice/PI%2FTEST' in bao.call_args[0][0])
+	with patch.object(dl, "_goc", return_value={"name": "SOURCE"}), patch.object(lg, "sai_luong", return_value=['<script>']), patch.object(lg.frappe, "msgprint", create=True) as bao:
+		lg.kiem_truoc_ghi_so(t)
+		dung("cảnh báo escape nội dung", '&lt;script&gt;' in bao.call_args[0][0] and '<script>' not in bao.call_args[0][0])
+
+
 @ca("#321: mất món và nguồn thiếu giá không được lọt hoặc chặn oan")
 def _nguon_thieu_321():
 	from vagabond import luong_hoa_don_goc as lg
@@ -293,7 +317,7 @@ def _nguon_thieu_321():
 	b = To(idx=1, item_code="B", ten_hang_ncc="B", qty=2, conversion_factor=500, rate=400)
 	t = To(items=[b])
 	with patch.object(lg.frappe.db, "get_value", lambda *a: 1), patch.object(mc, "don_vi_theo_ma", lambda *a: ("Hộp", 500)):
-		dung("mất A dù tổng đúng phải chặn", bool(lg.sai_luong(t, g)))
+		dung("mất A dù tổng đúng phải cảnh báo", bool(lg.sai_luong(t, g)))
 		g['chi_tiet'] = [dict(ten="B", dvtinh="Hộp", sluong=6, thtien=600)]
 		b.qty = 6
 		la("thiếu giá vẫn lấy lượng nguồn 6", lg.sai_luong(t, g), [])

@@ -1,9 +1,11 @@
 """Tổng tiền khớp vẫn có thể sai lượng: qty giảm, rate tăng bù nhau.
 
-Kiểm trước ghi sổ, không tự sửa chứng từ hoặc bỏ đầu nối. Cộng các dòng
+Chỉ cảnh báo trước ghi sổ, không chặn và không tự sửa chứng từ hoặc bỏ đầu nối. Cộng các dòng
 cùng tên nguồn để chấp nhận việc tách qua nhiều phiếu nhập. Dùng quy đổi
 đã khai theo nhà cung cấp, không suy lượng từ tiền hoặc đơn giá.
 """
+from html import escape
+from urllib.parse import quote
 import frappe
 from frappe.utils import flt
 from vagabond import dung_lai_hddt as dl, minvoice_chung_tu as mc
@@ -13,21 +15,24 @@ def sai_luong(doc, g):
 	"""Đọc-only; trả lý do chưa chứng minh được lượng hàng tồn kho."""
 	# Dòng cũ có thể chỉ giữ tên Item nội bộ. Chỉ phục hồi tên nguồn bằng
 	# ánh xạ NCC duy nhất, không đoán theo vị trí hoặc tổng tiền.
+	def khoa(ten):
+		return dl.khoa_ten(str(ten or "")[:140])
 	alias = {}
 	if doc.get("supplier"):
 		for r in frappe.get_all("Anh Xa Mat Hang NCC", filters={"nha_cung_cap": doc.get("supplier")},
 			fields=["ten_hang_ncc", "ma_hang"], limit_page_length=0):
-			alias.setdefault(dl.khoa_ten(r.get("ten_hang_ncc")), set()).add(r.get("ma_hang"))
+			if khoa(r.get("ten_hang_ncc")):
+				alias.setdefault(khoa(r.get("ten_hang_ncc")), set()).add(r.get("ma_hang"))
 	nguon_tho = mc.dong_hang_hoa(dl.doc_chi_tiet(g.get("chi_tiet")))
 	ten_theo_ma = {}
 	for r in nguon_tho:
-		ten = dl.khoa_ten(r.get("ten"))
+		ten = khoa(r.get("ten"))
 		mas = alias.get(ten, set())
 		if len(mas) == 1 and None not in mas and "" not in mas:
 			ten_theo_ma.setdefault(next(iter(mas)), set()).add(ten)
 	def ten_dong(d):
-		ten = dl.khoa_ten(dl.ten_ncc_cua_dong(d))
-		if not d.get("ten_hang_ncc") and len(ten_theo_ma.get(d.get("item_code"), set())) == 1:
+		ten = khoa(dl.ten_ncc_cua_dong(d))
+		if not str(d.get("ten_hang_ncc") or "").strip() and len(ten_theo_ma.get(d.get("item_code"), set())) == 1:
 			return next(iter(ten_theo_ma[d.get("item_code")]))
 		return ten
 	nhom = {}
@@ -43,7 +48,7 @@ def sai_luong(doc, g):
 		r = {"ten": d.get("ten") or "", "dvt": d.get("dvtinh"), "sl": d.get("sluong")}
 		if mc.dau_cua_to(g.get("tong_tien")) < 0 and r["sl"] is not None:
 			r["sl"] = -abs(flt(r["sl"]))
-		nguon.setdefault(dl.khoa_ten(r["ten"]), []).append(r)
+		nguon.setdefault(khoa(r["ten"]), []).append(r)
 	loi = []
 	for ten in sorted(set(nhom) | (set(nguon) - ngoai_kho)):
 		ds = nhom.get(ten, [])
@@ -74,13 +79,21 @@ def sai_luong(doc, g):
 
 
 def kiem_truoc_ghi_so(doc, method=None):
-	# Phiếu trả có lượng trả riêng theo chứng từ gốc; không ép bằng toàn bộ
-	# hóa đơn mua. Không tác động phiếu tay không có nguồn điện tử.
+	"""Anh Việt chốt: kiểm nguồn chỉ cảnh báo, không cản thao tác kế toán.
+
+	Không sửa qty/rate/đầu nối. Lỗi đọc nguồn cũng không biến thành chốt mới.
+	Nhân viên sửa dòng trên chứng từ theo quyền và vòng đời ERP hiện có.
+	"""
 	if doc.get("is_return") or not doc.get("custom_minvoice_id"):
 		return
-	g = dl._goc(doc.get("custom_minvoice_id"))
-	if not g:
-		frappe.throw("Không đọc được hoá đơn nguồn để kiểm lượng. Chưa thể ghi sổ.")
-	loi = sai_luong(doc, g)
+	try:
+		g = dl._goc(doc.get("custom_minvoice_id"))
+		loi = sai_luong(doc, g) if g else ["Chưa đọc được hoá đơn nguồn để kiểm lượng."]
+	except Exception:
+		loi = ["Chưa kiểm được lượng theo hoá đơn nguồn."]
 	if loi:
-		frappe.throw("Chưa thể ghi sổ: " + " ".join(loi), title="Lượng khác hoá đơn nguồn")
+		duong = "/desk/purchase-invoice/" + quote(str(doc.get("name") or ""), safe="")
+		frappe.msgprint(escape(" ".join(loi)) +
+			"<br>Đây là cảnh báo, không chặn ghi sổ. Mở chứng từ để kiểm và sửa số lượng, đơn vị, đơn giá hoặc phiếu nhập theo quyền hiện có. Chứng từ đã ghi sổ dùng quy trình sửa/hủy chuẩn của ERP." +
+			('<br><a href="' + duong + '">Mở chứng từ để kiểm tra và sửa tay</a>' if doc.get("name") else ""),
+			title="Cần kiểm tra lượng theo hoá đơn nguồn", indicator="orange")

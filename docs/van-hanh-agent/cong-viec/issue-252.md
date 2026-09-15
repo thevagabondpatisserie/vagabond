@@ -58,3 +58,13 @@ Item trên chính hóa đơn nguồn. Không dùng vị trí, qty/rate hay tổn
 Có hồi quy giữ chặn lượng và không ghi đè tên nguồn đã khai. Cần audit lại
 bằng resolver cuối và bench/review trước merge; số đếm sơ bộ không phải
 kết quả chạy toàn bộ guard. Không nhận tất cả nháp đều sai.
+
+## PR321 - chỉ cảnh báo theo chốt anh Việt 15/09/2026
+
+Chỉ dẫn mới thay thiết kế chặn lượng ở các commit trước: kiểm lượng nguồn
+không chặn lưu/ghi sổ, kể cả thiếu nguồn hoặc lỗi đọc. Hiện cảnh báo có
+đường mở Purchase Invoice để sửa tay theo quyền và vòng đời chứng từ hiện có.
+Không tự thay qty/rate/đầu nối hoặc bỏ kiểm lõi ERP. Ca tích hợp được đổi
+sang Document.submit thành công, docstatus1 và có GL dù lượng nguồn lệch.
+Cảnh báo phiếu nhập còn lại ẩn khi đã khớp. Cần bench và Claude review
+trên SHA mới; không dùng cổng xanh của thiết kế chặn cũ để chốt bản này.

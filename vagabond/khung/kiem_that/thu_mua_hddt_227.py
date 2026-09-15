@@ -197,7 +197,7 @@ def _tra_lai_dung_dau():
 	_ghi_so(hd, -198000, -18000)
 
 
-@ca("#321: PI tiền khớp nhưng nửa lượng không được ghi sổ qua Document.submit")
+@ca("#321: PI tiền khớp nhưng nửa lượng chỉ cảnh báo khi Document.submit")
 def _nguon_luong_321():
 	p = nen.phieu_nhap_ao(6, 100000)
 	d = p.items[0]
@@ -210,17 +210,14 @@ def _nguon_luong_321():
 	_luu(hd)
 	hd.reload()
 	la("tái hiện nửa lượng trước ghi sổ", hd.items[0].qty, 3)
-	try:
-		hd.submit()
-	except frappe.ValidationError as loi:
-		dung("đúng hàng rào nguồn, không phải lỗi fixture", "Tổng tiền khớp không thay thế" in str(loi))
-	else:
-		dung("phải chặn lượng sai", False)
-	la("DB vẫn nháp", frappe.db.get_value("Purchase Invoice", hd.name, "docstatus"), 0)
-	la("không có sổ cái", len(nen.so_cai_cua(hd)), 0)
+	hd.submit()
+	hd.reload()
+	la("cảnh báo không chặn ghi sổ", hd.docstatus, 1)
+	dung("sổ cái đã sinh", len(nen.so_cai_cua(hd)) > 0)
 
 
-@ca("#321: bỏ một món nguồn và bù giá món khác vẫn bị chặn trước sổ cái")
+
+@ca("#321: bỏ một món nguồn và bù giá món khác chỉ cảnh báo, vẫn ghi sổ")
 def _mat_mon_321():
 	p = nen.phieu_nhap_ao(2, 400000)
 	d = p.items[0]
@@ -233,11 +230,7 @@ def _mat_mon_321():
 	_luu(hd)
 	hd.reload()
 	la("fixture đã bỏ một món", len(hd.items), 1)
-	try:
-		hd.submit()
-	except frappe.ValidationError as loi:
-		dung("đúng chốt thiếu món nguồn", "Thiếu món trên hoá đơn nguồn" in str(loi))
-	else:
-		dung("không được ghi sổ mất món", False)
-	la("DB vẫn nháp", frappe.db.get_value("Purchase Invoice", hd.name, "docstatus"), 0)
-	la("không GL", len(nen.so_cai_cua(hd)), 0)
+	hd.submit()
+	hd.reload()
+	la("cảnh báo không chặn ghi sổ", hd.docstatus, 1)
+	dung("sổ cái đã sinh", len(nen.so_cai_cua(hd)) > 0)

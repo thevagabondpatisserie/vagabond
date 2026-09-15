@@ -6,7 +6,7 @@ var dcmNgay = 60, dcmNhom = '', dcmTim = '', dcmPhieu = [], dcmSs = null;
 
 // Tiền gốc khớp không có nghĩa lượng chưa được hóa đơn khác sử dụng.
 function dcmCanCuConLai(s) {
-  if (!(s.hd_da_dung || []).length) return '';
+  if (s.khop || !(s.hd_da_dung || []).length) return '';
   return '<div class="card" style="padding:14px;font-size:13px;line-height:1.6;background:#fffbeb">' +
     '<b>Phiếu nhập đã được dùng cho hoá đơn khác</b><br>' +
     'Tiền hàng gốc các phiếu đã chọn: ' + money(s.tien_pnk_goc) + ' đ. ' +
