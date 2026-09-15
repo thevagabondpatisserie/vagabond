@@ -300,3 +300,26 @@ def _():
 	tra_hang = {"hoa_don": "HDB-2026-01593", "loai_hoan": "Tra hang"}
 	la("phiếu trả hàng vẫn dò theo mã hoá đơn",
 		hoan_tien.ma_do_soat(tra_hang), "HDB-2026-01593")
+
+
+@ca("SePay: mã mới không gạch vẫn khớp mã cũ, không nhầm số liền kề")
+def _ma_khong_gach():
+	from vagabond.de_nghi_chi import noi_dung_ck
+	ma = "TTNB-26-08-00001"
+	nd = noi_dung_ck(ma)
+	la("chuỗi mới", nd, "THE VAGABOND TTNB260800001")
+	dung("khớp mã gốc", dss.co_ma(nd, ma))
+	dung("không ăn mã dài hơn", not dss.co_ma(nd + "2", ma))
+
+
+@ca("SePay: chip theo mapping, nhãn chỉ bốn số cuối, tài khoản chưa nối ở chẩn đoán")
+def _chip_mapping():
+	from unittest.mock import patch
+	from vagabond import sepay
+	with patch.object(sepay, "_ban_do", lambda: {"12345678": "A"}), patch.object(dss.frappe, "get_all", lambda *a, **k: [
+		{"name":"A", "bank":"MB", "bank_account_no":"12345678", "disabled":0},
+		{"name":"B", "bank":"Ngân hàng B", "bank_account_no":"87654321", "disabled":0}]):
+		nhan, chip, chua = dss.nhan_tai_khoan()
+		la("chỉ mapped có chip", [x['ma'] for x in chip], ['A'])
+		la("đuôi bốn số", nhan['A'], 'MB · 5678')
+		la("chưa nối có chẩn đoán", chua, ['Ngân hàng B · 4321'])

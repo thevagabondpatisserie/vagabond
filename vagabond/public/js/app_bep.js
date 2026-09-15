@@ -21727,7 +21727,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '493';
+var APPVER = '495';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -27030,6 +27030,7 @@ function ttnbVe(kq) {
       var lech = xx.filter(function (y) { return !y.trung_voi; });
       baoTin(r.ghi_chu ? r.ghi_chu :
         ('Đã khớp ' + money(r.da_khop || 0) + ' phiếu trên ' + money(r.so_phieu_quet || 0) + ' phiếu chờ chi.' +
+         (r.da_khop_rows || []).concat(xx).map(function (x) { return '\n' + h(x.phieu || '') + ' · ' + h(x.nhan_ngan_hang || 'Chưa xác định tài khoản'); }).join('') +
          (lech.length ? '\n\nCó ' + lech.length + ' phiếu nội dung khớp nhưng SỐ TIỀN LỆCH, cần xem lại.' : '') +
          (trung.length ? '\n\nCó ' + trung.length + ' phiếu trỏ vào giao dịch đã gắn cho phiếu khác.' : '')));
       chay();
@@ -27069,22 +27070,23 @@ async function ttnbKhopAuto(d) {
   catch (e) { busy(false); return baoTin((e && e.message) || 'Chưa quét được sao kê.', 'Lỗi'); }
   busy(false);
   if (kq && kq.da_khop) {
-    toast('Đã khớp lệnh chi, phiếu chuyển sang Đã chi.', 4500);
+    toast('Đã khớp lệnh chi: ' + ((kq.da_khop_rows || []).map(function (r) { return r.nhan_ngan_hang || 'Chưa xác định tài khoản'; }).join(', ')), 6500);
     return ttnbCt(d.name);
   }
   var xx = (kq && kq.xem_lai) || [];
   if (xx.length) {
-    return baoTin(h(xx[0].vi_sao || '') + ' Anh chị xem lại rồi dùng nút Khớp SePay thủ công.',
+    return baoTin(h(xx[0].nhan_ngan_hang || '') + ': ' + h(xx[0].vi_sao || '') + ' Anh chị xem lại rồi dùng nút Khớp SePay thủ công.',
       'Cần người xem');
   }
   baoTin('Chưa thấy dòng tiền ra nào mang mã "' + h(d.name) + '". Nếu tiền đã chuyển rồi ' +
     'thì bấm Khớp SePay thủ công để chọn đúng dòng.', 'Chưa khớp được');
 }
 
-async function ttnbFormGdRa(d) {
+async function ttnbFormGdRa(d, taiKhoan) {
+  taiKhoan = taiKhoan || "";
   frame('Khớp SePay thủ công', '<div class="emp"><div class="e1">⏳</div><div>Đang lọc sao kê...</div></div>');
   var kq;
-  try { kq = await api('vagabond.doi_soat_sepay.ung_vien', { loai: 'ttnb', ma_phieu: d.name, so_ngay: 45 }); }
+  try { kq = await api('vagabond.doi_soat_sepay.ung_vien', { loai: 'ttnb', ma_phieu: d.name, so_ngay: 45, tai_khoan: taiKhoan }); }
   catch (e) {
     frame('Khớp SePay thủ công', '<div class="emp"><div class="e1">⚠️</div><div>' +
       h((e && e.message) || 'Không lọc được sao kê') + '</div></div>');
@@ -27095,6 +27097,10 @@ async function ttnbFormGdRa(d) {
     '<div style="font-size:13px;font-weight:800">' + h(d.name) + ' · ' + money(d.tien) + ' đ</div>' +
     '<div style="font-size:12px;color:#6b7280;margin-top:4px;line-height:1.6">' +
     'Máy dò theo mã <b>' + h(kq.ma_do || d.name) + '</b> trong nội dung chuyển khoản.</div></div>';
+  html += '<div class="card">' + [{ma:'', nhan:'Tất cả'}].concat(kq.tai_khoan_sepay || []).map(function (t) {
+    return '<button class="btn gh" data-sepaytk="' + h(t.ma) + '" style="min-height:44px">' + (taiKhoan === t.ma ? '✓ ' : '') + h(t.nhan) + '</button>';
+  }).join('') + '</div>';
+  if ((kq.chua_noi_sepay || []).length) html += '<div class="card" style="font-size:13px">Chưa nối SePay: ' + h(kq.chua_noi_sepay.join(', ')) + '. Các tài khoản này chưa có chip lọc.</div>';
   if (!rows.length) {
     html += '<div class="emp"><div class="e1">🔍</div><div class="e2">Không có dòng tiền ra ' +
       'nào còn trống trong 45 ngày qua.</div><div style="font-size:12px;color:#9ca3af;' +
@@ -27113,7 +27119,7 @@ async function ttnbFormGdRa(d) {
         '<div style="flex:1;font-size:14px;font-weight:800">' + money(r.tien) + ' đ</div>' +
         '<div style="flex:none;font-size:12px;color:#6b7280">' + h(String(r.date || '').slice(0, 10)) + '</div></div>' +
         '<div style="font-size:12px;color:#374151;margin-top:3px;word-break:break-word">' +
-        h(r.mo_ta || '(không có nội dung)') + '</div>' +
+        '<b>' + h(r.nhan_ngan_hang || 'Chưa xác định tài khoản') + '</b><br>' + h(r.mo_ta || '(không có nội dung)') + '</div>' +
         '<div style="font-size:11px;color:#6b7280;margin-top:3px">' +
         (r.khop_ma ? '✅ khớp mã · ' : '') +
         (r.dung_tien ? 'đúng số tiền' : 'lệch ' + money(Math.abs(r.lech)) + ' đ') +
@@ -27121,6 +27127,9 @@ async function ttnbFormGdRa(d) {
     }).join('');
   }
   var b = frame('Khớp SePay thủ công', html);
+  b.querySelectorAll('[data-sepaytk]').forEach(function (n) {
+    n.onclick = function () { ttnbFormGdRa(d, n.getAttribute('data-sepaytk')); };
+  });
   b.querySelectorAll('.ttnbgd').forEach(function (n) {
     n.onclick = function () { ttnbKhopTay(d, n.getAttribute('data-gd'), Number(n.getAttribute('data-tien') || 0)); };
   });

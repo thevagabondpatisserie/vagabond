@@ -596,3 +596,7 @@ Kiểm người tải trên mọi lần đọc/duyệt làm kế toán bị ch�
 ### PR316 inline4011368627: chuyển bàn khi danh sách nhận rỗng
 
 Giao việc trả sớm khi không có người nhận nên chưa đóng ToDo cũ. Patch đổi trạng thái cần gọi go_giao ở nhánh này để ToDo và _assign không còn trỏ giám đốc; giữ dấu vết Closed và cảnh báo cần giao lại.
+
+## SePay: đổi generator vẫn có thể ghi đè dữ liệu cũ (#322)
+
+Khi duyệt phiếu, code cũ sinh lại nội dung chuyển khoản vô điều kiện. Muốn đổi định dạng chỉ cho nội dung mới phải giữ trường đã lưu ở cả caller này, không chỉ tránh patch dữ liệu. Nhãn tài khoản cần gắn từng kết quả, số phiếu khớp không nói được nguồn tiền.
