@@ -256,6 +256,15 @@ var HAI_TK = {
 };
 
 async function chayHet() {
+  await caAsync('Hoàn tiền327: mapping rỗng báo cấu hình, không báo thiếu sao kê', async function () {
+    var output = '';
+    var g = {h:String, money:String, api:async function () {return {rows:[], tai_khoan_sepay:[]};}, frame:function (_, html) {output=html;return {querySelectorAll:function () {return [];}};}};
+    vm.createContext(g);
+    vm.runInContext(layHam(docTep('11-khach-ca-hop-dong.js'), 'htFormGdRa'), g);
+    await g.htFormGdRa({name:'HT-TEST',so_tien:100});
+    dung('chỉ đúng cấu hình', output.includes('Chưa có tài khoản SePay đang hoạt động') && output.includes('Cài đặt SePay'));
+    dung('không đổ lỗi sao kê', !output.includes('Không có dòng tiền ra'));
+  });
   await caAsync('SePay325: 0/1/60 dòng, bỏ danh sách chưa nối, giữ nhãn ngắn', async function () {
     for (var count of [-1, 0, 1, 60]) {
       var output = '';

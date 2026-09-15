@@ -315,6 +315,14 @@ def nhan_tai_khoan():
 
 
 
+def ly_do_tai_khoan_sepay(tai_khoan):
+	"""Cùng phạm vi cho hai cửa ghi; đọc lại cấu hình khi sắp gắn tiền."""
+	_, chip, _ = nhan_tai_khoan()
+	if tai_khoan not in {t["ma"] for t in chip}:
+		return "Chưa xác nhận được tài khoản SePay đang hoạt động. Vui lòng kiểm tra Cài đặt SePay và thử lại."
+	return ""
+
+
 def dong_sao_ke(chieu, so_ngay=45, tu_ngay=None, tai_khoan=None, nhan=None, tai_khoan_cho_phep=None):
 	"""Các dòng sao kê đúng chiều tiền trong khoảng ngày. Chạm hệ."""
 	from frappe.utils import add_days, nowdate
@@ -406,6 +414,13 @@ def tu_dong(loai, ma_phieu=None, so_ngay=45):
 					"tien_phieu": c["tien"], "tien_dong": g["tien"],
 					"vi_sao": vi_sao, "nhan_ngan_hang": g.get("nhan_ngan_hang"),
 				})
+				continue
+			loi_tai_khoan = ly_do_tai_khoan_sepay(g.get("bank_account"))
+			if loi_tai_khoan:
+				xem.append({"phieu": c["doc"].name, "ma_do": c["ma"],
+					"giao_dich": g["name"], "vi_sao": loi_tai_khoan,
+					"tien_phieu": c["tien"], "tien_dong": g["tien"],
+					"nhan_ngan_hang": g.get("nhan_ngan_hang")})
 				continue
 			frappe.db.set_value(b["doctype"], c["doc"].name, b["truong_gd"], g["name"])
 			frappe.db.commit()
@@ -535,9 +550,9 @@ def khop_tay(loai, ma_phieu, ma_gd):
 	if b.get("truong_luc"):
 		ghi[b["truong_luc"]] = frappe.utils.now_datetime()
 	# Đọc lại mapping ở cửa ghi: màn đã mở có thể giữ ứng viên cũ.
-	_, tai_khoan_hien_tai, _ = nhan_tai_khoan()
-	if g.get("bank_account") not in {t["ma"] for t in tai_khoan_hien_tai}:
-		frappe.throw("Tài khoản của giao dịch chưa nối SePay hoặc đã bị tắt. Vui lòng kiểm tra Cài đặt SePay rồi chọn lại dòng sao kê.")
+	loi_tai_khoan = ly_do_tai_khoan_sepay(g.get("bank_account"))
+	if loi_tai_khoan:
+		frappe.throw(loi_tai_khoan)
 	frappe.db.set_value(b["doctype"], ma_phieu, ghi)
 	frappe.db.commit()
 	if not b.get("truong_nguoi"):

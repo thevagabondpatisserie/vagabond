@@ -15,3 +15,11 @@ Anh Việt đã duyệt merge/deploy khi đủ cổng, và xác nhận lại tr�
 F1: mapping rỗng có thông báo riêng, chỉ đường Cài đặt SePay. F2: giữ nguyên chuỗi nhãn đầy đủ cho dict lịch sử, chỉ chip rút gọn. Bổ sung đọc lại mapping active ở cửa khop_tay trước set_value; ứng viên cũ hoặc gọi API ngoài mapping không ghi/commit. Ca kiểm gọi cửa ghi với mapping rỗng, khác tài khoản và hợp lệ.
 
 Local predeploy sau sửa: exit0, 3046 ca Python. Đột biến và CI trên SHA cuối ghi ở comment PR. Kết nối CUA Mac timeout hai lần trong lượt này, chưa kiểm live 390x844 và chưa thao tác deploy. Quyền deploy đã có; thiếu cổng kỹ thuật không phải thiếu duyệt.
+
+## 16/09 - F5, F6 và E1
+
+Local sửa F5: tim_gd_ra hoàn tiền chuyển tiếp tai_khoan_sepay; htFormGdRa báo riêng cấu hình rỗng, có ca Node gọi hàm màn thật. E1: ly_do_tai_khoan_sepay dùng chung cho tự động và thủ công ngay trước ghi. Tự động đưa giao dịch không đủ mapping vào xem_lai và không set_value. Ca gọi tu_dong kiểm cả mapping hợp lệ và rỗng.
+
+Phạm vi v496 áp cả TTNB và Hoàn tiền; cong_no có cửa riêng, không nhận là đã phủ. Không xác nhận được mapping thì không ghi, kể cả lỗi đọc Settings; thông báo mới nói chưa xác nhận được, không kết luận chắc chắn do cấu hình. Giữ quyết định anh Việt chỉ hiện tài khoản có SePay.
+
+Local predeploy exit0,3047/3047,Node51/51. Chưa CI/bench trên vòng sửa này. GitHub read/fetch và CUA bị automatic approval review từ chối do Selected model is at capacity, đã thử lại đúng lệnh vẫn lỗi. Chưa push/review/merge/deploy, không phải thiếu quyền người dùng.

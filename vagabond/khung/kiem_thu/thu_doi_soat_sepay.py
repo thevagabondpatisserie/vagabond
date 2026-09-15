@@ -407,3 +407,18 @@ def _ghi_mapping_327():
 			la('đọc lại mapping tại đường ghi', nap.call_count, 1)
 			la('không ghi ngoài mapping', db.set_value.call_count, int(duoc))
 			la('không commit ngoài mapping', db.commit.call_count, int(duoc))
+
+
+@ca('#327: tự động dùng cùng phạm vi mapping trước khi ghi')
+def _tu_dong_mapping_327():
+	from unittest.mock import patch, Mock
+	from types import SimpleNamespace
+	import sys
+	ban = dict(doctype='TEST', dang_cho={}, ma_do=lambda d:'TEST', so_tien=lambda d:100, chieu=dss.RA, truong_gd='gd', khi_khop=None)
+	for chip, duoc in [([],False), ([{'ma':'CT'}],True)]:
+		db=SimpleNamespace(set_value=Mock(),commit=Mock())
+		with patch.dict(sys.modules, {'vagabond.ban_hang':SimpleNamespace(_kiem_quyen=lambda:None)}), patch.object(dss,'nap_so'), patch.object(dss,'_ban',return_value=ban), patch.object(dss.frappe,'get_all',return_value=[{'name':'P'}]), patch.object(dss.frappe,'get_doc',return_value=SimpleNamespace(name='P')), patch.object(dss.frappe,'db',db), patch.object(dss,'dong_sao_ke',return_value=[dict(name='GD',mo_ta='TEST',tien=100,bank_account='CT')]), patch.object(dss,'da_chiem',return_value={}), patch.object(dss,'xet',return_value=(dss.KHOP,'')), patch.object(dss,'nhan_tai_khoan',return_value=({},chip,[])):
+			kq=dss.tu_dong('ttnb')
+			la('chỉ ghi khi mapped',db.set_value.call_count,int(duoc))
+			la('đếm khớp đúng',kq['da_khop'],int(duoc))
+			la('ngoài mapping phải có lý do',bool(kq['xem_lai']),not duoc)
