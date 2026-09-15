@@ -88,3 +88,14 @@ Có mã không đồng nghĩa đủ điều kiện ghi sổ lõi ERP. Không g�
 Kết quả cho thấy mức nhiễu cao, chủ yếu nhận diện tên/món. Thiết kế đã
 được anh chốt chỉ cảnh báo; cần Claude đánh giá kết quả và giới hạn này
 trước chốt phát hành. Không nhận audit là bằng chứng UAT hay sửa dữ liệu.
+
+## Review tích hợp F8/F9 và kiểm chéo snapshot
+
+Hướng dẫn nhận diện tên không còn gợi ý sửa lượng/giá; thiếu món nêu tên,
+khử lặp và giới hạn5 mục. F10 đã hỏi anh cách hiện cảnh báo, chưa trả lời.
+13 mẫu cấu trúc khác nhau từ snapshot đã ẩn mã chứng từ/NCC/MST/tên hàng
+thành ký hiệu. Ca chạy sai_luong và don_vi_theo_ma/lay thật với bảng dữ
+liệu giả chỉ đọc, khớp nhóm JS của13 mẫu. Tên đã chuẩn hoá/ẩn nên không
+chứng minh chuẩn hoá tên gốc toàn bộ snapshot; chưa đủ30-50 mẫu Claude
+đề nghị. Không nâng sốước lượng toànhệthống thànhđo hook thật.
+Local3041/3041, predeploy0 trước thêmca snapshot; bộthuần sau thêmca đạt.

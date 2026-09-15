@@ -642,3 +642,10 @@ Cảnh báo phiếu nhập còn lại ẩn khi đã khớp. Cần bench và Clau
 trên SHA mới; không dùng cổng xanh của thiết kế chặn cũ để chốt bản này.
 
 PR321 review e6a16cdd: dùng get_url_to_form của Frappe cho đường sửa tay, escape thuộc tính href. Bench e6a16cdd đã xanh; bản sửa URL phải kiểm lại. Cảnh báo popup có giới hạn với submit nền/hàng loạt, chưa có cảnh báo lưu trên chứng từ. Không coi popup là bằng chứng mọi nhân viên đã đọc.
+
+### Cảnh báo phải hướng dẫn đúng nguyên nhân
+
+Không nhận diện được tên/mã nguồn chưa chứng minh lượng hay giá sai.
+Hướng dẫn sửa lượng chung cho mọi lý do có thể khiến nhân viên sửa một
+chứng từ đúng. Nêu món, hướng dẫn đối chiếu nguồn/ánh xạ cho nhóm này;
+khử lặp và giới hạn số mục. PR323 F8/F9, bắt nguồn từ audit PR321.

@@ -52,7 +52,7 @@ def sai_luong(doc, g):
 	for ten in sorted(set(nhom) | (set(nguon) - ngoai_kho)):
 		ds = nhom.get(ten, [])
 		if not ds:
-			loi.append("Thiếu món trên hoá đơn nguồn; cần đối chiếu đủ các dòng trước ghi sổ.")
+			loi.append("Chưa đối chiếu được món nguồn: %s. Kiểm tên/mã và ánh xạ nhà cung cấp." % ten)
 			continue
 		goc = nguon.get(ten, [])
 		if not ten or not goc or any(not d.get("item_code") for d in ds) or len({d.get("item_code") for d in ds}) != 1:
@@ -92,7 +92,17 @@ def kiem_truoc_ghi_so(doc, method=None):
 		loi = ["Chưa kiểm được lượng theo hoá đơn nguồn."]
 	if loi:
 		duong = frappe.utils.get_url_to_form("Purchase Invoice", doc.get("name")) if doc.get("name") else ""
-		frappe.msgprint(escape(" ".join(loi)) +
-			"<br>Đây là cảnh báo, không chặn ghi sổ. Mở chứng từ để kiểm và sửa số lượng, đơn vị, đơn giá hoặc phiếu nhập theo quyền hiện có. Chứng từ đã ghi sổ dùng quy trình sửa/hủy chuẩn của ERP." +
+		loi = list(dict.fromkeys(loi))
+		nhan_dien = any("Chưa đối chiếu được món nguồn:" in x or "chưa xác định duy nhất món" in x for x in loi)
+		luong = any("lượng quy về" in x or "quy cách" in x or "thiếu đơn vị" in x for x in loi)
+		huong_dan = "Đây là cảnh báo, không chặn ghi sổ."
+		if nhan_dien:
+			huong_dan += " Máy chưa đối chiếu được tên/mã món với nguồn. Kiểm hoá đơn gốc và ánh xạ tên nhà cung cấp; chưa kết luận số lượng hay đơn giá đang sai."
+		if luong:
+			huong_dan += " Đối chiếu lượng và quy cách với bản gốc trước khi sửa tay theo quyền hiện có. Chứng từ đã ghi sổ dùng quy trình sửa/hủy chuẩn của ERP."
+		noi_dung = "<br>".join(escape(x) for x in loi[:5])
+		if len(loi) > 5:
+			noi_dung += "<br>Còn %s mục cần kiểm tra trên chứng từ." % (len(loi) - 5)
+		frappe.msgprint(noi_dung + "<br>" + huong_dan +
 			('<br><a href="' + escape(duong, quote=True) + '">Mở chứng từ để kiểm tra và sửa tay</a>' if doc.get("name") else ""),
 			title="Cần kiểm tra lượng theo hoá đơn nguồn", indicator="orange")

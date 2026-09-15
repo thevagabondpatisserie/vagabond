@@ -346,3 +346,53 @@ def _ten_cu_321():
 		t.items[0].qty = 6
 		t.items[0].ten_hang_ncc = "Nguồn khác"
 		dung("không đè tên nguồn đã khai", bool(lg.sai_luong(t,g)))
+
+
+@ca("#321 cảnh báo tên không hướng dẫn sửa lượng, gọn tối đa năm mục")
+def _huong_dan_321():
+	from vagabond import luong_hoa_don_goc as lg
+	loi = ['Chưa đối chiếu được món nguồn: Món %s' % i for i in range(7)]
+	with patch.object(dl, '_goc', return_value={'name': 'SOURCE'}), patch.object(lg, 'sai_luong', return_value=loi + loi), patch.object(lg.frappe, 'msgprint', create=True) as bao:
+		lg.kiem_truoc_ghi_so(To(custom_minvoice_id='SOURCE'))
+		msg = bao.call_args[0][0]
+		dung('hướng dẫn ánh xạ', 'ánh xạ tên nhà cung cấp' in msg)
+		dung('không gợi ý sửa lượng khi chỉ thiếu tên', 'trước khi sửa tay' not in msg)
+		la('khử lặp tên', msg.count('Món 0'), 1)
+		dung('trần năm mục', 'Món 4' in msg and 'Món 5' not in msg)
+		dung('đếm mục còn lại sau khử trùng', 'Còn 2 mục' in msg)
+
+
+@ca("#321 snapshot ẩn danh: Python và resolver thật khớp nhóm JS")
+def _audit_an_danh_321():
+	import json
+	from pathlib import Path
+	from types import SimpleNamespace
+	from vagabond import luong_hoa_don_goc as lg
+	data = json.loads(Path(__file__).with_name('audit_321_an_danh.json').read_text())
+	for index, c in enumerate(data):
+		items = {r[0]: To(name=r[0], is_stock_item=r[1], stock_uom=r[2], disabled=r[3]) for r in c['i']}
+		tables = {
+			'Anh Xa Mat Hang NCC': [To(nha_cung_cap='NCC', ten_hang_ncc=r[0], ma_hang=r[1]) for r in c['a']],
+			'MInvoice NCC Map': [To(name=str(i), supplier_mst='1', ten_ncc=r[0], item_code=r[1], vgb_uom=r[2]) for i,r in enumerate(c['q'])],
+			'UOM Conversion Detail': [To(parent=r[0], parenttype='Item', uom=r[1], conversion_factor=r[2]) for r in c['u']],
+		}
+		def get_all(dt, filters=None, **kwargs):
+			return [r for r in tables[dt] if all(r.get(k) == v for k,v in (filters or {}).items())]
+		def get_value(dt, ma, field, **kwargs):
+			assert dt == 'Item'
+			r = items.get(ma)
+			return r if isinstance(field, list) else (r.get(field) if r else None)
+		def exists(dt, name):
+			return name == 'MInvoice NCC Map' if dt == 'DocType' else name in {r[1] for r in c['u']}
+		g = dict(tong_tien=1, mst_doi_tac='1', chi_tiet=[dict(ten=r[0],dvtinh=r[1],sluong=r[2],tchat=r[3]) for r in c['s']])
+		doc = To(supplier='NCC', items=[To(idx=i+1,item_code=r[0],ten_hang_ncc=r[1],item_name=r[2],qty=r[3],conversion_factor=r[4]) for i,r in enumerate(c['d'])])
+		with patch.object(lg.frappe, 'get_all', get_all), patch.object(lg.frappe.db, 'get_value', get_value), patch.object(lg.frappe.db, 'exists', exists), patch.object(lg.frappe, 'get_meta', return_value=SimpleNamespace(has_field=lambda f: True), create=True):
+			loi = lg.sai_luong(doc, g)
+		actual=set()
+		for x in loi:
+			if 'chưa xác định duy nhất món' in x: actual.add('chua_xac_dinh_mon')
+			elif 'Chưa đối chiếu được món nguồn:' in x: actual.add('thieu_mon')
+			elif 'lượng quy về' in x: actual.add('lech_luong')
+			elif 'quy cách' in x: actual.add('quy_cach')
+			else: actual.add('UNCLASSIFIED')
+		la('snapshot ẩn danh %s' % index, sorted(actual), sorted(c['e']))
