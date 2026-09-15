@@ -596,3 +596,77 @@ Kiểm người tải trên mọi lần đọc/duyệt làm kế toán bị ch�
 ### PR316 inline4011368627: chuyển bàn khi danh sách nhận rỗng
 
 Giao việc trả sớm khi không có người nhận nên chưa đóng ToDo cũ. Patch đổi trạng thái cần gọi go_giao ở nhánh này để ToDo và _assign không còn trỏ giám đốc; giữ dấu vết Closed và cảnh báo cần giao lại.
+
+## SePay: đổi generator vẫn có thể ghi đè dữ liệu cũ (#322)
+
+Khi duyệt phiếu, code cũ sinh lại nội dung chuyển khoản vô điều kiện. Muốn đổi định dạng chỉ cho nội dung mới phải giữ trường đã lưu ở cả caller này, không chỉ tránh patch dữ liệu. Nhãn tài khoản cần gắn từng kết quả, số phiếu khớp không nói được nguồn tiền.
+
+## PR323 - review F1/F2
+
+Đẩy lọc bank_account xuống truy vấn trước limit500; ca dựng501 dòng của
+tài khoản đông và một dòng tài khoản ít, kiểm dòng ít vẫn được lấy.
+Chip dùng CSS chips/chip/on có sẵn. Chưa xử lý F3-F7 (quyền chẩn đoán,
+escape kép, trạng thái/fallback, giới hạn danh sách, truy vấn nhãn trùng).
+Không chốt sẵn sàng phát hành chỉ vì CI trước xanh.
+
+## PR323 F3-F7
+
+Chẩn đoán tài khoản chưa nối chỉ trả vai kế toán/quản trị. Truyền nhãn
+đã đọc vào truy vấn sao kê, không đọc lại. Ca gọi ung_vien kiểm hai vai,
+tham số lọc và nhãn dùng chung. Bỏ escape kép ở nội dung đưa vào baoTin,
+giữ câu Đã chi kể cả response cũ thiếu nhãn. Trả tối đa5 dòng đã khớp,
+UI chỉ liệt kê khi tổng không quá5; các số đếm toàn lô giữ nguyên.
+Cần Claude review và bench SHA mới, chưa phát hành.
+## 15/09/2026: tiền gốc phiếu nhập không phải phần còn được nối (#252)
+
+Màn so sánh đã trừ lượng hóa đơn khác ghi sổ nhưng danh sách phiếu vẫn in
+số tiền gốc không có nhãn. Người dùng cộng các số đó và tưởng bộ nối chặn sai.
+Giữ hàng rào lượng, ghi rõ tiền gốc và phần còn từ cùng nguồn lượng máy chủ;
+hướng dẫn kiểm đầu nối hóa đơn đã dùng trước. Không lấy triệu chứng này làm
+căn cứ tự sửa chứng từ đã ghi sổ hoặc bù thêm kho.
+
+PR321 review inline: số tiền còn lại trên phiếu có thể gồm món thừa hoặc khác đơn vị. Không gọi tổng này là số nối được; phải phân biệt số dư với điều kiện ghép từng dòng.
+
+PR321: bộ chuẩn hóa tiền có thể đặt qty1 khi thiếu đơn giá; không tái sử dụng qty đó làm lượng nguồn. Kiểm nguồn phải xét cả dòng bị bỏ khỏi chứng từ, không chỉ những dòng còn lại.
+
+PR321 audit: tên Item cũ khác tên NCC không chứng minh mất dòng. Chỉ phục hồi căn cứ bằng mapping duy nhất, và vẫn kiểm lượng; không dùng tổng tiền để suy tên.
+
+## PR321 - chỉ cảnh báo theo chốt anh Việt 15/09/2026
+
+Chỉ dẫn mới thay thiết kế chặn lượng ở các commit trước: kiểm lượng nguồn
+không chặn lưu/ghi sổ, kể cả thiếu nguồn hoặc lỗi đọc. Hiện cảnh báo có
+đường mở Purchase Invoice để sửa tay theo quyền và vòng đời chứng từ hiện có.
+Không tự thay qty/rate/đầu nối hoặc bỏ kiểm lõi ERP. Ca tích hợp được đổi
+sang Document.submit thành công, docstatus1 và có GL dù lượng nguồn lệch.
+Cảnh báo phiếu nhập còn lại ẩn khi đã khớp. Cần bench và Claude review
+trên SHA mới; không dùng cổng xanh của thiết kế chặn cũ để chốt bản này.
+
+PR321 review e6a16cdd: dùng get_url_to_form của Frappe cho đường sửa tay, escape thuộc tính href. Bench e6a16cdd đã xanh; bản sửa URL phải kiểm lại. Cảnh báo popup có giới hạn với submit nền/hàng loạt, chưa có cảnh báo lưu trên chứng từ. Không coi popup là bằng chứng mọi nhân viên đã đọc.
+
+### Cảnh báo phải hướng dẫn đúng nguyên nhân
+
+Không nhận diện được tên/mã nguồn chưa chứng minh lượng hay giá sai.
+Hướng dẫn sửa lượng chung cho mọi lý do có thể khiến nhân viên sửa một
+chứng từ đúng. Nêu món, hướng dẫn đối chiếu nguồn/ánh xạ cho nhóm này;
+khử lặp và giới hạn số mục. PR323 F8/F9, bắt nguồn từ audit PR321.
+
+### Nhóm nguyên nhân không phụ thuộc câu chữ
+
+Không dò chuỗi tiếng Việt để chọn hướng dẫn: sửa văn phong có thể làm mất
+hướng dẫn cho đúng nguyên nhân. Giữ nhóm có cấu trúc cùng câu hiển thị;
+ca kiểm thay câu vẫn nhận đúng nhóm và lỗi đọc nguồn có hướng dẫn riêng.
+PR323 F12.
+
+### Tách cảnh báo thao tác khỏi báo cáo chất lượng dữ liệu
+
+Thiếu ánh xạ tên nguồn không nên bật popup mỗi lần ghi sổ. Theo duyệt
+F10, chỉ nhóm lượng/quy cách bật popup; báo cáo chung đọc lại dữ liệu hiện
+tại và giữ quyền chứng từ. Phân trang phải báo rõ còn dữ liệu, không gọi
+trang rỗng là toàn hệ thống đã sạch. PR323.
+
+### Catching an exception does not clear Frappe messages
+
+frappe.throw can append a client dialog before raising. A read-only scan
+that catches it must mute messages in a scoped try/finally and restore
+the prior flag. Test message_log on the real resolver, not only returned
+errors. Applies to source report and advisory submit hook, PR323 F16.

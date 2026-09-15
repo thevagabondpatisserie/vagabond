@@ -1491,8 +1491,9 @@ def tao(du_lieu=None, gui_luon=0):
 	doc.insert(ignore_permissions=True)
 	# Nội dung chuyển khoản chỉ dựng được SAU khi phiếu có mã: doctype này
 	# đánh mã theo format nên lúc before_validate chạy thì `name` còn trống.
-	frappe.db.set_value(DT, doc.name, "noi_dung_ck", noi_dung_ck(doc.name), update_modified=False)
-	doc.noi_dung_ck = noi_dung_ck(doc.name)
+	if not (doc.get("noi_dung_ck") or "").strip():
+		doc.noi_dung_ck = noi_dung_ck(doc.name)
+		frappe.db.set_value(DT, doc.name, "noi_dung_ck", doc.noi_dung_ck, update_modified=False)
 
 	# Buộc tệp vào phiếu. Làm SAU khi phiếu có mã, và làm qua đúng một cổng
 	# (tep_dinh_kem.gan_vao) chứ không tự sửa bảng File ở đây: cổng đó giữ
@@ -1820,7 +1821,7 @@ def noi_dung_ck(ma_phieu):
 	hoặc cắt bớt nội dung, và một mã bị cắt là một phiếu không bao giờ tự
 	khớp được.
 	"""
-	return ("THE VAGABOND %s" % (ma_phieu or "")).strip()
+	return ("THE VAGABOND %s" % str(ma_phieu or "").replace("-", "")).strip()
 
 
 def khop_noi_dung(mo_ta, ma_phieu):
@@ -2014,7 +2015,9 @@ def doi_soat(so_ngay=30):
 	gds = [g for g in gds if not _loi_nguon_chi_ttnb(g)]
 
 	da_chiem = _gd_da_chiem_ttnb()
-	da, xem = 0, []
+	from vagabond.doi_soat_sepay import nhan_tai_khoan
+	nhan, _, _ = nhan_tai_khoan()
+	da, xem, da_khop_rows = 0, [], []
 	for d in ds:
 		tien = flt(d.get("tong_tien")) or flt(d.get("so_tien"))
 		for g in gds:
@@ -2025,6 +2028,7 @@ def doi_soat(so_ngay=30):
 			if chu_cu and chu_cu != d["name"]:
 				xem.append({
 					"phieu": d["name"], "giao_dich": g["name"],
+					"nhan_ngan_hang": nhan.get(g.get("bank_account"), "Chưa xác định tài khoản"),
 					"trung_voi": chu_cu, "tien_phieu": tien,
 					"tien_chuyen": flt(g["withdrawal"]),
 				})
@@ -2035,6 +2039,7 @@ def doi_soat(so_ngay=30):
 			if abs(flt(g["withdrawal"]) - tien) > 1:
 				xem.append({
 					"phieu": d["name"], "giao_dich": g["name"],
+					"nhan_ngan_hang": nhan.get(g.get("bank_account"), "Chưa xác định tài khoản"),
 					"tien_phieu": tien, "tien_chuyen": flt(g["withdrawal"]),
 				})
 				continue
@@ -2049,9 +2054,10 @@ def doi_soat(so_ngay=30):
 			frappe.db.commit()
 			_het_viec(d["name"])
 			da += 1
+			da_khop_rows.append({"phieu": d["name"], "nhan_ngan_hang": nhan.get(g.get("bank_account"), "Chưa xác định tài khoản")})
 			break
 	return {
-		"da_khop": da, "xem_xet": xem, "so_phieu_quet": len(ds),
+		"da_khop": da, "da_khop_rows": da_khop_rows[:5], "xem_xet": xem, "so_phieu_quet": len(ds),
 		"ghi_chu": "" if da or xem else "Chưa có dòng tiền ra nào khớp phiếu đang chờ chi.",
 	}
 

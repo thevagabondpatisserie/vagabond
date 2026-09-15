@@ -289,7 +289,24 @@ def chu_cua_giao_dich(ds_gd, bo_qua_loai=None, bo_qua_phieu=None, bo_qua_hoa_don
 	return ra
 
 
-def dong_sao_ke(chieu, so_ngay=45, tu_ngay=None):
+def nhan_tai_khoan():
+	"""Một lượt đọc nhãn; chip chỉ lấy tài khoản có trong bản đồ SePay."""
+	from vagabond.sepay import _ban_do
+	mapped = set((_ban_do() or {}).values())
+	nhan, chip, chua = {}, [], []
+	for r in frappe.get_all("Bank Account", fields=["name", "bank", "bank_account_no", "disabled"], limit_page_length=0):
+		duoi = re.sub(r"[^0-9]", "", r.get("bank_account_no") or "")[-4:]
+		chu = (r.get("bank") or "Ngân hàng chưa khai") + (" · " + duoi if duoi else " · chưa có số tài khoản")
+		nhan[r["name"]] = chu
+		if not r.get("disabled"):
+			if r["name"] in mapped:
+				chip.append({"ma": r["name"], "nhan": chu})
+			else:
+				chua.append(chu)
+	return nhan, chip, chua
+
+
+def dong_sao_ke(chieu, so_ngay=45, tu_ngay=None, tai_khoan=None, nhan=None):
 	"""Các dòng sao kê đúng chiều tiền trong khoảng ngày. Chạm hệ."""
 	from frappe.utils import add_days, nowdate
 
@@ -302,12 +319,15 @@ def dong_sao_ke(chieu, so_ngay=45, tu_ngay=None):
 			["date", "between", [add_days(moc, -n), add_days(moc, 1)]],
 			[cot, ">", 0],
 			["docstatus", "<", 2],
-		],
+		] + ([["bank_account", "=", tai_khoan]] if tai_khoan else []),
 		fields=["name", "date", "deposit", "withdrawal", "description",
 			"reference_number", "bank_account"],
 		order_by="date desc", limit_page_length=500,
 	)
+	if nhan is None:
+		nhan, _, _ = nhan_tai_khoan()
 	for g in ds:
+		g["nhan_ngan_hang"] = nhan.get(g.get("bank_account"), "Chưa xác định tài khoản")
 		# Ghep ca hai o lai lam mot chuoi de do: ngan hang doi khi day ma
 		# tham chieu sang o rieng chu khong de trong noi dung.
 		g["mo_ta"] = "%s %s" % (g.get("description") or "", g.get("reference_number") or "")
@@ -361,7 +381,7 @@ def tu_dong(loai, ma_phieu=None, so_ngay=45):
 		gds = [g for g in gds if not _loi_giao_dich(b, g)]
 	chiem = da_chiem(loai, tru_phieu=ma_phieu)
 
-	da, xem = 0, []
+	da, xem, da_khop_rows = 0, [], []
 	for c in cho:
 		for g in gds:
 			kq, vi_sao = xet(g["mo_ta"], g["tien"], c["ma"], c["tien"],
@@ -373,13 +393,14 @@ def tu_dong(loai, ma_phieu=None, so_ngay=45):
 					"phieu": c["doc"].name, "ma_do": c["ma"],
 					"giao_dich": g["name"], "ngay": str(g.get("date") or ""),
 					"tien_phieu": c["tien"], "tien_dong": g["tien"],
-					"vi_sao": vi_sao,
+					"vi_sao": vi_sao, "nhan_ngan_hang": g.get("nhan_ngan_hang"),
 				})
 				continue
 			frappe.db.set_value(b["doctype"], c["doc"].name, b["truong_gd"], g["name"])
 			frappe.db.commit()
 			chiem[g["name"]] = c["doc"].name
 			da += 1
+			da_khop_rows.append({"phieu": c["doc"].name, "giao_dich": g["name"], "nhan_ngan_hang": g.get("nhan_ngan_hang")})
 			if b["khi_khop"]:
 				# Boc rieng tung phieu: mot phieu hong khong duoc keo theo ca
 				# me dang quet, vi cac phieu kia da duoc danh dau roi.
@@ -392,11 +413,11 @@ def tu_dong(loai, ma_phieu=None, so_ngay=45):
 						"doi_soat_sepay: khi_khop loi %s %s" % (loai, c["doc"].name))
 			break
 	frappe.db.commit()
-	return {"da_khop": da, "xem_lai": xem[:50], "so_phieu_quet": len(cho)}
+	return {"da_khop": da, "da_khop_rows": da_khop_rows[:5], "xem_lai": xem[:50], "so_phieu_quet": len(cho)}
 
 
 @frappe.whitelist()
-def ung_vien(loai, ma_phieu, so_ngay=45, tu_khoa=""):
+def ung_vien(loai, ma_phieu, so_ngay=45, tu_khoa="", tai_khoan=""):
 	"""Các dòng sao kê để NGƯỜI tự chọn, xếp dòng khớp mã lên trước.
 
 	Màn hình không tự quyết. Nó bày ra ứng viên rồi để người đọc mắt và chỉ,
@@ -417,8 +438,11 @@ def ung_vien(loai, ma_phieu, so_ngay=45, tu_khoa=""):
 
 	chiem = da_chiem(loai, tru_phieu=ma_phieu)
 	tk = str(tu_khoa or "").strip().lower()
+	nhan, chip, chua = nhan_tai_khoan()
+	if not {"AP Kiểm soát (FIN)", "Accounts User", "Accounts Manager", "System Manager"} & set(frappe.get_roles()):
+		chua = []
 	tho = []
-	for g in dong_sao_ke(b["chieu"], so_ngay):
+	for g in dong_sao_ke(b["chieu"], so_ngay, tai_khoan=tai_khoan, nhan=nhan):
 		if _loi_giao_dich(b, g):
 			continue
 		if chiem.get(g["name"]):
@@ -428,10 +452,11 @@ def ung_vien(loai, ma_phieu, so_ngay=45, tu_khoa=""):
 		tho.append({
 			"name": g["name"], "date": str(g.get("date") or ""),
 			"tien": g["tien"], "mo_ta": (g.get("description") or "").strip(),
-			"bank_account": g.get("bank_account"),
+			"bank_account": g.get("bank_account"), "nhan_ngan_hang": g.get("nhan_ngan_hang"),
 		})
 	return {
 		"rows": xep_ung_vien(tho, ma, tien)[:60],
+		"tai_khoan_sepay": chip, "chua_noi_sepay": chua,
 		"ma_do": ma, "so_tien": tien, "ten_man": b["ten_man"],
 		"ma_gd_dang_gan": doc.get(b["truong_gd"]) or "",
 		"nhac": ("" if ma else

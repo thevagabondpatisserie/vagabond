@@ -195,3 +195,59 @@ def _tra_lai_dung_dau():
 		la("giá dương", hd.items[0].rate, 100000)
 		la("giảm theo chiều trả", hd.discount_amount, -20000)
 	_ghi_so(hd, -198000, -18000)
+
+
+@ca("#321: PI tiền khớp nhưng nửa lượng chỉ cảnh báo khi Document.submit")
+def _nguon_luong_321():
+	p = nen.phieu_nhap_ao(6, 100000)
+	d = p.items[0]
+	g = _nguon([{"ten": "Lượng nguồn thử", "sluong": 6, "dgia": 100000,
+		"thtien": 600000, "dvtinh": d.uom}], 0, 600000)
+	hd = _phieu([("Lượng nguồn thử", 3, 200000)], d.item_code, p.supplier)
+	hd.items[0].update({"uom": d.uom, "conversion_factor": d.conversion_factor,
+		"warehouse": d.warehouse, "purchase_receipt": p.name, "pr_detail": d.name})
+	hd.custom_minvoice_id = g.name
+	_luu(hd)
+	hd.reload()
+	la("tái hiện nửa lượng trước ghi sổ", hd.items[0].qty, 3)
+	hd.submit()
+	hd.reload()
+	la("cảnh báo không chặn ghi sổ", hd.docstatus, 1)
+	from vagabond.vagabond.report.doi_chieu_nguon_hoa_don_mua.doi_chieu_nguon_hoa_don_mua import execute
+	_, bao_cao, _ = execute(dict(from_date=hd.posting_date, to_date=hd.posting_date, hoa_don=hd.name))
+	dung("báo cáo đọc chứng từ thật đã ghi sổ", any(r["hoa_don"] == hd.name for r in bao_cao))
+	dung("sổ cái đã sinh", len(nen.so_cai_cua(hd)) > 0)
+
+	# Chỉ đổi fixture nguồn trong bench để chạm throw thật của resolver.
+	raw = frappe.parse_json(g.chi_tiet)
+	raw[0]["dvtinh"] = "TEST-UNKNOWN-UOM-321"
+	g.db_set("chi_tiet", frappe.as_json(raw))
+	truoc = len(getattr(frappe.local, "message_log", None) or [])
+	co_cu = frappe.flags.get("mute_messages")
+	_, bao_cao, _ = execute(dict(hoa_don=hd.name))
+	dung("thiếu quy cách vẫn nằm trên báo cáo", any(r["nhom"] == "Lượng/quy cách" for r in bao_cao))
+	la("không để lại hộp thoại throw", len(getattr(frappe.local, "message_log", None) or []), truoc)
+	la("khôi phục cờ mute", frappe.flags.get("mute_messages"), co_cu)
+
+
+
+@ca("#321: bỏ một món nguồn và bù giá món khác chỉ cảnh báo, vẫn ghi sổ")
+def _mat_mon_321():
+	p = nen.phieu_nhap_ao(2, 400000)
+	d = p.items[0]
+	g = _nguon([{"ten": "A nguồn thử", "sluong": 6, "dgia": 100000, "dvtinh": d.uom},
+		{"ten": "B nguồn thử", "sluong": 2, "dgia": 100000, "dvtinh": d.uom}], 0, 800000)
+	hd = _phieu([("B nguồn thử", 2, 400000)], d.item_code, p.supplier)
+	hd.items[0].update({"uom": d.uom, "conversion_factor": d.conversion_factor,
+		"warehouse": d.warehouse, "purchase_receipt": p.name, "pr_detail": d.name})
+	hd.custom_minvoice_id = g.name
+	_luu(hd)
+	hd.reload()
+	la("fixture đã bỏ một món", len(hd.items), 1)
+	hd.submit()
+	hd.reload()
+	la("cảnh báo không chặn ghi sổ", hd.docstatus, 1)
+	from vagabond.vagabond.report.doi_chieu_nguon_hoa_don_mua.doi_chieu_nguon_hoa_don_mua import execute
+	_, bao_cao, _ = execute(dict(from_date=hd.posting_date, to_date=hd.posting_date, hoa_don=hd.name))
+	dung("báo cáo đọc chứng từ thật đã ghi sổ", any(r["hoa_don"] == hd.name for r in bao_cao))
+	dung("sổ cái đã sinh", len(nen.so_cai_cua(hd)) > 0)

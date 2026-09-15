@@ -300,3 +300,55 @@ def _():
 	tra_hang = {"hoa_don": "HDB-2026-01593", "loai_hoan": "Tra hang"}
 	la("phiếu trả hàng vẫn dò theo mã hoá đơn",
 		hoan_tien.ma_do_soat(tra_hang), "HDB-2026-01593")
+
+
+@ca("SePay: mã mới không gạch vẫn khớp mã cũ, không nhầm số liền kề")
+def _ma_khong_gach():
+	from vagabond.de_nghi_chi import noi_dung_ck
+	ma = "TTNB-26-08-00001"
+	nd = noi_dung_ck(ma)
+	la("chuỗi mới", nd, "THE VAGABOND TTNB260800001")
+	dung("khớp mã gốc", dss.co_ma(nd, ma))
+	dung("không ăn mã dài hơn", not dss.co_ma(nd + "2", ma))
+
+
+@ca("SePay: chip theo mapping, nhãn chỉ bốn số cuối, tài khoản chưa nối ở chẩn đoán")
+def _chip_mapping():
+	from unittest.mock import patch
+	from vagabond import sepay
+	with patch.object(sepay, "_ban_do", lambda: {"12345678": "A"}), patch.object(dss.frappe, "get_all", lambda *a, **k: [
+		{"name":"A", "bank":"MB", "bank_account_no":"12345678", "disabled":0},
+		{"name":"B", "bank":"Ngân hàng B", "bank_account_no":"87654321", "disabled":0}]):
+		nhan, chip, chua = dss.nhan_tai_khoan()
+		la("chỉ mapped có chip", [x['ma'] for x in chip], ['A'])
+		la("đuôi bốn số", nhan['A'], 'MB · 5678')
+		la("chưa nối có chẩn đoán", chua, ['Ngân hàng B · 4321'])
+
+
+@ca("SePay: lọc tài khoản trước trần 500 giữ dòng tài khoản ít giao dịch")
+def _loc_truoc_tran_323():
+	from unittest.mock import patch
+	du_lieu = [dict(name='DONG-%s' % i, bank_account='DONG', withdrawal=1) for i in range(501)] + [dict(name='IT-1', bank_account='IT', withdrawal=2)]
+	def lay(dt, **kw):
+		ds = du_lieu
+		for cot, phep, gia in kw['filters']:
+			if cot == 'bank_account':
+				ds = [r for r in ds if r[cot] == gia]
+		return [dict(r) for r in ds[:kw['limit_page_length']]]
+	with patch.object(dss.frappe, 'get_all', lay), patch.object(dss, 'nhan_tai_khoan', return_value=({}, [], [])):
+		la('dòng ít vẫn tới cửa đối soát', [r['name'] for r in dss.dong_sao_ke(dss.RA, tu_ngay='2026-09-15', tai_khoan='IT')], ['IT-1'])
+
+
+@ca("SePay: chỉ kế toán nhận chẩn đoán tài khoản chưa nối, dùng chung nhãn")
+def _quyen_chan_doan_323():
+	from unittest.mock import patch
+	import sys
+	from types import SimpleNamespace
+	ban = dict(doctype='TEST', ma_do=lambda d: 'TEST', so_tien=lambda d: 1, chieu=dss.RA, ten_man='TEST', truong_gd='gd')
+	for roles, can in [(['Sales User'], []), (['Accounts User'], ['Chưa nối'])]:
+		with patch.dict(sys.modules, {'vagabond.ban_hang': SimpleNamespace(_kiem_quyen=lambda: None)}), patch.object(dss, 'nap_so'), patch.object(dss, '_ban', return_value=ban), patch.object(dss.frappe, 'get_doc', return_value={}), patch.object(dss.frappe, 'get_roles', return_value=roles), patch.object(dss, 'da_chiem', return_value={}), patch.object(dss, 'nhan_tai_khoan', return_value=({'TK': 'Nhãn'}, [], ['Chưa nối'])) as nhan, patch.object(dss, 'dong_sao_ke', return_value=[]) as dong:
+			kq = dss.ung_vien('ttnb', 'TEST', tai_khoan='TK')
+			la('phạm vi chẩn đoán', kq['chua_noi_sepay'], can)
+			la('lọc truyền xuống query', dong.call_args.kwargs['tai_khoan'], 'TK')
+			la('nhãn dùng lại', dong.call_args.kwargs['nhan'], {'TK': 'Nhãn'})
+			la('chỉ đọc nhãn một lần', nhan.call_count, 1)

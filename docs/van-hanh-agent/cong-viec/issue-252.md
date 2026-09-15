@@ -1,0 +1,134 @@
+# Issue 252: nối phiếu nhập, lượt 15/09/2026
+
+Owner Codex, branch codex/pnk-3019-con-lai, base 2b3484e898a5ed9f3fce6617b72bb57739ded4ea.
+
+## Phạm vi
+
+Phân biệt tiền gốc phiếu nhập với phần còn được nối sau hóa đơn khác đã ghi
+sổ. Nhãn tiền gốc tại danh sách, bảng giải thích dùng cùng nguồn lượng của
+so_sanh; chỉ đường cho kế toán kiểm đầu nối. Giữ nguyên hàng rào lượng.
+
+## Bằng chứng và giới hạn
+
+Cổng local 3030/3030 và patch 27/27 đạt. Thêm khẳng định tiền gốc trong ca
+so_sanh có nhiều dòng cùng món và hóa đơn khác đã dùng lượng; thêm ca render
+hướng dẫn và escape tên chứng từ. CI/review theo SHA cuối trên PR.
+
+Có trường hợp chứng từ cũ cần kế toán xác nhận đơn vị và đầu nối với nguồn.
+Không đưa dữ liệu riêng tư vào đây; không sửa dữ liệu production và không
+nhận deploy bản hiển thị là đã giải quyết chứng từ đang kẹt.
+
+## Bước tiếp
+
+Claude review delta, CI/bench trên SHA PR. Codex chờ xác nhận nguồn chứng từ
+trong phiên người dùng trước khi đề xuất xử lý dữ liệu đã ghi sổ.
+
+## Sửa review inline sau 0c57543
+
+Claude chốt 0c57543 và bench34930695223 thành công. Review inline4012083523
+chỉ ra tiền còn lại còn gồm món thừa/khác đơn vị, không được gọi toàn bộ là
+nối được. Đổi nhãn thành Tiền hàng còn lại trên các phiếu và giải thích giới
+hạn; bổ sung khẳng định render, giữ nowrap cho tiền gốc theo nit Claude.
+Chờ CI/review delta mới; không đổi thuật toán hoặc chứng từ.
+
+## Mở rộng theo yêu cầu ngăn tái diễn
+
+Đã chứng minh code dong_bo_luc_luu thoát khi tổng khớp, không kiểm lượng.
+Chưa chứng minh lịch sử thao tác nào gây ca thật. Thêm before_submit kiểm
+lượng hàng tồn theo nguồn điện tử và quy đổi NCC, cộng dòng tách cùng tên;
+không đoán khi mất tên/nguồn hoặc nhiều mã cùng tên. Chưa tự sửa dữ liệu.
+Có ca Document.submit thật yêu cầu đúng thông báo và DB nháp/GL rỗng.
+Cần bench, review và đánh giá mức chặn dữ liệu cũ trước merge. Chưa có công
+cụ rà toàn hệ thống hoặc sửa đầu nối lịch sử; phần này chưa hoàn tất.
+
+## Review c948fe57
+
+Bench c948fe57 xanh, Claude yêu cầu sửa mất món nguồn và lượng nguồn bị
+chuẩn hóa thành1 khi thiếu giá. Đã lặp hợp tên hai phía, loại nguồn có dòng
+không quản kho hiện hữu; đọc sluong nguyên gốc, không dùng bộ chuẩn hóa tiền.
+Thêm ca thuần và Document.submit mất món. Còn audit nháp trên site, thiếu
+quy cách lịch sử và review/bench SHA mới; chưa đủ merge.
+
+## Audit dữ liệu nháp và nhận diện tên cũ
+
+Rà chỉ đọc trên production tìm được dòng cũ giữ tên Item nội bộ thay vì
+ten_hang_ncc; phép kiểm tên tuyệt đối có thể chặn oan. Đã thêm fallback chỉ
+khi thiếu ten_hang_ncc và mapping NCC xác định duy nhất tên nguồn cho mã
+Item trên chính hóa đơn nguồn. Không dùng vị trí, qty/rate hay tổng để đoán.
+Có hồi quy giữ chặn lượng và không ghi đè tên nguồn đã khai. Cần audit lại
+bằng resolver cuối và bench/review trước merge; số đếm sơ bộ không phải
+kết quả chạy toàn bộ guard. Không nhận tất cả nháp đều sai.
+
+## PR321 - chỉ cảnh báo theo chốt anh Việt 15/09/2026
+
+Chỉ dẫn mới thay thiết kế chặn lượng ở các commit trước: kiểm lượng nguồn
+không chặn lưu/ghi sổ, kể cả thiếu nguồn hoặc lỗi đọc. Hiện cảnh báo có
+đường mở Purchase Invoice để sửa tay theo quyền và vòng đời chứng từ hiện có.
+Không tự thay qty/rate/đầu nối hoặc bỏ kiểm lõi ERP. Ca tích hợp được đổi
+sang Document.submit thành công, docstatus1 và có GL dù lượng nguồn lệch.
+Cảnh báo phiếu nhập còn lại ẩn khi đã khớp. Cần bench và Claude review
+trên SHA mới; không dùng cổng xanh của thiết kế chặn cũ để chốt bản này.
+
+PR321 review e6a16cdd: dùng get_url_to_form của Frappe cho đường sửa tay, escape thuộc tính href. Bench e6a16cdd đã xanh; bản sửa URL phải kiểm lại. Cảnh báo popup có giới hạn với submit nền/hàng loạt, chưa có cảnh báo lưu trên chứng từ. Không coi popup là bằng chứng mọi nhân viên đã đọc.
+
+## Đo mức nhiễu trước phát hành 494/495
+
+Anh Việt duyệt ngày15/09 lấy dữ liệu đối chiếu về Mac; không lấy giá tiền,
+không sửa chứng từ và không đưa payload riêng tư lên GitHub. Snapshot3095
+nháp không trả hàng có mã nguồn,8652 dòng,3083 nguồn.
+
+Phép đối chiếu tại Mac chuyển logic tên/cộng lượng/quy đổi của28209ab3
+sang JavaScript trên snapshot. Không gọi hook Python production vì mã
+chưa deploy, không phải đo submit thật hoặc chứng minh mọi cảnh báo đúng.
+Tổng2948 tờ có ít nhất một lý do,147 không cảnh báo. Nhóm lý do có thể
+trùng: chưa xác định món2875, thiếu món631, lệch lượng96, quy cách2.
+Riêng550 tờ đã gán đủ mã:403 có lý do,147 không; nhóm tương ứng330,335,85,2.
+Có mã không đồng nghĩa đủ điều kiện ghi sổ lõi ERP. Không gọi2948 là tờ sai.
+
+Kết quả cho thấy mức nhiễu cao, chủ yếu nhận diện tên/món. Thiết kế đã
+được anh chốt chỉ cảnh báo; cần Claude đánh giá kết quả và giới hạn này
+trước chốt phát hành. Không nhận audit là bằng chứng UAT hay sửa dữ liệu.
+
+## Review tích hợp F8/F9 và kiểm chéo snapshot
+
+Hướng dẫn nhận diện tên không còn gợi ý sửa lượng/giá; thiếu món nêu tên,
+khử lặp và giới hạn5 mục. F10 đã hỏi anh cách hiện cảnh báo, chưa trả lời.
+13 mẫu cấu trúc khác nhau từ snapshot đã ẩn mã chứng từ/NCC/MST/tên hàng
+thành ký hiệu. Ca chạy sai_luong và don_vi_theo_ma/lay thật với bảng dữ
+liệu giả chỉ đọc, khớp nhóm JS của13 mẫu. Tên đã chuẩn hoá/ẩn nên không
+chứng minh chuẩn hoá tên gốc toàn bộ snapshot; chưa đủ30-50 mẫu Claude
+đề nghị. Không nâng sốước lượng toànhệthống thànhđo hook thật.
+Local3041/3041, predeploy0 trước thêmca snapshot; bộthuần sau thêmca đạt.
+
+## F11-F14
+
+Sửa khẳng định cấm đúng câu hướng dẫn cũ. sai_luong có kem_nhom=True
+trả nhóm/chuỗi, hook không dò văn xuôi; giữ chế độ chuỗi cho caller cũ.
+Nguồn lỗi có hướng dẫn kiểm thủ công/thử lại. Tên hiển thị giữ bản gốc
+và nói rõ khi trống. Fixture đọc UTF-8. Ca giữ nhóm khi đổi câu chữ.
+Nhận xét20/20 mapping null không khớp tệp:13 mẫu có5 dòng q khai UOM.
+Cần Claude đối chiếu; không bổ sung mẫu giả chỉ để đủ số. F10 còn chờ anh.
+
+F15: retain both old-wording assertions and reject current quantity guidance for name-only warnings. Production code unchanged. F10 still awaits user choice.
+
+## Anh duyệt F10 và deploy
+
+Chỉ popup nhóm lượng/quy cách. Tên/mã và lỗi nguồn gom vào Script Report
+Doi chieu nguon hoa don mua, đọc chung doc_canh_bao với hook. Báo cáo
+không ghi Comment/chứng từ, get_list giữ quyền PI, lọc ngày/mã và phân
+trang100 hoá đơn (báo rõ còn trang). Có đường Link về PI để sửa tay theo
+quyền hiện có. Báo cáo gồm cả nháp và đã ghi sổ, loại phiếu hủy/trả.
+Có ca Document.submit và đọc báo cáo thật trên bench. Anh cho deploy sau
+cổng bản cuối; F10 không còn chờ duyệt. Các số auditJS vẫn là ước lượng.
+
+## Report F16-F21
+
+Shared reader suppresses resolver messages with mute_messages and restores
+the previous flag in finally; this protects both submit and report paths.
+Real bench fixture uses an unknown source UOM, checks report reason and
+unchanged message_log. Report escapes/deduplicates/limits five reasons,
+metadata matches standard Report schema. Explicit invoice filter ignores
+dates and says so. Pure/API tests cover format, pagination and filter.
+Reader logs unexpected failures without letting logging failure block work.
+F10 approved; broad audit no longer release blocker per Claude. Live report
+latency and absence of error dialogs must be checked after deployment.

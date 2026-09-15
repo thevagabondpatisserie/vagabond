@@ -256,3 +256,174 @@ def _am_trung_ten():
 			dl.dong_bo_luc_luu(t)
 			la("hai dòng đúng dấu", [(d.qty, d.rate) for d in t.items], [(-1, 100), (-1, 100)])
 			la("không giảm giả", t.discount_amount, 0)
+
+
+@ca("#321: tổng bằng nhau không che lượng sai, tách dòng và đổi đơn vị đúng vẫn qua")
+def _luong_nguon_321():
+	from vagabond import luong_hoa_don_goc as lg
+	g = dict(tong_tien=600, chi_tiet=[dict(ten="Món thử", dvtinh="Hộp", sluong=6, dgia=100)])
+	def dong(qty, hs, rate=100):
+		return To(idx=1, item_code="TEST", ten_hang_ncc="Món thử", qty=qty, conversion_factor=hs, rate=rate)
+	t = To(custom_minvoice_id="SOURCE", items=[dong(3, 500, 200)])
+	with patch.object(dl, "_goc", lambda *a: g), patch.object(lg.frappe.db, "get_value", lambda *a: 1), patch.object(mc, "don_vi_theo_ma", lambda *a: ("Hộp", 500)):
+		loi = lg.sai_luong(t, g)
+		dung("bắt lượng giảm dù tổng tiền không đổi", bool(loi))
+		with patch.object(lg.frappe, "msgprint", create=True) as bao:
+			lg.kiem_truoc_ghi_so(t)
+			dung("lệch chỉ cảnh báo", bao.called)
+
+		t.items = [dong(1, 500), dong(5, 500)]
+		la("tách qua hai phiếu vẫn đủ lượng", lg.sai_luong(t, g), [])
+		t.items = [dong(3, 1000, 200)]
+		la("3 Kg tương đương 6 hộp 500g", lg.sai_luong(t, g), [])
+		t.items = [dong(3, 0)]
+		dung("không cho hệ số rỗng qua", bool(lg.sai_luong(t, g)))
+		t.items = [dong(6, 500)]
+		t.items[0].ten_hang_ncc = "Tên khác"
+		dung("không tự đoán khi tên nguồn mất", bool(lg.sai_luong(t, g)))
+
+
+@ca("#321: tên nguồn dài cắt cùng phía chứng từ vẫn kiểm đúng lượng")
+def _ten_dai_321():
+	from vagabond import luong_hoa_don_goc as lg
+	ten = 'Món thử ' * 25
+	g = dict(tong_tien=600, chi_tiet=[dict(ten=ten, dvtinh='Hộp', sluong=6)])
+	d = To(idx=1, item_code='TEST', ten_hang_ncc=ten[:140], qty=6, conversion_factor=500)
+	t = To(items=[d])
+	with patch.object(lg.frappe.db, 'get_value', return_value=1), patch.object(mc, 'don_vi_theo_ma', return_value=('Hộp', 500)):
+		la('tên dài đúng lượng không cảnh báo oan', lg.sai_luong(t, g), [])
+		d.qty = 3
+		dung('tên dài sai lượng vẫn cảnh báo', bool(lg.sai_luong(t, g)))
+
+
+@ca("#321: mất nguồn hoặc lỗi đọc chỉ cảnh báo, có đường sửa tay")
+def _canh_bao_khong_chan_321():
+	from vagabond import luong_hoa_don_goc as lg
+	t = To(name='PI/TEST', custom_minvoice_id='SOURCE')
+	for loi_doc in (None, RuntimeError('source error')):
+		with patch.object(dl, '_goc', return_value=None, side_effect=loi_doc), patch.object(lg.frappe, 'msgprint', create=True) as bao:
+			la('lỗi nguồn giữ trên báo cáo', lg.doc_canh_bao(t)[0]['nhom'], 'nguon')
+			lg.kiem_truoc_ghi_so(t)
+			dung('không popup lỗi nguồn', not bao.called)
+	with patch.object(lg, 'doc_canh_bao', return_value=[{'nhom':'luong','chu':'<script>'}]), patch.object(lg.frappe.utils, 'get_url_to_form', return_value='https://fixture.invalid/app/purchase-invoice/PI%2FTEST', create=True) as url, patch.object(lg.frappe, 'msgprint', create=True) as bao:
+		lg.kiem_truoc_ghi_so(t)
+		la('helper đúng phiếu', url.call_args[0], ('Purchase Invoice','PI/TEST'))
+		dung('escape thông báo', '&lt;script&gt;' in bao.call_args[0][0] and '<script>' not in bao.call_args[0][0])
+
+
+@ca("#321: mất món và nguồn thiếu giá không được lọt hoặc chặn oan")
+def _nguon_thieu_321():
+	from vagabond import luong_hoa_don_goc as lg
+	g = dict(tong_tien=800, chi_tiet=[dict(ten="A", dvtinh="Hộp", sluong=6, dgia=100), dict(ten="B", dvtinh="Hộp", sluong=2, dgia=100)])
+	b = To(idx=1, item_code="B", ten_hang_ncc="B", qty=2, conversion_factor=500, rate=400)
+	t = To(items=[b])
+	with patch.object(lg.frappe.db, "get_value", lambda *a: 1), patch.object(mc, "don_vi_theo_ma", lambda *a: ("Hộp", 500)):
+		dung("mất A dù tổng đúng phải cảnh báo", bool(lg.sai_luong(t, g)))
+		g['chi_tiet'] = [dict(ten="B", dvtinh="Hộp", sluong=6, thtien=600)]
+		b.qty = 6
+		la("thiếu giá vẫn lấy lượng nguồn 6", lg.sai_luong(t, g), [])
+		b.qty = 1
+		dung("không dùng lượng giả 1", bool(lg.sai_luong(t, g)))
+		g['chi_tiet'][0]['sluong'] = 0
+		b.qty = 0
+		dung("nguồn không lượng không được đoán", bool(lg.sai_luong(t, g)))
+		g['chi_tiet'][0]['sluong'] = 6
+		g['tong_tien'] = -600
+		b.qty = -6
+		la("giữ chiều điều chỉnh giảm", lg.sai_luong(t, g), [])
+
+
+@ca("#321: tên Item cũ chỉ phục hồi bằng ánh xạ NCC duy nhất")
+def _ten_cu_321():
+	from vagabond import luong_hoa_don_goc as lg
+	g = dict(tong_tien=600, chi_tiet=[dict(ten="Tên NCC", dvtinh="Hộp", sluong=6, dgia=100)])
+	t = To(supplier="NCC", items=[To(idx=1,item_code="MON",item_name="Tên nội bộ",qty=6,conversion_factor=500)])
+	with patch.object(lg.frappe, "get_all", lambda *a, **k: [dict(ten_hang_ncc="Tên NCC",ma_hang="MON")]), patch.object(lg.frappe.db, "get_value", lambda *a: 1), patch.object(mc, "don_vi_theo_ma", lambda *a: ("Hộp",500)):
+		la("tên cũ có căn cứ mapping", lg.sai_luong(t,g), [])
+		t.items[0].qty = 3
+		dung("phục hồi tên không bỏ kiểm lượng", bool(lg.sai_luong(t,g)))
+		t.items[0].qty = 6
+		t.items[0].ten_hang_ncc = "Nguồn khác"
+		dung("không đè tên nguồn đã khai", bool(lg.sai_luong(t,g)))
+
+
+@ca("#321 cảnh báo tên không hướng dẫn sửa lượng, gọn tối đa năm mục")
+def _huong_dan_321():
+	from vagabond import luong_hoa_don_goc as lg
+	loi = [{'nhom':'nhan_dien','chu':'Món %s' % i} for i in range(7)]
+	with patch.object(lg, 'doc_canh_bao', return_value=loi) as doc, patch.object(lg.frappe, 'msgprint', create=True) as bao:
+		lg.kiem_truoc_ghi_so(To(custom_minvoice_id='SOURCE'))
+		dung('tên/mã chỉ xem báo cáo', not bao.called)
+		doc.return_value = loi + [{'nhom':'luong','chu':'Lượng %s' % i} for i in range(7)] * 2
+		lg.kiem_truoc_ghi_so(To(custom_minvoice_id='SOURCE'))
+		msg = bao.call_args[0][0]
+		dung('popup hỗn hợp chỉ giữ lượng', 'Món 0' not in msg and 'Lượng 0' in msg)
+		la('khử lặp', msg.count('Lượng 0'), 1)
+		dung('trần năm mục', 'Lượng 4' in msg and 'Lượng 5' not in msg)
+		dung('đếm còn lại', 'Còn 2 mục' in msg)
+
+
+@ca("#321 snapshot ẩn danh: Python và resolver thật khớp nhóm JS")
+def _audit_an_danh_321():
+	import json
+	from pathlib import Path
+	from types import SimpleNamespace
+	from vagabond import luong_hoa_don_goc as lg
+	data = json.loads(Path(__file__).with_name('audit_321_an_danh.json').read_text(encoding='utf-8'))
+	for index, c in enumerate(data):
+		items = {r[0]: To(name=r[0], is_stock_item=r[1], stock_uom=r[2], disabled=r[3]) for r in c['i']}
+		tables = {
+			'Anh Xa Mat Hang NCC': [To(nha_cung_cap='NCC', ten_hang_ncc=r[0], ma_hang=r[1]) for r in c['a']],
+			'MInvoice NCC Map': [To(name=str(i), supplier_mst='1', ten_ncc=r[0], item_code=r[1], vgb_uom=r[2]) for i,r in enumerate(c['q'])],
+			'UOM Conversion Detail': [To(parent=r[0], parenttype='Item', uom=r[1], conversion_factor=r[2]) for r in c['u']],
+		}
+		def get_all(dt, filters=None, **kwargs):
+			return [r for r in tables[dt] if all(r.get(k) == v for k,v in (filters or {}).items())]
+		def get_value(dt, ma, field, **kwargs):
+			assert dt == 'Item'
+			r = items.get(ma)
+			return r if isinstance(field, list) else (r.get(field) if r else None)
+		def exists(dt, name):
+			return name == 'MInvoice NCC Map' if dt == 'DocType' else name in {r[1] for r in c['u']}
+		g = dict(tong_tien=1, mst_doi_tac='1', chi_tiet=[dict(ten=r[0],dvtinh=r[1],sluong=r[2],tchat=r[3]) for r in c['s']])
+		doc = To(supplier='NCC', items=[To(idx=i+1,item_code=r[0],ten_hang_ncc=r[1],item_name=r[2],qty=r[3],conversion_factor=r[4]) for i,r in enumerate(c['d'])])
+		with patch.object(lg.frappe, 'get_all', get_all), patch.object(lg.frappe.db, 'get_value', get_value), patch.object(lg.frappe.db, 'exists', exists), patch.object(lg.frappe, 'get_meta', return_value=SimpleNamespace(has_field=lambda f: True), create=True):
+			loi = lg.sai_luong(doc, g)
+		actual=set()
+		for x in loi:
+			if 'chưa xác định duy nhất món' in x: actual.add('chua_xac_dinh_mon')
+			elif 'Chưa đối chiếu được món nguồn:' in x: actual.add('thieu_mon')
+			elif 'lượng quy về' in x: actual.add('lech_luong')
+			elif 'quy cách' in x: actual.add('quy_cach')
+			else: actual.add('UNCLASSIFIED')
+		la('snapshot ẩn danh %s' % index, sorted(actual), sorted(c['e']))
+
+
+@ca("#321 tên hiển thị giữ nguyên nguồn, nhóm không lệ thuộc câu chữ")
+def _nhom_co_cau_truc_321():
+	from vagabond import luong_hoa_don_goc as lg
+	g = dict(tong_tien=1, chi_tiet=[dict(ten='Bánh Thử ABC', sluong=1, dvtinh='Hộp'),dict(ten='',sluong=1,dvtinh='Hộp')])
+	ket = lg.sai_luong(To(items=[]), g, kem_nhom=True)
+	dung('giữ cách viết nguồn', any('Bánh Thử ABC' in x['chu'] for x in ket))
+	dung('tên rỗng nói rõ', any('(nguồn chưa ghi tên món)' in x['chu'] for x in ket))
+	with patch.object(dl, '_goc', return_value=g), patch.object(lg, 'sai_luong', return_value=[{'nhom':'luong','chu':'Thông điệp mới'}]), patch.object(lg.frappe, 'msgprint', create=True) as bao:
+		lg.kiem_truoc_ghi_so(To(custom_minvoice_id='SOURCE'))
+		dung('thay văn xuôi vẫn đúng hướng dẫn', 'Đối chiếu lượng và quy cách' in bao.call_args[0][0])
+
+
+@ca("#323 báo cáo nguồn: escape, trần mục, phân trang và lọc mã")
+def _bao_cao_nguon_323():
+	from vagabond.vagabond.report.doi_chieu_nguon_hoa_don_mua import doi_chieu_nguon_hoa_don_mua as rp
+	msg = rp.gom_ly_do(['<script>'] * 2 + ['M%s' % i for i in range(7)])
+	dung('escape HTML', '<script>' not in msg and '&lt;script&gt;' in msg)
+	la('khử lặp', msg.count('&lt;script&gt;'), 1)
+	dung('trần năm', 'M3' in msg and 'M4' not in msg and 'Còn 3 mục' in msg)
+	ds = [To(name='P%s' % i, posting_date='2026-09-15', supplier='NCC') for i in range(101)]
+	with patch.object(rp.frappe, 'get_list', return_value=ds, create=True) as lay, patch.object(rp.frappe, 'get_doc', return_value=To()) as doc, patch.object(rp, 'doc_canh_bao', return_value=[]):
+		_, rows, message = rp.execute(dict(hoa_don='PI-TEST', page=2))
+		la('đọc đúng trang', lay.call_args.kwargs['limit_start'], 100)
+		la('đọc thêm một để biết còn trang', lay.call_args.kwargs['limit_page_length'], 101)
+		la('chỉ kiểm một trăm phiếu', doc.call_count, 100)
+		dung('báo còn dữ liệu dù trang không cảnh báo', 'Còn dữ liệu' in message)
+		dung('lọc mã bỏ ngày', 'posting_date' not in lay.call_args.kwargs['filters'])
+		la('mã lọc đúng', lay.call_args.kwargs['filters']['name'], 'PI-TEST')

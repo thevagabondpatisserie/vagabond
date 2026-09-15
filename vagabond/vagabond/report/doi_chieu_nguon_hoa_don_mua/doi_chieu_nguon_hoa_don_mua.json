@@ -1,0 +1,33 @@
+{
+  "doctype": "Report",
+  "name": "Doi chieu nguon hoa don mua",
+  "report_name": "Doi chieu nguon hoa don mua",
+  "report_type": "Script Report",
+  "is_standard": "Yes",
+  "module": "Vagabond",
+  "ref_doctype": "Purchase Invoice",
+  "disabled": 0,
+  "prepared_report": 0,
+  "roles": [
+    {
+      "role": "Accounts User"
+    },
+    {
+      "role": "Accounts Manager"
+    },
+    {
+      "role": "AP Kiểm soát (FIN)"
+    },
+    {
+      "role": "System Manager"
+    }
+  ],
+  "creation": "2026-09-15 00:00:00.000000",
+  "modified": "2026-09-15 00:00:00.000000",
+  "owner": "Administrator",
+  "modified_by": "Administrator",
+  "docstatus": 0,
+  "idx": 0,
+  "columns": [],
+  "filters": []
+}

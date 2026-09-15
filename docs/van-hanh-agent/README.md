@@ -80,3 +80,6 @@ quả phụ thuộc lượt sau thực sự đọc, xác minh và dùng bài h�
 - [Issue 308: lô cảnh báo của mã thay thế](cong-viec/issue-308.md)
 
 - [Issue 307: BTP hạch toán 1552 theo ô Chặng](cong-viec/issue-307.md)
+
+- [Issue322: nhãn SePay và nội dung TTNB](cong-viec/issue-322.md)
+- [Issue 252: nối phiếu nhập](cong-viec/issue-252.md)
