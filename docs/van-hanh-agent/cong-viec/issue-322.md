@@ -19,3 +19,12 @@ tài khoản đông và một dòng tài khoản ít, kiểm dòng ít vẫn đ�
 Chip dùng CSS chips/chip/on có sẵn. Chưa xử lý F3-F7 (quyền chẩn đoán,
 escape kép, trạng thái/fallback, giới hạn danh sách, truy vấn nhãn trùng).
 Không chốt sẵn sàng phát hành chỉ vì CI trước xanh.
+
+## PR323 F3-F7
+
+Chẩn đoán tài khoản chưa nối chỉ trả vai kế toán/quản trị. Truyền nhãn
+đã đọc vào truy vấn sao kê, không đọc lại. Ca gọi ung_vien kiểm hai vai,
+tham số lọc và nhãn dùng chung. Bỏ escape kép ở nội dung đưa vào baoTin,
+giữ câu Đã chi kể cả response cũ thiếu nhãn. Trả tối đa5 dòng đã khớp,
+UI chỉ liệt kê khi tổng không quá5; các số đếm toàn lô giữ nguyên.
+Cần Claude review và bench SHA mới, chưa phát hành.

@@ -306,7 +306,7 @@ def nhan_tai_khoan():
 	return nhan, chip, chua
 
 
-def dong_sao_ke(chieu, so_ngay=45, tu_ngay=None, tai_khoan=None):
+def dong_sao_ke(chieu, so_ngay=45, tu_ngay=None, tai_khoan=None, nhan=None):
 	"""Các dòng sao kê đúng chiều tiền trong khoảng ngày. Chạm hệ."""
 	from frappe.utils import add_days, nowdate
 
@@ -324,7 +324,8 @@ def dong_sao_ke(chieu, so_ngay=45, tu_ngay=None, tai_khoan=None):
 			"reference_number", "bank_account"],
 		order_by="date desc", limit_page_length=500,
 	)
-	nhan, _, _ = nhan_tai_khoan()
+	if nhan is None:
+		nhan, _, _ = nhan_tai_khoan()
 	for g in ds:
 		g["nhan_ngan_hang"] = nhan.get(g.get("bank_account"), "Chưa xác định tài khoản")
 		# Ghep ca hai o lai lam mot chuoi de do: ngan hang doi khi day ma
@@ -412,7 +413,7 @@ def tu_dong(loai, ma_phieu=None, so_ngay=45):
 						"doi_soat_sepay: khi_khop loi %s %s" % (loai, c["doc"].name))
 			break
 	frappe.db.commit()
-	return {"da_khop": da, "da_khop_rows": da_khop_rows, "xem_lai": xem[:50], "so_phieu_quet": len(cho)}
+	return {"da_khop": da, "da_khop_rows": da_khop_rows[:5], "xem_lai": xem[:50], "so_phieu_quet": len(cho)}
 
 
 @frappe.whitelist()
@@ -437,9 +438,11 @@ def ung_vien(loai, ma_phieu, so_ngay=45, tu_khoa="", tai_khoan=""):
 
 	chiem = da_chiem(loai, tru_phieu=ma_phieu)
 	tk = str(tu_khoa or "").strip().lower()
-	_, chip, chua = nhan_tai_khoan()
+	nhan, chip, chua = nhan_tai_khoan()
+	if not {"AP Kiểm soát (FIN)", "Accounts User", "Accounts Manager", "System Manager"} & set(frappe.get_roles()):
+		chua = []
 	tho = []
-	for g in dong_sao_ke(b["chieu"], so_ngay, tai_khoan=tai_khoan):
+	for g in dong_sao_ke(b["chieu"], so_ngay, tai_khoan=tai_khoan, nhan=nhan):
 		if _loi_giao_dich(b, g):
 			continue
 		if chiem.get(g["name"]):

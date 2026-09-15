@@ -27030,7 +27030,7 @@ function ttnbVe(kq) {
       var lech = xx.filter(function (y) { return !y.trung_voi; });
       baoTin(r.ghi_chu ? r.ghi_chu :
         ('Đã khớp ' + money(r.da_khop || 0) + ' phiếu trên ' + money(r.so_phieu_quet || 0) + ' phiếu chờ chi.' +
-         (r.da_khop_rows || []).concat(xx).map(function (x) { return '\n' + h(x.phieu || '') + ' · ' + h(x.nhan_ngan_hang || 'Chưa xác định tài khoản'); }).join('') +
+         ((r.da_khop || 0) + xx.length <= 5 ? (r.da_khop_rows || []).concat(xx).map(function (x) { return '\n' + (x.phieu || '') + ' · ' + (x.nhan_ngan_hang || 'Chưa xác định tài khoản'); }).join('') : '') +
          (lech.length ? '\n\nCó ' + lech.length + ' phiếu nội dung khớp nhưng SỐ TIỀN LỆCH, cần xem lại.' : '') +
          (trung.length ? '\n\nCó ' + trung.length + ' phiếu trỏ vào giao dịch đã gắn cho phiếu khác.' : '')));
       chay();
@@ -27070,12 +27070,13 @@ async function ttnbKhopAuto(d) {
   catch (e) { busy(false); return baoTin((e && e.message) || 'Chưa quét được sao kê.', 'Lỗi'); }
   busy(false);
   if (kq && kq.da_khop) {
-    toast('Đã khớp lệnh chi: ' + ((kq.da_khop_rows || []).map(function (r) { return r.nhan_ngan_hang || 'Chưa xác định tài khoản'; }).join(', ')), 6500);
+    var nhan = (kq.da_khop_rows || []).slice(0, 5).map(function (r) { return r.nhan_ngan_hang || ''; }).filter(Boolean).join(', ');
+    toast('Đã khớp lệnh chi, phiếu chuyển sang Đã chi.' + (nhan ? ' ' + nhan : ''), 6500);
     return ttnbCt(d.name);
   }
   var xx = (kq && kq.xem_lai) || [];
   if (xx.length) {
-    return baoTin(h(xx[0].nhan_ngan_hang || '') + ': ' + h(xx[0].vi_sao || '') + ' Anh chị xem lại rồi dùng nút Khớp SePay thủ công.',
+    return baoTin((xx[0].nhan_ngan_hang ? xx[0].nhan_ngan_hang + ': ' : '') + (xx[0].vi_sao || '') + ' Anh chị xem lại rồi dùng nút Khớp SePay thủ công.',
       'Cần người xem');
   }
   baoTin('Chưa thấy dòng tiền ra nào mang mã "' + h(d.name) + '". Nếu tiền đã chuyển rồi ' +

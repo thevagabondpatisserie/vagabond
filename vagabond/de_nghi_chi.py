@@ -2057,7 +2057,7 @@ def doi_soat(so_ngay=30):
 			da_khop_rows.append({"phieu": d["name"], "nhan_ngan_hang": nhan.get(g.get("bank_account"), "Chưa xác định tài khoản")})
 			break
 	return {
-		"da_khop": da, "da_khop_rows": da_khop_rows, "xem_xet": xem, "so_phieu_quet": len(ds),
+		"da_khop": da, "da_khop_rows": da_khop_rows[:5], "xem_xet": xem, "so_phieu_quet": len(ds),
 		"ghi_chu": "" if da or xem else "Chưa có dòng tiền ra nào khớp phiếu đang chờ chi.",
 	}
 

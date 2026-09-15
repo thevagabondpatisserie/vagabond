@@ -337,3 +337,18 @@ def _loc_truoc_tran_323():
 		return [dict(r) for r in ds[:kw['limit_page_length']]]
 	with patch.object(dss.frappe, 'get_all', lay), patch.object(dss, 'nhan_tai_khoan', return_value=({}, [], [])):
 		la('dòng ít vẫn tới cửa đối soát', [r['name'] for r in dss.dong_sao_ke(dss.RA, tu_ngay='2026-09-15', tai_khoan='IT')], ['IT-1'])
+
+
+@ca("SePay: chỉ kế toán nhận chẩn đoán tài khoản chưa nối, dùng chung nhãn")
+def _quyen_chan_doan_323():
+	from unittest.mock import patch
+	import sys
+	from types import SimpleNamespace
+	ban = dict(doctype='TEST', ma_do=lambda d: 'TEST', so_tien=lambda d: 1, chieu=dss.RA, ten_man='TEST', truong_gd='gd')
+	for roles, can in [(['Sales User'], []), (['Accounts User'], ['Chưa nối'])]:
+		with patch.dict(sys.modules, {'vagabond.ban_hang': SimpleNamespace(_kiem_quyen=lambda: None)}), patch.object(dss, 'nap_so'), patch.object(dss, '_ban', return_value=ban), patch.object(dss.frappe, 'get_doc', return_value={}), patch.object(dss.frappe, 'get_roles', return_value=roles), patch.object(dss, 'da_chiem', return_value={}), patch.object(dss, 'nhan_tai_khoan', return_value=({'TK': 'Nhãn'}, [], ['Chưa nối'])) as nhan, patch.object(dss, 'dong_sao_ke', return_value=[]) as dong:
+			kq = dss.ung_vien('ttnb', 'TEST', tai_khoan='TK')
+			la('phạm vi chẩn đoán', kq['chua_noi_sepay'], can)
+			la('lọc truyền xuống query', dong.call_args.kwargs['tai_khoan'], 'TK')
+			la('nhãn dùng lại', dong.call_args.kwargs['nhan'], {'TK': 'Nhãn'})
+			la('chỉ đọc nhãn một lần', nhan.call_count, 1)
