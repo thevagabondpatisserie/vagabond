@@ -108,3 +108,5 @@ Nguồn lỗi có hướng dẫn kiểm thủ công/thử lại. Tên hiển th�
 và nói rõ khi trống. Fixture đọc UTF-8. Ca giữ nhóm khi đổi câu chữ.
 Nhận xét20/20 mapping null không khớp tệp:13 mẫu có5 dòng q khai UOM.
 Cần Claude đối chiếu; không bổ sung mẫu giả chỉ để đủ số. F10 còn chờ anh.
+
+F15: retain both old-wording assertions and reject current quantity guidance for name-only warnings. Production code unchanged. F10 still awaits user choice.

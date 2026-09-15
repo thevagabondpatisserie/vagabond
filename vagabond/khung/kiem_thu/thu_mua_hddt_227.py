@@ -357,7 +357,7 @@ def _huong_dan_321():
 		lg.kiem_truoc_ghi_so(To(custom_minvoice_id='SOURCE'))
 		msg = bao.call_args[0][0]
 		dung('hướng dẫn ánh xạ', 'ánh xạ tên nhà cung cấp' in msg)
-		dung('không gợi ý sửa lượng khi chỉ thiếu tên', 'sửa số lượng' not in msg and 'đơn giá hoặc phiếu nhập' not in msg)
+		dung('không gợi ý sửa lượng khi chỉ thiếu tên', 'sửa số lượng' not in msg and 'đơn giá hoặc phiếu nhập' not in msg and 'Đối chiếu lượng và quy cách' not in msg)
 		la('khử lặp tên', msg.count('Món 0'), 1)
 		dung('trần năm mục', 'Món 4' in msg and 'Món 5' not in msg)
 		dung('đếm mục còn lại sau khử trùng', 'Còn 2 mục' in msg)
