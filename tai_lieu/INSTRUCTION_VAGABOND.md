@@ -169,3 +169,8 @@ mỗi sự kiện; review dùng @claude review delta <FULL_HEAD_SHA> kèm mốc 
 base và phạm vi; chỉ tag @codex khi có finding cần sửa. Báo anh 3-5 dòng.
 Giữ cổng chất lượng và xác minh trước merge/deploy. Quy tắc đầy đủ trên repo:
 docs/van-hanh-agent/tiet-kiem-token.md. Chưa thay workflow hoặc lịch đã có.
+
+## Sáu thay đổi 16/09/2026
+
+Áp dụng docs/van-hanh-agent/van-hanh-chung.md, ưu tiên luật cũ mâu thuẫn về
+model, đọc lịch sử, tag và giới hạn vòng. Không đổi cổng hay phạm vi quyền.

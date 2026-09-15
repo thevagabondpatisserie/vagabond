@@ -670,3 +670,9 @@ frappe.throw can append a client dialog before raising. A read-only scan
 that catches it must mute messages in a scoped try/finally and restore
 the prior flag. Test message_log on the real resolver, not only returned
 errors. Applies to source report and advisory submit hook, PR323 F16.
+
+## 16/09/2026 - Đếm vòng agent bằng lượt thực thi
+Không dùng comment hay run created_at làm bằng chứng model đã chạy: skipped
+không tiêu lượt, rerun của run cũ có thể bắt đầu hôm nay. Gate đọc mọi attempt
+và started_at bước model theo PR; API lỗi chặn chạy. Khóa này chỉ bao workflow
+được tích hợp, không mặc định bao native Codex. Nguồn: PR sáu thay đổi agent.
