@@ -656,3 +656,10 @@ Không dò chuỗi tiếng Việt để chọn hướng dẫn: sửa văn phong 
 hướng dẫn cho đúng nguyên nhân. Giữ nhóm có cấu trúc cùng câu hiển thị;
 ca kiểm thay câu vẫn nhận đúng nhóm và lỗi đọc nguồn có hướng dẫn riêng.
 PR323 F12.
+
+### Tách cảnh báo thao tác khỏi báo cáo chất lượng dữ liệu
+
+Thiếu ánh xạ tên nguồn không nên bật popup mỗi lần ghi sổ. Theo duyệt
+F10, chỉ nhóm lượng/quy cách bật popup; báo cáo chung đọc lại dữ liệu hiện
+tại và giữ quyền chứng từ. Phân trang phải báo rõ còn dữ liệu, không gọi
+trang rỗng là toàn hệ thống đã sạch. PR323.

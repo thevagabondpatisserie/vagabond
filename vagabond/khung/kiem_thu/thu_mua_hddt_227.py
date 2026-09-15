@@ -300,17 +300,15 @@ def _ten_dai_321():
 def _canh_bao_khong_chan_321():
 	from vagabond import luong_hoa_don_goc as lg
 	t = To(name='PI/TEST', custom_minvoice_id='SOURCE')
-	for loi_doc in (None, RuntimeError('nguồn lỗi')):
-		with patch.object(dl, "_goc", return_value=None, side_effect=loi_doc), patch.object(lg.frappe.utils, "get_url_to_form", return_value="https://fixture.invalid/app/purchase-invoice/PI%2FTEST", create=True) as lien_ket, patch.object(lg.frappe, "msgprint", create=True) as bao:
+	for loi_doc in (None, RuntimeError('source error')):
+		with patch.object(dl, '_goc', return_value=None, side_effect=loi_doc), patch.object(lg.frappe, 'msgprint', create=True) as bao:
+			la('lỗi nguồn giữ trên báo cáo', lg.doc_canh_bao(t)[0]['nhom'], 'nguon')
 			lg.kiem_truoc_ghi_so(t)
-			dung("không đọc nguồn vẫn báo và trả về", bao.called)
-			dung('nguồn lỗi có hướng dẫn riêng', 'đối chiếu thủ công' in bao.call_args[0][0])
-			dung("đường sửa tay đúng chứng từ", 'https://fixture.invalid/app/purchase-invoice/PI%2FTEST' in bao.call_args[0][0])
-			la('helper nhận đúng chứng từ', lien_ket.call_args[0], ('Purchase Invoice', 'PI/TEST'))
-	t.name = None
-	with patch.object(dl, "_goc", return_value={"name": "SOURCE"}), patch.object(lg, "sai_luong", return_value=[{'nhom': 'nguon', 'chu': '<script>'}]), patch.object(lg.frappe, "msgprint", create=True) as bao:
+			dung('không popup lỗi nguồn', not bao.called)
+	with patch.object(lg, 'doc_canh_bao', return_value=[{'nhom':'luong','chu':'<script>'}]), patch.object(lg.frappe.utils, 'get_url_to_form', return_value='https://fixture.invalid/app/purchase-invoice/PI%2FTEST', create=True) as url, patch.object(lg.frappe, 'msgprint', create=True) as bao:
 		lg.kiem_truoc_ghi_so(t)
-		dung("cảnh báo escape nội dung", '&lt;script&gt;' in bao.call_args[0][0] and '<script>' not in bao.call_args[0][0])
+		la('helper đúng phiếu', url.call_args[0], ('Purchase Invoice','PI/TEST'))
+		dung('escape thông báo', '&lt;script&gt;' in bao.call_args[0][0] and '<script>' not in bao.call_args[0][0])
 
 
 @ca("#321: mất món và nguồn thiếu giá không được lọt hoặc chặn oan")
@@ -352,15 +350,17 @@ def _ten_cu_321():
 @ca("#321 cảnh báo tên không hướng dẫn sửa lượng, gọn tối đa năm mục")
 def _huong_dan_321():
 	from vagabond import luong_hoa_don_goc as lg
-	loi = [{'nhom': 'nhan_dien', 'chu': 'Chưa đối chiếu được món nguồn: Món %s' % i} for i in range(7)]
-	with patch.object(dl, '_goc', return_value={'name': 'SOURCE'}), patch.object(lg, 'sai_luong', return_value=loi + loi), patch.object(lg.frappe, 'msgprint', create=True) as bao:
+	loi = [{'nhom':'nhan_dien','chu':'Món %s' % i} for i in range(7)]
+	with patch.object(lg, 'doc_canh_bao', return_value=loi) as doc, patch.object(lg.frappe, 'msgprint', create=True) as bao:
+		lg.kiem_truoc_ghi_so(To(custom_minvoice_id='SOURCE'))
+		dung('tên/mã chỉ xem báo cáo', not bao.called)
+		doc.return_value = loi + [{'nhom':'luong','chu':'Lượng %s' % i} for i in range(7)] * 2
 		lg.kiem_truoc_ghi_so(To(custom_minvoice_id='SOURCE'))
 		msg = bao.call_args[0][0]
-		dung('hướng dẫn ánh xạ', 'ánh xạ tên nhà cung cấp' in msg)
-		dung('không gợi ý sửa lượng khi chỉ thiếu tên', 'sửa số lượng' not in msg and 'đơn giá hoặc phiếu nhập' not in msg and 'Đối chiếu lượng và quy cách' not in msg)
-		la('khử lặp tên', msg.count('Món 0'), 1)
-		dung('trần năm mục', 'Món 4' in msg and 'Món 5' not in msg)
-		dung('đếm mục còn lại sau khử trùng', 'Còn 2 mục' in msg)
+		dung('popup hỗn hợp chỉ giữ lượng', 'Món 0' not in msg and 'Lượng 0' in msg)
+		la('khử lặp', msg.count('Lượng 0'), 1)
+		dung('trần năm mục', 'Lượng 4' in msg and 'Lượng 5' not in msg)
+		dung('đếm còn lại', 'Còn 2 mục' in msg)
 
 
 @ca("#321 snapshot ẩn danh: Python và resolver thật khớp nhóm JS")

@@ -213,6 +213,9 @@ def _nguon_luong_321():
 	hd.submit()
 	hd.reload()
 	la("cảnh báo không chặn ghi sổ", hd.docstatus, 1)
+	from vagabond.vagabond.report.doi_chieu_nguon_hoa_don_mua.doi_chieu_nguon_hoa_don_mua import execute
+	_, bao_cao, _ = execute(dict(from_date=hd.posting_date, to_date=hd.posting_date, hoa_don=hd.name))
+	dung("báo cáo đọc chứng từ thật đã ghi sổ", any(r["hoa_don"] == hd.name for r in bao_cao))
 	dung("sổ cái đã sinh", len(nen.so_cai_cua(hd)) > 0)
 
 
@@ -233,4 +236,7 @@ def _mat_mon_321():
 	hd.submit()
 	hd.reload()
 	la("cảnh báo không chặn ghi sổ", hd.docstatus, 1)
+	from vagabond.vagabond.report.doi_chieu_nguon_hoa_don_mua.doi_chieu_nguon_hoa_don_mua import execute
+	_, bao_cao, _ = execute(dict(from_date=hd.posting_date, to_date=hd.posting_date, hoa_don=hd.name))
+	dung("báo cáo đọc chứng từ thật đã ghi sổ", any(r["hoa_don"] == hd.name for r in bao_cao))
 	dung("sổ cái đã sinh", len(nen.so_cai_cua(hd)) > 0)

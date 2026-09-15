@@ -110,3 +110,13 @@ Nhận xét20/20 mapping null không khớp tệp:13 mẫu có5 dòng q khai UOM
 Cần Claude đối chiếu; không bổ sung mẫu giả chỉ để đủ số. F10 còn chờ anh.
 
 F15: retain both old-wording assertions and reject current quantity guidance for name-only warnings. Production code unchanged. F10 still awaits user choice.
+
+## Anh duyệt F10 và deploy
+
+Chỉ popup nhóm lượng/quy cách. Tên/mã và lỗi nguồn gom vào Script Report
+Doi chieu nguon hoa don mua, đọc chung doc_canh_bao với hook. Báo cáo
+không ghi Comment/chứng từ, get_list giữ quyền PI, lọc ngày/mã và phân
+trang100 hoá đơn (báo rõ còn trang). Có đường Link về PI để sửa tay theo
+quyền hiện có. Báo cáo gồm cả nháp và đã ghi sổ, loại phiếu hủy/trả.
+Có ca Document.submit và đọc báo cáo thật trên bench. Anh cho deploy sau
+cổng bản cuối; F10 không còn chờ duyệt. Các số auditJS vẫn là ước lượng.

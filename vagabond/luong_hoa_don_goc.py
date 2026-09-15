@@ -79,32 +79,24 @@ def sai_luong(doc, g, kem_nhom=False):
 	return loi if kem_nhom else [x["chu"] for x in loi]
 
 
-def kiem_truoc_ghi_so(doc, method=None):
-	"""Anh Việt chốt: kiểm nguồn chỉ cảnh báo, không cản thao tác kế toán.
-
-	Không sửa qty/rate/đầu nối. Lỗi đọc nguồn cũng không biến thành chốt mới.
-	Nhân viên sửa dòng trên chứng từ theo quyền và vòng đời ERP hiện có.
-	"""
+def doc_canh_bao(doc):
+	"""Chỉ đọc, dùng chung cho báo cáo và popup, không ghi dữ liệu."""
 	if doc.get("is_return") or not doc.get("custom_minvoice_id"):
-		return
+		return []
 	try:
 		g = dl._goc(doc.get("custom_minvoice_id"))
-		loi = sai_luong(doc, g, kem_nhom=True) if g else [{"nhom": "nguon", "chu": "Chưa đọc được hoá đơn nguồn để kiểm lượng."}]
+		return sai_luong(doc, g, kem_nhom=True) if g else [{"nhom": "nguon", "chu": "Chưa đọc được hoá đơn nguồn để kiểm lượng."}]
 	except Exception:
-		loi = [{"nhom": "nguon", "chu": "Chưa kiểm được lượng theo hoá đơn nguồn."}]
+		return [{"nhom": "nguon", "chu": "Chưa kiểm được lượng theo hoá đơn nguồn."}]
+
+
+def kiem_truoc_ghi_so(doc, method=None):
+	"""Anh Việt duyệt F10: chỉ popup lượng/quy cách, phần khác xem báo cáo."""
+	loi = [x for x in doc_canh_bao(doc) if x["nhom"] == "luong"]
 	if loi:
 		duong = frappe.utils.get_url_to_form("Purchase Invoice", doc.get("name")) if doc.get("name") else ""
-		cac_nhom = {x["nhom"] for x in loi}
 		loi = list(dict.fromkeys(x["chu"] for x in loi))
-		nhan_dien = "nhan_dien" in cac_nhom
-		luong = "luong" in cac_nhom
-		huong_dan = "Đây là cảnh báo, không chặn ghi sổ."
-		if "nguon" in cac_nhom:
-			huong_dan += " Mở bản hoá đơn gốc để đối chiếu thủ công; thử kiểm lại nguồn sau hoặc báo quản trị nếu lỗi tiếp diễn. Không tự đổi số lượng hay đơn giá vì máy chưa đọc được nguồn."
-		if nhan_dien:
-			huong_dan += " Máy chưa đối chiếu được tên/mã món với nguồn. Kiểm hoá đơn gốc và ánh xạ tên nhà cung cấp; chưa kết luận số lượng hay đơn giá đang sai."
-		if luong:
-			huong_dan += " Đối chiếu lượng và quy cách với bản gốc trước khi sửa tay theo quyền hiện có. Chứng từ đã ghi sổ dùng quy trình sửa/hủy chuẩn của ERP."
+		huong_dan = "Đây là cảnh báo, không chặn ghi sổ. Đối chiếu lượng và quy cách với bản gốc trước khi sửa tay theo quyền hiện có. Chứng từ đã ghi sổ dùng quy trình sửa/hủy chuẩn của ERP."
 		noi_dung = "<br>".join(escape(x) for x in loi[:5])
 		if len(loi) > 5:
 			noi_dung += "<br>Còn %s mục cần kiểm tra trên chứng từ." % (len(loi) - 5)
