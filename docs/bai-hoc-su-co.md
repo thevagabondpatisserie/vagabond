@@ -617,3 +617,28 @@ tham số lọc và nhãn dùng chung. Bỏ escape kép ở nội dung đưa và
 giữ câu Đã chi kể cả response cũ thiếu nhãn. Trả tối đa5 dòng đã khớp,
 UI chỉ liệt kê khi tổng không quá5; các số đếm toàn lô giữ nguyên.
 Cần Claude review và bench SHA mới, chưa phát hành.
+## 15/09/2026: tiền gốc phiếu nhập không phải phần còn được nối (#252)
+
+Màn so sánh đã trừ lượng hóa đơn khác ghi sổ nhưng danh sách phiếu vẫn in
+số tiền gốc không có nhãn. Người dùng cộng các số đó và tưởng bộ nối chặn sai.
+Giữ hàng rào lượng, ghi rõ tiền gốc và phần còn từ cùng nguồn lượng máy chủ;
+hướng dẫn kiểm đầu nối hóa đơn đã dùng trước. Không lấy triệu chứng này làm
+căn cứ tự sửa chứng từ đã ghi sổ hoặc bù thêm kho.
+
+PR321 review inline: số tiền còn lại trên phiếu có thể gồm món thừa hoặc khác đơn vị. Không gọi tổng này là số nối được; phải phân biệt số dư với điều kiện ghép từng dòng.
+
+PR321: bộ chuẩn hóa tiền có thể đặt qty1 khi thiếu đơn giá; không tái sử dụng qty đó làm lượng nguồn. Kiểm nguồn phải xét cả dòng bị bỏ khỏi chứng từ, không chỉ những dòng còn lại.
+
+PR321 audit: tên Item cũ khác tên NCC không chứng minh mất dòng. Chỉ phục hồi căn cứ bằng mapping duy nhất, và vẫn kiểm lượng; không dùng tổng tiền để suy tên.
+
+## PR321 - chỉ cảnh báo theo chốt anh Việt 15/09/2026
+
+Chỉ dẫn mới thay thiết kế chặn lượng ở các commit trước: kiểm lượng nguồn
+không chặn lưu/ghi sổ, kể cả thiếu nguồn hoặc lỗi đọc. Hiện cảnh báo có
+đường mở Purchase Invoice để sửa tay theo quyền và vòng đời chứng từ hiện có.
+Không tự thay qty/rate/đầu nối hoặc bỏ kiểm lõi ERP. Ca tích hợp được đổi
+sang Document.submit thành công, docstatus1 và có GL dù lượng nguồn lệch.
+Cảnh báo phiếu nhập còn lại ẩn khi đã khớp. Cần bench và Claude review
+trên SHA mới; không dùng cổng xanh của thiết kế chặn cũ để chốt bản này.
+
+PR321 review e6a16cdd: dùng get_url_to_form của Frappe cho đường sửa tay, escape thuộc tính href. Bench e6a16cdd đã xanh; bản sửa URL phải kiểm lại. Cảnh báo popup có giới hạn với submit nền/hàng loạt, chưa có cảnh báo lưu trên chứng từ. Không coi popup là bằng chứng mọi nhân viên đã đọc.

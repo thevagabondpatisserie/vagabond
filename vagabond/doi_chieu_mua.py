@@ -562,12 +562,14 @@ def so_sanh(name, phieu=None):
 	# `_kho_con_lai_tu_dong`.
 	kho_pnk = _kho_con_lai_tu_dong(name, dong, phieu)
 	tien_pnk = 0.0
+	tien_pnk_goc = 0.0
 	hd_da_dung = set()
 	for ds in kho_pnk.values():
 		for x in ds:
 			# Tien con lai cua dong phieu = gia moi don vi kho x luong con
 			# lai ngoai to nay. Phieu chua ai lay thi bang dung amount.
 			tien_pnk += dvt_mua.gia_moi_don_vi_kho(x.get("rate"), x["hs"]) * max(0, flt(x["con_ngoai"]))
+			tien_pnk_goc += dvt_mua.gia_moi_don_vi_kho(x.get("rate"), x["hs"]) * x["nhan"]
 			hd_da_dung.update(_ten_hd_da_dung(x))
 	# Tong tien lam tron ve dong, khop voi cach ERPNext ghi `total`.
 	tien_pnk = flt(tien_pnk, 0)
@@ -706,6 +708,7 @@ def so_sanh(name, phieu=None):
 		"thua": thua,
 		"tien_hd": flt(hd["total"]),
 		"tien_pnk": tien_pnk,
+		"tien_pnk_goc": flt(tien_pnk_goc, 0),
 		"lech_tien": flt(hd["total"]) - tien_pnk,
 		# Lech don vi thi khong bao gio duoc coi la khop, du tien co bang nhau
 		# tuyet doi: tien bang nhau ma so luong lech mot nghin lan la ca that
