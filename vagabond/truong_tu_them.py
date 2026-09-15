@@ -127,6 +127,15 @@ def dung():
 	from vagabond import kho_san_xuat
 
 	_dung_nhom(kho_san_xuat.TRUONG_MOI, "kho_san_xuat")
+	# #307: ô Tài khoản tồn kho (điền tay) ngay dưới ô Chặng, và cột đó hiện
+	# trong lưới Item Default. Phải đứng SAU kho_san_xuat vì insert_after
+	# trỏ vào custom_chang_btp.
+	from vagabond import tai_khoan_btp
+
+	try:
+		tai_khoan_btp.dung()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "truong_tu_them: tai_khoan_btp")
 	from vagabond import san_xuat_desktop
 	_dung_nhom(san_xuat_desktop.TRUONG_MOI, "san_xuat_desktop")
 	# Ô "Chặng bán thành phẩm" đổi từ mã máy sang chữ (06/09/2026, #206).

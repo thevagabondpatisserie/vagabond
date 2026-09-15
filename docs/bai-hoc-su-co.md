@@ -496,6 +496,52 @@ bench riêng, không suy ra từ ca thuần.
   huỷ không tương đương tồn hiệu lực. Đọc is_cancelled theo core và đối
   chiếu Bin actual_qty/stock_value; không bỏ assertion giá trị để cổng xanh.
 
+## 14/09/2026 - Issue 307: máy GitHub Actions không clone được lõi ERPNext
+
+Bản Claude chạy trên Actions bị chặn mọi đường ra mạng (git clone, gh api,
+WebFetch), nên không dán được nguyên văn hàm lõi như AGENTS.md mục 5 đòi.
+Không được suy từ trí nhớ thay cho trích dẫn. Cách làm: đặt tên ô lõi ở
+một hằng duy nhất, hook kiểm meta trước khi ghi, patch dừng migrate nếu ô
+không có, và ghi rõ trên PR điểm nào chưa đối chiếu để người có bench
+(checkout pinned) đối chiếu trước khi merge. Nguồn: #307, PR A.
+
+## 14/09/2026 - Issue 307: tài khoản theo món không quay về kho, nhóm không leo cha
+
+Anh Việt đọc lõi de591661: bật `enable_item_wise_inventory_account` thì
+lõi tìm Item Default, Item Group Default, Brand rồi CHẶN chứng từ, không
+lấy tài khoản kho làm dự phòng. `get_item_group_defaults` chỉ đọc đúng
+nhóm trên hồ sơ món, không leo nhóm cha. Hệ quả: lưới đỡ phải gán cho từng
+nhóm LÁ có món theo tồn, và trước ngày bật cờ phải có báo cáo "món ba nấc
+đều trống" rỗng. Không đặt tài khoản ở nhóm gốc rồi tin là đủ. Bảng tên
+nhóm và tài khoản thật phải đọc từ site bằng lệnh chỉ đọc và dán lên PR
+duyệt, không suy từ trí nhớ. Nguồn: PR #316 comment anh Việt 14/09 chiều.
+
+### #316: không suy công ty đích từ Account đầu vào
+Validator truyền None vào kiểm công ty đã nhận Account Demo trong cấu hình BTP. Nếu lại suy công ty đích từ chính Account này, phép kiểm sau cũng tự hợp thức hóa lựa chọn sai. Lấy công ty mặc định độc lập, lọc cùng công ty ở patch và có ca gọi cửa validate thật với Account khác công ty.
+
+## PR316: nhóm mua vào không đồng nghĩa tài khoản152
+
+Theo chốt 14/09, công cụ và văn phòng phẩm dùng153; tài sản/dịch vụ không gán tài khoản tồn kho. Không tự bỏ theo tồn nếu đã có SLE kể cả đã huỷ. Lưu cấu hình BTP phải truyền giá trị mới vào bước nạp nhóm, tránh đọc lại cache cấu hình cũ; không đè tài khoản khai tay. Cổng phải giữ ngoại lệ có lịch sử cho Khải xử lý.
+
+### PR316: fixture Item Default đã có dòng công ty
+
+Bench48ffd469 chặn hai ca trước GL vì fixture append dòng công ty đã được Item.insert dựng. Dùng lại dòng hiện hữu hoặc thêm khi chưa có; đọc validate_item_defaults của lõi. Không gọi lỗi này là sai GL hay bỏ validation để làm xanh.
+
+
+### PR316: kiểm chức năng tự điền trước khi kiểm GL
+
+Bench gán tài khoản tay chỉ chứng minh lõi ERPNext đọc Item Default, không chứng minh Settings và chặng BTP chạy đúng. Ca phải lưu Settings thật và đọc lại món trước khi ghi GL. Khi đổi cấu hình cần giữ cấu hình cũ để nhận ra giá trị cần cập nhật; xoá trắng là lựa chọn phải giữ qua lần lưu tiếp theo. Patch không được báo hoàn tất nếu bộ nạp còn lỗi. Nguồn review4005553556/3564 và4005662193/2200.
+
+
+### PR316: lưu Settings thật cần cả cấu hình nền
+
+Bench3c31739d chưa tới BTP vì fixture thiếu tọa độ bếp mà Settings.validate bắt buộc. Khi kiểm on_update bằng save thật, dựng cả điều kiện nền của document thay vì tắt validator. Audit phải nói đổi cấu hình khi chặng giữ nguyên, không dùng chung câu đổi chặng. Nguồn run34853835218 và review5665332461.
+
+
+### PR316: truy vấn tổng hợp trên Frappe mới
+Bench e06eaa2c chặn lưu Settings vì get_all không nhận hàm SQL dạng chuỗi trong fields. Dùng SQL cố định với tham số cho phép đếm nhóm; giữ ca bench đi qua Settings.save để kiểm truy vấn thật, không chỉ helper. Hai lượt cũ 217/219, rollback sạch; chưa dùng làm bằng chứng GL đạt.
+
+PR316 bổ sung: rà toàn app các fields có SUM/COUNT khi gặp lỗi hàm gộp. Báo cáo cổng còn SUM dạng chuỗi, đã sửa và thêm bench execute đọc tồn từ Bin sau nhập/huỷ thật. Scan 14/09 không còn mẫu này trong code chạy, chỉ còn chuỗi đối chứng test.
 ### #317: lô chuyển khoản không phải mã giao dịch ngân hàng
 `ma_gd` là Link Bank Transaction. Ghi mã tạm vào đây làm lẫn việc chuẩn bị chuyển và tiền đã ra. Dùng `lo_chuyen` riêng; một tài khoản thụ hưởng một lô, chỉ ghi mã giao dịch thật khi khớp tổng. Các phiếu đã vào lô không được khớp lẻ. Cần bench thử lại và lỗi giữa chừng trước phát hành.
 
@@ -538,3 +584,15 @@ có phê duyệt từ việc gửi tin hay phản hồi chưa được xử lý.
 ### PR318 F20/F21: thay điều kiện phải có đường chỉ dẫn
 
 Ẩn khớp sao kê trước duyệt phải giải thích bước tiếp cho kế toán. Patch cấu hình series phải kiểm trường tồn tại trước truy cập options, vì DocType tồn tại không chứng minh trường còn tồn tại. Hai đường có ca hồi quy trong delta F20/F21.
+
+### PR316/318: tích hợp phát hành phải giữ cổng của cả hai
+
+Khi cùng thêm import bench hoặc patch cuối tệp, giữ cả hai suite và thứ tự phiên bản. Đợt này YCPS thuộc v492, mapping nhóm món thuộc v493. Ca kiểm patch307 phải xác nhận đứng trước v493, không còn bám v492; dựng bundle từ nguồn và chạy lại toàn cổng trên nhánh tích hợp.
+
+### PR316/318: quyền tệp mới khác quyền xử lý chứng từ cũ
+
+Kiểm người tải trên mọi lần đọc/duyệt làm kế toán bị chặn bởi biên nhận nhân viên đã lưu trước. So URL với bảng kê persisted từ DB; chỉ URL mới chưa gắn chứng từ cần đối chiếu chủ tải. Không lấy danh sách cũ từ client. Giao việc không có người nhận không phải lỗi cấu trúc dữ liệu: patch giữ trạng thái và dấu vết cảnh báo, không làm sập cả migrate chỉ vì giao=0.
+
+### PR316 inline4011368627: chuyển bàn khi danh sách nhận rỗng
+
+Giao việc trả sớm khi không có người nhận nên chưa đóng ToDo cũ. Patch đổi trạng thái cần gọi go_giao ở nhánh này để ToDo và _assign không còn trỏ giám đốc; giữ dấu vết Closed và cảnh báo cần giao lại.

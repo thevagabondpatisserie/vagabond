@@ -256,3 +256,51 @@ def _ycps_khong_co_series():
 		patch.dict(sys.modules, {'frappe.custom.doctype.property_setter.property_setter': SimpleNamespace(make_property_setter=setter)}):
 		ycps_317.execute()
 		setter.assert_not_called()
+
+
+@ca('#317 tệp đã lưu do người khác tải không chặn kế toán; tệp mới vẫn chặn')
+def _tep_cu_ke_toan():
+	from unittest.mock import patch
+	from types import SimpleNamespace
+	from unittest import TestCase
+	class D(dict):
+		__getattr__ = dict.get
+		__setattr__ = dict.__setitem__
+		def is_new(self): return False
+	p = D(name='P', nguoi_tao='nv', loai_nghiep_vu=dc.NV_CHI_PHI,
+		trang_thai=dc.TT_CHO_KE_TOAN, cac_khoan=[{'tep':['/files/cu.jpg']}])
+	cu = D(cac_khoan=[{'tep':['/files/cu.jpg']}])
+	def doc(dt, *args, **kw):
+		if dt == dc.DT: return D(quy_tac_317=1, trang_thai=dc.TT_CHO_KE_TOAN)
+		return D(name='FILE', owner='nv', attached_to_name='', attached_to_doctype='')
+	with patch.object(dc, '_kem_dm', side_effect=lambda d: dict(d)), \
+		patch.object(dc, '_vai', return_value=[]), \
+		patch.object(dc.frappe, 'session', SimpleNamespace(user='ke-toan')), \
+		patch.object(dc.frappe.db, 'get_value', side_effect=doc), \
+		patch.object(dc.frappe, 'get_doc', return_value=cu), \
+		patch.object(dc.frappe, 'get_all', return_value=[]):
+		la('biên nhận cũ vẫn tính', dc._phieu_kiem_317(p)['_so_tep_phieu'], 1)
+		p.cac_khoan = [{'tep':['/files/moi.jpg']}]
+		with TestCase().assertRaisesRegex(Exception, 'người tải'):
+			dc._phieu_kiem_317(p)
+
+
+@ca('#317 không có người nhận việc: migrate tiếp và lưu cảnh báo')
+def _patch_thieu_ke_toan():
+	import sys
+	from unittest.mock import patch, Mock
+	from types import SimpleNamespace
+	from vagabond.patches import ycps_317
+	ghi = Mock()
+	go = Mock()
+	with patch.dict(sys.modules, {'vagabond.giao_viec': SimpleNamespace(giao_vai=Mock(return_value={'giao':0}), go_giao=go)}), \
+		patch.object(dc.frappe, 'get_all', return_value=['P']), \
+		patch.object(dc.frappe.db, 'set_value') as doi, \
+		patch.object(dc.frappe.db, 'exists', return_value=False), \
+		patch.object(dc.frappe, 'get_doc', return_value=SimpleNamespace(add_comment=ghi)), \
+		patch.object(dc.frappe, 'log_error', create=True) as log:
+		ycps_317.execute()
+		la('chuyển đúng bàn', doi.call_args.args[-1], 'Cho ke toan')
+		la('có dấu vết cảnh báo', ghi.call_count, 2)
+		la('có log quản trị', log.call_count, 1)
+		la('đóng giao việc bước cũ', go.call_args.args, (dc.DT, 'P'))

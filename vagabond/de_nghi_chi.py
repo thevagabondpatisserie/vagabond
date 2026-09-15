@@ -887,6 +887,10 @@ def _phieu_kiem_317(doc, gui=False):
 			frappe.throw("Chỉ được chọn YCPS của mình hoặc YCPS đã được cấp quyền đọc.", frappe.PermissionError)
 		p["_ycps_hop_le"] = _ycps_hop_le_317(yc)
 		p["_ycps_ke_thua"] = bool(p["_ycps_hop_le"] and doc.get("loai_nghiep_vu") == NV_HOAN_UNG)
+	tep_cu = set()
+	if not doc.is_new():
+		for dong_cu in cac_dong(frappe.get_doc(DT, doc.name)):
+			tep_cu.update(tep_dinh_kem.doc_ds(dong_cu.get("tep")))
 	tep = set()
 	for d in cac_dong(doc):
 		tep.update(tep_dinh_kem.doc_ds(d.get("tep")))
@@ -897,7 +901,7 @@ def _phieu_kiem_317(doc, gui=False):
 		f = frappe.db.get_value("File", {"file_url": url}, ["name", "owner", "attached_to_doctype", "attached_to_name"], as_dict=True)
 		if not f or (f.attached_to_name and (f.attached_to_name != doc.name or f.attached_to_doctype != DT)):
 			frappe.throw("Biên nhận không tồn tại hoặc thuộc chứng từ khác. Chọn lại tệp.")
-		if not f.attached_to_name and f.owner != frappe.session.user and "System Manager" not in _vai():
+		if url not in tep_cu and not f.attached_to_name and f.owner != frappe.session.user and "System Manager" not in _vai():
 			frappe.throw("Chỉ người tải biên nhận được dùng tệp này.")
 	p["_so_tep_phieu"] = len(tep)
 	return p

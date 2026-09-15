@@ -17,7 +17,11 @@ def execute():
 		from vagabond.de_nghi_chi import VAI_BUOC, TT_CHO_KE_TOAN
 		kq = giao_vai("Vagabond De Nghi Chi", ten, sorted(VAI_BUOC[TT_CHO_KE_TOAN]), ghi, bao=0)
 		if not kq.get("giao"):
-			frappe.throw("Chưa giao được phiếu %s cho kế toán. Kiểm người giữ vai kế toán rồi chạy lại migrate." % ten)
+			from vagabond.giao_viec import go_giao
+			go_giao("Vagabond De Nghi Chi", ten)
+			frappe.get_doc("Vagabond De Nghi Chi", ten).add_comment("Info",
+				"Chưa giao được việc cho kế toán. Phiếu vẫn ở Chờ kế toán; quản trị cần kiểm vai và giao lại việc.")
+			frappe.log_error(title="YCPS317: cần giao lại việc", message="Phiếu %s đã chuyển Chờ kế toán nhưng chưa có người nhận việc." % ten)
 	if not frappe.db.exists("DocType", "RnD Purchase Request"):
 		return
 	from frappe.custom.doctype.property_setter.property_setter import make_property_setter

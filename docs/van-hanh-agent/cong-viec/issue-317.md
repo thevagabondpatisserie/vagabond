@@ -48,3 +48,7 @@ F12 15/09 00:34: bench332733a6 xác nhận217/221 hai lượt, bốn ca317 dừn
 ### Delta F20/F21
 
 Đã thêm lời nhắc duyệt trước khớp sao kê cho Chờ kế toán, ca chạy hàm UI thật chốt không hiện ở Chờ duyệt. Patch bỏ qua đổi series nếu không có trường naming_series, có ca thuần không gọi Property Setter. Đồng bộ main d86c5c4d, giữ cả hai phần bài học. Local 3001/3001 và toàn cổng rc0. Bench eeb56a6 đạt 222/222 hai lượt, sạch; không thay bench SHA mới. F22 đã gửi anh hai lựa chọn lập hộ/chia sẻ, chưa thay quy trình khi chưa có trả lời.
+
+### 15/09 - Giao việc sau migrate, inline4011368627
+
+Bản tích hợp316 sửa nhánh giao=0: gọi go_giao để đóng ToDo bước giám đốc và đồng bộ _assign, rồi giữ Comment/Error Log yêu cầu giao lại. Không xoá lịch sử ToDo. Ca thuần gọi patch và chốt đúng phiếu được gỡ. Đây là finding mới đọc từ inline, dù Claude đã chốt delta73921cbd. Chờ cổng và review SHA kế tiếp; chưa deploy.

@@ -508,3 +508,5 @@ cập nhật một bản bàn giao ngắn cho issue trong PR hiện tại, kèm 
 bằng chứng, finding còn lại và bước tiếp. Theo mẫu và quy tắc dung lượng
 trong mục lục; không đưa transcript/log/secret vào git. Repo là nguồn bàn
 giao chung với Claude, không thay trạng thái GitHub hoặc nhật ký local.
+
+Theo yêu cầu anh Việt 14/09/2026: mỗi PR vừa đủ cổng deploy phải chủ động đăng `[SẴN SÀNG DEPLOY]` trên PR để báo Telegram, kể cả đang gom đợt. Áp dụng điều kiện, chống lặp và xác minh gửi trong docs/thong-bao-telegram.md; không chờ cả đợt mới báo.

@@ -123,7 +123,11 @@
   "tro_ly_mo_hinh",
   "cb_tro_ly",
   "tro_ly_luot_ngay",
-  "tro_ly_luot_thang"
+  "tro_ly_luot_thang",
+  "sec_btp_1552",
+  "tk_ton_btp_cap1",
+  "cb_btp_1552",
+  "tk_ton_btp_cap2"
  ],
  "fields": [
   {
@@ -790,11 +794,34 @@
    "fieldtype": "Int",
    "label": "Han muc luot ca tiem moi thang",
    "description": "Chan hoa don API bat ngo. De trong hoac 0 thi lay mac dinh 1500 luot."
+  },
+  {
+   "fieldname": "sec_btp_1552",
+   "fieldtype": "Section Break",
+   "label": "Tài khoản tồn kho bán thành phẩm theo món (#307)"
+  },
+  {
+   "fieldname": "tk_ton_btp_cap1",
+   "fieldtype": "Link",
+   "label": "Tài khoản tồn kho BTP cấp 1",
+   "options": "Account",
+   "description": "Tài khoản loại Stock, chi tiết, còn dùng, VND. Món có tiền tố BTP, theo tồn, ô Chặng là BTP sơ cấp sẽ nhận tài khoản này vào Item Default khi lưu. Chỉ có tác dụng trên sổ khi Company bật tài khoản tồn kho theo món (kế toán bật tay đúng ngày cắt)."
+  },
+  {
+   "fieldname": "cb_btp_1552",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "tk_ton_btp_cap2",
+   "fieldtype": "Link",
+   "label": "Tài khoản tồn kho BTP cấp 2",
+   "options": "Account",
+   "description": "Như cấp 1, cho ô Chặng là BTP sẵn sàng. Dùng chung 1552 thì trỏ cùng tài khoản với cấp 1; tách 15521/15522 thì chỉ đổi hai ô này."
   }
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-08-20 12:00:00.000000",
+ "modified": "2026-09-14 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Settings",
