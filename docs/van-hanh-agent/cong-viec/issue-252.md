@@ -99,3 +99,12 @@ liệu giả chỉ đọc, khớp nhóm JS của13 mẫu. Tên đã chuẩn hoá
 chứng minh chuẩn hoá tên gốc toàn bộ snapshot; chưa đủ30-50 mẫu Claude
 đề nghị. Không nâng sốước lượng toànhệthống thànhđo hook thật.
 Local3041/3041, predeploy0 trước thêmca snapshot; bộthuần sau thêmca đạt.
+
+## F11-F14
+
+Sửa khẳng định cấm đúng câu hướng dẫn cũ. sai_luong có kem_nhom=True
+trả nhóm/chuỗi, hook không dò văn xuôi; giữ chế độ chuỗi cho caller cũ.
+Nguồn lỗi có hướng dẫn kiểm thủ công/thử lại. Tên hiển thị giữ bản gốc
+và nói rõ khi trống. Fixture đọc UTF-8. Ca giữ nhóm khi đổi câu chữ.
+Nhận xét20/20 mapping null không khớp tệp:13 mẫu có5 dòng q khai UOM.
+Cần Claude đối chiếu; không bổ sung mẫu giả chỉ để đủ số. F10 còn chờ anh.

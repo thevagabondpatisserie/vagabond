@@ -10,7 +10,7 @@ from frappe.utils import flt
 from vagabond import dung_lai_hddt as dl, minvoice_chung_tu as mc
 
 
-def sai_luong(doc, g):
+def sai_luong(doc, g, kem_nhom=False):
 	"""Đọc-only; trả lý do chưa chứng minh được lượng hàng tồn kho."""
 	# Dòng cũ có thể chỉ giữ tên Item nội bộ. Chỉ phục hồi tên nguồn bằng
 	# ánh xạ NCC duy nhất, không đoán theo vị trí hoặc tổng tiền.
@@ -49,32 +49,34 @@ def sai_luong(doc, g):
 			r["sl"] = -abs(flt(r["sl"]))
 		nguon.setdefault(khoa(r["ten"]), []).append(r)
 	loi = []
+	def bao(nhom, chu):
+		loi.append({"nhom": nhom, "chu": chu})
 	for ten in sorted(set(nhom) | (set(nguon) - ngoai_kho)):
 		ds = nhom.get(ten, [])
 		if not ds:
-			loi.append("Chưa đối chiếu được món nguồn: %s. Kiểm tên/mã và ánh xạ nhà cung cấp." % ten)
+			bao("nhan_dien", "Chưa đối chiếu được món nguồn: %s. Kiểm tên/mã và ánh xạ nhà cung cấp." % (str(nguon.get(ten, [{}])[0].get("ten") or "").strip() or "(nguồn chưa ghi tên món)"))
 			continue
 		goc = nguon.get(ten, [])
 		if not ten or not goc or any(not d.get("item_code") for d in ds) or len({d.get("item_code") for d in ds}) != 1:
-			loi.append("Dòng %s: chưa xác định duy nhất món theo tên trên hoá đơn nguồn." % ds[0].get("idx"))
+			bao("nhan_dien", "Dòng %s: chưa xác định duy nhất món theo tên trên hoá đơn nguồn." % ds[0].get("idx"))
 			continue
 		can = 0.0
 		for r in goc:
 			if not r.get("dvt") or not flt(r.get("sl")):
-				loi.append("Dòng %s: hoá đơn nguồn thiếu đơn vị hoặc số lượng bằng không/trống, cần xác nhận lượng và quy cách." % ds[0].get("idx"))
+				bao("luong", "Dòng %s: hoá đơn nguồn thiếu đơn vị hoặc số lượng bằng không/trống, cần xác nhận lượng và quy cách." % ds[0].get("idx"))
 				break
 			try:
 				_, hs = mc.don_vi_theo_ma(ds[0].get("item_code"), r["dvt"],
 					(g.get("mst_doi_tac") or "").split("-")[0], r["ten"])
 			except frappe.ValidationError:
-				loi.append("Dòng %s: chưa xác nhận được quy cách của hoá đơn nguồn. Kiểm đơn vị và quy cách nhà cung cấp trước ghi sổ; không tự tạo lại chứng từ đã nối." % ds[0].get("idx"))
+				bao("luong", "Dòng %s: chưa xác nhận được quy cách của hoá đơn nguồn. Kiểm đơn vị và quy cách nhà cung cấp trước ghi sổ; không tự tạo lại chứng từ đã nối." % ds[0].get("idx"))
 				break
 			can += flt(r["sl"]) * flt(hs)
 		else:
 			hien = sum(flt(d.get("qty")) * flt(d.get("conversion_factor")) for d in ds)
 			if any(flt(d.get("conversion_factor")) <= 0 for d in ds) or abs(hien - can) > 0.0001:
-				loi.append("Dòng %s: lượng quy về đơn vị kho là %s, hoá đơn nguồn là %s. Tổng tiền khớp không thay thế kiểm số lượng." % (ds[0].get("idx"), hien, can))
-	return loi
+				bao("luong", "Dòng %s: lượng quy về đơn vị kho là %s, hoá đơn nguồn là %s. Tổng tiền khớp không thay thế kiểm số lượng." % (ds[0].get("idx"), hien, can))
+	return loi if kem_nhom else [x["chu"] for x in loi]
 
 
 def kiem_truoc_ghi_so(doc, method=None):
@@ -87,15 +89,18 @@ def kiem_truoc_ghi_so(doc, method=None):
 		return
 	try:
 		g = dl._goc(doc.get("custom_minvoice_id"))
-		loi = sai_luong(doc, g) if g else ["Chưa đọc được hoá đơn nguồn để kiểm lượng."]
+		loi = sai_luong(doc, g, kem_nhom=True) if g else [{"nhom": "nguon", "chu": "Chưa đọc được hoá đơn nguồn để kiểm lượng."}]
 	except Exception:
-		loi = ["Chưa kiểm được lượng theo hoá đơn nguồn."]
+		loi = [{"nhom": "nguon", "chu": "Chưa kiểm được lượng theo hoá đơn nguồn."}]
 	if loi:
 		duong = frappe.utils.get_url_to_form("Purchase Invoice", doc.get("name")) if doc.get("name") else ""
-		loi = list(dict.fromkeys(loi))
-		nhan_dien = any("Chưa đối chiếu được món nguồn:" in x or "chưa xác định duy nhất món" in x for x in loi)
-		luong = any("lượng quy về" in x or "quy cách" in x or "thiếu đơn vị" in x for x in loi)
+		cac_nhom = {x["nhom"] for x in loi}
+		loi = list(dict.fromkeys(x["chu"] for x in loi))
+		nhan_dien = "nhan_dien" in cac_nhom
+		luong = "luong" in cac_nhom
 		huong_dan = "Đây là cảnh báo, không chặn ghi sổ."
+		if "nguon" in cac_nhom:
+			huong_dan += " Mở bản hoá đơn gốc để đối chiếu thủ công; thử kiểm lại nguồn sau hoặc báo quản trị nếu lỗi tiếp diễn. Không tự đổi số lượng hay đơn giá vì máy chưa đọc được nguồn."
 		if nhan_dien:
 			huong_dan += " Máy chưa đối chiếu được tên/mã món với nguồn. Kiểm hoá đơn gốc và ánh xạ tên nhà cung cấp; chưa kết luận số lượng hay đơn giá đang sai."
 		if luong:

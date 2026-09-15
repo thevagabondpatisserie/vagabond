@@ -649,3 +649,10 @@ Không nhận diện được tên/mã nguồn chưa chứng minh lượng hay g
 Hướng dẫn sửa lượng chung cho mọi lý do có thể khiến nhân viên sửa một
 chứng từ đúng. Nêu món, hướng dẫn đối chiếu nguồn/ánh xạ cho nhóm này;
 khử lặp và giới hạn số mục. PR323 F8/F9, bắt nguồn từ audit PR321.
+
+### Nhóm nguyên nhân không phụ thuộc câu chữ
+
+Không dò chuỗi tiếng Việt để chọn hướng dẫn: sửa văn phong có thể làm mất
+hướng dẫn cho đúng nguyên nhân. Giữ nhóm có cấu trúc cùng câu hiển thị;
+ca kiểm thay câu vẫn nhận đúng nhóm và lỗi đọc nguồn có hướng dẫn riêng.
+PR323 F12.
