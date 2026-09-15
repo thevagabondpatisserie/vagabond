@@ -27101,7 +27101,9 @@ async function ttnbFormGdRa(d, taiKhoan) {
   html += '<div class="chips" style="padding:2px 12px 10px">' + [{ma:'', nhan:'Tất cả'}].concat(kq.tai_khoan_sepay || []).map(function (t) {
     return '<button class="chip' + (taiKhoan === t.ma ? ' on' : '') + '" data-sepaytk="' + h(t.ma) + '" title="' + h(t.ten_day_du || t.nhan) + '" style="min-height:44px">' + h(t.nhan) + '</button>';
   }).join('') + '</div>';
-  if (!rows.length) {
+  if (!(kq.tai_khoan_sepay || []).length) {
+    html += '<div class="emp"><div class="e2">Chưa có tài khoản SePay đang hoạt động.</div><div>Nhờ kế toán kiểm tra Cài đặt SePay để nối hoặc bật lại tài khoản.</div></div>';
+  } else if (!rows.length) {
     html += '<div class="emp"><div class="e1">🔍</div><div class="e2">Không có dòng tiền ra ' +
       'nào còn trống trong 45 ngày qua.</div><div style="font-size:12px;color:#9ca3af;' +
       'margin-top:6px;line-height:1.6">Dòng đã được phiếu khác dùng thì không hiện ở đây, ' +

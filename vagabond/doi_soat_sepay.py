@@ -305,11 +305,12 @@ def nhan_tai_khoan():
 	mapped = set((_ban_do() or {}).values())
 	nhan, chip = {}, []
 	for r in frappe.get_all("Bank Account", fields=["name", "bank", "bank_account_no", "disabled"], limit_page_length=0):
-		chu = nhan_gon_ngan_hang(r.get("bank"), r.get("bank_account_no"))
+		duoi = re.sub(r"[^0-9]", "", r.get("bank_account_no") or "")[-4:]
+		chu = (r.get("bank") or "Ngân hàng chưa khai") + (" · " + duoi if duoi else " · chưa có số tài khoản")
 		# Giữ nhãn cho sao kê lịch sử; chỉ mapping quyết định tài khoản được chọn.
 		nhan[r["name"]] = chu
 		if r["name"] in mapped and not r.get("disabled"):
-			chip.append({"ma": r["name"], "nhan": chu, "ten_day_du": r.get("bank") or "Ngân hàng chưa khai"})
+			chip.append({"ma": r["name"], "nhan": nhan_gon_ngan_hang(r.get("bank"), r.get("bank_account_no")), "ten_day_du": r.get("bank") or "Ngân hàng chưa khai"})
 	return nhan, chip, []
 
 
@@ -448,7 +449,7 @@ def ung_vien(loai, ma_phieu, so_ngay=45, tu_khoa="", tai_khoan=""):
 
 	chiem = da_chiem(loai, tru_phieu=ma_phieu)
 	tk = str(tu_khoa or "").strip().lower()
-	nhan, chip, chua = nhan_tai_khoan()
+	nhan, chip, _ = nhan_tai_khoan()
 	cho_phep = [t["ma"] for t in chip]
 	tho = []
 	for g in dong_sao_ke(b["chieu"], so_ngay, tai_khoan=tai_khoan, nhan=nhan, tai_khoan_cho_phep=cho_phep):
@@ -533,6 +534,10 @@ def khop_tay(loai, ma_phieu, ma_gd):
 		ghi[b["truong_nguoi"]] = frappe.session.user
 	if b.get("truong_luc"):
 		ghi[b["truong_luc"]] = frappe.utils.now_datetime()
+	# Đọc lại mapping ở cửa ghi: màn đã mở có thể giữ ứng viên cũ.
+	_, tai_khoan_hien_tai, _ = nhan_tai_khoan()
+	if g.get("bank_account") not in {t["ma"] for t in tai_khoan_hien_tai}:
+		frappe.throw("Tài khoản của giao dịch chưa nối SePay hoặc đã bị tắt. Vui lòng kiểm tra Cài đặt SePay rồi chọn lại dòng sao kê.")
 	frappe.db.set_value(b["doctype"], ma_phieu, ghi)
 	frappe.db.commit()
 	if not b.get("truong_nguoi"):

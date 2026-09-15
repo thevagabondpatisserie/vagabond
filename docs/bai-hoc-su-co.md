@@ -674,3 +674,7 @@ errors. Applies to source report and advisory submit hook, PR323 F16.
 ## Issue 325: lọc phạm vi trước giới hạn
 
 Chip chỉ hiện tài khoản SePay thì API ứng viên cũng phải lọc cùng mapping trước giới hạn truy vấn. Mapping rỗng phải trả rỗng, không ngầm lấy mọi tài khoản. Giữ ca kiểm caller truyền phạm vi xuống query để tránh helper đúng nhưng đường gọi bỏ quên bộ lọc.
+
+### PR327: phạm vi phải kiểm lại tại cửa ghi
+
+Lọc ứng viên không ngăn lời gọi API trực tiếp hoặc ứng viên cũ sau khi mapping bị gỡ. Kiểm mapping hiện tại ngay trước ghi, và ca kiểm phải chứng minh không set_value/commit khi bị loại. Mapping rỗng khác không có sao kê: thông báo phải chỉ đúng cấu hình cần kiểm.

@@ -369,7 +369,7 @@ def _tai_khoan_325():
 		la('hai tài khoản mapped enabled', [x['ma'] for x in chip], ['CT','CN'])
 		la('nhãn gọn', chip[0]['nhan'], 'MB · 0615')
 		la('tên đầy đủ', chip[0]['ten_day_du'], ds[0]['bank'])
-		la('giữ nhãn lịch sử', len(nhan), 5)
+		la('giữ nhãn lịch sử', nhan['CT'], 'MB - Ngân hàng TMCP Quân đội · 0615')
 		la('không phát danh sách ngoài mapping', chua, [])
 	la('cắt tên dài giữ đuôi', dss.nhan_gon_ngan_hang('ABCDEFGHIJKLMNOPQ', '12345678'), 'ABCDEFGHIJKLM… · 5678')
 
@@ -384,3 +384,26 @@ def _sao_ke_mapping_325():
 		lay.reset_mock()
 		la('mapping rỗng', dss.dong_sao_ke(dss.RA, nhan={}, tai_khoan_cho_phep=[]), [])
 		la('không query khi mapping rỗng', lay.call_count, 0)
+
+
+@ca('#327: cửa ghi đọc lại mapping, chặn API ngoài phạm vi trước mọi ghi')
+def _ghi_mapping_327():
+	from unittest.mock import patch, Mock
+	from types import SimpleNamespace
+	import sys
+	ban = dict(doctype='TEST', chieu=dss.RA, so_tien=lambda d: 100, truong_gd='gd', truong_nguoi='nguoi', khi_khop=None)
+	g = dict(name='GD', docstatus=1, withdrawal=100, deposit=0, bank_account='CT')
+	class Chan(Exception):
+		pass
+	for chip, duoc in [([], False), ([{'ma':'KHAC'}], False), ([{'ma':'CT'}], True)]:
+		db = SimpleNamespace(get_value=Mock(return_value=g), set_value=Mock(), commit=Mock())
+		with patch.dict(sys.modules, {'vagabond.ban_hang': SimpleNamespace(_kiem_quyen=lambda:None)}), patch.object(dss,'nap_so'), patch.object(dss,'_ban',return_value=ban), patch.object(dss.frappe,'get_doc',return_value={}), patch.object(dss.frappe,'db',db), patch.object(dss.frappe,'session',SimpleNamespace(user='ke-toan')), patch.object(dss.frappe,'throw',side_effect=Chan), patch.object(dss,'_loi_giao_dich',return_value=None), patch.object(dss,'da_chiem',return_value={}), patch.object(dss,'nhan_tai_khoan',return_value=({},chip,[])) as nap:
+			bi_chan=False
+			try:
+				dss.khop_tay('ttnb','PHIEU','GD')
+			except Chan:
+				bi_chan=True
+			la('kết quả theo mapping hiện tại', bi_chan, not duoc)
+			la('đọc lại mapping tại đường ghi', nap.call_count, 1)
+			la('không ghi ngoài mapping', db.set_value.call_count, int(duoc))
+			la('không commit ngoài mapping', db.commit.call_count, int(duoc))
