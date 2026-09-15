@@ -112,6 +112,7 @@ def _con_lai():
 	la("mâm xôi chưa ai lấy nên còn nguyên", d[2]["sl_pnk"], 2.0)
 	# Tien phieu con lai: 3 Hop dau 405.000 + 2 Hop mam xoi 320.000.
 	la("tiền phiếu nhập còn lại", s["tien_pnk"], 725000.0)
+	la("tiền gốc không bị nhầm với lượng còn", s["tien_pnk_goc"], 1130000.0)
 	la("không còn báo khớp giả", s["khop"], 0)
 	la("tên hoá đơn đã lấy ở tổng", s["hd_da_dung"], ["HDM-26-08-00050"])
 

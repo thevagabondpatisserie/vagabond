@@ -596,3 +596,11 @@ Kiểm người tải trên mọi lần đọc/duyệt làm kế toán bị ch�
 ### PR316 inline4011368627: chuyển bàn khi danh sách nhận rỗng
 
 Giao việc trả sớm khi không có người nhận nên chưa đóng ToDo cũ. Patch đổi trạng thái cần gọi go_giao ở nhánh này để ToDo và _assign không còn trỏ giám đốc; giữ dấu vết Closed và cảnh báo cần giao lại.
+
+## 15/09/2026: tiền gốc phiếu nhập không phải phần còn được nối (#252)
+
+Màn so sánh đã trừ lượng hóa đơn khác ghi sổ nhưng danh sách phiếu vẫn in
+số tiền gốc không có nhãn. Người dùng cộng các số đó và tưởng bộ nối chặn sai.
+Giữ hàng rào lượng, ghi rõ tiền gốc và phần còn từ cùng nguồn lượng máy chủ;
+hướng dẫn kiểm đầu nối hóa đơn đã dùng trước. Không lấy triệu chứng này làm
+căn cứ tự sửa chứng từ đã ghi sổ hoặc bù thêm kho.

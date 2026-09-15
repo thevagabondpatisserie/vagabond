@@ -21727,7 +21727,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '493';
+var APPVER = '494';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -30178,6 +30178,19 @@ async function ckLuu() {
    Gui nam o cho khac tren man Desk. Man nay gop hai buoc thanh mot nut. */
 var dcmNgay = 60, dcmNhom = '', dcmTim = '', dcmPhieu = [], dcmSs = null;
 
+// Tiền gốc khớp không có nghĩa lượng chưa được hóa đơn khác sử dụng.
+function dcmCanCuConLai(s) {
+  if (!(s.hd_da_dung || []).length) return '';
+  return '<div class="card" style="padding:14px;font-size:13px;line-height:1.6;background:#fffbeb">' +
+    '<b>Phiếu nhập đã được dùng cho hoá đơn khác</b><br>' +
+    'Tiền hàng gốc các phiếu đã chọn: ' + money(s.tien_pnk_goc) + ' đ. ' +
+    'Phần còn được nối cho tờ này: ' + money(s.tien_pnk) + ' đ.<br>' +
+    'Nhờ kế toán kiểm tra đầu nối của ' + h(s.hd_da_dung.join(', ')) + '. ' +
+    'Nếu đầu nối đó đúng, chọn phiếu nhập còn hàng của lần giao tương ứng. ' +
+    'Nếu nối nhầm, kế toán cần xử lý chứng từ đó trước. Không nhập thêm kho hoặc tăng số lượng để vượt cảnh báo.' +
+    '</div>';
+}
+
 async function scrDoiChieuMua() {
   frame('Đối chiếu hoá đơn mua', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc hoá đơn...</div></div>');
   var kq;
@@ -30280,6 +30293,7 @@ async function scrDcmXem(name) {
       (s.khop ? '' : '<div style="font-size:12px;color:#92400e;margin-top:6px;line-height:1.5">Lệch dưới ' + money(s.nguong_lech) + ' đ thì máy vẫn coi là khớp, vì đó thường là làm tròn thuế.</div>') +
       '</div>';
 
+    html += dcmCanCuConLai(s);
     html += '<div class="sec">Từng món</div><div class="card">';
     /* Tu v315 moi con so deu kem DON VI, va lech don vi duoc noi rieng ra.
        Truoc do man nay in "Hoa don 4 x 280.000" canh "Phieu nhap 4 x 161.000"
@@ -30479,7 +30493,7 @@ async function scrDcmXem(name) {
         '<div style="flex:1;min-width:0"><b style="font-size:13.5px">' + h(p.name) + '</b>' +
         '<div style="font-size:11.5px;color:#98a2b3">' + ngayNgan(p.ngay) + ' · ' + p.so_mon + ' món, trùng ' + p.so_mon_trung +
         (p.da_hoa_don ? ' · đã hoá đơn ' + num(Math.round(p.da_hoa_don)) + '%' : '') + '</div></div>' +
-        '<b style="white-space:nowrap;font-size:13px">' + money(p.tien) + '</b></div>';
+        '<span style="text-align:right;font-size:13px">Tiền gốc<br><b>' + money(p.tien) + ' đ</b></span></div>';
     }).join('') + '</div>';
   }
 

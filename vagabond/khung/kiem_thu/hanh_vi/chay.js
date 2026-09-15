@@ -256,6 +256,17 @@ var HAI_TK = {
 };
 
 async function chayHet() {
+  await caAsync('PNK: phân biệt tiền gốc và phần còn, hướng dẫn không bù kho', async function () {
+    var g = {money: String, h: function (v) { return String(v).replace(/</g, '&lt;'); }};
+    vm.createContext(g);
+    vm.runInContext(layHam(docTep('18-doi-chieu-may-in.js'), 'dcmCanCuConLai'), g);
+    var html = g.dcmCanCuConLai({hd_da_dung:['HD-TEST'], tien_pnk_goc:100, tien_pnk:60});
+    dung('giữ hai số riêng', html.includes('100 đ') && html.includes('60 đ'));
+    dung('chỉ đúng chứng từ cần kiểm', html.includes('HD-TEST') && html.includes('kế toán'));
+    dung('không gợi ý bù kho', html.includes('Không nhập thêm kho'));
+    bang('không cảnh báo khi chưa ai dùng', g.dcmCanCuConLai({hd_da_dung:[]}), '');
+    dung('escape tên chứng từ', !g.dcmCanCuConLai({hd_da_dung:['<img>'], tien_pnk_goc:100, tien_pnk:60}).includes('<img>'));
+  });
   await caAsync('PR263. chip viec can lam dem dung, loc giao va bo loc duoc khi rong', async function () {
     var canh = { danhSach: { rows: [
       {name:'APP-A', trang_thai:'Da thanh toan', tong_tien:100, chip_nghiep_vu:['da_chi','cho_hoa_don']},
