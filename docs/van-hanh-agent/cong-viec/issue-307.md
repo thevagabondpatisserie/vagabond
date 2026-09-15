@@ -234,3 +234,9 @@ Checkpoint 14/09 22:08: bench 26716050 đã xanh. Sửa finding Claude 566592566
 
 Đã gộp head318 33ae8ce226625539ce73e78358b482ef857581c4 vào nhánh316 để chạy cổng chung trước phát hành. Giữ cả hai import bench và toàn bộ bài học. Patch YCPS rồi v492, tiếp theo hai patch307 rồi v493; APPVER493, bundle dựng lại. Không sửa logic mapping, không bật cờ production.
 Local 3028/3028, patch27, toàn cổng rc0. Bench/review SHA tích hợp còn chờ. PR318 đã được Claude chốt và bench222/222 hai lượt sạch trên33ae8ce2; còn F22 anh chọn, F14 live. Nhánh316 chứa318 nhưng không có nghĩa đã merge main. Không deploy nền.
+
+### 15/09 - Hai finding anh chuyển trực tiếp
+
+Sửa trên nhánh tích hợp316: patch YCPS khi giao_vai trả giao=0 vẫn chuyển đúng Chờ kế toán, ghi Comment cảnh báo và Error Log để quản trị giao lại, không throw chỉ vì chưa giao được việc. Không bắt lỗi dữ liệu/migrate tùy tiện.
+Biên nhận: đọc URL bảng kê đã lưu từ DB; tệp cũ chưa gắn File nhưng do nhân viên tải không chặn kế toán. URL mới vẫn kiểm chủ tải, tệp gắn chứng từ khác vẫn bị chặn. Ca hồi quy gọi context với tệp cũ rồi đổi URL mới, ca patch kiểm trạng thái và hai dấu vết. Local3030/3030, patch27, toàn cổng rc0; bench/review mới còn chờ.
+Giữ31833ae8ce2 làm mốc đã review, sửa tiếp tại316; dự kiến merge318 trước rồi316 theo lịch sử commit khi đủ cổng, không squash làm mất ancestry. Chưa merge/deploy. Vòng tự động đã chỉnh đọc cả review bodies/inline/issue điều phối có phân trang và finding từ thread; không gửi no-op lặp.

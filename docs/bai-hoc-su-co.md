@@ -588,3 +588,7 @@ có phê duyệt từ việc gửi tin hay phản hồi chưa được xử lý.
 ### PR316/318: tích hợp phát hành phải giữ cổng của cả hai
 
 Khi cùng thêm import bench hoặc patch cuối tệp, giữ cả hai suite và thứ tự phiên bản. Đợt này YCPS thuộc v492, mapping nhóm món thuộc v493. Ca kiểm patch307 phải xác nhận đứng trước v493, không còn bám v492; dựng bundle từ nguồn và chạy lại toàn cổng trên nhánh tích hợp.
+
+### PR316/318: quyền tệp mới khác quyền xử lý chứng từ cũ
+
+Kiểm người tải trên mọi lần đọc/duyệt làm kế toán bị chặn bởi biên nhận nhân viên đã lưu trước. So URL với bảng kê persisted từ DB; chỉ URL mới chưa gắn chứng từ cần đối chiếu chủ tải. Không lấy danh sách cũ từ client. Giao việc không có người nhận không phải lỗi cấu trúc dữ liệu: patch giữ trạng thái và dấu vết cảnh báo, không làm sập cả migrate chỉ vì giao=0.
