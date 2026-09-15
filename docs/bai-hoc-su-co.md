@@ -496,8 +496,45 @@ bench riêng, không suy ra từ ca thuần.
   huỷ không tương đương tồn hiệu lực. Đọc is_cancelled theo core và đối
   chiếu Bin actual_qty/stock_value; không bỏ assertion giá trị để cổng xanh.
 
+### #317: lô chuyển khoản không phải mã giao dịch ngân hàng
+`ma_gd` là Link Bank Transaction. Ghi mã tạm vào đây làm lẫn việc chuẩn bị chuyển và tiền đã ra. Dùng `lo_chuyen` riêng; một tài khoản thụ hưởng một lô, chỉ ghi mã giao dịch thật khi khớp tổng. Các phiếu đã vào lô không được khớp lẻ. Cần bench thử lại và lỗi giữa chừng trước phát hành.
+
+### #317: cấp duyệt phải đi theo loại nghiệp vụ, không chỉ theo số tiền
+
+Một hàm chỉ nhận tổng tiền đã đẩy cả Chi phí và Hoàn ứng lớn lên giám đốc, dù quy trình mới chỉ giữ cấp này cho Tạm ứng. Hàm chọn bước phải nhận cả loại nghiệp vụ; patch chỉ chuyển các phiếu chưa chi đang Chờ giám đốc, ghi lý do và không chạm phiếu Đã chi hoặc Đã huỷ. Uỷ nhiệm chi cũng phải chốt đồng thời đúng người nhận và phương thức: chỉ trả nhà cung cấp bằng chuyển khoản mới bắt buộc, hoàn tiền nhân viên dùng chứng từ mua. Nguồn: Issue #317 và PR #318.
+
+## PR318: bàn giao Cloud và nút quay lại
+
+Có commit trong tác vụ Cloud chưa đồng nghĩa nhánh PR đổi. Ngày 14/09, bản Cloud chỉ lên GitHub sau thao tác Update branch; phải kiểm SHA remote. Bản đó còn APPVER493 trong khi patch492 và chỉ sửa nút chân màn. Kiểm lại bundle/patch và chạy cả nút đầu màn, chân màn, API lỗi; không nhận có chuỗi nút là bằng chứng điều hướng.
+
+### PR318: biên nhận khác với số tệp và chuyển bước phải chuyển việc
+
+Một biên nhận có thể nhiều ảnh; số URL không phải số chứng từ. Giữ kiểm cùng số hoá đơn/MST/ngày, yêu cầu ít nhất một tệp, không chặn hai mặt của cùng biên nhận. Patch chuyển trạng thái phải giao lại ToDo bằng cửa giao việc chung (không bắn chuông migrate), không chỉ sửa nhãn. Hướng dẫn duyệt và dữ liệu người lập phải đúng cả danh sách chính lẫn lịch sử. Nguồn inline review4005492308/4005492320/4005492328/4005635209.
+
+
+### PR318: hoàn ứng cũ và quyền YCPS
+Ngoại lệ dựa trên phiếu nguồn đọc từ DB (đã chi, cùng người, quy tắc cũ, thiếu YCPS), không nhận cờ client. Kế toán phải ghi lý do trước đổi trạng thái. Picker chỉ trả thông tin cần chọn của owner hiện tại, không cấp quyền đọc toàn bộ DocType để chữa lỗi chọn phiếu.
+
+PR318 F7/F8: tổng hoàn ứng có thể vượt số ứng nhỏ hợp lệ. Kiểm số ứng từ bảng kê nguồn, cho kế toán xử lý có lý do, không mở ngoại lệ mọi nguồn mới thiếu YCPS. Tham chiếu bị xoá không được làm màn chi tiết chết; trả không hợp lệ và giữ đường sửa.
+
+### PR318 F12 - fixture bị chính luật mới chặn
+Ngày15/09, bench332733a6 có4ca chưa tới assertion vì helper tạo Chi phí mới trên500k. Dựng snapshot thử dưới trần rồi cập nhật dòng trong savepoint, xác nhận số tiền saureload, giữ save/duyet thật ở bước được kiểm. Không tắt validator, không nhận ca đỏ lúc dựng là bằng chứng nghiệp vụ.
+
+### PR318 - kiểm tồn tại trước nạp chứng từ đã mất
+Bench cd453810 đạt220/221: get_doc nạp controller trước khi báo thiếu phiếu, DocType stub không có module gâyImportError. Kiểmexists trướcget_doc để đường thiếuphiếu hoạt động; không bắtmọiImportError vì sẽ che DocType cònphiếu nhưng cấu hìnhhỏng.
+
+### PR318 F13 - đường thay phải có nút và xoá dữ liệu sót
+Máy chủ cho thay YCPS không đủ nếu Hoàn ứng không có picker. Cờ nguồn không hợp lệ phải từ máy chủ, hiện nút theo cờ, xoá lựa chọn khi đổi loại/đổi nguồn. Ca DOM bấm chip thật và kiểm cả hiện/ẩn theo cờ, không chỉ dò chuỗi HTML.
+
+### PR318: chốt duyệt phải bảo vệ cả đối soát chung
+
+Phiếu Chờ kế toán từng có thể đi tới khớp tiền qua cửa chung dù cửa duyệt yêu cầu lý do ngoại lệ. Chỉ lọc danh sách không đủ vì API theo mã bỏ qua danh sách. Thêm kiểm trạng thái chứng từ tại cửa khớp tay chung và tự động, trước khi đọc/ghi giao dịch; bench gọi cả cửa riêng lẫn cửa chung, chốt trạng thái chưa đổi. Không sửa luật các luồng khác khi bổ sung callback tùy chọn.
 ### Telegram xin duyệt: link không thay phương án
 Anh Việt không biết tìm quyết định trong comment kỹ thuật. Khối telegram-approval
 chỉ chuyển nội dung chủ repo soạn riêng (việc, đề xuất, ảnh hưởng, câu hỏi),
 không tự sao chép toàn comment hoặc log. Kênh vẫn một chiều; không nhận là đã
 có phê duyệt từ việc gửi tin hay phản hồi chưa được xử lý.
+
+### PR318 F20/F21: thay điều kiện phải có đường chỉ dẫn
+
+Ẩn khớp sao kê trước duyệt phải giải thích bước tiếp cho kế toán. Patch cấu hình series phải kiểm trường tồn tại trước truy cập options, vì DocType tồn tại không chứng minh trường còn tồn tại. Hai đường có ca hồi quy trong delta F20/F21.

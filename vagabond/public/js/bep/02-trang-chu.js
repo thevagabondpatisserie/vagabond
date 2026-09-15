@@ -102,8 +102,8 @@ async function scrHome() {
   if (isRnd()) {
     var rdn = 0;
     try { rdn = (await nenDemDanhSach('RnD Purchase Request', { fields: ['name'], filters: { trang_thai: ['in', ['Mới tạo', 'Đang xử lý']] }, limit_page_length: 0 })).length; } catch (e) { }
-    html += '<div class="sec">Mua hàng test (R&amp;D)</div><div class="card">' +
-      card('🧪', 'Yêu cầu mua hàng test', 'Hàng test không tạo mã, không nhập kho', rdn, 'RND') + '</div>';
+    html += '<div class="sec">Mua hàng phát sinh (R&amp;D)</div><div class="card">' +
+      card('🧪', 'Yêu cầu mua hàng phát sinh', 'Hàng ngoài danh mục hoặc trên 500.000 một hoá đơn', rdn, 'RND') + '</div>';
   }
   var kkn = 0;
   try { kkn = (await nenDemDanhSach('Phieu Kiem Ke', { fields: ['name'], filters: { trang_thai: 'Đang kiểm' }, limit_page_length: 0 })).length; } catch (e) { }

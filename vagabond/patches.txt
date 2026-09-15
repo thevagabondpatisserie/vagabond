@@ -277,3 +277,6 @@ vagabond.patches.dat_ban_foh_301
 vagabond.patches.dong_bo_cau_truc #v490
 
 vagabond.patches.dong_bo_cau_truc #v491
+
+vagabond.patches.ycps_317
+vagabond.patches.dong_bo_cau_truc #v492

@@ -78,7 +78,8 @@ def _():
 	# mot phieu 2.000.000 khong khac gi nhau ve ban chat, nen de moc nam
 	# TRONG phan bi kiem chu khong nam ngoai.
 	dung("đúng ngưỡng là phải duyệt", dn.can_giam_doc_duyet(2000000))
-	la("rơi vào bước giám đốc", dn.buoc_ke_tiep(2000000), dn.TT_CHO_GIAM_DOC)
+	la("tạm ứng rơi vào bước giám đốc", dn.buoc_ke_tiep(2000000, dn.NV_TAM_UNG), dn.TT_CHO_GIAM_DOC)
+	la("chi phí rơi thẳng về kế toán", dn.buoc_ke_tiep(2000000, dn.NV_CHI_PHI), dn.TT_CHO_KE_TOAN)
 	dung("thiếu một nghìn thì chưa cần", not dn.can_giam_doc_duyet(1999000))
 
 
@@ -392,7 +393,7 @@ def _():
 	to = _phieu(cac_khoan=[_khoan(so_tien=30000000), _khoan(so_tien=20000000)])
 	la("số tiền thật là năm mươi triệu", dn.tien_phieu(to), 50000000)
 	la("và phiếu rơi vào bước giám đốc",
-		dn.buoc_ke_tiep(dn.tien_phieu(to)), dn.TT_CHO_GIAM_DOC)
+		dn.buoc_ke_tiep(dn.tien_phieu(to), dn.NV_TAM_UNG), dn.TT_CHO_GIAM_DOC)
 	nho = _phieu(cac_khoan=[_khoan(so_tien=50000)])
 	la("phiếu nhỏ vẫn đi thẳng xuống kế toán",
 		dn.buoc_ke_tiep(dn.tien_phieu(nho)), dn.TT_CHO_KE_TOAN)

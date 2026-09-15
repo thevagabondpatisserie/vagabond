@@ -81,6 +81,12 @@ def _giao_dich(ba, tien, noi_dung):
 
 
 def _phieu_cho_chi(tien):
+	# #317 yêu cầu biên nhận ngay khi tạo. Dựng File thử thật trước phiếu,
+	# cùng cách app tải tệp rồi gửi URL trong dòng; không tắt validator.
+	f = frappe.get_doc({"doctype": "File", "file_name": "bien-nhan-kiem-317.txt",
+		"content": "Biên nhận thử tích hợp, không phải chứng từ thanh toán.", "is_private": 1})
+	f.insert(ignore_permissions=True)
+	_DA_TAO.append((f.doctype, f.name))
 	d = frappe.get_doc({
 		"doctype": de_nghi_chi.DT,
 		"ten_khoan_chi": "Kiểm nguồn chi SePay #247",
@@ -91,12 +97,13 @@ def _phieu_cho_chi(tien):
 		"phuong_thuc": "Tiền mặt",
 		"chung_tu_thue": de_nghi_chi.CT_KHONG_VAT,
 		"cac_khoan": [{
-			"noi_dung": "Kiểm nguồn chi SePay", "so_tien": tien,
+			"noi_dung": "Kiểm nguồn chi SePay", "so_tien": tien, "tep": frappe.as_json([f.file_url]),
 			"phan_loai": "Chi phí quản lý doanh nghiệp",
 		}],
 	})
 	d.insert(ignore_permissions=True)
 	_DA_TAO.append((d.doctype, d.name))
+	f.db_set({"attached_to_doctype": d.doctype, "attached_to_name": d.name})
 	frappe.db.set_value(d.doctype, d.name, "noi_dung_ck", de_nghi_chi.noi_dung_ck(d.name))
 	d.reload()
 	return d
