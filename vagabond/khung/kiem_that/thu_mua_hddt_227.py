@@ -195,3 +195,26 @@ def _tra_lai_dung_dau():
 		la("giá dương", hd.items[0].rate, 100000)
 		la("giảm theo chiều trả", hd.discount_amount, -20000)
 	_ghi_so(hd, -198000, -18000)
+
+
+@ca("#321: PI tiền khớp nhưng nửa lượng không được ghi sổ qua Document.submit")
+def _nguon_luong_321():
+	p = nen.phieu_nhap_ao(6, 100000)
+	d = p.items[0]
+	g = _nguon([{"ten": "Lượng nguồn thử", "sluong": 6, "dgia": 100000,
+		"thtien": 600000, "dvtinh": d.uom}], 0, 600000)
+	hd = _phieu([("Lượng nguồn thử", 3, 200000)], d.item_code, p.supplier)
+	hd.items[0].update({"uom": d.uom, "conversion_factor": d.conversion_factor,
+		"warehouse": d.warehouse, "purchase_receipt": p.name, "pr_detail": d.name})
+	hd.custom_minvoice_id = g.name
+	_luu(hd)
+	hd.reload()
+	la("tái hiện nửa lượng trước ghi sổ", hd.items[0].qty, 3)
+	try:
+		hd.submit()
+	except frappe.ValidationError as loi:
+		dung("đúng hàng rào nguồn, không phải lỗi fixture", "Tổng tiền khớp không thay thế" in str(loi))
+	else:
+		dung("phải chặn lượng sai", False)
+	la("DB vẫn nháp", frappe.db.get_value("Purchase Invoice", hd.name, "docstatus"), 0)
+	la("không có sổ cái", len(nen.so_cai_cua(hd)), 0)

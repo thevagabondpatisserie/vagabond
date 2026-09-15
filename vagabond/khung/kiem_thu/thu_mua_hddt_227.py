@@ -256,3 +256,31 @@ def _am_trung_ten():
 			dl.dong_bo_luc_luu(t)
 			la("hai dòng đúng dấu", [(d.qty, d.rate) for d in t.items], [(-1, 100), (-1, 100)])
 			la("không giảm giả", t.discount_amount, 0)
+
+
+@ca("#321: tổng bằng nhau không che lượng sai, tách dòng và đổi đơn vị đúng vẫn qua")
+def _luong_nguon_321():
+	from vagabond import luong_hoa_don_goc as lg
+	g = dict(tong_tien=600, chi_tiet=[dict(ten="Món thử", dvtinh="Hộp", sluong=6, dgia=100)])
+	def dong(qty, hs, rate=100):
+		return To(idx=1, item_code="TEST", ten_hang_ncc="Món thử", qty=qty, conversion_factor=hs, rate=rate)
+	t = To(custom_minvoice_id="SOURCE", items=[dong(3, 500, 200)])
+	with patch.object(dl, "_goc", lambda *a: g), patch.object(lg.frappe.db, "get_value", lambda *a: 1), patch.object(mc, "don_vi_theo_ma", lambda *a: ("Hộp", 500)):
+		loi = lg.sai_luong(t, g)
+		dung("bắt lượng giảm dù tổng tiền không đổi", bool(loi))
+		with patch.object(lg.frappe, "throw", side_effect=ValueError("chan")):
+			try:
+				lg.kiem_truoc_ghi_so(t)
+			except ValueError:
+				pass
+			else:
+				dung("cửa ghi sổ phải chặn", False)
+		t.items = [dong(1, 500), dong(5, 500)]
+		la("tách qua hai phiếu vẫn đủ lượng", lg.sai_luong(t, g), [])
+		t.items = [dong(3, 1000, 200)]
+		la("3 Kg tương đương 6 hộp 500g", lg.sai_luong(t, g), [])
+		t.items = [dong(3, 0)]
+		dung("không cho hệ số rỗng qua", bool(lg.sai_luong(t, g)))
+		t.items = [dong(6, 500)]
+		t.items[0].ten_hang_ncc = "Tên khác"
+		dung("không tự đoán khi tên nguồn mất", bool(lg.sai_luong(t, g)))

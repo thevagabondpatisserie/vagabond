@@ -30,3 +30,13 @@ chỉ ra tiền còn lại còn gồm món thừa/khác đơn vị, không đư�
 nối được. Đổi nhãn thành Tiền hàng còn lại trên các phiếu và giải thích giới
 hạn; bổ sung khẳng định render, giữ nowrap cho tiền gốc theo nit Claude.
 Chờ CI/review delta mới; không đổi thuật toán hoặc chứng từ.
+
+## Mở rộng theo yêu cầu ngăn tái diễn
+
+Đã chứng minh code dong_bo_luc_luu thoát khi tổng khớp, không kiểm lượng.
+Chưa chứng minh lịch sử thao tác nào gây ca thật. Thêm before_submit kiểm
+lượng hàng tồn theo nguồn điện tử và quy đổi NCC, cộng dòng tách cùng tên;
+không đoán khi mất tên/nguồn hoặc nhiều mã cùng tên. Chưa tự sửa dữ liệu.
+Có ca Document.submit thật yêu cầu đúng thông báo và DB nháp/GL rỗng.
+Cần bench, review và đánh giá mức chặn dữ liệu cũ trước merge. Chưa có công
+cụ rà toàn hệ thống hoặc sửa đầu nối lịch sử; phần này chưa hoàn tất.
