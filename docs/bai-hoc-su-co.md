@@ -620,3 +620,5 @@ Không tự thay qty/rate/đầu nối hoặc bỏ kiểm lõi ERP. Ca tích h�
 sang Document.submit thành công, docstatus1 và có GL dù lượng nguồn lệch.
 Cảnh báo phiếu nhập còn lại ẩn khi đã khớp. Cần bench và Claude review
 trên SHA mới; không dùng cổng xanh của thiết kế chặn cũ để chốt bản này.
+
+PR321 review e6a16cdd: dùng get_url_to_form của Frappe cho đường sửa tay, escape thuộc tính href. Bench e6a16cdd đã xanh; bản sửa URL phải kiểm lại. Cảnh báo popup có giới hạn với submit nền/hàng loạt, chưa có cảnh báo lưu trên chứng từ. Không coi popup là bằng chứng mọi nhân viên đã đọc.

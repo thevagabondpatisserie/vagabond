@@ -301,10 +301,12 @@ def _canh_bao_khong_chan_321():
 	from vagabond import luong_hoa_don_goc as lg
 	t = To(name='PI/TEST', custom_minvoice_id='SOURCE')
 	for loi_doc in (None, RuntimeError('nguồn lỗi')):
-		with patch.object(dl, "_goc", return_value=None, side_effect=loi_doc), patch.object(lg.frappe, "msgprint", create=True) as bao:
+		with patch.object(dl, "_goc", return_value=None, side_effect=loi_doc), patch.object(lg.frappe.utils, "get_url_to_form", return_value="https://fixture.invalid/app/purchase-invoice/PI%2FTEST", create=True) as lien_ket, patch.object(lg.frappe, "msgprint", create=True) as bao:
 			lg.kiem_truoc_ghi_so(t)
 			dung("không đọc nguồn vẫn báo và trả về", bao.called)
-			dung("đường sửa tay đúng chứng từ", '/desk/purchase-invoice/PI%2FTEST' in bao.call_args[0][0])
+			dung("đường sửa tay đúng chứng từ", 'https://fixture.invalid/app/purchase-invoice/PI%2FTEST' in bao.call_args[0][0])
+			la('helper nhận đúng chứng từ', lien_ket.call_args[0], ('Purchase Invoice', 'PI/TEST'))
+	t.name = None
 	with patch.object(dl, "_goc", return_value={"name": "SOURCE"}), patch.object(lg, "sai_luong", return_value=['<script>']), patch.object(lg.frappe, "msgprint", create=True) as bao:
 		lg.kiem_truoc_ghi_so(t)
 		dung("cảnh báo escape nội dung", '&lt;script&gt;' in bao.call_args[0][0] and '<script>' not in bao.call_args[0][0])

@@ -5,7 +5,6 @@ cùng tên nguồn để chấp nhận việc tách qua nhiều phiếu nhập. 
 đã khai theo nhà cung cấp, không suy lượng từ tiền hoặc đơn giá.
 """
 from html import escape
-from urllib.parse import quote
 import frappe
 from frappe.utils import flt
 from vagabond import dung_lai_hddt as dl, minvoice_chung_tu as mc
@@ -92,8 +91,8 @@ def kiem_truoc_ghi_so(doc, method=None):
 	except Exception:
 		loi = ["Chưa kiểm được lượng theo hoá đơn nguồn."]
 	if loi:
-		duong = "/desk/purchase-invoice/" + quote(str(doc.get("name") or ""), safe="")
+		duong = frappe.utils.get_url_to_form("Purchase Invoice", doc.get("name")) if doc.get("name") else ""
 		frappe.msgprint(escape(" ".join(loi)) +
 			"<br>Đây là cảnh báo, không chặn ghi sổ. Mở chứng từ để kiểm và sửa số lượng, đơn vị, đơn giá hoặc phiếu nhập theo quyền hiện có. Chứng từ đã ghi sổ dùng quy trình sửa/hủy chuẩn của ERP." +
-			('<br><a href="' + duong + '">Mở chứng từ để kiểm tra và sửa tay</a>' if doc.get("name") else ""),
+			('<br><a href="' + escape(duong, quote=True) + '">Mở chứng từ để kiểm tra và sửa tay</a>' if doc.get("name") else ""),
 			title="Cần kiểm tra lượng theo hoá đơn nguồn", indicator="orange")
