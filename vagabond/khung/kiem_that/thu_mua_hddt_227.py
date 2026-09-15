@@ -218,3 +218,26 @@ def _nguon_luong_321():
 		dung("phải chặn lượng sai", False)
 	la("DB vẫn nháp", frappe.db.get_value("Purchase Invoice", hd.name, "docstatus"), 0)
 	la("không có sổ cái", len(nen.so_cai_cua(hd)), 0)
+
+
+@ca("#321: bỏ một món nguồn và bù giá món khác vẫn bị chặn trước sổ cái")
+def _mat_mon_321():
+	p = nen.phieu_nhap_ao(2, 400000)
+	d = p.items[0]
+	g = _nguon([{"ten": "A nguồn thử", "sluong": 6, "dgia": 100000, "dvtinh": d.uom},
+		{"ten": "B nguồn thử", "sluong": 2, "dgia": 100000, "dvtinh": d.uom}], 0, 800000)
+	hd = _phieu([("B nguồn thử", 2, 400000)], d.item_code, p.supplier)
+	hd.items[0].update({"uom": d.uom, "conversion_factor": d.conversion_factor,
+		"warehouse": d.warehouse, "purchase_receipt": p.name, "pr_detail": d.name})
+	hd.custom_minvoice_id = g.name
+	_luu(hd)
+	hd.reload()
+	la("fixture đã bỏ một món", len(hd.items), 1)
+	try:
+		hd.submit()
+	except frappe.ValidationError as loi:
+		dung("đúng chốt thiếu món nguồn", "Thiếu món trên hoá đơn nguồn" in str(loi))
+	else:
+		dung("không được ghi sổ mất món", False)
+	la("DB vẫn nháp", frappe.db.get_value("Purchase Invoice", hd.name, "docstatus"), 0)
+	la("không GL", len(nen.so_cai_cua(hd)), 0)

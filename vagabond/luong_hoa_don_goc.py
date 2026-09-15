@@ -12,30 +12,40 @@ from vagabond import dung_lai_hddt as dl, minvoice_chung_tu as mc
 def sai_luong(doc, g):
 	"""Đọc-only; trả lý do chưa chứng minh được lượng hàng tồn kho."""
 	nhom = {}
+	ngoai_kho = set()
 	for d in doc.get("items") or []:
 		ma = d.get("item_code")
-		if not ma or not frappe.db.get_value("Item", ma, "is_stock_item"):
+		if ma and not frappe.db.get_value("Item", ma, "is_stock_item"):
+			ngoai_kho.add(dl.khoa_ten(dl.ten_ncc_cua_dong(d)))
 			continue
 		nhom.setdefault(dl.khoa_ten(dl.ten_ncc_cua_dong(d)), []).append(d)
-	if not nhom:
-		return []
 	nguon = {}
 	for d in mc.dong_hang_hoa(dl.doc_chi_tiet(g.get("chi_tiet"))):
-		r = mc.dong_tu_hoa_don(d, mc.dau_cua_to(g.get("tong_tien")))
+		r = {"ten": d.get("ten") or "", "dvt": d.get("dvtinh"), "sl": d.get("sluong")}
+		if mc.dau_cua_to(g.get("tong_tien")) < 0 and r["sl"] is not None:
+			r["sl"] = -abs(flt(r["sl"]))
 		nguon.setdefault(dl.khoa_ten(r["ten"]), []).append(r)
 	loi = []
-	for ten, ds in nhom.items():
+	for ten in sorted(set(nhom) | (set(nguon) - ngoai_kho)):
+		ds = nhom.get(ten, [])
+		if not ds:
+			loi.append("Thiếu món trên hoá đơn nguồn; cần đối chiếu đủ các dòng trước ghi sổ.")
+			continue
 		goc = nguon.get(ten, [])
-		if not ten or not goc or len({d.get("item_code") for d in ds}) != 1:
+		if not ten or not goc or any(not d.get("item_code") for d in ds) or len({d.get("item_code") for d in ds}) != 1:
 			loi.append("Dòng %s: chưa xác định duy nhất món theo tên trên hoá đơn nguồn." % ds[0].get("idx"))
 			continue
 		can = 0.0
 		for r in goc:
-			if not r.get("dvt"):
-				loi.append("Dòng %s: hoá đơn nguồn thiếu đơn vị, cần xác nhận quy cách." % ds[0].get("idx"))
+			if not r.get("dvt") or not flt(r.get("sl")):
+				loi.append("Dòng %s: hoá đơn nguồn thiếu đơn vị hoặc số lượng bằng không/trống, cần xác nhận lượng và quy cách." % ds[0].get("idx"))
 				break
-			_, hs = mc.don_vi_theo_ma(ds[0].get("item_code"), r["dvt"],
-				(g.get("mst_doi_tac") or "").split("-")[0], r["ten"])
+			try:
+				_, hs = mc.don_vi_theo_ma(ds[0].get("item_code"), r["dvt"],
+					(g.get("mst_doi_tac") or "").split("-")[0], r["ten"])
+			except frappe.ValidationError:
+				loi.append("Dòng %s: chưa xác nhận được quy cách của hoá đơn nguồn. Kiểm đơn vị và quy cách nhà cung cấp trước ghi sổ; không tự tạo lại chứng từ đã nối." % ds[0].get("idx"))
+				break
 			can += flt(r["sl"]) * flt(hs)
 		else:
 			hien = sum(flt(d.get("qty")) * flt(d.get("conversion_factor")) for d in ds)

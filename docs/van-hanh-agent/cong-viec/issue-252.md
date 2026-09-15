@@ -40,3 +40,11 @@ không đoán khi mất tên/nguồn hoặc nhiều mã cùng tên. Chưa tự s
 Có ca Document.submit thật yêu cầu đúng thông báo và DB nháp/GL rỗng.
 Cần bench, review và đánh giá mức chặn dữ liệu cũ trước merge. Chưa có công
 cụ rà toàn hệ thống hoặc sửa đầu nối lịch sử; phần này chưa hoàn tất.
+
+## Review c948fe57
+
+Bench c948fe57 xanh, Claude yêu cầu sửa mất món nguồn và lượng nguồn bị
+chuẩn hóa thành1 khi thiếu giá. Đã lặp hợp tên hai phía, loại nguồn có dòng
+không quản kho hiện hữu; đọc sluong nguyên gốc, không dùng bộ chuẩn hóa tiền.
+Thêm ca thuần và Document.submit mất món. Còn audit nháp trên site, thiếu
+quy cách lịch sử và review/bench SHA mới; chưa đủ merge.

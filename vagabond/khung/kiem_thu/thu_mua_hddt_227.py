@@ -284,3 +284,25 @@ def _luong_nguon_321():
 		t.items = [dong(6, 500)]
 		t.items[0].ten_hang_ncc = "Tên khác"
 		dung("không tự đoán khi tên nguồn mất", bool(lg.sai_luong(t, g)))
+
+
+@ca("#321: mất món và nguồn thiếu giá không được lọt hoặc chặn oan")
+def _nguon_thieu_321():
+	from vagabond import luong_hoa_don_goc as lg
+	g = dict(tong_tien=800, chi_tiet=[dict(ten="A", dvtinh="Hộp", sluong=6, dgia=100), dict(ten="B", dvtinh="Hộp", sluong=2, dgia=100)])
+	b = To(idx=1, item_code="B", ten_hang_ncc="B", qty=2, conversion_factor=500, rate=400)
+	t = To(items=[b])
+	with patch.object(lg.frappe.db, "get_value", lambda *a: 1), patch.object(mc, "don_vi_theo_ma", lambda *a: ("Hộp", 500)):
+		dung("mất A dù tổng đúng phải chặn", bool(lg.sai_luong(t, g)))
+		g['chi_tiet'] = [dict(ten="B", dvtinh="Hộp", sluong=6, thtien=600)]
+		b.qty = 6
+		la("thiếu giá vẫn lấy lượng nguồn 6", lg.sai_luong(t, g), [])
+		b.qty = 1
+		dung("không dùng lượng giả 1", bool(lg.sai_luong(t, g)))
+		g['chi_tiet'][0]['sluong'] = 0
+		b.qty = 0
+		dung("nguồn không lượng không được đoán", bool(lg.sai_luong(t, g)))
+		g['chi_tiet'][0]['sluong'] = 6
+		g['tong_tien'] = -600
+		b.qty = -6
+		la("giữ chiều điều chỉnh giảm", lg.sai_luong(t, g), [])
