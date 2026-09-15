@@ -83,3 +83,5 @@ quả phụ thuộc lượt sau thực sự đọc, xác minh và dùng bài h�
 
 - [Issue322: nhãn SePay và nội dung TTNB](cong-viec/issue-322.md)
 - [Issue 252: nối phiếu nhập](cong-viec/issue-252.md)
+
+Quy tắc hiện hành: [sáu thay đổi](van-hanh-chung.md).
