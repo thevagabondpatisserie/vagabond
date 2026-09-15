@@ -306,7 +306,7 @@ def nhan_tai_khoan():
 	return nhan, chip, chua
 
 
-def dong_sao_ke(chieu, so_ngay=45, tu_ngay=None):
+def dong_sao_ke(chieu, so_ngay=45, tu_ngay=None, tai_khoan=None):
 	"""Các dòng sao kê đúng chiều tiền trong khoảng ngày. Chạm hệ."""
 	from frappe.utils import add_days, nowdate
 
@@ -319,7 +319,7 @@ def dong_sao_ke(chieu, so_ngay=45, tu_ngay=None):
 			["date", "between", [add_days(moc, -n), add_days(moc, 1)]],
 			[cot, ">", 0],
 			["docstatus", "<", 2],
-		],
+		] + ([["bank_account", "=", tai_khoan]] if tai_khoan else []),
 		fields=["name", "date", "deposit", "withdrawal", "description",
 			"reference_number", "bank_account"],
 		order_by="date desc", limit_page_length=500,
@@ -439,9 +439,7 @@ def ung_vien(loai, ma_phieu, so_ngay=45, tu_khoa="", tai_khoan=""):
 	tk = str(tu_khoa or "").strip().lower()
 	_, chip, chua = nhan_tai_khoan()
 	tho = []
-	for g in dong_sao_ke(b["chieu"], so_ngay):
-		if tai_khoan and g.get("bank_account") != tai_khoan:
-			continue
+	for g in dong_sao_ke(b["chieu"], so_ngay, tai_khoan=tai_khoan):
 		if _loi_giao_dich(b, g):
 			continue
 		if chiem.get(g["name"]):

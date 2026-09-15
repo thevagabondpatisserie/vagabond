@@ -600,3 +600,11 @@ Giao việc trả sớm khi không có người nhận nên chưa đóng ToDo c�
 ## SePay: đổi generator vẫn có thể ghi đè dữ liệu cũ (#322)
 
 Khi duyệt phiếu, code cũ sinh lại nội dung chuyển khoản vô điều kiện. Muốn đổi định dạng chỉ cho nội dung mới phải giữ trường đã lưu ở cả caller này, không chỉ tránh patch dữ liệu. Nhãn tài khoản cần gắn từng kết quả, số phiếu khớp không nói được nguồn tiền.
+
+## PR323 - review F1/F2
+
+Đẩy lọc bank_account xuống truy vấn trước limit500; ca dựng501 dòng của
+tài khoản đông và một dòng tài khoản ít, kiểm dòng ít vẫn được lấy.
+Chip dùng CSS chips/chip/on có sẵn. Chưa xử lý F3-F7 (quyền chẩn đoán,
+escape kép, trạng thái/fallback, giới hạn danh sách, truy vấn nhãn trùng).
+Không chốt sẵn sàng phát hành chỉ vì CI trước xanh.

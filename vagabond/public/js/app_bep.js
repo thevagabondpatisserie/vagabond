@@ -27097,8 +27097,8 @@ async function ttnbFormGdRa(d, taiKhoan) {
     '<div style="font-size:13px;font-weight:800">' + h(d.name) + ' · ' + money(d.tien) + ' đ</div>' +
     '<div style="font-size:12px;color:#6b7280;margin-top:4px;line-height:1.6">' +
     'Máy dò theo mã <b>' + h(kq.ma_do || d.name) + '</b> trong nội dung chuyển khoản.</div></div>';
-  html += '<div class="card">' + [{ma:'', nhan:'Tất cả'}].concat(kq.tai_khoan_sepay || []).map(function (t) {
-    return '<button class="btn gh" data-sepaytk="' + h(t.ma) + '" style="min-height:44px">' + (taiKhoan === t.ma ? '✓ ' : '') + h(t.nhan) + '</button>';
+  html += '<div class="chips">' + [{ma:'', nhan:'Tất cả'}].concat(kq.tai_khoan_sepay || []).map(function (t) {
+    return '<button class="chip' + (taiKhoan === t.ma ? ' on' : '') + '" data-sepaytk="' + h(t.ma) + '">' + h(t.nhan) + '</button>';
   }).join('') + '</div>';
   if ((kq.chua_noi_sepay || []).length) html += '<div class="card" style="font-size:13px">Chưa nối SePay: ' + h(kq.chua_noi_sepay.join(', ')) + '. Các tài khoản này chưa có chip lọc.</div>';
   if (!rows.length) {

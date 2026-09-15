@@ -11,3 +11,11 @@ map có chẩn đoán, không hardcode Shinhan. Điều kiện khớp tiền/mã
 Local3032/3032, patch27/27, cổng0. Chưa bench/UI live, cần Claude review,
 đặc biệt vòng đời nội dung cũ, giới hạn500 dòng sao kê và phân quyền danh
 sách tài khoản. Bản495 tách khỏi PR321/v494, chưa merge/deploy.
+
+## PR323 - review F1/F2
+
+Đẩy lọc bank_account xuống truy vấn trước limit500; ca dựng501 dòng của
+tài khoản đông và một dòng tài khoản ít, kiểm dòng ít vẫn được lấy.
+Chip dùng CSS chips/chip/on có sẵn. Chưa xử lý F3-F7 (quyền chẩn đoán,
+escape kép, trạng thái/fallback, giới hạn danh sách, truy vấn nhãn trùng).
+Không chốt sẵn sàng phát hành chỉ vì CI trước xanh.

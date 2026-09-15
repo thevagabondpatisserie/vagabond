@@ -323,3 +323,17 @@ def _chip_mapping():
 		la("chỉ mapped có chip", [x['ma'] for x in chip], ['A'])
 		la("đuôi bốn số", nhan['A'], 'MB · 5678')
 		la("chưa nối có chẩn đoán", chua, ['Ngân hàng B · 4321'])
+
+
+@ca("SePay: lọc tài khoản trước trần 500 giữ dòng tài khoản ít giao dịch")
+def _loc_truoc_tran_323():
+	from unittest.mock import patch
+	du_lieu = [dict(name='DONG-%s' % i, bank_account='DONG', withdrawal=1) for i in range(501)] + [dict(name='IT-1', bank_account='IT', withdrawal=2)]
+	def lay(dt, **kw):
+		ds = du_lieu
+		for cot, phep, gia in kw['filters']:
+			if cot == 'bank_account':
+				ds = [r for r in ds if r[cot] == gia]
+		return [dict(r) for r in ds[:kw['limit_page_length']]]
+	with patch.object(dss.frappe, 'get_all', lay), patch.object(dss, 'nhan_tai_khoan', return_value=({}, [], [])):
+		la('dòng ít vẫn tới cửa đối soát', [r['name'] for r in dss.dong_sao_ke(dss.RA, tu_ngay='2026-09-15', tai_khoan='IT')], ['IT-1'])
