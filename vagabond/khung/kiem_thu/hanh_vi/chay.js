@@ -256,6 +256,38 @@ var HAI_TK = {
 };
 
 async function chayHet() {
+  await caAsync('Hoàn tiền327: mapping rỗng báo cấu hình, không báo thiếu sao kê', async function () {
+    var output = '';
+    var g = {h:String, money:String, api:async function () {return {rows:[], tai_khoan_sepay:[]};}, frame:function (_, html) {output=html;return {querySelectorAll:function () {return [];}};}};
+    vm.createContext(g);
+    vm.runInContext(layHam(docTep('11-khach-ca-hop-dong.js'), 'htFormGdRa'), g);
+    await g.htFormGdRa({name:'HT-TEST',so_tien:100});
+    dung('chỉ đúng cấu hình', output.includes('Chưa có tài khoản SePay đang hoạt động') && output.includes('Cài đặt SePay'));
+    dung('không đổ lỗi sao kê', !output.includes('Không có dòng tiền ra'));
+  });
+  await caAsync('SePay325: 0/1/60 dòng, bỏ danh sách chưa nối, giữ nhãn ngắn', async function () {
+    for (var count of [-1, 0, 1, 60]) {
+      var output = '';
+      var g = {h: String, money: String, api: async function () { return {
+        tai_khoan_sepay: count < 0 ? [] : [{ma:'CT', nhan:'MB · 0615', ten_day_du:'MB - Ngân hàng đầy đủ'}],
+        chua_noi_sepay: ['KHONG_DUOC_HIEN'],
+        rows: Array.from({length:count}, function (_, i) {return {name:'GD'+i, tien:100, lech:0, nhan_ngan_hang:'MB · 0615'};})
+      };}, frame: function (title, html) {output=html; return {querySelectorAll: function () {return [];}};}};
+      vm.createContext(g);
+      vm.runInContext(layHam(docTep('16-mua-hang.js'), 'ttnbFormGdRa'), g);
+      await g.ttnbFormGdRa({name:'TTNB-TEST', tien:100});
+      dung('không hiện tài khoản chưa nối', !output.includes('KHONG_DUOC_HIEN'));
+      if (count < 0) {
+        dung('lý do không mapping', output.includes('Chưa có tài khoản SePay đang hoạt động') && output.includes('Cài đặt SePay'));
+        dung('không đổ lỗi sao kê', !output.includes('Không có dòng tiền ra'));
+        continue;
+      }
+      dung('giữ tên đầy đủ trong title', output.includes('title="MB - Ngân hàng đầy đủ"'));
+      bang('đủ số dòng ứng viên', (output.match(/class="ttnbgd"/g)||[]).length, count);
+      if (!count) dung('có lời báo rỗng', output.includes('Không có dòng tiền ra'));
+      else dung('chip trước sao kê', output.indexOf('data-sepaytk') < output.indexOf('class="ttnbgd"'));
+    }
+  });
   await caAsync('PNK: phân biệt tiền gốc và phần còn, hướng dẫn không bù kho', async function () {
     var g = {money: String, h: function (v) { return String(v).replace(/</g, '&lt;'); }};
     vm.createContext(g);

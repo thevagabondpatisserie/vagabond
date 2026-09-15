@@ -286,3 +286,4 @@ vagabond.patches.luoi_do_nhom_307
 vagabond.patches.dong_bo_cau_truc #v493
 vagabond.patches.dong_bo_cau_truc #v494
 vagabond.patches.dong_bo_cau_truc #v495
+vagabond.patches.dong_bo_cau_truc #v496

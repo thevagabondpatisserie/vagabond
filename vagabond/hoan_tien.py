@@ -3180,6 +3180,7 @@ def tim_gd_ra(ho_so=None, so_ngay=45, tu_khoa=""):
 		rows.append(x)
 	return {
 		"rows": rows,
+		"tai_khoan_sepay": kq.get("tai_khoan_sepay") or [],
 		"so_tien": kq.get("so_tien"),
 		"ma_do": kq.get("ma_do"),
 		"noi_dung_ck": _noi_dung_dung(frappe.get_doc(DT, ho_so)),
