@@ -2058,7 +2058,7 @@ def doi_soat(ho_so=None, so_ngay=30):
 
 	try:
 		gds = frappe.db.sql(
-			"""select name, description, withdrawal, date, reference_number
+			"""select name, description, withdrawal, date, reference_number, bank_account
 			from `tabBank Transaction`
 			where docstatus < 2 and ifnull(withdrawal, 0) > 0
 			  and date >= DATE_SUB(CURDATE(), INTERVAL %s DAY)""",
@@ -2075,6 +2075,10 @@ def doi_soat(ho_so=None, so_ngay=30):
 	# du lieu (o thoi diem do ban ghi da co nhung doc lai moi dong la mot
 	# cau truy van cho moi cap ho so - giao dich).
 	da_chiem = _gd_da_chiem(tru_ho_so=ho_so)
+
+	# Cùng phạm vi tài khoản với mọi đường ghi khác, điều 18. Đọc MỘT lần.
+	from vagabond.doi_soat_sepay import ly_do_tai_khoan_sepay, tai_khoan_duoc_khop
+	cho_phep_tk = tai_khoan_duoc_khop()
 
 	da, xem, sinh = 0, [], []
 	for d in ds:
@@ -2109,6 +2113,18 @@ def doi_soat(ho_so=None, so_ngay=30):
 						"giao_dich": g["name"],
 					}
 				)
+				continue
+			loi_tk = ly_do_tai_khoan_sepay(g.get("bank_account"), cho_phep_tk)
+			if loi_tk:
+				# Bay len cho NGUOI xem kem ly do, khong im lang bo qua.
+				xem.append({
+					"ho_so": d["name"],
+					"hoa_don": d["hoa_don"],
+					"tien_phieu": flt(d["so_tien"]),
+					"tien_chuyen": flt(g["withdrawal"]),
+					"giao_dich": g["name"],
+					"vi_sao": loi_tk,
+				})
 				continue
 			frappe.db.set_value(
 				DT,
