@@ -701,3 +701,19 @@ Không có mapping phải báo chưa tiếp nhận. Frappe bọc return trong me
 nên cờ success cần có ở gốc phản hồi theo giao thức SePay. Ca giả lập kiểm
 submit lỗi, rollback, gửi lại, replay và gói sai; chưa thay cho kiểm HTTP/DB
 đồng thời trên bench. Không suy từ danh sách UI rỗng là webhook thiếu dữ liệu.
+
+## v500: gán thẳng workflow_state lên chứng từ MỚI là hỏng cả lượt lập
+Bản v408 (03/09/2026 19:00) đặt `pe.workflow_state = "Chờ FIN kiểm tra"` ngay
+trước `insert` trong `tra_truoc._dung_phieu`. Frappe soi đường duyệt lúc lưu,
+mà với chứng từ MỚI thì nó không nhận bất kỳ bước chuyển nào, nên ném "Không
+được phép chuyển trạng thái quy trình từ Nháp sang Chờ FIN kiểm tra". Hàm ném
+lỗi thì cả giao dịch lùi: mất phiếu, mất tệp vừa đính. Màn Thanh toán trước
+cho NCC chết đúng 13 ngày mà cổng kiểm vẫn xanh, vì không ca nào gọi thật
+`tao_phieu`. Đo trên site: phiếu cuối lập được là APP-26-09-050 lúc 03/09
+17:38, tức trước bản đó một tiếng rưỡi; sau đó 0 phiếu.
+Luật: chứng từ MỚI thì lưu ở bước mặc định rồi gọi `apply_workflow(doc, <tên
+nút>)`, không gán tay. Gán tay chỉ đúng với chứng từ ĐÃ CÓ. Và đẩy bước không
+được thì GIỮ chứng từ lại, nói thật bước nó đang nằm, đừng ném lỗi huỷ sạch
+việc người ta vừa làm.
+
+PR336 review: apply_workflow trên Frappe16.27.1 nhận JSON/dict và nạp Document khác từ DB. Không truyền Document rồi đọc object cũ. Chuyển lỗi phải rollback savepoint riêng, phục hồi callbacks, reload DB và giao Nháp cho AP Officer; FIN chỉ nhận khi thực sự chuyển thành công. Ca bench tra-truoc-336 kiểm cả lỗi sau save.
