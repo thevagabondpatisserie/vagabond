@@ -94,7 +94,7 @@ def _cau_bao_khop_that():
 	# ke toan. Truoc 03/09 no noi vay ma de phieu o Nhap - ke toan khong he
 	# thay buoc Nhap, nen cau bao la sai.
 	dung("van bao dang cho ke toan", "đang chờ kế toán kiểm tra" in s)
-	dung("tra ve trang thai buoc ke toan", 'pe.get("workflow_state") or TT_CHO_FIN' in s)
+	dung("tra ve trang thai buoc ke toan", '"trang_thai": buoc' in s)
 	dung("chi duong ve man Ho so thanh toan", "chip Trả trước NCC" in s)
 
 

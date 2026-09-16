@@ -715,3 +715,5 @@ Luật: chứng từ MỚI thì lưu ở bước mặc định rồi gọi `appl
 nút>)`, không gán tay. Gán tay chỉ đúng với chứng từ ĐÃ CÓ. Và đẩy bước không
 được thì GIỮ chứng từ lại, nói thật bước nó đang nằm, đừng ném lỗi huỷ sạch
 việc người ta vừa làm.
+
+PR336 review: apply_workflow trên Frappe16.27.1 nhận JSON/dict và nạp Document khác từ DB. Không truyền Document rồi đọc object cũ. Chuyển lỗi phải rollback savepoint riêng, phục hồi callbacks, reload DB và giao Nháp cho AP Officer; FIN chỉ nhận khi thực sự chuyển thành công. Ca bench tra-truoc-336 kiểm cả lỗi sau save.

@@ -16,6 +16,7 @@ Các ca dưới đây GỌI THẬT hàm chứ không dò chuỗi (điều 16). R
 dùng phép dò chuỗi, và chỉ dùng cho đúng một việc không chạy được ở tầng
 khung: chốt "không còn chỗ nào tự gán workflow_state lên phiếu mới nữa".
 """
+import json
 import io
 import os
 from types import SimpleNamespace as NS
@@ -38,6 +39,7 @@ class Phieu(object):
 		self.paid_from = "TK1"
 		self.paid_to = "TK2"
 		self.nhat_ky = []
+		self.da_luu = buoc
 
 	def get(self, k, *a):
 		return getattr(self, k, a[0] if a else None)
@@ -45,6 +47,19 @@ class Phieu(object):
 	def insert(self, **k):
 		# Ghi lai trang thai DUNG LUC LUU. Day la con so bat loi cu.
 		self.nhat_ky.append(("insert", self.workflow_state))
+
+	def as_json(self):
+		return json.dumps({"doctype": "Payment Entry", "name": self.name})
+
+	def reload(self):
+		self.workflow_state = self.da_luu
+
+
+def db_gia():
+	db = NS(savepoint=lambda *a: None, rollback=lambda **k: None)
+	for k in ("before_commit", "after_commit", "before_rollback", "after_rollback"):
+		setattr(db, k, NS(_functions=[]))
+	return db
 
 
 @ca("#500: đẩy bước bằng đúng nút Gửi kiểm tra, không gán tay trạng thái")
@@ -54,9 +69,11 @@ def _day_dung_nut():
 
 	def gia_lap(doc, nut):
 		goi.append(nut)
-		doc.workflow_state = tt.TT_CHO_FIN
+		la("payload là JSON của phiếu", json.loads(doc)["name"], pe.name)
+		pe.da_luu = tt.TT_CHO_FIN
 
 	with patch.object(tt, "_co_o_workflow", lambda: True), \
+			patch.object(tt.frappe, "db", db_gia(), create=True), \
 			patch.dict("sys.modules", {"frappe.model.workflow": NS(apply_workflow=gia_lap)}):
 		buoc, loi = tt._gui_kiem_tra(pe)
 	la("bấm đúng một nút", goi, [tt.NUT_GUI])
@@ -69,9 +86,11 @@ def _day_hong_van_giu_phieu():
 	pe = Phieu(tt.TT_NHAP)
 
 	def no(doc, nut):
-		raise Exception("Không được phép chuyển trạng thái quy trình")
+		pe.workflow_state = tt.TT_CHO_FIN
+		raise Exception("Validation lỗi sau khi đổi object")
 
 	with patch.object(tt, "_co_o_workflow", lambda: True), \
+			patch.object(tt.frappe, "db", db_gia(), create=True), \
 			patch.object(tt.frappe, "log_error", lambda *a, **k: None, create=True), \
 			patch.dict("sys.modules", {"frappe.model.workflow": NS(apply_workflow=no)}):
 		buoc, loi = tt._gui_kiem_tra(pe)
@@ -115,7 +134,7 @@ def _thu_tu_luu_roi_moi_day():
 		patch.object(tt, "_ghi_chu", lambda *a: None),
 		patch.object(tt, "_gan_tep", lambda *a: thu_tu.append("gan_tep")),
 		patch.object(tt, "_gui_kiem_tra", day),
-		patch.object(tt, "_bao_ke_toan", lambda *a: thu_tu.append("bao")),
+		patch.object(tt, "_bao_ke_toan", lambda *a: thu_tu.append(a[-1])),
 		patch.object(tt.frappe, "db", NS(exists=lambda *a: True,
 			get_value=lambda *a, **k: "1121 - TV"), create=True),
 		patch.object(tt.frappe, "get_doc", lambda *a: don, create=True),
@@ -137,12 +156,14 @@ def _thu_tu_luu_roi_moi_day():
 	la("lúc LƯU phiếu còn ở Nháp", pe.nhat_ky[0][1], tt.TT_NHAP)
 	la("kết quả trả về đúng bước", ra["trang_thai"], tt.TT_CHO_FIN)
 	la("có cờ đã gửi", ra["da_gui"], 1)
+	la("giao đúng FIN", thu_tu[-1], tt.VAI_FIN)
 	dung("câu báo nói đang chờ kế toán", "chờ kế toán kiểm tra" in ra["nhan"])
 
 
 @ca("#500: đẩy không được thì câu báo NÓI THẬT, không bảo là đã gửi")
 def _cau_bao_noi_that():
 	pe = Phieu(tt.TT_NHAP)
+	bao = []
 	don = NS(name="DMH-2026-00396", supplier="NCC", grand_total=1620000,
 		docstatus=1, get=lambda k, *a: {"status": "To Receive and Bill",
 			"advance_paid": 0, "per_billed": 0, "supplier_name": "NCC"}.get(k, a[0] if a else None))
@@ -152,7 +173,7 @@ def _cau_bao_noi_that():
 		patch.object(tt, "_ghi_chu", lambda *a: None),
 		patch.object(tt, "_gan_tep", lambda *a: None),
 		patch.object(tt, "_gui_kiem_tra", lambda doc: (tt.TT_NHAP, "Phiếu %s đang ở Nháp." % doc.name)),
-		patch.object(tt, "_bao_ke_toan", lambda *a: None),
+		patch.object(tt, "_bao_ke_toan", lambda *a: bao.append(a[-1])),
 		patch.object(tt.frappe, "db", NS(exists=lambda *a: True,
 			get_value=lambda *a, **k: "1121 - TV"), create=True),
 		patch.object(tt.frappe, "get_doc", lambda *a: don, create=True),
@@ -169,6 +190,7 @@ def _cau_bao_noi_that():
 			b.stop()
 	la("trả về đúng bước thật", ra["trang_thai"], tt.TT_NHAP)
 	la("cờ đã gửi phải là 0", ra["da_gui"], 0)
+	la("nháp giao AP Officer", bao, ["AP Officer"])
 	dung("KHÔNG nói đã chờ kế toán", "chờ kế toán kiểm tra" not in ra["nhan"])
 
 
@@ -184,7 +206,7 @@ def _khong_con_gan_tay():
 	gan = [d for d in MA_NGUON.splitlines()
 		if d.strip().startswith(("pe.workflow_state =", "pe.workflow_state="))]
 	la("không còn dòng lệnh gán thẳng trạng thái", gan, [])
-	dung("có gọi apply_workflow", "apply_workflow(pe, NUT_GUI)" in MA_NGUON)
+	dung("có gọi apply_workflow", "apply_workflow(pe.as_json(), NUT_GUI)" in MA_NGUON)
 	# Tên nút phải khớp Workflow Transition thật của "Duyệt phiếu chi APP".
 	la("tên nút đúng từng dấu", tt.NUT_GUI, "Gửi kiểm tra")
 	la("tên bước đúng từng dấu", tt.TT_CHO_FIN, "Chờ FIN kiểm tra")

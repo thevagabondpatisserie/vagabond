@@ -429,7 +429,7 @@ def tao_phieu(don=None, so_tien=None, nguon_tien=None, loai_chung_tu=None,
 
 	_gan_tep(pe.name, tep)
 	buoc, loi_buoc = _gui_kiem_tra(pe)
-	_bao_ke_toan(pe.name, d, tien)
+	_bao_ke_toan(pe.name, d, tien, VAI_FIN if buoc == TT_CHO_FIN else "AP Officer")
 
 	# Cau bao phai noi DUNG buoc phieu dang nam. Ban truoc luon noi "dang cho
 	# ke toan kiem tra" ke ca khi phieu con o Nháp, ma ke toan khong he thay
@@ -482,18 +482,34 @@ def _gui_kiem_tra(pe):
 	"""
 	if not _co_o_workflow():
 		return pe.get("workflow_state") or TT_NHAP, ""
+	# Frappe16.27.1 frappe/model/workflow.py: apply_workflow parse_json,
+	# nạp lại Document từ DB rồi trả Document MỚI. Không đọc object cũ.
+	diem = "tra_truoc_gui_kiem"
+	frappe.db.savepoint(diem)
+	hang = {k: list(getattr(frappe.db, k)._functions) for k in
+		("before_commit", "after_commit", "before_rollback", "after_rollback")}
 	try:
 		from frappe.model.workflow import apply_workflow
 
-		apply_workflow(pe, NUT_GUI)
-		return pe.get("workflow_state") or TT_CHO_FIN, ""
+		apply_workflow(pe.as_json(), NUT_GUI)
+		pe.reload()
+		return pe.get("workflow_state") or TT_NHAP, ""
 	except Exception:
-		frappe.log_error(frappe.get_traceback(), "tra_truoc: gui kiem tra")
-		return pe.get("workflow_state") or TT_NHAP, (
+		loi = frappe.get_traceback()
+		# Chỉ lùi bước chuyển; phiếu Nháp và tệp trước điểm lưu vẫn còn.
+		# Mất savepoint phải ném lỗi ra để request lùi toàn bộ, không báo đã lưu.
+		frappe.db.rollback(save_point=diem)
+		for k, cu in hang.items():
+			getattr(frappe.db, k)._functions.clear()
+			getattr(frappe.db, k)._functions.extend(cu)
+		pe.reload()
+		frappe.log_error(loi, "tra_truoc: gui kiem tra")
+		buoc = pe.get("workflow_state") or TT_NHAP
+		return buoc, (
 			"Đã lập phiếu trả trước %s và đã lưu chứng từ đính kèm, nhưng máy "
 			"chưa đẩy được phiếu sang bước kế. Phiếu đang ở %s. Nhờ người có "
 			"vai AP Officer mở phiếu bấm Gửi kiểm tra, đừng lập lại phiếu mới."
-			% (pe.name, pe.get("workflow_state") or TT_NHAP))
+			% (pe.name, buoc))
 
 
 def _dung_phieu(d, tien, tk_so_cai):
@@ -590,7 +606,7 @@ def _gan_tep(ten_phieu, tep):
 			frappe.log_error(frappe.get_traceback(), "tra_truoc: gan tep loi")
 
 
-def _bao_ke_toan(ten_phieu, d, tien):
+def _bao_ke_toan(ten_phieu, d, tien, vai=VAI_FIN):
 	"""Bao cho ke toan biet co phieu cho kiem, va giao viec dich danh.
 
 	Khong bao gio nem loi: phieu da luu roi ma cai chuong lam hong ca thao
@@ -599,11 +615,13 @@ def _bao_ke_toan(ten_phieu, d, tien):
 	try:
 		from vagabond import giao_viec
 
-		nguoi = giao_viec._nguoi_theo_vai(VAI_FIN)
+		nguoi = giao_viec._nguoi_theo_vai({vai} if isinstance(vai, str) else vai)
 		if not nguoi:
 			return
 		mo_ta = "%s: phiếu trả trước %s đ cho %s, đơn %s" % (
 			ten_phieu, tien_vn(tien), d.get("supplier_name") or d.supplier, d.name)
+		if vai == "AP Officer":
+			mo_ta += "; phiếu còn Nháp, mở phiếu bấm Gửi kiểm tra; không lập lại."
 		giao_viec.giao(PE, ten_phieu, nguoi, mo_ta)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "tra_truoc: bao ke toan loi")
