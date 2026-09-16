@@ -351,7 +351,7 @@ def _hoan_truc_tiep_mapping():
 		hs = _ho_so_thu(don_huy._khach_le_online())
 		_DA_TAO.append((hs.doctype, hs.name))
 		ma = '327' + frappe.generate_hash(length=8).upper()
-		frappe.db.set_value(hs.doctype, hs.name, {'ma_don_pancake':ma, 'noi_dung_ck':'HOAN TIEN '+ma})
+		frappe.db.set_value(hs.doctype, hs.name, {'loai_hoan':hoan_tien.LOAI_HUY_PANCAKE, 'ma_don_pancake':ma, 'noi_dung_ck':'HOAN TIEN '+ma})
 		gd = _giao_dich(ba.name, hs.so_tien, 'HOAN TIEN '+ma)
 		# Chỉ thay bước phát sinh chứng từ: ca này kiểm ranh giới mapping/ghi DB.
 		# Cặp Payment Entry thật đã được kiểm riêng trong thu_don_huy.
