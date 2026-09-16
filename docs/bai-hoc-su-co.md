@@ -687,3 +687,17 @@ và started_at bước model theo PR; API lỗi chặn chạy. Khóa này chỉ 
 - Sau khi khóa ba đường đối soát cũ, `hoan_tien.sepay_tien_ra` vẫn là cửa trực tiếp chưa kiểm mapping. Cùng sao kê có thể bị chặn ở màn chọn mà vẫn ghi đã hoàn qua endpoint này.
 - Endpoint nay phải đọc Bank Transaction tiền ra hợp lệ từ `ma_gd`, dùng nội dung/số tiền trong DB và qua phép kiểm tài khoản chung trước mọi ghi/sinh chứng từ. Không dùng payload làm bằng chứng tiền ra.
 - Ba handler UI phải phân biệt lý do cấu hình với lệch tiền và trùng giao dịch. Kiểm callback thật bằng Node; kiểm endpoint thiếu sao kê, đã hủy, tiền vào, mapping tắt, hợp lệ và payload giả. Bench dùng tài khoản/mapping/hồ sơ thật, chỉ thay bước sinh chứng từ trong ca kiểm ranh giới này.
+
+## #499: gán thẳng workflow_state lên chứng từ MỚI là hỏng cả lượt lập
+Bản v408 (03/09/2026 19:00) đặt `pe.workflow_state = "Chờ FIN kiểm tra"` ngay
+trước `insert` trong `tra_truoc._dung_phieu`. Frappe soi đường duyệt lúc lưu,
+mà với chứng từ MỚI thì nó không nhận bất kỳ bước chuyển nào, nên ném "Không
+được phép chuyển trạng thái quy trình từ Nháp sang Chờ FIN kiểm tra". Hàm ném
+lỗi thì cả giao dịch lùi: mất phiếu, mất tệp vừa đính. Màn Thanh toán trước
+cho NCC chết đúng 13 ngày mà cổng kiểm vẫn xanh, vì không ca nào gọi thật
+`tao_phieu`. Đo trên site: phiếu cuối lập được là APP-26-09-050 lúc 03/09
+17:38, tức trước bản đó một tiếng rưỡi; sau đó 0 phiếu.
+Luật: chứng từ MỚI thì lưu ở bước mặc định rồi gọi `apply_workflow(doc, <tên
+nút>)`, không gán tay. Gán tay chỉ đúng với chứng từ ĐÃ CÓ. Và đẩy bước không
+được thì GIỮ chứng từ lại, nói thật bước nó đang nằm, đừng ném lỗi huỷ sạch
+việc người ta vừa làm.
