@@ -43,6 +43,17 @@ from frappe.utils import cint, flt
 
 from vagabond import mua_dich_vu
 
+# BA HAM NAY DA DON SANG `minvoice_chung_tu` NGAY 16/09/2026 va nhap lai o
+# day de moi cho goi cu van chay. Ly do don: duong DUNG MOI o
+# `minvoice_chung_tu.dung_hoa_don_mua` cung can dung ba phep nay, ma no
+# khong the nhap nguoc tu tep nay (vong nhap). Hai duong cung mot viec ma
+# hai cach tinh chinh la cai de ra to HDM-26-09-00040 thieu mot dong.
+from vagabond.minvoice_chung_tu import (  # noqa: F401
+	muc_tieu_truoc_thue,
+	ten_dong_bu,
+	tien_dong_may_ghi,
+)
+
 DT_HD = "MInvoice Invoice"
 PI = "Purchase Invoice"
 
@@ -116,37 +127,6 @@ def doc_chi_tiet(chi_tiet):
 	except (ValueError, TypeError):
 		return []
 	return ds if isinstance(ds, list) else []
-
-
-def tien_dong_may_ghi(sl, gia, dp_gia, dp_tien, dp_sl=None):
-	"""Số tiền một dòng SAU KHI máy làm tròn. THUẦN.
-
-	VÌ SAO PHẢI TÍNH TRƯỚC PHẦN LÀM TRÒN - ca thật 27/08/2026
-	--------------------------------------------------------------------
-	Sau v322 còn 11 tờ lệch từ 1 tới 10 đồng. Ví dụ ACC-PINV-2026-01427:
-	hoá đơn ghi 420 đơn vị, đơn giá 5.136,683, thành tiền 2.157.407. ERPNext
-	chỉ giữ đơn giá tới hai số lẻ nên ghi 5.136,68, nhân ra 2.157.405,6, hụt
-	1,4 đồng. Phép nắn cũ tính trên đơn giá GỐC nên thấy khớp và không nắn
-	gì, phần hụt chỉ sinh ra sau khi máy lưu.
-
-	Nên phải cân theo con số máy SẼ ghi, chứ không theo con số hoá đơn đọc
-	lên. Một đồng cũng phải đúng: cửa chặn ghi sổ lấy ngưỡng một đồng, hụt
-	một đồng là tờ đó nằm lại mãi.
-
-	Ô SỐ LƯỢNG cũng bị cắt y như ô đơn giá. Ca thật HDM-2026-00398: hoá đơn
-	ghi 2,762431 đơn vị, máy chỉ giữ ba số lẻ nên ghi 2,762, hụt 9,36 đồng.
-	Bản đầu của hàm này chỉ cắt đơn giá nên còn sót đúng loại đó.
-	"""
-	return flt(flt(sl, dp_sl) * flt(gia, dp_gia), dp_tien)
-
-
-def ten_dong_bu(so_tien):
-	"""Tên dòng bù cho phần chênh. THUẦN.
-
-	Chênh vài đồng là do làm tròn, gọi đúng tên để kế toán khỏi đi tìm.
-	"""
-	return ("Chênh lệch làm tròn theo hoá đơn điện tử"
-		if abs(flt(so_tien)) < 100 else "Phí khác theo hoá đơn")
 
 
 def khoa_ten(ten):
@@ -245,30 +225,6 @@ def _goc(ma_minvoice):
 			"tien_thue", "mst_doi_tac", "nguoi_mua_ban", "chi_tiet"],
 		as_dict=True,
 	)
-
-
-def muc_tieu_truoc_thue(g):
-	"""Tiền hàng trước thuế mà tờ chứng từ PHẢI ra bằng. THUẦN.
-
-	VÌ SAO KHÔNG DÙNG THẲNG Ô `tien_truoc_thue` - sự cố 27/08/2026
-	--------------------------------------------------------------------
-	Bản v319 neo vào ô đó và làm hỏng 5 tờ thật ngay trong lượt chạy đầu:
-
-	  * HDM-26-08-00096 Nhà Sen: bản gốc ghi tổng 3.650.000 nhưng ô
-	    `tien_truoc_thue` để 0 (nhà cung cấp không khai tách). Máy hiểu là
-	    dòng hàng THỪA 3.650.000 nên đặt giảm giá đúng bằng cả tờ, tổng về
-	    0 đồng. Bốn tờ bị về 0 đều đúng kiểu này.
-	  * HDM-26-08-00124 Avanti: ô đó ghi 26.953.500 nhưng dòng hàng dựng ra
-	    tổng 31.453.500, lệch 4.500.000, thành ra tờ phình lên.
-
-	Con số ĐÁNG TIN duy nhất là `tong_tien`: đó là số nhà cung cấp đã gửi cơ
-	quan thuế, và cũng chính là số mà cửa chặn ghi sổ soi. Nên lấy tổng trừ
-	thuế ra tiền hàng, chỉ khi tổng không có mới đành quay về ô cũ.
-	"""
-	tong = flt(g.get("tong_tien"))
-	if tong:
-		return tong - flt(g.get("tien_thue"))
-	return flt(g.get("tien_truoc_thue"))
 
 
 def _quyen_manh():
@@ -528,19 +484,14 @@ def _tong_thue_tren_phieu(doc):
 
 
 def _do_chinh_xac(doc=None, g=None):
-	"""(số lẻ ô đơn giá, số lẻ ô thành tiền, số lẻ ô số lượng) máy đang dùng."""
-	if doc is not None:
-		from vagabond.do_chinh_xac_mua import quy_uoc
-		qc = quy_uoc(doc, g)
-		if qc:
-			return qc['gia'], qc['tien'], qc['sl']
-	try:
-		gia = cint(frappe.get_precision(PI + " Item", "rate"))
-		tien = cint(frappe.get_precision(PI + " Item", "amount"))
-		sl = cint(frappe.get_precision(PI + " Item", "qty"))
-	except Exception:
-		gia, tien, sl = 0, 0, 0
-	return (gia or 2), (tien or 2), (sl or 3)
+	"""(số lẻ ô đơn giá, số lẻ ô thành tiền, số lẻ ô số lượng) máy đang dùng.
+
+	Một nguồn duy nhất, dùng chung với đường dựng mới. Xem
+	`minvoice_chung_tu.do_chinh_xac`.
+	"""
+	from vagabond.minvoice_chung_tu import do_chinh_xac
+
+	return do_chinh_xac(doc, g)
 
 
 def _tk_thue_vao(doc):

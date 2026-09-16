@@ -109,6 +109,9 @@ class VagabondHoSoTT(Document):
 						"\"%s\" thì phải tải đúng file đó lên mới lưu được."
 						% (self.name, self.loai_chung_tu)
 					)
+		from vagabond.hoan_ung_noi_bo import kiem_ho_so, khoa_ma_giao_dich
+		kiem_ho_so(self)
+		da_gap_gd = set()
 		for d in self.dong:
 			nhan = d.hoa_don or d.so_hd_ncc or d.noi_dung or ("dòng %s" % d.idx)
 			if flt(d.so_tien) <= 0:
@@ -120,11 +123,15 @@ class VagabondHoSoTT(Document):
 			# tu sao ke.
 			ma_gd = (d.ma_giao_dich or "").strip()
 			if ma_gd:
+				cac_ma = khoa_ma_giao_dich(ma_gd)
+				if da_gap_gd.intersection(cac_ma):
+					frappe.throw("Một giao dịch đang nằm ở hai khoản. Gỡ khoản trùng trước khi lưu.")
+				da_gap_gd.update(cac_ma)
 				trung_gd = frappe.db.sql(
 					"""select p.name, p.trang_thai from `tabVagabond Ho So TT Dong` d
 					inner join `tabVagabond Ho So TT` p on p.name = d.parent
-					where d.ma_giao_dich = %s and p.name != %s""",
-					(ma_gd, self.name or ""),
+					where d.ma_giao_dich in %s and p.name != %s for update""",
+					(tuple(cac_ma), self.name or ""),
 					as_dict=True,
 				)
 				for t in trung_gd:

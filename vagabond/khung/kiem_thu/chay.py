@@ -25,7 +25,7 @@ nen.gia_lap()
 from vagabond.khung.kiem_thu import thu_tra_lai_app_339
 
 from vagabond.khung.kiem_thu import (  # noqa: E402,F401
-	thu_dat_ban_301, thu_thanh_vien_300, thu_noi_dung_web, thu_dat_ban_web, thu_ra_phantom_303,
+	thu_hoan_ung_noi_bo_502, thu_dat_ban_301, thu_thanh_vien_300, thu_noi_dung_web, thu_dat_ban_web, thu_ra_phantom_303,
 	thu_combo_261, thu_can_tru_262, thu_ghi_so_266, thu_su_co_290, thu_luu_duyet_296,
 	thu_doi_chieu_app_247, thu_doi_chieu_252, thu_dong_bo_227, thu_gram_bom_252, thu_tk_dich_vu_252, thu_do_chinh_xac_mua_259,
 	thu_bang_gia_nhap, thu_minvoice_227, thu_link_thue_227, thu_bao_ve_hddt_225, thu_cong_cu_tang_cloud,
@@ -80,6 +80,7 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_khuon_thu_dien_tu,
 	thu_khach_tren_don, thu_kho_san_xuat, thu_xuat_kho_them, thu_qr_xhd_cfd_push, thu_khoa_va_tim_hang, thu_may_in_qz, thu_kiem_that, thu_lan_nhan, thu_lo_hang, thu_lo_het_han_v406, thu_luat, thu_luat_thanh_toan, thu_ma_bill_va_khop_tien, thu_ma_cap_so, thu_ma_vach, thu_mau_in, thu_mau_in_quay, thu_ton_ngay_mai,
 	thu_loai_chung_tu_dung_chung,
+	thu_lech_mot_dong_502,
 	thu_minvoice_chung_tu,
 	thu_mo_lai_ngay_va_gan_nguoi_ban,
 	thu_mua_dich_vu, thu_mua_vu_ngay,

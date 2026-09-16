@@ -256,6 +256,25 @@ var HAI_TK = {
 };
 
 async function chayHet() {
+  await caAsync('502 nối phiếu: truyền ngữ cảnh, hiện lý do và không tự chọn', async function () {
+    var m = dungMan({});
+    var params, muc, chon = 0;
+    m.g.huDong = [{so_tien:1400000,noi_dung:'TTNB260900001',ma_giao_dich:'FT1'}];
+    m.g.api = async function (duong, ts) {
+      params = ts;
+      return {ds:[{ma:'TTNB-26-09-00001',ten:'Khoản chi',so_tien:1400000,
+        goi_y:'Cùng giao dịch',ngay:'2026-09-16',trang_thai:'Da chi'}]};
+    };
+    m.g.sheet = function (ten, rows) { muc = rows; };
+    m.g.huXemVaNoiPhieu = function () { chon++; };
+    await m.g.huNoiPhieuNoiBo(0);
+    bang('gửi số tiền', params.so_tien, 1400000);
+    bang('gửi mã giao dịch', params.ma_giao_dich, 'FT1');
+    bang('gửi nội dung', params.noi_dung, 'TTNB260900001');
+    dung('lý do nhìn thấy', muc[0].phu.indexOf('Cùng giao dịch') === 0);
+    bang('người dùng chưa chọn', chon, 0);
+  });
+
   await caAsync('#498: ba cửa công thức trên máy, bếp phó soạn được nhưng không thấy nút Ghi sổ', async function () {
     var HO = {
       'bếp trưởng': ['Manufacturing Manager'],

@@ -211,7 +211,7 @@ def _mb_ca_nhan():
 		frappe.set_user(cu)
 
 
-@ca("#247 MB cá nhân: không tất toán phiếu chi công ty ở tự động hoặc chọn tay")
+@ca("#502 MB cá nhân thiếu chủ quỹ: không khớp TTNB tự động hoặc chọn tay")
 def _mb_khong_tat_toan_phieu_cong_ty():
 	cu = frappe.session.user
 	frappe.set_user("Administrator")
@@ -219,6 +219,7 @@ def _mb_khong_tat_toan_phieu_cong_ty():
 		ncc = mot_nha_cung_cap()
 		so_tk = _so_thu()
 		ca_nhan = _tai_khoan_ca_nhan(so_tk, ncc)
+		frappe.db.set_value("Bank Account", ca_nhan.name, "party", "", update_modified=False)
 		cong_ty_ba = _mot("Bank Account", {
 			"company": cong_ty(), "is_company_account": 1, "disabled": 0,
 		})
@@ -237,7 +238,7 @@ def _mb_khong_tat_toan_phieu_cong_ty():
 		try:
 			de_nghi_chi.khop_tay(p.name, gd_ca_nhan.name)
 		except frappe.ValidationError as e:
-			dung("chọn tay nói rõ tài khoản cá nhân", "tài khoản cá nhân" in str(e))
+			dung("chọn tay nói rõ tài khoản cá nhân", "nguồn chi" in str(e))
 		else:
 			dung("chọn tay phải chặn tiền cá nhân", False)
 
@@ -246,11 +247,11 @@ def _mb_khong_tat_toan_phieu_cong_ty():
 		dong_ca_nhan = [x for x in ung_vien if x["name"] == gd_ca_nhan.name]
 		la("#328 màn chọn vẫn có tiền cá nhân", len(dong_ca_nhan), 1)
 		la("#328 dòng chưa dùng được", dong_ca_nhan[0]["dung_duoc"], 0)
-		dung("#328 giải thích nguồn", "tài khoản cá nhân" in dong_ca_nhan[0]["vi_sao_khong"])
+		dung("#328 giải thích nguồn", "nguồn chi" in dong_ca_nhan[0]["vi_sao_khong"])
 		from vagabond import doi_soat_sepay as dss
 		kq = dss.tu_dong("ttnb", p.name, so_ngay=1)
 		la("#328 tự động không gắn", kq["da_khop"], 0)
-		dung("#328 tự động báo nguồn", any("tài khoản cá nhân" in r["vi_sao"] for r in kq["xem_lai"]))
+		dung("#328 tự động báo nguồn", any("nguồn chi" in r["vi_sao"] for r in kq["xem_lai"]))
 
 		# #327: đối chứng phải qua cấu hình SePay thật, không chỉ có Bank Account.
 		# Tài khoản thử riêng để ca không phụ thuộc mapping của seed/ca trước.
@@ -377,5 +378,103 @@ def _hoan_truc_tiep_mapping():
 			lai = hoan_tien.sepay_tien_ra(ma_gd=gd.name)
 			la('retry không khớp lại',lai['khop'],0)
 			la('retry không sinh đôi',sinh.call_count,1)
+	finally:
+		frappe.set_user(cu)
+
+
+@ca('#502 TTNB từ quỹ 141 nối APP cùng chủ, giữ chứng cứ và chống hoàn trùng FT/BT')
+def _ttnb_hoan_ung_502():
+	cu = frappe.session.user
+	frappe.set_user('Administrator')
+	try:
+		ncc = mot_nha_cung_cap()
+		b = _tai_khoan_ca_nhan(_so_thu(), ncc)
+		sepay.them_tai_khoan(b.bank_account_no, b.name)
+		p = _phieu_cho_chi(247502)
+		g = _giao_dich(b.name, 247502, de_nghi_chi.noi_dung_ck(p.name))
+		from vagabond import doi_soat_sepay as dss
+		ra = dss.ung_vien('ttnb', p.name, so_ngay=1, tai_khoan=b.name)['rows']
+		la('nguồn 141 được chọn', next(x for x in ra if x['name']==g.name)['dung_duoc'], 1)
+		de_nghi_chi.khop_tay(p.name, g.name)
+		p.reload()
+		la('nhân viên đã nhận tiền', p.trang_thai, de_nghi_chi.TT_DA_CHI)
+		la('bằng chứng là giao dịch cá nhân', p.ma_gd, g.name)
+		de_nghi_chi.khi_co_giao_dich(g.name)
+		la('webhook lặp giữ nguyên', frappe.db.get_value(p.doctype,p.name,'ma_gd'),g.name)
+		goi_y = ho_so_tt.ds_phieu_noi_bo(ma_giao_dich=g.reference_number)['ds']
+		la('gợi ý đúng phiếu trên đầu', goi_y[0]['ma'], p.name)
+		la('lý do cùng giao dịch', goi_y[0]['goi_y'], 'Cùng giao dịch')
+		dong = {'ngay_hd':today(),'noi_dung':'Kiểm TTNB hoàn ứng 502',
+			'so_tien':247502,'ma_giao_dich':g.reference_number,'de_nghi_chi':p.name}
+		kq = ho_so_tt.tao_hoan_ung(tk_hoan=b.name,dong=[dong],gui_luon=0)
+		h = frappe.get_doc('Vagabond Ho So TT',kq['ma'])
+		_DA_TAO.append((h.doctype,h.name))
+		la('đúng người được hoàn',h.nha_cung_cap,ncc)
+		la('đúng ngân hàng nhận',h.tk_nhan,b.name)
+		la('chuẩn hóa chứng cứ',h.dong[0].ma_giao_dich,g.name)
+		la('giữ TTNB',frappe.db.get_value(p.doctype,p.name,'ho_so_tt'),h.name)
+		la('chưa ghi nhận công ty đã trả',h.ma_giao_dich or '', '')
+		la('mới lập chưa sinh hóa đơn',h.dong[0].hoa_don or '', '')
+		la('không dùng lại trong bảng sao kê',len([x for x in ho_so_tt.sepay_ocb(tai_khoan=b.name)['rows']
+			if x['ma_giao_dich'] in (g.name,g.reference_number)]),0)
+		# Đi thẳng Document, bỏ mã TTNB và đổi sang FT vẫn không hoàn trùng.
+		frappe.db.savepoint('thu_trung_502')
+		try:
+			trung=frappe.copy_doc(h)
+			trung.ma=ho_so_tt._sinh_ma()
+			trung.dong[0].de_nghi_chi=None
+			trung.dong[0].ma_giao_dich=g.reference_number
+			trung.insert(ignore_permissions=True)
+		except frappe.ValidationError as e:
+			dung('FT gặp hồ sơ giữ BT', 'không hoàn ứng hai lần' in str(e))
+		else:
+			dung('không được tạo hồ sơ thứ hai',False)
+		finally:
+			frappe.db.rollback(save_point='thu_trung_502')
+		# Một APP có hai dòng FT/BT cũng bị chặn trước khi tính hai lần hoàn.
+		frappe.db.savepoint('thu_doi_502')
+		try:
+			h.append('dong',{'noi_dung':'Trùng mã khác','so_tien':247502,'ma_giao_dich':g.reference_number})
+			h.save(ignore_permissions=True)
+		except frappe.ValidationError as e:
+			dung('bắt trùng trong hồ sơ', 'hai khoản' in str(e))
+		else:
+			dung('không được tăng gấp đôi hồ sơ',False)
+		finally:
+			frappe.db.rollback(save_point='thu_doi_502')
+		# Đi tiếp đúng cửa duyệt, tạo PI thật rồi ghi PE từ sao kê công ty.
+		from vagabond.khung.kiem_that.thu_ho_so_tt_v445 import _mon_dich_vu, _tk_ngan_hang, _unc_gia, _giao_dich_ngan_hang
+		from vagabond.khung.kiem_that.thu_doi_chieu_app_247 import _ghi
+		for ma_mon in (ho_so_tt.MON_CO_VAT, ho_so_tt.MON_KHONG_VAT):
+			if not frappe.db.exists('Item', ma_mon):
+				mon=frappe.copy_doc(frappe.get_doc('Item',_mon_dich_vu()))
+				mon.item_code=ma_mon
+				mon.item_name='Dịch vụ thử hoàn ứng'
+				mon.insert(ignore_permissions=True)
+				_DA_TAO.append(('Item',mon.name))
+		h.reload()
+		h.tk_chi=_tk_ngan_hang(cong_ty())
+		h.save(ignore_permissions=True)
+		ho_so_tt.duyet(h.name,'gui_fin')
+		h.reload()
+		if h.trang_thai==ho_so_tt.TT_CHO_FIN:
+			ho_so_tt.duyet(h.name,'fin')
+		ho_so_tt.duyet(h.name,'gd')
+		h.reload()
+		la('duyệt xong',h.trang_thai,ho_so_tt.TT_DA_DUYET)
+		hd=h.dong[0].hoa_don
+		dung('có hóa đơn mua thật',bool(hd))
+		_DA_TAO.append(('Purchase Invoice',hd))
+		la('đúng chi phí một lần',float(frappe.db.get_value('Purchase Invoice',hd,'grand_total')),247502.0)
+		_unc_gia(h)
+		g_ct=_giao_dich_ngan_hang(h.name,247502,cong_ty())
+		_ghi(h,g_ct)
+		h.reload()
+		la('công ty trả bằng giao dịch khác',h.ma_giao_dich,g_ct.name)
+		la('giữ chứng cứ trả nhân viên',h.dong[0].ma_giao_dich,g.name)
+		la('công nợ đã hết',float(frappe.db.get_value('Purchase Invoice',hd,'outstanding_amount')),0.0)
+		bo=ho_so_tt._but_toan_cua_ho_so(h.name)
+		la('retry nhận ra đã làm',ho_so_tt.danh_dau_da_tra(h.name,gui_thu=0)['da_lam_roi'],1)
+		la('không tạo thêm bút toán',ho_so_tt._but_toan_cua_ho_so(h.name),bo)
 	finally:
 		frappe.set_user(cu)

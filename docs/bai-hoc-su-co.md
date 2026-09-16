@@ -721,3 +721,52 @@ PR336 review: apply_workflow trên Frappe16.27.1 nhận JSON/dict và nạp Docu
 ## Issue339 - phân biệt hóa đơn được nối và hóa đơn được sinh
 
 Khi cancel/amend PI, rà cả APP đang giữ liên kết, không chỉ PE/JE. Trả lại hồ sơ NCC không đồng nghĩa hủy PI. Guard chống bỏ rơi PI do hoàn ứng sinh phải xét nguồn, không chỉ docstatus của mọi dòng. Test xuyên nút/API/Document: PI hủy sau lập, trả lại, đổi sang bản amend và gửi lại, giữ nguyên GL và dư nợ.
+## 16/09/2026 - TTNB trả nhân viên bằng quỹ 141 không phải công ty hoàn ứng
+
+Triệu chứng: SePay đã có giao dịch, tài khoản cá nhân đã gắn quỹ 141 và đúng
+chủ, nhưng nút khớp TTNB từ chối vì chỉ nhận tài khoản công ty. Luồng thực tế
+anh Việt xác nhận trên #328 có hai lần chuyển: người ứng trả nhân viên, sau
+đó công ty hoàn người ứng. Phân loại theo cờ công ty đơn lẻ làm chặn sai.
+Phòng: kiểm tài khoản sổ cái và chủ quỹ; giữ riêng chứng cứ ở dòng APP với
+giao dịch công ty trả ở đầu APP. Mã tham chiếu FT và tên Bank Transaction
+phải được kiểm như cùng một dòng tiền để không hoàn trùng qua hai cách nhập.
+Bằng chứng local và trạng thái bench nằm trong docs/pr-ttnb-hoan-ung-502.md;
+không coi thay đổi quy tắc này là đã chứng minh toàn bộ sổ cái.
+### 16/09/2026 - Ngưỡng một đồng: hai đường dựng chứng từ, hai cách tính (v502)
+
+Hoá đơn ALOIN C26TAA số 1144, 260 x 1.576,92, thành tiền 410.000. Chứng từ
+HDM-26-09-00040 vào sổ 442.799 trong khi hoá đơn ghi 442.800. Thiếu đúng một
+đồng, không lớp nào kêu.
+
+Hai chỗ cùng để lọt, sửa một chỗ vẫn sai:
+
+- `minvoice_chung_tu.dung_hoa_don_mua` (đường DỰNG MỚI) cân tổng bằng cách
+  nhân thẳng `qty * rate`, ra 409.999,2. Phần hụt chỉ thành một đồng SAU KHI
+  máy lưu, vì ô đơn giá chỉ giữ hai số lẻ. Đường DỰNG LẠI trong
+  `dung_lai_hddt` đã học bài này từ 27/08/2026 và dùng `tien_dong_may_ghi`,
+  nhưng hàm đó chỉ nằm ở tệp dựng lại nên đường dựng mới không với tới.
+- Phép nắn so bằng `chenh < -NGUONG_KHOP` với ngưỡng 1.0, mà -1,0 < -1,0 là
+  sai. Ngưỡng ĐÓNG thì chênh đúng một đồng bị gọi là khớp.
+
+Luật rút ra: khi phát hiện hai đường cùng làm một việc, đừng chỉ sửa đường
+đang hỏng, hãy dọn phép tính về một hàm chung rồi cho cả hai gọi. Ba hàm
+`tien_dong_may_ghi`, `muc_tieu_truoc_thue`, `ten_dong_bu` nay nằm ở
+`minvoice_chung_tu` và `dung_lai_hddt` nhập lại.
+
+Luật thứ hai: ngưỡng phải nói rõ HỞ hay ĐÓNG. `NGUONG_KHOP` của phép nắn là
+ngưỡng hở (chênh một đồng là phải nắn) vì hai vế đem so đều đã là số nguyên
+đồng máy sẽ ghi. `mua_dich_vu.NGUONG_LECH` của cổng chặn ghi sổ vẫn đóng, vì
+nó soi một tờ đã có, có thể do người gõ tay, nới một đồng để đừng chặn oan.
+Hai cái cùng giá trị 1.0 mà khác nghĩa, đừng gộp.
+
+Bẫy khi chạy đột biến: bộ chạy đột biến phải khôi phục tệp trong `finally`.
+Ngày 16/09 lượt đột biến thứ năm bị timeout giết giữa chừng và để nguyên bản
+đã bóp trong cây làm việc, suýt nữa đẩy lên.
+
+### 16/09/2026 - PR #337: tổng đã cân che mất đơn giá bị cắt
+
+Bench precision #259 từng tắt policy rồi chờ tổng sai bốn đồng. Khi #337
+cân cả phần chênh đó bằng giảm giá, tổng đúng nhưng đơn giá vẫn bị cắt.
+Đối chứng phải kiểm chính đơn giá, thành tiền dòng và khoản giảm giá; không
+chỉ nhìn tổng hoặc nhận mọi exception là bằng chứng. Giữ luồng bật policy
+kiểm save/submit/GL/hủy, bổ sung hóa đơn lệch một đồng cả dấu dương và âm.

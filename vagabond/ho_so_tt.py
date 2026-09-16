@@ -1210,7 +1210,7 @@ def sepay_ocb(so_ngay=60, chi_chua_gom=1, tai_khoan=None):
 	ra = []
 	for r in ds:
 		ma = (r.reference_number or r.name or "").strip()
-		if ma in da_gom:
+		if ma in da_gom or r.name in da_gom:
 			continue
 		ra.append({
 			"ma_giao_dich": ma,
@@ -4160,7 +4160,7 @@ def _ho_tep(ma_tep):
 
 
 @frappe.whitelist()
-def ds_phieu_noi_bo(tu_khoa="", so_ngay=180, gioi_han=60):
+def ds_phieu_noi_bo(tu_khoa="", so_ngay=180, gioi_han=60, so_tien=0, noi_dung="", ma_giao_dich=""):
 	"""Phiếu thanh toán nội bộ đã duyệt, chưa nối vào hồ sơ nào.
 
 	Anh Việt 22/08/2026: *"mở ra một Modal danh sách các 'Phiếu thanh toán
@@ -4200,19 +4200,27 @@ def ds_phieu_noi_bo(tu_khoa="", so_ngay=180, gioi_han=60):
 			fields=[
 				"name", "ten_khoan_chi", "so_tien", "tong_tien", "trang_thai",
 				"nguoi_tao", "ngay_can_tt", "dien_giai", "loai_nghiep_vu",
-				"phan_loai", "creation", "hinh_thuc", "nha_cung_cap",
+				"phan_loai", "creation", "hinh_thuc", "nha_cung_cap", "ma_gd",
 			],
 			order_by="creation desc",
-			limit_page_length=cint(gioi_han) or 60,
+			limit_page_length=0,
 		)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "ho_so_tt: doc ds phieu noi bo")
 		return {"ds": [], "loi": "Chưa đọc được danh sách phiếu nội bộ."}
+	from vagabond.hoan_ung_noi_bo import giao_dich, xep_goi_y
+	g = giao_dich(ma_giao_dich)
+	# Gợi ý trước giới hạn: phiếu đúng ở ngoài 60 phiếu mới vẫn phải hiện.
+	ds = xep_goi_y(ds, g.withdrawal if g else so_tien,
+		g.description if g else noi_dung, g.name if g else "")
+	tong = len(ds)
+	ds = ds[:max(1, min(cint(gioi_han) or 60, 200))]
 	ra = []
 	for r in ds:
 		tien = flt(r.get("tong_tien")) or flt(r.get("so_tien"))
 		ra.append({
 			"ma": r["name"],
+			"goi_y": r.get("goi_y") or "",
 			"ten": r.get("ten_khoan_chi") or r["name"],
 			"so_tien": tien,
 			"trang_thai": r.get("trang_thai") or "",
@@ -4224,7 +4232,7 @@ def ds_phieu_noi_bo(tu_khoa="", so_ngay=180, gioi_han=60):
 			"phan_loai": r.get("phan_loai") or "",
 			"so_tep": len(_dinh_kem([(DNC, r["name"])])),
 		})
-	return {"ds": ra, "tong": len(ra)}
+	return {"ds": ra, "tong": tong}
 
 
 @frappe.whitelist()
