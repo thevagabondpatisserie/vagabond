@@ -223,6 +223,14 @@ def can(name, so_tien):
         pb = chia_nguon(hs._ke_hoach_phan_bo(doc), so_tien)
     except ValueError as exc:
         frappe.throw(str(exc))
+    # Bank Account có thể được quản trị đổi ánh xạ sau lúc cấp. Không lấy
+    # nguồn trên sổ141 cũ để cấn vào một sổ141 khác chỉ vì giữ nguyên tên BA.
+    for ten in nguon:
+        cap = frappe.get_doc(JE, ten, for_update=True)
+        da_cap = sum(Decimal(str(d.debit_in_account_currency or 0)) - Decimal(str(d.credit_in_account_currency or 0))
+                     for d in cap.accounts if d.account == a.name)
+        if cap.company != a.company or da_cap != Decimal(str(cap.total_debit)):
+            frappe.throw("Nguồn %s không còn khớp sổ quỹ đang chọn. Kế toán kiểm ánh xạ tài khoản trước khi cấn." % ten)
     kiem(doc.dong, doc.name)
     j = frappe.new_doc(JE)
     j.company, j.posting_date, j.voucher_type = a.company, today(), "Journal Entry"
