@@ -770,3 +770,33 @@ cân cả phần chênh đó bằng giảm giá, tổng đúng nhưng đơn giá
 Đối chứng phải kiểm chính đơn giá, thành tiền dòng và khoản giảm giá; không
 chỉ nhìn tổng hoặc nhận mọi exception là bằng chứng. Giữ luồng bật policy
 kiểm save/submit/GL/hủy, bổ sung hóa đơn lệch một đồng cả dấu dương và âm.
+
+### 16/09/2026 - Hàng vào điểm bán đều đặn mà không có đường ra (v505)
+
+Quét sổ kho hai kho điểm bán trong một tháng: hàng ra khỏi Kho D1 và Kho Sales
+Online chỉ có đúng 18 dòng, và cả 18 đều là điều chuyển sang kho khác. Không một
+dòng nào là hàng đã dùng hay đã bán. Bao bì, công cụ dụng cụ, nguyên liệu pha
+chế, bán thành phẩm đều không có đường ra. Khoảng 320 triệu treo lại.
+
+Không ai báo lỗi, vì không có lỗi nào để báo. Nhân viên không bấm sai nút, họ
+không có nút nào để bấm. Bài học: khi một phân hệ có cửa VÀO mà không có cửa RA,
+sai sót không hiện ra dưới dạng lỗi, nó hiện ra dưới dạng một con số lớn dần
+trong báo cáo tồn kho mà không ai nhìn. Trước khi dựng một màn nhập liệu mới,
+nên đếm thử số dòng đi ra của đúng phân hệ đó trong một tháng.
+
+Ba cái bẫy khi viết màn Xuất kho phục vụ bán hàng, đã chốt bằng ca kiểm:
+
+- Ô `vgb_muc_dich_xuat` nay do BA màn dùng chung, vì cả ba đều đẻ ra Material
+  Issue. Màn Xuất dùng nội bộ trước đây lọc kiểu "ô này có giá trị", giữ nguyên
+  cách đó là danh sách của nó kéo luôn phiếu của màn mới sang. Mỗi màn phải lọc
+  đúng mã của mình, và mã nằm ở một chỗ duy nhất là `xuat_kho.MA_PHUC_VU_BAN`.
+- Nhóm món quyết định tài khoản ghi sổ, nên phải đọc THẲNG từ danh mục Món chứ
+  không nhận nhóm app gửi lên. Tin app là mở đường cho một dòng bánh thành phẩm
+  đi vào phiếu với nhãn "Bao bì".
+- Đếm ra nhiều hơn số trên sổ không phải là tiêu dùng, đó là sai sót nhập hoặc
+  sai sót đếm. Biến nó thành một dòng xuất âm là làm hỏng sổ kho và làm hỏng cả
+  giá vốn bình quân. Chặn lại và chỉ đường sang Kiểm kê.
+
+Và một bẫy của chính bộ kiểm: cổng kiểm có ca soi mọi chuỗi JS xem còn xưng "em"
+không. Thẻ HTML `<em>` và bộ chọn CSS `.xpvo em` làm ca đó đỏ dù không có chữ
+"em" nào trong lời thoại. Dùng `<span class="dd">` thay cho `<em>`.
