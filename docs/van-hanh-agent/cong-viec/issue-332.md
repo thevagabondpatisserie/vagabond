@@ -43,3 +43,9 @@ Model/effort runtime chưa xác minh, token provider unavailable; review0 lượ
 
 Bổ sung app dùng cùng API và hộp chọn nguồn/UOM; hủy không ghi, API lỗi
 không toast thành công. Tờ gõ tay/phiếu trả vẫn qua đường gán mã cũ.
+
+## Bổ sung sau review tự động
+
+- Khóa mã NCC được tra trước tên. Đổi cả mapping theo mã và theo tên trong cùng savepoint; tên đã thuộc mã NCC khác thì yêu cầu đối chiếu, không repoint nhầm. Ca mới kiểm lần tra kế tiếp vẫn ra mã mới.
+- Bench bổ sung submit chủ động sau sửa/rollback: GL cân, công nợ và VAT theo nguồn, không sinh SLE khi update_stock=0. Chưa nhận đạt trước khi CI chạy xong.
+- Local 3049/0, predeploy rc0. Review Claude run35053702965 trên4fa23695 dừng error_max_turns20, không có kết luận; cần review bản tiếp theo. Không chỉnh giới hạn chỉ để vượt cổng.

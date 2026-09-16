@@ -95,3 +95,25 @@ def _mat_nguon():
         doc.custom_minvoice_id='M'
         la('có nguồn không cảnh báo bản sao',sm._lien_quan(doc),[])
         la('không đọc thêm',len(goi),1)
+
+
+@ca('#332: sửa khóa mã NCC cũ và khóa tên, không ghi đè tên thuộc mã khác')
+def _hai_khoa():
+    for ma_khac in (False, True):
+        bo, doc, g, ghi = _nen()
+        g['chi_tiet'][0]['mhhdvu'] = 'MA'
+        cu = Dong(name='MAP-MA', ma_ncc='MA', ten_ncc='Tên cũ', item_code='CU',
+                  save=lambda **k:ghi.append('map-ma'))
+        ten = Dong(name='MAP-TEN', ma_ncc='KHAC' if ma_khac else '',
+                   ten_ncc='Hàng nguồn', item_code='CU', save=lambda **k:ghi.append('map-ten'))
+        with bo, patch.object(qc,'_anh_xa',lambda mst,k,v:[cu] if k=='ma_ncc' else [ten]):
+            sm.frappe.get_doc = lambda dt,n,**k:cu if n==cu.name else ten
+            if ma_khac:
+                nem('tên thuộc mã khác',lambda:sm._sua(doc,g,'R',0,'MOI','Chai 700 ml'),ValueError)
+                la('chưa ghi mapping khác',ghi,[])
+            else:
+                sm._sua(doc,g,'R',0,'MOI','Chai 700 ml')
+                la('khóa mã đổi',cu.item_code,'MOI')
+                la('khóa tên đổi',ten.item_code,'MOI')
+                la('giữ tên cũ trên khóa mã',cu.ten_ncc,'Tên cũ')
+                la('tra lần sau ưu tiên mã đúng',qc.tim_mon('123','MA','Hàng nguồn'),'MOI')

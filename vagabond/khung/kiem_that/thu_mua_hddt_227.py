@@ -266,14 +266,14 @@ def _doi_ma_nguon_332():
 		_luu(m)
 		cac.append(m)
 	cu, moi = cac
-	g = _nguon([{'ten':'Món thử đổi mã 332','sluong':3,'dgia':331818,
+	g = _nguon([{'ten':'Món thử đổi mã 332','mhhdvu':'MA332','sluong':3,'dgia':331818,
 		'thtien':995454,'dvtinh':moi.stock_uom}], 99545, 1094999)
 	# MST thử không mang hậu tố chi nhánh, chỉ chạm nguồn mới trong savepoint.
 	mst = '332' + frappe.generate_hash(length=10)
 	g.mst_doi_tac = mst
 	g.save()
 	mapping = _luu(frappe.get_doc(dict(doctype=qc.LOAI, supplier_mst=mst,
-		ten_ncc='Món thử đổi mã 332', item_code=cu.name, vgb_uom=cu.stock_uom)))
+		ten_ncc='Tên cũ của mã 332', ma_ncc='MA332', item_code=cu.name, vgb_uom=cu.stock_uom)))
 	hd = _phieu([('Món thử đổi mã 332',3,395000)], moi.name)
 	_luu(hd)
 	# Dựng trạng thái lịch sử đã mất tên; chỉ trên chứng từ thử của ca này.
@@ -321,3 +321,13 @@ def _doi_ma_nguon_332():
 	la('rollback PI vẫn mã mới', hd.items[0].item_code, moi.name)
 	la('rollback mapping vẫn mã mới', mapping.item_code, moi.name)
 	la('rollback giữ tiền', hd.grand_total, 1094999)
+
+	# Quyền sửa không tự ghi sổ; kế toán chủ động submit phải đi hết GL thật.
+	_ghi_so(hd, 1094999, 99545)
+	gl = nen.so_cai_cua(hd)
+	la('công nợ NCC đúng tiền nguồn', sum(flt(d.credit) - flt(d.debit)
+		for d in gl if d.account == hd.credit_to), 1094999)
+	from vagabond import minvoice_chung_tu as mc
+	dong = sm._dong_goc(g.as_dict())[0]
+	ma_sau, _, _ = mc._tra_ma_hang(dong, mst, hd.supplier)
+	la('đồng bộ tiếp tra mã NCC vẫn chọn mã mới', ma_sau, moi.name)

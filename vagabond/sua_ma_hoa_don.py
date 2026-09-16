@@ -63,14 +63,30 @@ def _sua(doc, g, dong, vi_tri, item_code, uom):
     mst = (g.get('mst_doi_tac') or '').strip().split('-')[0]
     if not mst:
         frappe.throw('Nguồn thiếu MST nhà cung cấp. Kiểm lại bản nguồn trước khi ghi nhớ mã và quy cách.')
-    maps = qc._anh_xa(mst, 'ten_ncc', ten)
-    if len(maps) > 1:
-        frappe.throw('Có nhiều ánh xạ cùng tên nguồn. Mở ánh xạ NCC và giữ một lựa chọn rõ ràng trước khi sửa.')
-    m = frappe.get_doc(qc.LOAI, maps[0].name, for_update=True) if maps else frappe.new_doc(qc.LOAI)
-    m.update(dict(supplier_mst=mst, ten_ncc=ten, item_code=item_code, vgb_uom=uom))
-    # Quyền PI đã kiểm, chỉ kế toán/thu mua qua cửa role của endpoint.
-    # Ghi trước save để hook đọc đúng lựa chọn mới, lỗi sau đó rollback cả hai.
-    m.save(ignore_permissions=True)
+    # tim_mon ưu tiên mã NCC rồi mới tên. Sửa cả hai khóa, kể cả khi
+    # tên lưu ở khóa mã là tên cũ; không để lần đồng bộ sau quay về mã cũ.
+    ma = str(x.get('ma') or '').strip()
+    theo_ma = qc._anh_xa(mst, 'ma_ncc', ma) if ma else []
+    theo_ten = qc._anh_xa(mst, 'ten_ncc', ten)
+    if len(theo_ma) > 1 or len(theo_ten) > 1:
+        frappe.throw('Có nhiều ánh xạ cùng mã hoặc tên nguồn. Mở ánh xạ NCC và giữ một lựa chọn rõ ràng trước khi sửa.')
+    ds_map = {}
+    for r in theo_ma + theo_ten:
+        if r.name not in ds_map:
+            ds_map[r.name] = frappe.get_doc(qc.LOAI, r.name, for_update=True)
+    for r in theo_ten:
+        ma_cu = str(ds_map[r.name].get('ma_ncc') or '').strip()
+        if ma_cu and ma_cu != ma:
+            frappe.throw('Tên nguồn đang thuộc một mã NCC khác. Đối chiếu ánh xạ trước khi đổi, không ghi đè mã khác.')
+    if not theo_ten:
+        m = frappe.new_doc(qc.LOAI)
+        m.update(dict(supplier_mst=mst, ten_ncc=ten, ma_ncc=ma if not theo_ma else ''))
+        ds_map['__moi__'] = m
+    # Giữ tên lịch sử trên mapping theo mã; mapping đúng tên cấp quy cách.
+    # Ghi trước save để hook đọc lựa chọn mới, lỗi sau đó rollback tất cả.
+    for m in ds_map.values():
+        m.update(dict(item_code=item_code, vgb_uom=uom))
+        m.save(ignore_permissions=True)
     cu = dict(item_code=d.item_code, uom=d.uom, qty=d.qty, rate=d.rate)
     d.update(dict(item_code=item_code, item_name=frappe.db.get_value('Item', item_code, 'item_name'),
         ten_hang_ncc=ten, qty=x['sl'], rate=x['gia'], price_list_rate=x['gia'],
