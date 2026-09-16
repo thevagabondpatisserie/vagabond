@@ -1,3 +1,8 @@
+## Quy tắc hiệu lực 16/09/2026
+
+Đọc [quy tắc chung](docs/van-hanh-agent/van-hanh-chung.md). Sáu thay đổi đã
+được anh Việt duyệt; mục đó ưu tiên các luật cũ mâu thuẫn về model/tag/vòng.
+
 ## Quy tắc mới 14/09/2026: tiết kiệm token và gọi bot đúng việc
 
 Đọc [quy tắc dùng chung](docs/van-hanh-agent/tiet-kiem-token.md). Mục này thay

@@ -2,3 +2,11 @@
 # Đây là mặc định dự án; lựa chọn tường minh lúc khởi chạy có thể ghi đè.
 model = "gpt-6-astra"
 model_reasoning_effort = "low"
+
+# Approved 16/09: explicit CLI profiles; default remains low.
+[profiles.erp-standard]
+model = "gpt-6-astra"
+model_reasoning_effort = "medium"
+[profiles.erp-risk]
+model = "gpt-6-astra"
+model_reasoning_effort = "high"
