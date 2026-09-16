@@ -68,6 +68,17 @@ import re
 import frappe
 from frappe.utils import cint, flt
 
+
+def nhan_gon_ngan_hang(ten, so):
+	"""Nhãn thao tác ngắn, luôn giữ riêng bốn số cuối để phân biệt tài khoản."""
+	ten = str(ten or "Ngân hàng chưa khai").strip()
+	gon = ten.split(" - ", 1)[0].strip()
+	if len(gon) > 14:
+		gon = gon[:13] + "…"
+	duoi = re.sub(r"[^0-9]", "", str(so or ""))[-4:]
+	return gon + (" · " + duoi if duoi else " · chưa có số")
+
+
 BT = "Bank Transaction"
 
 # Ba ket qua cua mot phep xet. Chuoi chu khong phai so, de doc log ra la hieu.
@@ -293,24 +304,55 @@ def nhan_tai_khoan():
 	"""Một lượt đọc nhãn; chip chỉ lấy tài khoản có trong bản đồ SePay."""
 	from vagabond.sepay import _ban_do
 	mapped = set((_ban_do() or {}).values())
-	nhan, chip, chua = {}, [], []
+	nhan, chip = {}, []
 	for r in frappe.get_all("Bank Account", fields=["name", "bank", "bank_account_no", "disabled"], limit_page_length=0):
 		duoi = re.sub(r"[^0-9]", "", r.get("bank_account_no") or "")[-4:]
 		chu = (r.get("bank") or "Ngân hàng chưa khai") + (" · " + duoi if duoi else " · chưa có số tài khoản")
+		# Giữ nhãn cho sao kê lịch sử; chỉ mapping quyết định tài khoản được chọn.
 		nhan[r["name"]] = chu
-		if not r.get("disabled"):
-			if r["name"] in mapped:
-				chip.append({"ma": r["name"], "nhan": chu})
-			else:
-				chua.append(chu)
-	return nhan, chip, chua
+		if r["name"] in mapped and not r.get("disabled"):
+			chip.append({"ma": r["name"], "nhan": nhan_gon_ngan_hang(r.get("bank"), r.get("bank_account_no")), "ten_day_du": r.get("bank") or "Ngân hàng chưa khai"})
+	return nhan, chip, []
 
 
-def dong_sao_ke(chieu, so_ngay=45, tu_ngay=None, tai_khoan=None, nhan=None):
-	"""Các dòng sao kê đúng chiều tiền trong khoảng ngày. Chạm hệ."""
+
+def tai_khoan_duoc_khop():
+	"""Tập tài khoản được phép gắn tiền. Đọc lại cấu hình mỗi lần gọi."""
+	_, chip, _ = nhan_tai_khoan()
+	return {t["ma"] for t in chip}
+
+
+def ly_do_tai_khoan_sepay(tai_khoan, cho_phep=None):
+	"""MỘT nguồn duy nhất cho MỌI đường ghi, không riêng hai cửa đầu.
+
+	Mọi chỗ sắp gắn một dòng sao kê vào phiếu đều phải hỏi hàm này trước khi
+	`set_value`: `khop_tay`, `tu_dong`, và cả ba đường ghi tự động cũ là
+	`de_nghi_chi.doi_soat`, `de_nghi_chi.khi_co_giao_dich`,
+	`hoan_tien.doi_soat`, `hoan_tien.sepay_tien_ra`. Một luật viết lại ở nhiều nơi thì sớm muộn có một
+	nơi quên, và lúc đó cùng một giao dịch cho hai kết quả trái ngược tuỳ
+	người bấm nút nào. Điều 18 AGENTS.md.
+
+	`cho_phep` để vòng lặp đọc cấu hình MỘT lần rồi truyền xuống, tránh mỗi
+	dòng một lượt truy vấn Bank Account.
+	"""
+	if cho_phep is None:
+		cho_phep = tai_khoan_duoc_khop()
+	if tai_khoan not in cho_phep:
+		return "Chưa xác nhận được tài khoản SePay đang hoạt động. Vui lòng kiểm tra Cài đặt SePay và thử lại."
+	return ""
+
+
+def dong_sao_ke(chieu, so_ngay=45, tu_ngay=None, tai_khoan=None, nhan=None, gioi_han=500):
+	"""Các dòng sao kê đúng chiều tiền trong khoảng ngày. Chạm hệ.
+
+	KHÔNG nhận thêm bộ lọc phạm vi tài khoản. Tầng chung không giấu dòng sao kê:
+	dòng chưa dùng được vẫn trả về, mang `dung_duoc = 0` và lý do, rồi xếp xuống
+	cuối bảng. Giấu ở cửa NHÌN chính là lỗi đã làm mất buổi 14/09/2026 với phiếu
+	TTNB-26-09-02113. Chặn nằm ở cửa GHI: `ly_do_tai_khoan_sepay` trong `khop_tay`
+	và `tu_dong`. Thêm lại một bộ lọc ở đây là đi ngược điều 17 mục 2b AGENTS.md."""
 	from frappe.utils import add_days, nowdate
 
-	n = max(1, min(cint(so_ngay) or 45, 180))
+	n = max(1, min(cint(so_ngay) or 45, 3650))
 	moc = str(tu_ngay or "")[:10] or nowdate()
 	cot = "withdrawal" if chieu == RA else "deposit"
 	ds = frappe.get_all(
@@ -321,8 +363,8 @@ def dong_sao_ke(chieu, so_ngay=45, tu_ngay=None, tai_khoan=None, nhan=None):
 			["docstatus", "<", 2],
 		] + ([["bank_account", "=", tai_khoan]] if tai_khoan else []),
 		fields=["name", "date", "deposit", "withdrawal", "description",
-			"reference_number", "bank_account"],
-		order_by="date desc", limit_page_length=500,
+			"reference_number", "bank_account", "docstatus", "currency", "creation"],
+		order_by="date desc, creation desc, name desc", limit_page_length=gioi_han,
 	)
 	if nhan is None:
 		nhan, _, _ = nhan_tai_khoan()
@@ -377,8 +419,6 @@ def tu_dong(loai, ma_phieu=None, so_ngay=45):
 			"ghi_chu": "Không có phiếu nào dò được trên sao kê."}
 
 	gds = dong_sao_ke(b["chieu"], so_ngay)
-	if b.get("loi_giao_dich"):
-		gds = [g for g in gds if not _loi_giao_dich(b, g)]
 	chiem = da_chiem(loai, tru_phieu=ma_phieu)
 
 	da, xem, da_khop_rows = 0, [], []
@@ -388,6 +428,9 @@ def tu_dong(loai, ma_phieu=None, so_ngay=45):
 				chu_cu=chiem.get(g["name"]))
 			if kq == KHONG:
 				continue
+			loi_nguon = _loi_giao_dich(b, g)
+			if loi_nguon:
+				kq, vi_sao = XEM_LAI, loi_nguon
 			if kq == XEM_LAI:
 				xem.append({
 					"phieu": c["doc"].name, "ma_do": c["ma"],
@@ -395,6 +438,13 @@ def tu_dong(loai, ma_phieu=None, so_ngay=45):
 					"tien_phieu": c["tien"], "tien_dong": g["tien"],
 					"vi_sao": vi_sao, "nhan_ngan_hang": g.get("nhan_ngan_hang"),
 				})
+				continue
+			loi_tai_khoan = ly_do_tai_khoan_sepay(g.get("bank_account"))
+			if loi_tai_khoan:
+				xem.append({"phieu": c["doc"].name, "ma_do": c["ma"],
+					"giao_dich": g["name"], "vi_sao": loi_tai_khoan,
+					"tien_phieu": c["tien"], "tien_dong": g["tien"],
+					"nhan_ngan_hang": g.get("nhan_ngan_hang")})
 				continue
 			frappe.db.set_value(b["doctype"], c["doc"].name, b["truong_gd"], g["name"])
 			frappe.db.commit()
@@ -416,53 +466,62 @@ def tu_dong(loai, ma_phieu=None, so_ngay=45):
 	return {"da_khop": da, "da_khop_rows": da_khop_rows[:5], "xem_lai": xem[:50], "so_phieu_quet": len(cho)}
 
 
-@frappe.whitelist()
-def ung_vien(loai, ma_phieu, so_ngay=45, tu_khoa="", tai_khoan=""):
-	"""Các dòng sao kê để NGƯỜI tự chọn, xếp dòng khớp mã lên trước.
+def danh_sach_chon(chieu, ma, tien, so_ngay=45, tu_khoa="", tai_khoan="",
+		thu_tu="goi_y", bat_dau=0, ly_do=None, chiem=None, chi_dung=0):
+	"""Một cửa đọc cho các màn chọn: lọc trước, xếp rồi phân trang.
 
-	Màn hình không tự quyết. Nó bày ra ứng viên rồi để người đọc mắt và chỉ,
-	và tên người chỉ được ghi lại ngay trên phiếu.
-
-	KHÔNG lọc theo số tiền. Lọc theo tiền chính là cái bẫy của bản cũ: ngân
-	hàng trừ phí hay kế toán chuyển làm hai lần là đúng dòng cần tìm bị cắt
-	mất khỏi danh sách, và người dùng kết luận "không có dòng nào".
+	Không cắt 500 dòng trước tìm kiếm: giao dịch cũ khớp mã vẫn phải được
+	xét. Giữ nguyên cửa ghi của từng nghiệp vụ, callback chỉ giải thích.
 	"""
-	from vagabond.ban_hang import _kiem_quyen
+	from frappe.utils import add_days, nowdate
+	n = max(1, min(cint(so_ngay) or 45, 3650))
+	nhan, chip, _ = nhan_tai_khoan()
+	cho_phep = {t["ma"] for t in chip}
+	gds = dong_sao_ke(chieu, n, tai_khoan=tai_khoan, nhan=nhan, gioi_han=0)
+	tk = str(tu_khoa or "").strip().lower()
+	tho = []
+	for g in gds:
+		if tk and tk not in (g["name"] + " " + (g.get("mo_ta") or "")).lower():
+			continue
+		loi = ly_do(g) if ly_do else ""
+		chu = (chiem or {}).get(g["name"])
+		if chu:
+			loi = "Giao dịch đã được %s dùng. Kiểm tra phiếu đang giữ trước khi đổi đối chiếu." % chu
+		loi = loi or ly_do_tai_khoan_sepay(g.get("bank_account"), cho_phep)
+		x = dict(g)
+		x.update(date=str(g.get("date") or ""), mo_ta=(g.get("description") or "").strip(),
+			dung_duoc=int(not loi), vi_sao_khong=loi or "")
+		if not cint(chi_dung) or x["dung_duoc"]:
+			tho.append(x)
+	xep = xep_ung_vien(tho, ma, tien, thu_tu=thu_tu)
+	bd = max(0, cint(bat_dau))
+	return {"rows": xep[bd:bd + 60], "tong": len(xep),
+		"con_nua": max(0, len(xep) - bd - 60), "bat_dau": bd,
+		"tai_khoan_sepay": chip, "chua_noi_sepay": [], "ma_do": ma, "so_tien": tien,
+		"chan_doan": {"so_dong_quet": len(gds), "so_dong_khop_loc": len(xep),
+			"so_dong_chua_dung": sum(not r["dung_duoc"] for r in tho),
+			"so_ngay": n, "tu_ngay": str(add_days(nowdate(), -n)), "den_ngay": nowdate(),
+			"moi_nhat": str(gds[0].get("date") or "") if gds else "", "cham_tran": 0}}
 
+
+@frappe.whitelist()
+def ung_vien(loai, ma_phieu, so_ngay=45, tu_khoa="", tai_khoan="", thu_tu="goi_y", bat_dau=0):
+	"""Các dòng để người chọn; dòng chưa dùng được hiện rõ lý do."""
+	if loai == "app":
+		from vagabond.doi_chieu_app import ung_vien_chung
+		return ung_vien_chung(ma_phieu, so_ngay, tu_khoa, tai_khoan, thu_tu, bat_dau)
+	from vagabond.ban_hang import _kiem_quyen
 	_kiem_quyen()
 	nap_so()
 	b = _ban(loai)
 	doc = frappe.get_doc(b["doctype"], ma_phieu)
 	ma = str(b["ma_do"](doc) or "").strip()
 	tien = flt(b["so_tien"](doc))
-
-	chiem = da_chiem(loai, tru_phieu=ma_phieu)
-	tk = str(tu_khoa or "").strip().lower()
-	nhan, chip, chua = nhan_tai_khoan()
-	if not {"AP Kiểm soát (FIN)", "Accounts User", "Accounts Manager", "System Manager"} & set(frappe.get_roles()):
-		chua = []
-	tho = []
-	for g in dong_sao_ke(b["chieu"], so_ngay, tai_khoan=tai_khoan, nhan=nhan):
-		if _loi_giao_dich(b, g):
-			continue
-		if chiem.get(g["name"]):
-			continue
-		if tk and tk not in (g["mo_ta"] or "").lower():
-			continue
-		tho.append({
-			"name": g["name"], "date": str(g.get("date") or ""),
-			"tien": g["tien"], "mo_ta": (g.get("description") or "").strip(),
-			"bank_account": g.get("bank_account"), "nhan_ngan_hang": g.get("nhan_ngan_hang"),
-		})
-	return {
-		"rows": xep_ung_vien(tho, ma, tien)[:60],
-		"tai_khoan_sepay": chip, "chua_noi_sepay": chua,
-		"ma_do": ma, "so_tien": tien, "ten_man": b["ten_man"],
-		"ma_gd_dang_gan": doc.get(b["truong_gd"]) or "",
-		"nhac": ("" if ma else
-			"Phiếu này chưa có mã nào để dò, nên hệ thống không xếp được dòng "
-			"nào lên trước. Vui lòng đọc nội dung rồi chọn."),
-	}
+	kq = danh_sach_chon(b["chieu"], ma, tien, so_ngay, tu_khoa, tai_khoan, thu_tu, bat_dau,
+		ly_do=lambda g: _loi_giao_dich(b, g), chiem=da_chiem(loai, tru_phieu=ma_phieu))
+	kq.update(ten_man=b["ten_man"], ma_gd_dang_gan=doc.get(b["truong_gd"]) or "",
+		nhac="" if ma else "Phiếu chưa có mã để dò. Đọc nội dung rồi chọn giao dịch.")
+	return kq
 
 
 @frappe.whitelist()
@@ -524,6 +583,10 @@ def khop_tay(loai, ma_phieu, ma_gd):
 		ghi[b["truong_nguoi"]] = frappe.session.user
 	if b.get("truong_luc"):
 		ghi[b["truong_luc"]] = frappe.utils.now_datetime()
+	# Đọc lại mapping ở cửa ghi: màn đã mở có thể giữ ứng viên cũ.
+	loi_tai_khoan = ly_do_tai_khoan_sepay(g.get("bank_account"))
+	if loi_tai_khoan:
+		frappe.throw(loi_tai_khoan)
 	frappe.db.set_value(b["doctype"], ma_phieu, ghi)
 	frappe.db.commit()
 	if not b.get("truong_nguoi"):

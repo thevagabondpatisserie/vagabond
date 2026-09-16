@@ -181,3 +181,65 @@ def _desk_kiem_tung_map():
 	with patch.object(sepay,'kiem_map_tai_khoan') as kiem:
 		SePaySettings.validate(d)
 		la('map không đổi không chặn lưu cấu hình khác',kiem.call_count,0)
+
+
+@ca('SePay webhook: lỗi submit rollback rồi trả 503, gửi lại lưu được đúng một sao kê')
+def _webhook_gui_lai():
+	from contextlib import ExitStack
+	from types import SimpleNamespace
+	from unittest.mock import Mock, patch
+	goi = dict(id=987654, accountNumber='222222', transferType='out',
+		transferAmount=12000, transactionDate='2026-09-01 10:00:00', content='TEST')
+	local = SimpleNamespace(form_dict=goi, response={})
+	db = Mock()
+	db.get_value.return_value = None
+	bt = Mock(name='sao_ke')
+	bt.name = 'BT-TEST'
+	bt.submit.side_effect = [RuntimeError('submit thất bại'), None]
+	with ExitStack() as c:
+		for ten, gia in [('local', local), ('request', None), ('db', db), ('get_doc', Mock(return_value=bt)),
+			('log_error', Mock()), ('get_traceback', Mock(return_value='fixture'))]:
+			c.enter_context(patch.object(sepay.frappe, ten, gia, create=True))
+		c.enter_context(patch.object(sepay, 'cfg', return_value={'sepay_bat':1}))
+		c.enter_context(patch.object(sepay, '_kiem_hmac', return_value=(True, True)))
+		c.enter_context(patch.object(sepay, '_ban_do', return_value={'222222':'BANK-TEST'}))
+		from vagabond import de_nghi_chi
+		khop = c.enter_context(patch.object(de_nghi_chi, 'khi_co_giao_dich'))
+		la('lần lỗi không báo nhận xong', sepay.webhook()['success'], False)
+		la('HTTP yêu cầu gửi lại', local.response.get('http_status_code'), 503)
+		la('rollback chứng từ dở dang', db.rollback.call_count, 1)
+		la('không commit lần hỏng', db.commit.call_count, 0)
+		la('không đối soát lần hỏng', khop.call_count, 0)
+		local.response = {}
+		la('retry thành công', sepay.webhook()['success'], True)
+		la('success ở gốc phản hồi', local.response.get('success'), True)
+		la('commit một lần', db.commit.call_count, 1)
+		db.get_value.return_value = 1
+		la('replay chứng từ đã submit thành công', sepay.webhook()['success'], True)
+		la('replay không thêm lần nữa', bt.insert.call_count, 2)
+		la('đối soát chỉ sau lưu được', khop.call_count, 1)
+		db.get_value.return_value = 0
+		la('Nháp không giả nhận xong', sepay.webhook()['success'], False)
+		la('Nháp cần kiểm', local.response.get('http_status_code'), 409)
+
+
+@ca('SePay webhook: chưa map hoặc sai chiều không được xác nhận đã nhận sao kê')
+def _webhook_goi_sai():
+	from types import SimpleNamespace
+	from unittest.mock import Mock, patch
+	local = SimpleNamespace(form_dict=dict(id=123,accountNumber='222222',transferType='other',transferAmount=100), response={})
+	with patch.object(sepay.frappe,'local',local,create=True), patch.object(sepay.frappe,'request',None,create=True), \
+		patch.object(sepay.frappe,'db',Mock(get_value=Mock(return_value=None))), \
+		patch.object(sepay,'cfg',return_value={'sepay_bat':1}), \
+		patch.object(sepay,'_kiem_hmac',return_value=(True,True)), \
+		patch.object(sepay,'_ghi_chua_map') as ghi, \
+		patch.object(sepay,'_ban_do',return_value={}) as bd, \
+		patch.object(sepay.frappe,'get_doc') as tao:
+		la('chưa map thất bại',sepay.webhook()['success'],False)
+		la('có chỉ dẫn cấu hình',local.response.get('http_status_code'),422)
+		la('lưu chẩn đoán',ghi.call_count,1)
+		bd.return_value={'222222':'BANK-TEST'}
+		for chieu, tien in [('other',100),('in',-10),('out',0)]:
+			local.form_dict.update(transferType=chieu,transferAmount=tien)
+			la('không biến dữ liệu sai thành tiền ra',sepay.webhook()['success'],False)
+		la('không tạo chứng từ',tao.call_count,0)

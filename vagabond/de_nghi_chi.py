@@ -2015,8 +2015,10 @@ def doi_soat(so_ngay=30):
 	gds = [g for g in gds if not _loi_nguon_chi_ttnb(g)]
 
 	da_chiem = _gd_da_chiem_ttnb()
-	from vagabond.doi_soat_sepay import nhan_tai_khoan
+	from vagabond.doi_soat_sepay import ly_do_tai_khoan_sepay, nhan_tai_khoan, tai_khoan_duoc_khop
 	nhan, _, _ = nhan_tai_khoan()
+	# Cùng phạm vi với hai cửa ghi kia. Đọc MỘT lần cho cả mẻ quét.
+	cho_phep_tk = tai_khoan_duoc_khop()
 	da, xem, da_khop_rows = 0, [], []
 	for d in ds:
 		tien = flt(d.get("tong_tien")) or flt(d.get("so_tien"))
@@ -2041,6 +2043,17 @@ def doi_soat(so_ngay=30):
 					"phieu": d["name"], "giao_dich": g["name"],
 					"nhan_ngan_hang": nhan.get(g.get("bank_account"), "Chưa xác định tài khoản"),
 					"tien_phieu": tien, "tien_chuyen": flt(g["withdrawal"]),
+				})
+				continue
+			loi_tk = ly_do_tai_khoan_sepay(g.get("bank_account"), cho_phep_tk)
+			if loi_tk:
+				# Không im lặng bỏ qua: đưa lên cho người xem kèm lý do, đúng
+				# như cách `tu_dong` xử. Giấu một dòng có thật là lỗi 14/09.
+				xem.append({
+					"phieu": d["name"], "giao_dich": g["name"],
+					"nhan_ngan_hang": nhan.get(g.get("bank_account"), "Chưa xác định tài khoản"),
+					"tien_phieu": tien, "tien_chuyen": flt(g["withdrawal"]),
+					"vi_sao": loi_tk,
 				})
 				continue
 			da_chiem[g["name"]] = d["name"]
@@ -2088,6 +2101,12 @@ def khi_co_giao_dich(ma_bt):
 		if not g or flt(g.get("withdrawal")) <= 0:
 			return
 		if _loi_nguon_chi_ttnb(g):
+			return
+		from vagabond.doi_soat_sepay import ly_do_tai_khoan_sepay
+		if ly_do_tai_khoan_sepay(g.get("bank_account")):
+			# Cùng luật với mọi đường ghi khác. Không ghi thì cũng không im:
+			# dòng vẫn nằm trong sao kê, người mở màn khớp tay sẽ thấy nó mờ
+			# kèm lý do.
 			return
 		mo_ta = "%s %s" % (g.get("description") or "", g.get("reference_number") or "")
 		da_chiem = _gd_da_chiem_ttnb()

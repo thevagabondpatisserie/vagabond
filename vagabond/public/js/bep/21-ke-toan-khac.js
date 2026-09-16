@@ -555,6 +555,18 @@ var tgdTim = '', tgdSoTien = 0, tgdNgay = 120, tgdChuaGom = 0, tgdHoSo = '';
 
 async function scrTimGiaoDich(maHoSo, soTien) {
   if (maHoSo !== undefined) { tgdHoSo = maHoSo || ''; tgdSoTien = Math.round(soTien || 0); tgdTim = ''; tgdNgay = 120; tgdChuaGom = 0; }
+  if (tgdHoSo) {
+    var maApp = tgdHoSo;
+    return scrKhopSepay({loai:'app', ma:maApp, chon:async function (gd,tien) {
+      if (!await confirmSheet('Khớp tay giao dịch', 'Gán giao dịch ' + gd + ' (' + money(tien) + ' đ) vào ' + maApp + '? Hồ sơ chờ thanh toán chỉ lưu lựa chọn; hồ sơ đã trả đối chiếu với bút toán hiện có.', 'Gán')) return;
+      busy(true);
+      try {
+        var kq = await api('vagabond.doi_chieu_app.gan', {name:maApp, ma_giao_dich:gd});
+        busy(false); toast(kq.loi_nhan,5000); tgdHoSo = '';
+        go(function () { scrHoSoTTView(maApp); }, true);
+      } catch (e) { busy(false); baoTin((e && e.message) || 'Chưa gán được giao dịch.'); }
+    }}, {so_ngay:120});
+  }
   frame('Tìm giao dịch', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc sao kê...</div></div>');
   var d;
   try {
