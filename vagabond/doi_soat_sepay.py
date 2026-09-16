@@ -65,6 +65,10 @@ viên cho người nhìn. Không có mã thì máy trả về "không", không �
 import importlib
 import re
 
+import frappe
+from frappe.utils import cint, flt
+
+
 def nhan_gon_ngan_hang(ten, so):
 	"""Nhãn thao tác ngắn, luôn giữ riêng bốn số cuối để phân biệt tài khoản."""
 	ten = str(ten or "Ngân hàng chưa khai").strip()
@@ -74,9 +78,6 @@ def nhan_gon_ngan_hang(ten, so):
 	duoi = re.sub(r"[^0-9]", "", str(so or ""))[-4:]
 	return gon + (" · " + duoi if duoi else " · chưa có số")
 
-
-import frappe
-from frappe.utils import cint, flt
 
 BT = "Bank Transaction"
 
@@ -323,12 +324,16 @@ def ly_do_tai_khoan_sepay(tai_khoan):
 	return ""
 
 
-def dong_sao_ke(chieu, so_ngay=45, tu_ngay=None, tai_khoan=None, nhan=None, tai_khoan_cho_phep=None):
-	"""Các dòng sao kê đúng chiều tiền trong khoảng ngày. Chạm hệ."""
+def dong_sao_ke(chieu, so_ngay=45, tu_ngay=None, tai_khoan=None, nhan=None):
+	"""Các dòng sao kê đúng chiều tiền trong khoảng ngày. Chạm hệ.
+
+	KHÔNG nhận thêm bộ lọc phạm vi tài khoản. Tầng chung không giấu dòng sao kê:
+	dòng chưa dùng được vẫn trả về, mang `dung_duoc = 0` và lý do, rồi xếp xuống
+	cuối bảng. Giấu ở cửa NHÌN chính là lỗi đã làm mất buổi 14/09/2026 với phiếu
+	TTNB-26-09-02113. Chặn nằm ở cửa GHI: `ly_do_tai_khoan_sepay` trong `khop_tay`
+	và `tu_dong`. Thêm lại một bộ lọc ở đây là đi ngược điều 17 mục 2b AGENTS.md."""
 	from frappe.utils import add_days, nowdate
 
-	if tai_khoan_cho_phep is not None and not tai_khoan_cho_phep:
-		return []
 	n = max(1, min(cint(so_ngay) or 45, 180))
 	moc = str(tu_ngay or "")[:10] or nowdate()
 	cot = "withdrawal" if chieu == RA else "deposit"
@@ -338,7 +343,7 @@ def dong_sao_ke(chieu, so_ngay=45, tu_ngay=None, tai_khoan=None, nhan=None, tai_
 			["date", "between", [add_days(moc, -n), add_days(moc, 1)]],
 			[cot, ">", 0],
 			["docstatus", "<", 2],
-		] + ([["bank_account", "=", tai_khoan]] if tai_khoan else []) + ([["bank_account", "in", tai_khoan_cho_phep]] if tai_khoan_cho_phep is not None else []),
+		] + ([["bank_account", "=", tai_khoan]] if tai_khoan else []),
 		fields=["name", "date", "deposit", "withdrawal", "description",
 			"reference_number", "bank_account"],
 		order_by="date desc", limit_page_length=500,
