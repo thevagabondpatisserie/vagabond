@@ -44,3 +44,26 @@ def _():
         except RuntimeError:
             return
         dung("không nuốt lỗi DB", False)
+
+
+@ca("339 Document: payload xóa link và đổi loại vẫn kiểm nguồn đã lưu")
+def _():
+    import ast
+    from pathlib import Path
+    from vagabond import ho_so_tt as hs
+    src = Path(hs.__file__).parent / 'vagabond/doctype/vagabond_ho_so_tt/vagabond_ho_so_tt.py'
+    cls = next(n for n in ast.parse(src.read_text()).body if isinstance(n, ast.ClassDef))
+    ham = next(n for n in cls.body if isinstance(n, ast.FunctionDef) and n.name == 'validate')
+    ns = {}
+    exec(compile(ast.Module(body=[ham], type_ignores=[]), str(src), 'exec'), ns)
+    cu = SimpleNamespace(name='APP-THU', loai='Hoan ung', dong=[Doi(hoa_don='PI-THU')])
+    for tt in ('Tu choi', 'Huy'):
+        doc = SimpleNamespace(name='APP-THU', loai='NCC', trang_thai=tt, dong=[],
+            get_doc_before_save=lambda: cu)
+        with patch.object(hs.frappe.db, 'get_value', return_value=Doi(docstatus=1, remarks='')):
+            loi = None
+            try:
+                ns['validate'](doc)
+            except Exception as exc:
+                loi = str(exc)
+            dung('chặn đúng nguồn cũ trước khi lưu', 'ĐÃ GHI SỔ' in (loi or ''))

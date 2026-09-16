@@ -59,3 +59,18 @@ def _():
         la("trạng thái không đổi", h.trang_thai, "Cho ke toan")
     hd.reload()
     la("không hủy PI hộ", hd.docstatus, 1)
+
+
+@ca("339 Document: không được xóa/đổi link nguồn sinh cùng lúc từ chối")
+def _():
+    hd = _hoa_don_mua(810000)
+    h = _app(hd, 810000, "Cho ke toan")
+    frappe.db.set_value("Purchase Invoice", hd.name, "remarks", "Hoàn ứng %s - NCC thử" % h.name)
+    for tt in ("Tu choi", "Huy"):
+        h.reload()
+        h.trang_thai = tt
+        h.dong[0].hoa_don = ""
+        dung("link bị xóa vẫn chặn nguồn cũ", "ĐÃ GHI SỔ" in _chan(lambda: h.save(ignore_permissions=True)))
+        h.reload()
+        la("link đã lưu giữ nguyên", h.dong[0].hoa_don, hd.name)
+        la("không chuyển trạng thái", h.trang_thai, "Cho ke toan")
