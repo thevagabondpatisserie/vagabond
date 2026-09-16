@@ -66,6 +66,22 @@ def _tai_khoan_ca_nhan(so_tk, ncc):
 	return b
 
 
+def _tai_khoan_cong_ty_moi(goc):
+	"""ERPNext bắt mỗi Bank Account công ty dùng một GL Account riêng."""
+	ba = frappe.copy_doc(frappe.get_doc('Bank Account', goc))
+	tk = frappe.copy_doc(frappe.get_doc('Account', ba.account))
+	tk.account_name = 'Ngân hàng kiểm SePay ' + frappe.generate_hash(length=8)
+	tk.account_number = '112' + _so_thu()
+	tk.insert(ignore_permissions=True)
+	_DA_TAO.append((tk.doctype, tk.name))
+	ba.account = tk.name
+	ba.account_name = 'Kiểm công ty SePay ' + frappe.generate_hash(length=8)
+	ba.bank_account_no = _so_thu()
+	ba.insert(ignore_permissions=True)
+	_DA_TAO.append((ba.doctype, ba.name))
+	return ba
+
+
 def _giao_dich(ba, tien, noi_dung):
 	g = frappe.get_doc({
 		"doctype": "Bank Transaction", "date": today(), "bank_account": ba,
@@ -230,11 +246,7 @@ def _mb_khong_tat_toan_phieu_cong_ty():
 
 		# #327: đối chứng phải qua cấu hình SePay thật, không chỉ có Bank Account.
 		# Tài khoản thử riêng để ca không phụ thuộc mapping của seed/ca trước.
-		ba = frappe.copy_doc(frappe.get_doc("Bank Account", cong_ty_ba))
-		ba.account_name = "Kiểm công ty SePay " + frappe.generate_hash(length=8)
-		ba.bank_account_no = _so_thu()
-		ba.insert(ignore_permissions=True)
-		_DA_TAO.append((ba.doctype, ba.name))
+		ba = _tai_khoan_cong_ty_moi(cong_ty_ba)
 		gd_cong_ty = _giao_dich(ba.name, tien, de_nghi_chi.noi_dung_ck(p.name))
 		de_nghi_chi.khi_co_giao_dich(gd_cong_ty.name)
 		la("chưa mapping vẫn chờ", frappe.db.get_value(p.doctype, p.name, "trang_thai"), de_nghi_chi.TT_HOAN_TAT)
@@ -335,11 +347,7 @@ def _hoan_truc_tiep_mapping():
 	try:
 		goc = _mot('Bank Account', {'company':cong_ty(), 'is_company_account':1, 'disabled':0})
 		dung('bench có tài khoản công ty', bool(goc))
-		ba = frappe.copy_doc(frappe.get_doc('Bank Account', goc))
-		ba.account_name = 'Kiểm hoàn SePay ' + frappe.generate_hash(length=8)
-		ba.bank_account_no = _so_thu()
-		ba.insert(ignore_permissions=True)
-		_DA_TAO.append((ba.doctype, ba.name))
+		ba = _tai_khoan_cong_ty_moi(goc)
 		hs = _ho_so_thu(don_huy._khach_le_online())
 		_DA_TAO.append((hs.doctype, hs.name))
 		ma = '327' + frappe.generate_hash(length=8).upper()
