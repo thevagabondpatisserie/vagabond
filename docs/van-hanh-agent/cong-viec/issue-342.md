@@ -31,3 +31,5 @@ Base: 2c2942a7d616637ae75457999e06bc01ea0a20f6.
 - Bench2ed81f0: hai lượt239/240, sạch; lỗi thật ở Bỏ cấn do truyền list cho ERPNext on_cancel nối tuple. Đã đổi tuple theo core, chờ bench SHA mới. Cấn một phần và rollback đã đạt cả hai lượt.
 
 - Bổ sung phép thử hai process MariaDB riêng trong phan_bo_247: mỗi APP xin70000 từ nguồn100000, mở snapshot trước khi cùng qua hàng rào; chỉ một JE được submit, nguồn còn30000, PI bên thua giữ nợ và retry bên thắng không sinh thêm. Chờ kết quả CI, không coi code ca kiểm là bằng chứng đã đạt.
+
+- Bench68126401:240/240 hai lượt sạch, Bỏ cấn đã đạt. Hai kết nối không dùng trùng tiền nhưng bên thua bị deadlock1213. Sửa khóa quỹ trước APP cho cấn/bỏ cấn; giữ kiểm tk_nhan không đổi sau khi lấy khóa. Ca race giữ nguyên yêu cầu bên thua nhận thông báo thiếu nguồn, không chấp nhận rawdeadlock.

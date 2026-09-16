@@ -204,7 +204,13 @@ def can(name, so_tien):
     _quyen()
     from vagabond import ho_so_tt as hs
     from vagabond.phan_bo_app import kiem
+    # Khóa quỹ TRƯỚC APP: kiểm phân bổ có thể khóa các APP khác.
+    # Nếu mỗi phiên giữ APP riêng rồi chờ cùng quỹ sẽ tạo vòng deadlock.
+    bank = frappe.db.get_value(APP, name, "tk_nhan")
+    b, a = _quy(bank)
     doc = frappe.get_doc(APP, name, for_update=True)
+    if doc.tk_nhan != b.name:
+        frappe.throw("Tài khoản nhận vừa đổi. Tải lại hồ sơ trước khi cấn.")
     if doc.loai not in (hs.LOAI_HU, hs.LOAI_HU_HD) or doc.trang_thai != hs.TT_DA_DUYET:
         frappe.throw("Cấn tạm ứng trên hồ sơ hoàn ứng đã duyệt. Hồ sơ chưa duyệt vẫn lưu và gửi như bình thường.")
     if doc.get("vgb_can_ung"):
@@ -214,7 +220,6 @@ def can(name, so_tien):
         return {"name": j.name, "da_lam_roi": 1}
     if hs._but_toan_cua_ho_so(doc.name) or doc.get("ma_giao_dich"):
         frappe.throw("Hồ sơ đã có bút toán hoặc đã chọn giao dịch hoàn tiền. Kiểm và bỏ đối chiếu cũ trước khi thay đổi khoản phải chuyển.")
-    b, a = _quy(doc.tk_nhan)
     if b.party != (doc.nguoi_ung or doc.nha_cung_cap):
         frappe.throw("Quỹ phải thuộc đúng người được hoàn ứng trên hồ sơ.")
     _, con = _nguon(b.name)
@@ -260,11 +265,14 @@ def can(name, so_tien):
 def bo_can(name):
     _quyen()
     from vagabond import ho_so_tt as hs
+    bank = frappe.db.get_value(APP, name, "tk_nhan")
+    b, _ = _quy(bank)
     doc = frappe.get_doc(APP, name, for_update=True)
+    if doc.tk_nhan != b.name:
+        frappe.throw("Tài khoản nhận vừa đổi. Tải lại hồ sơ trước khi bỏ cấn.")
     j = thong_tin(doc)
     if not j:
         return {"ok": 1, "da_lam_roi": 1}
-    _quy(j.vgb_quy_ung)
     if any(b["name"] != j.name for b in hs._but_toan_cua_ho_so(doc.name)) or doc.get("ma_giao_dich"):
         frappe.throw("Còn bút toán chi hoặc đối chiếu hoàn tiền. Kế toán xử lý bút toán chi trước khi bỏ cấn.")
     # ERPNext on_cancel nối danh sách này vào tuple của lõi.
