@@ -296,12 +296,24 @@ async function chayHet() {
       var g={money:String, hoiNhap:async function(){return '100';}, xacNhan:async function(){return !huy;},
         baoTin:async function(s){messages.push(s);},go:function(){moved++;},
         api:async function(m,p){calls.push(m);if(m.endsWith('danh_sach'))return {con_lai:100};throw new Error('Nguồn đã được dùng');}};
-      vm.createContext(g);vm.runInContext(layHam(docTep('19-ho-so-tt.js'),'hsHanh'),g);
+      vm.createContext(g);vm.runInContext(layHam(docTep('00-nen.js'),'soTien'),g);vm.runInContext(layHam(docTep('19-ho-so-tt.js'),'hsHanh'),g);
       await g.hsHanh('canung',{ma:'APP',tk_nhan:'BANK',tong_tien:100});
       bang('không điều hướng thành công',moved,0);
       bang('chỉ gọi ghi khi xác nhận',calls.filter(function(x){return x.endsWith('.can');}).length,huy?0:1);
       if(!huy) dung('giữ lỗi cụ thể',messages[0].includes('Nguồn đã được dùng'));
     }
+  });
+
+  await caAsync('342 cấn quỹ không biến tiền âm thành tiền dương', async function () {
+    var writes=0, confirmed=0, messages=[];
+    var g={money:String,hoiNhap:async function(){return '-100.000';},
+      xacNhan:async function(){confirmed++;return true;},baoTin:async function(s){messages.push(s);},
+      api:async function(m){if(m.endsWith('danh_sach'))return {con_lai:200000};writes++;}};
+    vm.createContext(g);vm.runInContext(layHam(docTep('00-nen.js'),'soTien'),g);
+    vm.runInContext(layHam(docTep('19-ho-so-tt.js'),'hsHanh'),g);
+    await g.hsHanh('canung',{ma:'APP',tk_nhan:'BANK',tong_tien:200000});
+    bang('không ghi',writes,0);bang('không hỏi duyệt tiền sai',confirmed,0);
+    dung('báo số tiền không hợp lệ',messages[0].includes('lớn hơn 0'));
   });
 
   await caAsync('502 nối phiếu: truyền ngữ cảnh, hiện lý do và không tự chọn', async function () {

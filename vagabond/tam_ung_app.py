@@ -267,7 +267,8 @@ def bo_can(name):
     _quy(j.vgb_quy_ung)
     if any(b["name"] != j.name for b in hs._but_toan_cua_ho_so(doc.name)) or doc.get("ma_giao_dich"):
         frappe.throw("Còn bút toán chi hoặc đối chiếu hoàn tiền. Kế toán xử lý bút toán chi trước khi bỏ cấn.")
-    j.ignore_linked_doctypes = [APP]
+    # ERPNext on_cancel nối danh sách này vào tuple của lõi.
+    j.ignore_linked_doctypes = (APP,)
     j.flags.vgb_bo_can = True
     j.flags.ignore_permissions = True
     j.cancel()

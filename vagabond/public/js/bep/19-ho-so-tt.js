@@ -2545,7 +2545,7 @@ async function hsHanh(k, hs) {
         if (!(quy.con_lai > 0)) return baoTin('Chưa có khoản cấp quỹ còn dư. Dùng Ghi nhận tiền mặt đã cấp quỹ ở danh sách hồ sơ nếu tiền đã được nộp vào tài khoản.');
         var so = await hoiNhap('Quỹ còn ' + money(quy.con_lai) + ' đ. Số tiền cấn vào hồ sơ này:', String(Math.min(quy.con_lai, hs.tong_tien)));
         if (so === null) return;
-        so = Number(String(so).replace(/[^0-9]/g, ''));
+        so = soTien(so);
         if (!(so > 0)) return baoTin('Nhập số tiền cấn lớn hơn 0.');
         if (!await xacNhan('Cấn ' + money(so) + ' đ từ tiền đã cấp. Còn phải chuyển ' + money(hs.tong_tien-so) + ' đ. Ghi sổ quyết toán?')) return;
         await api('vagabond.tam_ung_app.can', {name:hs.ma, so_tien:so});

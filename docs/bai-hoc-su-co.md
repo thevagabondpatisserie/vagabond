@@ -773,3 +773,8 @@ kiểm save/submit/GL/hủy, bổ sung hóa đơn lệch một đồng cả dấ
 
 ## Issue342 - dấu duyệt giữa hai cửa gửi
 Đường lập và gửi ngay chỉ đặt trạng thái chờ GD, còn gửi nháp mới ghi dấu FIN. Dùng chung bước chuyển có dấu người/thời gian và kiểm tại cửa API trước insert. Thanh tiến trình không được suy chữ ký từ trạng thái sau cùng hoặc coi Hoàn tất là bằng chứng tiền đã ra.
+
+
+## Issue342 - cấn đủ không được quay về tổng phải chi
+
+Triệu chứng: sau khi cấn hết, nhánh xuất nội dung chuyển khoản dùng `con_lai or tong_tien` có thể yêu cầu trả lại toàn bộ. Chỉ dùng tổng khi giá trị còn lại thật sự thiếu; số 0 phải giữ nguyên và không sinh lệnh chi. Nguồn cấn phải có JE đã ghi sổ, cùng sổ141 và đúng công ty; việc đổi ánh xạ Bank Account không được mang nguồn cũ sang sổ mới. Kiểm cả JE + PE, PI outstanding, huỷ và retry trên bench. Ô nhập cấn dùng hàm đọc tiền chung giữ dấu âm, không biến khoản âm thành khoản dương.

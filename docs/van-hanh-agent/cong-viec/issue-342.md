@@ -21,9 +21,11 @@ Base: 2c2942a7d616637ae75457999e06bc01ea0a20f6.
 - APPVER506 dự kiến, main504; PR341 đang đề xuất505 nên để nguyên số đó.
 
 ## Chưa hoàn tất
-- Unit3099/0, Node60/0 trước SHA mới. Bench đầu0106a49b đã xanh; ca cấp/cấn mới chưa có kết quả.
+- Unit3099/0, Node61/0 sau kiểm tiền âm. Bench đầu0106a49b đã xanh; ca cấp/cấn mới chưa có kết quả.
 - Đã thêm ca bench lỗi sau submit JE, rollback và hai APP nối tiếp tranh một nguồn. Chưa có bằng chứng hai kết nối đồng thời; khóa Bank Account/current read giữ thứ tự. Chưa kiểm390px (browser từ chối URL preview cục bộ).
 - Chưa tự review cuối, không có review Claude (user cho tự review), chưa merge/deploy.
 - Đường ghi nhận cấp hiện dành nộp tiền mặt111. Khoản chuyển từ112 cần kiểm chứng từ chuyển khoản lõi và đường nhận nguồn riêng trước khi nhận là đã hỗ trợ.
 
 - Tự review bắt thêm đường xuất chuyển khoản dùng 0-or-tổng, đã sửa và thêm hồi quy tại cửa API. Cấn đủ dùng nhãn quyết toán, không đòi UNC/sao kê mới; đổi tài khoản nhận phải bỏ cấn trước.
+
+- Bench2ed81f0: hai lượt239/240, sạch; lỗi thật ở Bỏ cấn do truyền list cho ERPNext on_cancel nối tuple. Đã đổi tuple theo core, chờ bench SHA mới. Cấn một phần và rollback đã đạt cả hai lượt.
