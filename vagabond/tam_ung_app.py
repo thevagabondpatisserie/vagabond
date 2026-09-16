@@ -6,7 +6,7 @@ Các nguồn và lượt cấn khóa chung Bank Account; không coi mọi tiền
 cá nhân là tiền công ty. Chỉ nguồn kế toán chủ động ghi nhận mới được cấn.
 """
 import json
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 import frappe
 from frappe.utils import flt, today
@@ -37,6 +37,8 @@ def _quy(name, khoa=True):
         frappe.throw("Chọn tài khoản cá nhân đã khai đúng người giữ quỹ tạm ứng.")
     if not str(a.account_number or a.name).startswith("141") or a.is_group or a.disabled:
         frappe.throw("Tài khoản nhận chưa gắn với sổ quỹ tạm ứng 141. Kế toán kiểm lại danh mục.")
+    if a.account_type != "Bank":
+        frappe.throw("Sổ quỹ 141 chưa khai loại Bank nên lõi chưa đối chiếu được sao kê. Kế toán kiểm cấu hình tài khoản, không cần lập lại APP.")
     if a.account_currency != "VND" or frappe.db.get_value("Company", a.company, "default_currency") != "VND":
         frappe.throw("Luồng quỹ tạm ứng này chỉ dùng VND.")
     return b, a
@@ -58,7 +60,10 @@ def _nguon(bank):
 
 def chia_nguon(nguon, so_tien):
     """Phân bổ chính xác theo thứ tự nguồn; không làm tròn tiền để che thiếu."""
-    can = Decimal(str(so_tien))
+    try:
+        can = Decimal(str(so_tien))
+    except (InvalidOperation, ValueError, TypeError):
+        raise ValueError("Số tiền cấn phải là số dương hữu hạn.") from None
     if not can.is_finite() or can <= 0:
         raise ValueError("Số tiền cấn phải là số dương hữu hạn.")
     ra = {}
@@ -254,6 +259,7 @@ def bo_can(name):
     j.cancel()
     doc.vgb_can_ung, doc.da_tam_ung = "", 0
     doc.trang_thai, doc.da_tra = hs.TT_DA_DUYET, 0
+    doc.ngay_thanh_toan = None
     doc.flags.vgb_tam_ung = True
     doc.save(ignore_permissions=True)
     return {"ok": 1, "con_lai": flt(doc.con_lai)}

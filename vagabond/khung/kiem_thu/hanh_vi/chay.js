@@ -259,6 +259,38 @@ var HAI_TK = {
 };
 
 async function chayHet() {
+  await caAsync('342 cấp quỹ: nút thật gửi đúng BT,111 và NQ tùy chọn; hủy không ghi', async function () {
+    for (var huy of [false,true]) {
+      var calls=[], messages=[], picks=['BANK','BT','111','-'];
+      var g={money:String, hsNgayVn:String, hoiChon:async function(){return huy?null:picks.shift();},
+        xacNhan:async function(){return true;}, baoTin:async function(s){messages.push(s);},
+        api:async function(m,p){calls.push([m,p]);
+          if(m.endsWith('ds_tk_hoan_ung')) return {tk:[{ma:'BANK',nhan:'Quỹ thử'}]};
+          if(m.endsWith('ung_vien_cap')) return {giao_dich:[{name:'BT',deposit:100,date:'2026-09-16',description:'Thử',reference_number:'FT'}],tai_khoan_nguon:[{name:'111'}],nop_quy:[]};
+          return {name:'JE'};
+        }};
+      vm.createContext(g);vm.runInContext(layHam(docTep('19-ho-so-tt.js'),'hsCapQuyTienMat'),g);
+      await g.hsCapQuyTienMat();
+      var writes=calls.filter(function(x){return x[0].endsWith('ghi_nhan_cap');});
+      bang('ghi đúng số lần',writes.length,huy?0:1);
+      if(!huy) bang('payload không gán NQ',JSON.stringify(writes[0][1]),JSON.stringify({giao_dich:'BT',tai_khoan_nguon:'111',nop_quy:''}));
+    }
+  });
+
+  await caAsync('342 cấn quỹ: hủy xác nhận không ghi, lỗi API không báo hoàn tất', async function () {
+    for (var huy of [false,true]) {
+      var calls=[],messages=[],moved=0;
+      var g={money:String, hoiNhap:async function(){return '100';}, xacNhan:async function(){return !huy;},
+        baoTin:async function(s){messages.push(s);},go:function(){moved++;},
+        api:async function(m,p){calls.push(m);if(m.endsWith('danh_sach'))return {con_lai:100};throw new Error('Nguồn đã được dùng');}};
+      vm.createContext(g);vm.runInContext(layHam(docTep('19-ho-so-tt.js'),'hsHanh'),g);
+      await g.hsHanh('canung',{ma:'APP',tk_nhan:'BANK',tong_tien:100});
+      bang('không điều hướng thành công',moved,0);
+      bang('chỉ gọi ghi khi xác nhận',calls.filter(function(x){return x.endsWith('.can');}).length,huy?0:1);
+      if(!huy) dung('giữ lỗi cụ thể',messages[0].includes('Nguồn đã được dùng'));
+    }
+  });
+
   await caAsync('502 nối phiếu: truyền ngữ cảnh, hiện lý do và không tự chọn', async function () {
     var m = dungMan({});
     var params, muc, chon = 0;

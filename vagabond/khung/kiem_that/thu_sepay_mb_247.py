@@ -505,6 +505,13 @@ def _app_gui_fin_342():
 def _nen_quy_342(tien=100000):
 	from vagabond import tam_ung_app as tu
 	b = _tai_khoan_ca_nhan(_so_thu(), mot_nha_cung_cap())
+	# Lõi Bank Transaction chỉ đối chiếu GL có account_type Bank.
+	quy = frappe.copy_doc(frappe.get_doc('Account', b.account))
+	quy.account_name = 'Quỹ thử quyết toán '+frappe.generate_hash(length=6)
+	quy.account_number = '141342'+frappe.generate_hash(length=5)
+	quy.account_type = 'Bank'
+	quy.insert(ignore_permissions=True);_DA_TAO.append((quy.doctype,quy.name))
+	b.account=quy.name;b.save(ignore_permissions=True)
 	cha = _mot('Account', {'company':cong_ty(),'root_type':'Asset','is_group':1}, 'lft asc')
 	tk = frappe.get_doc({'doctype':'Account','company':cong_ty(),'parent_account':cha,
 		'account_name':'Tiền mặt thử quỹ '+frappe.generate_hash(length=6),
@@ -591,5 +598,37 @@ def _quy_mot_phan_342():
 		out.reload();la('sao kê chỉ nối PE',len(out.payment_entries),1)
 		la('hết nợ',float(frappe.db.get_value('Purchase Invoice',hd.name,'outstanding_amount')),0.0)
 		la('retry không trả thêm',ho_so_tt.danh_dau_da_tra(h.name,gui_thu=0)['da_lam_roi'],1)
+	finally:
+		frappe.set_user(cu)
+
+
+@ca('342 Cấn lỗi giữa chừng rollback JE/nguồn; hai APP không dùng quá một nguồn')
+def _quy_loi_342():
+	from vagabond import tam_ung_app as tu
+	from vagabond.vagabond.doctype.vagabond_ho_so_tt.vagabond_ho_so_tt import VagabondHoSoTT
+	cu=frappe.session.user;frappe.set_user('Administrator')
+	try:
+		b,tk,g,cap=_nen_quy_342(100000)
+		h,hd=_app_quy_342(b,70000)
+		frappe.db.savepoint('kiem_loi_can342')
+		try:
+			with patch.object(VagabondHoSoTT,'save',side_effect=RuntimeError('loi luu thu')):
+				tu.can(h.name,70000)
+		except RuntimeError:
+			frappe.db.rollback(save_point='kiem_loi_can342')
+		else:
+			dung('phải chịu lỗi sau khi đã submit JE',False)
+		la('không JE dở',frappe.db.count('Journal Entry',{'vgb_ho_so_tt':h.name}),0)
+		la('nguồn không mất',tu.danh_sach(b.name)['con_lai'],100000.0)
+		la('PI không bị cấn dở',float(frappe.db.get_value('Purchase Invoice',hd.name,'outstanding_amount')),70000.0)
+		ra=tu.can(h.name,70000);_DA_TAO.append(('Journal Entry',ra['name']))
+		h2,hd2=_app_quy_342(b,40000)
+		try:
+			tu.can(h2.name,40000)
+		except frappe.ValidationError as e:
+			dung('lý do thiếu nguồn', 'còn lại' in str(e))
+		else:
+			dung('không dùng 110000 từ nguồn100000',False)
+		la('APP hai không có JE',frappe.db.count('Journal Entry',{'vgb_ho_so_tt':h2.name}),0)
 	finally:
 		frappe.set_user(cu)
