@@ -40,7 +40,7 @@ test('workflow labels and bot identity are a durable contract',()=>{
  assert.ok(s.indexOf('Admit explicit')<s.indexOf('Checkout exact admitted'));
 });
 async function adapter(runs,jobs,body=command()){
- const outputs={};const core={setOutput:(k,v)=>outputs[k]=v,setFailed:x=>outputs.error=x,summary:{addHeading(){return this},addRaw(){return this},async write(){}}};
+ const outputs={};const core={setOutput:(k,v)=>outputs[k]=v,setFailed:x=>outputs.error=x,summary:{addHeading(){return this},addRaw(text){outputs.summary=text;return this},async write(){}}};
  const github={rest:{pulls:{get:async()=>({data:input().pr})},actions:{listWorkflowRuns:async()=>({data:{workflow_runs:runs}}),listJobsForWorkflowRun:jobs}}};
  await require('./gate.cjs').run({github,core,context:{repo:{owner:'a',repo:'b'},runId:10,payload:{issue:{number:7,pull_request:{}},comment:{body,author_association:'OWNER',user:{login:'owner'}}}}});return outputs;
 }
@@ -55,11 +55,30 @@ test('history API budget fails closed',async()=>{
  await assert.rejects(adapter(rows,async()=>{calls++;return {data:{jobs:[]}}}),/budget exceeded/);assert.equal(calls,79);
 });
 test('invalid command never reads history',async()=>{
- const out=await adapter([],async()=>{throw Error('must not call')},'thanks @claude review');assert.equal(out.allow,'false');assert.match(out.error,/no-explicit/);
+ const out=await adapter([],async()=>{throw Error('must not call')},'thanks @claude review');assert.equal(out.allow,'false');assert.equal(out.error,undefined);
 });
 
 test('missing context cannot spend a review; delta needs previous SHA',()=>{
  for(const field of ['Base','Scope','Evidence','Previous']) {
  const x=input();x.body=x.body.split('\n').filter(line=>!line.startsWith(field+':')).join('\n');assert.ok(!decide(x).allow);
  }
+});
+
+test('wrong base is rejected with actionable summary',async()=>{
+ const out=await adapter([],async()=>{throw Error('no jobs')},command().replace(`Base: ${base}`,`Base: ${head}`));
+ assert.equal(out.allow,'false');assert.equal(out.base,base);assert.equal(JSON.parse(out.summary).base,base);assert.match(out.error,/stale-review-context/);
+});
+test('quoted old context before command does not override current context',()=>{
+ assert.equal(decide({...input(),body:`Base: ${head}\nPrevious: old\n${input().body}`}).allow,true);
+});
+test('workflow cannot start model after gate removal or removal of its own guard',()=>{
+ const fs=require('node:fs'),path=require('node:path');const s=fs.readFileSync(path.join(__dirname,'../workflows/claude.yml'),'utf8');
+ const valid=t=>{
+ const gate=t.indexOf('Admit explicit'),checkout=t.indexOf('Checkout exact admitted');
+ const model=t.split('      - name:').find(x=>x.includes('uses: anthropics/claude-code-action@v1'));
+ return gate>=0 && checkout>=0 && gate<checkout && !!model && model.includes("if: steps.gate.outputs.allow == 'true'");
+ };
+ assert.ok(valid(s));assert.ok(!valid(s.replace('Admit explicit','removed')));
+ const parts=s.split('      - name:');const idx=parts.findIndex(x=>x.includes('uses: anthropics/claude-code-action@v1'));
+ parts[idx]=parts[idx].replace("if: steps.gate.outputs.allow == 'true'",'');assert.ok(!valid(parts.join('      - name:')));
 });

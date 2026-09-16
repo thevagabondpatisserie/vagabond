@@ -59,6 +59,9 @@ jobs:
           claude_args: '--model claude-opus-5 --effort high --max-turns 20'
           prompt: |
             Review PR ${{ github.event.issue.number || github.event.pull_request.number }} at head ${{ steps.gate.outputs.head }} and base ${{ steps.gate.outputs.base }}.
+            Before reviewing, print git rev-parse HEAD, git rev-parse --verify origin/main, and git for-each-ref.
+            Verify actual HEAD equals admitted head; otherwise stop and report blocked, never approve a different checkout.
+            Use the explicit base...head diff. Verify both commits exist; missing refs are a blocker, not an empty diff.
             Do not run the full local test suite; inspect existing CI and report missing evidence.
             Read AGENTS.md, CLAUDE.md and docs/van-hanh-agent/van-hanh-chung.md.
             Read the triggering request for scope and previous reviewed SHA. Verify current head before publishing.

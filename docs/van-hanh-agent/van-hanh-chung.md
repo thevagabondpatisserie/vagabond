@@ -23,6 +23,8 @@ Không tự tạo tác vụ/polling để chờ bên kia. Biên nhận phải ph
 ## 3. Chốt workflow và giới hạn thật
 Claude chỉ chạy với dòng riêng `@claude review <40 ký tự SHA>` hoặc
 `@claude review delta <40 ký tự SHA>` trên PR mở, không Draft, cùng repo.
+Gate chỉ kiểm Scope/Evidence có nội dung, owner chịu trách nhiệm ý nghĩa.
+Chỉ đọc field sau dòng lệnh để tránh nhận context trích dẫn cũ ở phía trên.
 Gate yêu cầu các dòng `Base: <SHA đầy đủ>`, `Scope: <phạm vi>`,
 `Evidence: <kiểm hoặc ghi rõ chưa kiểm>`; lệnh delta cần thêm
 `Previous: <SHA đã review đầy đủ>`. Base phải khớp API hiện tại. Chỉ owner/member/
@@ -40,7 +42,11 @@ owner báo anh bằng một comment [BỊ CHẶN] có finding và link run, khô
 Không xóa lịch sử run để reset giới hạn. Lỗi API đếm phải fail closed.
 Gate kiểm quyền/lệnh trước khi đọc lịch sử. Bỏ đọc jobs của run completed
 đã cập nhật trước cửa sổ, nhưng vẫn xét rerun cũ vừa cập nhật. Tối đa 80 request
-lịch sử mỗi lượt; vượt ngưỡng fail closed, không gọi model.
+lịch sử mỗi lượt (metadata toàn repo, jobs từng PR); vượt ngưỡng fail closed,
+không gọi model. Nếu lịch sử quá lớn, owner rà retention hoặc mở PR nâng
+ngân sách sau đánh giá, không xoá run còn trong cửa sổ để né giới hạn.
+Comment không phải lệnh hoặc tác giả không được phép: skip xanh kèm summary.
+Lệnh thật nhưng sai SHA/context: đỏ kèm head/base mong đợi để sửa.
 Mỗi lượt tối đa 20 turn, 25 phút cả job. Reviewer dùng bằng chứng CI có sẵn,
 không dựng lại toàn bộ bộ kiểm local; nếu chưa đủ thì báo chưa chốt. Đây là trần lượt/thời gian, KHÔNG
 phải trần token hay USD. Chưa có số token provider thì ghi unavailable.
