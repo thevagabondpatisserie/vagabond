@@ -101,21 +101,9 @@ function phNhanHang(cac) {
    nhảy sang "Đã chi" ngay lúc kế toán ghi sổ, nhưng thứ khách muốn là cái
    uỷ nhiệm chi. */
 function phDay(r, buoc) {
-  var s = '<div style="display:flex;align-items:center;gap:0;margin-top:7px">';
-  (buoc || []).forEach(function (b, i) {
-    var xong = (r.buoc_xong || 0) > i;
-    var dang = (r.buoc_cho === b.k);
-    var nen = xong ? '#12b76a' : (dang ? '#f79009' : '#e4e7ec');
-    var chu = xong ? '✓' : String(i + 1);
-    if (i) {
-      s += '<div style="flex:1;height:3px;background:' +
-        (xong ? '#12b76a' : '#e4e7ec') + '"></div>';
-    }
-    s += '<div title="' + h(b.ten) + '" style="width:19px;height:19px;flex:0 0 19px;' +
-      'border-radius:50%;background:' + nen + ';color:#fff;font-size:11px;' +
-      'line-height:19px;text-align:center;font-weight:700">' + chu + '</div>';
-  });
-  return s + '</div>';
+  return tienTrinhPhieu((buoc || []).map(function (b, i) {
+    return {ten:b.ten, xong:(r.buoc_xong || 0) > i, dang:r.buoc_cho === b.k};
+  }));
 }
 
 async function scrPhieuHoanHuy() {

@@ -86,3 +86,5 @@ quả phụ thuộc lượt sau thực sự đọc, xác minh và dùng bài h�
 - [Issue 325: phạm vi SePay thủ công](cong-viec/issue-325.md)
 
 Quy tắc hiện hành: [sáu thay đổi](van-hanh-chung.md).
+
+- [Issue342: tiến trình phiếu và dấu duyệt](cong-viec/issue-342.md)

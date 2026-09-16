@@ -821,3 +821,9 @@ for _dt_ct, _su_kien_ct, _ham_ct in (
     _cu_ct = doc_events.setdefault(_dt_ct, {}).get(_su_kien_ct, [])
     doc_events[_dt_ct][_su_kien_ct] = ([ _cu_ct ] if isinstance(_cu_ct, str) else list(_cu_ct)) + [_ham_ct]
 scheduler_events.setdefault('hourly', []).append('vagabond.can_tru_san.xep_hang_cho')
+
+# Quỹ tạm ứng: giữ nguồn cấp và cấn ở cửa chứng từ lõi.
+for _event, _fn in (("validate", "kiem_je"), ("before_update_after_submit", "kiem_je"), ("before_cancel", "truoc_huy")):
+    _old = doc_events.setdefault("Journal Entry", {}).get(_event, [])
+    doc_events["Journal Entry"][_event] = ([_old] if isinstance(_old, str) else list(_old)) + ["vagabond.tam_ung_app." + _fn]
+del _event, _fn, _old

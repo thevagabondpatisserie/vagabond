@@ -112,6 +112,82 @@ def _thu_coc(root):
                 p.kill()
 
 
+
+def _con_quy(ten, bank, thu_muc):
+    _mo()
+    root = Path(thu_muc)
+    try:
+        from vagabond import tam_ung_app as tu
+        # Mở snapshot cũ trước khi hai phía cùng tranh khóa quỹ.
+        frappe.db.get_value("Bank Account", bank, "account")
+        (root / (ten + '.quy-ready')).touch()
+        han = time.monotonic() + 40
+        while not (root / 'go-quy').exists():
+            if time.monotonic() > han:
+                raise TimeoutError('Hết hạn chờ hai phiên cấn quỹ')
+            time.sleep(.02)
+        try:
+            ra = tu.can(ten, 70000)
+            frappe.db.commit()
+            ket = {"dat": True, "pid": os.getpid(), "name": ten, "je": ra["name"]}
+        except Exception as e:
+            frappe.db.rollback()
+            ket = {"dat": False, "pid": os.getpid(), "name": ten, "loi": str(e)}
+        (root / (ten + '.quy-json')).write_text(json.dumps(ket))
+    finally:
+        _dong()
+
+
+def _thu_quy(root):
+    _mo()
+    try:
+        from vagabond.khung.kiem_that.thu_sepay_mb_247 import _nen_quy_342, _app_quy_342
+        b, _, _, cap = _nen_quy_342(100000)
+        bank = b.name
+        ds = [_app_quy_342(b, 70000)[0].name for _ in range(2)]
+        frappe.db.commit()
+    finally:
+        _dong()
+    ps = []
+    try:
+        for ten in ds:
+            ps.append(subprocess.Popen([sys.executable, '-m', 'vagabond.khung.bench_thu.phan_bo_247',
+                '--quy', ten, bank, str(root)]))
+        han = time.monotonic() + 45
+        while not all((root / (ten + '.quy-ready')).exists() for ten in ds):
+            _dung(all(p.poll() is None for p in ps), 'Hai kết nối quỹ phải tới hàng rào')
+            if time.monotonic() > han:
+                raise TimeoutError('Chưa đủ hai kết nối quỹ')
+            time.sleep(.02)
+        (root / 'go-quy').touch()
+        for p in ps:
+            _dung(p.wait(timeout=90) == 0, 'Con quỹ phải ghi đủ bằng chứng')
+        ket = [json.loads((root / (ten + '.quy-json')).read_text()) for ten in ds]
+        _dung(len({r['pid'] for r in ket}) == 2 and sum(r['dat'] for r in ket) == 1,
+              'Hai phiên xin140000 từ100000 chỉ một phiên được cấn70000')
+        _mo()
+        try:
+            from vagabond import tam_ung_app as tu
+            _dung(tu.danh_sach(bank)['con_lai'] == 30000, 'Nguồn còn đúng30000')
+            for r in ket:
+                doc = frappe.get_doc('Vagabond Ho So TT', r['name'])
+                no = float(frappe.db.get_value('Purchase Invoice', doc.dong[0].hoa_don, 'outstanding_amount'))
+                _dung(no == (0 if r['dat'] else 70000), 'Chỉ PI bên thắng giảm nợ')
+                _dung(frappe.db.count('Journal Entry', {'vgb_ho_so_tt':doc.name,'docstatus':1}) == int(r['dat']),
+                      'Bên thua không để JE dở')
+                if r['dat']:
+                    _dung(tu.can(doc.name,70000)['name'] == r['je'], 'Retry bên thắng không cấn lại')
+                else:
+                    _dung('còn lại' in r['loi'], 'Bên thua báo thiếu nguồn, không lỗi máy/khóa')
+        finally:
+            _dong()
+        return ket
+    finally:
+        for p in ps:
+            if p.poll() is None:
+                p.kill()
+
+
 def chay():
     root = Path(os.environ['VGB_ARTIFACTS']) / ('phan-bo-247-' + str(os.getpid()))
     root.mkdir()
@@ -158,6 +234,7 @@ def chay():
         finally:
             _dong()
         kq['can_coc_dong_thoi'] = _thu_coc(root)
+        kq['can_quy_dong_thoi'] = _thu_quy(root)
     except Exception:
         kq['loi'] = traceback.format_exc()
         raise
@@ -169,7 +246,9 @@ def chay():
 
 
 if __name__ == '__main__':
-    if len(sys.argv) > 1 and sys.argv[1] == '--coc':
+    if len(sys.argv) > 1 and sys.argv[1] == '--quy':
+        _con_quy(*sys.argv[2:])
+    elif len(sys.argv) > 1 and sys.argv[1] == '--coc':
         _con_coc(*sys.argv[2:])
     elif len(sys.argv) > 1:
         _con(sys.argv[2], sys.argv[3])

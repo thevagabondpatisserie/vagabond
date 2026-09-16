@@ -48,6 +48,8 @@ class VagabondHoSoTT(Document):
 		self.chan_hoan_tat_khong_but_toan()
 		if not self.dong:
 			frappe.throw("Hồ sơ thanh toán phải có ít nhất một dòng.")
+		from vagabond.tam_ung_app import kiem_app
+		kiem_app(self)
 		from vagabond.ho_so_bo_sung import kiem_bo_sung
 		kiem_bo_sung(self)
 		self.tong_tien = sum(flt(d.so_tien) for d in self.dong)
@@ -68,7 +70,7 @@ class VagabondHoSoTT(Document):
 				truoc_tu = frappe.db.get_value(self.doctype, self.name, "da_tam_ung")
 			except Exception:
 				truoc_tu = None
-		if hoan_ung_them_tam_ung(self.loai, truoc_tu, self.da_tam_ung, self.is_new()):
+		if not self.get("vgb_can_ung") and hoan_ung_them_tam_ung(self.loai, truoc_tu, self.da_tam_ung, self.is_new()):
 			from vagabond.ho_so_tt import loi_hoan_ung_tam_ung
 
 			frappe.throw(loi_hoan_ung_tam_ung(flt(self.da_tam_ung)), title="Hoàn ứng không trừ tạm ứng")

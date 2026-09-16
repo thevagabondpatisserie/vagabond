@@ -205,6 +205,9 @@ function dungMan(canh) {
     layNeuCo(hop, 'vgbTraBenTheoMa'),
     layNeuCo(hop, 'vgbLuot'),
     layNeuCo(hop, 'vgbChonLaiGoLoi'),
+    layHam(docTep('15-khuon-danh-sach.js'), 'tienTrinhPhieu'),
+    layHam(docTep('15-khuon-danh-sach.js'), 'hsTienTrinh'),
+    layHam(docTep('15-khuon-danh-sach.js'), 'ttnbTienTrinh'),
     docTep('19-ho-so-tt.js'),
   ].join('\n;\n');
 
@@ -256,6 +259,63 @@ var HAI_TK = {
 };
 
 async function chayHet() {
+  await caAsync('342 màn cấn đủ: không đòi UNC, không tạo lệnh chuyển thêm', async function () {
+    var m=dungMan();
+    m.g.api=async function(){return {ho_so:{ma:'APP-THU',loai:'Hoan ung HD',trang_thai:'Da duyet',
+      nhan:'Đã duyệt',tong_tien:100,da_tam_ung:100,con_lai:0,vgb_can_ung:'JE-THU',tk_nhan:'BANK',
+      ten_ncc:'Người thử',ngay:'2026-09-16'},quyen:{fin:true},dong:[]};};
+    await m.g.scrHoSoTTView('APP-THU');
+    dung('có nút quyết toán',m.khung.innerHTML.includes('Hoàn tất quyết toán'));
+    dung('không đòi UNC mới',!m.khung.innerHTML.includes('Chưa có uỷ nhiệm chi'));
+    dung('không tạo nội dung chi',!m.khung.innerHTML.includes('data-hsv="noidungck"'));
+    dung('không đòi sao kê chi',!m.khung.innerHTML.includes('data-hsv="khoptay"'));
+    dung('còn đường sửa cấn',m.khung.innerHTML.includes('Bỏ cấn tạm ứng'));
+  });
+
+  await caAsync('342 cấp quỹ: nút thật gửi đúng BT,111 và NQ tùy chọn; hủy không ghi', async function () {
+    for (var huy of [false,true]) {
+      var calls=[], messages=[], picks=['BANK','BT','111','-'];
+      var g={money:String, hsNgayVn:String, hoiChon:async function(){return huy?null:picks.shift();},
+        xacNhan:async function(){return true;}, baoTin:async function(s){messages.push(s);},
+        api:async function(m,p){calls.push([m,p]);
+          if(m.endsWith('ds_tk_hoan_ung')) return {tk:[{ma:'BANK',nhan:'Quỹ thử'}]};
+          if(m.endsWith('ung_vien_cap')) return {giao_dich:[{name:'BT',deposit:100,date:'2026-09-16',description:'Thử',reference_number:'FT'}],tai_khoan_nguon:[{name:'111'}],nop_quy:[]};
+          return {name:'JE'};
+        }};
+      vm.createContext(g);vm.runInContext(layHam(docTep('19-ho-so-tt.js'),'hsCapQuyTienMat'),g);
+      await g.hsCapQuyTienMat();
+      var writes=calls.filter(function(x){return x[0].endsWith('ghi_nhan_cap');});
+      bang('ghi đúng số lần',writes.length,huy?0:1);
+      if(!huy) bang('payload không gán NQ',JSON.stringify(writes[0][1]),JSON.stringify({giao_dich:'BT',tai_khoan_nguon:'111',nop_quy:''}));
+    }
+  });
+
+  await caAsync('342 cấn quỹ: hủy xác nhận không ghi, lỗi API không báo hoàn tất', async function () {
+    for (var huy of [false,true]) {
+      var calls=[],messages=[],moved=0;
+      var g={money:String, hoiNhap:async function(){return '100';}, xacNhan:async function(){return !huy;},
+        baoTin:async function(s){messages.push(s);},go:function(){moved++;},
+        api:async function(m,p){calls.push(m);if(m.endsWith('danh_sach'))return {con_lai:100};throw new Error('Nguồn đã được dùng');}};
+      vm.createContext(g);vm.runInContext(layHam(docTep('00-nen.js'),'soTien'),g);vm.runInContext(layHam(docTep('19-ho-so-tt.js'),'hsHanh'),g);
+      await g.hsHanh('canung',{ma:'APP',tk_nhan:'BANK',tong_tien:100});
+      bang('không điều hướng thành công',moved,0);
+      bang('chỉ gọi ghi khi xác nhận',calls.filter(function(x){return x.endsWith('.can');}).length,huy?0:1);
+      if(!huy) dung('giữ lỗi cụ thể',messages[0].includes('Nguồn đã được dùng'));
+    }
+  });
+
+  await caAsync('342 cấn quỹ không biến tiền âm thành tiền dương', async function () {
+    var writes=0, confirmed=0, messages=[];
+    var g={money:String,hoiNhap:async function(){return '-100.000';},
+      xacNhan:async function(){confirmed++;return true;},baoTin:async function(s){messages.push(s);},
+      api:async function(m){if(m.endsWith('danh_sach'))return {con_lai:200000};writes++;}};
+    vm.createContext(g);vm.runInContext(layHam(docTep('00-nen.js'),'soTien'),g);
+    vm.runInContext(layHam(docTep('19-ho-so-tt.js'),'hsHanh'),g);
+    await g.hsHanh('canung',{ma:'APP',tk_nhan:'BANK',tong_tien:200000});
+    bang('không ghi',writes,0);bang('không hỏi duyệt tiền sai',confirmed,0);
+    dung('báo số tiền không hợp lệ',messages[0].includes('lớn hơn 0'));
+  });
+
   await caAsync('502 nối phiếu: truyền ngữ cảnh, hiện lý do và không tự chọn', async function () {
     var m = dungMan({});
     var params, muc, chon = 0;
@@ -273,6 +333,22 @@ async function chayHet() {
     bang('gửi nội dung', params.noi_dung, 'TTNB260900001');
     dung('lý do nhìn thấy', muc[0].phu.indexOf('Cùng giao dịch') === 0);
     bang('người dùng chưa chọn', chon, 0);
+  });
+
+  await caAsync('Tiến trình APP không suy chữ ký FIN từ trạng thái đã duyệt', async function () {
+    var row = {name:'APP1',ma:'APP1',trang_thai:'Da duyet',gd_boi:'GD',ten_ncc:'Người thử',ngay:'2026-09-16',tong_tien:100};
+    var m = dungMan({danhSach:{rows:[row],quyen:{},nhan:{}}});
+    await m.g.scrHoSoTT();
+    dung('danh sách thật gọi renderer',m.khung.innerHTML.includes('Kế toán: chưa xác nhận'));
+    var html = m.g.hsTienTrinh(row);
+    dung('FIN chưa xác nhận', html.includes('Kế toán: chưa xác nhận'));
+    dung('GD đã xong', html.includes('Giám đốc: đã xong'));
+    dung('chờ thanh toán', html.includes('Thanh toán: đang chờ'));
+    bang('hủy không có tiến trình hoàn tất', m.g.hsTienTrinh({name:'APP1',trang_thai:'Huy'}), '');
+    html=m.g.hsTienTrinh({name:'APP1',trang_thai:'Da thanh toan',canh_bao_doi_chieu:'Kiểm lại'});
+    dung('cảnh báo không tô xanh thanh toán',html.includes('Thanh toán: chưa xác nhận'));
+    html=m.g.ttnbTienTrinh({trang_thai:'Hoan tat'});
+    dung('không nhận là tiền ra', !html.includes('Thanh toán') && html.includes('Kế toán xử lý: đã xong'));
   });
 
   await caAsync('#498: ba cửa công thức trên máy, bếp phó soạn được nhưng không thấy nút Ghi sổ', async function () {

@@ -494,3 +494,37 @@ async function kgGhi(f) {
     baoTin((e && e.message) || 'Chưa tạo được. Kiểm lại các ô rồi thử lần nữa.', 'Chưa lưu được');
   }
 }
+/* Cùng hình thức với phiếu hoàn tiền. Mỗi màn cấp bằng chứng từng bước.
+ * Không suy chữ ký còn thiếu từ trạng thái sau cùng. */
+function tienTrinhPhieu(buoc) {
+  if (!buoc || !buoc.length) return '';
+  var mo = buoc.map(function (b) { return b.ten + ': ' + (b.xong ? 'đã xong' : (b.dang ? 'đang chờ' : 'chưa xác nhận')); }).join('; ');
+  return '<div role="img" aria-label="' + h(mo) + '" style="display:flex;align-items:center;max-width:240px;margin-top:7px">' + buoc.map(function (b, i) {
+    var nen = b.xong ? '#12b76a' : (b.dang ? '#f79009' : '#e4e7ec');
+    return (i ? '<span style="flex:1;height:3px;background:' + (b.xong && buoc[i-1].xong ? '#12b76a' : '#e4e7ec') + '"></span>' : '') +
+      '<span title="' + h(b.ten) + '" style="width:19px;height:19px;flex:0 0 19px;border-radius:50%;background:' + nen + ';color:#fff;font-size:11px;line-height:19px;text-align:center;font-weight:700">' + (b.xong ? '✓' : String(i+1)) + '</span>';
+  }).join('') + '</div><div style="font-size:11.5px;color:#667085;margin-top:4px;overflow-wrap:anywhere">' + h(buoc.map(function (b) { return b.ten; }).join(' · ')) + '</div>';
+}
+
+function hsTienTrinh(r) {
+  if (r.la_phieu_chi || ['Huy', 'Tu choi'].indexOf(r.trang_thai) >= 0) return '';
+  return tienTrinhPhieu([
+    {ten:'Lập', xong:!!r.name},
+    {ten:'Kế toán', xong:!!r.fin_boi, dang:r.trang_thai === 'Cho ke toan'},
+    {ten:'Giám đốc', xong:!!r.gd_boi, dang:r.trang_thai === 'Cho giam doc'},
+    {ten:'Thanh toán', xong:r.trang_thai === 'Da thanh toan' && !r.canh_bao_doi_chieu, dang:r.trang_thai === 'Da duyet' && !r.canh_bao_doi_chieu}
+  ]);
+}
+
+function ttnbTienTrinh(r) {
+  var tt = r.trang_thai;
+  if (['Bi tra lai', 'Da huy'].indexOf(tt) >= 0) return '';
+  // Hai chặng duyệt có thể khác nhau theo loại/giá trị, không vẽ chữ ký GD giả.
+  var muc = {Nhap:0, 'Cho duyet':1, 'Cho giam doc':1, 'Cho ke toan':2, 'Hoan tat':3, 'Da chi':3}[tt];
+  if (muc === undefined) return '';
+  return tienTrinhPhieu([
+    {ten:'Lập', xong:muc > 0, dang:muc === 0},
+    {ten:'Duyệt', xong:muc > 1, dang:muc === 1},
+    {ten:'Kế toán xử lý', xong:muc > 2, dang:muc === 2}
+  ]);
+}
