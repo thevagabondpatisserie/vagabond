@@ -1992,18 +1992,21 @@ def go_tep(name=None, tep=None):
 
 
 def _hoa_don_da_sinh(doc):
-	"""Các hoá đơn mua ĐÃ GHI SỔ mà chính hồ sơ này sinh ra. THUẦN đọc."""
+	"""Không nhầm PI có sẵn của NCC với PI do luồng hoàn ứng tạo.
+
+	Loại Hoan ung giữ chặn bảo thủ cho dữ liệu cũ thiếu dấu nguồn. Dấu
+	remarks do _sinh_hoa_don_hoan_ung ghi giúp giữ chặn nếu đổi loại hồ sơ.
+	Lỗi đọc CSDL phải nổi lên, không được coi là không có hóa đơn.
+	"""
 	ra = []
-	for d in (doc.dong or []):
-		ma = (getattr(d, "hoa_don", "") or "").strip()
-		if not ma:
+	for ma in sorted({(d.hoa_don or "").strip() for d in (doc.dong or []) if d.hoa_don}):
+		pi = frappe.db.get_value("Purchase Invoice", ma, ["docstatus", "remarks"], as_dict=True)
+		if not pi or cint(pi.docstatus) != 1:
 			continue
-		try:
-			if cint(frappe.db.get_value("Purchase Invoice", ma, "docstatus")) == 1:
-				ra.append(ma)
-		except Exception:
-			continue
-	return sorted(set(ra))
+		nguon = (pi.remarks or "").startswith("Hoàn ứng %s - " % doc.name)
+		if (doc.loai or LOAI_NCC) == LOAI_HU or nguon:
+			ra.append(ma)
+	return ra
 
 
 def _chan_giet_ho_so_da_sinh_hoa_don(doc, viec):
