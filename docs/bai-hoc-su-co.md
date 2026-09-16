@@ -671,10 +671,14 @@ that catches it must mute messages in a scoped try/finally and restore
 the prior flag. Test message_log on the real resolver, not only returned
 errors. Applies to source report and advisory submit hook, PR323 F16.
 
-## Issue 325: lọc phạm vi trước giới hạn
+## Issue 325 và PR 327: chip lọc theo mapping, nhưng KHÔNG giấu dòng sao kê
 
-Chip chỉ hiện tài khoản SePay thì API ứng viên cũng phải lọc cùng mapping trước giới hạn truy vấn. Mapping rỗng phải trả rỗng, không ngầm lấy mọi tài khoản. Giữ ca kiểm caller truyền phạm vi xuống query để tránh helper đúng nhưng đường gọi bỏ quên bộ lọc.
+Màn khớp SePay thủ công từng in cả danh sách tài khoản chưa nối bằng join, dài ba màn hình và đẩy dòng sao kê xuống dưới. Bản sửa đầu đi quá tay: lọc luôn ứng viên theo mapping ngay trong truy vấn. Đó lại đúng hình dạng lỗi ngày 14/09/2026 với phiếu TTNB-26-09-02113, dòng có thật biến mất mà màn báo là không có giao dịch nào.
 
-### PR327: phạm vi phải kiểm lại tại cửa ghi
+Luật chốt: cửa ĐỌC không giấu dòng nào. Dòng chưa dùng được vẫn trả về kèm dung_duoc = 0 và vi_sao_khong, để mờ và xếp cuối bảng. Chặn nằm ở cửa GHI, dùng CHUNG một hàm cho cả khớp tự động lẫn khớp tay: hai đường ghi áp hai luật khác nhau còn khó hiểu hơn cả việc giấu dòng. Chip chỉ là bộ lọc người dùng tự chọn, không phải bộ lọc ngầm của máy.
 
-Lọc ứng viên không ngăn lời gọi API trực tiếp hoặc ứng viên cũ sau khi mapping bị gỡ. Kiểm mapping hiện tại ngay trước ghi, và ca kiểm phải chứng minh không set_value/commit khi bị loại. Mapping rỗng khác không có sao kê: thông báo phải chỉ đúng cấu hình cần kiểm.
+## 16/09/2026 - Đếm vòng agent bằng lượt thực thi
+Không dùng comment hay run created_at làm bằng chứng model đã chạy: skipped
+không tiêu lượt, rerun của run cũ có thể bắt đầu hôm nay. Gate đọc mọi attempt
+và started_at bước model theo PR; API lỗi chặn chạy. Khóa này chỉ bao workflow
+được tích hợp, không mặc định bao native Codex. Nguồn: PR sáu thay đổi agent.

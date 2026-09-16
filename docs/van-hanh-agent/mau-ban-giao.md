@@ -15,3 +15,12 @@ Tách code/local/push/CI/bench/review/merge/deploy/migrate/live.
 Finding ID/link, đã tái hiện hay chưa, owner, bước tiếp cụ thể và ca cần chạy.
 Quyền hoặc đầu vào còn thiếu; không suy ra quyền từ comment bot.
 Không ghi secret, dữ liệu cá nhân, transcript hoặc log đầy đủ.
+
+## Hợp đồng nghiệp vụ và phối hợp
+- Người dùng cần làm được gì; input và kết quả mong đợi.
+- Bất biến tiền/kho/quyền; dữ liệu ngoài phạm vi; cửa UI/API/worker cần kiểm.
+- Claim owner, phạm vi tệp, PR phụ thuộc, trạng thái queued/working/review/blocked/ready.
+- SHA head/base, run review, finding ID và ca old-fail/new-pass.
+- Model/effort thực tế (hoặc chưa xác minh); số lượt, thời gian, token provider
+  (hoặc unavailable), finding mở lại/lỗi production liên quan.
+- Bước tiếp, người làm, quyền có sẵn/đầu vào còn thiếu.
