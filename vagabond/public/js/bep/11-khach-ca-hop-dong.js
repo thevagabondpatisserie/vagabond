@@ -1742,9 +1742,11 @@ function htDsVe() {
          tiếp, mà hai việc đó xử lý khác hẳn nhau. */
       var xx = kq.xem_xet || [];
       var trung = xx.filter(function (x) { return x.trung_voi; });
-      var lech = xx.filter(function (x) { return !x.trung_voi; });
+      var chan = xx.filter(function (x) { return !x.trung_voi && x.vi_sao; });
+      var lech = xx.filter(function (x) { return !x.trung_voi && !x.vi_sao; });
       baoTin(kq.ghi_chu ? kq.ghi_chu :
         ('Đã khớp ' + money(kq.da_khop || 0) + ' phiếu trên ' + money(kq.so_phieu_quet || 0) + ' phiếu chờ.' +
+         (chan.length ? '\n\nCần kiểm tra tài khoản SePay:\n' + chan.map(function (x) { return (x.phieu || x.ho_so || '') + ': ' + x.vi_sao; }).join('\n') : '') +
          (lech.length ? '\n\nCó ' + lech.length + ' phiếu nội dung khớp nhưng SỐ TIỀN LỆCH, cần xem lại.' : '') +
          (trung.length ? '\n\nCó ' + trung.length + ' phiếu trỏ vào giao dịch đã gắn cho phiếu khác ' +
           '(' + trung.map(function (x) { return x.ho_so + ' trùng ' + x.trung_voi; }).join(', ') + '). ' +
@@ -2060,6 +2062,8 @@ async function htKhopSepayTuDong(d) {
     return htChiTiet(d.name);
   }
   var xx = (kq && kq.xem_xet) || [];
+  var chan = xx.filter(function (x) { return x.vi_sao && !x.trung_voi; });
+  if (chan.length) return baoTin(chan.map(function (x) { return x.vi_sao; }).join('\n'), 'Cần kiểm tra tài khoản SePay');
   if (xx.length) {
     /* Co dong gan dung nhung khong danh dau duoc: noi ro con so lech, roi
        day thang sang duong chon tay. Bao "khong tim thay" o day la noi sai. */

@@ -256,6 +256,29 @@ var HAI_TK = {
 };
 
 async function chayHet() {
+  await caAsync('327: ba cửa UI phân biệt mapping, lệch tiền và trùng giao dịch', async function () {
+    var ht = docTep('11-khach-ca-hop-dong.js'), tt = docTep('16-mua-hang.js');
+    var callbacks = [
+      layHam(ht.slice(ht.indexOf('if (s) s.onclick = async function ()', ht.indexOf('function htDsVe('))).replace('async function ()', 'async function test327()'), 'test327'),
+      layHam(tt.slice(tt.indexOf('if (nSoat) nSoat.onclick = async function ()')).replace('async function ()', 'async function test327()'), 'test327'),
+      layHam(ht, 'htKhopSepayTuDong').replace('htKhopSepayTuDong', 'test327')
+    ];
+    for (var i=0; i<callbacks.length; i++) {
+      for (var mapping of [true, false]) {
+        var messages=[];
+        var row = mapping ? {ho_so:'HT-1',phieu:'TTNB-1',vi_sao:'Tài khoản chưa nối SePay'} : {tien_chuyen:90,tien_phieu:100};
+        var g={api:async function(){return {xem_xet:[row]};},busy:function(){},money:String,
+          baoTin:function(text,title){messages.push((title||'')+' '+text);},
+          go:function(){},chay:function(){},scrHoanTien:function(){}};
+        vm.createContext(g); vm.runInContext(callbacks[i],g);
+        await g.test327({name:'HT-1'});
+        bang('đúng một thông báo',messages.length,1);
+        dung('nói đúng loại vấn đề',mapping ? messages[0].includes(row.vi_sao) : /số tiền lệch/i.test(messages[0]));
+        if(mapping) dung('không báo nhầm lệch tiền',!/số tiền lệch/i.test(messages[0]));
+      }
+    }
+  });
+
   await caAsync('327: bấm theo thuộc tính thực của dòng chặn và dòng được khớp', async function () {
     for (var spec of [['16-mua-hang.js','ttnbFormGdRa','.ttnbgd','ttnbKhopTay'],['11-khach-ca-hop-dong.js','htFormGdRa','.htgdra','htKhopTay']]) {
       var html='', writes=[], message='', nodes=[];

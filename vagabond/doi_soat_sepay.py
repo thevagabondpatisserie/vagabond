@@ -328,7 +328,7 @@ def ly_do_tai_khoan_sepay(tai_khoan, cho_phep=None):
 	Mọi chỗ sắp gắn một dòng sao kê vào phiếu đều phải hỏi hàm này trước khi
 	`set_value`: `khop_tay`, `tu_dong`, và cả ba đường ghi tự động cũ là
 	`de_nghi_chi.doi_soat`, `de_nghi_chi.khi_co_giao_dich`,
-	`hoan_tien.doi_soat`. Một luật viết lại ở nhiều nơi thì sớm muộn có một
+	`hoan_tien.doi_soat`, `hoan_tien.sepay_tien_ra`. Một luật viết lại ở nhiều nơi thì sớm muộn có một
 	nơi quên, và lúc đó cùng một giao dịch cho hai kết quả trái ngược tuỳ
 	người bấm nút nào. Điều 18 AGENTS.md.
 

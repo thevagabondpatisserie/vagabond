@@ -1633,10 +1633,12 @@ function ttnbVe(kq) {
       busy(false);
       var xx = r.xem_xet || [];
       var trung = xx.filter(function (y) { return y.trung_voi; });
-      var lech = xx.filter(function (y) { return !y.trung_voi; });
+      var chan = xx.filter(function (y) { return !y.trung_voi && y.vi_sao; });
+      var lech = xx.filter(function (y) { return !y.trung_voi && !y.vi_sao; });
       baoTin(r.ghi_chu ? r.ghi_chu :
         ('Đã khớp ' + money(r.da_khop || 0) + ' phiếu trên ' + money(r.so_phieu_quet || 0) + ' phiếu chờ chi.' +
          ((r.da_khop || 0) + xx.length <= 5 ? (r.da_khop_rows || []).concat(xx).map(function (x) { return '\n' + (x.phieu || '') + ' · ' + (x.nhan_ngan_hang || 'Chưa xác định tài khoản'); }).join('') : '') +
+         (chan.length ? '\n\nCần kiểm tra tài khoản SePay:\n' + chan.map(function (x) { return (x.phieu || x.ho_so || '') + ': ' + x.vi_sao; }).join('\n') : '') +
          (lech.length ? '\n\nCó ' + lech.length + ' phiếu nội dung khớp nhưng SỐ TIỀN LỆCH, cần xem lại.' : '') +
          (trung.length ? '\n\nCó ' + trung.length + ' phiếu trỏ vào giao dịch đã gắn cho phiếu khác.' : '')));
       chay();

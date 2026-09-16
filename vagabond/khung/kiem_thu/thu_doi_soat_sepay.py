@@ -528,3 +528,42 @@ def _ba_duong_ghi_tu_dong_327():
 		if not ghi_duoc:
 			dung('hoan tien: dong bi chan co ly do',
 				bool(kq['xem_xet']) and bool(kq['xem_xet'][0].get('vi_sao')))
+
+
+@ca('#327 hoàn tiền trực tiếp: sao kê thật, mapping active, không tin payload')
+def _hoan_truc_tiep_327():
+	import sys
+	from contextlib import ExitStack
+	from types import SimpleNamespace
+	from unittest.mock import Mock, patch
+	from vagabond import hoan_tien as ht
+	gd = dict(name='GD', bank_account='CT', description='HOAN TIEN HD-1',
+		reference_number='', withdrawal=100, docstatus=1)
+	for ten, dong, chip, ma, khop in [
+		('thiếu mã', gd, [{'ma':'CT'}], '', False),
+		('không có sao kê', None, [{'ma':'CT'}], 'GD', False),
+		('đã hủy', dict(gd, docstatus=2), [{'ma':'CT'}], 'GD', False),
+		('tiền vào', dict(gd, withdrawal=0), [{'ma':'CT'}], 'GD', False),
+		('mapping tắt', gd, [], 'GD', False),
+		('đã nối', gd, [{'ma':'CT'}], 'GD', True),
+		('payload giả không sửa được tiền', dict(gd, withdrawal=200), [{'ma':'CT'}], 'GD', False),
+	]:
+		db=SimpleNamespace(get_value=Mock(return_value=dong), set_value=Mock(), commit=Mock())
+		sinh=Mock(return_value={})
+		with ExitStack() as g:
+			g.enter_context(patch.dict(sys.modules, {'vagabond.ban_hang':SimpleNamespace(_kiem_quyen=lambda:None)}))
+			g.enter_context(patch.object(ht.frappe,'db',db))
+			g.enter_context(patch.object(ht.frappe,'get_all',return_value=[dict(name='HT-1',so_tien=100)]))
+			g.enter_context(patch.object(ht.frappe,'get_doc',Mock()))
+			g.enter_context(patch.object(ht,'ma_do_soat',return_value='HD-1'))
+			chon=g.enter_context(patch.object(ht,'chon_ma_khop',return_value='HD-1'))
+			g.enter_context(patch.object(ht,'_gd_da_chiem',return_value={}))
+			g.enter_context(patch.object(ht,'_sinh_chung_tu',sinh))
+			g.enter_context(patch.object(dss,'nhan_tai_khoan',return_value=({'CT':'MB'},chip,[])))
+			kq=ht.sepay_tien_ra(mo_ta='PAYLOAD GIA',so_tien=100,ma_gd=ma)
+		la(ten+' khớp',kq['khop'],int(khop))
+		la(ten+' ghi DB',db.set_value.call_count,int(khop))
+		la(ten+' sinh chứng từ',sinh.call_count,int(khop))
+		la(ten+' commit',db.commit.call_count,int(khop))
+		if not khop: dung(ten+' lý do',bool(kq.get('vi_sao')))
+		if chon.called: la(ten+' dùng nội dung DB',chon.call_args[0][0],gd['description']+' ')

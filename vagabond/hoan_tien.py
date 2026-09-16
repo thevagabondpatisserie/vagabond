@@ -2208,6 +2208,20 @@ def sepay_tien_ra(mo_ta="", so_tien=0, ma_gd=""):
 	from vagabond.ban_hang import _kiem_quyen
 
 	_kiem_quyen()
+	# #327: endpoint trực tiếp cũng phải có dòng sao kê thật và mapping active.
+	# Không dùng payload để tự tạo bằng chứng một lần tiền ra.
+	from vagabond.doi_soat_sepay import ly_do_tai_khoan_sepay
+	ma_gd = (ma_gd or "").strip()
+	gd = frappe.db.get_value("Bank Transaction", ma_gd,
+		["name", "bank_account", "description", "reference_number", "withdrawal", "docstatus"], as_dict=True) if ma_gd else None
+	if not gd or cint(gd.get("docstatus")) == 2 or flt(gd.get("withdrawal")) <= 0:
+		return {"khop": 0, "vi_sao": "Chưa có dòng tiền ra hợp lệ trong sao kê. Vui lòng nạp sao kê trước khi đối soát."}
+	ly_do = ly_do_tai_khoan_sepay(gd.get("bank_account"))
+	if ly_do:
+		return {"khop": 0, "vi_sao": ly_do}
+	mo_ta = " ".join(str(gd.get(k) or "") for k in ("description", "reference_number"))
+	so_tien = gd["withdrawal"]
+
 	# Doi chieu voi cac phieu DANG CHO, qua chon_ma_khop - dung phep ma
 	# duong chay theo gio dung, khong de hai duong lech nhau.
 	cho = frappe.get_all(

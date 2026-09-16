@@ -324,3 +324,42 @@ def _quyen_doc_sepay():
 		dung('Accounts Manager độc lập soi khóa',bool(sepay.soi_khoa()))
 	finally:
 		frappe.set_user(cu)
+
+
+@ca('#327 hoàn tiền trực tiếp: kiểm mapping trên sao kê và hồ sơ thật trước ghi')
+def _hoan_truc_tiep_mapping():
+	from vagabond import hoan_tien, don_huy
+	from vagabond.khung.kiem_that.thu_don_huy import _ho_so_thu
+	cu = frappe.session.user
+	frappe.set_user('Administrator')
+	try:
+		goc = _mot('Bank Account', {'company':cong_ty(), 'is_company_account':1, 'disabled':0})
+		dung('bench có tài khoản công ty', bool(goc))
+		ba = frappe.copy_doc(frappe.get_doc('Bank Account', goc))
+		ba.account_name = 'Kiểm hoàn SePay ' + frappe.generate_hash(length=8)
+		ba.bank_account_no = _so_thu()
+		ba.insert(ignore_permissions=True)
+		_DA_TAO.append((ba.doctype, ba.name))
+		hs = _ho_so_thu(don_huy._khach_le_online())
+		_DA_TAO.append((hs.doctype, hs.name))
+		ma = '327' + frappe.generate_hash(length=8).upper()
+		frappe.db.set_value(hs.doctype, hs.name, {'ma_don_pancake':ma, 'noi_dung_ck':'HOAN TIEN '+ma})
+		gd = _giao_dich(ba.name, hs.so_tien, 'HOAN TIEN '+ma)
+		# Chỉ thay bước phát sinh chứng từ: ca này kiểm ranh giới mapping/ghi DB.
+		# Cặp Payment Entry thật đã được kiểm riêng trong thu_don_huy.
+		with patch.object(hoan_tien, '_sinh_chung_tu', return_value={}) as sinh:
+			kq = hoan_tien.sepay_tien_ra(ma_gd=gd.name)
+			la('chưa nối không khớp', kq['khop'], 0)
+			dung('có lý do cấu hình', bool(kq.get('vi_sao')))
+			la('không ghi hồ sơ', frappe.db.get_value(hs.doctype,hs.name,'da_doi_soat'),0)
+			la('không sinh chứng từ', sinh.call_count,0)
+			sepay.them_tai_khoan(ba.bank_account_no,ba.name)
+			kq = hoan_tien.sepay_tien_ra(mo_ta='payload giả',so_tien=1,ma_gd=gd.name)
+			la('đã nối dùng đúng dữ liệu sao kê',kq['khop'],1)
+			la('gắn đúng dòng',frappe.db.get_value(hs.doctype,hs.name,'ma_gd'),gd.name)
+			la('gọi sinh một lần',sinh.call_count,1)
+			lai = hoan_tien.sepay_tien_ra(ma_gd=gd.name)
+			la('retry không khớp lại',lai['khop'],0)
+			la('retry không sinh đôi',sinh.call_count,1)
+	finally:
+		frappe.set_user(cu)
