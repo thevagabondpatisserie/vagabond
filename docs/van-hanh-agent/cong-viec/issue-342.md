@@ -29,3 +29,5 @@ Base: 2c2942a7d616637ae75457999e06bc01ea0a20f6.
 - Tự review bắt thêm đường xuất chuyển khoản dùng 0-or-tổng, đã sửa và thêm hồi quy tại cửa API. Cấn đủ dùng nhãn quyết toán, không đòi UNC/sao kê mới; đổi tài khoản nhận phải bỏ cấn trước.
 
 - Bench2ed81f0: hai lượt239/240, sạch; lỗi thật ở Bỏ cấn do truyền list cho ERPNext on_cancel nối tuple. Đã đổi tuple theo core, chờ bench SHA mới. Cấn một phần và rollback đã đạt cả hai lượt.
+
+- Bổ sung phép thử hai process MariaDB riêng trong phan_bo_247: mỗi APP xin70000 từ nguồn100000, mở snapshot trước khi cùng qua hàng rào; chỉ một JE được submit, nguồn còn30000, PI bên thua giữ nợ và retry bên thắng không sinh thêm. Chờ kết quả CI, không coi code ca kiểm là bằng chứng đã đạt.
