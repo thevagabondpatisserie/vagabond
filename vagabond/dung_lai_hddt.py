@@ -484,15 +484,14 @@ def _tong_thue_tren_phieu(doc):
 
 
 def _do_chinh_xac(doc=None, g=None):
-	"""(số lẻ ô đơn giá, số lẻ ô thành tiền, số lẻ ô số lượng) máy đang dùng."""
-	if doc is not None:
-		from vagabond.do_chinh_xac_mua import quy_uoc
-		qc = quy_uoc(doc, g)
-		if qc:
-			return qc['gia'], qc['tien'], qc['sl']
-	from vagabond.minvoice_chung_tu import do_chinh_xac_pi
+	"""(số lẻ ô đơn giá, số lẻ ô thành tiền, số lẻ ô số lượng) máy đang dùng.
 
-	return do_chinh_xac_pi()
+	Một nguồn duy nhất, dùng chung với đường dựng mới. Xem
+	`minvoice_chung_tu.do_chinh_xac`.
+	"""
+	from vagabond.minvoice_chung_tu import do_chinh_xac
+
+	return do_chinh_xac(doc, g)
 
 
 def _tk_thue_vao(doc):

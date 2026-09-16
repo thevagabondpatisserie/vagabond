@@ -314,13 +314,38 @@ def muc_tieu_truoc_thue(g):
 	return flt(g.get("tien_truoc_thue"))
 
 
-def do_chinh_xac_pi():
-	"""(số lẻ ô đơn giá, số lẻ ô thành tiền, số lẻ ô số lượng) máy đang dùng.
+def do_chinh_xac(doc=None, g=None):
+	"""Số lẻ (đơn giá, thành tiền, số lượng) mà TỜ NÀY sẽ thật sự dùng.
 
-	Đây là bản KHÔNG có phiếu trong tay, dùng lúc dựng tờ mới. Khi đã có
-	phiếu thì `dung_lai_hddt._do_chinh_xac` hỏi quy ước riêng của phiếu
-	trước rồi mới rơi về đây.
+	HỎI ĐÚNG CHỖ MÁY SẼ HỎI - phát hiện của Codex trên PR #337
+	--------------------------------------------------------------------
+	Bản đầu của v502 lấy số lẻ chung của Hoá đơn mua (2, 0, 3). Sai, vì
+	hook `do_chinh_xac_mua.truoc_khi_tinh` chạy ngay trong `insert` và
+	nâng số lẻ của CHÍNH tờ đó lên đơn giá 9, số lượng 9, tiền lấy theo số
+	lẻ của bản gốc. Đoán một đằng máy ghi một nẻo thì phép nắn tính ra một
+	con số không có thật.
+
+	Ca thật HĐ11595: 1000 x 925,9259, tiền hàng 925.926. Máy dùng đơn giá
+	9 số lẻ nên ghi 925.926, đúng. Nhưng nếu đoán đơn giá 2 số lẻ thì ra
+	925.930, phép nắn tưởng THỪA 4 đồng và đặt giảm giá 4 đồng, tờ thành
+	hụt 4 đồng và hàng rào cuối chặn luôn, không dựng được tờ nào.
+
+	Nên cả đường dựng mới lẫn đường dựng lại đều đi qua đây, và đây hỏi
+	đúng `do_chinh_xac_mua.quy_uoc` - cùng một hàm mà hook sẽ hỏi. `doc`
+	có thể chỉ là một dict mô tả tờ SẮP dựng, vì `quy_uoc` chỉ đọc
+	`doctype` và `currency`.
 	"""
+	if doc is not None:
+		from vagabond.do_chinh_xac_mua import quy_uoc
+
+		qc = quy_uoc(doc, g)
+		if qc:
+			return qc["gia"], qc["tien"], qc["sl"]
+	return do_chinh_xac_pi()
+
+
+def do_chinh_xac_pi():
+	"""Số lẻ CHUNG của Hoá đơn mua, khi tờ không có quy ước riêng."""
 	try:
 		gia = cint(frappe.get_precision(PI + " Item", "rate"))
 		tien = cint(frappe.get_precision(PI + " Item", "amount"))
@@ -1005,7 +1030,8 @@ def dung_hoa_don_mua(r):
 	# phan bi cat o o don gia, va to ALOIN so 1144 (260 x 1.576,92) vao so
 	# thieu dung mot dong. Duong dung lai da tinh dung tu 27/08, duong dung
 	# moi thi chua, nay hai duong dung chung mot ham.
-	dp_gia, dp_tien, dp_sl = do_chinh_xac_pi()
+	dp_gia, dp_tien, dp_sl = do_chinh_xac(
+		{"doctype": PI, "currency": "VND"}, r)
 	tong_dong = sum(
 		tien_dong_may_ghi(d.get("qty"), d.get("rate"), dp_gia, dp_tien, dp_sl)
 		for d in dong
