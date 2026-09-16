@@ -748,3 +748,11 @@ Hai cái cùng giá trị 1.0 mà khác nghĩa, đừng gộp.
 Bẫy khi chạy đột biến: bộ chạy đột biến phải khôi phục tệp trong `finally`.
 Ngày 16/09 lượt đột biến thứ năm bị timeout giết giữa chừng và để nguyên bản
 đã bóp trong cây làm việc, suýt nữa đẩy lên.
+
+### 16/09/2026 - PR #337: tổng đã cân che mất đơn giá bị cắt
+
+Bench precision #259 từng tắt policy rồi chờ tổng sai bốn đồng. Khi #337
+cân cả phần chênh đó bằng giảm giá, tổng đúng nhưng đơn giá vẫn bị cắt.
+Đối chứng phải kiểm chính đơn giá, thành tiền dòng và khoản giảm giá; không
+chỉ nhìn tổng hoặc nhận mọi exception là bằng chứng. Giữ luồng bật policy
+kiểm save/submit/GL/hủy, bổ sung hóa đơn lệch một đồng cả dấu dương và âm.

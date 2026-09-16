@@ -23,7 +23,8 @@ def _mon():
 def _doi_chung_tat_ban_sua(goc):
     """Tắt riêng policy mới trên core hiện tại, không nhận là checkout main.
 
-Lỗi phải đúng tổng1.000.004/lệch4đ. Một lỗi setup khác vẫn làm ca đỏ.
+Lõi phải cắt giá thành925.93, tăng dòng4đ, rồi phép cân #337 giảm4đ.
+Không dùng tổng đã được cân làm bằng chứng policy precision còn chạy.
 Điểm lưu riêng dọn PI nháp do đường dựng đã insert trước khi báo lệch.
 """
     ten_diem = 'gia259_doi_chung'
@@ -32,15 +33,17 @@ Lỗi phải đúng tổng1.000.004/lệch4đ. Một lỗi setup khác vẫn là
         frappe.db.savepoint(ten_diem)
         try:
             with patch.object(cx, 'quy_uoc', return_value=None):
-                try:
-                    mv.dung_hoa_don_mua(goc.as_dict())
-                except frappe.ValidationError as e:
-                    dung('đối chứng phải đúng tổng sai1000004', 'tổng 1,000,004 đ' in str(e))
-                    dung('đối chứng phải đúng lệch4đ', 'lệch 4 đ' in str(e))
-                else:
-                    dung('tắt bản sửa phải tái hiện lỗi lõi cắt đơn giá', False)
+                ma = mv.dung_hoa_don_mua(goc.as_dict())
+                hd = frappe.get_doc('Purchase Invoice', ma)
+                # #337 cân tổng ngay cả khi policy precision bị tắt. Tổng
+                # đúng không chứng minh giá nguồn còn nguyên: phải soi dòng.
+                la('đối chứng lõi cắt đơn giá', hd.items[0].rate, 925.93)
+                la('đối chứng thành tiền dòng bị tăng4', hd.items[0].amount, 925930)
+                la('cân tổng đã che phần tăng bằng giảm giá', hd.discount_amount, 4)
+                la('đối chứng tổng vẫn đúng nhờ cân', hd.grand_total, 1000000)
+
         finally:
-            # PI lỗi chưa được hàm dựng trả tên nên chưa vào _DA_TAO.
+            # PI đối chứng không đăng vào _DA_TAO; savepoint dọn riêng.
             # Xóa cache riêng các PI fixture trước rollback, không xóa chứng từ.
             for ma in frappe.get_all('Purchase Invoice',
                     filters={'custom_minvoice_id': goc.name}, pluck='name'):
@@ -51,7 +54,7 @@ Lỗi phải đúng tổng1.000.004/lệch4đ. Một lỗi setup khác vẫn là
         {'custom_minvoice_id': goc.name}), 0)
 
 
-def _luong(qty, rate, net, tax, doi_chung=False):
+def _luong(qty, rate, net, tax, doi_chung=False, bu=0):
     mon = _mon()
     raw = [dict(ten='Decal thử259', sluong=qty, dgia=rate,
         thtien=net, dvtinh='Gram', tchat=1, stckhau=0)]
@@ -70,16 +73,18 @@ def _luong(qty, rate, net, tax, doi_chung=False):
             hd.save(ignore_permissions=True); hd.reload()
             la('giữ đơn giá nguồn sau reload/save', hd.items[0].rate, rate)
             la('giữ số lượng nguồn', hd.items[0].qty, qty)
-            la('một dòng, không thêm phí để bù', len(hd.items), 1)
+            la('số dòng hàng và bù làm tròn', len(hd.items), 1 + bool(bu))
+            if bu:
+                la('dòng bù đúng dấu và đúng một đồng', hd.items[1].amount, bu)
             la('không chiết khấu để bù', hd.discount_amount, 0)
-            la('thành tiền đúng nguồn', hd.items[0].amount, net)
+            la('thành tiền dòng sau precision ERP', hd.items[0].amount, net - bu)
             la('net đúng nguồn', hd.net_total, net)
             la('gross đúng nguồn', hd.grand_total, net+tax)
         la('dự kiến cũng dùng đúng precision', dl.du_kien_tong(hd, goc.as_dict()), net+tax)
         # Nhánh dựng lại phải dùng cùng phép tính, không sinh khoản phí/giảm bù4đ.
         thu = frappe.copy_doc(hd)
         dl._dung_dong_tai_cho(thu, goc.as_dict())
-        la('dựng lại đúng một dòng', len(thu.items), 1)
+        la('dựng lại đúng số dòng', len(thu.items), 1 + bool(bu))
         la('dựng lại giữ qty/rate', (thu.items[0].qty, thu.items[0].rate), (qty, rate))
         la('dựng lại không giảm bù', thu.discount_amount, 0)
         hd.flags.ignore_permissions = True
@@ -140,3 +145,13 @@ def _pham_vi():
     hd.custom_minvoice_id = None
     cx.truoc_khi_tinh(hd)
     la('bỏ nguồn trả cache về cũ', (hd.precision('rate', 'items'), hd.items[0].precision('rate')), cu)
+
+
+@ca('#337 ALOIN1144: dựng/save/submit/GL/hủy giữ tổng442800 và bù đúng1đ')
+def _aloin_1144():
+    _luong(260, 1576.92, 410000, 32800, bu=1)
+
+
+@ca('#337 ALOIN1144 âm: bù âm1đ, GL và hủy đảo đúng tổng')
+def _aloin_1144_am():
+    _luong(-260, 1576.92, -410000, -32800, bu=-1)
