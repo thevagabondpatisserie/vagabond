@@ -316,10 +316,28 @@ def nhan_tai_khoan():
 
 
 
-def ly_do_tai_khoan_sepay(tai_khoan):
-	"""Cùng phạm vi cho hai cửa ghi; đọc lại cấu hình khi sắp gắn tiền."""
+def tai_khoan_duoc_khop():
+	"""Tập tài khoản được phép gắn tiền. Đọc lại cấu hình mỗi lần gọi."""
 	_, chip, _ = nhan_tai_khoan()
-	if tai_khoan not in {t["ma"] for t in chip}:
+	return {t["ma"] for t in chip}
+
+
+def ly_do_tai_khoan_sepay(tai_khoan, cho_phep=None):
+	"""MỘT nguồn duy nhất cho MỌI đường ghi, không riêng hai cửa đầu.
+
+	Mọi chỗ sắp gắn một dòng sao kê vào phiếu đều phải hỏi hàm này trước khi
+	`set_value`: `khop_tay`, `tu_dong`, và cả ba đường ghi tự động cũ là
+	`de_nghi_chi.doi_soat`, `de_nghi_chi.khi_co_giao_dich`,
+	`hoan_tien.doi_soat`. Một luật viết lại ở nhiều nơi thì sớm muộn có một
+	nơi quên, và lúc đó cùng một giao dịch cho hai kết quả trái ngược tuỳ
+	người bấm nút nào. Điều 18 AGENTS.md.
+
+	`cho_phep` để vòng lặp đọc cấu hình MỘT lần rồi truyền xuống, tránh mỗi
+	dòng một lượt truy vấn Bank Account.
+	"""
+	if cho_phep is None:
+		cho_phep = tai_khoan_duoc_khop()
+	if tai_khoan not in cho_phep:
 		return "Chưa xác nhận được tài khoản SePay đang hoạt động. Vui lòng kiểm tra Cài đặt SePay và thử lại."
 	return ""
 
