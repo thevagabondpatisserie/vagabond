@@ -45,8 +45,20 @@ from vagabond import dung_lai_hddt as dl
 from vagabond import minvoice_chung_tu as mc
 from vagabond.khung.kiem_thu.nen import ca, dung, la
 
-# So le may dang dung, doc nguoc tu chinh HDM-26-09-00040.
-DP_GIA, DP_TIEN, DP_SL = 2, 0, 3
+def _so_le_that(g):
+	"""Số lẻ mà ERPNext THẬT SỰ dùng cho tờ này lúc lưu.
+
+	KHÔNG lấy số lẻ chung của Hoá đơn mua, và cũng không lấy từ hàm đang
+	được kiểm. Hook `do_chinh_xac_mua.truoc_khi_tinh` chạy trong `insert`
+	và nâng số lẻ của chính tờ đó lên, nên ca kiểm phải mô phỏng đúng thứ
+	hook đó đặt. Bản đầu của ca này lấy cứng (2, 0, 3) cho cả phần đoán
+	lẫn phần lưu, thành ra hai bên luôn khớp và ca kiểm mù trước đúng loại
+	lệch mà nó sinh ra để bắt. Codex bắt được trên PR #337.
+	"""
+	from vagabond.do_chinh_xac_mua import quy_uoc
+
+	qc = quy_uoc({"doctype": "Purchase Invoice", "currency": "VND"}, g)
+	return qc["gia"], qc["tien"], qc["sl"]
 
 TO_1144 = {
 	"name": "226324cd-eea7-4519-9050-f2358931e620",
@@ -63,6 +75,12 @@ TO_1144 = {
 }
 
 
+def _phieu_vnd():
+	"""Phiếu trống đủ để `quy_uoc` nhận ra đây là Hoá đơn mua bằng VND."""
+	truong = {"doctype": "Purchase Invoice", "currency": "VND"}
+	return SimpleNamespace(get=lambda k, m=None: truong.get(k, m))
+
+
 def _dong_goc():
 	from vagabond.minvoice_chung_tu import dong_hang_hoa
 
@@ -71,9 +89,10 @@ def _dong_goc():
 
 def _tong_dong_may_ghi():
 	"""Tổng dòng hàng của tờ 1144 theo đúng con số máy SẼ ghi."""
+	dp_gia, dp_tien, dp_sl = _so_le_that(TO_1144)
 	dau = mc.dau_cua_to(TO_1144["tong_tien"])
 	return sum(
-		mc.tien_dong_may_ghi(x["sl"], x["gia"], DP_GIA, DP_TIEN, DP_SL)
+		mc.tien_dong_may_ghi(x["sl"], x["gia"], dp_gia, dp_tien, dp_sl)
 		for x in (mc.dong_tu_hoa_don(it, dau) for it in _dong_goc())
 	)
 
@@ -137,18 +156,14 @@ def _moi_mot_minh_no_khong_du():
 def _du_kien_tong_that():
 	# Chay chinh `du_kien_tong`, chi gia lap DUY NHAT phep doc so le cua
 	# may. Truoc ban nay ham nay tra ve 442.799.
-	doc = SimpleNamespace(get=lambda *a, **k: None)
-	with patch.object(dl, "_do_chinh_xac", lambda d=None, g=None: (DP_GIA, DP_TIEN, DP_SL)):
-		la("tổng dự kiến", dl.du_kien_tong(doc, TO_1144), 442800.0)
+	la("tổng dự kiến", dl.du_kien_tong(_phieu_vnd(), TO_1144), 442800.0)
 
 
 @ca("v502: du_kien_tong khop tuyet doi voi tong tren hoa don dien tu")
 def _khong_con_lech():
 	from vagabond import mua_dich_vu as md
 
-	doc = SimpleNamespace(get=lambda *a, **k: None)
-	with patch.object(dl, "_do_chinh_xac", lambda d=None, g=None: (DP_GIA, DP_TIEN, DP_SL)):
-		du_kien = dl.du_kien_tong(doc, TO_1144)
+	du_kien = dl.du_kien_tong(_phieu_vnd(), TO_1144)
 	dung("cổng chặn ghi sổ không còn gì để chặn",
 		not md.lech_qua_nguong(du_kien, TO_1144["tong_tien"]))
 	la("lệch đúng bằng không", du_kien - TO_1144["tong_tien"], 0.0)
@@ -221,9 +236,10 @@ class ToGia(SimpleNamespace):
 	def insert(self, ignore_permissions=False):
 		from frappe.utils import flt
 
+		dp_gia, dp_tien, dp_sl = _so_le_that(self._goc)
 		tong = 0.0
 		for d in self.items or []:
-			d.amount = flt(flt(d.qty, DP_SL) * flt(d.rate, DP_GIA), DP_TIEN)
+			d.amount = flt(flt(d.qty, dp_sl) * flt(d.rate, dp_gia), dp_tien)
 			tong += d.amount
 		self.total = tong
 		self.net_total = tong - flt(self.discount_amount)
@@ -241,6 +257,7 @@ def _chay_dung_moi(to):
 		t = ToGia(**du)
 		t.items = [ToGia(**d) for d in du.get("items") or []]
 		t.taxes = []
+		t._goc = to
 		dung_duoc["to"] = t
 		return t
 
@@ -258,8 +275,7 @@ def _chay_dung_moi(to):
 			patch.object(mc, "_cty", lambda: "CTY"), \
 			patch.object(mc, "_tim_ncc", lambda *a: ("ALOIN", "0301234567")), \
 			patch.object(mc, "_tra_ma_hang", lambda *a: (None, None, 1)), \
-			patch.object(mc, "bo_mau_thue_mat_hang", lambda d: None), \
-			patch.object(mc, "do_chinh_xac_pi", lambda: (DP_GIA, DP_TIEN, DP_SL)):
+			patch.object(mc, "bo_mau_thue_mat_hang", lambda d: None):
 		mc.dung_hoa_don_mua(to)
 	return dung_duoc["to"]
 
@@ -324,3 +340,30 @@ def _lech_thi_nem():
 def _dung_so_thi_khong_chan():
 	t = _chay_dung_moi(dict(TO_1144))
 	la("dựng ra được và đúng tổng", t.grand_total, 442800.0)
+
+
+@ca("v502: HD11595 gia le, 1000 x 925,9259 khong bi nan oan 4 dong")
+def _gia_le_11595():
+	# CA NAY DO CODEX BAT RA TREN PR #337, va no tai hien duoc.
+	#
+	# Ban dau v502 lay so le CHUNG cua Hoa don mua (don gia 2) de doan
+	# con so may se ghi. Voi to nay: lam tron 925,9259 thanh 925,93 roi
+	# nhan 1000 ra 925.930, phep nan tuong THUA 4 dong va dat giam gia 4
+	# dong. Nhung may that su dung don gia 9 so le nen ghi 925.926, tru
+	# tiep 4 dong giam gia thanh 925.922, va hang rao cuoi chan luon.
+	#
+	# Tu nay ca doan lan ghi deu hoi `do_chinh_xac_mua.quy_uoc`, cung mot
+	# ham ma hook se hoi.
+	to = dict(TO_1144)
+	to["tong_tien"] = 1000000
+	to["tien_thue"] = 74074
+	to["tien_truoc_thue"] = 925926
+	to["chi_tiet"] = ('[{"ten": "D\\u00f2ng gi\\u00e1 l\\u1ebb", "sluong": 1000, '
+		'"dgia": 925.9259, "thtien": 925926, "tchat": 1}]')
+	la("số lẻ máy dùng cho tờ này", _so_le_that(to), (9, 0, 9))
+	la("đoán đúng con số máy ghi",
+		mc.tien_dong_may_ghi(1000, 925.9259, 9, 0, 9), 925926.0)
+	t = _chay_dung_moi(to)
+	la("không đặt giảm giá oan", t.discount_amount, 0)
+	la("chỉ một dòng hàng, không thêm dòng bù", len(t.items), 1)
+	la("tổng tờ đúng bằng hoá đơn", t.grand_total, 1000000.0)
