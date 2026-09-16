@@ -279,8 +279,11 @@ async function chayHet() {
   });
 
   await caAsync('Tiến trình APP không suy chữ ký FIN từ trạng thái đã duyệt', async function () {
-    var m = dungMan();
-    var html = m.g.hsTienTrinh({name:'APP1',trang_thai:'Da duyet',gd_boi:'GD'});
+    var row = {name:'APP1',ma:'APP1',trang_thai:'Da duyet',gd_boi:'GD',ten_ncc:'Người thử',ngay:'2026-09-16',tong_tien:100};
+    var m = dungMan({danhSach:{rows:[row],quyen:{},nhan:{}}});
+    await m.g.scrHoSoTT();
+    dung('danh sách thật gọi renderer',m.khung.innerHTML.includes('Kế toán: chưa xác nhận'));
+    var html = m.g.hsTienTrinh(row);
     dung('FIN chưa xác nhận', html.includes('Kế toán: chưa xác nhận'));
     dung('GD đã xong', html.includes('Giám đốc: đã xong'));
     dung('chờ thanh toán', html.includes('Thanh toán: đang chờ'));

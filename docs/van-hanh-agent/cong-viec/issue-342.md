@@ -15,6 +15,6 @@ Base: 2c2942a7d616637ae75457999e06bc01ea0a20f6.
 
 ## Chưa hoàn tất
 - Cơ chế liên kết khoản cấp trước/đã nộp và quyết toán chưa triển khai trong PR này; không gỡ chốt bằng một số tiền nhập tay.
-- Chờ đối chiếu nguồn chứng từ tại site trước chọn cách ghi nhận/khôi phục. Chi tiết dữ liệu chỉ lưu nội bộ, không đăng repo.
+- Phạm vi đã chốt: NQ là tham chiếu tùy chọn, không bắt tổng NQ bằng tiền nộp ngân hàng; cho phép giữ lại tiền mặt. Cấn phải dựa khoản cấp đã ghi nhận và phần còn chưa sử dụng, không suy từ toàn bộ số dư ngân hàng. Cơ chế này còn phải code/bench. Chi tiết dữ liệu thật chỉ lưu nội bộ.
 - Chưa tăng APPVER/patch để phát hành; chốt số khi hoàn tất phạm vi/tích hợp.
 - Chưa review Claude, chưa bench cuối, chưa UAT390px, không merge/deploy.
