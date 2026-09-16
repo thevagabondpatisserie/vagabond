@@ -147,10 +147,10 @@ def tien_vn(v):
 	return "{:,.0f}".format(_so(v)).replace(",", ".")
 
 
-def xep_ung_vien(dong, ma_phieu, tien_phieu):
+def xep_ung_vien(dong, ma_phieu, tien_phieu, thu_tu="goi_y"):
 	"""Xếp thứ tự ứng viên cho NGƯỜI nhìn. THUẦN.
 
-	Khớp mã lên trước, rồi đúng số tiền, rồi lệch ít nhất. Số tiền chỉ dùng
+	Khớp mã lên trước, rồi đúng số tiền, trong nhóm ngày mới nhất trước. Số tiền chỉ dùng
 	để xếp chỗ, không dùng để loại: loại theo tiền chính là cái bẫy của
 	`sepay.tim_gd_vao` bản cũ, nó cắt mất đúng dòng mà kế toán cần khi ngân
 	hàng trừ phí.
@@ -162,11 +162,14 @@ def xep_ung_vien(dong, ma_phieu, tien_phieu):
 	for d in dong or []:
 		lech = abs(_so(d.get("tien")) - _so(tien_phieu))
 		x = dict(d)
-		x["khop_ma"] = 1 if (ma_phieu and co_ma(d.get("mo_ta"), ma_phieu)) else 0
+		x["khop_ma"] = 1 if (ma_phieu and co_ma("%s %s" % (d.get("mo_ta") or "", d.get("reference_number") or ""), ma_phieu)) else 0
 		x["dung_tien"] = 1 if lech <= DUNG_SAI else 0
 		x["lech"] = lech
 		ra.append(x)
-	ra.sort(key=lambda r: (-r.get("dung_duoc", 1), -r["khop_ma"], -r["dung_tien"], r["lech"]))
+	# Sắp ổn định: ngày là ưu tiên trong nhóm, mã bản ghi phá hoà.
+	ra.sort(key=lambda r: (str(r.get("date") or ""), str(r.get("creation") or ""), str(r.get("name") or "")), reverse=True)
+	if thu_tu != "moi_nhat":
+		ra.sort(key=lambda r: (-r.get("dung_duoc", 1), -r["khop_ma"], -r["dung_tien"]))
 	return ra
 
 

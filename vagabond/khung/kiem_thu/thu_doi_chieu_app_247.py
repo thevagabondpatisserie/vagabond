@@ -57,3 +57,26 @@ def _doi_chieu_coc_khong_cat_50():
 		coc_app._doi_chieu(pe, bo_nho)
 	la("chỉ dựng bộ đối chiếu một lần", tao.call_count, 1)
 	la("đọc đúng tiền cọc", tien[0]["amount"], 3000000)
+
+
+@ca("#328 APP whitelist chung vẫn dùng kiểm nguồn và số tiền của APP")
+def _app_danh_sach_chung():
+	from vagabond import doi_soat_sepay as dss
+	from contextlib import ExitStack
+	doc = frappe._dict(name='APP-TEST',ma_giao_dich='')
+	ds = [dict(name='DUNG',bank_account='BA',withdrawal=100,tien=100,date='2026-09-16',description=''),
+		dict(name='SAI-NGUON',bank_account='CN',withdrawal=100,tien=100,date='2026-09-16',description=''),
+		dict(name='SAI-TIEN',bank_account='BA',withdrawal=90,tien=90,date='2026-09-16',description='')]
+	with ExitStack() as st:
+		st.enter_context(patch.object(dc,'_ho_so',return_value=doc))
+		st.enter_context(patch.object(dc,'_nguon',return_value=('CT','112',100)))
+		st.enter_context(patch.object(frappe,'get_all',return_value=['BA']))
+		st.enter_context(patch.object(frappe,'get_doc',return_value='DOC-GD'))
+		kiem=st.enter_context(patch.object(dc,'_kiem',return_value=''))
+		st.enter_context(patch.object(dss,'nhan_tai_khoan',return_value=({},[{'ma':'BA'},{'ma':'CN'}],[])))
+		st.enter_context(patch.object(dss,'dong_sao_ke',return_value=ds))
+		kq=dss.ung_vien('app',doc.name)
+		la('không giấu nguồn/tiền sai',len(kq['rows']),3)
+		la('duy nhất dòng hợp lệ',[r['name'] for r in kq['rows'] if r['dung_duoc']],['DUNG'])
+		la('kiểm đầy đủ dòng hợp lệ',kiem.call_count,1)
+		la('Document thật truyền vào kiểm',kiem.call_args.args,('DOC-GD',doc,('CT','112',100)))
