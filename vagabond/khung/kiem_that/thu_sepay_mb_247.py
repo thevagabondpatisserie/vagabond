@@ -241,7 +241,8 @@ def _mb_khong_tat_toan_phieu_cong_ty():
 		else:
 			dung("chọn tay phải chặn tiền cá nhân", False)
 
-		ung_vien = de_nghi_chi.tim_gd_ra(p.name, so_ngay=1)["rows"]
+		from vagabond import doi_soat_sepay as dss
+		ung_vien = dss.ung_vien("ttnb", p.name, so_ngay=1, tai_khoan=ca_nhan.name)["rows"]
 		dong_ca_nhan = [x for x in ung_vien if x["name"] == gd_ca_nhan.name]
 		la("#328 màn chọn vẫn có tiền cá nhân", len(dong_ca_nhan), 1)
 		la("#328 dòng chưa dùng được", dong_ca_nhan[0]["dung_duoc"], 0)

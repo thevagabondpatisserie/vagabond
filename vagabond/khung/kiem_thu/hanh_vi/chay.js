@@ -281,13 +281,13 @@ async function chayHet() {
 
   await caAsync('328: ba màn gọi cùng API, đổi ngân hàng/ngày/thứ tự và trang trên server', async function () {
     for (var loai of ['ttnb','hoan_tien','app']) {
-      var tai=dg.taiLieuGia(), khung=new dg.ElementGia('div'), calls=[], writes=[], messages=[];
+      var tai=dg.taiLieuGia(), khung=new dg.ElementGia('div'), calls=[], writes=[], messages=[], timers=[], confirms=0;
       tai.body.children.push(khung);khung.parentNode=tai.body;
-      var g={document:tai,h:String,money:String,hsNgayVn:String,
+      var g={document:tai,h:String,money:String,hsNgayVn:String,setTimeout:function(f){timers.push(f);return timers.length;},clearTimeout:function(){},
         frame:function(_,html){khung.innerHTML=html;return khung;},
         api:async function(url,args){calls.push([url,args]);return {so_tien:100,tong:61,con_nua:1,tai_khoan_sepay:[{ma:'CN',nhan:'MB · 0615'}],rows:[{name:'CHAN',date:'2026-09-15',tien:100,dung_duoc:0,vi_sao_khong:'Nguồn cá nhân'}, {name:'OK',date:'2026-09-16',tien:100,dung_duoc:1}]};},
         baoTin:function(t){messages.push(t);}, ttnbKhopTay:function(d,gd){writes.push(gd);},htKhopTay:function(d,gd){writes.push(gd);},
-        confirmSheet:async function(){return false;}};
+        confirmSheet:async function(){confirms++;return false;}};
       vm.createContext(g);
       vm.runInContext(layHam(docTep('23-khop-sepay.js'),'scrKhopSepay'),g);
       if(loai==='ttnb') {vm.runInContext(layHam(docTep('16-mua-hang.js'),'ttnbFormGdRa'),g);await g.ttnbFormGdRa({name:'P'});}
@@ -299,10 +299,17 @@ async function chayHet() {
       bang('ngân hàng tới server',calls.at(-1)[1].tai_khoan,'CN');
       await khung.querySelector('[data-ksngay="365"]').onclick();
       bang('khoảng ngày tới server',Number(calls.at(-1)[1].so_ngay),365);
+      await khung.querySelector('[data-ksngay="1200"]').onclick();
+      bang('giữ khoảng cũ APP',Number(calls.at(-1)[1].so_ngay),1200);
       await khung.querySelector('[data-ksxep="moi_nhat"]').onclick();
       bang('thứ tự tới server',calls.at(-1)[1].thu_tu,'moi_nhat');
       await tai.getElementById('ksTiep').onclick();bang('trang tiếp',calls.at(-1)[1].bat_dau,60);
       await khung.querySelector('[data-sepaytk=""]').onclick();bang('đổi lọc về trang đầu',calls.at(-1)[1].bat_dau,0);
+      var oTim=tai.getElementById('ksTim');oTim.value='noi dung moi';oTim.oninput();
+      await khung.querySelector('[data-gd="OK"]').onclick();bang('đang gõ không chọn dòng cũ',writes.length,0);bang('APP không mở xác nhận dòng cũ',confirms,0);
+      await timers.at(-1)();await Promise.resolve();await Promise.resolve();
+      bang('không cần blur đã tìm',calls.at(-1)[1].tu_khoa,'noi dung moi');
+
     }
   });
   await caAsync('327: bấm theo thuộc tính thực của dòng chặn và dòng được khớp', async function () {
