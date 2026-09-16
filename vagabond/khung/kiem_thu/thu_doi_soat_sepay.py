@@ -567,3 +567,68 @@ def _hoan_truc_tiep_327():
 		la(ten+' commit',db.commit.call_count,int(khop))
 		if not khop: dung(ten+' lý do',bool(kq.get('vi_sao')))
 		if chon.called: la(ten+' dùng nội dung DB',chon.call_args[0][0],gd['description']+' ')
+
+
+@ca("#328: ngày giảm dần, gợi ý mã/tiền và tham chiếu đứng riêng")
+def _thu_tu_328():
+	dong = [dict(name='cu',date='2026-09-01',tien=102),
+		dict(name='moi',date='2026-09-16',tien=200),
+		dict(name='ma',date='2026-08-10',tien=100,reference_number='TTNB-1')]
+	la('gợi ý rồi mới nhất, không độ lệch', [r['name'] for r in ksk.xep_ung_vien(dong,'TTNB-1',100)], ['ma','moi','cu'])
+	la('chế độ mới nhất', [r['name'] for r in ksk.xep_ung_vien(dong,'TTNB-1',100,'moi_nhat')], ['moi','cu','ma'])
+
+
+@ca("#328: whitelist giữ nguồn cá nhân/đã có chủ, đủ 601 dòng và trang tiếp")
+def _ung_vien_328():
+	from unittest.mock import patch
+	from contextlib import ExitStack
+	from types import SimpleNamespace
+	import sys
+	ban = dict(doctype='TEST', ma_do=lambda d:'TEST', so_tien=lambda d:100,
+		chieu=dss.RA, ten_man='TEST', truong_gd='gd', loi_giao_dich=lambda g:'Nguồn cá nhân' if g['bank_account']=='CN' else '')
+	ds = [dict(name='GD%04d'%i,date='2026-09-16',withdrawal=200,description='Nội dung',bank_account='CT') for i in range(600)]
+	ds += [dict(name='DICH',date='2026-08-10',withdrawal=100,description='',reference_number='TEST',bank_account='CN')]
+	def lay(dt, **kw):
+		ra = ds
+		for cot, phep, gia in kw['filters']:
+			if cot=='bank_account': ra=[r for r in ra if r[cot]==gia]
+		n=kw['limit_page_length']
+		return [dict(r) for r in (ra[:n] if n else ra)]
+	with ExitStack() as st:
+		st.enter_context(patch.dict(sys.modules, {'vagabond.ban_hang':SimpleNamespace(_kiem_quyen=lambda:None)}))
+		for ten, value in [('nap_so',None),('_ban',ban),('da_chiem',{'GD0001':'PHIEU-KHAC'}),('nhan_tai_khoan',({'CN':'MB · 0615'},[{'ma':'CT'},{'ma':'CN'}],[]))]:
+			st.enter_context(patch.object(dss,ten,return_value=value))
+		st.enter_context(patch.object(dss.frappe,'get_doc',return_value={}))
+		st.enter_context(patch.object(dss.frappe,'get_all',side_effect=lay))
+		kq=dss.ung_vien('ttnb','P',tai_khoan='CN')
+		la('MB có dòng, không rỗng giả',len(kq['rows']),1)
+		la('giữ chặn nguồn',kq['rows'][0]['dung_duoc'],0)
+		la('lý do',kq['rows'][0]['vi_sao_khong'],'Nguồn cá nhân')
+		kq=dss.ung_vien('ttnb','P',tu_khoa='TEST')
+		la('tìm qua trần 500',[r['name'] for r in kq['rows']],['DICH'])
+		kq=dss.ung_vien('ttnb','P',bat_dau=540)
+		la('không mất dòng',kq['tong'],601)
+		la('còn trang cuối',kq['con_nua'],1)
+		kq=dss.ung_vien('ttnb','P',tu_khoa='GD0001')
+		dung('chủ cũ được giải thích','PHIEU-KHAC' in kq['rows'][0]['vi_sao_khong'])
+
+
+@ca("#328: tự động gặp nguồn cá nhân báo xem lại, không ghi")
+def _tu_dong_328():
+	from unittest.mock import patch, Mock
+	from contextlib import ExitStack
+	from types import SimpleNamespace
+	import sys
+	ban=dict(doctype='TEST',chieu=dss.RA,ma_do=lambda d:'TEST',so_tien=lambda d:100,
+		dang_cho={},truong_gd='gd',khi_khop=None,loi_giao_dich=lambda g:'Nguồn cá nhân')
+	db=Mock()
+	with ExitStack() as st:
+		st.enter_context(patch.dict(sys.modules,{'vagabond.ban_hang':SimpleNamespace(_kiem_quyen=lambda:None)}))
+		for ten,val in [('nap_so',None),('_ban',ban),('da_chiem',{}),('dong_sao_ke',[dict(name='GD',mo_ta='TEST',tien=100)])]:st.enter_context(patch.object(dss,ten,return_value=val))
+		st.enter_context(patch.object(dss.frappe,'db',db))
+		st.enter_context(patch.object(dss.frappe,'get_all',return_value=[{'name':'P'}]))
+		st.enter_context(patch.object(dss.frappe,'get_doc',return_value=SimpleNamespace(name='P')))
+		kq=dss.tu_dong('ttnb','P')
+		la('không khớp',kq['da_khop'],0)
+		la('không set giá trị',db.set_value.call_count,0)
+		la('giải thích',kq['xem_lai'][0]['vi_sao'],'Nguồn cá nhân')

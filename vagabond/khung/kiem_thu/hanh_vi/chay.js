@@ -279,19 +279,45 @@ async function chayHet() {
     }
   });
 
+  await caAsync('328: ba màn gọi cùng API, đổi ngân hàng/ngày/thứ tự và trang trên server', async function () {
+    for (var loai of ['ttnb','hoan_tien','app']) {
+      var tai=dg.taiLieuGia(), khung=new dg.ElementGia('div'), calls=[], writes=[], messages=[];
+      tai.body.children.push(khung);khung.parentNode=tai.body;
+      var g={document:tai,h:String,money:String,hsNgayVn:String,
+        frame:function(_,html){khung.innerHTML=html;return khung;},
+        api:async function(url,args){calls.push([url,args]);return {so_tien:100,tong:61,con_nua:1,tai_khoan_sepay:[{ma:'CN',nhan:'MB · 0615'}],rows:[{name:'CHAN',date:'2026-09-15',tien:100,dung_duoc:0,vi_sao_khong:'Nguồn cá nhân'}, {name:'OK',date:'2026-09-16',tien:100,dung_duoc:1}]};},
+        baoTin:function(t){messages.push(t);}, ttnbKhopTay:function(d,gd){writes.push(gd);},htKhopTay:function(d,gd){writes.push(gd);},
+        confirmSheet:async function(){return false;}};
+      vm.createContext(g);
+      vm.runInContext(layHam(docTep('23-khop-sepay.js'),'scrKhopSepay'),g);
+      if(loai==='ttnb') {vm.runInContext(layHam(docTep('16-mua-hang.js'),'ttnbFormGdRa'),g);await g.ttnbFormGdRa({name:'P'});}
+      if(loai==='hoan_tien') {vm.runInContext(layHam(docTep('11-khach-ca-hop-dong.js'),'htFormGdRa'),g);await g.htFormGdRa({name:'P'});}
+      if(loai==='app') {vm.runInContext("var tgdHoSo='',tgdSoTien=0,tgdTim='',tgdNgay=120,tgdChuaGom=0;"+layHam(docTep('21-ke-toan-khac.js'),'scrTimGiaoDich'),g);await g.scrTimGiaoDich('P',100);}
+      bang('API chung',calls[0][0],'vagabond.doi_soat_sepay.ung_vien');bang('đúng adapter',calls[0][1].loai,loai);
+      await khung.querySelector('[data-gd="CHAN"]').onclick();bang('chặn không ghi',writes.length,0);bang('lý do',messages[0],'Nguồn cá nhân');
+      await khung.querySelector('[data-sepaytk="CN"]').onclick();
+      bang('ngân hàng tới server',calls.at(-1)[1].tai_khoan,'CN');
+      await khung.querySelector('[data-ksngay="365"]').onclick();
+      bang('khoảng ngày tới server',Number(calls.at(-1)[1].so_ngay),365);
+      await khung.querySelector('[data-ksxep="moi_nhat"]').onclick();
+      bang('thứ tự tới server',calls.at(-1)[1].thu_tu,'moi_nhat');
+      await tai.getElementById('ksTiep').onclick();bang('trang tiếp',calls.at(-1)[1].bat_dau,60);
+      await khung.querySelector('[data-sepaytk=""]').onclick();bang('đổi lọc về trang đầu',calls.at(-1)[1].bat_dau,0);
+    }
+  });
   await caAsync('327: bấm theo thuộc tính thực của dòng chặn và dòng được khớp', async function () {
     for (var spec of [['16-mua-hang.js','ttnbFormGdRa','.ttnbgd','ttnbKhopTay'],['11-khach-ca-hop-dong.js','htFormGdRa','.htgdra','htKhopTay']]) {
       var html='', writes=[], message='', nodes=[];
-      var g={h:String,money:String,baoTin:function (v) {message=v;},api:async function () {return {tai_khoan_sepay:[{ma:'CT',nhan:'MB'}],rows:[{name:'CHAN',tien:100,withdrawal:100,dung_duoc:0,vi_sao_khong:'Chưa nối',lech:0},{name:'DUOC',tien:90,withdrawal:90,dung_duoc:1,vi_sao_khong:'',lech:10}]};},frame:function (_,v) {
+      var g={document:{getElementById:function(){return null;}},hsNgayVn:String,h:String,money:String,baoTin:function (v) {message=v;},api:async function () {return {tai_khoan_sepay:[{ma:'CT',nhan:'MB'}],rows:[{name:'CHAN',tien:100,withdrawal:100,dung_duoc:0,vi_sao_khong:'Chưa nối',lech:0},{name:'DUOC',tien:90,withdrawal:90,dung_duoc:1,vi_sao_khong:'',lech:10}]};},frame:function (_,v) {
         html=v;nodes=[];
-        for (var match of v.matchAll(/<div data-chan="([^"]*)" class="[^"]*" data-gd="([^"]*)" data-tien="([^"]*)"/g)) {
-          var attrs={'data-chan':match[1],'data-gd':match[2],'data-tien':match[3]};
+        for (var match of v.matchAll(/<div class="ksDong [^"]*" data-gd="([^"]*)" data-chan="([^"]*)" data-tien="([^"]*)"/g)) {
+          var attrs={'data-chan':match[2],'data-gd':match[1],'data-tien':match[3]};
           nodes.push({getAttribute:(function (a) {return function (k) {return a[k];};})(attrs)});
         }
-        return {querySelectorAll:function (q) {return q===spec[2]?nodes:[];}};
+        return {querySelectorAll:function (q) {return q==='.ksDong'?nodes:[];}};
       }};
       g[spec[3]]=function (d,gd,tien) {writes.push([gd,tien]);};
-      vm.createContext(g);vm.runInContext(layHam(docTep(spec[0]),spec[1]),g);
+      vm.createContext(g);vm.runInContext(layHam(docTep('23-khop-sepay.js'),'scrKhopSepay'),g);vm.runInContext(layHam(docTep(spec[0]),spec[1]),g);
       await g[spec[1]]({name:'P',tien:100,so_tien:100});
       bang('hai dòng từ HTML thật',nodes.length,2);
       nodes[0].onclick();bang('dòng chặn không ghi',writes.length,0);bang('nói lý do',message,'Chưa nối');
@@ -300,34 +326,34 @@ async function chayHet() {
   });
   await caAsync('Hoàn tiền327: mapping rỗng báo cấu hình, không báo thiếu sao kê', async function () {
     var output = '';
-    var g = {h:String, money:String, api:async function () {return {rows:[], tai_khoan_sepay:[]};}, frame:function (_, html) {output=html;return {querySelectorAll:function () {return [];}};}};
-    vm.createContext(g);
+    var g = {document:{getElementById:function(){return null;}},hsNgayVn:String,h:String, money:String, api:async function () {return {rows:[], tai_khoan_sepay:[]};}, frame:function (_, html) {output=html;return {querySelectorAll:function () {return [];}};}};
+    vm.createContext(g);vm.runInContext(layHam(docTep('23-khop-sepay.js'),'scrKhopSepay'),g);
     vm.runInContext(layHam(docTep('11-khach-ca-hop-dong.js'), 'htFormGdRa'), g);
     await g.htFormGdRa({name:'HT-TEST',so_tien:100});
     dung('chỉ đúng cấu hình', output.includes('Chưa có tài khoản SePay đang hoạt động') && output.includes('Cài đặt SePay'));
-    dung('không đổ lỗi sao kê', !output.includes('Không có dòng tiền ra'));
+    dung('không đổ lỗi sao kê', !output.includes('nào còn trống'));
   });
   await caAsync('SePay325: 0/1/60 dòng, bỏ danh sách chưa nối, giữ nhãn ngắn', async function () {
     for (var count of [-1, 0, 1, 60]) {
       var output = '';
-      var g = {h: String, money: String, api: async function () { return {
+      var g = {document:{getElementById:function(){return null;}},hsNgayVn:String,h: String, money: String, api: async function () { return {
         tai_khoan_sepay: count < 0 ? [] : [{ma:'CT', nhan:'MB · 0615', ten_day_du:'MB - Ngân hàng đầy đủ'}],
         chua_noi_sepay: ['KHONG_DUOC_HIEN'],
         rows: Array.from({length:count}, function (_, i) {return {name:'GD'+i, tien:100, lech:0, nhan_ngan_hang:'MB · 0615'};})
       };}, frame: function (title, html) {output=html; return {querySelectorAll: function () {return [];}};}};
-      vm.createContext(g);
+      vm.createContext(g);vm.runInContext(layHam(docTep('23-khop-sepay.js'),'scrKhopSepay'),g);
       vm.runInContext(layHam(docTep('16-mua-hang.js'), 'ttnbFormGdRa'), g);
       await g.ttnbFormGdRa({name:'TTNB-TEST', tien:100});
       dung('không hiện tài khoản chưa nối', !output.includes('KHONG_DUOC_HIEN'));
       if (count < 0) {
         dung('lý do không mapping', output.includes('Chưa có tài khoản SePay đang hoạt động') && output.includes('Cài đặt SePay'));
-        dung('không đổ lỗi sao kê', !output.includes('Không có dòng tiền ra'));
+        dung('không đổ lỗi sao kê', !output.includes('nào còn trống'));
         continue;
       }
       dung('giữ tên đầy đủ trong title', output.includes('title="MB - Ngân hàng đầy đủ"'));
-      bang('đủ số dòng ứng viên', (output.match(/class="ttnbgd"/g)||[]).length, count);
-      if (!count) dung('có lời báo rỗng', output.includes('Không có dòng tiền ra'));
-      else dung('chip trước sao kê', output.indexOf('data-sepaytk') < output.indexOf('class="ttnbgd"'));
+      bang('đủ số dòng ứng viên', (output.match(/class="ksDong ttnbgd"/g)||[]).length, count);
+      if (!count) dung('có lời báo rỗng', output.includes('Không có giao dịch khớp bộ lọc'));
+      else dung('chip trước sao kê', output.indexOf('data-sepaytk') < output.indexOf('class="ksDong ttnbgd"'));
     }
   });
   await caAsync('PNK: phân biệt tiền gốc và phần còn, hướng dẫn không bù kho', async function () {

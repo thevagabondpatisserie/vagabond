@@ -2079,53 +2079,7 @@ async function htKhopSepayTuDong(d) {
 /* Chon TAY dong tien ra. Man nay khong tu quyet gi ca: may loc ra ung vien,
    nguoi nhin va chi, va ten nguoi chi duoc ghi lai ngay tren phieu. */
 async function htFormGdRa(d) {
-  frame('Khớp SePay thủ công', '<div class="emp"><div class="e1">⏳</div><div>Đang lọc sao kê...</div></div>');
-  var kq;
-  try { kq = await api('vagabond.hoan_tien.tim_gd_ra', { ho_so: d.name, so_ngay: 45 }); }
-  catch (e) {
-    frame('Khớp SePay thủ công', '<div class="emp"><div class="e1">⚠️</div><div>' +
-      h((e && e.message) || 'Không lọc được sao kê') + '</div></div>');
-    return;
-  }
-  var rows = (kq && kq.rows) || [];
-  var html = '<div class="card" style="padding:12px 14px">' +
-    '<div style="font-size:13px;font-weight:800">' + h(d.name) + ' · ' + money(d.so_tien) + ' đ</div>' +
-    '<div style="font-size:12px;color:#6b7280;margin-top:4px;line-height:1.6">' +
-    'Nội dung máy dò: <b>' + h(kq.noi_dung_ck || '(chưa có)') + '</b></div></div>';
-
-  if (!(kq.tai_khoan_sepay || []).length) {
-    html += '<div class="emp"><div class="e2">Chưa có tài khoản SePay đang hoạt động.</div><div>Nhờ kế toán kiểm tra Cài đặt SePay để nối hoặc bật lại tài khoản.</div></div>';
-  }
-  if (!rows.length && (kq.tai_khoan_sepay || []).length) {
-    html += '<div class="emp"><div class="e1">🔍</div><div class="e2">Không có dòng tiền ra ' +
-      'nào còn trống trong 45 ngày qua.</div><div style="font-size:12px;color:#9ca3af;' +
-      'margin-top:6px;line-height:1.6">Dòng đã được phiếu khác dùng thì không hiện ở đây, ' +
-      'vì một lần tiền ra chỉ ứng với một phiếu hoàn.</div></div>';
-  } else if (rows.length) {
-    html += '<div style="font-size:11.5px;color:#6b7280;padding:9px 14px 4px;line-height:1.55">' +
-      'Xếp dòng khớp nội dung lên trước, rồi đến dòng đúng số tiền. Bấm để chọn.</div>';
-    html += rows.map(function (r) {
-      var vien = r.khop_noi_dung ? '#a7f3d0' : (r.dung_tien ? '#bfdbfe' : '#e5e7eb');
-      var nen = r.khop_noi_dung ? '#f0fdf4' : (r.dung_tien ? '#eff6ff' : '#fff');
-      if (r.dung_duoc === 0) { vien = '#d1d5db'; nen = '#f3f4f6'; }
-      return '<div data-chan="' + h(r.dung_duoc === 0 ? (r.vi_sao_khong || 'Tài khoản chưa nối SePay') : '') + '" class="htgdra" data-gd="' + h(r.name) + '" data-tien="' + h(String(r.withdrawal)) + '" ' +
-        'style="border:1.5px solid ' + vien + ';background:' + nen + ';border-radius:11px;' +
-        'padding:10px 12px;margin:8px 12px;cursor:' + (r.dung_duoc === 0 ? 'not-allowed;opacity:.65' : 'pointer') + '">' +
-        '<div style="display:flex;gap:8px;align-items:baseline">' +
-        '<div style="flex:1;font-size:14px;font-weight:800">' + money(r.withdrawal) + ' đ</div>' +
-        '<div style="flex:none;font-size:12px;color:#6b7280">' + h(String(r.date || '').slice(0, 10)) + '</div></div>' +
-        '<div style="font-size:12px;color:#374151;margin-top:3px;word-break:break-word">' +
-        h(r.description || '(không có nội dung)') + '</div>' +
-        '<div style="font-size:11px;color:#6b7280;margin-top:3px">' +
-        (r.dung_duoc === 0 ? h(r.vi_sao_khong) + '<br>' : '') + (r.khop_noi_dung ? '✅ khớp nội dung · ' : '') +
-        (r.dung_tien ? 'đúng số tiền' : 'lệch ' + money(Math.abs(r.lech)) + ' đ') +
-        '</div></div>';
-    }).join('');
-  }
-  var b = frame('Khớp SePay thủ công', html);
-  b.querySelectorAll('.htgdra').forEach(function (n) {
-    n.onclick = function () { if (n.getAttribute('data-chan')) { baoTin(n.getAttribute('data-chan')); return; } htKhopTay(d, n.getAttribute('data-gd'), Number(n.getAttribute('data-tien') || 0)); };
-  });
+  return scrKhopSepay({loai:'hoan_tien', ma:d.name, lop:'htgdra', chon:function (gd,tien) { return htKhopTay(d,gd,tien); }});
 }
 
 async function htKhopTay(d, gd, tien) {

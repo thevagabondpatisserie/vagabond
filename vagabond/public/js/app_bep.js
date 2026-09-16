@@ -17872,53 +17872,7 @@ async function htKhopSepayTuDong(d) {
 /* Chon TAY dong tien ra. Man nay khong tu quyet gi ca: may loc ra ung vien,
    nguoi nhin va chi, va ten nguoi chi duoc ghi lai ngay tren phieu. */
 async function htFormGdRa(d) {
-  frame('Khớp SePay thủ công', '<div class="emp"><div class="e1">⏳</div><div>Đang lọc sao kê...</div></div>');
-  var kq;
-  try { kq = await api('vagabond.hoan_tien.tim_gd_ra', { ho_so: d.name, so_ngay: 45 }); }
-  catch (e) {
-    frame('Khớp SePay thủ công', '<div class="emp"><div class="e1">⚠️</div><div>' +
-      h((e && e.message) || 'Không lọc được sao kê') + '</div></div>');
-    return;
-  }
-  var rows = (kq && kq.rows) || [];
-  var html = '<div class="card" style="padding:12px 14px">' +
-    '<div style="font-size:13px;font-weight:800">' + h(d.name) + ' · ' + money(d.so_tien) + ' đ</div>' +
-    '<div style="font-size:12px;color:#6b7280;margin-top:4px;line-height:1.6">' +
-    'Nội dung máy dò: <b>' + h(kq.noi_dung_ck || '(chưa có)') + '</b></div></div>';
-
-  if (!(kq.tai_khoan_sepay || []).length) {
-    html += '<div class="emp"><div class="e2">Chưa có tài khoản SePay đang hoạt động.</div><div>Nhờ kế toán kiểm tra Cài đặt SePay để nối hoặc bật lại tài khoản.</div></div>';
-  }
-  if (!rows.length && (kq.tai_khoan_sepay || []).length) {
-    html += '<div class="emp"><div class="e1">🔍</div><div class="e2">Không có dòng tiền ra ' +
-      'nào còn trống trong 45 ngày qua.</div><div style="font-size:12px;color:#9ca3af;' +
-      'margin-top:6px;line-height:1.6">Dòng đã được phiếu khác dùng thì không hiện ở đây, ' +
-      'vì một lần tiền ra chỉ ứng với một phiếu hoàn.</div></div>';
-  } else if (rows.length) {
-    html += '<div style="font-size:11.5px;color:#6b7280;padding:9px 14px 4px;line-height:1.55">' +
-      'Xếp dòng khớp nội dung lên trước, rồi đến dòng đúng số tiền. Bấm để chọn.</div>';
-    html += rows.map(function (r) {
-      var vien = r.khop_noi_dung ? '#a7f3d0' : (r.dung_tien ? '#bfdbfe' : '#e5e7eb');
-      var nen = r.khop_noi_dung ? '#f0fdf4' : (r.dung_tien ? '#eff6ff' : '#fff');
-      if (r.dung_duoc === 0) { vien = '#d1d5db'; nen = '#f3f4f6'; }
-      return '<div data-chan="' + h(r.dung_duoc === 0 ? (r.vi_sao_khong || 'Tài khoản chưa nối SePay') : '') + '" class="htgdra" data-gd="' + h(r.name) + '" data-tien="' + h(String(r.withdrawal)) + '" ' +
-        'style="border:1.5px solid ' + vien + ';background:' + nen + ';border-radius:11px;' +
-        'padding:10px 12px;margin:8px 12px;cursor:' + (r.dung_duoc === 0 ? 'not-allowed;opacity:.65' : 'pointer') + '">' +
-        '<div style="display:flex;gap:8px;align-items:baseline">' +
-        '<div style="flex:1;font-size:14px;font-weight:800">' + money(r.withdrawal) + ' đ</div>' +
-        '<div style="flex:none;font-size:12px;color:#6b7280">' + h(String(r.date || '').slice(0, 10)) + '</div></div>' +
-        '<div style="font-size:12px;color:#374151;margin-top:3px;word-break:break-word">' +
-        h(r.description || '(không có nội dung)') + '</div>' +
-        '<div style="font-size:11px;color:#6b7280;margin-top:3px">' +
-        (r.dung_duoc === 0 ? h(r.vi_sao_khong) + '<br>' : '') + (r.khop_noi_dung ? '✅ khớp nội dung · ' : '') +
-        (r.dung_tien ? 'đúng số tiền' : 'lệch ' + money(Math.abs(r.lech)) + ' đ') +
-        '</div></div>';
-    }).join('');
-  }
-  var b = frame('Khớp SePay thủ công', html);
-  b.querySelectorAll('.htgdra').forEach(function (n) {
-    n.onclick = function () { if (n.getAttribute('data-chan')) { baoTin(n.getAttribute('data-chan')); return; } htKhopTay(d, n.getAttribute('data-gd'), Number(n.getAttribute('data-tien') || 0)); };
-  });
+  return scrKhopSepay({loai:'hoan_tien', ma:d.name, lop:'htgdra', chon:function (gd,tien) { return htKhopTay(d,gd,tien); }});
 }
 
 async function htKhopTay(d, gd, tien) {
@@ -21735,7 +21689,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '496';
+var APPVER = '499';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -27094,59 +27048,7 @@ async function ttnbKhopAuto(d) {
 }
 
 async function ttnbFormGdRa(d, taiKhoan) {
-  taiKhoan = taiKhoan || "";
-  frame('Khớp SePay thủ công', '<div class="emp"><div class="e1">⏳</div><div>Đang lọc sao kê...</div></div>');
-  var kq;
-  try { kq = await api('vagabond.doi_soat_sepay.ung_vien', { loai: 'ttnb', ma_phieu: d.name, so_ngay: 45, tai_khoan: taiKhoan }); }
-  catch (e) {
-    frame('Khớp SePay thủ công', '<div class="emp"><div class="e1">⚠️</div><div>' +
-      h((e && e.message) || 'Không lọc được sao kê') + '</div></div>');
-    return;
-  }
-  var rows = (kq && kq.rows) || [];
-  var html = '<div class="card" style="padding:12px 14px">' +
-    '<div style="font-size:13px;font-weight:800">' + h(d.name) + ' · ' + money(d.tien) + ' đ</div>' +
-    '<div style="font-size:12px;color:#6b7280;margin-top:4px;line-height:1.6">' +
-    'Máy dò theo mã <b>' + h(kq.ma_do || d.name) + '</b> trong nội dung chuyển khoản.</div></div>';
-  html += '<div class="chips" style="padding:2px 12px 10px">' + [{ma:'', nhan:'Tất cả'}].concat(kq.tai_khoan_sepay || []).map(function (t) {
-    return '<button class="chip' + (taiKhoan === t.ma ? ' on' : '') + '" data-sepaytk="' + h(t.ma) + '" title="' + h(t.ten_day_du || t.nhan) + '" style="min-height:44px">' + h(t.nhan) + '</button>';
-  }).join('') + '</div>';
-  if (!(kq.tai_khoan_sepay || []).length) {
-    html += '<div class="emp"><div class="e2">Chưa có tài khoản SePay đang hoạt động.</div><div>Nhờ kế toán kiểm tra Cài đặt SePay để nối hoặc bật lại tài khoản.</div></div>';
-  }
-  if (!rows.length && (kq.tai_khoan_sepay || []).length) {
-    html += '<div class="emp"><div class="e1">🔍</div><div class="e2">Không có dòng tiền ra ' +
-      'nào còn trống trong 45 ngày qua.</div><div style="font-size:12px;color:#9ca3af;' +
-      'margin-top:6px;line-height:1.6">Dòng đã được phiếu khác dùng thì không hiện ở đây, ' +
-      'vì một lần tiền ra chỉ ứng với một phiếu.</div></div>';
-  } else if (rows.length) {
-    html += '<div style="font-size:11.5px;color:#6b7280;padding:9px 14px 4px;line-height:1.55">' +
-      'Xếp dòng khớp mã lên trước, rồi đến dòng đúng số tiền. Bấm để chọn.</div>';
-    html += rows.map(function (r) {
-      var vien = r.khop_ma ? '#a7f3d0' : (r.dung_tien ? '#bfdbfe' : '#e5e7eb');
-      var nen = r.khop_ma ? '#f0fdf4' : (r.dung_tien ? '#eff6ff' : '#fff');
-      if (r.dung_duoc === 0) { vien = '#d1d5db'; nen = '#f3f4f6'; }
-      return '<div data-chan="' + h(r.dung_duoc === 0 ? (r.vi_sao_khong || 'Tài khoản chưa nối SePay') : '') + '" class="ttnbgd" data-gd="' + h(r.name) + '" data-tien="' + h(String(r.tien)) + '" ' +
-        'style="border:1.5px solid ' + vien + ';background:' + nen + ';border-radius:11px;' +
-        'padding:10px 12px;margin:8px 12px;cursor:' + (r.dung_duoc === 0 ? 'not-allowed;opacity:.65' : 'pointer') + '">' +
-        '<div style="display:flex;gap:8px;align-items:baseline">' +
-        '<div style="flex:1;font-size:14px;font-weight:800">' + money(r.tien) + ' đ</div>' +
-        '<div style="flex:none;font-size:12px;color:#6b7280">' + h(String(r.date || '').slice(0, 10)) + '</div></div>' +
-        '<div style="font-size:12px;color:#374151;margin-top:3px;word-break:break-word">' +
-        '<b>' + h(r.nhan_ngan_hang || 'Chưa xác định tài khoản') + '</b><br>' + h(r.mo_ta || '(không có nội dung)') + '</div>' +
-        '<div style="font-size:11px;color:#6b7280;margin-top:3px">' +
-        (r.dung_duoc === 0 ? h(r.vi_sao_khong) + '<br>' : '') + (r.khop_ma ? '✅ khớp mã · ' : '') +
-        (r.dung_tien ? 'đúng số tiền' : 'lệch ' + money(Math.abs(r.lech)) + ' đ') +
-        '</div></div>';
-    }).join('');
-  }
-  var b = frame('Khớp SePay thủ công', html);
-  b.querySelectorAll('[data-sepaytk]').forEach(function (n) {
-    n.onclick = function () { ttnbFormGdRa(d, n.getAttribute('data-sepaytk')); };
-  });
-  b.querySelectorAll('.ttnbgd').forEach(function (n) {
-    n.onclick = function () { if (n.getAttribute('data-chan')) { baoTin(n.getAttribute('data-chan')); return; } ttnbKhopTay(d, n.getAttribute('data-gd'), Number(n.getAttribute('data-tien') || 0)); };
-  });
+  return scrKhopSepay({loai:'ttnb', ma:d.name, lop:'ttnbgd', chon:function (gd,tien) { return ttnbKhopTay(d,gd,tien); }}, {tai_khoan:taiKhoan || ''});
 }
 
 async function ttnbKhopTay(d, gd, tien) {
@@ -36677,6 +36579,18 @@ var tgdTim = '', tgdSoTien = 0, tgdNgay = 120, tgdChuaGom = 0, tgdHoSo = '';
 
 async function scrTimGiaoDich(maHoSo, soTien) {
   if (maHoSo !== undefined) { tgdHoSo = maHoSo || ''; tgdSoTien = Math.round(soTien || 0); tgdTim = ''; tgdNgay = 120; tgdChuaGom = 0; }
+  if (tgdHoSo) {
+    var maApp = tgdHoSo;
+    return scrKhopSepay({loai:'app', ma:maApp, chon:async function (gd,tien) {
+      if (!await confirmSheet('Khớp tay giao dịch', 'Gán giao dịch ' + gd + ' (' + money(tien) + ' đ) vào ' + maApp + '? Hồ sơ chờ thanh toán chỉ lưu lựa chọn; hồ sơ đã trả đối chiếu với bút toán hiện có.', 'Gán')) return;
+      busy(true);
+      try {
+        var kq = await api('vagabond.doi_chieu_app.gan', {name:maApp, ma_giao_dich:gd});
+        busy(false); toast(kq.loi_nhan,5000); tgdHoSo = '';
+        go(function () { scrHoSoTTView(maApp); }, true);
+      } catch (e) { busy(false); baoTin((e && e.message) || 'Chưa gán được giao dịch.'); }
+    }}, {so_ngay:120});
+  }
   frame('Tìm giao dịch', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc sao kê...</div></div>');
   var d;
   try {
@@ -39715,6 +39629,63 @@ async function scrBgCaiDat() {
   };
 }
 
+/* Issue 328: cùng một màn chọn sao kê cho TTNB, APP và hoàn tiền.
+   Chỉ chọn dòng; xác nhận và ghi vẫn đi cửa nghiệp vụ đang có. */
+async function scrKhopSepay(o, loc) {
+  loc = Object.assign({tai_khoan:'', so_ngay:45, tu_khoa:'', thu_tu:'goi_y', bat_dau:0}, loc || {});
+  frame('Khớp SePay thủ công', '<div class="emp">Đang đọc sao kê...</div>');
+  var kq;
+  try {
+    kq = await api('vagabond.doi_soat_sepay.ung_vien', Object.assign({loai:o.loai, ma_phieu:o.ma}, loc));
+  } catch (e) {
+    frame('Khớp SePay thủ công', '<div class="emp">' + h((e && e.message) || 'Chưa đọc được sao kê. Tải lại để thử tiếp.') + '</div>');
+    return;
+  }
+  var rows = kq.rows || [], cd = kq.chan_doan || {};
+  var html = '<div class="card" style="padding:12px 14px"><b>' + h(o.ma) + ' · ' + money(kq.so_tien) + ' đ</b></div>';
+  html += '<div style="padding:0 12px"><input class="tin" id="ksTim" aria-label="Tìm sao kê" placeholder="Tìm nội dung hoặc mã giao dịch" value="' + h(loc.tu_khoa) + '"></div>';
+  function chip(thuoc, ds, daChon) {
+    return '<div class="chips" style="padding:2px 12px 8px">' + ds.map(function (t) {
+      return '<button class="chip' + (String(daChon) === String(t.ma) ? ' on' : '') + '" ' + thuoc + '="' + h(t.ma) + '" title="' + h(t.ten_day_du || t.nhan) + '" style="min-height:44px">' + h(t.nhan) + '</button>';
+    }).join('') + '</div>';
+  }
+  html += chip('data-sepaytk', [{ma:'',nhan:'Tất cả'}].concat(kq.tai_khoan_sepay || []), loc.tai_khoan);
+  html += chip('data-ksngay', [{ma:45,nhan:'45 ngày'},{ma:120,nhan:'4 tháng'},{ma:365,nhan:'1 năm'}], loc.so_ngay);
+  html += chip('data-ksxep', [{ma:'goi_y',nhan:'Gợi ý'},{ma:'moi_nhat',nhan:'Mới nhất'}], loc.thu_tu);
+  if (!(kq.tai_khoan_sepay || []).length) html += '<div style="padding:8px 12px;font-size:13px">Chưa có tài khoản SePay đang hoạt động. Nhờ kế toán kiểm tra Cài đặt SePay.</div>';
+  if (!rows.length) html += '<div class="emp">Không có giao dịch khớp bộ lọc. Đã đọc ' + Number(cd.so_dong_quet || 0) + ' dòng trong ' + Number(cd.so_ngay || loc.so_ngay) + ' ngày. Thử chọn Tất cả, mở rộng ngày hoặc bỏ từ tìm.</div>';
+  rows.forEach(function (r) {
+    var chan = r.dung_duoc === 0, nen = chan ? '#f3f4f6' : (r.khop_ma ? '#f0fdf4' : (r.dung_tien ? '#eff6ff' : '#fff'));
+    html += '<div class="ksDong ' + h(o.lop || '') + '" data-gd="' + h(r.name) + '" data-chan="' + h(chan ? r.vi_sao_khong : '') + '" data-tien="' + Number(r.tien || 0) + '" style="min-height:44px;padding:12px;margin:8px 12px;border:1px solid #d1d5db;border-radius:12px;background:' + nen + '">' +
+      '<div style="display:flex;justify-content:space-between;gap:8px"><b>' + money(r.tien) + ' đ</b><span>' + h(hsNgayVn(String(r.date || '').slice(0,10))) + '</span></div>' +
+      '<div style="font-size:13px;font-weight:700;margin-top:4px">' + h(r.nhan_ngan_hang || 'Chưa xác định tài khoản') + '</div>' +
+      '<div style="font-size:13px;overflow-wrap:anywhere;margin-top:4px">' + h(r.mo_ta || '(không có nội dung)') + (r.reference_number ? '<br>Tham chiếu: ' + h(r.reference_number) : '') + '</div>' +
+      '<div style="font-size:13px;color:#6b7280;margin-top:4px">' + h(chan ? r.vi_sao_khong : ((r.khop_ma ? 'Khớp mã · ' : '') + (r.dung_tien ? 'Đúng số tiền' : 'Lệch ' + money(r.lech) + ' đ'))) + '</div></div>';
+  });
+  if (loc.bat_dau || kq.con_nua) html += '<div style="display:flex;gap:8px;padding:12px">' + (loc.bat_dau ? '<button class="btn gh" id="ksTruoc">Trang trước</button>' : '') + (kq.con_nua ? '<button class="btn gh" id="ksTiep">Xem tiếp (' + Number(kq.con_nua) + ')</button>' : '') + '</div>';
+  html += '<details style="padding:12px;font-size:13px"><summary>Thông tin tìm sao kê</summary>' +
+    'Đã đọc ' + Number(cd.so_dong_quet || 0) + ' dòng; ' + Number(kq.tong || rows.length) + ' dòng khớp bộ lọc; ' + Number(cd.so_dong_chua_dung || 0) + ' dòng chưa dùng được.' +
+    (cd.moi_nhat ? '<br>Mới nhất trong khoảng tìm: ' + h(hsNgayVn(cd.moi_nhat)) : '') +
+    '<br>Gợi ý: dòng dùng được, khớp mã, đúng tiền; trong mỗi nhóm ngày mới nhất trước. Mới nhất: tất cả theo ngày giảm dần.</details>';
+  var b = frame('Khớp SePay thủ công', html);
+  function doi(cot, giaTri) { var moi = Object.assign({}, loc, {bat_dau:0}); moi[cot] = giaTri; return scrKhopSepay(o, moi); }
+  [['data-sepaytk','tai_khoan'],['data-ksngay','so_ngay'],['data-ksxep','thu_tu']].forEach(function (c) {
+    b.querySelectorAll('[' + c[0] + ']').forEach(function (n) { n.onclick = function () { return doi(c[1], n.getAttribute(c[0])); }; });
+  });
+  var q = document.getElementById('ksTim');
+  if (q) q.onchange = function () { doi('tu_khoa', q.value.trim()); };
+  [['ksTruoc',-60],['ksTiep',60]].forEach(function (c) {
+    var n = document.getElementById(c[0]);
+    if (n) n.onclick = function () { return scrKhopSepay(o, Object.assign({},loc,{bat_dau:Math.max(0,Number(loc.bat_dau)+c[1])})); };
+  });
+  b.querySelectorAll('.ksDong').forEach(function (n) {
+    n.onclick = function () {
+      var lyDo = n.getAttribute('data-chan');
+      if (lyDo) return baoTin(lyDo);
+      return o.chon(n.getAttribute('data-gd'), Number(n.getAttribute('data-tien') || 0));
+    };
+  });
+}
 
 /* ---------------- Chuyen BTP cap 1 thanh Phantom (anh Viet giao 21/08/2026)
 
