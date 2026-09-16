@@ -390,7 +390,7 @@ function hsODongPhieu(maHd) {
 async function hsNoiPhieuVaoHd(maHd) {
   busy(true);
   var kq;
-  try { kq = await api('vagabond.ho_so_tt.ds_phieu_noi_bo', {}); }
+  try { kq = await api('vagabond.ho_so_tt.ds_phieu_noi_bo', { so_tien: (hsTaoChon[maHd] || {}).so_tien || 0 }); }
   catch (e) { busy(false); return baoTin(errMsg(e) || 'Chưa đọc được danh sách phiếu.', 'Lỗi'); }
   busy(false);
   if (kq && kq.loi) {
@@ -412,7 +412,7 @@ async function hsNoiPhieuVaoHd(maHd) {
     return {
       value: r.ma,
       label: (oHd ? '⚠️ ' : '') + r.ten + ' · ' + money(r.so_tien) + ' đ',
-      phu: (oHd ? 'ĐÃ NỐI Ở HOÁ ĐƠN ' + oHd + ' · ' : '') +
+      phu: (r.goi_y ? r.goi_y + ' · ' : '') + (oHd ? 'ĐÃ NỐI Ở HOÁ ĐƠN ' + oHd + ' · ' : '') +
            r.ma + ' · ' + (r.nguoi_ten || r.nguoi_tao) + ' · ' + hsNgayVn(r.ngay) +
            ' · ' + r.trang_thai + (r.so_tep ? ' · ' + r.so_tep + ' tệp' : ' · chưa có tệp'),
       tim: r.ma + ' ' + r.ten + ' ' + (r.nguoi_ten || '') + ' ' + (r.dien_giai || '')
@@ -2925,7 +2925,7 @@ async function huNoiPhieuNoiBo(i) {
   if (!huDong[i]) return;
   busy(true);
   var kq;
-  try { kq = await api('vagabond.ho_so_tt.ds_phieu_noi_bo', {}); }
+  try { kq = await api('vagabond.ho_so_tt.ds_phieu_noi_bo', { so_tien: huDong[i].so_tien || 0, noi_dung: huDong[i].noi_dung || '', ma_giao_dich: huDong[i].ma_giao_dich || '' }); }
   catch (e) { busy(false); return baoTin(errMsg(e) || 'Chưa đọc được danh sách phiếu.', 'Lỗi'); }
   busy(false);
   /* Doc kq.loi TRUOC. May chu tra {ds: [], loi: "..."} khi doc bang hong,
@@ -2959,7 +2959,7 @@ async function huNoiPhieuNoiBo(i) {
       return {
         value: r.ma,
         label: (oDong ? '⚠️ ' : '') + r.ten + ' · ' + money(r.so_tien) + ' đ',
-        phu: (oDong ? 'ĐÃ NỐI Ở KHOẢN SỐ ' + oDong + ' · ' : '') +
+        phu: (r.goi_y ? r.goi_y + ' · ' : '') + (oDong ? 'ĐÃ NỐI Ở KHOẢN SỐ ' + oDong + ' · ' : '') +
              r.ma + ' · ' + (r.nguoi_ten || r.nguoi_tao) + ' · ' + hsNgayVn(r.ngay) +
              ' · ' + r.trang_thai + (r.so_tep ? ' · ' + r.so_tep + ' tệp' : ' · chưa có tệp'),
         tim: r.ma + ' ' + r.ten + ' ' + (r.nguoi_ten || '') + ' ' + (r.dien_giai || '')

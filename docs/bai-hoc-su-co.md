@@ -717,3 +717,15 @@ nút>)`, không gán tay. Gán tay chỉ đúng với chứng từ ĐÃ CÓ. Và
 việc người ta vừa làm.
 
 PR336 review: apply_workflow trên Frappe16.27.1 nhận JSON/dict và nạp Document khác từ DB. Không truyền Document rồi đọc object cũ. Chuyển lỗi phải rollback savepoint riêng, phục hồi callbacks, reload DB và giao Nháp cho AP Officer; FIN chỉ nhận khi thực sự chuyển thành công. Ca bench tra-truoc-336 kiểm cả lỗi sau save.
+
+## 16/09/2026 - TTNB trả nhân viên bằng quỹ 141 không phải công ty hoàn ứng
+
+Triệu chứng: SePay đã có giao dịch, tài khoản cá nhân đã gắn quỹ 141 và đúng
+chủ, nhưng nút khớp TTNB từ chối vì chỉ nhận tài khoản công ty. Luồng thực tế
+anh Việt xác nhận trên #328 có hai lần chuyển: người ứng trả nhân viên, sau
+đó công ty hoàn người ứng. Phân loại theo cờ công ty đơn lẻ làm chặn sai.
+Phòng: kiểm tài khoản sổ cái và chủ quỹ; giữ riêng chứng cứ ở dòng APP với
+giao dịch công ty trả ở đầu APP. Mã tham chiếu FT và tên Bank Transaction
+phải được kiểm như cùng một dòng tiền để không hoàn trùng qua hai cách nhập.
+Bằng chứng local và trạng thái bench nằm trong docs/pr-ttnb-hoan-ung-502.md;
+không coi thay đổi quy tắc này là đã chứng minh toàn bộ sổ cái.

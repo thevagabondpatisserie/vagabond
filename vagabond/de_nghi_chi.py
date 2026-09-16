@@ -1899,20 +1899,18 @@ def _khi_khop_ttnb(doc, ma_gd):
 
 
 def _loi_nguon_chi_ttnb(g):
-	"""Phiếu chi công ty chỉ được tất toán bằng tiền từ tài khoản công ty.
+	"""TTNB xác nhận nhân viên đã nhận tiền, không xác nhận công ty đã hoàn ứng.
 
-	Từ v476 SePay nhận cả sao kê tài khoản cá nhân dùng cho hoàn ứng. Nếu chỉ
-	dò mã và số tiền, khoản anh Việt ứng từ túi riêng sẽ làm phiếu công ty
-	nhảy sang Đã chi và mất dấu khoản 141 mà công ty còn phải hoàn lại.
+	Anh Việt 16/09/2026: người ứng trả nhân viên từ tài khoản 141 cá nhân,
+	rồi nối chính khoản đó vào APP để công ty hoàn. Không đổi cờ tài khoản.
 	"""
-	ba = str((g or {}).get("bank_account") or "").strip()
-	if not ba or not cint(frappe.get_cached_value("Bank Account", ba, "is_company_account")):
-		return (
-			"Giao dịch này thuộc tài khoản cá nhân. Phiếu thanh toán nội bộ của "
-			"công ty chỉ được đánh dấu Đã chi từ Bank Account công ty. Hãy giữ "
-			"dòng này ở luồng tạm ứng hoặc hoàn ứng của đúng người."
-		)
-	return ""
+	from vagabond.hoan_ung_noi_bo import nguon_chi
+	b = nguon_chi((g or {}).get("bank_account"))
+	if b.get("cong_ty") or b.get("tam_ung"):
+		return ""
+	return ("Tài khoản chưa được khai là nguồn chi công ty hoặc quỹ tạm ứng 141 "
+		"của người ứng. Nhờ kế toán kiểm Bank Account: tài khoản sổ cái, Party "
+		"và trạng thái hoạt động; không đổi tài khoản cá nhân thành tài khoản công ty.")
 
 
 def _khai_doi_soat():
