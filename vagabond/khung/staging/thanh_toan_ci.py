@@ -29,9 +29,17 @@ def tao():
     hd = frappe.get_doc('Purchase Invoice', h.dong[0].hoa_don)
     if hd.docstatus != 1 or float(hd.outstanding_amount) != 12345:
         raise RuntimeError('Hoá đơn nguồn thử không còn nợ đúng số tiền.')
+    # Chỉ bench riêng: kiểm webhook qua HTTP bằng khoá tổng hợp, không gọi SePay.
+    from vagabond import sepay
+    ba = frappe.get_doc('Bank Account', g.bank_account)
+    sepay.them_tai_khoan(ba.bank_account_no, ba.name)
+    cfg = frappe.get_doc('Vagabond Settings')
+    cfg.sepay_bat = 1
+    cfg.sepay_hmac = 'webhook-ci-only-335'
+    cfg.save(ignore_permissions=True)
     frappe.db.commit()
     tep.write_text(json.dumps({'ho_so': h.name, 'giao_dich': g.name,
-        'hoa_don': hd.name, 'cong_ty': hd.company, 'tien': 12345,
+        'so_tk_webhook': ba.bank_account_no, 'ngay_webhook': str(g.date), 'hoa_don': hd.name, 'cong_ty': hd.company, 'tien': 12345,
         'ghi_chu': 'Dữ liệu tổng hợp CI; chưa thao tác UI, chưa đạt E2E'},
         ensure_ascii=False, indent=2))
 
@@ -42,6 +50,12 @@ def kiem():
     khoa()
     goc = Path(os.environ['VGB_ARTIFACTS'])
     f = json.loads((goc / 'thanh-toan-fixture.json').read_text())
+    for tid, chieu in [('335000001', 'deposit'), ('335000002', 'withdrawal')]:
+        rows = frappe.get_all('Bank Transaction', filters={'transaction_id':'SEPAY-'+tid},
+            fields=['name','docstatus','deposit','withdrawal'])
+        assert len(rows) == 1 and rows[0].docstatus == 1, 'Webhook thiếu/trùng sao kê'
+        assert float(rows[0][chieu]) == 33501, 'Webhook sai chiều hoặc số tiền'
+    assert not frappe.db.exists('Bank Transaction', {'transaction_id':'SEPAY-335000003'}), 'Webhook lỗi để lại sao kê dở'
     h = frappe.get_doc('Vagabond Ho So TT', f['ho_so'])
     g = frappe.get_doc('Bank Transaction', f['giao_dich'])
     hd = frappe.get_doc('Purchase Invoice', f['hoa_don'])

@@ -40,9 +40,25 @@ const {chromium} = require('playwright');
       if (!k.r.ok() || body.exc_type || !body.message) throw new Error('API thất bại: ' + method + ' ' + JSON.stringify(body));
       return body.message;
     }
+    // HTTP thật: success phải ở gốc JSON, retry không tạo thêm sao kê.
+    const crypto = require('crypto');
+    async function webhook(id, transferType, transactionDate) {
+      const data = JSON.stringify({id, transferType, transactionDate,
+        accountNumber:f.so_tk_webhook, transferAmount:33501, content:'CI335 SYNTHETIC'});
+      const sig = crypto.createHmac('sha256','webhook-ci-only-335').update(data).digest('hex');
+      return c.request.post(goc+'/api/method/vagabond.sepay.webhook', {
+        headers:{'Content-Type':'application/json','X-SePay-Signature':sig}, data});
+    }
+    for (const [id, dir] of [[335000001,'in'],[335000002,'out'],[335000001,'in']]) {
+      const r = await webhook(id,dir,f.ngay_webhook+' 10:00:00');
+      if (r.status() !== 200 || (await r.json()).success !== true) throw new Error('Webhook HTTP chưa nhận đúng');
+    }
+    const bad = await webhook(335000003,'out','not-a-date');
+    if (bad.status() !== 503 || (await bad.json()).success !== false) throw new Error('Webhook lỗi vẫn báo thành công');
+    ket.webhook_http = true;
     await mo();
     await p.locator('[data-hsv="khoptay"]').click();
-    await p.locator('[data-tgd="' + f.giao_dich + '"]').click();
+    await p.locator('.ksDong[data-gd="' + f.giao_dich + '"]').click();
     await xacNhan('vagabond.doi_chieu_app.gan');
     // Tải lại để đọc trạng thái đã lưu, tránh bấm vào DOM cũ trong lúc go().
     await mo();
@@ -143,7 +159,7 @@ const {chromium} = require('playwright');
       ngay_thanh_toan: moLai.ngay_thanh_toan, chua_phan_bo: saoKe.unallocated_amount};
     // Dùng lại đúng sao kê, ghi nhận kế toán lại; không chuyển tiền mới.
     await p.locator('[data-hsv="khoptay"]').click();
-    await p.locator('[data-tgd="' + f.giao_dich + '"]').click();
+    await p.locator('.ksDong[data-gd="' + f.giao_dich + '"]').click();
     await xacNhan('vagabond.doi_chieu_app.gan');
     await mo();
     await p.locator('[data-hsv="datra"]').click();
