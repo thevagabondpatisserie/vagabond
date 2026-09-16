@@ -15,4 +15,4 @@ jobs:
           persist-credentials: false
       - run: node --test .github/agent-control/gate.test.cjs
       - name: Review is a separate release gate
-        run: echo 'This check validates admission logic only. Require independent review on the final head/base before merge; green here is not Claude approval.' >> "$GITHUB_STEP_SUMMARY"
+        run: echo 'This check tests proposed PR code, not the default-branch gate currently executing. Require independent review on the final head/base before merge; green here is not Claude approval.' >> "$GITHUB_STEP_SUMMARY"

@@ -32,6 +32,22 @@ jobs:
         with:
           script: |
             await require('./.github/agent-control/gate.cjs').run({github,context,core});
+      - name: Checkout exact admitted PR for review (not for running gate)
+        if: steps.gate.outputs.allow == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.gate.outputs.head }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify review workspace
+        if: steps.gate.outputs.allow == 'true'
+        env:
+          EXPECTED_HEAD: ${{ steps.gate.outputs.head }}
+          EXPECTED_BASE: ${{ steps.gate.outputs.base }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          git cat-file -e "$EXPECTED_BASE^{commit}"
+          git diff --stat "$EXPECTED_BASE...$EXPECTED_HEAD"
       - name: ${{ steps.gate.outputs.execution }}
         if: steps.gate.outputs.allow == 'true'
         uses: anthropics/claude-code-action@v1
@@ -43,6 +59,7 @@ jobs:
           claude_args: '--model claude-opus-5 --effort high --max-turns 20'
           prompt: |
             Review PR ${{ github.event.issue.number || github.event.pull_request.number }} at head ${{ steps.gate.outputs.head }} and base ${{ steps.gate.outputs.base }}.
+            Do not run the full local test suite; inspect existing CI and report missing evidence.
             Read AGENTS.md, CLAUDE.md and docs/van-hanh-agent/van-hanh-chung.md.
             Read the triggering request for scope and previous reviewed SHA. Verify current head before publishing.
             Review independently, group actionable findings with reproduction and severity in one response.
