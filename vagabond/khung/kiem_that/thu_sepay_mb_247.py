@@ -241,8 +241,16 @@ def _mb_khong_tat_toan_phieu_cong_ty():
 		else:
 			dung("chọn tay phải chặn tiền cá nhân", False)
 
-		ung_vien = de_nghi_chi.tim_gd_ra(p.name, so_ngay=1)["rows"]
-		dung("màn chọn không bày tiền cá nhân", all(x["name"] != gd_ca_nhan.name for x in ung_vien))
+		from vagabond import doi_soat_sepay as dss
+		ung_vien = dss.ung_vien("ttnb", p.name, so_ngay=1, tai_khoan=ca_nhan.name)["rows"]
+		dong_ca_nhan = [x for x in ung_vien if x["name"] == gd_ca_nhan.name]
+		la("#328 màn chọn vẫn có tiền cá nhân", len(dong_ca_nhan), 1)
+		la("#328 dòng chưa dùng được", dong_ca_nhan[0]["dung_duoc"], 0)
+		dung("#328 giải thích nguồn", "tài khoản cá nhân" in dong_ca_nhan[0]["vi_sao_khong"])
+		from vagabond import doi_soat_sepay as dss
+		kq = dss.tu_dong("ttnb", p.name, so_ngay=1)
+		la("#328 tự động không gắn", kq["da_khop"], 0)
+		dung("#328 tự động báo nguồn", any("tài khoản cá nhân" in r["vi_sao"] for r in kq["xem_lai"]))
 
 		# #327: đối chứng phải qua cấu hình SePay thật, không chỉ có Bank Account.
 		# Tài khoản thử riêng để ca không phụ thuộc mapping của seed/ca trước.

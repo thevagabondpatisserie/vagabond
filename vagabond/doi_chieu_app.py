@@ -166,27 +166,37 @@ def noi_but_toan(doc, g):
 		frappe.throw("Liên kết đối chiếu không đủ bộ bút toán hồ sơ %s." % doc.name)
 
 
-@frappe.whitelist()
-def danh_sach(name, tu_khoa="", so_ngay=120, so_tien=None, chi_chua_gom=0):
+def ung_vien_chung(name, so_ngay=120, tu_khoa="", tai_khoan="", thu_tu="goi_y", bat_dau=0, chi_dung=0):
+	"""APP dùng cùng danh sách, giữ kiểm nguồn chi và cửa gán riêng."""
+	from vagabond import doi_soat_sepay as dss
 	doc = _ho_so(name)
 	nguon = _nguon(doc)
 	cty, tk, tien = nguon
-	bas = frappe.get_all("Bank Account", filters={"company": cty, "account": tk}, pluck="name")
-	loc = {"bank_account": ["in", bas], "docstatus": 1, "withdrawal": tien, "deposit": 0,
-		"date": [">=", add_days(nowdate(), -min(max(cint(so_ngay), 1), 3650))]}
-	k = str(tu_khoa or "").strip().lower()
-	rows = []
-	for r in frappe.get_all(BT, filters=loc, fields=["name", "description", "reference_number"], order_by="date desc, name desc", limit_page_length=0) if bas else []:
-		if k and k not in (r.name + " " + (r.description or "") + " " + (r.reference_number or "")).lower():
-			continue
-		g = frappe.get_doc(BT, r.name)
-		loi = _kiem(g, doc, nguon)
-		if cint(chi_chua_gom) and loi:
-			continue
-		rows.append({"ma": g.name, "ten_ban_ghi": g.name, "ngay": str(g.date), "noi_dung": g.description,
-			"chi": g.withdrawal, "thu": 0, "tien": g.withdrawal, "tai_khoan": g.bank_account,
-			"da_gom": 1 if loi else 0, "ly_do": loi, "tham_chieu": g.reference_number})
-	return {"rows": rows[:300], "tong": len(rows), "con_nua": max(0, len(rows)-300), "sua_duoc": 1, "so_tien_chuyen": tien}
+	bas = set(frappe.get_all("Bank Account", filters={"company": cty, "account": tk,
+		"is_company_account": 1, "disabled": 0}, pluck="name"))
+	def ly_do(g):
+		# Kiểm rẻ trước, tránh nạp Document/đọc chủ từng dòng không liên quan.
+		if g.get("bank_account") not in bas:
+			return "Tài khoản ngân hàng không khớp nguồn chi của hồ sơ."
+		if abs(flt(g.get("withdrawal")) - tien) > 0.001:
+			return "Số tiền không khớp khoản phải chuyển. Kế toán dùng Đối chiếu ngân hàng cho khoản tách lần hoặc phí."
+		return _kiem(frappe.get_doc(BT, g["name"]), doc, nguon)
+	kq = dss.danh_sach_chon(dss.RA, doc.name, tien, so_ngay, tu_khoa, tai_khoan,
+		thu_tu, bat_dau, ly_do=ly_do, chi_dung=chi_dung)
+	kq.update(ten_man="Hồ sơ thanh toán", ma_gd_dang_gan=doc.get("ma_giao_dich") or "")
+	return kq
+
+
+@frappe.whitelist()
+def danh_sach(name, tu_khoa="", so_ngay=120, so_tien=None, chi_chua_gom=0):
+	# Giữ hình dạng API cũ cho khách chưa tải app mới, dữ liệu cùng một cửa.
+	kq = ung_vien_chung(name, so_ngay, tu_khoa, chi_dung=chi_chua_gom)
+	for r in kq["rows"]:
+		r.update(ma=r["name"], ten_ban_ghi=r["name"], ngay=r["date"],
+			noi_dung=r["mo_ta"], chi=r["tien"], thu=0, tai_khoan=r.get("bank_account"),
+			da_gom=int(not r["dung_duoc"]), ly_do=r["vi_sao_khong"], tham_chieu=r.get("reference_number"))
+	kq.update(sua_duoc=1, so_tien_chuyen=kq["so_tien"])
+	return kq
 
 
 def _bao_tranh_chap(ham):
