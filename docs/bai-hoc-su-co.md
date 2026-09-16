@@ -676,3 +676,11 @@ Không dùng comment hay run created_at làm bằng chứng model đã chạy: s
 không tiêu lượt, rerun của run cũ có thể bắt đầu hôm nay. Gate đọc mọi attempt
 và started_at bước model theo PR; API lỗi chặn chạy. Khóa này chỉ bao workflow
 được tích hợp, không mặc định bao native Codex. Nguồn: PR sáu thay đổi agent.
+
+## #332: tiền đúng lúc đồng bộ vẫn có thể sai sau thay dòng
+Version trên site cho thấy tiền nguồn từng đúng, sau xóa/thêm dòng mất tên
+NCC, mã mới kéo giá/quy cách khác; mapping lại trỏ Item disabled. Phải truy
+nguồn + Version + traceback theo thời điểm trước kết luận lỗi tải dữ liệu.
+Đường đổi mã cần lựa chọn nguồn và UOM rõ, giữ giá nguồn, lưu mapping và PI
+cùng giao dịch rồi reload kiểm trước báo xong. Không đoán bản sao từ giờ tạo;
+cùng bill/NCC/company chỉ là gợi ý cần kiểm, không tự nối hay sửa tờ đã ghi sổ.

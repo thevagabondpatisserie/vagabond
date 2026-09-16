@@ -85,3 +85,4 @@ quả phụ thuộc lượt sau thực sự đọc, xác minh và dùng bài h�
 - [Issue 252: nối phiếu nhập](cong-viec/issue-252.md)
 
 Quy tắc hiện hành: [sáu thay đổi](van-hanh-chung.md).
+- [Issue332: đổi mã giữ tiền hóa đơn nguồn](cong-viec/issue-332.md)

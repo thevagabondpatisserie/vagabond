@@ -256,6 +256,29 @@ var HAI_TK = {
 };
 
 async function chayHet() {
+  await caAsync('#332: Desk sửa mã gọi API với dòng nguồn, lỗi không báo thành công', async function () {
+    for (var loi of [false, true]) {
+      var goi=[], hop, mo=0, tai=0, bao=0;
+      var g={format_currency:String, setTimeout:setTimeout, frappe:{utils:{escape_html:function(s){return String(s).replace(/</g,'&lt;');}},
+        ui:{form:{on:function(){}}, Dialog:function(c){hop=c;this.show=function(){};this.hide=function(){mo++;};
+          this.disable_primary_action=function(){goi.push('tat');};this.enable_primary_action=function(){goi.push('bat');};}},
+        msgprint:function(){}, show_alert:function(){bao++;}, call:async function(c){
+          if(c.method.endsWith('lua_chon')) return {message:{modified:'M',dong:[{name:'R',nhan:'<Hàng>'}],nguon:[{vi_tri:0,ten:'<Nguồn>',sl:3,gia:331818,dvt:'Chai'}]}};
+          goi.push(c.args); if(loi) throw Error('API lỗi'); return {message:{name:'PI'}};
+        }}};
+      vm.createContext(g);
+      vm.runInContext(fs.readFileSync(path.join(GOC,'vagabond/public/js/purchase_invoice.js'),'utf8'),g);
+      await g.vgbSuaMaTheoNguon({doc:{name:'PI'},is_dirty:function(){return false;},reload_doc:async function(){tai++;}});
+      dung('escape tên nguồn',hop.fields[2].options[0].label.includes('&lt;Nguồn>'));
+      try {await hop.primary_action({dong:'R',vi_tri:'0',item_code:'MOI',uom:'Chai 700 ml'});} catch(e){if(!loi)throw e;}
+      bang('đúng version',goi[1].modified,'M');
+      bang('đúng dòng nguồn',goi[1].vi_tri,'0');
+      bang('mở lại nút cả khi lỗi',goi[2],'bat');
+      bang('chỉ tải lại khi thành công',tai,loi?0:1);
+      bang('không báo thành công giả',bao,loi?0:1);
+      bang('lỗi giữ hộp sửa',mo,loi?0:1);
+    }
+  });
   await caAsync('PNK: phân biệt tiền gốc và phần còn, hướng dẫn không bù kho', async function () {
     var g = {money: String, h: function (v) { return String(v).replace(/</g, '&lt;'); }};
     vm.createContext(g);

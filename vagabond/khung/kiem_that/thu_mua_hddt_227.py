@@ -251,3 +251,73 @@ def _mat_mon_321():
 	_, bao_cao, _ = execute(dict(from_date=hd.posting_date, to_date=hd.posting_date, hoa_don=hd.name))
 	dung("báo cáo đọc chứng từ thật đã ghi sổ", any(r["hoa_don"] == hd.name for r in bao_cao))
 	dung("sổ cái đã sinh", len(nen.so_cai_cua(hd)) > 0)
+
+
+@ca('#332: API đổi mã từ ánh xạ disabled giữ giá nguồn qua save/reload và retry')
+def _doi_ma_nguon_332():
+	from vagabond import sua_ma_hoa_don as sm, quy_cach_ncc as qc
+	mon_nen = nen._mot('Item', {'disabled':0, 'is_stock_item':0, 'is_purchase_item':1, 'is_fixed_asset':0})
+	cac = []
+	for _ in range(2):
+		m = frappe.copy_doc(frappe.get_doc('Item', mon_nen))
+		m.item_code = 'KIEM332-' + frappe.generate_hash(length=12)
+		m.item_name = m.item_code
+		m.disabled = 0
+		_luu(m)
+		cac.append(m)
+	cu, moi = cac
+	g = _nguon([{'ten':'Món thử đổi mã 332','sluong':3,'dgia':331818,
+		'thtien':995454,'dvtinh':moi.stock_uom}], 99545, 1094999)
+	# MST thử không mang hậu tố chi nhánh, chỉ chạm nguồn mới trong savepoint.
+	mst = '332' + frappe.generate_hash(length=10)
+	g.mst_doi_tac = mst
+	g.save()
+	mapping = _luu(frappe.get_doc(dict(doctype=qc.LOAI, supplier_mst=mst,
+		ten_ncc='Món thử đổi mã 332', item_code=cu.name, vgb_uom=cu.stock_uom)))
+	hd = _phieu([('Món thử đổi mã 332',3,395000)], moi.name)
+	_luu(hd)
+	# Dựng trạng thái lịch sử đã mất tên; chỉ trên chứng từ thử của ca này.
+	hd.db_set('custom_minvoice_id', g.name, update_modified=False)
+	hd.items[0].db_set('ten_hang_ncc', '', update_modified=False)
+	cu.disabled = 1
+	cu.save()
+	hd.reload()
+	modified = str(hd.modified)
+	r = sm.sua(hd.name, hd.items[0].name, '0', moi.name, moi.stock_uom, modified)
+	hd.reload()
+	la('giá nguồn sau DB reload', hd.items[0].rate, 331818)
+	la('tiền dòng đúng', hd.items[0].amount, 995454)
+	la('tổng gồm thuế đúng', hd.grand_total, 1094999)
+	la('mã thay thế còn', hd.items[0].item_code, moi.name)
+	la('tên nguồn còn', hd.items[0].ten_hang_ncc, 'Món thử đổi mã 332')
+	mapping.reload()
+	la('mapping mới lưu cùng PI', mapping.item_code, moi.name)
+	for _ in range(2):
+		hd.save()
+		hd.reload()
+		la('save lặp giữ tổng', hd.grand_total, 1094999)
+	try:
+		sm.sua(hd.name, hd.items[0].name, '0', moi.name, moi.stock_uom, modified)
+	except frappe.ValidationError as e:
+		dung('retry stale nói tải lại', 'Tải lại' in str(e))
+	else:
+		dung('không ghi từ phiên cũ', False)
+	la('không tự ghi sổ', hd.docstatus, 0)
+	la('không tạo GL', len(nen.so_cai_cua(hd)), 0)
+
+	# Ép lỗi ở cuối Document.save, sau khi mapping đã ghi và PI đã db_update.
+	from unittest.mock import patch
+	cu.disabled = 0
+	cu.save()
+	with patch.object(type(hd), 'on_update', side_effect=frappe.ValidationError('Lỗi thử sau ghi PI')):
+		try:
+			sm.sua(hd.name, hd.items[0].name, '0', cu.name, cu.stock_uom, str(hd.modified))
+		except frappe.ValidationError as e:
+			dung('đã chạm cuối save', 'Lỗi thử sau ghi PI' in str(e))
+		else:
+			dung('phải báo lỗi thử', False)
+	hd.reload()
+	mapping.reload()
+	la('rollback PI vẫn mã mới', hd.items[0].item_code, moi.name)
+	la('rollback mapping vẫn mã mới', mapping.item_code, moi.name)
+	la('rollback giữ tiền', hd.grand_total, 1094999)
