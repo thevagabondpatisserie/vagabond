@@ -65,6 +65,16 @@ def dang_giu_chi_tiet(tru_ho_so="", khoa=False, hoa_don=None):
             key = chi_muc.get((r.vgb_ho_so_tt, r.reference_name))
             if key:
                 theo_app[key] -= Decimal(str(r.allocated_amount or 0))
+    if theo_app:
+        can = frappe.db.sql("""select j.vgb_ho_so_tt, d.reference_name, d.debit_in_account_currency
+            from `tabJournal Entry Account` d join `tabJournal Entry` j on j.name=d.parent
+            where j.docstatus=1 and j.vgb_ho_so_tt in %s
+            and d.reference_type='Purchase Invoice'""" + (" for update" if khoa else ""),
+            (tuple(sorted({k[0] for k in theo_app})),), as_dict=True)
+        for r in can:
+            key = chi_muc.get((r.vgb_ho_so_tt, r.reference_name))
+            if key:
+                theo_app[key] -= Decimal(str(r.debit_in_account_currency or 0))
     return {key: tien for key, tien in theo_app.items() if tien > 0}
 
 
@@ -125,7 +135,9 @@ def kiem_luu(doc):
         return
     if not doc.is_new() and frappe.db.exists("Payment Entry", {"vgb_ho_so_tt": doc.name, "docstatus": 1}):
         return
-    invoices = kiem(doc.get("dong"), doc.name or "") or {}
+    from vagabond.tam_ung_app import dong_con_lai
+    dong = dong_con_lai(doc) if doc.get("vgb_can_ung") else doc.get("dong")
+    invoices = kiem(dong, doc.name or "") or {}
     if (doc.get("loai") or "NCC") in ("NCC", "TK cong ty"):
         # APP gom nhiều NCC là luồng hiện có; mỗi PE vẫn lấy NCC từ hóa đơn.
         # Tên NCC đầu hồ sơ phải thuộc tập hóa đơn, không được đổi sang người khác.
@@ -147,6 +159,8 @@ def dau_van_tay(doc):
 
 def chan_doi_sau_duyet(doc):
     import frappe
+    if doc.flags.get("vgb_tam_ung"):
+        return
     cu = doc.get_doc_before_save()
     if cu and cu.trang_thai in GIU + ("Da thanh toan",) and dau_van_tay(cu) != dau_van_tay(doc):
         frappe.throw("Hồ sơ đã gửi duyệt. Từ chối hoặc hủy hồ sơ trước khi sửa tiền, phân bổ hay người nhận, rồi gửi duyệt lại.")

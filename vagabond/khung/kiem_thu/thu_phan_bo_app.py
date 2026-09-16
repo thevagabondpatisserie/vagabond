@@ -15,6 +15,8 @@ def _kiem_so_hoc(no, xin, giu=0, da_chi=0, docstatus=1, loi=""):
     hd = SimpleNamespace(docstatus=docstatus, outstanding_amount=no,
         supplier="NCC", company="CT", currency="VND")
     def sql(cau, tham_so, as_dict=False):
+        if "Journal Entry Account" in cau:
+            return []
         if "Vagabond Ho So TT Dong" in cau:
             return ([SimpleNamespace(name="APP-A", ma="APP-A", hoa_don="HD-1",
                 so_tien=giu)] if giu else [])
@@ -87,6 +89,8 @@ def _():
     goi = []
     def sql(cau, tham_so, as_dict=False):
         goi.append((cau, tham_so))
+        if "Journal Entry Account" in cau:
+            return []
         if "Vagabond Ho So TT Dong" in cau:
             return [SimpleNamespace(name="APP-A", ma="APP.26.09.001",
                 hoa_don="HD-1", so_tien=7000000)]

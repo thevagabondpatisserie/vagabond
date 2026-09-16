@@ -35,3 +35,36 @@ def _tao():
         la('trạng thái lưu',doc.saved['trang_thai'],state)
         la('dấu FIN lưu',bool(doc.saved.get('fin_boi')),fin)
         la('thời gian FIN lưu',bool(doc.saved.get('fin_luc')),fin)
+
+@ca('Quỹ tạm ứng: phân bổ nhiều nguồn, giữ số lẻ và không lấy quá dư')
+def _chia():
+    from vagabond.tam_ung_app import chia_nguon
+    la('hai nguồn', chia_nguon({'A':100, 'B':50},120), {'A':100.0,'B':20.0})
+    la('số lẻ', chia_nguon({'A':'0.1','B':'0.2'},'0.3'), {'A':0.1,'B':0.2})
+    for x in (0,-1,151,'NaN','Infinity'):
+        try:
+            chia_nguon({'A':100,'B':50},x)
+        except ValueError:
+            pass
+        else:
+            la('phải từ chối số sai',x,'ValueError')
+
+@ca('APP quyết toán: kiểm đúng từng PI, quỹ141, thiếu JE và không trả thêm lần hai')
+def _kiem_can():
+    from copy import deepcopy
+    k={'loai':'PE','hoa_don':{},'tong':0,'can_ung':{'name':'JE-1','company':'CT','tai_khoan':'141','tong':100,
+       'hoa_don':{'PI-1':{'tien':100,'supplier':'NCC','account':'331'}}}}
+    def dong(tk,no,co,**kw):
+        return dict(account=tk,debit_in_account_currency=no,credit_in_account_currency=co,
+          debit=no,credit=co,account_currency='VND',exchange_rate=1,**kw)
+    b=[dict(name='JE-1',doctype='Journal Entry',company='CT',tong_no=100,dong=[
+      dong('331',100,0,party_type='Supplier',party='NCC',reference_type='Purchase Invoice',reference_name='PI-1'),
+      dong('141',0,100)])]
+    la('đủ',hs._kiem_bo_chung_tu(k,b)['du'],1)
+    la('thiếu',hs._kiem_bo_chung_tu(k,[])['du'],0)
+    for field,value in [('account','112'),('credit_in_account_currency',101),('exchange_rate',2)]:
+        sai=deepcopy(b);sai[0]['dong'][1][field]=value
+        la('bắt sai '+field,hs._kiem_bo_chung_tu(k,sai)['du'],0)
+    sai=deepcopy(b);sai[0]['dong'][0]['reference_name']='PI-KHAC'
+    la('bắt sai hóa đơn',hs._kiem_bo_chung_tu(k,sai)['du'],0)
+    la('bắt trả thêm',hs._kiem_bo_chung_tu(k,b+[dict(name='PE-DUP',doctype='Payment Entry')])['du'],0)

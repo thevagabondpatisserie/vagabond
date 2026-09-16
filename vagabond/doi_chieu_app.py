@@ -149,6 +149,8 @@ def noi_but_toan(doc, g):
 	kq = hs._kiem_bo_chung_tu(hs._ke_hoach_duyet(doc), bo, hs._do_chinh_xac())
 	if not kq["du"]:
 		frappe.throw("Bộ bút toán hồ sơ %s chưa khớp. Kế toán kiểm lại trước khi đối chiếu." % doc.name)
+	# Sao kê hoàn tiền chỉ nối PE phần trả thêm, JE cấn không có tiền ra112.
+	bo = [b for b in bo if b["name"] != doc.get("vgb_can_ung")]
 	da = {(r.payment_document, r.payment_entry) for r in g.payment_entries or []}
 	moi = [{"payment_doctype": b["doctype"], "payment_name": b["name"]} for b in bo
 		if (b["doctype"], b["name"]) not in da]

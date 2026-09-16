@@ -1875,7 +1875,8 @@ def chi_tiet(name):
 			"trang_thai": doc.trang_thai,
 			"nhan": "Đã duyệt, cần kiểm tra lại" if canh_bao else NHAN.get(doc.trang_thai, doc.trang_thai),
 			"tong_tien": flt(doc.tong_tien), "da_tra": flt(doc.da_tra),
-			"da_tam_ung": flt(doc.da_tam_ung), "con_lai": flt(doc.con_lai) or flt(doc.tong_tien),
+			"da_tam_ung": flt(doc.da_tam_ung), "con_lai": flt(doc.con_lai),
+			"vgb_can_ung": doc.get("vgb_can_ung") or "", "tk_nhan": doc.get("tk_nhan") or "",
 			"han_tra_som_nhat": str(doc.han_tra_som_nhat or ""),
 			"nguoi_tao": doc.nguoi_tao, "nguoi_tao_ten": _ten_nguoi(doc.nguoi_tao),
 			"fin_boi": doc.fin_boi, "fin_ten": _ten_nguoi(doc.fin_boi),
@@ -2364,7 +2365,7 @@ def danh_dau_da_tra(name, ngay=None, ma_giao_dich=None, phuong_thuc="Chuyển kh
 	#
 	# ANH HUONG VAN HANH: ho so nao co tam ung se dung o "Da duyet" cho toi
 	# khi co duong bu tru. Da neu trong PR truoc khi de nghi deploy.
-	if so["tam_ung"] > 0:
+	if so["tam_ung"] > 0 and not doc.get("vgb_can_ung"):
 		frappe.throw(
 			"Hồ sơ %s trừ %s đ tạm ứng (tổng %s đ, còn phải chuyển %s đ). Phần tạm "
 			"ứng chưa có chứng từ bù trừ với quỹ tạm ứng nên chưa hoàn tất hồ sơ "
@@ -2421,7 +2422,8 @@ def danh_dau_da_tra(name, ngay=None, ma_giao_dich=None, phuong_thuc="Chuyển kh
 	# thua thi dung, khong tu sinh bu.
 	ke = _ke_hoach_duyet(doc, phuong_thuc)
 	bo = _but_toan_cua_ho_so(doc.name)
-	if bo:
+	can_only = doc.get("vgb_can_ung") and len(bo) == 1 and bo[0]["name"] == doc.vgb_can_ung and phai_chuyen > 0
+	if bo and not can_only:
 		kq = _kiem_bo_chung_tu(ke, bo, do)
 		if not kq["du"]:
 			frappe.throw(
@@ -2433,7 +2435,8 @@ def danh_dau_da_tra(name, ngay=None, ma_giao_dich=None, phuong_thuc="Chuyển kh
 		pe = ", ".join(kq["ten"])
 	else:
 		from vagabond.phan_bo_app import kiem as kiem_phan_bo
-		kiem_phan_bo(doc.dong, doc.name)
+		from vagabond.tam_ung_app import dong_con_lai
+		kiem_phan_bo(dong_con_lai(doc) if doc.get("vgb_can_ung") else doc.dong, doc.name)
 		pe = _tao_but_toan(doc, ngay or nowdate(), phuong_thuc)
 		# Doc lai chinh cai vua sinh va doi chieu ke hoach mot lan nua. Ca kiem
 		# nay re, va no bat duoc truong hop hook tang duoi sua but toan sau
@@ -2673,7 +2676,8 @@ def _ke_hoach_duyet(doc, phuong_thuc=None):
 	Các kiểm tra số tiền, đối tượng, tài khoản và tiền tệ vẫn chạy như nhau
 	cho hồ sơ mới, hồ sơ đã duyệt cũ và lần tra lại chứng từ đã ghi.
 	"""
-	return _dung_ke_hoach_chi(doc, phuong_thuc)
+	from vagabond.tam_ung_app import ke_hoach
+	return ke_hoach(doc, _dung_ke_hoach_chi(doc, phuong_thuc))
 
 
 def _but_toan_cua_ho_so(name):
@@ -2715,7 +2719,7 @@ def _but_toan_cua_ho_so(name):
 				o["dong"] = frappe.get_all(
 					"Journal Entry Account", filters={"parent": r["name"]},
 					fields=["account", "debit_in_account_currency", "credit_in_account_currency",
-						"party_type", "party", "account_currency", "exchange_rate", "debit", "credit"],
+						"party_type", "party", "account_currency", "exchange_rate", "debit", "credit", "reference_type", "reference_name"],
 					limit_page_length=0,
 				)
 			ra.append(o)
@@ -2733,6 +2737,9 @@ def _kiem_bo_chung_tu(ke, bo, do=2):
 	Entry, khong chi tong (Codex #226 B1). Ke hoach doc khong ra (None) la
 	chua kiem duoc, tinh la lech.
 	"""
+	if ke.get("can_ung"):
+		from vagabond.tam_ung_app import kiem_bo
+		return kiem_bo(ke, bo, do)
 	ten = [b["name"] for b in bo]
 	thieu, thua, lech = [], [], []
 	loi = _loi_ke_hoach_chi(ke)
@@ -2904,9 +2911,8 @@ def _tao_but_toan(doc, ngay, phuong_thuc):
 			"hoá đơn được lập ở bước giám đốc duyệt." % doc.name
 		)
 
-	gom = {}
-	for d in con:
-		gom[d.hoa_don] = gom.get(d.hoa_don, 0.0) + flt(d.so_tien)
+	from vagabond.tam_ung_app import phan_con_lai
+	gom = phan_con_lai(doc)
 
 	# MOT BUT TOAN CHO MOI NHA CUNG CAP.
 	#

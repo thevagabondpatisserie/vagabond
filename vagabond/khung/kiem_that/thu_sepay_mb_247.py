@@ -500,3 +500,96 @@ def _app_gui_fin_342():
 		la('chưa sinh hóa đơn',h.dong[0].hoa_don or '','')
 	finally:
 		frappe.set_user(cu)
+
+
+def _nen_quy_342(tien=100000):
+	from vagabond import tam_ung_app as tu
+	b = _tai_khoan_ca_nhan(_so_thu(), mot_nha_cung_cap())
+	cha = _mot('Account', {'company':cong_ty(),'root_type':'Asset','is_group':1}, 'lft asc')
+	tk = frappe.get_doc({'doctype':'Account','company':cong_ty(),'parent_account':cha,
+		'account_name':'Tiền mặt thử quỹ '+frappe.generate_hash(length=6),
+		'account_number':'111342'+frappe.generate_hash(length=5), 'account_type':'Cash',
+		'account_currency':'VND','is_group':0})
+	tk.insert(ignore_permissions=True)
+	_DA_TAO.append((tk.doctype,tk.name))
+	g = frappe.get_doc({'doctype':'Bank Transaction','date':today(),'bank_account':b.name,
+		'deposit':tien,'withdrawal':0,'currency':'VND','description':'Nộp tiền mặt thử quỹ',
+		'reference_number':'KIEM-CAP-'+frappe.generate_hash(length=8)})
+	g.insert(ignore_permissions=True)
+	_DA_TAO.append((g.doctype,g.name));g.submit()
+	ra = tu.ghi_nhan_cap(g.name,tk.name)
+	_DA_TAO.append(('Journal Entry',ra['name']))
+	return b,tk,g,frappe.get_doc('Journal Entry',ra['name'])
+
+
+def _app_quy_342(b,tien):
+	from vagabond.khung.kiem_that.thu_ho_so_tt_v445 import _hoa_don_mua, _tk_ngan_hang
+	hd=_hoa_don_mua(tien)
+	h=frappe.new_doc('Vagabond Ho So TT')
+	h.ma,h.loai,h.ngay,h.trang_thai=ho_so_tt._sinh_ma(),'Hoan ung HD',today(),'Da duyet'
+	h.nha_cung_cap=h.nguoi_ung=b.party
+	h.tk_nhan=b.name
+	h.tk_chi=_tk_ngan_hang(cong_ty())
+	h.da_tam_ung=0
+	h.append('dong',{'hoa_don':hd.name,'so_hd_ncc':hd.bill_no,'so_tien':tien,'con_no':tien})
+	h.insert(ignore_permissions=True);_DA_TAO.append((h.doctype,h.name))
+	return h,hd
+
+
+@ca('342 Cấp quỹ bằng tiền vào, cấn đủ, retry và huỷ trả nguồn bằng GL lõi')
+def _quy_day_du_342():
+	from vagabond import tam_ung_app as tu
+	cu=frappe.session.user;frappe.set_user('Administrator')
+	try:
+		b,tk,g,cap=_nen_quy_342()
+		la('retry cấp cùng JE',tu.ghi_nhan_cap(g.name,tk.name)['name'],cap.name)
+		g.reload();la('sao kê đã đối chiếu',g.status,'Reconciled')
+		h,hd=_app_quy_342(b,70000)
+		ra=tu.can(h.name,70000);_DA_TAO.append(('Journal Entry',ra['name']))
+		h.reload();hd.reload()
+		la('PI hết nợ do JE',float(hd.outstanding_amount),0.0)
+		la('không phải chuyển thêm',float(h.con_lai),0.0)
+		la('còn nguồn cho lần sau',tu.danh_sach(b.name)['con_lai'],30000.0)
+		la('retry cấn cùng JE',tu.can(h.name,70000)['name'],ra['name'])
+		ho_so_tt.danh_dau_da_tra(h.name,gui_thu=0)
+		la('retry hoàn tất',ho_so_tt.danh_dau_da_tra(h.name,gui_thu=0)['da_lam_roi'],1)
+		la('không sinh PE tiền ra',frappe.db.count('Payment Entry',{'vgb_ho_so_tt':h.name}),0)
+		gl=frappe.get_all('GL Entry',filters={'voucher_type':'Journal Entry','voucher_no':ra['name'],'is_cancelled':0},fields=['account','debit','credit'])
+		la('có141 đúng khoản cấn',sum(float(x.credit)-float(x.debit) for x in gl if x.account==b.account),70000.0)
+		try:
+			cap.cancel()
+		except frappe.ValidationError:
+			pass
+		else:
+			dung('không huỷ nguồn đã cấn',False)
+		tu.bo_can(h.name)
+		h.reload();hd.reload()
+		la('huỷ trả nguồn',tu.danh_sach(b.name)['con_lai'],100000.0)
+		la('huỷ trả nợ',float(hd.outstanding_amount),70000.0)
+		la('APP về đã duyệt',h.trang_thai,'Da duyet')
+		la('retry bỏ cấn',tu.bo_can(h.name)['da_lam_roi'],1)
+	finally:
+		frappe.set_user(cu)
+
+
+@ca('342 Cấn một phần: chỉ PE phần thiếu vào sao kê, đủ JE+PE mới hoàn tất')
+def _quy_mot_phan_342():
+	from vagabond import tam_ung_app as tu
+	from vagabond.khung.kiem_that.thu_ho_so_tt_v445 import _unc_gia, _giao_dich_ngan_hang
+	cu=frappe.session.user;frappe.set_user('Administrator')
+	try:
+		b,tk,g,cap=_nen_quy_342(30000)
+		h,hd=_app_quy_342(b,70000)
+		ra=tu.can(h.name,30000);_DA_TAO.append(('Journal Entry',ra['name']))
+		_unc_gia(h)
+		out=_giao_dich_ngan_hang(h.name,40000,cong_ty())
+		ho_so_tt.danh_dau_da_tra(h.name,gui_thu=0)
+		bo=ho_so_tt._but_toan_cua_ho_so(h.name)
+		_DA_TAO.extend((x['doctype'],x['name']) for x in bo if x['doctype']=='Payment Entry')
+		la('hai bút toán',len(bo),2)
+		la('PE chỉ trả thêm',sum(float(x.get('paid_amount') or 0) for x in bo),40000.0)
+		out.reload();la('sao kê chỉ nối PE',len(out.payment_entries),1)
+		la('hết nợ',float(frappe.db.get_value('Purchase Invoice',hd.name,'outstanding_amount')),0.0)
+		la('retry không trả thêm',ho_so_tt.danh_dau_da_tra(h.name,gui_thu=0)['da_lam_roi'],1)
+	finally:
+		frappe.set_user(cu)
