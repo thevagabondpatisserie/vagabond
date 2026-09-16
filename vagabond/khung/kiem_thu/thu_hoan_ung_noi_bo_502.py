@@ -54,3 +54,44 @@ def _ngoai_60():
     ds = [dict(name='TTNB-26-09-%05d' % i, tong_tien=200, creation='2026-09-16') for i in range(1,70)]
     ds.append(dict(name='TTNB-26-08-00001',tong_tien=100,creation='2026-08-01'))
     la('không bỏ sót', hu.xep_goi_y(ds,100)[0]['name'], 'TTNB-26-08-00001')
+
+
+def _doc_kiem(nhan='NGUOI-UNG', lien_ket=''):
+    class Doc(frappe._dict):
+        def get_doc_before_save(self):
+            return None
+    doc=Doc(name='APP1',loai='Hoan ung',trang_thai='Nhap',tk_nhan='MB',nha_cung_cap=nhan,
+        dong=[frappe._dict(name='D1',de_nghi_chi='TTNB1',so_tien=100,ma_giao_dich='FT1')])
+    p=frappe._dict(name='TTNB1',trang_thai='Da chi',ma_gd='BT1',ho_so_tt=lien_ket,tong_tien=100,so_tien=100)
+    g=frappe._dict(name='BT1',reference_number='FT1',bank_account='MB',withdrawal=100,docstatus=1)
+    return doc,p,g
+
+
+@ca('502 nối APP: đúng chủ giữ phiếu và chuẩn hóa sao kê, không commit')
+def _noi():
+    doc,p,g=_doc_kiem()
+    with patch.object(frappe.db,'sql',return_value=[p]) as sql, \
+         patch.object(frappe.db,'set_value') as luu, patch.object(frappe.db,'commit') as commit, \
+         patch.object(hu,'giao_dich',return_value=g), \
+         patch.object(hu,'nguon_chi',return_value={'tam_ung':True,'party':'NGUOI-UNG'}):
+        hu.kiem_ho_so(doc)
+        la('mã BT',doc.dong[0].ma_giao_dich,'BT1')
+        dung('giữ khóa phiếu', 'for update' in sql.call_args[0][0])
+        la('giữ đúng APP',luu.call_args[0][3],'APP1')
+        dung('không commit giữa chừng',not commit.called)
+
+
+@ca('502 nối APP: khác chủ và phiếu đã giữ không ghi đè')
+def _sai():
+    for nhan,lien,loi in [('KHAC','','đúng người'),('NGUOI-UNG','APP2','đã nối hồ sơ')]:
+        doc,p,g=_doc_kiem(nhan,lien)
+        with patch.object(frappe.db,'sql',return_value=[p]), patch.object(frappe.db,'set_value') as luu, \
+             patch.object(hu,'giao_dich',return_value=g), \
+             patch.object(hu,'nguon_chi',return_value={'tam_ung':True,'party':'NGUOI-UNG'}):
+            try:
+                hu.kiem_ho_so(doc)
+            except frappe.ValidationError as e:
+                dung('lý do sửa được',loi in str(e))
+            else:
+                dung('phải chặn hoàn sai người hoặc trùng',False)
+            dung('không ghi đè',not luu.called)

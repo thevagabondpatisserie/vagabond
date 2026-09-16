@@ -442,5 +442,39 @@ def _ttnb_hoan_ung_502():
 			dung('không được tăng gấp đôi hồ sơ',False)
 		finally:
 			frappe.db.rollback(save_point='thu_doi_502')
+		# Đi tiếp đúng cửa duyệt, tạo PI thật rồi ghi PE từ sao kê công ty.
+		from vagabond.khung.kiem_that.thu_ho_so_tt_v445 import _mon_dich_vu, _tk_ngan_hang, _unc_gia, _giao_dich_ngan_hang
+		from vagabond.khung.kiem_that.thu_doi_chieu_app_247 import _ghi
+		for ma_mon in (ho_so_tt.MON_CO_VAT, ho_so_tt.MON_KHONG_VAT):
+			if not frappe.db.exists('Item', ma_mon):
+				mon=frappe.copy_doc(frappe.get_doc('Item',_mon_dich_vu()))
+				mon.item_code=ma_mon
+				mon.item_name='Dịch vụ thử hoàn ứng'
+				mon.insert(ignore_permissions=True)
+				_DA_TAO.append(('Item',mon.name))
+		h.reload()
+		h.tk_chi=_tk_ngan_hang(cong_ty())
+		h.save(ignore_permissions=True)
+		ho_so_tt.duyet(h.name,'gui_fin')
+		h.reload()
+		if h.trang_thai==ho_so_tt.TT_CHO_FIN:
+			ho_so_tt.duyet(h.name,'fin')
+		ho_so_tt.duyet(h.name,'gd')
+		h.reload()
+		la('duyệt xong',h.trang_thai,ho_so_tt.TT_DA_DUYET)
+		hd=h.dong[0].hoa_don
+		dung('có hóa đơn mua thật',bool(hd))
+		_DA_TAO.append(('Purchase Invoice',hd))
+		la('đúng chi phí một lần',float(frappe.db.get_value('Purchase Invoice',hd,'grand_total')),247502.0)
+		_unc_gia(h)
+		g_ct=_giao_dich_ngan_hang(h.name,247502,cong_ty())
+		_ghi(h,g_ct)
+		h.reload()
+		la('công ty trả bằng giao dịch khác',h.ma_giao_dich,g_ct.name)
+		la('giữ chứng cứ trả nhân viên',h.dong[0].ma_giao_dich,g.name)
+		la('công nợ đã hết',float(frappe.db.get_value('Purchase Invoice',hd,'outstanding_amount')),0.0)
+		bo=ho_so_tt._but_toan_cua_ho_so(h.name)
+		la('retry nhận ra đã làm',ho_so_tt.danh_dau_da_tra(h.name,gui_thu=0)['da_lam_roi'],1)
+		la('không tạo thêm bút toán',ho_so_tt._but_toan_cua_ho_so(h.name),bo)
 	finally:
 		frappe.set_user(cu)

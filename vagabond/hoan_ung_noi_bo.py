@@ -65,6 +65,16 @@ def kiem_ho_so(doc):
         return
     cu = doc.get_doc_before_save()
     cu_dong = {d.name: d for d in (cu.get('dong') or [])} if cu else {}
+    # Trả phiếu khi gỡ dòng hoặc hồ sơ bị từ chối/hủy, kể cả lưu từ Desk.
+    dang = {str(d.get('de_nghi_chi') or '').strip() for d in doc.get('dong') or []}
+    if doc.get('trang_thai') in ('Tu choi', 'Huy'):
+        dang = set()
+    cu_ma = {str(d.get('de_nghi_chi') or '').strip() for d in (cu.get('dong') or [])} if cu else set()
+    for ma in sorted(cu_ma - dang - {''}):
+        frappe.db.sql('''update `tabVagabond De Nghi Chi` set ho_so_tt=NULL
+            where name=%s and ho_so_tt=%s''', (ma, doc.name))
+    if doc.get('trang_thai') in ('Tu choi', 'Huy'):
+        return
     da_thay = set()
     for d in doc.get('dong') or []:
         ma = str(d.get('de_nghi_chi') or '').strip()
@@ -74,22 +84,23 @@ def kiem_ho_so(doc):
             frappe.throw('Phiếu %s đang nối hai khoản. Gỡ một khoản để không hoàn ứng hai lần.' % ma)
         da_thay.add(ma)
         truoc = cu_dong.get(d.name)
-        if cu and truoc and cu.get('tk_nhan') == doc.get('tk_nhan') and all(
-                truoc.get(k) == d.get(k) for k in ('de_nghi_chi', 'ma_giao_dich', 'so_tien')):
-            continue
+        giu_nguyen = bool(cu and truoc and cu.get('trang_thai') not in ('Tu choi', 'Huy')
+            and cu.get('tk_nhan') == doc.get('tk_nhan')
+            and cu.get('nha_cung_cap') == doc.get('nha_cung_cap') and all(
+                truoc.get(k) == d.get(k) for k in ('de_nghi_chi', 'ma_giao_dich', 'so_tien')))
         rows = frappe.db.sql('''select name, trang_thai, ma_gd, ho_so_tt, tong_tien, so_tien
             from `tabVagabond De Nghi Chi` where name=%s for update''', (ma,), as_dict=True)
         if not rows:
             frappe.throw('Không thấy phiếu %s. Chọn lại phiếu nội bộ.' % ma)
         p = rows[0]
         from vagabond.ho_so_tt import TT_PHIEU_NOI_BO
-        if p.trang_thai not in TT_PHIEU_NOI_BO:
+        if not giu_nguyen and p.trang_thai not in TT_PHIEU_NOI_BO:
             frappe.throw('Phiếu %s chưa được duyệt. Nhờ kế toán duyệt trước khi nối.' % ma)
         if p.ho_so_tt and p.ho_so_tt != doc.name:
             frappe.throw('Phiếu %s đã nối hồ sơ %s. Mở hồ sơ đó, không lập hoàn ứng lần hai.' % (ma, p.ho_so_tt))
-        if abs(flt(d.so_tien) - (flt(p.tong_tien) or flt(p.so_tien))) > 1:
+        if not giu_nguyen and abs(flt(d.so_tien) - (flt(p.tong_tien) or flt(p.so_tien))) > 1:
             frappe.throw('Số tiền khoản nối %s phải bằng số tiền phiếu. Kiểm lại khoản đã chọn.' % ma)
-        if p.ma_gd:
+        if p.ma_gd and not giu_nguyen:
             g = giao_dich(p.ma_gd)
             if not g or cint(g.docstatus) >= 2 or flt(g.withdrawal) <= 0:
                 frappe.throw('Sao kê của %s không còn hợp lệ. Kiểm lại giao dịch đã khớp.' % ma)

@@ -35,9 +35,9 @@ Không đổi nút nối thành thao tác tự ghi chứng từ.
 
 ## Cổng và việc còn phải kiểm
 
-Local: 3075 ca đạt, hành vi giao diện 56 ca đạt. Bộ kiểm tích hợp bổ sung
+Local: 3077 ca đạt, hành vi giao diện 56 ca đạt. Bộ kiểm tích hợp bổ sung
 luồng TTNB 141 -> APP cùng chủ, chuẩn hóa FT/BT và chống hoàn trùng.
 Chưa được coi là bench đạt cho tới khi run trên SHA cuối báo thành công.
-Cần phủ tiếp chuỗi duyệt/ghi sổ/hoàn từ ngân hàng công ty, retry và hủy,
-đối chiếu GL không sinh chi phí hai lần. Chưa có ảnh site sau sửa 390px.
+Đã bổ sung ca chuỗi duyệt/ghi sổ/hoàn từ ngân hàng công ty và retry;
+chưa có kết quả chạy. Còn kiểm hủy và tranh chấp đồng thời. Chưa có ảnh site sau sửa 390px.
 Không dùng ảnh giả lập thay bằng chứng site và không merge khi thiếu cổng.
