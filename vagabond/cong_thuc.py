@@ -151,26 +151,56 @@ TRUONG_MOI = {
 }
 
 
+def _vai_xem():
+	from vagabond.vai_cua_hang import VAI_BAR, VAI_QLCT
+
+	return {"Manufacturing User", "Manufacturing Manager", "System Manager",
+		"Giám đốc", "AP Giám đốc", "Bếp phó", VAI_BAR, VAI_QLCT}
+
+
+def _vai_soan():
+	"""Ai được TẠO và SỬA BẢN NHÁP. Anh Việt chốt 16/09/2026."""
+	from vagabond.vai_cua_hang import VAI_BAR
+
+	return _vai_ghi_so() | {"Bếp phó", VAI_BAR}
+
+
+def _vai_ghi_so():
+	"""Ai được GHI SỔ, tức chốt bản đang dùng. Hẹp hơn hẳn cửa soạn.
+
+	Ghi sổ là lúc công thức bắt đầu quyết giá vốn và nổ Lệnh sản xuất, nên
+	giữ nguyên bộ vai cũ. Bếp phó và Quầy Bar soạn nháp, bếp trưởng chốt.
+	"""
+	from vagabond.vai_cua_hang import VAI_QLCT
+
+	return {"Manufacturing Manager", "System Manager", "Giám đốc",
+		"AP Giám đốc", VAI_QLCT}
+
+
 def _kiem_xem():
-	quyen = {"Manufacturing User", "Manufacturing Manager", "System Manager",
-		"Giám đốc", "AP Giám đốc", "Bếp phó"}
-	if not quyen & set(frappe.get_roles()):
-		frappe.throw("Màn Danh mục công thức dành cho bếp và quản lý sản xuất.")
+	if not _vai_xem() & set(frappe.get_roles()):
+		frappe.throw("Màn Danh mục công thức dành cho bếp, quầy bar và quản lý sản xuất.")
 
 
-def _kiem_sua():
+def _kiem_soan():
 	# VAI_QLCT them 25/08/2026. Ban Khai la ke toan gia thanh, nguoi nam
 	# cong thuc va gia von, nhung chi co `Manufacturing User` nen mo duoc
 	# man ma khong sua duoc. Tren Desk ban ay von SUA DUOC tu truoc (vai
 	# do da co quyen ghi tren doctype BOM), cho ket chi la man nay.
-	from vagabond.vai_cua_hang import VAI_QLCT
-
-	quyen = {"Manufacturing Manager", "System Manager", "Giám đốc",
-		"AP Giám đốc", VAI_QLCT}
-	if not quyen & set(frappe.get_roles()):
+	#
+	# 16/09/2026 mo them `Bep pho` va `Quay Bar`: ho soan duoc ban nhap,
+	# khong ghi so duoc. Xem `_vai_ghi_so`.
+	if not _vai_soan() & set(frappe.get_roles()):
 		frappe.throw(
-			"Chỉ bếp trưởng (Manufacturing Manager) hoặc giám đốc mới tạo và "
-			"điều chỉnh công thức. Anh chị cần sửa thì nhờ bếp trưởng.")
+			"Màn này chỉ bếp và quầy bar soạn công thức được. "
+			"Anh chị cần sửa thì nhờ bếp trưởng mở quyền.")
+
+
+def _kiem_ghi_so():
+	if not _vai_ghi_so() & set(frappe.get_roles()):
+		frappe.throw(
+			"Chỉ bếp trưởng (Manufacturing Manager) hoặc giám đốc mới ghi sổ "
+			"công thức. Anh chị cứ lưu bản nháp rồi nhờ bếp trưởng chốt.")
 
 
 def _nhom_nuoc():
@@ -340,7 +370,7 @@ def chi_tiet(name):
 @frappe.whitelist()
 def dieu_chinh(bom_cu):
 	"""Tạo BẢN NHÁP mới sao chép từ một công thức đã ghi sổ."""
-	_kiem_sua()
+	_kiem_soan()
 	cu = frappe.get_doc("BOM", bom_cu)
 	if cint(cu.docstatus) != 1:
 		frappe.throw(
@@ -364,7 +394,7 @@ def dieu_chinh(bom_cu):
 @frappe.whitelist()
 def tao_moi(ma_item, so_luong, dvt=None, dong=None):
 	"""Tạo công thức nháp mới cho một món chưa có, hoặc thêm bản đầu tiên."""
-	_kiem_sua()
+	_kiem_soan()
 	if not frappe.db.exists("Item", ma_item):
 		frappe.throw("Không thấy mã %s trên hệ." % ma_item)
 	nhap = frappe.get_all("BOM", filters={"item": ma_item, "docstatus": 0},
@@ -396,7 +426,7 @@ def tao_moi(ma_item, so_luong, dvt=None, dong=None):
 @frappe.whitelist()
 def sua_nhap(bom_nhap, so_luong=None, dong=None):
 	"""Sửa dòng nguyên liệu của một bản nháp."""
-	_kiem_sua()
+	_kiem_soan()
 	doc = frappe.get_doc("BOM", bom_nhap)
 	if cint(doc.docstatus) != 0:
 		frappe.throw("Bản %s đã ghi sổ, muốn đổi thì bấm Điều chỉnh để ra "
@@ -420,7 +450,7 @@ def sua_nhap(bom_nhap, so_luong=None, dong=None):
 @frappe.whitelist()
 def ghi_so(bom_nhap):
 	"""Ghi sổ bản nháp thành bản đang dùng; bản trước lui về làm bản lưu."""
-	_kiem_sua()
+	_kiem_ghi_so()
 	doc = frappe.get_doc("BOM", bom_nhap)
 	if cint(doc.docstatus) != 0:
 		frappe.throw("Bản %s không còn là nháp." % bom_nhap)
@@ -441,7 +471,7 @@ def ghi_so(bom_nhap):
 @frappe.whitelist()
 def bo_nhap(bom_nhap):
 	"""Bỏ một bản nháp tạo nhầm. Chỉ nháp mới bỏ được."""
-	_kiem_sua()
+	_kiem_soan()
 	ds = cint(frappe.db.get_value("BOM", bom_nhap, "docstatus"))
 	if ds != 0:
 		frappe.throw("Bản %s đã ghi sổ, không bỏ được. Muốn thay thì Điều "
