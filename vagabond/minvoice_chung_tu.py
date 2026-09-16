@@ -111,10 +111,23 @@ TT_KHOI_DUNG = ("Bị thay thế", "Đã huỷ")
 # chuông là việc của kế toán chứ không phải của người viết mã.
 EMAIL_KE_TOAN = "account@thevagabondpatisserie.com"
 
-# Lệch tới bao nhiêu đồng thì coi như khớp, khỏi nắn.
+# Chênh DƯỚI bao nhiêu đồng thì coi như khớp, khỏi nắn.
 #
-# Một đồng là ngưỡng của cổng chặn ghi sổ và đúng là phải thế. Ở đây nắn
-# tổng nên để 1 đồng: dưới mức đó là làm tròn của chính máy phát hành.
+# Đọc kỹ chữ DƯỚI. Ngưỡng này là ngưỡng HỞ: chênh đúng một đồng là PHẢI
+# nắn, chỉ phần lẻ nhỏ hơn một đồng mới được bỏ qua.
+#
+# Vì sao khác `mua_dich_vu.NGUONG_LECH`, cũng 1.0 nhưng là ngưỡng ĐÓNG
+# (lệch một đồng vẫn cho qua): hai chỗ làm hai việc khác nhau.
+#
+#   * Cổng chặn ghi sổ soi một tờ ĐÃ CÓ, có thể do người gõ tay hoặc có
+#     từ đời nào, nên nới một đồng để đừng chặn oan.
+#   * Chỗ này thì đang TỰ DỰNG tờ ra, và hai vế đem so đều đã là số nguyên
+#     đồng máy sẽ ghi (xem `tien_dong_may_ghi`). Chênh một đồng ở đây không
+#     bao giờ là nhiễu, nó là một đồng thiếu thật và nắn được.
+#
+# Ca thật ALOIN số 1144 ngày 16/09/2026: 260 x 1.576,92, máy ghi 409.999,
+# hoá đơn ghi 410.000. Ngưỡng cũ là ngưỡng đóng nên phép nắn bảo "khớp",
+# và HDM-26-09-00040 vào sổ thiếu đúng một đồng.
 NGUONG_KHOP = 1.0
 
 
@@ -236,6 +249,87 @@ def dau_cua_to(tong_tien):
 		return 1
 
 
+def tien_dong_may_ghi(sl, gia, dp_gia, dp_tien, dp_sl=None):
+	"""Số tiền một dòng SAU KHI máy làm tròn. THUẦN.
+
+	VÌ SAO PHẢI TÍNH TRƯỚC PHẦN LÀM TRÒN - ca thật 27/08/2026
+	--------------------------------------------------------------------
+	Sau v322 còn 11 tờ lệch từ 1 tới 10 đồng. Ví dụ ACC-PINV-2026-01427:
+	hoá đơn ghi 420 đơn vị, đơn giá 5.136,683, thành tiền 2.157.407. ERPNext
+	chỉ giữ đơn giá tới hai số lẻ nên ghi 5.136,68, nhân ra 2.157.405,6, hụt
+	1,4 đồng. Phép nắn cũ tính trên đơn giá GỐC nên thấy khớp và không nắn
+	gì, phần hụt chỉ sinh ra sau khi máy lưu.
+
+	Nên phải cân theo con số máy SẼ ghi, chứ không theo con số hoá đơn đọc
+	lên. Một đồng cũng phải đúng: cửa chặn ghi sổ lấy ngưỡng một đồng, hụt
+	một đồng là tờ đó nằm lại mãi.
+
+	Ô SỐ LƯỢNG cũng bị cắt y như ô đơn giá. Ca thật HDM-2026-00398: hoá đơn
+	ghi 2,762431 đơn vị, máy chỉ giữ ba số lẻ nên ghi 2,762, hụt 9,36 đồng.
+	Bản đầu của hàm này chỉ cắt đơn giá nên còn sót đúng loại đó.
+
+	HÀM NÀY DỌN VỀ ĐÂY NGÀY 16/09/2026. Trước đó nó chỉ nằm ở
+	`dung_lai_hddt`, nên đường DỰNG LẠI một tờ thì tính đúng phần làm tròn
+	còn đường DỰNG MỚI ở `dung_hoa_don_mua` vẫn nhân thẳng `qty * rate`.
+	Hai đường cùng một việc mà hai cách tính là cái bẫy đã đẻ ra tờ
+	HDM-26-09-00040 thiếu một đồng. Nay chỉ còn MỘT nguồn.
+	"""
+	return flt(flt(sl, dp_sl) * flt(gia, dp_gia), dp_tien)
+
+
+def ten_dong_bu(so_tien):
+	"""Tên dòng bù cho phần chênh. THUẦN.
+
+	Chênh vài đồng là do làm tròn, gọi đúng tên để kế toán khỏi đi tìm.
+	"""
+	return ("Chênh lệch làm tròn theo hoá đơn điện tử"
+		if abs(flt(so_tien)) < 100 else "Phí khác theo hoá đơn")
+
+
+def muc_tieu_truoc_thue(g):
+	"""Tiền hàng trước thuế mà tờ chứng từ PHẢI ra bằng. THUẦN.
+
+	VÌ SAO KHÔNG DÙNG THẲNG Ô `tien_truoc_thue` - sự cố 27/08/2026
+	--------------------------------------------------------------------
+	Bản v319 neo vào ô đó và làm hỏng 5 tờ thật ngay trong lượt chạy đầu:
+
+	  * HDM-26-08-00096 Nhà Sen: bản gốc ghi tổng 3.650.000 nhưng ô
+	    `tien_truoc_thue` để 0 (nhà cung cấp không khai tách). Máy hiểu là
+	    dòng hàng THỪA 3.650.000 nên đặt giảm giá đúng bằng cả tờ, tổng về
+	    0 đồng. Bốn tờ bị về 0 đều đúng kiểu này.
+	  * HDM-26-08-00124 Avanti: ô đó ghi 26.953.500 nhưng dòng hàng dựng ra
+	    tổng 31.453.500, lệch 4.500.000, thành ra tờ phình lên.
+
+	Con số ĐÁNG TIN duy nhất là `tong_tien`: đó là số nhà cung cấp đã gửi cơ
+	quan thuế, và cũng chính là số mà cửa chặn ghi sổ soi. Nên lấy tổng trừ
+	thuế ra tiền hàng, chỉ khi tổng không có mới đành quay về ô cũ.
+
+	HÀM NÀY DỌN VỀ ĐÂY NGÀY 16/09/2026, cùng lý do với `tien_dong_may_ghi`:
+	đường dựng mới vẫn neo thẳng vào `tien_truoc_thue` nên vẫn giữ nguyên
+	cái bẫy mà đường dựng lại đã gỡ từ 27/08.
+	"""
+	tong = flt(g.get("tong_tien"))
+	if tong:
+		return tong - flt(g.get("tien_thue"))
+	return flt(g.get("tien_truoc_thue"))
+
+
+def do_chinh_xac_pi():
+	"""(số lẻ ô đơn giá, số lẻ ô thành tiền, số lẻ ô số lượng) máy đang dùng.
+
+	Đây là bản KHÔNG có phiếu trong tay, dùng lúc dựng tờ mới. Khi đã có
+	phiếu thì `dung_lai_hddt._do_chinh_xac` hỏi quy ước riêng của phiếu
+	trước rồi mới rơi về đây.
+	"""
+	try:
+		gia = cint(frappe.get_precision(PI + " Item", "rate"))
+		tien = cint(frappe.get_precision(PI + " Item", "amount"))
+		sl = cint(frappe.get_precision(PI + " Item", "qty"))
+	except Exception:
+		gia, tien, sl = 0, 0, 0
+	return (gia or 2), (tien or 2), (sl or 3)
+
+
 def can_theo_truoc_thue(tong_dong, truoc_thue):
 	"""So tổng dòng hàng với tiền trước thuế của hoá đơn. THUẦN.
 
@@ -246,13 +340,28 @@ def can_theo_truoc_thue(tong_dong, truoc_thue):
 
 	Ba nguồn làm lệch: chiết khấu, giảm thuế theo nghị quyết, và các khoản
 	phí (vé máy bay, phí dịch vụ) không nằm trong dòng hàng khi lên XML.
+
+	NGƯỠNG LÀ NGƯỠNG HỞ - ca thật ALOIN số 1144 ngày 16/09/2026
+	--------------------------------------------------------------------
+	Trước bản này phép so là `> NGUONG_KHOP`, tức chênh đúng một đồng vẫn
+	được gọi là khớp. Mà hai vế đem so ở đây đều đã là số nguyên đồng máy
+	sẽ ghi, nên chênh một đồng không bao giờ là nhiễu làm tròn, nó là một
+	đồng thiếu thật.
+
+	Tờ C26TAA số 1144: 260 x 1.576,92. Máy chỉ giữ đơn giá hai số lẻ nên
+	thành tiền ghi 409.999, hoá đơn ghi 410.000, chênh đúng -1,0. Phép nắn
+	cũ bỏ qua, hàng rào cuối cũng bỏ qua, và HDM-26-09-00040 nằm trong sổ
+	thiếu một đồng mà không lớp nào kêu.
+
+	Nay `abs(chenh) < NGUONG_KHOP` mới là khớp. Phần lẻ nhỏ hơn một đồng
+	vẫn được bỏ qua như cũ, vì đồng bạc không chia nhỏ hơn thế.
 	"""
 	chenh = float(tong_dong or 0) - float(truoc_thue or 0)
-	if chenh > NGUONG_KHOP:
+	if abs(chenh) < NGUONG_KHOP:
+		return ("khop", 0)
+	if chenh > 0:
 		return ("giam", chenh)
-	if chenh < -NGUONG_KHOP:
-		return ("phi", -chenh)
-	return ("khop", 0)
+	return ("phi", -chenh)
 
 
 def cap_trung(hang):
@@ -880,21 +989,33 @@ def dung_hoa_don_mua(r):
 		dong.append(_dong_pi(x, tk_chi_phi, ma, uom, he_so))
 
 	if not dong:
+		# Neo vao `muc_tieu_truoc_thue` chu khong vao o `tien_truoc_thue`:
+		# nha cung cap khong khai tach thi o do bang 0 va dong duy nhat cua
+		# to se mang don gia 0. Xem su co 27/08/2026 trong ham do.
 		dong = [_dong_pi({
 			"ma": "", "ten": "Hàng hoá/dịch vụ theo hoá đơn", "dvt": None,
-			"sl": dau, "gia": abs(flt(r.get("tien_truoc_thue"))), "tien": 0,
+			"sl": dau, "gia": abs(muc_tieu_truoc_thue(r)), "tien": 0,
 		}, tk_chi_phi)]
 
 	# Cân theo TRỊ TUYỆT ĐỐI rồi mới gắn dấu lại, để tờ âm và tờ dương đi
 	# chung một đường. Nhân `dau` vào cả hai vế là phép nhân cùng chiều nên
 	# tờ dương ra đúng kết quả cũ, không đổi gì.
-	tong_dong = sum(flt(d.get("qty")) * flt(d.get("rate")) for d in dong)
+	# Can theo con so MAY SE GHI chu khong theo con so doc len tu hoa don.
+	# Truoc 16/09/2026 cho nay nhan thang `qty * rate` nen khong nhin thay
+	# phan bi cat o o don gia, va to ALOIN so 1144 (260 x 1.576,92) vao so
+	# thieu dung mot dong. Duong dung lai da tinh dung tu 27/08, duong dung
+	# moi thi chua, nay hai duong dung chung mot ham.
+	dp_gia, dp_tien, dp_sl = do_chinh_xac_pi()
+	tong_dong = sum(
+		tien_dong_may_ghi(d.get("qty"), d.get("rate"), dp_gia, dp_tien, dp_sl)
+		for d in dong
+	)
 	viec, so_tien = can_theo_truoc_thue(
-		dau * tong_dong, dau * flt(r.get("tien_truoc_thue")))
+		dau * tong_dong, dau * muc_tieu_truoc_thue(r))
 	giam_gia = (dau * so_tien) if viec == "giam" else 0
 	if viec == "phi":
 		dong.append(_dong_pi({
-			"ma": "", "ten": "Phí khác theo hoá đơn", "dvt": None,
+			"ma": "", "ten": ten_dong_bu(so_tien), "dvt": None,
 			"sl": dau, "gia": so_tien, "tien": so_tien,
 		}, tk_chi_phi))
 
@@ -942,8 +1063,12 @@ def dung_hoa_don_mua(r):
 	#
 	# Sai lặng lẽ còn tệ hơn không dựng: không dựng thì còn đếm được bằng
 	# `con_sot`, còn dựng sai thì nó nằm trong sổ như một con số thật.
+	#
+	# Ngưỡng ở đây HỞ, giống phép nắn: từ MỘT đồng trở lên là không nhận.
+	# Trước 16/09/2026 chỗ này so bằng `>` nên tờ lệch đúng một đồng lọt
+	# qua và vào sổ. Nay tờ như vậy nằm lại `con_sot`, nơi có người nhìn.
 	lech = flt(pi.grand_total) - flt(r.get("tong_tien"))
-	if abs(lech) > NGUONG_KHOP:
+	if abs(lech) >= NGUONG_KHOP:
 		frappe.throw(
 			"Chứng từ dựng ra tổng %s đ, hoá đơn điện tử ghi %s đ, lệch %s đ. "
 			"Không nhận." % (
