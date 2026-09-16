@@ -13,7 +13,7 @@ số/NCC đã ghi sổ nhưng không mang mã nguồn. Chưa chứng minh thao t
 Dữ liệu chi tiết giữ local; không đưa dump/chứng từ thật lên GitHub.
 
 ## Code
-- Cửa sửa tay trên Desk: chọn dòng hiện tại, dòng nguồn duy nhất, Item/UOM.
+- Cửa sửa tay chung Desk và gán/đổi mã trên app: chọn dòng hiện tại, dòng nguồn duy nhất, Item/UOM.
   Giữ tiền nguồn, xác nhận và ghi nhớ mapping mới; kiểm write + role, khóa PI,
   check modified, savepoint bao mapping và PI, reload rồi kiểm kết quả trước
   báo thành công. Đã nối kho/mua hoặc tên nguồn trùng/tách thì hướng dẫn đối
@@ -28,7 +28,7 @@ Dữ liệu chi tiết giữ local; không đưa dump/chứng từ thật lên G
   label bằng HTML nên escape tên nguồn. Dialog kiểm hành vi bằng Node.
 
 ## Kiểm và giới hạn
-Local3048/0, Node50/0, predeploy rc0, bundle khớp. Đột biến bỏ kiểm
+Local3048/0, Node51/0, predeploy rc0, bundle khớp. Đột biến bỏ kiểm
 Item disabled: ca tương ứng đỏ, bản nguyên5/5. Gate cuối trên SHA PR.
 Bench thêm API thật save/reload, retry stale, lỗi on_update sau db_update
 phải rollback PI và mapping; chưa chạy khi ghi hồ sơ này.
@@ -40,3 +40,6 @@ CI/bench và Claude review SHA đầu. Đặc biệt review quyền ghi mapping,
 trùng/tách, tránh báo xong khi DB lệch, case mất source ID. Còn audit lỗi
 đồng bộ/trạng thái toàn luồng, không nhận một PR đã chữa mọi loại sai lệch.
 Model/effort runtime chưa xác minh, token provider unavailable; review0 lượt.
+
+Bổ sung app dùng cùng API và hộp chọn nguồn/UOM; hủy không ghi, API lỗi
+không toast thành công. Tờ gõ tay/phiếu trả vẫn qua đường gán mã cũ.

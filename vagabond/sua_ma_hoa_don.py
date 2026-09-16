@@ -11,13 +11,13 @@ from frappe.utils import flt
 from vagabond import dung_lai_hddt as dl, minvoice_chung_tu as mc, quy_cach_ncc as qc
 
 
-def _phieu(name):
+def _phieu(name, can_nguon=True):
     doc = frappe.get_doc('Purchase Invoice', name, for_update=True)
     doc.check_permission('write')
-    if doc.docstatus != 0 or doc.get('is_return'):
+    if doc.docstatus != 0 or (can_nguon and doc.get('is_return')):
         frappe.throw('Chỉ sửa mã theo nguồn trên hóa đơn mua nháp. Tờ đã ghi sổ dùng quy trình sửa/hủy của ERP.')
     g = dl._goc(doc.get('custom_minvoice_id'))
-    if not g:
+    if not g and can_nguon:
         frappe.throw('Tờ này chưa có liên kết hóa đơn nguồn. Mở hồ sơ đồng bộ gốc để đối chiếu, không tạo thêm bản sao.')
     return doc, g
 
@@ -29,9 +29,11 @@ def _dong_goc(g):
 
 @frappe.whitelist()
 def lua_chon(name):
-    doc, g = _phieu(name)
-    return dict(modified=str(doc.modified),
-        dong=[dict(name=d.name, nhan='%s. %s' % (d.idx, d.item_name or d.item_code or ''),
+    doc, g = _phieu(name, can_nguon=False)
+    if not g or doc.get('is_return'):
+        return dict(co_nguon=False)
+    return dict(co_nguon=True, modified=str(doc.modified),
+        dong=[dict(name=d.name, idx=d.idx, nhan='%s. %s' % (d.idx, d.item_name or d.item_code or ''),
                    item_code=d.item_code) for d in doc.items],
         nguon=[dict(vi_tri=i, ten=x['ten'], sl=x['sl'], gia=x['gia'], dvt=x['dvt'])
                for i, x in enumerate(_dong_goc(g))])

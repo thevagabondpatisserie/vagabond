@@ -174,6 +174,7 @@ async function vgbSuaMaTheoNguon(frm) {
 	}
 	var kq = await frappe.call({method:'vagabond.sua_ma_hoa_don.lua_chon', args:{name:frm.doc.name}});
 	var du = kq.message;
+	if (!du.co_nguon) {frappe.msgprint('Hồ sơ không còn liên kết nguồn. Tải lại để kiểm tra.'); return;}
 	var dong = du.dong.map(function(d) {return {label:frappe.utils.escape_html(d.nhan), value:d.name};});
 	var nguon = du.nguon.map(function(d) {
 		return {label:frappe.utils.escape_html((d.vi_tri+1)+'. '+d.ten+' | '+d.sl+' '+(d.dvt || '')+' x '+format_currency(d.gia, 'VND')), value:String(d.vi_tri)};
