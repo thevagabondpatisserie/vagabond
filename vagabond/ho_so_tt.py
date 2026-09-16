@@ -550,6 +550,18 @@ def _buoc_ke_tiep_khi_gui(nguoi=None):
 	return TT_CHO_GD if (VAI_FIN & vai_nguoi) else TT_CHO_FIN
 
 
+def _dat_buoc_gui(doc, gui_luon):
+	"""Cùng dấu duyệt cho Lập và gửi ngay và Gửi hồ sơ nháp.
+
+	Chỉ ghi FIN khi chính người gửi có vai kế toán; không suy ngược chữ
+	ký cho hồ sơ lịch sử từ trạng thái đã duyệt.
+	"""
+	doc.trang_thai = _buoc_ke_tiep_khi_gui() if cint(gui_luon) else TT_NHAP
+	if doc.trang_thai == TT_CHO_GD and not doc.get("fin_boi"):
+		doc.fin_boi = frappe.session.user
+		doc.fin_luc = now_datetime()
+
+
 @frappe.whitelist()
 def tao(ncc=None, hoa_don=None, ghi_chu="", gui_luon=0, loai=None, tk_chi=None,
 		loai_cp_thue=None, nguoi_ung=None, tk_hoan=None):
@@ -713,7 +725,7 @@ def tao(ncc=None, hoa_don=None, ghi_chu="", gui_luon=0, loai=None, tk_chi=None,
 		doc.email_ncc = _email_ncc(ma_ncc)
 		lay_tk = ma_ncc
 
-	doc.trang_thai = _buoc_ke_tiep_khi_gui() if cint(gui_luon) else TT_NHAP
+	_dat_buoc_gui(doc, gui_luon)
 	doc.nguoi_tao = frappe.session.user
 	doc.ghi_chu = (ghi_chu or "").strip()
 	for k, v in (_tk_nhan(lay_tk) or {}).items():
@@ -863,7 +875,7 @@ def tao_hoan_ung(nguoi_ung=None, dong=None, ghi_chu="", da_tam_ung=0, gui_luon=0
 	doc.ten_ncc = frappe.db.get_value("Supplier", ma_ncc, "supplier_name") or ma_ncc
 	doc.email_ncc = _email_ncc(ma_ncc)
 	doc.da_tam_ung = 0.0
-	doc.trang_thai = _buoc_ke_tiep_khi_gui() if cint(gui_luon) else TT_NHAP
+	_dat_buoc_gui(doc, gui_luon)
 	doc.nguoi_tao = frappe.session.user
 	doc.ghi_chu = (ghi_chu or "").strip()
 	for k, v in (_tk_nhan(ma_ncc) or {}).items():
@@ -1027,7 +1039,7 @@ def tao_chi_cong_ty(ncc=None, tk_chi=None, loai_cp_thue=None, dong=None, ghi_chu
 	doc.nha_cung_cap = ma_ncc
 	doc.ten_ncc = frappe.db.get_value("Supplier", ma_ncc, "supplier_name") or ma_ncc
 	doc.email_ncc = _email_ncc(ma_ncc)
-	doc.trang_thai = _buoc_ke_tiep_khi_gui() if cint(gui_luon) else TT_NHAP
+	_dat_buoc_gui(doc, gui_luon)
 	doc.nguoi_tao = frappe.session.user
 	doc.ghi_chu = (ghi_chu or "").strip()
 	for k, v in (_tk_nhan(ma_ncc) or {}).items():
@@ -2088,13 +2100,8 @@ def duyet(name, buoc, ly_do=""):
 				"trên hồ sơ để chọn đúng ngân hàng của người được hoàn ứng, "
 				"rồi gửi lại." % doc.name
 			)
-		doc.trang_thai = _buoc_ke_tiep_khi_gui()
+		_dat_buoc_gui(doc, True)
 		doc.ly_do_tu_choi = ""
-		# Nhay thang len giam doc thi phai ghi ro AI da dam nhiem cap ke toan,
-		# khong thi to trinh ky trong ra nhu chua qua kiem soat nao.
-		if doc.trang_thai == TT_CHO_GD and not doc.fin_boi:
-			doc.fin_boi = toi
-			doc.fin_luc = now_datetime()
 
 	elif buoc == "fin":
 		_kiem(VAI_FIN, "duyệt hồ sơ ở cấp kế toán")

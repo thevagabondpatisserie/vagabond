@@ -770,3 +770,6 @@ cân cả phần chênh đó bằng giảm giá, tổng đúng nhưng đơn giá
 Đối chứng phải kiểm chính đơn giá, thành tiền dòng và khoản giảm giá; không
 chỉ nhìn tổng hoặc nhận mọi exception là bằng chứng. Giữ luồng bật policy
 kiểm save/submit/GL/hủy, bổ sung hóa đơn lệch một đồng cả dấu dương và âm.
+
+## Issue342 - dấu duyệt giữa hai cửa gửi
+Đường lập và gửi ngay chỉ đặt trạng thái chờ GD, còn gửi nháp mới ghi dấu FIN. Dùng chung bước chuyển có dấu người/thời gian và kiểm tại cửa API trước insert. Thanh tiến trình không được suy chữ ký từ trạng thái sau cùng hoặc coi Hoàn tất là bằng chứng tiền đã ra.

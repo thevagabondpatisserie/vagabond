@@ -1582,6 +1582,7 @@ function ttnbVe(kq) {
         '<div style="font-size:11px;font-weight:700;color:' + ttnbMau(x.trang_thai) + '">' +
         h(x.nhan_trang_thai || '') + (x.qua_han ? '<span style="color:#b45309"> · Quá hạn</span>' : '') + '</div></div>' +
         '<div style="flex:none;color:#c9cfda;font-size:17px">›</div></div>' +
+        ttnbTienTrinh(x) +
         (x.trang_thai === 'Da chi'
           ? '<div style="font-size:11.5px;color:#065f46;margin-top:5px">Tiền đã ra khỏi tài khoản' +
             (x.ngay_da_chi ? ' lúc ' + h(String(x.ngay_da_chi).slice(0, 16)) : '') +

@@ -478,3 +478,25 @@ def _ttnb_hoan_ung_502():
 		la('không tạo thêm bút toán',ho_so_tt._but_toan_cua_ho_so(h.name),bo)
 	finally:
 		frappe.set_user(cu)
+
+
+@ca('342 APP lập gửi ngay: dấu FIN lưu thật, không chỉ trạng thái chờ GD')
+def _app_gui_fin_342():
+	cu = frappe.session.user
+	frappe.set_user('Administrator')
+	try:
+		ncc = mot_nha_cung_cap()
+		b = _tai_khoan_ca_nhan(_so_thu(), ncc)
+		# Khoản thử dưới ngưỡng chứng từ; ca này chỉ kiểm dấu duyệt lưu thật.
+		kq = ho_so_tt.tao_hoan_ung(tk_hoan=b.name, gui_luon=1, dong=[{
+			'noi_dung':'Kiểm dấu FIN gửi ngay', 'so_tien':342,
+			'ngay_hd':today()}])
+		h = frappe.get_doc('Vagabond Ho So TT', kq['ma'])
+		_DA_TAO.append((h.doctype,h.name))
+		la('chờ GD',h.trang_thai,ho_so_tt.TT_CHO_GD)
+		la('FIN chính người gửi',h.fin_boi,'Administrator')
+		dung('có giờ FIN',bool(h.fin_luc))
+		la('chưa giả chữ ký GD',h.gd_boi or '','')
+		la('chưa sinh hóa đơn',h.dong[0].hoa_don or '','')
+	finally:
+		frappe.set_user(cu)

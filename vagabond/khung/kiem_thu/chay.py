@@ -22,7 +22,7 @@ from vagabond.khung.kiem_thu import nen  # noqa: E402
 # Cai ban Frappe gia TRUOC khi nap bat ky mo dun nghiep vu nao. Neu doi thu
 # tu nay thi mo dun nghiep vu se doi Frappe that va no ngay.
 nen.gia_lap()
-from vagabond.khung.kiem_thu import thu_tra_lai_app_339
+from vagabond.khung.kiem_thu import thu_tra_lai_app_339, thu_app_gui_fin
 
 from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_hoan_ung_noi_bo_502, thu_dat_ban_301, thu_thanh_vien_300, thu_noi_dung_web, thu_dat_ban_web, thu_ra_phantom_303,

@@ -25361,6 +25361,40 @@ async function kgGhi(f) {
     baoTin((e && e.message) || 'Chưa tạo được. Kiểm lại các ô rồi thử lần nữa.', 'Chưa lưu được');
   }
 }
+/* Cùng hình thức với phiếu hoàn tiền. Mỗi màn cấp bằng chứng từng bước.
+ * Không suy chữ ký còn thiếu từ trạng thái sau cùng. */
+function tienTrinhPhieu(buoc) {
+  if (!buoc || !buoc.length) return '';
+  var mo = buoc.map(function (b) { return b.ten + ': ' + (b.xong ? 'đã xong' : (b.dang ? 'đang chờ' : 'chưa xác nhận')); }).join('; ');
+  return '<div role="img" aria-label="' + h(mo) + '" style="display:flex;align-items:center;max-width:240px;margin-top:7px">' + buoc.map(function (b, i) {
+    var nen = b.xong ? '#12b76a' : (b.dang ? '#f79009' : '#e4e7ec');
+    return (i ? '<span style="flex:1;height:3px;background:' + (b.xong && buoc[i-1].xong ? '#12b76a' : '#e4e7ec') + '"></span>' : '') +
+      '<span title="' + h(b.ten) + '" style="width:19px;height:19px;flex:0 0 19px;border-radius:50%;background:' + nen + ';color:#fff;font-size:11px;line-height:19px;text-align:center;font-weight:700">' + (b.xong ? '✓' : String(i+1)) + '</span>';
+  }).join('') + '</div><div style="font-size:11.5px;color:#667085;margin-top:4px;overflow-wrap:anywhere">' + h(buoc.map(function (b) { return b.ten; }).join(' · ')) + '</div>';
+}
+
+function hsTienTrinh(r) {
+  if (r.la_phieu_chi || ['Huy', 'Tu choi'].indexOf(r.trang_thai) >= 0) return '';
+  return tienTrinhPhieu([
+    {ten:'Lập', xong:!!r.name},
+    {ten:'Kế toán', xong:!!r.fin_boi, dang:r.trang_thai === 'Cho ke toan'},
+    {ten:'Giám đốc', xong:!!r.gd_boi, dang:r.trang_thai === 'Cho giam doc'},
+    {ten:'Thanh toán', xong:r.trang_thai === 'Da thanh toan' && !r.canh_bao_doi_chieu, dang:r.trang_thai === 'Da duyet' && !r.canh_bao_doi_chieu}
+  ]);
+}
+
+function ttnbTienTrinh(r) {
+  var tt = r.trang_thai;
+  if (['Bi tra lai', 'Da huy'].indexOf(tt) >= 0) return '';
+  // Hai chặng duyệt có thể khác nhau theo loại/giá trị, không vẽ chữ ký GD giả.
+  var muc = {Nhap:0, 'Cho duyet':1, 'Cho giam doc':1, 'Cho ke toan':2, 'Hoan tat':3, 'Da chi':3}[tt];
+  if (muc === undefined) return '';
+  return tienTrinhPhieu([
+    {ten:'Lập', xong:muc > 0, dang:muc === 0},
+    {ten:'Duyệt', xong:muc > 1, dang:muc === 1},
+    {ten:'Kế toán xử lý', xong:muc > 2, dang:muc === 2}
+  ]);
+}
 /* ---------------- Don mua hang (PO) ---------------- */
 
 /* Trang thai duong thu di.
@@ -26945,6 +26979,7 @@ function ttnbVe(kq) {
         '<div style="font-size:11px;font-weight:700;color:' + ttnbMau(x.trang_thai) + '">' +
         h(x.nhan_trang_thai || '') + (x.qua_han ? '<span style="color:#b45309"> · Quá hạn</span>' : '') + '</div></div>' +
         '<div style="flex:none;color:#c9cfda;font-size:17px">›</div></div>' +
+        ttnbTienTrinh(x) +
         (x.trang_thai === 'Da chi'
           ? '<div style="font-size:11.5px;color:#065f46;margin-top:5px">Tiền đã ra khỏi tài khoản' +
             (x.ngay_da_chi ? ' lúc ' + h(String(x.ngay_da_chi).slice(0, 16)) : '') +
@@ -31992,6 +32027,7 @@ function hsVeDanhSach(kq) {
       '<div class="hi" style="background:' + m[0] + '">' + m[3] + '</div>' +
       '<div class="ht"><div class="h1">' + h(r.ten_ncc || r.nha_cung_cap) + '</div>' +
       '<div class="h2">' + h(r.ma) + ' · ' + hsNgayVn(r.ngay) + ' · ' + r.so_hd + (r.la_phieu_chi ? ' đơn mua' : (r.loai === 'Hoan ung' ? ' khoản' : ' hoá đơn')) + '</div>' +
+      hsTienTrinh(r) +
       '<div style="margin-top:4px"><span style="display:inline-block;background:' + m[0] +
       ';border:1px solid ' + m[1] + ';color:' + m[2] + ';border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:700">' +
       h(r.nhan) + '</span>' + hsCanhBaoDoiChieu(r) + hsChipNghiepVu(r, nhanChip) +
@@ -46181,21 +46217,9 @@ function phNhanHang(cac) {
    nhảy sang "Đã chi" ngay lúc kế toán ghi sổ, nhưng thứ khách muốn là cái
    uỷ nhiệm chi. */
 function phDay(r, buoc) {
-  var s = '<div style="display:flex;align-items:center;gap:0;margin-top:7px">';
-  (buoc || []).forEach(function (b, i) {
-    var xong = (r.buoc_xong || 0) > i;
-    var dang = (r.buoc_cho === b.k);
-    var nen = xong ? '#12b76a' : (dang ? '#f79009' : '#e4e7ec');
-    var chu = xong ? '✓' : String(i + 1);
-    if (i) {
-      s += '<div style="flex:1;height:3px;background:' +
-        (xong ? '#12b76a' : '#e4e7ec') + '"></div>';
-    }
-    s += '<div title="' + h(b.ten) + '" style="width:19px;height:19px;flex:0 0 19px;' +
-      'border-radius:50%;background:' + nen + ';color:#fff;font-size:11px;' +
-      'line-height:19px;text-align:center;font-weight:700">' + chu + '</div>';
-  });
-  return s + '</div>';
+  return tienTrinhPhieu((buoc || []).map(function (b, i) {
+    return {ten:b.ten, xong:(r.buoc_xong || 0) > i, dang:r.buoc_cho === b.k};
+  }));
 }
 
 async function scrPhieuHoanHuy() {

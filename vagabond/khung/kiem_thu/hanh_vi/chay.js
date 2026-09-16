@@ -205,6 +205,9 @@ function dungMan(canh) {
     layNeuCo(hop, 'vgbTraBenTheoMa'),
     layNeuCo(hop, 'vgbLuot'),
     layNeuCo(hop, 'vgbChonLaiGoLoi'),
+    layHam(docTep('15-khuon-danh-sach.js'), 'tienTrinhPhieu'),
+    layHam(docTep('15-khuon-danh-sach.js'), 'hsTienTrinh'),
+    layHam(docTep('15-khuon-danh-sach.js'), 'ttnbTienTrinh'),
     docTep('19-ho-so-tt.js'),
   ].join('\n;\n');
 
@@ -273,6 +276,19 @@ async function chayHet() {
     bang('gửi nội dung', params.noi_dung, 'TTNB260900001');
     dung('lý do nhìn thấy', muc[0].phu.indexOf('Cùng giao dịch') === 0);
     bang('người dùng chưa chọn', chon, 0);
+  });
+
+  await caAsync('Tiến trình APP không suy chữ ký FIN từ trạng thái đã duyệt', async function () {
+    var m = dungMan();
+    var html = m.g.hsTienTrinh({name:'APP1',trang_thai:'Da duyet',gd_boi:'GD'});
+    dung('FIN chưa xác nhận', html.includes('Kế toán: chưa xác nhận'));
+    dung('GD đã xong', html.includes('Giám đốc: đã xong'));
+    dung('chờ thanh toán', html.includes('Thanh toán: đang chờ'));
+    bang('hủy không có tiến trình hoàn tất', m.g.hsTienTrinh({name:'APP1',trang_thai:'Huy'}), '');
+    html=m.g.hsTienTrinh({name:'APP1',trang_thai:'Da thanh toan',canh_bao_doi_chieu:'Kiểm lại'});
+    dung('cảnh báo không tô xanh thanh toán',html.includes('Thanh toán: chưa xác nhận'));
+    html=m.g.ttnbTienTrinh({trang_thai:'Hoan tat'});
+    dung('không nhận là tiền ra', !html.includes('Thanh toán') && html.includes('Kế toán xử lý: đã xong'));
   });
 
   await caAsync('#498: ba cửa công thức trên máy, bếp phó soạn được nhưng không thấy nút Ghi sổ', async function () {
