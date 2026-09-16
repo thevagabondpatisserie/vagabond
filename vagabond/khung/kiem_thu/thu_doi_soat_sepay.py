@@ -443,3 +443,88 @@ def _tu_dong_mapping_327():
 def _xep_mapping_327():
 	ra=ksk.xep_ung_vien([dict(name='chan',tien=100,mo_ta='TEST',dung_duoc=0),dict(name='duoc',tien=90,mo_ta='',dung_duoc=1)],'TEST',100)
 	la('ưu tiên dùng được', [r['name'] for r in ra], ['duoc','chan'])
+
+
+@ca('#327: BA duong ghi tu dong cu cung phai qua phep kiem pham vi tai khoan')
+def _ba_duong_ghi_tu_dong_327():
+	"""Finding cua Codex ngay 16/09/2026, tai hien duoc va da sua.
+
+	Phep kiem pham vi ban dau chi cam o khop_tay va tu_dong. Ba duong ghi tu
+	dong cu van gan tien thang bang set_value: quet theo gio cua lenh chi noi
+	bo, duong webhook goi ngay khi co giao dich, va quet theo gio cua phieu
+	hoan tien. Mot dong thuoc tai khoan ngoai pham vi vi the van danh dau
+	duoc mot phieu la da chi, trong khi cung dong do bi tu choi o duong khop
+	tay. Cung mot giao dich cho hai ket qua trai nguoc tuy nguoi bam nut nao.
+
+	Ca nay dung dung chuoi thao tac cua tung duong va khang dinh KHONG co
+	set_value nao chay khi tai khoan ngoai pham vi, va van ghi dung mot lan
+	khi tai khoan hop le. Dung doi thanh phep do chuoi: dieu 16.
+	"""
+	import sys
+	from contextlib import ExitStack
+	from types import SimpleNamespace
+	from unittest.mock import Mock, patch
+
+	from vagabond import de_nghi_chi as dnc
+	from vagabond import hoan_tien as ht
+
+	gd = dict(name='GD', description='THE VAGABOND TTNB', reference_number='',
+		withdrawal=100.0, date='2026-09-14', bank_account='CT')
+	phieu = dict(name='TTNB-1', tong_tien=100.0, so_tien=100.0)
+
+	def _db():
+		return SimpleNamespace(sql=Mock(return_value=[dict(gd)]), set_value=Mock(),
+			commit=Mock(), get_value=Mock(return_value=dict(gd)))
+
+	for chip, ghi_duoc in [([], False), ([{'ma': 'CT'}], True)]:
+		nhan_gia = ({'CT': 'MB - 0615'}, chip, [])
+
+		# 1. Quet theo gio cua lenh chi noi bo.
+		db = _db()
+		with ExitStack() as g:
+			g.enter_context(patch.dict(sys.modules, {'vagabond.ban_hang': SimpleNamespace(_kiem_quyen=lambda: None)}))
+			g.enter_context(patch.object(dnc, '_phieu_cho_chi', return_value=[dict(phieu)]))
+			g.enter_context(patch.object(dnc.frappe, 'db', db))
+			g.enter_context(patch.object(dnc, '_gd_da_chiem_ttnb', return_value={}))
+			g.enter_context(patch.object(dnc, '_loi_nguon_chi_ttnb', return_value=""))
+			g.enter_context(patch.object(dnc, 'khop_noi_dung', return_value=True))
+			g.enter_context(patch.object(dnc, '_het_viec', Mock()))
+			g.enter_context(patch.object(dss, 'nhan_tai_khoan', return_value=nhan_gia))
+			kq = dnc.doi_soat(30)
+		la('quet theo gio lenh chi: so lan ghi', db.set_value.call_count, int(ghi_duoc))
+		la('quet theo gio lenh chi: so phieu khop', kq['da_khop'], int(ghi_duoc))
+		if not ghi_duoc:
+			dung('dong bi chan van bay len cho nguoi xem kem ly do',
+				bool(kq['xem_xet']) and bool(kq['xem_xet'][0].get('vi_sao')))
+
+		# 2. Duong webhook, goi ngay khi ngan hang bao co giao dich.
+		db = _db()
+		with ExitStack() as g:
+			g.enter_context(patch.object(dnc.frappe, 'db', db))
+			g.enter_context(patch.object(dnc, '_loi_nguon_chi_ttnb', return_value=""))
+			g.enter_context(patch.object(dnc, '_gd_da_chiem_ttnb', return_value={}))
+			g.enter_context(patch.object(dnc, '_phieu_cho_chi', return_value=[dict(phieu)]))
+			g.enter_context(patch.object(dnc, 'khop_noi_dung', return_value=True))
+			g.enter_context(patch.object(dnc, '_het_viec', Mock()))
+			g.enter_context(patch.object(dss, 'nhan_tai_khoan', return_value=nhan_gia))
+			dnc.khi_co_giao_dich('GD')
+		la('duong webhook: so lan ghi', db.set_value.call_count, int(ghi_duoc))
+
+		# 3. Quet theo gio cua phieu hoan tien.
+		db = _db()
+		with ExitStack() as g:
+			g.enter_context(patch.dict(sys.modules, {'vagabond.ban_hang': SimpleNamespace(_kiem_quyen=lambda: None)}))
+			g.enter_context(patch.object(ht.frappe, 'db', db))
+			g.enter_context(patch.object(ht.frappe, 'get_all', return_value=[dict(name='HT-1', hoa_don='HD-1', so_tien=100.0)]))
+			g.enter_context(patch.object(ht, 'ma_do_soat', return_value='HD-1'))
+			g.enter_context(patch.object(ht, '_gd_da_chiem', return_value={}))
+			g.enter_context(patch.object(ht, 'khop_giao_dich', return_value=True))
+			g.enter_context(patch.object(ht.frappe, 'get_doc', Mock()))
+			g.enter_context(patch.object(ht, '_sinh_chung_tu', return_value={'bo_qua': 1}))
+			g.enter_context(patch.object(dss, 'nhan_tai_khoan', return_value=nhan_gia))
+			kq = ht.doi_soat()
+		la('quet theo gio hoan tien: so lan ghi', db.set_value.call_count, int(ghi_duoc))
+		la('quet theo gio hoan tien: so ho so khop', kq['da_khop'], int(ghi_duoc))
+		if not ghi_duoc:
+			dung('hoan tien: dong bi chan co ly do',
+				bool(kq['xem_xet']) and bool(kq['xem_xet'][0].get('vi_sao')))
