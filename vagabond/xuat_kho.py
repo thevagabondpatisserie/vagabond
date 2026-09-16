@@ -54,6 +54,17 @@ LOAI = {
 	"chuyen": "Material Transfer",
 }
 
+# O `vgb_muc_dich_xuat` tren Stock Entry duoc NHIEU man dung chung, vi ca
+# ba man Xuat huy, Xuat dung noi bo va Xuat kho phuc vu ban hang deu de ra
+# Material Issue. Ma cua tung man phai nam o MOT cho de khong man nao loc
+# nham phieu cua man kia.
+#
+# Ngay 02/09/2026 man Xuat dung noi bo tung loc kieu "o nay co gia tri",
+# va neu them mot man thu ba ma giu cach loc do thi danh sach cua no keo
+# luon phieu cua man moi sang. Nen tu 16/09/2026 moi man loc DUNG ma cua
+# minh.
+MA_PHUC_VU_BAN = "phuc_vu_ban"
+
 
 def _duoc_xuat():
 	if not VAI_XUAT & set(frappe.get_roles()):

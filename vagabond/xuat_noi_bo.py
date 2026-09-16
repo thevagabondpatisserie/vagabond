@@ -296,10 +296,16 @@ def ghi_so(name=None):
 	doc = frappe.get_doc("Stock Entry", name)
 	if doc.docstatus != 0:
 		frappe.throw("Phiếu này không còn ở trạng thái bản nháp.")
-	if not (doc.get("vgb_muc_dich_xuat") or "").strip():
+	ma = (doc.get("vgb_muc_dich_xuat") or "").strip()
+	if not ma:
 		frappe.throw(
 			"Phiếu này không phải phiếu xuất dùng nội bộ. Phiếu xuất huỷ thì "
 			"ghi sổ ở màn Xuất huỷ."
+		)
+	if ma == xuat_kho.MA_PHUC_VU_BAN:
+		frappe.throw(
+			"Phiếu này là phiếu xuất kho phục vụ bán hàng. Ghi sổ nó ở đúng "
+			"màn đã lập ra nó."
 		)
 	if cint(doc.get("vgb_huy")):
 		frappe.throw(
@@ -318,6 +324,11 @@ def ds_phieu(gioi_han=40):
 
 	Loc bang `vgb_muc_dich_xuat` co gia tri: day chinh la thu phan biet no
 	voi phieu xuat huy, vi ca hai cung la Material Issue.
+
+	Va tu 16/09/2026 phai TRU ma cua man Xuat kho phuc vu ban hang ra, vi
+	man do cung ghi vao chinh o nay. Khong tru thi danh sach cua man nay
+	keo luon phieu chot kho cua quay sang, dung cai loi ma man nay sinh ra
+	de chua voi Xuat huy.
 	"""
 	xuat_kho._duoc_xuat()
 	ds = frappe.get_all(
@@ -326,7 +337,7 @@ def ds_phieu(gioi_han=40):
 			"purpose": xuat_kho.LOAI["huy"],
 			"docstatus": ["<", 2],
 			"vgb_huy": 0,
-			"vgb_muc_dich_xuat": ["is", "set"],
+			"vgb_muc_dich_xuat": ["not in", ["", xuat_kho.MA_PHUC_VU_BAN]],
 		},
 		fields=[
 			"name",
