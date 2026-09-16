@@ -77,6 +77,13 @@ async function scrHome() {
       /* Danh muc cong thuc cho bep truong (anh Viet 21/08/2026): xem, tao
          moi va dieu chinh BOM ngay tren dien thoai, khoi mo Desk. */
       card('📖', 'Danh mục công thức', 'Công thức ba khu: Pastry, Baker, Quầy Bar - tạo mới và điều chỉnh có phiên bản', 0, 'CTBOM') + '</div>';
+  } else if (ctXemDuoc()) {
+    /* Quay Bar va ke toan gia thanh KHONG phai bep: ho khong co viec gi voi
+       Bang bep hay Lenh san xuat, chi can dung mot the Cong thuc. Nguoi bep
+       van thay the do nam trong nhom Bep nhu cu, khong doi cho (anh Viet
+       16/09/2026). */
+    html += '<div class="sec">Công thức</div><div class="card">' +
+      card('📖', 'Danh mục công thức', 'Công thức ba khu: Pastry, Baker, Quầy Bar - tạo mới và điều chỉnh có phiên bản', 0, 'CTBOM') + '</div>';
   }
   html += '<div class="sec">Bán hàng</div><div class="card">' +
     card('\uD83C\uDF82', 'Kiểm bánh hôm nay', 'Tồn - bếp làm - đã đặt - bán được, đồng bộ Pancake', 0, 'KBD') +
