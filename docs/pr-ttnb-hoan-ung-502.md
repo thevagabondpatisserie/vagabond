@@ -54,3 +54,9 @@ PR337 cũng dùng số dự kiến 502; phải chốt lại APPVER/patch khi tí
 Tám ca tập trung đạt; đột biến bỏ kiểm chủ quỹ làm đỏ 1 ca, bỏ kiểm phiếu
 đã giữ làm đỏ 2 ca, bỏ ưu tiên cùng giao dịch làm đỏ 1 ca. Khôi phục code
 thì tám ca đạt. Đây là kiểm logic tại máy, không thay kiểm site.
+
+## Tích hợp v503 - 16/09/2026
+
+Bench SHA ad6d45eccfba3297b9ffda16f1abe01649f7da17 đã SUCCESS trong run35085888539.
+Gộp PR337 SHA513d68d8be0b2fc69fdf5ae245b6723693277455 vào nhánh; giữ đủ bài học hai bên, patch502 và thêm503, APPVER503. Không xung đột hàm nghiệp vụ.
+Bản gộp local3092/0, precheckrc0, bundle8e73877bf04f5f2d1b987fea2a7a37cb6a096f7be8113c7bc1b69ca3476122ce. Cần bench SHA tích hợp mới trước merge.
