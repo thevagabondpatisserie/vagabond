@@ -584,6 +584,12 @@ CUA_NGO = {
 	"xuat_noi_bo.py": [
 		"bo_phieu", "chi_tiet", "ds_phieu", "ghi_so", "khoi_dong", "luu",
 	],
+	# v505: chot kho diem ban. Cung de ra Material Issue nhu hai man tren,
+	# phan biet bang `vgb_muc_dich_xuat` = xuat_kho.MA_PHUC_VU_BAN.
+	"xuat_phuc_vu_ban.py": [
+		"bang_dem", "bo_phieu", "chi_tiet", "ds_phieu", "ghi_so", "khoi_dong",
+		"luu",
+	],
 	"tra_ncc.py": [
 		"chi_tiet", "dong_cua_phieu", "ds_phieu", "khoi_dong", "luu",
 		"phieu_cua_ncc",
