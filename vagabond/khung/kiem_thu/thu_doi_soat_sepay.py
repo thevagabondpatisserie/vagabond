@@ -339,16 +339,19 @@ def _loc_truoc_tran_323():
 		la('dòng ít vẫn tới cửa đối soát', [r['name'] for r in dss.dong_sao_ke(dss.RA, tu_ngay='2026-09-15', tai_khoan='IT')], ['IT-1'])
 
 
-@ca("SePay: chỉ kế toán nhận chẩn đoán tài khoản chưa nối, dùng chung nhãn")
+@ca("SePay: cửa đọc không giấu dòng, nhãn đọc một lần và truyền xuống query")
 def _quyen_chan_doan_323():
 	from unittest.mock import patch
 	import sys
 	from types import SimpleNamespace
 	ban = dict(doctype='TEST', ma_do=lambda d: 'TEST', so_tien=lambda d: 1, chieu=dss.RA, ten_man='TEST', truong_gd='gd')
-	for roles, can in [(['Sales User'], []), (['Accounts User'], [])]:
+	# Bỏ vòng lặp hai vai: từ #327 danh sách "chưa nối" không còn được trả về
+	# nữa nên hai vai cho cùng một kết quả, lặp chỉ làm ca kiểm trông như có
+	# kiểm quyền trong khi nó không kiểm gì. Quyền của màn này do _kiem_quyen lo.
+	for roles in [['Sales User'], ['Accounts User']]:
 		with patch.dict(sys.modules, {'vagabond.ban_hang': SimpleNamespace(_kiem_quyen=lambda: None)}), patch.object(dss, 'nap_so'), patch.object(dss, '_ban', return_value=ban), patch.object(dss.frappe, 'get_doc', return_value={}), patch.object(dss.frappe, 'get_roles', return_value=roles), patch.object(dss, 'da_chiem', return_value={}), patch.object(dss, 'nhan_tai_khoan', return_value=({'TK': 'Nhãn'}, [{'ma':'TK','nhan':'Nhãn'}], ['Chưa nối'])) as nhan, patch.object(dss, 'dong_sao_ke', return_value=[]) as dong:
 			kq = dss.ung_vien('ttnb', 'TEST', tai_khoan='TK')
-			la('phạm vi chẩn đoán', kq['chua_noi_sepay'], can)
+			la('không còn phát danh sách chưa nối', kq['chua_noi_sepay'], [])
 			la('không giấu tài khoản chưa nối ở cửa đọc', dong.call_args.kwargs.get('tai_khoan_cho_phep'), None)
 			la('lọc truyền xuống query', dong.call_args.kwargs['tai_khoan'], 'TK')
 			la('nhãn dùng lại', dong.call_args.kwargs['nhan'], {'TK': 'Nhãn'})
@@ -374,16 +377,28 @@ def _tai_khoan_325():
 	la('cắt tên dài giữ đuôi', dss.nhan_gon_ngan_hang('ABCDEFGHIJKLMNOPQ', '12345678'), 'ABCDEFGHIJKLM… · 5678')
 
 
-@ca("#325: lọc mapping trước limit; mapping rỗng không lấy sao kê toàn hệ")
+@ca("#327: cửa đọc KHÔNG được lọc theo phạm vi tài khoản, chỉ lọc theo chip người chọn")
 def _sao_ke_mapping_325():
+	"""Ca này chặn đường lỗi ngày 14/09/2026, phiếu TTNB-26-09-02113.
+
+	Hôm đó dòng sao kê có thật bị một bộ lọc phạm vi giấu khỏi bảng, và màn
+	báo là không có giao dịch nào. Luật sau #327: tầng chung chỉ được lọc theo
+	chip mà NGƯỜI chọn, tuyệt đối không tự thêm bộ lọc phạm vi nào khác. Ai
+	thêm lại một bộ lọc như vậy thì ca này phải đổ.
+	"""
+	import inspect
 	from unittest.mock import patch
+	tham_so = list(inspect.signature(dss.dong_sao_ke).parameters)
+	la('không còn tham số phạm vi', [x for x in tham_so if 'cho_phep' in x], [])
 	with patch.object(dss.frappe, 'get_all', return_value=[]) as lay:
-		dss.dong_sao_ke(dss.RA, nhan={}, tai_khoan_cho_phep=['CT','CN'])
-		dung('mapping ở query trước limit', ['bank_account','in',['CT','CN']] in lay.call_args.kwargs['filters'])
+		dss.dong_sao_ke(dss.RA, nhan={})
+		loc = lay.call_args.kwargs['filters']
+		la('không tự lọc tài khoản', [x for x in loc if x[0] == 'bank_account'], [])
 		la('giữ limit', lay.call_args.kwargs['limit_page_length'], 500)
 		lay.reset_mock()
-		la('mapping rỗng', dss.dong_sao_ke(dss.RA, nhan={}, tai_khoan_cho_phep=[]), [])
-		la('không query khi mapping rỗng', lay.call_count, 0)
+		dss.dong_sao_ke(dss.RA, nhan={}, tai_khoan='CT')
+		loc = lay.call_args.kwargs['filters']
+		dung('chip người chọn vẫn lọc được', ['bank_account', '=', 'CT'] in loc)
 
 
 @ca('#327: cửa ghi đọc lại mapping, chặn API ngoài phạm vi trước mọi ghi')
