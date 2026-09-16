@@ -66,6 +66,22 @@ def _tai_khoan_ca_nhan(so_tk, ncc):
 	return b
 
 
+def _tai_khoan_cong_ty_moi(goc):
+	"""ERPNext bắt mỗi Bank Account công ty dùng một GL Account riêng."""
+	ba = frappe.copy_doc(frappe.get_doc('Bank Account', goc))
+	tk = frappe.copy_doc(frappe.get_doc('Account', ba.account))
+	tk.account_name = 'Ngân hàng kiểm SePay ' + frappe.generate_hash(length=8)
+	tk.account_number = '112' + _so_thu()
+	tk.insert(ignore_permissions=True)
+	_DA_TAO.append((tk.doctype, tk.name))
+	ba.account = tk.name
+	ba.account_name = 'Kiểm công ty SePay ' + frappe.generate_hash(length=8)
+	ba.bank_account_no = _so_thu()
+	ba.insert(ignore_permissions=True)
+	_DA_TAO.append((ba.doctype, ba.name))
+	return ba
+
+
 def _giao_dich(ba, tien, noi_dung):
 	g = frappe.get_doc({
 		"doctype": "Bank Transaction", "date": today(), "bank_account": ba,
@@ -228,7 +244,14 @@ def _mb_khong_tat_toan_phieu_cong_ty():
 		ung_vien = de_nghi_chi.tim_gd_ra(p.name, so_ngay=1)["rows"]
 		dung("màn chọn không bày tiền cá nhân", all(x["name"] != gd_ca_nhan.name for x in ung_vien))
 
-		gd_cong_ty = _giao_dich(cong_ty_ba, tien, de_nghi_chi.noi_dung_ck(p.name))
+		# #327: đối chứng phải qua cấu hình SePay thật, không chỉ có Bank Account.
+		# Tài khoản thử riêng để ca không phụ thuộc mapping của seed/ca trước.
+		ba = _tai_khoan_cong_ty_moi(cong_ty_ba)
+		gd_cong_ty = _giao_dich(ba.name, tien, de_nghi_chi.noi_dung_ck(p.name))
+		de_nghi_chi.khi_co_giao_dich(gd_cong_ty.name)
+		la("chưa mapping vẫn chờ", frappe.db.get_value(p.doctype, p.name, "trang_thai"), de_nghi_chi.TT_HOAN_TAT)
+		la("chưa mapping không gắn", frappe.db.get_value(p.doctype, p.name, "ma_gd") or "", "")
+		sepay.them_tai_khoan(ba.bank_account_no, ba.name)
 		de_nghi_chi.khi_co_giao_dich(gd_cong_ty.name)
 		la("đối chứng tiền công ty tất toán", frappe.db.get_value(p.doctype, p.name, "trang_thai"), de_nghi_chi.TT_DA_CHI)
 		la("đối chứng gắn đúng dòng công ty", frappe.db.get_value(p.doctype, p.name, "ma_gd"), gd_cong_ty.name)
@@ -311,5 +334,40 @@ def _quyen_doc_sepay():
 		frappe.clear_cache(user=u.name); frappe.set_user(u.name)
 		la('Accounts Manager độc lập khai map',sepay.them_tai_khoan(b.bank_account_no,b.name)['ok'],1)
 		dung('Accounts Manager độc lập soi khóa',bool(sepay.soi_khoa()))
+	finally:
+		frappe.set_user(cu)
+
+
+@ca('#327 hoàn tiền trực tiếp: kiểm mapping trên sao kê và hồ sơ thật trước ghi')
+def _hoan_truc_tiep_mapping():
+	from vagabond import hoan_tien, don_huy
+	from vagabond.khung.kiem_that.thu_don_huy import _ho_so_thu
+	cu = frappe.session.user
+	frappe.set_user('Administrator')
+	try:
+		goc = _mot('Bank Account', {'company':cong_ty(), 'is_company_account':1, 'disabled':0})
+		dung('bench có tài khoản công ty', bool(goc))
+		ba = _tai_khoan_cong_ty_moi(goc)
+		hs = _ho_so_thu(don_huy._khach_le_online())
+		_DA_TAO.append((hs.doctype, hs.name))
+		ma = '327' + frappe.generate_hash(length=8).upper()
+		frappe.db.set_value(hs.doctype, hs.name, {'loai_hoan':hoan_tien.LOAI_HUY_PANCAKE, 'ma_don_pancake':ma, 'noi_dung_ck':'HOAN TIEN '+ma})
+		gd = _giao_dich(ba.name, hs.so_tien, 'HOAN TIEN '+ma)
+		# Chỉ thay bước phát sinh chứng từ: ca này kiểm ranh giới mapping/ghi DB.
+		# Cặp Payment Entry thật đã được kiểm riêng trong thu_don_huy.
+		with patch.object(hoan_tien, '_sinh_chung_tu', return_value={}) as sinh:
+			kq = hoan_tien.sepay_tien_ra(ma_gd=gd.name)
+			la('chưa nối không khớp', kq['khop'], 0)
+			dung('có lý do cấu hình', bool(kq.get('vi_sao')))
+			la('không ghi hồ sơ', frappe.db.get_value(hs.doctype,hs.name,'da_doi_soat'),0)
+			la('không sinh chứng từ', sinh.call_count,0)
+			sepay.them_tai_khoan(ba.bank_account_no,ba.name)
+			kq = hoan_tien.sepay_tien_ra(mo_ta='payload giả',so_tien=1,ma_gd=gd.name)
+			la('đã nối dùng đúng dữ liệu sao kê',kq['khop'],1)
+			la('gắn đúng dòng',frappe.db.get_value(hs.doctype,hs.name,'ma_gd'),gd.name)
+			la('gọi sinh một lần',sinh.call_count,1)
+			lai = hoan_tien.sepay_tien_ra(ma_gd=gd.name)
+			la('retry không khớp lại',lai['khop'],0)
+			la('retry không sinh đôi',sinh.call_count,1)
 	finally:
 		frappe.set_user(cu)

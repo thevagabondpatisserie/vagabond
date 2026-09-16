@@ -2058,7 +2058,7 @@ def doi_soat(ho_so=None, so_ngay=30):
 
 	try:
 		gds = frappe.db.sql(
-			"""select name, description, withdrawal, date, reference_number
+			"""select name, description, withdrawal, date, reference_number, bank_account
 			from `tabBank Transaction`
 			where docstatus < 2 and ifnull(withdrawal, 0) > 0
 			  and date >= DATE_SUB(CURDATE(), INTERVAL %s DAY)""",
@@ -2075,6 +2075,10 @@ def doi_soat(ho_so=None, so_ngay=30):
 	# du lieu (o thoi diem do ban ghi da co nhung doc lai moi dong la mot
 	# cau truy van cho moi cap ho so - giao dich).
 	da_chiem = _gd_da_chiem(tru_ho_so=ho_so)
+
+	# Cùng phạm vi tài khoản với mọi đường ghi khác, điều 18. Đọc MỘT lần.
+	from vagabond.doi_soat_sepay import ly_do_tai_khoan_sepay, tai_khoan_duoc_khop
+	cho_phep_tk = tai_khoan_duoc_khop()
 
 	da, xem, sinh = 0, [], []
 	for d in ds:
@@ -2109,6 +2113,18 @@ def doi_soat(ho_so=None, so_ngay=30):
 						"giao_dich": g["name"],
 					}
 				)
+				continue
+			loi_tk = ly_do_tai_khoan_sepay(g.get("bank_account"), cho_phep_tk)
+			if loi_tk:
+				# Bay len cho NGUOI xem kem ly do, khong im lang bo qua.
+				xem.append({
+					"ho_so": d["name"],
+					"hoa_don": d["hoa_don"],
+					"tien_phieu": flt(d["so_tien"]),
+					"tien_chuyen": flt(g["withdrawal"]),
+					"giao_dich": g["name"],
+					"vi_sao": loi_tk,
+				})
 				continue
 			frappe.db.set_value(
 				DT,
@@ -2192,6 +2208,20 @@ def sepay_tien_ra(mo_ta="", so_tien=0, ma_gd=""):
 	from vagabond.ban_hang import _kiem_quyen
 
 	_kiem_quyen()
+	# #327: endpoint trực tiếp cũng phải có dòng sao kê thật và mapping active.
+	# Không dùng payload để tự tạo bằng chứng một lần tiền ra.
+	from vagabond.doi_soat_sepay import ly_do_tai_khoan_sepay
+	ma_gd = (ma_gd or "").strip()
+	gd = frappe.db.get_value("Bank Transaction", ma_gd,
+		["name", "bank_account", "description", "reference_number", "withdrawal", "docstatus"], as_dict=True) if ma_gd else None
+	if not gd or cint(gd.get("docstatus")) == 2 or flt(gd.get("withdrawal")) <= 0:
+		return {"khop": 0, "vi_sao": "Chưa có dòng tiền ra hợp lệ trong sao kê. Vui lòng nạp sao kê trước khi đối soát."}
+	ly_do = ly_do_tai_khoan_sepay(gd.get("bank_account"))
+	if ly_do:
+		return {"khop": 0, "vi_sao": ly_do}
+	mo_ta = " ".join(str(gd.get(k) or "") for k in ("description", "reference_number"))
+	so_tien = gd["withdrawal"]
+
 	# Doi chieu voi cac phieu DANG CHO, qua chon_ma_khop - dung phep ma
 	# duong chay theo gio dung, khong de hai duong lech nhau.
 	cho = frappe.get_all(
@@ -3180,6 +3210,7 @@ def tim_gd_ra(ho_so=None, so_ngay=45, tu_khoa=""):
 		rows.append(x)
 	return {
 		"rows": rows,
+		"tai_khoan_sepay": kq.get("tai_khoan_sepay") or [],
 		"so_tien": kq.get("so_tien"),
 		"ma_do": kq.get("ma_do"),
 		"noi_dung_ck": _noi_dung_dung(frappe.get_doc(DT, ho_so)),

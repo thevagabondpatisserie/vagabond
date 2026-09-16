@@ -166,7 +166,7 @@ def xep_ung_vien(dong, ma_phieu, tien_phieu):
 		x["dung_tien"] = 1 if lech <= DUNG_SAI else 0
 		x["lech"] = lech
 		ra.append(x)
-	ra.sort(key=lambda r: (-r["khop_ma"], -r["dung_tien"], r["lech"]))
+	ra.sort(key=lambda r: (-r.get("dung_duoc", 1), -r["khop_ma"], -r["dung_tien"], r["lech"]))
 	return ra
 
 

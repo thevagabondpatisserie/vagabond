@@ -671,8 +671,19 @@ that catches it must mute messages in a scoped try/finally and restore
 the prior flag. Test message_log on the real resolver, not only returned
 errors. Applies to source report and advisory submit hook, PR323 F16.
 
+## Issue 325 và PR 327: chip lọc theo mapping, nhưng KHÔNG giấu dòng sao kê
+
+Màn khớp SePay thủ công từng in cả danh sách tài khoản chưa nối bằng join, dài ba màn hình và đẩy dòng sao kê xuống dưới. Bản sửa đầu đi quá tay: lọc luôn ứng viên theo mapping ngay trong truy vấn. Đó lại đúng hình dạng lỗi ngày 14/09/2026 với phiếu TTNB-26-09-02113, dòng có thật biến mất mà màn báo là không có giao dịch nào.
+
+Luật chốt: cửa ĐỌC không giấu dòng nào. Dòng chưa dùng được vẫn trả về kèm dung_duoc = 0 và vi_sao_khong, để mờ và xếp cuối bảng. Chặn nằm ở cửa GHI, dùng CHUNG một hàm cho cả khớp tự động lẫn khớp tay: hai đường ghi áp hai luật khác nhau còn khó hiểu hơn cả việc giấu dòng. Chip chỉ là bộ lọc người dùng tự chọn, không phải bộ lọc ngầm của máy.
+
 ## 16/09/2026 - Đếm vòng agent bằng lượt thực thi
 Không dùng comment hay run created_at làm bằng chứng model đã chạy: skipped
 không tiêu lượt, rerun của run cũ có thể bắt đầu hôm nay. Gate đọc mọi attempt
 và started_at bước model theo PR; API lỗi chặn chạy. Khóa này chỉ bao workflow
 được tích hợp, không mặc định bao native Codex. Nguồn: PR sáu thay đổi agent.
+
+### 16/09/2026 - PR327: kiểm đủ cửa ghi SePay và phản hồi UI
+- Sau khi khóa ba đường đối soát cũ, `hoan_tien.sepay_tien_ra` vẫn là cửa trực tiếp chưa kiểm mapping. Cùng sao kê có thể bị chặn ở màn chọn mà vẫn ghi đã hoàn qua endpoint này.
+- Endpoint nay phải đọc Bank Transaction tiền ra hợp lệ từ `ma_gd`, dùng nội dung/số tiền trong DB và qua phép kiểm tài khoản chung trước mọi ghi/sinh chứng từ. Không dùng payload làm bằng chứng tiền ra.
+- Ba handler UI phải phân biệt lý do cấu hình với lệch tiền và trùng giao dịch. Kiểm callback thật bằng Node; kiểm endpoint thiếu sao kê, đã hủy, tiền vào, mapping tắt, hợp lệ và payload giả. Bench dùng tài khoản/mapping/hồ sơ thật, chỉ thay bước sinh chứng từ trong ca kiểm ranh giới này.

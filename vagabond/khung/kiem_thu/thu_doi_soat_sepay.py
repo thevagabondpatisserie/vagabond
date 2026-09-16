@@ -312,7 +312,7 @@ def _ma_khong_gach():
 	dung("không ăn mã dài hơn", not dss.co_ma(nd + "2", ma))
 
 
-@ca("SePay: chip theo mapping, nhãn chỉ bốn số cuối, tài khoản chưa nối ở chẩn đoán")
+@ca("SePay: chip theo mapping, nhãn chỉ bốn số cuối, không trả tài khoản chưa nối")
 def _chip_mapping():
 	from unittest.mock import patch
 	from vagabond import sepay
@@ -322,7 +322,7 @@ def _chip_mapping():
 		nhan, chip, chua = dss.nhan_tai_khoan()
 		la("chỉ mapped có chip", [x['ma'] for x in chip], ['A'])
 		la("đuôi bốn số", nhan['A'], 'MB · 5678')
-		la("chưa nối có chẩn đoán", chua, ['Ngân hàng B · 4321'])
+		la("không còn chẩn đoán chưa nối", chua, [])
 
 
 @ca("SePay: lọc tài khoản trước trần 500 giữ dòng tài khoản ít giao dịch")
@@ -339,16 +339,231 @@ def _loc_truoc_tran_323():
 		la('dòng ít vẫn tới cửa đối soát', [r['name'] for r in dss.dong_sao_ke(dss.RA, tu_ngay='2026-09-15', tai_khoan='IT')], ['IT-1'])
 
 
-@ca("SePay: chỉ kế toán nhận chẩn đoán tài khoản chưa nối, dùng chung nhãn")
+@ca("SePay: cửa đọc không giấu dòng, nhãn đọc một lần và truyền xuống query")
 def _quyen_chan_doan_323():
 	from unittest.mock import patch
 	import sys
 	from types import SimpleNamespace
 	ban = dict(doctype='TEST', ma_do=lambda d: 'TEST', so_tien=lambda d: 1, chieu=dss.RA, ten_man='TEST', truong_gd='gd')
-	for roles, can in [(['Sales User'], []), (['Accounts User'], ['Chưa nối'])]:
-		with patch.dict(sys.modules, {'vagabond.ban_hang': SimpleNamespace(_kiem_quyen=lambda: None)}), patch.object(dss, 'nap_so'), patch.object(dss, '_ban', return_value=ban), patch.object(dss.frappe, 'get_doc', return_value={}), patch.object(dss.frappe, 'get_roles', return_value=roles), patch.object(dss, 'da_chiem', return_value={}), patch.object(dss, 'nhan_tai_khoan', return_value=({'TK': 'Nhãn'}, [], ['Chưa nối'])) as nhan, patch.object(dss, 'dong_sao_ke', return_value=[]) as dong:
+	# Bỏ vòng lặp hai vai: từ #327 danh sách "chưa nối" không còn được trả về
+	# nữa nên hai vai cho cùng một kết quả, lặp chỉ làm ca kiểm trông như có
+	# kiểm quyền trong khi nó không kiểm gì. Quyền của màn này do _kiem_quyen lo.
+	for roles in [['Sales User'], ['Accounts User']]:
+		with patch.dict(sys.modules, {'vagabond.ban_hang': SimpleNamespace(_kiem_quyen=lambda: None)}), patch.object(dss, 'nap_so'), patch.object(dss, '_ban', return_value=ban), patch.object(dss.frappe, 'get_doc', return_value={}), patch.object(dss.frappe, 'get_roles', return_value=roles), patch.object(dss, 'da_chiem', return_value={}), patch.object(dss, 'nhan_tai_khoan', return_value=({'TK': 'Nhãn'}, [{'ma':'TK','nhan':'Nhãn'}], ['Chưa nối'])) as nhan, patch.object(dss, 'dong_sao_ke', return_value=[]) as dong:
 			kq = dss.ung_vien('ttnb', 'TEST', tai_khoan='TK')
-			la('phạm vi chẩn đoán', kq['chua_noi_sepay'], can)
+			la('không còn phát danh sách chưa nối', kq['chua_noi_sepay'], [])
+			la('không giấu tài khoản chưa nối ở cửa đọc', dong.call_args.kwargs.get('tai_khoan_cho_phep'), None)
 			la('lọc truyền xuống query', dong.call_args.kwargs['tai_khoan'], 'TK')
 			la('nhãn dùng lại', dong.call_args.kwargs['nhan'], {'TK': 'Nhãn'})
 			la('chỉ đọc nhãn một lần', nhan.call_count, 1)
+
+
+@ca("#325: chỉ mapping enabled có chip; nhãn lịch sử vẫn đủ")
+def _tai_khoan_325():
+	from unittest.mock import patch
+	from vagabond import sepay
+	ds = [dict(name='CT', bank='MB - Ngân hàng TMCP Quân đội', bank_account_no='12340615'),
+		dict(name='CN', bank='ACB', bank_account_no='99996066', party='Nguoi', party_type='Supplier'),
+		dict(name='NCC', bank='NCC', bank_account_no='1111', party='NCC'),
+		dict(name='KH', bank='KH', bank_account_no='2222', party='KH'),
+		dict(name='TAT', bank='MB', bank_account_no='3333', disabled=1)]
+	with patch.object(sepay, '_ban_do', return_value={'1':'CT','2':'CN','3':'TAT'}), patch.object(dss.frappe, 'get_all', return_value=ds):
+		nhan, chip, chua = dss.nhan_tai_khoan()
+		la('hai tài khoản mapped enabled', [x['ma'] for x in chip], ['CT','CN'])
+		la('nhãn gọn', chip[0]['nhan'], 'MB · 0615')
+		la('tên đầy đủ', chip[0]['ten_day_du'], ds[0]['bank'])
+		la('giữ nhãn lịch sử', nhan['CT'], 'MB - Ngân hàng TMCP Quân đội · 0615')
+		la('không phát danh sách ngoài mapping', chua, [])
+	la('cắt tên dài giữ đuôi', dss.nhan_gon_ngan_hang('ABCDEFGHIJKLMNOPQ', '12345678'), 'ABCDEFGHIJKLM… · 5678')
+
+
+@ca("#327: cửa đọc KHÔNG được lọc theo phạm vi tài khoản, chỉ lọc theo chip người chọn")
+def _sao_ke_mapping_325():
+	"""Ca này chặn đường lỗi ngày 14/09/2026, phiếu TTNB-26-09-02113.
+
+	Hôm đó dòng sao kê có thật bị một bộ lọc phạm vi giấu khỏi bảng, và màn
+	báo là không có giao dịch nào. Luật sau #327: tầng chung chỉ được lọc theo
+	chip mà NGƯỜI chọn, tuyệt đối không tự thêm bộ lọc phạm vi nào khác. Ai
+	thêm lại một bộ lọc như vậy thì ca này phải đổ.
+	"""
+	import inspect
+	from unittest.mock import patch
+	tham_so = list(inspect.signature(dss.dong_sao_ke).parameters)
+	la('không còn tham số phạm vi', [x for x in tham_so if 'cho_phep' in x], [])
+	with patch.object(dss.frappe, 'get_all', return_value=[]) as lay:
+		dss.dong_sao_ke(dss.RA, nhan={})
+		loc = lay.call_args.kwargs['filters']
+		la('không tự lọc tài khoản', [x for x in loc if x[0] == 'bank_account'], [])
+		la('giữ limit', lay.call_args.kwargs['limit_page_length'], 500)
+		lay.reset_mock()
+		dss.dong_sao_ke(dss.RA, nhan={}, tai_khoan='CT')
+		loc = lay.call_args.kwargs['filters']
+		dung('chip người chọn vẫn lọc được', ['bank_account', '=', 'CT'] in loc)
+
+
+@ca('#327: cửa ghi đọc lại mapping, chặn API ngoài phạm vi trước mọi ghi')
+def _ghi_mapping_327():
+	from unittest.mock import patch, Mock
+	from types import SimpleNamespace
+	import sys
+	ban = dict(doctype='TEST', chieu=dss.RA, so_tien=lambda d: 100, truong_gd='gd', truong_nguoi='nguoi', khi_khop=None)
+	g = dict(name='GD', docstatus=1, withdrawal=100, deposit=0, bank_account='CT')
+	class Chan(Exception):
+		pass
+	for chip, duoc in [([], False), ([{'ma':'KHAC'}], False), ([{'ma':'CT'}], True)]:
+		db = SimpleNamespace(get_value=Mock(return_value=g), set_value=Mock(), commit=Mock())
+		with patch.dict(sys.modules, {'vagabond.ban_hang': SimpleNamespace(_kiem_quyen=lambda:None)}), patch.object(dss,'nap_so'), patch.object(dss,'_ban',return_value=ban), patch.object(dss.frappe,'get_doc',return_value={}), patch.object(dss.frappe,'db',db), patch.object(dss.frappe,'session',SimpleNamespace(user='ke-toan')), patch.object(dss.frappe,'throw',side_effect=Chan), patch.object(dss,'_loi_giao_dich',return_value=None), patch.object(dss,'da_chiem',return_value={}), patch.object(dss,'nhan_tai_khoan',return_value=({},chip,[])) as nap:
+			bi_chan=False
+			try:
+				dss.khop_tay('ttnb','PHIEU','GD')
+			except Chan:
+				bi_chan=True
+			la('kết quả theo mapping hiện tại', bi_chan, not duoc)
+			la('đọc lại mapping tại đường ghi', nap.call_count, 1)
+			la('không ghi ngoài mapping', db.set_value.call_count, int(duoc))
+			la('không commit ngoài mapping', db.commit.call_count, int(duoc))
+
+
+@ca('#327: tự động dùng cùng phạm vi mapping trước khi ghi')
+def _tu_dong_mapping_327():
+	from unittest.mock import patch, Mock
+	from types import SimpleNamespace
+	import sys
+	ban = dict(doctype='TEST', dang_cho={}, ma_do=lambda d:'TEST', so_tien=lambda d:100, chieu=dss.RA, truong_gd='gd', khi_khop=None)
+	for chip, duoc in [([],False), ([{'ma':'CT'}],True)]:
+		db=SimpleNamespace(set_value=Mock(),commit=Mock())
+		with patch.dict(sys.modules, {'vagabond.ban_hang':SimpleNamespace(_kiem_quyen=lambda:None)}), patch.object(dss,'nap_so'), patch.object(dss,'_ban',return_value=ban), patch.object(dss.frappe,'get_all',return_value=[{'name':'P'}]), patch.object(dss.frappe,'get_doc',return_value=SimpleNamespace(name='P')), patch.object(dss.frappe,'db',db), patch.object(dss,'dong_sao_ke',return_value=[dict(name='GD',mo_ta='TEST',tien=100,bank_account='CT')]), patch.object(dss,'da_chiem',return_value={}), patch.object(dss,'xet',return_value=(dss.KHOP,'')), patch.object(dss,'nhan_tai_khoan',return_value=({},chip,[])):
+			kq=dss.tu_dong('ttnb')
+			la('chỉ ghi khi mapped',db.set_value.call_count,int(duoc))
+			la('đếm khớp đúng',kq['da_khop'],int(duoc))
+			la('ngoài mapping phải có lý do',bool(kq['xem_lai']),not duoc)
+
+
+@ca('#327 dòng dùng được luôn trước dòng chưa nối dù lệch tiền')
+def _xep_mapping_327():
+	ra=ksk.xep_ung_vien([dict(name='chan',tien=100,mo_ta='TEST',dung_duoc=0),dict(name='duoc',tien=90,mo_ta='',dung_duoc=1)],'TEST',100)
+	la('ưu tiên dùng được', [r['name'] for r in ra], ['duoc','chan'])
+
+
+@ca('#327: BA duong ghi tu dong cu cung phai qua phep kiem pham vi tai khoan')
+def _ba_duong_ghi_tu_dong_327():
+	"""Finding cua Codex ngay 16/09/2026, tai hien duoc va da sua.
+
+	Phep kiem pham vi ban dau chi cam o khop_tay va tu_dong. Ba duong ghi tu
+	dong cu van gan tien thang bang set_value: quet theo gio cua lenh chi noi
+	bo, duong webhook goi ngay khi co giao dich, va quet theo gio cua phieu
+	hoan tien. Mot dong thuoc tai khoan ngoai pham vi vi the van danh dau
+	duoc mot phieu la da chi, trong khi cung dong do bi tu choi o duong khop
+	tay. Cung mot giao dich cho hai ket qua trai nguoc tuy nguoi bam nut nao.
+
+	Ca nay dung dung chuoi thao tac cua tung duong va khang dinh KHONG co
+	set_value nao chay khi tai khoan ngoai pham vi, va van ghi dung mot lan
+	khi tai khoan hop le. Dung doi thanh phep do chuoi: dieu 16.
+	"""
+	import sys
+	from contextlib import ExitStack
+	from types import SimpleNamespace
+	from unittest.mock import Mock, patch
+
+	from vagabond import de_nghi_chi as dnc
+	from vagabond import hoan_tien as ht
+
+	gd = dict(name='GD', description='THE VAGABOND TTNB', reference_number='',
+		withdrawal=100.0, date='2026-09-14', bank_account='CT')
+	phieu = dict(name='TTNB-1', tong_tien=100.0, so_tien=100.0)
+
+	def _db():
+		return SimpleNamespace(sql=Mock(return_value=[dict(gd)]), set_value=Mock(),
+			commit=Mock(), get_value=Mock(return_value=dict(gd)))
+
+	for chip, ghi_duoc in [([], False), ([{'ma': 'CT'}], True)]:
+		nhan_gia = ({'CT': 'MB - 0615'}, chip, [])
+
+		# 1. Quet theo gio cua lenh chi noi bo.
+		db = _db()
+		with ExitStack() as g:
+			g.enter_context(patch.dict(sys.modules, {'vagabond.ban_hang': SimpleNamespace(_kiem_quyen=lambda: None)}))
+			g.enter_context(patch.object(dnc, '_phieu_cho_chi', return_value=[dict(phieu)]))
+			g.enter_context(patch.object(dnc.frappe, 'db', db))
+			g.enter_context(patch.object(dnc, '_gd_da_chiem_ttnb', return_value={}))
+			g.enter_context(patch.object(dnc, '_loi_nguon_chi_ttnb', return_value=""))
+			g.enter_context(patch.object(dnc, 'khop_noi_dung', return_value=True))
+			g.enter_context(patch.object(dnc, '_het_viec', Mock()))
+			g.enter_context(patch.object(dss, 'nhan_tai_khoan', return_value=nhan_gia))
+			kq = dnc.doi_soat(30)
+		la('quet theo gio lenh chi: so lan ghi', db.set_value.call_count, int(ghi_duoc))
+		la('quet theo gio lenh chi: so phieu khop', kq['da_khop'], int(ghi_duoc))
+		if not ghi_duoc:
+			dung('dong bi chan van bay len cho nguoi xem kem ly do',
+				bool(kq['xem_xet']) and bool(kq['xem_xet'][0].get('vi_sao')))
+
+		# 2. Duong webhook, goi ngay khi ngan hang bao co giao dich.
+		db = _db()
+		with ExitStack() as g:
+			g.enter_context(patch.object(dnc.frappe, 'db', db))
+			g.enter_context(patch.object(dnc, '_loi_nguon_chi_ttnb', return_value=""))
+			g.enter_context(patch.object(dnc, '_gd_da_chiem_ttnb', return_value={}))
+			g.enter_context(patch.object(dnc, '_phieu_cho_chi', return_value=[dict(phieu)]))
+			g.enter_context(patch.object(dnc, 'khop_noi_dung', return_value=True))
+			g.enter_context(patch.object(dnc, '_het_viec', Mock()))
+			g.enter_context(patch.object(dss, 'nhan_tai_khoan', return_value=nhan_gia))
+			dnc.khi_co_giao_dich('GD')
+		la('duong webhook: so lan ghi', db.set_value.call_count, int(ghi_duoc))
+
+		# 3. Quet theo gio cua phieu hoan tien.
+		db = _db()
+		with ExitStack() as g:
+			g.enter_context(patch.dict(sys.modules, {'vagabond.ban_hang': SimpleNamespace(_kiem_quyen=lambda: None)}))
+			g.enter_context(patch.object(ht.frappe, 'db', db))
+			g.enter_context(patch.object(ht.frappe, 'get_all', return_value=[dict(name='HT-1', hoa_don='HD-1', so_tien=100.0)]))
+			g.enter_context(patch.object(ht, 'ma_do_soat', return_value='HD-1'))
+			g.enter_context(patch.object(ht, '_gd_da_chiem', return_value={}))
+			g.enter_context(patch.object(ht, 'khop_giao_dich', return_value=True))
+			g.enter_context(patch.object(ht.frappe, 'get_doc', Mock()))
+			g.enter_context(patch.object(ht, '_sinh_chung_tu', return_value={'bo_qua': 1}))
+			g.enter_context(patch.object(dss, 'nhan_tai_khoan', return_value=nhan_gia))
+			kq = ht.doi_soat()
+		la('quet theo gio hoan tien: so lan ghi', db.set_value.call_count, int(ghi_duoc))
+		la('quet theo gio hoan tien: so ho so khop', kq['da_khop'], int(ghi_duoc))
+		if not ghi_duoc:
+			dung('hoan tien: dong bi chan co ly do',
+				bool(kq['xem_xet']) and bool(kq['xem_xet'][0].get('vi_sao')))
+
+
+@ca('#327 hoàn tiền trực tiếp: sao kê thật, mapping active, không tin payload')
+def _hoan_truc_tiep_327():
+	import sys
+	from contextlib import ExitStack
+	from types import SimpleNamespace
+	from unittest.mock import Mock, patch
+	from vagabond import hoan_tien as ht
+	gd = dict(name='GD', bank_account='CT', description='HOAN TIEN HD-1',
+		reference_number='', withdrawal=100, docstatus=1)
+	for ten, dong, chip, ma, khop in [
+		('thiếu mã', gd, [{'ma':'CT'}], '', False),
+		('không có sao kê', None, [{'ma':'CT'}], 'GD', False),
+		('đã hủy', dict(gd, docstatus=2), [{'ma':'CT'}], 'GD', False),
+		('tiền vào', dict(gd, withdrawal=0), [{'ma':'CT'}], 'GD', False),
+		('mapping tắt', gd, [], 'GD', False),
+		('đã nối', gd, [{'ma':'CT'}], 'GD', True),
+		('payload giả không sửa được tiền', dict(gd, withdrawal=200), [{'ma':'CT'}], 'GD', False),
+	]:
+		db=SimpleNamespace(get_value=Mock(return_value=dong), set_value=Mock(), commit=Mock())
+		sinh=Mock(return_value={})
+		with ExitStack() as g:
+			g.enter_context(patch.dict(sys.modules, {'vagabond.ban_hang':SimpleNamespace(_kiem_quyen=lambda:None)}))
+			g.enter_context(patch.object(ht.frappe,'db',db))
+			g.enter_context(patch.object(ht.frappe,'get_all',return_value=[dict(name='HT-1',so_tien=100)]))
+			g.enter_context(patch.object(ht.frappe,'get_doc',Mock()))
+			g.enter_context(patch.object(ht,'ma_do_soat',return_value='HD-1'))
+			chon=g.enter_context(patch.object(ht,'chon_ma_khop',return_value='HD-1'))
+			g.enter_context(patch.object(ht,'_gd_da_chiem',return_value={}))
+			g.enter_context(patch.object(ht,'_sinh_chung_tu',sinh))
+			g.enter_context(patch.object(dss,'nhan_tai_khoan',return_value=({'CT':'MB'},chip,[])))
+			kq=ht.sepay_tien_ra(mo_ta='PAYLOAD GIA',so_tien=100,ma_gd=ma)
+		la(ten+' khớp',kq['khop'],int(khop))
+		la(ten+' ghi DB',db.set_value.call_count,int(khop))
+		la(ten+' sinh chứng từ',sinh.call_count,int(khop))
+		la(ten+' commit',db.commit.call_count,int(khop))
+		if not khop: dung(ten+' lý do',bool(kq.get('vi_sao')))
+		if chon.called: la(ten+' dùng nội dung DB',chon.call_args[0][0],gd['description']+' ')
