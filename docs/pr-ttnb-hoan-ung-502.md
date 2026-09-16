@@ -31,13 +31,26 @@ nếu có. Không có gợi ý thì vẫn hiện phiếu mới nhất. 0 dòng g
 dẫn hiện hành; lỗi API nói không đọc được, không coi là danh sách rỗng.
 1 dòng vẫn cần chọn và xác nhận. Danh sách tối đa 60 dòng mặc định, lọc và
 xếp gợi ý từ toàn bộ phiếu hợp lệ trong 180 ngày trước khi cắt giới hạn.
-Không đổi nút nối thành thao tác tự ghi chứng từ.
+Không đổi nút nối thành thao tác tự ghi chứng từ. Đếm chỉ đọc trên site
+ngày 16/09: 22 phiếu hợp lệ trong phạm vi này.
 
 ## Cổng và việc còn phải kiểm
 
-Local: 3077 ca đạt, hành vi giao diện 56 ca đạt. Bộ kiểm tích hợp bổ sung
-luồng TTNB 141 -> APP cùng chủ, chuẩn hóa FT/BT và chống hoàn trùng.
-Chưa được coi là bench đạt cho tới khi run trên SHA cuối báo thành công.
-Đã bổ sung ca chuỗi duyệt/ghi sổ/hoàn từ ngân hàng công ty và retry;
-chưa có kết quả chạy. Còn kiểm hủy và tranh chấp đồng thời. Chưa có ảnh site sau sửa 390px.
-Không dùng ảnh giả lập thay bằng chứng site và không merge khi thiếu cổng.
+Local: 3078 ca đạt, hành vi giao diện 56 ca đạt. Bench 35084543547 trên
+b0cc6a0bfd99dd53abc30cf0290ce971e053a2bd SUCCESS: 230/230 ở cả hai lượt,
+sach=1, không chứng từ sót và không lệch số lượng. Ca mới chạy thật TTNB
+141 -> APP -> duyệt -> Purchase Invoice -> Payment Entry -> retry, giữ
+chứng cứ trả nhân viên riêng với sao kê công ty hoàn. Hai cách nhập FT/BT
+không tạo được hồ sơ thứ hai hoặc hai khoản trong một hồ sơ.
+
+Bổ sung sau SHA đó chỉ có ca kiểm hủy/gửi lại và tài liệu, không đổi mã
+nghiệp vụ. Cần kiểm CI SHA cuối trước khi ghép. Kiểm hủy/gửi lại hiện là
+logic local; chưa có phép đo hai kết nối DB đồng thời. Chưa có ảnh sheet
+gợi ý sau sửa trên site 390px. Smoke trình duyệt chung của bench đạt nhưng
+không thay bằng chứng màn gợi ý riêng. Không merge khi thiếu cổng.
+
+PR337 cũng dùng số dự kiến 502; phải chốt lại APPVER/patch khi tích hợp.
+
+Tám ca tập trung đạt; đột biến bỏ kiểm chủ quỹ làm đỏ 1 ca, bỏ kiểm phiếu
+đã giữ làm đỏ 2 ca, bỏ ưu tiên cùng giao dịch làm đỏ 1 ca. Khôi phục code
+thì tám ca đạt. Đây là kiểm logic tại máy, không thay kiểm site.

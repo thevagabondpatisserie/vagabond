@@ -95,3 +95,28 @@ def _sai():
             else:
                 dung('phải chặn hoàn sai người hoặc trùng',False)
             dung('không ghi đè',not luu.called)
+
+
+@ca('502 hủy và gửi lại: nhả đúng phiếu, không ghi đè người vừa giữ')
+def _huy_gui_lai():
+    doc,p,g=_doc_kiem()
+    cu=frappe._dict(name='APP1',loai='Hoan ung',trang_thai='Nhap',tk_nhan='MB',nha_cung_cap='NGUOI-UNG',
+        dong=[frappe._dict(doc.dong[0])])
+    doc.get_doc_before_save=lambda: cu
+    doc['trang_thai']='Huy'
+    with patch.object(frappe.db,'sql') as sql, patch.object(frappe.db,'set_value') as luu:
+        hu.kiem_ho_so(doc)
+        dung('nhả có điều kiện chủ cũ', 'ho_so_tt=%s' in sql.call_args[0][0])
+        la('đúng phiếu đúng hồ sơ',sql.call_args[0][1],('TTNB1','APP1'))
+        dung('không giữ lại sau hủy',not luu.called)
+    cu['trang_thai']='Tu choi'
+    doc['trang_thai']='Cho ke toan'
+    p.ho_so_tt='APP2'
+    with patch.object(frappe.db,'sql',return_value=[p]), patch.object(frappe.db,'set_value') as luu:
+        try:
+            hu.kiem_ho_so(doc)
+        except frappe.ValidationError as e:
+            dung('báo hồ sơ mới', 'APP2' in str(e))
+        else:
+            dung('không bỏ qua vì dòng không đổi',False)
+        dung('không ghi đè',not luu.called)
