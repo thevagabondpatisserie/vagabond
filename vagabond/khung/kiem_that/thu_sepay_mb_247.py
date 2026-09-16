@@ -228,7 +228,18 @@ def _mb_khong_tat_toan_phieu_cong_ty():
 		ung_vien = de_nghi_chi.tim_gd_ra(p.name, so_ngay=1)["rows"]
 		dung("màn chọn không bày tiền cá nhân", all(x["name"] != gd_ca_nhan.name for x in ung_vien))
 
-		gd_cong_ty = _giao_dich(cong_ty_ba, tien, de_nghi_chi.noi_dung_ck(p.name))
+		# #327: đối chứng phải qua cấu hình SePay thật, không chỉ có Bank Account.
+		# Tài khoản thử riêng để ca không phụ thuộc mapping của seed/ca trước.
+		ba = frappe.copy_doc(frappe.get_doc("Bank Account", cong_ty_ba))
+		ba.account_name = "Kiểm công ty SePay " + frappe.generate_hash(length=8)
+		ba.bank_account_no = _so_thu()
+		ba.insert(ignore_permissions=True)
+		_DA_TAO.append((ba.doctype, ba.name))
+		gd_cong_ty = _giao_dich(ba.name, tien, de_nghi_chi.noi_dung_ck(p.name))
+		de_nghi_chi.khi_co_giao_dich(gd_cong_ty.name)
+		la("chưa mapping vẫn chờ", frappe.db.get_value(p.doctype, p.name, "trang_thai"), de_nghi_chi.TT_HOAN_TAT)
+		la("chưa mapping không gắn", frappe.db.get_value(p.doctype, p.name, "ma_gd") or "", "")
+		sepay.them_tai_khoan(ba.bank_account_no, ba.name)
 		de_nghi_chi.khi_co_giao_dich(gd_cong_ty.name)
 		la("đối chứng tiền công ty tất toán", frappe.db.get_value(p.doctype, p.name, "trang_thai"), de_nghi_chi.TT_DA_CHI)
 		la("đối chứng gắn đúng dòng công ty", frappe.db.get_value(p.doctype, p.name, "ma_gd"), gd_cong_ty.name)
