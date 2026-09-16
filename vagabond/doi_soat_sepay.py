@@ -467,7 +467,7 @@ def ung_vien(loai, ma_phieu, so_ngay=45, tu_khoa="", tai_khoan=""):
 	nhan, chip, _ = nhan_tai_khoan()
 	cho_phep = [t["ma"] for t in chip]
 	tho = []
-	for g in dong_sao_ke(b["chieu"], so_ngay, tai_khoan=tai_khoan, nhan=nhan, tai_khoan_cho_phep=cho_phep):
+	for g in dong_sao_ke(b["chieu"], so_ngay, tai_khoan=tai_khoan, nhan=nhan):
 		if _loi_giao_dich(b, g):
 			continue
 		if chiem.get(g["name"]):
@@ -478,6 +478,8 @@ def ung_vien(loai, ma_phieu, so_ngay=45, tu_khoa="", tai_khoan=""):
 			"name": g["name"], "date": str(g.get("date") or ""),
 			"tien": g["tien"], "mo_ta": (g.get("description") or "").strip(),
 			"bank_account": g.get("bank_account"), "nhan_ngan_hang": g.get("nhan_ngan_hang"),
+			"dung_duoc": int(g.get("bank_account") in cho_phep),
+			"vi_sao_khong": "" if g.get("bank_account") in cho_phep else "Tài khoản này chưa nối SePay hoặc đã tắt, chưa dùng để khớp. Kiểm tra Cài đặt SePay.",
 		})
 	return {
 		"rows": xep_ung_vien(tho, ma, tien)[:60],

@@ -23,3 +23,7 @@ Local sửa F5: tim_gd_ra hoàn tiền chuyển tiếp tai_khoan_sepay; htFormGd
 Phạm vi v496 áp cả TTNB và Hoàn tiền; cong_no có cửa riêng, không nhận là đã phủ. Không xác nhận được mapping thì không ghi, kể cả lỗi đọc Settings; thông báo mới nói chưa xác nhận được, không kết luận chắc chắn do cấu hình. Giữ quyết định anh Việt chỉ hiện tài khoản có SePay.
 
 Local predeploy exit0,3047/3047,Node51/51. Chưa CI/bench trên vòng sửa này. GitHub read/fetch và CUA bị automatic approval review từ chối do Selected model is at capacity, đã thử lại đúng lệnh vẫn lỗi. Chưa push/review/merge/deploy, không phải thiếu quyền người dùng.
+
+## Chốt mới trực tiếp của anh Việt
+
+Anh đã đổi quyết định: hiện tài khoản chưa nối và yêu cầu merge/deploy327. Thay các chốt mapping-only ở trên: chip chỉ mapped; cửa đọc hiển thị dòng chưa nối với dung_duoc=0/vi_sao_khong, xếp cuối. Cả TTNB/Hoàn tiền ghi lý do và bấm không gọi khớp. Cửa ghi tự động/thủ công vẫn kiểm cùng mapping. CUA tiếp tục timeout, chưa UI thật/deploy.

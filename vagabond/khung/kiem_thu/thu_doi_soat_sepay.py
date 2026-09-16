@@ -349,7 +349,7 @@ def _quyen_chan_doan_323():
 		with patch.dict(sys.modules, {'vagabond.ban_hang': SimpleNamespace(_kiem_quyen=lambda: None)}), patch.object(dss, 'nap_so'), patch.object(dss, '_ban', return_value=ban), patch.object(dss.frappe, 'get_doc', return_value={}), patch.object(dss.frappe, 'get_roles', return_value=roles), patch.object(dss, 'da_chiem', return_value={}), patch.object(dss, 'nhan_tai_khoan', return_value=({'TK': 'Nhãn'}, [{'ma':'TK','nhan':'Nhãn'}], ['Chưa nối'])) as nhan, patch.object(dss, 'dong_sao_ke', return_value=[]) as dong:
 			kq = dss.ung_vien('ttnb', 'TEST', tai_khoan='TK')
 			la('phạm vi chẩn đoán', kq['chua_noi_sepay'], can)
-			la('mapping truyền xuống cửa sao kê', dong.call_args.kwargs['tai_khoan_cho_phep'], ['TK'])
+			la('không giấu tài khoản chưa nối ở cửa đọc', dong.call_args.kwargs.get('tai_khoan_cho_phep'), None)
 			la('lọc truyền xuống query', dong.call_args.kwargs['tai_khoan'], 'TK')
 			la('nhãn dùng lại', dong.call_args.kwargs['nhan'], {'TK': 'Nhãn'})
 			la('chỉ đọc nhãn một lần', nhan.call_count, 1)
@@ -422,3 +422,9 @@ def _tu_dong_mapping_327():
 			la('chỉ ghi khi mapped',db.set_value.call_count,int(duoc))
 			la('đếm khớp đúng',kq['da_khop'],int(duoc))
 			la('ngoài mapping phải có lý do',bool(kq['xem_lai']),not duoc)
+
+
+@ca('#327 dòng dùng được luôn trước dòng chưa nối dù lệch tiền')
+def _xep_mapping_327():
+	ra=ksk.xep_ung_vien([dict(name='chan',tien=100,mo_ta='TEST',dung_duoc=0),dict(name='duoc',tien=90,mo_ta='',dung_duoc=1)],'TEST',100)
+	la('ưu tiên dùng được', [r['name'] for r in ra], ['duoc','chan'])

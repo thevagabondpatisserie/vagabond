@@ -256,6 +256,18 @@ var HAI_TK = {
 };
 
 async function chayHet() {
+  await caAsync('327: dòng chưa nối hiện nhưng không gọi khớp ở cả hai màn', async function () {
+    for (var spec of [['16-mua-hang.js','ttnbFormGdRa','.ttnbgd','ttnbKhopTay'],['11-khach-ca-hop-dong.js','htFormGdRa','.htgdra','htKhopTay']]) {
+      var html='', writes=0, message='';
+      var node={getAttribute:function (k) {return k==='data-chan'?'Chưa nối': 'GD';}};
+      var g={h:String,money:String,baoTin:function (v) {message=v;},api:async function () {return {tai_khoan_sepay:[],rows:[{name:'GD',tien:100,withdrawal:100,dung_duoc:0,vi_sao_khong:'Chưa nối',lech:0}]};},frame:function (_,v) {html=v;return {querySelectorAll:function (q) {return q===spec[2]?[node]:[];}};}};
+      g[spec[3]]=function () {writes++;};
+      vm.createContext(g);vm.runInContext(layHam(docTep(spec[0]),spec[1]),g);
+      await g[spec[1]]({name:'P',tien:100,so_tien:100});
+      dung('dòng vẫn hiện và mờ',html.includes('data-chan="Chưa nối"')&&html.includes('not-allowed'));
+      node.onclick();bang('không gọi ghi',writes,0);bang('nói lý do',message,'Chưa nối');
+    }
+  });
   await caAsync('Hoàn tiền327: mapping rỗng báo cấu hình, không báo thiếu sao kê', async function () {
     var output = '';
     var g = {h:String, money:String, api:async function () {return {rows:[], tai_khoan_sepay:[]};}, frame:function (_, html) {output=html;return {querySelectorAll:function () {return [];}};}};
