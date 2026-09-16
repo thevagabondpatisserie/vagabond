@@ -27,10 +27,8 @@ Nguyen tac
 1. CHONG TRUNG DUNG MOT CACH voi kich ban keo: transaction_id la
    "SEPAY-<id>". Hai duong cung ghi mot khoa nen khong bao gio sinh hai
    dong cho mot giao dich, du webhook va nhip keo chay chong len nhau.
-2. WEBHOOK KHONG BAO GIO TRA LOI 500 cho mot goi da doc duoc. SePay bat
-   "tu dong gui lai khi server tra loi", nen mot loi that cua minh se
-   thanh mot vong gui lai vo tan. Doc khong duoc thi ghi Error Log roi
-   van tra ve success.
+2. Chỉ báo thành công sau khi đã lưu sao kê. Lỗi phải rollback và trả
+   mã lỗi để SePay gửi lại; Error Log không thay được giao dịch đã lưu.
 3. KHONG DUNG VAO last_since_id cua kich ban keo. Hai duong doc lap, moi
    duong giu con tro cua no, hong duong nay khong keo do duong kia.
 """
@@ -461,18 +459,23 @@ def _kiem_hmac():
 
 @frappe.whitelist(allow_guest=True)
 def webhook():
-	"""SePay goi vao day moi khi co giao dich. Tra ve trong vai chuc mili giay.
+	"""SePay gọi khi có giao dịch; chỉ nhận thành công sau khi lưu sao kê.
 
 	Duong dan day du de dan sang SePay:
 	  https://<ten mien>/api/method/vagabond.sepay.webhook
 	"""
 	try:
-		return _webhook()
+		ra = _webhook()
 	except Exception:
-		# Da vao duoc den day thi goi tin doc duoc, loi la loi cua minh.
-		# Tra ve success de SePay dung gui lai vo tan; dau vet nam o Error Log.
+		# Frappe app.sync_database commit POST nếu ta nuốt exception.
+		# Rollback trước để lần gửi lại không gặp một sao kê Nháp dở dang.
+		frappe.db.rollback()
 		frappe.log_error(frappe.get_traceback(), "sepay: webhook vo loi")
-		return {"success": True, "message": "Da ghi nhan, dang xu ly ben trong."}
+		ra = _tu_choi(503, "Chưa lưu được giao dịch. SePay cần gửi lại.")
+	# handler.handle bọc giá trị trả về trong message; SePay đọc success
+	# ở gốc JSON (developer.sepay.vn/vi/sepay-webhooks/tich-hop-webhook).
+	frappe.local.response["success"] = ra["success"]
+	return ra
 
 
 def _tu_choi(ma, loi):
@@ -522,7 +525,10 @@ def _webhook():
 		return _tu_choi(400, "Goi tin thieu truong id cua giao dich.")
 
 	ma = TIEN_TO + tid
-	if frappe.db.exists(BT, {"transaction_id": ma}):
+	da_co = frappe.db.get_value(BT, {"transaction_id": ma}, "docstatus")
+	if da_co is not None:
+		if cint(da_co) != 1:
+			return _tu_choi(409, "Sao kê cùng mã chưa được ghi nhận hợp lệ. Cần kiểm tra chứng từ cũ.")
 		# Nhip keo hang gio da lay truoc, hoac SePay gui lai. Ca hai truong
 		# hop deu la binh thuong, khong phai loi.
 		return {"success": True, "message": "Giao dich %s da co trong so." % ma}
@@ -530,13 +536,16 @@ def _webhook():
 	so_tk = _so_tk_chuan(goi.get("accountNumber"))
 	tk = _ban_do().get(so_tk)
 	if not tk:
-		# Tra ve success: day KHONG phai loi cua SePay, gui lai bao nhieu lan
-		# cung the. Ghi lai de man Cai dat bay ra cho anh Viet khai bo sung.
+		# Chưa lưu sao kê thì không được báo thành công. Giữ chẩn đoán để
+		# quản lý khai bản đồ và SePay có thể gửi lại sau khi sửa cấu hình.
 		_ghi_chua_map(so_tk, tid)
-		return {"success": True, "message": "So tai khoan %s chua khai trong ban do." % so_tk}
+		return _tu_choi(422, "Số tài khoản chưa khai trong bản đồ. Cần kiểm tra cấu hình SePay.")
 
-	vao = str(goi.get("transferType") or "").strip().lower() == "in"
-	tien = abs(flt(goi.get("transferAmount")))
+	chieu = str(goi.get("transferType") or "").strip().lower()
+	tien = flt(goi.get("transferAmount"))
+	if chieu not in ("in", "out") or tien <= 0:
+		return _tu_choi(400, "Gói tin phải có chiều in/out và số tiền dương.")
+	vao = chieu == "in"
 	bt = frappe.get_doc({
 		"doctype": BT,
 		"date": str(goi.get("transactionDate") or "")[:10],

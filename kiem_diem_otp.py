@@ -3432,19 +3432,16 @@ _js33 = open("vagabond/public/js/bep/11-khach-ca-hop-dong.js", encoding="utf-8")
 # --- Khoa chong trung: mot ky tu lech la sinh dong doi ---
 la("tien to khoa chong trung dung bang SEPAY-", 'TIEN_TO = "SEPAY-"' in _se_src, True)
 la("webhook kiem ton tai truoc khi ghi",
-   'frappe.db.exists(BT, {"transaction_id": ma})' in _se_src, True)
+   'frappe.db.get_value(BT, {"transaction_id": ma}, "docstatus")' in _se_src, True)
 la("nap bu cung kiem ton tai truoc khi ghi",
    'frappe.db.exists(BT, {"transaction_id": TIEN_TO + str(tid)})' in _se_src, True)
 la("ca hai duong deu ghi cung mot khoa",
    _se_src.count("TIEN_TO + ") >= 2, True)
 
-# --- Webhook khong duoc lam sap, va khong duoc de SePay gui lai vo tan ---
-la("webhook boc toan bo trong try", "def webhook():" in _se_src and
-   _se_src.split("def webhook():")[1].lstrip().startswith('"""'), True)
-la("webhook nuot loi roi van tra success",
-   '"sepay: webhook vo loi"' in _se_src and '{"success": True, "message": "Da ghi nhan' in _se_src, True)
-la("tai khoan chua khai tra success chu khong tra loi",
-   'return {"success": True, "message": "So tai khoan %s chua khai' in _se_src, True)
+# --- Chưa lưu được phải yêu cầu gửi lại; ca hành vi giữ rollback/retry ---
+la("webhook trả lỗi để gửi lại", '_tu_choi(503,' in _se_src, True)
+la("webhook rollback trước khi trả lỗi", 'frappe.db.rollback()' in _se_src, True)
+la("tài khoản chưa khai không xác nhận thành công", '_tu_choi(422,' in _se_src, True)
 la("giao dich da co tra success", 'da co trong so.' in _se_src, True)
 
 # --- Bao mat ---
