@@ -27,7 +27,7 @@ const {chromium} = require('playwright');
       // Gắn catch ngay để lỗi click không để lại promise reject ngoài luồng.
       const doi = p.waitForResponse(r => new URL(r.url()).pathname === '/api/method/' + method,
         {timeout: 60000}).then(r => ({r}), e => ({e}));
-      await p.locator('[data-hkok]').click();
+      await p.locator(method === 'vagabond.doi_chieu_app.gan' ? '.sh [data-y]' : '[data-hkok]').click();
       const k = await doi;
       if (k.e) throw k.e;
       const body = await k.r.json();
