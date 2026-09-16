@@ -84,6 +84,10 @@ TT_NHAP = "Nháp"
 # toan, dung nhu cau ma app noi voi nguoi lap.
 TT_CHO_FIN = "Chờ FIN kiểm tra"
 
+# Ten NUT tren duong duyet, phai trung tung dau voi Workflow Transition that.
+# Day la duong DUY NHAT dua phieu moi lap sang buoc ke. Xem `_gui_kiem_tra`.
+NUT_GUI = "Gửi kiểm tra"
+
 # Ten cac buoc con lai cua workflow "Duyet phieu chi APP", dung de dich sang
 # ma trang thai cua man Ho so thanh toan.
 TT_CHO_GD = "Chờ giám đốc duyệt"
@@ -424,7 +428,19 @@ def tao_phieu(don=None, so_tien=None, nguon_tien=None, loai_chung_tu=None,
 	pe.insert(ignore_permissions=True)
 
 	_gan_tep(pe.name, tep)
-	_bao_ke_toan(pe.name, d, tien)
+	buoc, loi_buoc = _gui_kiem_tra(pe)
+	_bao_ke_toan(pe.name, d, tien, VAI_FIN if buoc == TT_CHO_FIN else "AP Officer")
+
+	# Cau bao phai noi DUNG buoc phieu dang nam. Ban truoc luon noi "dang cho
+	# ke toan kiem tra" ke ca khi phieu con o Nháp, ma ke toan khong he thay
+	# buoc Nháp - nguoi lap tuong da gui roi nen khong ai dong vao nua.
+	if buoc == TT_CHO_FIN:
+		nhan = ("Đã lập phiếu trả trước %s, đang chờ kế toán kiểm tra. "
+			"Xem lại phiếu ở màn Hồ sơ thanh toán, chip Trả trước NCC." % pe.name)
+	else:
+		nhan = loi_buoc or (
+			"Đã lập phiếu trả trước %s, phiếu đang ở bước %s. Nhờ người có vai "
+			"AP Officer mở phiếu bấm Gửi kiểm tra." % (pe.name, buoc))
 
 	return {
 		"phieu": pe.name,
@@ -432,10 +448,68 @@ def tao_phieu(don=None, so_tien=None, nguon_tien=None, loai_chung_tu=None,
 		"tra_tu": pe.paid_from,
 		"tra_vao": pe.paid_to,
 		"don": don,
-		"trang_thai": pe.get("workflow_state") or TT_CHO_FIN,
-		"nhan": "Đã lập phiếu trả trước %s, đang chờ kế toán kiểm tra. "
-			"Xem lại phiếu ở màn Hồ sơ thanh toán, chip Trả trước NCC." % pe.name,
+		"trang_thai": buoc,
+		"da_gui": 1 if buoc == TT_CHO_FIN else 0,
+		"nhan": nhan,
 	}
+
+
+def _gui_kiem_tra(pe):
+	"""Day phieu vua lap sang buoc ke bang DUNG nut cua workflow.
+
+	VI SAO KHONG GAN THANG `workflow_state` NUA
+	-------------------------------------------
+	Ban v408 (03/09/2026 19:00) dat `pe.workflow_state = TT_CHO_FIN` ngay
+	truoc `insert`. Frappe soi duong duyet luc luu, va voi chung tu MOI thi
+	no khong nhan bat ky buoc chuyen nao, nen nem loi:
+
+	    "Không được phép chuyển trạng thái quy trình từ Nháp sang Chờ FIN kiểm tra"
+
+	`tao_phieu` nem loi thi ca giao dich bi lui: khong co phieu, tep vua dinh
+	cung mat. Do trung voi mo ta cua Uyen 16/09: bam "Đã hiểu" la man thoat
+	ra, khong ghi nhan gi. Do tren site that: phieu CUOI CUNG lap duoc qua
+	man nay la APP-26-09-050 luc 03/09 17:38, tuc mot tieng ruoi TRUOC ban
+	v408. Tu do toi 16/09 khong lap duoc phieu nao.
+
+	DAY KHONG DUOC THI GIU PHIEU, KHONG NEM LOI
+	-------------------------------------------
+	Phieu va chung tu dinh kem da luu xong roi. Huy sach vi mot cai nhan la
+	mat viec that. `QUYEN_LAP` rong hon vai `AP Officer` cua nut nay (thu mua
+	va ke toan deu lap duoc phieu), nen co that nguoi lap duoc ma khong day
+	duoc. Truong hop do phieu nam o Nháp va may noi ro phai nho ai bam tiep.
+
+	Tra ve (buoc phieu dang nam, cau can noi them neu chua day duoc).
+	"""
+	if not _co_o_workflow():
+		return pe.get("workflow_state") or TT_NHAP, ""
+	# Frappe16.27.1 frappe/model/workflow.py: apply_workflow parse_json,
+	# nạp lại Document từ DB rồi trả Document MỚI. Không đọc object cũ.
+	diem = "tra_truoc_gui_kiem"
+	frappe.db.savepoint(diem)
+	hang = {k: list(getattr(frappe.db, k)._functions) for k in
+		("before_commit", "after_commit", "before_rollback", "after_rollback")}
+	try:
+		from frappe.model.workflow import apply_workflow
+
+		apply_workflow(pe.as_json(), NUT_GUI)
+		pe.reload()
+		return pe.get("workflow_state") or TT_NHAP, ""
+	except Exception:
+		loi = frappe.get_traceback()
+		# Chỉ lùi bước chuyển; phiếu Nháp và tệp trước điểm lưu vẫn còn.
+		# Mất savepoint phải ném lỗi ra để request lùi toàn bộ, không báo đã lưu.
+		frappe.db.rollback(save_point=diem)
+		for k, cu in hang.items():
+			getattr(frappe.db, k)._functions.clear()
+			getattr(frappe.db, k)._functions.extend(cu)
+		pe.reload()
+		frappe.log_error(loi, "tra_truoc: gui kiem tra")
+		buoc = pe.get("workflow_state") or TT_NHAP
+		return buoc, (
+			"Đã lập phiếu trả trước %s và đã lưu chứng từ đính kèm, nhưng máy "
+			"chưa đẩy được phiếu sang bước kế. Phiếu đang ở %s. Nhờ người có "
+			"vai AP Officer mở phiếu bấm Gửi kiểm tra, đừng lập lại phiếu mới."
+			% (pe.name, buoc))
 
 
 def _dung_phieu(d, tien, tk_so_cai):
@@ -467,10 +541,10 @@ def _dung_phieu(d, tien, tk_so_cai):
 	# ERPNext dang tu tinh.
 	pe.posting_date = nowdate()
 	pe.reference_date = nowdate()
-	# Vao thang buoc ke toan kiem, khong dung o "Nháp". Ly do dai o phan
-	# khai bao TT_CHO_FIN phia tren tep.
-	if pe.get("workflow_state") is not None or _co_o_workflow():
-		pe.workflow_state = TT_CHO_FIN
+	# KHONG gan thang workflow_state o day. Phieu nay con MOI, ma Frappe soi
+	# duong duyet ngay luc luu: chung tu moi thi no khong nhan bat ky buoc
+	# chuyen nao, nen gan tay la hong ca luot lap. Phieu vao buoc ke bang
+	# dung nut cua workflow, sau khi da luu. Xem `_gui_kiem_tra`.
 
 	# Chot lai ba dieu truoc khi luu. Neu ERPNext doi cach dung phieu o phien
 	# ban sau thi vo day chu khong vo lang le tren so.
@@ -532,7 +606,7 @@ def _gan_tep(ten_phieu, tep):
 			frappe.log_error(frappe.get_traceback(), "tra_truoc: gan tep loi")
 
 
-def _bao_ke_toan(ten_phieu, d, tien):
+def _bao_ke_toan(ten_phieu, d, tien, vai=VAI_FIN):
 	"""Bao cho ke toan biet co phieu cho kiem, va giao viec dich danh.
 
 	Khong bao gio nem loi: phieu da luu roi ma cai chuong lam hong ca thao
@@ -541,11 +615,13 @@ def _bao_ke_toan(ten_phieu, d, tien):
 	try:
 		from vagabond import giao_viec
 
-		nguoi = giao_viec._nguoi_theo_vai(VAI_FIN)
+		nguoi = giao_viec._nguoi_theo_vai({vai} if isinstance(vai, str) else vai)
 		if not nguoi:
 			return
 		mo_ta = "%s: phiếu trả trước %s đ cho %s, đơn %s" % (
 			ten_phieu, tien_vn(tien), d.get("supplier_name") or d.supplier, d.name)
+		if vai == "AP Officer":
+			mo_ta += "; phiếu còn Nháp, mở phiếu bấm Gửi kiểm tra; không lập lại."
 		giao_viec.giao(PE, ten_phieu, nguoi, mo_ta)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "tra_truoc: bao ke toan loi")
