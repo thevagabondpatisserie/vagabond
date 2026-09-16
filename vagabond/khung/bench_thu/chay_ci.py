@@ -107,5 +107,6 @@ if __name__ == "__main__":
 	can_tru = subprocess.run([sys.executable, "-m", "vagabond.khung.bench_thu.can_tru_262"], check=False)
 	don_dep = subprocess.run([sys.executable, "-m", "vagabond.khung.bench_thu.don_dep_284"], check=False)
 	tra_truoc = subprocess.run([sys.executable, "-m", "vagabond.khung.bench_thu.tra_truoc_336"], check=False)
-	if tra_truoc.returncode or not dat or kho.returncode or app.returncode or in_app.returncode or phan_bo.returncode or can_tru.returncode or don_dep.returncode:
+	cong_thuc = subprocess.run([sys.executable, "-m", "vagabond.khung.bench_thu.cong_thuc_334"], check=False)
+	if cong_thuc.returncode or tra_truoc.returncode or not dat or kho.returncode or app.returncode or in_app.returncode or phan_bo.returncode or can_tru.returncode or don_dep.returncode:
 		raise RuntimeError("Có cửa tích hợp đỏ. Đọc JSON từng lượt, M-Invoice và kho; không phát hành.")

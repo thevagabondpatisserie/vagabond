@@ -256,6 +256,32 @@ var HAI_TK = {
 };
 
 async function chayHet() {
+  await caAsync('#498: ba cửa công thức trên máy, bếp phó soạn được nhưng không thấy nút Ghi sổ', async function () {
+    var HO = {
+      'bếp trưởng': ['Manufacturing Manager'],
+      'bếp phó': ['Bếp phó', 'Manufacturing User'],
+      'quầy bar': ['Quầy Bar'],
+      'thợ bếp': ['Manufacturing User'],
+      'người ngoài': ['Stock User']
+    };
+    var MONG = {
+      'bếp trưởng': [true, true, true],
+      'bếp phó': [true, true, false],
+      'quầy bar': [true, true, false],
+      'thợ bếp': [true, false, false],
+      'người ngoài': [false, false, false]
+    };
+    var src = docTep('26-cong-thuc.js');
+    for (var ten in HO) {
+      var vai = HO[ten];
+      var g = {hasRole: function (v) { return vai.indexOf(v) >= 0; }};
+      vm.createContext(g);
+      vm.runInContext(layHam(src, 'ctGhiSoDuoc') + '\n' + layHam(src, 'ctSoanDuoc') + '\n' + layHam(src, 'ctXemDuoc'), g);
+      bang(ten + ' xem', g.ctXemDuoc(), MONG[ten][0]);
+      bang(ten + ' soạn', g.ctSoanDuoc(), MONG[ten][1]);
+      bang(ten + ' ghi sổ', g.ctGhiSoDuoc(), MONG[ten][2]);
+    }
+  });
   await caAsync('327: ba cửa UI phân biệt mapping, lệch tiền và trùng giao dịch', async function () {
     var ht = docTep('11-khach-ca-hop-dong.js'), tt = docTep('16-mua-hang.js');
     var callbacks = [

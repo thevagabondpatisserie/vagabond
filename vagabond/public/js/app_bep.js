@@ -1630,6 +1630,13 @@ async function scrHome() {
       /* Danh muc cong thuc cho bep truong (anh Viet 21/08/2026): xem, tao
          moi va dieu chinh BOM ngay tren dien thoai, khoi mo Desk. */
       card('📖', 'Danh mục công thức', 'Công thức ba khu: Pastry, Baker, Quầy Bar - tạo mới và điều chỉnh có phiên bản', 0, 'CTBOM') + '</div>';
+  } else if (ctXemDuoc()) {
+    /* Quay Bar va ke toan gia thanh KHONG phai bep: ho khong co viec gi voi
+       Bang bep hay Lenh san xuat, chi can dung mot the Cong thuc. Nguoi bep
+       van thay the do nam trong nhom Bep nhu cu, khong doi cho (anh Viet
+       16/09/2026). */
+    html += '<div class="sec">Công thức</div><div class="card">' +
+      card('📖', 'Danh mục công thức', 'Công thức ba khu: Pastry, Baker, Quầy Bar - tạo mới và điều chỉnh có phiên bản', 0, 'CTBOM') + '</div>';
   }
   html += '<div class="sec">Bán hàng</div><div class="card">' +
     card('\uD83C\uDF82', 'Kiểm bánh hôm nay', 'Tồn - bếp làm - đã đặt - bán được, đồng bộ Pancake', 0, 'KBD') +
@@ -21689,7 +21696,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '499';
+var APPVER = '501';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -40300,9 +40307,30 @@ var CT_CHANG = [['', 'Chặng: tất cả'], ['nguyen_lieu', '🌾 Nguyên liệ
   ['btp_so_cap', '🥣 BTP sơ cấp'], ['btp_san_sang', '🧁 BTP sẵn sàng'],
   ['thanh_pham', '🎂 Thành phẩm']];
 
-function ctQuanLy() {
+/* BA cua, khong phai mot (anh Viet 16/09/2026).
+
+   Truoc ban nay chi co `ctQuanLy`, gop ca xem, soan va ghi so lam mot, nen
+   bep pho mo duoc man ma khong bam duoc nut nao, con quay Bar thi khong co
+   vai nao mo duoc man.
+
+   Ba ham duoi day phai KHOP TUNG VAI voi `_vai_xem`, `_vai_soan` va
+   `_vai_ghi_so` trong vagabond/cong_thuc.py. Lech mot vai la hien nut ra
+   roi may chu tu choi, hoac giau nut cua nguoi co quyen. Co ca kiem chot
+   chuyen do trong thu_quyen_cong_thuc_498.py.
+
+   `ctQuanLy` giu lai lam bi danh cua `ctGhiSoDuoc` de ban nao con goi ten
+   cu khong gay am tham. */
+function ctGhiSoDuoc() {
   return hasRole('Manufacturing Manager') || hasRole('System Manager') ||
-    hasRole('Giám đốc') || hasRole('AP Giám đốc');
+    hasRole('Giám đốc') || hasRole('AP Giám đốc') ||
+    hasRole('VGB - Quản lý công thức');
+}
+function ctQuanLy() { return ctGhiSoDuoc(); }
+function ctSoanDuoc() {
+  return ctGhiSoDuoc() || hasRole('Bếp phó') || hasRole('Quầy Bar');
+}
+function ctXemDuoc() {
+  return ctSoanDuoc() || hasRole('Manufacturing User');
 }
 
 /* Nut mo Huong dan che bien tren mot the cong thuc.
@@ -40386,7 +40414,7 @@ async function scrCongThuc() {
         : '<div class="emp"><div class="e1">📖</div><div class="e2">Không có công thức nào khớp bộ lọc</div></div>');
 
     var b = frame('Danh mục công thức', body,
-      ctQuanLy() ? { fab: true, onFab: ctTaoMoi } : {});
+      ctSoanDuoc() ? { fab: true, onFab: ctTaoMoi } : {});
     b.onclick = function (e) {
       var t = e.target.closest('[data-tab]');
       if (t) { ctD.tab = t.dataset.tab; ctD.ds = null; return scrCongThuc(); }
@@ -40480,10 +40508,16 @@ async function scrCongThucXem(name) {
   if (d.trang_thai !== 'da_huy') {
     nut = '<button class="btn gh" id="ctHd" style="margin-bottom:9px">📖 Hướng dẫn chế biến</button>';
   }
-  if (ctQuanLy()) {
+  if (ctSoanDuoc()) {
     if (d.trang_thai === 'nhap') {
-      nut += '<div class="row2"><button class="btn gh" id="ctSua">✏️ Sửa nháp</button>' +
-        '<button class="btn gr" id="ctGhiSo">✅ Ghi sổ</button></div>' +
+      /* Nguoi soan thay Sua nhap va Bo nhap. Nut Ghi so CHI hien cho nguoi
+         thuc su ghi so duoc; hien ra roi de may chu tu choi la lua nguoi
+         dung. Ai khong ghi so duoc thi doc mot dong nhac ngay duoi nut. */
+      nut += (ctGhiSoDuoc()
+        ? '<div class="row2"><button class="btn gh" id="ctSua">✏️ Sửa nháp</button>' +
+          '<button class="btn gr" id="ctGhiSo">✅ Ghi sổ</button></div>'
+        : '<button class="btn gh" id="ctSua">✏️ Sửa nháp</button>' +
+          '<div class="mut" style="margin:7px 0 0;font-size:13px">Lưu nháp xong nhờ bếp trưởng bấm Ghi sổ.</div>') +
         '<button class="btn gh" id="ctBo" style="margin-top:9px;color:#b3261e">Bỏ bản nháp này</button>';
     } else if (d.trang_thai !== 'da_huy') {
       nut += '<button class="btn" id="ctDc">🔁 Điều chỉnh (ra phiên bản mới)</button>';

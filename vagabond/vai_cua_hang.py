@@ -74,6 +74,18 @@ VAI_QLCT = "VGB - Quản lý công thức"
 # quyen; cai nay la mot vai bo phan don le.
 VAI_MARKETING = "Marketing"
 
+# Vai thu tu, them 16/09/2026 theo yeu cau anh Viet.
+#
+# Man Danh muc cong thuc phuc vu BA khu: Pastry, Baker va Quay Bar. Hai khu
+# dau di theo vai bep, con quay Bar thi he KHONG co vai nao ca - ban Nguyen
+# Huu Tai dang giu Bo phan dat hang, Kiem ke vien, Stock User, khong cai nao
+# mo duoc man cong thuc.
+#
+# Dat vai bo phan don le ten tran "Quay Bar", giong `Marketing`, chu khong
+# nang ban ay len `Bep pho`: vai do keo theo ca Bang bep, Lenh san xuat va
+# Ke hoach san xuat, rong hon nhieu so voi viec can lam.
+VAI_BAR = "Quầy Bar"
+
 # Bang vai do MA NGUON dung. Them mot vai moi la them mot dong o day.
 #   vai      ten vai se dung
 #   ho_so    ho so vai duoc nhan no. De rong thi CHI dung vai, khong gan
@@ -83,6 +95,7 @@ BANG_VAI = (
 	{"vai": VAI_QLCH, "ho_so": HO_SO_NHAN, "them_san": VAI_THEM_SAN},
 	{"vai": VAI_QLCT, "ho_so": "VGB - Kế toán giá thành", "them_san": ()},
 	{"vai": VAI_MARKETING, "ho_so": "", "them_san": ()},
+	{"vai": VAI_BAR, "ho_so": "", "them_san": ()},
 )
 
 
