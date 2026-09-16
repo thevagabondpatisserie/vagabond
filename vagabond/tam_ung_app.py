@@ -49,12 +49,12 @@ def _nguon(bank):
     rows = frappe.db.sql("""select name, total_debit, vgb_cap_ung_bt, vgb_nguon_ung,
         posting_date from `tabJournal Entry` where docstatus=1 and vgb_quy_ung=%s
         order by posting_date, creation, name for update""", (bank,), as_dict=True)
-    con = {r.name: flt(r.total_debit) for r in rows if r.vgb_cap_ung_bt}
+    con = {r.name: Decimal(str(r.total_debit)) for r in rows if r.vgb_cap_ung_bt}
     for r in rows:
         for ten, tien in json.loads(r.vgb_nguon_ung or "{}").items():
             if ten not in con:
                 frappe.throw("Bút toán %s đang cấn một nguồn không còn hiệu lực. Kế toán kiểm lại." % r.name)
-            con[ten] -= flt(tien)
+            con[ten] -= Decimal(str(tien))
     return rows, con
 
 
@@ -87,8 +87,8 @@ def danh_sach(tai_khoan):
     rows, con = _nguon(b.name)
     return {"nguoi": b.party, "company": a.company,
             "nguon": [{"name": r.name, "ngay": r.posting_date, "so_tien": flt(r.total_debit),
-                       "con_lai": con[r.name]} for r in rows if r.name in con],
-            "con_lai": sum(con.values())}
+                       "con_lai": float(con[r.name])} for r in rows if r.name in con],
+            "con_lai": float(sum(con.values()))}
 
 
 @frappe.whitelist(methods=["POST"])
@@ -123,6 +123,9 @@ def ghi_nhan_cap(giao_dich, tai_khoan_nguon, nop_quy=""):
     j.flags.vgb_tam_ung = True
     j.insert(ignore_permissions=True)
     j.submit()
+    j.reload()
+    if flt(j.total_debit) != flt(g.deposit) or len(j.accounts) != 2:
+        frappe.throw("Bút toán cấp quỹ không còn khớp số tiền đã nộp. Đã lùi lượt ghi nhận.")
     g.add_payment_entries([{"payment_doctype": JE, "payment_name": j.name}])
     g.save(ignore_permissions=True)
     g.reload()
@@ -236,6 +239,9 @@ def can(name, so_tien):
     j.flags.vgb_tam_ung = True
     j.insert(ignore_permissions=True)
     j.submit()
+    j.reload()
+    if Decimal(str(j.total_debit)) != sum(Decimal(str(x)) for x in nguon.values()):
+        frappe.throw("Số cấn có phần lẻ vượt độ chính xác tiền tệ. Nhập lại số tiền theo sổ kế toán.")
     doc.vgb_can_ung, doc.da_tam_ung = j.name, j.total_debit
     doc.flags.vgb_tam_ung = True
     doc.save(ignore_permissions=True)

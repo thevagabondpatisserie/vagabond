@@ -68,3 +68,14 @@ def _kiem_can():
     sai=deepcopy(b);sai[0]['dong'][0]['reference_name']='PI-KHAC'
     la('bắt sai hóa đơn',hs._kiem_bo_chung_tu(k,sai)['du'],0)
     la('bắt trả thêm',hs._kiem_bo_chung_tu(k,b+[dict(name='PE-DUP',doctype='Payment Entry')])['du'],0)
+
+@ca('APP cấn đủ: cửa xuất chuyển khoản không đổi 0 thành tổng tiền hồ sơ')
+def _khong_xuat_tien_lan_hai():
+    d=Doc(name='APP-THU',tong_tien=100,con_lai=0,ten_nhan='Người thử',stk_nhan='SO-THU',nha_cung_cap='NCC')
+    with patch.object(hs,'_kiem'), patch.object(frappe,'get_doc',return_value=d), patch.object(hs,'_noi_dung_ck',return_value='THU'):
+        try:
+            hs.noi_dung_chuyen_khoan('APP-THU')
+        except frappe.ValidationError as e:
+            la('nói không chuyển thêm', 'không còn tiền phải chuyển' in str(e), True)
+        else:
+            la('phải dừng xuất lệnh',True,False)

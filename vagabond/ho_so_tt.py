@@ -3343,7 +3343,9 @@ def noi_dung_chuyen_khoan(name, luu=1):
 		doc.ten_nhan = doc.ten_ncc or doc.nha_cung_cap
 
 	nd = _noi_dung_ck(doc)
-	so_tien = flt(doc.con_lai) or flt(doc.tong_tien)
+	so_tien = flt(doc.con_lai) if doc.con_lai is not None else flt(doc.tong_tien)
+	if so_tien <= 0:
+		frappe.throw("Hồ sơ không còn tiền phải chuyển. Nếu đã cấn đủ, bấm Hoàn tất quyết toán; không lập thêm lệnh chuyển tiền.")
 	if cint(luu):
 		doc.db_set("noi_dung_ck", nd, update_modified=False)
 		for k in ("ten_nhan", "stk_nhan", "ngan_hang_nhan"):
@@ -3413,6 +3415,8 @@ def _doi_tk_thi_ky_lai(doc):
 	thì phải sửa). Nhưng đổi xong thì chữ ký giám đốc không còn giá trị với
 	tờ này nữa, nên hạ về bước chờ giám đốc để ký lại.
 	"""
+	if doc.get("vgb_can_ung"):
+		frappe.throw("Hồ sơ đang cấn tiền cấp trước. Bấm Bỏ cấn tạm ứng trước khi đổi tài khoản nhận rồi duyệt lại.")
 	if doc.trang_thai != TT_DA_DUYET:
 		return ""
 	cu = "%s · %s · %s" % (doc.ten_nhan or "-", doc.stk_nhan or "-", doc.ngan_hang_nhan or "-")

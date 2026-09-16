@@ -556,6 +556,12 @@ def _quy_day_du_342():
 		h.reload();hd.reload()
 		la('PI hết nợ do JE',float(hd.outstanding_amount),0.0)
 		la('không phải chuyển thêm',float(h.con_lai),0.0)
+		try:
+			ho_so_tt.noi_dung_chuyen_khoan(h.name)
+		except frappe.ValidationError as e:
+			dung('không xuất lệnh chi toàn bộ lần nữa','không còn tiền phải chuyển' in str(e))
+		else:
+			dung('không tạo file chuyển tiền khi đã cấn đủ',False)
 		la('còn nguồn cho lần sau',tu.danh_sach(b.name)['con_lai'],30000.0)
 		la('retry cấn cùng JE',tu.can(h.name,70000)['name'],ra['name'])
 		ho_so_tt.danh_dau_da_tra(h.name,gui_thu=0)

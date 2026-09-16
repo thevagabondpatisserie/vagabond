@@ -34001,6 +34001,7 @@ async function scrHoSoTTView(name) {
   var hs = d.ho_so, Q = d.quyen || {}, m = hsMau[hs.trang_thai] || ['#f3f4f6', '#e5e7eb', '#374151', '•'];
   var laHU = hs.loai === 'Hoan ung' || hs.loai === 'Hoan ung HD';
   var laTKCT = hs.loai === 'TK cong ty';
+  var canDu = !!hs.vgb_can_ung && Number(hs.con_lai) === 0;
   /* Con go duoc giay to ra hay khong. Ho so da thanh toan thi bo ho so la
      giai trinh cua mot lan chuyen tien that, go mot to ra la lam thung bo
      do; may chu chan lan nua chu khong tin mot minh man hinh. */
@@ -34011,7 +34012,7 @@ async function scrHoSoTTView(name) {
 
   var html = '<div class="card" style="padding:14px;background:' + m[0] + ';border:1.5px solid ' + m[1] + '">' +
     '<div style="font-size:22px">' + m[3] + '</div>' +
-    '<div style="font-size:17px;font-weight:800;color:' + m[2] + ';margin-top:4px">' + h(hs.nhan) + '</div>' + hsCanhBaoDoiChieu(hs) +
+    '<div style="font-size:17px;font-weight:800;color:' + m[2] + ';margin-top:4px">' + h(canDu ? (hs.trang_thai === 'Da thanh toan' ? 'Đã quyết toán bằng tiền cấp trước' : 'Đã cấn đủ, chờ hoàn tất quyết toán') : hs.nhan) + '</div>' + hsCanhBaoDoiChieu(hs) +
     '<div style="font-size:13.5px;color:#374151;margin-top:6px">' +
     nhanLoai + h(hs.ten_ncc || hs.ncc) +
     /* Ho so hoan ung gom nhieu nha cung cap thi dau ho so mang ten NGUOI
@@ -34042,7 +34043,7 @@ async function scrHoSoTTView(name) {
     ['Lập hồ sơ', hs.nguoi_tao_ten || hs.nguoi_tao, hs.ngay, 1],
     ['Kế toán duyệt (FIN)', hs.fin_ten || hs.fin_boi, hs.fin_luc, hs.fin_boi ? 1 : 0],
     ['Giám đốc duyệt', hs.gd_ten || hs.gd_boi, hs.gd_luc, hs.gd_boi ? 1 : 0],
-    ['Chuyển tiền', hs.ma_giao_dich || (hs.trang_thai === 'Da thanh toan' ? 'đã chuyển' : ''), hs.ngay_thanh_toan, hs.trang_thai === 'Da thanh toan' ? 1 : 0]
+    [canDu ? 'Quyết toán' : 'Chuyển tiền', hs.ma_giao_dich || (hs.trang_thai === 'Da thanh toan' ? (canDu ? 'đã cấn đủ' : 'đã chuyển') : ''), hs.ngay_thanh_toan, hs.trang_thai === 'Da thanh toan' ? 1 : 0]
   ];
   html += '<div class="sec">Chuỗi duyệt</div><div class="card">';
   buoc.forEach(function (x) {
@@ -34060,7 +34061,7 @@ async function scrHoSoTTView(name) {
     '<div>Ngân hàng: <b>' + h(hs.ngan_hang_nhan || '(chưa khai)') + '</b></div>' +
     (hs.noi_dung_ck ? '<div style="margin-top:4px">Nội dung: <b>' + h(hs.noi_dung_ck) + '</b></div>' : '') +
     '<div style="display:flex;gap:8px;margin-top:10px">' +
-    '<button class="btn gh" data-hsv="noidungck" style="flex:2;margin:0">🏦 Tạo nội dung chuyển khoản</button>' +
+    (canDu ? '<div>Đã cấn đủ từ tiền cấp trước. Không chuyển tiền thêm.</div>' : '<button class="btn gh" data-hsv="noidungck" style="flex:2;margin:0">🏦 Tạo nội dung chuyển khoản</button>') +
     ((Q.lap || Q.fin) && hs.trang_thai !== 'Da thanh toan' ? '<button class="btn gh" data-hsv="chontk" style="flex:1;margin:0">🏦 Chọn TK nhận</button>' : '') +
     ((Q.lap || Q.fin) && hs.trang_thai !== 'Da thanh toan' ? '<button class="btn gh" data-hsv="suatk" style="flex:1;margin:0">✏️ Gõ tay</button>' : '') +
     '</div></div>';
@@ -34160,7 +34161,7 @@ async function scrHoSoTTView(name) {
      thi khong ai thay no thieu. */
   var uncDs = d.unc || [];
   var uncGo = Number(d.unc_go_duoc || 0) && (Q.fin || Q.gd);
-  if (Q.fin || Q.gd || uncDs.length) {
+  if ((!canDu && (Q.fin || Q.gd)) || uncDs.length) {
     html += '<div class="sec">Uỷ nhiệm chi</div><div class="card" style="padding:12px 14px">';
     if (uncDs.length) {
       html += '<div style="display:flex;flex-wrap:wrap;gap:14px 11px;padding:2px 0 4px">' +
@@ -34244,11 +34245,11 @@ async function scrHoSoTTView(name) {
   if (Q.fin && hs.trang_thai === 'Cho ke toan') nut.push('<button class="btn" data-hsv="fin" style="flex:2">✅ Kế toán duyệt</button>');
   if (Q.gd && hs.trang_thai === 'Cho giam doc') nut.push('<button class="btn" data-hsv="gd" style="flex:2">👔 Giám đốc duyệt</button>');
   if (Q.fin && hs.trang_thai === 'Da duyet') {
-    nut.push('<button class="btn gh" data-hsv="sepay" style="flex:1">🏦 Dò SePay</button>');
-    nut.push('<button class="btn" data-hsv="datra" style="flex:2">💸 Ghi nhận đã thanh toán</button>');
+    if (!canDu) nut.push('<button class="btn gh" data-hsv="sepay" style="flex:1">🏦 Dò SePay</button>');
+    nut.push('<button class="btn" data-hsv="datra" style="flex:2">' + (canDu ? '✅ Hoàn tất quyết toán' : '💸 Ghi nhận đã thanh toán') + '</button>');
   }
-  if (Q.fin && ['Da duyet', 'Da thanh toan'].indexOf(hs.trang_thai) >= 0) nut.push('<button class="btn gh" data-hsv="khoptay" style="flex:2">🔎 Đối chiếu tay</button>');
-  if (Q.fin && (hs.ma_giao_dich || hs.trang_thai === 'Da thanh toan') && ['Da duyet', 'Da thanh toan'].indexOf(hs.trang_thai) >= 0) nut.push('<button class="btn gh" data-hsv="bodoichieu" style="flex:2">Bỏ đối chiếu</button>');
+  if (!canDu && Q.fin && ['Da duyet', 'Da thanh toan'].indexOf(hs.trang_thai) >= 0) nut.push('<button class="btn gh" data-hsv="khoptay" style="flex:2">🔎 Đối chiếu tay</button>');
+  if (!canDu && Q.fin && (hs.ma_giao_dich || hs.trang_thai === 'Da thanh toan') && ['Da duyet', 'Da thanh toan'].indexOf(hs.trang_thai) >= 0) nut.push('<button class="btn gh" data-hsv="bodoichieu" style="flex:2">Bỏ đối chiếu</button>');
   if ((Q.fin || Q.gd) && ['Cho ke toan', 'Cho giam doc', 'Da duyet'].indexOf(hs.trang_thai) >= 0) nut.push('<button class="btn gh" data-hsv="tu_choi" style="flex:1">⛔ Từ chối</button>');
   if (Q.lap && ['Nhap', 'Tu choi'].indexOf(hs.trang_thai) >= 0) nut.push('<button class="btn gh" data-hsv="huy" style="flex:1">🗑 Huỷ</button>');
   var foot = nut.length ? '<div style="display:flex;gap:8px">' + nut.join('') + '</div>' : '';
@@ -34456,8 +34457,8 @@ async function hsHanh(k, hs) {
       (x.du ? '\n\n✅ Đã đủ tiền, bấm Ghi nhận đã thanh toán được rồi.' : '\n\n⏳ Chưa đủ. Khi chuyển khoản nhớ ghi mã ' + hs.ma + ' vào nội dung để máy tự khớp.'));
   }
   if (k === 'datra') {
-    if (!await xacNhan('Ghi nhận đã thanh toán ' + money(hs.tong_tien) + ' đ cho ' + (hs.ten_ncc || hs.ncc) + '?\n\n' +
-      'Máy sẽ sinh bút toán chi tiền và xoá công nợ trên các hoá đơn trong hồ sơ. Việc này không lui lại được.')) return;
+    if (!await xacNhan('Hoàn tất hồ sơ ' + money(hs.tong_tien) + ' đ cho ' + (hs.ten_ncc || hs.ncc) + '?\n\n' +
+      'Máy kiểm các bút toán đã cấn và ghi phần tiền chuyển thêm nếu có. Không chuyển tiền thêm khi đã cấn đủ.')) return;
     if (Number(hs.da_tam_ung) > 0 && !await xacNhan(
       'Đã cấn ' + money(hs.da_tam_ung) + ' đ. Phần chuyển thêm là ' + money(hs.con_lai) + ' đ. Máy kiểm lại cả bút toán cấn và khoản chuyển thêm trước khi hoàn tất.')) return;
     var mgd = hs.ma_giao_dich || ''; /* Mã lấy từ danh mục sao kê, không gõ tự do. */

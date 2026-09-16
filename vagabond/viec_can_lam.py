@@ -572,7 +572,7 @@ def _viec_ho_so_tt(vai):
 			"loai": "ho_so_tt", "ma": x["name"],
 			"nhom": hs.NHAN.get(x["trang_thai"]) or x["trang_thai"],
 			"phu": x.get("ten_ncc") or x.get("ten_nguoi_ung") or "",
-			"tien": float(x.get("con_lai") or x.get("tong_tien") or 0),
+			"tien": float(x.get("con_lai") if x.get("con_lai") is not None else (x.get("tong_tien") or 0)),
 			"ngay": str(x.get("han_tra_som_nhat") or ""),
 			"buoc": buoc,
 			"tt": "tre_hen" if _tre(x.get("han_tra_som_nhat")) else buoc,

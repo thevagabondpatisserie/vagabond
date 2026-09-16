@@ -259,6 +259,19 @@ var HAI_TK = {
 };
 
 async function chayHet() {
+  await caAsync('342 màn cấn đủ: không đòi UNC, không tạo lệnh chuyển thêm', async function () {
+    var m=dungMan();
+    m.g.api=async function(){return {ho_so:{ma:'APP-THU',loai:'Hoan ung HD',trang_thai:'Da duyet',
+      nhan:'Đã duyệt',tong_tien:100,da_tam_ung:100,con_lai:0,vgb_can_ung:'JE-THU',tk_nhan:'BANK',
+      ten_ncc:'Người thử',ngay:'2026-09-16'},quyen:{fin:true},dong:[]};};
+    await m.g.scrHoSoTTView('APP-THU');
+    dung('có nút quyết toán',m.khung.innerHTML.includes('Hoàn tất quyết toán'));
+    dung('không đòi UNC mới',!m.khung.innerHTML.includes('Chưa có uỷ nhiệm chi'));
+    dung('không tạo nội dung chi',!m.khung.innerHTML.includes('data-hsv="noidungck"'));
+    dung('không đòi sao kê chi',!m.khung.innerHTML.includes('data-hsv="khoptay"'));
+    dung('còn đường sửa cấn',m.khung.innerHTML.includes('Bỏ cấn tạm ứng'));
+  });
+
   await caAsync('342 cấp quỹ: nút thật gửi đúng BT,111 và NQ tùy chọn; hủy không ghi', async function () {
     for (var huy of [false,true]) {
       var calls=[], messages=[], picks=['BANK','BT','111','-'];
