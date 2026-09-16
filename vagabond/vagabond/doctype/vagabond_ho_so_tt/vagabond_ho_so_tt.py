@@ -35,6 +35,10 @@ LOAI_HOAN_UNG = ("Hoan ung", "Hoan ung HD")
 
 class VagabondHoSoTT(Document):
 	def validate(self):
+		# Cùng chốt cho nút APP và Document/Desk, kể cả đổi loại để lách.
+		if self.trang_thai in ("Tu choi", "Huy"):
+			from vagabond.ho_so_tt import _chan_giet_ho_so_da_sinh_hoa_don
+			_chan_giet_ho_so_da_sinh_hoa_don(self, "Từ chối" if self.trang_thai == "Tu choi" else "Huỷ")
 		self.chan_hoan_tat_khong_but_toan()
 		if not self.dong:
 			frappe.throw("Hồ sơ thanh toán phải có ít nhất một dòng.")

@@ -717,3 +717,7 @@ nút>)`, không gán tay. Gán tay chỉ đúng với chứng từ ĐÃ CÓ. Và
 việc người ta vừa làm.
 
 PR336 review: apply_workflow trên Frappe16.27.1 nhận JSON/dict và nạp Document khác từ DB. Không truyền Document rồi đọc object cũ. Chuyển lỗi phải rollback savepoint riêng, phục hồi callbacks, reload DB và giao Nháp cho AP Officer; FIN chỉ nhận khi thực sự chuyển thành công. Ca bench tra-truoc-336 kiểm cả lỗi sau save.
+
+## Issue339 - phân biệt hóa đơn được nối và hóa đơn được sinh
+
+Khi cancel/amend PI, rà cả APP đang giữ liên kết, không chỉ PE/JE. Trả lại hồ sơ NCC không đồng nghĩa hủy PI. Guard chống bỏ rơi PI do hoàn ứng sinh phải xét nguồn, không chỉ docstatus của mọi dòng. Test xuyên nút/API/Document: PI hủy sau lập, trả lại, đổi sang bản amend và gửi lại, giữ nguyên GL và dư nợ.

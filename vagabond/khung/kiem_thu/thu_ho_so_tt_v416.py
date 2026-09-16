@@ -73,7 +73,7 @@ def _chan_giet_ho_so():
 	dung("có hàm đọc hoá đơn", "def _hoa_don_da_sinh(doc):" in src)
 	dung("có hàm chặn", "def _chan_giet_ho_so_da_sinh_hoa_don(doc, viec):" in src)
 	than = _doan(src, "def _hoa_don_da_sinh(doc):", "\ndef _chan_giet")
-	dung("chỉ tính hoá đơn đã ghi sổ", 'get_value("Purchase Invoice", ma, "docstatus")) == 1' in than)
+	dung("chỉ tính hoá đơn đã ghi sổ", 'cint(pi.docstatus) != 1' in than)
 	d2 = _doan(src, "def duyet(name, buoc, ly_do=", "\ndef ")
 	tc = _doan(d2, 'elif buoc == "tu_choi":', 'elif buoc == "huy":')
 	dung("nhánh từ chối có chặn", '_chan_giet_ho_so_da_sinh_hoa_don(doc, "Từ chối")' in tc)
