@@ -516,6 +516,22 @@ def _nhom_that(ds_ma):
 	}
 
 
+def _phieu_cho_cua_kho(kho):
+	"""Ten phieu cua man nay dang cho ghi so o kho nay, hoac "" neu chua co."""
+	ds = frappe.get_all(
+		"Stock Entry",
+		filters={
+			"docstatus": 0,
+			"vgb_huy": 0,
+			"vgb_muc_dich_xuat": MA_MUC_DICH,
+			"from_warehouse": kho,
+		},
+		fields=["name"],
+		limit_page_length=1,
+	)
+	return ds[0]["name"] if ds else ""
+
+
 @frappe.whitelist()
 def luu(kho=None, bo_phan_chiu=None, ghi_chu=None, dong=None):
 	"""Tao phieu o dang BAN NHAP, cho ke toan ghi so."""
@@ -526,6 +542,20 @@ def luu(kho=None, bo_phan_chiu=None, ghi_chu=None, dong=None):
 		import json
 
 		dong = json.loads(dong or "[]")
+
+	# Mot kho chi co MOT phieu cho ghi so (Codex bat tren PR #344). Nhip la
+	# moi diem ban mot phieu moi tuan, nen phieu nhap thu hai cho cung kho
+	# khong bao gio la y muon: no la mat phan hoi HTTP roi bam lai, hoac hai
+	# nguoi cung chot mot kho. Hai phieu cung so da dung ma deu ghi so thi
+	# ton 100 dem 80 bi tru hai lan con 60. Khoa dong Warehouse de hai lan
+	# goi cung luc phai xep hang, roi moi doc xem da co phieu cho chua.
+	frappe.db.get_value("Warehouse", kho, "name", for_update=True)
+	da_co = _phieu_cho_cua_kho(kho)
+	if da_co:
+		frappe.throw(
+			"Kho này đã có phiếu %s đang chờ ghi sổ. Ghi sổ hoặc bỏ phiếu đó "
+			"trước, rồi mới lập phiếu mới." % da_co
+		)
 
 	# Dien lai nhom mon VA ton tren so tu co so du lieu truoc khi soat.
 	# Xem `_nhom_that` va `_ton_that`: app gui gi cung khong tin.
