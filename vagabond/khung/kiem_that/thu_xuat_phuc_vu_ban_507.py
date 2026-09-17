@@ -29,9 +29,28 @@ from vagabond.khung.kiem_that.thu_ma_cap_so import _uom
 
 
 def _nhom(ten):
-	"""Nhom mon that tren site. Khong co thi ca kiem do, khong bia."""
-	if not frappe.db.exists("Item Group", ten):
-		nen._LOI.append("site thiếu nhóm món %r nên không dựng được ca" % ten)
+	"""Nhom mon theo dung TEN ma man nay phan loai.
+
+	Site that co san "Bao bì", "Bánh lạnh". Bench CI (Bench tich hop SHA)
+	la site trang, khong co nhom nao cua tiem: lan chay dau 17/09/2026 ca
+	3 ca deu do vi "site thieu nhom mon". Nen thieu thi DUNG nhom la trong
+	diem luu, ten phai dung tung chu vi `xp.trong_pham_vi` va
+	`xp.NGOAI_PHAM_VI` doi chieu theo ten.
+	"""
+	if frappe.db.exists("Item Group", ten):
+		return ten
+	cha = "All Item Groups"
+	if not frappe.db.exists("Item Group", cha):
+		cha = frappe.db.get_value("Item Group", {"is_group": 1}, "name")
+	g = frappe.new_doc("Item Group")
+	g.item_group_name = ten
+	g.parent_item_group = cha
+	g.is_group = 0
+	g.flags.ignore_permissions = True
+	g.insert(ignore_permissions=True)
+	nen._DA_TAO.append(("Item Group", g.name))
+	if g.name != ten:
+		nen._LOI.append("dựng nhóm %r nhưng site đặt tên %r" % (ten, g.name))
 		return None
 	return ten
 
@@ -120,8 +139,16 @@ def _duong_chinh():
 	la("mang mã của màn này", doc.get("vgb_muc_dich_xuat"), xuat_kho.MA_PHUC_VU_BAN)
 	la("một dòng", len(doc.items), 1)
 	la("xuất 20 theo tồn thật, không phải 10 theo tồn app gửi", flt(doc.items[0].qty), 20.0)
-	dung("tài khoản chi phí là 6412",
-		str(doc.items[0].expense_account or "").startswith("6412"))
+	# Site that co 6412. Bench CI la site trang, cay tai khoan mac dinh cua
+	# ERPNext khong co 6412, luc do ham phai TUT ve tai khoan Xuat huy dang
+	# dung chu khong nem loi (docstring _tk_theo_nhom). Kiem dung nhanh minh
+	# dang dung, khong bia mot ben cho xanh.
+	tk = str(doc.items[0].expense_account or "")
+	co_6412 = bool(frappe.db.exists("Account", {"company": cty, "account_number": "6412", "is_group": 0}))
+	if co_6412:
+		dung("tài khoản chi phí là 6412", tk.startswith("6412"))
+	else:
+		la("site không có 6412 thì tụt về tài khoản Xuất huỷ", tk, xuat_kho._tk_chi_phi(cty))
 	la("tồn chưa trừ khi còn nháp", _ton(ma, kho), 100.0)
 
 	khong_nem("kế toán ghi sổ", lambda: xp.ghi_so(r["name"]))
@@ -142,10 +169,10 @@ def _duong_chinh():
 		filters={"voucher_no": r["name"], "is_cancelled": 0},
 		fields=["account", "debit", "credit"])
 	dung("có bút toán", len(gl) >= 2)
-	no_6412 = [g for g in gl if str(g["account"]).startswith("6412") and flt(g["debit"]) > 0]
-	dung("có dòng Nợ 6412 chi phí bao bì", len(no_6412) == 1)
+	no_6412 = [g for g in gl if g["account"] == tk and flt(g["debit"]) > 0]
+	dung("có đúng một dòng Nợ vào tài khoản chi phí của dòng hàng", len(no_6412) == 1)
 	if no_6412:
-		la("giá trị Nợ 6412 = 20 x giá nhập", flt(no_6412[0]["debit"]), 20000.0)
+		la("giá trị Nợ = 20 x giá nhập", flt(no_6412[0]["debit"]), 20000.0)
 
 	ct = xp.chi_tiet(r["name"])
 	la("chi_tiet nói ai ghi sổ", bool(ct.get("nguoi_ghi_so")), True)
