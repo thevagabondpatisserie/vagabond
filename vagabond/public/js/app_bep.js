@@ -49703,11 +49703,18 @@ async function scrXkPvNew() {
   async function napBang() {
     if (!st.kho) { XPV.bang = null; XPV.bangKho = ''; return; }
     if (XPV.bangKho === st.kho && XPV.bang) return;
+    /* Ghim kho DA HOI truoc khi cho. Codex bat tren PR #344: chon kho A
+       roi doi sang B khi A chua ve, cau tra loi cua A ve sau se duoc gan
+       cho B, bang dem cua B thanh hang cua A. Cau tra loi nao khong con
+       khop kho dang chon thi bo, khong ghi. */
+    var khoHoi = st.kho;
     try {
-      var r = await api('vagabond.xuat_phuc_vu_ban.bang_dem', { kho: st.kho });
+      var r = await api('vagabond.xuat_phuc_vu_ban.bang_dem', { kho: khoHoi });
+      if (st.kho !== khoHoi) return;
       XPV.bang = r.dong || [];
-      XPV.bangKho = st.kho;
+      XPV.bangKho = khoHoi;
     } catch (e) {
+      if (st.kho !== khoHoi) return;
       XPV.bang = null;
       XPV.bangKho = '';
       toast(errMsg(e) || 'Không đọc được bảng đếm.');
