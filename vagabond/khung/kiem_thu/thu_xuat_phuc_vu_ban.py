@@ -233,7 +233,7 @@ TON_THAT = {
 }
 
 
-def _chay_luu(dong, bp="Cửa hàng D1", tai_khoan=None, ton_that=None):
+def _chay_luu(dong, bp="Cửa hàng D1", tai_khoan=None, ton_that=None, phieu_cho=None):
 	"""Chay chinh `xp.luu`, chi chan phan cham co so du lieu."""
 	giu = {}
 	ton = TON_THAT if ton_that is None else ton_that
@@ -247,6 +247,9 @@ def _chay_luu(dong, bp="Cửa hàng D1", tai_khoan=None, ton_that=None):
 		if dt == "Bin":
 			ma = k.get("filters", {}).get("item_code", [None, []])[1]
 			return [{"item_code": m, "actual_qty": ton[m]} for m in ma if m in ton]
+		if dt == "Stock Entry":
+			giu["loc_phieu_cho"] = k.get("filters", {})
+			return [{"name": phieu_cho}] if phieu_cho else []
 		return []
 
 	def _new_doc(dt):
@@ -500,3 +503,56 @@ def _ghi_so_cheo():
 			loi2 = str(e)
 	dung("màn mới từ chối phiếu của màn nội bộ",
 		"không phải phiếu xuất kho phục vụ bán hàng" in loi2)
+
+
+@ca("v507: mot kho chi co MOT phieu cho ghi so, lap lai thi bi chan")
+def _mot_kho_mot_phieu_cho():
+	# Codex bat tren PR #344: mat phan hoi HTTP roi bam lai, hoac hai nguoi
+	# cung chot mot kho, la hai phieu nhap cung so da dung. Ca hai deu ghi
+	# so thi ton 100 dem 80 bi tru hai lan con 60.
+	loi = ""
+	try:
+		_chay_luu([_dong("BPKG00011", 3920, 3800)], phieu_cho="PXB-CU")
+	except AssertionError as e:
+		loi = str(e)
+	dung("bị chặn", bool(loi))
+	dung("nói tên phiếu đang chờ", "PXB-CU" in loi)
+	dung("chỉ đường: ghi sổ hoặc bỏ phiếu đó trước", "Ghi sổ hoặc bỏ phiếu đó" in loi)
+	# Khong co phieu cho thi lap binh thuong, va bo loc phai dung MA cua man
+	# nay, dung kho nay, chi phieu nhap chua bo.
+	ra, t = _chay_luu([_dong("BPKG00011", 3920, 3800)])
+	la("không có phiếu chờ thì lập được", ra["ok"], 1)
+
+
+@ca("v507: bo loc phieu cho ghi so: dung ma man nay, dung kho, chi nhap chua bo")
+def _loc_phieu_cho():
+	giu = {}
+
+	def _get_all(dt, **k):
+		giu["loc"] = k.get("filters")
+		return []
+
+	with patch.object(xp, "frappe", SimpleNamespace(get_all=_get_all)):
+		la("chưa có thì trả rỗng", xp._phieu_cho_cua_kho("Kho D1 - TV"), "")
+	loc = giu["loc"]
+	la("đúng mã màn", loc.get("vgb_muc_dich_xuat"), xuat_kho.MA_PHUC_VU_BAN)
+	la("đúng kho", loc.get("from_warehouse"), "Kho D1 - TV")
+	la("chỉ bản nháp", loc.get("docstatus"), 0)
+	la("chưa bị bỏ", loc.get("vgb_huy"), 0)
+
+
+@ca("v507: bang dem ghim kho da hoi, cau tra loi ve muon cua kho khac thi bo")
+def _ghim_kho_da_hoi():
+	# Codex bat tren PR #344. Day la phep DO CHUOI, khong phai chay: chot
+	# rang lenh goi bang_dem dung bien ghim, va sau await co phep so lai
+	# voi kho dang chon truoc khi ghi. Chay that tren trinh duyet chua co.
+	import io
+	import os
+	goc = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+	j = io.open(os.path.join(goc, "public", "js", "bep", "46-xuat-phuc-vu-ban.js"), encoding="utf-8").read()
+	than = j.split("async function napBang()")[1].split("async function")[0]
+	dung("ghim kho trước khi chờ", "var khoHoi = st.kho;" in than)
+	dung("gọi máy chủ bằng kho đã ghim", "bang_dem', { kho: khoHoi }" in than)
+	dung("về muộn mà kho đã đổi thì bỏ", than.count("if (st.kho !== khoHoi) return;") == 2)
+	dung("ghi bảng theo kho đã ghim", "XPV.bangKho = khoHoi;" in than)
+	dung("không còn chỗ nào gán bangKho = st.kho", "XPV.bangKho = st.kho" not in than)
