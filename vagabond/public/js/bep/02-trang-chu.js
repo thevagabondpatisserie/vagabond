@@ -472,7 +472,7 @@ var VGB_NHOM = [
   { k: 'DH', ten: 'Đặt hàng', icon: '🛒', keys: ['Purchase', 'Transfer', 'RND', 'DNC'] },
   { k: 'SX', ten: 'Sản xuất', icon: '🧑‍🍳', keys: ['Manufacture', 'KIT', 'MFG', 'KHSX', 'BTPO', 'CTBOM', 'TIEC'] },
   { k: 'NK', ten: 'Nhập kho', icon: '📥', keys: ['RCV', 'NHANDC', 'NBANH'] },
-  { k: 'XK', ten: 'Xuất kho', icon: '📤', keys: ['XKH', 'XKNB', 'XKD', 'XKTRA', 'XKSI'] },
+  { k: 'XK', ten: 'Xuất kho', icon: '📤', keys: ['XKH', 'XKNB', 'XKPV', 'XKD', 'XKTRA', 'XKSI'] },
   { k: 'KK', ten: 'Kiểm kê', icon: '🧮', keys: ['KK', 'STOCK', 'TONCHANG'] },
   { k: 'BH', ten: 'Bán hàng', icon: '🎂', keys: ['KBD', 'KBM', 'POS', 'TQV', 'HDG', 'OTP', 'KM', 'CN', 'KH', 'DTREO', 'PHHUY', 'BNTM'] },
   { k: 'GH', ten: 'Giao hàng', icon: '🚚', keys: ['VD', 'CPX', 'DSCOD', 'CBTT'] },
@@ -661,6 +661,14 @@ function vgbGomNhom() {
   VGB_HUB.XKNB = {
     cnt: 0,
     html: vgbODong('XKNB', '🏷️', 'Xuất dùng nội bộ', 'Chụp ảnh, mẫu thử, mời khách, ăn ca')
+  };
+  /* Chot kho diem ban (anh Viet 16/09/2026). Do tren site that hom do:
+     trong mot thang, hang ra khoi hai kho diem ban chi co 18 dong va ca 18
+     deu la dieu chuyen. Bao bi, cong cu dung cu, nguyen lieu deu khong co
+     duong ra, nen khoang 320 trieu treo lai trong ton kho. */
+  VGB_HUB.XKPV = {
+    cnt: 0,
+    html: vgbODong('XKPV', '🧾', 'Xuất kho phục vụ bán hàng', 'Chốt bao bì, dụng cụ, nguyên liệu đã dùng')
   };
   VGB_HUB.XKTRA = {
     cnt: 0,
@@ -1271,6 +1279,7 @@ function vgbGo(k) {
   if (k === 'ACC') return go(scrAccount);
   if (k === 'XKH') return go(scrXkHuyList);
   if (k === 'XKNB') return go(scrXkNbList);
+  if (k === 'XKPV') return go(scrXkPvList);
   if (k === 'XKD') return go(scrXkCkList);
   if (k === 'XKTRA') return go(scrXkTraList);
   if (k === 'XKSI') return go(scrXkSiList);
