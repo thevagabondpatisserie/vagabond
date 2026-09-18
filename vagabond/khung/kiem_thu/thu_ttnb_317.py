@@ -304,3 +304,23 @@ def _patch_thieu_ke_toan():
 		la('có dấu vết cảnh báo', ghi.call_count, 2)
 		la('có log quản trị', log.call_count, 1)
 		la('đóng giao việc bước cũ', go.call_args.args, (dc.DT, 'P'))
+
+
+@ca('v508: ô Danh sách thanh toán nội bộ nằm trong phân hệ Kế toán, dẫn về cùng màn')
+def _o_ke_toan_508():
+	# Anh Viet 17/09/2026: ke toan mo danh sach TTNB tu phan he Ke toan, khong
+	# phai vong sang Dat hang. Cung mot man scrTTNB, chi them cua vao.
+	import os
+	import re
+	goc = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+	js = open(os.path.join(goc, 'public/js/bep/02-trang-chu.js'), encoding='utf-8').read()
+	kt = re.search(r"\{ k: 'KT',[^\n]*keys: \[([^\]]*)\]", js)
+	dung('có nhóm Kế toán', bool(kt))
+	dung('DSTTNB nằm trong nhóm Kế toán', bool(kt) and "'DSTTNB'" in kt.group(1))
+	dung('có ô trên lưới', "vgbODong('DSTTNB'" in js and 'Danh sách thanh toán nội bộ' in js)
+	dung('dẫn về đúng màn scrTTNB', "if (k === 'DSTTNB') return go(scrTTNB);" in js)
+	dung('có đường dẫn', "'danh-sach-thanh-toan-noi-bo': 'DSTTNB'" in js)
+	# O cu ben Dat hang van con, nguoi lap phieu khong mat loi vao.
+	dung('ô Đặt hàng còn nguyên', "if (k === 'DNC') return go(scrTTNB);" in js)
+	from vagabond import duong_app
+	dung('bảng Python có DSTTNB', any(k[0] == 'DSTTNB' for k in duong_app.MAN))
