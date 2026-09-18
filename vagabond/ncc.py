@@ -250,6 +250,11 @@ def tk_mac_dinh(ncc):
 	return r[0]["name"] if r else ""
 
 
+def tk_dang_duoc_tham_chieu(ten):
+	"""Co phieu chi nao dang tro toi Bank Account nay khong."""
+	return bool(frappe.db.exists("Payment Entry", {"party_bank_account": ten}))
+
+
 def _tai_khoan(ncc):
 	ten = tk_mac_dinh(ncc)
 	if not ten:
@@ -284,6 +289,13 @@ def luu_tai_khoan(ncc=None, so_tk=None, ngan_hang=None, chu_tk=None):
 	ten_ncc = frappe.db.get_value("Supplier", ncc, "supplier_name") or ncc
 	chu = (chu_tk or "").strip() or ten_ncc
 	ten = tk_mac_dinh(ncc)
+	# Codex bat tren PR #346: tai khoan da co phieu chi tro toi thi KHONG
+	# sua de len. Mau in doc Bank Account song, sua la phieu da duyet in lai
+	# ra nguoi nhan khac ma khong ai ky lai. Ban cu giu nguyen, bo co mac
+	# dinh; ban moi la mac dinh cho phieu lap tu day ve sau.
+	if ten and tk_dang_duoc_tham_chieu(ten):
+		frappe.db.set_value("Bank Account", ten, "is_default", 0, update_modified=False)
+		ten = ""
 	if ten:
 		doc = frappe.get_doc("Bank Account", ten)
 	else:
