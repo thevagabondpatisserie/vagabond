@@ -159,6 +159,8 @@ MAN = (
 	# phai "xuat-khac", vi "khac" la cai ten da lam iPOS hong - phieu nao
 	# khong biet xep dau thi nem vao do, va cuoi thang khong doc duoc gi.
 	("XKNB", "Xuất dùng nội bộ", None),
+	# v507 quen khai o day nen may sinh bang xoa mat slug; F5 tren man roi ve phan he.
+	("XKPV", "Xuất kho phục vụ bán hàng", None),
 	("XKD", "Xuất điều chuyển", None),
 	("XKTRA", "Xuất trả nhà cung cấp", None),
 	("XKSI", "Xuất bán sỉ", None),
