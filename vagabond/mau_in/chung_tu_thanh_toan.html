@@ -21,7 +21,21 @@
 {#- Nhan song ngu dung chung. Goi sn("tieng Viet", "English"). -#}
 {%- macro sn(vi, en) -%}{{ vi }}<span class="en">{{ en }}</span>{%- endmacro -%}
 {% set cb = frappe.get_doc("Bank Account", doc.bank_account) if doc.bank_account else None %}
-{% set pb = frappe.get_doc("Bank Account", doc.party_bank_account) if doc.party_bank_account else None %}
+{#- Tai khoan nhan tien cua doi tac. O party_bank_account tren phieu hay
+    trong: phieu lap luc nha cung cap chua khai tai khoan, khai xong thi phieu
+    cu khong tu cap nhat. Nen thieu thi doc thang tai khoan mac dinh cua doi
+    tac (18/09/2026, Uyen bao phieu APP in ra khong co STK nha cung cap). -#}
+{% set pb_ten = doc.party_bank_account %}
+{#- CHI phieu con nhap (docstatus 0) moi lui: phieu da ghi so phai giu dung
+    noi dung luc ky, khong duoc doi theo tai khoan hien hanh (Codex #346). -#}
+{% if not pb_ten and doc.docstatus == 0 and doc.party_type and doc.party %}
+{% set pb_ds = frappe.get_all("Bank Account", filters={"party_type": doc.party_type, "party": doc.party, "disabled": 0}, fields=["name"], order_by="is_default desc, modified desc", limit_page_length=1) %}
+{% set pb_ten = pb_ds[0].name if pb_ds else None %}
+{% endif %}
+{% set pb = frappe.get_doc("Bank Account", pb_ten) if pb_ten else None %}
+{#- Chung tu dinh kem: ke ten tep de nguoi ky biet phieu nay di kem gi
+    (bao gia, hop dong, UNC). Khong nhung noi dung tep vao to in. -#}
+{% set tep_kem = frappe.get_all("File", filters={"attached_to_doctype": doc.doctype, "attached_to_name": doc.name, "is_folder": 0}, fields=["file_name"], order_by="creation asc", limit_page_length=20) %}
 {#- Ho so doi tac. Payment Entry co the tro sang Supplier hoac Customer nen
     doc doi tuong theo dung party_type chu khong doan. -#}
 {% set la_ncc = (doc.party_type == "Supplier") %}
@@ -128,6 +142,9 @@
 </table>
 {% if doc.remarks and doc.references %}
 <table class="meta" style="margin-top:6px"><tr><td class="lb" style="vertical-align:top">{{ sn("Diễn giải:", "Remarks") }}</td><td style="line-height:1.45">{{ doc.remarks }}</td></tr></table>
+{% endif %}
+{% if tep_kem %}
+<table class="meta" style="margin-top:6px"><tr><td class="lb" style="vertical-align:top">{{ sn("Chứng từ đính kèm:", "Attachments") }}</td><td style="line-height:1.45">{% for t in tep_kem %}{{ loop.index }}. {{ t.file_name }}{% if not loop.last %}<br>{% endif %}{% endfor %}</td></tr></table>
 {% endif %}
 <div style="text-align:center; font-weight:bold; margin:12px 0 6px">{{ sn("PHẦN XÁC NHẬN THANH TOÁN", "Payment Certificate") }}</div>
 <table class="sig">

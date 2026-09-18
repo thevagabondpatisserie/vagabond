@@ -677,11 +677,16 @@ function vgbGomNhom() {
   /* Loi tat sang danh sach Thanh toan noi bo ngay trong phan he Ke toan
      (anh Viet 17/09/2026). O 'Thanh toan noi bo' van nam o Dat hang cho
      nguoi lap phieu; ke toan duyet va chi thi mo tu day cho gan tay, khong
-     phai vong sang phan he khac. Cung mot man scrTTNB, chi them cua vao. */
-  VGB_HUB.DSTTNB = {
-    cnt: 0,
-    html: vgbODong('DSTTNB', '🧾', 'Danh sách thanh toán nội bộ', 'Mọi phiếu ứng tiền và đề nghị chi, lọc theo trạng thái')
-  };
+     phai vong sang phan he khac. Cung mot man scrTTNB, chi them cua vao.
+     Codex bat tren PR #345: gan o nay vo dieu kien la nhom Ke toan hien
+     ca voi thu ngan (scrHome co y giau nhom do bang coQuyenKeToan), nen
+     chi gan khi dung nguoi. */
+  if (coQuyenKeToan()) {
+    VGB_HUB.DSTTNB = {
+      cnt: 0,
+      html: vgbODong('DSTTNB', '🧾', 'Danh sách thanh toán nội bộ', 'Mọi phiếu ứng tiền và đề nghị chi, lọc theo trạng thái')
+    };
+  }
   VGB_HUB.XKSI = {
     cnt: 0,
     html: vgbODong('XKSI', '🚚', 'Xuất bán sỉ', 'Phiếu giao hàng cho khách sỉ và doanh nghiệp')

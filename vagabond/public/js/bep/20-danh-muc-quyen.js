@@ -115,6 +115,23 @@ async function scrNccXem(ma) {
     o('Mã NCC nội bộ', n.ma_ncc) + o('Mã iPOS', n.ma_ipos) +
     o('Kênh đặt hàng', n.kenh) + o('Không chịu VAT', n.khong_vat ? 'Có' : 'Không') + '</div>';
 
+  /* Tai khoan nhan tien (anh Viet 18/09/2026, Uyen bao): truoc day chi
+     nhap duoc luc TAO nha cung cap moi, nha da co tu iPOS thi khong co cua
+     nao, phieu chi in ra trong so tai khoan. Sua o day, may ghi vao Bank
+     Account cua nha cung cap, phieu chi va mau in doc tu do. */
+  var tk = d.tai_khoan || {};
+  html += '<div class="sec">Tài khoản nhận tiền</div><div class="card" style="padding:12px 14px">' +
+    (tk.so_tk
+      ? o('Chủ tài khoản', tk.chu_tk) + o('Số tài khoản', tk.so_tk) + o('Ngân hàng', tk.ngan_hang)
+      : '<div style="font-size:13px;color:#b45309;line-height:1.5">Chưa có số tài khoản. Phiếu chi cho nhà này in ra sẽ trống phần tài khoản nhận tiền, kế toán không biết chuyển đi đâu.</div>') +
+    '<button class="btn gh" id="nccSuaTk" style="margin-top:10px">' + (tk.so_tk ? '✏️ Sửa tài khoản nhận tiền' : '➕ Thêm tài khoản nhận tiền') + '</button>' +
+    '<div id="nccTkForm" style="display:none;margin-top:10px">' +
+      '<input class="nt" id="nccTkChu" placeholder="Chủ tài khoản (để trống thì lấy tên nhà cung cấp)" value="' + h(tk.chu_tk || '') + '" style="margin-bottom:8px">' +
+      '<input class="nt" id="nccTkSo" inputmode="numeric" placeholder="Số tài khoản" value="' + h(tk.so_tk || '') + '" style="margin-bottom:8px">' +
+      '<button type="button" id="nccTkNh" style="width:100%;text-align:left;border:1.5px solid ' + (tk.ngan_hang ? '#0f766e' : '#e5e7eb') + ';background:#fff;border-radius:11px;padding:13px 14px;font-size:15px;color:' + (tk.ngan_hang ? '#0f172a' : '#9ca3af') + '">' + (tk.ngan_hang ? h(tk.ngan_hang) : 'Chọn ngân hàng') + '</button>' +
+      '<button class="btn" id="nccTkLuu" style="margin-top:10px">Lưu tài khoản</button>' +
+    '</div></div>';
+
   html += '<div class="sec">' + d.so_mon_gan + ' mặt hàng đã gán cho nhà này</div><div class="card">';
   if (!d.mon_gan.length) html += '<div class="emp" style="padding:20px"><div class="e1">🔗</div><div>Chưa gán mặt hàng nào. Xem mục dưới, máy đã dò ra những món từng mua của nhà này.</div></div>';
   d.mon_gan.forEach(function (x) {
@@ -153,6 +170,37 @@ async function scrNccXem(ma) {
       return go(function () { scrNccXem(ma); }, true);
     }
   });
+  var tkNh = tk.ngan_hang || '';
+  var bSua = document.getElementById('nccSuaTk');
+  if (bSua) bSua.onclick = function () {
+    var f = document.getElementById('nccTkForm');
+    f.style.display = f.style.display === 'none' ? '' : 'none';
+  };
+  var bNh = document.getElementById('nccTkNh');
+  if (bNh) bNh.onclick = function () {
+    nhChon(tkNh, function (v) {
+      tkNh = v;
+      bNh.textContent = v;
+      bNh.style.color = '#0f172a';
+      bNh.style.borderColor = '#0f766e';
+    });
+  };
+  var bLuu = document.getElementById('nccTkLuu');
+  if (bLuu) bLuu.onclick = async function () {
+    var so = (document.getElementById('nccTkSo').value || '').trim();
+    if (!so) return toast('Nhập số tài khoản.', 3000);
+    if (!tkNh) return toast('Bấm ô ngân hàng để chọn ngân hàng của nhà cung cấp.', 4000);
+    busy(true);
+    try {
+      await api('vagabond.ncc.luu_tai_khoan', {
+        ncc: ma, so_tk: so, ngan_hang: tkNh,
+        chu_tk: (document.getElementById('nccTkChu').value || '').trim()
+      });
+      busy(false);
+      toast('Đã lưu tài khoản nhận tiền');
+    } catch (er) { busy(false); return baoTin((er && er.message) || 'Lưu lỗi', 'Tài khoản nhận tiền'); }
+    go(function () { scrNccXem(ma); }, true);
+  };
   var gh = document.getElementById('nccGanHet');
   if (gh) gh.onclick = async function () {
     if (!await hoiCo('Gán hàng loạt', 'Gán ' + d.so_tung_mua + ' món này cho ' + n.ten + '?\n\nMáy dò từ hoá đơn mua đã ghi sổ nên gần như chắc đúng. Gán nhầm thì gỡ lại được.', 'Gán hết')) return;

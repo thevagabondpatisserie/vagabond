@@ -541,6 +541,11 @@ def _dung_phieu(d, tien, tk_so_cai):
 	# ERPNext dang tu tinh.
 	pe.posting_date = nowdate()
 	pe.reference_date = nowdate()
+	# Tai khoan nhan tien cua nha cung cap, doc tu MOT nguon (ncc.tk_mac_dinh)
+	# de mau in Chung tu thanh toan co so tai khoan ma ke toan chuyen tien.
+	if not pe.get("party_bank_account"):
+		from vagabond import ncc as _ncc
+		pe.party_bank_account = _ncc.tk_mac_dinh(d.supplier) or None
 	# KHONG gan thang workflow_state o day. Phieu nay con MOI, ma Frappe soi
 	# duong duyet ngay luc luu: chung tu moi thi no khong nhan bat ky buoc
 	# chuyen nao, nen gan tay la hong ca luot lap. Phieu vao buoc ke bang
