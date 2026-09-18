@@ -318,6 +318,10 @@ def _o_ke_toan_508():
 	dung('có nhóm Kế toán', bool(kt))
 	dung('DSTTNB nằm trong nhóm Kế toán', bool(kt) and "'DSTTNB'" in kt.group(1))
 	dung('có ô trên lưới', "vgbODong('DSTTNB'" in js and 'Danh sách thanh toán nội bộ' in js)
+	# Codex #345: o chi duoc gan khi coQuyenKeToan(), khong thi nhom Ke toan
+	# hien voi ca thu ngan chi vi mot o nay.
+	i = js.index("VGB_HUB.DSTTNB = {")
+	dung('ô chỉ gán khi có quyền kế toán', 'if (coQuyenKeToan()) {' in js[i - 200:i])
 	dung('dẫn về đúng màn scrTTNB', "if (k === 'DSTTNB') return go(scrTTNB);" in js)
 	dung('có đường dẫn', "'danh-sach-thanh-toan-noi-bo': 'DSTTNB'" in js)
 	# O cu ben Dat hang van con, nguoi lap phieu khong mat loi vao.
