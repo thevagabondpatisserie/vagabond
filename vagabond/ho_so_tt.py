@@ -2958,6 +2958,9 @@ def _tao_but_toan(doc, ngay, phuong_thuc):
 		pe.posting_date = ngay
 		pe.party_type = "Supplier"
 		pe.party = ma_ncc
+		# So tai khoan nhan tien de mau in co, cung nguon voi tra_truoc.
+		from vagabond import ncc as _ncc
+		pe.party_bank_account = _ncc.tk_mac_dinh(ma_ncc) or None
 		pe.paid_amount = flt(tong_nhom)
 		pe.received_amount = flt(tong_nhom)
 		pe.reference_no = doc.ma_giao_dich or doc.name

@@ -196,11 +196,107 @@ def chi_tiet(ncc):
 			"kenh": doc.get("kenh_dat_hang_mac_dinh") or "",
 			"khong_vat": cint(doc.get("khong_chiu_thue_gtgt")),
 		},
+		"tai_khoan": _tai_khoan(ncc),
 		"mon_gan": mon_gan,
 		"tung_mua": tung_mua,
 		"so_mon_gan": len(mon_gan),
 		"so_tung_mua": len(tung_mua),
 	}
+
+
+# ------------------------------------------------- tài khoản nhận tiền của NCC
+#
+# Anh Viet 18/09/2026 (Uyen bao): "danh muc NCC khong co cho tao TK ngan
+# hang", nen phieu chi APP in ra khong co so tai khoan nha cung cap. Truoc
+# day so tai khoan chi nhap duoc DUY NHAT luc tao nha cung cap moi tren app
+# (nha_cung_cap.tao); nha cung cap da co tu iPOS thi khong co cua nao, con
+# Bank Account tren Desk thi thu mua khong duoc tao. Man nay la cua do.
+
+
+def soat_so_tk(so_tk):
+	"""So tai khoan sau khi bo khoang trang va dau cham. THUAN.
+
+	Tra ve (so sach, cau loi). Ngan hang Viet Nam dung 6 toi 20 ky tu, chu
+	so la chinh, mot vai ngan hang co chu cai. Ky tu la (dau cham, gach)
+	thi bo, con thu khac thi tu choi chu khong lang le cat.
+	"""
+	tho = str(so_tk or "").strip()
+	sach = "".join(ch for ch in tho if ch.isalnum())
+	if not sach:
+		return "", "Chưa nhập số tài khoản."
+	la = "".join(ch for ch in tho if not (ch.isalnum() or ch in " .-"))
+	if la:
+		return "", "Số tài khoản có ký tự lạ: %s. Chỉ nhập chữ và số." % la
+	if len(sach) < 6 or len(sach) > 20:
+		return "", "Số tài khoản %s ký tự, không giống số tài khoản ngân hàng (6 tới 20 ký tự)." % len(sach)
+	return sach.upper(), ""
+
+
+def tk_mac_dinh(ncc):
+	"""Ten ban ghi Bank Account nhan tien cua nha cung cap, hoac "".
+
+	Mot nguon cho ca phieu tra truoc, ho so thanh toan va mau in: ai cung
+	doc o day, khong tu doc Bank Account rieng roi moi noi mot kieu.
+	"""
+	if not ncc:
+		return ""
+	r = frappe.get_all(
+		"Bank Account",
+		filters={"party_type": "Supplier", "party": ncc, "disabled": 0},
+		fields=["name"],
+		order_by="is_default desc, modified desc",
+		limit_page_length=1,
+	)
+	return r[0]["name"] if r else ""
+
+
+def _tai_khoan(ncc):
+	ten = tk_mac_dinh(ncc)
+	if not ten:
+		return {"ten": "", "chu_tk": "", "so_tk": "", "ngan_hang": ""}
+	o = frappe.db.get_value(
+		"Bank Account", ten, ["account_name", "bank_account_no", "bank"], as_dict=True,
+	) or {}
+	return {
+		"ten": ten,
+		"chu_tk": o.get("account_name") or "",
+		"so_tk": o.get("bank_account_no") or "",
+		"ngan_hang": o.get("bank") or "",
+	}
+
+
+@frappe.whitelist()
+def luu_tai_khoan(ncc=None, so_tk=None, ngan_hang=None, chu_tk=None):
+	"""Tao hoac sua tai khoan nhan tien cua mot nha cung cap.
+
+	Co roi thi SUA dung ban ghi do, khong de them ban thu hai: hai tai khoan
+	cung mot nha la mau in va phieu chi khong biet lay cai nao.
+	"""
+	from vagabond import ngan_hang as nh
+
+	_kiem("sửa tài khoản ngân hàng của nhà cung cấp")
+	if not ncc or not frappe.db.exists("Supplier", ncc):
+		frappe.throw("Không tìm thấy nhà cung cấp %s." % (ncc or ""))
+	so, loi = soat_so_tk(so_tk)
+	if loi:
+		frappe.throw(loi)
+	ten_nh = nh.chuan_hoa_hoac_bao(ngan_hang or "", "Ngân hàng")
+	ten_ncc = frappe.db.get_value("Supplier", ncc, "supplier_name") or ncc
+	chu = (chu_tk or "").strip() or ten_ncc
+	ten = tk_mac_dinh(ncc)
+	if ten:
+		doc = frappe.get_doc("Bank Account", ten)
+	else:
+		doc = frappe.new_doc("Bank Account")
+		doc.party_type = "Supplier"
+		doc.party = ncc
+		doc.is_default = 1
+	doc.account_name = chu[:140]
+	doc.bank = ten_nh
+	doc.bank_account_no = so
+	doc.flags.ignore_permissions = True
+	doc.save(ignore_permissions=True)
+	return {"ok": 1, "tai_khoan": _tai_khoan(ncc)}
 
 
 # ------------------------------------------------- gán nhà cung cấp cho mặt hàng
