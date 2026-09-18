@@ -2671,6 +2671,7 @@ var VGB_DUONG = {
   'xuat-dieu-chuyen': 'XKD',
   'xuat-dung-noi-bo': 'XKNB',
   'xuat-huy': 'XKH',
+  'xuat-kho-phuc-vu-ban-hang': 'XKPV',
   'xuat-tra-nha-cung-cap': 'XKTRA'
 };
 /* === HET BANG DUONG DAN === */
