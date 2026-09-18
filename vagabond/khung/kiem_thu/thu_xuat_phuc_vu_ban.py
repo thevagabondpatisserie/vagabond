@@ -556,3 +556,18 @@ def _ghim_kho_da_hoi():
 	dung("về muộn mà kho đã đổi thì bỏ", than.count("if (st.kho !== khoHoi) return;") == 2)
 	dung("ghi bảng theo kho đã ghim", "XPV.bangKho = khoHoi;" in than)
 	dung("không còn chỗ nào gán bangKho = st.kho", "XPV.bangKho = st.kho" not in than)
+
+
+@ca("v508: man Xuat kho phuc vu ban hang co duong dan rieng, F5 khong roi ve phan he")
+def _co_duong_dan_rieng():
+	# v507 len site 18/09/2026: bam o thi vao duoc, nhung URL van la
+	# /phan-he-xuat-kho vi bang duong dan (may sinh tu duong_app.MAN) khong
+	# co XKPV. Khai o duong_app.MAN la NGUON DUY NHAT, bang JS phai theo.
+	import io
+	import os
+	from vagabond import duong_app
+	dung("duong_app.MAN có XKPV", any(k[0] == "XKPV" for k in duong_app.MAN))
+	la("slug đúng", duong_app.DUONG.get("xuat-kho-phuc-vu-ban-hang"), "XKPV")
+	goc = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+	j = io.open(os.path.join(goc, "public", "js", "bep", "02-trang-chu.js"), encoding="utf-8").read()
+	dung("bảng JS có slug", "'xuat-kho-phuc-vu-ban-hang': 'XKPV'" in j)
