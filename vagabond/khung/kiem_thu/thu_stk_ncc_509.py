@@ -50,7 +50,7 @@ class _To(SimpleNamespace):
 		self.da_luu += 1
 
 
-def _chay(co_san, so_tk="31561568", ngan_hang="MB", chu_tk=""):
+def _chay(co_san, so_tk="31561568", ngan_hang="MB", chu_tk="", co_phieu_tro=False):
 	giu = {}
 
 	def _get_all(dt, **k):
@@ -69,7 +69,8 @@ def _chay(co_san, so_tk="31561568", ngan_hang="MB", chu_tk=""):
 	gia = SimpleNamespace(
 		get_all=_get_all, get_doc=_get_doc, new_doc=_new_doc,
 		db=SimpleNamespace(
-			exists=lambda dt, n: True,
+			exists=lambda dt, n: (co_phieu_tro if dt == "Payment Entry" else True),
+			set_value=lambda dt, n, f, v, **k: giu.setdefault("bo_mac_dinh", []).append((n, f, v)),
 			get_value=lambda dt, n, f=None, **k: (
 				{"account_name": "A", "bank_account_no": "31561568", "bank": "MB - Ngân hàng TMCP Quân đội"}
 				if isinstance(f, list) else "CÔNG TY DUY LỢI"),
@@ -109,6 +110,18 @@ def _sua_cu():
 	la("đã save", t.da_luu, 1)
 
 
+@ca("v509: tai khoan da co phieu chi tro toi thi GIU NGUYEN, tao ban moi lam mac dinh")
+def _co_phieu_tro():
+	# Codex #346: sua de len la phieu da duyet in lai ra nguoi nhan khac.
+	ra, giu = _chay(co_san=True, so_tk="0315917706", co_phieu_tro=True)
+	dung("bản cũ không bị sửa", "sua" not in giu)
+	la("bản cũ bỏ cờ mặc định", giu.get("bo_mac_dinh"), [("TK-CU", "is_default", 0)])
+	t = giu.get("moi")
+	dung("tạo bản mới", t is not None)
+	la("bản mới là mặc định, đúng nhà", (t.is_default, t.party), (1, "NCC-1"))
+	la("bản mới mang số mới", t.bank_account_no, "0315917706")
+
+
 @ca("v509: luu_tai_khoan - so tai khoan sai thi tu choi truoc khi cham co so du lieu")
 def _tu_choi():
 	loi = ""
@@ -133,7 +146,7 @@ def _mot_nguon():
 def _mau_in():
 	m = _doc("vagabond", "mau_in", "chung_tu_thanh_toan.html")
 	dung("có đường lùi theo đối tác", 'filters={"party_type": doc.party_type, "party": doc.party, "disabled": 0}' in m)
-	dung("chỉ lùi khi ô trên phiếu trống", "{% if not pb_ten and doc.party_type and doc.party %}" in m)
+	dung("chỉ lùi khi ô trên phiếu trống VÀ phiếu còn nháp", "{% if not pb_ten and doc.docstatus == 0 and doc.party_type and doc.party %}" in m)
 	dung("kê tên tệp đính kèm", '"attached_to_doctype": doc.doctype' in m and "Chứng từ đính kèm:" in m)
 	dung("chi_tiet trả tai_khoan cho màn", '"tai_khoan": _tai_khoan(ncc),' in _doc("vagabond", "ncc.py"))
 	j = _doc("vagabond", "public", "js", "bep", "20-danh-muc-quyen.js")
