@@ -177,6 +177,16 @@ def dung():
 	_truong("Purchase Invoice", [
 		{"fieldname": "custom_minvoice_id", "fieldtype": "Data", "label": "MInvoice id", "insert_after": "supplier"},
 	])
+	# Huỷ mềm trên Stock Entry (chung_tu.KHOA_XOA), tạo tay trên Desk ngày
+	# trước, cùng bốn ô như staging/cau_truc_cu.json. Bench thiếu bốn ô này
+	# thì mọi màn lọc "vgb_huy": 0 trên phiếu kho nổ Unknown column ngay ở
+	# tầng tích hợp (v507, 17/09/2026).
+	_truong("Stock Entry", [
+		{"fieldname": "vgb_huy", "fieldtype": "Check", "label": "Đã huỷ", "read_only": 1, "insert_after": "purpose"},
+		{"fieldname": "vgb_huy_ly_do", "fieldtype": "Small Text", "label": "Lý do huỷ", "read_only": 1, "insert_after": "vgb_huy"},
+		{"fieldname": "vgb_huy_luc", "fieldtype": "Datetime", "label": "Huỷ lúc", "read_only": 1, "insert_after": "vgb_huy"},
+		{"fieldname": "vgb_huy_boi", "fieldtype": "Data", "label": "Người huỷ", "read_only": 1, "insert_after": "vgb_huy"},
+	])
 	_truong("Purchase Invoice Item", [
 		{"fieldname": "ten_hang_ncc", "fieldtype": "Data", "label": "Ten hang NCC", "insert_after": "item_name"},
 	])
