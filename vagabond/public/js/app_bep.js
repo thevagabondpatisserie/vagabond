@@ -2038,7 +2038,7 @@ var VGB_NHOM = [
      coQuyenMua() trong scrHome, nên người không có quyền thì nhóm rỗng và
      vòng lặp dưới tự bỏ qua. Chặn thật nằm ở máy chủ, quyen_phan_he.py. */
   { k: 'TM', ten: 'Thu mua', icon: '🧾', keys: ['DUYETYC', 'PO', 'CNPT', 'NCC', 'BGIA', 'KHPO', 'KHHDM'] },
-  { k: 'KT', ten: 'Kế toán', icon: '🧮', keys: ['HDBAN', 'HDMUA', 'DCM', 'CN', 'CNPT', 'HT', 'APPTT', 'PAY', 'TS', 'NQ', 'BT', 'DUYETTANG', 'BC:BC05'] },
+  { k: 'KT', ten: 'Kế toán', icon: '🧮', keys: ['HDBAN', 'HDMUA', 'DCM', 'CN', 'CNPT', 'HT', 'APPTT', 'DSTTNB', 'PAY', 'TS', 'NQ', 'BT', 'DUYETTANG', 'BC:BC05'] },
   /* Nhan su (anh Viet chot 01/09/2026). Nhom nay CHI hien voi quan ly, ke
      toan va giam doc - dieu kien coQuyenHRM() dung o scrHome. O "KPI cua
      toi" thi nguoc lai, ai cung vao duoc, vi do la diem cua chinh ho. */
@@ -2226,6 +2226,14 @@ function vgbGomNhom() {
   VGB_HUB.XKTRA = {
     cnt: 0,
     html: vgbODong('XKTRA', '↩️', 'Xuất trả nhà cung cấp', 'Hàng lỗi trả về, giảm luôn công nợ')
+  };
+  /* Loi tat sang danh sach Thanh toan noi bo ngay trong phan he Ke toan
+     (anh Viet 17/09/2026). O 'Thanh toan noi bo' van nam o Dat hang cho
+     nguoi lap phieu; ke toan duyet va chi thi mo tu day cho gan tay, khong
+     phai vong sang phan he khac. Cung mot man scrTTNB, chi them cua vao. */
+  VGB_HUB.DSTTNB = {
+    cnt: 0,
+    html: vgbODong('DSTTNB', '🧾', 'Danh sách thanh toán nội bộ', 'Mọi phiếu ứng tiền và đề nghị chi, lọc theo trạng thái')
   };
   VGB_HUB.XKSI = {
     cnt: 0,
@@ -2572,6 +2580,7 @@ var VGB_DUONG = {
   'cong-no-phai-tra': 'CNPT',
   'cong-thuc': 'CTBOM',
   'danh-muc-san-pham': 'CDSP',
+  'danh-sach-thanh-toan-noi-bo': 'DSTTNB',
   'diem-ban': 'CDDB',
   'doanh-so': 'DS',
   'doi-chieu-mua': 'DCM',
@@ -2779,6 +2788,7 @@ function vgbGo(k) {
   if (k === 'CNPT') return go(scrNoPhaiTra);
   if (k === 'HDBAN') return go(scrHdBan);
   if (k === 'APPTT') return go(scrHoSoTT);
+  if (k === 'DSTTNB') return go(scrTTNB);
   if (k === 'DUYETTANG') return go(scrDuyetTang);
   if (k === 'HDMUA') return go(scrHdMua);
   if (k === 'DCM') return go(scrDoiChieuMua);
@@ -21705,7 +21715,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '507';
+var APPVER = '508';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
