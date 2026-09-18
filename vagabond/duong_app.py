@@ -142,6 +142,8 @@ MAN = (
 	("TS", "Tài sản", None),
 	("BT", "Bút toán", None),
 	("DNC", "Thanh toán nội bộ", None),
+	# Loi tat ben Ke toan sang cung man (anh Viet 17/09/2026).
+	("DSTTNB", "Danh sách thanh toán nội bộ", None),
 
 	# --- Mua hàng và kho
 	("PO", "Đơn mua hàng", None),
