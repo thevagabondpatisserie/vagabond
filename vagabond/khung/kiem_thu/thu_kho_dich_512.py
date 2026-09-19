@@ -197,7 +197,7 @@ def _y3_phieu():
 	doan = s.split("def tao_phieu_ve_dung_kho")[1].split("\n@frappe")[0]
 	dung("chỉ lập NHÁP, không submit", "se.insert()" in doan and ".submit()" not in doan)
 	dung("gác quyền QUYEN_GHI", "QUYEN_GHI" in doan)
-	dung("chặn chuyển quá tồn", "không chuyển được" in doan)
+	dung("số gửi phải bằng tồn hiện tại (Codex vòng 4 thay cho 'chặn quá tồn')", "Số tồn đã đổi" in doan)
 	js = _doc("vagabond", "public", "js", "bep", "37-ton-chang.js")
 	dung("nút chỉ hiện khi sai kho và có quyền", "x.sai_kho && d.lap_duoc && x.kho_dung" in js)
 	dung("hỏi xác nhận rồi mới gọi", "confirmSheet('Chuyển về đúng kho'" in js and "vagabond.ton_chang.tao_phieu_ve_dung_kho" in js)
@@ -345,14 +345,14 @@ def _j2_cung_nguon():
 		# Mon Pastry nam o kho Baker: hook quyet ve Pastry, khong phai Baker -> Baker
 		return "Pastry - Thành phẩm - VK"
 	with patch.object(tc, "frappe", f), patch.object(ks, "_kho_dich_cua_ma", _kd):
-		kq = tc.tao_phieu_ve_dung_kho("BAWC00046", "Baker - Thành phẩm - VK", 2)
+		kq = tc.tao_phieu_ve_dung_kho("BAWC00046", "Baker - Thành phẩm - VK", 5)
 	la("gọi đúng hàm với kho sai", goi, [("BAWC00046", "Baker - Thành phẩm - VK")])
 	la("kho đến là kho hook quyết", kq["den"], "Pastry - Thành phẩm - VK")
 	la("dòng phiếu cùng kho đến", tao[0].items[0]["t_warehouse"], "Pastry - Thành phẩm - VK")
 	# Hook noi "dang dung kho" thi khong lap
 	with patch.object(tc, "frappe", f), patch.object(ks, "_kho_dich_cua_ma", lambda ma, kho: None):
 		try:
-			tc.tao_phieu_ve_dung_kho("BAWC00046", "Pastry - Thành phẩm - VK", 2)
+			tc.tao_phieu_ve_dung_kho("BAWC00046", "Pastry - Thành phẩm - VK", 5)
 			dung("đúng kho thì phải từ chối", False)
 		except ValueError as e:
 			dung("nói đúng kho", "đúng kho" in str(e))
@@ -360,7 +360,65 @@ def _j2_cung_nguon():
 	f2 = NS(**{**f.__dict__, "db": NS(get_value=f.db.get_value, exists=lambda dt, n: n != "Pastry - Thành phẩm - VK")})
 	with patch.object(tc, "frappe", f2), patch.object(ks, "_kho_dich_cua_ma", _kd):
 		try:
-			tc.tao_phieu_ve_dung_kho("BAWC00046", "Baker - Thành phẩm - VK", 2)
+			tc.tao_phieu_ve_dung_kho("BAWC00046", "Baker - Thành phẩm - VK", 5)
 			dung("thiếu kho đích phải dừng", False)
 		except ValueError as e:
 			dung("nói rõ kho thiếu", "chưa được tạo" in str(e))
+
+
+# ---------------- Codex #349 vong 4 (f41b415) ----------------
+
+
+@ca("v512 Codex K1: so man gui khac ton hien tai thi tu choi, khong lap phieu mot phan")
+def _k1_ton_doi():
+	from types import SimpleNamespace as NS
+	from unittest.mock import patch
+
+	def _throw(m, **k):
+		raise ValueError(m)
+	tao = []
+
+	class SE(object):
+		def __init__(self):
+			self.items = []
+			self.name = "PCK"
+		def append(self, k, r):
+			self.items.append(r)
+		def insert(self):
+			tao.append(self)
+	f = NS(get_roles=lambda: ["Manufacturing Manager"], throw=_throw, log_error=lambda *a, **k: None,
+		get_traceback=lambda: "", new_doc=lambda dt: SE(),
+		db=NS(get_value=lambda dt, n, f=None, as_dict=False, **k: (NS(item_name="Bánh", stock_uom="Cái") if dt == "Item" else (7 if dt == "Bin" else "Cty")),
+			exists=lambda *a: True))
+	with patch.object(tc, "frappe", f), patch.object(ks, "_kho_dich_cua_ma", lambda ma, kho: "Pastry - Thành phẩm - TV"):
+		for sl in (2, 9):
+			try:
+				tc.tao_phieu_ve_dung_kho("BAWC00046", "Pastry - Nguyên liệu - TV", sl)
+				dung("gửi %s khi tồn 7 phải bị từ chối" % sl, False)
+			except ValueError as e:
+				dung("bắt tải lại màn", "Tải lại" in str(e) and "7" in str(e))
+		la("chưa lập phiếu nào", len(tao), 0)
+		kq = tc.tao_phieu_ve_dung_kho("BAWC00046", "Pastry - Nguyên liệu - TV", 7)
+		la("đúng tồn thì lập, chuyển hết", (kq["sl"], tao[0].items[0]["qty"]), (7, 7))
+	s = _doc("vagabond", "ton_chang.py")
+	doan = s.split("def tao_phieu_ve_dung_kho")[1].split("\n@frappe")[0]
+	dung("không còn cho phép sl nhỏ hơn tồn", "if sl > ton + 0.0001" not in doan)
+
+
+@ca("v512 Codex K2: kho dich tinh cho TUNG kho sai, man xac nhan doc theo kho dang bam")
+def _k2_tung_kho():
+	d = {"ma": "BAWC00046", "chang": ks.THANH_PHAM, "kho": [
+		{"kho": "Baker - Nguyên liệu - TV", "sl": 2, "sai": True},
+		{"kho": "Pastry - Nguyên liệu - TV", "sl": 3, "sai": True},
+		{"kho": "Pastry - Thành phẩm - TV", "sl": 1, "sai": False},
+	]}
+	tc.kho_dung_tung_kho(d, {"Baker - Nguyên liệu - TV": "baker", "Pastry - Nguyên liệu - TV": "pastry"})
+	la("Baker về Baker", d["kho"][0]["kho_dung"], "Baker - Thành phẩm - TV")
+	la("Pastry về Pastry", d["kho"][1]["kho_dung"], "Pastry - Thành phẩm - TV")
+	dung("kho đúng không gắn", "kho_dung" not in d["kho"][2])
+	s = _doc("vagabond", "ton_chang.py")
+	doan = s.split("def ton_theo_chang")[1].split("\ndef ")[0]
+	dung("máy chủ gắn kho_dung từng kho, ưu tiên hàm của hook", "kho_dung_tung_kho(d, bep_kho)" in doan and 'k["kho_dung"] = _kho_dung_that(d["ma"], k["kho"])' in doan)
+	js = _doc("vagabond", "public", "js", "bep", "37-ton-chang.js")
+	dung("app hỏi xác nhận theo kho của dòng đang bấm", "var den = k.kho_dung || x.kho_dung;" in js and "sang ' + shortWh(den)" in js)
+	dung("không còn xác nhận bằng kho của dòng", "sang ' + shortWh(x.kho_dung)" not in js)
