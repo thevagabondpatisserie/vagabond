@@ -174,3 +174,35 @@ def _i1_nvl_vao_tp():
 	la("không có sổ kho ở kho Thành phẩm", frappe.get_all("Stock Ledger Entry",
 		filters={"item_code": nvl, "warehouse": kho_tp, "is_cancelled": 0}, pluck="name"), [])
 	khong_nem("vào kho Nguyên liệu thì ghi được", lambda: _nhap(nvl, kho_nl, 1, cty))
+
+
+@ca("v512 that Codex J1+J2: phieu Chuyen ve dung kho lap duoc tren site hau to khac TV va qua duoc hook chan")
+def _j_phieu_ve_dung_kho():
+	from vagabond import ton_chang
+	cty = cong_ty()
+	kho_nl = _kho_bep(cty, "pastry", ksx.NGUYEN_LIEU)
+	kho_tp = _kho_bep(cty, "pastry", ksx.THANH_PHAM)
+	tp = _mon("BAWC-KT512")
+	# Dua thanh pham vao kho Nguyen lieu bang KIEM KE (duong duy nhat con mo,
+	# chi canh bao khong chan): dung thuc te Khai gap 18/09.
+	sr = frappe.get_doc(dict(doctype="Stock Reconciliation", company=cty,
+		purpose="Stock Reconciliation", set_posting_time=1, posting_date=nowdate(), posting_time=nowtime(),
+		expense_account=frappe.get_cached_value("Company", cty, "stock_adjustment_account"),
+		cost_center=frappe.get_cached_value("Company", cty, "cost_center"),
+		items=[dict(item_code=tp, warehouse=kho_nl, qty=3, valuation_rate=2000)]))
+	sr.flags.ignore_permissions = True
+	sr.insert(ignore_permissions=True)
+	nen._DA_TAO.append(("Stock Reconciliation", sr.name))
+	sr.submit()
+	la("kiểm kê vẫn ghi sổ được (chỉ cảnh báo)", sr.docstatus, 1)
+	kq = khong_nem("lập phiếu chuyển về đúng kho", lambda: ton_chang.tao_phieu_ve_dung_kho(tp, kho_nl, 2))
+	if not kq:
+		return
+	nen._DA_TAO.append(("Stock Entry", kq["name"]))
+	la("kho đến đúng hậu tố của site", kq["den"], kho_tp)
+	se = frappe.get_doc("Stock Entry", kq["name"])
+	la("phiếu còn NHÁP", se.docstatus, 0)
+	la("dòng phiếu về kho Thành phẩm", se.items[0].t_warehouse, kho_tp)
+	la("số lượng", flt(se.items[0].qty), 2.0)
+	khong_nem("ghi sổ phiếu chuyển đó qua được hook chặn", se.submit)
+	la("SLE ở kho Thành phẩm +2", [x for x in _sle_kho(se.name, tp) if x[0] == kho_tp], [(kho_tp, 2.0)])
