@@ -808,3 +808,13 @@ Ba cái bẫy khi viết màn Xuất kho phục vụ bán hàng, đã chốt b�
 Và một bẫy của chính bộ kiểm: cổng kiểm có ca soi mọi chuỗi JS xem còn xưng "em"
 không. Thẻ HTML `<em>` và bộ chọn CSS `.xpvo em` làm ca đó đỏ dù không có chữ
 "em" nào trong lời thoại. Dùng `<span class="dd">` thay cho `<em>`.
+
+## 18/09/2026: món dịch vụ trong danh mục bị bấm như món đếm cái
+
+Phí giao hàng có sẵn trong danh mục là item "Phí Dịch Vụ Vận Chuyển" giá 1.000 đ.
+Màn quầy chỉ cho cộng số lượng (giá không sửa tay theo luật 09/08), nên thu ngân
+bấm 4 x 1.000 để ra 4.000 đ phí giao và hoá đơn điện tử chép y nguyên "4 cái".
+Bài học: khoản tiền không đếm cái (phí giao, phụ thu) không được đi chung đường
+với món; máy chủ gom về một dòng qty 1 ở MỌI đường ghi (`vagabond/phi_giao.py`),
+màn hình hỏi số tiền thay vì thêm dòng. Sửa ở màn thôi là chưa đủ vì còn màn
+Sales và màn sửa bill cùng gửi món.
