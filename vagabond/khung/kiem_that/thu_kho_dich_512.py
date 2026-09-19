@@ -199,7 +199,12 @@ def _j_phieu_ve_dung_kho():
 	nen._DA_TAO.append(("Stock Reconciliation", sr.name))
 	sr.submit()
 	la("kiểm kê vẫn ghi sổ được (chỉ cảnh báo)", sr.docstatus, 1)
-	kq = khong_nem("lập phiếu chuyển về đúng kho", lambda: ton_chang.tao_phieu_ve_dung_kho(tp, kho_nl, 2))
+	try:
+		ton_chang.tao_phieu_ve_dung_kho(tp, kho_nl, 2)
+		dung("số màn gửi (2) khác tồn (3) phải bị từ chối (Codex vòng 4)", False)
+	except frappe.ValidationError as e:
+		dung("câu từ chối nói tồn hiện tại", "Tải lại" in str(e))
+	kq = khong_nem("lập phiếu chuyển về đúng kho đủ số", lambda: ton_chang.tao_phieu_ve_dung_kho(tp, kho_nl, 3))
 	if not kq:
 		return
 	nen._DA_TAO.append(("Stock Entry", kq["name"]))
@@ -207,6 +212,6 @@ def _j_phieu_ve_dung_kho():
 	se = frappe.get_doc("Stock Entry", kq["name"])
 	la("phiếu còn NHÁP", se.docstatus, 0)
 	la("dòng phiếu về kho Thành phẩm", se.items[0].t_warehouse, kho_tp)
-	la("số lượng", flt(se.items[0].qty), 2.0)
+	la("số lượng bằng tồn", flt(se.items[0].qty), 3.0)
 	khong_nem("ghi sổ phiếu chuyển đó qua được hook chặn", se.submit)
-	la("SLE ở kho Thành phẩm +2", [x for x in _sle_kho(se.name, tp) if x[0] == kho_tp], [(kho_tp, 2.0)])
+	la("SLE ở kho Thành phẩm +3", [x for x in _sle_kho(se.name, tp) if x[0] == kho_tp], [(kho_tp, 3.0)])
