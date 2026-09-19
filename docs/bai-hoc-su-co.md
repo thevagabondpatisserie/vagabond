@@ -818,3 +818,15 @@ Bài học: khoản tiền không đếm cái (phí giao, phụ thu) không đư
 với món; máy chủ gom về một dòng qty 1 ở MỌI đường ghi (`vagabond/phi_giao.py`),
 màn hình hỏi số tiền thay vì thêm dòng. Sửa ở màn thôi là chưa đủ vì còn màn
 Sales và màn sửa bill cùng gửi món.
+
+## 16/09/2026 (#332, PR #333 và PR thay thế): tiền đúng lúc đồng bộ vẫn có thể sai sau khi thay dòng
+
+Hoá đơn mua có liên kết hoá đơn điện tử gốc: người dùng xoá dòng rồi thêm dòng
+để sửa mã, dòng mới mất tên NCC, kéo giá và quy cách của mã mới, ánh xạ cũ lại
+trỏ vào Món đã ngừng dùng. Cách chữa: một cửa "Sửa mã theo hoá đơn gốc" chọn rõ
+dòng nguồn và quy cách, giữ số lượng và đơn giá của nguồn, lưu ánh xạ và tờ
+trong cùng savepoint, reload rồi kiểm cả dòng lẫn TỔNG TIỀN tờ trước khi báo
+xong (hook dựng lại dòng có quyền đổi cả tờ, xem sự cố 27/08). Dòng nguồn gửi
+kèm tên đã thấy lúc chọn, không tin chỉ số qua hai lượt gọi. Bài học kiểm thử:
+ca kiểm mà doc.save chỉ ghi nhật ký thì khối kiểm sau lưu không bao giờ chạy
+vào nhánh throw, phải cho save PHÁ doc rồi mới tin ca kiểm.

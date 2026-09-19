@@ -21765,7 +21765,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '510';
+var APPVER = '511';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -31835,10 +31835,43 @@ async function dcmGanMaHang(name, idx) {
   }, true);
 }
 
+/* Cùng cửa sửa với Desk, chọn quy cách rõ thay vì lấy hệ số1 làm dự phòng. */
+async function dcmDoiMaTheoNguon(name, idx, itemCode) {
+  var du = await api('vagabond.sua_ma_hoa_don.lua_chon', {name:name});
+  if (!du.co_nguon) return false;
+  var dong = (du.dong || []).find(function(d){return String(d.idx) === String(idx);});
+  if (!dong) throw new Error('Dòng đã thay đổi. Tải lại hóa đơn rồi chọn lại.');
+  var donVi = await api('vagabond.doi_chieu_mua.don_vi_cua_mon', {item_code:itemCode});
+  var ds = (donVi.dvt || []).map(function(d){return {label:d.ten, value:d.ten, phu:'1 '+d.ten+' = '+kl(d.he_so)+' '+donVi.kho};});
+  if (donVi.kho && !ds.some(function(d){return d.value === donVi.kho;})) ds.unshift({label:donVi.kho, value:donVi.kho});
+  busy(false);
+  sheet('Chọn dòng hóa đơn gốc', (du.nguon || []).map(function(d){
+    return {value:String(d.vi_tri), label:d.ten, dau:d.dau, phu:kl(d.sl)+' '+(d.dvt || '')+' x '+money(d.gia)+' đ'};
+  }), null, function(goc) {
+    if (!goc) return;
+    sheet('Chọn đúng quy cách của mã mới', ds, null, async function(dvt) {
+      if (!dvt) return;
+      try {
+        if (!await confirmSheet('Sửa mã theo hóa đơn gốc', 'Giữ số lượng và đơn giá của dòng nguồn vừa chọn. Ghi nhớ mã '+itemCode+' và đơn vị '+dvt.value+' cho lần đồng bộ sau.', 'Sửa dòng và ghi nhớ', false)) return;
+        busy(true);
+        await api('vagabond.sua_ma_hoa_don.sua', {name:name, dong:dong.name, vi_tri:goc.value, dau_nguon:goc.dau, item_code:itemCode, uom:dvt.value, modified:du.modified});
+        busy(false);
+        toast('Đã sửa mã và giữ giá theo hóa đơn gốc.');
+        go(function(){scrDcmXem(name);}, true);
+      } catch(e) {busy(false); baoTin((e && e.message) || 'Không sửa được mã theo nguồn');}
+    }, true);
+  }, true);
+  return true;
+}
+
 async function dcmGanXong(name, idx, itemCode, doi) {
   if (!itemCode) return;
   busy(true);
   try {
+    /* F5 (rà soát #333): chỉ dòng ĐÃ có mã mà đổi sang mã khác (`doi`) mới đi
+       cửa sửa theo nguồn, vì cửa đó ghi đè lượng và giá theo bản gốc. Gắn mã
+       lần đầu vẫn đi gan_ma_hang như cũ, không đụng lượng và giá. */
+    if (doi && await dcmDoiMaTheoNguon(name, idx, itemCode)) return;
     /* `doi` = dong da co ma nhung sai, doi sang ma tren phieu nhap. May chu
        tu choi neu dong da noi phieu, va ghi ro trong to la ai doi ma nao. */
     var kq = await api('vagabond.doi_chieu_mua.gan_ma_hang',

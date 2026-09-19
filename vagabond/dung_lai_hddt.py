@@ -770,6 +770,13 @@ def dong_bo_luc_luu(doc, method=None):
 		frappe.msgprint(cau, title="Giữ đúng số hoá đơn điện tử", indicator="orange")
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "dung_lai_hddt: dong bo luc luu")
+		frappe.msgprint(
+			"Chưa khôi phục được dòng hàng theo hóa đơn gốc. Kiểm ánh xạ NCC và mã Món "
+			"ngừng dùng; trên hồ sơ nháp chọn Sửa mã theo hóa đơn gốc để chọn lại mã "
+			"và quy cách. Đối chiếu số tiền trước khi ghi sổ; không xóa dòng hoặc "
+			"tạo bản sao để bỏ qua liên kết nguồn.",
+			title="Cần kiểm tra hóa đơn nguồn", indicator="orange",
+		)
 		if getattr(doc, "_action", None) == "submit":
 			raise
 
