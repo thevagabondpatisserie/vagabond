@@ -55,6 +55,7 @@ VAI_SALES = {"Sales User", "Sales Manager", "Bộ phận đặt hàng"}
 # tặng quà thì chỉ nhận đúng hai giá trị Sales và Marketing. Không có vai thì
 # cả nhóm Marketing mở màn này ra sẽ thấy trống trơn mà không ai hiểu vì sao.
 from vagabond.vai_cua_hang import VAI_MARKETING
+from vagabond import kho_san_xuat as ksx
 
 VAI_MKT = {VAI_MARKETING}
 
@@ -68,6 +69,7 @@ LOAI_PHIEU = (
 	("nhap_kho", "Nhập kho", "📥"),
 	("xuat_kho", "Xuất kho", "📤"),
 	("kiem_ke", "Kiểm kê", "🧮"),
+	("sai_kho", "Hàng nằm sai kho", "⚠️"),
 	("tang_qua", "Tặng quà khách VIP", "🎁"),
 	("ycmh", "Yêu cầu mua hàng", "🛒"),
 	("de_nghi_chi", "Đề nghị chi", "🧾"),
@@ -121,6 +123,9 @@ MA_TRAN = {
 	# ngoại lệ DUY NHẤT cho phép kế toán thấy phiếu kho, đúng như anh Việt
 	# dặn: "trừ khi có bước chờ Kế toán duyệt giá trị".
 	"kiem_ke": VAI_KHO | VAI_KE_TOAN | VAI_GIAM_DOC,
+	# v512: hàng nằm sai kho theo chặng (Khải 18/09/2026). Việc của bếp và
+	# quản lý sản xuất, mỗi mã một dòng, mở ra màn Tồn kho theo chặng.
+	"sai_kho": VAI_KHO | {"Manufacturing Manager", "Manufacturing User"} | VAI_GIAM_DOC,
 	# CRM. Tặng quà khách VIP là việc của Sales và Marketing, kho và bếp
 	# KHÔNG thấy: danh sách này có số điện thoại riêng của khách VIP.
 	"tang_qua": VAI_SALES | VAI_MKT | VAI_QUAN_LY | VAI_GIAM_DOC,
@@ -265,6 +270,25 @@ def _viec_san_xuat(vai, bo_phan):
 			"loai": "san_xuat", "ma": x["name"], "nhom": "Bếp bạn phải làm",
 			"phu": x.get("bo_phan_yeu_cau") or "", "ngay": str(x.get("schedule_date") or ""),
 			"tt": "tre_hen" if _tre(x.get("schedule_date")) else "cho_lam",
+		})
+	return ra
+
+
+def _viec_sai_kho(vai, bo_phan):
+	"""Mỗi mã đang nằm sai kho theo chặng là một việc (v512)."""
+	from vagabond import ton_chang
+
+	bep = None
+	if bo_phan and bo_phan.startswith("Bếp"):
+		bep = ksx.bep_tu_chuoi(bo_phan)
+	d = ton_chang.ton_theo_chang(bep=bep, chang=ton_chang.SAI_KHO, gioi_han=60)
+	ra = []
+	for x in d.get("ds") or []:
+		kho_sai = ", ".join(k["kho"] for k in x.get("kho") or [] if k.get("sai"))
+		ra.append({
+			"loai": "sai_kho", "ma": x["ma"], "nhom": "Chuyển về đúng kho",
+			"phu": "%s · đang ở %s, kho đúng %s" % (x.get("ten") or x["ma"], kho_sai, x.get("kho_dung") or "?"),
+			"ngay": "", "tt": "cho_lam", "ten": x.get("ten") or "",
 		})
 	return ra
 
@@ -727,6 +751,7 @@ def danh_sach(loai="", trang_thai=""):
 		("nhap_kho", lambda: _viec_nhap_kho(vai, kho)),
 		("xuat_kho", lambda: _viec_xuat_kho(vai, kho, nguoi)),
 		("kiem_ke", lambda: _viec_kiem_ke(vai)),
+		("sai_kho", lambda: _viec_sai_kho(vai, bp)),
 		("de_nghi_chi", lambda: _viec_de_nghi_chi(vai)),
 		("hoan_tien", lambda: _viec_hoan_tien(vai)),
 		("don_mua", lambda: _viec_don_mua(vai)),

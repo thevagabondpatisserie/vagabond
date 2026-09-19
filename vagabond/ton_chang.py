@@ -186,6 +186,15 @@ def danh_dau_sai_kho(ds, chang_cua_kho):
 	return so
 
 
+def kho_dung_cua_dong(d, bep_cua_kho):
+	"""Kho đúng cho dòng sai kho, suy từ bếp của kho đang chứa hàng. THUẦN."""
+	for k in d.get("kho") or []:
+		if k.get("sai"):
+			b = (bep_cua_kho or {}).get(k.get("kho"))
+			return kho_dung_cua(d.get("chang"), b)
+	return None
+
+
 def cau_tom_tat(bang):
 	"""Một câu nói gọn bảng gom, để đặt trên đầu màn hình. THUẦN."""
 	phan = []
@@ -325,6 +334,11 @@ def ton_theo_chang(bep=None, chang=None, tim=None, gioi_han=300):
 	# v512: danh dau hang nam sai kho theo chang (Khai 18/09/2026), de bep
 	# nhin thay ngay tren man thay vi doi ke toan chup anh hoi.
 	so_sai = danh_dau_sai_kho(tat_ca, {k["kho"]: k["chang"] for k in kho})
+	bep_kho = {k["kho"]: k["bep"] for k in kho}
+	for d in tat_ca:
+		if d.get("sai_kho"):
+			d["kho_dung"] = kho_dung_cua_dong(d, bep_kho) or ""
+	d_quyen = bool(set(frappe.get_roles()) & set(QUYEN_GHI))
 	bang = gop_dong(tat_ca)
 	ds = loc_theo_chang(tat_ca, chang)
 	if chang == SAI_KHO:
@@ -337,10 +351,59 @@ def ton_theo_chang(bep=None, chang=None, tim=None, gioi_han=300):
 	return {
 		"bep": bep or "", "chang": chang,
 		"thu_tu": list(THU_TU), "ten_chang": dict(TEN),
-		"kho": kho, "bang": bang, "tong_dong": len(ds), "so_sai_kho": so_sai,
+		"kho": kho, "bang": bang, "tong_dong": len(ds), "so_sai_kho": so_sai, "lap_duoc": d_quyen,
 		"ds": ds[:gioi_han],
 		"tom_tat": tom_tat,
 	}
+
+
+def kho_dung_cua(chang_mon, bep):
+	"""Kho đích đúng của một mã theo chặng và bếp. THUẦN (đọc luật kho_san_xuat)."""
+	from vagabond.kho_san_xuat import LUAT_KHO_DICH, ten_kho_cua
+
+	if not chang_mon or not bep:
+		return None
+	return ten_kho_cua(bep, LUAT_KHO_DICH.get(chang_mon, chang_mon))
+
+
+@frappe.whitelist()
+def tao_phieu_ve_dung_kho(ma, kho_sai, sl):
+	"""Lập phiếu chuyển kho NHÁP đưa hàng nằm sai kho về đúng kho theo chặng.
+
+	v512, ý 3 anh Việt duyệt 19/09/2026. Chỉ lập nháp: Khải mở trên Desk, xem
+	rồi ghi sổ. Không tự ghi sổ, không đụng phiếu cũ. Chỉ quản lý sản xuất
+	hoặc giám đốc mới lập được (QUYEN_GHI).
+	"""
+	if not set(frappe.get_roles()) & set(QUYEN_GHI):
+		frappe.throw("Chỉ quản lý sản xuất hoặc giám đốc mới lập phiếu chuyển về đúng kho.")
+	ma = (ma or "").strip()
+	kho_sai = (kho_sai or "").strip()
+	sl = flt(sl)
+	if not ma or not kho_sai or sl <= 0:
+		frappe.throw("Thiếu mã, kho hay số lượng.")
+	bep = ksx.bep_cua_kho(kho_sai)
+	if not bep:
+		frappe.throw("%s không phải kho bếp, không thuộc luật chuyển về đúng kho." % kho_sai)
+	it = frappe.db.get_value("Item", ma, ["item_name", "custom_chang_btp", "stock_uom"], as_dict=True)
+	if not it:
+		frappe.throw("Không có mã %s." % ma)
+	chang = _chang_cua_ma(ma, it.item_name or ma, it.custom_chang_btp, _chang_theo_bom())
+	dung = kho_dung_cua(chang, bep)
+	if not dung or dung == kho_sai:
+		frappe.throw("%s đang ở đúng kho theo chặng, không cần chuyển." % ma)
+	ton = flt(frappe.db.get_value("Bin", {"item_code": ma, "warehouse": kho_sai}, "actual_qty"))
+	if sl > ton + 0.0001:
+		frappe.throw("Kho %s chỉ còn %s %s, không chuyển được %s." % (kho_sai, ton, it.stock_uom or "", sl))
+	se = frappe.new_doc("Stock Entry")
+	se.purpose = "Material Transfer"
+	se.stock_entry_type = "Material Transfer"
+	se.from_warehouse = kho_sai
+	se.to_warehouse = dung
+	se.remarks = "Chuyển về đúng kho theo chặng (màn Tồn kho theo chặng, v512): %s từ %s sang %s." % (ma, kho_sai, dung)
+	se.append("items", {"item_code": ma, "qty": sl, "s_warehouse": kho_sai, "t_warehouse": dung,
+		"uom": it.stock_uom, "stock_uom": it.stock_uom, "conversion_factor": 1})
+	se.insert()
+	return {"name": se.name, "tu": kho_sai, "den": dung, "sl": sl}
 
 
 @frappe.whitelist()

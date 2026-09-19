@@ -876,6 +876,76 @@ def gan_kho_lenh(doc, method=None):
 			"vagabond: gan ba kho cho lenh san xuat")
 
 
+def _kho_dich_cua_ma(ma, kho_hien):
+	"""Kho đích đúng cho mã này nếu `kho_hien` là kho bếp sai chặng, còn không thì None."""
+	bep = _bep_cua_mon(ma) or bep_cua_kho(kho_hien or "")
+	if not bep:
+		return None
+	kt, ten = _ho_so_mon(ma)
+	chang = chang_cua_mon(ma, _co_btp_con(ma), kt, ten)
+	return kho_dich_bat_buoc(chang, bep, kho_hien)
+
+
+# Ba loai phieu dua hang VAO mot kho bep bang tay. Nhap kho bep sai chang
+# qua ba duong nay thi CHAN, khong tu sua: chuyen kho la thao tac co chu y,
+# may doi kho dich sau lung nguoi chuyen thi hang di dau khong ai biet.
+MUC_DICH_CHUYEN_TAY = ("Material Transfer", "Material Receipt", "Material Transfer for Manufacture")
+
+
+def chan_nhap_sai_kho(doc, method=None):
+	"""Hook validate Stock Entry: chuyển kho hay nhập tay đưa hàng vào kho bếp
+	sai chặng thì chặn (v512, ý 2 anh Việt duyệt 19/09/2026).
+
+	Manufacture đã có gan_kho_thanh_pham tự sửa. Hàm này phủ ba đường còn hở:
+	Material Transfer, Material Receipt, Material Transfer for Manufacture.
+	"""
+	if doc.docstatus != 0 or (doc.get("purpose") or "") not in MUC_DICH_CHUYEN_TAY:
+		return
+	loi = []
+	for d in doc.get("items") or []:
+		if not d.get("t_warehouse") or not d.get("item_code"):
+			continue
+		try:
+			dung = _kho_dich_cua_ma(d.item_code, d.t_warehouse)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "vagabond: chan nhap sai kho")
+			continue
+		if dung:
+			loi.append("%s: đang nhập vào %s, kho đúng theo chặng là %s" % (d.item_code, d.t_warehouse, dung))
+	if loi:
+		frappe.throw(
+			"Không nhập hàng vào kho bếp sai chặng. " + "; ".join(loi)
+			+ ". Sửa kho đích rồi lưu lại.",
+			title="Sai kho theo chặng")
+
+
+def canh_bao_kiem_ke_sai_kho(doc, method=None):
+	"""Hook validate Stock Reconciliation: đếm thấy hàng ở kho bếp sai chặng thì
+	CẢNH BÁO chứ không chặn (v512).
+
+	Không chặn vì kiểm kê ghi lại thực tế: bánh nằm ở kệ nguyên liệu thật thì
+	sổ phải ghi đúng chỗ đó, rồi chuyển về kho đúng bằng phiếu chuyển. Chặn
+	ở đây là bắt người đếm nói dối sổ.
+	"""
+	if doc.docstatus != 0:
+		return
+	nhac = []
+	for d in doc.get("items") or []:
+		if not d.get("warehouse") or not d.get("item_code") or not flt(d.get("qty")):
+			continue
+		try:
+			dung = _kho_dich_cua_ma(d.item_code, d.warehouse)
+		except Exception:
+			continue
+		if dung:
+			nhac.append("%s ở %s (kho đúng: %s)" % (d.item_code, d.warehouse, dung))
+	if nhac:
+		frappe.msgprint(
+			"Kiểm kê thấy hàng nằm sai kho theo chặng: " + "; ".join(nhac[:20])
+			+ ". Chốt kiểm kê xong hãy lập phiếu chuyển về đúng kho (màn Tồn kho theo chặng có nút sẵn).",
+			title="Hàng nằm sai kho", indicator="orange")
+
+
 def gan_kho_thanh_pham(doc, method=None):
 	"""Hook before_validate Stock Entry: phiếu Manufacture nhập thành phẩm
 	đúng kho theo chặng (v512).
