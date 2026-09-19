@@ -82,3 +82,33 @@ def _man_hinh():
 	dung("dòng phí giao trong giỏ có lời nhắc sửa số tiền", "không bấm cộng số lượng" in q)
 	b = _doc("vagabond", "public", "js", "bep", "10-bill-quay.js")
 	dung("sửa bill: phí giao hỏi tiền", "if (posLaPhiGiao(o.value)) {" in b and "posSua.mon[c].qty = 1" in b)
+
+
+@ca("v510 Codex F1: ha tien phi giao tren bill da in tam tinh phai xin OTP")
+def _otp_ha_phi_giao():
+	# Tai hien finding Codex tren PR #347: hai danh sach deu co DVBH00001 qty 1,
+	# _theo_ma chi so so luong nen khong thay "bot", pos_sua ghi rate thap hon
+	# ma khong OTP. Ca nay dung DUNG chuoi: si da in tam tinh, muc gioi_han.
+	from unittest.mock import patch
+
+	from vagabond import quyen_quay
+
+	si = {"vgb_tam_tinh": 1, "items": [{"item_code": "DVBH00001", "qty": 1, "rate": 4000}]}
+	with patch.object(quyen_quay, "muc", return_value="gioi_han"), patch.object(
+		quyen_quay.frappe.db, "get_value", return_value="Phí Dịch Vụ Vận Chuyển", create=True
+	):
+		can, vs = quyen_quay.can_otp(si, [{"item_code": "DVBH00001", "qty": 1, "rate": 3000}])
+		dung("hạ 4.000 xuống 3.000 phải OTP", can)
+		dung("lý do nói tới phí giao", "Phí Dịch Vụ Vận Chuyển" in vs or "phí" in vs.lower())
+		can2, _ = quyen_quay.can_otp(si, [{"item_code": "DVBH00001", "qty": 1, "rate": 5000}])
+		dung("tăng lên 5.000 không cần OTP", not can2)
+		can3, _ = quyen_quay.can_otp(si, [{"item_code": "DVBH00001", "qty": 1, "rate": 4000}])
+		dung("giữ nguyên không cần OTP", not can3)
+
+
+@ca("v510 Codex F2: man sua bill THAY so tien phi giao, khong cong don")
+def _thay_khong_cong():
+	b = _doc("vagabond", "public", "js", "bep", "10-bill-quay.js")
+	dung("không còn phép cộng rate*qty + n", "* flt0(posSua.mon[c].qty) + n" not in b)
+	dung("ghi đè rate bằng số vừa nhập", "posSua.mon[c].rate = n; posSua.mon[c].qty = 1;" in b)
+	dung("hộp thoại điền sẵn số hiện có", "posPhiGiaoHienCo(posSua.mon)" in b)
