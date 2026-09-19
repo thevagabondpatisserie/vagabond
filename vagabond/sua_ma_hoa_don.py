@@ -22,6 +22,21 @@ def _phieu(name, can_nguon=True):
     return doc, g
 
 
+def dau_dong(x):
+    """Dấu vân của một dòng nguồn như màn đã thấy: tên, lượng, giá, đơn vị, mã.
+
+    Codex #348: đối chiếu mỗi tên là chưa đủ, nguồn đồng bộ lại giữa chừng có
+    thể đổi lượng, giá hay đơn vị của đúng dòng đó. Lệch bất kỳ trường nào là
+    dừng, bắt chọn lại.
+    """
+    import hashlib
+    import json
+
+    goc = [str(x.get('ten') or '').strip()[:140], flt(x.get('sl')), flt(x.get('gia')),
+           str(x.get('dvt') or '').strip(), str(x.get('ma') or '').strip()]
+    return hashlib.sha1(json.dumps(goc, ensure_ascii=False).encode('utf-8')).hexdigest()[:16]
+
+
 def _dong_goc(g):
     return [mc.dong_tu_hoa_don(d, mc.dau_cua_to(g.get('tong_tien')))
             for d in mc.dong_hang_hoa(dl.doc_chi_tiet(g.get('chi_tiet')))]
@@ -35,22 +50,22 @@ def lua_chon(name):
     return dict(co_nguon=True, modified=str(doc.modified),
         dong=[dict(name=d.name, idx=d.idx, nhan='%s. %s' % (d.idx, d.item_name or d.item_code or ''),
                    item_code=d.item_code) for d in doc.items],
-        nguon=[dict(vi_tri=i, ten=x['ten'], sl=x['sl'], gia=x['gia'], dvt=x['dvt'])
+        nguon=[dict(vi_tri=i, ten=x['ten'], sl=x['sl'], gia=x['gia'], dvt=x['dvt'], dau=dau_dong(x))
                for i, x in enumerate(_dong_goc(g))])
 
 
-def _sua(doc, g, dong, vi_tri, item_code, uom, ten_nguon=None):
+def _sua(doc, g, dong, vi_tri, item_code, uom, dau_nguon=None):
     """Trong savepoint của caller; không commit và không sửa chứng từ khác."""
     ds = _dong_goc(g)
     if str(vi_tri) not in {str(i) for i in range(len(ds))}:
         frappe.throw('Chọn một dòng có thật trên hóa đơn nguồn.')
     x = ds[int(vi_tri)]
     ten = str(x.get('ten') or '').strip()[:140]
-    # F4 (rà soát 16/09): vị trí chỉ là số thứ tự qua hai lượt gọi, nguồn đồng
-    # bộ lại giữa chừng thì cùng số trỏ sang dòng khác. Màn gửi kèm TÊN dòng
-    # nguồn đã thấy lúc chọn; lệch là dừng, không áp vào dòng sai.
-    if ten_nguon is not None and str(ten_nguon).strip()[:140] != ten:
-        frappe.throw('Dòng nguồn đã thay đổi so với lúc chọn. Tải lại hóa đơn rồi chọn lại dòng nguồn.')
+    # F4 (rà soát 16/09) + Codex #348: vị trí chỉ là số thứ tự qua hai lượt
+    # gọi. Màn gửi kèm DẤU VÂN cả dòng nguồn đã thấy lúc chọn (dau_dong);
+    # lệch tên, lượng, giá hay đơn vị là dừng, không áp vào dòng sai.
+    if dau_nguon is not None and str(dau_nguon).strip() != dau_dong(x):
+        frappe.throw('Dòng nguồn đã thay đổi so với lúc chọn (tên, lượng, giá hay đơn vị). Tải lại hóa đơn rồi chọn lại dòng nguồn.')
     if not ten or sum(str(r.get('ten') or '').strip()[:140] == ten for r in ds) != 1:
         frappe.throw('Tên nguồn đang trùng hoặc trống. Dùng đối chiếu chi tiết để sửa tay, không đoán dòng theo vị trí.')
     d = next((r for r in doc.items if r.name == dong), None)
@@ -92,6 +107,14 @@ def _sua(doc, g, dong, vi_tri, item_code, uom, ten_nguon=None):
     for m in ds_map.values():
         m.update(dict(item_code=item_code, vgb_uom=uom))
         m.save(ignore_permissions=True)
+    # Codex #348: ánh xạ cũ chỉ có tên (ma_ncc trống) thì điền mã NCC vào,
+    # để lần sau nguồn mang cùng mã mà đổi mô tả vẫn tra ra món đã nhớ.
+    if ma and not theo_ma:
+        for r in theo_ten:
+            m = ds_map[r.name]
+            if not str(m.get('ma_ncc') or '').strip():
+                m.update(dict(ma_ncc=ma))
+                m.save(ignore_permissions=True)
     cu = dict(item_code=d.item_code, uom=d.uom, qty=d.qty, rate=d.rate)
     d.update(dict(item_code=item_code, item_name=frappe.db.get_value('Item', item_code, 'item_name'),
         ten_hang_ncc=ten, qty=x['sl'], rate=x['gia'], price_list_rate=x['gia'],
@@ -110,7 +133,11 @@ def _sua(doc, g, dong, vi_tri, item_code, uom, ten_nguon=None):
     # lại TOÀN BỘ dòng hàng (sự cố 27/08: bốn tờ về 0 đồng). Kiểm một dòng
     # là chưa đủ, phải chốt tổng tiền tờ khớp bản nguồn.
     mong = _tong_mong_doi(doc, g)
-    if mong is not None and abs(flt(doc.grand_total) - flt(mong)) > 1:
+    if mong is None:
+        # Codex #348: không tính được tổng mong đợi thì KHÔNG được báo xong,
+        # vì hook lưu nháp nuốt lỗi, tờ có thể đã đổi mà không ai thấy.
+        frappe.throw('Không tính được tổng tiền theo bản nguồn nên không xác nhận được lượt sửa. Hệ thống đã lùi cả sửa mã và ánh xạ; đối chiếu chi tiết rồi báo kỹ thuật.')
+    if abs(flt(doc.grand_total) - flt(mong)) > 1:
         frappe.throw('Tổng tiền tờ sau khi lưu (%s) lệch bản nguồn (%s). Hệ thống đã lùi cả sửa mã và ánh xạ; đối chiếu chi tiết trước khi thử lại.'
                      % (flt(doc.grand_total), flt(mong)))
     doc.add_comment('Comment', escape('Sửa mã theo dòng nguồn %s: %s -> %s; đơn vị %s -> %s. '
@@ -130,7 +157,7 @@ def _tong_mong_doi(doc, g):
 
 
 @frappe.whitelist()
-def sua(name, dong, vi_tri, item_code, uom, modified, ten_nguon=None):
+def sua(name, dong, vi_tri, item_code, uom, modified, dau_nguon=None):
     from vagabond.doi_chieu_mua import _kiem_quyen, _lam_duoc
     _kiem_quyen()
     if not _lam_duoc():
@@ -141,7 +168,7 @@ def sua(name, dong, vi_tri, item_code, uom, modified, ten_nguon=None):
     moc = 'sua_ma_' + frappe.generate_hash(length=10)
     frappe.db.savepoint(moc)
     try:
-        return _sua(doc, g, dong, vi_tri, str(item_code or '').strip(), str(uom or '').strip(), ten_nguon)
+        return _sua(doc, g, dong, vi_tri, str(item_code or '').strip(), str(uom or '').strip(), dau_nguon)
     except Exception:
         frappe.db.rollback(save_point=moc)
         raise
