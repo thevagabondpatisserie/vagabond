@@ -405,8 +405,15 @@ function mfgWhCard(theoMon) {
     '<div class="fld" data-mw="src"><div class="fi">🧂</div><div class="ft"><div class="fl">Lấy nguyên liệu từ kho</div>' +
     '<div class="fv">' + h(theoMon && !mfg.nguon_tay ? 'Theo từng Món; chưa khai thì dùng ' + shortWh(mfg.src) : (theoMon && mfg.nguon_tay ? 'Kho chung do bạn chọn: ' : '') + (shortWh(mfg.src) || 'Chưa chọn')) + '</div></div><div class="fc">&#8250;</div></div>' +
     (theoMon && mfg.nguon_tay ? '<button class="btn gh" data-kho-theo-mon>Dùng lại kho đã khai trên Món</button>' : '') +
-    '<div class="fld" data-mw="fg"><div class="fi">🎂</div><div class="ft"><div class="fl">Nhập thành phẩm vào kho</div>' +
-    '<div class="fv">' + h(shortWh(mfg.fg) || 'Chưa chọn') + '</div></div><div class="fc">&#8250;</div></div></div>';
+    /* v512 y 1 (anh Viet duyet 19/09/2026): bep KHONG chon kho thanh pham
+       nua, may tu dat theo chang cua mon (may chu kho_dich_bat_buoc). Chi
+       quan ly san xuat con o bam de doi khi can. */
+    (mfgQuanLy()
+      ? '<div class="fld" data-mw="fg"><div class="fi">🎂</div><div class="ft"><div class="fl">Nhập thành phẩm vào kho</div>' +
+        '<div class="fv">' + h(shortWh(mfg.fg) || 'Chưa chọn') + '</div></div><div class="fc">&#8250;</div></div>'
+      : '<div class="fld"><div class="fi">🎂</div><div class="ft"><div class="fl">Nhập thành phẩm vào kho</div>' +
+        '<div class="fv">' + h(shortWh(mfg.fg) || 'Theo chặng của món') + ' <span style="font-size:12px;color:#98a2b3">(máy tự chọn theo chặng)</span></div></div></div>') +
+    '</div>';
 }
 /* Kho cua bep nao thi bep do thay (anh Viet 21/08/2026). Truoc day o chon
    kho xo ra ca 14 kho, va 70 tren 75 lenh cua ca hai bep deu lap nham o
