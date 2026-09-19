@@ -31846,7 +31846,7 @@ async function dcmDoiMaTheoNguon(name, idx, itemCode) {
   if (donVi.kho && !ds.some(function(d){return d.value === donVi.kho;})) ds.unshift({label:donVi.kho, value:donVi.kho});
   busy(false);
   sheet('Chọn dòng hóa đơn gốc', (du.nguon || []).map(function(d){
-    return {value:String(d.vi_tri), label:d.ten, phu:kl(d.sl)+' '+(d.dvt || '')+' x '+money(d.gia)+' đ'};
+    return {value:String(d.vi_tri), label:d.ten, dau:d.dau, phu:kl(d.sl)+' '+(d.dvt || '')+' x '+money(d.gia)+' đ'};
   }), null, function(goc) {
     if (!goc) return;
     sheet('Chọn đúng quy cách của mã mới', ds, null, async function(dvt) {
@@ -31854,7 +31854,7 @@ async function dcmDoiMaTheoNguon(name, idx, itemCode) {
       try {
         if (!await confirmSheet('Sửa mã theo hóa đơn gốc', 'Giữ số lượng và đơn giá của dòng nguồn vừa chọn. Ghi nhớ mã '+itemCode+' và đơn vị '+dvt.value+' cho lần đồng bộ sau.', 'Sửa dòng và ghi nhớ', false)) return;
         busy(true);
-        await api('vagabond.sua_ma_hoa_don.sua', {name:name, dong:dong.name, vi_tri:goc.value, ten_nguon:goc.label, item_code:itemCode, uom:dvt.value, modified:du.modified});
+        await api('vagabond.sua_ma_hoa_don.sua', {name:name, dong:dong.name, vi_tri:goc.value, dau_nguon:goc.dau, item_code:itemCode, uom:dvt.value, modified:du.modified});
         busy(false);
         toast('Đã sửa mã và giữ giá theo hóa đơn gốc.');
         go(function(){scrDcmXem(name);}, true);

@@ -190,10 +190,10 @@ async function vgbSuaMaTheoNguon(frm) {
 	], primary_action_label:'Sửa dòng và ghi nhớ', primary_action:async function(v) {
 		hop.disable_primary_action();
 		try {
-			/* F4: gửi kèm TÊN dòng nguồn đã thấy lúc chọn, máy chủ đối chiếu với vị trí. */
+			/* F4: gửi kèm DẤU VÂN dòng nguồn đã thấy lúc chọn, máy chủ đối chiếu với vị trí. */
 			var goc = du.nguon.find(function(d){return String(d.vi_tri) === String(v.vi_tri);});
 			await frappe.call({method:'vagabond.sua_ma_hoa_don.sua', args:Object.assign({}, v,
-				{name:frm.doc.name, modified:du.modified, ten_nguon:goc ? goc.ten : ''}), freeze:true});
+				{name:frm.doc.name, modified:du.modified, dau_nguon:goc ? goc.dau : ''}), freeze:true});
 			hop.hide();
 			await frm.reload_doc();
 			frappe.show_alert({message:'Đã sửa mã, quy cách và giữ giá theo hóa đơn gốc.', indicator:'green'});
