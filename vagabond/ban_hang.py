@@ -4270,8 +4270,14 @@ def tao_don_tay(
 				indicator="orange",
 			)
 
-	if flt(phi_ship) > 0:
-		rows.append({"item_code": _item_phi_giao(), "qty": 1, "rate": flt(phi_ship)})
+	# Phi giao: gom ve MOT dong qty 1 (Loan Anh 18/09/2026, xem phi_giao.py).
+	# Thu ngan lo chon mon "Phi Dich Vu Van Chuyen" tu danh muc roi bam cong
+	# so luong thi vao so van la mot dong dung so tien, khong phai 4 x 1.000.
+	from vagabond import phi_giao as _pg
+
+	rows = _pg.gom(rows, phi_ship)
+	if rows and _pg.la_phi_giao(rows[-1].get("item_code")):
+		_item_phi_giao()  # bao dam item ton tai
 	hop_le = _pt_cho_nguon(nguon)
 	tam_tinh = frappe.utils.cint(tam_tinh)
 	if tam_tinh:
@@ -6036,6 +6042,10 @@ def pos_sua_don(
 					d["description"] += "\n%s %s" % (DAU_GC_MON, gcm[:200])
 			from vagabond.combo_mon import giu_dong_sua
 			rows.append(giu_dong_sua(si, r, d))
+		# Phi giao gom ve mot dong qty 1 (xem phi_giao.py).
+		from vagabond import phi_giao as _pg
+
+		rows = _pg.gom(rows, 0)
 		if not rows:
 			frappe.throw("Hoá đơn phải còn ít nhất một món.")
 		si.set("items", [])
