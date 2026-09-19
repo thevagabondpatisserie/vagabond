@@ -1277,6 +1277,21 @@ async function scrPosBill(name) {
     posSheetMon(dsItemsCache.map(function (x) {
       return { value: x.name, label: x.item_name, icon: '🎂', img: x.image || '', gia: x.standard_rate || 0, nhom: x.item_group || '', phu: (x.standard_rate ? money(x.standard_rate) + ' đ' : 'chưa có giá') + ' · ' + x.name, tim: x.name + ' ' + (x.ma_vach || '') };
     }), function (o) {
+      /* Phi giao: hoi SO TIEN, mot dong qty 1 (Loan Anh 18/09/2026). Co san
+         thi cong them tien vao dong do. May chu gom lai lan nua (phi_giao.gom). */
+      if (posLaPhiGiao(o.value)) {
+        /* Codex PR #347: hop thoai dien san so hien co va THAY, khong cong don
+           (sua 4.000 thanh 5.000 ma ra 9.000 la sai). */
+        hoiSo('Phí giao thu của khách', 'Số tiền phí giao (đ), không phải số lượng', posPhiGiaoHienCo(posSua.mon)).then(function (n) {
+          if (n === null) return;
+          var c = -1;
+          posSua.mon.forEach(function (m, k) { if (posLaPhiGiao(m.item_code)) c = k; });
+          if (c >= 0) { if (n) { posSua.mon[c].rate = n; posSua.mon[c].qty = 1; } else posSua.mon.splice(c, 1); }
+          else if (n) posSua.mon.push({ item_code: POS_MA_PHI_GIAO, ten: o.label, qty: 1, rate: n, nhom: o.nhom, tc: [], gc: '' });
+          go(function () { scrPosBill(name); }, true);
+        });
+        return 0;
+      }
       if (!o.gia) { toast('Món ' + o.label + ' chưa có giá bán trong danh mục.', 4000); return 0; }
       var vt = -1;
       posSua.mon.forEach(function (m, k) { if (m.item_code === o.value && m.combo_tien == null) vt = k; });

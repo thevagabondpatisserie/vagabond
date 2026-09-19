@@ -12746,7 +12746,9 @@ async function scrPosQuay() {
         ? '<img src="' + h(m.anh) + '" loading="lazy" style="width:44px;height:44px;flex:none;object-fit:cover;border-radius:9px;border:1px solid #eef0f4" onerror="this.style.display=\'none\'">'
         : '<span style="width:44px;height:44px;flex:none;display:flex;align-items:center;justify-content:center;border-radius:9px;background:#f6f7f9;font-size:22px">🎂</span>') +
       '<div style="flex:1;min-width:0"><div data-tc-mo="' + i + '" style="font-size:14.5px;line-height:1.25;cursor:pointer">' + h(m.ten) + '</div>' +
-      '<div style="color:#a0a6b4;font-size:12px;margin-top:1px">' + money(m.rate) + ' đ/cái</div>' +
+      (posLaPhiGiao(m.item_code)
+        ? '<div style="color:#b45309;font-size:12px;margin-top:1px">Phí giao: sửa SỐ TIỀN ở ô Phí giao thu của khách bên dưới, không bấm cộng số lượng</div>'
+        : '<div style="color:#a0a6b4;font-size:12px;margin-top:1px">' + money(m.rate) + ' đ/cái</div>') +
       /* Tuy chon pha che la CHIP cho to ro (anh Viet 09/08): da chon thi
          chip xanh liet ke, chua chon mon nuoc thi chip nhac bam vao. */
       ((m.tc || []).length
@@ -13082,6 +13084,12 @@ async function posThemMon() {
       toast('Combo chưa có cấu hình đang bật cho điểm bán này. Nhờ quản lý khai món trong Khuyến mãi - combo.');
       return 0;
     }
+    /* PHI GIAO khong phai mon dem cai (Loan Anh 18/09/2026): chon "Phi Dich
+       Vu Van Chuyen" tu danh muc thi may hoi SO TIEN va ghi vao o Phi giao
+       thu cua khach, khong them dong 1.000 d roi bam cong so luong. Vao so
+       la mot dong qty 1 dung so tien, hoa don dien tu moi dung. May chu cung
+       tu gom lai (phi_giao.gom) neu man nao gui kieu cu. */
+    if (posLaPhiGiao(o.value)) { posHoiPhiGiao(); return 0; }
     var i = -1;
     posDon.mon.forEach(function (m, k) { if (m.item_code === o.value && !m.combo) i = k; });
     if (i >= 0) { posDon.mon[i].qty += 1; return posDon.mon[i].qty; }
@@ -13932,6 +13940,27 @@ function posQrSheet(soPhieu, tien, siName, nguon, maDiem) {
   };
 }
 var posDangLuu = false;
+
+/* Ma item phi giao (DVBH00001 - ban_hang.MA_PHI_GIAO). */
+var POS_MA_PHI_GIAO = 'DVBH00001';
+function posLaPhiGiao(ma) { return String(ma || '').trim().toUpperCase() === POS_MA_PHI_GIAO; }
+/* Tong tien phi giao dang co trong gio (qty x rate), de hop thoai dien san. */
+function posPhiGiaoHienCo(mon) {
+  var t = 0;
+  (mon || []).forEach(function (m) { if (posLaPhiGiao(m.item_code)) t += flt0(m.qty) * flt0(m.rate); });
+  return t || '';
+}
+async function posHoiPhiGiao() {
+  /* Dong sheet chon mon truoc, hop thoai so tien moi len tren cung. */
+  document.querySelectorAll('.sh').forEach(function (x) { x.remove(); });
+  var hien = posSoTien(posDon.ship);
+  var n = await hoiSo('Phí giao thu của khách', 'Số tiền phí giao (đ), không phải số lượng', hien || '');
+  if (n === null) return;
+  posDon.ship = n ? String(n) : '';
+  toast(n ? 'Đã ghi phí giao ' + money(n) + ' đ vào ô Phí giao thu của khách' : 'Đã bỏ phí giao', 3500);
+  go(scrPosQuay, true);
+}
+
 async function posLuuDon() {
   /* Bam hai lan lien la ra hai bill cung so tien - khoa lai cho chac. */
   if (posDangLuu) return;
@@ -15360,6 +15389,21 @@ async function scrPosBill(name) {
     posSheetMon(dsItemsCache.map(function (x) {
       return { value: x.name, label: x.item_name, icon: '🎂', img: x.image || '', gia: x.standard_rate || 0, nhom: x.item_group || '', phu: (x.standard_rate ? money(x.standard_rate) + ' đ' : 'chưa có giá') + ' · ' + x.name, tim: x.name + ' ' + (x.ma_vach || '') };
     }), function (o) {
+      /* Phi giao: hoi SO TIEN, mot dong qty 1 (Loan Anh 18/09/2026). Co san
+         thi cong them tien vao dong do. May chu gom lai lan nua (phi_giao.gom). */
+      if (posLaPhiGiao(o.value)) {
+        /* Codex PR #347: hop thoai dien san so hien co va THAY, khong cong don
+           (sua 4.000 thanh 5.000 ma ra 9.000 la sai). */
+        hoiSo('Phí giao thu của khách', 'Số tiền phí giao (đ), không phải số lượng', posPhiGiaoHienCo(posSua.mon)).then(function (n) {
+          if (n === null) return;
+          var c = -1;
+          posSua.mon.forEach(function (m, k) { if (posLaPhiGiao(m.item_code)) c = k; });
+          if (c >= 0) { if (n) { posSua.mon[c].rate = n; posSua.mon[c].qty = 1; } else posSua.mon.splice(c, 1); }
+          else if (n) posSua.mon.push({ item_code: POS_MA_PHI_GIAO, ten: o.label, qty: 1, rate: n, nhom: o.nhom, tc: [], gc: '' });
+          go(function () { scrPosBill(name); }, true);
+        });
+        return 0;
+      }
       if (!o.gia) { toast('Món ' + o.label + ' chưa có giá bán trong danh mục.', 4000); return 0; }
       var vt = -1;
       posSua.mon.forEach(function (m, k) { if (m.item_code === o.value && m.combo_tien == null) vt = k; });
@@ -21721,7 +21765,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '509';
+var APPVER = '510';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
