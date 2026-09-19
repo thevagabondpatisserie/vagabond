@@ -57,6 +57,18 @@ def muc():
 	return m if m in {x["k"] for x in MUC} else MAC_DINH
 
 
+def _tien_phi_giao(rows):
+	"""Tong tien cac dong phi giao (qty * rate), khong phu thuoc cach chia dong."""
+	from vagabond import phi_giao
+
+	tong = 0.0
+	for r in rows or []:
+		g = r.get if isinstance(r, dict) else (lambda k, _r=r: getattr(_r, k, None))
+		if phi_giao.la_phi_giao(g("item_code")):
+			tong += flt(g("qty") or 0) * flt(g("rate") or 0)
+	return tong
+
+
 def _theo_ma(rows):
 	"""Gom so luong theo ma hang.
 
@@ -97,6 +109,15 @@ def can_otp(si, items=None, giam_gia=None):
 			ten = frappe.db.get_value("Item", bot[0], "item_name") or bot[0]
 			return True, (
 				"bill này đã in tạm tính đưa khách rồi, bớt \"%s\" thì cần quản lý ca duyệt" % ten
+			)
+		# PHI GIAO la khoan tien, khong dem cai (v510, Codex PR #347): hai ben
+		# deu qty 1 nen so so luong khong thay gi, phai so TIEN. Ha phi giao
+		# tren bill da in tam tinh la bot tien thu cua khach, xin OTP nhu bot mon.
+		tien_cu, tien_moi = _tien_phi_giao(si.get("items")), _tien_phi_giao(items)
+		if tien_moi < tien_cu - 0.5:
+			return True, (
+				"bill này đã in tạm tính đưa khách rồi, hạ phí giao từ %s xuống %s thì cần quản lý ca duyệt"
+				% ("{:,.0f}".format(tien_cu).replace(",", "."), "{:,.0f}".format(tien_moi).replace(",", "."))
 			)
 	if them_giam_gia(si, giam_gia):
 		return True, "bill này đã in tạm tính đưa khách rồi, thêm giảm giá thì cần quản lý ca duyệt"
