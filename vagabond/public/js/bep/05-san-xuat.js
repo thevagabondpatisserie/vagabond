@@ -272,8 +272,19 @@ function mfgInitWh() {
     if (hopLe.length && hopLe.indexOf(mfg.fg) < 0) mfg.fg = '';
   }
   if (!mfg.src) mfg.nguon_tay = 0;
+  /* v512: kho thanh pham da nho ma khong phai kho Thanh pham thi bo, chon lai. */
+  if (mfg.fg && !mfgLaKhoThanhPham(mfg.fg) && whFind('thành phẩm')) mfg.fg = '';
   if (!mfg.src) mfg.src = (k && whFind(k, 'nguyên liệu')) || whFind('pastry', 'nguyên liệu') || whFind('nguyên liệu') || S.wh[0] || '';
   if (!mfg.fg) mfg.fg = (k && whFind(k, 'thành phẩm')) || whFind('pastry', 'thành phẩm') || whFind('thành phẩm') || S.wh[0] || '';
+}
+/* v512 (Khai 18/09/2026): o "Nhap thanh pham vao kho" CHI cho chon kho
+   Thanh pham. Truoc day liet ke moi kho bep, mot nguoi lo chon Pastry -
+   Nguyen lieu la app nho luon, moi lenh sau do deu nhap banh vao kho
+   nguyen lieu. May chu cung tu sua (kho_san_xuat.kho_dich_bat_buoc). */
+function mfgLaKhoThanhPham(ten) { return String(ten || '').toLowerCase().indexOf('thành phẩm') >= 0; }
+function mfgFgOpts() {
+  var tp = mfgWhOpts().filter(function (o) { return mfgLaKhoThanhPham(o.value); });
+  return tp.length ? tp : mfgWhOpts();
 }
 function mfgSaveWh() { try { localStorage.setItem('vgb_mfg_src', mfg.src); localStorage.setItem('vgb_mfg_fg', mfg.fg); localStorage.setItem('vgb_mfg_nguon_tay', mfg.nguon_tay ? '1' : '0'); } catch (e) { } }
 function mfgShift() { var hh = (new Date()).getHours(); return hh < 12 ? 'Sáng' : (hh < 18 ? 'Chiều' : 'Đêm'); }
@@ -419,7 +430,7 @@ function mfgWhTap(e, redraw) {
   var t = e.target.closest('[data-mw]');
   if (!t) return false;
   var k = t.dataset.mw;
-  sheet(k === 'src' ? 'Kho nguyên liệu' : 'Kho thành phẩm', mfgWhOpts(), mfg[k], function (o) {
+  sheet(k === 'src' ? 'Kho nguyên liệu' : 'Kho thành phẩm', k === 'src' ? mfgWhOpts() : mfgFgOpts(), mfg[k], function (o) {
     if (k === 'src') mfg.nguon_tay = 1;
     mfg[k] = o.value; mfgSaveWh(); redraw();
   }, true);

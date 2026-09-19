@@ -63,7 +63,9 @@ async function scrTonChang() {
       (d.thu_tu || []).map(function (m) {
         return tchChip(m, (d.ten_chang || {})[m] || m, (d.bang || {})[m]);
       }).join('') +
-      (chua ? tchChip('chua', '❓ Chưa phân chặng', (d.bang || {})['']) : '');
+      (chua ? tchChip('chua', '❓ Chưa phân chặng', (d.bang || {})['']) : '') +
+      /* v512: chip SAI KHO (Khai 18/09/2026) - hang nam o kho khac chang cua no. */
+      (d.so_sai_kho ? '<div class="chip' + (tch.chang === 'sai_kho' ? ' on' : '') + '" data-tcc="sai_kho" style="border-color:#fca5a5;color:#b3261e">⚠ Sai kho <b>' + d.so_sai_kho + '</b></div>' : '');
 
     var body = '<div class="chips">' + beps + '</div>' +
       '<div class="chips">' + chips + '</div>' +
@@ -75,10 +77,10 @@ async function scrTonChang() {
       /* Mot ma nam o may kho thi cong lai, va ghi ro tung kho o dong duoi.
          Bep hay hoi "hang do cua ai" chu khong chi hoi "con bao nhieu". */
       var kho = (x.kho || []).map(function (w) {
-        return shortWh(w.kho) + ' ' + num(w.sl);
+        return (w.sai ? '<b style="color:#b3261e">' + h(shortWh(w.kho)) + ' ' + num(w.sl) + ' (sai kho)</b>' : h(shortWh(w.kho)) + ' ' + num(w.sl));
       }).join(' · ');
       return '<div class="li"><div class="lt"><div class="l1">' + h(x.ten) + '</div>' +
-        '<div class="l2">' + h(x.ma) + (kho ? ' · ' + h(kho) : '') +
+        '<div class="l2">' + h(x.ma) + (kho ? ' · ' + kho : '') +
         (x.lam_tuoi ? ' · <b style="color:#b3261e">làm tươi</b>' : '') + '</div></div>' +
         '<div style="text-align:right"><div class="amt">' + num(x.sl) + '</div>' +
         '<div class="l2">' + h(x.dvt || '') + '</div>' +
