@@ -154,20 +154,39 @@ def _f3_tong_tien():
     with bo:
         nem('tổng về 0', lambda: sm._sua(doc, g, 'R', '0', 'MOI', 'Chai 700 ml'), ValueError)
     la('không tới bước ghi chú', ghi, ['map', 'save', 'reload'])
+    # Codex #348: khong tinh duoc tong mong doi thi PHAI nem (fail closed).
     bo, doc, g, ghi = _nen(mong=None)
     with bo:
-        r = sm._sua(doc, g, 'R', '0', 'MOI', 'Chai 700 ml')
-    la('không tính được tổng nguồn thì không chặn oan', r['rate'], 331818)
+        nem('không tính được tổng thì dừng', lambda: sm._sua(doc, g, 'R', '0', 'MOI', 'Chai 700 ml'), ValueError)
+    la('không tới bước ghi chú', ghi, ['map', 'save', 'reload'])
 
 
-@ca('#332 F4: ten dong nguon lech vi tri thi dung, khong ap dong sai')
-def _f4_ten_nguon():
+@ca('#332 F4 + Codex #348: dau van dong nguon lech (ten, luong, gia, dvt) thi dung')
+def _f4_dau_nguon():
     bo, doc, g, ghi = _nen()
     with bo:
-        nem('tên lệch', lambda: sm._sua(doc, g, 'R', '0', 'MOI', 'Chai 700 ml', ten_nguon='Hàng khác'), ValueError)
+        dau = sm.dau_dong(sm._dong_goc(g)[0])
+        nem('dấu lệch', lambda: sm._sua(doc, g, 'R', '0', 'MOI', 'Chai 700 ml', dau_nguon='khac'), ValueError)
         la('chưa ghi gì', ghi, [])
-        r = sm._sua(doc, g, 'R', '0', 'MOI', 'Chai 700 ml', ten_nguon='Hàng nguồn')
-    la('tên khớp thì sửa', r['rate'], 331818)
+        # nguon doi GIA cua dung dong do sau khi man da chon
+        g['chi_tiet'][0]['dgia'] = 300000
+        nem('giá đổi giữa chừng', lambda: sm._sua(doc, g, 'R', '0', 'MOI', 'Chai 700 ml', dau_nguon=dau), ValueError)
+        la('vẫn chưa ghi gì', ghi, [])
+        g['chi_tiet'][0]['dgia'] = 331818
+        r = sm._sua(doc, g, 'R', '0', 'MOI', 'Chai 700 ml', dau_nguon=dau)
+    la('dấu khớp thì sửa', r['rate'], 331818)
+
+
+@ca('#332 Codex #348: anh xa cu chi co ten thi dien ma NCC vao')
+def _g3_dien_ma():
+    bo, doc, g, ghi = _nen()
+    g['chi_tiet'][0]['mhhdvu'] = 'MA'
+    ten = Dong(name='MAP-TEN', ma_ncc='', ten_ncc='Hàng nguồn', item_code='CU', save=lambda **k: ghi.append('map-ten'))
+    with bo, patch.object(qc, '_anh_xa', lambda mst, k, v: [] if k == 'ma_ncc' else [ten]):
+        sm.frappe.get_doc = lambda dt, n, **k: ten
+        sm._sua(doc, g, 'R', 0, 'MOI', 'Chai 700 ml')
+    la('điền mã vào ánh xạ tên', ten.ma_ncc, 'MA')
+    la('món đổi', ten.item_code, 'MOI')
 
 
 @ca('#332 F1/F5: cua ngo dang ky du, app chi di cua nguon khi DOI ma')
@@ -178,6 +197,6 @@ def _f1_f5():
     goc = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
     js = io.open(os.path.join(goc, 'vagabond', 'public', 'js', 'bep', '18-doi-chieu-may-in.js'), encoding='utf-8').read()
     la('chỉ khi doi', js.count('if (doi && await dcmDoiMaTheoNguon(name, idx, itemCode)) return;'), 1)
-    la('app gửi ten_nguon', js.count('ten_nguon:goc.label'), 1)
+    la('app gửi dau_nguon', js.count('dau_nguon:goc.dau'), 1)
     desk = io.open(os.path.join(goc, 'vagabond', 'public', 'js', 'purchase_invoice.js'), encoding='utf-8').read()
-    la('Desk gửi ten_nguon', desk.count('ten_nguon:goc ? goc.ten : \'\''), 1)
+    la('Desk gửi dau_nguon', desk.count('dau_nguon:goc ? goc.dau : \'\''), 1)
