@@ -299,3 +299,68 @@ def _i3_giam_doc():
 	dung("AP Giám đốc cũng vậy", not v.thay_duoc("sai_kho", {"AP Giám đốc"}))
 	dung("System Manager thấy (vai kỹ thuật)", v.thay_duoc("sai_kho", {"System Manager"}))
 	dung("sai_kho không nằm trong việc hệ trọng", "sai_kho" not in v.VIEC_HE_TRONG)
+
+
+# ---------------- Codex #349 vong 3 (8a88db4): phieu chuyen ve dung kho ----------------
+
+
+@ca("v512 Codex J1: kho dung cua dong doc hau to tu kho dang chua, khong ghep cung TV")
+def _j1_hau_to_hien_thi():
+	d = {"chang": ks.THANH_PHAM, "kho": [{"kho": "Pastry - Nguyên liệu - VK", "sl": 3, "sai": True}]}
+	la("hiển thị trên site VK", tc.kho_dung_cua_dong(d, {"Pastry - Nguyên liệu - VK": "pastry"}), "Pastry - Thành phẩm - VK")
+	la("kho_dung_cua nhận hậu tố", tc.kho_dung_cua(ks.THANH_PHAM, "pastry", " - VK"), "Pastry - Thành phẩm - VK")
+	la("không truyền thì như cũ", tc.kho_dung_cua(ks.THANH_PHAM, "pastry"), "Pastry - Thành phẩm - TV")
+
+
+@ca("v512 Codex J1+J2: phieu chuyen ve dung kho dung CUNG ham kho dich voi hook (bep tren mon, hau to tu kho sai)")
+def _j2_cung_nguon():
+	from types import SimpleNamespace as NS
+	from unittest.mock import patch
+
+	s = _doc("vagabond", "ton_chang.py")
+	doan = s.split("def tao_phieu_ve_dung_kho")[1].split("\n@frappe")[0]
+	dung("không còn tự tính chặng rồi ghép kho", "kho_dung_cua(chang, bep)" not in doan and "_chang_cua_ma(" not in doan)
+	dung("đi qua ksx._kho_dich_cua_ma", "ksx._kho_dich_cua_ma(ma, kho_sai)" in doan)
+
+	def _throw(m, **k):
+		raise ValueError(m)
+	tao = []
+
+	class SE(object):
+		def __init__(self):
+			self.items = []
+			self.name = "PCK-KT"
+		def append(self, k, r):
+			self.items.append(r)
+		def insert(self):
+			tao.append(self)
+	f = NS(get_roles=lambda: ["Manufacturing Manager"], throw=_throw, log_error=lambda *a, **k: None,
+		get_traceback=lambda: "", new_doc=lambda dt: SE(),
+		db=NS(get_value=lambda dt, n, f=None, as_dict=False, **k: (NS(item_name="Bánh", stock_uom="Cái") if dt == "Item" else 5),
+			exists=lambda *a: True))
+	goi = []
+
+	def _kd(ma, kho):
+		goi.append((ma, kho))
+		# Mon Pastry nam o kho Baker: hook quyet ve Pastry, khong phai Baker -> Baker
+		return "Pastry - Thành phẩm - VK"
+	with patch.object(tc, "frappe", f), patch.object(ks, "_kho_dich_cua_ma", _kd):
+		kq = tc.tao_phieu_ve_dung_kho("BAWC00046", "Baker - Thành phẩm - VK", 2)
+	la("gọi đúng hàm với kho sai", goi, [("BAWC00046", "Baker - Thành phẩm - VK")])
+	la("kho đến là kho hook quyết", kq["den"], "Pastry - Thành phẩm - VK")
+	la("dòng phiếu cùng kho đến", tao[0].items[0]["t_warehouse"], "Pastry - Thành phẩm - VK")
+	# Hook noi "dang dung kho" thi khong lap
+	with patch.object(tc, "frappe", f), patch.object(ks, "_kho_dich_cua_ma", lambda ma, kho: None):
+		try:
+			tc.tao_phieu_ve_dung_kho("BAWC00046", "Pastry - Thành phẩm - VK", 2)
+			dung("đúng kho thì phải từ chối", False)
+		except ValueError as e:
+			dung("nói đúng kho", "đúng kho" in str(e))
+	# Kho dich chua duoc tao thi dung, khong de insert vo
+	f2 = NS(**{**f.__dict__, "db": NS(get_value=f.db.get_value, exists=lambda dt, n: n != "Pastry - Thành phẩm - VK")})
+	with patch.object(tc, "frappe", f2), patch.object(ks, "_kho_dich_cua_ma", _kd):
+		try:
+			tc.tao_phieu_ve_dung_kho("BAWC00046", "Baker - Thành phẩm - VK", 2)
+			dung("thiếu kho đích phải dừng", False)
+		except ValueError as e:
+			dung("nói rõ kho thiếu", "chưa được tạo" in str(e))
