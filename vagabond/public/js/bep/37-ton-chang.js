@@ -134,7 +134,11 @@ async function tchChuyenVeDungKho(ma) {
   var sai = (x.kho || []).filter(function (k) { return k.sai && k.sl > 0; });
   for (var i = 0; i < sai.length; i++) {
     var k = sai[i];
-    var ok = await confirmSheet('Chuyển về đúng kho', 'Lập phiếu chuyển kho NHÁP: ' + num(k.sl) + ' ' + (x.dvt || '') + ' ' + x.ten + ' từ ' + shortWh(k.kho) + ' sang ' + shortWh(x.kho_dung) + '. Phiếu chưa ghi sổ, quản lý xem lại trên máy tính rồi mới ghi.', 'Lập phiếu nháp', false);
+    /* Kho dich cua TUNG kho sai (k.kho_dung), khong lay cua dong: cung mot ma
+       nam sai o hai bep thi hai kho dich khac nhau (Codex #349). */
+    var den = k.kho_dung || x.kho_dung;
+    if (!den) continue;
+    var ok = await confirmSheet('Chuyển về đúng kho', 'Lập phiếu chuyển kho NHÁP: ' + num(k.sl) + ' ' + (x.dvt || '') + ' ' + x.ten + ' từ ' + shortWh(k.kho) + ' sang ' + shortWh(den) + '. Chuyển hết số đang nằm sai; phiếu chưa ghi sổ, quản lý xem lại trên máy tính rồi mới ghi.', 'Lập phiếu nháp', false);
     if (!ok) continue;
     busy(true);
     try {
