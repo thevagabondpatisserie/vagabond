@@ -376,7 +376,23 @@ def kho_cua_lenh(chang_mon, bep, hau_to=" - TV"):
 	return (nguon, nguon, dich)
 
 
-def kho_dich_bat_buoc(chang_mon, bep, kho_hien, hau_to=" - TV"):
+def hau_to_cua_kho(ten_kho, mac_dinh=" - TV"):
+	"""Hậu tố công ty của một tên kho bếp (" - TV" trên site thật, " - VK" trên
+	bench CI). THUẦN.
+
+	Codex #349 (2ef823d) + bench CI đỏ 19/09/2026: kho đích ghép cứng " - TV"
+	nên trên site có hậu tố khác thì kho đích "không tồn tại", hook bỏ qua
+	lặng và phiếu đi tiếp với kho sai. Kho bếp đặt tên "<Bếp> - <Chặng> - <Cty>"
+	nên đọc hậu tố ngay từ kho đang chọn, không đoán.
+	"""
+	t = (ten_kho or "").strip()
+	if bep_cua_kho(t) is None or t.count(" - ") < 2:
+		return mac_dinh
+	duoi = t.rsplit(" - ", 1)[1].strip()
+	return (" - " + duoi) if duoi else mac_dinh
+
+
+def kho_dich_bat_buoc(chang_mon, bep, kho_hien, hau_to=None):
 	"""Kho đích ĐÚNG cho món này nếu kho đang chọn là kho bếp sai chặng. THUẦN.
 
 	Khải 18/09/2026 (ảnh màn Tồn kho theo chặng): bánh thành phẩm nằm ở kho
@@ -390,10 +406,21 @@ def kho_dich_bat_buoc(chang_mon, bep, kho_hien, hau_to=" - TV"):
 	bếp (Kho tổng 307, kho điểm bán...) thì trả None, không đụng: đó là lựa
 	chọn có chủ ý của quản lý, luật này chỉ chặn nhầm giữa các kho bếp.
 	Không biết chặng hay bếp cũng trả None.
+
+	Nguyên liệu (NVLT, BPKG...) cũng có kho đúng là kho Nguyên liệu: nhập tay
+	nguyên liệu vào kho Thành phẩm là sai kho y như chiều ngược lại (Codex
+	#349). LUAT_KHO_DICH chỉ nói về đầu ra của lệnh sản xuất nên không có
+	dòng nguyên liệu; ở đây bổ sung tại chỗ, không đổi luật lệnh.
+
+	`hau_to` để None thì đọc từ chính `kho_hien` (xem hau_to_cua_kho).
 	"""
-	if not chang_mon or chang_mon not in LUAT_KHO_DICH or not bep:
+	luat = dict(LUAT_KHO_DICH)
+	luat[NGUYEN_LIEU] = NGUYEN_LIEU
+	if not chang_mon or chang_mon not in luat or not bep:
 		return None
-	dich = ten_kho_cua(bep, LUAT_KHO_DICH[chang_mon], hau_to)
+	if hau_to is None:
+		hau_to = hau_to_cua_kho(kho_hien)
+	dich = ten_kho_cua(bep, luat[chang_mon], hau_to)
 	if not dich:
 		return None
 	kh = (kho_hien or "").strip()
@@ -858,22 +885,46 @@ def gan_kho_lenh(doc, method=None):
 			if gia_tri and not (doc.get(o) or "").strip():
 				if frappe.db.exists("Warehouse", gia_tri):
 					doc.set(o, gia_tri)
-		# v512: kho DICH la luat theo chang, khong phai lua chon. Chon nham
-		# kho bep khac chang (thanh pham vao kho Nguyen lieu) thi may sua lai
-		# va noi ro, ke ca khi nguoi tao lenh da chon tay. Xem kho_dich_bat_buoc.
-		if doc.docstatus == 0:
-			dung = kho_dich_bat_buoc(chang, bep, doc.get("fg_warehouse"))
-			if dung and frappe.db.exists("Warehouse", dung):
-				cu = doc.get("fg_warehouse")
-				doc.fg_warehouse = dung
-				frappe.msgprint(
-					"Kho nhập thành phẩm đã đổi từ %s sang %s: món %s là chặng %s nên phải "
-					"về kho đó, không chọn tay được." % (cu, dung, doc.production_item,
-						TEN_CHANG.get(chang, chang)),
-					title="Máy sửa kho đích theo chặng", indicator="orange")
 	except Exception:
 		frappe.log_error(frappe.get_traceback(),
 			"vagabond: gan ba kho cho lenh san xuat")
+	# v512: kho DICH la luat theo chang, khong phai lua chon. Chon nham kho
+	# bep khac chang (thanh pham vao kho Nguyen lieu) thi may sua lai va noi
+	# ro, ke ca khi nguoi tao lenh da chon tay. Xem kho_dich_bat_buoc.
+	# Nam NGOAI try o tren (Codex #349): tra kho loi hay kho dung chua duoc
+	# tao thi DUNG lenh, khong de lenh di tiep voi kho sai.
+	if doc.docstatus == 0 and doc.get("production_item"):
+		try:
+			dung = _kho_dich_cua_ma(doc.production_item, doc.get("fg_warehouse"))
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "vagabond: kho dich theo chang cho lenh")
+			frappe.throw(
+				"Không xác định được kho đích theo chặng cho %s nên chưa lưu lệnh. "
+				"Kiểm chặng và bếp phụ trách của món rồi lưu lại, hoặc báo kỹ thuật." % doc.production_item,
+				title="Chưa rõ kho đích theo chặng")
+		if dung:
+			_phai_co_kho(dung, doc.production_item)
+			cu = doc.get("fg_warehouse")
+			doc.fg_warehouse = dung
+			frappe.msgprint(
+				"Kho nhập thành phẩm đã đổi từ %s sang %s: món %s phải về kho đó theo "
+				"chặng, không chọn tay được." % (cu, dung, doc.production_item),
+				title="Máy sửa kho đích theo chặng", indicator="orange")
+
+
+def _phai_co_kho(ten, ma):
+	"""Kho đích theo chặng phải tồn tại, không thì dừng phiếu (Codex #349, 2ef823d).
+
+	Trước đây `if dung and frappe.db.exists(...)` sai một chữ: kho đúng chưa
+	được dựng thì hook im lặng và phiếu đi tiếp vào kho sai, đúng cái lỗi
+	hook này sinh ra để chặn. Bench CI 19/09 đã bắt được: kho ghép " - TV"
+	không có trên site " - VK", hai ca đỏ.
+	"""
+	if not frappe.db.exists("Warehouse", ten):
+		frappe.throw(
+			"Kho đích theo chặng của %s là %s nhưng kho này chưa được tạo. Dựng kho "
+			"(màn Kho sản xuất, Dựng cây kho) rồi lưu lại." % (ma, ten),
+			title="Thiếu kho đích theo chặng")
 
 
 def _kho_dich_cua_ma(ma, kho_hien):
@@ -980,7 +1031,8 @@ def gan_kho_thanh_pham(doc, method=None):
 				"Không xác định được kho đích theo chặng cho %s nên chưa ghi phiếu. "
 				"Kiểm chặng và bếp phụ trách của món rồi lưu lại, hoặc báo kỹ thuật." % d.item_code,
 				title="Chưa rõ kho đích theo chặng")
-		if dung and frappe.db.exists("Warehouse", dung):
+		if dung:
+			_phai_co_kho(dung, d.item_code)
 			doi.append((d.item_code, d.t_warehouse, dung))
 			d.t_warehouse = dung
 			if (doc.get("to_warehouse") or "") == (doi[-1][1] or ""):

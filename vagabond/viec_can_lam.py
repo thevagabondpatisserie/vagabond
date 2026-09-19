@@ -125,6 +125,11 @@ MA_TRAN = {
 	"kiem_ke": VAI_KHO | VAI_KE_TOAN | VAI_GIAM_DOC,
 	# v512: hàng nằm sai kho theo chặng (Khải 18/09/2026). Việc của bếp và
 	# quản lý sản xuất, mỗi mã một dòng, mở ra màn Tồn kho theo chặng.
+	# VAI_GIAM_DOC ở đây chỉ có tác dụng cho System Manager (kỹ thuật). Hai
+	# vai giám đốc thật bị VAI_GIAM_DOC_SIET chặn trước ma trận, và đó là chủ
+	# ý: anh Việt 31/08 chỉ muốn thấy ba việc hệ trọng. Muốn giám đốc thấy
+	# việc này thì thêm "sai_kho" vào VIEC_HE_TRONG, không sửa dòng này
+	# (Codex #349, 2ef823d).
 	"sai_kho": VAI_KHO | {"Manufacturing Manager", "Manufacturing User"} | VAI_GIAM_DOC,
 	# CRM. Tặng quà khách VIP là việc của Sales và Marketing, kho và bếp
 	# KHÔNG thấy: danh sách này có số điện thoại riêng của khách VIP.
