@@ -195,6 +195,7 @@ CUA_NGO = {
 	# ncc.py them 18/09/2026 (v509) khi mo luu_tai_khoan: ke du de ai chen
 	# ham moi giua decorator va def cua ham cu la cong nay do.
 	"ncc.py": ["bo_gan", "chi_tiet", "danh_sach", "gan", "gan_hang_loat", "luu_tai_khoan", "mon_chua_gan", "xuat_excel"],
+	"sua_ma_hoa_don.py": ["lien_quan", "lua_chon", "sua"],
 	# khai_don_vi them 31/08/2026. Anh Viet: "cai vu don vi tinh cu suot ngay
 	# bi lech anh chang hieu anh phai lam gi de no khong lech". Truoc do
 	# `sua_don_vi` tu choi khi mon chua khai don vi va bao "nho thu mua khai

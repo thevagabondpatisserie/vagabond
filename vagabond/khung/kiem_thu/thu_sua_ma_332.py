@@ -1,0 +1,183 @@
+"""#332: đổi mã giữ tiền nguồn, lỗi lưu không để ánh xạ viết dở."""
+from contextlib import ExitStack
+from types import SimpleNamespace as NS
+from unittest.mock import patch
+from vagabond import sua_ma_hoa_don as sm, minvoice_chung_tu as mc, quy_cach_ncc as qc
+from vagabond.khung.kiem_thu.nen import ca, la, nem
+from vagabond.khung.kiem_thu.thu_mua_hddt_227 import To
+
+
+class Dong(To):
+    def update(self, d):
+        self.__dict__.update(d)
+
+
+def _nen(loi=False, mong=995454, save_pha=None):
+    d = Dong(name='R', idx=1, item_code='CU', item_name='Tên cũ', ten_hang_ncc='Hàng nguồn',
+             qty=3, rate=395000, uom='Chai', conversion_factor=750)
+    doc = Dong(items=[d], name='PI', modified='M', grand_total=995454)
+    ghi = []
+    def save():
+        if loi:
+            raise ValueError('save fail')
+        ghi.append('save')
+        # F2: cho ca kiem duoc PHA doc sau khi luu, mo phong hook dung lai dong.
+        if save_pha:
+            save_pha(doc)
+    doc.save = save
+    doc.reload = lambda: ghi.append('reload')
+    doc.add_comment = lambda *a: ghi.append('comment')
+    mapping = Dong(save=lambda **k: ghi.append('map'))
+    def value(dt, name, field):
+        return {'stock_uom':'ML', 'item_name':'Món mới', 'conversion_factor':700}.get(field)
+    def throw(s):
+        raise ValueError(s)
+    bo = ExitStack()
+    bo.enter_context(patch.object(sm, 'frappe', NS(db=NS(get_value=value), new_doc=lambda *a:mapping, throw=throw)))
+    bo.enter_context(patch.object(qc, '_kiem_uom', lambda *a: None))
+    bo.enter_context(patch.object(qc, '_anh_xa', lambda *a: []))
+    bo.enter_context(patch.object(sm, '_tong_mong_doi', lambda doc, g: mong))
+    g = dict(mst_doi_tac='123', chi_tiet=[dict(ten='Hàng nguồn', sluong=3, dgia=331818, dvtinh='Chai')])
+    return bo, doc, g, ghi
+
+
+@ca('#332: chọn lại mã/UOM giữ tên và giá nguồn, save rồi reload trước báo thành công')
+def _doi():
+    bo, doc, g, ghi = _nen()
+    with bo:
+        r = sm._sua(doc, g, 'R', '0', 'MOI', 'Chai 700 ml')
+    la('giá nguồn', r['rate'], 331818)
+    la('lượng nguồn', r['qty'], 3)
+    la('quy cách mới', doc.items[0].conversion_factor, 700)
+    la('tên nguồn còn', doc.items[0].ten_hang_ncc, 'Hàng nguồn')
+    la('thứ tự', ghi, ['map','save','reload','comment'])
+
+
+@ca('#332: không đoán khi nguồn trùng, đã tách hoặc đã nối kho')
+def _mo_ho():
+    for cach in ('trung','tach','noi','dong_sai'):
+        bo, doc, g, ghi = _nen()
+        with bo:
+            if cach == 'trung': g['chi_tiet'] *= 2
+            if cach == 'tach': doc.items.append(Dong(name='R2', ten_hang_ncc='Hàng nguồn'))
+            if cach == 'noi': doc.items[0].pr_detail='PR-ROW'
+            nem(cach, lambda:sm._sua(doc,g,'khong-co' if cach=='dong_sai' else 'R',0,'MOI','Chai 700 ml'), ValueError)
+        la('chưa ghi gì', ghi, [])
+
+
+@ca('#332: ánh xạ Item disabled cho dòng chưa gán mã, giữ nguyên nguồn để xử lý')
+def _disabled():
+    with patch.object(qc,'tim_mon',lambda *a:'CU'), \
+         patch.object(mc,'frappe',NS(db=NS(get_value=lambda *a:1, exists=lambda *a:True))), \
+         patch.object(mc,'don_vi_theo_ma',side_effect=AssertionError('không được lấy quy cách món ngừng dùng')):
+        la('không gán món ngừng dùng',mc._tra_ma_hang(dict(ten='Hàng nguồn',ma='',dvt='Chai'),'123','NCC'),(None,'Chai',1))
+
+
+@ca('#332: API lỗi lưu rollback ánh xạ, không commit; phiên cũ không bắt đầu ghi')
+def _rollback():
+    from vagabond import doi_chieu_mua as dc
+    bo, doc, g, ghi = _nen()
+    with bo, patch.object(sm,'_phieu',lambda *a:(doc,g)), \
+         patch.object(dc,'_kiem_quyen',lambda:None), patch.object(dc,'_lam_duoc',lambda:True), \
+         patch.object(sm,'_sua',side_effect=ValueError('loi save')):
+        sm.frappe.generate_hash=lambda **k:'ABC'
+        sm.frappe.db.savepoint=lambda moc:ghi.append('savepoint')
+        sm.frappe.db.rollback=lambda **k:ghi.append('rollback')
+        nem('lỗi save',lambda:sm.sua('PI','R',0,'MOI','Chai','M'),ValueError)
+        la('lùi cùng giao dịch',ghi,['savepoint','rollback'])
+        ghi.clear()
+        nem('stale',lambda:sm.sua('PI','R',0,'MOI','Chai','CU'),ValueError)
+        la('stale chưa ghi',ghi,[])
+
+
+@ca('#332: hồ sơ mất nguồn chỉ cảnh báo trong đúng NCC/công ty, không tự gắn')
+def _mat_nguon():
+    goi=[]
+    doc=To(name='PI', company='CTY', supplier='NCC', bill_no='123', custom_minvoice_id=None)
+    with patch.object(sm,'frappe',NS(get_list=lambda *a,**k:goi.append(k) or [To(name='GOC')])):
+        la('gợi ý',sm._lien_quan(doc)[0].name,'GOC')
+        la('đúng NCC',goi[0]['filters']['supplier'],'NCC')
+        la('đúng công ty',goi[0]['filters']['company'],'CTY')
+        la('loại chính tờ',goi[0]['filters']['name'],['!=','PI'])
+        la('không tự gắn nguồn',doc.custom_minvoice_id,None)
+        doc.custom_minvoice_id='M'
+        la('có nguồn không cảnh báo bản sao',sm._lien_quan(doc),[])
+        la('không đọc thêm',len(goi),1)
+
+
+@ca('#332: sửa khóa mã NCC cũ và khóa tên, không ghi đè tên thuộc mã khác')
+def _hai_khoa():
+    for ma_khac in (False, True):
+        bo, doc, g, ghi = _nen()
+        g['chi_tiet'][0]['mhhdvu'] = 'MA'
+        cu = Dong(name='MAP-MA', ma_ncc='MA', ten_ncc='Tên cũ', item_code='CU',
+                  save=lambda **k:ghi.append('map-ma'))
+        ten = Dong(name='MAP-TEN', ma_ncc='KHAC' if ma_khac else '',
+                   ten_ncc='Hàng nguồn', item_code='CU', save=lambda **k:ghi.append('map-ten'))
+        with bo, patch.object(qc,'_anh_xa',lambda mst,k,v:[cu] if k=='ma_ncc' else [ten]):
+            sm.frappe.get_doc = lambda dt,n,**k:cu if n==cu.name else ten
+            if ma_khac:
+                nem('tên thuộc mã khác',lambda:sm._sua(doc,g,'R',0,'MOI','Chai 700 ml'),ValueError)
+                la('chưa ghi mapping khác',ghi,[])
+            else:
+                sm._sua(doc,g,'R',0,'MOI','Chai 700 ml')
+                la('khóa mã đổi',cu.item_code,'MOI')
+                la('khóa tên đổi',ten.item_code,'MOI')
+                la('giữ tên cũ trên khóa mã',cu.ten_ncc,'Tên cũ')
+                la('tra lần sau ưu tiên mã đúng',qc.tim_mon('123','MA','Hàng nguồn'),'MOI')
+
+
+@ca('#332 F2: hook luu pha dong da chon thi phai nem, khong bao thanh cong')
+def _f2_luu_pha():
+    # Ra soat 16/09: truoc day doc.save trong nen chi ghi nhat ky, khoi kiem sau
+    # luu khong bao gio chay vao nhanh throw. Ca nay lam save DOI rate ve cu.
+    def pha(doc):
+        doc.items[0].rate = 395000
+    bo, doc, g, ghi = _nen(save_pha=pha)
+    with bo:
+        nem('lệch giá sau lưu', lambda: sm._sua(doc, g, 'R', '0', 'MOI', 'Chai 700 ml'), ValueError)
+    la('không tới bước ghi chú', ghi, ['map', 'save', 'reload'])
+    def mat_dong(doc):
+        doc.items.clear()
+    bo, doc, g, ghi = _nen(save_pha=mat_dong)
+    with bo:
+        nem('mất dòng sau lưu', lambda: sm._sua(doc, g, 'R', '0', 'MOI', 'Chai 700 ml'), ValueError)
+
+
+@ca('#332 F3: tong tien to sau luu lech ban nguon thi nem')
+def _f3_tong_tien():
+    # Hook dong_bo_luc_luu co the dung lai TOAN BO dong (su co 27/08). Kiem
+    # mot dong chua du, phai chot tong tien to theo ban nguon.
+    def ve_khong(doc):
+        doc.grand_total = 0
+    bo, doc, g, ghi = _nen(save_pha=ve_khong)
+    with bo:
+        nem('tổng về 0', lambda: sm._sua(doc, g, 'R', '0', 'MOI', 'Chai 700 ml'), ValueError)
+    la('không tới bước ghi chú', ghi, ['map', 'save', 'reload'])
+    bo, doc, g, ghi = _nen(mong=None)
+    with bo:
+        r = sm._sua(doc, g, 'R', '0', 'MOI', 'Chai 700 ml')
+    la('không tính được tổng nguồn thì không chặn oan', r['rate'], 331818)
+
+
+@ca('#332 F4: ten dong nguon lech vi tri thi dung, khong ap dong sai')
+def _f4_ten_nguon():
+    bo, doc, g, ghi = _nen()
+    with bo:
+        nem('tên lệch', lambda: sm._sua(doc, g, 'R', '0', 'MOI', 'Chai 700 ml', ten_nguon='Hàng khác'), ValueError)
+        la('chưa ghi gì', ghi, [])
+        r = sm._sua(doc, g, 'R', '0', 'MOI', 'Chai 700 ml', ten_nguon='Hàng nguồn')
+    la('tên khớp thì sửa', r['rate'], 331818)
+
+
+@ca('#332 F1/F5: cua ngo dang ky du, app chi di cua nguon khi DOI ma')
+def _f1_f5():
+    import io, os
+    from vagabond.khung.kiem_thu import thu_cua_ngo
+    la('ba cửa đăng ký', sorted(thu_cua_ngo.CUA_NGO.get('sua_ma_hoa_don.py') or []), ['lien_quan', 'lua_chon', 'sua'])
+    goc = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    js = io.open(os.path.join(goc, 'vagabond', 'public', 'js', 'bep', '18-doi-chieu-may-in.js'), encoding='utf-8').read()
+    la('chỉ khi doi', js.count('if (doi && await dcmDoiMaTheoNguon(name, idx, itemCode)) return;'), 1)
+    la('app gửi ten_nguon', js.count('ten_nguon:goc.label'), 1)
+    desk = io.open(os.path.join(goc, 'vagabond', 'public', 'js', 'purchase_invoice.js'), encoding='utf-8').read()
+    la('Desk gửi ten_nguon', desk.count('ten_nguon:goc ? goc.ten : \'\''), 1)
