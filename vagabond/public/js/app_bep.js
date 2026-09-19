@@ -5508,8 +5508,19 @@ function mfgInitWh() {
     if (hopLe.length && hopLe.indexOf(mfg.fg) < 0) mfg.fg = '';
   }
   if (!mfg.src) mfg.nguon_tay = 0;
+  /* v512: kho thanh pham da nho ma khong phai kho Thanh pham thi bo, chon lai. */
+  if (mfg.fg && !mfgLaKhoThanhPham(mfg.fg) && whFind('thành phẩm')) mfg.fg = '';
   if (!mfg.src) mfg.src = (k && whFind(k, 'nguyên liệu')) || whFind('pastry', 'nguyên liệu') || whFind('nguyên liệu') || S.wh[0] || '';
   if (!mfg.fg) mfg.fg = (k && whFind(k, 'thành phẩm')) || whFind('pastry', 'thành phẩm') || whFind('thành phẩm') || S.wh[0] || '';
+}
+/* v512 (Khai 18/09/2026): o "Nhap thanh pham vao kho" CHI cho chon kho
+   Thanh pham. Truoc day liet ke moi kho bep, mot nguoi lo chon Pastry -
+   Nguyen lieu la app nho luon, moi lenh sau do deu nhap banh vao kho
+   nguyen lieu. May chu cung tu sua (kho_san_xuat.kho_dich_bat_buoc). */
+function mfgLaKhoThanhPham(ten) { return String(ten || '').toLowerCase().indexOf('thành phẩm') >= 0; }
+function mfgFgOpts() {
+  var tp = mfgWhOpts().filter(function (o) { return mfgLaKhoThanhPham(o.value); });
+  return tp.length ? tp : mfgWhOpts();
 }
 function mfgSaveWh() { try { localStorage.setItem('vgb_mfg_src', mfg.src); localStorage.setItem('vgb_mfg_fg', mfg.fg); localStorage.setItem('vgb_mfg_nguon_tay', mfg.nguon_tay ? '1' : '0'); } catch (e) { } }
 function mfgShift() { var hh = (new Date()).getHours(); return hh < 12 ? 'Sáng' : (hh < 18 ? 'Chiều' : 'Đêm'); }
@@ -5655,7 +5666,7 @@ function mfgWhTap(e, redraw) {
   var t = e.target.closest('[data-mw]');
   if (!t) return false;
   var k = t.dataset.mw;
-  sheet(k === 'src' ? 'Kho nguyên liệu' : 'Kho thành phẩm', mfgWhOpts(), mfg[k], function (o) {
+  sheet(k === 'src' ? 'Kho nguyên liệu' : 'Kho thành phẩm', k === 'src' ? mfgWhOpts() : mfgFgOpts(), mfg[k], function (o) {
     if (k === 'src') mfg.nguon_tay = 1;
     mfg[k] = o.value; mfgSaveWh(); redraw();
   }, true);
@@ -21765,7 +21776,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '511';
+var APPVER = '512';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -45290,7 +45301,9 @@ async function scrTonChang() {
       (d.thu_tu || []).map(function (m) {
         return tchChip(m, (d.ten_chang || {})[m] || m, (d.bang || {})[m]);
       }).join('') +
-      (chua ? tchChip('chua', '❓ Chưa phân chặng', (d.bang || {})['']) : '');
+      (chua ? tchChip('chua', '❓ Chưa phân chặng', (d.bang || {})['']) : '') +
+      /* v512: chip SAI KHO (Khai 18/09/2026) - hang nam o kho khac chang cua no. */
+      (d.so_sai_kho ? '<div class="chip' + (tch.chang === 'sai_kho' ? ' on' : '') + '" data-tcc="sai_kho" style="border-color:#fca5a5;color:#b3261e">⚠ Sai kho <b>' + d.so_sai_kho + '</b></div>' : '');
 
     var body = '<div class="chips">' + beps + '</div>' +
       '<div class="chips">' + chips + '</div>' +
@@ -45302,10 +45315,10 @@ async function scrTonChang() {
       /* Mot ma nam o may kho thi cong lai, va ghi ro tung kho o dong duoi.
          Bep hay hoi "hang do cua ai" chu khong chi hoi "con bao nhieu". */
       var kho = (x.kho || []).map(function (w) {
-        return shortWh(w.kho) + ' ' + num(w.sl);
+        return (w.sai ? '<b style="color:#b3261e">' + h(shortWh(w.kho)) + ' ' + num(w.sl) + ' (sai kho)</b>' : h(shortWh(w.kho)) + ' ' + num(w.sl));
       }).join(' · ');
       return '<div class="li"><div class="lt"><div class="l1">' + h(x.ten) + '</div>' +
-        '<div class="l2">' + h(x.ma) + (kho ? ' · ' + h(kho) : '') +
+        '<div class="l2">' + h(x.ma) + (kho ? ' · ' + kho : '') +
         (x.lam_tuoi ? ' · <b style="color:#b3261e">làm tươi</b>' : '') + '</div></div>' +
         '<div style="text-align:right"><div class="amt">' + num(x.sl) + '</div>' +
         '<div class="l2">' + h(x.dvt || '') + '</div>' +
