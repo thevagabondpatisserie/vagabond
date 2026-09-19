@@ -50,7 +50,8 @@ def _khong_dung():
 def _hook():
 	s = _doc("vagabond", "kho_san_xuat.py")
 	doan = s.split("def gan_kho_lenh")[1].split("\ndef ")[0]
-	dung("lệnh: sửa fg_warehouse", "doc.fg_warehouse = dung" in doan and "kho_dich_bat_buoc(chang, bep, doc.get(\"fg_warehouse\"))" in doan)
+	dung("lệnh: sửa fg_warehouse", "doc.fg_warehouse = dung" in doan and "_kho_dich_cua_ma(doc.production_item, doc.get(\"fg_warehouse\"))" in doan)
+	dung("lệnh: khối v512 nằm NGOÀI try nuốt lỗi", doan.index("except Exception:") < doan.index("_kho_dich_cua_ma(doc.production_item"))
 	doan2 = s.split("def gan_kho_thanh_pham")[1].split("\ndef ")[0]
 	dung("phiếu: chỉ Manufacture", '"Manufacture"' in doan2)
 	dung("phiếu: sửa t_warehouse dòng thành phẩm", "d.t_warehouse = dung" in doan2 and "is_finished_item" in doan2)
@@ -215,3 +216,86 @@ def _y4_viec():
 	js = _doc("vagabond", "public", "js", "bep", "02-trang-chu.js")
 	dung("app mở màn Tồn kho theo chặng lọc Sai kho", "if (l === 'sai_kho') return go(function () { tch.chang = 'sai_kho';" in js)
 	dung("có icon", "sai_kho: '⚠️'" in js)
+
+
+# ---------------- Codex #349 vong 2 (2ef823d) + bench CI do 19/09 ----------------
+
+
+@ca("v512 Codex I1: nguyen lieu nhap vao kho Thanh pham cung la sai kho")
+def _i1_nvl_vao_tp():
+	la("NVLT vào kho Thành phẩm thì kho đúng là Nguyên liệu",
+		ks.kho_dich_bat_buoc(ks.NGUYEN_LIEU, "pastry", "Pastry - Thành phẩm - TV"), "Pastry - Nguyên liệu - TV")
+	la("NVLT ở kho Nguyên liệu là đúng", ks.kho_dich_bat_buoc(ks.NGUYEN_LIEU, "pastry", "Pastry - Nguyên liệu - TV"), None)
+	la("NVLT ở kho tổng không đụng", ks.kho_dich_bat_buoc(ks.NGUYEN_LIEU, "pastry", "Kho tổng 307 - TV"), None)
+	dung("LUAT_KHO_DICH của lệnh sản xuất không bị đổi", ks.NGUYEN_LIEU not in ks.LUAT_KHO_DICH)
+	la("cùng câu trả lời với màn Tồn kho theo chặng", tc.kho_sai_chang(ks.NGUYEN_LIEU, ks.THANH_PHAM), True)
+
+
+@ca("v512 CI: hau to kho doc tu kho dang chon, khong ghep cung ' - TV'")
+def _hau_to():
+	la("site thật", ks.hau_to_cua_kho("Pastry - Nguyên liệu - TV"), " - TV")
+	la("bench CI", ks.hau_to_cua_kho("Pastry - Nguyên liệu - VK"), " - VK")
+	la("kho không phải kho bếp thì mặc định", ks.hau_to_cua_kho("Kho tổng 307 - VK"), " - TV")
+	la("trống thì mặc định", ks.hau_to_cua_kho(""), " - TV")
+	la("kho đích trên site VK phải là VK",
+		ks.kho_dich_bat_buoc(ks.THANH_PHAM, "pastry", "Pastry - Nguyên liệu - VK"), "Pastry - Thành phẩm - VK")
+	la("BTP trên site VK", ks.kho_dich_bat_buoc(ks.BTP_SO_CAP, "baker", "Baker - Thành phẩm - VK"), "Baker - Nguyên liệu - VK")
+	la("truyền hậu tố tay vẫn được", ks.kho_dich_bat_buoc(ks.THANH_PHAM, "pastry", "Pastry - Nguyên liệu - VK", " - XX"), "Pastry - Thành phẩm - XX")
+
+
+@ca("v512 Codex I2: kho dung chua duoc tao thi DUNG phieu va lenh, khong bo qua lang")
+def _i2_thieu_kho():
+	from types import SimpleNamespace as NS
+	from unittest.mock import patch
+
+	def _dong(**kw):
+		o = NS(**kw)
+		o.get = lambda k, _o=o: getattr(_o, k, None)
+		return o
+
+	def _throw(m, **k):
+		raise ValueError(m)
+	f = NS(throw=_throw, msgprint=lambda *a, **k: None, log_error=lambda *a, **k: None,
+		get_traceback=lambda: "", db=NS(exists=lambda *a: False))
+	# Phieu Manufacture
+	d = NS(docstatus=0, purpose="Manufacture", to_warehouse="",
+		items=[_dong(item_code="BAWC00046", t_warehouse="Pastry - Nguyên liệu - VK", is_finished_item=1)])
+	d.get = lambda k, _d=d: getattr(_d, k, None)
+	with patch.object(ks, "frappe", f), patch.object(ks, "_kho_dich_cua_ma", lambda ma, kho: "Pastry - Thành phẩm - VK"):
+		try:
+			ks.gan_kho_thanh_pham(d)
+			dung("phiếu: thiếu kho đích phải dừng", False)
+		except ValueError as e:
+			dung("phiếu: nói rõ kho thiếu", "Pastry - Thành phẩm - VK" in str(e) and "BAWC00046" in str(e))
+	la("phiếu: kho khai không bị đổi nửa chừng", d.items[0].t_warehouse, "Pastry - Nguyên liệu - VK")
+	# Lenh san xuat: khoi v512 nam ngoai try nen loi phai thoat ra
+	w = NS(docstatus=0, production_item="BAWC00046", fg_warehouse="Pastry - Nguyên liệu - VK",
+		source_warehouse="", wip_warehouse="")
+	w.get = lambda k, _w=w: getattr(_w, k, None)
+	w.set = lambda k, v, _w=w: setattr(_w, k, v)
+	import sys
+	from types import ModuleType
+	gia = ModuleType("vagabond.san_xuat_desktop")
+	gia.dien_kho_mon = lambda doc: None
+	with patch.object(ks, "frappe", f), patch.object(ks, "_kho_dich_cua_ma", lambda ma, kho: "Pastry - Thành phẩm - VK"), \
+			patch.dict(sys.modules, {"vagabond.san_xuat_desktop": gia}), \
+			patch.object(ks, "_bep_cua_mon", lambda ma: "pastry"), patch.object(ks, "_ho_so_mon", lambda ma: (None, None)), \
+			patch.object(ks, "_co_btp_con", lambda ma: False):
+		try:
+			ks.gan_kho_lenh(w)
+			dung("lệnh: thiếu kho đích phải dừng", False)
+		except ValueError as e:
+			dung("lệnh: nói rõ kho thiếu", "Pastry - Thành phẩm - VK" in str(e))
+		# Co kho thi doi
+		f.db.exists = lambda *a: True
+		ks.gan_kho_lenh(w)
+		la("lệnh: có kho thì đổi fg_warehouse", w.fg_warehouse, "Pastry - Thành phẩm - VK")
+
+
+@ca("v512 Codex I3: giam doc that KHONG thay viec sai kho (luat 31/08), System Manager thay")
+def _i3_giam_doc():
+	from vagabond import viec_can_lam as v
+	dung("Giám đốc bị siết, đúng ý anh Việt 31/08", not v.thay_duoc("sai_kho", {"Giám đốc", "Stock User"}))
+	dung("AP Giám đốc cũng vậy", not v.thay_duoc("sai_kho", {"AP Giám đốc"}))
+	dung("System Manager thấy (vai kỹ thuật)", v.thay_duoc("sai_kho", {"System Manager"}))
+	dung("sai_kho không nằm trong việc hệ trọng", "sai_kho" not in v.VIEC_HE_TRONG)

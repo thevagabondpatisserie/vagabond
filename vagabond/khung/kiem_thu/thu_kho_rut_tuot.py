@@ -188,11 +188,15 @@ def _():
 def _():
 	m = _py("kho_san_xuat.py")
 	doan = m.split("def gan_kho_lenh")[1].split("\ndef ")[0]
-	dung("phải kiểm ô đang trống", "not (doc.get(o) or" in doan)
-	dung("phải kiểm kho có thật", 'frappe.db.exists("Warehouse"' in doan)
+	# v512 (19/09/2026): phan DIEN O TRONG van la tien ich, khong nem loi.
+	# Phan sau dau "# v512" la LUAT kho dich theo chang, phai fail closed
+	# (Codex #349), nen ca nay chi soi phan dien o trong.
+	dien = doan.split("# v512")[0]
+	dung("phải kiểm ô đang trống", "not (doc.get(o) or" in dien)
+	dung("phải kiểm kho có thật", 'frappe.db.exists("Warehouse"' in dien)
 	# Điền kho là tiện ích. Hỏng thì để người tạo lệnh tự chọn như trước.
-	la("không được ném lỗi", "frappe.throw" in doan, False)
-	dung("phải ghi Error Log khi hỏng", "log_error" in doan)
+	la("không được ném lỗi", "frappe.throw" in dien, False)
+	dung("phải ghi Error Log khi hỏng", "log_error" in dien)
 
 
 @ca("hook gán kho đặt ở before_validate, không phải validate")
