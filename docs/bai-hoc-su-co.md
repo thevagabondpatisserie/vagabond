@@ -830,3 +830,23 @@ xong (hook dựng lại dòng có quyền đổi cả tờ, xem sự cố 27/08)
 kèm tên đã thấy lúc chọn, không tin chỉ số qua hai lượt gọi. Bài học kiểm thử:
 ca kiểm mà doc.save chỉ ghi nhật ký thì khối kiểm sau lưu không bao giờ chạy
 vào nhánh throw, phải cho save PHÁ doc rồi mới tin ca kiểm.
+
+## 18/09/2026: ô chọn kho trên app nhớ lựa chọn sai, thành phẩm về kho Nguyên liệu
+
+Khải chụp màn Tồn kho theo chặng: ba mã bánh thành phẩm nằm ở kho Pastry -
+Nguyên liệu. Truy vết: lệnh LSX-180926-000201 có kho đích là Nguyên liệu vì ô
+"Nhập thành phẩm vào kho" trên màn Tạo lệnh liệt kê MỌI kho bếp và nhớ lựa chọn
+cuối vào localStorage; một người chọn nhầm một lần là mọi lệnh sau đều sai, mà
+hook máy chủ chỉ điền ô trống, không sửa ô đã chọn. Bài học: giá trị do LUẬT quyết
+(kho đích theo chặng) thì máy chủ phải tự sửa ở mọi đường ghi và nói rõ, ô chọn
+trên app chỉ được đưa ra các lựa chọn hợp luật; màn theo dõi phải tự đánh dấu
+"sai kho" chứ không chờ kế toán chụp ảnh hỏi.
+
+Vòng 2 (19/09, Codex + bench CI): hook ghép tên kho đích với hậu tố " - TV" cứng,
+rồi `if dung and frappe.db.exists(...)` mới đổi. Trên bench CI công ty là " - VK"
+nên kho đích "không tồn tại", hook im lặng, phiếu đi tiếp vào kho sai, ca kiểm
+thật đỏ mà ca kiểm thuần vẫn xanh. Hai bài học: (1) hằng số hậu tố công ty
+không được ghép cứng trong luật, đọc từ chính tên kho đang xét; (2) một hook
+sửa-cho-đúng mà gặp điều kiện không sửa được thì phải DỪNG chứ không được bỏ
+qua, vì "bỏ qua" ở đây chính là cái lỗi hook sinh ra để chặn. Ca kiểm thuần
+phải chạy thật hàm với db.exists trả False, không chỉ dò chuỗi.

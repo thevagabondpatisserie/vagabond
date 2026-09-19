@@ -63,7 +63,9 @@ async function scrTonChang() {
       (d.thu_tu || []).map(function (m) {
         return tchChip(m, (d.ten_chang || {})[m] || m, (d.bang || {})[m]);
       }).join('') +
-      (chua ? tchChip('chua', '❓ Chưa phân chặng', (d.bang || {})['']) : '');
+      (chua ? tchChip('chua', '❓ Chưa phân chặng', (d.bang || {})['']) : '') +
+      /* v512: chip SAI KHO (Khai 18/09/2026) - hang nam o kho khac chang cua no. */
+      (d.so_sai_kho ? '<div class="chip' + (tch.chang === 'sai_kho' ? ' on' : '') + '" data-tcc="sai_kho" style="border-color:#fca5a5;color:#b3261e">⚠ Sai kho <b>' + d.so_sai_kho + '</b></div>' : '');
 
     var body = '<div class="chips">' + beps + '</div>' +
       '<div class="chips">' + chips + '</div>' +
@@ -75,11 +77,14 @@ async function scrTonChang() {
       /* Mot ma nam o may kho thi cong lai, va ghi ro tung kho o dong duoi.
          Bep hay hoi "hang do cua ai" chu khong chi hoi "con bao nhieu". */
       var kho = (x.kho || []).map(function (w) {
-        return shortWh(w.kho) + ' ' + num(w.sl);
+        return (w.sai ? '<b style="color:#b3261e">' + h(shortWh(w.kho)) + ' ' + num(w.sl) + ' (sai kho)</b>' : h(shortWh(w.kho)) + ' ' + num(w.sl));
       }).join(' · ');
       return '<div class="li"><div class="lt"><div class="l1">' + h(x.ten) + '</div>' +
-        '<div class="l2">' + h(x.ma) + (kho ? ' · ' + h(kho) : '') +
-        (x.lam_tuoi ? ' · <b style="color:#b3261e">làm tươi</b>' : '') + '</div></div>' +
+        '<div class="l2">' + h(x.ma) + (kho ? ' · ' + kho : '') +
+        (x.lam_tuoi ? ' · <b style="color:#b3261e">làm tươi</b>' : '') +
+        /* v512 y 3: nut lap phieu chuyen NHAP ve dung kho, chi quan ly san xuat. */
+        (x.sai_kho && d.lap_duoc && x.kho_dung ? '<div style="margin-top:5px"><span data-tcvk="' + h(x.ma) + '" style="display:inline-block;background:#fff;color:#b3261e;border:1.5px solid #fca5a5;border-radius:999px;padding:4px 12px;font-size:12.5px;font-weight:700;cursor:pointer">📦 Chuyển về ' + h(shortWh(x.kho_dung)) + '</span></div>' : '') +
+        '</div></div>' +
         '<div style="text-align:right"><div class="amt">' + num(x.sl) + '</div>' +
         '<div class="l2">' + h(x.dvt || '') + '</div>' +
         '<div class="st ' + h(x.mau || 'n') + '" style="margin-top:4px">' + h(x.chip || '') + '</div></div></div>';
@@ -93,6 +98,8 @@ async function scrTonChang() {
       if (t) { tch.bep = t.dataset.tcb; tch.d = null; return scrTonChang(); }
       var c = e.target.closest('[data-tcc]');
       if (c) { tch.chang = c.dataset.tcc; tch.d = null; return scrTonChang(); }
+      var v = e.target.closest('[data-tcvk]');
+      if (v) return tchChuyenVeDungKho(v.dataset.tcvk);
     };
 
     var ti = document.getElementById('tchTim');
@@ -115,4 +122,25 @@ async function scrTonChang() {
     }
   }
   draw();
+}
+
+/* v512 y 3 (anh Viet duyet 19/09/2026): lap phieu chuyen kho NHAP dua hang
+   sai kho ve dung kho theo chang. Chi lap nhap, Khai xem tren Desk roi ghi
+   so. Moi kho sai mot phieu, hoi xac nhan tung cai. */
+async function tchChuyenVeDungKho(ma) {
+  var d = tch.d || {};
+  var x = (d.ds || []).find(function (r) { return r.ma === ma; });
+  if (!x) return;
+  var sai = (x.kho || []).filter(function (k) { return k.sai && k.sl > 0; });
+  for (var i = 0; i < sai.length; i++) {
+    var k = sai[i];
+    var ok = await confirmSheet('Chuyển về đúng kho', 'Lập phiếu chuyển kho NHÁP: ' + num(k.sl) + ' ' + (x.dvt || '') + ' ' + x.ten + ' từ ' + shortWh(k.kho) + ' sang ' + shortWh(x.kho_dung) + '. Phiếu chưa ghi sổ, quản lý xem lại trên máy tính rồi mới ghi.', 'Lập phiếu nháp', false);
+    if (!ok) continue;
+    busy(true);
+    try {
+      var kq = await api('vagabond.ton_chang.tao_phieu_ve_dung_kho', { ma: ma, kho_sai: k.kho, sl: k.sl });
+      busy(false);
+      toast('Đã lập phiếu nháp ' + (kq && kq.name) + ', chờ ghi sổ trên máy tính.', 4500);
+    } catch (e) { busy(false); baoTin((e && e.message) || 'Không lập được phiếu'); }
+  }
 }

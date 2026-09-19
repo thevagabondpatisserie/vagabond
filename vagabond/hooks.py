@@ -371,12 +371,16 @@ doc_events = {
 	#
 	# HAI PHIEN CUNG THEM VAO DAY trong ngay 03/09/2026, giu CA HAI theo quy
 	# tac 8: cung them vao mot cho thi khong ai duoc chon bo ai.
+	"Stock Reconciliation": {
+		"validate": ["vagabond.kho_san_xuat.canh_bao_kiem_ke_sai_kho"],
+	},
 	"Stock Entry": {
-		"validate": ["vagabond.hang_tang_kho.chan_xuat_tay", "vagabond.he_so_chung_tu.kiem"],
+		"validate": ["vagabond.hang_tang_kho.chan_xuat_tay", "vagabond.he_so_chung_tu.kiem", "vagabond.kho_san_xuat.chan_nhap_sai_kho"],
 		"before_validate": [
 			"vagabond.tai_khoan_chi_phi.kiem",
 			"vagabond.lo_het_han.mo_chot",
 			"vagabond.lo_hang.gan_lo",
+			"vagabond.kho_san_xuat.gan_kho_thanh_pham",
 		],
 		# Dong bang so sach khi dang kiem ke: khong cho chung tu nao cham vao
 		# ma dang duoc dem tai kho do. Doc dau `kiem_ke.chan_khi_dang_kiem`.

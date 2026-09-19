@@ -906,7 +906,7 @@ function vclVe(kq) {
 function vclIcon(l) {
   return {
     chuyen_kho: '📦', san_xuat: '🎂', nhap_kho: '📥', xuat_kho: '📤',
-    kiem_ke: '🧮', ycmh: '🛒', de_nghi_chi: '🧾', hoan_tien: '💸',
+    kiem_ke: '🧮', sai_kho: '⚠️', ycmh: '🛒', de_nghi_chi: '🧾', hoan_tien: '💸',
     ho_so_tt: '🏦', don_mua: '⚠️', tang_qua: '🎁',
     nop_quy: '💵', hang_tang: '🎁'
   }[l] || '';
@@ -936,6 +936,8 @@ function vclMo(x) {
   if (l === 'nhap_kho') return go(function () { scrRecvDoc(x.ma); });
   if (l === 'xuat_kho') return go(function () { scrXkView(x.ma); });
   if (l === 'kiem_ke') return go(scrKkList);
+  /* v512 y 4: hang nam sai kho mo thang man Ton kho theo chang, loc chip Sai kho. */
+  if (l === 'sai_kho') return go(function () { tch.chang = 'sai_kho'; tch.tim = x.ma || ''; tch.d = null; return scrTonChang(); });
   if (l === 'de_nghi_chi') return ttnbCt(x.ma);
   if (l === 'hoan_tien') return htChiTiet(x.ma);
   /* Ba nhanh them 25/08/2026, deu la viec DA CO man tren app ma man Viec
