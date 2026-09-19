@@ -186,6 +186,21 @@ def danh_dau_sai_kho(ds, chang_cua_kho):
 	return so
 
 
+def kho_dung_tung_kho(d, bep_cua_kho):
+	"""Gắn `kho_dung` cho TỪNG kho sai của một dòng, suy từ bếp của kho đó. THUẦN.
+
+	Cùng một mã nằm sai ở cả Baker lẫn Pastry thì hai kho đích khác nhau;
+	màn xác nhận phải hiện đúng kho của dòng đang bấm (Codex #349 vòng 4).
+	"""
+	from vagabond.kho_san_xuat import hau_to_cua_kho
+
+	for k in d.get("kho") or []:
+		if k.get("sai"):
+			b = (bep_cua_kho or {}).get(k.get("kho"))
+			k["kho_dung"] = kho_dung_cua(d.get("chang"), b, hau_to_cua_kho(k.get("kho"))) or ""
+	return d
+
+
 def kho_dung_cua_dong(d, bep_cua_kho):
 	"""Kho đúng cho dòng sai kho, suy từ bếp của kho đang chứa hàng. THUẦN.
 
@@ -344,9 +359,14 @@ def ton_theo_chang(bep=None, chang=None, tim=None, gioi_han=300):
 	for d in tat_ca:
 		if d.get("sai_kho"):
 			# Cung mot nguon voi hook va voi phieu chuyen: bep phu trach tren mon
-			# truoc. Tra loi thi roi ve phep thuan suy tu kho dang chua.
-			ks = [k["kho"] for k in d["kho"] if k.get("sai")]
-			d["kho_dung"] = (_kho_dung_that(d["ma"], ks[0]) if ks else None) or kho_dung_cua_dong(d, bep_kho) or ""
+			# truoc. Tra loi thi roi ve phep thuan suy tu kho dang chua. Tinh
+			# cho TUNG kho sai (Codex #349 vong 4: mon chua gan bep nam sai o ca
+			# hai bep thi hai phieu ve hai kho khac nhau, man phai hien dung).
+			kho_dung_tung_kho(d, bep_kho)
+			for k in d["kho"]:
+				if k.get("sai"):
+					k["kho_dung"] = _kho_dung_that(d["ma"], k["kho"]) or k.get("kho_dung") or ""
+			d["kho_dung"] = next((k["kho_dung"] for k in d["kho"] if k.get("sai") and k.get("kho_dung")), "")
 	d_quyen = bool(set(frappe.get_roles()) & set(QUYEN_GHI))
 	bang = gop_dong(tat_ca)
 	ds = loc_theo_chang(tat_ca, chang)
@@ -428,8 +448,15 @@ def tao_phieu_ve_dung_kho(ma, kho_sai, sl):
 		frappe.throw("Kho đích theo chặng của %s là %s nhưng kho này chưa được tạo." % (ma, dung),
 			title="Thiếu kho đích theo chặng")
 	ton = flt(frappe.db.get_value("Bin", {"item_code": ma, "warehouse": kho_sai}, "actual_qty"))
-	if sl > ton + 0.0001:
-		frappe.throw("Kho %s chỉ còn %s %s, không chuyển được %s." % (kho_sai, ton, it.stock_uom or "", sl))
+	if ton <= 0:
+		frappe.throw("Kho %s hiện không còn %s, không có gì để chuyển." % (kho_sai, ma))
+	# Codex #349 vong 4: phieu chuyen ve dung kho la chuyen HET so dang nam sai.
+	# So man gui len chi de doi chieu: ton da doi tu luc mo man (hoac client gui
+	# so khac) thi tu choi, bat tai lai man xem so moi roi bam lai, khong lap
+	# phieu cho mot phan hang.
+	if abs(sl - ton) > 0.0001:
+		frappe.throw("Tồn ở %s hiện là %s %s, màn đang hiện %s. Tải lại màn Tồn kho theo chặng rồi bấm lại."
+			% (kho_sai, ton, it.stock_uom or "", sl), title="Số tồn đã đổi")
 	se = frappe.new_doc("Stock Entry")
 	se.company = frappe.db.get_value("Warehouse", kho_sai, "company")
 	se.purpose = "Material Transfer"
