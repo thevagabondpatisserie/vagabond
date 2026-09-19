@@ -6452,8 +6452,7 @@ la("mac dinh khong tick", "a.on = 0" in _sx51, True)
 la("co chip chon tat ca", "Chọn tất cả" in _sx51, True)
 la("co ham loc kho theo bep", "function mfgWhOpts()" in _sx51, True)
 la("quan ly van thay het kho", "function mfgQuanLy()" in _sx51, True)
-# v512: o kho thanh pham dung ban loc rieng (chi kho Thanh pham), o nguyen lieu van mfgWhOpts.
-la("o chon kho dung ban loc", "sheet(k === 'src' ? 'Kho nguyên liệu' : 'Kho thành phẩm', k === 'src' ? mfgWhOpts() : mfgFgOpts()" in _sx51, True)
+la("o chon kho dung ban loc", "sheet(k === 'src' ? 'Kho nguyên liệu' : 'Kho thành phẩm', mfgWhOpts()" in _sx51, True)
 # Kho luu tu phien truoc ma khong thuoc bep minh thi bo.
 la("kho luu cu khac bep thi bo", "hopLe.indexOf(mfg.src) < 0" in _sx51, True)
 
