@@ -156,3 +156,21 @@ def _tp_vao_nl():
 @ca("v512 that: ban thanh pham khai kho Thanh pham -> SLE o kho Nguyen lieu")
 def _btp_vao_tp():
 	_chay("NBTP-KT512", ksx.THANH_PHAM, ksx.NGUYEN_LIEU, "BTP")
+
+
+@ca("v512 that Codex I1: nhap tay nguyen lieu vao kho Thanh pham bi chan, vao kho Nguyen lieu thi qua")
+def _i1_nvl_vao_tp():
+	cty = cong_ty()
+	kho_nl = _kho_bep(cty, "pastry", ksx.NGUYEN_LIEU)
+	kho_tp = _kho_bep(cty, "pastry", ksx.THANH_PHAM)
+	nvl = _mon("NVLT-KT512")
+	try:
+		_nhap(nvl, kho_tp, 1, cty)
+		dung("nguyên liệu vào kho Thành phẩm phải bị chặn", False)
+	except frappe.ValidationError as e:
+		dung("câu chặn nói rõ kho đúng", kho_nl in str(e) and nvl in str(e))
+	except Exception as e:
+		dung("chặn bằng ValidationError, không phải lỗi khác: %r" % e, False)
+	la("không có sổ kho ở kho Thành phẩm", frappe.get_all("Stock Ledger Entry",
+		filters={"item_code": nvl, "warehouse": kho_tp, "is_cancelled": 0}, pluck="name"), [])
+	khong_nem("vào kho Nguyên liệu thì ghi được", lambda: _nhap(nvl, kho_nl, 1, cty))
