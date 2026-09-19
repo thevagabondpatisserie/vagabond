@@ -164,3 +164,60 @@ frappe.ui.form.on('Purchase Invoice', {
 		);
 	},
 });
+
+// #332: chọn mã thay thế trên chính dòng nguồn, không xóa/thêm dòng và
+// không để bảng giá của mã mới quyết định số tiền nhà cung cấp đã xuất.
+async function vgbSuaMaTheoNguon(frm) {
+	if (frm.is_dirty()) {
+		frappe.msgprint('Lưu các thay đổi đang có rồi mở lại Sửa mã theo hóa đơn gốc.');
+		return;
+	}
+	var kq = await frappe.call({method:'vagabond.sua_ma_hoa_don.lua_chon', args:{name:frm.doc.name}});
+	var du = kq.message;
+	if (!du.co_nguon) {frappe.msgprint('Hồ sơ không còn liên kết nguồn. Tải lại để kiểm tra.'); return;}
+	var dong = du.dong.map(function(d) {return {label:frappe.utils.escape_html(d.nhan), value:d.name};});
+	var nguon = du.nguon.map(function(d) {
+		return {label:frappe.utils.escape_html((d.vi_tri+1)+'. '+d.ten+' | '+d.sl+' '+(d.dvt || '')+' x '+format_currency(d.gia, 'VND')), value:String(d.vi_tri)};
+	});
+	var hop = new frappe.ui.Dialog({title:'Sửa mã theo hóa đơn gốc', fields:[
+		{fieldtype:'HTML', options:'Chọn đúng dòng nguồn và quy cách của mã mới. Số lượng, đơn giá lấy từ hóa đơn gốc. Lựa chọn mã và đơn vị sẽ được ghi nhớ cho lần đồng bộ sau.'},
+		{fieldname:'dong', label:'Dòng trên hồ sơ đang sửa', fieldtype:'Autocomplete', options:dong, reqd:1},
+		{fieldname:'vi_tri', label:'Dòng tương ứng trên hóa đơn gốc', fieldtype:'Autocomplete', options:nguon, reqd:1},
+		{fieldname:'item_code', label:'Món thay thế', fieldtype:'Link', options:'Item', reqd:1,
+			get_query:function(){return {filters:{disabled:0, is_purchase_item:1}};}},
+		{fieldname:'uom', label:'Đơn vị đã đối chiếu', fieldtype:'Link', options:'UOM', reqd:1,
+			description:'Chọn đúng quy cách đã khai trong Món. Ví dụ Chai 700 ml, không suy từ tên Chai.'}
+	], primary_action_label:'Sửa dòng và ghi nhớ', primary_action:async function(v) {
+		hop.disable_primary_action();
+		try {
+			/* F4: gửi kèm TÊN dòng nguồn đã thấy lúc chọn, máy chủ đối chiếu với vị trí. */
+			var goc = du.nguon.find(function(d){return String(d.vi_tri) === String(v.vi_tri);});
+			await frappe.call({method:'vagabond.sua_ma_hoa_don.sua', args:Object.assign({}, v,
+				{name:frm.doc.name, modified:du.modified, ten_nguon:goc ? goc.ten : ''}), freeze:true});
+			hop.hide();
+			await frm.reload_doc();
+			frappe.show_alert({message:'Đã sửa mã, quy cách và giữ giá theo hóa đơn gốc.', indicator:'green'});
+		} finally {hop.enable_primary_action();}
+	}});
+	hop.show();
+}
+
+frappe.ui.form.on('Purchase Invoice', {
+	refresh:async function(frm) {
+		if (!frm.is_new() && !frm.doc.custom_minvoice_id && frm.doc.bill_no) {
+			var phieu = frm.doc;
+			try {
+				var kq = await frappe.call({method:'vagabond.sua_ma_hoa_don.lien_quan', args:{name:phieu.name}});
+				if (frm.doc === phieu && (kq.message || []).length) {
+					frm.dashboard.add_comment('Chưa liên kết hóa đơn nguồn. Có hồ sơ cùng số/NCC/công ty: '+
+						kq.message.map(function(d){return frappe.utils.get_form_link('Purchase Invoice', d.name, true, frappe.utils.escape_html(d.name));}).join(', ')+
+						'. Mở kiểm tiền và trạng thái trước khi ghi sổ, tránh ghi hai lần.', 'orange', true);
+				}
+			} catch(e) { /* Cảnh báo lỗi không ngăn mở/sửa hồ sơ. */ }
+		}
+		if (!frm.is_new() && frm.doc.docstatus === 0 && frm.doc.custom_minvoice_id && !frm.doc.is_return &&
+			['System Manager','Accounts Manager','Accounts User','Purchase Manager'].some(function(v){return frappe.user.has_role(v);})) {
+			frm.add_custom_button('Sửa mã theo hóa đơn gốc', function(){return vgbSuaMaTheoNguon(frm);});
+		}
+	}
+});
