@@ -376,6 +376,34 @@ def kho_cua_lenh(chang_mon, bep, hau_to=" - TV"):
 	return (nguon, nguon, dich)
 
 
+def kho_dich_bat_buoc(chang_mon, bep, kho_hien, hau_to=" - TV"):
+	"""Kho đích ĐÚNG cho món này nếu kho đang chọn là kho bếp sai chặng. THUẦN.
+
+	Khải 18/09/2026 (ảnh màn Tồn kho theo chặng): bánh thành phẩm nằm ở kho
+	Nguyên liệu Pastry, "sai kho". Truy vết: lệnh LSX-180926-000201 có
+	fg_warehouse = Pastry - Nguyên liệu, do ô "Nhập thành phẩm vào kho" trên
+	app cho chọn bất kỳ kho bếp nào và nhớ lựa chọn đó cho các lệnh sau.
+
+	Luật: kho đích của một lệnh do CHẶNG của món quyết (LUAT_KHO_DICH), không
+	do ô chọn. Nếu kho đang chọn là một kho bếp (đọc ra được bếp) mà khác kho
+	đích đúng thì trả về kho đích đúng để người gọi thay. Kho không phải kho
+	bếp (Kho tổng 307, kho điểm bán...) thì trả None, không đụng: đó là lựa
+	chọn có chủ ý của quản lý, luật này chỉ chặn nhầm giữa các kho bếp.
+	Không biết chặng hay bếp cũng trả None.
+	"""
+	if not chang_mon or chang_mon not in LUAT_KHO_DICH or not bep:
+		return None
+	dich = ten_kho_cua(bep, LUAT_KHO_DICH[chang_mon], hau_to)
+	if not dich:
+		return None
+	kh = (kho_hien or "").strip()
+	if not kh or kh == dich:
+		return None
+	if bep_cua_kho(kh) is None:
+		return None
+	return dich
+
+
 def khai_cay_kho():
 	"""Bản khai đầy đủ tám kho lá, dùng chung cho việc dựng và việc kiểm."""
 	ra = []
@@ -830,9 +858,58 @@ def gan_kho_lenh(doc, method=None):
 			if gia_tri and not (doc.get(o) or "").strip():
 				if frappe.db.exists("Warehouse", gia_tri):
 					doc.set(o, gia_tri)
+		# v512: kho DICH la luat theo chang, khong phai lua chon. Chon nham
+		# kho bep khac chang (thanh pham vao kho Nguyen lieu) thi may sua lai
+		# va noi ro, ke ca khi nguoi tao lenh da chon tay. Xem kho_dich_bat_buoc.
+		if doc.docstatus == 0:
+			dung = kho_dich_bat_buoc(chang, bep, doc.get("fg_warehouse"))
+			if dung and frappe.db.exists("Warehouse", dung):
+				cu = doc.get("fg_warehouse")
+				doc.fg_warehouse = dung
+				frappe.msgprint(
+					"Kho nhập thành phẩm đã đổi từ %s sang %s: món %s là chặng %s nên phải "
+					"về kho đó, không chọn tay được." % (cu, dung, doc.production_item,
+						TEN_CHANG.get(chang, chang)),
+					title="Máy sửa kho đích theo chặng", indicator="orange")
 	except Exception:
 		frappe.log_error(frappe.get_traceback(),
 			"vagabond: gan ba kho cho lenh san xuat")
+
+
+def gan_kho_thanh_pham(doc, method=None):
+	"""Hook before_validate Stock Entry: phiếu Manufacture nhập thành phẩm
+	đúng kho theo chặng (v512).
+
+	Lệnh sản xuất đã được sửa ở gan_kho_lenh, nhưng phiếu hoàn tất còn một
+	đường nữa: app tạo Stock Entry Manufacture trực tiếp (không qua lệnh)
+	với t_warehouse lấy từ ô chọn kho. Cùng một luật, cùng một hàm thuần.
+	"""
+	try:
+		if doc.docstatus != 0 or (doc.get("purpose") or "") != "Manufacture":
+			return
+		doi = []
+		for d in doc.get("items") or []:
+			if not cint(d.get("is_finished_item")) or not d.get("item_code"):
+				continue
+			bep = _bep_cua_mon(d.item_code) or bep_cua_kho(d.get("t_warehouse") or "")
+			if not bep:
+				continue
+			kt, ten = _ho_so_mon(d.item_code)
+			chang = chang_cua_mon(d.item_code, _co_btp_con(d.item_code), kt, ten)
+			dung = kho_dich_bat_buoc(chang, bep, d.get("t_warehouse"))
+			if dung and frappe.db.exists("Warehouse", dung):
+				doi.append((d.item_code, d.t_warehouse, dung))
+				d.t_warehouse = dung
+				if (doc.get("to_warehouse") or "") == (doi[-1][1] or ""):
+					doc.to_warehouse = dung
+		if doi:
+			frappe.msgprint(
+				"Kho nhập thành phẩm đã đổi theo chặng: "
+				+ "; ".join("%s: %s -> %s" % x for x in doi),
+				title="Máy sửa kho đích theo chặng", indicator="orange")
+	except Exception:
+		frappe.log_error(frappe.get_traceback(),
+			"vagabond: gan kho thanh pham cho phieu san xuat")
 
 
 def gan_kho_nguon(doc, method=None):

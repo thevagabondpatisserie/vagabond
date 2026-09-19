@@ -377,6 +377,7 @@ doc_events = {
 			"vagabond.tai_khoan_chi_phi.kiem",
 			"vagabond.lo_het_han.mo_chot",
 			"vagabond.lo_hang.gan_lo",
+			"vagabond.kho_san_xuat.gan_kho_thanh_pham",
 		],
 		# Dong bang so sach khi dang kiem ke: khong cho chung tu nao cham vao
 		# ma dang duoc dem tai kho do. Doc dau `kiem_ke.chan_khi_dang_kiem`.

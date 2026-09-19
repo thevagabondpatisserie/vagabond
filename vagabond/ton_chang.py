@@ -138,6 +138,8 @@ def gop_dong(ds):
 # rỗng: chuỗi rỗng đã mang nghĩa "không lọc gì cả, lấy hết", và hai nghĩa
 # đó nằm chung một giá trị thì bấm vào chip lại ra cả danh sách.
 CHUA_PHAN = "chua"
+# Khoá chip "sai kho": chỉ lấy các mã có hàng nằm ở kho khác chặng.
+SAI_KHO = "sai_kho"
 
 
 def loc_theo_chang(ds, chang):
@@ -152,6 +154,36 @@ def loc_theo_chang(ds, chang):
 	if c == CHUA_PHAN:
 		return [d for d in (ds or []) if not (d.get("chang") or "")]
 	return [d for d in (ds or []) if (d.get("chang") or "") == c]
+
+
+def kho_sai_chang(chang_mon, chang_kho):
+	"""Hàng của chặng `chang_mon` nằm ở kho chặng `chang_kho` có sai không. THUẦN.
+
+	Đọc đúng LUAT_KHO_DICH của kho_san_xuat: bán thành phẩm về kho Nguyên
+	liệu là ĐÚNG (Khải 18/09/2026: "BTP thể hiện Nguyên vật liệu là đúng"),
+	thành phẩm nằm ở kho Nguyên liệu là SAI, nguyên liệu nằm ở kho Thành
+	phẩm cũng sai. Chưa phân chặng thì không kết luận.
+	"""
+	from vagabond.kho_san_xuat import LUAT_KHO_DICH
+
+	if not chang_mon or not chang_kho:
+		return False
+	dung = LUAT_KHO_DICH.get(chang_mon, chang_mon)
+	return chang_kho != dung
+
+
+def danh_dau_sai_kho(ds, chang_cua_kho):
+	"""Gắn cờ `sai` cho từng kho của từng dòng, và đếm số mã sai kho. THUẦN."""
+	so = 0
+	for d in ds or []:
+		co = False
+		for k in d.get("kho") or []:
+			k["sai"] = kho_sai_chang(d.get("chang"), (chang_cua_kho or {}).get(k.get("kho")))
+			co = co or k["sai"]
+		d["sai_kho"] = co
+		if co:
+			so += 1
+	return so
 
 
 def cau_tom_tat(bang):
@@ -290,16 +322,24 @@ def ton_theo_chang(bep=None, chang=None, tim=None, gioi_han=300):
 		o["kho"].append({"kho": d.warehouse, "sl": flt(d.actual_qty)})
 
 	tat_ca = sorted(gop.values(), key=lambda x: (-x["sl"], x["ma"]))
+	# v512: danh dau hang nam sai kho theo chang (Khai 18/09/2026), de bep
+	# nhin thay ngay tren man thay vi doi ke toan chup anh hoi.
+	so_sai = danh_dau_sai_kho(tat_ca, {k["kho"]: k["chang"] for k in kho})
 	bang = gop_dong(tat_ca)
 	ds = loc_theo_chang(tat_ca, chang)
+	if chang == SAI_KHO:
+		ds = [d for d in tat_ca if d.get("sai_kho")]
 	if tim:
 		ds = [d for d in ds if tim in (d["ten"] + " " + d["ma"]).lower()]
+	tom_tat = cau_tom_tat(bang)
+	if so_sai:
+		tom_tat += " · ⚠ %d mã nằm sai kho" % so_sai
 	return {
 		"bep": bep or "", "chang": chang,
 		"thu_tu": list(THU_TU), "ten_chang": dict(TEN),
-		"kho": kho, "bang": bang, "tong_dong": len(ds),
+		"kho": kho, "bang": bang, "tong_dong": len(ds), "so_sai_kho": so_sai,
 		"ds": ds[:gioi_han],
-		"tom_tat": cau_tom_tat(bang),
+		"tom_tat": tom_tat,
 	}
 
 
