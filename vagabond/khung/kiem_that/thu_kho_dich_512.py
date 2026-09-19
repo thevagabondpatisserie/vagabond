@@ -183,6 +183,10 @@ def _j_phieu_ve_dung_kho():
 	kho_nl = _kho_bep(cty, "pastry", ksx.NGUYEN_LIEU)
 	kho_tp = _kho_bep(cty, "pastry", ksx.THANH_PHAM)
 	tp = _mon("BAWC-KT512")
+	# Site trang chua co dong so kho nao thi ERPNext bat kiem ke phai la
+	# "Opening Stock" (OpeningEntryAccountError, bench CI 19/09). Nhap mot
+	# dong nguyen lieu hop le truoc de so kho co dong, roi moi kiem ke.
+	khong_nem("nhập nguyên liệu mồi", lambda: _nhap(_mon("NVLT-KT512"), kho_nl, 1, cty))
 	# Dua thanh pham vao kho Nguyen lieu bang KIEM KE (duong duy nhat con mo,
 	# chi canh bao khong chan): dung thuc te Khai gap 18/09.
 	sr = frappe.get_doc(dict(doctype="Stock Reconciliation", company=cty,
