@@ -930,6 +930,11 @@ def _tra_ma_hang(x, goc_mst, ncc):
 	if not mapped and x["ten"]:
 		mapped = frappe.db.get_value("Anh Xa Mat Hang NCC", {
 			"nha_cung_cap": ncc, "ten_hang_ncc": x["ten"]}, "ma_hang")
+	# #332: ánh xạ lịch sử có thể trỏ món vừa ngừng dùng. Giữ dòng nguồn
+	# chưa gán mã để thu mua chọn lại, không lấy giá/quy cách mã khác và
+	# không làm cả hóa đơn biến mất vì resolver UOM ném lỗi.
+	if mapped and frappe.db.get_value("Item", mapped, "disabled"):
+		mapped = None
 	if not mapped:
 		return None, uom if uom and frappe.db.exists("UOM", uom) else None, 1
 
