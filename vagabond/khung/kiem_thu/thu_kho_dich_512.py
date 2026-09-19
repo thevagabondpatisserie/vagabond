@@ -78,12 +78,51 @@ def _sai_kho():
 	dung("chip sai kho", "data-tcc=\"sai_kho\"" in js and "(sai kho)" in js)
 
 
-@ca("v512: app chi cho chon kho Thanh pham o o nhap thanh pham, bo kho da nho sai")
+@ca("v512: app KHONG loc kho theo ten nua (Codex #349), kho dich do may chu quyet theo chang")
 def _app_picker():
 	js = _doc("vagabond", "public", "js", "bep", "05-san-xuat.js")
-	dung("hàm lọc kho thành phẩm", "function mfgFgOpts()" in js)
-	dung("ô fg dùng danh sách lọc", "k === 'src' ? mfgWhOpts() : mfgFgOpts()" in js)
-	dung("kho nhớ sai thì bỏ", "if (mfg.fg && !mfgLaKhoThanhPham(mfg.fg) && whFind('thành phẩm')) mfg.fg = '';" in js)
+	# Codex #349: loc "thanh pham" theo ten la sai voi ban thanh pham (kho dich
+	# la Nguyen lieu). Bo loc; bep khong con o chon (y1), quan ly thay du kho,
+	# may chu sua theo chang o moi duong ghi.
+	dung("không còn bản lọc theo tên", "function mfgFgOpts()" not in js and "mfgLaKhoThanhPham" not in js)
+	dung("ô fg của quản lý dùng danh sách kho bếp đầy đủ", "sheet(k === 'src' ? 'Kho nguyên liệu' : 'Kho thành phẩm', mfgWhOpts()" in js)
+
+
+@ca("v512 Codex #349: hook phieu san xuat KHONG nuot loi, loi thi dung phieu")
+def _fail_closed():
+	s = _doc("vagabond", "kho_san_xuat.py")
+	doan = s.split("def gan_kho_thanh_pham")[1].split("\ndef ")[0]
+	dung("không còn try bao cả hàm", not doan.lstrip().startswith('"""') or "\n\ttry:\n\t\tif doc.docstatus" not in doan)
+	dung("lỗi tra kho thì throw", "frappe.throw(" in doan and "Chưa rõ kho đích theo chặng" in doan)
+	doan2 = s.split("def chan_nhap_sai_kho")[1].split("\ndef ")[0]
+	dung("chặn chuyển kho cũng fail closed", "Chưa rõ kho đích theo chặng" in doan2 and "continue\n\t\tif dung" not in doan2)
+	dung("ca kiểm thật đăng ký", "thu_kho_dich_512" in _doc("vagabond", "khung", "kiem_that", "cua.py"))
+	# Chay that ham: tra kho nem loi thi phieu phai DUNG (dot bien 19/09 chen
+	# `continue` truoc throw van xanh voi phep do chuoi, nen them ca nay).
+	from types import SimpleNamespace as NS
+	from unittest.mock import patch
+
+	def _dong(**kw):
+		o = NS(**kw)
+		o.get = lambda k, _o=o: getattr(_o, k, None)
+		return o
+	d = NS(docstatus=0, purpose="Manufacture", items=[_dong(item_code="BAWC00046", t_warehouse="Pastry - Nguyên liệu - TV", is_finished_item=1)], to_warehouse="")
+	d.get = lambda k, _d=d: getattr(_d, k, None)
+	f = NS(throw=lambda m, **k: (_ for _ in ()).throw(ValueError(m)), msgprint=lambda *a, **k: None,
+		log_error=lambda *a, **k: None, get_traceback=lambda: "", db=NS(exists=lambda *a: True))
+	with patch.object(ks, "frappe", f), patch.object(ks, "_kho_dich_cua_ma", lambda *a: (_ for _ in ()).throw(RuntimeError("db"))):
+		try:
+			ks.gan_kho_thanh_pham(d)
+			dung("lỗi tra kho phải dừng phiếu", False)
+		except ValueError as e:
+			dung("nói rõ mã hàng", "BAWC00046" in str(e))
+	# Duong thuong: kho sai thi doi va bao
+	bao = []
+	f2 = NS(throw=f.throw, msgprint=lambda *a, **k: bao.append(a[0]), log_error=f.log_error, get_traceback=f.get_traceback, db=NS(exists=lambda *a: True))
+	with patch.object(ks, "frappe", f2), patch.object(ks, "_kho_dich_cua_ma", lambda ma, kho: "Pastry - Thành phẩm - TV"):
+		ks.gan_kho_thanh_pham(d)
+	la("t_warehouse đã đổi", d.items[0].t_warehouse, "Pastry - Thành phẩm - TV")
+	la("có báo", len(bao), 1)
 
 
 # ---------------- bon y anh Viet duyet 19/09/2026 ----------------
