@@ -1280,12 +1280,14 @@ async function scrPosBill(name) {
       /* Phi giao: hoi SO TIEN, mot dong qty 1 (Loan Anh 18/09/2026). Co san
          thi cong them tien vao dong do. May chu gom lai lan nua (phi_giao.gom). */
       if (posLaPhiGiao(o.value)) {
-        hoiSo('Phí giao thu của khách', 'Số tiền phí giao (đ), không phải số lượng', '').then(function (n) {
-          if (!n) return;
+        /* Codex PR #347: hop thoai dien san so hien co va THAY, khong cong don
+           (sua 4.000 thanh 5.000 ma ra 9.000 la sai). */
+        hoiSo('Phí giao thu của khách', 'Số tiền phí giao (đ), không phải số lượng', posPhiGiaoHienCo(posSua.mon)).then(function (n) {
+          if (n === null) return;
           var c = -1;
           posSua.mon.forEach(function (m, k) { if (posLaPhiGiao(m.item_code)) c = k; });
-          if (c >= 0) { posSua.mon[c].rate = flt0(posSua.mon[c].rate) * flt0(posSua.mon[c].qty) + n; posSua.mon[c].qty = 1; }
-          else posSua.mon.push({ item_code: POS_MA_PHI_GIAO, ten: o.label, qty: 1, rate: n, nhom: o.nhom, tc: [], gc: '' });
+          if (c >= 0) { if (n) { posSua.mon[c].rate = n; posSua.mon[c].qty = 1; } else posSua.mon.splice(c, 1); }
+          else if (n) posSua.mon.push({ item_code: POS_MA_PHI_GIAO, ten: o.label, qty: 1, rate: n, nhom: o.nhom, tc: [], gc: '' });
           go(function () { scrPosBill(name); }, true);
         });
         return 0;

@@ -1805,6 +1805,12 @@ var posDangLuu = false;
 /* Ma item phi giao (DVBH00001 - ban_hang.MA_PHI_GIAO). */
 var POS_MA_PHI_GIAO = 'DVBH00001';
 function posLaPhiGiao(ma) { return String(ma || '').trim().toUpperCase() === POS_MA_PHI_GIAO; }
+/* Tong tien phi giao dang co trong gio (qty x rate), de hop thoai dien san. */
+function posPhiGiaoHienCo(mon) {
+  var t = 0;
+  (mon || []).forEach(function (m) { if (posLaPhiGiao(m.item_code)) t += flt0(m.qty) * flt0(m.rate); });
+  return t || '';
+}
 async function posHoiPhiGiao() {
   /* Dong sheet chon mon truoc, hop thoai so tien moi len tren cung. */
   document.querySelectorAll('.sh').forEach(function (x) { x.remove(); });
