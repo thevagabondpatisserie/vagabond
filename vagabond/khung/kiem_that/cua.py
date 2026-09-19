@@ -86,5 +86,6 @@ from vagabond.khung.kiem_that import thu_phantom_303  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_tai_khoan_btp_307  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_ttnb_317  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_xuat_phuc_vu_ban_507  # noqa: F401,E402
+from vagabond.khung.kiem_that import thu_kho_dich_512  # noqa: F401,E402
 
 from vagabond.khung.kiem_that import thu_tra_lai_app_339
