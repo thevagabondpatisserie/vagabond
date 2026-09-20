@@ -55,6 +55,7 @@ VAI_SALES = {"Sales User", "Sales Manager", "Bộ phận đặt hàng"}
 # tặng quà thì chỉ nhận đúng hai giá trị Sales và Marketing. Không có vai thì
 # cả nhóm Marketing mở màn này ra sẽ thấy trống trơn mà không ai hiểu vì sao.
 from vagabond.vai_cua_hang import VAI_MARKETING
+from vagabond import kho_san_xuat as ksx
 
 VAI_MKT = {VAI_MARKETING}
 
@@ -68,6 +69,7 @@ LOAI_PHIEU = (
 	("nhap_kho", "Nhập kho", "📥"),
 	("xuat_kho", "Xuất kho", "📤"),
 	("kiem_ke", "Kiểm kê", "🧮"),
+	("sai_kho", "Hàng nằm sai kho", "⚠️"),
 	("tang_qua", "Tặng quà khách VIP", "🎁"),
 	("ycmh", "Yêu cầu mua hàng", "🛒"),
 	("de_nghi_chi", "Đề nghị chi", "🧾"),
@@ -121,6 +123,14 @@ MA_TRAN = {
 	# ngoại lệ DUY NHẤT cho phép kế toán thấy phiếu kho, đúng như anh Việt
 	# dặn: "trừ khi có bước chờ Kế toán duyệt giá trị".
 	"kiem_ke": VAI_KHO | VAI_KE_TOAN | VAI_GIAM_DOC,
+	# v512: hàng nằm sai kho theo chặng (Khải 18/09/2026). Việc của bếp và
+	# quản lý sản xuất, mỗi mã một dòng, mở ra màn Tồn kho theo chặng.
+	# VAI_GIAM_DOC ở đây chỉ có tác dụng cho System Manager (kỹ thuật). Hai
+	# vai giám đốc thật bị VAI_GIAM_DOC_SIET chặn trước ma trận, và đó là chủ
+	# ý: anh Việt 31/08 chỉ muốn thấy ba việc hệ trọng. Muốn giám đốc thấy
+	# việc này thì thêm "sai_kho" vào VIEC_HE_TRONG, không sửa dòng này
+	# (Codex #349, 2ef823d).
+	"sai_kho": VAI_KHO | {"Manufacturing Manager", "Manufacturing User"} | VAI_GIAM_DOC,
 	# CRM. Tặng quà khách VIP là việc của Sales và Marketing, kho và bếp
 	# KHÔNG thấy: danh sách này có số điện thoại riêng của khách VIP.
 	"tang_qua": VAI_SALES | VAI_MKT | VAI_QUAN_LY | VAI_GIAM_DOC,
@@ -267,6 +277,48 @@ def _viec_san_xuat(vai, bo_phan):
 			"tt": "tre_hen" if _tre(x.get("schedule_date")) else "cho_lam",
 		})
 	return ra
+
+
+def dong_sai_kho(x, vai, kho):
+	"""Một dòng việc "sai kho" từ một dòng của ton_theo_chang. THUẦN.
+
+	Codex #349 vòng 5: người giữ kho (VAI_KHO, không phải thu mua hay giám
+	đốc) chỉ thấy các kho sai thuộc kho mình phụ trách, cùng luật với phiếu
+	nhập kho; và mỗi kho sai ghi kèm kho đích CỦA NÓ, không lấy kho đích của
+	kho đầu tiên cho cả dòng. Không còn kho sai nào thuộc mình thì trả None.
+	"""
+	cac = [k for k in x.get("kho") or [] if k.get("sai")]
+	# Codex vong 6: nguoi giu kho ma CHUA khai kho nao thi khong co viec sai
+	# kho, khong phai thay het (kho rong van loc).
+	if (vai & VAI_KHO) and not (vai & (VAI_THU_MUA | VAI_GIAM_DOC)):
+		cac = [k for k in cac if k.get("kho") in (kho or [])]
+	if not cac:
+		return None
+	cap = "; ".join("%s -> %s" % (k.get("kho"), k.get("kho_dung") or x.get("kho_dung") or "?") for k in cac)
+	return {
+		"loai": "sai_kho", "ma": x["ma"], "nhom": "Chuyển về đúng kho",
+		"phu": "%s · %s" % (x.get("ten") or x["ma"], cap),
+		"ngay": "", "tt": "cho_lam", "ten": x.get("ten") or "",
+	}
+
+
+def _viec_sai_kho(vai, bo_phan, kho=None):
+	"""Mỗi mã đang nằm sai kho theo chặng là một việc (v512)."""
+	from vagabond import ton_chang
+
+	bep = None
+	if bo_phan and bo_phan.startswith("Bếp"):
+		bep = ksx.bep_tu_chuoi(bo_phan)
+	# Codex vong 7: lay du danh sach sai kho roi moi loc theo kho minh giu,
+	# khong cat 60 dong truoc khi loc keo dong cua kho minh bi rot. Hang sai
+	# kho chi vai chuc ma, 1000 la du rong; cat 60 SAU khi loc.
+	d = ton_chang.ton_theo_chang(bep=bep, chang=ton_chang.SAI_KHO, gioi_han=1000)
+	ra = []
+	for x in d.get("ds") or []:
+		r = dong_sai_kho(x, set(vai or []), kho or [])
+		if r:
+			ra.append(r)
+	return ra[:60]
 
 
 def _viec_nhap_kho(vai, kho):
@@ -727,6 +779,7 @@ def danh_sach(loai="", trang_thai=""):
 		("nhap_kho", lambda: _viec_nhap_kho(vai, kho)),
 		("xuat_kho", lambda: _viec_xuat_kho(vai, kho, nguoi)),
 		("kiem_ke", lambda: _viec_kiem_ke(vai)),
+		("sai_kho", lambda: _viec_sai_kho(vai, bp, kho)),
 		("de_nghi_chi", lambda: _viec_de_nghi_chi(vai)),
 		("hoan_tien", lambda: _viec_hoan_tien(vai)),
 		("don_mua", lambda: _viec_don_mua(vai)),
