@@ -454,8 +454,9 @@ def _l1_l3_viec():
 	r = v.dong_sai_kho(x, {"Stock User"}, ["Pastry - Nguyên liệu - TV", "Pastry - Thành phẩm - TV"])
 	dung("người giữ kho Pastry chỉ thấy kho Pastry", "Baker" not in r["phu"] and "Pastry - Nguyên liệu - TV -> Pastry - Thành phẩm - TV" in r["phu"])
 	la("người giữ kho không dính kho nào thì không có việc", v.dong_sai_kho(x, {"Stock User"}, ["Kho tổng 307 - TV"]), None)
-	r2 = v.dong_sai_kho(x, {"Stock User"}, [])
-	dung("không khai kho thì thấy hết, mỗi kho một đích", "Baker - Nguyên liệu - TV -> Baker - Thành phẩm - TV" in r2["phu"] and "Pastry - Nguyên liệu - TV -> Pastry - Thành phẩm - TV" in r2["phu"])
+	la("người giữ kho CHƯA khai kho nào thì không có việc (Codex vòng 6)", v.dong_sai_kho(x, {"Stock User"}, []), None)
+	r2 = v.dong_sai_kho(x, {"Manufacturing User"}, [])
+	dung("không phải vai kho thì thấy hết, mỗi kho một đích", "Baker - Nguyên liệu - TV -> Baker - Thành phẩm - TV" in r2["phu"] and "Pastry - Nguyên liệu - TV -> Pastry - Thành phẩm - TV" in r2["phu"])
 	r3 = v.dong_sai_kho(x, {"Manufacturing Manager"}, ["Kho tổng 307 - TV"])
 	dung("quản lý sản xuất (không phải VAI_KHO) thấy hết", r3 and "Baker" in r3["phu"] and "Pastry" in r3["phu"])
 	r4 = v.dong_sai_kho(x, {"Stock User", "System Manager"}, ["Kho tổng 307 - TV"])
@@ -491,13 +492,26 @@ def _l2_idempotent():
 			nhap["loc"] = n
 			return nhap["co"]
 		return "Cty"
+	khoa = []
+	dong_cu = {"qty": 7}
 	f = NS(get_roles=lambda: ["Manufacturing Manager"], throw=_throw, log_error=lambda *a, **k: None,
-		get_traceback=lambda: "", new_doc=lambda dt: SE(), db=NS(get_value=gv, exists=lambda *a: True))
+		get_traceback=lambda: "", new_doc=lambda dt: SE(),
+		get_all=lambda dt, filters=None, fields=None, **k: [dict(dong_cu)] if dong_cu else [],
+		db=NS(get_value=gv, exists=lambda *a: True, sql=lambda q, v=None, **k: khoa.append((q, v))))
 	with patch.object(tc, "frappe", f), patch.object(ks, "_kho_dich_cua_ma", lambda ma, kho: "Pastry - Thành phẩm - TV"):
 		kq1 = tc.tao_phieu_ve_dung_kho("BAWC00046", "Pastry - Nguyên liệu - TV", 7)
 		la("lần đầu lập phiếu mới", (kq1["name"], len(tao)), ("PCK-MOI", 1))
+		dung("khoá tên theo mã + kho đi + kho đến trước khi tra (Codex vòng 6)", khoa and "get_lock" in khoa[0][0] and "BAWC00046|Pastry - Nguyên liệu - TV|Pastry - Thành phẩm - TV" in khoa[0][1][0])
 		dung("tra phiếu nháp cùng mã, cùng kho đi, kho đến", nhap["loc"]["docstatus"] == 0 and nhap["loc"]["from_warehouse"] == "Pastry - Nguyên liệu - TV"
 			and nhap["loc"]["to_warehouse"] == "Pastry - Thành phẩm - TV" and "BAWC00046" in nhap["loc"]["remarks"][1])
 		nhap["co"] = NS(name="PCK-CU", posting_date="2026-09-19")
 		kq2 = tc.tao_phieu_ve_dung_kho("BAWC00046", "Pastry - Nguyên liệu - TV", 7)
 		la("lần hai trả lại phiếu cũ, không lập thêm", (kq2["name"], kq2.get("da_co"), len(tao)), ("PCK-CU", 1, 1))
+		# Phieu cu lech so (5 khi ton 7): khong tra phieu do, bao nguoi dung xu ly
+		dong_cu["qty"] = 5
+		try:
+			tc.tao_phieu_ve_dung_kho("BAWC00046", "Pastry - Nguyên liệu - TV", 7)
+			dung("phiếu cũ lệch số phải dừng (Codex vòng 6)", False)
+		except ValueError as e:
+			dung("nói tên phiếu cũ và số", "PCK-CU" in str(e) and "5" in str(e))
+		la("không lập thêm phiếu", len(tao), 1)
