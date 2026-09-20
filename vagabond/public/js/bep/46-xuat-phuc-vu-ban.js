@@ -315,7 +315,7 @@ async function scrXkPvNew() {
       '<div class="vf"><div class="vfh"><span class="ic">📝</span><b>Ghi chú</b></div>' +
       '<input class="vfi" id="xpvgc" placeholder="Ví dụ: chốt tuần 38" value="' + h(st.ghiChu) + '"></div>' +
       ngoaiPhamViHtml() +
-      xktNutChinh('xpvluu', 'Lưu phiếu, chờ kế toán ghi sổ', 'Tồn kho chỉ trừ sau khi kế toán bấm Ghi sổ.') +
+      xktNutChinh('xpvluu', 'Ghi sổ phiếu xuất', 'Bấm là tồn kho trừ ngay theo số đã dùng (từ 20/09/2026, không chờ kế toán).') +
       '</div>';
   }
 
@@ -435,6 +435,8 @@ async function scrXkPvNew() {
     var d = demXong();
     if (d.loi) { toast('Có ' + d.loi + ' dòng đang sai, sửa trước khi lưu.'); return; }
     if (!d.n) { toast('Chưa mã nào có hàng đi ra. Gõ số còn lại cho ít nhất một mã.'); return; }
+    /* Ghi so la tru kho THAT, tu app khong hoan lai duoc: hoi mot lan. */
+    if (!await xacNhan('Ghi sổ ' + d.n + ' mã đã dùng ở ' + shortWh(st.kho) + '?\n\nTồn kho sẽ trừ ngay và không hoàn lại được từ app.', 'Ghi sổ phiếu xuất', 'Ghi sổ')) return;
     var gui = [];
     var ds = XPV.bang || [];
     for (var i = 0; i < ds.length; i++) {
@@ -454,8 +456,9 @@ async function scrXkPvNew() {
       XPV.bang = null;
       XPV.bangKho = '';
       st.ghiChu = '';
-      st.tab = 'cho';
-      toast('Đã lưu ' + r.name + ' với ' + r.so_dong + ' mã, chờ kế toán ghi sổ.');
+      /* 20/09/2026: quay lap la tru kho ngay (phuong an 1 anh Viet chot). */
+      st.tab = 'xong';
+      toast('Đã ghi sổ ' + r.name + ' với ' + r.so_dong + ' mã, tồn kho đã trừ.' + (r.thay_phieu_cu ? ' Phiếu nháp cũ ' + r.thay_phieu_cu + ' đã bỏ.' : ''), 5000);
       go(function () { scrXkPvView(r.name); }, true);
     } catch (e) {
       this.disabled = false;
