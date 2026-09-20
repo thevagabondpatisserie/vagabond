@@ -211,7 +211,7 @@ def _y4_viec():
 	dung("quản lý sản xuất thấy", v.thay_duoc("sai_kho", {"Manufacturing Manager"}))
 	dung("kế toán không thấy", not v.thay_duoc("sai_kho", {"Accounts User"}))
 	s = _doc("vagabond", "viec_can_lam.py")
-	dung("nguồn gom có sai_kho", '("sai_kho", lambda: _viec_sai_kho(vai, bp)),' in s)
+	dung("nguồn gom có sai_kho, truyền kho mình giữ", '("sai_kho", lambda: _viec_sai_kho(vai, bp, kho)),' in s)
 	dung("đọc từ cùng một nguồn ton_theo_chang, chip SAI_KHO", "chang=ton_chang.SAI_KHO" in s)
 	js = _doc("vagabond", "public", "js", "bep", "02-trang-chu.js")
 	dung("app mở màn Tồn kho theo chặng lọc Sai kho", "if (l === 'sai_kho') return go(function () { tch.chang = 'sai_kho';" in js)
@@ -336,7 +336,7 @@ def _j2_cung_nguon():
 			tao.append(self)
 	f = NS(get_roles=lambda: ["Manufacturing Manager"], throw=_throw, log_error=lambda *a, **k: None,
 		get_traceback=lambda: "", new_doc=lambda dt: SE(),
-		db=NS(get_value=lambda dt, n, f=None, as_dict=False, **k: (NS(item_name="Bánh", stock_uom="Cái") if dt == "Item" else 5),
+		db=NS(get_value=lambda dt, n, f=None, as_dict=False, **k: (NS(item_name="Bánh", stock_uom="Cái") if dt == "Item" else (None if dt == "Stock Entry" else 5)),
 			exists=lambda *a: True))
 	goi = []
 
@@ -388,7 +388,7 @@ def _k1_ton_doi():
 			tao.append(self)
 	f = NS(get_roles=lambda: ["Manufacturing Manager"], throw=_throw, log_error=lambda *a, **k: None,
 		get_traceback=lambda: "", new_doc=lambda dt: SE(),
-		db=NS(get_value=lambda dt, n, f=None, as_dict=False, **k: (NS(item_name="Bánh", stock_uom="Cái") if dt == "Item" else (7 if dt == "Bin" else "Cty")),
+		db=NS(get_value=lambda dt, n, f=None, as_dict=False, **k: (NS(item_name="Bánh", stock_uom="Cái") if dt == "Item" else (7 if dt == "Bin" else (None if dt == "Stock Entry" else "Cty"))),
 			exists=lambda *a: True))
 	with patch.object(tc, "frappe", f), patch.object(ks, "_kho_dich_cua_ma", lambda ma, kho: "Pastry - Thành phẩm - TV"):
 		for sl in (2, 9):
@@ -422,3 +422,66 @@ def _k2_tung_kho():
 	js = _doc("vagabond", "public", "js", "bep", "37-ton-chang.js")
 	dung("app hỏi xác nhận theo kho của dòng đang bấm", "var den = k.kho_dung || x.kho_dung;" in js and "sang ' + shortWh(den)" in js)
 	dung("không còn xác nhận bằng kho của dòng", "sang ' + shortWh(x.kho_dung)" not in js)
+
+
+# ---------------- Codex #349 vong 5 (fdc4a41) ----------------
+
+
+@ca("v512 Codex L1+L3: viec sai kho loc theo kho minh giu, moi kho sai ghi kem kho dich cua no")
+def _l1_l3_viec():
+	from vagabond import viec_can_lam as v
+	x = {"ma": "BAWC00046", "ten": "Bánh", "kho_dung": "Baker - Thành phẩm - TV", "kho": [
+		{"kho": "Baker - Nguyên liệu - TV", "sl": 2, "sai": True, "kho_dung": "Baker - Thành phẩm - TV"},
+		{"kho": "Pastry - Nguyên liệu - TV", "sl": 3, "sai": True, "kho_dung": "Pastry - Thành phẩm - TV"},
+		{"kho": "Pastry - Thành phẩm - TV", "sl": 1, "sai": False},
+	]}
+	r = v.dong_sai_kho(x, {"Stock User"}, ["Pastry - Nguyên liệu - TV", "Pastry - Thành phẩm - TV"])
+	dung("người giữ kho Pastry chỉ thấy kho Pastry", "Baker" not in r["phu"] and "Pastry - Nguyên liệu - TV -> Pastry - Thành phẩm - TV" in r["phu"])
+	la("người giữ kho không dính kho nào thì không có việc", v.dong_sai_kho(x, {"Stock User"}, ["Kho tổng 307 - TV"]), None)
+	r2 = v.dong_sai_kho(x, {"Stock User"}, [])
+	dung("không khai kho thì thấy hết, mỗi kho một đích", "Baker - Nguyên liệu - TV -> Baker - Thành phẩm - TV" in r2["phu"] and "Pastry - Nguyên liệu - TV -> Pastry - Thành phẩm - TV" in r2["phu"])
+	r3 = v.dong_sai_kho(x, {"Manufacturing Manager"}, ["Kho tổng 307 - TV"])
+	dung("quản lý sản xuất (không phải VAI_KHO) thấy hết", r3 and "Baker" in r3["phu"] and "Pastry" in r3["phu"])
+	r4 = v.dong_sai_kho(x, {"Stock User", "System Manager"}, ["Kho tổng 307 - TV"])
+	dung("System Manager kèm vai kho vẫn thấy hết", r4 is not None)
+	dung("không còn dùng kho_dung của dòng làm đích chung", "x.get(\"kho_dung\") or \"?\"" not in _doc("vagabond", "viec_can_lam.py").split("def _viec_sai_kho")[1].split("\ndef ")[0])
+
+
+@ca("v512 Codex L2: bam hai lan khong ra hai phieu nhap trung")
+def _l2_idempotent():
+	from types import SimpleNamespace as NS
+	from unittest.mock import patch
+
+	def _throw(m, **k):
+		raise ValueError(m)
+	tao = []
+
+	class SE(object):
+		def __init__(self):
+			self.items = []
+			self.name = "PCK-MOI"
+		def append(self, k, r):
+			self.items.append(r)
+		def insert(self):
+			tao.append(self)
+	nhap = {"co": None}
+
+	def gv(dt, n, f=None, as_dict=False, **k):
+		if dt == "Item":
+			return NS(item_name="Bánh", stock_uom="Cái")
+		if dt == "Bin":
+			return 7
+		if dt == "Stock Entry":
+			nhap["loc"] = n
+			return nhap["co"]
+		return "Cty"
+	f = NS(get_roles=lambda: ["Manufacturing Manager"], throw=_throw, log_error=lambda *a, **k: None,
+		get_traceback=lambda: "", new_doc=lambda dt: SE(), db=NS(get_value=gv, exists=lambda *a: True))
+	with patch.object(tc, "frappe", f), patch.object(ks, "_kho_dich_cua_ma", lambda ma, kho: "Pastry - Thành phẩm - TV"):
+		kq1 = tc.tao_phieu_ve_dung_kho("BAWC00046", "Pastry - Nguyên liệu - TV", 7)
+		la("lần đầu lập phiếu mới", (kq1["name"], len(tao)), ("PCK-MOI", 1))
+		dung("tra phiếu nháp cùng mã, cùng kho đi, kho đến", nhap["loc"]["docstatus"] == 0 and nhap["loc"]["from_warehouse"] == "Pastry - Nguyên liệu - TV"
+			and nhap["loc"]["to_warehouse"] == "Pastry - Thành phẩm - TV" and "BAWC00046" in nhap["loc"]["remarks"][1])
+		nhap["co"] = NS(name="PCK-CU", posting_date="2026-09-19")
+		kq2 = tc.tao_phieu_ve_dung_kho("BAWC00046", "Pastry - Nguyên liệu - TV", 7)
+		la("lần hai trả lại phiếu cũ, không lập thêm", (kq2["name"], kq2.get("da_co"), len(tao)), ("PCK-CU", 1, 1))
