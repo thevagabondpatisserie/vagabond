@@ -279,7 +279,28 @@ def _viec_san_xuat(vai, bo_phan):
 	return ra
 
 
-def _viec_sai_kho(vai, bo_phan):
+def dong_sai_kho(x, vai, kho):
+	"""Một dòng việc "sai kho" từ một dòng của ton_theo_chang. THUẦN.
+
+	Codex #349 vòng 5: người giữ kho (VAI_KHO, không phải thu mua hay giám
+	đốc) chỉ thấy các kho sai thuộc kho mình phụ trách, cùng luật với phiếu
+	nhập kho; và mỗi kho sai ghi kèm kho đích CỦA NÓ, không lấy kho đích của
+	kho đầu tiên cho cả dòng. Không còn kho sai nào thuộc mình thì trả None.
+	"""
+	cac = [k for k in x.get("kho") or [] if k.get("sai")]
+	if kho and (vai & VAI_KHO) and not (vai & (VAI_THU_MUA | VAI_GIAM_DOC)):
+		cac = [k for k in cac if k.get("kho") in kho]
+	if not cac:
+		return None
+	cap = "; ".join("%s -> %s" % (k.get("kho"), k.get("kho_dung") or x.get("kho_dung") or "?") for k in cac)
+	return {
+		"loai": "sai_kho", "ma": x["ma"], "nhom": "Chuyển về đúng kho",
+		"phu": "%s · %s" % (x.get("ten") or x["ma"], cap),
+		"ngay": "", "tt": "cho_lam", "ten": x.get("ten") or "",
+	}
+
+
+def _viec_sai_kho(vai, bo_phan, kho=None):
 	"""Mỗi mã đang nằm sai kho theo chặng là một việc (v512)."""
 	from vagabond import ton_chang
 
@@ -289,12 +310,9 @@ def _viec_sai_kho(vai, bo_phan):
 	d = ton_chang.ton_theo_chang(bep=bep, chang=ton_chang.SAI_KHO, gioi_han=60)
 	ra = []
 	for x in d.get("ds") or []:
-		kho_sai = ", ".join(k["kho"] for k in x.get("kho") or [] if k.get("sai"))
-		ra.append({
-			"loai": "sai_kho", "ma": x["ma"], "nhom": "Chuyển về đúng kho",
-			"phu": "%s · đang ở %s, kho đúng %s" % (x.get("ten") or x["ma"], kho_sai, x.get("kho_dung") or "?"),
-			"ngay": "", "tt": "cho_lam", "ten": x.get("ten") or "",
-		})
+		r = dong_sai_kho(x, set(vai or []), kho or [])
+		if r:
+			ra.append(r)
 	return ra
 
 
@@ -756,7 +774,7 @@ def danh_sach(loai="", trang_thai=""):
 		("nhap_kho", lambda: _viec_nhap_kho(vai, kho)),
 		("xuat_kho", lambda: _viec_xuat_kho(vai, kho, nguoi)),
 		("kiem_ke", lambda: _viec_kiem_ke(vai)),
-		("sai_kho", lambda: _viec_sai_kho(vai, bp)),
+		("sai_kho", lambda: _viec_sai_kho(vai, bp, kho)),
 		("de_nghi_chi", lambda: _viec_de_nghi_chi(vai)),
 		("hoan_tien", lambda: _viec_hoan_tien(vai)),
 		("don_mua", lambda: _viec_don_mua(vai)),

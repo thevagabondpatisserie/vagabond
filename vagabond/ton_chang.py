@@ -457,6 +457,16 @@ def tao_phieu_ve_dung_kho(ma, kho_sai, sl):
 	if abs(sl - ton) > 0.0001:
 		frappe.throw("Tồn ở %s hiện là %s %s, màn đang hiện %s. Tải lại màn Tồn kho theo chặng rồi bấm lại."
 			% (kho_sai, ton, it.stock_uom or "", sl), title="Số tồn đã đổi")
+	# Codex #349 vong 5: bam hai lan (mat phan hoi roi bam lai, hai may cung
+	# bam) khong duoc de ra hai phieu nhap giong nhau, vi phieu nhap khong tru
+	# ton nen lan hai van thay du hang. Da co phieu nhap cung ma, cung kho di
+	# va kho den do chinh nut nay lap thi tra lai phieu do.
+	da_co = frappe.db.get_value("Stock Entry", {
+		"docstatus": 0, "purpose": "Material Transfer", "from_warehouse": kho_sai, "to_warehouse": dung,
+		"remarks": ["like", "Chuyển về đúng kho theo chặng%%: %s từ %%" % ma],
+	}, ["name", "posting_date"], as_dict=True)
+	if da_co:
+		return {"name": da_co.name, "tu": kho_sai, "den": dung, "sl": sl, "da_co": 1}
 	se = frappe.new_doc("Stock Entry")
 	se.company = frappe.db.get_value("Warehouse", kho_sai, "company")
 	se.purpose = "Material Transfer"
