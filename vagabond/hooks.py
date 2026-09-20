@@ -375,7 +375,7 @@ doc_events = {
 		"validate": ["vagabond.kho_san_xuat.canh_bao_kiem_ke_sai_kho"],
 	},
 	"Stock Entry": {
-		"validate": ["vagabond.hang_tang_kho.chan_xuat_tay", "vagabond.he_so_chung_tu.kiem", "vagabond.kho_san_xuat.chan_nhap_sai_kho"],
+		"validate": ["vagabond.hang_tang_kho.chan_xuat_tay", "vagabond.he_so_chung_tu.kiem", "vagabond.kho_san_xuat.nhac_nhap_sai_kho"],
 		"before_validate": [
 			"vagabond.tai_khoan_chi_phi.kiem",
 			"vagabond.lo_het_han.mo_chot",

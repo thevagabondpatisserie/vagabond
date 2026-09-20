@@ -928,13 +928,16 @@ def _phai_co_kho(ten, ma):
 
 
 def _kho_dich_cua_ma(ma, kho_hien):
-	"""Kho đích đúng cho mã này nếu `kho_hien` là kho bếp sai chặng, còn không thì None."""
-	try:
-		bep = _bep_cua_mon(ma)
-	except Exception:
-		# Site chua co o Bep phu trach (bench CI) thi suy tu ten kho.
-		bep = None
-	bep = bep or bep_cua_kho(kho_hien or "")
+	"""Kho đích đúng cho mã này nếu `kho_hien` là kho bếp sai CHẶNG, còn không thì None.
+
+	Bếp lấy theo KHO ĐANG CHỌN, không theo bếp phụ trách trên món. Anh Việt
+	chốt 20/09/2026: *"không cần chặn gì cả... cứ để hàng hoá thoải mái tự do
+	lưu chuyển"*. Món của bếp Pastry nằm ở kho Baker là chuyện của hai bếp,
+	máy không đổi bếp; máy chỉ sửa chặng trong cùng một bếp (thành phẩm vào
+	kho Nguyên liệu). Một nguồn cho hook lệnh, hook phiếu, màn Tồn kho theo
+	chặng và nút chuyển kho.
+	"""
+	bep = bep_cua_kho(kho_hien or "")
 	if not bep:
 		return None
 	kt, ten = _ho_so_mon(ma)
@@ -943,39 +946,41 @@ def _kho_dich_cua_ma(ma, kho_hien):
 
 
 # Ba loai phieu dua hang VAO mot kho bep bang tay. Nhap kho bep sai chang
-# qua ba duong nay thi CHAN, khong tu sua: chuyen kho la thao tac co chu y,
-# may doi kho dich sau lung nguoi chuyen thi hang di dau khong ai biet.
+# qua ba duong nay thi chi NHAC, khong chan, khong tu sua (anh Viet 20/09/2026:
+# "cu de hang hoa thoai mai tu do luu chuyen"). Man Ton kho theo chang va
+# Viec can lam se chi ra cho de chuyen ve.
 MUC_DICH_CHUYEN_TAY = ("Material Transfer", "Material Receipt", "Material Transfer for Manufacture")
 
 
-def chan_nhap_sai_kho(doc, method=None):
+def nhac_nhap_sai_kho(doc, method=None):
 	"""Hook validate Stock Entry: chuyển kho hay nhập tay đưa hàng vào kho bếp
-	sai chặng thì chặn (v512, ý 2 anh Việt duyệt 19/09/2026).
+	sai chặng thì NHẮC, không chặn (v512).
 
-	Manufacture đã có gan_kho_thanh_pham tự sửa. Hàm này phủ ba đường còn hở:
-	Material Transfer, Material Receipt, Material Transfer for Manufacture.
+	Bản 19/09 chặn (ý 2). Anh Việt đổi 20/09: sợ chặn rồi phát sinh vấn đề,
+	hàng hoá phải lưu chuyển tự do. Nên đây chỉ là lời nhắc, phiếu vẫn lưu
+	và ghi sổ bình thường; hàng nằm sai chặng sẽ hiện ở màn Tồn kho theo
+	chặng (chip Sai kho) và Việc cần làm để bếp chuyển về khi tiện.
+	Manufacture vẫn do gan_kho_thanh_pham tự sửa chặng trong cùng bếp.
 	"""
 	if doc.docstatus != 0 or (doc.get("purpose") or "") not in MUC_DICH_CHUYEN_TAY:
 		return
-	loi = []
+	nhac = []
 	for d in doc.get("items") or []:
 		if not d.get("t_warehouse") or not d.get("item_code"):
 			continue
 		try:
 			dung = _kho_dich_cua_ma(d.item_code, d.t_warehouse)
 		except Exception:
-			frappe.log_error(frappe.get_traceback(), "vagabond: chan nhap sai kho")
-			frappe.throw(
-				"Không xác định được kho đích theo chặng cho %s nên chưa ghi phiếu. "
-				"Kiểm chặng và bếp phụ trách của món rồi lưu lại, hoặc báo kỹ thuật." % d.item_code,
-				title="Chưa rõ kho đích theo chặng")
+			# Chi la loi nhac: tra kho loi thi bo qua, khong lam hong phieu.
+			frappe.log_error(frappe.get_traceback(), "vagabond: nhac nhap sai kho")
+			continue
 		if dung:
-			loi.append("%s: đang nhập vào %s, kho đúng theo chặng là %s" % (d.item_code, d.t_warehouse, dung))
-	if loi:
-		frappe.throw(
-			"Không nhập hàng vào kho bếp sai chặng. " + "; ".join(loi)
-			+ ". Sửa kho đích rồi lưu lại.",
-			title="Sai kho theo chặng")
+			nhac.append("%s vào %s (kho theo chặng là %s)" % (d.item_code, d.t_warehouse, dung))
+	if nhac:
+		frappe.msgprint(
+			"Phiếu đưa hàng vào kho bếp khác chặng: " + "; ".join(nhac[:20])
+			+ ". Vẫn ghi được; hàng sẽ hiện ở màn Tồn kho theo chặng để chuyển về khi tiện.",
+			title="Hàng vào kho khác chặng", indicator="orange")
 
 
 def canh_bao_kiem_ke_sai_kho(doc, method=None):

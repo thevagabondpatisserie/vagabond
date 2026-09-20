@@ -432,10 +432,9 @@ def tao_phieu_ve_dung_kho(ma, kho_sai, sl):
 	it = frappe.db.get_value("Item", ma, ["item_name", "stock_uom"], as_dict=True)
 	if not it:
 		frappe.throw("Không có mã %s." % ma)
-	# Codex #349 vong 3: kho dich phai do CUNG MOT HAM voi hook chan_nhap_sai_kho
-	# quyet (bep phu trach tren mon truoc, hau to doc tu kho_sai). Tinh rieng o
-	# day thi mon Pastry nam o kho Baker se ra phieu Baker -> Baker, roi chinh
-	# hook tu choi phieu do; site hau to khac " - TV" thi ra kho khong co that.
+	# Codex #349 vong 3: kho dich phai do CUNG MOT HAM voi cac hook quyet (bep
+	# theo kho dang chua, hau to doc tu kho_sai). Site hau to khac " - TV" thi
+	# tinh rieng o day se ra kho khong co that.
 	try:
 		dung = ksx._kho_dich_cua_ma(ma, kho_sai)
 	except Exception:
