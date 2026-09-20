@@ -353,7 +353,7 @@ def _j2_cung_nguon():
 	f = NS(get_roles=lambda: ["Manufacturing Manager"], throw=_throw, log_error=lambda *a, **k: None,
 		get_traceback=lambda: "", new_doc=lambda dt: SE(),
 		db=NS(get_value=lambda dt, n, f=None, as_dict=False, **k: (NS(item_name="Bánh", stock_uom="Cái") if dt == "Item" else (None if dt == "Stock Entry" else 5)),
-			exists=lambda *a: True))
+			exists=lambda *a: True, sql=lambda q, v=None, **k: ((1,),)))
 	goi = []
 
 	def _kd(ma, kho):
@@ -405,7 +405,7 @@ def _k1_ton_doi():
 	f = NS(get_roles=lambda: ["Manufacturing Manager"], throw=_throw, log_error=lambda *a, **k: None,
 		get_traceback=lambda: "", new_doc=lambda dt: SE(),
 		db=NS(get_value=lambda dt, n, f=None, as_dict=False, **k: (NS(item_name="Bánh", stock_uom="Cái") if dt == "Item" else (7 if dt == "Bin" else (None if dt == "Stock Entry" else "Cty"))),
-			exists=lambda *a: True))
+			exists=lambda *a: True, sql=lambda q, v=None, **k: ((1,),)))
 	with patch.object(tc, "frappe", f), patch.object(ks, "_kho_dich_cua_ma", lambda ma, kho: "Pastry - Thành phẩm - TV"):
 		for sl in (2, 9):
 			try:
@@ -461,7 +461,9 @@ def _l1_l3_viec():
 	dung("quản lý sản xuất (không phải VAI_KHO) thấy hết", r3 and "Baker" in r3["phu"] and "Pastry" in r3["phu"])
 	r4 = v.dong_sai_kho(x, {"Stock User", "System Manager"}, ["Kho tổng 307 - TV"])
 	dung("System Manager kèm vai kho vẫn thấy hết", r4 is not None)
-	dung("không còn dùng kho_dung của dòng làm đích chung", "x.get(\"kho_dung\") or \"?\"" not in _doc("vagabond", "viec_can_lam.py").split("def _viec_sai_kho")[1].split("\ndef ")[0])
+	doan = _doc("vagabond", "viec_can_lam.py").split("def _viec_sai_kho")[1].split("\ndef ")[0]
+	dung("không còn dùng kho_dung của dòng làm đích chung", "x.get(\"kho_dung\") or \"?\"" not in doan)
+	dung("lấy đủ rồi mới lọc, cắt 60 sau khi lọc (Codex vòng 7)", "gioi_han=1000" in doan and "return ra[:60]" in doan and "gioi_han=60" not in doan)
 
 
 @ca("v512 Codex L2: bam hai lan khong ra hai phieu nhap trung")
@@ -497,7 +499,7 @@ def _l2_idempotent():
 	f = NS(get_roles=lambda: ["Manufacturing Manager"], throw=_throw, log_error=lambda *a, **k: None,
 		get_traceback=lambda: "", new_doc=lambda dt: SE(),
 		get_all=lambda dt, filters=None, fields=None, **k: [dict(dong_cu)] if dong_cu else [],
-		db=NS(get_value=gv, exists=lambda *a: True, sql=lambda q, v=None, **k: khoa.append((q, v))))
+		db=NS(get_value=gv, exists=lambda *a: True, sql=lambda q, v=None, **k: (khoa.append((q, v)), ((1,),))[1]))
 	with patch.object(tc, "frappe", f), patch.object(ks, "_kho_dich_cua_ma", lambda ma, kho: "Pastry - Thành phẩm - TV"):
 		kq1 = tc.tao_phieu_ve_dung_kho("BAWC00046", "Pastry - Nguyên liệu - TV", 7)
 		la("lần đầu lập phiếu mới", (kq1["name"], len(tao)), ("PCK-MOI", 1))
@@ -515,3 +517,12 @@ def _l2_idempotent():
 		except ValueError as e:
 			dung("nói tên phiếu cũ và số", "PCK-CU" in str(e) and "5" in str(e))
 		la("không lập thêm phiếu", len(tao), 1)
+		# Codex vong 7: khong lay duoc khoa (get_lock tra 0) thi dung, khong insert
+		dong_cu["qty"] = 7
+		f.db.sql = lambda q, v=None, **k: ((0,),)
+		try:
+			tc.tao_phieu_ve_dung_kho("BAWC00046", "Pastry - Nguyên liệu - TV", 7)
+			dung("không có khoá phải dừng", False)
+		except ValueError as e:
+			dung("báo đang bận", "Đang có người khác" in str(e))
+		la("không lập thêm phiếu khi thiếu khoá", len(tao), 1)
