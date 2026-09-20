@@ -309,13 +309,16 @@ def _viec_sai_kho(vai, bo_phan, kho=None):
 	bep = None
 	if bo_phan and bo_phan.startswith("Bếp"):
 		bep = ksx.bep_tu_chuoi(bo_phan)
-	d = ton_chang.ton_theo_chang(bep=bep, chang=ton_chang.SAI_KHO, gioi_han=60)
+	# Codex vong 7: lay du danh sach sai kho roi moi loc theo kho minh giu,
+	# khong cat 60 dong truoc khi loc keo dong cua kho minh bi rot. Hang sai
+	# kho chi vai chuc ma, 1000 la du rong; cat 60 SAU khi loc.
+	d = ton_chang.ton_theo_chang(bep=bep, chang=ton_chang.SAI_KHO, gioi_han=1000)
 	ra = []
 	for x in d.get("ds") or []:
 		r = dong_sai_kho(x, set(vai or []), kho or [])
 		if r:
 			ra.append(r)
-	return ra
+	return ra[:60]
 
 
 def _viec_nhap_kho(vai, kho):

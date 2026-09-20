@@ -464,10 +464,16 @@ def tao_phieu_ve_dung_kho(ma, kho_sai, sl):
 	# cung insert. Khoa ten (GET_LOCK) theo ma + kho di + kho den cho toi khi
 	# request xong, may sau vao thi da thay phieu cua may truoc.
 	khoa = "vgb_ve_dung_kho:%s|%s|%s" % (ma, kho_sai, dung)
+	# Codex vong 7: phai doc ket qua khoa. Khong lay duoc (0/None) thi dung,
+	# khong di tiep khong khoa.
 	try:
-		frappe.db.sql("select get_lock(%s, 5)", (khoa,))
+		kq_khoa = frappe.db.sql("select get_lock(%s, 5)", (khoa,))
+		duoc = bool(kq_khoa and kq_khoa[0] and kq_khoa[0][0])
 	except Exception:
-		pass
+		duoc = False
+	if not duoc:
+		frappe.throw("Đang có người khác lập phiếu chuyển cho %s từ %s. Chờ vài giây rồi bấm lại." % (ma, kho_sai),
+			title="Đang bận")
 	da_co = frappe.db.get_value("Stock Entry", {
 		"docstatus": 0, "purpose": "Material Transfer", "from_warehouse": kho_sai, "to_warehouse": dung,
 		"remarks": ["like", "Chuyển về đúng kho theo chặng%%: %s từ %%" % ma],
