@@ -45380,7 +45380,7 @@ async function tchChuyenVeDungKho(ma) {
     try {
       var kq = await api('vagabond.ton_chang.tao_phieu_ve_dung_kho', { ma: ma, kho_sai: k.kho, sl: k.sl });
       busy(false);
-      toast('Đã lập phiếu nháp ' + (kq && kq.name) + ', chờ ghi sổ trên máy tính.', 4500);
+      toast((kq && kq.da_co ? 'Đã có phiếu nháp ' : 'Đã lập phiếu nháp ') + (kq && kq.name) + ', chờ ghi sổ trên máy tính.', 4500);
     } catch (e) { busy(false); baoTin((e && e.message) || 'Không lập được phiếu'); }
   }
 }
