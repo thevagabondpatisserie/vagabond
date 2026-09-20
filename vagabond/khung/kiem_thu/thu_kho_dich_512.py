@@ -95,8 +95,8 @@ def _fail_closed():
 	doan = s.split("def gan_kho_thanh_pham")[1].split("\ndef ")[0]
 	dung("không còn try bao cả hàm", not doan.lstrip().startswith('"""') or "\n\ttry:\n\t\tif doc.docstatus" not in doan)
 	dung("lỗi tra kho thì throw", "frappe.throw(" in doan and "Chưa rõ kho đích theo chặng" in doan)
-	doan2 = s.split("def chan_nhap_sai_kho")[1].split("\ndef ")[0]
-	dung("chặn chuyển kho cũng fail closed", "Chưa rõ kho đích theo chặng" in doan2 and "continue\n\t\tif dung" not in doan2)
+	doan2 = s.split("def nhac_nhap_sai_kho")[1].split("\ndef ")[0]
+	dung("chuyển kho tay chỉ NHẮC, không throw (anh Việt 20/09)", "frappe.msgprint(" in doan2 and "frappe.throw(" not in doan2)
 	dung("ca kiểm thật đăng ký", "thu_kho_dich_512" in _doc("vagabond", "khung", "kiem_that", "cua.py"))
 	# Chay that ham: tra kho nem loi thi phieu phai DUNG (dot bien 19/09 chen
 	# `continue` truoc throw van xanh voi phep do chuoi, nen them ca nay).
@@ -137,8 +137,10 @@ def _y1_khoa_o():
 	dung("nhánh bếp là chữ đọc, ghi rõ máy tự chọn", "máy tự chọn theo chặng" in doan)
 
 
-@ca("v512 y2: chuyen kho, nhap tay vao kho bep sai chang thi CHAN; kiem ke chi canh bao")
-def _y2_chan():
+@ca("v512 y2 (doi 20/09): chuyen kho, nhap tay vao kho bep sai chang chi NHAC, khong chan; kiem ke cung chi nhac")
+def _y2_nhac():
+	# Anh Viet 20/09/2026: "khong can chan gi ca... cu de hang hoa thoai mai
+	# tu do luu chuyen". Ban 19/09 chan ba loai phieu; nay chi nhac.
 	from types import SimpleNamespace as NS
 	from unittest.mock import patch
 
@@ -152,34 +154,48 @@ def _y2_chan():
 		o.get = lambda k, _o=o: getattr(_o, k, None)
 		return o
 
-	nem_ra = []
-	f = NS(throw=lambda m, **k: (_ for _ in ()).throw(ValueError(m)), msgprint=lambda *a, **k: nem_ra.append(a[0]),
+	nhac = []
+	f = NS(throw=lambda m, **k: (_ for _ in ()).throw(ValueError(m)), msgprint=lambda *a, **k: nhac.append(a[0]),
 		log_error=lambda *a, **k: None, get_traceback=lambda: "")
 	with patch.object(ks, "frappe", f), patch.object(ks, "_kho_dich_cua_ma",
 			lambda ma, kho: "Pastry - Thành phẩm - TV" if ma.startswith("BAWC") and "Nguyên liệu" in kho else None):
 		dong = [_dong(item_code="BAWC00046", t_warehouse="Pastry - Nguyên liệu - TV")]
 		for muc in ("Material Transfer", "Material Receipt", "Material Transfer for Manufacture"):
-			try:
-				ks.chan_nhap_sai_kho(_phieu(muc, dong))
-				dung("phải chặn " + muc, False)
-			except ValueError as e:
-				dung("nói rõ kho đúng", "Pastry - Thành phẩm - TV" in str(e))
-		# dung kho thi qua
-		ks.chan_nhap_sai_kho(_phieu("Material Transfer", [_dong(item_code="BAWC00046", t_warehouse="Pastry - Thành phẩm - TV")]))
-		# BTP vao kho nguyen lieu la dung luat, qua
-		ks.chan_nhap_sai_kho(_phieu("Material Transfer", [_dong(item_code="NBTP00029", t_warehouse="Pastry - Nguyên liệu - TV")]))
-		# Manufacture khong thuoc ham nay (da co gan_kho_thanh_pham tu sua)
-		ks.chan_nhap_sai_kho(_phieu("Manufacture", dong))
-		# phieu da ghi so khong dung
-		ks.chan_nhap_sai_kho(_phieu("Material Transfer", dong, docstatus=1))
-		# kiem ke: chi canh bao
+			ks.nhac_nhap_sai_kho(_phieu(muc, dong))
+		la("ba loại phiếu: ba lời nhắc, không ném", len(nhac), 3)
+		dung("nhắc có tên kho theo chặng", all("Pastry - Thành phẩm - TV" in x for x in nhac))
+		ks.nhac_nhap_sai_kho(_phieu("Material Transfer", [_dong(item_code="BAWC00046", t_warehouse="Pastry - Thành phẩm - TV")]))
+		ks.nhac_nhap_sai_kho(_phieu("Material Transfer", [_dong(item_code="NBTP00029", t_warehouse="Pastry - Nguyên liệu - TV")]))
+		ks.nhac_nhap_sai_kho(_phieu("Manufacture", dong))
+		ks.nhac_nhap_sai_kho(_phieu("Material Transfer", dong, docstatus=1))
+		la("đúng kho, BTP về NL, Manufacture, đã ghi sổ: không nhắc thêm", len(nhac), 3)
+	# Tra kho loi cung khong lam hong phieu
+	with patch.object(ks, "frappe", f), patch.object(ks, "_kho_dich_cua_ma", lambda ma, kho: (_ for _ in ()).throw(RuntimeError("db"))):
+		ks.nhac_nhap_sai_kho(_phieu("Material Transfer", [_dong(item_code="BAWC00046", t_warehouse="Pastry - Nguyên liệu - TV")]))
+	la("lỗi tra kho: bỏ qua, không nhắc, không ném", len(nhac), 3)
+	# kiem ke: chi canh bao
+	with patch.object(ks, "frappe", f), patch.object(ks, "_kho_dich_cua_ma", lambda ma, kho: "Pastry - Thành phẩm - TV"):
 		kk = _phieu("", [_dong(item_code="BAWC00046", warehouse="Pastry - Nguyên liệu - TV", qty=3)])
 		ks.canh_bao_kiem_ke_sai_kho(kk)
-		la("kiểm kê cảnh báo một lần", len(nem_ra), 1)
-		dung("cảnh báo chỉ tên kho đúng", "Pastry - Thành phẩm - TV" in nem_ra[0])
+	la("kiểm kê cảnh báo một lần", len(nhac), 4)
 	h = _doc("vagabond", "hooks.py")
-	dung("hook chặn đăng ký ở validate Stock Entry", '"vagabond.kho_san_xuat.chan_nhap_sai_kho"' in h)
+	dung("hook nhắc đăng ký ở validate Stock Entry, hook chặn cũ không còn",
+		'"vagabond.kho_san_xuat.nhac_nhap_sai_kho"' in h and "chan_nhap_sai_kho" not in h)
 	dung("hook kiểm kê đăng ký", '"vagabond.kho_san_xuat.canh_bao_kiem_ke_sai_kho"' in h)
+
+
+@ca("v512 (20/09): bep lay theo kho dang chon, may khong doi bep cua hang, chi sua chang")
+def _bep_theo_kho():
+	from unittest.mock import patch
+	with patch.object(ks, "_ho_so_mon", lambda ma: (None, None)), patch.object(ks, "_co_btp_con", lambda ma: False), \
+			patch.object(ks, "_bep_cua_mon", lambda ma: "pastry"):
+		la("món Pastry ở kho Baker - Thành phẩm: đúng chặng, để yên", ks._kho_dich_cua_ma("BAWC00046", "Baker - Thành phẩm - TV"), None)
+		la("món Pastry ở kho Baker - Nguyên liệu: sửa chặng trong Baker", ks._kho_dich_cua_ma("BAWC00046", "Baker - Nguyên liệu - TV"), "Baker - Thành phẩm - TV")
+		la("kho tổng: không đụng", ks._kho_dich_cua_ma("BAWC00046", "Kho tổng 307 - TV"), None)
+		la("hậu tố theo kho", ks._kho_dich_cua_ma("BAWC00046", "Pastry - Nguyên liệu - VK"), "Pastry - Thành phẩm - VK")
+	s = _doc("vagabond", "kho_san_xuat.py")
+	doan = s.split("def _kho_dich_cua_ma")[1].split("\ndef ")[0]
+	dung("không còn ưu tiên bếp phụ trách trên món", "_bep_cua_mon" not in doan)
 
 
 @ca("v512 y3: kho dung cua dong sai kho, va cua tao phieu chuyen nhap dang ky cua ngo")
