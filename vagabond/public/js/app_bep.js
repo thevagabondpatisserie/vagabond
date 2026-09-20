@@ -5237,33 +5237,73 @@ async function scrPayView(name) {
 }
 
 /* ---------- 12. Tra ton kho ---------- */
-var stk = { wh: 'Kho tổng 307 - TV', q: '' };
+/* v513 (anh Viet 20/09/2026): may chu tra mot lan du loai hang, anh mon, lo
+   can han, ton am; man co chip loc, sap xep, va bam vao mot ma thi thay ma do
+   nam o kho nao, lo nao het han ngay nao. Nguon: vagabond.tra_ton. */
+var stk = { wh: 'Kho tổng 307 - TV', q: '', chip: '', sap: 'ten', d: null };
+var STK_SAP = [['ten', 'A-Z'], ['nhieu', 'Tồn nhiều'], ['it', 'Tồn ít']];
+function stkIcon(loai) { return { bao_bi: '🛍️', ccdc: '🧰', nguyen_lieu: '🥚', btp: '🥣', thanh_pham: '🎂' }[loai] || '📦'; }
+function stkAnh(x, size) {
+  var s = size || 44;
+  return x.anh
+    ? '<img src="' + h(x.anh) + '" loading="lazy" style="width:' + s + 'px;height:' + s + 'px;object-fit:cover;border-radius:10px;flex:none;border:1px solid #e5e7eb;background:#f4f5f8">'
+    : '<div style="width:' + s + 'px;height:' + s + 'px;border-radius:10px;flex:none;background:#f4f5f8;display:flex;align-items:center;justify-content:center;font-size:' + Math.round(s * 0.5) + 'px">' + stkIcon(x.loai) + '</div>';
+}
+function stkTag(x) {
+  var t = [];
+  if (x.ton < 0) t.push('<span class="st r">Tồn âm</span>');
+  if (x.qua_han) t.push('<span class="st r">' + x.qua_han + ' lô quá hạn</span>');
+  else if (x.can_han) t.push('<span class="st w">' + x.can_han + ' lô cận hạn</span>');
+  return t.length ? '<div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap">' + t.join('') + '</div>' : '';
+}
+async function stkTai() {
+  stk.d = await api('vagabond.tra_ton.ton_kho', { kho: stk.wh, tim: stk.q, chip: stk.chip, sap: stk.sap });
+}
 async function scrStock() {
   frame('Tra tồn kho', '<div class="emp"><div class="e1">⏳</div></div>');
-  var rows = await getList('Bin', { fields: ['item_code', 'actual_qty', 'stock_uom'], filters: { warehouse: stk.wh, actual_qty: ['!=', 0] }, limit_page_length: 0, order_by: 'item_code' });
-  var codes = rows.map(function (r) { return r.item_code; });
-  var names = {};
-  for (var ci = 0; ci < codes.length; ci += 400) {
-    var lot = codes.slice(ci, ci + 400);
-    var its = await getList('Item', { fields: ['name', 'item_name'], filters: { name: ['in', lot] }, limit_page_length: 0 });
-    its.forEach(function (i) { names[i.name] = i.item_name; });
-  }
+  try { await stkTai(); }
+  catch (e) { frame('Tra tồn kho', '<div class="emp"><div class="e1">🔒</div><div>' + h(errMsg(e)) + '</div></div>'); return; }
   function draw() {
-    var q = stk.q.toLowerCase();
-    var f = rows.filter(function (r) { return !q || ((names[r.item_code] || '') + ' ' + r.item_code).toLowerCase().indexOf(q) >= 0; }).slice(0, 250);
+    var d = stk.d || {}, dem = d.dem || {};
+    var chips = '<div class="chip' + (stk.chip === '' ? ' on' : '') + '" data-sc="">Tất cả <b>' + (dem[''] || 0) + '</b></div>' +
+      (d.loai || []).map(function (l) {
+        if (!dem[l.ma] && l.ma === 'khac') return '';
+        return '<div class="chip' + (stk.chip === l.ma ? ' on' : '') + '" data-sc="' + l.ma + '">' + l.icon + ' ' + h(l.ten) + ' <b>' + (dem[l.ma] || 0) + '</b></div>';
+      }).join('') +
+      (dem.can_han ? '<div class="chip' + (stk.chip === 'can_han' ? ' on' : '') + '" data-sc="can_han" style="border-color:#fcd34d;color:#92400e">⏰ Cận hạn <b>' + dem.can_han + '</b></div>' : '') +
+      (dem.am ? '<div class="chip' + (stk.chip === 'am' ? ' on' : '') + '" data-sc="am" style="border-color:#fca5a5;color:#b3261e">⚠ Tồn âm <b>' + dem.am + '</b></div>' : '');
+    var sap = STK_SAP.map(function (s) {
+      return '<span data-ss="' + s[0] + '" style="cursor:pointer;padding:4px 10px;border-radius:999px;font-size:12.5px;' + (stk.sap === s[0] ? 'background:#05323C;color:#fff' : 'background:#eef0f4;color:#4a5061') + '">' + s[1] + '</span>';
+    }).join('');
+    var ds = d.ds || [];
     var b = frame('Tra tồn kho',
       '<div class="card"><div class="fld" data-w><div class="fi">🏬</div><div class="ft"><div class="fl">Kho</div>' +
       '<div class="fv">' + h(shortWh(stk.wh)) + '</div></div><div class="fc">&#8250;</div></div></div>' +
-      srchBox('sq', 'Tìm hàng hoá', stk.q, true) +
-      (f.length ? '<div class="lst">' + f.map(function (r) {
-        return '<div class="li"><div class="lt"><div class="l1">' + h(names[r.item_code] || r.item_code) + '</div>' +
-          '<div class="l2">Mã: ' + h(r.item_code) + '</div></div>' +
-          '<div style="text-align:right"><div class="amt">' + num(r.actual_qty) + '</div>' +
-          '<div class="l2">' + h(r.stock_uom) + '</div></div></div>';
-      }).join('') + '</div>' : '<div class="emp"><div class="e1">📦</div><div class="e2">Kho này chưa có tồn</div></div>'));
+      srchBox('sq', 'Tìm tên hoặc mã hàng', stk.q, true) +
+      '<div class="chips">' + chips + '</div>' +
+      '<div style="display:flex;align-items:center;gap:8px;margin:-2px 0 9px;flex-wrap:wrap">' +
+      '<div style="font-size:12.5px;color:#0f766e;background:#ccfbf1;border-radius:8px;padding:7px 11px;flex:1;min-width:0;line-height:1.5">📊 ' + h(d.tom_tat || '') + '</div>' +
+      '<div style="display:flex;gap:6px">' + sap + '</div></div>' +
+      (ds.length ? '<div class="lst">' + ds.map(function (x) {
+        return '<div class="li" data-sm="' + h(x.ma) + '">' + stkAnh(x) + '<div class="lt"><div class="l1">' + h(x.ten) + '</div>' +
+          '<div class="l2">' + h(x.ma) + (x.nhom ? ' · ' + h(x.nhom) : '') + '</div>' + stkTag(x) + '</div>' +
+          '<div style="text-align:right;flex:none"><div class="amt"' + (x.ton < 0 ? ' style="color:#b3261e"' : '') + '>' + num(x.ton) + '</div>' +
+          '<div class="l2">' + h(x.dvt) + '</div>' +
+          (d.xem_gia_tri && x.gia_tri ? '<div class="l2" style="color:#98a2b3">' + money(x.gia_tri) + ' đ</div>' : '') + '</div></div>';
+      }).join('') + '</div>' +
+        (d.tong_dong > ds.length ? '<div style="text-align:center;font-size:12px;color:#98a2b3;padding:10px">Đang hiện ' + ds.length + ' trên ' + d.tong_dong + ', gõ ô tìm để thu hẹp</div>' : '')
+        : '<div class="emp"><div class="e1">📦</div><div class="e2">' + (stk.q || stk.chip ? 'Không có mã nào khớp' : 'Kho này chưa có tồn') + '</div></div>'));
     var sq = document.getElementById('sq');
     var tm = null;
-    sq.oninput = function () { stk.q = sq.value; clearTimeout(tm); tm = setTimeout(function () { var v = stk.q; draw(); var i = document.getElementById('sq'); i.focus(); i.value = v; i.setSelectionRange(v.length, v.length); }, 200); };
+    sq.oninput = function () {
+      stk.q = sq.value; clearTimeout(tm);
+      tm = setTimeout(async function () {
+        var v = stk.q;
+        try { await stkTai(); } catch (e) { return; }
+        if (stk.q !== v) return;
+        draw(); var i = document.getElementById('sq'); i.focus(); i.value = v; i.setSelectionRange(v.length, v.length);
+      }, 250);
+    };
     document.getElementById('sqscan').onclick = async function () {
       var code = await scanBarcode();
       if (!code) return;
@@ -5273,13 +5313,57 @@ async function scrStock() {
       busy(0);
       stk.q = ic || code;
       if (!ic) toast('Không tìm thấy hàng hoá có mã vạch này');
+      try { await stkTai(); } catch (e) { }
       draw();
     };
-    b.onclick = function (e) {
-      if (e.target.closest('[data-w]')) sheet('Chọn kho', whOpts(), stk.wh, function (o) { stk.wh = o.value; stk.q = ''; scrStock(); }, true);
+    b.onclick = async function (e) {
+      if (e.target.closest('[data-w]')) return sheet('Chọn kho', whOpts(), stk.wh, async function (o) { stk.wh = o.value; stk.q = ''; stk.chip = ''; scrStock(); }, true);
+      var c = e.target.closest('[data-sc]');
+      if (c) { stk.chip = c.getAttribute('data-sc'); busy(1); try { await stkTai(); } catch (er) { } busy(0); return draw(); }
+      var s = e.target.closest('[data-ss]');
+      if (s) { stk.sap = s.getAttribute('data-ss'); busy(1); try { await stkTai(); } catch (er) { } busy(0); return draw(); }
+      var m = e.target.closest('[data-sm]');
+      if (m) return stkChiTiet(m.getAttribute('data-sm'));
     };
   }
   draw();
+}
+/* Mot ma nam o kho nao, lo nao het han ngay nao. */
+async function stkChiTiet(ma) {
+  busy(1);
+  var d;
+  try { d = await api('vagabond.tra_ton.chi_tiet_ma', { ma: ma }); }
+  catch (e) { busy(0); return toast(errMsg(e) || 'Không đọc được chi tiết'); }
+  busy(0);
+  var tt = { qua_han: ['r', 'Quá hạn'], can_han: ['w', 'Cận hạn'] };
+  var html = '<div style="display:flex;gap:12px;align-items:center;margin-bottom:12px">' + stkAnh(d, 64) +
+    '<div style="min-width:0"><div style="font-size:16px;font-weight:700;line-height:1.3">' + h(d.ten) + '</div>' +
+    '<div class="l2">' + h(d.ma) + (d.nhom ? ' · ' + h(d.nhom) : '') + '</div>' +
+    '<div style="font-size:15px;margin-top:4px">Tổng: <b>' + num(d.tong) + '</b> ' + h(d.dvt) + '</div></div></div>' +
+    '<div style="font-size:12.5px;color:#6b7280;margin:6px 0 4px;font-weight:600">TỒN THEO KHO</div>' +
+    (d.kho.length ? '<div class="lst">' + d.kho.map(function (k) {
+      return '<div class="li" style="padding:10px 12px"><div class="lt"><div class="l1" style="font-size:14.5px">' + h(shortWh(k.kho)) + '</div></div>' +
+        '<div class="amt" style="font-size:16px' + (k.sl < 0 ? ';color:#b3261e' : '') + '">' + num(k.sl) + '</div></div>';
+    }).join('') + '</div>' : '<div class="l2">Không còn ở kho nào</div>') +
+    (d.lo.length ? '<div style="font-size:12.5px;color:#6b7280;margin:12px 0 4px;font-weight:600">LÔ CÒN HÀNG (hạn gần trước)</div><div class="lst">' + d.lo.map(function (l) {
+      var t = tt[l.tt];
+      return '<div class="li" style="padding:10px 12px"><div class="lt"><div class="l1" style="font-size:14px">' + h(l.lo) + (t ? ' <span class="st ' + t[0] + '">' + t[1] + '</span>' : '') + '</div>' +
+        '<div class="l2">' + h(shortWh(l.kho)) + (l.han ? ' · HSD ' + h(l.han) : ' · không có HSD') + '</div></div>' +
+        '<div class="amt" style="font-size:16px">' + num(l.sl) + '</div></div>';
+    }).join('') + '</div>' : '');
+  stkSheetHtml('Chi tiết tồn', html);
+}
+/* Tam truot chi de xem, dong bang nut X hay cham ra ngoai. */
+function stkSheetHtml(title, html) {
+  var ov = document.createElement('div'); ov.className = 'sh';
+  var box = document.createElement('div'); box.className = 'shb';
+  box.innerHTML = '<div class="shh"><b>' + h(title) + '</b><div class="x">&times;</div></div>' +
+    '<div class="shl" style="padding:12px 14px calc(env(safe-area-inset-bottom,0px) + 16px)">' + html + '</div>';
+  ov.appendChild(box); document.body.appendChild(ov);
+  function close() { ov.remove(); }
+  ov.onclick = function (e) { if (e.target === ov) close(); };
+  box.querySelector('.x').onclick = close;
+  return close;
 }
 
 /* ---------- 12b. Bang bep ---------- */
@@ -21774,7 +21858,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '512';
+var APPVER = '513';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -50013,7 +50097,7 @@ async function scrXkPvNew() {
       '<div class="vf"><div class="vfh"><span class="ic">📝</span><b>Ghi chú</b></div>' +
       '<input class="vfi" id="xpvgc" placeholder="Ví dụ: chốt tuần 38" value="' + h(st.ghiChu) + '"></div>' +
       ngoaiPhamViHtml() +
-      xktNutChinh('xpvluu', 'Lưu phiếu, chờ kế toán ghi sổ', 'Tồn kho chỉ trừ sau khi kế toán bấm Ghi sổ.') +
+      xktNutChinh('xpvluu', 'Ghi sổ phiếu xuất', 'Bấm là tồn kho trừ ngay theo số đã dùng (từ 20/09/2026, không chờ kế toán).') +
       '</div>';
   }
 
@@ -50133,6 +50217,8 @@ async function scrXkPvNew() {
     var d = demXong();
     if (d.loi) { toast('Có ' + d.loi + ' dòng đang sai, sửa trước khi lưu.'); return; }
     if (!d.n) { toast('Chưa mã nào có hàng đi ra. Gõ số còn lại cho ít nhất một mã.'); return; }
+    /* Ghi so la tru kho THAT, tu app khong hoan lai duoc: hoi mot lan. */
+    if (!await xacNhan('Ghi sổ ' + d.n + ' mã đã dùng ở ' + shortWh(st.kho) + '?\n\nTồn kho sẽ trừ ngay và không hoàn lại được từ app.', 'Ghi sổ phiếu xuất', 'Ghi sổ')) return;
     var gui = [];
     var ds = XPV.bang || [];
     for (var i = 0; i < ds.length; i++) {
@@ -50152,8 +50238,9 @@ async function scrXkPvNew() {
       XPV.bang = null;
       XPV.bangKho = '';
       st.ghiChu = '';
-      st.tab = 'cho';
-      toast('Đã lưu ' + r.name + ' với ' + r.so_dong + ' mã, chờ kế toán ghi sổ.');
+      /* 20/09/2026: quay lap la tru kho ngay (phuong an 1 anh Viet chot). */
+      st.tab = 'xong';
+      toast('Đã ghi sổ ' + r.name + ' với ' + r.so_dong + ' mã, tồn kho đã trừ.' + (r.thay_phieu_cu ? ' Phiếu nháp cũ ' + r.thay_phieu_cu + ' đã bỏ.' : ''), 5000);
       go(function () { scrXkPvView(r.name); }, true);
     } catch (e) {
       this.disabled = false;
