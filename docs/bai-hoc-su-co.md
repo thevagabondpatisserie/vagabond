@@ -850,3 +850,10 @@ không được ghép cứng trong luật, đọc từ chính tên kho đang xé
 sửa-cho-đúng mà gặp điều kiện không sửa được thì phải DỪNG chứ không được bỏ
 qua, vì "bỏ qua" ở đây chính là cái lỗi hook sinh ra để chặn. Ca kiểm thuần
 phải chạy thật hàm với db.exists trả False, không chỉ dò chuỗi.
+
+Quyết định 20/09 (anh Việt): *"không cần chặn gì cả. Anh sợ chặn lắm rồi lại
+phát sinh vấn đề. Cứ để hàng hoá thoải mái tự do lưu chuyển."* Nên: chuyển kho
+tay, nhập tay vào kho bếp khác chặng chỉ NHẮC, không chặn; máy không đổi bếp
+của hàng (món Pastry nằm ở kho Baker là việc của hai bếp), chỉ sửa chặng trong
+cùng bếp và chỉ trên lệnh/phiếu sản xuất. Bài học: hàng rào "chặn" phải do
+chủ tiệm chốt, mặc định của kỹ thuật là nhắc và làm hiện ra, không chặn.
