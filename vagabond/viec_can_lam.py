@@ -288,8 +288,10 @@ def dong_sai_kho(x, vai, kho):
 	kho đầu tiên cho cả dòng. Không còn kho sai nào thuộc mình thì trả None.
 	"""
 	cac = [k for k in x.get("kho") or [] if k.get("sai")]
-	if kho and (vai & VAI_KHO) and not (vai & (VAI_THU_MUA | VAI_GIAM_DOC)):
-		cac = [k for k in cac if k.get("kho") in kho]
+	# Codex vong 6: nguoi giu kho ma CHUA khai kho nao thi khong co viec sai
+	# kho, khong phai thay het (kho rong van loc).
+	if (vai & VAI_KHO) and not (vai & (VAI_THU_MUA | VAI_GIAM_DOC)):
+		cac = [k for k in cac if k.get("kho") in (kho or [])]
 	if not cac:
 		return None
 	cap = "; ".join("%s -> %s" % (k.get("kho"), k.get("kho_dung") or x.get("kho_dung") or "?") for k in cac)

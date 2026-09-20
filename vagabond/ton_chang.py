@@ -460,12 +460,28 @@ def tao_phieu_ve_dung_kho(ma, kho_sai, sl):
 	# bam) khong duoc de ra hai phieu nhap giong nhau, vi phieu nhap khong tru
 	# ton nen lan hai van thay du hang. Da co phieu nhap cung ma, cung kho di
 	# va kho den do chinh nut nay lap thi tra lai phieu do.
+	# Codex vong 6: hai may bam cung luc thi ca hai deu chua thay phieu nao roi
+	# cung insert. Khoa ten (GET_LOCK) theo ma + kho di + kho den cho toi khi
+	# request xong, may sau vao thi da thay phieu cua may truoc.
+	khoa = "vgb_ve_dung_kho:%s|%s|%s" % (ma, kho_sai, dung)
+	try:
+		frappe.db.sql("select get_lock(%s, 5)", (khoa,))
+	except Exception:
+		pass
 	da_co = frappe.db.get_value("Stock Entry", {
 		"docstatus": 0, "purpose": "Material Transfer", "from_warehouse": kho_sai, "to_warehouse": dung,
 		"remarks": ["like", "Chuyển về đúng kho theo chặng%%: %s từ %%" % ma],
 	}, ["name", "posting_date"], as_dict=True)
 	if da_co:
-		return {"name": da_co.name, "tu": kho_sai, "den": dung, "sl": sl, "da_co": 1}
+		# Codex vong 6: phieu cu phai dung mon va dung SO HIEN TAI, khong thi
+		# bao nguoi dung xu ly phieu cu tren Desk chu khong tra phieu lech so.
+		dong = frappe.get_all("Stock Entry Detail", filters={"parent": da_co.name, "item_code": ma,
+			"s_warehouse": kho_sai, "t_warehouse": dung}, fields=["qty"])
+		sl_cu = sum(flt(x["qty"]) for x in dong)
+		if not dong or abs(sl_cu - ton) > 0.0001:
+			frappe.throw("Đã có phiếu nháp %s chuyển %s %s từ %s, nhưng tồn hiện là %s. Mở phiếu đó trên máy tính, "
+				"sửa số hoặc huỷ rồi bấm lại." % (da_co.name, sl_cu, ma, kho_sai, ton), title="Phiếu nháp cũ lệch số")
+		return {"name": da_co.name, "tu": kho_sai, "den": dung, "sl": sl_cu, "da_co": 1}
 	se = frappe.new_doc("Stock Entry")
 	se.company = frappe.db.get_value("Warehouse", kho_sai, "company")
 	se.purpose = "Material Transfer"
