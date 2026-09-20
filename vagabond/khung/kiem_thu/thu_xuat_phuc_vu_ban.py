@@ -198,6 +198,11 @@ class ToGia(SimpleNamespace):
 	def __init__(self, **k):
 		super().__init__(**k)
 		self.flags = SimpleNamespace()
+		self.da_submit = 0
+
+	def submit(self):
+		self.da_submit = 1
+		self.docstatus = 1
 
 	def __getattr__(self, ten):
 		return None
@@ -257,9 +262,14 @@ def _chay_luu(dong, bp="Cửa hàng D1", tai_khoan=None, ton_that=None, phieu_ch
 		giu["to"] = t
 		return t
 
+	def _get_doc(dt, n):
+		giu["phieu_cu"] = ToGia(name=n, doctype=dt, docstatus=0)
+		return giu["phieu_cu"]
+
 	gia = SimpleNamespace(
 		get_all=_get_all,
 		new_doc=_new_doc,
+		get_doc=_get_doc,
 		db=SimpleNamespace(
 			get_value=lambda dt, n, f=None, **k: {"abbr": "TV"}.get(f, "Kho D1"),
 			exists=lambda dt, n: True,
@@ -273,9 +283,13 @@ def _chay_luu(dong, bp="Cửa hàng D1", tai_khoan=None, ton_that=None, phieu_ch
 			patch.object(xuat_kho, "_chan_qua_ton", lambda kho, sach: None), \
 			patch.object(xuat_kho, "_tk_chi_phi", lambda ct: "632 - Giá vốn hàng bán - TV"), \
 			patch.object(bo_phan, "la_bo_phan_hop_le", lambda t: bool((t or "").strip())), \
-			patch.object(bo_phan, "ten_that", lambda t, vt: "%s - %s" % (t, vt)):
+			patch.object(bo_phan, "ten_that", lambda t, vt: "%s - %s" % (t, vt)), \
+			patch.object(xp.chung_tu, "danh_dau_huy", lambda doc, ly_do: giu.__setitem__("huy_cu", (doc.name, ly_do))):
 		ra = xp.luu(kho=KHO, bo_phan_chiu=bp, ghi_chu="chốt tuần", dong=json.dumps(dong))
-	return ra, giu.get("to")
+	t = giu.get("to")
+	if t is not None:
+		t.huy_cu = giu.get("huy_cu")
+	return ra, t
 
 
 @ca("v507: luu that - moi nhom mon ve dung tai khoan cua no")
@@ -295,7 +309,8 @@ def _luu_dung_tai_khoan():
 	sl = {d["item_code"]: d["qty"] for d in t.items}
 	la("số lượng bao bì", sl["BPKG00011"], 120.0)
 	la("số lượng nguyên liệu", sl["NVLT00156"], 855.0)
-	la("phiếu là bản nháp chờ ghi sổ", ra["trang_thai"], "Chờ ghi sổ")
+	la("20/09: lưu là ghi sổ ngay, không chờ kế toán", ra["trang_thai"], "Đã ghi sổ")
+	la("phiếu đã submit", t.da_submit, 1)
 	la("mang đúng mã của màn này", t.vgb_muc_dich_xuat, xuat_kho.MA_PHUC_VU_BAN)
 	la("mọi dòng mang bộ phận của điểm bán",
 		{d["cost_center"] for d in t.items}, {"Cửa hàng D1 - TV"})
@@ -505,23 +520,30 @@ def _ghi_so_cheo():
 		"không phải phiếu xuất kho phục vụ bán hàng" in loi2)
 
 
-@ca("v507: mot kho chi co MOT phieu cho ghi so, lap lai thi bi chan")
-def _mot_kho_mot_phieu_cho():
-	# Codex bat tren PR #344: mat phan hoi HTTP roi bam lai, hoac hai nguoi
-	# cung chot mot kho, la hai phieu nhap cung so da dung. Ca hai deu ghi
-	# so thi ton 100 dem 80 bi tru hai lan con 60.
-	loi = ""
-	try:
-		_chay_luu([_dong("BPKG00011", 3920, 3800)], phieu_cho="PXB-CU")
-	except AssertionError as e:
-		loi = str(e)
-	dung("bị chặn", bool(loi))
-	dung("nói tên phiếu đang chờ", "PXB-CU" in loi)
-	dung("chỉ đường: ghi sổ hoặc bỏ phiếu đó trước", "Ghi sổ hoặc bỏ phiếu đó" in loi)
-	# Khong co phieu cho thi lap binh thuong, va bo loc phai dung MA cua man
-	# nay, dung kho nay, chi phieu nhap chua bo.
+@ca("20/09: phieu nhap cu cua kho (thoi hai buoc) bi bo dau huy TRUOC khi ghi so phieu moi, khong tru hai lan")
+def _thay_phieu_cu():
+	# v507 (Codex #344) chan lap phieu thu hai khi kho da co phieu cho. Tu
+	# 20/09 quay lap la ghi so ngay nen khong con phieu cho nao sinh ra nua;
+	# phieu cho con sot tu truoc thi bo dau huy mem kem ly do, roi phieu moi
+	# ghi so. Khong xoa, khong ghi so phieu cu.
+	ra, t = _chay_luu([_dong("BPKG00011", 3920, 3800)], phieu_cho="PXB-CU")
+	la("lập và ghi sổ được", (ra["ok"], ra["trang_thai"], t.da_submit), (1, "Đã ghi sổ", 1))
+	la("báo tên phiếu cũ đã thay", ra["thay_phieu_cu"], "PXB-CU")
+	dung("phiếu cũ bị bỏ dấu huỷ, lý do nói tên phiếu mới", t.huy_cu and t.huy_cu[0] == "PXB-CU" and "20/09/2026" in t.huy_cu[1])
+	# Khong co phieu cho thi lap binh thuong, khong dong vao gi
 	ra, t = _chay_luu([_dong("BPKG00011", 3920, 3800)])
-	la("không có phiếu chờ thì lập được", ra["ok"], 1)
+	la("không có phiếu chờ thì lập được", (ra["ok"], ra["thay_phieu_cu"]), (1, ""))
+	dung("không bỏ phiếu nào", not t.huy_cu)
+	s = _doc_js()
+	dung("app: nút nói rõ ghi sổ ngay", "Ghi sổ phiếu xuất" in s and "chờ kế toán ghi sổ" not in s)
+	dung("app: hỏi xác nhận trước khi trừ", "không hoàn lại được từ app" in s.split("async function luu()")[1].split("api('vagabond.xuat_phuc_vu_ban.luu'")[0])
+
+
+def _doc_js():
+	import io
+	import os
+	goc = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+	return io.open(os.path.join(goc, "public", "js", "bep", "46-xuat-phuc-vu-ban.js"), encoding="utf-8").read()
 
 
 @ca("v507: bo loc phieu cho ghi so: dung ma man nay, dung kho, chi nhap chua bo")
