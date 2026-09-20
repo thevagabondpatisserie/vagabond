@@ -209,6 +209,8 @@ def _j_phieu_ve_dung_kho():
 		return
 	nen._DA_TAO.append(("Stock Entry", kq["name"]))
 	la("kho đến đúng hậu tố của site", kq["den"], kho_tp)
+	kq2 = khong_nem("bấm lần hai", lambda: ton_chang.tao_phieu_ve_dung_kho(tp, kho_nl, 3))
+	la("lần hai trả lại đúng phiếu cũ, không lập thêm (Codex L2)", (kq2 or {}).get("name"), kq["name"])
 	se = frappe.get_doc("Stock Entry", kq["name"])
 	la("phiếu còn NHÁP", se.docstatus, 0)
 	la("dòng phiếu về kho Thành phẩm", se.items[0].t_warehouse, kho_tp)
