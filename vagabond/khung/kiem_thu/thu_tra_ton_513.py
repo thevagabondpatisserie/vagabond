@@ -96,13 +96,23 @@ def _ton_kho():
 		if dt == "Batch":
 			la("chỉ hỏi lô của mã có lô", filters["item"][1], ["NVLT00007"])
 			return [{"name": "LO-1", "item": "NVLT00007", "expiry_date": "2026-09-22"}, {"name": "LO-2", "item": "NVLT00007", "expiry_date": "2026-12-01"}]
+		if dt == "Stock Ledger Entry":
+			# ERPNext v16: LO-1 di qua goi (batch_no NULL), LO-2 ghi thang cot (ban cu), da xuat het
+			return [
+				{"batch_no": None, "warehouse": "Kho tổng 307 - TV", "actual_qty": 5, "serial_and_batch_bundle": "SABB-1"},
+				{"batch_no": "LO-2", "warehouse": "Kho tổng 307 - TV", "actual_qty": 3, "serial_and_batch_bundle": None},
+				{"batch_no": "LO-2", "warehouse": "Kho tổng 307 - TV", "actual_qty": -3, "serial_and_batch_bundle": None},
+			]
+		if dt == "Serial and Batch Entry":
+			la("hỏi đúng gói", filters["parent"][1], ["SABB-1"])
+			return [{"parent": "SABB-1", "batch_no": "LO-1", "qty": 5}]
 		return []
 
-	def _chay(vai):
+	def _chay(vai, chip="", tim=""):
 		f = NS(get_all=_get_all, get_roles=lambda: vai, throw=lambda m, **k: (_ for _ in ()).throw(ValueError(m)),
-			db=NS(exists=lambda *a: True, sql=lambda q, v=None, as_dict=False: [{"batch_no": "LO-1", "sl": 5}, {"batch_no": "LO-2", "sl": 0}]))
+			db=NS(exists=lambda *a: True))
 		with patch.object(tt, "frappe", f), patch.object(tt, "nowdate", lambda: "2026-09-20"):
-			return tt.ton_kho("Kho tổng 307 - TV", "", "", "ten")
+			return tt.ton_kho("Kho tổng 307 - TV", tim, chip, "ten")
 	d = _chay(["Sales User"])
 	la("hai dòng", d["tong_dong"], 2)
 	b = {x["ma"]: x for x in d["ds"]}
@@ -114,6 +124,31 @@ def _ton_kho():
 	la("kho thấy giá trị từng dòng và tổng", (b2["NVLT00007"]["gia_tri"], d2["xem_gia_tri"]), (1200000.0, 1))
 	dung("tổng giá trị trong tóm tắt", "1.250.000 đ" in d2["tom_tat"])
 	la("chip đếm", (d2["dem"][""], d2["dem"]["can_han"]), (2, 1))
+	la("không lọc thì không đánh dấu", d2["dang_loc"], 0)
+	# Codex #350: dang loc thi tom tat noi ve pham vi dang hien, va van co cau ca kho
+	d3 = _chay(["Stock Manager"], chip="bao_bi")
+	la("chỉ còn bao bì", [x["ma"] for x in d3["ds"]], ["BPKG00001"])
+	dung("tóm tắt theo bộ lọc: 1 mã, giá trị 50.000", d3["dang_loc"] == 1 and d3["tom_tat"].startswith("Theo bộ lọc: 1 mã có tồn") and "50.000 đ" in d3["tom_tat"])
+	dung("câu cả kho vẫn còn", "2 mã có tồn" in d3["tom_tat_kho"] and "1.250.000 đ" in d3["tom_tat_kho"])
+	dung("chip vẫn đếm theo cả kho", d3["dem"][""] == 2)
+
+
+@ca("v513 Codex #350: so lo cong ca goi Serial and Batch Bundle lan cot batch_no; lo khong HSD xep sau")
+def _goi_lo():
+	so = tt.gop_so_lo(
+		[(None, "K1", 5, "G1"), ("LO-2", "K1", 3, None), ("LO-2", "K1", -3, None), (None, "K2", -2, "G2"), (None, "K1", 0, None)],
+		{"G1": [("LO-1", 5)], "G2": [("LO-1", -2)]},
+	)
+	la("lô qua gói được cộng theo kho", (so[("LO-1", "K1")], so[("LO-1", "K2")]), (5.0, -2.0))
+	la("lô ghi thẳng cột cộng đúng về 0", so[("LO-2", "K1")], 0.0)
+	la("dòng không lô không gói thì bỏ", len(so), 3)
+	lo = tt.xep_lo([
+		{"lo": "A", "han": ""}, {"lo": "B", "han": "2026-12-01"}, {"lo": "C", "han": "2026-09-22"}, {"lo": "D", "han": None},
+	])
+	la("có hạn xếp trước theo hạn gần, không hạn xếp sau", [x["lo"] for x in lo], ["C", "B", "A", "D"])
+	s = _doc("vagabond", "tra_ton.py")
+	dung("chi_tiet_ma đi qua _so_lo (cùng nguồn), không tự SELECT batch_no", 'so = _so_lo({"item_code": ma})' in s and "order by b.expiry_date asc" not in s)
+	dung("_lo_trong_kho cũng đi qua _so_lo", '_so_lo({"warehouse": kho, "item_code": ["in", ds_ma]})' in s)
 
 
 @ca("v513: man Tra ton kho doc qua may chu, cua ngo dang ky, ca hanh vi nam trong cong")
