@@ -138,6 +138,15 @@ def dem_chip(rows):
 	return d
 
 
+def xep_lo(lo):
+	"""Lô có hạn xếp trước theo hạn gần nhất, lô không hạn xếp sau. THUẦN.
+
+	MariaDB xếp NULL lên đầu khi order by asc, nên lô không HSD đè lên lô
+	sắp hết hạn (Codex #350). Xếp ở Python cho rõ luật.
+	"""
+	return sorted(lo or [], key=lambda x: (0 if x.get("han") else 1, x.get("han") or "", x.get("lo") or ""))
+
+
 def cau_tom_tat(rows, gia_tri=None):
 	"""Một câu trên đầu màn. THUẦN."""
 	n = len(rows or [])
@@ -159,8 +168,56 @@ def _xem_gia_tri():
 	return bool(VAI_XEM_GIA_TRI & set(frappe.get_roles()))
 
 
+def gop_so_lo(dong_so, dong_goi):
+	"""Cộng số theo (lô, kho) từ hai đường của sổ kho. THUẦN.
+
+	ERPNext v16 để trống cột batch_no của Stock Ledger Entry và cất số lô
+	trong gói Serial and Batch Bundle (số đã mang dấu); bản cũ ghi thẳng
+	batch_no. lo_hang.py đã cộng cả hai đường từ 03/09; màn tra tồn cũng
+	phải vậy, không thì lô nào đi qua gói bị đếm 0 và mất cảnh báo HSD
+	(Codex #350).
+
+	dong_so: [(batch_no, warehouse, actual_qty, bundle)] từ SLE.
+	dong_goi: {bundle: [(batch_no, qty)]} từ Serial and Batch Entry.
+	Trả {(lô, kho): số}.
+	"""
+	ra = {}
+	for lo, kho, sl, goi in dong_so or []:
+		if lo:
+			ra[(lo, kho)] = flt(ra.get((lo, kho), 0)) + flt(sl)
+		elif goi:
+			for lo2, sl2 in (dong_goi or {}).get(goi) or []:
+				if lo2:
+					ra[(lo2, kho)] = flt(ra.get((lo2, kho), 0)) + flt(sl2)
+	return ra
+
+
+def _so_lo(loc_sle):
+	"""{(lô, kho): số} đọc thật từ sổ kho theo bộ lọc SLE, cộng cả hai đường."""
+	dong = frappe.get_all(
+		"Stock Ledger Entry",
+		filters=dict(loc_sle, is_cancelled=0),
+		fields=["batch_no", "warehouse", "actual_qty", "serial_and_batch_bundle"],
+		limit_page_length=0,
+	)
+	goi = sorted({d["serial_and_batch_bundle"] for d in dong if not d.get("batch_no") and d.get("serial_and_batch_bundle")})
+	dong_goi = {}
+	if goi:
+		for e in frappe.get_all(
+			"Serial and Batch Entry",
+			filters={"parenttype": "Serial and Batch Bundle", "parent": ["in", goi]},
+			fields=["parent", "batch_no", "qty"],
+			limit_page_length=0,
+		):
+			dong_goi.setdefault(e["parent"], []).append((e.get("batch_no"), e.get("qty")))
+	return gop_so_lo(
+		[(d.get("batch_no"), d.get("warehouse"), d.get("actual_qty"), d.get("serial_and_batch_bundle")) for d in dong],
+		dong_goi,
+	)
+
+
 def _lo_trong_kho(kho, ds_ma):
-	"""{ma: [(han, sl)]} từ Batch còn hàng trong kho này."""
+	"""{ma: [(han, sl)]} từ lô còn hàng trong kho này, đọc cả gói lẫn cột lô."""
 	if not ds_ma:
 		return {}
 	ra = {}
@@ -172,17 +229,9 @@ def _lo_trong_kho(kho, ds_ma):
 	)
 	if not lo:
 		return ra
-	# Số lượng theo lô trong kho: đọc Stock Ledger Entry gộp, một câu cho
-	# cả kho thay vì gọi get_batch_qty từng lô.
-	sl = frappe.db.sql(
-		"""select batch_no, sum(actual_qty) sl from `tabStock Ledger Entry`
-		where warehouse=%s and is_cancelled=0 and batch_no in %s group by batch_no""",
-		(kho, tuple(b["name"] for b in lo)),
-		as_dict=True,
-	)
-	sl_lo = {x["batch_no"]: flt(x["sl"]) for x in sl}
+	so = _so_lo({"warehouse": kho, "item_code": ["in", ds_ma]})
 	for b in lo:
-		ra.setdefault(b["item"], []).append((b.get("expiry_date"), sl_lo.get(b["name"], 0)))
+		ra.setdefault(b["item"], []).append((b.get("expiry_date"), so.get((b["name"], kho), 0)))
 	return ra
 
 
@@ -235,13 +284,19 @@ def ton_kho(kho=None, tim=None, chip=None, sap=None):
 		rows.append(r)
 	tat_ca = sap_xep(rows, sap or "ten")
 	ds = loc(tat_ca, chip or "", tim or "")
+	dang_loc = bool((chip or "").strip() or (tim or "").strip())
+	# Codex #350: dang loc thi cau tom tat phai noi ve DUNG pham vi dang hien,
+	# khong lay so ca kho gan len tren mot danh sach da loc.
+	gt_loc = sum(flt(r.get("gia_tri")) for r in ds) if xem_gt else None
 	return {
 		"kho": kho,
 		"ds": ds[:300],
 		"tong_dong": len(ds),
 		"dem": dem_chip(tat_ca),
 		"loai": [{"ma": m, "ten": t, "icon": i} for m, t, i in LOAI],
-		"tom_tat": cau_tom_tat(tat_ca, tong_gt if xem_gt else None),
+		"tom_tat": ("Theo bộ lọc: " if dang_loc else "") + cau_tom_tat(ds, gt_loc),
+		"tom_tat_kho": cau_tom_tat(tat_ca, tong_gt if xem_gt else None),
+		"dang_loc": 1 if dang_loc else 0,
 		"xem_gia_tri": 1 if xem_gt else 0,
 		"ngay_can_han": NGAY_CAN_HAN,
 	}
@@ -263,21 +318,18 @@ def chi_tiet_ma(ma=None):
 	)
 	lo = []
 	if it.get("has_batch_no"):
-		rows = frappe.db.sql(
-			"""select sle.batch_no, sle.warehouse, sum(sle.actual_qty) sl, b.expiry_date
-			from `tabStock Ledger Entry` sle left join `tabBatch` b on b.name = sle.batch_no
-			where sle.item_code=%s and sle.is_cancelled=0 and ifnull(sle.batch_no,'')!=''
-			group by sle.batch_no, sle.warehouse having sl > 0
-			order by b.expiry_date asc""",
-			(ma,),
-			as_dict=True,
-		)
+		so = _so_lo({"item_code": ma})
+		han = {b["name"]: b.get("expiry_date") for b in frappe.get_all(
+			"Batch", filters={"item": ma}, fields=["name", "expiry_date"], limit_page_length=0)}
 		hom_nay = nowdate()
-		for r in rows:
+		for (ten_lo, kho_lo), sl in so.items():
+			if flt(sl) <= 0:
+				continue
 			lo.append({
-				"lo": r["batch_no"], "kho": r["warehouse"], "sl": flt(r["sl"]),
-				"han": str(r["expiry_date"] or ""), "tt": trang_thai_lo(r.get("expiry_date"), hom_nay),
+				"lo": ten_lo, "kho": kho_lo, "sl": flt(sl),
+				"han": str(han.get(ten_lo) or ""), "tt": trang_thai_lo(han.get(ten_lo), hom_nay),
 			})
+		lo = xep_lo(lo)
 	return {
 		"ma": ma,
 		"ten": it.get("item_name") or ma,
