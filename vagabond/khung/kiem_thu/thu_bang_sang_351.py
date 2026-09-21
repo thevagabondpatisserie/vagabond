@@ -977,3 +977,27 @@ def _r12():
 	fr.task["TASK-6"]["vgb_goi_y_ket_qua"] = "Đã cách ly lô"
 	fr.session.user, fr.vai = "loan@vgb", ["AP Giám đốc"]
 	nem("giám đốc mở lại việc đã xong trên Desk", lambda: _chay(fr, _luu, _DocGia(name="TASK-6", status="Open", vgb_goi_y_khoa="k", vgb_goi_y_bo_phan="kho", vgb_goi_y_luat="lo_qua_han", vgb_goi_y_ket_qua="Đã cách ly lô")), fr.Loi)
+
+
+# ------------------------------------------------ Codex #356 (SHA 1468158)
+
+@ca("#356 S1: hàng chip khoảng ngày lọc lịch sử theo mốc đúng từng tab")
+def _s1_ky():
+	ds = [{"name": "A", "moc": "2026-09-20"}, {"name": "B", "moc": "2026-09-15"}, {"name": "C", "moc": "2026-08-01"}, {"name": "D", "moc": ""}]
+	la("tất cả", [x["name"] for x in pt.loc_theo_ky(ds, "", "2026-09-20")], ["A", "B", "C", "D"])
+	la("hôm nay", [x["name"] for x in pt.loc_theo_ky(ds, "hom_nay", "2026-09-20")], ["A"])
+	la("7 ngày", [x["name"] for x in pt.loc_theo_ky(ds, "7", "2026-09-20")], ["A", "B"])
+	la("30 ngày", [x["name"] for x in pt.loc_theo_ky(ds, "30", "2026-09-20")], ["A", "B"])
+	bien = [{"name": "N6", "moc": "2026-09-14"}, {"name": "N7", "moc": "2026-09-13"}]
+	la("biên: 7 ngày gồm hôm nay và 6 ngày trước", [x["name"] for x in pt.loc_theo_ky(bien, "7", "2026-09-20")], ["N6"])
+	la("mốc việc xong là ngày xong", pt._dong_viec({"name": "T", "status": "Completed", "completed_on": "2026-09-18", "creation": "2026-09-01 08:00:00"}, {}, datetime.date(2026, 9, 20))["moc"], "2026-09-18")
+	la("mốc bỏ qua là lần sửa cuối", pt._dong_viec({"name": "T", "status": "Cancelled", "modified": "2026-09-19 10:00:00", "creation": "2026-09-01 08:00:00"}, {}, datetime.date(2026, 9, 20))["moc"], "2026-09-19")
+	fr = Gia(user="viet@vgb")
+	fr.task["TASK-1"] = {"name": "TASK-1", "subject": "Xong gần", "status": "Completed", "completed_on": "2026-09-19", "vgb_goi_y_khoa": "k1",
+		"vgb_goi_y_luat": "mon_tang", "vgb_goi_y_bo_phan": "marketing", "_assign": "[]", "owner": "viet@vgb", "creation": "2026-09-10 08:00:00"}
+	fr.task["TASK-2"] = {"name": "TASK-2", "subject": "Xong xa", "status": "Completed", "completed_on": "2026-09-08", "vgb_goi_y_khoa": "k2",
+		"vgb_goi_y_luat": "mon_tang", "vgb_goi_y_bo_phan": "marketing", "_assign": "[]", "owner": "viet@vgb", "creation": "2026-09-01 08:00:00"}
+	r = _chay(fr, pt.bang_sang, "xong", "", "7")
+	la("tab xong + 7 ngày chỉ còn việc gần", (r["ky"], [x["name"] for x in r["ds"]]), ("7", ["TASK-1"]))
+	la("chip khoảng ngày trả về", [c["k"] for c in r["chip_ky"]], ["", "hom_nay", "7", "30"])
+	la("khoảng lạ thì về Tất cả", _chay(fr, pt.bang_sang, "xong", "", "zzz")["ky"], "")
