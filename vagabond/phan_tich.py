@@ -46,10 +46,42 @@ site (vagabond/khung/kiem_thu/thu_bang_sang_351.py).
 import datetime
 import json
 
-import frappe
-from frappe.utils import add_days, cint, flt, getdate, now_datetime, nowdate
+# phần thuần
+# Codex #356 (AGENTS.md mục "Tách phần thuần và phần cần Frappe"): phần trên
+# dòng `import frappe` phải chạy được khi KHÔNG có Frappe, để bộ kiểm tầng
+# khung nạp riêng nó. Nên ba phép đổi kiểu dưới đây viết thuần, không lấy của
+# frappe.utils, và hằng vai lấy từ vai_cua_hang khi có, rơi về bản chép khi
+# không có Frappe (ca kiểm chốt hai bản trùng nhau).
+try:
+	from vagabond.vai_cua_hang import VAI_MARKETING, VAI_QLCH
+except ImportError:
+	VAI_MARKETING, VAI_QLCH = "Marketing", "VGB - Quản lý cửa hàng"
 
-from vagabond.vai_cua_hang import VAI_MARKETING, VAI_QLCH
+
+def flt(v):
+	"""Số thực, hỏng thì 0. THUẦN (thay frappe.utils.flt cho phần thuần)."""
+	if v is None or v == "":
+		return 0.0
+	try:
+		return float(str(v).replace(",", "")) if isinstance(v, str) else float(v)
+	except (TypeError, ValueError):
+		return 0.0
+
+
+def cint(v):
+	"""Số nguyên cắt phần lẻ, hỏng thì 0. THUẦN."""
+	return int(flt(v))
+
+
+def getdate(v=None):
+	"""Ngày từ date, datetime hoặc chuỗi 'YYYY-MM-DD[ ...]'. Trống thì hôm nay. THUẦN."""
+	if v is None or v == "":
+		return datetime.date.today()
+	if isinstance(v, datetime.datetime):
+		return v.date()
+	if isinstance(v, datetime.date):
+		return v
+	return datetime.datetime.strptime(str(v).strip()[:10], "%Y-%m-%d").date()
 
 # Đổi số này mỗi khi đổi cách một luật tính. Việc đã giao lưu kèm số này để
 # sau này tra ngược được việc đó sinh ra từ luật phiên bản nào.
@@ -280,6 +312,10 @@ def xet_tang(q, hang, n=None):
 		return None
 	if q1 <= 0:
 		return "moi" if q0 <= 0 else None
+	# Codex #356: sàn mẫu áp cho TUẦN GỐC, không chỉ tuần gần. Từ 4 lên 12 là
+	# mẫu số nhỏ, "tăng 200%" không có nghĩa.
+	if q1 < n["san_mau"]:
+		return None
 	if hang > n["top_tang"]:
 		return None
 	if q2 - q1 < n["tang_tuyet_doi"]:
@@ -609,7 +645,8 @@ def nhan_dinh_bao_cao_mon(dong_nay, dong_truoc, nhan_truoc, anh=None, n=None):
 			if a >= n["san_mau"]:
 				moi += 1
 			continue
-		if max(a, b) < n["san_mau"]:
+		# Codex #356: kỳ gốc phải đủ mẫu (cùng luật với xet_tang).
+		if b < n["san_mau"]:
 			continue
 		if a - b >= n["tang_tuyet_doi"] and (a - b) / b >= n["tang_ty_le"]:
 			tang.append({"ma": ma, "ten": ten, "anh": anh.get(ma) or "", "nay": a, "truoc": b, "pt": _pt(a, b)})
@@ -622,6 +659,74 @@ def nhan_dinh_bao_cao_mon(dong_nay, dong_truoc, nhan_truoc, anh=None, n=None):
 	return {"so_voi": nhan_truoc, "tang": tang[:2], "giam": giam[:2], "so_tang": len(tang), "so_giam": len(giam), "moi": moi}
 
 
+def loi_nguoi_nhan(email, u):
+	"""Câu lỗi nếu tài khoản này không được nhận việc nội bộ, None nếu được.
+	THUẦN. u: {"enabled", "user_type"} đọc từ User, hoặc None nếu không có.
+
+	Codex #356: gọi thẳng API `giao` thì không qua danh sách chọn của
+	nguoi_de_giao, nên phải soát lại đúng luật đó ở máy chủ: chỉ tài khoản nội
+	bộ (System User) đang bật, không phải Administrator, Guest. Giao cho một
+	Website User là mở Task nội bộ (kèm quyền ghi) cho người ngoài."""
+	if email in ("Administrator", "Guest"):
+		return "Không giao việc cho tài khoản %s. Chọn người trong danh sách." % email
+	if not u or not cint(u.get("enabled")):
+		return "Tài khoản %s không còn hoạt động. Chọn người khác." % email
+	if (u.get("user_type") or "") != "System User":
+		return "Tài khoản %s không phải tài khoản nội bộ nên không nhận việc được. Chọn người trong danh sách." % email
+	return None
+
+
+def soat_ket_qua(trang_thai, trang_thai_cu, ket_qua):
+	"""Câu lỗi nếu Task bảng sáng ở Completed mà thiếu kết quả, None nếu hợp
+	lệ. THUẦN.
+
+	Codex #353 vòng 2: xét MỌI lần lưu khi đang Completed, không chỉ lúc
+	chuyển sang; trước đó sửa trắng ô kết quả của việc đã xong vẫn lưu được.
+	`trang_thai_cu` giữ lại cho chữ ký cũ, không còn dùng để miễn."""
+	if trang_thai == "Completed" and len(str(ket_qua or "").strip()) < 5:
+		return ("Việc này sinh từ màn Việc hôm nay: ghi ngắn kết quả đã làm vào ô \"Kết quả người nhận báo\" "
+			"(mục Gợi ý từ Việc hôm nay) rồi mới đánh dấu xong.")
+	return None
+
+
+def soat_huy(trang_thai, trang_thai_cu, quyen, ly_do, nhac_lai, hom_nay):
+	"""Câu lỗi nếu Task bảng sáng bị chuyển sang Cancelled sai đường. THUẦN.
+
+	Codex #356: người nhận đổi Task sang Cancelled trên Desk thì ERPNext đóng
+	việc mà không có lý do, không có ngày nhắc; nhận định hiện lại ngay ở Cần
+	giao, còn tab Bỏ qua có một dòng không ai hiểu. Huỷ là "bỏ qua", chỉ quản
+	lý làm, và phải có lý do trong danh sách cùng ngày nhắc lại sau hôm nay,
+	đúng như đường bo_qua trên app."""
+	if trang_thai != "Cancelled" or trang_thai_cu == "Cancelled":
+		return None
+	if quyen != "quan_ly":
+		return "Người nhận không huỷ việc được. Làm không được thì ghi kết quả rồi báo xong, hoặc báo người giao để họ bấm Bỏ qua."
+	if ly_do not in TEN_LY_DO:
+		return "Huỷ việc từ màn Việc hôm nay là Bỏ qua: bấm nút \"Bỏ qua việc này\" trên form để chọn lý do và ngày nhắc lại."
+	try:
+		ok = bool(nhac_lai) and getdate(nhac_lai) > getdate(hom_nay)
+	except Exception:
+		ok = False
+	if not ok:
+		return "Bỏ qua phải có ngày nhắc lại sau hôm nay (ô \"Nhắc lại ngày\")."
+	return None
+
+
+def can_kiem_nguoi_sua(nguoi, truoc, trang_thai, ket_qua, vai=None):
+	"""Lần lưu Task bảng sáng này có phải soát người sửa không. THUẦN.
+
+	Codex #353 vòng 4: soát MỌI lần lưu của người thường, không chỉ khi đổi
+	trạng thái hay kết quả. Người nhận cũ còn giữ DocShare ghi, sửa tiêu đề,
+	mô tả, hạn trên Desk cũng làm người đang nhận đọc sai việc. Chỉ nhịp máy
+	(Administrator) và System Manager được miễn. `truoc`, `trang_thai`,
+	`ket_qua` giữ cho chữ ký cũ."""
+	if nguoi in ("Administrator", "Guest", None, ""):
+		return False
+	if "System Manager" in set(vai or []):
+		return False
+	return True
+
+
 def mo_ta_viec(x):
 	"""Nội dung ô mô tả của Task: đọc được trên Desk không cần app. THUẦN."""
 	def e(s):
@@ -630,6 +735,9 @@ def mo_ta_viec(x):
 
 
 # =================================================================== FRAPPE
+
+import frappe  # noqa: E402  phần chạm hệ bắt đầu từ đây
+from frappe.utils import add_days, now_datetime, nowdate  # noqa: E402
 
 def _vai():
 	return set(frappe.get_roles())
@@ -1084,8 +1192,9 @@ def giao(khoa, nguoi, han=None, ghi_chu=None):
 	if not ds:
 		frappe.throw("Chưa chọn người nhận việc. Chọn ít nhất một người rồi bấm Giao.")
 	for e in ds:
-		if not frappe.db.get_value("User", e, "enabled"):
-			frappe.throw("Tài khoản %s không còn hoạt động. Chọn người khác." % e)
+		loi = loi_nguoi_nhan(e, frappe.db.get_value("User", e, ["enabled", "user_type"], as_dict=True))
+		if loi:
+			frappe.throw(loi)
 	han = getdate(han) if han else add_days(_hom_nay(), cint(x.get("han")))
 	if han < _hom_nay():
 		frappe.throw("Hạn không được trước hôm nay.")
@@ -1392,57 +1501,6 @@ def tinh_lai():
 			return {"ok": 0, "cau": "Bảng vừa tính lúc %s. Số bán tính tới hết hôm qua nên tính lại lúc này không đổi gì." % b["chot_luc"][11:16]}
 	_xep_dung()
 	return {"ok": 1, "cau": "Đang tính lại, khoảng một phút nữa bấm Tải lại."}
-
-
-def soat_ket_qua(trang_thai, trang_thai_cu, ket_qua):
-	"""Câu lỗi nếu Task bảng sáng ở Completed mà thiếu kết quả, None nếu hợp
-	lệ. THUẦN.
-
-	Codex #353 vòng 2: xét MỌI lần lưu khi đang Completed, không chỉ lúc
-	chuyển sang; trước đó sửa trắng ô kết quả của việc đã xong vẫn lưu được.
-	`trang_thai_cu` giữ lại cho chữ ký cũ, không còn dùng để miễn."""
-	if trang_thai == "Completed" and len(str(ket_qua or "").strip()) < 5:
-		return ("Việc này sinh từ màn Việc hôm nay: ghi ngắn kết quả đã làm vào ô \"Kết quả người nhận báo\" "
-			"(mục Gợi ý từ Việc hôm nay) rồi mới đánh dấu xong.")
-	return None
-
-
-def can_kiem_nguoi_sua(nguoi, truoc, trang_thai, ket_qua, vai=None):
-	"""Lần lưu Task bảng sáng này có phải soát người sửa không. THUẦN.
-
-	Codex #353 vòng 4: soát MỌI lần lưu của người thường, không chỉ khi đổi
-	trạng thái hay kết quả. Người nhận cũ còn giữ DocShare ghi, sửa tiêu đề,
-	mô tả, hạn trên Desk cũng làm người đang nhận đọc sai việc. Chỉ nhịp máy
-	(Administrator) và System Manager được miễn. `truoc`, `trang_thai`,
-	`ket_qua` giữ cho chữ ký cũ."""
-	if nguoi in ("Administrator", "Guest", None, ""):
-		return False
-	if "System Manager" in set(vai or []):
-		return False
-	return True
-
-
-def soat_huy(trang_thai, trang_thai_cu, quyen, ly_do, nhac_lai, hom_nay):
-	"""Câu lỗi nếu Task bảng sáng bị chuyển sang Cancelled sai đường. THUẦN.
-
-	Codex #356: người nhận đổi Task sang Cancelled trên Desk thì ERPNext đóng
-	việc mà không có lý do, không có ngày nhắc; nhận định hiện lại ngay ở Cần
-	giao, còn tab Bỏ qua có một dòng không ai hiểu. Huỷ là "bỏ qua", chỉ quản
-	lý làm, và phải có lý do trong danh sách cùng ngày nhắc lại sau hôm nay,
-	đúng như đường bo_qua trên app."""
-	if trang_thai != "Cancelled" or trang_thai_cu == "Cancelled":
-		return None
-	if quyen != "quan_ly":
-		return "Người nhận không huỷ việc được. Làm không được thì ghi kết quả rồi báo xong, hoặc báo người giao để họ bấm Bỏ qua."
-	if ly_do not in TEN_LY_DO:
-		return "Huỷ việc từ màn Việc hôm nay là Bỏ qua: bấm nút \"Bỏ qua việc này\" trên form để chọn lý do và ngày nhắc lại."
-	try:
-		ok = bool(nhac_lai) and getdate(nhac_lai) > getdate(hom_nay)
-	except Exception:
-		ok = False
-	if not ok:
-		return "Bỏ qua phải có ngày nhắc lại sau hôm nay (ô \"Nhắc lại ngày\")."
-	return None
 
 
 def kiem_nguoi_sua_task(doc, method=None):
