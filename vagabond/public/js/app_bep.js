@@ -50617,7 +50617,7 @@ function bsThe(x, i, tenBp) {
    ngay tai cho, khong doi man. */
 function bsDongGon(x, i) {
   var m = BS_MUC[x.muc] || BS_MUC.vua;
-  return '<div class="li" data-bsmo="' + h(x.khoa) + '">' + bsAnh(x) +
+  return '<div class="li" data-bsmo="' + h(x.khoa) + '" data-bsi="' + i + '">' + bsAnh(x) +
     '<div class="lt"><div class="l1">' + h(x.tieu_de) + '</div>' +
     '<div class="l2" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + h(x.cau) + '</div></div>' +
     '<span class="st ' + m[0] + '">' + m[1] + '</span></div>';
@@ -50644,9 +50644,14 @@ function bsKhongDau(s) {
 function bsLocDong(b, ds, chu) {
   var q = bsKhongDau(chu).trim();
   var con = 0;
-  b.querySelectorAll('[data-bsv]').forEach(function (el) {
-    var d = ds[+el.getAttribute('data-bsv')] || {};
-    var ok = !q || bsKhongDau([d.tieu_de, (d.nguoi || []).join(' '), d.ly_do, d.ket_qua].join(' ')).indexOf(q) >= 0;
+  /* Dong viec (data-bsv), the nhan dinh (data-bsthe) va dong gon (data-bsi)
+     deu mang chi so vao ds, nen mot ham loc dung cho ca bon tab (Codex #356). */
+  b.querySelectorAll('[data-bsv],[data-bsthe],[data-bsi]').forEach(function (el) {
+    var i = el.getAttribute('data-bsv');
+    if (i == null) i = el.getAttribute('data-bsthe');
+    if (i == null) i = el.getAttribute('data-bsi');
+    var d = ds[+i] || {};
+    var ok = !q || bsKhongDau([d.tieu_de, d.cau, (d.doi || {}).ten, (d.nguoi || []).join(' '), d.ly_do, d.ket_qua].join(' ')).indexOf(q) >= 0;
     el.style.display = ok ? '' : 'none';
     if (ok) con++;
   });
@@ -50710,6 +50715,8 @@ async function scrBangSang() {
         (kq.dang_dung ? 'Bảng hôm nay chưa dựng xong.' : 'Hôm nay chưa có việc nào cần giao' + (bsLoc.bp ? ' cho bộ phận này.' : '.')) + '</div>' +
         '<div style="font-size:13px;color:#8a8f9c;margin-top:8px;line-height:1.55">Máy xét món tăng, món giảm, lô sắp hết hạn và bánh có thể thiếu ngày mai. Không có gì vượt ngưỡng là tin tốt.</div></div>';
     } else {
+      html += '<div style="padding:0 2px 8px"><input class="tin" id="bsTim" placeholder="🔎 Tìm theo tên món, kho, nhận định" style="box-sizing:border-box;width:100%"></div>' +
+        '<div class="emp" id="bsKhongThay" style="display:none;padding:24px 20px"><div class="e2">Không có nhận định nào khớp.</div></div>';
       html += '<div class="sec">Ưu tiên</div>';
       ds.slice(0, 3).forEach(function (x, i) { html += bsThe(x, i, tenBp); });
       if (ds.length > 3) {
