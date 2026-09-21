@@ -578,7 +578,7 @@ def _f1_ket_qua():
 		def __setattr__(s, k, v):
 			s[k] = v
 	fr = Gia(user="mkt@vgb")
-	fr.task["TASK-7"] = {"name": "TASK-7", "status": "Open"}
+	fr.task["TASK-7"] = {"vgb_goi_y_khoa": "k", "name": "TASK-7", "status": "Open"}
 	fr.db.get_value = _gv(fr)
 	fr.todo.append({"reference_type": "Task", "reference_name": "TASK-7", "allocated_to": "mkt@vgb", "status": "Open"})
 	d = DocGia(name="TASK-7", status="Completed", vgb_goi_y_khoa="k")
@@ -586,9 +586,13 @@ def _f1_ket_qua():
 	d2 = DocGia(name="TASK-7", status="Completed", vgb_goi_y_khoa="k", vgb_goi_y_ket_qua="Đã cách ly lô")
 	_chay(fr, pt.kiem_task, d2)
 	la("có kết quả thì qua, tự ghi người và ngày xong", (d2.completed_by, d2.completed_on), ("mkt@vgb", "2026-09-20"))
-	d3 = DocGia(name="TASK-7", status="Completed")
+	fr.task["TASK-8"] = {"name": "TASK-8", "status": "Open"}
+	d3 = DocGia(name="TASK-8", status="Completed")
 	_chay(fr, pt.kiem_task, d3)
 	dung("Task không phải của bảng sáng thì bỏ qua", d3.completed_by is None)
+	# Codex #356: Task bảng sáng mà ô khoá gửi lên bị xoá trắng vẫn bị soát
+	# (nhận diện theo giá trị đã lưu), không lọt như Task thường.
+	nem("xoá trắng ô khoá rồi đánh dấu xong không kết quả", lambda: _chay(fr, pt.kiem_task, DocGia(name="TASK-7", status="Completed")), fr.Loi)
 	dung("hook đăng ký trên Task: before_validate soát người, validate soát kết quả",
 		'"Task": {"before_validate": "vagabond.phan_tich.kiem_nguoi_sua_task", "validate": "vagabond.phan_tich.kiem_task"}' in _doc("vagabond", "hooks.py"))
 
@@ -699,7 +703,7 @@ def _g3_khoa():
 @ca("#353 G4: trên Desk, người nhận cũ không đổi được trạng thái/kết quả; người đang nhận và quản lý thì được")
 def _g4_desk_nguoi_cu():
 	fr = Gia(user="cu@vgb", vai=("Sales User",))
-	fr.task["TASK-9"] = {"name": "TASK-9", "status": "Open", "vgb_goi_y_ket_qua": "", "vgb_goi_y_bo_phan": "marketing"}
+	fr.task["TASK-9"] = {"vgb_goi_y_khoa": "k", "name": "TASK-9", "status": "Open", "vgb_goi_y_ket_qua": "", "vgb_goi_y_bo_phan": "marketing"}
 	fr.db.get_value = _gv(fr)
 	fr.todo += [
 		{"reference_type": "Task", "reference_name": "TASK-9", "allocated_to": "cu@vgb", "status": "Closed"},
@@ -728,7 +732,7 @@ def _g4_desk_nguoi_cu():
 @ca("#353 G5: việc đã xong không xoá trắng hay rút ngắn được kết quả (đường Desk)")
 def _g5_giu_ket_qua():
 	fr = Gia(user="moi@vgb", vai=("Sales User",))
-	fr.task["TASK-5"] = {"name": "TASK-5", "status": "Completed", "vgb_goi_y_ket_qua": "Đã cách ly lô", "vgb_goi_y_bo_phan": "kho"}
+	fr.task["TASK-5"] = {"vgb_goi_y_khoa": "k", "name": "TASK-5", "status": "Completed", "vgb_goi_y_ket_qua": "Đã cách ly lô", "vgb_goi_y_bo_phan": "kho"}
 	fr.db.get_value = _gv(fr)
 	fr.todo.append({"reference_type": "Task", "reference_name": "TASK-5", "allocated_to": "moi@vgb", "status": "Open"})
 	d = _DocGia(name="TASK-5", status="Completed", vgb_goi_y_khoa="k", vgb_goi_y_bo_phan="kho", vgb_goi_y_ket_qua="ok")
@@ -815,7 +819,7 @@ def _thu_tu_hook():
 	# cho bạn". Ca này dựng đúng thứ tự: before_validate, bộ điều khiển Task
 	# (đóng ToDo khi Completed), rồi validate.
 	fr = Gia(user="moi@vgb", vai=("Sales User",))
-	fr.task["TASK-3"] = {"name": "TASK-3", "status": "Open", "vgb_goi_y_ket_qua": "", "vgb_goi_y_bo_phan": "kho"}
+	fr.task["TASK-3"] = {"vgb_goi_y_khoa": "k", "name": "TASK-3", "status": "Open", "vgb_goi_y_ket_qua": "", "vgb_goi_y_bo_phan": "kho"}
 	fr.db.get_value = _gv(fr)
 	fr.todo.append({"reference_type": "Task", "reference_name": "TASK-3", "allocated_to": "moi@vgb", "status": "Open"})
 	d = _DocGia(name="TASK-3", status="Completed", vgb_goi_y_khoa="k", vgb_goi_y_bo_phan="kho", vgb_goi_y_ket_qua="Đã cách ly lô")
@@ -841,7 +845,7 @@ def _n1_huy():
 	la("thuần: đủ thì qua", pt.soat_huy("Cancelled", "Open", "quan_ly", "so_sai", "2026-09-23", "2026-09-20"), None)
 	la("thuần: đã huỷ từ trước thì không xét lại", pt.soat_huy("Cancelled", "Cancelled", "nhan", "", "", "2026-09-20"), None)
 	fr = Gia(user="moi@vgb", vai=("Sales User",))
-	fr.task["TASK-4"] = {"name": "TASK-4", "status": "Open", "vgb_goi_y_ket_qua": "", "vgb_goi_y_bo_phan": "marketing"}
+	fr.task["TASK-4"] = {"vgb_goi_y_khoa": "k", "name": "TASK-4", "status": "Open", "vgb_goi_y_ket_qua": "", "vgb_goi_y_bo_phan": "marketing"}
 	fr.db.get_value = _gv(fr)
 	fr.todo.append({"reference_type": "Task", "reference_name": "TASK-4", "allocated_to": "moi@vgb", "status": "Open"})
 	huy = lambda **k: _DocGia(name="TASK-4", status="Cancelled", vgb_goi_y_khoa="k", vgb_goi_y_bo_phan="marketing", **k)
@@ -951,3 +955,25 @@ def _q3_san_goc():
 	dung("BC08: kỳ gốc 4 không vào danh sách tăng", not kq or not kq.get("tang"))
 	kq2 = pt.nhan_dinh_bao_cao_mon([{"ma_mon": "BANU1", "mon": "A", "sl": 30}], [{"ma_mon": "BANU1", "sl": 12}], "kỳ trước")
 	dung("BC08: kỳ gốc 12 lên 30 là tăng", bool(kq2) and [x["ma"] for x in kq2.get("tang", [])] == ["BANU1"])
+
+
+# ------------------------------------------------ Codex #356 (SHA 4eee909)
+
+@ca("#356 R1+R2: không sửa ô căn cứ, không lách luật bằng xoá ô khoá, không mở lại việc đã đóng")
+def _r12():
+	la("thuần: đổi luật", bool(pt.loi_truong_khoa({"vgb_goi_y_khoa": "k", "vgb_goi_y_luat": "mon_tang"}, {"vgb_goi_y_khoa": "k", "vgb_goi_y_luat": "lo_qua_han"})), True)
+	la("thuần: ngày cùng giá trị khác kiểu", pt.loi_truong_khoa({"vgb_goi_y_khoa": "k", "vgb_goi_y_den_ngay": datetime.date(2026, 9, 19)}, {"vgb_goi_y_khoa": "k", "vgb_goi_y_den_ngay": "2026-09-19"}), None)
+	la("thuần: mở lại việc xong", bool(pt.loi_mo_lai("Completed", "Open")), True)
+	la("thuần: mở lại việc bỏ qua", bool(pt.loi_mo_lai("Cancelled", "Working")), True)
+	la("thuần: xong đổi sang huỷ", bool(pt.loi_mo_lai("Completed", "Cancelled")), True)
+	la("thuần: mở sang xong", pt.loi_mo_lai("Open", "Completed"), None)
+	fr = Gia(user="moi@vgb", vai=("Sales User",))
+	fr.task["TASK-6"] = {"name": "TASK-6", "status": "Open", "vgb_goi_y_khoa": "k", "vgb_goi_y_bo_phan": "kho", "vgb_goi_y_luat": "lo_qua_han", "vgb_goi_y_ket_qua": ""}
+	fr.db.get_value = _gv(fr)
+	fr.todo.append({"reference_type": "Task", "reference_name": "TASK-6", "allocated_to": "moi@vgb", "status": "Open"})
+	nem("người nhận xoá trắng ô khoá qua API rồi huỷ", lambda: _chay(fr, _luu, _DocGia(name="TASK-6", status="Cancelled", vgb_goi_y_bo_phan="kho", vgb_goi_y_luat="lo_qua_han")), fr.Loi)
+	nem("người nhận đổi bộ phận", lambda: _chay(fr, _luu, _DocGia(name="TASK-6", status="Open", vgb_goi_y_khoa="k", vgb_goi_y_bo_phan="marketing", vgb_goi_y_luat="lo_qua_han")), fr.Loi)
+	fr.task["TASK-6"]["status"] = "Completed"
+	fr.task["TASK-6"]["vgb_goi_y_ket_qua"] = "Đã cách ly lô"
+	fr.session.user, fr.vai = "loan@vgb", ["AP Giám đốc"]
+	nem("giám đốc mở lại việc đã xong trên Desk", lambda: _chay(fr, _luu, _DocGia(name="TASK-6", status="Open", vgb_goi_y_khoa="k", vgb_goi_y_bo_phan="kho", vgb_goi_y_luat="lo_qua_han", vgb_goi_y_ket_qua="Đã cách ly lô")), fr.Loi)
