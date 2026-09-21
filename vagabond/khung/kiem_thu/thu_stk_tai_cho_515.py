@@ -114,7 +114,9 @@ def _dang_ky():
 	sh = _doc("kiem_truoc_deploy.sh")
 	dung("ca hành vi nằm trong cổng", "hanh_vi/stk_tai_cho_515.js" in sh)
 	v = _doc("vagabond", "public", "js", "bep", "12-van-don.js")
-	dung("APPVER 515", "var APPVER = '515';" in v)
+	import re as _re
+	m = _re.search(r"var APPVER = '(\d+)';", v)
+	dung("APPVER từ 515 trở lên (chỉ tăng)", bool(m) and int(m.group(1)) >= 515)
 	dung("patch #v515", "#v515" in _doc("vagabond", "patches.txt"))
 
 
