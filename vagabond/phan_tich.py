@@ -496,7 +496,11 @@ def chat_luong(hd_tuan, hd_hom_qua, diem_ban, kb_ngay_mai, ngay_mai, bay_gio, n=
 	kb = kb_ngay_mai or {}
 	if not cint(kb.get("co_so")):
 		ra.append({"ma": "kiem_banh", "cau": "Chưa có bảng kiểm bánh ngày %s nên chưa xét được món có thể thiếu." % ngay_ngan(ngay_mai)})
-	elif kb.get("dong_bo_luc"):
+	elif not kb.get("dong_bo_luc"):
+		# Codex #353: bảng có mà chưa đồng bộ lần nào thì cột đã đặt có thể
+		# trống; không được coi là số mới.
+		ra.append({"ma": "pancake", "cau": "Bảng kiểm bánh ngày %s chưa đồng bộ đơn Pancake lần nào; số đã đặt có thể còn thiếu." % ngay_ngan(ngay_mai)})
+	else:
 		try:
 			cu = (now_datetime_thuan(bay_gio) - now_datetime_thuan(kb["dong_bo_luc"])).total_seconds() / 3600.0
 		except Exception:
@@ -786,17 +790,31 @@ def _doc_bang():
 	return b
 
 
+TRUONG_VIEC = ["name", "subject", "status", "exp_end_date", "completed_on", "completed_by", "owner", "creation",
+	"vgb_goi_y_khoa", "vgb_goi_y_luat", "vgb_goi_y_bo_phan", "vgb_goi_y_nhac_lai",
+	"vgb_goi_y_bo_qua_ly_do", "vgb_goi_y_ket_qua", "vgb_goi_y_anh", "_assign"]
+
+
 def _viec_bang_sang(so_ngay=30):
-	"""Mọi Task sinh từ bảng sáng gần đây, kèm người được giao."""
-	ds = frappe.get_all(
+	"""Task sinh từ bảng sáng: MỌI việc còn mở, cộng lịch sử gần đây.
+
+	Codex #353: lọc `modified` 30 ngày và trần 300 dòng TRƯỚC khi tách mở
+	với đóng làm một việc mở để lâu không ai đụng biến mất khỏi tab Đã giao
+	và số trễ hạn, rồi nhận định của nó hiện lại ở Cần giao. Nên việc mở đọc
+	riêng, không giới hạn tuổi; chỉ lịch sử (xong, bỏ qua) mới có hạn ngày.
+	"""
+	mo = frappe.get_all(
 		"Task",
-		filters={"vgb_goi_y_khoa": ["is", "set"], "modified": [">=", str(add_days(_hom_nay(), -so_ngay))]},
-		fields=["name", "subject", "status", "exp_end_date", "completed_on", "completed_by", "owner", "creation",
-			"vgb_goi_y_khoa", "vgb_goi_y_luat", "vgb_goi_y_bo_phan", "vgb_goi_y_nhac_lai",
-			"vgb_goi_y_bo_qua_ly_do", "vgb_goi_y_ket_qua", "vgb_goi_y_anh", "_assign"],
-		order_by="modified desc",
-		limit_page_length=300,
+		filters={"vgb_goi_y_khoa": ["is", "set"], "status": ["in", list(TASK_MO)]},
+		fields=TRUONG_VIEC, order_by="modified desc", limit_page_length=0,
 	)
+	cu = frappe.get_all(
+		"Task",
+		filters={"vgb_goi_y_khoa": ["is", "set"], "status": ["in", ["Completed", "Cancelled"]],
+			"modified": [">=", str(add_days(_hom_nay(), -so_ngay))]},
+		fields=TRUONG_VIEC, order_by="modified desc", limit_page_length=500,
+	)
+	ds = mo + cu
 	for d in ds:
 		d["khoa"] = d.get("vgb_goi_y_khoa")
 		d["nhac_lai"] = d.get("vgb_goi_y_nhac_lai")
@@ -1119,10 +1137,19 @@ def bo_qua(khoa, ly_do, so_ngay=7):
 		_nha_khoa(khoa_ten)
 
 
-def _quyen_viec(t):
-	"""Người đang đăng nhập có được xem và cập nhật việc này không."""
+def _quyen_viec(t, ghi=False):
+	"""Người đang đăng nhập có được xem (ghi=False) hay cập nhật (ghi=True)
+	việc này không.
+
+	Codex #353: người từng nhận mà ToDo đã đóng (việc giao lại cho người
+	khác) vẫn được XEM lại, nhưng không được đổi trạng thái; đổi trạng thái
+	chỉ dành cho ToDo còn mở hoặc người quản lý bộ phận.
+	"""
 	u = frappe.session.user
-	if frappe.db.exists("ToDo", {"reference_type": "Task", "reference_name": t.name, "allocated_to": u}):
+	loc = {"reference_type": "Task", "reference_name": t.name, "allocated_to": u}
+	if ghi:
+		loc["status"] = "Open"
+	if frappe.db.exists("ToDo", loc):
 		return "nhan"
 	if _vai() & VAI_GIAM_DOC:
 		return "quan_ly"
@@ -1132,15 +1159,16 @@ def _quyen_viec(t):
 	return ""
 
 
-def _lay_viec(name):
+def _lay_viec(name, ghi=False):
 	if not name or not frappe.db.exists("Task", name):
 		frappe.throw("Không tìm thấy việc %s. Có thể việc đã bị gỡ; tải lại danh sách." % (name or ""))
 	t = frappe.get_doc("Task", name)
 	if not t.get("vgb_goi_y_khoa"):
 		frappe.throw("Việc %s không sinh từ màn Việc hôm nay." % name)
-	q = _quyen_viec(t)
+	q = _quyen_viec(t, ghi)
 	if not q:
-		frappe.throw("Việc này không giao cho bạn và không thuộc bộ phận bạn quản lý.")
+		frappe.throw("Việc này không (còn) giao cho bạn và không thuộc bộ phận bạn quản lý."
+			if ghi else "Việc này không giao cho bạn và không thuộc bộ phận bạn quản lý.")
 	return t, q
 
 
@@ -1195,7 +1223,7 @@ def _ghi_chu_tu_mo_ta(html):
 def cap_nhat_viec(name, trang_thai, ket_qua=None):
 	"""Người nhận báo đang làm hoặc đã xong. Báo xong PHẢI kèm kết quả: máy
 	không tự đóng việc chỉ vì số đã hết vượt ngưỡng (Codex #351 mục 3)."""
-	t, q = _lay_viec(name)
+	t, q = _lay_viec(name, ghi=True)
 	if t.status not in TASK_MO:
 		frappe.throw("Việc này đã %s, không cập nhật được nữa." % ("xong" if t.status == "Completed" else "đóng"))
 	if trang_thai == "dang_lam":
@@ -1239,6 +1267,35 @@ def tinh_lai():
 			return {"ok": 0, "cau": "Bảng vừa tính lúc %s. Số bán tính tới hết hôm qua nên tính lại lúc này không đổi gì." % b["chot_luc"][11:16]}
 	_xep_dung()
 	return {"ok": 1, "cau": "Đang tính lại, khoảng một phút nữa bấm Tải lại."}
+
+
+def soat_ket_qua(trang_thai, trang_thai_cu, ket_qua):
+	"""Câu lỗi nếu Task bảng sáng chuyển sang Completed mà thiếu kết quả,
+	None nếu hợp lệ. THUẦN."""
+	if trang_thai == "Completed" and trang_thai_cu != "Completed" and len(str(ket_qua or "").strip()) < 5:
+		return ("Việc này sinh từ màn Việc hôm nay: ghi ngắn kết quả đã làm vào ô \"Kết quả người nhận báo\" "
+			"(mục Gợi ý từ Việc hôm nay) rồi mới đánh dấu xong.")
+	return None
+
+
+def kiem_task(doc, method=None):
+	"""Hook validate của Task. Chỉ động tới Task sinh từ bảng sáng.
+
+	Codex #353: người nhận có quyền ghi Task (được chia sẻ) nên đánh dấu xong
+	được ngay trên Desk mà không qua cap_nhat_viec; khi đó ERPNext đóng ToDo
+	mà ô kết quả trống. Chặn ở tầng chứng từ thì app và Desk cùng một luật.
+	"""
+	if not doc.get("vgb_goi_y_khoa"):
+		return
+	cu = None if doc.is_new() else frappe.db.get_value("Task", doc.name, "status")
+	loi = soat_ket_qua(doc.get("status"), cu, doc.get("vgb_goi_y_ket_qua"))
+	if loi:
+		frappe.throw(loi, title="Thiếu kết quả")
+	if doc.get("status") == "Completed" and cu != "Completed":
+		if not doc.get("completed_by"):
+			doc.completed_by = frappe.session.user
+		if not doc.get("completed_on"):
+			doc.completed_on = str(_hom_nay())
 
 
 # ------------------------------------------------------ Việc cần làm (người nhận)

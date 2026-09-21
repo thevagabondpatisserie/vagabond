@@ -273,6 +273,9 @@ scheduler_events = {
 doc_events = {
 	"Vagabond Dat Ban": {"after_insert": "vagabond.dat_ban.bao_dat_ban_moi"},
 	"MInvoice NCC Map": {"validate": "vagabond.quy_cach_ncc.kiem"},
+	# #351: Task sinh tu man Viec hom nay khong duoc danh dau xong ma thieu
+	# ket qua, ke ca khi bam tren Desk. Ham tu bo qua Task khong phai cua minh.
+	"Task": {"validate": "vagabond.phan_tich.kiem_task"},
 	# Khoa xoa vinh vien chung tu, dat o "*" chu khong liet ke tung doctype:
 	# liet ke thi hom nao them mot loai chung tu moi la lai quen, ma quen o
 	# day thi khong ai biet cho den luc mat chung tu. Ham tu kiem doctype va
