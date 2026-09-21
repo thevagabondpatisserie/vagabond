@@ -19,6 +19,7 @@ var BEP = path.join(GOC, 'vagabond', 'public', 'js', 'bep');
 var SRC = fs.readFileSync(path.join(BEP, '47-bang-sang.js'), 'utf8');
 var HOP = fs.readFileSync(path.join(BEP, '07-hop-thoai.js'), 'utf8');
 var BC = fs.readFileSync(path.join(BEP, '14-bao-cao.js'), 'utf8');
+var NEN = fs.readFileSync(path.join(BEP, '00-nen.js'), 'utf8');
 
 function layHam(src, ten) {
   var dau = src.indexOf('function ' + ten + '(');
@@ -51,7 +52,7 @@ function duLieu(tab) {
     ];
   } else {
     ds = [
-      nd(1, 'lo_qua_han', 'cao', ['kho'], { so_lieu: { lo: [{ lo: 'L1', ma: 'NVLT1', ten: 'Bơ', han: '2024-01-21', sl: 2000 }, { lo: 'L2', ten: 'Kem', han: '2026-09-19', sl: 3 }, { lo: 'L3', ten: 'Sữa', han: '2026-09-18', sl: 1 }, { lo: 'L4', ten: 'Đường', han: '2026-09-17', sl: 1 }] } }),
+      nd(1, 'lo_qua_han', 'cao', ['kho'], { so_lieu: { lo: [{ lo: 'L1', ma: 'NVLT1', ten: 'Bơ', han: '2024-01-21', sl: 2000, dvt: 'Gram' }, { lo: 'L2', ten: 'Kem', han: '2026-09-19', sl: 3 }, { lo: 'L3', ten: 'Sữa', han: '2026-09-18', sl: 1 }, { lo: 'L4', ten: 'Đường', han: '2026-09-17', sl: 1 }] } }),
       nd(2, 'mon_tang', 'vua', ['marketing']),
       nd(3, 'mon_giam', 'vua', ['marketing', 'bep']),
       nd(4, 'mon_tang', 'vua', ['marketing']),
@@ -107,7 +108,7 @@ function dungMan(canh) {
       return Promise.resolve({});
     },
     h: function (s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); },
-    num: function (n) { return String(n); }, money: function (n) { return String(n); },
+    num: function (n) { var v = Math.round((n || 0) * 1000) / 1000; return v.toLocaleString('vi-VN'); }, money: function (n) { return String(n); },
     anhMon: function (u) { return u ? '<img class="imm" src="' + u + '">' : '<div class="imm immp">🍰</div>'; },
     busy: function () {}, toast: function (m) { (that._toast = that._toast || []).push(String(m)); }, errMsg: function (e) { return e && e.message ? e.message : String(e); },
     sheet: function (t, items, cur, onPick) { that._sheet = { t: t, items: items, onPick: onPick }; },
@@ -117,7 +118,7 @@ function dungMan(canh) {
     scrBangSang: null,
   };
   that.globalThis = that;
-  vm.runInNewContext(SRC + '\n' + layHam(HOP, 'hopKhung') + '\n' + layHam(BC, 'bcTheNhanDinh'), that, { filename: '47-bang-sang.js' });
+  vm.runInNewContext(SRC + '\n' + layHam(HOP, 'hopKhung') + '\n' + layHam(BC, 'bcTheNhanDinh') + '\n' + layHam(NEN, 'kl'), that, { filename: '47-bang-sang.js' });
   return { g: that, tai: tai, khung: khung, goi: goi };
 }
 
@@ -150,7 +151,11 @@ async function chayHet() {
     bang('hai dong gon', m.khung.querySelectorAll('[data-bsmo]').length, 2);
     dung('tieu de nhom con lai co dem so', html.indexOf('Còn 2 nhận định') >= 0);
     dung('muc cao la chip do Lam ngay', html.indexOf('st r" style="margin-right:4px">Làm ngay') >= 0);
-    dung('lo: ba dong roi dem so, khong in het', html.indexOf('và 1 lô nữa') >= 0 && html.indexOf('Đường') < 0);
+    /* Codex #353 vong 3: truoc day ca nay CHOT la khong in lo thu 4 ('Đường' < 0).
+       Chinh dieu do la loi: nguoi nhan khong co cach nao xem lo bi an. Nay lo
+       thu 4 nam trong <details> thu gon, mo ra duoc. Dung sua ve nhu cu. */
+    dung('lo: ba dong, phan con lai nam trong khoi mo ra duoc', html.indexOf('Xem thêm 1 lô nữa') >= 0 && html.indexOf('Đường') > html.indexOf('<details'));
+    dung('so con kem don vi, gram lon doi ra kg', html.indexOf('còn 2 kg') >= 0);
     dung('han lo nam cu ghi ca nam', html.indexOf('Hạn 21/01/2024') >= 0);
     dung('cot ba tuan cho mon tang', html.indexOf('>40</div>') >= 0);
     dung('luu y so lieu thu gon: dem so, chua in cau', html.indexOf('<b>2</b> lưu ý về số liệu') >= 0 && html.indexOf('100 trên 320') < 0);
@@ -164,7 +169,9 @@ async function chayHet() {
     var lo = [];
     for (var i = 0; i < 12; i++) lo.push({ lo: 'L' + i, ten: 'Món ' + i, han: '2026-09-01', sl: 1 });
     var html = m.g.bsLo({ luat: 'lo_qua_han', so_lieu: { so_lo: 20, lo: lo } });
-    dung('ba dong roi con 17', html.indexOf('và 17 lô nữa') >= 0);
+    dung('ba dong roi con 17', html.indexOf('Xem thêm 17 lô nữa') >= 0);
+    dung('du 12 lo may chu gui deu co trong the', lo.every(function (l) { return html.indexOf('>' + l.lo + '<') >= 0; }));
+    dung('noi ro may chi gui 12 trong 20 va cho xem du', html.indexOf('Máy chỉ gửi 12 lô đầu trong 20 lô') >= 0);
   });
   await ca('bam dong gon: mo the day du ngay tai cho, dong gon con lai giu nguyen', async function () {
     var m = dungMan();
