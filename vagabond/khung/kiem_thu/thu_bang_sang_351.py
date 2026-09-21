@@ -1001,3 +1001,19 @@ def _s1_ky():
 	la("tab xong + 7 ngày chỉ còn việc gần", (r["ky"], [x["name"] for x in r["ds"]]), ("7", ["TASK-1"]))
 	la("chip khoảng ngày trả về", [c["k"] for c in r["chip_ky"]], ["", "hom_nay", "7", "30"])
 	la("khoảng lạ thì về Tất cả", _chay(fr, pt.bang_sang, "xong", "", "zzz")["ky"], "")
+
+
+# ------------------------------------------------ Codex #356 (SHA 2a7e72b)
+
+@ca("#356 S2: tab Xong giữ đủ 30 ngày như chip hứa; chip mới là chỗ thu hẹp")
+def _s2_30_ngay():
+	la("cửa sổ lịch sử >= khoảng lớn nhất", pt.LICH_SU_NGAY >= max(pt.cint(k) for k, _ in pt.KY_NGAY if k.isdigit()), True)
+	fr = Gia(user="viet@vgb")
+	fr.task["TASK-1"] = {"name": "TASK-1", "subject": "Xong 20 ngày trước", "status": "Completed", "completed_on": "2026-08-31", "vgb_goi_y_khoa": "k1",
+		"vgb_goi_y_luat": "mon_tang", "vgb_goi_y_bo_phan": "marketing", "_assign": "[]", "owner": "viet@vgb", "creation": "2026-08-20 08:00:00"}
+	fr.task["TASK-2"] = {"name": "TASK-2", "subject": "Bỏ qua 20 ngày trước", "status": "Cancelled", "modified": "2026-08-31 10:00:00", "vgb_goi_y_nhac_lai": "2026-09-01",
+		"vgb_goi_y_khoa": "k2", "vgb_goi_y_luat": "mon_tang", "vgb_goi_y_bo_phan": "marketing", "_assign": "[]", "owner": "viet@vgb", "creation": "2026-08-31 10:00:00"}
+	la("30 ngày thấy việc xong 20 ngày trước", [x["name"] for x in _chay(fr, pt.bang_sang, "xong", "", "30")["ds"]], ["TASK-1"])
+	la("Tất cả cũng thấy", [x["name"] for x in _chay(fr, pt.bang_sang, "xong", "", "")["ds"]], ["TASK-1"])
+	la("7 ngày thì không", _chay(fr, pt.bang_sang, "xong", "", "7")["ds"], [])
+	la("bỏ qua 20 ngày trước vẫn trong 30 ngày", [x["name"] for x in _chay(fr, pt.bang_sang, "bo_qua", "", "30")["ds"]], ["TASK-2"])
