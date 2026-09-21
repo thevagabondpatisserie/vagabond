@@ -330,6 +330,21 @@ class Gia:
 	def get_doc(self, d, name=None):
 		fr = self
 		if isinstance(d, str):
+			if d == "ToDo":
+				td = [x for x in fr.todo if x.get("name") == name][0]
+
+				class TD(dict):
+					def __setattr__(s, k, v):
+						if k == "flags":
+							object.__setattr__(s, k, v)
+						else:
+							s[k] = v
+
+					def save(s, ignore_permissions=False):
+						td.update(s)
+				o = TD(td)
+				o.flags = NS()
+				return o
 			return _TaskGia(fr, fr.task[name])
 
 		class Moi(dict):
@@ -340,6 +355,7 @@ class Gia:
 					s.setdefault("owner", fr.session.user)
 					fr.task[s["name"]] = s
 				else:
+					s["name"] = "TD-%d" % (len(fr.todo) + 1)
 					fr.todo.append(dict(s))
 				return s
 
@@ -863,3 +879,15 @@ def _n4_bo_qua_viec():
 		v = _chay(fr, pt.viec, r["name"])
 	dung("hooks gắn nút Bỏ qua cho form Task", '"Task": "public/js/task_bang_sang.js"' in _doc("vagabond", "hooks.py"))
 	la("viec() trả danh sách lý do từ một nguồn", [x["k"] for x in v["ly_do_bo_qua"]], [k for k, _ in pt.LY_DO_BO_QUA])
+
+
+@ca("#356 P1+P2: quản lý bộ phận được giao cũng là quản lý; bỏ qua thì đóng hết ToDo")
+def _p12():
+	fr = Gia(user="loan@vgb", vai=("Marketing",))
+	r = _chay(fr, pt.giao, "mon_tang|BANU14|tat_ca", ["loan@vgb", "mkt@vgb"])
+	fr.db.get_value = _gv(fr)
+	with patch.object(pt, "frappe", fr):
+		q = pt._quyen_viec(_TaskGia(fr, fr.task[r["name"]]), ghi=True)
+	la("quản lý marketing vừa được giao vẫn là quan_ly", q, "quan_ly")
+	kq = _chay(fr, pt.bo_qua_viec, r["name"], "khong_can", 3)
+	la("bỏ qua đóng cả hai ToDo", (kq["dong_todo"], sorted({t["status"] for t in fr.todo})), (2, ["Cancelled"]))
