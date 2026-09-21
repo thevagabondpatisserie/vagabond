@@ -319,6 +319,8 @@ CUA_NGO = {
 	# `chang_cua_nhan`, `gop_dong`, `loc_theo_chang`, `cau_tom_tat` va
 	# `kho_cua_bep` la phep thuan hoac ham noi bo, KHONG mo ra ngoai.
 	"ton_chang.py": ["gom_chang", "tao_phieu_ve_dung_kho", "ton_theo_chang"],
+	# v513: man Tra ton kho doc qua may chu (anh Viet 20/09/2026).
+	"tra_ton.py": ["chi_tiet_ma", "ton_kho"],
 	# Ban thanh pham tren mon, chot 04/09/2026. Bay ham nay da chay tren app
 	# tu truoc ma chua ai chot danh sach, nen mot decorator bam nham la khong
 	# ai biet. `quyen_btp` chi DOC quyen, van phai co ten o day.

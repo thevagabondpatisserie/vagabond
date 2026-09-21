@@ -135,7 +135,7 @@ def _duong_chinh():
 		return
 	nen._DA_TAO.append(("Stock Entry", r["name"]))
 	doc = frappe.get_doc("Stock Entry", r["name"])
-	la("phiếu là bản nháp", doc.docstatus, 0)
+	la("20/09: lưu là ghi sổ ngay", doc.docstatus, 1)
 	la("mang mã của màn này", doc.get("vgb_muc_dich_xuat"), xuat_kho.MA_PHUC_VU_BAN)
 	la("một dòng", len(doc.items), 1)
 	la("xuất 20 theo tồn thật, không phải 10 theo tồn app gửi", flt(doc.items[0].qty), 20.0)
@@ -149,13 +149,12 @@ def _duong_chinh():
 		dung("tài khoản chi phí là 6412", tk.startswith("6412"))
 	else:
 		la("site không có 6412 thì tụt về tài khoản Xuất huỷ", tk, xuat_kho._tk_chi_phi(cty))
-	la("tồn chưa trừ khi còn nháp", _ton(ma, kho), 100.0)
+	la("tồn còn 80 ngay sau khi lưu", _ton(ma, kho), 80.0)
 
-	khong_nem("kế toán ghi sổ", lambda: xp.ghi_so(r["name"]))
-	frappe.clear_document_cache("Stock Entry", r["name"])
-	doc = frappe.get_doc("Stock Entry", r["name"])
-	la("đã ghi sổ", doc.docstatus, 1)
-	la("tồn còn 80 sau ghi sổ", _ton(ma, kho), 80.0)
+	# App cu bam Ghi so lan nua thi phai tra ok, khong nem, khong tru them.
+	kq2 = khong_nem("bấm Ghi sổ lần nữa", lambda: xp.ghi_so(r["name"]))
+	la("trả đã ghi", (kq2 or {}).get("da_ghi"), 1)
+	la("tồn vẫn 80", _ton(ma, kho), 80.0)
 
 	sle = frappe.get_all("Stock Ledger Entry",
 		filters={"voucher_no": r["name"], "is_cancelled": 0},

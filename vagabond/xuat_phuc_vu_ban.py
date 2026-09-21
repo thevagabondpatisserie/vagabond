@@ -534,7 +534,13 @@ def _phieu_cho_cua_kho(kho):
 
 @frappe.whitelist()
 def luu(kho=None, bo_phan_chiu=None, ghi_chu=None, dong=None):
-	"""Tao phieu o dang BAN NHAP, cho ke toan ghi so."""
+	"""Lap phieu va GHI SO NGAY: quay dem xong la ton tru (anh Viet 20/09/2026).
+
+	Ban v507 lap ban nhap cho ke toan ghi so. Anh Viet doi 20/09: "theo
+	phuong an 1 cho de", quay lap la tru kho ngay, giong dieu chuyen. Phieu
+	nhap cu cua cung kho (lap truoc 20/09) thi bo dau huy mem, ghi ly do, de
+	khong tru hai lan; khong xoa, khong ghi so phieu cu.
+	"""
 	xuat_kho._duoc_xuat()
 	if not kho:
 		frappe.throw("Chưa chọn kho.")
@@ -551,11 +557,6 @@ def luu(kho=None, bo_phan_chiu=None, ghi_chu=None, dong=None):
 	# goi cung luc phai xep hang, roi moi doc xem da co phieu cho chua.
 	frappe.db.get_value("Warehouse", kho, "name", for_update=True)
 	da_co = _phieu_cho_cua_kho(kho)
-	if da_co:
-		frappe.throw(
-			"Kho này đã có phiếu %s đang chờ ghi sổ. Ghi sổ hoặc bỏ phiếu đó "
-			"trước, rồi mới lập phiếu mới." % da_co
-		)
 
 	# Dien lai nhom mon VA ton tren so tu co so du lieu truoc khi soat.
 	# Xem `_nhom_that` va `_ton_that`: app gui gi cung khong tin.
@@ -611,12 +612,19 @@ def luu(kho=None, bo_phan_chiu=None, ghi_chu=None, dong=None):
 		)
 	doc.flags.ignore_permissions = True
 	doc.insert(ignore_permissions=True)
+	# Phieu nhap cu cua kho nay (tu thoi con hai buoc): bo dau huy mem NGAY
+	# TRUOC khi ghi so phieu moi, de khong ai ghi so no lan nua roi tru hai lan.
+	if da_co:
+		cu = frappe.get_doc("Stock Entry", da_co)
+		chung_tu.danh_dau_huy(cu, "Thay bằng phiếu %s (từ 20/09/2026 quầy lập là ghi sổ ngay)" % doc.name)
+	doc.submit()
 	frappe.db.commit()
 	return {
 		"ok": 1,
 		"name": doc.name,
 		"so_dong": len(se_ghi),
-		"trang_thai": "Chờ ghi sổ",
+		"trang_thai": "Đã ghi sổ",
+		"thay_phieu_cu": da_co or "",
 	}
 
 
@@ -629,6 +637,9 @@ def ghi_so(name=None):
 			"phục vụ bán hàng."
 		)
 	doc = frappe.get_doc("Stock Entry", name)
+	if doc.docstatus == 1:
+		# Tu 20/09 luu() da ghi so ngay; app cu bam Ghi so lan nua thi tra ok.
+		return {"ok": 1, "name": doc.name, "trang_thai": "Đã ghi sổ", "da_ghi": 1}
 	if doc.docstatus != 0:
 		frappe.throw("Phiếu này không còn ở trạng thái bản nháp.")
 	if (doc.get("vgb_muc_dich_xuat") or "").strip() != MA_MUC_DICH:
