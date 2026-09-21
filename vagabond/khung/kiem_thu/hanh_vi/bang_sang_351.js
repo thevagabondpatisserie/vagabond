@@ -293,6 +293,42 @@ async function chayHet() {
     var html2 = m.g.bcTheNhanDinh({ so_voi: 'x', tang: [], giam: [], so_tang: 0, so_giam: 0, moi: 2, mo_bang_sang: 0 });
     dung('khong quyen thi khong co lien ket', html2.indexOf('data-bcbs') < 0);
   });
+  await ca('Codex #356 N4: form Task Desk co nut Bo qua cho quan ly, chon ly do theo ten, gui ma ly do', async function () {
+    var TASK = fs.readFileSync(path.join(GOC, 'vagabond', 'public', 'js', 'task_bang_sang.js'), 'utf8');
+    function chay(quyen, doc) {
+      var goi = [], hop = null, nut = null, reload = 0;
+      var frappe = {
+        ui: { form: { on: function (dt, hh) { frappe._h = hh; } },
+          Dialog: function (o) { hop = o; this.show = function () {}; this.hide = function () {}; } },
+        show_alert: function () {}, msgprint: function (m) { goi.push('msg:' + m); },
+        call: function (o) {
+          goi.push(o.method); goi.args = o.args;
+          if (o.method === 'vagabond.phan_tich.viec') return o.callback({ message: { quyen: quyen, bo_qua_toi_da: 3,
+            ly_do_bo_qua: [{ k: 'dang_xu_ly', ten: 'Đã biết, đang xử lý' }, { k: 'so_sai', ten: 'Số liệu chưa đúng' }] } });
+          return o.callback({ message: { ok: 1 } });
+        }
+      };
+      vm.runInNewContext(TASK, { frappe: frappe, parseInt: parseInt, Number: Number });
+      var frm = { doc: doc, is_new: function () { return false; }, add_custom_button: function (t, f) { nut = { t: t, f: f }; }, reload_doc: function () { reload++; } };
+      frappe._h.refresh(frm);
+      return { goi: goi, nut: nut, hop: function () { return hop; }, reload: function () { return reload; } };
+    }
+    var ng = chay('nhan', { name: 'T1', status: 'Open', vgb_goi_y_khoa: 'k' });
+    dung('nguoi nhan khong co nut', !ng.nut);
+    var ngoai = chay('quan_ly', { name: 'T2', status: 'Open' });
+    dung('Task khong phai bang sang: khong goi may, khong nut', !ngoai.nut && ngoai.goi.length === 0);
+    var ql = chay('quan_ly', { name: 'T3', status: 'Open', vgb_goi_y_khoa: 'k' });
+    bang('quan ly co nut', ql.nut && ql.nut.t, 'Bỏ qua việc này');
+    ql.nut.f();
+    var o = ql.hop().fields;
+    dung('ly do la danh sach chon, lay tu may chu', o[0].fieldtype === 'Select' && o[0].options.indexOf('Số liệu chưa đúng') >= 0);
+    dung('so ngay khong vuot tran luat (3)', o[1].options.split('\n').join(',') === '1 ngày,3 ngày');
+    ql.hop().primary_action({ ly_do: 'Số liệu chưa đúng', so_ngay: '3 ngày' });
+    bang('goi bo_qua_viec', ql.goi[ql.goi.length - 1], 'vagabond.phan_tich.bo_qua_viec');
+    bang('gui MA ly do, khong gui chu', ql.goi.args.ly_do, 'so_sai');
+    bang('gui so ngay', ql.goi.args.so_ngay, 3);
+    bang('tai lai form', ql.reload(), 1);
+  });
   await ca('Codex #356 N2: bam o Tre han goi may chu voi tab tre, o do sang len', async function () {
     var m = dungMan();
     await m.g.scrBangSang(); await tick();
