@@ -658,7 +658,9 @@ def _lo_sap_het(hom_nay, n=None):
 	n = n or NGUONG
 	lo = frappe.get_all(
 		"Batch",
-		filters={"disabled": 0, "expiry_date": ["<=", str(add_days(hom_nay, n["ngay_can_han"]))]},
+		# Codex #353 vòng 2: KHÔNG lọc disabled. Lô đã tắt vẫn có thể còn hàng
+		# trong kho (lo_hang.py cho xuất kèm nhắc), nên vẫn phải nhắc xử lý.
+		filters={"expiry_date": ["<=", str(add_days(hom_nay, n["ngay_can_han"]))]},
 		fields=["name", "item", "item_name", "expiry_date"],
 		limit_page_length=0,
 	)
@@ -676,6 +678,25 @@ def _lo_sap_het(hom_nay, n=None):
 			continue
 		ra.append({"lo": ten_lo, "ma": b["item"], "ten": b.get("item_name") or b["item"], "kho": kho, "han": b["expiry_date"], "sl": flt(sl)})
 	return ra
+
+
+TEN_PHAN_HONG = {
+	"kiem_banh": "bảng kiểm bánh ngày mai",
+	"xu_huong": "món tăng, món giảm",
+	"thieu": "món có thể thiếu ngày mai",
+	"lo": "lô quá hạn, cận hạn",
+}
+
+
+def canh_bao_hong(hong):
+	"""Dòng cảnh báo cho những phần tính hỏng lần dựng này. THUẦN.
+
+	Một phần hỏng mà bảng vẫn im lặng thì người đọc tưởng "không có việc":
+	thiếu lô quá hạn trông y như kho sạch. Nên nói thẳng phần nào chưa có."""
+	ten = [TEN_PHAN_HONG.get(x, x) for x in dict.fromkeys(hong or [])]
+	if not ten:
+		return []
+	return [{"ma": "loi_tinh", "cau": "Lần tính này chưa đọc được phần: %s. Bảng dưới đây THIẾU phần đó, không phải là không có việc. Bấm Tính lại sau ít phút; vẫn thiếu thì báo quản trị." % ", ".join(ten)}]
 
 
 def dung_bang_sang():
@@ -714,11 +735,15 @@ def dung_bang_sang():
 	ban = gom_ban(dong, theo_ten, cs)
 	ban_quay = gom_ban(dong, theo_ten, cs, chi_quay=True)
 
+	# Codex #353 vòng 2: phần nào tính hỏng thì GHI LẠI và báo trên bảng,
+	# không để bảng trông lành mà thiếu hẳn một mục (vd không còn lô quá hạn).
+	hong = []
 	try:
 		kb = kiem_banh.bang(str(ngay_mai)) or {}
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "phan_tich: doc kiem banh")
 		kb = {}
+		hong.append("kiem_banh")
 
 	nd = []
 	anh = {}
@@ -726,15 +751,18 @@ def dung_bang_sang():
 		nd += nhan_dinh_xu_huong(ban, None, nhan_tuan)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "phan_tich: xu huong")
+		hong.append("xu_huong")
 	try:
 		if cint(kb.get("co_so")):
 			nd += nhan_dinh_thieu(kb.get("dong") or [], ban_quay, ngay_mai)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "phan_tich: thieu thanh pham")
+		hong.append("thieu")
 	try:
 		nd += nhan_dinh_lo(_lo_sap_het(hom_nay), hom_nay)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "phan_tich: lo")
+		hong.append("lo")
 	anh = _anh_mon([x["doi"]["ma"] for x in nd if x["doi"]["loai"] == "mon" and not x["doi"].get("anh")])
 	for x in nd:
 		if x["doi"]["loai"] == "mon" and not x["doi"].get("anh"):
@@ -752,7 +780,7 @@ def dung_bang_sang():
 		"nhan_tuan": nhan_tuan,
 		"phien_ban": PHIEN_BAN_LUAT,
 		"nhan_dinh": xep(nd),
-		"chat_luong": chat_luong(hd_tuan, hd_hom_qua, diem_ban, kb, ngay_mai, bay_gio),
+		"chat_luong": canh_bao_hong(hong) + chat_luong(hd_tuan, hd_hom_qua, diem_ban, kb, ngay_mai, bay_gio),
 	}
 	frappe.cache().set_value(KHOA_DEM, bang, expires_in_sec=60 * 60 * 48)
 	return bang
@@ -1056,6 +1084,11 @@ def giao(khoa, nguoi, han=None, ghi_chu=None):
 		for e in ds:
 			if e != frappe.session.user:
 				thong_bao.gui(e, "Việc mới: %s" % x["tieu_de"][:80], x["goi_y"][:160], "/viec-can-lam", "Task:%s" % t.name)
+		# Codex #353 vòng 2: ghi hẳn xuống TRƯỚC khi nhả khoá. Nhả trước khi
+		# Frappe commit thì người bấm thứ hai lấy được khoá mà chưa thấy Task
+		# vừa tạo, và sinh việc thứ hai (vgb_goi_y_khoa không có ràng buộc duy
+		# nhất). Khoá tên của MariaDB gắn theo phiên, không theo giao dịch.
+		frappe.db.commit()
 		return {"ok": 1, "name": t.name, "so_nguoi": len(ds), "han": str(han)}
 	finally:
 		_nha_khoa(khoa_ten)
@@ -1132,6 +1165,7 @@ def bo_qua(khoa, ly_do, so_ngay=7):
 			"vgb_goi_y_anh": x["doi"].get("anh") or "",
 		})
 		t.insert(ignore_permissions=True)
+		frappe.db.commit()  # như giao(): ghi xong rồi mới nhả khoá
 		return {"ok": 1, "name": t.name, "nhac_lai": str(nhac), "so_ngay": ngay}
 	finally:
 		_nha_khoa(khoa_ten)
@@ -1270,12 +1304,24 @@ def tinh_lai():
 
 
 def soat_ket_qua(trang_thai, trang_thai_cu, ket_qua):
-	"""Câu lỗi nếu Task bảng sáng chuyển sang Completed mà thiếu kết quả,
-	None nếu hợp lệ. THUẦN."""
-	if trang_thai == "Completed" and trang_thai_cu != "Completed" and len(str(ket_qua or "").strip()) < 5:
+	"""Câu lỗi nếu Task bảng sáng ở Completed mà thiếu kết quả, None nếu hợp
+	lệ. THUẦN.
+
+	Codex #353 vòng 2: xét MỌI lần lưu khi đang Completed, không chỉ lúc
+	chuyển sang; trước đó sửa trắng ô kết quả của việc đã xong vẫn lưu được.
+	`trang_thai_cu` giữ lại cho chữ ký cũ, không còn dùng để miễn."""
+	if trang_thai == "Completed" and len(str(ket_qua or "").strip()) < 5:
 		return ("Việc này sinh từ màn Việc hôm nay: ghi ngắn kết quả đã làm vào ô \"Kết quả người nhận báo\" "
 			"(mục Gợi ý từ Việc hôm nay) rồi mới đánh dấu xong.")
 	return None
+
+
+def can_kiem_nguoi_sua(nguoi, truoc, trang_thai, ket_qua):
+	"""Lần lưu này có đổi thứ chỉ người nhận/quản lý được đổi không. THUẦN."""
+	if nguoi in ("Administrator", "Guest", None, ""):
+		return False
+	return (truoc.get("status") != trang_thai
+		or str(truoc.get("vgb_goi_y_ket_qua") or "").strip() != str(ket_qua or "").strip())
 
 
 def kiem_task(doc, method=None):
@@ -1287,7 +1333,16 @@ def kiem_task(doc, method=None):
 	"""
 	if not doc.get("vgb_goi_y_khoa"):
 		return
-	cu = None if doc.is_new() else frappe.db.get_value("Task", doc.name, "status")
+	truoc = {} if doc.is_new() else (frappe.db.get_value("Task", doc.name, ["status", "vgb_goi_y_ket_qua"], as_dict=True) or {})
+	cu = truoc.get("status")
+	# Codex #353 vòng 2: người nhận cũ vẫn giữ DocShare ghi, nên trên Desk họ
+	# lưu được Task (đánh dấu xong, đóng ToDo của người đang nhận). Đổi trạng
+	# thái hay kết quả thì phải là người đang nhận (ToDo mở) hoặc quản lý bộ
+	# phận, đúng luật của cap_nhat_viec. Nhịp máy (Administrator) không xét.
+	if not doc.is_new() and can_kiem_nguoi_sua(frappe.session.user, truoc, doc.get("status"), doc.get("vgb_goi_y_ket_qua")):
+		if not _quyen_viec(doc, ghi=True):
+			frappe.throw("Việc này không (còn) giao cho bạn và không thuộc bộ phận bạn quản lý, nên không đổi được trạng thái hay kết quả.",
+				title="Không có quyền")
 	loi = soat_ket_qua(doc.get("status"), cu, doc.get("vgb_goi_y_ket_qua"))
 	if loi:
 		frappe.throw(loi, title="Thiếu kết quả")
