@@ -857,3 +857,18 @@ tay, nhập tay vào kho bếp khác chặng chỉ NHẮC, không chặn; máy k
 của hàng (món Pastry nằm ở kho Baker là việc của hai bếp), chỉ sửa chặng trong
 cùng bếp và chỉ trên lệnh/phiếu sản xuất. Bài học: hàng rào "chặn" phải do
 chủ tiệm chốt, mặc định của kỹ thuật là nhắc và làm hiện ra, không chặn.
+
+## 21/09/2026 (#351): giao việc qua `assign_to.add` kiểm quyền của NGƯỜI GIAO
+
+Khi dựng màn Việc hôm nay, đọc mã nguồn Frappe v16 trước khi dùng lại
+`giao_viec.giao`: hàm đó gọi `frappe.desk.form.assign_to.add`, mà `_add` chạy
+`frappe.get_doc(doctype, name).check_permission()` với quyền người đang bấm,
+rồi `frappe.share.add` kiểm quyền CHIA SẺ của người đó (`add_docshare`:
+`if not flags.get("ignore_share_permission"): check_share_permission`). Quản lý
+cửa hàng, marketing không có vai Projects User nên cả hai bước đều hỏng trên
+Task, và `giao_viec.giao` nuốt lỗi trả `{"giao": 0}`: màn sẽ báo "đã giao" mà
+không ai nhận việc. Cách phòng: kiểm quyền nghiệp vụ ở cửa của mình, rồi tự ghi
+ToDo và DocShare bằng quyền hệ thống (`phan_tich._gan_nguoi`), và coi số người
+gắn được khác số người chọn là LỖI. Bài học chung: một hàm "không bao giờ ném
+lỗi" là hàm mà người gọi phải tự đọc kết quả; gọi nó từ một nút bấm thì phải
+kiểm số trả về, không được coi không lỗi là xong.
