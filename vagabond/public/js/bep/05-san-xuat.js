@@ -44,7 +44,7 @@ async function scrStock() {
       srchBox('sq', 'Tìm tên hoặc mã hàng', stk.q, true) +
       '<div class="chips">' + chips + '</div>' +
       '<div style="display:flex;align-items:center;gap:8px;margin:-2px 0 9px;flex-wrap:wrap">' +
-      '<div style="font-size:12.5px;color:#0f766e;background:#ccfbf1;border-radius:8px;padding:7px 11px;flex:1;min-width:0;line-height:1.5">📊 ' + h(d.tom_tat || '') + '</div>' +
+      '<div style="font-size:12.5px;color:#0f766e;background:#ccfbf1;border-radius:8px;padding:7px 11px;flex:1;min-width:0;line-height:1.5">📊 ' + h(d.tom_tat || '') + (d.dang_loc ? '<div style="color:#5a6070;margin-top:2px">Cả kho: ' + h(d.tom_tat_kho || '') + '</div>' : '') + '</div>' +
       '<div style="display:flex;gap:6px">' + sap + '</div></div>' +
       (ds.length ? '<div class="lst">' + ds.map(function (x) {
         return '<div class="li" data-sm="' + h(x.ma) + '">' + stkAnh(x) + '<div class="lt"><div class="l1">' + h(x.ten) + '</div>' +
@@ -80,14 +80,25 @@ async function scrStock() {
     };
     b.onclick = async function (e) {
       if (e.target.closest('[data-w]')) return sheet('Chọn kho', whOpts(), stk.wh, async function (o) { stk.wh = o.value; stk.q = ''; stk.chip = ''; scrStock(); }, true);
+      /* Doi chip hay sap xep: tai lai xong MOI nhan; tai hong thi tra lai
+         lua chon cu va bao loi, khong ve danh sach cu duoi chip moi (Codex #350). */
       var c = e.target.closest('[data-sc]');
-      if (c) { stk.chip = c.getAttribute('data-sc'); busy(1); try { await stkTai(); } catch (er) { } busy(0); return draw(); }
+      if (c) return stkDoi('chip', c.getAttribute('data-sc'), draw);
       var s = e.target.closest('[data-ss]');
-      if (s) { stk.sap = s.getAttribute('data-ss'); busy(1); try { await stkTai(); } catch (er) { } busy(0); return draw(); }
+      if (s) return stkDoi('sap', s.getAttribute('data-ss'), draw);
       var m = e.target.closest('[data-sm]');
       if (m) return stkChiTiet(m.getAttribute('data-sm'));
     };
   }
+  draw();
+}
+async function stkDoi(khoa, gia_tri, draw) {
+  var cu = stk[khoa];
+  stk[khoa] = gia_tri;
+  busy(1);
+  try { await stkTai(); }
+  catch (e) { stk[khoa] = cu; busy(0); toast(errMsg(e) || 'Không tải được tồn kho, giữ bộ lọc cũ.'); return; }
+  busy(0);
   draw();
 }
 /* Mot ma nam o kho nao, lo nao het han ngay nao. */
