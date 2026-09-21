@@ -70,6 +70,9 @@ doctype_js = {
 	# Tai khoan nhan tien nhap ngay tren form NCC Desk (v515). Truoc do chi
 	# app co cho nhap, Desk thi the "Tai khoan ngan hang" khong co nut them.
 	"Supplier": "public/js/supplier.js",
+	# Nút "Bỏ qua việc này" trên Task sinh từ màn Việc hôm nay (v516, Codex
+	# #356): ô lý do là ô chỉ đọc, bỏ qua phải đi qua nút có chọn lý do.
+	"Task": "public/js/task_bang_sang.js",
 }
 
 # Nut "Dong bo M-Invoice" tren ba man danh sach (anh Viet xin 31/08/2026).

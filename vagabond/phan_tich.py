@@ -1275,6 +1275,9 @@ def viec(name):
 		"xong_boi": ten.get(t.get("completed_by"), t.get("completed_by") or ""),
 		"quyen": q,
 		"sua_duoc": 1 if t.status in TASK_MO else 0,
+		# Cho nút "Bỏ qua việc này" trên Desk: một nguồn lý do, trần ngày.
+		"ly_do_bo_qua": [{"k": k, "ten": ten} for k, ten in LY_DO_BO_QUA],
+		"bo_qua_toi_da": LUAT.get(t.get("vgb_goi_y_luat"), {}).get("bo_qua_toi_da", 7),
 	})
 	return dong
 
@@ -1319,6 +1322,31 @@ def cap_nhat_viec(name, trang_thai, ket_qua=None):
 	t.flags.ignore_permissions = True
 	t.save()
 	return {"ok": 1, "tt": "xong" if t.status == "Completed" else "dang_lam"}
+
+
+@frappe.whitelist()
+def bo_qua_viec(name, ly_do, so_ngay=7):
+	"""Quản lý bỏ qua một việc ĐÃ GIAO, từ nút trên form Task ở Desk.
+
+	Codex #356: ô "Lý do bỏ qua" trên Task là ô chỉ đọc, nên đổi trạng thái
+	sang Cancelled ngay trên Desk luôn bị chặn vì thiếu lý do. Nút này chọn lý
+	do trong LY_DO_BO_QUA và số ngày nhắc lại, rồi huỷ Task; hook
+	kiem_nguoi_sua_task vẫn soát lại đúng các luật đó ở máy chủ."""
+	t, q = _lay_viec(name, ghi=True)
+	if q != "quan_ly":
+		frappe.throw("Chỉ người quản lý bộ phận mới bỏ qua việc đã giao. Làm không được thì báo người giao.")
+	if t.status not in TASK_MO:
+		frappe.throw("Việc này đã đóng, không bỏ qua được nữa.")
+	if ly_do not in TEN_LY_DO:
+		frappe.throw("Chọn một lý do bỏ qua trong danh sách.")
+	ngay = so_ngay_bo_qua(t.get("vgb_goi_y_luat"), so_ngay)
+	nhac = add_days(_hom_nay(), ngay)
+	t.status = "Cancelled"
+	t.vgb_goi_y_bo_qua_ly_do = ly_do
+	t.vgb_goi_y_nhac_lai = str(nhac)
+	t.flags.ignore_permissions = True
+	t.save()
+	return {"ok": 1, "name": t.name, "nhac_lai": str(nhac), "so_ngay": ngay}
 
 
 @frappe.whitelist()
@@ -1388,7 +1416,7 @@ def soat_huy(trang_thai, trang_thai_cu, quyen, ly_do, nhac_lai, hom_nay):
 	if quyen != "quan_ly":
 		return "Người nhận không huỷ việc được. Làm không được thì ghi kết quả rồi báo xong, hoặc báo người giao để họ bấm Bỏ qua."
 	if ly_do not in TEN_LY_DO:
-		return "Huỷ việc từ màn Việc hôm nay là Bỏ qua: chọn lý do ở ô \"Lý do bỏ qua\" (mục Gợi ý từ Việc hôm nay)."
+		return "Huỷ việc từ màn Việc hôm nay là Bỏ qua: bấm nút \"Bỏ qua việc này\" trên form để chọn lý do và ngày nhắc lại."
 	try:
 		ok = bool(nhac_lai) and getdate(nhac_lai) > getdate(hom_nay)
 	except Exception:
