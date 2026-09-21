@@ -176,6 +176,10 @@ scheduler_events = {
 		# Lop con thieu cua vu 26/08: khong lop nao keu len, vi khong lop
 		# nao co viec keu. Xem canh_bao_tac_nhip.
 		"25 8 * * *": ["vagabond.minvoice_chung_tu.canh_bao_tac_nhip"],
+		# 7h sang: dung bang Viec hom nay (#351) tu so ban va so kho toi het
+		# hom qua. Man chi DOC ban da dung, khong quet lai moi lan mo. Ham tu
+		# nuot loi va ghi log. Xem dau tep phan_tich.py.
+		"0 7 * * *": ["vagabond.phan_tich.dung_bang_sang_tu_dong"],
 		# 01:40 moi dem: tinh lai bang Nguyen lieu thay the. Ton kho, gia von
 		# va so cong thuc doi hang ngay ma khong ai mo lai cap thay the de luu,
 		# nen khong co nhip nay thi cac o do dung im o con so ngay khai.
@@ -272,6 +276,9 @@ scheduler_events = {
 doc_events = {
 	"Vagabond Dat Ban": {"after_insert": "vagabond.dat_ban.bao_dat_ban_moi"},
 	"MInvoice NCC Map": {"validate": "vagabond.quy_cach_ncc.kiem"},
+	# #351: Task sinh tu man Viec hom nay khong duoc danh dau xong ma thieu
+	# ket qua, ke ca khi bam tren Desk. Ham tu bo qua Task khong phai cua minh.
+	"Task": {"validate": "vagabond.phan_tich.kiem_task"},
 	# Khoa xoa vinh vien chung tu, dat o "*" chu khong liet ke tung doctype:
 	# liet ke thi hom nao them mot loai chung tu moi la lai quen, ma quen o
 	# day thi khong ai biet cho den luc mat chung tu. Ham tu kiem doctype va

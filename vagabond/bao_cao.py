@@ -1012,6 +1012,13 @@ def chay(ma, ky="ngay", moc=None, tu=None, den=None, diem=None, nguon=None, pt=N
 	hd = _loc_nhap(tat_ca, n)
 	kq = b["ham"](hd, tu=t, den=d)
 	tong = sum(_tien(r.grand_total) for r in hd)
+	# The Nhan dinh (#351): tinh tren TOAN BO dong truoc khi cat de hien, va
+	# cung bo loc diem ban - nguon - phuong thuc - che do nhap cua bao cao.
+	nhan_dinh = None
+	if b["ma"] == "BC08":
+		from vagabond import phan_tich
+
+		nhan_dinh = phan_tich.the_bao_cao_mon(kq["dong"], ky, t, d, diem=diem, nguon=nguon, pt=pt, nhap=n)
 	cot = list(kq["cot"])
 	dong = kq["dong"]
 
@@ -1096,6 +1103,7 @@ def chay(ma, ky="ngay", moc=None, tu=None, den=None, diem=None, nguon=None, pt=N
 		"co_ss_dong": 1 if b.get("ss") else 0,
 		"bieu_do": kq.get("bieu_do"),
 		"phu": kq.get("phu"),
+		"nhan_dinh": nhan_dinh,
 		# Chip loc doc tu TAT CA don trong ky, ke ca don chua ghi so: tat
 		# cong tac di ma chip cung bien mat thi nguoi dung tuong app hong.
 		"nguon_loc": sorted({(r.custom_nguon or "").strip() for r in tat_ca if (r.custom_nguon or "").strip()}),
