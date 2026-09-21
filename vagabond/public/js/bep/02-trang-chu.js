@@ -193,8 +193,14 @@ async function scrHome() {
   // Quyền báo cáo theo máy chủ; giữ điều kiện cũ nếu backend chưa có metadata.
   var xemBaoCao = S.quyenNen && typeof S.quyenNen.bao_cao === 'boolean'
     ? S.quyenNen.bao_cao : (isSales() || hasRole('Accounts User') || hasRole('Accounts Manager'));
+  /* Viec hom nay (#351): quyen do may chu tra ve (phan_tich.QUYEN_BANG_SANG).
+     Marketing hay quan ly bep co the co quyen nay ma khong co quyen xem bao
+     cao doanh thu, nen o nay dung duoc ca khi khong co khoi Bao cao. */
+  var xemBangSang = !!(S.quyenNen && S.quyenNen.bang_sang);
+  var oBangSang = xemBangSang ? card('🧭', 'Việc hôm nay', 'Máy đọc số hôm qua, nháp sẵn việc để giao', 0, 'BCSANG') : '';
+  if (!xemBaoCao && oBangSang) html += '<div class="sec">Việc hôm nay</div><div class="card">' + oBangSang + '</div>';
   if (xemBaoCao) {
-    html += '<div class="sec">Báo cáo</div><div class="card">' +
+    html += '<div class="sec">Báo cáo</div><div class="card">' + oBangSang +
       card('📈', 'Báo cáo tổng hợp', 'Đang cộng sổ doanh thu hôm nay...', 0, 'BCHUB') +
       card('🛵', 'Doanh thu theo nguồn đơn', 'Tại chỗ, Sales Online, GrabFood, ShopeeFood...', 0, 'BC:BC03') +
       card('💳', 'Phương thức thanh toán', 'Tiền mặt, chuyển khoản, thẻ, ví, công nợ', 0, 'BC:BC04') +
@@ -344,6 +350,7 @@ async function scrHome() {
   };
   vgbGomNhom();
   bcSoHomNay();
+  bsSoTrangChu();
   mvChipCanhBao();
   vgbNapKhungCo();
 }
@@ -476,7 +483,7 @@ var VGB_NHOM = [
   { k: 'KK', ten: 'Kiểm kê', icon: '🧮', keys: ['KK', 'STOCK', 'TONCHANG'] },
   { k: 'BH', ten: 'Bán hàng', icon: '🎂', keys: ['KBD', 'KBM', 'POS', 'TQV', 'HDG', 'OTP', 'KM', 'CN', 'KH', 'DTREO', 'PHHUY', 'BNTM'] },
   { k: 'GH', ten: 'Giao hàng', icon: '🚚', keys: ['VD', 'CPX', 'DSCOD', 'CBTT'] },
-  { k: 'BC', ten: 'Báo cáo', icon: '📈', keys: ['BCHUB', 'BC:BC03', 'BC:BC04', 'BC:BC05', 'BC:BC08', 'BC:BC07'] },
+  { k: 'BC', ten: 'Báo cáo', icon: '📈', keys: ['BCSANG', 'BCHUB', 'BC:BC03', 'BC:BC04', 'BC:BC05', 'BC:BC08', 'BC:BC07'] },
   /* Thu mua (anh Việt 18/08/2026): "các nút tính năng của luồng Mua hàng
      đang để chung chung khiến toàn bộ nhân viên đều nhìn thấy". Nhóm này
      nằm ngay trên Kế toán và chỉ hiện với Thu mua, Kế toán, Giám đốc.
@@ -908,7 +915,7 @@ function vclIcon(l) {
     chuyen_kho: '📦', san_xuat: '🎂', nhap_kho: '📥', xuat_kho: '📤',
     kiem_ke: '🧮', sai_kho: '⚠️', ycmh: '🛒', de_nghi_chi: '🧾', hoan_tien: '💸',
     ho_so_tt: '🏦', don_mua: '⚠️', tang_qua: '🎁',
-    nop_quy: '💵', hang_tang: '🎁'
+    nop_quy: '💵', hang_tang: '🎁', goi_y: '📌'
   }[l] || '';
 }
 
@@ -966,6 +973,8 @@ function vclMo(x) {
   if (l === 'hang_tang') return go(function () {
     dtgTt = ''; dtgDiem = ''; dtgLoai = ''; dtgTim = x.ma; return scrDuyetTang();
   });
+  /* Viec giao tu man Viec hom nay (#351): mo man chi tiet, co nut bao xong. */
+  if (l === 'goi_y') return go(function () { return scrViecGoiY(x.ma); });
   toast('Phiếu ' + x.ma + ' cần xử lý trên máy tính.', 4200);
 }
 
@@ -1121,6 +1130,7 @@ var VGB_DUONG = {
   'tro-ly': 'CDTL',
   'van-don': 'VD',
   'viec-can-lam': 'VCL',
+  'viec-hom-nay': 'BCSANG',
   'xuat-ban-si': 'XKSI',
   'xuat-dieu-chuyen': 'XKD',
   'xuat-dung-noi-bo': 'XKNB',
@@ -1236,6 +1246,7 @@ function vgbGo(k) {
   if (k === 'BC3') return go(function () { kmThe = 'bc'; scrKhuyenMai(); });
   if (k === 'KT1') return go(scrDoanhSo);
   if (k === 'BCHUB') return go(scrBaoCao);
+  if (k === 'BCSANG') return go(scrBangSang);
   if (k === 'DUYETYC') return go(scrDuyetYc);
   if (k === 'PO') return go(scrDonMua);
   if (k === 'KHPO') return kgMo('PO');

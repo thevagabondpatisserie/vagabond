@@ -319,6 +319,31 @@ function bcVeThe(kq) {
   }).join('') + '</div>';
 }
 
+/* The Nhan dinh tren bao cao Mon ban chay (#351). May chu so ky dang xem
+   voi ky lien truoc, CUNG bo loc cua bao cao, tren toan bo dong truoc khi
+   cat. Mon giam chi ghi "can kiem tra", khong ket luan nguyen nhan. */
+function bcTheNhanDinh(nd) {
+  var dong = function (x, tang) {
+    return '<div class="li" style="padding:10px 14px;cursor:default">' + anhMon(x.anh) +
+      '<div class="lt"><div class="l1" style="font-size:14.5px">' + h(x.ten) + '</div>' +
+      '<div class="l2">Bán ' + money(x.nay) + ', kỳ trước ' + money(x.truoc) + (tang ? '' : ' · cần kiểm tra hết hàng, ẩn món') + '</div></div>' +
+      '<span class="st ' + (tang ? 'g' : 'r') + '">' + (tang ? '+' : '') + x.pt + '%</span></div>';
+  };
+  var con = [];
+  if (nd.so_tang > (nd.tang || []).length) con.push((nd.so_tang - nd.tang.length) + ' món tăng');
+  if (nd.so_giam > (nd.giam || []).length) con.push((nd.so_giam - nd.giam.length) + ' món giảm');
+  if (nd.moi) con.push(nd.moi + ' món mới bán');
+  return '<div class="card">' +
+    '<div style="padding:12px 14px 6px;display:flex;align-items:center;gap:8px">' +
+    '<span style="font-size:18px">🧭</span><b style="font-size:15px;flex:1">Nhận định</b>' +
+    '<span style="font-size:12px;color:#8a8f9c">so với ' + h(nd.so_voi || 'kỳ trước') + '</span></div>' +
+    (nd.tang || []).map(function (x) { return dong(x, true); }).join('') +
+    (nd.giam || []).map(function (x) { return dong(x, false); }).join('') +
+    (con.length ? '<div style="padding:8px 14px 10px;font-size:12.5px;color:#8a8f9c">Còn ' + h(con.join(', ')) + '.</div>' : '') +
+    (nd.mo_bang_sang ? '<div data-bcbs style="padding:13px 14px;border-top:1px solid #f0f2f6;color:#0B7C93;font-weight:600;font-size:14px;cursor:pointer">Mở Việc hôm nay để giao việc &#8250;</div>' : '') +
+    '</div>';
+}
+
 async function scrBaoCaoXem() {
   var ma = bcMa || 'BC01';
   frame('Báo cáo ' + ma, '<div class="emp"><div class="e1">⏳</div><div>Đang cộng sổ...</div></div>');
@@ -354,6 +379,8 @@ async function scrBaoCaoXem() {
       ? '<div style="font-size:12px;color:#98a2b3;margin-top:5px">Báo cáo dạng bảng kê nên không so được từng dòng, chỉ so tổng.</div>'
       : '') +
     '</div>';
+
+  if (kq.nhan_dinh) html += bcTheNhanDinh(kq.nhan_dinh);
 
   /* Chip loc nguon don va phuong thuc thanh toan: chi hien khi ky nay
      that su co nhieu hon mot gia tri, khoi bay chip vo ich. */
@@ -401,6 +428,8 @@ async function scrBaoCaoXem() {
 
   var b = frame('Báo cáo ' + kq.ma, html, { footer: '<button class="btn" id="bcExcel">📥 Xuất Excel cho kế toán</button>' });
   bcNoiThanh(b, function () { go(scrBaoCaoXem, true); });
+  var nbs = b.querySelector('[data-bcbs]');
+  if (nbs) nbs.onclick = function () { go(scrBangSang); };
 
   var nx = document.getElementById('bcExcel');
   if (nx) nx.onclick = async function () {
