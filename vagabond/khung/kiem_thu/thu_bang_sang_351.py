@@ -292,7 +292,8 @@ class Gia:
 			fr.khoa.append((q.split("(")[0], a[0]))
 			return [[1]]
 
-		self.db = NS(get_value=get_value, exists=exists, sql=sql, set_value=lambda dt, n, f, v: fr.task[n].__setitem__(f, v))
+		self.db = NS(get_value=get_value, exists=exists, sql=sql, set_value=lambda dt, n, f, v: fr.task[n].__setitem__(f, v),
+			commit=lambda: fr.khoa.append(("commit", None)))
 		self.cache = lambda: NS(get_value=lambda k: fr.bang, set_value=lambda *a, **k: None)
 
 	def get_roles(self, *a):
@@ -352,6 +353,30 @@ class Gia:
 		return Moi(d)
 
 
+def _gv(fr):
+	"""db.get_value giả cho Task: một trường trả giá trị, danh sách trả dict."""
+	def gv(dt, n, f=None, as_dict=False, **k):
+		d = fr.task[n]
+		if isinstance(f, (list, tuple)):
+			return {x: d.get(x) for x in f}
+		return d.get(f)
+	return gv
+
+
+class _DocGia(dict):
+	def get(s, k, d=None):
+		return dict.get(s, k, d)
+
+	def is_new(s):
+		return False
+
+	def __getattr__(s, k):
+		return s.get(k)
+
+	def __setattr__(s, k, v):
+		s[k] = v
+
+
 class _TaskGia:
 	def __init__(self, fr, d):
 		self.__dict__["_fr"] = fr
@@ -398,7 +423,7 @@ def _giao():
 	la("chia sẻ cho hai người nhận và người giao, bỏ qua kiểm quyền chia sẻ",
 		sorted(fr.share), sorted([("TASK-1", "mkt@vgb", 1, True), ("TASK-1", "vu@vgb", 1, True), ("TASK-1", "loan@vgb", 1, True)]))
 	la("chuông cho hai người", len(fr.bao), 2)
-	dung("có khoá tên cơ sở dữ liệu và nhả khoá", [q for q, _ in fr.khoa] == ["select get_lock", "select release_lock"])
+	dung("có khoá tên cơ sở dữ liệu, commit rồi mới nhả khoá", [q for q, _ in fr.khoa] == ["select get_lock", "commit", "select release_lock"])
 	r2 = _chay(fr, pt.giao, k, ["mkt@vgb"], "2026-09-23")
 	la("bấm lại: đúng việc cũ, không Task mới", (r2.get("da_co"), r2["name"], len(fr.task)), (1, "TASK-1", 1))
 	la("không thêm ToDo", len(fr.todo), 2)
@@ -510,7 +535,9 @@ def _f1_ket_qua():
 	la("thiếu kết quả", bool(pt.soat_ket_qua("Completed", "Open", "")), True)
 	la("kết quả quá ngắn", bool(pt.soat_ket_qua("Completed", "Working", "ok")), True)
 	la("có kết quả", pt.soat_ket_qua("Completed", "Open", "Đã đăng 2 story"), None)
-	la("đã xong từ trước thì không soát lại", pt.soat_ket_qua("Completed", "Completed", ""), None)
+	# Codex #353 vòng 2 (G5): trước đây ca này mong None, tức việc đã xong thì
+	# được xoá trắng kết quả. Đó chính là lỗi; đừng sửa ca về như cũ.
+	la("đã xong từ trước mà xoá trắng kết quả thì vẫn chặn", bool(pt.soat_ket_qua("Completed", "Completed", "")), True)
 	la("chưa xong thì không soát", pt.soat_ket_qua("Working", "Open", ""), None)
 
 	class DocGia(dict):
@@ -527,7 +554,8 @@ def _f1_ket_qua():
 			s[k] = v
 	fr = Gia(user="mkt@vgb")
 	fr.task["TASK-7"] = {"name": "TASK-7", "status": "Open"}
-	fr.db.get_value = lambda dt, n, f=None, **k: fr.task[n][f]
+	fr.db.get_value = _gv(fr)
+	fr.todo.append({"reference_type": "Task", "reference_name": "TASK-7", "allocated_to": "mkt@vgb", "status": "Open"})
 	d = DocGia(name="TASK-7", status="Completed", vgb_goi_y_khoa="k")
 	nem("Desk đánh dấu xong mà trống kết quả", lambda: _chay(fr, pt.kiem_task, d), fr.Loi)
 	d2 = DocGia(name="TASK-7", status="Completed", vgb_goi_y_khoa="k", vgb_goi_y_ket_qua="Đã cách ly lô")
@@ -575,3 +603,101 @@ def _f4_chua_dong_bo():
 		D(2026, 9, 22), datetime.datetime(2026, 9, 21, 7))
 	la("có cảnh báo", [x["ma"] for x in c], ["pancake"])
 	dung("câu nói chưa đồng bộ lần nào", "chưa đồng bộ đơn Pancake lần nào" in c[0]["cau"])
+
+
+# ------------------------------------------------ Codex #353 vòng 2 (SHA b2d66e6)
+
+@ca("#353 G1: lô đã tắt (disabled) mà còn hàng vẫn vào nhắc quá hạn")
+def _g1_lo_tat():
+	loc = []
+
+	def get_all(dt, filters=None, **k):
+		loc.append(dict(filters or {}))
+		return [{"name": "LO-TAT", "item": "NVLT1", "item_name": "Bơ", "expiry_date": "2026-09-01"}]
+	tra_ton = types.ModuleType("vagabond.tra_ton")
+	tra_ton._so_lo = lambda f: {("LO-TAT", "Kho tổng 307 - TV"): 4}
+	fr = NS(get_all=get_all)
+	with patch.object(pt, "frappe", fr), patch.dict(sys.modules, {"vagabond.tra_ton": tra_ton}):
+		import vagabond
+		with patch.object(vagabond, "tra_ton", tra_ton, create=True):
+			ra = pt._lo_sap_het(datetime.date(2026, 9, 20))
+	dung("không lọc disabled", "disabled" not in loc[0])
+	la("lô tắt còn 4 vẫn ra", [(x["lo"], x["sl"]) for x in ra], [("LO-TAT", 4.0)])
+
+
+@ca("#353 G2: phần tính hỏng thì bảng BÁO, không im lặng như kho sạch")
+def _g2_hong():
+	la("không hỏng thì không báo", pt.canh_bao_hong([]), [])
+	c = pt.canh_bao_hong(["lo", "lo", "kiem_banh"])
+	la("một dòng, mã loi_tinh", (len(c), c[0]["ma"]), (1, "loi_tinh"))
+	dung("nêu đúng phần hỏng, không lặp", c[0]["cau"].count("lô quá hạn") == 1 and "kiểm bánh" in c[0]["cau"])
+	# Chạy thật dung_bang_sang với phần lô nổ: bảng cất vào đệm phải có cảnh báo.
+	cat = {}
+	bc = types.ModuleType("vagabond.bao_cao")
+	bc._diem = lambda r: "Q1"
+	bc._dong_hang = lambda hd: []
+	bc._diem_ban = lambda: []
+	kb = types.ModuleType("vagabond.kiem_banh")
+	kb.bang = lambda ngay: {"co_so": 1, "dong_bo_luc": "2026-09-20 06:50:00", "dong": []}
+
+	def no(*a, **k):
+		raise RuntimeError("mat ket noi")
+	fr = NS(log_error=lambda *a, **k: None, get_traceback=lambda: "",
+		cache=lambda: NS(set_value=lambda k, v, **kw: cat.__setitem__("bang", v)))
+	import vagabond
+	with patch.object(pt, "frappe", fr), patch.dict(sys.modules, {"vagabond.bao_cao": bc, "vagabond.kiem_banh": kb}), \
+			patch.object(vagabond, "bao_cao", bc, create=True), patch.object(vagabond, "kiem_banh", kb, create=True), \
+			patch.object(pt, "_hom_nay", lambda: datetime.date(2026, 9, 20)), \
+			patch.object(pt, "_hoa_don_ba_tuan", lambda cs: []), patch.object(pt, "_anh_mon", lambda ds: {}), \
+			patch.object(pt, "_lo_sap_het", no), \
+			patch.object(pt, "now_datetime", lambda: datetime.datetime(2026, 9, 20, 7, 0, 0)):
+		pt.dung_bang_sang()
+	ma = [x["ma"] for x in cat["bang"]["chat_luong"]]
+	dung("bảng cất vào đệm có cảnh báo phần lô", "loi_tinh" in ma and "lô quá hạn" in cat["bang"]["chat_luong"][0]["cau"])
+
+
+@ca("#353 G3: giao/bỏ qua ghi hẳn (commit) TRƯỚC khi nhả khoá tên")
+def _g3_khoa():
+	fr = Gia(user="loan@vgb", vai=("Marketing",))
+	_chay(fr, pt.giao, "mon_tang|BANU14|tat_ca", ["mkt@vgb"])
+	buoc = [x[0].strip().split(" ")[-1] if x[0] != "commit" else "commit" for x in fr.khoa]
+	la("thứ tự: lấy khoá, commit, nhả khoá", buoc, ["get_lock", "commit", "release_lock"])
+	fr2 = Gia(user="viet@vgb")
+	_chay(fr2, pt.bo_qua, "lo_qua_han|Kho tổng 307 - TV|", "so_sai", 3)
+	buoc2 = [x[0].strip().split(" ")[-1] if x[0] != "commit" else "commit" for x in fr2.khoa]
+	la("bỏ qua cũng vậy", buoc2, ["get_lock", "commit", "release_lock"])
+
+
+@ca("#353 G4: trên Desk, người nhận cũ không đổi được trạng thái/kết quả; người đang nhận và quản lý thì được")
+def _g4_desk_nguoi_cu():
+	fr = Gia(user="cu@vgb", vai=("Sales User",))
+	fr.task["TASK-9"] = {"name": "TASK-9", "status": "Open", "vgb_goi_y_ket_qua": "", "vgb_goi_y_bo_phan": "marketing"}
+	fr.db.get_value = _gv(fr)
+	fr.todo += [
+		{"reference_type": "Task", "reference_name": "TASK-9", "allocated_to": "cu@vgb", "status": "Closed"},
+		{"reference_type": "Task", "reference_name": "TASK-9", "allocated_to": "moi@vgb", "status": "Open"},
+	]
+	d = lambda: _DocGia(name="TASK-9", status="Completed", vgb_goi_y_khoa="k", vgb_goi_y_bo_phan="marketing", vgb_goi_y_ket_qua="Đã xong việc")
+	nem("người nhận cũ lưu Completed trên Desk", lambda: _chay(fr, pt.kiem_task, d()), fr.Loi)
+	fr.session.user = "moi@vgb"
+	_chay(fr, pt.kiem_task, d())
+	fr.session.user, fr.vai = "loan@vgb", ["Marketing"]
+	_chay(fr, pt.kiem_task, d())
+	fr.session.user, fr.vai = "Administrator", []
+	_chay(fr, pt.kiem_task, d())
+	fr.session.user, fr.vai = "cu@vgb", ["Sales User"]
+	sua_mo_ta = _DocGia(name="TASK-9", status="Open", vgb_goi_y_khoa="k", vgb_goi_y_bo_phan="marketing", vgb_goi_y_ket_qua="")
+	_chay(fr, pt.kiem_task, sua_mo_ta)
+	dung("không đổi trạng thái/kết quả thì không chặn (sửa ô khác)", True)
+	la("hàm thuần: Administrator không xét", pt.can_kiem_nguoi_sua("Administrator", {"status": "Open"}, "Completed", "x"), False)
+	la("hàm thuần: đổi kết quả thì xét", pt.can_kiem_nguoi_sua("a@vgb", {"status": "Completed", "vgb_goi_y_ket_qua": "cũ dài"}, "Completed", "mới dài"), True)
+
+
+@ca("#353 G5: việc đã xong không xoá trắng hay rút ngắn được kết quả (đường Desk)")
+def _g5_giu_ket_qua():
+	fr = Gia(user="moi@vgb", vai=("Sales User",))
+	fr.task["TASK-5"] = {"name": "TASK-5", "status": "Completed", "vgb_goi_y_ket_qua": "Đã cách ly lô", "vgb_goi_y_bo_phan": "kho"}
+	fr.db.get_value = _gv(fr)
+	fr.todo.append({"reference_type": "Task", "reference_name": "TASK-5", "allocated_to": "moi@vgb", "status": "Open"})
+	d = _DocGia(name="TASK-5", status="Completed", vgb_goi_y_khoa="k", vgb_goi_y_bo_phan="kho", vgb_goi_y_ket_qua="ok")
+	nem("rút ngắn kết quả việc đã xong", lambda: _chay(fr, pt.kiem_task, d), fr.Loi)
