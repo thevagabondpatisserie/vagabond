@@ -727,6 +727,37 @@ def can_kiem_nguoi_sua(nguoi, truoc, trang_thai, ket_qua, vai=None):
 	return True
 
 
+# Căn cứ của một việc sinh từ bảng sáng: máy ghi lúc giao, không ai được sửa.
+TRUONG_KHOA_TASK = ("vgb_goi_y_khoa", "vgb_goi_y_luat", "vgb_goi_y_bo_phan", "vgb_goi_y_phien_ban",
+	"vgb_goi_y_den_ngay", "vgb_goi_y_so_lieu")
+TASK_DONG = ("Completed", "Cancelled")
+
+
+def loi_truong_khoa(truoc, sau):
+	"""Câu lỗi nếu lần lưu đổi một trường căn cứ, None nếu không. THUẦN.
+
+	Codex #356: gửi thẳng tài liệu qua API thì đổi được cả ô chỉ đọc; xoá ô
+	khoá là Task thoát khỏi mọi luật và biến khỏi bảng sáng."""
+	g = lambda v: "" if v is None else str(v).strip()[:10] if len(str(v)) >= 10 and str(v)[4:5] == "-" else ("" if v is None else str(v).strip())
+	for f in TRUONG_KHOA_TASK:
+		if g((truoc or {}).get(f)) != g(sau.get(f)):
+			return "Không sửa được ô căn cứ \"%s\" của việc sinh từ màn Việc hôm nay." % f
+	return None
+
+
+def loi_mo_lai(cu, moi):
+	"""Câu lỗi nếu mở lại việc đã đóng (xong hoặc bỏ qua). THUẦN.
+
+	Codex #356: mở lại trên Desk thì ToDo không được dựng lại, việc thành
+	"đang mở" mà không ai thấy, và nhận định bị ẩn khỏi Cần giao mãi. Việc đã
+	đóng thì để nhận định hiện lại và giao việc mới."""
+	if cu in TASK_DONG and moi not in TASK_DONG:
+		return "Việc này đã đóng, không mở lại được. Nếu vẫn cần làm, nhận định sẽ hiện lại ở Cần giao để giao việc mới (việc bỏ qua thì bấm Hiện lại ở tab Bỏ qua)."
+	if cu in TASK_DONG and moi in TASK_DONG and cu != moi:
+		return "Việc đã đóng không đổi trạng thái được nữa."
+	return None
+
+
 def mo_ta_viec(x):
 	"""Nội dung ô mô tả của Task: đọc được trên Desk không cần app. THUẦN."""
 	def e(s):
@@ -1514,10 +1545,19 @@ def kiem_nguoi_sua_task(doc, method=None):
 	người nhận THẬT báo xong bị chặn, vì tới lúc hook validate chạy thì
 	ERPNext (Task.validate) đã đóng ToDo của chính họ. before_validate chạy
 	trước bộ điều khiển Task nên còn thấy đúng ToDo đang mở."""
-	if not doc.get("vgb_goi_y_khoa") or doc.is_new():
+	if doc.is_new():
+		return
+	# Codex #356: nhận diện Task bảng sáng theo giá trị ĐÃ LƯU, không theo ô
+	# gửi lên: xoá trắng ô khoá qua API là lách được mọi luật dưới đây.
+	truoc = frappe.db.get_value("Task", doc.name, ["status"] + list(TRUONG_KHOA_TASK), as_dict=True) or {}
+	if not truoc.get("vgb_goi_y_khoa") and not doc.get("vgb_goi_y_khoa"):
 		return
 	vai = _vai()
-	cu = frappe.db.get_value("Task", doc.name, "status")
+	cu = truoc.get("status")
+	if frappe.session.user != "Administrator":
+		loi = loi_truong_khoa(truoc, doc) or loi_mo_lai(cu, doc.get("status"))
+		if loi:
+			frappe.throw(loi, title="Không sửa được")
 	if not can_kiem_nguoi_sua(frappe.session.user, {}, doc.get("status"), doc.get("vgb_goi_y_ket_qua"), vai):
 		q = "quan_ly"
 	else:
@@ -1538,9 +1578,15 @@ def kiem_task(doc, method=None):
 	mà ô kết quả trống. Chặn ở tầng chứng từ thì app và Desk cùng một luật.
 	Ai được lưu thì xét ở kiem_nguoi_sua_task (before_validate).
 	"""
-	if not doc.get("vgb_goi_y_khoa"):
-		return
-	cu = None if doc.is_new() else frappe.db.get_value("Task", doc.name, "status")
+	if doc.is_new():
+		if not doc.get("vgb_goi_y_khoa"):
+			return
+		cu = None
+	else:
+		truoc = frappe.db.get_value("Task", doc.name, ["status", "vgb_goi_y_khoa"], as_dict=True) or {}
+		if not truoc.get("vgb_goi_y_khoa") and not doc.get("vgb_goi_y_khoa"):
+			return
+		cu = truoc.get("status")
 	loi = soat_ket_qua(doc.get("status"), cu, doc.get("vgb_goi_y_ket_qua"))
 	if loi:
 		frappe.throw(loi, title="Thiếu kết quả")
