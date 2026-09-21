@@ -945,7 +945,10 @@ def bang_sang(tab="can_giao", bo_phan=""):
 	xong = [d for d in dong if d["tt"] == "xong" and d["xong_luc"] and (hom_nay - getdate(d["xong_luc"])).days <= 14]
 	bo_qua = [d for d in dong if d["tt"] == "bo_qua" and (hom_nay - getdate(d["nhac_lai"] or hom_nay)).days <= 14]
 
-	nhom = {"can_giao": can_giao, "da_giao": da_giao, "xong": xong, "bo_qua": bo_qua}
+	# Codex #356: ô "Trễ hạn" ở đầu màn phải mở đúng phần trễ, không phải cả
+	# tab Đã giao. "tre" là tab lọc riêng, không có chip dưới.
+	tre = [d for d in da_giao if d["tt"] == "tre"]
+	nhom = {"can_giao": can_giao, "da_giao": da_giao, "tre": tre, "xong": xong, "bo_qua": bo_qua}
 	tab = tab if tab in nhom else "can_giao"
 	cua_tab = nhom[tab]
 	dem_bp = {k: 0 for k in duoc}
@@ -1372,6 +1375,29 @@ def can_kiem_nguoi_sua(nguoi, truoc, trang_thai, ket_qua, vai=None):
 	return True
 
 
+def soat_huy(trang_thai, trang_thai_cu, quyen, ly_do, nhac_lai, hom_nay):
+	"""Câu lỗi nếu Task bảng sáng bị chuyển sang Cancelled sai đường. THUẦN.
+
+	Codex #356: người nhận đổi Task sang Cancelled trên Desk thì ERPNext đóng
+	việc mà không có lý do, không có ngày nhắc; nhận định hiện lại ngay ở Cần
+	giao, còn tab Bỏ qua có một dòng không ai hiểu. Huỷ là "bỏ qua", chỉ quản
+	lý làm, và phải có lý do trong danh sách cùng ngày nhắc lại sau hôm nay,
+	đúng như đường bo_qua trên app."""
+	if trang_thai != "Cancelled" or trang_thai_cu == "Cancelled":
+		return None
+	if quyen != "quan_ly":
+		return "Người nhận không huỷ việc được. Làm không được thì ghi kết quả rồi báo xong, hoặc báo người giao để họ bấm Bỏ qua."
+	if ly_do not in TEN_LY_DO:
+		return "Huỷ việc từ màn Việc hôm nay là Bỏ qua: chọn lý do ở ô \"Lý do bỏ qua\" (mục Gợi ý từ Việc hôm nay)."
+	try:
+		ok = bool(nhac_lai) and getdate(nhac_lai) > getdate(hom_nay)
+	except Exception:
+		ok = False
+	if not ok:
+		return "Bỏ qua phải có ngày nhắc lại sau hôm nay (ô \"Nhắc lại ngày\")."
+	return None
+
+
 def kiem_nguoi_sua_task(doc, method=None):
 	"""Hook before_validate của Task bảng sáng: ai được lưu.
 
@@ -1385,11 +1411,18 @@ def kiem_nguoi_sua_task(doc, method=None):
 	trước bộ điều khiển Task nên còn thấy đúng ToDo đang mở."""
 	if not doc.get("vgb_goi_y_khoa") or doc.is_new():
 		return
-	if not can_kiem_nguoi_sua(frappe.session.user, {}, doc.get("status"), doc.get("vgb_goi_y_ket_qua"), _vai()):
-		return
-	if not _quyen_viec(doc, ghi=True):
-		frappe.throw("Việc này không (còn) giao cho bạn và không thuộc bộ phận bạn quản lý, nên không sửa được.",
-			title="Không có quyền")
+	vai = _vai()
+	cu = frappe.db.get_value("Task", doc.name, "status")
+	if not can_kiem_nguoi_sua(frappe.session.user, {}, doc.get("status"), doc.get("vgb_goi_y_ket_qua"), vai):
+		q = "quan_ly"
+	else:
+		q = _quyen_viec(doc, ghi=True)
+		if not q:
+			frappe.throw("Việc này không (còn) giao cho bạn và không thuộc bộ phận bạn quản lý, nên không sửa được.",
+				title="Không có quyền")
+	loi = soat_huy(doc.get("status"), cu, q, doc.get("vgb_goi_y_bo_qua_ly_do"), doc.get("vgb_goi_y_nhac_lai"), _hom_nay())
+	if loi:
+		frappe.throw(loi, title="Không huỷ được")
 
 
 def kiem_task(doc, method=None):
