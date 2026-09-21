@@ -67,6 +67,9 @@ doctype_js = {
 	# von cuoi cung lay theo hoa don (anh Viet hoi 31/08/2026: "PNK anh tuong
 	# chi quan so luong, HSD?"). Xem dau tep purchase_receipt.js.
 	"Purchase Receipt": "public/js/purchase_receipt.js",
+	# Tai khoan nhan tien nhap ngay tren form NCC Desk (v515). Truoc do chi
+	# app co cho nhap, Desk thi the "Tai khoan ngan hang" khong co nut them.
+	"Supplier": "public/js/supplier.js",
 }
 
 # Nut "Dong bo M-Invoice" tren ba man danh sach (anh Viet xin 31/08/2026).
