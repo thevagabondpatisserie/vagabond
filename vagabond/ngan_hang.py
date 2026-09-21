@@ -124,9 +124,16 @@ def tim(tu_khoa="", so_dong=None):
 	Vi sao: nhan vien quay go nhanh tren dien thoai, bat go dung dau tieng
 	Viet la bat go lai ba lan.
 	"""
-	from vagabond.ban_hang import _kiem_quyen
+	# v515 (Codex #355): o chon ngan hang con dung cho tai khoan nhan tien
+	# cua nha cung cap. Nguoi sua duoc ho so NCC (thu mua, ke toan, AP Giam
+	# doc) phai chon duoc ngan hang, du khong co vai ban hang; truoc day ho
+	# thay nut Them tai khoan ma bam o ngan hang thi bi chan.
+	from vagabond import ncc
 
-	_kiem_quyen()
+	if not ncc.duoc_sua_tk(frappe.get_roles()):
+		from vagabond.ban_hang import _kiem_quyen
+
+		_kiem_quyen()
 	tk = _khong_dau(tu_khoa)
 	ds = doc_danh_muc()
 	if not ds:
