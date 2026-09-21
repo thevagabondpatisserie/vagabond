@@ -758,6 +758,30 @@ def loi_mo_lai(cu, moi):
 	return None
 
 
+# Hàng chip khoảng ngày (AGENTS.md: ba hàng chip trên mọi màn danh sách).
+KY_NGAY = (("", "Tất cả"), ("hom_nay", "Hôm nay"), ("7", "7 ngày"), ("30", "30 ngày"))
+
+
+def loc_theo_ky(ds, ky, hom_nay):
+	"""Giữ dòng có mốc ngày trong khoảng đang chọn. THUẦN.
+
+	Codex #356: lịch sử xong, bỏ qua trải nhiều ngày mà màn chỉ có chip trạng
+	thái và bộ phận; thiếu hàng khoảng ngày thì phải cuộn hết mới tìm được."""
+	if not ky:
+		return list(ds or [])
+	t = getdate(hom_nay)
+	so = 0 if ky == "hom_nay" else cint(ky) - 1
+	ra = []
+	for x in ds or []:
+		try:
+			m = getdate(x.get("moc")) if x.get("moc") else None
+		except Exception:
+			m = None
+		if m is not None and 0 <= (t - m).days <= so:
+			ra.append(x)
+	return ra
+
+
 def mo_ta_viec(x):
 	"""Nội dung ô mô tả của Task: đọc được trên Desk không cần app. THUẦN."""
 	def e(s):
@@ -979,7 +1003,7 @@ def _doc_bang():
 	return b
 
 
-TRUONG_VIEC = ["name", "subject", "status", "exp_end_date", "completed_on", "completed_by", "owner", "creation",
+TRUONG_VIEC = ["name", "subject", "status", "exp_end_date", "completed_on", "completed_by", "owner", "creation", "modified",
 	"vgb_goi_y_khoa", "vgb_goi_y_luat", "vgb_goi_y_bo_phan", "vgb_goi_y_nhac_lai",
 	"vgb_goi_y_bo_qua_ly_do", "vgb_goi_y_ket_qua", "vgb_goi_y_anh", "_assign"]
 
@@ -1048,11 +1072,16 @@ def _dong_viec(d, ten, hom_nay):
 		"nhac_lai": str(d.get("vgb_goi_y_nhac_lai") or ""),
 		"anh": d.get("vgb_goi_y_anh") or "",
 		"giao_boi": ten.get(d.get("owner"), d.get("owner")),
+		# Mốc ngày cho hàng chip khoảng ngày: việc xong theo ngày xong, bỏ
+		# qua theo lần sửa cuối (lúc bỏ qua), còn lại theo ngày giao.
+		"moc": str(d.get("completed_on") or "")[:10] if tt == "xong"
+			else str(d.get("modified") or d.get("creation") or "")[:10] if tt == "bo_qua"
+			else str(d.get("creation") or "")[:10],
 	}
 
 
 @frappe.whitelist()
-def bang_sang(tab="can_giao", bo_phan=""):
+def bang_sang(tab="can_giao", bo_phan="", ky=""):
 	"""Màn Việc hôm nay: nhận định cần giao, việc đã giao, việc xong, bỏ qua.
 
 	Chỉ ĐỌC. Lọc theo vai ở máy chủ trước khi trả về.
@@ -1097,7 +1126,12 @@ def bang_sang(tab="can_giao", bo_phan=""):
 				dem_bp[k] += 1
 	bo_phan = (bo_phan or "").strip()
 	hien = [x for x in cua_tab if not bo_phan or bo_phan in (x.get("bo_phan") or [])]
+	ky = ky if ky in dict(KY_NGAY) else ""
+	if tab != "can_giao":
+		hien = loc_theo_ky(hien, ky, hom_nay)
 	return {
+		"ky": ky,
+		"chip_ky": [{"k": k, "ten": t} for k, t in KY_NGAY],
 		"dang_dung": 1 if b is None else 0,
 		"chot_luc": (b or {}).get("chot_luc") or "",
 		"den_ngay": (b or {}).get("den_ngay") or str(add_days(hom_nay, -1)),
