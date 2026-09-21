@@ -55,6 +55,8 @@ function dungMan(canh) {
       if (duong === 'vagabond.tra_truoc.ds_don_mua') return Promise.resolve({ don: [{ don: 'DMH-1', ten_ncc: 'Duy Lợi', tong: 1620000, ngay: '2026-09-16', lap_duoc: 1 }] });
       if (duong === 'vagabond.tra_truoc.ds_nguon_tien') return Promise.resolve({ nguon: [{ ma: '11211', so_hieu: '11211', nhan: '11211 · MB Bank', nhom: 'cong_ty' }] });
       if (duong === 'vagabond.tra_truoc.chi_tiet_don') {
+        that._soDoc = (that._soDoc || 0) + 1;
+        if (canh.taiLaiHong && that._soDoc > 1) return Promise.reject(new Error('mất mạng'));
         return Promise.resolve({ don: ts.don, tong: 1620000, tran: 1620000, lap_duoc: 1,
           ncc: { ma: 'NCC-DL', ten: 'Duy Lợi', mst: '0315917706', tai_khoan: tk.so_tk ? JSON.parse(JSON.stringify(tk)) : {}, sua_tk: canh.sua === 0 ? 0 : 1 },
           loai_chung_tu: [] });
@@ -62,7 +64,7 @@ function dungMan(canh) {
       if (duong === 'vagabond.ncc.luu_tai_khoan') {
         if (canh.luuHong) return Promise.reject(new Error('Số tài khoản có ký tự lạ.'));
         tk = { so_tk: ts.so_tk, ngan_hang: ts.ngan_hang, chu_tk: ts.chu_tk || 'Duy Lợi' };
-        return Promise.resolve({ ok: 1 });
+        return Promise.resolve({ ok: 1, tai_khoan: JSON.parse(JSON.stringify(tk)) });
       }
       return Promise.resolve({});
     },
@@ -177,6 +179,52 @@ async function chayHet() {
     dung('hien so', m.khung.innerHTML.indexOf('Số tài khoản: 999888777') >= 0);
     bam(m.khung.querySelectorAll('#ttSuaTk')[0]); await tick();
     bang('dien san so cu', hop(m).querySelectorAll('#tkhSo')[0].value, '999888777');
+  });
+
+  await ca('Codex #355: luu duoc nhung doc lai don hong -> man hien so VUA LUU va bao ro, khong im lang giu so cu', async function () {
+    var m = dungMan({ taiLaiHong: 1 });
+    await moDon(m);
+    bam(m.khung.querySelectorAll('#ttSuaTk')[0]); await tick();
+    var b = hop(m);
+    b.querySelectorAll('#tkhSo')[0].value = '0315917706';
+    bam(b.querySelectorAll('#tkhNh')[0]); await tick();
+    bam(b.querySelectorAll('[data-tkhok]')[0]); await tick(); await tick(); await tick();
+    var html = m.khung.innerHTML;
+    dung('man hien so vua luu', html.indexOf('Số tài khoản: 0315917706') >= 0);
+    dung('khong con bao chua co', html.indexOf('chưa có số tài khoản nhận tiền') < 0);
+    dung('bao ro chi doc lai hong, khong can luu lai', (m.g._bao || []).join(' ').indexOf('không cần lưu lại') >= 0);
+  });
+
+  await ca('Codex #355: form NCC Desk chon ngan hang qua vagabond.ngan_hang.tim, khong qua o Link Bank', async function () {
+    var SUP = fs.readFileSync(path.join(GOC, 'vagabond', 'public', 'js', 'supplier.js'), 'utf8');
+    var goi = [], hop = null, nut = null, reload = 0;
+    var frappe = {
+      ui: { form: { on: function (dt, h) { frappe._h = h; } },
+        Dialog: function (o) { hop = o; this.show = function () {}; this.hide = function () { hop.an = 1; }; } },
+      utils: { escape_html: function (x) { return String(x); } },
+      show_alert: function () {},
+      call: function (o) {
+        goi.push(o.method);
+        if (o.method === 'vagabond.ncc.tai_khoan') return o.callback({ message: { so_tk: '', sua: 1 } });
+        if (o.method === 'vagabond.ngan_hang.tim') return o.callback({ message: { ds: [{ k: 'MB - Ngân hàng TMCP Quân đội', ten: 'MB - Ngân hàng TMCP Quân đội' }] } });
+        if (o.method === 'vagabond.ncc.luu_tai_khoan') { goi.args = o.args; return o.callback({ message: { ok: 1 } }); }
+      }
+    };
+    vm.runInNewContext(SUP, { frappe: frappe });
+    var frm = { doc: { name: 'NCC-DL' }, is_new: function () { return false; },
+      dashboard: { set_headline_alert: function () {} },
+      add_custom_button: function (t, f) { nut = f; }, reload_doc: function () { reload++; } };
+    frappe._h.refresh(frm);
+    dung('co nut them', typeof nut === 'function');
+    nut();
+    dung('goi ngan_hang.tim truoc khi mo hop', goi.indexOf('vagabond.ngan_hang.tim') >= 0);
+    var o = hop.fields.filter(function (f) { return f.fieldname === 'ngan_hang'; })[0];
+    bang('o ngan hang la Autocomplete', o.fieldtype, 'Autocomplete');
+    dung('khong con Link -> Bank', !(o.fieldtype === 'Link' && o.options === 'Bank'));
+    bang('lua chon lay tu danh muc', o.options[0].value, 'MB - Ngân hàng TMCP Quân đội');
+    hop.primary_action({ so_tk: '0315917706', ngan_hang: 'MB - Ngân hàng TMCP Quân đội', chu_tk: '' });
+    bang('luu qua cong luu_tai_khoan', goi.args.ncc, 'NCC-DL');
+    bang('tai lai form', reload, 1);
   });
 
   console.log(ket.dat + ' ca dat, ' + ket.hong + ' ca hong');
