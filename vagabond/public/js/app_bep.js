@@ -50485,13 +50485,16 @@ function bsLo(x) {
   var lo = ((x && x.so_lieu) || {}).lo || [];
   if (!lo.length) return '';
   var qua = x.luat === 'lo_qua_han';
+  /* Codex #353: may chu chi gui 12 lo dau kem so_lo that; phan con lai phai
+     dem theo so_lo, dem theo lo.length la bao thieu pham vi viec cua kho. */
+  var tong = Math.max(Number(((x && x.so_lieu) || {}).so_lo) || 0, lo.length);
   return '<div style="padding:0 14px 10px">' + lo.slice(0, 3).map(function (l) {
     return '<div style="display:flex;gap:8px;padding:7px 0;border-top:1px solid #f0f2f6;font-size:13px">' +
       '<div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + h(l.ten || l.ma) +
       '<div style="font-size:12px;color:#8a8f9c">' + h(l.lo || '') + '</div></div>' +
       '<div style="text-align:right;white-space:nowrap"><span class="st ' + (qua ? 'r' : 'w') + '">' + (qua ? 'Hạn ' : 'Hết ') + bsNgayLo(l.han) + '</span>' +
       '<div style="font-size:12px;color:#8a8f9c;margin-top:3px">còn ' + num(l.sl) + '</div></div></div>';
-  }).join('') + (lo.length > 3 ? '<div style="font-size:12.5px;color:#8a8f9c;padding-top:6px">và ' + (lo.length - 3) + ' lô nữa</div>' : '') + '</div>';
+  }).join('') + (tong > 3 ? '<div style="font-size:12.5px;color:#8a8f9c;padding-top:6px">và ' + (tong - 3) + ' lô nữa</div>' : '') + '</div>';
 }
 
 function bsChipBp(ds, tenBp) {
