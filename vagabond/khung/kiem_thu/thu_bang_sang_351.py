@@ -363,6 +363,12 @@ def _gv(fr):
 	return gv
 
 
+def _luu(doc):
+	"""Chạy hai hook Task đúng thứ tự Frappe: before_validate rồi validate."""
+	pt.kiem_nguoi_sua_task(doc)
+	pt.kiem_task(doc)
+
+
 class _DocGia(dict):
 	def get(s, k, d=None):
 		return dict.get(s, k, d)
@@ -564,7 +570,8 @@ def _f1_ket_qua():
 	d3 = DocGia(name="TASK-7", status="Completed")
 	_chay(fr, pt.kiem_task, d3)
 	dung("Task không phải của bảng sáng thì bỏ qua", d3.completed_by is None)
-	dung("hook đăng ký validate trên Task", '"Task": {"validate": "vagabond.phan_tich.kiem_task"}' in _doc("vagabond", "hooks.py"))
+	dung("hook đăng ký trên Task: before_validate soát người, validate soát kết quả",
+		'"Task": {"before_validate": "vagabond.phan_tich.kiem_nguoi_sua_task", "validate": "vagabond.phan_tich.kiem_task"}' in _doc("vagabond", "hooks.py"))
 
 
 @ca("#353 F2: người nhận cũ (ToDo đã đóng) không đổi được trạng thái, vẫn xem được")
@@ -680,20 +687,20 @@ def _g4_desk_nguoi_cu():
 		{"reference_type": "Task", "reference_name": "TASK-9", "allocated_to": "moi@vgb", "status": "Open"},
 	]
 	d = lambda: _DocGia(name="TASK-9", status="Completed", vgb_goi_y_khoa="k", vgb_goi_y_bo_phan="marketing", vgb_goi_y_ket_qua="Đã xong việc")
-	nem("người nhận cũ lưu Completed trên Desk", lambda: _chay(fr, pt.kiem_task, d()), fr.Loi)
+	nem("người nhận cũ lưu Completed trên Desk", lambda: _chay(fr, _luu, d()), fr.Loi)
 	fr.session.user = "moi@vgb"
-	_chay(fr, pt.kiem_task, d())
+	_chay(fr, _luu, d())
 	fr.session.user, fr.vai = "loan@vgb", ["Marketing"]
-	_chay(fr, pt.kiem_task, d())
+	_chay(fr, _luu, d())
 	fr.session.user, fr.vai = "Administrator", []
-	_chay(fr, pt.kiem_task, d())
+	_chay(fr, _luu, d())
 	fr.session.user, fr.vai = "cu@vgb", ["Sales User"]
 	# Codex #353 vòng 4 (M2): trước đây ca này CHỐT là người nhận cũ sửa ô khác
 	# (tiêu đề, mô tả, hạn) thì KHÔNG chặn. Đó chính là lỗ hổng; đừng đổi về.
 	sua_mo_ta = _DocGia(name="TASK-9", status="Open", vgb_goi_y_khoa="k", vgb_goi_y_bo_phan="marketing", vgb_goi_y_ket_qua="", subject="Đổi tiêu đề")
-	nem("người nhận cũ sửa tiêu đề/hạn trên Desk", lambda: _chay(fr, pt.kiem_task, sua_mo_ta), fr.Loi)
+	nem("người nhận cũ sửa tiêu đề/hạn trên Desk", lambda: _chay(fr, _luu, sua_mo_ta), fr.Loi)
 	fr.session.user, fr.vai = "sys@vgb", ["System Manager"]
-	_chay(fr, pt.kiem_task, sua_mo_ta)
+	_chay(fr, _luu, sua_mo_ta)
 	la("hàm thuần: System Manager miễn", pt.can_kiem_nguoi_sua("sys@vgb", {}, "Open", "", ["System Manager"]), False)
 	la("hàm thuần: Administrator không xét", pt.can_kiem_nguoi_sua("Administrator", {"status": "Open"}, "Completed", "x"), False)
 	la("hàm thuần: đổi kết quả thì xét", pt.can_kiem_nguoi_sua("a@vgb", {"status": "Completed", "vgb_goi_y_ket_qua": "cũ dài"}, "Completed", "mới dài"), True)
@@ -780,3 +787,25 @@ def _m3_cham():
 	s = _doc("vagabond", "public", "js", "bep", "47-bang-sang.js")
 	tom = s.split("<summary", 1)[1].split(">", 1)[0]
 	dung("summary min-height 44px", "min-height:44px" in tom)
+
+
+@ca("#353 bench ae8e76b: người nhận THẬT báo xong không bị chặn dù ERPNext đóng ToDo trong Task.validate")
+def _thu_tu_hook():
+	# Bench CI đỏ trên ae8e76b: soát người đặt ở validate thì ToDo của chính
+	# người nhận đã bị ERPNext đóng trước đó, nên họ bị báo "không còn giao
+	# cho bạn". Ca này dựng đúng thứ tự: before_validate, bộ điều khiển Task
+	# (đóng ToDo khi Completed), rồi validate.
+	fr = Gia(user="moi@vgb", vai=("Sales User",))
+	fr.task["TASK-3"] = {"name": "TASK-3", "status": "Open", "vgb_goi_y_ket_qua": "", "vgb_goi_y_bo_phan": "kho"}
+	fr.db.get_value = _gv(fr)
+	fr.todo.append({"reference_type": "Task", "reference_name": "TASK-3", "allocated_to": "moi@vgb", "status": "Open"})
+	d = _DocGia(name="TASK-3", status="Completed", vgb_goi_y_khoa="k", vgb_goi_y_bo_phan="kho", vgb_goi_y_ket_qua="Đã cách ly lô")
+
+	def luu_nhu_frappe(doc):
+		pt.kiem_nguoi_sua_task(doc)
+		for t in fr.todo:  # ERPNext Task.validate đóng ToDo khi Completed
+			if t["reference_name"] == doc["name"] and doc["status"] == "Completed":
+				t["status"] = "Closed"
+		pt.kiem_task(doc)
+	_chay(fr, luu_nhu_frappe, d)
+	la("người nhận thật báo xong được", d.completed_by, "moi@vgb")
