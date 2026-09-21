@@ -54,7 +54,8 @@ var DU_LIEU = {
   ngay_can_han: 7,
 };
 
-function dungMan() {
+function dungMan(canh) {
+  canh = canh || {};
   var tai = dg.taiLieuGia();
   var khung = new dg.ElementGia('div');
   khung.parentNode = tai.body;
@@ -67,6 +68,7 @@ function dungMan() {
     api: function (duong, ts) {
       goi.push({ duong: duong, ts: JSON.parse(JSON.stringify(ts || {})) });
       if (duong === 'vagabond.tra_ton.ton_kho') {
+        if (canh.hongKhiChip && ts.chip === canh.hongKhiChip) return Promise.reject(new Error('mat mang'));
         var d = JSON.parse(JSON.stringify(DU_LIEU));
         if (ts.chip === 'am') { d.ds = d.ds.filter(function (x) { return x.ton < 0; }); d.tong_dong = 1; }
         return Promise.resolve(d);
@@ -83,13 +85,13 @@ function dungMan() {
     srchBox: function (id, ph, val) { return '<input id="' + id + '" value="' + (val || '') + '"><span id="' + id + 'scan"></span>'; },
     sheet: function () {}, whOpts: function () { return []; }, scanBarcode: function () { return Promise.resolve(null); },
     itemByBarcode: function () { return Promise.resolve(null); },
-    busy: function () {}, toast: function () {}, errMsg: function (e) { return String(e); },
+    busy: function () {}, toast: function (m) { (that._toast = that._toast || []).push(String(m)); }, errMsg: function (e) { return String(e); },
   };
   that.globalThis = that;
   var ma = [
     layDong(SRC, 'var stk = {'), layDong(SRC, 'var STK_SAP = ['),
     layHam(SRC, 'stkIcon'), layHam(SRC, 'stkAnh'), layHam(SRC, 'stkTag'), layHam(SRC, 'stkTai'),
-    layHam(SRC, 'scrStock'), layHam(SRC, 'stkChiTiet'), layHam(SRC, 'stkSheetHtml'),
+    layHam(SRC, 'scrStock'), layHam(SRC, 'stkDoi'), layHam(SRC, 'stkChiTiet'), layHam(SRC, 'stkSheetHtml'),
   ].join('\n');
   vm.runInNewContext(ma, that, { filename: '05-san-xuat.js#tra-ton' });
   return { g: that, tai: tai, khung: khung, goi: goi };
@@ -135,6 +137,17 @@ async function chayHet() {
     var html = m.khung.innerHTML;
     dung('chip am dang on', /data-sc="am"/.test(html) && html.indexOf('chip on" data-sc="am"') >= 0);
     dung('chi con Khay', html.indexOf('Khay') >= 0 && html.indexOf('Túi Croissant') < 0);
+  });
+  await ca('tai hong khi doi chip: giu chip cu, khong ve danh sach cu duoi chip moi, co bao loi (Codex #350)', async function () {
+    var m = dungMan({ hongKhiChip: 'am' });
+    await m.g.scrStock(); await tick();
+    var chip = m.khung.querySelectorAll('[data-sc]').filter(function (c) { return c.getAttribute('data-sc') === 'am'; })[0];
+    bam(m, chip); await tick(); await tick();
+    bang('chip trong bo nho tra ve cu', m.g.stk.chip, '');
+    var html = m.khung.innerHTML;
+    dung('chip Tat ca van on, chip am khong on', html.indexOf('chip on" data-sc=""') >= 0 && html.indexOf('chip on" data-sc="am"') < 0);
+    dung('danh sach van du ba dong', html.indexOf('Túi Croissant') >= 0 && html.indexOf('Khay') >= 0);
+    dung('co bao loi', (m.g._toast || []).length === 1);
   });
   await ca('bam sap xep Ton nhieu: goi may chu voi sap=nhieu', async function () {
     var m = dungMan();
