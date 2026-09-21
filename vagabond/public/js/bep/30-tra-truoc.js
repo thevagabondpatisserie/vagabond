@@ -83,7 +83,13 @@ async function scrTraTruocTao() {
       (n.dia_chi ? '<div style="color:#6b7280">Địa chỉ: ' + h(n.dia_chi) + '</div>' : '') +
       (n.tai_khoan && n.tai_khoan.so_tk
         ? '<div style="color:#6b7280">Số tài khoản: ' + h(n.tai_khoan.so_tk) + (n.tai_khoan.ngan_hang ? ' · ' + h(n.tai_khoan.ngan_hang) : '') + '</div>'
-        : '<div style="color:#b45309">Hồ sơ NCC chưa có số tài khoản nhận tiền. Kế toán tra lại trước khi chuyển.</div>') +
+        : '<div style="color:#b45309">Hồ sơ NCC chưa có số tài khoản nhận tiền.' +
+          (n.sua_tk ? '' : ' Báo thu mua hoặc kế toán thêm ở Danh mục, mục Nhà cung cấp.') + '</div>') +
+      /* v515: them/sua tai khoan ngay tai cho, khong phai roi man dang lap. */
+      (n.sua_tk
+        ? '<button class="btn' + (n.tai_khoan && n.tai_khoan.so_tk ? ' gh' : '') + '" id="ttSuaTk" style="margin-top:9px">' +
+          (n.tai_khoan && n.tai_khoan.so_tk ? '✏️ Sửa tài khoản nhận tiền' : '➕ Thêm tài khoản nhận tiền') + '</button>'
+        : '') +
       (n.mst ? '<button class="btn gh" id="ttTraMst" style="margin-top:9px">🔎 Đối chiếu tên với cơ quan thuế</button>' : '') +
       '</div>';
   }
@@ -206,6 +212,25 @@ async function scrTraTruocTao() {
     busy(true);
     try { ttTep.push(await huUpTep(f)); busy(false); go(scrTraTruocTao, true); }
     catch (er) { busy(false); baoTin((er && er.message) || 'Không tải được tệp'); }
+  };
+
+  var nt = document.getElementById('ttSuaTk');
+  if (nt) nt.onclick = function () {
+    var n = (ttChiTiet && ttChiTiet.ncc) || {};
+    if (!n.ma) return;
+    /* Giu ghi chu dang go: ve lai man sau khi luu se dung lai ttGhiChu. */
+    var og = document.getElementById('ttGc');
+    if (og) ttGhiChu = og.value.trim();
+    var don = ttDon;
+    nccTkHop(n.ma, n.ten, n.tai_khoan, async function () {
+      busy(true);
+      try {
+        var moi = await api('vagabond.tra_truoc.chi_tiet_don', { don: don });
+        if (ttDon === don) ttChiTiet = moi;
+      } catch (er) { }
+      busy(false);
+      go(scrTraTruocTao, true);
+    });
   };
 
   var nm = document.getElementById('ttTraMst');

@@ -93,6 +93,50 @@ async function scrNcc() {
   };
 }
 
+/* Hop sua tai khoan nhan tien cua mot nha cung cap, mo tu BAT KY man nao
+   (v515, Uyen bi ket o man Thanh toan truoc: man bao "chua co so tai khoan"
+   ma khong co loi sua, phai biet tu vao Danh muc > Nha cung cap). Ghi qua
+   dung mot cong vagabond.ncc.luu_tai_khoan nhu man ho so NCC. xong() chi
+   goi khi LUU THANH CONG, bam Thoi thi khong goi. */
+function nccTkHop(ma, tenNcc, tk, xong) {
+  tk = tk || {};
+  var nh = tk.ngan_hang || '';
+  var than = '<div style="font-size:13px;color:#4b5563;line-height:1.55;margin-bottom:10px">Tài khoản nhận tiền của <b>' + h(tenNcc || ma) + '</b>. Lưu xong, phiếu chi lập từ nay sẽ in kèm số tài khoản này.</div>' +
+    '<input class="nt" id="tkhChu" placeholder="Chủ tài khoản (để trống thì lấy tên nhà cung cấp)" value="' + h(tk.chu_tk || '') + '" style="margin-bottom:8px;box-sizing:border-box;width:100%">' +
+    '<input class="nt" id="tkhSo" inputmode="numeric" placeholder="Số tài khoản" value="' + h(tk.so_tk || '') + '" style="margin-bottom:8px;box-sizing:border-box;width:100%">' +
+    '<button type="button" id="tkhNh" style="width:100%;text-align:left;border:1.5px solid ' + (nh ? '#0f766e' : '#e5e7eb') + ';background:#fff;border-radius:11px;padding:13px 14px;font-size:15px;color:' + (nh ? '#0f172a' : '#9ca3af') + '">' + (nh ? h(nh) : 'Chọn ngân hàng') + '</button>' +
+    '<div id="tkhLoi" style="display:none;font-size:12.5px;color:#b3261e;margin-top:8px"></div>';
+  var k = hopKhung(tk.so_tk ? 'Sửa tài khoản nhận tiền' : 'Thêm tài khoản nhận tiền', than,
+    '<button class="btn gh" data-tkhx style="flex:1;margin:0">Thôi</button>' +
+    '<button class="btn" data-tkhok style="flex:2;margin:0">Lưu tài khoản</button>');
+  var loi = function (m) { var o = k.box.querySelector('#tkhLoi'); o.textContent = m; o.style.display = 'block'; };
+  k.ov.onclick = function (e) { if (e.target === k.ov) k.dong(); };
+  k.box.onclick = async function (e) {
+    if (e.target.closest('.x') || e.target.closest('[data-tkhx]')) return k.dong();
+    var bNh = e.target.closest('#tkhNh');
+    if (bNh) {
+      return nhChon(nh, function (v) {
+        nh = v; bNh.textContent = v; bNh.style.color = '#0f172a'; bNh.style.borderColor = '#0f766e';
+      });
+    }
+    if (!e.target.closest('[data-tkhok]')) return;
+    var so = String(k.box.querySelector('#tkhSo').value || '').trim();
+    if (!so) return loi('Nhập số tài khoản.');
+    if (!nh) return loi('Bấm ô ngân hàng để chọn ngân hàng của nhà cung cấp.');
+    busy(true);
+    try {
+      await api('vagabond.ncc.luu_tai_khoan', {
+        ncc: ma, so_tk: so, ngan_hang: nh,
+        chu_tk: String(k.box.querySelector('#tkhChu').value || '').trim()
+      });
+    } catch (er) { busy(false); return loi((er && er.message) || 'Lưu lỗi'); }
+    busy(false);
+    k.dong();
+    toast('Đã lưu tài khoản nhận tiền');
+    if (xong) await xong();
+  };
+}
+
 async function scrNccXem(ma) {
   frame('Nhà cung cấp', '<div class="emp"><div class="e1">⏳</div><div>Đang mở hồ sơ...</div></div>');
   var d;
