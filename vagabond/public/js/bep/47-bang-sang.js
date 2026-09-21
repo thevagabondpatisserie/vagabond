@@ -143,6 +143,24 @@ function bsDongViec(d, i) {
     '<span class="st ' + t[0] + '">' + t[1] + '</span></div>';
 }
 
+/* Loc dong viec tai cho theo chu go (khong goi may chu, khong ve lai de o
+   tim khong mat con tro). Khop khong dau: go "croissant" hay "vu" deu ra. */
+function bsKhongDau(s) {
+  return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
+}
+function bsLocDong(b, ds, chu) {
+  var q = bsKhongDau(chu).trim();
+  var con = 0;
+  b.querySelectorAll('[data-bsv]').forEach(function (el) {
+    var d = ds[+el.getAttribute('data-bsv')] || {};
+    var ok = !q || bsKhongDau([d.tieu_de, (d.nguoi || []).join(' '), d.ly_do, d.ket_qua].join(' ')).indexOf(q) >= 0;
+    el.style.display = ok ? '' : 'none';
+    if (ok) con++;
+  });
+  var kt = b.querySelector('#bsKhongThay');
+  if (kt) kt.style.display = con ? 'none' : '';
+}
+
 /* O so dau man: bam so la chuyen tab (dieu 6). */
 function bsOSo(k, nhan, so, mauDo, khongTo) {
   var on = !khongTo && bsLoc.tab === k;
@@ -177,7 +195,7 @@ async function scrBangSang() {
     '<div style="display:flex;gap:8px;margin-top:10px">' +
     bsOSo('can_giao', 'Cần giao', dem.can_giao || 0) +
     bsOSo('da_giao', 'Đã giao', dem.da_giao || 0) +
-    bsOSo('da_giao', 'Trễ hạn', kq.so_tre || 0, true, true) +
+    bsOSo('tre', 'Trễ hạn', kq.so_tre || 0, true) +
     '</div>' +
     (kq.dang_dung ? '<button class="btn gh" id="bsTaiLai" style="margin-top:10px;padding:12px;font-size:15px">Tải lại</button>' : '') +
     '</div>';
@@ -216,10 +234,14 @@ async function scrBangSang() {
       }
     }
   } else if (!ds.length) {
-    var rong = { da_giao: 'Chưa có việc nào đang giao.', xong: 'Chưa có việc nào xong trong 14 ngày qua.', bo_qua: 'Không có nhận định nào đang bỏ qua.' };
+    var rong = { da_giao: 'Chưa có việc nào đang giao.', tre: 'Không có việc nào trễ hạn.', xong: 'Chưa có việc nào xong trong 14 ngày qua.', bo_qua: 'Không có nhận định nào đang bỏ qua.' };
     html += '<div class="emp" style="padding:40px 20px"><div class="e1">📋</div><div class="e2">' + rong[bsLoc.tab] + '</div></div>';
   } else {
-    html += '<div class="lst" style="margin-bottom:12px">' + ds.map(bsDongViec).join('') + '</div>';
+    /* Codex #356: danh sach viec co the dai (viec mo cu, 500 viec da dong),
+       nen co o tim nhanh theo ten viec va nguoi nhan (AGENTS.md dong o tim). */
+    html += '<div style="padding:0 2px 8px"><input class="tin" id="bsTim" placeholder="🔎 Tìm theo tên việc hoặc người nhận" style="box-sizing:border-box;width:100%"></div>' +
+      '<div class="lst" id="bsDs" style="margin-bottom:12px">' + ds.map(bsDongViec).join('') + '</div>' +
+      '<div class="emp" id="bsKhongThay" style="display:none;padding:24px 20px"><div class="e2">Không có việc nào khớp.</div></div>';
   }
 
   var ly = kq.chat_luong || [];
@@ -233,6 +255,8 @@ async function scrBangSang() {
   }
 
   var b = frame('Việc hôm nay', html, { action: '&#8635;', onAction: bsTinhLai });
+  var oTim = b.querySelector('#bsTim');
+  if (oTim) oTim.oninput = function () { bsLocDong(b, ds, oTim.value); };
   b.onclick = function (e) {
     var el;
     if ((el = e.target.closest('[data-bsg]'))) return bsGiao(ds[+el.getAttribute('data-bsg')]);
