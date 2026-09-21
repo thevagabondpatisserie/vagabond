@@ -760,6 +760,9 @@ def loi_mo_lai(cu, moi):
 
 # Hàng chip khoảng ngày (AGENTS.md: ba hàng chip trên mọi màn danh sách).
 KY_NGAY = (("", "Tất cả"), ("hom_nay", "Hôm nay"), ("7", "7 ngày"), ("30", "30 ngày"))
+# Lịch sử (xong, bỏ qua) giữ bao nhiêu ngày. Phải >= khoảng lớn nhất ở trên,
+# và khớp mốc truy vấn của _viec_bang_sang (ca kiểm chốt hai số này).
+LICH_SU_NGAY = 30
 
 
 def loc_theo_ky(ds, ky, hom_nay):
@@ -1008,7 +1011,7 @@ TRUONG_VIEC = ["name", "subject", "status", "exp_end_date", "completed_on", "com
 	"vgb_goi_y_bo_qua_ly_do", "vgb_goi_y_ket_qua", "vgb_goi_y_anh", "_assign"]
 
 
-def _viec_bang_sang(so_ngay=30):
+def _viec_bang_sang(so_ngay=None):
 	"""Task sinh từ bảng sáng: MỌI việc còn mở, cộng lịch sử gần đây.
 
 	Codex #353: lọc `modified` 30 ngày và trần 300 dòng TRƯỚC khi tách mở
@@ -1024,7 +1027,7 @@ def _viec_bang_sang(so_ngay=30):
 	cu = frappe.get_all(
 		"Task",
 		filters={"vgb_goi_y_khoa": ["is", "set"], "status": ["in", ["Completed", "Cancelled"]],
-			"modified": [">=", str(add_days(_hom_nay(), -so_ngay))]},
+			"modified": [">=", str(add_days(_hom_nay(), -(so_ngay or LICH_SU_NGAY)))]},
 		fields=TRUONG_VIEC, order_by="modified desc", limit_page_length=500,
 	)
 	ds = mo + cu
@@ -1110,8 +1113,10 @@ def bang_sang(tab="can_giao", bo_phan="", ky=""):
 	dong = [_dong_viec(v, ten, hom_nay) for v in viec_xem]
 	da_giao = [d for d in dong if d["tt"] in ("mo", "dang_lam", "tre")]
 	da_giao.sort(key=lambda d: (0 if d["tt"] == "tre" else 1, d["han"] or "9"))
-	xong = [d for d in dong if d["tt"] == "xong" and d["xong_luc"] and (hom_nay - getdate(d["xong_luc"])).days <= 14]
-	bo_qua = [d for d in dong if d["tt"] == "bo_qua" and (hom_nay - getdate(d["nhac_lai"] or hom_nay)).days <= 14]
+	# Codex #356: lịch sử giữ đủ cửa sổ LICH_SU_NGAY (khớp chip "30 ngày" và
+	# truy vấn _viec_bang_sang); hàng chip khoảng ngày mới là chỗ thu hẹp.
+	xong = [d for d in dong if d["tt"] == "xong" and d["xong_luc"] and (hom_nay - getdate(d["xong_luc"])).days < LICH_SU_NGAY]
+	bo_qua = [d for d in dong if d["tt"] == "bo_qua" and (hom_nay - getdate(d["moc"] or hom_nay)).days < LICH_SU_NGAY]
 
 	# Codex #356: ô "Trễ hạn" ở đầu màn phải mở đúng phần trễ, không phải cả
 	# tab Đã giao. "tre" là tab lọc riêng, không có chip dưới.
