@@ -50485,16 +50485,28 @@ function bsLo(x) {
   var lo = ((x && x.so_lieu) || {}).lo || [];
   if (!lo.length) return '';
   var qua = x.luat === 'lo_qua_han';
-  /* Codex #353: may chu chi gui 12 lo dau kem so_lo that; phan con lai phai
-     dem theo so_lo, dem theo lo.length la bao thieu pham vi viec cua kho. */
+  /* Codex #353: may chu gui kem so_lo that; phan con lai dem theo so_lo. */
   var tong = Math.max(Number(((x && x.so_lieu) || {}).so_lo) || 0, lo.length);
-  return '<div style="padding:0 14px 10px">' + lo.slice(0, 3).map(function (l) {
+  var dong = function (l) {
+    /* Codex #353 vong 3: so con phai kem don vi ton kho, qua kl() de gram
+       lon doi ra kg. "con 5.000" tran khong biet la gram hay cai. */
     return '<div style="display:flex;gap:8px;padding:7px 0;border-top:1px solid #f0f2f6;font-size:13px">' +
       '<div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + h(l.ten || l.ma) +
       '<div style="font-size:12px;color:#8a8f9c">' + h(l.lo || '') + '</div></div>' +
       '<div style="text-align:right;white-space:nowrap"><span class="st ' + (qua ? 'r' : 'w') + '">' + (qua ? 'Hạn ' : 'Hết ') + bsNgayLo(l.han) + '</span>' +
-      '<div style="font-size:12px;color:#8a8f9c;margin-top:3px">còn ' + num(l.sl) + '</div></div></div>';
-  }).join('') + (tong > 3 ? '<div style="font-size:12.5px;color:#8a8f9c;padding-top:6px">và ' + (tong - 3) + ' lô nữa</div>' : '') + '</div>';
+      '<div style="font-size:12px;color:#8a8f9c;margin-top:3px">còn ' + h(kl(l.sl, l.dvt)) + '</div></div></div>';
+  };
+  var html = '<div style="padding:0 14px 10px">' + lo.slice(0, 3).map(dong).join('');
+  if (tong > 3) {
+    /* Codex #353 vong 3: "va N lo nua" phai mo ra duoc, nguoi nhan can du
+       ma lo de xu ly. Dung <details> nen chay o ca the tren bang lan man
+       Viec duoc giao ma khong phu thuoc bo nghe bam cua tung man. */
+    html += '<details data-bslo><summary style="font-size:13px;color:#0B7C93;font-weight:600;padding:9px 0 3px;cursor:pointer;min-height:24px">Xem thêm ' + (tong - 3) + ' lô nữa</summary>' +
+      lo.slice(3).map(dong).join('') +
+      (tong > lo.length ? '<div style="font-size:12.5px;color:#8a8f9c;padding-top:6px;line-height:1.5">Máy chỉ gửi ' + lo.length + ' lô đầu trong ' + tong + ' lô. Xem đủ trên Desk: Kho, báo cáo Batch-Wise Balance History, lọc kho này.</div>' : '') +
+      '</details>';
+  }
+  return html + '</div>';
 }
 
 function bsChipBp(ds, tenBp) {
