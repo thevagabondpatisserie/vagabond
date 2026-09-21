@@ -612,6 +612,8 @@ def _g1_lo_tat():
 	loc = []
 
 	def get_all(dt, filters=None, **k):
+		if dt == "Item":
+			return [{"name": "NVLT1", "stock_uom": "Gram"}]
 		loc.append(dict(filters or {}))
 		return [{"name": "LO-TAT", "item": "NVLT1", "item_name": "Bơ", "expiry_date": "2026-09-01"}]
 	tra_ton = types.ModuleType("vagabond.tra_ton")
@@ -622,7 +624,7 @@ def _g1_lo_tat():
 		with patch.object(vagabond, "tra_ton", tra_ton, create=True):
 			ra = pt._lo_sap_het(datetime.date(2026, 9, 20))
 	dung("không lọc disabled", "disabled" not in loc[0])
-	la("lô tắt còn 4 vẫn ra", [(x["lo"], x["sl"]) for x in ra], [("LO-TAT", 4.0)])
+	la("lô tắt còn 4 vẫn ra, kèm đơn vị tồn kho", [(x["lo"], x["sl"], x["dvt"]) for x in ra], [("LO-TAT", 4.0, "Gram")])
 
 
 @ca("#353 G2: phần tính hỏng thì bảng BÁO, không im lặng như kho sạch")
@@ -701,3 +703,33 @@ def _g5_giu_ket_qua():
 	fr.todo.append({"reference_type": "Task", "reference_name": "TASK-5", "allocated_to": "moi@vgb", "status": "Open"})
 	d = _DocGia(name="TASK-5", status="Completed", vgb_goi_y_khoa="k", vgb_goi_y_bo_phan="kho", vgb_goi_y_ket_qua="ok")
 	nem("rút ngắn kết quả việc đã xong", lambda: _chay(fr, pt.kiem_task, d), fr.Loi)
+
+
+# ------------------------------------------------ Codex #353 vòng 3 (SHA a279657)
+
+@ca("#353 K1+K2: nhận định lô gửi đủ lô (tới trần) và mỗi lô kèm đơn vị tồn kho")
+def _k12_lo():
+	lo = [{"lo": "L%02d" % i, "ma": "NVLT1", "ten": "Bơ", "kho": "Kho tổng 307 - TV", "han": "2026-09-01", "sl": 500 + i, "dvt": "Gram"} for i in range(30)]
+	x = pt.nhan_dinh_lo(lo, "2026-09-20")[0]
+	la("gửi đủ 30 lô (trước đây cắt 12)", len(x["so_lieu"]["lo"]), 30)
+	la("so_lo thật", x["so_lieu"]["so_lo"], 30)
+	la("mỗi lô có đơn vị", {l["dvt"] for l in x["so_lieu"]["lo"]}, {"Gram"})
+	nhieu = [dict(lo[0], lo="X%03d" % i) for i in range(pt.LO_GUI_TOI_DA + 5)]
+	y = pt.nhan_dinh_lo(nhieu, "2026-09-20")[0]
+	la("vượt trần thì gửi đúng trần, so_lo vẫn thật", (len(y["so_lieu"]["lo"]), y["so_lieu"]["so_lo"]), (pt.LO_GUI_TOI_DA, pt.LO_GUI_TOI_DA + 5))
+
+
+@ca("#353 K3: Bỏ qua vừa ghi xong thì Giao đang chờ khoá phải thấy và dừng; một nguồn cho bảng và khoá")
+def _k3_bo_qua_roi_giao():
+	la("thuần: bỏ qua còn hạn", pt.ly_do_an("lo_qua_han", [{"name": "T1", "status": "Cancelled", "nhac_lai": "2026-09-22"}], "2026-09-20"), ("bo_qua", "T1"))
+	la("thuần: đang mở thắng bỏ qua cũ", pt.ly_do_an("mon_tang", [{"name": "T0", "status": "Cancelled", "nhac_lai": "2026-09-30"}, {"name": "T2", "status": "Open"}], "2026-09-20"), ("mo", "T2"))
+	la("thuần: bỏ qua đã tới ngày nhắc thì không ẩn", pt.ly_do_an("lo_qua_han", [{"name": "T1", "status": "Cancelled", "nhac_lai": "2026-09-20"}], "2026-09-20"), (None, None))
+	# Chuỗi thật: A bỏ qua (ghi xong, nhả khoá), rồi B bấm Giao từ CÙNG ảnh bảng cũ.
+	fr = Gia(user="viet@vgb")
+	k = "lo_qua_han|Kho tổng 307 - TV|"
+	r = _chay(fr, pt.bo_qua, k, "so_sai", 3)
+	nem("Giao sau khi vừa bỏ qua", lambda: _chay(fr, pt.giao, k, ["kho@vgb"]), fr.Loi)
+	la("không sinh Task giao, không ToDo", ([t["status"] for t in fr.task.values()], len(fr.todo)), (["Cancelled"], 0))
+	r2 = _chay(fr, pt.bo_qua, k, "so_sai", 3)
+	la("bấm Bỏ qua lần hai ra đúng việc cũ", (r2.get("da_co"), r2["name"], len(fr.task)), (1, r["name"], 1))
+	dung("chia_theo_viec dùng chung ly_do_an", "ly_do_an(" in _doc("vagabond", "phan_tich.py").split("def chia_theo_viec")[1].split("def ly_do_an")[0])
