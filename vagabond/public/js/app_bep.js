@@ -50510,7 +50510,7 @@ dat duoi cung, bam moi mo.
 
 Moi con so tren man do may chu tinh (QT-19). Man nay khong cong tru gi. */
 
-var bsLoc = { tab: 'can_giao', bp: '', moRong: '', xemLuuY: 0, dangTai: 0 };
+var bsLoc = { tab: 'can_giao', bp: '', ky: '', moRong: '', xemLuuY: 0, dangTai: 0 };
 var BS_MUC = { cao: ['r', 'Làm ngay'], vua: ['w', 'Trong tuần'], thap: ['b', 'Theo dõi'] };
 var BS_TT = {
   tre: ['r', 'Trễ hạn'], mo: ['w', 'Chờ làm'], dang_lam: ['b', 'Đang làm'],
@@ -50672,7 +50672,7 @@ async function scrBangSang() {
   vgbCss();
   frame('Việc hôm nay', '<div class="emp"><div class="e1">⏳</div><div class="e2">Đang mở bảng việc hôm nay...</div></div>');
   var kq;
-  try { kq = await api('vagabond.phan_tich.bang_sang', { tab: bsLoc.tab, bo_phan: bsLoc.bp }); }
+  try { kq = await api('vagabond.phan_tich.bang_sang', { tab: bsLoc.tab, bo_phan: bsLoc.bp, ky: bsLoc.ky }); }
   catch (e) {
     var b0 = frame('Việc hôm nay', '<div class="emp"><div class="e1">⚠️</div><div class="e2">' +
       h(errMsg(e) || 'Không mở được bảng việc hôm nay.') + '</div>' +
@@ -50701,6 +50701,13 @@ async function scrBangSang() {
   html += '<div class="chips" style="padding:2px 2px 8px">' + BS_TAB.map(function (t) {
     return '<div class="chip' + (bsLoc.tab === t[0] ? ' on' : '') + '" data-bst="' + t[0] + '">' + t[1] + ' <b>' + money(dem[t[0]] || 0) + '</b></div>';
   }).join('') + '</div>';
+  /* Hang chip khoang ngay cho cac tab viec (Codex #356, AGENTS.md ba hang
+     chip). Tab Can giao la bang cua hom nay nen khong co hang nay. */
+  if (bsLoc.tab !== 'can_giao' && (kq.chip_ky || []).length) {
+    html += '<div class="chips" style="padding:0 2px 8px">' + kq.chip_ky.map(function (c) {
+      return '<div class="chip' + ((kq.ky || '') === c.k ? ' on' : '') + '" data-bsk="' + h(c.k) + '">' + h(c.ten) + '</div>';
+    }).join('') + '</div>';
+  }
   if ((kq.chip_bo_phan || []).length > 1) {
     html += '<div class="chips" style="padding:0 2px 10px">' +
       '<div class="chip' + (!bsLoc.bp ? ' on' : '') + '" data-bsb="">Mọi bộ phận</div>' +
@@ -50769,6 +50776,10 @@ async function scrBangSang() {
     if ((el = e.target.closest('[data-bsv]'))) return bsMoViec(ds[+el.getAttribute('data-bsv')]);
     if ((el = e.target.closest('[data-bst]'))) {
       bsLoc.tab = el.getAttribute('data-bst'); bsLoc.moRong = '';
+      return go(scrBangSang, true);
+    }
+    if ((el = e.target.closest('[data-bsk]'))) {
+      bsLoc.ky = el.getAttribute('data-bsk'); bsLoc.moRong = '';
       return go(scrBangSang, true);
     }
     if ((el = e.target.closest('[data-bsb]'))) {
