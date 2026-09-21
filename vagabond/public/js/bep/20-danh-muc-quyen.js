@@ -124,8 +124,9 @@ function nccTkHop(ma, tenNcc, tk, xong) {
     if (!so) return loi('Nhập số tài khoản.');
     if (!nh) return loi('Bấm ô ngân hàng để chọn ngân hàng của nhà cung cấp.');
     busy(true);
+    var kq = null;
     try {
-      await api('vagabond.ncc.luu_tai_khoan', {
+      kq = await api('vagabond.ncc.luu_tai_khoan', {
         ncc: ma, so_tk: so, ngan_hang: nh,
         chu_tk: String(k.box.querySelector('#tkhChu').value || '').trim()
       });
@@ -133,7 +134,9 @@ function nccTkHop(ma, tenNcc, tk, xong) {
     busy(false);
     k.dong();
     toast('Đã lưu tài khoản nhận tiền');
-    if (xong) await xong();
+    /* Gui kem tai khoan may chu vua luu (Codex #355): man goi co doc lai
+       hong thi van co so dung de hien, khong phai giu so cu. */
+    if (xong) await xong((kq && kq.tai_khoan) || { so_tk: so, ngan_hang: nh });
   };
 }
 
