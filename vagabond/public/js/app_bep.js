@@ -50741,7 +50741,7 @@ async function scrBangSang() {
       }
     }
   } else if (!ds.length) {
-    var rong = { da_giao: 'Chưa có việc nào đang giao.', tre: 'Không có việc nào trễ hạn.', xong: 'Chưa có việc nào xong trong 14 ngày qua.', bo_qua: 'Không có nhận định nào đang bỏ qua.' };
+    var rong = { da_giao: 'Chưa có việc nào đang giao.', tre: 'Không có việc nào trễ hạn.', xong: 'Chưa có việc nào xong trong khoảng này.', bo_qua: 'Không có nhận định nào đang bỏ qua.' };
     html += '<div class="emp" style="padding:40px 20px"><div class="e1">📋</div><div class="e2">' + rong[bsLoc.tab] + '</div></div>';
   } else {
     /* Codex #356: danh sach viec co the dai (viec mo cu, 500 viec da dong),
