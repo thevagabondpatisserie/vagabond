@@ -809,3 +809,36 @@ def _thu_tu_hook():
 		pt.kiem_task(doc)
 	_chay(fr, luu_nhu_frappe, d)
 	la("người nhận thật báo xong được", d.completed_by, "moi@vgb")
+
+
+# ------------------------------------------------ Codex #356 (SHA fed1146)
+
+@ca("#356 N1: người nhận không huỷ Task trên Desk; quản lý huỷ phải có lý do và ngày nhắc")
+def _n1_huy():
+	la("thuần: người nhận huỷ", bool(pt.soat_huy("Cancelled", "Open", "nhan", "so_sai", "2026-09-25", "2026-09-20")), True)
+	la("thuần: quản lý thiếu lý do", bool(pt.soat_huy("Cancelled", "Open", "quan_ly", "", "2026-09-25", "2026-09-20")), True)
+	la("thuần: quản lý thiếu ngày nhắc", bool(pt.soat_huy("Cancelled", "Open", "quan_ly", "so_sai", "", "2026-09-20")), True)
+	la("thuần: ngày nhắc là hôm nay", bool(pt.soat_huy("Cancelled", "Open", "quan_ly", "so_sai", "2026-09-20", "2026-09-20")), True)
+	la("thuần: đủ thì qua", pt.soat_huy("Cancelled", "Open", "quan_ly", "so_sai", "2026-09-23", "2026-09-20"), None)
+	la("thuần: đã huỷ từ trước thì không xét lại", pt.soat_huy("Cancelled", "Cancelled", "nhan", "", "", "2026-09-20"), None)
+	fr = Gia(user="moi@vgb", vai=("Sales User",))
+	fr.task["TASK-4"] = {"name": "TASK-4", "status": "Open", "vgb_goi_y_ket_qua": "", "vgb_goi_y_bo_phan": "marketing"}
+	fr.db.get_value = _gv(fr)
+	fr.todo.append({"reference_type": "Task", "reference_name": "TASK-4", "allocated_to": "moi@vgb", "status": "Open"})
+	huy = lambda **k: _DocGia(name="TASK-4", status="Cancelled", vgb_goi_y_khoa="k", vgb_goi_y_bo_phan="marketing", **k)
+	nem("người nhận đang giữ việc đổi sang Cancelled trên Desk", lambda: _chay(fr, _luu, huy()), fr.Loi)
+	fr.session.user, fr.vai = "loan@vgb", ["Marketing"]
+	nem("quản lý huỷ không lý do", lambda: _chay(fr, _luu, huy()), fr.Loi)
+	_chay(fr, _luu, huy(vgb_goi_y_bo_qua_ly_do="so_sai", vgb_goi_y_nhac_lai="2026-09-23"))
+
+
+@ca("#356 N2: ô Trễ hạn mở đúng phần việc trễ, không phải cả tab Đã giao")
+def _n2_tre():
+	fr = Gia(user="viet@vgb")
+	fr.task["TASK-1"] = {"name": "TASK-1", "subject": "Trễ", "status": "Open", "exp_end_date": "2026-09-18 18:00:00", "vgb_goi_y_khoa": "k1",
+		"vgb_goi_y_luat": "mon_tang", "vgb_goi_y_bo_phan": "marketing", "_assign": "[]", "owner": "viet@vgb"}
+	fr.task["TASK-2"] = {"name": "TASK-2", "subject": "Còn hạn", "status": "Open", "exp_end_date": "2026-09-25 18:00:00", "vgb_goi_y_khoa": "k2",
+		"vgb_goi_y_luat": "mon_tang", "vgb_goi_y_bo_phan": "marketing", "_assign": "[]", "owner": "viet@vgb"}
+	r = _chay(fr, pt.bang_sang, "tre")
+	la("tab tre chỉ có việc trễ", (r["tab"], [x["name"] for x in r["ds"]]), ("tre", ["TASK-1"]))
+	la("đếm khớp số trên ô", (r["dem"]["tre"], r["so_tre"], r["dem"]["da_giao"]), (1, 1, 2))
