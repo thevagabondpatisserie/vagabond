@@ -35,7 +35,10 @@ def _am_co_dong_khong_tien():
         {'ten': 'Dòng hoàn thử', 'sluong': -1, 'dgia': 100000, 'thtien': -100000}]]
     hd = _phieu([('Dòng hoàn thử', -1, 100000)])
     hd.is_return = 1
-    hd.set('items', [mv._dong_pi(x, hd.items[0].expense_account) for x in dong])
+    tk = frappe.db.get_value('Company', hd.company, 'default_expense_account')
+    if not tk:
+        frappe.throw('Ca hóa đơn âm cần tài khoản chi phí mặc định của công ty bench.')
+    hd.set('items', [mv._dong_pi(x, tk) for x in dong])
     for d in hd.items:
         d.cost_center = hd.cost_center
     _luu(hd)
