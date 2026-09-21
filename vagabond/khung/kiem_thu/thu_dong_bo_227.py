@@ -30,6 +30,8 @@ def _nap(trang, hong=(), tran=300, mat_diem=False, ma_nguon=None):
         def set_value(self, loai, ma, du):
             self.ds[ma].update(du)
     db = DB()
+    local = SimpleNamespace(message_log=[])
+    db.local = local
     class Doc:
         def __init__(self, du):
             self.ma = du['ma_hd_id']; self.du = {}
@@ -38,12 +40,13 @@ def _nap(trang, hong=(), tran=300, mat_diem=False, ma_nguon=None):
         def insert(self, **kw):
             db.ds[self.ma] = self.du.copy()
             if self.ma in hong:
+                local.message_log.append({'message': 'hook lỗi', 'raise_exception': 1})
                 raise ValueError('hook ghi một phần rồi lỗi')
     da_goi = []
     def goi(cd, ts):
         da_goi.append(ts['page'])
         return trang[ts['page']]
-    env = dict(frappe=SimpleNamespace(db=db, get_doc=Doc, get_traceback=lambda: 'lỗi thử',
+    env = dict(frappe=SimpleNamespace(local=local, db=db, get_doc=Doc, get_traceback=lambda: 'lỗi thử',
         log_error=lambda *a: db.loi.append(a)), cint=lambda n: int(n or 0),
         _cai_dat=lambda: dict(so_ngay=7, keo_vao=1, keo_ra=0), _goi_minvoice=goi,
         _du_lieu=lambda inv, loai: dict(so_hd=inv.get('shdon', 1)), _extra=lambda inv, loai: {},
@@ -65,6 +68,7 @@ def _mot_to_hong():
     la('chỉ rõ tờ lỗi', kq['loi_hoa_don'], [{'loai': 'Đầu vào', 'trang': 1, 'ma': 'hong'}])
     la('chạy lại không tạo trùng', chay()['moi'], 0)
     la('DB vẫn đúng', sorted(db.da_ghi), ['a', 'b', 'c'])
+    la('lỗi đã xử lý không phủ modal kết quả', db.local.message_log, [])
 
 
 @ca('#227 kéo: payload lỗi, thiếu mã, trang rỗng giữa chừng và chạm trần phải báo chưa đủ')
@@ -99,3 +103,14 @@ def _rong():
     chay, db, da_goi = _nap({1: dict(listInvoice=[], totalPage=0)})
     la('hoàn tất thật', chay()['hoan_tat'], True)
     la('chỉ hỏi một trang', da_goi, [1])
+
+
+@ca('#227 nguồn mới có mã: đếm riêng, giữ để kéo lại, không cản tờ đầy đủ')
+def _nguon_chua_du():
+    chay, db, _ = _nap({1: dict(listInvoice=[{'_id': 'rong', 'type': 'INPUT_ELECTRONIC_INVOICE'},
+        {'id': 'du', 'shdon': 123, 'tdlap': '2026-09-20T17:00:00Z'}], totalPage=1)})
+    # Fixture Doc dùng ma_hd_id; _du_lieu stub không suy số thật.
+    kq = chay()
+    la('một nguồn chưa đủ', kq['nguon_chua_du'], 1)
+    la('giữ cả hai mã để đối chiếu', sorted(db.da_ghi), ['du', 'rong'])
+    la('không coi nguồn chờ là lỗi lưu hóa đơn', kq['so_loi_hoa_don'], 0)

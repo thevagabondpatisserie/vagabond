@@ -1346,7 +1346,7 @@ def dong_bo_ngay(so_ngay=None):
 
 	keo = minvoice_dong_bo._keo(so_ngay=cint(so_ngay) or 0)
 	dung_ct = _chay()
-	hoan_tat = not (keo.get("loi_o_loai") or dung_ct.get("con_hong") or dung_ct.get("dang_chay_do"))
+	hoan_tat = not (keo.get("loi_o_loai") or keo.get("nguon_chua_du") or dung_ct.get("con_hong") or dung_ct.get("dang_chay_do"))
 	return {
 		"ok": int(hoan_tat),
 		"keo": keo,

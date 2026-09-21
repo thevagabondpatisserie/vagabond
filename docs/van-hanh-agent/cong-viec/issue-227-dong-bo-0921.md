@@ -10,3 +10,5 @@ Sửa: giữ log trước tờ, gỡ riêng thông báo đã bắt khỏi local.
 3ca mới baseline lỗi, bản sửa đạt; tổng3182 local. Thêm ca PI thật âm có quà0tiền/mô tả, chưa chạy bench. Không sửa nguồn/hạch toán thật. Chờ xác nhận ánh xạ/quy cách thiếu theo luồng nội bộ, chưa đủ tuyên bố xử lý hết tồn đọng. Không lưu chi tiết chứng từ thật trong repo.
 
 Cần tiếp: bench đúngSHA, kiểm modal HTTP thật, review, phát hành sau cổng; đối chiếu nguồn/PI theo ngày và tồn đọng sau deploy. Không lấy max ngày PI làm bằng chứng đồng bộ đủ nhà cung cấp.
+
+Bổ sung: nguồn chỉ có mã được đếm riêng nguon_chua_du trong báo cáoDesk, không bị hiểu là đã có hóa đơn đầy đủ. Cô lập message_log ở cả bước kéo và dựng. APPVER514, chưa phát hành.
