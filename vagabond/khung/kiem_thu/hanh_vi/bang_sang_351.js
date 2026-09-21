@@ -159,6 +159,13 @@ async function chayHet() {
     dung('gio chot', html.indexOf('chốt lúc 07:00') >= 0);
     dung('nut tinh lai tren thanh tieu de', !!m.g._frame.opt.onAction);
   });
+  await ca('Codex #353 F5: phan lo con lai dem theo so_lo that, khong theo 12 lo may chu gui', async function () {
+    var m = dungMan();
+    var lo = [];
+    for (var i = 0; i < 12; i++) lo.push({ lo: 'L' + i, ten: 'Món ' + i, han: '2026-09-01', sl: 1 });
+    var html = m.g.bsLo({ luat: 'lo_qua_han', so_lieu: { so_lo: 20, lo: lo } });
+    dung('ba dong roi con 17', html.indexOf('và 17 lô nữa') >= 0);
+  });
   await ca('bam dong gon: mo the day du ngay tai cho, dong gon con lai giu nguyen', async function () {
     var m = dungMan();
     await m.g.scrBangSang(); await tick();
