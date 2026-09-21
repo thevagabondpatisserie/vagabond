@@ -516,7 +516,7 @@ def _dang_ky():
 	from vagabond import duong_app
 
 	la("cửa ngõ", sorted(thu_cua_ngo.CUA_NGO.get("phan_tich.py") or []),
-		["bang_sang", "bo_qua", "cap_nhat_viec", "dem_trang_chu", "giao", "hien_lai", "nguoi_de_giao", "tinh_lai", "viec"])
+		["bang_sang", "bo_qua", "bo_qua_viec", "cap_nhat_viec", "dem_trang_chu", "giao", "hien_lai", "nguoi_de_giao", "tinh_lai", "viec"])
 	dung("nhịp 7 giờ", '"0 7 * * *": ["vagabond.phan_tich.dung_bang_sang_tu_dong"]' in _doc("vagabond", "hooks.py"))
 	dung("trường Task được dựng lúc migrate", "_dung_nhom(phan_tich.TRUONG_MOI" in _doc("vagabond", "truong_tu_them.py"))
 	dung("lối vào Desk dựng lúc migrate", "phan_tich.dung_sidebar()" in _doc("vagabond", "truong_tu_them.py"))
@@ -842,3 +842,24 @@ def _n2_tre():
 	r = _chay(fr, pt.bang_sang, "tre")
 	la("tab tre chỉ có việc trễ", (r["tab"], [x["name"] for x in r["ds"]]), ("tre", ["TASK-1"]))
 	la("đếm khớp số trên ô", (r["dem"]["tre"], r["so_tre"], r["dem"]["da_giao"]), (1, 1, 2))
+
+
+@ca("#356 N4: quản lý bỏ qua việc đã giao bằng nút trên Desk; người nhận không bỏ qua được")
+def _n4_bo_qua_viec():
+	fr = Gia(user="loan@vgb", vai=("Marketing",))
+	r = _chay(fr, pt.giao, "mon_tang|BANU14|tat_ca", ["mkt@vgb"])
+	nem("lý do ngoài danh sách", lambda: _chay(fr, pt.bo_qua_viec, r["name"], "tu_bia", 3), fr.Loi)
+	fr.session.user, fr.vai = "mkt@vgb", ["Sales User"]
+	nem("người nhận bấm bỏ qua", lambda: _chay(fr, pt.bo_qua_viec, r["name"], "so_sai", 3), fr.Loi)
+	fr.session.user, fr.vai = "loan@vgb", ["Marketing"]
+	fr.db.get_value = _gv(fr)
+	kq = _chay(fr, pt.bo_qua_viec, r["name"], "so_sai", 30)
+	t = fr.task[r["name"]]
+	la("Task huỷ kèm lý do, ngày kẹp theo luật", (t["status"], t["vgb_goi_y_bo_qua_ly_do"], kq["so_ngay"]),
+		("Cancelled", "so_sai", pt.so_ngay_bo_qua("mon_tang", 30)))
+	la("ngày nhắc sau hôm nay", pt.soat_huy("Cancelled", "Open", "quan_ly", t["vgb_goi_y_bo_qua_ly_do"], t["vgb_goi_y_nhac_lai"], "2026-09-20"), None)
+	fr.task[r["name"]]["status"] = "Open"
+	with patch.object(pt, "_ten_nguoi", lambda ds: {}):
+		v = _chay(fr, pt.viec, r["name"])
+	dung("hooks gắn nút Bỏ qua cho form Task", '"Task": "public/js/task_bang_sang.js"' in _doc("vagabond", "hooks.py"))
+	la("viec() trả danh sách lý do từ một nguồn", [x["k"] for x in v["ly_do_bo_qua"]], [k for k, _ in pt.LY_DO_BO_QUA])
