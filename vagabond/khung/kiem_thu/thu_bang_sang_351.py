@@ -501,3 +501,77 @@ def _dang_ky():
 	dung("ca hành vi nằm trong cổng", "hanh_vi/bang_sang_351.js" in _doc("kiem_truoc_deploy.sh"))
 	s = _doc("vagabond", "phan_tich.py")
 	dung("không gọi mô hình ngôn ngữ ở đợt 1", "tro_ly" not in s and "anthropic" not in s.lower() and "openai" not in s.lower())
+
+
+# ------------------------------------------------ Codex #353 vòng 1 (SHA 9fca02e)
+
+@ca("#353 F1: Task bảng sáng chuyển Xong mà thiếu kết quả thì chặn ở tầng chứng từ (cả đường Desk)")
+def _f1_ket_qua():
+	la("thiếu kết quả", bool(pt.soat_ket_qua("Completed", "Open", "")), True)
+	la("kết quả quá ngắn", bool(pt.soat_ket_qua("Completed", "Working", "ok")), True)
+	la("có kết quả", pt.soat_ket_qua("Completed", "Open", "Đã đăng 2 story"), None)
+	la("đã xong từ trước thì không soát lại", pt.soat_ket_qua("Completed", "Completed", ""), None)
+	la("chưa xong thì không soát", pt.soat_ket_qua("Working", "Open", ""), None)
+
+	class DocGia(dict):
+		def get(s, k, d=None):
+			return dict.get(s, k, d)
+
+		def is_new(s):
+			return False
+
+		def __getattr__(s, k):
+			return s.get(k)
+
+		def __setattr__(s, k, v):
+			s[k] = v
+	fr = Gia(user="mkt@vgb")
+	fr.task["TASK-7"] = {"name": "TASK-7", "status": "Open"}
+	fr.db.get_value = lambda dt, n, f=None, **k: fr.task[n][f]
+	d = DocGia(name="TASK-7", status="Completed", vgb_goi_y_khoa="k")
+	nem("Desk đánh dấu xong mà trống kết quả", lambda: _chay(fr, pt.kiem_task, d), fr.Loi)
+	d2 = DocGia(name="TASK-7", status="Completed", vgb_goi_y_khoa="k", vgb_goi_y_ket_qua="Đã cách ly lô")
+	_chay(fr, pt.kiem_task, d2)
+	la("có kết quả thì qua, tự ghi người và ngày xong", (d2.completed_by, d2.completed_on), ("mkt@vgb", "2026-09-20"))
+	d3 = DocGia(name="TASK-7", status="Completed")
+	_chay(fr, pt.kiem_task, d3)
+	dung("Task không phải của bảng sáng thì bỏ qua", d3.completed_by is None)
+	dung("hook đăng ký validate trên Task", '"Task": {"validate": "vagabond.phan_tich.kiem_task"}' in _doc("vagabond", "hooks.py"))
+
+
+@ca("#353 F2: người nhận cũ (ToDo đã đóng) không đổi được trạng thái, vẫn xem được")
+def _f2_todo_dong():
+	fr = Gia(user="loan@vgb", vai=("Marketing",))
+	r = _chay(fr, pt.giao, "mon_tang|BANU14|tat_ca", ["cu@vgb"])
+	for t in fr.todo:
+		t["status"] = "Closed"
+	fr.session.user = "cu@vgb"
+	fr.vai = ["Sales User"]
+	nem("người nhận cũ báo xong", lambda: _chay(fr, pt.cap_nhat_viec, r["name"], "xong", "Đã đăng 2 story"), fr.Loi)
+	la("Task vẫn mở", fr.task[r["name"]]["status"], "Open")
+	with patch.object(pt, "frappe", fr):
+		la("vẫn xem được", pt._quyen_viec(_TaskGia(fr, fr.task[r["name"]])), "nhan")
+
+
+@ca("#353 F3: việc còn mở đọc riêng, không bị lọc theo tuổi hay trần dòng")
+def _f3_viec_mo():
+	goi = []
+
+	def get_all(dt, filters=None, limit_page_length=None, **k):
+		goi.append((dict(filters), limit_page_length))
+		return []
+	with patch.object(pt, "frappe", NS(get_all=get_all)), patch.object(pt, "nowdate", lambda: "2026-09-21"):
+		pt._viec_bang_sang()
+	mo = [f for f, _ in goi if f.get("status") == ["in", list(pt.TASK_MO)]]
+	la("có một truy vấn việc mở", len(mo), 1)
+	dung("việc mở không lọc modified", "modified" not in mo[0])
+	la("việc mở không giới hạn dòng", [l for f, l in goi if f.get("status") == ["in", list(pt.TASK_MO)]], [0])
+	dung("lịch sử mới có hạn ngày", any("modified" in f for f, _ in goi if f.get("status") == ["in", ["Completed", "Cancelled"]]))
+
+
+@ca("#353 F4: bảng kiểm bánh có mà chưa đồng bộ lần nào thì báo, không coi là số mới")
+def _f4_chua_dong_bo():
+	c = pt.chat_luong({"cu": 300, "nhap": (0, 300)}, {}, [], {"co_so": 1, "dong_bo_luc": ""},
+		D(2026, 9, 22), datetime.datetime(2026, 9, 21, 7))
+	la("có cảnh báo", [x["ma"] for x in c], ["pancake"])
+	dung("câu nói chưa đồng bộ lần nào", "chưa đồng bộ đơn Pancake lần nào" in c[0]["cau"])
