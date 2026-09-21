@@ -35821,8 +35821,9 @@ function nccTkHop(ma, tenNcc, tk, xong) {
     if (!so) return loi('Nhập số tài khoản.');
     if (!nh) return loi('Bấm ô ngân hàng để chọn ngân hàng của nhà cung cấp.');
     busy(true);
+    var kq = null;
     try {
-      await api('vagabond.ncc.luu_tai_khoan', {
+      kq = await api('vagabond.ncc.luu_tai_khoan', {
         ncc: ma, so_tk: so, ngan_hang: nh,
         chu_tk: String(k.box.querySelector('#tkhChu').value || '').trim()
       });
@@ -35830,7 +35831,9 @@ function nccTkHop(ma, tenNcc, tk, xong) {
     busy(false);
     k.dong();
     toast('Đã lưu tài khoản nhận tiền');
-    if (xong) await xong();
+    /* Gui kem tai khoan may chu vua luu (Codex #355): man goi co doc lai
+       hong thi van co so dung de hien, khong phai giu so cu. */
+    if (xong) await xong((kq && kq.tai_khoan) || { so_tk: so, ngan_hang: nh });
   };
 }
 
@@ -42488,14 +42491,21 @@ async function scrTraTruocTao() {
     var og = document.getElementById('ttGc');
     if (og) ttGhiChu = og.value.trim();
     var don = ttDon;
-    nccTkHop(n.ma, n.ten, n.tai_khoan, async function () {
+    nccTkHop(n.ma, n.ten, n.tai_khoan, async function (tkMoi) {
       busy(true);
+      var loiTai = '';
       try {
         var moi = await api('vagabond.tra_truoc.chi_tiet_don', { don: don });
         if (ttDon === don) ttChiTiet = moi;
-      } catch (er) { }
+      } catch (er) {
+        /* Codex #355: luu da thanh cong, chi doc lai don hong. Khong im
+           lang giu so cu: dat so vua luu vao man va noi ro cho nguoi dung. */
+        loiTai = (er && er.message) || 'mất kết nối';
+        if (ttDon === don && ttChiTiet && ttChiTiet.ncc && tkMoi && tkMoi.so_tk) ttChiTiet.ncc.tai_khoan = tkMoi;
+      }
       busy(false);
       go(scrTraTruocTao, true);
+      if (loiTai) baoTin('Đã lưu tài khoản nhận tiền. Màn chưa tải lại được đơn (' + loiTai + '), nên số đang hiện là số vừa lưu. Bấm chọn lại đơn nếu muốn tải lại từ máy chủ; không cần lưu lại tài khoản.', 'Tài khoản nhận tiền');
     });
   };
 

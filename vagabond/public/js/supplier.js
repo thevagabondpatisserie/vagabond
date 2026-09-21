@@ -24,21 +24,34 @@ frappe.ui.form.on('Supplier', {
         frm.dashboard.set_headline_alert(dong, tk.so_tk ? 'blue' : 'orange');
         if (!tk.sua) return;
         frm.add_custom_button(tk.so_tk ? 'Sửa tài khoản nhận tiền' : 'Thêm tài khoản nhận tiền', function () {
-          vgbNccTkDialog(frm, tk);
+          /* Codex #355: o Link -> Bank cua Frappe tim theo quyen doc Bank, ma
+             Thu mua khong co quyen do nen o trong. Lay danh muc NAPAS qua
+             cung cong vagabond.ngan_hang.tim ma app dung (da mo cho nguoi
+             sua duoc ho so NCC). */
+          frappe.call({
+            method: 'vagabond.ngan_hang.tim',
+            args: { tu_khoa: '' },
+            freeze: true,
+            callback: function (r2) {
+              var ds = ((r2 && r2.message && r2.message.ds) || []).map(function (x) { return { label: x.ten, value: x.k }; });
+              vgbNccTkDialog(frm, tk, ds);
+            }
+          });
         });
       }
     });
   }
 });
 
-function vgbNccTkDialog(frm, tk) {
+function vgbNccTkDialog(frm, tk, dsNganHang) {
   var d = new frappe.ui.Dialog({
     title: tk.so_tk ? 'Sửa tài khoản nhận tiền' : 'Thêm tài khoản nhận tiền',
     fields: [
       { fieldname: 'chu_tk', fieldtype: 'Data', label: 'Chủ tài khoản', default: tk.chu_tk || '',
         description: 'Để trống thì lấy tên nhà cung cấp.' },
       { fieldname: 'so_tk', fieldtype: 'Data', label: 'Số tài khoản', reqd: 1, default: tk.so_tk || '' },
-      { fieldname: 'ngan_hang', fieldtype: 'Link', options: 'Bank', label: 'Ngân hàng', reqd: 1, default: tk.ngan_hang || '' }
+      { fieldname: 'ngan_hang', fieldtype: 'Autocomplete', options: dsNganHang || [], label: 'Ngân hàng', reqd: 1, default: tk.ngan_hang || '',
+        description: 'Gõ vài chữ tên hoặc mã ngân hàng (vd MB, Vietcombank) rồi chọn trong danh sách.' }
     ],
     primary_action_label: 'Lưu tài khoản',
     primary_action: function (v) {
