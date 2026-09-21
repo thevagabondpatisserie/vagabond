@@ -31,8 +31,15 @@ from frappe.utils import add_days, cint, flt, getdate, nowdate
 QUYEN_NCC = QUYEN_THU_MUA | {"AP Giám đốc"}
 
 
+def duoc_sua_tk(vai):
+	"""Phep thuan: bo vai nay co duoc sua ho so (ke ca tai khoan) cua nha
+	cung cap khong. Mot nguon cho cong chan `_kiem` va cho man Thanh toan
+	truoc biet co nen bay nut "Them tai khoan nhan tien" hay khong (v515)."""
+	return bool(QUYEN_NCC & set(vai or []))
+
+
 def _kiem(viec):
-	if not (QUYEN_NCC & set(frappe.get_roles())):
+	if not duoc_sua_tk(frappe.get_roles()):
 		frappe.throw("Tài khoản của bạn không có quyền %s." % viec)
 
 
@@ -268,6 +275,24 @@ def _tai_khoan(ncc):
 		"so_tk": o.get("bank_account_no") or "",
 		"ngan_hang": o.get("bank") or "",
 	}
+
+
+@frappe.whitelist()
+def tai_khoan(ncc=None):
+	"""Tai khoan nhan tien dang dung cua mot nha cung cap, cho form Desk.
+
+	v515 (anh Viet 21/09/2026, anh chup form Desk): tren Desk khong co cho
+	nao nhap so tai khoan, the "Tai khoan ngan hang" o tab Ket noi khong co
+	nut them. Form Supplier goi ham nay de hien so dang dung va biet co
+	bay nut Them/Sua hay khong. Doc thi can quyen doc nha cung cap do.
+	"""
+	if not ncc or not frappe.db.exists("Supplier", ncc):
+		frappe.throw("Không tìm thấy nhà cung cấp %s." % (ncc or ""))
+	if not frappe.has_permission("Supplier", "read", ncc):
+		frappe.throw("Tài khoản của bạn không có quyền xem nhà cung cấp này.")
+	tk = _tai_khoan(ncc)
+	tk["sua"] = 1 if duoc_sua_tk(frappe.get_roles()) else 0
+	return tk
 
 
 @frappe.whitelist()

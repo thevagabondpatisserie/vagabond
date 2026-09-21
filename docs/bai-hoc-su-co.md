@@ -857,3 +857,15 @@ tay, nhập tay vào kho bếp khác chặng chỉ NHẮC, không chặn; máy k
 của hàng (món Pastry nằm ở kho Baker là việc của hai bếp), chỉ sửa chặng trong
 cùng bếp và chỉ trên lệnh/phiếu sản xuất. Bài học: hàng rào "chặn" phải do
 chủ tiệm chốt, mặc định của kỹ thuật là nhắc và làm hiện ra, không chặn.
+
+## Sửa xong mà người dùng vẫn không tìm ra: đặt lối sửa ngay chỗ báo thiếu (v515, 21/09/2026)
+
+v509 cho nhập số tài khoản nhà cung cấp, nhưng chỉ ở app, mục Danh mục > Nhà
+cung cấp. Ba ngày sau Uyên vẫn báo "chưa tìm được chỗ nhập": màn Thanh toán
+trước chỉ in dòng "chưa có số tài khoản" mà không có nút, còn form Desk thì
+thẻ "Tài khoản ngân hàng" ở tab Kết nối không có nút thêm. Claude lại hướng
+dẫn theo đường app trong khi anh Việt đang mở Desk, thành hướng dẫn sai chỗ.
+Bài học: (1) màn nào báo thiếu một thứ thì màn đó phải có nút sửa thứ đó (nếu
+người xem có quyền), hoặc nói rõ ai sửa và sửa ở đâu; (2) tính năng nhập liệu
+phải có ở cả app lẫn Desk; (3) trước khi hướng dẫn, hỏi hoặc nhìn ảnh xem
+người dùng đang ở Desk hay ở app.

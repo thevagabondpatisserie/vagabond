@@ -280,6 +280,9 @@ def chi_tiet_don(don=None):
 			"nhom": s.get("supplier_group") or "",
 			"dia_chi": _dia_chi_ncc(d.supplier),
 			"tai_khoan": _tk_ncc(d.supplier),
+			# v515: Uyen bi ket vi man nay chi bao "chua co so tai khoan" ma
+			# khong co loi sua. Nguoi co quyen thi bay nut them ngay tai cho.
+			"sua_tk": 1 if _ncc_mod().duoc_sua_tk(frappe.get_roles()) else 0,
 		}
 
 	return {
@@ -317,24 +320,27 @@ def _dia_chi_ncc(ma):
 	return ""
 
 
+def _ncc_mod():
+	from vagabond import ncc
+	return ncc
+
+
 def _tk_ncc(ma):
-	"""So tai khoan nhan tien cua nha cung cap, doc tu Bank Account cua ho."""
+	"""So tai khoan nhan tien cua nha cung cap, doc tu Bank Account cua ho.
+
+	v515: truoc day tu doc Bank Account, lay dong dau tien khong theo mac
+	dinh. Sau khi sua tai khoan da co phieu chi tro toi (ncc.luu_tai_khoan
+	tao ban moi lam mac dinh, giu ban cu) man nay co the hien SO CU trong khi
+	phieu lap ra gan SO MOI. Nay doc qua ncc._tai_khoan, cung nguon voi
+	tk_mac_dinh ma phieu chi dung.
+	"""
 	try:
-		for b in frappe.get_all(
-			"Bank Account",
-			filters={"party_type": "Supplier", "party": ma},
-			fields=["bank_account_no", "bank", "account_name"],
-			limit_page_length=3,
-		):
-			if b.get("bank_account_no"):
-				return {
-					"so_tk": b["bank_account_no"],
-					"ngan_hang": b.get("bank") or "",
-					"chu_tk": b.get("account_name") or "",
-				}
+		tk = _ncc_mod()._tai_khoan(ma)
 	except Exception:
-		pass
-	return {}
+		return {}
+	if not tk.get("so_tk"):
+		return {}
+	return {"so_tk": tk["so_tk"], "ngan_hang": tk.get("ngan_hang") or "", "chu_tk": tk.get("chu_tk") or ""}
 
 
 @frappe.whitelist()
