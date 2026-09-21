@@ -78,6 +78,7 @@ LOAI_PHIEU = (
 	("nop_quy", "Nộp quỹ tiền mặt", "💵"),
 	("hang_tang", "Đơn hàng tặng", "🎁"),
 	("don_mua", "Đơn mua quá hẹn", "⚠️"),
+	("goi_y", "Việc được giao", "📌"),
 )
 
 # ====================================================== CHẾ ĐỘ GIÁM ĐỐC
@@ -101,6 +102,11 @@ VAI_GIAM_DOC_SIET = {"AP Giám đốc", "Giám đốc"}
 # đây, và phải là việc mà giám đốc THẬT SỰ là người quyết, không phải việc
 # chỉ để xem cho biết.
 VIEC_HE_TRONG = ("ho_so_tt", "nop_quy", "hang_tang")
+
+# Việc giao ĐÍCH DANH từ màn Việc hôm nay (#351). Không lọc theo vai mà theo
+# ToDo của chính người đang đăng nhập, nên ai được giao thì người đó thấy, kể
+# cả giám đốc: việc người khác giao tận tay mình là việc của mình.
+VIEC_DICH_DANH = ("goi_y",)
 
 
 def la_giam_doc(vai):
@@ -161,6 +167,8 @@ def thay_duoc(loai, vai):
 	phải mở: thêm một loại phiếu mới mà quên khai vai thì nó ẩn với mọi
 	người, chứ không hiện ra với cả tiệm.
 	"""
+	if loai in VIEC_DICH_DANH:
+		return True
 	can = MA_TRAN.get(loai)
 	if not can:
 		return False
@@ -748,6 +756,13 @@ def _viec_hang_tang(vai):
 	return ra
 
 
+def _viec_goi_y(nguoi):
+	"""Việc từ màn Việc hôm nay đang giao cho đích danh người này."""
+	from vagabond import phan_tich
+
+	return phan_tich.viec_can_lam_cua(nguoi)
+
+
 NHAN_TT = {
 	"cho_nhan": "chờ nhận", "cho_soan": "chờ soạn", "tre_hen": "trễ hẹn",
 	"cho_lam": "chờ làm", "ban_nhap": "bản nháp", "cho_duyet": "chờ duyệt",
@@ -788,6 +803,7 @@ def danh_sach(loai="", trang_thai=""):
 		("ho_so_tt", lambda: _viec_ho_so_tt(vai)),
 		("nop_quy", lambda: _viec_nop_quy(vai)),
 		("hang_tang", lambda: _viec_hang_tang(vai)),
+		("goi_y", lambda: _viec_goi_y(nguoi)),
 	]
 
 	tat_ca = []

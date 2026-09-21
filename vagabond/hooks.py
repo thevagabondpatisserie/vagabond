@@ -173,6 +173,10 @@ scheduler_events = {
 		# Lop con thieu cua vu 26/08: khong lop nao keu len, vi khong lop
 		# nao co viec keu. Xem canh_bao_tac_nhip.
 		"25 8 * * *": ["vagabond.minvoice_chung_tu.canh_bao_tac_nhip"],
+		# 7h sang: dung bang Viec hom nay (#351) tu so ban va so kho toi het
+		# hom qua. Man chi DOC ban da dung, khong quet lai moi lan mo. Ham tu
+		# nuot loi va ghi log. Xem dau tep phan_tich.py.
+		"0 7 * * *": ["vagabond.phan_tich.dung_bang_sang_tu_dong"],
 		# 01:40 moi dem: tinh lai bang Nguyen lieu thay the. Ton kho, gia von
 		# va so cong thuc doi hang ngay ma khong ai mo lai cap thay the de luu,
 		# nen khong co nhip nay thi cac o do dung im o con so ngay khai.
