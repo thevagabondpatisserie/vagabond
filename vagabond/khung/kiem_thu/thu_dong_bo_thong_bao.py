@@ -54,3 +54,24 @@ def _dong_am_khong_tien():
         la('không tạo thêm tiền', x['tien'], 0)
     x = dong_tu_hoa_don({'sluong': 2, 'dgia': 100, 'thtien': 200}, -1)
     la('dòng tiền dương trong điều chỉnh hỗn hợp không bị đổi dấu để ép qua', x['tien'], 200)
+
+
+@ca('đồng bộ tự động: lỗi giao dịch phải tới worker, không trả thành công để commit phần dở')
+def _worker_khong_nuot_loi():
+    p = Path(__file__).resolve().parents[2] / 'minvoice_chung_tu.py'
+    ham = [n for n in ast.parse(p.read_text()).body
+           if isinstance(n, ast.FunctionDef) and n.name == 'chay_tu_dong']
+    for rollback_hong in (False, True):
+        da_lui = []
+        def chay():
+            raise RuntimeError('giao dịch dựng phiếu hỏng')
+        def lui():
+            da_lui.append(1)
+            if rollback_hong:
+                raise RuntimeError('rollback vẫn hỏng')
+        f = SimpleNamespace(db=SimpleNamespace(exists=lambda *a: True, rollback=lui),
+                            log_error=lambda *a: None, get_traceback=lambda: 'traceback thử')
+        env = dict(frappe=f, DT_HD='MInvoice Invoice', _chay=chay)
+        exec(compile(ast.Module(body=ham, type_ignores=[]), str(p), 'exec'), env)
+        nem('worker nhận exception cả khi rollback hỏng', env['chay_tu_dong'], RuntimeError)
+        la('thử hoàn nguyên trước khi báo lỗi', da_lui, [1])

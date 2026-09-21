@@ -14,3 +14,5 @@ Cần tiếp: bench đúngSHA, kiểm modal HTTP thật, review, phát hành sau
 Bổ sung: nguồn chỉ có mã được đếm riêng nguon_chua_du trong báo cáoDesk, không bị hiểu là đã có hóa đơn đầy đủ. Cô lập message_log ở cả bước kéo và dựng. APPVER514, chưa phát hành.
 
 Kiểm cuối local: 3183 ca đạt, predeploy rc0. Fixture ca âm lấy tài khoản chi phí mặc định từ Company trước insert; thiếu fixture báo rõ. Bench và review SHA cuối vẫn là cổng riêng, chưa nhận là đạt. Đối chiếu read-only nguồn theo ID không phát hiện mã đầy đủ bị thiếu ở bảng nguồn; phần thiếu PI là bước dựng chứng từ, không phải mọi hóa đơn sau một ngày đều mất.
+
+Rà wrapper scheduler: chay_tu_dong trước đây nuốt exception của _chay. Đã thêm rollback rồi raise để worker đánh dấu thất bại, kể cả rollback tiếp tục lỗi. Ca phản chứng trước sửa báo không ném lỗi; sau sửa đạt. Cổng cuối local rc0 với Python hệ thống3.9/Node24 (3182 ca khung +27 ca bổ sung); số ca khác lượt runtime trước, không dùng số lượng thay bằng chứng bench.

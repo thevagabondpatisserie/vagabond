@@ -1308,7 +1308,7 @@ def chay_bu(tu_ngay=None, den_ngay=None, gioi_han=None):
 
 
 def chay_tu_dong():
-	"""Điểm gọi của bộ lập lịch. Không ném lỗi ra ngoài.
+	"""Điểm gọi của bộ lập lịch. Lỗi giao dịch phải tới worker để đánh dấu thất bại.
 
 	PHẢI CÓ TÊN NÀY TRONG `hooks.py`. Xem ca kiểm "nhip tu dong da khai
 	trong hooks" ở khung/kiem_thu/thu_minvoice_chung_tu.py để biết vì sao
@@ -1319,8 +1319,11 @@ def chay_tu_dong():
 			return
 		_chay()
 	except Exception:
+		# Không để scheduler nhận thành công rồi commit phần giao dịch hỏng.
+		frappe.db.rollback()
 		frappe.log_error(frappe.get_traceback(),
 			"minvoice_chung_tu: nhip tu dong vo loi")
+		raise
 
 
 # ------------------------------------------------- nút bấm tay và chuông báo

@@ -861,3 +861,7 @@ chủ tiệm chốt, mặc định của kỹ thuật là nhắc và làm hiện
 ## 21/09/2026 - Đồng bộ đầu vào: lỗi đã bắt vẫn hiện modal
 
 Frappe đưa local.message_log vào response dù caller đã bắt exception. Khi từng tờ lỗi đã được chuyển vào báo cáo, phải giữ log trước lượt và loại log riêng của tờ đó; không xóa thông báo toàn request. Rollback lỗi phải nổi lên, không để caller commit phần dở. Với hóa đơn âm, qty âm và rate0 cho tích -0; không dùng tích <0 làm tiêu chí duy nhất quyết dấu. Kiểm cả dòng quà0tiền và dòng mô tả trống trên PI thật. Nguồn issue227, nhánh codex/fix-minvoice-sync-20260921.
+
+
+### PR352: lỗi giao dịch phải đi tới worker
+Helper đẩy lỗi rollback nhưng wrapper scheduler bắt rồi trả bình thường vẫn có thể khiến worker commit. Kiểm hành vi ở điểm gọi scheduler: rollback và ném lỗi tiếp, kể cả rollback không thành công; không chỉ kiểm helper từng tờ.
