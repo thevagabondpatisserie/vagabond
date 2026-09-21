@@ -1,0 +1,56 @@
+"""Lỗi từng tờ phải nằm trong báo cáo đồng bộ, không tràn modal của Desk."""
+import ast
+from pathlib import Path
+from types import SimpleNamespace
+from vagabond.khung.kiem_thu.nen import ca, la, nem
+
+
+def _nap(mat_rollback=False):
+    p = Path(__file__).resolve().parents[2] / 'minvoice_chung_tu.py'
+    ham = [n for n in ast.parse(p.read_text()).body
+           if isinstance(n, ast.FunctionDef) and n.name == '_mot_to']
+    da_ghi = []
+    f = SimpleNamespace(local=SimpleNamespace(message_log=[{'message': 'Thông báo trước lượt'}]))
+    def dung_phieu(r):
+        f.local.message_log.append({'message': 'Cần khai quy cách mua', 'raise_exception': 1})
+        raise ValueError('chưa xác định quy đổi')
+    def lui():
+        if mat_rollback:
+            raise RuntimeError('rollback thất bại')
+    f.db = SimpleNamespace(rollback=lui)
+    f.get_traceback = lambda: 'traceback thử'
+    f.log_error = lambda *a: None
+    env = dict(frappe=f, khoi_dung_duoc=lambda x: False,
+               _da_co_chung_tu=lambda ma: None, _trung_theo_so_hoa_don=lambda r: None,
+               dung_hoa_don_mua=dung_phieu, _ghi_hong=lambda ma,e: da_ghi.append(ma),
+               rut_gon_loi=str, LOAI_RA='Đầu ra')
+    exec(compile(ast.Module(body=ham, type_ignores=[]), str(p), 'exec'), env)
+    return env['_mot_to'], f, da_ghi
+
+
+@ca('đồng bộ: lỗi đã bắt giữ nguyên lý do nhưng không tràn modal, giữ thông báo trước lượt')
+def _loi_da_bat():
+    chay, f, da_ghi = _nap()
+    for ma in ('a', 'b'):
+        la('lý do về báo cáo', chay({'name': ma, 'loai': 'Đầu vào'}), (0, 'chưa xác định quy đổi'))
+    la('hai tờ lỗi đều có dấu để thử lại', da_ghi, ['a', 'b'])
+    la('không rò lỗi đã xử lý vào response', f.local.message_log, [{'message': 'Thông báo trước lượt'}])
+
+
+@ca('đồng bộ: rollback hỏng phải dừng, không ghi trạng thái lỗi rồi để caller commit phần dở')
+def _rollback_hong():
+    chay, f, da_ghi = _nap(True)
+    nem('đẩy lỗi rollback ra caller', lambda: chay({'name': 'a', 'loai': 'Đầu vào'}), RuntimeError)
+    la('không ghi thêm sau rollback hỏng', da_ghi, [])
+
+
+@ca('hóa đơn âm: quà tặng giá0 không bị đảo qty âm thành dương, dòng mô tả không chặn phiếu')
+def _dong_am_khong_tien():
+    from vagabond.minvoice_chung_tu import dong_tu_hoa_don
+    for d in ({'sluong': -1, 'dgia': 0, 'thtien': 0, 'tchat': 2},
+              {'sluong': None, 'dgia': None, 'thtien': 0, 'ten': 'Điều chỉnh giảm'}):
+        x = dong_tu_hoa_don(d, -1)
+        la('qty âm hợp core', x['sl'], -1)
+        la('không tạo thêm tiền', x['tien'], 0)
+    x = dong_tu_hoa_don({'sluong': 2, 'dgia': 100, 'thtien': 200}, -1)
+    la('dòng tiền dương trong điều chỉnh hỗn hợp không bị đổi dấu để ép qua', x['tien'], 200)

@@ -25,3 +25,24 @@ def _dau_sai():
         'ly_do_bo_qua'), 'Item Wise Tax Details lỗi cũ')
     la('chạy lại không mở lặp', mv._mo_lai_dau_sai(ngay, ngay, 10, [d.name for d in ds]), 0)
     la('không tạo thêm PI', frappe.db.count('Purchase Invoice', {'custom_minvoice_id': ds[0].name}), 0)
+
+
+@ca('#227 hóa đơn âm: dòng quà giá0 và mô tả không bị đảo dấu, PI thật lưu được')
+def _am_co_dong_khong_tien():
+    dong = [mv.dong_tu_hoa_don(x, -1) for x in [
+        {'ten': 'Quà thử giá0', 'sluong': -1, 'dgia': 0, 'thtien': 0, 'tchat': 2},
+        {'ten': 'Mô tả điều chỉnh', 'sluong': None, 'dgia': None, 'thtien': 0},
+        {'ten': 'Dòng hoàn thử', 'sluong': -1, 'dgia': 100000, 'thtien': -100000}]]
+    hd = _phieu([('Dòng hoàn thử', -1, 100000)])
+    hd.is_return = 1
+    hd.set('items', [mv._dong_pi(x, hd.items[0].expense_account) for x in dong])
+    for d in hd.items:
+        d.cost_center = hd.cost_center
+    _luu(hd)
+    hd.reload()
+    la('core lưu đúng dấu cả3dòng', [d.qty for d in hd.items], [-1, -1, -1])
+    la('không phát sinh tiền ở dòng0', [d.amount for d in hd.items], [0, 0, -100000])
+    la('tổng tiền âm giữ nguyên', hd.grand_total, -100000)
+    la('chỉ nháp, không ghi sổ', hd.docstatus, 0)
+    la('không SLE', frappe.db.count('Stock Ledger Entry', {'voucher_no': hd.name}), 0)
+    la('không GL', frappe.db.count('GL Entry', {'voucher_no': hd.name}), 0)

@@ -187,7 +187,7 @@ def nan_dau_dong(sl, gia, thtien=None):
 	if tt is not None and tt != 0:
 		am = tt < 0
 	else:
-		am = (sl * gia) < 0
+		am = (sl * gia) < 0 or (sl * gia == 0 and (sl < 0 or gia < 0))
 
 	gia = abs(gia)
 	sl = -abs(sl) if am else abs(sl)
@@ -231,6 +231,10 @@ def dong_tu_hoa_don(it, dau_to=1):
 		gia = 0
 	if int(dau_to or 1) < 0:
 		sl, gia = nan_dau_dong(sl, gia, d.get("thtien"))
+		# Dòng mô tả không qty/giá/tiền vẫn mang qty mặc định1. Phiếu âm
+		# phải dùng -1 cho dòng0tiền này; không đảo dòng tiền dương hỗn hợp.
+		if not d.get("sluong") and not gia and not d.get("thtien"):
+			sl = -abs(sl)
 	return {
 		"ma": str(d.get("mhhdvu") or "").strip(),
 		"ten": str(d.get("ten") or "").strip(),
@@ -1111,7 +1115,10 @@ def dung_hoa_don_mua(r):
 
 
 def _mot_to(r):
-	"""Xử một tờ. Trả (da_dung, ghi_chu). Không bao giờ ném ra ngoài."""
+	"""Xử một tờ. Lỗi nghiệp vụ trả lý do; rollback lỗi phải dừng cả lượt."""
+	# Frappe utils/response.py gửi message_log về Desk dù exception đã bắt.
+	# Giữ thông báo của caller, chỉ bỏ thông báo tờ lỗi đã chuyển vào báo cáo.
+	thong_bao_truoc = list(frappe.local.message_log or [])
 	ma = r.get("name")
 	try:
 		if khoi_dung_duoc(r.get("trang_thai")):
@@ -1140,10 +1147,8 @@ def _mot_to(r):
 		# Huỷ mọi thứ tờ này vừa ghi dở, kể cả chứng từ đã insert mà đối
 		# chiếu tổng không đạt. Rollback chỉ lùi tới lần commit gần nhất, mà
 		# `_chay` commit sau TỪNG tờ, nên không đụng tới tờ trước.
-		try:
-			frappe.db.rollback()
-		except Exception:
-			pass
+		frappe.db.rollback()
+		frappe.local.message_log = thong_bao_truoc
 		_ghi_hong(ma, e)
 		frappe.log_error(frappe.get_traceback(),
 			"minvoice_chung_tu: to %s" % ma)
