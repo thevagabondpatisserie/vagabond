@@ -329,6 +329,17 @@ async function chayHet() {
     bang('gui so ngay', ql.goi.args.so_ngay, 3);
     bang('tai lai form', ql.reload(), 1);
   });
+  await ca('Codex #356 P3: tab Can giao cung co o tim, loc ca the lan dong gon', async function () {
+    var m = dungMan();
+    await m.g.scrBangSang(); await tick();
+    var tim = m.khung.querySelector('#bsTim');
+    dung('co o tim o Can giao', !!tim);
+    tim.value = 'mon 5';
+    tim.dispatchEvent(dg.suKien('input', {}, tim));
+    var the = m.khung.querySelectorAll('[data-bsthe]'), gon = m.khung.querySelectorAll('[data-bsi]');
+    dung('the dau an', the.every(function (e) { return e.style.display === 'none'; }));
+    bang('dong gon mon 5 hien', gon.filter(function (e) { return e.style.display !== 'none'; }).length, 1);
+  });
   await ca('Codex #356 N2: bam o Tre han goi may chu voi tab tre, o do sang len', async function () {
     var m = dungMan();
     await m.g.scrBangSang(); await tick();
