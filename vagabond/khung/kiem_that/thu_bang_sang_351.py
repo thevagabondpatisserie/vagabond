@@ -99,3 +99,28 @@ def _bo_qua_that():
 		dung("nằm ở tab Bỏ qua", kq2 and any(x["name"] == t.name for x in kq2["ds"]))
 	finally:
 		don()
+
+
+@ca("#353 F1: trên Desk, Task bảng sáng chuyển Completed mà thiếu kết quả bị chặn; có kết quả thì qua")
+def _desk_thieu_ket_qua():
+	khoa, don = _dat_bang()
+	try:
+		r = khong_nem("giao", lambda: pt.giao(khoa, [_nguoi()], str(nowdate())))
+		if not r:
+			return
+		t = frappe.get_doc("Task", r["name"])
+		t.status = "Completed"
+		bi_chan = False
+		try:
+			t.save(ignore_permissions=True)
+		except frappe.ValidationError:
+			bi_chan = True
+		dung("lưu Completed không kết quả bị chặn", bi_chan)
+		la("Task vẫn mở", frappe.db.get_value("Task", t.name, "status"), "Open")
+		t = frappe.get_doc("Task", r["name"])
+		t.status = "Completed"
+		t.vgb_goi_y_ket_qua = "Đã kiểm lô trên Desk"
+		khong_nem("lưu có kết quả", lambda: t.save(ignore_permissions=True))
+		la("Task xong kèm người đánh dấu", (frappe.db.get_value("Task", t.name, "status"), bool(t.completed_by)), ("Completed", True))
+	finally:
+		don()
