@@ -45,7 +45,7 @@ function nd(i, luat, muc, bp, them) {
 
 function duLieu(tab) {
   var ds;
-  if (tab === 'da_giao') {
+  if (tab === 'da_giao' || tab === 'tre') {
     ds = [
       { name: 'TASK-1', tieu_de: 'Croissant đang lên', luat: 'mon_tang', bo_phan: ['marketing'], tt: 'tre', han: '2026-09-19', nguoi: ['Vũ'], anh: '' },
       { name: 'TASK-2', tieu_de: '2 lô quá hạn', luat: 'lo_qua_han', bo_phan: ['kho'], tt: 'mo', han: '2026-09-21', nguoi: ['Khải'], anh: '' },
@@ -292,6 +292,37 @@ async function chayHet() {
     dung('co lien ket Viec hom nay', html.indexOf('data-bcbs') >= 0);
     var html2 = m.g.bcTheNhanDinh({ so_voi: 'x', tang: [], giam: [], so_tang: 0, so_giam: 0, moi: 2, mo_bang_sang: 0 });
     dung('khong quyen thi khong co lien ket', html2.indexOf('data-bcbs') < 0);
+  });
+  await ca('Codex #356 N2: bam o Tre han goi may chu voi tab tre, o do sang len', async function () {
+    var m = dungMan();
+    await m.g.scrBangSang(); await tick();
+    var o = m.khung.querySelectorAll('[data-bst]').filter(function (c) { return c.getAttribute('data-bst') === 'tre'; });
+    bang('co dung mot o Tre han', o.length, 1);
+    bam(o[0]); await tick(); await tick();
+    bang('tab gui len', m.goi[m.goi.length - 1].ts.tab, 'tre');
+  });
+  await ca('Codex #356 N3: o tim nhanh loc dong theo ten viec va nguoi nhan, khong dau', async function () {
+    var m = dungMan();
+    m.g.bsLoc.tab = 'da_giao';
+    await m.g.scrBangSang(); await tick();
+    var tim = m.khung.querySelector('#bsTim');
+    dung('co o tim', !!tim);
+    var soGoi = m.goi.length;
+    tim.value = 'khai';
+    tim.dispatchEvent(dg.suKien('input', {}, tim));
+    var dong = m.khung.querySelectorAll('[data-bsv]');
+    bang('dong Vu an', dong[0].style.display, 'none');
+    bang('dong Khai hien', dong[1].style.display, '');
+    tim.value = 'KHẢI';
+    tim.dispatchEvent(dg.suKien('input', {}, tim));
+    bang('go co dau, hoa van khop', [dong[0].style.display, dong[1].style.display].join('|'), 'none|');
+    tim.value = 'croissant';
+    tim.dispatchEvent(dg.suKien('input', {}, tim));
+    bang('tim theo ten viec', [dong[0].style.display, dong[1].style.display].join('|'), '|none');
+    tim.value = 'zzz';
+    tim.dispatchEvent(dg.suKien('input', {}, tim));
+    bang('khong khop thi bao', m.khung.querySelector('#bsKhongThay').style.display, '');
+    bang('loc tai cho, khong goi may chu', m.goi.length, soGoi);
   });
 }
 
