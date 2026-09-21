@@ -278,7 +278,10 @@ class Gia:
 
 		def get_value(dt, name, f=None, **k):
 			if dt == "User":
-				return {"enabled": 1}.get(f, "Tên " + name) if name != "tat@vgb" else 0
+				u = {"enabled": 0 if name == "tat@vgb" else 1, "user_type": "Website User" if name == "khach@vgb" else "System User"}
+				if isinstance(f, (list, tuple)):
+					return u
+				return u.get(f, "Tên " + name) if name != "tat@vgb" else 0
 			return None
 
 		def exists(dt, f=None):
@@ -891,3 +894,60 @@ def _p12():
 	la("quản lý marketing vừa được giao vẫn là quan_ly", q, "quan_ly")
 	kq = _chay(fr, pt.bo_qua_viec, r["name"], "khong_can", 3)
 	la("bỏ qua đóng cả hai ToDo", (kq["dong_todo"], sorted({t["status"] for t in fr.todo})), (2, ["Cancelled"]))
+
+
+# ------------------------------------------------ Codex #356 (SHA b963578)
+
+@ca("#356 Q1: giao qua API chỉ cho tài khoản nội bộ đang bật")
+def _q1_nguoi_nhan():
+	la("nội bộ đang bật", pt.loi_nguoi_nhan("a@vgb", {"enabled": 1, "user_type": "System User"}), None)
+	dung("Website User bị chặn", "nội bộ" in (pt.loi_nguoi_nhan("k@x", {"enabled": 1, "user_type": "Website User"}) or ""))
+	dung("Administrator bị chặn", bool(pt.loi_nguoi_nhan("Administrator", {"enabled": 1, "user_type": "System User"})))
+	dung("tắt bị chặn", bool(pt.loi_nguoi_nhan("t@vgb", {"enabled": 0, "user_type": "System User"})))
+	dung("không có User bị chặn", bool(pt.loi_nguoi_nhan("z@vgb", None)))
+	fr = Gia(user="loan@vgb", vai=("Marketing",))
+	nem("giao cho Website User qua API", lambda: _chay(fr, pt.giao, "mon_tang|BANU14|tat_ca", ["khach@vgb"]), fr.Loi)
+	la("không Task, không ToDo, không chia sẻ", (len(fr.task), len(fr.todo), len(fr.share)), (0, 0, 0))
+
+
+@ca("#356 Q2: phần trên `import frappe` nạp và chạy được khi KHÔNG có Frappe")
+def _q2_khong_frappe():
+	src = _doc("vagabond", "phan_tich.py")
+	tren = src.split("\nimport frappe")[0]
+	dung("phần thuần không có dòng import frappe", not [l for l in tren.splitlines() if l.startswith(("import frappe", "from frappe"))])
+
+	class Chan:
+		def find_module(self, ten, path=None):
+			return None
+
+		def find_spec(self, ten, path=None, target=None):
+			if ten == "frappe" or ten.startswith("frappe."):
+				raise ImportError("gia lap khong co Frappe")
+			return None
+	cu = {k: v for k, v in sys.modules.items() if k == "frappe" or k.startswith("frappe.") or k == "vagabond.vai_cua_hang"}
+	for k in cu:
+		del sys.modules[k]
+	chan = Chan()
+	sys.meta_path.insert(0, chan)
+	try:
+		ns = {"__name__": "phan_tich_thuan"}
+		exec(compile(tren, "phan_tich.py#thuan", "exec"), ns)
+	finally:
+		sys.meta_path.remove(chan)
+		sys.modules.update(cu)
+	la("xet_tang chạy", ns["xet_tang"]([10, 20, 40], 1), "tang")
+	la("nhan_dinh_lo chạy", len(ns["nhan_dinh_lo"]([{"lo": "L", "ma": "M", "ten": "T", "kho": "K", "han": "2026-09-01", "sl": 2}], "2026-09-20")), 1)
+	la("soat_huy chạy", ns["soat_huy"]("Cancelled", "Open", "nhan", "", "", "2026-09-20") is not None, True)
+	from vagabond import vai_cua_hang
+	la("hằng vai dự phòng trùng bản gốc", (ns["VAI_MARKETING"], ns["VAI_QLCH"]), (vai_cua_hang.VAI_MARKETING, vai_cua_hang.VAI_QLCH))
+
+
+@ca("#356 Q3: sàn mẫu áp cho tuần/kỳ GỐC")
+def _q3_san_goc():
+	la("4 lên 12 không phải tăng", pt.xet_tang([0, 4, 12], 1), None)
+	la("12 lên 30 là tăng", pt.xet_tang([10, 12, 30], 1), "tang")
+	la("món mới vẫn giữ đường riêng", pt.xet_tang([0, 0, 15], 1), "moi")
+	kq = pt.nhan_dinh_bao_cao_mon([{"ma_mon": "BANU1", "mon": "A", "sl": 12}], [{"ma_mon": "BANU1", "sl": 4}], "kỳ trước")
+	dung("BC08: kỳ gốc 4 không vào danh sách tăng", not kq or not kq.get("tang"))
+	kq2 = pt.nhan_dinh_bao_cao_mon([{"ma_mon": "BANU1", "mon": "A", "sl": 30}], [{"ma_mon": "BANU1", "sl": 12}], "kỳ trước")
+	dung("BC08: kỳ gốc 12 lên 30 là tăng", bool(kq2) and [x["ma"] for x in kq2.get("tang", [])] == ["BANU1"])
