@@ -4418,6 +4418,9 @@ def _nap_ham_vcl43():
 		exec(compile(m.group(0), "viec_can_lam:%s" % ten, "exec"), mt, mt)
 	m = re.search(r"^VIEC_HE_TRONG = \(.*?\)", src, re.S | re.M)
 	exec(compile(m.group(0), "viec_can_lam:VIEC_HE_TRONG", "exec"), mt, mt)
+	# #351: loai viec giao dich danh (goi_y) di qua cong rieng o dau thay_duoc.
+	m = re.search(r"^VIEC_DICH_DANH = \(.*?\)", src, re.S | re.M)
+	exec(compile(m.group(0), "viec_can_lam:VIEC_DICH_DANH", "exec"), mt, mt)
 	m = re.search(r"^def la_giam_doc\(.*?(?=^def |\Z)", src, re.S | re.M)
 	exec(compile(m.group(0), "viec_can_lam:la_giam_doc", "exec"), mt, mt)
 	m = re.search(r"^def thay_duoc\(.*?(?=^def |\Z)", src, re.S | re.M)
