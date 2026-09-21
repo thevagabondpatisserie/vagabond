@@ -1372,25 +1372,37 @@ def can_kiem_nguoi_sua(nguoi, truoc, trang_thai, ket_qua, vai=None):
 	return True
 
 
+def kiem_nguoi_sua_task(doc, method=None):
+	"""Hook before_validate của Task bảng sáng: ai được lưu.
+
+	Codex #353 vòng 2 và 4: người nhận cũ vẫn giữ DocShare ghi, nên trên Desk
+	họ lưu được Task (đánh dấu xong, sửa tiêu đề, hạn). Mọi lần lưu của người
+	thường phải là người đang nhận (ToDo mở) hoặc quản lý bộ phận.
+
+	Đặt ở before_validate, KHÔNG ở validate: bench CI trên ae8e76b bắt được
+	người nhận THẬT báo xong bị chặn, vì tới lúc hook validate chạy thì
+	ERPNext (Task.validate) đã đóng ToDo của chính họ. before_validate chạy
+	trước bộ điều khiển Task nên còn thấy đúng ToDo đang mở."""
+	if not doc.get("vgb_goi_y_khoa") or doc.is_new():
+		return
+	if not can_kiem_nguoi_sua(frappe.session.user, {}, doc.get("status"), doc.get("vgb_goi_y_ket_qua"), _vai()):
+		return
+	if not _quyen_viec(doc, ghi=True):
+		frappe.throw("Việc này không (còn) giao cho bạn và không thuộc bộ phận bạn quản lý, nên không sửa được.",
+			title="Không có quyền")
+
+
 def kiem_task(doc, method=None):
 	"""Hook validate của Task. Chỉ động tới Task sinh từ bảng sáng.
 
 	Codex #353: người nhận có quyền ghi Task (được chia sẻ) nên đánh dấu xong
 	được ngay trên Desk mà không qua cap_nhat_viec; khi đó ERPNext đóng ToDo
 	mà ô kết quả trống. Chặn ở tầng chứng từ thì app và Desk cùng một luật.
+	Ai được lưu thì xét ở kiem_nguoi_sua_task (before_validate).
 	"""
 	if not doc.get("vgb_goi_y_khoa"):
 		return
-	truoc = {} if doc.is_new() else (frappe.db.get_value("Task", doc.name, ["status", "vgb_goi_y_ket_qua"], as_dict=True) or {})
-	cu = truoc.get("status")
-	# Codex #353 vòng 2: người nhận cũ vẫn giữ DocShare ghi, nên trên Desk họ
-	# lưu được Task (đánh dấu xong, đóng ToDo của người đang nhận). Đổi trạng
-	# thái hay kết quả thì phải là người đang nhận (ToDo mở) hoặc quản lý bộ
-	# phận, đúng luật của cap_nhat_viec. Nhịp máy (Administrator) không xét.
-	if not doc.is_new() and can_kiem_nguoi_sua(frappe.session.user, truoc, doc.get("status"), doc.get("vgb_goi_y_ket_qua"), _vai()):
-		if not _quyen_viec(doc, ghi=True):
-			frappe.throw("Việc này không (còn) giao cho bạn và không thuộc bộ phận bạn quản lý, nên không sửa được.",
-				title="Không có quyền")
+	cu = None if doc.is_new() else frappe.db.get_value("Task", doc.name, "status")
 	loi = soat_ket_qua(doc.get("status"), cu, doc.get("vgb_goi_y_ket_qua"))
 	if loi:
 		frappe.throw(loi, title="Thiếu kết quả")
