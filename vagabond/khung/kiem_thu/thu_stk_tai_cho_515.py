@@ -15,7 +15,10 @@ import os
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from vagabond import ncc, tra_truoc
+import sys
+import types
+
+from vagabond import ncc, ngan_hang, tra_truoc
 from vagabond.khung.kiem_thu.nen import ca, dung, la
 
 GOC = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -113,3 +116,33 @@ def _dang_ky():
 	v = _doc("vagabond", "public", "js", "bep", "12-van-don.js")
 	dung("APPVER 515", "var APPVER = '515';" in v)
 	dung("patch #v515", "#v515" in _doc("vagabond", "patches.txt"))
+
+
+@ca("v515 (Codex #355): người sửa được hồ sơ NCC chọn được ngân hàng; người ngoài vẫn bị chặn")
+def _chon_ngan_hang():
+	# Trước bản sửa: ngan_hang.tim chỉ nhận vai bán hàng, nên Thu mua / kế
+	# toán thấy nút Thêm tài khoản mà bấm ô ngân hàng thì ăn lỗi quyền.
+	# Ca kiểm DOM không thấy vì nó giả nhChon; ca này gọi thật hàm máy chủ.
+	gia_bh = types.ModuleType("vagabond.ban_hang")
+
+	def _chan():
+		raise PermissionError("chưa được cấp quyền ghi nhận doanh số")
+	gia_bh._kiem_quyen = _chan
+	ds = [("Ngân hàng TMCP Quân đội", "MB")]
+	with patch.dict(sys.modules, {"vagabond.ban_hang": gia_bh}), \
+		patch.object(ngan_hang, "doc_danh_muc", lambda: ds):
+		for vai in (["Thu mua"], ["Purchase User"], ["Accounts User"], ["AP Giám đốc"]):
+			with patch.object(ngan_hang.frappe, "get_roles", lambda *a, v=vai: v):
+				try:
+					kq = ngan_hang.tim("quan doi")
+					qua = True
+				except PermissionError:
+					qua = False
+			dung("%s chọn được ngân hàng" % vai[0], qua and bool((kq or {}).get("ds")))
+		with patch.object(ngan_hang.frappe, "get_roles", lambda *a: ["Stock User"]):
+			try:
+				ngan_hang.tim("MB")
+				bi_chan = False
+			except PermissionError:
+				bi_chan = True
+		dung("kho không có vai NCC hay bán hàng thì vẫn bị chặn", bi_chan)
