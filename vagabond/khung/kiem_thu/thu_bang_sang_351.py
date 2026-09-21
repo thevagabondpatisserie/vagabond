@@ -1017,3 +1017,8 @@ def _s2_30_ngay():
 	la("Tất cả cũng thấy", [x["name"] for x in _chay(fr, pt.bang_sang, "xong", "", "")["ds"]], ["TASK-1"])
 	la("7 ngày thì không", _chay(fr, pt.bang_sang, "xong", "", "7")["ds"], [])
 	la("bỏ qua 20 ngày trước vẫn trong 30 ngày", [x["name"] for x in _chay(fr, pt.bang_sang, "bo_qua", "", "30")["ds"]], ["TASK-2"])
+	# Đột biến "tính Bỏ qua theo nhac_lai" lọt ca trên vì hai ngày trùng
+	# khoảng. Ca này tách hai mốc: bỏ qua 5 ngày trước, ngày nhắc đã qua 42 ngày.
+	fr.task["TASK-3"] = {"name": "TASK-3", "subject": "Bỏ qua gần, nhắc đã qua", "status": "Cancelled", "modified": "2026-09-16 10:00:00", "vgb_goi_y_nhac_lai": "2026-08-10",
+		"vgb_goi_y_khoa": "k3", "vgb_goi_y_luat": "mon_tang", "vgb_goi_y_bo_phan": "marketing", "_assign": "[]", "owner": "viet@vgb", "creation": "2026-09-16 10:00:00"}
+	la("bỏ qua tính theo mốc bỏ qua, không theo ngày nhắc", sorted(x["name"] for x in _chay(fr, pt.bang_sang, "bo_qua", "", "30")["ds"]), ["TASK-2", "TASK-3"])
