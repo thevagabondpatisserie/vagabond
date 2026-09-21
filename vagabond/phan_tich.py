@@ -1223,17 +1223,20 @@ def _quyen_viec(t, ghi=False):
 	khác) vẫn được XEM lại, nhưng không được đổi trạng thái; đổi trạng thái
 	chỉ dành cho ToDo còn mở hoặc người quản lý bộ phận.
 	"""
+	# Codex #356: xét quyền QUẢN LÝ trước. Quản lý bộ phận cũng hay là người
+	# được giao (máy gợi ý Sales, Stock, Manufacturing Manager), mà xét ToDo
+	# trước thì họ chỉ còn là "nhan" và mất nút Bỏ qua của chính bộ phận mình.
+	if _vai() & VAI_GIAM_DOC:
+		return "quan_ly"
+	duoc = set(bo_phan_duoc_xem(_vai()))
+	if duoc & set((t.get("vgb_goi_y_bo_phan") or "").split(",")):
+		return "quan_ly"
 	u = frappe.session.user
 	loc = {"reference_type": "Task", "reference_name": t.name, "allocated_to": u}
 	if ghi:
 		loc["status"] = "Open"
 	if frappe.db.exists("ToDo", loc):
 		return "nhan"
-	if _vai() & VAI_GIAM_DOC:
-		return "quan_ly"
-	duoc = set(bo_phan_duoc_xem(_vai()))
-	if duoc & set((t.get("vgb_goi_y_bo_phan") or "").split(",")):
-		return "quan_ly"
 	return ""
 
 
@@ -1346,7 +1349,23 @@ def bo_qua_viec(name, ly_do, so_ngay=7):
 	t.vgb_goi_y_nhac_lai = str(nhac)
 	t.flags.ignore_permissions = True
 	t.save()
-	return {"ok": 1, "name": t.name, "nhac_lai": str(nhac), "so_ngay": ngay}
+	# Codex #356: ERPNext chỉ tự đóng ToDo khi Task Completed. Bỏ qua thì tự
+	# đóng, không thì người nhận còn một việc sống trên Desk cho Task đã huỷ.
+	so_dong = _dong_todo(t.name)
+	return {"ok": 1, "name": t.name, "nhac_lai": str(nhac), "so_ngay": ngay, "dong_todo": so_dong}
+
+
+def _dong_todo(ten_task):
+	"""Đóng (Cancelled) mọi ToDo còn mở của một Task. Trả số đã đóng."""
+	so = 0
+	for r in frappe.get_all("ToDo", filters={"reference_type": "Task", "reference_name": ten_task, "status": "Open"},
+			fields=["name"], limit_page_length=0):
+		d = frappe.get_doc("ToDo", r["name"])
+		d.status = "Cancelled"
+		d.flags.ignore_permissions = True
+		d.save(ignore_permissions=True)
+		so += 1
+	return so
 
 
 @frappe.whitelist()
