@@ -61,7 +61,8 @@ function duLieu(tab) {
   }
   return {
     dang_dung: 0, chot_luc: '2026-09-21 07:00:02', den_ngay: '2026-09-20', tab: tab || 'can_giao', bo_phan: '',
-    dem: { can_giao: 5, da_giao: 2, xong: 0, bo_qua: 0 }, so_tre: 1,
+    dem: { can_giao: 5, da_giao: 2, xong: 0, bo_qua: 0 }, so_tre: 1, ky: '',
+    chip_ky: [{ k: '', ten: 'Tất cả' }, { k: 'hom_nay', ten: 'Hôm nay' }, { k: '7', ten: '7 ngày' }, { k: '30', ten: '30 ngày' }],
     chip_bo_phan: [{ k: 'marketing', ten: 'Marketing', ic: '📣', so: 4 }, { k: 'kho', ten: 'Kho', ic: '📦', so: 1 }],
     ds: ds,
     chat_luong: [{ ma: 'nhap', cau: '100 trên 320 đơn tuần qua chưa ghi sổ; số bán đang là số tạm tính.' }, { ma: 'kiem_banh', cau: 'Chưa có bảng kiểm bánh.' }],
@@ -339,6 +340,19 @@ async function chayHet() {
     var the = m.khung.querySelectorAll('[data-bsthe]'), gon = m.khung.querySelectorAll('[data-bsi]');
     dung('the dau an', the.every(function (e) { return e.style.display === 'none'; }));
     bang('dong gon mon 5 hien', gon.filter(function (e) { return e.style.display !== 'none'; }).length, 1);
+  });
+  await ca('Codex #356 S1: tab viec co hang chip khoang ngay, bam chip gui ky len may chu; Can giao khong co', async function () {
+    var m = dungMan();
+    await m.g.scrBangSang(); await tick();
+    bang('Can giao khong co chip ngay', m.khung.querySelectorAll('[data-bsk]').length, 0);
+    m.g.bsLoc.tab = 'da_giao';
+    await m.g.scrBangSang(); await tick();
+    var c = m.khung.querySelectorAll('[data-bsk]');
+    bang('bon chip ngay', c.length, 4);
+    bam(c.filter(function (x) { return x.getAttribute('data-bsk') === '7'; })[0]); await tick(); await tick();
+    var cuoi = m.goi[m.goi.length - 1];
+    bang('gui ky 7', cuoi.ts.ky, '7');
+    bang('giu tab', cuoi.ts.tab, 'da_giao');
   });
   await ca('Codex #356 N2: bam o Tre han goi may chu voi tab tre, o do sang len', async function () {
     var m = dungMan();
