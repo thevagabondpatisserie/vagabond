@@ -394,6 +394,12 @@ def _tb(x):
 	return ("%d" % v) if v == int(v) else ("%.1f" % v).replace(".", ",")
 
 
+# Codex #353 vòng 3: người nhận phải thấy ĐỦ lô để xử lý, nên gửi hết lô của
+# kho (thẻ gọn 3 lô, bấm mở ra đủ). Trần này chỉ để chặn bảng phình bất
+# thường; vượt trần thì thẻ nói rõ và chỉ đường xem đủ trên Desk.
+LO_GUI_TOI_DA = 200
+
+
 def nhan_dinh_lo(lo, hom_nay, n=None):
 	"""Gộp lô quá hạn và cận hạn theo TỪNG KHO, mỗi kho một nhận định. THUẦN.
 
@@ -431,7 +437,8 @@ def nhan_dinh_lo(lo, hom_nay, n=None):
 			mau += " và %d lô nữa" % con
 		doi = {"loai": "kho", "ma": kho, "ten": kho_ngan(kho), "anh": ""}
 		so_lieu = {"so_lo": len(ds), "so_ma": so_ma,
-			"lo": [{"lo": x.get("lo"), "ma": x.get("ma"), "ten": x.get("ten"), "han": str(x.get("han")), "sl": flt(x.get("sl"))} for x in ds[:12]]}
+			"lo": [{"lo": x.get("lo"), "ma": x.get("ma"), "ten": x.get("ten"), "han": str(x.get("han")), "sl": flt(x.get("sl")),
+				"dvt": x.get("dvt") or ""} for x in ds[:LO_GUI_TOI_DA]]}
 		# Câu đầy đủ (có tên lô mẫu) đi vào mô tả Task để đọc được trên Desk.
 		# Trên app thẻ đã có bảng lô, nên thẻ dùng câu ngắn cho khỏi nói hai lần.
 		if loai == "lo_qua_han":
@@ -546,26 +553,34 @@ def chia_theo_viec(ds, viec, hom_nay):
 	  - khoá đó vừa xong trong số ngày `an_sau_xong` của luật, để số kịp phản
 	    ánh việc đã làm. Lô quá hạn chỉ ẩn một ngày: còn quá hạn thì mai báo lại.
 	"""
-	t = getdate(hom_nay)
 	theo_khoa = {}
 	for v in viec or []:
 		theo_khoa.setdefault(v.get("khoa"), []).append(v)
-	ra = []
-	for x in ds or []:
-		an = False
-		for v in theo_khoa.get(x["khoa"], []):
-			st = v.get("status")
-			if st in TASK_MO:
-				an = True
-			elif st == "Cancelled" and v.get("nhac_lai") and getdate(v["nhac_lai"]) > t:
-				an = True
-			elif st == "Completed" and v.get("completed_on"):
-				ngay = LUAT.get(x["luat"], {}).get("an_sau_xong", 1)
-				if (t - getdate(v["completed_on"])).days < ngay:
-					an = True
-		if not an:
-			ra.append(x)
-	return ra
+	return [x for x in ds or [] if not ly_do_an(x["luat"], theo_khoa.get(x["khoa"], []), hom_nay)[0]]
+
+
+def ly_do_an(luat, viec_cua_khoa, hom_nay):
+	"""Vì sao một nhận định đang KHÔNG được giao mới: ("mo"|"bo_qua"|"vua_xong",
+	tên Task) hoặc (None, None). THUẦN.
+
+	MỘT nguồn cho cả bảng (chia_theo_viec) lẫn bước kiểm lại trong khoá của
+	giao/bo_qua (Codex #353 vòng 3: hai quản lý bấm Bỏ qua và Giao cùng lúc
+	từ cùng một bảng; trước đây trong khoá chỉ kiểm việc mở, nên Giao vẫn
+	tạo việc ngay sau khi người kia vừa bỏ qua)."""
+	t = getdate(hom_nay)
+	for v in viec_cua_khoa or []:
+		st = v.get("status")
+		if st in TASK_MO:
+			return "mo", v.get("name")
+	for v in viec_cua_khoa or []:
+		st = v.get("status")
+		if st == "Cancelled" and v.get("nhac_lai") and getdate(v["nhac_lai"]) > t:
+			return "bo_qua", v.get("name")
+		if st == "Completed" and v.get("completed_on"):
+			ngay = LUAT.get(luat, {}).get("an_sau_xong", 1)
+			if (t - getdate(v["completed_on"])).days < ngay:
+				return "vua_xong", v.get("name")
+	return None, None
 
 
 def so_ngay_bo_qua(luat, so_ngay):
@@ -671,12 +686,19 @@ def _lo_sap_het(hom_nay, n=None):
 	for i in range(0, len(ds_ma), 400):
 		so_lo.update(tra_ton._so_lo({"item_code": ["in", ds_ma[i:i + 400]]}))
 	theo_lo = {b["name"]: b for b in lo}
+	# Codex #353 vòng 3: số còn phải đi kèm đơn vị tồn kho (gram hay kg hay
+	# cái), không thì "còn 5.000" không biết là bao nhiêu để cách ly.
+	dvt = {}
+	for i in range(0, len(ds_ma), 400):
+		for it in frappe.get_all("Item", filters={"name": ["in", ds_ma[i:i + 400]]}, fields=["name", "stock_uom"], limit_page_length=0):
+			dvt[it["name"]] = it.get("stock_uom") or ""
 	ra = []
 	for (ten_lo, kho), sl in so_lo.items():
 		b = theo_lo.get(ten_lo)
 		if not b or flt(sl) <= 0:
 			continue
-		ra.append({"lo": ten_lo, "ma": b["item"], "ten": b.get("item_name") or b["item"], "kho": kho, "han": b["expiry_date"], "sl": flt(sl)})
+		ra.append({"lo": ten_lo, "ma": b["item"], "ten": b.get("item_name") or b["item"], "kho": kho, "han": b["expiry_date"], "sl": flt(sl),
+			"dvt": dvt.get(b["item"], "")})
 	return ra
 
 
@@ -973,9 +995,21 @@ def _tim_nhan_dinh(khoa):
 	)
 
 
-def _viec_mo_cua_khoa(khoa):
-	ds = frappe.get_all("Task", filters={"vgb_goi_y_khoa": khoa, "status": ["in", list(TASK_MO)]}, fields=["name"], limit_page_length=1)
-	return ds[0]["name"] if ds else None
+def _viec_cua_khoa(khoa):
+	"""Mọi Task gần đây của một khoá, đọc NGAY trong khoá tên (không dùng bảng
+	trong bộ nhớ đệm, vì bảng là ảnh chụp và có thể đã cũ)."""
+	return [
+		{"name": r.get("name"), "khoa": khoa, "status": r.get("status"), "completed_on": r.get("completed_on"),
+			"nhac_lai": r.get("vgb_goi_y_nhac_lai")}
+		for r in frappe.get_all("Task", filters={"vgb_goi_y_khoa": khoa},
+			fields=["name", "status", "completed_on", "vgb_goi_y_nhac_lai"], order_by="modified desc", limit_page_length=50)
+	]
+
+
+CAU_DA_AN = {
+	"bo_qua": "Nhận định này vừa được bỏ qua (việc %s). Tải lại màn để xem bảng mới; cần làm ngay thì bấm Hiện lại ở tab Bỏ qua.",
+	"vua_xong": "Nhận định này vừa được làm xong (việc %s). Tải lại màn để xem bảng mới.",
+}
 
 
 def _khoa_ten(khoa):
@@ -1054,9 +1088,11 @@ def giao(khoa, nguoi, han=None, ghi_chu=None):
 		frappe.throw("Hạn không được trước hôm nay.")
 	khoa_ten = _khoa_ten(khoa)
 	try:
-		co = _viec_mo_cua_khoa(khoa)
-		if co:
+		ly, co = ly_do_an(x["luat"], _viec_cua_khoa(khoa), _hom_nay())
+		if ly == "mo":
 			return {"ok": 1, "name": co, "da_co": 1}
+		if ly:
+			frappe.throw(CAU_DA_AN[ly] % co, title="Bảng đã đổi")
 		mo_ta = mo_ta_viec(x)
 		if ghi_chu and str(ghi_chu).strip():
 			mo_ta += "<p>Ghi chú của người giao: %s</p>" % frappe.utils.escape_html(str(ghi_chu).strip())
@@ -1145,8 +1181,13 @@ def bo_qua(khoa, ly_do, so_ngay=7):
 	ngay = so_ngay_bo_qua(x["luat"], so_ngay)
 	khoa_ten = _khoa_ten(khoa)
 	try:
-		if _viec_mo_cua_khoa(khoa):
+		ly, co = ly_do_an(x["luat"], _viec_cua_khoa(khoa), _hom_nay())
+		if ly == "mo":
 			frappe.throw("Việc này đã được giao. Mở tab Đã giao để xem ai đang làm.")
+		if ly == "bo_qua":
+			return {"ok": 1, "name": co, "da_co": 1}
+		if ly:
+			frappe.throw(CAU_DA_AN[ly] % co, title="Bảng đã đổi")
 		nhac = add_days(_hom_nay(), ngay)
 		t = frappe.get_doc({
 			"doctype": "Task",
