@@ -91,6 +91,16 @@ function dungMan(canh) {
       if (duong === 'vagabond.phan_tich.bang_sang') {
         if (canh.hongBang) return Promise.reject(new Error('Mất mạng, thử lại'));
         var d = duLieu(ts.tab);
+        d.dem.tre = d.so_tre;
+        d.tong_loc = d.ds.length; d.dang_loc = 0;
+        /* Nhu may chu that: loc bo phan thi dem va ds cung loc, so_tre cu giu
+           so toan bo de ca kiem thay man doc dung dem da loc. */
+        if (ts.bo_phan) {
+          d.ds = d.ds.filter(function (x) { return (x.bo_phan || []).indexOf(ts.bo_phan) >= 0; });
+          d.bo_phan = ts.bo_phan; d.dang_loc = 1; d.tong_loc = d.ds.length;
+          d.dem = { can_giao: 0, da_giao: d.ds.length, tre: d.ds.filter(function (x) { return x.tt === 'tre'; }).length, xong: 0, bo_qua: 0 };
+        }
+        if (ts.ky && ts.tab !== 'can_giao') { d.ky = ts.ky; d.dang_loc = 1; }
         if (canh.dangDung) { d.dang_dung = 1; d.ds = []; d.chot_luc = ''; }
         return Promise.resolve(d);
       }
@@ -384,6 +394,34 @@ async function chayHet() {
     tim.dispatchEvent(dg.suKien('input', {}, tim));
     bang('khong khop thi bao', m.khung.querySelector('#bsKhongThay').style.display, '');
     bang('loc tai cho, khong goi may chu', m.goi.length, soGoi);
+  });
+  await ca('Codex #356 T4: loc bo phan thi o so va chip tab dem theo loc, co thanh Tong theo bo loc, Bo loc xoa loc', async function () {
+    var m = dungMan();
+    m.g.bsLoc.tab = 'da_giao';
+    await m.g.scrBangSang(); await tick();
+    var hienThanh = function () { var t = m.khung.querySelector('#bsThanhLoc'); return t.style.display || (/display:none/.test(t.getAttribute('style')) ? 'none' : 'flex'); };
+    bang('chua loc thi thanh an', hienThanh(), 'none');
+    var kho = m.khung.querySelectorAll('[data-bsb]').filter(function (c) { return c.getAttribute('data-bsb') === 'kho'; })[0];
+    bam(kho); await tick(); await tick();
+    bang('gui bo phan kho', m.goi[m.goi.length - 1].ts.bo_phan, 'kho');
+    var oSo = function (k) { return m.khung.querySelectorAll('[data-bst]').filter(function (c) { return c.getAttribute('data-bst') === k; }); };
+    dung('o Tre han doc dem da loc (0), khong phai so_tre toan bo', oSo('tre')[0].textContent.trim().indexOf('0Trễ hạn') === 0);
+    dung('chip tab Da giao dem 1', oSo('da_giao').some(function (c) { return /^Đã giao\s*1$/.test(c.textContent.trim()); }));
+    var thanh = m.khung.querySelector('#bsThanhLoc');
+    bang('thanh loc hien', hienThanh(), 'flex');
+    dung('thanh ghi tong va ten bo phan', thanh.textContent.indexOf('Tổng theo bộ lọc:') >= 0 && thanh.textContent.indexOf('Kho') >= 0 &&
+      m.khung.querySelector('#bsTongLoc').textContent === '1');
+    bang('mot dong hien', m.khung.querySelectorAll('[data-bsv]').length, 1);
+    var tim = m.khung.querySelector('#bsTim');
+    tim.value = 'zzz';
+    tim.dispatchEvent(dg.suKien('input', {}, tim));
+    bang('go tim thi tong theo so dong con', m.khung.querySelector('#bsTongLoc').textContent, '0');
+    bam(m.khung.querySelectorAll('[data-bsk]').filter(function (x) { return x.getAttribute('data-bsk') === '7'; })[0]); await tick(); await tick();
+    bang('dang loc kho va 7 ngay', [m.goi[m.goi.length - 1].ts.bo_phan, m.goi[m.goi.length - 1].ts.ky].join('|'), 'kho|7');
+    bam(m.khung.querySelector('[data-bsbo]')); await tick(); await tick();
+    var cuoi = m.goi[m.goi.length - 1].ts;
+    bang('Bo loc gui rong ca bo phan va khoang', [cuoi.bo_phan, cuoi.ky, cuoi.tab].join('|'), '||da_giao');
+    bang('het loc thi thanh an', hienThanh(), 'none');
   });
 }
 
