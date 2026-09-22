@@ -99,7 +99,7 @@ async function chayHet() {
     var frm = {
       doc: { name: 'HDM-1', docstatus: 0, custom_minvoice_id: 'MI-1', items: [
         { idx: 1, item_code: 'NVLT1', qty: 1, rate: 1 },
-        { idx: 3, item_code: '', ten_hang_ncc: 'Phí dịch vụ', qty: 1, rate: 30000 }] },
+        { idx: 3, item_code: '', ten_hang_ncc: 'Phí <b>dịch vụ</b>', qty: 1, rate: 30000 }] },
       is_dirty: function () { return false; }, reload_doc: async function () { reload++; },
     };
     var g = {
@@ -132,6 +132,10 @@ async function chayHet() {
     await g.vgbGanMonDesk(frm);
     await new Promise(function (r) { setTimeout(r, 5); });
     bang('chi liet ke dong trong ma', hop.fields_dict.dong.df.options.map(function (o) { return o.value; }), ['3']);
+    /* Codex #358 P2: o chon dong phai tim duoc (Autocomplete), khong xo Select.
+       Nhan dong co ten nha cung cap ghi nen phai thoat HTML. */
+    bang('o chon dong tim duoc', hop.fields_dict.dong.df.fieldtype, 'Autocomplete');
+    dung('ten nha cung cap khong chen duoc the HTML', hop.fields_dict.dong.df.options[0].label.indexOf('<b>') < 0);
     bang('Mon may doan dien san', hop.get_value('item_code'), 'DVTI00014');
     dung('hien ly do goi y', String(hop.fields_dict.goi_y.df._html).indexOf('Máy đoán') >= 0);
     await hop.c.primary_action(hop.gt);
