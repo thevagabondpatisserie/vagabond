@@ -46,7 +46,13 @@ function dung(canh) {
     datetime: { get_today: function () { return '2026-09-22'; } },
     call: function (o) {
       goi.push(o.method);
-      if (o.method === 'vagabond.minvoice_chung_tu.cho_dung_phieu_mua') o.callback({ message: canh.kq === undefined ? kqMau() : canh.kq });
+      if (o.method !== 'vagabond.minvoice_chung_tu.cho_dung_phieu_mua') return;
+      var k = (canh.lan || [])[goi.length - 1] || canh.kieu || 'dat';
+      /* Nhu frappe.call that: may chu loi, het phien, mat mang goi `error`,
+         khong goi callback; r.exc la loi tra ve trong than. */
+      if (k === 'loi') return o.error && o.error({});
+      if (k === 'exc') return o.callback({ exc: 'Traceback' });
+      o.callback({ message: canh.kq === undefined ? kqMau() : canh.kq });
     },
     msgprint: function (o) { msg.push(o); },
   };
@@ -112,6 +118,28 @@ ca('nguoi khong co vai ke toan: khong goi cua, khong hien thanh', function () {
 ca('man Hoa don ban ra: khong hien thanh dau vao', function () {
   var m = dung({ dt: 'Sales Invoice' });
   bang('khong goi cua dau vao', m.goi.indexOf('vagabond.minvoice_chung_tu.cho_dung_phieu_mua'), -1);
+});
+
+ca('Codex #357: may chu loi thi hien thanh DO kem Thu lai, khong trong nhu khi da sach', function () {
+  var m = dung({ kieu: 'loi' });
+  var thanh = m.main.firstChild;
+  bang('co thanh', thanh.getAttribute('class'), 'vgb-thanh-cho');
+  bang('kieu loi', thanh.getAttribute('data-kieu'), 'loi');
+  dungDk('noi ro chua kiem duoc', thanh.innerHTML.indexOf('Chưa tải được danh sách') >= 0);
+  var m2 = dung({ kieu: 'exc' });
+  bang('loi trong than cung la loi', m2.main.firstChild.getAttribute('data-kieu'), 'loi');
+});
+
+ca('Codex #357: tai lai hong thi KHONG giu so cu; bam Thu lai goi lai va hien so moi', function () {
+  var m = dung({ lan: ['dat', 'loi', 'dat'] });
+  dungDk('lan 1 co so', m.main.firstChild.innerHTML.indexOf('<b>3 hoá đơn') >= 0);
+  m.moLai();
+  bang('lan 2 hong: thanh loi thay the', m.main.querySelectorAll('.vgb-thanh-cho').length, 1);
+  dungDk('khong con so cu', m.main.firstChild.innerHTML.indexOf('<b>3 hoá đơn') < 0);
+  bang('thanh la thanh loi', m.main.firstChild.getAttribute('data-kieu'), 'loi');
+  m.main.firstChild.querySelector('[data-vgb-thu-lai]').onclick();
+  bang('Thu lai goi may chu lan ba', m.goi.length, 3);
+  bang('lai co so', m.main.firstChild.getAttribute('data-kieu'), 'cho');
 });
 
 console.log('Bo ca kiem HANH VI thanh bao hoa don dau vao chua thanh phieu mua (#352)');
