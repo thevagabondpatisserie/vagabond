@@ -311,7 +311,7 @@ def _chan_ghi_so_may_doan():
 	ham_tt = [n for n in ast.parse(ma_tt).body if isinstance(n, ast.FunctionDef) and n.name == "_dung_nhom"]
 	class LoiCot(Exception):
 		pass
-	def _lam(co_cot, no_soat=0):
+	def _lam(co_cot, no_soat=0, la_single=0):
 		def nem(m, *a, **k):
 			raise LoiCot(m)
 
@@ -319,9 +319,10 @@ def _chan_ghi_so_may_doan():
 			if no_soat:
 				raise RuntimeError("mất kết nối")
 			return co_cot
-		env = dict(frappe=SimpleNamespace(
+		env = dict(cint=int, frappe=SimpleNamespace(
 			throw=nem, log_error=lambda *a, **k: None, get_traceback=lambda: "",
-			db=SimpleNamespace(updatedb=lambda dt: None, has_column=has_column)))
+			db=SimpleNamespace(updatedb=lambda dt: None, has_column=has_column,
+				get_value=lambda dt, n, o=None: 1 if la_single else 0)))
 		import sys as _s
 		_s.modules.setdefault("frappe.custom.doctype.custom_field.custom_field",
 			SimpleNamespace(create_custom_fields=lambda *a, **k: None))
@@ -349,6 +350,8 @@ def _chan_ghi_so_may_doan():
 		dung("soát hỏng thì Migrate cũng dừng", False)
 	except LoiCot:
 		pass
+	# DocType kiểu Single cất giá trị ở bảng Singles, không có cột: không soát.
+	_lam(False, la_single=1)
 	pi_js = (GOC / "public" / "js" / "purchase_invoice.js").read_text()
 	dung("màn Desk liệt kê cả dòng còn dấu",
 		"var choChot = function (d) { return !(d.item_code || '').trim() || (d.vgb_mon_may_doan || '').trim(); };" in pi_js)
