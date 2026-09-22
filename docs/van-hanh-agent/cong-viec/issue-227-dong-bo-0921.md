@@ -1,0 +1,29 @@
+# Đồng bộ đầu vào - bổ sung21/09/2026
+
+Owner Codex, branch codex/fix-minvoice-sync-20260921, base3421058f.
+Phạm vi: minvoice_chung_tu.py và hồi quy; không đổi hệ số/ánh xạ thật trong patch.
+
+Hai lỗi tái hiện bằng bảng giả: exception từng tờ vẫn ở message_log và tràn response Desk; nan_dau_dong đảo qty âm của dòng giá0 thành dương do -1*0 không <0. Core response.py gửi message_log kể cả exception đã bắt. Lỗi rollback trước đây cũng bị nuốt, có thể cho caller tiếp tục commit; nay đẩy ra ngoài.
+
+Sửa: giữ log trước tờ, gỡ riêng thông báo đã bắt khỏi local.message_log, vẫn trả lý do có số hóa đơn; giữ dấu qty cho dòng0tiền, dòng mô tả trống dùng qty-1 trong phiếu âm. Không ép dòng tiền dương của điều chỉnh hỗn hợp thành âm. Không đoán hệ số UOM hoặc bỏ validation.
+
+3ca mới baseline lỗi, bản sửa đạt; tổng3182 local. Thêm ca PI thật âm có quà0tiền/mô tả, chưa chạy bench. Không sửa nguồn/hạch toán thật. Chờ xác nhận ánh xạ/quy cách thiếu theo luồng nội bộ, chưa đủ tuyên bố xử lý hết tồn đọng. Không lưu chi tiết chứng từ thật trong repo.
+
+Cần tiếp: bench đúngSHA, kiểm modal HTTP thật, review, phát hành sau cổng; đối chiếu nguồn/PI theo ngày và tồn đọng sau deploy. Không lấy max ngày PI làm bằng chứng đồng bộ đủ nhà cung cấp.
+
+Bổ sung: nguồn chỉ có mã được đếm riêng nguon_chua_du trong báo cáoDesk, không bị hiểu là đã có hóa đơn đầy đủ. Cô lập message_log ở cả bước kéo và dựng. APPVER514, chưa phát hành.
+
+Kiểm cuối local: 3183 ca đạt, predeploy rc0. Fixture ca âm lấy tài khoản chi phí mặc định từ Company trước insert; thiếu fixture báo rõ. Bench và review SHA cuối vẫn là cổng riêng, chưa nhận là đạt. Đối chiếu read-only nguồn theo ID không phát hiện mã đầy đủ bị thiếu ở bảng nguồn; phần thiếu PI là bước dựng chứng từ, không phải mọi hóa đơn sau một ngày đều mất.
+
+Rà wrapper scheduler: chay_tu_dong trước đây nuốt exception của _chay. Đã thêm rollback rồi raise để worker đánh dấu thất bại, kể cả rollback tiếp tục lỗi. Ca phản chứng trước sửa báo không ném lỗi; sau sửa đạt. Cổng cuối local rc0 với Python hệ thống3.9/Node24 (3182 ca khung +27 ca bổ sung); số ca khác lượt runtime trước, không dùng số lượng thay bằng chứng bench.
+
+## Claude tiếp nhận 22/09/2026 (anh Việt đổi vai: Claude code, Codex review)
+
+Rebase lên main b11cfd9d (v516), đặt APPVER 517, giữ đủ patches đến #v516 và thêm #v517 bằng tay.
+- nguon_chua_du: chỉ đếm khi bản ghi trong máy chưa có hoặc còn trống số. Ca tái hiện: trước 2, sau 1.
+- Error Log nhịp tự động: đọc Frappe v16 ScheduledJobType.execute thấy worker rollback trước khi ghi Failed, nên log_error insert thường bị cuộn. Đổi sang defer_insert (hàng chờ redis), không thêm commit vào đường tài chính.
+- Tờ âm: dòng không tiền (quà qty dương giá 0) mang qty âm; dòng có tiền giữ dấu. Có ca bench.
+- Thanh báo thường trực trên danh sách Hoá đơn mua hàng: cửa chỉ đọc cho_dung_phieu_mua, bảng từng tờ có lý do và nút mở bản nguồn.
+- Dịch vụ không ghi đơn vị (Mobifone DVTI00002): món không tồn kho thì lấy đơn vị Món, hệ số 1 (anh Việt duyệt). Hàng tồn kho vẫn chặn.
+- Gộp thêm theo anh Việt: mã QR xuất hoá đơn trên bill quầy vẽ tại máy (vendor qrcode-generator 2.0.4), không tải từ api.qrserver.com.
+Chưa làm: số liệu chỉ đọc 7 ngày trên site; kiểm modal và bill in thật trên site sau deploy.

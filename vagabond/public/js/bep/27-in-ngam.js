@@ -36,8 +36,37 @@ var IN_QZ = {
 
 var IN_VENDOR = {
   qz: '/assets/vagabond/js/vendor/qz-tray.js',
-  h2c: '/assets/vagabond/js/vendor/html2canvas.min.js'
+  h2c: '/assets/vagabond/js/vendor/html2canvas.min.js',
+  qr: '/assets/vagabond/js/vendor/qrcode.js'
 };
+
+/* MA QR VE TAI MAY, KHONG TAI TU MANG (22/09/2026)
+
+   Bill HDB-26-09-04366 in dong "Quy khach vui long quet ma QR ... de nhap
+   thong tin xuat hoa don" ma KHONG co ma QR (De bao, anh Viet chuyen). Anh
+   ma luc do tai tu api.qrserver.com: mang ra ngoai cham hay chan la anh
+   khong ve kip. Duong in ngam cho khung toi da 6 giay roi chup, duong trinh
+   duyet goi in sau 0,9 giay; ca hai deu in chu ma khong co anh.
+
+   Nay ve ma ngay tren may quay bang thu vien qrcode-generator (nam trong
+   repo, xem vendor/DOC-DAU-TIEN.md) thanh anh nhung data:, nen to in khong
+   con phu thuoc mang ngoai. Tra '' khi khong ve duoc; ben goi phai tu xu,
+   KHONG duoc in cau "quet ma QR" khi khong co ma. */
+async function inQrAnh(noiDung) {
+  var nd = String(noiDung || '');
+  if (!nd) return '';
+  try {
+    if (!(typeof qrcode === 'function' && qrcode.stringToBytes)) await inNapJs(IN_VENDOR.qr);
+    var q = qrcode(0, 'M');
+    q.addData(nd, 'Byte');
+    q.make();
+    var n = q.getModuleCount();
+    /* Anh vuong khoang 190 diem, moi o nguyen diem cho may in nhiet in net. */
+    return q.createDataURL(Math.max(2, Math.floor(190 / (n + 8))), 4);
+  } catch (e) {
+    return '';
+  }
+}
 
 /* Nap mot thu vien ngoai mot lan duy nhat. Nap tu chinh site chu khong tu
    CDN: trang /bep la mot ban ghi Web Page nam trong co so du lieu, them

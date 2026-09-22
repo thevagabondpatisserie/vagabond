@@ -252,6 +252,7 @@ def _keo(so_ngay=None, tu_ngay="", den_ngay="", chi_loai="", do_lai_het=0):
 
 	moi, lanh, quet, cap_nhat, loi_o_loai = 0, 0, 0, 0, []
 	loi_hoa_don, so_loi_hoa_don = [], 0
+	nguon_chua_du = set()
 	for itype, loai in cac_loai:
 		trang = 1
 		dem_da_ghi = (moi, lanh, cap_nhat)
@@ -269,12 +270,22 @@ def _keo(so_ngay=None, tu_ngay="", den_ngay="", chi_loai="", do_lai_het=0):
 				for inv in lo:
 					quet += 1
 					hid = (inv.get("id") or inv.get("_id")) if isinstance(inv, dict) else None
+					# Nguồn có thể chỉ trả _id/type/tthai, chưa có nội dung.
+					# Vẫn giữ mã để kéo lại, nhưng không báo là hóa đơn đầy đủ.
+					# Claude #352: chỉ đếm khi TRONG MÁY cũng chưa đủ (chưa có
+					# bản ghi, hoặc có mà còn trống số). Tờ đã kéo đủ ở lượt
+					# trước mà nguồn lượt này trả rút gọn thì không đếm, không
+					# thì nút đồng bộ báo "chưa hoàn tất" mãi.
+					rut_gon = bool(hid) and not inv.get("shdon") and not inv.get("tdlap")
+					thong_bao_truoc = list(frappe.local.message_log or [])
 					frappe.db.savepoint("minvoice_mot_to")
 					try:
 						if not hid:
 							raise ValueError("Hóa đơn thiếu mã nguồn M-Invoice; cần kéo lại dữ liệu nguồn.")
 						if frappe.db.exists(DT_HD, hid):
 							cu_so = frappe.db.get_value(DT_HD, hid, "so_hd")
+							if rut_gon and not cu_so:
+								nguon_chua_du.add(str(hid))
 							if vo_ruot(cu_so, inv):
 								frappe.db.set_value(DT_HD, hid, _du_lieu(inv, loai))
 								lanh += 1
@@ -282,6 +293,8 @@ def _keo(so_ngay=None, tu_ngay="", den_ngay="", chi_loai="", do_lai_het=0):
 								frappe.db.set_value(DT_HD, hid, _extra(inv, loai))
 								cap_nhat += 1
 							continue
+						if rut_gon:
+							nguon_chua_du.add(str(hid))
 						doc = frappe.get_doc({"doctype": DT_HD, "ma_hd_id": hid})
 						doc.update(_du_lieu(inv, loai))
 						doc.insert(ignore_permissions=True)
@@ -289,6 +302,7 @@ def _keo(so_ngay=None, tu_ngay="", den_ngay="", chi_loai="", do_lai_het=0):
 					except Exception:
 						# Không nuốt rollback lỗi: không được commit phần dở.
 						frappe.db.rollback(save_point="minvoice_mot_to")
+						frappe.local.message_log = thong_bao_truoc
 						so_loi_hoa_don += 1
 						if loai not in loi_o_loai:
 							loi_o_loai.append(loai)
@@ -328,7 +342,7 @@ def _keo(so_ngay=None, tu_ngay="", den_ngay="", chi_loai="", do_lai_het=0):
 		"moi": moi, "chua_lanh": lanh, "da_quet": quet, "cap_nhat": cap_nhat,
 		"loi_o_loai": loi_o_loai, "tu_ngay": d_tu, "den_ngay": d_den,
 		"hoan_tat": not loi_o_loai, "so_loi_hoa_don": so_loi_hoa_don,
-		"loi_hoa_don": loi_hoa_don,
+		"loi_hoa_don": loi_hoa_don, "nguon_chua_du": len(nguon_chua_du),
 	}
 
 

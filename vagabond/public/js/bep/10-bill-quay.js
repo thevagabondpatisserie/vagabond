@@ -131,8 +131,22 @@ async function posInBill(d) {
        nhanh ghep location.origin cho ban may chu cu, nhung khong duoc dung
        no lam duong chinh nua: location.origin o quay la mien app noi bo. */
     var ulink = /^https?:\/\//.test(d.xhd_url) ? d.xhd_url : (location.origin + d.xhd_url);
-    qrKhoi = '<div class="qr"><img src="https://api.qrserver.com/v1/create-qr-code/?size=190x190&data=' + encodeURIComponent(ulink) + '">' +
-      '<div><b>Quý khách vui lòng quét mã QR (hiệu lực 2 tiếng)<br>để nhập thông tin xuất hoá đơn.</b><br>Hoá đơn điện tử gửi về email trong ngày.</div></div>';
+    /* 22/09/2026: ma QR ve TAI MAY (inQrAnh, 27-in-ngam.js), khong tai tu
+       api.qrserver.com nua. Bill HDB-26-09-04366 da in cau "quet ma QR" ma
+       khong co ma vi anh tu mang ngoai khong ve kip. Khong ve duoc ma thi
+       in duong link bang chu va bao thu ngan, KHONG in cau "quet ma". */
+    var anhQr = await inQrAnh(ulink);
+    if (anhQr) {
+      qrKhoi = '<div class="qr"><img src="' + anhQr + '">' +
+        '<div><b>Quý khách vui lòng quét mã QR (hiệu lực 2 tiếng)<br>để nhập thông tin xuất hoá đơn.</b><br>Hoá đơn điện tử gửi về email trong ngày.</div></div>';
+    } else {
+      qrKhoi = '<div class="qr"><div><b>Nhập thông tin xuất hoá đơn (hiệu lực 2 tiếng) tại:</b><br>' + h(ulink) + '</div></div>';
+      toast('Không vẽ được mã QR xuất hoá đơn, bill in kèm đường link. Báo quản lý kiểm máy quầy.', 5000);
+    }
+  } else if (M.qr_xhd && !d.tam_tinh && !d.huy && d.name && !d.xhd_url) {
+    /* Xin link that bai (mat mang toi may chu) thi bill ra khong co ma nao.
+       Truoc day im lang; nay bao thu ngan de xin link o chi tiet bill. */
+    toast('Chưa lấy được link xuất hoá đơn nên bill không có mã QR. Mở chi tiết bill, bấm "Tạo link điền thông tin xuất hoá đơn".', 6000);
   }
   /* MOT lenh in ra MOT lien (anh Viet 10/08/2026). Truoc day in lien
      nhau hai lien roi bat nhan vien cam keo cat giua - khong thong minh.

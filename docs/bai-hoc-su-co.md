@@ -894,3 +894,22 @@ User). Luật mới "chỉ giao cho tài khoản nội bộ" chặn đúng, nên
 chứ code không sai. Cách phòng: User kiểm thử cần là nội bộ thì gắn vai thật
 (ví dụ Projects User) và khẳng định `user_type` ngay sau khi tạo, để lần sau
 lỗi dựng dữ liệu hiện ra ở dòng tạo User chứ không ở ca nghiệp vụ.
+
+## 21/09/2026 - Đồng bộ đầu vào: lỗi đã bắt vẫn hiện modal
+
+Frappe đưa local.message_log vào response dù caller đã bắt exception. Khi từng tờ lỗi đã được chuyển vào báo cáo, phải giữ log trước lượt và loại log riêng của tờ đó; không xóa thông báo toàn request. Rollback lỗi phải nổi lên, không để caller commit phần dở. Với hóa đơn âm, qty âm và rate0 cho tích -0; không dùng tích <0 làm tiêu chí duy nhất quyết dấu. Kiểm cả dòng quà0tiền và dòng mô tả trống trên PI thật. Nguồn issue227, nhánh codex/fix-minvoice-sync-20260921.
+
+
+### PR352: lỗi giao dịch phải đi tới worker
+Helper đẩy lỗi rollback nhưng wrapper scheduler bắt rồi trả bình thường vẫn có thể khiến worker commit. Kiểm hành vi ở điểm gọi scheduler: rollback và ném lỗi tiếp, kể cả rollback không thành công; không chỉ kiểm helper từng tờ.
+
+## 22/09/2026 (#352): ảnh trong tờ in tải từ mạng ngoài thì có ngày mất, chữ vẫn in
+
+Bill HDB-26-09-04366 in câu "Quý khách vui lòng quét mã QR ... để nhập thông
+tin xuất hoá đơn" mà không có mã QR. Ảnh mã khi đó lấy từ api.qrserver.com;
+đường in ngầm chỉ chờ khung tối đa 6 giây rồi chụp, đường trình duyệt gọi in
+sau 0,9 giây, nên mạng ra ngoài chậm hay bị chặn là tờ in mất ảnh mà câu dẫn
+vẫn còn. Cách phòng: thứ gì in ra giấy phải dựng được TẠI MÁY (thư viện nằm
+trong repo, ảnh nhúng data:), và câu dẫn chỉ in khi có đúng thứ nó dẫn tới.
+Mã QR thanh toán chuyển khoản (img.vietqr.io) vẫn còn phụ thuộc mạng ngoài,
+chưa xử lý trong đợt này.
