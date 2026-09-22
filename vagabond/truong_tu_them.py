@@ -314,12 +314,25 @@ def dung():
 		frappe.log_error(frappe.get_traceback(), "truong_tu_them: dung duong duyet chi")
 
 
-# Ô chỉ để chia màn hình thì KHÔNG có cột trong bảng, soát cột sẽ báo thiếu oan
-# (bench 22/09/2026 dừng ở `sec_duyet_mua` của Material Request Item).
-KHONG_CO_COT = (
-	"Section Break", "Column Break", "Tab Break", "HTML", "Heading",
-	"Button", "Fold", "Image",
-)
+# Ô KHÔNG có cột trong bảng cha: ô chia màn hình, và cả ô bảng con (Table,
+# Table MultiSelect) vì Frappe cất dòng ở doctype con. Soát cột mà không chừa
+# mấy loại này ra là báo thiếu oan rồi chặn cả lần Migrate (bench 22/09/2026:
+# `sec_duyet_mua` của Material Request Item, rồi `vgb_thanh_toan_nhieu` của
+# Sales Invoice). Lấy thẳng danh sách của Frappe, thiếu thì dùng bản chép tay.
+def _khong_co_cot():
+	ban_tay = {
+		"Section Break", "Column Break", "Tab Break", "HTML", "Heading",
+		"Button", "Fold", "Image", "Table", "Table MultiSelect",
+	}
+	try:
+		from frappe.model import no_value_fields, table_fields
+
+		return set(no_value_fields) | set(table_fields) | ban_tay
+	except Exception:
+		return ban_tay
+
+
+KHONG_CO_COT = _khong_co_cot()
 
 
 def _dung_nhom(khai, ten_nhom):
