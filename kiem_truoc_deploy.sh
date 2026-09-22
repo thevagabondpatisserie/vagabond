@@ -126,6 +126,10 @@ node vagabond/khung/kiem_thu/hanh_vi/tra_ton_513.js
 node vagabond/khung/kiem_thu/hanh_vi/stk_tai_cho_515.js
 # #351: man Viec hom nay (Giao viec, Bo qua, Bao xong) chay that tren DOM gia.
 node vagabond/khung/kiem_thu/hanh_vi/bang_sang_351.js
+# #352: ma QR xuat hoa don tren bill ve tai may, khong phu thuoc mang ngoai.
+node vagabond/khung/kiem_thu/hanh_vi/qr_xhd_bill_352.js
+# #352: thanh bao hoa don dau vao chua thanh phieu mua tren Desk.
+node vagabond/khung/kiem_thu/hanh_vi/cho_dung_352.js
 # Trang /kiem-banh: chuoi go o Huy. Codex doi tren PR #218 mot ca chay that
 # chuoi bam - go - cho phan hoi - kiem so, chu khong do chuoi. Dat o day chu
 # khong de chay tay: mot ca kiem khong nam trong cong la mot ca kiem se quen.
