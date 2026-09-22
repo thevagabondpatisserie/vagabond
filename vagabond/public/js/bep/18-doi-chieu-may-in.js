@@ -1665,7 +1665,7 @@ async function dcmGanXong(name, idx, itemCode, doi, heSo) {
     /* `doi` = dong da co ma nhung sai, doi sang ma tren phieu nhap. May chu
        tu choi neu dong da noi phieu, va ghi ro trong to la ai doi ma nao. */
     var ts = { name: name, dong: idx, item_code: itemCode, nho: 1, doi: doi ? 1 : 0 };
-    if (heSo) ts.he_so = heSo;
+    if (heSo) { ts.he_so = heSo; ts.he_so_cho = itemCode; }
     var kq = await api('vagabond.doi_chieu_mua.gan_ma_hang', ts);
     busy(false);
     /* #358 (anh Viet 22/09/2026): mon chua khai don vi nha cung cap ghi thi
