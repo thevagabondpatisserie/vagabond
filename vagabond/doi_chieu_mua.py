@@ -1441,6 +1441,45 @@ def don_vi_cua_mon(item_code):
 	return {"kho": kho, "dvt": [{"ten": r["uom"], "he_so": flt(r["conversion_factor"])} for r in ds]}
 
 
+def _ds_don_vi(gioi_han=500):
+	"""Danh mục Đơn vị tính cho màn hình chọn. Đọc không ra thì trả rỗng."""
+	try:
+		return frappe.get_all("UOM", pluck="name", order_by="name",
+			limit_page_length=gioi_han)
+	except Exception:
+		return []
+
+
+def _nho_uom_map(ten_map, uom):
+	"""Ghi đơn vị người vừa chốt vào ánh xạ NCC. Không có ô thì thôi.
+
+	Codex #358 vòng 20: hoá đơn gốc không ghi đơn vị thì tờ sau cũng không
+	ghi, nên nếu ánh xạ chỉ nhớ Món mà quên đơn vị thì lần nào kế toán cũng
+	phải khai lại đúng câu đó."""
+	if not ten_map or not uom:
+		return
+	try:
+		frappe.db.set_value("MInvoice NCC Map", ten_map, "vgb_uom", uom)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "doi_chieu_mua: nho uom map")
+
+
+def _kiem_dvt_danh_muc(dvt):
+	"""Đơn vị phải có sẵn trong danh mục Đơn vị tính. Một nguồn cho mọi cửa khai.
+
+	Codex #358 vòng 20: cửa gắn Món tự lập đơn vị mới từ chuỗi người gõ, nên
+	một lần gõ nhầm "Thùngg" là danh mục Đơn vị tính mang vĩnh viễn một đơn
+	vị rác, và số lượng quy về kho của các chứng từ sau đi theo nó. Danh mục
+	dùng chung cả hệ thì chỉ kế toán mới được thêm, y như cửa `khai_don_vi`
+	vẫn làm từ đầu."""
+	dvt = str(dvt or "").strip()
+	if not frappe.db.exists("UOM", dvt):
+		frappe.throw(
+			'Hệ chưa có đơn vị "%s" trong danh mục Đơn vị tính. Nhờ kế toán '
+			"thêm đơn vị đó vào danh mục trước, rồi quay lại khai cho món." % dvt
+		)
+
+
 @frappe.whitelist()
 def khai_don_vi(item_code, dvt, he_so):
 	"""Khai mot don vi moi vao bang quy doi cua mot mon.
@@ -1481,11 +1520,7 @@ def khai_don_vi(item_code, dvt, he_so):
 		frappe.throw("Không tìm thấy món %s." % item_code)
 	if not dvt:
 		frappe.throw("Chưa chọn đơn vị cần khai.")
-	if not frappe.db.exists("UOM", dvt):
-		frappe.throw(
-			'Hệ chưa có đơn vị "%s" trong danh mục Đơn vị tính. Nhờ kế toán '
-			"thêm đơn vị đó vào danh mục trước, rồi quay lại khai cho món." % dvt
-		)
+	_kiem_dvt_danh_muc(dvt)
 
 	hs = flt(he_so)
 	if hs <= 0:
@@ -1769,6 +1804,7 @@ def gan_ma_hang(name, dong, item_code, nho=1, doi=0, he_so=None, he_so_cho=None,
 	# Codex #358: hoá đơn gốc không ghi đơn vị mà Món là hàng tồn kho thì
 	# KHÔNG được lấy đơn vị kho hệ số 1 - một gói không rõ lượng thành một
 	# đơn vị kho. Dịch vụ thì vẫn cho, y như lúc dựng phiếu.
+	khai_cho = ""
 	if dvt_mua.chan_hang_kho_khong_dvt(dvt_ncc, la_kho):
 		# Codex #358 vòng 19: chỉ được mời sang cửa "Sửa mã theo hóa đơn gốc"
 		# khi cửa đó THẬT SỰ mở. Tờ trả hàng không đi cửa đó, mời sang là
@@ -1794,6 +1830,9 @@ def gan_ma_hang(name, dong, item_code, nho=1, doi=0, he_so=None, he_so_cho=None,
 			return {
 				"name": doc.name, "idx": idx, "item_code": item_code, "can_dvt": 1,
 				"dvt_kho": dvt_kho, "de_xuat": 0,
+				# Màn hình CHỌN trong danh mục chứ không gõ tự do: đơn vị gõ
+				# tay thành đơn vị rác dùng chung cả hệ (Codex #358 vòng 20).
+				"dvt_ds": _ds_don_vi(),
 				"loi_nhan": (
 					"Hoá đơn gốc không ghi đơn vị cho dòng %d, mà %s là hàng tồn kho. "
 					"Tờ này không đi được cửa sửa theo hoá đơn gốc, nên gõ đơn vị nhà "
@@ -1829,10 +1868,8 @@ def gan_ma_hang(name, dong, item_code, nho=1, doi=0, he_so=None, he_so_cho=None,
 			% (item_code, dvt_ncc, dvt_ncc, dvt_kho),
 		}
 	if viec == "khai":
-		if not frappe.db.exists("UOM", dvt_ncc):
-			u = frappe.get_doc({"doctype": "UOM", "uom_name": dvt_ncc})
-			u.flags.ignore_permissions = True
-			u.insert(ignore_permissions=True)
+		# KHÔNG tự lập đơn vị mới trong danh mục (Codex #358 vòng 20).
+		_kiem_dvt_danh_muc(dvt_ncc)
 		if dvt_mua.cung_don_vi(dvt_ncc, dvt_kho):
 			frappe.throw('"%s" chính là đơn vị kho của món này.' % dvt_ncc)
 		_ghi_quy_doi(item_code, dvt_ncc, flt(he_so), dvt_kho)
@@ -1870,6 +1907,7 @@ def gan_ma_hang(name, dong, item_code, nho=1, doi=0, he_so=None, he_so_cho=None,
 			})
 			m.flags.ignore_permissions = True
 			m.insert(ignore_permissions=True)
+			_nho_uom_map(m.name, khai_cho and dung_uom)
 			da_nho = 1
 		elif (
 			not (frappe.db.get_value("MInvoice NCC Map", cu, "item_code") or "").strip()
@@ -1885,6 +1923,11 @@ def gan_ma_hang(name, dong, item_code, nho=1, doi=0, he_so=None, he_so_cho=None,
 			# Doi ma tren dong la doi luon cai ghi nho, khong thi thang sau
 			# nha cung cap gui lai ten do la may lai gan ma cu (10/09/2026).
 			frappe.db.set_value("MInvoice NCC Map", cu, "item_code", item_code)
+			_nho_uom_map(cu, khai_cho and dung_uom)
+			da_nho = 1
+		elif khai_cho:
+			# Ghi nhớ đang trỏ đúng Món rồi, chỉ thiếu đơn vị.
+			_nho_uom_map(cu, dung_uom)
 			da_nho = 1
 	if ma_cu:
 		doc.add_comment(
