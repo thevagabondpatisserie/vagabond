@@ -298,6 +298,9 @@ def _chan_ghi_so_may_doan():
 	pi_js = (GOC / "public" / "js" / "purchase_invoice.js").read_text()
 	dung("màn Desk liệt kê cả dòng còn dấu",
 		"var choChot = function (d) { return !(d.item_code || '').trim() || (d.vgb_mon_may_doan || '').trim(); };" in pi_js)
+	# Codex #358 vòng 12: màn app đọc dấu từ so_sanh, nên so_sanh phải trả ô đó.
+	than_ss = MA_DCM.split("def so_sanh(")[1].split("\ndef ")[0]
+	dung("so_sanh trả dấu máy đoán cho từng dòng", '"vgb_mon_may_doan": str(r.get("vgb_mon_may_doan")' in than_ss)
 	dung("nút chỉ hiện khi còn dòng chờ chốt",
 		"!(d.item_code || '').trim() || (d.vgb_mon_may_doan || '').trim(); }) &&" in pi_js)
 	ma_sua = (GOC / "sua_ma_hoa_don.py").read_text()
