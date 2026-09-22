@@ -156,6 +156,8 @@ def _tran_bo_qua_that():
 		t.vgb_goi_y_nhac_lai = str(add_days(nowdate(), 3))
 		khong_nem("bỏ qua đúng 3 ngày", lambda: t.save(ignore_permissions=True))
 		la("đã huỷ", frappe.db.get_value("Task", t.name, "status"), "Cancelled")
+		# Codex #356 (196f394): huỷ qua tài liệu cũng phải đóng ToDo của người nhận.
+		la("huỷ qua tài liệu đóng ToDo", frappe.get_all("ToDo", filters={"reference_type": "Task", "reference_name": t.name, "status": "Open"}), [])
 		# Đường của Codex: sửa tiếp Task đã huỷ bằng tài khoản thường.
 		frappe.set_user(_nguoi())
 		try:
