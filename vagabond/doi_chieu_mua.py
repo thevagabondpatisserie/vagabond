@@ -1750,12 +1750,17 @@ def gan_ma_hang(name, dong, item_code, nho=1, doi=0, he_so=None, he_so_cho=None)
 	# KHÔNG được lấy đơn vị kho hệ số 1 - một gói không rõ lượng thành một
 	# đơn vị kho. Dịch vụ thì vẫn cho, y như lúc dựng phiếu.
 	if dvt_mua.chan_hang_kho_khong_dvt(dvt_ncc, la_kho):
-		frappe.throw(
-			"Hoá đơn gốc không ghi đơn vị cho dòng %d, mà %s là hàng tồn kho. "
-			"Gắn ở đây sẽ phải lấy đơn vị kho hệ số 1, tức là đoán lượng nhập. "
-			"Dùng nút \"Sửa mã theo hóa đơn gốc\" để chọn Món kèm đúng quy cách, "
-			"hoặc khai quy cách trong Món rồi dựng lại tờ." % (d.idx, item_code)
-		)
+		# KHÔNG ném lỗi cụt: trả cờ để màn hình mở thẳng đường sửa theo hoá
+		# đơn gốc (Codex #358 vòng 8). Chưa lưu gì trên tờ.
+		return {
+			"name": doc.name, "idx": idx, "item_code": item_code, "can_nguon": 1,
+			"loi_nhan": (
+				"Hoá đơn gốc không ghi đơn vị cho dòng %d, mà %s là hàng tồn kho. "
+				"Gắn thẳng thì phải lấy đơn vị kho hệ số 1, tức là đoán lượng nhập. "
+				"Chọn dòng trên hoá đơn gốc và đúng quy cách để máy lấy lượng thật."
+				% (d.idx, item_code)
+			),
+		}
 	dvt_kho = frappe.db.get_value("Item", item_code, "stock_uom") or "Nos"
 	dung_uom, he_so_moi = dvt_kho, 1.0
 	tim_thay = False
