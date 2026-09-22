@@ -585,6 +585,38 @@ async function chayHet() {
     bang('khong mo hop nao', than3.con.length, 0);
     dung('noi ro nho ke toan them don vi', String(g.__bao).indexOf('Nhờ kế toán') >= 0);
   });
+
+  /* Codex #358 vong 22: dong da mang Mon ke toan tu go thi hop chon cua app
+     phai de Mon DO dung dau, khong de loi doan cu len tren. */
+  await ca('Codex #358 vong 22: app giu Mon ke toan da go, loi doan cu chi la goi y ben duoi', async function () {
+    var mo = [];
+    var g = {
+      busy: function () {}, baoTin: function () {}, String: String,
+      api: async function (m, a) {
+        if (m.endsWith('goi_y_mon')) return { ten_ncc: 'Hạt dẻ', goi_y: [
+          { item_code: 'DVTI00014', item_name: 'Món máy đoán', vi_sao: 'Máy đoán' },
+          { item_code: 'NVLT00141', item_name: 'Món kế toán đã gõ', vi_sao: 'Trên phiếu nhập' }] };
+        return {};
+      },
+      sheet: function (tieu, ds, x, chon) { mo.push({ tieu: tieu, ds: ds, chon: chon }); },
+      mfgPickItem: function () {}, dcmGanXong: function () {},
+    };
+    vm.createContext(g);
+    vm.runInContext(layHam(APP, 'dcmGanMaHang'), g);
+
+    await g.dcmGanMaHang('HDM-1', 3, 'NVLT00141');
+    var ds = mo[0].ds;
+    bang('Mon dang co dung dau', ds[0].value, 'NVLT00141');
+    dung('noi ro day la Mon dang nam tren dong', ds[0].label.indexOf('Giữ Món đang có') >= 0);
+    bang('khong liet ke Mon do hai lan', ds.filter(function (x) { return x.value === 'NVLT00141'; }).length, 1);
+    bang('loi doan cu van con, nhung o duoi', ds[1].value, 'DVTI00014');
+
+    /* Dong CON TRONG ma thi thu tu cu khong doi: loi doan cua may len dau. */
+    mo.length = 0;
+    await g.dcmGanMaHang('HDM-1', 3, '');
+    bang('dong trong ma: loi doan cua may dung dau', mo[0].ds[0].value, 'DVTI00014');
+    bang('khong chen muc giu Mon nao', mo[0].ds.filter(function (x) { return String(x.label).indexOf('Giữ Món') >= 0; }).length, 0);
+  });
 }
 
 chayHet().then(function () {
