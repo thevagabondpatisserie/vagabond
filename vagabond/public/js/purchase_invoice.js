@@ -269,6 +269,9 @@ async function vgbGanMonDesk(frm) {
 		if (!dong) return;
 		try {
 			var r = await frappe.call({method: 'vagabond.doi_chieu_mua.goi_y_mon', args: {name: frm.doc.name, dong: dong}});
+			/* Codex #358 P1: người đã chọn dòng khác trong lúc chờ thì bỏ gợi ý
+			   của dòng cũ, không thì Món của dòng này bị gắn sang dòng kia. */
+			if (String(hop.get_value('dong')) !== String(dong)) return;
 			var gy = (r.message && r.message.goi_y) || [];
 			hop.get_field('goi_y').$wrapper.html(gy.length
 				? '<div style="margin-bottom:8px;font-size:12px">Gợi ý: ' + gy.slice(0, 5).map(function (x) {
