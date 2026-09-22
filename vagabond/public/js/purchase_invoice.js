@@ -228,6 +228,9 @@ async function vgbGanMonDesk(frm) {
 		{fieldtype: 'HTML', fieldname: 'goi_y'},
 		{fieldname: 'item_code', label: 'Món', fieldtype: 'Link', options: 'Item', reqd: 1,
 			get_query: function () { return {filters: {disabled: 0, is_purchase_item: 1}}; }},
+		/* Codex #358 vòng 19: tờ trả hàng không đi được cửa "Sửa mã theo hóa
+		   đơn gốc", nên hoá đơn gốc không ghi đơn vị thì hỏi ngay tại đây. */
+		{fieldname: 'dvt_khai', label: 'Đơn vị nhà cung cấp ghi', fieldtype: 'Data', hidden: 1},
 		{fieldname: 'he_so', label: 'Hệ số quy đổi', fieldtype: 'Float', hidden: 1}
 	], primary_action_label: 'Gắn và ghi nhớ', primary_action: async function (v) {
 		hop.disable_primary_action();
@@ -239,6 +242,10 @@ async function vgbGanMonDesk(frm) {
 				/* Codex #358: hệ số gửi kèm đúng Món máy chủ đã hỏi. Máy chủ
 				   thấy lệch Món thì bỏ hệ số và hỏi lại, không ghi nhầm Món. */
 				args.he_so_cho = hop._he_so_cho;
+				if (hop._can_dvt) {
+					if (!(v.dvt_khai || '').trim()) { frappe.msgprint('Gõ đơn vị nhà cung cấp ghi trên hoá đơn giấy.'); return; }
+					args.dvt_khai = (v.dvt_khai || '').trim();
+				}
 			}
 			var r = await frappe.call({method: 'vagabond.doi_chieu_mua.gan_ma_hang', args: args, freeze: true});
 			var kq = r.message || {};
@@ -248,6 +255,23 @@ async function vgbGanMonDesk(frm) {
 				frappe.msgprint({message: frappe.utils.escape_html(kq.loi_nhan) +
 					'<br><br>Đóng hộp này rồi bấm <b>Sửa mã theo hóa đơn gốc</b> trên phiếu.',
 					title: 'Cần chọn quy cách theo hoá đơn gốc', indicator: 'orange'});
+				return;
+			}
+			if (kq.can_dvt) {
+				/* Codex #358 vòng 19: hoá đơn gốc không ghi đơn vị mà tờ này
+				   không đi được cửa nguồn. Hỏi luôn đơn vị và hệ số ở đây. */
+				hop._can_he_so = 1;
+				hop._can_dvt = 1;
+				hop._he_so_cho = kq.item_code || v.item_code;
+				var fd = hop.get_field('dvt_khai');
+				fd.df.hidden = 0;
+				fd.df.description = frappe.utils.escape_html(kq.loi_nhan || '');
+				fd.refresh();
+				var fh = hop.get_field('he_so');
+				fh.df.hidden = 0;
+				fh.df.label = '1 đơn vị đó bằng bao nhiêu ' + kq.dvt_kho + '?';
+				fh.df.description = 'Số bạn gõ được ghi vào Món, lần sau máy tự hiểu.';
+				fh.refresh();
 				return;
 			}
 			if (kq.can_he_so) {
@@ -271,9 +295,12 @@ async function vgbGanMonDesk(frm) {
 	   lại thì "1 Lần = 1 Set" của Món cũ bị ghi vĩnh viễn vào Món mới. */
 	function boHoiHeSo() {
 		hop._can_he_so = 0;
+		hop._can_dvt = 0;
 		hop._he_so_cho = null;
 		var f = hop.get_field('he_so'); f.df.hidden = 1; f.refresh();
 		if (hop.get_value('he_so')) hop.set_value('he_so', null);
+		var fd = hop.get_field('dvt_khai'); fd.df.hidden = 1; fd.refresh();
+		if (hop.get_value('dvt_khai')) hop.set_value('dvt_khai', null);
 	}
 	async function napGoiY() {
 		boHoiHeSo();
