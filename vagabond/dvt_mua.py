@@ -415,7 +415,9 @@ def dong_may_doan_chua_chot(dong):
 	for d in dong or []:
 		if str((d or {}).get("item_code") or "").strip():
 			continue
-		mon = mon_may_doan((d or {}).get("description"))
+		# Ô riêng trước, mô tả chỉ là đường lui cho dòng dựng trước v518:
+		# người sửa mô tả là mất dấu lời đoán, mà mất dấu là lọt cửa ghi sổ.
+		mon = str((d or {}).get("vgb_mon_may_doan") or "").strip() or mon_may_doan((d or {}).get("description"))
 		if mon:
 			ra.append((cint_thuan((d or {}).get("idx")), mon))
 	return ra

@@ -591,6 +591,18 @@ TRUONG_MOI = {
 	# có ca sai, mà đoán sai ở đây là ghi vĩnh viễn một quy đổi bịa vào Món.
 	"Purchase Invoice Item": [
 		{
+			"fieldname": "vgb_mon_may_doan",
+			"label": "Món máy đoán",
+			"fieldtype": "Data",
+			"insert_after": "ten_hang_ncc",
+			"read_only": 1,
+			"no_copy": 0,
+			"description": (
+				"Máy ghi lúc dựng phiếu khi đoán ra Món mà chưa biết quy đổi "
+				"đơn vị. Còn ô này mà dòng chưa có mã hàng thì chưa ghi sổ được."
+			),
+		},
+		{
 			"fieldname": "vgb_dvt_ncc",
 			"label": "Đơn vị nhà cung cấp ghi",
 			"fieldtype": "Data",
@@ -743,6 +755,9 @@ def _dong_pi(x, tk_chi_phi, mapped=None, uom=None, he_so=1):
 		"description": mo_ta_dong(x),
 		# Ô nguồn duy nhất cho đơn vị nhà cung cấp ghi (Codex #358).
 		"vgb_dvt_ncc": str(x.get("dvt") or "").strip() or dvt_mua.KHONG_GHI,
+		# Lời đoán cũng phải có ô riêng: ô mô tả người sửa được, mà mất dấu
+		# lời đoán là mất luôn hàng rào chặn ghi sổ (Codex #358).
+		"vgb_mon_may_doan": str(x.get("goi_y_mon") or "").strip(),
 	}
 	if mapped:
 		dong["item_code"] = mapped
