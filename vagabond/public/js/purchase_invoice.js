@@ -279,7 +279,9 @@ async function vgbGanMonDesk(frm) {
 						' <span style="color:#6b7280">(' + frappe.utils.escape_html(x.vi_sao) + ')</span>';
 				}).join('<br>') + '</div>'
 				: '<div style="margin-bottom:8px;font-size:12px;color:#6b7280">Máy chưa có gợi ý, tìm Món trong ô dưới.</div>');
-			if (gy.length) hop.set_value('item_code', gy[0].item_code);
+			/* Codex #358 P1 vòng 3: người đã tự chọn Món trong lúc chờ thì giữ
+			   lựa chọn của người, gợi ý chỉ hiện ra để tham khảo. */
+			if (gy.length && !hop.get_value('item_code')) hop.set_value('item_code', gy[0].item_code);
 		} catch (e) { /* Gợi ý hỏng thì vẫn chọn tay được. */ }
 	}
 	hop.fields_dict.dong.df.onchange = napGoiY;
