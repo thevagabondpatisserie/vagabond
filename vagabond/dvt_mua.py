@@ -360,7 +360,7 @@ def can_nguoi_khai_he_so(dvt_ncc, tim_thay, he_so_nhap, item_code=None, he_so_ch
 	return "khai" if math.isfinite(hs) and hs > 0 else "hoi"
 
 
-def dvt_ncc_cua_dong(mo_ta, uom_dong):
+def dvt_ncc_cua_dong(mo_ta, uom_dong, ten_ncc=None):
 	"""Đơn vị nhà cung cấp GHI trên dòng hoá đơn. THUẦN.
 
 	Đọc trong mô tả trước. Không có thì lấy ô đơn vị của dòng, TRỪ "Nos":
@@ -370,7 +370,18 @@ def dvt_ncc_cua_dong(mo_ta, uom_dong):
 	quy đổi bịa vào Món. Đơn vị gốc thật là "Nos" thì mô tả có "(Nos)".
 	Trả rỗng nghĩa là nhà cung cấp không ghi đơn vị: gắn theo đơn vị kho hệ
 	số 1, không khai quy đổi nào."""
-	dvt = dvt_tren_hoa_don(mo_ta)
+	s = str(mo_ta or "").strip()
+	ten = str(ten_ncc or "").strip()
+	# Codex #358: TÊN HÀNG của nhà cung cấp cũng có thể kết thúc bằng ngoặc
+	# ("Hạt dẻ (500g)"). Mô tả dựng theo khuôn "<tên hàng>...( <đơn vị> )",
+	# nên cắt đúng phần tên hàng ra rồi mới đọc ngoặc cuối: còn lại rỗng
+	# nghĩa là hoá đơn KHÔNG ghi đơn vị, không được lấy "500g" làm đơn vị
+	# rồi ghi vĩnh viễn một quy đổi bịa vào Món.
+	if ten and s.startswith(ten):
+		con = s[len(ten):].strip()
+		dvt = dvt_tren_hoa_don(con) if con else ""
+	else:
+		dvt = dvt_tren_hoa_don(s)
 	if dvt:
 		return dvt
 	raw = str(uom_dong or "").strip()
