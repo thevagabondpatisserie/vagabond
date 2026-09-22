@@ -57,41 +57,75 @@ class _Tra(SimpleNamespace):
 	def set(self, k, v):
 		setattr(self, k, v)
 
+	def run_method(self, ten, *a, **k):
+		"""Như ERPNext tính lại tiền: thuế gồm trong giá hay cộng thêm, chiết
+		khấu đặt trên Tổng sau thuế hay Tổng trước thuế, mỗi kiểu một số."""
+		if ten != "calculate_taxes_and_totals":
+			return None
+		r = float(getattr(self, "thue_suat", 0) or 0) / 100.0
+		tong = sum(d.qty * d.rate for d in self.items)
+		self.tong_hang = tong
+		if getattr(self, "thue_trong_gia", 1):
+			net0, grand0 = tong / (1 + r), tong
+		else:
+			net0, grand0 = tong, tong * (1 + r)
+		ck = float(self.discount_amount or 0)
+		if getattr(self, "apply_discount_on", "Grand Total") == "Grand Total":
+			self.grand_total = grand0 - ck
+		else:
+			self.grand_total = (net0 - ck) * (1 + r)
+		return None
+
 	def insert(self, **k):
 		# Đúng phép ERPNext làm ở validate: chiết khấu tổng không vượt tổng trước chiết khấu.
-		tong = sum(d.qty * d.rate for d in self.items)
+		self.run_method("calculate_taxes_and_totals")
+		tong = self.tong_hang
 		if abs(self.discount_amount or 0) > abs(tong) + 0.005:
 			raise ValueError("Số tiền CK bổ sung (%s) không thể vượt tổng trước CK (%.2f)" % (self.discount_amount, tong))
-		self.tong_hang = tong
 
 	def submit(self):
 		pass
 
 
-def _chay(tien):
-	# Đơn HDB-26-09-03237 đúng số liệu trên site 22/09/2026.
-	si = _Dong(name="HDB-26-09-03237", grand_total=435000, total=570000, discount_amount=135000, items=[
+def _chay(tien, tren="Grand Total", thue=8, trong_gia=1, ck=135000, grand=435000):
+	# Mặc định: đơn HDB-26-09-03237 đúng số liệu trên site 22/09/2026.
+	si = _Dong(name="HDB-26-09-03237", grand_total=grand, total=570000, discount_amount=ck, items=[
 		_Dong(qty=18, rate=25000), _Dong(qty=2, rate=20000), _Dong(qty=1, rate=20000), _Dong(qty=1, rate=60000)])
 	tra = _Tra(items=[_Dong(qty=-d.qty, rate=d.rate, price_list_rate=d.rate, discount_amount=0, discount_percentage=0)
-		for d in si.items], discount_amount=-135000, additional_discount_percentage=0,
+		for d in si.items], discount_amount=-ck, additional_discount_percentage=0,
+		apply_discount_on=tren, thue_suat=thue, thue_trong_gia=trong_gia,
 		meta=SimpleNamespace(has_field=lambda o: False), flags=SimpleNamespace())
 	sys.modules["erpnext.accounts.doctype.sales_invoice.sales_invoice"] = SimpleNamespace(make_sales_return=lambda n: tra)
-	ham = [n for n in ast.parse(MA_HT).body if isinstance(n, ast.FunctionDef) and n.name in ("_lap_hoa_don_tra", "ty_le_ha_gia")]
+	ham = [n for n in ast.parse(MA_HT).body if isinstance(n, ast.FunctionDef)
+		and n.name in ("_lap_hoa_don_tra", "ty_le_ha_gia", "_nan_dung_tien")]
 	from frappe.utils import flt
-	env = dict(flt=flt, nowdate=lambda: "2026-09-22")
+	env = dict(flt=flt, nowdate=lambda: "2026-09-22", frappe=SimpleNamespace(throw=_nem))
 	exec(compile(ast.Module(body=ham, type_ignores=[]), "hoan_tien.py", "exec"), env)
 	return env["_lap_hoa_don_tra"](si, "Kho Hàng Hủy - TV", "Khác", "HT-2026-02900", tien)
+
+
+def _nem(m, *a, **k):
+	raise ValueError(m)
 
 
 @ca("HT-2026-02900: tờ trả hàng hoàn 90.000 sinh được và ra đúng 90.000")
 def _tra_mot_phan():
 	tra = _chay(90000)
 	la("không còn chiết khấu tổng", tra.discount_amount, 0)
-	la("hàng trên tờ trả đúng số tiền hoàn", round(tra.tong_hang, 2), -90000.0)
+	la("tổng tờ trả đúng số tiền hoàn", round(abs(tra.grand_total), 2), 90000.0)
+
+
+@ca("Codex #358: chiết khấu đặt trên Tổng trước thuế, thuế cộng thêm: tờ trả vẫn ra đúng tiền hoàn")
+def _tra_ck_net():
+	tra = _chay(90000, tren="Net Total", thue=8, trong_gia=0)
+	la("không còn chiết khấu tổng", tra.discount_amount, 0)
+	la("tổng tờ trả đúng số tiền hoàn", round(abs(tra.grand_total), 2), 90000.0)
+	tra2 = _chay(200000, tren="Net Total", thue=10, trong_gia=0, ck=50000, grand=520000)
+	la("kiểu khác cũng đúng", round(abs(tra2.grand_total), 2), 200000.0)
 
 
 @ca("HT: hoàn đủ đơn có chiết khấu tổng vẫn chép nguyên chiết khấu như đơn gốc")
 def _tra_du():
 	tra = _chay(435000)
 	la("giữ chiết khấu", tra.discount_amount, -135000)
-	la("giữ nguyên đơn giá", round(tra.tong_hang, 2), -570000.0)
+	la("giữ nguyên đơn giá", round(sum(d.qty * d.rate for d in tra.items), 2), -570000.0)
