@@ -15,6 +15,7 @@ from types import SimpleNamespace
 from vagabond.khung.kiem_thu.nen import ca, dung, la, nem
 from vagabond import dvt_mua
 from vagabond.dvt_mua import can_nguoi_khai_he_so, mon_may_doan, dvt_tren_hoa_don
+from vagabond.dvt_mua import dvt_ncc_cua_dong
 from vagabond.minvoice_chung_tu import mo_ta_dong
 
 GOC = Path(__file__).resolve().parents[2]
@@ -41,6 +42,22 @@ def _quyet():
 	la("hỏi Món A mà gắn Món B thì hỏi lại", can_nguoi_khai_he_so("Lần", False, 1, "NVLT00141", "DVTI00014"), "hoi")
 	la("gửi hệ số không nói cho Món nào thì hỏi lại", can_nguoi_khai_he_so("Lần", False, 1, "NVLT00141", None), "hoi")
 	la("đã biết quy đổi thì lệch Món cũng không sao", can_nguoi_khai_he_so("Lần", True, 1, "NVLT00141", "DVTI00014"), "dung")
+
+
+@ca("Codex #358 P1: 'Nos' trên dòng trống mã là đơn vị lót, không phải đơn vị nhà cung cấp")
+def _dvt_lot():
+	may = {"ten": "Hạt dẻ", "dvt": "BOX", "goi_y_mon": "NVLT00141", "goi_y_dvt_kho": "Gram"}
+	la("hoá đơn có ghi đơn vị thì lấy đơn vị đó", dvt_ncc_cua_dong(mo_ta_dong(may), "Nos"), "BOX")
+	la("hoá đơn KHÔNG ghi đơn vị: trả rỗng, không lấy Nos", dvt_ncc_cua_dong("Hạt dẻ", "Nos"), "")
+	la("đơn vị thật trên ô uom vẫn dùng", dvt_ncc_cua_dong("Hạt dẻ", "BOX"), "BOX")
+	la("nhà cung cấp ghi đúng chữ Nos thì vẫn là Nos", dvt_ncc_cua_dong("Hạt dẻ (Nos)", "Nos"), "Nos")
+	# Không đơn vị thì gắn theo đơn vị kho hệ số 1, KHÔNG hỏi và KHÔNG khai quy đổi.
+	d = _Dong(idx=1, name="R1", item_code="", description="Hạt dẻ", uom="Nos", ten_hang_ncc="Hạt dẻ")
+	gan, ghi, _ = _nap_gan(d, la_kho=1)
+	kq = gan("HDM-1", 1, "NVLT00141")
+	la("không hỏi hệ số cho Nos", kq.get("can_he_so"), None)
+	la("không ghi quy đổi Nos vào Món", ghi["khai"], [])
+	la("dòng mang đơn vị kho hệ số 1", (d.item_code, d.uom, d.conversion_factor), ("NVLT00141", "Set", 1.0))
 
 
 @ca("#358 thuần: lời đoán ghi lên mô tả không làm mất đơn vị gốc, và đọc lại được")
@@ -125,6 +142,7 @@ def _nap_gan(dong, quy_doi_co=None, la_kho=1, map_co=None):
 			set_value=lambda *a: ghi["map"].append(a), commit=lambda: ghi.__setitem__("commit", ghi["commit"] + 1)))
 	dv = SimpleNamespace(
 		dvt_tren_hoa_don=dvt_mua.dvt_tren_hoa_don, goi_y_don_vi=lambda s: "", cung_don_vi=lambda a, b: a == b,
+		dvt_ncc_cua_dong=dvt_mua.dvt_ncc_cua_dong,
 		can_nguoi_khai_he_so=dvt_mua.can_nguoi_khai_he_so,
 		he_so_cua_mon=lambda ma, d: quy_doi_co.get(d, 0.0), mon_may_doan=dvt_mua.mon_may_doan)
 
