@@ -187,7 +187,7 @@ def nan_dau_dong(sl, gia, thtien=None):
 	if tt is not None and tt != 0:
 		am = tt < 0
 	else:
-		am = (sl * gia) < 0
+		am = (sl * gia) < 0 or (sl * gia == 0 and (sl < 0 or gia < 0))
 
 	gia = abs(gia)
 	sl = -abs(sl) if am else abs(sl)
@@ -231,6 +231,14 @@ def dong_tu_hoa_don(it, dau_to=1):
 		gia = 0
 	if int(dau_to or 1) < 0:
 		sl, gia = nan_dau_dong(sl, gia, d.get("thtien"))
+		# Dòng KHÔNG TIỀN trên tờ âm (mô tả không qty, hàng tặng giá 0 dù
+		# nguồn ghi qty âm hay DƯƠNG) phải mang qty âm: ERPNext chặn phiếu trả
+		# hàng có dòng qty dương ("số lượng phải là số âm"). Tiền dòng vẫn 0
+		# nên tổng tờ không đổi. Không đảo dòng CÓ tiền (tiền dương hỗn hợp
+		# giữ nguyên dấu theo nan_dau_dong). Claude #352: bản trước chỉ bắt
+		# dòng không qty, dòng quà qty dương giá 0 vẫn dương và tờ hỏng.
+		if not gia and not d.get("thtien"):
+			sl = -abs(sl)
 	return {
 		"ma": str(d.get("mhhdvu") or "").strip(),
 		"ten": str(d.get("ten") or "").strip(),
@@ -456,6 +464,53 @@ def gom_theo_ly_do(hang):
 		o["loai"] = sorted(o["loai"])
 		ra.append(o)
 	return sorted(ra, key=lambda o: -o["tien"])
+
+
+def dich_vu_khong_ghi_don_vi(dvt_ncc, la_hang_kho):
+	"""Dòng DỊCH VỤ mà nhà cung cấp để trống đơn vị thì lấy đơn vị của Món,
+	hệ số 1. THUẦN.
+
+	Ca thật 22/09/2026: hoá đơn cước Mobifone (Món DVTI00002) không ghi đơn
+	vị, và dựng phiếu mua bị chặn "chưa xác định được quy đổi đơn vị nhà
+	cung cấp '(trống)'". Khai trong bảng quy đổi của Món cũng không được vì
+	không có tên đơn vị nào để khai. Anh Việt duyệt 22/09/2026: dịch vụ
+	không ghi đơn vị thì tính theo đơn vị của Món.
+
+	CHỈ mở cho món KHÔNG quản lý tồn kho. Hàng tồn kho mà trống đơn vị vẫn
+	bị chặn như cũ, vì đoán hệ số 1 ở đó là đổi một hộp thành một gram.
+	Đơn vị ghi KHÁC trống (vd 'Lần') vẫn phải khai quy đổi như cũ."""
+	return not str(dvt_ncc or "").strip() and not int(la_hang_kho or 0)
+
+
+# Nhóm việc cho một tờ đầu vào chưa thành phiếu mua, theo thứ tự ưu tiên
+# khi đọc lý do. Mỗi nhóm nói luôn ai làm gì.
+NHOM_CHO_DUNG = (
+	("thieu_nguon", "Chờ M-Invoice trả đủ nội dung"),
+	("quy_cach", "Cần khai quy cách mua"),
+	("trung", "Nghi trùng với phiếu đã có"),
+	("dong_dau", "Đã đóng dấu xong mà chưa có phiếu"),
+	("cho_luot", "Chờ lượt dựng"),
+	("khac", "Cần xem lý do"),
+)
+
+
+def nhom_cho_dung(so_hd, ly_do, da_tao):
+	"""Tờ đầu vào chưa thành phiếu mua đang cần xử lý kiểu gì. THUẦN.
+
+	Trả (mã nhóm, tên nhóm). Đọc theo SỰ THẬT của bản ghi, không đoán."""
+	ten = dict(NHOM_CHO_DUNG)
+	ld = str(ly_do or "").lower()
+	if not str(so_hd or "").strip():
+		k = "thieu_nguon"
+	elif "quy đổi đơn vị" in ld or "quy cách" in ld:
+		k = "quy_cach"
+	elif "cùng số hoá đơn" in ld or "cùng số hóa đơn" in ld or "trùng" in ld:
+		k = "trung"
+	elif not ld:
+		k = "dong_dau" if int(da_tao or 0) else "cho_luot"
+	else:
+		k = "khac"
+	return k, ten[k]
 
 
 # ------------------------------------------------------- phần chạm hệ
@@ -734,6 +789,58 @@ def con_sot(tu_ngay=None, den_ngay=None, gioi_han=2000):
 	}
 
 
+@frappe.whitelist()
+def cho_dung_phieu_mua(so_ngay=180, gioi_han=300):
+	"""CHỈ ĐỌC: hoá đơn ĐẦU VÀO đã nhận mà chưa thành phiếu mua.
+
+	Codex #352 (22/09/2026): lỗi dựng phiếu chỉ hiện trong hộp kết quả lúc
+	bấm đồng bộ, đóng hộp là mất; không màn nghiệp vụ nào cho kế toán thấy
+	thường trực tờ nào đang chờ, vì sao, và mở bản nguồn ở đâu. Cửa này nuôi
+	thanh báo trên màn Hoá đơn mua hàng.
+
+	Nhẹ hơn `con_sot`: chỉ đầu vào, và dò chứng từ đã có bằng MỘT truy vấn
+	cho cả lô thay vì từng tờ, vì thanh báo chạy mỗi lần mở danh sách."""
+	_kiem_quyen()
+	den = nowdate()
+	tu = frappe.utils.add_days(den, -(cint(so_ngay) or 180))
+	ds = frappe.get_all(
+		DT_HD,
+		filters={"loai": LOAI_VAO, "ngay_lap": ["between", [tu, den]],
+			"trang_thai": ["not in", list(TT_KHOI_DUNG)]},
+		fields=["name", "ky_hieu", "so_hd", "ngay_lap", "nguoi_mua_ban", "tong_tien",
+			"ly_do_bo_qua", "da_tao_chung_tu", "so_lan_thu"],
+		order_by="ngay_lap desc",
+		limit_page_length=0,
+	)
+	ma = [h["name"] for h in ds]
+	co = set()
+	if ma:
+		co = set(frappe.get_all(PI, filters={"custom_minvoice_id": ["in", ma]}, pluck="custom_minvoice_id"))
+	hang = []
+	for h in ds:
+		if h["name"] in co:
+			continue
+		k, ten = nhom_cho_dung(h.get("so_hd"), h.get("ly_do_bo_qua"), h.get("da_tao_chung_tu"))
+		hang.append({
+			"ma": h["name"], "ky_hieu": h.get("ky_hieu") or "", "so_hd": h.get("so_hd") or "",
+			"ngay_lap": str(h.get("ngay_lap") or ""), "ncc": (h.get("nguoi_mua_ban") or "")[:80],
+			"tong_tien": flt(h.get("tong_tien")), "nhom": k, "ten_nhom": ten,
+			"ly_do": rut_gon_loi(h.get("ly_do_bo_qua")) if h.get("ly_do_bo_qua") else "",
+			"so_lan_thu": cint(h.get("so_lan_thu")),
+		})
+	dem = {}
+	for h in hang:
+		o = dem.setdefault(h["nhom"], {"nhom": h["nhom"], "ten": h["ten_nhom"], "so_to": 0, "tien": 0.0})
+		o["so_to"] += 1
+		o["tien"] += abs(h["tong_tien"])
+	thu_tu = [k for k, _ in NHOM_CHO_DUNG]
+	return {
+		"so_to": len(hang), "tong_tien": sum(abs(h["tong_tien"]) for h in hang),
+		"theo_nhom": sorted(dem.values(), key=lambda o: thu_tu.index(o["nhom"])),
+		"ds": hang[:cint(gioi_han) or 300], "tu_ngay": str(tu), "den_ngay": str(den),
+	}
+
+
 def _dem_trung():
 	"""Chứng từ nào đang trùng: nhiều tờ cùng trỏ về một hoá đơn điện tử.
 
@@ -968,6 +1075,8 @@ def don_vi_theo_ma(mapped, uom, mst=None, ten_ncc=None):
 	nguon = str(don_vi_da_duyet or uom or "").strip()
 	ds = frappe.get_all("UOM Conversion Detail", filters={"parent": mapped, "parenttype": "Item"},
 		fields=["uom", "conversion_factor"])
+	if dich_vu_khong_ghi_don_vi(nguon, frappe.db.get_value("Item", mapped, "is_stock_item")):
+		return dvt_kho, 1
 	ung_vien = [nguon, dv.goi_y_don_vi(nguon)]
 	for ten in ung_vien:
 		if not ten:
@@ -1111,7 +1220,10 @@ def dung_hoa_don_mua(r):
 
 
 def _mot_to(r):
-	"""Xử một tờ. Trả (da_dung, ghi_chu). Không bao giờ ném ra ngoài."""
+	"""Xử một tờ. Lỗi nghiệp vụ trả lý do; rollback lỗi phải dừng cả lượt."""
+	# Frappe utils/response.py gửi message_log về Desk dù exception đã bắt.
+	# Giữ thông báo của caller, chỉ bỏ thông báo tờ lỗi đã chuyển vào báo cáo.
+	thong_bao_truoc = list(frappe.local.message_log or [])
 	ma = r.get("name")
 	try:
 		if khoi_dung_duoc(r.get("trang_thai")):
@@ -1140,10 +1252,8 @@ def _mot_to(r):
 		# Huỷ mọi thứ tờ này vừa ghi dở, kể cả chứng từ đã insert mà đối
 		# chiếu tổng không đạt. Rollback chỉ lùi tới lần commit gần nhất, mà
 		# `_chay` commit sau TỪNG tờ, nên không đụng tới tờ trước.
-		try:
-			frappe.db.rollback()
-		except Exception:
-			pass
+		frappe.db.rollback()
+		frappe.local.message_log = thong_bao_truoc
 		_ghi_hong(ma, e)
 		frappe.log_error(frappe.get_traceback(),
 			"minvoice_chung_tu: to %s" % ma)
@@ -1303,7 +1413,7 @@ def chay_bu(tu_ngay=None, den_ngay=None, gioi_han=None):
 
 
 def chay_tu_dong():
-	"""Điểm gọi của bộ lập lịch. Không ném lỗi ra ngoài.
+	"""Điểm gọi của bộ lập lịch. Lỗi giao dịch phải tới worker để đánh dấu thất bại.
 
 	PHẢI CÓ TÊN NÀY TRONG `hooks.py`. Xem ca kiểm "nhip tu dong da khai
 	trong hooks" ở khung/kiem_thu/thu_minvoice_chung_tu.py để biết vì sao
@@ -1314,8 +1424,17 @@ def chay_tu_dong():
 			return
 		_chay()
 	except Exception:
+		# Không để scheduler nhận thành công rồi commit phần giao dịch hỏng.
+		frappe.db.rollback()
+		# Claude #352: ghi Error Log bằng hàng chờ (defer_insert), KHÔNG insert
+		# trong giao dịch. Worker của Frappe v16 (ScheduledJobType.execute) gặp
+		# exception thì rollback thêm một lần rồi mới ghi Failed, nên bản ghi
+		# insert thường ở đây bị cuộn mất cùng giao dịch. Hàng chờ nằm ở redis,
+		# nhịp save_to_db ghi sau, không phụ thuộc giao dịch này và không phải
+		# thêm commit vào đường tài chính.
 		frappe.log_error(frappe.get_traceback(),
-			"minvoice_chung_tu: nhip tu dong vo loi")
+			"minvoice_chung_tu: nhip tu dong vo loi", defer_insert=True)
+		raise
 
 
 # ------------------------------------------------- nút bấm tay và chuông báo
@@ -1341,7 +1460,7 @@ def dong_bo_ngay(so_ngay=None):
 
 	keo = minvoice_dong_bo._keo(so_ngay=cint(so_ngay) or 0)
 	dung_ct = _chay()
-	hoan_tat = not (keo.get("loi_o_loai") or dung_ct.get("con_hong") or dung_ct.get("dang_chay_do"))
+	hoan_tat = not (keo.get("loi_o_loai") or keo.get("nguon_chua_du") or dung_ct.get("con_hong") or dung_ct.get("dang_chay_do"))
 	return {
 		"ok": int(hoan_tat),
 		"keo": keo,
