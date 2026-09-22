@@ -1442,12 +1442,18 @@ def don_vi_cua_mon(item_code):
 
 
 def _ds_don_vi(gioi_han=500):
-	"""Danh mục Đơn vị tính cho màn hình chọn. Đọc không ra thì trả rỗng."""
+	"""Danh mục Đơn vị tính cho màn hình chọn.
+
+	Codex #358 vòng 22: đọc không ra mà trả rỗng thì màn hình nói "danh mục
+	chưa có đơn vị nào, nhờ kế toán thêm" - vừa sai vừa giấu mất lỗi thật,
+	còn dòng đang kẹt thì không ai gỡ được. Nói thẳng là chưa đọc được."""
 	try:
 		return frappe.get_all("UOM", pluck="name", order_by="name",
 			limit_page_length=gioi_han)
 	except Exception:
-		return []
+		frappe.log_error(frappe.get_traceback(), "doi_chieu_mua: doc danh muc UOM")
+		frappe.throw("Chưa đọc được danh mục Đơn vị tính nên không hỏi đơn vị được. "
+			"Báo kỹ thuật rồi thử lại, đừng gắn Món cho dòng này trong lúc đó.")
 
 
 def _nho_uom_map(ten_map, uom):
