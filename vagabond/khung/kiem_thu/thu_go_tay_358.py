@@ -288,6 +288,18 @@ def _chan_ghi_so_may_doan():
 	ds[1]["vgb_mon_may_doan"] = ""
 	la("chốt qua đúng cửa thì hết chặn", dvt_mua.dong_may_doan_chua_chot(ds), [])
 	dung("cửa gắn Món xoá dấu", 'd.vgb_mon_may_doan = ""' in MA_DCM)
+	# Codex #358 vòng 11: người gõ thẳng mã vào lưới Desk thì cửa chốt vẫn
+	# phải nhận dòng đó, không thì hàng rào chặn mà không có đường đi tiếp.
+	d = _Dong(idx=3, name="R3", item_code="DVTI00014", description="Phí dịch vụ (Lần)", uom="Lần",
+		ten_hang_ncc="Phí dịch vụ", vgb_mon_may_doan="DVTI00014")
+	gan, ghi, _ = _nap_gan(d, quy_doi_co={"Lần": 1.0})
+	kq = gan("HDM-1", 3, "DVTI00014")
+	la("nhận dòng đã có mã mà còn dấu, và xoá dấu", (kq.get("item_code"), d.vgb_mon_may_doan), ("DVTI00014", ""))
+	pi_js = (GOC / "public" / "js" / "purchase_invoice.js").read_text()
+	dung("màn Desk liệt kê cả dòng còn dấu",
+		"var choChot = function (d) { return !(d.item_code || '').trim() || (d.vgb_mon_may_doan || '').trim(); };" in pi_js)
+	dung("nút chỉ hiện khi còn dòng chờ chốt",
+		"!(d.item_code || '').trim() || (d.vgb_mon_may_doan || '').trim(); }) &&" in pi_js)
 	ma_sua = (GOC / "sua_ma_hoa_don.py").read_text()
 	dung("cửa sửa theo hoá đơn gốc cũng xoá dấu", "d.vgb_mon_may_doan = ''" in ma_sua)
 	# Gác ở before_submit nên mọi đường ghi sổ (Desk, app, ghi_so_thang) đều đi qua.

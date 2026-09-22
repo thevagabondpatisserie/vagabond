@@ -249,7 +249,8 @@ def _bo_noi():
 def _nut_gan_ma():
 	js = _doc("vagabond/public/js/bep/18-doi-chieu-may-in.js")
 	dung("khối chưa gắn mã đứng riêng", "if (!r.item_code) {" in js)
-	dung("nút gắn đứng riêng", "if (!r.item_code && kq.lam_duoc && !r.da_noi) {" in js)
+	# v518 (Codex #358): dòng còn dấu "máy đoán" cũng là dòng chờ chốt.
+	dung("nút gắn đứng riêng", "if ((!r.item_code || r.vgb_mon_may_doan) && kq.lam_duoc && !r.da_noi) {" in js)
 	# Nut phai nam TRUOC khoi "if (lechDvt)", tuc khong con lồng trong đó.
 	dung("nút đứng trước nhánh lệch đơn vị",
 		js.index("Gắn mã hàng cho dòng này") < js.index("if (lechDvt) {"))
