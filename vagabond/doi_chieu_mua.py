@@ -1586,7 +1586,7 @@ def goi_y_mon(name, dong):
 	# 0. #358: MÁY ĐOÁN. Nhà cung cấp này từng gửi ĐÚNG tên hàng này và đã
 	#    được gắn Món, hoặc lúc dựng phiếu máy đã ghi lời đoán lên dòng. Đưa
 	#    lên đầu để người chỉ việc bấm xác nhận.
-	doan = dvt_mua.mon_may_doan(d.get("description"))
+	doan = str(d.get("vgb_mon_may_doan") or "").strip() or dvt_mua.mon_may_doan(d.get("description"))
 	if not doan and mst and ten_ncc:
 		try:
 			from vagabond.quy_cach_ncc import tim_mon
@@ -1806,6 +1806,9 @@ def gan_ma_hang(name, dong, item_code, nho=1, doi=0, he_so=None, he_so_cho=None)
 	# ma van giu duoc ma hang vua gan.
 	if not (d.get("ten_hang_ncc") or "").strip() and ten_ncc:
 		d.ten_hang_ncc = ten_ncc[:140]
+	# Người đã chốt Món và quy đổi ở đây thì dấu "máy đoán" hết nhiệm vụ.
+	# Xoá dấu mới là xoá hàng rào chặn ghi sổ (Codex #358).
+	d.vgb_mon_may_doan = ""
 	doc.flags.ignore_permissions = True
 	doc.save()
 

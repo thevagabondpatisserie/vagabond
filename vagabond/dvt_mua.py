@@ -413,13 +413,22 @@ def dong_may_doan_chua_chot(dong):
 	vẫn đi như trước, ngày 22/09/2026 có 239 tờ đã ghi sổ theo đường đó."""
 	ra = []
 	for d in dong or []:
-		if str((d or {}).get("item_code") or "").strip():
-			continue
-		# Ô riêng trước, mô tả chỉ là đường lui cho dòng dựng trước v518:
-		# người sửa mô tả là mất dấu lời đoán, mà mất dấu là lọt cửa ghi sổ.
-		mon = str((d or {}).get("vgb_mon_may_doan") or "").strip() or mon_may_doan((d or {}).get("description"))
+		d = d or {}
+		# Ô RIÊNG là dấu duy nhất còn giá trị: máy xoá nó khi người chốt Món
+		# qua cửa gắn Món (gan_ma_hang) hoặc cửa sửa theo hoá đơn gốc, hai
+		# cửa đó mới biết quy đổi thật. Gõ thẳng mã vào ô Mã hàng trên lưới
+		# Desk KHÔNG xoá dấu, nên dòng vẫn chờ chốt: hệ số lúc đó còn là 1
+		# (Codex #358), tức là đoán lượng nhập.
+		mon = str(d.get("vgb_mon_may_doan") or "").strip()
 		if mon:
-			ra.append((cint_thuan((d or {}).get("idx")), mon))
+			ra.append((cint_thuan(d.get("idx")), mon))
+			continue
+		if str(d.get("item_code") or "").strip():
+			continue
+		# Đường lui cho dòng dựng trước v518: lúc đó lời đoán chỉ nằm ở mô tả.
+		mon = mon_may_doan(d.get("description"))
+		if mon:
+			ra.append((cint_thuan(d.get("idx")), mon))
 	return ra
 
 

@@ -120,6 +120,9 @@ def _sua(doc, g, dong, vi_tri, item_code, uom, dau_nguon=None):
         ten_hang_ncc=ten, qty=x['sl'], rate=x['gia'], price_list_rate=x['gia'],
         discount_percentage=0, discount_amount=0, margin_rate_or_amount=0,
         uom=uom, stock_uom=stock_uom, conversion_factor=hs))
+    # Cửa này chốt Món KÈM quy cách người chọn, nên dấu "máy đoán" hết nhiệm
+    # vụ. Còn dấu là còn chặn ghi sổ (Codex #358).
+    d.vgb_mon_may_doan = ''
     doc.ignore_pricing_rule = 1
     doc.save()
     doc.reload()
