@@ -44,6 +44,19 @@ def _quyet():
 	la("đã biết quy đổi thì lệch Món cũng không sao", can_nguoi_khai_he_so("Lần", True, 1, "NVLT00141", "DVTI00014"), "dung")
 
 
+@ca("Codex #358 vòng 7: đơn vị nhà cung cấp ghi có ô riêng trên dòng phiếu")
+def _o_dvt_ncc():
+	than = MA_MC.split("def _dong_pi(")[1].split("\ndef ")[0]
+	dung("dòng phiếu mang ô đơn vị nhà cung cấp", '"vgb_dvt_ncc"' in than)
+	dung("trống thì ghi rõ là không ghi", "dvt_mua.KHONG_GHI" in than)
+	from vagabond import minvoice_chung_tu as mc
+	o = [t for t in mc.TRUONG_MOI.get("Purchase Invoice Item", []) if t["fieldname"] == "vgb_dvt_ncc"]
+	la("ô được khai để Migrate dựng", len(o), 1)
+	la("ô chỉ đọc", o[0]["read_only"], 1)
+	# gan_ma_hang đọc ô này trước, không đọc mô tả nữa.
+	dung("gắn Món đọc ô riêng", 'd.get("vgb_dvt_ncc")' in MA_DCM)
+
+
 @ca("Codex #358 P1: 'Nos' trên dòng trống mã là đơn vị lót, không phải đơn vị nhà cung cấp")
 def _dvt_lot():
 	may = {"ten": "Hạt dẻ", "dvt": "BOX", "goi_y_mon": "NVLT00141", "goi_y_dvt_kho": "Gram"}
@@ -56,15 +69,29 @@ def _dvt_lot():
 		dvt_ncc_cua_dong("Hạt dẻ (500g)", "Nos", "Hạt dẻ (500g)"), "")
 	la("tên hàng có ngoặc, hoá đơn có ghi đơn vị: lấy đơn vị",
 		dvt_ncc_cua_dong("Hạt dẻ (500g) (BOX)", "Nos", "Hạt dẻ (500g)"), "BOX")
+	# Ô riêng do máy ghi lúc dựng phiếu là nguồn duy nhất khi có (vòng 7).
+	la("ô riêng thắng mọi phép đọc mô tả",
+		dvt_ncc_cua_dong("Hạt dẻ (500g) (BOX)", "Nos", "Hạt dẻ (500g)", "BAO"), "BAO")
+	la("ô riêng ghi là không ghi thì đúng là không ghi",
+		dvt_ncc_cua_dong("Hạt dẻ (500g) (BOX)", "Nos", "Hạt dẻ (500g)", dvt_mua.KHONG_GHI), "")
 	la("tên hàng có ngoặc, có lời đoán kèm đơn vị",
 		dvt_ncc_cua_dong(mo_ta_dong({"ten": "Hạt dẻ (500g)", "dvt": "BAO", "goi_y_mon": "NVLT1", "goi_y_dvt_kho": "Gram"}), "Nos", "Hạt dẻ (500g)"), "BAO")
 	# Không đơn vị thì gắn theo đơn vị kho hệ số 1, KHÔNG hỏi và KHÔNG khai quy đổi.
+	# Hàng tồn kho mà hoá đơn không ghi đơn vị: KHÔNG hỏi Nos, cũng KHÔNG
+	# lấy đơn vị kho hệ số 1 (Codex #358 vòng 7).
 	d = _Dong(idx=1, name="R1", item_code="", description="Hạt dẻ (500g)", uom="Nos", ten_hang_ncc="Hạt dẻ (500g)")
-	gan, ghi, _ = _nap_gan(d, la_kho=1)
-	kq = gan("HDM-1", 1, "NVLT00141")
-	la("không hỏi hệ số cho Nos", kq.get("can_he_so"), None)
-	la("không ghi quy đổi Nos vào Món", ghi["khai"], [])
-	la("dòng mang đơn vị kho hệ số 1", (d.item_code, d.uom, d.conversion_factor), ("NVLT00141", "Set", 1.0))
+	gan, ghi, Loi = _nap_gan(d, la_kho=1)
+	nem("hàng tồn kho không đơn vị thì chặn, nói rõ đường đi tiếp",
+		lambda: gan("HDM-1", 1, "NVLT00141"), Loi)
+	la("không ghi quy đổi nào vào Món", ghi["khai"], [])
+	la("dòng vẫn trống mã", d.item_code, "")
+	# Dịch vụ thì vẫn gắn theo đơn vị của Món, hệ số 1, như lúc dựng phiếu.
+	d2 = _Dong(idx=1, name="R1", item_code="", description="Phí ship", uom="Nos", ten_hang_ncc="Phí ship")
+	gan2, ghi2, _ = _nap_gan(d2, la_kho=0)
+	kq = gan2("HDM-1", 1, "DVBH00001")
+	la("dịch vụ: không hỏi", kq.get("can_he_so"), None)
+	la("dịch vụ: đơn vị kho hệ số 1", (d2.item_code, d2.uom, d2.conversion_factor), ("DVBH00001", "Set", 1.0))
+	la("dịch vụ: không khai quy đổi", ghi2["khai"], [])
 
 
 @ca("#358 thuần: lời đoán ghi lên mô tả không làm mất đơn vị gốc, và đọc lại được")
@@ -150,6 +177,7 @@ def _nap_gan(dong, quy_doi_co=None, la_kho=1, map_co=None):
 	dv = SimpleNamespace(
 		dvt_tren_hoa_don=dvt_mua.dvt_tren_hoa_don, goi_y_don_vi=lambda s: "", cung_don_vi=lambda a, b: a == b,
 		dvt_ncc_cua_dong=dvt_mua.dvt_ncc_cua_dong,
+		chan_hang_kho_khong_dvt=dvt_mua.chan_hang_kho_khong_dvt,
 		can_nguoi_khai_he_so=dvt_mua.can_nguoi_khai_he_so,
 		he_so_cua_mon=lambda ma, d: quy_doi_co.get(d, 0.0), mon_may_doan=dvt_mua.mon_may_doan)
 
