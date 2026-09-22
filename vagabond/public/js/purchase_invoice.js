@@ -239,6 +239,14 @@ async function vgbGanMonDesk(frm) {
 			}
 			var r = await frappe.call({method: 'vagabond.doi_chieu_mua.gan_ma_hang', args: args, freeze: true});
 			var kq = r.message || {};
+			if (kq.can_nguon) {
+				/* #358 vòng 8: dòng hàng tồn kho mà hoá đơn gốc không ghi đơn vị.
+				   Đường đi tiếp là nút "Sửa mã theo hóa đơn gốc" ngay trên phiếu. */
+				frappe.msgprint({message: frappe.utils.escape_html(kq.loi_nhan) +
+					'<br><br>Đóng hộp này rồi bấm <b>Sửa mã theo hóa đơn gốc</b> trên phiếu.',
+					title: 'Cần chọn quy cách theo hoá đơn gốc', indicator: 'orange'});
+				return;
+			}
 			if (kq.can_he_so) {
 				hop._can_he_so = 1;
 				hop._he_so_cho = kq.item_code || v.item_code;
