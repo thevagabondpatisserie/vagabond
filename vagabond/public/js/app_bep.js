@@ -32027,7 +32027,7 @@ async function dcmDoiMaTheoNguon(name, idx, itemCode) {
   return true;
 }
 
-async function dcmGanXong(name, idx, itemCode, doi, heSo) {
+async function dcmGanXong(name, idx, itemCode, doi, heSo, dvtKhai) {
   if (!itemCode) return;
   busy(true);
   try {
@@ -32039,6 +32039,7 @@ async function dcmGanXong(name, idx, itemCode, doi, heSo) {
        tu choi neu dong da noi phieu, va ghi ro trong to la ai doi ma nao. */
     var ts = { name: name, dong: idx, item_code: itemCode, nho: 1, doi: doi ? 1 : 0 };
     if (heSo) { ts.he_so = heSo; ts.he_so_cho = itemCode; }
+    if (dvtKhai) ts.dvt_khai = dvtKhai;
     var kq = await api('vagabond.doi_chieu_mua.gan_ma_hang', ts);
     busy(false);
     /* #358 (anh Viet 22/09/2026): mon chua khai don vi nha cung cap ghi thi
@@ -32053,6 +32054,18 @@ async function dcmGanXong(name, idx, itemCode, doi, heSo) {
       if (await dcmDoiMaTheoNguon(name, idx, itemCode)) return;
       busy(false);
       return baoTin('Tờ này không còn liên kết hoá đơn gốc. Khai quy cách trong Món rồi dựng lại tờ.');
+    }
+    /* #358 vong 19 (Codex): to TRA HANG khong di duoc cua "sua theo hoa don
+       goc" (lua_chon tra co_nguon sai), nen may chu hoi thang o day: nguoi go
+       don vi nha cung cap ghi tren to giay va he so. Khong to nao con ket. */
+    if (kq && kq.can_dvt) {
+      var dv = await promptSheet('Hoá đơn gốc không ghi đơn vị', 'Đơn vị nhà cung cấp ghi, ví dụ Thùng');
+      dv = String(dv || '').trim();
+      if (!dv) return;
+      var hsd = await qtySheet('1 ' + dv + ' bằng bao nhiêu ' + (kq.dvt_kho || '') + '?',
+        kq.loi_nhan || '', 0, kq.dvt_kho || '');
+      if (!(parseFloat(hsd) > 0)) return;
+      return dcmGanXong(name, idx, itemCode, doi, parseFloat(hsd), dv);
     }
     if (kq && kq.can_he_so) {
       var hs = await qtySheet('Khai đơn vị "' + kq.dvt_ncc + '" cho món ' + itemCode,
