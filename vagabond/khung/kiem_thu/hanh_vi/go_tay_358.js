@@ -199,6 +199,108 @@ async function chayHet() {
     bang('dang o dong 3 thi o Mon giu Mon cua dong 3', [hop.get_value('dong'), hop.get_value('item_code')], ['3', 'MON_B']);
   });
 
+  await ca('Codex #358 P1 vong 2 (thu tu nguoc): goi y dong cu ve TRUOC khi o Mon con trong thi van KHONG de len dong moi', async function () {
+    /* Chuoi cua Codex: mo hop, goi y dong 2 dang cho; nguoi chon dong 3; goi y
+       dong 3 ve truoc (Mon B), goi y dong 2 ve sau (Mon A). Ban cu dien Mon A
+       vao o Mon trong khi dang o dong 3, bam Gan la gan nham Mon A cho dong 3. */
+    var hop = null, cho = [];
+    function Truong(df) { this.df = df; this.$wrapper = { html: function (h) { df._html = h; } }; this.refresh = function () {}; }
+    var frm = {
+      doc: { name: 'HDM-1', docstatus: 0, custom_minvoice_id: 'MI-1', items: [
+        { idx: 2, item_code: '', ten_hang_ncc: 'Bột', qty: 1, rate: 1 },
+        { idx: 3, item_code: '', ten_hang_ncc: 'Phí dịch vụ', qty: 1, rate: 30000 }] },
+      is_dirty: function () { return false; }, reload_doc: async function () {},
+    };
+    var g = {
+      format_currency: String, parseFloat: parseFloat, String: String,
+      frappe: {
+        utils: { escape_html: function (s) { return String(s); } },
+        ui: { form: { on: function () {} }, Dialog: function (c) {
+          hop = this; this.c = c; this.gt = {}; this.fields_dict = {};
+          var self = this;
+          c.fields.forEach(function (f) { if (f.fieldname) self.fields_dict[f.fieldname] = new Truong(f); });
+          this.get_field = function (n) { return self.fields_dict[n]; };
+          this.get_value = function (n) { return self.gt[n]; };
+          this.set_value = function (n, v) {
+            var cu = self.gt[n]; self.gt[n] = v;
+            var t = self.fields_dict[n];
+            if (cu !== v && t && t.df.onchange) t.df.onchange();
+          };
+          this.show = function () {}; this.hide = function () {};
+          this.disable_primary_action = function () {}; this.enable_primary_action = function () {};
+        } },
+        /* Goi y tra ve khi ca kiem bao, de dung dung thu tu mang cham. */
+        call: function (o) {
+          return new Promise(function (tra) { cho.push({ dong: o.args.dong, tra: tra }); });
+        },
+        msgprint: function () {}, show_alert: function () {},
+        user: { has_role: function () { return true; } },
+      },
+    };
+    vm.createContext(g);
+    vm.runInContext(layHam(DESK, 'vgbGanMonDesk'), g);
+    g.vgbGanMonDesk(frm);
+    await new Promise(function (r) { setTimeout(r, 5); });
+    hop.set_value('dong', '3');
+    await new Promise(function (r) { setTimeout(r, 5); });
+    var mon = { '2': 'MON_A', '3': 'MON_B' };
+    var cua3 = cho.filter(function (x) { return String(x.dong) === '3'; });
+    var cua2 = cho.filter(function (x) { return String(x.dong) === '2'; });
+    bang('co goi y dang cho cho ca hai dong', [cua2.length > 0, cua3.length > 0], [true, true]);
+    /* Ghi chu 22/09: lop "o Mon da co gia tri thi khong de" che mat thu tu
+       kia; thu tu nay chi lop kiem dong moi do duoc. */
+    cua2.forEach(function (x) { x.tra({ message: { goi_y: [{ item_code: mon['2'], item_name: 'A', vi_sao: 'x' }] } }); });
+    await new Promise(function (r) { setTimeout(r, 5); });
+    cua3.forEach(function (x) { x.tra({ message: { goi_y: [{ item_code: mon['3'], item_name: 'B', vi_sao: 'x' }] } }); });
+    await new Promise(function (r) { setTimeout(r, 5); });
+    bang('dang o dong 3 thi o Mon giu Mon cua dong 3', [hop.get_value('dong'), hop.get_value('item_code')], ['3', 'MON_B']);
+  });
+
+  await ca('Codex #358 P1 vong 3: nguoi tu chon Mon trong luc goi y dang tai thi goi y ve sau KHONG de len', async function () {
+    /* Chuoi cua Codex: mo hop, goi y dong dang cho; nguoi go Mon DVBH00001
+       vao o Mon; goi y ve (DVTI00014). Ban cu de DVTI00014 len lua chon cua
+       nguoi, bam Gan la luu Mon may chu khong phai Mon nguoi chon. */
+    var hop = null, cho = [];
+    function Truong(df) { this.df = df; this.$wrapper = { html: function (h) { df._html = h; } }; this.refresh = function () {}; }
+    var frm = {
+      doc: { name: 'HDM-1', docstatus: 0, custom_minvoice_id: 'MI-1', items: [
+        { idx: 3, item_code: '', ten_hang_ncc: 'Phí dịch vụ', qty: 1, rate: 30000 }] },
+      is_dirty: function () { return false; }, reload_doc: async function () {},
+    };
+    var g = {
+      format_currency: String, parseFloat: parseFloat, String: String,
+      frappe: {
+        utils: { escape_html: function (s) { return String(s); } },
+        ui: { form: { on: function () {} }, Dialog: function (c) {
+          hop = this; this.c = c; this.gt = {}; this.fields_dict = {};
+          var self = this;
+          c.fields.forEach(function (f) { if (f.fieldname) self.fields_dict[f.fieldname] = new Truong(f); });
+          this.get_field = function (n) { return self.fields_dict[n]; };
+          this.get_value = function (n) { return self.gt[n]; };
+          this.set_value = function (n, v) {
+            var cu = self.gt[n]; self.gt[n] = v;
+            var t = self.fields_dict[n];
+            if (cu !== v && t && t.df.onchange) t.df.onchange();
+          };
+          this.show = function () {}; this.hide = function () {};
+          this.disable_primary_action = function () {}; this.enable_primary_action = function () {};
+        } },
+        call: function (o) { return new Promise(function (tra) { cho.push(tra); }); },
+        msgprint: function () {}, show_alert: function () {},
+        user: { has_role: function () { return true; } },
+      },
+    };
+    vm.createContext(g);
+    vm.runInContext(layHam(DESK, 'vgbGanMonDesk'), g);
+    g.vgbGanMonDesk(frm);
+    await new Promise(function (r) { setTimeout(r, 5); });
+    hop.set_value('item_code', 'DVBH00001');
+    cho.forEach(function (tra) { tra({ message: { goi_y: [{ item_code: 'DVTI00014', item_name: 'x', vi_sao: 'Máy đoán' }] } }); });
+    await new Promise(function (r) { setTimeout(r, 5); });
+    bang('giu Mon nguoi da chon', hop.get_value('item_code'), 'DVBH00001');
+    dung('van hien goi y de nguoi tham khao', String(hop.fields_dict.goi_y.df._html).indexOf('DVTI00014') >= 0);
+  });
+
   await ca('Codex #358 P1: hoi he so cho Mon A roi nguoi doi sang Mon B thi KHONG gui he so cu cho Mon B, may chu hoi lai cho B', async function () {
     /* Chuoi cua Codex: bam Gan, may hoi he so cho DVTI00014 (1 Lan = ? Set,
        dien san 1), nguoi sua o Mon sang NVLT00141, bam Gan lan nua. Ban cu
