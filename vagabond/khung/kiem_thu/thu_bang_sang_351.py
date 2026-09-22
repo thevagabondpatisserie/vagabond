@@ -600,7 +600,7 @@ def _f1_ket_qua():
 	# (nhận diện theo giá trị đã lưu), không lọt như Task thường.
 	nem("xoá trắng ô khoá rồi đánh dấu xong không kết quả", lambda: _chay(fr, pt.kiem_task, DocGia(name="TASK-7", status="Completed")), fr.Loi)
 	dung("hook đăng ký trên Task: before_validate soát người, validate soát kết quả",
-		'"Task": {"before_validate": "vagabond.phan_tich.kiem_nguoi_sua_task", "validate": "vagabond.phan_tich.kiem_task"}' in _doc("vagabond", "hooks.py"))
+		'"Task": {"before_validate": "vagabond.phan_tich.kiem_nguoi_sua_task", "validate": "vagabond.phan_tich.kiem_task",\n\t\t"on_update": "vagabond.phan_tich.dong_todo_khi_huy"}' in _doc("vagabond", "hooks.py"))
 
 
 @ca("#353 F2: người nhận cũ (ToDo đã đóng) không đổi được trạng thái, vẫn xem được")
@@ -1120,3 +1120,28 @@ def _t4_dem_loc():
 	with patch.object(pt, "_vai", lambda: {"System Manager"}):
 		tc = _chay(fr, pt.dem_trang_chu)
 	la("trang chủ vẫn đếm tổng", tc.get("tre"), 2)
+
+
+# ------------------------------------------------ Codex #356 (SHA 196f394)
+
+@ca("#356 U1: huỷ Task bảng sáng bằng mọi đường thì hook on_update đóng ToDo mở")
+def _u1_dong_todo():
+	fr = Gia(user="loan@vgb", vai=("Marketing",))
+	fr.todo.append({"name": "TD-1", "reference_type": "Task", "reference_name": "TASK-7", "allocated_to": "mkt@vgb", "status": "Open"})
+	fr.todo.append({"name": "TD-2", "reference_type": "Task", "reference_name": "TASK-8", "allocated_to": "mkt@vgb", "status": "Open"})
+	_chay(fr, pt.dong_todo_khi_huy, _DocGia(name="TASK-7", status="Cancelled", vgb_goi_y_khoa="k"))
+	la("ToDo của Task huỷ đã đóng", fr.todo[0]["status"], "Cancelled")
+	la("ToDo Task khác không đụng", fr.todo[1]["status"], "Open")
+	_chay(fr, pt.dong_todo_khi_huy, _DocGia(name="TASK-8", status="Working", vgb_goi_y_khoa="k"))
+	la("Task đang làm thì không đóng", fr.todo[1]["status"], "Open")
+	_chay(fr, pt.dong_todo_khi_huy, _DocGia(name="TASK-8", status="Cancelled"))
+	la("Task thường (không khoá) thì không đụng", fr.todo[1]["status"], "Open")
+
+
+@ca("#356 U2: vào Cần giao thì bỏ khoảng ngày; số các tab không bị lọc ngầm")
+def _u2_can_giao_bo_ky():
+	fr = Gia(user="viet@vgb")
+	fr.task["TASK-1"] = {"name": "TASK-1", "subject": "Xong 20 ngày", "status": "Completed", "completed_on": "2026-08-31", "vgb_goi_y_khoa": "k1",
+		"vgb_goi_y_luat": "mon_tang", "vgb_goi_y_bo_phan": "marketing", "_assign": "[]", "owner": "viet@vgb", "creation": "2026-08-20 08:00:00"}
+	r = _chay(fr, pt.bang_sang, "can_giao", "", "7")
+	la("Cần giao trả ky rỗng, đếm Xong không lọc ngày, không có thanh lọc", (r["ky"], r["dem"]["xong"], r["dang_loc"]), ("", 1, 0))
