@@ -535,6 +535,8 @@ from frappe.utils import cint, flt, nowdate  # noqa: E402
 
 from contextlib import ExitStack  # noqa: E402
 
+from vagabond import dvt_mua  # noqa: E402
+
 # KHOA TEP, cung khuon voi ban_hang.py. May chu khong co thi lui ve khoa
 # rong chu khong chan nghiep vu: mot lan dung to con hon ca ngay khong dung
 # duoc to nao.
@@ -583,6 +585,24 @@ MOI_LUOT = 200
 NGAY_BAT_DAU = "2026-01-01"
 
 TRUONG_MOI = {
+	# Codex #358: ĐƠN VỊ NHÀ CUNG CẤP GHI phải có ô riêng, không đọc lại từ
+	# mô tả. Tên hàng cũng có thể kết thúc bằng ngoặc ("Hạt dẻ (500g)") và
+	# tên dài quá 140 ký tự thì ô ten_hang_ncc bị cắt, đọc mò kiểu nào cũng
+	# có ca sai, mà đoán sai ở đây là ghi vĩnh viễn một quy đổi bịa vào Món.
+	"Purchase Invoice Item": [
+		{
+			"fieldname": "vgb_dvt_ncc",
+			"label": "Đơn vị nhà cung cấp ghi",
+			"fieldtype": "Data",
+			"insert_after": "ten_hang_ncc",
+			"read_only": 1,
+			"no_copy": 0,
+			"description": (
+				"Máy ghi lúc dựng phiếu từ hoá đơn điện tử. Giá trị "
+				"\"%s\" nghĩa là hoá đơn gốc không ghi đơn vị."
+			) % dvt_mua.KHONG_GHI,
+		},
+	],
 	DT_HD: [
 		{
 			"fieldname": "so_lan_thu",
@@ -721,6 +741,8 @@ def _dong_pi(x, tk_chi_phi, mapped=None, uom=None, he_so=1):
 		"margin_rate_or_amount": 0,
 		"conversion_factor": he_so or 1,
 		"description": mo_ta_dong(x),
+		# Ô nguồn duy nhất cho đơn vị nhà cung cấp ghi (Codex #358).
+		"vgb_dvt_ncc": str(x.get("dvt") or "").strip() or dvt_mua.KHONG_GHI,
 	}
 	if mapped:
 		dong["item_code"] = mapped

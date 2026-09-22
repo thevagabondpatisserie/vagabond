@@ -360,7 +360,7 @@ def can_nguoi_khai_he_so(dvt_ncc, tim_thay, he_so_nhap, item_code=None, he_so_ch
 	return "khai" if math.isfinite(hs) and hs > 0 else "hoi"
 
 
-def dvt_ncc_cua_dong(mo_ta, uom_dong, ten_ncc=None):
+def dvt_ncc_cua_dong(mo_ta, uom_dong, ten_ncc=None, dvt_o=None):
 	"""Đơn vị nhà cung cấp GHI trên dòng hoá đơn. THUẦN.
 
 	Đọc trong mô tả trước. Không có thì lấy ô đơn vị của dòng, TRỪ "Nos":
@@ -370,6 +370,11 @@ def dvt_ncc_cua_dong(mo_ta, uom_dong, ten_ncc=None):
 	quy đổi bịa vào Món. Đơn vị gốc thật là "Nos" thì mô tả có "(Nos)".
 	Trả rỗng nghĩa là nhà cung cấp không ghi đơn vị: gắn theo đơn vị kho hệ
 	số 1, không khai quy đổi nào."""
+	# Ô riêng do máy ghi lúc dựng phiếu là NGUỒN DUY NHẤT khi có. Chỉ dòng
+	# dựng trước v518 mới không có ô này, lúc đó mới phải đọc mò.
+	o = str(dvt_o or "").strip()
+	if o:
+		return "" if o == KHONG_GHI else o
 	s = str(mo_ta or "").strip()
 	ten = str(ten_ncc or "").strip()
 	# Codex #358: TÊN HÀNG của nhà cung cấp cũng có thể kết thúc bằng ngoặc
@@ -386,6 +391,16 @@ def dvt_ncc_cua_dong(mo_ta, uom_dong, ten_ncc=None):
 		return dvt
 	raw = str(uom_dong or "").strip()
 	return "" if raw == DVT_LOT else raw
+
+
+def chan_hang_kho_khong_dvt(dvt_ncc, la_hang_kho):
+	"""Hàng tồn kho mà hoá đơn gốc KHÔNG ghi đơn vị thì không gắn được. THUẦN.
+
+	Codex #358: lấy đơn vị kho hệ số 1 cho dòng như vậy là biến một gói
+	không rõ lượng thành một đơn vị kho, đúng cái mà
+	`minvoice_chung_tu.dich_vu_khong_ghi_don_vi` chỉ mở cho hàng KHÔNG quản
+	lý tồn kho. Dịch vụ thì vẫn lấy đơn vị của Món, hệ số 1, như cũ."""
+	return not str(dvt_ncc or "").strip() and bool(int(la_hang_kho or 0))
 
 
 def dong_may_doan_chua_chot(dong):
@@ -414,6 +429,7 @@ def cint_thuan(x):
 
 
 DVT_LOT = "Nos"   # đơn vị lót của dòng trống mã, không phải đơn vị nhà cung cấp
+KHONG_GHI = "(không ghi)"   # hoá đơn gốc để trống ô đơn vị
 
 
 def mon_may_doan(mo_ta):

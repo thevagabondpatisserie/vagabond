@@ -1739,12 +1739,23 @@ def gan_ma_hang(name, dong, item_code, nho=1, doi=0, he_so=None, he_so_cho=None)
 	# Đơn vị GỐC nhà cung cấp ghi nằm cuối mô tả "(Lần)". Ô uom của dòng
 	# trống mã có thể là "Nos" khi đơn vị gốc chưa có trong danh mục, hỏi
 	# "1 Nos bằng bao nhiêu" thì người đọc không hiểu (#358).
-	dvt_ncc = dvt_mua.dvt_ncc_cua_dong(d.get("description"), d.get("uom"), ten_ncc)
+	dvt_ncc = dvt_mua.dvt_ncc_cua_dong(d.get("description"), d.get("uom"), ten_ncc, d.get("vgb_dvt_ncc"))
 
 	# NAN LAI DON VI. Don vi tho cua nha cung cap ("BAG", "TRAI") duoc dich
 	# sang ten cua minh roi tra bang quy doi cua Mon. Tra khong ra thi lui ve
 	# don vi kho he so 1 - y het duong dung chung tu, de hai cho khong bao
 	# gio xu khac nhau (QT-19).
+	la_kho = cint(frappe.db.get_value("Item", item_code, "is_stock_item"))
+	# Codex #358: hoá đơn gốc không ghi đơn vị mà Món là hàng tồn kho thì
+	# KHÔNG được lấy đơn vị kho hệ số 1 - một gói không rõ lượng thành một
+	# đơn vị kho. Dịch vụ thì vẫn cho, y như lúc dựng phiếu.
+	if dvt_mua.chan_hang_kho_khong_dvt(dvt_ncc, la_kho):
+		frappe.throw(
+			"Hoá đơn gốc không ghi đơn vị cho dòng %d, mà %s là hàng tồn kho. "
+			"Gắn ở đây sẽ phải lấy đơn vị kho hệ số 1, tức là đoán lượng nhập. "
+			"Dùng nút \"Sửa mã theo hóa đơn gốc\" để chọn Món kèm đúng quy cách, "
+			"hoặc khai quy cách trong Món rồi dựng lại tờ." % (d.idx, item_code)
+		)
 	dvt_kho = frappe.db.get_value("Item", item_code, "stock_uom") or "Nos"
 	dung_uom, he_so_moi = dvt_kho, 1.0
 	tim_thay = False
@@ -1764,7 +1775,6 @@ def gan_ma_hang(name, dong, item_code, nho=1, doi=0, he_so=None, he_so_cho=None)
 	# tự hiểu; chưa gõ thì trả về để màn hình hỏi, không lưu gì.
 	viec = dvt_mua.can_nguoi_khai_he_so(dvt_ncc, tim_thay, he_so, item_code, he_so_cho)
 	if viec == "hoi":
-		la_kho = cint(frappe.db.get_value("Item", item_code, "is_stock_item"))
 		return {
 			"name": doc.name, "idx": idx, "item_code": item_code, "can_he_so": 1,
 			"dvt_ncc": dvt_ncc, "dvt_kho": dvt_kho, "de_xuat": 0 if la_kho else 1,
