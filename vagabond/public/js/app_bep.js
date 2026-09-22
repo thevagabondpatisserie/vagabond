@@ -50657,6 +50657,23 @@ function bsLocDong(b, ds, chu) {
   });
   var kt = b.querySelector('#bsKhongThay');
   if (kt) kt.style.display = con ? 'none' : '';
+  var tl = b.querySelector('#bsThanhLoc'), so = b.querySelector('#bsTongLoc');
+  if (so) so.textContent = money(con);
+  if (tl) tl.style.display = (q || tl.getAttribute('data-loc') === '1') ? 'flex' : 'none';
+}
+
+function bsThanhLoc(kq) {
+  var nhan = [];
+  if (kq.bo_phan) nhan.push(((kq.ten_bo_phan || {})[kq.bo_phan]) || kq.bo_phan);
+  if (kq.ky && kq.tab !== 'can_giao') {
+    (kq.chip_ky || []).forEach(function (c) { if (c.k === kq.ky) nhan.push(c.ten); });
+  }
+  return '<div id="bsThanhLoc" data-loc="' + (kq.dang_loc ? 1 : 0) + '" style="' + (kq.dang_loc ? 'display:flex' : 'display:none') +
+    ';align-items:center;gap:8px;padding:10px 12px;margin:0 2px 10px;border-radius:12px;background:#E4F9FD;font-size:13.5px;color:#05323C">' +
+    '<span style="flex:1">Tổng theo bộ lọc: <b id="bsTongLoc">' + money(kq.tong_loc || 0) + '</b>' +
+    (nhan.length ? ' · ' + h(nhan.join(' · ')) : '') + '</span>' +
+    (kq.dang_loc ? '<span data-bsbo style="font-weight:700;cursor:pointer;min-height:44px;display:flex;align-items:center;padding:0 4px">Bỏ lọc</span>' : '') +
+    '</div>';
 }
 
 /* O so dau man: bam so la chuyen tab (dieu 6). */
@@ -50693,7 +50710,7 @@ async function scrBangSang() {
     '<div style="display:flex;gap:8px;margin-top:10px">' +
     bsOSo('can_giao', 'Cần giao', dem.can_giao || 0) +
     bsOSo('da_giao', 'Đã giao', dem.da_giao || 0) +
-    bsOSo('tre', 'Trễ hạn', kq.so_tre || 0, true) +
+    bsOSo('tre', 'Trễ hạn', dem.tre || 0, true) +
     '</div>' +
     (kq.dang_dung ? '<button class="btn gh" id="bsTaiLai" style="margin-top:10px;padding:12px;font-size:15px">Tải lại</button>' : '') +
     '</div>';
@@ -50715,6 +50732,11 @@ async function scrBangSang() {
         return '<div class="chip' + (bsLoc.bp === c.k ? ' on' : '') + '" data-bsb="' + h(c.k) + '">' + c.ic + ' ' + h(c.ten) + ' <b>' + money(c.so) + '</b></div>';
       }).join('') + '</div>';
   }
+
+  /* Codex #356: o so va chip tab dem theo DUNG bo loc dang chon (may chu tra
+     dem da loc). Dang loc thi co thanh "Tong theo bo loc" (AGENTS.md dieu 6),
+     o tim go chu thi so tren thanh doi theo so dong con hien. */
+  html += bsThanhLoc(kq);
 
   if (bsLoc.tab === 'can_giao') {
     if (!ds.length) {
@@ -50784,6 +50806,10 @@ async function scrBangSang() {
     }
     if ((el = e.target.closest('[data-bsb]'))) {
       bsLoc.bp = el.getAttribute('data-bsb'); bsLoc.moRong = '';
+      return go(scrBangSang, true);
+    }
+    if (e.target.closest('[data-bsbo]')) {
+      bsLoc.bp = ''; bsLoc.ky = ''; bsLoc.moRong = '';
       return go(scrBangSang, true);
     }
     if (e.target.closest('[data-bsly]')) { bsLoc.xemLuuY = bsLoc.xemLuuY ? 0 : 1; return go(scrBangSang, true); }
