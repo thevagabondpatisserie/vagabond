@@ -56,10 +56,14 @@
 		h += 'chứng từ trong sổ. Xem cả hai để biết bước nào đứng.</p>';
 
 		h += '<table class="table table-bordered" style="margin-bottom:12px">';
-		h += '<tr><td colspan="2" style="background:#f4f5f6"><b>Bước 1 &mdash; Kéo về từ M-Invoice</b></td></tr>';
+		h += '<tr><td colspan="2" style="background:#f4f5f6"><b>Bước 1 - Kéo về từ M-Invoice</b></td></tr>';
 		h += '<tr><td>Tờ quét qua</td><td style="text-align:right">' + so(keo.da_quet) + '</td></tr>';
 		h += '<tr><td>Tờ mới kéo về</td><td style="text-align:right"><b>' + so(keo.moi) + '</b></td></tr>';
 		h += '<tr><td>Tờ vỏ ruột đã lành</td><td style="text-align:right">' + so(keo.chua_lanh) + '</td></tr>';
+		if (keo.nguon_chua_du) {
+			h += '<tr><td>Nguồn mới có mã, chưa có số/ngày hóa đơn</td><td style="text-align:right">' + so(keo.nguon_chua_du) + '</td></tr>';
+			h += '<tr><td colspan="2">M-Invoice chưa trả đủ nội dung cho các bản ghi này. Hệ giữ mã để kéo lại, chưa thể dựng phiếu mua. Các hóa đơn đủ dữ liệu vẫn xử lý riêng.</td></tr>';
+		}
 		if (loi) {
 			h += '<tr><td colspan="2" style="color:#b71c1c">Chưa kéo đủ: ' + frappe.utils.escape_html(loi) + '. Các hóa đơn kéo được vẫn được giữ; cần xử lý lỗi và đồng bộ lại.</td></tr>';
 		}
@@ -70,7 +74,7 @@
 		h += '</table>';
 
 		h += '<table class="table table-bordered" style="margin-bottom:12px">';
-		h += '<tr><td colspan="2" style="background:#f4f5f6"><b>Bước 2 &mdash; Dựng chứng từ</b></td></tr>';
+		h += '<tr><td colspan="2" style="background:#f4f5f6"><b>Bước 2 - Dựng chứng từ</b></td></tr>';
 		h += '<tr><td>Tờ đầu vào xét tới</td><td style="text-align:right">' + so(dung.quet) + '</td></tr>';
 		h += '<tr><td>Tờ mở lại do dấu xong sai</td><td style="text-align:right">' + so(dung.mo_lai_dau_sai) + '</td></tr>';
 		h += '<tr><td>Chứng từ dựng được</td><td style="text-align:right"><b>' + so(dung.da_dung) + '</b></td></tr>';
@@ -97,7 +101,85 @@
 		return h;
 	}
 
-	function bamDongBo() {
+	/* ---------- Thanh bao THUONG TRUC: to dau vao chua thanh phieu mua
+
+	   Codex #352, anh Viet 22/09/2026: loi dung phieu chi hien trong hop
+	   ket qua luc bam dong bo (anh chup hop "Can khai quy cach mua" dai hai
+	   trang), dong hop la mat. Khong man nao cho ke toan thay thuong truc
+	   to nao dang cho, vi sao, va mo ban nguon o dau.
+
+	   Nen dau man Hoa don mua hang co mot thanh bao, mo man la thay: bao
+	   nhieu to, tong tien, chia theo viec phai lam. Bam "Xem danh sach" ra
+	   bang tung to: so, ngay, nha cung cap, tong tien, viec can lam, ly do,
+	   va nut mo ban nguon de xu ly. May chu tinh, o day chi ve (QT-19). */
+
+	function e(x) { return frappe.utils.escape_html(String(x == null ? '' : x)); }
+
+	function htmlThanhCho(kq) {
+		if (!kq || !kq.so_to) return '';
+		var nhom = (kq.theo_nhom || []).map(function (o) {
+			return e(o.ten) + ': <b>' + so(o.so_to) + '</b>';
+		}).join(' &middot; ');
+		return '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">' +
+			'<div style="flex:1;min-width:240px"><b>' + so(kq.so_to) + ' hoá đơn đầu vào đã nhận nhưng chưa thành phiếu mua</b>' +
+			' (tổng ' + so(Math.round(kq.tong_tien || 0)) + ' đ)<br><span style="font-size:12px">' + nhom + '</span></div>' +
+			'<button class="btn btn-sm btn-default" data-vgb-xem-cho="1">Xem danh sách</button></div>';
+	}
+
+	function htmlBangCho(kq) {
+		var ds = (kq && kq.ds) || [];
+		var thu = ((kq && kq.theo_nhom) || []).map(function (o) { return o.nhom; });
+		ds = ds.slice().sort(function (a, b) {
+			var d = thu.indexOf(a.nhom) - thu.indexOf(b.nhom);
+			return d || (a.ngay_lap < b.ngay_lap ? 1 : a.ngay_lap > b.ngay_lap ? -1 : 0);
+		});
+		var h = '<p style="margin:0 0 8px;color:#6b7280">Hoá đơn điện tử đầu vào trong ' +
+			'khoảng ' + e(kq.tu_ngay) + ' tới ' + e(kq.den_ngay) + ' chưa có Hoá đơn mua hàng nào trỏ về. ' +
+			'Xử lý xong lý do thì bấm Đồng bộ M-Invoice, tờ đủ điều kiện sẽ được dựng lại.</p>';
+		h += '<table class="table table-bordered" style="font-size:12.5px"><tr>' +
+			'<th>Số HĐ</th><th>Ngày</th><th>Nhà cung cấp</th><th style="text-align:right">Tổng tiền</th>' +
+			'<th>Cần xử lý</th><th>Lý do</th><th></th></tr>';
+		ds.forEach(function (r) {
+			h += '<tr data-vgb-cho="' + e(r.ma) + '"><td>' + e(r.ky_hieu ? r.ky_hieu + ' / ' : '') + e(r.so_hd || '(chưa có số)') + '</td>' +
+				'<td>' + e(r.ngay_lap) + '</td><td>' + e(r.ncc) + '</td>' +
+				'<td style="text-align:right">' + so(Math.round(r.tong_tien || 0)) + '</td>' +
+				'<td>' + e(r.ten_nhom) + '</td><td>' + e(r.ly_do || '-') + '</td>' +
+				'<td><a href="/app/minvoice-invoice/' + encodeURIComponent(r.ma) + '" target="_blank">Mở bản nguồn</a></td></tr>';
+		});
+		h += '</table>';
+		if ((kq.so_to || 0) > ds.length) {
+			h += '<p style="color:#6b7280">Đang hiện ' + so(ds.length) + ' trên ' + so(kq.so_to) + ' tờ, mới nhất trước.</p>';
+		}
+		return h;
+	}
+
+	function napThanhCho(lv) {
+		var goc = lv && lv.page && lv.page.main;
+		goc = goc && goc.get ? goc.get(0) : goc;
+		if (!goc) return;
+		frappe.call({
+			method: 'vagabond.minvoice_chung_tu.cho_dung_phieu_mua',
+			args: {},
+			callback: function (r) {
+				var kq = (r && r.message) || {};
+				var cu = goc.querySelector('.vgb-thanh-cho');
+				if (cu) cu.parentNode.removeChild(cu);
+				var html = htmlThanhCho(kq);
+				if (!html) return;
+				var o = document.createElement('div');
+				o.setAttribute('class', 'vgb-thanh-cho');
+				o.setAttribute('style', 'margin:0 0 10px;padding:10px 14px;border-radius:8px;background:#fff7ed;border:1px solid #fdba74;color:#7c2d12');
+				o.innerHTML = html;
+				goc.insertBefore(o, goc.firstChild);
+				var nut = o.querySelector('[data-vgb-xem-cho]');
+				if (nut) nut.onclick = function () {
+					frappe.msgprint({ title: 'Hoá đơn đầu vào chưa thành phiếu mua', message: htmlBangCho(kq), wide: true });
+				};
+			},
+		});
+	}
+
+	function bamDongBo(lv) {
 		var d = new frappe.ui.Dialog({
 			title: 'Đồng bộ M-Invoice',
 			fields: [
@@ -136,6 +218,7 @@
 							wide: true,
 						});
 						if (cur_list) cur_list.refresh();
+						if (lv && lv.doctype === 'Purchase Invoice') napThanhCho(lv);
 					},
 					error: function () {
 						frappe.dom.unfreeze();
@@ -334,7 +417,8 @@
 				vai.indexOf('Accounts Manager') >= 0 ||
 				vai.indexOf('Accounts User') >= 0;
 			if (!duoc) return;
-			lv.page.add_inner_button('Đồng bộ M-Invoice', bamDongBo);
+			lv.page.add_inner_button('Đồng bộ M-Invoice', function () { bamDongBo(lv); });
+			if (dt === 'Purchase Invoice') napThanhCho(lv);
 		};
 		frappe.listview_settings[dt] = CU;
 	}

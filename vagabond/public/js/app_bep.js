@@ -14358,8 +14358,22 @@ async function posInBill(d) {
        nhanh ghep location.origin cho ban may chu cu, nhung khong duoc dung
        no lam duong chinh nua: location.origin o quay la mien app noi bo. */
     var ulink = /^https?:\/\//.test(d.xhd_url) ? d.xhd_url : (location.origin + d.xhd_url);
-    qrKhoi = '<div class="qr"><img src="https://api.qrserver.com/v1/create-qr-code/?size=190x190&data=' + encodeURIComponent(ulink) + '">' +
-      '<div><b>Quý khách vui lòng quét mã QR (hiệu lực 2 tiếng)<br>để nhập thông tin xuất hoá đơn.</b><br>Hoá đơn điện tử gửi về email trong ngày.</div></div>';
+    /* 22/09/2026: ma QR ve TAI MAY (inQrAnh, 27-in-ngam.js), khong tai tu
+       api.qrserver.com nua. Bill HDB-26-09-04366 da in cau "quet ma QR" ma
+       khong co ma vi anh tu mang ngoai khong ve kip. Khong ve duoc ma thi
+       in duong link bang chu va bao thu ngan, KHONG in cau "quet ma". */
+    var anhQr = await inQrAnh(ulink);
+    if (anhQr) {
+      qrKhoi = '<div class="qr"><img src="' + anhQr + '">' +
+        '<div><b>Quý khách vui lòng quét mã QR (hiệu lực 2 tiếng)<br>để nhập thông tin xuất hoá đơn.</b><br>Hoá đơn điện tử gửi về email trong ngày.</div></div>';
+    } else {
+      qrKhoi = '<div class="qr"><div><b>Nhập thông tin xuất hoá đơn (hiệu lực 2 tiếng) tại:</b><br>' + h(ulink) + '</div></div>';
+      toast('Không vẽ được mã QR xuất hoá đơn, bill in kèm đường link. Báo quản lý kiểm máy quầy.', 5000);
+    }
+  } else if (M.qr_xhd && !d.tam_tinh && !d.huy && d.name && !d.xhd_url) {
+    /* Xin link that bai (mat mang toi may chu) thi bill ra khong co ma nao.
+       Truoc day im lang; nay bao thu ngan de xin link o chi tiet bill. */
+    toast('Chưa lấy được link xuất hoá đơn nên bill không có mã QR. Mở chi tiết bill, bấm "Tạo link điền thông tin xuất hoá đơn".', 6000);
   }
   /* MOT lenh in ra MOT lien (anh Viet 10/08/2026). Truoc day in lien
      nhau hai lien roi bat nhan vien cam keo cat giua - khong thong minh.
@@ -21880,7 +21894,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '516';
+var APPVER = '517';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -41127,8 +41141,37 @@ var IN_QZ = {
 
 var IN_VENDOR = {
   qz: '/assets/vagabond/js/vendor/qz-tray.js',
-  h2c: '/assets/vagabond/js/vendor/html2canvas.min.js'
+  h2c: '/assets/vagabond/js/vendor/html2canvas.min.js',
+  qr: '/assets/vagabond/js/vendor/qrcode.js'
 };
+
+/* MA QR VE TAI MAY, KHONG TAI TU MANG (22/09/2026)
+
+   Bill HDB-26-09-04366 in dong "Quy khach vui long quet ma QR ... de nhap
+   thong tin xuat hoa don" ma KHONG co ma QR (De bao, anh Viet chuyen). Anh
+   ma luc do tai tu api.qrserver.com: mang ra ngoai cham hay chan la anh
+   khong ve kip. Duong in ngam cho khung toi da 6 giay roi chup, duong trinh
+   duyet goi in sau 0,9 giay; ca hai deu in chu ma khong co anh.
+
+   Nay ve ma ngay tren may quay bang thu vien qrcode-generator (nam trong
+   repo, xem vendor/DOC-DAU-TIEN.md) thanh anh nhung data:, nen to in khong
+   con phu thuoc mang ngoai. Tra '' khi khong ve duoc; ben goi phai tu xu,
+   KHONG duoc in cau "quet ma QR" khi khong co ma. */
+async function inQrAnh(noiDung) {
+  var nd = String(noiDung || '');
+  if (!nd) return '';
+  try {
+    if (!(typeof qrcode === 'function' && qrcode.stringToBytes)) await inNapJs(IN_VENDOR.qr);
+    var q = qrcode(0, 'M');
+    q.addData(nd, 'Byte');
+    q.make();
+    var n = q.getModuleCount();
+    /* Anh vuong khoang 190 diem, moi o nguyen diem cho may in nhiet in net. */
+    return q.createDataURL(Math.max(2, Math.floor(190 / (n + 8))), 4);
+  } catch (e) {
+    return '';
+  }
+}
 
 /* Nap mot thu vien ngoai mot lan duy nhat. Nap tu chinh site chu khong tu
    CDN: trang /bep la mot ban ghi Web Page nam trong co so du lieu, them
