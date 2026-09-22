@@ -375,7 +375,7 @@ CUA_NGO = {
 	# `dong_bo_ngay` them 31/08/2026: ruot cua nut "Dong bo M-Invoice" tren
 	# man danh sach Desk. Keo roi dung trong mot nhip bam.
 	"minvoice_chung_tu.py": [
-		"chay_bu", "con_sot", "dong_bo_ngay", "lanh_vo_ruot", "mo_lai",
+		"chay_bu", "cho_dung_phieu_mua", "con_sot", "dong_bo_ngay", "lanh_vo_ruot", "mo_lai",
 	],
 	# Man Viec can lam, them 20/08/2026: gom viec va LOC THEO VAI o may chu.
 	# Truoc do man nay gom viec ngay tren may khach va phan lon khong loc vai.
