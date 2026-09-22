@@ -314,6 +314,14 @@ def dung():
 		frappe.log_error(frappe.get_traceback(), "truong_tu_them: dung duong duyet chi")
 
 
+# Ô chỉ để chia màn hình thì KHÔNG có cột trong bảng, soát cột sẽ báo thiếu oan
+# (bench 22/09/2026 dừng ở `sec_duyet_mua` của Material Request Item).
+KHONG_CO_COT = (
+	"Section Break", "Column Break", "Tab Break", "HTML", "Heading",
+	"Button", "Fold", "Image",
+)
+
+
 def _dung_nhom(khai, ten_nhom):
 	"""Dung mot nhom truong. Hong nhom nay khong duoc keo do ca lan deploy."""
 	from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
@@ -337,12 +345,19 @@ def _dung_nhom(khai, ten_nhom):
 		# ngay còn hơn site lên bản mới rồi hỏng lặng lẽ (Codex #358).
 		thieu = []
 		for o in khai[dt] or []:
-			ten_o = str((o or {}).get("fieldname") or "").strip()
+			o = o or {}
+			ten_o = str(o.get("fieldname") or "").strip()
+			if not ten_o or str(o.get("fieldtype") or "") in KHONG_CO_COT:
+				continue
 			try:
-				if ten_o and not frappe.db.has_column(dt, ten_o):
-					thieu.append(ten_o)
+				co = frappe.db.has_column(dt, ten_o)
 			except Exception:
+				# Soát không xong thì coi như CHƯA chắc có cột: thà dừng còn
+				# hơn báo xong rồi để site chạy với bảng hỏng (Codex #358).
 				frappe.log_error(frappe.get_traceback(), "truong_tu_them: soat cot %s" % dt)
+				co = False
+			if not co:
+				thieu.append(ten_o)
 		if thieu:
 			frappe.throw("Thiếu cột %s trên bảng %s sau khi khai ô. Migrate dừng ở đây để "
 				"không đưa site lên bản mới với một bảng hỏng." % (", ".join(thieu), dt))
