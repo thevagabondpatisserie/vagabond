@@ -277,8 +277,11 @@ async function vgbGanMonDesk(frm) {
 	}
 	async function napGoiY() {
 		boHoiHeSo();
-		hop.set_value('item_code', '');
 		var dong = hop.get_value('dong');
+		/* Dòng đã mang Món kế toán tự gõ thì giữ nguyên lựa chọn đó, gợi ý
+		   chỉ để tham khảo (Codex #358). */
+		var d0 = (frm.doc.items || []).filter(function (d) { return String(d.idx) === String(dong); })[0];
+		hop.set_value('item_code', (d0 && (d0.item_code || '').trim()) || '');
 		if (!dong) return;
 		try {
 			var r = await frappe.call({method: 'vagabond.doi_chieu_mua.goi_y_mon', args: {name: frm.doc.name, dong: dong}});
