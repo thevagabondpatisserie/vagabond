@@ -79,6 +79,45 @@ function appMoi(canh) {
 }
 
 async function chayHet() {
+  await ca('Codex #358 vong 12: dong da mang Mon ke toan tu go thi hop Desk giu nguyen Mon do', async function () {
+    var mc = mayChu(), hop = null;
+    function Truong(df) { this.df = df; this.$wrapper = { html: function (h) { df._html = h; } }; this.refresh = function () {}; }
+    var frm = {
+      doc: { name: 'HDM-1', docstatus: 0, custom_minvoice_id: 'MI-1', items: [
+        { idx: 3, item_code: 'NVLT00141', vgb_mon_may_doan: 'DVTI00014', ten_hang_ncc: 'Hạt dẻ', qty: 1, rate: 1 }] },
+      is_dirty: function () { return false; }, reload_doc: async function () {},
+    };
+    var g = {
+      format_currency: String, parseFloat: parseFloat, String: String,
+      frappe: {
+        utils: { escape_html: function (s) { return String(s); } },
+        ui: { form: { on: function () {} }, Dialog: function (c) {
+          hop = this; this.c = c; this.gt = {}; this.fields_dict = {};
+          var self = this;
+          c.fields.forEach(function (f) { if (f.fieldname) self.fields_dict[f.fieldname] = new Truong(f); });
+          this.get_field = function (n) { return self.fields_dict[n]; };
+          this.get_value = function (n) { return self.gt[n]; };
+          this.set_value = function (n, v) {
+            var cu = self.gt[n]; self.gt[n] = v;
+            var t = self.fields_dict[n];
+            if (cu !== v && t && t.df.onchange) t.df.onchange();
+          };
+          this.show = function () {}; this.hide = function () {};
+          this.disable_primary_action = function () {}; this.enable_primary_action = function () {};
+        } },
+        call: async function (o) { return { message: await mc.api(o.method, o.args) }; },
+        msgprint: function () {}, show_alert: function () {},
+        user: { has_role: function () { return true; } },
+      },
+    };
+    vm.createContext(g);
+    vm.runInContext(layHam(DESK, 'vgbGanMonDesk'), g);
+    await g.vgbGanMonDesk(frm);
+    await new Promise(function (r) { setTimeout(r, 5); });
+    bang('liet ke ca dong con dau du da co ma', hop.fields_dict.dong.df.options.map(function (o) { return o.value; }), ['3']);
+    bang('giu Mon ke toan da go, khong de goi y len', hop.get_value('item_code'), 'NVLT00141');
+  });
+
   await ca('Codex #358 vong 8: hang ton kho ma hoa don goc khong ghi don vi thi app mo thang cua sua theo hoa don goc', async function () {
     var m = appMoi({});
     m.g.api = async function (mm, a) {
