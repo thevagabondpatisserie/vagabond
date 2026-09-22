@@ -193,6 +193,7 @@ MAN = (
 
 	# --- Báo cáo
 	("BCHUB", "Báo cáo", None),
+	("BCSANG", "Việc hôm nay", None),
 
 	# --- Cài đặt và quản trị
 	("CDDB", "Điểm bán", None),

@@ -295,6 +295,12 @@ def dung():
 	from vagabond import kiem_ke
 
 	_dung_nhom(kiem_ke.TRUONG_MOI, "kiem_ke")
+	# Viec giao tu man Viec hom nay (#351): o can cu, khoa chong trung tren Task.
+	from vagabond import phan_tich
+
+	_dung_nhom(phan_tich.TRUONG_MOI, "phan_tich")
+	# Loi vao tren Desk cho man Viec hom nay: sidebar Ban hang. Tu nuot loi.
+	phan_tich.dung_sidebar()
 
 	# Phieu chi: o ghi vet nguoi xac nhan da chuyen tien va to uy nhiem chi
 	# cua rieng phieu. Doc dau tep duyet_chi.py.

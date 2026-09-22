@@ -869,3 +869,28 @@ Bài học: (1) màn nào báo thiếu một thứ thì màn đó phải có nú
 người xem có quyền), hoặc nói rõ ai sửa và sửa ở đâu; (2) tính năng nhập liệu
 phải có ở cả app lẫn Desk; (3) trước khi hướng dẫn, hỏi hoặc nhìn ảnh xem
 người dùng đang ở Desk hay ở app.
+
+## 21/09/2026 (#351): giao việc qua `assign_to.add` kiểm quyền của NGƯỜI GIAO
+
+Khi dựng màn Việc hôm nay, đọc mã nguồn Frappe v16 trước khi dùng lại
+`giao_viec.giao`: hàm đó gọi `frappe.desk.form.assign_to.add`, mà `_add` chạy
+`frappe.get_doc(doctype, name).check_permission()` với quyền người đang bấm,
+rồi `frappe.share.add` kiểm quyền CHIA SẺ của người đó (`add_docshare`:
+`if not flags.get("ignore_share_permission"): check_share_permission`). Quản lý
+cửa hàng, marketing không có vai Projects User nên cả hai bước đều hỏng trên
+Task, và `giao_viec.giao` nuốt lỗi trả `{"giao": 0}`: màn sẽ báo "đã giao" mà
+không ai nhận việc. Cách phòng: kiểm quyền nghiệp vụ ở cửa của mình, rồi tự ghi
+ToDo và DocShare bằng quyền hệ thống (`phan_tich._gan_nguoi`), và coi số người
+gắn được khác số người chọn là LỖI. Bài học chung: một hàm "không bao giờ ném
+lỗi" là hàm mà người gọi phải tự đọc kết quả; gọi nó từ một nút bấm thì phải
+kiểm số trả về, không được coi không lỗi là xong.
+
+## 21/09/2026 (#356): User kiểm thử không vai bị Frappe hạ xuống Website User
+
+Bench CI trên 0a8754e đỏ hai ca giao việc: tài khoản kiểm thử tạo với
+`"user_type": "System User"` nhưng không có vai nào, và Frappe khi lưu User tự
+đặt lại loại tài khoản theo vai (không có vai vào bàn làm việc là Website
+User). Luật mới "chỉ giao cho tài khoản nội bộ" chặn đúng, nên ca kiểm đỏ
+chứ code không sai. Cách phòng: User kiểm thử cần là nội bộ thì gắn vai thật
+(ví dụ Projects User) và khẳng định `user_type` ngay sau khi tạo, để lần sau
+lỗi dựng dữ liệu hiện ra ở dòng tạo User chứ không ở ca nghiệp vụ.
