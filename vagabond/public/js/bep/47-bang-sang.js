@@ -305,6 +305,9 @@ async function scrBangSang() {
     if ((el = e.target.closest('[data-bsv]'))) return bsMoViec(ds[+el.getAttribute('data-bsv')]);
     if ((el = e.target.closest('[data-bst]'))) {
       bsLoc.tab = el.getAttribute('data-bst'); bsLoc.moRong = '';
+      /* Codex #356: Can giao khong co hang chip ngay, nen bo khoang ngay dang
+         giu de so cac tab khong bi loc ngam ma khong thay nut Bo loc. */
+      if (bsLoc.tab === 'can_giao') bsLoc.ky = '';
       return go(scrBangSang, true);
     }
     if ((el = e.target.closest('[data-bsk]'))) {
