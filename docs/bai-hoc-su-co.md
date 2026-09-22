@@ -967,3 +967,17 @@ Bài học: chỗ nào mời người dùng sang một cửa khác thì phải h
 đó dùng để mở, chép lại phép là hai nơi lệch nhau (`cua_nguon_mo` nay là nguồn
 duy nhất). Và mỗi ngõ cụt phải có một đường ra mở cho mọi tờ: ở đây là để người
 gõ thẳng đơn vị nhà cung cấp và hệ số.
+
+## 22/09/2026 (#358): tổng đúng không chứng minh các phần bên trong đúng
+
+Tờ trả hàng hoàn một phần được nắn bằng cách hạ đơn giá cho tới khi TỔNG bằng
+đúng số tiền hoàn. Dòng thuế kiểu "Actual" ghi thẳng số tiền thì ERPNext giữ
+nguyên khi đơn giá hạ, nên phép nắn đó hội tụ về một tờ có tổng đúng mà chia
+sai: đơn 1.010.000 gồm 1.000.000 tiền hàng và 10.000 thuế, hoàn đúng một nửa
+505.000, ra tiền hàng 495.000 và thuế 10.000, tức là đảo ĐỦ 100% tiền thuế
+trong khi chỉ đảo 49,5% doanh thu.
+Cách phòng: hạ MỌI phần tiền trong cùng một hàm ("Actual" và "On Item Quantity"
+và dòng bật `dont_recompute_tax` phải hạ tay), và phép soát cuối phải soát TỶ LỆ
+giữa thuế và tiền hàng chứ không chỉ soát tổng. Ca kiểm cho lớp soát đó phải
+dựng thẳng một tờ có tiền thuế không chịu hạ, không thì gỡ lớp soát đi bộ kiểm
+vẫn xanh (đã xảy ra, điều 17a).
