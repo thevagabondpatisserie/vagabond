@@ -15,6 +15,7 @@ rui ro ghi de nham. File nay chi giu truong sinh ra tu hom nay tro di.
 """
 
 import frappe
+from frappe.utils import cint
 
 
 def dung():
@@ -356,6 +357,17 @@ def _dung_nhom(khai, ten_nhom):
 		# Ô có bản ghi mà bảng thiếu cột thì MỌI lần lưu doctype đó nổ
 		# "Unknown column", tức là cả một phân hệ chết. Thà để Migrate đỏ
 		# ngay còn hơn site lên bản mới rồi hỏng lặng lẽ (Codex #358).
+		# DocType kiểu Single (Vagabond Settings, Bao Gia Cai Dat) cất giá trị
+		# trong bảng `tabSingles`, không có cột riêng, soát cột là báo thiếu
+		# oan rồi chặn Migrate (Codex #358). Không đọc được thì bỏ qua soát,
+		# chỉ ghi nhật ký: chặn oan còn hại hơn.
+		try:
+			la_single = cint(frappe.db.get_value("DocType", dt, "issingle"))
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "truong_tu_them: doc DocType %s" % dt)
+			la_single = 1
+		if la_single:
+			continue
 		thieu = []
 		for o in khai[dt] or []:
 			o = o or {}
