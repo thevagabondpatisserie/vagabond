@@ -1733,6 +1733,9 @@ def gan_ma_hang(name, dong, item_code, nho=1, doi=0, he_so=None, he_so_cho=None)
 	# TEN NHA CUNG CAP GHI, khong phai ten Mon cua minh. O `ten_hang_ncc`
 	# la o duoc ghi luc dung to va khong bi ERPNext thay, nen doc no truoc.
 	ten_ncc = (d.get("ten_hang_ncc") or d.item_name or "").strip()
+	# Món máy đoán ghi trên dòng lúc dựng tờ (#358). Đọc TRƯỚC khi lưu vì
+	# lưu xong mô tả có thể bị dựng lại.
+	doan = dvt_mua.mon_may_doan(d.get("description"))
 	# Đơn vị GỐC nhà cung cấp ghi nằm cuối mô tả "(Lần)". Ô uom của dòng
 	# trống mã có thể là "Nos" khi đơn vị gốc chưa có trong danh mục, hỏi
 	# "1 Nos bằng bao nhiêu" thì người đọc không hiểu (#358).
@@ -1811,6 +1814,10 @@ def gan_ma_hang(name, dong, item_code, nho=1, doi=0, he_so=None, he_so_cho=None)
 		elif (
 			not (frappe.db.get_value("MInvoice NCC Map", cu, "item_code") or "").strip()
 			or (ma_cu and cint(doi))
+			# Codex #358 P2: ghi nhớ đang trỏ đúng Món máy đoán sai, người chọn
+			# Món khác thì sửa ghi nhớ, không thì tờ sau lại đoán sai y hệt.
+			or (doan and doan != item_code
+				and (frappe.db.get_value("MInvoice NCC Map", cu, "item_code") or "").strip() == doan)
 		):
 			# Doi ma tren dong la doi luon cai ghi nho, khong thi thang sau
 			# nha cung cap gui lai ten do la may lai gan ma cu (10/09/2026).
