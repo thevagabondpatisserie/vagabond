@@ -423,6 +423,15 @@ async function chayHet() {
     bang('Bo loc gui rong ca bo phan va khoang', [cuoi.bo_phan, cuoi.ky, cuoi.tab].join('|'), '||da_giao');
     bang('het loc thi thanh an', hienThanh(), 'none');
   });
+  await ca('Codex #356 U2: dang loc 7 ngay o tab viec, bam sang Can giao thi bo khoang ngay', async function () {
+    var m = dungMan();
+    m.g.bsLoc.tab = 'da_giao'; m.g.bsLoc.ky = '7';
+    await m.g.scrBangSang(); await tick();
+    var cg = m.khung.querySelectorAll('[data-bst]').filter(function (c) { return c.getAttribute('data-bst') === 'can_giao'; })[0];
+    bam(cg); await tick(); await tick();
+    var cuoi = m.goi[m.goi.length - 1].ts;
+    bang('sang Can giao gui ky rong', [cuoi.tab, cuoi.ky].join('|'), 'can_giao|');
+  });
 }
 
 chayHet().then(function () {
