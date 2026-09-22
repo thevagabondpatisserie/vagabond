@@ -75,6 +75,9 @@ function appMoi(canh) {
   /* Cua "sua theo hoa don goc" dung ban gia: ca kiem chi soi dcmGanXong co mo
      dung cua do khong; ruot cua no di qua sheet nhieu tang, co ca rieng. */
   g.dcmDoiMaTheoNguon = async function (name, idx, ma) { goNguon.push([name, idx, ma]); return canh.coNguon !== 0; };
+  /* Hop chon don vi dung DOM nhieu tang; o day chi soi dcmGanXong co dua DUNG
+     danh muc may chu gui xuong cho no khong (Codex #358 vong 20). */
+  g.dcmChonDonVi = async function (ds, loiNhan) { hoiChu.push({ ds: ds, loiNhan: loiNhan }); return canh.goChu; };
   return { g: g, goi: mc.goi, hoi: hoi, tai: function () { return tai; }, bao: bao,
     hoiXacNhan: hoiXacNhan, goNguon: goNguon, hoiChu: hoiChu };
 }
@@ -434,13 +437,14 @@ async function chayHet() {
       /* Chan vong lap: may khach quen gui don vi thi hoi mai. Ca kiem phai
          HONG ro rang, khong treo may (dot bien M5 ngay 22/09). */
       if (m.goi.length > 3) throw new Error('goi gan_ma_hang qua 3 lan: don vi khong duoc gui len');
-      if (!a.dvt_khai) return { can_dvt: 1, item_code: a.item_code, dvt_kho: 'Kg', loi_nhan: 'Tờ này không đi được cửa sửa theo hoá đơn gốc.' };
+      if (!a.dvt_khai) return { can_dvt: 1, item_code: a.item_code, dvt_kho: 'Kg', dvt_ds: ['Kg', 'Thùng'], loi_nhan: 'Tờ này không đi được cửa sửa theo hoá đơn gốc.' };
       return { item_code: a.item_code, dvt: a.dvt_khai, he_so: a.he_so, loi_nhan: 'Đã gắn món cho dòng 1.' };
     };
     await m.g.dcmGanXong('HDM-TRA', 1, 'NVLT00141');
     bang('hai lan goi gan', m.goi.length, 2);
     bang('khong mo cua nguon', m.goNguon.length, 0);
     bang('hoi chu mot lan', m.hoiChu.length, 1);
+    bang('dua dung danh muc don vi may chu gui xuong', m.hoiChu[0].ds, ['Kg', 'Thùng']);
     bang('hoi he so theo don vi vua go', m.hoi[0].t, '1 Thùng bằng bao nhiêu Kg?');
     bang('lan hai gui du don vi, he so va Mon da hoi',
       [m.goi[1].a.dvt_khai, m.goi[1].a.he_so, m.goi[1].a.he_so_cho], ['Thùng', 24, 'NVLT00141']);
@@ -451,7 +455,7 @@ async function chayHet() {
     m.g.api = async function (mm, a) {
       if (!mm.endsWith('gan_ma_hang')) return {};
       m.goi.push({ m: mm, a: a });
-      return { can_dvt: 1, item_code: a.item_code, dvt_kho: 'Kg', loi_nhan: 'x' };
+      return { can_dvt: 1, item_code: a.item_code, dvt_kho: 'Kg', dvt_ds: ['Kg', 'Thùng'], loi_nhan: 'x' };
     };
     await m.g.dcmGanXong('HDM-TRA', 1, 'NVLT00141');
     bang('chi goi mot lan', m.goi.length, 1);
@@ -504,6 +508,9 @@ async function chayHet() {
     await hop.c.primary_action(hop.gt);
     bang('hien ca o don vi lan o he so',
       [hop.fields_dict.dvt_khai.df.hidden, hop.fields_dict.he_so.df.hidden], [0, 0]);
+    /* Codex #358 vong 20: o don vi phai CHON trong danh muc, khong go tu do. */
+    bang('o don vi la o chon trong danh muc Don vi tinh',
+      [hop.fields_dict.dvt_khai.df.fieldtype, hop.fields_dict.dvt_khai.df.options], ['Link', 'UOM']);
     dung('nhan o he so noi ro quy ve don vi kho', hop.fields_dict.he_so.df.label.indexOf('Kg') >= 0);
     /* Nguoi doi Mon sau khi duoc hoi: bo het cau hoi cu, khong ghi don vi cua
        Mon cu vao Mon moi (cung luat voi he so, Codex #358 P1). */
@@ -519,6 +526,64 @@ async function chayHet() {
     bang('gui du don vi, he so va Mon da hoi',
       [cuoi.dvt_khai, cuoi.he_so, cuoi.he_so_cho, cuoi.item_code], ['Thùng', 24, 'NVLT00141', 'NVLT00141']);
     bang('xong thi dong hop va tai lai phieu', [hop.an, reload], [1, 1]);
+  });
+
+  /* Hop chon don vi: CHAY THAT ham dcmChonDonVi tren mot ban DOM toi thieu.
+     Ban DOM nay chi du cho dung nhung gi ham do dung (tao the, loc, bam,
+     dong). No KHONG tinh CSS nen khong thay duoc anh chup giao dien. */
+  await ca('Codex #358 vong 20: hop chon don vi chi cho chon don vi CO trong danh muc', async function () {
+    function El(ten) {
+      return {
+        the: ten, className: '', innerHTML: '', style: {}, con: [],
+        appendChild: function (x) { this.con.push(x); return x; },
+        remove: function () { this.daXoa = 1; },
+        querySelector: function (sel) {
+          var id = sel.charAt(0) === '#' ? sel.slice(1) : null;
+          if (!id) return null;
+          if (!this.o) this.o = {};
+          if (!this.o[id]) this.o[id] = El('input');
+          return this.o[id];
+        },
+      };
+    }
+    var than = El('body');
+    var g = {
+      document: { createElement: El, body: than },
+      setTimeout: function (f) { return 0; },
+      Promise: Promise, String: String,
+      h: function (x) { return String(x).replace(/</g, '&lt;'); },
+      baoTin: function (s) { g.__bao = s; },
+    };
+    vm.createContext(g);
+    vm.runInContext(layHam(APP, 'dcmChonDonVi'), g);
+
+    var cho = g.dcmChonDonVi(['Kg', 'Thùng', 'Túi'], 'Tờ này không đi được cửa nguồn.');
+    var ov = than.con[0], box = ov.con[0];
+    var o = box.querySelector('#dcmdvq'), khung = box.querySelector('#dcmdvds');
+    dung('liet ke du ba don vi cua danh muc', ['Kg', 'Thùng', 'Túi'].every(function (x) { return khung.innerHTML.indexOf('data-dv="' + x + '"') >= 0; }));
+    o.value = 'th'; o.oninput();
+    dung('go de tim thi loc lai', khung.innerHTML.indexOf('data-dv="Thùng"') >= 0 && khung.innerHTML.indexOf('data-dv="Kg"') < 0);
+    o.value = 'khong co dau nay'; o.oninput();
+    dung('khong khop thi bao nho ke toan them vao danh muc', khung.innerHTML.indexOf('danh mục Đơn vị tính') >= 0);
+    ov.onclick({ target: { getAttribute: function (k) { return k === 'data-dv' ? 'Thùng' : null; } } });
+    bang('tra ve dung don vi nguoi bam', await cho, 'Thùng');
+    bang('dong hop lai', ov.daXoa, 1);
+
+    /* Nguoi bam ra ngoai thi tra null, khong tu chon bua mot don vi. */
+    var than2 = El('body');
+    g.document.body = than2;
+    var cho2 = g.dcmChonDonVi(['Kg'], 'x');
+    var ov2 = than2.con[0];
+    ov2.onclick({ target: ov2 });
+    bang('bo thi khong chon gi', await cho2, null);
+
+    /* Danh muc rong: khong mo hop, bao ro phai nho ke toan. */
+    var than3 = El('body');
+    g.document.body = than3;
+    var cho3 = g.dcmChonDonVi([], 'x');
+    bang('danh muc rong thi tra null', await cho3, null);
+    bang('khong mo hop nao', than3.con.length, 0);
+    dung('noi ro nho ke toan them don vi', String(g.__bao).indexOf('Nhờ kế toán') >= 0);
   });
 }
 
