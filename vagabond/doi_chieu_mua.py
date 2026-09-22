@@ -636,6 +636,9 @@ def so_sanh(name, phieu=None):
 				"dvt_pnk": (ds[0].get("uom") or "") if ds else "",
 				"dvt_kho": dvt_kho,
 				"dvt_ncc": dvt_mua.dvt_tren_hoa_don(r.get("description")),
+				# Dấu "máy đoán": dòng còn dấu là dòng CHỜ CHỐT, app dựa vào
+				# đây để hiện nút Gắn mã dù ô mã đã có chữ (Codex #358).
+				"vgb_mon_may_doan": str(r.get("vgb_mon_may_doan") or "").strip(),
 				"ton_hd": ton_hd,
 				"ton_pnk": ton_pnk,
 				"gia_kho_hd": gia_kho_hd,
