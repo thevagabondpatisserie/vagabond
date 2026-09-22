@@ -942,3 +942,28 @@ khi lệch.
 - HT-2026-02900: hoàn một phần trên đơn có chiết khấu tổng. Tỷ lệ lấy trên
   tổng SAU chiết khấu mà vẫn chép chiết khấu tổng sang tờ trả hàng, ERPNext
   từ chối. Tính tỷ lệ trên tổng TRƯỚC chiết khấu và bỏ chiết khấu tổng.
+
+## 22/09/2026 (#358): chốt chặn tự đặt ra lại chặn nhầm chính mình
+
+Đợt này thêm phép soát cột sau khi khai ô tự thêm (`truong_tu_them._dung_nhom`):
+ô có bản ghi mà bảng thiếu cột thì mọi lần lưu doctype đó nổ "Unknown column",
+nên thà để Migrate đỏ. Phép soát đó làm bench CI đỏ ba lượt liên tiếp, mỗi lượt
+một kiểu ô không có cột thật: ô chia màn hình (Section Break), ô bảng con
+(Table), DocType kiểu Single cất giá trị ở `tabSingles`, và cuối cùng là
+"Phieu Kiem Ke" - một doctype TỰ TẠO TRÊN DESK, nằm trong cơ sở dữ liệu chứ
+không trong git, nên site mới dựng không hề có nó.
+Bài học: một chốt chặn đặt trên đường Migrate chặn nhầm là chặn cả lần phát
+hành, hại hơn cái nó định chặn. Trước khi đặt, liệt kê hết những trường hợp
+"không có cột mà vẫn đúng", và nhớ rằng site CI dựng từ git KHÔNG có các
+doctype và ô người ta tạo tay trên site thật.
+
+## 22/09/2026 (#358): đừng chỉ người dùng sang một cửa đang đóng
+
+Dòng hàng tồn kho mà hoá đơn gốc không ghi đơn vị thì máy trả cờ mời người sang
+cửa "Sửa mã theo hoá đơn gốc". Nhưng `sua_ma_hoa_don.lua_chon` trả `co_nguon`
+sai cho MỌI tờ trả hàng (`is_return`), nên tờ trả hàng bị đẩy tới một cửa đóng
+rồi đứng lại chỗ cũ: đường cụt.
+Bài học: chỗ nào mời người dùng sang một cửa khác thì phải hỏi ĐÚNG phép mà cửa
+đó dùng để mở, chép lại phép là hai nơi lệch nhau (`cua_nguon_mo` nay là nguồn
+duy nhất). Và mỗi ngõ cụt phải có một đường ra mở cho mọi tờ: ở đây là để người
+gõ thẳng đơn vị nhà cung cấp và hệ số.
