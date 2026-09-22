@@ -21,14 +21,20 @@ NGUOI = "kt351@vagabond.test"
 
 
 def _nguoi():
+	"""Tài khoản nhận việc kiểm thử. Phải là System User THẬT: Frappe tự hạ
+	User không có vai vào bàn làm việc xuống Website User khi lưu, dù gửi
+	user_type System User (bench CI 0a8754e: giao bị loi_nguoi_nhan chặn đúng
+	luật). Nên gắn vai Projects User, như nhân viên thật được giao việc."""
 	if not frappe.db.exists("User", NGUOI):
 		u = frappe.get_doc({
 			"doctype": "User", "email": NGUOI, "first_name": "Kiểm thử 351",
 			"send_welcome_email": 0, "user_type": "System User",
+			"roles": [{"role": "Projects User"}],
 		})
 		u.flags.ignore_permissions = True
 		u.insert(ignore_permissions=True)
 		nen._DA_TAO.append(("User", u.name))
+	la("tài khoản kiểm thử là nội bộ", frappe.db.get_value("User", NGUOI, "user_type"), "System User")
 	return NGUOI
 
 
@@ -124,3 +130,63 @@ def _desk_thieu_ket_qua():
 		la("Task xong kèm người đánh dấu", (frappe.db.get_value("Task", t.name, "status"), bool(t.completed_by)), ("Completed", True))
 	finally:
 		don()
+
+
+@ca("#356 T1: huỷ Task bảng sáng qua API tài liệu không vượt trần bỏ qua; đã huỷ thì không đẩy ngày nhắc ra xa")
+def _tran_bo_qua_that():
+	khoa, don = _dat_bang()
+	try:
+		r = khong_nem("giao", lambda: pt.giao(khoa, [_nguoi()], str(nowdate())))
+		if not r:
+			return
+		t = frappe.get_doc("Task", r["name"])
+		t.status = "Cancelled"
+		t.vgb_goi_y_bo_qua_ly_do = "so_sai"
+		t.vgb_goi_y_nhac_lai = str(add_days(nowdate(), 365))
+		bi_chan = False
+		try:
+			t.save(ignore_permissions=True)
+		except frappe.ValidationError:
+			bi_chan = True
+		dung("lô quá hạn bỏ qua một năm bị chặn", bi_chan)
+		la("Task vẫn mở", frappe.db.get_value("Task", t.name, "status"), "Open")
+		t = frappe.get_doc("Task", r["name"])
+		t.status = "Cancelled"
+		t.vgb_goi_y_bo_qua_ly_do = "so_sai"
+		t.vgb_goi_y_nhac_lai = str(add_days(nowdate(), 3))
+		khong_nem("bỏ qua đúng 3 ngày", lambda: t.save(ignore_permissions=True))
+		la("đã huỷ", frappe.db.get_value("Task", t.name, "status"), "Cancelled")
+		# Đường của Codex: sửa tiếp Task đã huỷ bằng tài khoản thường.
+		frappe.set_user(_nguoi())
+		try:
+			t = frappe.get_doc("Task", r["name"])
+			t.vgb_goi_y_nhac_lai = str(add_days(nowdate(), 365))
+			bi_chan = False
+			try:
+				t.save(ignore_permissions=True)
+			except frappe.ValidationError:
+				bi_chan = True
+			dung("đẩy ngày nhắc của việc đã huỷ bị chặn", bi_chan)
+		finally:
+			frappe.set_user("Administrator")
+		la("ngày nhắc giữ nguyên", str(frappe.db.get_value("Task", r["name"], "vgb_goi_y_nhac_lai")), str(add_days(nowdate(), 3)))
+	finally:
+		don()
+
+
+@ca("#356 T2: người có quyền tạo Task không tạo được Task mang khoá bảng sáng")
+def _task_gia_that():
+	khoa, don = _dat_bang()
+	frappe.set_user(_nguoi())
+	try:
+		bi_chan = False
+		try:
+			# ignore_permissions: chỉ để hook chặn, không nhờ quyền doctype chặn hộ.
+			frappe.get_doc({"doctype": "Task", "subject": "Giả", "status": "Open", "vgb_goi_y_khoa": khoa}).insert(ignore_permissions=True)
+		except frappe.ValidationError:
+			bi_chan = True
+		dung("tạo Task giả bị chặn", bi_chan)
+	finally:
+		frappe.set_user("Administrator")
+		don()
+	la("không có Task nào cho khoá", frappe.db.count("Task", {"vgb_goi_y_khoa": khoa}), 0)
