@@ -270,7 +270,7 @@ def _chan_ghi_so_may_doan():
 	may = {"ten": "Phí dịch vụ", "dvt": "Lần", "goi_y_mon": "DVTI00014", "goi_y_dvt_kho": "Set"}
 	ds = [
 		{"idx": 1, "item_code": "NVLT1", "description": "Bắp (Kg)"},
-		{"idx": 2, "item_code": "", "description": mo_ta_dong(may)},
+		{"idx": 2, "item_code": "", "description": mo_ta_dong(may), "vgb_mon_may_doan": "DVTI00014"},
 		{"idx": 3, "item_code": "", "description": "Phí ship (Lần)"},
 	]
 	la("chỉ dòng mang lời đoán mà còn trống mã", dvt_mua.dong_may_doan_chua_chot(ds), [(2, "DVTI00014")])
@@ -280,8 +280,16 @@ def _chan_ghi_so_may_doan():
 	ds[1]["vgb_mon_may_doan"] = "DVTI00014"
 	la("sửa mô tả vẫn chặn vì còn ô riêng", dvt_mua.dong_may_doan_chua_chot(ds), [(2, "DVTI00014")])
 	ds[1]["description"] = mo_ta_dong(may)
+	# Codex #358 vòng 10: gõ thẳng mã vào ô Mã hàng trên lưới Desk KHÔNG
+	# phải là đã chốt, vì hệ số quy đổi lúc đó vẫn là 1.
 	ds[1]["item_code"] = "DVTI00014"
-	la("đã chốt Món thì hết chặn", dvt_mua.dong_may_doan_chua_chot(ds), [])
+	la("gõ tay mã mà dấu còn thì vẫn chặn", dvt_mua.dong_may_doan_chua_chot(ds), [(2, "DVTI00014")])
+	# Hai cửa chốt Món (gắn Món, sửa theo hoá đơn gốc) xoá dấu thì mới hết chặn.
+	ds[1]["vgb_mon_may_doan"] = ""
+	la("chốt qua đúng cửa thì hết chặn", dvt_mua.dong_may_doan_chua_chot(ds), [])
+	dung("cửa gắn Món xoá dấu", 'd.vgb_mon_may_doan = ""' in MA_DCM)
+	ma_sua = (GOC / "sua_ma_hoa_don.py").read_text()
+	dung("cửa sửa theo hoá đơn gốc cũng xoá dấu", "d.vgb_mon_may_doan = ''" in ma_sua)
 	# Gác ở before_submit nên mọi đường ghi sổ (Desk, app, ghi_so_thang) đều đi qua.
 	from vagabond import hooks
 	la("gác đứng đầu before_submit của Hoá đơn mua",
@@ -313,4 +321,7 @@ def _goi_y_dau():
 	i0 = than.find("mon_may_doan(")
 	i1 = than.find("_phieu_ung_vien(doc)")
 	dung("đọc lời đoán trên dòng trước phiếu nhập", 0 < i0 < i1)
+	# Codex #358 vòng 10: gợi ý cũng đọc ô riêng trước, không chỉ mô tả.
+	i2 = than.find('d.get("vgb_mon_may_doan")')
+	dung("gợi ý đọc ô riêng trước phiếu nhập", 0 < i2 < i1)
 	dung("ưu tiên 0", '"uu_tien": 0' in than)
