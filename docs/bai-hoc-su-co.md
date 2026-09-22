@@ -884,3 +884,13 @@ ToDo và DocShare bằng quyền hệ thống (`phan_tich._gan_nguoi`), và coi 
 gắn được khác số người chọn là LỖI. Bài học chung: một hàm "không bao giờ ném
 lỗi" là hàm mà người gọi phải tự đọc kết quả; gọi nó từ một nút bấm thì phải
 kiểm số trả về, không được coi không lỗi là xong.
+
+## 21/09/2026 (#356): User kiểm thử không vai bị Frappe hạ xuống Website User
+
+Bench CI trên 0a8754e đỏ hai ca giao việc: tài khoản kiểm thử tạo với
+`"user_type": "System User"` nhưng không có vai nào, và Frappe khi lưu User tự
+đặt lại loại tài khoản theo vai (không có vai vào bàn làm việc là Website
+User). Luật mới "chỉ giao cho tài khoản nội bộ" chặn đúng, nên ca kiểm đỏ
+chứ code không sai. Cách phòng: User kiểm thử cần là nội bộ thì gắn vai thật
+(ví dụ Projects User) và khẳng định `user_type` ngay sau khi tạo, để lần sau
+lỗi dựng dữ liệu hiện ra ở dòng tạo User chứ không ở ca nghiệp vụ.
