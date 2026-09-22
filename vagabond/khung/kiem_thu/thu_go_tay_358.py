@@ -149,7 +149,7 @@ class _Dong(dict):
 		s[k] = v
 
 
-def _nap_gan(dong, quy_doi_co=None, la_kho=1, map_co=None, cua_nguon=True, danh_muc=("Thùng", "Lần", "BOX", "Kg"), no_uom_map=0):
+def _nap_gan(dong, quy_doi_co=None, la_kho=1, map_co=None, cua_nguon=True, danh_muc=("Thùng", "Lần", "BOX", "Kg"), no_uom_map=0, no_danh_muc=0):
 	"""Chạy THẬT gan_ma_hang với frappe giả. quy_doi_co: {đơn vị: hệ số} đã khai trên Món.
 
 	`cua_nguon`: cửa "Sửa mã theo hóa đơn gốc" có mở cho tờ này không. Tờ trả
@@ -181,6 +181,13 @@ def _nap_gan(dong, quy_doi_co=None, la_kho=1, map_co=None, cua_nguon=True, danh_
 			return map_co["item_code"] if o == "item_code" else map_co["name"]
 		return None
 
+	def _get_all(dt, **k):
+		if dt != "UOM":
+			return []
+		if no_danh_muc:
+			raise RuntimeError("mất kết nối")
+		return list(danh_muc)
+
 	def set_value(dt, ten, o=None, v=None):
 		if o == "vgb_uom":
 			if no_uom_map:
@@ -191,7 +198,7 @@ def _nap_gan(dong, quy_doi_co=None, la_kho=1, map_co=None, cua_nguon=True, danh_
 
 	f = SimpleNamespace(throw=throw, get_doc=get_doc, session=SimpleNamespace(user="uyen@vgb"),
 		log_error=lambda *a, **k: None, get_traceback=lambda: "",
-		get_all=lambda dt, **k: list(danh_muc) if dt == "UOM" else [],
+		get_all=_get_all,
 		db=SimpleNamespace(
 			exists=lambda dt, t=None: dt == "Item" or (dt == "UOM" and t in danh_muc),
 			get_value=get_value, set_value=set_value,
@@ -550,6 +557,15 @@ def _dvt_phai_co_trong_danh_muc():
 	except Loi5 as e:
 		dung("nói rõ cả lượt được hoàn lại", "hoàn lại" in str(e))
 	la("không chốt sổ lượt hỏng", ghi5["commit"], 0)
+	# Codex #358 vòng 22: đọc danh mục không ra thì nói thẳng, không trả danh
+	# mục rỗng rồi để màn hình đổ oan cho kế toán là chưa khai đơn vị nào.
+	d6 = _Dong(idx=1, name="R1", item_code="", description="Hạt dẻ", uom="Nos", ten_hang_ncc="Hạt dẻ")
+	gan6, ghi6, Loi6 = _nap_gan(d6, la_kho=1, cua_nguon=0, no_danh_muc=1)
+	try:
+		gan6("HDM-TRA", 1, "NVLT00141")
+		dung("đọc danh mục không ra thì phải dừng", False)
+	except Loi6 as e:
+		dung("nói rõ chưa đọc được danh mục", "Chưa đọc được danh mục" in str(e))
 	# Dòng hoá đơn CÓ ghi đơn vị thì không đụng ô đơn vị của ánh xạ.
 	d3 = _Dong(idx=1, name="R1", item_code="", description="Hạt dẻ (BOX)", uom="Nos", ten_hang_ncc="Hạt dẻ")
 	gan3, ghi3, _ = _nap_gan(d3, la_kho=1,
@@ -561,3 +577,11 @@ def _dvt_phai_co_trong_danh_muc():
 	dung("cửa khai đơn vị dùng chung phép kiểm", MA_DCM.count("def _kiem_dvt_danh_muc(") == 1
 		and MA_DCM.count("_kiem_dvt_danh_muc(") == 3)
 	dung("không còn chỗ nào tự lập UOM", '"doctype": "UOM"' not in MA_DCM)
+	# DÒ CHUỖI, không phải kiểm thử (điều 16). Dùng ở đây vì dây nối nằm trong
+	# `scrDcmXem` - một màn dựng cả trang, bộ giả lập node không dựng nổi. Hành
+	# vi của hộp chọn thì có ca chạy thật trong hanh_vi/go_tay_358.js.
+	app_js = (GOC / "public" / "js" / "bep" / "18-doi-chieu-may-in.js").read_text()
+	dung("nút gắn mã mang theo Món kế toán đã gõ",
+		"data-mahien=\"' + h(String(r.item_code || ''))" in app_js)
+	dung("bấm nút thì đưa Món đó vào hộp chọn",
+		"dcmGanMaHang(name, g.getAttribute('data-dcmgan'), g.getAttribute('data-mahien'))" in app_js)
