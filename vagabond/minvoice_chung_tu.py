@@ -803,15 +803,27 @@ def cho_dung_phieu_mua(so_ngay=180, gioi_han=300):
 	_kiem_quyen()
 	den = nowdate()
 	tu = frappe.utils.add_days(den, -(cint(so_ngay) or 180))
+	truong = ["name", "ky_hieu", "so_hd", "ngay_lap", "nguoi_mua_ban", "tong_tien",
+		"ly_do_bo_qua", "da_tao_chung_tu", "so_lan_thu"]
 	ds = frappe.get_all(
 		DT_HD,
 		filters={"loai": LOAI_VAO, "ngay_lap": ["between", [tu, den]],
 			"trang_thai": ["not in", list(TT_KHOI_DUNG)]},
-		fields=["name", "ky_hieu", "so_hd", "ngay_lap", "nguoi_mua_ban", "tong_tien",
-			"ly_do_bo_qua", "da_tao_chung_tu", "so_lan_thu"],
-		order_by="ngay_lap desc",
-		limit_page_length=0,
+		fields=truong, order_by="ngay_lap desc", limit_page_length=0,
 	)
+	# Codex #357: tờ nguồn RÚT GỌN (M-Invoice chỉ trả _id/type/tthai) được lưu
+	# với ngay_lap trống, nên phép BETWEEN ở trên bỏ sót đúng nhóm "chờ nguồn".
+	# Đọc thêm các tờ chưa có ngày, giới hạn theo ngày TẠO bản ghi cho cùng cửa
+	# sổ, rồi gộp không trùng.
+	da_co = {h["name"] for h in ds}
+	for h in frappe.get_all(
+		DT_HD,
+		filters={"loai": LOAI_VAO, "ngay_lap": ["is", "not set"], "creation": [">=", tu],
+			"trang_thai": ["not in", list(TT_KHOI_DUNG)]},
+		fields=truong, order_by="creation desc", limit_page_length=0,
+	):
+		if h["name"] not in da_co:
+			ds.append(h)
 	ma = [h["name"] for h in ds]
 	co = set()
 	if ma:
