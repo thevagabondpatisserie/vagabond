@@ -295,6 +295,15 @@ def _chan_ghi_so_may_doan():
 	gan, ghi, _ = _nap_gan(d, quy_doi_co={"Lần": 1.0})
 	kq = gan("HDM-1", 3, "DVTI00014")
 	la("nhận dòng đã có mã mà còn dấu, và xoá dấu", (kq.get("item_code"), d.vgb_mon_may_doan), ("DVTI00014", ""))
+	# Codex #358 vòng 13: đổi sang Món khác Món đang mang thì ghi nhớ theo người.
+	d5 = _Dong(idx=3, name="R3", item_code="DVTI00014", description="Phí dịch vụ (Lần)", uom="Lần",
+		ten_hang_ncc="Phí dịch vụ", vgb_mon_may_doan="DVTI00014")
+	gan5, ghi5, _ = _nap_gan(d5, quy_doi_co={"Lần": 1.0}, map_co={"name": "76jk41445u", "item_code": "NVLT9"})
+	gan5("HDM-1", 3, "DVBH00001")
+	la("ghi nhớ theo Món người chốt", ghi5["map"],
+		[("MInvoice NCC Map", "76jk41445u", "item_code", "DVBH00001")])
+	# Cột trong bảng phải được dựng cùng lúc khai ô, không thì "Unknown column".
+	dung("khai ô xong dựng luôn cột", "frappe.db.updatedb(dt)" in (GOC / "truong_tu_them.py").read_text())
 	pi_js = (GOC / "public" / "js" / "purchase_invoice.js").read_text()
 	dung("màn Desk liệt kê cả dòng còn dấu",
 		"var choChot = function (d) { return !(d.item_code || '').trim() || (d.vgb_mon_may_doan || '').trim(); };" in pi_js)
