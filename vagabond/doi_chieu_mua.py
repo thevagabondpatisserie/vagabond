@@ -1844,6 +1844,9 @@ def gan_ma_hang(name, dong, item_code, nho=1, doi=0, he_so=None, he_so_cho=None)
 			# Món khác thì sửa ghi nhớ, không thì tờ sau lại đoán sai y hệt.
 			or (doan and doan != item_code
 				and (frappe.db.get_value("MInvoice NCC Map", cu, "item_code") or "").strip() == doan)
+			# Dòng chờ chốt mà người đổi sang Món khác Món đang mang: ghi nhớ
+			# phải theo người, không thì tờ sau lại về mã cũ (Codex #358).
+			or (cho_chot and ma_cu and ma_cu != item_code)
 		):
 			# Doi ma tren dong la doi luon cai ghi nho, khong thi thang sau
 			# nha cung cap gui lai ten do la may lai gan ma cu (10/09/2026).

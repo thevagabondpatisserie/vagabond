@@ -322,3 +322,13 @@ def _dung_nhom(khai, ten_nhom):
 		create_custom_fields(khai, update=True)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "truong_tu_them: %s" % ten_nhom)
+	# DỰNG LUÔN CỘT TRONG BẢNG. Ô khai lúc after_migrate thì lượt đồng bộ
+	# cấu trúc của Migrate đã chạy xong, nên bản ghi Custom Field có mà cột
+	# trong bảng thì chưa: mọi lần lưu chứng từ đó sau đó nổ "Unknown column"
+	# (bench CI 22/09/2026, 84 ca hỏng vì ô mới trên Purchase Invoice Item).
+	# updatedb là phép lặp lại được, khai lại lần thứ mười cũng không đổi gì.
+	for dt in khai:
+		try:
+			frappe.db.updatedb(dt)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "truong_tu_them: cot %s" % dt)
