@@ -180,6 +180,9 @@ async function scrDcmXem(name) {
          (nguoi go thang tren luoi Desk): he so luc do con la 1 (Codex #358). */
       if ((!r.item_code || r.vgb_mon_may_doan) && kq.lam_duoc && !r.da_noi) {
         html += '<button class="btn gh" data-dcmgan="' + h(String(r.idx)) +
+          /* Mon ke toan da go thang tren luoi phai di kem, khong thi hop chon
+             de loi doan cu len dau va mot cai bam la de mat (Codex #358). */
+          '" data-mahien="' + h(String(r.item_code || '')) +
           '" style="margin:7px 0 2px;padding:7px 12px;font-size:12.5px">Gắn mã hàng cho dòng này</button>';
       }
       if (noiCu) {
@@ -373,7 +376,7 @@ async function scrDcmXem(name) {
     var u = e.target.closest('[data-dcmdvt]');
     if (u) return dcmDoiDonVi(name, u.getAttribute('data-dcmdvt'), u.getAttribute('data-dvt'));
     var g = e.target.closest('[data-dcmgan]');
-    if (g) return dcmGanMaHang(name, g.getAttribute('data-dcmgan'));
+    if (g) return dcmGanMaHang(name, g.getAttribute('data-dcmgan'), g.getAttribute('data-mahien'));
     var gy = e.target.closest('[data-dcmgoiy]');
     if (gy) return dcmGanXong(name, gy.getAttribute('data-dcmgoiy'), gy.getAttribute('data-ma'), gy.getAttribute('data-doi') === '1');
     var k = e.target.closest('[data-dcmkhai]');
@@ -1601,7 +1604,7 @@ async function dcmKhaiDonVi(name, itemCode, dvt, slHd, slPnk, hsPnk, dvtKho) {
    Bam mot lan la NHO LUON: lan sau nha cung cap gui dung ten hang do, may
    tu nhan. Do moi la cho chua goc, chu sua tay tung dong thi 9.985 dong lam
    den bao gio moi het. */
-async function dcmGanMaHang(name, idx) {
+async function dcmGanMaHang(name, idx, maHien) {
   busy(true);
   var gy;
   try { gy = await api('vagabond.doi_chieu_mua.goi_y_mon', { name: name, dong: idx }); }
@@ -1610,9 +1613,18 @@ async function dcmGanMaHang(name, idx) {
 
   /* `sheet` doi dung ba khoa: label, value, phu. Va no tra ve CA MUC chu
      khong tra ve rieng value. */
-  var ds = (gy.goi_y || []).map(function (x) {
-    return { value: x.item_code, label: x.item_name, phu: x.vi_sao, tim: x.item_code };
-  });
+  maHien = String(maHien || '').trim();
+  var ds = (gy.goi_y || []).filter(function (x) { return x.item_code !== maHien; })
+    .map(function (x) {
+      return { value: x.item_code, label: x.item_name, phu: x.vi_sao, tim: x.item_code };
+    });
+  /* Codex #358 vong 22: dong da mang Mon ke toan tu go thi Mon DO dung dau,
+     loi doan cu chi la goi y ben duoi. Bam quen tay vao muc dau tien la giu
+     nguyen lua chon cua nguoi, khong quay ve Mon may doan sai. */
+  if (maHien) {
+    ds.unshift({ value: maHien, label: 'Giữ Món đang có: ' + maHien, tim: maHien,
+      phu: 'Món này đang nằm trên dòng, chọn để chốt lại. Gợi ý của máy ở bên dưới.' });
+  }
   ds.push({ value: '__TIM__', label: 'Tìm món khác...', phu: 'Gõ tên hoặc mã để tìm trong toàn bộ danh mục' });
 
   sheet('Hàng "' + (gy.ten_ncc || '') + '" là món nào?', ds, null, function (muc) {
