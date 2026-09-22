@@ -316,7 +316,7 @@ def _chan_ghi_so_may_doan():
 	ham_tt = [n for n in ast.parse(ma_tt).body if isinstance(n, ast.FunctionDef) and n.name == "_dung_nhom"]
 	class LoiCot(Exception):
 		pass
-	def _lam(co_cot, no_soat=0, la_single=0, co_bang=1):
+	def _lam(co_cot, no_soat=0, la_single=0, co_bang=1, no_bang=0, no_dt=0):
 		def nem(m, *a, **k):
 			raise LoiCot(m)
 
@@ -324,11 +324,20 @@ def _chan_ghi_so_may_doan():
 			if no_soat:
 				raise RuntimeError("mất kết nối")
 			return co_cot
+
+		def _bang(dt):
+			if no_bang:
+				raise RuntimeError("mất kết nối")
+			return bool(co_bang)
+
+		def _doc_dt(dt, n, o=None):
+			if no_dt:
+				raise RuntimeError("mất kết nối")
+			return 1 if la_single else 0
 		env = dict(cint=int, frappe=SimpleNamespace(
 			throw=nem, log_error=lambda *a, **k: None, get_traceback=lambda: "",
 			db=SimpleNamespace(updatedb=lambda dt: None, has_column=has_column,
-				table_exists=lambda dt: bool(co_bang),
-				get_value=lambda dt, n, o=None: 1 if la_single else 0)))
+				table_exists=_bang, get_value=_doc_dt)))
 		import sys as _s
 		_s.modules.setdefault("frappe.custom.doctype.custom_field.custom_field",
 			SimpleNamespace(create_custom_fields=lambda *a, **k: None))
@@ -361,6 +370,14 @@ def _chan_ghi_so_may_doan():
 	# Bench CI 22/09/2026: doctype tự tạo trên Desk không có trên site mới
 	# dựng. Không có bảng thì không có gì để soát, không được chặn Migrate.
 	_lam(False, co_bang=0)
+	# Codex #358 vòng 19: hỏi không ra khác với trả lời là không. Hai phép đọc
+	# hồ sơ nổ thì phải DỪNG, không được im lặng bỏ soát.
+	for cach in ("no_bang", "no_dt"):
+		try:
+			_lam(True, **{cach: 1})
+			dung("hỏi không ra (%s) thì Migrate cũng dừng" % cach, False)
+		except LoiCot as e:
+			dung("lời dừng nói rõ vì sao (%s)" % cach, "không soát được cột" in str(e))
 	pi_js = (GOC / "public" / "js" / "purchase_invoice.js").read_text()
 	dung("màn Desk liệt kê cả dòng còn dấu",
 		"var choChot = function (d) { return !(d.item_code || '').trim() || (d.vgb_mon_may_doan || '').trim(); };" in pi_js)

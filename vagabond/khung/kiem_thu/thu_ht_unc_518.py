@@ -70,10 +70,20 @@ class _Tra(SimpleNamespace):
 		else:
 			net0, grand0 = tong, tong * (1 + r)
 		ck = float(self.discount_amount or 0)
+		# Dòng thuế ghi thẳng số tiền: ERPNext GIỮ NGUYÊN khi đơn giá đổi.
+		# Đây chính là chỗ Codex #358 vòng 19 chỉ ra.
+		them = sum(float(t.get("tax_amount") or 0) for t in (getattr(self, "taxes", None) or [])
+			if t.get("charge_type") == "Actual")
 		if getattr(self, "apply_discount_on", "Grand Total") == "Grand Total":
-			self.grand_total = grand0 - ck
+			self.net_total = net0
+			bot = ck
 		else:
-			self.grand_total = (net0 - ck) * (1 + r)
+			self.net_total = net0 - ck
+			bot = 0
+		# `total_taxes_and_charges` của ERPNext là TỔNG CÁC DÒNG THUẾ, chiết
+		# khấu tổng nằm riêng chứ không nằm trong đó.
+		self.total_taxes_and_charges = self.net_total * r + them
+		self.grand_total = self.net_total + self.total_taxes_and_charges - bot
 		return None
 
 	def insert(self, **k):
@@ -87,17 +97,28 @@ class _Tra(SimpleNamespace):
 		pass
 
 
-def _chay(tien, tren="Grand Total", thue=8, trong_gia=1, ck=135000, grand=435000):
+def _chay(tien, tren="Grand Total", thue=8, trong_gia=1, ck=135000, grand=435000, dong=None, actual=0):
 	# Mặc định: đơn HDB-26-09-03237 đúng số liệu trên site 22/09/2026.
-	si = _Dong(name="HDB-26-09-03237", grand_total=grand, total=570000, discount_amount=ck, items=[
-		_Dong(qty=18, rate=25000), _Dong(qty=2, rate=20000), _Dong(qty=1, rate=20000), _Dong(qty=1, rate=60000)])
+	si = _Dong(name="HDB-26-09-03237", grand_total=grand, total=570000, discount_amount=ck,
+		items=dong or [_Dong(qty=18, rate=25000), _Dong(qty=2, rate=20000),
+			_Dong(qty=1, rate=20000), _Dong(qty=1, rate=60000)])
+	thue_goc = [_Dong(charge_type="Actual", tax_amount=actual, rate=0)] if actual else []
+	# Tiền hàng và tiền thuế của ĐƠN GỐC tính bằng chính phép trên, để ca kiểm
+	# không tự bịa ra một cặp số không đến từ đâu.
+	dem = _Tra(items=si.items, discount_amount=ck, apply_discount_on=tren,
+		thue_suat=thue, thue_trong_gia=trong_gia, taxes=list(thue_goc))
+	dem.run_method("calculate_taxes_and_totals")
+	si.net_total, si.total_taxes_and_charges = dem.net_total, dem.total_taxes_and_charges
+	si.grand_total = grand = dem.grand_total
 	tra = _Tra(items=[_Dong(qty=-d.qty, rate=d.rate, price_list_rate=d.rate, discount_amount=0, discount_percentage=0)
 		for d in si.items], discount_amount=-ck, additional_discount_percentage=0,
 		apply_discount_on=tren, thue_suat=thue, thue_trong_gia=trong_gia,
+		taxes=[_Dong(charge_type="Actual", tax_amount=-actual, rate=0)] if actual else [],
 		meta=SimpleNamespace(has_field=lambda o: False), flags=SimpleNamespace())
 	sys.modules["erpnext.accounts.doctype.sales_invoice.sales_invoice"] = SimpleNamespace(make_sales_return=lambda n: tra)
 	ham = [n for n in ast.parse(MA_HT).body if isinstance(n, ast.FunctionDef)
-		and n.name in ("_lap_hoa_don_tra", "ty_le_ha_gia", "_nan_dung_tien")]
+		and n.name in ("_lap_hoa_don_tra", "ty_le_ha_gia", "_nan_dung_tien",
+			"o_thue_can_nan", "thue_dung_ty_le", "_ha_theo_ty_le")]
 	from frappe.utils import flt
 	env = dict(flt=flt, nowdate=lambda: "2026-09-22", frappe=SimpleNamespace(throw=_nem))
 	exec(compile(ast.Module(body=ham, type_ignores=[]), "hoan_tien.py", "exec"), env)
@@ -129,3 +150,66 @@ def _tra_du():
 	tra = _chay(435000)
 	la("giữ chiết khấu", tra.discount_amount, -135000)
 	la("giữ nguyên đơn giá", round(sum(d.qty * d.rate for d in tra.items), 2), -570000.0)
+
+
+@ca("Codex #358 vòng 19: dòng thuế ghi thẳng số tiền phải hạ cùng tỷ lệ, không đảo đủ 100% thuế")
+def _thue_actual():
+	from vagabond.hoan_tien import o_thue_can_nan, thue_dung_ty_le
+	la("dòng ghi thẳng số tiền: hạ ô tiền", o_thue_can_nan("Actual"), "tax_amount")
+	la("dòng tính theo số lượng: hạ ô đơn giá", o_thue_can_nan("On Item Quantity"), "rate")
+	la("thuế phần trăm tự co, không đụng", o_thue_can_nan("On Net Total"), "")
+	la("dòng theo dòng trước cũng tự co", o_thue_can_nan("On Previous Row Total"), "")
+	la("không ghi gì thì không đụng", o_thue_can_nan(None), "")
+	la("dòng ERPNext không tính lại: cũng phải hạ tay", o_thue_can_nan("On Net Total", 1), "tax_amount")
+	la("đảo nửa hàng nửa thuế là đúng", thue_dung_ty_le(500000, 5000, 1000000, 10000)[0], True)
+	la("đảo đủ thuế mà nửa hàng là sai", thue_dung_ty_le(495000, 10000, 1000000, 10000)[0], False)
+	la("nói rõ thuế đáng ra là bao nhiêu", round(thue_dung_ty_le(495000, 10000, 1000000, 10000)[1]), 4950)
+	la("đơn gốc không có tiền hàng thì không soát", thue_dung_ty_le(1, 1, 0, 0)[0], True)
+	# Ca thật Codex mô tả: đơn 1.010.000 gồm 1.000.000 tiền hàng và một dòng
+	# thuế ghi thẳng 10.000. Hoàn 505.000 là đúng một nửa đơn.
+	tra = _chay(505000, thue=0, ck=0, grand=1010000, actual=10000,
+		dong=[_Dong(qty=1, rate=1000000)])
+	la("tổng tờ trả đúng số tiền hoàn", round(abs(tra.grand_total)), 505000)
+	la("tiền hàng đảo đúng một nửa", round(abs(tra.net_total)), 500000)
+	la("thuế đảo đúng một nửa, không phải cả 10.000", round(abs(tra.total_taxes_and_charges)), 5000)
+	# Hoàn đủ đơn thì chép nguyên, không nắn gì.
+	tra2 = _chay(1010000, thue=0, ck=0, grand=1010000, actual=10000,
+		dong=[_Dong(qty=1, rate=1000000)])
+	la("hoàn đủ: giữ nguyên thuế", round(abs(tra2.total_taxes_and_charges)), 10000)
+
+
+@ca("Codex #358 vòng 19: nắn được tổng mà chia sai hàng với thuế thì DỪNG, không ghi sổ")
+def _chan_chia_sai_thue():
+	"""Lớp soát cuối: dựng thẳng một tờ mà tiền thuế không chịu hạ.
+
+	Không đi qua `_lap_hoa_don_tra` vì mọi kiểu dòng thuế biết trước đều đã
+	hạ đúng; ca này canh đúng cái lớp chặn, để lần sau ai gỡ nó là biết."""
+	ham = [n for n in ast.parse(MA_HT).body if isinstance(n, ast.FunctionDef)
+		and n.name in ("_nan_dung_tien", "o_thue_can_nan", "thue_dung_ty_le", "_ha_theo_ty_le")]
+	from frappe.utils import flt
+	env = dict(flt=flt, frappe=SimpleNamespace(throw=_nem))
+	exec(compile(ast.Module(body=ham, type_ignores=[]), "hoan_tien.py", "exec"), env)
+
+	class Cung(_Tra):
+		"""Tờ mà tiền thuế đứng yên dù đơn giá hạ, như ERPNext làm với dòng
+		thuế mình chưa biết cách hạ."""
+
+		def run_method(self, ten, *a, **k):
+			if ten != "calculate_taxes_and_totals":
+				return None
+			self.net_total = sum(d.qty * d.rate for d in self.items)
+			self.total_taxes_and_charges = 10000.0
+			self.grand_total = self.net_total + self.total_taxes_and_charges
+			return None
+
+	goc = _Dong(net_total=1000000, total_taxes_and_charges=10000)
+	tra = Cung(items=[_Dong(qty=1, rate=1000000.0, price_list_rate=1000000.0)], taxes=[])
+	try:
+		env["_nan_dung_tien"](tra, 505000, goc)
+		dung("chia sai hàng với thuế thì phải dừng", False)
+	except ValueError as e:
+		dung("nói rõ thuế đáng ra là bao nhiêu", "đảo thuế không đúng tỷ lệ" in str(e))
+	# Cùng tờ đó mà không truyền đơn gốc thì không soát được, đúng như khai.
+	tra2 = Cung(items=[_Dong(qty=1, rate=1000000.0, price_list_rate=1000000.0)], taxes=[])
+	env["_nan_dung_tien"](tra2, 505000)
+	la("không có đơn gốc thì chỉ chốt tổng", round(abs(tra2.grand_total)), 505000)
