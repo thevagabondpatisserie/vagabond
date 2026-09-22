@@ -231,11 +231,15 @@ async function vgbGanMonDesk(frm) {
 			if (hop._can_he_so) {
 				if (!(parseFloat(v.he_so) > 0)) { frappe.msgprint('Gõ hệ số lớn hơn 0.'); return; }
 				args.he_so = v.he_so;
+				/* Codex #358: hệ số gửi kèm đúng Món máy chủ đã hỏi. Máy chủ
+				   thấy lệch Món thì bỏ hệ số và hỏi lại, không ghi nhầm Món. */
+				args.he_so_cho = hop._he_so_cho;
 			}
 			var r = await frappe.call({method: 'vagabond.doi_chieu_mua.gan_ma_hang', args: args, freeze: true});
 			var kq = r.message || {};
 			if (kq.can_he_so) {
 				hop._can_he_so = 1;
+				hop._he_so_cho = kq.item_code || v.item_code;
 				var f = hop.get_field('he_so');
 				f.df.hidden = 0;
 				f.df.label = '1 ' + kq.dvt_ncc + ' bằng bao nhiêu ' + kq.dvt_kho + '?';
@@ -249,9 +253,17 @@ async function vgbGanMonDesk(frm) {
 			frappe.show_alert({message: kq.loi_nhan || 'Đã gắn Món.', indicator: 'green'});
 		} finally { hop.enable_primary_action(); }
 	}});
-	async function napGoiY() {
+	/* Codex #358 P1: hệ số đang hỏi là của MỘT Món. Người đổi Món thì bỏ
+	   hẳn câu hỏi cũ và số cũ, bấm Gắn lại để máy chủ hỏi cho Món mới. Giữ
+	   lại thì "1 Lần = 1 Set" của Món cũ bị ghi vĩnh viễn vào Món mới. */
+	function boHoiHeSo() {
 		hop._can_he_so = 0;
+		hop._he_so_cho = null;
 		var f = hop.get_field('he_so'); f.df.hidden = 1; f.refresh();
+		if (hop.get_value('he_so')) hop.set_value('he_so', null);
+	}
+	async function napGoiY() {
+		boHoiHeSo();
 		hop.set_value('item_code', '');
 		var dong = hop.get_value('dong');
 		if (!dong) return;
@@ -268,6 +280,9 @@ async function vgbGanMonDesk(frm) {
 		} catch (e) { /* Gợi ý hỏng thì vẫn chọn tay được. */ }
 	}
 	hop.fields_dict.dong.df.onchange = napGoiY;
+	hop.fields_dict.item_code.df.onchange = function () {
+		if (hop._he_so_cho && hop.get_value('item_code') !== hop._he_so_cho) boHoiHeSo();
+	};
 	hop.show();
 	hop.set_value('dong', String(trong[0].idx));
 	napGoiY();
