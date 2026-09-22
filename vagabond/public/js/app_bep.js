@@ -5127,7 +5127,10 @@ async function pvXacNhan(d, name) {
   try {
     await api('vagabond.duyet_chi.xac_nhan_da_chuyen', {
       name: name, ma_giao_dich: ma || '', ly_do_som: lyDo || '',
-      unc: JSON.stringify(unc.map(function (x) { return x.url; }))
+      /* tdkDs trả thẳng mảng ĐƯỜNG DẪN (chuỗi), không phải đối tượng. Bản
+         từ v414 lấy x.url nên gửi lên [null]: tệp đã tải lên mà máy chủ báo
+         "Chưa đính uỷ nhiệm chi" (APP-26-09-799, 22/09/2026). */
+      unc: JSON.stringify(unc.map(function (x) { return typeof x === 'string' ? x : (x && x.url) || ''; }))
     });
     busy(0);
     tdkNap('pvunc', []);
