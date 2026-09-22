@@ -216,6 +216,7 @@ def _dong_hd(name):
 			"name", "idx", "item_code", "item_name", "qty", "rate", "amount",
 			"uom", "conversion_factor", "stock_uom", "stock_qty", "description",
 			"purchase_receipt", "pr_detail",
+			"vgb_mon_may_doan",
 		],
 		order_by="idx asc",
 		limit_page_length=0,
@@ -1721,13 +1722,17 @@ def gan_ma_hang(name, dong, item_code, nho=1, doi=0, he_so=None, he_so_cho=None)
 	if not d:
 		frappe.throw("Không tìm thấy dòng %s trên hoá đơn %s." % (dong, name))
 	ma_cu = (d.get("item_code") or "").strip()
-	if ma_cu and not cint(doi):
+	# Dòng còn dấu "máy đoán" là dòng CHƯA CHỐT, dù ô mã đã có chữ (người gõ
+	# thẳng vào lưới Desk). Cửa này là đường chốt duy nhất nên phải nhận
+	# (Codex #358), chứ không đuổi người về chỗ khác.
+	cho_chot = bool(str(d.get("vgb_mon_may_doan") or "").strip())
+	if ma_cu and not cint(doi) and not cho_chot:
 		frappe.throw("Dòng %d đã có mã hàng %s rồi." % (d.idx, d.item_code))
 	if ma_cu and (d.get("purchase_receipt") or "").strip():
 		frappe.throw(
 			"Dòng %d đã nối vào phiếu nhập rồi. Bỏ nối trước khi đổi mã hàng." % d.idx
 		)
-	if ma_cu == item_code:
+	if ma_cu == item_code and not cho_chot:
 		frappe.throw("Dòng %d đang mang đúng mã %s rồi." % (d.idx, item_code))
 
 	# TEN NHA CUNG CAP GHI, khong phai ten Mon cua minh. O `ten_hang_ncc`

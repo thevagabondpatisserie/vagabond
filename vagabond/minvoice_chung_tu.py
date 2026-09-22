@@ -594,7 +594,7 @@ TRUONG_MOI = {
 			"fieldname": "vgb_mon_may_doan",
 			"label": "Món máy đoán",
 			"fieldtype": "Data",
-			"insert_after": "ten_hang_ncc",
+			"insert_after": "item_name",
 			"read_only": 1,
 			"no_copy": 0,
 			"description": (
@@ -606,7 +606,7 @@ TRUONG_MOI = {
 			"fieldname": "vgb_dvt_ncc",
 			"label": "Đơn vị nhà cung cấp ghi",
 			"fieldtype": "Data",
-			"insert_after": "ten_hang_ncc",
+			"insert_after": "item_name",
 			"read_only": 1,
 			"no_copy": 0,
 			"description": (
