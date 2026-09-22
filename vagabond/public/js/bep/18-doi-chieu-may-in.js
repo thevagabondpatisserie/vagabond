@@ -1671,6 +1671,16 @@ async function dcmGanXong(name, idx, itemCode, doi, heSo) {
     /* #358 (anh Viet 22/09/2026): mon chua khai don vi nha cung cap ghi thi
        may chu KHONG gan tam he so 1 nua ma hoi. Nguoi go he so, may ghi
        luon vao bang quy doi cua Mon roi gan; lan sau may tu hieu. */
+    /* #358 vong 8 (Codex): hoa don goc khong ghi don vi ma Mon la hang ton
+       kho thi khong gan thang duoc. Mo ngay cua "sua theo hoa don goc" o
+       day, khong bat nguoi dung di tim nut khac ben Desk. */
+    if (kq && kq.can_nguon) {
+      if (!await confirmSheet('Cần chọn quy cách theo hoá đơn gốc', kq.loi_nhan, 'Chọn dòng gốc')) return;
+      busy(true);
+      if (await dcmDoiMaTheoNguon(name, idx, itemCode)) return;
+      busy(false);
+      return baoTin('Tờ này không còn liên kết hoá đơn gốc. Khai quy cách trong Món rồi dựng lại tờ.');
+    }
     if (kq && kq.can_he_so) {
       var hs = await qtySheet('Khai đơn vị "' + kq.dvt_ncc + '" cho món ' + itemCode,
         'Nhà cung cấp ghi "' + kq.dvt_ncc + '". 1 ' + kq.dvt_ncc + ' bằng bao nhiêu ' + kq.dvt_kho +
