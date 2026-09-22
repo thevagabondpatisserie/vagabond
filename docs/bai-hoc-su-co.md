@@ -913,3 +913,14 @@ vẫn còn. Cách phòng: thứ gì in ra giấy phải dựng được TẠI M�
 trong repo, ảnh nhúng data:), và câu dẫn chỉ in khi có đúng thứ nó dẫn tới.
 Mã QR thanh toán chuyển khoản (img.vietqr.io) vẫn còn phụ thuộc mạng ngoài,
 chưa xử lý trong đợt này.
+
+## 22/09/2026 (#358): máy chặn cả tờ hoá đơn chỉ vì đoán không ra một dòng
+
+Hoá đơn 287914 (Kamereo) không thành phiếu mua suốt nhiều ngày chỉ vì dòng "Phí
+dịch vụ" map vào một Món chưa khai đơn vị "Lần". Cách viết cũ ném lỗi ở bước
+tra đơn vị, cả tờ bị chặn, người dùng không có đường tự làm. Hoá đơn điện tử
+Việt Nam có quá nhiều cách ghi, luật đoán sẽ luôn có ca sót.
+Cách phòng: máy chỉ GỢI Ý. Dòng đoán không chắc vẫn vào phiếu nháp, để trống mã
+và ghi lời đoán trong mô tả (đặt TRƯỚC "(dvt)" để dvt_tren_hoa_don vẫn đọc được).
+Người chốt Món và hệ số, hệ số được ghi vào bảng quy đổi của Món để lần sau tự
+map. Không bao giờ lặng lẽ lấy hệ số 1 cho hàng tồn kho.
