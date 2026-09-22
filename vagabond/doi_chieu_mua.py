@@ -1502,6 +1502,21 @@ def khai_don_vi(item_code, dvt, he_so):
 			% (dvt, dvt, flt(cu), dvt_kho),
 		}
 
+	_ghi_quy_doi(item_code, dvt, hs, dvt_kho)
+	frappe.db.commit()
+	return {
+		"da_co": 0, "item_code": item_code, "dvt": dvt, "he_so": hs,
+		"dvt_kho": dvt_kho,
+		"loi_nhan": 'Đã khai: 1 %s = %s %s. Từ giờ hoá đơn ghi "%s" là hệ hiểu đúng.'
+		% (dvt, hs, dvt_kho, dvt),
+	}
+
+
+def _ghi_quy_doi(item_code, dvt, hs, dvt_kho):
+	"""Thêm MỘT dòng quy đổi vào bảng quy đổi của Món, kèm dấu vết ai khai.
+
+	Một chỗ ghi cho cả nút Khai đơn vị lẫn lúc gắn Món có hệ số (#358,
+	QT-19). Không ghi đè dòng đã có: người gọi phải kiểm he_so_cua_mon trước."""
 	doc = frappe.get_doc("Item", item_code)
 	doc.append("uoms", {"uom": dvt, "conversion_factor": hs})
 	doc.flags.ignore_permissions = True
@@ -1511,13 +1526,6 @@ def khai_don_vi(item_code, dvt, he_so):
 		"Khai đơn vị %s cho món này: 1 %s = %s %s. %s khai ngày %s."
 		% (dvt, dvt, hs, dvt_kho, frappe.session.user, nowdate()),
 	)
-	frappe.db.commit()
-	return {
-		"da_co": 0, "item_code": item_code, "dvt": dvt, "he_so": hs,
-		"dvt_kho": dvt_kho,
-		"loi_nhan": 'Đã khai: 1 %s = %s %s. Từ giờ hoá đơn ghi "%s" là hệ hiểu đúng.'
-		% (dvt, hs, dvt_kho, dvt),
-	}
 
 
 def _mst_cua_to(doc):
@@ -1574,8 +1582,27 @@ def goi_y_mon(name, dong):
 	ten_ncc = (d.get("ten_hang_ncc") or d.item_name or "").strip()
 	mst = _mst_cua_to(doc)
 
-	# 1. Mon nam tren phieu nhap chua thanh toan cua chinh nha cung cap nay.
 	ra, da_co = [], set()
+	# 0. #358: MÁY ĐOÁN. Nhà cung cấp này từng gửi ĐÚNG tên hàng này và đã
+	#    được gắn Món, hoặc lúc dựng phiếu máy đã ghi lời đoán lên dòng. Đưa
+	#    lên đầu để người chỉ việc bấm xác nhận.
+	doan = dvt_mua.mon_may_doan(d.get("description"))
+	if not doan and mst and ten_ncc:
+		try:
+			from vagabond.quy_cach_ncc import tim_mon
+			doan = tim_mon(mst, None, ten_ncc)
+		except Exception:
+			doan = None
+	if doan and frappe.db.exists("Item", {"name": doan, "disabled": 0}):
+		da_co.add(doan)
+		ra.append({
+			"item_code": doan,
+			"item_name": frappe.db.get_value("Item", doan, "item_name") or doan,
+			"vi_sao": "Máy đoán: nhà cung cấp này từng gửi đúng tên hàng này",
+			"sl_pnk": 0.0, "dvt_pnk": "", "uu_tien": 0, "may_doan": 1,
+		})
+
+	# 1. Mon nam tren phieu nhap chua thanh toan cua chinh nha cung cap nay.
 	for p in _phieu_ung_vien(doc):
 		for r in _dong_pnk(p["name"]):
 			if r["item_code"] in da_co:
@@ -1632,7 +1659,7 @@ def _phieu_ung_vien(doc):
 
 
 @frappe.whitelist()
-def gan_ma_hang(name, dong, item_code, nho=1, doi=0):
+def gan_ma_hang(name, dong, item_code, nho=1, doi=0, he_so=None):
 	"""Gan mot Mon vao dong hoa don chua co ma hang, va NHO cho lan sau.
 
 	ANH VIET 31/08/2026
@@ -1691,7 +1718,10 @@ def gan_ma_hang(name, dong, item_code, nho=1, doi=0):
 	# TEN NHA CUNG CAP GHI, khong phai ten Mon cua minh. O `ten_hang_ncc`
 	# la o duoc ghi luc dung to va khong bi ERPNext thay, nen doc no truoc.
 	ten_ncc = (d.get("ten_hang_ncc") or d.item_name or "").strip()
-	dvt_ncc = (d.get("uom") or "").strip()
+	# Đơn vị GỐC nhà cung cấp ghi nằm cuối mô tả "(Lần)". Ô uom của dòng
+	# trống mã có thể là "Nos" khi đơn vị gốc chưa có trong danh mục, hỏi
+	# "1 Nos bằng bao nhiêu" thì người đọc không hiểu (#358).
+	dvt_ncc = (dvt_mua.dvt_tren_hoa_don(d.get("description")) or d.get("uom") or "").strip()
 
 	# NAN LAI DON VI. Don vi tho cua nha cung cap ("BAG", "TRAI") duoc dich
 	# sang ten cua minh roi tra bang quy doi cua Mon. Tra khong ra thi lui ve
@@ -1699,16 +1729,39 @@ def gan_ma_hang(name, dong, item_code, nho=1, doi=0):
 	# gio xu khac nhau (QT-19).
 	dvt_kho = frappe.db.get_value("Item", item_code, "stock_uom") or "Nos"
 	dung_uom, he_so_moi = dvt_kho, 1.0
+	tim_thay = False
 	for ten_thu in [dvt_ncc, dvt_mua.goi_y_don_vi(dvt_ncc)]:
 		if not ten_thu:
 			continue
 		hs = dvt_mua.he_so_cua_mon(item_code, ten_thu)
 		if hs:
-			dung_uom, he_so_moi = ten_thu, hs
+			dung_uom, he_so_moi, tim_thay = ten_thu, hs, True
 			break
 		if dvt_mua.cung_don_vi(ten_thu, dvt_kho):
-			dung_uom, he_so_moi = dvt_kho, 1.0
+			dung_uom, he_so_moi, tim_thay = dvt_kho, 1.0, True
 			break
+
+	# #358 (anh Việt 22/09/2026): chưa biết quy đổi thì KHÔNG gắn tạm hệ số 1
+	# nữa. Người gõ hệ số thì ghi luôn vào bảng quy đổi của Món, lần sau máy
+	# tự hiểu; chưa gõ thì trả về để màn hình hỏi, không lưu gì.
+	viec = dvt_mua.can_nguoi_khai_he_so(dvt_ncc, tim_thay, he_so)
+	if viec == "hoi":
+		la_kho = cint(frappe.db.get_value("Item", item_code, "is_stock_item"))
+		return {
+			"name": doc.name, "idx": idx, "item_code": item_code, "can_he_so": 1,
+			"dvt_ncc": dvt_ncc, "dvt_kho": dvt_kho, "de_xuat": 0 if la_kho else 1,
+			"loi_nhan": 'Món %s chưa khai đơn vị "%s". Gõ 1 %s bằng bao nhiêu %s để gắn và ghi nhớ.'
+			% (item_code, dvt_ncc, dvt_ncc, dvt_kho),
+		}
+	if viec == "khai":
+		if not frappe.db.exists("UOM", dvt_ncc):
+			u = frappe.get_doc({"doctype": "UOM", "uom_name": dvt_ncc})
+			u.flags.ignore_permissions = True
+			u.insert(ignore_permissions=True)
+		if dvt_mua.cung_don_vi(dvt_ncc, dvt_kho):
+			frappe.throw('"%s" chính là đơn vị kho của món này.' % dvt_ncc)
+		_ghi_quy_doi(item_code, dvt_ncc, flt(he_so), dvt_kho)
+		dung_uom, he_so_moi = dvt_ncc, flt(he_so)
 
 	d.item_code = item_code
 	d.uom = dung_uom

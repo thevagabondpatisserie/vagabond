@@ -330,6 +330,41 @@ def don_vi_chua_khai(dvt_ncc, dvt_dang_dung, he_so_dang_dung):
 
 # ------------------------------------------------------- phan can Frappe
 
+def can_nguoi_khai_he_so(dvt_ncc, tim_thay, he_so_nhap):
+	"""Lúc gắn Món cho một dòng hoá đơn, có phải hỏi người hệ số quy đổi không.
+	THUẦN. Trả một trong ba:
+
+	  "dung"   đã biết quy đổi (Món đã khai đơn vị đó, hoặc đó là đơn vị kho,
+	           hoặc nhà cung cấp không ghi đơn vị) - gắn luôn.
+	  "khai"   chưa biết, nhưng người đã gõ hệ số hợp lệ - ghi hệ số đó vào
+	           bảng quy đổi của Món rồi gắn.
+	  "hoi"    chưa biết và chưa có hệ số - KHÔNG gắn, hỏi người.
+
+	Anh Việt 22/09/2026: "staff đã nhập món, nhập đơn vị thì máy ghi luôn vào
+	thông tin của Món để sau này chỉ việc map cho nhanh". Bản trước đó gắn tạm
+	hệ số 1 rồi nhắc "nhớ khai đơn vị": một hộp thành một gram cho tới khi có
+	người nhớ ra."""
+	import math
+	if tim_thay or not str(dvt_ncc or "").strip():
+		return "dung"
+	try:
+		hs = float(he_so_nhap)
+	except (TypeError, ValueError):
+		return "hoi"
+	return "khai" if math.isfinite(hs) and hs > 0 else "hoi"
+
+
+def mon_may_doan(mo_ta):
+	"""Mã Món máy đã đoán và ghi lên mô tả dòng lúc dựng phiếu. THUẦN.
+	'' nếu không có. Khớp đúng khuôn minvoice_chung_tu.mo_ta_dong ghi ra."""
+	s = str(mo_ta or "")
+	i = s.find("[Máy đoán Món ")
+	if i < 0:
+		return ""
+	ma = s[i + len("[Máy đoán Món "):].split(",", 1)[0].strip()
+	return ma if ma and " " not in ma else ""
+
+
 import frappe
 from frappe.utils import flt
 
