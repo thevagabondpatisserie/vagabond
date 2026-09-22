@@ -726,6 +726,25 @@ def chon_ma_khop(mo_ta, ds_ma):
 	return tim_ma(mo_ta, ds_ma)
 
 
+def ty_le_ha_gia(tien_hoan, tong_truoc_ck, tong_don):
+	"""Hoàn một phần: hạ đơn giá từng dòng theo tỷ lệ nào. THUẦN.
+
+	Trả (ty_le, bo_chiet_khau_tong). Hoàn đủ đơn thì (1.0, False): tờ trả
+	hàng chép nguyên đơn gốc, kể cả chiết khấu tổng.
+
+	Hoàn một phần thì BỎ chiết khấu tổng và tính tỷ lệ trên TỔNG HÀNG (trước
+	chiết khấu), để tờ trả hàng ra đúng số tiền hoàn. Ca thật HT-2026-02900
+	ngày 17/09/2026: đơn HDB-26-09-03237 tổng hàng 570.000, chiết khấu tổng
+	135.000, khách trả 435.000, hoàn 90.000. Bản cũ lấy tỷ lệ 90/435 trên
+	đơn giá (hàng còn 117.931) mà vẫn chép chiết khấu 135.000, ERPNext từ
+	chối "chiết khấu vượt tổng trước chiết khấu"."""
+	tien, hang, don = flt(tien_hoan), flt(tong_truoc_ck), flt(tong_don)
+	if don <= 0 or tien <= 0 or tien >= don - 0.0001:
+		return 1.0, False
+	goc = hang if hang > 0 else don
+	return tien / goc, True
+
+
 def ty_le_hop_le(so_tien_hoan, tong_don):
 	"""So tien hoan nay co nam trong tong don khong. THUAN.
 
@@ -1494,17 +1513,23 @@ def _lap_hoa_don_tra(si, kho, ly_do, ma_ho_so, so_tien=0):
 	tra = make_sales_return(si.name)
 	tong = flt(si.grand_total)
 	tien = flt(so_tien) or tong
-	ty_le = (tien / tong) if tong > 0 else 1.0
+	# Tổng TRƯỚC chiết khấu tổng = tổng phải trả + chiết khấu tổng. Không
+	# dùng si.total: giá chưa gồm thuế thì si.total thiếu phần thuế.
+	ty_le, bo_ck = ty_le_ha_gia(tien, tong + flt(si.get("discount_amount")), tong)
 	if any(d.get('vgb_combo_luong') for d in si.items):
 		# Bồi hoàn tiền, khách giữ hàng: không được suy tiền từ lượng trả.
 		# Cửa combo chia đúng tổng này từ tiền nguồn, kể cả bill có chiết khấu.
 		tra.vgb_combo_hoan_tien = tien
-	if ty_le < 0.9999:
+	if bo_ck:
 		for d in tra.items:
 			d.rate = flt(d.rate) * ty_le
 			d.price_list_rate = flt(d.get("price_list_rate")) * ty_le
 			d.discount_amount = 0
 			d.discount_percentage = 0
+		# Chiết khấu tổng của đơn gốc đã nằm sẵn trong tỷ lệ, chép sang nữa
+		# là trừ hai lần (HT-2026-02900).
+		tra.discount_amount = 0
+		tra.additional_discount_percentage = 0
 	# update_stock = 0, GIONG HET moi hoa don khac cua he.
 	#
 	# Ban dau em dat 1 de hang tu chay thang vao kho huy. Chay thu that

@@ -80,7 +80,14 @@ def co_ma(mo_ta, ma):
 	while vt >= 0:
 		truoc = g_mo[vt - 1] if vt > 0 else ""
 		sau = g_mo[vt + len(g_ma):vt + len(g_ma) + 1]
-		if not truoc.isdigit() and not sau.isdigit():
+		# Chỉ chặn chữ số ở phía mã cũng là CHỮ SỐ. Mã mở đầu bằng chữ
+		# ("APP", "HDB") thì chữ số đứng trước không làm nó thành khúc của
+		# một số dài hơn. Ca thật 21/09/2026: "TT HD 1840 APP 26 09 799"
+		# gọt thành "...1840APP2609799", bản cũ thấy chữ 0 trước chữ A nên
+		# bỏ qua, phiếu APP-26-09-799 báo "ngân hàng chưa chi" dù tiền đã đi.
+		chan_truoc = g_ma[0].isdigit() and truoc.isdigit()
+		chan_sau = g_ma[-1].isdigit() and sau.isdigit()
+		if not chan_truoc and not chan_sau:
 			return True
 		vt = g_mo.find(g_ma, vt + 1)
 	return False
