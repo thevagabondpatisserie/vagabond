@@ -1658,8 +1658,23 @@ def _phieu_ung_vien(doc):
 	return [r for r in rows if flt(r.get("per_billed")) < 99.99]
 
 
+def chan_ghi_so_may_doan(doc, method=None):
+	"""before_submit Hoá đơn mua (Codex #358 P1).
+
+	Dòng máy đoán ra Món mà chưa biết quy đổi được để trống mã trên phiếu
+	nháp. ERPNext coi dòng trống mã như dịch vụ và vẫn cho ghi sổ, nên phải
+	chặn ở đây: mọi đường ghi sổ (Desk, app, ghi_so_thang) đều đi qua."""
+	ds = dvt_mua.dong_may_doan_chua_chot(doc.items)
+	if ds:
+		frappe.throw(
+			"Chưa ghi sổ được: còn dòng máy mới đoán Món mà người chưa chốt.<br>"
+			+ "<br>".join("Dòng %d: máy đoán Món %s." % (i, m) for i, m in ds)
+			+ "<br>Bấm \"Gắn Món cho dòng trống mã\", chọn Món và gõ hệ số rồi ghi sổ lại."
+		)
+
+
 @frappe.whitelist()
-def gan_ma_hang(name, dong, item_code, nho=1, doi=0, he_so=None):
+def gan_ma_hang(name, dong, item_code, nho=1, doi=0, he_so=None, he_so_cho=None):
 	"""Gan mot Mon vao dong hoa don chua co ma hang, va NHO cho lan sau.
 
 	ANH VIET 31/08/2026
@@ -1744,7 +1759,7 @@ def gan_ma_hang(name, dong, item_code, nho=1, doi=0, he_so=None):
 	# #358 (anh Việt 22/09/2026): chưa biết quy đổi thì KHÔNG gắn tạm hệ số 1
 	# nữa. Người gõ hệ số thì ghi luôn vào bảng quy đổi của Món, lần sau máy
 	# tự hiểu; chưa gõ thì trả về để màn hình hỏi, không lưu gì.
-	viec = dvt_mua.can_nguoi_khai_he_so(dvt_ncc, tim_thay, he_so)
+	viec = dvt_mua.can_nguoi_khai_he_so(dvt_ncc, tim_thay, he_so, item_code, he_so_cho)
 	if viec == "hoi":
 		la_kho = cint(frappe.db.get_value("Item", item_code, "is_stock_item"))
 		return {

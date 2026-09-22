@@ -330,7 +330,7 @@ def don_vi_chua_khai(dvt_ncc, dvt_dang_dung, he_so_dang_dung):
 
 # ------------------------------------------------------- phan can Frappe
 
-def can_nguoi_khai_he_so(dvt_ncc, tim_thay, he_so_nhap):
+def can_nguoi_khai_he_so(dvt_ncc, tim_thay, he_so_nhap, item_code=None, he_so_cho=None):
 	"""Lúc gắn Món cho một dòng hoá đơn, có phải hỏi người hệ số quy đổi không.
 	THUẦN. Trả một trong ba:
 
@@ -347,11 +347,42 @@ def can_nguoi_khai_he_so(dvt_ncc, tim_thay, he_so_nhap):
 	import math
 	if tim_thay or not str(dvt_ncc or "").strip():
 		return "dung"
+	# Codex #358 P1: hệ số người gõ là câu trả lời cho câu hỏi về MỘT Món.
+	# Màn hình gửi kèm `he_so_cho` là Món đã được hỏi; lệch Món đang gắn
+	# (người đổi Món sau khi được hỏi) hoặc thiếu hẳn thì coi như chưa gõ và
+	# hỏi lại, không ghi "1 Lần = 1 Set" của Món cũ vào Món mới.
+	if item_code is not None and str(he_so_cho or "").strip() != str(item_code).strip():
+		return "hoi"
 	try:
 		hs = float(he_so_nhap)
 	except (TypeError, ValueError):
 		return "hoi"
 	return "khai" if math.isfinite(hs) and hs > 0 else "hoi"
+
+
+def dong_may_doan_chua_chot(dong):
+	"""Các dòng còn mang lời đoán của máy mà người chưa chốt Món. THUẦN.
+
+	Trả danh sách (idx, Món máy đoán). Codex #358 P1: dòng trống mã mà ERPNext
+	vẫn cho ghi sổ như một dòng dịch vụ; dòng máy đoán ra Món nhưng chưa
+	biết quy đổi thì phải chờ người chốt Món và hệ số rồi mới ghi sổ.
+	Chỉ bắt dòng có lời đoán: dòng trống mã kiểu cũ (phí, dịch vụ không map)
+	vẫn đi như trước, ngày 22/09/2026 có 239 tờ đã ghi sổ theo đường đó."""
+	ra = []
+	for d in dong or []:
+		if str((d or {}).get("item_code") or "").strip():
+			continue
+		mon = mon_may_doan((d or {}).get("description"))
+		if mon:
+			ra.append((cint_thuan((d or {}).get("idx")), mon))
+	return ra
+
+
+def cint_thuan(x):
+	try:
+		return int(float(x or 0))
+	except (TypeError, ValueError):
+		return 0
 
 
 def mon_may_doan(mo_ta):

@@ -580,6 +580,8 @@ doc_events = {
 			"vagabond.mua_dich_vu.gan_tai_khoan_chi_phi",
 		],
 		"before_submit": [
+			# Codex #358 P1: dòng máy đoán Món mà người chưa chốt thì chưa ghi sổ.
+			"vagabond.doi_chieu_mua.chan_ghi_so_may_doan",
 			"vagabond.luong_hoa_don_goc.kiem_truoc_ghi_so",
 			"vagabond.sua_ma_hoa_don.nhac_nguon",
 			"vagabond.he_so_chung_tu.kiem",
