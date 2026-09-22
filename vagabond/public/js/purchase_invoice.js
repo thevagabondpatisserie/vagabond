@@ -218,8 +218,10 @@ async function vgbGanMonDesk(frm) {
 	};
 	var hop = new frappe.ui.Dialog({title: 'Gắn Món cho dòng trống mã', fields: [
 		{fieldtype: 'HTML', fieldname: 'gt', options: 'Máy gợi ý sẵn Món, bạn chọn lại nếu sai. Số lượng và đơn giá giữ đúng hoá đơn gốc. Lựa chọn được ghi nhớ cho lần sau.'},
-		{fieldname: 'dong', label: 'Dòng trên phiếu', fieldtype: 'Select', reqd: 1,
-			options: trong.map(function (d) { return {label: nhan(d), value: String(d.idx)}; })},
+		/* Codex #358 P2: tờ nhiều dòng trống mã thì phải tìm được theo tên
+		   hoặc số dòng (AGENTS.md: chọn là tìm), như hộp Sửa mã theo hóa đơn gốc. */
+		{fieldname: 'dong', label: 'Dòng trên phiếu', fieldtype: 'Autocomplete', reqd: 1,
+			options: trong.map(function (d) { return {label: frappe.utils.escape_html(nhan(d)), value: String(d.idx)}; })},
 		{fieldtype: 'HTML', fieldname: 'goi_y'},
 		{fieldname: 'item_code', label: 'Món', fieldtype: 'Link', options: 'Item', reqd: 1,
 			get_query: function () { return {filters: {disabled: 0, is_purchase_item: 1}}; }},
