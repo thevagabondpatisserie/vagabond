@@ -61,19 +61,47 @@ function mayChu() {
 }
 
 function appMoi(canh) {
-  var mc = mayChu(), hoi = [], tai = 0, bao = [];
+  var mc = mayChu(), hoi = [], tai = 0, bao = [], hoiXacNhan = [], goNguon = [];
   var g = {
     money: String, kl: String, busy: function () {}, toast: function () {}, go: function () { tai++; },
     baoTin: function (s) { bao.push(s); }, parseFloat: parseFloat, Number: Number,
     qtySheet: async function (t, nhan, deXuat, dvt) { hoi.push({ t: t, nhan: nhan, deXuat: deXuat, dvt: dvt }); return canh.go; },
     api: mc.api,
+    confirmSheet: async function (t, n) { hoiXacNhan.push({ t: t, n: n }); return canh.dongY !== 0; },
   };
   vm.createContext(g);
   vm.runInContext(layHam(APP, 'dcmDoiMaTheoNguon') + '\n' + layHam(APP, 'dcmGanXong'), g);
-  return { g: g, goi: mc.goi, hoi: hoi, tai: function () { return tai; }, bao: bao };
+  /* Cua "sua theo hoa don goc" dung ban gia: ca kiem chi soi dcmGanXong co mo
+     dung cua do khong; ruot cua no di qua sheet nhieu tang, co ca rieng. */
+  g.dcmDoiMaTheoNguon = async function (name, idx, ma) { goNguon.push([name, idx, ma]); return canh.coNguon !== 0; };
+  return { g: g, goi: mc.goi, hoi: hoi, tai: function () { return tai; }, bao: bao,
+    hoiXacNhan: hoiXacNhan, goNguon: goNguon };
 }
 
 async function chayHet() {
+  await ca('Codex #358 vong 8: hang ton kho ma hoa don goc khong ghi don vi thi app mo thang cua sua theo hoa don goc', async function () {
+    var m = appMoi({});
+    m.g.api = async function (mm, a) {
+      if (mm.endsWith('gan_ma_hang')) { m.goi.push({ m: mm, a: a }); return { can_nguon: 1, item_code: a.item_code, loi_nhan: 'Hoá đơn gốc không ghi đơn vị cho dòng 1, mà NVLT00141 là hàng tồn kho.' }; }
+      return {};
+    };
+    await m.g.dcmGanXong('HDM-1', 1, 'NVLT00141');
+    bang('chi goi gan mot lan', m.goi.length, 1);
+    bang('hoi nguoi truoc khi mo cua khac', m.hoiXacNhan.length, 1);
+    bang('mo cua sua theo hoa don goc dung dong, dung Mon', m.goNguon, [['HDM-1', 1, 'NVLT00141']]);
+    bang('khong bao la da gan', m.bao.length, 0);
+  });
+  await ca('Codex #358 vong 8: nguoi khong dong y thi dung han, khong goi gi them', async function () {
+    var m = appMoi({ dongY: 0 });
+    m.g.api = async function (mm, a) {
+      if (mm.endsWith('gan_ma_hang')) { m.goi.push({ m: mm, a: a }); return { can_nguon: 1, item_code: a.item_code, loi_nhan: 'x' }; }
+      return {};
+    };
+    await m.g.dcmGanXong('HDM-1', 1, 'NVLT00141');
+    bang('khong mo cua nao', m.goNguon.length, 0);
+    bang('khong tai lai man', m.tai(), 0);
+  });
+
   await ca('app: Mon chua khai don vi thi HOI he so, gui lai kem he so; khong luu gi truoc khi nguoi go', async function () {
     var m = appMoi({ go: 1 });
     await m.g.dcmGanXong('HDM-1', 3, 'DVTI00014');
