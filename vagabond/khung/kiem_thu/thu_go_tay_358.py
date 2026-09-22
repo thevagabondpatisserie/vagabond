@@ -326,11 +326,14 @@ def _chan_ghi_so_may_doan():
 		_s.modules.setdefault("frappe.custom.doctype.custom_field.custom_field",
 			SimpleNamespace(create_custom_fields=lambda *a, **k: None))
 		exec(compile(ast.Module(body=ham_tt, type_ignores=[]), "truong_tu_them.py", "exec"), env)
-		env["KHONG_CO_COT"] = ("Section Break", "Column Break", "Tab Break", "HTML", "Heading", "Button", "Fold", "Image")
+		import importlib
+		env["KHONG_CO_COT"] = importlib.import_module("vagabond.truong_tu_them").KHONG_CO_COT
 		return env["_dung_nhom"]({"Purchase Invoice Item": [
 			{"fieldname": "vgb_dvt_ncc", "fieldtype": "Data"},
 			# Ô chia màn hình không có cột, soát cột không được báo thiếu oan.
 			{"fieldname": "sec_thu", "fieldtype": "Section Break"},
+			# Ô bảng con cũng không có cột ở bảng cha (bench 22/09: vgb_thanh_toan_nhieu).
+			{"fieldname": "bang_con_thu", "fieldtype": "Table", "options": "X"},
 		]}, "thu")
 	_lam(True)
 	try:
@@ -339,6 +342,7 @@ def _chan_ghi_so_may_doan():
 	except LoiCot as e:
 		dung("lời dừng nói rõ ô nào, bảng nào", "vgb_dvt_ncc" in str(e) and "Purchase Invoice Item" in str(e))
 		dung("không báo oan ô chia màn hình", "sec_thu" not in str(e))
+		dung("không báo oan ô bảng con", "bang_con_thu" not in str(e))
 	# Soát không xong (mất kết nối) cũng phải dừng, không được coi là đã có cột.
 	try:
 		_lam(True, no_soat=1)
