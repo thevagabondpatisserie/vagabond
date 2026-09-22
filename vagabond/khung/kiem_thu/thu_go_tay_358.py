@@ -149,13 +149,13 @@ class _Dong(dict):
 		s[k] = v
 
 
-def _nap_gan(dong, quy_doi_co=None, la_kho=1, map_co=None, cua_nguon=True):
+def _nap_gan(dong, quy_doi_co=None, la_kho=1, map_co=None, cua_nguon=True, danh_muc=("Thùng", "Lần", "BOX", "Kg")):
 	"""Chạy THẬT gan_ma_hang với frappe giả. quy_doi_co: {đơn vị: hệ số} đã khai trên Món.
 
 	`cua_nguon`: cửa "Sửa mã theo hóa đơn gốc" có mở cho tờ này không. Tờ trả
 	hàng thì đóng (Codex #358 vòng 19)."""
 	quy_doi_co = dict(quy_doi_co or {})
-	ghi = {"luu": 0, "khai": [], "uom_moi": [], "commit": 0, "map": []}
+	ghi = {"luu": 0, "khai": [], "uom_moi": [], "commit": 0, "map": [], "uom_map": [], "map_moi": []}
 	doc = SimpleNamespace(name="HDM-1", docstatus=0, items=[dong], flags=SimpleNamespace(),
 		save=lambda: ghi.__setitem__("luu", ghi["luu"] + 1), add_comment=lambda *a: None)
 
@@ -170,7 +170,9 @@ def _nap_gan(dong, quy_doi_co=None, la_kho=1, map_co=None, cua_nguon=True):
 			return doc
 		if isinstance(a, dict) and a.get("doctype") == "UOM":
 			return SimpleNamespace(flags=SimpleNamespace(), insert=lambda **k: ghi["uom_moi"].append(a["uom_name"]))
-		return SimpleNamespace(flags=SimpleNamespace(), insert=lambda **k: None)
+		# Ánh xạ NCC mới: Frappe đặt tên ngay khi insert, ghi nhớ đơn vị cần tên đó.
+		return SimpleNamespace(flags=SimpleNamespace(), name="MAP-MOI",
+			insert=lambda **k: ghi["map_moi"].append(a))
 
 	def get_value(dt, ten, o=None):
 		if dt == "Item":
@@ -179,9 +181,19 @@ def _nap_gan(dong, quy_doi_co=None, la_kho=1, map_co=None, cua_nguon=True):
 			return map_co["item_code"] if o == "item_code" else map_co["name"]
 		return None
 
+	def set_value(dt, ten, o=None, v=None):
+		if o == "vgb_uom":
+			ghi["uom_map"].append((ten, v))
+		else:
+			ghi["map"].append((dt, ten, o, v))
+
 	f = SimpleNamespace(throw=throw, get_doc=get_doc, session=SimpleNamespace(user="uyen@vgb"),
-		db=SimpleNamespace(exists=lambda dt, t=None: dt == "Item", get_value=get_value,
-			set_value=lambda *a: ghi["map"].append(a), commit=lambda: ghi.__setitem__("commit", ghi["commit"] + 1)))
+		log_error=lambda *a, **k: None, get_traceback=lambda: "",
+		get_all=lambda dt, **k: list(danh_muc) if dt == "UOM" else [],
+		db=SimpleNamespace(
+			exists=lambda dt, t=None: dt == "Item" or (dt == "UOM" and t in danh_muc),
+			get_value=get_value, set_value=set_value,
+			commit=lambda: ghi.__setitem__("commit", ghi["commit"] + 1)))
 	dv = SimpleNamespace(
 		dvt_tren_hoa_don=dvt_mua.dvt_tren_hoa_don, goi_y_don_vi=lambda s: "", cung_don_vi=lambda a, b: a == b,
 		dvt_ncc_cua_dong=dvt_mua.dvt_ncc_cua_dong,
@@ -197,7 +209,10 @@ def _nap_gan(dong, quy_doi_co=None, la_kho=1, map_co=None, cua_nguon=True):
 		_cua_nguon_mo=lambda doc: bool(cua_nguon),
 		cint=lambda n: int(n or 0), flt=lambda n: float(n or 0), nowdate=lambda: "2026-09-22",
 		_ghi_quy_doi=ghi_quy_doi, _mst_cua_to=lambda d: "0315000500" if map_co else "")
-	ham = _ham(MA_DCM, "gan_ma_hang")
+	# CHẠY THẬT cả mấy hàm phụ, không thay bằng bản giả: thay bằng bản giả thì
+	# sửa hỏng hàm thật ca kiểm vẫn xanh (đột biến 22/09, điều 17b).
+	ham = (_ham(MA_DCM, "_kiem_dvt_danh_muc") + _ham(MA_DCM, "_nho_uom_map")
+		+ _ham(MA_DCM, "_ds_don_vi") + _ham(MA_DCM, "gan_ma_hang"))
 	for n in ham:
 		n.decorator_list = []
 	exec(compile(ast.Module(body=ham, type_ignores=[]), "doi_chieu_mua.py", "exec"), env)
@@ -251,6 +266,9 @@ def _sua_ghi_nho():
 	gan, ghi, _ = _nap_gan(d, quy_doi_co={"Lần": 1.0}, map_co={"name": "76jk41445u", "item_code": "DVTI00014"})
 	gan("HDM-1", 3, "DVBH00001")
 	la("ghi nhớ trỏ sang Món người chọn", ghi["map"], [("MInvoice NCC Map", "76jk41445u", "item_code", "DVBH00001")])
+	# Hoá đơn CÓ ghi đơn vị thì cửa này không được đụng ô đơn vị của ánh xạ:
+	# ô đó là lựa chọn quy cách của người quản lý ánh xạ (Codex #358 vòng 20).
+	la("không đụng đơn vị của ánh xạ", ghi["uom_map"], [])
 	# Người chọn đúng Món máy đoán thì không đụng ghi nhớ.
 	d2 = _Dong(idx=3, name="R3", item_code="", description=mo_ta_dong(may), uom="Lần", ten_hang_ncc="Phí dịch vụ")
 	gan2, ghi2, _ = _nap_gan(d2, quy_doi_co={"Lần": 1.0}, map_co={"name": "76jk41445u", "item_code": "DVTI00014"})
@@ -459,7 +477,10 @@ def _tra_hang_van_go_duoc():
 	kq = gan("HDM-TRA", 1, "NVLT00141", he_so=24, he_so_cho="NVLT00141", dvt_khai="Thùng")
 	la("ghi quy đổi vào Món", ghi["khai"], [("NVLT00141", "Thùng", 24.0)])
 	la("dòng mang đúng đơn vị người khai", (d.item_code, d.uom, d.conversion_factor), ("NVLT00141", "Thùng", 24.0))
-	la("đơn vị mới được lập trong danh mục", ghi["uom_moi"], ["Thùng"])
+	la("KHÔNG tự lập đơn vị mới trong danh mục", ghi["uom_moi"], [])
+	# Codex #358 vòng 20: đơn vị người chốt phải vào ánh xạ, không thì tờ sau
+	# vẫn trống đơn vị và người phải khai lại y hệt.
+	la("ghi nhớ mang luôn đơn vị vừa chốt", ghi["uom_map"], [])
 
 
 @ca("Codex #358 vòng 19: đơn vị khai kèm phải đúng Món đã hỏi, không thì hỏi lại và không ghi gì")
@@ -489,3 +510,41 @@ def _mot_nguon_cua():
 	dung("lua_chon dùng đúng phép chung", "cua_nguon_mo(" in lc)
 	dung("lua_chon hỏi cả is_return qua phép chung",
 		"cua_nguon_mo(doc.docstatus, doc.get('is_return'), g)" in lc)
+
+
+@ca("Codex #358 vòng 20: không tự lập đơn vị mới, và đơn vị người chốt được ghi nhớ cùng Món")
+def _dvt_phai_co_trong_danh_muc():
+	# Gõ nhầm "Thùngg": không có trong danh mục thì DỪNG, không lập đơn vị rác.
+	d = _Dong(idx=1, name="R1", item_code="", description="Hạt dẻ", uom="Nos", ten_hang_ncc="Hạt dẻ")
+	gan, ghi, Loi = _nap_gan(d, la_kho=1, cua_nguon=0)
+	kq = gan("HDM-TRA", 1, "NVLT00141")
+	la("màn hình nhận cả danh mục để chọn", kq.get("dvt_ds"), ["Thùng", "Lần", "BOX", "Kg"])
+	try:
+		gan("HDM-TRA", 1, "NVLT00141", he_so=24, he_so_cho="NVLT00141", dvt_khai="Thùngg")
+		dung("đơn vị lạ thì phải dừng", False)
+	except Loi as e:
+		dung("nói rõ nhờ kế toán thêm vào danh mục", "danh mục Đơn vị tính" in str(e))
+	la("không lập đơn vị nào, không ghi quy đổi, chưa lưu", (ghi["uom_moi"], ghi["khai"], ghi["luu"]), ([], [], 0))
+	# Đơn vị có thật thì gắn được, và ánh xạ NCC nhớ luôn đơn vị đó.
+	d2 = _Dong(idx=1, name="R1", item_code="", description="Hạt dẻ", uom="Nos", ten_hang_ncc="Hạt dẻ")
+	gan2, ghi2, _ = _nap_gan(d2, la_kho=1, cua_nguon=0,
+		map_co={"name": "76jk41445u", "item_code": "NVLT00141"})
+	gan2("HDM-TRA", 1, "NVLT00141", he_so=24, he_so_cho="NVLT00141", dvt_khai="Thùng")
+	la("ghi quy đổi vào Món", ghi2["khai"], [("NVLT00141", "Thùng", 24.0)])
+	la("ánh xạ NCC nhớ luôn đơn vị vừa chốt", ghi2["uom_map"], [("76jk41445u", "Thùng")])
+	# Nhà cung cấp này chưa có ánh xạ nào: đường LẬP MỚI cũng phải nhớ đơn vị.
+	d4 = _Dong(idx=1, name="R1", item_code="", description="Hạt dẻ", uom="Nos", ten_hang_ncc="Hạt dẻ")
+	gan4, ghi4, _ = _nap_gan(d4, la_kho=1, cua_nguon=0, map_co={"name": "", "item_code": ""})
+	gan4("HDM-TRA", 1, "NVLT00141", he_so=24, he_so_cho="NVLT00141", dvt_khai="Thùng")
+	la("ánh xạ mới lập cũng mang đơn vị", ghi4["uom_map"], [("MAP-MOI", "Thùng")])
+	# Dòng hoá đơn CÓ ghi đơn vị thì không đụng ô đơn vị của ánh xạ.
+	d3 = _Dong(idx=1, name="R1", item_code="", description="Hạt dẻ (BOX)", uom="Nos", ten_hang_ncc="Hạt dẻ")
+	gan3, ghi3, _ = _nap_gan(d3, la_kho=1,
+		map_co={"name": "76jk41445u", "item_code": "NVLT00141"})
+	gan3("HDM-1", 1, "NVLT00141", he_so=1000, he_so_cho="NVLT00141")
+	la("đường cũ: ghi quy đổi như trước", ghi3["khai"], [("NVLT00141", "BOX", 1000.0)])
+	la("đường cũ: không đụng đơn vị của ánh xạ", ghi3["uom_map"], [])
+	# Một nguồn duy nhất cho phép kiểm danh mục.
+	dung("cửa khai đơn vị dùng chung phép kiểm", MA_DCM.count("def _kiem_dvt_danh_muc(") == 1
+		and MA_DCM.count("_kiem_dvt_danh_muc(") == 3)
+	dung("không còn chỗ nào tự lập UOM", '"doctype": "UOM"' not in MA_DCM)
