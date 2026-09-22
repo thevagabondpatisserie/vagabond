@@ -48,6 +48,10 @@ def _quyet():
 def _o_dvt_ncc():
 	than = MA_MC.split("def _dong_pi(")[1].split("\ndef ")[0]
 	dung("dòng phiếu mang ô đơn vị nhà cung cấp", '"vgb_dvt_ncc"' in than)
+	dung("dòng phiếu mang ô Món máy đoán", '"vgb_mon_may_doan"' in than)
+	o2 = [t for t in __import__("vagabond.minvoice_chung_tu", fromlist=["x"]).TRUONG_MOI.get("Purchase Invoice Item", [])
+		if t["fieldname"] == "vgb_mon_may_doan"]
+	la("ô lời đoán được khai để Migrate dựng", len(o2), 1)
 	dung("trống thì ghi rõ là không ghi", "dvt_mua.KHONG_GHI" in than)
 	from vagabond import minvoice_chung_tu as mc
 	o = [t for t in mc.TRUONG_MOI.get("Purchase Invoice Item", []) if t["fieldname"] == "vgb_dvt_ncc"]
@@ -247,6 +251,13 @@ def _sua_ghi_nho():
 	gan2, ghi2, _ = _nap_gan(d2, quy_doi_co={"Lần": 1.0}, map_co={"name": "76jk41445u", "item_code": "DVTI00014"})
 	gan2("HDM-1", 3, "DVTI00014", he_so=1, he_so_cho="DVTI00014")
 	la("chọn đúng lời đoán: giữ nguyên ghi nhớ", ghi2["map"], [])
+	# Codex #358 vòng 9: người sửa ô mô tả mất dấu lời đoán, ô riêng vẫn giữ.
+	d4 = _Dong(idx=3, name="R3", item_code="", description="Phí dịch vụ (Lần)", uom="Lần",
+		ten_hang_ncc="Phí dịch vụ", vgb_mon_may_doan="DVTI00014")
+	gan4, ghi4, _ = _nap_gan(d4, quy_doi_co={"Lần": 1.0}, map_co={"name": "76jk41445u", "item_code": "DVTI00014"})
+	gan4("HDM-1", 3, "DVBH00001")
+	la("đọc lời đoán từ ô riêng nên vẫn sửa ghi nhớ", ghi4["map"],
+		[("MInvoice NCC Map", "76jk41445u", "item_code", "DVBH00001")])
 	# Ghi nhớ trỏ Món khác (không phải nguồn của lời đoán) thì không tự đè.
 	d3 = _Dong(idx=3, name="R3", item_code="", description=mo_ta_dong(may), uom="Lần", ten_hang_ncc="Phí dịch vụ")
 	gan3, ghi3, _ = _nap_gan(d3, quy_doi_co={"Lần": 1.0}, map_co={"name": "76jk41445u", "item_code": "NVLT9"})
@@ -263,6 +274,12 @@ def _chan_ghi_so_may_doan():
 		{"idx": 3, "item_code": "", "description": "Phí ship (Lần)"},
 	]
 	la("chỉ dòng mang lời đoán mà còn trống mã", dvt_mua.dong_may_doan_chua_chot(ds), [(2, "DVTI00014")])
+	# Codex #358 vòng 9: người sửa ô mô tả là mất dấu lời đoán, nhưng ô riêng
+	# vẫn giữ nên hàng rào ghi sổ không lọt.
+	ds[1]["description"] = "Phí dịch vụ"
+	ds[1]["vgb_mon_may_doan"] = "DVTI00014"
+	la("sửa mô tả vẫn chặn vì còn ô riêng", dvt_mua.dong_may_doan_chua_chot(ds), [(2, "DVTI00014")])
+	ds[1]["description"] = mo_ta_dong(may)
 	ds[1]["item_code"] = "DVTI00014"
 	la("đã chốt Món thì hết chặn", dvt_mua.dong_may_doan_chua_chot(ds), [])
 	# Gác ở before_submit nên mọi đường ghi sổ (Desk, app, ghi_so_thang) đều đi qua.
