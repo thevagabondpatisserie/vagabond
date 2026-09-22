@@ -61,11 +61,12 @@ function mayChu() {
 }
 
 function appMoi(canh) {
-  var mc = mayChu(), hoi = [], tai = 0, bao = [], hoiXacNhan = [], goNguon = [];
+  var mc = mayChu(), hoi = [], tai = 0, bao = [], hoiXacNhan = [], goNguon = [], hoiChu = [];
   var g = {
     money: String, kl: String, busy: function () {}, toast: function () {}, go: function () { tai++; },
     baoTin: function (s) { bao.push(s); }, parseFloat: parseFloat, Number: Number,
     qtySheet: async function (t, nhan, deXuat, dvt) { hoi.push({ t: t, nhan: nhan, deXuat: deXuat, dvt: dvt }); return canh.go; },
+    promptSheet: async function (t, gy) { hoiChu.push({ t: t, gy: gy }); return canh.goChu; },
     api: mc.api,
     confirmSheet: async function (t, n) { hoiXacNhan.push({ t: t, n: n }); return canh.dongY !== 0; },
   };
@@ -75,7 +76,7 @@ function appMoi(canh) {
      dung cua do khong; ruot cua no di qua sheet nhieu tang, co ca rieng. */
   g.dcmDoiMaTheoNguon = async function (name, idx, ma) { goNguon.push([name, idx, ma]); return canh.coNguon !== 0; };
   return { g: g, goi: mc.goi, hoi: hoi, tai: function () { return tai; }, bao: bao,
-    hoiXacNhan: hoiXacNhan, goNguon: goNguon };
+    hoiXacNhan: hoiXacNhan, goNguon: goNguon, hoiChu: hoiChu };
 }
 
 async function chayHet() {
@@ -421,6 +422,103 @@ async function chayHet() {
     await hop.c.primary_action(hop.gt);
     var gan3 = mc.goi.filter(function (x) { return x.m.endsWith('gan_ma_hang'); })[2];
     bang('lan ba gui he so kem dung Mon da duoc hoi', [gan3.a.item_code, gan3.a.he_so, gan3.a.he_so_cho], ['NVLT00141', 1, 'NVLT00141']);
+  });
+
+  /* Codex #358 vong 19: to TRA HANG khong di duoc cua "sua theo hoa don goc".
+     App phai hoi don vi ngay tai cho, khong duoc day nguoi sang cua dong. */
+  await ca('Codex #358 vong 19: app hoi don vi va he so roi gui len, khong mo cua nguon', async function () {
+    var m = appMoi({ goChu: 'Thùng', go: 24 });
+    m.g.api = async function (mm, a) {
+      if (!mm.endsWith('gan_ma_hang')) return {};
+      m.goi.push({ m: mm, a: JSON.parse(JSON.stringify(a)) });
+      /* Chan vong lap: may khach quen gui don vi thi hoi mai. Ca kiem phai
+         HONG ro rang, khong treo may (dot bien M5 ngay 22/09). */
+      if (m.goi.length > 3) throw new Error('goi gan_ma_hang qua 3 lan: don vi khong duoc gui len');
+      if (!a.dvt_khai) return { can_dvt: 1, item_code: a.item_code, dvt_kho: 'Kg', loi_nhan: 'Tờ này không đi được cửa sửa theo hoá đơn gốc.' };
+      return { item_code: a.item_code, dvt: a.dvt_khai, he_so: a.he_so, loi_nhan: 'Đã gắn món cho dòng 1.' };
+    };
+    await m.g.dcmGanXong('HDM-TRA', 1, 'NVLT00141');
+    bang('hai lan goi gan', m.goi.length, 2);
+    bang('khong mo cua nguon', m.goNguon.length, 0);
+    bang('hoi chu mot lan', m.hoiChu.length, 1);
+    bang('hoi he so theo don vi vua go', m.hoi[0].t, '1 Thùng bằng bao nhiêu Kg?');
+    bang('lan hai gui du don vi, he so va Mon da hoi',
+      [m.goi[1].a.dvt_khai, m.goi[1].a.he_so, m.goi[1].a.he_so_cho], ['Thùng', 24, 'NVLT00141']);
+    bang('tai lai man mot lan', m.tai(), 1);
+  });
+  await ca('Codex #358 vong 19: nguoi bo trong o don vi thi dung, khong goi lan hai', async function () {
+    var m = appMoi({ goChu: '   ', go: 24 });
+    m.g.api = async function (mm, a) {
+      if (!mm.endsWith('gan_ma_hang')) return {};
+      m.goi.push({ m: mm, a: a });
+      return { can_dvt: 1, item_code: a.item_code, dvt_kho: 'Kg', loi_nhan: 'x' };
+    };
+    await m.g.dcmGanXong('HDM-TRA', 1, 'NVLT00141');
+    bang('chi goi mot lan', m.goi.length, 1);
+    bang('khong hoi he so', m.hoi.length, 0);
+    bang('khong tai lai, khong bao da gan', [m.tai(), m.bao.length], [0, 0]);
+  });
+
+  await ca('Codex #358 vong 19: hop Desk hoi ca don vi lan he so, doi Mon thi xoa het', async function () {
+    var hop = null, goi = [], reload = 0;
+    function Truong(df) { this.df = df; this.$wrapper = { html: function (h) { df._html = h; } }; this.refresh = function () {}; }
+    var frm = {
+      doc: { name: 'HDM-TRA', docstatus: 0, is_return: 1, custom_minvoice_id: 'MI-1', items: [
+        { idx: 1, item_code: '', ten_hang_ncc: 'Hạt dẻ', qty: -1, rate: 280000 }] },
+      is_dirty: function () { return false; }, reload_doc: async function () { reload++; },
+    };
+    var g = {
+      format_currency: String, parseFloat: parseFloat, String: String,
+      frappe: {
+        utils: { escape_html: function (s) { return String(s); } },
+        ui: { form: { on: function () {} }, Dialog: function (c) {
+          hop = this; this.c = c; this.gt = {}; this.fields_dict = {};
+          var self = this;
+          c.fields.forEach(function (f) { if (f.fieldname) self.fields_dict[f.fieldname] = new Truong(f); });
+          this.get_field = function (n) { return self.fields_dict[n]; };
+          this.get_value = function (n) { return self.gt[n]; };
+          this.set_value = function (n, v) {
+            var cu = self.gt[n]; self.gt[n] = v;
+            var t = self.fields_dict[n];
+            if (cu !== v && t && t.df.onchange) t.df.onchange();
+          };
+          this.show = function () {}; this.hide = function () { self.an = 1; };
+          this.disable_primary_action = function () {}; this.enable_primary_action = function () {};
+        } },
+        call: async function (o) {
+          if (o.method.endsWith('goi_y_mon')) return { message: { goi_y: [] } };
+          goi.push(JSON.parse(JSON.stringify(o.args)));
+          if (!o.args.dvt_khai) return { message: { can_dvt: 1, item_code: o.args.item_code, dvt_kho: 'Kg', loi_nhan: 'Tờ này không đi được cửa sửa theo hoá đơn gốc.' } };
+          return { message: { item_code: o.args.item_code, loi_nhan: 'Đã gắn Món.' } };
+        },
+        msgprint: function () {}, show_alert: function () {},
+        user: { has_role: function () { return true; } },
+      },
+    };
+    vm.createContext(g);
+    vm.runInContext(layHam(DESK, 'vgbGanMonDesk'), g);
+    await g.vgbGanMonDesk(frm);
+    await new Promise(function (r) { setTimeout(r, 5); });
+    hop.set_value('dong', '1');
+    hop.set_value('item_code', 'NVLT00141');
+    await hop.c.primary_action(hop.gt);
+    bang('hien ca o don vi lan o he so',
+      [hop.fields_dict.dvt_khai.df.hidden, hop.fields_dict.he_so.df.hidden], [0, 0]);
+    dung('nhan o he so noi ro quy ve don vi kho', hop.fields_dict.he_so.df.label.indexOf('Kg') >= 0);
+    /* Nguoi doi Mon sau khi duoc hoi: bo het cau hoi cu, khong ghi don vi cua
+       Mon cu vao Mon moi (cung luat voi he so, Codex #358 P1). */
+    hop.set_value('item_code', 'NVLT00999');
+    bang('doi Mon thi an ca hai o',
+      [hop.fields_dict.dvt_khai.df.hidden, hop.fields_dict.he_so.df.hidden], [1, 1]);
+    hop.set_value('item_code', 'NVLT00141');
+    await hop.c.primary_action(hop.gt);
+    hop.set_value('dvt_khai', 'Thùng');
+    hop.set_value('he_so', 24);
+    await hop.c.primary_action(hop.gt);
+    var cuoi = goi[goi.length - 1];
+    bang('gui du don vi, he so va Mon da hoi',
+      [cuoi.dvt_khai, cuoi.he_so, cuoi.he_so_cho, cuoi.item_code], ['Thùng', 24, 'NVLT00141', 'NVLT00141']);
+    bang('xong thi dong hop va tai lai phieu', [hop.an, reload], [1, 1]);
   });
 }
 
