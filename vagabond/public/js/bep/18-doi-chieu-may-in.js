@@ -1654,7 +1654,7 @@ async function dcmDoiMaTheoNguon(name, idx, itemCode) {
   return true;
 }
 
-async function dcmGanXong(name, idx, itemCode, doi) {
+async function dcmGanXong(name, idx, itemCode, doi, heSo) {
   if (!itemCode) return;
   busy(true);
   try {
@@ -1664,9 +1664,21 @@ async function dcmGanXong(name, idx, itemCode, doi) {
     if (doi && await dcmDoiMaTheoNguon(name, idx, itemCode)) return;
     /* `doi` = dong da co ma nhung sai, doi sang ma tren phieu nhap. May chu
        tu choi neu dong da noi phieu, va ghi ro trong to la ai doi ma nao. */
-    var kq = await api('vagabond.doi_chieu_mua.gan_ma_hang',
-      { name: name, dong: idx, item_code: itemCode, nho: 1, doi: doi ? 1 : 0 });
+    var ts = { name: name, dong: idx, item_code: itemCode, nho: 1, doi: doi ? 1 : 0 };
+    if (heSo) ts.he_so = heSo;
+    var kq = await api('vagabond.doi_chieu_mua.gan_ma_hang', ts);
     busy(false);
+    /* #358 (anh Viet 22/09/2026): mon chua khai don vi nha cung cap ghi thi
+       may chu KHONG gan tam he so 1 nua ma hoi. Nguoi go he so, may ghi
+       luon vao bang quy doi cua Mon roi gan; lan sau may tu hieu. */
+    if (kq && kq.can_he_so) {
+      var hs = await qtySheet('Khai đơn vị "' + kq.dvt_ncc + '" cho món ' + itemCode,
+        'Nhà cung cấp ghi "' + kq.dvt_ncc + '". 1 ' + kq.dvt_ncc + ' bằng bao nhiêu ' + kq.dvt_kho +
+        '? Số này được ghi vào món, lần sau hoá đơn ghi "' + kq.dvt_ncc + '" là máy tự hiểu.',
+        Number(kq.de_xuat) || 0, kq.dvt_kho || '');
+      if (!(parseFloat(hs) > 0)) return;
+      return dcmGanXong(name, idx, itemCode, doi, parseFloat(hs));
+    }
     baoTin((kq && kq.loi_nhan) || 'Đã gắn mã hàng.');
     go(function () { scrDcmXem(name); }, true);
   } catch (e) { busy(false); baoTin((e && e.message) || 'Không gắn được mã hàng'); }
