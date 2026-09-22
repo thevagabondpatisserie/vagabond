@@ -689,7 +689,7 @@ def soat_ket_qua(trang_thai, trang_thai_cu, ket_qua):
 	return None
 
 
-def soat_huy(trang_thai, trang_thai_cu, quyen, ly_do, nhac_lai, hom_nay):
+def soat_huy(trang_thai, trang_thai_cu, quyen, ly_do, nhac_lai, hom_nay, luat=None):
 	"""Câu lỗi nếu Task bảng sáng bị chuyển sang Cancelled sai đường. THUẦN.
 
 	Codex #356: người nhận đổi Task sang Cancelled trên Desk thì ERPNext đóng
@@ -709,6 +709,12 @@ def soat_huy(trang_thai, trang_thai_cu, quyen, ly_do, nhac_lai, hom_nay):
 		ok = False
 	if not ok:
 		return "Bỏ qua phải có ngày nhắc lại sau hôm nay (ô \"Nhắc lại ngày\")."
+	# Codex #356: huỷ qua API tài liệu thì ngày nhắc gửi lên tuỳ ý, lô quá hạn
+	# (bỏ qua tối đa 3 ngày) bị ẩn cả năm. Trần là bo_qua_toi_da của luật, như
+	# so_ngay_bo_qua của đường app.
+	tran = LUAT.get(luat, {}).get("bo_qua_toi_da", 7)
+	if (getdate(nhac_lai) - getdate(hom_nay)).days > tran:
+		return "Việc này chỉ bỏ qua được tối đa %s ngày. Chọn ngày nhắc lại gần hơn." % tran
 	return None
 
 
@@ -738,9 +744,8 @@ def loi_truong_khoa(truoc, sau):
 
 	Codex #356: gửi thẳng tài liệu qua API thì đổi được cả ô chỉ đọc; xoá ô
 	khoá là Task thoát khỏi mọi luật và biến khỏi bảng sáng."""
-	g = lambda v: "" if v is None else str(v).strip()[:10] if len(str(v)) >= 10 and str(v)[4:5] == "-" else ("" if v is None else str(v).strip())
 	for f in TRUONG_KHOA_TASK:
-		if g((truoc or {}).get(f)) != g(sau.get(f)):
+		if _chuan((truoc or {}).get(f)) != _chuan(sau.get(f)):
 			return "Không sửa được ô căn cứ \"%s\" của việc sinh từ màn Việc hôm nay." % f
 	return None
 
@@ -756,6 +761,64 @@ def loi_mo_lai(cu, moi):
 	if cu in TASK_DONG and moi in TASK_DONG and cu != moi:
 		return "Việc đã đóng không đổi trạng thái được nữa."
 	return None
+
+
+# Ô của việc đã đóng không ai được sửa: sửa là đổi thời gian nhận định bị ẩn.
+TRUONG_DONG_KHOA = ("vgb_goi_y_bo_qua_ly_do", "vgb_goi_y_ket_qua", "completed_on")
+# Mọi ô riêng của việc bảng sáng; Task mới mang một ô trong số này mà không do
+# giao/bo_qua tạo là Task giả.
+TRUONG_BANG_SANG = TRUONG_KHOA_TASK + ("vgb_goi_y_nhac_lai", "vgb_goi_y_bo_qua_ly_do", "vgb_goi_y_ket_qua", "vgb_goi_y_anh")
+
+
+def _chuan(v):
+	"""So ô trước và sau lưu: bỏ khoảng trắng, ngày giờ chỉ lấy phần ngày."""
+	if v is None:
+		return ""
+	s = str(v).strip()
+	return s[:10] if len(s) >= 10 and s[4:5] == "-" else s
+
+
+def loi_sua_viec_dong(cu, truoc, sau):
+	"""Câu lỗi nếu lần lưu sửa ô của việc đã đóng, None nếu không. THUẦN.
+
+	Codex #356: sau khi huỷ, ô ngày nhắc vẫn sửa được và nhánh "đã huỷ rồi"
+	của soat_huy bỏ qua hết, nên kéo ngày nhắc ra xa là ẩn nhận định mãi.
+	Ngày nhắc chỉ được KÉO GẦN lại (như Hiện lại), không được đẩy xa."""
+	if cu not in TASK_DONG:
+		return None
+	truoc = truoc or {}
+	for f in TRUONG_DONG_KHOA:
+		if _chuan(truoc.get(f)) != _chuan(sau.get(f)):
+			return "Việc đã đóng không sửa được ô \"%s\" nữa." % f
+	a, b = _chuan(truoc.get("vgb_goi_y_nhac_lai")), _chuan(sau.get("vgb_goi_y_nhac_lai"))
+	if a != b and (not a or not b or b > a):
+		return "Việc đã bỏ qua chỉ đưa lại sớm hơn được (Hiện lại), không lùi ngày nhắc ra xa hơn."
+	return None
+
+
+def loi_tao_viec(co_truong, noi_bo, nguoi):
+	"""Câu lỗi nếu một Task MỚI mang ô bảng sáng mà không do máy tạo. THUẦN.
+
+	Codex #356: hook bỏ qua Task mới, nên ai có quyền tạo Task gửi kèm một
+	khoá đoán được là có một "việc đang mở" giả, nhận định thật biến khỏi Cần
+	giao. Chỉ giao/bo_qua (đánh dấu cờ nội bộ) và Administrator được tạo."""
+	if not co_truong or noi_bo or nguoi == "Administrator":
+		return None
+	return "Việc của màn Việc hôm nay chỉ tạo được bằng nút Giao hoặc Bỏ qua trên màn đó."
+
+
+def dem_theo_loc(nhom, bo_phan, ky, hom_nay):
+	"""Số dòng từng tab theo ĐÚNG bộ lọc đang chọn. THUẦN.
+
+	Codex #356: ô số và chip tab đếm cả mọi bộ phận, mọi ngày trong khi danh
+	sách đã lọc, nên số không khớp dòng. Khoảng ngày không áp cho Cần giao."""
+	ra = {}
+	for k, v in (nhom or {}).items():
+		ds = [x for x in v if not bo_phan or bo_phan in (x.get("bo_phan") or [])]
+		if k != "can_giao":
+			ds = loc_theo_ky(ds, ky, hom_nay)
+		ra[k] = len(ds)
+	return ra
 
 
 # Hàng chip khoảng ngày (AGENTS.md: ba hàng chip trên mọi màn danh sách).
@@ -1028,7 +1091,9 @@ def _viec_bang_sang(so_ngay=None):
 		"Task",
 		filters={"vgb_goi_y_khoa": ["is", "set"], "status": ["in", ["Completed", "Cancelled"]],
 			"modified": [">=", str(add_days(_hom_nay(), -(so_ngay or LICH_SU_NGAY)))]},
-		fields=TRUONG_VIEC, order_by="modified desc", limit_page_length=500,
+		# Codex #356: không trần 500 dòng. Trần cắt TRƯỚC khi lọc bộ phận,
+		# tab, khoảng ngày, nên chip "30 ngày" thiếu dòng; cửa sổ ngày đã giới hạn.
+		fields=TRUONG_VIEC, order_by="modified desc", limit_page_length=0,
 	)
 	ds = mo + cu
 	for d in ds:
@@ -1124,16 +1189,18 @@ def bang_sang(tab="can_giao", bo_phan="", ky=""):
 	nhom = {"can_giao": can_giao, "da_giao": da_giao, "tre": tre, "xong": xong, "bo_qua": bo_qua}
 	tab = tab if tab in nhom else "can_giao"
 	cua_tab = nhom[tab]
+	bo_phan = (bo_phan or "").strip()
+	ky = ky if ky in dict(KY_NGAY) else ""
+	# Chip bộ phận đếm trong tab và khoảng ngày đang chọn (không lọc bộ phận).
 	dem_bp = {k: 0 for k in duoc}
-	for x in cua_tab:
+	for x in (cua_tab if tab == "can_giao" else loc_theo_ky(cua_tab, ky, hom_nay)):
 		for k in x.get("bo_phan") or []:
 			if k in dem_bp:
 				dem_bp[k] += 1
-	bo_phan = (bo_phan or "").strip()
 	hien = [x for x in cua_tab if not bo_phan or bo_phan in (x.get("bo_phan") or [])]
-	ky = ky if ky in dict(KY_NGAY) else ""
 	if tab != "can_giao":
 		hien = loc_theo_ky(hien, ky, hom_nay)
+	dem = dem_theo_loc(nhom, bo_phan, ky, hom_nay)
 	return {
 		"ky": ky,
 		"chip_ky": [{"k": k, "ten": t} for k, t in KY_NGAY],
@@ -1143,8 +1210,12 @@ def bang_sang(tab="can_giao", bo_phan="", ky=""):
 		"nhan_tuan": (b or {}).get("nhan_tuan") or [],
 		"tab": tab,
 		"bo_phan": bo_phan,
-		"dem": {k: len(v) for k, v in nhom.items()},
-		"so_tre": sum(1 for d in da_giao if d["tt"] == "tre"),
+		# dem: theo bộ lọc đang chọn, khớp dòng đang hiện; dem_tong: không lọc.
+		"dem": dem,
+		"dem_tong": {k: len(v) for k, v in nhom.items()},
+		"so_tre": dem["tre"],
+		"dang_loc": 1 if (bo_phan or (ky and tab != "can_giao")) else 0,
+		"tong_loc": len(hien),
 		"chip_bo_phan": [{"k": k, "ten": TEN_BO_PHAN[k], "ic": ICON_BO_PHAN[k], "so": dem_bp.get(k, 0)} for k in duoc],
 		"ds": hien,
 		"chat_luong": (b or {}).get("chat_luong") or [],
@@ -1159,7 +1230,7 @@ def dem_trang_chu():
 	if not (_vai() & QUYEN_BANG_SANG):
 		return {"can_giao": 0, "tre": 0, "co_quyen": 0}
 	kq = bang_sang()
-	return {"can_giao": kq["dem"]["can_giao"], "tre": kq["so_tre"], "dang_dung": kq["dang_dung"], "co_quyen": 1}
+	return {"can_giao": kq["dem_tong"]["can_giao"], "tre": kq["dem_tong"]["tre"], "dang_dung": kq["dang_dung"], "co_quyen": 1}
 
 
 def _tim_nhan_dinh(khoa):
@@ -1293,6 +1364,7 @@ def giao(khoa, nguoi, han=None, ghi_chu=None):
 			"vgb_goi_y_so_lieu": json.dumps({"cau": x["cau"], "so_lieu": x.get("so_lieu")}, ensure_ascii=False),
 			"vgb_goi_y_anh": x["doi"].get("anh") or "",
 		})
+		t.flags.vgb_bang_sang = True  # loi_tao_viec: Task do máy tạo
 		t.insert(ignore_permissions=True)
 		so = _gan_nguoi(t, ds, x["tieu_de"][:140], han)
 		if so != len(ds):
@@ -1387,6 +1459,7 @@ def bo_qua(khoa, ly_do, so_ngay=7):
 			"vgb_goi_y_so_lieu": json.dumps({"cau": x["cau"], "so_lieu": x.get("so_lieu")}, ensure_ascii=False),
 			"vgb_goi_y_anh": x["doi"].get("anh") or "",
 		})
+		t.flags.vgb_bang_sang = True  # loi_tao_viec: Task do máy tạo
 		t.insert(ignore_permissions=True)
 		frappe.db.commit()  # như giao(): ghi xong rồi mới nhả khoá
 		return {"ok": 1, "name": t.name, "nhac_lai": str(nhac), "so_ngay": ngay}
@@ -1585,16 +1658,20 @@ def kiem_nguoi_sua_task(doc, method=None):
 	ERPNext (Task.validate) đã đóng ToDo của chính họ. before_validate chạy
 	trước bộ điều khiển Task nên còn thấy đúng ToDo đang mở."""
 	if doc.is_new():
+		loi = loi_tao_viec(any(doc.get(f) for f in TRUONG_BANG_SANG), bool(getattr(doc.flags, "vgb_bang_sang", None)), frappe.session.user)
+		if loi:
+			frappe.throw(loi, title="Không tạo được")
 		return
 	# Codex #356: nhận diện Task bảng sáng theo giá trị ĐÃ LƯU, không theo ô
 	# gửi lên: xoá trắng ô khoá qua API là lách được mọi luật dưới đây.
-	truoc = frappe.db.get_value("Task", doc.name, ["status"] + list(TRUONG_KHOA_TASK), as_dict=True) or {}
+	truoc = frappe.db.get_value("Task", doc.name, ["status", "vgb_goi_y_nhac_lai"] + list(TRUONG_KHOA_TASK) + list(TRUONG_DONG_KHOA),
+		as_dict=True) or {}
 	if not truoc.get("vgb_goi_y_khoa") and not doc.get("vgb_goi_y_khoa"):
 		return
 	vai = _vai()
 	cu = truoc.get("status")
 	if frappe.session.user != "Administrator":
-		loi = loi_truong_khoa(truoc, doc) or loi_mo_lai(cu, doc.get("status"))
+		loi = loi_truong_khoa(truoc, doc) or loi_mo_lai(cu, doc.get("status")) or loi_sua_viec_dong(cu, truoc, doc)
 		if loi:
 			frappe.throw(loi, title="Không sửa được")
 	if not can_kiem_nguoi_sua(frappe.session.user, {}, doc.get("status"), doc.get("vgb_goi_y_ket_qua"), vai):
@@ -1604,7 +1681,8 @@ def kiem_nguoi_sua_task(doc, method=None):
 		if not q:
 			frappe.throw("Việc này không (còn) giao cho bạn và không thuộc bộ phận bạn quản lý, nên không sửa được.",
 				title="Không có quyền")
-	loi = soat_huy(doc.get("status"), cu, q, doc.get("vgb_goi_y_bo_qua_ly_do"), doc.get("vgb_goi_y_nhac_lai"), _hom_nay())
+	loi = soat_huy(doc.get("status"), cu, q, doc.get("vgb_goi_y_bo_qua_ly_do"), doc.get("vgb_goi_y_nhac_lai"), _hom_nay(),
+		truoc.get("vgb_goi_y_luat"))
 	if loi:
 		frappe.throw(loi, title="Không huỷ được")
 
