@@ -924,3 +924,8 @@ Cách phòng: máy chỉ GỢI Ý. Dòng đoán không chắc vẫn vào phiếu
 và ghi lời đoán trong mô tả (đặt TRƯỚC "(dvt)" để dvt_tren_hoa_don vẫn đọc được).
 Người chốt Món và hệ số, hệ số được ghi vào bảng quy đổi của Món để lần sau tự
 map. Không bao giờ lặng lẽ lấy hệ số 1 cho hàng tồn kho.
+Codex bắt thêm hai lỗ trên chính bản sửa: (1) dòng trống mã được ERPNext coi
+như dịch vụ và vẫn ghi sổ được, nên dòng mang lời đoán phải có gác
+before_submit riêng; (2) hệ số người gõ là câu trả lời cho MỘT Món, đổi Món
+sau khi được hỏi thì phải hỏi lại, máy chủ nhận kèm `he_so_cho` và từ chối
+khi lệch.
