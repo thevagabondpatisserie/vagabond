@@ -1662,6 +1662,17 @@ def _phieu_ung_vien(doc):
 	return [r for r in rows if flt(r.get("per_billed")) < 99.99]
 
 
+def _cua_nguon_mo(doc):
+	"""Cửa "Sửa mã theo hóa đơn gốc" có mở cho tờ này không.
+
+	Một nguồn duy nhất là `sua_ma_hoa_don`, nơi giữ phép thật của cửa đó;
+	chép lại phép ở đây là hai nơi tự tính rồi lệch nhau (Codex #358 vòng 19).
+	"""
+	from vagabond import sua_ma_hoa_don
+
+	return sua_ma_hoa_don.sua_theo_nguon_duoc(doc)
+
+
 def chan_ghi_so_may_doan(doc, method=None):
 	"""before_submit Hoá đơn mua (Codex #358 P1).
 
@@ -1678,7 +1689,7 @@ def chan_ghi_so_may_doan(doc, method=None):
 
 
 @frappe.whitelist()
-def gan_ma_hang(name, dong, item_code, nho=1, doi=0, he_so=None, he_so_cho=None):
+def gan_ma_hang(name, dong, item_code, nho=1, doi=0, he_so=None, he_so_cho=None, dvt_khai=None):
 	"""Gan mot Mon vao dong hoa don chua co ma hang, va NHO cho lan sau.
 
 	ANH VIET 31/08/2026
@@ -1754,22 +1765,45 @@ def gan_ma_hang(name, dong, item_code, nho=1, doi=0, he_so=None, he_so_cho=None)
 	# don vi kho he so 1 - y het duong dung chung tu, de hai cho khong bao
 	# gio xu khac nhau (QT-19).
 	la_kho = cint(frappe.db.get_value("Item", item_code, "is_stock_item"))
+	dvt_kho = frappe.db.get_value("Item", item_code, "stock_uom") or "Nos"
 	# Codex #358: hoá đơn gốc không ghi đơn vị mà Món là hàng tồn kho thì
 	# KHÔNG được lấy đơn vị kho hệ số 1 - một gói không rõ lượng thành một
 	# đơn vị kho. Dịch vụ thì vẫn cho, y như lúc dựng phiếu.
 	if dvt_mua.chan_hang_kho_khong_dvt(dvt_ncc, la_kho):
-		# KHÔNG ném lỗi cụt: trả cờ để màn hình mở thẳng đường sửa theo hoá
-		# đơn gốc (Codex #358 vòng 8). Chưa lưu gì trên tờ.
-		return {
-			"name": doc.name, "idx": idx, "item_code": item_code, "can_nguon": 1,
-			"loi_nhan": (
-				"Hoá đơn gốc không ghi đơn vị cho dòng %d, mà %s là hàng tồn kho. "
-				"Gắn thẳng thì phải lấy đơn vị kho hệ số 1, tức là đoán lượng nhập. "
-				"Chọn dòng trên hoá đơn gốc và đúng quy cách để máy lấy lượng thật."
-				% (d.idx, item_code)
-			),
-		}
-	dvt_kho = frappe.db.get_value("Item", item_code, "stock_uom") or "Nos"
+		# Codex #358 vòng 19: chỉ được mời sang cửa "Sửa mã theo hóa đơn gốc"
+		# khi cửa đó THẬT SỰ mở. Tờ trả hàng không đi cửa đó, mời sang là
+		# đường cụt. Tờ nào cũng còn đường người tự khai đơn vị và hệ số.
+		khai_cho = (
+			str(dvt_khai or "").strip()
+			if str(he_so_cho or "").strip() == item_code else ""
+		)
+		cach = dvt_mua.cach_go_thieu_dvt(_cua_nguon_mo(doc), khai_cho, he_so)
+		if cach == "nguon":
+			# KHÔNG ném lỗi cụt: trả cờ để màn hình mở thẳng đường sửa theo hoá
+			# đơn gốc (Codex #358 vòng 8). Chưa lưu gì trên tờ.
+			return {
+				"name": doc.name, "idx": idx, "item_code": item_code, "can_nguon": 1,
+				"loi_nhan": (
+					"Hoá đơn gốc không ghi đơn vị cho dòng %d, mà %s là hàng tồn kho. "
+					"Gắn thẳng thì phải lấy đơn vị kho hệ số 1, tức là đoán lượng nhập. "
+					"Chọn dòng trên hoá đơn gốc và đúng quy cách để máy lấy lượng thật."
+					% (d.idx, item_code)
+				),
+			}
+		if cach == "hoi":
+			return {
+				"name": doc.name, "idx": idx, "item_code": item_code, "can_dvt": 1,
+				"dvt_kho": dvt_kho, "de_xuat": 0,
+				"loi_nhan": (
+					"Hoá đơn gốc không ghi đơn vị cho dòng %d, mà %s là hàng tồn kho. "
+					"Tờ này không đi được cửa sửa theo hoá đơn gốc, nên gõ đơn vị nhà "
+					"cung cấp ghi trên tờ giấy và 1 đơn vị đó bằng bao nhiêu %s. "
+					"Máy ghi vào Món, lần sau tự hiểu."
+					% (d.idx, item_code, dvt_kho)
+				),
+			}
+		# Người đã khai: từ đây coi như hoá đơn ghi đúng đơn vị đó.
+		dvt_ncc = khai_cho
 	dung_uom, he_so_moi = dvt_kho, 1.0
 	tim_thay = False
 	for ten_thu in [dvt_ncc, dvt_mua.goi_y_don_vi(dvt_ncc)]:

@@ -368,6 +368,19 @@ def _dung_nhom(khai, ten_nhom):
 			la_single = 1
 		if la_single:
 			continue
+		# DocType KHÔNG CÓ trên site này thì không có bảng nào để soát. Ca thật
+		# bench CI 22/09/2026: "Phieu Kiem Ke" là doctype tự tạo trên Desk
+		# (custom, nằm trong cơ sở dữ liệu chứ không trong git) nên site mới
+		# dựng không có nó, soát cột báo thiếu oan và chặn cả lượt Migrate.
+		# Doctype ảo cũng vậy, nó không có bảng. Đọc không ra thì bỏ soát:
+		# chặn oan một lượt Migrate hại hơn là bỏ sót một lần soát.
+		try:
+			co_bang = frappe.db.table_exists(dt)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "truong_tu_them: doc bang %s" % dt)
+			co_bang = False
+		if not co_bang:
+			continue
 		thieu = []
 		for o in khai[dt] or []:
 			o = o or {}

@@ -42,10 +42,33 @@ def _dong_goc(g):
             for d in mc.dong_hang_hoa(dl.doc_chi_tiet(g.get('chi_tiet')))]
 
 
+def cua_nguon_mo(docstatus, is_return, co_goc):
+    """Cửa "Sửa mã theo hóa đơn gốc" có mở cho tờ này không. THUẦN.
+
+    Codex #358 vòng 19: nơi khác muốn chỉ người dùng sang cửa này thì phải
+    hỏi ĐÚNG phép mà `lua_chon` dùng, không đoán. Tờ trả hàng (`is_return`)
+    không đi cửa này, nên mời sang là đường cụt: người bấm xong chỉ nhận
+    "tờ này không có nguồn" rồi đứng lại chỗ cũ.
+    """
+    try:
+        ds = int(docstatus or 0)
+    except (TypeError, ValueError):
+        ds = 0
+    return bool(co_goc) and ds == 0 and not is_return
+
+
+def sua_theo_nguon_duoc(doc):
+    """Cửa nguồn có mở cho tờ `doc` không, đọc luôn hồ sơ nguồn. Không đụng doc."""
+    if not doc:
+        return False
+    return cua_nguon_mo(doc.get('docstatus'), doc.get('is_return'),
+                        dl._goc(doc.get('custom_minvoice_id')))
+
+
 @frappe.whitelist()
 def lua_chon(name):
     doc, g = _phieu(name, can_nguon=False)
-    if not g or doc.get('is_return'):
+    if not cua_nguon_mo(doc.docstatus, doc.get('is_return'), g):
         return dict(co_nguon=False)
     return dict(co_nguon=True, modified=str(doc.modified),
         dong=[dict(name=d.name, idx=d.idx, nhan='%s. %s' % (d.idx, d.item_name or d.item_code or ''),

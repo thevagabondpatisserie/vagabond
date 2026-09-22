@@ -403,6 +403,30 @@ def chan_hang_kho_khong_dvt(dvt_ncc, la_hang_kho):
 	return not str(dvt_ncc or "").strip() and bool(int(la_hang_kho or 0))
 
 
+def cach_go_thieu_dvt(cua_nguon, dvt_khai, he_so):
+	"""Dòng hàng kho mà hoá đơn gốc không ghi đơn vị thì gỡ bằng đường nào. THUẦN.
+
+	  "khai"  người đã gõ đơn vị nhà cung cấp và hệ số - ghi vào Món rồi gắn.
+	  "nguon" chưa gõ, mà cửa "Sửa mã theo hóa đơn gốc" còn mở - sang đó lấy
+	          lượng thật của bản gốc, chuẩn hơn vì không ai phải nhớ.
+	  "hoi"   cửa nguồn đóng - hỏi người đơn vị và hệ số ngay tại chỗ.
+
+	Codex #358 vòng 19: tờ TRẢ HÀNG không đi được cửa nguồn
+	(`sua_ma_hoa_don.lua_chon` trả `co_nguon` sai cho mọi tờ `is_return`),
+	nên mời sang đó là đường cụt. Đường hỏi người mở cho MỌI tờ, vì vậy
+	không tờ nào còn kẹt.
+	"""
+	import math
+	if str(dvt_khai or "").strip():
+		try:
+			hs = float(he_so)
+		except (TypeError, ValueError):
+			hs = 0.0
+		if math.isfinite(hs) and hs > 0:
+			return "khai"
+	return "nguon" if cua_nguon else "hoi"
+
+
 def dong_may_doan_chua_chot(dong):
 	"""Các dòng còn mang lời đoán của máy mà người chưa chốt Món. THUẦN.
 
