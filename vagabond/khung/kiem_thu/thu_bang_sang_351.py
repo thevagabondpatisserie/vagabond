@@ -351,9 +351,15 @@ class Gia:
 			return _TaskGia(fr, fr.task[name])
 
 		class Moi(dict):
+			def __init__(s, *a, **k):
+				dict.__init__(s, *a, **k)
+				s.__dict__["flags"] = NS()
+
 			def insert(s, ignore_permissions=False):
 				dung("ghi bằng quyền hệ thống", ignore_permissions)
 				if s["doctype"] == "Task":
+					# Codex #356: Task máy tạo phải mang cờ, không thì hook chặn.
+					dung("Task do giao/bo_qua tạo mang cờ nội bộ", getattr(s.flags, "vgb_bang_sang", False))
 					s["name"] = "TASK-%d" % (len(fr.task) + 1)
 					s.setdefault("owner", fr.session.user)
 					fr.task[s["name"]] = s
@@ -880,7 +886,7 @@ def _n4_bo_qua_viec():
 	t = fr.task[r["name"]]
 	la("Task huỷ kèm lý do, ngày kẹp theo luật", (t["status"], t["vgb_goi_y_bo_qua_ly_do"], kq["so_ngay"]),
 		("Cancelled", "so_sai", pt.so_ngay_bo_qua("mon_tang", 30)))
-	la("ngày nhắc sau hôm nay", pt.soat_huy("Cancelled", "Open", "quan_ly", t["vgb_goi_y_bo_qua_ly_do"], t["vgb_goi_y_nhac_lai"], "2026-09-20"), None)
+	la("ngày nhắc sau hôm nay", pt.soat_huy("Cancelled", "Open", "quan_ly", t["vgb_goi_y_bo_qua_ly_do"], t["vgb_goi_y_nhac_lai"], "2026-09-20", "mon_tang"), None)
 	fr.task[r["name"]]["status"] = "Open"
 	with patch.object(pt, "_ten_nguoi", lambda ds: {}):
 		v = _chay(fr, pt.viec, r["name"])
@@ -1022,3 +1028,95 @@ def _s2_30_ngay():
 	fr.task["TASK-3"] = {"name": "TASK-3", "subject": "Bỏ qua gần, nhắc đã qua", "status": "Cancelled", "modified": "2026-09-16 10:00:00", "vgb_goi_y_nhac_lai": "2026-08-10",
 		"vgb_goi_y_khoa": "k3", "vgb_goi_y_luat": "mon_tang", "vgb_goi_y_bo_phan": "marketing", "_assign": "[]", "owner": "viet@vgb", "creation": "2026-09-16 10:00:00"}
 	la("bỏ qua tính theo mốc bỏ qua, không theo ngày nhắc", sorted(x["name"] for x in _chay(fr, pt.bang_sang, "bo_qua", "", "30")["ds"]), ["TASK-2", "TASK-3"])
+
+
+# ------------------------------------------------ Codex #356 (SHA 0a8754e)
+
+@ca("#356 T1: huỷ qua API không vượt trần bỏ qua của luật; việc đã huỷ không đẩy ngày nhắc ra xa")
+def _t1_tran_bo_qua():
+	la("thuần: lô quá hạn bỏ qua 1 năm", bool(pt.soat_huy("Cancelled", "Open", "quan_ly", "so_sai", "2027-09-20", "2026-09-20", "lo_qua_han")), True)
+	la("thuần: lô quá hạn đúng 3 ngày thì qua", pt.soat_huy("Cancelled", "Open", "quan_ly", "so_sai", "2026-09-23", "2026-09-20", "lo_qua_han"), None)
+	la("thuần: lô quá hạn 4 ngày", bool(pt.soat_huy("Cancelled", "Open", "quan_ly", "so_sai", "2026-09-24", "2026-09-20", "lo_qua_han")), True)
+	la("thuần: món đang lên 14 ngày thì qua", pt.soat_huy("Cancelled", "Open", "quan_ly", "so_sai", "2026-10-04", "2026-09-20", "mon_tang"), None)
+	# Chuỗi của khách: quản lý gửi thẳng Task qua API tài liệu.
+	fr = Gia(user="kho@vgb", vai=("Stock Manager",))
+	fr.task["TASK-5"] = {"vgb_goi_y_khoa": "k", "vgb_goi_y_luat": "lo_qua_han", "name": "TASK-5", "status": "Open",
+		"vgb_goi_y_ket_qua": "", "vgb_goi_y_bo_phan": "kho"}
+	fr.db.get_value = _gv(fr)
+	huy = lambda n: _DocGia(name="TASK-5", status="Cancelled", vgb_goi_y_khoa="k", vgb_goi_y_luat="lo_qua_han", vgb_goi_y_bo_phan="kho",
+		vgb_goi_y_bo_qua_ly_do="so_sai", vgb_goi_y_nhac_lai=n)
+	nem("huỷ lô quá hạn tới năm sau qua API", lambda: _chay(fr, _luu, huy("2027-09-20")), fr.Loi)
+	_chay(fr, _luu, huy("2026-09-22"))
+	# Đã huỷ rồi: lưu lại tài liệu với ngày nhắc xa hơn.
+	fr.task["TASK-5"].update(status="Cancelled", vgb_goi_y_bo_qua_ly_do="so_sai", vgb_goi_y_nhac_lai="2026-09-22")
+	nem("việc đã huỷ đẩy ngày nhắc ra xa", lambda: _chay(fr, _luu, huy("2027-09-20")), fr.Loi)
+	nem("việc đã huỷ đổi lý do", lambda: _chay(fr, _luu, _DocGia(dict(huy("2026-09-22"), vgb_goi_y_bo_qua_ly_do="khac"))), fr.Loi)
+	nem("việc đã huỷ xoá ngày nhắc", lambda: _chay(fr, _luu, huy("")), fr.Loi)
+	_chay(fr, _luu, huy("2026-09-20"))  # kéo gần lại (như Hiện lại) thì được
+	_chay(fr, _luu, huy("2026-09-22"))  # lưu lại không đổi gì thì được
+	la("thuần: việc xong đổi ngày xong", bool(pt.loi_sua_viec_dong("Completed", {"completed_on": "2026-09-10"}, {"completed_on": "2026-09-30"})), True)
+	la("thuần: việc đang mở thì không xét", pt.loi_sua_viec_dong("Open", {"vgb_goi_y_nhac_lai": ""}, {"vgb_goi_y_nhac_lai": "2027-01-01"}), None)
+
+
+class _DocMoi(_DocGia):
+	def is_new(s):
+		return True
+
+
+@ca("#356 T2: Task mới mang ô bảng sáng mà không do Giao/Bỏ qua tạo thì bị chặn")
+def _t2_task_gia():
+	la("thuần: Task thường không mang ô", pt.loi_tao_viec(False, False, "a@vgb"), None)
+	la("thuần: máy tạo có cờ", pt.loi_tao_viec(True, True, "a@vgb"), None)
+	la("thuần: người thường tạo có ô", bool(pt.loi_tao_viec(True, False, "a@vgb")), True)
+	fr = Gia(user="moi@vgb", vai=("Projects User",))
+	fr.db.get_value = _gv(fr)
+	for f in pt.TRUONG_BANG_SANG:
+		d = _DocMoi(status="Open", subject="Giả")
+		d.flags = NS()
+		d[f] = "x"
+		nem("tạo Task mang " + f, lambda: _chay(fr, pt.kiem_nguoi_sua_task, d), fr.Loi)
+	d = _DocMoi(status="Open", subject="Task thường")
+	d.flags = NS()
+	_chay(fr, pt.kiem_nguoi_sua_task, d)
+	# Đường thật: giao tạo Task qua hook vẫn chạy.
+	fr2 = Gia(user="loan@vgb", vai=("Marketing",))
+	r = _chay(fr2, pt.giao, "mon_tang|BANU14|tat_ca", ["mkt@vgb"])
+	dung("giao vẫn tạo được việc", bool(r and r.get("name")))
+
+
+@ca("#356 T3: lịch sử 30 ngày không bị trần 500 dòng cắt trước khi lọc")
+def _t3_khong_tran():
+	goi = []
+
+	def get_all(dt, filters=None, limit_page_length=None, **k):
+		goi.append((dict(filters), limit_page_length))
+		return []
+	with patch.object(pt, "frappe", NS(get_all=get_all)), patch.object(pt, "nowdate", lambda: "2026-09-21"):
+		pt._viec_bang_sang()
+	la("truy vấn lịch sử không trần dòng", [l for f, l in goi if f.get("status") == ["in", ["Completed", "Cancelled"]]], [0])
+
+
+@ca("#356 T4: ô số và chip tab đếm theo đúng bộ lọc đang chọn; có tổng theo bộ lọc")
+def _t4_dem_loc():
+	fr = Gia(user="viet@vgb")
+	fr.task["TASK-1"] = {"name": "TASK-1", "subject": "MKT xong 20 ngày", "status": "Completed", "completed_on": "2026-08-31", "vgb_goi_y_khoa": "k1",
+		"vgb_goi_y_luat": "mon_tang", "vgb_goi_y_bo_phan": "marketing", "_assign": "[]", "owner": "viet@vgb", "creation": "2026-08-20 08:00:00"}
+	fr.task["TASK-2"] = {"name": "TASK-2", "subject": "Kho xong hôm qua", "status": "Completed", "completed_on": "2026-09-19", "vgb_goi_y_khoa": "k2",
+		"vgb_goi_y_luat": "lo_can_han", "vgb_goi_y_bo_phan": "kho", "_assign": "[]", "owner": "viet@vgb", "creation": "2026-09-18 08:00:00"}
+	fr.task["TASK-3"] = {"name": "TASK-3", "subject": "Kho trễ", "status": "Open", "exp_end_date": "2026-09-18 18:00:00", "vgb_goi_y_khoa": "k3",
+		"vgb_goi_y_luat": "lo_can_han", "vgb_goi_y_bo_phan": "kho", "_assign": "[]", "owner": "viet@vgb", "creation": "2026-09-10 08:00:00"}
+	fr.task["TASK-4"] = {"name": "TASK-4", "subject": "MKT trễ", "status": "Open", "exp_end_date": "2026-09-18 18:00:00", "vgb_goi_y_khoa": "k4",
+		"vgb_goi_y_luat": "mon_tang", "vgb_goi_y_bo_phan": "marketing", "_assign": "[]", "owner": "viet@vgb", "creation": "2026-08-01 08:00:00"}
+	r = _chay(fr, pt.bang_sang, "xong", "kho", "7")
+	la("danh sách đã lọc", [x["name"] for x in r["ds"]], ["TASK-2"])
+	la("số tab Xong khớp dòng", (r["dem"]["xong"], r["tong_loc"], r["dang_loc"]), (1, 1, 1))
+	la("số Đã giao, Trễ theo kho và 7 ngày", (r["dem"]["da_giao"], r["dem"]["tre"], r["so_tre"]), (0, 0, 0))
+	la("tổng không lọc vẫn còn", (r["dem_tong"]["xong"], r["dem_tong"]["tre"]), (2, 2))
+	r = _chay(fr, pt.bang_sang, "tre", "kho", "")
+	la("trễ của kho", (r["dem"]["tre"], [x["name"] for x in r["ds"]]), (1, ["TASK-3"]))
+	r = _chay(fr, pt.bang_sang, "xong", "", "")
+	la("không lọc thì không có thanh lọc", (r["dang_loc"], r["dem"]["xong"], r["tong_loc"]), (0, 2, 2))
+	la("chip bộ phận đếm trong khoảng ngày", {c["k"]: c["so"] for c in _chay(fr, pt.bang_sang, "xong", "", "7")["chip_bo_phan"]}.get("marketing"), 0)
+	with patch.object(pt, "_vai", lambda: {"System Manager"}):
+		tc = _chay(fr, pt.dem_trang_chu)
+	la("trang chủ vẫn đếm tổng", tc.get("tre"), 2)
