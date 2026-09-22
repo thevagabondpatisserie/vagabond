@@ -1461,7 +1461,15 @@ def _nho_uom_map(ten_map, uom):
 	try:
 		frappe.db.set_value("MInvoice NCC Map", ten_map, "vgb_uom", uom)
 	except Exception:
+		# Codex #358 vòng 21: nuốt lỗi ở đây là báo "đã ghi nhớ" trong khi ghi
+		# nhớ trống, và tờ sau kế toán lại phải khai đúng câu đó. Ném lỗi để
+		# Frappe lùi cả lượt, thà làm lại còn hơn tin một câu báo sai.
 		frappe.log_error(frappe.get_traceback(), "doi_chieu_mua: nho uom map")
+		frappe.throw(
+			'Đã chọn Món và đơn vị "%s" nhưng không ghi được đơn vị đó vào ghi nhớ '
+			"của nhà cung cấp. Cả lượt này được hoàn lại để không báo xong nửa vời. "
+			"Báo kỹ thuật rồi thử lại." % uom
+		)
 
 
 def _kiem_dvt_danh_muc(dvt):
