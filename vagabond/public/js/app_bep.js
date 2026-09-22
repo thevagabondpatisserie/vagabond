@@ -30547,7 +30547,9 @@ async function scrDcmXem(name) {
               (r.item_code ? 'Đổi sang ' : 'Chọn ') + h(g.item_name || g.item_code) + '</button>';
           }).join('');
       }
-      if (!r.item_code && kq.lam_duoc && !r.da_noi) {
+      /* Dong con dau "may doan" van la dong CHO CHOT du o ma da co chu
+         (nguoi go thang tren luoi Desk): he so luc do con la 1 (Codex #358). */
+      if ((!r.item_code || r.vgb_mon_may_doan) && kq.lam_duoc && !r.da_noi) {
         html += '<button class="btn gh" data-dcmgan="' + h(String(r.idx)) +
           '" style="margin:7px 0 2px;padding:7px 12px;font-size:12.5px">Gắn mã hàng cho dòng này</button>';
       }

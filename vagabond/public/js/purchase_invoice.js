@@ -211,7 +211,10 @@ async function vgbGanMonDesk(frm) {
 		frappe.msgprint('Lưu các thay đổi đang có rồi mở lại Gắn Món cho dòng trống mã.');
 		return;
 	}
-	var trong = (frm.doc.items || []).filter(function (d) { return !(d.item_code || '').trim(); });
+	/* Dòng còn dấu "máy đoán" vẫn là dòng chờ chốt, dù người đã gõ mã thẳng
+	   vào lưới: hệ số lúc đó còn là 1 (Codex #358). */
+	var choChot = function (d) { return !(d.item_code || '').trim() || (d.vgb_mon_may_doan || '').trim(); };
+	var trong = (frm.doc.items || []).filter(choChot);
 	if (!trong.length) { frappe.msgprint('Phiếu này không còn dòng nào trống mã.'); return; }
 	var nhan = function (d) {
 		return d.idx + '. ' + (d.ten_hang_ncc || d.item_name || '') + ' | ' + d.qty + ' x ' + format_currency(d.rate, 'VND');
@@ -321,7 +324,7 @@ frappe.ui.form.on('Purchase Invoice', {
 			frm.add_custom_button('Sửa mã theo hóa đơn gốc', function(){return vgbSuaMaTheoNguon(frm);});
 		}
 		if (!frm.is_new() && frm.doc.docstatus === 0 && frm.doc.custom_minvoice_id &&
-			(frm.doc.items || []).some(function (d) { return !(d.item_code || '').trim(); }) &&
+			(frm.doc.items || []).some(function (d) { return !(d.item_code || '').trim() || (d.vgb_mon_may_doan || '').trim(); }) &&
 			['System Manager','Accounts Manager','Accounts User','Purchase Manager'].some(function(v){return frappe.user.has_role(v);})) {
 			frm.add_custom_button('Gắn Món cho dòng trống mã', function(){return vgbGanMonDesk(frm);});
 		}
