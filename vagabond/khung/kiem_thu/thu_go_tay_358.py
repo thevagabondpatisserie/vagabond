@@ -93,10 +93,10 @@ class _Dong(dict):
 		s[k] = v
 
 
-def _nap_gan(dong, quy_doi_co=None, la_kho=1):
+def _nap_gan(dong, quy_doi_co=None, la_kho=1, map_co=None):
 	"""Chạy THẬT gan_ma_hang với frappe giả. quy_doi_co: {đơn vị: hệ số} đã khai trên Món."""
 	quy_doi_co = dict(quy_doi_co or {})
-	ghi = {"luu": 0, "khai": [], "uom_moi": [], "commit": 0}
+	ghi = {"luu": 0, "khai": [], "uom_moi": [], "commit": 0, "map": []}
 	doc = SimpleNamespace(name="HDM-1", docstatus=0, items=[dong], flags=SimpleNamespace(),
 		save=lambda: ghi.__setitem__("luu", ghi["luu"] + 1), add_comment=lambda *a: None)
 
@@ -116,22 +116,24 @@ def _nap_gan(dong, quy_doi_co=None, la_kho=1):
 	def get_value(dt, ten, o=None):
 		if dt == "Item":
 			return {"stock_uom": "Set", "is_stock_item": la_kho}.get(o)
+		if dt == "MInvoice NCC Map" and map_co:
+			return map_co["item_code"] if o == "item_code" else map_co["name"]
 		return None
 
 	f = SimpleNamespace(throw=throw, get_doc=get_doc, session=SimpleNamespace(user="uyen@vgb"),
 		db=SimpleNamespace(exists=lambda dt, t=None: dt == "Item", get_value=get_value,
-			set_value=lambda *a: None, commit=lambda: ghi.__setitem__("commit", ghi["commit"] + 1)))
+			set_value=lambda *a: ghi["map"].append(a), commit=lambda: ghi.__setitem__("commit", ghi["commit"] + 1)))
 	dv = SimpleNamespace(
 		dvt_tren_hoa_don=dvt_mua.dvt_tren_hoa_don, goi_y_don_vi=lambda s: "", cung_don_vi=lambda a, b: a == b,
 		can_nguoi_khai_he_so=dvt_mua.can_nguoi_khai_he_so,
-		he_so_cua_mon=lambda ma, d: quy_doi_co.get(d, 0.0))
+		he_so_cua_mon=lambda ma, d: quy_doi_co.get(d, 0.0), mon_may_doan=dvt_mua.mon_may_doan)
 
 	def ghi_quy_doi(ma, d, hs, kho):
 		quy_doi_co[d] = hs
 		ghi["khai"].append((ma, d, hs))
 	env = dict(frappe=f, dvt_mua=dv, _kiem_quyen=lambda: None, _lam_duoc=lambda: True,
 		cint=lambda n: int(n or 0), flt=lambda n: float(n or 0), nowdate=lambda: "2026-09-22",
-		_ghi_quy_doi=ghi_quy_doi, _mst_cua_to=lambda d: "")
+		_ghi_quy_doi=ghi_quy_doi, _mst_cua_to=lambda d: "0315000500" if map_co else "")
 	ham = _ham(MA_DCM, "gan_ma_hang")
 	for n in ham:
 		n.decorator_list = []
@@ -177,6 +179,25 @@ def _doi_mon_sau_khi_hoi():
 	la("không ghi gì vào Món B, dòng vẫn trống", (ghi["khai"], ghi["luu"], d.item_code), ([], 0, ""))
 	kq = gan("HDM-1", 3, "NVLT00141", he_so=1)
 	la("gửi hệ số không kèm Món đã hỏi: cũng hỏi lại", (kq.get("can_he_so"), ghi["khai"]), (1, []))
+
+
+@ca("Codex #358 P2: máy đoán Món X theo ghi nhớ, người chọn Món Y thì ghi nhớ đổi sang Y")
+def _sua_ghi_nho():
+	may = {"ten": "Phí dịch vụ", "dvt": "Lần", "goi_y_mon": "DVTI00014", "goi_y_dvt_kho": "Set"}
+	d = _Dong(idx=3, name="R3", item_code="", description=mo_ta_dong(may), uom="Lần", ten_hang_ncc="Phí dịch vụ")
+	gan, ghi, _ = _nap_gan(d, quy_doi_co={"Lần": 1.0}, map_co={"name": "76jk41445u", "item_code": "DVTI00014"})
+	gan("HDM-1", 3, "DVBH00001")
+	la("ghi nhớ trỏ sang Món người chọn", ghi["map"], [("MInvoice NCC Map", "76jk41445u", "item_code", "DVBH00001")])
+	# Người chọn đúng Món máy đoán thì không đụng ghi nhớ.
+	d2 = _Dong(idx=3, name="R3", item_code="", description=mo_ta_dong(may), uom="Lần", ten_hang_ncc="Phí dịch vụ")
+	gan2, ghi2, _ = _nap_gan(d2, quy_doi_co={"Lần": 1.0}, map_co={"name": "76jk41445u", "item_code": "DVTI00014"})
+	gan2("HDM-1", 3, "DVTI00014", he_so=1, he_so_cho="DVTI00014")
+	la("chọn đúng lời đoán: giữ nguyên ghi nhớ", ghi2["map"], [])
+	# Ghi nhớ trỏ Món khác (không phải nguồn của lời đoán) thì không tự đè.
+	d3 = _Dong(idx=3, name="R3", item_code="", description=mo_ta_dong(may), uom="Lần", ten_hang_ncc="Phí dịch vụ")
+	gan3, ghi3, _ = _nap_gan(d3, quy_doi_co={"Lần": 1.0}, map_co={"name": "76jk41445u", "item_code": "NVLT9"})
+	gan3("HDM-1", 3, "DVBH00001")
+	la("ghi nhớ không phải nguồn lời đoán: không đè", ghi3["map"], [])
 
 
 @ca("Codex #358 P1: dòng máy đoán mà người chưa chốt thì KHÔNG ghi sổ được, ở mọi đường ghi sổ")
