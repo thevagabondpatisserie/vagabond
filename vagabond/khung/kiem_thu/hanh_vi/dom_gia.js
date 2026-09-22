@@ -123,6 +123,20 @@ ElementGia.prototype.appendChild = function (con) {
   return con;
 };
 
+/* Them 22/09/2026 cho ca thanh bao tren Desk (#352): chen len dau va go ra.
+   Them moi, khong doi hanh vi cu cua tep nay. */
+Object.defineProperty(ElementGia.prototype, 'firstChild', {
+  get: function () { return this.children[0] || null; },
+});
+ElementGia.prototype.insertBefore = function (con, truoc) {
+  if (con.parentNode) con.remove();
+  var i = truoc ? this.children.indexOf(truoc) : -1;
+  con.parentNode = this;
+  if (i < 0) this.children.push(con); else this.children.splice(i, 0, con);
+  return con;
+};
+ElementGia.prototype.removeChild = function (con) { con.remove(); return con; };
+
 ElementGia.prototype.remove = function () {
   if (!this.parentNode) return;
   var i = this.parentNode.children.indexOf(this);
