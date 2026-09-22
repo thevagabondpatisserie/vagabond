@@ -359,26 +359,29 @@ def _dung_nhom(khai, ten_nhom):
 		# ngay còn hơn site lên bản mới rồi hỏng lặng lẽ (Codex #358).
 		# DocType kiểu Single (Vagabond Settings, Bao Gia Cai Dat) cất giá trị
 		# trong bảng `tabSingles`, không có cột riêng, soát cột là báo thiếu
-		# oan rồi chặn Migrate (Codex #358). Không đọc được thì bỏ qua soát,
-		# chỉ ghi nhật ký: chặn oan còn hại hơn.
+		# oan rồi chặn Migrate (Codex #358).
+		# Codex #358 vòng 19: HỎI KHÔNG RA khác với TRẢ LỜI LÀ KHÔNG. Đọc hồ sơ
+		# DocType mà nổ (khoá bảng, mất kết nối) thì không biết gì cả, bỏ soát
+		# lúc đó là để site lên bản mới với một bảng có thể đang thiếu cột.
 		try:
 			la_single = cint(frappe.db.get_value("DocType", dt, "issingle"))
 		except Exception:
 			frappe.log_error(frappe.get_traceback(), "truong_tu_them: doc DocType %s" % dt)
-			la_single = 1
+			frappe.throw("Không đọc được hồ sơ DocType %s nên không soát được cột. "
+				"Migrate dừng ở đây; chạy lại khi cơ sở dữ liệu trả lời được." % dt)
 		if la_single:
 			continue
 		# DocType KHÔNG CÓ trên site này thì không có bảng nào để soát. Ca thật
 		# bench CI 22/09/2026: "Phieu Kiem Ke" là doctype tự tạo trên Desk
 		# (custom, nằm trong cơ sở dữ liệu chứ không trong git) nên site mới
 		# dựng không có nó, soát cột báo thiếu oan và chặn cả lượt Migrate.
-		# Doctype ảo cũng vậy, nó không có bảng. Đọc không ra thì bỏ soát:
-		# chặn oan một lượt Migrate hại hơn là bỏ sót một lần soát.
+		# Doctype ảo cũng vậy, nó không có bảng.
 		try:
 			co_bang = frappe.db.table_exists(dt)
 		except Exception:
 			frappe.log_error(frappe.get_traceback(), "truong_tu_them: doc bang %s" % dt)
-			co_bang = False
+			frappe.throw("Không hỏi được bảng của %s có tồn tại không nên không soát được cột. "
+				"Migrate dừng ở đây; chạy lại khi cơ sở dữ liệu trả lời được." % dt)
 		if not co_bang:
 			continue
 		thieu = []
