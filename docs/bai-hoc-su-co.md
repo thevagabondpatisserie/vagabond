@@ -929,3 +929,16 @@ như dịch vụ và vẫn ghi sổ được, nên dòng mang lời đoán phả
 before_submit riêng; (2) hệ số người gõ là câu trả lời cho MỘT Món, đổi Món
 sau khi được hỏi thì phải hỏi lại, máy chủ nhận kèm `he_so_cho` và từ chối
 khi lệch.
+
+## 22/09/2026 (v518): ba lỗi tiền đã đi mà phiếu không khép được
+
+- APP-26-09-799: `tdkDs` trả mảng CHUỖI đường dẫn, màn xác nhận chuyển tiền
+  lại lấy `x.url` nên gửi `[null]` từ v414. Tệp UNC đã tải lên mà máy chủ báo
+  "Chưa đính uỷ nhiệm chi"; chưa phiếu nào qua được cửa này. Ca kiểm cũ chỉ dò
+  chuỗi `tdkKhoi('pvunc'`, không bấm thật nên không thấy.
+- Cùng phiếu: `co_ma` chặn chữ số ở hai đầu cho MỌI mã. Nội dung "HD 1840 APP
+  26 09 799" gọt thành "1840APP2609799", chữ 0 đứng trước chữ A nên bị loại.
+  Chỉ chặn chữ số ở phía mã cũng là chữ số.
+- HT-2026-02900: hoàn một phần trên đơn có chiết khấu tổng. Tỷ lệ lấy trên
+  tổng SAU chiết khấu mà vẫn chép chiết khấu tổng sang tờ trả hàng, ERPNext
+  từ chối. Tính tỷ lệ trên tổng TRƯỚC chiết khấu và bỏ chiết khấu tổng.
