@@ -1530,6 +1530,11 @@ def _lap_hoa_don_tra(si, kho, ly_do, ma_ho_so, so_tien=0):
 		# là trừ hai lần (HT-2026-02900).
 		tra.discount_amount = 0
 		tra.additional_discount_percentage = 0
+		# SOÁT LẠI BẰNG CHÍNH PHÉP TÍNH CỦA ERPNEXT (Codex #358): chiết khấu
+		# đặt trên Tổng sau thuế hay Tổng trước thuế, thuế gồm trong giá hay
+		# cộng thêm, mỗi kiểu ra một mẫu số khác. Thay vì đoán mẫu số, cho
+		# ERPNext tính lại rồi nắn tỷ lệ cho tới khi tờ trả đúng số tiền hoàn.
+		_nan_dung_tien(tra, tien)
 	# update_stock = 0, GIONG HET moi hoa don khac cua he.
 	#
 	# Ban dau em dat 1 de hang tu chay thang vao kho huy. Chay thu that
@@ -1581,6 +1586,34 @@ def _lap_hoa_don_tra(si, kho, ly_do, ma_ho_so, so_tien=0):
 	tra.insert(ignore_permissions=True)
 	tra.submit()
 	return tra
+
+
+def _nan_dung_tien(tra, tien, so_lan=4):
+	"""Nắn đơn giá tờ trả hàng cho tổng bằng đúng số tiền hoàn.
+
+	Dùng chính phép tính của ERPNext (`calculate_taxes_and_totals`) rồi chia
+	lại tỷ lệ, nên không phụ thuộc chiết khấu đặt ở đâu hay thuế gồm trong
+	giá hay không. Lệch quá 1 đồng sau `so_lan` lượt thì DỪNG, vì tờ trả sai
+	số tiền là sai cả doanh thu lẫn hoá đơn điện tử."""
+	tien = flt(tien)
+	for _ in range(so_lan):
+		tra.run_method("calculate_taxes_and_totals")
+		hien = abs(flt(tra.get("grand_total")))
+		if hien <= 0:
+			break
+		if abs(hien - tien) <= 1:
+			return
+		k = tien / hien
+		for d in tra.items:
+			d.rate = flt(d.rate) * k
+			d.price_list_rate = flt(d.get("price_list_rate")) * k
+	tra.run_method("calculate_taxes_and_totals")
+	if abs(abs(flt(tra.get("grand_total"))) - tien) > 1:
+		frappe.throw(
+			"Không nắn được tờ trả hàng về đúng số tiền hoàn %s đ (đang ra %s đ). "
+			"Kiểm lại chiết khấu và thuế trên hoá đơn gốc rồi báo kỹ thuật."
+			% (tien, abs(flt(tra.get("grand_total"))))
+		)
 
 
 def _chuyen_kho_huy(si, tra, kho, ly_do):

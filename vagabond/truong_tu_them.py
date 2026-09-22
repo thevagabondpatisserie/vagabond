@@ -332,3 +332,17 @@ def _dung_nhom(khai, ten_nhom):
 			frappe.db.updatedb(dt)
 		except Exception:
 			frappe.log_error(frappe.get_traceback(), "truong_tu_them: cot %s" % dt)
+		# Ô có bản ghi mà bảng thiếu cột thì MỌI lần lưu doctype đó nổ
+		# "Unknown column", tức là cả một phân hệ chết. Thà để Migrate đỏ
+		# ngay còn hơn site lên bản mới rồi hỏng lặng lẽ (Codex #358).
+		thieu = []
+		for o in khai[dt] or []:
+			ten_o = str((o or {}).get("fieldname") or "").strip()
+			try:
+				if ten_o and not frappe.db.has_column(dt, ten_o):
+					thieu.append(ten_o)
+			except Exception:
+				frappe.log_error(frappe.get_traceback(), "truong_tu_them: soat cot %s" % dt)
+		if thieu:
+			frappe.throw("Thiếu cột %s trên bảng %s sau khi khai ô. Migrate dừng ở đây để "
+				"không đưa site lên bản mới với một bảng hỏng." % (", ".join(thieu), dt))
