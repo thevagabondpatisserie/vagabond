@@ -51,8 +51,15 @@ def _dvt_lot():
 	la("hoá đơn KHÔNG ghi đơn vị: trả rỗng, không lấy Nos", dvt_ncc_cua_dong("Hạt dẻ", "Nos"), "")
 	la("đơn vị thật trên ô uom vẫn dùng", dvt_ncc_cua_dong("Hạt dẻ", "BOX"), "BOX")
 	la("nhà cung cấp ghi đúng chữ Nos thì vẫn là Nos", dvt_ncc_cua_dong("Hạt dẻ (Nos)", "Nos"), "Nos")
+	# Codex #358 vòng 6: TÊN HÀNG cũng có thể kết thúc bằng ngoặc.
+	la("tên hàng có ngoặc, hoá đơn không ghi đơn vị: rỗng",
+		dvt_ncc_cua_dong("Hạt dẻ (500g)", "Nos", "Hạt dẻ (500g)"), "")
+	la("tên hàng có ngoặc, hoá đơn có ghi đơn vị: lấy đơn vị",
+		dvt_ncc_cua_dong("Hạt dẻ (500g) (BOX)", "Nos", "Hạt dẻ (500g)"), "BOX")
+	la("tên hàng có ngoặc, có lời đoán kèm đơn vị",
+		dvt_ncc_cua_dong(mo_ta_dong({"ten": "Hạt dẻ (500g)", "dvt": "BAO", "goi_y_mon": "NVLT1", "goi_y_dvt_kho": "Gram"}), "Nos", "Hạt dẻ (500g)"), "BAO")
 	# Không đơn vị thì gắn theo đơn vị kho hệ số 1, KHÔNG hỏi và KHÔNG khai quy đổi.
-	d = _Dong(idx=1, name="R1", item_code="", description="Hạt dẻ", uom="Nos", ten_hang_ncc="Hạt dẻ")
+	d = _Dong(idx=1, name="R1", item_code="", description="Hạt dẻ (500g)", uom="Nos", ten_hang_ncc="Hạt dẻ (500g)")
 	gan, ghi, _ = _nap_gan(d, la_kho=1)
 	kq = gan("HDM-1", 1, "NVLT00141")
 	la("không hỏi hệ số cho Nos", kq.get("can_he_so"), None)
