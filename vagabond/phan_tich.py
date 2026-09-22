@@ -1188,6 +1188,10 @@ def bang_sang(tab="can_giao", bo_phan="", ky=""):
 	tre = [d for d in da_giao if d["tt"] == "tre"]
 	nhom = {"can_giao": can_giao, "da_giao": da_giao, "tre": tre, "xong": xong, "bo_qua": bo_qua}
 	tab = tab if tab in nhom else "can_giao"
+	# Codex #356: Cần giao không có hàng chip ngày, nên khoảng ngày còn giữ từ
+	# tab trước phải bỏ, không thì số các tab khác bị lọc ngầm.
+	if tab == "can_giao":
+		ky = ""
 	cua_tab = nhom[tab]
 	bo_phan = (bo_phan or "").strip()
 	ky = ky if ky in dict(KY_NGAY) else ""
@@ -1596,15 +1600,26 @@ def bo_qua_viec(name, ly_do, so_ngay=7):
 		frappe.throw("Chọn một lý do bỏ qua trong danh sách.")
 	ngay = so_ngay_bo_qua(t.get("vgb_goi_y_luat"), so_ngay)
 	nhac = add_days(_hom_nay(), ngay)
+	so_dong = len(frappe.get_all("ToDo", filters={"reference_type": "Task", "reference_name": t.name, "status": "Open"},
+		fields=["name"], limit_page_length=0))
 	t.status = "Cancelled"
 	t.vgb_goi_y_bo_qua_ly_do = ly_do
 	t.vgb_goi_y_nhac_lai = str(nhac)
 	t.flags.ignore_permissions = True
-	t.save()
-	# Codex #356: ERPNext chỉ tự đóng ToDo khi Task Completed. Bỏ qua thì tự
-	# đóng, không thì người nhận còn một việc sống trên Desk cho Task đã huỷ.
-	so_dong = _dong_todo(t.name)
+	t.save()  # hook on_update dong_todo_khi_huy đóng ToDo
+	# Gọi lại cho chắc là vô hại: _dong_todo chỉ đụng ToDo còn mở.
+	_dong_todo(t.name)
 	return {"ok": 1, "name": t.name, "nhac_lai": str(nhac), "so_ngay": ngay, "dong_todo": so_dong}
+
+
+def dong_todo_khi_huy(doc, method=None):
+	"""Hook on_update của Task: việc bảng sáng đã huỷ thì đóng mọi ToDo mở.
+
+	Codex #356: huỷ qua API tài liệu (đủ lý do, ngày nhắc) được soat_huy cho
+	qua, nhưng chỉ bo_qua_viec gọi _dong_todo, nên người nhận còn việc sống
+	cho Task đã huỷ. Đặt ở hook thì mọi đường huỷ cùng một chỗ đóng."""
+	if doc.get("vgb_goi_y_khoa") and doc.get("status") == "Cancelled":
+		_dong_todo(doc.name)
 
 
 def _dong_todo(ten_task):
