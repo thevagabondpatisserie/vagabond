@@ -651,7 +651,11 @@ def _():
 @ca("nan don vi cua mot ma hang chi co MOT cho tinh")
 def _():
 	dung("co ham dung chung", "def don_vi_theo_ma(" in MA_MC)
-	dung("duong tra ma hang goi ham do", "don_vi_theo_ma(mapped, uom, goc_mst" in MA_MC)
+	# 22/09/2026 (#358): ruột tính là quy_doi_theo_ma (không ném lỗi);
+	# don_vi_theo_ma bọc lại để ném lỗi cho đường gắn lại mã người đã chọn.
+	dung("co ruot tinh khong nem loi", "def quy_doi_theo_ma(" in MA_MC)
+	dung("duong tra ma hang goi ruot tinh", "quy_doi_theo_ma(mapped, uom, goc_mst" in MA_MC)
+	dung("ham nem loi boc dung ruot tinh", "kq = quy_doi_theo_ma(mapped, uom, mst, ten_ncc)" in MA_MC)
 	dung("duong dung lai cung goi ham do", "mc.don_vi_theo_ma(" in MA_DUNG_LAI)
 
 

@@ -21,7 +21,7 @@ def _dich_vu_trong_dvt():
 	la("dịch vụ ghi 'Lần' vẫn phải khai quy đổi", dich_vu_khong_ghi_don_vi("Lần", 0), False)
 	# Chốt vị trí: luật này đứng TRƯỚC vòng tìm quy đổi và trước câu chặn,
 	# và chỉ trong don_vi_theo_ma (một chỗ tính, QT-19).
-	than = MA.split("def don_vi_theo_ma(")[1].split("\ndef ")[0]
+	than = MA.split("def quy_doi_theo_ma(")[1].split("\ndef ")[0]
 	dung("gọi luật trước vòng tìm quy đổi", 0 < than.index("dich_vu_khong_ghi_don_vi(") < than.index("ung_vien = ["))
 	la("chỉ một chỗ gọi", MA.count("dich_vu_khong_ghi_don_vi(nguon"), 1)
 

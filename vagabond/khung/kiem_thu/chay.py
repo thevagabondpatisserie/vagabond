@@ -27,7 +27,7 @@ from vagabond.khung.kiem_thu import thu_tra_lai_app_339, thu_app_gui_fin
 from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_hoan_ung_noi_bo_502, thu_dat_ban_301, thu_thanh_vien_300, thu_noi_dung_web, thu_dat_ban_web, thu_ra_phantom_303,
 	thu_combo_261, thu_can_tru_262, thu_ghi_so_266, thu_su_co_290, thu_luu_duyet_296,
-	thu_doi_chieu_app_247, thu_doi_chieu_252, thu_dong_bo_227, thu_dong_bo_thong_bao, thu_minvoice_352, thu_gram_bom_252, thu_tk_dich_vu_252, thu_do_chinh_xac_mua_259,
+	thu_doi_chieu_app_247, thu_doi_chieu_252, thu_dong_bo_227, thu_dong_bo_thong_bao, thu_minvoice_352, thu_go_tay_358, thu_gram_bom_252, thu_tk_dich_vu_252, thu_do_chinh_xac_mua_259,
 	thu_bang_gia_nhap, thu_minvoice_227, thu_link_thue_227, thu_bao_ve_hddt_225, thu_cong_cu_tang_cloud,
 	thu_hang_tang_so_cai, thu_mua_hddt_227, thu_quyen_cong_thuc_498, thu_thue_vnd, thu_tra_truoc_500, thu_cua_thue_243, thu_kho_tang_243,
 	thu_bao_cao_don_nhap,

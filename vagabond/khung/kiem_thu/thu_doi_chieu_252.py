@@ -226,7 +226,7 @@ def _goi_y_phieu():
 @ca("#252: đổi mã hàng trên dòng đã có mã: chỉ khi chưa nối, có ghi vết")
 def _doi_ma():
 	ma = _doc("vagabond/doi_chieu_mua.py")
-	dung("có tham số đổi", "def gan_ma_hang(name, dong, item_code, nho=1, doi=0):" in ma)
+	dung("có tham số đổi", "def gan_ma_hang(name, dong, item_code, nho=1, doi=0, he_so=None):" in ma)
 	dung("không đổi dòng đã nối", "Bỏ nối trước khi đổi mã hàng" in ma)
 	dung("ghi vết vào tờ", "Đổi mã hàng dòng %d từ %s sang %s" in ma)
 	dung("đổi ghi nhớ theo", "(ma_cu and cint(doi))" in ma)
