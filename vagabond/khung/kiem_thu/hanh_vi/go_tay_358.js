@@ -80,6 +80,7 @@ async function chayHet() {
     bang('hai lan goi gan', m.goi.filter(function (x) { return x.m.endsWith('gan_ma_hang'); }).length, 2);
     bang('lan dau khong he so', m.goi[0].a.he_so, undefined);
     bang('lan hai mang he so nguoi go', m.goi[1].a.he_so, 1);
+    bang('lan hai noi ro he so cho Mon nao (Codex #358)', m.goi[1].a.he_so_cho, 'DVTI00014');
     bang('hoi dung don vi', [m.hoi[0].dvt, m.hoi[0].deXuat], ['Set', 1]);
     dung('noi ro so duoc ghi vao Mon', m.hoi[0].nhan.indexOf('ghi vào món') >= 0);
     bang('tai lai man mot lan', m.tai(), 1);
@@ -111,7 +112,13 @@ async function chayHet() {
           c.fields.forEach(function (f) { if (f.fieldname) self.fields_dict[f.fieldname] = new Truong(f); });
           this.get_field = function (n) { return self.fields_dict[n]; };
           this.get_value = function (n) { return self.gt[n]; };
-          this.set_value = function (n, v) { self.gt[n] = v; };
+          /* Nhu Frappe that: dat gia tri khac cu thi goi onchange cua o do.
+             Nguoi go vao o Mon cung di dung duong nay. */
+          this.set_value = function (n, v) {
+            var cu = self.gt[n]; self.gt[n] = v;
+            var t = self.fields_dict[n];
+            if (cu !== v && t && t.df.onchange) t.df.onchange();
+          };
           this.show = function () {}; this.hide = function () { self.an = 1; };
           this.disable_primary_action = function () {}; this.enable_primary_action = function () {};
         } },
@@ -135,6 +142,57 @@ async function chayHet() {
     var gan = mc.goi.filter(function (x) { return x.m.endsWith('gan_ma_hang'); });
     bang('lan hai gui kem he so', [gan.length, gan[1].a.he_so, gan[1].a.dong, gan[1].a.item_code], [2, 1, '3', 'DVTI00014']);
     bang('xong thi dong hop va tai lai phieu', [hop.an, reload], [1, 1]);
+  });
+
+  await ca('Codex #358 P1: hoi he so cho Mon A roi nguoi doi sang Mon B thi KHONG gui he so cu cho Mon B, may chu hoi lai cho B', async function () {
+    /* Chuoi cua Codex: bam Gan, may hoi he so cho DVTI00014 (1 Lan = ? Set,
+       dien san 1), nguoi sua o Mon sang NVLT00141, bam Gan lan nua. Ban cu
+       gui he_so=1 kem NVLT00141 va may chu ghi vinh vien 1 Lan = 1 Gram. */
+    var mc = mayChu(), hop = null;
+    function Truong(df) { this.df = df; this.$wrapper = { html: function (h) { df._html = h; } }; this.refresh = function () {}; }
+    var frm = {
+      doc: { name: 'HDM-1', docstatus: 0, custom_minvoice_id: 'MI-1', items: [
+        { idx: 3, item_code: '', ten_hang_ncc: 'Phí dịch vụ', qty: 1, rate: 30000 }] },
+      is_dirty: function () { return false; }, reload_doc: async function () {},
+    };
+    var g = {
+      format_currency: String, parseFloat: parseFloat, String: String,
+      frappe: {
+        utils: { escape_html: function (s) { return String(s); } },
+        ui: { form: { on: function () {} }, Dialog: function (c) {
+          hop = this; this.c = c; this.gt = {}; this.fields_dict = {};
+          var self = this;
+          c.fields.forEach(function (f) { if (f.fieldname) self.fields_dict[f.fieldname] = new Truong(f); });
+          this.get_field = function (n) { return self.fields_dict[n]; };
+          this.get_value = function (n) { return self.gt[n]; };
+          this.set_value = function (n, v) {
+            var cu = self.gt[n]; self.gt[n] = v;
+            var t = self.fields_dict[n];
+            if (cu !== v && t && t.df.onchange) t.df.onchange();
+          };
+          this.show = function () {}; this.hide = function () { self.an = 1; };
+          this.disable_primary_action = function () {}; this.enable_primary_action = function () {};
+        } },
+        call: async function (o) { return { message: await mc.api(o.method, o.args) }; },
+        msgprint: function () {}, show_alert: function () {},
+        user: { has_role: function () { return true; } },
+      },
+    };
+    vm.createContext(g);
+    vm.runInContext(layHam(DESK, 'vgbGanMonDesk'), g);
+    await g.vgbGanMonDesk(frm);
+    await new Promise(function (r) { setTimeout(r, 5); });
+    await hop.c.primary_action(hop.gt);
+    bang('lan dau hoi he so cho Mon may doan', [hop.fields_dict.he_so.df.hidden, hop.get_value('he_so')], [0, 1]);
+    hop.set_value('item_code', 'NVLT00141');
+    bang('doi Mon thi an o he so va xoa so cu', [hop.fields_dict.he_so.df.hidden, hop.get_value('he_so') || 0], [1, 0]);
+    await hop.c.primary_action(hop.gt);
+    var gan = mc.goi.filter(function (x) { return x.m.endsWith('gan_ma_hang'); });
+    bang('lan gui cho Mon moi KHONG kem he so cu', [gan[1].a.item_code, gan[1].a.he_so], ['NVLT00141', undefined]);
+    bang('may chu duoc hoi lai, o he so hien lai', hop.fields_dict.he_so.df.hidden, 0);
+    await hop.c.primary_action(hop.gt);
+    var gan3 = mc.goi.filter(function (x) { return x.m.endsWith('gan_ma_hang'); })[2];
+    bang('lan ba gui he so kem dung Mon da duoc hoi', [gan3.a.item_code, gan3.a.he_so, gan3.a.he_so_cho], ['NVLT00141', 1, 'NVLT00141']);
   });
 }
 
