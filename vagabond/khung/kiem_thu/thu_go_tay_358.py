@@ -80,10 +80,11 @@ def _dvt_lot():
 	# Hàng tồn kho mà hoá đơn không ghi đơn vị: KHÔNG hỏi Nos, cũng KHÔNG
 	# lấy đơn vị kho hệ số 1 (Codex #358 vòng 7).
 	d = _Dong(idx=1, name="R1", item_code="", description="Hạt dẻ (500g)", uom="Nos", ten_hang_ncc="Hạt dẻ (500g)")
-	gan, ghi, Loi = _nap_gan(d, la_kho=1)
-	nem("hàng tồn kho không đơn vị thì chặn, nói rõ đường đi tiếp",
-		lambda: gan("HDM-1", 1, "NVLT00141"), Loi)
-	la("không ghi quy đổi nào vào Món", ghi["khai"], [])
+	gan, ghi, _ = _nap_gan(d, la_kho=1)
+	kq = gan("HDM-1", 1, "NVLT00141")
+	la("không gắn thẳng, trả cờ mở đường sửa theo hoá đơn gốc", kq.get("can_nguon"), 1)
+	dung("nói rõ vì sao", "không ghi đơn vị" in kq.get("loi_nhan", ""))
+	la("không lưu gì, không ghi quy đổi nào vào Món", (ghi["khai"], ghi["luu"]), ([], 0))
 	la("dòng vẫn trống mã", d.item_code, "")
 	# Dịch vụ thì vẫn gắn theo đơn vị của Món, hệ số 1, như lúc dựng phiếu.
 	d2 = _Dong(idx=1, name="R1", item_code="", description="Phí ship", uom="Nos", ten_hang_ncc="Phí ship")
