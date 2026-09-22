@@ -149,7 +149,7 @@ class _Dong(dict):
 		s[k] = v
 
 
-def _nap_gan(dong, quy_doi_co=None, la_kho=1, map_co=None, cua_nguon=True, danh_muc=("Thùng", "Lần", "BOX", "Kg")):
+def _nap_gan(dong, quy_doi_co=None, la_kho=1, map_co=None, cua_nguon=True, danh_muc=("Thùng", "Lần", "BOX", "Kg"), no_uom_map=0):
 	"""Chạy THẬT gan_ma_hang với frappe giả. quy_doi_co: {đơn vị: hệ số} đã khai trên Món.
 
 	`cua_nguon`: cửa "Sửa mã theo hóa đơn gốc" có mở cho tờ này không. Tờ trả
@@ -183,6 +183,8 @@ def _nap_gan(dong, quy_doi_co=None, la_kho=1, map_co=None, cua_nguon=True, danh_
 
 	def set_value(dt, ten, o=None, v=None):
 		if o == "vgb_uom":
+			if no_uom_map:
+				raise RuntimeError("mất cột vgb_uom")
 			ghi["uom_map"].append((ten, v))
 		else:
 			ghi["map"].append((dt, ten, o, v))
@@ -537,6 +539,17 @@ def _dvt_phai_co_trong_danh_muc():
 	gan4, ghi4, _ = _nap_gan(d4, la_kho=1, cua_nguon=0, map_co={"name": "", "item_code": ""})
 	gan4("HDM-TRA", 1, "NVLT00141", he_so=24, he_so_cho="NVLT00141", dvt_khai="Thùng")
 	la("ánh xạ mới lập cũng mang đơn vị", ghi4["uom_map"], [("MAP-MOI", "Thùng")])
+	# Codex #358 vòng 21: ghi nhớ hỏng thì phải DỪNG, không được báo xong nửa
+	# vời rồi để tờ sau kế toán khai lại đúng câu đó.
+	d5 = _Dong(idx=1, name="R1", item_code="", description="Hạt dẻ", uom="Nos", ten_hang_ncc="Hạt dẻ")
+	gan5, ghi5, Loi5 = _nap_gan(d5, la_kho=1, cua_nguon=0, no_uom_map=1,
+		map_co={"name": "76jk41445u", "item_code": "NVLT00141"})
+	try:
+		gan5("HDM-TRA", 1, "NVLT00141", he_so=24, he_so_cho="NVLT00141", dvt_khai="Thùng")
+		dung("ghi nhớ hỏng thì phải dừng", False)
+	except Loi5 as e:
+		dung("nói rõ cả lượt được hoàn lại", "hoàn lại" in str(e))
+	la("không chốt sổ lượt hỏng", ghi5["commit"], 0)
 	# Dòng hoá đơn CÓ ghi đơn vị thì không đụng ô đơn vị của ánh xạ.
 	d3 = _Dong(idx=1, name="R1", item_code="", description="Hạt dẻ (BOX)", uom="Nos", ten_hang_ncc="Hạt dẻ")
 	gan3, ghi3, _ = _nap_gan(d3, la_kho=1,
