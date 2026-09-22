@@ -149,8 +149,11 @@ class _Dong(dict):
 		s[k] = v
 
 
-def _nap_gan(dong, quy_doi_co=None, la_kho=1, map_co=None):
-	"""Chạy THẬT gan_ma_hang với frappe giả. quy_doi_co: {đơn vị: hệ số} đã khai trên Món."""
+def _nap_gan(dong, quy_doi_co=None, la_kho=1, map_co=None, cua_nguon=True):
+	"""Chạy THẬT gan_ma_hang với frappe giả. quy_doi_co: {đơn vị: hệ số} đã khai trên Món.
+
+	`cua_nguon`: cửa "Sửa mã theo hóa đơn gốc" có mở cho tờ này không. Tờ trả
+	hàng thì đóng (Codex #358 vòng 19)."""
 	quy_doi_co = dict(quy_doi_co or {})
 	ghi = {"luu": 0, "khai": [], "uom_moi": [], "commit": 0, "map": []}
 	doc = SimpleNamespace(name="HDM-1", docstatus=0, items=[dong], flags=SimpleNamespace(),
@@ -189,7 +192,9 @@ def _nap_gan(dong, quy_doi_co=None, la_kho=1, map_co=None):
 	def ghi_quy_doi(ma, d, hs, kho):
 		quy_doi_co[d] = hs
 		ghi["khai"].append((ma, d, hs))
+	dv.cach_go_thieu_dvt = dvt_mua.cach_go_thieu_dvt
 	env = dict(frappe=f, dvt_mua=dv, _kiem_quyen=lambda: None, _lam_duoc=lambda: True,
+		_cua_nguon_mo=lambda doc: bool(cua_nguon),
 		cint=lambda n: int(n or 0), flt=lambda n: float(n or 0), nowdate=lambda: "2026-09-22",
 		_ghi_quy_doi=ghi_quy_doi, _mst_cua_to=lambda d: "0315000500" if map_co else "")
 	ham = _ham(MA_DCM, "gan_ma_hang")
@@ -311,7 +316,7 @@ def _chan_ghi_so_may_doan():
 	ham_tt = [n for n in ast.parse(ma_tt).body if isinstance(n, ast.FunctionDef) and n.name == "_dung_nhom"]
 	class LoiCot(Exception):
 		pass
-	def _lam(co_cot, no_soat=0, la_single=0):
+	def _lam(co_cot, no_soat=0, la_single=0, co_bang=1):
 		def nem(m, *a, **k):
 			raise LoiCot(m)
 
@@ -322,6 +327,7 @@ def _chan_ghi_so_may_doan():
 		env = dict(cint=int, frappe=SimpleNamespace(
 			throw=nem, log_error=lambda *a, **k: None, get_traceback=lambda: "",
 			db=SimpleNamespace(updatedb=lambda dt: None, has_column=has_column,
+				table_exists=lambda dt: bool(co_bang),
 				get_value=lambda dt, n, o=None: 1 if la_single else 0)))
 		import sys as _s
 		_s.modules.setdefault("frappe.custom.doctype.custom_field.custom_field",
@@ -352,6 +358,9 @@ def _chan_ghi_so_may_doan():
 		pass
 	# DocType kiểu Single cất giá trị ở bảng Singles, không có cột: không soát.
 	_lam(False, la_single=1)
+	# Bench CI 22/09/2026: doctype tự tạo trên Desk không có trên site mới
+	# dựng. Không có bảng thì không có gì để soát, không được chặn Migrate.
+	_lam(False, co_bang=0)
 	pi_js = (GOC / "public" / "js" / "purchase_invoice.js").read_text()
 	dung("màn Desk liệt kê cả dòng còn dấu",
 		"var choChot = function (d) { return !(d.item_code || '').trim() || (d.vgb_mon_may_doan || '').trim(); };" in pi_js)
@@ -397,3 +406,69 @@ def _goi_y_dau():
 	i2 = than.find('d.get("vgb_mon_may_doan")')
 	dung("gợi ý đọc ô riêng trước phiếu nhập", 0 < i2 < i1)
 	dung("ưu tiên 0", '"uu_tien": 0' in than)
+
+
+@ca("Codex #358 vòng 19 thuần: cửa nguồn đóng thì không được mời người sang đó")
+def _cua_nguon():
+	from vagabond.sua_ma_hoa_don import cua_nguon_mo
+	from vagabond.dvt_mua import cach_go_thieu_dvt as go
+	g = {"chi_tiet": []}
+	la("tờ nháp có nguồn: mở", cua_nguon_mo(0, 0, g), True)
+	la("tờ TRẢ HÀNG: đóng", cua_nguon_mo(0, 1, g), False)
+	la("tờ đã ghi sổ: đóng", cua_nguon_mo(1, 0, g), False)
+	la("tờ mất liên kết nguồn: đóng", cua_nguon_mo(0, 0, None), False)
+	la("docstatus rác coi như nháp", cua_nguon_mo("x", 0, g), True)
+	# Ba đường gỡ khi hoá đơn gốc không ghi đơn vị cho dòng hàng kho.
+	la("còn cửa nguồn thì sang đó", go(True, "", None), "nguon")
+	la("cửa nguồn đóng thì hỏi người", go(False, "", None), "hoi")
+	la("người đã khai đơn vị và hệ số thì dùng luôn", go(False, "Thùng", 24), "khai")
+	la("khai được ưu tiên cả khi còn cửa nguồn", go(True, "Thùng", 24), "khai")
+	la("gõ đơn vị mà quên hệ số thì vẫn hỏi", go(False, "Thùng", 0), "hoi")
+	la("gõ hệ số mà quên đơn vị thì vẫn hỏi", go(False, "  ", 24), "hoi")
+	la("hệ số vô hạn không nhận", go(False, "Thùng", "inf"), "hoi")
+	la("hệ số chữ không nhận", go(False, "Thùng", "abc"), "hoi")
+
+
+@ca("Codex #358 vòng 19: tờ trả hàng không bị chỉ sang cửa đóng, người khai đơn vị là gắn được")
+def _tra_hang_van_go_duoc():
+	d = _Dong(idx=1, name="R1", item_code="", description="Hạt dẻ", uom="Nos", ten_hang_ncc="Hạt dẻ")
+	gan, ghi, _ = _nap_gan(d, la_kho=1, cua_nguon=0)
+	kq = gan("HDM-TRA", 1, "NVLT00141")
+	la("KHÔNG mời sang cửa nguồn", kq.get("can_nguon"), None)
+	la("hỏi đơn vị ngay tại chỗ", (kq.get("can_dvt"), kq.get("dvt_kho")), (1, "Set"))
+	dung("nói rõ tờ này không đi cửa nguồn được", "không đi được cửa sửa theo hoá đơn gốc" in kq.get("loi_nhan", ""))
+	la("chưa lưu gì", (ghi["luu"], ghi["khai"], d.item_code), (0, [], ""))
+	# Người gõ "Thùng" và 1 Thùng = 24 Set.
+	kq = gan("HDM-TRA", 1, "NVLT00141", he_so=24, he_so_cho="NVLT00141", dvt_khai="Thùng")
+	la("ghi quy đổi vào Món", ghi["khai"], [("NVLT00141", "Thùng", 24.0)])
+	la("dòng mang đúng đơn vị người khai", (d.item_code, d.uom, d.conversion_factor), ("NVLT00141", "Thùng", 24.0))
+	la("đơn vị mới được lập trong danh mục", ghi["uom_moi"], ["Thùng"])
+
+
+@ca("Codex #358 vòng 19: đơn vị khai kèm phải đúng Món đã hỏi, không thì hỏi lại và không ghi gì")
+def _dvt_khai_lech_mon():
+	d = _Dong(idx=1, name="R1", item_code="", description="Hạt dẻ", uom="Nos", ten_hang_ncc="Hạt dẻ")
+	gan, ghi, _ = _nap_gan(d, la_kho=1, cua_nguon=0)
+	la("hỏi cho Món A", gan("HDM-TRA", 1, "NVLT00141").get("can_dvt"), 1)
+	kq = gan("HDM-TRA", 1, "NVLT00999", he_so=24, he_so_cho="NVLT00141", dvt_khai="Thùng")
+	la("khai của Món A không dùng cho Món B", kq.get("can_dvt"), 1)
+	la("không ghi gì vào Món B", (ghi["khai"], ghi["luu"], d.item_code), ([], 0, ""))
+	kq = gan("HDM-TRA", 1, "NVLT00141", he_so=24, dvt_khai="Thùng")
+	la("gửi đơn vị không nói cho Món nào: hỏi lại", (kq.get("can_dvt"), ghi["khai"]), (1, []))
+	# Còn cửa nguồn thì vẫn ưu tiên cửa nguồn, không đổi hành vi cũ.
+	d2 = _Dong(idx=1, name="R1", item_code="", description="Hạt dẻ", uom="Nos", ten_hang_ncc="Hạt dẻ")
+	gan2, ghi2, _ = _nap_gan(d2, la_kho=1, cua_nguon=1)
+	la("tờ thường vẫn sang cửa nguồn", gan2("HDM-1", 1, "NVLT00141").get("can_nguon"), 1)
+
+
+@ca("Codex #358 vòng 19: một nguồn duy nhất cho phép mở cửa nguồn, không chép lại")
+def _mot_nguon_cua():
+	than = MA_DCM.split("def _cua_nguon_mo(")[1].split("\ndef ")[0]
+	dung("doi_chieu_mua hỏi sua_ma_hoa_don", "sua_ma_hoa_don.sua_theo_nguon_duoc" in than)
+	gan = MA_DCM.split("def gan_ma_hang(")[1].split("\ndef ")[0]
+	dung("gắn Món không tự đọc is_return", "is_return" not in gan)
+	ma_sm = (GOC / "sua_ma_hoa_don.py").read_text()
+	lc = ma_sm.split("def lua_chon(")[1].split("\ndef ")[0]
+	dung("lua_chon dùng đúng phép chung", "cua_nguon_mo(" in lc)
+	dung("lua_chon hỏi cả is_return qua phép chung",
+		"cua_nguon_mo(doc.docstatus, doc.get('is_return'), g)" in lc)
