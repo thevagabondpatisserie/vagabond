@@ -157,25 +157,47 @@
 		var goc = lv && lv.page && lv.page.main;
 		goc = goc && goc.get ? goc.get(0) : goc;
 		if (!goc) return;
+		function dat(html, kieu) {
+			/* Luon go thanh cu truoc: lan tai lai hong ma giu thanh cu thi so
+			   tren thanh la so cu, nguoi doc tuong van dung (Codex #357). */
+			var cu = goc.querySelector('.vgb-thanh-cho');
+			if (cu) cu.parentNode.removeChild(cu);
+			if (!html) return null;
+			var o = document.createElement('div');
+			o.setAttribute('class', 'vgb-thanh-cho');
+			o.setAttribute('data-kieu', kieu);
+			o.setAttribute('style', 'margin:0 0 10px;padding:10px 14px;border-radius:8px;' +
+				(kieu === 'loi' ? 'background:#fef2f2;border:1px solid #fca5a5;color:#7f1d1d'
+					: 'background:#fff7ed;border:1px solid #fdba74;color:#7c2d12'));
+			o.innerHTML = html;
+			goc.insertBefore(o, goc.firstChild);
+			return o;
+		}
+		/* Codex #357: hong mang, het phien hay may chu loi thi KHONG duoc
+		   trong giong het "khong con to nao cho". Hien thanh do kem nut Thu
+		   lai, de nguoi doc biet la chua kiem duoc chu khong phai da sach. */
+		function loi() {
+			var o = dat('<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">' +
+				'<div style="flex:1;min-width:240px"><b>Chưa tải được danh sách hoá đơn đầu vào chưa thành phiếu mua.</b>' +
+				'<br><span style="font-size:12px">Chưa biết còn tờ nào đang chờ hay không. Bấm Thử lại; vẫn lỗi thì báo quản lý.</span></div>' +
+				'<button class="btn btn-sm btn-default" data-vgb-thu-lai="1">Thử lại</button></div>', 'loi');
+			var n = o.querySelector('[data-vgb-thu-lai]');
+			if (n) n.onclick = function () { napThanhCho(lv); };
+		}
 		frappe.call({
 			method: 'vagabond.minvoice_chung_tu.cho_dung_phieu_mua',
 			args: {},
 			callback: function (r) {
-				var kq = (r && r.message) || {};
-				var cu = goc.querySelector('.vgb-thanh-cho');
-				if (cu) cu.parentNode.removeChild(cu);
-				var html = htmlThanhCho(kq);
-				if (!html) return;
-				var o = document.createElement('div');
-				o.setAttribute('class', 'vgb-thanh-cho');
-				o.setAttribute('style', 'margin:0 0 10px;padding:10px 14px;border-radius:8px;background:#fff7ed;border:1px solid #fdba74;color:#7c2d12');
-				o.innerHTML = html;
-				goc.insertBefore(o, goc.firstChild);
+				if (!r || r.exc || !r.message) return loi();
+				var kq = r.message;
+				var o = dat(htmlThanhCho(kq), 'cho');
+				if (!o) return;
 				var nut = o.querySelector('[data-vgb-xem-cho]');
 				if (nut) nut.onclick = function () {
 					frappe.msgprint({ title: 'Hoá đơn đầu vào chưa thành phiếu mua', message: htmlBangCho(kq), wide: true });
 				};
 			},
+			error: function () { loi(); },
 		});
 	}
 
