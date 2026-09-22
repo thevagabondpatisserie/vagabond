@@ -202,6 +202,77 @@ async function vgbSuaMaTheoNguon(frm) {
 	hop.show();
 }
 
+// #358 (anh Việt 22/09/2026): máy gợi ý, người chốt. Dòng trống mã (máy
+// không đoán ra, hoặc đoán ra Món mà chưa biết quy đổi đơn vị) thì kế toán
+// chọn Món ngay trên phiếu nháp; Món chưa khai đơn vị nhà cung cấp ghi thì
+// gõ hệ số, máy ghi luôn vào bảng quy đổi của Món để lần sau tự hiểu.
+async function vgbGanMonDesk(frm) {
+	if (frm.is_dirty()) {
+		frappe.msgprint('Lưu các thay đổi đang có rồi mở lại Gắn Món cho dòng trống mã.');
+		return;
+	}
+	var trong = (frm.doc.items || []).filter(function (d) { return !(d.item_code || '').trim(); });
+	if (!trong.length) { frappe.msgprint('Phiếu này không còn dòng nào trống mã.'); return; }
+	var nhan = function (d) {
+		return d.idx + '. ' + (d.ten_hang_ncc || d.item_name || '') + ' | ' + d.qty + ' x ' + format_currency(d.rate, 'VND');
+	};
+	var hop = new frappe.ui.Dialog({title: 'Gắn Món cho dòng trống mã', fields: [
+		{fieldtype: 'HTML', fieldname: 'gt', options: 'Máy gợi ý sẵn Món, bạn chọn lại nếu sai. Số lượng và đơn giá giữ đúng hoá đơn gốc. Lựa chọn được ghi nhớ cho lần sau.'},
+		{fieldname: 'dong', label: 'Dòng trên phiếu', fieldtype: 'Select', reqd: 1,
+			options: trong.map(function (d) { return {label: nhan(d), value: String(d.idx)}; })},
+		{fieldtype: 'HTML', fieldname: 'goi_y'},
+		{fieldname: 'item_code', label: 'Món', fieldtype: 'Link', options: 'Item', reqd: 1,
+			get_query: function () { return {filters: {disabled: 0, is_purchase_item: 1}}; }},
+		{fieldname: 'he_so', label: 'Hệ số quy đổi', fieldtype: 'Float', hidden: 1}
+	], primary_action_label: 'Gắn và ghi nhớ', primary_action: async function (v) {
+		hop.disable_primary_action();
+		try {
+			var args = {name: frm.doc.name, dong: v.dong, item_code: v.item_code, nho: 1};
+			if (hop._can_he_so) {
+				if (!(parseFloat(v.he_so) > 0)) { frappe.msgprint('Gõ hệ số lớn hơn 0.'); return; }
+				args.he_so = v.he_so;
+			}
+			var r = await frappe.call({method: 'vagabond.doi_chieu_mua.gan_ma_hang', args: args, freeze: true});
+			var kq = r.message || {};
+			if (kq.can_he_so) {
+				hop._can_he_so = 1;
+				var f = hop.get_field('he_so');
+				f.df.hidden = 0;
+				f.df.label = '1 ' + kq.dvt_ncc + ' bằng bao nhiêu ' + kq.dvt_kho + '?';
+				f.df.description = 'Món này chưa khai đơn vị "' + frappe.utils.escape_html(kq.dvt_ncc) + '". Số bạn gõ được ghi vào Món, lần sau máy tự hiểu.';
+				f.refresh();
+				if (kq.de_xuat && !hop.get_value('he_so')) hop.set_value('he_so', kq.de_xuat);
+				return;
+			}
+			hop.hide();
+			await frm.reload_doc();
+			frappe.show_alert({message: kq.loi_nhan || 'Đã gắn Món.', indicator: 'green'});
+		} finally { hop.enable_primary_action(); }
+	}});
+	async function napGoiY() {
+		hop._can_he_so = 0;
+		var f = hop.get_field('he_so'); f.df.hidden = 1; f.refresh();
+		hop.set_value('item_code', '');
+		var dong = hop.get_value('dong');
+		if (!dong) return;
+		try {
+			var r = await frappe.call({method: 'vagabond.doi_chieu_mua.goi_y_mon', args: {name: frm.doc.name, dong: dong}});
+			var gy = (r.message && r.message.goi_y) || [];
+			hop.get_field('goi_y').$wrapper.html(gy.length
+				? '<div style="margin-bottom:8px;font-size:12px">Gợi ý: ' + gy.slice(0, 5).map(function (x) {
+					return '<b>' + frappe.utils.escape_html(x.item_code) + '</b> ' + frappe.utils.escape_html(x.item_name) +
+						' <span style="color:#6b7280">(' + frappe.utils.escape_html(x.vi_sao) + ')</span>';
+				}).join('<br>') + '</div>'
+				: '<div style="margin-bottom:8px;font-size:12px;color:#6b7280">Máy chưa có gợi ý, tìm Món trong ô dưới.</div>');
+			if (gy.length) hop.set_value('item_code', gy[0].item_code);
+		} catch (e) { /* Gợi ý hỏng thì vẫn chọn tay được. */ }
+	}
+	hop.fields_dict.dong.df.onchange = napGoiY;
+	hop.show();
+	hop.set_value('dong', String(trong[0].idx));
+	napGoiY();
+}
+
 frappe.ui.form.on('Purchase Invoice', {
 	refresh:async function(frm) {
 		if (!frm.is_new() && !frm.doc.custom_minvoice_id && frm.doc.bill_no) {
@@ -218,6 +289,11 @@ frappe.ui.form.on('Purchase Invoice', {
 		if (!frm.is_new() && frm.doc.docstatus === 0 && frm.doc.custom_minvoice_id && !frm.doc.is_return &&
 			['System Manager','Accounts Manager','Accounts User','Purchase Manager'].some(function(v){return frappe.user.has_role(v);})) {
 			frm.add_custom_button('Sửa mã theo hóa đơn gốc', function(){return vgbSuaMaTheoNguon(frm);});
+		}
+		if (!frm.is_new() && frm.doc.docstatus === 0 && frm.doc.custom_minvoice_id &&
+			(frm.doc.items || []).some(function (d) { return !(d.item_code || '').trim(); }) &&
+			['System Manager','Accounts Manager','Accounts User','Purchase Manager'].some(function(v){return frappe.user.has_role(v);})) {
+			frm.add_custom_button('Gắn Món cho dòng trống mã', function(){return vgbGanMonDesk(frm);});
 		}
 	}
 });
