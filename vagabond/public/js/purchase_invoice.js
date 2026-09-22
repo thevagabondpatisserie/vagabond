@@ -230,7 +230,9 @@ async function vgbGanMonDesk(frm) {
 			get_query: function () { return {filters: {disabled: 0, is_purchase_item: 1}}; }},
 		/* Codex #358 vòng 19: tờ trả hàng không đi được cửa "Sửa mã theo hóa
 		   đơn gốc", nên hoá đơn gốc không ghi đơn vị thì hỏi ngay tại đây. */
-		{fieldname: 'dvt_khai', label: 'Đơn vị nhà cung cấp ghi', fieldtype: 'Data', hidden: 1},
+		/* Codex #358 vòng 20: CHỌN trong danh mục Đơn vị tính, không gõ tự do.
+		   Gõ nhầm một chữ là danh mục dùng chung mang một đơn vị rác vĩnh viễn. */
+		{fieldname: 'dvt_khai', label: 'Đơn vị nhà cung cấp ghi', fieldtype: 'Link', options: 'UOM', hidden: 1},
 		{fieldname: 'he_so', label: 'Hệ số quy đổi', fieldtype: 'Float', hidden: 1}
 	], primary_action_label: 'Gắn và ghi nhớ', primary_action: async function (v) {
 		hop.disable_primary_action();
