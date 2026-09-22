@@ -32027,6 +32027,38 @@ async function dcmDoiMaTheoNguon(name, idx, itemCode) {
   return true;
 }
 
+/* Chon mot don vi CO SAN trong danh muc Don vi tinh. Tra ve ten don vi hoac
+   null neu nguoi bo. Danh muc do may chu gui kem, man hinh khong tu bia ra
+   don vi moi (Codex #358 vong 20). */
+function dcmChonDonVi(ds, loiNhan) {
+  return new Promise(function (res) {
+    if (!ds.length) { baoTin('Danh mục Đơn vị tính chưa có đơn vị nào. Nhờ kế toán thêm đơn vị rồi quay lại.'); res(null); return; }
+    var ov = document.createElement('div'); ov.className = 'sh';
+    var box = document.createElement('div'); box.className = 'shb';
+    box.innerHTML = '<div class="shh"><b>Chọn đơn vị nhà cung cấp ghi</b><div class="x">&times;</div></div>' +
+      '<div style="padding:10px 14px 6px;font-size:12.5px;color:#6b7280">' + h(loiNhan) + '</div>' +
+      '<div style="padding:0 14px 8px"><input class="nt" id="dcmdvq" placeholder="Gõ để tìm" style="height:46px;padding:0 12px;width:100%"></div>' +
+      '<div id="dcmdvds" style="max-height:46vh;overflow:auto;padding:0 14px 14px"></div>';
+    ov.appendChild(box); document.body.appendChild(ov);
+    var o = box.querySelector('#dcmdvq'), khung = box.querySelector('#dcmdvds');
+    function ve() {
+      var q = (o.value || '').trim().toLowerCase();
+      var loc = ds.filter(function (x) { return !q || String(x).toLowerCase().indexOf(q) >= 0; }).slice(0, 60);
+      khung.innerHTML = loc.length
+        ? loc.map(function (x) { return '<button class="btn gh" data-dv="' + h(x) + '" style="margin-top:8px;width:100%">' + h(x) + '</button>'; }).join('')
+        : '<div style="font-size:13px;color:#8a8f9c;padding:8px 0">Không có đơn vị nào khớp. Nhờ kế toán thêm vào danh mục Đơn vị tính.</div>';
+    }
+    o.oninput = ve; ve();
+    ov.onclick = function (e) {
+      var t = e.target;
+      if (t === ov || (t.className === 'x')) { ov.remove(); res(null); return; }
+      var dv = t.getAttribute && t.getAttribute('data-dv');
+      if (dv) { ov.remove(); res(dv); }
+    };
+    setTimeout(function () { try { o.focus(); } catch (e) { } }, 150);
+  });
+}
+
 async function dcmGanXong(name, idx, itemCode, doi, heSo, dvtKhai) {
   if (!itemCode) return;
   busy(true);
@@ -32059,7 +32091,9 @@ async function dcmGanXong(name, idx, itemCode, doi, heSo, dvtKhai) {
        goc" (lua_chon tra co_nguon sai), nen may chu hoi thang o day: nguoi go
        don vi nha cung cap ghi tren to giay va he so. Khong to nao con ket. */
     if (kq && kq.can_dvt) {
-      var dv = await promptSheet('Hoá đơn gốc không ghi đơn vị', 'Đơn vị nhà cung cấp ghi, ví dụ Thùng');
+      /* Codex #358 vong 20: CHON trong danh muc Don vi tinh, khong go tu do.
+         Go nham mot chu la danh muc dung chung ca he mang mot don vi rac. */
+      var dv = await dcmChonDonVi(kq.dvt_ds || [], kq.loi_nhan || '');
       dv = String(dv || '').trim();
       if (!dv) return;
       var hsd = await qtySheet('1 ' + dv + ' bằng bao nhiêu ' + (kq.dvt_kho || '') + '?',
