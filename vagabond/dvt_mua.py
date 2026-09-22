@@ -360,6 +360,23 @@ def can_nguoi_khai_he_so(dvt_ncc, tim_thay, he_so_nhap, item_code=None, he_so_ch
 	return "khai" if math.isfinite(hs) and hs > 0 else "hoi"
 
 
+def dvt_ncc_cua_dong(mo_ta, uom_dong):
+	"""Đơn vị nhà cung cấp GHI trên dòng hoá đơn. THUẦN.
+
+	Đọc trong mô tả trước. Không có thì lấy ô đơn vị của dòng, TRỪ "Nos":
+	dòng trống mã lấy "Nos" làm đơn vị lót khi hoá đơn gốc không ghi đơn vị
+	(minvoice_chung_tu._dong_pi). Codex #358: lấy nhầm "Nos" làm đơn vị nhà
+	cung cấp thì máy hỏi "1 Nos bằng bao nhiêu Gram" rồi ghi vĩnh viễn một
+	quy đổi bịa vào Món. Đơn vị gốc thật là "Nos" thì mô tả có "(Nos)".
+	Trả rỗng nghĩa là nhà cung cấp không ghi đơn vị: gắn theo đơn vị kho hệ
+	số 1, không khai quy đổi nào."""
+	dvt = dvt_tren_hoa_don(mo_ta)
+	if dvt:
+		return dvt
+	raw = str(uom_dong or "").strip()
+	return "" if raw == DVT_LOT else raw
+
+
 def dong_may_doan_chua_chot(dong):
 	"""Các dòng còn mang lời đoán của máy mà người chưa chốt Món. THUẦN.
 
@@ -383,6 +400,9 @@ def cint_thuan(x):
 		return int(float(x or 0))
 	except (TypeError, ValueError):
 		return 0
+
+
+DVT_LOT = "Nos"   # đơn vị lót của dòng trống mã, không phải đơn vị nhà cung cấp
 
 
 def mon_may_doan(mo_ta):

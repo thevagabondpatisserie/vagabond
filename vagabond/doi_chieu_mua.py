@@ -1739,7 +1739,7 @@ def gan_ma_hang(name, dong, item_code, nho=1, doi=0, he_so=None, he_so_cho=None)
 	# Đơn vị GỐC nhà cung cấp ghi nằm cuối mô tả "(Lần)". Ô uom của dòng
 	# trống mã có thể là "Nos" khi đơn vị gốc chưa có trong danh mục, hỏi
 	# "1 Nos bằng bao nhiêu" thì người đọc không hiểu (#358).
-	dvt_ncc = (dvt_mua.dvt_tren_hoa_don(d.get("description")) or d.get("uom") or "").strip()
+	dvt_ncc = dvt_mua.dvt_ncc_cua_dong(d.get("description"), d.get("uom"))
 
 	# NAN LAI DON VI. Don vi tho cua nha cung cap ("BAG", "TRAI") duoc dich
 	# sang ten cua minh roi tra bang quy doi cua Mon. Tra khong ra thi lui ve
