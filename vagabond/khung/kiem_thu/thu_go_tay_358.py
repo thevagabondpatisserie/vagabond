@@ -36,6 +36,11 @@ def _quyet():
 	la("gõ chữ vẫn hỏi", can_nguoi_khai_he_so("Lần", False, "abc"), "hoi")
 	la("gõ vô hạn vẫn hỏi", can_nguoi_khai_he_so("Lần", False, "inf"), "hoi")
 	la("gõ số dương thì khai", can_nguoi_khai_he_so("BOX", False, "1000"), "khai")
+	# Codex #358 P1: hệ số chỉ nhận khi đúng Món đã được hỏi.
+	la("đúng Món đã hỏi thì khai", can_nguoi_khai_he_so("BOX", False, 1000, "NVLT00141", "NVLT00141"), "khai")
+	la("hỏi Món A mà gắn Món B thì hỏi lại", can_nguoi_khai_he_so("Lần", False, 1, "NVLT00141", "DVTI00014"), "hoi")
+	la("gửi hệ số không nói cho Món nào thì hỏi lại", can_nguoi_khai_he_so("Lần", False, 1, "NVLT00141", None), "hoi")
+	la("đã biết quy đổi thì lệch Món cũng không sao", can_nguoi_khai_he_so("Lần", True, 1, "NVLT00141", "DVTI00014"), "dung")
 
 
 @ca("#358 thuần: lời đoán ghi lên mô tả không làm mất đơn vị gốc, và đọc lại được")
@@ -141,7 +146,7 @@ def _gan_hoi_roi_khai():
 	kq = gan("HDM-1", 3, "DVTI00014")
 	la("hỏi hệ số, đơn vị lấy theo hoá đơn gốc", (kq.get("can_he_so"), kq.get("dvt_ncc"), kq.get("dvt_kho"), kq.get("de_xuat")), (1, "Lần", "Set", 1))
 	la("chưa lưu phiếu, chưa khai, dòng vẫn trống", (ghi["luu"], ghi["khai"], d.item_code), (0, [], ""))
-	kq = gan("HDM-1", 3, "DVTI00014", he_so=1)
+	kq = gan("HDM-1", 3, "DVTI00014", he_so=1, he_so_cho="DVTI00014")
 	la("ghi hệ số vào Món", ghi["khai"], [("DVTI00014", "Lần", 1.0)])
 	la("dòng mang đúng đơn vị và hệ số vừa khai", (d.item_code, d.uom, d.conversion_factor), ("DVTI00014", "Lần", 1.0))
 	la("không báo chưa khai đơn vị nữa", kq.get("chua_khai_don_vi"), 0)
@@ -158,8 +163,56 @@ def _gan_kho_va_da_khai():
 	la("đã khai thì gắn luôn", (kq.get("can_he_so"), d2.uom, d2.conversion_factor, ghi2["khai"]), (None, "BOX", 1000.0, []))
 	d3 = _Dong(idx=1, name="R1", item_code="", description="Hạt dẻ (BOX)", uom="Nos", ten_hang_ncc="Hạt dẻ")
 	gan3, ghi3, _ = _nap_gan(d3)
-	gan3("HDM-1", 1, "NVLT00141", he_so=0)
+	gan3("HDM-1", 1, "NVLT00141", he_so=0, he_so_cho="NVLT00141")
 	la("gõ 0 không ghi gì", (ghi3["khai"], ghi3["luu"], d3.item_code), ([], 0, ""))
+
+
+@ca("Codex #358 P1: hỏi hệ số cho Món A rồi gắn Món B kèm hệ số cũ thì máy chủ HỎI LẠI cho B, không ghi gì vào B")
+def _doi_mon_sau_khi_hoi():
+	d = _Dong(idx=3, name="R3", item_code="", description="Phí dịch vụ (Lần)", uom="Nos", ten_hang_ncc="Phí dịch vụ")
+	gan, ghi, _ = _nap_gan(d, la_kho=1)
+	la("hỏi cho Món A", gan("HDM-1", 3, "DVTI00014").get("can_he_so"), 1)
+	kq = gan("HDM-1", 3, "NVLT00141", he_so=1, he_so_cho="DVTI00014")
+	la("gắn Món B kèm hệ số của A: hỏi lại cho B", (kq.get("can_he_so"), kq.get("item_code")), (1, "NVLT00141"))
+	la("không ghi gì vào Món B, dòng vẫn trống", (ghi["khai"], ghi["luu"], d.item_code), ([], 0, ""))
+	kq = gan("HDM-1", 3, "NVLT00141", he_so=1)
+	la("gửi hệ số không kèm Món đã hỏi: cũng hỏi lại", (kq.get("can_he_so"), ghi["khai"]), (1, []))
+
+
+@ca("Codex #358 P1: dòng máy đoán mà người chưa chốt thì KHÔNG ghi sổ được, ở mọi đường ghi sổ")
+def _chan_ghi_so_may_doan():
+	may = {"ten": "Phí dịch vụ", "dvt": "Lần", "goi_y_mon": "DVTI00014", "goi_y_dvt_kho": "Set"}
+	ds = [
+		{"idx": 1, "item_code": "NVLT1", "description": "Bắp (Kg)"},
+		{"idx": 2, "item_code": "", "description": mo_ta_dong(may)},
+		{"idx": 3, "item_code": "", "description": "Phí ship (Lần)"},
+	]
+	la("chỉ dòng mang lời đoán mà còn trống mã", dvt_mua.dong_may_doan_chua_chot(ds), [(2, "DVTI00014")])
+	ds[1]["item_code"] = "DVTI00014"
+	la("đã chốt Món thì hết chặn", dvt_mua.dong_may_doan_chua_chot(ds), [])
+	# Gác ở before_submit nên mọi đường ghi sổ (Desk, app, ghi_so_thang) đều đi qua.
+	from vagabond import hooks
+	la("gác đứng đầu before_submit của Hoá đơn mua",
+		hooks.doc_events["Purchase Invoice"]["before_submit"][0], "vagabond.doi_chieu_mua.chan_ghi_so_may_doan")
+	ham = _ham(MA_DCM, "chan_ghi_so_may_doan")
+	class Loi(Exception):
+		pass
+	def nem_loi(m):
+		raise Loi(m)
+	env = dict(frappe=SimpleNamespace(throw=nem_loi), dvt_mua=dvt_mua)
+	exec(compile(ast.Module(body=ham, type_ignores=[]), "doi_chieu_mua.py", "exec"), env)
+	class _D(dict):
+		def get(self, k, m=None):
+			return dict.get(self, k, m)
+	ds[1]["item_code"] = ""
+	doc = SimpleNamespace(items=[_D(x) for x in ds])
+	try:
+		env["chan_ghi_so_may_doan"](doc, "before_submit")
+		dung("phải chặn", False)
+	except Loi as e:
+		dung("lời chặn nói rõ dòng và Món máy đoán", "Dòng 2" in str(e) and "DVTI00014" in str(e))
+	doc = SimpleNamespace(items=[_D(ds[0]), _D(ds[2])])
+	env["chan_ghi_so_may_doan"](doc, "before_submit")
 
 
 @ca("#358 gợi ý Món: lời đoán của máy đứng đầu danh sách")
