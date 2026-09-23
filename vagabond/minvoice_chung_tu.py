@@ -509,6 +509,24 @@ NHOM_CHO_DUNG = (
 )
 
 
+def khong_phai_hoa_don(so_hd, ngay_lap):
+	"""Bản ghi hoá đơn điện tử KHÔNG phải hoá đơn: không số, không ngày. THUẦN.
+
+	M-Invoice trả lẫn vật tạm của hệ họ vào danh sách hoá đơn, chỉ có mã,
+	không số không ngày. Từ v519 bước kéo không lưu chúng nữa, nhưng 5.507
+	bản ghi lỡ lưu trước đó vẫn nằm trong bảng, và thanh báo trên màn Hoá
+	đơn mua hàng đếm cả chúng: ngày 23/09/2026 nó nói "234 hoá đơn đầu vào
+	đã nhận nhưng chưa thành phiếu mua" trong khi nợ thật vì lý do đó là 0,
+	và con số giả ấy che mất các tờ nợ vì lý do khác.
+
+	Anh Việt chốt 23/09: KHÔNG xoá bản ghi cũ, chỉ thôi đếm.
+
+	Tờ VỎ RUỘT thật (có ngày lập, chưa có số) vẫn phải đếm, vì đó là hoá
+	đơn thật đang chờ nguồn đổ ruột.
+	"""
+	return not str(so_hd or "").strip() and not str(ngay_lap or "").strip()
+
+
 def nhom_cho_dung(so_hd, ly_do, da_tao):
 	"""Tờ đầu vào chưa thành phiếu mua đang cần xử lý kiểu gì. THUẦN.
 
@@ -883,6 +901,9 @@ def cho_dung_phieu_mua(so_ngay=180, gioi_han=300):
 	hang = []
 	for h in ds:
 		if h["name"] in co:
+			continue
+		if khong_phai_hoa_don(h.get("so_hd"), h.get("ngay_lap")):
+			# Không phải hoá đơn thì không nợ ai cái gì. Xem hàm đó.
 			continue
 		k, ten = nhom_cho_dung(h.get("so_hd"), h.get("ly_do_bo_qua"), h.get("da_tao_chung_tu"))
 		hang.append({

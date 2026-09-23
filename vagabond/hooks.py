@@ -827,6 +827,14 @@ override_doctype_class = {
 
 # Dung lai cac truong tu them do ma nguon khai, sau moi lan deploy. Thao tac
 # lap lai duoc: khai lai lan hai khong doi gi.
+# O CHON DON VI TINH: khop ca ten luu lan ten da dich.
+#
+# UOM la doctype co dich (translated_doctype), nen o chon san cua Frappe
+# khop theo ten DA DICH. Site nay nap ban dich tieng Viet nen go "Box",
+# "Nos", "Set" deu ra rong du danh muc co du ba don vi do, va nhan vien
+# bam "Tao moi" thanh ra danh muc sinh trung. Xem vagabond/tim_don_vi.py.
+standard_queries = {"UOM": "vagabond.tim_don_vi.tim_uom"}
+
 after_migrate = ["vagabond.truong_tu_them.dung", "vagabond.quy_cach_ncc.dung"]
 
 # #262: nối vào chuỗi hiện có, không thay hook bảo vệ chứng từ trước đó.

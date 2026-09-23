@@ -8,7 +8,8 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from vagabond.khung.kiem_thu.nen import ca, dung, la
-from vagabond.minvoice_chung_tu import dich_vu_khong_ghi_don_vi, nhom_cho_dung, NHOM_CHO_DUNG
+from vagabond.minvoice_chung_tu import (
+	dich_vu_khong_ghi_don_vi, khong_phai_hoa_don, nhom_cho_dung, NHOM_CHO_DUNG)
 
 MA = (Path(__file__).resolve().parents[2] / "minvoice_chung_tu.py").read_text()
 
@@ -53,6 +54,7 @@ def _nap_cua(hd, pi, vo=()):
 	env = dict(frappe=f, _kiem_quyen=lambda: None, nowdate=lambda: "2026-09-22", cint=lambda n: int(n or 0),
 		flt=lambda n: float(n or 0), DT_HD="MInvoice Invoice", PI="Purchase Invoice", LOAI_VAO="Đầu vào",
 		TT_KHOI_DUNG=("Bị thay thế", "Đã huỷ"), nhom_cho_dung=nhom_cho_dung, NHOM_CHO_DUNG=NHOM_CHO_DUNG,
+		khong_phai_hoa_don=khong_phai_hoa_don,
 		rut_gon_loi=lambda s: s)
 	exec(compile(ast.Module(body=ham, type_ignores=[]), "minvoice_chung_tu.py", "exec"), env)
 	return env["cho_dung_phieu_mua"], goi
@@ -78,14 +80,22 @@ def _cua_cho_dung():
 	la("chỉ đầu vào, bỏ tờ đã huỷ hoặc bị thay thế", (loc["loai"], loc["trang_thai"]), ("Đầu vào", ["not in", ["Bị thay thế", "Đã huỷ"]]))
 
 
-@ca("#357 Codex: tờ nguồn rút gọn lưu với ngày trống vẫn vào thanh báo, nhóm chờ nguồn; không đếm trùng")
+@ca("#357 + #520: tờ chưa có ngày vẫn đọc tới, nhưng bản ghi không số không ngày thì thôi đếm")
 def _vo_khong_ngay():
-	vo = [{"name": "V", "so_hd": None, "ngay_lap": None, "nguoi_mua_ban": "", "tong_tien": 0, "ly_do_bo_qua": "", "da_tao_chung_tu": 0},
-		{"name": "A", "so_hd": "1", "ngay_lap": "2026-09-10", "nguoi_mua_ban": "X", "tong_tien": 5, "ly_do_bo_qua": "", "da_tao_chung_tu": 0}]
-	hd = [vo[1]]
-	cua, goi = _nap_cua(hd, pi=[], vo=vo)
+	# ĐỔI HỢP ĐỒNG Ở v520, anh Việt chốt 23/09/2026. Bản #357 đòi tờ không
+	# số không ngày phải vào thanh báo và đếm vào nhóm chờ nguồn. Đo trên
+	# site thật thì đúng nhóm đó là 5.507 vật tạm của M-Invoice, không phải
+	# hoá đơn, và con số giả ấy che mất tờ nợ thật. Nay bỏ qua chúng.
+	# PHẦN CÒN NGUYÊN của #357: truy vấn thứ hai vẫn chạy, vẫn giới hạn theo
+	# ngày tạo, và vẫn không đếm trùng tờ đã có ở truy vấn thứ nhất.
+	rong = {"name": "V", "so_hd": None, "ngay_lap": None, "nguoi_mua_ban": "", "tong_tien": 0, "ly_do_bo_qua": "", "da_tao_chung_tu": 0}
+	co_so = {"name": "S", "so_hd": "77", "ngay_lap": None, "nguoi_mua_ban": "Y", "tong_tien": 3, "ly_do_bo_qua": "", "da_tao_chung_tu": 0}
+	a = {"name": "A", "so_hd": "1", "ngay_lap": "2026-09-10", "nguoi_mua_ban": "X", "tong_tien": 5, "ly_do_bo_qua": "", "da_tao_chung_tu": 0}
+	cua, goi = _nap_cua([a], pi=[], vo=[rong, co_so, a])
 	kq = cua()
-	la("tờ chưa có ngày có trong danh sách, không trùng tờ A", sorted(h["ma"] for h in kq["ds"]), ["A", "V"])
-	la("đếm vào nhóm chờ nguồn", [(o["nhom"], o["so_to"]) for o in kq["theo_nhom"]][0], ("thieu_nguon", 1))
+	la("bỏ bản ghi không số không ngày, giữ tờ có số, không trùng tờ A",
+		sorted(h["ma"] for h in kq["ds"]), ["A", "S"])
+	la("tờ có số mà nguồn thiếu ngày vẫn được đếm",
+		[h["nhom"] for h in kq["ds"] if h["ma"] == "S"], ["cho_luot"])
 	loc = [g[1] for g in goi if g[0] == "MInvoice Invoice"][1]
 	la("tờ chưa có ngày giới hạn theo ngày tạo cùng cửa sổ", loc["creation"], [">=", "2026-03-26"])

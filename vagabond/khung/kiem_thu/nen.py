@@ -172,6 +172,9 @@ def gia_lap():
 			return f
 		return dang_ky
 	fr.whitelist = _whitelist
+	# Frappe boc ham standard_queries bang decorator nay. Ban gia chi tra
+	# nguyen ham, vi phan can kiem la phep loc chu khong phai phep gac dau vao.
+	fr.validate_and_sanitize_search_inputs = lambda f: f
 	fr._dict = Doi
 	fr.log_error = lambda *a, **k: None
 	fr.get_traceback = lambda *a, **k: ""
