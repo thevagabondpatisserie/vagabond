@@ -1015,3 +1015,18 @@ Cách phòng: ca `cửa ngõ` nay đọc `hooks.py`, lấy mọi hàm trong
 Frappe gọi qua một cửa có gác (whitelist, allow_guest, hook) thì ca kiểm
 phải chốt được cái gác đó, gọi thẳng hàm là bỏ qua đúng chỗ hay hỏng.
 Và kiểm site thật ngay sau deploy là bắt buộc: lần này nó cứu được.
+
+## 23/09/2026 (v521 -> v522): doctype được dịch thì Frappe lọc lại kết quả standard_queries
+
+Sau v521 hết 404 nhưng gõ "Box", "Nos", "Set" trong ô chọn UOM vẫn rỗng, dù
+gọi thẳng `tim_uom` với "box" trả đúng `[["Box", "Hộp"]]`. Lý do: UOM có
+`translated_doctype = 1`, nên `search_widget` gọi hàm standard_queries với
+txt RỖNG, lấy hết, rồi tự lọc lại bằng `filter_translated`: dịch từng ô
+qua `_()` rồi dò chữ người gõ. "Box" dịch thành "Hộp" nên dòng bị loại. Hàm
+tìm đúng mà người dùng vẫn không thấy. Cách chữa: mô tả giữ tên lưu, dạng
+"Box (Hộp)", chuỗi này không có bản dịch nên đi qua bộ lọc nguyên vẹn.
+Cách phòng: ca `#522` dựng lại đúng ba bước search_widget,
+filter_translated, build_for_autosuggest. Nói chung: gọi thẳng hàm mình
+viết chưa đủ, phải dựng lại cả phần khung chạy SAU hàm đó, vì khung có thể
+sửa hoặc xoá kết quả. Đây là lần thứ hai trong một ngày cùng một ô chọn lọt
+qua kiểu kiểm gọi thẳng.
