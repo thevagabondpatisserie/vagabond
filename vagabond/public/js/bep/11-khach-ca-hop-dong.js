@@ -2073,7 +2073,8 @@ async function htSinhLai(d) {
   catch (e) { busy(false); return baoTin((e && e.message) || 'Chưa sinh lại được chứng từ.', 'Lỗi'); }
   busy(false);
   if (kq && kq.ok) {
-    toast('Đã lập lại chứng từ. Giờ đính uỷ nhiệm chi được rồi.', 4500);
+    toast(kq.da_xong_truoc ? 'Phiếu này vừa được máy lập đủ chứng từ. Giờ đính uỷ nhiệm chi được rồi.'
+      : 'Đã lập lại chứng từ. Giờ đính uỷ nhiệm chi được rồi.', 4500);
     return htChiTiet(d.name);
   }
   baoTin((kq && kq.loi) || 'Máy vẫn chưa lập được chứng từ. Báo anh Việt.', 'Chưa sinh được');
