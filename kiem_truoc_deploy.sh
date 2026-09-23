@@ -134,6 +134,7 @@ node vagabond/khung/kiem_thu/hanh_vi/cho_dung_352.js
 node vagabond/khung/kiem_thu/hanh_vi/go_tay_358.js
 # APP-26-09-799: dinh uy nhiem chi o buoc xac nhan da chuyen tien gui dung duong dan.
 node vagabond/khung/kiem_thu/hanh_vi/unc_app_518.js
+node vagabond/khung/kiem_thu/hanh_vi/sinh_lai_523.js
 # Trang /kiem-banh: chuoi go o Huy. Codex doi tren PR #218 mot ca chay that
 # chuoi bam - go - cho phan hoi - kiem so, chu khong do chuoi. Dat o day chu
 # khong de chay tay: mot ca kiem khong nam trong cong la mot ca kiem se quen.

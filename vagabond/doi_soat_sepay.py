@@ -131,6 +131,25 @@ _DANG_NAP = False
 MO_DUN_KHAI = ("cong_no", "de_nghi_chi", "hoan_tien")
 
 
+class LoiSauKhop(Exception):
+	"""Lỗi của bước SAU khi khớp mà luồng nghiệp vụ đã tự nói rõ việc tiếp theo.
+
+	Tầng chung mặc định bảo người dùng "bấm lại nút Khớp SePay". Với luồng đã
+	commit dấu khớp rồi (hoàn tiền), bấm lại là không làm được, màn còn giấu
+	luôn nút đó. Luồng nào ném lỗi này thì câu của nó được bày NGUYÊN, không
+	nối thêm hướng dẫn thứ hai trái ngược (v523, Codex #363 vòng 7)."""
+
+
+def cau_loi_sau_khop(e, vet=""):
+	"""Câu bày cho người bấm khi bước sau khớp hỏng. THUẦN."""
+	if isinstance(e, LoiSauKhop):
+		return "Tiền đã khớp nhưng chưa xong bước sau: %s" % str(e).strip()
+	dong = (str(vet or "").strip().splitlines() or [str(e)])[-1]
+	return ("Tiền đã khớp nhưng hệ thống chưa chạy xong bước sau: %s. Vui "
+		"lòng bấm lại nút Khớp SePay, nếu vẫn hỏng thì báo bộ phận kỹ thuật."
+		% dong[:200])
+
+
 def khai(loai, doctype, chieu, ma_do, so_tien, dang_cho, khi_khop=None,
 		ten_man="", truong_gd="ma_gd", loc_chiem=None,
 		truong_nguoi="", truong_luc="", loi_giao_dich=None, loi_phieu=None):
@@ -605,13 +624,12 @@ def khop_tay(loai, ma_phieu, ma_gd):
 		try:
 			b["khi_khop"](frappe.get_doc(b["doctype"], ma_phieu), gd)
 			frappe.db.commit()
-		except Exception:
+		except Exception as e:
+			vet = str(frappe.get_traceback())
 			frappe.db.rollback()
-			frappe.log_error(frappe.get_traceback(),
+			frappe.log_error(vet,
 				"doi_soat_sepay: khop_tay khi_khop loi %s %s" % (loai, ma_phieu))
-			loi = ("Tiền đã khớp nhưng hệ thống chưa chạy xong bước sau: %s. Vui "
-				"lòng bấm lại nút Khớp SePay, nếu vẫn hỏng thì báo bộ phận kỹ thuật."
-				% str(frappe.get_traceback()).strip().splitlines()[-1][:200])
+			loi = cau_loi_sau_khop(e, vet)
 
 	return {
 		"ok": 1, "gd": gd, "lech": lech, "loi": loi,

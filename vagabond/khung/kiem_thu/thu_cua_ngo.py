@@ -415,6 +415,9 @@ CUA_NGO = {
 		# phieu hoan, dung cho ca khach tu go noi dung chuyen khoan nen may
 		# khong tu khop duoc (ca Ms.Giang, HT-2026-00912).
 		"gan_gd_vao", "hoan_thanh",
+		# sinh_lai them v523 (23/09/2026): nut Sinh lai chung tu cho ho so
+		# da khop tien ra ma chung tu hong (HT-2026-02900).
+		"sinh_lai",
 		# go_unc them 24/08/2026: nut X tren tung hinh UNC. Chi go duoc khi
 		# phieu CHUA ket thuc - ghi so roi thi to do la chung tu cua but
 		# toan da nam trong so.

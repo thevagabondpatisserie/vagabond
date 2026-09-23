@@ -626,7 +626,9 @@ def _():
 	i = MA_DUNG_LAI.find("def hoc_ma_hang")
 	j = MA_DUNG_LAI.find("def _tong_thue_tren_phieu")
 	than = MA_DUNG_LAI[i:j]
-	dung("o nho con trong moi ghi", "continue" in than and "item_code\") or \"\").strip():" in than)
+	# v523: được ghi đè ánh xạ trỏ Món ĐÃ TẮT; ánh xạ còn sống vẫn giữ.
+	# Hành vi chạy thật nằm ở thu_v523 ("học mã hàng: ánh xạ trỏ Món đã tắt").
+	dung("anh xa con song thi bo qua", "continue" in than and '"Item", ma_cu, "disabled"' in than)
 	dung("cat duoi chi nhanh cua ma so thue", 'split("-")[0]' in than)
 	dung("chi hoc tu dong co ten khop ban goc", "ten_goc.get(khoa_ten(" in than)
 	# Ghi bang dung chu cua ban goc, khong phai chu dang nam tren chung tu:

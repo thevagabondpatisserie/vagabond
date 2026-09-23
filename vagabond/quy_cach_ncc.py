@@ -31,8 +31,16 @@ def _kiem_uom(item_code, uom):
     ds = frappe.get_all('UOM Conversion Detail', filters={
         'parent': item_code, 'parenttype': 'Item', 'uom': uom}, fields=['conversion_factor'])
     if len(ds) != 1:
-        frappe.throw('Món %s chưa khai duy nhất đơn vị %s trong bảng quy đổi. Khai đúng quy cách trước khi chọn ánh xạ.'
-                     % (item_code, uom))
+        # v523 (Uyên, Kahlua 23/09/2026): đổi Món của ánh xạ sang mã khác mà
+        # đơn vị cũ không có trên mã mới thì câu cũ chỉ nói "chưa khai", người
+        # đọc không biết phải đổi luôn ô đơn vị. Nói rõ và bày đơn vị đang có.
+        co = [stock_uom for stock_uom in [mon.stock_uom] if stock_uom] + [
+            r.uom for r in frappe.get_all('UOM Conversion Detail', filters={
+                'parent': item_code, 'parenttype': 'Item'}, fields=['uom'])
+            if r.uom and r.uom != mon.stock_uom]
+        frappe.throw('Món %s không có đơn vị "%s" (đơn vị này có thể thuộc món cũ của ánh xạ). '
+                     'Chọn lại ô Đơn vị đã đối chiếu bằng một trong các đơn vị của món này: %s.'
+                     % (item_code, uom, ', '.join(co) or '(chưa khai đơn vị nào)'))
     try:
         hs = float(ds[0].conversion_factor)
     except (TypeError, ValueError, OverflowError):
@@ -68,11 +76,19 @@ def _anh_xa(mst, truong, gia_tri):
             and (d.get(truong) or '').strip() == gia_tri]
 
 
+def _mon_tat(item_code):
+    return bool(item_code and frappe.db.get_value('Item', item_code, 'disabled'))
+
+
 def tim_mon(mst, ma_ncc, ten_ncc):
-    """Tra mã và quy cách cùng đọc được ánh xạ chi nhánh lịch sử."""
+    """Tra mã và quy cách cùng đọc được ánh xạ chi nhánh lịch sử.
+
+    Ánh xạ trỏ vào Món ĐÃ TẮT không còn là gợi ý (v523, Kahlua NVLT00325):
+    món tắt thì không ai được nhập vào nữa, gợi ý nó là đẩy người dùng vào
+    đúng chỗ bị chặn."""
     for truong, gia_tri in [('ma_ncc', ma_ncc), ('ten_ncc', (ten_ncc or '')[:140])]:
         ds = _anh_xa(mst, truong, gia_tri)
-        cac = {d.item_code for d in ds if d.item_code}
+        cac = {d.item_code for d in ds if d.item_code and not _mon_tat(d.item_code)}
         if len(cac) > 1:
             frappe.throw('Ánh xạ NCC %s, hàng %s đang chọn nhiều Món. Đối chiếu lại ánh xạ trước khi tạo hoá đơn.'
                          % (mst, gia_tri))
@@ -94,7 +110,11 @@ def lay(item_code, mst, ten_ncc):
     ds = _anh_xa(mst, 'ten_ncc', ten)
     # Collation MariaDB có thể coi khác dấu/hoa thường là giống nhau.
     # Quy cách chỉ áp dụng đúng tên NCC đã đối chiếu, không gần giống.
-    da_chon = [d for d in ds if (d.get(TRUONG) or '').strip()]
+    # Bỏ ánh xạ trỏ Món ĐÃ TẮT trước khi đếm (v523, Codex #363 vòng 3): lịch
+    # sử chi nhánh có thể giữ một ánh xạ chết cạnh ánh xạ sống, đếm chung là
+    # báo "nhiều ánh xạ" và chặn đúng hoá đơn đang làm. Món tắt thì không ai
+    # nhập vào được nữa, quy cách của nó không còn là một lựa chọn.
+    da_chon = [d for d in ds if (d.get(TRUONG) or '').strip() and not _mon_tat(d.item_code)]
     if not da_chon:
         return None
     if len(da_chon) != 1:

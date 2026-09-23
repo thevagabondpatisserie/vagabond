@@ -1751,7 +1751,8 @@ function htDsVe() {
          (trung.length ? '\n\nCó ' + trung.length + ' phiếu trỏ vào giao dịch đã gắn cho phiếu khác ' +
           '(' + trung.map(function (x) { return x.ho_so + ' trùng ' + x.trung_voi; }).join(', ') + '). ' +
           'Một lần tiền ra chỉ khớp cho một phiếu. Nếu đây thật sự là hai lần hoàn khác nhau ' +
-          'thì sao kê còn thiếu một dòng, báo anh Việt nạp bù giúp.' : '')));
+          'thì sao kê còn thiếu một dòng, báo anh Việt nạp bù giúp.' : '') +
+         ((kq.da_go || []).length ? '\n\nĐã lập lại chứng từ cho phiếu kẹt: ' + kq.da_go.join(', ') + '.' : '')));
       go(scrHoanTien, true);
     } catch (e) { busy(false); }
   };
@@ -1921,7 +1922,12 @@ function htCtVe() {
   html += htCtUnc(d);
 
   var chan = '';
-  if (d.trang_thai !== 'Da huy') {
+  if (d.sinh_lai_duoc) {
+    /* Codex #363 vòng 4: hồ sơ kẹt chứng từ thì việc chính là Sinh lại, đặt
+       ở thanh dưới cùng như mọi việc chính khác. Tiền đã ra rồi nên KHÔNG
+       bày nút Chuyển khoản, bày ra là mời chuyển thêm lần nữa. */
+    chan += '<button class="btn" id="htCtSinhLai" style="margin:0;flex:1">🔄 Sinh lại chứng từ</button>';
+  } else if (d.trang_thai !== 'Da huy') {
     chan += '<button class="btn gh" id="htCtMb" style="margin:0;flex:1">🏦 Chuyển khoản</button>';
   }
   if (d.con_tu_choi_duoc && d.duoc_tu_choi) {
@@ -1948,6 +1954,8 @@ function htCtVe() {
   if (nKs) nKs.onclick = function () { htKhopSepayTuDong(d); };
   var nKt2 = document.getElementById('htCtKsTay');
   if (nKt2) nKt2.onclick = function () { htFormGdRa(d); };
+  var nSl = document.getElementById('htCtSinhLai');
+  if (nSl) nSl.onclick = function () { htSinhLai(d); };
 
   var nUncN = document.getElementById('htUncNut');
   var nUncT = document.getElementById('htUncTep');
@@ -2030,6 +2038,17 @@ nó phụ thuộc đúng vào bước này, và một cái nút biến mất kh�
 là thứ khiến người dùng đi hỏi vòng quanh. */
 function htCtKhopSepay(d) {
   if (!d.duoc_doi_chieu || d.trang_thai === 'Da huy') return '';
+  if (d.da_doi_soat && d.sinh_lai_duoc) {
+    /* v523, HT-2026-02900: tiền đã ra mà chứng từ hỏng thì CHƯA có phiếu chi,
+       nên nút Đính uỷ nhiệm chi không thể hiện. Câu "bước còn lại là đính uỷ
+       nhiệm chi" ở dưới lúc đó là nói sai, người đọc đi tìm một cái nút
+       không tồn tại. Thay bằng đúng việc phải làm. */
+    return '<div style="margin-top:10px">' +
+      '<div style="font-size:12.5px;color:#7f1d1d;line-height:1.6;margin-bottom:8px">' +
+      'Tiền đã ra nhưng máy chưa lập được phiếu chi, nên chưa có chỗ đính uỷ nhiệm chi. ' +
+      'Bấm nút <b>Sinh lại chứng từ</b> ở cuối màn để máy lập lại; xong là nút Đính uỷ nhiệm chi tự hiện.</div>' +
+      '</div>';
+  }
   if (d.da_doi_soat) {
     return '<div style="font-size:12px;color:#065f46;background:#f0fdf4;' +
       'border:1px solid #a7f3d0;border-radius:9px;padding:9px 11px;margin-top:9px;' +
@@ -2049,6 +2068,21 @@ function htCtKhopSepay(d) {
     'Nút <b>Đính uỷ nhiệm chi</b> ở cuối màn chỉ hiện sau bước này, vì phiếu chi ' +
     'chỉ ra đời khi tiền đã thật sự rời tài khoản. Khớp xong là nút tự hiện.</div>' +
     '</div>';
+}
+
+async function htSinhLai(d) {
+  busy(true);
+  var kq;
+  try { kq = await api('vagabond.hoan_tien.sinh_lai', { ho_so: d.name }); }
+  catch (e) { busy(false); return baoTin((e && e.message) || 'Chưa sinh lại được chứng từ.', 'Lỗi'); }
+  busy(false);
+  if (kq && kq.ok) {
+    toast(kq.da_xong_truoc ? 'Phiếu này vừa được máy lập đủ chứng từ. Giờ đính uỷ nhiệm chi được rồi.'
+      : 'Đã lập lại chứng từ. Giờ đính uỷ nhiệm chi được rồi.', 4500);
+    return htChiTiet(d.name);
+  }
+  baoTin((kq && kq.loi) || 'Máy vẫn chưa lập được chứng từ. Báo anh Việt.', 'Chưa sinh được');
+  return htChiTiet(d.name);
 }
 
 async function htKhopSepayTuDong(d) {
