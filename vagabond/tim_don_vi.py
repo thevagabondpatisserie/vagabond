@@ -111,9 +111,14 @@ def tim_uom(doctype, txt, searchfield, start, page_len, filters):
 	Python la du nhanh, va nho vay phep loc nam gon trong mot ham THUAN
 	kiem thu duoc khong can site.
 	"""
-	ds = frappe.get_all(
+	# PHAI la get_list, KHONG duoc la get_all (Codex #360 vong 1). get_all
+	# cua Frappe gan cung `ignore_permissions = True` truoc khi goi get_list,
+	# nen truyen ignore_permissions=False vao get_all la vo tac dung. Ham nay
+	# la standard_queries cho MOI o chon UOM trong he, bo qua quyen o day la
+	# mo cho nguoi khong co quyen doc UOM xem het danh muc.
+	ds = frappe.get_list(
 		"UOM", filters=_loc(filters), fields=["name", "uom_name"],
-		limit_page_length=0, ignore_permissions=False,
+		limit_page_length=0,
 	)
 	hang = [(d.get("name"), d.get("uom_name"), frappe._(d.get("name") or "")) for d in ds]
 	dan = loc_don_vi(hang, txt)
