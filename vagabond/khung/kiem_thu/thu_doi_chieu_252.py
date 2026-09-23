@@ -226,7 +226,7 @@ def _goi_y_phieu():
 @ca("#252: đổi mã hàng trên dòng đã có mã: chỉ khi chưa nối, có ghi vết")
 def _doi_ma():
 	ma = _doc("vagabond/doi_chieu_mua.py")
-	dung("có tham số đổi", "def gan_ma_hang(name, dong, item_code, nho=1, doi=0):" in ma)
+	dung("có tham số đổi", "def gan_ma_hang(name, dong, item_code, nho=1, doi=0, he_so=None, he_so_cho=None, dvt_khai=None):" in ma)
 	dung("không đổi dòng đã nối", "Bỏ nối trước khi đổi mã hàng" in ma)
 	dung("ghi vết vào tờ", "Đổi mã hàng dòng %d từ %s sang %s" in ma)
 	dung("đổi ghi nhớ theo", "(ma_cu and cint(doi))" in ma)
@@ -249,7 +249,8 @@ def _bo_noi():
 def _nut_gan_ma():
 	js = _doc("vagabond/public/js/bep/18-doi-chieu-may-in.js")
 	dung("khối chưa gắn mã đứng riêng", "if (!r.item_code) {" in js)
-	dung("nút gắn đứng riêng", "if (!r.item_code && kq.lam_duoc && !r.da_noi) {" in js)
+	# v518 (Codex #358): dòng còn dấu "máy đoán" cũng là dòng chờ chốt.
+	dung("nút gắn đứng riêng", "if ((!r.item_code || r.vgb_mon_may_doan) && kq.lam_duoc && !r.da_noi) {" in js)
 	# Nut phai nam TRUOC khoi "if (lechDvt)", tuc khong con lồng trong đó.
 	dung("nút đứng trước nhánh lệch đơn vị",
 		js.index("Gắn mã hàng cho dòng này") < js.index("if (lechDvt) {"))

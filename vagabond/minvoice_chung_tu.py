@@ -466,6 +466,21 @@ def gom_theo_ly_do(hang):
 	return sorted(ra, key=lambda o: -o["tien"])
 
 
+def mo_ta_dong(x):
+	"""Ô mô tả của một dòng phiếu mua dựng từ hoá đơn điện tử. THUẦN.
+
+	Dòng máy đoán ra Món mà chưa biết quy đổi đơn vị (xem _tra_ma_hang) thì
+	ghi lời đoán ngay trên dòng, để người mở phiếu biết chọn gì và khai gì."""
+	x = x or {}
+	s = str(x.get("ten") or "")
+	if x.get("goi_y_mon"):
+		# Lời đoán đứng TRƯỚC "(đơn vị)": dvt_mua.dvt_tren_hoa_don đọc đơn vị
+		# gốc ở cuối mô tả trong ngoặc, đặt sau là làm mất dấu đơn vị gốc.
+		s += " [Máy đoán Món %s, chưa biết 1 %s bằng bao nhiêu %s]" % (
+			x["goi_y_mon"], x.get("dvt") or "đơn vị này", x.get("goi_y_dvt_kho") or "đơn vị kho")
+	return s + ((" (%s)" % x["dvt"]) if x.get("dvt") else "")
+
+
 def dich_vu_khong_ghi_don_vi(dvt_ncc, la_hang_kho):
 	"""Dòng DỊCH VỤ mà nhà cung cấp để trống đơn vị thì lấy đơn vị của Món,
 	hệ số 1. THUẦN.
@@ -520,6 +535,8 @@ from frappe.utils import cint, flt, nowdate  # noqa: E402
 
 from contextlib import ExitStack  # noqa: E402
 
+from vagabond import dvt_mua  # noqa: E402
+
 # KHOA TEP, cung khuon voi ban_hang.py. May chu khong co thi lui ve khoa
 # rong chu khong chan nghiep vu: mot lan dung to con hon ca ngay khong dung
 # duoc to nao.
@@ -568,6 +585,36 @@ MOI_LUOT = 200
 NGAY_BAT_DAU = "2026-01-01"
 
 TRUONG_MOI = {
+	# Codex #358: ĐƠN VỊ NHÀ CUNG CẤP GHI phải có ô riêng, không đọc lại từ
+	# mô tả. Tên hàng cũng có thể kết thúc bằng ngoặc ("Hạt dẻ (500g)") và
+	# tên dài quá 140 ký tự thì ô ten_hang_ncc bị cắt, đọc mò kiểu nào cũng
+	# có ca sai, mà đoán sai ở đây là ghi vĩnh viễn một quy đổi bịa vào Món.
+	"Purchase Invoice Item": [
+		{
+			"fieldname": "vgb_mon_may_doan",
+			"label": "Món máy đoán",
+			"fieldtype": "Data",
+			"insert_after": "item_name",
+			"read_only": 1,
+			"no_copy": 0,
+			"description": (
+				"Máy ghi lúc dựng phiếu khi đoán ra Món mà chưa biết quy đổi "
+				"đơn vị. Còn ô này mà dòng chưa có mã hàng thì chưa ghi sổ được."
+			),
+		},
+		{
+			"fieldname": "vgb_dvt_ncc",
+			"label": "Đơn vị nhà cung cấp ghi",
+			"fieldtype": "Data",
+			"insert_after": "item_name",
+			"read_only": 1,
+			"no_copy": 0,
+			"description": (
+				"Máy ghi lúc dựng phiếu từ hoá đơn điện tử. Giá trị "
+				"\"%s\" nghĩa là hoá đơn gốc không ghi đơn vị."
+			) % dvt_mua.KHONG_GHI,
+		},
+	],
 	DT_HD: [
 		{
 			"fieldname": "so_lan_thu",
@@ -705,7 +752,12 @@ def _dong_pi(x, tk_chi_phi, mapped=None, uom=None, he_so=1):
 		"discount_amount": 0,
 		"margin_rate_or_amount": 0,
 		"conversion_factor": he_so or 1,
-		"description": x["ten"] + ((" (%s)" % x["dvt"]) if x["dvt"] else ""),
+		"description": mo_ta_dong(x),
+		# Ô nguồn duy nhất cho đơn vị nhà cung cấp ghi (Codex #358).
+		"vgb_dvt_ncc": str(x.get("dvt") or "").strip() or dvt_mua.KHONG_GHI,
+		# Lời đoán cũng phải có ô riêng: ô mô tả người sửa được, mà mất dấu
+		# lời đoán là mất luôn hàng rào chặn ghi sổ (Codex #358).
+		"vgb_mon_may_doan": str(x.get("goi_y_mon") or "").strip(),
 	}
 	if mapped:
 		dong["item_code"] = mapped
@@ -1057,11 +1109,35 @@ def _tra_ma_hang(x, goc_mst, ncc):
 	if not mapped:
 		return None, uom if uom and frappe.db.exists("UOM", uom) else None, 1
 
-	dung_uom, he_so = don_vi_theo_ma(mapped, uom, goc_mst, x.get("ten"))
-	return mapped, dung_uom, he_so
+	kq = quy_doi_theo_ma(mapped, uom, goc_mst, x.get("ten"))
+	if kq is None:
+		# Anh Việt 22/09/2026: máy đoán ra Món mà chưa biết quy đổi đơn vị thì
+		# KHÔNG chặn cả tờ (tờ 287914 Kamereo kẹt 9 ngày, thử 944 lần chỉ vì
+		# dòng phí 30.000 đ). Để dòng trống mã, ghi lại lời đoán lên dòng, và
+		# người chốt Món cùng hệ số trên phiếu nháp. Dòng trống mã thì phiếu ở
+		# bước "Thiếu mã hàng", chưa ghi sổ được, nên kho không bị lệch.
+		x["goi_y_mon"] = mapped
+		x["goi_y_dvt_kho"] = frappe.db.get_value("Item", mapped, "stock_uom") or ""
+		return None, uom if uom and frappe.db.exists("UOM", uom) else None, 1
+	return mapped, kq[0], kq[1]
 
 
 def don_vi_theo_ma(mapped, uom, mst=None, ten_ncc=None):
+	"""Như quy_doi_theo_ma nhưng NÉM LỖI khi chưa biết quy đổi.
+
+	Giữ cho các đường gắn lại mã người đã chọn (dung_lai_hddt, luong_hoa_don_goc):
+	ở đó người đã chọn Món nên phải báo rõ khai đơn vị, không được lặng lẽ bỏ mã."""
+	kq = quy_doi_theo_ma(mapped, uom, mst, ten_ncc)
+	if kq is None:
+		nguon = str(uom or "").strip()
+		frappe.throw("Món %s: chưa xác định được quy đổi đơn vị nhà cung cấp '%s' sang %s. "
+			"Mở Món, khai đúng đơn vị và hệ số trong bảng quy đổi rồi tạo lại hoá đơn từ bản gốc. "
+			"Hệ thống không tự lấy hệ số 1 hoặc đổi số lượng để khớp tiền."
+			% (mapped, nguon or "(trống)", frappe.db.get_value("Item", mapped, "stock_uom")), title="Cần khai quy cách mua")
+	return kq
+
+
+def quy_doi_theo_ma(mapped, uom, mst=None, ten_ncc=None):
 	"""(don vi dung, he so quy doi) cua mon `mapped` ung voi don vi NCC ghi.
 
 	Tach ra khoi `_tra_ma_hang` ngay 04/09/2026 de duong DUNG LAI dung
@@ -1098,10 +1174,7 @@ def don_vi_theo_ma(mapped, uom, mst=None, ten_ncc=None):
 		khop = [r for r in ds if dv.cung_don_vi(r.uom, ten)]
 		if len(khop) == 1 and math.isfinite(flt(khop[0].conversion_factor)) and flt(khop[0].conversion_factor) > 0:
 			return khop[0].uom, khop[0].conversion_factor
-	frappe.throw("Món %s: chưa xác định được quy đổi đơn vị nhà cung cấp '%s' sang %s. "
-		"Mở Món, khai đúng đơn vị và hệ số trong bảng quy đổi rồi tạo lại hoá đơn từ bản gốc. "
-		"Hệ thống không tự lấy hệ số 1 hoặc đổi số lượng để khớp tiền."
-		% (mapped, nguon or "(trống)", dvt_kho), title="Cần khai quy cách mua")
+	return None
 
 
 def don_vi_chua_khai(dvt_ncc, dvt_dang_dung, he_so_dang_dung):

@@ -216,6 +216,7 @@ def _dong_hd(name):
 			"name", "idx", "item_code", "item_name", "qty", "rate", "amount",
 			"uom", "conversion_factor", "stock_uom", "stock_qty", "description",
 			"purchase_receipt", "pr_detail",
+			"vgb_mon_may_doan", "vgb_dvt_ncc", "ten_hang_ncc",
 		],
 		order_by="idx asc",
 		limit_page_length=0,
@@ -634,7 +635,20 @@ def so_sanh(name, phieu=None):
 				"dvt_hd": r.get("uom") or "",
 				"dvt_pnk": (ds[0].get("uom") or "") if ds else "",
 				"dvt_kho": dvt_kho,
-				"dvt_ncc": dvt_mua.dvt_tren_hoa_don(r.get("description")),
+				# Codex #358 vòng 23: đọc Ô RIÊNG trước, đừng dò lại mô tả.
+				# Tên hàng "Hạt dẻ (500g)" mà hoá đơn không ghi đơn vị thì dò
+				# mô tả ra "500g", rồi nút Khai đơn vị ghi vĩnh viễn một quy
+				# đổi "500g" bịa vào Món.
+				# Ô uom của dòng ĐÃ có mã là đơn vị của MÌNH, không phải
+				# đơn vị nhà cung cấp ghi, nên không lấy làm chỗ lùi: nói
+				# "nhà cung cấp ghi Chai" trong khi họ không ghi gì cũng là
+				# bịa. Không đọc ra thì để trống.
+				"dvt_ncc": dvt_mua.dvt_ncc_cua_dong(
+					r.get("description"), None,
+					r.get("ten_hang_ncc"), r.get("vgb_dvt_ncc")),
+				# Dấu "máy đoán": dòng còn dấu là dòng CHỜ CHỐT, app dựa vào
+				# đây để hiện nút Gắn mã dù ô mã đã có chữ (Codex #358).
+				"vgb_mon_may_doan": str(r.get("vgb_mon_may_doan") or "").strip(),
 				"ton_hd": ton_hd,
 				"ton_pnk": ton_pnk,
 				"gia_kho_hd": gia_kho_hd,
@@ -1437,6 +1451,59 @@ def don_vi_cua_mon(item_code):
 	return {"kho": kho, "dvt": [{"ten": r["uom"], "he_so": flt(r["conversion_factor"])} for r in ds]}
 
 
+def _ds_don_vi(gioi_han=500):
+	"""Danh mục Đơn vị tính cho màn hình chọn.
+
+	Codex #358 vòng 22: đọc không ra mà trả rỗng thì màn hình nói "danh mục
+	chưa có đơn vị nào, nhờ kế toán thêm" - vừa sai vừa giấu mất lỗi thật,
+	còn dòng đang kẹt thì không ai gỡ được. Nói thẳng là chưa đọc được."""
+	try:
+		return frappe.get_all("UOM", pluck="name", order_by="name",
+			limit_page_length=gioi_han)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "doi_chieu_mua: doc danh muc UOM")
+		frappe.throw("Chưa đọc được danh mục Đơn vị tính nên không hỏi đơn vị được. "
+			"Báo kỹ thuật rồi thử lại, đừng gắn Món cho dòng này trong lúc đó.")
+
+
+def _nho_uom_map(ten_map, uom):
+	"""Ghi đơn vị người vừa chốt vào ánh xạ NCC. Không có ô thì thôi.
+
+	Codex #358 vòng 20: hoá đơn gốc không ghi đơn vị thì tờ sau cũng không
+	ghi, nên nếu ánh xạ chỉ nhớ Món mà quên đơn vị thì lần nào kế toán cũng
+	phải khai lại đúng câu đó."""
+	if not ten_map or not uom:
+		return
+	try:
+		frappe.db.set_value("MInvoice NCC Map", ten_map, "vgb_uom", uom)
+	except Exception:
+		# Codex #358 vòng 21: nuốt lỗi ở đây là báo "đã ghi nhớ" trong khi ghi
+		# nhớ trống, và tờ sau kế toán lại phải khai đúng câu đó. Ném lỗi để
+		# Frappe lùi cả lượt, thà làm lại còn hơn tin một câu báo sai.
+		frappe.log_error(frappe.get_traceback(), "doi_chieu_mua: nho uom map")
+		frappe.throw(
+			'Đã chọn Món và đơn vị "%s" nhưng không ghi được đơn vị đó vào ghi nhớ '
+			"của nhà cung cấp. Cả lượt này được hoàn lại để không báo xong nửa vời. "
+			"Báo kỹ thuật rồi thử lại." % uom
+		)
+
+
+def _kiem_dvt_danh_muc(dvt):
+	"""Đơn vị phải có sẵn trong danh mục Đơn vị tính. Một nguồn cho mọi cửa khai.
+
+	Codex #358 vòng 20: cửa gắn Món tự lập đơn vị mới từ chuỗi người gõ, nên
+	một lần gõ nhầm "Thùngg" là danh mục Đơn vị tính mang vĩnh viễn một đơn
+	vị rác, và số lượng quy về kho của các chứng từ sau đi theo nó. Danh mục
+	dùng chung cả hệ thì chỉ kế toán mới được thêm, y như cửa `khai_don_vi`
+	vẫn làm từ đầu."""
+	dvt = str(dvt or "").strip()
+	if not frappe.db.exists("UOM", dvt):
+		frappe.throw(
+			'Hệ chưa có đơn vị "%s" trong danh mục Đơn vị tính. Nhờ kế toán '
+			"thêm đơn vị đó vào danh mục trước, rồi quay lại khai cho món." % dvt
+		)
+
+
 @frappe.whitelist()
 def khai_don_vi(item_code, dvt, he_so):
 	"""Khai mot don vi moi vao bang quy doi cua mot mon.
@@ -1477,11 +1544,7 @@ def khai_don_vi(item_code, dvt, he_so):
 		frappe.throw("Không tìm thấy món %s." % item_code)
 	if not dvt:
 		frappe.throw("Chưa chọn đơn vị cần khai.")
-	if not frappe.db.exists("UOM", dvt):
-		frappe.throw(
-			'Hệ chưa có đơn vị "%s" trong danh mục Đơn vị tính. Nhờ kế toán '
-			"thêm đơn vị đó vào danh mục trước, rồi quay lại khai cho món." % dvt
-		)
+	_kiem_dvt_danh_muc(dvt)
 
 	hs = flt(he_so)
 	if hs <= 0:
@@ -1502,6 +1565,21 @@ def khai_don_vi(item_code, dvt, he_so):
 			% (dvt, dvt, flt(cu), dvt_kho),
 		}
 
+	_ghi_quy_doi(item_code, dvt, hs, dvt_kho)
+	frappe.db.commit()
+	return {
+		"da_co": 0, "item_code": item_code, "dvt": dvt, "he_so": hs,
+		"dvt_kho": dvt_kho,
+		"loi_nhan": 'Đã khai: 1 %s = %s %s. Từ giờ hoá đơn ghi "%s" là hệ hiểu đúng.'
+		% (dvt, hs, dvt_kho, dvt),
+	}
+
+
+def _ghi_quy_doi(item_code, dvt, hs, dvt_kho):
+	"""Thêm MỘT dòng quy đổi vào bảng quy đổi của Món, kèm dấu vết ai khai.
+
+	Một chỗ ghi cho cả nút Khai đơn vị lẫn lúc gắn Món có hệ số (#358,
+	QT-19). Không ghi đè dòng đã có: người gọi phải kiểm he_so_cua_mon trước."""
 	doc = frappe.get_doc("Item", item_code)
 	doc.append("uoms", {"uom": dvt, "conversion_factor": hs})
 	doc.flags.ignore_permissions = True
@@ -1511,13 +1589,6 @@ def khai_don_vi(item_code, dvt, he_so):
 		"Khai đơn vị %s cho món này: 1 %s = %s %s. %s khai ngày %s."
 		% (dvt, dvt, hs, dvt_kho, frappe.session.user, nowdate()),
 	)
-	frappe.db.commit()
-	return {
-		"da_co": 0, "item_code": item_code, "dvt": dvt, "he_so": hs,
-		"dvt_kho": dvt_kho,
-		"loi_nhan": 'Đã khai: 1 %s = %s %s. Từ giờ hoá đơn ghi "%s" là hệ hiểu đúng.'
-		% (dvt, hs, dvt_kho, dvt),
-	}
 
 
 def _mst_cua_to(doc):
@@ -1574,8 +1645,27 @@ def goi_y_mon(name, dong):
 	ten_ncc = (d.get("ten_hang_ncc") or d.item_name or "").strip()
 	mst = _mst_cua_to(doc)
 
-	# 1. Mon nam tren phieu nhap chua thanh toan cua chinh nha cung cap nay.
 	ra, da_co = [], set()
+	# 0. #358: MÁY ĐOÁN. Nhà cung cấp này từng gửi ĐÚNG tên hàng này và đã
+	#    được gắn Món, hoặc lúc dựng phiếu máy đã ghi lời đoán lên dòng. Đưa
+	#    lên đầu để người chỉ việc bấm xác nhận.
+	doan = str(d.get("vgb_mon_may_doan") or "").strip() or dvt_mua.mon_may_doan(d.get("description"))
+	if not doan and mst and ten_ncc:
+		try:
+			from vagabond.quy_cach_ncc import tim_mon
+			doan = tim_mon(mst, None, ten_ncc)
+		except Exception:
+			doan = None
+	if doan and frappe.db.exists("Item", {"name": doan, "disabled": 0}):
+		da_co.add(doan)
+		ra.append({
+			"item_code": doan,
+			"item_name": frappe.db.get_value("Item", doan, "item_name") or doan,
+			"vi_sao": "Máy đoán: nhà cung cấp này từng gửi đúng tên hàng này",
+			"sl_pnk": 0.0, "dvt_pnk": "", "uu_tien": 0, "may_doan": 1,
+		})
+
+	# 1. Mon nam tren phieu nhap chua thanh toan cua chinh nha cung cap nay.
 	for p in _phieu_ung_vien(doc):
 		for r in _dong_pnk(p["name"]):
 			if r["item_code"] in da_co:
@@ -1631,8 +1721,34 @@ def _phieu_ung_vien(doc):
 	return [r for r in rows if flt(r.get("per_billed")) < 99.99]
 
 
+def _cua_nguon_mo(doc):
+	"""Cửa "Sửa mã theo hóa đơn gốc" có mở cho tờ này không.
+
+	Một nguồn duy nhất là `sua_ma_hoa_don`, nơi giữ phép thật của cửa đó;
+	chép lại phép ở đây là hai nơi tự tính rồi lệch nhau (Codex #358 vòng 19).
+	"""
+	from vagabond import sua_ma_hoa_don
+
+	return sua_ma_hoa_don.sua_theo_nguon_duoc(doc)
+
+
+def chan_ghi_so_may_doan(doc, method=None):
+	"""before_submit Hoá đơn mua (Codex #358 P1).
+
+	Dòng máy đoán ra Món mà chưa biết quy đổi được để trống mã trên phiếu
+	nháp. ERPNext coi dòng trống mã như dịch vụ và vẫn cho ghi sổ, nên phải
+	chặn ở đây: mọi đường ghi sổ (Desk, app, ghi_so_thang) đều đi qua."""
+	ds = dvt_mua.dong_may_doan_chua_chot(doc.items)
+	if ds:
+		frappe.throw(
+			"Chưa ghi sổ được: còn dòng máy mới đoán Món mà người chưa chốt.<br>"
+			+ "<br>".join("Dòng %d: máy đoán Món %s." % (i, m) for i, m in ds)
+			+ "<br>Bấm \"Gắn Món cho dòng trống mã\", chọn Món và gõ hệ số rồi ghi sổ lại."
+		)
+
+
 @frappe.whitelist()
-def gan_ma_hang(name, dong, item_code, nho=1, doi=0):
+def gan_ma_hang(name, dong, item_code, nho=1, doi=0, he_so=None, he_so_cho=None, dvt_khai=None):
 	"""Gan mot Mon vao dong hoa don chua co ma hang, va NHO cho lan sau.
 
 	ANH VIET 31/08/2026
@@ -1679,36 +1795,109 @@ def gan_ma_hang(name, dong, item_code, nho=1, doi=0):
 	if not d:
 		frappe.throw("Không tìm thấy dòng %s trên hoá đơn %s." % (dong, name))
 	ma_cu = (d.get("item_code") or "").strip()
-	if ma_cu and not cint(doi):
+	# Dòng còn dấu "máy đoán" là dòng CHƯA CHỐT, dù ô mã đã có chữ (người gõ
+	# thẳng vào lưới Desk). Cửa này là đường chốt duy nhất nên phải nhận
+	# (Codex #358), chứ không đuổi người về chỗ khác.
+	cho_chot = bool(str(d.get("vgb_mon_may_doan") or "").strip())
+	if ma_cu and not cint(doi) and not cho_chot:
 		frappe.throw("Dòng %d đã có mã hàng %s rồi." % (d.idx, d.item_code))
 	if ma_cu and (d.get("purchase_receipt") or "").strip():
 		frappe.throw(
 			"Dòng %d đã nối vào phiếu nhập rồi. Bỏ nối trước khi đổi mã hàng." % d.idx
 		)
-	if ma_cu == item_code:
+	if ma_cu == item_code and not cho_chot:
 		frappe.throw("Dòng %d đang mang đúng mã %s rồi." % (d.idx, item_code))
 
 	# TEN NHA CUNG CAP GHI, khong phai ten Mon cua minh. O `ten_hang_ncc`
 	# la o duoc ghi luc dung to va khong bi ERPNext thay, nen doc no truoc.
 	ten_ncc = (d.get("ten_hang_ncc") or d.item_name or "").strip()
-	dvt_ncc = (d.get("uom") or "").strip()
+	# Món máy đoán ghi trên dòng lúc dựng tờ (#358). Đọc TRƯỚC khi lưu vì
+	# lưu xong mô tả có thể bị dựng lại.
+	doan = str(d.get("vgb_mon_may_doan") or "").strip() or dvt_mua.mon_may_doan(d.get("description"))
+	# Đơn vị GỐC nhà cung cấp ghi nằm cuối mô tả "(Lần)". Ô uom của dòng
+	# trống mã có thể là "Nos" khi đơn vị gốc chưa có trong danh mục, hỏi
+	# "1 Nos bằng bao nhiêu" thì người đọc không hiểu (#358).
+	dvt_ncc = dvt_mua.dvt_ncc_cua_dong(d.get("description"), d.get("uom"), ten_ncc, d.get("vgb_dvt_ncc"))
 
 	# NAN LAI DON VI. Don vi tho cua nha cung cap ("BAG", "TRAI") duoc dich
 	# sang ten cua minh roi tra bang quy doi cua Mon. Tra khong ra thi lui ve
 	# don vi kho he so 1 - y het duong dung chung tu, de hai cho khong bao
 	# gio xu khac nhau (QT-19).
+	la_kho = cint(frappe.db.get_value("Item", item_code, "is_stock_item"))
 	dvt_kho = frappe.db.get_value("Item", item_code, "stock_uom") or "Nos"
+	# Codex #358: hoá đơn gốc không ghi đơn vị mà Món là hàng tồn kho thì
+	# KHÔNG được lấy đơn vị kho hệ số 1 - một gói không rõ lượng thành một
+	# đơn vị kho. Dịch vụ thì vẫn cho, y như lúc dựng phiếu.
+	khai_cho = ""
+	if dvt_mua.chan_hang_kho_khong_dvt(dvt_ncc, la_kho):
+		# Codex #358 vòng 19: chỉ được mời sang cửa "Sửa mã theo hóa đơn gốc"
+		# khi cửa đó THẬT SỰ mở. Tờ trả hàng không đi cửa đó, mời sang là
+		# đường cụt. Tờ nào cũng còn đường người tự khai đơn vị và hệ số.
+		khai_cho = (
+			str(dvt_khai or "").strip()
+			if str(he_so_cho or "").strip() == item_code else ""
+		)
+		cach = dvt_mua.cach_go_thieu_dvt(_cua_nguon_mo(doc), khai_cho, he_so)
+		if cach == "nguon":
+			# KHÔNG ném lỗi cụt: trả cờ để màn hình mở thẳng đường sửa theo hoá
+			# đơn gốc (Codex #358 vòng 8). Chưa lưu gì trên tờ.
+			return {
+				"name": doc.name, "idx": idx, "item_code": item_code, "can_nguon": 1,
+				"loi_nhan": (
+					"Hoá đơn gốc không ghi đơn vị cho dòng %d, mà %s là hàng tồn kho. "
+					"Gắn thẳng thì phải lấy đơn vị kho hệ số 1, tức là đoán lượng nhập. "
+					"Chọn dòng trên hoá đơn gốc và đúng quy cách để máy lấy lượng thật."
+					% (d.idx, item_code)
+				),
+			}
+		if cach == "hoi":
+			return {
+				"name": doc.name, "idx": idx, "item_code": item_code, "can_dvt": 1,
+				"dvt_kho": dvt_kho, "de_xuat": 0,
+				# Màn hình CHỌN trong danh mục chứ không gõ tự do: đơn vị gõ
+				# tay thành đơn vị rác dùng chung cả hệ (Codex #358 vòng 20).
+				"dvt_ds": _ds_don_vi(),
+				"loi_nhan": (
+					"Hoá đơn gốc không ghi đơn vị cho dòng %d, mà %s là hàng tồn kho. "
+					"Tờ này không đi được cửa sửa theo hoá đơn gốc, nên gõ đơn vị nhà "
+					"cung cấp ghi trên tờ giấy và 1 đơn vị đó bằng bao nhiêu %s. "
+					"Máy ghi vào Món, lần sau tự hiểu."
+					% (d.idx, item_code, dvt_kho)
+				),
+			}
+		# Người đã khai: từ đây coi như hoá đơn ghi đúng đơn vị đó.
+		dvt_ncc = khai_cho
 	dung_uom, he_so_moi = dvt_kho, 1.0
+	tim_thay = False
 	for ten_thu in [dvt_ncc, dvt_mua.goi_y_don_vi(dvt_ncc)]:
 		if not ten_thu:
 			continue
 		hs = dvt_mua.he_so_cua_mon(item_code, ten_thu)
 		if hs:
-			dung_uom, he_so_moi = ten_thu, hs
+			dung_uom, he_so_moi, tim_thay = ten_thu, hs, True
 			break
 		if dvt_mua.cung_don_vi(ten_thu, dvt_kho):
-			dung_uom, he_so_moi = dvt_kho, 1.0
+			dung_uom, he_so_moi, tim_thay = dvt_kho, 1.0, True
 			break
+
+	# #358 (anh Việt 22/09/2026): chưa biết quy đổi thì KHÔNG gắn tạm hệ số 1
+	# nữa. Người gõ hệ số thì ghi luôn vào bảng quy đổi của Món, lần sau máy
+	# tự hiểu; chưa gõ thì trả về để màn hình hỏi, không lưu gì.
+	viec = dvt_mua.can_nguoi_khai_he_so(dvt_ncc, tim_thay, he_so, item_code, he_so_cho)
+	if viec == "hoi":
+		return {
+			"name": doc.name, "idx": idx, "item_code": item_code, "can_he_so": 1,
+			"dvt_ncc": dvt_ncc, "dvt_kho": dvt_kho, "de_xuat": 0 if la_kho else 1,
+			"loi_nhan": 'Món %s chưa khai đơn vị "%s". Gõ 1 %s bằng bao nhiêu %s để gắn và ghi nhớ.'
+			% (item_code, dvt_ncc, dvt_ncc, dvt_kho),
+		}
+	if viec == "khai":
+		# KHÔNG tự lập đơn vị mới trong danh mục (Codex #358 vòng 20).
+		_kiem_dvt_danh_muc(dvt_ncc)
+		if dvt_mua.cung_don_vi(dvt_ncc, dvt_kho):
+			frappe.throw('"%s" chính là đơn vị kho của món này.' % dvt_ncc)
+		_ghi_quy_doi(item_code, dvt_ncc, flt(he_so), dvt_kho)
+		dung_uom, he_so_moi = dvt_ncc, flt(he_so)
 
 	d.item_code = item_code
 	d.uom = dung_uom
@@ -1720,6 +1909,9 @@ def gan_ma_hang(name, dong, item_code, nho=1, doi=0):
 	# ma van giu duoc ma hang vua gan.
 	if not (d.get("ten_hang_ncc") or "").strip() and ten_ncc:
 		d.ten_hang_ncc = ten_ncc[:140]
+	# Người đã chốt Món và quy đổi ở đây thì dấu "máy đoán" hết nhiệm vụ.
+	# Xoá dấu mới là xoá hàng rào chặn ghi sổ (Codex #358).
+	d.vgb_mon_may_doan = ""
 	doc.flags.ignore_permissions = True
 	doc.save()
 
@@ -1739,14 +1931,27 @@ def gan_ma_hang(name, dong, item_code, nho=1, doi=0):
 			})
 			m.flags.ignore_permissions = True
 			m.insert(ignore_permissions=True)
+			_nho_uom_map(m.name, khai_cho and dung_uom)
 			da_nho = 1
 		elif (
 			not (frappe.db.get_value("MInvoice NCC Map", cu, "item_code") or "").strip()
 			or (ma_cu and cint(doi))
+			# Codex #358 P2: ghi nhớ đang trỏ đúng Món máy đoán sai, người chọn
+			# Món khác thì sửa ghi nhớ, không thì tờ sau lại đoán sai y hệt.
+			or (doan and doan != item_code
+				and (frappe.db.get_value("MInvoice NCC Map", cu, "item_code") or "").strip() == doan)
+			# Dòng chờ chốt mà người đổi sang Món khác Món đang mang: ghi nhớ
+			# phải theo người, không thì tờ sau lại về mã cũ (Codex #358).
+			or (cho_chot and ma_cu and ma_cu != item_code)
 		):
 			# Doi ma tren dong la doi luon cai ghi nho, khong thi thang sau
 			# nha cung cap gui lai ten do la may lai gan ma cu (10/09/2026).
 			frappe.db.set_value("MInvoice NCC Map", cu, "item_code", item_code)
+			_nho_uom_map(cu, khai_cho and dung_uom)
+			da_nho = 1
+		elif khai_cho:
+			# Ghi nhớ đang trỏ đúng Món rồi, chỉ thiếu đơn vị.
+			_nho_uom_map(cu, dung_uom)
 			da_nho = 1
 	if ma_cu:
 		doc.add_comment(

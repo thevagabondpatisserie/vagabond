@@ -281,6 +281,14 @@ def _dung_dong_tai_cho(doc, g):
 	#
 	# Nay: bảng ánh xạ tra không ra thì lấy mã hàng ĐANG CÓ TRÊN TỜ.
 	giu = _ma_dang_gan(doc, dong_goc)
+	# DẤU "MÁY ĐOÁN" CŨNG PHẢI SỐNG SÓT QUA LƯỢT DỰNG LẠI (Codex #358).
+	#
+	# Dòng máy đoán Món mà chưa biết quy đổi mang dấu `vgb_mon_may_doan`, và
+	# dấu đó là hàng rào duy nhất chặn ghi sổ. Đường dựng lại gọi `_dong_pi`
+	# với một bản dòng gốc MỚI, không có lời đoán, nên dấu bị xoá sạch: tờ
+	# vẫn giữ Món kế toán vừa gõ với hệ số 1, mà cửa chặn ghi sổ thì không
+	# còn thấy gì để chặn. Chỉ ba cửa chốt tay mới được xoá dấu.
+	giu_dau = _dau_dang_co(doc, dong_goc)
 	moi = []
 	for vi_tri, it in enumerate(dong_goc):
 		x = mc.dong_tu_hoa_don(it, mc.dau_cua_to(g.get("tong_tien")))
@@ -300,7 +308,10 @@ def _dung_dong_tai_cho(doc, g):
 				ma = giu[vi_tri]
 				uom, he_so = mc.don_vi_theo_ma(ma, x.get("dvt"), goc_mst, x.get("ten"))
 
-		moi.append(mc._dong_pi(x, tk, ma, uom, he_so))
+		d_moi = mc._dong_pi(x, tk, ma, uom, he_so)
+		if not str(d_moi.get("vgb_mon_may_doan") or "").strip():
+			d_moi["vgb_mon_may_doan"] = giu_dau.get(vi_tri, "")
+		moi.append(d_moi)
 	dp_gia, dp_tien, dp_sl = _do_chinh_xac(doc, g)
 	tong_dong = sum(
 		tien_dong_may_ghi(d.get("qty"), d.get("rate"), dp_gia, dp_tien, dp_sl)
@@ -334,6 +345,15 @@ def _khoa_goc(dong_goc):
 	from vagabond import minvoice_chung_tu as mc
 
 	return [khoa_ten(mc.dong_tu_hoa_don(it).get("ten")) for it in dong_goc]
+
+
+def _dau_dang_co(doc, dong_goc):
+	"""Dấu "máy đoán" đang có trên tờ, xếp về đúng vị trí dòng của bản gốc."""
+	tren_to = [
+		(khoa_ten(ten_ncc_cua_dong(d)), str(d.get("vgb_mon_may_doan") or "").strip())
+		for d in (doc.get("items") or [])
+	]
+	return xep_ma_theo_dong_goc(tren_to, _khoa_goc(dong_goc), len(tren_to))
 
 
 def _ma_dang_gan(doc, dong_goc):

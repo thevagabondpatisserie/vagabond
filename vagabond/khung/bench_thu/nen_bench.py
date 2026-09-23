@@ -189,6 +189,10 @@ def dung():
 	])
 	_truong("Purchase Invoice Item", [
 		{"fieldname": "ten_hang_ncc", "fieldtype": "Data", "label": "Ten hang NCC", "insert_after": "item_name"},
+		# v518: đơn vị nhà cung cấp ghi và Món máy đoán có ô riêng. Khai luôn
+		# ở đây để bench có CỘT thật, không phụ thuộc lượt after_migrate.
+		{"fieldname": "vgb_dvt_ncc", "fieldtype": "Data", "label": "DVT NCC", "insert_after": "item_name"},
+		{"fieldname": "vgb_mon_may_doan", "fieldtype": "Data", "label": "Mon may doan", "insert_after": "item_name"},
 	])
 	# 5. Danh mục: kho, món bán, món mua dịch vụ, khách, NCC.
 	kho = frappe.db.get_value("Warehouse", {"company": CTY, "is_group": 0}, "name")

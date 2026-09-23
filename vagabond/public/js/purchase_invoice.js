@@ -202,6 +202,142 @@ async function vgbSuaMaTheoNguon(frm) {
 	hop.show();
 }
 
+// #358 (anh Việt 22/09/2026): máy gợi ý, người chốt. Dòng trống mã (máy
+// không đoán ra, hoặc đoán ra Món mà chưa biết quy đổi đơn vị) thì kế toán
+// chọn Món ngay trên phiếu nháp; Món chưa khai đơn vị nhà cung cấp ghi thì
+// gõ hệ số, máy ghi luôn vào bảng quy đổi của Món để lần sau tự hiểu.
+async function vgbGanMonDesk(frm) {
+	if (frm.is_dirty()) {
+		frappe.msgprint('Lưu các thay đổi đang có rồi mở lại Gắn Món cho dòng trống mã.');
+		return;
+	}
+	/* Dòng còn dấu "máy đoán" vẫn là dòng chờ chốt, dù người đã gõ mã thẳng
+	   vào lưới: hệ số lúc đó còn là 1 (Codex #358). */
+	var choChot = function (d) { return !(d.item_code || '').trim() || (d.vgb_mon_may_doan || '').trim(); };
+	var trong = (frm.doc.items || []).filter(choChot);
+	if (!trong.length) { frappe.msgprint('Phiếu này không còn dòng nào trống mã.'); return; }
+	var nhan = function (d) {
+		return d.idx + '. ' + (d.ten_hang_ncc || d.item_name || '') + ' | ' + d.qty + ' x ' + format_currency(d.rate, 'VND');
+	};
+	var hop = new frappe.ui.Dialog({title: 'Gắn Món cho dòng trống mã', fields: [
+		{fieldtype: 'HTML', fieldname: 'gt', options: 'Máy gợi ý sẵn Món, bạn chọn lại nếu sai. Số lượng và đơn giá giữ đúng hoá đơn gốc. Lựa chọn được ghi nhớ cho lần sau.'},
+		/* Codex #358 P2: tờ nhiều dòng trống mã thì phải tìm được theo tên
+		   hoặc số dòng (AGENTS.md: chọn là tìm), như hộp Sửa mã theo hóa đơn gốc. */
+		{fieldname: 'dong', label: 'Dòng trên phiếu', fieldtype: 'Autocomplete', reqd: 1,
+			options: trong.map(function (d) { return {label: frappe.utils.escape_html(nhan(d)), value: String(d.idx)}; })},
+		{fieldtype: 'HTML', fieldname: 'goi_y'},
+		{fieldname: 'item_code', label: 'Món', fieldtype: 'Link', options: 'Item', reqd: 1,
+			get_query: function () { return {filters: {disabled: 0, is_purchase_item: 1}}; }},
+		/* Codex #358 vòng 19: tờ trả hàng không đi được cửa "Sửa mã theo hóa
+		   đơn gốc", nên hoá đơn gốc không ghi đơn vị thì hỏi ngay tại đây. */
+		/* Codex #358 vòng 20: CHỌN trong danh mục Đơn vị tính, không gõ tự do.
+		   Gõ nhầm một chữ là danh mục dùng chung mang một đơn vị rác vĩnh viễn. */
+		{fieldname: 'dvt_khai', label: 'Đơn vị nhà cung cấp ghi', fieldtype: 'Link', options: 'UOM', hidden: 1},
+		{fieldname: 'he_so', label: 'Hệ số quy đổi', fieldtype: 'Float', hidden: 1}
+	], primary_action_label: 'Gắn và ghi nhớ', primary_action: async function (v) {
+		hop.disable_primary_action();
+		try {
+			var args = {name: frm.doc.name, dong: v.dong, item_code: v.item_code, nho: 1};
+			if (hop._can_he_so) {
+				if (!(parseFloat(v.he_so) > 0)) { frappe.msgprint('Gõ hệ số lớn hơn 0.'); return; }
+				args.he_so = v.he_so;
+				/* Codex #358: hệ số gửi kèm đúng Món máy chủ đã hỏi. Máy chủ
+				   thấy lệch Món thì bỏ hệ số và hỏi lại, không ghi nhầm Món. */
+				args.he_so_cho = hop._he_so_cho;
+				if (hop._can_dvt) {
+					if (!(v.dvt_khai || '').trim()) { frappe.msgprint('Gõ đơn vị nhà cung cấp ghi trên hoá đơn giấy.'); return; }
+					args.dvt_khai = (v.dvt_khai || '').trim();
+				}
+			}
+			var r = await frappe.call({method: 'vagabond.doi_chieu_mua.gan_ma_hang', args: args, freeze: true});
+			var kq = r.message || {};
+			if (kq.can_nguon) {
+				/* #358 vòng 8: dòng hàng tồn kho mà hoá đơn gốc không ghi đơn vị.
+				   Đường đi tiếp là nút "Sửa mã theo hóa đơn gốc" ngay trên phiếu. */
+				frappe.msgprint({message: frappe.utils.escape_html(kq.loi_nhan) +
+					'<br><br>Đóng hộp này rồi bấm <b>Sửa mã theo hóa đơn gốc</b> trên phiếu.',
+					title: 'Cần chọn quy cách theo hoá đơn gốc', indicator: 'orange'});
+				return;
+			}
+			if (kq.can_dvt) {
+				/* Codex #358 vòng 19: hoá đơn gốc không ghi đơn vị mà tờ này
+				   không đi được cửa nguồn. Hỏi luôn đơn vị và hệ số ở đây. */
+				hop._can_he_so = 1;
+				hop._can_dvt = 1;
+				hop._he_so_cho = kq.item_code || v.item_code;
+				var fd = hop.get_field('dvt_khai');
+				fd.df.hidden = 0;
+				fd.df.description = frappe.utils.escape_html(kq.loi_nhan || '');
+				fd.refresh();
+				var fh = hop.get_field('he_so');
+				fh.df.hidden = 0;
+				fh.df.label = '1 đơn vị đó bằng bao nhiêu ' + kq.dvt_kho + '?';
+				fh.df.description = 'Số bạn gõ được ghi vào Món, lần sau máy tự hiểu.';
+				fh.refresh();
+				return;
+			}
+			if (kq.can_he_so) {
+				hop._can_he_so = 1;
+				hop._he_so_cho = kq.item_code || v.item_code;
+				var f = hop.get_field('he_so');
+				f.df.hidden = 0;
+				f.df.label = '1 ' + kq.dvt_ncc + ' bằng bao nhiêu ' + kq.dvt_kho + '?';
+				f.df.description = 'Món này chưa khai đơn vị "' + frappe.utils.escape_html(kq.dvt_ncc) + '". Số bạn gõ được ghi vào Món, lần sau máy tự hiểu.';
+				f.refresh();
+				if (kq.de_xuat && !hop.get_value('he_so')) hop.set_value('he_so', kq.de_xuat);
+				return;
+			}
+			hop.hide();
+			await frm.reload_doc();
+			frappe.show_alert({message: kq.loi_nhan || 'Đã gắn Món.', indicator: 'green'});
+		} finally { hop.enable_primary_action(); }
+	}});
+	/* Codex #358 P1: hệ số đang hỏi là của MỘT Món. Người đổi Món thì bỏ
+	   hẳn câu hỏi cũ và số cũ, bấm Gắn lại để máy chủ hỏi cho Món mới. Giữ
+	   lại thì "1 Lần = 1 Set" của Món cũ bị ghi vĩnh viễn vào Món mới. */
+	function boHoiHeSo() {
+		hop._can_he_so = 0;
+		hop._can_dvt = 0;
+		hop._he_so_cho = null;
+		var f = hop.get_field('he_so'); f.df.hidden = 1; f.refresh();
+		if (hop.get_value('he_so')) hop.set_value('he_so', null);
+		var fd = hop.get_field('dvt_khai'); fd.df.hidden = 1; fd.refresh();
+		if (hop.get_value('dvt_khai')) hop.set_value('dvt_khai', null);
+	}
+	async function napGoiY() {
+		boHoiHeSo();
+		var dong = hop.get_value('dong');
+		/* Dòng đã mang Món kế toán tự gõ thì giữ nguyên lựa chọn đó, gợi ý
+		   chỉ để tham khảo (Codex #358). */
+		var d0 = (frm.doc.items || []).filter(function (d) { return String(d.idx) === String(dong); })[0];
+		hop.set_value('item_code', (d0 && (d0.item_code || '').trim()) || '');
+		if (!dong) return;
+		try {
+			var r = await frappe.call({method: 'vagabond.doi_chieu_mua.goi_y_mon', args: {name: frm.doc.name, dong: dong}});
+			/* Codex #358 P1: người đã chọn dòng khác trong lúc chờ thì bỏ gợi ý
+			   của dòng cũ, không thì Món của dòng này bị gắn sang dòng kia. */
+			if (String(hop.get_value('dong')) !== String(dong)) return;
+			var gy = (r.message && r.message.goi_y) || [];
+			hop.get_field('goi_y').$wrapper.html(gy.length
+				? '<div style="margin-bottom:8px;font-size:12px">Gợi ý: ' + gy.slice(0, 5).map(function (x) {
+					return '<b>' + frappe.utils.escape_html(x.item_code) + '</b> ' + frappe.utils.escape_html(x.item_name) +
+						' <span style="color:#6b7280">(' + frappe.utils.escape_html(x.vi_sao) + ')</span>';
+				}).join('<br>') + '</div>'
+				: '<div style="margin-bottom:8px;font-size:12px;color:#6b7280">Máy chưa có gợi ý, tìm Món trong ô dưới.</div>');
+			/* Codex #358 P1 vòng 3: người đã tự chọn Món trong lúc chờ thì giữ
+			   lựa chọn của người, gợi ý chỉ hiện ra để tham khảo. */
+			if (gy.length && !hop.get_value('item_code')) hop.set_value('item_code', gy[0].item_code);
+		} catch (e) { /* Gợi ý hỏng thì vẫn chọn tay được. */ }
+	}
+	hop.fields_dict.dong.df.onchange = napGoiY;
+	hop.fields_dict.item_code.df.onchange = function () {
+		if (hop._he_so_cho && hop.get_value('item_code') !== hop._he_so_cho) boHoiHeSo();
+	};
+	hop.show();
+	hop.set_value('dong', String(trong[0].idx));
+	napGoiY();
+}
+
 frappe.ui.form.on('Purchase Invoice', {
 	refresh:async function(frm) {
 		if (!frm.is_new() && !frm.doc.custom_minvoice_id && frm.doc.bill_no) {
@@ -218,6 +354,11 @@ frappe.ui.form.on('Purchase Invoice', {
 		if (!frm.is_new() && frm.doc.docstatus === 0 && frm.doc.custom_minvoice_id && !frm.doc.is_return &&
 			['System Manager','Accounts Manager','Accounts User','Purchase Manager'].some(function(v){return frappe.user.has_role(v);})) {
 			frm.add_custom_button('Sửa mã theo hóa đơn gốc', function(){return vgbSuaMaTheoNguon(frm);});
+		}
+		if (!frm.is_new() && frm.doc.docstatus === 0 && frm.doc.custom_minvoice_id &&
+			(frm.doc.items || []).some(function (d) { return !(d.item_code || '').trim() || (d.vgb_mon_may_doan || '').trim(); }) &&
+			['System Manager','Accounts Manager','Accounts User','Purchase Manager'].some(function(v){return frappe.user.has_role(v);})) {
+			frm.add_custom_button('Gắn Món cho dòng trống mã', function(){return vgbGanMonDesk(frm);});
 		}
 	}
 });

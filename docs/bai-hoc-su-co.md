@@ -913,3 +913,71 @@ vẫn còn. Cách phòng: thứ gì in ra giấy phải dựng được TẠI M�
 trong repo, ảnh nhúng data:), và câu dẫn chỉ in khi có đúng thứ nó dẫn tới.
 Mã QR thanh toán chuyển khoản (img.vietqr.io) vẫn còn phụ thuộc mạng ngoài,
 chưa xử lý trong đợt này.
+
+## 22/09/2026 (#358): máy chặn cả tờ hoá đơn chỉ vì đoán không ra một dòng
+
+Hoá đơn 287914 (Kamereo) không thành phiếu mua suốt nhiều ngày chỉ vì dòng "Phí
+dịch vụ" map vào một Món chưa khai đơn vị "Lần". Cách viết cũ ném lỗi ở bước
+tra đơn vị, cả tờ bị chặn, người dùng không có đường tự làm. Hoá đơn điện tử
+Việt Nam có quá nhiều cách ghi, luật đoán sẽ luôn có ca sót.
+Cách phòng: máy chỉ GỢI Ý. Dòng đoán không chắc vẫn vào phiếu nháp, để trống mã
+và ghi lời đoán trong mô tả (đặt TRƯỚC "(dvt)" để dvt_tren_hoa_don vẫn đọc được).
+Người chốt Món và hệ số, hệ số được ghi vào bảng quy đổi của Món để lần sau tự
+map. Không bao giờ lặng lẽ lấy hệ số 1 cho hàng tồn kho.
+Codex bắt thêm hai lỗ trên chính bản sửa: (1) dòng trống mã được ERPNext coi
+như dịch vụ và vẫn ghi sổ được, nên dòng mang lời đoán phải có gác
+before_submit riêng; (2) hệ số người gõ là câu trả lời cho MỘT Món, đổi Món
+sau khi được hỏi thì phải hỏi lại, máy chủ nhận kèm `he_so_cho` và từ chối
+khi lệch.
+
+## 22/09/2026 (v518): ba lỗi tiền đã đi mà phiếu không khép được
+
+- APP-26-09-799: `tdkDs` trả mảng CHUỖI đường dẫn, màn xác nhận chuyển tiền
+  lại lấy `x.url` nên gửi `[null]` từ v414. Tệp UNC đã tải lên mà máy chủ báo
+  "Chưa đính uỷ nhiệm chi"; chưa phiếu nào qua được cửa này. Ca kiểm cũ chỉ dò
+  chuỗi `tdkKhoi('pvunc'`, không bấm thật nên không thấy.
+- Cùng phiếu: `co_ma` chặn chữ số ở hai đầu cho MỌI mã. Nội dung "HD 1840 APP
+  26 09 799" gọt thành "1840APP2609799", chữ 0 đứng trước chữ A nên bị loại.
+  Chỉ chặn chữ số ở phía mã cũng là chữ số.
+- HT-2026-02900: hoàn một phần trên đơn có chiết khấu tổng. Tỷ lệ lấy trên
+  tổng SAU chiết khấu mà vẫn chép chiết khấu tổng sang tờ trả hàng, ERPNext
+  từ chối. Tính tỷ lệ trên tổng TRƯỚC chiết khấu và bỏ chiết khấu tổng.
+
+## 22/09/2026 (#358): chốt chặn tự đặt ra lại chặn nhầm chính mình
+
+Đợt này thêm phép soát cột sau khi khai ô tự thêm (`truong_tu_them._dung_nhom`):
+ô có bản ghi mà bảng thiếu cột thì mọi lần lưu doctype đó nổ "Unknown column",
+nên thà để Migrate đỏ. Phép soát đó làm bench CI đỏ ba lượt liên tiếp, mỗi lượt
+một kiểu ô không có cột thật: ô chia màn hình (Section Break), ô bảng con
+(Table), DocType kiểu Single cất giá trị ở `tabSingles`, và cuối cùng là
+"Phieu Kiem Ke" - một doctype TỰ TẠO TRÊN DESK, nằm trong cơ sở dữ liệu chứ
+không trong git, nên site mới dựng không hề có nó.
+Bài học: một chốt chặn đặt trên đường Migrate chặn nhầm là chặn cả lần phát
+hành, hại hơn cái nó định chặn. Trước khi đặt, liệt kê hết những trường hợp
+"không có cột mà vẫn đúng", và nhớ rằng site CI dựng từ git KHÔNG có các
+doctype và ô người ta tạo tay trên site thật.
+
+## 22/09/2026 (#358): đừng chỉ người dùng sang một cửa đang đóng
+
+Dòng hàng tồn kho mà hoá đơn gốc không ghi đơn vị thì máy trả cờ mời người sang
+cửa "Sửa mã theo hoá đơn gốc". Nhưng `sua_ma_hoa_don.lua_chon` trả `co_nguon`
+sai cho MỌI tờ trả hàng (`is_return`), nên tờ trả hàng bị đẩy tới một cửa đóng
+rồi đứng lại chỗ cũ: đường cụt.
+Bài học: chỗ nào mời người dùng sang một cửa khác thì phải hỏi ĐÚNG phép mà cửa
+đó dùng để mở, chép lại phép là hai nơi lệch nhau (`cua_nguon_mo` nay là nguồn
+duy nhất). Và mỗi ngõ cụt phải có một đường ra mở cho mọi tờ: ở đây là để người
+gõ thẳng đơn vị nhà cung cấp và hệ số.
+
+## 22/09/2026 (#358): tổng đúng không chứng minh các phần bên trong đúng
+
+Tờ trả hàng hoàn một phần được nắn bằng cách hạ đơn giá cho tới khi TỔNG bằng
+đúng số tiền hoàn. Dòng thuế kiểu "Actual" ghi thẳng số tiền thì ERPNext giữ
+nguyên khi đơn giá hạ, nên phép nắn đó hội tụ về một tờ có tổng đúng mà chia
+sai: đơn 1.010.000 gồm 1.000.000 tiền hàng và 10.000 thuế, hoàn đúng một nửa
+505.000, ra tiền hàng 495.000 và thuế 10.000, tức là đảo ĐỦ 100% tiền thuế
+trong khi chỉ đảo 49,5% doanh thu.
+Cách phòng: hạ MỌI phần tiền trong cùng một hàm ("Actual" và "On Item Quantity"
+và dòng bật `dont_recompute_tax` phải hạ tay), và phép soát cuối phải soát TỶ LỆ
+giữa thuế và tiền hàng chứ không chỉ soát tổng. Ca kiểm cho lớp soát đó phải
+dựng thẳng một tờ có tiền thuế không chịu hạ, không thì gỡ lớp soát đi bộ kiểm
+vẫn xanh (đã xảy ra, điều 17a).

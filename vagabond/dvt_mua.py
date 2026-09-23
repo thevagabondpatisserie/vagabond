@@ -330,6 +330,179 @@ def don_vi_chua_khai(dvt_ncc, dvt_dang_dung, he_so_dang_dung):
 
 # ------------------------------------------------------- phan can Frappe
 
+def can_nguoi_khai_he_so(dvt_ncc, tim_thay, he_so_nhap, item_code=None, he_so_cho=None):
+	"""Lúc gắn Món cho một dòng hoá đơn, có phải hỏi người hệ số quy đổi không.
+	THUẦN. Trả một trong ba:
+
+	  "dung"   đã biết quy đổi (Món đã khai đơn vị đó, hoặc đó là đơn vị kho,
+	           hoặc nhà cung cấp không ghi đơn vị) - gắn luôn.
+	  "khai"   chưa biết, nhưng người đã gõ hệ số hợp lệ - ghi hệ số đó vào
+	           bảng quy đổi của Món rồi gắn.
+	  "hoi"    chưa biết và chưa có hệ số - KHÔNG gắn, hỏi người.
+
+	Anh Việt 22/09/2026: "staff đã nhập món, nhập đơn vị thì máy ghi luôn vào
+	thông tin của Món để sau này chỉ việc map cho nhanh". Bản trước đó gắn tạm
+	hệ số 1 rồi nhắc "nhớ khai đơn vị": một hộp thành một gram cho tới khi có
+	người nhớ ra."""
+	import math
+	if tim_thay or not str(dvt_ncc or "").strip():
+		return "dung"
+	# Codex #358 P1: hệ số người gõ là câu trả lời cho câu hỏi về MỘT Món.
+	# Màn hình gửi kèm `he_so_cho` là Món đã được hỏi; lệch Món đang gắn
+	# (người đổi Món sau khi được hỏi) hoặc thiếu hẳn thì coi như chưa gõ và
+	# hỏi lại, không ghi "1 Lần = 1 Set" của Món cũ vào Món mới.
+	if item_code is not None and str(he_so_cho or "").strip() != str(item_code).strip():
+		return "hoi"
+	try:
+		hs = float(he_so_nhap)
+	except (TypeError, ValueError):
+		return "hoi"
+	return "khai" if math.isfinite(hs) and hs > 0 else "hoi"
+
+
+# Sức chứa của ô `ten_hang_ncc` (Data của Frappe). Tên dài hơn bị cắt cụt lúc
+# lưu, nên phép đọc đơn vị từ mô tả không tin được nữa - xem `dvt_ncc_cua_dong`.
+GIOI_HAN_TEN = 140
+
+
+def dvt_ncc_cua_dong(mo_ta, uom_dong, ten_ncc=None, dvt_o=None):
+	"""Đơn vị nhà cung cấp GHI trên dòng hoá đơn. THUẦN.
+
+	Đọc trong mô tả trước. Không có thì lấy ô đơn vị của dòng, TRỪ "Nos":
+	dòng trống mã lấy "Nos" làm đơn vị lót khi hoá đơn gốc không ghi đơn vị
+	(minvoice_chung_tu._dong_pi). Codex #358: lấy nhầm "Nos" làm đơn vị nhà
+	cung cấp thì máy hỏi "1 Nos bằng bao nhiêu Gram" rồi ghi vĩnh viễn một
+	quy đổi bịa vào Món. Đơn vị gốc thật là "Nos" thì mô tả có "(Nos)".
+	Trả rỗng nghĩa là nhà cung cấp không ghi đơn vị: gắn theo đơn vị kho hệ
+	số 1, không khai quy đổi nào."""
+	# Ô riêng do máy ghi lúc dựng phiếu là NGUỒN DUY NHẤT khi có. Chỉ dòng
+	# dựng trước v518 mới không có ô này, lúc đó mới phải đọc mò.
+	o = str(dvt_o or "").strip()
+	if o:
+		return "" if o == KHONG_GHI else o
+	s = str(mo_ta or "").strip()
+	ten = str(ten_ncc or "").strip()
+	# Codex #358 vòng 25: tên lưu dài ĐÚNG BẰNG sức chứa của ô là tên đụng
+	# trần, không có cách nào biết nhà cung cấp còn ghi thêm gì phía sau. Tên
+	# 140 ký tự rồi mới tới "(500g)" thì cắt tiền tố xong còn đúng "(500g)",
+	# trông y như một đơn vị mà thật ra là đuôi tên. Chưa chắc thì coi như
+	# chưa biết đơn vị, để người chốt.
+	dung_tran = len(ten) >= GIOI_HAN_TEN
+	# Codex #358: TÊN HÀNG của nhà cung cấp cũng có thể kết thúc bằng ngoặc
+	# ("Hạt dẻ (500g)"). Mô tả dựng theo khuôn "<tên hàng>...( <đơn vị> )",
+	# nên cắt đúng phần tên hàng ra rồi mới đọc ngoặc cuối: còn lại rỗng
+	# nghĩa là hoá đơn KHÔNG ghi đơn vị, không được lấy "500g" làm đơn vị
+	# rồi ghi vĩnh viễn một quy đổi bịa vào Món.
+	if dung_tran:
+		# Không đọc mô tả nữa, nhưng ô `uom` của dòng (nếu là đơn vị thật,
+		# không phải đơn vị lót) vẫn là một câu trả lời rõ ràng (Codex #358
+		# vòng 26), nên vẫn để phép lùi bên dưới chạy.
+		dvt = ""
+	elif ten and s.startswith(ten):
+		con = s[len(ten):].strip()
+		# Khối lời đoán "[Máy đoán ...]" do máy ghi, không phải tên hàng.
+		if con.startswith("["):
+			j = con.find("]")
+			con = con[j + 1:].strip() if j >= 0 else con
+		# Codex #358 vòng 24: cắt tên xong thì phần còn lại phải ĐÚNG là nhóm
+		# ngoặc đơn vị. Ô `ten_hang_ncc` chỉ chứa 140 ký tự đầu, nên tên nhà
+		# cung cấp dài hơn thế bị cắt cụt: phần còn lại vẫn là ĐUÔI TÊN chứ
+		# không phải đơn vị. Đọc "(500g)" trong cái đuôi đó rồi hỏi "1 500g
+		# bằng bao nhiêu Gram" là ghi vĩnh viễn một quy đổi bịa vào Món.
+		dvt = dvt_tren_hoa_don(con) if con.startswith("(") else ""
+	else:
+		dvt = dvt_tren_hoa_don(s)
+	if dvt:
+		return dvt
+	raw = str(uom_dong or "").strip()
+	return "" if raw == DVT_LOT else raw
+
+
+def chan_hang_kho_khong_dvt(dvt_ncc, la_hang_kho):
+	"""Hàng tồn kho mà hoá đơn gốc KHÔNG ghi đơn vị thì không gắn được. THUẦN.
+
+	Codex #358: lấy đơn vị kho hệ số 1 cho dòng như vậy là biến một gói
+	không rõ lượng thành một đơn vị kho, đúng cái mà
+	`minvoice_chung_tu.dich_vu_khong_ghi_don_vi` chỉ mở cho hàng KHÔNG quản
+	lý tồn kho. Dịch vụ thì vẫn lấy đơn vị của Món, hệ số 1, như cũ."""
+	return not str(dvt_ncc or "").strip() and bool(int(la_hang_kho or 0))
+
+
+def cach_go_thieu_dvt(cua_nguon, dvt_khai, he_so):
+	"""Dòng hàng kho mà hoá đơn gốc không ghi đơn vị thì gỡ bằng đường nào. THUẦN.
+
+	  "khai"  người đã gõ đơn vị nhà cung cấp và hệ số - ghi vào Món rồi gắn.
+	  "nguon" chưa gõ, mà cửa "Sửa mã theo hóa đơn gốc" còn mở - sang đó lấy
+	          lượng thật của bản gốc, chuẩn hơn vì không ai phải nhớ.
+	  "hoi"   cửa nguồn đóng - hỏi người đơn vị và hệ số ngay tại chỗ.
+
+	Codex #358 vòng 19: tờ TRẢ HÀNG không đi được cửa nguồn
+	(`sua_ma_hoa_don.lua_chon` trả `co_nguon` sai cho mọi tờ `is_return`),
+	nên mời sang đó là đường cụt. Đường hỏi người mở cho MỌI tờ, vì vậy
+	không tờ nào còn kẹt.
+	"""
+	import math
+	if str(dvt_khai or "").strip():
+		try:
+			hs = float(he_so)
+		except (TypeError, ValueError):
+			hs = 0.0
+		if math.isfinite(hs) and hs > 0:
+			return "khai"
+	return "nguon" if cua_nguon else "hoi"
+
+
+def dong_may_doan_chua_chot(dong):
+	"""Các dòng còn mang lời đoán của máy mà người chưa chốt Món. THUẦN.
+
+	Trả danh sách (idx, Món máy đoán). Codex #358 P1: dòng trống mã mà ERPNext
+	vẫn cho ghi sổ như một dòng dịch vụ; dòng máy đoán ra Món nhưng chưa
+	biết quy đổi thì phải chờ người chốt Món và hệ số rồi mới ghi sổ.
+	Chỉ bắt dòng có lời đoán: dòng trống mã kiểu cũ (phí, dịch vụ không map)
+	vẫn đi như trước, ngày 22/09/2026 có 239 tờ đã ghi sổ theo đường đó."""
+	ra = []
+	for d in dong or []:
+		d = d or {}
+		# Ô RIÊNG là dấu duy nhất còn giá trị: máy xoá nó khi người chốt Món
+		# qua cửa gắn Món (gan_ma_hang) hoặc cửa sửa theo hoá đơn gốc, hai
+		# cửa đó mới biết quy đổi thật. Gõ thẳng mã vào ô Mã hàng trên lưới
+		# Desk KHÔNG xoá dấu, nên dòng vẫn chờ chốt: hệ số lúc đó còn là 1
+		# (Codex #358), tức là đoán lượng nhập.
+		mon = str(d.get("vgb_mon_may_doan") or "").strip()
+		if mon:
+			ra.append((cint_thuan(d.get("idx")), mon))
+			continue
+		if str(d.get("item_code") or "").strip():
+			continue
+		# Đường lui cho dòng dựng trước v518: lúc đó lời đoán chỉ nằm ở mô tả.
+		mon = mon_may_doan(d.get("description"))
+		if mon:
+			ra.append((cint_thuan(d.get("idx")), mon))
+	return ra
+
+
+def cint_thuan(x):
+	try:
+		return int(float(x or 0))
+	except (TypeError, ValueError):
+		return 0
+
+
+DVT_LOT = "Nos"   # đơn vị lót của dòng trống mã, không phải đơn vị nhà cung cấp
+KHONG_GHI = "(không ghi)"   # hoá đơn gốc để trống ô đơn vị
+
+
+def mon_may_doan(mo_ta):
+	"""Mã Món máy đã đoán và ghi lên mô tả dòng lúc dựng phiếu. THUẦN.
+	'' nếu không có. Khớp đúng khuôn minvoice_chung_tu.mo_ta_dong ghi ra."""
+	s = str(mo_ta or "")
+	i = s.find("[Máy đoán Món ")
+	if i < 0:
+		return ""
+	ma = s[i + len("[Máy đoán Món "):].split(",", 1)[0].strip()
+	return ma if ma and " " not in ma else ""
+
+
 import frappe
 from frappe.utils import flt
 

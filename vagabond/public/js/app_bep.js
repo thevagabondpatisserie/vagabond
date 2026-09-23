@@ -5127,7 +5127,10 @@ async function pvXacNhan(d, name) {
   try {
     await api('vagabond.duyet_chi.xac_nhan_da_chuyen', {
       name: name, ma_giao_dich: ma || '', ly_do_som: lyDo || '',
-      unc: JSON.stringify(unc.map(function (x) { return x.url; }))
+      /* tdkDs trả thẳng mảng ĐƯỜNG DẪN (chuỗi), không phải đối tượng. Bản
+         từ v414 lấy x.url nên gửi lên [null]: tệp đã tải lên mà máy chủ báo
+         "Chưa đính uỷ nhiệm chi" (APP-26-09-799, 22/09/2026). */
+      unc: JSON.stringify(unc.map(function (x) { return typeof x === 'string' ? x : (x && x.url) || ''; }))
     });
     busy(0);
     tdkNap('pvunc', []);
@@ -21894,7 +21897,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '517';
+var APPVER = '518';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -30544,8 +30547,13 @@ async function scrDcmXem(name) {
               (r.item_code ? 'Đổi sang ' : 'Chọn ') + h(g.item_name || g.item_code) + '</button>';
           }).join('');
       }
-      if (!r.item_code && kq.lam_duoc && !r.da_noi) {
+      /* Dong con dau "may doan" van la dong CHO CHOT du o ma da co chu
+         (nguoi go thang tren luoi Desk): he so luc do con la 1 (Codex #358). */
+      if ((!r.item_code || r.vgb_mon_may_doan) && kq.lam_duoc && !r.da_noi) {
         html += '<button class="btn gh" data-dcmgan="' + h(String(r.idx)) +
+          /* Mon ke toan da go thang tren luoi phai di kem, khong thi hop chon
+             de loi doan cu len dau va mot cai bam la de mat (Codex #358). */
+          '" data-mahien="' + h(String(r.item_code || '')) +
           '" style="margin:7px 0 2px;padding:7px 12px;font-size:12.5px">Gắn mã hàng cho dòng này</button>';
       }
       if (noiCu) {
@@ -30739,7 +30747,7 @@ async function scrDcmXem(name) {
     var u = e.target.closest('[data-dcmdvt]');
     if (u) return dcmDoiDonVi(name, u.getAttribute('data-dcmdvt'), u.getAttribute('data-dvt'));
     var g = e.target.closest('[data-dcmgan]');
-    if (g) return dcmGanMaHang(name, g.getAttribute('data-dcmgan'));
+    if (g) return dcmGanMaHang(name, g.getAttribute('data-dcmgan'), g.getAttribute('data-mahien'));
     var gy = e.target.closest('[data-dcmgoiy]');
     if (gy) return dcmGanXong(name, gy.getAttribute('data-dcmgoiy'), gy.getAttribute('data-ma'), gy.getAttribute('data-doi') === '1');
     var k = e.target.closest('[data-dcmkhai]');
@@ -31967,7 +31975,7 @@ async function dcmKhaiDonVi(name, itemCode, dvt, slHd, slPnk, hsPnk, dvtKho) {
    Bam mot lan la NHO LUON: lan sau nha cung cap gui dung ten hang do, may
    tu nhan. Do moi la cho chua goc, chu sua tay tung dong thi 9.985 dong lam
    den bao gio moi het. */
-async function dcmGanMaHang(name, idx) {
+async function dcmGanMaHang(name, idx, maHien) {
   busy(true);
   var gy;
   try { gy = await api('vagabond.doi_chieu_mua.goi_y_mon', { name: name, dong: idx }); }
@@ -31976,9 +31984,18 @@ async function dcmGanMaHang(name, idx) {
 
   /* `sheet` doi dung ba khoa: label, value, phu. Va no tra ve CA MUC chu
      khong tra ve rieng value. */
-  var ds = (gy.goi_y || []).map(function (x) {
-    return { value: x.item_code, label: x.item_name, phu: x.vi_sao, tim: x.item_code };
-  });
+  maHien = String(maHien || '').trim();
+  var ds = (gy.goi_y || []).filter(function (x) { return x.item_code !== maHien; })
+    .map(function (x) {
+      return { value: x.item_code, label: x.item_name, phu: x.vi_sao, tim: x.item_code };
+    });
+  /* Codex #358 vong 22: dong da mang Mon ke toan tu go thi Mon DO dung dau,
+     loi doan cu chi la goi y ben duoi. Bam quen tay vao muc dau tien la giu
+     nguyen lua chon cua nguoi, khong quay ve Mon may doan sai. */
+  if (maHien) {
+    ds.unshift({ value: maHien, label: 'Giữ Món đang có: ' + maHien, tim: maHien,
+      phu: 'Món này đang nằm trên dòng, chọn để chốt lại. Gợi ý của máy ở bên dưới.' });
+  }
   ds.push({ value: '__TIM__', label: 'Tìm món khác...', phu: 'Gõ tên hoặc mã để tìm trong toàn bộ danh mục' });
 
   sheet('Hàng "' + (gy.ten_ncc || '') + '" là món nào?', ds, null, function (muc) {
@@ -32022,7 +32039,39 @@ async function dcmDoiMaTheoNguon(name, idx, itemCode) {
   return true;
 }
 
-async function dcmGanXong(name, idx, itemCode, doi) {
+/* Chon mot don vi CO SAN trong danh muc Don vi tinh. Tra ve ten don vi hoac
+   null neu nguoi bo. Danh muc do may chu gui kem, man hinh khong tu bia ra
+   don vi moi (Codex #358 vong 20). */
+function dcmChonDonVi(ds, loiNhan) {
+  return new Promise(function (res) {
+    if (!ds.length) { baoTin('Danh mục Đơn vị tính chưa có đơn vị nào. Nhờ kế toán thêm đơn vị rồi quay lại.'); res(null); return; }
+    var ov = document.createElement('div'); ov.className = 'sh';
+    var box = document.createElement('div'); box.className = 'shb';
+    box.innerHTML = '<div class="shh"><b>Chọn đơn vị nhà cung cấp ghi</b><div class="x">&times;</div></div>' +
+      '<div style="padding:10px 14px 6px;font-size:12.5px;color:#6b7280">' + h(loiNhan) + '</div>' +
+      '<div style="padding:0 14px 8px"><input class="nt" id="dcmdvq" placeholder="Gõ để tìm" style="height:46px;padding:0 12px;width:100%"></div>' +
+      '<div id="dcmdvds" style="max-height:46vh;overflow:auto;padding:0 14px 14px"></div>';
+    ov.appendChild(box); document.body.appendChild(ov);
+    var o = box.querySelector('#dcmdvq'), khung = box.querySelector('#dcmdvds');
+    function ve() {
+      var q = (o.value || '').trim().toLowerCase();
+      var loc = ds.filter(function (x) { return !q || String(x).toLowerCase().indexOf(q) >= 0; }).slice(0, 60);
+      khung.innerHTML = loc.length
+        ? loc.map(function (x) { return '<button class="btn gh" data-dv="' + h(x) + '" style="margin-top:8px;width:100%">' + h(x) + '</button>'; }).join('')
+        : '<div style="font-size:13px;color:#8a8f9c;padding:8px 0">Không có đơn vị nào khớp. Nhờ kế toán thêm vào danh mục Đơn vị tính.</div>';
+    }
+    o.oninput = ve; ve();
+    ov.onclick = function (e) {
+      var t = e.target;
+      if (t === ov || (t.className === 'x')) { ov.remove(); res(null); return; }
+      var dv = t.getAttribute && t.getAttribute('data-dv');
+      if (dv) { ov.remove(); res(dv); }
+    };
+    setTimeout(function () { try { o.focus(); } catch (e) { } }, 150);
+  });
+}
+
+async function dcmGanXong(name, idx, itemCode, doi, heSo, dvtKhai) {
   if (!itemCode) return;
   busy(true);
   try {
@@ -32032,9 +32081,46 @@ async function dcmGanXong(name, idx, itemCode, doi) {
     if (doi && await dcmDoiMaTheoNguon(name, idx, itemCode)) return;
     /* `doi` = dong da co ma nhung sai, doi sang ma tren phieu nhap. May chu
        tu choi neu dong da noi phieu, va ghi ro trong to la ai doi ma nao. */
-    var kq = await api('vagabond.doi_chieu_mua.gan_ma_hang',
-      { name: name, dong: idx, item_code: itemCode, nho: 1, doi: doi ? 1 : 0 });
+    var ts = { name: name, dong: idx, item_code: itemCode, nho: 1, doi: doi ? 1 : 0 };
+    if (heSo) { ts.he_so = heSo; ts.he_so_cho = itemCode; }
+    if (dvtKhai) ts.dvt_khai = dvtKhai;
+    var kq = await api('vagabond.doi_chieu_mua.gan_ma_hang', ts);
     busy(false);
+    /* #358 (anh Viet 22/09/2026): mon chua khai don vi nha cung cap ghi thi
+       may chu KHONG gan tam he so 1 nua ma hoi. Nguoi go he so, may ghi
+       luon vao bang quy doi cua Mon roi gan; lan sau may tu hieu. */
+    /* #358 vong 8 (Codex): hoa don goc khong ghi don vi ma Mon la hang ton
+       kho thi khong gan thang duoc. Mo ngay cua "sua theo hoa don goc" o
+       day, khong bat nguoi dung di tim nut khac ben Desk. */
+    if (kq && kq.can_nguon) {
+      if (!await confirmSheet('Cần chọn quy cách theo hoá đơn gốc', kq.loi_nhan, 'Chọn dòng gốc')) return;
+      busy(true);
+      if (await dcmDoiMaTheoNguon(name, idx, itemCode)) return;
+      busy(false);
+      return baoTin('Tờ này không còn liên kết hoá đơn gốc. Khai quy cách trong Món rồi dựng lại tờ.');
+    }
+    /* #358 vong 19 (Codex): to TRA HANG khong di duoc cua "sua theo hoa don
+       goc" (lua_chon tra co_nguon sai), nen may chu hoi thang o day: nguoi go
+       don vi nha cung cap ghi tren to giay va he so. Khong to nao con ket. */
+    if (kq && kq.can_dvt) {
+      /* Codex #358 vong 20: CHON trong danh muc Don vi tinh, khong go tu do.
+         Go nham mot chu la danh muc dung chung ca he mang mot don vi rac. */
+      var dv = await dcmChonDonVi(kq.dvt_ds || [], kq.loi_nhan || '');
+      dv = String(dv || '').trim();
+      if (!dv) return;
+      var hsd = await qtySheet('1 ' + dv + ' bằng bao nhiêu ' + (kq.dvt_kho || '') + '?',
+        kq.loi_nhan || '', 0, kq.dvt_kho || '');
+      if (!(parseFloat(hsd) > 0)) return;
+      return dcmGanXong(name, idx, itemCode, doi, parseFloat(hsd), dv);
+    }
+    if (kq && kq.can_he_so) {
+      var hs = await qtySheet('Khai đơn vị "' + kq.dvt_ncc + '" cho món ' + itemCode,
+        'Nhà cung cấp ghi "' + kq.dvt_ncc + '". 1 ' + kq.dvt_ncc + ' bằng bao nhiêu ' + kq.dvt_kho +
+        '? Số này được ghi vào món, lần sau hoá đơn ghi "' + kq.dvt_ncc + '" là máy tự hiểu.',
+        Number(kq.de_xuat) || 0, kq.dvt_kho || '');
+      if (!(parseFloat(hs) > 0)) return;
+      return dcmGanXong(name, idx, itemCode, doi, parseFloat(hs));
+    }
     baoTin((kq && kq.loi_nhan) || 'Đã gắn mã hàng.');
     go(function () { scrDcmXem(name); }, true);
   } catch (e) { busy(false); baoTin((e && e.message) || 'Không gắn được mã hàng'); }

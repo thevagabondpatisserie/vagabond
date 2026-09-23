@@ -726,6 +726,25 @@ def chon_ma_khop(mo_ta, ds_ma):
 	return tim_ma(mo_ta, ds_ma)
 
 
+def ty_le_ha_gia(tien_hoan, tong_truoc_ck, tong_don):
+	"""Hoàn một phần: hạ đơn giá từng dòng theo tỷ lệ nào. THUẦN.
+
+	Trả (ty_le, bo_chiet_khau_tong). Hoàn đủ đơn thì (1.0, False): tờ trả
+	hàng chép nguyên đơn gốc, kể cả chiết khấu tổng.
+
+	Hoàn một phần thì BỎ chiết khấu tổng và tính tỷ lệ trên TỔNG HÀNG (trước
+	chiết khấu), để tờ trả hàng ra đúng số tiền hoàn. Ca thật HT-2026-02900
+	ngày 17/09/2026: đơn HDB-26-09-03237 tổng hàng 570.000, chiết khấu tổng
+	135.000, khách trả 435.000, hoàn 90.000. Bản cũ lấy tỷ lệ 90/435 trên
+	đơn giá (hàng còn 117.931) mà vẫn chép chiết khấu 135.000, ERPNext từ
+	chối "chiết khấu vượt tổng trước chiết khấu"."""
+	tien, hang, don = flt(tien_hoan), flt(tong_truoc_ck), flt(tong_don)
+	if don <= 0 or tien <= 0 or tien >= don - 0.0001:
+		return 1.0, False
+	goc = hang if hang > 0 else don
+	return tien / goc, True
+
+
 def ty_le_hop_le(so_tien_hoan, tong_don):
 	"""So tien hoan nay co nam trong tong don khong. THUAN.
 
@@ -1494,17 +1513,27 @@ def _lap_hoa_don_tra(si, kho, ly_do, ma_ho_so, so_tien=0):
 	tra = make_sales_return(si.name)
 	tong = flt(si.grand_total)
 	tien = flt(so_tien) or tong
-	ty_le = (tien / tong) if tong > 0 else 1.0
+	# Tổng TRƯỚC chiết khấu tổng = tổng phải trả + chiết khấu tổng. Không
+	# dùng si.total: giá chưa gồm thuế thì si.total thiếu phần thuế.
+	ty_le, bo_ck = ty_le_ha_gia(tien, tong + flt(si.get("discount_amount")), tong)
 	if any(d.get('vgb_combo_luong') for d in si.items):
 		# Bồi hoàn tiền, khách giữ hàng: không được suy tiền từ lượng trả.
 		# Cửa combo chia đúng tổng này từ tiền nguồn, kể cả bill có chiết khấu.
 		tra.vgb_combo_hoan_tien = tien
-	if ty_le < 0.9999:
+	if bo_ck:
+		_ha_theo_ty_le(tra, ty_le)
 		for d in tra.items:
-			d.rate = flt(d.rate) * ty_le
-			d.price_list_rate = flt(d.get("price_list_rate")) * ty_le
 			d.discount_amount = 0
 			d.discount_percentage = 0
+		# Chiết khấu tổng của đơn gốc đã nằm sẵn trong tỷ lệ, chép sang nữa
+		# là trừ hai lần (HT-2026-02900).
+		tra.discount_amount = 0
+		tra.additional_discount_percentage = 0
+		# SOÁT LẠI BẰNG CHÍNH PHÉP TÍNH CỦA ERPNEXT (Codex #358): chiết khấu
+		# đặt trên Tổng sau thuế hay Tổng trước thuế, thuế gồm trong giá hay
+		# cộng thêm, mỗi kiểu ra một mẫu số khác. Thay vì đoán mẫu số, cho
+		# ERPNext tính lại rồi nắn tỷ lệ cho tới khi tờ trả đúng số tiền hoàn.
+		_nan_dung_tien(tra, tien, si)
 	# update_stock = 0, GIONG HET moi hoa don khac cua he.
 	#
 	# Ban dau em dat 1 de hang tu chay thang vao kho huy. Chay thu that
@@ -1556,6 +1585,100 @@ def _lap_hoa_don_tra(si, kho, ly_do, ma_ho_so, so_tien=0):
 	tra.insert(ignore_permissions=True)
 	tra.submit()
 	return tra
+
+
+def _ha_theo_ty_le(tra, k):
+	"""Hạ MỌI phần tiền của tờ trả hàng theo cùng một tỷ lệ.
+
+	Một chỗ duy nhất làm việc này, để đường hạ lần đầu và đường nắn lại không
+	bao giờ hạ hai bộ ô khác nhau: hạ đơn giá mà bỏ quên dòng thuế ghi thẳng
+	số tiền là đảo đủ 100% thuế trong khi chỉ đảo một phần tiền hàng
+	(Codex #358 vòng 19)."""
+	for d in tra.items:
+		d.rate = flt(d.rate) * k
+		d.price_list_rate = flt(d.get("price_list_rate")) * k
+	for t in tra.get("taxes") or []:
+		o = o_thue_can_nan(t.get("charge_type"), t.get("dont_recompute_tax"))
+		if o:
+			setattr(t, o, flt(t.get(o)) * k)
+
+
+def o_thue_can_nan(charge_type, dung_yen=0):
+	"""Ô nào của dòng thuế phải hạ theo cùng tỷ lệ với đơn giá. THUẦN.
+
+	Trả "" nghĩa là dòng đó TỰ co theo tiền hàng (thuế tính theo phần trăm),
+	không được đụng vào.
+
+	Codex #358 vòng 19: dòng "Actual" ghi thẳng số tiền nên ERPNext giữ
+	nguyên khi đơn giá hạ; hoàn một nửa đơn mà vẫn đảo đủ 100% tiền thuế thì
+	tổng vẫn đúng còn doanh thu và thuế thì sai. Dòng "On Item Quantity"
+	cũng vậy vì số lượng trên tờ trả giữ nguyên, và dòng bật
+	`dont_recompute_tax` thì ERPNext không tính lại dù kiểu gì."""
+	if dung_yen:
+		return "tax_amount"
+	ct = str(charge_type or "").strip()
+	if ct == "Actual":
+		return "tax_amount"
+	if ct == "On Item Quantity":
+		return "rate"
+	return ""
+
+
+def thue_dung_ty_le(net_tra, thue_tra, net_goc, thue_goc, dung_sai=1.0):
+	"""Tờ trả hàng có đảo thuế đúng tỷ lệ với tiền hàng không. THUẦN.
+
+	Trả (đúng, tiền thuế mong đợi). Soát tỷ lệ chứ không soát tổng: tổng có
+	thể đúng trong khi phần hàng và phần thuế chia sai (Codex #358 vòng 19)."""
+	n_goc, t_goc = abs(flt(net_goc)), abs(flt(thue_goc))
+	n_tra, t_tra = abs(flt(net_tra)), abs(flt(thue_tra))
+	if n_goc <= 0:
+		return True, t_tra
+	mong = t_goc * n_tra / n_goc
+	return abs(t_tra - mong) <= abs(flt(dung_sai)), mong
+
+
+def _nan_dung_tien(tra, tien, goc=None, so_lan=4):
+	"""Nắn đơn giá tờ trả hàng cho tổng bằng đúng số tiền hoàn.
+
+	Dùng chính phép tính của ERPNext (`calculate_taxes_and_totals`) rồi chia
+	lại tỷ lệ, nên không phụ thuộc chiết khấu đặt ở đâu hay thuế gồm trong
+	giá hay không. Lệch quá 1 đồng sau `so_lan` lượt thì DỪNG, vì tờ trả sai
+	số tiền là sai cả doanh thu lẫn hoá đơn điện tử.
+
+	Dòng thuế ghi thẳng số tiền không tự co theo đơn giá nên phải hạ cùng tỷ
+	lệ, xem `o_thue_can_nan`. Soát lại bằng cả TỶ LỆ giữa thuế và tiền hàng,
+	không chỉ bằng tổng (Codex #358 vòng 19)."""
+	tien = flt(tien)
+	for _ in range(so_lan):
+		tra.run_method("calculate_taxes_and_totals")
+		hien = abs(flt(tra.get("grand_total")))
+		if hien <= 0:
+			break
+		if abs(hien - tien) <= 1:
+			break
+		_ha_theo_ty_le(tra, tien / hien)
+	tra.run_method("calculate_taxes_and_totals")
+	if abs(abs(flt(tra.get("grand_total"))) - tien) > 1:
+		frappe.throw(
+			"Không nắn được tờ trả hàng về đúng số tiền hoàn %s đ (đang ra %s đ). "
+			"Kiểm lại chiết khấu và thuế trên hoá đơn gốc rồi báo kỹ thuật."
+			% (tien, abs(flt(tra.get("grand_total"))))
+		)
+	if goc is None:
+		return
+	# Mỗi dòng hàng làm tròn tới đồng nên cho phép lệch theo số dòng.
+	dung, mong = thue_dung_ty_le(
+		tra.get("net_total"), tra.get("total_taxes_and_charges"),
+		goc.get("net_total"), goc.get("total_taxes_and_charges"),
+		1 + len(tra.get("items") or []))
+	if not dung:
+		frappe.throw(
+			"Tờ trả hàng đảo thuế không đúng tỷ lệ: tiền hàng %s đ thì thuế phải "
+			"là %s đ, đang ra %s đ. Kiểm lại bảng thuế trên hoá đơn gốc rồi báo "
+			"kỹ thuật, đừng ghi sổ tờ này."
+			% (abs(flt(tra.get("net_total"))), round(mong),
+				abs(flt(tra.get("total_taxes_and_charges"))))
+		)
 
 
 def _chuyen_kho_huy(si, tra, kho, ly_do):

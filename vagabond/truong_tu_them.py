@@ -15,6 +15,7 @@ rui ro ghi de nham. File nay chi giu truong sinh ra tu hom nay tro di.
 """
 
 import frappe
+from frappe.utils import cint
 
 
 def dung():
@@ -314,6 +315,27 @@ def dung():
 		frappe.log_error(frappe.get_traceback(), "truong_tu_them: dung duong duyet chi")
 
 
+# Ô KHÔNG có cột trong bảng cha: ô chia màn hình, và cả ô bảng con (Table,
+# Table MultiSelect) vì Frappe cất dòng ở doctype con. Soát cột mà không chừa
+# mấy loại này ra là báo thiếu oan rồi chặn cả lần Migrate (bench 22/09/2026:
+# `sec_duyet_mua` của Material Request Item, rồi `vgb_thanh_toan_nhieu` của
+# Sales Invoice). Lấy thẳng danh sách của Frappe, thiếu thì dùng bản chép tay.
+def _khong_co_cot():
+	ban_tay = {
+		"Section Break", "Column Break", "Tab Break", "HTML", "Heading",
+		"Button", "Fold", "Image", "Table", "Table MultiSelect",
+	}
+	try:
+		from frappe.model import no_value_fields, table_fields
+
+		return set(no_value_fields) | set(table_fields) | ban_tay
+	except Exception:
+		return ban_tay
+
+
+KHONG_CO_COT = _khong_co_cot()
+
+
 def _dung_nhom(khai, ten_nhom):
 	"""Dung mot nhom truong. Hong nhom nay khong duoc keo do ca lan deploy."""
 	from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
@@ -322,3 +344,61 @@ def _dung_nhom(khai, ten_nhom):
 		create_custom_fields(khai, update=True)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "truong_tu_them: %s" % ten_nhom)
+	# DỰNG LUÔN CỘT TRONG BẢNG. Ô khai lúc after_migrate thì lượt đồng bộ
+	# cấu trúc của Migrate đã chạy xong, nên bản ghi Custom Field có mà cột
+	# trong bảng thì chưa: mọi lần lưu chứng từ đó sau đó nổ "Unknown column"
+	# (bench CI 22/09/2026, 84 ca hỏng vì ô mới trên Purchase Invoice Item).
+	# updatedb là phép lặp lại được, khai lại lần thứ mười cũng không đổi gì.
+	for dt in khai:
+		try:
+			frappe.db.updatedb(dt)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "truong_tu_them: cot %s" % dt)
+		# Ô có bản ghi mà bảng thiếu cột thì MỌI lần lưu doctype đó nổ
+		# "Unknown column", tức là cả một phân hệ chết. Thà để Migrate đỏ
+		# ngay còn hơn site lên bản mới rồi hỏng lặng lẽ (Codex #358).
+		# DocType kiểu Single (Vagabond Settings, Bao Gia Cai Dat) cất giá trị
+		# trong bảng `tabSingles`, không có cột riêng, soát cột là báo thiếu
+		# oan rồi chặn Migrate (Codex #358).
+		# Codex #358 vòng 19: HỎI KHÔNG RA khác với TRẢ LỜI LÀ KHÔNG. Đọc hồ sơ
+		# DocType mà nổ (khoá bảng, mất kết nối) thì không biết gì cả, bỏ soát
+		# lúc đó là để site lên bản mới với một bảng có thể đang thiếu cột.
+		try:
+			la_single = cint(frappe.db.get_value("DocType", dt, "issingle"))
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "truong_tu_them: doc DocType %s" % dt)
+			frappe.throw("Không đọc được hồ sơ DocType %s nên không soát được cột. "
+				"Migrate dừng ở đây; chạy lại khi cơ sở dữ liệu trả lời được." % dt)
+		if la_single:
+			continue
+		# DocType KHÔNG CÓ trên site này thì không có bảng nào để soát. Ca thật
+		# bench CI 22/09/2026: "Phieu Kiem Ke" là doctype tự tạo trên Desk
+		# (custom, nằm trong cơ sở dữ liệu chứ không trong git) nên site mới
+		# dựng không có nó, soát cột báo thiếu oan và chặn cả lượt Migrate.
+		# Doctype ảo cũng vậy, nó không có bảng.
+		try:
+			co_bang = frappe.db.table_exists(dt)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "truong_tu_them: doc bang %s" % dt)
+			frappe.throw("Không hỏi được bảng của %s có tồn tại không nên không soát được cột. "
+				"Migrate dừng ở đây; chạy lại khi cơ sở dữ liệu trả lời được." % dt)
+		if not co_bang:
+			continue
+		thieu = []
+		for o in khai[dt] or []:
+			o = o or {}
+			ten_o = str(o.get("fieldname") or "").strip()
+			if not ten_o or str(o.get("fieldtype") or "") in KHONG_CO_COT:
+				continue
+			try:
+				co = frappe.db.has_column(dt, ten_o)
+			except Exception:
+				# Soát không xong thì coi như CHƯA chắc có cột: thà dừng còn
+				# hơn báo xong rồi để site chạy với bảng hỏng (Codex #358).
+				frappe.log_error(frappe.get_traceback(), "truong_tu_them: soat cot %s" % dt)
+				co = False
+			if not co:
+				thieu.append(ten_o)
+		if thieu:
+			frappe.throw("Thiếu cột %s trên bảng %s sau khi khai ô. Migrate dừng ở đây để "
+				"không đưa site lên bản mới với một bảng hỏng." % (", ".join(thieu), dt))
