@@ -1948,6 +1948,8 @@ function htCtVe() {
   if (nKs) nKs.onclick = function () { htKhopSepayTuDong(d); };
   var nKt2 = document.getElementById('htCtKsTay');
   if (nKt2) nKt2.onclick = function () { htFormGdRa(d); };
+  var nSl = document.getElementById('htCtSinhLai');
+  if (nSl) nSl.onclick = function () { htSinhLai(d); };
 
   var nUncN = document.getElementById('htUncNut');
   var nUncT = document.getElementById('htUncTep');
@@ -2030,6 +2032,18 @@ nó phụ thuộc đúng vào bước này, và một cái nút biến mất kh�
 là thứ khiến người dùng đi hỏi vòng quanh. */
 function htCtKhopSepay(d) {
   if (!d.duoc_doi_chieu || d.trang_thai === 'Da huy') return '';
+  if (d.da_doi_soat && d.sinh_lai_duoc) {
+    /* v523, HT-2026-02900: tiền đã ra mà chứng từ hỏng thì CHƯA có phiếu chi,
+       nên nút Đính uỷ nhiệm chi không thể hiện. Câu "bước còn lại là đính uỷ
+       nhiệm chi" ở dưới lúc đó là nói sai, người đọc đi tìm một cái nút
+       không tồn tại. Thay bằng đúng việc phải làm. */
+    return '<div style="margin-top:10px">' +
+      '<div style="font-size:12.5px;color:#7f1d1d;line-height:1.6;margin-bottom:8px">' +
+      'Tiền đã ra nhưng máy chưa lập được phiếu chi, nên chưa có chỗ đính uỷ nhiệm chi. ' +
+      'Bấm nút dưới để máy lập lại chứng từ; xong là nút Đính uỷ nhiệm chi tự hiện.</div>' +
+      '<button class="btn gh" id="htCtSinhLai" style="margin:0;width:100%">🔄 Sinh lại chứng từ</button>' +
+      '</div>';
+  }
   if (d.da_doi_soat) {
     return '<div style="font-size:12px;color:#065f46;background:#f0fdf4;' +
       'border:1px solid #a7f3d0;border-radius:9px;padding:9px 11px;margin-top:9px;' +
@@ -2049,6 +2063,20 @@ function htCtKhopSepay(d) {
     'Nút <b>Đính uỷ nhiệm chi</b> ở cuối màn chỉ hiện sau bước này, vì phiếu chi ' +
     'chỉ ra đời khi tiền đã thật sự rời tài khoản. Khớp xong là nút tự hiện.</div>' +
     '</div>';
+}
+
+async function htSinhLai(d) {
+  busy(true);
+  var kq;
+  try { kq = await api('vagabond.hoan_tien.sinh_lai', { ho_so: d.name }); }
+  catch (e) { busy(false); return baoTin((e && e.message) || 'Chưa sinh lại được chứng từ.', 'Lỗi'); }
+  busy(false);
+  if (kq && kq.ok) {
+    toast('Đã lập lại chứng từ. Giờ đính uỷ nhiệm chi được rồi.', 4500);
+    return htChiTiet(d.name);
+  }
+  baoTin((kq && kq.loi) || 'Máy vẫn chưa lập được chứng từ. Báo anh Việt.', 'Chưa sinh được');
+  return htChiTiet(d.name);
 }
 
 async function htKhopSepayTuDong(d) {
