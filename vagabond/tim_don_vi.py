@@ -54,12 +54,31 @@ def khop(cac_ten, txt):
 	return None
 
 
+def mo_ta_hien(ten, dich):
+	"""Mô tả bày cạnh đơn vị trong ô chọn. THUẦN.
+
+	Tên đã dịch khác tên lưu thì trả "Box (Hộp)", còn không thì rỗng.
+
+	PHẢI giữ tên lưu tiếng Anh trong mô tả (v522, sự cố 23/09/2026). Với
+	doctype có translated_doctype = 1 như UOM, search_widget của Frappe gọi
+	hàm standard_queries với txt RỖNG, lấy hết danh mục, rồi TỰ LỌC LẠI từng
+	dòng bằng filter_translated: dịch từng ô qua _() và giữ dòng nào có ô
+	chứa chữ người gõ. Box dịch thành "Hộp", nên nếu dòng chỉ có ["Box",
+	"Hộp"] thì gõ "box" bị lọc sạch. Chuỗi "Box (Hộp)" không có bản dịch nên
+	qua _() vẫn nguyên, và giữ được Box khi gõ "box".
+	"""
+	t, d = str(ten or "").strip(), str(dich or "").strip()
+	if not chuan(d) or chuan(d) == chuan(t):
+		return ""
+	return "%s (%s)" % (t, d)
+
+
 def loc_don_vi(hang, txt, gioi_han=0):
 	"""Chon cac don vi khop, xep khop-dau-chuoi len truoc. THUAN.
 
 	`hang` la cac bo (ten_luu, ten_o, ten_da_dich). Tra list cac cap
-	[ten_luu, mo_ta], mo_ta la ten da dich khi no khac ten luu, con khong
-	thi rong. Khong bao gio tra ban trung ten.
+	[ten_luu, mo_ta], mo_ta là "tên_lưu (tên_đã_dịch)" khi bản dịch khác tên
+	lưu, còn không thì rỗng (xem mo_ta_hien). Không bao giờ trả bản trùng tên.
 	"""
 	ra, da_co = [], set()
 	for bo in hang or []:
@@ -72,7 +91,7 @@ def loc_don_vi(hang, txt, gioi_han=0):
 		if diem is None:
 			continue
 		da_co.add(ten)
-		mo = str(dich or "") if chuan(dich) and chuan(dich) != chuan(ten) else ""
+		mo = mo_ta_hien(ten, dich)
 		ra.append((diem, chuan(ten), ten, mo))
 	ra.sort(key=lambda x: (x[0], x[1]))
 	cat = int(gioi_han or 0)
