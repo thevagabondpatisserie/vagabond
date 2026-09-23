@@ -384,7 +384,16 @@ def dvt_ncc_cua_dong(mo_ta, uom_dong, ten_ncc=None, dvt_o=None):
 	# rồi ghi vĩnh viễn một quy đổi bịa vào Món.
 	if ten and s.startswith(ten):
 		con = s[len(ten):].strip()
-		dvt = dvt_tren_hoa_don(con) if con else ""
+		# Khối lời đoán "[Máy đoán ...]" do máy ghi, không phải tên hàng.
+		if con.startswith("["):
+			j = con.find("]")
+			con = con[j + 1:].strip() if j >= 0 else con
+		# Codex #358 vòng 24: cắt tên xong thì phần còn lại phải ĐÚNG là nhóm
+		# ngoặc đơn vị. Ô `ten_hang_ncc` chỉ chứa 140 ký tự đầu, nên tên nhà
+		# cung cấp dài hơn thế bị cắt cụt: phần còn lại vẫn là ĐUÔI TÊN chứ
+		# không phải đơn vị. Đọc "(500g)" trong cái đuôi đó rồi hỏi "1 500g
+		# bằng bao nhiêu Gram" là ghi vĩnh viễn một quy đổi bịa vào Món.
+		dvt = dvt_tren_hoa_don(con) if con.startswith("(") else ""
 	else:
 		dvt = dvt_tren_hoa_don(s)
 	if dvt:
