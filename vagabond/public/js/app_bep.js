@@ -17752,7 +17752,8 @@ function htDsVe() {
          (trung.length ? '\n\nCó ' + trung.length + ' phiếu trỏ vào giao dịch đã gắn cho phiếu khác ' +
           '(' + trung.map(function (x) { return x.ho_so + ' trùng ' + x.trung_voi; }).join(', ') + '). ' +
           'Một lần tiền ra chỉ khớp cho một phiếu. Nếu đây thật sự là hai lần hoàn khác nhau ' +
-          'thì sao kê còn thiếu một dòng, báo anh Việt nạp bù giúp.' : '')));
+          'thì sao kê còn thiếu một dòng, báo anh Việt nạp bù giúp.' : '') +
+         ((kq.da_go || []).length ? '\n\nĐã lập lại chứng từ cho phiếu kẹt: ' + kq.da_go.join(', ') + '.' : '')));
       go(scrHoanTien, true);
     } catch (e) { busy(false); }
   };
