@@ -93,6 +93,12 @@ def _dvt_lot():
 		dvt_ncc_cua_dong(ten_140 + "(500g)", None, ten_140), "")
 	la("tên đụng trần ô, mô tả có ngoặc đơn vị thật: vẫn không đoán",
 		dvt_ncc_cua_dong(ten_140 + " (BAO)", None, ten_140), "")
+	# Codex #358 vòng 26: không đọc mô tả nữa, NHƯNG ô đơn vị của dòng là câu
+	# trả lời rõ ràng thì vẫn nhận, đừng bắt người khai lại cái đã biết.
+	la("tên đụng trần mà ô đơn vị của dòng là đơn vị thật: vẫn dùng",
+		dvt_ncc_cua_dong(ten_140 + "(500g)", "BOX", ten_140), "BOX")
+	la("tên đụng trần mà ô đơn vị chỉ là đơn vị lót: vẫn rỗng",
+		dvt_ncc_cua_dong(ten_140 + "(500g)", "Nos", ten_140), "")
 	# Tên ngắn hơn trần thì lưu đủ, đọc đơn vị như thường.
 	ten_ngan = "A" * 139
 	la("tên chưa đụng trần thì đọc đơn vị như thường",
