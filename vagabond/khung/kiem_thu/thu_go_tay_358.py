@@ -86,8 +86,19 @@ def _dvt_lot():
 		dvt_ncc_cua_dong(ten_dai, None, ten_dai[:140]), "")
 	la("cùng tên đó mà hoá đơn CÓ ghi đơn vị thì vẫn đọc được",
 		dvt_ncc_cua_dong(ten_dai + " (BAO)", None, ten_dai[:140]), "")
-	la("tên không bị cắt thì đọc đơn vị như thường",
-		dvt_ncc_cua_dong(ten_dai + " (BAO)", None, ten_dai), "BAO")
+	# Codex #358 vòng 25: tên lưu dài ĐÚNG 140 ký tự là tên đụng trần ô, không
+	# biết còn đuôi hay không, nên phần trong ngoặc còn lại không đáng tin.
+	ten_140 = "A" * 140
+	la("tên đụng trần ô: coi như chưa biết đơn vị",
+		dvt_ncc_cua_dong(ten_140 + "(500g)", None, ten_140), "")
+	la("tên đụng trần ô, mô tả có ngoặc đơn vị thật: vẫn không đoán",
+		dvt_ncc_cua_dong(ten_140 + " (BAO)", None, ten_140), "")
+	# Tên ngắn hơn trần thì lưu đủ, đọc đơn vị như thường.
+	ten_ngan = "A" * 139
+	la("tên chưa đụng trần thì đọc đơn vị như thường",
+		dvt_ncc_cua_dong(ten_ngan + " (BAO)", None, ten_ngan), "BAO")
+	la("tên chưa đụng trần, nguồn không ghi đơn vị: rỗng",
+		dvt_ncc_cua_dong(ten_ngan + "(500g)", None, ten_ngan + "(500g)"), "")
 	# Lời đoán của máy nằm giữa tên và ngoặc đơn vị, không được làm hỏng phép cắt.
 	may = {"ten": "Hạt dẻ (500g)", "dvt": "BAO", "goi_y_mon": "NVLT1", "goi_y_dvt_kho": "Gram"}
 	la("có lời đoán ở giữa vẫn đọc đúng đơn vị",
