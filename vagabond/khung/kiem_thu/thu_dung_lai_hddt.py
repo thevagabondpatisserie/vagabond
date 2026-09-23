@@ -703,3 +703,73 @@ def _():
 	for ten, than in (("dung_lai_hddt", MA_DUNG_LAI[i:j]),):
 		dung("%s khong em dash" % ten, "—" not in than)
 		dung("%s khong en dash" % ten, "–" not in than)
+
+
+@ca("Codex #358 vòng 23: dựng lại tờ KHÔNG được xoá dấu máy đoán của dòng chưa chốt")
+def _dung_lai_giu_dau():
+	"""CHẠY THẬT `_dung_dong_tai_cho`, không dò chuỗi.
+
+	Chuỗi của Codex: dòng hàng kho mang dấu máy đoán, hoá đơn gốc không ghi
+	đơn vị, kế toán gõ thẳng Món vào lưới rồi lưu. Hook lưu thấy tờ lệch nên
+	dựng lại cả bảng dòng hàng; đường dựng gọi `_dong_pi` với một bản dòng
+	gốc MỚI không có lời đoán, nên dấu bị xoá và cửa chặn ghi sổ hết thấy gì.
+	"""
+	from types import SimpleNamespace
+	from unittest.mock import patch
+
+	from vagabond import dung_lai_hddt as DL
+	from vagabond import minvoice_chung_tu as MC
+
+	class Dong(dict):
+		def __getattr__(s, k):
+			return s.get(k)
+
+		def __setattr__(s, k, v):
+			s[k] = v
+
+	class To:
+		def __init__(s, items):
+			s._items = items
+			s.supplier = "KAMEREO"
+			s.apply_discount_on = ""
+			s.discount_amount = 0
+			s.additional_discount_percentage = 0
+
+		def get(s, k, m=None):
+			if k == "items":
+				return s._items
+			return getattr(s, k, m)
+
+		def set(s, k, v):
+			if k == "items":
+				s._items = list(v)
+
+		def append(s, k, v):
+			if k == "items":
+				s._items.append(Dong(v))
+
+	# Dòng đang có trên tờ: kế toán đã gõ Món, dấu máy đoán vẫn còn.
+	doc = To([Dong(item_code="NVLT00141", ten_hang_ncc="Hạt dẻ", uom="Gram",
+		conversion_factor=1, vgb_mon_may_doan="NVLT00141", qty=2, rate=100000,
+		description="Hạt dẻ", expense_account="632")])
+	g = {"chi_tiet": [{"ten": "Hạt dẻ", "sluong": 2, "dgia": 100000, "thtien": 200000}],
+		"tong_tien": 200000, "tien_thue": 0, "mst_doi_tac": "0315000500"}
+
+	with patch.object(MC, "_tra_ma_hang", lambda x, mst, ncc: (None, None, 1)), \
+			patch.object(DL, "_do_chinh_xac", lambda doc=None, g=None: (2, 0, 3)), \
+			patch.object(DL, "_dung_thue_tai_cho", lambda doc, g: None), \
+			patch.object(MC, "bo_mau_thue_mat_hang", lambda doc: None):
+		DL._dung_dong_tai_cho(doc, g)
+
+	d = doc.get("items")[0]
+	la("dựng lại vẫn giữ Món kế toán đã gõ", d.get("item_code"), "NVLT00141")
+	la("dấu máy đoán KHÔNG bị xoá", d.get("vgb_mon_may_doan"), "NVLT00141")
+	# Dòng chưa bao giờ có dấu thì đừng tự bịa ra dấu.
+	doc2 = To([Dong(item_code="NVLT00141", ten_hang_ncc="Hạt dẻ", uom="Gram",
+		conversion_factor=1, qty=2, rate=100000, description="Hạt dẻ", expense_account="632")])
+	with patch.object(MC, "_tra_ma_hang", lambda x, mst, ncc: (None, None, 1)), \
+			patch.object(DL, "_do_chinh_xac", lambda doc=None, g=None: (2, 0, 3)), \
+			patch.object(DL, "_dung_thue_tai_cho", lambda doc, g: None), \
+			patch.object(MC, "bo_mau_thue_mat_hang", lambda doc: None):
+		DL._dung_dong_tai_cho(doc2, g)
+	la("dòng không có dấu thì vẫn không có dấu", doc2.get("items")[0].get("vgb_mon_may_doan"), "")

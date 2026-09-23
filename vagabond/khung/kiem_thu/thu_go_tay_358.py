@@ -585,3 +585,15 @@ def _dvt_phai_co_trong_danh_muc():
 		"data-mahien=\"' + h(String(r.item_code || ''))" in app_js)
 	dung("bấm nút thì đưa Món đó vào hộp chọn",
 		"dcmGanMaHang(name, g.getAttribute('data-dcmgan'), g.getAttribute('data-mahien'))" in app_js)
+	# Codex #358 vòng 23: màn đối chiếu cũng phải đọc Ô RIÊNG. Ca thật: tên
+	# hàng "Hạt dẻ (500g)" mà hoá đơn không ghi đơn vị thì dò mô tả ra "500g",
+	# rồi nút Khai đơn vị ghi vĩnh viễn quy đổi "500g" bịa vào Món.
+	la("tên hàng có ngoặc, nguồn không ghi đơn vị: không được ra 500g",
+		dvt_mua.dvt_ncc_cua_dong("Hạt dẻ (500g)", None, "Hạt dẻ (500g)", dvt_mua.KHONG_GHI), "")
+	la("nguồn có ghi đơn vị thì vẫn ra đúng đơn vị đó",
+		dvt_mua.dvt_ncc_cua_dong("Hạt dẻ (500g) (BAO)", None, "Hạt dẻ (500g)", "BAO"), "BAO")
+	than_ss = MA_DCM.split("def so_sanh(")[1].split("\ndef ")[0]
+	dung("màn đối chiếu đọc ô riêng chứ không dò lại mô tả",
+		'r.get("vgb_dvt_ncc")' in than_ss and "dvt_tren_hoa_don(r.get" not in than_ss)
+	than_hd = MA_DCM.split("def _dong_hd(")[1].split("\ndef ")[0]
+	dung("phép đọc dòng lấy đủ ô riêng", '"vgb_dvt_ncc"' in than_hd and '"ten_hang_ncc"' in than_hd)
