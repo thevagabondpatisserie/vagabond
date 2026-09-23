@@ -71,6 +71,14 @@ LOAI_HANG = [
 		"mo": "Phí giao hàng, phí trang trí - không có gì để đếm tồn.",
 		"mua": 0, "ban": 1, "ton": 0,
 	},
+	{
+		# v524 (anh Viet 24/09/2026): CCDC mua ve dung luon, di thang 242,
+		# khong nhap kho. Chi di voi nhom "CCDC dung ngay", xem ccdc_dung_ngay.py.
+		"k": "ccdc_dung_ngay",
+		"ten": "CCDC dùng ngay",
+		"mo": "Quạt, nồi, dụng cụ mua về dùng luôn - vào 242, không nhập kho, không cần phiếu nhập kho.",
+		"mua": 1, "ban": 0, "ton": 0,
+	},
 ]
 
 
@@ -386,7 +394,15 @@ def tao(
 			% nhom
 		)
 
+	from vagabond import ccdc_dung_ngay as ccdc
+
 	l = _loai(loai)
+	if nhom == ccdc.NHOM:
+		# Nhom nay chi co mot loai: chon nham loai thi lay dung loai cua nhom,
+		# hook luu mon cung se dat lai ba co, nen man hinh va kho khop nhau.
+		l = _loai("ccdc_dung_ngay")
+	elif l["k"] == "ccdc_dung_ngay":
+		frappe.throw('Loại "CCDC dùng ngay" chỉ đi với nhóm "%s". Chọn nhóm đó, hoặc chọn loại khác.' % ccdc.NHOM)
 	ten = " ".join(str(ten or "").split())
 	if len(ten) < 3:
 		frappe.throw("Tên mặt hàng ngắn quá, vui lòng gõ đủ tên.")
@@ -403,6 +419,8 @@ def tao(
 			)
 
 	tt = str(tien_to or "").strip().upper() or tien_to_nhom(nhom)
+	if not tt and nhom == ccdc.NHOM:
+		tt = ccdc.TIEN_TO
 	if not tt:
 		frappe.throw(
 			'Nhóm "%s" chưa có tiền tố mã. Vui lòng điền tiền tố (2 đến 6 chữ in hoa không dấu) một lần.' % nhom
