@@ -10,7 +10,7 @@ def _nap(trang, hong=(), tran=300, mat_diem=False, ma_nguon=None):
     p = Path(__file__).resolve().parents[2] / 'minvoice_dong_bo.py'
     cay = ast.parse(ma_nguon or p.read_text())
     ham = [n for n in cay.body if isinstance(n, ast.FunctionDef)
-           and n.name in ('_keo', 'doc_trang', 'vo_ruot')]
+           and n.name in ('_keo', 'doc_trang', 'vo_ruot', 'chi_co_ma')]
     class DB:
         def __init__(self):
             self.ds = {}; self.da_ghi = {}; self.diem = {}; self.loi = []; self.so_commit = 0
@@ -55,10 +55,20 @@ def _nap(trang, hong=(), tran=300, mat_diem=False, ma_nguon=None):
     return lambda: env['_keo'](tu_ngay='01/08/2026', den_ngay='09/09/2026'), db, da_goi
 
 
+def _to(ma, so=1):
+    """Một tờ hoá đơn THẬT của nguồn: có mã, có số, có ngày lập.
+
+    Từ v519 dòng nguồn không có cả số lẫn ngày bị coi là vật tạm và không
+    được lưu (xem chi_co_ma). Các ca về phân trang, lỗi và rollback nói về
+    hoá đơn thật, nên tờ mẫu phải có đủ ruột, đừng rút lại thành {'id': ma}.
+    """
+    return {'id': ma, 'shdon': so, 'tdlap': '2026-09-20T17:00:00Z'}
+
+
 @ca('#227 kéo: một hóa đơn hỏng không nuốt tờ phía sau hoặc trang sau, retry không trùng')
 def _mot_to_hong():
-    chay, db, da_goi = _nap({1: dict(listInvoice=[{'id': 'a'}, {'id': 'hong'}, {'id': 'b'}], totalPage=2),
-                            2: dict(listInvoice=[{'id': 'c'}], totalPage=2)}, hong={'hong'})
+    chay, db, da_goi = _nap({1: dict(listInvoice=[_to('a'), _to('hong'), _to('b')], totalPage=2),
+                            2: dict(listInvoice=[_to('c')], totalPage=2)}, hong={'hong'})
     kq = chay()
     la('đủ hai trang', da_goi, [1, 2])
     la('commit theo trang, không theo hóa đơn', db.so_commit, 2)
@@ -78,18 +88,18 @@ def _phan_hoi():
         chay, db, _ = _nap({1: payload})
         la('không báo xanh payload sai', chay()['hoan_tat'], False)
         la('không ghi dữ liệu sai', db.da_ghi, {})
-    chay, db, _ = _nap({1: dict(listInvoice=[{}, {'id': 'a'}], totalPage=1)})
+    chay, db, _ = _nap({1: dict(listInvoice=[{}, _to('a')], totalPage=1)})
     kq = chay()
     la('thiếu mã là lỗi có đếm', kq['so_loi_hoa_don'], 1)
     la('vẫn giữ tờ phía sau', sorted(db.da_ghi), ['a'])
-    chay, db, _ = _nap({1: dict(listInvoice=[{'id': 'a'}], totalPage=2)}, tran=1)
+    chay, db, _ = _nap({1: dict(listInvoice=[_to('a')], totalPage=2)}, tran=1)
     la('chạm trần không nhận đủ', chay()['hoan_tat'], False)
     la('trang đã commit vẫn giữ', sorted(db.da_ghi), ['a'])
 
 
 @ca('#227 kéo: mất savepoint thì rollback cả trang, không đếm hoặc commit hóa đơn dở')
 def _mat_diem():
-    chay, db, da_goi = _nap({1: dict(listInvoice=[{'id': 'a'}, {'id': 'hong'}], totalPage=2)},
+    chay, db, da_goi = _nap({1: dict(listInvoice=[_to('a'), _to('hong')], totalPage=2)},
                           hong={'hong'}, mat_diem=True)
     kq = chay()
     la('không commit phần dở', db.da_ghi, {})
@@ -105,14 +115,18 @@ def _rong():
     la('chỉ hỏi một trang', da_goi, [1])
 
 
-@ca('#227 nguồn mới có mã: đếm riêng, giữ để kéo lại, không cản tờ đầy đủ')
+@ca('#227 + #519 nguồn chỉ trả mã: đếm riêng, KHÔNG lưu bản ghi, không cản tờ đầy đủ')
 def _nguon_chua_du():
+    # Đổi hợp đồng ở v519. Trước đó giữ lại mã để kéo lần sau, nhưng đo trên
+    # site thật 23/09/2026 thì mã đó là vật tạm của M-Invoice, mỗi lượt một
+    # mã mới, nên bản ghi giữ lại không bao giờ lành. Xem chi_co_ma().
     chay, db, _ = _nap({1: dict(listInvoice=[{'_id': 'rong', 'type': 'INPUT_ELECTRONIC_INVOICE'},
         {'id': 'du', 'shdon': 123, 'tdlap': '2026-09-20T17:00:00Z'}], totalPage=1)})
     # Fixture Doc dùng ma_hd_id; _du_lieu stub không suy số thật.
     kq = chay()
     la('một nguồn chưa đủ', kq['nguon_chua_du'], 1)
-    la('giữ cả hai mã để đối chiếu', sorted(db.da_ghi), ['du', 'rong'])
+    la('chỉ giữ tờ đầy đủ', sorted(db.da_ghi), ['du'])
+    la('không đếm dòng chỉ có mã là tờ mới', kq['moi'], 1)
     la('không coi nguồn chờ là lỗi lưu hóa đơn', kq['so_loi_hoa_don'], 0)
 
 
@@ -120,8 +134,11 @@ def _nguon_chua_du():
 def _nguon_rut_gon_da_du():
     # Tái hiện đúng lời Codex trên 75fb6563: lượt 1 kéo đủ, lượt 2 nguồn trả
     # rút gọn cho cùng tờ. Bản cũ đếm 1 và dong_bo_ngay báo cam mãi.
+    # 'trong' là VỎ RUỘT thật: có ngày lập, chưa có số. Đừng bỏ tdlap đi,
+    # làm vậy là biến nó thành dòng chỉ có mã và từ v519 nó không được lưu,
+    # ca kiểm sẽ nổ chứ không nói lên điều đang cần nói.
     trang = {1: dict(listInvoice=[{'id': 'du', 'shdon': 123, 'tdlap': '2026-09-20T17:00:00Z'},
-        {'id': 'trong', 'shdon': 0, 'tdlap': ''}], totalPage=1)}
+        {'id': 'trong', 'shdon': 0, 'tdlap': '2026-09-21T17:00:00Z'}], totalPage=1)}
     chay, db, _ = _nap(trang)
     chay()
     db.ds['trong']['so_hd'] = ''  # tờ trong máy còn trống số
