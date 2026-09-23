@@ -3457,7 +3457,21 @@ def _khi_khop_hoan_tien(doc, ma_gd):
 	# Đi qua đúng một cửa có khoá, soát lại và chặn thiếu phiếu chi (Codex
 	# #363 vòng 5). Gọi thẳng _sinh_chung_tu ở đây là lối khớp tay lọt khỏi
 	# mọi lớp bảo vệ của v523.
-	return _sinh_va_ghi_loi(doc.name)
+	kq = _sinh_va_ghi_loi(doc.name)
+	if kq:
+		return kq
+	# Hỏng thì phải NÉM (Codex #363 vòng 6): tầng đối soát chung bỏ qua giá
+	# trị trả về, chỉ bắt lỗi ném ra để bày cho người bấm. Không ném là màn
+	# Khớp tay báo thành công trong khi chưa có phiếu chi nào. Câu lỗi đầy đủ
+	# đã ghi lên phiếu và đã commit trong _sinh_va_ghi_loi, nên lượt lùi của
+	# tầng chung không xoá được nó. Chỉ ném khi hồ sơ VẪN kẹt: đã có chứng từ
+	# từ lượt trước thì không có gì hỏng.
+	d = frappe.db.get_value(
+		DT, doc.name, ["da_doi_soat", "ma_gd", "trang_thai", "hoa_don_tra", "phieu_chi"], as_dict=True
+	)
+	if d and ket_chung_tu(d):
+		frappe.throw("Chưa lập được chứng từ hoàn tiền. Xem lỗi trên phiếu rồi bấm Sinh lại chứng từ.")
+	return None
 
 
 def _khai_doi_soat():
