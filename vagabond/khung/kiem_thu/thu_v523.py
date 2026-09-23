@@ -597,9 +597,9 @@ def _khop_tay_thieu_pc():
 		H.frappe, H._sinh_chung_tu = fr, sinh
 		try:
 			H._khi_khop_hoan_tien(_Doc(name="HT-K"), "ACC-BTN-1")
-			nem = ""
-		except _Loi as e:
-			nem = str(e)
+			nem, kieu = "", ""
+		except Exception as e:
+			nem, kieu = str(e), type(e).__name__
 	finally:
 		for k, v in cu.items():
 			setattr(H, k, v)
@@ -607,6 +607,8 @@ def _khop_tay_thieu_pc():
 	# câu ném chỉ đúng nút Sinh lại chứng từ.
 	dung("ném lỗi để màn Khớp tay không báo thành công", bool(nem))
 	dung("câu lỗi chỉ đúng nút Sinh lại chứng từ", "Sinh lại chứng từ" in nem)
+	# Vòng 7: đúng loại lỗi để tầng chung bày nguyên câu, không nối "Khớp SePay".
+	la("ném đúng loại LoiSauKhop", kieu, "LoiSauKhop")
 	la("vẫn giữ dấu đã khớp tiền ra", bang[DT]["HT-K"]["da_doi_soat"], 1)
 	dung("ghi lỗi thiếu phiếu chi lên phiếu", "phiếu chi" in bang[DT]["HT-K"]["loi_sinh_ct"])
 	dung("hồ sơ còn kẹt để bấm Sinh lại", H.ket_chung_tu(bang[DT]["HT-K"]))
@@ -641,7 +643,7 @@ def _khop_tay_da_du():
 		try:
 			kq = H._khi_khop_hoan_tien(_Doc(name="HT-D"), "ACC-BTN-3")
 			nem = ""
-		except _Loi as e:
+		except Exception as e:
 			kq, nem = None, str(e)
 	finally:
 		for k, v in cu.items():
@@ -649,3 +651,41 @@ def _khop_tay_da_du():
 	la("không ném", nem, "")
 	la("không lập thêm", goi, [])
 	la("giữ phiếu chi cũ", bang[DT]["HT-D"]["phieu_chi"], "APP-3")
+
+
+# ----------------------------------------- Codex #363 vòng 7
+
+@ca("#523 Codex #363 v7: máy bỏ qua mà không lập gì (thiếu Kho Hàng Hủy) thì ghi lỗi và giữ hồ sơ kẹt")
+def _bo_qua_la_hong():
+	from vagabond import hoan_tien as H
+	bang = {DT: {"HT-2026-02900": _ho(loi_sinh_ct="")}}
+	fr = _frappe_gia(bang, [])
+	cu = {k: getattr(H, k) for k in ("frappe", "_sinh_chung_tu")}
+	try:
+		H.frappe = fr
+		H._sinh_chung_tu = lambda ho: {"bo_qua": 1, "vi_sao": "Chưa dựng được Kho Hàng Hủy."}
+		kq = H._sinh_va_ghi_loi("HT-2026-02900")
+	finally:
+		for k, v in cu.items():
+			setattr(H, k, v)
+	la("không báo thành công", kq, None)
+	dung("ghi lý do lên phiếu", "Kho Hàng Hủy" in bang[DT]["HT-2026-02900"]["loi_sinh_ct"])
+	# Có câu lỗi thì nhịp theo giờ mới nhặt lại được.
+	cu_f = H.frappe
+	try:
+		H.frappe = fr
+		la("nhịp theo giờ nhặt lại hồ sơ", H._ho_so_ket(), ["HT-2026-02900"])
+	finally:
+		H.frappe = cu_f
+
+
+@ca("#523 Codex #363 v7: màn Khớp tay chỉ bày MỘT việc tiếp theo, không bảo bấm lại Khớp SePay")
+def _mot_viec_tiep():
+	from vagabond import doi_soat_sepay as dss
+	e = dss.LoiSauKhop("Chưa lập được chứng từ hoàn tiền. Xem lỗi trên phiếu rồi bấm Sinh lại chứng từ.")
+	cau = dss.cau_loi_sau_khop(e, "Traceback\\nLoiSauKhop: ...")
+	dung("giữ nguyên hướng dẫn của luồng", "Sinh lại chứng từ" in cau)
+	dung("không bảo bấm lại Khớp SePay", "Khớp SePay" not in cau)
+	# Lỗi lạ thì vẫn như cũ.
+	cau2 = dss.cau_loi_sau_khop(ValueError("x"), "Traceback\\nValueError: x")
+	dung("lỗi lạ vẫn hướng dẫn cũ", "Khớp SePay" in cau2 and "ValueError: x" in cau2)
