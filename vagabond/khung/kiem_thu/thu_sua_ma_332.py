@@ -41,6 +41,28 @@ def _nen(loi=False, mong=995454, save_pha=None):
     return bo, doc, g, ghi
 
 
+@ca('Codex #358 vòng 27: trỏ sang dòng nguồn khác thì ô đơn vị nhà cung cấp phải theo nguồn mới')
+def _dvt_theo_nguon_moi():
+    from vagabond import dvt_mua
+    bo, doc, g, ghi = _nen()
+    # Dòng đang mang đơn vị của một dòng nguồn KHÁC, dấu máy đoán vẫn còn.
+    doc.items[0].vgb_dvt_ncc = 'THUNG'
+    doc.items[0].vgb_mon_may_doan = 'CU'
+    with bo:
+        sm._sua(doc, g, 'R', '0', 'MOI', 'Chai 700 ml')
+    la('ô đơn vị theo đúng dòng nguồn vừa chọn', doc.items[0].vgb_dvt_ncc, 'Chai')
+    la('dấu máy đoán hết nhiệm vụ', doc.items[0].vgb_mon_may_doan, '')
+    # Dòng nguồn KHÔNG ghi đơn vị thì ghi rõ là không ghi, không để ô cũ.
+    bo2, doc2, g2, _ = _nen()
+    doc2.items[0].vgb_dvt_ncc = 'THUNG'
+    g2 = dict(g2, chi_tiet=[dict(ten='Hàng nguồn', sluong=3, dgia=331818)])
+    with bo2:
+        sm._sua(doc2, g2, 'R', '0', 'MOI', 'Chai 700 ml')
+    la('nguồn không ghi đơn vị: ghi rõ là không ghi', doc2.items[0].vgb_dvt_ncc, dvt_mua.KHONG_GHI)
+    la('đọc lại ra rỗng đúng như nguồn',
+        dvt_mua.dvt_ncc_cua_dong('Hàng nguồn', None, 'Hàng nguồn', doc2.items[0].vgb_dvt_ncc), '')
+
+
 @ca('#332: chọn lại mã/UOM giữ tên và giá nguồn, save rồi reload trước báo thành công')
 def _doi():
     bo, doc, g, ghi = _nen()
@@ -142,6 +164,15 @@ def _f2_luu_pha():
     bo, doc, g, ghi = _nen(save_pha=mat_dong)
     with bo:
         nem('mất dòng sau lưu', lambda: sm._sua(doc, g, 'R', '0', 'MOI', 'Chai 700 ml'), ValueError)
+    # Codex #358 vòng 27: hook lưu có thể dựng lại dòng và trả ô đơn vị nhà
+    # cung cấp về bản cũ. Báo xong lúc đó là để màn đối chiếu mời khai một
+    # đơn vị của dòng nguồn khác cho Món mới.
+    def mat_dvt(doc):
+        doc.items[0].vgb_dvt_ncc = 'THUNG'
+    bo, doc, g, ghi = _nen(save_pha=mat_dvt)
+    with bo:
+        nem('ô đơn vị nhà cung cấp bị trả về bản cũ sau lưu',
+            lambda: sm._sua(doc, g, 'R', '0', 'MOI', 'Chai 700 ml'), ValueError)
 
 
 @ca('#332 F3: tong tien to sau luu lech ban nguon thi nem')
