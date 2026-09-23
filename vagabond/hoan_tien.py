@@ -2152,8 +2152,15 @@ def doi_soat(ho_so=None, so_ngay=30):
 		r = _sinh_va_ghi_loi(ten)
 		if r:
 			them.append(r)
+	kq["da_go"] = [r.get("ho_so") for r in them]
 	if them:
 		kq["da_sinh"] = (kq.get("da_sinh") or []) + them
+		# Vòng khớp thoát sớm để lại câu "Không có phiếu nào chờ đối soát",
+		# và màn danh sách ưu tiên câu đó hơn mọi con số. Giữ nó là báo "không
+		# có gì xảy ra" ngay sau khi máy vừa lập chứng từ (Codex #363 vòng 1).
+		if kq.get("ghi_chu"):
+			kq["ghi_chu"] = "Đã lập lại chứng từ cho %d phiếu kẹt: %s." % (
+				len(them), ", ".join(kq["da_go"]))
 	return kq
 
 
@@ -2357,6 +2364,19 @@ def _sinh_va_ghi_loi(ten):
 	Bọc riêng từng hồ sơ: một hồ sơ hỏng không được kéo theo cả mẻ đang
 	quét, vì các hồ sơ khác đã được đánh dấu đối soát rồi."""
 	try:
+		# KHOÁ DÒNG rồi SOÁT LẠI ngay trong giao dịch này (Codex #363 vòng 1).
+		# Nhịp theo giờ và nút Sinh lại có thể cùng thấy hồ sơ còn trắng chứng
+		# từ. Không khoá thì lượt đến sau vẫn lập thêm một tờ trả hàng và một
+		# phiếu chi, rồi lần lưu cuối đè mất liên kết của lượt trước. Có khoá
+		# thì lượt sau chờ lượt trước ghi xong, đọc lại thấy đã có chứng từ và
+		# thôi. Danh sách hồ sơ kẹt đọc từ trước chỉ là gợi ý, không phải phép.
+		moi = frappe.db.get_value(
+			DT, ten, ["name", "da_doi_soat", "ma_gd", "trang_thai", "hoa_don_tra", "phieu_chi"],
+			as_dict=True, for_update=True,
+		)
+		if not moi or not ket_chung_tu(moi):
+			frappe.db.commit()
+			return None
 		ho = frappe.get_doc(DT, ten)
 		kq = _sinh_chung_tu(ho)
 		if not kq.get("bo_qua"):
