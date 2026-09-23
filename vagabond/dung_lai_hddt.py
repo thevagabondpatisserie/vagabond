@@ -483,9 +483,16 @@ def hoc_ma_hang(doc, g):
 			"MInvoice NCC Map", {"supplier_mst": mst, "ten_ncc": ten}, "name"
 		)
 		if cu:
-			if (frappe.db.get_value("MInvoice NCC Map", cu, "item_code") or "").strip():
+			ma_cu = (frappe.db.get_value("MInvoice NCC Map", cu, "item_code") or "").strip()
+			if ma_cu and not frappe.db.get_value("Item", ma_cu, "disabled"):
 				continue
-			frappe.db.set_value("MInvoice NCC Map", cu, "item_code", ma)
+			if ma_cu == ma:
+				continue
+			# Ánh xạ trống, hoặc trỏ vào Món ĐÃ TẮT (v523, Kahlua NVLT00325):
+			# học món người vừa chốt. Xoá luôn đơn vị đã đối chiếu vì đơn vị
+			# đó là của món cũ, món mới có thể không có nó.
+			frappe.db.set_value("MInvoice NCC Map", cu, {"item_code": ma, "vgb_uom": None}
+				if frappe.get_meta("MInvoice NCC Map").has_field("vgb_uom") else {"item_code": ma})
 		else:
 			m = frappe.get_doc({
 				"doctype": "MInvoice NCC Map",

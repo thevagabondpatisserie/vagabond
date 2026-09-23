@@ -2135,6 +2135,29 @@ def _gd_da_chiem(tru_ho_so=None):
 
 @frappe.whitelist()
 def doi_soat(ho_so=None, so_ngay=30):
+	"""Khớp tiền ra cho hồ sơ chờ, rồi gỡ hồ sơ đã khớp mà kẹt chứng từ.
+
+	Phần gỡ đặt ở ĐÂY chứ không trong vòng khớp, vì vòng khớp có hai lối
+	thoát sớm ("không có phiếu nào chờ", "chưa đọc được sao kê") mà hồ sơ
+	kẹt không liên quan gì tới cả hai. Trước v523 câu lỗi trên phiếu bảo kế
+	toán "bấm lại nút Đối soát lệnh chi", nhưng nút đó chỉ chạy vòng khớp
+	(lọc da_doi_soat = 0), nên bấm bao nhiêu lần cũng không gỡ: ca thật
+	HT-2026-02900 kẹt từ 21/09 tới 23/09 dù phép tính đã sửa từ v518."""
+	kq = _doi_soat_khop(ho_so, so_ngay)
+	da_thu = set(kq.pop("_da_thu", None) or [])
+	them = []
+	for ten in _ho_so_ket(ho_so):
+		if ten in da_thu:
+			continue
+		r = _sinh_va_ghi_loi(ten)
+		if r:
+			them.append(r)
+	if them:
+		kq["da_sinh"] = (kq.get("da_sinh") or []) + them
+	return kq
+
+
+def _doi_soat_khop(ho_so=None, so_ngay=30):
 	"""Tim giao dich CHI tren sao ke ngan hang khop voi phieu hoan tien.
 
 	SePay day sao ke vao `Bank Transaction` cua ERPNext, va cot `withdrawal`
@@ -2203,7 +2226,7 @@ def doi_soat(ho_so=None, so_ngay=30):
 	from vagabond.doi_soat_sepay import ly_do_tai_khoan_sepay, tai_khoan_duoc_khop
 	cho_phep_tk = tai_khoan_duoc_khop()
 
-	da, xem, sinh = 0, [], []
+	da, xem, sinh, da_thu = 0, [], [], []
 	for d in ds:
 		for g in gds:
 			mo_ta = "%s %s" % (g.get("description") or "", g.get("reference_number") or "")
@@ -2282,38 +2305,113 @@ def doi_soat(ho_so=None, so_ngay=30):
 			frappe.db.commit()
 			da += 1
 			# TIEN DA RA THAT. Day la moc duy nhat sinh chung tu.
-			#
-			# Boc rieng tung ho so: mot ho so hong khong duoc keo theo ca me
-			# dang quet, vi cac ho so khac da duoc danh dau doi soat roi.
-			try:
-				ho = frappe.get_doc(DT, d["name"])
-				kq = _sinh_chung_tu(ho)
-				if not kq.get("bo_qua"):
-					kq["ho_so"] = d["name"]
-					sinh.append(kq)
-				frappe.db.commit()
-			except Exception:
-				frappe.db.rollback()
-				frappe.log_error(
-					frappe.get_traceback(), "hoan_tien: sinh chung tu sau doi soat loi %s" % d["name"]
-				)
-				# Ghi loi LEN CHINH PHIEU. Error Log chi ke toan biet duong
-				# mo, ma nguoi ngoi truoc phieu moi la nguoi can biet vi sao
-				# chua co phieu chi.
-				try:
-					frappe.db.set_value(
-						DT, d["name"], "loi_sinh_ct",
-						("Tiền đã ra và đã khớp sao kê, nhưng máy chưa sinh được "
-						 "chứng từ: %s. Nhờ kế toán bấm lại nút Đối soát lệnh chi, "
-						 "còn không được thì báo anh Việt."
-						 % str(frappe.get_traceback()).strip().splitlines()[-1][:200]),
-					)
-					frappe.db.commit()
-				except Exception:
-					pass
+			kq = _sinh_va_ghi_loi(d["name"])
+			da_thu.append(d["name"])
+			if kq:
+				sinh.append(kq)
 			break
 	frappe.db.commit()
-	return {"da_khop": da, "xem_xet": xem[:50], "so_phieu_quet": len(ds), "da_sinh": sinh}
+	return {"da_khop": da, "xem_xet": xem[:50], "so_phieu_quet": len(ds), "da_sinh": sinh,
+		"_da_thu": da_thu}
+
+
+def ket_chung_tu(ho):
+	"""Hồ sơ đã khớp tiền ra mà chưa có chứng từ nào. THUẦN.
+
+	Đủ bốn điều: đã đối soát, có mã giao dịch ngân hàng, chưa huỷ, và chưa
+	có cả hoá đơn trả lẫn phiếu chi. Thiếu một điều là KHÔNG được sinh lại:
+	đã có phiếu chi mà sinh nữa là chi hai lần trên sổ cho một lần tiền ra
+	(nhánh tiền nộp thừa và huỷ đơn nháp không có hoá đơn trả để tự chặn).
+	"""
+	g = ho.get if hasattr(ho, "get") else (lambda k, m=None: getattr(ho, k, m))
+	return bool(
+		cint(g("da_doi_soat"))
+		and str(g("ma_gd") or "").strip()
+		and g("trang_thai") != "Da huy"
+		and not str(g("hoa_don_tra") or "").strip()
+		and not str(g("phieu_chi") or "").strip()
+	)
+
+
+def _ho_so_ket(ho_so=None):
+	"""Tên các hồ sơ kẹt chứng từ cần sinh lại. Chỉ lấy hồ sơ ĐÃ ghi lỗi,
+	để không đụng tới hồ sơ nào máy chưa từng thử."""
+	loc = {"da_doi_soat": 1, "trang_thai": ["!=", "Da huy"], "loi_sinh_ct": ["!=", ""]}
+	if ho_so:
+		loc["name"] = ho_so
+	ds = frappe.get_all(
+		DT, filters=loc,
+		fields=["name", "da_doi_soat", "ma_gd", "trang_thai", "hoa_don_tra", "phieu_chi"],
+		limit_page_length=0,
+	)
+	return [d["name"] for d in ds if ket_chung_tu(d)]
+
+
+def _sinh_va_ghi_loi(ten):
+	"""Sinh chứng từ cho MỘT hồ sơ, hỏng thì ghi lỗi lên chính phiếu.
+
+	Một chỗ duy nhất cho cả vòng khớp, vòng gỡ hồ sơ kẹt và nút Sinh lại
+	chứng từ, để ba lối vào không bao giờ ghi lỗi hay dọn lỗi mỗi nơi một
+	kiểu (điều 18).
+
+	Bọc riêng từng hồ sơ: một hồ sơ hỏng không được kéo theo cả mẻ đang
+	quét, vì các hồ sơ khác đã được đánh dấu đối soát rồi."""
+	try:
+		ho = frappe.get_doc(DT, ten)
+		kq = _sinh_chung_tu(ho)
+		if not kq.get("bo_qua"):
+			frappe.db.set_value(DT, ten, "loi_sinh_ct", "")
+			kq["ho_so"] = ten
+		frappe.db.commit()
+		return None if kq.get("bo_qua") else kq
+	except Exception:
+		frappe.db.rollback()
+		frappe.log_error(
+			frappe.get_traceback(), "hoan_tien: sinh chung tu sau doi soat loi %s" % ten
+		)
+		# Ghi lỗi LÊN CHÍNH PHIẾU. Error Log chỉ kỹ thuật biết đường mở, mà
+		# người ngồi trước phiếu mới là người cần biết vì sao chưa có phiếu chi.
+		try:
+			frappe.db.set_value(
+				DT, ten, "loi_sinh_ct",
+				("Tiền đã ra và đã khớp sao kê, nhưng máy chưa sinh được "
+				 "chứng từ: %s. Nhờ kế toán bấm nút Sinh lại chứng từ trên phiếu "
+				 "này, còn không được thì báo anh Việt."
+				 % str(frappe.get_traceback()).strip().splitlines()[-1][:200]),
+			)
+			frappe.db.commit()
+		except Exception:
+			pass
+		return None
+
+
+@frappe.whitelist()
+def sinh_lai(ho_so=None):
+	"""Nút Sinh lại chứng từ trên phiếu đã khớp tiền ra mà chứng từ hỏng.
+
+	Không khớp sao kê lại: tiền ra đã là sự thật đã ghi. Chỉ chạy lại đúng
+	bước sinh chứng từ, và chỉ khi phiếu còn trắng chứng từ."""
+	from vagabond.ban_hang import _kiem_quyen
+
+	_kiem_quyen()
+	if not _duoc_tu_choi():
+		frappe.throw("Chỉ kế toán được sinh lại chứng từ hoàn tiền.")
+	if not ho_so or not frappe.db.exists(DT, ho_so):
+		frappe.throw("Không tìm thấy phiếu hoàn tiền này.")
+	d = frappe.db.get_value(
+		DT, ho_so, ["name", "da_doi_soat", "ma_gd", "trang_thai", "hoa_don_tra", "phieu_chi"],
+		as_dict=True,
+	)
+	if not ket_chung_tu(d):
+		frappe.throw(
+			"Phiếu này không ở trạng thái chờ sinh lại: hoặc chưa khớp tiền ra, "
+			"hoặc đã có chứng từ rồi. Tải lại màn để xem trạng thái mới."
+		)
+	kq = _sinh_va_ghi_loi(ho_so)
+	if not kq:
+		loi = frappe.db.get_value(DT, ho_so, "loi_sinh_ct") or ""
+		return {"ok": 0, "loi": loi}
+	return {"ok": 1, "hoa_don_tra": kq.get("hoa_don_tra") or "", "phieu_chi": kq.get("phieu_chi") or ""}
 
 
 @frappe.whitelist()
@@ -3195,6 +3293,10 @@ def chi_tiet(ho_so):
 	ra["ket_thuc_duoc"] = 1 if (
 		ra["dinh_duoc_unc"] and ra["co_unc"] and d.trang_thai != "Hoan thanh"
 	) else 0
+	# Tiền đã ra mà chưa có chứng từ: màn vẽ nút Sinh lại chứng từ thay cho
+	# câu "bước còn lại là đính uỷ nhiệm chi", vì chưa có phiếu chi thì
+	# không có chỗ nào để đính (v523, HT-2026-02900).
+	ra["sinh_lai_duoc"] = 1 if (_duoc_tu_choi() and ket_chung_tu(d)) else 0
 	return ra
 
 
