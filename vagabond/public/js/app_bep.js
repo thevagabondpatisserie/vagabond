@@ -17923,7 +17923,12 @@ function htCtVe() {
   html += htCtUnc(d);
 
   var chan = '';
-  if (d.trang_thai !== 'Da huy') {
+  if (d.sinh_lai_duoc) {
+    /* Codex #363 vòng 4: hồ sơ kẹt chứng từ thì việc chính là Sinh lại, đặt
+       ở thanh dưới cùng như mọi việc chính khác. Tiền đã ra rồi nên KHÔNG
+       bày nút Chuyển khoản, bày ra là mời chuyển thêm lần nữa. */
+    chan += '<button class="btn" id="htCtSinhLai" style="margin:0;flex:1">🔄 Sinh lại chứng từ</button>';
+  } else if (d.trang_thai !== 'Da huy') {
     chan += '<button class="btn gh" id="htCtMb" style="margin:0;flex:1">🏦 Chuyển khoản</button>';
   }
   if (d.con_tu_choi_duoc && d.duoc_tu_choi) {
@@ -18042,8 +18047,7 @@ function htCtKhopSepay(d) {
     return '<div style="margin-top:10px">' +
       '<div style="font-size:12.5px;color:#7f1d1d;line-height:1.6;margin-bottom:8px">' +
       'Tiền đã ra nhưng máy chưa lập được phiếu chi, nên chưa có chỗ đính uỷ nhiệm chi. ' +
-      'Bấm nút dưới để máy lập lại chứng từ; xong là nút Đính uỷ nhiệm chi tự hiện.</div>' +
-      '<button class="btn gh" id="htCtSinhLai" style="margin:0;width:100%">🔄 Sinh lại chứng từ</button>' +
+      'Bấm nút <b>Sinh lại chứng từ</b> ở cuối màn để máy lập lại; xong là nút Đính uỷ nhiệm chi tự hiện.</div>' +
       '</div>';
   }
   if (d.da_doi_soat) {
