@@ -216,7 +216,7 @@ def _dong_hd(name):
 			"name", "idx", "item_code", "item_name", "qty", "rate", "amount",
 			"uom", "conversion_factor", "stock_uom", "stock_qty", "description",
 			"purchase_receipt", "pr_detail",
-			"vgb_mon_may_doan",
+			"vgb_mon_may_doan", "vgb_dvt_ncc", "ten_hang_ncc",
 		],
 		order_by="idx asc",
 		limit_page_length=0,
@@ -635,7 +635,17 @@ def so_sanh(name, phieu=None):
 				"dvt_hd": r.get("uom") or "",
 				"dvt_pnk": (ds[0].get("uom") or "") if ds else "",
 				"dvt_kho": dvt_kho,
-				"dvt_ncc": dvt_mua.dvt_tren_hoa_don(r.get("description")),
+				# Codex #358 vòng 23: đọc Ô RIÊNG trước, đừng dò lại mô tả.
+				# Tên hàng "Hạt dẻ (500g)" mà hoá đơn không ghi đơn vị thì dò
+				# mô tả ra "500g", rồi nút Khai đơn vị ghi vĩnh viễn một quy
+				# đổi "500g" bịa vào Món.
+				# Ô uom của dòng ĐÃ có mã là đơn vị của MÌNH, không phải
+				# đơn vị nhà cung cấp ghi, nên không lấy làm chỗ lùi: nói
+				# "nhà cung cấp ghi Chai" trong khi họ không ghi gì cũng là
+				# bịa. Không đọc ra thì để trống.
+				"dvt_ncc": dvt_mua.dvt_ncc_cua_dong(
+					r.get("description"), None,
+					r.get("ten_hang_ncc"), r.get("vgb_dvt_ncc")),
 				# Dấu "máy đoán": dòng còn dấu là dòng CHỜ CHỐT, app dựa vào
 				# đây để hiện nút Gắn mã dù ô mã đã có chữ (Codex #358).
 				"vgb_mon_may_doan": str(r.get("vgb_mon_may_doan") or "").strip(),
