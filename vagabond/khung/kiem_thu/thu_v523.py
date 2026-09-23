@@ -429,3 +429,76 @@ def _bao_dung():
 		"da_khop": 2, "xem_xet": [], "so_phieu_quet": 3, "da_sinh": [], "_da_thu": []})
 	la("không đè câu tổng khi có khớp mới", kq.get("ghi_chu"), None)
 	la("vẫn trả danh sách đã gỡ", kq.get("da_go"), ["HT-B"])
+
+
+# ----------------------------------------- Codex #363 vòng 2
+
+def _chay_xen(bang, khi_khoa=None, khi_lui=None, sinh_duoc=True, goi="sinh", ho_so="HT-2026-02900"):
+	"""Chạy hàm THẬT với một lượt khác "ghi xong" đúng lúc ta lấy khoá hoặc
+	vừa lùi giao dịch. khi_khoa / khi_lui là thay đổi mà lượt kia đã commit."""
+	from vagabond import hoan_tien as H
+	loi_log, goi_sinh = [], []
+	fr = _frappe_gia(bang, loi_log)
+	goc_gv, goc_rb = fr.db.get_value, fr.db.rollback
+	cho = {"khoa": dict(khi_khoa or {}), "lui": dict(khi_lui or {})}
+
+	def get_value(dt, ten, truong, as_dict=False, for_update=False):
+		if for_update and cho["khoa"]:
+			bang[DT][ten].update(cho["khoa"]); cho["khoa"] = {}
+		return goc_gv(dt, ten, truong, as_dict=as_dict, for_update=for_update)
+
+	def rollback():
+		goc_rb()
+		if cho["lui"]:
+			bang[DT][ho_so].update(cho["lui"]); cho["lui"] = {}
+
+	fr.db.get_value, fr.db.rollback = get_value, rollback
+
+	def sinh(ho):
+		goi_sinh.append(ho.name)
+		if not sinh_duoc:
+			raise _Loi("CK vượt tổng")
+		bang[DT][ho.name].update(hoa_don_tra="HDB-TRA-1", phieu_chi="APP-1")
+		return {"bo_qua": 0, "hoa_don_tra": "HDB-TRA-1", "phieu_chi": "APP-1"}
+
+	B = SimpleNamespace(_kiem_quyen=lambda *a, **k: None)
+	cu_mod = sys.modules.get("vagabond.ban_hang")
+	cu = {k: getattr(H, k) for k in ("frappe", "_sinh_chung_tu", "_duoc_tu_choi")}
+	try:
+		sys.modules["vagabond.ban_hang"] = B
+		H.frappe, H._sinh_chung_tu = fr, sinh
+		H._duoc_tu_choi = lambda nguoi=None: True
+		kq = H.sinh_lai(ho_so) if goi == "nut" else H._sinh_va_ghi_loi(ho_so)
+	finally:
+		for k, v in cu.items():
+			setattr(H, k, v)
+		if cu_mod is None:
+			sys.modules.pop("vagabond.ban_hang", None)
+		else:
+			sys.modules["vagabond.ban_hang"] = cu_mod
+	return kq, goi_sinh
+
+
+@ca("#523 Codex #363 v2: lượt hỏng vừa lùi thì KHÔNG ghi đè câu lỗi lên hồ sơ lượt khác đã lập xong")
+def _khong_de_loi():
+	# Lượt ta hỏng và lùi; đúng lúc đó lượt kia (đang chờ khoá) đã lập xong
+	# và dọn câu lỗi. Ghi mù câu lỗi là để một hồ sơ đủ chứng từ trông như kẹt.
+	bang = {DT: {"HT-2026-02900": _ho(loi_sinh_ct="cũ")}}
+	_kq, _g = _chay_xen(bang, sinh_duoc=False,
+		khi_lui={"hoa_don_tra": "HDB-TRA-9", "phieu_chi": "APP-9", "loi_sinh_ct": ""})
+	la("câu lỗi vẫn trống", bang[DT]["HT-2026-02900"]["loi_sinh_ct"], "")
+	la("giữ chứng từ của lượt kia", bang[DT]["HT-2026-02900"]["phieu_chi"], "APP-9")
+	# Còn kẹt thật thì vẫn ghi lỗi như cũ.
+	bang = {DT: {"HT-2026-02900": _ho(loi_sinh_ct="cũ")}}
+	_kq, _g = _chay_xen(bang, sinh_duoc=False)
+	dung("kẹt thật thì vẫn ghi lỗi", "Sinh lại chứng từ" in bang[DT]["HT-2026-02900"]["loi_sinh_ct"])
+
+
+@ca("#523 Codex #363 v2: nút Sinh lại chờ khoá mà nhịp theo giờ đã lập xong thì báo thành công")
+def _xong_truoc():
+	bang = {DT: {"HT-2026-02900": _ho()}}
+	kq, goi = _chay_xen(bang, goi="nut",
+		khi_khoa={"hoa_don_tra": "HDB-TRA-7", "phieu_chi": "APP-7", "loi_sinh_ct": ""})
+	la("không lập lần hai", goi, [])
+	la("báo thành công kèm đúng chứng từ", (kq.get("ok"), kq.get("phieu_chi")), (1, "APP-7"))
+	la("nói rõ là đã xong từ trước", kq.get("da_xong_truoc"), 1)
