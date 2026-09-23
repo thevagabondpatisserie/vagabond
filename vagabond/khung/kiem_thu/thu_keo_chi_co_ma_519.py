@@ -100,7 +100,8 @@ def _khong_luu():
 		[d for d in ghi["insert"] if d.get("ma_hd_id") == CHI_MA["id"]], [])
 	la("vỏ ruột VẪN được lập", [d["ma_hd_id"] for d in ghi["insert"]].count(VO_RUOT["id"]), 1)
 	la("hoá đơn đủ ruột được lập", [d["ma_hd_id"] for d in ghi["insert"]].count(DAY_DU["id"]), 1)
-	la("đếm đúng 1 dòng chỉ có mã", kq["nguon_chua_du"], 1)
+	la("đếm đúng 1 dòng chỉ có mã", kq["dong_chi_ma"], 1)
+	la("KHÔNG đếm vào ô chờ nguồn", kq["nguon_chua_du"], 0)
 	la("số tờ mới không tính dòng chỉ có mã", kq["moi"], 2)
 	la("quét đủ 3 dòng", kq["da_quet"], 3)
 	la("không coi là lỗi", kq["so_loi_hoa_don"], 0)
@@ -116,6 +117,7 @@ def _co_so_thieu_ngay():
 	kq, ghi = _chay_keo([[co_so]])
 	la("vẫn lưu tờ có số", [d["ma_hd_id"] for d in ghi["insert"]], [co_so["id"]])
 	la("không đếm là chờ nguồn", kq["nguon_chua_du"], 0)
+	la("không đếm là dòng chỉ có mã", kq["dong_chi_ma"], 0)
 	la("tính là tờ mới", kq["moi"], 1)
 
 
@@ -129,6 +131,7 @@ def _van_lanh():
 	la("số hoá đơn đã vào", ghi["set_value"][0][1]["so_hd"], 1234)
 	la("đếm đã lành", kq["chua_lanh"], 1)
 	la("không đếm vào chờ nguồn", kq["nguon_chua_du"], 0)
+	la("không đếm là dòng chỉ có mã", kq["dong_chi_ma"], 0)
 
 
 @ca("#519 _keo: bản ghi rỗng đã lỡ lưu trước đây không bị đụng tới")
@@ -137,7 +140,8 @@ def _khong_dung_du_lieu_cu():
 	kq, ghi = _chay_keo([[CHI_MA]], da_co={CHI_MA["id"]: {"so_hd": None}})
 	la("không ghi gì vào bản ghi cũ", ghi["set_value"], [])
 	la("không lập bản ghi mới", ghi["insert"], [])
-	la("vẫn đếm là chờ nguồn", kq["nguon_chua_du"], 1)
+	la("tờ đã nằm trong máy mà còn trống số thì vẫn đếm chờ nguồn",
+		kq["nguon_chua_du"], 1)
 
 
 @ca("#519 _keo: dòng không có mã vẫn là lỗi, không lẫn với dòng chỉ có mã")
@@ -146,6 +150,7 @@ def _thieu_ma():
 	la("không lập bản ghi", ghi["insert"], [])
 	la("đếm là lỗi", kq["so_loi_hoa_don"], 1)
 	la("không đếm là chờ nguồn", kq["nguon_chua_du"], 0)
+	la("không đếm là dòng chỉ có mã", kq["dong_chi_ma"], 0)
 	la("đã lùi lại tờ hỏng", ghi["rollback"], ["minvoice_mot_to"])
 
 
@@ -155,3 +160,55 @@ def _mot_nguon():
 	la("thân _keo gọi chi_co_ma đúng một lần", than.count("chi_co_ma("), 1)
 	la("không còn chỗ nào tự ghép lại điều kiện đó",
 		than.count('not inv.get("shdon")'), 0)
+
+
+# ---- Codex P1 tren SHA dbf808c4: dong chi co ma khong duoc lam nut bao hong
+
+MA_CT = (Path(__file__).resolve().parents[2] / "minvoice_chung_tu.py").read_text(encoding="utf-8")
+
+
+def _chay_dong_bo(keo_kq, dung_kq=None):
+	"""Chạy `dong_bo_ngay` THẬT, chỉ thay bước kéo và bước dựng bằng số cho sẵn.
+
+	Phải chạy hàm thật vì điều cần chốt nằm đúng ở câu tính `hoan_tat`.
+	"""
+	ham = [n for n in ast.parse(MA_CT).body
+		if isinstance(n, ast.FunctionDef) and n.name == "dong_bo_ngay"]
+	env = dict(
+		frappe=SimpleNamespace(whitelist=lambda: (lambda h: h)),
+		_kiem_quyen=lambda s: None, cint=lambda n: int(n or 0),
+		_chay=lambda: dict({"da_dung": 1, "con_hong": 0, "dang_chay_do": 0}, **(dung_kq or {})),
+	)
+	import sys as _sys
+	import types as _types
+	goi = _types.ModuleType("vagabond")
+	goi.minvoice_dong_bo = SimpleNamespace(_keo=lambda so_ngay=None: keo_kq)
+	cu = _sys.modules.get("vagabond")
+	_sys.modules["vagabond"] = goi
+	try:
+		exec(compile(ast.Module(body=ham, type_ignores=[]), "minvoice_chung_tu.py", "exec"), env)
+		return env["dong_bo_ngay"]()
+	finally:
+		if cu is not None:
+			_sys.modules["vagabond"] = cu
+
+
+@ca("#519 nút Đồng bộ: dòng chỉ có mã KHÔNG làm lượt kéo lành bị báo là hỏng")
+def _nut_dong_bo():
+	# Codex P1 ngày 23/09/2026 trên SHA dbf808c4. Trước khi sửa, gộp dòng chỉ
+	# có mã vào `nguon_chua_du` làm `ok` về 0, nên gần như lượt nào cũng hiện
+	# bảng cam "Đồng bộ chưa hoàn tất" dù không có gì hỏng. Riêng 23/09 có 16
+	# dòng như vậy, tức là mọi lượt trong ngày đều báo hỏng oan.
+	lanh = {"loi_o_loai": [], "nguon_chua_du": 0, "dong_chi_ma": 0, "moi": 2, "chua_lanh": 0}
+	la("lượt sạch thì ok", _chay_dong_bo(lanh)["ok"], 1)
+	la("có dòng chỉ có mã vẫn ok", _chay_dong_bo(dict(lanh, dong_chi_ma=16))["ok"], 1)
+	# Ba vế còn lại vẫn phải kéo ok về 0, đừng nới tay quá.
+	la("tờ trong máy còn trống số thì chưa xong",
+		_chay_dong_bo(dict(lanh, nguon_chua_du=1))["ok"], 0)
+	la("lỗi theo loại thì chưa xong",
+		_chay_dong_bo(dict(lanh, loi_o_loai=["Đầu vào"]))["ok"], 0)
+	la("còn tờ hỏng thì chưa xong",
+		_chay_dong_bo(lanh, {"con_hong": 1})["ok"], 0)
+	# Chốt không ai lặng lẽ nhét lại `dong_chi_ma` vào câu tính hoàn tất.
+	than = MA_CT.split("def dong_bo_ngay(")[1].split("\ndef ")[0]
+	la("câu tính hoàn tất không nhắc dòng chỉ có mã", than.count("dong_chi_ma"), 0)

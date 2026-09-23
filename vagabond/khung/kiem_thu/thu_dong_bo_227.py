@@ -124,7 +124,8 @@ def _nguon_chua_du():
         {'id': 'du', 'shdon': 123, 'tdlap': '2026-09-20T17:00:00Z'}], totalPage=1)})
     # Fixture Doc dùng ma_hd_id; _du_lieu stub không suy số thật.
     kq = chay()
-    la('một nguồn chưa đủ', kq['nguon_chua_du'], 1)
+    la('một dòng chỉ có mã', kq['dong_chi_ma'], 1)
+    la('KHÔNG đếm vào ô chờ nguồn, vì nó không phải lỗi', kq['nguon_chua_du'], 0)
     la('chỉ giữ tờ đầy đủ', sorted(db.da_ghi), ['du'])
     la('không đếm dòng chỉ có mã là tờ mới', kq['moi'], 1)
     la('không coi nguồn chờ là lỗi lưu hóa đơn', kq['so_loi_hoa_don'], 0)
