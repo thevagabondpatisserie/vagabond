@@ -488,6 +488,18 @@ def hoc_ma_hang(doc, g):
 				continue
 			if ma_cu == ma:
 				continue
+			if ma_cu:
+				# Dòng này trỏ Món đã tắt. Trước khi học đè, soát MỌI ánh xạ cùng
+				# MST gốc (kể cả chi nhánh -001...): còn một ánh xạ SỐNG thì thôi.
+				# Học đè lúc đó là tạo hai món sống cho cùng một tên, tờ sau bị
+				# chặn "nhiều Món" (Codex #363 vòng 8).
+				from vagabond.quy_cach_ncc import _anh_xa
+				if any(
+					(r.get("item_code") or "").strip()
+					and not frappe.db.get_value("Item", r.get("item_code"), "disabled")
+					for r in _anh_xa(mst, "ten_ncc", ten)
+				):
+					continue
 			# Ánh xạ trống, hoặc trỏ vào Món ĐÃ TẮT (v523, Kahlua NVLT00325):
 			# học món người vừa chốt. Xoá luôn đơn vị đã đối chiếu vì đơn vị
 			# đó là của món cũ, món mới có thể không có nó.
