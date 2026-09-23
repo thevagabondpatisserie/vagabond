@@ -99,10 +99,11 @@ def _thuan_khop():
 def _thuan_loc():
 	hang = [("Box", "Box", "Hộp"), ("Hộp", "Hộp", "Hộp"), ("Hộp 16", "Hộp 16", "Hộp 16"),
 		("Combo", "Combo", "Combo"), ("Gram", "Gram", "Gram")]
-	la("gõ Box ra đúng Box", loc_don_vi(hang, "Box"), [["Box", "Hộp"]])
+	la("gõ Box ra đúng Box", loc_don_vi(hang, "Box"), [["Box", "Box (Hộp)"]])
 	ten = [x[0] for x in loc_don_vi(hang, "Hộp")]
 	la("gõ Hộp ra cả ba", sorted(ten), ["Box", "Hộp", "Hộp 16"])
-	la("Box mang mô tả là tên đã dịch", dict(loc_don_vi(hang, "Hộp")).get("Box"), "Hộp")
+	la("Box mang mô tả giữ cả tên lưu lẫn tên đã dịch (v522)",
+		dict(loc_don_vi(hang, "Hộp")).get("Box"), "Box (Hộp)")
 	la("đơn vị tên trùng bản dịch thì không bày mô tả thừa",
 		dict(loc_don_vi(hang, "Hộp")).get("Hộp"), "")
 	la("gõ rỗng thì bày hết", len(loc_don_vi(hang, "")), 5)
@@ -150,7 +151,7 @@ def _tim_uom():
 	dich = {"Box": "Hộp", "Nos": "Số"}
 
 	ra, _l = _chay_tim_uom(ds, dich, "Box")
-	la("gõ Box ra đúng một dòng Box", ra, [["Box", "Hộp"]])
+	la("gõ Box ra đúng một dòng Box", ra, [["Box", "Box (Hộp)"]])
 
 	ra, _l = _chay_tim_uom(ds, dich, "Hộp")
 	la("gõ Hộp ra cả hai", sorted(x[0] for x in ra), ["Box", "Hộp"])
@@ -177,3 +178,61 @@ def _tim_uom():
 	# được xin bỏ qua quyền.
 	_ra, loc = _chay_tim_uom(ds, dich, "Box")
 	la("không xin bỏ qua quyền đọc", bool(loc.get("__bo_quyen")), False)
+
+
+# ------------------------------------ v522: đi qua đúng đường của Frappe
+
+def _qua_search_link(ds, dich, txt, page_length=10):
+	"""Dựng lại ĐÚNG chuỗi search_link -> search_widget -> build_for_autosuggest
+	của Frappe v16 cho doctype có translated_doctype = 1 (UOM).
+
+	Sự cố v521 (23/09/2026): các ca trên gọi thẳng tim_uom với chữ người gõ
+	nên xanh hết, nhưng Frappe KHÔNG gọi như vậy. Với doctype được dịch,
+	search_widget gọi hàm standard_queries với txt RỖNG, start 0, page_length
+	25000, rồi TỰ LỌC LẠI bằng filter_translated (dịch từng ô qua _() rồi dò
+	chữ người gõ), xếp bằng relevance_sorter, cắt trang. Box dịch thành
+	"Hộp" nên dòng ["Box", "Hộp"] bị lọc sạch khi gõ "box": trên site thật gõ
+	Box, Nos, Set vẫn rỗng dù hàm tìm đúng. Ca này chép nguyên ba bước đó từ
+	frappe/desk/search.py (v16.34: dòng 136-181, 408-437, 449-463). Đừng thay
+	bằng lời gọi thẳng tim_uom, làm vậy là che đúng lỗi này.
+	"""
+	import re
+	_ = lambda v: dich.get(v, v)
+	cstr = lambda v: "" if v is None else str(v)
+	# search_widget: txt rỗng, lấy hết.
+	values, _l = _chay_tim_uom(ds, dich, "", start=0, page_len=25000)
+	# filter_translated
+	values = [r for r in values if any(
+		re.search(re.escape(txt) + ".*", _(cstr(v)) or "", re.IGNORECASE) for v in r)]
+	# relevance_sorter
+	values = sorted(values, key=lambda k: (
+		cstr(_(k[0])).casefold().startswith(txt.casefold()) is not True, _(k[0])))
+	values = values[0:page_length]
+	# build_for_autosuggest, nhánh show_title_field_in_link = 0
+	ra = []
+	for item in values:
+		mo = ", ".join(dict.fromkeys(_(cstr(x)) for x in item[1:] if x))
+		ra.append({"value": item[0], "description": mo, "label": _(item[0])})
+	return ra
+
+
+@ca("#522 ô chọn đơn vị đi qua bộ lọc dịch của Frappe: gõ Box, Nos, Set vẫn ra")
+def _qua_bo_loc_dich():
+	ds = [{"name": "Box", "uom_name": "Box"}, {"name": "Hộp", "uom_name": "Hộp"},
+		{"name": "Nos", "uom_name": "Nos"}, {"name": "Set", "uom_name": "Set"},
+		{"name": "Bộ", "uom_name": "Bộ"}, {"name": "Gram", "uom_name": "Gram"},
+		{"name": "Bottle", "uom_name": "Bottle"}]
+	dich = {"Box": "Hộp", "Nos": "Số", "Set": "Bộ"}
+	gia_tri = lambda txt: [r["value"] for r in _qua_search_link(ds, dich, txt)]
+
+	# Trước bản vá: ba dòng dưới đều ra [] trên site thật lẫn ở đây.
+	la("gõ box ra Box", gia_tri("box"), ["Box"])
+	la("gõ Nos ra Nos", gia_tri("Nos"), ["Nos"])
+	la("gõ set ra Set", gia_tri("set"), ["Set"])
+	la("gõ bo ra cả Box lẫn Bottle", sorted(gia_tri("bo")), ["Bottle", "Box"])
+	la("gõ Hộp ra cả Hộp lẫn Box", sorted(gia_tri("Hộp")), ["Box", "Hộp"])
+	la("gõ Bộ ra cả Bộ lẫn Set", sorted(gia_tri("Bộ")), ["Bộ", "Set"])
+	la("đơn vị không dịch vẫn ra như cũ", gia_tri("gram"), ["Gram"])
+	box = [r for r in _qua_search_link(ds, dich, "box")][0]
+	la("người gõ thấy tên tiếng Việt làm nhãn", box["label"], "Hộp")
+	la("và thấy tên lưu trong mô tả để khỏi tạo trùng", box["description"], "Box (Hộp)")
