@@ -122,11 +122,17 @@ def _chay_tim_uom(ds, dich, txt, start=0, page_len=20, filters=None):
 		if isinstance(n, ast.FunctionDef) and n.name in ("tim_uom", "_loc")]
 	da_loc = {}
 
-	def get_all(dt, filters=None, fields=None, **k):
+	def get_list(dt, filters=None, fields=None, **k):
 		da_loc.update(filters or {})
+		# Ghi lai co bo qua quyen hay khong, de ca kiem chot duoc (Codex #360).
+		da_loc["__bo_quyen"] = k.get("ignore_permissions")
 		return [dict(d) for d in ds]
 
-	f = SimpleNamespace(get_all=get_all, _=lambda s: dich.get(s, s),
+	def get_all(*a, **k):
+		# Frappe that: get_all LUON bo qua quyen. Goi vao day la hong.
+		raise AssertionError("tim_uom khong duoc goi get_all: get_all bo qua quyen doc")
+
+	f = SimpleNamespace(get_list=get_list, get_all=get_all, _=lambda s: dich.get(s, s),
 		validate_and_sanitize_search_inputs=lambda h: h)
 	env = dict(frappe=f, cint=lambda n: int(n or 0), loc_don_vi=loc_don_vi)
 	exec(compile(ast.Module(body=ham, type_ignores=[]), "tim_don_vi.py", "exec"), env)
@@ -160,3 +166,10 @@ def _tim_uom():
 
 	ra, _l = _chay_tim_uom(ds, dich, "", start=1, page_len=2)
 	la("cắt trang đúng", len(ra), 2)
+
+	# Codex #360 vòng 1: đây là cửa tìm cho MỌI ô chọn UOM, nên phải tôn
+	# trọng quyền đọc UOM của người đang gõ. frappe.get_all luôn bỏ qua quyền
+	# (tự gán ignore_permissions=True), nên phải đi qua get_list và không
+	# được xin bỏ qua quyền.
+	_ra, loc = _chay_tim_uom(ds, dich, "Box")
+	la("không xin bỏ qua quyền đọc", bool(loc.get("__bo_quyen")), False)
