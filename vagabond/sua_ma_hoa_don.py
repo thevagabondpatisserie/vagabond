@@ -8,7 +8,7 @@ Không chạy tự động trên chứng từ cũ, không thêm chốt chặn sa
 from html import escape
 import frappe
 from frappe.utils import flt
-from vagabond import dung_lai_hddt as dl, minvoice_chung_tu as mc, quy_cach_ncc as qc
+from vagabond import dung_lai_hddt as dl, dvt_mua, minvoice_chung_tu as mc, quy_cach_ncc as qc
 
 
 def _phieu(name, can_nguon=True):
@@ -146,12 +146,19 @@ def _sua(doc, g, dong, vi_tri, item_code, uom, dau_nguon=None):
     # Cửa này chốt Món KÈM quy cách người chọn, nên dấu "máy đoán" hết nhiệm
     # vụ. Còn dấu là còn chặn ghi sổ (Codex #358).
     d.vgb_mon_may_doan = ''
+    # Dòng vừa được trỏ sang một dòng NGUỒN KHÁC, nên đơn vị nhà cung cấp ghi
+    # cũng là của dòng nguồn mới. Giữ ô cũ là để màn đối chiếu mời khai một
+    # đơn vị của dòng nguồn khác cho Món mới (Codex #358 vòng 27). Nguồn không
+    # ghi đơn vị thì ghi rõ "(không ghi)", cùng khuôn với đường dựng phiếu.
+    dvt_nguon = str(x.get('dvt') or '').strip() or dvt_mua.KHONG_GHI
+    d.vgb_dvt_ncc = dvt_nguon
     doc.ignore_pricing_rule = 1
     doc.save()
     doc.reload()
     sau = [r for r in doc.items if r.name == dong]
     if len(sau) != 1 or any(sau[0].get(k) != v for k, v in dict(
-        item_code=item_code, ten_hang_ncc=ten, uom=uom).items()) or any(
+        item_code=item_code, ten_hang_ncc=ten, uom=uom,
+        vgb_dvt_ncc=dvt_nguon).items()) or any(
         abs(flt(sau[0].get(k)) - flt(v)) > 0.000001 for k, v in dict(
             qty=x['sl'], rate=x['gia'], conversion_factor=hs).items()):
         frappe.throw('Lượt lưu chưa giữ đúng dòng đã chọn. Hệ thống đã lùi cả sửa mã và ánh xạ; tải lại và báo kỹ thuật.')
