@@ -2379,6 +2379,11 @@ def _sinh_va_ghi_loi(ten):
 			return None
 		ho = frappe.get_doc(DT, ten)
 		kq = _sinh_chung_tu(ho)
+		if kq.get("bo_qua") and ket_chung_tu(ho):
+			# Bỏ qua mà hồ sơ vẫn trắng chứng từ (vd thiếu Kho Hàng Hủy) là
+			# HỎNG, không phải "đã xong" (Codex #363 vòng 7). Ném để ghi lý do
+			# lên phiếu; có câu lỗi thì nhịp theo giờ mới nhặt lại được.
+			frappe.throw(kq.get("vi_sao") or "Máy chưa lập được chứng từ nào cho hồ sơ này.")
 		if not kq.get("bo_qua") and not str(kq.get("phieu_chi") or "").strip():
 			# _lap_phieu_chi nuốt lỗi của ERPNext và trả rỗng (Codex #363
 			# vòng 3). Coi đó là thành công thì tờ trả hàng đã ghi sổ làm hồ
@@ -3470,7 +3475,10 @@ def _khi_khop_hoan_tien(doc, ma_gd):
 		DT, doc.name, ["da_doi_soat", "ma_gd", "trang_thai", "hoa_don_tra", "phieu_chi"], as_dict=True
 	)
 	if d and ket_chung_tu(d):
-		frappe.throw("Chưa lập được chứng từ hoàn tiền. Xem lỗi trên phiếu rồi bấm Sinh lại chứng từ.")
+		# LoiSauKhop: tầng chung bày NGUYÊN câu này, không nối thêm "bấm lại
+		# Khớp SePay" (dấu khớp đã commit, nút đó không còn) (Codex #363 v7).
+		from vagabond.doi_soat_sepay import LoiSauKhop
+		raise LoiSauKhop("Chưa lập được chứng từ hoàn tiền. Xem lỗi trên phiếu rồi bấm Sinh lại chứng từ.")
 	return None
 
 
