@@ -105,12 +105,9 @@ def _sinh_lai_that():
 	else:
 		dung("lập được phiếu chi (thiếu thì kiểm tài khoản ngân hàng chi hoàn)", False)
 
-	# Bấm lần hai trên hồ sơ đã đủ chứng từ: phải bị từ chối, không lập thêm.
-	try:
-		hoan_tien.sinh_lai(ten)
-		lot = True
-	except Exception:
-		lot = False
-	dung("bấm lần hai bị từ chối", not lot)
+	# Bấm lần hai trên hồ sơ đã đủ chứng từ: báo "đã xong từ trước" (Codex
+	# #363 vòng 3), và không được lập thêm tờ nào.
+	lan2 = khong_nem("bấm lần hai", lambda: hoan_tien.sinh_lai(ten)) or {}
+	la("bấm lần hai báo đã xong từ trước", lan2.get("da_xong_truoc"), 1)
 	la("vẫn đúng một tờ trả hàng cho đơn", frappe.db.count("Sales Invoice",
 		{"return_against": hd.name, "docstatus": 1}), 1)
