@@ -53,7 +53,8 @@ class _Db:
 		thay = truong if isinstance(truong, dict) else {truong: gt}
 		self.bang[dt][ten].update(thay)
 
-	def get_value(self, dt, ten, truong, as_dict=False):
+	def get_value(self, dt, ten, truong, as_dict=False, for_update=False):
+		# frappe.db.get_value thật nhận for_update (SELECT ... FOR UPDATE).
 		d = self.bang.get(dt, {}).get(ten)
 		if d is None:
 			return None
@@ -368,3 +369,63 @@ def _hoc():
 	la("không đè ánh xạ còn sống", (n, bang["x"]["item_code"], bang["x"]["vgb_uom"]), (0, "NVLT00150", "Chai"))
 	n, bang, them = _chay_hoc({}, _MON)
 	la("chưa có ánh xạ thì thêm mới", [t["item_code"] for t in them], ["NVLT00151"])
+
+
+# ----------------------------------------- Codex #363 vòng 1: hai finding
+
+@ca("#523 Codex #363: lượt gỡ chạy trễ đọc danh sách cũ thì KHÔNG lập chứng từ lần hai")
+def _dua_nhau():
+	# Tái hiện đúng chuỗi Codex tả: nhịp theo giờ và nút Sinh lại cùng thấy
+	# hồ sơ còn trắng chứng từ. Lượt A lập xong. Lượt B cầm danh sách đọc
+	# TRƯỚC khi A xong, rồi mới tới lượt sinh. Không khoá và soát lại trong
+	# giao dịch thì B lập thêm một tờ trả hàng và một phiếu chi nữa.
+	from vagabond import hoan_tien as H
+	bang = {DT: {"HT-2026-02900": _ho()}}
+	loi_log, goi, khoa = [], [], []
+	fr = _frappe_gia(bang, loi_log)
+	get_value_goc = fr.db.get_value
+
+	def get_value(dt, ten, truong, as_dict=False, for_update=False):
+		if for_update:
+			khoa.append(ten)
+		return get_value_goc(dt, ten, truong, as_dict=as_dict, for_update=for_update)
+
+	fr.db.get_value = get_value
+
+	def sinh(ho):
+		goi.append(ho.name)
+		bang[DT][ho.name].update(hoa_don_tra="HDB-TRA-%d" % len(goi), phieu_chi="APP-%d" % len(goi))
+		return {"bo_qua": 0, "hoa_don_tra": "HDB-TRA-%d" % len(goi), "phieu_chi": "APP-%d" % len(goi)}
+
+	cu = {k: getattr(H, k) for k in ("frappe", "_sinh_chung_tu")}
+	try:
+		H.frappe = fr
+		H._sinh_chung_tu = sinh
+		ds_cu_cua_B = H._ho_so_ket()        # B đọc danh sách khi hồ sơ còn trắng
+		H._sinh_va_ghi_loi("HT-2026-02900")  # A lập xong
+		for ten in ds_cu_cua_B:              # B tới lượt sinh
+			H._sinh_va_ghi_loi(ten)
+	finally:
+		for k, v in cu.items():
+			setattr(H, k, v)
+	la("chỉ lập chứng từ MỘT lần", goi, ["HT-2026-02900"])
+	la("giữ đúng bộ chứng từ của lượt đầu", bang[DT]["HT-2026-02900"]["phieu_chi"], "APP-1")
+	dung("đọc lại hồ sơ có khoá dòng trước khi sinh", "HT-2026-02900" in khoa)
+
+
+@ca("#523 Codex #363: nút Đối soát lệnh chi gỡ được phiếu kẹt thì báo đúng, không báo 'không có phiếu nào'")
+def _bao_dung():
+	bang = {DT: {"HT-2026-02900": _ho()}}
+	kq, goi, _f, _l = _chay_ht(bang)
+	la("đã gỡ", goi, ["HT-2026-02900"])
+	dung("không còn câu 'Không có phiếu nào chờ đối soát'",
+		"Không có phiếu nào chờ" not in (kq.get("ghi_chu") or ""))
+	dung("câu báo nêu đúng phiếu vừa lập lại", "HT-2026-02900" in (kq.get("ghi_chu") or ""))
+	la("trả danh sách phiếu đã gỡ cho màn", kq.get("da_go"), ["HT-2026-02900"])
+	# Có khớp mới (không thoát sớm) thì câu tổng của màn vẫn do màn ghép,
+	# nhưng danh sách đã gỡ phải có để màn nối thêm.
+	bang = {DT: {"HT-B": _ho()}}
+	kq, goi, _f, _l = _chay_ht(bang, khop=lambda ho_so=None, so_ngay=30: {
+		"da_khop": 2, "xem_xet": [], "so_phieu_quet": 3, "da_sinh": [], "_da_thu": []})
+	la("không đè câu tổng khi có khớp mới", kq.get("ghi_chu"), None)
+	la("vẫn trả danh sách đã gỡ", kq.get("da_go"), ["HT-B"])
