@@ -595,11 +595,18 @@ def _khop_tay_thieu_pc():
 	cu = {k: getattr(H, k) for k in ("frappe", "_sinh_chung_tu")}
 	try:
 		H.frappe, H._sinh_chung_tu = fr, sinh
-		kq = H._khi_khop_hoan_tien(_Doc(name="HT-K"), "ACC-BTN-1")
+		try:
+			H._khi_khop_hoan_tien(_Doc(name="HT-K"), "ACC-BTN-1")
+			nem = ""
+		except _Loi as e:
+			nem = str(e)
 	finally:
 		for k, v in cu.items():
 			setattr(H, k, v)
-	la("không báo đã sinh", kq, None)
+	# Vòng 6: tầng đối soát chung chỉ bày lỗi NÉM ra, nên hỏng phải ném, và
+	# câu ném chỉ đúng nút Sinh lại chứng từ.
+	dung("ném lỗi để màn Khớp tay không báo thành công", bool(nem))
+	dung("câu lỗi chỉ đúng nút Sinh lại chứng từ", "Sinh lại chứng từ" in nem)
 	la("vẫn giữ dấu đã khớp tiền ra", bang[DT]["HT-K"]["da_doi_soat"], 1)
 	dung("ghi lỗi thiếu phiếu chi lên phiếu", "phiếu chi" in bang[DT]["HT-K"]["loi_sinh_ct"])
 	dung("hồ sơ còn kẹt để bấm Sinh lại", H.ket_chung_tu(bang[DT]["HT-K"]))
@@ -619,3 +626,26 @@ def _mot_cua():
 				if isinstance(n, ast.Call) and getattr(n.func, "id", "") == "_sinh_chung_tu":
 					goi.append(fn.name)
 	la("chỉ _sinh_va_ghi_loi gọi _sinh_chung_tu", sorted(set(goi)), ["_sinh_va_ghi_loi"])
+
+
+@ca("#523 Codex #363 v6: khớp tay trên hồ sơ đã đủ chứng từ thì KHÔNG ném")
+def _khop_tay_da_du():
+	from vagabond import hoan_tien as H
+	bang = {DT: {"HT-D": _ho(hoa_don_tra="HDB-TRA-3", phieu_chi="APP-3", loi_sinh_ct="")}}
+	fr = _frappe_gia(bang, [])
+	goi = []
+	cu = {k: getattr(H, k) for k in ("frappe", "_sinh_chung_tu")}
+	try:
+		H.frappe = fr
+		H._sinh_chung_tu = lambda ho: goi.append(ho.name) or {"bo_qua": 1}
+		try:
+			kq = H._khi_khop_hoan_tien(_Doc(name="HT-D"), "ACC-BTN-3")
+			nem = ""
+		except _Loi as e:
+			kq, nem = None, str(e)
+	finally:
+		for k, v in cu.items():
+			setattr(H, k, v)
+	la("không ném", nem, "")
+	la("không lập thêm", goi, [])
+	la("giữ phiếu chi cũ", bang[DT]["HT-D"]["phieu_chi"], "APP-3")
