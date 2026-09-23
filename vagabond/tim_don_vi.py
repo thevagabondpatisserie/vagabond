@@ -54,12 +54,31 @@ def khop(cac_ten, txt):
 	return None
 
 
+def mo_ta_hien(ten, dich):
+	"""Mo ta bay canh don vi trong o chon. THUAN.
+
+	Ten da dich khac ten luu thi tra "Box (Hop)", con khong thi rong.
+
+	PHAI giu ten luu tieng Anh trong mo ta (v522, su co 23/09/2026). Voi
+	doctype co translated_doctype = 1 nhu UOM, search_widget cua Frappe goi
+	ham standard_queries voi txt RONG, lay het danh muc, roi TU LOC LAI tung
+	dong bang filter_translated: dich tung o qua _() va giu dong nao co o
+	chua chu nguoi go. Box dich thanh "Hop", nen neu dong chi co ["Box",
+	"Hop"] thi go "box" bi loc sach. Chuoi "Box (Hop)" khong co ban dich nen
+	qua _() van nguyen, va giu duoc Box khi go "box".
+	"""
+	t, d = str(ten or "").strip(), str(dich or "").strip()
+	if not chuan(d) or chuan(d) == chuan(t):
+		return ""
+	return "%s (%s)" % (t, d)
+
+
 def loc_don_vi(hang, txt, gioi_han=0):
 	"""Chon cac don vi khop, xep khop-dau-chuoi len truoc. THUAN.
 
 	`hang` la cac bo (ten_luu, ten_o, ten_da_dich). Tra list cac cap
-	[ten_luu, mo_ta], mo_ta la ten da dich khi no khac ten luu, con khong
-	thi rong. Khong bao gio tra ban trung ten.
+	[ten_luu, mo_ta], mo_ta la "ten_luu (ten_da_dich)" khi ban dich khac ten
+	luu, con khong thi rong (xem mo_ta_hien). Khong bao gio tra ban trung ten.
 	"""
 	ra, da_co = [], set()
 	for bo in hang or []:
@@ -72,7 +91,7 @@ def loc_don_vi(hang, txt, gioi_han=0):
 		if diem is None:
 			continue
 		da_co.add(ten)
-		mo = str(dich or "") if chuan(dich) and chuan(dich) != chuan(ten) else ""
+		mo = mo_ta_hien(ten, dich)
 		ra.append((diem, chuan(ten), ten, mo))
 	ra.sort(key=lambda x: (x[0], x[1]))
 	cat = int(gioi_han or 0)
