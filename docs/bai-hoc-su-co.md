@@ -1001,3 +1001,17 @@ Bài học: trước khi lưu một bản ghi giữ chỗ, hỏi "cái khoá mì
 qua các lượt không". Khoá đổi mỗi lượt thì đường lành không bao giờ chạy, và
 cách kiểm rẻ nhất là đếm xem trong dữ liệu đã có bao nhiêu bản giữ chỗ từng
 lành thật; ở đây con số đó là 0 trên 234.
+
+## 23/09/2026 (v520 -> v521): hàm standard_queries phải whitelist, bộ kiểm gọi thẳng hàm thì không thấy
+
+v520 đăng ký `standard_queries = {"UOM": "vagabond.tim_don_vi.tim_uom"}` mà
+hàm đó thiếu `@frappe.whitelist()`. Frappe v16 `search_widget` chạy
+`is_whitelisted(frappe.get_attr(query))` trước khi gọi, thiếu là trả trang
+"Invalid Method" 404. Kết quả: ô chọn đơn vị tính chết TOÀN HỆ, gõ "Gram"
+cũng không ra, khoảng một tiếng sau deploy mới phát hiện khi kiểm site thật.
+Bộ kiểm xanh vì ca kiểm gọi thẳng `tim_uom`, không đi qua cửa của Frappe.
+Cách phòng: ca `cửa ngõ` nay đọc `hooks.py`, lấy mọi hàm trong
+`standard_queries` và chốt từng hàm phải có whitelist. Nói chung: hàm nào
+Frappe gọi qua một cửa có gác (whitelist, allow_guest, hook) thì ca kiểm
+phải chốt được cái gác đó, gọi thẳng hàm là bỏ qua đúng chỗ hay hỏng.
+Và kiểm site thật ngay sau deploy là bắt buộc: lần này nó cứu được.

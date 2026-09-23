@@ -613,6 +613,11 @@ CUA_NGO = {
 	# `tra_lan_nhan` CHI DOC: man hinh hoi lan nhan dang cho da thanh phieu
 	# chua (vong 4). Khong mo them cua ghi nao khac.
 	"lan_nhan.py": ["nhan_theo_phieu", "tra_lan_nhan"],
+	# O chon don vi tinh (standard_queries cho UOM), v520/v521. BAT BUOC mo
+	# ra ngoai: Frappe tu choi goi ham standard_queries chua whitelist va tra
+	# "Invalid Method" cho moi lan tim. Ngay 23/09/2026 v520 len site thieu
+	# decorator nay, o chon UOM chet toan he khoang mot tieng.
+	"tim_don_vi.py": ["tim_uom"],
 }
 
 
@@ -671,3 +676,24 @@ def _():
 	dung("dong_bo_so_hddt phải nằm ngoài danh sách",
 		"dong_bo_so_hddt" not in duoc)
 	dung("ds phải nằm trong danh sách", "ds" in duoc)
+
+
+@ca("cửa ngõ: mọi hàm khai trong standard_queries của hooks.py đều phải whitelist")
+def _():
+	# Sự cố 23/09/2026 (v520): hooks.py trỏ standard_queries UOM vào
+	# tim_don_vi.tim_uom mà hàm đó thiếu @frappe.whitelist(). Frappe chạy
+	# is_whitelisted trước khi gọi, nên mọi lần gõ vào ô chọn đơn vị đều ra
+	# "Invalid Method" 404. Ca này đọc thẳng hooks.py và mã nguồn, không nạp
+	# Frappe, để bắt cả nhóm lỗi này chứ không riêng UOM.
+	cay = ast.parse(io.open(os.path.join(GOI, "hooks.py"), encoding="utf-8").read())
+	sq = None
+	for nut in cay.body:
+		if isinstance(nut, ast.Assign) and any(getattr(t, "id", "") == "standard_queries" for t in nut.targets):
+			sq = ast.literal_eval(nut.value)
+	dung("hooks.py có khai standard_queries", isinstance(sq, dict) and sq)
+	for dt, duong in (sq or {}).items():
+		for d in (duong if isinstance(duong, (list, tuple)) else [duong]):
+			phan = d.split(".")
+			dung("%s trỏ vào mô đun của app" % dt, phan[0] == "vagabond")
+			tep = os.path.join(GOI, *phan[1:-1]) + ".py"
+			la("hàm %s được whitelist" % d, phan[-1] in _ten_whitelist(tep), True)

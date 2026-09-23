@@ -103,9 +103,19 @@ def _loc(filters):
 	return ra
 
 
+# PHAI CO @frappe.whitelist() (v521, su co 23/09/2026). Frappe goi ham
+# standard_queries qua search_widget, va truoc khi goi no chay
+# `is_whitelisted(frappe.get_attr(query))`. Thieu decorator nay thi Frappe
+# tra trang "Invalid Method" 404 cho MOI lan tim trong o chon UOM, ke ca go
+# "Gram". Ban v520 lot dung loi nay: bo kiem goi thang ham nen khong thay,
+# chi lo ra khi len site that. Thu tu decorator theo dung mau cua ERPNext.
+@frappe.whitelist()
 @frappe.validate_and_sanitize_search_inputs
-def tim_uom(doctype, txt, searchfield, start, page_len, filters):
+def tim_uom(doctype, txt, searchfield, start, page_len, filters, **kwargs):
 	"""standard_queries cho UOM. Khop ca ten luu lan ten da dich.
+
+	search_widget con truyen them as_dict, reference_doctype,
+	ignore_user_permissions, link_fieldname; nhan vao **kwargs de khong vo.
 
 	Danh muc don vi cua tiem chi vai tram dong nen doc het roi loc trong
 	Python la du nhanh, va nho vay phep loc nam gon trong mot ham THUAN
