@@ -279,6 +279,11 @@ def _keo(so_ngay=None, tu_ngay="", den_ngay="", chi_loai="", do_lai_het=0):
 	moi, lanh, quet, cap_nhat, loi_o_loai = 0, 0, 0, 0, []
 	loi_hoa_don, so_loi_hoa_don = [], 0
 	nguon_chua_du = set()
+	# Dong nguon chi co ma: KHONG phai hoa don, bi bo qua. Dem rieng va
+	# KHONG bao giu la loi, vi no co mat o gan nhu moi luot keo. Gop chung
+	# vao nguon_chua_du thi dong_bo_ngay bao "chua hoan tat" mai, va nguoi
+	# dung het phan biet duoc luot lanh voi luot hong (Codex P1, 23/09/2026).
+	dong_chi_ma = set()
 	for itype, loai in cac_loai:
 		trang = 1
 		dem_da_ghi = (moi, lanh, cap_nhat)
@@ -322,7 +327,7 @@ def _keo(so_ngay=None, tu_ngay="", den_ngay="", chi_loai="", do_lai_het=0):
 						if rut_gon:
 							# Chi co ma thi DEM roi thoi, khong lap ban
 							# ghi rong. Ly do day du o phan thuan phia tren.
-							nguon_chua_du.add(str(hid))
+							dong_chi_ma.add(str(hid))
 							continue
 						doc = frappe.get_doc({"doctype": DT_HD, "ma_hd_id": hid})
 						doc.update(_du_lieu(inv, loai))
@@ -372,6 +377,7 @@ def _keo(so_ngay=None, tu_ngay="", den_ngay="", chi_loai="", do_lai_het=0):
 		"loi_o_loai": loi_o_loai, "tu_ngay": d_tu, "den_ngay": d_den,
 		"hoan_tat": not loi_o_loai, "so_loi_hoa_don": so_loi_hoa_don,
 		"loi_hoa_don": loi_hoa_don, "nguon_chua_du": len(nguon_chua_du),
+		"dong_chi_ma": len(dong_chi_ma),
 	}
 
 
