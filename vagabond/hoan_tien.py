@@ -2578,9 +2578,12 @@ def sepay_tien_ra(mo_ta="", so_tien=0, ma_gd=""):
 			"trang_thai": "Da doi soat",
 		},
 	)
-	ho = frappe.get_doc(DT, d["name"])
-	kq = _sinh_chung_tu(ho)
+	# Ghi dấu đã khớp TRƯỚC (bài học HT-2026-00899), rồi sinh qua đúng một
+	# cửa có khoá và chặn thiếu phiếu chi (Codex #363 vòng 5).
 	frappe.db.commit()
+	kq = _sinh_va_ghi_loi(d["name"])
+	if not kq:
+		kq = {"loi": frappe.db.get_value(DT, d["name"], "loi_sinh_ct") or ""}
 	kq["khop"] = 1
 	kq["ho_so"] = d["name"]
 	kq["ma"] = ma
@@ -3451,9 +3454,10 @@ def _khi_khop_hoan_tien(doc, ma_gd):
 		"loi_sinh_ct": "",
 	})
 	frappe.db.commit()
-	ho = frappe.get_doc(DT, doc.name)
-	kq = _sinh_chung_tu(ho)
-	return None if kq.get("bo_qua") else kq
+	# Đi qua đúng một cửa có khoá, soát lại và chặn thiếu phiếu chi (Codex
+	# #363 vòng 5). Gọi thẳng _sinh_chung_tu ở đây là lối khớp tay lọt khỏi
+	# mọi lớp bảo vệ của v523.
+	return _sinh_va_ghi_loi(doc.name)
 
 
 def _khai_doi_soat():
