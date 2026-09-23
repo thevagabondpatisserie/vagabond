@@ -110,19 +110,17 @@ def lay(item_code, mst, ten_ncc):
     ds = _anh_xa(mst, 'ten_ncc', ten)
     # Collation MariaDB có thể coi khác dấu/hoa thường là giống nhau.
     # Quy cách chỉ áp dụng đúng tên NCC đã đối chiếu, không gần giống.
-    da_chon = [d for d in ds if (d.get(TRUONG) or '').strip()]
+    # Bỏ ánh xạ trỏ Món ĐÃ TẮT trước khi đếm (v523, Codex #363 vòng 3): lịch
+    # sử chi nhánh có thể giữ một ánh xạ chết cạnh ánh xạ sống, đếm chung là
+    # báo "nhiều ánh xạ" và chặn đúng hoá đơn đang làm. Món tắt thì không ai
+    # nhập vào được nữa, quy cách của nó không còn là một lựa chọn.
+    da_chon = [d for d in ds if (d.get(TRUONG) or '').strip() and not _mon_tat(d.item_code)]
     if not da_chon:
         return None
     if len(da_chon) != 1:
         frappe.throw('Có nhiều ánh xạ quy cách cho NCC %s, hàng "%s". Giữ một lựa chọn rõ ràng trước khi tạo hoá đơn.'
                      % (mst, ten))
     d = da_chon[0]
-    if d.item_code != item_code and _mon_tat(d.item_code):
-        # Ánh xạ cũ trỏ vào Món đã tắt (ca Kahlua NVLT00325, 23/09/2026).
-        # Người dùng đã chọn đúng món đang dùng trên dòng; chặn họ vì một
-        # ghi nhớ cũ là bắt họ đi sửa ánh xạ trước khi làm việc chính. Bỏ
-        # qua quy cách của ánh xạ cũ, dòng dùng đơn vị mua của chính Món.
-        return None
     if d.item_code != item_code:
         frappe.throw('Ánh xạ quy cách NCC của "%s" đang chọn Món %s, khác Món %s trên dòng. '
                      'Đối chiếu lại ánh xạ, không dùng quy cách của món khác.' % (ten, d.item_code, item_code))

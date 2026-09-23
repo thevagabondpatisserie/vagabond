@@ -2379,16 +2379,27 @@ def _sinh_va_ghi_loi(ten):
 			return None
 		ho = frappe.get_doc(DT, ten)
 		kq = _sinh_chung_tu(ho)
+		if not kq.get("bo_qua") and not str(kq.get("phieu_chi") or "").strip():
+			# _lap_phieu_chi nuốt lỗi của ERPNext và trả rỗng (Codex #363
+			# vòng 3). Coi đó là thành công thì tờ trả hàng đã ghi sổ làm hồ
+			# sơ hết "kẹt", nút Sinh lại biến mất, mà vẫn không có phiếu chi
+			# nào để đính uỷ nhiệm chi. Ném để lùi CẢ lượt, hồ sơ còn nguyên
+			# trạng thái kẹt, kế toán sửa xong tài khoản rồi bấm lại.
+			frappe.throw(
+				"Lập được tờ trả hàng nhưng chưa lập được phiếu chi (xem Error Log "
+				"\"hoan_tien: lap phieu chi loi\"). Đã lùi lại cả lượt để bấm Sinh lại "
+				"chứng từ sau khi kiểm tài khoản ngân hàng chi hoàn."
+			)
 		if not kq.get("bo_qua"):
 			frappe.db.set_value(DT, ten, "loi_sinh_ct", "")
 			kq["ho_so"] = ten
 		frappe.db.commit()
 		return None if kq.get("bo_qua") else kq
-	except Exception:
+	except Exception as e:
+		vet = str(frappe.get_traceback()).strip()
 		frappe.db.rollback()
-		frappe.log_error(
-			frappe.get_traceback(), "hoan_tien: sinh chung tu sau doi soat loi %s" % ten
-		)
+		frappe.log_error(vet, "hoan_tien: sinh chung tu sau doi soat loi %s" % ten)
+		ly_do = (str(e) or "").strip() or vet.splitlines()[-1]
 		# Ghi lỗi LÊN CHÍNH PHIẾU. Error Log chỉ kỹ thuật biết đường mở, mà
 		# người ngồi trước phiếu mới là người cần biết vì sao chưa có phiếu chi.
 		#
@@ -2409,12 +2420,26 @@ def _sinh_va_ghi_loi(ten):
 				("Tiền đã ra và đã khớp sao kê, nhưng máy chưa sinh được "
 				 "chứng từ: %s. Nhờ kế toán bấm nút Sinh lại chứng từ trên phiếu "
 				 "này, còn không được thì báo anh Việt."
-				 % str(frappe.get_traceback()).strip().splitlines()[-1][:200]),
+				 % ly_do[:300]),
 			)
 			frappe.db.commit()
 		except Exception:
 			pass
 		return None
+
+
+def _da_xong(d):
+	"""Hồ sơ đã khớp tiền ra và ĐÃ CÓ phiếu chi thì coi là xong. THUẦN.
+
+	Mốc là phiếu chi chứ không phải tờ trả hàng: phiếu chi là chỗ đính uỷ
+	nhiệm chi và ghi sổ, thiếu nó thì hồ sơ chưa đi tiếp được (vòng 3)."""
+	d = d or {}
+	if not cint(d.get("da_doi_soat")) or d.get("trang_thai") == "Da huy":
+		return None
+	pc = str(d.get("phieu_chi") or "").strip()
+	if not pc:
+		return None
+	return {"ok": 1, "da_xong_truoc": 1, "hoa_don_tra": d.get("hoa_don_tra") or "", "phieu_chi": pc}
 
 
 @frappe.whitelist()
@@ -2434,6 +2459,11 @@ def sinh_lai(ho_so=None):
 		DT, ho_so, ["name", "da_doi_soat", "ma_gd", "trang_thai", "hoa_don_tra", "phieu_chi"],
 		as_dict=True,
 	)
+	# Nhịp theo giờ có thể lập xong SAU khi màn vẽ nút mà TRƯỚC lượt đọc này
+	# (Codex #363 vòng 3). Đã có phiếu chi là xong, báo thành công.
+	xong = _da_xong(d)
+	if xong:
+		return xong
 	if not ket_chung_tu(d):
 		frappe.throw(
 			"Phiếu này không ở trạng thái chờ sinh lại: hoặc chưa khớp tiền ra, "
@@ -2446,12 +2476,10 @@ def sinh_lai(ho_so=None):
 		# nút này chờ khoá. Đọc lại hồ sơ rồi mới báo, đừng báo "chưa được"
 		# cho một phiếu đã đủ chứng từ.
 		d = frappe.db.get_value(
-			DT, ho_so, ["hoa_don_tra", "phieu_chi", "loi_sinh_ct"], as_dict=True
+			DT, ho_so, ["da_doi_soat", "trang_thai", "hoa_don_tra", "phieu_chi", "loi_sinh_ct"],
+			as_dict=True,
 		) or {}
-		if (d.get("hoa_don_tra") or "").strip() or (d.get("phieu_chi") or "").strip():
-			return {"ok": 1, "da_xong_truoc": 1, "hoa_don_tra": d.get("hoa_don_tra") or "",
-				"phieu_chi": d.get("phieu_chi") or ""}
-		return {"ok": 0, "loi": d.get("loi_sinh_ct") or ""}
+		return _da_xong(d) or {"ok": 0, "loi": d.get("loi_sinh_ct") or ""}
 	return {"ok": 1, "hoa_don_tra": kq.get("hoa_don_tra") or "", "phieu_chi": kq.get("phieu_chi") or ""}
 
 
