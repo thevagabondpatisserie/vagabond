@@ -981,3 +981,23 @@ và dòng bật `dont_recompute_tax` phải hạ tay), và phép soát cuối ph
 giữa thuế và tiền hàng chứ không chỉ soát tổng. Ca kiểm cho lớp soát đó phải
 dựng thẳng một tờ có tiền thuế không chịu hạ, không thì gỡ lớp soát đi bộ kiểm
 vẫn xanh (đã xảy ra, điều 17a).
+
+## 23/09/2026 (v519): giữ chỗ bằng một cái mã đổi mỗi lượt là đường lành chết
+
+Bước kéo M-Invoice gặp dòng nguồn chỉ có `_id`, không có `shdon` và không có
+`tdlap`, thì lưu một bản ghi rỗng để "giữ mã, lượt sau kéo lại cho đầy". Lý
+lẽ nghe đúng, và đường lành có thật cho tờ vỏ ruột (tờ có ngày lập, chưa kịp
+có số). Nhưng đo trên site thật thì bảng 61.424 bản ghi tách sạch làm hai:
+mọi bản ghi có số hoá đơn đều mang mã UUID, mọi bản ghi không số đều mang mã
+ObjectId 24 ký tự, không một ngoại lệ ở cả hai chiều. 5.507 bản ghi ObjectId,
+trong đó 234 đầu vào, và cả 234 tờ có `modified` đúng bằng `creation`: hai
+tháng nằm im, không tờ nào lành. Giải dấu thời gian nhúng trong ObjectId thì
+nó rơi vào 5 tới 10 phút TRƯỚC lúc mình kéo, tức là vật tạm bên họ sinh ra
+ngay lúc phục vụ lời gọi của mình, mã mới mỗi lượt.
+Hậu quả không phải tốn chỗ, mà là thanh báo trên màn Hoá đơn mua hàng nói
+"234 hoá đơn đầu vào đã nhận nhưng chưa thành phiếu mua" trong khi nợ thật vì
+lý do đó là 0, và con số giả che mất các tờ nợ vì lý do khác.
+Bài học: trước khi lưu một bản ghi giữ chỗ, hỏi "cái khoá mình giữ có ổn định
+qua các lượt không". Khoá đổi mỗi lượt thì đường lành không bao giờ chạy, và
+cách kiểm rẻ nhất là đếm xem trong dữ liệu đã có bao nhiêu bản giữ chỗ từng
+lành thật; ở đây con số đó là 0 trên 234.
