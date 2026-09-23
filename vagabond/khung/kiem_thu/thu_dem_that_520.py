@@ -133,10 +133,14 @@ def _chay_tim_uom(ds, dich, txt, start=0, page_len=20, filters=None):
 		raise AssertionError("tim_uom khong duoc goi get_all: get_all bo qua quyen doc")
 
 	f = SimpleNamespace(get_list=get_list, get_all=get_all, _=lambda s: dich.get(s, s),
+		whitelist=lambda *a, **k: (lambda h: h),
 		validate_and_sanitize_search_inputs=lambda h: h)
 	env = dict(frappe=f, cint=lambda n: int(n or 0), loc_don_vi=loc_don_vi)
 	exec(compile(ast.Module(body=ham, type_ignores=[]), "tim_don_vi.py", "exec"), env)
-	return env["tim_uom"]("UOM", txt, "name", start, page_len, filters), da_loc
+	# Gọi ĐÚNG như search_widget của Frappe v16 gọi: thêm as_dict,
+	# reference_doctype, ignore_user_permissions, link_fieldname (v521).
+	return env["tim_uom"]("UOM", txt, "name", start, page_len, filters, as_dict=False,
+		reference_doctype="Item", ignore_user_permissions=0, link_fieldname="uom"), da_loc
 
 
 @ca("#520 ô chọn đơn vị: gõ Box ra Box, gõ Hộp ra cả Hộp lẫn Box")
