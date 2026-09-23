@@ -60,9 +60,13 @@
 		h += '<tr><td>Tờ quét qua</td><td style="text-align:right">' + so(keo.da_quet) + '</td></tr>';
 		h += '<tr><td>Tờ mới kéo về</td><td style="text-align:right"><b>' + so(keo.moi) + '</b></td></tr>';
 		h += '<tr><td>Tờ vỏ ruột đã lành</td><td style="text-align:right">' + so(keo.chua_lanh) + '</td></tr>';
+		if (keo.dong_chi_ma) {
+			h += '<tr><td>Dòng nguồn chỉ có mã, không phải hóa đơn</td><td style="text-align:right">' + so(keo.dong_chi_ma) + '</td></tr>';
+			h += '<tr><td colspan="2">Các dòng này không có số và không có ngày nên hệ không lưu lại, chỉ đếm. KHÔNG phải lỗi, không cần xử lý gì.</td></tr>';
+		}
 		if (keo.nguon_chua_du) {
-			h += '<tr><td>Dòng nguồn chỉ có mã, không có số và ngày</td><td style="text-align:right">' + so(keo.nguon_chua_du) + '</td></tr>';
-			h += '<tr><td colspan="2">Các dòng này không phải hóa đơn nên hệ không lưu lại, chỉ đếm. Không cần xử lý gì. Lượt sau nguồn trả đủ nội dung thì tờ đó vào theo đường bình thường.</td></tr>';
+			h += '<tr><td>Tờ trong máy còn trống số, nguồn chưa trả đủ</td><td style="text-align:right">' + so(keo.nguon_chua_du) + '</td></tr>';
+			h += '<tr><td colspan="2">Hệ giữ mã để kéo lại; chưa dựng phiếu mua được cho các tờ này. Các hóa đơn đủ dữ liệu vẫn xử lý riêng.</td></tr>';
 		}
 		if (loi) {
 			h += '<tr><td colspan="2" style="color:#b71c1c">Chưa kéo đủ: ' + frappe.utils.escape_html(loi) + '. Các hóa đơn kéo được vẫn được giữ; cần xử lý lỗi và đồng bộ lại.</td></tr>';
