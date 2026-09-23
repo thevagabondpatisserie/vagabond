@@ -1,0 +1,370 @@
+"""Ba lỗi anh Việt báo 23/09/2026, gộp vào v523.
+
+1. HT-2026-02900: tiền đã ra và đã khớp sao kê từ 21/09, tờ trả hàng hỏng
+   (lỗi chiết khấu đã sửa ở v518), nhưng hồ sơ KHÔNG có lối nào sinh lại.
+   Câu lỗi bảo "bấm lại nút Đối soát lệnh chi", mà nút đó chỉ quét hồ sơ
+   CHƯA đối soát và còn thoát sớm khi không có hồ sơ nào chờ. Màn chi tiết
+   thì ghi "bước còn lại là đính uỷ nhiệm chi" trong khi chưa có phiếu chi
+   nào để đính, nên nút Đính uỷ nhiệm chi cũng biến mất.
+2. Uyên, hoá đơn Con Rồng: ánh xạ "Rượu Kahlua 70cl" còn trỏ vào NVLT00325
+   (mã trùng đã tắt, đơn vị "Chai 700 ml"). Dòng chọn đúng NVLT00151 thì nút
+   Nối phiếu nhập kho chặn "Ánh xạ quy cách NCC ... đang chọn Món NVLT00325",
+   sửa ánh xạ sang NVLT00151 thì bị chặn vì "Chai 700 ml" không có trên món
+   mới, và phép học mã hàng không bao giờ ghi đè ánh xạ đã có món.
+
+Mọi ca dưới đây chạy HÀM THẬT, chỉ thay lớp dữ liệu. Không dò chuỗi.
+"""
+import sys
+from types import SimpleNamespace
+
+from vagabond.khung.kiem_thu.nen import ca, dung, la
+
+
+class _Loi(Exception):
+	pass
+
+
+class _Doc(dict):
+	def __getattr__(self, k):
+		try:
+			return self[k]
+		except KeyError:
+			raise AttributeError(k)
+
+
+def _khop_loc(dong, loc):
+	for k, v in (loc or {}).items():
+		gt = dong.get(k)
+		if isinstance(v, list) and len(v) == 2 and v[0] == "!=":
+			if (gt or "") == v[1]:
+				return False
+		elif gt != v:
+			return False
+	return True
+
+
+class _Db:
+	def __init__(self, bang):
+		self.bang = bang
+		self.commit_n = 0
+		self.rollback_n = 0
+
+	def set_value(self, dt, ten, truong, gt=None):
+		thay = truong if isinstance(truong, dict) else {truong: gt}
+		self.bang[dt][ten].update(thay)
+
+	def get_value(self, dt, ten, truong, as_dict=False):
+		d = self.bang.get(dt, {}).get(ten)
+		if d is None:
+			return None
+		if isinstance(truong, (list, tuple)):
+			r = _Doc({k: d.get(k) for k in truong})
+			return r if as_dict else [d.get(k) for k in truong]
+		return d.get(truong)
+
+	def exists(self, dt, ten):
+		return ten in self.bang.get(dt, {})
+
+	def commit(self):
+		self.commit_n += 1
+
+	def rollback(self):
+		self.rollback_n += 1
+
+
+def _frappe_gia(bang, loi_log):
+	db = _Db(bang)
+
+	def throw(msg, *a, **k):
+		raise _Loi(msg)
+
+	def get_all(dt, filters=None, fields=None, limit_page_length=0, **k):
+		return [_Doc(dict(d, name=t)) for t, d in bang.get(dt, {}).items() if _khop_loc(dict(d, name=t), filters)]
+
+	return SimpleNamespace(
+		db=db, throw=throw, get_all=get_all,
+		get_doc=lambda dt, ten: _Doc(dict(bang[dt][ten], name=ten)),
+		log_error=lambda *a, **k: loi_log.append(a),
+		get_traceback=lambda: "Traceback (most recent call last):\nValidationError: CK vượt tổng",
+		get_meta=lambda dt: SimpleNamespace(has_field=lambda f: True),
+	)
+
+
+# ------------------------------------------------------------ HT-2026-02900
+
+DT = "Vagabond Hoan Tien"
+
+
+def _ho(**k):
+	d = dict(da_doi_soat=1, ma_gd="ACC-BTN-2026-05949", trang_thai="Da doi soat",
+		hoa_don_tra="", phieu_chi="", loi_sinh_ct="Tiền đã ra ... Số tiền CK bổ sung")
+	d.update(k)
+	return d
+
+
+def _chay_ht(bang, sinh_duoc=True, khop=None, goi="doi_soat", ho_so=None):
+	"""Chạy doi_soat / sinh_lai THẬT của hoan_tien. Chỉ thay: dữ liệu, vòng
+	khớp sao kê (đã có ca riêng), và ruột lập chứng từ (đã có ca v518)."""
+	from vagabond import hoan_tien as H
+
+	# Không nạp mô đun ban_hang thật: tệp đó kéo requests ở đầu, máy CI
+	# không có (điều 5). sinh_lai/doi_soat chỉ lấy _kiem_quyen từ đó, nên
+	# đặt tạm một mô đun giả vào sys.modules rồi trả lại.
+	B = SimpleNamespace(_kiem_quyen=lambda *a, **k: None)
+	cu_mod = sys.modules.get("vagabond.ban_hang")
+
+	loi_log, da_goi = [], []
+	fr = _frappe_gia(bang, loi_log)
+
+	def sinh(ho):
+		da_goi.append(ho.name)
+		if not sinh_duoc:
+			raise _Loi("CK vượt tổng")
+		bang[DT][ho.name]["hoa_don_tra"] = "HDB-TRA-1"
+		bang[DT][ho.name]["phieu_chi"] = "APP-1"
+		return {"bo_qua": 0, "hoa_don_tra": "HDB-TRA-1", "phieu_chi": "APP-1"}
+
+	cu = {k: getattr(H, k) for k in ("frappe", "_sinh_chung_tu", "_doi_soat_khop", "_duoc_tu_choi")}
+	try:
+		sys.modules["vagabond.ban_hang"] = B
+		H.frappe = fr
+		H._sinh_chung_tu = sinh
+		H._doi_soat_khop = khop or (lambda ho_so=None, so_ngay=30: {
+			"da_khop": 0, "xem_xet": [], "ghi_chu": "Không có phiếu nào chờ đối soát."})
+		H._duoc_tu_choi = lambda nguoi=None: True
+		if goi == "sinh_lai":
+			kq = H.sinh_lai(ho_so)
+		else:
+			kq = H.doi_soat(ho_so)
+	finally:
+		for k, v in cu.items():
+			setattr(H, k, v)
+		if cu_mod is None:
+			sys.modules.pop("vagabond.ban_hang", None)
+		else:
+			sys.modules["vagabond.ban_hang"] = cu_mod
+	return kq, da_goi, fr, loi_log
+
+
+@ca("#523 hồ sơ kẹt: điều kiện được sinh lại chứng từ")
+def _ket():
+	from vagabond.hoan_tien import ket_chung_tu
+	dung("đã khớp, chưa chứng từ: kẹt", ket_chung_tu(_ho()))
+	dung("chưa khớp tiền ra: không", not ket_chung_tu(_ho(da_doi_soat=0)))
+	dung("không có mã giao dịch: không", not ket_chung_tu(_ho(ma_gd="")))
+	dung("đã huỷ: không", not ket_chung_tu(_ho(trang_thai="Da huy")))
+	dung("đã có hoá đơn trả: không", not ket_chung_tu(_ho(hoa_don_tra="HDB-1")))
+	# Nhánh tiền nộp thừa không có hoá đơn trả để tự chặn: có phiếu chi rồi
+	# mà sinh nữa là chi hai lần trên sổ.
+	dung("đã có phiếu chi: không", not ket_chung_tu(_ho(phieu_chi="APP-1")))
+
+
+@ca("#523 HT-2026-02900: bấm Đối soát lệnh chi khi không còn phiếu nào chờ vẫn gỡ hồ sơ kẹt")
+def _go_khi_thoat_som():
+	# Đúng chuỗi của kế toán: màn danh sách, bấm nút, không truyền hồ sơ.
+	# Vòng khớp thoát sớm "Không có phiếu nào chờ đối soát". Trước v523 lượt
+	# bấm dừng ở đó và HT-2026-02900 nằm nguyên.
+	bang = {DT: {"HT-2026-02900": _ho()}}
+	kq, goi, fr, _l = _chay_ht(bang)
+	la("đã chạy lại bước sinh chứng từ", goi, ["HT-2026-02900"])
+	la("xoá câu lỗi trên phiếu", bang[DT]["HT-2026-02900"]["loi_sinh_ct"], "")
+	la("báo lại đã sinh", [x["ho_so"] for x in kq.get("da_sinh") or []], ["HT-2026-02900"])
+
+
+@ca("#523 gỡ hồ sơ kẹt: không đụng hồ sơ đã có chứng từ, đã huỷ, hay chưa từng lỗi")
+def _khong_dung_nham():
+	bang = {DT: {
+		"HT-CO-PC": _ho(phieu_chi="APP-9"),
+		"HT-HUY": _ho(trang_thai="Da huy"),
+		"HT-CHUA-LOI": _ho(loi_sinh_ct=""),
+		"HT-CHUA-KHOP": _ho(da_doi_soat=0),
+	}}
+	_kq, goi, _f, _l = _chay_ht(bang)
+	la("không sinh cho hồ sơ nào", goi, [])
+
+
+@ca("#523 hồ sơ vừa thử trong vòng khớp thì không thử lần hai trong cùng một lượt")
+def _khong_thu_hai_lan():
+	bang = {DT: {"HT-A": _ho()}}
+
+	def khop(ho_so=None, so_ngay=30):
+		return {"da_khop": 1, "xem_xet": [], "da_sinh": [], "_da_thu": ["HT-A"]}
+
+	kq, goi, _f, _l = _chay_ht(bang, khop=khop)
+	la("không gọi lại", goi, [])
+	dung("không lộ khoá nội bộ ra màn", "_da_thu" not in kq)
+
+
+@ca("#523 sinh lại vẫn hỏng: ghi lỗi lên phiếu, câu lỗi chỉ đúng nút có thật")
+def _hong_lai():
+	bang = {DT: {"HT-2026-02900": _ho(loi_sinh_ct="cũ")}}
+	_kq, goi, fr, log = _chay_ht(bang, sinh_duoc=False)
+	la("có thử", goi, ["HT-2026-02900"])
+	loi = bang[DT]["HT-2026-02900"]["loi_sinh_ct"]
+	dung("chỉ nút Sinh lại chứng từ", "Sinh lại chứng từ" in loi)
+	dung("không còn chỉ nút Đối soát lệnh chi", "Đối soát lệnh chi" not in loi)
+	dung("lùi giao dịch dở", fr.db.rollback_n >= 1)
+	la("ghi một dòng Error Log", len(log), 1)
+
+
+@ca("#523 nút Sinh lại chứng từ: chạy đúng hồ sơ kẹt, từ chối hồ sơ đã có chứng từ")
+def _nut():
+	bang = {DT: {"HT-2026-02900": _ho(), "HT-XONG": _ho(phieu_chi="APP-2")}}
+	kq, goi, _f, _l = _chay_ht(bang, goi="sinh_lai", ho_so="HT-2026-02900")
+	la("sinh được", (kq.get("ok"), kq.get("phieu_chi")), (1, "APP-1"))
+	try:
+		_chay_ht(bang, goi="sinh_lai", ho_so="HT-XONG")
+		bi_chan = False
+	except _Loi:
+		bi_chan = True
+	dung("hồ sơ đã có phiếu chi bị từ chối", bi_chan)
+
+
+# ------------------------------------------------------ ánh xạ Kahlua đã tắt
+
+def _chay_qc(ham, anh_xa, mon, *a):
+	"""Chạy hàm THẬT của quy_cach_ncc với danh mục Món và bảng ánh xạ giả."""
+	from vagabond import quy_cach_ncc as Q
+
+	uom = {"NVLT00151": [("ML", 1), ("Chai", 700), ("Gram", 1)],
+		"NVLT00325": [("ML", 1), ("Chai", 1000), ("Chai 700 ml", 700)]}
+
+	def get_value(dt, ten, truong, as_dict=False):
+		if dt == "Item":
+			m = mon.get(ten)
+			if m is None:
+				return None
+			if isinstance(truong, (list, tuple)):
+				r = _Doc({k: m.get(k) for k in truong})
+				return r if as_dict else [m.get(k) for k in truong]
+			return m.get(truong)
+		return None
+
+	def get_all(dt, filters=None, fields=None, **k):
+		if dt == "UOM Conversion Detail":
+			ra = [_Doc(uom=u, conversion_factor=h) for u, h in uom.get(filters.get("parent"), [])]
+			if "uom" in filters:
+				ra = [r for r in ra if r.uom == filters["uom"]]
+			return ra
+		return []
+
+	def throw(msg, *a, **k):
+		raise _Loi(msg)
+
+	fr = SimpleNamespace(
+		db=SimpleNamespace(get_value=get_value, exists=lambda dt, t: True),
+		get_all=get_all, throw=throw,
+		get_meta=lambda dt: SimpleNamespace(has_field=lambda f: True),
+	)
+	cu = (Q.frappe, Q._anh_xa)
+	try:
+		Q.frappe = fr
+		Q._anh_xa = lambda mst, truong, gia_tri: [_Doc(r) for r in anh_xa if r.get(truong) == gia_tri]
+		return getattr(Q, ham)(*a)
+	finally:
+		Q.frappe, Q._anh_xa = cu
+
+
+_MON = {
+	"NVLT00151": {"stock_uom": "ML", "disabled": 0},
+	"NVLT00325": {"stock_uom": "ML", "disabled": 1},
+	"NVLT00150": {"stock_uom": "ML", "disabled": 0},
+}
+_MAP_TAT = [{"ten_ncc": "Rượu Kahlua 70cl", "ma_ncc": None, "item_code": "NVLT00325",
+	"vgb_uom": "Chai 700 ml", "supplier_mst": "0315777858"}]
+
+
+@ca("#523 Kahlua: ánh xạ trỏ Món đã tắt không chặn nút Nối phiếu nhập kho khi dòng chọn đúng món")
+def _lay_mon_tat():
+	# Ca thật hoá đơn Con Rồng 23/09: dòng NVLT00151, ánh xạ NVLT00325 đã tắt.
+	ra = _chay_qc("lay", _MAP_TAT, _MON, "NVLT00151", "0315777858", "Rượu Kahlua 70cl")
+	la("không lấy quy cách của món đã tắt", ra, None)
+	# Ánh xạ trỏ vào món KHÁC đang dùng thì vẫn chặn như cũ: đó là bất đồng
+	# thật giữa hai lựa chọn còn sống, người phải xem.
+	song = [dict(_MAP_TAT[0], item_code="NVLT00150", vgb_uom="Chai")]
+	try:
+		_chay_qc("lay", song, _MON, "NVLT00151", "0315777858", "Rượu Kahlua 70cl")
+		chan = False
+	except _Loi:
+		chan = True
+	dung("món khác còn dùng thì vẫn chặn", chan)
+
+
+@ca("#523 Kahlua: gợi ý Món cho hoá đơn mới bỏ qua ánh xạ trỏ Món đã tắt")
+def _tim_mon_tat():
+	la("không gợi ý món đã tắt",
+		_chay_qc("tim_mon", _MAP_TAT, _MON, "0315777858", None, "Rượu Kahlua 70cl"), None)
+	hai = _MAP_TAT + [dict(_MAP_TAT[0], item_code="NVLT00151", vgb_uom="Chai")]
+	la("còn một món sống thì gợi ý món đó, không báo nhiều món",
+		_chay_qc("tim_mon", hai, _MON, "0315777858", None, "Rượu Kahlua 70cl"), "NVLT00151")
+
+
+@ca("#523 Kahlua: sửa ánh xạ sang món mới mà đơn vị cũ không có thì câu lỗi bày đơn vị đúng")
+def _kiem_uom_ro():
+	try:
+		_chay_qc("_kiem_uom", [], _MON, "NVLT00151", "Chai 700 ml")
+		loi = ""
+	except _Loi as e:
+		loi = str(e)
+	dung("nêu đúng đơn vị sai", '"Chai 700 ml"' in loi)
+	dung("bày đơn vị của món mới", "ML" in loi and "Chai" in loi and "Gram" in loi)
+	dung("chỉ đúng ô phải sửa", "Đơn vị đã đối chiếu" in loi)
+	la("đơn vị đúng thì qua", _chay_qc("_kiem_uom", [], _MON, "NVLT00151", "Chai"), None)
+
+
+def _chay_hoc(anh_xa, mon):
+	"""Chạy hoc_ma_hang THẬT với một tờ hoá đơn một dòng Kahlua."""
+	from vagabond import dung_lai_hddt as D
+
+	bang = {"MInvoice NCC Map": {t: dict(r) for t, r in anh_xa.items()}}
+	them = []
+
+	def get_value(dt, ten, truong, as_dict=False):
+		if dt == "Item":
+			return (mon.get(ten) or {}).get(truong)
+		if isinstance(ten, dict):
+			for t, r in bang[dt].items():
+				if all(r.get(k) == v for k, v in ten.items()):
+					return t
+			return None
+		return bang[dt][ten].get(truong)
+
+	def set_value(dt, ten, truong, gt=None):
+		bang[dt][ten].update(truong if isinstance(truong, dict) else {truong: gt})
+
+	class _Moi(dict):
+		flags = SimpleNamespace()
+
+		def insert(self, **k):
+			them.append(dict(self))
+
+	fr = SimpleNamespace(
+		db=SimpleNamespace(get_value=get_value, set_value=set_value),
+		get_doc=lambda d: _Moi(d),
+		get_meta=lambda dt: SimpleNamespace(has_field=lambda f: True),
+	)
+	cu = D.frappe
+	try:
+		D.frappe = fr
+		doc = {"items": [{"item_code": "NVLT00151", "ten_hang_ncc": "Rượu Kahlua 70cl"}]}
+		g = {"mst_doi_tac": "0315777858", "chi_tiet": [{"ten": "Rượu Kahlua 70cl", "tchat": "1"}]}
+		n = D.hoc_ma_hang(doc, g)
+	finally:
+		D.frappe = cu
+	return n, bang["MInvoice NCC Map"], them
+
+
+@ca("#523 học mã hàng: ánh xạ trỏ Món đã tắt thì học món người vừa chốt, bỏ đơn vị của món cũ")
+def _hoc():
+	goc = {"acm2a8618p": dict(_MAP_TAT[0])}
+	n, bang, them = _chay_hoc(goc, _MON)
+	la("học một dòng", n, 1)
+	la("ánh xạ đổi sang món đang dùng", bang["acm2a8618p"]["item_code"], "NVLT00151")
+	la("bỏ đơn vị của món cũ", bang["acm2a8618p"]["vgb_uom"], None)
+	# Ánh xạ trỏ món CÒN DÙNG thì giữ nguyên như cũ: không bao giờ đè lên
+	# lựa chọn còn sống của người khác (điều 11 trong ghi chú hoc_ma_hang).
+	song = {"x": dict(_MAP_TAT[0], item_code="NVLT00150", vgb_uom="Chai")}
+	n, bang, them = _chay_hoc(song, _MON)
+	la("không đè ánh xạ còn sống", (n, bang["x"]["item_code"], bang["x"]["vgb_uom"]), (0, "NVLT00150", "Chai"))
+	n, bang, them = _chay_hoc({}, _MON)
+	la("chưa có ánh xạ thì thêm mới", [t["item_code"] for t in them], ["NVLT00151"])
