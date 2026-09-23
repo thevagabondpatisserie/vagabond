@@ -76,6 +76,25 @@ def _dvt_lot():
 	# Ô riêng do máy ghi lúc dựng phiếu là nguồn duy nhất khi có (vòng 7).
 	la("ô riêng thắng mọi phép đọc mô tả",
 		dvt_ncc_cua_dong("Hạt dẻ (500g) (BOX)", "Nos", "Hạt dẻ (500g)", "BAO"), "BAO")
+	# Codex #358 vòng 24: tên nhà cung cấp dài hơn 140 ký tự thì ô
+	# `ten_hang_ncc` chỉ giữ 140 ký tự đầu, cắt tiền tố xong vẫn còn ĐUÔI TÊN.
+	# Dòng dựng trước v518 không có ô riêng nên đi đúng đường này.
+	ten_dai = "Trái cherry Calada size 10 nhập khẩu Chile đóng thùng xốp giữ lạnh giao trong ngày " \
+		"cho bếp Vagabond quận Phú Nhuận, lô hàng tháng chín (500g)"
+	dung("tên dài hơn 140 ký tự", len(ten_dai) > 140)
+	la("đuôi tên bị cắt KHÔNG được coi là đơn vị",
+		dvt_ncc_cua_dong(ten_dai, None, ten_dai[:140]), "")
+	la("cùng tên đó mà hoá đơn CÓ ghi đơn vị thì vẫn đọc được",
+		dvt_ncc_cua_dong(ten_dai + " (BAO)", None, ten_dai[:140]), "")
+	la("tên không bị cắt thì đọc đơn vị như thường",
+		dvt_ncc_cua_dong(ten_dai + " (BAO)", None, ten_dai), "BAO")
+	# Lời đoán của máy nằm giữa tên và ngoặc đơn vị, không được làm hỏng phép cắt.
+	may = {"ten": "Hạt dẻ (500g)", "dvt": "BAO", "goi_y_mon": "NVLT1", "goi_y_dvt_kho": "Gram"}
+	la("có lời đoán ở giữa vẫn đọc đúng đơn vị",
+		dvt_ncc_cua_dong(mo_ta_dong(may), None, "Hạt dẻ (500g)"), "BAO")
+	may2 = {"ten": "Hạt dẻ (500g)", "goi_y_mon": "NVLT1", "goi_y_dvt_kho": "Gram"}
+	la("có lời đoán mà nguồn không ghi đơn vị: vẫn rỗng",
+		dvt_ncc_cua_dong(mo_ta_dong(may2), None, "Hạt dẻ (500g)"), "")
 	la("ô riêng ghi là không ghi thì đúng là không ghi",
 		dvt_ncc_cua_dong("Hạt dẻ (500g) (BOX)", "Nos", "Hạt dẻ (500g)", dvt_mua.KHONG_GHI), "")
 	la("tên hàng có ngoặc, có lời đoán kèm đơn vị",
