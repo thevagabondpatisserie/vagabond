@@ -213,12 +213,11 @@ def _nut():
 	bang = {DT: {"HT-2026-02900": _ho(), "HT-XONG": _ho(phieu_chi="APP-2")}}
 	kq, goi, _f, _l = _chay_ht(bang, goi="sinh_lai", ho_so="HT-2026-02900")
 	la("sinh được", (kq.get("ok"), kq.get("phieu_chi")), (1, "APP-1"))
-	try:
-		_chay_ht(bang, goi="sinh_lai", ho_so="HT-XONG")
-		bi_chan = False
-	except _Loi:
-		bi_chan = True
-	dung("hồ sơ đã có phiếu chi bị từ chối", bi_chan)
+	# Vòng 3 Codex #363 đổi hợp đồng: hồ sơ đã có phiếu chi không ném lỗi
+	# mà báo "đã xong từ trước", và TUYỆT ĐỐI không lập thêm.
+	kq, goi, _f, _l = _chay_ht(bang, goi="sinh_lai", ho_so="HT-XONG")
+	la("hồ sơ đã có phiếu chi: không lập thêm", goi, [])
+	la("báo đã xong từ trước", (kq.get("ok"), kq.get("da_xong_truoc"), kq.get("phieu_chi")), (1, 1, "APP-2"))
 
 
 # ------------------------------------------------------ ánh xạ Kahlua đã tắt
@@ -502,3 +501,73 @@ def _xong_truoc():
 	la("không lập lần hai", goi, [])
 	la("báo thành công kèm đúng chứng từ", (kq.get("ok"), kq.get("phieu_chi")), (1, "APP-7"))
 	la("nói rõ là đã xong từ trước", kq.get("da_xong_truoc"), 1)
+
+
+# ----------------------------------------- Codex #363 vòng 3
+
+@ca("#523 Codex #363 v3: lập được tờ trả mà KHÔNG lập được phiếu chi thì chưa phải thành công")
+def _thieu_phieu_chi():
+	# _lap_phieu_chi nuốt lỗi và trả None. Trước sửa: tờ trả hàng đã ghi sổ,
+	# câu lỗi bị dọn, nút báo thành công, và vì đã có tờ trả nên hồ sơ không
+	# còn "kẹt", nút Sinh lại biến mất trong khi chưa có phiếu chi để đính UNC.
+	from vagabond import hoan_tien as H
+	bang = {DT: {"HT-2026-02900": _ho(loi_sinh_ct="cũ")}}
+	loi_log = []
+	fr = _frappe_gia(bang, loi_log)
+	ghi = {}
+
+	def rollback():
+		# Lùi giao dịch: bỏ mọi thứ lượt này đã ghi lên hồ sơ.
+		bang[DT]["HT-2026-02900"].update(hoa_don_tra="", phieu_chi="")
+		ghi["lui"] = 1
+
+	fr.db.rollback = rollback
+
+	def sinh(ho):
+		bang[DT][ho.name]["hoa_don_tra"] = "HDB-TRA-1"
+		return {"bo_qua": 0, "hoa_don_tra": "HDB-TRA-1", "phieu_chi": None}
+
+	cu = {k: getattr(H, k) for k in ("frappe", "_sinh_chung_tu")}
+	try:
+		H.frappe, H._sinh_chung_tu = fr, sinh
+		kq = H._sinh_va_ghi_loi("HT-2026-02900")
+	finally:
+		for k, v in cu.items():
+			setattr(H, k, v)
+	la("không báo thành công", kq, None)
+	dung("lùi cả tờ trả hàng để còn sinh lại được", ghi.get("lui") == 1)
+	loi = bang[DT]["HT-2026-02900"]["loi_sinh_ct"]
+	dung("ghi lỗi nói rõ thiếu phiếu chi", "phiếu chi" in loi)
+	dung("hồ sơ vẫn còn kẹt để bấm lại", H.ket_chung_tu(bang[DT]["HT-2026-02900"]))
+
+
+@ca("#523 Codex #363 v3: màn còn nút Sinh lại mà nhịp theo giờ đã lập xong TRƯỚC khi bấm thì báo thành công")
+def _xong_truoc_khi_bam():
+	bang = {DT: {"HT-2026-02900": _ho(hoa_don_tra="HDB-TRA-5", phieu_chi="APP-5", loi_sinh_ct="")}}
+	try:
+		kq, goi = _chay_xen(bang, goi="nut")
+		loi = ""
+	except _Loi as e:
+		kq, goi, loi = {}, [], str(e)
+	la("không ném lỗi", loi, "")
+	la("báo thành công đúng chứng từ", (kq.get("ok"), kq.get("phieu_chi"), kq.get("da_xong_truoc")), (1, "APP-5", 1))
+	# Chưa khớp tiền ra thì vẫn chặn như cũ.
+	bang = {DT: {"HT-X": _ho(da_doi_soat=0)}}
+	try:
+		_chay_xen(bang, goi="nut", ho_so="HT-X")
+		chan = False
+	except _Loi:
+		chan = True
+	dung("hồ sơ chưa khớp tiền ra vẫn bị từ chối", chan)
+
+
+@ca("#523 Codex #363 v3: ánh xạ chi nhánh cũ trỏ món đã tắt không làm hỏng phép đếm duy nhất")
+def _nhieu_chi_nhanh():
+	hai = _MAP_TAT + [dict(_MAP_TAT[0], item_code="NVLT00151", vgb_uom="Chai", supplier_mst="0315777858-001")]
+	try:
+		ra = _chay_qc("lay", hai, _MON, "NVLT00151", "0315777858", "Rượu Kahlua 70cl")
+		loi = ""
+	except _Loi as e:
+		ra, loi = None, str(e)
+	la("không báo nhiều ánh xạ", loi, "")
+	la("dùng quy cách của ánh xạ còn sống", ra, "Chai")
