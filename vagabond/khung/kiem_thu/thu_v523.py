@@ -338,11 +338,25 @@ def _chay_hoc(anh_xa, mon):
 		def insert(self, **k):
 			them.append(dict(self))
 
+	def get_all(dt, filters=None, or_filters=None, fields=None, **k):
+		# Đủ cho _anh_xa của quy_cach_ncc: lọc theo tên, rồi MST gốc hoặc chi nhánh.
+		ra = []
+		for t, r in bang.get(dt, {}).items():
+			if any(r.get(kk) != vv for kk, vv in (filters or {}).items()):
+				continue
+			mst = str(r.get("supplier_mst") or "")
+			ra.append(_Doc(dict(r, name=t, supplier_mst=mst)))
+		return ra
+
 	fr = SimpleNamespace(
 		db=SimpleNamespace(get_value=get_value, set_value=set_value),
 		get_doc=lambda d: _Moi(d),
+		get_all=get_all,
 		get_meta=lambda dt: SimpleNamespace(has_field=lambda f: True),
 	)
+	from vagabond import quy_cach_ncc as Q
+	cu_q = Q.frappe
+	Q.frappe = fr
 	cu = D.frappe
 	try:
 		D.frappe = fr
@@ -351,6 +365,7 @@ def _chay_hoc(anh_xa, mon):
 		n = D.hoc_ma_hang(doc, g)
 	finally:
 		D.frappe = cu
+		Q.frappe = cu_q
 	return n, bang["MInvoice NCC Map"], them
 
 
@@ -689,3 +704,23 @@ def _mot_viec_tiep():
 	# Lỗi lạ thì vẫn như cũ.
 	cau2 = dss.cau_loi_sau_khop(ValueError("x"), "Traceback\\nValueError: x")
 	dung("lỗi lạ vẫn hướng dẫn cũ", "Khớp SePay" in cau2 and "ValueError: x" in cau2)
+
+
+# ----------------------------------------- Codex #363 vòng 8
+
+@ca("#523 Codex #363 v8: ánh xạ gốc trỏ món tắt nhưng chi nhánh còn ánh xạ sống thì KHÔNG học đè")
+def _goc_tat_chi_nhanh_song():
+	# Ca gộp: dòng gốc MST trỏ NVLT00325 (tắt), dòng chi nhánh MST-001 trỏ
+	# NVLT00150 (còn dùng), người vừa chốt NVLT00151. Học đè dòng gốc là tạo
+	# HAI món sống cho cùng một tên, và từ tờ sau tim_mon báo "nhiều Món".
+	goc = {
+		"goc": dict(_MAP_TAT[0]),
+		"cn": dict(_MAP_TAT[0], item_code="NVLT00150", vgb_uom="Chai", supplier_mst="0315777858-001"),
+	}
+	n, bang, them = _chay_hoc(goc, _MON)
+	la("không học", n, 0)
+	la("dòng gốc giữ nguyên", bang["goc"]["item_code"], "NVLT00325")
+	la("không thêm dòng mới", them, [])
+	# Và phép gợi ý món cho tờ sau vẫn ra đúng MỘT món sống.
+	la("gợi ý vẫn ra món chi nhánh", _chay_qc("tim_mon", list(bang.values()), _MON,
+		"0315777858", None, "Rượu Kahlua 70cl"), "NVLT00150")
