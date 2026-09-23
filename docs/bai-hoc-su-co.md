@@ -1030,3 +1030,18 @@ filter_translated, build_for_autosuggest. Nói chung: gọi thẳng hàm mình
 viết chưa đủ, phải dựng lại cả phần khung chạy SAU hàm đó, vì khung có thể
 sửa hoặc xoá kết quả. Đây là lần thứ hai trong một ngày cùng một ô chọn lọt
 qua kiểu kiểm gọi thẳng.
+
+## 23/09/2026 (v523): câu hướng dẫn trên màn chỉ tới một nút không làm được việc đó
+
+HT-2026-02900 kẹt hai ngày dù phép tính đã sửa từ v518. Tiền đã ra và đã khớp
+sao kê, tờ trả hàng hỏng, phiếu ghi "Nhờ kế toán bấm lại nút Đối soát lệnh
+chi". Nhưng nút đó chỉ quét hồ sơ CHƯA đối soát và còn thoát sớm khi không có
+hồ sơ nào chờ, nên bấm bao nhiêu lần cũng không chạm tới hồ sơ này. Màn chi
+tiết lại ghi "bước còn lại là đính uỷ nhiệm chi" trong khi chưa có phiếu chi,
+nên nút đính cũng không hiện. Người dùng tưởng mất tệp, mất nút.
+Cách phòng: câu lỗi hướng dẫn bấm nút nào thì phải có ca kiểm chạy ĐÚNG nút
+đó trên đúng trạng thái của hồ sơ đang lỗi (ca #523 "bấm Đối soát lệnh chi khi
+không còn phiếu nào chờ"). Sửa phép tính mà không kiểm lối vào lại phép tính
+đó là chưa sửa xong. Cùng ngày: ánh xạ NCC trỏ vào Món đã tắt chặn luôn món
+đúng, và phép học mã hàng "không bao giờ đè" giữ ánh xạ chết mãi mãi. Món đã
+tắt thì mọi ghi nhớ trỏ vào nó phải coi như trống.
