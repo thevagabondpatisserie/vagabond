@@ -360,6 +360,11 @@ def can_nguoi_khai_he_so(dvt_ncc, tim_thay, he_so_nhap, item_code=None, he_so_ch
 	return "khai" if math.isfinite(hs) and hs > 0 else "hoi"
 
 
+# Sức chứa của ô `ten_hang_ncc` (Data của Frappe). Tên dài hơn bị cắt cụt lúc
+# lưu, nên phép đọc đơn vị từ mô tả không tin được nữa - xem `dvt_ncc_cua_dong`.
+GIOI_HAN_TEN = 140
+
+
 def dvt_ncc_cua_dong(mo_ta, uom_dong, ten_ncc=None, dvt_o=None):
 	"""Đơn vị nhà cung cấp GHI trên dòng hoá đơn. THUẦN.
 
@@ -377,6 +382,13 @@ def dvt_ncc_cua_dong(mo_ta, uom_dong, ten_ncc=None, dvt_o=None):
 		return "" if o == KHONG_GHI else o
 	s = str(mo_ta or "").strip()
 	ten = str(ten_ncc or "").strip()
+	# Codex #358 vòng 25: tên lưu dài ĐÚNG BẰNG sức chứa của ô là tên đụng
+	# trần, không có cách nào biết nhà cung cấp còn ghi thêm gì phía sau. Tên
+	# 140 ký tự rồi mới tới "(500g)" thì cắt tiền tố xong còn đúng "(500g)",
+	# trông y như một đơn vị mà thật ra là đuôi tên. Chưa chắc thì coi như
+	# chưa biết đơn vị, để người chốt.
+	if len(ten) >= GIOI_HAN_TEN:
+		return ""
 	# Codex #358: TÊN HÀNG của nhà cung cấp cũng có thể kết thúc bằng ngoặc
 	# ("Hạt dẻ (500g)"). Mô tả dựng theo khuôn "<tên hàng>...( <đơn vị> )",
 	# nên cắt đúng phần tên hàng ra rồi mới đọc ngoặc cuối: còn lại rỗng
