@@ -2391,7 +2391,19 @@ def _sinh_va_ghi_loi(ten):
 		)
 		# Ghi lỗi LÊN CHÍNH PHIẾU. Error Log chỉ kỹ thuật biết đường mở, mà
 		# người ngồi trước phiếu mới là người cần biết vì sao chưa có phiếu chi.
+		#
+		# Nhưng chỉ ghi khi hồ sơ VẪN CÒN KẸT (Codex #363 vòng 2): lượt này
+		# vừa lùi, một lượt khác đang chờ khoá có thể đã lập xong và dọn lỗi.
+		# Ghi mù ở đây là đè câu lỗi cũ lên một hồ sơ đã đủ chứng từ. Khoá lại
+		# và đọc lại rồi mới quyết.
 		try:
+			sau = frappe.db.get_value(
+				DT, ten, ["name", "da_doi_soat", "ma_gd", "trang_thai", "hoa_don_tra", "phieu_chi"],
+				as_dict=True, for_update=True,
+			)
+			if not sau or not ket_chung_tu(sau):
+				frappe.db.commit()
+				return None
 			frappe.db.set_value(
 				DT, ten, "loi_sinh_ct",
 				("Tiền đã ra và đã khớp sao kê, nhưng máy chưa sinh được "
@@ -2429,8 +2441,17 @@ def sinh_lai(ho_so=None):
 		)
 	kq = _sinh_va_ghi_loi(ho_so)
 	if not kq:
-		loi = frappe.db.get_value(DT, ho_so, "loi_sinh_ct") or ""
-		return {"ok": 0, "loi": loi}
+		# Không lập được ở lượt này có hai nghĩa khác hẳn nhau (Codex #363
+		# vòng 2): hoặc hỏng thật, hoặc nhịp theo giờ vừa lập xong trong lúc
+		# nút này chờ khoá. Đọc lại hồ sơ rồi mới báo, đừng báo "chưa được"
+		# cho một phiếu đã đủ chứng từ.
+		d = frappe.db.get_value(
+			DT, ho_so, ["hoa_don_tra", "phieu_chi", "loi_sinh_ct"], as_dict=True
+		) or {}
+		if (d.get("hoa_don_tra") or "").strip() or (d.get("phieu_chi") or "").strip():
+			return {"ok": 1, "da_xong_truoc": 1, "hoa_don_tra": d.get("hoa_don_tra") or "",
+				"phieu_chi": d.get("phieu_chi") or ""}
+		return {"ok": 0, "loi": d.get("loi_sinh_ct") or ""}
 	return {"ok": 1, "hoa_don_tra": kq.get("hoa_don_tra") or "", "phieu_chi": kq.get("phieu_chi") or ""}
 
 
