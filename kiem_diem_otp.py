@@ -1305,7 +1305,8 @@ la("may chu co ham dem cho chi", "def dem_cho_chi()" in _ht_src, True)
 # Duong SePay goi thang da loai "Da huy" tu 16/08, nhung duong chay theo gio
 # thi khong. Mot phieu ke toan vua tu choi ma ngan hang tinh co co dong tien
 # ra trung so tien la may van sinh phieu chi.
-_than_ds = _ht_src.split("def doi_soat(")[1].split("\ndef ")[0]
+# v523: vòng khớp tách thành _doi_soat_khop, doi_soat bọc thêm bước gỡ hồ sơ kẹt.
+_than_ds = _ht_src.split("def _doi_soat_khop(")[1].split("\ndef ")[0]
 la("doi soat theo gio loai phieu da huy",
    'loc = {"da_doi_soat": 0, "trang_thai": ["!=", "Da huy"]}' in _than_ds, True)
 la("doi soat mot phieu chi dinh cung loai phieu da huy",
@@ -4006,9 +4007,9 @@ _vt_rollback = _than37.find("frappe.db.rollback()")
 la("co commit ngay sau khi danh dau da doi soat", _vt_dau < _vt_commit < _vt_sinh, True)
 la("rollback nam SAU commit nen khong xoa duoc dau da khop", _vt_commit < _vt_rollback, True)
 la("hong sinh chung tu thi ghi loi len chinh phieu",
-   'DT, d["name"], "loi_sinh_ct",' in _ht37, True)
+   'DT, ten, "loi_sinh_ct",' in _ht37, True)
 la("cau bao loi noi ro phai lam gi (QT-24)",
-   "Nhờ kế toán bấm lại nút Đối soát lệnh chi" in _ht37, True)
+   "Nhờ kế toán bấm nút Sinh lại chứng từ trên phiếu" in _ht37, True)
 la("phieu co o giu loi", '"fieldname": "loi_sinh_ct"' in _ht37, True)
 la("danh sach tra ra o loi de man hinh bay", '"so_hddt", "loi_sinh_ct",' in _ht37, True)
 la("man danh sach bay canh bao", "x.loi_sinh_ct" in _js37, True)
