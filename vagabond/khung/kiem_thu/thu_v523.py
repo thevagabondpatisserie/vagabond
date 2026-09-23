@@ -571,3 +571,51 @@ def _nhieu_chi_nhanh():
 		ra, loi = None, str(e)
 	la("không báo nhiều ánh xạ", loi, "")
 	la("dùng quy cách của ánh xạ còn sống", ra, "Chai")
+
+
+# ----------------------------------------- Codex #363 vòng 5
+
+@ca("#523 Codex #363 v5: lối Khớp SePay thủ công thiếu phiếu chi thì lùi và giữ hồ sơ kẹt")
+def _khop_tay_thieu_pc():
+	# Đúng chuỗi: kế toán khớp tay một dòng tiền ra, tầng đối soát chung gọi
+	# _khi_khop_hoan_tien, lập tờ trả được mà phiếu chi hỏng (bị nuốt lỗi).
+	from vagabond import hoan_tien as H
+	bang = {DT: {"HT-K": _ho(da_doi_soat=0, trang_thai="Cho chi", loi_sinh_ct="")}}
+	fr = _frappe_gia(bang, [])
+
+	def rollback():
+		bang[DT]["HT-K"].update(hoa_don_tra="", phieu_chi="")
+
+	fr.db.rollback = rollback
+
+	def sinh(ho):
+		bang[DT][ho.name]["hoa_don_tra"] = "HDB-TRA-1"
+		return {"bo_qua": 0, "hoa_don_tra": "HDB-TRA-1", "phieu_chi": None}
+
+	cu = {k: getattr(H, k) for k in ("frappe", "_sinh_chung_tu")}
+	try:
+		H.frappe, H._sinh_chung_tu = fr, sinh
+		kq = H._khi_khop_hoan_tien(_Doc(name="HT-K"), "ACC-BTN-1")
+	finally:
+		for k, v in cu.items():
+			setattr(H, k, v)
+	la("không báo đã sinh", kq, None)
+	la("vẫn giữ dấu đã khớp tiền ra", bang[DT]["HT-K"]["da_doi_soat"], 1)
+	dung("ghi lỗi thiếu phiếu chi lên phiếu", "phiếu chi" in bang[DT]["HT-K"]["loi_sinh_ct"])
+	dung("hồ sơ còn kẹt để bấm Sinh lại", H.ket_chung_tu(bang[DT]["HT-K"]))
+
+
+@ca("#523 Codex #363 v5: chỉ MỘT cửa được gọi thẳng bước lập chứng từ hoàn tiền")
+def _mot_cua():
+	# Điều 18: gom về một nguồn, rồi chốt không còn lối nào tự gọi. Phép dò
+	# này chỉ chốt điều không chạy được (ai gọi ai); hành vi đã có các ca trên.
+	import ast
+	from pathlib import Path
+	src = (Path(__file__).resolve().parents[2] / "hoan_tien.py").read_text()
+	goi = []
+	for fn in ast.walk(ast.parse(src)):
+		if isinstance(fn, ast.FunctionDef):
+			for n in ast.walk(fn):
+				if isinstance(n, ast.Call) and getattr(n.func, "id", "") == "_sinh_chung_tu":
+					goi.append(fn.name)
+	la("chỉ _sinh_va_ghi_loi gọi _sinh_chung_tu", sorted(set(goi)), ["_sinh_va_ghi_loi"])

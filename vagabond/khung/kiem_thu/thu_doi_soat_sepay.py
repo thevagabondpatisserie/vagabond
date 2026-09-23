@@ -549,7 +549,10 @@ def _hoan_truc_tiep_327():
 		('payload giả không sửa được tiền', dict(gd, withdrawal=200), [{'ma':'CT'}], 'GD', False),
 	]:
 		db=SimpleNamespace(get_value=Mock(return_value=dong), set_value=Mock(), commit=Mock())
-		sinh=Mock(return_value={})
+		# v523 (Codex #363 vòng 5): sepay_tien_ra sinh chứng từ qua MỘT cửa có
+		# khoá và chặn thiếu phiếu chi (_sinh_va_ghi_loi), không gọi thẳng
+		# _sinh_chung_tu nữa. Ca này vẫn chốt đúng ý #327: chỉ khớp thật mới sinh.
+		sinh=Mock(return_value={'phieu_chi':'APP-1'})
 		with ExitStack() as g:
 			g.enter_context(patch.dict(sys.modules, {'vagabond.ban_hang':SimpleNamespace(_kiem_quyen=lambda:None)}))
 			g.enter_context(patch.object(ht.frappe,'db',db))
@@ -558,7 +561,7 @@ def _hoan_truc_tiep_327():
 			g.enter_context(patch.object(ht,'ma_do_soat',return_value='HD-1'))
 			chon=g.enter_context(patch.object(ht,'chon_ma_khop',return_value='HD-1'))
 			g.enter_context(patch.object(ht,'_gd_da_chiem',return_value={}))
-			g.enter_context(patch.object(ht,'_sinh_chung_tu',sinh))
+			g.enter_context(patch.object(ht,'_sinh_va_ghi_loi',sinh))
 			g.enter_context(patch.object(dss,'nhan_tai_khoan',return_value=({'CT':'MB'},chip,[])))
 			kq=ht.sepay_tien_ra(mo_ta='PAYLOAD GIA',so_tien=100,ma_gd=ma)
 		la(ten+' khớp',kq['khop'],int(khop))
