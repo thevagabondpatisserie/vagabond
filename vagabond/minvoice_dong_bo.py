@@ -106,6 +106,32 @@ def vo_ruot(so_hd_dang_luu, inv):
 	return (not so_hd_dang_luu) and bool(inv.get("shdon"))
 
 
+def chi_co_ma(inv):
+	"""Dong nguon CHI CO MA, khong mang noi dung hoa don. THUAN.
+
+	Khac han "vo ruot": vo ruot la to co ngay lap that ma M-Invoice chua
+	kip do so vao, va no LANH o luot sau. Con day la dong khong co ca
+	shdon lan tdlap.
+
+	Do tren site that 23/09/2026, bang MInvoice Invoice 61.424 ban ghi:
+	moi ban ghi CO so hoa don deu mang ma dang UUID, va moi ban ghi KHONG
+	co so deu mang ma dang ObjectId 24 ky tu. Khong mot ngoai le nao ca
+	hai chieu. 5.507 ban ghi ObjectId, trong do 234 dau vao, va ca 234 to
+	co modified dung bang creation: hai thang nam do, khong to nao lanh.
+	Giai dau thoi gian nhung trong 4 byte dau cua ObjectId thi no roi vao
+	khoang 5 toi 10 phut TRUOC luc minh keo, khong phai ngay phat hanh
+	hoa don. Nghia la ben M-Invoice sinh vat tam ngay luc phuc vu loi goi
+	cua minh va no lot vao mang listInvoice. Ma moi moi luot nen duong
+	lanh cua vo_ruot khong bao gio gap lai ma cu.
+
+	Luu chung lai chi lam banner bao no 234 to khong co that, che mat cac
+	to no that vi ly do khac. Nen chi DEM roi bo qua. Lan keo sau ma
+	nguon tra du noi dung thi to do vao theo duong binh thuong.
+	"""
+	inv = inv or {}
+	return not inv.get("shdon") and not inv.get("tdlap")
+
+
 def doc_trang(resp):
 	"""Payload lỗi không được biến thành trang rỗng và kết quả thành công."""
 	if not isinstance(resp, dict) or not isinstance(resp.get("listInvoice"), list):
@@ -276,7 +302,7 @@ def _keo(so_ngay=None, tu_ngay="", den_ngay="", chi_loai="", do_lai_het=0):
 					# bản ghi, hoặc có mà còn trống số). Tờ đã kéo đủ ở lượt
 					# trước mà nguồn lượt này trả rút gọn thì không đếm, không
 					# thì nút đồng bộ báo "chưa hoàn tất" mãi.
-					rut_gon = bool(hid) and not inv.get("shdon") and not inv.get("tdlap")
+					rut_gon = bool(hid) and chi_co_ma(inv)
 					thong_bao_truoc = list(frappe.local.message_log or [])
 					frappe.db.savepoint("minvoice_mot_to")
 					try:
@@ -294,7 +320,10 @@ def _keo(so_ngay=None, tu_ngay="", den_ngay="", chi_loai="", do_lai_het=0):
 								cap_nhat += 1
 							continue
 						if rut_gon:
+							# Chi co ma thi DEM roi thoi, khong lap ban
+							# ghi rong. Ly do day du o phan thuan phia tren.
 							nguon_chua_du.add(str(hid))
+							continue
 						doc = frappe.get_doc({"doctype": DT_HD, "ma_hd_id": hid})
 						doc.update(_du_lieu(inv, loai))
 						doc.insert(ignore_permissions=True)
