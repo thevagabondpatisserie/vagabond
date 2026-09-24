@@ -1107,3 +1107,9 @@ dấu huỷ, và xét cả chiều ngược: tờ đang làm chứng từ thì k
 Phép soát tiền một chiều ("được Nợ ít nhất bằng") luôn đạt với số âm. Tờ trả
 hàng có tiền âm, sổ cái ghi Có, nên luật đó để lọt bút toán Có sai tài khoản
 (Codex #368 vòng 3). So tiền sổ cái phải theo DẤU: cùng chiều và đủ số.
+
+Hồ sơ "Từ chối" KHÔNG phải trạng thái cuối: người lập sửa rồi gửi duyệt lại
+được. Luật nào coi Từ chối như Huỷ để trả lại chứng từ đang giữ là mở đường
+cho chứng từ đó bị dùng lần hai trong lúc chờ (Codex #368 vòng 4). Chỉ Huỷ mới
+là cuối; trước khi coi một trạng thái là "hết hiệu lực", kiểm xem có bước nào
+đưa nó sống lại không.
