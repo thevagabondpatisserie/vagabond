@@ -80,7 +80,7 @@ class _Mon(_Doc):
 		self[k] = v
 
 
-def _luu_mon(doc, so_kho=None):
+def _luu_mon(doc, so_kho=None, cong_ty=None):
 	"""Chạy khi_luu_mon THẬT. so_kho: các dòng SLE của món; exists lọc thật."""
 	from vagabond import ccdc_dung_ngay as C
 
@@ -96,9 +96,10 @@ def _luu_mon(doc, so_kho=None):
 	cu = C.frappe
 	C.frappe = SimpleNamespace(
 		throw=_throw,
-		get_all=lambda dt, **k: list(TK) + ["The Vagabond (Demo)"],
+		get_all=lambda dt, **k: list(cong_ty or (list(TK) + ["The Vagabond (Demo)"])),
 		db=SimpleNamespace(
 			get_value=lambda dt, loc, truong: TK.get(loc.get("company")) if dt == "Account" else None,
+			get_single_value=lambda dt, f: "The Vagabond (Demo)",
 			exists=exists,
 		),
 	)
@@ -331,7 +332,7 @@ def _patch_nem():
 	dung("lỗi đi ra ngoài patch", nem)
 
 
-def _chay_tick(mon, so_kho, giu=True):
+def _chay_tick(mon, so_kho, giu=True, cong_ty=None):
 	"""Chạy tick_ma_cu THẬT với danh mục giả. mon: {mã: {item_group, disabled, custom_di_242}}."""
 	from vagabond import ccdc_dung_ngay as C
 
@@ -340,7 +341,7 @@ def _chay_tick(mon, so_kho, giu=True):
 
 	def get_all(dt, filters=None, fields=None, **k):
 		if dt == "Company":
-			return [CTY]
+			return list(cong_ty or [CTY, "The Vagabond (Demo)"])
 		if dt == "Item":
 			nhom = filters["item_group"][1]
 			return [_Doc(name=m, custom_di_242=r.get("custom_di_242", 0)) for m, r in mon.items()
@@ -368,6 +369,7 @@ def _chay_tick(mon, so_kho, giu=True):
 	C.frappe = SimpleNamespace(
 		throw=_throw, get_all=get_all, new_doc=lambda dt: _Dong(), clear_cache=lambda **k: None,
 		db=SimpleNamespace(set_value=set_value, get_value=get_value,
+			get_single_value=lambda dt, f: "The Vagabond (Demo)",
 			exists=lambda dt, loc: dt == "Stock Ledger Entry" and loc.get("item_code") in so_kho),
 	)
 	try:
@@ -429,3 +431,38 @@ def _xem_ccdc():
 	la("mã dự kiến theo tiền tố cũ", ra["ma_du_kien"], "CCDC00300")
 	ra2 = _xem("Bao bì")
 	dung("nhóm khác không có câu này", not any("Đi 242" in c for c in ra2["canh_bao"]))
+
+
+# ----------------------------------------- Codex #365 vòng 1
+
+@ca("#525 Codex #365 v1: một công ty thật thiếu TK 242 thì patch dừng TRƯỚC khi đổi mã nào")
+def _thieu_242_patch():
+	mon = {"CCDC00152": {"item_group": "Công cụ Dụng cụ", "is_stock_item": 1}}
+	kq, loi, mon, item_def = _chay_tick(mon, so_kho=set(), cong_ty=[CTY, "Công ty B", "The Vagabond (Demo)"])
+	dung("báo thiếu 242 của Công ty B", "Công ty B" in loi)
+	la("chưa đổi mã nào", (mon["CCDC00152"]["is_stock_item"], mon["CCDC00152"].get("custom_di_242", 0)), (1, 0))
+	la("chưa ghi mặc định nào", item_def, {})
+	# Công ty demo (Global Defaults.demo_company) không cần 242: ca thường vẫn chạy.
+	kq, loi, _, _ = _chay_tick({"CCDC00152": {"item_group": "Công cụ Dụng cụ", "is_stock_item": 1}}, so_kho=set())
+	la("chỉ thiếu ở công ty demo thì không chặn", loi, "")
+
+
+@ca("#525 Codex #365 v1: tick trên hồ sơ món mà một công ty thật thiếu TK 242 thì chặn, không đổi cờ")
+def _thieu_242_hook():
+	d = _Mon(truoc=_Doc(custom_di_242=0, is_stock_item=1), name="CCDC00152",
+		item_group="Công cụ Dụng cụ", custom_di_242=1, is_stock_item=1)
+	try:
+		_luu_mon(d, cong_ty=[CTY, "Công ty B"])
+		loi = ""
+	except _Loi as e:
+		loi = str(e)
+	dung("báo thiếu 242", "Công ty B" in loi)
+	la("cờ quản kho giữ nguyên", d.is_stock_item, 1)
+
+
+@ca("#525 Codex #365 v1: bỏ tick vẫn làm được dù một công ty thật thiếu TK 242")
+def _bo_tick_thieu_242():
+	d = _luu_mon(_Mon(truoc=_Doc(custom_di_242=1, is_stock_item=0), name="CCDC00152",
+		item_group="Công cụ Dụng cụ", custom_di_242=0, is_stock_item=0,
+		item_defaults=[{"company": CTY, "expense_account": TK[CTY]}]), cong_ty=[CTY, "Công ty B"])
+	la("gỡ 242", [r.expense_account for r in d.item_defaults], [None])
