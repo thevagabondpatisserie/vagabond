@@ -546,8 +546,10 @@ def xem(name):
 	nhom = _nhom_cua(hd, dong, bool(gy))
 	ho_so_chi = ""
 	if hd.get("docstatus") == 0:
-		from vagabond.ho_so_bo_sung import ho_so_dang_giu
-		ho_so_chi = ho_so_dang_giu(name)
+		# Codex #368 vòng 6: cùng MỘT nguồn với màn danh sách (chỉ hồ sơ Chi từ
+		# TK công ty), không tự hỏi dấu nối riêng. Tờ nối vào hồ sơ trả NCC vẫn
+		# ghi sổ bình thường.
+		ho_so_chi = _ho_so_chi_theo_hd([name]).get(name, "")
 		if ho_so_chi:
 			nhom = "xong"
 	noi_cu = 0
@@ -1233,7 +1235,7 @@ def _noi_tung_dong(doc, phieu, chi_tiet=False, kho=None):
 
 
 @frappe.whitelist()
-def noi_phieu(name, phieu=None, ghi_so=0):
+def noi_phieu(name, phieu=None, ghi_so=0, tk=None):
 	"""Noi hoa don voi phieu nhap, va ghi so luon neu duoc yeu cau.
 
 	Mot nut lam ca hai buoc: dung cai lam Uyen ket hom 12/08 - noi xong bam
@@ -1322,9 +1324,10 @@ def noi_phieu(name, phieu=None, ghi_so=0):
 		)
 
 	doc.reload()
-	doc.flags.ignore_permissions = True
-	doc.submit()
-	frappe.db.commit()
+	# v526 (Codex #368 vòng 6): ghi sổ đi qua đúng một cửa có hạch toán. Tờ có
+	# dòng phí mà không gửi tài khoản thì dừng ở đây; dấu nối phiếu đã lưu ở
+	# trên, người dùng mở màn Hạch toán rồi ghi sổ tiếp.
+	_ghi_so_co_hach_toan(doc, tk)
 	return {
 		"da_noi": 1, "da_ghi_so": 1, "name": doc.name, "trang_thai": doc.status,
 		"so_dong_da_noi": kq["da_noi"], "khong_qua_kho": bo_qua,
@@ -2103,15 +2106,33 @@ def ghi_so_thang(name, tk=None):
 	# v526 (chị Dung 24/09/2026): hạch toán từng dòng trước khi ghi sổ. Hoá
 	# đơn xăng HDM-26-09-00335 ghi thẳng rơi vào 632 vì màn không cho xem
 	# dòng nào đi đâu. Nay màn gửi kèm tài khoản từng dòng chi phí, bắt buộc.
+	_ghi_so_co_hach_toan(doc, tk)
+	co_phieu = any((d.get("purchase_receipt") or "").strip() for d in doc.items)
+	return {
+		"name": doc.name, "da_ghi_so": 1, "trang_thai": doc.status,
+		"loi_nhan": ("Đã ghi sổ tờ %s." % doc.name) if co_phieu else (
+			"Đã ghi sổ tờ %s. Tờ này không có dòng hàng qua kho nên "
+			"không cần nối phiếu nhập." % doc.name),
+	}
+
+
+def _ghi_so_co_hach_toan(doc, tk):
+	"""MỘT nguồn cho mọi nút ghi sổ hoá đơn mua trên màn Đối chiếu (v526).
+
+	Dòng chi phí (không qua kho, chưa nối phiếu nhập: phí ship, dịch vụ) phải
+	có tài khoản người chọn; ghi sổ xong đọc lại dòng và sổ cái, lệch thì huỷ
+	giao dịch. Codex #368 vòng 6: nút "Khớp và ghi sổ" (tờ lẫn hàng kho và
+	dòng phí) từng gọi submit riêng, không qua đây, nên dòng phí vẫn rơi 632.
+	Mọi đường ghi sổ của màn này phải gọi hàm này, không tự submit."""
 	from vagabond import hach_toan_thang
 	if isinstance(tk, str):
 		tk = frappe.parse_json(tk) if tk.strip() else None
 	co_dong_chi_phi = any(hach_toan_thang.la_dong_chi_phi(d) for d in doc.items)
 	if co_dong_chi_phi and not isinstance(tk, dict):
-		frappe.throw("Chưa chọn tài khoản hạch toán cho các dòng. Tải lại màn Đối chiếu "
-			"(kéo xuống để làm mới) rồi bấm Ghi sổ thẳng lần nữa.")
+		frappe.throw("Chưa chọn tài khoản hạch toán cho các dòng chi phí (phí ship, dịch vụ). "
+			"Tải lại màn Đối chiếu (kéo xuống để làm mới) rồi bấm ghi sổ lần nữa, máy sẽ mở "
+			"màn chọn tài khoản.")
 	chon = hach_toan_thang.ap_tai_khoan(doc, tk) if co_dong_chi_phi else {}
-
 	doc.flags.ignore_permissions = True
 	doc.submit()
 	lech = hach_toan_thang.soat_sau_ghi(doc.name, chon)
@@ -2119,11 +2140,7 @@ def ghi_so_thang(name, tk=None):
 		frappe.db.rollback()
 		frappe.throw("Chưa ghi sổ: máy tự đổi tài khoản khác với chị chọn (%s). Báo kỹ thuật." % "; ".join(lech))
 	frappe.db.commit()
-	return {
-		"name": doc.name, "da_ghi_so": 1, "trang_thai": doc.status,
-		"loi_nhan": "Đã ghi sổ tờ %s. Tờ này không có dòng hàng qua kho nên "
-		"không cần nối phiếu nhập." % doc.name,
-	}
+	return chon
 
 
 def chan_vuot_luong_da_nhan(doc, method=None):
