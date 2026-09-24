@@ -62,7 +62,15 @@ def loi_giu_lien_ket(cu_dong, moi_dong, doi_ncc, hoa_don_goc_doi):
 # hợp lệ tính thuế, và tờ hoá đơn mua đó KHÔNG được ghi sổ nữa (ghi là chi
 # phí hai lần, công nợ treo mãi). Thuế GTGT đầu vào kế toán tự xử lý tay.
 
-TT_HET_HIEU_LUC = ("Huy", "Tu choi")
+# Chỉ HUỶ mới làm dấu nối hết hiệu lực. Từ chối KHÔNG: hồ sơ bị trả lại vẫn
+# gửi duyệt lại được (ho_so_tt.duyet "gui_fin" nhận cả Tu choi), nên nó phải
+# giữ tờ đã nối, không thì tờ đó ghi sổ được hoặc nối sang hồ sơ khác trong
+# lúc chờ, rồi hồ sơ cũ sống lại vẫn mang dấu nối: chi phí hai lần (Codex #368
+# vòng 4). Muốn trả tờ ra thì huỷ hồ sơ.
+TT_HET_HIEU_LUC = ("Huy",)
+# Hồ sơ không nhận nối THÊM (kiem_bo_sung chặn): dùng để lọc danh sách khoản
+# chờ trên Desk, khác với TT_HET_HIEU_LUC là bộ quyết định ai còn giữ tờ.
+TT_KHONG_NOI_THEM = ("Huy", "Tu choi")
 
 
 def _so(v):
@@ -158,7 +166,7 @@ def kiem_bo_sung(doc):
 		_kiem(VAI_FIN | VAI_GD, "nối hóa đơn đến sau")
 		if not cint(d.get("cho_hoa_don")):
 			frappe.throw("Khoản %s chưa đánh dấu hóa đơn đến sau." % d.idx)
-		if doc.trang_thai in ("Huy", "Tu choi"):
+		if doc.trang_thai in TT_KHONG_NOI_THEM:
 			frappe.throw("Hồ sơ đã hủy hoặc từ chối, không bổ sung hóa đơn.")
 		# v526 (Codex #368 finding 2): KHOÁ tờ hoá đơn trước, rồi mới xét trạng
 		# thái và dấu nối, bằng câu đọc hiện hành. Ghi sổ (check_if_latest và
@@ -325,6 +333,6 @@ def khoan_cho_hoa_don(hoa_don):
 			and ifnull(d.hoa_don_bo_sung, '') = ''
 			and ifnull(p.trang_thai, '') not in %s
 		order by p.ngay desc, d.idx asc limit 50""",
-		(hd.supplier, TT_HET_HIEU_LUC), as_dict=True)
+		(hd.supplier, TT_KHONG_NOI_THEM), as_dict=True)
 	return {"da_noi": "", "khoan": [dict(r, so_tien=float(r.so_tien or 0),
 		ngay=str(r.ngay or ""), ngay_hd=str(r.ngay_hd or "")) for r in ds]}

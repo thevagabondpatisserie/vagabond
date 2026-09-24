@@ -138,6 +138,12 @@ def _tk_mon(ma, cong_ty):
 		"expense_account") or ""
 
 
+def _anh_mon(ma):
+	"""Ảnh món trên danh mục, rỗng thì app hiện ô 🍰 (AGENTS.md, ảnh món)."""
+	ma = (ma or "").strip()
+	return (frappe.db.get_value("Item", ma, "image") or "") if ma else ""
+
+
 def tk_lan_truoc(ncc, cong_ty, bo_qua=""):
 	"""Tài khoản của dòng chi phí gần nhất trên hoá đơn ĐÃ GHI SỔ của NCC này.
 
@@ -176,6 +182,7 @@ def dong_hach_toan(doc):
 			"ten": d.name, "idx": d.idx,
 			"ten_hang": d.get("item_name") or d.get("item_code") or "",
 			"ma": d.get("item_code") or "",
+			"anh": _anh_mon(d.get("item_code")),
 			"tien": flt(d.get("amount")),
 			"tk": d.get("expense_account") or "",
 			"sua_duoc": 1 if chi_phi else 0,
