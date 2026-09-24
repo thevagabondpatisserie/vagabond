@@ -76,8 +76,20 @@ class _Mon(_Doc):
 		self[bang].append(_Doc(dong))
 
 
-def _luu_mon(doc, co_so_kho=False):
+def _luu_mon(doc, co_so_kho=False, so_kho=None):
 	from vagabond import ccdc_dung_ngay as C
+
+	# Sổ kho giả: danh sách dòng SLE của món. exists lọc THẬT theo điều kiện
+	# hàm gửi xuống, để ca Codex #364 v1 (chỉ còn SLE đã huỷ) không bị che.
+	if so_kho is None:
+		so_kho = [{"is_cancelled": 0}] if co_so_kho else []
+
+	def exists(dt, loc):
+		if dt != "Stock Ledger Entry":
+			return False
+		loc = dict(loc or {})
+		loc.pop("item_code", None)
+		return any(all(r.get(k) == v for k, v in loc.items()) for r in so_kho)
 
 	cu = C.frappe
 	C.frappe = SimpleNamespace(
@@ -85,7 +97,7 @@ def _luu_mon(doc, co_so_kho=False):
 		get_all=lambda dt, **k: list(TK) + ["The Vagabond (Demo)"],
 		db=SimpleNamespace(
 			get_value=lambda dt, loc, truong: TK.get(loc.get("company")) if dt == "Account" else None,
-			exists=lambda dt, loc: co_so_kho if dt == "Stock Ledger Entry" else False,
+			exists=exists,
 		),
 	)
 	try:
@@ -246,10 +258,11 @@ def _nap_danh_muc():
 	return danh_muc
 
 
-def _tao(nhom, loai):
+def _tao(nhom, loai, quy_cach=None, goi_trung=None):
 	D = _nap_danh_muc()
 
 	tao = []
+	goi_trung = goi_trung if goi_trung is not None else []
 
 	def new_doc(dt):
 		d = _Doc(doctype=dt, flags=SimpleNamespace(), standard_rate=0)
@@ -271,12 +284,12 @@ def _tao(nhom, loai):
 		D.frappe = fr
 		D._kiem_quyen = lambda: None
 		D._duoc_tao = lambda: True
-		D.tim_trung = lambda **k: []
+		D.tim_trung = lambda **k: goi_trung.append(k) or []
 		D._ma_moi = lambda tt: tt + "00001"
 		D._dvt_quen = lambda n: "Cái"
 		D.tien_to_nhom = lambda n: ""
 		try:
-			return D.tao(nhom=nhom, loai=loai, ten="Quạt đứng Midea FS40-24EVN"), tao, ""
+			return D.tao(nhom=nhom, loai=loai, ten="Quạt đứng Midea FS40-24EVN", quy_cach=quy_cach), tao, ""
 		except _Loi as e:
 			return None, tao, str(e)
 	finally:
@@ -297,3 +310,141 @@ def _tao_sai_nhom():
 	ra, tao, loi = _tao("Công cụ Dụng cụ", "ccdc_dung_ngay")
 	dung("báo", 'chỉ đi với nhóm "CCDC dùng ngay"' in loi)
 	la("không tạo", tao, [])
+
+
+# ----------------------------------------- Codex #364 vòng 1
+
+@ca("#524 Codex #364 v1: món chỉ còn sổ kho ĐÃ HUỶ vẫn không được chuyển sang nhóm CCDC dùng ngay")
+def _so_kho_da_huy():
+	truoc = _Doc(is_stock_item=1, item_group="Công cụ Dụng cụ")
+	try:
+		_luu_mon(_Mon(truoc=truoc, name="CCDC00197", item_group="CCDC dùng ngay", is_stock_item=1),
+			so_kho=[{"is_cancelled": 1}])
+		loi = ""
+	except _Loi as e:
+		loi = str(e)
+	dung("bị chặn", "đã có sổ kho" in loi)
+
+
+@ca("#524 Codex #364 v1: món đang KHÔNG quản kho mà có sổ kho cũ cũng không được chuyển sang nhóm")
+def _khong_quan_kho_co_so():
+	truoc = _Doc(is_stock_item=0, item_group="Dịch vụ")
+	try:
+		_luu_mon(_Mon(truoc=truoc, name="DV00001", item_group="CCDC dùng ngay", is_stock_item=0),
+			so_kho=[{"is_cancelled": 0}])
+		loi = ""
+	except _Loi as e:
+		loi = str(e)
+	dung("bị chặn", "đã có sổ kho" in loi)
+	# Món đã ở trong nhóm từ trước (không phải lúc chuyển vào), lưu lại vì ô khác: không chặn.
+	d = _luu_mon(_Mon(truoc=_Doc(is_stock_item=0, item_group="CCDC dùng ngay"), name="CCDN00001",
+		item_group="CCDC dùng ngay", is_stock_item=0), so_kho=[])
+	la("lưu lại món trong nhóm", d.is_stock_item, 0)
+
+
+@ca("#524 Codex #364 v3: soát trùng tên dùng ĐÚNG loại CCDC dùng ngay khi màn còn mang loại khác")
+def _trung_theo_loai_chuan():
+	goi = []
+	ra, tao, loi = _tao("CCDC dùng ngay", "thanh_pham", quy_cach="Trắng", goi_trung=goi)
+	la("không lỗi", loi, "")
+	la("soát trùng gọi đúng loại của nhóm", [g.get("loai") for g in goi], ["ccdc_dung_ngay"])
+	la("tên món không gắn quy cách như hàng bán", tao[0]["item_name"], "Quạt đứng Midea FS40-24EVN")
+
+
+class _Nhom(_Doc):
+	def __init__(self, giu=True, **k):
+		super().__init__(**k)
+		dict.__setitem__(self, "item_group_defaults", [])
+		dict.__setitem__(self, "_giu", giu)
+		dict.__setitem__(self, "flags", SimpleNamespace())
+
+	def append(self, bang, dong):
+		self[bang].append(_Doc(dong))
+
+	def save(self):
+		if not self["_giu"]:
+			# Mô phỏng lượt lưu không giữ được dòng mặc định.
+			self["item_group_defaults"].clear()
+
+	def insert(self):
+		pass
+
+
+def _chay_dung(giu=True, co_cha=True):
+	from vagabond import ccdc_dung_ngay as C
+
+	nhom = _Nhom(giu=giu, name=C.NHOM)
+	da_tao = []
+
+	def exists(dt, ten=None):
+		if ten in (C.CHA, C.NHOM):
+			# Bench dựng mới: chưa có cả nhóm cha lẫn nhóm lá.
+			return co_cha or any(d.get("item_group_name") == ten for d in da_tao)
+		return True
+
+	def get_doc(dt, ten=None):
+		if isinstance(dt, dict):
+			d = _Nhom(**dt)
+			da_tao.append(dt)
+			return d
+		return nhom
+
+	cu = C.frappe
+	C.frappe = SimpleNamespace(
+		throw=_throw, get_doc=get_doc,
+		get_all=lambda dt, **k: [CTY],
+		db=SimpleNamespace(exists=exists, get_value=lambda dt, loc, truong: TK.get(loc.get("company"))),
+	)
+	nested = sys.modules.get("frappe.utils.nestedset")
+	sys.modules["frappe.utils.nestedset"] = SimpleNamespace(get_root_of=lambda dt: "All Item Groups")
+	try:
+		try:
+			return C.dung(), "", da_tao, nhom
+		except _Loi as e:
+			return None, str(e), da_tao, nhom
+	finally:
+		C.frappe = cu
+		if nested is None:
+			sys.modules.pop("frappe.utils.nestedset", None)
+		else:
+			sys.modules["frappe.utils.nestedset"] = nested
+
+
+@ca("#524 Codex #364 v2: dựng nhóm mà mặc định 242 không giữ được thì báo lỗi, không báo xong")
+def _dung_khong_giu():
+	ra, loi, _, _ = _chay_dung(giu=False)
+	dung("báo lỗi", "chưa nhận đủ mặc định 242" in loi)
+	ra, loi, _, nhom = _chay_dung(giu=True)
+	la("giữ được thì xong", loi, "")
+	la("nhóm có mặc định 242", [(d.company, d.expense_account) for d in nhom.item_group_defaults], [(CTY, TK[CTY])])
+
+
+@ca("#524 Codex #364 v2: chưa có nhóm Mua vào thì dựng nhóm cha, không bỏ qua")
+def _dung_thieu_cha():
+	from vagabond import ccdc_dung_ngay as C
+	ra, loi, da_tao, _ = _chay_dung(co_cha=False)
+	la("không lỗi", loi, "")
+	la("dựng nhóm cha rồi nhóm lá", [(d["item_group_name"], d["parent_item_group"]) for d in da_tao],
+		[(C.CHA, "All Item Groups"), (C.NHOM, C.CHA)])
+
+
+@ca("#524 Codex #364 v2: patch v524 để lỗi dựng nhóm làm hỏng lượt migrate")
+def _patch_nem():
+	from vagabond import ccdc_dung_ngay as C
+	from vagabond.patches import ccdc_dung_ngay_v524 as P
+
+	cu = C.dung
+
+	def hong():
+		raise _Loi("không lưu được nhóm")
+
+	C.dung = hong
+	try:
+		try:
+			P.execute()
+			nem = False
+		except _Loi:
+			nem = True
+	finally:
+		C.dung = cu
+	dung("lỗi đi ra ngoài patch", nem)
