@@ -229,13 +229,64 @@ def nguoi_da_chon(doc, ten_dong):
 
 
 def soat_sau_ghi(ten_hd, chon):
-	"""Đọc lại từ sổ: tài khoản trên dòng phải đúng như người chọn."""
+	"""Đọc lại sau khi ghi sổ, cả DÒNG lẫn SỔ CÁI, trong cùng giao dịch.
+
+	Codex #368 finding 1: bản đầu chỉ đọc ô tài khoản trên dòng. Hook on_submit
+	hay luật ghi sổ của ERPNext mà Nợ tài khoản khác, để nguyên ô trên dòng, thì
+	bản đầu vẫn chốt. Nay so thêm bút toán sổ cái thật của tờ (lech_so_cai)."""
+	if not chon:
+		return []
+	dong = frappe.get_all("Purchase Invoice Item",
+		filters={"parent": ten_hd, "parenttype": "Purchase Invoice"},
+		fields=["name", "idx", "expense_account", "base_net_amount",
+			"enable_deferred_expense", "deferred_expense_account"])
 	lech = []
-	for ten, tk in (chon or {}).items():
-		that = frappe.db.get_value("Purchase Invoice Item", ten, "expense_account")
+	theo_ten = {d.name: d for d in dong}
+	for ten, tk in chon.items():
+		d = theo_ten.get(ten)
+		that = d.expense_account if d else None
 		if that != tk:
-			lech.append("dòng %s: chọn %s mà sổ ghi %s" % (
-				frappe.db.get_value("Purchase Invoice Item", ten, "idx"), tk, that))
+			lech.append("dòng %s: chọn %s mà dòng ghi %s" % (d.idx if d else "?", tk, that))
+	gl = {}
+	for tk, so in frappe.db.sql("""select account, sum(debit - credit)
+		from `tabGL Entry`
+		where voucher_type = 'Purchase Invoice' and voucher_no = %s and is_cancelled = 0
+		group by account""", ten_hd):
+		gl[tk] = flt(so)
+	cong_ty = frappe.db.get_value("Purchase Invoice", ten_hd, "company")
+	return lech + lech_so_cai(chon, dong, gl, _tk_mac_dinh(cong_ty))
+
+
+def _so_tien(v):
+	return "{:,.0f}".format(flt(v)).replace(",", ".")
+
+
+def lech_so_cai(chon, dong, gl, mac_dinh, sai_so=1.0):
+	"""So bút toán sổ cái của tờ với các dòng người đã chọn tài khoản. THUẦN.
+
+	chon: {tên dòng: tài khoản}. dong: dòng của tờ sau khi ghi sổ. gl: {tài
+	khoản: Nợ trừ Có} của đúng tờ này. Hai luật:
+	1. Mỗi tài khoản người chọn phải được Nợ ít nhất bằng tổng tiền các dòng
+	   chọn nó. Nợ nhiều hơn thì được (chiết khấu tách riêng, thuế tính vào chi
+	   phí, dòng khác cùng tài khoản).
+	2. Tài khoản mặc định công ty (632) không dòng nào mang mà sổ cái vẫn Nợ,
+	   đó chính là lỗi chị Dung gặp.
+	Dòng chi phí trả trước (enable_deferred_expense) ERPNext Nợ tài khoản chờ
+	phân bổ của dòng chứ không Nợ tài khoản chi phí, nên tính theo tài khoản đó."""
+	can, tren_dong = {}, set()
+	for d in dong or []:
+		tk = d.get("deferred_expense_account") if cint(d.get("enable_deferred_expense")) else d.get("expense_account")
+		tren_dong.add(tk)
+		if d.get("name") in (chon or {}):
+			can[tk] = can.get(tk, 0) + flt(d.get("base_net_amount"))
+	lech = []
+	for tk in sorted(can):
+		if flt(gl.get(tk)) + sai_so < can[tk]:
+			lech.append("sổ cái Nợ %s %s đ, các dòng chọn tài khoản này cộng %s đ" % (
+				tk, _so_tien(gl.get(tk)), _so_tien(can[tk])))
+	if mac_dinh and mac_dinh not in tren_dong and flt(gl.get(mac_dinh)) > sai_so:
+		lech.append("sổ cái Nợ %s %s đ mà không dòng nào đi tài khoản này" % (
+			mac_dinh, _so_tien(gl.get(mac_dinh))))
 	return lech
 
 

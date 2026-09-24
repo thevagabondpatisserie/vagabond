@@ -155,20 +155,41 @@ def kiem_bo_sung(doc):
 			frappe.throw("Khoản %s chưa đánh dấu hóa đơn đến sau." % d.idx)
 		if doc.trang_thai in ("Huy", "Tu choi"):
 			frappe.throw("Hồ sơ đã hủy hoặc từ chối, không bổ sung hóa đơn.")
+		# v526 (Codex #368 finding 2): KHOÁ tờ hoá đơn trước, rồi mới xét trạng
+		# thái và dấu nối, bằng câu đọc hiện hành. Ghi sổ (check_if_latest và
+		# chan_ghi_so_hd_da_chi) giữ đúng khoá này, nên nối và ghi sổ cùng một
+		# tờ không còn chạy song song. Không đọc docstatus từ get_doc: đó là ảnh
+		# chụp REPEATABLE READ, không thấy lần ghi sổ vừa chốt.
+		khoa = khoa_hoa_don(ma)
 		hd = frappe.get_doc("Purchase Invoice", ma)
+		docstatus = khoa[0][0] if khoa else hd.docstatus
 		from vagabond.ho_so_tt import _cong_ty_chung_tu
-		if hd.docstatus == 2 or hd.supplier != doc.nha_cung_cap or hd.company != _cong_ty_chung_tu():
+		if docstatus == 2 or hd.supplier != doc.nha_cung_cap or hd.company != _cong_ty_chung_tu():
 			frappe.throw("Hóa đơn bổ sung phải còn hiệu lực, đúng nhà cung cấp và công ty của hồ sơ.")
 		if ma == d.hoa_don:
 			frappe.throw("Hóa đơn này đã là chứng từ gốc của khoản chi, không cần nối bổ sung.")
 		# v526: chỉ nối tờ còn nháp, và một tờ chỉ nằm ở một khoản còn hiệu lực.
-		loi = loi_noi_hoa_don(hd.docstatus, ho_so_dang_giu(ma, bo_qua_dong=d.name))
+		loi = loi_noi_hoa_don(docstatus, ho_so_dang_giu(ma, bo_qua_dong=d.name, khoa=True))
 		if loi:
 			frappe.throw("Khoản %s: hoá đơn %s %s." % (d.idx, ma, loi))
 
 
-def ho_so_dang_giu(hoa_don, bo_qua_dong=None):
-	"""Hồ sơ còn hiệu lực đang nối tờ hoá đơn này làm hoá đơn đến sau."""
+def khoa_hoa_don(hoa_don):
+	"""Khoá dòng tờ hoá đơn mua, trả ((docstatus,),) đọc HIỆN HÀNH.
+
+	Một khoá chung cho mọi đường nối và ghi sổ cùng một tờ (Codex #368 finding
+	2). Giao dịch sau chờ giao dịch trước chốt rồi mới xét."""
+	return frappe.db.sql("select docstatus from `tabPurchase Invoice` where name=%s for update", hoa_don)
+
+
+def ho_so_dang_giu(hoa_don, bo_qua_dong=None, khoa=False):
+	"""Hồ sơ còn hiệu lực đang nối tờ hoá đơn này làm hoá đơn đến sau.
+
+	khoa=True: đọc hiện hành có khoá (for update). Dùng ở chỗ QUYẾT ĐỊNH (nối,
+	ghi sổ), sau khi đã khoá tờ bằng khoa_hoa_don. Câu select thường chỉ đọc ảnh
+	chụp lúc giao dịch mở, không thấy dấu nối hồ sơ khác vừa chốt: đã tái hiện
+	trên MariaDB thật, hai hồ sơ cùng nối một tờ và tờ đã nối vẫn ghi sổ được.
+	Chỗ chỉ hiển thị (khoan_cho_hoa_don) để khoa=False."""
 	if not hoa_don:
 		return ""
 	ds = frappe.db.sql(
@@ -176,7 +197,7 @@ def ho_so_dang_giu(hoa_don, bo_qua_dong=None):
 		inner join `tabVagabond Ho So TT` p on p.name = d.parent
 		where d.hoa_don_bo_sung = %s and d.name != %s
 			and ifnull(p.trang_thai, '') not in %s
-		order by p.creation limit 1""",
+		order by p.creation limit 1""" + (" for update" if khoa else ""),
 		(hoa_don, bo_qua_dong or "", TT_HET_HIEU_LUC))
 	return ds[0][0] if ds else ""
 
@@ -186,7 +207,10 @@ def chan_ghi_so_hd_da_chi(doc, method=None):
 	hồ sơ chi từ TK công ty thì không ghi sổ. Tiền và chi phí đã vào sổ qua
 	bút toán của hồ sơ; ghi thêm tờ này là chi phí hai lần và một khoản công
 	nợ không bao giờ trả. Mọi đường ghi sổ (Desk, app, API) đều đi qua đây."""
-	giu = ho_so_dang_giu(doc.name)
+	# Submit đã giữ khoá tờ từ check_if_latest; khoá lại ở đây cho rõ và cho
+	# mọi đường gọi, rồi đọc dấu nối hiện hành (Codex #368 finding 2).
+	khoa_hoa_don(doc.name)
+	giu = ho_so_dang_giu(doc.name, khoa=True)
 	if giu:
 		frappe.throw(
 			"Hoá đơn %s đã nối làm hoá đơn đến sau của hồ sơ %s: khoản chi đã ghi chi phí "
