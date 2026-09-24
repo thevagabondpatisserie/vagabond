@@ -102,6 +102,22 @@ def _chan_ghi():
 	la("xếp vào Xong kèm tên hồ sơ", [(o.get("nhom"), o.get("ho_so_chi")) for o in dong], [("xong", ho_so)])
 
 
+@ca("#526 v2 tờ đang là hoá đơn đến sau của hồ sơ thì không đánh dấu huỷ được, dấu huỷ vẫn 0")
+def _khong_huy_to_da_noi():
+	from vagabond.chung_tu import danh_dau_huy
+	hd = khong_nem("dựng tờ", lambda: _luu(_phieu([("Xăng E10 RON 95", 1, 80000)])))
+	if not hd:
+		return
+	ho_so = _ho_so_cho(hd)
+	try:
+		danh_dau_huy(hd, "Ca thử 526")
+		loi = ""
+	except frappe.ValidationError as e:
+		loi = str(e)
+	dung("chặn, gọi tên hồ sơ", ho_so in loi)
+	la("dấu huỷ vẫn 0", int(frappe.db.get_value("Purchase Invoice", hd.name, "vgb_huy") or 0), 0)
+
+
 @ca("#526 hồ sơ đã huỷ thì dấu nối hết hiệu lực, tờ hoá đơn ghi sổ lại bình thường")
 def _ho_so_huy():
 	hd = khong_nem("dựng tờ", lambda: _luu(_phieu([("Xăng E10 RON 95", 1, 80000)])))
