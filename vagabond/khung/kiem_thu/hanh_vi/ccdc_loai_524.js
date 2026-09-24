@@ -39,8 +39,12 @@ function dung_man(ve, traVe) {
   var goi = [], ve_lai = [], xem = 0, hen = [];
   var g = {
     JSON: JSON, String: String,
-    dmVe: ve, dmKq: null, dmTre: null,
-    api: async function (m, a) { goi.push({ m: m, a: a }); return traVe; },
+    dmVe: ve, dmKq: null, dmTre: null, dmHoiLuot: 0,
+    api: function (m, a) {
+      goi.push({ m: m, a: JSON.parse(JSON.stringify(a)) });
+      // traVe là hàm thì ca tự quyết lúc nào lượt này về (dựng về trễ).
+      return typeof traVe === 'function' ? traVe(a) : Promise.resolve(traVe);
+    },
     dmDraw: function (giu) { ve_lai.push(g.dmVe.loai); },
     dmVeXem: function () { xem++; },
     setTimeout: function (f) { hen.push(f); return hen.length; },
@@ -72,6 +76,44 @@ async function chay(m) {
     await chay(m);
     bang('khong ve lai ca man', m.ve_lai, []);
     bang('ve phan xem truoc', m.xem(), 1);
+  });
+  await ca('Codex #364 v3: luot xem truoc ve tre sau khi nguoi da doi nhom thi bi bo, khong ep loai CCDC len nhom khac', async function () {
+    var cho = [];
+    var m = dung_man({ nhom: 'CCDC dùng ngay', loai: 'thanh_pham', ten: 'Quạt đứng', quy_cach: '' }, function (a) {
+      return new Promise(function (tra) { cho.push({ a: a, tra: tra }); });
+    });
+    // Lượt 1: nhóm CCDC, máy chưa trả lời.
+    m.g.dmHoiXem();
+    var l1 = m.hen[m.hen.length - 1]();
+    // Người dùng đổi sang nhóm Công cụ Dụng cụ, loại Nguyên vật liệu: lượt 2.
+    m.g.dmVe.nhom = 'Công cụ Dụng cụ'; m.g.dmVe.loai = 'nvl';
+    m.g.dmHoiXem();
+    var l2 = m.hen[m.hen.length - 1]();
+    // Lượt 2 về trước, lượt 1 về sau.
+    cho[1].tra({ loai: 'nvl', ten_day_du: 'Quạt đứng', trung: [], canh_bao: [] });
+    await l2;
+    cho[0].tra({ loai: 'ccdc_dung_ngay', ten_day_du: 'Quạt đứng', trung: [], canh_bao: [] });
+    await l1;
+    bang('hai luot da hoi', m.goi.map(function (c) { return c.a.nhom; }), ['CCDC dùng ngay', 'Công cụ Dụng cụ']);
+    bang('loai giu nguyen theo nhom hien tai', m.g.dmVe.loai, 'nvl');
+    bang('khong ve lai ca man vi luot tre', m.ve_lai, []);
+    bang('ket qua dang hien la cua luot moi', m.g.dmKq && m.g.dmKq.loai, 'nvl');
+  });
+  await ca('Codex #364 v3: chi go them ten trong luc cho thi ket qua luot cu ve tre khong de len luot moi', async function () {
+    var cho = [];
+    var m = dung_man({ nhom: 'CCDC dùng ngay', loai: 'ccdc_dung_ngay', ten: 'Quạt', quy_cach: '' }, function (a) {
+      return new Promise(function (tra) { cho.push({ a: a, tra: tra }); });
+    });
+    m.g.dmHoiXem();
+    var l1 = m.hen[m.hen.length - 1]();
+    m.g.dmVe.ten = 'Quạt đứng Midea';
+    m.g.dmHoiXem();
+    var l2 = m.hen[m.hen.length - 1]();
+    cho[1].tra({ loai: 'ccdc_dung_ngay', ten_day_du: 'Quạt đứng Midea', trung: [], canh_bao: [] });
+    await l2;
+    cho[0].tra({ loai: 'ccdc_dung_ngay', ten_day_du: 'Quạt', trung: [], canh_bao: [] });
+    await l1;
+    bang('ten dang hien la cua luot moi', m.g.dmKq && m.g.dmKq.ten_day_du, 'Quạt đứng Midea');
   });
   console.log('Bo ca kiem HANH VI chip Loai hang theo nhom CCDC dung ngay (v524)');
   ket.loi.forEach(function (d) { console.log('  HONG  ' + d); });
