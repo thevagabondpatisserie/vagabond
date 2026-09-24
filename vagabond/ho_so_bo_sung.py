@@ -151,6 +151,43 @@ def loi_noi_hoa_don(docstatus_hd, ho_so_khac, da_huy=0, chi_nhap=True):
 	return ""
 
 
+def loi_trung_trong_ho_so(moi_dong, cu_dong):
+	"""Một tờ hoá đơn chỉ làm chứng từ cho MỘT khoản, kể cả trong cùng hồ sơ. THUẦN.
+
+	Codex #368 vòng 12: ho_so_dang_giu chỉ đọc dòng ĐÃ lưu, nên một lần lưu gán
+	cùng một tờ chưa dùng cho hai khoản mới thì mỗi khoản đều không thấy khoản
+	kia, rồi nen_hop_le coi một tờ là chứng từ cho cả hai. Xét ngay trên bản
+	đang lưu. Tờ cũng không được vừa là hoá đơn gốc của khoản này vừa là hoá
+	đơn bổ sung của khoản khác.
+	moi_dong/cu_dong: {ten_dong: {"idx", "hoa_don_bo_sung", "hoa_don"}}.
+	Chỉ báo khi nhóm trùng có ít nhất một dấu nối MỚI hoặc ĐỔI ở lần lưu này,
+	để hồ sơ cũ (nếu lỡ có) không bị khoá cứng ở mọi lần lưu."""
+	goc = {}
+	for ten, r in (moi_dong or {}).items():
+		g = (r.get("hoa_don") or "").strip()
+		if g:
+			goc.setdefault(g, []).append(r.get("idx"))
+	nhom = {}
+	for ten, r in (moi_dong or {}).items():
+		ma = (r.get("hoa_don_bo_sung") or "").strip()
+		if ma:
+			nhom.setdefault(ma, []).append(ten)
+	for ma in sorted(nhom):
+		cac = nhom[ma]
+		moi = [t for t in cac if (((cu_dong or {}).get(t) or {}).get("hoa_don_bo_sung") or "").strip() != ma]
+		if not moi:
+			continue
+		idx = sorted(moi_dong[t].get("idx") or 0 for t in cac)
+		if len(cac) > 1:
+			return "Hoá đơn %s đang gán cho nhiều khoản (%s) trong cùng hồ sơ. Một tờ chỉ làm chứng từ cho một khoản." % (
+				ma, ", ".join(str(i) for i in idx))
+		khac = [i for i in goc.get(ma, []) if i not in idx]
+		if khac:
+			return "Hoá đơn %s đã là hoá đơn gốc của khoản %s nên không nối bổ sung cho khoản %s được." % (
+				ma, ", ".join(str(i) for i in sorted(khac)), idx[0])
+	return ""
+
+
 def loi_mo_lai_huy(tt_cu, tt_moi, cu_dong):
 	"""Hồ sơ đã Huỷ đang mang dấu nối hoá đơn đến sau thì không mở lại. THUẦN.
 
@@ -244,6 +281,13 @@ def kiem_bo_sung(doc):
 			or loi_doi_loai(getattr(cu, "loai", None), getattr(doc, "loai", None), cu_dong, LOAI_NCC))
 		if loi:
 			frappe.throw(loi, title="Hồ sơ đang có chứng từ")
+	# Khoá theo từng dòng thật, không theo d.name: dòng mới chưa có tên thì
+	# nhiều dòng trùng khoá None sẽ gộp làm một và lọt trùng.
+	loi = loi_trung_trong_ho_so({(d.name or "__moi_%d" % i): {"idx": d.idx,
+		"hoa_don_bo_sung": d.get("hoa_don_bo_sung"), "hoa_don": d.get("hoa_don")}
+		for i, d in enumerate(doc.dong or [])}, cu_dong)
+	if loi:
+		frappe.throw(loi, title="Hoá đơn trùng khoản")
 	_giu_tien_khoan_da_noi(doc, cu_dong)
 
 	for d in (doc.dong or []):
