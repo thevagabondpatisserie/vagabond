@@ -194,6 +194,23 @@ function dung_man(opt) {
     bang('khoan moi khong danh dau', g.huDong[0].cho_hoa_don, 0);
   });
 
+  await ca('v5: roi che do Hoa don den sau thi go co cho hoa don tren moi khoan (khong de khoan cu mien dinh kem)', async function () {
+    var g = man19();
+    g.huDong = [{ noi_dung: 'Xang', cho_hoa_don: 0 }];
+    g.huChonCp('vesau');
+    g.huThemDongTrong();
+    g.huChonCp('Chi phi khong hop le');
+    bang('moi khoan het cho hoa don', g.huDong.map(function (d) { return d.cho_hoa_don; }), [0, 0]);
+  });
+
+  await ca('v5: doi qua lai giua hai chip thuong thi giu nguyen danh dau tay cua tung khoan', async function () {
+    var g = man19();
+    g.huDong = [{ noi_dung: 'Xang', cho_hoa_don: 1 }];
+    g.huChonCp('Chi phi hop le');
+    g.huChonCp('Chi phi khong hop le');
+    bang('giu danh dau tay', g.huDong[0].cho_hoa_don, 1);
+  });
+
   console.log('Bo ca kiem HANH VI hach toan ghi so thang va hoa don den sau (v526)');
   ket.loi.forEach(function (d) { console.log('  HONG  ' + d); });
   console.log(ket.dat + ' ca dat, ' + ket.hong + ' ca hong, tong ' + (ket.dat + ket.hong) + ' ca.');
