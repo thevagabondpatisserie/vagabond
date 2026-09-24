@@ -391,3 +391,14 @@ def execute():
 			)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "patches: bo bat buoc tham chieu")
+
+	# v524 (anh Viet 24/09/2026): nhom "CCDC dung ngay" duoi Mua vao, mac
+	# dinh tai khoan chi phi 242. Doc dau tep vagabond/ccdc_dung_ngay.py.
+	# Chay lai duoc: co nhom roi thi chi soat lai mac dinh 242.
+	try:
+		from vagabond import ccdc_dung_ngay
+
+		kq = ccdc_dung_ngay.dung()
+		frappe.logger().info("dong_bo_cau_truc: nhom CCDC dung ngay: %s" % kq)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "patches: nhom CCDC dung ngay")
