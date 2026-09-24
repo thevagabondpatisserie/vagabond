@@ -466,3 +466,106 @@ def _bo_tick_thieu_242():
 		item_group="Công cụ Dụng cụ", custom_di_242=0, is_stock_item=0,
 		item_defaults=[{"company": CTY, "expense_account": TK[CTY]}]), cong_ty=[CTY, "Công ty B"])
 	la("gỡ 242", [r.expense_account for r in d.item_defaults], [None])
+
+
+# ----------------------------------------- Codex #365 vòng 3
+
+def _chay_dung(nhom_co=True, mon_trong_nhom=()):
+	"""Chạy dung() THẬT (patch v525) trên site đã nhận v524: nhóm "CCDC dùng
+	ngay" còn đó, 0 món. Ghi lại mọi lời gọi xoá."""
+	from vagabond import ccdc_dung_ngay as C
+
+	xoa, nhom = [], {C.NHOM_V524} if nhom_co else set()
+
+	def exists(dt, loc=None):
+		if dt == "Item Group":
+			return loc in nhom
+		if dt == "Item" and isinstance(loc, dict) and "item_group" in loc:
+			return bool(mon_trong_nhom)
+		return False
+
+	def delete_doc(dt, ten, **k):
+		xoa.append((dt, ten))
+		if dt == "Item Group":
+			nhom.discard(ten)
+
+	cu, cu_ccf = C.frappe, sys.modules.get("frappe.custom.doctype.custom_field.custom_field")
+	sys.modules["frappe.custom.doctype.custom_field.custom_field"] = SimpleNamespace(
+		create_custom_fields=lambda *a, **k: None)
+	C.frappe = SimpleNamespace(
+		throw=_throw, clear_cache=lambda **k: None, delete_doc=delete_doc,
+		get_all=lambda dt, **k: [CTY] if dt == "Company" else [],
+		db=SimpleNamespace(updatedb=lambda dt: None, exists=exists,
+			get_value=lambda dt, loc, truong: TK.get(loc.get("company")) if dt == "Account" else None,
+			get_single_value=lambda dt, f: "The Vagabond (Demo)"),
+	)
+	try:
+		return C.dung(), xoa, nhom
+	finally:
+		C.frappe = cu
+		if cu_ccf is None:
+			sys.modules.pop("frappe.custom.doctype.custom_field.custom_field", None)
+		else:
+			sys.modules["frappe.custom.doctype.custom_field.custom_field"] = cu_ccf
+
+
+@ca("#525 Codex #365 v3: patch KHÔNG xoá nhóm CCDC dùng ngay của v524, kể cả khi nhóm rỗng (QT-20)")
+def _giu_nhom_v524():
+	from vagabond import ccdc_dung_ngay as C
+	kq, xoa, nhom = _chay_dung()
+	la("không gọi xoá gì", xoa, [])
+	dung("nhóm v524 còn nguyên", C.NHOM_V524 in nhom)
+	la("patch vẫn tick như thường", kq["tick"], 0)
+
+
+@ca("#525 Codex #365 v3: nhóm v524 ngừng dùng: mở món mới hay đổi món sang nhóm đó thì chặn")
+def _chan_vao_nhom_v524():
+	from vagabond import ccdc_dung_ngay as C
+
+	def luu(d):
+		try:
+			_luu_mon(d)
+			return ""
+		except _Loi as e:
+			return str(e)
+
+	loi = luu(_Mon(name="CCDN00001", item_group=C.NHOM_V524, is_stock_item=0))
+	dung("mở mới trong nhóm ngừng bị chặn", "ngừng dùng" in loi)
+	dung("câu chặn chỉ nhóm thay thế", C.NHOM_CCDC[0] in loi)
+	loi = luu(_Mon(truoc=_Doc(item_group="Bao bì"), name="BB00010", item_group=C.NHOM_V524, is_stock_item=1))
+	dung("đổi nhóm sang nhóm ngừng bị chặn", "ngừng dùng" in loi)
+	# Món đã nằm sẵn trong nhóm (site 24/09 không có món nào, nhưng giữ đường
+	# lưu lại cho chắc) thì lưu vì ô khác không bị chặn.
+	la("món có sẵn trong nhóm lưu lại được",
+		luu(_Mon(truoc=_Doc(item_group=C.NHOM_V524), name="X1", item_group=C.NHOM_V524, is_stock_item=0)), "")
+	la("nhóm CCDC thường vẫn mở mới được", luu(_Mon(name="CCDC00300", item_group="Công cụ Dụng cụ")), "")
+
+
+@ca("#525 Codex #365 v3: phép thuần vào nhóm ngừng")
+def _vao_nhom_thuan():
+	from vagabond.ccdc_dung_ngay import vao_nhom_ngung, NHOM_V524
+	la("mở mới", vao_nhom_ngung(True, NHOM_V524, None), True)
+	la("đổi sang", vao_nhom_ngung(False, NHOM_V524, "Bao bì"), True)
+	la("đã ở sẵn", vao_nhom_ngung(False, NHOM_V524, NHOM_V524), False)
+	la("nhóm khác", vao_nhom_ngung(True, "Công cụ Dụng cụ", None), False)
+	la("rời nhóm ngừng", vao_nhom_ngung(False, "Công cụ Dụng cụ", NHOM_V524), False)
+
+
+@ca("#525 Codex #365 v3: màn Mở mã hàng không bày nhóm v524 đã ngừng, các nhóm khác vẫn đủ")
+def _an_nhom_v524():
+	if "vagabond.danh_muc" not in sys.modules and "frappe.model.naming" not in sys.modules:
+		sys.modules["frappe.model.naming"] = SimpleNamespace(getseries=lambda *a: "00001")
+	from vagabond import danh_muc as D
+	from vagabond.ccdc_dung_ngay import NHOM_V524
+	cu = {k: getattr(D, k) for k in ("_kiem_quyen", "_duoc_tao", "_co_truong", "frappe")}
+	try:
+		D._kiem_quyen = lambda: None
+		D._duoc_tao = lambda: True
+		D._co_truong = lambda *a: True
+		D.frappe = SimpleNamespace(get_all=lambda dt, **k: [
+			{"name": "Bao bì"}, {"name": NHOM_V524}, {"name": "Công cụ Dụng cụ"}])
+		ra = D.cai_dat()
+	finally:
+		for k, v in cu.items():
+			setattr(D, k, v)
+	la("nhóm bày ra", [n["ten"] for n in ra["nhom"]], ["Bao bì", "Công cụ Dụng cụ"])
