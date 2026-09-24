@@ -681,6 +681,85 @@ def _huy_to_vua_ghi_so():
 	dung("đọc tờ bằng câu có khoá", ("hd", True) in so)
 
 
+# Codex #368 vòng 4 (a38b6e5): hồ sơ bị TỪ CHỐI vẫn sống lại được (gui_fin
+# nhận cả Tu choi), nên không được coi là hết hiệu lực. Bản a38b6e5 coi Tu choi
+# như Huy: tờ đang nối vào hồ sơ bị trả lại thì ghi sổ được và nối được sang hồ
+# sơ khác, rồi hồ sơ cũ gửi lại vẫn giữ dấu nối, chi phí hai lần. Lớp dữ liệu
+# giả dưới đây LỌC THẬT theo bộ trạng thái hết hiệu lực mà code truyền vào.
+
+def _db_theo_trang_thai(giu):
+	"""giu: [(hồ sơ, trạng thái)] đang nối tờ HDM-X. sql áp đúng tham số
+	trạng thái hết hiệu lực mà câu hỏi truyền vào."""
+	def sql(q, v=None, as_dict=False):
+		if "`tabPurchase Invoice`" in q:
+			return ((0, 0),)
+		if "tabVagabond Ho So TT Dong" in q:
+			het = v[-1] if isinstance(v, (tuple, list)) else ()
+			if "d.hoa_don_bo_sung in" in q:
+				return tuple(("HDM-X", hs) for hs, tt in giu if tt not in het)
+			return tuple((hs,) for hs, tt in giu if tt not in het)[:1]
+		return ()
+	return sql
+
+
+@ca("#526 v4 hồ sơ bị trả lại (Từ chối) vẫn giữ tờ đã nối: chặn ghi sổ, chặn nối sang hồ sơ khác, màn Đối chiếu vẫn xếp Xong")
+def _tu_choi_van_giu():
+	from vagabond import ho_so_bo_sung as bo, doi_chieu_mua as DC
+	sql = _db_theo_trang_thai([("APP-TC", "Tu choi")])
+	try:
+		_voi(bo, SimpleNamespace(throw=_throw, db=_db(sql)), lambda: bo.chan_ghi_so_hd_da_chi(_D(name="HDM-X")))
+		loi = ""
+	except _Loi as e:
+		loi = str(e)
+	dung("chặn ghi sổ, gọi tên hồ sơ bị trả lại", "APP-TC" in loi)
+	loi = _kiem_noi(sql)
+	dung("chặn nối sang hồ sơ khác", "APP-TC" in loi)
+	la("màn Đối chiếu biết tờ thuộc hồ sơ", _voi(DC, SimpleNamespace(db=_db(sql)), lambda: DC._ho_so_chi_theo_hd(["HDM-X"])), {"HDM-X": "APP-TC"})
+	sql = _db_theo_trang_thai([("APP-H", "Huy")])
+	_voi(bo, SimpleNamespace(throw=_throw, db=_db(sql)), lambda: bo.chan_ghi_so_hd_da_chi(_D(name="HDM-X")))
+
+
+@ca("#526 v4 nút nối trên Desk không đưa khoản của hồ sơ bị trả lại (hồ sơ đó không nhận nối thêm)")
+def _desk_bo_tu_choi():
+	from unittest.mock import patch
+	from vagabond import ho_so_bo_sung as bo, ho_so_tt as hs
+	khoan = [("APP-TC", "Tu choi"), ("APP-OK", "Da thanh toan")]
+
+	def sql(q, v=None, *a, **k):
+		if "p.nha_cung_cap" in q:
+			return [_D(ho_so=x, ngay="2026-09-20", trang_thai=tt, dong=1, noi_dung="Xăng", so_tien=80000, ngay_hd="")
+				for x, tt in khoan if tt not in v[-1]]
+		return ()
+	fr = SimpleNamespace(throw=_throw, db=SimpleNamespace(has_column=lambda dt, cot: True, sql=sql,
+		get_value=lambda dt, n, f, as_dict=False: _D(name="HDM-X", supplier="XDKV2", company=CTY, docstatus=0, vgb_huy=0)))
+	with patch.object(hs, "_kiem"), patch.object(hs, "_cong_ty_chung_tu", return_value=CTY):
+		kq = _voi(bo, fr, lambda: bo.khoan_cho_hoa_don("HDM-X"))
+	la("chỉ khoản của hồ sơ còn nhận nối", [x["ho_so"] for x in kq.get("khoan")], ["APP-OK"])
+
+
+# Codex #368 vòng 4: màn hạch toán phải có ảnh món cạnh tên (AGENTS.md mục
+# ảnh món), chip "chứng từ của hồ sơ" phải gọn (mục 18).
+
+@ca("#526 v4 màn hạch toán trả ảnh món của từng dòng; dòng không mã thì rỗng để app hiện ô 🍰")
+def _anh_dong():
+	from vagabond import hach_toan_thang as H
+	anh = {"NVLT00001": "/files/bot-mi.jpg"}
+
+	def get_value(dt, ten, truong=None, as_dict=False):
+		if dt == "Item" and truong == "image":
+			return anh.get(ten)
+		if dt == "Item":
+			return HANG_KHO.get(ten, 0)
+		if dt == "Item Default":
+			return None
+		return None
+	fr = SimpleNamespace(throw=_throw, get_cached_value=lambda *a: T632,
+		db=SimpleNamespace(get_value=get_value, sql=lambda *a, **k: []))
+	doc = _to([("R1", "", "", T632), ("R2", "NVLT00001", "PN-1", "2331 - Hàng chờ - TV")])
+	dong = _voi(H, fr, lambda: H.dong_hach_toan(doc))
+	la("ảnh từng dòng", [d.get("anh") for d in dong], ["", "/files/bot-mi.jpg"])
+
+
 # ------------------------------------------------------------ quyền Repost
 
 @ca("#526 quyền Repost chỉ mở cho đúng vai kế toán FIN, đủ bốn quyền để đổi tài khoản tờ đã ghi sổ")
