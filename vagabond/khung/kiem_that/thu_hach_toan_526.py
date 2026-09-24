@@ -140,10 +140,10 @@ def _khoa_ncc():
 		return
 	ho_so = _ho_so_cho(hd)
 	ncc_cu = hd.supplier
-	khac = frappe.db.get_value("Supplier", {"name": ["!=", ncc_cu], "disabled": 0}, "name")
-	dung("có NCC khác để thử", bool(khac))
-	if not khac:
-		return
+	# Bench chỉ dựng một NCC (bench 071fd2c đổ đúng chỗ này): tự dựng NCC thứ
+	# hai trong điểm lưu, cùng nhóm với NCC của tờ.
+	khac = frappe.get_doc({"doctype": "Supplier", "supplier_name": "KT526 NCC khác " + frappe.generate_hash(length=6),
+		"supplier_group": frappe.db.get_value("Supplier", ncc_cu, "supplier_group")}).insert(ignore_permissions=True).name
 	hd.reload()
 	hd.supplier = khac
 	try:
