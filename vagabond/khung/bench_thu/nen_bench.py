@@ -176,6 +176,13 @@ def dung():
 	_truong("Supplier", [{"fieldname": "custom_ma_ncc", "fieldtype": "Data", "label": "Mã NCC", "insert_after": "supplier_name"}, {"fieldname": "email_cc", "fieldtype": "Small Text", "label": "Email phụ cần CC", "insert_after": "email_id"}])
 	_truong("Purchase Invoice", [
 		{"fieldname": "custom_minvoice_id", "fieldtype": "Data", "label": "MInvoice id", "insert_after": "supplier"},
+		# Huỷ mềm trên Hoá đơn mua (chung_tu.KHOA_XOA), site thật có bốn ô
+		# này (staging/cau_truc_cu.json). Bench thiếu thì mọi câu đọc vgb_huy
+		# của màn Đối chiếu và luật hoá đơn đến sau nổ Unknown column (v526).
+		{"fieldname": "vgb_huy", "fieldtype": "Check", "label": "Đã huỷ", "read_only": 1, "insert_after": "supplier"},
+		{"fieldname": "vgb_huy_ly_do", "fieldtype": "Small Text", "label": "Lý do huỷ", "read_only": 1, "insert_after": "vgb_huy"},
+		{"fieldname": "vgb_huy_luc", "fieldtype": "Datetime", "label": "Huỷ lúc", "read_only": 1, "insert_after": "vgb_huy"},
+		{"fieldname": "vgb_huy_boi", "fieldtype": "Data", "label": "Người huỷ", "read_only": 1, "insert_after": "vgb_huy"},
 	])
 	# Huỷ mềm trên Stock Entry (chung_tu.KHOA_XOA), tạo tay trên Desk ngày
 	# trước, cùng bốn ô như staging/cau_truc_cu.json. Bench thiếu bốn ô này
