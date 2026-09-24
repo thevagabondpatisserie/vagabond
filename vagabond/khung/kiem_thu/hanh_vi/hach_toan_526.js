@@ -21,6 +21,7 @@ var GOC = path.resolve(__dirname, '..', '..', '..', '..');
 var BEP = path.join(GOC, 'vagabond', 'public', 'js', 'bep');
 var SRC18 = fs.readFileSync(path.join(BEP, '18-doi-chieu-may-in.js'), 'utf8');
 var SRC19 = fs.readFileSync(path.join(BEP, '19-ho-so-tt.js'), 'utf8');
+var SRC00 = fs.readFileSync(path.join(BEP, '00-nen.js'), 'utf8');
 
 function layHam(src, ten) {
   var dau = src.indexOf('function ' + ten + '(');
@@ -49,9 +50,9 @@ var T632 = '632 - Giá vốn hàng bán - TV', T6417 = '6417 - Chi phí dịch v
    dong 2 phi ship (goi y 6417 theo lan truoc), dong 3 hang kho da noi phieu. */
 function kqXem() {
   return { name: 'HDM-26-09-00334', ncc: 'Xăng dầu KV II', tong: 80000, ghi_so_duoc: 1, dong: [
-    { ten: 'R1', idx: 1, ten_hang: 'Xăng E10', tien: 50000, tk: T632, sua_duoc: 1, goi_y: T632, nguon: 'mac_dinh', nhan_nguon: 'mặc định của hệ thống' },
+    { ten: 'R1', idx: 1, ten_hang: 'Xăng E10', tien: 50000, tk: T632, sua_duoc: 1, goi_y: T632, nguon: 'mac_dinh', nhan_nguon: 'mặc định của hệ thống', anh: '' },
     { ten: 'R2', idx: 2, ten_hang: 'Phí ship', tien: 20000, tk: T632, sua_duoc: 1, goi_y: T6417, nguon: 'lan_truoc', nhan_nguon: 'lần trước của nhà cung cấp này' },
-    { ten: 'R3', idx: 3, ten_hang: 'Bột mì', tien: 10000, tk: '2331 - Hàng chờ - TV', sua_duoc: 0 }
+    { ten: 'R3', idx: 3, ten_hang: 'Bột mì', tien: 10000, tk: '2331 - Hàng chờ - TV', sua_duoc: 0, anh: '/files/bot-mi.jpg' }
   ] };
 }
 
@@ -91,7 +92,7 @@ function dung_man(opt) {
   };
   g.baoTin = function (s) { g.baoLoi.push(s); };
   vm.createContext(g);
-  vm.runInContext('var dcmHt = null;\n' + layHam(SRC18, 'dcmLa632') + '\n' + layHam(SRC18, 'scrDcmHachToan'), g);
+  vm.runInContext('var dcmHt = null;\n' + layHam(SRC00, 'anhMon') + '\n' + layHam(SRC18, 'dcmLa632') + '\n' + layHam(SRC18, 'scrDcmHachToan'), g);
   return { g: g, goi: goi, ve: ve, nut: function (k) { return nut[k]; }, xacNhan: xacNhan, dieuHuong: dieuHuong };
 }
 
@@ -139,6 +140,25 @@ function dung_man(opt) {
     m.g.dcmHt = { name: 'HDM-KHAC', chon: { R1: 'X' } };
     await m.g.scrDcmHachToan('HDM-26-09-00334');
     bang('lua chon cua to nay', m.g.dcmHt.chon.R1, T632);
+  });
+
+  await ca('v4: moi dong co anh mon (anh that hoac o 🍰), anh nam canh ten', async function () {
+    var m = dung_man();
+    await m.g.scrDcmHachToan('HDM-26-09-00334');
+    bang('3 dong, 3 o anh', (m.ve.html.match(/class="imm/g) || []).length, 3);
+    dung('dong bot mi co anh that', m.ve.html.indexOf('src="/files/bot-mi.jpg"') >= 0);
+    bang('2 dong chua anh co o 🍰', (m.ve.html.match(/immp">🍰/g) || []).length, 2);
+  });
+
+  await ca('v4: chip to thuoc ho so gon (toi da 16 ky tu nhin thay), ten day du trong title', async function () {
+    var g = { h: function (s) { return String(s == null ? '' : s); }, money: function (n) { return String(n); }, Math: Math, String: String };
+    vm.createContext(g);
+    vm.runInContext(layHam(SRC18, 'dcmChip'), g);
+    var ra = g.dcmChip({ ho_so_chi: 'APP-26-09-00123', nhom: 'xong' });
+    var chu = ra.replace(/<[^>]*>/g, '');
+    dung('nhan gon: ' + chu, Array.from(chu).length <= 16);
+    dung('co 4 so cuoi ho so', chu.indexOf('0123') >= 0);
+    dung('title co ten day du', /title="[^"]*APP-26-09-00123/.test(ra));
   });
 
   /* ---------- Chip "Hoa don den sau" ---------- */
