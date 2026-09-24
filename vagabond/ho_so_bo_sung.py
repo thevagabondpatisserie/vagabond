@@ -202,7 +202,15 @@ def chan_huy_hd_da_noi(doc):
 	Tờ đang là hoá đơn đến sau của một hồ sơ còn hiệu lực thì không huỷ: hồ sơ
 	đó đang là chi phí hợp lệ tính thuế dựa trên chính tờ này (Codex #368
 	vòng 2, chiều ngược lại của việc nối tờ đã huỷ)."""
-	khoa_hoa_don(doc.name)
+	# Codex #368 vòng 3: danh_dau_huy xét docstatus trên doc nạp từ trước. Giao
+	# dịch ghi sổ chen vào thì chỉ câu có khoá này thấy, nên xét ở đây, TRƯỚC
+	# khi đọc dấu nối và trước khi gắn dấu huỷ.
+	k = khoa_hoa_don(doc.name)
+	if k and k[0] != 0:
+		frappe.throw(
+			"Hoá đơn %s đã ghi sổ (hoặc đã huỷ) ở nơi khác trong lúc đang mở, nên không "
+			"đánh dấu huỷ kiểu phiếu nháp được. Tải lại tờ để xem trạng thái mới." % doc.name,
+			title="Tờ đã đổi trạng thái")
 	giu = ho_so_dang_giu(doc.name, khoa=True)
 	if giu:
 		frappe.throw(

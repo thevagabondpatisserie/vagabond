@@ -266,11 +266,12 @@ def lech_so_cai(chon, dong, gl, mac_dinh, sai_so=1.0):
 
 	chon: {tên dòng: tài khoản}. dong: dòng của tờ sau khi ghi sổ. gl: {tài
 	khoản: Nợ trừ Có} của đúng tờ này. Hai luật:
-	1. Mỗi tài khoản người chọn phải được Nợ ít nhất bằng tổng tiền các dòng
-	   chọn nó. Nợ nhiều hơn thì được (chiết khấu tách riêng, thuế tính vào chi
-	   phí, dòng khác cùng tài khoản).
-	2. Tài khoản mặc định công ty (632) không dòng nào mang mà sổ cái vẫn Nợ,
-	   đó chính là lỗi chị Dung gặp.
+	1. Mỗi tài khoản người chọn phải nhận ĐỦ, CÙNG CHIỀU với tổng tiền các dòng
+	   chọn nó: tiền dương thì Nợ ít nhất bằng, tiền âm (tờ trả hàng, Codex
+	   #368 vòng 3) thì Có ít nhất bằng. Nhận nhiều hơn cùng chiều thì được
+	   (chiết khấu tách riêng, thuế tính vào chi phí, dòng khác cùng tài khoản).
+	2. Tài khoản mặc định công ty (632) không dòng nào mang mà sổ cái vẫn phát
+	   sinh, Nợ hay Có, đó chính là lỗi chị Dung gặp.
 	Dòng chi phí trả trước (enable_deferred_expense) ERPNext Nợ tài khoản chờ
 	phân bổ của dòng chứ không Nợ tài khoản chi phí, nên tính theo tài khoản đó."""
 	can, tren_dong = {}, set()
@@ -281,11 +282,13 @@ def lech_so_cai(chon, dong, gl, mac_dinh, sai_so=1.0):
 			can[tk] = can.get(tk, 0) + flt(d.get("base_net_amount"))
 	lech = []
 	for tk in sorted(can):
-		if flt(gl.get(tk)) + sai_so < can[tk]:
-			lech.append("sổ cái Nợ %s %s đ, các dòng chọn tài khoản này cộng %s đ" % (
-				tk, _so_tien(gl.get(tk)), _so_tien(can[tk])))
-	if mac_dinh and mac_dinh not in tren_dong and flt(gl.get(mac_dinh)) > sai_so:
-		lech.append("sổ cái Nợ %s %s đ mà không dòng nào đi tài khoản này" % (
+		that, mong = flt(gl.get(tk)), can[tk]
+		thieu = (that + sai_so < mong) if mong >= 0 else (that - sai_so > mong)
+		if thieu:
+			lech.append("sổ cái ghi %s %s đ (Nợ trừ Có), các dòng chọn tài khoản này cộng %s đ" % (
+				tk, _so_tien(that), _so_tien(mong)))
+	if mac_dinh and mac_dinh not in tren_dong and abs(flt(gl.get(mac_dinh))) > sai_so:
+		lech.append("sổ cái ghi %s %s đ (Nợ trừ Có) mà không dòng nào đi tài khoản này" % (
 			mac_dinh, _so_tien(gl.get(mac_dinh))))
 	return lech
 
