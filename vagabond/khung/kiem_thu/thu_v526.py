@@ -229,7 +229,9 @@ def _hook_dich_vu():
 
 # ------------------------------------------------------------ ghi sổ thẳng
 
-def _chay_ghi(doc, tk, doc_sau=None, lech=False):
+def _chay_ghi(doc, tk, doc_sau=None, lech=False, gl=None):
+	"""gl: sổ cái ERPNext sinh ra sau submit, {tài khoản: Nợ trừ Có}. Bỏ trống
+	thì sổ cái Nợ đúng tài khoản trên dòng (ERPNext bình thường)."""
 	from vagabond import doi_chieu_mua as DC, hach_toan_thang as H
 	ghi = {"submit": 0, "rollback": 0, "commit": 0}
 
@@ -237,19 +239,42 @@ def _chay_ghi(doc, tk, doc_sau=None, lech=False):
 		ghi["submit"] += 1
 	doc.submit = submit
 
+	def tk_dong(d):
+		return "sai" if lech else d.expense_account
+
 	def get_value(dt, ten, truong=None, as_dict=False):
 		if dt == "Purchase Invoice Item":
 			if truong == "idx":
 				return 1
-			return "sai" if lech else next(d.expense_account for d in doc.items if d.name == ten)
+			return next(tk_dong(d) for d in doc.items if d.name == ten)
+		if dt == "Purchase Invoice":
+			return doc.company
 		if dt == "Item":
 			return HANG_KHO.get(ten, 0)
 		if dt == "Account":
 			return _D(TK[ten]) if ten in TK else None
 		return None
+
+	def get_all(dt, filters=None, fields=None, **k):
+		# Dòng đọc lại từ sổ sau submit.
+		return [_D(name=d.name, idx=d.idx, expense_account=tk_dong(d),
+			base_net_amount=d.get("base_net_amount", d.get("amount")),
+			enable_deferred_expense=d.get("enable_deferred_expense", 0),
+			deferred_expense_account=d.get("deferred_expense_account")) for d in doc.items]
+
+	def sql(q, v=None, as_dict=False):
+		if "tabGL Entry" in q:
+			if gl is not None:
+				return tuple((k, v) for k, v in gl.items())
+			so = {}
+			for d in doc.items:
+				so[tk_dong(d)] = so.get(tk_dong(d), 0) + d.get("amount")
+			return tuple(so.items())
+		return ()
 	fr = SimpleNamespace(
 		throw=_throw, get_doc=lambda dt, n: doc, parse_json=json.loads, get_roles=lambda: ["Accounts User"],
-		db=SimpleNamespace(get_value=get_value, commit=lambda: ghi.__setitem__("commit", ghi["commit"] + 1),
+		get_all=get_all, get_cached_value=lambda dt, ten, truong: T632,
+		db=SimpleNamespace(get_value=get_value, sql=sql, commit=lambda: ghi.__setitem__("commit", ghi["commit"] + 1),
 			rollback=lambda: ghi.__setitem__("rollback", ghi["rollback"] + 1)),
 	)
 	cu_q, cu_g = DC._kiem_quyen, DC._ghi_so_duoc
@@ -293,6 +318,67 @@ def _ghi_lech():
 	dung("báo lệch", "khác với chị chọn" in loi)
 	la("huỷ giao dịch", ghi["rollback"], 1)
 	la("không chốt", ghi["commit"], 0)
+
+
+# Codex #368 finding 1 (97c0c41): bản cũ chỉ đọc lại ô tài khoản của DÒNG,
+# không đọc SỔ CÁI. Một hook on_submit hay luật ghi sổ của ERPNext Nợ tài
+# khoản khác mà để nguyên ô trên dòng thì bản cũ vẫn chốt. Ba ca dưới đây
+# dựng đúng tình huống đó: dòng ghi 6417, sổ cái ghi khác.
+
+@ca("#526 v1 dòng ghi 6417 mà sổ cái Nợ 632 thì huỷ giao dịch, không chốt")
+def _gl_632():
+	doc = _to([("R1", "", "", T632)])
+	kq, loi, ghi = _chay_ghi(doc, json.dumps({"R1": T6417}), gl={T632: 80000, "3311 - Phải trả - TV": -80000})
+	dung("báo lệch sổ cái", "sổ cái" in loi)
+	la("huỷ giao dịch", ghi["rollback"], 1)
+	la("không chốt", ghi["commit"], 0)
+
+
+@ca("#526 v1 sổ cái chỉ Nợ 6417 một phần, phần còn lại rơi vào 632, thì huỷ giao dịch")
+def _gl_mot_phan():
+	doc = _to([("R1", "", "", T632)])
+	kq, loi, ghi = _chay_ghi(doc, json.dumps({"R1": T6417}), gl={T6417: 50000, T632: 30000})
+	dung("báo lệch sổ cái", "sổ cái" in loi)
+	la("không chốt", ghi["commit"], 0)
+
+
+# Hai ca trên đổ vì CẢ HAI luật cùng bắt (thiếu Nợ tài khoản chọn và 632 bị
+# Nợ). Đột biến gỡ từng luật một thì không ca nào đổ (điều 17c). Hai ca dưới
+# tách riêng từng luật để mỗi luật có ca giữ của mình.
+
+@ca("#526 v1 chỉ luật 1: phần thiếu của 6417 rơi sang tài khoản khác không phải 632, vẫn huỷ")
+def _gl_luat_1():
+	doc = _to([("R1", "", "", T632)])
+	kq, loi, ghi = _chay_ghi(doc, json.dumps({"R1": T6417}), gl={T6417: 50000, "6427 - Chi phí khác - TV": 30000})
+	dung("báo thiếu Nợ 6417", T6417 in loi and "sổ cái" in loi)
+	la("không chốt", ghi["commit"], 0)
+
+
+@ca("#526 v1 chỉ luật 2: 6417 đủ mà 632 bị Nợ thêm, không dòng nào mang 632, vẫn huỷ")
+def _gl_luat_2():
+	doc = _to([("R1", "", "", T632)])
+	kq, loi, ghi = _chay_ghi(doc, json.dumps({"R1": T6417}), gl={T6417: 80000, T632: 10000})
+	dung("báo 632 bị Nợ", T632 in loi and "không dòng nào" in loi)
+	la("không chốt", ghi["commit"], 0)
+
+
+@ca("#526 v1 dòng chi phí trả trước: sổ cái Nợ tài khoản chờ phân bổ của dòng, không báo lệch giả")
+def _gl_tra_truoc():
+	doc = _to([("R1", "", "", T632)])
+	doc.items[0].enable_deferred_expense = 1
+	doc.items[0].deferred_expense_account = T242
+	kq, loi, ghi = _chay_ghi(doc, json.dumps({"R1": T6417}), gl={T242: 80000})
+	la("không lỗi", loi, "")
+	la("chốt", ghi["commit"], 1)
+
+
+@ca("#526 v1 tờ có dòng nối phiếu nhập đi 632 hợp lệ: không coi 632 của dòng đó là lệch")
+def _gl_632_hop_le():
+	doc = _to([("R1", "", "", T632), ("R2", "NVLT00001", "PN-1", T632)])
+	doc.items[1].amount = 10000
+	kq, loi, ghi = _chay_ghi(doc, json.dumps({"R1": T6417}), gl={T6417: 80000, T632: 10000})
+	la("không lỗi", loi, "")
+	la("chốt", ghi["commit"], 1)
 
 
 # ------------------------------------------------------------ hoá đơn đến sau
@@ -361,18 +447,90 @@ def _chan_ghi():
 	cu_fr = bo.frappe
 	bo.frappe = SimpleNamespace(throw=_throw)
 	try:
-		bo.ho_so_dang_giu = lambda ten, bo_qua_dong=None: "APP-26-09-100"
+		bo.frappe = SimpleNamespace(throw=_throw, db=SimpleNamespace(sql=lambda *a, **k: ()))
+		bo.ho_so_dang_giu = lambda ten, bo_qua_dong=None, **k: "APP-26-09-100"
 		try:
 			bo.chan_ghi_so_hd_da_chi(_D(name="HDM-1"))
 			loi = ""
 		except _Loi as e:
 			loi = str(e)
 		dung("chặn và gọi tên hồ sơ", "APP-26-09-100" in loi and "không ghi sổ" in loi)
-		bo.ho_so_dang_giu = lambda ten, bo_qua_dong=None: ""
+		bo.ho_so_dang_giu = lambda ten, bo_qua_dong=None, **k: ""
 		bo.chan_ghi_so_hd_da_chi(_D(name="HDM-2"))
 	finally:
 		bo.ho_so_dang_giu = cu
 		bo.frappe = cu_fr
+
+
+# Codex #368 finding 2 (97c0c41): nối và ghi sổ đua nhau. Frappe chạy
+# REPEATABLE READ: câu select thường đọc ẢNH CHỤP lúc giao dịch mở, không thấy
+# dấu nối hay lần ghi sổ mà giao dịch kia vừa chốt. Chỉ câu đọc có khoá
+# (for update) mới đọc bản hiện hành. Lớp dữ liệu giả dưới đây mô phỏng đúng
+# điều đó: select thường trả ảnh chụp cũ, select có khoá trả bản hiện hành.
+# Tái hiện trên MariaDB thật (hai kết nối) ghi trong comment bàn giao v1.
+
+def _db_hai_mat(docstatus_hien_hanh=0, giu_hien_hanh=""):
+	"""db.sql: ảnh chụp cũ nói tờ nháp, chưa ai nối; bản hiện hành theo tham số.
+	Ghi lại thứ tự câu hỏi để kiểm khoá tờ trước rồi mới đọc dấu nối."""
+	so = []
+
+	def sql(q, v=None, as_dict=False):
+		khoa = "for update" in q.lower()
+		if "`tabPurchase Invoice`" in q:
+			so.append(("hd", khoa))
+			return ((docstatus_hien_hanh if khoa else 0,),)
+		if "tabVagabond Ho So TT Dong" in q:
+			so.append(("noi", khoa))
+			return ((giu_hien_hanh,),) if (khoa and giu_hien_hanh) else ()
+		return ()
+	return sql, so
+
+
+def _kiem_noi(sql):
+	"""Chạy THẬT kiem_bo_sung trên hồ sơ nối khoản 1 vào tờ HDM-X."""
+	from unittest.mock import patch
+	from vagabond import ho_so_bo_sung as bo, ho_so_tt as hs
+	dong = _D(name="D1", idx=1, hoa_don_bo_sung="HDM-X", cho_hoa_don=1, hoa_don="")
+	ho_so = SimpleNamespace(dong=[dong], nha_cung_cap="XDKV2", trang_thai="Da thanh toan",
+		get_doc_before_save=lambda: None)
+	hd_anh_chup = _D(name="HDM-X", docstatus=0, supplier="XDKV2", company=CTY)
+	fr = SimpleNamespace(throw=_throw, get_doc=lambda dt, n: hd_anh_chup, db=SimpleNamespace(sql=sql))
+	with patch.object(hs, "_kiem"), patch.object(hs, "_cong_ty_chung_tu", return_value=CTY):
+		try:
+			_voi(bo, fr, lambda: bo.kiem_bo_sung(ho_so))
+			return ""
+		except _Loi as e:
+			return str(e)
+
+
+@ca("#526 v1 nối khi tờ vừa được người khác ghi sổ (ảnh chụp còn nháp): đọc bản hiện hành, chặn")
+def _dua_ghi_so_truoc():
+	sql, so = _db_hai_mat(docstatus_hien_hanh=1)
+	loi = _kiem_noi(sql)
+	dung("chặn vì đã ghi sổ", "đã ghi sổ" in loi)
+	dung("đọc tờ bằng câu có khoá", ("hd", True) in so)
+
+
+@ca("#526 v1 nối khi hồ sơ khác vừa nối cùng tờ (ảnh chụp chưa thấy): đọc dấu nối hiện hành, chặn")
+def _dua_hai_ho_so():
+	sql, so = _db_hai_mat(giu_hien_hanh="APP-B")
+	loi = _kiem_noi(sql)
+	dung("chặn, gọi tên hồ sơ kia", "APP-B" in loi)
+	dung("khoá tờ TRƯỚC khi đọc dấu nối", so and so[0] == ("hd", True) and ("noi", True) in so)
+
+
+@ca("#526 v1 ghi sổ khi hồ sơ vừa nối tờ này (ảnh chụp chưa thấy): before_submit đọc hiện hành, chặn")
+def _dua_noi_truoc():
+	from vagabond import ho_so_bo_sung as bo
+	sql, so = _db_hai_mat(giu_hien_hanh="APP-A")
+	try:
+		_voi(bo, SimpleNamespace(throw=_throw, db=SimpleNamespace(sql=sql)),
+			lambda: bo.chan_ghi_so_hd_da_chi(_D(name="HDM-X")))
+		loi = ""
+	except _Loi as e:
+		loi = str(e)
+	dung("chặn, gọi tên hồ sơ", "APP-A" in loi)
+	dung("khoá tờ TRƯỚC khi đọc dấu nối", so and so[0] == ("hd", True) and ("noi", True) in so)
 
 
 # ------------------------------------------------------------ quyền Repost
