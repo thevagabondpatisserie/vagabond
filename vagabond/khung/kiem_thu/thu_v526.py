@@ -854,6 +854,108 @@ def _chip_chi_tiet():
 	dung("có chip hồ sơ", "Hồ sơ · 0123" in ra["khung"])
 
 
+# Codex #368 vòng 6 (071fd2c): nút "Khớp và ghi sổ" (tờ lẫn hàng kho đã nối
+# phiếu và dòng phí ship) gọi noi_phieu(ghi_so=1), noi_phieu tự submit, không
+# qua bước chọn tài khoản: dòng phí vẫn rơi 632.
+
+def _chay_noi_phieu(tk=None):
+	"""Chạy THẬT doi_chieu_mua.noi_phieu(ghi_so=1) trên tờ: R1 bột mì đã nối
+	phiếu nhập, R2 phí ship không mã đang 632. Chỉ thay lớp dữ liệu."""
+	from unittest.mock import patch
+	from vagabond import doi_chieu_mua as DC, hach_toan_thang as H
+	doc = _to([("R1", "NVLT00001", "PN-1", "2331 - Hàng chờ - TV"), ("R2", "", "", T632)], update_stock=0)
+	ghi = {"submit": 0}
+	doc.submit = lambda: ghi.__setitem__("submit", ghi["submit"] + 1)
+	doc.save = lambda: None
+	doc.reload = lambda: None
+
+	def get_value(dt, ten, truong=None, as_dict=False):
+		if dt == "Purchase Receipt":
+			return doc.supplier
+		if dt == "Purchase Invoice Item":
+			return 1 if truong == "idx" else next(d.expense_account for d in doc.items if d.name == ten)
+		if dt == "Purchase Invoice":
+			return doc.company
+		if dt == "Item":
+			return HANG_KHO.get(ten, 0)
+		if dt == "Account":
+			return _D(TK[ten]) if ten in TK else None
+		return None
+
+	def get_all(dt, filters=None, fields=None, **k):
+		return [_D(name=d.name, idx=d.idx, expense_account=d.expense_account, base_net_amount=d.amount,
+			enable_deferred_expense=0, deferred_expense_account=None) for d in doc.items]
+
+	def sql(q, v=None, as_dict=False):
+		if "tabGL Entry" in q:
+			so = {}
+			for d in doc.items:
+				so[d.expense_account] = so.get(d.expense_account, 0) + d.amount
+			return tuple(so.items())
+		return ()
+	fr = SimpleNamespace(throw=_throw, get_doc=lambda dt, n: doc, parse_json=json.loads,
+		get_all=get_all, get_cached_value=lambda *a: T632,
+		db=SimpleNamespace(get_value=get_value, sql=sql, commit=lambda: None, rollback=lambda: None))
+	kq_noi = {"da_noi": 1, "chan_ghi_so": [], "khong_qua_kho": [{"cau": "phí ship"}], "da_go_noi_cu": []}
+	cu1, cu2 = DC.frappe, H.frappe
+	DC.frappe, H.frappe = fr, fr
+	try:
+		with patch.object(DC, "_kiem_quyen"), patch.object(DC, "_lam_duoc", return_value=True), \
+			patch.object(DC, "_ghi_so_duoc", return_value=True), patch.object(DC, "_noi", return_value=kq_noi):
+			try:
+				DC.noi_phieu(doc.name, json.dumps(["PN-1"]), 1, tk)
+				loi = ""
+			except _Loi as e:
+				loi = str(e)
+	finally:
+		DC.frappe, H.frappe = cu1, cu2
+	return doc, loi, ghi
+
+
+@ca("#526 v6 Khớp và ghi sổ, tờ có dòng phí ship: không gửi tài khoản thì dừng, KHÔNG ghi sổ 632 im lặng")
+def _khop_khong_tk():
+	doc, loi, ghi = _chay_noi_phieu()
+	dung("báo chưa chọn tài khoản", "Chưa chọn tài khoản" in loi)
+	la("không ghi sổ", ghi["submit"], 0)
+
+
+@ca("#526 v6 Khớp và ghi sổ có tài khoản: dòng phí đi đúng tài khoản chọn, dòng hàng kho giữ tài khoản kho")
+def _khop_co_tk():
+	doc, loi, ghi = _chay_noi_phieu(json.dumps({"R2": T6417}))
+	la("không lỗi", loi, "")
+	la("ghi sổ một lần", ghi["submit"], 1)
+	la("tài khoản hai dòng", [d.expense_account for d in doc.items], ["2331 - Hàng chờ - TV", T6417])
+
+
+@ca("#526 v6 Khớp và ghi sổ trên màn: chỉ NỐI, rồi mở màn Hạch toán; không gọi ghi sổ từ noi_phieu")
+def _khop_mo_hach_toan():
+	import os, subprocess
+	from vagabond.khung.kiem_thu.thu_doi_chieu_252 import _xem_mau, _so_sanh_mau, _dong_man, GOC
+	js = os.path.join(GOC, "vagabond", "khung", "kiem_thu", "gia_lap_dcm.js")
+	d2 = _dong_man(item_code="DAU", co_phieu=1, sl_pnk=6, sl_pnk_nhan=6, dvt_pnk="Hộp", gia_pnk=135000, lech_sl=0)
+	r = subprocess.run(["node", js, json.dumps(_xem_mau(ghi_so_duoc=1)), json.dumps(_so_sanh_mau([d2], khop=1)),
+		"dcmXong", json.dumps({"dcmPhieu": ["PNK-27"]})], capture_output=True, text=True, timeout=60)
+	dung("giả lập chạy được: " + (r.stderr or "")[:300], r.returncode == 0)
+	if r.returncode:
+		return
+	ra = json.loads(r.stdout)
+	noi = [x["a"] for x in ra["api_args"] if x["m"] == "vagabond.doi_chieu_mua.noi_phieu"]
+	la("gọi nối một lần", len(noi), 1)
+	la("chỉ nối, không ghi sổ", noi[0].get("ghi_so"), 0)
+	dung("mở màn Hạch toán", "vagabond.hach_toan_thang.xem" in ra["api"])
+
+
+@ca("#526 v6 màn chi tiết Đối chiếu hỏi dấu nối qua CÙNG một nguồn với màn danh sách (chỉ hồ sơ TK công ty)")
+def _mot_nguon_ho_so_chi():
+	import os
+	from vagabond.khung.kiem_thu.thu_doi_chieu_252 import GOC
+	s = open(os.path.join(GOC, "vagabond", "doi_chieu_mua.py"), encoding="utf-8").read()
+	# Dò chuỗi chỉ để chốt "không còn chỗ nào tự hỏi dấu nối" (điều 18): màn
+	# chi tiết từng tự gọi ho_so_dang_giu không lọc loại hồ sơ.
+	la("không còn chỗ gọi ho_so_dang_giu trong doi_chieu_mua", s.count("ho_so_dang_giu("), 0)
+	la("xem dùng _ho_so_chi_theo_hd", s.count("_ho_so_chi_theo_hd([name])"), 1)
+
+
 # ------------------------------------------------------------ quyền Repost
 
 @ca("#526 quyền Repost chỉ mở cho đúng vai kế toán FIN, đủ bốn quyền để đổi tài khoản tờ đã ghi sổ")
