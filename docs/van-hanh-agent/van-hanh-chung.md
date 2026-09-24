@@ -67,8 +67,8 @@ Cloud cần bản hồ sơ gọn trong repo; nhật ký chi tiết ở máy, kh�
 đường dẫn Mac. Không lưu secret/transcript/dump/log lớn vào Git, không thêm VPS.
 
 ## 5. Astra theo độ khó
-Giữ Astra gpt-6-astra mặc định low, không bật Fast Mode. Anh đã duyệt chọn
-medium cho luồng nhiều bước, high cho tiền/kho/rollback/concurrency/core;
+Theo chốt 24/09/2026, dùng Astra gpt-6-astra mặc định medium, không bật Fast Mode.
+Giữ profile high đã duyệt cho tiền/kho/rollback/concurrency/core;
 xhigh/max chỉ khi có bế tắc đã ghi dữ liệu và lý do. Chọn effort tường minh
 ở bộ khởi chạy hỗ trợ; ghi model/effort thực từ metadata, không nhận lời dặn
 là cấu hình đã đổi. .codex/config.toml có profiles là cấu hình đề xuất; phải xác minh bộ khởi chạy đã nạp profile và model metadata. Native bot phải

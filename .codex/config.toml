@@ -1,9 +1,9 @@
-# Anh Việt chọn Astra mức Light (giá trị cấu hình: low), 11/09/2026.
+# Anh Việt chọn Astra mức medium, 24/09/2026.
 # Đây là mặc định dự án; lựa chọn tường minh lúc khởi chạy có thể ghi đè.
 model = "gpt-6-astra"
-model_reasoning_effort = "low"
+model_reasoning_effort = "medium"
 
-# Approved 16/09: explicit CLI profiles; default remains low.
+# Explicit CLI profiles; project default is medium from 24/09/2026.
 [profiles.erp-standard]
 model = "gpt-6-astra"
 model_reasoning_effort = "medium"

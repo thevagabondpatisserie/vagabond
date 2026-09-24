@@ -1056,3 +1056,11 @@ còn trỏ vào. Chỗ sinh ra ánh xạ chết là thao tác TẮT MÓN, không
 Cách phòng: gặp dữ liệu "trỏ vào thứ đã chết", hỏi cả hai phía: ai đọc nó
 (v523) và thao tác nào làm nó chết (v524, chặn tắt món còn ánh xạ). Và khi
 chặn, kiểm cả nhánh ô tuỳ chọn để trống.
+
+## Model Codex GitHub (24/09/2026)
+Cấu hình `.codex/config.toml` không chứng minh native bot `@codex review`
+đã đổi model. UI Code Review hiện không có bộ chọn model/effort. Workflow riêng
+`codex-astra-review.yml` đặt rõ Astra/medium; thiếu OPENAI_API_KEY thì chưa chạy.
+Chỉ nhận hoạt động sau khi kiểm runtime thực tế. Không nhầm severity Medium
+của Security Review với reasoning effort. SHA head/base đổi trong lúc review
+thì không đăng kết quả cũ như review hiện tại.

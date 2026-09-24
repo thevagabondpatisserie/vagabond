@@ -10,10 +10,10 @@ Mặc định trong `.codex/config.toml`:
 
 ```toml
 model = "gpt-6-astra"
-model_reasoning_effort = "low"
+model_reasoning_effort = "medium"
 ```
 
-Anh Việt gọi mức này là Light. Giá trị kỹ thuật dùng ở đây là `low`.
+Anh Việt chọn mức medium ngày 24/09/2026, thay mặc định Light/low cũ.
 Không tự đổi sang model khác, tăng effort hoặc bật Fast Mode để chữa lỗi.
 Nếu model không khả dụng, báo lỗi truy cập và phạm vi bị chặn.
 
@@ -34,7 +34,7 @@ Codex hiện hỗ trợ tự nạp `.codex/config.toml` trong repo đã tin cậ
 ở checkout này rồi dùng `/status` để kiểm model/effort. Có thể chọn tường minh:
 
 ```sh
-codex --model gpt-6-astra -c 'model_reasoning_effort="low"'
+codex --model gpt-6-astra -c 'model_reasoning_effort="medium"'
 ```
 
 Không đổi `CODEX_HOME` sang repo: biến này đổi cả nơi lưu trạng thái của Codex,
@@ -81,3 +81,27 @@ nhận/bị chặn, không tự gọi lặp; đọc lại nhánh sau phản hồ
 Quy tắc này không tự cài worker, không đánh thức desktop và không chứng minh
 caller bot có quyền giao sửa/push. Cần kiểm trọn caller -> tác vụ -> commit
 đúng nhánh -> checks/review SHA cuối trước khi nhận bàn giao tự động hoạt động.
+
+
+## Review GitHub với model tường minh (24/09/2026)
+
+Workflow `Codex Astra medium review` trong `codex-astra-review.yml` dùng
+`openai/codex-action@v1`, đặt `model: gpt-6-astra`, `effort: medium`.
+Chỉ gọi thủ công từ main, nhập PR và đủ 40 ký tự SHA. Kiểm PR mở, không Draft,
+cùng repo; giữ SHA head/base cố định. Runtime chỉ đọc, không push/merge/deploy.
+Job đăng kết quả tách khỏi job model, chỉ đăng khi head/base vẫn còn đúng.
+Không tự mention Claude để tránh vòng review lặp.
+
+Cần GitHub Actions secret `OPENAI_API_KEY` có quyền dùng Astra. API có chi phí
+riêng; không suy quyền/quota từ gói ChatGPT. Chưa có key thì dừng trước bước
+model. Thêm key qua GitHub Settings > Secrets and variables > Actions, không
+dán vào comment/chat hoặc commit. Chỉ chạy một lượt khi chủ repo chủ động gọi;
+25 phút là trần thời gian, không phải trần USD/token.
+
+Đây là workflow riêng, không thay model của native `@codex review` và không
+phải worker tự code theo comment Claude. Không tắt native integration hoặc
+đổi workflow Claude. Sau khi có key, phải kiểm log cấu hình runtime và phản hồi
+provider trên một SHA cụ thể trước khi nhận luồng hoạt động thật.
+
+Nguồn: https://learn.chatgpt.com/docs/github-action (model, effort,
+safety-strategy, quyền riêng cho job đăng kết quả).
