@@ -446,21 +446,65 @@ def _loi_noi():
 	dung("hồ sơ khác", "APP-9" in loi_noi_hoa_don(0, "APP-9"))
 
 
-def _noi(loai, dong, cp="Chi phi khong hop le", tong_hd=None):
-	"""tong_hd: {tờ hoá đơn: tổng tiền}. Bỏ trống thì mọi tờ khớp đúng số khoản."""
+def _noi(loai, dong, cp="Chi phi khong hop le", tong_hd=None, anh=None, cau=None):
+	"""tong_hd: {tờ hoá đơn: tổng tiền HIỆN HÀNH}. Bỏ trống thì mọi tờ khớp đúng
+	số khoản. anh: {tờ: tổng} trong ẢNH CHỤP REPEATABLE READ (get_value và câu
+	select không khoá thấy số này; chỉ câu for update thấy tong_hd), mặc định
+	trùng hiện hành. cau: list nhận các câu SQL đã chạy."""
 	from unittest.mock import Mock, patch
 	import frappe
 	from vagabond import ho_so_bo_sung as bo, ho_so_tt as hs
 	d = SimpleNamespace(dong=dong, save=Mock(), add_comment=Mock(), loai=loai, loai_cp_thue=cp)
 
-	def get_value(dt, ten, truong=None, *a, **k):
+	def hien_hanh(ten):
 		if tong_hd is not None:
 			return tong_hd.get(ten)
 		return next((x.get("so_tien") for x in dong if x.get("hoa_don_bo_sung") == ten), 0)
-	with patch.object(frappe, "db", SimpleNamespace(sql=Mock(), get_value=get_value)), \
+
+	def get_value(dt, ten, truong=None, *a, **k):
+		if anh is not None:
+			return anh.get(ten)
+		return hien_hanh(ten)
+
+	def sql(q, v=None, *a, **k):
+		if cau is not None:
+			cau.append(q)
+		if "grand_total" in q:
+			ten = v[0] if isinstance(v, (list, tuple)) else v
+			if "for update" in q.lower():
+				return ((hien_hanh(ten),),)
+			return ((get_value(None, ten),),)
+		return ()
+	with patch.object(frappe, "db", SimpleNamespace(sql=sql, get_value=get_value)), \
 		patch.object(frappe, "get_doc", return_value=d), patch.object(hs, "_kiem"):
 		kq = bo.noi_hoa_don("APP-THU", 1, "PI-THU")
 	return d, kq
+
+
+# Codex #368 vòng 11 (c28139d): noi_hoa_don đọc tổng tờ bằng get_value, tức
+# ảnh chụp REPEATABLE READ. Người sửa tờ chốt tổng mới 5.000 trong lúc nối thì
+# lần nối vẫn thấy 80.000 và đổi hồ sơ sang Hợp lệ.
+
+@ca("#526 v11 nối đọc tổng tờ HIỆN HÀNH có khoá: ảnh chụp 80.000 mà tờ đã chốt 5.000 thì không đổi hợp lệ")
+def _noi_doc_tong_khoa():
+	r = _D(cho_hoa_don=1, hoa_don_bo_sung="", so_tien=80000)
+	cau = []
+	d, kq = _noi("TK cong ty", [r], tong_hd={"PI-THU": 5000}, anh={"PI-THU": 80000}, cau=cau)
+	la("không đổi hợp lệ", (d.loai_cp_thue, kq["hop_le"]), ("Chi phi khong hop le", 0))
+	dung("báo lệch với số hiện hành 5.000", any("5.000" in x for x in kq["lech"]))
+	dung("đọc tổng bằng câu có khoá", any("grand_total" in q and "for update" in q.lower() for q in cau))
+	r = _D(cho_hoa_don=1, hoa_don_bo_sung="", so_tien=80000)
+	d, kq = _noi("TK cong ty", [r], tong_hd={"PI-THU": 80000}, anh={"PI-THU": 5000})
+	la("chiều ngược: ảnh chụp 5.000 mà hiện hành 80.000 thì hợp lệ", kq["hop_le"], 1)
+
+
+@ca("#526 v11 một nguồn: không còn chỗ nào đọc tổng tờ hoá đơn bằng get_value để so tiền với khoản")
+def _mot_nguon_tong():
+	import inspect
+	from vagabond import ho_so_bo_sung as bo
+	nguon = inspect.getsource(bo)
+	la("không get_value grand_total của Purchase Invoice", nguon.count('"Purchase Invoice", ma, "grand_total"'), 0)
+	la("chỉ một câu select grand_total có khoá", nguon.count("select grand_total from `tabPurchase Invoice`"), 1)
 
 
 @ca("#526 nối đủ hoá đơn cho hồ sơ chi từ TK công ty thì chuyển Hợp lệ tính thuế")
@@ -871,7 +915,8 @@ def _khoa_tong_tien():
 # KHOẢN đã nối (80.000 xuống 5.000) trên hồ sơ TK công ty thì hồ sơ vẫn Hợp lệ
 # mà không ai soát lại với tổng tờ hoá đơn.
 
-def _ho_so_sua_tien(tien_cu, tien_moi, tong_hd=80000, loai="TK cong ty", loai_cu=None, hd_cu="HDM-X"):
+def _ho_so_sua_tien(tien_cu, tien_moi, tong_hd=80000, loai="TK cong ty", loai_cu=None, hd_cu="HDM-X",
+		tt_cu="Da thanh toan", tt_moi="Da thanh toan"):
 	"""Chạy THẬT kiem_bo_sung: khoản 1 đã nối HDM-X từ trước, lần lưu này đổi số tiền."""
 	from unittest.mock import patch
 	from vagabond import ho_so_bo_sung as bo, ho_so_tt as hs
@@ -887,8 +932,8 @@ def _ho_so_sua_tien(tien_cu, tien_moi, tong_hd=80000, loai="TK cong ty", loai_cu
 		return ()
 	truoc = _D(name="D1", idx=1, hoa_don_bo_sung=hd_cu, cho_hoa_don=1, hoa_don="", so_tien=tien_cu)
 	moi = _D(name="D1", idx=1, hoa_don_bo_sung=hd_cu, cho_hoa_don=1, hoa_don="", so_tien=tien_moi)
-	cu = SimpleNamespace(dong=[truoc], nha_cung_cap="XDKV2", loai=loai if loai_cu is None else loai_cu)
-	ho_so = SimpleNamespace(dong=[moi], nha_cung_cap="XDKV2", trang_thai="Da thanh toan", loai=loai,
+	cu = SimpleNamespace(dong=[truoc], nha_cung_cap="XDKV2", loai=loai if loai_cu is None else loai_cu, trang_thai=tt_cu)
+	ho_so = SimpleNamespace(dong=[moi], nha_cung_cap="XDKV2", trang_thai=tt_moi, loai=loai,
 		get_doc_before_save=lambda: cu)
 	fr = SimpleNamespace(throw=_throw, db=_db(sql))
 	with patch.object(hs, "_kiem"), patch.object(hs, "_cong_ty_chung_tu", return_value=CTY):
@@ -925,6 +970,21 @@ def _ho_so_khoa_loai():
 	dung("chiều ngược NCC sang TK công ty cũng chặn", "không đổi loại" in loi)
 	la("chưa nối tờ nào thì đổi loại thoải mái",
 		_ho_so_sua_tien(80000, 5000, loai="Hoan ung", loai_cu="TK cong ty", hd_cu="")[0], "")
+
+
+@ca("#526 v11 hồ sơ đã Huỷ từng nối hoá đơn đến sau thì không mở lại được")
+def _khong_mo_lai_huy():
+	from vagabond.ho_so_bo_sung import loi_mo_lai_huy
+	noi = {"D1": {"idx": 1, "hoa_don_bo_sung": "HDM-X"}}
+	dung("Huy về Nhap: chặn, gọi tên tờ", "HDM-X" in loi_mo_lai_huy("Huy", "Nhap", noi))
+	dung("Huy về Tu choi cũng chặn", bool(loi_mo_lai_huy("Huy", "Tu choi", noi)))
+	la("vẫn Huy thì không hỏi", loi_mo_lai_huy("Huy", "Huy", noi), "")
+	la("đang sống chuyển sang Huy thì không chặn", loi_mo_lai_huy("Nhap", "Huy", noi), "")
+	la("Tu choi về Nhap không chặn (Từ chối vẫn giữ tờ)", loi_mo_lai_huy("Tu choi", "Nhap", noi), "")
+	la("huỷ mà không nối tờ nào thì không chặn", loi_mo_lai_huy("Huy", "Nhap", {"D1": {"idx": 1, "hoa_don_bo_sung": ""}}), "")
+	# Chạy thật kiem_bo_sung: bản đã lưu Huy, lần lưu này đưa về Nhap.
+	loi, _ = _ho_so_sua_tien(80000, 80000, tt_cu="Huy", tt_moi="Nhap")
+	dung("kiem_bo_sung chặn mở lại", "không mở lại" in loi)
 
 
 @ca("#526 v10 luật thuần loi_doi_loai")
