@@ -361,21 +361,33 @@ async function vgbHoaDonDenSau(frm) {
 	}
 	var ds = kq.khoan || [];
 	if (!ds.length) return;
+	/* Codex #368 vong 3: may chu tra toi 50 khoan, nhieu khoan cung noi dung
+	   va so tien. O chon phai TIM DUOC (go so ho so, noi dung, so tien), va
+	   gia tri chon chinh la dinh danh "ho so · khoan N" chu khong phai so thu
+	   tu trong danh sach, de khong the noi nham dong. Khong chon san khoan
+	   nao: nguoi chon phai chu dong chon. */
+	var theo_gia_tri = {};
+	var lua_chon = ds.map(function (d) {
+		var gt = d.ho_so + ' · khoản ' + d.dong + ' · ' + (d.noi_dung || '') + ' · ' + format_currency(d.so_tien) +
+			(d.ngay ? ' · ' + d.ngay : '');
+		theo_gia_tri[gt] = d;
+		return gt;
+	});
 	frm.add_custom_button('Nối vào hồ sơ chi (hoá đơn đến sau)', function () {
 		var hop = new frappe.ui.Dialog({
 			title: 'Nối hoá đơn đến sau',
 			fields: [
-				{ fieldtype: 'HTML', fieldname: 'ghi_chu', options: '<p class="text-muted">Chọn khoản chi đang chờ hoá đơn của nhà cung cấp này. ' +
-					'Nối xong, tờ hoá đơn này chỉ là chứng từ và không ghi sổ nữa, vì chi phí đã ghi qua hồ sơ.</p>' },
-				{ fieldtype: 'Select', fieldname: 'khoan', label: 'Khoản chi', reqd: 1,
-					options: ds.map(function (d, i) {
-						return { value: String(i), label: d.ho_so + ' · khoản ' + d.dong + ' · ' + (d.noi_dung || '') + ' · ' + format_currency(d.so_tien) };
-					}) }
+				{ fieldtype: 'HTML', fieldname: 'ghi_chu', options: '<p class="text-muted">Có ' + ds.length + ' khoản chi đang chờ hoá đơn của nhà cung cấp này. ' +
+					'Gõ số hồ sơ, nội dung hoặc số tiền để tìm. Nối xong, tờ hoá đơn này chỉ là chứng từ và không ghi sổ nữa, vì chi phí đã ghi qua hồ sơ.</p>' },
+				{ fieldtype: 'Autocomplete', fieldname: 'khoan', label: 'Khoản chi', reqd: 1, options: lua_chon }
 			],
 			primary_action_label: 'Nối',
 			primary_action: async function (v) {
-				var d = ds[Number(v.khoan)];
-				if (!d) return;
+				var d = theo_gia_tri[v.khoan];
+				if (!d) {
+					frappe.msgprint('Chọn đúng một khoản trong danh sách gợi ý (gõ để tìm rồi bấm chọn).');
+					return;
+				}
 				try {
 					var r = (await frappe.call({ method: 'vagabond.ho_so_bo_sung.noi_hoa_don',
 						args: { name: d.ho_so, dong: d.dong, hoa_don: phieu.name }, freeze: true })).message || {};
@@ -386,7 +398,6 @@ async function vgbHoaDonDenSau(frm) {
 			}
 		});
 		hop.show();
-		hop.set_value('khoan', '0');
 	});
 }
 
