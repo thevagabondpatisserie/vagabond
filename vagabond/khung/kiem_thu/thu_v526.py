@@ -990,14 +990,14 @@ def _khong_mo_lai_huy():
 # Codex #368 vòng 12 (e77749a): một lần lưu gán cùng một tờ chưa dùng cho hai
 # khoản mới; ho_so_dang_giu chỉ đọc dòng đã lưu nên cả hai đều qua.
 
-def _ho_so_hai_dong(ma1, ma2, ten_moi=None, goc2=""):
+def _ho_so_hai_dong(ma1, ma2, ten_moi=None, goc2="", cu_ma1=""):
 	"""Chạy THẬT kiem_bo_sung: bản đã lưu có hai khoản chưa nối, lần lưu này nối
 	ma1, ma2. ten_moi: tên của hai dòng ở bản mới (None cả hai = dòng mới chưa
 	có tên). Trả chuỗi lỗi (rỗng nếu lưu được)."""
 	from unittest.mock import patch
 	from vagabond import ho_so_bo_sung as bo, ho_so_tt as hs
 	t1, t2 = ten_moi or ("D1", "D2")
-	cu_ds = [_D(name=t, idx=i + 1, hoa_don_bo_sung="", cho_hoa_don=1, hoa_don="", so_tien=40000)
+	cu_ds = [_D(name=t, idx=i + 1, hoa_don_bo_sung=cu_ma1 if i == 0 else "", cho_hoa_don=1, hoa_don="", so_tien=40000)
 		for i, t in enumerate((t1, t2)) if t]
 	moi = [_D(name=t1, idx=1, hoa_don_bo_sung=ma1, cho_hoa_don=1, hoa_don="", so_tien=40000),
 		_D(name=t2, idx=2, hoa_don_bo_sung=ma2, cho_hoa_don=1, hoa_don=goc2, so_tien=40000)]
@@ -1026,6 +1026,10 @@ def _trung_trong_ho_so():
 	loi = _ho_so_hai_dong("HDM-X", "HDM-X", ten_moi=(None, None))
 	dung("hai dòng mới chưa có tên cũng chặn", "HDM-X" in loi and "1, 2" in loi)
 	la("hai tờ khác nhau thì lưu", _ho_so_hai_dong("HDM-X", "HDM-Y"), "")
+	# Vòng 13: khoản 1 đã nối HDM-X từ trước (không đổi), lần này khoản 2 thêm
+	# HDM-X làm hoá đơn gốc.
+	loi = _ho_so_hai_dong("HDM-X", "", goc2="HDM-X", cu_ma1="HDM-X")
+	dung("v13 thêm hoá đơn gốc trùng tờ đã nối sẵn: chặn", "HDM-X" in loi and "gốc của khoản 2" in loi)
 
 
 @ca("#526 v12 luật thuần loi_trung_trong_ho_so")
@@ -1037,6 +1041,17 @@ def _loi_trung_thuan():
 	la("trùng sẵn từ trước, lần này không đổi gì: không khoá cứng hồ sơ cũ",
 		f({"a": m(1, "X"), "b": m(2, "X")}, {"a": m(1, "X"), "b": m(2, "X")}), "")
 	dung("nối bổ sung trùng hoá đơn gốc của khoản khác", "gốc của khoản 1" in f({"a": m(1, "", "X"), "b": m(2, "X")}, {}))
+	# Vòng 13 (a550c2e): vế bổ sung giữ nguyên, lần này THÊM hoá đơn gốc trùng.
+	dung("thêm hoá đơn gốc trùng tờ đã nối sẵn ở khoản khác (dòng cũ đổi gốc)",
+		"gốc của khoản 1" in f({"a": m(1, "", "X"), "b": m(2, "X")}, {"a": m(1, "", ""), "b": m(2, "X")}))
+	dung("thêm DÒNG mới mang hoá đơn gốc trùng tờ đã nối sẵn",
+		"gốc của khoản 3" in f({"b": m(2, "X"), "c": m(3, "", "X")}, {"b": m(2, "X")}))
+	# Đột biến U2 (chỉ xét vế gốc) lần đầu không đổ ca nào (điều 17a): ca trên
+	# dựng cả hai vế cùng mới. Ca này tách riêng: gốc có sẵn, CHỈ vế bổ sung mới.
+	dung("gốc có sẵn từ trước, lần này mới nối bổ sung trùng",
+		"gốc của khoản 1" in f({"a": m(1, "", "X"), "b": m(2, "X")}, {"a": m(1, "", "X"), "b": m(2, "")}))
+	la("gốc và bổ sung trùng sẵn từ trước, lần này không đổi vế nào: không khoá cứng",
+		f({"a": m(1, "", "X"), "b": m(2, "X")}, {"a": m(1, "", "X"), "b": m(2, "X")}), "")
 	la("không trùng", f({"a": m(1, "X"), "b": m(2, "Y")}, {}), "")
 	la("khoản trống không tính", f({"a": m(1, ""), "b": m(2, " ")}, {}), "")
 
