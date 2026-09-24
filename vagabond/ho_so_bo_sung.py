@@ -247,6 +247,35 @@ def ho_so_dang_giu(hoa_don, bo_qua_dong=None, khoa=False):
 	return ds[0][0] if ds else ""
 
 
+TRUONG_KHOA_KHI_NOI = (("supplier", "nhà cung cấp"), ("company", "công ty"))
+
+
+def giu_hd_da_noi(doc, method=None):
+	"""validate Hoá đơn mua (v526, Codex #368 vòng 5): tờ đã nối làm hoá đơn
+	đến sau vẫn là tờ NHÁP nên sửa được trên Desk. Đổi nhà cung cấp hay công
+	ty sau khi nối là lọt luật "đúng NCC, đúng công ty" mà kiem_bo_sung xét lúc
+	nối, trong khi hồ sơ vẫn tính là chi phí hợp lệ. Chỉ hỏi dấu nối khi một
+	trong hai ô đó thật sự đổi, để lần lưu thường không tốn thêm truy vấn."""
+	if cint(getattr(doc, "docstatus", 0)) != 0:
+		return
+	if doc.is_new():
+		return
+	cu = doc.get_doc_before_save()
+	if not cu:
+		return
+	doi = [nhan for truong, nhan in TRUONG_KHOA_KHI_NOI
+		if (doc.get(truong) or "") != (cu.get(truong) or "")]
+	if not doi:
+		return
+	khoa_hoa_don(doc.name)
+	giu = ho_so_dang_giu(doc.name, khoa=True)
+	if giu:
+		frappe.throw(
+			"Hoá đơn %s đang là hoá đơn đến sau (chứng từ) của hồ sơ %s, nên không đổi %s được. "
+			"Hồ sơ đã kiểm đúng nhà cung cấp và công ty lúc nối. Cần đổi thì huỷ hồ sơ %s trước."
+			% (doc.name, giu, " và ".join(doi), giu), title="Tờ này đang làm chứng từ")
+
+
 def chan_ghi_so_hd_da_chi(doc, method=None):
 	"""before_submit Hoá đơn mua (v526): tờ đã nối làm hoá đơn đến sau của một
 	hồ sơ chi từ TK công ty thì không ghi sổ. Tiền và chi phí đã vào sổ qua

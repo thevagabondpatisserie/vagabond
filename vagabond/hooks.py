@@ -581,6 +581,9 @@ doc_events = {
 			# nhap, de khong dam len luat tai khoan cho 3311 cua hang kho.
 			"vagabond.dung_lai_hddt.tk_theo_mon",
 			"vagabond.mua_dich_vu.gan_tai_khoan_chi_phi",
+			# v526 (Codex #368 vong 5): to da noi lam hoa don den sau thi
+			# khong doi nha cung cap, cong ty khi luu nhap.
+			"vagabond.ho_so_bo_sung.giu_hd_da_noi",
 		],
 		"before_submit": [
 			# Codex #358 P1: dòng máy đoán Món mà người chưa chốt thì chưa ghi sổ.
