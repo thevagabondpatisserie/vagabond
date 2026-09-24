@@ -1097,3 +1097,9 @@ chốt; hai hồ sơ cùng nối một tờ cũng lọt. Chỉ thêm khoá tờ 
 thứ tự đan xen. Cách phòng: mọi đường quyết định (nối, ghi sổ) khoá CÙNG một
 dòng (tờ hoá đơn) trước, rồi đọc trạng thái và dấu nối bằng câu có khoá
 (for update), không lấy docstatus từ get_doc.
+
+Tờ hoá đơn mua NHÁP còn có trạng thái "đã đánh dấu huỷ" (vgb_huy 1,
+docstatus vẫn 0). Luật nào chỉ xét docstatus là nhận nhầm tờ đã bỏ (Codex
+#368 vòng 2: nối tờ đó làm hoá đơn đến sau thì hồ sơ thành chi phí hợp lệ
+tính thuế bằng một chứng từ đã bỏ). Mọi luật "tờ còn hiệu lực" phải xét cả
+dấu huỷ, và xét cả chiều ngược: tờ đang làm chứng từ thì không cho huỷ mềm.
