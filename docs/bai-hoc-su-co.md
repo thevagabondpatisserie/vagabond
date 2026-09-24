@@ -1082,9 +1082,18 @@ mặc định của công ty, là 632 giá vốn. Kế toán chỉ biết sau kh
 đó muốn sửa lại vướng quyền Repost.
 Cách phòng: mọi nút ghi sổ trên app phải cho thấy, và cho đổi, tài khoản của
 dòng chi phí TRƯỚC khi ghi. Hook tự đặt tài khoản (khai trên Món, tài khoản
-đầu phiếu) phải chừa dòng người vừa chọn, và sau khi ghi đọc lại từ sổ xem có
-đúng như người chọn không.
+đầu phiếu) phải chừa dòng người vừa chọn, và sau khi ghi đọc lại SỔ CÁI (GL
+Entry của đúng tờ), không chỉ ô tài khoản trên dòng. Codex #368: ô trên dòng
+đúng mà bút toán Nợ chỗ khác thì phép soát chỉ đọc dòng vẫn chốt.
 
 Cùng đợt: dấu nối "hoá đơn đến sau" chỉ là chứng từ. Khoản chi đã ghi chi phí
 qua hồ sơ, nên tờ hoá đơn đã nối phải bị CHẶN ghi sổ ở before_submit, không
 chỉ giấu nút, vì Desk và API vẫn ghi được.
+
+Chặn "tờ đã nối" ở before_submit mà đọc dấu nối bằng select thường là chưa đủ
+(Codex #368, tái hiện trên MariaDB thật hai kết nối): REPEATABLE READ cho
+giao dịch ghi sổ thấy ảnh chụp lúc mở tờ, không thấy dấu nối hồ sơ khác vừa
+chốt; hai hồ sơ cùng nối một tờ cũng lọt. Chỉ thêm khoá tờ vẫn lọt 2 trên 3
+thứ tự đan xen. Cách phòng: mọi đường quyết định (nối, ghi sổ) khoá CÙNG một
+dòng (tờ hoá đơn) trước, rồi đọc trạng thái và dấu nối bằng câu có khoá
+(for update), không lấy docstatus từ get_doc.
