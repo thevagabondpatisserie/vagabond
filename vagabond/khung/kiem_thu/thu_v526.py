@@ -532,12 +532,12 @@ def _db(sql):
 	return SimpleNamespace(sql=sql, has_column=lambda dt, cot: True)
 
 
-def _kiem_noi(sql, hd_huy=0):
+def _kiem_noi(sql, hd_huy=0, loai="TK cong ty"):
 	"""Chạy THẬT kiem_bo_sung trên hồ sơ nối khoản 1 vào tờ HDM-X."""
 	from unittest.mock import patch
 	from vagabond import ho_so_bo_sung as bo, ho_so_tt as hs
 	dong = _D(name="D1", idx=1, hoa_don_bo_sung="HDM-X", cho_hoa_don=1, hoa_don="")
-	ho_so = SimpleNamespace(dong=[dong], nha_cung_cap="XDKV2", trang_thai="Da thanh toan",
+	ho_so = SimpleNamespace(dong=[dong], nha_cung_cap="XDKV2", trang_thai="Da thanh toan", loai=loai,
 		get_doc_before_save=lambda: None)
 	hd_anh_chup = _D(name="HDM-X", docstatus=0, supplier="XDKV2", company=CTY, vgb_huy=hd_huy)
 	fr = SimpleNamespace(throw=_throw, get_doc=lambda dt, n: hd_anh_chup, db=_db(sql))
@@ -687,17 +687,26 @@ def _huy_to_vua_ghi_so():
 # sơ khác, rồi hồ sơ cũ gửi lại vẫn giữ dấu nối, chi phí hai lần. Lớp dữ liệu
 # giả dưới đây LỌC THẬT theo bộ trạng thái hết hiệu lực mà code truyền vào.
 
-def _db_theo_trang_thai(giu):
-	"""giu: [(hồ sơ, trạng thái)] đang nối tờ HDM-X. sql áp đúng tham số
-	trạng thái hết hiệu lực mà câu hỏi truyền vào."""
+def _db_theo_trang_thai(giu, docstatus=0):
+	"""giu: [(hồ sơ, trạng thái)] hoặc [(hồ sơ, trạng thái, loại)] đang nối tờ
+	HDM-X. sql áp ĐÚNG tham số mà câu hỏi truyền vào: bộ trạng thái hết hiệu
+	lực, và cờ "chỉ hồ sơ Chi từ TK công ty" kèm tên loại."""
+	TKCT = "TK cong ty"
+	dong = [(g[0], g[1], g[2] if len(g) > 2 else TKCT) for g in giu]
+
 	def sql(q, v=None, as_dict=False):
 		if "`tabPurchase Invoice`" in q:
-			return ((0, 0),)
+			return ((docstatus, 0),)
 		if "tabVagabond Ho So TT Dong" in q:
-			het = v[-1] if isinstance(v, (tuple, list)) else ()
+			v = tuple(v or ())
+			het = next((x for x in v if isinstance(x, tuple) and x and x[0] in ("Huy", "Tu choi")), ())
 			if "d.hoa_don_bo_sung in" in q:
-				return tuple(("HDM-X", hs) for hs, tt in giu if tt not in het)
-			return tuple((hs,) for hs, tt in giu if tt not in het)[:1]
+				# _ho_so_chi_theo_hd: có mệnh đề "p.loai = %s" thì lọc theo tham số thứ hai.
+				chi = "p.loai = %s" in q
+				return tuple(("HDM-X", hs) for hs, tt, lo in dong if tt not in het and (not chi or lo == v[1]))
+			# ho_so_dang_giu: (tờ, bỏ qua dòng, hết hiệu lực, cờ chỉ TKCT, tên loại)
+			chi = "p.loai = %s" in q and len(v) > 4 and v[3]
+			return tuple((hs,) for hs, tt, lo in dong if tt not in het and (not chi or lo == v[4]))[:1]
 		return ()
 	return sql
 
@@ -723,18 +732,57 @@ def _tu_choi_van_giu():
 def _desk_bo_tu_choi():
 	from unittest.mock import patch
 	from vagabond import ho_so_bo_sung as bo, ho_so_tt as hs
-	khoan = [("APP-TC", "Tu choi"), ("APP-OK", "Da thanh toan")]
+	khoan = [("APP-TC", "Tu choi", "TK cong ty"), ("APP-OK", "Da thanh toan", "TK cong ty"),
+		("APP-NCC", "Da thanh toan", "NCC")]
 
 	def sql(q, v=None, *a, **k):
 		if "p.nha_cung_cap" in q:
+			chi = "p.loai = %s" in q
 			return [_D(ho_so=x, ngay="2026-09-20", trang_thai=tt, dong=1, noi_dung="Xăng", so_tien=80000, ngay_hd="")
-				for x, tt in khoan if tt not in v[-1]]
+				for x, tt, lo in khoan if tt not in v[-1] and (not chi or lo == v[1])]
 		return ()
 	fr = SimpleNamespace(throw=_throw, db=SimpleNamespace(has_column=lambda dt, cot: True, sql=sql,
 		get_value=lambda dt, n, f, as_dict=False: _D(name="HDM-X", supplier="XDKV2", company=CTY, docstatus=0, vgb_huy=0)))
 	with patch.object(hs, "_kiem"), patch.object(hs, "_cong_ty_chung_tu", return_value=CTY):
 		kq = _voi(bo, fr, lambda: bo.khoan_cho_hoa_don("HDM-X"))
-	la("chỉ khoản của hồ sơ còn nhận nối", [x["ho_so"] for x in kq.get("khoan")], ["APP-OK"])
+	la("chỉ khoản của hồ sơ Chi từ TK công ty còn nhận nối", [x["ho_so"] for x in kq.get("khoan")], ["APP-OK"])
+
+
+# Bench v526 (bd6849d) bắt được: luật "chỉ nối tờ nháp" và "tờ đã nối không
+# ghi sổ" là của hồ sơ Chi từ TK công ty (chi phí đã ghi qua bút toán của hồ
+# sơ). Áp chung cho mọi loại thì làm hỏng luồng hồ sơ trả NCC, vốn nối tờ ĐÃ
+# ghi sổ (tờ tạo công nợ mà hồ sơ trả) - ca tích hợp #263 đổ vì đúng lẽ đó.
+
+@ca("#526 v5 hồ sơ trả NCC: nối tờ đã ghi sổ vẫn được như trước v526, tờ nháp nối vào vẫn ghi sổ được")
+def _ncc_giu_luong_cu():
+	from vagabond import ho_so_bo_sung as bo, doi_chieu_mua as DC
+	la("luật thuần: NCC nhận tờ đã ghi sổ", bo.loi_noi_hoa_don(1, "", 0, chi_nhap=False), "")
+	dung("luật thuần: TKCT vẫn chặn tờ đã ghi sổ", "đã ghi sổ" in bo.loi_noi_hoa_don(1, "", 0, chi_nhap=True))
+	la("nối tờ đã ghi sổ vào hồ sơ NCC", _kiem_noi(_db_theo_trang_thai([], docstatus=1), loai="NCC"), "")
+	dung("nối tờ đã ghi sổ vào hồ sơ TKCT vẫn chặn", "đã ghi sổ" in _kiem_noi(_db_theo_trang_thai([], docstatus=1)))
+	sql = _db_theo_trang_thai([("APP-NCC", "Da duyet", "NCC")])
+	_voi(bo, SimpleNamespace(throw=_throw, db=_db(sql)), lambda: bo.chan_ghi_so_hd_da_chi(_D(name="HDM-X")))
+	la("màn Đối chiếu không xếp tờ của hồ sơ NCC vào Xong",
+		_voi(DC, SimpleNamespace(db=_db(sql)), lambda: DC._ho_so_chi_theo_hd(["HDM-X"])), {})
+	dung("một tờ vẫn chỉ nằm ở một hồ sơ, kể cả hồ sơ NCC đang giữ", "APP-NCC" in _kiem_noi(sql))
+
+
+@ca("#526 v5 danh sách chọn hoá đơn: hồ sơ TKCT chỉ tờ nháp, hồ sơ NCC gồm cả tờ đã ghi sổ")
+def _chon_theo_loai():
+	from unittest.mock import patch
+	from vagabond import ho_so_bo_sung as bo, ho_so_tt as hs
+	for loai, mong in (("TK cong ty", 0), ("NCC", ["<", 2])):
+		loc = {}
+
+		def get_list(dt, filters=None, **k):
+			loc.update(filters or {})
+			return []
+		fr = SimpleNamespace(throw=_throw, get_list=get_list,
+			get_doc=lambda dt, n: SimpleNamespace(nha_cung_cap="XDKV2", loai=loai),
+			db=SimpleNamespace(has_column=lambda dt, cot: True))
+		with patch.object(hs, "_kiem"), patch.object(hs, "_cong_ty_chung_tu", return_value=CTY):
+			_voi(bo, fr, lambda: bo.danh_sach_hoa_don("APP-1"))
+		la("lọc trạng thái tờ cho hồ sơ " + loai, loc.get("docstatus"), mong)
 
 
 # Codex #368 vòng 4: màn hạch toán phải có ảnh món cạnh tên (AGENTS.md mục
