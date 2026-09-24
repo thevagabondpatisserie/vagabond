@@ -151,6 +151,28 @@ def loi_noi_hoa_don(docstatus_hd, ho_so_khac, da_huy=0, chi_nhap=True):
 	return ""
 
 
+def loi_doi_loai(loai_cu, loai_moi, cu_dong, mac_dinh="NCC"):
+	"""Đổi loại hồ sơ khi hồ sơ đang nối hoá đơn đến sau thì không được. THUẦN.
+
+	Codex #368 vòng 10: mọi luật hoá đơn đến sau (chỉ nối tờ nháp, chặn ghi
+	sổ tờ đã nối, soát số tiền) xét theo loại hồ sơ. Loại lại là ô sửa được
+	trên Desk/API, nên đổi loại cùng lần lưu là thoát luật, rồi tờ nháp ghi sổ
+	được, chi phí vào sổ hai lần. Giữ MỘT bất biến: đang nối thì loại đứng yên,
+	mọi luật theo loại đọc ra cùng một giá trị với lúc nối.
+	Loại chỉ đặt lúc lập hồ sơ (ho_so_tt), không đường nghiệp vụ nào đổi sau."""
+	cu = (loai_cu or "").strip() or mac_dinh
+	moi = (loai_moi or "").strip() or mac_dinh
+	if cu == moi:
+		return ""
+	for r in (cu_dong or {}).values():
+		ma = (r.get("hoa_don_bo_sung") or "").strip()
+		if ma:
+			return ("Hồ sơ đang nối hoá đơn %s ở khoản %s nên không đổi loại hồ sơ (%s sang %s) được. "
+				"Loại hồ sơ quyết định tờ đó còn ghi sổ được hay không. Lập sai loại thì huỷ hồ sơ rồi lập lại."
+				% (ma, r.get("idx"), cu, moi))
+	return ""
+
+
 
 import frappe
 from frappe.utils import cint
@@ -199,6 +221,11 @@ def kiem_bo_sung(doc):
 	idx, loi = loi_giu_lien_ket(cu_dong, moi_dong, doi_ncc, goc_doi)
 	if loi:
 		frappe.throw("Khoản %s %s. Nhờ kế toán kiểm tra." % (idx, loi))
+	if cu:
+		from vagabond.ho_so_tt import LOAI_NCC
+		loi = loi_doi_loai(getattr(cu, "loai", None), getattr(doc, "loai", None), cu_dong, LOAI_NCC)
+		if loi:
+			frappe.throw(loi, title="Hồ sơ đang có chứng từ")
 	_giu_tien_khoan_da_noi(doc, cu_dong)
 
 	for d in (doc.dong or []):
