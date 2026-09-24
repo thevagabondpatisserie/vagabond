@@ -585,6 +585,9 @@ doc_events = {
 		"before_submit": [
 			# Codex #358 P1: dòng máy đoán Món mà người chưa chốt thì chưa ghi sổ.
 			"vagabond.doi_chieu_mua.chan_ghi_so_may_doan",
+			# v526: tờ đã nối làm hoá đơn đến sau của hồ sơ chi từ TK công ty
+			# thì chi phí đã vào sổ qua hồ sơ, không ghi sổ lần hai.
+			"vagabond.ho_so_bo_sung.chan_ghi_so_hd_da_chi",
 			"vagabond.luong_hoa_don_goc.kiem_truoc_ghi_so",
 			"vagabond.sua_ma_hoa_don.nhac_nguon",
 			"vagabond.he_so_chung_tu.kiem",

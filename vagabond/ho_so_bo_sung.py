@@ -56,6 +56,46 @@ def loi_giu_lien_ket(cu_dong, moi_dong, doi_ncc, hoa_don_goc_doi):
 	return 0, ""
 
 
+# v526 (anh Việt chốt 23/09 và 24/09/2026) -------------------------------
+# Chi từ TK công ty trước, hoá đơn về sau: tiền đã ghi Nợ chi phí qua bút
+# toán của hồ sơ. Hoá đơn về thì NỐI làm chứng từ, hồ sơ chuyển sang chi phí
+# hợp lệ tính thuế, và tờ hoá đơn mua đó KHÔNG được ghi sổ nữa (ghi là chi
+# phí hai lần, công nợ treo mãi). Thuế GTGT đầu vào kế toán tự xử lý tay.
+
+TT_HET_HIEU_LUC = ("Huy", "Tu choi")
+
+
+def _so(v):
+	try:
+		return int(v or 0)
+	except (TypeError, ValueError):
+		return 0
+
+
+def nen_hop_le(dong):
+	"""Hồ sơ chuyển sang hợp lệ khi MỌI khoản đều là hoá đơn đến sau và đã
+	nối đủ. Khoản nào không chờ hoá đơn là khoản không hoá đơn thật: đổi cả
+	hồ sơ sang hợp lệ là khai sai khi quyết toán. THUẦN."""
+	ds = list(dong or [])
+	return bool(ds) and all(
+		_so(d.get("cho_hoa_don")) and (d.get("hoa_don_bo_sung") or "").strip() for d in ds)
+
+
+def loi_noi_hoa_don(docstatus_hd, ho_so_khac):
+	"""Tờ hoá đơn mua nối vào khoản chờ hoá đơn được không. THUẦN.
+
+	docstatus_hd: 0 nháp, 1 đã ghi sổ, 2 đã huỷ.
+	ho_so_khac: tên hồ sơ còn hiệu lực khác đang giữ tờ này, rỗng nếu không."""
+	if _so(docstatus_hd) == 2:
+		return "đã huỷ"
+	if _so(docstatus_hd) == 1:
+		return ("đã ghi sổ, tức chi phí đã vào sổ qua hoá đơn mua. Khoản chi này cũng đã "
+			"ghi chi phí qua hồ sơ, nối vào là chi phí hai lần. Chỉ nối tờ còn nháp")
+	if ho_so_khac:
+		return "đã nối vào hồ sơ %s rồi" % ho_so_khac
+	return ""
+
+
 
 import frappe
 from frappe.utils import cint
@@ -121,6 +161,38 @@ def kiem_bo_sung(doc):
 			frappe.throw("Hóa đơn bổ sung phải còn hiệu lực, đúng nhà cung cấp và công ty của hồ sơ.")
 		if ma == d.hoa_don:
 			frappe.throw("Hóa đơn này đã là chứng từ gốc của khoản chi, không cần nối bổ sung.")
+		# v526: chỉ nối tờ còn nháp, và một tờ chỉ nằm ở một khoản còn hiệu lực.
+		loi = loi_noi_hoa_don(hd.docstatus, ho_so_dang_giu(ma, bo_qua_dong=d.name))
+		if loi:
+			frappe.throw("Khoản %s: hoá đơn %s %s." % (d.idx, ma, loi))
+
+
+def ho_so_dang_giu(hoa_don, bo_qua_dong=None):
+	"""Hồ sơ còn hiệu lực đang nối tờ hoá đơn này làm hoá đơn đến sau."""
+	if not hoa_don:
+		return ""
+	ds = frappe.db.sql(
+		"""select p.name from `tabVagabond Ho So TT Dong` d
+		inner join `tabVagabond Ho So TT` p on p.name = d.parent
+		where d.hoa_don_bo_sung = %s and d.name != %s
+			and ifnull(p.trang_thai, '') not in %s
+		order by p.creation limit 1""",
+		(hoa_don, bo_qua_dong or "", TT_HET_HIEU_LUC))
+	return ds[0][0] if ds else ""
+
+
+def chan_ghi_so_hd_da_chi(doc, method=None):
+	"""before_submit Hoá đơn mua (v526): tờ đã nối làm hoá đơn đến sau của một
+	hồ sơ chi từ TK công ty thì không ghi sổ. Tiền và chi phí đã vào sổ qua
+	bút toán của hồ sơ; ghi thêm tờ này là chi phí hai lần và một khoản công
+	nợ không bao giờ trả. Mọi đường ghi sổ (Desk, app, API) đều đi qua đây."""
+	giu = ho_so_dang_giu(doc.name)
+	if giu:
+		frappe.throw(
+			"Hoá đơn %s đã nối làm hoá đơn đến sau của hồ sơ %s: khoản chi đã ghi chi phí "
+			"qua hồ sơ đó, nên tờ này chỉ là chứng từ, không ghi sổ. Thuế GTGT đầu vào "
+			"(nếu có) kế toán xử lý bằng bút toán riêng." % (doc.name, giu),
+			title="Tờ này không ghi sổ")
 
 
 @frappe.whitelist()
@@ -128,8 +200,9 @@ def danh_sach_hoa_don(name, tu_khoa=""):
 	from vagabond.ho_so_tt import _kiem, VAI_LAP, VAI_FIN, VAI_GD, _cong_ty_chung_tu
 	_kiem(VAI_LAP | VAI_FIN | VAI_GD, "tìm hóa đơn bổ sung")
 	d = frappe.get_doc("Vagabond Ho So TT", name)
+	# v526: chỉ tờ còn nháp. Tờ đã ghi sổ thì chi phí đã vào sổ qua hoá đơn.
 	return frappe.get_list("Purchase Invoice", filters={"supplier": d.nha_cung_cap,
-		"company": _cong_ty_chung_tu(), "docstatus": ["<", 2]},
+		"company": _cong_ty_chung_tu(), "docstatus": 0},
 		or_filters={"name": ["like", "%" + tu_khoa + "%"], "bill_no": ["like", "%" + tu_khoa + "%"]},
 		fields=["name", "bill_no", "bill_date", "grand_total", "docstatus"],
 		order_by="posting_date desc", limit_page_length=0)
@@ -150,9 +223,45 @@ def noi_hoa_don(name, dong, hoa_don):
 	if not cint(r.get("cho_hoa_don")):
 		frappe.throw("Khoản %s chưa đánh dấu Hóa đơn đến sau. Mở hồ sơ đánh dấu khoản đó rồi nối hóa đơn." % dong)
 	r.hoa_don_bo_sung = hoa_don
+	# v526 (anh Việt 23/09/2026): nối đủ thì hồ sơ thành chi phí hợp lệ tính
+	# thuế. Còn khoản không chờ hoá đơn thì giữ nguyên, đó là khoản không
+	# hoá đơn thật.
+	from vagabond.ho_so_tt import CP_HOP_LE, LOAI_TKCT
+	doi_hop_le = ((getattr(d, "loai", None) or "") == LOAI_TKCT and nen_hop_le(d.dong)
+		and (getattr(d, "loai_cp_thue", None) or "") != CP_HOP_LE)
+	if doi_hop_le:
+		d.loai_cp_thue = CP_HOP_LE
 	# Khong goi kiem_bo_sung o day: luc nay get_doc_before_save() con None nen
 	# hang rao giu lien ket khong thay ban cu, chay cho co. Controller goi no
 	# trong validate voi ban cu that, do moi la cua duy nhat.
 	d.save(ignore_permissions=True)
-	d.add_comment("Comment", "Nối hóa đơn bổ sung %s vào khoản %s. Không phát sinh bút toán thanh toán." % (hoa_don, dong))
-	return {"ok": 1}
+	d.add_comment("Comment", "Nối hóa đơn bổ sung %s vào khoản %s. Không phát sinh bút toán thanh toán.%s" % (
+		hoa_don, dong, " Đủ hoá đơn cho mọi khoản, hồ sơ chuyển sang chi phí hợp lệ tính thuế." if doi_hop_le else ""))
+	return {"ok": 1, "hop_le": 1 if doi_hop_le else 0}
+
+
+@frappe.whitelist()
+def khoan_cho_hoa_don(hoa_don):
+	"""Màn Hoá đơn mua bên Desk (v526): những khoản chi từ TK công ty đang chờ
+	hoá đơn của đúng nhà cung cấp này, để nối ngay từ tờ hoá đơn."""
+	from vagabond.ho_so_tt import _kiem, VAI_FIN, VAI_GD, _cong_ty_chung_tu
+	_kiem(VAI_FIN | VAI_GD, "nối hóa đơn đến sau")
+	hd = frappe.db.get_value("Purchase Invoice", hoa_don,
+		["name", "supplier", "company", "docstatus"], as_dict=True)
+	if not hd:
+		frappe.throw("Không có hoá đơn %s." % hoa_don)
+	giu = ho_so_dang_giu(hoa_don)
+	if giu or hd.docstatus != 0 or hd.company != _cong_ty_chung_tu():
+		return {"da_noi": giu, "khoan": []}
+	ds = frappe.db.sql(
+		"""select p.name as ho_so, p.ngay, p.trang_thai, d.idx as dong, d.noi_dung,
+			d.so_tien, d.ngay_hd
+		from `tabVagabond Ho So TT Dong` d
+		inner join `tabVagabond Ho So TT` p on p.name = d.parent
+		where p.nha_cung_cap = %s and d.cho_hoa_don = 1
+			and ifnull(d.hoa_don_bo_sung, '') = ''
+			and ifnull(p.trang_thai, '') not in %s
+		order by p.ngay desc, d.idx asc limit 50""",
+		(hd.supplier, TT_HET_HIEU_LUC), as_dict=True)
+	return {"da_noi": "", "khoan": [dict(r, so_tien=float(r.so_tien or 0),
+		ngay=str(r.ngay or ""), ngay_hd=str(r.ngay_hd or "")) for r in ds]}
