@@ -37,8 +37,8 @@ không tạo database hoặc giả nhận đã ghi trên máy.
 
 ## Model mặc định dành cho Codex
 
-Cấu hình mặc định dự án: **Astra, mức Light/low** theo yêu cầu anh Việt
-11/09/2026. Giá trị cấu hình là `gpt-6-astra` và `model_reasoning_effort = "low"`
+Cấu hình mặc định dự án: **Astra, mức medium** theo yêu cầu anh Việt
+24/09/2026. Giá trị cấu hình là `gpt-6-astra` và `model_reasoning_effort = "medium"`
 trong `.codex/config.toml`. Không tự nâng effort hoặc bật Fast Mode. Đọc
 `docs/codex-trong-repo.md` để biết phạm vi áp dụng và cách xác minh model thật.
 Chỉ báo đã chạy đúng model khi có metadata của phiên; lời dặn không đổi model.
