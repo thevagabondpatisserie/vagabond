@@ -30844,9 +30844,17 @@ async function scrDcmXem(name) {
     }
     busy(true);
     var r;
-    try { r = await api('vagabond.doi_chieu_mua.noi_phieu', { name: name, phieu: JSON.stringify(dcmPhieu), ghi_so: ghiSo ? 1 : 0 }); }
+    /* v526 (Codex #368 vong 6): "Khop va ghi so" chi NOI o day, roi mo man
+       HACH TOAN nhu nut Ghi so thang. Ghi so thang tu noi_phieu la bo qua
+       buoc chon tai khoan, dong phi ship lai roi 632. */
+    try { r = await api('vagabond.doi_chieu_mua.noi_phieu', { name: name, phieu: JSON.stringify(dcmPhieu), ghi_so: 0 }); }
     catch (e) { busy(false); baoTin((e && e.message) || 'Không nối được'); return; }
     busy(false);
+    if (ghiSo && !(r.con_lai || []).length) {
+      toast((r.loi_nhan || ('Đã nối phiếu ' + name + '.')) + ' Chọn tài khoản cho dòng chi phí rồi ghi sổ.', 5000);
+      dcmHt = null;
+      return go(function () { scrDcmHachToan(name); });
+    }
     /* Tu v362 phep noi khong con la duoc-het-hoac-khong-gi. No noi duoc dong
        nao thi noi dong do va tra ve mot cau ke ro: da noi may dong, may dong
        khong qua kho nen khong can phieu, con may dong hang chua co phieu.
