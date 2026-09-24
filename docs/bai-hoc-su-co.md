@@ -1056,3 +1056,14 @@ còn trỏ vào. Chỗ sinh ra ánh xạ chết là thao tác TẮT MÓN, không
 Cách phòng: gặp dữ liệu "trỏ vào thứ đã chết", hỏi cả hai phía: ai đọc nó
 (v523) và thao tác nào làm nó chết (v524, chặn tắt món còn ánh xạ). Và khi
 chặn, kiểm cả nhánh ô tuỳ chọn để trống.
+
+## 24/09/2026 (v525): anh Việt duyệt HƯỚNG, không phải duyệt mọi chi tiết tự thêm
+
+v524 được duyệt "làm hướng CCDC dùng ngay", phiên tự thêm một nhóm món mới,
+một loại hàng mới và tiền tố mã CCDN, rồi deploy luôn. Anh Việt không muốn tạo
+mã mới: "Sao em không báo anh hướng mà tự làm? Làm sao tối giản nhất". v525
+gỡ cả ba, thay bằng một ô tick trên mã cũ, giống ô Chặng của bánh.
+Cách phòng: trước khi thêm cấu trúc mới người dùng phải thao tác (nhóm, loại,
+tiền tố mã, màn mới), trình phương án tối giản nhất bằng lời cho anh Việt
+chọn. Nhất là khi dữ liệu thật cho thấy phương án có ngoại lệ (ở đây: 101 mã
+đã có sổ kho không đổi được, và tiền nhập kho đi theo tài khoản của KHO).
