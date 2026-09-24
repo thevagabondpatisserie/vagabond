@@ -2596,10 +2596,16 @@ async function hsHanh(k, hs) {
   if (k.indexOf('bohd') === 0) {
     try {
     var dsBo = await api('vagabond.ho_so_bo_sung.danh_sach_hoa_don', {name: hs.ma});
-    /* v526: chi bay to CON NHAP. To da ghi so thi chi phi da vao so qua hoa
-       don, noi vao day la chi phi hai lan (anh Viet 24/09/2026). */
-    if (!dsBo.length) return baoTin('Chưa có hóa đơn nháp nào của nhà cung cấp này. Hoá đơn về từ m-invoice sẽ tự hiện ở đây; tờ đã ghi sổ thì không nối được.');
-    var maBo = await hoiChon('Nối hóa đơn đến sau', 'Chọn hóa đơn đúng khoản chi. Liên kết này không tạo thanh toán mới, và tờ đã nối sẽ không ghi sổ nữa vì chi phí đã ghi qua hồ sơ.', dsBo.map(function(x) { return {k:x.name, nhan:(x.bill_no || x.name), mo_ta:x.name + ' · ' + money(x.grand_total)}; }));
+    /* v526: ho so Chi tu TK cong ty chi bay to CON NHAP (chi phi da ghi qua
+       ho so, noi to da ghi so la chi phi hai lan). Ho so tra NCC giu nhu cu:
+       to da ghi so la chung tu cong no dung luong. */
+    var boTkct = hs.loai === 'TK cong ty';
+    if (!dsBo.length) return baoTin(boTkct
+      ? 'Chưa có hóa đơn nháp nào của nhà cung cấp này. Hoá đơn về từ m-invoice sẽ tự hiện ở đây; tờ đã ghi sổ thì không nối được.'
+      : 'Chưa có hóa đơn của nhà cung cấp này. Đồng bộ hóa đơn rồi mở lại hồ sơ.');
+    var maBo = await hoiChon('Nối hóa đơn đến sau', boTkct
+      ? 'Chọn hóa đơn đúng khoản chi. Liên kết này không tạo thanh toán mới, và tờ đã nối sẽ không ghi sổ nữa vì chi phí đã ghi qua hồ sơ.'
+      : 'Chọn hóa đơn đúng khoản chi; liên kết này không tạo thanh toán mới.', dsBo.map(function(x) { return {k:x.name, nhan:(x.bill_no || x.name), mo_ta:x.name + ' · ' + money(x.grand_total)}; }));
     if (!maBo) return;
     var rBo = await api('vagabond.ho_so_bo_sung.noi_hoa_don', {name:hs.ma, dong:Number(k.slice(4)), hoa_don:maBo});
     if (rBo && rBo.hop_le) toast('Đã nối đủ hoá đơn, hồ sơ chuyển sang Hợp lệ tính thuế.', 5000);
