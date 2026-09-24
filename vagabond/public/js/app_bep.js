@@ -30688,7 +30688,7 @@ async function scrDcmXem(name) {
     '<div style="font-size:12.5px;color:#6b7280;margin-top:3px">' + h(d.name) + ' · ' + ngayNgan(d.posting_date) +
     (d.bill_no ? ' · số ' + h(d.bill_no) : '') + '</div>' +
     '<div style="display:flex;justify-content:space-between;margin-top:8px"><span style="font-size:13px;color:#374151">Tổng hoá đơn</span><b style="font-size:16px">' + money(d.grand_total) + ' đ</b></div>' +
-    '<div style="margin-top:6px">' + dcmChip({ nhom: kq.nhom, noi_cu: kq.noi_cu, so_phieu_goi_y: gy.length }) + '</div></div>';
+    '<div style="margin-top:6px">' + dcmChip({ nhom: kq.nhom, noi_cu: kq.noi_cu, so_phieu_goi_y: gy.length, ho_so_chi: kq.ho_so_chi }) + '</div></div>';
 
   /* To sinh tu hoa don dien tu ma tong tien lech ban goc: noi ngay o day,
      truoc khi nguoi ta ngoi doi chieu tung mon. Anh Viet 26/08/2026. */
@@ -33683,6 +33683,11 @@ function huChonCp(v) {
     huVeSau = 1;
     huDong.forEach(function (d) { d.cho_hoa_don = 1; });
   } else {
+    /* Codex #368 vong 5: roi che do Hoa don den sau thi go co tren MOI khoan.
+       Luc vao che do da dat moi khoan = 1 nen danh dau tay truoc do da mat;
+       giu lai co la de khoan mien dinh kem va sau nay noi hoa don doi ho so
+       sang hop le trai voi lua chon cuoi cung cua nguoi lap. */
+    if (huVeSau) huDong.forEach(function (d) { d.cho_hoa_don = 0; });
     huCpThue = v;
     huVeSau = 0;
   }
