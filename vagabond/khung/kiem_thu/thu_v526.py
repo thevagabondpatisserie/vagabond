@@ -871,7 +871,7 @@ def _khoa_tong_tien():
 # KHOẢN đã nối (80.000 xuống 5.000) trên hồ sơ TK công ty thì hồ sơ vẫn Hợp lệ
 # mà không ai soát lại với tổng tờ hoá đơn.
 
-def _ho_so_sua_tien(tien_cu, tien_moi, tong_hd=80000, loai="TK cong ty"):
+def _ho_so_sua_tien(tien_cu, tien_moi, tong_hd=80000, loai="TK cong ty", loai_cu=None, hd_cu="HDM-X"):
 	"""Chạy THẬT kiem_bo_sung: khoản 1 đã nối HDM-X từ trước, lần lưu này đổi số tiền."""
 	from unittest.mock import patch
 	from vagabond import ho_so_bo_sung as bo, ho_so_tt as hs
@@ -885,9 +885,9 @@ def _ho_so_sua_tien(tien_cu, tien_moi, tong_hd=80000, loai="TK cong ty"):
 		if "`tabPurchase Invoice`" in q:
 			return ((0, 0),)
 		return ()
-	truoc = _D(name="D1", idx=1, hoa_don_bo_sung="HDM-X", cho_hoa_don=1, hoa_don="", so_tien=tien_cu)
-	moi = _D(name="D1", idx=1, hoa_don_bo_sung="HDM-X", cho_hoa_don=1, hoa_don="", so_tien=tien_moi)
-	cu = SimpleNamespace(dong=[truoc], nha_cung_cap="XDKV2")
+	truoc = _D(name="D1", idx=1, hoa_don_bo_sung=hd_cu, cho_hoa_don=1, hoa_don="", so_tien=tien_cu)
+	moi = _D(name="D1", idx=1, hoa_don_bo_sung=hd_cu, cho_hoa_don=1, hoa_don="", so_tien=tien_moi)
+	cu = SimpleNamespace(dong=[truoc], nha_cung_cap="XDKV2", loai=loai if loai_cu is None else loai_cu)
 	ho_so = SimpleNamespace(dong=[moi], nha_cung_cap="XDKV2", trang_thai="Da thanh toan", loai=loai,
 		get_doc_before_save=lambda: cu)
 	fr = SimpleNamespace(throw=_throw, db=_db(sql))
@@ -907,6 +907,34 @@ def _ho_so_khoa_tien():
 	la("trong ngưỡng thì lưu", _ho_so_sua_tien(80000, 80500)[0], "")
 	la("hồ sơ NCC không áp ngưỡng", _ho_so_sua_tien(80000, 5000, loai="NCC")[0], "")
 	la("không đổi số tiền thì không hỏi gì", _ho_so_sua_tien(80000, 80000)[1], [])
+
+
+# Codex #368 vòng 10 (9eb72b2): đổi loại hồ sơ TK công ty sang Hoàn ứng CÙNG
+# lần sửa số tiền thì soát số tiền (đọc loại mới) bỏ qua, rồi before_submit tờ
+# (lọc theo loại mới) cũng bỏ qua: tờ nháp ghi sổ được, chi phí hai lần. Sửa
+# bằng một bất biến: đang nối thì loại đứng yên.
+
+@ca("#526 v10 hồ sơ đang nối hoá đơn đến sau không đổi loại được, kể cả khi đổi cùng số tiền")
+def _ho_so_khoa_loai():
+	loi, _ = _ho_so_sua_tien(80000, 5000, loai="Hoan ung", loai_cu="TK cong ty")
+	dung("đổi loại + số tiền cùng lần: chặn, gọi tên tờ và hai loại",
+		"HDM-X" in loi and "TK cong ty" in loi and "Hoan ung" in loi)
+	loi, _ = _ho_so_sua_tien(80000, 80000, loai="Hoan ung", loai_cu="TK cong ty")
+	dung("chỉ đổi loại, không đổi số tiền: vẫn chặn", "không đổi loại" in loi)
+	loi, _ = _ho_so_sua_tien(80000, 80000, loai="TK cong ty", loai_cu="NCC")
+	dung("chiều ngược NCC sang TK công ty cũng chặn", "không đổi loại" in loi)
+	la("chưa nối tờ nào thì đổi loại thoải mái",
+		_ho_so_sua_tien(80000, 5000, loai="Hoan ung", loai_cu="TK cong ty", hd_cu="")[0], "")
+
+
+@ca("#526 v10 luật thuần loi_doi_loai")
+def _loi_doi_loai():
+	from vagabond.ho_so_bo_sung import loi_doi_loai
+	noi = {"D1": {"idx": 2, "hoa_don_bo_sung": "HDM-Y"}}
+	dung("đổi loại khi đang nối: báo khoản 2 và tờ", "HDM-Y" in loi_doi_loai("TK cong ty", "Hoan ung", noi) and "khoản 2" in loi_doi_loai("TK cong ty", "Hoan ung", noi))
+	la("không đổi loại", loi_doi_loai("TK cong ty", "TK cong ty", noi), "")
+	la("loại trống coi như NCC, không phải đổi", loi_doi_loai("", "NCC", noi), "")
+	la("không nối tờ nào", loi_doi_loai("TK cong ty", "Hoan ung", {"D1": {"idx": 1, "hoa_don_bo_sung": " "}}), "")
 
 
 @ca("#526 v5 hook giữ tờ đã nối đăng ký ở validate của Hoá đơn mua (mọi lần lưu nháp, mọi đường)")
