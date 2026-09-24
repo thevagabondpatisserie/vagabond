@@ -106,13 +106,27 @@ def viec_khi_luu(moi, tick, tick_truoc, nhom, co_so_kho):
 
 # ------------------------------------------------------------ phần chạm hệ
 
-def tk_theo_cong_ty():
-	ra = {}
+def tk_theo_cong_ty(nem=True):
+	"""{công ty: TK 242} cho mọi công ty thật. Công ty demo của ERPNext
+	(Global Defaults.demo_company) bỏ qua: không mua bán thật.
+
+	Codex #365 v1: công ty thật thiếu TK 242 thì DỪNG, không bỏ qua im lặng.
+	Bỏ qua thì món vẫn bị đổi sang không quản kho mà hoá đơn của công ty đó
+	không có mặc định 242, rơi về tài khoản dự phòng."""
+	demo = (frappe.db.get_single_value("Global Defaults", "demo_company") or "").strip()
+	ra, thieu = {}, []
 	for cty in frappe.get_all("Company", pluck="name", limit_page_length=0):
+		if cty == demo:
+			continue
 		tk = frappe.db.get_value("Account", {"company": cty, "account_number": SO_TK,
 			"is_group": 0, "disabled": 0}, "name")
 		if tk:
 			ra[cty] = tk
+		else:
+			thieu.append(cty)
+	if thieu and nem:
+		frappe.throw("Chưa tick \"Đi 242\" được: công ty %s chưa có tài khoản số %s đang dùng. "
+			"Nhờ kế toán khai tài khoản rồi làm lại." % (", ".join(thieu), SO_TK))
 	return ra
 
 
@@ -136,7 +150,8 @@ def khi_luu_mon(doc, method=None):
 		# chặn: đặt về 0 ở đây là lách qua luật của lõi.
 		frappe.throw("Món %s đã có sổ kho nên không tick \"Đi 242\" được. Mã đã từng "
 			"nhập kho vẫn hạch toán theo kho; hỏi kế toán cách xử lý." % doc.name)
-	tk = tk_theo_cong_ty() if viec in ("tick", "go") else {}
+	# Bỏ tick thì chỉ gỡ 242 đang có: không chặn vì công ty khác thiếu TK.
+	tk = tk_theo_cong_ty(nem=(viec == "tick")) if viec in ("tick", "go") else {}
 	if viec == "tick":
 		if flt(doc.get("opening_stock")):
 			# Lõi chỉ lập phiếu tồn đầu kỳ cho món quản kho: để nguyên thì số
