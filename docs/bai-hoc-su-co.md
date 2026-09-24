@@ -1073,3 +1073,18 @@ nghĩa là xoá. Bản đầu của v525 cho patch xoá nhóm "CCDC dùng ngay" 
 rỗng, trái QT-20 (không `delete_doc` dữ liệu nghiệp vụ, kể cả mặc định tài
 khoản của nhóm). Cách đúng là cho nó NGỪNG: ẩn khỏi màn chọn, chặn dữ liệu
 mới đi vào, giữ nguyên bản ghi cũ. Kiểm "rỗng thì xoá" không đủ lý do.
+
+## 24/09/2026 (v526): nút ghi sổ không được giấu hạch toán
+
+Nút "Ghi sổ thẳng, không nối phiếu" ghi sổ ngay mà không cho xem dòng nào đi
+tài khoản nào. Hoá đơn xăng không gắn Món nên ERPNext lấy tài khoản chi phí
+mặc định của công ty, là 632 giá vốn. Kế toán chỉ biết sau khi đã ghi sổ, lúc
+đó muốn sửa lại vướng quyền Repost.
+Cách phòng: mọi nút ghi sổ trên app phải cho thấy, và cho đổi, tài khoản của
+dòng chi phí TRƯỚC khi ghi. Hook tự đặt tài khoản (khai trên Món, tài khoản
+đầu phiếu) phải chừa dòng người vừa chọn, và sau khi ghi đọc lại từ sổ xem có
+đúng như người chọn không.
+
+Cùng đợt: dấu nối "hoá đơn đến sau" chỉ là chứng từ. Khoản chi đã ghi chi phí
+qua hồ sơ, nên tờ hoá đơn đã nối phải bị CHẶN ghi sổ ở before_submit, không
+chỉ giấu nút, vì Desk và API vẫn ghi được.
