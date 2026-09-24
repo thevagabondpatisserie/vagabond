@@ -118,6 +118,21 @@ def _khong_huy_to_da_noi():
 	la("dấu huỷ vẫn 0", int(frappe.db.get_value("Purchase Invoice", hd.name, "vgb_huy") or 0), 0)
 
 
+@ca("#526 v4 hồ sơ bị trả lại (Từ chối) vẫn giữ tờ: tờ đã nối vẫn không ghi sổ được")
+def _tu_choi_giu():
+	hd = khong_nem("dựng tờ", lambda: _luu(_phieu([("Xăng E10 RON 95", 1, 80000)])))
+	if not hd:
+		return
+	ho_so = _ho_so_cho(hd, trang_thai="Tu choi")
+	try:
+		hd.submit()
+		loi = ""
+	except frappe.ValidationError as e:
+		loi = str(e)
+	dung("chặn ghi sổ, gọi tên hồ sơ bị trả lại", ho_so in loi)
+	la("tờ vẫn nháp", frappe.db.get_value("Purchase Invoice", hd.name, "docstatus"), 0)
+
+
 @ca("#526 hồ sơ đã huỷ thì dấu nối hết hiệu lực, tờ hoá đơn ghi sổ lại bình thường")
 def _ho_so_huy():
 	hd = khong_nem("dựng tờ", lambda: _luu(_phieu([("Xăng E10 RON 95", 1, 80000)])))
