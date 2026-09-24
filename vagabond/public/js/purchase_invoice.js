@@ -338,8 +338,61 @@ async function vgbGanMonDesk(frm) {
 	napGoiY();
 }
 
+/* v526 (anh Viet chot 23/09/2026): noi HOA DON DEN SAU ngay tu to hoa don.
+
+   Khoan chi tu TK cong ty danh dau "Hoa don den sau" da ghi chi phi luc
+   chuyen tien. Hoa don ve tu m-invoice thanh mot to nhap o day; nut nay
+   noi to do vao dung khoan cho cua cung nha cung cap. To da noi chi la
+   chung tu: he chan ghi so (chi phi hai lan), nen bao ro tren dau to. */
+var VGB_VAI_NOI_HD_SAU = ['System Manager', 'Accounts Manager', 'Accounts User', 'AP Kiểm soát (FIN)', 'AP Giám đốc'];
+
+async function vgbHoaDonDenSau(frm) {
+	if (frm.is_new() || frm.doc.docstatus !== 0) return;
+	if (!VGB_VAI_NOI_HD_SAU.some(function (v) { return frappe.user.has_role(v); })) return;
+	var phieu = frm.doc, kq;
+	try {
+		kq = (await frappe.call({ method: 'vagabond.ho_so_bo_sung.khoan_cho_hoa_don', args: { hoa_don: phieu.name } })).message || {};
+	} catch (e) { return; }
+	if (frm.doc !== phieu) return;
+	if (kq.da_noi) {
+		frm.dashboard.add_comment('Tờ này đã nối làm hoá đơn đến sau của hồ sơ ' +
+			frappe.utils.escape_html(kq.da_noi) + '. Khoản chi đã ghi chi phí qua hồ sơ đó, nên tờ này chỉ là chứng từ, không ghi sổ.', 'blue', true);
+		return;
+	}
+	var ds = kq.khoan || [];
+	if (!ds.length) return;
+	frm.add_custom_button('Nối vào hồ sơ chi (hoá đơn đến sau)', function () {
+		var hop = new frappe.ui.Dialog({
+			title: 'Nối hoá đơn đến sau',
+			fields: [
+				{ fieldtype: 'HTML', fieldname: 'ghi_chu', options: '<p class="text-muted">Chọn khoản chi đang chờ hoá đơn của nhà cung cấp này. ' +
+					'Nối xong, tờ hoá đơn này chỉ là chứng từ và không ghi sổ nữa, vì chi phí đã ghi qua hồ sơ.</p>' },
+				{ fieldtype: 'Select', fieldname: 'khoan', label: 'Khoản chi', reqd: 1,
+					options: ds.map(function (d, i) {
+						return { value: String(i), label: d.ho_so + ' · khoản ' + d.dong + ' · ' + (d.noi_dung || '') + ' · ' + format_currency(d.so_tien) };
+					}) }
+			],
+			primary_action_label: 'Nối',
+			primary_action: async function (v) {
+				var d = ds[Number(v.khoan)];
+				if (!d) return;
+				try {
+					var r = (await frappe.call({ method: 'vagabond.ho_so_bo_sung.noi_hoa_don',
+						args: { name: d.ho_so, dong: d.dong, hoa_don: phieu.name }, freeze: true })).message || {};
+					hop.hide();
+					frappe.show_alert({ message: 'Đã nối vào ' + d.ho_so + (r.hop_le ? '. Hồ sơ chuyển sang Hợp lệ tính thuế.' : '.'), indicator: 'green' }, 7);
+					frm.reload_doc();
+				} catch (e) { /* frappe.call da bao loi cua may chu */ }
+			}
+		});
+		hop.show();
+		hop.set_value('khoan', '0');
+	});
+}
+
 frappe.ui.form.on('Purchase Invoice', {
 	refresh:async function(frm) {
+		vgbHoaDonDenSau(frm);
 		if (!frm.is_new() && !frm.doc.custom_minvoice_id && frm.doc.bill_no) {
 			var phieu = frm.doc;
 			try {
