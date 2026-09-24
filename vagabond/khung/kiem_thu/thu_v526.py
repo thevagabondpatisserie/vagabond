@@ -447,7 +447,7 @@ def _chan_ghi():
 	cu_fr = bo.frappe
 	bo.frappe = SimpleNamespace(throw=_throw)
 	try:
-		bo.frappe = SimpleNamespace(throw=_throw, db=SimpleNamespace(sql=lambda *a, **k: ()))
+		bo.frappe = SimpleNamespace(throw=_throw, db=SimpleNamespace(sql=lambda *a, **k: (), has_column=lambda dt, cot: True))
 		bo.ho_so_dang_giu = lambda ten, bo_qua_dong=None, **k: "APP-26-09-100"
 		try:
 			bo.chan_ghi_so_hd_da_chi(_D(name="HDM-1"))
@@ -469,7 +469,7 @@ def _chan_ghi():
 # điều đó: select thường trả ảnh chụp cũ, select có khoá trả bản hiện hành.
 # Tái hiện trên MariaDB thật (hai kết nối) ghi trong comment bàn giao v1.
 
-def _db_hai_mat(docstatus_hien_hanh=0, giu_hien_hanh=""):
+def _db_hai_mat(docstatus_hien_hanh=0, giu_hien_hanh="", huy_hien_hanh=0):
 	"""db.sql: ảnh chụp cũ nói tờ nháp, chưa ai nối; bản hiện hành theo tham số.
 	Ghi lại thứ tự câu hỏi để kiểm khoá tờ trước rồi mới đọc dấu nối."""
 	so = []
@@ -478,7 +478,7 @@ def _db_hai_mat(docstatus_hien_hanh=0, giu_hien_hanh=""):
 		khoa = "for update" in q.lower()
 		if "`tabPurchase Invoice`" in q:
 			so.append(("hd", khoa))
-			return ((docstatus_hien_hanh if khoa else 0,),)
+			return ((docstatus_hien_hanh, huy_hien_hanh) if khoa else (0, 0),)
 		if "tabVagabond Ho So TT Dong" in q:
 			so.append(("noi", khoa))
 			return ((giu_hien_hanh,),) if (khoa and giu_hien_hanh) else ()
@@ -486,15 +486,19 @@ def _db_hai_mat(docstatus_hien_hanh=0, giu_hien_hanh=""):
 	return sql, so
 
 
-def _kiem_noi(sql):
+def _db(sql):
+	return SimpleNamespace(sql=sql, has_column=lambda dt, cot: True)
+
+
+def _kiem_noi(sql, hd_huy=0):
 	"""Chạy THẬT kiem_bo_sung trên hồ sơ nối khoản 1 vào tờ HDM-X."""
 	from unittest.mock import patch
 	from vagabond import ho_so_bo_sung as bo, ho_so_tt as hs
 	dong = _D(name="D1", idx=1, hoa_don_bo_sung="HDM-X", cho_hoa_don=1, hoa_don="")
 	ho_so = SimpleNamespace(dong=[dong], nha_cung_cap="XDKV2", trang_thai="Da thanh toan",
 		get_doc_before_save=lambda: None)
-	hd_anh_chup = _D(name="HDM-X", docstatus=0, supplier="XDKV2", company=CTY)
-	fr = SimpleNamespace(throw=_throw, get_doc=lambda dt, n: hd_anh_chup, db=SimpleNamespace(sql=sql))
+	hd_anh_chup = _D(name="HDM-X", docstatus=0, supplier="XDKV2", company=CTY, vgb_huy=hd_huy)
+	fr = SimpleNamespace(throw=_throw, get_doc=lambda dt, n: hd_anh_chup, db=_db(sql))
 	with patch.object(hs, "_kiem"), patch.object(hs, "_cong_ty_chung_tu", return_value=CTY):
 		try:
 			_voi(bo, fr, lambda: bo.kiem_bo_sung(ho_so))
@@ -524,13 +528,85 @@ def _dua_noi_truoc():
 	from vagabond import ho_so_bo_sung as bo
 	sql, so = _db_hai_mat(giu_hien_hanh="APP-A")
 	try:
-		_voi(bo, SimpleNamespace(throw=_throw, db=SimpleNamespace(sql=sql)),
+		_voi(bo, SimpleNamespace(throw=_throw, db=_db(sql)),
 			lambda: bo.chan_ghi_so_hd_da_chi(_D(name="HDM-X")))
 		loi = ""
 	except _Loi as e:
 		loi = str(e)
 	dung("chặn, gọi tên hồ sơ", "APP-A" in loi)
 	dung("khoá tờ TRƯỚC khi đọc dấu nối", so and so[0] == ("hd", True) and ("noi", True) in so)
+
+
+# Codex #368 vòng 2 (dd47991): tờ hoá đơn nháp đã ĐÁNH DẤU HUỶ (huỷ mềm của
+# chung_tu.danh_dau_huy) vẫn là docstatus 0, chỉ có vgb_huy 1. Bản dd47991 chỉ
+# xét docstatus nên nhận nối tờ đó, và noi_hoa_don đổi hồ sơ sang hợp lệ tính
+# thuế bằng một chứng từ đã bỏ.
+
+@ca("#526 v2 không nối tờ nháp đã đánh dấu huỷ, kể cả khi ảnh chụp chưa thấy dấu huỷ")
+def _noi_to_huy():
+	from vagabond.ho_so_bo_sung import loi_noi_hoa_don
+	dung("luật thuần gọi tên dấu huỷ", "đánh dấu huỷ" in loi_noi_hoa_don(0, "", 1))
+	sql, so = _db_hai_mat(huy_hien_hanh=1)
+	loi = _kiem_noi(sql, hd_huy=1)
+	dung("chặn tờ đã huỷ mềm", "đánh dấu huỷ" in loi)
+	sql, so = _db_hai_mat(huy_hien_hanh=1)
+	loi = _kiem_noi(sql, hd_huy=0)
+	dung("dấu huỷ vừa chốt ở giao dịch khác cũng chặn", "đánh dấu huỷ" in loi)
+
+
+@ca("#526 v2 danh sách chọn hoá đơn và nút nối trên Desk bỏ qua tờ đã đánh dấu huỷ")
+def _chon_bo_to_huy():
+	from unittest.mock import patch
+	from vagabond import ho_so_bo_sung as bo, ho_so_tt as hs
+	loc = {}
+
+	def get_list(dt, filters=None, **k):
+		loc.update(filters or {})
+		return []
+	fr = SimpleNamespace(throw=_throw, get_list=get_list,
+		get_doc=lambda dt, n: SimpleNamespace(nha_cung_cap="XDKV2"),
+		db=SimpleNamespace(has_column=lambda dt, cot: True,
+			get_value=lambda dt, n, f, as_dict=False: _D(name="HDM-X", supplier="XDKV2", company=CTY, docstatus=0, vgb_huy=1),
+			# Có sẵn một khoản chờ hoá đơn đúng NCC: nút nối sẽ đưa ra nếu
+			# không xét dấu huỷ (ca đầu tiên không có dòng này nên đột biến
+			# bỏ xét dấu huỷ không làm ca đổ, điều 17a).
+			sql=lambda q, *a, **k: [_D(ho_so="APP-1", ngay="2026-09-20", trang_thai="Da thanh toan", dong=1,
+				noi_dung="Xăng", so_tien=80000, ngay_hd="")] if "p.nha_cung_cap" in q else ()))
+	with patch.object(hs, "_kiem"), patch.object(hs, "_cong_ty_chung_tu", return_value=CTY):
+		_voi(bo, fr, lambda: bo.danh_sach_hoa_don("APP-1"))
+		kq = _voi(bo, fr, lambda: bo.khoan_cho_hoa_don("HDM-X"))
+	la("danh sách lọc bỏ tờ huỷ", loc.get("vgb_huy"), 0)
+	la("nút nối không đưa khoản nào cho tờ huỷ", kq.get("khoan"), [])
+
+
+@ca("#526 v2 không đánh dấu huỷ tờ đang là hoá đơn đến sau của một hồ sơ; tờ chưa nối thì huỷ bình thường")
+def _huy_to_da_noi():
+	from vagabond import chung_tu as C, ho_so_bo_sung as bo
+	ghi = []
+	sql, so = _db_hai_mat(giu_hien_hanh="APP-A")
+	fr_bo = SimpleNamespace(throw=_throw, db=_db(sql))
+	fr_c = SimpleNamespace(throw=_throw, session=SimpleNamespace(user="dung@x"),
+		db=SimpleNamespace(set_value=lambda *a, **k: ghi.append(a[1]), commit=lambda: None))
+	cu_bo, cu_c = bo.frappe, C.frappe
+	import vagabond.bao_ve_hddt as B
+	cu_bv = B.chan_huy
+	B.chan_huy = lambda doc: None
+	bo.frappe, C.frappe = fr_bo, fr_c
+	try:
+		try:
+			C.danh_dau_huy(_D(doctype="Purchase Invoice", name="HDM-X", docstatus=0), "nhập trùng", ghi_vet=False)
+			loi = ""
+		except _Loi as e:
+			loi = str(e)
+		dung("chặn, gọi tên hồ sơ", "APP-A" in loi)
+		la("không ghi dấu huỷ", ghi, [])
+		sql2, so2 = _db_hai_mat()
+		bo.frappe = SimpleNamespace(throw=_throw, db=_db(sql2))
+		C.danh_dau_huy(_D(doctype="Purchase Invoice", name="HDM-Y", docstatus=0), "nhập trùng", ghi_vet=False)
+		la("tờ chưa nối huỷ được", ghi, ["HDM-Y"])
+	finally:
+		B.chan_huy = cu_bv
+		bo.frappe, C.frappe = cu_bo, cu_c
 
 
 # ------------------------------------------------------------ quyền Repost
