@@ -187,7 +187,8 @@ def kiem_bo_sung(doc):
 	"""
 	cu = doc.get_doc_before_save()
 	cu_dong = {d.name: {"idx": d.idx, "hoa_don_bo_sung": d.get("hoa_don_bo_sung"),
-		"cho_hoa_don": cint(d.get("cho_hoa_don")), "hoa_don": d.get("hoa_don")}
+		"cho_hoa_don": cint(d.get("cho_hoa_don")), "hoa_don": d.get("hoa_don"),
+		"so_tien": d.get("so_tien")}
 		for d in (cu.dong if cu else [])}
 	moi_dong = {d.name: {"idx": d.idx, "hoa_don_bo_sung": d.get("hoa_don_bo_sung"),
 		"cho_hoa_don": cint(d.get("cho_hoa_don")), "hoa_don": d.get("hoa_don")}
@@ -198,6 +199,7 @@ def kiem_bo_sung(doc):
 	idx, loi = loi_giu_lien_ket(cu_dong, moi_dong, doi_ncc, goc_doi)
 	if loi:
 		frappe.throw("Khoản %s %s. Nhờ kế toán kiểm tra." % (idx, loi))
+	_giu_tien_khoan_da_noi(doc, cu_dong)
 
 	for d in (doc.dong or []):
 		ma = (d.get("hoa_don_bo_sung") or "").strip()
@@ -339,6 +341,29 @@ def giu_hd_da_noi(doc, method=None):
 				"hồ sơ sẽ không còn khớp chứng từ. Kiểm lại dòng hoá đơn, hoặc huỷ hồ sơ %s trước nếu "
 				"thật sự nối nhầm tờ." % (doc.name, _dd(k[2]), k[0], _dd(doc.get("grand_total")),
 					_dd(NGUONG_KHOP_TIEN), k[0]), title="Tờ này đang làm chứng từ")
+
+
+def _giu_tien_khoan_da_noi(doc, cu_dong):
+	"""Codex #368 vòng 9, chiều ngược của giu_hd_da_noi: khoản đã nối tờ ở hồ sơ
+	TK công ty mà sửa số tiền thì soát lại với tổng tờ (khoá tờ, đọc hiện
+	hành). Lệch quá NGUONG_KHOP_TIEN thì chặn. Chỉ hỏi khi số tiền thật sự đổi."""
+	if (getattr(doc, "loai", None) or "") != _loai_tkct():
+		return
+	for d in (doc.dong or []):
+		ma = (d.get("hoa_don_bo_sung") or "").strip()
+		truoc = cu_dong.get(d.name)
+		if not ma or not truoc or (truoc.get("hoa_don_bo_sung") or "").strip() != ma:
+			continue
+		if abs(_tien(d.get("so_tien")) - _tien(truoc.get("so_tien"))) <= 0.005:
+			continue
+		r = frappe.db.sql("select grand_total from `tabPurchase Invoice` where name=%s for update", ma)
+		tong = r[0][0] if r else None
+		if tong is None or abs(_tien(tong) - _tien(d.get("so_tien"))) > NGUONG_KHOP_TIEN:
+			frappe.throw(
+				"Khoản %s đang nối hoá đơn %s (%s đ). Số tiền mới %s đ lệch quá %s đ nên hồ sơ không "
+				"còn khớp chứng từ. Kiểm lại số tiền khoản, hoặc huỷ hồ sơ rồi lập lại nếu nối nhầm tờ."
+				% (d.idx, ma, _dd(tong), _dd(d.get("so_tien")), _dd(NGUONG_KHOP_TIEN)),
+				title="Khoản này đang có chứng từ")
 
 
 def khoan_dang_giu(hoa_don):
