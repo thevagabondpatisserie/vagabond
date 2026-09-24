@@ -1127,3 +1127,9 @@ sang Hoàn ứng cùng lần sửa số tiền là mọi luật đọc loại m�
 tờ nháp ghi sổ được, chi phí vào sổ hai lần (Codex #368 vòng 10). Đừng vá từng
 luật cho đọc loại cũ; giữ một bất biến: đang nối chứng từ thì không đổi loại.
 Mỗi ô dùng để CHỌN luật phải tự hỏi: ai sửa được ô này sau khi luật đã áp?
+
+Khoá dòng rồi mà vẫn đọc bằng get_value là chưa khoá. v526 vòng 11: lần nối hoá
+đơn đến sau khoá tờ trong validate, nhưng số tổng tiền dùng để quyết "Hợp lệ
+tính thuế" lại đọc bằng get_value ở bước trước, tức ảnh chụp REPEATABLE READ.
+Người sửa tờ chốt tổng mới trong lúc đó thì quyết định dựa trên số cũ. Mọi giá
+trị dùng để QUYẾT phải đọc bằng câu có khoá, từ một hàm nguồn duy nhất.
