@@ -96,6 +96,9 @@ def khi_luu_mon(doc, method=None):
 		)
 	doc.is_stock_item = 0
 	doc.is_purchase_item = 1
+	# Codex #364 v2: quạt, dụng cụ vào 242 không bán cho khách. Còn cờ bán
+	# thì món hiện ở màn Bill quầy và vào được hoá đơn khách.
+	doc.is_sales_item = 0
 	for cty, tk, viec in dong_can_dat(
 		[{"company": d.get("company"), "expense_account": d.get("expense_account")}
 			for d in doc.get("item_defaults") or []],

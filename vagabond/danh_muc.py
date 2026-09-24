@@ -89,6 +89,33 @@ def _loai(k):
 	return LOAI_HANG[0]
 
 
+def _loai_theo_nhom(nhom, loai, nem=True):
+	"""Loai hang that se dung cho nhom nay. Nhom CCDC dung ngay chi co mot loai
+	(v524); chon loai CCDC dung ngay ma nhom khac thi nem (tao) hoac tra ve
+	loai goc kem cau canh bao (xem_truoc). Mot nguon cho ca hai cua (Codex
+	#364 v2): xem truoc va tao phai ra cung ten, cung soat trung, cung ma."""
+	from vagabond import ccdc_dung_ngay as ccdc
+
+	l = _loai(loai)
+	if nhom == ccdc.NHOM:
+		return _loai("ccdc_dung_ngay"), ""
+	if l["k"] == "ccdc_dung_ngay":
+		cau = 'Loại "CCDC dùng ngay" chỉ đi với nhóm "%s". Chọn nhóm đó, hoặc chọn loại khác.' % ccdc.NHOM
+		if nem:
+			frappe.throw(cau)
+		return l, cau
+	return l, ""
+
+
+def _tien_to_theo_nhom(nhom):
+	from vagabond import ccdc_dung_ngay as ccdc
+
+	tt = tien_to_nhom(nhom) if nhom else ""
+	if not tt and nhom == ccdc.NHOM:
+		tt = ccdc.TIEN_TO
+	return tt
+
+
 def _kiem_quyen():
 	from vagabond.ban_hang import _kiem_quyen as kq
 
@@ -283,10 +310,10 @@ def xem_truoc(nhom=None, loai=None, ten=None, quy_cach=None):
 	"""
 	_kiem_quyen()
 	nhom = str(nhom or "").strip()
-	l = _loai(loai)
-	tt = tien_to_nhom(nhom) if nhom else ""
+	l, cau = _loai_theo_nhom(nhom, loai, nem=False)
+	tt = _tien_to_theo_nhom(nhom)
 	so = _so_ke_tiep(tt) if tt else 0
-	canh_bao = []
+	canh_bao = [cau] if cau else []
 	if nhom and not tt:
 		canh_bao.append(
 			'Nhóm "%s" chưa có mã hàng nào theo khuôn nên máy chưa đoán được tiền tố. Vui lòng điền tiền tố một lần, các món sau tự theo.' % nhom
@@ -302,7 +329,9 @@ def xem_truoc(nhom=None, loai=None, ten=None, quy_cach=None):
 		"ten_day_du": _ten_day_du(l, ten, qc),
 		"dvt_goi_y": _dvt_quen(nhom) if nhom else "",
 		"canh_bao": canh_bao,
-		"trung": tim_trung(ten=ten, quy_cach=quy_cach, nhom=nhom, loai=loai),
+		"trung": tim_trung(ten=ten, quy_cach=quy_cach, nhom=nhom, loai=l["k"]),
+		# Man hinh doi chip Loai hang theo loai that cua nhom (v524).
+		"loai": l["k"],
 	}
 
 
@@ -394,15 +423,9 @@ def tao(
 			% nhom
 		)
 
-	from vagabond import ccdc_dung_ngay as ccdc
-
-	l = _loai(loai)
-	if nhom == ccdc.NHOM:
-		# Nhom nay chi co mot loai: chon nham loai thi lay dung loai cua nhom,
-		# hook luu mon cung se dat lai ba co, nen man hinh va kho khop nhau.
-		l = _loai("ccdc_dung_ngay")
-	elif l["k"] == "ccdc_dung_ngay":
-		frappe.throw('Loại "CCDC dùng ngay" chỉ đi với nhóm "%s". Chọn nhóm đó, hoặc chọn loại khác.' % ccdc.NHOM)
+	# Nhom CCDC dung ngay chi co mot loai: chon nham loai thi lay dung loai cua
+	# nhom, hook luu mon cung dat lai ba co, nen man hinh va kho khop nhau.
+	l, _ = _loai_theo_nhom(nhom, loai)
 	ten = " ".join(str(ten or "").split())
 	if len(ten) < 3:
 		frappe.throw("Tên mặt hàng ngắn quá, vui lòng gõ đủ tên.")
@@ -418,9 +441,7 @@ def tao(
 				% (trung[0]["ma"], trung[0]["ten"], trung[0]["nhom"])
 			)
 
-	tt = str(tien_to or "").strip().upper() or tien_to_nhom(nhom)
-	if not tt and nhom == ccdc.NHOM:
-		tt = ccdc.TIEN_TO
+	tt = str(tien_to or "").strip().upper() or _tien_to_theo_nhom(nhom)
 	if not tt:
 		frappe.throw(
 			'Nhóm "%s" chưa có tiền tố mã. Vui lòng điền tiền tố (2 đến 6 chữ in hoa không dấu) một lần.' % nhom
