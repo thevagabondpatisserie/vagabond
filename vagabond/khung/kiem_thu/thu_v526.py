@@ -517,7 +517,7 @@ def _chan_ghi():
 # điều đó: select thường trả ảnh chụp cũ, select có khoá trả bản hiện hành.
 # Tái hiện trên MariaDB thật (hai kết nối) ghi trong comment bàn giao v1.
 
-def _db_hai_mat(docstatus_hien_hanh=0, giu_hien_hanh="", huy_hien_hanh=0):
+def _db_hai_mat(docstatus_hien_hanh=0, giu_hien_hanh="", huy_hien_hanh=0, so_tien_giu=80000, loai_giu="TK cong ty"):
 	"""db.sql: ảnh chụp cũ nói tờ nháp, chưa ai nối; bản hiện hành theo tham số.
 	Ghi lại thứ tự câu hỏi để kiểm khoá tờ trước rồi mới đọc dấu nối."""
 	so = []
@@ -529,7 +529,11 @@ def _db_hai_mat(docstatus_hien_hanh=0, giu_hien_hanh="", huy_hien_hanh=0):
 			return ((docstatus_hien_hanh, huy_hien_hanh) if khoa else (0, 0),)
 		if "tabVagabond Ho So TT Dong" in q:
 			so.append(("noi", khoa))
-			return ((giu_hien_hanh,),) if (khoa and giu_hien_hanh) else ()
+			if not (khoa and giu_hien_hanh):
+				return ()
+			if "d.so_tien" in q:
+				return ((giu_hien_hanh, loai_giu, so_tien_giu),)
+			return ((giu_hien_hanh,),)
 		return ()
 	return sql, so
 
@@ -821,10 +825,10 @@ def _anh_dong():
 # (2) Màn chi tiết Đối chiếu gọi dcmChip mà không truyền ho_so_chi, nên tờ
 #     nháp đã nối (nhom "xong") hiện chip xanh "Đã ghi sổ" sai sự thật.
 
-def _hd_sua(truoc, sau, giu="APP-A"):
+def _hd_sua(truoc, sau, giu="APP-A", **mat):
 	"""Chạy THẬT giu_hd_da_noi: tờ nháp đã lưu, bản trước và bản đang lưu."""
 	from vagabond import ho_so_bo_sung as bo
-	sql = _db_hai_mat(giu_hien_hanh=giu)[0]
+	sql = _db_hai_mat(giu_hien_hanh=giu, **mat)[0]
 	cu = _D(name="HDM-X", docstatus=0, **truoc)
 	doc = _D(name="HDM-X", docstatus=0, **sau)
 	doc["get_doc_before_save"] = lambda: cu
@@ -844,6 +848,23 @@ def _khoa_ncc_cong_ty():
 	dung("chặn đổi công ty", "APP-A" in loi)
 	la("sửa chỗ khác thì lưu bình thường", _hd_sua({"supplier": "XDKV2", "company": CTY}, {"supplier": "XDKV2", "company": CTY}), "")
 	la("tờ chưa nối đổi NCC thoải mái", _hd_sua({"supplier": "XDKV2", "company": CTY}, {"supplier": "NCC-KHAC", "company": CTY}, giu=""), "")
+
+
+# Codex #368 vòng 8 (94b3716): hook giữ tờ chỉ canh NCC và công ty. Sửa dòng
+# trên tờ nháp đã nối làm tổng 80.000 xuống 5.000 thì hồ sơ vẫn Hợp lệ, lọt
+# ngưỡng khớp tiền của vòng 7.
+
+@ca("#526 v8 tờ đã nối vào hồ sơ TK công ty: sửa tổng tiền lệch khoản quá 1.000 đ thì chặn; lệch trong ngưỡng thì lưu")
+def _khoa_tong_tien():
+	loi = _hd_sua({"supplier": "XDKV2", "company": CTY, "grand_total": 80000},
+		{"supplier": "XDKV2", "company": CTY, "grand_total": 5000})
+	dung("chặn, gọi tên hồ sơ và số tiền", "APP-A" in loi and "5.000" in loi and "80.000" in loi)
+	la("lệch trong ngưỡng thì lưu", _hd_sua({"supplier": "XDKV2", "company": CTY, "grand_total": 80000},
+		{"supplier": "XDKV2", "company": CTY, "grand_total": 80400}), "")
+	la("hồ sơ NCC không áp ngưỡng tiền", _hd_sua({"supplier": "XDKV2", "company": CTY, "grand_total": 80000},
+		{"supplier": "XDKV2", "company": CTY, "grand_total": 5000}, loai_giu="NCC"), "")
+	la("tờ chưa nối sửa tiền thoải mái", _hd_sua({"supplier": "XDKV2", "company": CTY, "grand_total": 80000},
+		{"supplier": "XDKV2", "company": CTY, "grand_total": 5000}, giu=""), "")
 
 
 @ca("#526 v5 hook giữ tờ đã nối đăng ký ở validate của Hoá đơn mua (mọi lần lưu nháp, mọi đường)")
