@@ -867,6 +867,48 @@ def _khoa_tong_tien():
 		{"supplier": "XDKV2", "company": CTY, "grand_total": 5000}, giu=""), "")
 
 
+# Codex #368 vòng 9 (dcb9851): chiều ngược của vòng 8. Sửa số tiền của
+# KHOẢN đã nối (80.000 xuống 5.000) trên hồ sơ TK công ty thì hồ sơ vẫn Hợp lệ
+# mà không ai soát lại với tổng tờ hoá đơn.
+
+def _ho_so_sua_tien(tien_cu, tien_moi, tong_hd=80000, loai="TK cong ty"):
+	"""Chạy THẬT kiem_bo_sung: khoản 1 đã nối HDM-X từ trước, lần lưu này đổi số tiền."""
+	from unittest.mock import patch
+	from vagabond import ho_so_bo_sung as bo, ho_so_tt as hs
+	so = []
+
+	def sql(q, v=None, as_dict=False):
+		khoa = "for update" in q.lower()
+		so.append(khoa)
+		if "grand_total" in q:
+			return ((tong_hd,),)
+		if "`tabPurchase Invoice`" in q:
+			return ((0, 0),)
+		return ()
+	truoc = _D(name="D1", idx=1, hoa_don_bo_sung="HDM-X", cho_hoa_don=1, hoa_don="", so_tien=tien_cu)
+	moi = _D(name="D1", idx=1, hoa_don_bo_sung="HDM-X", cho_hoa_don=1, hoa_don="", so_tien=tien_moi)
+	cu = SimpleNamespace(dong=[truoc], nha_cung_cap="XDKV2")
+	ho_so = SimpleNamespace(dong=[moi], nha_cung_cap="XDKV2", trang_thai="Da thanh toan", loai=loai,
+		get_doc_before_save=lambda: cu)
+	fr = SimpleNamespace(throw=_throw, db=_db(sql))
+	with patch.object(hs, "_kiem"), patch.object(hs, "_cong_ty_chung_tu", return_value=CTY):
+		try:
+			_voi(bo, fr, lambda: bo.kiem_bo_sung(ho_so))
+			return "", so
+		except _Loi as e:
+			return str(e), so
+
+
+@ca("#526 v9 sửa số tiền khoản đã nối (hồ sơ TK công ty) lệch tờ quá 1.000 đ thì chặn; trong ngưỡng thì lưu")
+def _ho_so_khoa_tien():
+	loi, so = _ho_so_sua_tien(80000, 5000)
+	dung("chặn, gọi tên tờ và hai số tiền", "HDM-X" in loi and "5.000" in loi and "80.000" in loi)
+	dung("đọc tổng tờ bằng câu có khoá", True in so)
+	la("trong ngưỡng thì lưu", _ho_so_sua_tien(80000, 80500)[0], "")
+	la("hồ sơ NCC không áp ngưỡng", _ho_so_sua_tien(80000, 5000, loai="NCC")[0], "")
+	la("không đổi số tiền thì không hỏi gì", _ho_so_sua_tien(80000, 80000)[1], [])
+
+
 @ca("#526 v5 hook giữ tờ đã nối đăng ký ở validate của Hoá đơn mua (mọi lần lưu nháp, mọi đường)")
 def _hook_giu():
 	from vagabond import hooks
