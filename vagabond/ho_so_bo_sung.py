@@ -318,15 +318,39 @@ def giu_hd_da_noi(doc, method=None):
 		return
 	doi = [nhan for truong, nhan in TRUONG_KHOA_KHI_NOI
 		if (doc.get(truong) or "") != (cu.get(truong) or "")]
-	if not doi:
+	# Codex #368 vòng 8: sửa dòng làm đổi TỔNG TIỀN cũng phải soát lại, vì hồ
+	# sơ TK công ty chỉ hợp lệ khi tờ khớp tiền khoản (vòng 7).
+	doi_tien = abs(_tien(doc.get("grand_total")) - _tien(cu.get("grand_total"))) > 0.005
+	if not doi and not doi_tien:
 		return
 	khoa_hoa_don(doc.name)
-	giu = ho_so_dang_giu(doc.name, khoa=True)
-	if giu:
-		frappe.throw(
-			"Hoá đơn %s đang là hoá đơn đến sau (chứng từ) của hồ sơ %s, nên không đổi %s được. "
-			"Hồ sơ đã kiểm đúng nhà cung cấp và công ty lúc nối. Cần đổi thì huỷ hồ sơ %s trước."
-			% (doc.name, giu, " và ".join(doi), giu), title="Tờ này đang làm chứng từ")
+	if doi:
+		giu = ho_so_dang_giu(doc.name, khoa=True)
+		if giu:
+			frappe.throw(
+				"Hoá đơn %s đang là hoá đơn đến sau (chứng từ) của hồ sơ %s, nên không đổi %s được. "
+				"Hồ sơ đã kiểm đúng nhà cung cấp và công ty lúc nối. Cần đổi thì huỷ hồ sơ %s trước."
+				% (doc.name, giu, " và ".join(doi), giu), title="Tờ này đang làm chứng từ")
+	if doi_tien:
+		k = khoan_dang_giu(doc.name)
+		if k and k[1] == _loai_tkct() and abs(_tien(doc.get("grand_total")) - _tien(k[2])) > NGUONG_KHOP_TIEN:
+			frappe.throw(
+				"Hoá đơn %s đang là chứng từ của khoản %s đ ở hồ sơ %s. Tổng mới %s đ lệch quá %s đ, "
+				"hồ sơ sẽ không còn khớp chứng từ. Kiểm lại dòng hoá đơn, hoặc huỷ hồ sơ %s trước nếu "
+				"thật sự nối nhầm tờ." % (doc.name, _dd(k[2]), k[0], _dd(doc.get("grand_total")),
+					_dd(NGUONG_KHOP_TIEN), k[0]), title="Tờ này đang làm chứng từ")
+
+
+def khoan_dang_giu(hoa_don):
+	"""(hồ sơ, loại hồ sơ, số tiền khoản) còn hiệu lực đang nối tờ này, đọc có
+	khoá. Gọi sau khoa_hoa_don."""
+	ds = frappe.db.sql(
+		"""select p.name, p.loai, d.so_tien from `tabVagabond Ho So TT Dong` d
+		inner join `tabVagabond Ho So TT` p on p.name = d.parent
+		where d.hoa_don_bo_sung = %s and ifnull(p.trang_thai, '') not in %s
+		order by p.creation limit 1 for update""",
+		(hoa_don, TT_HET_HIEU_LUC))
+	return tuple(ds[0]) if ds else None
 
 
 def chan_ghi_so_hd_da_chi(doc, method=None):
