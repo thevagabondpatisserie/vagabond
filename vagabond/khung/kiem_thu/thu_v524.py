@@ -109,8 +109,10 @@ def _luu_mon(doc, co_so_kho=False, so_kho=None):
 
 @ca("#524 quạt Midea mở mã nhóm CCDC dùng ngay: không quản kho, cho mua, chi phí 242")
 def _mon_moi():
-	d = _luu_mon(_Mon(name="CCDN00001", item_group="CCDC dùng ngay", is_stock_item=1, is_purchase_item=0))
+	d = _luu_mon(_Mon(name="CCDN00001", item_group="CCDC dùng ngay", is_stock_item=1, is_purchase_item=0,
+		is_sales_item=1))
 	la("không quản kho", d.is_stock_item, 0)
+	la("không bán cho khách (Codex #364 v2)", d.is_sales_item, 0)
 	la("cho mua", d.is_purchase_item, 1)
 	la("mặc định chi phí 242", [(r.company, r.expense_account) for r in d.item_defaults], [(CTY, TK[CTY])])
 
@@ -448,3 +450,38 @@ def _patch_nem():
 	finally:
 		C.dung = cu
 	dung("lỗi đi ra ngoài patch", nem)
+
+
+# ----------------------------------------- Codex #364 vòng 2
+
+def _xem(nhom, loai, quy_cach=None):
+	D = _nap_danh_muc()
+	goi = []
+	cu = {k: getattr(D, k) for k in ("frappe", "_kiem_quyen", "tim_trung", "_dvt_quen", "tien_to_nhom", "_so_ke_tiep")}
+	try:
+		D.frappe = SimpleNamespace(throw=_throw)
+		D._kiem_quyen = lambda: None
+		D.tim_trung = lambda **k: goi.append(k) or []
+		D._dvt_quen = lambda n: "Cái"
+		D.tien_to_nhom = lambda n: ""
+		D._so_ke_tiep = lambda tt: 1
+		return D.xem_truoc(nhom=nhom, loai=loai, ten="Quạt đứng Midea FS40-24EVN", quy_cach=quy_cach), goi
+	finally:
+		for k, v in cu.items():
+			setattr(D, k, v)
+
+
+@ca("#524 Codex #364 v2: xem trước khớp với mã sẽ tạo khi chọn nhóm CCDC dùng ngay mà chip còn Thành phẩm")
+def _xem_truoc_khop():
+	ra, goi = _xem("CCDC dùng ngay", "thanh_pham", quy_cach="Trắng")
+	la("loại thật của nhóm", ra["loai"], "ccdc_dung_ngay")
+	la("tên không gắn quy cách như hàng bán", ra["ten_day_du"], "Quạt đứng Midea FS40-24EVN")
+	la("mã dự kiến theo tiền tố CCDN", ra["ma_du_kien"], "CCDN00001")
+	dung("không báo chưa đoán được tiền tố", not any("tiền tố" in c for c in ra["canh_bao"]))
+	la("soát trùng theo loại thật", [g.get("loai") for g in goi], ["ccdc_dung_ngay"])
+
+
+@ca("#524 Codex #364 v2: xem trước loại CCDC dùng ngay với nhóm khác thì cảnh báo, không nổ")
+def _xem_truoc_sai_nhom():
+	ra, goi = _xem("Công cụ Dụng cụ", "ccdc_dung_ngay")
+	dung("có cảnh báo chọn đúng nhóm", any('chỉ đi với nhóm "CCDC dùng ngay"' in c for c in ra["canh_bao"]))
