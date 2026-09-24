@@ -48,11 +48,7 @@ def _quat():
 	tk = khong_nem("tài khoản 242", _tk_242)
 	if not tk:
 		return
-	if not frappe.db.exists("Item Group", C.CHA):
-		# Bench CI không có cây nhóm của site thật. Dựng nhóm cha trong điểm lưu.
-		goc = frappe.db.get_value("Item Group", {"is_group": 1, "parent_item_group": ["in", ["", None]]}, "name") \
-			or "All Item Groups"
-		_luu(frappe.get_doc(dict(doctype="Item Group", item_group_name=C.CHA, parent_item_group=goc, is_group=1)))
+	# Bench CI không có nhóm Mua vào: dung() phải tự dựng, không bỏ qua (Codex #364 v2).
 	khong_nem("dựng nhóm CCDC dùng ngay", C.dung)
 	nen._DA_TAO.append(("Item Group", C.NHOM))
 	dung("có nhóm", frappe.db.exists("Item Group", C.NHOM))
