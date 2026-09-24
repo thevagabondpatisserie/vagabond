@@ -1103,3 +1103,7 @@ docstatus vẫn 0). Luật nào chỉ xét docstatus là nhận nhầm tờ đã
 #368 vòng 2: nối tờ đó làm hoá đơn đến sau thì hồ sơ thành chi phí hợp lệ
 tính thuế bằng một chứng từ đã bỏ). Mọi luật "tờ còn hiệu lực" phải xét cả
 dấu huỷ, và xét cả chiều ngược: tờ đang làm chứng từ thì không cho huỷ mềm.
+
+Phép soát tiền một chiều ("được Nợ ít nhất bằng") luôn đạt với số âm. Tờ trả
+hàng có tiền âm, sổ cái ghi Có, nên luật đó để lọt bút toán Có sai tài khoản
+(Codex #368 vòng 3). So tiền sổ cái phải theo DẤU: cùng chiều và đủ số.
