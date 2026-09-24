@@ -81,13 +81,18 @@ def nen_hop_le(dong):
 		_so(d.get("cho_hoa_don")) and (d.get("hoa_don_bo_sung") or "").strip() for d in ds)
 
 
-def loi_noi_hoa_don(docstatus_hd, ho_so_khac):
+def loi_noi_hoa_don(docstatus_hd, ho_so_khac, da_huy=0):
 	"""Tờ hoá đơn mua nối vào khoản chờ hoá đơn được không. THUẦN.
 
 	docstatus_hd: 0 nháp, 1 đã ghi sổ, 2 đã huỷ.
-	ho_so_khac: tên hồ sơ còn hiệu lực khác đang giữ tờ này, rỗng nếu không."""
+	ho_so_khac: tên hồ sơ còn hiệu lực khác đang giữ tờ này, rỗng nếu không.
+	da_huy: vgb_huy của tờ. Huỷ mềm (chung_tu.danh_dau_huy) để tờ nháp ở
+	docstatus 0, nên xét riêng (Codex #368 vòng 2)."""
 	if _so(docstatus_hd) == 2:
 		return "đã huỷ"
+	if _so(da_huy):
+		return ("đã đánh dấu huỷ (bản nháp bỏ đi), không làm chứng từ cho khoản chi được. "
+			"Chọn tờ hoá đơn còn hiệu lực")
 	if _so(docstatus_hd) == 1:
 		return ("đã ghi sổ, tức chi phí đã vào sổ qua hoá đơn mua. Khoản chi này cũng đã "
 			"ghi chi phí qua hồ sơ, nối vào là chi phí hai lần. Chỉ nối tờ còn nháp")
@@ -162,24 +167,48 @@ def kiem_bo_sung(doc):
 		# chụp REPEATABLE READ, không thấy lần ghi sổ vừa chốt.
 		khoa = khoa_hoa_don(ma)
 		hd = frappe.get_doc("Purchase Invoice", ma)
-		docstatus = khoa[0][0] if khoa else hd.docstatus
+		docstatus, da_huy = khoa if khoa else (hd.docstatus, cint(hd.get("vgb_huy")))
 		from vagabond.ho_so_tt import _cong_ty_chung_tu
 		if docstatus == 2 or hd.supplier != doc.nha_cung_cap or hd.company != _cong_ty_chung_tu():
 			frappe.throw("Hóa đơn bổ sung phải còn hiệu lực, đúng nhà cung cấp và công ty của hồ sơ.")
 		if ma == d.hoa_don:
 			frappe.throw("Hóa đơn này đã là chứng từ gốc của khoản chi, không cần nối bổ sung.")
 		# v526: chỉ nối tờ còn nháp, và một tờ chỉ nằm ở một khoản còn hiệu lực.
-		loi = loi_noi_hoa_don(docstatus, ho_so_dang_giu(ma, bo_qua_dong=d.name, khoa=True))
+		loi = loi_noi_hoa_don(docstatus, ho_so_dang_giu(ma, bo_qua_dong=d.name, khoa=True), da_huy)
 		if loi:
 			frappe.throw("Khoản %s: hoá đơn %s %s." % (d.idx, ma, loi))
 
 
-def khoa_hoa_don(hoa_don):
-	"""Khoá dòng tờ hoá đơn mua, trả ((docstatus,),) đọc HIỆN HÀNH.
+def _co_dau_huy():
+	return frappe.db.has_column("Purchase Invoice", "vgb_huy")
 
-	Một khoá chung cho mọi đường nối và ghi sổ cùng một tờ (Codex #368 finding
-	2). Giao dịch sau chờ giao dịch trước chốt rồi mới xét."""
-	return frappe.db.sql("select docstatus from `tabPurchase Invoice` where name=%s for update", hoa_don)
+
+def khoa_hoa_don(hoa_don):
+	"""Khoá dòng tờ hoá đơn mua, trả (docstatus, vgb_huy) đọc HIỆN HÀNH, hoặc
+	None nếu không có tờ.
+
+	Một khoá chung cho mọi đường nối, ghi sổ và đánh dấu huỷ cùng một tờ (Codex
+	#368 finding 2 và vòng 2). Giao dịch sau chờ giao dịch trước chốt rồi mới
+	xét. Đánh dấu huỷ ghi bằng db.set_value lên đúng dòng này nên cũng xếp
+	hàng sau khoá."""
+	cot = ", ifnull(vgb_huy, 0)" if _co_dau_huy() else ", 0"
+	r = frappe.db.sql("select docstatus" + cot + " from `tabPurchase Invoice` where name=%s for update", hoa_don)
+	return (cint(r[0][0]), cint(r[0][1])) if r else None
+
+
+def chan_huy_hd_da_noi(doc):
+	"""chung_tu.danh_dau_huy gọi trước khi huỷ mềm một tờ hoá đơn mua nháp.
+
+	Tờ đang là hoá đơn đến sau của một hồ sơ còn hiệu lực thì không huỷ: hồ sơ
+	đó đang là chi phí hợp lệ tính thuế dựa trên chính tờ này (Codex #368
+	vòng 2, chiều ngược lại của việc nối tờ đã huỷ)."""
+	khoa_hoa_don(doc.name)
+	giu = ho_so_dang_giu(doc.name, khoa=True)
+	if giu:
+		frappe.throw(
+			"Hoá đơn %s đang là hoá đơn đến sau (chứng từ) của hồ sơ %s. Huỷ tờ này thì "
+			"hồ sơ mất chứng từ mà vẫn tính là chi phí hợp lệ. Nhờ kế toán xử lý hồ sơ %s trước."
+			% (doc.name, giu, giu), title="Tờ này đang làm chứng từ")
 
 
 def ho_so_dang_giu(hoa_don, bo_qua_dong=None, khoa=False):
@@ -225,8 +254,10 @@ def danh_sach_hoa_don(name, tu_khoa=""):
 	_kiem(VAI_LAP | VAI_FIN | VAI_GD, "tìm hóa đơn bổ sung")
 	d = frappe.get_doc("Vagabond Ho So TT", name)
 	# v526: chỉ tờ còn nháp. Tờ đã ghi sổ thì chi phí đã vào sổ qua hoá đơn.
-	return frappe.get_list("Purchase Invoice", filters={"supplier": d.nha_cung_cap,
-		"company": _cong_ty_chung_tu(), "docstatus": 0},
+	loc = {"supplier": d.nha_cung_cap, "company": _cong_ty_chung_tu(), "docstatus": 0}
+	if _co_dau_huy():
+		loc["vgb_huy"] = 0   # tờ nháp đã đánh dấu huỷ không làm chứng từ được
+	return frappe.get_list("Purchase Invoice", filters=loc,
 		or_filters={"name": ["like", "%" + tu_khoa + "%"], "bill_no": ["like", "%" + tu_khoa + "%"]},
 		fields=["name", "bill_no", "bill_date", "grand_total", "docstatus"],
 		order_by="posting_date desc", limit_page_length=0)
@@ -271,11 +302,11 @@ def khoan_cho_hoa_don(hoa_don):
 	from vagabond.ho_so_tt import _kiem, VAI_FIN, VAI_GD, _cong_ty_chung_tu
 	_kiem(VAI_FIN | VAI_GD, "nối hóa đơn đến sau")
 	hd = frappe.db.get_value("Purchase Invoice", hoa_don,
-		["name", "supplier", "company", "docstatus"], as_dict=True)
+		["name", "supplier", "company", "docstatus"] + (["vgb_huy"] if _co_dau_huy() else []), as_dict=True)
 	if not hd:
 		frappe.throw("Không có hoá đơn %s." % hoa_don)
 	giu = ho_so_dang_giu(hoa_don)
-	if giu or hd.docstatus != 0 or hd.company != _cong_ty_chung_tu():
+	if giu or hd.docstatus != 0 or cint(hd.get("vgb_huy")) or hd.company != _cong_ty_chung_tu():
 		return {"da_noi": giu, "khoan": []}
 	ds = frappe.db.sql(
 		"""select p.name as ho_so, p.ngay, p.trang_thai, d.idx as dong, d.noi_dung,

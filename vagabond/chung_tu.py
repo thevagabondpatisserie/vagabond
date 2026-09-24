@@ -159,6 +159,10 @@ def danh_dau_huy(doc, ly_do=None, ghi_vet=True):
 			"Phiếu %s đã ghi sổ rồi nên phải huỷ đúng nghiệp vụ, không đánh dấu "
 			"kiểu này được." % ten
 		)
+	if dt == "Purchase Invoice":
+		# v526: tờ đang là hoá đơn đến sau của hồ sơ chi thì không huỷ mềm.
+		from vagabond.ho_so_bo_sung import chan_huy_hd_da_noi
+		chan_huy_hd_da_noi(doc)
 	gt = {
 		"vgb_huy": 1,
 		"vgb_huy_ly_do": (ly_do or "").strip()[:500],
