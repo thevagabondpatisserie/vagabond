@@ -1120,3 +1120,10 @@ nhưng áp lên mọi hồ sơ; hồ sơ trả NCC vốn nối tờ ĐÃ ghi s�
 nên sẽ gãy luồng trả NCC. Bộ kiểm khung không thấy vì mọi ca dựng hồ sơ TK
 công ty; chỉ bench chạy ca tích hợp cũ #263 mới bắt được. Viết luật theo loại
 thì phải có ca cho CẢ loại không áp luật.
+
+Luật theo loại thì ô loại phải đứng yên khi luật đã áp. Sau khi khoá luật hoá
+đơn đến sau theo loại hồ sơ, ô loại vẫn sửa được trên Desk/API: đổi TK công ty
+sang Hoàn ứng cùng lần sửa số tiền là mọi luật đọc loại mới đều bỏ qua, rồi
+tờ nháp ghi sổ được, chi phí vào sổ hai lần (Codex #368 vòng 10). Đừng vá từng
+luật cho đọc loại cũ; giữ một bất biến: đang nối chứng từ thì không đổi loại.
+Mỗi ô dùng để CHỌN luật phải tự hỏi: ai sửa được ô này sau khi luật đã áp?
