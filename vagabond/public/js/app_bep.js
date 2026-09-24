@@ -21931,7 +21931,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '524';
+var APPVER = '525';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -29392,8 +29392,10 @@ function dmDoc() {
 }
 
 var dmKq = null;
-// Codex #364 v3: đánh số từng lượt hỏi xem trước. Lượt về trễ (người đã đổi
-// nhóm hoặc loại trong lúc chờ) thì bỏ, không được đè lên form hiện tại.
+// Codex #364 v3, giữ lại ở v525 (Codex #365 v2): đánh số từng lượt hỏi xem
+// trước. Lượt về trễ (đã có lượt mới hơn, hoặc người đã đổi nhóm hay loại
+// trong lúc chờ) thì bỏ, không được đè lên form hiện tại. Bộ chặn này độc lập
+// với phần đồng bộ loại CCDC của v524 đã gỡ: đừng gỡ theo.
 var dmHoiLuot = 0;
 function dmHoiXem() {
   if (dmTre) clearTimeout(dmTre);
@@ -29408,9 +29410,6 @@ function dmHoiXem() {
     } catch (e) { kq = null; }
     if (luot !== dmHoiLuot || dmVe.nhom !== gui.nhom || dmVe.loai !== gui.loai) return;
     dmKq = kq;
-    // v524 (Codex #364 v2): nhóm CCDC dùng ngay chỉ có một loại. Máy trả về
-    // loại thật của nhóm, chip Loại hàng và ba cờ mua - bán - tồn đổi theo.
-    if (dmKq && dmKq.loai && dmKq.loai !== dmVe.loai) { dmVe.loai = dmKq.loai; return dmDraw(true); }
     dmVeXem();
   }, 320);
 }

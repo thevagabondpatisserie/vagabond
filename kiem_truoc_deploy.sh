@@ -135,8 +135,7 @@ node vagabond/khung/kiem_thu/hanh_vi/go_tay_358.js
 # APP-26-09-799: dinh uy nhiem chi o buoc xac nhan da chuyen tien gui dung duong dan.
 node vagabond/khung/kiem_thu/hanh_vi/unc_app_518.js
 node vagabond/khung/kiem_thu/hanh_vi/sinh_lai_523.js
-# v524 (Codex #364 v2): chip Loai hang doi theo nhom CCDC dung ngay.
-node vagabond/khung/kiem_thu/hanh_vi/ccdc_loai_524.js
+node vagabond/khung/kiem_thu/hanh_vi/xem_truoc_tre_525.js
 # Trang /kiem-banh: chuoi go o Huy. Codex doi tren PR #218 mot ca chay that
 # chuoi bam - go - cho phan hoi - kiem so, chu khong do chuoi. Dat o day chu
 # khong de chay tay: mot ca kiem khong nam trong cong la mot ca kiem se quen.

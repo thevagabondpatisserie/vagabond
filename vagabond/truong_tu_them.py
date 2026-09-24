@@ -98,6 +98,9 @@ def dung():
 	_dung_nhom(bao_gia.TRUONG_CAI_DAT, "bao_gia_cai_dat")
 	_dung_nhom(bao_gia.TRUONG_MAU, "bao_gia_mau_in")
 	_dung_nhom(mua_dich_vu.TRUONG_MOI, "mua_dich_vu")
+	# v525: o tick "Di 242" tren ho so mon (CCDC dung ngay).
+	from vagabond import ccdc_dung_ngay
+	_dung_nhom(ccdc_dung_ngay.TRUONG_MOI, "ccdc_dung_ngay")
 	_dung_nhom(buoc_hoa_don_mua.TRUONG_MOI, "buoc_hoa_don_mua")
 	_dung_nhom(sepay.TRUONG_MOI, "sepay")
 	# O nguoi ban tren hoa don (them 02/09/2026). Doc dau tep
