@@ -151,6 +151,23 @@ def loi_noi_hoa_don(docstatus_hd, ho_so_khac, da_huy=0, chi_nhap=True):
 	return ""
 
 
+def loi_mo_lai_huy(tt_cu, tt_moi, cu_dong):
+	"""Hồ sơ đã Huỷ đang mang dấu nối hoá đơn đến sau thì không mở lại. THUẦN.
+
+	Chỉ Huỷ làm dấu nối hết hiệu lực (TT_HET_HIEU_LUC), nên sau khi huỷ, tờ đó
+	ghi sổ hoặc nối sang hồ sơ khác là đúng luật. trang_thai lại sửa được trên
+	Desk/API: đưa hồ sơ huỷ về Nháp là dấu nối sống lại trên một tờ có thể đã
+	ghi sổ hoặc đang ở hồ sơ khác, chi phí hai lần. Tự bắt khi làm vòng 10."""
+	if tt_cu not in TT_HET_HIEU_LUC or tt_moi in TT_HET_HIEU_LUC:
+		return ""
+	for r in (cu_dong or {}).values():
+		ma = (r.get("hoa_don_bo_sung") or "").strip()
+		if ma:
+			return ("Hồ sơ đã huỷ, khoản %s từng nối hoá đơn %s nên không mở lại được: huỷ là đã trả tờ đó ra, "
+				"tờ có thể đã ghi sổ hoặc nối sang hồ sơ khác. Lập hồ sơ mới nếu cần." % (r.get("idx"), ma))
+	return ""
+
+
 def loi_doi_loai(loai_cu, loai_moi, cu_dong, mac_dinh="NCC"):
 	"""Đổi loại hồ sơ khi hồ sơ đang nối hoá đơn đến sau thì không được. THUẦN.
 
@@ -223,7 +240,8 @@ def kiem_bo_sung(doc):
 		frappe.throw("Khoản %s %s. Nhờ kế toán kiểm tra." % (idx, loi))
 	if cu:
 		from vagabond.ho_so_tt import LOAI_NCC
-		loi = loi_doi_loai(getattr(cu, "loai", None), getattr(doc, "loai", None), cu_dong, LOAI_NCC)
+		loi = (loi_mo_lai_huy(getattr(cu, "trang_thai", None), getattr(doc, "trang_thai", None), cu_dong)
+			or loi_doi_loai(getattr(cu, "loai", None), getattr(doc, "loai", None), cu_dong, LOAI_NCC))
 		if loi:
 			frappe.throw(loi, title="Hồ sơ đang có chứng từ")
 	_giu_tien_khoan_da_noi(doc, cu_dong)
@@ -383,14 +401,22 @@ def _giu_tien_khoan_da_noi(doc, cu_dong):
 			continue
 		if abs(_tien(d.get("so_tien")) - _tien(truoc.get("so_tien"))) <= 0.005:
 			continue
-		r = frappe.db.sql("select grand_total from `tabPurchase Invoice` where name=%s for update", ma)
-		tong = r[0][0] if r else None
+		tong = tong_hoa_don_khoa(ma)
 		if tong is None or abs(_tien(tong) - _tien(d.get("so_tien"))) > NGUONG_KHOP_TIEN:
 			frappe.throw(
 				"Khoản %s đang nối hoá đơn %s (%s đ). Số tiền mới %s đ lệch quá %s đ nên hồ sơ không "
 				"còn khớp chứng từ. Kiểm lại số tiền khoản, hoặc huỷ hồ sơ rồi lập lại nếu nối nhầm tờ."
 				% (d.idx, ma, _dd(tong), _dd(d.get("so_tien")), _dd(NGUONG_KHOP_TIEN)),
 				title="Khoản này đang có chứng từ")
+
+
+def tong_hoa_don_khoa(hoa_don):
+	"""Tổng tiền tờ hoá đơn mua đọc HIỆN HÀNH có khoá (for update), None nếu
+	không có tờ. Nguồn duy nhất cho mọi lần so tiền tờ với khoản (Codex #368
+	vòng 11): get_value thường đọc ảnh chụp REPEATABLE READ, không thấy lần sửa
+	tổng tiền vừa chốt ở giao dịch khác, rồi quyết hợp lệ theo số cũ."""
+	r = frappe.db.sql("select grand_total from `tabPurchase Invoice` where name=%s for update", hoa_don)
+	return r[0][0] if r else None
 
 
 def khoan_dang_giu(hoa_don):
@@ -467,11 +493,12 @@ def noi_hoa_don(name, dong, hoa_don):
 		# Codex #368 vòng 7: so tiền từng tờ với khoản của nó trước khi đổi cả
 		# hồ sơ sang hợp lệ. Lệch thì vẫn nối (tờ là chứng từ thật của NCC),
 		# nhưng hồ sơ giữ loại cũ và báo rõ khoản nào lệch.
+		# Vòng 11: đọc tổng từng tờ qua tong_hoa_don_khoa (khoá tờ, đọc hiện
+		# hành), không get_value. Khoá theo thứ tự tên để hai lần nối không
+		# khoá chéo nhau.
 		tong_hd = {}
-		for x in d.dong:
-			ma = (x.get("hoa_don_bo_sung") or "").strip()
-			if ma:
-				tong_hd[ma] = frappe.db.get_value("Purchase Invoice", ma, "grand_total")
+		for ma in sorted({(x.get("hoa_don_bo_sung") or "").strip() for x in d.dong} - {""}):
+			tong_hd[ma] = tong_hoa_don_khoa(ma)
 		lech = lech_tien_hoa_don(d.dong, tong_hd)
 		doi_hop_le = not lech and (getattr(d, "loai_cp_thue", None) or "") != CP_HOP_LE
 	if doi_hop_le:
