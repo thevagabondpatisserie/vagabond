@@ -1,0 +1,412 @@
+"""v526, chị Dung và anh Việt 24/09/2026.
+
+1. Ghi sổ thẳng có bước hạch toán từng dòng. Ca thật: hoá đơn xăng
+   HDM-26-09-00335 (Xăng dầu Khu vực II, 92.081 đ) ghi thẳng rơi vào 632 vì
+   dòng không gắn Món. Anh Việt chọn: chọn tài khoản từng dòng, máy gợi ý theo
+   lần trước của đúng nhà cung cấp.
+2. Hoá đơn đến sau của phiếu Chi từ TK công ty: nối đủ thì hồ sơ thành hợp lệ
+   tính thuế, tờ hoá đơn đã nối không ghi sổ (anh Việt chọn "chặn ghi sổ,
+   không tách VAT").
+3. Quyền Repost cho kế toán FIN để sửa tài khoản trên tờ đã ghi sổ.
+
+Mọi ca chạy HÀM THẬT, chỉ thay lớp dữ liệu. Không dò chuỗi.
+"""
+import json
+from types import SimpleNamespace
+
+from vagabond.khung.kiem_thu.nen import ca, dung, la
+
+
+class _Loi(Exception):
+	pass
+
+
+def _throw(msg, *a, **k):
+	raise _Loi(msg)
+
+
+class _D(dict):
+	def __getattr__(self, k):
+		try:
+			return self[k]
+		except KeyError:
+			raise AttributeError(k)
+
+	def __setattr__(self, k, v):
+		self[k] = v
+
+
+CTY = "CÔNG TY TNHH PATISSERIE VAGABOND"
+TK = {
+	"6417 - Chi phí dịch vụ mua ngoài - TV": dict(company=CTY, is_group=0, disabled=0, root_type="Expense", account_type=""),
+	"632 - Giá vốn hàng bán - TV": dict(company=CTY, is_group=0, disabled=0, root_type="Expense", account_type="Cost of Goods Sold"),
+	"242 - Chi phí chờ phân bổ - TV": dict(company=CTY, is_group=0, disabled=0, root_type="Asset", account_type=""),
+	"641 - Chi phí bán hàng - TV": dict(company=CTY, is_group=1, disabled=0, root_type="Expense", account_type=""),
+	"6418 - Chi phí khác - TV": dict(company=CTY, is_group=0, disabled=1, root_type="Expense", account_type=""),
+	"3311 - Phải trả - TV": dict(company=CTY, is_group=0, disabled=0, root_type="Liability", account_type="Payable"),
+	"1331 - Thuế GTGT - TV": dict(company=CTY, is_group=0, disabled=0, root_type="Asset", account_type="Tax"),
+	"6417 - Chi phí - TVD": dict(company="The Vagabond (Demo)", is_group=0, disabled=0, root_type="Expense", account_type=""),
+}
+T6417, T632, T242 = "6417 - Chi phí dịch vụ mua ngoài - TV", "632 - Giá vốn hàng bán - TV", "242 - Chi phí chờ phân bổ - TV"
+HANG_KHO = {"NVLT00001": 1, "DV-XANG": 0}
+
+
+class _Phieu:
+	"""Tờ giả có .items là DANH SÁCH như Document thật (dict thì .items là hàm)."""
+
+	def __init__(self, **k):
+		self.__dict__.update(k)
+
+	def get(self, k, mac_dinh=None):
+		return self.__dict__.get(k, mac_dinh)
+
+	def __getitem__(self, k):
+		return self.__dict__[k]
+
+
+def _to(dong, **k):
+	"""Tờ hoá đơn mua giả: dong = [(tên dòng, mã, phiếu nhập, tài khoản)]."""
+	doc = _Phieu(name="HDM-26-09-00334", company=CTY, supplier="XDKV2", supplier_name="Xăng dầu KV II",
+		docstatus=0, status="Draft", grand_total=80000, vgb_tk_chi_phi=None,
+		items=[_D(name=t, idx=i + 1, item_code=m, item_name="Xăng E10 RON 95" if not m else m,
+			purchase_receipt=p, expense_account=tk, amount=80000) for i, (t, m, p, tk) in enumerate(dong)])
+	doc.flags = _D()
+	doc.__dict__.update(k)
+	return doc
+
+
+def _fr(**k):
+	def get_value(dt, ten, truong=None, as_dict=False):
+		if dt == "Item":
+			return HANG_KHO.get(ten, 0)
+		if dt == "Account":
+			return _D(TK[ten]) if ten in TK else None
+		return None
+	ns = SimpleNamespace(throw=_throw, db=SimpleNamespace(get_value=get_value))
+	for kk, v in k.items():
+		setattr(ns, kk, v)
+	return ns
+
+
+def _voi(mod, fr, ham):
+	cu = mod.frappe
+	mod.frappe = fr
+	try:
+		return ham()
+	finally:
+		mod.frappe = cu
+
+
+# ------------------------------------------------------------ phần thuần
+
+@ca("#526 gợi ý tài khoản: khai trên Món trước, rồi tài khoản đang có khác mặc định, rồi lần trước của NCC")
+def _goi_y():
+	from vagabond.hach_toan_thang import goi_y
+	la("khai trên Món thắng", goi_y(T632, T632, T6417, T242), (T242, "mon"))
+	la("đang có khác mặc định thì giữ", goi_y(T242, T632, T6417, ""), (T242, "dang_co"))
+	la("đang là 632 mặc định thì lấy lần trước của NCC", goi_y(T632, T632, T6417, ""), (T6417, "lan_truoc"))
+	la("không có gì thì về mặc định", goi_y(T632, T632, "", ""), (T632, "mac_dinh"))
+
+
+@ca("#526 nhắc đỏ khi dòng chi phí để 632 giá vốn")
+def _canh_bao():
+	from vagabond.hach_toan_thang import canh_bao
+	dung("632 bị nhắc", "giá vốn" in canh_bao(T632))
+	la("6417 không nhắc", canh_bao(T6417), "")
+
+
+@ca("#526 soát bộ tài khoản: dòng thiếu, dòng hàng kho, dòng lạ đều bị gọi tên")
+def _loi_chon():
+	from vagabond.hach_toan_thang import loi_chon
+	cp, khac = {"D1": 1, "D2": 2}, {"D3": 3}
+	la("đủ thì không lỗi", loi_chon(cp, khac, {"D1": T6417, "D2": T242}), [])
+	loi = loi_chon(cp, khac, {"D1": T6417})
+	dung("gọi tên dòng 2 thiếu", any("Dòng 2 chưa chọn" in x for x in loi))
+	loi = loi_chon(cp, khac, {"D1": T6417, "D2": T242, "D3": T6417})
+	dung("chặn đổi dòng hàng kho", any("Dòng 3 là hàng qua kho" in x for x in loi))
+	loi = loi_chon(cp, khac, {"D1": T6417, "D2": T242, "LA": T6417})
+	dung("chặn dòng không còn trên tờ", any("không còn trên hoá đơn" in x for x in loi))
+
+
+@ca("#526 tài khoản không nhận chi phí: tổng hợp, ngừng dùng, công ty khác, công nợ, thuế, nợ phải trả")
+def _loi_tai_khoan():
+	from vagabond.hach_toan_thang import loi_tai_khoan
+	la("6417 dùng được", loi_tai_khoan(TK[T6417], CTY), "")
+	la("242 tài sản dùng được", loi_tai_khoan(TK[T242], CTY), "")
+	dung("tổng hợp", "tổng hợp" in loi_tai_khoan(TK["641 - Chi phí bán hàng - TV"], CTY))
+	dung("ngừng dùng", "ngừng" in loi_tai_khoan(TK["6418 - Chi phí khác - TV"], CTY))
+	dung("công ty demo", "công ty khác" in loi_tai_khoan(TK["6417 - Chi phí - TVD"], CTY))
+	dung("công nợ", "Payable" in loi_tai_khoan(TK["3311 - Phải trả - TV"], CTY))
+	dung("thuế", "Tax" in loi_tai_khoan(TK["1331 - Thuế GTGT - TV"], CTY))
+	dung("không tồn tại", "không tồn tại" in loi_tai_khoan(None, CTY))
+
+
+# ------------------------------------------------------------ đặt tài khoản
+
+@ca("#526 ca xăng: dòng không mã đang 632, chọn 6417 thì đặt đúng 6417 và báo hook đừng đè")
+def _ap_xang():
+	from vagabond import hach_toan_thang as H
+	doc = _to([("R1", "", "", T632)])
+	_voi(H, _fr(), lambda: H.ap_tai_khoan(doc, {"R1": T6417}))
+	la("dòng xăng về 6417", doc.items[0].expense_account, T6417)
+	dung("cờ người chọn đã đặt", H.nguoi_da_chon(doc, "R1"))
+
+
+@ca("#526 chọn tài khoản cho dòng hàng kho hay tài khoản sai thì dừng, CHƯA đổi dòng nào")
+def _ap_chan():
+	from vagabond import hach_toan_thang as H
+	doc = _to([("R1", "", "", T632), ("R2", "NVLT00001", "PNK-1", "Kho chờ")])
+	try:
+		_voi(H, _fr(), lambda: H.ap_tai_khoan(doc, {"R1": T6417, "R2": T6417}))
+		loi = ""
+	except _Loi as e:
+		loi = str(e)
+	dung("báo dòng 2 là hàng kho", "Dòng 2 là hàng qua kho" in loi)
+	la("dòng 1 chưa bị đổi", doc.items[0].expense_account, T632)
+	doc = _to([("R1", "", "", T632)])
+	try:
+		_voi(H, _fr(), lambda: H.ap_tai_khoan(doc, {"R1": "3311 - Phải trả - TV"}))
+		loi = ""
+	except _Loi as e:
+		loi = str(e)
+	dung("chặn tài khoản công nợ", "Payable" in loi)
+	la("dòng chưa bị đổi", doc.items[0].expense_account, T632)
+
+
+@ca("#526 phiếu dịch vụ có ô tài khoản đầu phiếu: khớp theo người chọn, chọn khác nhau thì bỏ trống ô đó")
+def _ap_dich_vu():
+	from vagabond import hach_toan_thang as H
+	doc = _to([("R1", "", "", T632), ("R2", "", "", T632)], vgb_tk_chi_phi=T632)
+	_voi(H, _fr(), lambda: H.ap_tai_khoan(doc, {"R1": T6417, "R2": T6417}))
+	la("cùng một tài khoản thì ô đầu phiếu theo", doc.vgb_tk_chi_phi, T6417)
+	doc = _to([("R1", "", "", T632), ("R2", "", "", T632)], vgb_tk_chi_phi=T632)
+	_voi(H, _fr(), lambda: H.ap_tai_khoan(doc, {"R1": T6417, "R2": T242}))
+	la("khác nhau thì bỏ trống ô đầu phiếu", doc.vgb_tk_chi_phi, None)
+
+
+@ca("#526 hook khai trên Món KHÔNG đè dòng kế toán vừa chọn, dòng khác vẫn theo Món")
+def _hook_mon():
+	from vagabond import dung_lai_hddt as L
+	doc = _to([("R1", "DV-XANG", "", T6417), ("R2", "DV-XANG", "", T6417)], custom_minvoice_id="MV1")
+	doc.flags["vgb_tk_nguoi_chon"] = {"R1": T6417}
+
+	def get_value(dt, ten, truong=None, as_dict=False):
+		if dt == "Item":
+			return 0
+		if dt == "Item Default":
+			return T242
+		return None
+	_voi(L, SimpleNamespace(throw=_throw, db=SimpleNamespace(get_value=get_value),
+		log_error=lambda *a, **k: None, get_traceback=lambda: ""), lambda: L.tk_theo_mon(doc))
+	la("dòng người chọn giữ 6417", doc.items[0].expense_account, T6417)
+	la("dòng không chọn theo Món 242", doc.items[1].expense_account, T242)
+
+
+@ca("#526 hook tài khoản đầu phiếu dịch vụ KHÔNG đè dòng kế toán vừa chọn")
+def _hook_dich_vu():
+	import sys
+	from vagabond import mua_dich_vu as M
+	doc = _to([("R1", "", "", T6417), ("R2", "", "", T6417)], vgb_loai_chung_tu=M.LOAI_DICH_VU, vgb_tk_chi_phi=T242)
+	doc.flags["vgb_tk_nguoi_chon"] = {"R1": T6417}
+	doc.set_against_expense_account = lambda: None
+	goi = []
+	gia = SimpleNamespace(validate_account_head=lambda idx, tk, cty, loai: goi.append(idx))
+	cu = sys.modules.get("erpnext.controllers.accounts_controller")
+	sys.modules["erpnext.controllers.accounts_controller"] = gia
+	for ten in ("erpnext", "erpnext.controllers"):
+		sys.modules.setdefault(ten, SimpleNamespace())
+	try:
+		_voi(M, SimpleNamespace(throw=_throw, db=SimpleNamespace(get_value=lambda *a, **k: 0)),
+			lambda: M.gan_tai_khoan_chi_phi(doc, "validate"))
+	finally:
+		if cu is None:
+			sys.modules.pop("erpnext.controllers.accounts_controller", None)
+		else:
+			sys.modules["erpnext.controllers.accounts_controller"] = cu
+	la("dòng người chọn giữ 6417", doc.items[0].expense_account, T6417)
+	la("dòng kia theo đầu phiếu 242", doc.items[1].expense_account, T242)
+
+
+# ------------------------------------------------------------ ghi sổ thẳng
+
+def _chay_ghi(doc, tk, doc_sau=None, lech=False):
+	from vagabond import doi_chieu_mua as DC, hach_toan_thang as H
+	ghi = {"submit": 0, "rollback": 0, "commit": 0}
+
+	def submit():
+		ghi["submit"] += 1
+	doc.submit = submit
+
+	def get_value(dt, ten, truong=None, as_dict=False):
+		if dt == "Purchase Invoice Item":
+			if truong == "idx":
+				return 1
+			return "sai" if lech else next(d.expense_account for d in doc.items if d.name == ten)
+		if dt == "Item":
+			return HANG_KHO.get(ten, 0)
+		if dt == "Account":
+			return _D(TK[ten]) if ten in TK else None
+		return None
+	fr = SimpleNamespace(
+		throw=_throw, get_doc=lambda dt, n: doc, parse_json=json.loads, get_roles=lambda: ["Accounts User"],
+		db=SimpleNamespace(get_value=get_value, commit=lambda: ghi.__setitem__("commit", ghi["commit"] + 1),
+			rollback=lambda: ghi.__setitem__("rollback", ghi["rollback"] + 1)),
+	)
+	cu_q, cu_g = DC._kiem_quyen, DC._ghi_so_duoc
+	DC._kiem_quyen = lambda: None
+	DC._ghi_so_duoc = lambda: True
+	cu1, cu2 = DC.frappe, H.frappe
+	DC.frappe = fr
+	H.frappe = fr
+	try:
+		try:
+			return DC.ghi_so_thang(doc.name, tk), "", ghi
+		except _Loi as e:
+			return None, str(e), ghi
+	finally:
+		DC.frappe, H.frappe = cu1, cu2
+		DC._kiem_quyen, DC._ghi_so_duoc = cu_q, cu_g
+
+
+@ca("#526 ghi sổ thẳng tờ xăng: đi đúng tài khoản chọn, rồi mới ghi sổ")
+def _ghi_xang():
+	doc = _to([("R1", "", "", T632)])
+	kq, loi, ghi = _chay_ghi(doc, json.dumps({"R1": T6417}))
+	la("không lỗi", loi, "")
+	la("dòng đi 6417", doc.items[0].expense_account, T6417)
+	la("ghi sổ một lần", ghi["submit"], 1)
+	la("chốt giao dịch", ghi["commit"], 1)
+
+
+@ca("#526 ghi sổ thẳng mà không gửi tài khoản (app cũ) thì dừng, không ghi 632 im lặng")
+def _ghi_khong_tk():
+	doc = _to([("R1", "", "", T632)])
+	kq, loi, ghi = _chay_ghi(doc, None)
+	dung("báo chưa chọn tài khoản", "Chưa chọn tài khoản" in loi)
+	la("không ghi sổ", ghi["submit"], 0)
+
+
+@ca("#526 sau ghi sổ mà sổ khác người chọn thì huỷ giao dịch, báo lỗi, không báo xong")
+def _ghi_lech():
+	doc = _to([("R1", "", "", T632)])
+	kq, loi, ghi = _chay_ghi(doc, json.dumps({"R1": T6417}), lech=True)
+	dung("báo lệch", "khác với chị chọn" in loi)
+	la("huỷ giao dịch", ghi["rollback"], 1)
+	la("không chốt", ghi["commit"], 0)
+
+
+# ------------------------------------------------------------ hoá đơn đến sau
+
+@ca("#526 hồ sơ thành hợp lệ khi MỌI khoản đều chờ hoá đơn và đã nối đủ")
+def _nen_hop_le():
+	from vagabond.ho_so_bo_sung import nen_hop_le
+	a = _D(cho_hoa_don=1, hoa_don_bo_sung="HDM-1")
+	b = _D(cho_hoa_don=1, hoa_don_bo_sung="")
+	c = _D(cho_hoa_don=0, hoa_don_bo_sung="")
+	la("nối đủ", nen_hop_le([a]), True)
+	la("còn khoản chưa nối", nen_hop_le([a, b]), False)
+	la("có khoản không hoá đơn thật", nen_hop_le([a, c]), False)
+	la("hồ sơ rỗng", nen_hop_le([]), False)
+
+
+@ca("#526 chỉ nối tờ còn nháp, không nối tờ đã ghi sổ, đã huỷ, hay đã nằm ở hồ sơ khác")
+def _loi_noi():
+	from vagabond.ho_so_bo_sung import loi_noi_hoa_don
+	la("nháp nối được", loi_noi_hoa_don(0, ""), "")
+	dung("đã ghi sổ", "hai lần" in loi_noi_hoa_don(1, ""))
+	dung("đã huỷ", "huỷ" in loi_noi_hoa_don(2, ""))
+	dung("hồ sơ khác", "APP-9" in loi_noi_hoa_don(0, "APP-9"))
+
+
+def _noi(loai, dong, cp="Chi phi khong hop le"):
+	from unittest.mock import Mock, patch
+	import frappe
+	from vagabond import ho_so_bo_sung as bo, ho_so_tt as hs
+	d = SimpleNamespace(dong=dong, save=Mock(), add_comment=Mock(), loai=loai, loai_cp_thue=cp)
+	with patch.object(frappe, "db", SimpleNamespace(sql=Mock())), \
+		patch.object(frappe, "get_doc", return_value=d), patch.object(hs, "_kiem"):
+		kq = bo.noi_hoa_don("APP-THU", 1, "PI-THU")
+	return d, kq
+
+
+@ca("#526 nối đủ hoá đơn cho hồ sơ chi từ TK công ty thì chuyển Hợp lệ tính thuế")
+def _noi_hop_le():
+	r = _D(cho_hoa_don=1, hoa_don_bo_sung="")
+	d, kq = _noi("TK cong ty", [r])
+	la("chuyển hợp lệ", d.loai_cp_thue, "Chi phi hop le")
+	la("báo màn", kq["hop_le"], 1)
+	la("lưu một lần", d.save.call_count, 1)
+
+
+@ca("#526 còn khoản không hoá đơn thật thì nối xong vẫn giữ Không hợp lệ")
+def _noi_giu():
+	r1 = _D(cho_hoa_don=1, hoa_don_bo_sung="")
+	r2 = _D(cho_hoa_don=0, hoa_don_bo_sung="")
+	d, kq = _noi("TK cong ty", [r1, r2])
+	la("giữ không hợp lệ", d.loai_cp_thue, "Chi phi khong hop le")
+	la("không báo hợp lệ", kq["hop_le"], 0)
+
+
+@ca("#526 hồ sơ loại khác (công nợ NCC) nối hoá đơn bổ sung không bị đổi loại chi phí thuế")
+def _noi_loai_khac():
+	r = _D(cho_hoa_don=1, hoa_don_bo_sung="")
+	d, kq = _noi("NCC", [r], cp="")
+	la("không đổi", d.loai_cp_thue, "")
+
+
+@ca("#526 tờ hoá đơn đã nối làm hoá đơn đến sau thì chặn ghi sổ, gọi tên hồ sơ")
+def _chan_ghi():
+	from vagabond import ho_so_bo_sung as bo
+	cu = bo.ho_so_dang_giu
+	cu_fr = bo.frappe
+	bo.frappe = SimpleNamespace(throw=_throw)
+	try:
+		bo.ho_so_dang_giu = lambda ten, bo_qua_dong=None: "APP-26-09-100"
+		try:
+			bo.chan_ghi_so_hd_da_chi(_D(name="HDM-1"))
+			loi = ""
+		except _Loi as e:
+			loi = str(e)
+		dung("chặn và gọi tên hồ sơ", "APP-26-09-100" in loi and "không ghi sổ" in loi)
+		bo.ho_so_dang_giu = lambda ten, bo_qua_dong=None: ""
+		bo.chan_ghi_so_hd_da_chi(_D(name="HDM-2"))
+	finally:
+		bo.ho_so_dang_giu = cu
+		bo.frappe = cu_fr
+
+
+# ------------------------------------------------------------ quyền Repost
+
+@ca("#526 quyền Repost chỉ mở cho đúng vai kế toán FIN, đủ bốn quyền để đổi tài khoản tờ đã ghi sổ")
+def _quyen():
+	from vagabond import quyen_ap
+	can = quyen_ap.can_cap_them()
+	la("đúng bốn dòng", sorted(can), sorted([
+		("Repost Accounting Ledger", "AP Kiểm soát (FIN)", q) for q in ("read", "write", "create", "submit")]))
+	dung("không mở cho Accounts User", all(v != "Accounts User" for _, v, _ in can))
+	# Bảng Purchase Order của luồng duyệt giữ nguyên sáu dòng.
+	la("bảng cũ giữ nguyên", len(quyen_ap.can_cap()), 6)
+
+
+@ca("#526 patch cấp quyền Repost: cấp rồi mà vẫn thiếu thì làm hỏng migrate, không báo xong giả")
+def _quyen_nem():
+	from vagabond import quyen_ap as Q
+	import sys
+	goi = []
+	sys.modules["frappe.permissions"] = SimpleNamespace(
+		add_permission=lambda dt, vai, lv: goi.append(("add", dt, vai)),
+		update_permission_property=lambda dt, vai, lv, q, v: goi.append(("set", q)))
+	cu_thieu = Q._thieu
+	Q._thieu = lambda dt, vai, q: True
+	try:
+		try:
+			_voi(Q, SimpleNamespace(throw=_throw, clear_cache=lambda: None,
+				db=SimpleNamespace(exists=lambda dt, ten: True)), Q.cap_repost_v526)
+			loi = ""
+		except _Loi as e:
+			loi = str(e)
+	finally:
+		Q._thieu = cu_thieu
+		sys.modules.pop("frappe.permissions", None)
+	dung("báo thiếu", "chưa đủ" in loi)
+	dung("đã đi qua add_permission của Frappe", ("add", "Repost Accounting Ledger", "AP Kiểm soát (FIN)") in goi)
