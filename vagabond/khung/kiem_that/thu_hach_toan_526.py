@@ -133,6 +133,28 @@ def _tu_choi_giu():
 	la("tờ vẫn nháp", frappe.db.get_value("Purchase Invoice", hd.name, "docstatus"), 0)
 
 
+@ca("#526 v5 tờ đã nối: đổi nhà cung cấp rồi lưu nháp thì chặn, NCC vẫn như cũ")
+def _khoa_ncc():
+	hd = khong_nem("dựng tờ", lambda: _luu(_phieu([("Xăng E10 RON 95", 1, 80000)])))
+	if not hd:
+		return
+	ho_so = _ho_so_cho(hd)
+	ncc_cu = hd.supplier
+	khac = frappe.db.get_value("Supplier", {"name": ["!=", ncc_cu], "disabled": 0}, "name")
+	dung("có NCC khác để thử", bool(khac))
+	if not khac:
+		return
+	hd.reload()
+	hd.supplier = khac
+	try:
+		hd.save()
+		loi = ""
+	except frappe.ValidationError as e:
+		loi = str(e)
+	dung("chặn, gọi tên hồ sơ", ho_so in loi)
+	la("NCC vẫn như cũ", frappe.db.get_value("Purchase Invoice", hd.name, "supplier"), ncc_cu)
+
+
 @ca("#526 hồ sơ đã huỷ thì dấu nối hết hiệu lực, tờ hoá đơn ghi sổ lại bình thường")
 def _ho_so_huy():
 	hd = khong_nem("dựng tờ", lambda: _luu(_phieu([("Xăng E10 RON 95", 1, 80000)])))
