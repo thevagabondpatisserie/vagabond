@@ -1113,3 +1113,10 @@ Hồ sơ "Từ chối" KHÔNG phải trạng thái cuối: người lập sửa 
 cho chứng từ đó bị dùng lần hai trong lúc chờ (Codex #368 vòng 4). Chỉ Huỷ mới
 là cuối; trước khi coi một trạng thái là "hết hiệu lực", kiểm xem có bước nào
 đưa nó sống lại không.
+
+Luật mới cho một loại hồ sơ phải khoá đúng loại đó. v526 viết luật "hoá đơn
+đến sau chỉ nối tờ nháp, tờ đã nối không ghi sổ" cho hồ sơ Chi từ TK công ty
+nhưng áp lên mọi hồ sơ; hồ sơ trả NCC vốn nối tờ ĐÃ ghi sổ (tờ tạo công nợ)
+nên sẽ gãy luồng trả NCC. Bộ kiểm khung không thấy vì mọi ca dựng hồ sơ TK
+công ty; chỉ bench chạy ca tích hợp cũ #263 mới bắt được. Viết luật theo loại
+thì phải có ca cho CẢ loại không áp luật.
