@@ -80,13 +80,52 @@ def _so(v):
 		return 0
 
 
-def nen_hop_le(dong):
-	"""Hồ sơ chuyển sang hợp lệ khi MỌI khoản đều là hoá đơn đến sau và đã
-	nối đủ. Khoản nào không chờ hoá đơn là khoản không hoá đơn thật: đổi cả
-	hồ sơ sang hợp lệ là khai sai khi quyết toán. THUẦN."""
+# Tờ hoá đơn nối vào khoản chi phải khớp tiền khoản đó trong ngưỡng này mới
+# tính khoản là có hoá đơn thật (cùng ngưỡng lệch với màn Đối chiếu hoá đơn
+# mua, doi_chieu_mua.NGUONG_LECH).
+NGUONG_KHOP_TIEN = 1000.0
+
+
+def _tien(v):
+	try:
+		return float(v or 0)
+	except (TypeError, ValueError):
+		return 0.0
+
+
+def _dd(v):
+	return "{:,.0f}".format(_tien(v)).replace(",", ".")
+
+
+def lech_tien_hoa_don(dong, tong_hd, nguong=NGUONG_KHOP_TIEN):
+	"""Các khoản đã nối mà tổng tiền tờ hoá đơn lệch số tiền khoản quá ngưỡng.
+	THUẦN. tong_hd: {tờ hoá đơn: tổng tiền}; tờ không đọc được tổng coi là lệch."""
+	ra = []
+	for d in dong or []:
+		ma = (d.get("hoa_don_bo_sung") or "").strip()
+		if not ma:
+			continue
+		if ma not in (tong_hd or {}) or (tong_hd or {}).get(ma) is None:
+			ra.append("khoản %s: không đọc được tổng tiền tờ %s" % (d.get("idx") or "?", ma))
+			continue
+		if abs(_tien(tong_hd[ma]) - _tien(d.get("so_tien"))) > nguong:
+			ra.append("khoản %s: tờ %s %s đ, khoản chi %s đ" % (
+				d.get("idx") or "?", ma, _dd(tong_hd[ma]), _dd(d.get("so_tien"))))
+	return ra
+
+
+def nen_hop_le(dong, tong_hd=None):
+	"""Hồ sơ chuyển sang hợp lệ khi MỌI khoản đều là hoá đơn đến sau, đã nối
+	đủ, và (Codex #368 vòng 7) tờ nối vào khớp tiền khoản trong ngưỡng. Khoản
+	nào không chờ hoá đơn là khoản không hoá đơn thật: đổi cả hồ sơ sang hợp
+	lệ là khai sai khi quyết toán. Nối tờ nhỏ hay không liên quan vào khoản lớn
+	cũng vậy. THUẦN. tong_hd None: chỉ xét dấu nối (không dùng ở đường ghi)."""
 	ds = list(dong or [])
-	return bool(ds) and all(
+	du = bool(ds) and all(
 		_so(d.get("cho_hoa_don")) and (d.get("hoa_don_bo_sung") or "").strip() for d in ds)
+	if not du or tong_hd is None:
+		return du
+	return not lech_tien_hoa_don(ds, tong_hd)
 
 
 def loi_noi_hoa_don(docstatus_hd, ho_so_khac, da_huy=0, chi_nhap=True):
@@ -345,8 +384,20 @@ def noi_hoa_don(name, dong, hoa_don):
 	# thuế. Còn khoản không chờ hoá đơn thì giữ nguyên, đó là khoản không
 	# hoá đơn thật.
 	from vagabond.ho_so_tt import CP_HOP_LE, LOAI_TKCT
-	doi_hop_le = ((getattr(d, "loai", None) or "") == LOAI_TKCT and nen_hop_le(d.dong)
-		and (getattr(d, "loai_cp_thue", None) or "") != CP_HOP_LE)
+	la_tkct = (getattr(d, "loai", None) or "") == LOAI_TKCT
+	lech = []
+	doi_hop_le = False
+	if la_tkct and nen_hop_le(d.dong):
+		# Codex #368 vòng 7: so tiền từng tờ với khoản của nó trước khi đổi cả
+		# hồ sơ sang hợp lệ. Lệch thì vẫn nối (tờ là chứng từ thật của NCC),
+		# nhưng hồ sơ giữ loại cũ và báo rõ khoản nào lệch.
+		tong_hd = {}
+		for x in d.dong:
+			ma = (x.get("hoa_don_bo_sung") or "").strip()
+			if ma:
+				tong_hd[ma] = frappe.db.get_value("Purchase Invoice", ma, "grand_total")
+		lech = lech_tien_hoa_don(d.dong, tong_hd)
+		doi_hop_le = not lech and (getattr(d, "loai_cp_thue", None) or "") != CP_HOP_LE
 	if doi_hop_le:
 		d.loai_cp_thue = CP_HOP_LE
 	# Khong goi kiem_bo_sung o day: luc nay get_doc_before_save() con None nen
@@ -354,8 +405,9 @@ def noi_hoa_don(name, dong, hoa_don):
 	# trong validate voi ban cu that, do moi la cua duy nhat.
 	d.save(ignore_permissions=True)
 	d.add_comment("Comment", "Nối hóa đơn bổ sung %s vào khoản %s. Không phát sinh bút toán thanh toán.%s" % (
-		hoa_don, dong, " Đủ hoá đơn cho mọi khoản, hồ sơ chuyển sang chi phí hợp lệ tính thuế." if doi_hop_le else ""))
-	return {"ok": 1, "hop_le": 1 if doi_hop_le else 0}
+		hoa_don, dong, " Đủ hoá đơn cho mọi khoản, hồ sơ chuyển sang chi phí hợp lệ tính thuế." if doi_hop_le else (
+			" Chưa chuyển hợp lệ tính thuế vì tiền lệch: " + "; ".join(lech) + "." if lech else "")))
+	return {"ok": 1, "hop_le": 1 if doi_hop_le else 0, "lech": lech}
 
 
 @frappe.whitelist()
