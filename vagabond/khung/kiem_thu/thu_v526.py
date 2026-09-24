@@ -446,12 +446,18 @@ def _loi_noi():
 	dung("hồ sơ khác", "APP-9" in loi_noi_hoa_don(0, "APP-9"))
 
 
-def _noi(loai, dong, cp="Chi phi khong hop le"):
+def _noi(loai, dong, cp="Chi phi khong hop le", tong_hd=None):
+	"""tong_hd: {tờ hoá đơn: tổng tiền}. Bỏ trống thì mọi tờ khớp đúng số khoản."""
 	from unittest.mock import Mock, patch
 	import frappe
 	from vagabond import ho_so_bo_sung as bo, ho_so_tt as hs
 	d = SimpleNamespace(dong=dong, save=Mock(), add_comment=Mock(), loai=loai, loai_cp_thue=cp)
-	with patch.object(frappe, "db", SimpleNamespace(sql=Mock())), \
+
+	def get_value(dt, ten, truong=None, *a, **k):
+		if tong_hd is not None:
+			return tong_hd.get(ten)
+		return next((x.get("so_tien") for x in dong if x.get("hoa_don_bo_sung") == ten), 0)
+	with patch.object(frappe, "db", SimpleNamespace(sql=Mock(), get_value=get_value)), \
 		patch.object(frappe, "get_doc", return_value=d), patch.object(hs, "_kiem"):
 		kq = bo.noi_hoa_don("APP-THU", 1, "PI-THU")
 	return d, kq
@@ -459,7 +465,7 @@ def _noi(loai, dong, cp="Chi phi khong hop le"):
 
 @ca("#526 nối đủ hoá đơn cho hồ sơ chi từ TK công ty thì chuyển Hợp lệ tính thuế")
 def _noi_hop_le():
-	r = _D(cho_hoa_don=1, hoa_don_bo_sung="")
+	r = _D(cho_hoa_don=1, hoa_don_bo_sung="", so_tien=80000)
 	d, kq = _noi("TK cong ty", [r])
 	la("chuyển hợp lệ", d.loai_cp_thue, "Chi phi hop le")
 	la("báo màn", kq["hop_le"], 1)
@@ -954,6 +960,37 @@ def _mot_nguon_ho_so_chi():
 	# chi tiết từng tự gọi ho_so_dang_giu không lọc loại hồ sơ.
 	la("không còn chỗ gọi ho_so_dang_giu trong doi_chieu_mua", s.count("ho_so_dang_giu("), 0)
 	la("xem dùng _ho_so_chi_theo_hd", s.count("_ho_so_chi_theo_hd([name])"), 1)
+
+
+# Codex #368 vòng 7 (4035d41): đổi cả hồ sơ sang Hợp lệ tính thuế chỉ xét
+# "mọi khoản đã nối tờ", không so tiền. Nối một tờ nhỏ hay không liên quan của
+# cùng NCC vào khoản lớn là cả khoản thành chi phí hợp lệ.
+
+@ca("#526 v7 tờ nối lệch tiền khoản quá 1.000 đ: vẫn nối, KHÔNG đổi hồ sơ sang hợp lệ, báo lệch")
+def _noi_lech_tien():
+	r = _D(cho_hoa_don=1, hoa_don_bo_sung="", so_tien=80000)
+	d, kq = _noi("TK cong ty", [r], tong_hd={"PI-THU": 5000})
+	la("giữ không hợp lệ", d.loai_cp_thue, "Chi phi khong hop le")
+	la("không báo hợp lệ", kq["hop_le"], 0)
+	dung("báo lệch, có số tiền hai bên", any("PI-THU" in x and "5.000" in x and "80.000" in x for x in kq.get("lech") or []))
+	la("vẫn nối tờ vào khoản", r.hoa_don_bo_sung, "PI-THU")
+
+
+@ca("#526 v7 tờ nối lệch trong 1.000 đ (làm tròn) vẫn đổi hồ sơ sang hợp lệ")
+def _noi_lech_nho():
+	r = _D(cho_hoa_don=1, hoa_don_bo_sung="", so_tien=80000)
+	d, kq = _noi("TK cong ty", [r], tong_hd={"PI-THU": 80900})
+	la("chuyển hợp lệ", d.loai_cp_thue, "Chi phi hop le")
+
+
+@ca("#526 v7 luật thuần: mọi khoản đã nối và khớp tiền mới hợp lệ; tờ thiếu tổng tiền thì không")
+def _nen_hop_le_tien():
+	from vagabond.ho_so_bo_sung import nen_hop_le
+	a = _D(cho_hoa_don=1, hoa_don_bo_sung="HD-A", so_tien=100000)
+	b = _D(cho_hoa_don=1, hoa_don_bo_sung="HD-B", so_tien=50000)
+	la("khớp cả hai", nen_hop_le([a, b], {"HD-A": 100000, "HD-B": 50500}), True)
+	la("một tờ lệch", nen_hop_le([a, b], {"HD-A": 100000, "HD-B": 20000}), False)
+	la("không đọc được tổng tờ", nen_hop_le([a, b], {"HD-A": 100000}), False)
 
 
 # ------------------------------------------------------------ quyền Repost
