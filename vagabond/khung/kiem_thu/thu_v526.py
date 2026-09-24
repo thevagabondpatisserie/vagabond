@@ -381,6 +381,48 @@ def _gl_632_hop_le():
 	la("chốt", ghi["commit"], 1)
 
 
+# Codex #368 vòng 3 (c1674cf): tờ TRẢ HÀNG (is_return) có tiền âm, sổ cái Có
+# thay vì Nợ. Luật một chiều "được Nợ ít nhất bằng" thì với -80.000 luôn đạt,
+# nên Có rơi vào 632 vẫn chốt. Luật nay so CÙNG CHIỀU theo dấu.
+
+@ca("#526 v3 tờ trả hàng: dòng chọn 6417 mà sổ cái Có vào 632 thì huỷ giao dịch")
+def _gl_tra_hang_lech():
+	doc = _to([("R1", "", "", T632)], is_return=1)
+	doc.items[0].amount = -80000
+	kq, loi, ghi = _chay_ghi(doc, json.dumps({"R1": T6417}), gl={T632: -80000})
+	dung("báo lệch sổ cái", "sổ cái" in loi)
+	la("không chốt", ghi["commit"], 0)
+
+
+@ca("#526 v3 tờ trả hàng, chỉ luật 1: phần Có của 6417 rơi sang tài khoản khác không phải 632, vẫn huỷ")
+def _gl_tra_hang_luat_1():
+	# Ca trên vi phạm cả hai luật (632 bị Có) nên gỡ riêng luật chiều âm thì
+	# luật 632 vẫn đỡ (điều 17c). Ca này chỉ vi phạm luật 1.
+	doc = _to([("R1", "", "", T632)], is_return=1)
+	doc.items[0].amount = -80000
+	kq, loi, ghi = _chay_ghi(doc, json.dumps({"R1": T6417}), gl={"6427 - Chi phí khác - TV": -80000})
+	dung("báo thiếu Có 6417", T6417 in loi and "sổ cái" in loi)
+	la("không chốt", ghi["commit"], 0)
+
+
+@ca("#526 v3 tờ trả hàng đúng: sổ cái Có 6417 đủ số thì chốt, không báo lệch giả")
+def _gl_tra_hang_dung():
+	doc = _to([("R1", "", "", T632)], is_return=1)
+	doc.items[0].amount = -80000
+	kq, loi, ghi = _chay_ghi(doc, json.dumps({"R1": T6417}), gl={T6417: -80000})
+	la("không lỗi", loi, "")
+	la("chốt", ghi["commit"], 1)
+
+
+@ca("#526 v3 tờ trả hàng: Có đủ 6417 nhưng 632 bị Có thêm mà không dòng nào mang 632, vẫn huỷ")
+def _gl_tra_hang_632():
+	doc = _to([("R1", "", "", T632)], is_return=1)
+	doc.items[0].amount = -80000
+	kq, loi, ghi = _chay_ghi(doc, json.dumps({"R1": T6417}), gl={T6417: -80000, T632: -5000})
+	dung("báo 632", T632 in loi and "không dòng nào" in loi)
+	la("không chốt", ghi["commit"], 0)
+
+
 # ------------------------------------------------------------ hoá đơn đến sau
 
 @ca("#526 hồ sơ thành hợp lệ khi MỌI khoản đều chờ hoá đơn và đã nối đủ")
@@ -607,6 +649,36 @@ def _huy_to_da_noi():
 	finally:
 		B.chan_huy = cu_bv
 		bo.frappe, C.frappe = cu_bo, cu_c
+
+
+# Codex #368 vòng 3 (c1674cf): danh_dau_huy xét docstatus trên doc đã nạp từ
+# trước. Một giao dịch ghi sổ chen vào thì khoá tờ trả docstatus 1 hiện hành
+# nhưng chan_huy_hd_da_noi bỏ qua kết quả đó, và tờ ĐÃ GHI SỔ bị gắn dấu huỷ
+# mà sổ cái không đảo.
+
+@ca("#526 v3 huỷ mềm khi tờ vừa bị người khác ghi sổ (doc đã nạp còn nháp): đọc hiện hành, chặn, không gắn dấu huỷ")
+def _huy_to_vua_ghi_so():
+	from vagabond import chung_tu as C, ho_so_bo_sung as bo
+	import vagabond.bao_ve_hddt as B
+	ghi = []
+	sql, so = _db_hai_mat(docstatus_hien_hanh=1)
+	cu_bo, cu_c, cu_bv = bo.frappe, C.frappe, B.chan_huy
+	B.chan_huy = lambda doc: None
+	bo.frappe = SimpleNamespace(throw=_throw, db=_db(sql))
+	C.frappe = SimpleNamespace(throw=_throw, session=SimpleNamespace(user="dung@x"),
+		db=SimpleNamespace(set_value=lambda *a, **k: ghi.append(a[1]), commit=lambda: None))
+	try:
+		try:
+			C.danh_dau_huy(_D(doctype="Purchase Invoice", name="HDM-Z", docstatus=0), "nhập trùng", ghi_vet=False)
+			loi = ""
+		except _Loi as e:
+			loi = str(e)
+	finally:
+		B.chan_huy = cu_bv
+		bo.frappe, C.frappe = cu_bo, cu_c
+	dung("chặn vì đã ghi sổ", "đã ghi sổ" in loi)
+	la("không gắn dấu huỷ", ghi, [])
+	dung("đọc tờ bằng câu có khoá", ("hd", True) in so)
 
 
 # ------------------------------------------------------------ quyền Repost
