@@ -72,10 +72,12 @@ async function scrDoiChieuMua() {
 }
 
 function dcmChip(d) {
-  var the = function (bg, fg, chu) {
-    return '<span style="display:inline-block;background:' + bg + ';color:' + fg + ';font-size:12px;font-weight:700;border-radius:999px;padding:3px 10px;margin:2px 5px 0 0;white-space:nowrap">' + chu + '</span>';
+  var the = function (bg, fg, chu, tieu) {
+    return '<span' + (tieu ? ' title="' + h(tieu) + '"' : '') + ' style="display:inline-block;background:' + bg + ';color:' + fg + ';font-size:12px;font-weight:700;border-radius:999px;padding:3px 10px;margin:2px 5px 0 0;white-space:nowrap">' + chu + '</span>';
   };
-  if (d.ho_so_chi) return the('#dbeafe', '#1e40af', '🧾 Chứng từ của hồ sơ ' + h(d.ho_so_chi) + ', không ghi sổ');
+  /* v526 vong 4: nhan gon "🧾 Hồ sơ · 0123", cau day du trong title (AGENTS.md muc 18). */
+  if (d.ho_so_chi) return the('#dbeafe', '#1e40af', '🧾 Hồ sơ · ' + h(String(d.ho_so_chi).slice(-4)),
+    'Chứng từ (hoá đơn đến sau) của hồ sơ ' + d.ho_so_chi + ', không ghi sổ');
   if (d.nhom === 'xong') return the('#dcfce7', '#166534', '✅ Đã ghi sổ');
   if (d.nhom === 'huy') return the('#fee2e2', '#991b1b', '🚫 Đã huỷ');
   if (d.noi_cu) return the('#fee2e2', '#991b1b', '⚠️ Phiếu nhập đã bị hoá đơn khác lấy, nối lại');
@@ -507,8 +509,8 @@ async function scrDcmHachToan(name) {
     if (d.sua_duoc && !tk) thieu++;
     if (sai) co632++;
     html += '<div style="padding:11px 14px;border-bottom:1px solid #f2f4f7">' +
-      '<div style="display:flex;justify-content:space-between;gap:10px">' +
-      '<span style="font-size:13.5px;font-weight:600">' + d.idx + '. ' + h(d.ten_hang || '(không tên)') + '</span>' +
+      '<div style="display:flex;align-items:center;gap:10px">' + anhMon(d.anh) +
+      '<span style="flex:1;min-width:0;font-size:13.5px;font-weight:600">' + d.idx + '. ' + h(d.ten_hang || '(không tên)') + '</span>' +
       '<b style="white-space:nowrap">' + money(d.tien) + ' đ</b></div>';
     if (d.sua_duoc) {
       html += '<div data-dcmtk="' + h(d.ten) + '" style="margin-top:7px;cursor:pointer;border:1.5px solid ' +
