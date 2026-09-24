@@ -82,11 +82,14 @@ def khi_luu_mon(doc, method=None):
 	if (doc.get("item_group") or "").strip() != NHOM:
 		return
 	truoc = None if doc.is_new() else doc.get_doc_before_save()
-	if truoc is not None and cint(truoc.get("is_stock_item")) and frappe.db.exists(
-		"Stock Ledger Entry", {"item_code": doc.name, "is_cancelled": 0}
+	vua_vao = truoc is not None and (truoc.get("item_group") or "").strip() != NHOM
+	if truoc is not None and (vua_vao or cint(truoc.get("is_stock_item"))) and frappe.db.exists(
+		"Stock Ledger Entry", {"item_code": doc.name}
 	):
 		# Hook này chạy SAU phép chặn đổi cờ quản kho của ERPNext, nên phải tự
-		# chặn: đặt về 0 ở đây là lách qua luật của lõi.
+		# chặn: đặt về 0 ở đây là lách qua luật của lõi. Codex #364 v1: xét cả
+		# sổ kho ĐÃ HUỶ, và cả món đang không quản kho mà từng có sổ kho: mã đã
+		# từng đi kho thì không đổi nghĩa thành CCDC dùng ngay.
 		frappe.throw(
 			"Món %s đã có sổ kho nên không chuyển sang nhóm \"%s\" được. "
 			"Mở một mã mới trong nhóm này cho lần mua sau." % (doc.name, NHOM)
@@ -110,7 +113,14 @@ def khi_luu_mon(doc, method=None):
 def dung():
 	"""Dựng nhóm CCDC dùng ngay và mặc định 242 của nhóm. Lặp lại được."""
 	if not frappe.db.exists("Item Group", CHA):
-		return {"nhom": 0, "ly_do": "chưa có nhóm cha %s" % CHA}
+		# Site thật đã có cây Mua vào / Bán ra / Sản xuất. Bench dựng mới thì
+		# chưa: dựng nhóm cha dưới gốc, thay vì bỏ qua rồi báo xong (Codex #364 v2).
+		from frappe.utils.nestedset import get_root_of
+
+		cha = frappe.get_doc({"doctype": "Item Group", "item_group_name": CHA,
+			"parent_item_group": get_root_of("Item Group"), "is_group": 1})
+		cha.flags.ignore_permissions = True
+		cha.insert()
 	tao = 0
 	if not frappe.db.exists("Item Group", NHOM):
 		g = frappe.get_doc({"doctype": "Item Group", "item_group_name": NHOM,
@@ -134,4 +144,11 @@ def dung():
 	if viec:
 		g.flags.ignore_permissions = True
 		g.save()
+	con = dong_can_dat(
+		[{"company": d.company, "expense_account": d.expense_account}
+			for d in frappe.get_doc("Item Group", NHOM).get("item_group_defaults") or []],
+		tk_theo_cong_ty(),
+	)
+	if con:
+		frappe.throw("Nhóm %s chưa nhận đủ mặc định 242: %s" % (NHOM, con))
 	return {"nhom": tao, "mac_dinh": len(viec)}

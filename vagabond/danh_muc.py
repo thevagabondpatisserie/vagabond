@@ -410,7 +410,7 @@ def tao(
 	day_du = _ten_day_du(l, ten, qc)
 
 	if not cint(bo_qua_trung):
-		trung = [t for t in tim_trung(ten=ten, quy_cach=qc, nhom=nhom, loai=loai) if t["muc"] >= 3]
+		trung = [t for t in tim_trung(ten=ten, quy_cach=qc, nhom=nhom, loai=l["k"]) if t["muc"] >= 3]
 		if trung:
 			frappe.throw(
 				"Đã có mã %s tên \"%s\" (nhóm %s). Dùng lại mã đó, hoặc bấm Tạo "
