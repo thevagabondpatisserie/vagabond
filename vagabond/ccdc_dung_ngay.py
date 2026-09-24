@@ -1,42 +1,63 @@
-"""Nhóm "CCDC dùng ngay": công cụ dụng cụ mua về dùng luôn, đi thẳng 242.
+"""Dấu tick "Đi 242" trên mã món: công cụ dụng cụ mua về dùng luôn đi thẳng 242.
 
-Vì sao có mô đun này (v524, anh Việt chốt 24/09/2026)
+Vì sao có mô đun này
 --------------------------------------------------------------------
-Uyên mua quạt cho nhân viên (hoá đơn Điện Máy Xanh, Midea FS40-24EVN) và hỏi
-có phải làm phiếu nhập kho, nối phiếu nhập kho không. Chị Dung: "CCDC chị hay
-hạch toán vào 242 chứ không qua 153".
+Uyên mua quạt cho nhân viên (hoá đơn Điện Máy Xanh) và hỏi có phải làm
+phiếu nhập kho không. Chị Dung: "CCDC chị hay hạch toán vào 242 chứ không
+qua 153". Trên site cả 265 mã CCDC đều là hàng quản kho, nên hoá đơn nào
+cũng đòi phiếu nhập kho.
 
-Trên site lúc đó cả 265 món nhóm Công cụ Dụng cụ đều là hàng quản kho, nhóm
-mặc định tài khoản 153 và Kho tổng 307, nên mọi hoá đơn CCDC đều đòi phiếu
-nhập kho. Không có loại món nào "mua về, không quản kho, vào 242".
+v524 làm một nhóm mới "CCDC dùng ngay" với tiền tố mã CCDN. Anh Việt không
+duyệt cách đó (24/09/2026): không tạo mã mới, dùng lại mã cũ, và làm "thành
+dấu tick thôi như kiểu chặng của bánh". v525 thay bằng đúng một ô tick trên
+hồ sơ món, gỡ nhóm và tiền tố của v524.
 
-Cách làm
---------
-1. Một nhóm lá mới "CCDC dùng ngay" nằm THẲNG dưới "Mua vào", KHÔNG nằm dưới
-   nhánh Công cụ Dụng cụ: lưới đỡ nhóm theo tồn (luoi_do_nhom.py) coi mọi
-   nhóm con của nhánh CCDC là 153.
-2. Món thuộc nhóm này luôn là món mua, không quản kho, và Item Default của
-   từng công ty có tài khoản chi phí = tài khoản số 242 của công ty đó.
-   Vì sao ghi trên TỪNG MÓN: hook tk_theo_mon (dung_lai_hddt.py) đọc Item
-   Default của chính món, không đọc mặc định của nhóm.
-3. Hàng không quản kho thì các cửa nối phiếu nhập kho đều bỏ qua dòng đó
-   (doi_chieu_mua._khong_qua_kho, buoc_hoa_don_mua), nên không cần PNK.
+Luật (anh Việt chốt 24/09/2026)
+--------------------------------------------------------------------
+- Tick "Đi 242": món thành món mua, không quản kho, không bán; Item Default
+  mỗi công ty có tài khoản chi phí = tài khoản số 242 của công ty đó. Hoá đơn
+  mua dựng từ hoá đơn điện tử đọc Item Default này (dung_lai_hddt.tk_theo_mon)
+  nên dòng đi 242, và hàng không quản kho thì không cần phiếu nhập kho.
+- Bỏ tick: gỡ tài khoản 242 khỏi Item Default. Cờ quản kho KHÔNG tự bật lại,
+  kế toán tự quyết.
+- Món ĐÃ có sổ kho (kể cả dòng đã huỷ) thì không tick được: ERPNext không cho
+  đổi hàng đã có sổ kho sang không quản kho, và tiền nhập kho đi theo tài
+  khoản của kho chứ không theo mã. 101 mã như vậy chờ chị Dung quyết.
+- Mã mới mở trong hai nhóm CCDC tự được tick sẵn.
+- Patch v525 tick sẵn mọi mã CCDC đang dùng mà chưa từng có sổ kho (164 mã
+  trên site ngày 24/09/2026).
 
-KHÔNG làm ở đây
----------------
-- Không chuyển các mã CCDC cũ (đã có tồn và lịch sử kho) sang nhóm mới. Món
-  đã có sổ kho mà chuyển sang nhóm này thì chặn, mở mã mới.
-- Không tự phân bổ 242 sang chi phí hàng tháng: kế toán vẫn làm bút toán
-  phân bổ như đang làm.
+KHÔNG làm ở đây: không tự phân bổ 242 sang chi phí hằng tháng; không đụng
+101 mã có sổ kho, không sửa số tồn cũ.
 """
 
-import frappe
-from frappe.utils import cint
+from frappe.utils import cint, flt
 
-NHOM = "CCDC dùng ngay"
-CHA = "Mua vào"
-TIEN_TO = "CCDN"
+import frappe
+
+O_TICK = "custom_di_242"
 SO_TK = "242"
+NHOM_CCDC = ("Công cụ Dụng cụ", "Công cụ dụng cụ Sonneto")
+
+TRUONG_MOI = {"Item": [
+	{
+		"fieldname": O_TICK, "label": "Đi 242 (CCDC dùng ngay)",
+		"fieldtype": "Check", "default": "0",
+		"insert_after": "custom_chang_btp",
+		"description": "Công cụ dụng cụ mua về dùng luôn: hoá đơn mua đi thẳng "
+			"tài khoản 242, không quản kho, không cần phiếu nhập kho. Mã đã có "
+			"sổ kho thì không tick được.",
+	},
+]}
+
+# Cờ của món đã tick. Theo lô và số sê-ri chỉ có nghĩa với hàng quản kho: để
+# nguyên thì món không quản kho vẫn đòi lô khi lập chứng từ. Một nguồn cho cả
+# hook lẫn patch.
+CO_TICK = {"is_stock_item": 0, "is_purchase_item": 1, "is_sales_item": 0,
+	"has_batch_no": 0, "has_serial_no": 0}
+
+# Nhóm và tiền tố v524 bị gỡ. Patch v525 xoá nhóm nếu không có món nào.
+NHOM_V524 = "CCDC dùng ngay"
 
 
 # ------------------------------------------------------------ phần thuần
@@ -65,6 +86,24 @@ def dong_can_dat(hien_co, tk_theo_cty):
 	return ra
 
 
+def viec_khi_luu(moi, tick, tick_truoc, nhom, co_so_kho):
+	"""Hook lưu món phải làm gì. THUẦN.
+
+	Trả về một trong: "tick" (đặt món về không quản kho, 242), "go" (gỡ 242),
+	"chan" (món có sổ kho mà bị tick), "" (không làm gì).
+	moi: món mới tạo. tick / tick_truoc: ô tick bây giờ và trước khi lưu.
+	"""
+	if moi and not tick and (nhom or "").strip() in NHOM_CCDC:
+		tick = 1  # mã mới trong nhóm CCDC: tick sẵn
+	if tick:
+		if co_so_kho:
+			return "chan"
+		return "tick"
+	if tick_truoc:
+		return "go"
+	return ""
+
+
 # ------------------------------------------------------------ phần chạm hệ
 
 def tk_theo_cong_ty():
@@ -77,81 +116,118 @@ def tk_theo_cong_ty():
 	return ra
 
 
+def _co_so_kho(ma):
+	# Xét cả dòng đã huỷ (Codex #364 v1): mã đã từng đi kho thì không đổi nghĩa.
+	return bool(ma) and bool(frappe.db.exists("Stock Ledger Entry", {"item_code": ma}))
+
+
 def khi_luu_mon(doc, method=None):
-	"""Hook validate Item: món nhóm CCDC dùng ngay luôn không quản kho, đi 242."""
-	if (doc.get("item_group") or "").strip() != NHOM:
-		return
-	truoc = None if doc.is_new() else doc.get_doc_before_save()
-	vua_vao = truoc is not None and (truoc.get("item_group") or "").strip() != NHOM
-	if truoc is not None and (vua_vao or cint(truoc.get("is_stock_item"))) and frappe.db.exists(
-		"Stock Ledger Entry", {"item_code": doc.name}
-	):
+	"""Hook validate Item cho ô tick Đi 242."""
+	moi = doc.is_new()
+	truoc = None if moi else doc.get_doc_before_save()
+	tick = cint(doc.get(O_TICK))
+	tick_truoc = cint(truoc.get(O_TICK)) if truoc is not None else 0
+	# Chỉ tra sổ kho khi cần, món không đụng ô tick thì không tốn truy vấn.
+	can_tra = bool(tick) or (moi and (doc.get("item_group") or "").strip() in NHOM_CCDC)
+	viec = viec_khi_luu(moi, tick, tick_truoc, doc.get("item_group"),
+		_co_so_kho(doc.name) if (can_tra and not moi) else False)
+	if viec == "chan":
 		# Hook này chạy SAU phép chặn đổi cờ quản kho của ERPNext, nên phải tự
-		# chặn: đặt về 0 ở đây là lách qua luật của lõi. Codex #364 v1: xét cả
-		# sổ kho ĐÃ HUỶ, và cả món đang không quản kho mà từng có sổ kho: mã đã
-		# từng đi kho thì không đổi nghĩa thành CCDC dùng ngay.
-		frappe.throw(
-			"Món %s đã có sổ kho nên không chuyển sang nhóm \"%s\" được. "
-			"Mở một mã mới trong nhóm này cho lần mua sau." % (doc.name, NHOM)
-		)
-	doc.is_stock_item = 0
-	doc.is_purchase_item = 1
-	# Codex #364 v2: quạt, dụng cụ vào 242 không bán cho khách. Còn cờ bán
-	# thì món hiện ở màn Bill quầy và vào được hoá đơn khách.
-	doc.is_sales_item = 0
-	for cty, tk, viec in dong_can_dat(
-		[{"company": d.get("company"), "expense_account": d.get("expense_account")}
-			for d in doc.get("item_defaults") or []],
-		tk_theo_cong_ty(),
-	):
-		if viec == "them":
-			doc.append("item_defaults", {"company": cty, "expense_account": tk})
-			continue
+		# chặn: đặt về 0 ở đây là lách qua luật của lõi.
+		frappe.throw("Món %s đã có sổ kho nên không tick \"Đi 242\" được. Mã đã từng "
+			"nhập kho vẫn hạch toán theo kho; hỏi kế toán cách xử lý." % doc.name)
+	tk = tk_theo_cong_ty() if viec in ("tick", "go") else {}
+	if viec == "tick":
+		if flt(doc.get("opening_stock")):
+			# Lõi chỉ lập phiếu tồn đầu kỳ cho món quản kho: để nguyên thì số
+			# tồn người vừa gõ biến mất không một lời.
+			frappe.throw("Món %s được tick \"Đi 242\" nên không quản kho: bỏ ô Tồn "
+				"đầu kỳ, hoặc bỏ tick nếu món này phải theo dõi tồn." % (doc.name or ""))
+		doc.set(O_TICK, 1)
+		for k, v in CO_TICK.items():
+			doc.set(k, v)
+		for cty, ten_tk, loai in dong_can_dat(
+			[{"company": d.get("company"), "expense_account": d.get("expense_account")}
+				for d in doc.get("item_defaults") or []], tk):
+			if loai == "them":
+				doc.append("item_defaults", {"company": cty, "expense_account": ten_tk})
+				continue
+			for d in doc.get("item_defaults") or []:
+				if (d.get("company") or "").strip() == cty:
+					d.expense_account = ten_tk
+					break
+	elif viec == "go":
+		dat = set(tk.values())
 		for d in doc.get("item_defaults") or []:
-			if (d.get("company") or "").strip() == cty:
-				d.expense_account = tk
-				break
+			if (d.get("expense_account") or "") in dat:
+				d.expense_account = None
+
+
+def _ma_can_tick():
+	"""Mã CCDC đang dùng, chưa tick, chưa từng có sổ kho."""
+	ds = frappe.get_all("Item", filters={"item_group": ["in", list(NHOM_CCDC)], "disabled": 0},
+		fields=["name", O_TICK], limit_page_length=0)
+	return [d.name for d in ds if not cint(d.get(O_TICK)) and not _co_so_kho(d.name)]
 
 
 def dung():
-	"""Dựng nhóm CCDC dùng ngay và mặc định 242 của nhóm. Lặp lại được."""
-	if not frappe.db.exists("Item Group", CHA):
-		# Site thật đã có cây Mua vào / Bán ra / Sản xuất. Bench dựng mới thì
-		# chưa: dựng nhóm cha dưới gốc, thay vì bỏ qua rồi báo xong (Codex #364 v2).
-		from frappe.utils.nestedset import get_root_of
+	"""Patch v525. Lặp lại được. Lỗi thì làm hỏng migrate, không nuốt."""
+	from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 
-		cha = frappe.get_doc({"doctype": "Item Group", "item_group_name": CHA,
-			"parent_item_group": get_root_of("Item Group"), "is_group": 1})
-		cha.flags.ignore_permissions = True
-		cha.insert()
-	tao = 0
-	if not frappe.db.exists("Item Group", NHOM):
-		g = frappe.get_doc({"doctype": "Item Group", "item_group_name": NHOM,
-			"parent_item_group": CHA, "is_group": 0})
-		g.flags.ignore_permissions = True
-		g.insert()
-		tao = 1
-	g = frappe.get_doc("Item Group", NHOM)
-	viec = dong_can_dat(
-		[{"company": d.company, "expense_account": d.expense_account}
-			for d in g.get("item_group_defaults") or []],
-		tk_theo_cong_ty(),
-	)
-	for cty, tk, loai in viec:
-		if loai == "them":
-			g.append("item_group_defaults", {"company": cty, "expense_account": tk})
-		else:
-			for d in g.get("item_group_defaults") or []:
-				if d.company == cty:
-					d.expense_account = tk
-	if viec:
-		g.flags.ignore_permissions = True
-		g.save()
-	con = dong_can_dat(
-		[{"company": d.company, "expense_account": d.expense_account}
-			for d in frappe.get_doc("Item Group", NHOM).get("item_group_defaults") or []],
-		tk_theo_cong_ty(),
-	)
-	if con:
-		frappe.throw("Nhóm %s chưa nhận đủ mặc định 242: %s" % (NHOM, con))
-	return {"nhom": tao, "mac_dinh": len(viec)}
+	# Patch chạy trước after_migrate, nên ô tick chưa có: dựng ở đây. Lượt
+	# after_migrate (truong_tu_them) dựng lại, lặp lại được.
+	create_custom_fields(TRUONG_MOI, update=True)
+	frappe.db.updatedb("Item")
+	frappe.clear_cache(doctype="Item")
+	kq = tick_ma_cu()
+	kq["xoa_nhom_v524"] = go_nhom_v524()
+	return kq
+
+
+def tick_ma_cu():
+	"""Tick sẵn mọi mã CCDC đang dùng mà chưa từng có sổ kho. Không DDL."""
+	tk = tk_theo_cong_ty()
+	da_tick = []
+	for ma in _ma_can_tick():
+		# Ghi thẳng như luoi_do_nhom.ap_dung: không gọi save() để một luật lưu
+		# món khác không liên quan làm hỏng cả lượt. Món chưa có sổ kho nên
+		# đổi cờ quản kho không đụng tồn.
+		frappe.db.set_value("Item", ma, dict(CO_TICK, **{O_TICK: 1}), update_modified=False)
+		hien = frappe.get_all("Item Default", filters={"parent": ma, "parenttype": "Item"},
+			fields=["name", "company", "expense_account"], limit_page_length=0)
+		for cty, ten_tk, loai in dong_can_dat(hien, tk):
+			if loai == "sua":
+				ten = next(d.name for d in hien if (d.company or "").strip() == cty)
+				frappe.db.set_value("Item Default", ten, "expense_account", ten_tk,
+					update_modified=False)
+			else:
+				dong = frappe.new_doc("Item Default")
+				dong.update({"parent": ma, "parenttype": "Item", "parentfield": "item_defaults",
+					"company": cty, "expense_account": ten_tk,
+					"idx": len(hien) + 1})
+				dong.db_insert()
+		da_tick.append(ma)
+	frappe.clear_cache(doctype="Item")
+
+	# Soát lại: mọi mã đã tick phải không quản kho và đủ 242.
+	sai = []
+	for ma in da_tick:
+		if cint(frappe.db.get_value("Item", ma, "is_stock_item")):
+			sai.append(ma)
+			continue
+		hien = frappe.get_all("Item Default", filters={"parent": ma, "parenttype": "Item"},
+			fields=["company", "expense_account"], limit_page_length=0)
+		if dong_can_dat(hien, tk):
+			sai.append(ma)
+	if sai:
+		frappe.throw("Tick Đi 242 chưa đủ cho %d mã: %s" % (len(sai), ", ".join(sai[:20])))
+	return {"tick": len(da_tick), "ma": da_tick}
+
+
+def go_nhom_v524():
+	"""Gỡ nhóm "CCDC dùng ngay" của v524 nếu không có món nào (site 24/09: 0 món)."""
+	if frappe.db.exists("Item Group", NHOM_V524) and not frappe.db.exists(
+			"Item", {"item_group": NHOM_V524}):
+		frappe.delete_doc("Item Group", NHOM_V524, ignore_permissions=True, force=True)
+		return 1
+	return 0
