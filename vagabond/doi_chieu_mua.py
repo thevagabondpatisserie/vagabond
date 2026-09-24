@@ -263,12 +263,15 @@ def _ho_so_chi_theo_hd(ten_hd):
 	if not ten_hd:
 		return {}
 	from vagabond.ho_so_bo_sung import TT_HET_HIEU_LUC
+	from vagabond.ho_so_tt import LOAI_TKCT
 	ra = {}
+	# Chỉ hồ sơ Chi từ TK công ty: tờ nối vào hồ sơ trả NCC vẫn phải ghi sổ.
 	for ten, ho_so in frappe.db.sql(
 		"""select d.hoa_don_bo_sung, p.name from `tabVagabond Ho So TT Dong` d
 		inner join `tabVagabond Ho So TT` p on p.name = d.parent
-		where d.hoa_don_bo_sung in %s and ifnull(p.trang_thai, '') not in %s""",
-		(tuple(ten_hd), TT_HET_HIEU_LUC)):
+		where d.hoa_don_bo_sung in %s and p.loai = %s
+			and ifnull(p.trang_thai, '') not in %s""",
+		(tuple(ten_hd), LOAI_TKCT, TT_HET_HIEU_LUC)):
 		ra.setdefault(ten, ho_so)
 	return ra
 
