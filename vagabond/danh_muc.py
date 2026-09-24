@@ -231,9 +231,13 @@ def cai_dat():
 		order_by="name asc",
 		limit_page_length=0,
 	)
+	# v525 (Codex #365 v3): nhóm "CCDC dùng ngay" của v524 ngừng dùng nhưng
+	# giữ lại (không xoá dữ liệu), nên không bày ra cho người chọn nữa.
+	from vagabond.ccdc_dung_ngay import NHOM_V524
 	return {
 		"nhom": [
 			{"ten": r["name"], "bep": r.get("custom_bep_phu_trach") or ""} for r in nhom
+			if r["name"] != NHOM_V524
 		],
 		"loai": LOAI_HANG,
 		"tao_duoc": 1 if _duoc_tao() else 0,

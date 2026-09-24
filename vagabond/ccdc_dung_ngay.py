@@ -10,7 +10,7 @@ cũng đòi phiếu nhập kho.
 v524 làm một nhóm mới "CCDC dùng ngay" với tiền tố mã CCDN. Anh Việt không
 duyệt cách đó (24/09/2026): không tạo mã mới, dùng lại mã cũ, và làm "thành
 dấu tick thôi như kiểu chặng của bánh". v525 thay bằng đúng một ô tick trên
-hồ sơ món, gỡ nhóm và tiền tố của v524.
+hồ sơ món, thôi dùng nhóm và tiền tố của v524.
 
 Luật (anh Việt chốt 24/09/2026)
 --------------------------------------------------------------------
@@ -56,7 +56,8 @@ TRUONG_MOI = {"Item": [
 CO_TICK = {"is_stock_item": 0, "is_purchase_item": 1, "is_sales_item": 0,
 	"has_batch_no": 0, "has_serial_no": 0}
 
-# Nhóm và tiền tố v524 bị gỡ. Patch v525 xoá nhóm nếu không có món nào.
+# Nhóm v524 đã NGỪNG dùng. Codex #365 v3: KHÔNG xoá (QT-20, giữ vết cả mặc
+# định 242 của nhóm): chỉ ẩn khỏi màn Mở mã hàng và chặn món mới vào nhóm.
 NHOM_V524 = "CCDC dùng ngay"
 
 
@@ -84,6 +85,14 @@ def dong_can_dat(hien_co, tk_theo_cty):
 		elif co[cty] != tk:
 			ra.append((cty, tk, "sua"))
 	return ra
+
+
+def vao_nhom_ngung(moi, nhom, nhom_truoc):
+	"""Món đang được ĐƯA VÀO nhóm v524 đã ngừng (mở mới, hoặc đổi nhóm sang).
+	THUẦN. Món đã nằm sẵn trong nhóm mà lưu lại vì ô khác thì không chặn."""
+	if (nhom or "").strip() != NHOM_V524:
+		return False
+	return bool(moi) or (nhom_truoc or "").strip() != NHOM_V524
 
 
 def viec_khi_luu(moi, tick, tick_truoc, nhom, co_so_kho):
@@ -141,6 +150,9 @@ def khi_luu_mon(doc, method=None):
 	truoc = None if moi else doc.get_doc_before_save()
 	tick = cint(doc.get(O_TICK))
 	tick_truoc = cint(truoc.get(O_TICK)) if truoc is not None else 0
+	if vao_nhom_ngung(moi, doc.get("item_group"), truoc.get("item_group") if truoc is not None else None):
+		frappe.throw("Nhóm \"%s\" đã ngừng dùng từ bản 525. Chọn nhóm \"%s\": mã mới trong "
+			"nhóm đó tự được tick \"Đi 242\", hoá đơn mua đi thẳng 242." % (NHOM_V524, NHOM_CCDC[0]))
 	# Chỉ tra sổ kho khi cần, món không đụng ô tick thì không tốn truy vấn.
 	can_tra = bool(tick) or (moi and (doc.get("item_group") or "").strip() in NHOM_CCDC)
 	viec = viec_khi_luu(moi, tick, tick_truoc, doc.get("item_group"),
@@ -194,9 +206,8 @@ def dung():
 	create_custom_fields(TRUONG_MOI, update=True)
 	frappe.db.updatedb("Item")
 	frappe.clear_cache(doctype="Item")
-	kq = tick_ma_cu()
-	kq["xoa_nhom_v524"] = go_nhom_v524()
-	return kq
+	# Codex #365 v3: nhóm v524 để nguyên, không xoá (QT-20). Xem NHOM_V524.
+	return tick_ma_cu()
 
 
 def tick_ma_cu():
@@ -237,12 +248,3 @@ def tick_ma_cu():
 	if sai:
 		frappe.throw("Tick Đi 242 chưa đủ cho %d mã: %s" % (len(sai), ", ".join(sai[:20])))
 	return {"tick": len(da_tick), "ma": da_tick}
-
-
-def go_nhom_v524():
-	"""Gỡ nhóm "CCDC dùng ngay" của v524 nếu không có món nào (site 24/09: 0 món)."""
-	if frappe.db.exists("Item Group", NHOM_V524) and not frappe.db.exists(
-			"Item", {"item_group": NHOM_V524}):
-		frappe.delete_doc("Item Group", NHOM_V524, ignore_permissions=True, force=True)
-		return 1
-	return 0
