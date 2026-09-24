@@ -987,6 +987,60 @@ def _khong_mo_lai_huy():
 	dung("kiem_bo_sung chặn mở lại", "không mở lại" in loi)
 
 
+# Codex #368 vòng 12 (e77749a): một lần lưu gán cùng một tờ chưa dùng cho hai
+# khoản mới; ho_so_dang_giu chỉ đọc dòng đã lưu nên cả hai đều qua.
+
+def _ho_so_hai_dong(ma1, ma2, ten_moi=None, goc2=""):
+	"""Chạy THẬT kiem_bo_sung: bản đã lưu có hai khoản chưa nối, lần lưu này nối
+	ma1, ma2. ten_moi: tên của hai dòng ở bản mới (None cả hai = dòng mới chưa
+	có tên). Trả chuỗi lỗi (rỗng nếu lưu được)."""
+	from unittest.mock import patch
+	from vagabond import ho_so_bo_sung as bo, ho_so_tt as hs
+	t1, t2 = ten_moi or ("D1", "D2")
+	cu_ds = [_D(name=t, idx=i + 1, hoa_don_bo_sung="", cho_hoa_don=1, hoa_don="", so_tien=40000)
+		for i, t in enumerate((t1, t2)) if t]
+	moi = [_D(name=t1, idx=1, hoa_don_bo_sung=ma1, cho_hoa_don=1, hoa_don="", so_tien=40000),
+		_D(name=t2, idx=2, hoa_don_bo_sung=ma2, cho_hoa_don=1, hoa_don=goc2, so_tien=40000)]
+	cu = SimpleNamespace(dong=cu_ds, nha_cung_cap="XDKV2", loai="TK cong ty", trang_thai="Nhap")
+	ho_so = SimpleNamespace(dong=moi, nha_cung_cap="XDKV2", trang_thai="Nhap", loai="TK cong ty",
+		get_doc_before_save=lambda: cu)
+	hd = SimpleNamespace(docstatus=0, supplier="XDKV2", company=CTY, get=lambda k, m=None: 0)
+
+	def sql(q, v=None, as_dict=False):
+		if "`tabPurchase Invoice`" in q:
+			return ((0, 0),)
+		return ()
+	fr = SimpleNamespace(throw=_throw, db=_db(sql), get_doc=lambda *a, **k: hd)
+	with patch.object(hs, "_kiem"), patch.object(hs, "_cong_ty_chung_tu", return_value=CTY):
+		try:
+			_voi(bo, fr, lambda: bo.kiem_bo_sung(ho_so))
+			return ""
+		except _Loi as e:
+			return str(e)
+
+
+@ca("#526 v12 một lần lưu gán cùng một tờ cho hai khoản thì chặn; hai tờ khác nhau thì lưu")
+def _trung_trong_ho_so():
+	loi = _ho_so_hai_dong("HDM-X", "HDM-X")
+	dung("chặn, gọi tên tờ và hai khoản", "HDM-X" in loi and "1, 2" in loi)
+	loi = _ho_so_hai_dong("HDM-X", "HDM-X", ten_moi=(None, None))
+	dung("hai dòng mới chưa có tên cũng chặn", "HDM-X" in loi and "1, 2" in loi)
+	la("hai tờ khác nhau thì lưu", _ho_so_hai_dong("HDM-X", "HDM-Y"), "")
+
+
+@ca("#526 v12 luật thuần loi_trung_trong_ho_so")
+def _loi_trung_thuan():
+	from vagabond.ho_so_bo_sung import loi_trung_trong_ho_so as f
+	m = lambda i, bs, g="": {"idx": i, "hoa_don_bo_sung": bs, "hoa_don": g}
+	dung("hai khoản cùng tờ mới nối", "1, 2" in f({"a": m(1, "X"), "b": m(2, "X")}, {}))
+	dung("một khoản nối mới trùng khoản đã nối sẵn", "1, 2" in f({"a": m(1, "X"), "b": m(2, "X")}, {"a": m(1, "X")}))
+	la("trùng sẵn từ trước, lần này không đổi gì: không khoá cứng hồ sơ cũ",
+		f({"a": m(1, "X"), "b": m(2, "X")}, {"a": m(1, "X"), "b": m(2, "X")}), "")
+	dung("nối bổ sung trùng hoá đơn gốc của khoản khác", "gốc của khoản 1" in f({"a": m(1, "", "X"), "b": m(2, "X")}, {}))
+	la("không trùng", f({"a": m(1, "X"), "b": m(2, "Y")}, {}), "")
+	la("khoản trống không tính", f({"a": m(1, ""), "b": m(2, " ")}, {}), "")
+
+
 @ca("#526 v10 luật thuần loi_doi_loai")
 def _loi_doi_loai():
 	from vagabond.ho_so_bo_sung import loi_doi_loai
