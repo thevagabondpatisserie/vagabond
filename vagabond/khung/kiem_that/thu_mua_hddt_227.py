@@ -279,8 +279,10 @@ def _doi_ma_nguon_332():
 	# Dựng trạng thái lịch sử đã mất tên; chỉ trên chứng từ thử của ca này.
 	hd.db_set('custom_minvoice_id', g.name, update_modified=False)
 	hd.items[0].db_set('ten_hang_ncc', '', update_modified=False)
-	cu.disabled = 1
-	cu.save()
+	# Dựng trạng thái LỊCH SỬ "ánh xạ trỏ món đã tắt" (site có 4 dòng như vậy).
+	# Từ v524 không tắt được món còn ánh xạ qua save (quy_cach_ncc.chan_tat_mon),
+	# nên ghi thẳng cờ tắt, đúng như dữ liệu cũ đang nằm trên site.
+	cu.db_set('disabled', 1)
 	hd.reload()
 	modified = str(hd.modified)
 	r = sm.sua(hd.name, hd.items[0].name, '0', moi.name, moi.stock_uom, modified)

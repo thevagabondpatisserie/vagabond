@@ -391,3 +391,4 @@ def execute():
 			)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "patches: bo bat buoc tham chieu")
+

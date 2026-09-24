@@ -1045,3 +1045,14 @@ không còn phiếu nào chờ"). Sửa phép tính mà không kiểm lối vào
 đó là chưa sửa xong. Cùng ngày: ánh xạ NCC trỏ vào Món đã tắt chặn luôn món
 đúng, và phép học mã hàng "không bao giờ đè" giữ ánh xạ chết mãi mãi. Món đã
 tắt thì mọi ghi nhớ trỏ vào nó phải coi như trống.
+
+## 24/09/2026 (v524): chặn ở chỗ ĐỌC dữ liệu chết, quên chặn ở chỗ SINH ra nó
+
+v523 cho mọi lối đọc bỏ qua ánh xạ NCC trỏ Món đã tắt. Anh Việt hỏi lại: sao
+máy để người ta chọn được? Tra lịch sử thì không ai chọn nhầm: ánh xạ Kahlua
+lập 07/09 khi NVLT00325 còn dùng, 15/09 món bị tắt, hệ không nói gì về ánh xạ
+còn trỏ vào. Chỗ sinh ra ánh xạ chết là thao tác TẮT MÓN, không phải lúc lưu
+ánh xạ. Thêm nữa, cửa lưu ánh xạ chỉ chặn món tắt khi ô đơn vị có điền.
+Cách phòng: gặp dữ liệu "trỏ vào thứ đã chết", hỏi cả hai phía: ai đọc nó
+(v523) và thao tác nào làm nó chết (v524, chặn tắt món còn ánh xạ). Và khi
+chặn, kiểm cả nhánh ô tuỳ chọn để trống.

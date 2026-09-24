@@ -49,8 +49,25 @@ def _kiem_uom(item_code, uom):
         frappe.throw('Món %s có hệ số không hợp lệ cho đơn vị %s. Hệ số phải hữu hạn và lớn hơn 0.' % (item_code, uom))
 
 
+def _vua_chon_mon(doc):
+    """Ánh xạ mới, hoặc vừa đổi ô Món. Ánh xạ cũ trỏ món ĐÃ tắt từ trước mà
+    được lưu lại vì ô khác (máy học đổi món sẽ đổi luôn ô này) thì không
+    chặn ở đây: v523 đã cho mọi lối đọc bỏ qua nó."""
+    moi = getattr(doc, 'is_new', None)
+    if callable(moi) and moi():
+        return True
+    doi = getattr(doc, 'has_value_changed', None)
+    return bool(callable(doi) and doi('item_code'))
+
+
 def kiem(doc, method=None):
     doc.supplier_mst = (doc.get('supplier_mst') or '').strip().split('-')[0]
+    ma = (doc.get('item_code') or '').strip()
+    # v524 (anh Việt 24/09/2026): trước đây chỉ chặn món tắt khi ô Đơn vị đã
+    # đối chiếu có điền, để trống ô đó là lưu được ánh xạ trỏ món đã tắt.
+    if ma and _vua_chon_mon(doc) and _mon_tat(ma):
+        frappe.throw('Món %s đã tắt (ngừng dùng), không ánh xạ vào được. '
+                     'Chọn mã đang dùng thay cho món này.' % ma)
     uom = (doc.get(TRUONG) or '').strip()
     if not uom:
         return
@@ -78,6 +95,43 @@ def _anh_xa(mst, truong, gia_tri):
 
 def _mon_tat(item_code):
     return bool(item_code and frappe.db.get_value('Item', item_code, 'disabled'))
+
+
+def cau_chan_tat(ma, ds, toi_da=5):
+    """Câu chặn tắt món còn ánh xạ. Phần thuần, kiểm không cần site."""
+    dong = []
+    for d in (ds or [])[:toi_da]:
+        dong.append('- %s (MST %s)' % ((d.get('ten_ncc') or d.get('ma_ncc') or d.get('name') or '').strip(),
+                                        (d.get('supplier_mst') or '').strip() or '?'))
+    con = len(ds or []) - len(dong)
+    if con > 0:
+        dong.append('- và %d ánh xạ khác' % con)
+    return ('Chưa tắt được món %s: còn %d ánh xạ hoá đơn mua đang trỏ vào món này, '
+            'tắt thì các hoá đơn sau của nhà cung cấp sẽ không gợi ý được món.<br>%s<br>'
+            'Mở Ánh xạ mặt hàng NCC (MInvoice NCC Map), đổi Món của từng dòng trên sang mã thay thế '
+            '(đổi luôn ô Đơn vị đã đối chiếu), hoặc xoá dòng nếu nhà cung cấp không còn bán món đó, '
+            'rồi tắt lại.' % (ma, len(ds or []), '<br>'.join(dong)))
+
+
+def chan_tat_mon(doc, method=None):
+    """Hook validate Item (v524): không cho tắt món còn ánh xạ trỏ vào.
+
+    Ca thật Kahlua: ánh xạ lập 07/09 khi NVLT00325 còn dùng, 15/09 món bị tắt
+    mà không ai biết còn ánh xạ, từ đó hoá đơn Con Rồng kẹt. Chặn ở lúc TẮT
+    là chặn đúng chỗ sinh ra ánh xạ chết."""
+    if not doc.get('disabled'):
+        return
+    moi = getattr(doc, 'is_new', None)
+    if callable(moi) and moi():
+        return
+    if not doc.has_value_changed('disabled'):
+        return
+    if not frappe.db.exists('DocType', LOAI):
+        return
+    ds = frappe.get_all(LOAI, filters={'item_code': doc.name},
+                        fields=['name', 'supplier_mst', 'ten_ncc', 'ma_ncc'], limit_page_length=0)
+    if ds:
+        frappe.throw(cau_chan_tat(doc.name, ds), title='Món còn ánh xạ hoá đơn mua')
 
 
 def tim_mon(mst, ma_ncc, ten_ncc):

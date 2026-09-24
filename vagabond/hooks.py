@@ -424,7 +424,10 @@ doc_events = {
 	"Item": {"validate": ["vagabond.phantom.chan_lam_tuoi_sai_chang",
 		"vagabond.san_xuat_desktop.kiem_mon", "vagabond.gram_bom_252.kiem_mon",
 		# #307: o Chang ban thanh pham dien tai khoan ton kho vao Item Default.
-		"vagabond.tai_khoan_btp.khi_luu_mon"]},
+		"vagabond.tai_khoan_btp.khi_luu_mon",
+		# v524: nhom CCDC dung ngay luon khong quan kho, di 242; va khong cho
+		# tat mon con anh xa hoa don mua tro vao (ca Kahlua 23/09/2026).
+		"vagabond.ccdc_dung_ngay.khi_luu_mon", "vagabond.quy_cach_ncc.chan_tat_mon"]},
 	# Nguyen lieu thay the: may soat cap va dien cac o cot ngay luc luu.
 	# Chi la o tro giup, hong thi ghi Error Log chu KHONG chan ai luu.
 	"Item Alternative": {"validate": "vagabond.nvl_thay_the.khi_luu"},
