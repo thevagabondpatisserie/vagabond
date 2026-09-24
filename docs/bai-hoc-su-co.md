@@ -1067,3 +1067,9 @@ Cách phòng: trước khi thêm cấu trúc mới người dùng phải thao t�
 tiền tố mã, màn mới), trình phương án tối giản nhất bằng lời cho anh Việt
 chọn. Nhất là khi dữ liệu thật cho thấy phương án có ngoại lệ (ở đây: 101 mã
 đã có sổ kho không đổi được, và tiền nhập kho đi theo tài khoản của KHO).
+
+Bài học đi kèm (Codex #365 v3): "gỡ" cấu trúc đã lên site thật KHÔNG có
+nghĩa là xoá. Bản đầu của v525 cho patch xoá nhóm "CCDC dùng ngay" vì nhóm
+rỗng, trái QT-20 (không `delete_doc` dữ liệu nghiệp vụ, kể cả mặc định tài
+khoản của nhóm). Cách đúng là cho nó NGỪNG: ẩn khỏi màn chọn, chặn dữ liệu
+mới đi vào, giữ nguyên bản ghi cũ. Kiểm "rỗng thì xoá" không đủ lý do.
