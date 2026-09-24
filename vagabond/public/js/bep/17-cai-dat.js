@@ -1833,6 +1833,9 @@ function dmHoiXem() {
         nhom: s.nhom, loai: s.loai, ten: s.ten, quy_cach: s.quy_cach
       });
     } catch (e) { dmKq = null; }
+    // v524 (Codex #364 v2): nhóm CCDC dùng ngay chỉ có một loại. Máy trả về
+    // loại thật của nhóm, chip Loại hàng và ba cờ mua - bán - tồn đổi theo.
+    if (dmKq && dmKq.loai && dmKq.loai !== dmVe.loai) { dmVe.loai = dmKq.loai; return dmDraw(true); }
     dmVeXem();
   }, 320);
 }
