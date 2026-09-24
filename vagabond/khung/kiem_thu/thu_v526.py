@@ -760,6 +760,52 @@ def _anh_dong():
 	la("ảnh từng dòng", [d.get("anh") for d in dong], ["", "/files/bot-mi.jpg"])
 
 
+# Codex #368 vòng 5 (bd6849d).
+# (1) Tờ đã nối là tờ NHÁP, vẫn sửa được trên Desk. Chặn chỉ ở before_submit
+#     nên đổi nhà cung cấp hay công ty sau khi nối là lọt luật "đúng NCC, đúng
+#     công ty" của kiem_bo_sung, hồ sơ vẫn Hợp lệ tính thuế.
+# (2) Màn chi tiết Đối chiếu gọi dcmChip mà không truyền ho_so_chi, nên tờ
+#     nháp đã nối (nhom "xong") hiện chip xanh "Đã ghi sổ" sai sự thật.
+
+def _hd_sua(truoc, sau, giu="APP-A"):
+	"""Chạy THẬT giu_hd_da_noi: tờ nháp đã lưu, bản trước và bản đang lưu."""
+	from vagabond import ho_so_bo_sung as bo
+	sql = _db_hai_mat(giu_hien_hanh=giu)[0]
+	cu = _D(name="HDM-X", docstatus=0, **truoc)
+	doc = _D(name="HDM-X", docstatus=0, **sau)
+	doc["get_doc_before_save"] = lambda: cu
+	doc["is_new"] = lambda: False
+	try:
+		_voi(bo, SimpleNamespace(throw=_throw, db=_db(sql)), lambda: bo.giu_hd_da_noi(doc))
+		return ""
+	except _Loi as e:
+		return str(e)
+
+
+@ca("#526 v5 tờ đã nối: đổi nhà cung cấp hay công ty khi lưu nháp thì chặn, gọi tên hồ sơ")
+def _khoa_ncc_cong_ty():
+	loi = _hd_sua({"supplier": "XDKV2", "company": CTY}, {"supplier": "NCC-KHAC", "company": CTY})
+	dung("chặn đổi NCC", "APP-A" in loi)
+	loi = _hd_sua({"supplier": "XDKV2", "company": CTY}, {"supplier": "XDKV2", "company": "The Vagabond (Demo)"})
+	dung("chặn đổi công ty", "APP-A" in loi)
+	la("sửa chỗ khác thì lưu bình thường", _hd_sua({"supplier": "XDKV2", "company": CTY}, {"supplier": "XDKV2", "company": CTY}), "")
+	la("tờ chưa nối đổi NCC thoải mái", _hd_sua({"supplier": "XDKV2", "company": CTY}, {"supplier": "NCC-KHAC", "company": CTY}, giu=""), "")
+
+
+@ca("#526 v5 hook giữ tờ đã nối đăng ký ở validate của Hoá đơn mua (mọi lần lưu nháp, mọi đường)")
+def _hook_giu():
+	from vagabond import hooks
+	la("có trong validate", "vagabond.ho_so_bo_sung.giu_hd_da_noi" in hooks.doc_events["Purchase Invoice"]["validate"], True)
+
+
+@ca("#526 v5 màn chi tiết Đối chiếu của tờ nháp đã nối: chip hồ sơ, KHÔNG hiện Đã ghi sổ")
+def _chip_chi_tiet():
+	from vagabond.khung.kiem_thu.thu_doi_chieu_252 import _ve_man, _xem_mau, _so_sanh_mau
+	ra = _ve_man(_xem_mau(nhom="xong", ho_so_chi="APP-26-09-00123", goi_y=[]), _so_sanh_mau([]))
+	dung("không có chip Đã ghi sổ", "Đã ghi sổ" not in ra["khung"])
+	dung("có chip hồ sơ", "Hồ sơ · 0123" in ra["khung"])
+
+
 # ------------------------------------------------------------ quyền Repost
 
 @ca("#526 quyền Repost chỉ mở cho đúng vai kế toán FIN, đủ bốn quyền để đổi tài khoản tờ đã ghi sổ")
