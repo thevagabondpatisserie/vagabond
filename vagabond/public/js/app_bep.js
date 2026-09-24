@@ -34904,6 +34904,7 @@ async function hsHanh(k, hs) {
     if (!maBo) return;
     var rBo = await api('vagabond.ho_so_bo_sung.noi_hoa_don', {name:hs.ma, dong:Number(k.slice(4)), hoa_don:maBo});
     if (rBo && rBo.hop_le) toast('Đã nối đủ hoá đơn, hồ sơ chuyển sang Hợp lệ tính thuế.', 5000);
+    else if (rBo && (rBo.lech || []).length) baoTin('Đã nối hoá đơn. Hồ sơ CHƯA chuyển Hợp lệ tính thuế vì tiền lệch:\n\n' + rBo.lech.join('\n') + '\n\nKiểm lại tờ hoá đơn đã chọn.');
     return go(function() { scrHoSoTTView(hs.ma); }, true);
     } catch (e) { return baoTin((e && e.message) || 'Chưa nối được hóa đơn. Tải lại hồ sơ rồi kiểm tra.'); }
   }

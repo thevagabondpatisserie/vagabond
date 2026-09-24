@@ -393,6 +393,10 @@ async function vgbHoaDonDenSau(frm) {
 						args: { name: d.ho_so, dong: d.dong, hoa_don: phieu.name }, freeze: true })).message || {};
 					hop.hide();
 					frappe.show_alert({ message: 'Đã nối vào ' + d.ho_so + (r.hop_le ? '. Hồ sơ chuyển sang Hợp lệ tính thuế.' : '.'), indicator: 'green' }, 7);
+					if ((r.lech || []).length) {
+						frappe.msgprint({ title: 'Chưa chuyển Hợp lệ tính thuế', indicator: 'orange',
+							message: 'Tiền lệch:<br>' + r.lech.map(function (x) { return frappe.utils.escape_html(x); }).join('<br>') });
+					}
 					frm.reload_doc();
 				} catch (e) { /* frappe.call da bao loi cua may chu */ }
 			}
