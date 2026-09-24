@@ -1396,6 +1396,11 @@ function huChonCp(v) {
     huVeSau = 1;
     huDong.forEach(function (d) { d.cho_hoa_don = 1; });
   } else {
+    /* Codex #368 vong 5: roi che do Hoa don den sau thi go co tren MOI khoan.
+       Luc vao che do da dat moi khoan = 1 nen danh dau tay truoc do da mat;
+       giu lai co la de khoan mien dinh kem va sau nay noi hoa don doi ho so
+       sang hop le trai voi lua chon cuoi cung cua nguoi lap. */
+    if (huVeSau) huDong.forEach(function (d) { d.cho_hoa_don = 0; });
     huCpThue = v;
     huVeSau = 0;
   }
