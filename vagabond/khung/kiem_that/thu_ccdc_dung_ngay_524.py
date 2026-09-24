@@ -139,3 +139,27 @@ def _tat_mon():
 	except frappe.ValidationError as e:
 		loi = str(e)
 	dung("ánh xạ mới vào món đã tắt bị chặn", "đã tắt" in loi)
+
+
+@ca("#525 Codex #365 v3: patch v525 giữ nhóm CCDC dùng ngay của v524, không xoá; món mới vào nhóm đó bị chặn")
+def _giu_nhom_v524():
+	if not khong_nem("tài khoản 242", _tk_242):
+		return
+	if not frappe.db.exists("Item Group", C.NHOM_V524):
+		# Site thật đã có nhóm từ v524. Bench dựng mới thì dựng lại trong điểm lưu.
+		goc = frappe.db.get_value("Item Group", {"is_group": 1}, "name", order_by="lft asc")
+		_luu(frappe.get_doc(dict(doctype="Item Group", item_group_name=C.NHOM_V524,
+			parent_item_group=goc, is_group=0)))
+	khong_nem("patch v525", C.dung)
+	dung("nhóm v524 còn nguyên sau patch", bool(frappe.db.exists("Item Group", C.NHOM_V524)))
+	it = frappe.new_doc("Item")
+	it.item_code = "KT525-NGUNG-" + frappe.generate_hash(length=6)
+	it.item_name = "Món ca kiểm nhóm ngừng v525"
+	it.item_group = C.NHOM_V524
+	it.stock_uom = frappe.db.get_value("UOM", {}, "name")
+	try:
+		it.insert(ignore_permissions=True)
+		loi = ""
+	except frappe.ValidationError as e:
+		loi = str(e)
+	dung("mở món mới trong nhóm ngừng bị chặn", "ngừng dùng" in loi)
