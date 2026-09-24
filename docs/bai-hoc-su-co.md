@@ -1073,3 +1073,63 @@ nghĩa là xoá. Bản đầu của v525 cho patch xoá nhóm "CCDC dùng ngay" 
 rỗng, trái QT-20 (không `delete_doc` dữ liệu nghiệp vụ, kể cả mặc định tài
 khoản của nhóm). Cách đúng là cho nó NGỪNG: ẩn khỏi màn chọn, chặn dữ liệu
 mới đi vào, giữ nguyên bản ghi cũ. Kiểm "rỗng thì xoá" không đủ lý do.
+
+## 24/09/2026 (v526): nút ghi sổ không được giấu hạch toán
+
+Nút "Ghi sổ thẳng, không nối phiếu" ghi sổ ngay mà không cho xem dòng nào đi
+tài khoản nào. Hoá đơn xăng không gắn Món nên ERPNext lấy tài khoản chi phí
+mặc định của công ty, là 632 giá vốn. Kế toán chỉ biết sau khi đã ghi sổ, lúc
+đó muốn sửa lại vướng quyền Repost.
+Cách phòng: mọi nút ghi sổ trên app phải cho thấy, và cho đổi, tài khoản của
+dòng chi phí TRƯỚC khi ghi. Hook tự đặt tài khoản (khai trên Món, tài khoản
+đầu phiếu) phải chừa dòng người vừa chọn, và sau khi ghi đọc lại SỔ CÁI (GL
+Entry của đúng tờ), không chỉ ô tài khoản trên dòng. Codex #368: ô trên dòng
+đúng mà bút toán Nợ chỗ khác thì phép soát chỉ đọc dòng vẫn chốt.
+
+Cùng đợt: dấu nối "hoá đơn đến sau" chỉ là chứng từ. Khoản chi đã ghi chi phí
+qua hồ sơ, nên tờ hoá đơn đã nối phải bị CHẶN ghi sổ ở before_submit, không
+chỉ giấu nút, vì Desk và API vẫn ghi được.
+
+Chặn "tờ đã nối" ở before_submit mà đọc dấu nối bằng select thường là chưa đủ
+(Codex #368, tái hiện trên MariaDB thật hai kết nối): REPEATABLE READ cho
+giao dịch ghi sổ thấy ảnh chụp lúc mở tờ, không thấy dấu nối hồ sơ khác vừa
+chốt; hai hồ sơ cùng nối một tờ cũng lọt. Chỉ thêm khoá tờ vẫn lọt 2 trên 3
+thứ tự đan xen. Cách phòng: mọi đường quyết định (nối, ghi sổ) khoá CÙNG một
+dòng (tờ hoá đơn) trước, rồi đọc trạng thái và dấu nối bằng câu có khoá
+(for update), không lấy docstatus từ get_doc.
+
+Tờ hoá đơn mua NHÁP còn có trạng thái "đã đánh dấu huỷ" (vgb_huy 1,
+docstatus vẫn 0). Luật nào chỉ xét docstatus là nhận nhầm tờ đã bỏ (Codex
+#368 vòng 2: nối tờ đó làm hoá đơn đến sau thì hồ sơ thành chi phí hợp lệ
+tính thuế bằng một chứng từ đã bỏ). Mọi luật "tờ còn hiệu lực" phải xét cả
+dấu huỷ, và xét cả chiều ngược: tờ đang làm chứng từ thì không cho huỷ mềm.
+
+Phép soát tiền một chiều ("được Nợ ít nhất bằng") luôn đạt với số âm. Tờ trả
+hàng có tiền âm, sổ cái ghi Có, nên luật đó để lọt bút toán Có sai tài khoản
+(Codex #368 vòng 3). So tiền sổ cái phải theo DẤU: cùng chiều và đủ số.
+
+Hồ sơ "Từ chối" KHÔNG phải trạng thái cuối: người lập sửa rồi gửi duyệt lại
+được. Luật nào coi Từ chối như Huỷ để trả lại chứng từ đang giữ là mở đường
+cho chứng từ đó bị dùng lần hai trong lúc chờ (Codex #368 vòng 4). Chỉ Huỷ mới
+là cuối; trước khi coi một trạng thái là "hết hiệu lực", kiểm xem có bước nào
+đưa nó sống lại không.
+
+Luật mới cho một loại hồ sơ phải khoá đúng loại đó. v526 viết luật "hoá đơn
+đến sau chỉ nối tờ nháp, tờ đã nối không ghi sổ" cho hồ sơ Chi từ TK công ty
+nhưng áp lên mọi hồ sơ; hồ sơ trả NCC vốn nối tờ ĐÃ ghi sổ (tờ tạo công nợ)
+nên sẽ gãy luồng trả NCC. Bộ kiểm khung không thấy vì mọi ca dựng hồ sơ TK
+công ty; chỉ bench chạy ca tích hợp cũ #263 mới bắt được. Viết luật theo loại
+thì phải có ca cho CẢ loại không áp luật.
+
+Luật theo loại thì ô loại phải đứng yên khi luật đã áp. Sau khi khoá luật hoá
+đơn đến sau theo loại hồ sơ, ô loại vẫn sửa được trên Desk/API: đổi TK công ty
+sang Hoàn ứng cùng lần sửa số tiền là mọi luật đọc loại mới đều bỏ qua, rồi
+tờ nháp ghi sổ được, chi phí vào sổ hai lần (Codex #368 vòng 10). Đừng vá từng
+luật cho đọc loại cũ; giữ một bất biến: đang nối chứng từ thì không đổi loại.
+Mỗi ô dùng để CHỌN luật phải tự hỏi: ai sửa được ô này sau khi luật đã áp?
+
+Khoá dòng rồi mà vẫn đọc bằng get_value là chưa khoá. v526 vòng 11: lần nối hoá
+đơn đến sau khoá tờ trong validate, nhưng số tổng tiền dùng để quyết "Hợp lệ
+tính thuế" lại đọc bằng get_value ở bước trước, tức ảnh chụp REPEATABLE READ.
+Người sửa tờ chốt tổng mới trong lúc đó thì quyết định dựa trên số cũ. Mọi giá
+trị dùng để QUYẾT phải đọc bằng câu có khoá, từ một hàm nguồn duy nhất.

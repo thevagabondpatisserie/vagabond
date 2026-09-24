@@ -213,7 +213,8 @@ def _don_trang_thai():
 	dung("trả trước gọi ttReset",
 		"if (c === 'tt') { ttReset(); return go(scrTraTruocTao); }" in than)
 	dung("chi từ TK công ty dọn đủ bộ của nó",
-		"huDong = []; huGhiChu = ''; huTkChi = ''; huCpThue = ''; "
+		# v526: thêm huVeSau (lập "Hoá đơn đến sau") vào bộ phải dọn.
+		"huDong = []; huGhiChu = ''; huTkChi = ''; huCpThue = ''; huVeSau = 0; "
 		"huChonHd = {}; huSuaO = -1;" in than)
 	dung("hoàn ứng không hoá đơn dọn đủ bộ của nó",
 		"if (c === 'hu_khd') { huDong = []; huGhiChu = ''; huTamUng = 0; "

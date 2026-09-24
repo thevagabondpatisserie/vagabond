@@ -21931,7 +21931,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '525';
+var APPVER = '526';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -30485,9 +30485,12 @@ async function scrDoiChieuMua() {
 }
 
 function dcmChip(d) {
-  var the = function (bg, fg, chu) {
-    return '<span style="display:inline-block;background:' + bg + ';color:' + fg + ';font-size:12px;font-weight:700;border-radius:999px;padding:3px 10px;margin:2px 5px 0 0;white-space:nowrap">' + chu + '</span>';
+  var the = function (bg, fg, chu, tieu) {
+    return '<span' + (tieu ? ' title="' + h(tieu) + '"' : '') + ' style="display:inline-block;background:' + bg + ';color:' + fg + ';font-size:12px;font-weight:700;border-radius:999px;padding:3px 10px;margin:2px 5px 0 0;white-space:nowrap">' + chu + '</span>';
   };
+  /* v526 vong 4: nhan gon "🧾 Hồ sơ · 0123", cau day du trong title (AGENTS.md muc 18). */
+  if (d.ho_so_chi) return the('#dbeafe', '#1e40af', '🧾 Hồ sơ · ' + h(String(d.ho_so_chi).slice(-4)),
+    'Chứng từ (hoá đơn đến sau) của hồ sơ ' + d.ho_so_chi + ', không ghi sổ');
   if (d.nhom === 'xong') return the('#dcfce7', '#166534', '✅ Đã ghi sổ');
   if (d.nhom === 'huy') return the('#fee2e2', '#991b1b', '🚫 Đã huỷ');
   if (d.noi_cu) return the('#fee2e2', '#991b1b', '⚠️ Phiếu nhập đã bị hoá đơn khác lấy, nối lại');
@@ -30685,7 +30688,7 @@ async function scrDcmXem(name) {
     '<div style="font-size:12.5px;color:#6b7280;margin-top:3px">' + h(d.name) + ' · ' + ngayNgan(d.posting_date) +
     (d.bill_no ? ' · số ' + h(d.bill_no) : '') + '</div>' +
     '<div style="display:flex;justify-content:space-between;margin-top:8px"><span style="font-size:13px;color:#374151">Tổng hoá đơn</span><b style="font-size:16px">' + money(d.grand_total) + ' đ</b></div>' +
-    '<div style="margin-top:6px">' + dcmChip({ nhom: kq.nhom, noi_cu: kq.noi_cu, so_phieu_goi_y: gy.length }) + '</div></div>';
+    '<div style="margin-top:6px">' + dcmChip({ nhom: kq.nhom, noi_cu: kq.noi_cu, so_phieu_goi_y: gy.length, ho_so_chi: kq.ho_so_chi }) + '</div></div>';
 
   /* To sinh tu hoa don dien tu ma tong tien lech ban goc: noi ngay o day,
      truoc khi nguoi ta ngoi doi chieu tung mon. Anh Viet 26/08/2026. */
@@ -30781,6 +30784,14 @@ async function scrDcmXem(name) {
         '<div style="font-size:11.5px;color:#98a2b3;margin:-4px 0 10px;line-height:1.6">' +
         'Nối xong, tờ hoá đơn nằm ở dạng nháp trong nhóm <b>Chờ ghi sổ</b> để kế toán ghi vào sổ cái.</div>');
   }
+  /* v526: to da noi lam hoa don den sau cua ho so chi tu TK cong ty thi chi
+     la chung tu, khong noi phieu, khong ghi so (may chu cung chan). */
+  if (kq.ho_so_chi) {
+    foot = '';
+    html = '<div class="card" style="padding:12px 14px;background:#eff6ff;border:1.5px solid #bfdbfe;font-size:13px;color:#1e3a8a;line-height:1.6">' +
+      '🧾 Tờ này đã nối làm <b>hoá đơn đến sau</b> của hồ sơ <b>' + h(kq.ho_so_chi) + '</b>. ' +
+      'Khoản chi đã ghi chi phí qua hồ sơ đó, nên tờ này chỉ là chứng từ, không ghi sổ nữa.</div>' + html;
+  }
   var b = frame('Đối chiếu ' + name, html, foot ? { footer: foot } : {});
   b.onclick = function (e) {
     /* Nut doi don vi: sua o `uom` cua dong hoa don con nhap, GIU NGUYEN so
@@ -30833,9 +30844,17 @@ async function scrDcmXem(name) {
     }
     busy(true);
     var r;
-    try { r = await api('vagabond.doi_chieu_mua.noi_phieu', { name: name, phieu: JSON.stringify(dcmPhieu), ghi_so: ghiSo ? 1 : 0 }); }
+    /* v526 (Codex #368 vong 6): "Khop va ghi so" chi NOI o day, roi mo man
+       HACH TOAN nhu nut Ghi so thang. Ghi so thang tu noi_phieu la bo qua
+       buoc chon tai khoan, dong phi ship lai roi 632. */
+    try { r = await api('vagabond.doi_chieu_mua.noi_phieu', { name: name, phieu: JSON.stringify(dcmPhieu), ghi_so: 0 }); }
     catch (e) { busy(false); baoTin((e && e.message) || 'Không nối được'); return; }
     busy(false);
+    if (ghiSo && !(r.con_lai || []).length) {
+      toast((r.loi_nhan || ('Đã nối phiếu ' + name + '.')) + ' Chọn tài khoản cho dòng chi phí rồi ghi sổ.', 5000);
+      dcmHt = null;
+      return go(function () { scrDcmHachToan(name); });
+    }
     /* Tu v362 phep noi khong con la duoc-het-hoac-khong-gi. No noi duoc dong
        nao thi noi dong do va tra ve mot cau ke ro: da noi may dong, may dong
        khong qua kho nen khong can phieu, con may dong hang chua co phieu.
@@ -30860,27 +30879,111 @@ async function scrDcmXem(name) {
   var n1 = document.getElementById('dcmNoi');
   if (n1) n1.onclick = function () { chay(0); };
   var n3 = document.getElementById('dcmThang');
-  if (n3) n3.onclick = async function () {
-    var ok = await confirmSheet('Ghi sổ thẳng tờ ' + name,
-      'Tờ này không nối vào phiếu nhập kho nào.\n\n' +
-      'Đúng khi hàng không qua kho: xăng dầu, dịch vụ, phí ship, văn phòng phẩm.\n\n' +
-      'Nếu có dòng hàng thật đáng lẽ phải qua kho thì hệ sẽ chặn và nói rõ dòng nào.',
-      'Ghi sổ', false);
-    if (!ok) return;
-    busy(true);
-    try {
-      var r = await api('vagabond.doi_chieu_mua.ghi_so_thang', { name: name });
-      busy(false);
-      toast((r && r.loi_nhan) || ('Đã ghi sổ ' + name), 5000);
-      dcmPhieu = []; dcmSs = null;
-      go(scrDoiChieuMua, true);
-    } catch (e) { busy(false); baoTin((e && e.message) || 'Không ghi sổ được'); }
-  };
+  /* v526 (chi Dung 24/09/2026): khong ghi so ngay nua. Mo man HACH TOAN,
+     moi dong chi phi chon tai khoan roi moi ghi. Hoa don xang HDM-26-09-00335
+     ghi thang roi vao 632 vi man cu khong cho xem dong nao di dau. */
+  if (n3) n3.onclick = function () { dcmHt = null; go(function () { scrDcmHachToan(name); }); };
   var n2 = document.getElementById('dcmXong');
   if (n2) n2.onclick = function () { chay(1); };
 }
 
 function cint0(v) { var n = parseInt(v, 10); return isNaN(n) ? 0 : n; }
+
+
+/* ---------- Hach toan truoc khi ghi so thang (v526, chi Dung 24/09/2026)
+
+   Chi Dung ghi thu hoa don xang, dong xang roi vao 632 gia von hang ban,
+   vao Desk sua sang 6417 thi bi chan quyen. Anh Viet chon: chon tai khoan
+   TUNG DONG truoc khi ghi so.
+
+   May goi y san cho moi dong chi phi (khai tren Mon, tai khoan dang co,
+   lan truoc cua dung nha cung cap, cuoi cung moi la mac dinh 632). Dong
+   hang kho da noi phieu thi chi hien, khong doi: tai khoan di theo kho.
+   Lua chon giu trong `dcmHt` de chon xong dong nay, ve lai man, khong mat
+   lua chon cua dong kia. */
+var dcmHt = null;
+
+function dcmLa632(tk) { return String(tk || '').split(' - ')[0].trim().indexOf('632') === 0; }
+
+async function scrDcmHachToan(name) {
+  frame('Hạch toán ' + name, '<div class="emp"><div class="e1">⏳</div></div>');
+  var kq;
+  try { kq = await api('vagabond.hach_toan_thang.xem', { name: name }); }
+  catch (e) { frame('Hạch toán', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không đọc được') + '</div></div>'); return; }
+  var dong = kq.dong || [];
+  if (!dcmHt || dcmHt.name !== name) {
+    dcmHt = { name: name, chon: {} };
+    dong.forEach(function (d) { if (d.sua_duoc) dcmHt.chon[d.ten] = d.goi_y || d.tk || ''; });
+  }
+  var thieu = 0, co632 = 0;
+  var html = '<div class="card" style="padding:12px 14px">' +
+    '<div style="font-size:11.5px;color:#6b7280;font-weight:700">HẠCH TOÁN TRƯỚC KHI GHI SỔ</div>' +
+    '<div style="font-size:15px;font-weight:800;margin-top:3px">' + h(kq.ncc || '') + '</div>' +
+    '<div style="display:flex;justify-content:space-between;margin-top:4px"><span style="font-size:13px;color:#374151">' + h(name) + '</span>' +
+    '<b>' + money(kq.tong) + ' đ</b></div>' +
+    '<div style="font-size:12px;color:#6b7280;margin-top:6px;line-height:1.55">Chạm vào ô tài khoản của từng dòng để đổi. ' +
+    'Máy gợi ý theo lần trước của nhà cung cấp này, sửa một lần thì lần sau tự ra đúng.</div></div>';
+  html += '<div class="card" style="padding:0">';
+  dong.forEach(function (d) {
+    var tk = d.sua_duoc ? (dcmHt.chon[d.ten] || '') : d.tk;
+    var sai = d.sua_duoc && dcmLa632(tk);
+    if (d.sua_duoc && !tk) thieu++;
+    if (sai) co632++;
+    html += '<div style="padding:11px 14px;border-bottom:1px solid #f2f4f7">' +
+      '<div style="display:flex;align-items:center;gap:10px">' + anhMon(d.anh) +
+      '<span style="flex:1;min-width:0;font-size:13.5px;font-weight:600">' + d.idx + '. ' + h(d.ten_hang || '(không tên)') + '</span>' +
+      '<b style="white-space:nowrap">' + money(d.tien) + ' đ</b></div>';
+    if (d.sua_duoc) {
+      html += '<div data-dcmtk="' + h(d.ten) + '" style="margin-top:7px;cursor:pointer;border:1.5px solid ' +
+        (tk && !sai ? '#99f6e4' : '#fca5a5') + ';background:' + (tk && !sai ? '#f0fdfa' : '#fef2f2') +
+        ';border-radius:8px;padding:8px 10px;font-size:13px;font-weight:700;color:' + (tk && !sai ? '#0f766e' : '#b91c1c') + '">' +
+        'Nợ ' + h(tk || '⚠️ chọn tài khoản') + '</div>';
+      if (sai) {
+        html += '<div style="font-size:12px;color:#b91c1c;margin-top:4px;line-height:1.5">632 là giá vốn hàng bán. ' +
+          'Xăng dầu, dịch vụ, phí ship thường vào nhóm 641 hoặc 642.</div>';
+      } else if (tk && tk === d.goi_y && d.nhan_nguon) {
+        html += '<div style="font-size:11.5px;color:#6b7280;margin-top:4px">Gợi ý theo ' + h(d.nhan_nguon) + '</div>';
+      }
+    } else {
+      html += '<div style="font-size:12px;color:#6b7280;margin-top:5px">Hàng qua kho · tài khoản đi theo kho: ' + h(d.tk || '') + '</div>';
+    }
+    html += '</div>';
+  });
+  html += '</div>';
+  var foot = kq.ghi_so_duoc
+    ? '<button class="btn" id="dcmHtGhi" style="margin:0;width:100%">✅ Ghi sổ với hạch toán trên</button>' +
+      '<div style="font-size:11.5px;color:#98a2b3;margin:6px 0 10px;line-height:1.6">' +
+      (thieu ? 'Còn ' + thieu + ' dòng chưa chọn tài khoản.' :
+        co632 ? 'Còn ' + co632 + ' dòng đang để 632. Kiểm lại trước khi ghi sổ.' :
+        'Ghi sổ xong thì tờ này không sửa ở đây được nữa.') + '</div>'
+    : '<div style="font-size:11.5px;color:#98a2b3;margin:0 0 10px;line-height:1.6">Chỉ kế toán ghi sổ được. Nhờ kế toán mở tờ này.</div>';
+  frame('Hạch toán ' + name, html, { footer: foot });
+
+  Array.prototype.forEach.call(document.querySelectorAll('[data-dcmtk]'), function (el) {
+    el.onclick = async function () {
+      var ten = el.getAttribute('data-dcmtk');
+      var d = dong.filter(function (x) { return x.ten === ten; })[0] || {};
+      var c = await huChonTaiKhoan('Tài khoản Nợ dòng ' + (d.idx || ''), dcmHt.chon[ten] || '');
+      if (c === null) return;
+      dcmHt.chon[ten] = c;
+      go(function () { scrDcmHachToan(name); }, true);
+    };
+  });
+  var nut = document.getElementById('dcmHtGhi');
+  if (nut) nut.onclick = async function () {
+    if (thieu) return baoTin('Còn ' + thieu + ' dòng chưa chọn tài khoản. Chạm vào ô đỏ để chọn.');
+    if (co632 && !(await confirmSheet('Còn dòng để 632',
+      co632 + ' dòng đang hạch toán vào 632 giá vốn hàng bán. Chắc chắn đúng thì bấm Ghi sổ.', 'Ghi sổ', false))) return;
+    busy(true);
+    try {
+      var r = await api('vagabond.doi_chieu_mua.ghi_so_thang', { name: name, tk: JSON.stringify(dcmHt.chon) });
+      busy(false);
+      toast((r && r.loi_nhan) || ('Đã ghi sổ ' + name), 5000);
+      dcmHt = null; dcmPhieu = []; dcmSs = null;
+      go(scrDoiChieuMua, true);
+    } catch (e) { busy(false); baoTin((e && e.message) || 'Không ghi sổ được'); }
+  };
+}
 
 
 /* ---------- Cai dat - May in (anh Viet 12/08/2026) ----------
@@ -33575,6 +33678,29 @@ var huTkHoan = '';
 /* Luong 4: chi thang tu TK cong ty. Dung chung man go khoan chi voi hoan
    ung, khac o cho co them tai khoan chi, loai chi phi thue va TK No. */
 var huMode = 'hu', huTkChi = '', huCpThue = '';
+/* v526 (anh Viet chot 23/09/2026): "Hoa don den sau". Chi truoc tu TK cong
+   ty, ghi thang chi phi, moi khoan danh dau cho hoa don. Hoa don ve thi ke
+   toan noi vao, noi du thi ho so tu chuyen sang Hop le tinh thue. Truoc day
+   nhanh Hop le chi bay nha cung cap DANG CON NO, nen hoa don chua ve la
+   khong co duong nao di. */
+var huVeSau = 0;
+
+function huChonCp(v) {
+  if (v === 'vesau') {
+    huCpThue = 'Chi phi khong hop le';
+    huVeSau = 1;
+    huDong.forEach(function (d) { d.cho_hoa_don = 1; });
+  } else {
+    /* Codex #368 vong 5: roi che do Hoa don den sau thi go co tren MOI khoan.
+       Luc vao che do da dat moi khoan = 1 nen danh dau tay truoc do da mat;
+       giu lai co la de khoan mien dinh kem va sau nay noi hoa don doi ho so
+       sang hop le trai voi lua chon cuoi cung cua nguoi lap. */
+    if (huVeSau) huDong.forEach(function (d) { d.cho_hoa_don = 0; });
+    huCpThue = v;
+    huVeSau = 0;
+  }
+  go(scrChiCongTyTao, true);
+}
 var huChonHd = {};
 /* Goi y noi dung chi hay gap, lay tu thong ke chi phi that cua tiem. Van go
    tay duoc: danh sach chi de bam cho nhanh, khong phai de ep. */
@@ -33701,7 +33827,7 @@ async function hsChonLoaiMoi() {
        tick hoa don hay bang go tay. Hoi truoc mot lan nua la hoi hai lan
        cung mot chuyen roi con mau thuan duoc voi nhau. */
     if (duong === 'tkct') {
-      huDong = []; huGhiChu = ''; huTkChi = ''; huCpThue = ''; huChonHd = {}; huSuaO = -1;
+      huDong = []; huGhiChu = ''; huTkChi = ''; huCpThue = ''; huVeSau = 0; huChonHd = {}; huSuaO = -1;
       return go(scrChiCongTyTao);
     }
 
@@ -34077,7 +34203,8 @@ async function scrChiCongTyTao() {
   html += hsoKhoi('Loại chi phí thuế · bắt buộc') + '<div class="card" style="padding:10px 12px">' +
     kmHangChip(
       posChipNut('data-hucp="Chi phi hop le"', '✅ Hợp lệ (có hoá đơn GTGT tên Vagabond)', huCpThue === 'Chi phi hop le') +
-      posChipNut('data-hucp="Chi phi khong hop le"', '🚫 Không hợp lệ tính thuế', huCpThue === 'Chi phi khong hop le')
+      posChipNut('data-hucp="vesau"', '🧾 Hoá đơn đến sau (chi trước)', !!huVeSau) +
+      posChipNut('data-hucp="Chi phi khong hop le"', '🚫 Không hợp lệ tính thuế', huCpThue === 'Chi phi khong hop le' && !huVeSau)
     ) +
     '<div style="font-size:12px;color:#6b7280;margin-top:7px;line-height:1.5">Chọn sai chỗ này thì cuối năm quyết toán thuế TNDN phải mở lại từng chứng từ.</div>' +
     '</div>';
@@ -34089,7 +34216,7 @@ async function scrChiCongTyTao() {
       el.onclick = function () { huTkChi = el.getAttribute('data-hutk'); go(scrChiCongTyTao, true); };
     });
     Array.prototype.forEach.call(document.querySelectorAll('[data-hucp]'), function (el) {
-      el.onclick = function () { huCpThue = el.getAttribute('data-hucp'); go(scrChiCongTyTao, true); };
+      el.onclick = function () { huChonCp(el.getAttribute('data-hucp')); };
     });
     return;
   }
@@ -34169,9 +34296,15 @@ async function scrChiCongTyTao() {
        chi khai duoc mot loai chung tu, ba tep nam chung mot ro khong biet
        to nao cua khoan nao. Nay moi dong tu mang loai chung tu va tep cua
        no, hien bang hinh thu nho ngay tren dong nhu man Hoan ung. */
-    html += '<div class="card" style="padding:11px 13px;background:#f0fdfa;border:1.5px solid #99f6e4;' +
-      'font-size:12.5px;color:#0f766e;line-height:1.6">Chi không hoá đơn thì <b>mỗi khoản phải tự mang chứng từ của nó</b>. ' +
-      'Bấm ô <b>Loại chứng từ</b> rồi ô <b>Chứng từ</b> ngay trên dòng để đính kèm.</div>';
+    html += huVeSau
+      ? '<div class="card" style="padding:11px 13px;background:#fffbeb;border:1.5px solid #fcd34d;' +
+        'font-size:12.5px;color:#92400e;line-height:1.6"><b>Hoá đơn đến sau.</b> Khoản chi ghi thẳng vào chi phí ngay khi chuyển tiền. ' +
+        'Hoá đơn về thì kế toán bấm <b>Nối hóa đơn đến sau</b> trên hồ sơ, hoặc trên tờ hoá đơn mua bên Next. ' +
+        'Nối đủ hoá đơn cho mọi khoản thì hồ sơ tự chuyển sang <b>Hợp lệ tính thuế</b>. ' +
+        'Tờ hoá đơn đã nối chỉ là chứng từ, không ghi sổ lần nữa.</div>'
+      : '<div class="card" style="padding:11px 13px;background:#f0fdfa;border:1.5px solid #99f6e4;' +
+        'font-size:12.5px;color:#0f766e;line-height:1.6">Chi không hoá đơn thì <b>mỗi khoản phải tự mang chứng từ của nó</b>. ' +
+        'Bấm ô <b>Loại chứng từ</b> rồi ô <b>Chứng từ</b> ngay trên dòng để đính kèm.</div>';
   }
 
   if (hopLe && huNguoi && hsCoQuyenCanCoc()) html += '<button class="btn gh" id="huCanCoc">' + (hsCocLan ? 'Kiểm kết quả lần cấn trước' : 'Cấn cọc đã chi vào hóa đơn đã chọn') + '</button>';
@@ -34229,7 +34362,7 @@ async function scrChiCongTyTao() {
     el.onclick = function () { huTkChi = el.getAttribute('data-hutk'); go(scrChiCongTyTao, true); };
   });
   Array.prototype.forEach.call(document.querySelectorAll('[data-hucp]'), function (el) {
-    el.onclick = function () { huCpThue = el.getAttribute('data-hucp'); go(scrChiCongTyTao, true); };
+    el.onclick = function () { huChonCp(el.getAttribute('data-hucp')); };
   });
   var coc = document.getElementById('huCanCoc');
   if (coc) coc.onclick = function () {
@@ -34340,7 +34473,12 @@ async function scrChiCongTyTao() {
         /* Chung tu nam o TUNG DONG tu 24/08/2026, khong con o tong nua.
            Chan ngay tren man cho no noi ro khoan nao thieu, thay vi de may
            chu tra ve mot cuc loi sau khi da bam Luu. */
-        var chuaCt = huDong.filter(function (x) { return !(x.tep || []).length || !(x.loai_chung_tu || '').trim(); });
+        /* v526: khoan "Hoa don den sau" thi chung tu la to hoa don noi vao
+           sau, luc lap chua co gi de dinh (may chu cung cho qua). */
+        var chuaCt = huDong.filter(function (x) {
+          if (huLaTkct() && x.cho_hoa_don && !(x.tep || []).length) return false;
+          return !(x.tep || []).length || !(x.loai_chung_tu || '').trim();
+        });
         if (chuaCt.length) {
           busy(false);
           return baoTin('Còn ' + chuaCt.length + ' khoản chưa đủ chứng từ:\n\n' +
@@ -34356,7 +34494,7 @@ async function scrChiCongTyTao() {
         });
       }
       busy(false);
-      huDong = []; huGhiChu = ''; huChonHd = {}; huSuaO = -1;
+      huDong = []; huGhiChu = ''; huChonHd = {}; huSuaO = -1; huVeSau = 0;
       toast('Đã lập hồ sơ ' + kq.ma, 3500);
       go(function () { scrHoSoTTView(kq.ma); }, true);
     } catch (e) { busy(false); baoTin((e && e.message) || 'Lập hồ sơ lỗi'); }
@@ -34753,10 +34891,20 @@ async function hsHanh(k, hs) {
   if (k.indexOf('bohd') === 0) {
     try {
     var dsBo = await api('vagabond.ho_so_bo_sung.danh_sach_hoa_don', {name: hs.ma});
-    if (!dsBo.length) return baoTin('Chưa có hóa đơn của nhà cung cấp này. Đồng bộ hóa đơn rồi mở lại hồ sơ.');
-    var maBo = await hoiChon('Nối hóa đơn đến sau', 'Chọn hóa đơn đúng khoản chi; liên kết này không tạo thanh toán mới.', dsBo.map(function(x) { return {k:x.name, nhan:(x.bill_no || x.name), mo_ta:x.name + ' · ' + money(x.grand_total)}; }));
+    /* v526: ho so Chi tu TK cong ty chi bay to CON NHAP (chi phi da ghi qua
+       ho so, noi to da ghi so la chi phi hai lan). Ho so tra NCC giu nhu cu:
+       to da ghi so la chung tu cong no dung luong. */
+    var boTkct = hs.loai === 'TK cong ty';
+    if (!dsBo.length) return baoTin(boTkct
+      ? 'Chưa có hóa đơn nháp nào của nhà cung cấp này. Hoá đơn về từ m-invoice sẽ tự hiện ở đây; tờ đã ghi sổ thì không nối được.'
+      : 'Chưa có hóa đơn của nhà cung cấp này. Đồng bộ hóa đơn rồi mở lại hồ sơ.');
+    var maBo = await hoiChon('Nối hóa đơn đến sau', boTkct
+      ? 'Chọn hóa đơn đúng khoản chi. Liên kết này không tạo thanh toán mới, và tờ đã nối sẽ không ghi sổ nữa vì chi phí đã ghi qua hồ sơ.'
+      : 'Chọn hóa đơn đúng khoản chi; liên kết này không tạo thanh toán mới.', dsBo.map(function(x) { return {k:x.name, nhan:(x.bill_no || x.name), mo_ta:x.name + ' · ' + money(x.grand_total)}; }));
     if (!maBo) return;
-    await api('vagabond.ho_so_bo_sung.noi_hoa_don', {name:hs.ma, dong:Number(k.slice(4)), hoa_don:maBo});
+    var rBo = await api('vagabond.ho_so_bo_sung.noi_hoa_don', {name:hs.ma, dong:Number(k.slice(4)), hoa_don:maBo});
+    if (rBo && rBo.hop_le) toast('Đã nối đủ hoá đơn, hồ sơ chuyển sang Hợp lệ tính thuế.', 5000);
+    else if (rBo && (rBo.lech || []).length) baoTin('Đã nối hoá đơn. Hồ sơ CHƯA chuyển Hợp lệ tính thuế vì tiền lệch:\n\n' + rBo.lech.join('\n') + '\n\nKiểm lại tờ hoá đơn đã chọn.');
     return go(function() { scrHoSoTTView(hs.ma); }, true);
     } catch (e) { return baoTin((e && e.message) || 'Chưa nối được hóa đơn. Tải lại hồ sơ rồi kiểm tra.'); }
   }
@@ -35395,7 +35543,9 @@ function huThemDongTrong() {
   huDong.push({
     ngay_hd: today(), so_hd_ncc: '', noi_dung: '', ben_ban: '',
     loai_chi: 'Hang hoa', co_vat: 0, so_tien: 0, tk_no: '',
-    ma_giao_dich: '', ghi_chu: '', tep: []
+    ma_giao_dich: '', ghi_chu: '', tep: [],
+    /* v526: dang lap "Hoa don den sau" thi khoan moi cung cho hoa don. */
+    cho_hoa_don: (huLaTkct() && huVeSau) ? 1 : 0
   });
   huSuaO = huDong.length - 1;
   go(huManHienTai(), true);

@@ -24,7 +24,7 @@ mot khoan no de nghi tra hai lan.
 
 import frappe
 from frappe.model.document import Document
-from frappe.utils import flt, getdate
+from frappe.utils import cint, flt, getdate
 
 CON_HIEU_LUC = ("Nhap", "Cho ke toan", "Cho giam doc", "Da duyet")
 
@@ -94,7 +94,11 @@ class VagabondHoSoTT(Document):
 		# chung tu roi: phai noi ro la chung tu gi VA phai dinh kem file that.
 		# Khong kiem o lan luu dau tien - luc do ban ghi chua ton tai nen chua
 		# the dinh kem duoc gi; tu lan luu thu hai tro di thi bat buoc.
-		if (self.loai or "") == "TK cong ty" and (self.loai_cp_thue or "") == "Chi phi khong hop le":
+		# v526: hồ sơ mà MỌI khoản đều "Hoá đơn đến sau" thì chứng từ là tờ hoá
+		# đơn sẽ nối vào sau, không đòi đính kèm lúc lập.
+		chi_cho_hd = bool(self.dong) and all(cint(d.get("cho_hoa_don")) for d in self.dong)
+		if ((self.loai or "") == "TK cong ty" and (self.loai_cp_thue or "") == "Chi phi khong hop le"
+				and not chi_cho_hd):
 			if not (self.loai_chung_tu or "").strip():
 				frappe.throw(
 					"Khoản chi không có hoá đơn thì phải chọn Loại chứng từ đính kèm, "

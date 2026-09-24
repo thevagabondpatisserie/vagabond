@@ -258,6 +258,24 @@ def _goi_y(hd, dong):
 	return ra
 
 
+def _ho_so_chi_theo_hd(ten_hd):
+	"""{tên hoá đơn: hồ sơ còn hiệu lực đang nối nó làm hoá đơn đến sau}."""
+	if not ten_hd:
+		return {}
+	from vagabond.ho_so_bo_sung import TT_HET_HIEU_LUC
+	from vagabond.ho_so_tt import LOAI_TKCT
+	ra = {}
+	# Chỉ hồ sơ Chi từ TK công ty: tờ nối vào hồ sơ trả NCC vẫn phải ghi sổ.
+	for ten, ho_so in frappe.db.sql(
+		"""select d.hoa_don_bo_sung, p.name from `tabVagabond Ho So TT Dong` d
+		inner join `tabVagabond Ho So TT` p on p.name = d.parent
+		where d.hoa_don_bo_sung in %s and p.loai = %s
+			and ifnull(p.trang_thai, '') not in %s""",
+		(tuple(ten_hd), LOAI_TKCT, TT_HET_HIEU_LUC)):
+		ra.setdefault(ten, ho_so)
+	return ra
+
+
 def _da_noi(dong):
 	"""Bao nhieu dong hoa don da tro toi mot phieu nhap."""
 	return len([r for r in dong if (r.get("purchase_receipt") or "").strip()])
@@ -366,6 +384,10 @@ def danh_sach(so_ngay=60, nhom=None, tu_khoa=""):
 	# mat luong). Tinh mot lan cho ca danh sach, de nhom "Cho ghi so" khong
 	# hua mot viec ma ke toan bam vao la bi chan (issue #252, 10/09/2026).
 	noi_cu_theo_hd = hd_noi_cu(dong_theo_hd)
+	# v526: to nhap da noi lam hoa don den sau cua ho so chi tu TK cong ty.
+	# Chi phi da vao so qua ho so, to nay khong ghi so nua: xep vao Xong, ghi
+	# ro vi sao, khong de nam mai o "Khong thay phieu nhap".
+	ho_so_chi = _ho_so_chi_theo_hd(nhap)
 
 	# Phieu nhap con chua duoc hoa don nao lay het, cua dung may nha cung
 	# cap dang co hoa don nhap. Noi rong khoang ngay hai dau, vi hang ve
@@ -400,6 +422,14 @@ def danh_sach(so_ngay=60, nhom=None, tu_khoa=""):
 		o = dict(r)
 		if r.get("docstatus") == 1:
 			o["nhom"] = "huy" if cint(r.get("vgb_huy")) else "xong"
+			o["so_dong"] = 0
+			o["da_noi"] = 0
+			o["so_phieu_goi_y"] = 0
+			ra.append(o)
+			continue
+		if ho_so_chi.get(r["name"]):
+			o["nhom"] = "xong"
+			o["ho_so_chi"] = ho_so_chi[r["name"]]
 			o["so_dong"] = 0
 			o["da_noi"] = 0
 			o["so_phieu_goi_y"] = 0
@@ -514,6 +544,14 @@ def xem(name):
 		frappe.log_error(frappe.get_traceback(), "doi_chieu_mua: soi hoa don dien tu")
 
 	nhom = _nhom_cua(hd, dong, bool(gy))
+	ho_so_chi = ""
+	if hd.get("docstatus") == 0:
+		# Codex #368 vòng 6: cùng MỘT nguồn với màn danh sách (chỉ hồ sơ Chi từ
+		# TK công ty), không tự hỏi dấu nối riêng. Tờ nối vào hồ sơ trả NCC vẫn
+		# ghi sổ bình thường.
+		ho_so_chi = _ho_so_chi_theo_hd([name]).get(name, "")
+		if ho_so_chi:
+			nhom = "xong"
 	noi_cu = 0
 	if hd.get("docstatus") == 0 and da_noi_ds:
 		noi_cu = 1 if name in hd_noi_cu({name: dong}) else 0
@@ -528,6 +566,7 @@ def xem(name):
 		"goi_y": gy,
 		"nhom": nhom,
 		"noi_cu": noi_cu,
+		"ho_so_chi": ho_so_chi,
 		"lam_duoc": 1 if _lam_duoc() else 0,
 		# Man hinh phai biet de an nut "Khop va ghi so" di, khong thi Uyen
 		# bam roi moi biet minh khong duoc phep - mot vong lam viec vut di.
@@ -1196,7 +1235,7 @@ def _noi_tung_dong(doc, phieu, chi_tiet=False, kho=None):
 
 
 @frappe.whitelist()
-def noi_phieu(name, phieu=None, ghi_so=0):
+def noi_phieu(name, phieu=None, ghi_so=0, tk=None):
 	"""Noi hoa don voi phieu nhap, va ghi so luon neu duoc yeu cau.
 
 	Mot nut lam ca hai buoc: dung cai lam Uyen ket hom 12/08 - noi xong bam
@@ -1285,9 +1324,10 @@ def noi_phieu(name, phieu=None, ghi_so=0):
 		)
 
 	doc.reload()
-	doc.flags.ignore_permissions = True
-	doc.submit()
-	frappe.db.commit()
+	# v526 (Codex #368 vòng 6): ghi sổ đi qua đúng một cửa có hạch toán. Tờ có
+	# dòng phí mà không gửi tài khoản thì dừng ở đây; dấu nối phiếu đã lưu ở
+	# trên, người dùng mở màn Hạch toán rồi ghi sổ tiếp.
+	_ghi_so_co_hach_toan(doc, tk)
 	return {
 		"da_noi": 1, "da_ghi_so": 1, "name": doc.name, "trang_thai": doc.status,
 		"so_dong_da_noi": kq["da_noi"], "khong_qua_kho": bo_qua,
@@ -2008,7 +2048,7 @@ def gan_ma_hang(name, dong, item_code, nho=1, doi=0, he_so=None, he_so_cho=None,
 
 
 @frappe.whitelist()
-def ghi_so_thang(name):
+def ghi_so_thang(name, tk=None):
 	"""Ghi so mot to hoa don KHONG noi phieu nhap nao.
 
 	CHI DUNG MAT NUT GHI SO (anh Viet bao 31/08/2026)
@@ -2063,14 +2103,44 @@ def ghi_so_thang(name):
 	if ket:
 		frappe.throw("Chưa ghi sổ thẳng được:\n\n" + "\n".join(ket))
 
-	doc.flags.ignore_permissions = True
-	doc.submit()
-	frappe.db.commit()
+	# v526 (chị Dung 24/09/2026): hạch toán từng dòng trước khi ghi sổ. Hoá
+	# đơn xăng HDM-26-09-00335 ghi thẳng rơi vào 632 vì màn không cho xem
+	# dòng nào đi đâu. Nay màn gửi kèm tài khoản từng dòng chi phí, bắt buộc.
+	_ghi_so_co_hach_toan(doc, tk)
+	co_phieu = any((d.get("purchase_receipt") or "").strip() for d in doc.items)
 	return {
 		"name": doc.name, "da_ghi_so": 1, "trang_thai": doc.status,
-		"loi_nhan": "Đã ghi sổ tờ %s. Tờ này không có dòng hàng qua kho nên "
-		"không cần nối phiếu nhập." % doc.name,
+		"loi_nhan": ("Đã ghi sổ tờ %s." % doc.name) if co_phieu else (
+			"Đã ghi sổ tờ %s. Tờ này không có dòng hàng qua kho nên "
+			"không cần nối phiếu nhập." % doc.name),
 	}
+
+
+def _ghi_so_co_hach_toan(doc, tk):
+	"""MỘT nguồn cho mọi nút ghi sổ hoá đơn mua trên màn Đối chiếu (v526).
+
+	Dòng chi phí (không qua kho, chưa nối phiếu nhập: phí ship, dịch vụ) phải
+	có tài khoản người chọn; ghi sổ xong đọc lại dòng và sổ cái, lệch thì huỷ
+	giao dịch. Codex #368 vòng 6: nút "Khớp và ghi sổ" (tờ lẫn hàng kho và
+	dòng phí) từng gọi submit riêng, không qua đây, nên dòng phí vẫn rơi 632.
+	Mọi đường ghi sổ của màn này phải gọi hàm này, không tự submit."""
+	from vagabond import hach_toan_thang
+	if isinstance(tk, str):
+		tk = frappe.parse_json(tk) if tk.strip() else None
+	co_dong_chi_phi = any(hach_toan_thang.la_dong_chi_phi(d) for d in doc.items)
+	if co_dong_chi_phi and not isinstance(tk, dict):
+		frappe.throw("Chưa chọn tài khoản hạch toán cho các dòng chi phí (phí ship, dịch vụ). "
+			"Tải lại màn Đối chiếu (kéo xuống để làm mới) rồi bấm ghi sổ lần nữa, máy sẽ mở "
+			"màn chọn tài khoản.")
+	chon = hach_toan_thang.ap_tai_khoan(doc, tk) if co_dong_chi_phi else {}
+	doc.flags.ignore_permissions = True
+	doc.submit()
+	lech = hach_toan_thang.soat_sau_ghi(doc.name, chon)
+	if lech:
+		frappe.db.rollback()
+		frappe.throw("Chưa ghi sổ: máy tự đổi tài khoản khác với chị chọn (%s). Báo kỹ thuật." % "; ".join(lech))
+	frappe.db.commit()
+	return chon
 
 
 def chan_vuot_luong_da_nhan(doc, method=None):

@@ -80,7 +80,10 @@ CUA_NGO = {
 	# cung NCC de noi, va noi hoa don vao mot khoan chi.
 	# `nen_pdf`, `loi_giu_lien_ket` va `kiem_bo_sung` CO Y khong nam trong danh
 	# sach: do la phep noi bo, Document goi qua validate chu khong mo ra ngoai.
-	"ho_so_bo_sung.py": ["nen_tep", "danh_sach_hoa_don", "noi_hoa_don"],
+	# v526: khoan_cho_hoa_don cho nút nối hoá đơn đến sau trên màn Hoá đơn mua.
+	"ho_so_bo_sung.py": ["nen_tep", "danh_sach_hoa_don", "noi_hoa_don", "khoan_cho_hoa_don"],
+	# v526: màn hạch toán trước khi ghi sổ thẳng (chị Dung 24/09/2026).
+	"hach_toan_thang.py": ["xem"],
 	# Them 01/09/2026 cung lan mo phan he Nhan su, man Duyet KPI va hoa hong.
 	# Muoi hai cua ngo deu la cua man hinh: dung phieu, cham diem, duyet, tra
 	# lai, gop y, day sang de nghi chi, xem danh sach, xem chi tiet, xem phieu

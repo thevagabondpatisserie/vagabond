@@ -1011,6 +1011,10 @@ def tao_chi_cong_ty(ncc=None, tk_chi=None, loai_cp_thue=None, dong=None, ghi_chu
 		chung = _tep_hop_le(tep)
 		thieu = []
 		for i, d in enumerate(sach):
+			# v526 (anh Việt 23/09/2026): khoản "Hoá đơn đến sau" thì chứng từ
+			# chính là tờ hoá đơn sẽ nối vào sau, lúc lập chưa có gì để đính.
+			if d["cho_hoa_don"] and not d["tep"]:
+				continue
 			if not d["tep"] and chung:
 				d["loai_chung_tu"] = d["loai_chung_tu"] or loai_chung_tu or None
 				d["tep"] = "\n".join(chung)
@@ -1056,7 +1060,7 @@ def tao_chi_cong_ty(ncc=None, tk_chi=None, loai_cp_thue=None, dong=None, ghi_chu
 	# rieng, ma o day chi can doi con tro.
 	_gan_tep_ve_ho_so(doc.name, sach)
 	da_gan = sum(len(_tep_cua_dong(d.get("tep"))) for d in sach)
-	if loai_cp_thue == CP_KHONG_HOP_LE and not da_gan:
+	if loai_cp_thue == CP_KHONG_HOP_LE and not da_gan and not all(d["cho_hoa_don"] for d in sach):
 		frappe.throw("Không gắn được chứng từ nào vào hồ sơ, vui lòng thử tải lại file.")
 
 	frappe.db.commit()

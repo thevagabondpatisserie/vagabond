@@ -836,9 +836,14 @@ def tk_theo_mon(doc, method=None):
 			return
 		if not (doc.get("custom_minvoice_id") or "").strip():
 			return
+		from vagabond.hach_toan_thang import nguoi_da_chon
 		for d in doc.get("items") or []:
 			ma = (d.get("item_code") or "").strip()
 			if not ma or (d.get("purchase_receipt") or "").strip():
+				continue
+			# v526: kế toán vừa chọn tài khoản cho dòng này ở bước ghi sổ
+			# thẳng thì người quyết, không đè lại theo khai báo Món.
+			if nguoi_da_chon(doc, d.name):
 				continue
 			if cint(frappe.db.get_value("Item", ma, "is_stock_item")):
 				continue

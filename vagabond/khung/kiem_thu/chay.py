@@ -127,6 +127,7 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_dem_that_520,
 	thu_v523,
 	thu_v524,
+	thu_v526,
 	thu_staging_257,
 	thu_day_ma_pancake, thu_day_pancake_hanh_vi,
 	thu_thu_tien,

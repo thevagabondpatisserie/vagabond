@@ -542,9 +542,13 @@ def gan_tai_khoan_chi_phi(doc, method=None):
 		return
 	from erpnext.controllers.accounts_controller import validate_account_head
 	tk = doc.vgb_tk_chi_phi
+	from vagabond.hach_toan_thang import nguoi_da_chon
 	for dong in doc.get('items') or []:
 		if dong.get('purchase_receipt') or (dong.get('item_code') and
 				frappe.db.get_value('Item', dong.item_code, 'is_stock_item')):
+			continue
+		# v526: dòng kế toán vừa chọn tài khoản ở bước ghi sổ thẳng thì giữ.
+		if nguoi_da_chon(doc, dong.name):
 			continue
 		validate_account_head(dong.idx, tk, doc.company, 'Expense')
 		dong.expense_account = tk

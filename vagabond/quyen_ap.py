@@ -84,6 +84,24 @@ CHUNG_TU_GOC = ("Purchase Order",)
 QUYEN = ("read", "print")
 
 
+# v526 (anh Việt chọn 24/09/2026): kế toán FIN sửa được tài khoản trên hoá
+# đơn mua ĐÃ ghi sổ. Ca thật: chị Dung ghi hoá đơn xăng HDM-26-09-00335 vào
+# 632, vào Desk đổi 632 thành 6417 thì bị chặn "Không có quyền cho Repost sổ
+# kế toán". ERPNext v16 đổi tài khoản trên tờ đã ghi sổ bằng cách lập một
+# phiếu Repost Accounting Ledger, mà bảng quyền chuẩn của phiếu đó chỉ có
+# System Manager. Chỉ mở cho đúng một vai AP Kiểm soát (FIN), không mở cho cả
+# Accounts User. Đọc đoạn "VI SAO CHI DUNG VAO PURCHASE ORDER" ở đầu tệp: thêm
+# dòng quyền là đóng băng bảng quyền chuẩn của doctype đó; Repost Accounting
+# Ledger chuẩn chỉ có một dòng System Manager, được chép sang nguyên vẹn.
+CAP_THEM = (
+	(
+		"Repost Accounting Ledger",
+		("AP Kiểm soát (FIN)",),
+		("read", "write", "create", "submit"),
+	),
+)
+
+
 def can_cap():
 	"""Danh sach (doctype, vai, quyen) ma he PHAI co. Phep thuan, khong cham Frappe."""
 	ra = []
@@ -92,6 +110,41 @@ def can_cap():
 			for q in QUYEN:
 				ra.append((dt, vai, q))
 	return ra
+
+
+def can_cap_them():
+	"""Danh sach (doctype, vai, quyen) cua CAP_THEM. Phep thuan."""
+	ra = []
+	for dt, cac_vai, cac_quyen in CAP_THEM:
+		for vai in cac_vai:
+			for q in cac_quyen:
+				ra.append((dt, vai, q))
+	return ra
+
+
+def cap_repost_v526():
+	"""Patch v526: cấp quyền Repost cho kế toán FIN. KHÔNG nuốt lỗi: thiếu
+	quyền sau khi cấp là làm hỏng migrate, để deploy không báo xong giả."""
+	from frappe.permissions import add_permission, update_permission_property
+
+	them = []
+	for dt, cac_vai, cac_quyen in CAP_THEM:
+		if not frappe.db.exists("DocType", dt):
+			frappe.throw("Không có doctype %s trên site, chưa cấp quyền được." % dt)
+		for vai in cac_vai:
+			if not frappe.db.exists("Role", vai):
+				frappe.throw("Không có vai %s trên site, chưa cấp quyền %s được." % (vai, dt))
+			for q in cac_quyen:
+				if not _thieu(dt, vai, q):
+					continue
+				add_permission(dt, vai, 0)
+				update_permission_property(dt, vai, 0, q, 1)
+				them.append("%s · %s · %s" % (dt, vai, q))
+			con = [q for q in cac_quyen if _thieu(dt, vai, q)]
+			if con:
+				frappe.throw("Cấp quyền %s cho %s chưa đủ: thiếu %s." % (dt, vai, ", ".join(con)))
+	frappe.clear_cache()
+	return {"them": them}
 
 
 # ==================================================================
@@ -160,7 +213,7 @@ def dung():
 	# Cap moi cho ba vai AP, VA dat lai nhung gi bang dong bang da lam mat.
 	# Cung mot vong vi cung mot phep: di qua hai ham cua Frappe, bo qua dong
 	# da du, chay lai duoc khong gioi han lan.
-	for dt, vai, q in list(can_cap()) + list(can_khoi_phuc()):
+	for dt, vai, q in list(can_cap()) + list(can_khoi_phuc()) + list(can_cap_them()):
 		if not frappe.db.exists("DocType", dt):
 			continue
 		if not frappe.db.exists("Role", vai):
