@@ -160,31 +160,37 @@ def loi_trung_trong_ho_so(moi_dong, cu_dong):
 	đang lưu. Tờ cũng không được vừa là hoá đơn gốc của khoản này vừa là hoá
 	đơn bổ sung của khoản khác.
 	moi_dong/cu_dong: {ten_dong: {"idx", "hoa_don_bo_sung", "hoa_don"}}.
-	Chỉ báo khi nhóm trùng có ít nhất một dấu nối MỚI hoặc ĐỔI ở lần lưu này,
-	để hồ sơ cũ (nếu lỡ có) không bị khoá cứng ở mọi lần lưu."""
+	Chỉ báo khi xung đột có ít nhất một VẾ mới hoặc đổi ở lần lưu này (vế bổ
+	sung hoặc vế hoá đơn gốc, vòng 13: chỉ xét vế bổ sung thì thêm hoá đơn gốc
+	trùng một tờ đã nối sẵn là lọt), để hồ sơ cũ nếu lỡ có trùng không bị khoá
+	cứng ở mọi lần lưu."""
+	cu_dong = cu_dong or {}
+
+	def _v(r, k):
+		return ((r or {}).get(k) or "").strip()
+
+	def doi(t, k):
+		# Dòng mới (không có ở bản cũ) thì mọi vế khác rỗng đều là mới.
+		return _v(moi_dong[t], k) != _v(cu_dong.get(t), k)
+
 	goc = {}
-	for ten, r in (moi_dong or {}).items():
-		g = (r.get("hoa_don") or "").strip()
-		if g:
-			goc.setdefault(g, []).append(r.get("idx"))
+	for t, r in (moi_dong or {}).items():
+		if _v(r, "hoa_don"):
+			goc.setdefault(_v(r, "hoa_don"), []).append(t)
 	nhom = {}
-	for ten, r in (moi_dong or {}).items():
-		ma = (r.get("hoa_don_bo_sung") or "").strip()
-		if ma:
-			nhom.setdefault(ma, []).append(ten)
+	for t, r in (moi_dong or {}).items():
+		if _v(r, "hoa_don_bo_sung"):
+			nhom.setdefault(_v(r, "hoa_don_bo_sung"), []).append(t)
+	so = lambda ts: ", ".join(str(i) for i in sorted(moi_dong[t].get("idx") or 0 for t in ts))
 	for ma in sorted(nhom):
 		cac = nhom[ma]
-		moi = [t for t in cac if (((cu_dong or {}).get(t) or {}).get("hoa_don_bo_sung") or "").strip() != ma]
-		if not moi:
-			continue
-		idx = sorted(moi_dong[t].get("idx") or 0 for t in cac)
-		if len(cac) > 1:
+		if len(cac) > 1 and any(doi(t, "hoa_don_bo_sung") for t in cac):
 			return "Hoá đơn %s đang gán cho nhiều khoản (%s) trong cùng hồ sơ. Một tờ chỉ làm chứng từ cho một khoản." % (
-				ma, ", ".join(str(i) for i in idx))
-		khac = [i for i in goc.get(ma, []) if i not in idx]
-		if khac:
-			return "Hoá đơn %s đã là hoá đơn gốc của khoản %s nên không nối bổ sung cho khoản %s được." % (
-				ma, ", ".join(str(i) for i in sorted(khac)), idx[0])
+				ma, so(cac))
+		khac = [t for t in goc.get(ma, []) if t not in cac]
+		if khac and (any(doi(t, "hoa_don_bo_sung") for t in cac) or any(doi(t, "hoa_don") for t in khac)):
+			return "Hoá đơn %s vừa là hoá đơn gốc của khoản %s vừa nối bổ sung cho khoản %s. Một tờ chỉ làm chứng từ cho một khoản." % (
+				ma, so(khac), so(cac))
 	return ""
 
 
