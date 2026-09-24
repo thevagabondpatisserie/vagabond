@@ -75,6 +75,7 @@ function dcmChip(d) {
   var the = function (bg, fg, chu) {
     return '<span style="display:inline-block;background:' + bg + ';color:' + fg + ';font-size:12px;font-weight:700;border-radius:999px;padding:3px 10px;margin:2px 5px 0 0;white-space:nowrap">' + chu + '</span>';
   };
+  if (d.ho_so_chi) return the('#dbeafe', '#1e40af', '🧾 Chứng từ của hồ sơ ' + h(d.ho_so_chi) + ', không ghi sổ');
   if (d.nhom === 'xong') return the('#dcfce7', '#166534', '✅ Đã ghi sổ');
   if (d.nhom === 'huy') return the('#fee2e2', '#991b1b', '🚫 Đã huỷ');
   if (d.noi_cu) return the('#fee2e2', '#991b1b', '⚠️ Phiếu nhập đã bị hoá đơn khác lấy, nối lại');
@@ -368,6 +369,14 @@ async function scrDcmXem(name) {
         '<div style="font-size:11.5px;color:#98a2b3;margin:-4px 0 10px;line-height:1.6">' +
         'Nối xong, tờ hoá đơn nằm ở dạng nháp trong nhóm <b>Chờ ghi sổ</b> để kế toán ghi vào sổ cái.</div>');
   }
+  /* v526: to da noi lam hoa don den sau cua ho so chi tu TK cong ty thi chi
+     la chung tu, khong noi phieu, khong ghi so (may chu cung chan). */
+  if (kq.ho_so_chi) {
+    foot = '';
+    html = '<div class="card" style="padding:12px 14px;background:#eff6ff;border:1.5px solid #bfdbfe;font-size:13px;color:#1e3a8a;line-height:1.6">' +
+      '🧾 Tờ này đã nối làm <b>hoá đơn đến sau</b> của hồ sơ <b>' + h(kq.ho_so_chi) + '</b>. ' +
+      'Khoản chi đã ghi chi phí qua hồ sơ đó, nên tờ này chỉ là chứng từ, không ghi sổ nữa.</div>' + html;
+  }
   var b = frame('Đối chiếu ' + name, html, foot ? { footer: foot } : {});
   b.onclick = function (e) {
     /* Nut doi don vi: sua o `uom` cua dong hoa don con nhap, GIU NGUYEN so
@@ -447,27 +456,111 @@ async function scrDcmXem(name) {
   var n1 = document.getElementById('dcmNoi');
   if (n1) n1.onclick = function () { chay(0); };
   var n3 = document.getElementById('dcmThang');
-  if (n3) n3.onclick = async function () {
-    var ok = await confirmSheet('Ghi sổ thẳng tờ ' + name,
-      'Tờ này không nối vào phiếu nhập kho nào.\n\n' +
-      'Đúng khi hàng không qua kho: xăng dầu, dịch vụ, phí ship, văn phòng phẩm.\n\n' +
-      'Nếu có dòng hàng thật đáng lẽ phải qua kho thì hệ sẽ chặn và nói rõ dòng nào.',
-      'Ghi sổ', false);
-    if (!ok) return;
-    busy(true);
-    try {
-      var r = await api('vagabond.doi_chieu_mua.ghi_so_thang', { name: name });
-      busy(false);
-      toast((r && r.loi_nhan) || ('Đã ghi sổ ' + name), 5000);
-      dcmPhieu = []; dcmSs = null;
-      go(scrDoiChieuMua, true);
-    } catch (e) { busy(false); baoTin((e && e.message) || 'Không ghi sổ được'); }
-  };
+  /* v526 (chi Dung 24/09/2026): khong ghi so ngay nua. Mo man HACH TOAN,
+     moi dong chi phi chon tai khoan roi moi ghi. Hoa don xang HDM-26-09-00335
+     ghi thang roi vao 632 vi man cu khong cho xem dong nao di dau. */
+  if (n3) n3.onclick = function () { dcmHt = null; go(function () { scrDcmHachToan(name); }); };
   var n2 = document.getElementById('dcmXong');
   if (n2) n2.onclick = function () { chay(1); };
 }
 
 function cint0(v) { var n = parseInt(v, 10); return isNaN(n) ? 0 : n; }
+
+
+/* ---------- Hach toan truoc khi ghi so thang (v526, chi Dung 24/09/2026)
+
+   Chi Dung ghi thu hoa don xang, dong xang roi vao 632 gia von hang ban,
+   vao Desk sua sang 6417 thi bi chan quyen. Anh Viet chon: chon tai khoan
+   TUNG DONG truoc khi ghi so.
+
+   May goi y san cho moi dong chi phi (khai tren Mon, tai khoan dang co,
+   lan truoc cua dung nha cung cap, cuoi cung moi la mac dinh 632). Dong
+   hang kho da noi phieu thi chi hien, khong doi: tai khoan di theo kho.
+   Lua chon giu trong `dcmHt` de chon xong dong nay, ve lai man, khong mat
+   lua chon cua dong kia. */
+var dcmHt = null;
+
+function dcmLa632(tk) { return String(tk || '').split(' - ')[0].trim().indexOf('632') === 0; }
+
+async function scrDcmHachToan(name) {
+  frame('Hạch toán ' + name, '<div class="emp"><div class="e1">⏳</div></div>');
+  var kq;
+  try { kq = await api('vagabond.hach_toan_thang.xem', { name: name }); }
+  catch (e) { frame('Hạch toán', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không đọc được') + '</div></div>'); return; }
+  var dong = kq.dong || [];
+  if (!dcmHt || dcmHt.name !== name) {
+    dcmHt = { name: name, chon: {} };
+    dong.forEach(function (d) { if (d.sua_duoc) dcmHt.chon[d.ten] = d.goi_y || d.tk || ''; });
+  }
+  var thieu = 0, co632 = 0;
+  var html = '<div class="card" style="padding:12px 14px">' +
+    '<div style="font-size:11.5px;color:#6b7280;font-weight:700">HẠCH TOÁN TRƯỚC KHI GHI SỔ</div>' +
+    '<div style="font-size:15px;font-weight:800;margin-top:3px">' + h(kq.ncc || '') + '</div>' +
+    '<div style="display:flex;justify-content:space-between;margin-top:4px"><span style="font-size:13px;color:#374151">' + h(name) + '</span>' +
+    '<b>' + money(kq.tong) + ' đ</b></div>' +
+    '<div style="font-size:12px;color:#6b7280;margin-top:6px;line-height:1.55">Chạm vào ô tài khoản của từng dòng để đổi. ' +
+    'Máy gợi ý theo lần trước của nhà cung cấp này, sửa một lần thì lần sau tự ra đúng.</div></div>';
+  html += '<div class="card" style="padding:0">';
+  dong.forEach(function (d) {
+    var tk = d.sua_duoc ? (dcmHt.chon[d.ten] || '') : d.tk;
+    var sai = d.sua_duoc && dcmLa632(tk);
+    if (d.sua_duoc && !tk) thieu++;
+    if (sai) co632++;
+    html += '<div style="padding:11px 14px;border-bottom:1px solid #f2f4f7">' +
+      '<div style="display:flex;justify-content:space-between;gap:10px">' +
+      '<span style="font-size:13.5px;font-weight:600">' + d.idx + '. ' + h(d.ten_hang || '(không tên)') + '</span>' +
+      '<b style="white-space:nowrap">' + money(d.tien) + ' đ</b></div>';
+    if (d.sua_duoc) {
+      html += '<div data-dcmtk="' + h(d.ten) + '" style="margin-top:7px;cursor:pointer;border:1.5px solid ' +
+        (tk && !sai ? '#99f6e4' : '#fca5a5') + ';background:' + (tk && !sai ? '#f0fdfa' : '#fef2f2') +
+        ';border-radius:8px;padding:8px 10px;font-size:13px;font-weight:700;color:' + (tk && !sai ? '#0f766e' : '#b91c1c') + '">' +
+        'Nợ ' + h(tk || '⚠️ chọn tài khoản') + '</div>';
+      if (sai) {
+        html += '<div style="font-size:12px;color:#b91c1c;margin-top:4px;line-height:1.5">632 là giá vốn hàng bán. ' +
+          'Xăng dầu, dịch vụ, phí ship thường vào nhóm 641 hoặc 642.</div>';
+      } else if (tk && tk === d.goi_y && d.nhan_nguon) {
+        html += '<div style="font-size:11.5px;color:#6b7280;margin-top:4px">Gợi ý theo ' + h(d.nhan_nguon) + '</div>';
+      }
+    } else {
+      html += '<div style="font-size:12px;color:#6b7280;margin-top:5px">Hàng qua kho · tài khoản đi theo kho: ' + h(d.tk || '') + '</div>';
+    }
+    html += '</div>';
+  });
+  html += '</div>';
+  var foot = kq.ghi_so_duoc
+    ? '<button class="btn" id="dcmHtGhi" style="margin:0;width:100%">✅ Ghi sổ với hạch toán trên</button>' +
+      '<div style="font-size:11.5px;color:#98a2b3;margin:6px 0 10px;line-height:1.6">' +
+      (thieu ? 'Còn ' + thieu + ' dòng chưa chọn tài khoản.' :
+        co632 ? 'Còn ' + co632 + ' dòng đang để 632. Kiểm lại trước khi ghi sổ.' :
+        'Ghi sổ xong thì tờ này không sửa ở đây được nữa.') + '</div>'
+    : '<div style="font-size:11.5px;color:#98a2b3;margin:0 0 10px;line-height:1.6">Chỉ kế toán ghi sổ được. Nhờ kế toán mở tờ này.</div>';
+  frame('Hạch toán ' + name, html, { footer: foot });
+
+  Array.prototype.forEach.call(document.querySelectorAll('[data-dcmtk]'), function (el) {
+    el.onclick = async function () {
+      var ten = el.getAttribute('data-dcmtk');
+      var d = dong.filter(function (x) { return x.ten === ten; })[0] || {};
+      var c = await huChonTaiKhoan('Tài khoản Nợ dòng ' + (d.idx || ''), dcmHt.chon[ten] || '');
+      if (c === null) return;
+      dcmHt.chon[ten] = c;
+      go(function () { scrDcmHachToan(name); }, true);
+    };
+  });
+  var nut = document.getElementById('dcmHtGhi');
+  if (nut) nut.onclick = async function () {
+    if (thieu) return baoTin('Còn ' + thieu + ' dòng chưa chọn tài khoản. Chạm vào ô đỏ để chọn.');
+    if (co632 && !(await confirmSheet('Còn dòng để 632',
+      co632 + ' dòng đang hạch toán vào 632 giá vốn hàng bán. Chắc chắn đúng thì bấm Ghi sổ.', 'Ghi sổ', false))) return;
+    busy(true);
+    try {
+      var r = await api('vagabond.doi_chieu_mua.ghi_so_thang', { name: name, tk: JSON.stringify(dcmHt.chon) });
+      busy(false);
+      toast((r && r.loi_nhan) || ('Đã ghi sổ ' + name), 5000);
+      dcmHt = null; dcmPhieu = []; dcmSs = null;
+      go(scrDoiChieuMua, true);
+    } catch (e) { busy(false); baoTin((e && e.message) || 'Không ghi sổ được'); }
+  };
+}
 
 
 /* ---------- Cai dat - May in (anh Viet 12/08/2026) ----------
