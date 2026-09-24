@@ -29392,16 +29392,24 @@ function dmDoc() {
 }
 
 var dmKq = null;
+// Codex #364 v3, giữ lại ở v525 (Codex #365 v2): đánh số từng lượt hỏi xem
+// trước. Lượt về trễ (đã có lượt mới hơn, hoặc người đã đổi nhóm hay loại
+// trong lúc chờ) thì bỏ, không được đè lên form hiện tại. Bộ chặn này độc lập
+// với phần đồng bộ loại CCDC của v524 đã gỡ: đừng gỡ theo.
+var dmHoiLuot = 0;
 function dmHoiXem() {
   if (dmTre) clearTimeout(dmTre);
   dmTre = setTimeout(async function () {
     var s = dmVe;
+    var luot = ++dmHoiLuot;
     if (!s.nhom && String(s.ten || '').trim().length < 3) { dmKq = null; return dmVeXem(); }
+    var gui = { nhom: s.nhom, loai: s.loai, ten: s.ten, quy_cach: s.quy_cach };
+    var kq = null;
     try {
-      dmKq = await api('vagabond.danh_muc.xem_truoc', {
-        nhom: s.nhom, loai: s.loai, ten: s.ten, quy_cach: s.quy_cach
-      });
-    } catch (e) { dmKq = null; }
+      kq = await api('vagabond.danh_muc.xem_truoc', gui);
+    } catch (e) { kq = null; }
+    if (luot !== dmHoiLuot || dmVe.nhom !== gui.nhom || dmVe.loai !== gui.loai) return;
+    dmKq = kq;
     dmVeXem();
   }, 320);
 }
