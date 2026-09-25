@@ -59,6 +59,9 @@ def _pi(name, ncc, tien, docstatus=1, con=None, bill="", ngay="2026-09-05", huy=
 		outstanding_amount=tien if con is None else con, credit_to=T331, posting_date=ngay, bill_no=bill, vgb_huy=huy)
 
 
+NHAT_KY = []
+
+
 class _HoSo:
 	def __init__(self, ten, ncc, dong, loai="TK cong ty", tt="Da thanh toan", ngay_tt="2026-09-24", hd_sau=None,
 			cp="Chi phi khong hop le"):
@@ -87,6 +90,7 @@ class _HoSo:
 		self.hd_sau = [r for r in self.hd_sau if r is not c]
 
 	def save(self, **k):
+		NHAT_KY.append("luu " + ",".join(r.hoa_don for r in self.hd_sau))
 		from vagabond import ho_so_bo_sung as bo
 		# Lưu thật đi qua validate: chạy CHÍNH luật bảng tờ nối (loi_sua_hd_sau)
 		# như controller, với bản trước lúc lưu là ảnh đã chụp khi mở hồ sơ.
@@ -123,6 +127,7 @@ class _JE:
 		self.docstatus = 1
 
 	def cancel(self):
+		NHAT_KY.append("huy " + self.name)
 		self.docstatus = 2
 
 
@@ -503,6 +508,21 @@ def _go_nhom():
 	la("bút toán huỷ", ds_je[0].docstatus, 2)
 	la("gỡ cả sáu", (len(ho.hd_sau), sorted(r2.kq["go"])), (0, sorted(m for m, _b, _t in MOBI)))
 	la("về không hợp lệ", (ho.loai_cp_thue, r2.kq["ve_khong_hop_le"]), ("Chi phi khong hop le", 1))
+
+
+# Codex #373 vòng 1 (inline, commit đầu nhánh): huỷ bút toán trong lúc dòng
+# nối còn trỏ vào nó thì Frappe có thể chặn vì còn liên kết ngược. Đọc mã
+# Frappe v16 (get_linked_docs): lúc Cancel chỉ chặn liên kết từ chứng từ ĐÃ
+# SUBMIT, mà hồ sơ không submit được, nên chưa tái hiện được bằng suy luận;
+# không có bench trong phiên. Vẫn đổi thứ tự cho hết phụ thuộc: lưu hồ sơ đã
+# gỡ dòng TRƯỚC, huỷ bút toán SAU. Ca bench thu_noi_hd_sau_530 kiểm trên site.
+@ca("v530 Codex #373 v1: gỡ lưu hồ sơ (bỏ dòng trỏ vào bút toán) TRƯỚC rồi mới huỷ bút toán")
+def _go_thu_tu():
+	ds_je = []
+	r = _chay(_mobi(), _to_mobi(), lambda bo: bo.noi_nhieu("APP.26.09.102", json.dumps([m for m, _b, _t in MOBI])), ds_je=ds_je)
+	del NHAT_KY[:]
+	_chay(r.hs, _to_mobi(), lambda bo: bo.go_noi("APP.26.09.102", "HDM-26-09-00093"), ds_je=ds_je)
+	la("thứ tự", NHAT_KY, ["luu ", "huy " + ds_je[0].name])
 
 
 @ca("v530 gỡ tờ nháp: chỉ tờ đó, không huỷ bút toán nào")
