@@ -320,6 +320,31 @@ def ngay_tu_doi_chieu(ds_ngay_co, hom_nay, ngay_so_moi_nhat=None, chi_ngay_cu=Fa
 	return sorted(ra)
 
 
+def ke_hoach_tu_doi_chieu(cap_ds, hom_nay, ngay_so_moi_nhat=None, chi_ngay_cu=False, chi_ngay=None):
+	"""Từ các cặp (ngày sổ, ngày lập) của tờ giữ cờ, ra danh sách lượt chạy
+	(ngày sổ, ngày lập, chế độ), cũ trước mới sau theo ngày lập.
+
+	Hạn ký và cửa m-invoice xét theo NGÀY LẬP, qua đúng ngay_tu_doi_chieu
+	(Codex #369 vòng 2, G1). Ngày lập khác ngày sổ nghĩa là tờ đã được kéo
+	ngày: đi chế độ "keo" tới đúng ngày lập đó, không đổi sang ngày nào khác.
+	chi_ngay lọc theo ngày sổ HOẶC ngày lập: hàng rào hỏi theo ngày sổ, chuỗi
+	cuối ngày và nhịp bù hỏi theo ngày phát hành."""
+	chon = {_ngay(x) for x in chi_ngay} if chi_ngay is not None else None
+	ra = []
+	for cap in cap_ds or []:
+		so, lap = _ngay(cap[0]), _ngay(cap[1]) or _ngay(cap[0])
+		if so is None or lap is None:
+			continue
+		if chon is not None and so not in chon and lap not in chon:
+			continue
+		if not ngay_tu_doi_chieu([lap], hom_nay, ngay_so_moi_nhat, chi_ngay_cu):
+			continue
+		viec = (so, lap, "giu_ngay" if lap == so else "keo")
+		if viec not in ra:
+			ra.append(viec)
+	return sorted(ra, key=lambda v: (v[1], v[0]))
+
+
 # #266 vòng 5: van thời gian đã bị gỡ hẳn khỏi phai_nhuong_ngay_cu. Mốc lỗi
 # chỉ còn để người trực đọc, KHÔNG được dùng lại để mở đường cho tờ ngày mới.
 
@@ -715,7 +740,7 @@ def _dat_ngay_neu_con_nguyen(ten, anh_chup, ngay_dat):
 	return True
 
 
-def chay_nen(ngay, che_do, nguoi="", ngay_tham_chieu="", ngay_dich=""):
+def chay_nen(ngay, che_do, nguoi="", ngay_tham_chieu="", ngay_dich="", chi_giu_co=0):
 	"""Lượt chạy nền: gỡ cờ, đánh dấu ngày lập, phát hành rồi ký.
 
 	Gỡ cờ đối chiếu CHỈ khi m-invoice trả lời không có tờ nào mang mã phiếu
@@ -732,7 +757,7 @@ def chay_nen(ngay, che_do, nguoi="", ngay_tham_chieu="", ngay_dich=""):
 	frappe.set_user("Administrator")
 	try:
 		return _chay_nen_da_nang_quyen(
-			ngay, che_do, nguoi, ngay_tham_chieu, ngay_dich)
+			ngay, che_do, nguoi, ngay_tham_chieu, ngay_dich, chi_giu_co=chi_giu_co)
 	finally:
 		try:
 			frappe.set_user(nguoi_goc)
@@ -741,8 +766,11 @@ def chay_nen(ngay, che_do, nguoi="", ngay_tham_chieu="", ngay_dich=""):
 
 
 def _chay_nen_da_nang_quyen(
-		ngay, che_do, nguoi="", ngay_tham_chieu="", ngay_dich=""):
-	"""Than that cua chay_nen. Chi goi tu chay_nen, sau khi da nang quyen."""
+		ngay, che_do, nguoi="", ngay_tham_chieu="", ngay_dich="", chi_giu_co=0):
+	"""Than that cua chay_nen. Chi goi tu chay_nen, sau khi da nang quyen.
+
+	chi_giu_co=1 (v527, luot may tu doi chieu): chi xu to dang giu co, khong
+	dat ngay cho to khac cua cung ngay so."""
 	from vagabond.ban_hang import (
 		_goi_server_script, _khoa_hddt, _mo_khoa_dong_bo, _cong_tac_minvoice,
 		_phat_hanh_theo_lo, _ky_theo_lo,
@@ -757,6 +785,8 @@ def _chay_nen_da_nang_quyen(
 			"Mở lại Cài đặt, xem trước và xác nhận ngày mới; máy không tự đổi ngày sau nửa đêm."
 			% (ngay_vn(ngay_dat), ngay_vn(han_ky_gui(ngay_dat))))
 	chon, stg = _dem_theo_ngay(ngay_cu, hom_nay)
+	if cint(chi_giu_co):
+		chon = [r for r in chon if cint(r.vgb_hddt_cho_doi_chieu)]
 	if not con_trong_han_ky_gui(ngay_dat, ngay_chay_that):
 		chon = [r for r in chon if ngay_dat in _ngay_xac_nhan_qua_han(ngay_chay_that, r.name)]
 	kq = {"ngay_cu": str(ngay_cu), "che_do": che_do, "chon": len(chon),
@@ -893,7 +923,7 @@ class KhongDocDuocNo(Exception):
 	"""Không đọc được trạng thái nợ ngày cũ. KHÔNG được hiểu là hết nợ."""
 
 
-def _loc_diem_dang_xuat(rows):
+def _loc_diem_dang_xuat(rows, khoa=None):
 	"""Ngày còn nợ, CHỈ tính tờ thuộc điểm bán đang bật xuất hoá đơn.
 
 	#266 vòng 5, Codex bắt đúng và đây là lỗi CHẾT MÁY chứ không phải lỗi
@@ -917,7 +947,8 @@ def _loc_diem_dang_xuat(rows):
 	for r in rows or []:
 		if not thuoc_diem_dang_xuat(r, ds_nguon, ds_quay):
 			continue
-		d = r.get("posting_date")
+		# khoa (v527 Codex G1): người gọi cần cả ngày lập, không chỉ ngày sổ.
+		d = khoa(r) if khoa else r.get("posting_date")
 		if d is not None and d not in ra:
 			ra.append(d)
 	return ra
@@ -973,10 +1004,15 @@ def ngay_cu_can_bao_ve():
 
 
 def ngay_co_to_giu_co():
-	"""Ngày (tới hôm nay) có tờ đã ghi sổ, chưa có HĐĐT, đang GIỮ CỜ đối chiếu,
-	thuộc điểm đang bật xuất. Đọc lỗi thì NÉM, không trả rỗng."""
+	"""Cặp (ngày sổ, ngày lập) có tờ đã ghi sổ, chưa có HĐĐT, đang GIỮ CỜ đối
+	chiếu, thuộc điểm đang bật xuất. Đọc lỗi thì NÉM, không trả rỗng.
+
+	Ngày lập là vgb_hddt_ngay_xuat nếu đã đặt, không thì ngày sổ. Codex #369
+	vòng 2 (G1): tờ quá hạn đã được kéo sang ngày lập mới mà lượt gửi bị cắt
+	giữa chừng thì giữ cờ; xét theo ngày sổ cũ là quá hạn mãi, tờ nằm đó
+	không bao giờ ra. Phải xét hạn theo NGÀY LẬP."""
 	try:
-		rows = frappe.db.sql("""select posting_date, custom_nguon, vgb_quay
+		rows = frappe.db.sql("""select posting_date, vgb_hddt_ngay_xuat, custom_nguon, vgb_quay
 			from `tabSales Invoice`
 			where docstatus = 1 and ifnull(vgb_huy, 0) = 0 and ifnull(vgb_tam_tinh, 0) = 0
 			  and grand_total > 0 and ifnull(vgb_hddt_cho_doi_chieu, 0) = 1
@@ -984,7 +1020,8 @@ def ngay_co_to_giu_co():
 			  and ifnull(custom_hddt_id, '') = ''
 			  and posting_date <= %(hom_nay)s""",
 			{"hom_nay": nowdate()}, as_dict=True)
-		return _loc_diem_dang_xuat(rows)
+		return _loc_diem_dang_xuat(rows, khoa=lambda r: (
+			_ngay(r.get("posting_date")), _ngay(r.get(TRUONG_NGAY_XUAT)) or _ngay(r.get("posting_date"))))
 	except KhongDocDuocNo:
 		raise
 	except Exception as e:
@@ -1012,21 +1049,23 @@ def tu_doi_chieu_co(chi_ngay=None, chi_ngay_cu=False):
 		if not ds:
 			return 0
 		from vagabond.ban_hang import _ngay_so_hddt_moi_nhat
-		hom_nay = getdate(nowdate())
-		ngay = ngay_tu_doi_chieu(ds, hom_nay, _ngay_so_hddt_moi_nhat(), chi_ngay_cu)
-		if chi_ngay is not None:
-			chon = {_ngay(x) for x in chi_ngay}
-			ngay = [d for d in ngay if d in chon]
+		hom_nay = _ngay(getdate(nowdate()))
+		viec = ke_hoach_tu_doi_chieu(ds, hom_nay, _ngay_so_hddt_moi_nhat(), chi_ngay_cu, chi_ngay)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "hddt_cho_xuat: tu doi chieu co")
 		return 0
 	lam = 0
-	for d in ngay:
+	for so, lap, che_do in viec:
 		try:
-			chay_nen(str(d), "giu_ngay", NGUOI_MAY, str(hom_nay), str(d))
+			if che_do == "giu_ngay":
+				chay_nen(str(so), "giu_ngay", NGUOI_MAY, str(hom_nay), str(lap))
+			else:
+				# Kéo ngày: CHỈ tờ giữ cờ. Tờ khác của ngày sổ đó không phải việc
+				# của lượt tự động này, người đã chọn ngày cho chúng rồi.
+				chay_nen(str(so), "keo", NGUOI_MAY, str(hom_nay), str(lap), chi_giu_co=1)
 			lam += 1
 		except Exception:
-			frappe.log_error(frappe.get_traceback(), "hddt_cho_xuat: tu doi chieu co ngay %s" % d)
+			frappe.log_error(frappe.get_traceback(), "hddt_cho_xuat: tu doi chieu co ngay %s" % lap)
 	return lam
 
 

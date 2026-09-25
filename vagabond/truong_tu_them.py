@@ -166,6 +166,10 @@ def dung():
 	from vagabond import minvoice_chung_tu
 
 	_dung_nhom(minvoice_chung_tu.TRUONG_MOI, "minvoice_chung_tu")
+	# v527: o noi tay to lap thang tren m-invoice vao don (BC17).
+	from vagabond import doi_soat_hddt_ra
+
+	_dung_nhom(doi_soat_hddt_ra.TRUONG_MOI, "doi_soat_hddt_ra")
 	# Cong tac tam ngung ban mot ma tren web dat banh (them 27/08/2026).
 	# Luu NGAY tat den het chu khong phai o co / khong - xem ly do trong
 	# vagabond/tat_ban_web.py.

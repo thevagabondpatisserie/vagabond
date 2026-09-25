@@ -426,6 +426,19 @@ def dong_bo_tu_dong():
 		_keo()
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "MInvoice: nhip 15 phut vo loi")
+	_noi_thay_the()
+
+
+def _noi_thay_the():
+	"""v527: to thay the vua keo ve thi ghi luon vao o thay the cua don goc.
+	Chay ca khi luot keo loi: bang da co san to cua nhung luot truoc."""
+	try:
+		if not frappe.db.exists("DocType", DT_CAI_DAT):
+			return
+		from vagabond import doi_soat_hddt_ra
+		doi_soat_hddt_ra.noi_thay_the_tu_dong()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "MInvoice: noi to thay the vo loi")
 
 
 def tu_lanh_hang_dem():
@@ -441,3 +454,4 @@ def tu_lanh_hang_dem():
 		_keo(so_ngay=30)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "MInvoice: nhip dem vo loi")
+	_noi_thay_the()
