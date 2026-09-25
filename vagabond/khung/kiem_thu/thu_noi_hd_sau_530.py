@@ -585,3 +585,40 @@ def _cong():
 	import pathlib
 	goc = pathlib.Path(__file__).resolve().parents[3]
 	dung("cổng chạy hanh_vi/hoa_don_sau_530.js", "hanh_vi/hoa_don_sau_530.js" in (goc / "kiem_truoc_deploy.sh").read_text(encoding="utf-8"))
+
+
+# Codex #373 vòng 1 trên 33fb7d5 ----------------------------------------------
+
+@ca("v530 Codex #373 v1 F3: sửa tay BẤT KỲ ô đã lưu của dòng tờ nối (tổng tờ, đã ghi sổ, NCC, ngoài NCC...) đều dừng")
+def _sua_moi_o():
+	from vagabond.hoa_don_sau import loi_sua_hd_sau, TRUONG_HD_SAU
+	goc = dict(hoa_don="HDM-1", so_hd_ncc="5802", ncc="ADECCO", tong_hd=686810159, tien_khop=686810159,
+		da_ghi_so=1, bu_tru=686810159, but_toan="PKT-1", ngoai_ncc=0, noi_boi="dung@vgb", noi_luc="2026-09-25 22:00:00")
+	doi = {"so_hd_ncc": "9999", "ncc": "KHAC", "tong_hd": 1, "tien_khop": 1, "da_ghi_so": 0, "bu_tru": 1,
+		"but_toan": "PKT-2", "ngoai_ncc": 1, "noi_boi": "ai@vgb", "noi_luc": "2026-01-01 00:00:00", "hoa_don": "HDM-2"}
+	la("đủ mọi ô", sorted(doi), sorted(TRUONG_HD_SAU))
+	lot = [k for k, v in doi.items() if not loi_sua_hd_sau([goc], [dict(goc, **{k: v})])]
+	la("không ô nào sửa tay lọt", lot, [])
+	la("cùng giá trị khác kiểu (số thực, chuỗi ngày dài) không báo nhầm",
+		loi_sua_hd_sau([goc], [dict(goc, tong_hd=686810159.0, noi_luc="2026-09-25 22:00:00.123456")]), "")
+
+
+@ca("v530 Codex #373 v1 F4: bản thể hiện gốc của tờ nối mức hồ sơ vào bộ hồ sơ xuất, ghi nhãn số hoá đơn")
+def _xuat_anh():
+	from unittest.mock import patch
+	from vagabond import ho_so_tt as hs
+	d = {"dong": [], "ho_so_dinh_kem": [], "hd_sau": [{"hoa_don": "HDM-26-09-00135", "so_hd_ncc": "5802",
+		"scan": [{"file": "F1", "ten": "hd-5802.jpg"}]}]}
+	with patch.object(hs, "_anh_b64", return_value="QUJD"):
+		anh, bo = hs._gom_anh_ho_so(d)
+	la("một ảnh, nhãn số hoá đơn", [a["nhan"] for a in anh], ["Hoá đơn đến sau số 5802 · hd-5802.jpg"])
+
+
+@ca("v530 Codex #373 v1 F5: sáu tờ chung một bút toán bù trừ thì bộ hồ sơ in bút toán MỘT lần")
+def _xuat_je():
+	from vagabond.ho_so_tt import trang_hd_sau
+	d = {"hd_sau": [{"hoa_don": m, "but_toan": "PKT-9"} for m, _b, _t in MOBI] + [{"hoa_don": "NHAP", "but_toan": ""}]}
+	t = trang_hd_sau(d)
+	la("bảy trang tờ, một trang bút toán", ([x[0] for x in t].count("Purchase Invoice"), [x[1] for x in t if x[0] == "Journal Entry"]),
+		(7, ["PKT-9"]))
+
