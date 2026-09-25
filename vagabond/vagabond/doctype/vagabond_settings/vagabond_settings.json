@@ -127,7 +127,24 @@
   "sec_btp_1552",
   "tk_ton_btp_cap1",
   "cb_btp_1552",
-  "tk_ton_btp_cap2"
+  "tk_ton_btp_cap2",
+  "sec_web_dat_banh",
+  "mien_phi_giao_tu",
+  "web_dien_thoai",
+  "web_email",
+  "web_zalo",
+  "web_messenger",
+  "cb_web_dat_banh",
+  "web_facebook",
+  "web_instagram",
+  "web_tiktok",
+  "webhook_don_web",
+  "sec_meta_pixel",
+  "meta_pixel_id",
+  "meta_capi_token",
+  "cb_meta_pixel",
+  "meta_test_event_code",
+  "meta_graph_phien_ban"
  ],
  "fields": [
   {
@@ -817,6 +834,98 @@
    "label": "Tài khoản tồn kho BTP cấp 2",
    "options": "Account",
    "description": "Như cấp 1, cho ô Chặng là BTP sẵn sàng. Dùng chung 1552 thì trỏ cùng tài khoản với cấp 1; tách 15521/15522 thì chỉ đổi hai ô này."
+  },
+  {
+   "fieldname": "sec_web_dat_banh",
+   "fieldtype": "Section Break",
+   "label": "Trang đặt bánh và quảng cáo Meta (#367)",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "mien_phi_giao_tu",
+   "fieldtype": "Currency",
+   "label": "Miễn phí giao từ (đ)",
+   "description": "Tiền bánh (chưa gồm phí giao, máy chủ tự tính) từ mức này trở lên thì khách không trả phí giao, tiệm chịu phí Ahamove. Để trống hoặc 0 là tắt miễn phí giao."
+  },
+  {
+   "fieldname": "web_dien_thoai",
+   "fieldtype": "Data",
+   "label": "Số điện thoại trên chân trang"
+  },
+  {
+   "fieldname": "web_email",
+   "fieldtype": "Data",
+   "label": "Email trên chân trang",
+   "options": "Email"
+  },
+  {
+   "fieldname": "web_zalo",
+   "fieldtype": "Data",
+   "label": "Đường dẫn Zalo của tiệm",
+   "description": "Để trống thì dùng zalo.me/<số điện thoại trên chân trang>."
+  },
+  {
+   "fieldname": "web_messenger",
+   "fieldtype": "Data",
+   "label": "Đường dẫn Messenger"
+  },
+  {
+   "fieldname": "cb_web_dat_banh",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "web_facebook",
+   "fieldtype": "Data",
+   "label": "Trang Facebook"
+  },
+  {
+   "fieldname": "web_instagram",
+   "fieldtype": "Data",
+   "label": "Instagram"
+  },
+  {
+   "fieldname": "web_tiktok",
+   "fieldtype": "Data",
+   "label": "TikTok"
+  },
+  {
+   "fieldname": "webhook_don_web",
+   "fieldtype": "Data",
+   "label": "Webhook nhóm Sales đơn web (Lark)",
+   "description": "Đơn web quá 30 phút chưa ghép được với Pancake thì máy nhắn vào nhóm này."
+  },
+  {
+   "fieldname": "sec_meta_pixel",
+   "fieldtype": "Section Break",
+   "label": "Meta Pixel và Conversions API",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "meta_pixel_id",
+   "fieldtype": "Data",
+   "label": "Meta Pixel ID",
+   "description": "Để trống thì trang không nạp Pixel và máy không gửi sự kiện nào."
+  },
+  {
+   "fieldname": "meta_capi_token",
+   "fieldtype": "Password",
+   "label": "Meta CAPI token (chỉ máy chủ dùng)"
+  },
+  {
+   "fieldname": "cb_meta_pixel",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "meta_test_event_code",
+   "fieldtype": "Data",
+   "label": "Mã sự kiện thử (Test Events)",
+   "description": "Chỉ điền khi đang thử trong Events Manager. Chạy thật thì để trống."
+  },
+  {
+   "fieldname": "meta_graph_phien_ban",
+   "fieldtype": "Data",
+   "label": "Phiên bản Graph API",
+   "description": "Để trống dùng mặc định của máy."
   }
  ],
  "issingle": 1,
