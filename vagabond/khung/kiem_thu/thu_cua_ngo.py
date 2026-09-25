@@ -51,6 +51,9 @@ CUA_NGO = {
 		"dinh_bien_ban_thay_the", "go_bien_ban_thay_the", "tai_bien_ban_thay_the", "tim_don",
 	],
 	"can_tru_san.py": ["diem_ban", "doi_chieu", "thu_lai"],
+	# v528: `nho_mau` nhớ mẫu sao kê khoản trả tiện ích cho NCC. `chon`,
+	# `goi_y_khong_ma`, `de_nghi_nho_mau` là hàm nội bộ, không mở ra ngoài.
+	"doi_chieu_app.py": ["danh_sach", "bo", "gan", "nho_mau"],
 	"minvoice_an_toan.py": ["kiem_goi", "mo_lai", "phan_loai_phan_hoi"],
 	# Them 10/09/2026 (#266): xu to da ghi so cua mot ngay chua co HDDT, giu
 	# dung ngay ban khi cua m-invoice con mo, khong thi keo sang hom nay.

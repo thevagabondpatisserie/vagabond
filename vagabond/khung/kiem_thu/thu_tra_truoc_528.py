@@ -345,3 +345,23 @@ def _man_ho_so():
 		dung(mo_ta + ": không có nút đánh dấu", "ddhd1" not in ra["html"])
 	ra = _xem_ho_so([{"hoa_don": "ACC-PINV-1"}])
 	dung("khoản đã có hoá đơn gốc: không có nút đánh dấu", "ddhd1" not in ra["html"])
+
+
+# ------------------------------------------------ Codex #370 vòng 1 trên 6e2053d
+
+
+@ca("v528 Codex #370 F1: phiếu trả trước cấn 12 tờ, còn 7 tờ nháp: ba nút vẫn đứng trước mọi danh sách, danh sách đủ mở theo yêu cầu")
+def _f1_danh_sach_dai():
+	da_can = [{"hoa_don": "PI-%02d" % i, "tien": 100000} for i in range(12)]
+	nhap = [{"name": "PI-NHAP-%d" % i, "bill_no": "N%d" % i} for i in range(7)]
+	ra = _xem_phieu(PE_893, dict(TT_893, con_coc=1000, da_can=da_can, nhap=nhap))
+	html = ra["html"]
+	nut = min(html.index('id="%s"' % x) for x in ("pvKhopSk", "pvLuuUnc", "pvNoiHd"))
+	truoc = html[:nut]
+	la("trước khối nút: không tờ đã cấn nào, không tờ nháp nào",
+		[x for x in ["PI-%02d" % i for i in range(12)] + ["N%d" % i for i in range(7)] if x in truoc], [])
+	dung("trước khối nút: có số tờ và tổng tiền đã cấn", "12 tờ" in truoc and "1.200.000" in truoc)
+	sau = html[nut:]
+	dung("sau khối nút: đủ 12 tờ đã cấn trong phần mở theo yêu cầu",
+		"<details" in sau and all("PI-%02d" % i in sau for i in range(12)))
+	dung("tờ nháp: rút gọn 3 tờ đầu và số còn lại", "N0, N1, N2" in sau and "và 4 tờ nữa" in sau and "N6" not in sau)
