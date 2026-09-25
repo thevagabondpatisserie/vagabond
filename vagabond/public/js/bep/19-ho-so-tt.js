@@ -2368,6 +2368,10 @@ async function scrHoSoTTView(name) {
     html += '<div style="padding:8px 0">Khoản ' + (i + 1) + ': ' + h(x.hoa_don_bo_sung || 'Chưa nối hóa đơn bổ sung');
     if (x.hoa_don_bo_sung) html += '<button class="btn gh" data-hsv="bthbo|' + h(x.hoa_don_bo_sung) + '">Tải bản thể hiện hóa đơn</button>';
     if (x.cho_hoa_don && !x.hoa_don_bo_sung && (Q.fin || Q.gd) && hs.trang_thai !== 'Huy' && hs.trang_thai !== 'Tu choi') html += '<button class="btn gh" data-hsv="bohd' + (i + 1) + '">Nối hóa đơn đến sau</button>';
+    /* v528 (anh Viet 25/09/2026, ho so APP.26.09.010): ho so lap truoc v526
+       chua co chip Hoa don den sau nen khoan chi truoc khong bao gio noi
+       duoc. FIN/GD danh dau bu, may chu soat lai du dieu kien. */
+    if (hs.loai === 'TK cong ty' && !x.cho_hoa_don && !x.hoa_don_bo_sung && !x.hoa_don && (Q.fin || Q.gd) && hs.trang_thai !== 'Huy' && hs.trang_thai !== 'Tu choi') html += '<button class="btn gh" data-hsv="ddhd' + (i + 1) + '">🧾 Đánh dấu hoá đơn đến sau</button>';
     html += '</div>';
   });
   html += '<div style="font-size:13px;color:#667085">Nối chứng từ bổ sung không tự cấn trừ công nợ. Kế toán kiểm tra bút toán trước khi hoàn tất.</div></div>';
@@ -2592,6 +2596,16 @@ async function hsHanh(k, hs) {
   if (k.indexOf('bthbo|') === 0) {
     await hsTaiBanTheHien(k.slice(6));
     return go(function() { scrHoSoTTView(hs.ma); }, true);
+  }
+  if (k.indexOf('ddhd') === 0) {
+    var soK = Number(k.slice(4));
+    if (!(await hoiCo('Đánh dấu hoá đơn đến sau',
+      'Khoản ' + soK + ' sẽ được ghi là chi trước, hoá đơn về sau. Tiền đã ghi qua bút toán của hồ sơ, không đổi gì. ' +
+      'Hoá đơn về thì bấm Nối hóa đơn đến sau để chọn tờ hoá đơn.', 'Đánh dấu'))) return;
+    busy(true);
+    try { await api('vagabond.ho_so_bo_sung.danh_dau_cho_hoa_don', { name: hs.ma, dong: soK }); busy(false); toast('Đã đánh dấu khoản ' + soK + ' là hoá đơn đến sau.', 3500); }
+    catch (e) { busy(false); return baoTin((e && e.message) || 'Chưa đánh dấu được. Tải lại hồ sơ rồi thử lại.'); }
+    return go(function () { scrHoSoTTView(hs.ma); }, true);
   }
   if (k.indexOf('bohd') === 0) {
     try {
