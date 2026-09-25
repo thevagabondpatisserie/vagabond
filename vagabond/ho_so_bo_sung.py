@@ -1001,17 +1001,24 @@ def noi_nhieu(name, hoa_don, ngoai_ncc=0):
 	ds = list(dict.fromkeys((str(x) or "").strip() for x in (ds or []) if str(x or "").strip()))
 	if not ds:
 		frappe.throw("Chưa chọn hoá đơn nào.")
+	# Khoá hồ sơ là câu chạm dữ liệu ĐẦU TIÊN (Codex #373 vòng 7): đọc thường
+	# bất kỳ bảng nào trước đó sẽ lập ảnh chụp REPEATABLE READ lúc chưa chờ
+	# khoá, và lần nối song song chốt trong lúc chờ sẽ vô hình với get_doc.
+	frappe.db.sql("select name from `tabVagabond Ho So TT` where name=%s for update", name)
+	# for_update: Frappe v16 nạp cả hồ sơ lẫn bảng con bằng câu có khoá, đọc
+	# HIỆN HÀNH chứ không đọc ảnh chụp (Codex #373 vòng 7). Ảnh chụp có thể đã
+	# lập từ trước khi vào hàm (lớp xác thực của Frappe đọc DB); lưu bảng con
+	# từ ảnh chụp cũ là ghi đè dòng nối của lần nối song song vừa chốt.
+	d = frappe.get_doc("Vagabond Ho So TT", name, for_update=True)
+	if d.trang_thai in TT_KHONG_NOI_THEM:
+		frappe.throw("Hồ sơ đã huỷ hoặc bị từ chối, không nối thêm hoá đơn.")
 	# Codex #373 vòng 6: danh sách chọn đã đọc qua get_list (luật quyền theo
 	# NCC), nhưng gửi thẳng tên tờ vào đây thì câu SQL bên dưới bỏ qua luật đó.
-	# Soát quyền đọc từng tờ trước khi khoá hay ghi gì.
+	# Soát quyền đọc từng tờ sau khi khoá hồ sơ, trước khi khoá tờ hay ghi gì.
 	for ma in ds:
 		if not frappe.has_permission("Purchase Invoice", "read", doc=ma):
 			frappe.throw("Bạn không có quyền xem hoá đơn %s, nên không nối được. Nhờ kế toán trưởng kiểm tra." % ma,
 				title="Chưa nối được")
-	frappe.db.sql("select name from `tabVagabond Ho So TT` where name=%s for update", name)
-	d = frappe.get_doc("Vagabond Ho So TT", name)
-	if d.trang_thai in TT_KHONG_NOI_THEM:
-		frappe.throw("Hồ sơ đã huỷ hoặc bị từ chối, không nối thêm hoá đơn.")
 	tkct = (getattr(d, "loai", None) or "") == LOAI_TKCT
 	nhom, _goc = _nhom_ncc(d.nha_cung_cap)
 	cty = _cong_ty_chung_tu()
@@ -1103,7 +1110,11 @@ def go_noi(name, hoa_don):
 	from vagabond.ho_so_tt import _kiem, VAI_FIN, VAI_GD, LOAI_TKCT
 	_kiem(VAI_FIN | VAI_GD, "gỡ hóa đơn đến sau")
 	frappe.db.sql("select name from `tabVagabond Ho So TT` where name=%s for update", name)
-	d = frappe.get_doc("Vagabond Ho So TT", name)
+	# for_update: Frappe v16 nạp cả hồ sơ lẫn bảng con bằng câu có khoá, đọc
+	# HIỆN HÀNH chứ không đọc ảnh chụp (Codex #373 vòng 7). Ảnh chụp có thể đã
+	# lập từ trước khi vào hàm (lớp xác thực của Frappe đọc DB); lưu bảng con
+	# từ ảnh chụp cũ là ghi đè dòng nối của lần nối song song vừa chốt.
+	d = frappe.get_doc("Vagabond Ho So TT", name, for_update=True)
 	ma = (hoa_don or "").strip()
 	dong = next((r for r in (d.get("hd_sau") or []) if r.hoa_don == ma), None)
 	if not dong:
