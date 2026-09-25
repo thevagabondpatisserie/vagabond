@@ -26,6 +26,8 @@
   "han_tra_som_nhat",
   "sb1",
   "dong",
+  "sb_hd_sau",
+  "hd_sau",
   "sb4",
   "tk_nhan",
   "ten_nhan",
@@ -167,6 +169,19 @@
    "fieldtype": "Table",
    "label": "Hoa don",
    "options": "Vagabond Ho So TT Dong"
+  },
+  {
+   "fieldname": "sb_hd_sau",
+   "fieldtype": "Section Break",
+   "label": "Hoá đơn đến sau"
+  },
+  {
+   "fieldname": "hd_sau",
+   "fieldtype": "Table",
+   "label": "Hoá đơn đến sau (nối ở mức hồ sơ)",
+   "options": "Vagabond Ho So TT HD Sau",
+   "read_only": 1,
+   "description": "Chỉ nối hoặc gỡ bằng nút trên hồ sơ trong app. Tờ đã ghi sổ thì máy lập bút toán bù trừ để chi phí không tính hai lần."
   },
   {
    "fieldname": "sb4",
@@ -337,7 +352,7 @@
   }
  ],
  "links": [],
- "modified": "2026-08-13 13:30:00.000000",
+ "modified": "2026-09-25 22:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Ho So TT",
