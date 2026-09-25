@@ -1022,7 +1022,9 @@ def chay(ma, ky="ngay", moc=None, tu=None, den=None, diem=None, nguon=None, pt=N
 	khong_loc = 1 if b.get("khong_loc") else 0
 	if khong_loc:
 		diem = nguon = pt = None
-	n = _mac_dinh_nhap(b, nhap)
+	# BC17 chỉ đọc đơn ĐÃ ghi sổ, nên công tắc đơn chưa ghi sổ không đổi bảng
+	# mà chỉ đổi đầu trang: ép tắt để hai con số cùng phạm vi (Codex H2).
+	n = 0 if khong_loc else _mac_dinh_nhap(b, nhap)
 	tat_ca = _hoa_don(t, d, diem=diem, nguon=nguon, pt=pt)
 	so_nhap, tien_nhap = _do_nhap(tat_ca)
 	hd = _loc_nhap(tat_ca, n)

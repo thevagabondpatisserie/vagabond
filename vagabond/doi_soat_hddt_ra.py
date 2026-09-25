@@ -575,8 +575,10 @@ def noi_to_vao_don(to=None, don=None, xac_nhan=0):
 	cu = str(t.vgb_don_erp or "").strip()
 	if cu and cu != d.name:
 		frappe.throw("Tờ %s đang nối vào đơn %s. Gỡ nối trước rồi mới nối đơn khác." % (so(t.so_hd), cu))
-	cua_erp = frappe.get_all("Sales Invoice", filters={"custom_minvoice_id": t.name, "docstatus": 1},
-		fields=["name"], limit_page_length=1)
+	# Đơn ERP giữ mã m-invoice ở MỘT trong hai ô (đường cũ ghi custom_hddt_id);
+	# xét cả hai, đúng như phan_loai (Codex #369 vòng 3, H3).
+	cua_erp = [s for o in ("custom_minvoice_id", "custom_hddt_id") for s in frappe.get_all("Sales Invoice",
+		filters={o: t.name, "docstatus": 1}, fields=["name"], limit_page_length=1)]
 	if cua_erp or (so(d.custom_hddt_so) == so(t.so_hd) and kh(d.custom_hddt_ky_hieu) in (kh(t.ky_hieu), "")):
 		frappe.throw("Tờ %s là tờ ERP tự phát hành, không cần nối tay." % so(t.so_hd))
 	cac_to = _to_cua_don(d, k_he, them=None if cu else t)
@@ -619,6 +621,11 @@ def go_to_khoi_don(to=None, ly_do=None):
 	frappe.db.sql("""update `tabMInvoice Invoice`
 		set vgb_don_erp = null, vgb_don_erp_nguoi = null, vgb_don_erp_luc = null
 		where name = %(to)s and vgb_don_erp = %(cu)s""", {"to": t.name, "cu": cu})
+	# Đọc lại: người khác vừa nối sang đơn khác thì câu gỡ không chạm dòng nào,
+	# không được ghi nhật ký gỡ sai (Codex #369 vòng 3, H4).
+	con = str(frappe.db.get_value(DT_TO, t.name, "vgb_don_erp") or "").strip()
+	if con:
+		frappe.throw("Tờ %s vừa được người khác nối sang đơn %s. Mở lại báo cáo để xem." % (so(t.so_hd), con))
 	_ghi_nhat_ky_don(cu, "Gỡ tờ hoá đơn điện tử %s khỏi đơn này. Lý do: %s. Người gỡ: %s." % (
 		so(t.so_hd), ly, frappe.session.user))
 	frappe.db.commit()

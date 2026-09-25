@@ -786,7 +786,11 @@ def _chay_nen_da_nang_quyen(
 			% (ngay_vn(ngay_dat), ngay_vn(han_ky_gui(ngay_dat))))
 	chon, stg = _dem_theo_ngay(ngay_cu, hom_nay)
 	if cint(chi_giu_co):
-		chon = [r for r in chon if cint(r.vgb_hddt_cho_doi_chieu)]
+		# Lượt máy tự đối chiếu chỉ đụng tờ giữ cờ CÓ NGÀY LẬP ĐÚNG lượt này.
+		# Hai tờ cùng ngày sổ mà khác ngày lập là hai lượt riêng; lượt đầu mà
+		# lấy cả hai thì ghi đè ngày lập của tờ kia (Codex #369 vòng 3, H1).
+		chon = [r for r in chon if cint(r.vgb_hddt_cho_doi_chieu)
+			and (_ngay(r.get(TRUONG_NGAY_XUAT)) or _ngay(r.get("posting_date"))) == ngay_dat]
 	if not con_trong_han_ky_gui(ngay_dat, ngay_chay_that):
 		chon = [r for r in chon if ngay_dat in _ngay_xac_nhan_qua_han(ngay_chay_that, r.name)]
 	kq = {"ngay_cu": str(ngay_cu), "che_do": che_do, "chon": len(chon),
@@ -1057,12 +1061,9 @@ def tu_doi_chieu_co(chi_ngay=None, chi_ngay_cu=False):
 	lam = 0
 	for so, lap, che_do in viec:
 		try:
-			if che_do == "giu_ngay":
-				chay_nen(str(so), "giu_ngay", NGUOI_MAY, str(hom_nay), str(lap))
-			else:
-				# Kéo ngày: CHỈ tờ giữ cờ. Tờ khác của ngày sổ đó không phải việc
-				# của lượt tự động này, người đã chọn ngày cho chúng rồi.
-				chay_nen(str(so), "keo", NGUOI_MAY, str(hom_nay), str(lap), chi_giu_co=1)
+			# Cả hai chế độ: CHỈ tờ giữ cờ mang đúng ngày lập của lượt. Tờ khác
+			# của ngày sổ đó không phải việc của lượt tự động này (Codex H1).
+			chay_nen(str(so), che_do, NGUOI_MAY, str(hom_nay), str(lap), chi_giu_co=1)
 			lam += 1
 		except Exception:
 			frappe.log_error(frappe.get_traceback(), "hddt_cho_xuat: tu doi chieu co ngay %s" % lap)
