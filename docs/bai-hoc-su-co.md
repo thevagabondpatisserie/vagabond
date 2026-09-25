@@ -1168,3 +1168,15 @@ Ba bẫy Codex bắt ở vòng 1 của cùng PR (#369), cả ba đều im lặng
 - Báo cáo không chia theo điểm bán mà vẫn hiện chip điểm bán thì người xem
   bấm chip, đầu trang đổi mà bảng không đổi. Báo cáo nào không nhận một bộ
   lọc thì máy chủ bỏ bộ lọc đó và màn hình ẩn chip, nói rõ vì sao.
+
+Vòng 2 (#369) thêm một bẫy về NGÀY: một tờ có hai ngày, ngày sổ và ngày lập
+hoá đơn (`vgb_hddt_ngay_xuat`, khác ngày sổ khi tờ đã được kéo ngày). Hạn ký,
+cửa m-invoice và phép đếm theo ngày của hoá đơn phải xét theo NGÀY LẬP. Xét
+theo ngày sổ thì tờ kéo ngày bị coi là quá hạn mãi và không đường tự động nào
+chạm tới nó, còn báo cáo theo ngày thì lọt mất nó. Lọc theo ngày sổ trước rồi
+mới tính ngày lập (`posting_date between ... - 3 ngày`) là lọc sai tập, phải
+hỏi theo cả hai ô rồi gộp.
+
+Lượt TỰ ĐỘNG đi lại đường của người bấm tay thì phải thu hẹp đúng phạm vi của
+nó: người bấm "kéo ngày" là kéo cả ngày sổ đó, còn máy tự đối chiếu chỉ được
+đụng tờ đang giữ cờ (`chi_giu_co=1`).
