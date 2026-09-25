@@ -130,3 +130,25 @@ def _sua_tay_that():
 		loi = str(e)
 	dung("chặn, chỉ nối gỡ bằng nút", "bằng nút" in loi)
 	la("bút toán còn ghi sổ", frappe.db.get_value("Journal Entry", kq["but_toan"][0], "docstatus"), 1)
+
+
+@ca("v530 Codex #373 v2: huỷ thẳng bút toán bù trừ trên Desk bị chặn, công nợ tờ vẫn 0")
+def _huy_thang_that():
+	from vagabond import ho_so_bo_sung as bo
+	x = _dung()
+	if not x:
+		return
+	hd, ho_so, _tk, _chi = x
+	kq = khong_nem("nối", lambda: bo.noi_nhieu(ho_so, json.dumps([hd.name]))) or {}
+	if not kq.get("but_toan"):
+		dung("nối được trước khi huỷ", False)
+		return
+	je = frappe.get_doc("Journal Entry", kq["but_toan"][0])
+	try:
+		je.cancel()
+		loi = ""
+	except frappe.ValidationError as e:
+		loi = str(e)
+	dung("chặn, chỉ đường nút Gỡ", ho_so in loi)
+	la("bút toán còn ghi sổ", frappe.db.get_value("Journal Entry", je.name, "docstatus"), 1)
+	la("công nợ tờ vẫn 0", float(frappe.db.get_value("Purchase Invoice", hd.name, "outstanding_amount")), 0.0)
