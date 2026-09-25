@@ -234,6 +234,30 @@ def loi_doi_loai(loai_cu, loai_moi, cu_dong, mac_dinh="NCC"):
 
 
 
+def loi_danh_dau_bu(loai, trang_thai, dong, loai_tkct="TK cong ty"):
+	"""Khoản này có được đánh dấu BÙ "hoá đơn đến sau" không. THUẦN.
+
+	v528 (anh Việt 25/09/2026, hồ sơ APP.26.09.010 Adecco): hồ sơ lập trước
+	v526 chưa có chip "Hoá đơn đến sau", nên khoản chi trước không bao giờ nối
+	được hoá đơn về sau. Cho FIN hoặc giám đốc đánh dấu bù, đúng một cửa, chỉ
+	khi khoản đó thật sự đang chờ hoá đơn: chi từ TK công ty (tiền đã ghi Nợ
+	chi phí qua bút toán hồ sơ), chưa có hoá đơn gốc, chưa nối gì.
+	Trả câu lỗi, rỗng là được.
+	"""
+	dong = dong or {}
+	if (loai or "") != loai_tkct:
+		return "chỉ khoản chi từ TK công ty mới có hoá đơn đến sau"
+	if (trang_thai or "") in TT_KHONG_NOI_THEM:
+		return "hồ sơ đã huỷ hoặc bị từ chối"
+	if (dong.get("hoa_don") or "").strip():
+		return "khoản đã có hoá đơn gốc"
+	if (dong.get("hoa_don_bo_sung") or "").strip():
+		return "khoản đã nối hoá đơn bổ sung"
+	if _so(dong.get("cho_hoa_don")):
+		return "khoản đã đánh dấu hoá đơn đến sau rồi"
+	return ""
+
+
 import frappe
 from frappe.utils import cint
 
@@ -588,3 +612,29 @@ def khoan_cho_hoa_don(hoa_don):
 		(hd.supplier, _loai_tkct(), TT_KHONG_NOI_THEM), as_dict=True)
 	return {"da_noi": "", "khoan": [dict(r, so_tien=float(r.so_tien or 0),
 		ngay=str(r.ngay or ""), ngay_hd=str(r.ngay_hd or "")) for r in ds]}
+
+
+@frappe.whitelist(methods=["POST"])
+def danh_dau_cho_hoa_don(name, dong):
+	"""Đánh dấu bù một khoản là "hoá đơn đến sau" (v528). FIN hoặc giám đốc.
+
+	Chỉ bật cờ trên khoản; không tạo bút toán, không đổi tiền, không nối tờ
+	nào. Nối vẫn đi đúng cửa noi_hoa_don như hồ sơ mới. Ghi nhật ký người bấm.
+	"""
+	from vagabond.ho_so_tt import _kiem, VAI_FIN, VAI_GD, LOAI_TKCT
+	_kiem(VAI_FIN | VAI_GD, "đánh dấu hoá đơn đến sau")
+	frappe.db.sql("select name from `tabVagabond Ho So TT` where name=%s for update", name)
+	d = frappe.get_doc("Vagabond Ho So TT", name)
+	i = cint(dong)
+	if i < 1 or i > len(d.dong):
+		frappe.throw("Không tìm thấy khoản chi. Tải lại hồ sơ rồi chọn lại.")
+	r = d.dong[i - 1]
+	loi = loi_danh_dau_bu(getattr(d, "loai", None), getattr(d, "trang_thai", None), r.as_dict(), LOAI_TKCT)
+	if loi:
+		frappe.throw("Khoản %s: %s." % (i, loi))
+	r.cho_hoa_don = 1
+	d.save(ignore_permissions=True)
+	d.add_comment("Comment", "Đánh dấu bù khoản %s là hoá đơn đến sau. Tiền đã ghi qua bút toán của hồ sơ; "
+		"hoá đơn về thì nối vào khoản này. Người đánh dấu: %s." % (i, frappe.session.user))
+	return {"ok": 1, "dong": i}
+

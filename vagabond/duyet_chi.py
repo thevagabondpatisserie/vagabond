@@ -495,6 +495,32 @@ def xac_nhan_da_chuyen(name, ma_giao_dich=None, ly_do_som=None, unc=None):
 	return {"ok": 1, "buoc": doc.get("workflow_state") or "", "ma_gd": doc.vgb_chi_ma_gd}
 
 
+@frappe.whitelist(methods=["POST"])
+def dinh_unc_sau(name, unc=None):
+	"""Đính bổ sung uỷ nhiệm chi cho phiếu trả trước ĐÃ ghi sổ (v528).
+
+	Anh Việt 25/09/2026: phiếu trả trước ghi sổ rồi mà chưa có UNC thì không
+	còn nút nào để đính. Chỉ buộc tệp vào ô vgb_chi_unc, không đụng bút toán.
+	"""
+	_kiem_quyen_fin()
+	doc = frappe.get_doc(PE, name)
+	if not la_phieu_chi_app(doc):
+		frappe.throw("Phiếu này không phải phiếu trả trước nhà cung cấp.")
+	if cint(doc.docstatus) != 1:
+		frappe.throw("Phiếu chưa ghi sổ: đính uỷ nhiệm chi ở bước Xác nhận đã chuyển tiền.")
+	from vagabond import tep_dinh_kem
+
+	da = tep_dinh_kem.doc_ds(doc.get("vgb_chi_unc"))
+	them = tep_dinh_kem.gan_vao(PE, doc.name, "vgb_chi_unc", unc)
+	if not them:
+		frappe.throw("Chưa có tệp uỷ nhiệm chi nào được đính. Chọn lại tệp rồi bấm lưu.")
+	moi = tep_dinh_kem.ghi_ds(da + them)
+	frappe.db.set_value(PE, doc.name, "vgb_chi_unc", moi, update_modified=False)
+	_ghi_vet(doc.name, "Đính bổ sung %d tờ uỷ nhiệm chi sau khi ghi sổ" % len(them))
+	frappe.db.commit()
+	return {"ok": 1, "so_unc": len(tep_dinh_kem.doc_ds(moi))}
+
+
 def _ghi_vet(name, viec):
 	try:
 		frappe.get_doc({

@@ -9,6 +9,24 @@ from frappe.utils import flt
 from vagabond import ho_so_tt as hs
 from vagabond.phan_bo_app import gom, kiem
 
+def xep_hoa_don_can(ds, don_mua=()):
+    """Hoá đơn gợi ý cấn cho một khoản trả trước. THUẦN (v528).
+
+    Tờ lập từ CHÍNH đơn mua được trả trước lên đầu, rồi tờ cũ trước. Chỉ tờ
+    còn nợ; tờ không còn nợ thì cấn vào cũng không có gì để giảm.
+    """
+    dm = set(don_mua or ())
+    ra = []
+    for r in ds or []:
+        if flt(r.get("outstanding_amount")) <= 0:
+            continue
+        x = dict(r)
+        x["cung_don"] = 1 if dm & set(r.get("don_mua") or ()) else 0
+        ra.append(x)
+    return sorted(ra, key=lambda x: (-x["cung_don"], str(x.get("bill_date") or x.get("posting_date") or ""),
+        str(x.get("name") or "")))
+
+
 TRUONG_MOI = {"Payment Entry": [{"fieldname": "vgb_lan_can_coc",
     "label": "Lịch sử yêu cầu cấn cọc APP", "fieldtype": "Long Text",
     "read_only": 1, "hidden": 1, "no_copy": 1, "allow_on_submit": 1, "print_hide": 1}]}
@@ -209,3 +227,54 @@ def _kiem_snapshot_pe(pe):
         return sorted((r.name, r.reference_doctype or "", r.reference_name or "", flt(r.allocated_amount)) for r in ds)
     if refs(rows) != refs(snap.references):
         frappe.throw("Phân bổ cọc vừa thay đổi. Tải lại trước khi cấn.")
+
+
+@frappe.whitelist()
+def tra_truoc_xem(payment_entry):
+    """Tình hình một phiếu trả trước đã ghi sổ, cho màn phiếu chi (v528).
+
+    Anh Việt 25/09/2026: khoản chi trước, hoá đơn về sau thì trên phiếu phải
+    có đủ ba việc: khớp sao kê, đính uỷ nhiệm chi, nối hoá đơn về (cấn trừ).
+    Hàm này chỉ ĐỌC; ba việc ghi đi đúng ba cửa đã có: noi_sao_ke_coc,
+    duyet_chi.dinh_unc_sau, can_coc.
+    """
+    hs._kiem(hs.VAI_FIN, "xem khoản trả trước")
+    from vagabond.duyet_chi import la_phieu_chi_app
+    from vagabond import tep_dinh_kem
+    pe = frappe.get_doc("Payment Entry", payment_entry)
+    pe.check_permission("read")
+    if pe.docstatus != 1 or not la_phieu_chi_app(pe):
+        return {"la_tra_truoc": 0}
+    pe, links = _phieu(pe.name, pe.party, can_sao_ke=False)
+    _rec, payments = _doi_chieu(pe)
+    con_coc = sum(flt(p.get("amount")) for p in payments)
+    don_mua = sorted({r.reference_name for r in pe.references if r.reference_doctype == "Purchase Order"})
+    da_can = [{"hoa_don": r.reference_name, "tien": flt(r.allocated_amount)}
+        for r in pe.references if r.reference_doctype == "Purchase Invoice"]
+    loc = {"supplier": pe.party, "company": pe.company, "docstatus": 1, "outstanding_amount": [">", 0],
+        "credit_to": pe.paid_to, "currency": "VND"}
+    hd = frappe.get_list("Purchase Invoice", filters=loc,
+        fields=["name", "bill_no", "bill_date", "posting_date", "grand_total", "outstanding_amount"],
+        order_by="posting_date asc", limit_page_length=200)
+    if hd:
+        theo = {}
+        for r in frappe.get_all("Purchase Invoice Item", filters={"parent": ["in", [x.name for x in hd]],
+                "purchase_order": ["is", "set"]}, fields=["parent", "purchase_order"], limit_page_length=0):
+            theo.setdefault(r.parent, set()).add(r.purchase_order)
+        for x in hd:
+            x["don_mua"] = sorted(theo.get(x.name) or ())
+    nhap = frappe.get_list("Purchase Invoice", filters={"supplier": pe.party, "company": pe.company,
+        "docstatus": 0}, fields=["name", "bill_no", "grand_total"], limit_page_length=20)
+    return {
+        "la_tra_truoc": 1, "payment_entry": pe.name, "ncc": pe.party, "ten_ncc": pe.party_name or pe.party,
+        "tien": flt(pe.paid_amount), "con_coc": con_coc, "don_mua": don_mua,
+        "sao_ke": [x.name for x in links],
+        "can_noi_sao_ke": 1 if sum(flt(x.allocated_amount) for x in links) < flt(pe.paid_amount) else 0,
+        "so_unc": len(tep_dinh_kem.doc_ds(pe.get("vgb_chi_unc"))),
+        "da_can": da_can,
+        "hoa_don": [{"name": x["name"], "bill_no": x.get("bill_no") or "", "ngay": str(x.get("bill_date") or x.get("posting_date") or ""),
+            "tong": flt(x.get("grand_total")), "con_no": flt(x.get("outstanding_amount")), "cung_don": x["cung_don"]}
+            for x in xep_hoa_don_can(hd, don_mua)],
+        "nhap": [{"name": x.name, "bill_no": x.bill_no or "", "tong": flt(x.grand_total)} for x in nhap],
+    }
+
