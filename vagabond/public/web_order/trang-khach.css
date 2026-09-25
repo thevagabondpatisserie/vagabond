@@ -1,0 +1,46 @@
+/* #367: trang biên nhận, ba trang chính sách và chân trang pháp nhân.
+   Chữ tiếng Việt và con số dùng phông hệ thống (--sans): phông thương hiệu
+   dựng sai dấu tiếng Việt, chỉ giữ cho chữ logo. Đo ở 320, 375, 390 px. */
+body.trang-khach{font-family:var(--sans);font-size:16px;line-height:1.65;background:var(--bg);color:var(--paper)}
+.tk-dau{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line-2);position:sticky;top:0;background:rgba(0,0,0,.9);backdrop-filter:blur(12px);z-index:5}
+.tk-logo{font-family:'Vagabond Sans',var(--sans);letter-spacing:.14em;font-size:15px;color:var(--paper)}
+.tk-logo small{display:block;font-size:9px;letter-spacing:.3em;color:var(--fog)}
+.tk-ngon-ngu a{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;border:1px solid var(--line);border-radius:22px;font-size:14px}
+.bn,.cs{padding:28px 16px 48px}
+.bn-in,.cs-in{max-width:680px;margin:0 auto}
+.bn-nhan{font-size:12px;letter-spacing:.16em;color:var(--cyan);margin-bottom:8px}
+.bn h1{font-size:clamp(24px,6.5vw,34px);line-height:1.25;font-weight:600}
+.bn h1 b{display:block;color:var(--cyan);font-size:clamp(28px,8vw,44px);letter-spacing:.02em;word-break:break-all}
+.bn-trang-thai{display:inline-block;margin-top:14px;padding:6px 14px;border-radius:20px;font-size:14px;background:rgba(41,189,179,.15);color:var(--cyan-bright)}
+.bn-trang-thai.cho{background:rgba(219,126,42,.16);color:#f0a55c}
+.bn-trang-thai.huy{background:rgba(255,255,255,.08);color:var(--fog)}
+.bn-cau{margin-top:12px;font-size:16px;color:var(--paper)}
+.bn-dong,.bn-tien{margin-top:22px;border-top:1px solid var(--line-2)}
+.bn-dong div,.bn-tien div{display:flex;justify-content:space-between;gap:16px;padding:12px 0;border-bottom:1px solid var(--line-2);font-size:15px}
+.bn-dong dt,.bn-tien dt{color:var(--fog);flex:0 0 auto}
+.bn-dong dd,.bn-tien dd{text-align:right;margin:0}
+.bn-tien .tong dd{color:var(--cyan);font-size:18px;font-weight:600}
+.bn-mon{list-style:none;margin-top:18px}
+.bn-mon li{display:grid;grid-template-columns:1fr auto;gap:2px 12px;padding:10px 0;border-bottom:1px solid var(--line-2)}
+.bn-mon li b{font-weight:400;color:var(--fog)}
+.bn-mon li .tien{grid-column:1/-1;color:var(--fog-2);font-size:14px}
+.bn-luu-y{margin-top:16px;font-size:14px;color:var(--fog)}
+.bn-nut{display:grid;gap:10px;margin-top:24px}
+@media(min-width:560px){.bn-nut{grid-template-columns:repeat(2,1fr)}}
+.nut{display:flex;align-items:center;justify-content:center;min-height:48px;padding:0 18px;border:1px solid var(--cyan);border-radius:26px;color:var(--cyan-bright);font-size:15px;text-align:center}
+.nut.chinh{background:var(--cyan);color:#00201d;font-weight:600}
+.nut.phu{border-color:var(--line);color:var(--paper)}
+.cs-in h1{font-size:clamp(26px,7vw,40px);line-height:1.2;margin-bottom:18px;color:var(--cyan)}
+.cs-in h2,.cs-in h3{margin:26px 0 8px;font-size:19px}
+.cs-in p,.cs-in li{margin:10px 0;color:rgba(255,255,255,.86)}
+.cs-in ul,.cs-in ol{padding-left:22px}
+.cs-in a{color:var(--cyan-bright);text-decoration:underline}
+.cs-in strong{color:var(--paper)}
+.ct-web{border-top:1px solid var(--line-2);padding:28px 16px 40px;font-size:13.5px;color:var(--fog);line-height:1.7}
+.ct-in{max-width:1240px;margin:0 auto}
+.ct-web .ct-ten{color:var(--paper);font-size:14.5px;font-weight:600}
+.ct-web a{color:var(--paper);text-decoration:underline;text-underline-offset:3px}
+.ct-lien-he{margin-top:10px;word-break:break-word}
+.ct-chinh-sach{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:12px}
+.ct-chinh-sach a{display:inline-flex;align-items:center;min-height:44px}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}

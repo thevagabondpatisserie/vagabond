@@ -4,6 +4,47 @@
   const tim = id => document.getElementById(id);
   const tenLoai = {tieu_de_muc: 'Tiêu đề mục bán hàng', anh_bia: 'Ảnh bìa', cau_chuyen: 'Câu chuyện', anh_chu: 'Ảnh và chữ', thong_bao: 'Thông báo'};
   let bang, nhap, chon = '', doi = false, ban = false, keo = '', mobile = false;
+  /* #367: ba trang chính sách đi chung luồng nháp và xuất bản của trang. */
+  const CS = {chinh_sach_bao_mat: 'Chính sách bảo mật', dieu_khoan: 'Điều khoản sử dụng', giao_hang_doi_tra: 'Giao hàng và đổi trả'};
+  const RE_CHO_TRONG = /\[[^\]\n]{1,80}\](?!\()/g;
+  const choTrong = md => (String(md || '').match(RE_CHO_TRONG) || []);
+  function csCua(khoa) {
+    nhap.chinh_sach = nhap.chinh_sach || {};
+    if (!nhap.chinh_sach[khoa]) nhap.chinh_sach[khoa] = {hien: false, vn: '', en: ''};
+    return nhap.chinh_sach[khoa];
+  }
+  function veChinhSach() {
+    const g = tim('chinh-sach'); if (!g || !nhap) return; g.replaceChildren();
+    Object.entries(CS).forEach(([khoa, ten]) => {
+      const v = (nhap.chinh_sach || {})[khoa] || {};
+      const con = choTrong(v.vn).length + choTrong(v.en).length;
+      const b = tao('button', ten + (v.hien ? ' · Đang hiện' : ' · Ẩn') + (con ? ' · còn ' + con + ' chỗ trống' : ''));
+      b.setAttribute('aria-pressed', String(chon === 'cs:' + khoa));
+      b.onclick = () => { chon = 'cs:' + khoa; danhSach(); veChinhSach(); thuocTinh(); };
+      g.append(b);
+    });
+  }
+  function suaChinhSach(g, khoa) {
+    const v = csCua(khoa);
+    g.append(tao('p', CS[khoa] + '. Viết bằng Markdown: # tiêu đề, **chữ đậm**, - gạch đầu dòng. Trang công khai chỉ hiện khi đã bật hiện và bấm Xuất bản.', 'goi-y'));
+    const canh = tao('p', '', 'goi-y cs-canh');
+    function veCanh() {
+      const con = choTrong(v.vn).concat(choTrong(v.en));
+      canh.replaceChildren();
+      if (con.length) { canh.append(tao('b', 'Còn ' + con.length + ' chỗ chưa điền: ')); canh.append(document.createTextNode(con.slice(0, 6).join(', ') + '. Chưa điền hết thì bật hiện sẽ không xuất bản được.')); }
+      else canh.append(document.createTextNode('Đã điền hết các chỗ trong ngoặc vuông.'));
+    }
+    const hien = tao('label', '', 'truong'); const o = tao('input'); o.type = 'checkbox'; o.checked = !!v.hien;
+    o.onchange = () => { v.hien = o.checked; daDoi(); veChinhSach(); };
+    hien.append(o, document.createTextNode(' Hiện trang này trên website và chân trang')); g.append(hien, canh);
+    [['vn', 'Nội dung tiếng Việt'], ['en', 'Nội dung tiếng Anh (để trống nếu chưa dịch)']].forEach(([ngu, ten]) => {
+      const nhan = tao('label', '', 'truong cs-sua'); nhan.append(tao('span', ten));
+      const t = tao('textarea'); t.maxLength = 30000; t.value = v[ngu] || '';
+      t.oninput = () => { v[ngu] = t.value; daDoi(); veCanh(); }; t.onchange = veChinhSach;
+      nhan.append(t); g.append(nhan);
+    });
+    veCanh();
+  }
   function coPreview() {
     const khung = document.querySelector('.khung-preview'), f = tim('preview');
     const rong = mobile ? 375 : 1440, cao = mobile ? 812 : 900, tyLe = Math.min(1, khung.clientWidth / rong);
@@ -30,7 +71,7 @@
     }
     return d.message;
   }
-  function khoa(b) { ban = b; ['luu-nhap', 'xuat-ban', 'tai-lai'].forEach(id => tim(id).disabled = b); tim('thuoc-tinh').inert = b; tim('danh-sach').inert = b; tim('them-khoi').inert = b; tim('lich-su').inert = b; }
+  function khoa(b) { ban = b; ['luu-nhap', 'xuat-ban', 'tai-lai'].forEach(id => tim(id).disabled = b); tim('thuoc-tinh').inert = b; tim('danh-sach').inert = b; tim('them-khoi').inert = b; tim('lich-su').inert = b; if (tim('chinh-sach')) tim('chinh-sach').inert = b; }
   function thongKe() {
     tim('so-khoi').textContent = nhap.khoi.length;
     tim('so-hien').textContent = nhap.khoi.filter(k => k.hien).length;
@@ -54,7 +95,7 @@
     nhap.khoi.forEach((k, i) => {
       const dong = tao('div', '', 'dong-khoi' + (chon === k.id ? ' on' : '')); dong.draggable = true;
       const nut = tao('button', (i + 1) + '. ' + (k.tieu_de || tenLoai[k.loai]) + (k.hien ? '' : ' · Ẩn'), 'chon-khoi');
-      nut.onclick = () => { chon = k.id; danhSach(); thuocTinh(); xem(); }; dong.append(nut);
+      nut.onclick = () => { chon = k.id; danhSach(); veChinhSach(); thuocTinh(); xem(); }; dong.append(nut);
       const ds = tao('div', '', 'sap-xep');
       [['↑', -1, 'Đưa khối lên'], ['↓', 1, 'Đưa khối xuống']].forEach(([chu, buoc, nhan]) => {
         const b = tao('button', chu); b.setAttribute('aria-label', nhan); b.disabled = i + buoc < 0 || i + buoc >= nhap.khoi.length;
@@ -68,7 +109,9 @@
     });
   }
   function thuocTinh() {
-    const g = tim('thuoc-tinh'); g.replaceChildren(); const k = nhap.khoi.find(x => x.id === chon);
+    const g = tim('thuoc-tinh'); g.replaceChildren();
+    if (chon.startsWith('cs:') && CS[chon.slice(3)]) { suaChinhSach(g, chon.slice(3)); return; }
+    const k = nhap.khoi.find(x => x.id === chon);
     if (!k) { g.append(tao('p', 'Chọn một khối để chỉnh nội dung.')); return; }
     if (k.loai === 'tieu_de_muc') {
       g.append(tao('p', 'Tiêu đề trên mục ' + ({today:'Có sẵn hôm nay',order:'Đặt bánh trước',store:'In store'}[k.vi_tri]) + '. Ngày, giá và tồn tiếp tục lấy từ hệ thống.', 'goi-y'));
@@ -122,7 +165,7 @@
       }; dong.append(b); g.append(dong);
     });
   }
-  function nhanBang(d) { bang = d; nhap = structuredClone(d.nhap); doi = false; if (!nhap.khoi.some(k => k.id === chon)) chon = nhap.khoi[0]?.id || ''; thongKe(); danhSach(); thuocTinh(); lichSu(); xem(); }
+  function nhanBang(d) { bang = d; nhap = structuredClone(d.nhap); doi = false; if (!chon.startsWith('cs:') && !nhap.khoi.some(k => k.id === chon)) chon = nhap.khoi[0]?.id || ''; thongKe(); danhSach(); veChinhSach(); thuocTinh(); lichSu(); xem(); }
   async function tai() {
     if (doi && !window.confirm('Tải lại sẽ bỏ phần chưa lưu trên màn hình. Tiếp tục?')) return;
     khoa(true); try { nhanBang(await api('doc_bang')); bao('Đã tải nội dung. Thay đổi chỉ ra website khi bấm Xuất bản.'); } catch (e) { bao(e.message, true); } finally { khoa(false); }

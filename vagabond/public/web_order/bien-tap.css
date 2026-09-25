@@ -3,3 +3,8 @@
 /* Preview phải dùng viewport thật, không biến desktop thành mobile vì cột hẹp. */
 .khung-preview{height:780px;position:relative;overflow:hidden;background:#e9eeea}
 .khung-preview iframe{position:absolute;left:50%;top:0;max-width:none;transform-origin:center top;transition:none}
+/* #367 mục 8: người đang đăng nhập và nút Đăng xuất; trang báo thiếu quyền. */
+.phien{display:flex;align-items:center;gap:14px;flex-wrap:wrap}.phien .nguoi{font-size:13px;color:#46615d}.phien .dang-xuat,.nut-dx{display:inline-flex;align-items:center;min-height:44px;padding:0 16px;border:1px solid #15302d;border-radius:22px;text-decoration:none;font-size:14px}
+.khong-quyen{max-width:640px;margin:10vh auto;padding:0 20px}.khong-quyen h1{font-size:32px}
+/* #367: ba trang chính sách trong studio. */
+.cs-sua textarea{min-height:320px;font:13px/1.55 ui-monospace,Menlo,Consolas,monospace}.cs-canh{background:#fff4e5;border:1px solid #e9c78f;padding:10px 12px;border-radius:6px}.cs-canh b{color:#8a4b00}
