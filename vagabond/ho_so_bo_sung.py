@@ -1012,13 +1012,6 @@ def noi_nhieu(name, hoa_don, ngoai_ncc=0):
 	d = frappe.get_doc("Vagabond Ho So TT", name, for_update=True)
 	if d.trang_thai in TT_KHONG_NOI_THEM:
 		frappe.throw("Hồ sơ đã huỷ hoặc bị từ chối, không nối thêm hoá đơn.")
-	# Codex #373 vòng 6: danh sách chọn đã đọc qua get_list (luật quyền theo
-	# NCC), nhưng gửi thẳng tên tờ vào đây thì câu SQL bên dưới bỏ qua luật đó.
-	# Soát quyền đọc từng tờ sau khi khoá hồ sơ, trước khi khoá tờ hay ghi gì.
-	for ma in ds:
-		if not frappe.has_permission("Purchase Invoice", "read", doc=ma):
-			frappe.throw("Bạn không có quyền xem hoá đơn %s, nên không nối được. Nhờ kế toán trưởng kiểm tra." % ma,
-				title="Chưa nối được")
 	tkct = (getattr(d, "loai", None) or "") == LOAI_TKCT
 	nhom, _goc = _nhom_ncc(d.nha_cung_cap)
 	cty = _cong_ty_chung_tu()
@@ -1026,6 +1019,16 @@ def noi_nhieu(name, hoa_don, ngoai_ncc=0):
 	# không khoá vòng.
 	for ma in sorted(ds):
 		khoa_hoa_don(ma)
+	# Codex #373 vòng 6 và 8: danh sách chọn đọc qua get_list (luật quyền theo
+	# NCC), nhưng gửi thẳng tên tờ vào đây thì các câu SQL bên dưới bỏ qua luật
+	# đó. Soát quyền SAU khi đã khoá tờ, trên bản tờ nạp có khoá (hiện hành):
+	# truyền tên thì Frappe nạp bằng đọc thường, thấy ảnh chụp cũ, tờ vừa bị
+	# phiên khác đổi sang NCC người gọi không được xem vẫn lọt.
+	for ma in sorted(ds):
+		if not frappe.has_permission("Purchase Invoice", "read",
+				doc=frappe.get_doc("Purchase Invoice", ma, for_update=True)):
+			frappe.throw("Bạn không có quyền xem hoá đơn %s, nên không nối được. Nhờ kế toán trưởng kiểm tra." % ma,
+				title="Chưa nối được")
 	da_co = {r.get("hoa_don") for r in _lien_ket_cua(d)} | {
 		(r.get("hoa_don_bo_sung") or "").strip() for r in _khoan_cua(d)} | {
 		(r.get("hoa_don") or "").strip() for r in _khoan_cua(d)}
