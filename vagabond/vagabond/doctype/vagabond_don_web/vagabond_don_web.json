@@ -1,0 +1,340 @@
+{
+ "doctype": "DocType",
+ "name": "Vagabond Don Web",
+ "module": "Vagabond",
+ "engine": "InnoDB",
+ "autoname": "format:DW-{YY}{MM}-{#####}",
+ "track_changes": 1,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "title_field": "ho_ten",
+ "field_order": [
+  "sec_chinh",
+  "trang_thai",
+  "ly_do",
+  "ho_ten",
+  "dien_thoai",
+  "cb_1",
+  "ngay_nhan",
+  "tu_lay",
+  "thanh_toan",
+  "sec_tien",
+  "tien_banh",
+  "phi_khach",
+  "trang_thai_phi",
+  "cb_2",
+  "mien_phi_giao",
+  "phi_ahamove",
+  "tiem_chiu_phi",
+  "sec_pancake",
+  "pancake_display_id",
+  "pancake_id",
+  "hoa_don_cong_ty",
+  "cb_3",
+  "sales_invoice",
+  "ghi_so_luc",
+  "gia_tri_ghi_so",
+  "da_bao_sales_luc",
+  "sec_meta",
+  "event_id_gui_don",
+  "event_id_mua_hang",
+  "capi_gui_don_luc",
+  "capi_mua_hang_luc",
+  "capi_loi",
+  "cb_4",
+  "fbp",
+  "fbc",
+  "trinh_duyet",
+  "sec_ky_thuat",
+  "snapshot",
+  "khoa_chong_trung",
+  "token_hash",
+  "muoi"
+ ],
+ "fields": [
+  {
+   "fieldname": "sec_chinh",
+   "fieldtype": "Section Break",
+   "label": "Đơn web"
+  },
+  {
+   "fieldname": "trang_thai",
+   "fieldtype": "Select",
+   "label": "Trạng thái",
+   "options": "Dang gui\nDa nhan\nCho doi soat\nDa ghi so\nDa huy",
+   "default": "Dang gui",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "reqd": 1,
+   "description": "Chờ đối soát: Pancake mất phản hồi, đơn CÓ THỂ đã vào. Máy tự tìm 5 phút một lần; quá 30 phút báo nhóm Sales qua Lark."
+  },
+  {
+   "fieldname": "ly_do",
+   "fieldtype": "Data",
+   "label": "Lý do",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ho_ten",
+   "fieldtype": "Data",
+   "label": "Khách",
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "dien_thoai",
+   "fieldtype": "Data",
+   "label": "Điện thoại",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "cb_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "ngay_nhan",
+   "fieldtype": "Datetime",
+   "label": "Nhận lúc (đầu khung giờ)",
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "tu_lay",
+   "fieldtype": "Check",
+   "label": "Khách tự lấy",
+   "read_only": 1
+  },
+  {
+   "fieldname": "thanh_toan",
+   "fieldtype": "Data",
+   "label": "Cách thanh toán khách chọn",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_tien",
+   "fieldtype": "Section Break",
+   "label": "Tiền và phí giao"
+  },
+  {
+   "fieldname": "tien_banh",
+   "fieldtype": "Currency",
+   "label": "Tiền bánh (máy chủ tính)",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "phi_khach",
+   "fieldtype": "Currency",
+   "label": "Phí giao khách trả",
+   "read_only": 1
+  },
+  {
+   "fieldname": "trang_thai_phi",
+   "fieldtype": "Data",
+   "label": "Trạng thái phí giao",
+   "read_only": 1,
+   "description": "tu_lay, mien_phi, chinh_xac, chua_ro. chua_ro: Ahamove không báo được, Sales báo phí khi gọi xác nhận."
+  },
+  {
+   "fieldname": "cb_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "mien_phi_giao",
+   "fieldtype": "Check",
+   "label": "Được miễn phí giao",
+   "read_only": 1
+  },
+  {
+   "fieldname": "phi_ahamove",
+   "fieldtype": "Currency",
+   "label": "Phí Ahamove báo giá",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tiem_chiu_phi",
+   "fieldtype": "Currency",
+   "label": "Phần phí giao tiệm chịu",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_pancake",
+   "fieldtype": "Section Break",
+   "label": "Pancake và hoá đơn"
+  },
+  {
+   "fieldname": "pancake_display_id",
+   "fieldtype": "Data",
+   "label": "Mã đơn Pancake",
+   "in_list_view": 1,
+   "search_index": 1,
+   "description": "Chờ đối soát mà Sales tìm được đơn tay thì điền mã đơn Pancake vào đây rồi chuyển trạng thái sang Đã nhận."
+  },
+  {
+   "fieldname": "pancake_id",
+   "fieldtype": "Data",
+   "label": "Mã nội bộ Pancake",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "hoa_don_cong_ty",
+   "fieldtype": "Link",
+   "label": "Yêu cầu hoá đơn công ty",
+   "options": "Vagabond Hoa Don",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb_3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "sales_invoice",
+   "fieldtype": "Link",
+   "label": "Hoá đơn bán",
+   "options": "Sales Invoice",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ghi_so_luc",
+   "fieldtype": "Datetime",
+   "label": "Hoá đơn ghi sổ lúc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "gia_tri_ghi_so",
+   "fieldtype": "Currency",
+   "label": "Giá trị hoá đơn ghi sổ",
+   "read_only": 1
+  },
+  {
+   "fieldname": "da_bao_sales_luc",
+   "fieldtype": "Datetime",
+   "label": "Đã báo nhóm Sales lúc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_meta",
+   "fieldtype": "Section Break",
+   "label": "Đo quảng cáo Meta",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "event_id_gui_don",
+   "fieldtype": "Data",
+   "label": "event_id GuiDon",
+   "read_only": 1
+  },
+  {
+   "fieldname": "event_id_mua_hang",
+   "fieldtype": "Data",
+   "label": "event_id Purchase",
+   "read_only": 1
+  },
+  {
+   "fieldname": "capi_gui_don_luc",
+   "fieldtype": "Datetime",
+   "label": "Đã gửi GuiDon lúc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "capi_mua_hang_luc",
+   "fieldtype": "Datetime",
+   "label": "Đã gửi Purchase lúc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "capi_loi",
+   "fieldtype": "Small Text",
+   "label": "Lỗi gửi Meta gần nhất",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb_4",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "fbp",
+   "fieldtype": "Data",
+   "label": "Cookie _fbp",
+   "read_only": 1
+  },
+  {
+   "fieldname": "fbc",
+   "fieldtype": "Data",
+   "label": "Cookie _fbc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "trinh_duyet",
+   "fieldtype": "Small Text",
+   "label": "Trình duyệt",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_ky_thuat",
+   "fieldtype": "Section Break",
+   "label": "Kỹ thuật",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "snapshot",
+   "fieldtype": "Code",
+   "label": "Ảnh chụp đơn lúc gửi",
+   "options": "JSON",
+   "read_only": 1
+  },
+  {
+   "fieldname": "khoa_chong_trung",
+   "fieldtype": "Data",
+   "label": "Khoá chống trùng",
+   "read_only": 1,
+   "hidden": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "token_hash",
+   "fieldtype": "Data",
+   "label": "Băm token biên nhận",
+   "read_only": 1,
+   "hidden": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "muoi",
+   "fieldtype": "Data",
+   "label": "Muối",
+   "read_only": 1,
+   "hidden": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Sales Manager",
+   "read": 1,
+   "write": 1,
+   "report": 1
+  },
+  {
+   "role": "Sales User",
+   "read": 1,
+   "write": 1,
+   "report": 1
+  },
+  {
+   "role": "Accounts User",
+   "read": 1,
+   "report": 1
+  }
+ ]
+}
