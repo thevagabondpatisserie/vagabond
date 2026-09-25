@@ -36394,12 +36394,15 @@ function hsChonHdSau(hs, uv) {
         + (GY.con_cach_khac ? '<div style="font-size:12.5px;color:#b45309;margin-top:4px">Còn cách chọn khác cùng số tiền. Kiểm số hoá đơn trước khi nối.</div>' : '')
         + '<button class="btn" data-hdsgyb style="margin-top:10px;padding:12px;font-size:15px">Chọn theo gợi ý</button></div>';
     }
-    than += '<div style="display:flex;gap:8px;margin-bottom:9px"><input class="tin" id="hdsTim" type="search" autocomplete="off" placeholder="🔎 Số hoá đơn hoặc số tiền" style="margin:0;flex:1">'
+    than += '<div style="display:flex;gap:8px;margin-bottom:9px"><input class="tin" id="hdsTim" type="search" autocomplete="off" placeholder="🔎 Số HĐ hoặc số tiền" style="margin:0;flex:1;font-size:15px;min-width:0">'
       + '<button class="btn gh" data-hdsmoi style="margin:0;width:auto;flex:0 0 auto;padding:10px 12px;font-size:13px">Tìm mọi NCC</button></div>';
     than += '<div data-hdsds></div>';
-    than += '<div data-hdstong style="position:sticky;bottom:0;background:#fff;padding-top:8px"></div>';
-    var k = hopKhung('Nối hoá đơn đến sau', than,
-      '<button class="btn gh" data-hdsx style="flex:1;margin:0">Thôi</button><button class="btn" data-hdsok style="flex:2;margin:0">Nối</button>');
+    /* Thanh tong va hai nut DINH o day hop: danh sach dai (Mobifone 8 to)
+       thi nut Noi van nam trong tam tay, khong phai cuon xuong cuoi. */
+    than += '<div style="position:sticky;bottom:-16px;margin:0 -16px -16px;padding:8px 16px 14px;background:#fff;box-shadow:0 -6px 14px rgba(15,18,28,.08)">'
+      + '<div data-hdstong></div>'
+      + '<div style="display:flex;gap:8px;margin-top:8px"><button class="btn gh" data-hdsx style="flex:1;margin:0">Thôi</button><button class="btn" data-hdsok style="flex:2;margin:0">Nối</button></div></div>';
+    var k = hopKhung('Nối hoá đơn đến sau', than, '');
     var oDs = k.box.querySelector('[data-hdsds]');
     var oTong = k.box.querySelector('[data-hdstong]');
     var oTim = k.box.querySelector('#hdsTim');
@@ -36418,7 +36421,7 @@ function hsChonHdSau(hs, uv) {
     function veTong() {
       var t = tongChon();
       var lech = t.t - PHU.con_thieu;
-      oTong.innerHTML = '<div style="font-size:13.5px;line-height:1.6;color:#374151;border-top:1px solid #eef2f5;padding-top:8px">Đã chọn <b>' + t.n + ' tờ</b> · ' + money(t.t) + ' đ · '
+      oTong.innerHTML = '<div style="font-size:13.5px;line-height:1.6;color:#374151">Đã chọn <b>' + t.n + ' tờ</b> · ' + money(t.t) + ' đ · '
         + (Math.abs(lech) <= 1000 ? '<b style="color:#047857">khớp số còn thiếu</b>' : (lech < 0 ? 'còn thiếu ' + money(-lech) + ' đ' : '<b style="color:#b45309">thừa ' + money(lech) + ' đ</b>')) + '</div>'
         + (t.ghi && uv.tkct ? '<div style="font-size:12.5px;line-height:1.55;color:#b45309;margin-top:3px">Có ' + t.ghi + ' tờ đã ghi sổ: máy sẽ lập bút toán bù trừ để chi phí không tính hai lần.</div>' : '');
       ok.textContent = t.n ? 'Nối ' + t.n + ' tờ' : 'Nối';
