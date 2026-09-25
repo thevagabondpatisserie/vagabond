@@ -562,7 +562,8 @@ async function scrTimGiaoDich(maHoSo, soTien) {
       busy(true);
       try {
         var kq = await api('vagabond.doi_chieu_app.gan', {name:maApp, ma_giao_dich:gd});
-        busy(false); toast(kq.loi_nhan,5000); tgdHoSo = '';
+        busy(false); tgdHoSo = '';
+        await hsSauGan(maApp, kq);
         go(function () { scrHoSoTTView(maApp); }, true);
       } catch (e) { busy(false); baoTin((e && e.message) || 'Chưa gán được giao dịch.'); }
     }}, {so_ngay:120});
@@ -632,9 +633,10 @@ async function scrTimGiaoDich(maHoSo, soTien) {
       'Gán giao dịch ' + ma + ' (' + money(tien) + ' đ) vào hồ sơ ' + tgdHoSo + '?\n\n' +
       'Hồ sơ chờ thanh toán: lưu giao dịch đã chọn, sau đó đính UNC và ghi nhận. Hồ sơ đã thanh toán: đối chiếu với bộ bút toán hiện có.', 'Gán')) return;
     busy(true);
-    try { var kq = await api('vagabond.doi_chieu_app.gan', { name: tgdHoSo, ma_giao_dich: ma }); busy(false); toast(kq.loi_nhan, 5000); }
+    try { var kq = await api('vagabond.doi_chieu_app.gan', { name: tgdHoSo, ma_giao_dich: ma }); busy(false); }
     catch (er) { busy(false); return baoTin((er && er.message) || 'Gán lỗi'); }
     var hs = tgdHoSo; tgdHoSo = '';
+    await hsSauGan(hs, kq);
     go(function () { scrHoSoTTView(hs); }, true);
   });
 }

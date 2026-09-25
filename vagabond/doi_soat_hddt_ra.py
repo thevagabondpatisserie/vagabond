@@ -431,9 +431,11 @@ def doc(tu, den):
 			fields=TRUONG_TO, limit_page_length=0) if kh(t.get("ky_hieu")) == k]
 		to_goc += moi
 		hoi = {g[1] for g in (tach_goc(t.get("hd_goc")) for t in moi) if g}
+	# Codex #371 M1: CHỈ đơn đã ghi sổ. Đơn huỷ hay nháp còn giữ số/mã HĐĐT
+	# mà lọt vào đây thì tờ bị đếm là "ERP ghi nhận" theo một đơn không có hiệu lực.
 	si = {}
 	if can_so:
-		for s in _don({"custom_hddt_so": ["in", sorted(can_so)]}):
+		for s in _don({"custom_hddt_so": ["in", sorted(can_so)], "docstatus": 1}):
 			si[s.name] = s
 	ids = sorted({t.get("name") for t in to_ds + to_goc if t.get("name")})
 	if ids:
@@ -442,13 +444,13 @@ def doc(tu, den):
 		# mã, chưa có số: phải nạp theo cả hai ô, không thì BC17 xếp nhầm tờ
 		# ERP vào tờ tạo tay (Codex #369 vòng 4).
 		for o in ("custom_minvoice_id", "custom_hddt_id"):
-			for s in _don({o: ["in", ids]}):
+			for s in _don({o: ["in", ids], "docstatus": 1}):
 				si[s.name] = s
-	for s in _don({"custom_hddt_thay_the": ["is", "set"]}):
+	for s in _don({"custom_hddt_thay_the": ["is", "set"], "docstatus": 1}):
 		si[s.name] = s
 	noi = sorted({str(t.get("vgb_don_erp") or "").strip() for t in to_ds} - {""})
 	if noi:
-		for s in _don({"name": ["in", noi]}):
+		for s in _don({"name": ["in", noi], "docstatus": 1}):
 			si[s.name] = s
 	msts = sorted({mst(t.get("mst_doi_tac")) for t in to_ds} - {""})
 	if msts:

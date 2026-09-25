@@ -1195,3 +1195,25 @@ lượt, tìm tập chặn tương ứng và loại cùng điều kiện. Cùng 
 một phần của lần ghi, ghi nhật ký hỏng thì phải ném để câu ghi rollback,
 không nuốt lỗi rồi báo xong; và đơn là danh mục có sẵn thì chọn trong danh
 sách có tìm (QT-31), không mở ô gõ mã.
+
+## v528 (#370, 25/09/2026): khoản trả tiện ích không mang mã hồ sơ
+
+Triệu chứng: hồ sơ APP.26.09.100 (tiền nước Bến Thành, 1.144.382 đ) trả bằng
+tính năng thanh toán hoá đơn của app MB. Dò SePay báo "chưa thấy giao dịch nào
+mang mã", ô tìm màn khớp tay gõ số tiền ra 0 dòng, dù sao kê ACC-BTN-2026-06151
+đã về đúng tiền, đúng tài khoản.
+
+Nguyên nhân: tự khớp chỉ tìm mã APP trong nội dung, mà thanh toán hoá đơn của
+ngân hàng không cho gõ nội dung ("WATER BT WATER 1032865688 e0Vh5pp20ek.BP1").
+Ô tìm chỉ so chữ. Dãy số dài trong nội dung ĐỔI mỗi lần trả (tờ Tân Hoà cùng
+ngày mang 1032865615), nên không dùng làm mã khách hàng được.
+
+Cách phòng:
+- Nhớ MẪU ĐẦU DÒNG theo nhà cung cấp, không nhớ dãy số. Tự khớp theo mẫu phải
+  đủ: mẫu + đúng tiền + đúng tài khoản + trong khoảng ngày + chỉ một dòng còn
+  dùng được. Dòng mang mã APP của hồ sơ KHÁC thì loại khỏi cả tự khớp lẫn gợi
+  ý: có mã là đã có chủ, dù chưa ai ghi ô chủ.
+- Không có mẫu thì chỉ gợi ý cho người bấm, máy không tự gán theo số tiền.
+- Ô tìm của màn chọn sao kê nhận cả số tiền.
+- Kiểm "mẫu đã thuộc ai" phải làm lại DƯỚI KHOÁ bằng current read ngay trước
+  khi ghi. Kiểm trước rồi mới khoá là hai lượt đồng thời cùng qua.

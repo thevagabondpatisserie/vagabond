@@ -148,7 +148,7 @@ function bcThanhKy(anDiem) {
   /* BC17 (anDiem) cung khong nhan cong tac don chua ghi so: may chu ep chi
      don da ghi so, bay chip la lua nguoi xem (Codex #369 vong 3). */
   var ss = '<div style="display:flex;gap:7px;margin-top:7px;flex-wrap:wrap">' +
-    posChipNut('data-bcss="1"', '⇄ So với kỳ trước', !!bcSS) +
+    (anDiem ? '' : posChipNut('data-bcss="1"', '⇄ So với kỳ trước', !!bcSS)) +
     (anDiem ? '' : posChipNut('data-bcnhap="1"', '🧾 Tính cả đơn chưa ghi sổ', bcNhapDangBat(), false, '#b45309')) +
     '</div>';
   return '<div class="card" style="padding:11px 12px">' +

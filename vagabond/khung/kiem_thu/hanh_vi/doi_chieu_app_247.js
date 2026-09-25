@@ -7,6 +7,9 @@ const tai=dg.taiLieuGia(); let khung, goi=[], thongBao=[], troLai=[];
 let rows=[{name:'BT-1',date:'2026-09-09',mo_ta:'Internet',reference_number:'REF-1',nhan_ngan_hang:'MB',dung_duoc:1,vi_sao_khong:'',ma:'BT-1',ten_ban_ghi:'BT-1',tham_chieu:'REF-1',ngay:'2026-09-09',noi_dung:'Internet',tien:100,chi:100,thu:0,tai_khoan:'MB',ly_do:''}];
 const that={document:tai,console,frame:(t,html)=>{khung=new dg.ElementGia('div');khung.innerHTML=html;tai.body.children=[khung];return khung;},h:x=>String(x||''),money:x=>String(x),hsNgayVn:x=>x,kmHangChip:x=>x,posChipNut:(a,t)=>'<button '+a+'>'+t+'</button>',busy:()=>{},toast:x=>thongBao.push(x),baoTin:x=>thongBao.push(x),hoiCo:async()=>true,go:async f=>f(),scrHoSoTTView:x=>troLai.push(x),api:async(m,a)=>{goi.push({m,a});return m.endsWith('.gan')?{loi_nhan:'Đã chọn'}:{rows,tong:rows.length,so_tien:12345};}};
 that.confirmSheet=async()=>true;vm.createContext(that);vm.runInContext(fs.readFileSync('vagabond/public/js/bep/23-khop-sepay.js','utf8')+'\n'+ma,that);
+// v528: gán tay xong gọi hsSauGan (19-ho-so-tt.js) để hỏi nhớ mẫu sao kê; nạp đúng hàm thật đó.
+{const s19=fs.readFileSync('vagabond/public/js/bep/19-ho-so-tt.js','utf8');const i=s19.indexOf('async function hsSauGan(');
+ const j=s19.slice(i+1).search(/\n(?:async )?function /);vm.runInContext(j<0?s19.slice(i):s19.slice(i,i+1+j),that);}
 (async()=>{
 await that.scrTimGiaoDich('APP.26.09.015',100);
 assert.equal(goi[0].m,'vagabond.doi_soat_sepay.ung_vien');assert.equal(goi[0].a.ma_phieu,'APP.26.09.015');

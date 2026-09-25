@@ -687,7 +687,10 @@ def _r4_kiem_sepay():
 			"con_lai": con_lai, "trang_thai": "Da duyet"}
 		try:
 			from unittest.mock import patch
-			with patch("vagabond.doi_chieu_app.chon", return_value=types.SimpleNamespace(name="BT-GIA", withdrawal=chi, date="2026-09-09") if chi else None), _Vet(_kiem=lambda *a, **k: None):
+			# v528: kiem_sepay đọc thêm cờ theo_mau và gợi ý dòng không mang
+			# mã; ca này chỉ xét phép tính phải chuyển nên giả hai thứ đó.
+			with patch("vagabond.doi_chieu_app.chon", return_value=types.SimpleNamespace(name="BT-GIA", withdrawal=chi, date="2026-09-09", flags={}) if chi else None), \
+					patch("vagabond.doi_chieu_app.goi_y_khong_ma", return_value=[]), _Vet(_kiem=lambda *a, **k: None):
 				return hs.kiem_sepay("APP.26.09.001")["rows"][0]
 		finally:
 			frappe.db.get_value = cu

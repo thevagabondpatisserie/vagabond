@@ -2368,6 +2368,10 @@ async function scrHoSoTTView(name) {
     html += '<div style="padding:8px 0">Khoản ' + (i + 1) + ': ' + h(x.hoa_don_bo_sung || 'Chưa nối hóa đơn bổ sung');
     if (x.hoa_don_bo_sung) html += '<button class="btn gh" data-hsv="bthbo|' + h(x.hoa_don_bo_sung) + '">Tải bản thể hiện hóa đơn</button>';
     if (x.cho_hoa_don && !x.hoa_don_bo_sung && (Q.fin || Q.gd) && hs.trang_thai !== 'Huy' && hs.trang_thai !== 'Tu choi') html += '<button class="btn gh" data-hsv="bohd' + (i + 1) + '">Nối hóa đơn đến sau</button>';
+    /* v528 (anh Viet 25/09/2026, ho so APP.26.09.010): ho so lap truoc v526
+       chua co chip Hoa don den sau nen khoan chi truoc khong bao gio noi
+       duoc. FIN/GD danh dau bu, may chu soat lai du dieu kien. */
+    if (hs.loai === 'TK cong ty' && !x.cho_hoa_don && !x.hoa_don_bo_sung && !x.hoa_don && (Q.fin || Q.gd) && hs.trang_thai !== 'Huy' && hs.trang_thai !== 'Tu choi') html += '<button class="btn gh" data-hsv="ddhd' + (i + 1) + '">🧾 Đánh dấu hoá đơn đến sau</button>';
     html += '</div>';
   });
   html += '<div style="font-size:13px;color:#667085">Nối chứng từ bổ sung không tự cấn trừ công nợ. Kế toán kiểm tra bút toán trước khi hoàn tất.</div></div>';
@@ -2593,6 +2597,16 @@ async function hsHanh(k, hs) {
     await hsTaiBanTheHien(k.slice(6));
     return go(function() { scrHoSoTTView(hs.ma); }, true);
   }
+  if (k.indexOf('ddhd') === 0) {
+    var soK = Number(k.slice(4));
+    if (!(await hoiCo('Đánh dấu hoá đơn đến sau',
+      'Khoản ' + soK + ' sẽ được ghi là chi trước, hoá đơn về sau. Tiền đã ghi qua bút toán của hồ sơ, không đổi gì. ' +
+      'Hoá đơn về thì bấm Nối hóa đơn đến sau để chọn tờ hoá đơn.', 'Đánh dấu'))) return;
+    busy(true);
+    try { await api('vagabond.ho_so_bo_sung.danh_dau_cho_hoa_don', { name: hs.ma, dong: soK }); busy(false); toast('Đã đánh dấu khoản ' + soK + ' là hoá đơn đến sau.', 3500); }
+    catch (e) { busy(false); return baoTin((e && e.message) || 'Chưa đánh dấu được. Tải lại hồ sơ rồi thử lại.'); }
+    return go(function () { scrHoSoTTView(hs.ma); }, true);
+  }
   if (k.indexOf('bohd') === 0) {
     try {
     var dsBo = await api('vagabond.ho_so_bo_sung.danh_sach_hoa_don', {name: hs.ma});
@@ -2693,9 +2707,13 @@ async function hsHanh(k, hs) {
     try { kq = await api('vagabond.ho_so_tt.kiem_sepay', { name: hs.ma }); } catch (e) { busy(false); return baoTin((e && e.message) || 'Dò lỗi'); }
     busy(false);
     var x = (kq.rows || [])[0] || {};
+    var gy = x.so_gd ? [] : (x.goi_y || []);
+    if (gy.length) return hsGoiYKhongMa(hs, x, gy);
     return baoTin('Ngân hàng đã chi ' + money(x.da_chi) + ' / ' + money(x.tong_tien) + ' đ' +
-      (x.so_gd ? '\n' + x.so_gd + ' giao dịch' + (x.ma_gd ? ', mã ' + x.ma_gd : '') + (x.ngay ? ', ngày ' + hsNgayVn(x.ngay) : '') : '\nChưa thấy giao dịch nào mang mã ' + hs.ma) +
-      (x.du ? '\n\n✅ Đã đủ tiền, bấm Ghi nhận đã thanh toán được rồi.' : '\n\n⏳ Chưa đủ. Khi chuyển khoản nhớ ghi mã ' + hs.ma + ' vào nội dung để máy tự khớp.'));
+      (x.so_gd ? '\n' + x.so_gd + ' giao dịch' + (x.ma_gd ? ', mã ' + x.ma_gd : '') + (x.ngay ? ', ngày ' + hsNgayVn(x.ngay) : '') +
+        (x.theo_mau ? '\nKhớp theo mẫu sao kê đã nhớ của nhà cung cấp.' : '') : '\nChưa thấy giao dịch nào mang mã ' + hs.ma) +
+      (x.du ? '\n\n✅ Đã đủ tiền, bấm Ghi nhận đã thanh toán được rồi.' : '\n\n⏳ Chưa đủ. Khi chuyển khoản nhớ ghi mã ' + hs.ma + ' vào nội dung để máy tự khớp.' +
+        ' Trả qua tính năng thanh toán hoá đơn (điện, nước, internet) của app ngân hàng thì không ghi được mã: bấm Đối chiếu tay, tìm theo số tiền.'));
   }
   if (k === 'datra') {
     if (!await xacNhan('Hoàn tất hồ sơ ' + money(hs.tong_tien) + ' đ cho ' + (hs.ten_ncc || hs.ncc) + '?\n\n' +
@@ -3731,4 +3749,43 @@ async function hsCapQuyTienMat() {
     var ra = await api('vagabond.tam_ung_app.ghi_nhan_cap', {giao_dich:gd, tai_khoan_nguon:nguon, nop_quy:nq==='-'?'':nq});
     await baoTin('Đã ghi nhận khoản cấp quỹ: '+ra.name+'. Mở APP đã duyệt và bấm Cấn tiền đã cấp trước.');
   } catch(e) { baoTin(e.message || 'Chưa ghi nhận được. Tải lại để kiểm trước khi bấm lại.'); }
+}
+
+
+/* v528, anh Việt 25/09/2026: tiền điện, nước, internet trả bằng tính năng
+   thanh toán hoá đơn của app ngân hàng thì sao kê không mang mã APP (ví dụ
+   "WATER BT WATER 1032865688 ..."). Máy đưa dòng đúng số tiền, đúng tài
+   khoản, chưa ai dùng để NGƯỜI bấm chọn; không tự gán theo số tiền. */
+async function hsGoiYKhongMa(hs, x, gy) {
+  var r = gy[0];
+  var dau = 'Chưa thấy giao dịch nào mang mã ' + hs.ma + '. Khoản trả qua tính năng thanh toán hoá đơn của app ngân hàng không ghi được mã.\n\n';
+  if (gy.length > 1) {
+    if (!await hoiCo('Có ' + gy.length + ' giao dịch đúng số tiền', dau +
+      'Có ' + gy.length + ' giao dịch đúng ' + money(r.tien) + ' đ, đúng tài khoản chi, chưa hồ sơ nào dùng. Mở danh sách để chọn đúng dòng.', 'Xem ' + gy.length + ' dòng')) return;
+    return go(function () { scrTimGiaoDich(hs.ma, hs.con_lai == null ? hs.tong_tien : hs.con_lai); });
+  }
+  if (!await hoiCo('Khớp giao dịch này?', dau +
+    'Có 1 giao dịch đúng ' + money(r.tien) + ' đ, đúng tài khoản chi, chưa hồ sơ nào dùng:\n' +
+    hsNgayVn(String(r.date || '').slice(0, 10)) + ' · ' + (r.mo_ta || '(không có nội dung)') + (r.tham_chieu ? '\nTham chiếu ' + r.tham_chieu : '') +
+    '\n\nĐúng khoản này thì bấm Khớp.', 'Khớp')) return;
+  busy(true);
+  var kq;
+  try { kq = await api('vagabond.doi_chieu_app.gan', { name: hs.ma, ma_giao_dich: r.name }); }
+  catch (e) { busy(false); return baoTin((e && e.message) || 'Chưa khớp được giao dịch.'); }
+  busy(false);
+  await hsSauGan(hs.ma, kq);
+  return go(function () { scrHoSoTTView(hs.ma); }, true);
+}
+
+/* Sau mọi lần gán tay: báo kết quả, rồi nếu dòng không mang mã APP thì hỏi
+   nhớ mẫu đầu dòng sao kê cho nhà cung cấp, để tháng sau máy tự khớp. */
+async function hsSauGan(maApp, kq) {
+  toast((kq && kq.loi_nhan) || 'Đã chọn giao dịch.', 5000);
+  var m = kq && kq.nho_mau;
+  if (!m || !m.mau) return;
+  if (!await hoiCo('Nhớ mẫu sao kê?', 'Giao dịch vừa khớp không mang mã hồ sơ, thường là khoản trả qua tính năng thanh toán hoá đơn của ngân hàng.\n\n' +
+    'Nhớ mẫu "' + m.mau + '" cho ' + (m.ten_ncc || m.ncc) + '? Lần sau sao kê bắt đầu bằng mẫu này, đúng số tiền, đúng tài khoản và chỉ có một dòng thì máy tự khớp.', 'Nhớ mẫu')) return;
+  busy(true);
+  try { var k2 = await api('vagabond.doi_chieu_app.nho_mau', { name: maApp, mau: m.mau }); busy(false); toast(k2.loi_nhan, 5000); }
+  catch (e) { busy(false); baoTin((e && e.message) || 'Chưa nhớ được mẫu.'); }
 }

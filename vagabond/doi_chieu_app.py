@@ -5,7 +5,7 @@ Bank Transaction Payments mới là bằng chứng đối chiếu sau khi ghi s�
 """
 
 from functools import wraps
-from vagabond.khop_sao_ke import co_ma
+from vagabond.khop_sao_ke import co_ma, co_ma_app_khac, doc_ds_mau, khop_mau, mau_chong_nhau, mau_sao_ke, xep_goi_y
 
 
 # phần cần Frappe
@@ -14,6 +14,26 @@ from frappe.utils import add_days, cint, flt, nowdate
 
 DT = "Vagabond Ho So TT"
 BT = "Bank Transaction"
+
+# v528: thanh toán tiện ích (điện, nước, internet) qua app ngân hàng không gõ
+# được mã APP. Máy nhớ mẫu đầu dòng sao kê theo nhà cung cấp; xem lớp 3 của
+# khop_sao_ke. Ô nằm trên Supplier vì một NCC có nhiều hồ sơ theo tháng.
+O_MAU = "vgb_mau_sao_ke"
+# Giao dịch trước ngày lập hồ sơ bao lâu vẫn được xét: có khoản trả trước
+# rồi mới lập hồ sơ (tiền điện trích tự động).
+SO_NGAY_TRUOC = 45
+TRUONG_MOI = {
+	"Supplier": [{
+		"fieldname": O_MAU, "label": "Mẫu nội dung sao kê (thanh toán tiện ích)",
+		"fieldtype": "Small Text", "insert_after": "email_cc",
+		"description": (
+			"Mỗi dòng một mẫu đầu dòng sao kê, ví dụ WATER BT WATER. Khoản trả "
+			"qua tính năng thanh toán hoá đơn của app ngân hàng không ghi được mã "
+			"APP; sao kê bắt đầu bằng mẫu này, đúng số tiền, đúng tài khoản và chỉ "
+			"một dòng chưa ai dùng thì máy tự khớp. Xoá dòng để máy thôi nhớ."
+		),
+	}],
+}
 
 
 def _ho_so(name, khoa=False):
@@ -102,6 +122,7 @@ def chon(doc, ma=None, khoa=False):
 	"""Dò tự động chỉ khi có đúng một giao dịch; chọn tay cũng kiểm y hệt."""
 	nguon = _nguon(doc)
 	ma = str(ma or doc.get("ma_giao_dich") or "").strip()
+	theo_mau = False
 	if ma:
 		# Không chuyển chuỗi tham chiếu không duy nhất thành một bản ghi ngẫu nhiên.
 		ten = ma if frappe.db.exists(BT, ma) else None
@@ -116,14 +137,18 @@ def chon(doc, ma=None, khoa=False):
 		# chung có ranh giới số. Không cộng một dòng hai lần khi mã lặp.
 		cty, tk, tien = nguon
 		bas = frappe.get_all("Bank Account", filters={"company": cty, "account": tk}, pluck="name")
-		ds = []
+		ds, hang = [], []
 		if bas:
-			for r in frappe.get_all(BT, filters={"bank_account": ["in", bas], "docstatus": 1,
-				"withdrawal": tien, "deposit": 0}, fields=["name", "description", "reference_number"], limit_page_length=0):
+			hang = frappe.get_all(BT, filters={"bank_account": ["in", bas], "docstatus": 1,
+				"withdrawal": tien, "deposit": 0}, fields=["name", "date", "description", "reference_number"], limit_page_length=0)
+			for r in hang:
 				if co_ma(r.description, doc.name) or co_ma(r.reference_number, doc.name):
 					ds.append(r.name)
 		if len(ds) > 1:
 			frappe.throw("Có nhiều giao dịch mang mã %s. Bấm Đối chiếu tay và chọn đúng dòng sao kê." % doc.name)
+		if not ds:
+			ds = _theo_mau(doc, nguon, hang)
+			theo_mau = bool(ds)
 	if not ds:
 		return None
 	if khoa:
@@ -132,7 +157,84 @@ def chon(doc, ma=None, khoa=False):
 	loi = _kiem(g, doc, nguon)
 	if loi:
 		frappe.throw("Giao dịch %s: %s" % (g.name, loi))
+	g.flags.theo_mau = theo_mau
 	return g
+
+
+def _mau_cua_ncc(ncc):
+	"""Mẫu đã nhớ của NCC. Trước khi migrate dựng ô thì coi như chưa nhớ."""
+	if not ncc or not frappe.get_meta("Supplier").has_field(O_MAU):
+		return []
+	return doc_ds_mau(frappe.db.get_value("Supplier", ncc, O_MAU))
+
+
+def _tu_ngay(doc):
+	return str(add_days(doc.get("ngay") or nowdate(), -SO_NGAY_TRUOC))
+
+
+def _theo_mau(doc, nguon, hang):
+	"""Khớp tự động khoản trả tiện ích: mẫu NCC đã nhớ, đúng tiền, đúng tài
+	khoản (hang đã lọc hai điều đó), trong khoảng ngày, và CHỈ MỘT dòng còn
+	dùng được. Nhiều dòng thì không đoán, để người chọn trong gợi ý."""
+	mau = _mau_cua_ncc(doc.get("nha_cung_cap"))
+	if not mau:
+		return []
+	tu = _tu_ngay(doc)
+	khop = [r for r in hang if str(r.date or "") >= tu and khop_mau(r.description, mau)
+		and not co_ma_app_khac("%s %s" % (r.description or "", r.reference_number or ""), doc.name)]
+	dung = [r.name for r in khop if not _kiem(frappe.get_doc(BT, r.name), doc, nguon)]
+	return dung if len(dung) == 1 else []
+
+
+def goi_y_khong_ma(doc, gioi_han=5):
+	"""Dòng sao kê đúng tiền, đúng tài khoản, chưa ai dùng, trong khoảng ngày
+	của hồ sơ, mà KHÔNG mang mã. Chỉ để NGƯỜI bấm chọn; không gán gì."""
+	nguon = _nguon(doc)
+	cty, tk, tien = nguon
+	bas = frappe.get_all("Bank Account", filters={"company": cty, "account": tk,
+		"is_company_account": 1, "disabled": 0}, pluck="name")
+	if not bas or tien <= 0:
+		return []
+	mau = _mau_cua_ncc(doc.get("nha_cung_cap"))
+	ra = []
+	for r in frappe.get_all(BT, filters={"bank_account": ["in", bas], "docstatus": 1,
+			"withdrawal": tien, "deposit": 0, "date": [">=", _tu_ngay(doc)]},
+			fields=["name", "date", "description", "reference_number"],
+			order_by="date desc, name desc", limit_page_length=30):
+		if co_ma_app_khac("%s %s" % (r.description or "", r.reference_number or ""), doc.name):
+			continue
+		if _kiem(frappe.get_doc(BT, r.name), doc, nguon):
+			continue
+		ra.append({"name": r.name, "date": str(r.date or ""), "mo_ta": (r.description or "").strip(),
+			"tham_chieu": r.reference_number or "", "tien": tien,
+			"mau": mau_sao_ke(r.description), "da_nho": int(bool(khop_mau(r.description, mau)))})
+	return xep_goi_y(ra, doc.get("ngay"))[:gioi_han]
+
+
+def de_nghi_nho_mau(doc, g):
+	"""Sau khi người gán tay một dòng KHÔNG mang mã, đề nghị nhớ mẫu cho NCC.
+
+	Không đề nghị khi: dòng có mã APP (đã tự khớp được), hồ sơ không có NCC,
+	không bóc được mẫu, NCC đã nhớ, hoặc mẫu đã thuộc NCC khác."""
+	ncc = doc.get("nha_cung_cap")
+	if not ncc or co_ma(g.description, doc.name) or co_ma(g.reference_number, doc.name):
+		return None
+	if not frappe.get_meta("Supplier").has_field(O_MAU):
+		return None
+	mau = mau_sao_ke(g.description)
+	if not mau or mau in _mau_cua_ncc(ncc) or _chu_mau_khac(mau, ncc):
+		return None
+	return {"mau": mau, "ncc": ncc, "ten_ncc": doc.get("ten_ncc") or ncc}
+
+
+def _chu_mau_khac(mau, ncc):
+	"""NCC khác đang giữ một mẫu CHỒNG với mẫu này (Codex #371 M2): so theo
+	đúng luật tiền tố trọn chữ của khop_mau, không chỉ so trùng hẳn."""
+	for r in frappe.get_all("Supplier", filters={O_MAU: ["is", "set"], "name": ["!=", ncc]},
+			fields=["name", O_MAU], limit_page_length=0):
+		if any(mau_chong_nhau(mau, m) for m in doc_ds_mau(r.get(O_MAU))):
+			return r.name
+	return ""
 
 
 def noi_but_toan(doc, g):
@@ -261,7 +363,46 @@ def gan(name, ma_giao_dich):
 	doc.ma_giao_dich = g.name
 	doc.save(ignore_permissions=True)
 	doc.add_comment("Comment", "Đối chiếu tay với giao dịch %s, tham chiếu %s." % (g.name, g.reference_number or ""))
-	return {"ok": 1, "loi_nhan": "Đã chọn giao dịch. " + ("Đã đối chiếu bút toán." if doc.trang_thai == "Da thanh toan" else "Đính UNC và bấm Ghi nhận đã thanh toán để hoàn tất.")}
+	return {"ok": 1, "loi_nhan": "Đã chọn giao dịch. " + ("Đã đối chiếu bút toán." if doc.trang_thai == "Da thanh toan" else "Đính UNC và bấm Ghi nhận đã thanh toán để hoàn tất."),
+		"nho_mau": de_nghi_nho_mau(doc, g)}
+
+
+@frappe.whitelist(methods=["POST"])
+def nho_mau(name, mau):
+	"""Nhớ mẫu đầu dòng sao kê cho NCC của hồ sơ, sau khi người đã gán tay.
+
+	Chỉ nhận đúng mẫu bóc từ giao dịch hồ sơ đang giữ, không nhận chữ tự gõ,
+	để không ai nhớ nhầm một mẫu chung làm máy khớp bừa về sau."""
+	doc = _ho_so(name)
+	ma = str(doc.get("ma_giao_dich") or "").strip()
+	if not ma or not frappe.db.exists(BT, ma):
+		frappe.throw("Hồ sơ %s chưa gán giao dịch ngân hàng. Khớp giao dịch trước rồi mới nhớ mẫu." % name)
+	g = frappe.get_doc(BT, ma)
+	de = de_nghi_nho_mau(doc, g)
+	mau = " ".join(str(mau or "").split()).upper()
+	if not de or de["mau"] != mau:
+		chu = _chu_mau_khac(mau, doc.get("nha_cung_cap") or "") if mau else ""
+		frappe.throw(("Mẫu %s đã nhớ cho nhà cung cấp %s. Hai nhà cung cấp chung một mẫu thì máy không phân biệt được, kế toán khớp tay từng lần." % (mau, chu))
+			if chu else "Mẫu không khớp giao dịch %s của hồ sơ, hoặc nhà cung cấp đã nhớ rồi." % ma)
+	ncc = de["ncc"]
+	# Codex #370 vòng 1: kiểm chủ mẫu PHẢI làm lại dưới khoá, bằng current
+	# read. Câu dưới lọc theo cột không có chỉ mục nên InnoDB quét và khoá mọi
+	# dòng Supplier: hai lượt nhớ mẫu (cùng hay khác NCC) xếp hàng nhau, lượt
+	# sau đọc được bản đã commit của lượt trước, không ai ghi đè mẫu của ai.
+	dong = frappe.db.sql("""select name, `{o}` as mau from `tabSupplier`
+		where name = %s or ifnull(`{o}`, '') != '' for update""".format(o=O_MAU),
+		(ncc,), as_dict=True)
+	chu = [r["name"] for r in dong if r["name"] != ncc
+		and any(mau_chong_nhau(mau, m) for m in doc_ds_mau(r["mau"]))]
+	if chu:
+		frappe.throw("Mẫu %s vừa được nhớ cho nhà cung cấp %s. Hai nhà cung cấp chung một mẫu thì máy không phân biệt được, kế toán khớp tay từng lần." % (mau, chu[0]))
+	cu = doc_ds_mau(next((r["mau"] for r in dong if r["name"] == ncc), ""))
+	if mau not in cu:
+		frappe.db.set_value("Supplier", ncc, O_MAU, "\n".join(cu + [mau]))
+		frappe.get_doc("Supplier", ncc).add_comment("Comment",
+			"Nhớ mẫu sao kê %s từ hồ sơ %s, giao dịch %s." % (mau, name, ma))
+		doc.add_comment("Comment", "Nhớ mẫu sao kê %s cho nhà cung cấp %s." % (mau, ncc))
+	return {"ok": 1, "loi_nhan": "Đã nhớ mẫu %s cho %s. Lần sau đúng số tiền, đúng tài khoản thì máy tự khớp." % (mau, de["ten_ncc"])}
 
 
 def kiem_luu(doc):
