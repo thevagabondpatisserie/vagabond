@@ -162,23 +162,31 @@ async function bcNoiTo(to, so, goiY, veLai) {
   /* Codex #369 vòng 4: đơn là danh mục có sẵn nên chọn trong danh sách có
      ô tìm (QT-31), không gõ mã tự do. Máy chủ trả đơn quanh ngày lập của
      tờ, đơn máy gợi ý và đơn cùng MST lên đầu. */
-  var uv;
-  busy(true);
-  try { uv = await api('vagabond.doi_soat_hddt_ra.ung_vien_don', { to: to }); }
-  catch (e) { busy(false); baoTin((e && e.message) || 'Không đọc được danh sách đơn.', 'Chưa nối'); return; }
-  busy(false);
-  var rows = uv.rows || [];
-  if (!rows.length) {
-    baoTin('Không có đơn đã ghi sổ nào quanh ngày lập ' + posNgayVn(uv.ngay_lap) + ' của tờ ' + so + '. Ghi sổ đơn trước rồi nối lại.', 'Chưa nối');
-    return;
+  /* Codex #369 vòng 5: dòng đầu "Tìm đơn khác" hỏi từ khoá rồi tìm TOÀN
+     BỘ đơn đã ghi sổ ở máy chủ, không giới hạn ngày. Chữ gõ chỉ để tìm, đơn
+     vẫn chọn từ danh mục. */
+  var uv, tk = '', don = null;
+  for (;;) {
+    busy(true);
+    try { uv = await api('vagabond.doi_soat_hddt_ra.ung_vien_don', tk ? { to: to, tu_khoa: tk } : { to: to }); }
+    catch (e) { busy(false); baoTin((e && e.message) || 'Không đọc được danh sách đơn.', 'Chưa nối'); return; }
+    busy(false);
+    var rows = uv.rows || [];
+    var moTa = tk
+      ? (rows.length ? 'Kết quả tìm "' + tk + '": ' + rows.length + ' đơn đã ghi sổ.' : 'Không có đơn đã ghi sổ nào khớp "' + tk + '". Bấm Tìm đơn khác để thử từ khoá khác.')
+      : (rows.length ? 'Tờ ' + so + ', ' + money(uv.tong_tien) + ' đ. Chọn đơn của tờ này. Đơn không có ở đây thì bấm Tìm đơn khác.'
+        : 'Không có đơn đã ghi sổ nào quanh ngày lập ' + posNgayVn(uv.ngay_lap) + '. Bấm Tìm đơn khác để tìm theo mã đơn, tên khách hoặc số tiền.');
+    don = await hoiChon('Nối tờ ' + so + ' vào đơn',
+      h(moTa + ' Số hoá đơn trên đơn giữ nguyên, không ghi sổ gì thêm.') +
+      (uv.tong > rows.length ? '<br>' + h('Đang hiện ' + rows.length + ' trên ' + uv.tong + ' đơn.') : ''),
+      [{ k: '__tim__', icon: '🔎', nhan: 'Tìm đơn khác', mo_ta: 'Gõ mã đơn, mã đơn bán, tên khách, số hoá đơn hoặc số tiền' }].concat(rows.map(function (r) {
+        return { k: r.name, icon: r.goi_y ? '⭐' : '🧾', nhan: r.name + ' · ' + money(r.tien) + ' đ',
+          mo_ta: [String(r.ngay || '').split('-').reverse().join('/'), r.khach, r.ma_don, r.so_hddt ? 'HĐĐT ' + r.so_hddt : '', r.goi_y ? 'máy gợi ý' : ''].filter(Boolean).join(' · ') };
+      })), tk ? null : (goiY || null));
+    if (don !== '__tim__') break;
+    tk = await hoiChu('Tìm đơn', 'Gõ mã đơn ERP, mã đơn bán, tên khách, số hoá đơn hoặc số tiền.', tk, { bat_buoc: 1 });
+    if (!tk) return;
   }
-  var don = await hoiChon('Nối tờ ' + so + ' vào đơn',
-    h('Tờ ' + so + ', ' + money(uv.tong_tien) + ' đ. Chọn đơn của tờ này; gõ mã đơn, tên khách hoặc số tiền để tìm. Số hoá đơn trên đơn giữ nguyên, không ghi sổ gì thêm.') +
-    (uv.tong > rows.length ? '<br>' + h('Đang hiện ' + rows.length + ' trên ' + uv.tong + ' đơn gần nhất về tiền.') : ''),
-    rows.map(function (r) {
-      return { k: r.name, icon: r.goi_y ? '⭐' : '🧾', nhan: r.name + ' · ' + money(r.tien) + ' đ',
-        mo_ta: [String(r.ngay || '').split('-').reverse().join('/'), r.khach, r.ma_don, r.so_hddt ? 'HĐĐT ' + r.so_hddt : '', r.goi_y ? 'máy gợi ý' : ''].filter(Boolean).join(' · ') };
-    }), goiY || null);
   if (!don) return;
   var xem;
   busy(true);
