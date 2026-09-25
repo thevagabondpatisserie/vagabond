@@ -900,6 +900,12 @@ function pvLaTraTruoc(d) {
   return (d.references || []).some(function (r) { return r.reference_doctype === 'Purchase Order'; });
 }
 
+/* "a, b, c và 4 tờ nữa": danh sách dài không chiếm hết màn. */
+function pvRutGon(ds, n) {
+  ds = ds || [];
+  return ds.slice(0, n).join(', ') + (ds.length > n ? ' và ' + (ds.length - n) + ' tờ nữa' : '');
+}
+
 function pvKhoiTraTruoc(tt) {
   var html = '<div class="sec">Chi trước, hoá đơn về sau</div><div class="card" style="padding:13px 14px">';
   if (!tt || tt.loi) return html + '<div style="font-size:13px;color:#b3261e">' + h((tt && tt.loi) || '') + '</div></div>';
@@ -907,8 +913,12 @@ function pvKhoiTraTruoc(tt) {
   var dong = function (xong, chu) { return '<div style="font-size:13.5px;line-height:1.7">' + (xong ? '✅' : '⬜') + ' ' + chu + '</div>'; };
   html += dong(!tt.can_noi_sao_ke, 'Sao kê ngân hàng: <b>' + (tt.sao_ke.length ? h(tt.sao_ke.join(', ')) : 'chưa khớp') + '</b>');
   html += dong(tt.so_unc > 0, 'Uỷ nhiệm chi: <b>' + (tt.so_unc ? tt.so_unc + ' tờ' : 'chưa có') + '</b>');
+  /* Codex #370 F1: trên màn 390x844 danh sách dài không được đẩy ba nút
+     xuống dưới màn đầu. Trên khối nút chỉ có số tờ và tổng tiền; danh sách
+     đủ nằm dưới khối nút, mở theo yêu cầu. */
+  var tongCan = tt.da_can.reduce(function (a, x) { return a + (Number(x.tien) || 0); }, 0);
   html += dong(tt.con_coc <= 0, 'Hoá đơn đã cấn: <b>' + (tt.da_can.length
-    ? tt.da_can.map(function (x) { return h(x.hoa_don) + ' ' + money(x.tien) + ' đ'; }).join(', ') : 'chưa có') + '</b>' +
+    ? tt.da_can.length + ' tờ, ' + money(tongCan) + ' đ' : 'chưa có') + '</b>' +
     (tt.con_coc > 0 ? ' · còn trả trước chưa cấn <b>' + money(tt.con_coc) + ' đ</b>' : ''));
   html += '<div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">';
   if (tt.can_noi_sao_ke) html += '<button class="btn gh" id="pvKhopSk" style="margin:0">🏦 Khớp sao kê thủ công</button>';
@@ -916,7 +926,9 @@ function pvKhoiTraTruoc(tt) {
   if (tt.con_coc > 0) html += '<button class="btn" id="pvNoiHd" style="margin:0">🔗 Nối hoá đơn về sau (cấn trừ)</button>';
   html += '</div>';
   if ((tt.nhap || []).length) html += '<div style="font-size:12.5px;color:#92400e;margin-top:9px;line-height:1.55">Nhà cung cấp này còn ' + tt.nhap.length +
-    ' hoá đơn chưa ghi sổ (' + h(tt.nhap.map(function (x) { return x.bill_no || x.name; }).join(', ')) + '). Ghi sổ tờ đó trước rồi mới cấn được.</div>';
+    ' hoá đơn chưa ghi sổ (' + h(pvRutGon(tt.nhap.map(function (x) { return x.bill_no || x.name; }), 3)) + '). Ghi sổ tờ đó trước rồi mới cấn được.</div>';
+  if (tt.da_can.length) html += '<details style="margin-top:9px;font-size:13px"><summary style="min-height:44px;line-height:44px;cursor:pointer">Xem ' + tt.da_can.length + ' hoá đơn đã cấn</summary>' +
+    tt.da_can.map(function (x) { return '<div style="padding:4px 0">' + h(x.hoa_don) + ' · ' + money(x.tien) + ' đ</div>'; }).join('') + '</details>';
   return html + '</div>';
 }
 
