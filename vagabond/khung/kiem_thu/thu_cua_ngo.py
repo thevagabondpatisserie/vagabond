@@ -81,7 +81,7 @@ CUA_NGO = {
 	# `nen_pdf`, `loi_giu_lien_ket` va `kiem_bo_sung` CO Y khong nam trong danh
 	# sach: do la phep noi bo, Document goi qua validate chu khong mo ra ngoai.
 	# v526: khoan_cho_hoa_don cho nút nối hoá đơn đến sau trên màn Hoá đơn mua.
-	"ho_so_bo_sung.py": ["nen_tep", "danh_sach_hoa_don", "noi_hoa_don", "khoan_cho_hoa_don"],
+	"ho_so_bo_sung.py": ["nen_tep", "danh_sach_hoa_don", "noi_hoa_don", "khoan_cho_hoa_don", "danh_dau_cho_hoa_don"],
 	# v526: màn hạch toán trước khi ghi sổ thẳng (chị Dung 24/09/2026).
 	"hach_toan_thang.py": ["xem"],
 	# Them 01/09/2026 cung lan mo phan he Nhan su, man Duyet KPI va hoa hong.
@@ -162,7 +162,7 @@ CUA_NGO = {
 	# sach: do la phep noi bo doc va khoa chung tu. `chan_sua_lich_su` la HOOK
 	# tren duong luu cua MOI Payment Entry, mo ra ngoai la cho trinh duyet goi
 	# thang vao duong chan.
-	"coc_app.py": ["can_coc", "danh_sach", "noi_sao_ke_coc", "sao_ke_coc"],
+	"coc_app.py": ["can_coc", "danh_sach", "noi_sao_ke_coc", "sao_ke_coc", "tra_truoc_xem"],
 	# `phan_bo_app.py` KHONG co ham nao mo ra ngoai: toan bo la phep thuan va
 	# phep kiem, ho_so_tt va doctype goi thang. Chot danh sach rong de mot
 	# decorator bam nham vao day se bi ca kiem bat ngay.
@@ -559,7 +559,7 @@ CUA_NGO = {
 	# la HOOK va `dung_workflow` dung lai duong duyet, ca hai phai nam NGOAI
 	# danh sach: mo ra ngoai la cho phep goi thang tu trinh duyet vao dung
 	# cho quyet dinh tien co roi khoi tai khoan hay khong.
-	"duyet_chi.py": ["tinh_hinh", "xac_nhan_da_chuyen"],
+	"duyet_chi.py": ["tinh_hinh", "xac_nhan_da_chuyen", "dinh_unc_sau"],
 	# Xuat kho: dieu chuyen va xuat huy. `go_anh_xuat_huy` them 24/08/2026
 	# (v294), chan khi da ghi so hoac da huy - luc do anh la chung tu.
 	"xuat_kho.py": [
