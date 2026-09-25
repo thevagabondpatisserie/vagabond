@@ -145,9 +145,10 @@ class _San:
 				ra = [b for b in ra if b.reference_number == filters["reference_number"]]
 			ra.sort(key=lambda b: (b.date, b.name), reverse=True)
 		elif dt == "Supplier":
-			tk = filters[self.dca.O_MAU][1].strip("%")
+			op, gt = filters[self.dca.O_MAU][0], filters[self.dca.O_MAU][1]
+			hop = (lambda m: bool(m)) if (op, gt) == ("is", "set") else (lambda m: gt.strip("%") in (m or ""))
 			ra = [_D(name=n, **{self.dca.O_MAU: m}) for n, m in self.mau.items()
-				if tk in (m or "") and n != filters["name"][1]]
+				if hop(m) and n != filters["name"][1]]
 		else:
 			raise AssertionError("get_all lạ: " + dt)
 		return [r.name for r in ra] if pluck else ra
@@ -442,4 +443,27 @@ def _k3_khoa():
 	s = _San([G_BT], ma_gd="ACC-BTN-2026-06151", chen=cung_ncc_vua_them)
 	s.chay(lambda d: d.nho_mau(APP, "WATER BT WATER"))
 	la("cùng NCC vừa thêm mẫu khác: giữ cả hai, không mất cập nhật", s.mau[NCC], "EVN-HCM ELECTRIC\nWATER BT WATER")
+
+
+# ---------------------------------------------- Codex #371 trên f895ce3 (phần v528)
+
+
+@ca("v528 Codex #371 M2: mẫu chồng tiền tố trọn chữ với mẫu của NCC khác (WATER BT và WATER BT WATER) thì không nhớ được")
+def _m2_mau_chong():
+	from vagabond.khop_sao_ke import mau_chong_nhau
+	la("trùng hẳn", mau_chong_nhau("WATER BT WATER", "WATER BT WATER"), True)
+	la("mẫu ngắn là tiền tố trọn chữ", mau_chong_nhau("WATER BT", "WATER BT WATER"), True)
+	la("chiều ngược lại", mau_chong_nhau("WATER BT WATER", "WATER BT"), True)
+	la("không trọn chữ thì không chồng", mau_chong_nhau("WATER B", "WATER BT WATER"), False)
+	la("khác hẳn", mau_chong_nhau("WATER TH WATER", "WATER BT WATER"), False)
+	for mo_ta, mau_ncc_khac in (("NCC khác giữ mẫu ngắn hơn", "WATER BT"), ("NCC khác giữ mẫu dài hơn", "WATER BT WATER X")):
+		s = _San([G_BT], mau={"CAP-NUOC-KHAC": mau_ncc_khac})
+		la(mo_ta + ": không đề nghị nhớ", s.chay(lambda d: d.de_nghi_nho_mau(s.doc, G_BT)), None)
+
+		def vua_nho(san, m=mau_ncc_khac):
+			san.mau["CAP-NUOC-KHAC"] = m
+		s = _San([G_BT], ma_gd="ACC-BTN-2026-06151", chen=vua_nho)
+		s.mau.pop("CAP-NUOC-KHAC", None)
+		kq = s.chay(lambda d: d.nho_mau(APP, "WATER BT WATER"))
+		dung(mo_ta + " (vừa nhớ trong lúc chờ khoá): chặn dưới khoá", "CAP-NUOC-KHAC" in kq.get("loi", "") and NCC not in s.mau)
 

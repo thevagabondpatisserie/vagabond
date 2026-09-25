@@ -1001,3 +1001,48 @@ def _v5_tim_that():
 		dung("tìm " + tk + ": không có đơn nháp", "HDB-26-09-03999" not in [r["name"] for r in kq["rows"]])
 	kq, hoi = _uv_that("a")
 	la("từ khoá quá ngắn: không hỏi máy chủ", (kq["rows"], hoi), ([], []))
+
+
+# ---------------------------------------------- Codex #371 trên f895ce3 (phần v527)
+
+
+@ca("v527 Codex #371 M1: đơn đã huỷ hoặc nháp còn giữ số/mã HĐĐT thì BC17 không nhận là tờ ERP")
+def _m1_chi_don_ghi_so():
+	import frappe as _fr
+	to = _to(15601, "2026-09-22", ten="MI-ID-10")
+	for mo_ta, tt in (("đơn đã huỷ", 2), ("đơn nháp", 0)):
+		don = [_D(dict(_don("HDB-26-09-05100", "15601", ngay="2026-09-22"), custom_hddt_id="MI-ID-10", docstatus=tt))]
+
+		def get_all(dt, filters=None, fields=None, limit_page_length=0, **k):
+			if dt == ds.DT_TO:
+				return [_D(to)] if "ngay_lap" in filters else []
+			return _loc(don, filters)
+		f = NS(get_all=get_all, db=NS(get_single_value=lambda *a: "1C26MPV"), throw=_fr.throw)
+		with unittest.mock.patch.object(ds, "frappe", f):
+			to_ds, goc, si, _n = ds.doc("2026-09-22", "2026-09-22")
+		la(mo_ta + ": không nạp vào tập đơn", [s.name for s in si], [])
+		la(mo_ta + ": tờ không bị xếp là ERP", ds.phan_loai(to_ds, si, goc)["MI-ID-10"]["loai"], ds.LOAI_TAO_TAY)
+	# Hai câu nạp còn lại (ô thay thế, ô nối tay) cũng phải lọc ghi sổ: đột
+	# biến X1c, X1d lần đầu không đổ ca nào vì ca chỉ có đơn theo số và mã (17a).
+	to_thay = dict(_to(15602, "2026-09-22", "Thay thế", 15000, ten="MI-ID-11"))
+	to_noi = dict(_to(15603, "2026-09-22", ten="MI-ID-12"), vgb_don_erp="HDB-26-09-05300")
+	don = [_D(dict(_don("HDB-26-09-05200", "", "1C26MPV 15602", ngay="2026-09-20"), docstatus=2)),
+		_D(dict(_don("HDB-26-09-05300", "", ngay="2026-09-20"), docstatus=2))]
+
+	def get_all2(dt, filters=None, fields=None, limit_page_length=0, **k):
+		if dt == ds.DT_TO:
+			return [_D(to_thay), _D(to_noi)] if "ngay_lap" in filters else []
+		return _loc(don, filters)
+	f = NS(get_all=get_all2, db=NS(get_single_value=lambda *a: "1C26MPV"), throw=_fr.throw)
+	with unittest.mock.patch.object(ds, "frappe", f):
+		to_ds, goc, si, _n = ds.doc("2026-09-22", "2026-09-22")
+	la("đơn huỷ ghi ô thay thế hoặc được nối tay: không nạp", sorted(s.name for s in si), [])
+
+
+@ca("v527 Codex #371 M3: BC17 không bày chip So với kỳ trước (máy chủ bỏ qua); báo cáo khác vẫn có")
+def _m3_chip_ss():
+	ra = _ve_bc(_kq_man(khong_loc=1, tong_doanh_thu=None, so_hoa_don=None, nguon_loc=[], pt_loc=[]))
+	dung("BC17: không có chip so sánh", "data-bcss" not in ra["html"])
+	ra = _ve_bc(_kq_man())
+	dung("báo cáo thường: vẫn có chip so sánh", "data-bcss" in ra["html"])
+
