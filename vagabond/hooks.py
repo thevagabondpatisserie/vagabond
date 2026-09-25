@@ -100,6 +100,7 @@ for _dt_vgb in (
 	"Vagabond Cong No", "Vagabond Hoan Tien", "Vagabond Nop Quy",
 	"Bao Gia Ban Hang", "Hop Dong Ban Hang", "Vagabond Don Huy",
 	"Vagabond Yeu Cau TT", "Vagabond Kiem Kho Diem", "Vagabond Nhan Banh",
+	"Vagabond Don Web",
 ):
 	doctype_list_js[_dt_vgb] = "public/js/vagabond_list.js"
 del _dt_vgb
@@ -868,3 +869,23 @@ for _event, _fn in (("validate", "kiem_je"), ("before_update_after_submit", "kie
     _old = doc_events.setdefault("Journal Entry", {}).get(_event, [])
     doc_events["Journal Entry"][_event] = ([_old] if isinstance(_old, str) else list(_old)) + ["vagabond.tam_ung_app." + _fn]
 del _event, _fn, _old
+
+# #367 don dat banh tu website. Noi vao chuoi san co, khong thay hook cu.
+#  - Hoa don ban cua don web ghi so thi bao Meta su kien Purchase. Chi mot
+#    cau truy van co chi muc, nuot moi loi: ghi so quan trong hon do quang cao.
+#  - Nhip 5 phut tim don Pancake cho ban ghi Cho doi soat, qua 30 phut bao
+#    nhom Sales qua Lark (anh Viet chon Lark 25/09/2026).
+_cu_dw = doc_events.setdefault("Sales Invoice", {}).get("on_submit", [])
+doc_events["Sales Invoice"]["on_submit"] = ([_cu_dw] if isinstance(_cu_dw, str) else list(_cu_dw)) + [
+	"vagabond.don_web.khi_ghi_so_hoa_don"
+]
+del _cu_dw
+scheduler_events.setdefault("cron", {}).setdefault("*/5 * * * *", []).append("vagabond.don_web.doi_soat_tu_dong")
+# Trang bien nhan /banh/xong/<token> va ba trang chinh sach. Noi them vao
+# luat dinh tuyen cua app, KHONG thay: bo luat do mang moi man hinh cua /bep.
+website_route_rules = list(website_route_rules) + [
+	{"from_route": "/banh/xong/<token>", "to_route": "banh/xong"},
+	{"from_route": "/chinh-sach-bao-mat", "to_route": "chinh-sach", "defaults": {"khoa": "chinh_sach_bao_mat"}},
+	{"from_route": "/dieu-khoan", "to_route": "chinh-sach", "defaults": {"khoa": "dieu_khoan"}},
+	{"from_route": "/giao-hang-doi-tra", "to_route": "chinh-sach", "defaults": {"khoa": "giao_hang_doi_tra"}},
+]

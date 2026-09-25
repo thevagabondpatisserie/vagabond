@@ -54,7 +54,10 @@ CHUA_RA = (
 # Mien app: app nghiep vu va cac man con cua no.
 DAU_APP = ("/bep", "/btp", "/kiem-banh", "/kho-moi", "/kho-v2", "/in-tem", "/cuon-ma")
 # Mien khach: trang dat banh va thanh toan don.
-DAU_KHACH = ("/dat-ban", "/thanh-vien", "/banh", "/tt", "/xhd", "/ong-trang", "/suc-khoe", "/sop-san-xuat")
+# #367: them ba trang chinh sach. "/banh" da gom ca trang bien nhan
+# /banh/xong/<token>.
+DAU_KHACH = ("/dat-ban", "/thanh-vien", "/banh", "/tt", "/xhd", "/ong-trang", "/suc-khoe", "/sop-san-xuat",
+	"/chinh-sach-bao-mat", "/dieu-khoan", "/giao-hang-doi-tra")
 # Mien Desk: khong khai o day, xem `_la_desk`.
 
 # DUONG DI QUA MOI MIEN, khong bao gio bi da (them 03/09/2026).

@@ -27,14 +27,89 @@ MAC_DINH = {"khoi": [
 ]}
 
 
+# #367: ba trang chính sách cùng đi luồng nháp, xuất bản, lịch sử của trang
+# đặt bánh, không dựng doctype mới. Mỗi trang có bản tiếng Việt và tiếng Anh
+# dạng Markdown, và một công tắc "hien": chưa bật thì trang công khai trả 404
+# và chân trang không hiện đường dẫn.
+CHINH_SACH = {
+    "chinh_sach_bao_mat": {"ten": "Chính sách bảo mật", "duong": "/chinh-sach-bao-mat"},
+    "dieu_khoan": {"ten": "Điều khoản sử dụng", "duong": "/dieu-khoan"},
+    "giao_hang_doi_tra": {"ten": "Giao hàng và đổi trả", "duong": "/giao-hang-doi-tra"},
+}
+TRUONG_CHINH_SACH = {"hien", "vn", "en"}
+DAI_CHINH_SACH = 30000
+# Chỗ trong ngoặc vuông marketing phải điền trước khi bật trang, ví dụ
+# "[số điện thoại]". Không bắt "[chữ](liên kết)" vì đó là liên kết Markdown.
+RE_CHO_TRONG = re.compile(r"\[[^\]\n]{1,80}\](?!\()")
+
+
+def cho_trong(md):
+    """Các chỗ trong ngoặc vuông còn chưa điền trong một bản Markdown."""
+    return RE_CHO_TRONG.findall(str(md or ""))
+
+
+def _chuan_hoa_chinh_sach(cs):
+    if not isinstance(cs, dict) or set(cs) - set(CHINH_SACH):
+        raise ValueError("Chỉ có ba trang chính sách: bảo mật, điều khoản, giao hàng và đổi trả.")
+    for khoa, v in cs.items():
+        if not isinstance(v, dict) or set(v) - TRUONG_CHINH_SACH:
+            raise ValueError("Trang chính sách có trường không được hỗ trợ.")
+        if type(v.get("hien", False)) is not bool:
+            raise ValueError("Chọn hiện hoặc ẩn cho trang " + CHINH_SACH[khoa]["ten"] + ".")
+        for ngu in ("vn", "en"):
+            chu = v.get(ngu, "")
+            if not isinstance(chu, str) or len(chu) > DAI_CHINH_SACH:
+                raise ValueError("Nội dung %s quá dài hoặc không hợp lệ." % CHINH_SACH[khoa]["ten"])
+        if v.get("hien") and not str(v.get("vn") or "").strip():
+            raise ValueError("Trang %s chưa có nội dung tiếng Việt nên chưa bật hiện được." % CHINH_SACH[khoa]["ten"])
+
+
+def loi_xuat_ban(du_lieu):
+    """Câu báo nếu bản sắp xuất bản còn chính sách bật hiện mà chưa điền đủ. THUẦN."""
+    cs = (du_lieu or {}).get("chinh_sach") or {}
+    loi = []
+    for khoa, v in cs.items():
+        if not v.get("hien"):
+            continue
+        con = cho_trong(v.get("vn")) + cho_trong(v.get("en"))
+        if con:
+            loi.append("%s còn %d chỗ chưa điền, ví dụ %s" % (CHINH_SACH[khoa]["ten"], len(con), con[0]))
+    if not loi:
+        return ""
+    return "Chưa xuất bản được. " + "; ".join(loi) + ". Điền các chỗ trong ngoặc vuông hoặc tắt hiện trang đó rồi xuất bản lại."
+
+
+VAI_SOAN = {"Marketing", "System Manager"}
+DUONG_BANG = "/bien-tap-web"
+
+
+def quyet_vao_bang(nguoi, vai):
+    """Ai mở /bien-tap-web thì thấy gì. THUẦN.
+
+    Trước #367 mục 8, khách vãng lai mở trang thì kiem_quyen() ném lỗi giữa
+    lúc dựng trang: Minh Vũ thấy một bảng trống kèm câu lỗi kỹ thuật, không
+    có nút đăng nhập nào. Nay:
+      dang_nhap   chưa đăng nhập: chuyển sang trang đăng nhập, quay lại đây;
+      khong_quyen đã đăng nhập mà thiếu vai Marketing: trang báo quyền;
+      vao         có vai: vào bảng điều khiển.
+    """
+    if not nguoi or nguoi == "Guest":
+        return "dang_nhap"
+    if not (VAI_SOAN & set(vai or [])):
+        return "khong_quyen"
+    return "vao"
+
+
 def chuan_hoa(du_lieu):
     """Giới hạn kích thước và cấu trúc trước khi lưu, dùng cả ở Document.save."""
     if isinstance(du_lieu, str):
-        if len(du_lieu) > 100000:
+        if len(du_lieu) > 250000:
             raise ValueError("Nội dung quá dài. Giảm số khối hoặc độ dài bài viết.")
         du_lieu = json.loads(du_lieu)
-    if not isinstance(du_lieu, dict) or set(du_lieu) != {"khoi"}:
+    if not isinstance(du_lieu, dict) or "khoi" not in du_lieu or set(du_lieu) - {"khoi", "chinh_sach"}:
         raise ValueError("Nội dung phải có danh sách khối.")
+    if "chinh_sach" in du_lieu:
+        _chuan_hoa_chinh_sach(du_lieu["chinh_sach"])
     ds = du_lieu["khoi"]
     if not isinstance(ds, list) or len(ds) > 30:
         raise ValueError("Mỗi trang có tối đa 30 khối.")
@@ -94,12 +169,87 @@ def _doc():
     return frappe.get_doc(DOCTYPE, TEN)
 
 
-@frappe.whitelist(allow_guest=True)
-def cong_khai():
-    """Chỉ trả bản đã xuất bản, tuyệt đối không trả nháp hoặc lịch sử."""
+def _ban_cong_khai():
     if not frappe.db.exists(DOCTYPE, TEN):
         return copy.deepcopy(MAC_DINH)
     return json.loads(frappe.db.get_value(DOCTYPE, TEN, "ban_cong_khai") or json.dumps(MAC_DINH))
+
+
+@frappe.whitelist(allow_guest=True)
+def cong_khai():
+    """Chỉ trả bản đã xuất bản, tuyệt đối không trả nháp hoặc lịch sử.
+
+    Bỏ phần chính sách ra (#367): mỗi khách mở trang đặt bánh đều gọi hàm
+    này, không cần tải theo ba bài viết dài mấy nghìn chữ.
+    """
+    ra = _ban_cong_khai()
+    ra.pop("chinh_sach", None)
+    return ra
+
+
+def chinh_sach_dang_hien():
+    """Danh sách trang chính sách đã xuất bản và bật hiện, cho chân trang."""
+    cs = (_ban_cong_khai().get("chinh_sach") or {})
+    return [
+        {"khoa": k, "ten": CHINH_SACH[k]["ten"], "duong": CHINH_SACH[k]["duong"]}
+        for k in CHINH_SACH
+        if (cs.get(k) or {}).get("hien") and str((cs.get(k) or {}).get("vn") or "").strip()
+    ]
+
+
+def trang_chinh_sach(khoa, ngon_ngu="vn"):
+    """HTML đã làm sạch của một trang chính sách đã xuất bản, hoặc None.
+
+    Markdown do marketing viết nên có thể chứa HTML; `md_to_html` của Frappe
+    để nguyên HTML thô, nên BẮT BUỘC qua `sanitize_html(always_sanitize=True)`.
+    """
+    from frappe.utils import md_to_html
+    from frappe.utils.html_utils import sanitize_html
+
+    if khoa not in CHINH_SACH:
+        return None
+    v = (_ban_cong_khai().get("chinh_sach") or {}).get(khoa) or {}
+    if not v.get("hien") or not str(v.get("vn") or "").strip():
+        return None
+    md = v.get("en") if ngon_ngu == "en" and str(v.get("en") or "").strip() else v.get("vn")
+    return {
+        "ten": CHINH_SACH[khoa]["ten"],
+        "html": sanitize_html(md_to_html(md) or "", always_sanitize=True),
+        "co_en": bool(str(v.get("en") or "").strip()),
+        "ngon_ngu": "en" if md is v.get("en") and ngon_ngu == "en" else "vn",
+    }
+
+
+def gieo_chinh_sach(ban_nhap_vn):
+    """Gieo bản nháp ba chính sách vào BẢN NHÁP, không đụng bản công khai.
+
+    Lặp lại được: trang nào đã có trong nháp thì giữ nguyên, kể cả khi
+    marketing đã xoá trắng nội dung. Chưa có bản ghi thì tạo với nội dung
+    mặc định cho phần khối.
+    """
+    if frappe.db.exists(DOCTYPE, TEN):
+        d = _doc()
+        nhap = json.loads(d.ban_nhap or json.dumps(MAC_DINH))
+    else:
+        d = frappe.get_doc({"doctype": DOCTYPE, "name": TEN, "ban_nhap": json.dumps(MAC_DINH),
+                             "ban_cong_khai": json.dumps(MAC_DINH), "phien_ban": 0, "lich_su": "[]"})
+        nhap = copy.deepcopy(MAC_DINH)
+    cs = nhap.setdefault("chinh_sach", {})
+    doi = False
+    for khoa, noi_dung in (ban_nhap_vn or {}).items():
+        if khoa in CHINH_SACH and khoa not in cs:
+            cs[khoa] = {"hien": False, "vn": noi_dung, "en": ""}
+            doi = True
+    if not doi:
+        return False
+    chuan_hoa(nhap)
+    d.ban_nhap = json.dumps(nhap, ensure_ascii=False)
+    d.flags.luu_noi_dung_web = True
+    if d.is_new():
+        d.insert(ignore_permissions=True)
+    else:
+        d.save(ignore_permissions=True)
+    return True
 
 
 @frappe.whitelist()
@@ -158,6 +308,8 @@ def luu(noi_dung, phien_ban, hanh_dong="nhap"):
                              "ban_cong_khai": json.dumps(MAC_DINH), "phien_ban": 0, "lich_su": "[]"})
     if pb != int(d.phien_ban or 0):
         frappe.throw("Có người vừa sửa trang. Sao chép phần đang viết rồi tải lại trước khi lưu.")
+    if hanh_dong == "xuat_ban" and loi_xuat_ban(nd):
+        frappe.throw(loi_xuat_ban(nd))
     d.ban_nhap = json.dumps(nd, ensure_ascii=False)
     if hanh_dong == "xuat_ban":
         ls = json.loads(d.lich_su or "[]")

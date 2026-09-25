@@ -48,6 +48,7 @@ from datetime import datetime, timedelta
 import frappe
 
 from vagabond import pancake_nhip, tat_ban_web
+from vagabond.anh_web import chon_anh
 from frappe.utils import cint, getdate, now_datetime
 
 from vagabond.lib import PANCAKE, TIMEOUT, cfg, giau_khoa, key
@@ -2882,13 +2883,12 @@ def hang_theo_mua():
 		# Banh chi lam theo hop thi khong ban le, khong dua ra web.
 		if cint(d.khong_tran):
 			continue
-		# Anh: danh muc Pancake truoc (nho nua tieng, cung mot duong voi tab
-		# Co san hom nay), roi anh luu trong dong, roi anh ben Next. Truoc
+		# Anh: tu #367 (25/09/2026) ho so mon ERP truoc de marketing tu tai
+		# anh, roi danh muc Pancake, roi anh luu trong dong, roi anh nen. Truoc
 		# 03/09/2026 tab nay chi doc anh trong dong, ma dong chi duoc ghi luc
-		# keo DON ve, nen Minh Vu doi anh ben Pancake ma web dung im.
-		anh = anh_pancake.get(d.ma_hang) or d.hinh or x.get("image") or ""
-		if str(anh).startswith("/private"):
-			anh = ""
+		# keo DON ve, nen Minh Vu doi anh ben Pancake ma web dung im. Thu tu
+		# nam o MOT noi cho moi tab, xem vagabond/anh_web.py.
+		anh = chon_anh(x.get("image"), [anh_pancake.get(d.ma_hang)], d.hinh)[0]
 		con = cint(d.con_thuc_te)
 		mon.append(
 			{
