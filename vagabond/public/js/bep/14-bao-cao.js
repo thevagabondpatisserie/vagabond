@@ -145,9 +145,11 @@ function bcThanhKy(anDiem) {
       posChipNut('data-bcnhay="1"', 'Kỳ sau ▶', false) + '</div>';
   /* Hai chip cung mot hang: mot cai doi cach nhin, mot cai doi pham vi so
      lieu. De hai hang roi nhau thi thanh loc cao qua nua man hinh. */
+  /* BC17 (anDiem) cung khong nhan cong tac don chua ghi so: may chu ep chi
+     don da ghi so, bay chip la lua nguoi xem (Codex #369 vong 3). */
   var ss = '<div style="display:flex;gap:7px;margin-top:7px;flex-wrap:wrap">' +
     posChipNut('data-bcss="1"', '⇄ So với kỳ trước', !!bcSS) +
-    posChipNut('data-bcnhap="1"', '🧾 Tính cả đơn chưa ghi sổ', bcNhapDangBat(), false, '#b45309') +
+    (anDiem ? '' : posChipNut('data-bcnhap="1"', '🧾 Tính cả đơn chưa ghi sổ', bcNhapDangBat(), false, '#b45309')) +
     '</div>';
   return '<div class="card" style="padding:11px 12px">' +
     kmHangChip(h1) + (anDiem ? '' : '<div style="height:7px"></div>' + kmHangChip(h2)) + dieu + ss + '</div>';
@@ -420,7 +422,7 @@ async function scrBaoCaoXem() {
   bcNhapMayChu = kq.nhap;
   if ((kq.diem_ban || []).length) bcDsDiem = kq.diem_ban;
 
-  var html = bcThanhKy(!!kq.khong_loc) + bcDaiNhap(kq);
+  var html = bcThanhKy(!!kq.khong_loc) + (kq.khong_loc ? '' : bcDaiNhap(kq));
   if (kq.khong_loc) {
     html += '<div class="card" style="padding:11px 13px;border:1.5px solid #c7d2fe;background:#eef2ff">' +
       '<div style="font-size:12.5px;color:#3730a3;line-height:1.65">' +
