@@ -1050,11 +1050,7 @@ def go_noi(name, hoa_don):
 	# Tờ nối cùng lần chung một bút toán bù trừ: huỷ bút toán là cả nhóm mất
 	# bù trừ, nên gỡ cả nhóm (màn đã báo trước khi hỏi).
 	nhom = [r for r in d.hd_sau if dong.but_toan and r.but_toan == dong.but_toan] or [dong]
-	if dong.but_toan:
-		je = frappe.get_doc("Journal Entry", dong.but_toan)
-		if je.docstatus == 1:
-			je.flags.ignore_permissions = True
-			je.cancel()
+	but_toan = dong.but_toan or ""
 	for r in nhom:
 		d.remove(r)
 	tkct = (getattr(d, "loai", None) or "") == LOAI_TKCT
@@ -1065,8 +1061,16 @@ def go_noi(name, hoa_don):
 		ve = 1
 	d.flags.vgb_noi_hd_sau = True
 	d.save(ignore_permissions=True)
+	# Codex #373 vòng 1: gỡ dòng nối (lưu hồ sơ) TRƯỚC rồi mới huỷ bút toán,
+	# để lúc huỷ không còn dòng nào trỏ vào bút toán. Cùng một giao dịch: huỷ
+	# lỗi thì cả lần gỡ lùi lại, dòng nối trở về.
+	if but_toan:
+		je = frappe.get_doc("Journal Entry", but_toan)
+		if je.docstatus == 1:
+			je.flags.ignore_permissions = True
+			je.cancel()
 	go = [r.hoa_don for r in nhom]
 	d.add_comment("Comment", "Gỡ hoá đơn đến sau %s.%s%s" % (
-		", ".join(go), (" Huỷ bút toán bù trừ %s, công nợ các tờ trở lại." % dong.but_toan) if dong.but_toan else "",
+		", ".join(go), (" Huỷ bút toán bù trừ %s, công nợ các tờ trở lại." % but_toan) if but_toan else "",
 		" Hồ sơ trở lại chi phí không hợp lệ tính thuế vì không còn đủ hoá đơn." if ve else ""))
-	return {"ok": 1, "huy_but_toan": dong.but_toan or "", "go": go, "ve_khong_hop_le": ve}
+	return {"ok": 1, "huy_but_toan": but_toan, "go": go, "ve_khong_hop_le": ve}
