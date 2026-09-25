@@ -145,11 +145,16 @@ def _():
 	dung("Pancake hong thi noi ro bang loi", "Pancake không trả danh mục" in than)
 
 
-@ca("dong bo web: tab In season lay anh danh muc Pancake truoc, don khong ghi de")
+@ca("dong bo web: tab In season lay anh ERP roi Pancake qua ham chung, don khong ghi de")
 def _():
+	# #367 (25/09/2026) DOI thu tu anh: ho so mon ERP truoc de marketing tu
+	# tai anh, roi danh muc Pancake, roi anh luu trong dong. Thu tu nay nam o
+	# MOT ham `anh_web.chon_anh`, ca kiem hanh vi o thu_don_web_367.py.
 	m = _doc("vagabond/mua_vu.py")
 	web = _than(m, "def hang_theo_mua(", None)
-	dung("anh Pancake truoc", 'anh_pancake.get(d.ma_hang) or d.hinh or x.get("image")' in web)
+	dung("anh qua ham chung, ERP truoc Pancake",
+		'chon_anh(x.get("image"), [anh_pancake.get(d.ma_hang)], d.hinh)' in web)
+	dung("khong con thu tu cu Pancake truoc", 'anh_pancake.get(d.ma_hang) or d.hinh or x.get("image")' not in web)
 	dung("qua bo dem cua kiem_banh", "kiem_banh._anh_pancake(" in _than(m, "def _anh_danh_muc_pancake(", "def hang_theo_mua("))
 	dung("van la cua khach vang lai", "@frappe.whitelist(allow_guest=True)\ndef hang_theo_mua(" in m)
 	# Don ve chi BU cho dong trong, khong ghi de: neu ghi de thi nut dong bo
@@ -238,7 +243,9 @@ def _():
 		dung("khong lo %s" % cam, cam not in tra)
 	dung("qua phep thuan dong_len_web", "dong_len_web(dong, ban, tat)" in than)
 	dung("co cong tac tay", "tat_ban_web.bang(" in than)
-	dung("anh rieng tu khong len", 'startswith("/private")' in than)
+	# #367: anh rieng tu bi loc trong anh_web.chon_anh (ca kiem hanh vi o
+	# thu_don_web_367.py), tab nay chi can di qua ham do.
+	dung("anh qua ham chung (loc anh rieng tu)", "chon_anh(" in than)
 	dung("mon da tat ben Next khong len", 'cint(x.get("disabled"))' in than)
 
 

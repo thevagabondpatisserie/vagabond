@@ -133,7 +133,11 @@ function taoEl(ten) {
 
 const setTimeoutThat = setTimeout;
 
-const GHI = { troVao: null, keo: null, banh: [], goiMang: [], dangCho: [], daCho: 0 };
+const GHI = { troVao: null, keo: null, banh: [], goiMang: [], dangCho: [], daCho: 0,
+	/* #367: kich ban dat GHI.traLoi = function(url, opt){ return {...} } de
+	   may chu gia tra ve dung cau minh can (tra null thi dung cau mac dinh),
+	   va doc GHI.chuyenTrang de biet trang da chuyen sang dau. */
+	traLoi: null, chuyenTrang: [] };
 
 /* Lay noi dung THAT trong the co id nay tu HTML cua trang, de phan tu gia lap
    khoi rong ruot. Can vi tgl() doc `nut.querySelector('.bx')`, ma o dau tich
@@ -177,20 +181,30 @@ const document = {
 	head: taoEl('head')
 };
 document.body.style = {};
+document.cookie = '';
+document.getElementsByTagName = () => [];
 
 /* ---------------- MANG GIA LAP ---------------- */
 async function fetchGia(url, opt) {
 	GHI.goiMang.push({ url: String(url), opt: opt || null });
+	const rieng = GHI.traLoi ? GHI.traLoi(String(url), opt || null) : null;
 	return {
 		ok: true,
 		status: 200,
-		json: async () => ({ message: { ok: true, total_fee: 30000, diem_lay: 'Bep Vagabond' } }),
+		json: async () => (rieng || { message: { ok: true, total_fee: 30000, diem_lay: 'Bep Vagabond' } }),
 		text: async () => '{}'
 	};
 }
 
+const khoPhien = new Map();
 const window = {
-	location: { hash: '', pathname: '/banh', href: 'http://x/banh', replace() {}, search: '' },
+	location: { hash: '', pathname: '/banh', href: 'http://x/banh', replace() {}, search: '',
+		assign(u) { GHI.chuyenTrang.push(String(u)); } },
+	sessionStorage: {
+		getItem: k => (khoPhien.has(k) ? khoPhien.get(k) : null),
+		setItem: (k, v) => { khoPhien.set(k, String(v)); },
+		removeItem: k => { khoPhien.delete(k); }
+	},
 	addEventListener() {},
 	removeEventListener() {},
 	scrollTo() {},
@@ -209,6 +223,7 @@ const hopBoi = {
 	document, window, fetch: fetchGia,
 	navigator: { userAgent: 'gia lap', clipboard: { writeText: async () => {} } },
 	localStorage: window.localStorage,
+	sessionStorage: window.sessionStorage,
 	location: window.location,
 	history: window.history,
 	/* Goi ngay chu khong doi, nhung NEU ham do la async thi giu lai loi hua de
