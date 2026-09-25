@@ -357,3 +357,27 @@ def loi_bo_thanh_toan(tt_cu, tt_moi, lien_ket, tt_da_tra="Da thanh toan"):
 		return ""
 	return ("Hồ sơ đang có bút toán bù trừ hoá đơn đến sau (%s). Gỡ nối các tờ đó trước rồi mới bỏ "
 		"đối chiếu hay mở lại hồ sơ." % ", ".join(r["hoa_don"] for r in co))
+
+
+def _khoa_khoan(r):
+	r = r or {}
+	return (str(r.get("name") or ""), round(_tien(r.get("so_tien")), 2), str(r.get("tk_no") or "").strip(),
+		str(r.get("hoa_don") or "").strip(), _so(r.get("cho_hoa_don")))
+
+
+def loi_sua_khoan_khi_noi(cu, moi, co_noi, cho_phep=False):
+	"""Hồ sơ đã có tờ nối mức hồ sơ thì khoản chi đứng yên. THUẦN.
+
+	Codex #373 vòng 3 (05c3866): lưu Desk/API đổi số tiền hay tài khoản Nợ
+	của khoản mà không đụng bảng tờ nối thì luật bảng tờ nối vẫn qua, trong
+	khi mức phủ, nhãn hợp lệ và kế hoạch bù trừ của lần nối sau đều tính từ
+	khoản. Thêm, xoá, đổi số tiền, tài khoản Nợ, hoá đơn gốc hay cờ chờ hoá
+	đơn đều dừng; chỉ nút Nối/Gỡ (cờ) được đổi cờ chờ hoá đơn. Ô khác (tệp
+	đính, ghi chú) vẫn sửa được."""
+	if not co_noi or cho_phep:
+		return ""
+	if sorted(_khoa_khoan(r) for r in (cu or [])) != sorted(_khoa_khoan(r) for r in (moi or [])):
+		return ("Hồ sơ đang có hoá đơn đến sau nối ở mức hồ sơ, nên không thêm, xoá hay sửa số tiền, tài khoản, "
+			"hoá đơn gốc của khoản chi được. Gỡ các tờ nối trên hồ sơ trước rồi mới sửa khoản.")
+	return ""
+

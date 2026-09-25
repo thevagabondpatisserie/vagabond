@@ -314,6 +314,12 @@ def kiem_bo_sung(doc):
 	loi = loi_sua_hd_sau(cu_hd, moi_hd, cho_phep)
 	if loi:
 		frappe.throw(loi, title="Hoá đơn đến sau")
+	# Codex #373 vòng 3: có tờ nối mức hồ sơ thì khoản chi đứng yên.
+	from vagabond.hoa_don_sau import loi_sua_khoan_khi_noi
+	loi = loi_sua_khoan_khi_noi([_dict_dong(r) for r in ((cu.dong if cu else None) or [])],
+		[_dict_dong(r) for r in (doc.dong or [])], bool(cu_hd), cho_phep)
+	if loi:
+		frappe.throw(loi, title="Hoá đơn đến sau")
 	if cu:
 		loi = loi_bo_thanh_toan(getattr(cu, "trang_thai", None), getattr(doc, "trang_thai", None), cu_hd)
 		if loi:
