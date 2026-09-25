@@ -661,3 +661,33 @@ def _ha_hop_le():
 	r3 = _chay(ho2, to, lambda bo: bo.noi_nhieu("APP.26.09.102", '["THUA"]'))
 	la("hồ sơ có khoản mang hoá đơn gốc riêng: không hạ nhãn", r3.hs.loai_cp_thue, "Chi phi hop le")
 
+
+# Codex #373 vòng 3 trên 05c3866 ----------------------------------------------
+
+@ca("v530 Codex #373 v3 F8: đã có tờ nối mức hồ sơ thì Desk đổi số tiền, tài khoản, thêm/xoá khoản đều dừng; ô khác vẫn sửa được")
+def _khoa_khoan():
+	import copy
+	cu = _mobi(hd_sau=[dict(hoa_don="A", tien_khop=778784, da_ghi_so=1, bu_tru=778784, but_toan="PKT-1")])
+	def thu(sua):
+		moi = copy.deepcopy(cu)
+		moi.hd_sau = [_C(dict(x)) for x in cu.hd_sau]
+		moi.dong = [_C(dict(x)) for x in cu.dong]
+		sua(moi)
+		moi.get_doc_before_save = lambda: cu
+		return _chay(moi, {}, lambda bo: bo.kiem_bo_sung(moi)).loi
+	dung("đổi số tiền: dừng", "Gỡ các tờ nối" in thu(lambda m: m.dong[0].__setitem__("so_tien", 500000)))
+	dung("đổi tài khoản Nợ: dừng", "Gỡ các tờ nối" in thu(lambda m: m.dong[0].__setitem__("tk_no", T621)))
+	dung("thêm khoản: dừng", "Gỡ các tờ nối" in thu(lambda m: m.dong.append(_C(name="D9", idx=2, so_tien=1, tk_no=T6427, cho_hoa_don=1))))
+	dung("bỏ cờ chờ hoá đơn: dừng", "Gỡ các tờ nối" in thu(lambda m: m.dong[0].__setitem__("cho_hoa_don", 0)))
+	la("sửa ghi chú: qua", thu(lambda m: m.dong[0].__setitem__("ghi_chu", "x")), "")
+	la("hồ sơ chưa nối gì: đổi số tiền vẫn theo luật cũ (không chặn ở đây)",
+		_chay(_mobi(), {}, lambda bo: bo.kiem_bo_sung(_sua_khong_noi())).loi, "")
+
+
+def _sua_khong_noi():
+	cu = _mobi()
+	moi = _mobi()
+	moi.dong[0]["so_tien"] = 1
+	moi.get_doc_before_save = lambda: cu
+	return moi
+
