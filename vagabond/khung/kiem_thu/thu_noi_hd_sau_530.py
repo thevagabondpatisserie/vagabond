@@ -223,13 +223,17 @@ def _chay(ho_so, to, ham, giu_cu=None, giu_moi=None, no_ho_so=None, bu_truoc=Non
 		# get_list kèm luật quyền trả trùng một tờ (ảnh chị Dung 25/09).
 		return ra + ra[:1]
 	hoi = []
-	fr = SimpleNamespace(throw=_throw, db=db, get_doc=get_doc, new_doc=lambda dt: _JE(ds_je), get_all=get_all,
-		session=SimpleNamespace(user="dung@vgb"))
+	def get_all_cam(*a, **k):
+		raise _Loi("get_all bỏ qua luật quyền, không dùng cho danh sách hoá đơn")
+	fr = SimpleNamespace(throw=_throw, db=db, get_doc=get_doc, new_doc=lambda dt: _JE(ds_je), get_list=get_all,
+		get_all=get_all_cam, session=SimpleNamespace(user="dung@vgb"))
 	ho_so._truoc = [dict(r) for r in ho_so.hd_sau]
+	kiem = []
 	cu = bo.frappe
 	bo.frappe = fr
 	try:
-		with patch.object(hs, "_kiem"), patch.object(hs, "_cong_ty_chung_tu", return_value=CTY):
+		with patch.object(hs, "_kiem", side_effect=lambda nhom, viec: kiem.append(nhom)), \
+			patch.object(hs, "_cong_ty_chung_tu", return_value=CTY):
 			try:
 				kq = ham(bo)
 				loi = ""
@@ -237,7 +241,7 @@ def _chay(ho_so, to, ham, giu_cu=None, giu_moi=None, no_ho_so=None, bu_truoc=Non
 				kq, loi = None, str(e)
 	finally:
 		bo.frappe = cu
-	return SimpleNamespace(kq=kq, loi=loi, je=ds_je, cau=cau, hs=ho_so, hoi=hoi)
+	return SimpleNamespace(kq=kq, loi=loi, je=ds_je, cau=cau, hs=ho_so, hoi=hoi, kiem=kiem)
 
 
 def _mobi(**k):
@@ -707,4 +711,27 @@ def _sua_khong_noi():
 	moi.dong[0]["so_tien"] = 1
 	moi.get_doc_before_save = lambda: cu
 	return moi
+
+
+# Codex #373 vòng 5 trên 06d0251 ----------------------------------------------
+
+@ca("v530 Codex #373 v5 F10: hồ sơ đã nối mức hồ sơ thì đường nối cũ gắn tờ vào khoản (hoa_don_bo_sung) cũng dừng")
+def _khoa_bo_sung():
+	import copy
+	cu = _mobi(hd_sau=[dict(hoa_don="A", tien_khop=778784, da_ghi_so=1, bu_tru=778784, but_toan="PKT-1")])
+	moi = copy.deepcopy(cu)
+	moi.dong = [_C(dict(x)) for x in cu.dong]
+	moi.hd_sau = [_C(dict(x)) for x in cu.hd_sau]
+	moi.dong[0]["hoa_don_bo_sung"] = "PI-CU"
+	moi.get_doc_before_save = lambda: cu
+	dung("dừng", "Gỡ các tờ nối" in _chay(moi, {}, lambda bo: bo.kiem_bo_sung(moi)).loi)
+
+
+@ca("v530 Codex #373 v5 F11: danh sách chọn chỉ cho FIN / giám đốc và đọc qua get_list (giữ luật quyền theo NCC)")
+def _quyen_ds():
+	from vagabond.ho_so_tt import VAI_FIN, VAI_GD
+	r = _chay(_mobi(), _to_mobi(), lambda bo: bo.ung_vien_hoa_don("APP.26.09.102", "777", 1))
+	la("không lỗi (không gọi get_all)", r.loi, "")
+	la("chỉ FIN hoặc giám đốc", r.kiem, [VAI_FIN | VAI_GD])
+	dung("Purchase User (chỉ có ở nhóm người lập) không được gọi", "Purchase User" not in r.kiem[0])
 
