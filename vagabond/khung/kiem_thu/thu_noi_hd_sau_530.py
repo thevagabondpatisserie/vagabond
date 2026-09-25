@@ -137,14 +137,16 @@ class _JE:
 		self.docstatus = 2
 
 
-def _chay(ho_so, to, ham, giu_cu=None, giu_moi=None, no_ho_so=None, bu_truoc=None, ds_je=None, cam_doc=()):
+def _chay(ho_so, to, ham, giu_cu=None, giu_moi=None, no_ho_so=None, bu_truoc=None, ds_je=None, cam_doc=(), cam_ncc=(), anh_chup=None):
 	"""Chạy HÀM THẬT của ho_so_bo_sung trên lớp dữ liệu giả.
 
 	to: {tên: tờ HIỆN HÀNH}. giu_cu/giu_moi: {tờ: hồ sơ khác đang giữ} theo
 	nguồn cũ (dòng khoản) và mới (bảng tờ nối). no_ho_so: {tài khoản: số Nợ}
 	bút toán chi của hồ sơ đã ghi; mặc định đúng từng khoản như _tao_but_toan_tkct.
 	bu_truoc: {tài khoản: số Có} các bút toán bù trừ trước. cam_doc: các tờ người
-	gọi không có quyền đọc (luật quyền theo NCC)."""
+	gọi không có quyền đọc (luật quyền theo NCC). cam_ncc: NCC người gọi không
+	được xem. anh_chup: {tờ: bản CŨ} mà đọc thường (không khoá) nhìn thấy, như
+	ảnh chụp REPEATABLE READ; đọc có khoá thì thấy bản hiện hành trong to."""
 	from vagabond import ho_so_bo_sung as bo, ho_so_tt as hs
 	giu_cu, giu_moi = giu_cu or {}, giu_moi or {}
 	if no_ho_so is None:
@@ -203,6 +205,9 @@ def _chay(ho_so, to, ham, giu_cu=None, giu_moi=None, no_ho_so=None, bu_truoc=Non
 		if dt == "Vagabond Ho So TT":
 			cau.append("GET_DOC ho so%s" % (" for_update" if for_update else ""))
 			return ho_so
+		if dt == "Purchase Invoice":
+			cau.append("GET_DOC PI %s%s" % (ten, " for_update" if for_update else ""))
+			return to[ten] if for_update else (anh_chup or {}).get(ten, to[ten])
 		if dt == "Journal Entry":
 			return next(j for j in ds_je if j.name == ten)
 		raise _Loi("không có %s" % dt)
@@ -230,7 +235,12 @@ def _chay(ho_so, to, ham, giu_cu=None, giu_moi=None, no_ho_so=None, bu_truoc=Non
 	def has_permission(dt, ptype="read", doc=None, *a, **k):
 		hoi_quyen.append((dt, ptype, getattr(doc, "name", doc)))
 		cau.append("QUYEN %s %s" % (ptype, getattr(doc, "name", doc)))
-		return getattr(doc, "name", doc) not in set(cam_doc or ())
+		ten = getattr(doc, "name", doc)
+		if ten in set(cam_doc or ()):
+			return False
+		# Truyền tên thì Frappe tự nạp tờ bằng đọc thường: thấy ảnh chụp.
+		ban = doc if not isinstance(doc, str) else (anh_chup or {}).get(doc, to.get(doc))
+		return getattr(ban, "supplier", None) not in set(cam_ncc or ())
 	hoi_quyen = []
 	fr = SimpleNamespace(throw=_throw, db=db, get_doc=get_doc, new_doc=lambda dt: _JE(ds_je), get_list=get_all,
 		get_all=get_all_cam, session=SimpleNamespace(user="dung@vgb"), has_permission=has_permission)
@@ -762,9 +772,8 @@ def _quyen_noi():
 	la("không lập bút toán", len(r.je), 0)
 	la("không ghi dòng nối", len(r.hs.hd_sau), 0)
 	la("hỏi quyền ĐỌC từng tờ theo thứ tự, dừng ở tờ đầu tiên bị cấm", [x for x in r.hoi_quyen], [("Purchase Invoice", "read", m) for m in ma[:3]])
-	khoa = [q for q in r.cau if ("for update" in q.lower() and not q.startswith("GET_DOC")) or q.startswith("QUYEN")]
-	la("không khoá tờ nào: chỉ khoá hồ sơ rồi hỏi quyền", [("tabvagabond ho so tt`" in q.lower()) if "for update" in q.lower() else "QUYEN" for q in khoa],
-		[True, "QUYEN", "QUYEN", "QUYEN"])
+	# Vòng 8 (F15) cố ý đổi thứ tự: khoá đủ tờ rồi mới hỏi quyền trên bản hiện
+	# hành, nên ca này không còn chốt "chưa khoá tờ nào"; khoá nhả khi dừng.
 	r2 = _chay(_mobi(), _to_mobi(), lambda bo: bo.noi_nhieu("APP.26.09.102", json.dumps(ma)))
 	la("đủ quyền: nối bình thường", (r2.loi, len(r2.hs.hd_sau)), ("", 6))
 
@@ -805,3 +814,28 @@ def _khoa_truoc_quyen():
 	g = _chay(_mobi(hd_sau=[dict(hoa_don="A", tien_khop=778784, da_ghi_so=0, bu_tru=0, but_toan="")]), {},
 		lambda bo: bo.go_noi("APP.26.09.102", "A"))
 	la("gỡ: gỡ được, cũng nạp hồ sơ bằng câu có khoá", (g.loi, [q for q in g.cau if q.startswith("GET_DOC")][:1]), ("", ["GET_DOC ho so for_update"]))
+
+
+# Codex #373 vòng 8 trên 88c3511 ----------------------------------------------
+
+@ca("v530 Codex #373 v8 F15: soát quyền trên bản tờ HIỆN HÀNH sau khi khoá tờ; tờ vừa đổi sang NCC bị cấm thì dừng")
+def _quyen_sau_khoa_to():
+	# Ảnh chụp thấy tờ còn thuộc MOBI-096 (được xem); phiên khác vừa chốt đổi
+	# tờ sang KHAC (người gọi bị cấm xem). Đọc thường cho qua, đọc có khoá mới
+	# thấy KHAC. Đường ngoai_ncc=1 nhận NCC khác nên luật nhóm MST không đỡ.
+	ma = [m for m, _b, _t in MOBI]
+	to = _to_mobi()
+	cu = _C(dict(to[ma[1]]))
+	to[ma[1]] = _C(dict(to[ma[1]]), supplier="KHAC")
+	r = _chay(_mobi(), to, lambda bo: bo.noi_nhieu("APP.26.09.102", json.dumps(ma), 1),
+		cam_ncc=["KHAC"], anh_chup={ma[1]: cu})
+	dung("dừng, gọi tên tờ", ma[1] in r.loi and "quyền" in r.loi)
+	la("không lập bút toán, không ghi dòng nối", (len(r.je), len(r.hs.hd_sau)), (0, 0))
+	# Thứ tự: khoá ĐỦ các tờ theo tên trước, rồi mới hỏi quyền trên bản nạp có khoá.
+	r2 = _chay(_mobi(), _to_mobi(), lambda bo: bo.noi_nhieu("APP.26.09.102", json.dumps(ma)))
+	la("đủ quyền: nối được", r2.loi, "")
+	khoa_to = [i for i, q in enumerate(r2.cau) if "tabpurchase invoice" in q.lower() and "for update" in q.lower() and "select docstatus" in q.lower()]
+	quyen = [i for i, q in enumerate(r2.cau) if q.startswith("QUYEN")]
+	la("khoá đủ sáu tờ", len(khoa_to), 6)
+	dung("mọi lần hỏi quyền sau khi đã khoá hết tờ", bool(quyen) and min(quyen) > max(khoa_to))
+	dung("mỗi lần hỏi quyền đi ngay sau lần nạp tờ có khoá", all(r2.cau[i - 1].startswith("GET_DOC PI ") and r2.cau[i - 1].endswith(" for_update") for i in quyen))
