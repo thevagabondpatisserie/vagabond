@@ -766,7 +766,18 @@ def _lien_ket_cua(d):
 
 
 def _khoan_cua(d):
-	return [_dict_dong(r) for r in (d.dong or [])]
+	"""Khoản của hồ sơ kèm cờ cong_no (tài khoản Nợ là công nợ phải trả/thu):
+	khoản đó là trả nợ, không chờ hoá đơn, không bù trừ."""
+	from vagabond.hoa_don_sau import la_khoan_cong_no
+	ra, loai = [], {}
+	for r in (d.dong or []):
+		x = _dict_dong(r)
+		tk = x.get("tk_no") or ""
+		if tk and tk not in loai:
+			loai[tk] = _loai_tk(tk)
+		x["cong_no"] = la_khoan_cong_no(tk, loai.get(tk, ""))
+		ra.append(x)
+	return ra
 
 
 def phu_cua(d):
@@ -927,9 +938,10 @@ def _cap_nhat_hop_le(d, tkct):
 
 	Trả 1 nếu vừa lên Hợp lệ, -1 nếu vừa về Không hợp lệ, 0 nếu giữ nguyên.
 	Codex #373 vòng 2: bản trước chỉ nâng lên, nên lần nối thứ hai làm thừa
-	quá ngưỡng vẫn để hồ sơ hợp lệ. Chỉ hạ khi mọi khoản là hoá đơn đến sau,
-	tức nhãn hợp lệ đang dựa vào hoá đơn nối; hồ sơ lập hợp lệ bằng chứng từ
-	riêng từ đầu thì không đụng. Một nguồn cho noi_nhieu và go_noi (điều 18)."""
+	quá ngưỡng vẫn để hồ sơ hợp lệ. Vòng 4: hạ theo mức phủ phần khoản chưa
+	có hoá đơn gốc, kể cả hồ sơ lẫn khoản có hoá đơn gốc; chỉ không đụng hồ
+	sơ còn khoản không hoá đơn thật (nhãn do người lập chọn theo chứng từ
+	khác). Một nguồn cho noi_nhieu và go_noi (điều 18)."""
 	from vagabond import hoa_don_sau as hs
 	from vagabond.ho_so_tt import CP_HOP_LE, CP_KHONG_HOP_LE
 	if not tkct:
@@ -943,7 +955,7 @@ def _cap_nhat_hop_le(d, tkct):
 	if nen and hien != CP_HOP_LE:
 		d.loai_cp_thue = CP_HOP_LE
 		return 1
-	if not nen and hien == CP_HOP_LE and all(cint(r.get("cho_hoa_don")) for r in d.dong):
+	if not nen and hien == CP_HOP_LE and hs.du_dieu_kien(_khoan_cua(d)):
 		d.loai_cp_thue = CP_KHONG_HOP_LE
 		return -1
 	return 0
@@ -997,7 +1009,8 @@ def noi_nhieu(name, hoa_don, ngoai_ncc=0):
 	danh_dau = []
 	if tkct:
 		for i, r in enumerate(d.dong):
-			if not cint(r.get("cho_hoa_don")) and not loi_danh_dau_bu(d.loai, d.trang_thai, _dict_dong(r), LOAI_TKCT):
+			if (not cint(r.get("cho_hoa_don")) and not hs.la_khoan_cong_no(r.get("tk_no"), _loai_tk(r.get("tk_no")))
+					and not loi_danh_dau_bu(d.loai, d.trang_thai, _dict_dong(r), LOAI_TKCT)):
 				r.cho_hoa_don = 1
 				danh_dau.append(i + 1)
 	khoan = [{"idx": r.idx, "tk_no": r.get("tk_no"), "so_tien": _tien(r.get("so_tien")),

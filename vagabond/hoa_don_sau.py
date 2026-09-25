@@ -289,19 +289,42 @@ def do_phu(khoan, lien_ket, nguong=NGUONG):
 	khoan: [{"so_tien", "hoa_don", "hoa_don_bo_sung"}]. Khoản đã có hoá đơn
 	gốc hoặc đã nối kiểu cũ (một tờ một khoản) thì đã có chứng từ riêng, không
 	tính vào số cần. lien_ket: [{"tien_khop"}] các tờ nối kiểu v530."""
+	# Khoản ghi Nợ thẳng công nợ (cong_no) là trả nợ, không phải chi phí chờ
+	# hoá đơn: không tính vào số cần.
 	can = sum(_tien(k.get("so_tien")) for k in (khoan or [])
-		if not (k.get("hoa_don") or "").strip() and not (k.get("hoa_don_bo_sung") or "").strip())
+		if not (k.get("hoa_don") or "").strip() and not (k.get("hoa_don_bo_sung") or "").strip()
+		and not k.get("cong_no"))
 	da = sum(_tien(x.get("tien_khop")) for x in (lien_ket or []))
 	return {"can": round(can, 2), "da_noi": round(da, 2), "con_thieu": round(max(can - da, 0.0), 2),
 		"thua": round(max(da - can, 0.0), 2), "du": abs(can - da) <= nguong}
 
 
-def nen_hop_le(khoan, lien_ket, lech_cu=(), nguong=NGUONG):
-	"""Hồ sơ TK công ty thành Hợp lệ tính thuế khi: MỌI khoản là hoá đơn đến
-	sau (khoản không hoá đơn thật thì khai hợp lệ là sai), các tờ nối kiểu cũ
-	không lệch tiền, và các tờ nối kiểu v530 phủ đủ phần còn lại. THUẦN."""
+def co_hoa_don(k):
+	"""Khoản có đường tới hoá đơn: mang hoá đơn gốc, hoặc là hoá đơn đến sau."""
+	k = k or {}
+	return bool((k.get("hoa_don") or "").strip()) or bool(_so(k.get("cho_hoa_don")))
+
+
+def du_dieu_kien(khoan):
+	"""Nhãn hợp lệ của hồ sơ có dựa vào hoá đơn không: MỌI khoản đều mang
+	hoá đơn gốc hoặc chờ hoá đơn đến sau. Còn khoản không hoá đơn thật thì
+	nhãn là do người lập chọn theo chứng từ khác, luật hoá đơn không đụng."""
 	ds = list(khoan or [])
-	if not ds or not all(_so(k.get("cho_hoa_don")) for k in ds):
+	return bool(ds) and all(co_hoa_don(k) for k in ds)
+
+
+def nen_hop_le(khoan, lien_ket, lech_cu=(), nguong=NGUONG):
+	"""Hồ sơ TK công ty là Hợp lệ tính thuế khi: mọi khoản có đường tới hoá
+	đơn (gốc hoặc đến sau), các tờ nối kiểu cũ không lệch tiền, và các tờ nối
+	kiểu v530 phủ ĐÚNG phần khoản chưa có hoá đơn gốc (không thiếu, không
+	thừa quá ngưỡng). THUẦN.
+
+	Codex #373 vòng 4 (05c3866): bản trước đòi MỌI khoản chờ hoá đơn, nên hồ
+	sơ lẫn khoản có hoá đơn gốc không bao giờ được xét theo mức phủ, nối thừa
+	vẫn giữ nhãn hợp lệ. Khoản có hoá đơn gốc tự có chứng từ; mức phủ chỉ tính
+	phần còn lại (do_phu đã loại khoản có hoá đơn gốc)."""
+	ds = list(khoan or [])
+	if not du_dieu_kien(ds):
 		return False
 	if list(lech_cu or []):
 		return False
