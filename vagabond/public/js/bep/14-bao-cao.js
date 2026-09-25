@@ -159,9 +159,26 @@ function bcThanhKy(anDiem) {
    25/09). Xem truoc truoc, may chu tinh tong tien cac to con hieu luc cua
    don de ke toan thay lech truoc khi bam. Khong doi so hoa don tren don. */
 async function bcNoiTo(to, so, goiY, veLai) {
-  var don = await hoiChu('Nối tờ ' + so + ' vào đơn',
-    'Nhập mã đơn ERP (HDB-...) hoặc mã đơn bán. Máy chỉ ghi tờ này thuộc đơn nào: số hoá đơn trên đơn giữ nguyên, không ghi sổ gì thêm.',
-    goiY || '', { bat_buoc: 1, goi_y: 'HDB-26-09-...' });
+  /* Codex #369 vòng 4: đơn là danh mục có sẵn nên chọn trong danh sách có
+     ô tìm (QT-31), không gõ mã tự do. Máy chủ trả đơn quanh ngày lập của
+     tờ, đơn máy gợi ý và đơn cùng MST lên đầu. */
+  var uv;
+  busy(true);
+  try { uv = await api('vagabond.doi_soat_hddt_ra.ung_vien_don', { to: to }); }
+  catch (e) { busy(false); baoTin((e && e.message) || 'Không đọc được danh sách đơn.', 'Chưa nối'); return; }
+  busy(false);
+  var rows = uv.rows || [];
+  if (!rows.length) {
+    baoTin('Không có đơn đã ghi sổ nào quanh ngày lập ' + posNgayVn(uv.ngay_lap) + ' của tờ ' + so + '. Ghi sổ đơn trước rồi nối lại.', 'Chưa nối');
+    return;
+  }
+  var don = await hoiChon('Nối tờ ' + so + ' vào đơn',
+    h('Tờ ' + so + ', ' + money(uv.tong_tien) + ' đ. Chọn đơn của tờ này; gõ mã đơn, tên khách hoặc số tiền để tìm. Số hoá đơn trên đơn giữ nguyên, không ghi sổ gì thêm.') +
+    (uv.tong > rows.length ? '<br>' + h('Đang hiện ' + rows.length + ' trên ' + uv.tong + ' đơn gần nhất về tiền.') : ''),
+    rows.map(function (r) {
+      return { k: r.name, icon: r.goi_y ? '⭐' : '🧾', nhan: r.name + ' · ' + money(r.tien) + ' đ',
+        mo_ta: [String(r.ngay || '').split('-').reverse().join('/'), r.khach, r.ma_don, r.so_hddt ? 'HĐĐT ' + r.so_hddt : '', r.goi_y ? 'máy gợi ý' : ''].filter(Boolean).join(' · ') };
+    }), goiY || null);
   if (!don) return;
   var xem;
   busy(true);
@@ -438,8 +455,10 @@ async function scrBaoCaoXem() {
     '<div style="font-size:12px;color:#98a2b3">' + h(kq.ma) + ' · ' + h(kq.nhan_ky) + '</div>' +
     '<div style="font-size:19px;font-weight:800">' + kq.ic + ' ' + h(kq.ten) + '</div>' +
     '<div style="font-size:12.5px;color:#6b7280;margin-top:2px">' + h(kq.mo) + '</div>' +
-    '<div style="font-size:13px;color:#0f766e;margin-top:8px"><b>' + money(kq.tong_doanh_thu) + ' đ</b> doanh thu · ' + money(kq.so_hoa_don) + ' hoá đơn trong phạm vi đang lọc' +
-    (kq.nhap && kq.so_nhap ? ' <span style="color:#b45309">(gồm ' + money(kq.so_nhap) + ' đơn chưa ghi sổ)</span>' : '') + '</div>' +
+    (kq.khong_loc
+      ? '<div style="font-size:13px;color:#0f766e;margin-top:8px">Đếm theo ngày lập hoá đơn, nên không kèm tổng doanh thu theo ngày ghi sổ.</div>'
+      : '<div style="font-size:13px;color:#0f766e;margin-top:8px"><b>' + money(kq.tong_doanh_thu) + ' đ</b> doanh thu · ' + money(kq.so_hoa_don) + ' hoá đơn trong phạm vi đang lọc' +
+    (kq.nhap && kq.so_nhap ? ' <span style="color:#b45309">(gồm ' + money(kq.so_nhap) + ' đơn chưa ghi sổ)</span>' : '') + '</div>') +
     bcHangSoSanh(kq.ss) +
     (kq.ss && !kq.co_ss_dong
       ? '<div style="font-size:12px;color:#98a2b3;margin-top:5px">Báo cáo dạng bảng kê nên không so được từng dòng, chỉ so tổng.</div>'
