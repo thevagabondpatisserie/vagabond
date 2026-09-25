@@ -24789,7 +24789,9 @@ function bcNhapDangBat() {
   return bcNhap === null ? !!bcNhapMayChu : !!bcNhap;
 }
 
-function bcThanhKy() {
+/* anDiem: bao cao khong chia theo diem ban (BC17) thi khong ve hang chip
+   diem, ve chip ma may chu bo qua la danh lua nguoi xem (Codex #369). */
+function bcThanhKy(anDiem) {
   var h1 = BC_KY.map(function (x) {
     return posChipNut('data-bcky="' + x.k + '"', x.nhan, bcKy === x.k);
   }).join('');
@@ -24812,7 +24814,7 @@ function bcThanhKy() {
     posChipNut('data-bcnhap="1"', '🧾 Tính cả đơn chưa ghi sổ', bcNhapDangBat(), false, '#b45309') +
     '</div>';
   return '<div class="card" style="padding:11px 12px">' +
-    kmHangChip(h1) + '<div style="height:7px"></div>' + kmHangChip(h2) + dieu + ss + '</div>';
+    kmHangChip(h1) + (anDiem ? '' : '<div style="height:7px"></div>' + kmHangChip(h2)) + dieu + ss + '</div>';
 }
 
 function bcNoiThanh(b, veLai) {
@@ -25025,7 +25027,12 @@ async function scrBaoCaoXem() {
   bcNhapMayChu = kq.nhap;
   if ((kq.diem_ban || []).length) bcDsDiem = kq.diem_ban;
 
-  var html = bcThanhKy() + bcDaiNhap(kq);
+  var html = bcThanhKy(!!kq.khong_loc) + bcDaiNhap(kq);
+  if (kq.khong_loc) {
+    html += '<div class="card" style="padding:11px 13px;border:1.5px solid #c7d2fe;background:#eef2ff">' +
+      '<div style="font-size:12.5px;color:#3730a3;line-height:1.65">' +
+      'Báo cáo này đối chiếu theo ký hiệu hoá đơn của cả công ty, <b>không lọc theo điểm bán, nguồn đơn hay phương thức thanh toán</b>.</div></div>';
+  }
   if (kq.chot && !kq.nhap) {
     html += '<div class="card" style="padding:11px 13px;border:1.5px solid #c7d2fe;background:#eef2ff">' +
       '<div style="font-size:12.5px;color:#3730a3;line-height:1.65">' +
@@ -25086,7 +25093,15 @@ async function scrBaoCaoXem() {
   else html += bcVeBang(kq);
 
   if (kq.phu && (kq.phu.dong || []).length) {
-    html += '<div class="sec">' + h(kq.phu.tieu_de) + '</div>' +
+    html += '<div class="sec">' + h(kq.phu.tieu_de) + '</div>';
+    /* Bang phu cung cat nhu bang chinh, va cung phai noi ra (Codex #369). */
+    if (kq.phu.bi_cat) {
+      html += '<div class="card" style="padding:11px 13px;border:1.5px solid #fcd34d;background:#fffbeb">' +
+        '<div style="font-size:12.5px;color:#92400e;line-height:1.65">' +
+        'Bảng này có <b>' + money(kq.phu.tong_dong) + '</b> dòng, màn hình đang hiện <b>' + money(kq.phu.gioi_han) +
+        '</b> dòng đầu. Bấm Xuất Excel để lấy bản đầy đủ.</div></div>';
+    }
+    html +=
       bcVeBang({ cot: kq.phu.cot, dong: kq.phu.dong, cong: null });
   }
 
