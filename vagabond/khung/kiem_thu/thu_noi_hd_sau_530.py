@@ -656,10 +656,27 @@ def _ha_hop_le():
 	dung("nhật ký ghi lý do", "không còn khớp" in r.hs.ghi_chu[-1])
 	r2 = _chay(r.hs, to, lambda bo: bo.go_noi("APP.26.09.102", "THUA"))
 	la("gỡ tờ thừa: phủ đủ lại thì lên hợp lệ lại", r2.hs.loai_cp_thue, "Chi phi hop le")
+	# Codex #373 vòng 4 (05c3866): bản vòng 3 ghi ca này thành "không hạ", tức
+	# che đúng lỗi Codex nêu. Hồ sơ lẫn khoản có hoá đơn gốc mà phần hoá đơn
+	# đến sau bị nối thừa thì PHẢI hạ. Đừng sửa ca này về như cũ.
 	ho2 = _mobi(cp="Chi phi hop le", hd_sau=[dict(hoa_don="HDM-A", tien_khop=778784, da_ghi_so=0, bu_tru=0, but_toan="")])
 	ho2.dong.append(_C(name="D2", idx=2, hoa_don="PI-GOC", hoa_don_bo_sung="", cho_hoa_don=0, tk_no=T6427, so_tien=100))
 	r3 = _chay(ho2, to, lambda bo: bo.noi_nhieu("APP.26.09.102", '["THUA"]'))
-	la("hồ sơ có khoản mang hoá đơn gốc riêng: không hạ nhãn", r3.hs.loai_cp_thue, "Chi phi hop le")
+	la("hồ sơ lẫn khoản có hoá đơn gốc, phần đến sau nối thừa: hạ nhãn", r3.hs.loai_cp_thue, "Chi phi khong hop le")
+	ho3 = _mobi(cp="Chi phi hop le", hd_sau=[dict(hoa_don="HDM-A", tien_khop=778784, da_ghi_so=0, bu_tru=0, but_toan="")])
+	ho3.dong.append(_C(name="D3", idx=2, hoa_don="", hoa_don_bo_sung="", cho_hoa_don=0, tk_no=T331, so_tien=100))
+	r4 = _chay(ho3, to, lambda bo: bo.noi_nhieu("APP.26.09.102", '["THUA"]'))
+	la("hồ sơ còn khoản không hoá đơn thật (nhãn do người lập chọn): không đụng", r4.hs.loai_cp_thue, "Chi phi hop le")
+
+
+@ca("v530 Codex #373 v4 F9: hồ sơ lẫn khoản có hoá đơn gốc được xét theo mức phủ phần đến sau, cả lên lẫn xuống")
+def _hon_hop():
+	from vagabond.hoa_don_sau import nen_hop_le
+	k = [dict(so_tien=100, hoa_don="PI-GOC", cho_hoa_don=0), dict(so_tien=778784, cho_hoa_don=1)]
+	dung("phủ đúng phần đến sau: hợp lệ", nen_hop_le(k, [dict(tien_khop=778784)]))
+	dung("thừa quá ngưỡng: không", not nen_hop_le(k, [dict(tien_khop=783784)]))
+	dung("thiếu: không", not nen_hop_le(k, [dict(tien_khop=100000)]))
+	dung("còn khoản không hoá đơn thật: không", not nen_hop_le(k + [dict(so_tien=5, cho_hoa_don=0)], [dict(tien_khop=778784)]))
 
 
 # Codex #373 vòng 3 trên 05c3866 ----------------------------------------------
