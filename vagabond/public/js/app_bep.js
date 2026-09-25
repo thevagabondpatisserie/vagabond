@@ -5139,6 +5139,84 @@ async function pvXacNhan(d, name) {
   } catch (err) { busy(0); toast(errMsg(err), 6000); }
 }
 
+/* ---------- v528: chi truoc, hoa don ve sau tren phieu tra truoc ----------
+   Anh Viet 25/09/2026: phieu tra truoc NCC (APP-26-09-893) da ghi so thi man
+   phieu chi "khong co thao tac". Them ba viec, moi viec di dung cua da co:
+   khop sao ke (coc_app.noi_sao_ke_coc), dinh uy nhiem chi
+   (duyet_chi.dinh_unc_sau), noi hoa don ve = can tru khoan tra truoc vao hoa
+   don (coc_app.can_coc, anh Viet chot "can tru luon"). */
+function pvLaTraTruoc(d) {
+  if (!d || d.payment_type !== 'Pay' || d.party_type !== 'Supplier') return false;
+  return (d.references || []).some(function (r) { return r.reference_doctype === 'Purchase Order'; });
+}
+
+/* "a, b, c và 4 tờ nữa": danh sách dài không chiếm hết màn. */
+function pvRutGon(ds, n) {
+  ds = ds || [];
+  return ds.slice(0, n).join(', ') + (ds.length > n ? ' và ' + (ds.length - n) + ' tờ nữa' : '');
+}
+
+function pvKhoiTraTruoc(tt) {
+  var html = '<div class="sec">Chi trước, hoá đơn về sau</div><div class="card" style="padding:13px 14px">';
+  if (!tt || tt.loi) return html + '<div style="font-size:13px;color:#b3261e">' + h((tt && tt.loi) || '') + '</div></div>';
+  if (!tt.la_tra_truoc) return '';
+  var dong = function (xong, chu) { return '<div style="font-size:13.5px;line-height:1.7">' + (xong ? '✅' : '⬜') + ' ' + chu + '</div>'; };
+  html += dong(!tt.can_noi_sao_ke, 'Sao kê ngân hàng: <b>' + (tt.sao_ke.length ? h(tt.sao_ke.join(', ')) : 'chưa khớp') + '</b>');
+  html += dong(tt.so_unc > 0, 'Uỷ nhiệm chi: <b>' + (tt.so_unc ? tt.so_unc + ' tờ' : 'chưa có') + '</b>');
+  /* Codex #370 F1: trên màn 390x844 danh sách dài không được đẩy ba nút
+     xuống dưới màn đầu. Trên khối nút chỉ có số tờ và tổng tiền; danh sách
+     đủ nằm dưới khối nút, mở theo yêu cầu. */
+  var tongCan = tt.da_can.reduce(function (a, x) { return a + (Number(x.tien) || 0); }, 0);
+  html += dong(tt.con_coc <= 0, 'Hoá đơn đã cấn: <b>' + (tt.da_can.length
+    ? tt.da_can.length + ' tờ, ' + money(tongCan) + ' đ' : 'chưa có') + '</b>' +
+    (tt.con_coc > 0 ? ' · còn trả trước chưa cấn <b>' + money(tt.con_coc) + ' đ</b>' : ''));
+  html += '<div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">';
+  if (tt.can_noi_sao_ke) html += '<button class="btn gh" id="pvKhopSk" style="margin:0">🏦 Khớp sao kê thủ công</button>';
+  html += '<div id="pvUncSau"></div><button class="btn gh" id="pvLuuUnc" style="margin:0">' + (tt.so_unc ? '📎 Lưu thêm uỷ nhiệm chi' : '📎 Lưu uỷ nhiệm chi') + '</button>';
+  if (tt.con_coc > 0) html += '<button class="btn" id="pvNoiHd" style="margin:0">🔗 Nối hoá đơn về sau (cấn trừ)</button>';
+  html += '</div>';
+  if ((tt.nhap || []).length) html += '<div style="font-size:12.5px;color:#92400e;margin-top:9px;line-height:1.55">Nhà cung cấp này còn ' + tt.nhap.length +
+    ' hoá đơn chưa ghi sổ (' + h(pvRutGon(tt.nhap.map(function (x) { return x.bill_no || x.name; }), 3)) + '). Ghi sổ tờ đó trước rồi mới cấn được.</div>';
+  if (tt.da_can.length) html += '<details style="margin-top:9px;font-size:13px"><summary style="min-height:44px;line-height:44px;cursor:pointer">Xem ' + tt.da_can.length + ' hoá đơn đã cấn</summary>' +
+    tt.da_can.map(function (x) { return '<div style="padding:4px 0">' + h(x.hoa_don) + ' · ' + money(x.tien) + ' đ</div>'; }).join('') + '</details>';
+  return html + '</div>';
+}
+
+function pvNoiTraTruoc(tt, name) {
+  var veLai = function () { go(function () { scrPayView(name); }, true); };
+  var k = document.getElementById('pvKhopSk');
+  if (k) k.onclick = function () { hsNoiSaoKeCoc(tt.ncc, name, veLai); };
+  var khung = document.getElementById('pvUncSau');
+  var oUnc = { nhan: '📎 Chọn tờ uỷ nhiệm chi', goi_y: 'Tải tờ uỷ nhiệm chi từ e-banking về rồi chọn ở đây.', style: 'margin-top:0' };
+  if (khung) { tdkNap('pvuncsau', []); khung.innerHTML = tdkKhoi('pvuncsau', oUnc); tdkNoi(khung, 'pvuncsau', oUnc); }
+  var lu = document.getElementById('pvLuuUnc');
+  if (lu) lu.onclick = async function () {
+    var unc = (tdkDs('pvuncsau') || []).map(function (x) { return typeof x === 'string' ? x : (x && x.url) || ''; }).filter(Boolean);
+    if (!unc.length) return baoTin('Chọn tờ uỷ nhiệm chi trước rồi bấm lưu.');
+    busy(true);
+    try { var r = await api('vagabond.duyet_chi.dinh_unc_sau', { name: name, unc: JSON.stringify(unc) }); busy(false); toast('Đã lưu, phiếu có ' + r.so_unc + ' tờ uỷ nhiệm chi.', 3500); }
+    catch (e) { busy(false); return baoTin(errMsg(e) || 'Chưa lưu được uỷ nhiệm chi.'); }
+    tdkNap('pvuncsau', []);
+    veLai();
+  };
+  var n = document.getElementById('pvNoiHd');
+  if (n) n.onclick = async function () {
+    if (!(tt.hoa_don || []).length) return baoTin('Chưa có hoá đơn đã ghi sổ còn nợ của ' + (tt.ten_ncc || tt.ncc) + '. Hoá đơn về từ m-invoice thì ghi sổ tờ đó trước rồi quay lại đây.');
+    var ma = await hoiChon('Nối hoá đơn về sau',
+      'Chọn tờ hoá đơn của khoản trả trước này. Máy cấn tối đa ' + money(tt.con_coc) + ' đ vào tờ đó, công nợ giảm ngay, không chuyển thêm tiền.',
+      tt.hoa_don.map(function (x) {
+        return { k: x.name, nhan: (x.bill_no ? 'HĐ ' + x.bill_no : x.name) + (x.cung_don ? ' · cùng đơn mua' : ''),
+          mo_ta: x.name + ' · ' + x.ngay + ' · còn nợ ' + money(x.con_no) + ' đ', icon: x.cung_don ? '🔗' : '🧾' };
+      }));
+    if (!ma) return;
+    var hd = tt.hoa_don.filter(function (x) { return x.name === ma; })[0];
+    var ds;
+    try { ds = await api('vagabond.coc_app.danh_sach', { ncc: tt.ncc }); }
+    catch (e) { return baoTin(errMsg(e) || 'Chưa đọc được khoản trả trước.'); }
+    return hsChonCanCoc(tt.ncc, [{ hoa_don: ma, so_tien: Math.min(Number(hd.con_no), Number(tt.con_coc)) }], veLai, ds, name);
+  };
+}
+
 async function scrPayView(name) {
   frame(name, '<div class="emp"><div class="e1">⏳</div></div>');
   var d = await api('frappe.client.get', { doctype: 'Payment Entry', name: name });
@@ -5200,10 +5278,19 @@ async function scrPayView(name) {
     pvTh = th;
   }
 
+  /* v528: phieu tra truoc da ghi so, hoa don ve sau. */
+  var tt = null;
+  if (d.docstatus === 1 && pvLaTraTruoc(d) && hsCoQuyenCanCoc()) {
+    try { tt = await api('vagabond.coc_app.tra_truoc_xem', { payment_entry: name }); }
+    catch (e) { tt = { loi: errMsg(e) || 'Chưa đọc được tình hình khoản trả trước.' }; }
+    html += pvKhoiTraTruoc(tt);
+  }
+
   var ft = acts.map(function (t) {
     return '<button class="btn ' + (t.ok ? 'gr' : 'dg') + '" data-act="' + h(t.action) + '" style="margin-bottom:9px">' + h(t.action) + '</button>';
   }).join('');
   var b = frame(name, html, { footer: ft || '<button class="btn gh" disabled>Không có thao tác cho vai trò của bạn</button>' });
+  if (tt && tt.la_tra_truoc) pvNoiTraTruoc(tt, name);
   if (chuyenTien) {
     var khungUnc = document.getElementById('pvUnc');
     if (khungUnc) {
@@ -21931,7 +22018,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '527';
+var APPVER = '528';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -34764,6 +34851,10 @@ async function scrHoSoTTView(name) {
     html += '<div style="padding:8px 0">Khoản ' + (i + 1) + ': ' + h(x.hoa_don_bo_sung || 'Chưa nối hóa đơn bổ sung');
     if (x.hoa_don_bo_sung) html += '<button class="btn gh" data-hsv="bthbo|' + h(x.hoa_don_bo_sung) + '">Tải bản thể hiện hóa đơn</button>';
     if (x.cho_hoa_don && !x.hoa_don_bo_sung && (Q.fin || Q.gd) && hs.trang_thai !== 'Huy' && hs.trang_thai !== 'Tu choi') html += '<button class="btn gh" data-hsv="bohd' + (i + 1) + '">Nối hóa đơn đến sau</button>';
+    /* v528 (anh Viet 25/09/2026, ho so APP.26.09.010): ho so lap truoc v526
+       chua co chip Hoa don den sau nen khoan chi truoc khong bao gio noi
+       duoc. FIN/GD danh dau bu, may chu soat lai du dieu kien. */
+    if (hs.loai === 'TK cong ty' && !x.cho_hoa_don && !x.hoa_don_bo_sung && !x.hoa_don && (Q.fin || Q.gd) && hs.trang_thai !== 'Huy' && hs.trang_thai !== 'Tu choi') html += '<button class="btn gh" data-hsv="ddhd' + (i + 1) + '">🧾 Đánh dấu hoá đơn đến sau</button>';
     html += '</div>';
   });
   html += '<div style="font-size:13px;color:#667085">Nối chứng từ bổ sung không tự cấn trừ công nợ. Kế toán kiểm tra bút toán trước khi hoàn tất.</div></div>';
@@ -34989,6 +35080,16 @@ async function hsHanh(k, hs) {
     await hsTaiBanTheHien(k.slice(6));
     return go(function() { scrHoSoTTView(hs.ma); }, true);
   }
+  if (k.indexOf('ddhd') === 0) {
+    var soK = Number(k.slice(4));
+    if (!(await hoiCo('Đánh dấu hoá đơn đến sau',
+      'Khoản ' + soK + ' sẽ được ghi là chi trước, hoá đơn về sau. Tiền đã ghi qua bút toán của hồ sơ, không đổi gì. ' +
+      'Hoá đơn về thì bấm Nối hóa đơn đến sau để chọn tờ hoá đơn.', 'Đánh dấu'))) return;
+    busy(true);
+    try { await api('vagabond.ho_so_bo_sung.danh_dau_cho_hoa_don', { name: hs.ma, dong: soK }); busy(false); toast('Đã đánh dấu khoản ' + soK + ' là hoá đơn đến sau.', 3500); }
+    catch (e) { busy(false); return baoTin((e && e.message) || 'Chưa đánh dấu được. Tải lại hồ sơ rồi thử lại.'); }
+    return go(function () { scrHoSoTTView(hs.ma); }, true);
+  }
   if (k.indexOf('bohd') === 0) {
     try {
     var dsBo = await api('vagabond.ho_so_bo_sung.danh_sach_hoa_don', {name: hs.ma});
@@ -35089,9 +35190,13 @@ async function hsHanh(k, hs) {
     try { kq = await api('vagabond.ho_so_tt.kiem_sepay', { name: hs.ma }); } catch (e) { busy(false); return baoTin((e && e.message) || 'Dò lỗi'); }
     busy(false);
     var x = (kq.rows || [])[0] || {};
+    var gy = x.so_gd ? [] : (x.goi_y || []);
+    if (gy.length) return hsGoiYKhongMa(hs, x, gy);
     return baoTin('Ngân hàng đã chi ' + money(x.da_chi) + ' / ' + money(x.tong_tien) + ' đ' +
-      (x.so_gd ? '\n' + x.so_gd + ' giao dịch' + (x.ma_gd ? ', mã ' + x.ma_gd : '') + (x.ngay ? ', ngày ' + hsNgayVn(x.ngay) : '') : '\nChưa thấy giao dịch nào mang mã ' + hs.ma) +
-      (x.du ? '\n\n✅ Đã đủ tiền, bấm Ghi nhận đã thanh toán được rồi.' : '\n\n⏳ Chưa đủ. Khi chuyển khoản nhớ ghi mã ' + hs.ma + ' vào nội dung để máy tự khớp.'));
+      (x.so_gd ? '\n' + x.so_gd + ' giao dịch' + (x.ma_gd ? ', mã ' + x.ma_gd : '') + (x.ngay ? ', ngày ' + hsNgayVn(x.ngay) : '') +
+        (x.theo_mau ? '\nKhớp theo mẫu sao kê đã nhớ của nhà cung cấp.' : '') : '\nChưa thấy giao dịch nào mang mã ' + hs.ma) +
+      (x.du ? '\n\n✅ Đã đủ tiền, bấm Ghi nhận đã thanh toán được rồi.' : '\n\n⏳ Chưa đủ. Khi chuyển khoản nhớ ghi mã ' + hs.ma + ' vào nội dung để máy tự khớp.' +
+        ' Trả qua tính năng thanh toán hoá đơn (điện, nước, internet) của app ngân hàng thì không ghi được mã: bấm Đối chiếu tay, tìm theo số tiền.'));
   }
   if (k === 'datra') {
     if (!await xacNhan('Hoàn tất hồ sơ ' + money(hs.tong_tien) + ' đ cho ' + (hs.ten_ncc || hs.ncc) + '?\n\n' +
@@ -36127,6 +36232,45 @@ async function hsCapQuyTienMat() {
     var ra = await api('vagabond.tam_ung_app.ghi_nhan_cap', {giao_dich:gd, tai_khoan_nguon:nguon, nop_quy:nq==='-'?'':nq});
     await baoTin('Đã ghi nhận khoản cấp quỹ: '+ra.name+'. Mở APP đã duyệt và bấm Cấn tiền đã cấp trước.');
   } catch(e) { baoTin(e.message || 'Chưa ghi nhận được. Tải lại để kiểm trước khi bấm lại.'); }
+}
+
+
+/* v528, anh Việt 25/09/2026: tiền điện, nước, internet trả bằng tính năng
+   thanh toán hoá đơn của app ngân hàng thì sao kê không mang mã APP (ví dụ
+   "WATER BT WATER 1032865688 ..."). Máy đưa dòng đúng số tiền, đúng tài
+   khoản, chưa ai dùng để NGƯỜI bấm chọn; không tự gán theo số tiền. */
+async function hsGoiYKhongMa(hs, x, gy) {
+  var r = gy[0];
+  var dau = 'Chưa thấy giao dịch nào mang mã ' + hs.ma + '. Khoản trả qua tính năng thanh toán hoá đơn của app ngân hàng không ghi được mã.\n\n';
+  if (gy.length > 1) {
+    if (!await hoiCo('Có ' + gy.length + ' giao dịch đúng số tiền', dau +
+      'Có ' + gy.length + ' giao dịch đúng ' + money(r.tien) + ' đ, đúng tài khoản chi, chưa hồ sơ nào dùng. Mở danh sách để chọn đúng dòng.', 'Xem ' + gy.length + ' dòng')) return;
+    return go(function () { scrTimGiaoDich(hs.ma, hs.con_lai == null ? hs.tong_tien : hs.con_lai); });
+  }
+  if (!await hoiCo('Khớp giao dịch này?', dau +
+    'Có 1 giao dịch đúng ' + money(r.tien) + ' đ, đúng tài khoản chi, chưa hồ sơ nào dùng:\n' +
+    hsNgayVn(String(r.date || '').slice(0, 10)) + ' · ' + (r.mo_ta || '(không có nội dung)') + (r.tham_chieu ? '\nTham chiếu ' + r.tham_chieu : '') +
+    '\n\nĐúng khoản này thì bấm Khớp.', 'Khớp')) return;
+  busy(true);
+  var kq;
+  try { kq = await api('vagabond.doi_chieu_app.gan', { name: hs.ma, ma_giao_dich: r.name }); }
+  catch (e) { busy(false); return baoTin((e && e.message) || 'Chưa khớp được giao dịch.'); }
+  busy(false);
+  await hsSauGan(hs.ma, kq);
+  return go(function () { scrHoSoTTView(hs.ma); }, true);
+}
+
+/* Sau mọi lần gán tay: báo kết quả, rồi nếu dòng không mang mã APP thì hỏi
+   nhớ mẫu đầu dòng sao kê cho nhà cung cấp, để tháng sau máy tự khớp. */
+async function hsSauGan(maApp, kq) {
+  toast((kq && kq.loi_nhan) || 'Đã chọn giao dịch.', 5000);
+  var m = kq && kq.nho_mau;
+  if (!m || !m.mau) return;
+  if (!await hoiCo('Nhớ mẫu sao kê?', 'Giao dịch vừa khớp không mang mã hồ sơ, thường là khoản trả qua tính năng thanh toán hoá đơn của ngân hàng.\n\n' +
+    'Nhớ mẫu "' + m.mau + '" cho ' + (m.ten_ncc || m.ncc) + '? Lần sau sao kê bắt đầu bằng mẫu này, đúng số tiền, đúng tài khoản và chỉ có một dòng thì máy tự khớp.', 'Nhớ mẫu')) return;
+  busy(true);
+  try { var k2 = await api('vagabond.doi_chieu_app.nho_mau', { name: maApp, mau: m.mau }); busy(false); toast(k2.loi_nhan, 5000); }
+  catch (e) { busy(false); baoTin((e && e.message) || 'Chưa nhớ được mẫu.'); }
 }
 /* ================= DANH MUC NHA CUNG CAP =================
    Uyen hoi 14/08/2026: "co may mat hang chua gan NCC, em gan NCC o muc nao?"
@@ -37408,7 +37552,8 @@ async function scrTimGiaoDich(maHoSo, soTien) {
       busy(true);
       try {
         var kq = await api('vagabond.doi_chieu_app.gan', {name:maApp, ma_giao_dich:gd});
-        busy(false); toast(kq.loi_nhan,5000); tgdHoSo = '';
+        busy(false); tgdHoSo = '';
+        await hsSauGan(maApp, kq);
         go(function () { scrHoSoTTView(maApp); }, true);
       } catch (e) { busy(false); baoTin((e && e.message) || 'Chưa gán được giao dịch.'); }
     }}, {so_ngay:120});
@@ -37478,9 +37623,10 @@ async function scrTimGiaoDich(maHoSo, soTien) {
       'Gán giao dịch ' + ma + ' (' + money(tien) + ' đ) vào hồ sơ ' + tgdHoSo + '?\n\n' +
       'Hồ sơ chờ thanh toán: lưu giao dịch đã chọn, sau đó đính UNC và ghi nhận. Hồ sơ đã thanh toán: đối chiếu với bộ bút toán hiện có.', 'Gán')) return;
     busy(true);
-    try { var kq = await api('vagabond.doi_chieu_app.gan', { name: tgdHoSo, ma_giao_dich: ma }); busy(false); toast(kq.loi_nhan, 5000); }
+    try { var kq = await api('vagabond.doi_chieu_app.gan', { name: tgdHoSo, ma_giao_dich: ma }); busy(false); }
     catch (er) { busy(false); return baoTin((er && er.message) || 'Gán lỗi'); }
     var hs = tgdHoSo; tgdHoSo = '';
+    await hsSauGan(hs, kq);
     go(function () { scrHoSoTTView(hs); }, true);
   });
 }
@@ -40468,7 +40614,7 @@ async function scrKhopSepay(o, loc, giuTim) {
   if (luot !== scrKhopSepay.luot) return;
   var rows = kq.rows || [], cd = kq.chan_doan || {};
   var html = '<div class="card" style="padding:12px 14px"><b>' + h(o.ma) + ' · ' + money(kq.so_tien) + ' đ</b></div>';
-  html += '<div style="padding:0 12px"><input class="tin" id="ksTim" aria-label="Tìm sao kê" placeholder="Tìm nội dung hoặc mã giao dịch" value="' + h(loc.tu_khoa) + '"></div>';
+  html += '<div style="padding:0 12px"><input class="tin" id="ksTim" aria-label="Tìm sao kê" placeholder="Tìm nội dung, mã giao dịch hoặc số tiền" value="' + h(loc.tu_khoa) + '"></div>';
   function chip(thuoc, ds, daChon) {
     return '<div class="chips" style="padding:2px 12px 8px">' + ds.map(function (t) {
       return '<button class="chip' + (String(daChon) === String(t.ma) ? ' on' : '') + '" ' + thuoc + '="' + h(t.ma) + '" title="' + h(t.ten_day_du || t.nhan) + '" style="min-height:44px">' + h(t.nhan) + '</button>';
