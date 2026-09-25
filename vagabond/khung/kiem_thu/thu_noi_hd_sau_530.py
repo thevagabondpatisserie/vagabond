@@ -126,7 +126,13 @@ class _JE:
 			raise _Loi("bút toán lệch Nợ %s Có %s" % (no, co))
 		self.docstatus = 1
 
+	def get(self, k, md=None):
+		return getattr(self, k, md)
+
 	def cancel(self):
+		# Chạy CHÍNH hook before_cancel của repo như ERPNext thật (Codex #373 v2).
+		from vagabond import ho_so_bo_sung as bo
+		bo.chan_huy_bu_tru(self)
 		NHAT_KY.append("huy " + self.name)
 		self.docstatus = 2
 
@@ -621,4 +627,37 @@ def _xuat_je():
 	t = trang_hd_sau(d)
 	la("bảy trang tờ, một trang bút toán", ([x[0] for x in t].count("Purchase Invoice"), [x[1] for x in t if x[0] == "Journal Entry"]),
 		(7, ["PKT-9"]))
+
+
+# Codex #373 vòng 2 trên 92a437d ----------------------------------------------
+
+@ca("v530 Codex #373 v2 F6: huỷ thẳng bút toán bù trừ (Desk) bị chặn, gọi tên hồ sơ; qua nút Gỡ thì được; bút toán khác không ảnh hưởng")
+def _chan_huy_thang():
+	import importlib
+	from vagabond import ho_so_bo_sung as bo
+	je = _C(name="PKT-2026-00100", vgb_bu_tru_ho_so="APP.26.09.009", flags=_C())
+	r = _chay(_adecco(), {}, lambda b: b.chan_huy_bu_tru(je))
+	dung("chặn, chỉ đường nút Gỡ", "APP.26.09.009" in r.loi and "Gỡ" in r.loi)
+	je.flags.vgb_go_noi = True
+	la("có cờ Gỡ: qua", _chay(_adecco(), {}, lambda b: b.chan_huy_bu_tru(je)).loi, "")
+	la("bút toán thường: qua", _chay(_adecco(), {}, lambda b: b.chan_huy_bu_tru(_C(name="PKT-1", flags=_C()))).loi, "")
+	import vagabond.hooks as hk
+	dung("hook before_cancel Journal Entry đã đăng ký",
+		"vagabond.ho_so_bo_sung.chan_huy_bu_tru" in hk.doc_events["Journal Entry"]["before_cancel"])
+
+
+@ca("v530 Codex #373 v2 F7: hồ sơ đang hợp lệ mà lần nối sau làm thừa quá ngưỡng thì về KHÔNG hợp lệ; nối đủ lại thì lên hợp lệ")
+def _ha_hop_le():
+	ho = _mobi(cp="Chi phi hop le", hd_sau=[dict(hoa_don="HDM-A", tien_khop=778784, da_ghi_so=0, bu_tru=0, but_toan="")])
+	to = {"THUA": _pi("THUA", "MOBI-096", 5000, docstatus=0)}
+	r = _chay(ho, to, lambda bo: bo.noi_nhieu("APP.26.09.102", '["THUA"]'))
+	la("nối được", r.loi, "")
+	la("về không hợp lệ, báo rõ", (r.hs.loai_cp_thue, r.kq["ve_khong_hop_le"], r.kq["hop_le"]), ("Chi phi khong hop le", 1, 0))
+	dung("nhật ký ghi lý do", "không còn khớp" in r.hs.ghi_chu[-1])
+	r2 = _chay(r.hs, to, lambda bo: bo.go_noi("APP.26.09.102", "THUA"))
+	la("gỡ tờ thừa: phủ đủ lại thì lên hợp lệ lại", r2.hs.loai_cp_thue, "Chi phi hop le")
+	ho2 = _mobi(cp="Chi phi hop le", hd_sau=[dict(hoa_don="HDM-A", tien_khop=778784, da_ghi_so=0, bu_tru=0, but_toan="")])
+	ho2.dong.append(_C(name="D2", idx=2, hoa_don="PI-GOC", hoa_don_bo_sung="", cho_hoa_don=0, tk_no=T6427, so_tien=100))
+	r3 = _chay(ho2, to, lambda bo: bo.noi_nhieu("APP.26.09.102", '["THUA"]'))
+	la("hồ sơ có khoản mang hoá đơn gốc riêng: không hạ nhãn", r3.hs.loai_cp_thue, "Chi phi hop le")
 
