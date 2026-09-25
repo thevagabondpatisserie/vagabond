@@ -5,7 +5,7 @@ Bank Transaction Payments mới là bằng chứng đối chiếu sau khi ghi s�
 """
 
 from functools import wraps
-from vagabond.khop_sao_ke import co_ma, co_ma_app_khac, doc_ds_mau, khop_mau, mau_sao_ke, xep_goi_y
+from vagabond.khop_sao_ke import co_ma, co_ma_app_khac, doc_ds_mau, khop_mau, mau_chong_nhau, mau_sao_ke, xep_goi_y
 
 
 # phần cần Frappe
@@ -228,9 +228,11 @@ def de_nghi_nho_mau(doc, g):
 
 
 def _chu_mau_khac(mau, ncc):
-	for r in frappe.get_all("Supplier", filters={O_MAU: ["like", "%" + mau + "%"], "name": ["!=", ncc]},
+	"""NCC khác đang giữ một mẫu CHỒNG với mẫu này (Codex #371 M2): so theo
+	đúng luật tiền tố trọn chữ của khop_mau, không chỉ so trùng hẳn."""
+	for r in frappe.get_all("Supplier", filters={O_MAU: ["is", "set"], "name": ["!=", ncc]},
 			fields=["name", O_MAU], limit_page_length=0):
-		if mau in doc_ds_mau(r.get(O_MAU)):
+		if any(mau_chong_nhau(mau, m) for m in doc_ds_mau(r.get(O_MAU))):
 			return r.name
 	return ""
 
@@ -388,9 +390,10 @@ def nho_mau(name, mau):
 	# dòng Supplier: hai lượt nhớ mẫu (cùng hay khác NCC) xếp hàng nhau, lượt
 	# sau đọc được bản đã commit của lượt trước, không ai ghi đè mẫu của ai.
 	dong = frappe.db.sql("""select name, `{o}` as mau from `tabSupplier`
-		where name = %s or ifnull(`{o}`, '') like %s for update""".format(o=O_MAU),
-		(ncc, "%" + mau + "%"), as_dict=True)
-	chu = [r["name"] for r in dong if r["name"] != ncc and mau in doc_ds_mau(r["mau"])]
+		where name = %s or ifnull(`{o}`, '') != '' for update""".format(o=O_MAU),
+		(ncc,), as_dict=True)
+	chu = [r["name"] for r in dong if r["name"] != ncc
+		and any(mau_chong_nhau(mau, m) for m in doc_ds_mau(r["mau"]))]
 	if chu:
 		frappe.throw("Mẫu %s vừa được nhớ cho nhà cung cấp %s. Hai nhà cung cấp chung một mẫu thì máy không phân biệt được, kế toán khớp tay từng lần." % (mau, chu[0]))
 	cu = doc_ds_mau(next((r["mau"] for r in dong if r["name"] == ncc), ""))

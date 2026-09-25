@@ -250,6 +250,19 @@ def khop_mau(mo_ta, ds_mau):
 	return ""
 
 
+def mau_chong_nhau(a, b):
+	"""Hai mẫu có cùng khớp một dòng sao kê không, theo đúng luật của
+	khop_mau: trùng hẳn, hoặc mẫu này là tiền tố TRỌN CHỮ của mẫu kia. THUẦN.
+
+	Codex #371 M2: "WATER BT" và "WATER BT WATER" cùng khớp dòng "WATER BT
+	WATER ...", nên hai NCC giữ hai mẫu đó là máy lấy nhầm tiền của nhau."""
+	a = " ".join(str(a or "").split()).upper()
+	b = " ".join(str(b or "").split()).upper()
+	if not a or not b:
+		return False
+	return a == b or a.startswith(b + " ") or b.startswith(a + " ")
+
+
 def khop_tu_khoa(tu_khoa, dong):
 	"""Ô tìm của màn chọn sao kê: tìm chữ, hoặc tìm ĐÚNG số tiền. THUẦN.
 
