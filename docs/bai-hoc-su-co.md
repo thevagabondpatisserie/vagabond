@@ -1217,3 +1217,38 @@ Cách phòng:
 - Ô tìm của màn chọn sao kê nhận cả số tiền.
 - Kiểm "mẫu đã thuộc ai" phải làm lại DƯỚI KHOÁ bằng current read ngay trước
   khi ghi. Kiểm trước rồi mới khoá là hai lượt đồng thời cùng qua.
+
+## v530 (25/09/2026): hoá đơn đến sau đã ghi sổ, chi phí hai lần
+
+Triệu chứng: chị Dung không nối được hoá đơn đến sau cho ba hồ sơ chi từ TK
+công ty (APP.26.09.009 Adecco, APP.26.09.102 Mobifone, APP.26.08.016 Văn An).
+Ô chọn hiện tờ không liên quan, có tờ hiện hai lần, và mỗi dòng có một dấu chấm
+nằm riêng một hàng phía trên tên.
+
+Nguyên nhân:
+- Tờ đúng ĐÃ GHI SỔ (máy đồng bộ m-invoice ghi sổ trước khi ai nối), mà luật
+  v526 chỉ cho nối tờ nháp nên ô chọn giấu nó. Hồ sơ đã ghi Nợ chi phí qua bút
+  toán của nó, tờ cũng ghi Nợ chi phí và Có 331: chi phí hai lần, công nợ treo
+  hiện "trễ hạn" ở màn Công nợ phải trả, người khác có thể trả lần nữa.
+- Mô hình một tờ một khoản không chứa được hai ca thật: một tờ tách ba khoản
+  theo bộ phận (Adecco), sáu tờ theo số thuê bao gom một lần trả (Mobifone).
+- Nhà cung cấp có nhiều chi nhánh (MST đuôi -002, -096) là nhiều hồ sơ nhà
+  cung cấp khác nhau; lọc đúng tên thì không ra tờ.
+- Dấu chấm: `vgbNoiOTim` hiện lại mục bằng `style.display = ''`, tức XOÁ
+  luôn `display:flex` ghi trên thẻ. Hàm chạy lọc một lần ngay lúc nối, nên mọi
+  hộp chọn có ô tìm (từ 7 mục) đều vỡ bố cục từ lần mở đầu. DOM giả của bộ
+  kiểm không đọc thuộc tính style nên không ca nào thấy.
+
+Cách phòng:
+- Nối ở mức HỒ SƠ, so TỔNG tờ với tổng khoản chờ; nhóm nhà cung cấp theo MST
+  gốc 10 số. Tờ đã ghi sổ còn nợ thì lập MỘT bút toán bù trừ Nợ 331 (tham
+  chiếu tờ) / Có đúng tài khoản chi phí hồ sơ đã ghi, soát lại với sổ chi của
+  hồ sơ trước khi Có. Bút toán bù trừ mang ô riêng `vgb_bu_tru_ho_so`, KHÔNG
+  mang `vgb_ho_so_tt`: mọi phép "bút toán chi của hồ sơ" đọc ô kia.
+- Máy gợi ý phải thử khớp ĐÚNG TỪNG ĐỒNG trước rồi mới nới ngưỡng: với ngưỡng
+  1.000 đ ngay từ đầu, ca Mobifone ra tổ hợp 5 tờ lệch 609 đ trước tổ hợp 6 tờ
+  đúng.
+- Ẩn hiện phần tử: nhớ giá trị display gốc rồi trả đúng giá trị đó, đừng gán
+  chuỗi rỗng. DOM giả nay đọc thuộc tính style như trình duyệt.
+- Danh sách lấy bằng get_list kèm luật quyền có thể trùng dòng: bỏ trùng theo
+  tên trước khi vẽ.
