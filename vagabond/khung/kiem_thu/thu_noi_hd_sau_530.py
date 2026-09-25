@@ -199,8 +199,9 @@ def _chay(ho_so, to, ham, giu_cu=None, giu_moi=None, no_ho_so=None, bu_truoc=Non
 			return "Main - TV"
 		return None
 
-	def get_doc(dt, ten=None):
+	def get_doc(dt, ten=None, for_update=None, **k):
 		if dt == "Vagabond Ho So TT":
+			cau.append("GET_DOC ho so%s" % (" for_update" if for_update else ""))
 			return ho_so
 		if dt == "Journal Entry":
 			return next(j for j in ds_je if j.name == ten)
@@ -228,6 +229,7 @@ def _chay(ho_so, to, ham, giu_cu=None, giu_moi=None, no_ho_so=None, bu_truoc=Non
 		raise _Loi("get_all bỏ qua luật quyền, không dùng cho danh sách hoá đơn")
 	def has_permission(dt, ptype="read", doc=None, *a, **k):
 		hoi_quyen.append((dt, ptype, getattr(doc, "name", doc)))
+		cau.append("QUYEN %s %s" % (ptype, getattr(doc, "name", doc)))
 		return getattr(doc, "name", doc) not in set(cam_doc or ())
 	hoi_quyen = []
 	fr = SimpleNamespace(throw=_throw, db=db, get_doc=get_doc, new_doc=lambda dt: _JE(ds_je), get_list=get_all,
@@ -760,7 +762,9 @@ def _quyen_noi():
 	la("không lập bút toán", len(r.je), 0)
 	la("không ghi dòng nối", len(r.hs.hd_sau), 0)
 	la("hỏi quyền ĐỌC từng tờ theo thứ tự, dừng ở tờ đầu tiên bị cấm", [x for x in r.hoi_quyen], [("Purchase Invoice", "read", m) for m in ma[:3]])
-	la("dừng trước khi khoá hồ sơ hay tờ nào", [q for q in r.cau if "for update" in q.lower()], [])
+	khoa = [q for q in r.cau if ("for update" in q.lower() and not q.startswith("GET_DOC")) or q.startswith("QUYEN")]
+	la("không khoá tờ nào: chỉ khoá hồ sơ rồi hỏi quyền", [("tabvagabond ho so tt`" in q.lower()) if "for update" in q.lower() else "QUYEN" for q in khoa],
+		[True, "QUYEN", "QUYEN", "QUYEN"])
 	r2 = _chay(_mobi(), _to_mobi(), lambda bo: bo.noi_nhieu("APP.26.09.102", json.dumps(ma)))
 	la("đủ quyền: nối bình thường", (r2.loi, len(r2.hs.hd_sau)), ("", 6))
 
@@ -779,3 +783,25 @@ def _khoa_ncc():
 	moi2.nha_cung_cap = "ADECCO"
 	moi2.get_doc_before_save = lambda: _mobi()
 	la("hồ sơ chưa nối gì: đổi NCC vẫn qua", _chay(moi2, {}, lambda bo: bo.kiem_bo_sung(moi2)).loi, "")
+
+
+# Codex #373 vòng 7 trên e235e26 ----------------------------------------------
+
+@ca("v530 Codex #373 v7 F14: khoá hồ sơ TRƯỚC khi đọc tờ để soát quyền (ảnh chụp giao dịch lập sau khi đã chờ khoá)")
+def _khoa_truoc_quyen():
+	# Đọc tờ (has_permission nạp tờ) trước câu for update thì MariaDB REPEATABLE
+	# READ lập ảnh chụp lúc chưa chờ khoá; lần nối song song chốt trong lúc chờ
+	# sẽ vô hình với get_doc hồ sơ ngay sau đó. Chốt thứ tự: khoá hồ sơ là câu
+	# chạm dữ liệu ĐẦU TIÊN, mọi lần hỏi quyền đứng sau nó.
+	ma = [m for m, _b, _t in MOBI]
+	r = _chay(_mobi(), _to_mobi(), lambda bo: bo.noi_nhieu("APP.26.09.102", json.dumps(ma)))
+	la("nối được", r.loi, "")
+	dau = next(i for i, q in enumerate(r.cau) if "for update" in q.lower())
+	la("câu đầu tiên là khoá hồ sơ", "tabvagabond ho so tt`" in r.cau[0].lower() and "for update" in r.cau[0].lower(), True)
+	quyen = [i for i, q in enumerate(r.cau) if q.startswith("QUYEN")]
+	la("hỏi quyền đủ sáu tờ", len(quyen), 6)
+	la("nạp hồ sơ bằng câu có khoá (đọc hiện hành, không đọc ảnh chụp)", [q for q in r.cau if q.startswith("GET_DOC")][:1], ["GET_DOC ho so for_update"])
+	dung("mọi lần hỏi quyền sau khoá hồ sơ", all(i > dau for i in quyen))
+	g = _chay(_mobi(hd_sau=[dict(hoa_don="A", tien_khop=778784, da_ghi_so=0, bu_tru=0, but_toan="")]), {},
+		lambda bo: bo.go_noi("APP.26.09.102", "A"))
+	la("gỡ: gỡ được, cũng nạp hồ sơ bằng câu có khoá", (g.loi, [q for q in g.cau if q.startswith("GET_DOC")][:1]), ("", ["GET_DOC ho so for_update"]))
