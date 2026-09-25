@@ -272,10 +272,18 @@ TRUONG_DON = ["name", "posting_date", "vgb_hddt_ngay_xuat", "custom_minvoice_id"
 
 
 def _ky_hieu_he():
+	"""Ký hiệu đang phát hành. Không có thì DỪNG (Codex #369): trả về chuỗi
+	rỗng mà vẫn chạy là đếm lẫn cả dải Fabi C26MVO cùng nằm trong bảng tờ,
+	mọi con số đối chiếu sai mà không ai biết."""
 	try:
-		return kh(frappe.db.get_single_value("MInvoice Phat Hanh Settings", "ky_hieu"))
+		k = kh(frappe.db.get_single_value("MInvoice Phat Hanh Settings", "ky_hieu"))
 	except Exception:
-		return ""
+		frappe.throw("Không đọc được ký hiệu hoá đơn đang phát hành trong Cài đặt phát hành m-invoice. "
+			"Thử lại sau ít phút; còn lỗi thì báo quản trị.")
+	if not k:
+		frappe.throw("Chưa đặt ký hiệu hoá đơn đang phát hành trong Cài đặt phát hành m-invoice, "
+			"nên chưa đối chiếu được. Nhờ quản trị điền ký hiệu rồi chạy lại.")
+	return k
 
 
 def _don(filters):
@@ -287,7 +295,7 @@ def doc(tu, den):
 	tu, den = getdate(tu), getdate(den)
 	k = _ky_hieu_he()
 	to_ds = [t for t in frappe.get_all(DT_TO, filters={"loai": "Đầu ra", "ngay_lap": ["between", [tu, den]]},
-		fields=TRUONG_TO, limit_page_length=0) if not k or kh(t.get("ky_hieu")) == k]
+		fields=TRUONG_TO, limit_page_length=0) if kh(t.get("ky_hieu")) == k]
 	# Tờ gốc có thể nằm tháng trước (15441 thay tờ 11191 ngày 26/08): đọc
 	# thêm theo SỐ, lần tối đa SO_DOI_TOI_DA đời.
 	can_so = {so(t.get("so_hd")) for t in to_ds} - {""}
@@ -299,7 +307,7 @@ def doc(tu, den):
 		da_hoi |= hoi
 		can_so |= hoi
 		moi = [t for t in frappe.get_all(DT_TO, filters={"loai": "Đầu ra", "so_hd": ["in", sorted(hoi)]},
-			fields=TRUONG_TO, limit_page_length=0) if not k or kh(t.get("ky_hieu")) == k]
+			fields=TRUONG_TO, limit_page_length=0) if kh(t.get("ky_hieu")) == k]
 		to_goc += moi
 		hoi = {g[1] for g in (tach_goc(t.get("hd_goc")) for t in moi) if g}
 	si = {}
@@ -361,6 +369,7 @@ def bao_cao(tu, den, _cot):
 				("to_goc", "Tờ gốc", "chu"), ("loai", "Loại", "chu"), ("don", "Đơn ERP", "chu"),
 				("don_ban", "Mã đơn", "chu"), ("goi_y", "Gợi ý đơn", "chu"), ("ghi_chu", "Ghi chú", "chu"),
 			),
-			"dong": chi_tiet[:300],
+			# Trả ĐỦ: bao_cao.chay cắt cho màn hình và báo, Excel lấy bản đủ.
+			"dong": chi_tiet,
 		},
 	}
