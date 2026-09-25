@@ -137,13 +137,14 @@ class _JE:
 		self.docstatus = 2
 
 
-def _chay(ho_so, to, ham, giu_cu=None, giu_moi=None, no_ho_so=None, bu_truoc=None, ds_je=None):
+def _chay(ho_so, to, ham, giu_cu=None, giu_moi=None, no_ho_so=None, bu_truoc=None, ds_je=None, cam_doc=()):
 	"""Chạy HÀM THẬT của ho_so_bo_sung trên lớp dữ liệu giả.
 
 	to: {tên: tờ HIỆN HÀNH}. giu_cu/giu_moi: {tờ: hồ sơ khác đang giữ} theo
 	nguồn cũ (dòng khoản) và mới (bảng tờ nối). no_ho_so: {tài khoản: số Nợ}
 	bút toán chi của hồ sơ đã ghi; mặc định đúng từng khoản như _tao_but_toan_tkct.
-	bu_truoc: {tài khoản: số Có} các bút toán bù trừ trước."""
+	bu_truoc: {tài khoản: số Có} các bút toán bù trừ trước. cam_doc: các tờ người
+	gọi không có quyền đọc (luật quyền theo NCC)."""
 	from vagabond import ho_so_bo_sung as bo, ho_so_tt as hs
 	giu_cu, giu_moi = giu_cu or {}, giu_moi or {}
 	if no_ho_so is None:
@@ -225,8 +226,12 @@ def _chay(ho_so, to, ham, giu_cu=None, giu_moi=None, no_ho_so=None, bu_truoc=Non
 	hoi = []
 	def get_all_cam(*a, **k):
 		raise _Loi("get_all bỏ qua luật quyền, không dùng cho danh sách hoá đơn")
+	def has_permission(dt, ptype="read", doc=None, *a, **k):
+		hoi_quyen.append((dt, ptype, getattr(doc, "name", doc)))
+		return getattr(doc, "name", doc) not in set(cam_doc or ())
+	hoi_quyen = []
 	fr = SimpleNamespace(throw=_throw, db=db, get_doc=get_doc, new_doc=lambda dt: _JE(ds_je), get_list=get_all,
-		get_all=get_all_cam, session=SimpleNamespace(user="dung@vgb"))
+		get_all=get_all_cam, session=SimpleNamespace(user="dung@vgb"), has_permission=has_permission)
 	ho_so._truoc = [dict(r) for r in ho_so.hd_sau]
 	kiem = []
 	cu = bo.frappe
@@ -241,7 +246,7 @@ def _chay(ho_so, to, ham, giu_cu=None, giu_moi=None, no_ho_so=None, bu_truoc=Non
 				kq, loi = None, str(e)
 	finally:
 		bo.frappe = cu
-	return SimpleNamespace(kq=kq, loi=loi, je=ds_je, cau=cau, hs=ho_so, hoi=hoi, kiem=kiem)
+	return SimpleNamespace(kq=kq, loi=loi, je=ds_je, cau=cau, hs=ho_so, hoi=hoi, kiem=kiem, hoi_quyen=hoi_quyen)
 
 
 def _mobi(**k):
@@ -743,3 +748,34 @@ def _phu_bo_cong_no():
 	p = do_phu(k, [dict(tien_khop=778784)])
 	la("số cần chỉ gồm khoản chi phí", (p["can"], p["con_thieu"], p["du"]), (778784.0, 0.0, True))
 	# Đột biến v5 số 5 (bỏ lọc cong_no trong do_phu) từng lọt vì chưa ca nào chốt; ca này chốt.
+
+
+# Codex #373 vòng 6 trên 0f19a43 ----------------------------------------------
+
+@ca("v530 Codex #373 v6 F12: nối tờ người gọi không có quyền đọc (luật quyền theo NCC) thì dừng, không lập bút toán")
+def _quyen_noi():
+	ma = [m for m, _b, _t in MOBI]
+	r = _chay(_mobi(), _to_mobi(), lambda bo: bo.noi_nhieu("APP.26.09.102", json.dumps(ma)), cam_doc=[ma[2]])
+	dung("dừng, gọi tên tờ", ma[2] in r.loi and "quyền" in r.loi)
+	la("không lập bút toán", len(r.je), 0)
+	la("không ghi dòng nối", len(r.hs.hd_sau), 0)
+	la("hỏi quyền ĐỌC từng tờ theo thứ tự, dừng ở tờ đầu tiên bị cấm", [x for x in r.hoi_quyen], [("Purchase Invoice", "read", m) for m in ma[:3]])
+	la("dừng trước khi khoá hồ sơ hay tờ nào", [q for q in r.cau if "for update" in q.lower()], [])
+	r2 = _chay(_mobi(), _to_mobi(), lambda bo: bo.noi_nhieu("APP.26.09.102", json.dumps(ma)))
+	la("đủ quyền: nối bình thường", (r2.loi, len(r2.hs.hd_sau)), ("", 6))
+
+
+@ca("v530 Codex #373 v6 F13: hồ sơ đã có tờ nối mức hồ sơ thì Desk/API đổi nhà cung cấp cũng dừng")
+def _khoa_ncc():
+	import copy
+	cu = _mobi(hd_sau=[dict(hoa_don="A", tien_khop=778784, da_ghi_so=1, bu_tru=778784, but_toan="PKT-1")])
+	moi = copy.deepcopy(cu)
+	moi.dong = [_C(dict(x)) for x in cu.dong]
+	moi.hd_sau = [_C(dict(x)) for x in cu.hd_sau]
+	moi.nha_cung_cap = "ADECCO"
+	moi.get_doc_before_save = lambda: cu
+	dung("dừng", "Gỡ các tờ nối" in _chay(moi, {}, lambda bo: bo.kiem_bo_sung(moi)).loi)
+	moi2 = _mobi()
+	moi2.nha_cung_cap = "ADECCO"
+	moi2.get_doc_before_save = lambda: _mobi()
+	la("hồ sơ chưa nối gì: đổi NCC vẫn qua", _chay(moi2, {}, lambda bo: bo.kiem_bo_sung(moi2)).loi, "")
