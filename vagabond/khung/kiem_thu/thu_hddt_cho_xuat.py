@@ -1338,7 +1338,9 @@ def _no_khong_gui_duoc():
 	g = dict(frappe=unittest.mock.MagicMock(), ngay_cu_can_bao_ve=lambda: [D(2026,9,11)],
 		ngay_cu_dang_cho=lambda: [], ngay_cu_con_mo=lambda ds,*a: ds,
 		getdate=lambda x:x, nowdate=lambda: D(2026,9,12), _ngay_xac_nhan_qua_han=lambda: [],
-		cint=lambda x:int(x or 0), _ghi_moc_loi=lambda x:moc.append(x))
+		cint=lambda x:int(x or 0), _ghi_moc_loi=lambda x:moc.append(x),
+		# v527: không có tờ giữ cờ nào để tự đối chiếu trong ca này.
+		tu_doi_chieu_co=lambda **kw: 0)
 	exec(compile(ast.Module(body=[fn], type_ignores=[]), '<hang-rao-thuc>', 'exec'), g)
 	with unittest.mock.patch.dict(sys.modules, {'vagabond.ban_hang': bh}):
 		la('còn chặn phát hành', g['xuat_ngay_cu_truoc'](), False)

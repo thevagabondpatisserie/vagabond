@@ -290,6 +290,61 @@ def ngay_cu_con_mo(ds_ngay, hom_nay, ngay_so_moi_nhat=None, ngay_xac_nhan=()):
 	return sorted(ra)
 
 
+def ngay_tu_doi_chieu(ds_ngay_co, hom_nay, ngay_so_moi_nhat=None, chi_ngay_cu=False):
+	"""Ngày có tờ GIỮ CỜ ĐỐI CHIẾU mà máy được tự đối chiếu, cũ trước mới sau.
+
+	v527 (chị Dung 25/09/2026: ngày 18/09 và 23/09 cả ngày hoá đơn ký sang
+	hôm sau). Một tờ của hôm qua bị giữ cờ "chưa rõ kết quả gửi" nằm trong
+	tập bảo vệ của hàng rào thứ tự, mà lượt tự xuất ngày cũ chỉ gửi tập hẹp
+	nên không bao giờ rút được nó. Hàng rào đứng chặn MỌI tờ của hôm nay tới
+	nửa đêm, lúc ngày cũ hết hạn, rồi nhịp bù 00:15 mới xuất cả ngày. Nay máy
+	tự làm đúng việc kế toán bấm ở Cài đặt > Hoá đơn ngày cũ.
+
+	Chỉ ngày còn trong hạn ký/gửi bảo thủ VÀ còn cửa m-invoice. Không dùng
+	xác nhận quá hạn: quá hạn là việc của người, máy không tự làm.
+	chi_ngay_cu=True thì bỏ hôm nay (hàng rào chỉ lo ngày cũ; tự gọi cho
+	hôm nay từ bên trong hàng rào là vòng lặp, xem tu_doi_chieu_co).
+	"""
+	hom_nay = _ngay(hom_nay)
+	ra = []
+	for d in ds_ngay_co or []:
+		d = _ngay(d)
+		if d is None or hom_nay is None or d > hom_nay:
+			continue
+		if chi_ngay_cu and d >= hom_nay:
+			continue
+		if not (con_trong_han_ky_gui(d, hom_nay) and cua_minvoice_con_mo(d, ngay_so_moi_nhat)):
+			continue
+		if d not in ra:
+			ra.append(d)
+	return sorted(ra)
+
+
+def ke_hoach_tu_doi_chieu(cap_ds, hom_nay, ngay_so_moi_nhat=None, chi_ngay_cu=False, chi_ngay=None):
+	"""Từ các cặp (ngày sổ, ngày lập) của tờ giữ cờ, ra danh sách lượt chạy
+	(ngày sổ, ngày lập, chế độ), cũ trước mới sau theo ngày lập.
+
+	Hạn ký và cửa m-invoice xét theo NGÀY LẬP, qua đúng ngay_tu_doi_chieu
+	(Codex #369 vòng 2, G1). Ngày lập khác ngày sổ nghĩa là tờ đã được kéo
+	ngày: đi chế độ "keo" tới đúng ngày lập đó, không đổi sang ngày nào khác.
+	chi_ngay lọc theo ngày sổ HOẶC ngày lập: hàng rào hỏi theo ngày sổ, chuỗi
+	cuối ngày và nhịp bù hỏi theo ngày phát hành."""
+	chon = {_ngay(x) for x in chi_ngay} if chi_ngay is not None else None
+	ra = []
+	for cap in cap_ds or []:
+		so, lap = _ngay(cap[0]), _ngay(cap[1]) or _ngay(cap[0])
+		if so is None or lap is None:
+			continue
+		if chon is not None and so not in chon and lap not in chon:
+			continue
+		if not ngay_tu_doi_chieu([lap], hom_nay, ngay_so_moi_nhat, chi_ngay_cu):
+			continue
+		viec = (so, lap, "giu_ngay" if lap == so else "keo")
+		if viec not in ra:
+			ra.append(viec)
+	return sorted(ra, key=lambda v: (v[1], v[0]))
+
+
 # #266 vòng 5: van thời gian đã bị gỡ hẳn khỏi phai_nhuong_ngay_cu. Mốc lỗi
 # chỉ còn để người trực đọc, KHÔNG được dùng lại để mở đường cho tờ ngày mới.
 
@@ -685,7 +740,7 @@ def _dat_ngay_neu_con_nguyen(ten, anh_chup, ngay_dat):
 	return True
 
 
-def chay_nen(ngay, che_do, nguoi="", ngay_tham_chieu="", ngay_dich=""):
+def chay_nen(ngay, che_do, nguoi="", ngay_tham_chieu="", ngay_dich="", chi_giu_co=0):
 	"""Lượt chạy nền: gỡ cờ, đánh dấu ngày lập, phát hành rồi ký.
 
 	Gỡ cờ đối chiếu CHỈ khi m-invoice trả lời không có tờ nào mang mã phiếu
@@ -702,7 +757,7 @@ def chay_nen(ngay, che_do, nguoi="", ngay_tham_chieu="", ngay_dich=""):
 	frappe.set_user("Administrator")
 	try:
 		return _chay_nen_da_nang_quyen(
-			ngay, che_do, nguoi, ngay_tham_chieu, ngay_dich)
+			ngay, che_do, nguoi, ngay_tham_chieu, ngay_dich, chi_giu_co=chi_giu_co)
 	finally:
 		try:
 			frappe.set_user(nguoi_goc)
@@ -711,8 +766,11 @@ def chay_nen(ngay, che_do, nguoi="", ngay_tham_chieu="", ngay_dich=""):
 
 
 def _chay_nen_da_nang_quyen(
-		ngay, che_do, nguoi="", ngay_tham_chieu="", ngay_dich=""):
-	"""Than that cua chay_nen. Chi goi tu chay_nen, sau khi da nang quyen."""
+		ngay, che_do, nguoi="", ngay_tham_chieu="", ngay_dich="", chi_giu_co=0):
+	"""Than that cua chay_nen. Chi goi tu chay_nen, sau khi da nang quyen.
+
+	chi_giu_co=1 (v527, luot may tu doi chieu): chi xu to dang giu co, khong
+	dat ngay cho to khac cua cung ngay so."""
 	from vagabond.ban_hang import (
 		_goi_server_script, _khoa_hddt, _mo_khoa_dong_bo, _cong_tac_minvoice,
 		_phat_hanh_theo_lo, _ky_theo_lo,
@@ -727,6 +785,12 @@ def _chay_nen_da_nang_quyen(
 			"Mở lại Cài đặt, xem trước và xác nhận ngày mới; máy không tự đổi ngày sau nửa đêm."
 			% (ngay_vn(ngay_dat), ngay_vn(han_ky_gui(ngay_dat))))
 	chon, stg = _dem_theo_ngay(ngay_cu, hom_nay)
+	if cint(chi_giu_co):
+		# Lượt máy tự đối chiếu chỉ đụng tờ giữ cờ CÓ NGÀY LẬP ĐÚNG lượt này.
+		# Hai tờ cùng ngày sổ mà khác ngày lập là hai lượt riêng; lượt đầu mà
+		# lấy cả hai thì ghi đè ngày lập của tờ kia (Codex #369 vòng 3, H1).
+		chon = [r for r in chon if cint(r.vgb_hddt_cho_doi_chieu)
+			and (_ngay(r.get(TRUONG_NGAY_XUAT)) or _ngay(r.get("posting_date"))) == ngay_dat]
 	if not con_trong_han_ky_gui(ngay_dat, ngay_chay_that):
 		chon = [r for r in chon if ngay_dat in _ngay_xac_nhan_qua_han(ngay_chay_that, r.name)]
 	kq = {"ngay_cu": str(ngay_cu), "che_do": che_do, "chon": len(chon),
@@ -863,7 +927,7 @@ class KhongDocDuocNo(Exception):
 	"""Không đọc được trạng thái nợ ngày cũ. KHÔNG được hiểu là hết nợ."""
 
 
-def _loc_diem_dang_xuat(rows):
+def _loc_diem_dang_xuat(rows, khoa=None):
 	"""Ngày còn nợ, CHỈ tính tờ thuộc điểm bán đang bật xuất hoá đơn.
 
 	#266 vòng 5, Codex bắt đúng và đây là lỗi CHẾT MÁY chứ không phải lỗi
@@ -887,7 +951,8 @@ def _loc_diem_dang_xuat(rows):
 	for r in rows or []:
 		if not thuoc_diem_dang_xuat(r, ds_nguon, ds_quay):
 			continue
-		d = r.get("posting_date")
+		# khoa (v527 Codex G1): người gọi cần cả ngày lập, không chỉ ngày sổ.
+		d = khoa(r) if khoa else r.get("posting_date")
 		if d is not None and d not in ra:
 			ra.append(d)
 	return ra
@@ -926,13 +991,18 @@ def ngay_cu_can_bao_ve():
 	Lỗi đọc vẫn ném để không hiểu nhầm là đã hết nợ.
 	"""
 	try:
+		# Codex #369 vòng 4: tờ ngày sổ cũ đã mang NGÀY LẬP hôm nay (kéo ngày)
+		# là việc của hôm nay, không phải nợ ngày cũ. Trước đây nó nằm trong
+		# tập chặn mà lượt tự đối chiếu ngày cũ lại bỏ qua (ngày lập = hôm
+		# nay), nên hàng rào đứng chặn tới lượt cuối ngày.
 		rows = frappe.db.sql("""select posting_date, custom_nguon, vgb_quay
 			from `tabSales Invoice`
 			where docstatus = 1 and ifnull(vgb_huy, 0) = 0 and ifnull(vgb_tam_tinh, 0) = 0
 			  and grand_total > 0
 			  and ifnull(custom_hddt_so, '') = '' and ifnull(custom_minvoice_id, '') = ''
 			  and ifnull(custom_hddt_id, '') = ''
-			  and posting_date < %(hom_nay)s""",
+			  and posting_date < %(hom_nay)s
+			  and ({truong} is null or {truong} < %(hom_nay)s)""".format(truong=TRUONG_NGAY_XUAT),
 			{"hom_nay": nowdate()}, as_dict=True)
 		return _loc_diem_dang_xuat(rows)
 	except KhongDocDuocNo:
@@ -940,6 +1010,69 @@ def ngay_cu_can_bao_ve():
 	except Exception as e:
 		frappe.log_error(frappe.get_traceback(), "hddt_cho_xuat: doc ngay cu can bao ve")
 		raise KhongDocDuocNo(str(e)[:200])
+
+
+def ngay_co_to_giu_co():
+	"""Cặp (ngày sổ, ngày lập) có tờ đã ghi sổ, chưa có HĐĐT, đang GIỮ CỜ đối
+	chiếu, thuộc điểm đang bật xuất. Đọc lỗi thì NÉM, không trả rỗng.
+
+	Ngày lập là vgb_hddt_ngay_xuat nếu đã đặt, không thì ngày sổ. Codex #369
+	vòng 2 (G1): tờ quá hạn đã được kéo sang ngày lập mới mà lượt gửi bị cắt
+	giữa chừng thì giữ cờ; xét theo ngày sổ cũ là quá hạn mãi, tờ nằm đó
+	không bao giờ ra. Phải xét hạn theo NGÀY LẬP."""
+	try:
+		rows = frappe.db.sql("""select posting_date, vgb_hddt_ngay_xuat, custom_nguon, vgb_quay
+			from `tabSales Invoice`
+			where docstatus = 1 and ifnull(vgb_huy, 0) = 0 and ifnull(vgb_tam_tinh, 0) = 0
+			  and grand_total > 0 and ifnull(vgb_hddt_cho_doi_chieu, 0) = 1
+			  and ifnull(custom_hddt_so, '') = '' and ifnull(custom_minvoice_id, '') = ''
+			  and ifnull(custom_hddt_id, '') = ''
+			  and posting_date <= %(hom_nay)s""",
+			{"hom_nay": nowdate()}, as_dict=True)
+		return _loc_diem_dang_xuat(rows, khoa=lambda r: (
+			_ngay(r.get("posting_date")), _ngay(r.get(TRUONG_NGAY_XUAT)) or _ngay(r.get("posting_date"))))
+	except KhongDocDuocNo:
+		raise
+	except Exception as e:
+		frappe.log_error(frappe.get_traceback(), "hddt_cho_xuat: doc to giu co")
+		raise KhongDocDuocNo(str(e)[:200])
+
+
+NGUOI_MAY = "Máy tự đối chiếu (v527)"
+
+
+def tu_doi_chieu_co(chi_ngay=None, chi_ngay_cu=False):
+	"""Tự đối chiếu tờ giữ cờ, đúng đường kế toán bấm tay. Trả số ngày đã chạy.
+
+	Đi qua chay_nen chế độ giữ ngày, KHÔNG viết đường thứ hai (điều 18):
+	cùng phép đối chứng API hai chiều, cùng mẫu "không có tờ" đã xác minh,
+	cùng ghi có điều kiện dưới khoá. Gỡ cờ CHỈ khi m-invoice trả lời chắc
+	chắn không có tờ mang mã phiếu đó; có dấu vết hay không chắc thì giữ cờ
+	như cũ và lượt đó ghi Error Log, kế toán vẫn nhận thư hoãn phát hành.
+
+	Không có tờ giữ cờ thì trả 0 ngay, không gọi mạng. Lỗi thì nuốt và ghi
+	log: đây là việc phụ của nhịp gọi, không được làm hỏng nhịp đó.
+	"""
+	try:
+		ds = ngay_co_to_giu_co()
+		if not ds:
+			return 0
+		from vagabond.ban_hang import _ngay_so_hddt_moi_nhat
+		hom_nay = _ngay(getdate(nowdate()))
+		viec = ke_hoach_tu_doi_chieu(ds, hom_nay, _ngay_so_hddt_moi_nhat(), chi_ngay_cu, chi_ngay)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "hddt_cho_xuat: tu doi chieu co")
+		return 0
+	lam = 0
+	for so, lap, che_do in viec:
+		try:
+			# Cả hai chế độ: CHỈ tờ giữ cờ mang đúng ngày lập của lượt. Tờ khác
+			# của ngày sổ đó không phải việc của lượt tự động này (Codex H1).
+			chay_nen(str(so), che_do, NGUOI_MAY, str(hom_nay), str(lap), chi_giu_co=1)
+			lam += 1
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "hddt_cho_xuat: tu doi chieu co ngay %s" % lap)
+	return lam
 
 
 KHOA_MOC_LOI = "vgb_hddt_moc_loi_ngay_cu"
@@ -992,6 +1125,15 @@ def xuat_ngay_cu_truoc():
 		ngay = ngay_cu_con_mo(ds, getdate(nowdate()), _ngay_so_hddt_moi_nhat(), _ngay_xac_nhan_qua_han())
 		if not ngay:
 			return True
+		# v527: tờ giữ cờ đối chiếu của ngày cũ còn mở không nằm trong tập
+		# tự gửi, nên trước đây hàng rào đứng chặn tới nửa đêm. Tự đối chiếu
+		# NGOÀI khoá (chay_nen tự lấy khoá của nó), rồi đọc lại tập nợ.
+		if tu_doi_chieu_co(chi_ngay=ngay, chi_ngay_cu=True):
+			ds = ngay_cu_can_bao_ve()
+			ngay = ngay_cu_con_mo(ds, getdate(nowdate()), _ngay_so_hddt_moi_nhat(), _ngay_xac_nhan_qua_han())
+			if not ngay:
+				_ghi_moc_loi(False)
+				return True
 		khoa = _khoa_hddt(cho=30)
 		if khoa is None:
 			# Lượt khác đang xuất ngày cũ. Chưa xong thì chưa được đụng tờ

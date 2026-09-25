@@ -227,7 +227,9 @@ def _rai_ma_nguon():
 	dung("bỏ qua theo phép thuần", "hddt_bu.rai_bo_qua(" in than)
 	dung("chưa đủ tiền thì im", '"chưa đủ tiền" not in e' in than)
 	h = _py("hooks.py")
-	dung("khai nhịp 30 phút", '"10,40 * * * *": ["vagabond.ban_hang.xuat_rai_trong_ngay"]' in h)
+	# v527: nhịp 30 phút khai vào vỏ đẩy hàng đợi dài, thân vẫn là
+	# xuat_rai_trong_ngay (ca "v527 vỏ hàng đợi dài" chạy thật vỏ đó).
+	dung("khai nhịp 30 phút", '"10,40 * * * *": ["vagabond.ban_hang.xuat_rai_trong_ngay_tu_dong"]' in h)
 
 
 @ca("lượt phát hành: theo lô, có khoá, một công tắc m-invoice")
@@ -274,8 +276,8 @@ def _chuong():
 	khoi = h[i:h.find("]", i)]
 	dung("chuông đơn treo còn nguyên", "vagabond.ban_hang.canh_bao_don_treo" in khoi)
 	dung("chuông tờ sót đã khai", "vagabond.ban_hang.canh_bao_hddt_sot" in khoi)
-	dung("nhịp bù mỗi giờ còn nguyên",
-		'"15 * * * *": ["vagabond.ban_hang.xuat_hddt_con_thieu_tu_dong"]' in h)
+	dung("nhịp bù mỗi giờ còn nguyên (v527: qua vỏ hàng đợi dài)",
+		'"15 * * * *": ["vagabond.ban_hang.bu_hddt_tu_dong"]' in h)
 
 
 @ca("màn Cài đặt: nhật ký có CẢNH BÁO thì tô đỏ")

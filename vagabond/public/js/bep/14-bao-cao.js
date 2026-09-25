@@ -125,7 +125,9 @@ function bcNhapDangBat() {
   return bcNhap === null ? !!bcNhapMayChu : !!bcNhap;
 }
 
-function bcThanhKy() {
+/* anDiem: bao cao khong chia theo diem ban (BC17) thi khong ve hang chip
+   diem, ve chip ma may chu bo qua la danh lua nguoi xem (Codex #369). */
+function bcThanhKy(anDiem) {
   var h1 = BC_KY.map(function (x) {
     return posChipNut('data-bcky="' + x.k + '"', x.nhan, bcKy === x.k);
   }).join('');
@@ -143,12 +145,81 @@ function bcThanhKy() {
       posChipNut('data-bcnhay="1"', 'Kỳ sau ▶', false) + '</div>';
   /* Hai chip cung mot hang: mot cai doi cach nhin, mot cai doi pham vi so
      lieu. De hai hang roi nhau thi thanh loc cao qua nua man hinh. */
+  /* BC17 (anDiem) cung khong nhan cong tac don chua ghi so: may chu ep chi
+     don da ghi so, bay chip la lua nguoi xem (Codex #369 vong 3). */
   var ss = '<div style="display:flex;gap:7px;margin-top:7px;flex-wrap:wrap">' +
     posChipNut('data-bcss="1"', '⇄ So với kỳ trước', !!bcSS) +
-    posChipNut('data-bcnhap="1"', '🧾 Tính cả đơn chưa ghi sổ', bcNhapDangBat(), false, '#b45309') +
+    (anDiem ? '' : posChipNut('data-bcnhap="1"', '🧾 Tính cả đơn chưa ghi sổ', bcNhapDangBat(), false, '#b45309')) +
     '</div>';
   return '<div class="card" style="padding:11px 12px">' +
-    kmHangChip(h1) + '<div style="height:7px"></div>' + kmHangChip(h2) + dieu + ss + '</div>';
+    kmHangChip(h1) + (anDiem ? '' : '<div style="height:7px"></div>' + kmHangChip(h2)) + dieu + ss + '</div>';
+}
+
+/* Noi tay mot to lap thang tren m-invoice vao don (v527, anh Viet chot
+   25/09). Xem truoc truoc, may chu tinh tong tien cac to con hieu luc cua
+   don de ke toan thay lech truoc khi bam. Khong doi so hoa don tren don. */
+async function bcNoiTo(to, so, goiY, veLai) {
+  /* Codex #369 vòng 4: đơn là danh mục có sẵn nên chọn trong danh sách có
+     ô tìm (QT-31), không gõ mã tự do. Máy chủ trả đơn quanh ngày lập của
+     tờ, đơn máy gợi ý và đơn cùng MST lên đầu. */
+  /* Codex #369 vòng 5: dòng đầu "Tìm đơn khác" hỏi từ khoá rồi tìm TOÀN
+     BỘ đơn đã ghi sổ ở máy chủ, không giới hạn ngày. Chữ gõ chỉ để tìm, đơn
+     vẫn chọn từ danh mục. */
+  var uv, tk = '', don = null;
+  for (;;) {
+    busy(true);
+    try { uv = await api('vagabond.doi_soat_hddt_ra.ung_vien_don', tk ? { to: to, tu_khoa: tk } : { to: to }); }
+    catch (e) { busy(false); baoTin((e && e.message) || 'Không đọc được danh sách đơn.', 'Chưa nối'); return; }
+    busy(false);
+    var rows = uv.rows || [];
+    var moTa = tk
+      ? (rows.length ? 'Kết quả tìm "' + tk + '": ' + rows.length + ' đơn đã ghi sổ.' : 'Không có đơn đã ghi sổ nào khớp "' + tk + '". Bấm Tìm đơn khác để thử từ khoá khác.')
+      : (rows.length ? 'Tờ ' + so + ', ' + money(uv.tong_tien) + ' đ. Chọn đơn của tờ này. Đơn không có ở đây thì bấm Tìm đơn khác.'
+        : 'Không có đơn đã ghi sổ nào quanh ngày lập ' + posNgayVn(uv.ngay_lap) + '. Bấm Tìm đơn khác để tìm theo mã đơn, tên khách hoặc số tiền.');
+    don = await hoiChon('Nối tờ ' + so + ' vào đơn',
+      h(moTa + ' Số hoá đơn trên đơn giữ nguyên, không ghi sổ gì thêm.') +
+      (uv.tong > rows.length ? '<br>' + h('Đang hiện ' + rows.length + ' trên ' + uv.tong + ' đơn.') : ''),
+      [{ k: '__tim__', icon: '🔎', nhan: 'Tìm đơn khác', mo_ta: 'Gõ mã đơn, mã đơn bán, tên khách, số hoá đơn hoặc số tiền' }].concat(rows.map(function (r) {
+        return { k: r.name, icon: r.goi_y ? '⭐' : '🧾', nhan: r.name + ' · ' + money(r.tien) + ' đ',
+          mo_ta: [String(r.ngay || '').split('-').reverse().join('/'), r.khach, r.ma_don, r.so_hddt ? 'HĐĐT ' + r.so_hddt : '', r.goi_y ? 'máy gợi ý' : ''].filter(Boolean).join(' · ') };
+      })), tk ? null : (goiY || null));
+    if (don !== '__tim__') break;
+    tk = await hoiChu('Tìm đơn', 'Gõ mã đơn ERP, mã đơn bán, tên khách, số hoá đơn hoặc số tiền.', tk, { bat_buoc: 1 });
+    if (!tk) return;
+  }
+  if (!don) return;
+  var xem;
+  busy(true);
+  try { xem = await api('vagabond.doi_soat_hddt_ra.noi_to_vao_don', { to: to, don: don, xac_nhan: 0 }); }
+  catch (e) { busy(false); baoTin((e && e.message) || 'Không nối được.', 'Chưa nối'); return; }
+  busy(false);
+  if (xem.da_noi) { toast(xem.loi_nhan); return veLai(); }
+  var cau = 'Đơn ' + xem.don + (xem.ma_don ? ' (' + xem.ma_don + ')' : '') + (xem.khach ? ', ' + xem.khach : '') +
+    '\nTiền đơn: ' + money(xem.tien_don) + ' đ' +
+    '\nTổng các tờ còn hiệu lực sau khi nối: ' + money(xem.tong_to) + ' đ (' + (xem.cac_to || []).length + ' tờ)' +
+    (xem.lech_qua_nguong
+      ? '\n\n⚠️ Lệch ' + money(xem.lech) + ' đ so với tiền đơn. Kiểm lại có nối nhầm đơn không.'
+      : '\n\nKhớp tiền đơn.');
+  var ok = await hoiCo('Nối tờ ' + so + ' vào đơn', cau, 'Nối vào đơn', !!xem.lech_qua_nguong);
+  if (!ok) return;
+  busy(true);
+  try {
+    var kq = await api('vagabond.doi_soat_hddt_ra.noi_to_vao_don', { to: to, don: xem.don, xac_nhan: 1 });
+    busy(false); toast(kq.loi_nhan, 3000);
+  } catch (e) { busy(false); baoTin((e && e.message) || 'Không nối được.', 'Chưa nối'); return; }
+  veLai();
+}
+
+async function bcGoTo(to, so, don, veLai) {
+  var ly = await hoiChu('Gỡ tờ ' + so + ' khỏi đơn ' + (don || ''),
+    'Ghi lý do gỡ. Nhật ký trên đơn giữ lại cả lần nối lẫn lần gỡ.', '', { bat_buoc: 1, nhieu_dong: 1 });
+  if (!ly) return;
+  busy(true);
+  try {
+    var kq = await api('vagabond.doi_soat_hddt_ra.go_to_khoi_don', { to: to, ly_do: ly });
+    busy(false); toast(kq.loi_nhan, 3000);
+  } catch (e) { busy(false); baoTin((e && e.message) || 'Không gỡ được.', 'Chưa gỡ'); return; }
+  veLai();
 }
 
 function bcNoiThanh(b, veLai) {
@@ -175,6 +246,10 @@ function bcNoiThanh(b, veLai) {
     if (t) { bcSS = bcSS ? 0 : 1; return veLai(); }
     t = e.target.closest('[data-bcnhap]');
     if (t) { bcNhap = bcNhapDangBat() ? 0 : 1; return veLai(); }
+    t = e.target.closest('[data-bcnoi]');
+    if (t) return bcNoiTo(t.getAttribute('data-bcnoi'), t.getAttribute('data-bcso'), t.getAttribute('data-bcgy'), veLai);
+    t = e.target.closest('[data-bcgo]');
+    if (t) return bcGoTo(t.getAttribute('data-bcgo'), t.getAttribute('data-bcso'), t.getAttribute('data-bcdon'), veLai);
   };
   ['bcTu', 'bcDen'].forEach(function (id) {
     var o = document.getElementById(id);
@@ -261,18 +336,29 @@ function bcO(c, v) {
 }
 function flt0(v) { var n = parseFloat(v); return isNaN(n) ? 0 : n; }
 
+/* Nut cua mot dong bang phu (v527, BC17): may chu gui r._nut, khong phai
+   mot cot nen file Excel khong in. lam = 'noi' | 'go'. */
+function bcNutDong(nut) {
+  if (!nut) return '';
+  var st = 'style="border:1.5px solid #0d9488;background:#fff;color:#0f766e;border-radius:999px;padding:6px 12px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap"';
+  if (nut.lam === 'noi') return '<button ' + st + ' data-bcnoi="' + h(nut.to) + '" data-bcso="' + h(nut.so) + '" data-bcgy="' + h(nut.goi_y || '') + '">🔗 Nối vào đơn</button>';
+  if (nut.lam === 'go') return '<button ' + st.replace('#0d9488', '#fecaca').replace('#0f766e', '#b3261e') + ' data-bcgo="' + h(nut.to) + '" data-bcso="' + h(nut.so) + '" data-bcdon="' + h(nut.don || '') + '">Gỡ nối</button>';
+  return '';
+}
+
 function bcVeBang(kq) {
   if (!kq.dong.length) return '<div class="card"><div class="emp" style="padding:26px"><div class="e1">🫙</div><div>Kỳ này chưa có số liệu.</div></div></div>';
   var canPhai = { tien: 1, so: 1, phan_tram: 1 };
+  var coNut = !!kq.nut && kq.dong.some(function (r) { return !!r._nut; });
   var html = '<div class="card" style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">' +
     '<thead><tr>' + kq.cot.map(function (c) {
       return '<th style="text-align:' + (canPhai[c.kieu] ? 'right' : 'left') + ';padding:10px 12px;background:#f8fafc;color:#6b7280;font-size:11.5px;font-weight:700;white-space:nowrap;position:sticky;top:0">' + h(c.nhan) + '</th>';
-    }).join('') + '</tr></thead><tbody>';
+    }).join('') + (coNut ? '<th style="padding:10px 12px;background:#f8fafc"></th>' : '') + '</tr></thead><tbody>';
   kq.dong.forEach(function (r, i) {
     html += '<tr style="border-top:1px solid #f2f4f7' + (i % 2 ? ';background:#fcfdfe' : '') + '">' +
       kq.cot.map(function (c, j) {
         return '<td style="text-align:' + (canPhai[c.kieu] ? 'right' : 'left') + ';padding:9px 12px;white-space:nowrap' + (j === 0 ? ';font-weight:600' : '') + '">' + bcO(c, r[c.k]) + '</td>';
-      }).join('') + '</tr>';
+      }).join('') + (coNut ? '<td style="padding:7px 12px">' + bcNutDong(r._nut) + '</td>' : '') + '</tr>';
   });
   if (kq.cong && Object.keys(kq.cong).length) {
     html += '<tr style="border-top:2px solid #e5e7eb;background:#f0fdfa;font-weight:800">' +
@@ -361,7 +447,12 @@ async function scrBaoCaoXem() {
   bcNhapMayChu = kq.nhap;
   if ((kq.diem_ban || []).length) bcDsDiem = kq.diem_ban;
 
-  var html = bcThanhKy() + bcDaiNhap(kq);
+  var html = bcThanhKy(!!kq.khong_loc) + (kq.khong_loc ? '' : bcDaiNhap(kq));
+  if (kq.khong_loc) {
+    html += '<div class="card" style="padding:11px 13px;border:1.5px solid #c7d2fe;background:#eef2ff">' +
+      '<div style="font-size:12.5px;color:#3730a3;line-height:1.65">' +
+      'Báo cáo này đối chiếu theo ký hiệu hoá đơn của cả công ty, <b>không lọc theo điểm bán, nguồn đơn hay phương thức thanh toán</b>.</div></div>';
+  }
   if (kq.chot && !kq.nhap) {
     html += '<div class="card" style="padding:11px 13px;border:1.5px solid #c7d2fe;background:#eef2ff">' +
       '<div style="font-size:12.5px;color:#3730a3;line-height:1.65">' +
@@ -372,8 +463,10 @@ async function scrBaoCaoXem() {
     '<div style="font-size:12px;color:#98a2b3">' + h(kq.ma) + ' · ' + h(kq.nhan_ky) + '</div>' +
     '<div style="font-size:19px;font-weight:800">' + kq.ic + ' ' + h(kq.ten) + '</div>' +
     '<div style="font-size:12.5px;color:#6b7280;margin-top:2px">' + h(kq.mo) + '</div>' +
-    '<div style="font-size:13px;color:#0f766e;margin-top:8px"><b>' + money(kq.tong_doanh_thu) + ' đ</b> doanh thu · ' + money(kq.so_hoa_don) + ' hoá đơn trong phạm vi đang lọc' +
-    (kq.nhap && kq.so_nhap ? ' <span style="color:#b45309">(gồm ' + money(kq.so_nhap) + ' đơn chưa ghi sổ)</span>' : '') + '</div>' +
+    (kq.khong_loc
+      ? '<div style="font-size:13px;color:#0f766e;margin-top:8px">Đếm theo ngày lập hoá đơn, nên không kèm tổng doanh thu theo ngày ghi sổ.</div>'
+      : '<div style="font-size:13px;color:#0f766e;margin-top:8px"><b>' + money(kq.tong_doanh_thu) + ' đ</b> doanh thu · ' + money(kq.so_hoa_don) + ' hoá đơn trong phạm vi đang lọc' +
+    (kq.nhap && kq.so_nhap ? ' <span style="color:#b45309">(gồm ' + money(kq.so_nhap) + ' đơn chưa ghi sổ)</span>' : '') + '</div>') +
     bcHangSoSanh(kq.ss) +
     (kq.ss && !kq.co_ss_dong
       ? '<div style="font-size:12px;color:#98a2b3;margin-top:5px">Báo cáo dạng bảng kê nên không so được từng dòng, chỉ so tổng.</div>'
@@ -422,8 +515,16 @@ async function scrBaoCaoXem() {
   else html += bcVeBang(kq);
 
   if (kq.phu && (kq.phu.dong || []).length) {
-    html += '<div class="sec">' + h(kq.phu.tieu_de) + '</div>' +
-      bcVeBang({ cot: kq.phu.cot, dong: kq.phu.dong, cong: null });
+    html += '<div class="sec">' + h(kq.phu.tieu_de) + '</div>';
+    /* Bang phu cung cat nhu bang chinh, va cung phai noi ra (Codex #369). */
+    if (kq.phu.bi_cat) {
+      html += '<div class="card" style="padding:11px 13px;border:1.5px solid #fcd34d;background:#fffbeb">' +
+        '<div style="font-size:12.5px;color:#92400e;line-height:1.65">' +
+        'Bảng này có <b>' + money(kq.phu.tong_dong) + '</b> dòng, màn hình đang hiện <b>' + money(kq.phu.gioi_han) +
+        '</b> dòng đầu. Bấm Xuất Excel để lấy bản đầy đủ.</div></div>';
+    }
+    html +=
+      bcVeBang({ cot: kq.phu.cot, dong: kq.phu.dong, cong: null, nut: 1 });
   }
 
   var b = frame('Báo cáo ' + kq.ma, html, { footer: '<button class="btn" id="bcExcel">📥 Xuất Excel cho kế toán</button>' });

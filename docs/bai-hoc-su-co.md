@@ -1133,3 +1133,65 @@ Khoá dòng rồi mà vẫn đọc bằng get_value là chưa khoá. v526 vòng 
 tính thuế" lại đọc bằng get_value ở bước trước, tức ảnh chụp REPEATABLE READ.
 Người sửa tờ chốt tổng mới trong lúc đó thì quyết định dựa trên số cũ. Mọi giá
 trị dùng để QUYẾT phải đọc bằng câu có khoá, từ một hàm nguồn duy nhất.
+
+## 25/09/2026 (v527): hàng rào chặn cả ngày vì một tờ không ai được gọi xử
+
+Hàng rào thứ tự hoá đơn (m-invoice đánh số theo ngày lập) bảo vệ MỌI tờ đã
+ghi sổ của hôm qua chưa có HĐĐT, kể cả tờ giữ cờ "chưa rõ kết quả gửi".
+Nhưng lượt tự xuất ngày cũ chỉ gửi tập hẹp, không gồm tờ giữ cờ. Tập bảo vệ
+rộng hơn tập máy tự rút được, nên một tờ giữ cờ đứng chặn cả ngày hôm sau
+tới nửa đêm, lúc ngày cũ hết hạn, rồi nhịp bù 00:15 mới xuất cả ngày: 18/09
+và 23/09 cả ngày ký sang hôm sau. Thư báo "hoãn phát hành" có gửi, nhưng
+không ai coi đó là việc phải làm trong ngày.
+
+Bài học: mọi hàng rào chặn theo một tập phải có một đường TỰ ĐỘNG rút đúng
+tập đó, không chỉ một nút cho người bấm. Nếu tập chặn lớn hơn tập máy tự xử
+được, phần chênh là một cái bẫy chờ ngày. Kiểm bằng câu: "tờ nào nằm trong
+tập chặn mà không đường tự động nào đụng tới?".
+
+Hai nguồn sinh cờ cũng phải tắt: nhịp chạm m-invoice nào có thể chạy quá 300
+giây thì phải chạy trên hàng đợi dài (bài 03/09 mới áp cho chuỗi cuối ngày,
+xuất rải và nhịp bù vẫn ở hàng đợi thường), và nhịp nào lấy khoá chỉ đợi vài
+giây thì phải có nhịp khác đợi lâu hơn trước mốc hết ngày.
+
+Và: màn báo cáo phải so được với nguồn bên ngoài theo đúng đơn vị người dùng
+đếm (tờ theo ngày lập trên m-invoice), không chỉ đếm trong ERP. Tờ lập thẳng
+trên cổng (thay thế, tách đơn) chỉ lộ ra khi đặt hai con số cạnh nhau.
+
+Ba bẫy Codex bắt ở vòng 1 của cùng PR (#369), cả ba đều im lặng:
+- Đọc cấu hình lỗi hay trống mà trả chuỗi rỗng rồi "không lọc" là mở cửa
+  cho dữ liệu khác loại (dải Fabi C26MVO) đếm lẫn vào. Cấu hình dùng để LỌC
+  thì thiếu là DỪNG có lời, không bao giờ coi rỗng là "lấy hết".
+- Hàm báo cáo tự cắt `[:300]` bảng phụ thì nút "Xuất Excel đầy đủ" cũng mất
+  dòng, vì Excel gọi lại đúng hàm đó. Cắt cho màn hình chỉ làm ở MỘT chỗ
+  (`bao_cao.chay`), có cờ và lời báo, và bỏ qua khi xuất đủ.
+- Báo cáo không chia theo điểm bán mà vẫn hiện chip điểm bán thì người xem
+  bấm chip, đầu trang đổi mà bảng không đổi. Báo cáo nào không nhận một bộ
+  lọc thì máy chủ bỏ bộ lọc đó và màn hình ẩn chip, nói rõ vì sao.
+
+Vòng 2 (#369) thêm một bẫy về NGÀY: một tờ có hai ngày, ngày sổ và ngày lập
+hoá đơn (`vgb_hddt_ngay_xuat`, khác ngày sổ khi tờ đã được kéo ngày). Hạn ký,
+cửa m-invoice và phép đếm theo ngày của hoá đơn phải xét theo NGÀY LẬP. Xét
+theo ngày sổ thì tờ kéo ngày bị coi là quá hạn mãi và không đường tự động nào
+chạm tới nó, còn báo cáo theo ngày thì lọt mất nó. Lọc theo ngày sổ trước rồi
+mới tính ngày lập (`posting_date between ... - 3 ngày`) là lọc sai tập, phải
+hỏi theo cả hai ô rồi gộp.
+
+Lượt TỰ ĐỘNG đi lại đường của người bấm tay thì phải thu hẹp đúng phạm vi của
+nó: người bấm "kéo ngày" là kéo cả ngày sổ đó, còn máy tự đối chiếu chỉ được
+đụng tờ đang giữ cờ (`chi_giu_co=1`).
+
+Vòng 3 (#369): kế hoạch chia lượt theo cặp khoá (ngày sổ, ngày lập) thì
+bộ chọn BÊN TRONG mỗi lượt cũng phải lọc theo đúng cặp đó. Chia ngoài mà
+chọn trong theo một nửa khoá là lượt đầu nuốt việc của lượt sau. Và câu ghi
+có điều kiện xong thì phải đọc lại trước khi ghi nhật ký hay trả "đã xong":
+không dòng nào khớp điều kiện mà vẫn báo thành công là ghi nhật ký sai.
+
+Vòng 4 (#369): tập CHẶN và tập mà lượt tự động XỬ ĐƯỢC phải dùng cùng một
+khoá ngày. Hàng rào chặn theo ngày sổ còn lượt tự đối chiếu ngày cũ bỏ tờ có
+ngày lập hôm nay, nên tờ ngày sổ cũ đã kéo sang hôm nay nằm trong tập chặn mà
+không lượt nào gỡ được: chặn cả ngày. Mỗi lần thêm điều kiện loại cho một
+lượt, tìm tập chặn tương ứng và loại cùng điều kiện. Cùng vòng: nhật ký là
+một phần của lần ghi, ghi nhật ký hỏng thì phải ném để câu ghi rollback,
+không nuốt lỗi rồi báo xong; và đơn là danh mục có sẵn thì chọn trong danh
+sách có tìm (QT-31), không mở ô gõ mã.

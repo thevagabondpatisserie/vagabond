@@ -410,9 +410,18 @@ def _bc_hddt(hd, **kw):
 				("don", "Đơn", "chu"), ("diem", "Điểm bán", "chu"),
 				("tien", "Số tiền", "tien"),
 			),
-			"dong": chua[:200],
+			"dong": chua,
 		},
 	}
+
+
+def _bc_hddt_minvoice(hd, tu=None, den=None, **kw):
+	"""BC17 (v527) - doi chieu so to HDDT ban ra theo ngay giua m-invoice va
+	ERP, tach to thay the va to tao tay tren m-invoice. Doc bang MInvoice
+	Invoice, khong doc hd (don trong ky) vi to thay the mang ngay lap moi
+	con don cua no nam o ngay cu. Xem doi_soat_hddt_ra.py."""
+	from vagabond import doi_soat_hddt_ra
+	return doi_soat_hddt_ra.bao_cao(tu, den, _cot)
 
 
 def _bc_khuyen_mai(hd, tu=None, den=None, **kw):
@@ -904,6 +913,7 @@ DANH_SACH = [
 	{"ma": "BC14", "ten": "Bảng kê chi tiết theo dòng món", "ic": "🧮", "mo": "Dữ liệu thô từng món trên từng hoá đơn, để pivot trong Excel", "ham": _bc_ke_dong_mon, "nhom": "Kế toán", "ss": None},
 	{"ma": "BC15", "ten": "Tiền về theo ngày", "ic": "🧺", "mo": "Mỗi ngày thu bao nhiêu theo từng phương thức, dùng đối két", "ham": _bc_tien_ve_ngay, "nhom": "Kiểm soát", "ss": "vi_tri"},
 	{"ma": "BC16", "ten": "Bảng kê thanh toán và mã tham chiếu", "ic": "🔗", "mo": "Khớp từng giao dịch với sao kê, chỉ ra mã trùng và mã thiếu", "ham": _bc_ke_thanh_toan, "nhom": "Kế toán", "ss": None},
+	{"ma": "BC17", "ten": "Đối chiếu hoá đơn điện tử với m-invoice", "ic": "🔎", "mo": "Mỗi ngày m-invoice bao nhiêu tờ, ERP ghi nhận bao nhiêu, tờ thay thế và tờ tạo tay", "ham": _bc_hddt_minvoice, "nhom": "Kế toán", "ss": None, "khong_loc": 1},
 ]
 THEO_MA = {b["ma"]: b for b in DANH_SACH}
 
@@ -1006,8 +1016,19 @@ def chay(ma, ky="ngay", moc=None, tu=None, den=None, diem=None, nguon=None, pt=N
 	if not b:
 		frappe.throw("Không có báo cáo mã %s." % ma)
 	t, d = khoang_ngay(ky, moc, tu, den)
-	n = _mac_dinh_nhap(b, nhap)
-	tat_ca = _hoa_don(t, d, diem=diem, nguon=nguon, pt=pt)
+	# Bao cao "khong_loc" (BC17) tinh theo ky hieu hoa don cua CA cong ty,
+	# khong co khai niem diem ban, nguon, phuong thuc. Bo ba bo loc o day
+	# de dau trang va noi dung cung mot pham vi, man hinh an chip (Codex #369).
+	khong_loc = 1 if b.get("khong_loc") else 0
+	if khong_loc:
+		diem = nguon = pt = None
+	# BC17 chỉ đọc đơn ĐÃ ghi sổ, nên công tắc đơn chưa ghi sổ không đổi bảng
+	# mà chỉ đổi đầu trang: ép tắt để hai con số cùng phạm vi (Codex H2).
+	n = 0 if khong_loc else _mac_dinh_nhap(b, nhap)
+	# Đầu trang chung (doanh thu, số hoá đơn, kỳ trước) tính theo NGÀY SỔ,
+	# còn BC17 xếp theo NGÀY LẬP hoá đơn. Hai tập khác nhau khi đơn được kéo
+	# ngày, nên BC17 không đọc và không trả đầu trang chung (Codex #369 vòng 4).
+	tat_ca = [] if khong_loc else _hoa_don(t, d, diem=diem, nguon=nguon, pt=pt)
 	so_nhap, tien_nhap = _do_nhap(tat_ca)
 	hd = _loc_nhap(tat_ca, n)
 	kq = b["ham"](hd, tu=t, den=d)
@@ -1023,7 +1044,7 @@ def chay(ma, ky="ngay", moc=None, tu=None, den=None, diem=None, nguon=None, pt=N
 	dong = kq["dong"]
 
 	khoi_ss = None
-	if int(ss or 0):
+	if int(ss or 0) and not khong_loc:
 		khoi_ss = _ss_tong(ky, t, d, tong, len(hd), diem=diem, nguon=nguon, pt=pt, nhap=n)
 		chinh = _cot_chinh(kq)
 		if b.get("ss") and chinh and dong:
@@ -1079,6 +1100,20 @@ def chay(ma, ky="ngay", moc=None, tu=None, den=None, diem=None, nguon=None, pt=N
 		dong = dong[:GIOI_HAN_DONG]
 		bi_cat = 1
 
+	# Bang phu cung luat voi bang chinh: man hinh cat va noi ro, Excel lay
+	# DU. Truoc v527 tung bao cao tu cat [:200], [:300] ngay trong ham nen
+	# ca file Excel cung mat dong ma khong ai biet (Codex #369).
+	phu = kq.get("phu")
+	if phu:
+		phu = dict(phu)
+		ds_phu = list(phu.get("dong") or [])
+		phu["tong_dong"] = len(ds_phu)
+		phu["gioi_han"] = GIOI_HAN_DONG
+		phu["bi_cat"] = 0
+		if not int(day_du or 0) and len(ds_phu) > GIOI_HAN_DONG:
+			phu["dong"] = ds_phu[:GIOI_HAN_DONG]
+			phu["bi_cat"] = 1
+
 	return {
 		"ma": b["ma"],
 		"ten": b["ten"],
@@ -1087,8 +1122,8 @@ def chay(ma, ky="ngay", moc=None, tu=None, den=None, diem=None, nguon=None, pt=N
 		"nhan_ky": _nhan_ky(ky, t, d),
 		"tu": str(t),
 		"den": str(d),
-		"tong_doanh_thu": tong,
-		"so_hoa_don": len(hd),
+		"tong_doanh_thu": None if khong_loc else tong,
+		"so_hoa_don": None if khong_loc else len(hd),
 		"nhap": n,
 		"chot": 1 if b.get("chot") else 0,
 		"so_nhap": so_nhap,
@@ -1102,12 +1137,13 @@ def chay(ma, ky="ngay", moc=None, tu=None, den=None, diem=None, nguon=None, pt=N
 		"ss": khoi_ss,
 		"co_ss_dong": 1 if b.get("ss") else 0,
 		"bieu_do": kq.get("bieu_do"),
-		"phu": kq.get("phu"),
+		"phu": phu,
 		"nhan_dinh": nhan_dinh,
+		"khong_loc": khong_loc,
 		# Chip loc doc tu TAT CA don trong ky, ke ca don chua ghi so: tat
 		# cong tac di ma chip cung bien mat thi nguoi dung tuong app hong.
-		"nguon_loc": sorted({(r.custom_nguon or "").strip() for r in tat_ca if (r.custom_nguon or "").strip()}),
-		"pt_loc": sorted({(r.vgb_pt_thanh_toan or "").strip() for r in tat_ca if (r.vgb_pt_thanh_toan or "").strip()}),
+		"nguon_loc": [] if khong_loc else sorted({(r.custom_nguon or "").strip() for r in tat_ca if (r.custom_nguon or "").strip()}),
+		"pt_loc": [] if khong_loc else sorted({(r.vgb_pt_thanh_toan or "").strip() for r in tat_ca if (r.vgb_pt_thanh_toan or "").strip()}),
 		# Diem ban gui kem de man hinh dung hang chip theo DANH SACH THAT,
 		# khong cai cung ba diem trong ma nguon app.
 		"diem_ban": _diem_ban(),
@@ -1131,16 +1167,22 @@ def xuat_excel(ma, ky="ngay", moc=None, tu=None, den=None, diem=None, nguon=None
 	bang = [
 		["%s - %s" % (kq["ma"], kq["ten"])],
 		[kq["nhan_ky"]],
-		["Tổng doanh thu", kq["tong_doanh_thu"], "Số hoá đơn", kq["so_hoa_don"]],
-		[
-			"Tính cả đơn chưa ghi sổ" if kq["nhap"] else "Chỉ đơn đã ghi sổ",
-			"",
-			"Đơn chưa ghi sổ trong kỳ",
-			kq["so_nhap"],
-			"Tiền chưa ghi sổ",
-			kq["tien_nhap"],
-		],
 	]
+	if kq.get("khong_loc"):
+		# BC17 đếm theo ngày lập, không có đầu trang doanh thu theo ngày sổ.
+		bang.append(["Đếm theo ngày lập hoá đơn, chỉ đơn đã ghi sổ"])
+	else:
+		bang += [
+			["Tổng doanh thu", kq["tong_doanh_thu"], "Số hoá đơn", kq["so_hoa_don"]],
+			[
+				"Tính cả đơn chưa ghi sổ" if kq["nhap"] else "Chỉ đơn đã ghi sổ",
+				"",
+				"Đơn chưa ghi sổ trong kỳ",
+				kq["so_nhap"],
+				"Tiền chưa ghi sổ",
+				kq["tien_nhap"],
+			],
+		]
 	if kq.get("ss"):
 		bang.append([
 			"So với %s" % kq["ss"]["nhan_ky"], kq["ss"]["tong_doanh_thu"],

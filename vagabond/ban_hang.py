@@ -3294,6 +3294,11 @@ def phat_hanh_cuoi_ngay(ngay, xong=0, so_loi=0):
 	bu (vu 37 hoa don hom 10/08 la do hai cong tac noi khac nhau).
 	"""
 	frappe.set_user("Administrator")
+	# v527: tờ CỦA CHÍNH NGÀY NÀY đang giữ cờ "chưa rõ kết quả gửi" (lượt
+	# xuất rải bị cắt 300 giây giữa lúc chờ m-invoice, ca 22/09 và 24/09)
+	# phải được đối chiếu TRƯỚC nửa đêm. Để qua đêm thì nó thành món nợ ngày
+	# cũ và hàng rào chặn cả ngày hôm sau. Gọi ngoài khoá: chay_nen tự lấy.
+	hddt_cho_xuat.tu_doi_chieu_co(chi_ngay=[ngay])
 	khoa = _khoa_hddt(cho=30)
 	if khoa is None:
 		frappe.log_error(
@@ -3330,6 +3335,11 @@ def phat_hanh_cuoi_ngay(ngay, xong=0, so_loi=0):
 	)
 	frappe.db.set_single_value("Vagabond Settings", "tu_ghi_so_nhat_ky", nhat_ky[:500])
 	frappe.db.commit()
+	# v527: 24/09 lượt này chạy mà 15 bill quầy vẫn nằm lại tới 00:16, và
+	# không để lại dấu gì vì chỉ ghi log khi có lỗi. Còn tờ chưa ra thì
+	# cũng phải để lại dấu, nhịp bù trước nửa đêm sẽ làm tiếp.
+	if not loi and hddt_bu.con_to_chua_ra(ph, ky):
+		frappe.log_error(title="Vagabond: phát hành cuối ngày %s còn tờ chưa ra" % ngay, message=nhat_ky)
 	if loi:
 		frappe.log_error(
 			title="Vagabond: phát hành cuối ngày %s" % ngay,
@@ -4917,7 +4927,47 @@ def _xuat_hddt_con_thieu(ngay=None, so_ngay=7):
 	return {"xet": len(ds), "da_xuat": xong, "loi": loi}
 
 
-def xuat_hddt_con_thieu_tu_dong():
+def _day_hang_doi_dai(ham, job_id, timeout, **kw):
+	"""Đẩy một nhịp chạm m-invoice sang hàng đợi dài (v527).
+
+	Hàng đợi mặc định cắt lượt chạy ở 300 giây. Nhịp xuất rải gọi m-invoice
+	từng bill, 80 bill mỗi lượt, mỗi lần gọi chờ tới 30 giây: 16:17 ngày
+	22/09 và 21:45 ngày 24/09 lượt đó bị cắt ĐÚNG lúc đang chờ m-invoice trả
+	lời, tờ đang gửi nằm lại với cờ "chưa rõ kết quả", và cờ đó chặn cả
+	ngày hôm sau. Bài học 300 giây ngày 03/09 mới áp cho chuỗi cuối ngày.
+	job_id cố định + deduplicate: nhịp sau tới mà lượt trước còn chạy thì
+	không chồng lượt. Không đẩy được thì chạy ngay tại chỗ, còn hơn bỏ.
+	"""
+	try:
+		frappe.enqueue(ham, queue="long", timeout=timeout, job_id=job_id, deduplicate=True, **kw)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "ban_hang: khong day duoc %s sang hang doi dai" % ham)
+		frappe.get_attr(ham)(**kw)
+
+
+def xuat_rai_trong_ngay_tu_dong():
+	"""Cron 10,40: xuất rải chạy trên hàng đợi dài, xem _day_hang_doi_dai."""
+	_day_hang_doi_dai("vagabond.ban_hang.xuat_rai_trong_ngay", "vgb-xuat-rai-trong-ngay", 1500)
+
+
+def bu_hddt_tu_dong():
+	"""Cron phút 15 mỗi giờ: nhịp bù chạy trên hàng đợi dài."""
+	_day_hang_doi_dai("vagabond.ban_hang.xuat_hddt_con_thieu_tu_dong", "vgb-bu-hddt", 1800)
+
+
+def bu_truoc_nua_dem():
+	"""Cron 23:25, 23:40, 23:52 (v527): vét hoá đơn của HÔM NAY trước 0h.
+
+	Nhịp bù mỗi giờ lấy khoá chỉ đợi 5 giây. 23:15 ngày 24/09 nó trượt khoá
+	vì lượt cuối ngày còn đang ký (Filelock 23:17), bỏ đi lặng lẽ, và nhịp
+	kế tiếp là 00:15: 15 tờ ngày 24/09 ra sau nửa đêm, ký 25/09. Ba nhịp
+	này đợi khoá lâu hơn và cùng một đường với nhịp bù.
+	"""
+	_day_hang_doi_dai("vagabond.ban_hang.xuat_hddt_con_thieu_tu_dong", "vgb-bu-hddt-truoc-0h", 1500,
+		cho_khoa=120)
+
+
+def xuat_hddt_con_thieu_tu_dong(cho_khoa=5):
 	"""Cron moi gio: luoi do cho hoa don dien tu.
 
 	Truoc 03/09/2026 nhip nay di duong Python rieng, bi cong tac "tu xuat hoa
@@ -4943,7 +4993,10 @@ def xuat_hddt_con_thieu_tu_dong():
 		ngay_hen = hddt_cho_xuat.ngay_cho_xuat_can_thu_lai(hom_nay)
 		if not ds_ngay and not ngay_hen["con_han"] and not ngay_hen["qua_han"]:
 			return
-		khoa = _khoa_hddt(cho=5)
+		# v527: tờ giữ cờ trong các ngày được bù (hôm nay sau chuỗi, hôm
+		# qua còn hạn) được đối chiếu trước, ngoài khoá.
+		hddt_cho_xuat.tu_doi_chieu_co(chi_ngay=ds_ngay)
+		khoa = _khoa_hddt(cho=cint(cho_khoa) or 5)
 		if khoa is None:
 			# Luot phat hanh cuoi ngay dang chay, gio sau quay lai.
 			return
