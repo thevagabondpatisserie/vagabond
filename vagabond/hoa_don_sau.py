@@ -311,10 +311,27 @@ def nen_hop_le(khoan, lien_ket, lech_cu=(), nguong=NGUONG):
 	return p["du"]
 
 
+# Mọi ô lưu của một dòng tờ nối. Codex #373 vòng 1 (33fb7d5): bản đầu chỉ so
+# bốn ô, sửa tay tong_hd làm yếu luật chặn đổi tổng tờ, sửa da_ghi_so làm
+# lệch phần chi phí đã dùng của lần bù trừ sau. Ô nào đã lưu đều không sửa tay.
+TRUONG_HD_SAU = ("hoa_don", "so_hd_ncc", "ncc", "tong_hd", "tien_khop", "da_ghi_so", "bu_tru",
+	"but_toan", "ngoai_ncc", "noi_boi", "noi_luc")
+_SO = ("tong_hd", "tien_khop", "bu_tru")
+_CO = ("da_ghi_so", "ngoai_ncc")
+
+
 def khoa_dong(r):
 	r = r or {}
-	return ((r.get("hoa_don") or "").strip(), (r.get("but_toan") or "").strip(),
-		round(_tien(r.get("tien_khop")), 2), round(_tien(r.get("bu_tru")), 2))
+	ra = []
+	for k in TRUONG_HD_SAU:
+		v = r.get(k)
+		if k in _SO:
+			ra.append(round(_tien(v), 2))
+		elif k in _CO:
+			ra.append(_so(v))
+		else:
+			ra.append(str(v or "").strip()[:19] if k == "noi_luc" else str(v or "").strip())
+	return tuple(ra)
 
 
 def loi_sua_hd_sau(cu, moi, cho_phep=False):

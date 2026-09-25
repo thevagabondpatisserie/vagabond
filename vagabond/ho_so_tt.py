@@ -3622,10 +3622,8 @@ def xuat_ho_so(name):
 	# In bản của ERPNext cho mọi tờ: bản thể hiện gốc của các tờ này không đi
 	# qua _gom_anh_ho_so (chỉ gom giấy tờ theo khoản), nên đây là trang duy
 	# nhất mang số liệu tờ trong bộ hồ sơ.
-	for x in d.get("hd_sau") or []:
-		_in_html("Purchase Invoice", x["hoa_don"], "Hoá đơn đến sau")
-		if x.get("but_toan"):
-			_in_html("Journal Entry", x["but_toan"], "Bút toán bù trừ")
+	for dt, dn, nhan in trang_hd_sau(d):
+		_in_html(dt, dn, nhan)
 
 	# Mỗi cặp chứng từ có trang A4 ngang riêng; tờ APP giữ khổ dọc.
 	# wkhtmltopdf không đổi hướng từng trang ổn định nên render hai phần
@@ -4843,6 +4841,20 @@ def luoi_anh(anh, moi_trang=ANH_MOI_TRANG):
 	return "".join(trang)
 
 
+def trang_hd_sau(d):
+	"""Các trang ERPNext cần in cho tờ nối mức hồ sơ (v530): mỗi tờ một trang,
+	mỗi bút toán bù trừ MỘT trang dù nhiều tờ chung bút toán (Codex #373 vòng
+	1: Mobifone sáu tờ chung một bút toán từng in sáu trang trùng). THUẦN."""
+	ra, da_in = [], set()
+	for x in d.get("hd_sau") or []:
+		ra.append(("Purchase Invoice", x["hoa_don"], "Hoá đơn đến sau"))
+		bt = x.get("but_toan")
+		if bt and bt not in da_in:
+			da_in.add(bt)
+			ra.append(("Journal Entry", bt, "Bút toán bù trừ"))
+	return ra
+
+
 def _gom_anh_ho_so(d):
 	"""Gom mọi ảnh của một hồ sơ, mỗi ảnh mang theo nhãn nói rõ nó của đâu.
 
@@ -4910,6 +4922,12 @@ def _gom_anh_ho_so(d):
 			_nap(f, goc)
 		for f in (x.get("scan") or []):
 			_nap(f, goc + " · kèm hoá đơn mua")
+	# v530 (Codex #373 vòng 1): bản thể hiện gốc của tờ nối mức hồ sơ cũng vào
+	# bộ hồ sơ, không chỉ trang in lại của ERPNext.
+	for x in d.get("hd_sau") or []:
+		goc = "Hoá đơn đến sau %s" % (("số " + x["so_hd_ncc"]) if x.get("so_hd_ncc") else x.get("hoa_don", ""))
+		for f in (x.get("scan") or []):
+			_nap(f, goc)
 	for f in (d.get("ho_so_dinh_kem") or []):
 		_nap(f, "Đính chung cả hồ sơ")
 	return anh, bo_qua
