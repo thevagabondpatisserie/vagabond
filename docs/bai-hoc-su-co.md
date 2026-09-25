@@ -1180,3 +1180,9 @@ hỏi theo cả hai ô rồi gộp.
 Lượt TỰ ĐỘNG đi lại đường của người bấm tay thì phải thu hẹp đúng phạm vi của
 nó: người bấm "kéo ngày" là kéo cả ngày sổ đó, còn máy tự đối chiếu chỉ được
 đụng tờ đang giữ cờ (`chi_giu_co=1`).
+
+Vòng 3 (#369): kế hoạch chia lượt theo cặp khoá (ngày sổ, ngày lập) thì
+bộ chọn BÊN TRONG mỗi lượt cũng phải lọc theo đúng cặp đó. Chia ngoài mà
+chọn trong theo một nửa khoá là lượt đầu nuốt việc của lượt sau. Và câu ghi
+có điều kiện xong thì phải đọc lại trước khi ghi nhật ký hay trả "đã xong":
+không dòng nào khớp điều kiện mà vẫn báo thành công là ghi nhật ký sai.
