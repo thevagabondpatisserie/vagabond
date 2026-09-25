@@ -1186,3 +1186,12 @@ bộ chọn BÊN TRONG mỗi lượt cũng phải lọc theo đúng cặp đó. 
 chọn trong theo một nửa khoá là lượt đầu nuốt việc của lượt sau. Và câu ghi
 có điều kiện xong thì phải đọc lại trước khi ghi nhật ký hay trả "đã xong":
 không dòng nào khớp điều kiện mà vẫn báo thành công là ghi nhật ký sai.
+
+Vòng 4 (#369): tập CHẶN và tập mà lượt tự động XỬ ĐƯỢC phải dùng cùng một
+khoá ngày. Hàng rào chặn theo ngày sổ còn lượt tự đối chiếu ngày cũ bỏ tờ có
+ngày lập hôm nay, nên tờ ngày sổ cũ đã kéo sang hôm nay nằm trong tập chặn mà
+không lượt nào gỡ được: chặn cả ngày. Mỗi lần thêm điều kiện loại cho một
+lượt, tìm tập chặn tương ứng và loại cùng điều kiện. Cùng vòng: nhật ký là
+một phần của lần ghi, ghi nhật ký hỏng thì phải ném để câu ghi rollback,
+không nuốt lỗi rồi báo xong; và đơn là danh mục có sẵn thì chọn trong danh
+sách có tìm (QT-31), không mở ô gõ mã.
