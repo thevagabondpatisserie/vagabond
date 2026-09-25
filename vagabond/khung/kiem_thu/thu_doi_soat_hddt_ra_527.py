@@ -123,7 +123,8 @@ def _chi_co_ghi_tay():
 	to = dict(_to(14402, "2026-09-17", "Thay thế"), hd_goc="")
 	ket = ds.phan_loai([to], DON)
 	la("nối về đơn ghi tay", (ket["TO-14402"]["loai"], ket["TO-14402"]["don"]), (ds.LOAI_THAY, "HDB-26-09-02805"))
-	dung("nói rõ do kế toán ghi", "kế toán" in ket["TO-14402"]["ly_do"])
+	# v527: ô thay thế nay có thể do máy đồng bộ ghi, lời nói theo ô trên đơn.
+	dung("nói rõ nối theo ô ghi trên đơn", "đơn đã ghi" in ket["TO-14402"]["ly_do"])
 
 
 @ca("v527 xếp loại: khớp mã m-invoice trước, số sau")
@@ -400,3 +401,347 @@ def _man_bc17():
 	ra = _ve_bc(_kq_man(khong_loc=1, phu={"tieu_de": "Tờ lập thẳng", "cot": [{"k": "so_hd", "nhan": "Số", "kieu": "chu"}],
 		"dong": [{"so_hd": "1"}], "tong_dong": 700, "bi_cat": 1, "gioi_han": 600}))
 	dung("bảng phụ bị cắt: báo tổng 700", "700" in ra["html"] and "Xuất Excel" in ra["html"])
+
+
+# --------------------- Codex vòng 2 (#369) G2: đơn cũ kéo ngày lập vào kỳ xem
+
+
+def _loc(rows, filters):
+	"""Lọc giả đủ cho các phép get_all của doc(): =, in, between, is set."""
+	def khop(r, k, v):
+		x = r.get(k)
+		if isinstance(v, list):
+			op, gt = v[0], v[1] if len(v) > 1 else None
+			if op == "in":
+				# Ô Data trên site trả chuỗi: so theo chuỗi (lần đầu so int với
+				# chuỗi nên tờ gốc bị thay lọt khỏi phép cộng, đột biến Q3 không đổ).
+				return str(x) in [str(v) for v in gt]
+			if op == "between":
+				return x is not None and str(gt[0]) <= str(x) <= str(gt[1])
+			if op == "is":
+				return bool(x) if gt == "set" else not x
+			raise AssertionError("phép lọc chưa hỗ trợ: %s" % op)
+		return str(x) == str(v) if isinstance(x, (int, str)) and isinstance(v, (int, str)) else x == v
+	return [r for r in rows if all(khop(r, k, v) for k, v in filters.items())]
+
+
+@ca("v527 Codex G2: đơn bán 10/09 kéo ngày lập sang 20/09 vẫn được đếm cho ngày 20/09")
+def _g2_don_keo_ngay():
+	don = [_D(dict(_don("HDB-26-09-01000", "15000", ngay="2026-09-10"), vgb_hddt_ngay_xuat="2026-09-20",
+		docstatus=1))]
+	import frappe as _fr
+
+	def get_all(dt, filters=None, fields=None, limit_page_length=0):
+		if dt == "Sales Invoice":
+			return _loc(don, filters)
+		return []
+	f = NS(get_all=get_all, db=NS(get_single_value=lambda *a: "1C26MPV"), throw=_fr.throw)
+	with unittest.mock.patch.object(ds, "frappe", f):
+		si_ngay = ds.doc("2026-09-20", "2026-09-20")[3]
+	la("đơn kéo ngày có mặt trong tập đếm ERP của 20/09", [s.name for s in si_ngay], ["HDB-26-09-01000"])
+	with unittest.mock.patch.object(ds, "frappe", f):
+		si_ngay = ds.doc("2026-09-10", "2026-09-10")[3]
+	la("và không bị đếm cho ngày sổ 10/09", si_ngay, [])
+
+
+# ============ v527 anh Việt chốt 25/09: tờ thay thế tự về đơn, nối tay tờ tách
+
+
+def _dthay(ten, so_, thay="", ky="1C26MPV"):
+	return _D(dict(_don(ten, so_, thay, kh=ky), docstatus=1))
+
+
+@ca("v527 tờ thay thế về đơn: 22/09 ba tờ ghi vào ô trống, tờ đã ghi thì thôi, không đụng Điều chỉnh")
+def _thay_the_ke_hoach():
+	don = [_dthay("HDB-26-09-01138", "12736"), _dthay("HDB-26-08-02245", "10749"),
+		_dthay("HDB-26-08-03934", "11191"), _dthay("HDB-26-09-02861", "14159", "1C26MPV 14401")]
+	to = [_to(15439, "2026-09-22", "Thay thế", 12736), _to(15440, "2026-09-22", "Thay thế", 10749),
+		_to(15441, "2026-09-22", "Thay thế", 11191), _to(14401, "2026-09-17", "Thay thế", 14159),
+		_to(15600, "2026-09-23", "Điều chỉnh", 12736)]
+	viec, xd = ds.ke_hoach_thay_the(to, don)
+	la("ba đơn 22/09 được ghi đúng tờ", sorted((v["don"], v["cu"], v["moi"]) for v in viec), [
+		("HDB-26-08-02245", "", "1C26MPV 15440"), ("HDB-26-08-03934", "", "1C26MPV 15441"),
+		("HDB-26-09-01138", "", "1C26MPV 15439")])
+	la("không xung đột", xd, [])
+
+
+@ca("v527 tờ thay thế về đơn: thay nhiều đời nâng ô lên tờ mới nhất, kể cả hai đời trong cùng một lượt")
+def _thay_the_nhieu_doi():
+	don = [_dthay("HDB-26-09-02861", "14159", "1C26MPV 14401")]
+	viec, xd = ds.ke_hoach_thay_the([_to(16000, "2026-09-24", "Thay thế", 14401)], don)
+	la("đời 2: ô đang ghi đúng tờ bị thay thì nâng", [(v["cu"], v["moi"]) for v in viec], [("1C26MPV 14401", "1C26MPV 16000")])
+	don = [_dthay("HDB-26-09-01138", "12736")]
+	viec, xd = ds.ke_hoach_thay_the([_to(16001, "2026-09-24", "Thay thế", 15439),
+		_to(15439, "2026-09-22", "Thay thế", 12736)], don)
+	la("hai đời trong một lượt: đi theo thứ tự ngày, điều kiện nối nhau",
+		[(v["cu"], v["moi"]) for v in viec], [("", "1C26MPV 15439"), ("1C26MPV 15439", "1C26MPV 16001")])
+
+
+@ca("v527 tờ thay thế về đơn: ô đã ghi tờ KHÁC hoặc tờ gốc khớp hai đơn thì không ghi, báo xung đột")
+def _thay_the_xung_dot():
+	viec, xd = ds.ke_hoach_thay_the([_to(15439, "2026-09-22", "Thay thế", 12736)],
+		[_dthay("HDB-26-09-01138", "12736", "1C26MPV 99999")])
+	la("không ghi đè", viec, [])
+	dung("báo đang ghi tờ khác", len(xd) == 1 and "99999" in xd[0]["ly_do"])
+	viec, xd = ds.ke_hoach_thay_the([_to(15439, "2026-09-22", "Thay thế", 12736)],
+		[_dthay("A", "12736"), _dthay("B", "12736")])
+	la("hai đơn cùng số: không chọn", (viec, len(xd)), ([], 1))
+	viec, xd = ds.ke_hoach_thay_the([_to(15439, "2026-09-22", "Thay thế", 12736)],
+		[_dthay("A", "12736", ky="1C26MVO")])
+	la("đơn khác dải ký hiệu: không phải đơn gốc", (viec, xd), ([], []))
+	viec, xd = ds.ke_hoach_thay_the([_to(15439, "2026-09-22", "Thay thế", 777)], [_dthay("A", "12736")])
+	la("tờ gốc không có trong ERP: bỏ qua", (viec, xd), ([], []))
+
+
+def _chay_noi_thay_the(to, don, chen=None):
+	"""noi_thay_the_tu_dong THẬT; bảng đơn giả ghi có điều kiện như SQL thật."""
+	hoi, ghi, nhat_ky = [], [], []
+	kho = {d.name: dict(d) for d in don}
+
+	def get_all(dt, filters=None, fields=None, limit_page_length=0):
+		hoi.append((dt, dict(filters)))
+		if dt == ds.DT_TO:
+			return [_D(t) for t in to]
+		return [_D(v) for v in _loc(list(kho.values()), filters)]
+
+	def sql(cau, ts):
+		# Bảng giả làm ĐÚNG câu ghi nhận được: câu có điều kiện ô cũ thì mới xét
+		# (lần đầu bảng giả tự xét điều kiện nên đột biến bỏ điều kiện R6 không đổ).
+		if chen:
+			chen(kho)
+		d = kho.get(ts["don"])
+		co_dk = "ifnull(custom_hddt_thay_the, '') = %(cu)s" in cau
+		if d and (not co_dk or (d.get("custom_hddt_thay_the") or "") == ts["cu"]):
+			d["custom_hddt_thay_the"] = ts["moi"]
+			ghi.append((ts["don"], ts["moi"]))
+
+	class _Doc(dict):
+		def insert(self, **k):
+			nhat_ky.append((self["reference_name"], self["content"]))
+	import frappe as _fr
+	f = NS(get_all=get_all, throw=_fr.throw, log_error=lambda *a, **k: None, get_traceback=lambda: "",
+		get_doc=lambda d: _Doc(d), db=NS(get_single_value=lambda *a: "1C26MPV", sql=sql, commit=lambda: None,
+			rollback=lambda: None, get_value=lambda dt, n, fld: kho[n].get(fld)))
+	with unittest.mock.patch.object(ds, "frappe", f), \
+			unittest.mock.patch.object(ds, "getdate", lambda *a: datetime.date(2026, 9, 25)), \
+			unittest.mock.patch.object(ds, "now_datetime", lambda: datetime.datetime(2026, 9, 25, 15, 0)):
+		so_ghi = ds.noi_thay_the_tu_dong()
+	return so_ghi, ghi, nhat_ky, hoi
+
+
+@ca("v527 tờ thay thế về đơn (hàm thật): quét 30 ngày, ghi có điều kiện, để lại nhật ký trên đơn")
+def _thay_the_that():
+	to = [_to(15439, "2026-09-22", "Thay thế", 12736)]
+	so_ghi, ghi, nk, hoi = _chay_noi_thay_the(to, [_dthay("HDB-26-09-01138", "12736")])
+	la("ghi một đơn", (so_ghi, ghi), (1, [("HDB-26-09-01138", "1C26MPV 15439")]))
+	dung("nhật ký nói rõ máy ghi theo m-invoice", len(nk) == 1 and "m-invoice" in nk[0][1] and "15439" in nk[0][1])
+	loc_to = [h[1] for h in hoi if h[0] == ds.DT_TO][0]
+	la("quét đúng 30 ngày ngày lập", str(loc_to["ngay_lap"][1]), "2026-08-26")
+	la("chỉ tờ Thay thế", loc_to["trang_thai"], "Thay thế")
+
+	def ke_toan_go_tay(kho):
+		kho["HDB-26-09-01138"]["custom_hddt_thay_the"] = "1C26MPV 15439 (ke toan)"
+	so_ghi, ghi, nk, _ = _chay_noi_thay_the(to, [_dthay("HDB-26-09-01138", "12736")], chen=ke_toan_go_tay)
+	la("kế toán gõ tay chen vào giữa: máy không ghi đè, không nhật ký", (so_ghi, ghi, nk), (0, [], []))
+	# Chạy lại lần hai trên dữ liệu đã ghi: không ghi gì thêm (idempotent).
+	so_ghi, ghi, nk, _ = _chay_noi_thay_the(to, [_dthay("HDB-26-09-01138", "12736", "1C26MPV 15439")])
+	la("lần hai không ghi lại", (so_ghi, nk), (0, []))
+
+
+@ca("v527 nhịp 15 phút và nhịp đêm đều gọi ghi tờ thay thế, kể cả khi lượt kéo lỗi")
+def _thay_the_nhip():
+	from vagabond import minvoice_dong_bo as md
+	goi = []
+	f = NS(db=NS(exists=lambda *a: True), log_error=lambda *a, **k: None, get_traceback=lambda: "")
+	for ten, keo_loi in (("dong_bo_tu_dong", False), ("dong_bo_tu_dong", True), ("tu_lanh_hang_dem", True)):
+		goi.clear()
+
+		def keo(**k):
+			if keo_loi:
+				raise RuntimeError("m-invoice 502")
+		with unittest.mock.patch.object(md, "frappe", f), unittest.mock.patch.object(md, "_keo", keo), \
+				unittest.mock.patch.object(ds, "noi_thay_the_tu_dong", lambda: goi.append(1) or 0):
+			getattr(md, ten)()
+		la("%s (kéo lỗi %s) gọi ghi tờ thay thế" % (ten, keo_loi), goi, [1])
+
+
+@ca("v527 nối tay: tờ đã nối vào đơn đếm là ERP ghi nhận, ngày 21/09 hết lệch khi nối đủ 4 tờ tách")
+def _noi_tay_dem():
+	to = [dict(t, vgb_don_erp="HDB-26-09-03340") if t["so_hd"] in (15228, 15229, 15230, 15231) else t for t in TO]
+	don = DON + [_don("HDB-26-09-09001", "15500", ngay="2026-09-21")]
+	ket = ds.phan_loai(to, don)
+	la("tờ tách xếp loại nối tay về đúng đơn", {ket["TO-%d" % n]["loai"] for n in (15228, 15229, 15230, 15231)},
+		{ds.LOAI_NOI_TAY})
+	d21 = [r for r in ds.tong_hop_ngay(to, ket) if r["ngay"] == "2026-09-21"][0]
+	la("21/09: nối tay 4, lệch 0", (d21["noi_tay"], d21["lech"]), (4, 0))
+	la("nút gỡ cho tờ đã nối, nút nối cho tờ tạo tay",
+		(ds.nut_cua_dong(ket["TO-15228"], to[4])["lam"], ds.nut_cua_dong({"loai": ds.LOAI_TAO_TAY}, TO[4])["lam"]),
+		("go", "noi"))
+	la("tờ ERP phát hành không có nút", ds.nut_cua_dong({"loai": ds.LOAI_ERP}, TO[0]), None)
+
+
+def _noi_that(xac_nhan=0, don_nhap="HDB-26-09-03340", tien_don=3800000, quyen=("Accounts User",), to_ten="TO-15231",
+		dang_noi="", chen=None):
+	"""noi_to_vao_don THẬT, dữ liệu 21/09 dựng lại (tiền giả)."""
+	bang = {t["name"]: _D(dict(t, loai="Đầu ra", tong_tien=950000)) for t in TO if t["so_hd"] in (15228, 15229, 15230, 15231)}
+	for n in (15228, 15229, 15230):
+		bang["TO-%d" % n]["vgb_don_erp"] = "HDB-26-09-03340"
+	bang[to_ten]["vgb_don_erp"] = dang_noi
+	bang["TO-14634"] = _D(dict(_to(14634, "2026-09-18", "Bị thay thế", mst=MST_TACH), loai="Đầu ra", tong_tien=3800000))
+	bang["TO-15217"] = _D(dict(_to(15217, "2026-09-21", "Thay thế", 14634, MST_TACH), loai="Đầu ra", tong_tien=0))
+	si = _D(dict(_don("HDB-26-09-03340", "14634", "1C26MPV 15217", MST_TACH), docstatus=1, grand_total=tien_don,
+		customer_name="Khách giả"))
+	ghi, nk = [], []
+
+	def get_value(dt, ten, fields=None, as_dict=False):
+		if dt == "Sales Invoice":
+			return si if ten == si.name else None
+		t = bang.get(ten)
+		if isinstance(fields, str):
+			return t.get(fields) if t else None
+		return t
+
+	def get_all(dt, filters=None, fields=None, limit_page_length=0):
+		if dt == "Sales Invoice":
+			return [si] if filters.get("custom_pancake_display_id") == si.custom_pancake_display_id else []
+		return _loc(list(bang.values()), {k: v for k, v in filters.items()})
+
+	def sql(cau, ts):
+		if chen:
+			chen(bang)
+		t = bang[ts["to"]]
+		co_dk = "ifnull(vgb_don_erp, '') = ''" in cau
+		if "set vgb_don_erp = %(don)s" in cau and (not co_dk or not t.get("vgb_don_erp")):
+			t["vgb_don_erp"] = ts["don"]
+			ghi.append(ts["to"])
+
+	class _Doc(dict):
+		def insert(self, **k):
+			nk.append(self["content"])
+	import frappe as _fr
+	f = NS(get_roles=lambda: list(quyen), throw=_fr.throw, session=NS(user="dung@vagabond"),
+		get_all=get_all, get_doc=lambda d: _Doc(d), log_error=lambda *a, **k: None,
+		db=NS(get_value=get_value, get_single_value=lambda *a: "1C26MPV", sql=sql, commit=lambda: None))
+	bh = NS(QUYEN_HDDT_THAY_THE={"System Manager", "Accounts Manager", "Accounts User"})
+	with unittest.mock.patch.object(ds, "frappe", f), \
+			unittest.mock.patch.object(ds, "now_datetime", lambda: datetime.datetime(2026, 9, 25, 15, 0)), \
+			unittest.mock.patch.dict(__import__("sys").modules, {"vagabond.ban_hang": bh}):
+		try:
+			return ds.noi_to_vao_don(to=to_ten, don=don_nhap, xac_nhan=xac_nhan), ghi, nk
+		except Exception as e:
+			return {"loi": str(e)}, ghi, nk
+
+
+@ca("v527 nối tay (hàm thật): xem trước không ghi, tính tiền các tờ còn hiệu lực, xác nhận mới ghi")
+def _noi_tay_that():
+	kq, ghi, nk = _noi_that()
+	la("xem trước: không ghi gì", (ghi, nk), ([], []))
+	la("tổng tờ còn hiệu lực: 15217 (0 đ) + 4 tờ tách, bỏ tờ gốc bị thay", kq["tong_to"], 3800000.0)
+	la("khớp tiền đơn", (kq["lech"], kq["lech_qua_nguong"]), (0.0, 0))
+	kq, ghi, nk = _noi_that(xac_nhan=1)
+	la("xác nhận: ghi đúng tờ", ghi, ["TO-15231"])
+	dung("nhật ký trên đơn nói số hoá đơn giữ nguyên", len(nk) == 1 and "15231" in nk[0] and "giữ nguyên" in nk[0])
+	kq, ghi, nk = _noi_that(tien_don=2850000)
+	la("nối nhầm làm vượt tiền đơn: báo lệch", (kq["lech"], kq["lech_qua_nguong"]), (950000.0, 1))
+
+
+@ca("v527 nối tay (hàm thật): chặn người không phải kế toán, tờ đang nối đơn khác, tờ ERP tự phát hành")
+def _noi_tay_chan():
+	kq, ghi, _ = _noi_that(xac_nhan=1, quyen=("Sales User",))
+	dung("sales không nối được", "kế toán" in kq.get("loi", "") and ghi == [])
+	kq, ghi, _ = _noi_that(xac_nhan=1, dang_noi="HDB-KHAC")
+	dung("đang nối đơn khác thì phải gỡ trước", "Gỡ nối trước" in kq.get("loi", "") and ghi == [])
+	kq, ghi, _ = _noi_that(xac_nhan=1, to_ten="TO-15231", don_nhap="P-3340")
+	la("nhập mã đơn bán (Pancake) cũng tìm được đơn", ghi, ["TO-15231"])
+	kq, ghi, _ = _noi_that(xac_nhan=1, dang_noi="HDB-26-09-03340")
+	dung("đã nối đúng đơn: trả lời đã nối, không ghi lần hai", kq.get("da_noi") == 1 and ghi == [])
+
+	def nguoi_khac_noi_truoc(bang):
+		bang["TO-15231"]["vgb_don_erp"] = "HDB-KHAC"
+	kq, ghi, nk = _noi_that(xac_nhan=1, chen=nguoi_khac_noi_truoc)
+	dung("người khác nối chen giữa lúc xem và lúc ghi: không đè, báo rõ",
+		ghi == [] and "người khác" in kq.get("loi", "") and nk == [])
+
+
+def _bam_bc(kq, nut, hoi_chu, hoi_co=True, tra_xem=None):
+	"""Vẽ BC17 thật trong node, bấm nút trên bảng phụ, trả các lời gọi API."""
+	import json
+	import subprocess
+	goc = GOC / "public" / "js" / "bep"
+
+	def cat(tep, ten):
+		import re
+		m = re.search(r"\nfunction %s\([^)]*\) ?\{.*?\n\}" % ten, (goc / tep).read_text(encoding="utf-8"), re.S)
+		if not m:
+			m = re.search(r"\nfunction %s\([^\n]*\n" % ten, (goc / tep).read_text(encoding="utf-8"))
+		return m.group(0)
+	nen = cat("00-nen.js", "h") + cat("00-nen.js", "money") + cat("09-tinh-tien-quay.js", "posChipNut") + \
+		cat("13-khuyen-mai.js", "kmHangChip") + cat("09-tinh-tien-quay.js", "posNgayVn")
+	man = (goc / "14-bao-cao.js").read_text(encoding="utf-8")
+	kich = r"""
+const vm = require('vm');
+const ghi = { html: [], api: [], toast: [], bao: [], go: [] };
+let khung = null;
+const ctx = { console: console, setTimeout: setTimeout,
+  document: { getElementById: function () { return { onclick: null }; } },
+  frame: function (t, b) { ghi.html.push(b); khung = { onclick: null, querySelector: function () { return null; } }; return khung; },
+  api: async function (m, a) { ghi.api.push([m, a || {}]);
+    if (m === 'vagabond.bao_cao.chay') return __KQ__;
+    if (a && a.xac_nhan === 0) return __XEM__;
+    return { loi_nhan: 'xong' }; },
+  hoiChu: async function () { return __CHU__; }, hoiCo: async function () { return __CO__; },
+  baoTin: function (x) { ghi.bao.push(x); }, today: function () { return '2026-09-21'; },
+  go: function (f) { ghi.go.push(f && f.name); }, busy: function () {}, toast: function (x) { ghi.toast.push(x); } };
+vm.createContext(ctx);
+vm.runInContext(__NEN__, ctx);
+vm.runInContext(__MAN__, ctx);
+vm.runInContext("bcMa = 'BC17';", ctx);
+(async function () {
+  await ctx.scrBaoCaoXem();
+  const html = ghi.html[ghi.html.length - 1];
+  const THUOC = __NUT__;
+  const m = html.match(new RegExp('<button[^>]*' + THUOC + '="[^"]*"[^>]*>'));
+  let bam = 'khong_thay_nut';
+  if (m) {
+    const the = m[0];
+    const el = { getAttribute: function (k) { const r = the.match(new RegExp(k + '="([^"]*)"')); return r ? r[1] : null; } };
+    await khung.onclick({ target: { closest: function (sel) { return sel === '[' + THUOC + ']' ? el : null; } } });
+    bam = 'da_bam';
+  }
+  process.stdout.write(JSON.stringify({ html: html, api: ghi.api, toast: ghi.toast, bao: ghi.bao, bam: bam, go: ghi.go }));
+})().catch(function (e) { console.error(e && e.stack || e); process.exit(1); });
+"""
+	for k, v in (("__KQ__", kq), ("__XEM__", tra_xem or {}), ("__CHU__", hoi_chu), ("__CO__", hoi_co), ("__NUT__", nut)):
+		kich = kich.replace(k, json.dumps(v))
+	kich = kich.replace("__NEN__", json.dumps(nen)).replace("__MAN__", json.dumps(man))
+	r = subprocess.run(["node", "-e", kich], capture_output=True, text=True, timeout=60)
+	if r.returncode != 0:
+		raise AssertionError("node lỗi: " + (r.stderr or "").strip()[:500])
+	return json.loads(r.stdout)
+
+
+def _kq_bc17_nut():
+	return _kq_man(khong_loc=1, nguon_loc=[], pt_loc=[], phu={"tieu_de": "Tờ lập thẳng",
+		"cot": [{"k": "so_hd", "nhan": "Số", "kieu": "chu"}], "tong_dong": 2, "bi_cat": 0, "gioi_han": 600,
+		"dong": [{"so_hd": "15231", "_nut": {"lam": "noi", "to": "TO-15231", "so": "15231", "goi_y": "HDB-26-09-03340"}},
+			{"so_hd": "15228", "_nut": {"lam": "go", "to": "TO-15228", "so": "15228", "don": "HDB-26-09-03340"}}]})
+
+
+@ca("v527 nối tay trên màn thật: bảng phụ có nút, bấm Nối thì xem trước rồi mới ghi, bấm Thôi thì không ghi")
+def _noi_tay_man():
+	xem = {"to": "TO-15231", "so": "15231", "don": "HDB-26-09-03340", "ma_don": "94132", "khach": "Khách",
+		"tien_don": 3800000, "tong_to": 3800000, "lech": 0, "lech_qua_nguong": 0, "cac_to": [{}, {}, {}, {}, {}]}
+	ra = _bam_bc(_kq_bc17_nut(), "data-bcnoi", "HDB-26-09-03340", True, xem)
+	la("có bấm", ra["bam"], "da_bam")
+	goi = [(m, a.get("xac_nhan"), a.get("don")) for m, a in ra["api"] if m != "vagabond.bao_cao.chay"]
+	la("xem trước rồi xác nhận, đúng đơn",
+		goi, [("vagabond.doi_soat_hddt_ra.noi_to_vao_don", 0, "HDB-26-09-03340"),
+			("vagabond.doi_soat_hddt_ra.noi_to_vao_don", 1, "HDB-26-09-03340")])
+	la("vẽ lại báo cáo sau khi nối", ra["go"], ["scrBaoCaoXem"])
+	ra = _bam_bc(_kq_bc17_nut(), "data-bcnoi", "HDB-26-09-03340", False, xem)
+	la("bấm Thôi ở bước xác nhận: chỉ xem trước", [a.get("xac_nhan") for m, a in ra["api"] if "doi_soat" in m], [0])
+	ra = _bam_bc(_kq_bc17_nut(), "data-bcgo", "nối nhầm đơn", True)
+	la("gỡ gửi lý do", [(m, a.get("ly_do")) for m, a in ra["api"] if "doi_soat" in m],
+		[("vagabond.doi_soat_hddt_ra.go_to_khoi_don", "nối nhầm đơn")])
+	# Bảng chính không có nút; nút không phải cột nên Excel không in.
+	dung("bảng chính không có nút", ra["html"].count("data-bcnoi") == 1 and ra["html"].count("data-bcgo") == 1)
