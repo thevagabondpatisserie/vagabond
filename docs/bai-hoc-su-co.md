@@ -1133,3 +1133,27 @@ Khoá dòng rồi mà vẫn đọc bằng get_value là chưa khoá. v526 vòng 
 tính thuế" lại đọc bằng get_value ở bước trước, tức ảnh chụp REPEATABLE READ.
 Người sửa tờ chốt tổng mới trong lúc đó thì quyết định dựa trên số cũ. Mọi giá
 trị dùng để QUYẾT phải đọc bằng câu có khoá, từ một hàm nguồn duy nhất.
+
+## 25/09/2026 (v527): hàng rào chặn cả ngày vì một tờ không ai được gọi xử
+
+Hàng rào thứ tự hoá đơn (m-invoice đánh số theo ngày lập) bảo vệ MỌI tờ đã
+ghi sổ của hôm qua chưa có HĐĐT, kể cả tờ giữ cờ "chưa rõ kết quả gửi".
+Nhưng lượt tự xuất ngày cũ chỉ gửi tập hẹp, không gồm tờ giữ cờ. Tập bảo vệ
+rộng hơn tập máy tự rút được, nên một tờ giữ cờ đứng chặn cả ngày hôm sau
+tới nửa đêm, lúc ngày cũ hết hạn, rồi nhịp bù 00:15 mới xuất cả ngày: 18/09
+và 23/09 cả ngày ký sang hôm sau. Thư báo "hoãn phát hành" có gửi, nhưng
+không ai coi đó là việc phải làm trong ngày.
+
+Bài học: mọi hàng rào chặn theo một tập phải có một đường TỰ ĐỘNG rút đúng
+tập đó, không chỉ một nút cho người bấm. Nếu tập chặn lớn hơn tập máy tự xử
+được, phần chênh là một cái bẫy chờ ngày. Kiểm bằng câu: "tờ nào nằm trong
+tập chặn mà không đường tự động nào đụng tới?".
+
+Hai nguồn sinh cờ cũng phải tắt: nhịp chạm m-invoice nào có thể chạy quá 300
+giây thì phải chạy trên hàng đợi dài (bài 03/09 mới áp cho chuỗi cuối ngày,
+xuất rải và nhịp bù vẫn ở hàng đợi thường), và nhịp nào lấy khoá chỉ đợi vài
+giây thì phải có nhịp khác đợi lâu hơn trước mốc hết ngày.
+
+Và: màn báo cáo phải so được với nguồn bên ngoài theo đúng đơn vị người dùng
+đếm (tờ theo ngày lập trên m-invoice), không chỉ đếm trong ERP. Tờ lập thẳng
+trên cổng (thay thế, tách đơn) chỉ lộ ra khi đặt hai con số cạnh nhau.
