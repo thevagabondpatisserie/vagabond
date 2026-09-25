@@ -103,6 +103,7 @@ from vagabond.khop_sao_ke import (  # noqa: E402,F401
 	XEM_LAI,
 	co_ma,
 	got,
+	khop_tu_khoa,
 	tien_vn,
 	tim_ma,
 	xep_ung_vien,
@@ -500,7 +501,9 @@ def danh_sach_chon(chieu, ma, tien, so_ngay=45, tu_khoa="", tai_khoan="",
 	tk = str(tu_khoa or "").strip().lower()
 	tho = []
 	for g in gds:
-		if tk and tk not in (g["name"] + " " + (g.get("mo_ta") or "")).lower():
+		# v528: ô tìm nhận cả số tiền ("1.144.382"), khoản trả tiện ích
+		# không có chữ nào của hồ sơ trong nội dung sao kê.
+		if tk and not khop_tu_khoa(tk, g):
 			continue
 		loi = ly_do(g) if ly_do else ""
 		chu = (chiem or {}).get(g["name"])
