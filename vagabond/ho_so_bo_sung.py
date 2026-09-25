@@ -800,9 +800,12 @@ def ung_vien_hoa_don(name, tu_khoa="", moi_ncc=0):
 	MST gốc), cả tờ nháp lẫn tờ đã ghi sổ còn nợ, kèm gợi ý của máy.
 	moi_ncc=1 và có từ khoá: tìm theo số hoá đơn trên mọi nhà cung cấp (đường
 	thoát khi hồ sơ chọn sai nhà cung cấp)."""
-	from vagabond.ho_so_tt import _kiem, VAI_LAP, VAI_FIN, VAI_GD, _cong_ty_chung_tu, LOAI_TKCT
+	from vagabond.ho_so_tt import _kiem, VAI_FIN, VAI_GD, _cong_ty_chung_tu, LOAI_TKCT
 	from vagabond import hoa_don_sau as hs
-	_kiem(VAI_LAP | VAI_FIN | VAI_GD, "tìm hóa đơn đến sau")
+	# Codex #373 vòng 5: chỉ FIN / giám đốc (đúng người được nối), và đọc qua
+	# get_list để giữ luật quyền theo nhà cung cấp; get_all bỏ qua luật đó, tìm
+	# mọi NCC là lộ hoá đơn ngoài phạm vi người gọi.
+	_kiem(VAI_FIN | VAI_GD, "tìm hóa đơn đến sau")
 	d = frappe.get_doc("Vagabond Ho So TT", name)
 	tkct = (getattr(d, "loai", None) or "") == LOAI_TKCT
 	nhom, goc = _nhom_ncc(d.nha_cung_cap)
@@ -816,7 +819,7 @@ def ung_vien_hoa_don(name, tu_khoa="", moi_ncc=0):
 	or_loc = None
 	if tu_khoa:
 		or_loc = {"name": ["like", "%" + tu_khoa + "%"], "bill_no": ["like", "%" + tu_khoa + "%"]}
-	ds = _bo_trung(frappe.get_all("Purchase Invoice", filters=loc, or_filters=or_loc,
+	ds = _bo_trung(frappe.get_list("Purchase Invoice", filters=loc, or_filters=or_loc,
 		fields=["name", "bill_no", "bill_date", "posting_date", "supplier", "supplier_name",
 			"grand_total", "outstanding_amount", "docstatus"],
 		order_by="posting_date desc", limit_page_length=60 if moi else 300))

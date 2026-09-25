@@ -384,8 +384,11 @@ def loi_bo_thanh_toan(tt_cu, tt_moi, lien_ket, tt_da_tra="Da thanh toan"):
 
 def _khoa_khoan(r):
 	r = r or {}
+	# Codex #373 vòng 5 (06d0251): gồm cả hoa_don_bo_sung, không thì đường nối
+	# cũ một tờ một khoản (noi_hoa_don) vẫn gắn thêm tờ vào khoản của hồ sơ đã
+	# nối mức hồ sơ, hai luật hợp lệ chạy song song trên một hồ sơ.
 	return (str(r.get("name") or ""), round(_tien(r.get("so_tien")), 2), str(r.get("tk_no") or "").strip(),
-		str(r.get("hoa_don") or "").strip(), _so(r.get("cho_hoa_don")))
+		str(r.get("hoa_don") or "").strip(), _so(r.get("cho_hoa_don")), str(r.get("hoa_don_bo_sung") or "").strip())
 
 
 def loi_sua_khoan_khi_noi(cu, moi, co_noi, cho_phep=False):
