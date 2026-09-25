@@ -422,3 +422,80 @@ def _h1_tu_doi_giu_ngay():
 		"custom_nguon": "Tại chỗ", "vgb_quay": ""}])
 	la("giữ ngày có chi_giu_co", goi, [(("2026-09-24", "giu_ngay", hddt_cho_xuat.NGUOI_MAY, "2026-09-25", "2026-09-24"), {"chi_giu_co": 1})])
 
+
+
+# ---------------------------------------------- Codex vòng 4 (#369) trên cd8684c
+
+
+def _sql_that(rows):
+	"""db.sql chạy THẬT câu SQL trên sqlite trong bộ nhớ (điều 17a: đồ giả
+	không tự áp điều kiện, câu SQL của hàm quyết định dòng nào ra)."""
+	import re
+	import sqlite3
+	cot = ["name", "posting_date", "vgb_hddt_ngay_xuat", "custom_nguon", "vgb_quay", "docstatus", "vgb_huy",
+		"vgb_tam_tinh", "grand_total", "custom_hddt_so", "custom_minvoice_id", "custom_hddt_id", "vgb_hddt_cho_doi_chieu"]
+	con = sqlite3.connect(":memory:")
+	con.row_factory = sqlite3.Row
+	con.execute("create table `tabSales Invoice` (%s)" % ", ".join(cot))
+	for r in rows:
+		r = dict(dict(docstatus=1, vgb_huy=0, vgb_tam_tinh=0, grand_total=100000, custom_hddt_so="",
+			custom_minvoice_id="", custom_hddt_id="", vgb_hddt_cho_doi_chieu=0, custom_nguon="Tại chỗ", vgb_quay=""), **r)
+		con.execute("insert into `tabSales Invoice` values (%s)" % ", ".join("?" * len(cot)),
+			[str(r.get(c)) if isinstance(r.get(c), datetime.date) else r.get(c) for c in cot])
+
+	def sql(q, p=None, as_dict=False, **k):
+		cur = con.execute(re.sub(r"%\((\w+)\)s", r":\1", q), {a: str(b) for a, b in (p or {}).items()})
+		ra = []
+		for x in cur:
+			d = _R({c: x[c] for c in x.keys()})
+			for c in ("posting_date", "vgb_hddt_ngay_xuat"):
+				if d.get(c):
+					d[c] = datetime.date.fromisoformat(d[c])
+			ra.append(d)
+		return ra
+	return sql
+
+
+def _hang_rao_that(rows):
+	"""Hàng rào THẬT, hôm nay 25/09, tập nợ đọc bằng câu SQL thật trên sqlite,
+	tự đối chiếu THẬT; chỉ giả m-invoice (chay_nen) và phát hành theo lô."""
+	vet = []
+	bh = NS(_ngay_so_hddt_moi_nhat=lambda: D(2026, 9, 24),
+		_khoa_hddt=lambda **kw: vet.append("khoa") or object(),
+		_mo_khoa_dong_bo=lambda *a: None, _cong_tac_minvoice=lambda: (1, 1),
+		_phat_hanh_theo_lo=lambda d: vet.append(("phat_hanh", d)) or {"tim_thay": 0, "tao_ok": 0, "loi": []},
+		_ky_theo_lo=lambda d: {"can_ky": 0, "da_ky": 0, "loi": []})
+	f = NS(db=NS(sql=_sql_that(rows)), log_error=lambda *a, **k: None, get_traceback=lambda: "")
+	moc = []
+	with unittest.mock.patch.object(hddt_cho_xuat, "frappe", f), \
+			unittest.mock.patch.object(hddt_cho_xuat, "_cai_dat_minvoice", lambda: ({}, {"Tại chỗ"}, [])), \
+			unittest.mock.patch.object(hddt_cho_xuat, "nowdate", lambda: "2026-09-25"), \
+			unittest.mock.patch.object(hddt_cho_xuat, "chay_nen", lambda *a, **k: vet.append(("chay_nen",) + a) or {}), \
+			unittest.mock.patch.dict(sys.modules, {"vagabond.ban_hang": bh}):
+		g = dict(frappe=unittest.mock.MagicMock(), ngay_cu_can_bao_ve=hddt_cho_xuat.ngay_cu_can_bao_ve,
+			ngay_cu_dang_cho=hddt_cho_xuat.ngay_cu_dang_cho, ngay_cu_con_mo=hddt_cho_xuat.ngay_cu_con_mo,
+			getdate=hddt_cho_xuat._ngay, nowdate=lambda: "2026-09-25", _ngay_xac_nhan_qua_han=lambda: (),
+			cint=lambda x: int(x or 0), _ghi_moc_loi=lambda x: moc.append(x),
+			tu_doi_chieu_co=hddt_cho_xuat.tu_doi_chieu_co)
+		fn = _nap("hddt_cho_xuat.py", "xuat_ngay_cu_truoc", g)
+		ra = fn()
+	return ra, vet, moc
+
+
+@ca("v527 Codex vòng 4: tờ 24/09 đã kéo ngày lập sang hôm nay mà giữ cờ thì KHÔNG chặn tờ hôm nay (trước: chặn tới cuối ngày)")
+def _v4_keo_hom_nay_khong_chan():
+	ra, vet, moc = _hang_rao_that([{"name": "SI-KEO", "posting_date": D(2026, 9, 24),
+		"vgb_hddt_ngay_xuat": D(2026, 9, 25), "vgb_hddt_cho_doi_chieu": 1}])
+	la("cho tờ hôm nay đi", ra, True)
+	la("không lấy khoá, không phát hành ngày cũ", [v for v in vet if v == "khoa" or v[0] == "phat_hanh"], [])
+	# Đối chứng 1: tờ 24/09 giữ cờ, chưa kéo ngày: vẫn là nợ ngày cũ, máy
+	# thử tự đối chiếu đúng ngày 24/09, m-invoice chưa trả lời thì vẫn chặn.
+	ra, vet, moc = _hang_rao_that([{"name": "SI-GIU", "posting_date": D(2026, 9, 24),
+		"vgb_hddt_ngay_xuat": None, "vgb_hddt_cho_doi_chieu": 1}])
+	la("tờ cũ chưa kéo ngày vẫn chặn", ra, False)
+	dung("và có thử tự đối chiếu 24/09", any(v[0] == "chay_nen" and v[1] == "2026-09-24" for v in vet if isinstance(v, tuple)))
+	# Đối chứng 2: tờ 24/09 đã đặt ngày lập 24/09 (không phải hôm nay), chưa
+	# ra: vẫn là nợ ngày cũ, và hàng rào phát hành đúng ngày 24/09.
+	ra, vet, moc = _hang_rao_that([{"name": "SI-HQ", "posting_date": D(2026, 9, 24),
+		"vgb_hddt_ngay_xuat": D(2026, 9, 24), "vgb_hddt_cho_doi_chieu": 0}])
+	la("ngày lập 24/09 chưa ra: vẫn chặn, có phát hành 24/09", (ra, ("phat_hanh", "2026-09-24") in vet), (False, True))

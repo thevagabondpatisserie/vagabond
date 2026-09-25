@@ -58,7 +58,7 @@ CUA_NGO = {
 	# hang doi va chuoi cuoi ngay, khong mo ra ngoai.
 	"hddt_cho_xuat.py": ["xu_ly_ngay_cu"],
 	# v527: noi tay to lap thang tren m-invoice vao don, tu bang phu BC17.
-	"doi_soat_hddt_ra.py": ["noi_to_vao_don", "go_to_khoi_don"],
+	"doi_soat_hddt_ra.py": ["ung_vien_don", "noi_to_vao_don", "go_to_khoi_don"],
 	# Them 12/09/2026 (#284): don ba bang nhat ky. `don_dep_hang_ngay` KHONG
 	# mo ra ngoai, no la nhip dem cua scheduler. Hai cua duoi day deu tu kiem
 	# System Manager o dong dau.

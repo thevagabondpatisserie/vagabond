@@ -324,7 +324,9 @@ def _phu_du_dong():
 @ca("v527 Codex F3: BC17 không nhận lọc điểm bán, nguồn, phương thức; báo cáo khác vẫn nhận")
 def _bc17_khong_loc():
 	kq, hoi = _chay_bc("BC17", diem="TCV", nguon="Grab", pt="Tiền mặt")
-	la("BC17 đọc toàn công ty", hoi, [(None, None, None)])
+	# Vòng 4: BC17 không đọc tập đơn theo ngày sổ nữa (đầu trang lệch ngày
+	# lập), nên càng không có lọc nào đi vào lớp đọc đơn.
+	la("BC17 không đọc tập đơn theo ngày sổ", hoi, [])
 	la("BC17 báo màn hình ẩn lọc", kq.get("khong_loc"), 1)
 	la("BC17 không gửi chip nguồn, phương thức", (kq["nguon_loc"], kq["pt_loc"]), ([], []))
 	# Đối chứng: BC05 vẫn lọc như cũ, nên phép giả đọc đơn thật sự ghi được tham số.
@@ -668,7 +670,13 @@ def _noi_tay_chan():
 		ghi == [] and "người khác" in kq.get("loi", "") and nk == [])
 
 
-def _bam_bc(kq, nut, hoi_chu, hoi_co=True, tra_xem=None):
+UV_MAC_DINH = {"to": "TO-15231", "so": "15231", "tong_tien": 950000, "ngay_lap": "2026-09-21", "tong": 2,
+	"rows": [{"name": "HDB-26-09-03340", "ngay": "2026-09-21", "tien": 3800000, "khach": "Khách", "ma_don": "94132",
+		"so_hddt": "15200", "goi_y": 1}, {"name": "HDB-26-09-03341", "ngay": "2026-09-21", "tien": 950000,
+		"khach": "Khách B", "ma_don": "94133", "so_hddt": "", "goi_y": 0}]}
+
+
+def _bam_bc(kq, nut, hoi_chu, hoi_co=True, tra_xem=None, uv=None):
 	"""Vẽ BC17 thật trong node, bấm nút trên bảng phụ, trả các lời gọi API."""
 	import json
 	import subprocess
@@ -685,16 +693,18 @@ def _bam_bc(kq, nut, hoi_chu, hoi_co=True, tra_xem=None):
 	man = (goc / "14-bao-cao.js").read_text(encoding="utf-8")
 	kich = r"""
 const vm = require('vm');
-const ghi = { html: [], api: [], toast: [], bao: [], go: [] };
+const ghi = { html: [], api: [], toast: [], bao: [], go: [], chon: [] };
 let khung = null;
 const ctx = { console: console, setTimeout: setTimeout,
   document: { getElementById: function () { return { onclick: null }; } },
   frame: function (t, b) { ghi.html.push(b); khung = { onclick: null, querySelector: function () { return null; } }; return khung; },
   api: async function (m, a) { ghi.api.push([m, a || {}]);
     if (m === 'vagabond.bao_cao.chay') return __KQ__;
+    if (m === 'vagabond.doi_soat_hddt_ra.ung_vien_don') return __UV__;
     if (a && a.xac_nhan === 0) return __XEM__;
     return { loi_nhan: 'xong' }; },
   hoiChu: async function () { return __CHU__; }, hoiCo: async function () { return __CO__; },
+  hoiChon: async function (t, m, ds, k) { ghi.chon.push({ ds: ds.map(function (x) { return x.k; }), k: k, mo: m, nhan: ds.map(function (x) { return x.nhan + ' | ' + x.mo_ta; }) }); return __CHU__; },
   baoTin: function (x) { ghi.bao.push(x); }, today: function () { return '2026-09-21'; },
   go: function (f) { ghi.go.push(f && f.name); }, busy: function () {}, toast: function (x) { ghi.toast.push(x); } };
 vm.createContext(ctx);
@@ -713,10 +723,11 @@ vm.runInContext("bcMa = 'BC17';", ctx);
     await khung.onclick({ target: { closest: function (sel) { return sel === '[' + THUOC + ']' ? el : null; } } });
     bam = 'da_bam';
   }
-  process.stdout.write(JSON.stringify({ html: html, api: ghi.api, toast: ghi.toast, bao: ghi.bao, bam: bam, go: ghi.go }));
+  process.stdout.write(JSON.stringify({ html: html, api: ghi.api, toast: ghi.toast, bao: ghi.bao, bam: bam, go: ghi.go, chon: ghi.chon }));
 })().catch(function (e) { console.error(e && e.stack || e); process.exit(1); });
 """
-	for k, v in (("__KQ__", kq), ("__XEM__", tra_xem or {}), ("__CHU__", hoi_chu), ("__CO__", hoi_co), ("__NUT__", nut)):
+	for k, v in (("__KQ__", kq), ("__XEM__", tra_xem or {}), ("__CHU__", hoi_chu), ("__CO__", hoi_co), ("__NUT__", nut),
+			("__UV__", UV_MAC_DINH if uv is None else uv)):
 		kich = kich.replace(k, json.dumps(v))
 	kich = kich.replace("__NEN__", json.dumps(nen)).replace("__MAN__", json.dumps(man))
 	r = subprocess.run(["node", "-e", kich], capture_output=True, text=True, timeout=60)
@@ -739,12 +750,16 @@ def _noi_tay_man():
 	ra = _bam_bc(_kq_bc17_nut(), "data-bcnoi", "HDB-26-09-03340", True, xem)
 	la("có bấm", ra["bam"], "da_bam")
 	goi = [(m, a.get("xac_nhan"), a.get("don")) for m, a in ra["api"] if m != "vagabond.bao_cao.chay"]
-	la("xem trước rồi xác nhận, đúng đơn",
-		goi, [("vagabond.doi_soat_hddt_ra.noi_to_vao_don", 0, "HDB-26-09-03340"),
+	# Vòng 4 (QT-31): chọn đơn trong danh sách có tìm, không gõ tự do.
+	la("đọc danh sách đơn, xem trước rồi xác nhận, đúng đơn",
+		goi, [("vagabond.doi_soat_hddt_ra.ung_vien_don", None, None),
+			("vagabond.doi_soat_hddt_ra.noi_to_vao_don", 0, "HDB-26-09-03340"),
 			("vagabond.doi_soat_hddt_ra.noi_to_vao_don", 1, "HDB-26-09-03340")])
+	la("ô chọn có đủ đơn, đơn gợi ý được chọn sẵn", [(c["ds"], c["k"]) for c in ra["chon"]],
+		[(["HDB-26-09-03340", "HDB-26-09-03341"], "HDB-26-09-03340")])
 	la("vẽ lại báo cáo sau khi nối", ra["go"], ["scrBaoCaoXem"])
 	ra = _bam_bc(_kq_bc17_nut(), "data-bcnoi", "HDB-26-09-03340", False, xem)
-	la("bấm Thôi ở bước xác nhận: chỉ xem trước", [a.get("xac_nhan") for m, a in ra["api"] if "doi_soat" in m], [0])
+	la("bấm Thôi ở bước xác nhận: chỉ xem trước", [a.get("xac_nhan") for m, a in ra["api"] if m.endswith("noi_to_vao_don")], [0])
 	ra = _bam_bc(_kq_bc17_nut(), "data-bcgo", "nối nhầm đơn", True)
 	la("gỡ gửi lý do", [(m, a.get("ly_do")) for m, a in ra["api"] if "doi_soat" in m],
 		[("vagabond.doi_soat_hddt_ra.go_to_khoi_don", "nối nhầm đơn")])
@@ -818,3 +833,114 @@ def _h2_nhap():
 	ra = _ve_bc(_kq_man(ma="BC05", khong_loc=0))
 	dung("đối chứng BC05: còn chip", "data-bcnhap" in ra["html"])
 
+
+
+# ---------------------------------------------- Codex vòng 4 (#369) trên cd8684c
+
+
+@ca("v527 Codex vòng 4: đơn đường cũ chỉ có mã ở ô custom_hddt_id, chưa có số, vẫn được BC17 nạp và xếp là tờ ERP")
+def _v4_nap_hai_o_ma():
+	to = _to(15600, "2026-09-22", ten="MI-ID-9")
+	don = [_D(dict(_don("HDB-26-09-05000", "", ngay="2026-09-22"), custom_hddt_id="MI-ID-9", docstatus=1))]
+	import frappe as _fr
+
+	def get_all(dt, filters=None, fields=None, limit_page_length=0):
+		if dt == ds.DT_TO:
+			return [_D(to)] if "ngay_lap" in filters else []
+		return _loc(don, filters)
+	f = NS(get_all=get_all, db=NS(get_single_value=lambda *a: "1C26MPV"), throw=_fr.throw)
+	with unittest.mock.patch.object(ds, "frappe", f):
+		to_ds, goc, si, _n = ds.doc("2026-09-22", "2026-09-22")
+	la("đơn có mặt trong tập đơn", [s.name for s in si], ["HDB-26-09-05000"])
+	o = ds.phan_loai(to_ds, si, goc)["MI-ID-9"]
+	la("xếp là tờ ERP của đúng đơn, không phải tờ tạo tay", (o["loai"], o["don"]), (ds.LOAI_ERP, "HDB-26-09-05000"))
+
+
+@ca("v527 Codex vòng 4: BC17 không trả đầu trang doanh thu theo ngày sổ, màn và Excel nói rõ đếm theo ngày lập")
+def _v4_dau_trang():
+	from vagabond import bao_cao as bc
+	kq, hoi = _chay_bc("BC17", ss=1)
+	la("không có số tổng theo ngày sổ, không kỳ trước", (kq["tong_doanh_thu"], kq["so_hoa_don"], kq["ss"]), (None, None, None))
+	la("không đọc tập đơn theo ngày sổ", hoi, [])
+	kq5, hoi5 = _chay_bc("BC05", ss=0)
+	la("đối chứng BC05 vẫn có đầu trang", (kq5["tong_doanh_thu"], kq5["so_hoa_don"]), (30.0, 2))
+	ra = _ve_bc(_kq_man(khong_loc=1, tong_doanh_thu=None, so_hoa_don=None, nguon_loc=[], pt_loc=[]))
+	dung("màn: có câu đếm theo ngày lập, không có dòng doanh thu",
+		"theo ngày lập hoá đơn" in ra["html"] and "hoá đơn trong phạm vi đang lọc" not in ra["html"])
+	bang = []
+	xl = __import__("sys").modules["frappe.utils.xlsxutils"]
+	with unittest.mock.patch.object(xl, "make_xlsx", lambda b, ten: bang.extend(b) or b"x"), \
+			unittest.mock.patch.object(bc, "_hoa_don", lambda *a, **k: []), \
+			unittest.mock.patch.object(ds, "doc", lambda tu, den: ([], [], [], [])):
+		bc.xuat_excel("BC17", ky="tuy_chon", tu="2026-09-20", den="2026-09-20")
+	dung("Excel: không in dòng Tổng doanh thu", not any(r and r[0] == "Tổng doanh thu" for r in bang))
+
+
+@ca("v527 Codex vòng 4: ghi nhật ký trên đơn hỏng thì lần nối/gỡ HỎNG, không commit; lượt tự ghi tờ thay thế rollback đúng đơn đó")
+def _v4_nhat_ky_hong():
+	import frappe as _fr
+	cm = []
+
+	class _Hong(dict):
+		def insert(self, **k):
+			raise RuntimeError("Comment hỏng")
+	f = NS(get_doc=lambda d: _Hong(d), db=NS(commit=lambda: cm.append(1)))
+	with unittest.mock.patch.object(ds, "frappe", f):
+		try:
+			ds._ghi_nhat_ky_don("HDB-1", "x")
+			ne = False
+		except RuntimeError:
+			ne = True
+	la("ghi nhật ký hỏng thì ném, không commit", (ne, cm), (True, []))
+	# Nối tay thật: nhật ký hỏng thì hàm ném, không tới commit.
+	goc = ds._ghi_nhat_ky_don
+
+	def hong(*a, **k):
+		raise RuntimeError("Comment hỏng")
+	with unittest.mock.patch.object(ds, "_ghi_nhat_ky_don", hong):
+		kq, ghi, nk = _noi_that(xac_nhan=1)
+	dung("nối tay: báo lỗi, không trả thành công", "Comment hỏng" in kq.get("loi", "") and "da_noi" not in kq)
+	# Lượt tự ghi tờ thay thế: đơn đó rollback, không đếm là đã ghi.
+	with unittest.mock.patch.object(ds, "_ghi_nhat_ky_don", hong):
+		so_ghi, ghi, nhat_ky, _h = _chay_noi_thay_the([_to(15439, "2026-09-22", "Thay thế", 12736)], [_D(DON[6], docstatus=1)])
+	la("tự ghi tờ thay thế: nhật ký hỏng thì không đếm là đã ghi", so_ghi, 0)
+	assert goc is ds._ghi_nhat_ky_don
+
+
+@ca("v527 Codex vòng 4: ô chọn đơn nối tay (hàm thật) lấy đơn quanh ngày lập, đơn gợi ý và cùng MST lên đầu, rồi gần tiền")
+def _v4_ung_vien_don():
+	import frappe as _fr
+	t = _D(dict(_to(15231, "2026-09-21", mst=MST_TACH), loai="Đầu ra", tong_tien=950000, vgb_don_erp=""))
+	don = [_D(dict(_don("HDB-26-09-03340", "14634", "", MST_TACH, "2026-09-18"), docstatus=1, grand_total=3800000, customer_name="A")),
+		_D(dict(_don("HDB-26-09-03400", "15000", "", "", "2026-09-21"), docstatus=1, grand_total=960000, customer_name="B")),
+		_D(dict(_don("HDB-26-09-03401", "15001", "", "", "2026-09-21"), docstatus=1, grand_total=100000, customer_name="C")),
+		_D(dict(_don("HDB-26-08-00001", "9000", "", "", "2026-08-01"), docstatus=1, grand_total=950000, customer_name="D")),
+		_D(dict(_don("HDB-26-09-03402", "", "", "", "2026-09-21"), docstatus=0, grand_total=950000, customer_name="E"))]
+
+	def get_all(dt, filters=None, fields=None, limit_page_length=0):
+		assert dt == "Sales Invoice"
+		return _loc(don, filters)
+	f = NS(get_roles=lambda: ["Accounts User"], throw=_fr.throw, get_all=get_all,
+		db=NS(get_value=lambda dt, ten, fl=None, as_dict=False: t if ten == t.name else None, get_single_value=lambda *a: "1C26MPV"))
+	bh = NS(QUYEN_HDDT_THAY_THE={"Accounts User"})
+	with unittest.mock.patch.object(ds, "frappe", f), \
+			unittest.mock.patch.dict(__import__("sys").modules, {"vagabond.ban_hang": bh}):
+		kq = ds.ung_vien_don(t.name)
+	la("thứ tự: cùng MST, rồi gần tiền 950.000; bỏ đơn nháp và đơn ngoài khoảng",
+		[r["name"] for r in kq["rows"]], ["HDB-26-09-03340", "HDB-26-09-03400", "HDB-26-09-03401"])
+	la("đúng tờ", (kq["so"], kq["tong_tien"], kq["ngay_lap"]), ("15231", 950000.0, "2026-09-21"))
+	# Không có gợi ý thì cùng MST vẫn lên trước đơn gần tiền hơn. Ca hàm thật
+	# ở trên không tách được lớp này vì đơn cùng MST cũng là đơn gợi ý
+	# (đột biến V5b 0 ca đổ lần đầu, điều 17c).
+	la("xếp thuần: cùng MST trước gần tiền khi không có gợi ý", [s["name"] for s in ds.xep_ung_vien_don(
+		[{"name": "B", "grand_total": 950000}, {"name": "A", "grand_total": 5000000, "vgb_xhd_mst": MST_TACH}],
+		950000, MST_TACH, "")], ["A", "B"])
+	la("xếp thuần: đơn gợi ý luôn đầu", [s["name"] for s in ds.xep_ung_vien_don(
+		[{"name": "A", "grand_total": 1}, {"name": "B", "grand_total": 950000}], 950000, "", "A")], ["A", "B"])
+
+
+@ca("v527 Codex vòng 4: màn nối tay không có đơn nào để chọn thì báo rõ, không gọi nối")
+def _v4_man_khong_don():
+	ra = _bam_bc(_kq_bc17_nut(), "data-bcnoi", None, True, None, uv={"rows": [], "tong": 0, "ngay_lap": "2026-09-21", "tong_tien": 1})
+	la("không gọi nối", [m for m, a in ra["api"] if m.endswith("noi_to_vao_don")], [])
+	dung("có lời báo ghi sổ đơn trước", len(ra["bao"]) == 1 and "Ghi sổ đơn trước" in ra["bao"][0])

@@ -20,7 +20,8 @@ def no_cu():
     for ghi_so in (False,True):
         def sql(q,*a,**k):
             return [D(posting_date='2026-09-11')] if ghi_so or 'docstatus in (0, 1)' in q else []
-        g=dict(frappe=NS(db=NS(sql=sql)),nowdate=lambda:'2026-09-12',_loc_diem_dang_xuat=lambda r:[x.posting_date for x in r],KhongDocDuocNo=RuntimeError)
+        g=dict(frappe=NS(db=NS(sql=sql)),nowdate=lambda:'2026-09-12',_loc_diem_dang_xuat=lambda r:[x.posting_date for x in r],KhongDocDuocNo=RuntimeError,
+          TRUONG_NGAY_XUAT='vgb_hddt_ngay_xuat')  # v527 vòng 4: câu đọc tập chặn dùng hằng ô ngày lập
         la('tập bảo vệ',nap('hddt_cho_xuat.py','ngay_cu_can_bao_ve',g)(),['2026-09-11'] if ghi_so else [])
 
 @ca('#290 A2 nút ghi sổ lấy cả bill TCV ngày chọn, không lấy tạm tính')
