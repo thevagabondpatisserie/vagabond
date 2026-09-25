@@ -2239,11 +2239,18 @@ def kiem_sepay(name=None):
 		)
 	ds = [d for d in ds if d]
 	from vagabond import doi_chieu_app
-	g = {}
+	g, goi_y = {}, {}
 	for d in ds:
-		gd = doi_chieu_app.chon(frappe.get_doc("Vagabond Ho So TT", d["name"]))
+		hs_doc = frappe.get_doc("Vagabond Ho So TT", d["name"])
+		gd = doi_chieu_app.chon(hs_doc)
 		if gd:
-			g[d["name"]] = {"chi": gd.withdrawal, "so_gd": 1, "ma_gd": gd.name, "ngay": str(gd.date)}
+			g[d["name"]] = {"chi": gd.withdrawal, "so_gd": 1, "ma_gd": gd.name, "ngay": str(gd.date),
+				"theo_mau": 1 if gd.flags.get("theo_mau") else 0}
+		elif name and d.get("trang_thai") == TT_DA_DUYET:
+			# v528: khoản trả tiện ích qua app ngân hàng không mang mã APP.
+			# Chỉ khi xem MỘT hồ sơ: đưa dòng đúng tiền, đúng tài khoản, chưa
+			# ai dùng để người bấm chọn. Máy không tự gán theo số tiền.
+			goi_y[d["name"]] = doi_chieu_app.goi_y_khong_ma(hs_doc)
 	ra = []
 	for d in ds:
 		o = g.get(d["name"]) or {}
@@ -2267,6 +2274,7 @@ def kiem_sepay(name=None):
 			"da_chi": flt(o.get("chi")), "so_gd": o.get("so_gd") or 0,
 			"ma_gd": o.get("ma_gd") or "", "ngay": o.get("ngay") or "",
 			"du": 1 if (not chua_tinh and flt(o.get("chi")) >= phai_chuyen - 1) else 0,
+			"theo_mau": o.get("theo_mau") or 0, "goi_y": goi_y.get(d["name"]) or [],
 		})
 	return {"rows": ra, "so_du": len([x for x in ra if x["du"]])}
 

@@ -180,3 +180,108 @@ def xep_ung_vien(dong, ma_phieu, tien_phieu, thu_tu="goi_y"):
 	return ra
 
 
+
+
+# ------------------------------------------------- lớp 3: thanh toán tiện ích
+#
+# v528, anh Việt 25/09/2026: tiền điện, nước, internet trả bằng tính năng
+# "thanh toán hoá đơn" trong app ngân hàng thì KHÔNG gõ được nội dung, nên
+# sao kê không bao giờ mang mã APP. Dòng thật của hồ sơ APP.26.09.100:
+#     "WATER BT WATER 1032865688 e0Vh5pp20ek.BP1"
+# và của APP.26.09.101 cùng ngày: "WATER TH WATER 1032865615 faILoefoMwM.BP1".
+# Dãy số dài ĐỔI mỗi lần trả (là số lệnh của ngân hàng, không phải mã khách
+# hàng), phần đuôi là chuỗi ngẫu nhiên. Phần ỔN ĐỊNH chỉ là mấy chữ đầu:
+# "WATER BT WATER" (Bến Thành), "WATER TH WATER" (Tân Hoà), "EVN-HCM
+# ELECTRIC", "PAYOO WATER". Vì vậy máy nhớ MẪU ĐẦU DÒNG theo nhà cung cấp,
+# không nhớ dãy số.
+
+# Chữ đầu dòng do người gõ khi chuyển khoản thường, không phải tên dịch vụ
+# của ngân hàng. Mẫu bắt đầu bằng các chữ này thì không nhớ, vì nó khớp với
+# mọi lệnh chuyển tay.
+CHU_CHUNG = frozenset((
+	"THANH", "TOAN", "TT", "CK", "CHUYEN", "TIEN", "MBCT", "VAGABOND", "VGB",
+	"KH", "IBFT", "TRA", "NOP", "RUT", "PHI", "HOAN", "NHAN", "GD", "QR",
+))
+_CHU_MAU = re.compile(r"^[A-Z][A-Z&\-]*$")
+
+
+def _chu(mo_ta):
+	return str(mo_ta or "").split()
+
+
+def mau_sao_ke(mo_ta):
+	"""Mẫu đầu dòng của một lệnh thanh toán tiện ích. THUẦN.
+
+	Lấy các chữ IN HOA liên tiếp ở đầu nội dung, dừng ở chữ đầu tiên có số,
+	có chữ thường hoặc dài quá 10 ký tự (chuỗi ngẫu nhiên của ngân hàng).
+	Tối đa 4 chữ. Trả "" khi không ra mẫu dùng được: quá ngắn, hoặc bắt đầu
+	bằng chữ chung của lệnh chuyển tay.
+	"""
+	ra = []
+	for t in _chu(mo_ta):
+		if len(ra) >= 4 or len(t) > 10 or not _CHU_MAU.match(t):
+			break
+		ra.append(t)
+	mau = " ".join(ra)
+	if not ra or ra[0] in CHU_CHUNG or len(mau.replace(" ", "")) < 5:
+		return ""
+	return mau
+
+
+def doc_ds_mau(chu):
+	"""Ô nhớ mẫu trên nhà cung cấp, mỗi dòng một mẫu. THUẦN."""
+	ra = []
+	for d in str(chu or "").splitlines():
+		m = " ".join(d.split()).upper()
+		if m and m not in ra:
+			ra.append(m)
+	return ra
+
+
+def khop_mau(mo_ta, ds_mau):
+	"""Mẫu dài nhất mà nội dung sao kê BẮT ĐẦU bằng nó, trọn chữ. THUẦN.
+
+	So trọn chữ: mẫu "WATER BT" không khớp "WATER BTX ...". Không có thì "".
+	"""
+	dong = " ".join(_chu(mo_ta)).upper()
+	for m in sorted(ds_mau or [], key=len, reverse=True):
+		if m and (dong == m or dong.startswith(m + " ")):
+			return m
+	return ""
+
+
+def khop_tu_khoa(tu_khoa, dong):
+	"""Ô tìm của màn chọn sao kê: tìm chữ, hoặc tìm ĐÚNG số tiền. THUẦN.
+
+	Người đi tìm một khoản trả tiện ích thường gõ số tiền trên hoá đơn
+	("1.144.382", "1144382 đ"). Trước v528 ô tìm chỉ so chữ trong nội dung
+	nên số tiền không bao giờ ra. `dong` cần `name`, `mo_ta`, `tien`.
+	"""
+	tk = str(tu_khoa or "").strip().lower()
+	if not tk:
+		return True
+	if tk in ("%s %s" % (dong.get("name") or "", dong.get("mo_ta") or "")).lower():
+		return True
+	so = re.sub(r"[\s.,đd]", "", tk)
+	return len(so) >= 4 and so.isdigit() and int(so) == int(round(_so(dong.get("tien"))))
+
+
+def xep_goi_y(ds, ngay_lap):
+	"""Xếp gợi ý giao dịch không mang mã. THUẦN.
+
+	Dòng khớp mẫu đã nhớ lên trước, rồi ngày gần ngày lập hồ sơ nhất, mã bản
+	ghi phá hoà. `ds` là dict có `date`, `name`, `da_nho`.
+	"""
+	import datetime
+
+	def ngay(v):
+		try:
+			return datetime.date.fromisoformat(str(v or "")[:10])
+		except ValueError:
+			return None
+	goc = ngay(ngay_lap)
+
+	def xa(r):
+		d = ngay(r.get("date"))
+		return abs((d - goc).days) if (d and goc) else 10 ** 6
+	return sorted(ds, key=lambda r: (-int(r.get("da_nho") or 0), xa(r), str(r.get("name") or "")))

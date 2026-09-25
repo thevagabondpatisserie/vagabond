@@ -125,6 +125,11 @@ def dung():
 	from vagabond import nha_cung_cap
 
 	_dung_nhom(nha_cung_cap.TRUONG_MOI, "nha_cung_cap")
+	# v528: mẫu đầu dòng sao kê của khoản trả tiện ích, trên Supplier. Đặt
+	# sau nha_cung_cap vì ô chèn ngay sau "Email phụ cần CC".
+	from vagabond import doi_chieu_app
+
+	_dung_nhom(doi_chieu_app.TRUONG_MOI, "doi_chieu_app")
 	# Danh muc cong thuc: o "Ban truoc" tren BOM (them 21/08/2026).
 	from vagabond import cong_thuc
 
