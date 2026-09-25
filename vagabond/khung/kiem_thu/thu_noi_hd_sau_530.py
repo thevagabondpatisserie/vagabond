@@ -735,3 +735,11 @@ def _quyen_ds():
 	la("chỉ FIN hoặc giám đốc", r.kiem, [VAI_FIN | VAI_GD])
 	dung("Purchase User (chỉ có ở nhóm người lập) không được gọi", "Purchase User" not in r.kiem[0])
 
+
+@ca("v530 Codex #373 v4 F9: khoản ghi Nợ thẳng công nợ không tính vào số cần phủ (màn hiện còn thiếu đúng)")
+def _phu_bo_cong_no():
+	from vagabond.hoa_don_sau import do_phu
+	k = [dict(so_tien=778784, cho_hoa_don=1), dict(so_tien=500000, tk_no=T331, cong_no=True)]
+	p = do_phu(k, [dict(tien_khop=778784)])
+	la("số cần chỉ gồm khoản chi phí", (p["can"], p["con_thieu"], p["du"]), (778784.0, 0.0, True))
+	# Đột biến v5 số 5 (bỏ lọc cong_no trong do_phu) từng lọt vì chưa ca nào chốt; ca này chốt.
