@@ -422,6 +422,10 @@ def _loc(rows, filters):
 				return x is not None and str(gt[0]) <= str(x) <= str(gt[1])
 			if op == "is":
 				return bool(x) if gt == "set" else not x
+			if op == "like":
+				import re as _re
+				mau = "^" + ".*".join(_re.escape(p) for p in str(gt).lower().split("%")) + "$"
+				return x is not None and _re.match(mau, str(x).lower()) is not None
 			raise AssertionError("phép lọc chưa hỗ trợ: %s" % op)
 		return str(x) == str(v) if isinstance(x, (int, str)) and isinstance(v, (int, str)) else x == v
 	return [r for r in rows if all(khop(r, k, v) for k, v in filters.items())]
@@ -676,7 +680,7 @@ UV_MAC_DINH = {"to": "TO-15231", "so": "15231", "tong_tien": 950000, "ngay_lap":
 		"khach": "Khách B", "ma_don": "94133", "so_hddt": "", "goi_y": 0}]}
 
 
-def _bam_bc(kq, nut, hoi_chu, hoi_co=True, tra_xem=None, uv=None):
+def _bam_bc(kq, nut, hoi_chu, hoi_co=True, tra_xem=None, uv=None, hc=(), uvt=None):
 	"""Vẽ BC17 thật trong node, bấm nút trên bảng phụ, trả các lời gọi API."""
 	import json
 	import subprocess
@@ -694,17 +698,19 @@ def _bam_bc(kq, nut, hoi_chu, hoi_co=True, tra_xem=None, uv=None):
 	kich = r"""
 const vm = require('vm');
 const ghi = { html: [], api: [], toast: [], bao: [], go: [], chon: [] };
+const HC = __HC__;
 let khung = null;
 const ctx = { console: console, setTimeout: setTimeout,
   document: { getElementById: function () { return { onclick: null }; } },
   frame: function (t, b) { ghi.html.push(b); khung = { onclick: null, querySelector: function () { return null; } }; return khung; },
   api: async function (m, a) { ghi.api.push([m, a || {}]);
     if (m === 'vagabond.bao_cao.chay') return __KQ__;
-    if (m === 'vagabond.doi_soat_hddt_ra.ung_vien_don') return __UV__;
+    if (m === 'vagabond.doi_soat_hddt_ra.ung_vien_don') return (a && a.tu_khoa) ? __UVT__ : __UV__;
     if (a && a.xac_nhan === 0) return __XEM__;
     return { loi_nhan: 'xong' }; },
   hoiChu: async function () { return __CHU__; }, hoiCo: async function () { return __CO__; },
-  hoiChon: async function (t, m, ds, k) { ghi.chon.push({ ds: ds.map(function (x) { return x.k; }), k: k, mo: m, nhan: ds.map(function (x) { return x.nhan + ' | ' + x.mo_ta; }) }); return __CHU__; },
+  hoiChon: async function (t, m, ds, k) { ghi.chon.push({ ds: ds.map(function (x) { return x.k; }), k: k, mo: m, nhan: ds.map(function (x) { return x.nhan + ' | ' + x.mo_ta; }) });
+    return HC.length ? HC.shift() : __CHU__; },
   baoTin: function (x) { ghi.bao.push(x); }, today: function () { return '2026-09-21'; },
   go: function (f) { ghi.go.push(f && f.name); }, busy: function () {}, toast: function (x) { ghi.toast.push(x); } };
 vm.createContext(ctx);
@@ -727,7 +733,7 @@ vm.runInContext("bcMa = 'BC17';", ctx);
 })().catch(function (e) { console.error(e && e.stack || e); process.exit(1); });
 """
 	for k, v in (("__KQ__", kq), ("__XEM__", tra_xem or {}), ("__CHU__", hoi_chu), ("__CO__", hoi_co), ("__NUT__", nut),
-			("__UV__", UV_MAC_DINH if uv is None else uv)):
+			("__UV__", UV_MAC_DINH if uv is None else uv), ("__HC__", list(hc)), ("__UVT__", uvt or {"rows": []})):
 		kich = kich.replace(k, json.dumps(v))
 	kich = kich.replace("__NEN__", json.dumps(nen)).replace("__MAN__", json.dumps(man))
 	r = subprocess.run(["node", "-e", kich], capture_output=True, text=True, timeout=60)
@@ -756,7 +762,7 @@ def _noi_tay_man():
 			("vagabond.doi_soat_hddt_ra.noi_to_vao_don", 0, "HDB-26-09-03340"),
 			("vagabond.doi_soat_hddt_ra.noi_to_vao_don", 1, "HDB-26-09-03340")])
 	la("ô chọn có đủ đơn, đơn gợi ý được chọn sẵn", [(c["ds"], c["k"]) for c in ra["chon"]],
-		[(["HDB-26-09-03340", "HDB-26-09-03341"], "HDB-26-09-03340")])
+		[(["__tim__", "HDB-26-09-03340", "HDB-26-09-03341"], "HDB-26-09-03340")])
 	la("vẽ lại báo cáo sau khi nối", ra["go"], ["scrBaoCaoXem"])
 	ra = _bam_bc(_kq_bc17_nut(), "data-bcnoi", "HDB-26-09-03340", False, xem)
 	la("bấm Thôi ở bước xác nhận: chỉ xem trước", [a.get("xac_nhan") for m, a in ra["api"] if m.endswith("noi_to_vao_don")], [0])
@@ -917,7 +923,7 @@ def _v4_ung_vien_don():
 		_D(dict(_don("HDB-26-08-00001", "9000", "", "", "2026-08-01"), docstatus=1, grand_total=950000, customer_name="D")),
 		_D(dict(_don("HDB-26-09-03402", "", "", "", "2026-09-21"), docstatus=0, grand_total=950000, customer_name="E"))]
 
-	def get_all(dt, filters=None, fields=None, limit_page_length=0):
+	def get_all(dt, filters=None, fields=None, limit_page_length=0, **k):
 		assert dt == "Sales Invoice"
 		return _loc(don, filters)
 	f = NS(get_roles=lambda: ["Accounts User"], throw=_fr.throw, get_all=get_all,
@@ -939,8 +945,59 @@ def _v4_ung_vien_don():
 		[{"name": "A", "grand_total": 1}, {"name": "B", "grand_total": 950000}], 950000, "", "A")], ["A", "B"])
 
 
-@ca("v527 Codex vòng 4: màn nối tay không có đơn nào để chọn thì báo rõ, không gọi nối")
+@ca("v527 Codex vòng 4: màn nối tay không có đơn quanh ngày lập thì vẫn còn đường tìm, bấm Thôi thì không gọi nối")
 def _v4_man_khong_don():
 	ra = _bam_bc(_kq_bc17_nut(), "data-bcnoi", None, True, None, uv={"rows": [], "tong": 0, "ngay_lap": "2026-09-21", "tong_tien": 1})
 	la("không gọi nối", [m for m, a in ra["api"] if m.endswith("noi_to_vao_don")], [])
-	dung("có lời báo ghi sổ đơn trước", len(ra["bao"]) == 1 and "Ghi sổ đơn trước" in ra["bao"][0])
+	la("ô chọn chỉ còn dòng tìm đơn khác", [c["ds"] for c in ra["chon"]], [["__tim__"]])
+
+
+# ---------------------------------------------- Codex vòng 5 (#369) trên 336e13c
+
+DON_CU = {"name": "HDB-26-09-01000", "ngay": "2026-09-10", "tien": 950000, "khach": "Khách cũ", "ma_don": "91000",
+	"so_hddt": "", "goi_y": 0}
+
+
+@ca("v527 Codex vòng 5: đơn ghi sổ 11 ngày trước tờ, không cùng MST, vẫn chọn được qua tìm phía máy chủ (màn thật)")
+def _v5_tim_man():
+	ra = _bam_bc(_kq_bc17_nut(), "data-bcnoi", "HDB-26-09-01000", True,
+		{"to": "TO-15231", "so": "15231", "don": "HDB-26-09-01000", "tien_don": 950000, "tong_to": 950000, "lech": 0,
+			"lech_qua_nguong": 0, "cac_to": [{}]},
+		hc=["__tim__", "HDB-26-09-01000"], uvt={"rows": [DON_CU], "tong": 1, "ngay_lap": "2026-09-21", "tong_tien": 950000})
+	tim = [a for m, a in ra["api"] if m.endswith("ung_vien_don")]
+	la("gọi tìm phía máy chủ đúng từ khoá", [a.get("tu_khoa") for a in tim], [None, "HDB-26-09-01000"])
+	dung("ô chọn đầu có dòng tìm đơn khác", ra["chon"][0]["ds"][0] == "__tim__")
+	la("ô chọn thứ hai là kết quả tìm", ra["chon"][1]["ds"], ["__tim__", "HDB-26-09-01000"])
+	la("nối đúng đơn tìm được", [a.get("don") for m, a in ra["api"] if m.endswith("noi_to_vao_don")],
+		["HDB-26-09-01000", "HDB-26-09-01000"])
+
+
+def _uv_that(tu_khoa=None):
+	import frappe as _fr
+	t = _D(dict(_to(15231, "2026-09-21"), loai="Đầu ra", tong_tien=950000, vgb_don_erp="", mst_doi_tac=""))
+	don = [_D(dict(_don("HDB-26-09-01000", "", "", "", "2026-09-10"), docstatus=1, grand_total=950000, customer_name="Khách cũ")),
+		_D(dict(_don("HDB-26-09-03400", "15000", "", "", "2026-09-21"), docstatus=1, grand_total=960000, customer_name="B")),
+		_D(dict(_don("HDB-26-09-03999", "", "", "", "2026-09-10"), docstatus=0, grand_total=950000, customer_name="Nháp"))]
+	hoi = []
+
+	def get_all(dt, filters=None, fields=None, limit_page_length=0, **k):
+		hoi.append(dict(filters))
+		return _loc(don, filters)[:limit_page_length or None]
+	f = NS(get_roles=lambda: ["Accounts User"], throw=_fr.throw, get_all=get_all,
+		db=NS(get_value=lambda dt, ten, fl=None, as_dict=False: t if ten == t.name else None, get_single_value=lambda *a: "1C26MPV"))
+	bh = NS(QUYEN_HDDT_THAY_THE={"Accounts User"})
+	with unittest.mock.patch.object(ds, "frappe", f), \
+			unittest.mock.patch.dict(__import__("sys").modules, {"vagabond.ban_hang": bh}):
+		return ds.ung_vien_don(t.name, tu_khoa=tu_khoa) if tu_khoa is not None else ds.ung_vien_don(t.name), hoi
+
+
+@ca("v527 Codex vòng 5: tìm đơn phía máy chủ (hàm thật) ra đơn ngoài khoảng ngày theo mã, mã đơn bán, tên khách, số tiền; không ra đơn nháp")
+def _v5_tim_that():
+	kq, _h = _uv_that()
+	dung("không tìm: đơn 10/09 không có (ngoài khoảng)", "HDB-26-09-01000" not in [r["name"] for r in kq["rows"]])
+	for tk in ("HDB-26-09-01000", "P-1000", "khách cũ", "950.000"):
+		kq, _h = _uv_that(tk)
+		dung("tìm " + tk + ": có đơn 10/09", "HDB-26-09-01000" in [r["name"] for r in kq["rows"]])
+		dung("tìm " + tk + ": không có đơn nháp", "HDB-26-09-03999" not in [r["name"] for r in kq["rows"]])
+	kq, hoi = _uv_that("a")
+	la("từ khoá quá ngắn: không hỏi máy chủ", (kq["rows"], hoi), ([], []))
