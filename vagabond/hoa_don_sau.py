@@ -407,3 +407,19 @@ def loi_sua_khoan_khi_noi(cu, moi, co_noi, cho_phep=False):
 			"hoá đơn gốc của khoản chi được. Gỡ các tờ nối trên hồ sơ trước rồi mới sửa khoản.")
 	return ""
 
+
+def loi_doi_ncc_khi_noi(ncc_cu, ncc_moi, co_noi):
+	"""Hồ sơ đã có tờ nối mức hồ sơ thì nhà cung cấp đứng yên. THUẦN.
+
+	Codex #373 vòng 6 (0f19a43): luật giữ liên kết cũ chỉ xét khoản có
+	hoa_don_bo_sung, luật khoản chỉ so khoản, nên lưu Desk/API đổi nhà cung
+	cấp của hồ sơ chỉ có tờ nối mức hồ sơ vẫn qua: hồ sơ mang NCC mới mà bút
+	toán bù trừ và tờ nối là của NCC cũ. Không có cờ cho qua: nút Nối/Gỡ
+	không bao giờ đổi nhà cung cấp."""
+	if not co_noi:
+		return ""
+	if (ncc_cu or "").strip() != (ncc_moi or "").strip():
+		return ("Hồ sơ đang có hoá đơn đến sau nối ở mức hồ sơ, nên không đổi nhà cung cấp được. "
+			"Gỡ các tờ nối trên hồ sơ trước rồi mới đổi.")
+	return ""
+

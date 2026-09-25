@@ -320,6 +320,12 @@ def kiem_bo_sung(doc):
 		[_dict_dong(r) for r in (doc.dong or [])], bool(cu_hd), cho_phep)
 	if loi:
 		frappe.throw(loi, title="Hoá đơn đến sau")
+	# Codex #373 vòng 6: có tờ nối mức hồ sơ thì nhà cung cấp cũng đứng yên.
+	from vagabond.hoa_don_sau import loi_doi_ncc_khi_noi
+	loi = loi_doi_ncc_khi_noi(getattr(cu, "nha_cung_cap", None) if cu else None,
+		getattr(doc, "nha_cung_cap", None), bool(cu_hd))
+	if loi:
+		frappe.throw(loi, title="Hoá đơn đến sau")
 	if cu:
 		loi = loi_bo_thanh_toan(getattr(cu, "trang_thai", None), getattr(doc, "trang_thai", None), cu_hd)
 		if loi:
@@ -995,6 +1001,13 @@ def noi_nhieu(name, hoa_don, ngoai_ncc=0):
 	ds = list(dict.fromkeys((str(x) or "").strip() for x in (ds or []) if str(x or "").strip()))
 	if not ds:
 		frappe.throw("Chưa chọn hoá đơn nào.")
+	# Codex #373 vòng 6: danh sách chọn đã đọc qua get_list (luật quyền theo
+	# NCC), nhưng gửi thẳng tên tờ vào đây thì câu SQL bên dưới bỏ qua luật đó.
+	# Soát quyền đọc từng tờ trước khi khoá hay ghi gì.
+	for ma in ds:
+		if not frappe.has_permission("Purchase Invoice", "read", doc=ma):
+			frappe.throw("Bạn không có quyền xem hoá đơn %s, nên không nối được. Nhờ kế toán trưởng kiểm tra." % ma,
+				title="Chưa nối được")
 	frappe.db.sql("select name from `tabVagabond Ho So TT` where name=%s for update", name)
 	d = frappe.get_doc("Vagabond Ho So TT", name)
 	if d.trang_thai in TT_KHONG_NOI_THEM:
