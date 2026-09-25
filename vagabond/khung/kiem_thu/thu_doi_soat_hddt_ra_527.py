@@ -581,7 +581,7 @@ def _noi_tay_dem():
 
 
 def _noi_that(xac_nhan=0, don_nhap="HDB-26-09-03340", tien_don=3800000, quyen=("Accounts User",), to_ten="TO-15231",
-		dang_noi="", chen=None):
+		dang_noi="", chen=None, erp_giu=""):
 	"""noi_to_vao_don THẬT, dữ liệu 21/09 dựng lại (tiền giả)."""
 	bang = {t["name"]: _D(dict(t, loai="Đầu ra", tong_tien=950000)) for t in TO if t["so_hd"] in (15228, 15229, 15230, 15231)}
 	for n in (15228, 15229, 15230):
@@ -603,7 +603,12 @@ def _noi_that(xac_nhan=0, don_nhap="HDB-26-09-03340", tien_don=3800000, quyen=("
 
 	def get_all(dt, filters=None, fields=None, limit_page_length=0):
 		if dt == "Sales Invoice":
-			return [si] if filters.get("custom_pancake_display_id") == si.custom_pancake_display_id else []
+			if filters.get("custom_pancake_display_id") == si.custom_pancake_display_id:
+				return [si]
+			# Đơn ERP đã phát hành tờ này, ghi mã m-invoice ở một trong hai ô.
+			if erp_giu and filters.get(erp_giu) == to_ten:
+				return [_D(name="HDB-ERP-GIU")]
+			return []
 		return _loc(list(bang.values()), {k: v for k, v in filters.items()})
 
 	def sql(cau, ts):
@@ -745,3 +750,71 @@ def _noi_tay_man():
 		[("vagabond.doi_soat_hddt_ra.go_to_khoi_don", "nối nhầm đơn")])
 	# Bảng chính không có nút; nút không phải cột nên Excel không in.
 	dung("bảng chính không có nút", ra["html"].count("data-bcnoi") == 1 and ra["html"].count("data-bcgo") == 1)
+
+
+# ---------------------------------------------- Codex vòng 3 (#369) trên cbff7e2
+
+
+@ca("v527 Codex H3: tờ ERP tự phát hành ghi mã ở ô custom_hddt_id (đường cũ) cũng không nối tay được")
+def _h3_hai_o_ma():
+	for o in ("custom_minvoice_id", "custom_hddt_id"):
+		kq, ghi, nk = _noi_that(xac_nhan=1, erp_giu=o)
+		dung("mã ở %s: chặn, không ghi" % o, "ERP tự phát hành" in kq.get("loi", "") and ghi == [] and nk == [])
+
+
+def _go_that(chen=None):
+	bang = {"TO-15231": _D(name="TO-15231", so_hd=15231, vgb_don_erp="HDB-26-09-03340")}
+	nk = []
+
+	def sql(cau, ts):
+		if chen:
+			chen(bang)
+		t = bang[ts["to"]]
+		if "vgb_don_erp = %(cu)s" not in cau or t.get("vgb_don_erp") == ts["cu"]:
+			t["vgb_don_erp"] = None
+
+	def get_value(dt, ten, fields=None, as_dict=False):
+		t = bang.get(ten)
+		if isinstance(fields, str):
+			return t.get(fields) if t else None
+		return t
+
+	class _Doc(dict):
+		def insert(self, **k):
+			nk.append(self["content"])
+	import frappe as _fr
+	f = NS(get_roles=lambda: ["Accounts User"], throw=_fr.throw, session=NS(user="dung@vagabond"),
+		get_doc=lambda d: _Doc(d), log_error=lambda *a, **k: None,
+		db=NS(get_value=get_value, sql=sql, commit=lambda: None))
+	bh = NS(QUYEN_HDDT_THAY_THE={"Accounts User"})
+	with unittest.mock.patch.object(ds, "frappe", f), \
+			unittest.mock.patch.dict(__import__("sys").modules, {"vagabond.ban_hang": bh}):
+		try:
+			return ds.go_to_khoi_don(to="TO-15231", ly_do="nối nhầm"), bang, nk
+		except Exception as e:
+			return {"loi": str(e)}, bang, nk
+
+
+@ca("v527 Codex H4: gỡ nối mà người khác vừa nối sang đơn khác thì báo rõ, không ghi nhật ký gỡ sai")
+def _h4_go_chen_ngang():
+	kq, bang, nk = _go_that()
+	la("gỡ thường: gỡ được, một dòng nhật ký", (kq.get("ok"), bang["TO-15231"]["vgb_don_erp"], len(nk)), (1, None, 1))
+
+	def nguoi_khac(bang):
+		bang["TO-15231"]["vgb_don_erp"] = "HDB-KHAC"
+	kq, bang, nk = _go_that(chen=nguoi_khac)
+	dung("chen ngang: báo lỗi", "người khác" in kq.get("loi", ""))
+	la("liên kết mới còn nguyên, không nhật ký", (bang["TO-15231"]["vgb_don_erp"], nk), ("HDB-KHAC", []))
+
+
+@ca("v527 Codex H2: BC17 luôn chỉ tính đơn đã ghi sổ, màn không bày công tắc đơn chưa ghi sổ")
+def _h2_nhap():
+	kq, hoi = _chay_bc("BC17", nhap=1)
+	la("bật công tắc vẫn chỉ đơn đã ghi sổ", kq["nhap"], 0)
+	kq, hoi = _chay_bc("BC05", nhap=1)
+	la("đối chứng BC05: công tắc vẫn có tác dụng", kq["nhap"], 1)
+	ra = _ve_bc(_kq_man(khong_loc=1, nhap=0, nguon_loc=[], pt_loc=[]))
+	dung("BC17: không có chip đơn chưa ghi sổ", "data-bcnhap" not in ra["html"])
+	ra = _ve_bc(_kq_man(ma="BC05", khong_loc=0))
+	dung("đối chứng BC05: còn chip", "data-bcnhap" in ra["html"])
+

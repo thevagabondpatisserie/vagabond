@@ -153,7 +153,7 @@ def _tu_doi(ngay_co, chi_ngay=None, chi_ngay_cu=False, chay_nen=None, doc_loi=Fa
 	g = dict(frappe=NS(log_error=lambda *a, **k: log.append(a), get_traceback=lambda: ""),
 		ngay_co_to_giu_co=doc, ke_hoach_tu_doi_chieu=hddt_cho_xuat.ke_hoach_tu_doi_chieu, _ngay=hddt_cho_xuat._ngay,
 		getdate=lambda x: x, nowdate=lambda: D(2026, 9, 25), NGUOI_MAY="Máy",
-		chay_nen=chay_nen or (lambda *a: goi.append(a) or {"keo": 1}))
+		chay_nen=chay_nen or (lambda *a, **k: goi.append(a) or {"keo": 1}))
 	fn = _nap("hddt_cho_xuat.py", "tu_doi_chieu_co", g)
 	with unittest.mock.patch.dict(sys.modules, {"vagabond.ban_hang": bh}):
 		ra = fn(chi_ngay=chi_ngay, chi_ngay_cu=chi_ngay_cu)
@@ -182,7 +182,7 @@ def _tu_doi_loi():
 	la("đọc lỗi trả 0", ra, 0)
 	la("có log", len(log), 1)
 
-	def nen(*a):
+	def nen(*a, **k):
 		if a[0] == "2026-09-24":
 			raise RuntimeError("m-invoice sập")
 		return {}
@@ -336,8 +336,9 @@ def _g1_keo_giu_co():
 	# Đối chứng: tờ không kéo ngày vẫn đi đường giữ ngày cũ, chữ ký gọi y như trước.
 	ra, goi = _tu_doi_that([{"posting_date": D(2026, 9, 24), "vgb_hddt_ngay_xuat": None,
 		"custom_nguon": "Tại chỗ", "vgb_quay": ""}])
-	la("không kéo ngày: giữ ngày như cũ",
-		goi, [(("2026-09-24", "giu_ngay", hddt_cho_xuat.NGUOI_MAY, "2026-09-25", "2026-09-24"), {})])
+	# Vòng 3 (H1): lượt giữ ngày của máy cũng chỉ đụng tờ giữ cờ đúng ngày lập.
+	la("không kéo ngày: giữ ngày, chỉ tờ giữ cờ",
+		goi, [(("2026-09-24", "giu_ngay", hddt_cho_xuat.NGUOI_MAY, "2026-09-25", "2026-09-24"), {"chi_giu_co": 1})])
 	# Ngày lập cũng đã quá hạn thì máy không làm (việc của người).
 	ra, goi = _tu_doi_that([{"posting_date": D(2026, 9, 10), "vgb_hddt_ngay_xuat": D(2026, 9, 20),
 		"custom_nguon": "Tại chỗ", "vgb_quay": ""}])
@@ -351,7 +352,7 @@ def _g1_keo_giu_co():
 	la("điểm không bật xuất thì bỏ", goi, [])
 
 
-def _nen_that(chon, **kw):
+def _nen_that(chon, che_do="keo", ngay="2026-09-10", dich="2026-09-24", **kw):
 	"""Chạy _chay_nen_da_nang_quyen THẬT; giả m-invoice, khoá và câu ghi."""
 	vet = {"dat": [], "go": [], "ph": [], "ky": []}
 	f = unittest.mock.MagicMock()
@@ -373,7 +374,7 @@ def _nen_that(chon, **kw):
 			p(hddt_cho_xuat, "phat_hanh", lambda d, g: vet["ph"].append(("ngay", d)) or {}), \
 			p(hddt_cho_xuat, "ky", lambda d, g: vet["ky"].append(("ngay", d)) or {}), \
 			unittest.mock.patch.dict(sys.modules, {"vagabond.ban_hang": bh}):
-		kq = hddt_cho_xuat._chay_nen_da_nang_quyen("2026-09-10", "keo", "Máy", "2026-09-25", "2026-09-24", **kw)
+		kq = hddt_cho_xuat._chay_nen_da_nang_quyen(ngay, che_do, "Máy", "2026-09-25", dich, **kw)
 	return kq, vet
 
 
@@ -392,3 +393,32 @@ def _g1_chi_giu_co():
 	# Đối chứng: người bấm tay (không chỉ tờ giữ cờ) thì vẫn kéo cả ngày như cũ.
 	kq, vet = _nen_that(chon)
 	la("bấm tay: kéo cả tờ khác như trước", vet["dat"], [("SI-KHAC", "2026-09-24")])
+
+
+
+# ---------------------------------------------- Codex vòng 3 (#369) trên cbff7e2
+
+
+def _to_co(ten, so, lap, co=1):
+	return {"name": ten, "posting_date": so, "vgb_hddt_cho_doi_chieu": co, "vgb_hddt_ngay_xuat": lap,
+		"custom_minvoice_id": "", "custom_hddt_id": "", "custom_hddt_so": "", "custom_pancake_display_id": ""}
+
+
+@ca("v527 Codex H1: hai tờ giữ cờ cùng ngày sổ mà khác ngày lập thì mỗi lượt chỉ đụng tờ đúng ngày lập của nó")
+def _h1_cung_ngay_so():
+	chon = [_to_co("SI-24", D(2026, 9, 10), D(2026, 9, 24)), _to_co("SI-25", D(2026, 9, 10), D(2026, 9, 25))]
+	kq, vet = _nen_that(chon, chi_giu_co=1)
+	la("lượt kéo tới 24/09: chỉ gỡ cờ tờ ngày lập 24/09", vet["go"], ["SI-24"])
+	# Lượt giữ ngày của máy cũng vậy: tờ ngày sổ 24/09 đã kéo sang 25/09 thì
+	# lượt giữ ngày 24/09 không được đụng tới nó.
+	chon = [_to_co("SI-GIU", D(2026, 9, 24), None), _to_co("SI-KEO", D(2026, 9, 24), D(2026, 9, 25))]
+	kq, vet = _nen_that(chon, che_do="giu_ngay", ngay="2026-09-24", dich="2026-09-24", chi_giu_co=1)
+	la("lượt giữ ngày 24/09: chỉ tờ ngày lập 24/09", vet["go"], ["SI-GIU"])
+
+
+@ca("v527 Codex H1: máy tự đối chiếu đi lượt giữ ngày cũng chỉ đụng tờ giữ cờ")
+def _h1_tu_doi_giu_ngay():
+	ra, goi = _tu_doi_that([{"posting_date": D(2026, 9, 24), "vgb_hddt_ngay_xuat": None,
+		"custom_nguon": "Tại chỗ", "vgb_quay": ""}])
+	la("giữ ngày có chi_giu_co", goi, [(("2026-09-24", "giu_ngay", hddt_cho_xuat.NGUOI_MAY, "2026-09-25", "2026-09-24"), {"chi_giu_co": 1})])
+
