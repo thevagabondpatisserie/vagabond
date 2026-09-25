@@ -1157,3 +1157,14 @@ giây thì phải có nhịp khác đợi lâu hơn trước mốc hết ngày.
 Và: màn báo cáo phải so được với nguồn bên ngoài theo đúng đơn vị người dùng
 đếm (tờ theo ngày lập trên m-invoice), không chỉ đếm trong ERP. Tờ lập thẳng
 trên cổng (thay thế, tách đơn) chỉ lộ ra khi đặt hai con số cạnh nhau.
+
+Ba bẫy Codex bắt ở vòng 1 của cùng PR (#369), cả ba đều im lặng:
+- Đọc cấu hình lỗi hay trống mà trả chuỗi rỗng rồi "không lọc" là mở cửa
+  cho dữ liệu khác loại (dải Fabi C26MVO) đếm lẫn vào. Cấu hình dùng để LỌC
+  thì thiếu là DỪNG có lời, không bao giờ coi rỗng là "lấy hết".
+- Hàm báo cáo tự cắt `[:300]` bảng phụ thì nút "Xuất Excel đầy đủ" cũng mất
+  dòng, vì Excel gọi lại đúng hàm đó. Cắt cho màn hình chỉ làm ở MỘT chỗ
+  (`bao_cao.chay`), có cờ và lời báo, và bỏ qua khi xuất đủ.
+- Báo cáo không chia theo điểm bán mà vẫn hiện chip điểm bán thì người xem
+  bấm chip, đầu trang đổi mà bảng không đổi. Báo cáo nào không nhận một bộ
+  lọc thì máy chủ bỏ bộ lọc đó và màn hình ẩn chip, nói rõ vì sao.
