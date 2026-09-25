@@ -917,19 +917,42 @@ def _loai_tk(tk):
 
 
 def _cap_nhat_hop_le(d, tkct):
-	"""Đổi hồ sơ sang Hợp lệ tính thuế khi phủ đủ, trả 1 nếu vừa đổi."""
+	"""Xếp lại loại chi phí thuế sau MỌI lần nối hoặc gỡ, cả hai chiều.
+
+	Trả 1 nếu vừa lên Hợp lệ, -1 nếu vừa về Không hợp lệ, 0 nếu giữ nguyên.
+	Codex #373 vòng 2: bản trước chỉ nâng lên, nên lần nối thứ hai làm thừa
+	quá ngưỡng vẫn để hồ sơ hợp lệ. Chỉ hạ khi mọi khoản là hoá đơn đến sau,
+	tức nhãn hợp lệ đang dựa vào hoá đơn nối; hồ sơ lập hợp lệ bằng chứng từ
+	riêng từ đầu thì không đụng. Một nguồn cho noi_nhieu và go_noi (điều 18)."""
 	from vagabond import hoa_don_sau as hs
-	from vagabond.ho_so_tt import CP_HOP_LE
+	from vagabond.ho_so_tt import CP_HOP_LE, CP_KHONG_HOP_LE
 	if not tkct:
 		return 0
 	tong = {}
 	for ma in sorted({(x.get("hoa_don_bo_sung") or "").strip() for x in _khoan_cua(d)} - {""}):
 		tong[ma] = tong_hoa_don_khoa(ma)
 	lech = lech_tien_hoa_don(_khoan_cua(d), tong)
-	if hs.nen_hop_le(_khoan_cua(d), _lien_ket_cua(d), lech) and (getattr(d, "loai_cp_thue", None) or "") != CP_HOP_LE:
+	nen = hs.nen_hop_le(_khoan_cua(d), _lien_ket_cua(d), lech)
+	hien = getattr(d, "loai_cp_thue", None) or ""
+	if nen and hien != CP_HOP_LE:
 		d.loai_cp_thue = CP_HOP_LE
 		return 1
+	if not nen and hien == CP_HOP_LE and all(cint(r.get("cho_hoa_don")) for r in d.dong):
+		d.loai_cp_thue = CP_KHONG_HOP_LE
+		return -1
 	return 0
+
+
+def chan_huy_bu_tru(doc, method=None):
+	"""before_cancel Journal Entry (v530, Codex #373 vòng 2): bút toán bù trừ
+	hoá đơn đến sau chỉ huỷ qua go_noi (cờ vgb_go_noi)."""
+	ho_so = (doc.get("vgb_bu_tru_ho_so") or "").strip() if hasattr(doc, "get") else ""
+	if not ho_so or getattr(getattr(doc, "flags", None), "vgb_go_noi", False):
+		return
+	frappe.throw(
+		"Bút toán %s là bút toán bù trừ hoá đơn đến sau của hồ sơ %s. Huỷ thẳng ở đây thì công nợ tờ hoá đơn "
+		"sống lại mà hồ sơ vẫn giữ dòng nối. Mở hồ sơ %s và bấm Gỡ ở tờ hoá đơn." % (doc.name, ho_so, ho_so),
+		title="Huỷ qua nút Gỡ trên hồ sơ")
 
 
 @frappe.whitelist(methods=["POST"])
@@ -1020,7 +1043,8 @@ def noi_nhieu(name, hoa_don, ngoai_ncc=0):
 		for r in d.hd_sau:
 			if r.hoa_don in ma_bu and not r.but_toan:
 				r.but_toan = ten
-	doi_hop_le = _cap_nhat_hop_le(d, tkct)
+	doi = _cap_nhat_hop_le(d, tkct)
+	doi_hop_le = 1 if doi == 1 else 0
 	d.flags.vgb_noi_hd_sau = True
 	d.save(ignore_permissions=True)
 	phu = hs.do_phu(_khoan_cua(d), _lien_ket_cua(d))
@@ -1030,8 +1054,10 @@ def noi_nhieu(name, hoa_don, ngoai_ncc=0):
 		(" Bút toán bù trừ: %s." % ", ".join(but_toan)) if but_toan else "",
 		" Có tờ ngoài nhà cung cấp, người nối đã xác nhận." if cint(ngoai_ncc) else "",
 		hs.dd(phu["da_noi"]), hs.dd(phu["can"]),
-		" Đủ hoá đơn, hồ sơ chuyển sang chi phí hợp lệ tính thuế." if doi_hop_le else ""))
-	return {"ok": 1, "hop_le": doi_hop_le, "phu": phu, "but_toan": but_toan, "danh_dau": danh_dau}
+		" Đủ hoá đơn, hồ sơ chuyển sang chi phí hợp lệ tính thuế." if doi == 1 else (
+			" Tổng tờ nối không còn khớp, hồ sơ trở lại chi phí không hợp lệ tính thuế." if doi == -1 else "")))
+	return {"ok": 1, "hop_le": doi_hop_le, "ve_khong_hop_le": 1 if doi == -1 else 0, "phu": phu,
+		"but_toan": but_toan, "danh_dau": danh_dau}
 
 
 @frappe.whitelist(methods=["POST"])
@@ -1039,7 +1065,7 @@ def go_noi(name, hoa_don):
 	"""Gỡ một tờ nối mức hồ sơ (v530), đường sửa khi nối nhầm. FIN hoặc giám
 	đốc. Tờ có bút toán bù trừ thì huỷ bút toán đó, công nợ tờ trở lại như cũ."""
 	from vagabond import hoa_don_sau as hs
-	from vagabond.ho_so_tt import _kiem, VAI_FIN, VAI_GD, LOAI_TKCT, CP_HOP_LE, CP_KHONG_HOP_LE
+	from vagabond.ho_so_tt import _kiem, VAI_FIN, VAI_GD, LOAI_TKCT
 	_kiem(VAI_FIN | VAI_GD, "gỡ hóa đơn đến sau")
 	frappe.db.sql("select name from `tabVagabond Ho So TT` where name=%s for update", name)
 	d = frappe.get_doc("Vagabond Ho So TT", name)
@@ -1054,11 +1080,7 @@ def go_noi(name, hoa_don):
 	for r in nhom:
 		d.remove(r)
 	tkct = (getattr(d, "loai", None) or "") == LOAI_TKCT
-	ve = 0
-	if tkct and (getattr(d, "loai_cp_thue", None) or "") == CP_HOP_LE and all(
-			cint(r.get("cho_hoa_don")) for r in d.dong) and not hs.nen_hop_le(_khoan_cua(d), _lien_ket_cua(d)):
-		d.loai_cp_thue = CP_KHONG_HOP_LE
-		ve = 1
+	ve = 1 if _cap_nhat_hop_le(d, tkct) == -1 else 0
 	d.flags.vgb_noi_hd_sau = True
 	d.save(ignore_permissions=True)
 	# Codex #373 vòng 1: gỡ dòng nối (lưu hồ sơ) TRƯỚC rồi mới huỷ bút toán,
@@ -1068,6 +1090,7 @@ def go_noi(name, hoa_don):
 		je = frappe.get_doc("Journal Entry", but_toan)
 		if je.docstatus == 1:
 			je.flags.ignore_permissions = True
+			je.flags.vgb_go_noi = True
 			je.cancel()
 	go = [r.hoa_don for r in nhom]
 	d.add_comment("Comment", "Gỡ hoá đơn đến sau %s.%s%s" % (

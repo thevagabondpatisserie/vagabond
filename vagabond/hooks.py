@@ -868,3 +868,11 @@ for _event, _fn in (("validate", "kiem_je"), ("before_update_after_submit", "kie
     _old = doc_events.setdefault("Journal Entry", {}).get(_event, [])
     doc_events["Journal Entry"][_event] = ([_old] if isinstance(_old, str) else list(_old)) + ["vagabond.tam_ung_app." + _fn]
 del _event, _fn, _old
+
+# v530 (Codex #373 vòng 2): bút toán bù trừ hoá đơn đến sau chỉ huỷ qua nút Gỡ
+# trên hồ sơ. Huỷ thẳng trên Desk là công nợ tờ sống lại, chi phí hai lần,
+# trong khi hồ sơ vẫn giữ dòng nối và nhãn hợp lệ tính thuế.
+_cu_bt = doc_events.setdefault("Journal Entry", {}).get("before_cancel", [])
+doc_events["Journal Entry"]["before_cancel"] = ([_cu_bt] if isinstance(_cu_bt, str) else list(_cu_bt)) + [
+	"vagabond.ho_so_bo_sung.chan_huy_bu_tru"]
+del _cu_bt
