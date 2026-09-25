@@ -236,3 +236,167 @@ def _keo_trang_thai():
 	kq, ghi = _keo(dict(inv, tthai=6), {"ID-14159": {"so_hd": None, "trang_thai": ""}})
 	dung("vỏ ruột vẫn đi đường lành cũ, không đi đường mới",
 		len(ghi) == 1 and "so_hd" in ghi[0][1])
+
+
+# ------------------------------------ Codex vòng 1 (#369): ba finding của BC17
+
+
+def _doc_voi(ky_hieu):
+	"""Chạy doc() thật với ô ký hiệu tuỳ ý. ky_hieu là hàm để giả được cả lỗi đọc."""
+	hoi = []
+
+	def get_all(dt, filters=None, fields=None, limit_page_length=0):
+		hoi.append(dt)
+		if dt == "MInvoice Invoice" and "ngay_lap" in filters:
+			return [_D(_to(300, "2026-09-20")), _D(dict(_to(1, "2026-09-20"), ky_hieu="C26MVO"))]
+		return []
+
+	import frappe as _fr
+	f = NS(get_all=get_all, db=NS(get_single_value=ky_hieu), throw=_fr.throw)
+	with unittest.mock.patch.object(ds, "frappe", f):
+		try:
+			to = ds.doc("2026-09-20", "2026-09-20")[0]
+			return "chạy", sorted(t.ky_hieu for t in to), hoi
+		except Exception as e:
+			return "dừng", str(e), hoi
+
+
+@ca("v527 Codex F1: ô ký hiệu trống hoặc đọc lỗi thì dừng có lời, không đếm lẫn dải Fabi C26MVO")
+def _ky_hieu_dong_cua():
+	kq, chi, hoi = _doc_voi(lambda *a: "")
+	la("ký hiệu trống thì dừng", kq, "dừng")
+	dung("lời dừng chỉ chỗ sửa", "ký hiệu" in str(chi))
+	la("không đọc bảng tờ khi chưa biết ký hiệu", hoi.count("MInvoice Invoice"), 0)
+
+	def loi(*a):
+		raise RuntimeError("mất kết nối")
+	kq, chi, hoi = _doc_voi(loi)
+	la("đọc cài đặt lỗi thì dừng", kq, "dừng")
+	la("không đọc bảng tờ khi đọc cài đặt lỗi", hoi.count("MInvoice Invoice"), 0)
+	# Đối chứng: có ký hiệu thì chạy và chỉ lấy đúng dải đang phát hành.
+	kq, chi, hoi = _doc_voi(lambda *a: "1C26MPV")
+	la("có ký hiệu thì chỉ đúng dải", (kq, chi), ("chạy", ["C26MPV"]))
+
+
+def _chay_bc(ma, n_to=0, **ts):
+	"""Chạy bao_cao.chay THẬT. Chỉ giả lớp đọc đơn và lớp đọc bảng tờ."""
+	from vagabond import bao_cao as bc
+	hoi_hd = []
+
+	def hoa_don(tu, den, diem=None, nguon=None, pt=None):
+		hoi_hd.append((diem, nguon, pt))
+		return [_D({"name": "HD1", "grand_total": 10, "_nhap": 0, "custom_nguon": "Grab",
+			"vgb_pt_thanh_toan": "Tiền mặt", "custom_hddt_so": "1"}),
+			_D({"name": "HD2", "grand_total": 20, "_nhap": 0, "custom_nguon": "Tại chỗ",
+			"vgb_pt_thanh_toan": "Chuyển khoản", "custom_hddt_so": ""})]
+	to = [_to(20000 + i, "2026-09-20", mst="03%08d" % i) for i in range(n_to)]
+	with unittest.mock.patch.object(bc, "_hoa_don", hoa_don), \
+			unittest.mock.patch.object(bc, "_diem_ban", lambda: [{"ma": "TCV", "ten": "TCV", "dia_chi": ""}]), \
+			unittest.mock.patch.object(ds, "doc", lambda tu, den: (to, [], [], [])):
+		kq = bc.chay(ma, ky="tuy_chon", tu="2026-09-20", den="2026-09-20", **ts)
+	return kq, hoi_hd
+
+
+@ca("v527 Codex F2: bảng phụ BC17 không mất tờ nào khi xuất Excel, màn hình cắt thì nói rõ")
+def _phu_du_dong():
+	from vagabond import bao_cao as bc
+	n = bc.GIOI_HAN_DONG + 100
+	kq, _h = _chay_bc("BC17", n_to=n, day_du=1)
+	la("xuất đủ: bảng phụ đủ mọi tờ", len(kq["phu"]["dong"]), n)
+	kq, _h = _chay_bc("BC17", n_to=n)
+	la("màn hình: cắt đúng giới hạn", len(kq["phu"]["dong"]), bc.GIOI_HAN_DONG)
+	la("màn hình: báo tổng và cờ cắt", (kq["phu"].get("tong_dong"), kq["phu"].get("bi_cat")), (n, 1))
+	# Đi đúng nút Xuất Excel: file phải có đủ n dòng tờ, không chỉ n của hàm chay.
+	bang = []
+	xl = __import__("sys").modules["frappe.utils.xlsxutils"]
+	with unittest.mock.patch.object(xl, "make_xlsx", lambda b, ten: bang.extend(b) or b"x"), \
+			unittest.mock.patch.object(bc, "_hoa_don", lambda *a, **k: []), \
+			unittest.mock.patch.object(ds, "doc", lambda tu, den: (
+				[_to(20000 + i, "2026-09-20") for i in range(n)], [], [], [])):
+		bc.xuat_excel("BC17", ky="tuy_chon", tu="2026-09-20", den="2026-09-20")
+	la("file Excel có đủ mọi tờ", sum(1 for r in bang if len(r) > 1 and str(r[1]).startswith("2") and str(r[1]).isdigit()), n)
+	# Ít dòng thì không cắt, không báo.
+	kq, _h = _chay_bc("BC17", n_to=3)
+	la("ít dòng: không cờ cắt", (len(kq["phu"]["dong"]), kq["phu"].get("bi_cat")), (3, 0))
+
+
+@ca("v527 Codex F3: BC17 không nhận lọc điểm bán, nguồn, phương thức; báo cáo khác vẫn nhận")
+def _bc17_khong_loc():
+	kq, hoi = _chay_bc("BC17", diem="TCV", nguon="Grab", pt="Tiền mặt")
+	la("BC17 đọc toàn công ty", hoi, [(None, None, None)])
+	la("BC17 báo màn hình ẩn lọc", kq.get("khong_loc"), 1)
+	la("BC17 không gửi chip nguồn, phương thức", (kq["nguon_loc"], kq["pt_loc"]), ([], []))
+	# Đối chứng: BC05 vẫn lọc như cũ, nên phép giả đọc đơn thật sự ghi được tham số.
+	kq, hoi = _chay_bc("BC05", diem="TCV", nguon="Grab", pt="Tiền mặt")
+	la("BC05 vẫn lọc", hoi, [("TCV", "Grab", "Tiền mặt")])
+	la("BC05 không cờ ẩn lọc", kq.get("khong_loc"), 0)
+
+
+def _ve_bc(kq, bc_diem="TCV"):
+	"""Chạy thật scrBaoCaoXem của 14-bao-cao.js trong node với API giả."""
+	import json
+	import subprocess
+	goc = GOC / "public" / "js" / "bep"
+
+	def cat(tep, ten):
+		import re
+		m = re.search(r"\nfunction %s\([^)]*\) ?\{.*?\n\}" % ten, (goc / tep).read_text(encoding="utf-8"), re.S)
+		if not m:
+			m = re.search(r"\nfunction %s\([^\n]*\n" % ten, (goc / tep).read_text(encoding="utf-8"))
+		return m.group(0)
+	nen = cat("00-nen.js", "h") + cat("00-nen.js", "money") + cat("09-tinh-tien-quay.js", "posChipNut") + \
+		cat("13-khuyen-mai.js", "kmHangChip") + \
+		cat("09-tinh-tien-quay.js", "posNgayVn")
+	man = (goc / "14-bao-cao.js").read_text(encoding="utf-8")
+	kich = r"""
+const vm = require('vm');
+const ghi = { html: [], api: [] };
+const ctx = { console: console, setTimeout: setTimeout,
+  document: { getElementById: function () { return { onclick: null }; } },
+  frame: function (t, b) { ghi.html.push(b); return { onclick: null, querySelector: function () { return null; } }; },
+  api: async function (m, a) { ghi.api.push(a); return __KQ__; },
+  today: function () { return '2026-09-20'; }, go: function () {}, busy: function () {}, toast: function () {} };
+vm.createContext(ctx);
+vm.runInContext(__NEN__, ctx);
+vm.runInContext(__MAN__, ctx);
+vm.runInContext("bcMa = 'BC17'; bcDiem = " + JSON.stringify(__DIEM__) + ";", ctx);
+ctx.scrBaoCaoXem().then(function () {
+  process.stdout.write(JSON.stringify({ html: ghi.html[ghi.html.length - 1], api: ghi.api }));
+}).catch(function (e) { console.error(e && e.stack || e); process.exit(1); });
+"""
+	# Thay khoá nhỏ trước, hai khối mã nguồn sau cùng, để không thay nhầm chữ bên trong mã.
+	kich = kich.replace("__KQ__", json.dumps(kq)).replace("__DIEM__", json.dumps(bc_diem))
+	kich = kich.replace("__NEN__", json.dumps(nen)).replace("__MAN__", json.dumps(man))
+	r = subprocess.run(["node", "-e", kich], capture_output=True, text=True, timeout=60)
+	if r.returncode != 0:
+		raise AssertionError("node lỗi: " + (r.stderr or "").strip()[:500])
+	return json.loads(r.stdout)
+
+
+def _kq_man(**doi):
+	kq = {"ma": "BC17", "ten": "Đối chiếu", "ic": "🔎", "mo": "", "nhan_ky": "Ngày 20/09/2026",
+		"tong_doanh_thu": 0, "so_hoa_don": 0, "nhap": 1, "chot": 0, "so_nhap": 0, "tien_nhap": 0,
+		"cot": [{"k": "ngay", "nhan": "Ngày lập", "kieu": "ngay"}], "dong": [{"ngay": "2026-09-20"}],
+		"cong": {}, "tong_dong": 1, "bi_cat": 0, "gioi_han": 600, "ss": None, "co_ss_dong": 0,
+		"bieu_do": None, "nhan_dinh": None, "nguon_loc": ["Grab", "Tại chỗ"], "pt_loc": ["Tiền mặt", "Thẻ"],
+		"diem_ban": [{"ma": "TCV", "ten": "TCV"}, {"ma": "NVHTN", "ten": "NVHTN"}],
+		"phu": {"tieu_de": "Tờ lập thẳng", "cot": [{"k": "so_hd", "nhan": "Số", "kieu": "chu"}],
+			"dong": [{"so_hd": "1"}], "tong_dong": 1, "bi_cat": 0, "gioi_han": 600}}
+	kq.update(doi)
+	return kq
+
+
+@ca("v527 Codex F2+F3 trên màn thật: BC17 ẩn chip điểm bán và có lời vì sao; bảng phụ bị cắt thì nói rõ")
+def _man_bc17():
+	ra = _ve_bc(_kq_man(khong_loc=1, nguon_loc=[], pt_loc=[]))
+	dung("BC17: không vẽ chip điểm bán", "data-bcdiem" not in ra["html"])
+	dung("BC17: không vẽ chip nguồn, phương thức", "data-bcnguon" not in ra["html"] and "data-bcpt" not in ra["html"])
+	dung("BC17: nói rõ vì sao không lọc", "không lọc theo điểm bán" in ra["html"])
+	# Đối chứng: báo cáo thường vẫn có đủ ba hàng chip, nên phép dò không xanh vì màn trống.
+	ra = _ve_bc(_kq_man(ma="BC05", khong_loc=0))
+	dung("báo cáo thường: còn chip điểm bán", "data-bcdiem" in ra["html"])
+	dung("báo cáo thường: còn chip nguồn", "data-bcnguon" in ra["html"])
+	dung("báo cáo thường: không có lời ẩn lọc", "không lọc theo điểm bán" not in ra["html"])
+	ra = _ve_bc(_kq_man(khong_loc=1, phu={"tieu_de": "Tờ lập thẳng", "cot": [{"k": "so_hd", "nhan": "Số", "kieu": "chu"}],
+		"dong": [{"so_hd": "1"}], "tong_dong": 700, "bi_cat": 1, "gioi_han": 600}))
+	dung("bảng phụ bị cắt: báo tổng 700", "700" in ra["html"] and "Xuất Excel" in ra["html"])

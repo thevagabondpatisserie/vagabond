@@ -259,7 +259,9 @@ def _man_cong_tac():
 	dung("co chip bat tat", "data-bcnhap" in js)
 	dung("chip co bat su kien", "closest('[data-bcnhap]')" in js)
 	dung("co ham ve dai canh bao", "function bcDaiNhap(" in js)
-	la("ca hai man deu ve dai", js.count("bcThanhKy() + bcDaiNhap(kq)"), 2)
+	# v527: man xem mot bao cao truyen them co an chip diem (BC17), van phai ve dai.
+	import re
+	la("ca hai man deu ve dai", len(re.findall(r"bcThanhKy\([^)]*\) \+ bcDaiNhap\(kq\)", js)), 2)
 	# Chua bam thi KHONG duoc gui gi ca. Gui san 1 la ep bao cao thue phai
 	# tinh don chua ghi so, dung cai minh vua cat cong de tranh.
 	dung("chua chon thi khong gui", "if (bcNhap !== null) o.nhap = bcNhap;" in js)
