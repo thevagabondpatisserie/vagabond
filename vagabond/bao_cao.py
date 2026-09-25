@@ -1025,7 +1025,10 @@ def chay(ma, ky="ngay", moc=None, tu=None, den=None, diem=None, nguon=None, pt=N
 	# BC17 chỉ đọc đơn ĐÃ ghi sổ, nên công tắc đơn chưa ghi sổ không đổi bảng
 	# mà chỉ đổi đầu trang: ép tắt để hai con số cùng phạm vi (Codex H2).
 	n = 0 if khong_loc else _mac_dinh_nhap(b, nhap)
-	tat_ca = _hoa_don(t, d, diem=diem, nguon=nguon, pt=pt)
+	# Đầu trang chung (doanh thu, số hoá đơn, kỳ trước) tính theo NGÀY SỔ,
+	# còn BC17 xếp theo NGÀY LẬP hoá đơn. Hai tập khác nhau khi đơn được kéo
+	# ngày, nên BC17 không đọc và không trả đầu trang chung (Codex #369 vòng 4).
+	tat_ca = [] if khong_loc else _hoa_don(t, d, diem=diem, nguon=nguon, pt=pt)
 	so_nhap, tien_nhap = _do_nhap(tat_ca)
 	hd = _loc_nhap(tat_ca, n)
 	kq = b["ham"](hd, tu=t, den=d)
@@ -1041,7 +1044,7 @@ def chay(ma, ky="ngay", moc=None, tu=None, den=None, diem=None, nguon=None, pt=N
 	dong = kq["dong"]
 
 	khoi_ss = None
-	if int(ss or 0):
+	if int(ss or 0) and not khong_loc:
 		khoi_ss = _ss_tong(ky, t, d, tong, len(hd), diem=diem, nguon=nguon, pt=pt, nhap=n)
 		chinh = _cot_chinh(kq)
 		if b.get("ss") and chinh and dong:
@@ -1119,8 +1122,8 @@ def chay(ma, ky="ngay", moc=None, tu=None, den=None, diem=None, nguon=None, pt=N
 		"nhan_ky": _nhan_ky(ky, t, d),
 		"tu": str(t),
 		"den": str(d),
-		"tong_doanh_thu": tong,
-		"so_hoa_don": len(hd),
+		"tong_doanh_thu": None if khong_loc else tong,
+		"so_hoa_don": None if khong_loc else len(hd),
 		"nhap": n,
 		"chot": 1 if b.get("chot") else 0,
 		"so_nhap": so_nhap,
@@ -1164,16 +1167,22 @@ def xuat_excel(ma, ky="ngay", moc=None, tu=None, den=None, diem=None, nguon=None
 	bang = [
 		["%s - %s" % (kq["ma"], kq["ten"])],
 		[kq["nhan_ky"]],
-		["Tổng doanh thu", kq["tong_doanh_thu"], "Số hoá đơn", kq["so_hoa_don"]],
-		[
-			"Tính cả đơn chưa ghi sổ" if kq["nhap"] else "Chỉ đơn đã ghi sổ",
-			"",
-			"Đơn chưa ghi sổ trong kỳ",
-			kq["so_nhap"],
-			"Tiền chưa ghi sổ",
-			kq["tien_nhap"],
-		],
 	]
+	if kq.get("khong_loc"):
+		# BC17 đếm theo ngày lập, không có đầu trang doanh thu theo ngày sổ.
+		bang.append(["Đếm theo ngày lập hoá đơn, chỉ đơn đã ghi sổ"])
+	else:
+		bang += [
+			["Tổng doanh thu", kq["tong_doanh_thu"], "Số hoá đơn", kq["so_hoa_don"]],
+			[
+				"Tính cả đơn chưa ghi sổ" if kq["nhap"] else "Chỉ đơn đã ghi sổ",
+				"",
+				"Đơn chưa ghi sổ trong kỳ",
+				kq["so_nhap"],
+				"Tiền chưa ghi sổ",
+				kq["tien_nhap"],
+			],
+		]
 	if kq.get("ss"):
 		bang.append([
 			"So với %s" % kq["ss"]["nhan_ky"], kq["ss"]["tong_doanh_thu"],

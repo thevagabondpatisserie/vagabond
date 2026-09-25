@@ -435,10 +435,15 @@ def doc(tu, den):
 	if can_so:
 		for s in _don({"custom_hddt_so": ["in", sorted(can_so)]}):
 			si[s.name] = s
-	ids = [t.get("name") for t in to_ds if t.get("name")]
+	ids = sorted({t.get("name") for t in to_ds + to_goc if t.get("name")})
 	if ids:
-		for s in _don({"custom_minvoice_id": ["in", ids]}):
-			si[s.name] = s
+		# Hai ô mã: đường Python cũ ghi custom_hddt_id, đường mới ghi
+		# custom_minvoice_id. Tờ tạo xong mà bước hỏi số hỏng thì đơn chỉ có
+		# mã, chưa có số: phải nạp theo cả hai ô, không thì BC17 xếp nhầm tờ
+		# ERP vào tờ tạo tay (Codex #369 vòng 4).
+		for o in ("custom_minvoice_id", "custom_hddt_id"):
+			for s in _don({o: ["in", ids]}):
+				si[s.name] = s
 	for s in _don({"custom_hddt_thay_the": ["is", "set"]}):
 		si[s.name] = s
 	noi = sorted({str(t.get("vgb_don_erp") or "").strip() for t in to_ds} - {""})
@@ -559,6 +564,54 @@ def _to_cua_don(d, k_he, them=None):
 	return ra
 
 
+# Đơn ứng viên cho ô chọn nối tay: quanh ngày lập của tờ.
+SO_NGAY_UNG_VIEN_TRUOC = 7
+SO_UNG_VIEN_TOI_DA = 120
+
+
+def xep_ung_vien_don(ds, tong_tien, mst_to="", goi_y=""):
+	"""Xếp đơn cho ô chọn nối tay. THUẦN. Đơn máy gợi ý lên đầu, rồi đơn
+	cùng MST, rồi tiền gần tiền tờ nhất, mã đơn phá hoà."""
+	m = mst(mst_to)
+	def khoa(s):
+		return (0 if s.get("name") == goi_y else 1, 0 if (m and mst(s.get("vgb_xhd_mst")) == m) else 1,
+			abs(float(s.get("grand_total") or 0) - float(tong_tien or 0)), str(s.get("name") or ""))
+	return sorted(ds, key=khoa)
+
+
+@frappe.whitelist()
+def ung_vien_don(to=None):
+	"""Danh sách đơn đã ghi sổ để chọn khi nối tay một tờ (Codex #369 vòng 4:
+	đơn là danh mục có sẵn thì phải là ô chọn có tìm, không phải ô gõ).
+	Đơn trong khoảng ngày lập của tờ trừ SO_NGAY_UNG_VIEN_TRUOC tới hôm sau,
+	theo ngày sổ hoặc ngày chờ xuất, cộng đơn máy gợi ý và đơn cùng MST."""
+	_quyen_ke_toan()
+	k_he = _ky_hieu_he()
+	t = frappe.db.get_value(DT_TO, to, TRUONG_TO + ["loai"], as_dict=True)
+	if not t or t.loai != "Đầu ra" or kh(t.ky_hieu) != k_he:
+		frappe.throw("Không có tờ %s trong dải hoá đơn bán đang phát hành." % (to or ""))
+	lap = getdate(t.ngay_lap)
+	khoang = [add_days(lap, -SO_NGAY_UNG_VIEN_TRUOC), add_days(lap, 1)]
+	truong = ["name", "posting_date", "grand_total", "customer_name", "custom_pancake_display_id",
+		"custom_hddt_so", "vgb_xhd_mst"]
+	gom = {}
+	for loc in ({"posting_date": ["between", khoang]}, {"vgb_hddt_ngay_xuat": ["between", khoang]}):
+		for s in frappe.get_all("Sales Invoice", filters=dict({"docstatus": 1}, **loc), fields=truong, limit_page_length=0):
+			gom[s.name] = s
+	m = mst(t.mst_doi_tac)
+	if m:
+		for s in frappe.get_all("Sales Invoice", filters={"docstatus": 1, "vgb_xhd_mst": m,
+				"posting_date": ["between", [add_days(lap, -31), add_days(lap, 1)]]}, fields=truong, limit_page_length=0):
+			gom[s.name] = s
+	goi_y = (phan_loai([t], list(gom.values())).get(t.name) or {}).get("goi_y") or ""
+	ds = xep_ung_vien_don(list(gom.values()), t.tong_tien, t.mst_doi_tac, goi_y)
+	return {"to": t.name, "so": so(t.so_hd), "tong_tien": flt(t.tong_tien), "ngay_lap": str(lap),
+		"tong": len(ds), "rows": [{"name": s.name, "ngay": str(s.posting_date or ""), "tien": flt(s.grand_total),
+			"khach": s.customer_name or "", "ma_don": s.custom_pancake_display_id or "",
+			"so_hddt": so(s.custom_hddt_so), "goi_y": 1 if s.name == goi_y else 0}
+			for s in ds[:SO_UNG_VIEN_TOI_DA]]}
+
+
 @frappe.whitelist()
 def noi_to_vao_don(to=None, don=None, xac_nhan=0):
 	"""Nối một tờ lập thẳng trên m-invoice vào đơn. xac_nhan=0 chỉ xem trước.
@@ -633,11 +686,11 @@ def go_to_khoi_don(to=None, ly_do=None):
 
 
 def _ghi_nhat_ky_don(ten, noi_dung):
-	try:
-		frappe.get_doc({"doctype": "Comment", "comment_type": "Info", "reference_doctype": "Sales Invoice",
-			"reference_name": ten, "content": noi_dung}).insert(ignore_permissions=True)
-	except Exception:
-		frappe.log_error(frappe.get_traceback(), "doi_soat_hddt_ra: ghi nhat ky don")
+	"""Nhật ký là một phần của lần ghi, không phải phần phụ: ghi hỏng thì
+	NÉM để lượt đó huỷ cả câu UPDATE (Codex #369 vòng 4). Nối, gỡ tay thì
+	Frappe rollback cả request; lượt tự ghi tờ thay thế rollback đúng đơn đó."""
+	frappe.get_doc({"doctype": "Comment", "comment_type": "Info", "reference_doctype": "Sales Invoice",
+		"reference_name": ten, "content": noi_dung}).insert(ignore_permissions=True)
 
 
 # ---------------------------- tờ thay thế tự về ô trên đơn (v527, 30 ngày)

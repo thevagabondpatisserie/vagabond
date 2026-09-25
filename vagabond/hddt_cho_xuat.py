@@ -991,13 +991,18 @@ def ngay_cu_can_bao_ve():
 	Lỗi đọc vẫn ném để không hiểu nhầm là đã hết nợ.
 	"""
 	try:
+		# Codex #369 vòng 4: tờ ngày sổ cũ đã mang NGÀY LẬP hôm nay (kéo ngày)
+		# là việc của hôm nay, không phải nợ ngày cũ. Trước đây nó nằm trong
+		# tập chặn mà lượt tự đối chiếu ngày cũ lại bỏ qua (ngày lập = hôm
+		# nay), nên hàng rào đứng chặn tới lượt cuối ngày.
 		rows = frappe.db.sql("""select posting_date, custom_nguon, vgb_quay
 			from `tabSales Invoice`
 			where docstatus = 1 and ifnull(vgb_huy, 0) = 0 and ifnull(vgb_tam_tinh, 0) = 0
 			  and grand_total > 0
 			  and ifnull(custom_hddt_so, '') = '' and ifnull(custom_minvoice_id, '') = ''
 			  and ifnull(custom_hddt_id, '') = ''
-			  and posting_date < %(hom_nay)s""",
+			  and posting_date < %(hom_nay)s
+			  and ({truong} is null or {truong} < %(hom_nay)s)""".format(truong=TRUONG_NGAY_XUAT),
 			{"hom_nay": nowdate()}, as_dict=True)
 		return _loc_diem_dang_xuat(rows)
 	except KhongDocDuocNo:
