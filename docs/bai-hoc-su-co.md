@@ -1217,3 +1217,36 @@ Cách phòng:
 - Ô tìm của màn chọn sao kê nhận cả số tiền.
 - Kiểm "mẫu đã thuộc ai" phải làm lại DƯỚI KHOÁ bằng current read ngay trước
   khi ghi. Kiểm trước rồi mới khoá là hai lượt đồng thời cùng qua.
+
+## v529 (#367, 25/09/2026): trang www có gạch nối thì get_context KHÔNG BAO GIỜ chạy
+
+Triệu chứng: Minh Vũ mở /bien-tap-web khi chưa đăng nhập thấy bảng trống và
+câu "chưa được whitelist", không có nút đăng nhập. Trên issue đoán là do bộ
+nhớ đệm trang.
+
+Đo trên site thật: thẻ `<meta name="csrf-token">` của /bien-tap-web, /dat-ban,
+/thanh-vien mang NGUYÊN VĂN chữ `{{ csrf_token }}`. Tức là get_context chưa
+từng chạy. Frappe (website/page_renderers/template_page.py, `set_pymodule`)
+đổi gạch nối thành gạch dưới khi tìm mô đun: trang `bien-tap-web.html` cần
+`bien_tap_web.py`, còn repo đặt `bien-tap-web.py`. Không lỗi, không cảnh báo:
+trang vẫn hiện, chỉ là không có cửa kiểm quyền và không có mã CSRF, nên lưu
+nháp bị Frappe chặn.
+
+Cách phòng:
+- Mô đun Python của trang www đặt tên bằng gạch dưới. Ca kiểm
+  `thu_don_web_367.py` mục N chặn tên có gạch nối (trừ dat-ban, thanh-vien
+  đang chờ sửa riêng).
+- Jinja của Frappe dùng DebugUndefined: biến thiếu in ra nguyên văn chứ không
+  rỗng. Thấy `{{ ... }}` trên trang thật là get_context không chạy.
+- Jinja của Frappe không tự thoát ký tự. Trang khách mới dựng HTML ở Python
+  (`vagabond/trang_khach.py`) và thoát mọi chuỗi ở đó.
+
+Cùng đợt, ba bẫy khác của trang đặt bánh:
+- Phí giao hỏi nhiều lần chồng nhau (chọn khu vực rồi gõ địa chỉ): kết quả của
+  lần hỏi CŨ về muộn đè số mới. Mỗi lần hỏi mang số thứ tự, bỏ kết quả cũ.
+- Meta Pixel tự gửi địa chỉ trang trong PageView. Trang biên nhận có token
+  trên đường dẫn phải `history.replaceState` về /banh/xong TRƯỚC khi nạp Pixel,
+  và máy chủ trả `Referrer-Policy: no-referrer`.
+- Tất cả token biên nhận đi vào CÙNG một đường trang `banh/xong`: chỉ cần một
+  lần bị bộ nhớ đệm trang của Frappe giữ lại là khách sau thấy biên nhận của
+  khách trước. Tắt đệm ở cả mô đun, `frappe.local.no_cache` và Cache-Control.
