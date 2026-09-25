@@ -579,8 +579,28 @@ def xep_ung_vien_don(ds, tong_tien, mst_to="", goi_y=""):
 	return sorted(ds, key=khoa)
 
 
+SO_KET_QUA_TIM = 50
+
+
+def loc_tim_don(tu_khoa):
+	"""Các bộ lọc tìm đơn theo từ khoá người gõ. THUẦN. Mã đơn ERP, mã đơn
+	bán, tên khách (chứa chuỗi), số HĐĐT và số tiền (khi gõ toàn số). Quá
+	ngắn thì không tìm, tránh quét cả bảng đơn."""
+	tk = " ".join(str(tu_khoa or "").split())
+	if len(tk) < 2:
+		return []
+	ra = [{"name": ["like", "%" + tk + "%"]}, {"custom_pancake_display_id": ["like", "%" + tk + "%"]},
+		{"customer_name": ["like", "%" + tk + "%"]}]
+	so_ = re.sub(r"[\s.,đd]", "", tk.lower())
+	if so_.isdigit():
+		ra.append({"custom_hddt_so": so(so_)})
+		if len(so_) >= 4:
+			ra.append({"grand_total": int(so_)})
+	return ra
+
+
 @frappe.whitelist()
-def ung_vien_don(to=None):
+def ung_vien_don(to=None, tu_khoa=None):
 	"""Danh sách đơn đã ghi sổ để chọn khi nối tay một tờ (Codex #369 vòng 4:
 	đơn là danh mục có sẵn thì phải là ô chọn có tìm, không phải ô gõ).
 	Đơn trong khoảng ngày lập của tờ trừ SO_NGAY_UNG_VIEN_TRUOC tới hôm sau,
@@ -595,17 +615,21 @@ def ung_vien_don(to=None):
 	truong = ["name", "posting_date", "grand_total", "customer_name", "custom_pancake_display_id",
 		"custom_hddt_so", "vgb_xhd_mst"]
 	gom = {}
-	for loc in ({"posting_date": ["between", khoang]}, {"vgb_hddt_ngay_xuat": ["between", khoang]}):
-		for s in frappe.get_all("Sales Invoice", filters=dict({"docstatus": 1}, **loc), fields=truong, limit_page_length=0):
+	tim = str(tu_khoa or "").strip()
+	# Codex #369 vòng 5: có từ khoá thì tìm TOÀN BỘ đơn đã ghi sổ, không giới
+	# hạn khoảng ngày, để đơn cũ hay khác MST vẫn chọn được từ danh mục.
+	for loc in (loc_tim_don(tim) if tim else ({"posting_date": ["between", khoang]}, {"vgb_hddt_ngay_xuat": ["between", khoang]})):
+		for s in frappe.get_all("Sales Invoice", filters=dict({"docstatus": 1}, **loc), fields=truong,
+				limit_page_length=SO_KET_QUA_TIM if tim else 0, order_by="posting_date desc"):
 			gom[s.name] = s
-	m = mst(t.mst_doi_tac)
+	m = mst(t.mst_doi_tac) if not tim else ""
 	if m:
 		for s in frappe.get_all("Sales Invoice", filters={"docstatus": 1, "vgb_xhd_mst": m,
 				"posting_date": ["between", [add_days(lap, -31), add_days(lap, 1)]]}, fields=truong, limit_page_length=0):
 			gom[s.name] = s
 	goi_y = (phan_loai([t], list(gom.values())).get(t.name) or {}).get("goi_y") or ""
 	ds = xep_ung_vien_don(list(gom.values()), t.tong_tien, t.mst_doi_tac, goi_y)
-	return {"to": t.name, "so": so(t.so_hd), "tong_tien": flt(t.tong_tien), "ngay_lap": str(lap),
+	return {"to": t.name, "so": so(t.so_hd), "tong_tien": flt(t.tong_tien), "ngay_lap": str(lap), "tu_khoa": tim,
 		"tong": len(ds), "rows": [{"name": s.name, "ngay": str(s.posting_date or ""), "tien": flt(s.grand_total),
 			"khach": s.customer_name or "", "ma_don": s.custom_pancake_display_id or "",
 			"so_hddt": so(s.custom_hddt_so), "goi_y": 1 if s.name == goi_y else 0}
