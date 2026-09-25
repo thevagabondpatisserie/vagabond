@@ -15,7 +15,7 @@ async function scrKhopSepay(o, loc, giuTim) {
   if (luot !== scrKhopSepay.luot) return;
   var rows = kq.rows || [], cd = kq.chan_doan || {};
   var html = '<div class="card" style="padding:12px 14px"><b>' + h(o.ma) + ' · ' + money(kq.so_tien) + ' đ</b></div>';
-  html += '<div style="padding:0 12px"><input class="tin" id="ksTim" aria-label="Tìm sao kê" placeholder="Tìm nội dung hoặc mã giao dịch" value="' + h(loc.tu_khoa) + '"></div>';
+  html += '<div style="padding:0 12px"><input class="tin" id="ksTim" aria-label="Tìm sao kê" placeholder="Tìm nội dung, mã giao dịch hoặc số tiền" value="' + h(loc.tu_khoa) + '"></div>';
   function chip(thuoc, ds, daChon) {
     return '<div class="chips" style="padding:2px 12px 8px">' + ds.map(function (t) {
       return '<button class="chip' + (String(daChon) === String(t.ma) ? ' on' : '') + '" ' + thuoc + '="' + h(t.ma) + '" title="' + h(t.ten_day_du || t.nhan) + '" style="min-height:44px">' + h(t.nhan) + '</button>';
