@@ -86,7 +86,8 @@ CUA_NGO = {
 	# `nen_pdf`, `loi_giu_lien_ket` va `kiem_bo_sung` CO Y khong nam trong danh
 	# sach: do la phep noi bo, Document goi qua validate chu khong mo ra ngoai.
 	# v526: khoan_cho_hoa_don cho nút nối hoá đơn đến sau trên màn Hoá đơn mua.
-	"ho_so_bo_sung.py": ["nen_tep", "danh_sach_hoa_don", "noi_hoa_don", "khoan_cho_hoa_don", "danh_dau_cho_hoa_don"],
+	"ho_so_bo_sung.py": ["nen_tep", "danh_sach_hoa_don", "noi_hoa_don", "khoan_cho_hoa_don", "danh_dau_cho_hoa_don",
+		"ung_vien_hoa_don", "noi_nhieu", "go_noi"],
 	# v526: màn hạch toán trước khi ghi sổ thẳng (chị Dung 24/09/2026).
 	"hach_toan_thang.py": ["xem"],
 	# Them 01/09/2026 cung lan mo phan he Nhan su, man Duyet KPI va hoa hong.
