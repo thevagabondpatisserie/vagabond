@@ -305,10 +305,26 @@ def kiem_bo_sung(doc):
 	idx, loi = loi_giu_lien_ket(cu_dong, moi_dong, doi_ncc, goc_doi)
 	if loi:
 		frappe.throw("Khoản %s %s. Nhờ kế toán kiểm tra." % (idx, loi))
+	# v530: bảng tờ nối mức hồ sơ chỉ đổi qua noi_nhieu / go_noi (cờ), và hồ
+	# sơ đang có bút toán bù trừ thì không rời Đã thanh toán.
+	from vagabond.hoa_don_sau import loi_sua_hd_sau, loi_bo_thanh_toan
+	cu_hd = [_dict_dong(r) for r in (getattr(cu, "hd_sau", None) or [])]
+	moi_hd = [_dict_dong(r) for r in (getattr(doc, "hd_sau", None) or [])]
+	cho_phep = bool(getattr(getattr(doc, "flags", None), "vgb_noi_hd_sau", False))
+	loi = loi_sua_hd_sau(cu_hd, moi_hd, cho_phep)
+	if loi:
+		frappe.throw(loi, title="Hoá đơn đến sau")
+	if cu:
+		loi = loi_bo_thanh_toan(getattr(cu, "trang_thai", None), getattr(doc, "trang_thai", None), cu_hd)
+		if loi:
+			frappe.throw(loi, title="Hồ sơ đang có bút toán bù trừ")
 	if cu:
 		from vagabond.ho_so_tt import LOAI_NCC
-		loi = (loi_mo_lai_huy(getattr(cu, "trang_thai", None), getattr(doc, "trang_thai", None), cu_dong)
-			or loi_doi_loai(getattr(cu, "loai", None), getattr(doc, "loai", None), cu_dong, LOAI_NCC))
+		ca_hai = dict(cu_dong)
+		for i, r in enumerate(cu_hd):
+			ca_hai["__hd_sau_%d" % i] = {"idx": "nối ở mức hồ sơ", "hoa_don_bo_sung": r.get("hoa_don")}
+		loi = (loi_mo_lai_huy(getattr(cu, "trang_thai", None), getattr(doc, "trang_thai", None), ca_hai)
+			or loi_doi_loai(getattr(cu, "loai", None), getattr(doc, "loai", None), ca_hai, LOAI_NCC))
 		if loi:
 			frappe.throw(loi, title="Hồ sơ đang có chứng từ")
 	# Khoá theo từng dòng thật, không theo d.name: dòng mới chưa có tên thì
@@ -350,6 +366,23 @@ def kiem_bo_sung(doc):
 		loi = loi_noi_hoa_don(docstatus, ho_so_dang_giu(ma, bo_qua_dong=d.name, khoa=True), da_huy, chi_nhap)
 		if loi:
 			frappe.throw("Khoản %s: hoá đơn %s %s." % (d.idx, ma, loi))
+
+
+def _dict_dong(r):
+	if hasattr(r, "as_dict"):
+		return r.as_dict()
+	return dict(r) if isinstance(r, dict) else dict(vars(r))
+
+
+def _bo_trung(ds, khoa="name"):
+	thay, ra = set(), []
+	for r in ds or []:
+		k = r.get(khoa) if hasattr(r, "get") else r[khoa]
+		if k in thay:
+			continue
+		thay.add(k)
+		ra.append(r)
+	return ra
 
 
 def _co_dau_huy():
@@ -418,7 +451,36 @@ def ho_so_dang_giu(hoa_don, bo_qua_dong=None, khoa=False, chi_tkct=False):
 			and (%s = 0 or p.loai = %s)
 		order by p.creation limit 1""" + (" for update" if khoa else ""),
 		(hoa_don, bo_qua_dong or "", TT_HET_HIEU_LUC, 1 if chi_tkct else 0, _loai_tkct()))
-	return ds[0][0] if ds else ""
+	if ds:
+		return ds[0][0]
+	# v530: nguồn thứ hai, tờ nối ở mức hồ sơ. MỌI luật "ai đang giữ tờ này"
+	# (chặn ghi sổ, chặn huỷ mềm, chặn đổi NCC, chặn nối trùng) đều đi qua
+	# hàm này, nên thêm nguồn ở đây là đủ cho cả họ (điều 18).
+	ds = _giu_hd_sau(hoa_don, khoa=khoa, chi_tkct=chi_tkct)
+	return ds[0]["ho_so"] if ds else ""
+
+
+def _co_hd_sau():
+	"""Bảng tờ nối mức hồ sơ đã dựng chưa (trước migrate v530 thì chưa)."""
+	try:
+		return bool(frappe.db.table_exists("Vagabond Ho So TT HD Sau"))
+	except Exception:
+		return False
+
+
+def _giu_hd_sau(hoa_don, khoa=False, chi_tkct=False, bo_qua_ho_so=""):
+	"""Các dòng nối mức hồ sơ (v530) còn hiệu lực đang giữ tờ này."""
+	if not hoa_don or not _co_hd_sau():
+		return []
+	return frappe.db.sql(
+		"""select p.name as ho_so, p.loai as loai, h.tong_hd as tong_hd, h.da_ghi_so as da_ghi_so
+		from `tabVagabond Ho So TT HD Sau` h
+		inner join `tabVagabond Ho So TT` p on p.name = h.parent
+		where h.hoa_don = %s and p.name != %s
+			and ifnull(p.trang_thai, '') not in %s
+			and (%s = 0 or p.loai = %s)
+		order by p.creation limit 1""" + (" for update" if khoa else ""),
+		(hoa_don, bo_qua_ho_so or "", TT_HET_HIEU_LUC, 1 if chi_tkct else 0, _loai_tkct()), as_dict=True) or []
 
 
 TRUONG_KHOA_KHI_NOI = (("supplier", "nhà cung cấp"), ("company", "công ty"))
@@ -453,6 +515,14 @@ def giu_hd_da_noi(doc, method=None):
 				"Hồ sơ đã kiểm đúng nhà cung cấp và công ty lúc nối. Cần đổi thì huỷ hồ sơ %s trước."
 				% (doc.name, giu, " và ".join(doi), giu), title="Tờ này đang làm chứng từ")
 	if doi_tien:
+		# v530: tờ nháp nối ở mức hồ sơ thì so với tổng tờ lúc nối.
+		for g in _giu_hd_sau(doc.name, khoa=True):
+			if abs(_tien(doc.get("grand_total")) - _tien(g["tong_hd"])) > NGUONG_KHOP_TIEN:
+				frappe.throw(
+					"Hoá đơn %s đang là hoá đơn đến sau của hồ sơ %s với tổng %s đ. Tổng mới %s đ lệch quá "
+					"%s đ, hồ sơ sẽ không còn khớp chứng từ. Gỡ nối trên hồ sơ trước rồi mới sửa tờ."
+					% (doc.name, g["ho_so"], _dd(g["tong_hd"]), _dd(doc.get("grand_total")), _dd(NGUONG_KHOP_TIEN)),
+					title="Tờ này đang làm chứng từ")
 		k = khoan_dang_giu(doc.name)
 		if k and k[1] == _loai_tkct() and abs(_tien(doc.get("grand_total")) - _tien(k[2])) > NGUONG_KHOP_TIEN:
 			frappe.throw(
@@ -535,10 +605,13 @@ def danh_sach_hoa_don(name, tu_khoa=""):
 		"docstatus": 0 if (getattr(d, "loai", None) or "") == LOAI_TKCT else ["<", 2]}
 	if _co_dau_huy():
 		loc["vgb_huy"] = 0   # tờ nháp đã đánh dấu huỷ không làm chứng từ được
-	return frappe.get_list("Purchase Invoice", filters=loc,
+	ds = frappe.get_list("Purchase Invoice", filters=loc,
 		or_filters={"name": ["like", "%" + tu_khoa + "%"], "bill_no": ["like", "%" + tu_khoa + "%"]},
 		fields=["name", "bill_no", "bill_date", "grand_total", "docstatus"],
 		order_by="posting_date desc", limit_page_length=0)
+	# v530: get_list kèm luật quyền có thể trả một tờ hai lần (ảnh chị Dung
+	# 25/09: 2830, 2171, 1407 mỗi tờ hiện hai dòng). Giữ lần đầu.
+	return _bo_trung(ds)
 
 
 @frappe.whitelist()
@@ -638,3 +711,362 @@ def danh_dau_cho_hoa_don(name, dong):
 		"hoá đơn về thì nối vào khoản này. Người đánh dấu: %s." % (i, frappe.session.user))
 	return {"ok": 1, "dong": i}
 
+
+
+# ================================================================ v530
+# Nối hoá đơn đến sau NHIỀU-NHIỀU ở mức hồ sơ (chị Dung, anh Việt 25/09/2026).
+# Phép thuần và lý do nằm ở vagabond/hoa_don_sau.py. Ở đây chỉ tra cứu, khoá
+# và ghi. Đường cũ một tờ một khoản (noi_hoa_don) giữ nguyên cho màn Desk.
+
+def _nhom_ncc(ncc):
+	"""(danh sách nhà cung cấp cùng MST gốc với `ncc`, MST gốc). Không có MST
+	thì chỉ chính nó."""
+	from vagabond.hoa_don_sau import mst_goc
+	goc = mst_goc(frappe.db.get_value("Supplier", ncc, "tax_id"))
+	if not goc:
+		return [ncc], ""
+	ds = [r[0] for r in frappe.db.sql(
+		"select name, tax_id from `tabSupplier` where tax_id like %s", (goc + "%",))
+		if mst_goc(r[1]) == goc]
+	if ncc not in ds:
+		ds.insert(0, ncc)
+	return ds, goc
+
+
+def _giu_boi_ho_so(ten_hd, tru=""):
+	"""{tờ: hồ sơ khác còn hiệu lực đang giữ} cho cả hai nguồn, đọc thường
+	(chỉ để HIỂN THỊ; chỗ quyết định đọc lại có khoá qua ho_so_dang_giu)."""
+	if not ten_hd:
+		return {}
+	ra = {}
+	for ten, ho_so in frappe.db.sql(
+		"""select d.hoa_don_bo_sung, p.name from `tabVagabond Ho So TT Dong` d
+		inner join `tabVagabond Ho So TT` p on p.name = d.parent
+		where d.hoa_don_bo_sung in %s and p.name != %s and ifnull(p.trang_thai, '') not in %s""",
+		(tuple(ten_hd), tru, TT_HET_HIEU_LUC)):
+		ra.setdefault(ten, ho_so)
+	if _co_hd_sau():
+		for ten, ho_so in frappe.db.sql(
+			"""select h.hoa_don, p.name from `tabVagabond Ho So TT HD Sau` h
+			inner join `tabVagabond Ho So TT` p on p.name = h.parent
+			where h.hoa_don in %s and p.name != %s and ifnull(p.trang_thai, '') not in %s""",
+			(tuple(ten_hd), tru, TT_HET_HIEU_LUC)):
+			ra.setdefault(ten, ho_so)
+	return ra
+
+
+def _lien_ket_cua(d):
+	return [_dict_dong(r) for r in (getattr(d, "hd_sau", None) or [])]
+
+
+def _khoan_cua(d):
+	return [_dict_dong(r) for r in (d.dong or [])]
+
+
+def phu_cua(d):
+	"""Mức phủ hoá đơn của hồ sơ (cần, đã nối, còn thiếu). Dùng cho màn."""
+	from vagabond.hoa_don_sau import do_phu
+	return do_phu(_khoan_cua(d), _lien_ket_cua(d))
+
+
+def _so_ngay(a, b):
+	from frappe.utils import date_diff
+	try:
+		return abs(date_diff(a, b)) if a and b else 9999
+	except Exception:
+		return 9999
+
+
+@frappe.whitelist()
+def ung_vien_hoa_don(name, tu_khoa="", moi_ncc=0):
+	"""Ô chọn hoá đơn đến sau (v530): tờ còn mở của NHÓM nhà cung cấp (cùng
+	MST gốc), cả tờ nháp lẫn tờ đã ghi sổ còn nợ, kèm gợi ý của máy.
+	moi_ncc=1 và có từ khoá: tìm theo số hoá đơn trên mọi nhà cung cấp (đường
+	thoát khi hồ sơ chọn sai nhà cung cấp)."""
+	from vagabond.ho_so_tt import _kiem, VAI_LAP, VAI_FIN, VAI_GD, _cong_ty_chung_tu, LOAI_TKCT
+	from vagabond import hoa_don_sau as hs
+	_kiem(VAI_LAP | VAI_FIN | VAI_GD, "tìm hóa đơn đến sau")
+	d = frappe.get_doc("Vagabond Ho So TT", name)
+	tkct = (getattr(d, "loai", None) or "") == LOAI_TKCT
+	nhom, goc = _nhom_ncc(d.nha_cung_cap)
+	tu_khoa = (tu_khoa or "").strip()
+	moi = cint(moi_ncc) and len(tu_khoa) >= 2
+	loc = {"company": _cong_ty_chung_tu(), "docstatus": ["<", 2]}
+	if _co_dau_huy():
+		loc["vgb_huy"] = 0
+	if not moi:
+		loc["supplier"] = ["in", nhom]
+	or_loc = None
+	if tu_khoa:
+		or_loc = {"name": ["like", "%" + tu_khoa + "%"], "bill_no": ["like", "%" + tu_khoa + "%"]}
+	ds = _bo_trung(frappe.get_all("Purchase Invoice", filters=loc, or_filters=or_loc,
+		fields=["name", "bill_no", "bill_date", "posting_date", "supplier", "supplier_name",
+			"grand_total", "outstanding_amount", "docstatus"],
+		order_by="posting_date desc", limit_page_length=60 if moi else 300))
+	cua_minh = {r.get("hoa_don") for r in _lien_ket_cua(d)} | {
+		(r.get("hoa_don_bo_sung") or "").strip() for r in _khoan_cua(d)} | {
+		(r.get("hoa_don") or "").strip() for r in _khoan_cua(d)}
+	giu = _giu_boi_ho_so([r["name"] for r in ds], tru=d.name)
+	moc = str(d.get("ngay_thanh_toan") or d.get("ngay") or "")
+	ra = []
+	for r in ds:
+		if r["name"] in cua_minh or r["name"] in giu:
+			continue
+		if hs.da_ghi_so(r) and hs.tien_khop(r) <= 0.5 and tkct:
+			continue
+		ra.append({
+			"name": r["name"], "so_hd": r.get("bill_no") or "", "ngay": str(r.get("bill_date") or r.get("posting_date") or ""),
+			"ncc": r.get("supplier") or "", "ncc_ten": r.get("supplier_name") or r.get("supplier") or "",
+			"cung_nhom": 1 if r.get("supplier") in nhom else 0,
+			"tong": _tien(r.get("grand_total")), "tien": hs.tien_khop(r),
+			"da_ghi_so": 1 if hs.da_ghi_so(r) else 0, "nhan": hs.nhan_to(r),
+			"_cach": _so_ngay(r.get("bill_date") or r.get("posting_date"), moc),
+		})
+	ra.sort(key=lambda x: (0 if x["cung_nhom"] else 1, x["_cach"]))
+	for x in ra:
+		x.pop("_cach", None)
+	phu = hs.do_phu(_khoan_cua(d), _lien_ket_cua(d))
+	goi = None
+	if not moi:
+		goi = hs.goi_y([x for x in ra if x["cung_nhom"]], phu["con_thieu"],
+			[r.get("so_hd_ncc") for r in _khoan_cua(d)])
+	return {"ds": ra, "goi_y": goi, "phu": phu, "tkct": 1 if tkct else 0, "ncc": d.nha_cung_cap,
+		"mst_goc": goc, "so_ncc_nhom": len(nhom), "tim_moi_ncc": 1 if moi else 0}
+
+
+def _no_chi_phi_con_lai(d):
+	"""{tài khoản: số Nợ bút toán chi của hồ sơ còn lại sau các lần bù trừ}.
+
+	Bút toán chi: Journal Entry mang vgb_ho_so_tt, hồ sơ cũ trước v445 thì
+	nhận theo số tham chiếu (cheque_no) là mã hồ sơ. Đây là phép soát cuối:
+	kế hoạch bù trừ lập từ khoản chi, nhưng Có vào tài khoản nào thì tài
+	khoản đó phải THẬT SỰ đã được hồ sơ ghi Nợ đủ số."""
+	je = [r[0] for r in frappe.db.sql(
+		"select name from `tabJournal Entry` where docstatus = 1 and vgb_ho_so_tt = %s", (d.name,))]
+	if not je:
+		je = [r[0] for r in frappe.db.sql(
+			"select name from `tabJournal Entry` where docstatus = 1 and cheque_no = %s", (d.name,))]
+	no = {}
+	if je:
+		for tk, n in frappe.db.sql(
+			"""select account, sum(debit_in_account_currency) from `tabJournal Entry Account`
+			where parent in %s group by account""", (tuple(je),)):
+			no[tk] = _tien(n)
+	for tk, c in frappe.db.sql(
+		"""select a.account, sum(a.credit_in_account_currency) from `tabJournal Entry Account` a
+		inner join `tabJournal Entry` j on j.name = a.parent
+		where j.docstatus = 1 and j.vgb_bu_tru_ho_so = %s group by a.account""", (d.name,)):
+		no[tk] = no.get(tk, 0.0) - _tien(c)
+	return no
+
+
+def _lap_bu_tru(d, cac):
+	"""Lập và ghi sổ MỘT bút toán bù trừ cho mọi tờ đã ghi sổ của một lần nối.
+
+	cac: [(tờ, số bù, kế hoạch)]. Một lần nối một chứng từ (Mobifone sáu tờ
+	là một bút toán sáu dòng Nợ 331, không phải sáu bút toán). Không commit:
+	cùng giao dịch với lần lưu hồ sơ, lỗi ở đâu thì cả lần nối lùi lại."""
+	from vagabond import hoa_don_sau as hs
+	from vagabond.ho_so_tt import _cong_ty_chung_tu
+	con = _no_chi_phi_con_lai(d)
+	can = {}
+	for _hd, _so, ke in cac:
+		for tk, tien in ke:
+			can[tk] = can.get(tk, 0.0) + tien
+	for tk in sorted(can):
+		if can[tk] > con.get(tk, 0.0) + 0.5:
+			frappe.throw(
+				"Bút toán chi của hồ sơ %s chỉ còn ghi Nợ %s %s đ, không đủ %s đ để bù trừ. "
+				"Nhờ kế toán kiểm bút toán chi của hồ sơ." % (d.name, tk, _dd(con.get(tk, 0.0)), _dd(can[tk])),
+				title="Chưa bù trừ được")
+	cty = _cong_ty_chung_tu()
+	ttcp = frappe.db.get_value("Company", cty, "cost_center")
+	je = frappe.new_doc("Journal Entry")
+	je.voucher_type = "Journal Entry"
+	je.company = cty
+	ngay = ""
+	for hd, _so, _ke in cac:
+		ngay = max(ngay, hs.ngay_bu_tru(d.get("ngay_thanh_toan"), hd.get("posting_date")))
+	je.posting_date = ngay
+	je.user_remark = (
+		"Bù trừ hoá đơn đến sau: hồ sơ %s đã chi từ tài khoản công ty, tờ %s đã ghi sổ. Chuyển %s đ chi phí "
+		"đã ghi qua hồ sơ sang trả công nợ các tờ này, chi phí chỉ còn một lần theo tờ hoá đơn."
+		% (d.name, ", ".join("%s (số %s)" % (hd["name"], hd.get("bill_no") or "") for hd, _s, _k in cac),
+			hs.dd(sum(so for _h, so, _k in cac)))
+	)
+	gop, thu_tu = {}, []
+	for hd, so, ke in cac:
+		dong = hs.dong_but_toan_bu_tru(hd, so, ke, ttcp)
+		je.append("accounts", dong[0])
+		for r in dong[1:]:
+			if r["account"] not in gop:
+				thu_tu.append(r["account"])
+				gop[r["account"]] = 0.0
+			gop[r["account"]] += r["credit_in_account_currency"]
+	for tk in thu_tu:
+		je.append("accounts", {"account": tk, "credit_in_account_currency": round(gop[tk], 2), "cost_center": ttcp})
+	je.vgb_bu_tru_ho_so = d.name
+	je.flags.ignore_permissions = True
+	je.insert(ignore_permissions=True)
+	je.submit()
+	return je.name
+
+
+def _loai_tk(tk):
+	return frappe.db.get_value("Account", tk, "account_type") if tk else ""
+
+
+def _cap_nhat_hop_le(d, tkct):
+	"""Đổi hồ sơ sang Hợp lệ tính thuế khi phủ đủ, trả 1 nếu vừa đổi."""
+	from vagabond import hoa_don_sau as hs
+	from vagabond.ho_so_tt import CP_HOP_LE
+	if not tkct:
+		return 0
+	tong = {}
+	for ma in sorted({(x.get("hoa_don_bo_sung") or "").strip() for x in _khoan_cua(d)} - {""}):
+		tong[ma] = tong_hoa_don_khoa(ma)
+	lech = lech_tien_hoa_don(_khoan_cua(d), tong)
+	if hs.nen_hop_le(_khoan_cua(d), _lien_ket_cua(d), lech) and (getattr(d, "loai_cp_thue", None) or "") != CP_HOP_LE:
+		d.loai_cp_thue = CP_HOP_LE
+		return 1
+	return 0
+
+
+@frappe.whitelist(methods=["POST"])
+def noi_nhieu(name, hoa_don, ngoai_ncc=0):
+	"""Nối một hay nhiều tờ vào hồ sơ (v530). FIN hoặc giám đốc.
+
+	Tờ nháp: làm chứng từ, không được ghi sổ nữa (như v526). Tờ đã ghi sổ còn
+	nợ ở hồ sơ chi từ TK công ty: lập bút toán bù trừ. Khoản chưa đánh dấu
+	hoá đơn đến sau mà đủ điều kiện thì đánh dấu luôn: một nút, không hai bước
+	(chị Dung 25/09/2026). Lệch tiền vẫn nối, hồ sơ chỉ chưa thành hợp lệ."""
+	import json
+	from frappe.utils import now_datetime
+	from vagabond import hoa_don_sau as hs
+	from vagabond.ho_so_tt import _kiem, VAI_FIN, VAI_GD, _cong_ty_chung_tu, LOAI_TKCT
+	_kiem(VAI_FIN | VAI_GD, "nối hóa đơn đến sau")
+	ds = hoa_don
+	if isinstance(ds, str):
+		ds = json.loads(ds) if ds.strip().startswith("[") else [ds]
+	ds = list(dict.fromkeys((str(x) or "").strip() for x in (ds or []) if str(x or "").strip()))
+	if not ds:
+		frappe.throw("Chưa chọn hoá đơn nào.")
+	frappe.db.sql("select name from `tabVagabond Ho So TT` where name=%s for update", name)
+	d = frappe.get_doc("Vagabond Ho So TT", name)
+	if d.trang_thai in TT_KHONG_NOI_THEM:
+		frappe.throw("Hồ sơ đã huỷ hoặc bị từ chối, không nối thêm hoá đơn.")
+	tkct = (getattr(d, "loai", None) or "") == LOAI_TKCT
+	nhom, _goc = _nhom_ncc(d.nha_cung_cap)
+	cty = _cong_ty_chung_tu()
+	# Khoá mọi tờ theo thứ tự tên trước khi đọc gì: hai lần nối chéo nhau
+	# không khoá vòng.
+	for ma in sorted(ds):
+		khoa_hoa_don(ma)
+	da_co = {r.get("hoa_don") for r in _lien_ket_cua(d)} | {
+		(r.get("hoa_don_bo_sung") or "").strip() for r in _khoan_cua(d)} | {
+		(r.get("hoa_don") or "").strip() for r in _khoan_cua(d)}
+	danh_dau = []
+	if tkct:
+		for i, r in enumerate(d.dong):
+			if not cint(r.get("cho_hoa_don")) and not loi_danh_dau_bu(d.loai, d.trang_thai, _dict_dong(r), LOAI_TKCT):
+				r.cho_hoa_don = 1
+				danh_dau.append(i + 1)
+	khoan = [{"idx": r.idx, "tk_no": r.get("tk_no"), "so_tien": _tien(r.get("so_tien")),
+		"cong_no": hs.la_khoan_cong_no(r.get("tk_no"), _loai_tk(r.get("tk_no")))}
+		for r in d.dong if not (r.get("hoa_don") or "").strip() and not (r.get("hoa_don_bo_sung") or "").strip()]
+	da_dung = sum(_tien(r.get("bu_tru")) if cint(r.get("da_ghi_so")) else _tien(r.get("tien_khop"))
+		for r in _lien_ket_cua(d))
+	bu = []
+	for ma in ds:
+		if ma in da_co:
+			frappe.throw("Hoá đơn %s đã nối vào chính hồ sơ này rồi." % ma)
+		r = frappe.db.sql(
+			"""select name, docstatus, supplier, company, grand_total, outstanding_amount, credit_to,
+				posting_date, bill_no""" + (", ifnull(vgb_huy, 0) as vgb_huy" if _co_dau_huy() else ", 0 as vgb_huy") + """
+			from `tabPurchase Invoice` where name = %s for update""", (ma,), as_dict=True)
+		if not r:
+			frappe.throw("Không có hoá đơn %s. Tải lại danh sách rồi chọn lại." % ma)
+		hd = r[0]
+		trong_nhom = hd["supplier"] in nhom
+		loi = hs.loi_noi_to(hd, ho_so_dang_giu(ma, khoa=True), tkct, trong_nhom, bool(cint(ngoai_ncc)),
+			hd["company"] == cty)
+		if loi:
+			frappe.throw("Hoá đơn %s (số %s) %s." % (ma, hd.get("bill_no") or "", loi), title="Chưa nối được")
+		tk = hs.tien_khop(hd)
+		dong = {"hoa_don": ma, "so_hd_ncc": hd.get("bill_no") or "", "ncc": hd["supplier"],
+			"tong_hd": _tien(hd.get("grand_total")), "tien_khop": tk, "da_ghi_so": 1 if hs.da_ghi_so(hd) else 0,
+			"ngoai_ncc": 0 if trong_nhom else 1, "noi_boi": frappe.session.user, "noi_luc": now_datetime(),
+			"bu_tru": 0, "but_toan": ""}
+		if tkct and hs.da_ghi_so(hd):
+			if d.trang_thai != "Da thanh toan":
+				frappe.throw("Hồ sơ %s chưa ghi nhận đã chi tiền, nên chưa có chi phí nào để bù trừ tờ đã ghi sổ %s. "
+					"Ghi nhận thanh toán trước, hoặc trả tờ này bằng hồ sơ trả nhà cung cấp." % (d.name, ma))
+			so_bu, ke = hs.ke_hoach_bu_tru(khoan, da_dung, tk)
+			if so_bu <= 0.5:
+				frappe.throw("Chi phí hồ sơ %s đã được các tờ nối trước phủ hết, không còn gì để bù trừ tờ %s. "
+					"Kiểm lại các tờ đã nối." % (d.name, ma), title="Chưa nối được")
+			dong["bu_tru"] = so_bu
+			da_dung += so_bu
+			bu.append((hd, so_bu, ke, dong))
+		else:
+			da_dung += tk
+		d.append("hd_sau", dong)
+		da_co.add(ma)
+	but_toan = []
+	if bu:
+		ten = _lap_bu_tru(d, [(hd, so, ke) for hd, so, ke, _d in bu])
+		but_toan.append(ten)
+		ma_bu = {x[0]["name"] for x in bu}
+		for r in d.hd_sau:
+			if r.hoa_don in ma_bu and not r.but_toan:
+				r.but_toan = ten
+	doi_hop_le = _cap_nhat_hop_le(d, tkct)
+	d.flags.vgb_noi_hd_sau = True
+	d.save(ignore_permissions=True)
+	phu = hs.do_phu(_khoan_cua(d), _lien_ket_cua(d))
+	d.add_comment("Comment", "Nối %d hoá đơn đến sau: %s.%s%s%s Đã nối %s đ trên %s đ cần.%s" % (
+		len(ds), ", ".join(ds),
+		(" Đánh dấu hoá đơn đến sau cho khoản %s." % ", ".join(str(i) for i in danh_dau)) if danh_dau else "",
+		(" Bút toán bù trừ: %s." % ", ".join(but_toan)) if but_toan else "",
+		" Có tờ ngoài nhà cung cấp, người nối đã xác nhận." if cint(ngoai_ncc) else "",
+		hs.dd(phu["da_noi"]), hs.dd(phu["can"]),
+		" Đủ hoá đơn, hồ sơ chuyển sang chi phí hợp lệ tính thuế." if doi_hop_le else ""))
+	return {"ok": 1, "hop_le": doi_hop_le, "phu": phu, "but_toan": but_toan, "danh_dau": danh_dau}
+
+
+@frappe.whitelist(methods=["POST"])
+def go_noi(name, hoa_don):
+	"""Gỡ một tờ nối mức hồ sơ (v530), đường sửa khi nối nhầm. FIN hoặc giám
+	đốc. Tờ có bút toán bù trừ thì huỷ bút toán đó, công nợ tờ trở lại như cũ."""
+	from vagabond import hoa_don_sau as hs
+	from vagabond.ho_so_tt import _kiem, VAI_FIN, VAI_GD, LOAI_TKCT, CP_HOP_LE, CP_KHONG_HOP_LE
+	_kiem(VAI_FIN | VAI_GD, "gỡ hóa đơn đến sau")
+	frappe.db.sql("select name from `tabVagabond Ho So TT` where name=%s for update", name)
+	d = frappe.get_doc("Vagabond Ho So TT", name)
+	ma = (hoa_don or "").strip()
+	dong = next((r for r in (d.get("hd_sau") or []) if r.hoa_don == ma), None)
+	if not dong:
+		frappe.throw("Hồ sơ %s không có tờ %s nối ở mức hồ sơ. Tờ nối kiểu cũ theo khoản thì nhờ kế toán xử lý." % (name, ma))
+	# Tờ nối cùng lần chung một bút toán bù trừ: huỷ bút toán là cả nhóm mất
+	# bù trừ, nên gỡ cả nhóm (màn đã báo trước khi hỏi).
+	nhom = [r for r in d.hd_sau if dong.but_toan and r.but_toan == dong.but_toan] or [dong]
+	if dong.but_toan:
+		je = frappe.get_doc("Journal Entry", dong.but_toan)
+		if je.docstatus == 1:
+			je.flags.ignore_permissions = True
+			je.cancel()
+	for r in nhom:
+		d.remove(r)
+	tkct = (getattr(d, "loai", None) or "") == LOAI_TKCT
+	ve = 0
+	if tkct and (getattr(d, "loai_cp_thue", None) or "") == CP_HOP_LE and all(
+			cint(r.get("cho_hoa_don")) for r in d.dong) and not hs.nen_hop_le(_khoan_cua(d), _lien_ket_cua(d)):
+		d.loai_cp_thue = CP_KHONG_HOP_LE
+		ve = 1
+	d.flags.vgb_noi_hd_sau = True
+	d.save(ignore_permissions=True)
+	go = [r.hoa_don for r in nhom]
+	d.add_comment("Comment", "Gỡ hoá đơn đến sau %s.%s%s" % (
+		", ".join(go), (" Huỷ bút toán bù trừ %s, công nợ các tờ trở lại." % dong.but_toan) if dong.but_toan else "",
+		" Hồ sơ trở lại chi phí không hợp lệ tính thuế vì không còn đủ hoá đơn." if ve else ""))
+	return {"ok": 1, "huy_but_toan": dong.but_toan or "", "go": go, "ve_khong_hop_le": ve}
