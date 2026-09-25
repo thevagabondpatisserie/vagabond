@@ -79,6 +79,21 @@ def con_goi_lo_tiep(ket_qua_lo, so_lo_da_goi, toi_da_lo):
 	return True
 
 
+def con_to_chua_ra(ph, ky):
+	"""Sau một lượt phát hành và ký, còn tờ nào chưa ra không. THUẦN.
+
+	ph/ky là dict gom_lo/gom_ky, hoặc chuỗi "bỏ qua" khi công tắc tắt (khi
+	đó không có gì để nói). Còn tờ tìm thấy mà chưa tạo, hoặc còn tờ cần ký
+	mà chưa ký, là còn.
+	"""
+	con = False
+	if isinstance(ph, dict):
+		con = int(ph.get("tim_thay") or 0) > int(ph.get("tao_ok") or 0)
+	if isinstance(ky, dict):
+		con = con or int(ky.get("can_ky") or 0) > int(ky.get("da_ky") or 0)
+	return con
+
+
 def gom_lo(ds_ket_qua):
 	"""Gộp kết quả nhiều lô phát hành thành một bộ số.
 

@@ -59,6 +59,22 @@ def trang_thai_chu(tthai):
 	return TTHAI_MAP.get(t, t)
 
 
+# Trạng thái tờ GỐC đổi về sau: bị thay thế, bị điều chỉnh, đã huỷ.
+TT_DOI_VE_SAU = ("Bị thay thế", "Bị điều chỉnh", "Đã huỷ")
+
+
+def trang_thai_doi_ve_sau(inv):
+	"""Trạng thái mới cần ghi đè lên bản ghi ĐÃ CÓ, hoặc None. THUẦN.
+
+	v527: bản ghi đã có số thì lượt kéo bỏ qua hẳn, nên tờ 14159 bị thay
+	bằng 14401 ngày 17/09 mà trong máy vẫn ghi "Gốc". Chỉ nhận ba trạng
+	thái một chiều (gốc thành bị thay thế, bị điều chỉnh, đã huỷ); không
+	bao giờ tự quay một tờ đã bị thay thế về "Gốc".
+	"""
+	t = trang_thai_chu((inv or {}).get("tthai"))
+	return t if t in TT_DOI_VE_SAU else None
+
+
 def ma_tra_cuu_cua(inv):
 	"""Ma tra cuu nam trong mang ttkhac, phai do tung dong moi thay."""
 	for t in (inv.get("ttkhac") or []):
@@ -323,6 +339,13 @@ def _keo(so_ngay=None, tu_ngay="", den_ngay="", chi_loai="", do_lai_het=0):
 							elif cint(do_lai_het):
 								frappe.db.set_value(DT_HD, hid, _extra(inv, loai))
 								cap_nhat += 1
+							elif cu_so:
+								# v527: tờ gốc đổi trạng thái về sau thì cập nhật
+								# đúng một ô, không đụng ruột tờ.
+								tt_moi = trang_thai_doi_ve_sau(inv)
+								if tt_moi and frappe.db.get_value(DT_HD, hid, "trang_thai") != tt_moi:
+									frappe.db.set_value(DT_HD, hid, {"trang_thai": tt_moi})
+									cap_nhat += 1
 							continue
 						if rut_gon:
 							# Chi co ma thi DEM roi thoi, khong lap ban

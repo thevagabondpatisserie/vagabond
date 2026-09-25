@@ -415,6 +415,15 @@ def _bc_hddt(hd, **kw):
 	}
 
 
+def _bc_hddt_minvoice(hd, tu=None, den=None, **kw):
+	"""BC17 (v527) - doi chieu so to HDDT ban ra theo ngay giua m-invoice va
+	ERP, tach to thay the va to tao tay tren m-invoice. Doc bang MInvoice
+	Invoice, khong doc hd (don trong ky) vi to thay the mang ngay lap moi
+	con don cua no nam o ngay cu. Xem doi_soat_hddt_ra.py."""
+	from vagabond import doi_soat_hddt_ra
+	return doi_soat_hddt_ra.bao_cao(tu, den, _cot)
+
+
 def _bc_khuyen_mai(hd, tu=None, den=None, **kw):
 	"""BC06 - chuong trinh khuyen mai: bao nhieu luot, giam bao nhieu tien."""
 	ds = frappe.get_all(
@@ -904,6 +913,7 @@ DANH_SACH = [
 	{"ma": "BC14", "ten": "Bảng kê chi tiết theo dòng món", "ic": "🧮", "mo": "Dữ liệu thô từng món trên từng hoá đơn, để pivot trong Excel", "ham": _bc_ke_dong_mon, "nhom": "Kế toán", "ss": None},
 	{"ma": "BC15", "ten": "Tiền về theo ngày", "ic": "🧺", "mo": "Mỗi ngày thu bao nhiêu theo từng phương thức, dùng đối két", "ham": _bc_tien_ve_ngay, "nhom": "Kiểm soát", "ss": "vi_tri"},
 	{"ma": "BC16", "ten": "Bảng kê thanh toán và mã tham chiếu", "ic": "🔗", "mo": "Khớp từng giao dịch với sao kê, chỉ ra mã trùng và mã thiếu", "ham": _bc_ke_thanh_toan, "nhom": "Kế toán", "ss": None},
+	{"ma": "BC17", "ten": "Đối chiếu hoá đơn điện tử với m-invoice", "ic": "🔎", "mo": "Mỗi ngày m-invoice bao nhiêu tờ, ERP ghi nhận bao nhiêu, tờ thay thế và tờ tạo tay", "ham": _bc_hddt_minvoice, "nhom": "Kế toán", "ss": None},
 ]
 THEO_MA = {b["ma"]: b for b in DANH_SACH}
 

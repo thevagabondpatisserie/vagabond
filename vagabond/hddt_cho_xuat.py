@@ -290,6 +290,36 @@ def ngay_cu_con_mo(ds_ngay, hom_nay, ngay_so_moi_nhat=None, ngay_xac_nhan=()):
 	return sorted(ra)
 
 
+def ngay_tu_doi_chieu(ds_ngay_co, hom_nay, ngay_so_moi_nhat=None, chi_ngay_cu=False):
+	"""Ngày có tờ GIỮ CỜ ĐỐI CHIẾU mà máy được tự đối chiếu, cũ trước mới sau.
+
+	v527 (chị Dung 25/09/2026: ngày 18/09 và 23/09 cả ngày hoá đơn ký sang
+	hôm sau). Một tờ của hôm qua bị giữ cờ "chưa rõ kết quả gửi" nằm trong
+	tập bảo vệ của hàng rào thứ tự, mà lượt tự xuất ngày cũ chỉ gửi tập hẹp
+	nên không bao giờ rút được nó. Hàng rào đứng chặn MỌI tờ của hôm nay tới
+	nửa đêm, lúc ngày cũ hết hạn, rồi nhịp bù 00:15 mới xuất cả ngày. Nay máy
+	tự làm đúng việc kế toán bấm ở Cài đặt > Hoá đơn ngày cũ.
+
+	Chỉ ngày còn trong hạn ký/gửi bảo thủ VÀ còn cửa m-invoice. Không dùng
+	xác nhận quá hạn: quá hạn là việc của người, máy không tự làm.
+	chi_ngay_cu=True thì bỏ hôm nay (hàng rào chỉ lo ngày cũ; tự gọi cho
+	hôm nay từ bên trong hàng rào là vòng lặp, xem tu_doi_chieu_co).
+	"""
+	hom_nay = _ngay(hom_nay)
+	ra = []
+	for d in ds_ngay_co or []:
+		d = _ngay(d)
+		if d is None or hom_nay is None or d > hom_nay:
+			continue
+		if chi_ngay_cu and d >= hom_nay:
+			continue
+		if not (con_trong_han_ky_gui(d, hom_nay) and cua_minvoice_con_mo(d, ngay_so_moi_nhat)):
+			continue
+		if d not in ra:
+			ra.append(d)
+	return sorted(ra)
+
+
 # #266 vòng 5: van thời gian đã bị gỡ hẳn khỏi phai_nhuong_ngay_cu. Mốc lỗi
 # chỉ còn để người trực đọc, KHÔNG được dùng lại để mở đường cho tờ ngày mới.
 
@@ -942,6 +972,64 @@ def ngay_cu_can_bao_ve():
 		raise KhongDocDuocNo(str(e)[:200])
 
 
+def ngay_co_to_giu_co():
+	"""Ngày (tới hôm nay) có tờ đã ghi sổ, chưa có HĐĐT, đang GIỮ CỜ đối chiếu,
+	thuộc điểm đang bật xuất. Đọc lỗi thì NÉM, không trả rỗng."""
+	try:
+		rows = frappe.db.sql("""select posting_date, custom_nguon, vgb_quay
+			from `tabSales Invoice`
+			where docstatus = 1 and ifnull(vgb_huy, 0) = 0 and ifnull(vgb_tam_tinh, 0) = 0
+			  and grand_total > 0 and ifnull(vgb_hddt_cho_doi_chieu, 0) = 1
+			  and ifnull(custom_hddt_so, '') = '' and ifnull(custom_minvoice_id, '') = ''
+			  and ifnull(custom_hddt_id, '') = ''
+			  and posting_date <= %(hom_nay)s""",
+			{"hom_nay": nowdate()}, as_dict=True)
+		return _loc_diem_dang_xuat(rows)
+	except KhongDocDuocNo:
+		raise
+	except Exception as e:
+		frappe.log_error(frappe.get_traceback(), "hddt_cho_xuat: doc to giu co")
+		raise KhongDocDuocNo(str(e)[:200])
+
+
+NGUOI_MAY = "Máy tự đối chiếu (v527)"
+
+
+def tu_doi_chieu_co(chi_ngay=None, chi_ngay_cu=False):
+	"""Tự đối chiếu tờ giữ cờ, đúng đường kế toán bấm tay. Trả số ngày đã chạy.
+
+	Đi qua chay_nen chế độ giữ ngày, KHÔNG viết đường thứ hai (điều 18):
+	cùng phép đối chứng API hai chiều, cùng mẫu "không có tờ" đã xác minh,
+	cùng ghi có điều kiện dưới khoá. Gỡ cờ CHỈ khi m-invoice trả lời chắc
+	chắn không có tờ mang mã phiếu đó; có dấu vết hay không chắc thì giữ cờ
+	như cũ và lượt đó ghi Error Log, kế toán vẫn nhận thư hoãn phát hành.
+
+	Không có tờ giữ cờ thì trả 0 ngay, không gọi mạng. Lỗi thì nuốt và ghi
+	log: đây là việc phụ của nhịp gọi, không được làm hỏng nhịp đó.
+	"""
+	try:
+		ds = ngay_co_to_giu_co()
+		if not ds:
+			return 0
+		from vagabond.ban_hang import _ngay_so_hddt_moi_nhat
+		hom_nay = getdate(nowdate())
+		ngay = ngay_tu_doi_chieu(ds, hom_nay, _ngay_so_hddt_moi_nhat(), chi_ngay_cu)
+		if chi_ngay is not None:
+			chon = {_ngay(x) for x in chi_ngay}
+			ngay = [d for d in ngay if d in chon]
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "hddt_cho_xuat: tu doi chieu co")
+		return 0
+	lam = 0
+	for d in ngay:
+		try:
+			chay_nen(str(d), "giu_ngay", NGUOI_MAY, str(hom_nay), str(d))
+			lam += 1
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "hddt_cho_xuat: tu doi chieu co ngay %s" % d)
+	return lam
+
+
 KHOA_MOC_LOI = "vgb_hddt_moc_loi_ngay_cu"
 
 
@@ -992,6 +1080,15 @@ def xuat_ngay_cu_truoc():
 		ngay = ngay_cu_con_mo(ds, getdate(nowdate()), _ngay_so_hddt_moi_nhat(), _ngay_xac_nhan_qua_han())
 		if not ngay:
 			return True
+		# v527: tờ giữ cờ đối chiếu của ngày cũ còn mở không nằm trong tập
+		# tự gửi, nên trước đây hàng rào đứng chặn tới nửa đêm. Tự đối chiếu
+		# NGOÀI khoá (chay_nen tự lấy khoá của nó), rồi đọc lại tập nợ.
+		if tu_doi_chieu_co(chi_ngay=ngay, chi_ngay_cu=True):
+			ds = ngay_cu_can_bao_ve()
+			ngay = ngay_cu_con_mo(ds, getdate(nowdate()), _ngay_so_hddt_moi_nhat(), _ngay_xac_nhan_qua_han())
+			if not ngay:
+				_ghi_moc_loi(False)
+				return True
 		khoa = _khoa_hddt(cho=30)
 		if khoa is None:
 			# Lượt khác đang xuất ngày cũ. Chưa xong thì chưa được đụng tờ
