@@ -24817,6 +24817,48 @@ function bcThanhKy(anDiem) {
     kmHangChip(h1) + (anDiem ? '' : '<div style="height:7px"></div>' + kmHangChip(h2)) + dieu + ss + '</div>';
 }
 
+/* Noi tay mot to lap thang tren m-invoice vao don (v527, anh Viet chot
+   25/09). Xem truoc truoc, may chu tinh tong tien cac to con hieu luc cua
+   don de ke toan thay lech truoc khi bam. Khong doi so hoa don tren don. */
+async function bcNoiTo(to, so, goiY, veLai) {
+  var don = await hoiChu('Nối tờ ' + so + ' vào đơn',
+    'Nhập mã đơn ERP (HDB-...) hoặc mã đơn bán. Máy chỉ ghi tờ này thuộc đơn nào: số hoá đơn trên đơn giữ nguyên, không ghi sổ gì thêm.',
+    goiY || '', { bat_buoc: 1, goi_y: 'HDB-26-09-...' });
+  if (!don) return;
+  var xem;
+  busy(true);
+  try { xem = await api('vagabond.doi_soat_hddt_ra.noi_to_vao_don', { to: to, don: don, xac_nhan: 0 }); }
+  catch (e) { busy(false); baoTin((e && e.message) || 'Không nối được.', 'Chưa nối'); return; }
+  busy(false);
+  if (xem.da_noi) { toast(xem.loi_nhan); return veLai(); }
+  var cau = 'Đơn ' + xem.don + (xem.ma_don ? ' (' + xem.ma_don + ')' : '') + (xem.khach ? ', ' + xem.khach : '') +
+    '\nTiền đơn: ' + money(xem.tien_don) + ' đ' +
+    '\nTổng các tờ còn hiệu lực sau khi nối: ' + money(xem.tong_to) + ' đ (' + (xem.cac_to || []).length + ' tờ)' +
+    (xem.lech_qua_nguong
+      ? '\n\n⚠️ Lệch ' + money(xem.lech) + ' đ so với tiền đơn. Kiểm lại có nối nhầm đơn không.'
+      : '\n\nKhớp tiền đơn.');
+  var ok = await hoiCo('Nối tờ ' + so + ' vào đơn', cau, 'Nối vào đơn', !!xem.lech_qua_nguong);
+  if (!ok) return;
+  busy(true);
+  try {
+    var kq = await api('vagabond.doi_soat_hddt_ra.noi_to_vao_don', { to: to, don: xem.don, xac_nhan: 1 });
+    busy(false); toast(kq.loi_nhan, 3000);
+  } catch (e) { busy(false); baoTin((e && e.message) || 'Không nối được.', 'Chưa nối'); return; }
+  veLai();
+}
+
+async function bcGoTo(to, so, don, veLai) {
+  var ly = await hoiChu('Gỡ tờ ' + so + ' khỏi đơn ' + (don || ''),
+    'Ghi lý do gỡ. Nhật ký trên đơn giữ lại cả lần nối lẫn lần gỡ.', '', { bat_buoc: 1, nhieu_dong: 1 });
+  if (!ly) return;
+  busy(true);
+  try {
+    var kq = await api('vagabond.doi_soat_hddt_ra.go_to_khoi_don', { to: to, ly_do: ly });
+    busy(false); toast(kq.loi_nhan, 3000);
+  } catch (e) { busy(false); baoTin((e && e.message) || 'Không gỡ được.', 'Chưa gỡ'); return; }
+  veLai();
+}
+
 function bcNoiThanh(b, veLai) {
   b.onclick = function (e) {
     var t = e.target.closest('[data-bcky]');
@@ -24841,6 +24883,10 @@ function bcNoiThanh(b, veLai) {
     if (t) { bcSS = bcSS ? 0 : 1; return veLai(); }
     t = e.target.closest('[data-bcnhap]');
     if (t) { bcNhap = bcNhapDangBat() ? 0 : 1; return veLai(); }
+    t = e.target.closest('[data-bcnoi]');
+    if (t) return bcNoiTo(t.getAttribute('data-bcnoi'), t.getAttribute('data-bcso'), t.getAttribute('data-bcgy'), veLai);
+    t = e.target.closest('[data-bcgo]');
+    if (t) return bcGoTo(t.getAttribute('data-bcgo'), t.getAttribute('data-bcso'), t.getAttribute('data-bcdon'), veLai);
   };
   ['bcTu', 'bcDen'].forEach(function (id) {
     var o = document.getElementById(id);
@@ -24927,18 +24973,29 @@ function bcO(c, v) {
 }
 function flt0(v) { var n = parseFloat(v); return isNaN(n) ? 0 : n; }
 
+/* Nut cua mot dong bang phu (v527, BC17): may chu gui r._nut, khong phai
+   mot cot nen file Excel khong in. lam = 'noi' | 'go'. */
+function bcNutDong(nut) {
+  if (!nut) return '';
+  var st = 'style="border:1.5px solid #0d9488;background:#fff;color:#0f766e;border-radius:999px;padding:6px 12px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap"';
+  if (nut.lam === 'noi') return '<button ' + st + ' data-bcnoi="' + h(nut.to) + '" data-bcso="' + h(nut.so) + '" data-bcgy="' + h(nut.goi_y || '') + '">🔗 Nối vào đơn</button>';
+  if (nut.lam === 'go') return '<button ' + st.replace('#0d9488', '#fecaca').replace('#0f766e', '#b3261e') + ' data-bcgo="' + h(nut.to) + '" data-bcso="' + h(nut.so) + '" data-bcdon="' + h(nut.don || '') + '">Gỡ nối</button>';
+  return '';
+}
+
 function bcVeBang(kq) {
   if (!kq.dong.length) return '<div class="card"><div class="emp" style="padding:26px"><div class="e1">🫙</div><div>Kỳ này chưa có số liệu.</div></div></div>';
   var canPhai = { tien: 1, so: 1, phan_tram: 1 };
+  var coNut = !!kq.nut && kq.dong.some(function (r) { return !!r._nut; });
   var html = '<div class="card" style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">' +
     '<thead><tr>' + kq.cot.map(function (c) {
       return '<th style="text-align:' + (canPhai[c.kieu] ? 'right' : 'left') + ';padding:10px 12px;background:#f8fafc;color:#6b7280;font-size:11.5px;font-weight:700;white-space:nowrap;position:sticky;top:0">' + h(c.nhan) + '</th>';
-    }).join('') + '</tr></thead><tbody>';
+    }).join('') + (coNut ? '<th style="padding:10px 12px;background:#f8fafc"></th>' : '') + '</tr></thead><tbody>';
   kq.dong.forEach(function (r, i) {
     html += '<tr style="border-top:1px solid #f2f4f7' + (i % 2 ? ';background:#fcfdfe' : '') + '">' +
       kq.cot.map(function (c, j) {
         return '<td style="text-align:' + (canPhai[c.kieu] ? 'right' : 'left') + ';padding:9px 12px;white-space:nowrap' + (j === 0 ? ';font-weight:600' : '') + '">' + bcO(c, r[c.k]) + '</td>';
-      }).join('') + '</tr>';
+      }).join('') + (coNut ? '<td style="padding:7px 12px">' + bcNutDong(r._nut) + '</td>' : '') + '</tr>';
   });
   if (kq.cong && Object.keys(kq.cong).length) {
     html += '<tr style="border-top:2px solid #e5e7eb;background:#f0fdfa;font-weight:800">' +
@@ -25102,7 +25159,7 @@ async function scrBaoCaoXem() {
         '</b> dòng đầu. Bấm Xuất Excel để lấy bản đầy đủ.</div></div>';
     }
     html +=
-      bcVeBang({ cot: kq.phu.cot, dong: kq.phu.dong, cong: null });
+      bcVeBang({ cot: kq.phu.cot, dong: kq.phu.dong, cong: null, nut: 1 });
   }
 
   var b = frame('Báo cáo ' + kq.ma, html, { footer: '<button class="btn" id="bcExcel">📥 Xuất Excel cho kế toán</button>' });
