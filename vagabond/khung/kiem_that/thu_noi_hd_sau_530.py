@@ -207,3 +207,29 @@ def _chi_muc_that():
 			("KT530-KHONG-CO",), as_dict=True)
 		dung("%s: câu lọc đi qua chỉ mục, không quét cả bảng" % o,
 			bool(r) and (r[0].get("type") or "").upper() != "ALL")
+
+
+@ca("v530 Codex #374 v5 F20: tờ ngoại tệ đã ghi sổ trên site thật: không nối, không bút toán bù trừ, công nợ tờ giữ nguyên, ô chọn không hiện")
+def _ngoai_te_that():
+	from vagabond import ho_so_bo_sung as bo
+	x = _dung()
+	if not x:
+		return
+	hd, ho_so, _tk, _chi = x
+	# Tờ đã ghi sổ mang tiền tệ khác tiền công ty (đặt thẳng ô tiền tệ trong
+	# điểm lưu: dựng tờ ngoại tệ thật cần tỷ giá và tài khoản ngoại tệ mà
+	# site bench không có; luật chỉ đọc ô này).
+	frappe.db.set_value("Purchase Invoice", hd.name, "currency", "USD", update_modified=False)
+	con = float(frappe.db.get_value("Purchase Invoice", hd.name, "outstanding_amount"))
+	try:
+		bo.noi_nhieu(ho_so, json.dumps([hd.name]))
+		loi = ""
+	except frappe.ValidationError as e:
+		loi = str(e)
+	dung("dừng, gọi tên USD", "USD" in loi)
+	la("không bút toán bù trừ nào của hồ sơ",
+		frappe.db.count("Journal Entry", {"vgb_bu_tru_ho_so": ho_so, "docstatus": 1}), 0)
+	la("công nợ tờ giữ nguyên", float(frappe.db.get_value("Purchase Invoice", hd.name, "outstanding_amount")), con)
+	uv = khong_nem("ô chọn", lambda: bo.ung_vien_hoa_don(ho_so)) or {}
+	ds = uv.get("ds") if isinstance(uv, dict) else uv
+	dung("ô chọn không hiện tờ ngoại tệ", hd.name not in [r.get("name") for r in (ds or [])])
