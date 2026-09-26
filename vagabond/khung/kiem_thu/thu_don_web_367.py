@@ -762,6 +762,26 @@ def _():
 	dung("nhịp đối soát không còn gọi log_error trần (mọi log đi qua _log_ben)", "frappe.log_error(" not in than)
 
 
+@ca("#367 H vòng 6: tồn đọng hơn 200 bản ghi chờ thì bản ghi mới hơn vẫn được xét, không kẹt ở trang đầu (Codex ee3b339)")
+def _():
+	import datetime as _dt
+	bay_gio = _dt.datetime(2026, 9, 26, 12, 0, 0)
+	kho = [{"name": "DW-%03d" % i, "trang_thai": "Cho doi soat", "creation": bay_gio - _dt.timedelta(minutes=2000 - i),
+		"dien_thoai": "", "ho_ten": "", "tien_banh": 0, "ngay_nhan": None, "snapshot": "{}", "da_bao_sales_luc": None}
+		for i in range(250)]
+	hoi = []
+	def get_all(dt, filters=None, fields=None, order_by=None, limit_page_length=20, **k):
+		# Như Frappe: limit_page_length=0 là lấy hết, số dương là cắt trang.
+		hoi.append(limit_page_length)
+		return list(kho) if not limit_page_length else list(kho)[:limit_page_length]
+	fr = types.SimpleNamespace(get_all=get_all)
+	g = dict(frappe=fr, DOCTYPE="Vagabond Don Web", now_datetime=lambda: bay_gio, get_datetime=lambda x: x,
+		add_to_date=lambda d, minutes=0, hours=0, days=0: d + _dt.timedelta(minutes=minutes, hours=hours, days=days))
+	ds = nap("don_web.py", "_dang_cho", g)()
+	la("đủ 250 bản ghi chờ, kể cả bản mới nhất", (len(ds), ds[-1]["name"] if ds else None), (250, "DW-249"))
+	la("không cắt trang cố định", hoi, [0])
+
+
 @ca("#367 H tin Lark cho Sales đủ để gọi khách và chỉ đường xử lý tay")
 def _():
 	t = don_web.soan_tin_sales({"name": "DW-1", "ho_ten": "An", "dien_thoai": "0931224334",
