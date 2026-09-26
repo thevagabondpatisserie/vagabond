@@ -1555,27 +1555,27 @@ def danh_sach(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=
 		for d in frappe.get_all(
 			"Vagabond Ho So TT Dong",
 			filters={"parent": ["in", [r.name for r in ds]]},
-			fields=["parent", "cho_hoa_don", "hoa_don_bo_sung", "hoa_don", "so_tien"],
+			fields=["parent", "cho_hoa_don", "hoa_don_bo_sung", "hoa_don", "so_tien", "tk_no"],
 			limit_page_length=0,
 		):
 			so_dong[d.parent] = so_dong.get(d.parent, 0) + 1
 			khoan_cua.setdefault(d.parent, []).append(d)
 		# v530: hồ sơ có tờ nối mức hồ sơ thì khoản chờ chưa nối kiểu cũ tính
 		# theo mức phủ của cả hồ sơ: phủ đủ là đã nối, chưa đủ là còn chờ.
-		from vagabond.ho_so_bo_sung import _co_hd_sau
-		from vagabond.hoa_don_sau import do_phu
+		# Codex #374 vòng 5: gắn cờ công nợ bằng CÙNG hàm màn chi tiết dùng,
+		# rồi đếm bằng một hàm thuần duy nhất; không tự tính mức phủ ở đây.
+		from vagabond.ho_so_bo_sung import _co_hd_sau, gan_cong_no
+		from vagabond.hoa_don_sau import dem_theo_ho_so
 		lk = {}
 		if _co_hd_sau():
 			for r in frappe.get_all("Vagabond Ho So TT HD Sau",
 					filters={"parent": ["in", [r.name for r in ds]]},
 					fields=["parent", "tien_khop"], limit_page_length=0):
 				lk.setdefault(r.parent, []).append(r)
-		for cha, cac in khoan_cua.items():
-			du = bool(lk.get(cha)) and do_phu(cac, lk[cha])["du"]
-			for d in cac:
-				if d.get("cho_hoa_don"):
-					bang = da_noi_hoa_don if (d.get("hoa_don_bo_sung") or du) else cho_hoa_don
-					bang[cha] = bang.get(cha, 0) + 1
+		loai_tk = {}
+		for cha in lk:
+			gan_cong_no(khoan_cua.get(cha, []), loai_tk)
+		cho_hoa_don, da_noi_hoa_don = dem_theo_ho_so(khoan_cua, lk)
 
 	from vagabond.doi_chieu_app import canh_bao_mo_lai
 	canh_bao = canh_bao_mo_lai(ds)

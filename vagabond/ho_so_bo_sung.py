@@ -774,16 +774,28 @@ def _lien_ket_cua(d):
 def _khoan_cua(d):
 	"""Khoản của hồ sơ kèm cờ cong_no (tài khoản Nợ là công nợ phải trả/thu):
 	khoản đó là trả nợ, không chờ hoá đơn, không bù trừ."""
+	return gan_cong_no([_dict_dong(r) for r in (d.dong or [])])
+
+
+def gan_cong_no(ds, loai=None, loai_tk=None):
+	"""Gắn cờ cong_no lên từng khoản (cần ô tk_no). Nguồn duy nhất cho màn chi
+	tiết (_khoan_cua) và màn danh sách (Codex #374 vòng 5: danh sách từng tính
+	mức phủ trên dòng thô chưa gắn cờ). loai: bộ nhớ {tài khoản: loại} dùng
+	chung cho nhiều hồ sơ trong một lượt; loai_tk: hàm tra loại (ca kiểm)."""
 	from vagabond.hoa_don_sau import la_khoan_cong_no
-	ra, loai = [], {}
-	for r in (d.dong or []):
-		x = _dict_dong(r)
+	loai = {} if loai is None else loai
+	tra = loai_tk or _loai_tk
+	for x in ds:
 		tk = x.get("tk_no") or ""
 		if tk and tk not in loai:
-			loai[tk] = _loai_tk(tk)
+			loai[tk] = tra(tk)
 		x["cong_no"] = la_khoan_cong_no(tk, loai.get(tk, ""))
-		ra.append(x)
-	return ra
+	return ds
+
+
+def _tien_te_cong_ty(cty):
+	"""Tiền tệ hạch toán của công ty chứng từ (VND)."""
+	return (frappe.db.get_value("Company", cty, "default_currency") or "").strip() if cty else ""
 
 
 def phu_cua(d):
@@ -817,7 +829,12 @@ def ung_vien_hoa_don(name, tu_khoa="", moi_ncc=0):
 	nhom, goc = _nhom_ncc(d.nha_cung_cap)
 	tu_khoa = (tu_khoa or "").strip()
 	moi = cint(moi_ncc) and len(tu_khoa) >= 2
-	loc = {"company": _cong_ty_chung_tu(), "docstatus": ["<", 2]}
+	cty = _cong_ty_chung_tu()
+	loc = {"company": cty, "docstatus": ["<", 2]}
+	tt = _tien_te_cong_ty(cty)
+	if tt:
+		# Codex #374 vòng 5: không đưa tờ ngoại tệ vào ô chọn.
+		loc["currency"] = tt
 	if _co_dau_huy():
 		loc["vgb_huy"] = 0
 	if not moi:
@@ -1062,6 +1079,7 @@ def noi_nhieu(name, hoa_don, ngoai_ncc=0):
 	tkct = (getattr(d, "loai", None) or "") == LOAI_TKCT
 	nhom, _goc = _nhom_ncc(d.nha_cung_cap)
 	cty = _cong_ty_chung_tu()
+	tien_te = _tien_te_cong_ty(cty)
 	# Khoá mọi tờ theo thứ tự tên trước khi đọc gì: hai lần nối chéo nhau
 	# không khoá vòng.
 	for ma in sorted(ds):
@@ -1096,7 +1114,7 @@ def noi_nhieu(name, hoa_don, ngoai_ncc=0):
 		if ma in da_co:
 			frappe.throw("Hoá đơn %s đã nối vào chính hồ sơ này rồi." % ma)
 		r = frappe.db.sql(
-			"""select name, docstatus, supplier, company, grand_total, outstanding_amount, credit_to,
+			"""select name, docstatus, supplier, company, currency, grand_total, outstanding_amount, credit_to,
 				posting_date, bill_no""" + (", ifnull(vgb_huy, 0) as vgb_huy" if _co_dau_huy() else ", 0 as vgb_huy") + """
 			from `tabPurchase Invoice` where name = %s for update""", (ma,), as_dict=True)
 		if not r:
@@ -1104,7 +1122,7 @@ def noi_nhieu(name, hoa_don, ngoai_ncc=0):
 		hd = r[0]
 		trong_nhom = hd["supplier"] in nhom
 		loi = hs.loi_noi_to(hd, ho_so_dang_giu(ma, khoa=True), tkct, trong_nhom, bool(cint(ngoai_ncc)),
-			hd["company"] == cty)
+			hd["company"] == cty, tien_te)
 		if loi:
 			frappe.throw("Hoá đơn %s (số %s) %s." % (ma, hd.get("bill_no") or "", loi), title="Chưa nối được")
 		tk = hs.tien_khop(hd)

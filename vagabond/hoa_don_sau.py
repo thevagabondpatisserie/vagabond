@@ -94,7 +94,8 @@ def nhan_to(to):
 	return "Nháp, chưa ghi sổ"
 
 
-def loi_noi_to(to, ho_so_khac="", tkct=True, trong_nhom=True, cho_ngoai_nhom=False, dung_cong_ty=True):
+def loi_noi_to(to, ho_so_khac="", tkct=True, trong_nhom=True, cho_ngoai_nhom=False, dung_cong_ty=True,
+		tien_te_cong_ty=""):
 	"""Tờ này nối vào hồ sơ được không. Trả câu lỗi, rỗng là được. THUẦN.
 
 	to: {docstatus, vgb_huy, outstanding_amount}. tkct: hồ sơ Chi từ TK công ty.
@@ -108,6 +109,13 @@ def loi_noi_to(to, ho_so_khac="", tkct=True, trong_nhom=True, cho_ngoai_nhom=Fal
 		return "đã đánh dấu huỷ (bản nháp bỏ đi), không làm chứng từ được"
 	if not dung_cong_ty:
 		return "thuộc công ty khác"
+	# Codex #374 vòng 5: hồ sơ chi bằng tiền công ty (VND). Tờ lập bằng ngoại
+	# tệ thì tổng tờ và công nợ tờ là số ngoại tệ, so với khoản chi hay đem
+	# bù trừ đều sai. Chặn, không tự quy đổi.
+	tt = (to.get("currency") or "").strip()
+	if tien_te_cong_ty and tt and tt != tien_te_cong_ty:
+		return ("lập bằng %s, khác tiền công ty %s. Hồ sơ chi bằng %s nên không nối tờ ngoại tệ; "
+			"nhờ kế toán xử lý tờ này riêng" % (tt, tien_te_cong_ty, tien_te_cong_ty))
 	if ho_so_khac:
 		return "đã nối vào hồ sơ %s rồi" % ho_so_khac
 	if not trong_nhom and not cho_ngoai_nhom:
@@ -297,6 +305,25 @@ def do_phu(khoan, lien_ket, nguong=NGUONG):
 	da = sum(_tien(x.get("tien_khop")) for x in (lien_ket or []))
 	return {"can": round(can, 2), "da_noi": round(da, 2), "con_thieu": round(max(can - da, 0.0), 2),
 		"thua": round(max(da - can, 0.0), 2), "du": abs(can - da) <= nguong}
+
+
+def dem_theo_ho_so(khoan_cua, lien_ket_cua):
+	"""Đếm khoản chờ hoá đơn cho màn DANH SÁCH hồ sơ. THUẦN.
+
+	khoan_cua: {hồ sơ: [khoản ĐÃ gắn cờ cong_no]}; lien_ket_cua: {hồ sơ: [tờ
+	nối mức hồ sơ]}. Trả (cho_hoa_don, da_noi_hoa_don), mỗi cái {hồ sơ: số
+	khoản}. Codex #374 vòng 5: danh sách từng tự gọi do_phu trên dòng thô chưa
+	gắn cờ cong_no, khoản trả nợ bị tính là chi phí chờ hoá đơn, nên số đếm
+	danh sách lệch màn chi tiết. Một hàm này là nguồn duy nhất của phép đếm."""
+	cho, da = {}, {}
+	for cha, cac in (khoan_cua or {}).items():
+		lk = (lien_ket_cua or {}).get(cha)
+		du = bool(lk) and do_phu(cac, lk)["du"]
+		for d in cac:
+			if _so(d.get("cho_hoa_don")):
+				bang = da if ((d.get("hoa_don_bo_sung") or "").strip() or du) else cho
+				bang[cha] = bang.get(cha, 0) + 1
+	return cho, da
 
 
 def co_hoa_don(k):
