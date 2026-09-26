@@ -193,3 +193,17 @@ def _huy_chi_that_o_ho_so():
 @ca("v530 Codex #374 v3 F18: huỷ THẬT bút toán chi hồ sơ cũ (chỉ mang số tham chiếu) cũng bị chặn; gỡ tờ xong thì huỷ được")
 def _huy_chi_that_so_tham_chieu():
 	_huy_chi_that(True)
+
+
+@ca("v530 Codex #374 v4 F19: bảng Journal Entry thật có chỉ mục cho hai ô hồ sơ, câu khoá dùng chỉ mục chứ không quét bảng")
+def _chi_muc_that():
+	co = {r[0] for r in frappe.db.sql(
+		"""select column_name from information_schema.statistics
+		where table_schema = database() and table_name = 'tabJournal Entry'
+			and column_name in ('vgb_ho_so_tt', 'vgb_bu_tru_ho_so')""")}
+	la("có chỉ mục", sorted(co), ["vgb_bu_tru_ho_so", "vgb_ho_so_tt"])
+	for o in ("vgb_ho_so_tt", "vgb_bu_tru_ho_so"):
+		r = frappe.db.sql("explain select name from `tabJournal Entry` where docstatus = 1 and %s = %%s" % o,
+			("KT530-KHONG-CO",), as_dict=True)
+		dung("%s: câu lọc đi qua chỉ mục, không quét cả bảng" % o,
+			bool(r) and (r[0].get("type") or "").upper() != "ALL")
