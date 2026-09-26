@@ -233,3 +233,30 @@ def _ngoai_te_that():
 	uv = khong_nem("ô chọn", lambda: bo.ung_vien_hoa_don(ho_so)) or {}
 	ds = uv.get("ds") if isinstance(uv, dict) else uv
 	dung("ô chọn không hiện tờ ngoại tệ", hd.name not in [r.get("name") for r in (ds or [])])
+
+
+@ca("v530 Codex #374 v6 F23: tờ nháp đã nối trên site thật: đổi tiền tệ khi lưu thì hook giữ tờ chặn, gọi tên hồ sơ")
+def _khoa_tien_te_that():
+	import copy
+	from vagabond import ho_so_bo_sung as bo
+	x = _dung()
+	if not x:
+		return
+	_hd, ho_so, _tk, _chi = x
+	nhap = khong_nem("dựng tờ nháp", lambda: _luu(_phieu([("Cước thử v530 nháp", 1, TIEN)])))
+	if not nhap:
+		return
+	kq = khong_nem("nối tờ nháp", lambda: bo.noi_nhieu(ho_so, json.dumps([nhap.name]))) or {}
+	dung("nối được tờ nháp", bool(kq.get("ok")))
+	if not kq.get("ok"):
+		return
+	doc = frappe.get_doc("Purchase Invoice", nhap.name)
+	doc._doc_before_save = copy.deepcopy(doc)
+	doc.currency = "USD"
+	try:
+		bo.giu_hd_da_noi(doc)
+		loi = ""
+	except frappe.ValidationError as e:
+		loi = str(e)
+	dung("chặn, gọi tên hồ sơ và tiền tệ", ho_so in loi and "tiền tệ" in loi)
+	la("tiền tệ trong sổ vẫn là VND", frappe.db.get_value("Purchase Invoice", nhap.name, "currency"), "VND")
