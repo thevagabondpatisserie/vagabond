@@ -865,14 +865,21 @@ def doi_soat_tu_dong():
 		c = cfg()
 		k = key(c, "pancake_api_key")
 		if not (k and c.pancake_shop_id):
-			return
-		dau = min(_unix(r["creation"]) for r in ds) - 600
-		cuoi = _unix(now_datetime()) + 60
-		try:
-			dons = _keo_don(c, k, "inserted_at", dau, cuoi)
-		except LoiPancake as e:
-			frappe.log_error(title="Don web: doi soat chua keo duoc Pancake", message=str(e)[:500])
+			# Codex 46b7a9a: thiếu khoá hay mã shop Pancake thì không ghép được,
+			# nhưng KHÔNG bỏ về: lên tiếng bằng Error Log (giãn 6 giờ) và vẫn cho
+			# các bản ghi quá giờ đi lối báo Sales, không gọi Pancake.
+			_bao_cau_hinh_thieu(TIEU_DE_THIEU_PANCAKE,
+				"Vagabond Settings thieu pancake_api_key hoac pancake_shop_id, nen don web khong doi soat duoc "
+				"voi Pancake. Don qua %d phut van duoc bao nhom Sales. Dien lai cau hinh Pancake." % PHUT_BAO_SALES)
 			dons = []
+		else:
+			dau = min(_unix(r["creation"]) for r in ds) - 600
+			cuoi = _unix(now_datetime()) + 60
+			try:
+				dons = _keo_don(c, k, "inserted_at", dau, cuoi)
+			except LoiPancake as e:
+				frappe.log_error(title="Don web: doi soat chua keo duoc Pancake", message=str(e)[:500])
+				dons = []
 		gan = set(frappe.get_all(DOCTYPE, filters={"pancake_display_id": ["is", "set"],
 			"creation": [">=", add_to_date(now_datetime(), days=-3)]}, pluck="pancake_display_id",
 			ignore_permissions=True))
@@ -936,23 +943,29 @@ def _doi_soat_mot(r, dons, gan):
 
 
 TIEU_DE_THIEU_WEBHOOK = "Don web: chua cau hinh webhook nhom Sales"
+TIEU_DE_THIEU_PANCAKE = "Don web: chua cau hinh Pancake de doi soat"
 
 
-def _bao_thieu_webhook(r):
-	"""Ghi Error Log khi thiếu webhook nhóm Sales, tối đa 6 giờ một lần: dựa
-	vào Error Log cùng tiêu đề (ô method) nên giãn đúng cả khi tiến trình khởi
-	động lại."""
+def _bao_cau_hinh_thieu(tieu_de, noi_dung):
+	"""Ghi Error Log báo thiếu cấu hình, tối đa 6 giờ một lần cho mỗi tiêu đề:
+	dựa vào Error Log cùng tiêu đề (ô method) nên giãn đúng cả khi tiến trình
+	khởi động lại. Một nguồn cho mọi lời báo thiếu cấu hình của đơn web."""
 	try:
-		if frappe.db.exists("Error Log", {"method": TIEU_DE_THIEU_WEBHOOK,
+		if frappe.db.exists("Error Log", {"method": tieu_de,
 				"creation": [">=", add_to_date(now_datetime(), hours=-6)]}):
 			return False
 	except Exception:
 		pass
-	frappe.log_error(title=TIEU_DE_THIEU_WEBHOOK,
-		message=("Vagabond Settings chua co webhook_don_web, nen don web qua %d phut chua vao Pancake "
-			"khong bao duoc nhom Sales (vi du ban ghi %s). Dien webhook Lark nhom Sales, nhip 5 phut sau "
-			"se bao cac ban ghi con treo." % (PHUT_BAO_SALES, (r or {}).get("name") or "")))
+	frappe.log_error(title=tieu_de, message=noi_dung)
 	return True
+
+
+def _bao_thieu_webhook(r):
+	"""Báo thiếu webhook nhóm Sales (giãn 6 giờ)."""
+	return _bao_cau_hinh_thieu(TIEU_DE_THIEU_WEBHOOK,
+		"Vagabond Settings chua co webhook_don_web, nen don web qua %d phut chua vao Pancake "
+		"khong bao duoc nhom Sales (vi du ban ghi %s). Dien webhook Lark nhom Sales, nhip 5 phut sau "
+		"se bao cac ban ghi con treo." % (PHUT_BAO_SALES, (r or {}).get("name") or ""))
 
 
 def _bao_sales(r):
