@@ -536,6 +536,7 @@ def _frappe_bao_sales(url, nhan):
 	# Nạp THẬT cả hàm báo thiếu webhook và nguồn giãn chung, cùng bộ Frappe giả (vòng 3, 4).
 	g["_bao_thieu_webhook"] = lambda r: nap("don_web.py", "_bao_thieu_webhook", g)(r)
 	g["_bao_cau_hinh_thieu"] = lambda t, n: nap("don_web.py", "_bao_cau_hinh_thieu", g)(t, n)
+	g["_log_ben"] = lambda t, n: nap("don_web.py", "_log_ben", g)(t, n)
 	return g, gui, ghi, goi
 
 
@@ -576,7 +577,7 @@ def _():
 		da.append(r["name"])
 	fr = types.SimpleNamespace(
 		flags=types.SimpleNamespace(vagabond_kiem_that=False),
-		db=types.SimpleNamespace(rollback=lambda: None),
+		db=types.SimpleNamespace(rollback=lambda: None, commit=lambda: None),
 		log_error=lambda **k: log.append(k.get("title")), get_traceback=lambda: "tb",
 		get_all=lambda *a, **k: [])
 	ds = [{"name": "DW-1", "creation": "2026-09-25 13:00:00"}, {"name": "DW-HONG", "creation": "2026-09-25 13:00:00"}, {"name": "DW-2", "creation": "2026-09-25 13:00:00"}]
@@ -590,6 +591,7 @@ def _():
 		g = dict(frappe=fr, _dang_cho=lambda: ds, cfg=lambda: types.SimpleNamespace(pancake_shop_id="1"), key=lambda c, k: "k",
 			_unix=lambda t: 0, now_datetime=lambda: "T", add_to_date=lambda *a, **k: "T0", DOCTYPE="Vagabond Don Web",
 			_doi_soat_mot=mot)
+		g["_log_ben"] = lambda t, n: nap("don_web.py", "_log_ben", g)(t, n)
 		nap("don_web.py", "doi_soat_tu_dong", g)()
 	finally:
 		if cu is None:
@@ -617,6 +619,7 @@ def _mot_ban_ghi(snap, phut_truoc, da_bao=None):
 	r = {"name": "DW-1", "dien_thoai": "0931224334", "snapshot": snap, "da_bao_sales_luc": da_bao,
 		"creation": bay_gio - _dt.timedelta(minutes=phut_truoc)}
 	try:
+		g["_log_ben"] = lambda t, n: nap("don_web.py", "_log_ben", g)(t, n)
 		nap("don_web.py", "_doi_soat_mot", g)(r, [], set())
 		loi = ""
 	except Exception as e:
@@ -681,7 +684,7 @@ def _():
 		goi_mot, log, keo, hoi = [], [], [], []
 		fr = types.SimpleNamespace(
 			flags=types.SimpleNamespace(vagabond_kiem_that=False),
-			db=types.SimpleNamespace(rollback=lambda: None, exists=lambda dt, loc=None: hoi.append(loc) or False),
+			db=types.SimpleNamespace(rollback=lambda: None, commit=lambda: None, exists=lambda dt, loc=None: hoi.append(loc) or False),
 			log_error=lambda **kw: log.append(kw.get("title")), get_traceback=lambda: "tb",
 			get_all=lambda *a, **kw: [])
 		ds = [{"name": "DW-1", "creation": "2026-09-25 13:00:00"}, {"name": "DW-2", "creation": "2026-09-25 13:10:00"}]
@@ -696,6 +699,7 @@ def _():
 				DOCTYPE="Vagabond Don Web", PHUT_BAO_SALES=30, TIEU_DE_THIEU_PANCAKE="Don web: chua cau hinh Pancake de doi soat",
 				_doi_soat_mot=lambda r, dons, gan: goi_mot.append((r["name"], dons)))
 			g["_bao_cau_hinh_thieu"] = lambda t, n: nap("don_web.py", "_bao_cau_hinh_thieu", g)(t, n)
+			g["_log_ben"] = lambda t, n: nap("don_web.py", "_log_ben", g)(t, n)
 			nap("don_web.py", "doi_soat_tu_dong", g)()
 		finally:
 			if cu is None:
@@ -707,6 +711,55 @@ def _():
 		la("không gọi Pancake, " + nhan, keo, [])
 		la("một Error Log thiếu cấu hình Pancake, " + nhan, log, ["Don web: chua cau hinh Pancake de doi soat"])
 		dung("giãn theo Error Log cùng tiêu đề, " + nhan, bool(hoi) and hoi[0].get("method") == "Don web: chua cau hinh Pancake de doi soat")
+
+
+@ca("#367 H vòng 5: Error Log của nhịp đối soát bền qua rollback của bản ghi sau (Codex 2995bbc)")
+def _():
+	# Frappe thật: log_error chèn Error Log vào CÙNG giao dịch, nên rollback của
+	# bản ghi hỏng phía sau xoá luôn log đã ghi trước đó. Giả lập đúng điều đó:
+	# log nằm ở "cho" tới khi commit, rollback thì mất.
+	import sys, datetime as _dt
+	bay_gio = _dt.datetime(2026, 9, 26, 12, 0, 0)
+	cho, ben, bao = [], [], []
+	def rollback():
+		del cho[:]
+	def commit():
+		ben.extend(cho)
+		del cho[:]
+	fr = types.SimpleNamespace(
+		flags=types.SimpleNamespace(vagabond_kiem_that=False),
+		db=types.SimpleNamespace(rollback=rollback, commit=commit, exists=lambda *a, **k: False),
+		log_error=lambda **kw: cho.append(kw.get("title")), get_traceback=lambda: "tb",
+		get_all=lambda *a, **kw: [])
+	ds = [{"name": "DW-1", "dien_thoai": "0931224334", "creation": "2026-09-26 10:00:00", "snapshot": "{hỏng"},
+		{"name": "DW-2", "dien_thoai": "0931224335", "creation": "2026-09-26 10:05:00", "snapshot": "{hỏng"}]
+	kb = types.ModuleType("vagabond.kiem_banh")
+	kb.LoiPancake = RuntimeError
+	kb._keo_don = lambda *a, **kw: []
+	cu = sys.modules.get("vagabond.kiem_banh")
+	sys.modules["vagabond.kiem_banh"] = kb
+	try:
+		g = dict(frappe=fr, json=json, _dang_cho=lambda: ds, cfg=lambda: types.SimpleNamespace(pancake_shop_id=""),
+			key=lambda c, kk: "", _unix=lambda t: 0, now_datetime=lambda: bay_gio, add_to_date=lambda *a, **kw: bay_gio,
+			DOCTYPE="Vagabond Don Web", PHUT_BAO_SALES=30, TIEU_DE_THIEU_PANCAKE="Don web: chua cau hinh Pancake de doi soat",
+			ghep_don_pancake=don_web.ghep_don_pancake, can_bao_sales=don_web.can_bao_sales,
+			_bao_sales=lambda r: bao.append(r["name"]))
+		for ten in ("_bao_cau_hinh_thieu", "_doi_soat_mot", "_log_ben"):
+			if ten in _doc("vagabond/don_web.py"):
+				g[ten] = (lambda ten: lambda *a: nap("don_web.py", ten, g)(*a))(ten)
+		nap("don_web.py", "doi_soat_tu_dong", g)()
+		commit()  # tiến trình nền của Frappe tự commit khi job xong
+	finally:
+		if cu is None:
+			sys.modules.pop("vagabond.kiem_banh", None)
+		else:
+			sys.modules["vagabond.kiem_banh"] = cu
+	dung("báo thiếu cấu hình Pancake còn sau rollback của bản ghi hỏng", "Don web: chua cau hinh Pancake de doi soat" in ben)
+	la("log từng bản ghi hỏng đều còn", ben.count("Don web: ban ghi khong ghep duoc, van bao Sales"), 2)
+	la("hai bản ghi quá giờ vẫn được báo Sales", bao, ["DW-1", "DW-2"])
+	x = _doc("vagabond/don_web.py")
+	than = x[x.index("def doi_soat_tu_dong("):x.index("TIEU_DE_THIEU_WEBHOOK = ")]
+	dung("nhịp đối soát không còn gọi log_error trần (mọi log đi qua _log_ben)", "frappe.log_error(" not in than)
 
 
 @ca("#367 H tin Lark cho Sales đủ để gọi khách và chỉ đường xử lý tay")
