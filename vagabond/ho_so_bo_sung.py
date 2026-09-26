@@ -867,21 +867,25 @@ def _no_chi_phi_con_lai(d):
 	nhận theo số tham chiếu (cheque_no) là mã hồ sơ. Đây là phép soát cuối:
 	kế hoạch bù trừ lập từ khoản chi, nhưng Có vào tài khoản nào thì tài
 	khoản đó phải THẬT SỰ đã được hồ sơ ghi Nợ đủ số."""
+	# Codex #374 vòng 3: mọi câu ở đây đọc HIỆN HÀNH (for update). Hàm chạy
+	# sau khi đã khoá hồ sơ; bút toán chi vừa bị huỷ trong lúc chờ khoá thì
+	# câu đọc thường vẫn thấy nó còn ghi sổ (ảnh chụp cũ) và lập bù trừ trên
+	# một khoản chi không còn. Tái hiện trên MariaDB thật.
 	je = [r[0] for r in frappe.db.sql(
-		"select name from `tabJournal Entry` where docstatus = 1 and vgb_ho_so_tt = %s", (d.name,))]
+		"select name from `tabJournal Entry` where docstatus = 1 and vgb_ho_so_tt = %s for update", (d.name,))]
 	if not je:
 		je = [r[0] for r in frappe.db.sql(
-			"select name from `tabJournal Entry` where docstatus = 1 and cheque_no = %s", (d.name,))]
+			"select name from `tabJournal Entry` where docstatus = 1 and cheque_no = %s for update", (d.name,))]
 	no = {}
 	if je:
 		for tk, n in frappe.db.sql(
 			"""select account, sum(debit_in_account_currency) from `tabJournal Entry Account`
-			where parent in %s group by account""", (tuple(je),)):
+			where parent in %s group by account for update""", (tuple(je),)):
 			no[tk] = _tien(n)
 	for tk, c in frappe.db.sql(
 		"""select a.account, sum(a.credit_in_account_currency) from `tabJournal Entry Account` a
 		inner join `tabJournal Entry` j on j.name = a.parent
-		where j.docstatus = 1 and j.vgb_bu_tru_ho_so = %s group by a.account""", (d.name,)):
+		where j.docstatus = 1 and j.vgb_bu_tru_ho_so = %s group by a.account for update""", (d.name,)):
 		no[tk] = no.get(tk, 0.0) - _tien(c)
 	return no
 
@@ -993,14 +997,21 @@ def _chan_huy_but_toan_chi(doc):
 	hợp lệ tính thuế trong khi không còn khoản chi nào."""
 	g = doc.get if hasattr(doc, "get") else (lambda k, d=None: getattr(doc, k, d))
 	ho_so = (g("vgb_ho_so_tt") or "").strip()
-	if not ho_so:
-		so = (g("cheque_no") or "").strip()
-		if so and frappe.db.sql("select name from `tabVagabond Ho So TT` where name = %s", (so,)):
-			ho_so = so
+	theo_so = not ho_so
+	if theo_so:
+		ho_so = (g("cheque_no") or "").strip()
 	if not ho_so:
 		return
+	# Codex #374 vòng 3 (f1c9be0): khoá ĐÚNG khoá noi_nhieu giữ (dòng hồ sơ)
+	# rồi mới xét, và xét bằng câu đọc HIỆN HÀNH. Chỉ khoá mà đọc thường thì
+	# vẫn thấy ảnh chụp REPEATABLE READ lập trước lúc chờ khoá, bỏ lọt bút
+	# toán bù trừ lần nối song song vừa chốt (đã tái hiện trên MariaDB thật).
+	co = frappe.db.sql("select name from `tabVagabond Ho So TT` where name = %s for update", (ho_so,))
+	if theo_so and not co:
+		return
 	bt = frappe.db.sql(
-		"""select name from `tabJournal Entry` where docstatus = 1 and vgb_bu_tru_ho_so = %s limit 1""", (ho_so,))
+		"""select name from `tabJournal Entry` where docstatus = 1 and vgb_bu_tru_ho_so = %s limit 1 for update""",
+		(ho_so,))
 	if bt:
 		frappe.throw(
 			"Bút toán %s là bút toán chi của hồ sơ %s, mà hồ sơ đang có bút toán bù trừ hoá đơn đến sau %s. "
