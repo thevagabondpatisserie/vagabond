@@ -37,6 +37,17 @@ CHINH_SACH = {
     "giao_hang_doi_tra": {"ten": "Giao hàng và đổi trả", "duong": "/giao-hang-doi-tra"},
 }
 TRUONG_CHINH_SACH = {"hien", "vn", "en"}
+
+
+def khoa_tu_duong(duong):
+    """Khoá trang chính sách từ đường dẫn yêu cầu, "" nếu không phải trang
+    chính sách. Frappe không truyền `defaults` của luật định tuyến vào
+    form_dict, nên trang www/chinh_sach.py phải tự suy từ đường dẫn."""
+    d = "/" + str(duong or "").split("?", 1)[0].strip().strip("/")
+    for khoa, cs in CHINH_SACH.items():
+        if d == cs["duong"]:
+            return khoa
+    return ""
 DAI_CHINH_SACH = 30000
 # Chỗ trong ngoặc vuông marketing phải điền trước khi bật trang, ví dụ
 # "[số điện thoại]". Không bắt "[chữ](liên kết)" vì đó là liên kết Markdown.

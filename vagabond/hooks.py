@@ -885,7 +885,8 @@ scheduler_events.setdefault("cron", {}).setdefault("*/5 * * * *", []).append("va
 # luat dinh tuyen cua app, KHONG thay: bo luat do mang moi man hinh cua /bep.
 website_route_rules = list(website_route_rules) + [
 	{"from_route": "/banh/xong/<token>", "to_route": "banh/xong"},
-	{"from_route": "/chinh-sach-bao-mat", "to_route": "chinh-sach", "defaults": {"khoa": "chinh_sach_bao_mat"}},
-	{"from_route": "/dieu-khoan", "to_route": "chinh-sach", "defaults": {"khoa": "dieu_khoan"}},
-	{"from_route": "/giao-hang-doi-tra", "to_route": "chinh-sach", "defaults": {"khoa": "giao_hang_doi_tra"}},
+	# Frappe khong doc khoa defaults cua luat: trang chinh_sach tu suy khoa tu duong dan.
+	{"from_route": "/chinh-sach-bao-mat", "to_route": "chinh-sach"},
+	{"from_route": "/dieu-khoan", "to_route": "chinh-sach"},
+	{"from_route": "/giao-hang-doi-tra", "to_route": "chinh-sach"},
 ]

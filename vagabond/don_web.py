@@ -393,6 +393,18 @@ def goi_su_kien(ten, event_id, luc_unix, gia_tri, ma_mon, sdt=None, email=None,
 	}
 
 
+# Trạng thái Pancake bỏ qua, cùng nguồn với vagabond.lib.PANCAKE_BO_QUA (phần
+# thuần không import lib để giữ tệp nạp được không cần Frappe).
+PANCAKE_BO_QUA = frozenset({6, 7})
+
+
+def _tt_pancake(tt):
+	try:
+		return int(tt)
+	except (TypeError, ValueError):
+		return None
+
+
 def ghep_don_pancake(sdt, tao_luc, hang, dons, da_gan=(), truoc=600, sau=3600):
 	"""Tìm đơn Pancake ứng với một bản ghi Chờ đối soát. THUẦN.
 
@@ -413,6 +425,10 @@ def ghep_don_pancake(sdt, tao_luc, hang, dons, da_gan=(), truoc=600, sau=3600):
 	ung = []
 	for o in dons or []:
 		if not isinstance(o, dict):
+			continue
+		# Đơn Pancake đã huỷ hoặc đã xoá (6, 7) không phải ứng viên: ghép vào
+		# là bản ghi thành Đã nhận, tắt báo Sales, cho một đơn không giao (Codex).
+		if _tt_pancake(o.get("status")) in PANCAKE_BO_QUA:
 			continue
 		if str(o.get("id") or "") in gan or str(o.get("display_id") or "") in gan:
 			continue
@@ -863,38 +879,57 @@ def doi_soat_tu_dong():
 			"creation": [">=", add_to_date(now_datetime(), days=-3)]}, pluck="pancake_id",
 			ignore_permissions=True))
 		for r in ds:
-			snap = json.loads(r.get("snapshot") or "{}")
-			hang = [{"variation_id": m.get("ma"), "quantity": m.get("sl")} for m in snap.get("mon") or []]
-			o, _ly_do = ghep_don_pancake(r["dien_thoai"], _unix(r["creation"]), hang, dons, gan)
-			if o:
-				d = frappe.get_doc(DOCTYPE, r["name"])
-				d.trang_thai = "Da nhan"
-				d.pancake_id = str(o.get("id") or "")
-				d.pancake_display_id = str(o.get("display_id") or o.get("id") or "")
-				d.ly_do = "doi_soat_tu_dong"
-				d.save(ignore_permissions=True)
-				gan.update([d.pancake_id, d.pancake_display_id])
-				frappe.db.commit()
-				continue
-			if not r.get("da_bao_sales_luc") and get_datetime(r["creation"]) <= add_to_date(now_datetime(), minutes=-PHUT_BAO_SALES):
-				_bao_sales(r)
+			# Mỗi bản ghi tự chịu lỗi của mình: một snapshot hỏng không được
+			# chặn các bản ghi sau đó khỏi ghép hoặc báo Sales (Codex).
+			try:
+				_doi_soat_mot(r, dons, gan)
+			except Exception:
+				frappe.db.rollback()
+				frappe.log_error(title="Don web: doi soat mot ban ghi",
+					message="Ban ghi %s\n%s" % (r.get("name"), frappe.get_traceback()))
 	except Exception:
 		frappe.log_error(title="Don web: doi soat tu dong", message=frappe.get_traceback())
 
 
+def _doi_soat_mot(r, dons, gan):
+	"""Ghép một bản ghi Chờ đối soát với đơn Pancake, hoặc báo Sales khi quá giờ."""
+	snap = json.loads(r.get("snapshot") or "{}")
+	hang = [{"variation_id": m.get("ma"), "quantity": m.get("sl")} for m in snap.get("mon") or []]
+	o, _ly_do = ghep_don_pancake(r["dien_thoai"], _unix(r["creation"]), hang, dons, gan)
+	if o:
+		d = frappe.get_doc(DOCTYPE, r["name"])
+		d.trang_thai = "Da nhan"
+		d.pancake_id = str(o.get("id") or "")
+		d.pancake_display_id = str(o.get("display_id") or o.get("id") or "")
+		d.ly_do = "doi_soat_tu_dong"
+		d.save(ignore_permissions=True)
+		gan.update([d.pancake_id, d.pancake_display_id])
+		frappe.db.commit()
+		return
+	if not r.get("da_bao_sales_luc") and get_datetime(r["creation"]) <= add_to_date(now_datetime(), minutes=-PHUT_BAO_SALES):
+		_bao_sales(r)
+
+
 def _bao_sales(r):
-	"""Báo nhóm Sales qua Lark (anh Việt chọn Lark 25/09/2026). Chỉ báo một lần."""
+	"""Báo nhóm Sales qua Lark (anh Việt chọn Lark 25/09/2026). Chỉ báo một lần
+	khi đã gửi được; trả True khi Lark nhận."""
 	from vagabond.gui_thu import ban_webhook
 
 	url = str(cfg_o("webhook_don_web") or "").strip()
-	frappe.db.set_value(DOCTYPE, r["name"], "da_bao_sales_luc", now_datetime(), update_modified=False)
-	frappe.db.commit()
 	if not url:
-		return
+		# Chưa cấu hình webhook thì chưa coi là đã báo: điền URL xong nhịp sau
+		# sẽ báo các bản ghi còn treo.
+		return False
 	cau = soan_tin_sales(r, frappe.utils.get_url_to_form(DOCTYPE, r["name"]))
 	if not ban_webhook(cau, url=url):
 		frappe.log_error(title="Don web: chua bao duoc nhom Sales qua Lark",
-			message="Ban ghi %s. Kiem tra webhook nhom Sales don web." % r["name"])
+			message="Ban ghi %s. Kiem tra webhook nhom Sales don web. Se thu lai nhip sau." % r["name"])
+		return False
+	# Chỉ đóng dấu SAU khi Lark nhận, để lỗi mạng hay webhook sai còn được
+	# thử lại ở nhịp sau, không tắt vĩnh viễn lối người xử lý (Codex).
+	frappe.db.set_value(DOCTYPE, r["name"], "da_bao_sales_luc", now_datetime(), update_modified=False)
+	frappe.db.commit()
+	return True
 
 
 def kiem_ban_ghi(doc):
