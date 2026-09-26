@@ -36,6 +36,7 @@ Phần THUẦN nằm trên, phần chạm Frappe nằm dưới dòng `import fra
 
 # phần thuần
 import base64
+import datetime
 import hashlib
 import hmac
 import json
@@ -891,11 +892,35 @@ def doi_soat_tu_dong():
 		frappe.log_error(title="Don web: doi soat tu dong", message=frappe.get_traceback())
 
 
+def can_bao_sales(r, bay_gio):
+	"""Bản ghi đã tới lúc báo Sales chưa: chưa báo và đã quá PHUT_BAO_SALES
+	phút từ lúc tạo. THUẦN, một nguồn cho mọi lối báo (điều 18)."""
+	r = r or {}
+	if r.get("da_bao_sales_luc"):
+		return False
+	tao = r.get("creation")
+	if isinstance(tao, str):
+		tao = datetime.datetime.strptime(tao[:19].replace("T", " "), "%Y-%m-%d %H:%M:%S")
+	return bool(tao) and tao <= bay_gio - datetime.timedelta(minutes=PHUT_BAO_SALES)
+
+
 def _doi_soat_mot(r, dons, gan):
-	"""Ghép một bản ghi Chờ đối soát với đơn Pancake, hoặc báo Sales khi quá giờ."""
-	snap = json.loads(r.get("snapshot") or "{}")
-	hang = [{"variation_id": m.get("ma"), "quantity": m.get("sl")} for m in snap.get("mon") or []]
-	o, _ly_do = ghep_don_pancake(r["dien_thoai"], _unix(r["creation"]), hang, dons, gan)
+	"""Ghép một bản ghi Chờ đối soát với đơn Pancake, hoặc báo Sales khi quá giờ.
+
+	Codex 3a7a37a: phần ghép hỏng (snapshot lỗi, số lượng lạ) không được nuốt
+	luôn lối báo Sales, không thì bản ghi đó hỏng y hệt mỗi nhịp rồi rơi khỏi
+	danh sách chờ sau hai ngày mà Sales chưa hề biết. Ghép hỏng thì rollback,
+	ghi log, coi như không khớp và đi tiếp tới bước báo Sales (tin báo chỉ
+	dùng ô của bản ghi, không cần snapshot)."""
+	try:
+		snap = json.loads(r.get("snapshot") or "{}")
+		hang = [{"variation_id": m.get("ma"), "quantity": m.get("sl")} for m in snap.get("mon") or []]
+		o, _ly_do = ghep_don_pancake(r["dien_thoai"], _unix(r["creation"]), hang, dons, gan)
+	except Exception:
+		frappe.db.rollback()
+		frappe.log_error(title="Don web: ban ghi khong ghep duoc, van bao Sales",
+			message="Ban ghi %s\n%s" % (r.get("name"), frappe.get_traceback()))
+		o = None
 	if o:
 		d = frappe.get_doc(DOCTYPE, r["name"])
 		d.trang_thai = "Da nhan"
@@ -906,8 +931,28 @@ def _doi_soat_mot(r, dons, gan):
 		gan.update([d.pancake_id, d.pancake_display_id])
 		frappe.db.commit()
 		return
-	if not r.get("da_bao_sales_luc") and get_datetime(r["creation"]) <= add_to_date(now_datetime(), minutes=-PHUT_BAO_SALES):
+	if can_bao_sales(r, now_datetime()):
 		_bao_sales(r)
+
+
+TIEU_DE_THIEU_WEBHOOK = "Don web: chua cau hinh webhook nhom Sales"
+
+
+def _bao_thieu_webhook(r):
+	"""Ghi Error Log khi thiếu webhook nhóm Sales, tối đa 6 giờ một lần: dựa
+	vào Error Log cùng tiêu đề (ô method) nên giãn đúng cả khi tiến trình khởi
+	động lại."""
+	try:
+		if frappe.db.exists("Error Log", {"method": TIEU_DE_THIEU_WEBHOOK,
+				"creation": [">=", add_to_date(now_datetime(), hours=-6)]}):
+			return False
+	except Exception:
+		pass
+	frappe.log_error(title=TIEU_DE_THIEU_WEBHOOK,
+		message=("Vagabond Settings chua co webhook_don_web, nen don web qua %d phut chua vao Pancake "
+			"khong bao duoc nhom Sales (vi du ban ghi %s). Dien webhook Lark nhom Sales, nhip 5 phut sau "
+			"se bao cac ban ghi con treo." % (PHUT_BAO_SALES, (r or {}).get("name") or "")))
+	return True
 
 
 def _bao_sales(r):
@@ -918,7 +963,9 @@ def _bao_sales(r):
 	url = str(cfg_o("webhook_don_web") or "").strip()
 	if not url:
 		# Chưa cấu hình webhook thì chưa coi là đã báo: điền URL xong nhịp sau
-		# sẽ báo các bản ghi còn treo.
+		# sẽ báo các bản ghi còn treo. Nhưng phải LÊN TIẾNG (Codex 3a7a37a):
+		# một Error Log chỉ việc cần làm, giãn 6 giờ một lần.
+		_bao_thieu_webhook(r)
 		return False
 	cau = soan_tin_sales(r, frappe.utils.get_url_to_form(DOCTYPE, r["name"]))
 	if not ban_webhook(cau, url=url):
