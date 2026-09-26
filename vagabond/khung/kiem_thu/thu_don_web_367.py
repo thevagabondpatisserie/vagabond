@@ -529,8 +529,12 @@ def _frappe_bao_sales(url, nhan):
 		utils=types.SimpleNamespace(get_url_to_form=lambda dt, n: "/app/x/" + n))
 	gui = types.ModuleType("vagabond.gui_thu")
 	gui.ban_webhook = lambda cau, url=None: goi.append(("webhook", url)) or nhan
+	fr.db.exists = lambda *a, **k: False
 	g = dict(frappe=fr, cfg_o=lambda k: url, soan_tin_sales=lambda r, u: "tin", now_datetime=lambda: "T",
-		DOCTYPE="Vagabond Don Web")
+		DOCTYPE="Vagabond Don Web", add_to_date=lambda d, **k: d, PHUT_BAO_SALES=30,
+		TIEU_DE_THIEU_WEBHOOK=don_web.TIEU_DE_THIEU_WEBHOOK)
+	# Nạp THẬT cả hàm báo thiếu webhook, cùng bộ Frappe giả (vòng 3).
+	g["_bao_thieu_webhook"] = lambda r: nap("don_web.py", "_bao_thieu_webhook", g)(r)
 	return g, gui, ghi, goi
 
 
@@ -593,6 +597,80 @@ def _():
 			sys.modules["vagabond.kiem_banh"] = cu
 	la("bản ghi trước và sau bản hỏng đều được xử lý", da, ["DW-1", "DW-2"])
 	la("bản hỏng có Error Log riêng", log, ["Don web: doi soat mot ban ghi"])
+
+
+def _mot_ban_ghi(snap, phut_truoc, da_bao=None):
+	"""Chạy _doi_soat_mot THẬT với Frappe giả; trả (số lần báo Sales, log, lỗi thoát ra)."""
+	import datetime as _dt
+	bay_gio = _dt.datetime(2026, 9, 26, 12, 0, 0)
+	bao, log = [], []
+	fr = types.SimpleNamespace(
+		db=types.SimpleNamespace(rollback=lambda: log.append("rollback"), commit=lambda: None),
+		log_error=lambda **k: log.append(k.get("title")), get_traceback=lambda: "tb")
+	g = dict(frappe=fr, json=json, ghep_don_pancake=lambda *a, **k: (None, "khong_thay"), _unix=lambda t: 0,
+		get_datetime=lambda x: x, now_datetime=lambda: bay_gio,
+		add_to_date=lambda d, minutes=0, hours=0, days=0: d + _dt.timedelta(minutes=minutes, hours=hours, days=days),
+		PHUT_BAO_SALES=30, DOCTYPE="Vagabond Don Web", _bao_sales=lambda r: bao.append(r["name"]) or True)
+	if hasattr(don_web, "can_bao_sales"):
+		g["can_bao_sales"] = don_web.can_bao_sales
+	r = {"name": "DW-1", "dien_thoai": "0931224334", "snapshot": snap, "da_bao_sales_luc": da_bao,
+		"creation": bay_gio - _dt.timedelta(minutes=phut_truoc)}
+	try:
+		nap("don_web.py", "_doi_soat_mot", g)(r, [], set())
+		loi = ""
+	except Exception as e:
+		loi = type(e).__name__
+	return len(bao), log, loi
+
+
+@ca("#367 H vòng 3: bản ghi không ghép được (snapshot hỏng) vẫn được báo Sales khi quá giờ, chỉ một lần (Codex 3a7a37a)")
+def _():
+	n, log, loi = _mot_ban_ghi("{hỏng", 120)
+	la("không để lỗi thoát ra, báo Sales đúng một lần", (loi, n), ("", 1))
+	dung("có Error Log riêng cho bản ghi không ghép được", "Don web: ban ghi khong ghep duoc, van bao Sales" in log)
+	la("rollback phần ghép hỏng rồi mới ghi log", log[:2], ["rollback", "Don web: ban ghi khong ghep duoc, van bao Sales"])
+	la("chưa quá 30 phút thì chưa báo", _mot_ban_ghi("{hỏng", 5)[:1], (0,))
+	la("đã báo rồi thì không báo lại", _mot_ban_ghi("{hỏng", 120, da_bao="2026-09-26 11:00:00")[:1], (0,))
+	la("snapshot lành, không khớp, quá giờ: báo một lần như cũ", _mot_ban_ghi('{"mon": []}', 120)[:1], (1,))
+
+
+@ca("#367 H vòng 3: một nguồn cho luật 'đến lúc báo Sales' (thuần)")
+def _():
+	import datetime as _dt
+	t = _dt.datetime(2026, 9, 26, 12, 0, 0)
+	k = don_web.can_bao_sales
+	la("quá 30 phút, chưa báo", k({"creation": t - _dt.timedelta(minutes=31)}, t), True)
+	la("đúng 30 phút", k({"creation": t - _dt.timedelta(minutes=30)}, t), True)
+	la("mới 29 phút", k({"creation": t - _dt.timedelta(minutes=29)}, t), False)
+	la("đã báo", k({"creation": t - _dt.timedelta(hours=3), "da_bao_sales_luc": "x"}, t), False)
+	la("ngày dạng chuỗi", k({"creation": "2026-09-26 11:00:00"}, t), True)
+	x = _doc("vagabond/don_web.py")
+	dung("không còn chỗ nào tự so mốc báo Sales ngoài can_bao_sales",
+		"minutes=-PHUT_BAO_SALES" not in x and x.count("can_bao_sales(") == 2)
+
+
+@ca("#367 H vòng 3: thiếu webhook nhóm Sales thì có Error Log hành động được, giãn 6 giờ một lần (Codex 3a7a37a)")
+def _():
+	import sys
+	for co_gan_day, mong in ((False, 1), (True, 0)):
+		g, gui, ghi, goi = _frappe_bao_sales("", True)
+		hoi = []
+		g["frappe"].db.exists = lambda dt, loc=None: hoi.append((dt, loc)) or co_gan_day
+		g["add_to_date"] = lambda d, hours=0, **k: ("truoc", hours)
+		cu = sys.modules.get("vagabond.gui_thu")
+		sys.modules["vagabond.gui_thu"] = gui
+		try:
+			ket = nap("don_web.py", "_bao_sales", g)({"name": "DW-9"})
+		finally:
+			if cu is None:
+				sys.modules.pop("vagabond.gui_thu", None)
+			else:
+				sys.modules["vagabond.gui_thu"] = cu
+		la("vẫn chưa coi là đã báo (co_gan_day=%r)" % co_gan_day, (ket, len(ghi)), (False, 0))
+		la("số Error Log thiếu webhook (co_gan_day=%r)" % co_gan_day,
+			len([x for x in goi if x == ("log", "Don web: chua cau hinh webhook nhom Sales")]), mong)
+		dung("giãn theo Error Log cùng tiêu đề trong 6 giờ", bool(hoi) and hoi[0][0] == "Error Log"
+			and (hoi[0][1] or {}).get("method") == "Don web: chua cau hinh webhook nhom Sales")
 
 
 @ca("#367 H tin Lark cho Sales đủ để gọi khách và chỉ đường xử lý tay")
