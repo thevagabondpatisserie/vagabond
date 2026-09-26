@@ -847,7 +847,8 @@ def _dang_cho():
 	"""Bản ghi cần đối soát: Chờ đối soát, hoặc Đang gửi quá 2 phút (tiến
 	trình chết giữa lúc gọi Pancake thì bản ghi kẹt ở Đang gửi mãi mãi).
 
-	Mỗi nhịp một lô tối đa LO_DOI_SOAT bản, theo con trỏ ngày tạo xoay vòng
+	Mỗi nhịp tối đa hai lô: lô ưu tiên các bản quá hạn báo Sales chưa báo, và
+	một lô tối đa LO_DOI_SOAT bản theo con trỏ ngày tạo xoay vòng
 	(Codex ee3b339, 495cbcf): cắt cố định 200 bản cũ nhất thì bản mới bị bỏ đói,
 	còn lấy hết thì một nhịp không có chặn trên khi tồn đọng lớn. Con trỏ nằm
 	trong cache; mất cache thì chỉ bắt đầu lại từ bản cũ nhất, không sai."""
@@ -864,11 +865,20 @@ def _dang_cho():
 		return frappe.get_all(DOCTYPE, filters=loc, fields=fields, order_by="creation asc",
 			limit_page_length=LO_DOI_SOAT, ignore_permissions=True)
 
+	# Lô ưu tiên (Codex 42f6cbd): bản đã quá hạn báo Sales mà CHƯA báo đi trước,
+	# độc lập với con trỏ, để hạn 30 phút không phụ thuộc độ dài vòng xoay. Báo
+	# xong thì bản đó rời lô này, nên lô tự rút dần.
+	uu_tien = frappe.get_all(DOCTYPE, filters=[
+		["trang_thai", "in", ["Cho doi soat", "Dang gui"]], ["creation", ">=", add_to_date(now, days=-2)],
+		["creation", "<=", moc_bao_sales(now)], ["da_bao_sales_luc", "is", "not set"]],
+		fields=fields, order_by="creation asc", limit_page_length=LO_DOI_SOAT, ignore_permissions=True)
 	ds = lay(con_tro)
 	if con_tro and not ds:
 		ds = lay(None)
 	# Đủ một lô thì nhịp sau đi tiếp từ bản cuối; thiếu lô là đã tới cuối, quay lại đầu.
 	cache.set_value(KHOA_CON_TRO, ds[-1]["creation"] if len(ds) >= LO_DOI_SOAT else None, expires_in_sec=3 * 86400)
+	da = {r["name"] for r in uu_tien}
+	ds = list(uu_tien) + [r for r in ds if r["name"] not in da]
 	moc = add_to_date(now, minutes=-2)
 	return [r for r in ds if r["trang_thai"] == "Cho doi soat" or get_datetime(r["creation"]) <= moc]
 
@@ -930,6 +940,12 @@ def doi_soat_tu_dong():
 		_log_ben("Don web: doi soat tu dong", frappe.get_traceback())
 
 
+def moc_bao_sales(bay_gio):
+	"""Mốc tạo mà bản ghi tạo trước hoặc đúng lúc đó là đã tới hạn báo Sales.
+	THUẦN, một nguồn cho luật 30 phút (điều 18)."""
+	return bay_gio - datetime.timedelta(minutes=PHUT_BAO_SALES)
+
+
 def can_bao_sales(r, bay_gio):
 	"""Bản ghi đã tới lúc báo Sales chưa: chưa báo và đã quá PHUT_BAO_SALES
 	phút từ lúc tạo. THUẦN, một nguồn cho mọi lối báo (điều 18)."""
@@ -939,7 +955,7 @@ def can_bao_sales(r, bay_gio):
 	tao = r.get("creation")
 	if isinstance(tao, str):
 		tao = datetime.datetime.strptime(tao[:19].replace("T", " "), "%Y-%m-%d %H:%M:%S")
-	return bool(tao) and tao <= bay_gio - datetime.timedelta(minutes=PHUT_BAO_SALES)
+	return bool(tao) and tao <= moc_bao_sales(bay_gio)
 
 
 def _doi_soat_mot(r, dons, gan):
