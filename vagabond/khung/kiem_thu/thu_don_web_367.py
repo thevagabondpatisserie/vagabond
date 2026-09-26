@@ -762,24 +762,41 @@ def _():
 	dung("nhịp đối soát không còn gọi log_error trần (mọi log đi qua _log_ben)", "frappe.log_error(" not in than)
 
 
-@ca("#367 H vòng 6: tồn đọng hơn 200 bản ghi chờ thì bản ghi mới hơn vẫn được xét, không kẹt ở trang đầu (Codex ee3b339)")
+@ca("#367 H vòng 6-7: tồn đọng lớn thì mỗi nhịp xét một lô có chặn, con trỏ xoay vòng để mọi bản ghi đều tới lượt (Codex ee3b339, 495cbcf)")
 def _():
+	# Vòng 6 bỏ cắt 200 (bản mới bị bỏ đói); vòng 7 Codex chỉ ra lấy hết thì một
+	# nhịp không có chặn trên. Ca này chốt CẢ HAI: mỗi nhịp tối đa một lô, và
+	# sau vài nhịp mọi bản ghi đều được xét, rồi quay lại từ đầu.
 	import datetime as _dt
 	bay_gio = _dt.datetime(2026, 9, 26, 12, 0, 0)
 	kho = [{"name": "DW-%03d" % i, "trang_thai": "Cho doi soat", "creation": bay_gio - _dt.timedelta(minutes=2000 - i),
 		"dien_thoai": "", "ho_ten": "", "tien_banh": 0, "ngay_nhan": None, "snapshot": "{}", "da_bao_sales_luc": None}
 		for i in range(250)]
-	hoi = []
+	bo_nho = {}
 	def get_all(dt, filters=None, fields=None, order_by=None, limit_page_length=20, **k):
-		# Như Frappe: limit_page_length=0 là lấy hết, số dương là cắt trang.
-		hoi.append(limit_page_length)
-		return list(kho) if not limit_page_length else list(kho)[:limit_page_length]
-	fr = types.SimpleNamespace(get_all=get_all)
+		# Như Frappe: lọc danh sách điều kiện trên creation, limit 0 là lấy hết.
+		ra = list(kho)
+		for f in (filters if isinstance(filters, list) else []):
+			if f[0] == "creation" and f[1] == ">":
+				ra = [r for r in ra if r["creation"] > f[2]]
+		return ra if not limit_page_length else ra[:limit_page_length]
+	cache = types.SimpleNamespace(get_value=lambda k: bo_nho.get(k), set_value=lambda k, v, **kw: bo_nho.__setitem__(k, v))
+	fr = types.SimpleNamespace(get_all=get_all, cache=lambda: cache)
 	g = dict(frappe=fr, DOCTYPE="Vagabond Don Web", now_datetime=lambda: bay_gio, get_datetime=lambda x: x,
-		add_to_date=lambda d, minutes=0, hours=0, days=0: d + _dt.timedelta(minutes=minutes, hours=hours, days=days))
-	ds = nap("don_web.py", "_dang_cho", g)()
-	la("đủ 250 bản ghi chờ, kể cả bản mới nhất", (len(ds), ds[-1]["name"] if ds else None), (250, "DW-249"))
-	la("không cắt trang cố định", hoi, [0])
+		add_to_date=lambda d, minutes=0, hours=0, days=0: d + _dt.timedelta(minutes=minutes, hours=hours, days=days),
+		LO_DOI_SOAT=getattr(don_web, "LO_DOI_SOAT", 100), KHOA_CON_TRO=getattr(don_web, "KHOA_CON_TRO", "k"))
+	nhip = [nap("don_web.py", "_dang_cho", g)() for _ in range(4)]
+	la("mỗi nhịp tối đa một lô 100", [len(x) for x in nhip], [100, 100, 50, 100])
+	la("ba nhịp đầu phủ đủ 250 bản, không trùng", len({r["name"] for x in nhip[:3] for r in x}), 250)
+	la("bản mới nhất có lượt", "DW-249" in {r["name"] for r in nhip[2]}, True)
+	la("hết vòng thì quay lại bản cũ nhất", nhip[3][0]["name"], "DW-000")
+	# Tồn đọng đúng bội số của lô: nhịp đi hết lô cuối vẫn giữ con trỏ, nhịp
+	# sau không có gì sau con trỏ thì phải quay lại đầu NGAY, không bỏ trống một nhịp.
+	del kho[200:]
+	bo_nho.clear()
+	nhip = [nap("don_web.py", "_dang_cho", g)() for _ in range(3)]
+	la("200 bản: 100, 100 rồi quay lại đầu ngay", [(len(x), x[0]["name"] if x else None) for x in nhip],
+		[(100, "DW-000"), (100, "DW-100"), (100, "DW-000")])
 
 
 @ca("#367 H tin Lark cho Sales đủ để gọi khách và chỉ đường xử lý tay")
