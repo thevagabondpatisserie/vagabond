@@ -152,3 +152,44 @@ def _huy_thang_that():
 	dung("chặn, chỉ đường nút Gỡ", ho_so in loi)
 	la("bút toán còn ghi sổ", frappe.db.get_value("Journal Entry", je.name, "docstatus"), 1)
 	la("công nợ tờ vẫn 0", float(frappe.db.get_value("Purchase Invoice", hd.name, "outstanding_amount")), 0.0)
+
+
+def _huy_chi_that(bo_o_ho_so):
+	"""Codex #374 v3 F18: Journal Entry.cancel() THẬT của bút toán chi đi tới hook,
+	bị chặn khi hồ sơ còn bù trừ, còn ghi sổ; gỡ tờ xong thì huỷ được."""
+	from vagabond import ho_so_bo_sung as bo
+	x = _dung()
+	if not x:
+		return
+	hd, ho_so, _tk, chi = x
+	if bo_o_ho_so:
+		# Hồ sơ cũ trước v445: bút toán chi chỉ mang số tham chiếu là mã hồ sơ.
+		frappe.db.set_value("Journal Entry", chi, "vgb_ho_so_tt", "", update_modified=False)
+	kq = khong_nem("nối", lambda: bo.noi_nhieu(ho_so, json.dumps([hd.name]))) or {}
+	if not kq.get("but_toan"):
+		dung("nối được trước khi huỷ bút toán chi", False)
+		return
+	je = frappe.get_doc("Journal Entry", chi)
+	try:
+		je.cancel()
+		loi = ""
+	except frappe.ValidationError as e:
+		loi = str(e)
+	dung("chặn, gọi tên hồ sơ và bút toán bù trừ, chỉ đường Gỡ",
+		ho_so in loi and kq["but_toan"][0] in loi and "Gỡ" in loi)
+	la("bút toán chi còn ghi sổ", frappe.db.get_value("Journal Entry", chi, "docstatus"), 1)
+	la("bù trừ còn ghi sổ", frappe.db.get_value("Journal Entry", kq["but_toan"][0], "docstatus"), 1)
+	khong_nem("gỡ", lambda: bo.go_noi(ho_so, hd.name))
+	je = frappe.get_doc("Journal Entry", chi)
+	khong_nem("huỷ bút toán chi sau khi gỡ", lambda: je.cancel())
+	la("gỡ xong: bút toán chi huỷ được", frappe.db.get_value("Journal Entry", chi, "docstatus"), 2)
+
+
+@ca("v530 Codex #374 v3 F18: huỷ THẬT bút toán chi (mang ô hồ sơ) khi hồ sơ còn bù trừ bị chặn; gỡ tờ xong thì huỷ được")
+def _huy_chi_that_o_ho_so():
+	_huy_chi_that(False)
+
+
+@ca("v530 Codex #374 v3 F18: huỷ THẬT bút toán chi hồ sơ cũ (chỉ mang số tham chiếu) cũng bị chặn; gỡ tờ xong thì huỷ được")
+def _huy_chi_that_so_tham_chieu():
+	_huy_chi_that(True)
