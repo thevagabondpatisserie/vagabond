@@ -699,7 +699,15 @@ def _ha_hop_le():
 	ho3 = _mobi(cp="Chi phi hop le", hd_sau=[dict(hoa_don="HDM-A", tien_khop=778784, da_ghi_so=0, bu_tru=0, but_toan="")])
 	ho3.dong.append(_C(name="D3", idx=2, hoa_don="", hoa_don_bo_sung="", cho_hoa_don=0, tk_no=T331, so_tien=100))
 	r4 = _chay(ho3, to, lambda bo: bo.noi_nhieu("APP.26.09.102", '["THUA"]'))
-	la("hồ sơ còn khoản không hoá đơn thật (nhãn do người lập chọn): không đụng", r4.hs.loai_cp_thue, "Chi phi hop le")
+	# Codex #374 vòng 6 (F22): khoản 331 là TRẢ NỢ, không phải "khoản không
+	# hoá đơn thật". Bỏ nó ra thì hồ sơ chỉ còn chi phí chờ hoá đơn, mà phần
+	# đó bị nối thừa 5.000 đ quá ngưỡng, nên PHẢI hạ nhãn (cùng luật vòng 4).
+	# Bản trước ghi "không đụng" là vì coi khoản 331 như khoản thiếu hoá đơn.
+	la("khoản trả nợ 331 không che việc nối thừa: hạ nhãn", r4.hs.loai_cp_thue, "Chi phi khong hop le")
+	# Luật "không đụng hồ sơ còn khoản CHI PHÍ không hoá đơn thật" vẫn giữ:
+	from vagabond.hoa_don_sau import du_dieu_kien
+	dung("còn khoản chi phí không hoá đơn, không chờ: không xét theo hoá đơn",
+		not du_dieu_kien([dict(so_tien=778784, cho_hoa_don=1), dict(so_tien=100, cho_hoa_don=0, cong_no=False)]))
 
 
 @ca("v530 Codex #373 v4 F9: hồ sơ lẫn khoản có hoá đơn gốc được xét theo mức phủ phần đến sau, cả lên lẫn xuống")
@@ -958,3 +966,41 @@ def _dem_danh_sach():
 	dung("danh sách gọi dem_theo_ho_so và gan_cong_no", "dem_theo_ho_so(" in src and "gan_cong_no(" in src)
 	dung("danh sách không tự gọi do_phu", "do_phu(" not in src)
 	dung("danh sách đọc ô tk_no của khoản", '"tk_no"' in src)
+
+
+# Codex #374 vòng 6 trên 609f4d8 ----------------------------------------------
+
+@ca("v530 Codex #374 v6 F22: hồ sơ lẫn chi phí và trả nợ 331: chi phí phủ đủ thì lên Hợp lệ (thuần và hàm nối thật)")
+def _hop_le_bo_cong_no():
+	from vagabond.hoa_don_sau import du_dieu_kien, nen_hop_le
+	k = [dict(so_tien=100000, cho_hoa_don=1, cong_no=False), dict(so_tien=50000, cho_hoa_don=0, cong_no=True)]
+	dung("thuần: khoản công nợ không đòi hoá đơn", du_dieu_kien(k))
+	dung("thuần: phủ đủ chi phí thì hợp lệ", nen_hop_le(k, [dict(tien_khop=100000)]))
+	dung("thuần: chỉ có khoản công nợ thì không xét theo hoá đơn", not du_dieu_kien([dict(so_tien=5, cong_no=True)]))
+	dung("thuần: chi phí chưa phủ thì vẫn không hợp lệ", not nen_hop_le(k, [dict(tien_khop=40000)]))
+	# Hàm nối thật: hồ sơ TK công ty 100.000 chi phí chờ hoá đơn + 50.000 trả nợ 331.
+	ho = _HoSo("APP.26.09.200", "ADECCO", [dict(tk_no=T6427, so_tien=100000), dict(tk_no=T331, so_tien=50000, cho_hoa_don=0)])
+	to = {"HDM-N": _pi("HDM-N", "ADECCO", 100000, docstatus=0, bill="N-1")}
+	r = _chay(ho, to, lambda b: b.noi_nhieu("APP.26.09.200", "HDM-N"))
+	la("nối được", r.loi, "")
+	la("lên Hợp lệ tính thuế", (r.hs.loai_cp_thue, r.kq and r.kq["hop_le"]), ("Chi phi hop le", 1))
+	la("khoản 331 không bị đánh dấu chờ hoá đơn", [cint_(x.cho_hoa_don) for x in r.hs.dong], [1, 0])
+
+
+def cint_(v):
+	try:
+		return int(v or 0)
+	except Exception:
+		return 0
+
+
+@ca("v530 Codex #374 v6 F23: tờ nháp đã nối: đổi tiền tệ khi lưu thì chặn, gọi tên hồ sơ; tờ chưa nối đổi thoải mái")
+def _khoa_tien_te():
+	from vagabond.khung.kiem_thu.thu_v526 import _hd_sua, CTY as CTY526
+	loi = _hd_sua({"supplier": "XDKV2", "company": CTY526, "currency": "VND"},
+		{"supplier": "XDKV2", "company": CTY526, "currency": "USD"})
+	dung("chặn đổi VND sang USD, gọi tên hồ sơ và tiền tệ", "APP-A" in loi and "tiền tệ" in loi)
+	la("tờ chưa nối đổi tiền tệ thoải mái", _hd_sua({"supplier": "XDKV2", "company": CTY526, "currency": "VND"},
+		{"supplier": "XDKV2", "company": CTY526, "currency": "USD"}, giu=""), "")
+	la("giữ nguyên tiền tệ thì lưu bình thường", _hd_sua({"supplier": "XDKV2", "company": CTY526, "currency": "VND"},
+		{"supplier": "XDKV2", "company": CTY526, "currency": "VND"}), "")
