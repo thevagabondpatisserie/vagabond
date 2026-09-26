@@ -58,6 +58,18 @@
 	   tung gia tri. Gia tri viet DUNG NGUYEN VAN nhu trong tep JSON cua
 	   doctype, ke ca khi khong dau, vi day la thu may so sanh. */
 	var KHAI = {
+		/* #367: don dat banh tu website. Cho doi soat la DANG KET (Pancake mat
+		   phan hoi, Sales co the phai ghep tay) nen to do. */
+		'Vagabond Don Web': {
+			truong: 'trang_thai',
+			mau: {
+				'Dang gui': 'orange',
+				'Cho doi soat': 'red',
+				'Da nhan': 'blue',
+				'Da ghi so': 'green',
+				'Da huy': 'gray',
+			},
+		},
 		'Vagabond De Nghi Chi': {
 			truong: 'trang_thai',
 			mau: {

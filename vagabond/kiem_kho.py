@@ -701,6 +701,7 @@ def con_tren_quay_web():
 	ghi chu noi bo cua quay.
 	"""
 	from vagabond import kiem_banh, tat_ban_web
+	from vagabond.anh_web import anh_cong_khai, chon_anh
 	from vagabond.lib import cfg as _cfg, key as _key
 
 	ngay = getdate()
@@ -745,17 +746,15 @@ def con_tren_quay_web():
 		for x in sorted(ds, key=lambda x: str(x.get("item_name") or x["item_code"])):
 			if cint(x.get("disabled")) or not cint(x.get("is_sales_item", 1)):
 				continue
-			anh = ""
-			if co_pancake:
+			# #367: anh ho so mon ERP truoc, Pancake sau, anh nen cuoi cung.
+			# Mot thu tu cho moi tab, xem vagabond/anh_web.py.
+			anhs = []
+			if co_pancake and not anh_cong_khai(x.get("image")):
 				try:
 					anhs = kiem_banh._anh_pancake(c, k, x["item_code"]) or []
-					anh = anhs[0] if anhs else ""
 				except Exception:
-					anh = ""
-			if not anh:
-				anh = x.get("image") or ""
-			if str(anh).startswith("/private"):
-				anh = ""
+					anhs = []
+			anh = chon_anh(x.get("image"), anhs)[0]
 			q["mon"].append({
 				"ma": x["item_code"],
 				"ten": x.get("item_name") or x["item_code"],

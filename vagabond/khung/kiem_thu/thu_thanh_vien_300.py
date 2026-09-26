@@ -76,9 +76,13 @@ def ma_da_biet():
 @ca('#310 JS/CSS đổi nội dung phải đổi URL để vượt cache immutable trên site')
 def ma_bam_asset():
     import hashlib
-    for ten in ('vagabond/trang/banh.html','vagabond/www/thanh-vien.html','vagabond/www/dat-ban.html'):
+    # #367: thêm trang biên nhận, trang chính sách và bảng marketing cùng các
+    # tệp của chúng. bien-tap.js/css đổi nội dung trong #367 nên cũng phải đổi URL.
+    for ten in ('vagabond/trang/banh.html','vagabond/www/thanh-vien.html','vagabond/www/dat-ban.html',
+                'vagabond/www/banh/xong.html','vagabond/www/chinh-sach.html','vagabond/www/bien-tap-web.html'):
         s=(GOC/ten).read_text()
-        for tep in ('nen.css','thanh-vien.css','thanh-vien.js','dat-ban.js'):
+        for tep in ('nen.css','thanh-vien.css','thanh-vien.js','dat-ban.js','trang-khach.css','bien-nhan.js',
+                    'bien-tap.css','bien-tap.js'):
             duong='/assets/vagabond/web_order/'+tep
             if duong not in s:continue
             bam=hashlib.sha256((GOC/'vagabond/public/web_order'/tep).read_bytes()).hexdigest()[:12]

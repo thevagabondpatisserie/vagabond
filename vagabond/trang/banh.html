@@ -365,6 +365,43 @@ nav.navbar .navbar-toggler .icon{stroke:#8FA6A1}
 nav.navbar .dropdown-menu{background:#0B100F;border:1px solid rgba(255,255,255,.1)}
 nav.navbar .dropdown-item{color:#8FA6A1}
 nav.navbar .dropdown-item:hover{background:rgba(41,189,179,.12);color:#fff}
+
+/* ===== #367: chu tieng Viet va con so dung phong he thong =====
+   Phong thuong hieu (Vagabond Sans) dung sai dau tieng Viet: "Bánh hôm nay"
+   ra dau lech, so ngay khong deu. Chi giu phong do cho TEN BANH TIENG ANH va
+   logo. Ten banh co dau tieng Viet thi ham laChuViet() gan lop .vi.
+   Tang do uu tien bang "html body" vi cua-hang.css nap SAU khoi nay. */
+html body .h1{font-family:var(--sans);font-weight:700;letter-spacing:0;font-size:clamp(32px,8.5vw,64px);line-height:1.05}
+html body .h1 em#bigDate{display:none}
+.stat b,.day b,.size b,.numpick .big,.sum .row.tot b,.empty .big,.h-sec,.f-big,.f-big em{font-family:var(--sans);font-weight:600;letter-spacing:0}
+.c-name.vi,.s-head h2.vi{font-family:var(--sans);font-weight:600;letter-spacing:0}
+.ngay-ban{font-family:var(--sans);font-size:13px;color:var(--fog);padding:8px 16px 0;max-width:var(--shell);margin:0 auto}
+.dong-tt{font-family:var(--sans);font-size:14px;color:var(--fog);margin-top:14px;line-height:1.5}
+.dong-tt b{color:var(--paper);font-weight:600}
+.dong-tt .live{display:inline-flex;font-size:inherit;letter-spacing:0;text-transform:none;vertical-align:baseline}
+.ph{aspect-ratio:4/5}
+.card-o{position:relative;min-width:0}
+.card-o>.card{width:100%}
+.c-them{position:absolute;top:8px;right:8px;z-index:3;width:44px;height:44px;border-radius:50%;background:var(--cyan);color:#00201d;font:600 24px/1 var(--sans);display:grid;place-items:center;box-shadow:0 4px 14px rgba(0,0,0,.45)}
+.c-them:active{transform:scale(.94)}
+.bar .cnt small{display:block;font-size:12px;color:var(--fog);margin-top:1px}
+.bar.nhich .cnt b{animation:vgbNhich .15s ease-out}
+@keyframes vgbNhich{50%{transform:translateY(-3px)}}
+.fld select{width:100%;min-height:48px;background:var(--bg-2);color:var(--paper);border:1px solid var(--line);padding:0 12px;font:15px var(--sans)}
+.chk.dongy .tx a{color:var(--cyan);text-decoration:underline}
+.doc-cs{font-size:13px;margin:6px 0 0 31px;color:var(--fog)}
+.doc-cs a{color:var(--cyan);text-decoration:underline;display:inline-flex;min-height:44px;align-items:center}
+.f-phap-nhan{margin-top:26px;font-family:var(--sans);font-size:13px;line-height:1.75;color:var(--fog)}
+.f-phap-nhan b{color:var(--paper);font-weight:600}
+.f-phap-nhan a{color:var(--paper);text-decoration:underline;text-underline-offset:3px}
+/* Chu hoa tieng Viet co dau chong (Ạ, Ắ) bi cat mat dau khi line-height 1. */
+.f-big{line-height:1.14}
+/* .bar .in dat padding "13px 0" nen de mat le trai cua .wrap: chu sat mep. */
+.bar .in{padding-left:16px}
+.f-cs{display:flex;flex-wrap:wrap;gap:4px 18px;margin-top:10px;font-family:var(--sans);font-size:13px}
+.f-cs a{display:inline-flex;align-items:center;min-height:44px;color:var(--paper);text-decoration:underline;text-underline-offset:3px}
+.sum .row.phu span,.sum .row.phu b{color:var(--fog);font-size:13px}
+@media(prefers-reduced-motion:reduce){.bar.nhich .cnt b{animation:none}.c-them:active{transform:none}}
 </style>
 <link rel="stylesheet" href="/assets/vagabond/web_order/cua-hang.css">
 </head>
@@ -416,6 +453,8 @@ nav.navbar .dropdown-item:hover{background:rgba(41,189,179,.12);color:#fff}
 
 <div id="noi-dung-marketing" data-vgb-vi-tri="dau_trang" aria-label="Lời chào từ tiệm"></div>
 <div id="danh-muc-banh" tabindex="-1"></div>
+<!-- #367: ngay ban la dong nho tren thanh chon, khong con so ngay kho lon. -->
+<p class="ngay-ban" id="ngayBan"></p>
 <nav class="tabs">
   <!-- Tab mua vu GHIM DAU tien theo y anh Viet 21/08/2026. An san, chi hien khi
        may chu bao dang co mua chay - het mua ma con tab la khach bam vao mot
@@ -464,11 +503,8 @@ nav.navbar .dropdown-item:hover{background:rgba(41,189,179,.12);color:#fff}
   <section class="wrap hero">
     <div class="meta"><span class="num">01 / Có sẵn</span><span id="dateline"></span></div>
     <h1 class="h1"><span data-vgb-tieu-de="today">Bánh<br>hôm nay</span><em id="bigDate"></em></h1>
-    <div class="hero-foot">
-      <div class="stat">Còn lại trong tủ<b id="totalLeft">0</b></div>
-      <div class="stat">Nhận sớm nhất<b id="firstSlot">-</b></div>
-      <span class="live"><i class="dot"></i><span id="synced"></span></span>
-    </div>
+    <!-- #367: mot dong trang thai, chu va so bang phong thuong. -->
+    <p class="dong-tt" id="dongTrangThai"></p>
   </section>
 
   <div class="wrap">
@@ -511,7 +547,17 @@ nav.navbar .dropdown-item:hover{background:rgba(41,189,179,.12);color:#fff}
     <a href="https://www.tiktok.com/@thevagabond.patisserie" target="_blank"><svg viewBox="0 0 24 24"><path d="M10 3v11.3a3.2 3.2 0 1 1-2.5-3.1"/><path d="M10 3c.5 2.7 2.4 4.5 5.2 4.7"/></svg>@thevagabond.patisserie</a>
     <a href="tel:0931224334"><svg viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.2a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2Z"/></svg>0931 224 334</a>
   </div>
-  <div class="f-note">Giá đã gồm thuế GTGT, chưa gồm phí vận chuyển<br>Giá và tồn kho thay đổi theo mùa và nguyên liệu nhập khẩu</div>
+  <div class="f-note"><span id="fNotePhi">Giá đã gồm thuế GTGT, chưa gồm phí vận chuyển</span><br>Giá và tồn kho thay đổi theo mùa và nguyên liệu nhập khẩu</div>
+  <!-- #367: phap nhan viet thang trong HTML de bo kiem cua Meta doc duoc ca
+       khi khong chay JavaScript. Lien he va chinh sach nap tu may chu. -->
+  <div class="f-phap-nhan" id="fPhapNhan">
+    <b>Công ty TNHH Patisserie Vagabond</b><br>
+    Mã số thuế 0318561568<br>
+    Cửa hàng Sài Gòn: 9 Trần Cao Vân, Phường Sài Gòn (Quận 1 cũ), TP. Hồ Chí Minh<br>
+    Bếp Tân Sơn Hoà: 307/1 Nguyễn Văn Trỗi, Phường Tân Sơn Hoà (Tân Bình cũ), TP. Hồ Chí Minh<br>
+    <span id="fLienHe">Điện thoại <a href="tel:0931224334">0931 224 334</a></span>
+  </div>
+  <nav class="f-cs" id="fChinhSach" aria-label="Chính sách"></nav>
 </div></footer>
 
 <div class="bar" id="bar"><div class="wrap in">
@@ -562,11 +608,15 @@ nav.navbar .dropdown-item:hover{background:rgba(41,189,179,.12);color:#fff}
     <div id="addrBlock">
       <div class="sec"><span class="n">05</span><h3>Địa chỉ nhận</h3><i class="rule"></i></div>
       <div id="savedAddr"></div>
+      <!-- #367 muc 5: chon khu vuc la thay phi giao du kien ngay. -->
+      <div class="fld" id="quanBlock" style="display:none"><label for="f-quan">Khu vực giao</label>
+        <select id="f-quan" onchange="chonQuan()"><option value="">Chọn khu vực để xem phí giao dự kiến</option></select>
+      </div>
       <div class="fld"><label>Địa chỉ chi tiết</label>
         <input id="f-addr" placeholder="Gõ số nhà và tên đường, rồi chọn trong danh sách"
                autocomplete="off" oninput="goiYDiaChi()">
         <div id="addrGoiY"></div>
-        <div class="hint" id="shipHint">Chọn địa chỉ xong hệ thống báo phí giao tham khảo.</div>
+        <div class="hint" id="shipHint">Chọn khu vực hoặc gõ địa chỉ, hệ thống báo phí giao dự kiến.</div>
       </div>
     </div>
 
@@ -606,6 +656,13 @@ nav.navbar .dropdown-item:hover{background:rgba(41,189,179,.12);color:#fff}
 
     <div class="sum" id="sum"></div>
     <div class="warn" id="warn"></div>
+
+    <!-- #367: dong y xu ly du lieu ca nhan de giao hang va lien he (Nghi dinh
+         13/2023). KHONG phai dong y theo doi quang cao: chinh sach bao mat
+         noi rieng ve Meta Pixel va cach tu choi. -->
+    <button class="chk dongy" id="c-dongy" onclick="tgl('dongy')" role="checkbox" aria-checked="false"><span class="bx"></span>
+      <span class="tx">Tôi đồng ý cho tiệm dùng họ tên, số điện thoại, địa chỉ để giao bánh và liên hệ về đơn này<small>Theo chính sách bảo mật của tiệm.</small></span></button>
+    <p class="doc-cs" id="docChinhSach"></p>
 
     <div class="cta">
       <button class="btn" id="btnSend" style="width:100%" onclick="submitOrder()">Gửi đơn cho tiệm</button>
@@ -711,7 +768,10 @@ const CONFIG = {
   phoneApi     : "/api/method/vagabond.api.tra_khach",
   goiYApi      : "/api/method/vagabond.dia_chi.goi_y_dia_chi",
   chiTietApi   : "/api/method/vagabond.dia_chi.chi_tiet_dia_chi",
-  taoDonApi    : "/api/method/vagabond.don_hang.tao_don"
+  taoDonApi    : "/api/method/vagabond.don_hang.tao_don",
+  /* #367: cau hinh cong khai (Pixel ID, nguong mien phi giao, lien he, trang
+     chinh sach da xuat ban, tam khu vuc). KHONG bao gio co token CAPI. */
+  cauHinhApi   : "/api/method/vagabond.don_web.cau_hinh_web"
 };
 
 /* The gan tu dong. Lay that tu danh sach the cua shop 67355.
@@ -1001,6 +1061,93 @@ function daChotLich(daChonNgay, daChonGio){
 	return !!daChonNgay && !!daChonGio;
 }
 
+/* ================= CAC PHEP THUAN CUA #367 =================
+   Cung luat voi khoi #205 o tren: khai bao `function` o dau dong, khong dung
+   bien ngoai, de bo kiem cat ra chay bang node. */
+
+function tienVN(n){
+	/* 1250000 -> "1.250.000 đ". Khong dung toLocaleString vi node cua may
+	   CI co the thieu du lieu ngon ngu vi-VN. */
+	return String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' đ';
+}
+
+function laMienPhi(tienBanh, nguong){
+	/* Ngưỡng trống hoặc 0 là tắt. Đúng bằng ngưỡng là được miễn. Máy chủ
+	   quyết lại lần nữa bằng tiền bánh nó tự tính, đây chỉ để hiện. */
+	var g = Number(nguong) || 0;
+	return g > 0 && (Number(tienBanh) || 0) >= g;
+}
+
+function dongMienPhi(tienBanh, nguong){
+	/* Dòng nhỏ dưới tổng tiền trên thanh giỏ hàng. */
+	var g = Number(nguong) || 0;
+	if (g <= 0) return 'chưa gồm phí giao';
+	if (laMienPhi(tienBanh, g)) return 'Đơn này được miễn phí giao';
+	return 'Miễn phí giao cho đơn từ ' + tienVN(g);
+}
+
+function trangThaiPhi(tuLay, mienPhi, phi, kieu){
+	/* Dòng phí giao và nhãn dòng tổng trong bảng tóm tắt. Bốn trạng thái
+	   giống máy chủ (don_web.quyet_phi_giao) cộng thêm "dự kiến" và "chưa
+	   chọn". chưa rõ thì KHÔNG hiện 0 và KHÔNG hiện miễn phí. */
+	var p = Number(phi) || 0;
+	if (tuLay) return {nhan: 'Phí giao', gia_tri: 'Tự lấy, không tính phí', phi: 0, tong_nhan: 'Tổng'};
+	if (mienPhi) return {nhan: 'Phí giao', gia_tri: 'Miễn phí giao', phi: 0, tong_nhan: 'Tổng'};
+	if (kieu === 'chinh_xac' && p > 0) return {nhan: 'Phí giao', gia_tri: tienVN(p), phi: p, tong_nhan: 'Tổng'};
+	if (kieu === 'du_kien' && p > 0) return {nhan: 'Phí giao dự kiến', gia_tri: tienVN(p), phi: p, tong_nhan: 'Tạm tính, theo phí dự kiến'};
+	if (kieu === 'chua_ro') return {nhan: 'Phí giao', gia_tri: 'Sales báo phí khi xác nhận', phi: 0, tong_nhan: 'Tạm tính, chưa gồm phí giao'};
+	return {nhan: 'Phí giao', gia_tri: 'Chọn khu vực hoặc nhập địa chỉ', phi: 0, tong_nhan: 'Tạm tính, chưa gồm phí giao'};
+}
+
+function dongTrangThai(tong, khungSomNhat, gioCapNhat){
+	/* "13 bánh có sẵn · nhận từ 13h - 15h · cập nhật 09:59". Chưa tải xong
+	   tồn thì không đoán số. */
+	var phan = [];
+	if (tong !== null && tong !== undefined) phan.push('<b>' + Number(tong) + ' bánh</b> có sẵn');
+	phan.push(khungSomNhat ? 'nhận từ <b>' + khungSomNhat + '</b>' : 'hôm nay đã hết khung giờ nhận');
+	phan.push('<span class="live"><i class="dot"></i><span id="synced">cập nhật ' + gioCapNhat + '</span></span>');
+	return phan.join(' · ');
+}
+
+function laChuViet(t){
+	/* Tên có dấu tiếng Việt thì không dùng phông thương hiệu (dựng sai dấu). */
+	return /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i.test(String(t || ''));
+}
+
+function taoNonce(ngauNhien){
+	/* 32 ký tự base64url từ 24 byte ngẫu nhiên. `ngauNhien(n)` trả mảng n
+	   byte; trình duyệt dùng crypto.getRandomValues. Máy chủ còn trộn muối
+	   riêng nên nonce yếu cũng không làm token đoán được. */
+	var b = ngauNhien ? ngauNhien(24) : null;
+	if (!b || b.length < 24) {
+		b = [];
+		for (var i = 0; i < 24; i++) b.push(Math.floor(Math.random() * 256));
+	}
+	var bang = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+	var ra = '';
+	for (var j = 0; j < 24; j += 3) {
+		var n = (b[j] << 16) | (b[j + 1] << 8) | b[j + 2];
+		ra += bang[(n >> 18) & 63] + bang[(n >> 12) & 63] + bang[(n >> 6) & 63] + bang[n & 63];
+	}
+	return ra;
+}
+
+function docFb(cookie, timKiem, bayGioMs){
+	/* _fbp và _fbc cho Conversions API. Chưa có cookie _fbc mà đường dẫn
+	   mang fbclid (khách bấm từ quảng cáo) thì dựng _fbc theo đúng dạng Meta
+	   hướng dẫn: fb.1.<mốc ms>.<fbclid>. */
+	var lay = function (ten) {
+		var m = String(cookie || '').match(new RegExp('(?:^|;\\s*)' + ten + '=([^;]*)'));
+		return m ? decodeURIComponent(m[1]) : '';
+	};
+	var fbp = lay('_fbp'), fbc = lay('_fbc');
+	if (!fbc) {
+		var m = String(timKiem || '').match(/[?&]fbclid=([^&#]+)/);
+		if (m) fbc = 'fb.1.' + Math.floor(Number(bayGioMs) || 0) + '.' + decodeURIComponent(m[1]);
+	}
+	return {fbp: fbp, fbc: fbc};
+}
+
 /* QUY TAC KHUNG GIO
    Hom nay        : tu bay gio + prepHours
    Ngay mai (D+1) : tu tomorrowFrom (13h) tro di, de khuyen khich dat som
@@ -1105,26 +1252,32 @@ function card(c,todayMode){
         return `<i class="sz${truocCo?' has':''}">${s.cm ? s.cm + 'cm' : '1 cỡ'}${nh?' · '+nh:''}</i>`;
       }).join('');
   const price=todayMode?vnd(Math.min(...avail.map(s=>s.p))):'từ '+vnd(Math.min(...(truocSz.length?truocSz:c.sizes).map(s=>s.p)));
-  return `<button class="card" onclick="openSheet('${c.k.replace(/'/g,"\\'")}')">
-    <div class="ph">${c.seasonal?`<i class="tagline">${c.seasonal}</i>`:''}<img loading="lazy" onerror="this.style.display='none'" src="${c.img}" alt=""></div>
+  const kq=c.k.replace(/'/g,"\\'");
+  /* #367: nut "+" them nhanh nam NGOAI nut the (nut long trong nut la sai
+     HTML). Anh hong thi thay bang anh nen thuong hieu, khong con o den. */
+  return `<div class="card-o"><button class="card" onclick="openSheet('${kq}')">
+    <div class="ph">${c.seasonal?`<i class="tagline">${c.seasonal}</i>`:''}<img loading="lazy" onerror="anhHong(this)" src="${c.img||ANH_NEN}" alt=""></div>
     <div class="c-body">
-      <div class="c-name">${c.k}</div>
+      <div class="c-name${laChuViet(c.k)?' vi':''}">${c.k}</div>
       <div class="c-price"><b>${price}</b></div>
       <div class="c-sizes">${chips}</div>
       <div class="c-go">Xem chi tiết →</div>
-    </div></button>`;
+    </div></button><button class="c-them" onclick="themNhanh('${kq}',${todayMode?1:0})" aria-label="Thêm nhanh ${esc(c.k)} vào giỏ">+</button></div>`;
 }
 
 function renderToday(){
-  $('#dateline').textContent=DAYS[NOW.getDay()]+" · "+dmy(NOW)+"/"+NOW.getFullYear();
-  $('#bigDate').textContent=dmy(NOW);
-  $('#synced').textContent="Cập nhật "+String(NOW.getHours()).padStart(2,'0')+":"+String(NOW.getMinutes()).padStart(2,'0');
+  /* #367: ngay ban la dong nho tren thanh chon; mot dong trang thai thay cho
+     hai con so kho lon. Doc dong ho HIEN TAI, khong doc ban chup NOW. */
+  const bayGio=new Date();
+  const nb=$('#ngayBan'); if(nb) nb.textContent=DAYS[bayGio.getDay()]+", "+dmy(bayGio);
+  $('#dateline').textContent='';
+  $('#bigDate').textContent='';
 
   const live=CAKES.filter(c=>c.sizes.some(s=>TODAY[s.id]>0));
   const total=Object.values(TODAY).reduce((a,b)=>a+b,0);
-  $('#totalLeft').textContent=total+" bánh";
   const f=firstOk(0);
-  $('#firstSlot').textContent=f?f.t:"Hết giờ";
+  const dtt=$('#dongTrangThai');
+  if(dtt) dtt.innerHTML=dongTrangThai(TON_NAP_XONG?total:null, f?f.t:'', String(bayGio.getHours()).padStart(2,'0')+":"+String(bayGio.getMinutes()).padStart(2,'0'));
   $('#prepNote').innerHTML=f
     ? `Bếp cần khoảng <b>${CONFIG.prepHours} tiếng</b> để chuẩn bị và đóng gói, nên hôm nay nhận được từ khung <b>${f.t}</b> trở đi.`
     : `Hôm nay đã hết khung giờ nhận. Anh chị đặt cho ngày mai giúp em nhé.`;
@@ -1259,7 +1412,10 @@ function renderSheet(c){
   cur=c;
   const avail=c.sizes.filter(s=>TODAY[s.id]>0);
   curSize=avail[0]||c.sizes[0];
-  $('#s-img').src=c.img; $('#s-name').textContent=c.k;
+  $('#s-img').src=c.img||ANH_NEN; $('#s-name').textContent=c.k;
+  $('#s-name').classList.toggle('vi', laChuViet(c.k));
+  suKien('ViewContent', {content_ids:c.sizes.map(s=>s.id), content_type:'product', content_name:c.k,
+    value:Math.min(...c.sizes.map(s=>s.p||0)), currency:'VND'});
   $('#s-avail').innerHTML=avail.length
     ? `<div class="avail"><i class="dot"></i>Có sẵn hôm nay · ${nhanTon(avail.reduce((a,s)=>a+TODAY[s.id],0),'bánh')}</div>`
     : (c.seasonal?`<div class="avail">${c.seasonal}</div>`:`<div class="avail">Đặt trước · bếp làm theo đơn</div>`);
@@ -1339,7 +1495,8 @@ function addToCart(){
   const key=cartKey(o);
   const hit=CART.find(x=>cartKey(x)===key);
   if(hit) hit.qty++; else CART.push(o);
-  drawBar(); drawCart();
+  drawBar(true); drawCart();
+  suKien('AddToCart', {content_ids:[o.id], content_type:'product', value:lineUnit(o), currency:'VND'});
   toast(hit?`Thêm 1 bánh nữa, giỏ có ${cartCount()} bánh`:`Đã thêm ${cur.k} vào giỏ`);
   closeSheet();
 }
@@ -1358,11 +1515,13 @@ function cartQty(i,d){
 }
 function cartRemove(i){ CART.splice(i,1); drawBar(); drawCart(); if(!CART.length) nav('#/',true); }
 
-function drawBar(){
+function drawBar(nhich){
   const b=$('#bar'), n=cartCount();
   b.classList.toggle('on', n>0 && !$('#checkout').classList.contains('open'));
   document.body.classList.toggle('has-bar', n>0);
-  if(n) $('#barTxt').innerHTML=`<b>${n} bánh · ${vnd(cartTotal())}</b>chưa gồm phí giao`;
+  if(n) $('#barTxt').innerHTML=`<b>${n} bánh · ${vnd(cartTotal())}</b><small>${esc(dongMienPhi(cartTotal(), MIEN_PHI_TU))}</small>`;
+  /* Nhich nhe khi vua them banh, 150 ms, tat khi khach bat giam chuyen dong. */
+  if(nhich && n){ b.classList.remove('nhich'); void b.offsetWidth; b.classList.add('nhich'); }
 }
 function drawCart(){
   const el=$('#cartList');
@@ -1478,7 +1637,8 @@ const SHIP_DO_THAT = [
   {noi:"Nha Be",          km:19.39, p:119000}
 ];
 
-let CO = {mode:'ship', pickup:0, pay:'bank', other:false, gift:false, vat:false, mst:null, ship:null, addrList:[], addrSel:-1};
+let CO = {mode:'ship', pickup:0, pay:'bank', other:false, gift:false, vat:false, dongy:false, mst:null, ship:null,
+  shipTrangThai:null, quan:'', nonce:'', addrList:[], addrSel:-1};
 
 function openCo(){
   if(!CART.length){ toast('Giỏ chưa có bánh nào'); return; }
@@ -1489,8 +1649,18 @@ function openCoUI(){
      tat truoc chu khong phai mot rung nut. Bam Thay doi moi bung ra. */
   moLich=false;
   dongBoNgay();
+  /* #367: nonce sinh MOT lan cho mot lan dat. Bam gui hai lan, hay mang rot
+     roi bam lai, deu mang cung nonce, nen may chu nhan ra la cung mot don. */
+  if(!CO.nonce) CO.nonce=taoNonce();
   drawCart(); drawCoDate(); drawCo();
   $('#checkout').classList.add('open'); $('#checkout').scrollTop=0; drawBar();
+  /* Mot lan cho mot lan dat (mot nonce): khach mo dong gio nhieu lan khong
+     thanh nhieu lan "bat dau dat" tren bao cao quang cao. */
+  if(CO.daBaoDat!==CO.nonce){
+    CO.daBaoDat=CO.nonce;
+    suKien('InitiateCheckout', {content_ids:CART.map(o=>o.id), content_type:'product',
+      num_items:cartCount(), value:cartTotal(), currency:'VND'});
+  }
 }
 function closeCoUI(){ $('#checkout').classList.remove('open'); drawBar(); }
 function closeCo(){ navBack(); }
@@ -1498,7 +1668,8 @@ function setMode(m){ CO.mode=m;
   $('#m-ship').classList.toggle('on',m==='ship'); $('#m-pick').classList.toggle('on',m==='pick');
   $('#pickList').style.display = m==='pick'?'block':'none';
   $('#addrBlock').style.display = m==='ship'?'block':'none';
-  CO.ship = m==='pick'?0:CO.ship; drawCo();
+  /* Doi lai sang giao thi hoi phi lai, khong giu con so 0 cua luc tu lay. */
+  if(m==='pick'){ CO.ship=0; drawCo(); } else { CO.ship=null; CO.shipTrangThai=null; drawCo(); quoteShip(); }
 }
 function setPickup(i){ CO.pickup=i; drawCo(); }
 function setPay(k){ CO.pay=k; drawCo(); }
@@ -1506,6 +1677,7 @@ function tgl(k){ CO[k]=!CO[k];
   const nut=$('#c-'+k);
   nut.classList.toggle('on',CO[k]);
   nut.querySelector('.bx').textContent=CO[k]?'✓':'';
+  if(k==='dongy') nut.setAttribute('aria-checked', CO.dongy ? 'true' : 'false');
   if(k==='other') $('#otherBlock').style.display=CO.other?'grid':'none';
   if(k==='vat')   $('#vatBlock').style.display  =CO.vat  ?'block':'none';
   /* Bung hay thu thi bao cho trinh doc man hinh biet, va dua con tro vao o
@@ -1678,57 +1850,102 @@ function mocGioNhan(){
   return `${isoNgay(ngayDangChon())}T${gio}:00:00`;
 }
 
+/* #367 muc 5: phi giao co BA trang thai, va moi lan hoi mang mot so thu tu.
+     du_kien    theo tam khu vuc khach chon, truoc khi go dia chi;
+     chinh_xac  theo dia chi da chon (co toa do) hoac go du dai;
+     chua_ro    Ahamove khong bao duoc: KHONG hien 0, KHONG hien mien phi.
+   Khach go nhanh thi nhieu lan hoi chong nhau; ket qua ve SAU cua mot lan
+   hoi CU khong duoc de len ket qua cua lan hoi moi hon. */
+let SO_PHI=0;
 function quoteShip(){
   const a=($('#f-addr').value||'').trim();
   CO.ngoaiVung=false;
-  if(CO.mode!=='ship'){ CO.ship=0; drawCo(); return; }
-  if(a.length<8){ CO.ship=null; $('#shipHint').textContent='Chọn địa chỉ xong hệ thống báo phí giao tham khảo.'; drawCo(); return; }
+  if(CO.mode!=='ship'){ CO.ship=0; CO.shipTrangThai=null; drawCo(); return; }
+  const q=timQuan(CO.quan);
+  const duDai=a.length>=8;
+  if(!duDai && !q){
+    SO_PHI++;
+    CO.ship=null; CO.shipTrangThai=null;
+    $('#shipHint').textContent='Chọn khu vực hoặc gõ địa chỉ, hệ thống báo phí giao dự kiến.';
+    drawCo(); return;
+  }
+  const kieu=duDai?'chinh_xac':'du_kien';
+  const so=++SO_PHI;
   $('#shipHint').innerHTML='<span style="color:var(--cyan)">Đang hỏi phí giao...</span>';
   clearTimeout(window.__shipT);
   window.__shipT=setTimeout(async ()=>{
     let m=null;
     try{
-      const p = (CO.pickedLoc
-        ? `lat=${CO.pickedLoc.lat}&lng=${CO.pickedLoc.lng}&addr=${encodeURIComponent(a)}`
-        : `addr=${encodeURIComponent(a)}`)
+      const p = (duDai
+        ? (CO.pickedLoc
+          ? `lat=${CO.pickedLoc.lat}&lng=${CO.pickedLoc.lng}&addr=${encodeURIComponent(a)}`
+          : `addr=${encodeURIComponent(a)}`)
+        : `lat=${q.lat}&lng=${q.lng}&addr=${encodeURIComponent(q.ten+', TP. Hồ Chí Minh')}`)
         + `&luc_giao=${encodeURIComponent(mocGioNhan())}`;
       const r=await fetch(CONFIG.feeApi+'?'+p,{headers:{'Accept':'application/json'}});
       if(r.ok){ const j=await r.json(); m=j.message||j; }
     }catch(e){}
-
-    if(m && m.ly_do==='ngoai_vung_giao'){
-      CO.ship=null; CO.ngoaiVung=true;
-      $('#shipHint').innerHTML=`<b style="color:#FF7A6B">Tiệm chưa hỗ trợ giao đến địa chỉ này.</b>
-        Bánh kem chỉ giao trong bán kính <b>${m.ban_kinh||12} km</b> quanh bếp và cửa hàng${m.khoang_cach?`, còn địa chỉ này cách khoảng <b>${m.khoang_cach} km</b>`:''}.
-        Anh chị vẫn đặt bánh được và <b style="color:var(--cyan)">tự đến lấy tại tiệm</b> giúp em nhé.`;
-      drawCo(); return;
-    }
-
-    if(!m || !m.ok || !(m.total_fee>0)){
-      /* Ahamove khong tra loi thi KHONG doan bua mot con so.
-         Bao thang la sales se chot, con so sai lam mat uy tin hon la khong co so. */
-      CO.ship=null;
-      $('#shipHint').innerHTML='Chưa lấy được phí giao cho địa chỉ này. <b style="color:var(--cyan)">Sales sẽ báo phí khi xác nhận đơn.</b>';
-      drawCo(); return;
-    }
-
-    CO.ship = m.total_fee;
-    const diem = TEN_DIEM[m.diem_lay] || m.diem_lay;
-    $('#shipHint').innerHTML=`Phí giao tham khảo <b style="color:var(--cyan)">${vnd(CO.ship)}</b>`
-      + (m.distance?` cho khoảng ${Number(m.distance).toFixed(1)} km`:'')
-      + (diem?`, giao từ ${esc(diem)}`:'')
-      + (m.theo_gio
-          ? `, tính đúng khung <b>${SLOTS[pickedSlot].t}</b> anh chị chọn.`
-          : `. Đây là giá giờ hiện tại, khung giờ cao điểm có thể cao hơn.`)
-      + ` Sales gọi xác nhận lại trước khi giao.`;
+    /* Ket qua cua lan hoi cu ve muon: bo, khong de len so moi hon. */
+    if(so!==SO_PHI) return;
+    apPhiGiao(m, kieu, q);
     drawCo();
-  },700);
+  },duDai?700:0);
+}
+
+function apPhiGiao(m, kieu, q){
+  /* Ghi ket qua mot lan hoi phi vao CO va dong goi y duoi o dia chi. */
+  const mp=mienPhi();
+  if(m && m.ly_do==='ngoai_vung_giao'){
+    CO.ship=null; CO.shipTrangThai='chua_ro';
+    if(kieu==='du_kien'){
+      /* Tam khu vuc ngoai ban kinh khong co nghia moi dia chi trong khu vuc
+         deu ngoai vung: KHONG chan, nhac go dia chi de kiem chinh xac. */
+      $('#shipHint').innerHTML=`Một phần khu vực <b>${esc(q?q.ten:'')}</b> nằm ngoài bán kính giao bánh kem. Anh chị gõ địa chỉ để tiệm kiểm tra chính xác.`;
+      return;
+    }
+    CO.ngoaiVung=true;
+    $('#shipHint').innerHTML=`<b style="color:#FF7A6B">Tiệm chưa hỗ trợ giao đến địa chỉ này.</b>
+      Bánh kem chỉ giao trong bán kính <b>${m.ban_kinh||12} km</b> quanh bếp và cửa hàng${m.khoang_cach?`, còn địa chỉ này cách khoảng <b>${m.khoang_cach} km</b>`:''}.
+      Anh chị vẫn đặt bánh được và <b style="color:var(--cyan)">tự đến lấy tại tiệm</b> giúp em nhé.`;
+    return;
+  }
+  if(!m || !m.ok || !(m.total_fee>0)){
+    /* Ahamove khong tra loi thi KHONG doan bua mot con so, va khong duoc
+       hien thanh mien phi. Con so sai lam mat uy tin hon la khong co so. */
+    CO.ship=null; CO.shipTrangThai='chua_ro';
+    $('#shipHint').innerHTML=mp
+      ? 'Đơn này được <b style="color:var(--cyan)">miễn phí giao</b>. Tiệm chưa kiểm được địa chỉ, Sales sẽ gọi xác nhận.'
+      : 'Chưa lấy được phí giao cho địa chỉ này. <b style="color:var(--cyan)">Sales sẽ báo phí khi xác nhận đơn.</b>';
+    return;
+  }
+  CO.ship=m.total_fee; CO.shipTrangThai=kieu;
+  const diem = TEN_DIEM[m.diem_lay] || m.diem_lay;
+  if(mp){
+    $('#shipHint').innerHTML=`Đơn này được <b style="color:var(--cyan)">miễn phí giao</b>`
+      + (diem?`, giao từ ${esc(diem)}`:'') + '. Sales gọi xác nhận lại trước khi giao.';
+    return;
+  }
+  $('#shipHint').innerHTML=(kieu==='du_kien'
+      ? `Phí giao dự kiến cho khu vực <b>${esc(q?q.ten:'')}</b>: <b style="color:var(--cyan)">${vnd(CO.ship)}</b>. Gõ địa chỉ để có số chính xác.`
+      : `Phí giao <b style="color:var(--cyan)">${vnd(CO.ship)}</b>`
+        + (m.distance?` cho khoảng ${Number(m.distance).toFixed(1)} km`:'')
+        + (diem?`, giao từ ${esc(diem)}`:'')
+        + (m.theo_gio
+            ? `, tính đúng khung <b>${SLOTS[pickedSlot].t}</b> anh chị chọn.`
+            : `. Đây là giá giờ hiện tại, khung giờ cao điểm có thể cao hơn.`)
+        + ` Sales gọi xác nhận lại trước khi giao.`);
+}
+
+function chonQuan(){
+  const o=$('#f-quan'); CO.quan=o?String(o.value||''):'';
+  quoteShip();
 }
 
 function coTotals(){
+  /* Chi de HIEN THI. Tien that may chu tinh lai o tao_don (QT-19). */
   const items=cartTotal();
-  const ship=CO.mode==='pick'?0:(CO.ship||0);
-  return {items, ship, total:items+ship};
+  const tt=trangThaiPhi(CO.mode==='pick', mienPhi(), CO.ship, CO.shipTrangThai);
+  return {items, ship:tt.phi||0, total:items+(tt.phi||0), tt};
 }
 function drawCo(){
   /* setPay, setPickup, setMode và callback phí gọi THẲNG vào đây, không đi
@@ -1744,8 +1961,10 @@ function drawCo(){
     ${CART.map(o=>`<div class="row"><span>${esc(o.k)} · Ø ${o.cm}cm${o.qty>1?' × '+o.qty:''}</span><b>${vnd(o.price*o.qty)}</b></div>`
       + o.adds.map(x=>`<div class="row"><span>+ ${esc(x.n)}${o.qty>1?' × '+o.qty:''}</span><b>${vnd(x.p*o.qty)}</b></div>`).join('')).join('')}
     <div class="row"><span>Nhận ngày</span><b>${dmy(d)} · ${SLOTS[pickedSlot].t}</b></div>
-    <div class="row"><span>${CO.mode==='pick'?'Tự lấy tại':'Phí giao tham khảo'}</span><b>${CO.mode==='pick'?PICKUPS[CO.pickup].n:(CO.ship==null?'chờ địa chỉ':vnd(CO.ship))}</b></div>
-    <div class="row tot"><span>Tạm tính</span><b>${vnd(S.total)}</b></div>`;
+    ${CO.mode==='pick'?`<div class="row"><span>Tự lấy tại</span><b>${PICKUPS[CO.pickup].n}</b></div>`:''}
+    <div class="row"><span>Tiền bánh</span><b>${vnd(S.items)}</b></div>
+    <div class="row"><span>${esc(S.tt.nhan)}</span><b>${esc(S.tt.gia_tri)}</b></div>
+    <div class="row tot"><span>${esc(S.tt.tong_nhan)}</span><b>${vnd(S.total)}</b></div>`;
   $('#warn').innerHTML = CO.pay==='card'
     ? `Sales xác nhận đơn xong sẽ gửi anh chị <b>link thanh toán OnePay</b> để nhập thẻ.
        <b style="color:var(--cyan)">Link có hiệu lực 15 phút</b>, quá hạn mà chưa thanh toán thì đơn tự huỷ
@@ -1767,7 +1986,10 @@ const LY_DO = {
   pancake_tu_choi            : 'Hệ thống bán hàng của tiệm từ chối đơn này.',
   pancake_loi                : 'Không kết nối được với hệ thống bán hàng.',
   du_lieu_khong_doc_duoc     : 'Dữ liệu đơn bị lỗi.',
-  thieu_du_lieu              : 'Dữ liệu đơn bị thiếu.'
+  thieu_du_lieu              : 'Dữ liệu đơn bị thiếu.',
+  can_tai_lai_trang          : 'Trang đặt bánh vừa được cập nhật. Anh chị tải lại trang rồi gửi lại giúp em, giỏ hàng cần chọn lại.',
+  chua_dong_y_chinh_sach     : 'Anh chị tick ô đồng ý ngay trên nút gửi giúp em.',
+  het_hang_mua_vu            : 'Một món mùa vụ trong giỏ vừa hết phần. Anh chị bớt số lượng rồi gửi lại giúp em.'
 };
 
 function sendBusy(on, text){
@@ -1812,6 +2034,15 @@ async function submitOrder(){
     $('#m-pick').scrollIntoView({behavior:'smooth',block:'center'});
     return;
   }
+
+  /* #367: dong y xu ly du lieu ca nhan la dieu kien gui don. May chu chan
+     lai lan nua, vi ai cung goi thang endpoint duoc. */
+  if(!CO.dongy){
+    toast('Anh chị tick ô đồng ý ngay trên nút gửi giúp em.');
+    const ck=$('#c-dongy'); if(ck){ ck.scrollIntoView({behavior:'smooth',block:'center'}); ck.focus(); }
+    return;
+  }
+  if(!CO.nonce) CO.nonce=taoNonce(ngauNhien);
 
   const S=coTotals();
   /* Trước đây chỗ này còn tính một ngày riêng từ độ lệch rồi bỏ không dùng.
@@ -1861,6 +2092,7 @@ async function submitOrder(){
   /* NGAY NHAN: ISO datetime, khong phai dd/mm/yyyy - Pancake bo qua lang le kieu kia.
      Lay gio bat dau cua khung de bep biet som hay muon trong ngay. */
   const ngayNhan=mocGioNhan();
+  const fb=docFb(document.cookie, location.search, Date.now());
 
   const don={
     ho_ten:ten, dien_thoai:sdt, email:($('#f-mail').value||'').trim(),
@@ -1869,7 +2101,12 @@ async function submitOrder(){
     lat: CO.pickedLoc?CO.pickedLoc.lat:null, lng: CO.pickedLoc?CO.pickedLoc.lng:null,
     items:items, tags:tags, ngay_nhan:ngayNhan,
     note_print:notePrint, note:note,
-    hoa_don:vat
+    hoa_don:vat,
+    /* #367: chong trung, bang chung dong y, cach thanh toan de in bien nhan,
+       va hai cookie Meta de quy don ve quang cao. */
+    nonce:CO.nonce, dong_y:true, thanh_toan:CO.pay,
+    diem_lay_ten: tuLay ? PICKUPS[CO.pickup].n : '',
+    fbp:fb.fbp, fbc:fb.fbc
   };
 
   sendBusy(true);
@@ -1900,20 +2137,22 @@ async function submitOrder(){
     return;
   }
 
-  /* Gui duoc roi thi khoa nut lai, khong de bam hai lan thanh hai don. */
-  const phi = m.phi_giao
-    ? `Phí giao <b>${vnd(m.phi_giao)}</b>.`
-    : (tuLay ? '' : 'Sales sẽ báo phí giao khi xác nhận đơn.');
+  /* #367: gui duoc thi sang TRANG BIEN NHAN co duong dan rieng. Nut gui
+     van khoa trong luc chuyen trang, khong de bam hai lan thanh hai don. */
   $('#btnSend').style.display='none';
+  CART=[]; CO.nonce=''; drawBar(); drawCart();
+  if(m.duong_dan && /^\/banh\/xong\/[A-Za-z0-9_-]+$/.test(m.duong_dan)){
+    $('#sendHint').innerHTML='<b style="color:var(--cyan)">Tiệm đã nhận yêu cầu.</b> Đang mở biên nhận...';
+    location.assign(m.duong_dan);
+    return;
+  }
+  /* May chu cu chua tra duong dan (dang deploy do): van bao cho khach. */
   $('#sendHint').innerHTML=`
     <div style="border:1px solid rgba(41,189,179,.4);padding:16px;line-height:1.7">
       <b style="color:var(--cyan);font-size:15px">Tiệm đã nhận đơn của anh chị.</b><br>
-      Mã đơn <b>${m.ma_don}</b> — anh chị chụp lại giúp em.<br>
-      ${phi}<br>
+      ${m.ma_yeu_cau||m.ma_don?`Mã <b>${esc(m.ma_yeu_cau||m.ma_don)}</b>, anh chị chụp lại giúp em.<br>`:''}
       Sales sẽ gọi xác nhận rồi gửi ${CO.pay==='card'?'link thanh toán OnePay':'mã VietQR'} trong ít phút.
-      ${vat?'<br>Hoá đơn doanh nghiệp đã được ghi nhận, kế toán sẽ xuất và gửi vào email công ty.':''}
     </div>`;
-  CART=[]; drawBar(); drawCart();
 }
 
 fixSlot(); renderToday(); renderRail(); renderCakes(); drawCart();
@@ -1924,7 +2163,7 @@ function lamTuoiTon(){
     renderCakes();
     var gio=new Date();
     var el=document.querySelector('#synced');
-    if(el) el.textContent="Cập nhật "+String(gio.getHours()).padStart(2,'0')+":"+String(gio.getMinutes()).padStart(2,'0');
+    if(el) el.textContent="cập nhật "+String(gio.getHours()).padStart(2,'0')+":"+String(gio.getMinutes()).padStart(2,'0');
     if(typeof cur!=='undefined'&&cur&&document.querySelector('#sheet').classList.contains('open')) drawSizes();
   });
 }
@@ -1981,9 +2220,9 @@ function veHangMua(){
     /* Dung chung nhanTon voi the banh thuong. Truoc day cho nay ghi thang
        'Con '+m.con nen lo ra "Con 1092" tren trang that. */
     var chip='<i class="sz'+(het?'':' has')+'">'+(het?'Tạm hết':nhanTon(m.con,'phần'))+'</i>';
-    return '<button class="card mua'+(het?' het':'')+'" onclick="moSheetMua(\''+esc(m.ma)+'\')">'+
+    return '<div class="card-o"><button class="card mua'+(het?' het':'')+'" onclick="moSheetMua(\''+esc(m.ma)+'\')">'+
       '<div class="ph"><i class="tagline">Seasonal</i>'+
-      (m.anh?'<img loading="lazy" onerror="this.style.display=\'none\'" src="'+m.anh+'" alt="">':'')+
+      '<img loading="lazy" onerror="anhHong(this)" src="'+(m.anh||ANH_NEN)+'" alt="">'+
       '</div>'+
       '<div class="c-body">'+
       '<div class="c-name">'+esc(m.ten)+'</div>'+
@@ -1991,7 +2230,9 @@ function veHangMua(){
       (m.ruot?'<div class="ruot">Gồm '+esc(m.ruot)+'</div>':'')+
       '<div class="c-sizes">'+chip+'</div>'+
       '<div class="c-go">Xem chi tiết →</div>'+
-      '</div></button>';
+      '</div></button>'+
+      (het?'':'<button class="c-them" onclick="themHangMua(\''+esc(m.ma)+'\')" aria-label="Thêm nhanh '+esc(m.ten)+' vào giỏ">+</button>')+
+      '</div>';
   }).join('');
 }
 
@@ -2010,7 +2251,8 @@ function moSheetMua(ma){
 function veSheetMua(m){
   muaDangXem=m;
   var img=$('#sm-img');
-  if(m.anh){ img.src=m.anh; img.style.display=''; } else { img.removeAttribute('src'); img.style.display='none'; }
+  /* #367: khong anh thi hien anh nen thuong hieu, khong con khung den. */
+  img.style.display=''; img.src=m.anh||ANH_NEN;
   $('#sm-name').textContent=m.ten;
   /* Cung mot nhan voi ngoai the: khong de ngoai ghi "Con hang" ma vao trong
      lai lo ra so hang nghin. */
@@ -2064,7 +2306,8 @@ function themHangMua(ma){
   var key=cartKey(o);
   var hit=CART.find(function(x){return cartKey(x)===key;});
   if(hit) hit.qty++; else CART.push(o);
-  drawBar(); drawCart();
+  drawBar(true); drawCart();
+  suKien('AddToCart', {content_ids:[o.id], content_type:'product', value:o.price, currency:'VND'});
   toast(hit?('Thêm 1 phần nữa, giỏ có '+cartCount()+' món'):('Đã thêm '+m.ten+' vào giỏ'));
 }
 
@@ -2072,6 +2315,113 @@ napHangMua();
 /* Nhip 5 phut: hang mua vu ban ca thang chu khong doi tung phut nhu banh
    trong ngay, nen khong can nhip 60 giay. */
 setInterval(napHangMua,300000);
+
+/* =======================================================
+   #367: CAU HINH CONG KHAI, META PIXEL, THEM NHANH
+
+   Cau hinh doc tu vagabond.don_web.cau_hinh_web: Pixel ID, nguong mien phi
+   giao, lien he, trang chinh sach DA xuat ban, tam khu vuc de bao phi du
+   kien. May chu KHONG bao gio tra token Conversions API ra day.
+
+   Pixel ID trong thi khong nap script Meta nao. Ban xem truoc trong Marketing
+   Studio (?bien_tap=1) cung khong nap, de marketing sua bai khong thanh su
+   kien gia tren quang cao.
+   ======================================================= */
+var ANH_NEN='/assets/vagabond/web_order/anh-bia.png';
+var MIEN_PHI_TU=0, PIXEL_ID='', CAU_HINH=null;
+
+function anhHong(img){
+  /* Anh hong thi thay anh nen, chi mot lan (anh nen hong nua thi thoi). */
+  if(!img || (img.dataset && img.dataset.hong)) return;
+  if(img.dataset) img.dataset.hong='1';
+  img.src=ANH_NEN;
+}
+function mienPhi(){ return laMienPhi(cartTotal(), MIEN_PHI_TU); }
+function timQuan(ma){
+  if(!ma) return null;
+  return ((CAU_HINH&&CAU_HINH.quan)||[]).find(function(q){return q.ma===ma;})||null;
+}
+function ngauNhien(n){
+  try{ var a=new Uint8Array(n); (window.crypto||self.crypto).getRandomValues(a); return Array.from(a); }
+  catch(e){ return null; }
+}
+function lienKetAnToan(u){
+  u=String(u||'').trim();
+  if(/^https:\/\/[^\s"'<>]+$/i.test(u) || /^\/[A-Za-z0-9\/_-]*$/.test(u)) return u;
+  return '';
+}
+function suKien(ten, du){
+  /* Su kien trinh duyet. Khong Pixel thi im lang, khong bao gio lam hong
+     viec khach dang lam. */
+  try{ if(PIXEL_ID && typeof window.fbq==='function') window.fbq('track', ten, du); }catch(e){}
+}
+function napPixel(id){
+  if(window.fbq) return;
+  var n=window.fbq=function(){ n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments); };
+  if(!window._fbq) window._fbq=n;
+  n.push=n; n.loaded=true; n.version='2.0'; n.queue=[];
+  var t=document.createElement('script'); t.async=true; t.src='https://connect.facebook.net/en_US/fbevents.js';
+  var s0=document.getElementsByTagName('script')[0]; if(s0&&s0.parentNode) s0.parentNode.insertBefore(t,s0);
+  window.fbq('init', id);
+  window.fbq('track', 'PageView');
+}
+function apDungCauHinh(ch){
+  if(!ch || typeof ch!=='object') return;
+  CAU_HINH=ch;
+  MIEN_PHI_TU=Number(ch.mien_phi_tu)||0;
+  var lh=ch.lien_he||{};
+  var lk=[];
+  if(lh.dien_thoai) lk.push('Điện thoại <a href="tel:'+esc(String(lh.dien_thoai_so||''))+'">'+esc(lh.dien_thoai)+'</a>');
+  if(lh.email) lk.push('Email <a href="mailto:'+esc(lh.email)+'">'+esc(lh.email)+'</a>');
+  [['zalo','Zalo'],['messenger','Messenger'],['facebook','Facebook'],['instagram','Instagram'],['tiktok','TikTok']].forEach(function(x){
+    var u=lienKetAnToan(lh[x[0]]);
+    if(u) lk.push('<a href="'+esc(u)+'" target="_blank" rel="noopener">'+x[1]+'</a>');
+  });
+  var fl=$('#fLienHe'); if(fl && lk.length) fl.innerHTML=lk.join(' · ');
+  var cs=(ch.chinh_sach||[]).filter(function(c){ return /^\/[a-z-]+$/.test(String(c.duong||'')); });
+  var fc=$('#fChinhSach'); if(fc) fc.innerHTML=cs.map(function(c){ return '<a href="'+c.duong+'">'+esc(c.ten)+'</a>'; }).join('');
+  var bm=cs.filter(function(c){ return c.khoa==='chinh_sach_bao_mat'; })[0];
+  var dc=$('#docChinhSach'); if(dc) dc.innerHTML=bm?'<a href="'+bm.duong+'" target="_blank" rel="noopener">Đọc chính sách bảo mật</a>':'';
+  var fn=$('#fNotePhi');
+  if(fn) fn.textContent=MIEN_PHI_TU>0 ? 'Giá đã gồm thuế GTGT. Miễn phí giao cho đơn từ '+tienVN(MIEN_PHI_TU) : 'Giá đã gồm thuế GTGT, chưa gồm phí vận chuyển';
+  var sel=$('#f-quan');
+  if(sel && (ch.quan||[]).length){
+    sel.innerHTML='<option value="">Chọn khu vực để xem phí giao dự kiến</option>'+ch.quan.map(function(q){
+      return '<option value="'+esc(q.ma)+'"'+(CO.quan===q.ma?' selected':'')+'>'+esc(q.ten)+'</option>'; }).join('');
+    var qb=$('#quanBlock'); if(qb) qb.style.display='';
+  }
+  drawBar();
+  if($('#checkout').classList.contains('open')) drawCo();
+  var px=String(ch.pixel_id||'').replace(/\D/g,'');
+  if(px && !PIXEL_ID && !/[?&]bien_tap=1/.test(location.search||'')){ PIXEL_ID=px; napPixel(px); }
+}
+function napCauHinh(){
+  return fetch(CONFIG.cauHinhApi,{headers:{Accept:'application/json'}})
+    .then(function(r){ return r.json(); })
+    .then(function(j){ apDungCauHinh(j&&j.message); })
+    .catch(function(){});
+}
+function themNhanh(k, cheDo){
+  /* Nut "+" tren the. Chi them thang khi banh co DUNG MOT size dang ban;
+     nhieu size thi mo trang chi tiet cho khach chon, khong doan size. */
+  const c=CAKES.find(x=>x.k===k); if(!c) return;
+  const coTruoc=Object.keys(TRUOC).length>0;
+  const ds=cheDo ? c.sizes.filter(s=>TODAY[s.id]>0) : (coTruoc ? c.sizes.filter(s=>TRUOC[s.id]>0) : c.sizes);
+  if(ds.length!==1){ openSheet(k); return; }
+  const sz=ds[0];
+  const gh=gioiHanNhan(sz.id);
+  if(gh&&daCoTrongGio(sz.id)>=gh){
+    toast(`Size này chỉ còn nhận ${gh} bánh trong 3 ngày tới. Cần nhiều hơn anh chị gọi 0931 224 334 giúp em nhé.`);
+    return;
+  }
+  const o={ k:c.k, img:c.img, id:sz.id, cm:sz.cm, price:sz.p, wish:'', adds:[], qty:1 };
+  const key=cartKey(o);
+  const hit=CART.find(x=>cartKey(x)===key);
+  if(hit) hit.qty++; else CART.push(o);
+  drawBar(true); drawCart();
+  suKien('AddToCart', {content_ids:[o.id], content_type:'product', value:lineUnit(o), currency:'VND'});
+  toast(`Đã thêm ${c.k}${sz.cm?' '+sz.cm+'cm':''}. Bấm vào bánh để thêm lời chúc, phụ kiện.`);
+}
 
 /* =======================================================
    NHOM IN STORE - banh dang con tren tu tung quay
@@ -2124,7 +2474,7 @@ function veTonQuay(){
     return dau+'<div class="grid">'+mon.map(function(m){
       return '<div class="card">'+
         '<div class="ph"><i class="tagline">'+esc(q.ten_ngan||q.ten)+'</i>'+
-        (m.anh?'<img loading="lazy" onerror="this.style.display=\'none\'" src="'+m.anh+'" alt="">':'')+
+        '<img loading="lazy" onerror="anhHong(this)" src="'+(m.anh||ANH_NEN)+'" alt="">'+
         '</div>'+
         '<div class="c-body">'+
         '<div class="c-name">'+esc(m.ten)+'</div>'+
@@ -2142,6 +2492,7 @@ setInterval(napTonQuay,60000);
 lamTuoiTon();
 setInterval(lamTuoiTon,60000);
 applyRoute();
+napCauHinh();
 </script>
 </body>
 </html>

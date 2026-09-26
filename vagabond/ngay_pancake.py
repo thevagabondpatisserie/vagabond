@@ -134,6 +134,44 @@ def ngay_tu_iso(s):
 	return ngay_hop_le(utc.astimezone(ZoneInfo(MUI_VN)).strftime("%Y-%m-%d"))
 
 
+def unix_tu_iso(s):
+	"""Mốc unix GIÂY của một giá trị giờ Pancake. THUẦN. Không đọc được thì None.
+
+	Cùng luật với `ngay_tu_iso`: ISO không khai múi giờ là giờ UTC. Thêm vào
+	cho #367: đối soát đơn web cần so giờ Pancake tạo đơn với giờ ERP ghi
+	yêu cầu, lệch vài phút là khác đơn, nên phải có giờ chứ không chỉ ngày.
+	Viết ở đây để không tệp nào tự đọc giờ Pancake lần nữa.
+	"""
+	if isinstance(s, bool) or s is None:
+		return None
+	if isinstance(s, (int, float)) or str(s).strip().isdigit():
+		try:
+			g = int(float(s))
+		except (TypeError, ValueError):
+			return None
+		if g > UNIX_LON_NHAT and g // 1000 <= UNIX_LON_NHAT:
+			g = g // 1000
+		return g if UNIX_NHO_NHAT <= g <= UNIX_LON_NHAT else None
+	t = str(s).strip()
+	if len(t) < 19 or t[4] != "-" or t[7] != "-":
+		return None
+	try:
+		goc = datetime.strptime(t[:19].replace("T", " "), "%Y-%m-%d %H:%M:%S")
+	except ValueError:
+		return None
+	duoi = t[19:]
+	# Bo phan le cua giay (".123456") truoc khi doc mui gio.
+	if duoi.startswith("."):
+		i = 1
+		while i < len(duoi) and duoi[i].isdigit():
+			i += 1
+		duoi = duoi[i:]
+	lech = _lech_mui(duoi)
+	if lech is None:
+		lech = 0
+	return int((goc - timedelta(minutes=lech)).replace(tzinfo=timezone.utc).timestamp())
+
+
 def ngay_giao(don, truong=TRUONG_NGAY_GIAO):
 	"""Ngày giao của một đơn Pancake, theo giờ Việt Nam. Rỗng là không biết.
 

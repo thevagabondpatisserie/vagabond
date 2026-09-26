@@ -109,6 +109,10 @@ EL('#f-name').value='Nguyen Van A';
 EL('#f-phone').value='0931224334';
 EL('#f-addr').value='9 Tran Cao Van, Quan 1, TP HCM';
 setMode('ship');
+/* #367: khach phai tick o dong y xu ly du lieu truoc khi gui. Day la mot
+   buoc THAT trong chuoi thao tac cua khach, khong phai goi them cho chac:
+   tgl('dongy') chi lat co dong y, khong cham ngay gio hay phi giao. */
+tgl('dongy');
 """
 DON_GUI = """
 function donDaGui(){

@@ -31,6 +31,7 @@ import frappe
 from frappe.utils import add_days, getdate, now_datetime
 
 from vagabond import pancake_nhip, tat_ban_web
+from vagabond.anh_web import chon_anh
 from vagabond.lib import PANCAKE, TIMEOUT, cache_get, cache_set, cfg, giau_khoa, key
 
 
@@ -1440,9 +1441,9 @@ def co_the_ban_hom_nay():
 		x = it.get(d.ma_hang) or {}
 		ten_day = x.get("item_name") or d.ten_banh or d.ma_hang
 		goc, cm = _tach_ten_size(ten_day)
-		anh = d.hinh or x.get("image") or ""
-		if str(anh).startswith("/private"):
-			anh = ""
+		# #367: anh ho so mon ERP truoc, anh luu trong dong (chup tu don
+		# Pancake) sau. Mot ham chon cho moi nhanh, xem vagabond/anh_web.py.
+		anh = chon_anh(x.get("image"), (), d.hinh)[0]
 		mon.append(
 			{
 				"ma": d.ma_hang,
@@ -1452,6 +1453,8 @@ def co_the_ban_hom_nay():
 				"gia": int(x.get("standard_rate") or 0),
 				"anh": anh,
 				"con": int(d.co_the_ban or 0),
+				"_anh_erp": x.get("image") or "",
+				"_anh_dong": d.hinh or "",
 			}
 		)
 
@@ -1460,12 +1463,13 @@ def co_the_ban_hom_nay():
 	for m in mon:
 		k = m["ten"].lower()
 		if k not in nhom:
-			nhom[k] = {"ten": m["ten"], "anh": m["anh"], "anhs": [], "sizes": []}
+			nhom[k] = {"ten": m["ten"], "anh": "", "anhs": [], "sizes": []}
 			thu_tu.append(k)
 		g = nhom[k]
-		if not g["anh"] and m["anh"]:
-			g["anh"] = m["anh"]
-		g["sizes"].append({"ma": m["ma"], "cm": m["cm"], "gia": m["gia"], "con": m["con"]})
+		g["sizes"].append({
+			"ma": m["ma"], "cm": m["cm"], "gia": m["gia"], "con": m["con"],
+			"_anh_erp": m.pop("_anh_erp"), "_anh_dong": m.pop("_anh_dong"),
+		})
 	for k in nhom:
 		nhom[k]["sizes"].sort(key=lambda s: (s["cm"] or 999))
 
@@ -1481,37 +1485,40 @@ def co_the_ban_hom_nay():
 
 
 def _bo_anh_mo_ta(ds_nhom):
-	"""Bo anh, mo ta va tang huong lop vi cho tung nhom banh, lay tu danh
-	muc Pancake theo size nho nhat tro di.
+	"""Bo anh, mo ta va tang huong lop vi cho tung nhom banh.
 
 	Mo ta o Pancake nam trong truong note_product: dong dau la gioi thieu,
 	cac dong sau la tang huong lop vi. Sales sua ben Pancake la web doi
 	theo trong nua tieng (Minh Vu bao 10/08/2026). Dung chung cho ca tab
 	banh trong ngay lan tab dat banh truoc - truoc day chi tab trong ngay
 	co anh va mo ta, tab dat truoc thi khong.
+
+	ANH (#367, 25/09/2026): truoc day ham nay de anh Pancake len anh ho so
+	mon ERP, va thoat som khi chua dien khoa Pancake nen nhom khong anh nao
+	ra o den. Nay thu tu do `anh_web.chon_anh` quyet: ERP, Pancake, anh luu
+	trong dong, anh nen. Moi size mang san `_anh_erp` va `_anh_dong`; ham nay
+	boc hai khoa rieng do ra truoc khi tra cho khach.
 	"""
 	c = cfg()
 	khoa = key(c, "pancake_api_key")
-	if not (khoa and c.pancake_shop_id):
-		return
+	co_pancake = bool(khoa and c.pancake_shop_id)
 	for g in ds_nhom or []:
 		anhs, mo_ta = [], ""
-		for s in g.get("sizes") or []:
-			sp = _sp_pancake(c, khoa, s["ma"]) or {}
-			for u in sp.get("anhs") or []:
-				if u not in anhs:
-					anhs.append(u)
-			if not mo_ta and (sp.get("mo_ta") or "").strip():
-				mo_ta = sp["mo_ta"].strip()
-			if len(anhs) >= 5 and mo_ta:
-				break
-		# Anh dau tien cua Pancake la anh dang dung; anh luu trong dong
-		# kiem banh chi de lui ve khi Pancake khong tra gi.
-		if not anhs and g.get("anh"):
-			anhs = [g["anh"]]
-		if anhs:
-			g["anh"] = anhs[0]
-		g["anhs"] = anhs[:5]
+		sizes = g.get("sizes") or []
+		anh_erp = [s.pop("_anh_erp", "") for s in sizes]
+		anh_dong = [s.pop("_anh_dong", "") for s in sizes]
+		if co_pancake:
+			for s in sizes:
+				sp = _sp_pancake(c, khoa, s["ma"]) or {}
+				for u in sp.get("anhs") or []:
+					if u not in anhs:
+						anhs.append(u)
+				if not mo_ta and (sp.get("mo_ta") or "").strip():
+					mo_ta = sp["mo_ta"].strip()
+				if len(anhs) >= 5 and mo_ta:
+					break
+		dong_luu = next((u for u in anh_dong if u), "") or g.get("anh") or ""
+		g["anh"], g["anhs"] = chon_anh(anh_erp, anhs, dong_luu)
 		dong_mo_ta = [d for d in (mo_ta or "").split("\n") if d.strip()]
 		g["mo_ta"] = dong_mo_ta[0] if dong_mo_ta else ""
 		g["tang"] = [d.strip() for d in dong_mo_ta[1:]][:12]
@@ -1568,22 +1575,20 @@ def _dat_truoc_theo_decor():
 			continue
 		ten_day = x.get("item_name") or b.ten_banh or b.ma_hang
 		goc, cm = _tach_ten_size(ten_day)
-		anh = b.hinh or x.get("image") or ""
-		if str(anh).startswith("/private"):
-			anh = ""
 		k = goc.lower()
 		if k not in nhom:
-			nhom[k] = {"ten": goc, "anh": anh, "sizes": []}
+			nhom[k] = {"ten": goc, "anh": "", "sizes": []}
 			thu_tu.append(k)
 		g = nhom[k]
-		if not g["anh"] and anh:
-			g["anh"] = anh
+		# #367: anh chon o _bo_anh_mo_ta qua anh_web.chon_anh, ERP truoc.
 		g["sizes"].append(
 			{
 				"ma": b.ma_hang,
 				"cm": cm,
 				"gia": int(x.get("standard_rate") or 0),
 				"con": con,
+				"_anh_erp": x.get("image") or "",
+				"_anh_dong": b.hinh or "",
 			}
 		)
 	for k in nhom:
