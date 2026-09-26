@@ -137,7 +137,7 @@ class _JE:
 		self.docstatus = 2
 
 
-def _chay(ho_so, to, ham, giu_cu=None, giu_moi=None, no_ho_so=None, bu_truoc=None, ds_je=None, cam_doc=(), cam_ncc=(), anh_chup=None, bu_song=()):
+def _chay(ho_so, to, ham, giu_cu=None, giu_moi=None, no_ho_so=None, bu_truoc=None, ds_je=None, cam_doc=(), cam_ncc=(), anh_chup=None, bu_song=(), chi_theo_so=None):
 	"""Chạy HÀM THẬT của ho_so_bo_sung trên lớp dữ liệu giả.
 
 	to: {tên: tờ HIỆN HÀNH}. giu_cu/giu_moi: {tờ: hồ sơ khác đang giữ} theo
@@ -185,7 +185,13 @@ def _chay(ho_so, to, ham, giu_cu=None, giu_moi=None, no_ho_so=None, bu_truoc=Non
 			g = giu_moi.get(tham[0])
 			return [_C(ho_so=g, loai="TK cong ty", tong_hd=0, da_ghi_so=0)] if g else []
 		if "from `tabjournal entry` where docstatus = 1 and vgb_ho_so_tt" in ql:
-			return (("PKT-CHI",),)
+			return () if chi_theo_so is not None else (("PKT-CHI",),)
+		if "from `tabjournal entry` where docstatus = 1 and cheque_no" in ql:
+			# Hồ sơ cũ: bút toán chi chỉ mang số tham chiếu (ảnh chụp).
+			return [(x,) for x in (chi_theo_so or {})]
+		if "from `tabjournal entry` where name in %s and docstatus = 1" in ql:
+			# Soát lại hiện hành theo khoá chính: chỉ bút toán còn ghi sổ.
+			return [(x,) for x in tham[0] if (chi_theo_so or {}).get(x) == 1]
 		if "tabjournal entry account" in ql and "parent in" in ql:
 			return [(tk, n) for tk, n in no_ho_so.items()]
 		if "vgb_bu_tru_ho_so = %s" in ql and "limit 1" in ql:
@@ -882,3 +888,22 @@ def _huy_chi_khoa_truoc():
 	doc_je = [q.lower() for q in r.cau if "tabjournal entry" in q.lower() and "select" in q.lower()]
 	dung("noi_nhieu có đọc bút toán của hồ sơ", bool(doc_je))
 	la("mọi câu đọc bút toán trong noi_nhieu là câu hiện hành", [q for q in doc_je if "for update" not in q], [])
+
+
+@ca("v530 Codex #374 v4 F19: hai ô hồ sơ trên Journal Entry có chỉ mục; hồ sơ cũ (số tham chiếu không chỉ mục) không khoá quét, soát lại theo khoá chính")
+def _chi_muc_va_so_tham_chieu():
+	from vagabond import nghiep_vu_tien as nv
+	o = {f["fieldname"]: f for f in nv.TRUONG_MOI["Journal Entry"]}
+	la("vgb_ho_so_tt, vgb_bu_tru_ho_so có search_index",
+		(o["vgb_ho_so_tt"].get("search_index"), o["vgb_bu_tru_ho_so"].get("search_index")), (1, 1))
+	to = {"HDM-26-09-00135": _pi("HDM-26-09-00135", "ADECCO", 686810159, bill="5802", ngay="2026-09-08")}
+	# Bút toán chi theo số tham chiếu còn ghi sổ: nối được.
+	r = _chay(_adecco(), to, lambda b: b.noi_nhieu("APP.26.09.009", "HDM-26-09-00135"), chi_theo_so={"PKT-CU": 1})
+	la("hồ sơ cũ, bút toán chi còn ghi sổ: nối được", r.loi, "")
+	ql = [q.lower() for q in r.cau]
+	la("không câu for update nào lọc theo số tham chiếu", [q for q in ql if "cheque_no" in q and "for update" in q], [])
+	dung("có câu soát lại theo khoá chính có khoá",
+		any("where name in %s and docstatus = 1 for update" in q for q in ql))
+	# Ảnh chụp còn thấy bút toán chi mà nó vừa bị huỷ (hiện hành docstatus 2): dừng, không lập bù trừ.
+	r2 = _chay(_adecco(), to, lambda b: b.noi_nhieu("APP.26.09.009", "HDM-26-09-00135"), chi_theo_so={"PKT-CU": 2})
+	dung("bút toán chi vừa huỷ: dừng, không lập bù trừ", bool(r2.loi) and not r2.kq)
