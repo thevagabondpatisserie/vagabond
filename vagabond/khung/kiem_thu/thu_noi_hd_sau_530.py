@@ -54,9 +54,10 @@ MOBI = [("HDM-26-09-00093", "5310710", 159000), ("HDM-26-09-00287", "5332207", 1
 	("HDM-26-09-00317", "5284552", 106390), ("HDM-26-09-00318", "5519595", 195534)]
 
 
-def _pi(name, ncc, tien, docstatus=1, con=None, bill="", ngay="2026-09-05", huy=0):
+def _pi(name, ncc, tien, docstatus=1, con=None, bill="", ngay="2026-09-05", huy=0, tien_te="VND"):
 	return _C(name=name, supplier=ncc, company=CTY, grand_total=tien, docstatus=docstatus,
-		outstanding_amount=tien if con is None else con, credit_to=T331, posting_date=ngay, bill_no=bill, vgb_huy=huy)
+		outstanding_amount=tien if con is None else con, credit_to=T331, posting_date=ngay, bill_no=bill, vgb_huy=huy,
+		currency=tien_te)
 
 
 NHAT_KY = []
@@ -209,7 +210,7 @@ def _chay(ho_so, to, ham, giu_cu=None, giu_moi=None, no_ho_so=None, bu_truoc=Non
 		if dt == "Account":
 			return "Payable" if ten == T331 else ""
 		if dt == "Company":
-			return "Main - TV"
+			return "VND" if truong == "default_currency" else "Main - TV"
 		return None
 
 	def get_doc(dt, ten=None, for_update=None, **k):
@@ -907,3 +908,53 @@ def _chi_muc_va_so_tham_chieu():
 	# Ảnh chụp còn thấy bút toán chi mà nó vừa bị huỷ (hiện hành docstatus 2): dừng, không lập bù trừ.
 	r2 = _chay(_adecco(), to, lambda b: b.noi_nhieu("APP.26.09.009", "HDM-26-09-00135"), chi_theo_so={"PKT-CU": 2})
 	dung("bút toán chi vừa huỷ: dừng, không lập bù trừ", bool(r2.loi) and not r2.kq)
+
+
+# Codex #374 vòng 5 trên 6ebfdcb ----------------------------------------------
+
+@ca("v530 Codex #374 v5 F20: tờ ngoại tệ không nối được (thuần, hàm nối thật, ô chọn), không lập bù trừ")
+def _ngoai_te():
+	from vagabond.hoa_don_sau import loi_noi_to
+	to = dict(docstatus=1, outstanding_amount=100, grand_total=100, currency="USD")
+	dung("thuần: USD với công ty VND bị chặn, gọi tên tiền tệ", "USD" in loi_noi_to(to, tien_te_cong_ty="VND"))
+	la("thuần: cùng VND qua", loi_noi_to(dict(to, currency="VND"), tien_te_cong_ty="VND"), "")
+	# Tờ USD đã ghi sổ còn nợ 100 (đơn vị USD) nối vào hồ sơ Adecco chi VND.
+	to2 = {"HDM-USD": _pi("HDM-USD", "ADECCO", 100, bill="INV-9", tien_te="USD")}
+	r = _chay(_adecco(), to2, lambda b: b.noi_nhieu("APP.26.09.009", "HDM-USD"))
+	dung("hàm nối thật: dừng, gọi tên USD", "USD" in r.loi)
+	la("không lập bút toán bù trừ nào", len(r.je), 0)
+	la("không thêm dòng nối", len(r.hs.hd_sau), 0)
+	# Bộ giả lập trả cả tờ bất kể câu chọn cột nào, nên chốt riêng: câu đọc
+	# tờ có khoá phải lấy cột currency (đột biến bỏ cột này lọt bộ giả lập;
+	# ca bench _ngoai_te_that bắt được trên MariaDB thật).
+	doc_to = [q.lower() for q in r.cau if "tabpurchase invoice" in q.lower() and "credit_to" in q.lower()]
+	dung("câu đọc tờ có khoá lấy cột currency", bool(doc_to) and all("currency" in q for q in doc_to))
+	r2 = _chay(_adecco(), to2, lambda b: b.ung_vien_hoa_don("APP.26.09.009"))
+	dung("ô chọn lọc theo tiền công ty", any((f or {}).get("currency") == "VND" for _dt, f, _o in r2.hoi))
+
+
+@ca("v530 Codex #374 v5 F21: danh sách đếm khoản chờ hoá đơn bằng cùng cờ công nợ như màn chi tiết")
+def _dem_danh_sach():
+	import inspect
+	from vagabond.hoa_don_sau import dem_theo_ho_so, do_phu
+	from vagabond import ho_so_bo_sung as bo, ho_so_tt
+	# Hồ sơ lẫn: chi phí 100.000 chờ hoá đơn + trả nợ thẳng 331 là 50.000.
+	# Tờ nối mức hồ sơ 100.000 phủ đủ phần chi phí.
+	def dong():
+		return [{"parent": "APP-X", "cho_hoa_don": 1, "so_tien": 100000, "tk_no": T6427, "hoa_don": "", "hoa_don_bo_sung": ""},
+			{"parent": "APP-X", "cho_hoa_don": 0, "so_tien": 50000, "tk_no": T331, "hoa_don": "", "hoa_don_bo_sung": ""}]
+	lk = {"APP-X": [{"tien_khop": 100000}]}
+	tho = dong()
+	# Bản 6ebfdcb: danh sách gọi do_phu trên dòng thô, khoản trả nợ bị tính là cần hoá đơn.
+	la("trước (dòng thô): không đủ, khoản chi phí bị đếm là còn chờ", do_phu(tho, lk["APP-X"])["du"], False)
+	gan = bo.gan_cong_no(dong(), loai_tk=lambda tk: "Payable" if tk == T331 else "Expense Account")
+	la("gắn cờ: khoản 331 là công nợ", [x["cong_no"] for x in gan], [False, True])
+	cho, da = dem_theo_ho_so({"APP-X": gan}, lk)
+	la("sau: đã nối 1, không còn chờ", (cho, da), ({}, {"APP-X": 1}))
+	# Màn chi tiết cùng hồ sơ: cùng kết luận.
+	la("khớp màn chi tiết (do_phu trên khoản đã gắn cờ)", do_phu(gan, lk["APP-X"])["du"], True)
+	# Chốt một nguồn: danh sách không tự tính mức phủ nữa, và đọc ô tk_no.
+	src = inspect.getsource(ho_so_tt.danh_sach)
+	dung("danh sách gọi dem_theo_ho_so và gan_cong_no", "dem_theo_ho_so(" in src and "gan_cong_no(" in src)
+	dung("danh sách không tự gọi do_phu", "do_phu(" not in src)
+	dung("danh sách đọc ô tk_no của khoản", '"tk_no"' in src)
