@@ -161,7 +161,7 @@ def _chay(ho_so, to, ham, giu_cu=None, giu_moi=None, no_ho_so=None, bu_truoc=Non
 		ql = q.lower()
 		tham = v if isinstance(v, (list, tuple)) else (v,)
 		if "tabvagabond ho so tt`" in ql and "for update" in ql and "join" not in ql:
-			return ()
+			return ((tham[0],),) if tham[0] == ho_so.name else ()
 		if "tabsupplier" in ql:
 			goc = tham[0].rstrip("%")
 			return [(n, t) for n, t in NCC.items() if t.startswith(goc)]
@@ -860,3 +860,25 @@ def _chan_huy_but_toan_chi():
 	la("số tham chiếu không phải mã hồ sơ: không đụng",
 		_chay(_adecco(), {}, lambda b: b.chan_huy_bu_tru(_C(name="PKT-9", vgb_ho_so_tt="", cheque_no="UNC-123", flags=_C())),
 			bu_song=["PKT-2026-00101"]).loi, "")
+
+
+@ca("v530 Codex #374 v3 F17: huỷ bút toán chi khoá hồ sơ TRƯỚC khi xét bù trừ, xét và noi_nhieu đọc bút toán đều là câu hiện hành")
+def _huy_chi_khoa_truoc():
+	# Chốt thứ tự câu. Hành vi đua thật (ba thứ tự đan xen, bản cũ hỏng 3,
+	# bản chỉ khoá hồ sơ hỏng 2, bản sửa 0) chạy trên MariaDB thật bằng
+	# dua_huy_chi.py đính ở PR #374; bộ giả lập này không có khoá.
+	for chi in (_C(name="PKT-2026-00017", vgb_ho_so_tt="APP.26.09.009", cheque_no="", flags=_C()),
+			_C(name="PKT-2026-00009", vgb_ho_so_tt="", cheque_no="APP.26.09.009", flags=_C())):
+		r = _chay(_adecco(), {}, lambda b: b.chan_huy_bu_tru(chi), bu_song=["PKT-2026-00100"])
+		ql = [q.lower() for q in r.cau]
+		khoa = next((i for i, q in enumerate(ql) if "tabvagabond ho so tt`" in q and "for update" in q), None)
+		xet = next((i for i, q in enumerate(ql) if "vgb_bu_tru_ho_so = %s limit 1" in q), None)
+		dung("%s: khoá hồ sơ trước câu xét bù trừ" % chi.name, khoa is not None and xet is not None and khoa < xet)
+		dung("%s: câu xét bù trừ đọc hiện hành" % chi.name, xet is not None and "for update" in ql[xet])
+		dung("%s: vẫn chặn" % chi.name, "PKT-2026-00100" in r.loi)
+	to = {"HDM-26-09-00135": _pi("HDM-26-09-00135", "ADECCO", 686810159, bill="5802", ngay="2026-09-08")}
+	r = _chay(_adecco(), to, lambda b: b.noi_nhieu("APP.26.09.009", "HDM-26-09-00135"))
+	la("nối được", r.loi, "")
+	doc_je = [q.lower() for q in r.cau if "tabjournal entry" in q.lower() and "select" in q.lower()]
+	dung("noi_nhieu có đọc bút toán của hồ sơ", bool(doc_je))
+	la("mọi câu đọc bút toán trong noi_nhieu là câu hiện hành", [q for q in doc_je if "for update" not in q], [])
