@@ -1285,3 +1285,11 @@ Cách phòng:
   chuỗi rỗng. DOM giả nay đọc thuộc tính style như trình duyệt.
 - Danh sách lấy bằng get_list kèm luật quyền có thể trùng dòng: bỏ trùng theo
   tên trước khi vẽ.
+- Chặn một thao tác đua với thao tác khác thì CẢ HAI phía phải khoá cùng một
+  dòng rồi đọc bằng câu có khoá. Codex #374 vòng 3: huỷ bút toán chi của hồ
+  sơ đua với nối hoá đơn đến sau. Chỉ thêm khoá hồ sơ vào hook huỷ (đúng lời
+  gợi ý) vẫn hỏng 2 trên 3 thứ tự đan xen trên MariaDB thật, vì phía chờ khoá
+  xong vẫn đọc ảnh chụp cũ. Khoá hồ sơ ở hook, đọc bù trừ bằng for update, và
+  phía nối đọc bút toán chi bằng for update thì 0 trên 3. Thứ tự khoá chéo
+  (huỷ đã giữ dòng bút toán, nối đã giữ hồ sơ) có thể thành deadlock: MariaDB
+  lùi một bên, dữ liệu vẫn đúng, người dùng bấm lại.
