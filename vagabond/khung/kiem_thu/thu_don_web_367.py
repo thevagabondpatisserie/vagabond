@@ -651,6 +651,8 @@ def _():
 	x = _doc("vagabond/don_web.py")
 	dung("không còn chỗ nào tự so mốc báo Sales ngoài can_bao_sales",
 		"minutes=-PHUT_BAO_SALES" not in x and x.count("can_bao_sales(") == 2)
+	# Vòng 8: lô ưu tiên của _dang_cho cũng dùng mốc này, nên mốc 30 phút chỉ tính ở moc_bao_sales.
+	dung("mốc 30 phút chỉ tính một chỗ", x.count("timedelta(minutes=PHUT_BAO_SALES)") == 1 and x.count("moc_bao_sales(") == 3)
 
 
 @ca("#367 H vòng 3: thiếu webhook nhóm Sales thì có Error Log hành động được, giãn 6 giờ một lần (Codex 3a7a37a)")
@@ -770,8 +772,9 @@ def _():
 	import datetime as _dt
 	bay_gio = _dt.datetime(2026, 9, 26, 12, 0, 0)
 	kho = [{"name": "DW-%03d" % i, "trang_thai": "Cho doi soat", "creation": bay_gio - _dt.timedelta(minutes=2000 - i),
-		"dien_thoai": "", "ho_ten": "", "tien_banh": 0, "ngay_nhan": None, "snapshot": "{}", "da_bao_sales_luc": None}
+		"dien_thoai": "", "ho_ten": "", "tien_banh": 0, "ngay_nhan": None, "snapshot": "{}", "da_bao_sales_luc": "x"}
 		for i in range(250)]
+	# Phần xoay vòng xét trên bản ĐÃ báo Sales (vòng 8 tách riêng lô ưu tiên cho bản quá giờ chưa báo).
 	bo_nho = {}
 	def get_all(dt, filters=None, fields=None, order_by=None, limit_page_length=20, **k):
 		# Như Frappe: lọc danh sách điều kiện trên creation, limit 0 là lấy hết.
@@ -779,12 +782,17 @@ def _():
 		for f in (filters if isinstance(filters, list) else []):
 			if f[0] == "creation" and f[1] == ">":
 				ra = [r for r in ra if r["creation"] > f[2]]
+			if f[0] == "creation" and f[1] == "<=":
+				ra = [r for r in ra if r["creation"] <= f[2]]
+			if f[0] == "da_bao_sales_luc" and f[1:] == ["is", "not set"]:
+				ra = [r for r in ra if not r["da_bao_sales_luc"]]
 		return ra if not limit_page_length else ra[:limit_page_length]
 	cache = types.SimpleNamespace(get_value=lambda k: bo_nho.get(k), set_value=lambda k, v, **kw: bo_nho.__setitem__(k, v))
 	fr = types.SimpleNamespace(get_all=get_all, cache=lambda: cache)
 	g = dict(frappe=fr, DOCTYPE="Vagabond Don Web", now_datetime=lambda: bay_gio, get_datetime=lambda x: x,
 		add_to_date=lambda d, minutes=0, hours=0, days=0: d + _dt.timedelta(minutes=minutes, hours=hours, days=days),
-		LO_DOI_SOAT=getattr(don_web, "LO_DOI_SOAT", 100), KHOA_CON_TRO=getattr(don_web, "KHOA_CON_TRO", "k"))
+		LO_DOI_SOAT=getattr(don_web, "LO_DOI_SOAT", 100), KHOA_CON_TRO=getattr(don_web, "KHOA_CON_TRO", "k"),
+		PHUT_BAO_SALES=30, moc_bao_sales=getattr(don_web, "moc_bao_sales", None))
 	nhip = [nap("don_web.py", "_dang_cho", g)() for _ in range(4)]
 	la("mỗi nhịp tối đa một lô 100", [len(x) for x in nhip], [100, 100, 50, 100])
 	la("ba nhịp đầu phủ đủ 250 bản, không trùng", len({r["name"] for x in nhip[:3] for r in x}), 250)
@@ -797,6 +805,21 @@ def _():
 	nhip = [nap("don_web.py", "_dang_cho", g)() for _ in range(3)]
 	la("200 bản: 100, 100 rồi quay lại đầu ngay", [(len(x), x[0]["name"] if x else None) for x in nhip],
 		[(100, "DW-000"), (100, "DW-100"), (100, "DW-000")])
+	# Vòng 8 (Codex 42f6cbd): hạn báo Sales 30 phút không được lệ thuộc con trỏ.
+	# 650 bản cũ đã báo chiếm hết vòng xoay; 20 bản quá giờ CHƯA báo nằm ở cuối.
+	del kho[:]
+	for i in range(650):
+		kho.append({"name": "DB-%03d" % i, "trang_thai": "Cho doi soat", "creation": bay_gio - _dt.timedelta(minutes=2800 - i),
+			"dien_thoai": "", "ho_ten": "", "tien_banh": 0, "ngay_nhan": None, "snapshot": "{}", "da_bao_sales_luc": "x"})
+	for i in range(20):
+		kho.append({"name": "QG-%02d" % i, "trang_thai": "Cho doi soat", "creation": bay_gio - _dt.timedelta(minutes=60 - i),
+			"dien_thoai": "", "ho_ten": "", "tien_banh": 0, "ngay_nhan": None, "snapshot": "{}", "da_bao_sales_luc": None})
+	bo_nho.clear()
+	x = nap("don_web.py", "_dang_cho", g)()
+	ten = [r["name"] for r in x]
+	la("cả 20 bản quá giờ chưa báo có mặt ngay nhịp đầu, đứng trước", ten[:20], ["QG-%02d" % i for i in range(20)])
+	dung("nhịp vẫn có chặn (tối đa hai lô)", len(x) <= 200)
+	la("không trùng bản ghi", len(ten), len(set(ten)))
 
 
 @ca("#367 H tin Lark cho Sales đủ để gọi khách và chỉ đường xử lý tay")
