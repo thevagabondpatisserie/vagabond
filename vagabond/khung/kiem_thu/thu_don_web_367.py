@@ -363,8 +363,9 @@ def _():
 	dung("JSON nhúng không đóng được thẻ script", "</script>" not in s)
 
 
-def _get_context(tep, form, bn=None, cs=None, nguoi="Guest", vai=()):
-	"""Chạy get_context THẬT của trang www với Frappe giả, trả (context, lỗi)."""
+def _get_context(tep, form, bn=None, cs=None, nguoi="Guest", vai=(), duong=""):
+	"""Chạy get_context THẬT của trang www với Frappe giả, trả (context, lỗi).
+	`duong` là đường dẫn yêu cầu (frappe.local.request.path) cho trang chính sách."""
 	class KhongCo(Exception):
 		pass
 
@@ -372,7 +373,8 @@ def _get_context(tep, form, bn=None, cs=None, nguoi="Guest", vai=()):
 		pass
 
 	dau = {}
-	local = types.SimpleNamespace(no_cache=0, response_headers=dau, flags=types.SimpleNamespace(redirect_location=None))
+	local = types.SimpleNamespace(no_cache=0, response_headers=dau, flags=types.SimpleNamespace(redirect_location=None),
+		request=types.SimpleNamespace(path=duong), path=duong.strip("/"))
 	fr = types.SimpleNamespace(
 		local=local, form_dict=D(form), PageDoesNotExistError=KhongCo, Redirect=ChuyenHuong,
 		session=types.SimpleNamespace(user=nguoi), get_roles=lambda u=None: list(vai),
@@ -383,7 +385,7 @@ def _get_context(tep, form, bn=None, cs=None, nguoi="Guest", vai=()):
 		lien_he=lambda: {"dien_thoai": "0931 224 334", "dien_thoai_so": "0931224334", "zalo": "https://zalo.me/0931224334"},
 		PHAP_NHAN=don_web.PHAP_NHAN, bien_nhan_theo_token=lambda t: bn, pixel_id=lambda: "123")
 	nd = types.SimpleNamespace(chinh_sach_dang_hien=lambda: [], trang_chinh_sach=lambda k, n: cs,
-		CHINH_SACH=noi_dung_web.CHINH_SACH, DUONG_BANG="/bien-tap-web", quyet_vao_bang=noi_dung_web.quyet_vao_bang)
+		CHINH_SACH=noi_dung_web.CHINH_SACH, khoa_tu_duong=noi_dung_web.khoa_tu_duong, DUONG_BANG="/bien-tap-web", quyet_vao_bang=noi_dung_web.quyet_vao_bang)
 	g = dict(frappe=fr, don_web=dw, noi_dung_web=nd, trang_khach=trang_khach,
 		TIEU_DE={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0", "Referrer-Policy": "no-referrer",
 			"X-Robots-Tag": "noindex, nofollow"},
@@ -508,9 +510,89 @@ def _():
 	la("khác số điện thoại thì không ghép", ly_do, "khong_thay")
 	o, ly_do = don_web.ghep_don_pancake("0931224334", tao, hang, [_don_pc()], da_gan=["91500"])
 	la("đơn đã thuộc bản ghi khác thì bỏ", ly_do, "khong_thay")
+	for tt in (6, 7, "6"):
+		o, ly_do = don_web.ghep_don_pancake("0931224334", tao, hang, [_don_pc(status=tt)])
+		la("đơn Pancake đã huỷ hoặc xoá (%r) không là ứng viên" % tt, (o, ly_do), (None, "khong_thay"))
+	o, ly_do = don_web.ghep_don_pancake("0931224334", tao, hang, [_don_pc(status=6), _don_pc(id="sys-2", display_id="91501", status=0)])
+	la("một đơn huỷ cạnh một đơn sống: ghép đúng đơn sống", (ly_do, o and o["display_id"]), ("khop", "91501"))
 	la("đọc giờ UTC không khai múi", unix_tu_iso("2026-09-25T06:00:00"), unix_tu_iso("2026-09-25T13:00:00+07:00"))
 	la("giờ có phần lẻ của giây", unix_tu_iso("2026-09-25T06:00:00.123456"), tao)
 	la("chuỗi hỏng", unix_tu_iso("hôm qua"), None)
+
+
+def _frappe_bao_sales(url, nhan):
+	"""Frappe giả cho _bao_sales: ghi lại set_value, webhook trả `nhan`."""
+	ghi, goi = [], []
+	fr = types.SimpleNamespace(
+		db=types.SimpleNamespace(set_value=lambda *a, **k: ghi.append(a), commit=lambda: None),
+		log_error=lambda **k: goi.append(("log", k.get("title"))),
+		utils=types.SimpleNamespace(get_url_to_form=lambda dt, n: "/app/x/" + n))
+	gui = types.ModuleType("vagabond.gui_thu")
+	gui.ban_webhook = lambda cau, url=None: goi.append(("webhook", url)) or nhan
+	g = dict(frappe=fr, cfg_o=lambda k: url, soan_tin_sales=lambda r, u: "tin", now_datetime=lambda: "T",
+		DOCTYPE="Vagabond Don Web")
+	return g, gui, ghi, goi
+
+
+@ca("#367 H báo Sales: chỉ đóng dấu đã báo SAU khi Lark nhận, lỗi hay thiếu URL thì nhịp sau thử lại (Codex)")
+def _():
+	import sys
+	r = {"name": "DW-1"}
+	for url, nhan, mong_ghi, mong_ket in (("https://lark/x", True, 1, True), ("https://lark/x", False, 0, False), ("", True, 0, False)):
+		g, gui, ghi, goi = _frappe_bao_sales(url, nhan)
+		cu = sys.modules.get("vagabond.gui_thu")
+		sys.modules["vagabond.gui_thu"] = gui
+		try:
+			ket = nap("don_web.py", "_bao_sales", g)(r)
+		finally:
+			if cu is None:
+				sys.modules.pop("vagabond.gui_thu", None)
+			else:
+				sys.modules["vagabond.gui_thu"] = cu
+		la("kết quả url=%r nhận=%r" % (url, nhan), ket, mong_ket)
+		la("số lần đóng dấu url=%r nhận=%r" % (url, nhan), len(ghi), mong_ghi)
+		if url and not nhan:
+			dung("gửi hỏng thì ghi Error Log", ("log", "Don web: chua bao duoc nhom Sales qua Lark") in goi)
+		if not url:
+			la("thiếu URL thì không gọi webhook", [x for x in goi if x[0] == "webhook"], [])
+	dung("mốc đóng dấu là ô da_bao_sales_luc", ghi == [] or ghi[0][2] == "da_bao_sales_luc")
+
+
+@ca("#367 H nhịp đối soát: một bản ghi hỏng không chặn bản ghi sau, mỗi bản ghi tự chịu lỗi (Codex)")
+def _():
+	x = _doc("vagabond/don_web.py")
+	than = x[x.index("def doi_soat_tu_dong("):x.index("def _doi_soat_mot(")]
+	dung("gọi từng bản ghi qua _doi_soat_mot trong try riêng", "try:\n\t\t\t\t_doi_soat_mot(r, dons, gan)" in than)
+	dung("lỗi một bản ghi thì rollback và ghi log rồi đi tiếp", "frappe.db.rollback()" in than and "Don web: doi soat mot ban ghi" in than)
+	da, log = [], []
+	def mot(r, dons, gan):
+		if r["name"] == "DW-HONG":
+			raise ValueError("snapshot hỏng")
+		da.append(r["name"])
+	fr = types.SimpleNamespace(
+		flags=types.SimpleNamespace(vagabond_kiem_that=False),
+		db=types.SimpleNamespace(rollback=lambda: None),
+		log_error=lambda **k: log.append(k.get("title")), get_traceback=lambda: "tb",
+		get_all=lambda *a, **k: [])
+	ds = [{"name": "DW-1", "creation": "2026-09-25 13:00:00"}, {"name": "DW-HONG", "creation": "2026-09-25 13:00:00"}, {"name": "DW-2", "creation": "2026-09-25 13:00:00"}]
+	kb = types.ModuleType("vagabond.kiem_banh")
+	kb.LoiPancake = RuntimeError
+	kb._keo_don = lambda *a, **k: []
+	import sys
+	cu = sys.modules.get("vagabond.kiem_banh")
+	sys.modules["vagabond.kiem_banh"] = kb
+	try:
+		g = dict(frappe=fr, _dang_cho=lambda: ds, cfg=lambda: types.SimpleNamespace(pancake_shop_id="1"), key=lambda c, k: "k",
+			_unix=lambda t: 0, now_datetime=lambda: "T", add_to_date=lambda *a, **k: "T0", DOCTYPE="Vagabond Don Web",
+			_doi_soat_mot=mot)
+		nap("don_web.py", "doi_soat_tu_dong", g)()
+	finally:
+		if cu is None:
+			sys.modules.pop("vagabond.kiem_banh", None)
+		else:
+			sys.modules["vagabond.kiem_banh"] = cu
+	la("bản ghi trước và sau bản hỏng đều được xử lý", da, ["DW-1", "DW-2"])
+	la("bản hỏng có Error Log riêng", log, ["Don web: doi soat mot ban ghi"])
 
 
 @ca("#367 H tin Lark cho Sales đủ để gọi khách và chỉ đường xử lý tay")
@@ -677,8 +759,31 @@ def _():
 				sys.modules.pop(k, None)
 			else:
 				sys.modules[k] = v
-	ctx, loi, _l, _d = _get_context("www/chinh_sach.py", {"khoa": "dieu_khoan"}, cs=None)
+	ctx, loi, _l, _d = _get_context("www/chinh_sach.py", {}, cs=None, duong="/dieu-khoan")
 	la("trang công khai 404 khi chưa xuất bản", loi, "404")
+
+
+@ca("#367 J khoá chính sách suy từ đường dẫn, không dựa vào defaults của luật định tuyến (Codex)")
+def _():
+	k = noi_dung_web.khoa_tu_duong
+	la("bảo mật", k("/chinh-sach-bao-mat"), "chinh_sach_bao_mat")
+	la("điều khoản", k("/dieu-khoan"), "dieu_khoan")
+	la("giao hàng", k("/giao-hang-doi-tra"), "giao_hang_doi_tra")
+	la("không gạch chéo đầu, có tham số", k("dieu-khoan?ngon_ngu=en"), "dieu_khoan")
+	la("gạch chéo cuối", k("/dieu-khoan/"), "dieu_khoan")
+	la("đường lạ là rỗng", k("/chinh-sach"), "")
+	la("rỗng là rỗng", k(""), "")
+	h = _doc("vagabond/hooks.py")
+	dung("luật không còn defaults", '"defaults"' not in h[h.index("website_route_rules = list("):])
+	trang = {"ten": "Điều khoản sử dụng", "html": "<p>A</p>", "ngon_ngu": "vn", "co_en": False}
+	for duong, khoa in (("/chinh-sach-bao-mat", "chinh_sach_bao_mat"), ("/dieu-khoan", "dieu_khoan"),
+			("/giao-hang-doi-tra", "giao_hang_doi_tra")):
+		goi = []
+		ctx, loi, _l, _d = _get_context("www/chinh_sach.py", {}, cs=trang, duong=duong)
+		la("mở được " + duong, loi, None)
+		dung("có thân trang " + duong, "<p>A</p>" in (ctx.get("than") or ""))
+	_c, loi, _l, _d = _get_context("www/chinh_sach.py", {"khoa": "dieu_khoan"}, cs=trang, duong="/chinh-sach")
+	la("form_dict khoa không thay được đường dẫn: đường lạ là 404", loi, "404")
 
 
 @ca("#367 J ba đường chính sách và biên nhận: nối thêm vào luật định tuyến, thuộc miền khách")
