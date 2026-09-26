@@ -839,19 +839,36 @@ def bien_nhan_theo_token(token):
 	}
 
 
+LO_DOI_SOAT = 100
+KHOA_CON_TRO = "vagabond:don_web:con_tro_doi_soat"
+
+
 def _dang_cho():
 	"""Bản ghi cần đối soát: Chờ đối soát, hoặc Đang gửi quá 2 phút (tiến
 	trình chết giữa lúc gọi Pancake thì bản ghi kẹt ở Đang gửi mãi mãi).
 
-	Lấy HẾT trong cửa sổ 2 ngày, không cắt trang (Codex ee3b339): cắt 200 bản
-	cũ nhất thì khi tồn đọng, bản ghi mới hơn không bao giờ được xét hay báo
-	Sales rồi rơi khỏi cửa sổ. Cửa sổ 2 ngày đã chặn trên số dòng."""
+	Mỗi nhịp một lô tối đa LO_DOI_SOAT bản, theo con trỏ ngày tạo xoay vòng
+	(Codex ee3b339, 495cbcf): cắt cố định 200 bản cũ nhất thì bản mới bị bỏ đói,
+	còn lấy hết thì một nhịp không có chặn trên khi tồn đọng lớn. Con trỏ nằm
+	trong cache; mất cache thì chỉ bắt đầu lại từ bản cũ nhất, không sai."""
 	now = now_datetime()
-	ds = frappe.get_all(DOCTYPE,
-		filters={"trang_thai": ["in", ["Cho doi soat", "Dang gui"]], "creation": [">=", add_to_date(now, days=-2)]},
-		fields=["name", "trang_thai", "creation", "dien_thoai", "ho_ten", "tien_banh", "ngay_nhan",
-			"snapshot", "da_bao_sales_luc"],
-		order_by="creation asc", limit_page_length=0, ignore_permissions=True)
+	cache = frappe.cache()
+	con_tro = cache.get_value(KHOA_CON_TRO)
+	fields = ["name", "trang_thai", "creation", "dien_thoai", "ho_ten", "tien_banh", "ngay_nhan",
+		"snapshot", "da_bao_sales_luc"]
+
+	def lay(sau):
+		loc = [["trang_thai", "in", ["Cho doi soat", "Dang gui"]], ["creation", ">=", add_to_date(now, days=-2)]]
+		if sau:
+			loc.append(["creation", ">", sau])
+		return frappe.get_all(DOCTYPE, filters=loc, fields=fields, order_by="creation asc",
+			limit_page_length=LO_DOI_SOAT, ignore_permissions=True)
+
+	ds = lay(con_tro)
+	if con_tro and not ds:
+		ds = lay(None)
+	# Đủ một lô thì nhịp sau đi tiếp từ bản cuối; thiếu lô là đã tới cuối, quay lại đầu.
+	cache.set_value(KHOA_CON_TRO, ds[-1]["creation"] if len(ds) >= LO_DOI_SOAT else None, expires_in_sec=3 * 86400)
 	moc = add_to_date(now, minutes=-2)
 	return [r for r in ds if r["trang_thai"] == "Cho doi soat" or get_datetime(r["creation"]) <= moc]
 
