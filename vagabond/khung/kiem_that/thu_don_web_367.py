@@ -32,9 +32,23 @@ class _Tra:
 
 
 def _mot_mon():
-	"""Một mã bánh ô đang bán, có giá, để tao_don tính được tiền bánh thật."""
-	return frappe.db.get_value("Item", {"item_code": ["like", "BAWC%"], "disabled": 0,
+	"""Một mã bánh ô có giá để tao_don tính được tiền bánh thật.
+
+	Site CI trống, không có bánh nào, nên ca tự gieo một Item trong điểm lưu
+	(ghi vào _DA_TAO để nền rollback), không lệ thuộc dữ liệu có sẵn (Codex,
+	bench đỏ run 36148002675). Site thật có bánh thì dùng luôn bánh đang bán.
+	"""
+	co = frappe.db.get_value("Item", {"item_code": ["like", "BAWC%"], "disabled": 0,
 		"standard_rate": [">", 0]}, ["item_code", "standard_rate"], as_dict=True)
+	if co:
+		return co
+	from vagabond.khung.kiem_that import nen
+	d = frappe.get_doc({"doctype": "Item", "item_code": "BAWC-KIEM-367", "item_name": "Bánh ô kiểm 367",
+		"item_group": nen._mot("Item Group", {"is_group": 0}), "stock_uom": nen._mot("UOM", {}),
+		"is_stock_item": 0, "is_sales_item": 1, "standard_rate": 668000})
+	d.insert(ignore_permissions=True)
+	_DA_TAO.append((d.doctype, d.name))
+	return frappe._dict(item_code=d.name, standard_rate=d.standard_rate)
 
 
 def _goi(don, pancake):
@@ -126,14 +140,22 @@ def _():
 	d.save(ignore_permissions=True)
 	# Hook ghi sổ với một hoá đơn giả mang mã đó (không dựng Sales Invoice thật:
 	# hook chỉ đọc hai ô mã và tổng tiền).
+	# Hook về sớm khi cờ vagabond_kiem_that bật (nen._cach_ly bật suốt ca), nên
+	# tắt cờ đúng quanh lời gọi; xep_capi đã bị thay trước nên không ra ngoài (Codex).
 	xep = []
+	co = frappe.flags.vagabond_kiem_that
 	with patch.object(don_web, "xep_capi", lambda *a, **k: xep.append((a, k))):
-		don_web.khi_ghi_so_hoa_don(frappe._dict(name="SINV-KIEM-367", custom_pancake_id="",
-			custom_pancake_display_id="9036702", grand_total=1336000))
+		frappe.flags.vagabond_kiem_that = False
+		try:
+			don_web.khi_ghi_so_hoa_don(frappe._dict(name="SINV-KIEM-367", custom_pancake_id="",
+				custom_pancake_display_id="9036702", grand_total=1336000))
+		finally:
+			frappe.flags.vagabond_kiem_that = co
 	d.reload()
 	la("Đã ghi sổ", d.trang_thai, "Da ghi so")
 	la("giá trị ghi sổ", int(d.gia_tri_ghi_so), 1336000)
 	la("xếp Purchase sau commit", xep and (xep[0][0][1], xep[0][1].get("sau_commit")), ("Purchase", True))
+	la("hook chỉ xếp đúng một lần", len(xep), 1)
 
 
 @ca("367 CAPI: gửi đúng event_id và giá trị, băm số điện thoại, không gửi lại lần hai")
