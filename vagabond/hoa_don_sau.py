@@ -335,8 +335,13 @@ def co_hoa_don(k):
 def du_dieu_kien(khoan):
 	"""Nhãn hợp lệ của hồ sơ có dựa vào hoá đơn không: MỌI khoản đều mang
 	hoá đơn gốc hoặc chờ hoá đơn đến sau. Còn khoản không hoá đơn thật thì
-	nhãn là do người lập chọn theo chứng từ khác, luật hoá đơn không đụng."""
-	ds = list(khoan or [])
+	nhãn là do người lập chọn theo chứng từ khác, luật hoá đơn không đụng.
+
+	Codex #374 vòng 6: khoản ghi Nợ thẳng công nợ (cờ cong_no, gắn bởi
+	gan_cong_no) là trả nợ, không cần hoá đơn và không bao giờ được đánh dấu
+	chờ hoá đơn. Bỏ khỏi phép xét, như do_phu đã bỏ; giữ lại thì hồ sơ lẫn
+	chi phí và trả nợ không bao giờ lên Hợp lệ dù chi phí đã phủ đủ."""
+	ds = [k for k in (khoan or []) if not (k or {}).get("cong_no")]
 	return bool(ds) and all(co_hoa_don(k) for k in ds)
 
 

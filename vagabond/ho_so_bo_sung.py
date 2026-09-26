@@ -495,7 +495,9 @@ def _giu_hd_sau(hoa_don, khoa=False, chi_tkct=False, bo_qua_ho_so=""):
 		(hoa_don, bo_qua_ho_so or "", TT_HET_HIEU_LUC, 1 if chi_tkct else 0, _loai_tkct()), as_dict=True) or []
 
 
-TRUONG_KHOA_KHI_NOI = (("supplier", "nhà cung cấp"), ("company", "công ty"))
+# Codex #374 vòng 6: thêm tiền tệ. Lúc nối đã chặn tờ ngoại tệ; tờ nháp đã
+# nối mà đổi sang USD giữ nguyên con số thì tiền nối vẫn tính như VND.
+TRUONG_KHOA_KHI_NOI = (("supplier", "nhà cung cấp"), ("company", "công ty"), ("currency", "tiền tệ"))
 
 
 def giu_hd_da_noi(doc, method=None):
@@ -524,7 +526,7 @@ def giu_hd_da_noi(doc, method=None):
 		if giu:
 			frappe.throw(
 				"Hoá đơn %s đang là hoá đơn đến sau (chứng từ) của hồ sơ %s, nên không đổi %s được. "
-				"Hồ sơ đã kiểm đúng nhà cung cấp và công ty lúc nối. Cần đổi thì huỷ hồ sơ %s trước."
+				"Hồ sơ đã kiểm đúng nhà cung cấp, công ty và tiền tệ lúc nối. Cần đổi thì huỷ hồ sơ %s trước."
 				% (doc.name, giu, " và ".join(doi), giu), title="Tờ này đang làm chứng từ")
 	if doi_tien:
 		# v530: tờ nháp nối ở mức hồ sơ thì so với tổng tờ lúc nối.
