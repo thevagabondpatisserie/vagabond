@@ -137,7 +137,7 @@ class _JE:
 		self.docstatus = 2
 
 
-def _chay(ho_so, to, ham, giu_cu=None, giu_moi=None, no_ho_so=None, bu_truoc=None, ds_je=None, cam_doc=(), cam_ncc=(), anh_chup=None):
+def _chay(ho_so, to, ham, giu_cu=None, giu_moi=None, no_ho_so=None, bu_truoc=None, ds_je=None, cam_doc=(), cam_ncc=(), anh_chup=None, bu_song=()):
 	"""Chạy HÀM THẬT của ho_so_bo_sung trên lớp dữ liệu giả.
 
 	to: {tên: tờ HIỆN HÀNH}. giu_cu/giu_moi: {tờ: hồ sơ khác đang giữ} theo
@@ -188,6 +188,11 @@ def _chay(ho_so, to, ham, giu_cu=None, giu_moi=None, no_ho_so=None, bu_truoc=Non
 			return (("PKT-CHI",),)
 		if "tabjournal entry account" in ql and "parent in" in ql:
 			return [(tk, n) for tk, n in no_ho_so.items()]
+		if "vgb_bu_tru_ho_so = %s" in ql and "limit 1" in ql:
+			# Bút toán bù trừ còn ghi sổ của hồ sơ (vòng 9, chặn huỷ bút toán chi).
+			return [(x,) for x in bu_song][:1]
+		if "from `tabvagabond ho so tt` where name = %s" in ql and "for update" not in ql:
+			return ((tham[0],),) if tham[0] == ho_so.name else ()
 		if "vgb_bu_tru_ho_so = %s group by" in ql:
 			return [(tk, c) for tk, c in (bu_truoc or {}).items()]
 		return ()
@@ -839,3 +844,19 @@ def _quyen_sau_khoa_to():
 	la("khoá đủ sáu tờ", len(khoa_to), 6)
 	dung("mọi lần hỏi quyền sau khi đã khoá hết tờ", bool(quyen) and min(quyen) > max(khoa_to))
 	dung("mỗi lần hỏi quyền đi ngay sau lần nạp tờ có khoá", all(r2.cau[i - 1].startswith("GET_DOC PI ") and r2.cau[i - 1].endswith(" for_update") for i in quyen))
+
+
+# Codex #374 trên 600e50d ----------------------------------------------------
+
+@ca("v530 Codex #374 F16: huỷ bút toán CHI của hồ sơ khi còn bút toán bù trừ hoá đơn đến sau thì bị chặn (cả hồ sơ cũ nhận theo số tham chiếu)")
+def _chan_huy_but_toan_chi():
+	chi = _C(name="PKT-2026-00017", vgb_ho_so_tt="APP.26.09.009", cheque_no="APP.26.09.009", flags=_C())
+	r = _chay(_adecco(), {}, lambda b: b.chan_huy_bu_tru(chi), bu_song=["PKT-2026-00100"])
+	dung("chặn, gọi tên hồ sơ và bút toán bù trừ, chỉ đường Gỡ", "APP.26.09.009" in r.loi and "PKT-2026-00100" in r.loi and "Gỡ" in r.loi)
+	la("hồ sơ không còn bù trừ: huỷ bút toán chi được như cũ", _chay(_adecco(), {}, lambda b: b.chan_huy_bu_tru(chi)).loi, "")
+	cu = _C(name="PKT-2026-00009", vgb_ho_so_tt="", cheque_no="APP.26.09.009", flags=_C())
+	r2 = _chay(_adecco(), {}, lambda b: b.chan_huy_bu_tru(cu), bu_song=["PKT-2026-00101"])
+	dung("hồ sơ cũ (bút toán chi chỉ mang số tham chiếu là mã hồ sơ): cũng chặn", "PKT-2026-00101" in r2.loi)
+	la("số tham chiếu không phải mã hồ sơ: không đụng",
+		_chay(_adecco(), {}, lambda b: b.chan_huy_bu_tru(_C(name="PKT-9", vgb_ho_so_tt="", cheque_no="UNC-123", flags=_C())),
+			bu_song=["PKT-2026-00101"]).loi, "")
