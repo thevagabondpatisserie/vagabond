@@ -974,12 +974,39 @@ def chan_huy_bu_tru(doc, method=None):
 	"""before_cancel Journal Entry (v530, Codex #373 vòng 2): bút toán bù trừ
 	hoá đơn đến sau chỉ huỷ qua go_noi (cờ vgb_go_noi)."""
 	ho_so = (doc.get("vgb_bu_tru_ho_so") or "").strip() if hasattr(doc, "get") else ""
-	if not ho_so or getattr(getattr(doc, "flags", None), "vgb_go_noi", False):
+	if not ho_so:
+		_chan_huy_but_toan_chi(doc)
+		return
+	if getattr(getattr(doc, "flags", None), "vgb_go_noi", False):
 		return
 	frappe.throw(
 		"Bút toán %s là bút toán bù trừ hoá đơn đến sau của hồ sơ %s. Huỷ thẳng ở đây thì công nợ tờ hoá đơn "
 		"sống lại mà hồ sơ vẫn giữ dòng nối. Mở hồ sơ %s và bấm Gỡ ở tờ hoá đơn." % (doc.name, ho_so, ho_so),
 		title="Huỷ qua nút Gỡ trên hồ sơ")
+
+
+def _chan_huy_but_toan_chi(doc):
+	"""Codex #374 (600e50d): bút toán CHI của hồ sơ (mang vgb_ho_so_tt, hồ sơ cũ
+	trước v445 nhận theo số tham chiếu là mã hồ sơ, cùng cách _no_chi_phi_con_lai
+	nhận) không được huỷ khi hồ sơ còn bút toán bù trừ hoá đơn đến sau: huỷ thì
+	tiền chi đảo ngược mà bù trừ và dòng nối vẫn còn, hồ sơ trông như đã trả và
+	hợp lệ tính thuế trong khi không còn khoản chi nào."""
+	g = doc.get if hasattr(doc, "get") else (lambda k, d=None: getattr(doc, k, d))
+	ho_so = (g("vgb_ho_so_tt") or "").strip()
+	if not ho_so:
+		so = (g("cheque_no") or "").strip()
+		if so and frappe.db.sql("select name from `tabVagabond Ho So TT` where name = %s", (so,)):
+			ho_so = so
+	if not ho_so:
+		return
+	bt = frappe.db.sql(
+		"""select name from `tabJournal Entry` where docstatus = 1 and vgb_bu_tru_ho_so = %s limit 1""", (ho_so,))
+	if bt:
+		frappe.throw(
+			"Bút toán %s là bút toán chi của hồ sơ %s, mà hồ sơ đang có bút toán bù trừ hoá đơn đến sau %s. "
+			"Huỷ bút toán chi lúc này thì hồ sơ vẫn trông như đã trả và hợp lệ. Mở hồ sơ %s, bấm Gỡ các tờ "
+			"hoá đơn đến sau trước rồi mới huỷ." % (doc.name, ho_so, bt[0][0], ho_so),
+			title="Gỡ hoá đơn đến sau trước")
 
 
 @frappe.whitelist(methods=["POST"])
