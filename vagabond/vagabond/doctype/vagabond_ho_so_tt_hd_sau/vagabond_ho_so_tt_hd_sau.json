@@ -1,0 +1,116 @@
+{
+ "actions": [],
+ "creation": "2026-09-25 22:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "hoa_don",
+  "so_hd_ncc",
+  "ncc",
+  "tong_hd",
+  "tien_khop",
+  "da_ghi_so",
+  "bu_tru",
+  "but_toan",
+  "ngoai_ncc",
+  "noi_boi",
+  "noi_luc"
+ ],
+ "fields": [
+  {
+   "fieldname": "hoa_don",
+   "fieldtype": "Link",
+   "label": "Hoá đơn mua",
+   "options": "Purchase Invoice",
+   "in_list_view": 1,
+   "columns": 2,
+   "search_index": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "so_hd_ncc",
+   "fieldtype": "Data",
+   "label": "Số hoá đơn NCC",
+   "in_list_view": 1,
+   "columns": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "ncc",
+   "fieldtype": "Link",
+   "label": "Nhà cung cấp trên tờ",
+   "options": "Supplier",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tong_hd",
+   "fieldtype": "Currency",
+   "label": "Tổng tờ",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tien_khop",
+   "fieldtype": "Currency",
+   "label": "Tiền đem khớp",
+   "in_list_view": 1,
+   "columns": 2,
+   "read_only": 1,
+   "description": "Tờ nháp: tổng tờ. Tờ đã ghi sổ: số còn nợ lúc nối."
+  },
+  {
+   "fieldname": "da_ghi_so",
+   "fieldtype": "Check",
+   "label": "Tờ đã ghi sổ lúc nối",
+   "in_list_view": 1,
+   "columns": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "bu_tru",
+   "fieldtype": "Currency",
+   "label": "Số bù trừ",
+   "in_list_view": 1,
+   "columns": 2,
+   "read_only": 1
+  },
+  {
+   "fieldname": "but_toan",
+   "fieldtype": "Link",
+   "label": "Bút toán bù trừ",
+   "options": "Journal Entry",
+   "in_list_view": 1,
+   "columns": 2,
+   "read_only": 1
+  },
+  {
+   "fieldname": "ngoai_ncc",
+   "fieldtype": "Check",
+   "label": "Nối ngoài nhà cung cấp",
+   "read_only": 1
+  },
+  {
+   "fieldname": "noi_boi",
+   "fieldtype": "Data",
+   "label": "Người nối",
+   "read_only": 1
+  },
+  {
+   "fieldname": "noi_luc",
+   "fieldtype": "Datetime",
+   "label": "Lúc nối",
+   "read_only": 1
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-09-25 22:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Vagabond Ho So TT HD Sau",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
