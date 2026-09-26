@@ -533,8 +533,9 @@ def _frappe_bao_sales(url, nhan):
 	g = dict(frappe=fr, cfg_o=lambda k: url, soan_tin_sales=lambda r, u: "tin", now_datetime=lambda: "T",
 		DOCTYPE="Vagabond Don Web", add_to_date=lambda d, **k: d, PHUT_BAO_SALES=30,
 		TIEU_DE_THIEU_WEBHOOK=don_web.TIEU_DE_THIEU_WEBHOOK)
-	# Nạp THẬT cả hàm báo thiếu webhook, cùng bộ Frappe giả (vòng 3).
+	# Nạp THẬT cả hàm báo thiếu webhook và nguồn giãn chung, cùng bộ Frappe giả (vòng 3, 4).
 	g["_bao_thieu_webhook"] = lambda r: nap("don_web.py", "_bao_thieu_webhook", g)(r)
+	g["_bao_cau_hinh_thieu"] = lambda t, n: nap("don_web.py", "_bao_cau_hinh_thieu", g)(t, n)
 	return g, gui, ghi, goi
 
 
@@ -671,6 +672,41 @@ def _():
 			len([x for x in goi if x == ("log", "Don web: chua cau hinh webhook nhom Sales")]), mong)
 		dung("giãn theo Error Log cùng tiêu đề trong 6 giờ", bool(hoi) and hoi[0][0] == "Error Log"
 			and (hoi[0][1] or {}).get("method") == "Don web: chua cau hinh webhook nhom Sales")
+
+
+@ca("#367 H vòng 4: thiếu khoá hay mã shop Pancake thì vẫn đưa bản ghi quá giờ sang lối báo Sales, có Error Log (Codex 46b7a9a)")
+def _():
+	import sys
+	for k_pc, shop in (("", "1"), ("k", ""), ("", "")):
+		goi_mot, log, keo, hoi = [], [], [], []
+		fr = types.SimpleNamespace(
+			flags=types.SimpleNamespace(vagabond_kiem_that=False),
+			db=types.SimpleNamespace(rollback=lambda: None, exists=lambda dt, loc=None: hoi.append(loc) or False),
+			log_error=lambda **kw: log.append(kw.get("title")), get_traceback=lambda: "tb",
+			get_all=lambda *a, **kw: [])
+		ds = [{"name": "DW-1", "creation": "2026-09-25 13:00:00"}, {"name": "DW-2", "creation": "2026-09-25 13:10:00"}]
+		kb = types.ModuleType("vagabond.kiem_banh")
+		kb.LoiPancake = RuntimeError
+		kb._keo_don = lambda *a, **kw: keo.append(1) or []
+		cu = sys.modules.get("vagabond.kiem_banh")
+		sys.modules["vagabond.kiem_banh"] = kb
+		try:
+			g = dict(frappe=fr, _dang_cho=lambda: ds, cfg=lambda: types.SimpleNamespace(pancake_shop_id=shop),
+				key=lambda c, kk: k_pc, _unix=lambda t: 0, now_datetime=lambda: "T", add_to_date=lambda *a, **kw: "T0",
+				DOCTYPE="Vagabond Don Web", PHUT_BAO_SALES=30, TIEU_DE_THIEU_PANCAKE="Don web: chua cau hinh Pancake de doi soat",
+				_doi_soat_mot=lambda r, dons, gan: goi_mot.append((r["name"], dons)))
+			g["_bao_cau_hinh_thieu"] = lambda t, n: nap("don_web.py", "_bao_cau_hinh_thieu", g)(t, n)
+			nap("don_web.py", "doi_soat_tu_dong", g)()
+		finally:
+			if cu is None:
+				sys.modules.pop("vagabond.kiem_banh", None)
+			else:
+				sys.modules["vagabond.kiem_banh"] = cu
+		nhan = "khoa=%r shop=%r" % (k_pc, shop)
+		la("mọi bản ghi vẫn qua _doi_soat_mot với danh sách đơn rỗng, " + nhan, goi_mot, [("DW-1", []), ("DW-2", [])])
+		la("không gọi Pancake, " + nhan, keo, [])
+		la("một Error Log thiếu cấu hình Pancake, " + nhan, log, ["Don web: chua cau hinh Pancake de doi soat"])
+		dung("giãn theo Error Log cùng tiêu đề, " + nhan, bool(hoi) and hoi[0].get("method") == "Don web: chua cau hinh Pancake de doi soat")
 
 
 @ca("#367 H tin Lark cho Sales đủ để gọi khách và chỉ đường xử lý tay")
