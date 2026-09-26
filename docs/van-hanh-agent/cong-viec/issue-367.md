@@ -45,3 +45,21 @@ giả (không phải site thật). Số liệu cụ thể ở comment bàn giao 
 - Marketing phải điền chỗ trống và xuất bản ba trang chính sách, anh Việt điền
   Pixel ID, token CAPI, email, webhook Lark trước khi chạy quảng cáo.
 - PR2 (trang từng bánh, Open Graph, Meta Catalog) chưa làm.
+
+## Vòng 2 (25/09/2026, Claude sửa theo rà soát Codex trên b03e43a)
+
+- Ba trang chính sách 404: Frappe không truyền `defaults` của
+  `website_route_rules` vào `form_dict`. Bỏ `defaults`, thêm
+  `noi_dung_web.khoa_tu_duong(duong)` thuần, `www/chinh_sach.py` suy khoá từ
+  `frappe.local.request.path` (dự phòng `frappe.local.path`); đường lạ hay
+  chưa xuất bản vẫn 404. Ca mới nhóm J.
+- `_bao_sales` chỉ đóng dấu `da_bao_sales_luc` SAU khi Lark trả nhận; thiếu
+  URL hay gửi hỏng thì để trống để nhịp sau thử lại, có Error Log. Ca mới nhóm H.
+- Nhịp `doi_soat_tu_dong` tách `_doi_soat_mot(r, dons, gan)`, mỗi bản ghi
+  một `try` riêng, lỗi thì rollback và ghi log, bản ghi sau vẫn chạy. Ca mới nhóm H.
+- `ghep_don_pancake` bỏ đơn Pancake trạng thái 6, 7 (huỷ, xoá), cùng luật
+  với `kiem_banh` và `mua_vu`. Ca nhóm H mở rộng.
+- Bench `kiem_that/thu_don_web_367.py`: tự gieo Item bánh có giá khi site CI
+  trống (bench đỏ run 36148002675), tắt cờ `vagabond_kiem_that` trong
+  `try/finally` quanh `khi_ghi_so_hoa_don` để hook thật chạy.
+- Không đổi APPVER (vẫn 529, chưa phát hành), không thêm patch.
