@@ -841,13 +841,17 @@ def bien_nhan_theo_token(token):
 
 def _dang_cho():
 	"""Bản ghi cần đối soát: Chờ đối soát, hoặc Đang gửi quá 2 phút (tiến
-	trình chết giữa lúc gọi Pancake thì bản ghi kẹt ở Đang gửi mãi mãi)."""
+	trình chết giữa lúc gọi Pancake thì bản ghi kẹt ở Đang gửi mãi mãi).
+
+	Lấy HẾT trong cửa sổ 2 ngày, không cắt trang (Codex ee3b339): cắt 200 bản
+	cũ nhất thì khi tồn đọng, bản ghi mới hơn không bao giờ được xét hay báo
+	Sales rồi rơi khỏi cửa sổ. Cửa sổ 2 ngày đã chặn trên số dòng."""
 	now = now_datetime()
 	ds = frappe.get_all(DOCTYPE,
 		filters={"trang_thai": ["in", ["Cho doi soat", "Dang gui"]], "creation": [">=", add_to_date(now, days=-2)]},
 		fields=["name", "trang_thai", "creation", "dien_thoai", "ho_ten", "tien_banh", "ngay_nhan",
 			"snapshot", "da_bao_sales_luc"],
-		order_by="creation asc", limit_page_length=200, ignore_permissions=True)
+		order_by="creation asc", limit_page_length=0, ignore_permissions=True)
 	moc = add_to_date(now, minutes=-2)
 	return [r for r in ds if r["trang_thai"] == "Cho doi soat" or get_datetime(r["creation"]) <= moc]
 
