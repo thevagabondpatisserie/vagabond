@@ -871,11 +871,20 @@ def _no_chi_phi_con_lai(d):
 	# sau khi đã khoá hồ sơ; bút toán chi vừa bị huỷ trong lúc chờ khoá thì
 	# câu đọc thường vẫn thấy nó còn ghi sổ (ảnh chụp cũ) và lập bù trừ trên
 	# một khoản chi không còn. Tái hiện trên MariaDB thật.
+	# vgb_ho_so_tt có chỉ mục (vòng 4), for update chỉ khoá đúng các dòng đó.
 	je = [r[0] for r in frappe.db.sql(
 		"select name from `tabJournal Entry` where docstatus = 1 and vgb_ho_so_tt = %s for update", (d.name,))]
 	if not je:
-		je = [r[0] for r in frappe.db.sql(
-			"select name from `tabJournal Entry` where docstatus = 1 and cheque_no = %s for update", (d.name,))]
+		# Hồ sơ cũ trước v445: số tham chiếu (cheque_no) KHÔNG có chỉ mục, for
+		# update trên nó là khoá cả bảng. Đọc thường tìm ứng viên, rồi khoá
+		# theo khoá chính và soát lại docstatus hiện hành: bút toán vừa bị huỷ
+		# thì rơi ra; bút toán vừa lập mà ảnh chụp chưa thấy thì hồ sơ thiếu
+		# chi phí và lần nối dừng, không bao giờ lập bù trừ sai.
+		ung = [r[0] for r in frappe.db.sql(
+			"select name from `tabJournal Entry` where docstatus = 1 and cheque_no = %s", (d.name,))]
+		if ung:
+			je = [r[0] for r in frappe.db.sql(
+				"select name from `tabJournal Entry` where name in %s and docstatus = 1 for update", (tuple(ung),))]
 	no = {}
 	if je:
 		for tk, n in frappe.db.sql(

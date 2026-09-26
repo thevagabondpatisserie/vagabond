@@ -126,6 +126,10 @@ TRUONG_MOI = {
 			"insert_after": "user_remark",
 			"read_only": 1,
 			"no_copy": 1,
+			# Codex #374 vòng 4: nối hoá đơn đến sau và huỷ bút toán chi đọc ô
+			# này bằng câu for update. Không chỉ mục thì MariaDB quét và khoá cả
+			# bảng Journal Entry (đã đo: mọi thao tác bút toán khác đều chờ).
+			"search_index": 1,
 			"description": "Hồ sơ thanh toán đã dựng ra bút toán này (chi thẳng từ tài khoản công ty).",
 		},
 		# v530: bút toán BÙ TRỪ khi nối tờ đã ghi sổ làm hoá đơn đến sau.
@@ -140,6 +144,7 @@ TRUONG_MOI = {
 			"insert_after": "vgb_ho_so_tt",
 			"read_only": 1,
 			"no_copy": 1,
+			"search_index": 1,
 			"description": "Hồ sơ đã chi trước, tờ hoá đơn ghi sổ sau: bút toán này chuyển chi phí đã ghi qua hồ sơ sang trả công nợ tờ đó.",
 		},
 	],
