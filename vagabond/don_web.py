@@ -852,6 +852,15 @@ def _dang_cho():
 	return [r for r in ds if r["trang_thai"] == "Cho doi soat" or get_datetime(r["creation"]) <= moc]
 
 
+def _log_ben(tieu_de, noi_dung):
+	"""Ghi Error Log rồi commit ngay (Codex 2995bbc). log_error của Frappe chèn
+	vào CÙNG giao dịch, nên rollback của một bản ghi hỏng phía sau xoá luôn các
+	log đã ghi trước đó trong nhịp. Mọi log của nhịp đối soát đi qua đây; chỉ
+	gọi ở chỗ không còn ghi dở dang nào (trước vòng lặp, hoặc ngay sau rollback)."""
+	frappe.log_error(title=tieu_de, message=noi_dung)
+	frappe.db.commit()
+
+
 def doi_soat_tu_dong():
 	"""Nhịp 5 phút: tìm đơn Pancake cho bản ghi chưa có mã, quá 30 phút báo Sales."""
 	if getattr(frappe.flags, "vagabond_kiem_that", False):
@@ -878,7 +887,7 @@ def doi_soat_tu_dong():
 			try:
 				dons = _keo_don(c, k, "inserted_at", dau, cuoi)
 			except LoiPancake as e:
-				frappe.log_error(title="Don web: doi soat chua keo duoc Pancake", message=str(e)[:500])
+				_log_ben("Don web: doi soat chua keo duoc Pancake", str(e)[:500])
 				dons = []
 		gan = set(frappe.get_all(DOCTYPE, filters={"pancake_display_id": ["is", "set"],
 			"creation": [">=", add_to_date(now_datetime(), days=-3)]}, pluck="pancake_display_id",
@@ -893,10 +902,11 @@ def doi_soat_tu_dong():
 				_doi_soat_mot(r, dons, gan)
 			except Exception:
 				frappe.db.rollback()
-				frappe.log_error(title="Don web: doi soat mot ban ghi",
-					message="Ban ghi %s\n%s" % (r.get("name"), frappe.get_traceback()))
+				_log_ben("Don web: doi soat mot ban ghi",
+					"Ban ghi %s\n%s" % (r.get("name"), frappe.get_traceback()))
 	except Exception:
-		frappe.log_error(title="Don web: doi soat tu dong", message=frappe.get_traceback())
+		frappe.db.rollback()
+		_log_ben("Don web: doi soat tu dong", frappe.get_traceback())
 
 
 def can_bao_sales(r, bay_gio):
@@ -925,8 +935,8 @@ def _doi_soat_mot(r, dons, gan):
 		o, _ly_do = ghep_don_pancake(r["dien_thoai"], _unix(r["creation"]), hang, dons, gan)
 	except Exception:
 		frappe.db.rollback()
-		frappe.log_error(title="Don web: ban ghi khong ghep duoc, van bao Sales",
-			message="Ban ghi %s\n%s" % (r.get("name"), frappe.get_traceback()))
+		_log_ben("Don web: ban ghi khong ghep duoc, van bao Sales",
+			"Ban ghi %s\n%s" % (r.get("name"), frappe.get_traceback()))
 		o = None
 	if o:
 		d = frappe.get_doc(DOCTYPE, r["name"])
@@ -956,7 +966,7 @@ def _bao_cau_hinh_thieu(tieu_de, noi_dung):
 			return False
 	except Exception:
 		pass
-	frappe.log_error(title=tieu_de, message=noi_dung)
+	_log_ben(tieu_de, noi_dung)
 	return True
 
 
@@ -982,8 +992,8 @@ def _bao_sales(r):
 		return False
 	cau = soan_tin_sales(r, frappe.utils.get_url_to_form(DOCTYPE, r["name"]))
 	if not ban_webhook(cau, url=url):
-		frappe.log_error(title="Don web: chua bao duoc nhom Sales qua Lark",
-			message="Ban ghi %s. Kiem tra webhook nhom Sales don web. Se thu lai nhip sau." % r["name"])
+		_log_ben("Don web: chua bao duoc nhom Sales qua Lark",
+			"Ban ghi %s. Kiem tra webhook nhom Sales don web. Se thu lai nhip sau." % r["name"])
 		return False
 	# Chỉ đóng dấu SAU khi Lark nhận, để lỗi mạng hay webhook sai còn được
 	# thử lại ở nhịp sau, không tắt vĩnh viễn lối người xử lý (Codex).
