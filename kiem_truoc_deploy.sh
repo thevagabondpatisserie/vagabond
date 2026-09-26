@@ -128,6 +128,8 @@ node vagabond/khung/kiem_thu/hanh_vi/stk_tai_cho_515.js
 node vagabond/khung/kiem_thu/hanh_vi/bang_sang_351.js
 # #352: ma QR xuat hoa don tren bill ve tai may, khong phu thuoc mang ngoai.
 node vagabond/khung/kiem_thu/hanh_vi/qr_xhd_bill_352.js
+# v530: hop chon hoa don den sau muc ho so, o tim giu display:flex.
+node vagabond/khung/kiem_thu/hanh_vi/hoa_don_sau_530.js
 # #352: thanh bao hoa don dau vao chua thanh phieu mua tren Desk.
 node vagabond/khung/kiem_thu/hanh_vi/cho_dung_352.js
 # #358: may goi y Mon, nguoi chot Mon va he so; he so ghi vao Mon.

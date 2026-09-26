@@ -36,7 +36,10 @@ function hoiChon(tuaDe, moTa, luaChon, kDangChon) {
       var chon = kDangChon != null && x.k === kDangChon;
       than += '<div data-hc="' + h(String(x.k)) + '" style="display:flex;align-items:flex-start;gap:11px;padding:13px 14px;border-radius:14px;margin-bottom:9px;cursor:pointer;'
         + (chon ? 'background:#0f766e;color:#fff' : 'background:#f4f6f9;color:#20242e') + '">'
-        + '<div style="font-size:20px;line-height:1.2;flex:0 0 auto">' + (x.icon || '•') + '</div>'
+        /* v530: chi ve o bieu tuong khi muc CO bieu tuong. Dau cham mac dinh
+           khong noi gi voi nguoi dung (anh Viet 25/09/2026: "nhin mat tham mi
+           va khong ro rang"). */
+        + (x.icon ? '<div style="font-size:20px;line-height:1.2;flex:0 0 auto">' + x.icon + '</div>' : '')
         + '<div style="flex:1;min-width:0">'
         + '<div style="font-size:15px;font-weight:700">' + h(x.nhan) + '</div>'
         + (x.mo_ta ? '<div style="font-size:12.5px;line-height:1.5;margin-top:3px;' + (chon ? 'color:#d6f5f0' : 'color:#6b7280') + '">' + h(x.mo_ta) + '</div>' : '')
@@ -758,12 +761,18 @@ function vgbNoiOTim(goc, idO, mucSel, layChu) {
   var chu = muc.map(function (el) {
     return mvKhongDau(layChu ? layChu(el) : (el.textContent || ''));
   });
+  /* v530 (anh Viet 25/09/2026, anh o chon hoa don den sau): hien lai muc bang
+     display '' la XOA LUON display:flex ghi thang tren the, muc thanh khoi
+     thuong, dau cham nhay len mot dong rieng tren ten. chay() chay ngay luc
+     noi nen moi hop chon co o tim deu hong tu lan mo dau. Giu display goc cua
+     tung muc, hien lai dung gia tri do. */
+  var goc = muc.map(function (el) { return el.style.display === 'none' ? '' : el.style.display; });
   var chay = function () {
     var q = mvKhongDau(o.value).trim();
     var thay = 0;
     for (var i = 0; i < muc.length; i++) {
       var hop = !q || chu[i].indexOf(q) >= 0;
-      muc[i].style.display = hop ? '' : 'none';
+      muc[i].style.display = hop ? goc[i] : 'none';
       if (hop) thay++;
     }
     if (oTrong) oTrong.style.display = (q && !thay) ? '' : 'none';
