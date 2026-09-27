@@ -178,6 +178,13 @@ def _phong_thuong_hieu():
 	trang = _doc("vagabond", "trang", "banh.html")
 	dung("h1 dùng Vagabond Sans và vẫn đè cua-hang.css", "html body .h1{font-family:'Vagabond Sans'" in trang)
 	dung("không còn ép phông hệ thống lên h1", "html body .h1{font-family:var(--sans)" not in trang)
+	# Anh Việt 27/09 chiều: "TẦNG HƯƠNG phải dùng font Vagabond". Luật ép phông
+	# hệ thống của v529 chỉ còn áp lên con số, không còn tiêu đề nào trong đó.
+	for lop in (".h-sec", ".f-big", ".empty .big"):
+		dung("%s không bị ép phông hệ thống" % lop,
+		     re.search(r"[^\n]*%s[^\n{]*\{font-family:var\(--sans\)" % re.escape(lop), trang) is None)
+	for lop, mo in ((".h-sec{", "Tầng hương"), (".f-big{", "Đặt bánh nhắn em nhé"), (".empty .big{", "ô trống")):
+		dung("%s (%s) khai phông thương hiệu" % (lop, mo), lop + "font-family:'Vagabond Sans'" in trang)
 	try:
 		from fontTools.ttLib import TTFont
 	except ImportError:
