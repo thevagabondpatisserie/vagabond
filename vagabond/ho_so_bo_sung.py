@@ -673,36 +673,28 @@ def noi_hoa_don(name, dong, hoa_don):
 	# v526 (anh Việt 23/09/2026): nối đủ thì hồ sơ thành chi phí hợp lệ tính
 	# thuế. Còn khoản không chờ hoá đơn thì giữ nguyên, đó là khoản không
 	# hoá đơn thật.
-	from vagabond.ho_so_tt import CP_HOP_LE, LOAI_TKCT
+	from vagabond.ho_so_tt import LOAI_TKCT
 	la_tkct = (getattr(d, "loai", None) or "") == LOAI_TKCT
-	lech = []
-	doi_hop_le = False
-	if la_tkct and nen_hop_le(d.dong):
-		# Codex #368 vòng 7: so tiền từng tờ với khoản của nó trước khi đổi cả
-		# hồ sơ sang hợp lệ. Lệch thì vẫn nối (tờ là chứng từ thật của NCC),
-		# nhưng hồ sơ giữ loại cũ và báo rõ khoản nào lệch.
-		# Vòng 11: đọc tổng từng tờ qua tong_hoa_don_khoa (khoá tờ, đọc hiện
-		# hành), không get_value. Khoá theo thứ tự tên để hai lần nối không
-		# khoá chéo nhau.
-		tong_hd = {}
-		for ma in sorted({(x.get("hoa_don_bo_sung") or "").strip() for x in d.dong} - {""}):
-			tong_hd[ma] = tong_hoa_don_khoa(ma)
-		lech = lech_tien_hoa_don(d.dong, tong_hd)
-		# v531: tờ không có số hoá đơn thật không làm căn cứ hợp lệ.
-		gia = to_khong_hoa_don(tong_hd.keys(), khoa=True)
-		if gia:
-			lech = lech + ["tờ %s không có số hoá đơn thật (chứng từ nội bộ)" % m for m in sorted(gia)]
-		doi_hop_le = not lech and (getattr(d, "loai_cp_thue", None) or "") != CP_HOP_LE
-	if doi_hop_le:
-		d.loai_cp_thue = CP_HOP_LE
+	# Codex #375 vòng 2 (8a2837e): xếp nhãn qua _cap_nhat_hop_le, MỘT nguồn
+	# với noi_nhieu và go_noi, cả hai chiều. Bản trước tự tính và chỉ nâng lên,
+	# nên hồ sơ đang Hợp lệ (kể cả nhãn sai từ trước v531) nối tờ số giả vẫn
+	# giữ Hợp lệ. Lệch tiền (Codex #368 vòng 7) và tờ không có số thật vẫn
+	# được báo rõ qua flags.vgb_lech.
+	doi = _cap_nhat_hop_le(d, la_tkct)
+	lech = list(getattr(getattr(d, "flags", None), "vgb_lech", None) or []) if doi != 1 else []
 	# Khong goi kiem_bo_sung o day: luc nay get_doc_before_save() con None nen
 	# hang rao giu lien ket khong thay ban cu, chay cho co. Controller goi no
 	# trong validate voi ban cu that, do moi la cua duy nhat.
 	d.save(ignore_permissions=True)
+	if doi == 1:
+		them = " Đủ hoá đơn cho mọi khoản, hồ sơ chuyển sang chi phí hợp lệ tính thuế."
+	elif doi == -1:
+		them = " Hồ sơ trở lại chi phí không hợp lệ tính thuế" + (": " + "; ".join(lech) if lech else "") + "."
+	else:
+		them = " Chưa chuyển hợp lệ tính thuế vì: " + "; ".join(lech) + "." if lech else ""
 	d.add_comment("Comment", "Nối hóa đơn bổ sung %s vào khoản %s. Không phát sinh bút toán thanh toán.%s" % (
-		hoa_don, dong, " Đủ hoá đơn cho mọi khoản, hồ sơ chuyển sang chi phí hợp lệ tính thuế." if doi_hop_le else (
-			" Chưa chuyển hợp lệ tính thuế vì tiền lệch: " + "; ".join(lech) + "." if lech else "")))
-	return {"ok": 1, "hop_le": 1 if doi_hop_le else 0, "lech": lech}
+		hoa_don, dong, them))
+	return {"ok": 1, "hop_le": 1 if doi == 1 else 0, "ve_khong_hop_le": 1 if doi == -1 else 0, "lech": lech}
 
 
 @frappe.whitelist()
@@ -1053,6 +1045,10 @@ def _cap_nhat_hop_le(d, tkct):
 	# v531: một nguồn cho câu hỏi "tờ này có phải hoá đơn thật không".
 	gia = to_khong_hoa_don(_to_lam_can_cu(d), khoa=True)
 	d.flags.vgb_to_gia = sorted(gia)
+	# Lý do không lên hợp lệ, cho người bấm đọc (nối kiểu cũ trả về "lech").
+	# Chỉ nói khi nhãn do luật hoá đơn quyết (mọi khoản có đường tới hoá đơn).
+	d.flags.vgb_lech = (list(lech) + ["tờ %s không có số hoá đơn thật (chứng từ nội bộ)" % m for m in sorted(gia)]
+		if hs.du_dieu_kien(_khoan_cua(d)) else [])
 	nen = hs.nen_hop_le(_khoan_cua(d), _lien_ket_cua(d), lech, to_gia=gia)
 	hien = getattr(d, "loai_cp_thue", None) or ""
 	if nen and hien != CP_HOP_LE:

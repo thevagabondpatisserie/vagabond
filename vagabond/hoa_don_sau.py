@@ -85,7 +85,9 @@ def la_so_hoa_don_that(so_hd):
 	s = str(so_hd or "").strip()
 	if not any(c.isalnum() for c in s):
 		return False
-	if not s.strip("0 "):
+	# Codex #375 vòng 2: "000-000", "000.000", "00/00" cũng là toàn số 0; bỏ
+	# dấu ngăn thường gặp rồi mới xét.
+	if not re.sub(r"[\s.\-/_]", "", s).strip("0"):
 		return False
 	return not _MA_HO_SO.match(s)
 
