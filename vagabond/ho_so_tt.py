@@ -657,6 +657,19 @@ def tao(ncc=None, hoa_don=None, ghi_chu="", gui_luon=0, loai=None, tk_chi=None,
 	# phieu khong duoc noi hai dong, va phieu phai da qua duyet.
 	_soi_phieu_noi_bo(dong, theo_tien=False)
 
+	if (loai or "") == LOAI_TKCT:
+		# v531: hồ sơ TK công ty lập từ tờ đã tick mang sẵn nhãn "hợp lệ tính
+		# thuế". Tờ không có số hoá đơn thật thì không làm căn cứ đó được.
+		from vagabond.hoa_don_sau import la_so_hoa_don_that
+		gia = [r for r in dong if not la_so_hoa_don_that(r.get("so_hd_ncc"))]
+		if gia:
+			frappe.throw(
+				"Tờ %s không có số hoá đơn thật (%s), nên không lập được hồ sơ chi phí hợp lệ tính thuế từ tờ "
+				"này. Khoản không có hoá đơn thì gõ tay ở màn chi từ TK công ty và chọn không hợp lệ."
+				% (", ".join(r["hoa_don"] for r in gia),
+					", ".join(('số "%s"' % r["so_hd_ncc"]) if r.get("so_hd_ncc") else "trống số" for r in gia)),
+				title="Thiếu số hoá đơn")
+
 	nhieu_ncc = (loai or "") == LOAI_HU_HD
 	if len(ncc_thay) > 1 and not nhieu_ncc:
 		frappe.throw(
@@ -866,6 +879,7 @@ def tao_hoan_ung(nguoi_ung=None, dong=None, ghi_chu="", da_tam_ung=0, gui_luon=0
 
 	if cint(gui_luon):
 		_chan_thieu_chung_tu(sach)
+		_chan_vat_thieu_so(sach)
 
 	doc = frappe.new_doc("Vagabond Ho So TT")
 	doc.ma = _sinh_ma()
@@ -1437,7 +1451,12 @@ def _sinh_hoa_don_hoan_ung(doc):
 		pi.supplier = doc.nha_cung_cap
 		pi.set_posting_time = 1
 		pi.posting_date = ngay_hd or doc.ngay or nowdate()
-		pi.bill_no = so_hd or doc.name
+		# v531 (anh Việt 27/09/2026): KHÔNG lấy mã hồ sơ điền vào ô số hoá
+		# đơn. Tờ không có hoá đơn thì ô này để trống; mã hồ sơ đã nằm ở
+		# ghi chú bên dưới. Trước đây HDM-26-08-00027 mang "APP.26.08.004",
+		# trông như có số hoá đơn rồi bị nối làm căn cứ hợp lệ tính thuế.
+		if so_hd:
+			pi.bill_no = so_hd
 		pi.bill_date = ngay_hd or doc.ngay
 		pi.due_date = doc.ngay or nowdate()
 		pi.update_stock = 0
@@ -1461,6 +1480,10 @@ def _sinh_hoa_don_hoan_ung(doc):
 		pi.submit()
 		return pi.name
 
+	# v531: khoản đánh dấu CÓ hoá đơn VAT thì phải có số hoá đơn thật, mỗi số
+	# một tờ. Hồ sơ đã lọt qua cửa gửi duyệt từ trước v531 dừng ở đây, trước
+	# khi sinh gì vào sổ.
+	_chan_vat_thieu_so([_dong_dict(d) for d in doc.dong])
 	sinh = []
 	try:
 		co_vat = [d for d in doc.dong if cint(d.co_vat)]
@@ -1471,7 +1494,7 @@ def _sinh_hoa_don_hoan_ung(doc):
 			sinh.append(ten_pi)
 		if khong_vat:
 			ngay = min([getdate(d.ngay_hd) for d in khong_vat if d.ngay_hd] or [getdate(doc.ngay or nowdate())])
-			ten_pi = _mot_hd(khong_vat, doc.name, ngay, MON_KHONG_VAT)
+			ten_pi = _mot_hd(khong_vat, None, ngay, MON_KHONG_VAT)
 			for d in khong_vat:
 				d.db_set("hoa_don", ten_pi, update_modified=False)
 			sinh.append(ten_pi)
@@ -2146,6 +2169,8 @@ def duyet(name, buoc, ly_do=""):
 				"trên hồ sơ để chọn đúng ngân hàng của người được hoàn ứng, "
 				"rồi gửi lại." % doc.name
 			)
+		if (doc.loai or LOAI_NCC) == LOAI_HU:
+			_chan_vat_thieu_so([_dong_dict(d) for d in doc.dong])
 		_dat_buoc_gui(doc, True)
 		doc.ly_do_tu_choi = ""
 
@@ -5172,6 +5197,26 @@ def _chan_hoa_don_trung(dong, tru_ho_so=""):
 	"""Giữ tên cửa cũ cho mọi đường lập hồ sơ, kiểm theo số tiền."""
 	from vagabond.phan_bo_app import kiem
 	kiem(dong, tru_ho_so)
+
+
+def _dong_dict(d):
+	return d.as_dict() if hasattr(d, "as_dict") else dict(d or {})
+
+
+def _chan_vat_thieu_so(dong):
+	"""v531: khoản hoàn ứng đánh dấu có hoá đơn VAT mà chưa ghi số hoá đơn
+	thật thì không gửi đi duyệt được. Gọi ở cửa gửi duyệt và trước khi sinh
+	hoá đơn mua."""
+	from vagabond.hoa_don_sau import khoan_vat_thieu_so
+	thieu = khoan_vat_thieu_so(dong)
+	if not thieu:
+		return
+	frappe.throw(
+		"Chưa gửi được. Khoản đánh dấu có hoá đơn VAT phải ghi đúng số in trên hoá đơn:\n\n%s\n\n"
+		"Khoản không có hoá đơn thì bỏ dấu \"có hoá đơn VAT\"." % "\n".join(
+			"  · Khoản %d - %s: %s" % (i, nd or "chưa đặt tên", ('đang ghi "%s"' % so) if so else "chưa ghi số")
+			for i, nd, so in thieu),
+		title="Thiếu số hoá đơn")
 
 
 def _chan_thieu_chung_tu(dong):

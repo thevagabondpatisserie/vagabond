@@ -34,6 +34,8 @@ Cách làm từ v530
 5. Không chặn vì lệch tiền: nối được, hồ sơ chỉ chưa thành Hợp lệ tính thuế.
 """
 
+import re
+
 NGUONG = 1000.0
 
 
@@ -57,9 +59,46 @@ def dd(v):
 
 def mst_goc(ma_so_thue):
 	"""10 chữ số đầu của mã số thuế: chi nhánh (đuôi -002, -096) về chung gốc.
-	Thiếu hoặc ngắn hơn 10 số thì trả rỗng, nghĩa là không nhóm theo MST."""
+	Thiếu hoặc ngắn hơn 10 số thì trả rỗng, nghĩa là không nhóm theo MST.
+
+	v531: mã số thuế Việt Nam luôn 10 số (hoặc 10 số và đuôi chi nhánh). Bảng
+	nhập từ Excel làm rơi số 0 đầu (Cấp nước Tân Hoà lưu 310350068, Bến Thành
+	304789925), nên đúng 9 chữ số thì bù lại số 0 đầu."""
 	so = "".join(c for c in str(ma_so_thue or "") if c.isdigit())
+	if len(so) == 9:
+		so = "0" + so
 	return so[:10] if len(so) >= 10 else ""
+
+
+# Mã hồ sơ thanh toán: APP.26.08.004, APP-26-08-004, và dạng cũ APPMEREJM.
+_MA_HO_SO = re.compile(r"^(?:[Aa][Pp][Pp][.\-_ ]?\d|APP[A-Z]{4,}$)")
+
+
+def la_so_hoa_don_that(so_hd):
+	"""Ô số hoá đơn có phải số hoá đơn thật của nhà cung cấp không. THUẦN.
+
+	v531 (anh Việt 27/09/2026): luồng Hoàn ứng từng lấy mã hồ sơ điền vào ô
+	số hoá đơn khi khoản không có số (HDM-26-08-00027 mang "APP.26.08.004").
+	Tờ như vậy là chứng từ nội bộ: dùng để bù trừ công nợ thì được, nhưng
+	KHÔNG được làm căn cứ "Chi phí hợp lệ tính thuế". Trống, toàn số 0, hoặc
+	là mã hồ sơ thì không phải số hoá đơn thật."""
+	s = str(so_hd or "").strip()
+	if not any(c.isalnum() for c in s):
+		return False
+	if not s.strip("0 "):
+		return False
+	return not _MA_HO_SO.match(s)
+
+
+def khoan_vat_thieu_so(dong):
+	"""Khoản hoàn ứng đánh dấu CÓ hoá đơn VAT mà chưa ghi số hoá đơn thật.
+	THUẦN. Trả [(số thứ tự, nội dung, số đang ghi)]."""
+	ra = []
+	for i, x in enumerate(dong or [], 1):
+		x = x or {}
+		if _so(x.get("co_vat")) and not la_so_hoa_don_that(x.get("so_hd_ncc")):
+			ra.append((i, str(x.get("noi_dung") or "").strip(), str(x.get("so_hd_ncc") or "").strip()))
+	return ra
 
 
 def cung_nhom(ncc_ho_so, mst_ho_so, ncc_to, mst_to):
@@ -90,8 +129,13 @@ def nhan_to(to):
 		return "Đã huỷ"
 	if da_ghi_so(to):
 		con = _tien(to.get("outstanding_amount"))
-		return ("Đã ghi sổ, còn nợ %s đ" % dd(con)) if con > 0.5 else "Đã ghi sổ, đã trả hết"
-	return "Nháp, chưa ghi sổ"
+		nhan = ("Đã ghi sổ, còn nợ %s đ" % dd(con)) if con > 0.5 else "Đã ghi sổ, đã trả hết"
+	else:
+		nhan = "Nháp, chưa ghi sổ"
+	# v531: chỉ gắn khi dòng có mang ô số hoá đơn (ô chọn hoá đơn đến sau).
+	if "bill_no" in to and not la_so_hoa_don_that(to.get("bill_no")):
+		nhan += " · không có số hoá đơn thật, không tính hợp lệ thuế"
+	return nhan
 
 
 def loi_noi_to(to, ho_so_khac="", tkct=True, trong_nhom=True, cho_ngoai_nhom=False, dung_cong_ty=True,
@@ -345,7 +389,7 @@ def du_dieu_kien(khoan):
 	return bool(ds) and all(co_hoa_don(k) for k in ds)
 
 
-def nen_hop_le(khoan, lien_ket, lech_cu=(), nguong=NGUONG):
+def nen_hop_le(khoan, lien_ket, lech_cu=(), nguong=NGUONG, to_gia=()):
 	"""Hồ sơ TK công ty là Hợp lệ tính thuế khi: mọi khoản có đường tới hoá
 	đơn (gốc hoặc đến sau), các tờ nối kiểu cũ không lệch tiền, và các tờ nối
 	kiểu v530 phủ ĐÚNG phần khoản chưa có hoá đơn gốc (không thiếu, không
@@ -359,6 +403,12 @@ def nen_hop_le(khoan, lien_ket, lech_cu=(), nguong=NGUONG):
 	if not du_dieu_kien(ds):
 		return False
 	if list(lech_cu or []):
+		return False
+	# v531: tờ không có số hoá đơn thật (to_gia) không làm căn cứ hợp lệ,
+	# dù nối mức hồ sơ, nối kiểu cũ theo khoản, hay là hoá đơn gốc của khoản.
+	gia = set(to_gia or ())
+	if gia and (any((x.get("hoa_don") or "") in gia for x in (lien_ket or []))
+			or any((k.get("hoa_don_bo_sung") or "") in gia or (k.get("hoa_don") or "") in gia for k in ds)):
 		return False
 	p = do_phu(ds, lien_ket, nguong)
 	if not lien_ket and p["can"] > nguong:
