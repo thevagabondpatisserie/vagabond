@@ -371,7 +371,11 @@ nav.navbar .dropdown-item:hover{background:rgba(41,189,179,.12);color:#fff}
    ra dau lech, so ngay khong deu. Chi giu phong do cho TEN BANH TIENG ANH va
    logo. Ten banh co dau tieng Viet thi ham laChuViet() gan lop .vi.
    Tang do uu tien bang "html body" vi cua-hang.css nap SAU khoi nay. */
-html body .h1{font-family:var(--sans);font-weight:700;letter-spacing:0;font-size:clamp(32px,8.5vw,64px);line-height:1.05}
+/* v532 (anh Viet 27/09/2026): tieu de muc TRO LAI phong thuong hieu Vagabond
+   Sans, cung phong voi ten banh va logo. Phong nay co du glyph tieng Viet
+   (da kiem tung ky tu bang fontTools, xem thu_nhan_web_532), dau in hoa dat
+   dung. Van giu "html body" de de cua-hang.css. */
+html body .h1{font-family:'Vagabond Sans',var(--sans);font-weight:400;letter-spacing:.01em;font-size:clamp(40px,10vw,84px);line-height:.98;text-transform:uppercase}
 html body .h1 em#bigDate{display:none}
 .stat b,.day b,.size b,.numpick .big,.sum .row.tot b,.empty .big,.h-sec,.f-big,.f-big em{font-family:var(--sans);font-weight:600;letter-spacing:0}
 .c-name.vi,.s-head h2.vi{font-family:var(--sans);font-weight:600;letter-spacing:0}
@@ -382,7 +386,11 @@ html body .h1 em#bigDate{display:none}
 .ph{aspect-ratio:4/5}
 .card-o{position:relative;min-width:0}
 .card-o>.card{width:100%}
-.c-them{position:absolute;top:8px;right:8px;z-index:3;width:44px;height:44px;border-radius:50%;background:var(--cyan);color:#00201d;font:600 24px/1 var(--sans);display:grid;place-items:center;box-shadow:0 4px 14px rgba(0,0,0,.45)}
+/* v532: nut them nhanh nhe tay hon (anh Viet 27/09/2026): vong kinh mo tren
+   anh, vien mong, dau cong ve bang net SVG 1.6px thay cho chu "+" dam. */
+.c-them{position:absolute;top:10px;right:10px;z-index:3;width:40px;height:40px;border-radius:50%;background:rgba(0,0,0,.42);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.32);color:var(--paper);display:grid;place-items:center;padding:0;transition:border-color .25s,color .25s,background .25s}
+.c-them svg{width:16px;height:16px;display:block}
+.c-them:hover,.c-them:focus-visible{border-color:var(--cyan);color:var(--cyan);background:rgba(0,0,0,.6)}
 .c-them:active{transform:scale(.94)}
 .bar .cnt small{display:block;font-size:12px;color:var(--fog);margin-top:1px}
 .bar.nhich .cnt b{animation:vgbNhich .15s ease-out}
@@ -1287,7 +1295,7 @@ function card(c,todayMode){
       <div class="c-price"><b>${price}</b></div>
       <div class="c-sizes">${chips}</div>
       <div class="c-go">Xem chi tiết →</div>
-    </div></button><button class="c-them" onclick="themNhanh('${kq}',${todayMode?1:0})" aria-label="Thêm nhanh ${esc(c.k)} vào giỏ">+</button></div>`;
+    </div></button><button class="c-them" onclick="themNhanh('${kq}',${todayMode?1:0})" aria-label="Thêm nhanh ${esc(c.k)} vào giỏ"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button></div>`;
 }
 
 function renderToday(){
@@ -2256,7 +2264,7 @@ function veHangMua(){
       '<div class="c-sizes">'+chip+'</div>'+
       '<div class="c-go">Xem chi tiết →</div>'+
       '</div></button>'+
-      (het?'':'<button class="c-them" onclick="themHangMua(\''+esc(m.ma)+'\')" aria-label="Thêm nhanh '+esc(m.ten)+' vào giỏ">+</button>')+
+      (het?'':'<button class="c-them" onclick="themHangMua(\''+esc(m.ma)+'\')" aria-label="Thêm nhanh '+esc(m.ten)+' vào giỏ"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>')+
       '</div>';
   }).join('');
 }
