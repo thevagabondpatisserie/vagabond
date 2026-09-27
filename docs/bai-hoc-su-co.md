@@ -1345,3 +1345,7 @@ Cách phòng:
   tiền) không đặt trạng thái từ ngoài được; phải có móc `sdGhep` ngay sau chỗ
   dựng. `hoanMoFormDu`/`hoanMoFormHuy` phải TRẢ promise, không thì bản bọc
   không chờ được tới lúc form vẽ xong.
+- Bẫy 3 (Codex #378): hàm máy chủ trả thành công CHƯA chắc đã có phiếu.
+  `nop_quy.tao` và `tao_theo_ngay` trả `{can_ly_do: 1}` trước khi insert để
+  màn hỏi lý do lệch rồi gọi lại. Xoá nháp ngay khi promise xong là mất cả
+  bảng kê nếu người dùng huỷ hộp lý do. Chỉ xoá khi `sdDaTaoPhieu(kq)` đúng.
