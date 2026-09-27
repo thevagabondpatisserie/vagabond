@@ -722,6 +722,8 @@ async function kmSheetCtkm(ma) {
     dong_mon: [], dong_bac: []
   };
   kmSua = JSON.parse(JSON.stringify(km));
+  /* v533: mo lai ban nhap tu luu (48-ban-soan-do.js) thi dung ban da go. */
+  if (typeof sdGhep === 'function') kmSua = sdGhep('ctkm', kmSua);
 
   var ov = document.createElement('div'); ov.className = 'sh';
   var box = document.createElement('div'); box.className = 'shb';

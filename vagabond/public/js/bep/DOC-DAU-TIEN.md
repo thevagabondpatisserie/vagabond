@@ -57,6 +57,7 @@ Giai đoạn 2 (bỏ vỏ hàm, phục vụ thẳng các phần, khỏi đẩy 1
 | `21-ke-toan-khac.js` | 18.066 - 18.977 | tài sản, hạch toán tay, ngân hàng, cảnh báo, bảng giá mua |
 | `22-bao-gia.js` | 18.978 - 20.213 | báo giá và hợp đồng mua bán |
 | `24-phantom.js` | ... | chuyển bán thành phẩm sang Phantom, dọn chứng từ thử |
+| `48-ban-soan-do.js` | ... | tự lưu phiếu đang soạn trên máy (v533): bọc mọi màn lập phiếu, thẻ "Phiếu đang soạn dở" ở trang chủ. PHẢI nằm sau mọi phần có màn lập phiếu vì nó bọc lại các hàm đó lúc nạp. Thêm màn lập phiếu mới thì khai một dòng `sdKhai` và một dòng `sdBoc` ở đây |
 | `99-dong-vo.js` | cuối | đóng vỏ hàm. LUÔN là phần cuối cùng, phần mới thêm phải mang số nhỏ hơn 99 |
 
 ## Vài chỗ dễ vấp
