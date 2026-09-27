@@ -1419,13 +1419,17 @@ def _():
 	Hệ quả: không có cửa kiểm quyền, không có mã CSRF nên lưu nháp bị Frappe
 	chặn, và khách vãng lai thấy bảng trống kèm câu "chưa được whitelist".
 	Đó mới là gốc của mục 8 trên #367, không phải bộ nhớ đệm."""
+	# v532: dat-ban.py đổi thành dat_ban.py vì trang đặt bàn bắt đầu phụ thuộc
+	# get_context (nhãn marketing). Codex bắt trên PR #376 vòng 1: tên gạch nối
+	# thì {{ nhan... }} in nguyên văn cho mọi khách. thanh-vien.py còn chờ.
 	for html, py in (("bien-tap-web.html", "bien_tap_web.py"), ("chinh-sach.html", "chinh_sach.py"),
-			("banh/xong.html", "banh/xong.py")):
+			("banh/xong.html", "banh/xong.py"), ("dat-ban.html", "dat_ban.py")):
 		dung("%s có mô đun %s" % (html, py), (GOI / "www" / py).exists())
+	dung("không còn dat-ban.py gạch nối", not (GOI / "www" / "dat-ban.py").exists())
 	for p in (GOI / "www").rglob("*.py"):
-		if p.name in ("dat-ban.py", "thanh-vien.py"):
-			# Hai trang của #300 cùng lỗi này, ngoài phạm vi #367: đã ghi vào
-			# bàn giao, chưa đổi để không đụng trang đang chạy khi chưa kiểm.
+		if p.name in ("thanh-vien.py",):
+			# Trang của #300 cùng lỗi này, ngoài phạm vi: đã ghi vào bàn giao,
+			# chưa đổi để không đụng trang đang chạy khi chưa kiểm.
 			continue
 		dung("%s không có gạch nối" % p.name, "-" not in p.name)
 
