@@ -168,3 +168,22 @@ def _thanh_vien():
 	dung("tìm thấy mô đun", co)
 	dung("không còn {{", "{{" not in ra)
 	dung("thẻ csrf có mã", 'content="MA-CSRF-THU"' in ra)
+
+
+@ca("v532b nút thêm nhanh trên trang đặt bánh: vùng bấm ít nhất 44x44 (AGENTS.md điều 13), vòng kính 40px vẽ bằng ::before")
+def _nut_them_44():
+	# Codex #376 (db188239): v532 thu nút .c-them còn 40x40, vùng bấm duy nhất
+	# của nút thêm nhanh ở cả bánh lẫn hàng mùa. CSS không chạy được ở tầng
+	# khung nên chốt bằng đọc luật CSS của đúng lớp đó.
+	with io.open(os.path.join(GOC, "vagabond", "trang", "banh.html"), encoding="utf-8") as f:
+		trang = f.read()
+	m = re.search(r"\.c-them\{([^}]*)\}", trang)
+	dung("có luật .c-them", bool(m))
+	kieu = m.group(1) if m else ""
+	for thuoc in ("width", "height", "min-width", "min-height"):
+		v = re.search(r"(?:^|;)" + thuoc + r":(\d+(?:\.\d+)?)px", kieu)
+		dung("%s ít nhất 44px" % thuoc, bool(v) and float(v.group(1)) >= 44)
+	dung("không có luật .c-them nào khác thu nhỏ lại", len(re.findall(r"\.c-them\{", trang)) == 1)
+	vong = re.search(r"\.c-them::before\{([^}]*)\}", trang)
+	dung("vòng kính vẽ ở ::before, cách mép 2px", bool(vong) and "inset:2px" in vong.group(1))
+	dung("hai nơi dựng nút đều dùng lớp c-them", trang.count('class="c-them"') >= 2)
