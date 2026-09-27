@@ -8,3 +8,4 @@
 .khong-quyen{max-width:640px;margin:10vh auto;padding:0 20px}.khong-quyen h1{font-size:32px}
 /* #367: ba trang chính sách trong studio. */
 .cs-sua textarea{min-height:320px;font:13px/1.55 ui-monospace,Menlo,Consolas,monospace}.cs-canh{background:#fff4e5;border:1px solid #e9c78f;padding:10px 12px;border-radius:6px}.cs-canh b{color:#8a4b00}
+/* v532: dòng mặc định dưới ô nhãn */.truong small{display:block;margin-top:6px;padding:4px 8px;border-radius:6px}

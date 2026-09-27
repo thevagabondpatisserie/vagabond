@@ -1304,15 +1304,18 @@ RA({cs:EL('#fChinhSach').innerHTML, doc:EL('#docChinhSach').innerHTML, lh:EL('#f
 @ca("#367 L chữ tiếng Việt và số dùng phông thường, tên bánh có dấu cũng vậy")
 def _():
 	w = _doc("vagabond/trang/banh.html")
-	dung("tiêu đề mục dùng phông hệ thống, đè được cua-hang.css", "html body .h1{font-family:var(--sans)" in w)
+	# v532: anh Việt 27/09 chốt tiêu đề mục dùng phông thương hiệu Vagabond Sans
+	# (phông có đủ dấu tiếng Việt, kiểm trong thu_nhan_web_532). Vẫn "html body".
+	dung("tiêu đề mục dùng phông thương hiệu, đè được cua-hang.css", "html body .h1{font-family:'Vagabond Sans'" in w)
 	dung("không còn số ngày khổ lớn", "html body .h1 em#bigDate{display:none}" in w)
 	r = _chay("2026-09-24T08:00:00", r"""
 RA({vi:laChuViet('Phi Tử Tiếu'), en:laChuViet('Roman de la Rose'), dong:dongTrangThai(13,'13h - 15h','09:59'),
     het:dongTrangThai(null,'','21:00')});
 """)
 	la("tên có dấu", (r["vi"], r["en"]), (True, False))
-	dung("một dòng trạng thái", "13 bánh</b> có sẵn · nhận từ <b>13h - 15h</b>" in r["dong"] and "cập nhật 09:59" in r["dong"])
-	dung("chưa tải tồn thì không đoán số", "bánh</b> có sẵn" not in r["het"])
+	# v532: câu do marketing sửa được, chỉ số và khung giờ in đậm.
+	dung("một dòng trạng thái", "<b>13</b> bánh có sẵn · nhận từ <b>13h - 15h</b>" in r["dong"] and "cập nhật 09:59" in r["dong"])
+	dung("chưa tải tồn thì không đoán số", "bánh có sẵn" not in r["het"])
 
 
 # --------------------------------------------------------------- M. trang biên nhận
@@ -1416,14 +1419,16 @@ def _():
 	Hệ quả: không có cửa kiểm quyền, không có mã CSRF nên lưu nháp bị Frappe
 	chặn, và khách vãng lai thấy bảng trống kèm câu "chưa được whitelist".
 	Đó mới là gốc của mục 8 trên #367, không phải bộ nhớ đệm."""
+	# v532: dat-ban.py đổi thành dat_ban.py vì trang đặt bàn bắt đầu phụ thuộc
+	# get_context (nhãn marketing). Codex bắt trên PR #376 vòng 1: tên gạch nối
+	# thì {{ nhan... }} in nguyên văn cho mọi khách. v532b: thanh-vien.py cũng
+	# đổi (site thật in nguyên văn {{ csrf_token }}), hết ngoại lệ.
 	for html, py in (("bien-tap-web.html", "bien_tap_web.py"), ("chinh-sach.html", "chinh_sach.py"),
-			("banh/xong.html", "banh/xong.py")):
+			("banh/xong.html", "banh/xong.py"), ("dat-ban.html", "dat_ban.py"),
+			("thanh-vien.html", "thanh_vien.py")):
 		dung("%s có mô đun %s" % (html, py), (GOI / "www" / py).exists())
+	dung("không còn dat-ban.py gạch nối", not (GOI / "www" / "dat-ban.py").exists())
 	for p in (GOI / "www").rglob("*.py"):
-		if p.name in ("dat-ban.py", "thanh-vien.py"):
-			# Hai trang của #300 cùng lỗi này, ngoài phạm vi #367: đã ghi vào
-			# bàn giao, chưa đổi để không đụng trang đang chạy khi chưa kiểm.
-			continue
 		dung("%s không có gạch nối" % p.name, "-" not in p.name)
 
 

@@ -20,7 +20,7 @@
       const con = choTrong(v.vn).length + choTrong(v.en).length;
       const b = tao('button', ten + (v.hien ? ' · Đang hiện' : ' · Ẩn') + (con ? ' · còn ' + con + ' chỗ trống' : ''));
       b.setAttribute('aria-pressed', String(chon === 'cs:' + khoa));
-      b.onclick = () => { chon = 'cs:' + khoa; danhSach(); veChinhSach(); thuocTinh(); };
+      b.onclick = () => { chon = 'cs:' + khoa; danhSach(); veChinhSach(); veNhanWeb(); thuocTinh(); };
       g.append(b);
     });
   }
@@ -44,6 +44,38 @@
       nhan.append(t); g.append(nhan);
     });
     veCanh();
+  }
+  /* v532: nhãn cố định (tab, nút, câu có số, trang đặt bàn). Danh sách khoá
+     và mặc định do máy chủ trả trong doc_bang().nhan_mau; JS không chép cứng. */
+  const RE_CHO_DIEN = /\{[a-z_]+\}/g;
+  const choDien = chu => [...new Set(String(chu || '').match(RE_CHO_DIEN) || [])].sort();
+  function nhanCua() { nhap.nhan = nhap.nhan || {}; return nhap.nhan; }
+  function soNhanDaSua() { return Object.values(nhap.nhan || {}).filter(v => String(v || '').trim()).length; }
+  function veNhanWeb() {
+    const g = tim('nhan-web'); if (!g || !nhap) return; g.replaceChildren();
+    const so = soNhanDaSua();
+    const b = tao('button', 'Nhãn và câu chữ' + (so ? ' · ' + so + ' đã sửa' : ' · mặc định'));
+    b.setAttribute('aria-pressed', String(chon === 'nhan'));
+    b.onclick = () => { chon = 'nhan'; danhSach(); veChinhSach(); veNhanWeb(); thuocTinh(); xem(); };
+    g.append(b);
+  }
+  function suaNhanWeb(g) {
+    const mau = bang.nhan_mau || {}, nhan = nhanCua();
+    g.append(tao('p', 'Mỗi ô là một chỗ chữ trên website. Để trống thì dùng chữ mặc định ghi dưới ô. Chỗ trong ngoặc nhọn như {so}, {khung}, {gio} là chỗ máy tự điền số, phải giữ lại. Bấm Xuất bản để khách thấy.', 'goi-y'));
+    Object.entries(mau).forEach(([khoa, m]) => {
+      const nhanO = tao('label', '', 'truong'); nhanO.append(tao('span', m.ten));
+      const o = tao(khoa.startsWith('dat_ban_') || (m.mac_dinh || '').length > 60 ? 'textarea' : 'input');
+      o.maxLength = 300; o.value = nhan[khoa] || ''; o.placeholder = m.mac_dinh;
+      const canh = tao('small', 'Mặc định: ' + m.mac_dinh, 'goi-y');
+      function veCanh() {
+        const chu = o.value; const thieu = choDien(m.mac_dinh).filter(x => !choDien(chu).includes(x));
+        canh.textContent = chu.trim() && thieu.length ? 'Thiếu chỗ điền ' + thieu.join(', ') + ', máy sẽ không lưu được.' : 'Mặc định: ' + m.mac_dinh;
+        canh.classList.toggle('loi', !!(chu.trim() && thieu.length));
+      }
+      o.oninput = () => { if (o.value.trim()) nhan[khoa] = o.value; else delete nhan[khoa]; daDoi(); veCanh(); };
+      o.onchange = veNhanWeb;
+      nhanO.append(o, canh); g.append(nhanO);
+    });
   }
   function coPreview() {
     const khung = document.querySelector('.khung-preview'), f = tim('preview');
@@ -71,7 +103,7 @@
     }
     return d.message;
   }
-  function khoa(b) { ban = b; ['luu-nhap', 'xuat-ban', 'tai-lai'].forEach(id => tim(id).disabled = b); tim('thuoc-tinh').inert = b; tim('danh-sach').inert = b; tim('them-khoi').inert = b; tim('lich-su').inert = b; if (tim('chinh-sach')) tim('chinh-sach').inert = b; }
+  function khoa(b) { ban = b; ['luu-nhap', 'xuat-ban', 'tai-lai'].forEach(id => tim(id).disabled = b); tim('thuoc-tinh').inert = b; tim('danh-sach').inert = b; tim('them-khoi').inert = b; tim('lich-su').inert = b; if (tim('chinh-sach')) tim('chinh-sach').inert = b; if (tim('nhan-web')) tim('nhan-web').inert = b; }
   function thongKe() {
     tim('so-khoi').textContent = nhap.khoi.length;
     tim('so-hien').textContent = nhap.khoi.filter(k => k.hien).length;
@@ -95,7 +127,7 @@
     nhap.khoi.forEach((k, i) => {
       const dong = tao('div', '', 'dong-khoi' + (chon === k.id ? ' on' : '')); dong.draggable = true;
       const nut = tao('button', (i + 1) + '. ' + (k.tieu_de || tenLoai[k.loai]) + (k.hien ? '' : ' · Ẩn'), 'chon-khoi');
-      nut.onclick = () => { chon = k.id; danhSach(); veChinhSach(); thuocTinh(); xem(); }; dong.append(nut);
+      nut.onclick = () => { chon = k.id; danhSach(); veChinhSach(); veNhanWeb(); thuocTinh(); xem(); }; dong.append(nut);
       const ds = tao('div', '', 'sap-xep');
       [['↑', -1, 'Đưa khối lên'], ['↓', 1, 'Đưa khối xuống']].forEach(([chu, buoc, nhan]) => {
         const b = tao('button', chu); b.setAttribute('aria-label', nhan); b.disabled = i + buoc < 0 || i + buoc >= nhap.khoi.length;
@@ -111,6 +143,7 @@
   function thuocTinh() {
     const g = tim('thuoc-tinh'); g.replaceChildren();
     if (chon.startsWith('cs:') && CS[chon.slice(3)]) { suaChinhSach(g, chon.slice(3)); return; }
+    if (chon === 'nhan') { suaNhanWeb(g); return; }
     const k = nhap.khoi.find(x => x.id === chon);
     if (!k) { g.append(tao('p', 'Chọn một khối để chỉnh nội dung.')); return; }
     if (k.loai === 'tieu_de_muc') {
@@ -165,7 +198,7 @@
       }; dong.append(b); g.append(dong);
     });
   }
-  function nhanBang(d) { bang = d; nhap = structuredClone(d.nhap); doi = false; if (!chon.startsWith('cs:') && !nhap.khoi.some(k => k.id === chon)) chon = nhap.khoi[0]?.id || ''; thongKe(); danhSach(); veChinhSach(); thuocTinh(); lichSu(); xem(); }
+  function nhanBang(d) { bang = d; nhap = structuredClone(d.nhap); doi = false; if (!chon.startsWith('cs:') && chon !== 'nhan' && !nhap.khoi.some(k => k.id === chon)) chon = nhap.khoi[0]?.id || ''; thongKe(); danhSach(); veChinhSach(); veNhanWeb(); thuocTinh(); lichSu(); xem(); }
   async function tai() {
     if (doi && !window.confirm('Tải lại sẽ bỏ phần chưa lưu trên màn hình. Tiếp tục?')) return;
     khoa(true); try { nhanBang(await api('doc_bang')); bao('Đã tải nội dung. Thay đổi chỉ ra website khi bấm Xuất bản.'); } catch (e) { bao(e.message, true); } finally { khoa(false); }
@@ -190,7 +223,7 @@
   window.addEventListener('message', e => {
     if (e.origin !== location.origin || e.source !== tim('preview').contentWindow) return;
     if (e.data?.loai === 'vgb-san-sang') xem();
-    if (e.data?.loai === 'vgb-chon-khoi' && nhap?.khoi.some(k => k.id === e.data.id)) { chon = e.data.id; danhSach(); thuocTinh(); xem(); }
+    if (e.data?.loai === 'vgb-chon-khoi' && nhap?.khoi.some(k => k.id === e.data.id)) { chon = e.data.id; danhSach(); veChinhSach(); veNhanWeb(); thuocTinh(); xem(); }
   });
   tim('preview').src = '/banh?bien_tap=1';
   window.addEventListener('beforeunload', e => { if (doi) { e.preventDefault(); e.returnValue = ''; } });

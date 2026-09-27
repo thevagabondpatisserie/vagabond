@@ -9,6 +9,15 @@ import frappe
 from vagabond import noi_dung_web as web
 
 
+def _bo_nhan(x):
+    """Nội dung công khai bỏ bộ nhãn. Từ v532 cong_khai() luôn kèm "nhan" đầy
+    đủ (chữ marketing đã xuất bản, chỗ trống lấy mặc định), nên so khối phải
+    bỏ nhãn ra; bộ nhãn kiểm riêng."""
+    ra = dict(x or {})
+    ra.pop("nhan", None)
+    return ra
+
+
 def chay():
     if not frappe.conf.get("vagabond_bench_thu"):
         frappe.throw("Chỉ chạy trên bench riêng có vagabond_bench_thu=1.")
@@ -48,26 +57,27 @@ def chay():
         dat("Nháp reload từ DB", web.doc_bang()["nhap"] == nd)
         dat("Lưu nháp tăng phiên bản", nhap["phien_ban"] == 1)
         frappe.set_user("Guest")
-        dat("Guest không đọc được nháp", web.cong_khai() == web.MAC_DINH)
+        dat("Guest không đọc được nháp", _bo_nhan(web.cong_khai()) == web.MAC_DINH)
+        dat("Guest nhận đủ bộ nhãn mặc định", web.cong_khai().get("nhan") == web.nhan_day_du({}))
         chan("Guest không đọc dashboard", web.doc_bang)
         chan("Guest không ghi nội dung", lambda: web.luu(json.dumps(nd), 1))
         frappe.set_user(u.name)
         chan("Ngăn người sửa từ phiên bản cũ", lambda: web.luu(json.dumps(nd), 0, "xuat_ban"))
-        dat("Xung đột không đổi nội dung công khai", web.cong_khai() == web.MAC_DINH)
+        dat("Xung đột không đổi nội dung công khai", _bo_nhan(web.cong_khai()) == web.MAC_DINH)
         d = frappe.get_doc(web.DOCTYPE, web.TEN)
         d.ban_cong_khai = json.dumps(nd)
         chan("Document.save trực tiếp không vượt editor", d.save)
         xb = web.luu(json.dumps(nd), 1, "xuat_ban")
-        dat("Xuất bản reload đúng nội dung", web.cong_khai() == nd)
+        dat("Xuất bản reload đúng nội dung", _bo_nhan(web.cong_khai()) == nd)
         dat("Lịch sử giữ bản trước", xb["lich_su"][0]["noi_dung"] == web.MAC_DINH)
         phuc_hoi = web.luu(json.dumps(xb["lich_su"][0]["noi_dung"]), xb["phien_ban"])
-        dat("Khôi phục chỉ đổi nháp", phuc_hoi["nhap"] == web.MAC_DINH and web.cong_khai() == nd)
+        dat("Khôi phục chỉ đổi nháp", phuc_hoi["nhap"] == web.MAC_DINH and _bo_nhan(web.cong_khai()) == nd)
         from vagabond.trang import dong_bo
         frappe.set_user("Administrator")
         dong_bo()
-        dat("Đồng bộ Web Page không đè nội dung marketing", web.cong_khai() == nd)
+        dat("Đồng bộ Web Page không đè nội dung marketing", _bo_nhan(web.cong_khai()) == nd)
         frappe.set_user("Guest")
-        dat("Public API chỉ có khối", set(web.cong_khai()) == {"khoi"})
+        dat("Public API chỉ có khối và bộ nhãn", set(web.cong_khai()) == {"khoi", "nhan"})
     finally:
         frappe.set_user(nguoi_cu)
         frappe.db.rollback(save_point="web_editor_245")

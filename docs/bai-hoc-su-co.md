@@ -1234,8 +1234,13 @@ nháp bị Frappe chặn.
 
 Cách phòng:
 - Mô đun Python của trang www đặt tên bằng gạch dưới. Ca kiểm
-  `thu_don_web_367.py` mục N chặn tên có gạch nối (trừ dat-ban, thanh-vien
-  đang chờ sửa riêng).
+  `thu_don_web_367.py` mục N chặn tên có gạch nối, không còn ngoại lệ:
+  dat-ban đã đổi thành dat_ban.py ở v532 sau khi Codex bắt trên PR #376
+  (trang bắt đầu dùng get_context thì tên sai làm in nguyên văn
+  `{{ nhan... }}` cho khách); thanh-vien đổi ở v532b vì site thật 27/09 cũng
+  in nguyên văn `{{ csrf_token }}`. `thu_trang_www_532b.py` dựng trang như
+  Frappe (tìm mô đun theo luật gạch dưới, gọi get_context, thay biến giữ
+  nguyên văn khi thiếu) để bắt lỗi này, không chỉ dò tên tệp.
 - Jinja của Frappe dùng DebugUndefined: biến thiếu in ra nguyên văn chứ không
   rỗng. Thấy `{{ ... }}` trên trang thật là get_context không chạy.
 - Jinja của Frappe không tự thoát ký tự. Trang khách mới dựng HTML ở Python
