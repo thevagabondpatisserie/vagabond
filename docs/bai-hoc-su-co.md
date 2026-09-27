@@ -1307,3 +1307,10 @@ Cách phòng:
   Ca kiểm cũ chỉ đi nhánh "đã có bản ghi". Cách phòng: bản ghi mới luôn dùng
   frappe.new_doc; hàm có hai nhánh tạo mới / đã có thì ca kiểm phải đi cả hai,
   với Doc giả giữ đúng luật is_new() của Frappe.
+- Patch một lần mà nuốt lỗi (log_error rồi đi tiếp) thì Frappe vẫn ghi vào
+  Patch Log là đã chạy, không bao giờ chạy lại. v529 lên xanh mà ba trang mất
+  nháp. Patch gieo dữ liệu một lần phải để lỗi nổ cho migrate dừng (Codex
+  #375). Chỉ dong_bo_cau_truc, loại chạy lại mỗi bản, mới được nuốt lỗi.
+- Doctype có on_trash chặn xoá (Nội dung web) thì ca bench muốn đi nhánh
+  "chưa có bản ghi" không được gọi delete_doc (force=True không bỏ hook).
+  Xoá thẳng dòng trong điểm lưu bằng frappe.db.delete.
