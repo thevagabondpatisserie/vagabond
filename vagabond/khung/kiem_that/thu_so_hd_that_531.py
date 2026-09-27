@@ -51,8 +51,14 @@ def _noi_gia_that():
 @ca("v531 gieo nháp chính sách trên site thật khi chưa có bản ghi: tạo được, ba trang vào nháp còn ẩn, bản công khai không có chính sách")
 def _gieo_that():
 	from vagabond import noi_dung_web as w
+	# Codex #375 (d35b1d2): KHÔNG dùng frappe.delete_doc. on_trash của doctype
+	# này chặn xoá vô điều kiện (force=True chỉ bỏ kiểm liên kết, không bỏ
+	# hook), nên trên site đã migrate (patch v531 đã tạo bản ghi) ca nổ trước
+	# khi kịp kiểm gieo. Xoá thẳng một dòng trong điểm lưu; điểm lưu lùi lại
+	# sau ca. Đừng đổi về delete_doc.
 	if frappe.db.exists(w.DOCTYPE, w.TEN):
-		frappe.delete_doc(w.DOCTYPE, w.TEN, ignore_permissions=True, force=True)
+		frappe.db.delete(w.DOCTYPE, {"name": w.TEN})
+		frappe.clear_document_cache(w.DOCTYPE, w.TEN)
 	dung("chưa có bản ghi trước khi gieo", not frappe.db.exists(w.DOCTYPE, w.TEN))
 	khong_nem("gieo", lambda: w.gieo_tu_tep())
 	dung("đã có bản ghi", frappe.db.exists(w.DOCTYPE, w.TEN))
