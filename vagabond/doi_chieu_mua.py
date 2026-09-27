@@ -273,6 +273,17 @@ def _ho_so_chi_theo_hd(ten_hd):
 			and ifnull(p.trang_thai, '') not in %s""",
 		(tuple(ten_hd), LOAI_TKCT, TT_HET_HIEU_LUC)):
 		ra.setdefault(ten, ho_so)
+	# v530: tờ nối ở mức hồ sơ. Chỉ tờ còn NHÁP mới rơi vào nhóm "không ghi
+	# sổ" của màn này; tờ đã ghi sổ thì _nhom_cua xếp Xong trước khi hỏi.
+	from vagabond.ho_so_bo_sung import _co_hd_sau
+	if _co_hd_sau():
+		for ten, ho_so in frappe.db.sql(
+			"""select h.hoa_don, p.name from `tabVagabond Ho So TT HD Sau` h
+			inner join `tabVagabond Ho So TT` p on p.name = h.parent
+			where h.hoa_don in %s and p.loai = %s
+				and ifnull(p.trang_thai, '') not in %s""",
+			(tuple(ten_hd), LOAI_TKCT, TT_HET_HIEU_LUC)):
+			ra.setdefault(ten, ho_so)
 	return ra
 
 

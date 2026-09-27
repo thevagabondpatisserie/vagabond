@@ -291,6 +291,19 @@ function docThuocTinh(chuoi, el) {
   while ((m = re.exec(chuoi))) {
     var v = m[2] != null ? m[2] : (m[3] != null ? m[3] : (m[4] != null ? m[4] : ''));
     el.attrs[m[1]] = v;
+    /* Them 25/09/2026 (v530): trinh duyet doc thuoc tinh style thanh
+       el.style. Khong co buoc nay thi el.style.display luon rong, va loi
+       "hien lai muc bang display '' xoa mat display:flex" cua o tim
+       (vgbNoiOTim) khong ca kiem nao thay duoc. Chi dien them, khong doi
+       hanh vi cu: style truoc day luon la {} rong. */
+    if (m[1] === 'style') {
+      v.split(';').forEach(function (kv) {
+        var j = kv.indexOf(':');
+        if (j < 0) return;
+        var k = kv.slice(0, j).trim().replace(/-([a-z])/g, function (_, c) { return c.toUpperCase(); });
+        if (k) el.style[k] = kv.slice(j + 1).trim();
+      });
+    }
   }
 }
 

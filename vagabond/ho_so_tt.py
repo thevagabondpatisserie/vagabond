@@ -1546,6 +1546,7 @@ def danh_sach(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=
 		limit_page_length=0,
 	)
 	so_dong = {}
+	khoan_cua = {}
 	cho_hoa_don, da_noi_hoa_don = {}, {}
 	if ds:
 		# Dem bang get_all chu khong viet SQL "in %s": danh sach mot phan tu
@@ -1554,13 +1555,27 @@ def danh_sach(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=
 		for d in frappe.get_all(
 			"Vagabond Ho So TT Dong",
 			filters={"parent": ["in", [r.name for r in ds]]},
-			fields=["parent", "cho_hoa_don", "hoa_don_bo_sung"],
+			fields=["parent", "cho_hoa_don", "hoa_don_bo_sung", "hoa_don", "so_tien", "tk_no"],
 			limit_page_length=0,
 		):
 			so_dong[d.parent] = so_dong.get(d.parent, 0) + 1
-			if d.get("cho_hoa_don"):
-				bang = da_noi_hoa_don if d.get("hoa_don_bo_sung") else cho_hoa_don
-				bang[d.parent] = bang.get(d.parent, 0) + 1
+			khoan_cua.setdefault(d.parent, []).append(d)
+		# v530: hồ sơ có tờ nối mức hồ sơ thì khoản chờ chưa nối kiểu cũ tính
+		# theo mức phủ của cả hồ sơ: phủ đủ là đã nối, chưa đủ là còn chờ.
+		# Codex #374 vòng 5: gắn cờ công nợ bằng CÙNG hàm màn chi tiết dùng,
+		# rồi đếm bằng một hàm thuần duy nhất; không tự tính mức phủ ở đây.
+		from vagabond.ho_so_bo_sung import _co_hd_sau, gan_cong_no
+		from vagabond.hoa_don_sau import dem_theo_ho_so
+		lk = {}
+		if _co_hd_sau():
+			for r in frappe.get_all("Vagabond Ho So TT HD Sau",
+					filters={"parent": ["in", [r.name for r in ds]]},
+					fields=["parent", "tien_khop"], limit_page_length=0):
+				lk.setdefault(r.parent, []).append(r)
+		loai_tk = {}
+		for cha in lk:
+			gan_cong_no(khoan_cua.get(cha, []), loai_tk)
+		cho_hoa_don, da_noi_hoa_don = dem_theo_ho_so(khoan_cua, lk)
 
 	from vagabond.doi_chieu_app import canh_bao_mo_lai
 	canh_bao = canh_bao_mo_lai(ds)
@@ -1783,6 +1798,29 @@ def _dinh_kem(cap):
 	return ra
 
 
+def _hd_sau_cho_man(doc):
+	"""Tờ nối mức hồ sơ (v530) kèm trạng thái HIỆN TẠI của tờ và giấy tờ quét."""
+	from vagabond.hoa_don_sau import nhan_to
+	ra = []
+	for r in (doc.get("hd_sau") or []):
+		hd = frappe.db.get_value("Purchase Invoice", r.hoa_don,
+			["docstatus", "outstanding_amount", "grand_total", "supplier_name", "bill_date"], as_dict=True) or {}
+		ct = _ho_so_chung_tu(r.hoa_don)
+		ra.append({
+			"hoa_don": r.hoa_don, "so_hd_ncc": r.so_hd_ncc or "", "ncc_ten": hd.get("supplier_name") or r.ncc or "",
+			"ngay_hd": str(hd.get("bill_date") or ""), "tong_hd": flt(r.tong_hd), "tien_khop": flt(r.tien_khop),
+			"da_ghi_so": cint(r.da_ghi_so), "bu_tru": flt(r.bu_tru), "but_toan": r.but_toan or "",
+			"ngoai_ncc": cint(r.ngoai_ncc), "nhan": nhan_to(hd) if hd else "Không còn tờ này",
+			"scan": ct["scan"],
+		})
+	return ra
+
+
+def _phu_hd_sau(doc):
+	from vagabond.ho_so_bo_sung import phu_cua
+	return phu_cua(doc)
+
+
 @frappe.whitelist()
 def chi_tiet(name):
 	from vagabond.doi_chieu_app import canh_bao_mo_lai
@@ -1904,6 +1942,9 @@ def chi_tiet(name):
 			"ghi_chu": doc.ghi_chu or "",
 		},
 		"dong": dong,
+		# v530: tờ nối ở mức hồ sơ và mức phủ (cần, đã nối, còn thiếu).
+		"hd_sau": _hd_sau_cho_man(doc),
+		"phu_hd_sau": _phu_hd_sau(doc),
 		"ho_so_dinh_kem": _dinh_kem([("Vagabond Ho So TT", doc.name)]),
 		# UY NHIEM CHI tach thanh khoi rieng tren man hinh, nhung VAN nam
 		# trong `ho_so_dinh_kem` de bo ho so xuat ra co day du giay to. Man
@@ -3577,6 +3618,13 @@ def xuat_ho_so(name):
 				da_pnk.add(pnk)
 				_in_html("Purchase Receipt", pnk, "Phiếu nhập kho")
 
+	# v530: tờ nối mức hồ sơ cũng vào bộ hồ sơ, kèm bút toán bù trừ nếu có.
+	# In bản của ERPNext cho mọi tờ: bản thể hiện gốc của các tờ này không đi
+	# qua _gom_anh_ho_so (chỉ gom giấy tờ theo khoản), nên đây là trang duy
+	# nhất mang số liệu tờ trong bộ hồ sơ.
+	for dt, dn, nhan in trang_hd_sau(d):
+		_in_html(dt, dn, nhan)
+
 	# Mỗi cặp chứng từ có trang A4 ngang riêng; tờ APP giữ khổ dọc.
 	# wkhtmltopdf không đổi hướng từng trang ổn định nên render hai phần
 	# riêng rồi ghép PDF, không ép cả hồ sơ theo hướng của ảnh.
@@ -4793,6 +4841,20 @@ def luoi_anh(anh, moi_trang=ANH_MOI_TRANG):
 	return "".join(trang)
 
 
+def trang_hd_sau(d):
+	"""Các trang ERPNext cần in cho tờ nối mức hồ sơ (v530): mỗi tờ một trang,
+	mỗi bút toán bù trừ MỘT trang dù nhiều tờ chung bút toán (Codex #373 vòng
+	1: Mobifone sáu tờ chung một bút toán từng in sáu trang trùng). THUẦN."""
+	ra, da_in = [], set()
+	for x in d.get("hd_sau") or []:
+		ra.append(("Purchase Invoice", x["hoa_don"], "Hoá đơn đến sau"))
+		bt = x.get("but_toan")
+		if bt and bt not in da_in:
+			da_in.add(bt)
+			ra.append(("Journal Entry", bt, "Bút toán bù trừ"))
+	return ra
+
+
 def _gom_anh_ho_so(d):
 	"""Gom mọi ảnh của một hồ sơ, mỗi ảnh mang theo nhãn nói rõ nó của đâu.
 
@@ -4860,6 +4922,12 @@ def _gom_anh_ho_so(d):
 			_nap(f, goc)
 		for f in (x.get("scan") or []):
 			_nap(f, goc + " · kèm hoá đơn mua")
+	# v530 (Codex #373 vòng 1): bản thể hiện gốc của tờ nối mức hồ sơ cũng vào
+	# bộ hồ sơ, không chỉ trang in lại của ERPNext.
+	for x in d.get("hd_sau") or []:
+		goc = "Hoá đơn đến sau %s" % (("số " + x["so_hd_ncc"]) if x.get("so_hd_ncc") else x.get("hoa_don", ""))
+		for f in (x.get("scan") or []):
+			_nap(f, goc)
 	for f in (d.get("ho_so_dinh_kem") or []):
 		_nap(f, "Đính chung cả hồ sơ")
 	return anh, bo_qua

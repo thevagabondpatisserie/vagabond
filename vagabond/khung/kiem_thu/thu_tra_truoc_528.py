@@ -306,7 +306,7 @@ def _man_sk_unc():
 	dung("chưa chọn tệp: không gọi máy chủ", not any(m == "vagabond.duyet_chi.dinh_unc_sau" for m, a in ra["api"]))
 
 
-def _xem_ho_so(dong, q=None, loai="TK cong ty", trang_thai="Da thanh toan", bam=None):
+def _xem_ho_so(dong, q=None, loai="TK cong ty", trang_thai="Da thanh toan", bam=None, hd_sau=None):
 	them = r"""
 (async function () {
   await ctx.scrHoSoTTView('APP.26.09.010');
@@ -323,28 +323,41 @@ def _xem_ho_so(dong, q=None, loai="TK cong ty", trang_thai="Da thanh toan", bam=
 		"quyen": q if q is not None else {"fin": 1},
 		"dong": [dict({"noi_dung": "PHI DV", "so_tien": 2160000, "hoa_don": None, "cho_hoa_don": 0,
 			"hoa_don_bo_sung": None, "po": [], "pnk": [], "scan": [], "hddt": []}, **x) for x in dong]}
+	# v530: máy chủ trả mức phủ và các tờ nối mức hồ sơ (ho_so_tt.chi_tiet).
+	# Tính bằng CHÍNH phép thuần của máy chủ để ca không tự bịa số.
+	from vagabond.hoa_don_sau import do_phu
+	d["hd_sau"] = hd_sau or []
+	d["phu_hd_sau"] = do_phu(d["dong"], d["hd_sau"])
 	kich = KHUNG_JS.replace("__THEM__", them).replace("TRA(m, a || {})", "(m === 'vagabond.ho_so_tt.chi_tiet' ? D : { ok: 1 })")
 	kich = kich.replace("const vm = require('vm');", "const vm = require('vm'); const D = %s; const BAM = %s; const VAI = []; const CHON = null; const TDK = [];" % (
 		json.dumps(d), json.dumps(bam)))
 	return _node(kich, ["19-ho-so-tt.js"])
 
 
-@ca("v528 hồ sơ Adecco (màn thật): FIN thấy nút đánh dấu bù, bấm thì gọi đúng khoản; khoản đã đánh dấu thì thấy nút nối như cũ")
+# v530 (chị Dung, anh Việt 25/09/2026): hai bước "Đánh dấu hoá đơn đến sau"
+# rồi "Nối hóa đơn đến sau" trên TỪNG khoản gộp thành MỘT nút cho cả hồ sơ.
+# Chị Dung: "tuỳ cái có nút gợi ý còn có cái không có". Máy chủ tự đánh dấu
+# khoản đủ điều kiện lúc nối (noi_nhieu, cùng luật loi_danh_dau_bu của v528).
+# Ca v528 cũ chốt hai nút theo khoản nên được viết lại theo luật mới.
+@ca("v530 hồ sơ Adecco (màn thật): một nút Nối cho cả hồ sơ, không còn nút theo từng khoản; bấm thì mở danh sách tờ của hồ sơ")
 def _man_ho_so():
 	ra = _xem_ho_so([{}])
-	dung("có nút đánh dấu khoản 1", 'data-hsv="ddhd1"' in ra["html"])
-	dung("chưa có nút nối (chưa đánh dấu)", 'data-hsv="bohd1"' not in ra["html"])
-	ra = _xem_ho_so([{}], bam="ddhd1")
-	la("gọi đúng cửa và đúng khoản", [(m, a) for m, a in ra["api"] if "ho_so_bo_sung" in m],
-		[("vagabond.ho_so_bo_sung.danh_dau_cho_hoa_don", {"name": "APP.26.09.010", "dong": 1})])
-	la("mở lại hồ sơ", ra["go"], 1)
+	dung("FIN thấy một nút Nối cho hồ sơ", ra["html"].count('data-hsv="noihds"') == 1)
+	dung("không còn nút đánh dấu hay nút nối theo khoản", "ddhd1" not in ra["html"] and "bohd1" not in ra["html"])
+	dung("hiện số cần và còn thiếu", "2.160.000" in ra["html"] and "còn thiếu" in ra["html"])
 	ra = _xem_ho_so([{"cho_hoa_don": 1}])
-	dung("đã đánh dấu: nút nối, không nút đánh dấu", 'data-hsv="bohd1"' in ra["html"] and "ddhd1" not in ra["html"])
-	for mo_ta, kw in (("sales", {"q": {}}), ("hồ sơ NCC", {"loai": "NCC"}), ("hồ sơ huỷ", {"trang_thai": "Huy"})):
+	dung("khoản đã đánh dấu: vẫn đúng một nút của hồ sơ", ra["html"].count('data-hsv="noihds"') == 1 and "bohd1" not in ra["html"])
+	# Bấm nút rồi chọn tờ: chạy trong hanh_vi/hoa_don_sau_530.js (cần hộp
+	# thoại thật và DOM giả, harness ở đây chỉ nạp riêng 19-ho-so-tt.js).
+	for mo_ta, kw in (("sales", {"q": {}}), ("hồ sơ huỷ", {"trang_thai": "Huy"}), ("hồ sơ từ chối", {"trang_thai": "Tu choi"})):
 		ra = _xem_ho_so([{}], **kw)
-		dung(mo_ta + ": không có nút đánh dấu", "ddhd1" not in ra["html"])
+		dung(mo_ta + ": không có nút nối", "noihds" not in ra["html"])
 	ra = _xem_ho_so([{"hoa_don": "ACC-PINV-1"}])
-	dung("khoản đã có hoá đơn gốc: không có nút đánh dấu", "ddhd1" not in ra["html"])
+	dung("khoản đã có hoá đơn gốc: không cần nối, không có nút", "noihds" not in ra["html"])
+	ra = _xem_ho_so([{}], hd_sau=[{"hoa_don": "HDM-1", "so_hd_ncc": "5802", "ncc_ten": "Adecco", "tien_khop": 2160000,
+		"tong_hd": 2160000, "da_ghi_so": 1, "bu_tru": 2160000, "but_toan": "PKT-9", "nhan": "Đã ghi sổ, đã trả hết", "scan": []}])
+	dung("nối đủ: không còn nút nối, báo đủ hoá đơn", "noihds" not in ra["html"] and "đủ hoá đơn" in ra["html"])
+	dung("tờ đã nối có nút Gỡ và ghi bút toán bù trừ", 'data-hsv="gohds|HDM-1"' in ra["html"] and "PKT-9" in ra["html"])
 
 
 # ------------------------------------------------ Codex #370 vòng 1 trên 6e2053d
