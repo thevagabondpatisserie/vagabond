@@ -934,6 +934,10 @@ def _():
 		dung("bảo mật có " + chu, chu in t)
 	ghi = {}
 
+	# Ca này chỉ đi nhánh "đã có bản ghi" (exists True). Nhánh tạo mới không
+	# ai kiểm nên lỗi get_doc(dict) + save() lọt lên site thật lúc deploy v529
+	# (27/09/2026). Nhánh tạo mới kiểm ở thu_so_hd_that_531 với Doc giả giữ
+	# đúng luật is_new() của Frappe. Đừng coi ca này là đủ cho gieo_chinh_sach.
 	class Doc(D):
 		def is_new(self):
 			return False

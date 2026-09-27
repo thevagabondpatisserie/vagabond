@@ -497,7 +497,33 @@ def _giu_hd_sau(hoa_don, khoa=False, chi_tkct=False, bo_qua_ho_so=""):
 
 # Codex #374 vòng 6: thêm tiền tệ. Lúc nối đã chặn tờ ngoại tệ; tờ nháp đã
 # nối mà đổi sang USD giữ nguyên con số thì tiền nối vẫn tính như VND.
-TRUONG_KHOA_KHI_NOI = (("supplier", "nhà cung cấp"), ("company", "công ty"), ("currency", "tiền tệ"))
+def chan_so_hd_gia(doc, method=None):
+	"""validate Hoá đơn mua (v531, anh Việt 27/09/2026): không cho ghi mã hồ sơ
+	thanh toán (APP.26.08.004, APPMEREJM...) vào ô số hoá đơn nhà cung cấp.
+
+	Luồng Hoàn ứng từng tự điền mã hồ sơ khi khoản không có số; tờ đó trông
+	như có số hoá đơn mà thật ra là chứng từ nội bộ, rồi được nối làm căn cứ
+	"hợp lệ tính thuế". Chỉ xét khi ô được ĐẶT MỚI hoặc ĐỔI, để các tờ cũ đã
+	mang số như vậy vẫn lưu được (không sửa dữ liệu quá khứ). Để trống thì
+	được: tờ không có hoá đơn thì ô số hoá đơn phải trống."""
+	from vagabond.hoa_don_sau import la_so_hoa_don_that
+	so = (doc.get("bill_no") or "").strip() if hasattr(doc, "get") else ""
+	if not so or la_so_hoa_don_that(so):
+		return
+	if not doc.is_new():
+		cu = doc.get_doc_before_save()
+		if cu is not None and (cu.get("bill_no") or "").strip() == so:
+			return
+	frappe.throw(
+		"Số hoá đơn \"%s\" không phải số hoá đơn của nhà cung cấp (trông như mã hồ sơ thanh toán hoặc "
+		"toàn số 0). Ghi đúng số in trên hoá đơn; khoản không có hoá đơn thì để trống ô này." % so,
+		title="Số hoá đơn chưa đúng")
+
+
+# v531: thêm số hoá đơn. Luật hợp lệ thuế đọc số hoá đơn lúc nối; đổi sau
+# đó (trống thành số thật hay ngược lại) là nhãn thuế sai mà không ai soát.
+TRUONG_KHOA_KHI_NOI = (("supplier", "nhà cung cấp"), ("company", "công ty"), ("currency", "tiền tệ"),
+	("bill_no", "số hoá đơn"))
 
 
 def giu_hd_da_noi(doc, method=None):
@@ -526,7 +552,7 @@ def giu_hd_da_noi(doc, method=None):
 		if giu:
 			frappe.throw(
 				"Hoá đơn %s đang là hoá đơn đến sau (chứng từ) của hồ sơ %s, nên không đổi %s được. "
-				"Hồ sơ đã kiểm đúng nhà cung cấp, công ty và tiền tệ lúc nối. Cần đổi thì huỷ hồ sơ %s trước."
+				"Hồ sơ đã kiểm đúng nhà cung cấp, công ty, tiền tệ và số hoá đơn lúc nối. Cần đổi thì huỷ hồ sơ %s trước."
 				% (doc.name, giu, " và ".join(doi), giu), title="Tờ này đang làm chứng từ")
 	if doi_tien:
 		# v530: tờ nháp nối ở mức hồ sơ thì so với tổng tờ lúc nối.
@@ -633,7 +659,8 @@ def noi_hoa_don(name, dong, hoa_don):
 	from vagabond.ho_so_tt import _kiem, VAI_FIN, VAI_GD
 	_kiem(VAI_FIN | VAI_GD, "nối hóa đơn đến sau")
 	frappe.db.sql("select name from `tabVagabond Ho So TT` where name=%s for update", name)
-	d = frappe.get_doc("Vagabond Ho So TT", name)
+	# v531: nạp có khoá (đọc hiện hành) như noi_nhieu, không đọc ảnh chụp.
+	d = frappe.get_doc("Vagabond Ho So TT", name, for_update=True)
 	if cint(dong) < 1 or cint(dong) > len(d.dong):
 		frappe.throw("Không tìm thấy khoản chi. Tải lại hồ sơ rồi chọn lại.")
 	r = d.dong[cint(dong) - 1]
@@ -646,32 +673,28 @@ def noi_hoa_don(name, dong, hoa_don):
 	# v526 (anh Việt 23/09/2026): nối đủ thì hồ sơ thành chi phí hợp lệ tính
 	# thuế. Còn khoản không chờ hoá đơn thì giữ nguyên, đó là khoản không
 	# hoá đơn thật.
-	from vagabond.ho_so_tt import CP_HOP_LE, LOAI_TKCT
+	from vagabond.ho_so_tt import LOAI_TKCT
 	la_tkct = (getattr(d, "loai", None) or "") == LOAI_TKCT
-	lech = []
-	doi_hop_le = False
-	if la_tkct and nen_hop_le(d.dong):
-		# Codex #368 vòng 7: so tiền từng tờ với khoản của nó trước khi đổi cả
-		# hồ sơ sang hợp lệ. Lệch thì vẫn nối (tờ là chứng từ thật của NCC),
-		# nhưng hồ sơ giữ loại cũ và báo rõ khoản nào lệch.
-		# Vòng 11: đọc tổng từng tờ qua tong_hoa_don_khoa (khoá tờ, đọc hiện
-		# hành), không get_value. Khoá theo thứ tự tên để hai lần nối không
-		# khoá chéo nhau.
-		tong_hd = {}
-		for ma in sorted({(x.get("hoa_don_bo_sung") or "").strip() for x in d.dong} - {""}):
-			tong_hd[ma] = tong_hoa_don_khoa(ma)
-		lech = lech_tien_hoa_don(d.dong, tong_hd)
-		doi_hop_le = not lech and (getattr(d, "loai_cp_thue", None) or "") != CP_HOP_LE
-	if doi_hop_le:
-		d.loai_cp_thue = CP_HOP_LE
+	# Codex #375 vòng 2 (8a2837e): xếp nhãn qua _cap_nhat_hop_le, MỘT nguồn
+	# với noi_nhieu và go_noi, cả hai chiều. Bản trước tự tính và chỉ nâng lên,
+	# nên hồ sơ đang Hợp lệ (kể cả nhãn sai từ trước v531) nối tờ số giả vẫn
+	# giữ Hợp lệ. Lệch tiền (Codex #368 vòng 7) và tờ không có số thật vẫn
+	# được báo rõ qua flags.vgb_lech.
+	doi = _cap_nhat_hop_le(d, la_tkct)
+	lech = list(getattr(getattr(d, "flags", None), "vgb_lech", None) or []) if doi != 1 else []
 	# Khong goi kiem_bo_sung o day: luc nay get_doc_before_save() con None nen
 	# hang rao giu lien ket khong thay ban cu, chay cho co. Controller goi no
 	# trong validate voi ban cu that, do moi la cua duy nhat.
 	d.save(ignore_permissions=True)
+	if doi == 1:
+		them = " Đủ hoá đơn cho mọi khoản, hồ sơ chuyển sang chi phí hợp lệ tính thuế."
+	elif doi == -1:
+		them = " Hồ sơ trở lại chi phí không hợp lệ tính thuế" + (": " + "; ".join(lech) if lech else "") + "."
+	else:
+		them = " Chưa chuyển hợp lệ tính thuế vì: " + "; ".join(lech) + "." if lech else ""
 	d.add_comment("Comment", "Nối hóa đơn bổ sung %s vào khoản %s. Không phát sinh bút toán thanh toán.%s" % (
-		hoa_don, dong, " Đủ hoá đơn cho mọi khoản, hồ sơ chuyển sang chi phí hợp lệ tính thuế." if doi_hop_le else (
-			" Chưa chuyển hợp lệ tính thuế vì tiền lệch: " + "; ".join(lech) + "." if lech else "")))
-	return {"ok": 1, "hop_le": 1 if doi_hop_le else 0, "lech": lech}
+		hoa_don, dong, them))
+	return {"ok": 1, "hop_le": 1 if doi == 1 else 0, "ve_khong_hop_le": 1 if doi == -1 else 0, "lech": lech}
 
 
 @frappe.whitelist()
@@ -711,7 +734,8 @@ def danh_dau_cho_hoa_don(name, dong):
 	from vagabond.ho_so_tt import _kiem, VAI_FIN, VAI_GD, LOAI_TKCT
 	_kiem(VAI_FIN | VAI_GD, "đánh dấu hoá đơn đến sau")
 	frappe.db.sql("select name from `tabVagabond Ho So TT` where name=%s for update", name)
-	d = frappe.get_doc("Vagabond Ho So TT", name)
+	# v531: nạp có khoá (đọc hiện hành) như noi_nhieu.
+	d = frappe.get_doc("Vagabond Ho So TT", name, for_update=True)
 	i = cint(dong)
 	if i < 1 or i > len(d.dong):
 		frappe.throw("Không tìm thấy khoản chi. Tải lại hồ sơ rồi chọn lại.")
@@ -974,6 +998,33 @@ def _loai_tk(tk):
 	return frappe.db.get_value("Account", tk, "account_type") if tk else ""
 
 
+def _to_lam_can_cu(d):
+	"""Mọi tờ hoá đơn mua đang làm căn cứ cho khoản của hồ sơ: tờ nối mức hồ
+	sơ (v530), tờ nối kiểu cũ theo khoản, và hoá đơn gốc của khoản."""
+	ra = {(r.get("hoa_don") or "").strip() for r in _lien_ket_cua(d)}
+	for k in _khoan_cua(d):
+		ra.add((k.get("hoa_don_bo_sung") or "").strip())
+		ra.add((k.get("hoa_don") or "").strip())
+	return sorted(ra - {""})
+
+
+def to_khong_hoa_don(ma_to, khoa=False):
+	"""Tập tờ trong `ma_to` mà ô số hoá đơn KHÔNG phải số hoá đơn thật
+	(trống, toàn 0, hay mã hồ sơ APP...). v531, anh Việt 27/09/2026.
+
+	Nguồn duy nhất cho mọi luật "tờ này làm căn cứ hợp lệ tính thuế được
+	không": nối mức hồ sơ, nối kiểu cũ, và lập hồ sơ TK công ty từ tờ đã tick.
+	khoa=True: đọc hiện hành có khoá (đường quyết định), theo thứ tự tên."""
+	from vagabond.hoa_don_sau import la_so_hoa_don_that
+	ds = sorted({(m or "").strip() for m in (ma_to or [])} - {""})
+	if not ds:
+		return set()
+	r = frappe.db.sql(
+		"select name, bill_no from `tabPurchase Invoice` where name in %s order by name"
+		+ (" for update" if khoa else ""), (tuple(ds),))
+	return {ten for ten, so in r if not la_so_hoa_don_that(so)}
+
+
 def _cap_nhat_hop_le(d, tkct):
 	"""Xếp lại loại chi phí thuế sau MỌI lần nối hoặc gỡ, cả hai chiều.
 
@@ -991,7 +1042,14 @@ def _cap_nhat_hop_le(d, tkct):
 	for ma in sorted({(x.get("hoa_don_bo_sung") or "").strip() for x in _khoan_cua(d)} - {""}):
 		tong[ma] = tong_hoa_don_khoa(ma)
 	lech = lech_tien_hoa_don(_khoan_cua(d), tong)
-	nen = hs.nen_hop_le(_khoan_cua(d), _lien_ket_cua(d), lech)
+	# v531: một nguồn cho câu hỏi "tờ này có phải hoá đơn thật không".
+	gia = to_khong_hoa_don(_to_lam_can_cu(d), khoa=True)
+	d.flags.vgb_to_gia = sorted(gia)
+	# Lý do không lên hợp lệ, cho người bấm đọc (nối kiểu cũ trả về "lech").
+	# Chỉ nói khi nhãn do luật hoá đơn quyết (mọi khoản có đường tới hoá đơn).
+	d.flags.vgb_lech = (list(lech) + ["tờ %s không có số hoá đơn thật (chứng từ nội bộ)" % m for m in sorted(gia)]
+		if hs.du_dieu_kien(_khoan_cua(d)) else [])
+	nen = hs.nen_hop_le(_khoan_cua(d), _lien_ket_cua(d), lech, to_gia=gia)
 	hien = getattr(d, "loai_cp_thue", None) or ""
 	if nen and hien != CP_HOP_LE:
 		d.loai_cp_thue = CP_HOP_LE
@@ -1157,6 +1215,7 @@ def noi_nhieu(name, hoa_don, ngoai_ncc=0):
 				r.but_toan = ten
 	doi = _cap_nhat_hop_le(d, tkct)
 	doi_hop_le = 1 if doi == 1 else 0
+	gia_moi = [m for m in (d.flags.vgb_to_gia or []) if m in set(ds)]
 	d.flags.vgb_noi_hd_sau = True
 	d.save(ignore_permissions=True)
 	phu = hs.do_phu(_khoan_cua(d), _lien_ket_cua(d))
@@ -1167,9 +1226,11 @@ def noi_nhieu(name, hoa_don, ngoai_ncc=0):
 		" Có tờ ngoài nhà cung cấp, người nối đã xác nhận." if cint(ngoai_ncc) else "",
 		hs.dd(phu["da_noi"]), hs.dd(phu["can"]),
 		" Đủ hoá đơn, hồ sơ chuyển sang chi phí hợp lệ tính thuế." if doi == 1 else (
-			" Tổng tờ nối không còn khớp, hồ sơ trở lại chi phí không hợp lệ tính thuế." if doi == -1 else "")))
+			" Tổng tờ nối không còn khớp, hồ sơ trở lại chi phí không hợp lệ tính thuế." if doi == -1 else ""))
+		+ ((" Tờ %s không có số hoá đơn thật (chứng từ nội bộ): bù trừ vẫn lập, nhưng hồ sơ không lên chi phí "
+			"hợp lệ tính thuế." % ", ".join(gia_moi)) if gia_moi else ""))
 	return {"ok": 1, "hop_le": doi_hop_le, "ve_khong_hop_le": 1 if doi == -1 else 0, "phu": phu,
-		"but_toan": but_toan, "danh_dau": danh_dau}
+		"but_toan": but_toan, "danh_dau": danh_dau, "khong_hoa_don_that": gia_moi}
 
 
 @frappe.whitelist(methods=["POST"])

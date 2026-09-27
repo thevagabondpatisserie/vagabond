@@ -79,7 +79,7 @@ def _danh_dau_that(loai="TK cong ty", trang_thai="Da thanh toan", dong=1, vai=("
 		if not nhom & set(vai):
 			_fr.throw("Tài khoản của bạn không có quyền %s." % viec)
 	hs = NS(_kiem=kiem, VAI_FIN={"AP Kiểm soát (FIN)"}, VAI_GD={"AP Giám đốc"}, LOAI_TKCT="TK cong ty")
-	f = NS(db=NS(sql=lambda *a, **k: None), get_doc=lambda dt, ten: doc, throw=_fr.throw,
+	f = NS(db=NS(sql=lambda *a, **k: None), get_doc=lambda dt, ten, **k: doc, throw=_fr.throw,
 		session=NS(user="dung@vagabond"))
 	with unittest.mock.patch.object(hb, "frappe", f), unittest.mock.patch.dict(sys.modules, {"vagabond.ho_so_tt": hs}):
 		try:

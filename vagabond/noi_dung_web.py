@@ -231,6 +231,19 @@ def trang_chinh_sach(khoa, ngon_ngu="vn"):
     }
 
 
+def gieo_tu_tep():
+    """Đọc bản nháp ba chính sách đã duyệt trong vagabond/du_lieu/chinh_sach/
+    rồi gieo. Dùng chung cho patch #367 và patch gieo lại v531."""
+    import io
+    import os
+    thu_muc = os.path.join(os.path.dirname(os.path.abspath(__file__)), "du_lieu", "chinh_sach")
+    nhap = {}
+    for khoa in CHINH_SACH:
+        with io.open(os.path.join(thu_muc, khoa + ".md"), encoding="utf-8") as f:
+            nhap[khoa] = f.read().strip() + "\n"
+    return gieo_chinh_sach(nhap)
+
+
 def gieo_chinh_sach(ban_nhap_vn):
     """Gieo bản nháp ba chính sách vào BẢN NHÁP, không đụng bản công khai.
 
@@ -242,8 +255,17 @@ def gieo_chinh_sach(ban_nhap_vn):
         d = _doc()
         nhap = json.loads(d.ban_nhap or json.dumps(MAC_DINH))
     else:
-        d = frappe.get_doc({"doctype": DOCTYPE, "name": TEN, "ban_nhap": json.dumps(MAC_DINH),
-                             "ban_cong_khai": json.dumps(MAC_DINH), "phien_ban": 0, "lich_su": "[]"})
+        # v531: new_doc chứ không get_doc(dict). Bản ghi dựng bằng get_doc(dict)
+        # không mang cờ "mới" nên is_new() trả False, nhánh dưới gọi save() và
+        # Frappe đi tìm bản ghi chưa có: "Vagabond Noi Dung Web order not found".
+        # Lỗi thật lúc deploy v529 ngày 27/09/2026, ba trang chính sách không
+        # được gieo bản nháp.
+        d = frappe.new_doc(DOCTYPE)
+        d.name = TEN
+        d.ban_nhap = json.dumps(MAC_DINH)
+        d.ban_cong_khai = json.dumps(MAC_DINH)
+        d.phien_ban = 0
+        d.lich_su = "[]"
         nhap = copy.deepcopy(MAC_DINH)
     cs = nhap.setdefault("chinh_sach", {})
     doi = False

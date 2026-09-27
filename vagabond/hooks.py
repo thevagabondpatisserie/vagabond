@@ -588,6 +588,9 @@ doc_events = {
 			# v526 (Codex #368 vong 5): to da noi lam hoa don den sau thi
 			# khong doi nha cung cap, cong ty khi luu nhap.
 			"vagabond.ho_so_bo_sung.giu_hd_da_noi",
+			# v531: không cho ghi mã hồ sơ (APP...) vào ô số hoá đơn nhà cung
+			# cấp. Tờ cũ đã mang số như vậy vẫn lưu được (chỉ xét khi đổi).
+			"vagabond.ho_so_bo_sung.chan_so_hd_gia",
 		],
 		"before_submit": [
 			# Codex #358 P1: dòng máy đoán Món mà người chưa chốt thì chưa ghi sổ.

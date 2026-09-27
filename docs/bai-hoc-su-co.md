@@ -1293,3 +1293,28 @@ Cách phòng:
   phía nối đọc bút toán chi bằng for update thì 0 trên 3. Thứ tự khoá chéo
   (huỷ đã giữ dòng bút toán, nối đã giữ hồ sơ) có thể thành deadlock: MariaDB
   lùi một bên, dữ liệu vẫn đúng, người dùng bấm lại.
+
+## 27/09/2026 (v531): mã hồ sơ nằm trong ô số hoá đơn, và nhánh tạo mới không ai kiểm
+
+- Luồng Hoàn ứng tự điền mã hồ sơ (APP.26.08.004) vào ô số hoá đơn khi khoản
+  không có số. Tờ đó trông như có số, rồi được nối làm hoá đơn đến sau và đẩy
+  hồ sơ lên "hợp lệ tính thuế" sai (APP.26.08.005 Cấp nước Tân Hoà). Cách
+  phòng: ô số hoá đơn chỉ chứa số của nhà cung cấp; không có thì để trống. Mọi
+  luật "tờ này làm căn cứ thuế được không" đi qua MỘT hàm (to_khong_hoa_don),
+  và hook tờ chặn ghi mã hồ sơ vào ô đó.
+- Patch #367 gieo nháp chính sách hỏng ngay lúc deploy: dựng bản ghi bằng
+  frappe.get_doc(dict) thì is_new() trả False, nhánh save() nổ "not found".
+  Ca kiểm cũ chỉ đi nhánh "đã có bản ghi". Cách phòng: bản ghi mới luôn dùng
+  frappe.new_doc; hàm có hai nhánh tạo mới / đã có thì ca kiểm phải đi cả hai,
+  với Doc giả giữ đúng luật is_new() của Frappe.
+- Patch một lần mà nuốt lỗi (log_error rồi đi tiếp) thì Frappe vẫn ghi vào
+  Patch Log là đã chạy, không bao giờ chạy lại. v529 lên xanh mà ba trang mất
+  nháp. Patch gieo dữ liệu một lần phải để lỗi nổ cho migrate dừng (Codex
+  #375). Chỉ dong_bo_cau_truc, loại chạy lại mỗi bản, mới được nuốt lỗi.
+- Doctype có on_trash chặn xoá (Nội dung web) thì ca bench muốn đi nhánh
+  "chưa có bản ghi" không được gọi delete_doc (force=True không bỏ hook),
+  và cũng không được xoá thẳng dòng bằng frappe.db.delete: đó là sửa dữ liệu
+  thật, chỉ dựa vào điểm lưu (Codex #375 vòng 3). Site đã có bản ghi thì bỏ
+  qua; nhánh tạo mới kiểm ở tầng khung bằng Doc giả.
+- Luật "toàn số 0" đừng liệt kê dấu ngăn: sửa hai lần vẫn sót "000,000",
+  "00:00". Xét thẳng "không có chữ cái hay chữ số nào khác 0".
