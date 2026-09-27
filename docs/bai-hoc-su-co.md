@@ -1312,5 +1312,9 @@ Cách phòng:
   nháp. Patch gieo dữ liệu một lần phải để lỗi nổ cho migrate dừng (Codex
   #375). Chỉ dong_bo_cau_truc, loại chạy lại mỗi bản, mới được nuốt lỗi.
 - Doctype có on_trash chặn xoá (Nội dung web) thì ca bench muốn đi nhánh
-  "chưa có bản ghi" không được gọi delete_doc (force=True không bỏ hook).
-  Xoá thẳng dòng trong điểm lưu bằng frappe.db.delete.
+  "chưa có bản ghi" không được gọi delete_doc (force=True không bỏ hook),
+  và cũng không được xoá thẳng dòng bằng frappe.db.delete: đó là sửa dữ liệu
+  thật, chỉ dựa vào điểm lưu (Codex #375 vòng 3). Site đã có bản ghi thì bỏ
+  qua; nhánh tạo mới kiểm ở tầng khung bằng Doc giả.
+- Luật "toàn số 0" đừng liệt kê dấu ngăn: sửa hai lần vẫn sót "000,000",
+  "00:00". Xét thẳng "không có chữ cái hay chữ số nào khác 0".
