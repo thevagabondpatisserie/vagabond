@@ -209,6 +209,8 @@ async function dhMo(ma) {
       'Chụp hình khung chat với khách, khung chat bếp không làm kịp,...',
     bang_chung: []   // [{ma, ten, url}]
   };
+  /* v533: mo lai ban nhap tu luu (48-ban-soan-do.js) thi ghep phan da go vao. */
+  if (typeof sdGhep === 'function') dhF = sdGhep('don_huy_hoan', dhF);
   dhOv = document.createElement('div');
   dhOv.className = 'sh';
   dhOv.innerHTML = '<div class="shb" style="padding:16px 15px calc(env(safe-area-inset-bottom,0px) + 14px);max-height:90vh;overflow:auto"></div>';

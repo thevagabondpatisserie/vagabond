@@ -63,6 +63,16 @@ ElementGia.prototype.hasAttribute = function (t) {
   return Object.prototype.hasOwnProperty.call(this.attrs, t);
 };
 
+/* `el.attributes` như trình duyệt: danh sách {name, value}. Bản nháp tự lưu
+   (v533, 48-ban-soan-do.js) lấy khoá ô nhập không có id theo thuộc tính
+   data- đầu tiên. Thêm mới, không đổi hành vi cũ của tệp này. */
+Object.defineProperty(ElementGia.prototype, 'attributes', {
+  get: function () {
+    var el = this;
+    return Object.keys(el.attrs).map(function (t) { return { name: t, value: el.attrs[t] }; });
+  },
+});
+
 ElementGia.prototype.addEventListener = function (loai, ham) {
   (this._nghe[loai] = this._nghe[loai] || []).push(ham);
 };

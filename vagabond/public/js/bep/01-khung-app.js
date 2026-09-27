@@ -147,7 +147,7 @@ function back() {
     return;
   }
   if (roiPhieuDo(S.stack[S.stack.length - 2])) {
-    confirmSheet('Phiếu đang soạn dở', 'Rời màn này thì danh sách món đang chọn sẽ mất.', 'Rời đi, bỏ phiếu nháp', true)
+    confirmSheet('Phiếu đang soạn dở', 'Máy đã tự lưu nháp phiếu này. Rời đi thì mở lại ở mục Phiếu đang soạn dở trên trang chủ.', 'Rời đi', true)
       .then(function (ok) { if (ok) { S.draft = null; buoc(); } });
     return;
   }
@@ -275,7 +275,7 @@ function frame(title, bodyHtml, opt) {
   var b = document.getElementById('vgbBack'); if (b) b.onclick = back;
   var hb = document.getElementById('vgbHome'); if (hb) hb.onclick = function () {
     if (roiPhieuDo(scrHome)) {
-      confirmSheet('Phiếu đang soạn dở', 'Về trang chủ thì danh sách món đang chọn sẽ mất.', 'Về trang chủ, bỏ phiếu nháp', true)
+      confirmSheet('Phiếu đang soạn dở', 'Máy đã tự lưu nháp phiếu này, mở lại ở mục Phiếu đang soạn dở trên trang chủ.', 'Về trang chủ', true)
         .then(function (ok) { if (ok) { S.draft = null; reset(scrHome); } });
       return;
     }
