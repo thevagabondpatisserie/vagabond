@@ -39,6 +39,73 @@ CHINH_SACH = {
 TRUONG_CHINH_SACH = {"hien", "vn", "en"}
 
 
+# v532 (anh Việt 27/09/2026): chữ cố định trên thanh chọn, câu giờ chuẩn bị
+# và trang đặt bàn cho marketing tự đổi, không phải sửa HTML. Khoá là cố
+# định, chỉ đổi được chữ. Chữ trong {ngoặc nhọn} là chỗ máy điền số; khoá nào
+# có chỗ điền thì bản sửa phải giữ đủ, kẻo con số biến mất khỏi câu.
+# Bản mặc định ở đây PHẢI trùng chữ đang có sẵn trong trang, để trang chưa
+# tải xong hay lỗi tải vẫn hiện đúng câu cũ.
+NHAN = {
+    "tab_season": {"ten": "Tab mùa vụ (chỉ hiện khi có mùa)", "mac_dinh": "In season"},
+    "tab_store": {"ten": "Tab bánh trên tủ tại quầy", "mac_dinh": "In store"},
+    "tab_today": {"ten": "Tab bánh có sẵn hôm nay", "mac_dinh": "Có sẵn hôm nay"},
+    "tab_order": {"ten": "Tab đặt bánh trước", "mac_dinh": "Đặt bánh trước"},
+    "nut_dat_ban": {"ten": "Nút Đặt bàn trên đầu trang", "mac_dinh": "Đặt bàn"},
+    "nut_thanh_vien": {"ten": "Nút Thành viên trên đầu trang", "mac_dinh": "Thành viên"},
+    "cau_co_san": {"ten": "Dòng số bánh có sẵn ({so} là số bánh)", "mac_dinh": "{so} bánh có sẵn"},
+    "cau_nhan_tu": {"ten": "Dòng khung giờ nhận sớm nhất ({khung} là khung giờ)", "mac_dinh": "nhận từ {khung}"},
+    "cau_het_khung": {"ten": "Dòng khi hôm nay hết khung giờ nhận", "mac_dinh": "hôm nay đã hết khung giờ nhận"},
+    "cau_chuan_bi": {"ten": "Câu giờ bếp chuẩn bị ({gio} là số tiếng, {khung} là khung giờ)",
+                     "mac_dinh": "Bếp cần khoảng {gio} tiếng để chuẩn bị và đóng gói, nên hôm nay nhận được từ khung {khung} trở đi."},
+    "cau_chuan_bi_het": {"ten": "Câu khi hôm nay hết khung giờ nhận (dưới danh sách bánh)",
+                         "mac_dinh": "Hôm nay đã hết khung giờ nhận. Anh chị đặt cho ngày mai giúp em nhé."},
+    "dat_ban_nhan": {"ten": "Đặt bàn: dòng nhỏ trên tiêu đề", "mac_dinh": "HẸN MỘT BUỔI THONG THẢ"},
+    "dat_ban_tieu_de": {"ten": "Đặt bàn: tiêu đề", "mac_dinh": "Đặt bàn tại tiệm."},
+    "dat_ban_mo_ta": {"ten": "Đặt bàn: đoạn mô tả",
+                      "mac_dinh": "Chọn ngày, giờ và số người. Tiệm sẽ liên hệ xác nhận chỗ; gửi yêu cầu chưa đồng nghĩa đã giữ được bàn."},
+    "dat_ban_dong": {"ten": "Đặt bàn: câu hiện khi tiệm chưa mở nhận đặt bàn online",
+                     "mac_dinh": "Tiệm chưa mở nhận đặt bàn online. Gọi 0931 224 334 để được hỗ trợ."},
+    "dat_ban_nut": {"ten": "Đặt bàn: chữ trên nút gửi", "mac_dinh": "Gửi yêu cầu đặt bàn"},
+    "dat_ban_ho_tro": {"ten": "Đặt bàn: câu trước số điện thoại hỗ trợ", "mac_dinh": "Cần hỗ trợ ngay?"},
+}
+DAI_NHAN = 300
+RE_CHO_DIEN = re.compile(r"\{[a-z_]+\}")
+
+
+def cho_dien(chu):
+    """Các chỗ máy điền dạng {so}, {khung} trong một câu. THUẦN."""
+    return sorted(set(RE_CHO_DIEN.findall(str(chu or ""))))
+
+
+def _chuan_hoa_nhan(nhan):
+    if not isinstance(nhan, dict) or set(nhan) - set(NHAN):
+        raise ValueError("Nhãn không có trong danh sách cho phép. Tải lại trang biên tập.")
+    for khoa, chu in nhan.items():
+        if not isinstance(chu, str) or len(chu) > DAI_NHAN:
+            raise ValueError("Nhãn %s quá dài hoặc không hợp lệ (tối đa %d ký tự)." % (NHAN[khoa]["ten"], DAI_NHAN))
+        if "\n" in chu and not khoa.startswith("dat_ban_"):
+            raise ValueError("Nhãn %s chỉ có một dòng." % NHAN[khoa]["ten"])
+        if not chu.strip():
+            continue  # để trống là dùng chữ mặc định
+        thieu = set(cho_dien(NHAN[khoa]["mac_dinh"])) - set(cho_dien(chu))
+        if thieu:
+            raise ValueError("Nhãn %s phải giữ chỗ điền %s để máy điền số." % (NHAN[khoa]["ten"], ", ".join(sorted(thieu))))
+        la = set(cho_dien(chu)) - set(cho_dien(NHAN[khoa]["mac_dinh"]))
+        if la:
+            raise ValueError("Nhãn %s có chỗ điền máy không hiểu: %s." % (NHAN[khoa]["ten"], ", ".join(sorted(la))))
+
+
+def nhan_day_du(du_lieu):
+    """Bộ nhãn đầy đủ để trang dùng: chữ marketing đã sửa, chỗ trống thì
+    lấy mặc định. THUẦN, là NGUỒN DUY NHẤT ghép nhãn với mặc định."""
+    da_sua = (du_lieu or {}).get("nhan") or {}
+    ra = {}
+    for khoa, v in NHAN.items():
+        chu = da_sua.get(khoa)
+        ra[khoa] = chu if isinstance(chu, str) and chu.strip() else v["mac_dinh"]
+    return ra
+
+
 def khoa_tu_duong(duong):
     """Khoá trang chính sách từ đường dẫn yêu cầu, "" nếu không phải trang
     chính sách. Frappe không truyền `defaults` của luật định tuyến vào
@@ -117,10 +184,12 @@ def chuan_hoa(du_lieu):
         if len(du_lieu) > 250000:
             raise ValueError("Nội dung quá dài. Giảm số khối hoặc độ dài bài viết.")
         du_lieu = json.loads(du_lieu)
-    if not isinstance(du_lieu, dict) or "khoi" not in du_lieu or set(du_lieu) - {"khoi", "chinh_sach"}:
+    if not isinstance(du_lieu, dict) or "khoi" not in du_lieu or set(du_lieu) - {"khoi", "chinh_sach", "nhan"}:
         raise ValueError("Nội dung phải có danh sách khối.")
     if "chinh_sach" in du_lieu:
         _chuan_hoa_chinh_sach(du_lieu["chinh_sach"])
+    if "nhan" in du_lieu:
+        _chuan_hoa_nhan(du_lieu["nhan"])
     ds = du_lieu["khoi"]
     if not isinstance(ds, list) or len(ds) > 30:
         raise ValueError("Mỗi trang có tối đa 30 khối.")
@@ -195,7 +264,14 @@ def cong_khai():
     """
     ra = _ban_cong_khai()
     ra.pop("chinh_sach", None)
+    # v532: trang luôn nhận bộ nhãn đầy đủ, không tự ghép mặc định ở phía khách.
+    ra["nhan"] = nhan_day_du(ra)
     return ra
+
+
+def nhan_cong_khai():
+    """Bộ nhãn đã xuất bản cho các trang dựng ở máy chủ (đặt bàn)."""
+    return nhan_day_du(_ban_cong_khai())
 
 
 def chinh_sach_dang_hien():
@@ -288,11 +364,15 @@ def gieo_chinh_sach(ban_nhap_vn):
 @frappe.whitelist()
 def doc_bang():
     kiem_quyen()
+    # v532: bảng biên tập lấy danh sách nhãn (tên, mặc định) từ máy chủ, không
+    # chép cứng trong JS, để thêm nhãn chỉ sửa một chỗ.
     if not frappe.db.exists(DOCTYPE, TEN):
-        return {"nhap": copy.deepcopy(MAC_DINH), "cong_khai": copy.deepcopy(MAC_DINH), "phien_ban": 0, "lich_su": []}
+        return {"nhap": copy.deepcopy(MAC_DINH), "cong_khai": copy.deepcopy(MAC_DINH), "phien_ban": 0, "lich_su": [],
+                "nhan_mau": copy.deepcopy(NHAN)}
     d = _doc()
     return {"nhap": json.loads(d.ban_nhap), "cong_khai": json.loads(d.ban_cong_khai),
-            "phien_ban": d.phien_ban, "lich_su": json.loads(d.lich_su or "[]"), "nguoi_sua": d.modified_by, "luc_sua": d.modified}
+            "phien_ban": d.phien_ban, "lich_su": json.loads(d.lich_su or "[]"), "nguoi_sua": d.modified_by, "luc_sua": d.modified,
+            "nhan_mau": copy.deepcopy(NHAN)}
 
 
 @frappe.whitelist(methods=["POST"])
