@@ -55,9 +55,11 @@ def _throw(msg, *a, **k):
 @ca("v531 thuần: số hoá đơn giả là trống, toàn 0, hay mã hồ sơ APP; số thật và mã ký hiệu vẫn qua")
 def _so_that():
 	from vagabond.hoa_don_sau import la_so_hoa_don_that as f
-	for so in ("APP.26.08.004", "APP-26-08-004", "app.26.08.004", "APP26080", "APPMEREJM", "", "   ", "0", "0000", "-"):
+	for so in ("APP.26.08.004", "APP-26-08-004", "app.26.08.004", "APP26080", "APPMEREJM", "", "   ", "0", "0000", "-",
+			# Codex #375 vòng 2: toàn số 0 kèm dấu ngăn.
+			"000-000", "000.000", "00/00", "0 0", "0_0"):
 		la("giả: %r" % so, f(so), False)
-	for so in ("5802", "0012515", "C26TAA-12", "APPLE", "Apple 12", "APP.X", "262"):
+	for so in ("5802", "0012515", "C26TAA-12", "APPLE", "Apple 12", "APP.X", "262", "000-001", "00/10", "C26TAA-000"):
 		la("thật: %r" % so, f(so), True)
 
 
@@ -143,6 +145,37 @@ def _noi_cu():
 	r = _D(cho_hoa_don=1, hoa_don_bo_sung="", so_tien=80000)
 	d, kq = _noi("TK cong ty", [r], so_hd={"PI-THU": "5802"})
 	la("tờ thật: hợp lệ như v526", kq["hop_le"], 1)
+
+
+@ca("v531 nối kiểu cũ (Codex #375 vòng 2): hồ sơ ĐANG Hợp lệ nối tờ số APP thì hạ về Không hợp lệ, báo lý do")
+def _noi_cu_ha():
+	# Đi đúng cửa noi_hoa_don như người bấm; không gọi _cap_nhat_hop_le riêng.
+	from vagabond.khung.kiem_thu.thu_v526 import _D, _noi
+	r = _D(cho_hoa_don=1, hoa_don_bo_sung="", so_tien=80000)
+	d, kq = _noi("TK cong ty", [r], cp="Chi phi hop le", so_hd={"PI-THU": "APP.26.08.004"})
+	la("hạ nhãn", (d.loai_cp_thue, kq["hop_le"], kq.get("ve_khong_hop_le")), ("Chi phi khong hop le", 0, 1))
+	dung("báo tờ không có số thật", any("PI-THU" in x and "không có số hoá đơn thật" in x for x in kq["lech"]))
+	dung("nhật ký ghi trở lại không hợp lệ", "trở lại chi phí không hợp lệ" in str(d.add_comment.call_args))
+	# Hồ sơ đang Hợp lệ nối tờ số thật khớp tiền: giữ nguyên, không báo gì.
+	r = _D(cho_hoa_don=1, hoa_don_bo_sung="", so_tien=80000)
+	d, kq = _noi("TK cong ty", [r], cp="Chi phi hop le", so_hd={"PI-THU": "5802"})
+	la("tờ thật: giữ Hợp lệ", (d.loai_cp_thue, kq["hop_le"], kq.get("ve_khong_hop_le"), kq["lech"]),
+		("Chi phi hop le", 0, 0, []))
+
+
+@ca("v531 nối kiểu cũ đi qua MỘT nguồn xếp nhãn (Codex #375 vòng 2): không tự đặt loai_cp_thue")
+def _noi_cu_mot_nguon():
+	# Không chạy được mọi lối vào; chốt bằng cây cú pháp rằng noi_hoa_don gọi
+	# _cap_nhat_hop_le và không tự gán loai_cp_thue (điều 18).
+	import ast
+	import inspect
+	from vagabond import ho_so_bo_sung as bo
+	cay = ast.parse(inspect.getsource(bo.noi_hoa_don))
+	goi = {getattr(n.func, "id", getattr(n.func, "attr", "")) for n in ast.walk(cay) if isinstance(n, ast.Call)}
+	gan = [n for n in ast.walk(cay) if isinstance(n, ast.Assign)
+		and any(getattr(t, "attr", "") == "loai_cp_thue" for t in n.targets)]
+	dung("gọi _cap_nhat_hop_le", "_cap_nhat_hop_le" in goi)
+	la("không tự gán loai_cp_thue", len(gan), 0)
 
 
 @ca("v531 đánh dấu bù hoá đơn đến sau: nạp hồ sơ có khoá")

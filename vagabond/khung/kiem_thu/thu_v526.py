@@ -454,7 +454,10 @@ def _noi(loai, dong, cp="Chi phi khong hop le", tong_hd=None, anh=None, cau=None
 	from unittest.mock import Mock, patch
 	import frappe
 	from vagabond import ho_so_bo_sung as bo, ho_so_tt as hs
-	d = SimpleNamespace(dong=dong, save=Mock(), add_comment=Mock(), loai=loai, loai_cp_thue=cp)
+	# flags: tài liệu Frappe thật luôn có; Codex #375 vòng 2 cho nối kiểu cũ đi
+	# qua _cap_nhat_hop_le, hàm đó ghi flags.vgb_to_gia / vgb_lech.
+	d = SimpleNamespace(dong=dong, save=Mock(), add_comment=Mock(), loai=loai, loai_cp_thue=cp,
+		flags=SimpleNamespace())
 
 	def hien_hanh(ten):
 		if tong_hd is not None:
