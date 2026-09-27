@@ -138,7 +138,7 @@ class _JE:
 		self.docstatus = 2
 
 
-def _chay(ho_so, to, ham, giu_cu=None, giu_moi=None, no_ho_so=None, bu_truoc=None, ds_je=None, cam_doc=(), cam_ncc=(), anh_chup=None, bu_song=(), chi_theo_so=None):
+def _chay(ho_so, to, ham, giu_cu=None, giu_moi=None, no_ho_so=None, bu_truoc=None, ds_je=None, cam_doc=(), cam_ncc=(), anh_chup=None, bu_song=(), chi_theo_so=None, so_hd=None):
 	"""Chạy HÀM THẬT của ho_so_bo_sung trên lớp dữ liệu giả.
 
 	to: {tên: tờ HIỆN HÀNH}. giu_cu/giu_moi: {tờ: hồ sơ khác đang giữ} theo
@@ -161,6 +161,12 @@ def _chay(ho_so, to, ham, giu_cu=None, giu_moi=None, no_ho_so=None, bu_truoc=Non
 		cau.append(q)
 		ql = q.lower()
 		tham = v if isinstance(v, (list, tuple)) else (v,)
+		if "select name, bill_no from `tabpurchase invoice`" in ql:
+			# v531: số hoá đơn hiện hành của các tờ làm căn cứ. so_hd None: bộ
+			# giả lập cũ, coi mọi tờ có số thật (không đổi kết luận ca cũ).
+			if so_hd is None:
+				return ()
+			return [(n, so_hd.get(n, getattr(to.get(n), "bill_no", "") if to.get(n) else "")) for n in tham[0]]
 		if "tabvagabond ho so tt`" in ql and "for update" in ql and "join" not in ql:
 			return ((tham[0],),) if tham[0] == ho_so.name else ()
 		if "tabsupplier" in ql:

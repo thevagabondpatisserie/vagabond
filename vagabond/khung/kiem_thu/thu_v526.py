@@ -446,7 +446,7 @@ def _loi_noi():
 	dung("hồ sơ khác", "APP-9" in loi_noi_hoa_don(0, "APP-9"))
 
 
-def _noi(loai, dong, cp="Chi phi khong hop le", tong_hd=None, anh=None, cau=None):
+def _noi(loai, dong, cp="Chi phi khong hop le", tong_hd=None, anh=None, cau=None, so_hd=None, goi=None):
 	"""tong_hd: {tờ hoá đơn: tổng tiền HIỆN HÀNH}. Bỏ trống thì mọi tờ khớp đúng
 	số khoản. anh: {tờ: tổng} trong ẢNH CHỤP REPEATABLE READ (get_value và câu
 	select không khoá thấy số này; chỉ câu for update thấy tong_hd), mặc định
@@ -469,14 +469,21 @@ def _noi(loai, dong, cp="Chi phi khong hop le", tong_hd=None, anh=None, cau=None
 	def sql(q, v=None, *a, **k):
 		if cau is not None:
 			cau.append(q)
+		if "select name, bill_no" in q:
+			# v531: so_hd {tờ: số hoá đơn hiện hành}; None là ca cũ (số thật).
+			return [] if so_hd is None else [(n, so_hd.get(n, "")) for n in v[0]]
 		if "grand_total" in q:
 			ten = v[0] if isinstance(v, (list, tuple)) else v
 			if "for update" in q.lower():
 				return ((hien_hanh(ten),),)
 			return ((get_value(None, ten),),)
 		return ()
+	def get_doc(*a, **k):
+		if goi is not None:
+			goi.append(k)
+		return d
 	with patch.object(frappe, "db", SimpleNamespace(sql=sql, get_value=get_value)), \
-		patch.object(frappe, "get_doc", return_value=d), patch.object(hs, "_kiem"):
+		patch.object(frappe, "get_doc", side_effect=get_doc), patch.object(hs, "_kiem"):
 		kq = bo.noi_hoa_don("APP-THU", 1, "PI-THU")
 	return d, kq
 
