@@ -57,7 +57,9 @@ def _so_that():
 	from vagabond.hoa_don_sau import la_so_hoa_don_that as f
 	for so in ("APP.26.08.004", "APP-26-08-004", "app.26.08.004", "APP26080", "APPMEREJM", "", "   ", "0", "0000", "-",
 			# Codex #375 vòng 2: toàn số 0 kèm dấu ngăn.
-			"000-000", "000.000", "00/00", "0 0", "0_0"):
+			"000-000", "000.000", "00/00", "0 0", "0_0",
+			# vòng 3: dấu ngăn bất kỳ.
+			"000,000", "00:00", "000+000", "0#0", "(000)", "0\u00a00"):
 		la("giả: %r" % so, f(so), False)
 	for so in ("5802", "0012515", "C26TAA-12", "APPLE", "Apple 12", "APP.X", "262", "000-001", "00/10", "C26TAA-000"):
 		la("thật: %r" % so, f(so), True)
@@ -436,7 +438,7 @@ def _patch_khong_nuot():
 	la("gieo được thì chạy êm", g.call_count, 1)
 
 
-@ca("v531 ca bench gieo (Codex #375): không gọi frappe.delete_doc, vì on_trash của Nội dung web chặn xoá vô điều kiện")
+@ca("v531 ca bench gieo (Codex #375): không xoá nội dung web có sẵn, không delete_doc (on_trash chặn) và không xoá thẳng dòng")
 def _bench_khong_delete_doc():
 	# Không chạy được ca bench ở tầng khung (cần site thật); chốt bằng cây cú
 	# pháp: thân _gieo_that không có lời gọi delete_doc, và on_trash vẫn chặn.
@@ -447,6 +449,7 @@ def _bench_khong_delete_doc():
 	ham = next(n for n in cay.body if isinstance(n, ast.FunctionDef) and n.name == "_gieo_that")
 	goi = {getattr(n.func, "attr", getattr(n.func, "id", "")) for n in ast.walk(ham) if isinstance(n, ast.Call)}
 	dung("không gọi delete_doc", "delete_doc" not in goi)
-	dung("xoá bằng frappe.db.delete trong điểm lưu", "delete" in goi)
+	# Codex #375 vòng 3: xoá thẳng dòng cũng là sửa dữ liệu thật. Không xoá gì.
+	dung("không xoá thẳng dòng", "delete" not in goi and "sql" not in goi)
 	dt = open(os.path.join(goc, "vagabond", "doctype", "vagabond_noi_dung_web", "vagabond_noi_dung_web.py"), encoding="utf-8").read()
 	dung("on_trash vẫn chặn xoá (lý do của ca này)", "def on_trash" in dt and "frappe.throw" in dt.split("def on_trash", 1)[1])
