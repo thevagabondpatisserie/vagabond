@@ -141,6 +141,8 @@ node vagabond/khung/kiem_thu/hanh_vi/xem_truoc_tre_525.js
 # v526: man hach toan truoc khi ghi so thang, chip Hoa don den sau.
 node vagabond/khung/kiem_thu/hanh_vi/hach_toan_526.js
 node vagabond/khung/kiem_thu/hanh_vi/noi_desk_526.js
+# v533: tu luu phieu dang soan tren may (bao gia that, hop hoan tien don huy that).
+node vagabond/khung/kiem_thu/hanh_vi/ban_soan_do_533.js
 # Trang /kiem-banh: chuoi go o Huy. Codex doi tren PR #218 mot ca chay that
 # chuoi bam - go - cho phan hoi - kiem so, chu khong do chuoi. Dat o day chu
 # khong de chay tay: mot ca kiem khong nam trong cong la mot ca kiem se quen.

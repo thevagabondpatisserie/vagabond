@@ -108,6 +108,11 @@ Ba hệ quả không được quên:
 - **KHÔNG sửa tay vào `app_bep.js`.** Sửa trong `bep/` rồi chạy
   `python3 dung_app_bep.py`. Phép `--kiem` đối chiếu từng byte và sẽ bắt
   được.
+- **Màn lập phiếu mới phải có bản nháp tự lưu (v533).** Khai một dòng
+  `sdKhai` và một dòng `sdBoc` trong `48-ban-soan-do.js`. Phần 48 bọc lại
+  `api`, `frame`, `vgbGomNhom` và các hàm màn lúc nạp, nên nó phải đứng sau
+  mọi phần có màn lập phiếu. Màn dựng trạng thái ngay trong hàm của nó thì
+  thêm móc `sdGhep` ngay sau chỗ dựng.
 
 Không có framework, không có build step, không có React. Màn hình là các
 hàm `scr...` gọi `frame(tiêu_đề, html, tuỳ_chọn)` và điều hướng bằng
