@@ -298,6 +298,8 @@ async function scrRecvDoc(name) {
       };
     })
   };
+  /* v533: mo lai ban nhap tu luu (48-ban-soan-do.js) thi ghep so da dem vao. */
+  if (typeof sdGhep === 'function') rcvD = sdGhep('nhap_kho', rcvD);
 
   function syncHdr() {
     var L = rcvD.lines, okN = L.filter(function (x) { return x.ok; }).length;
@@ -542,6 +544,8 @@ async function scrNhpDon(don) {
       };
     })
   };
+  /* v533: mo lai ban nhap tu luu (48-ban-soan-do.js) thi ghep so da dem vao. */
+  if (typeof sdGhep === 'function') nhpD = sdGhep('nhan_hang', nhpD);
   var L = nhpD.lines;
   var conL = L.filter(function (x) { return x.con > 0.0001; });
 

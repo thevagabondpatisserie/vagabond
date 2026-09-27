@@ -990,6 +990,8 @@ function hoanMoForm(don) {
     ten_khach: '', nguon_khach: '',
     anh: [], goi_y: null, hddt: (don.custom_hddt_so || '')
   };
+  /* v533: mo lai ban nhap tu luu (48-ban-soan-do.js) thi ghep phan da go vao. */
+  if (typeof sdGhep === 'function') htF = sdGhep('hoan_tien', htF);
   hoanVeForm();
   /* Đọc gợi ý tài khoản của chính khách này ở lần hoàn trước, tên và số
      điện thoại khách trên đơn, và đọc lại tổng đơn từ máy chủ. Chạy SAU khi
@@ -1108,7 +1110,8 @@ function htLyDoTen(k) {
      - Gọi endpoint khác, và endpoint đó KHÔNG lập hoá đơn trả hàng. */
 function hoanMoFormDu(don) {
   busy(true);
-  api('vagabond.hoan_tien.xem_tien_du', { si_name: don.name }).then(function (t) {
+  /* v533: tra promise de ban boc tu luu nhap cho duoc toi khi form ve xong. */
+  return api('vagabond.hoan_tien.xem_tien_du', { si_name: don.name }).then(function (t) {
     busy(false);
     if (!t || !t.duoc) {
       return baoTin((t && t.vi_sao) || 'Đơn này không có phần dư để chuyển lại.',
@@ -1121,6 +1124,8 @@ function hoanMoFormDu(don) {
       ten_khach: '', nguon_khach: '', anh: [], goi_y: null,
       hddt: (don.custom_hddt_so || t.canh_bao_hddt || '')
     };
+    /* v533: mo lai ban nhap tu luu (48-ban-soan-do.js) thi ghep phan da go vao. */
+    if (typeof sdGhep === 'function') htF = sdGhep('hoan_du', htF);
     hoanVeForm();
     htNapGoiY(don);
   }).catch(function (e) {
@@ -1139,7 +1144,8 @@ function hoanMoFormDu(don) {
    đánh dấu huỷ đơn TRƯỚC, lập phiếu sau. */
 function hoanMoFormHuy(don) {
   busy(true);
-  api('vagabond.hoan_tien.xem_huy_nhap', { si_name: don.name }).then(function (t) {
+  /* v533: tra promise de ban boc tu luu nhap cho duoc toi khi form ve xong. */
+  return api('vagabond.hoan_tien.xem_huy_nhap', { si_name: don.name }).then(function (t) {
     busy(false);
     if (!t || !t.duoc) {
       return baoTin((t && t.vi_sao) || 'Đơn này chưa lập được phiếu huỷ và hoàn tiền.',
@@ -1152,6 +1158,8 @@ function hoanMoFormHuy(don) {
       ly_do: '', dien_giai: '', ten_tk: '', so_tk: '', ngan_hang: '', sdt: '',
       ten_khach: '', nguon_khach: '', anh: [], goi_y: null, hddt: ''
     };
+    /* v533: mo lai ban nhap tu luu (48-ban-soan-do.js) thi ghep phan da go vao. */
+    if (typeof sdGhep === 'function') htF = sdGhep('hoan_huy', htF);
     hoanVeForm();
     htNapGoiY(don);
   }).catch(function (e) {
