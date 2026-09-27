@@ -279,6 +279,17 @@ function sdLaLuu(loai, method, args) {
   }
   return false;
 }
+/* May chu tra ve thanh cong CHUA chac da co phieu: nop_quy.tao va
+   tao_theo_ngay tra {can_ly_do: 1} truoc khi insert de man hoi ly do lech,
+   roi goi lai (Codex #378). Mot cho duy nhat quyet "da tao that chua": co
+   hoi them (can_ly_do) hoac bao ok: 0 thi CHUA, giu nguyen ban nhap. */
+function sdDaTaoPhieu(kq) {
+  if (kq && typeof kq === 'object') {
+    if (kq.can_ly_do) return false;
+    if (kq.ok === 0 || kq.ok === false) return false;
+  }
+  return true;
+}
 /* Mot phieu insert thang bang frappe.client.insert: chi tinh la luu khi dung
    doctype, vi cung man do con insert mau don, tep dinh kem... */
 function sdChen(dt) {
@@ -509,7 +520,7 @@ var sdApiGoc = api;
 api = async function (method, args) {
   var dk = SD.dk, loai = SD.loai;
   var kq = await sdApiGoc(method, args);
-  try { if (dk && sdLaLuu(loai, method, args)) sdDaLuu(dk); } catch (e) { }
+  try { if (dk && sdLaLuu(loai, method, args) && sdDaTaoPhieu(kq)) sdDaLuu(dk); } catch (e) { }
   return kq;
 };
 
