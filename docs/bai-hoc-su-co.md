@@ -1323,3 +1323,25 @@ Cách phòng:
   qua; nhánh tạo mới kiểm ở tầng khung bằng Doc giả.
 - Luật "toàn số 0" đừng liệt kê dấu ngăn: sửa hai lần vẫn sót "000,000",
   "00:00". Xét thẳng "không có chữ cái hay chữ số nào khác 0".
+
+## 27/09/2026 (v533): tự lưu phiếu đang soạn, hai cái bẫy khi bọc khung
+
+- Loan Anh soạn báo giá trên app, lỡ thoát hoặc máy sập nguồn là mất cả tờ.
+  Cách làm: MỘT phần `48-ban-soan-do.js` bọc mọi màn lập phiếu, bọc `api`,
+  `frame` và `vgbGomNhom` một lần; bản nháp nằm trong localStorage của máy
+  theo từng tài khoản. Màn lập phiếu mới phải khai một dòng `sdKhai` và một
+  dòng `sdBoc` trong 48; ca `thu_ban_soan_do_533.py` sẽ báo nếu quên.
+- Bẫy 1: ghi nốt bản nháp lúc rời màn mà hỏi "màn trên chồng có còn là màn
+  đang soạn không" thì với nút Back của trình duyệt câu trả lời luôn là KHÔNG:
+  `back()` đã cắt nấc rồi mới gọi `frame` của màn cha. Kết quả là gõ xong vuốt
+  lùi ngay thì mất đúng đoạn cuối. Ca kiểm bằng cú bấm nút ‹ không thấy vì
+  cú bấm đã ghi trước. Cách phòng: lúc rời màn ghi thẳng, không hỏi chồng; ca
+  kiểm gọi `back()` không qua cú bấm (đường popstate).
+- Bẫy 2: đừng gọi hàm đọc ô nhập của màn (`dsTayDoc`, `hdTaoDoc`...) từ bên
+  ngoài để chụp trạng thái. Vài hàm gán '' cho ô không tìm thấy, mà lúc màn
+  đang vẽ tạm đồng hồ cát thì chưa có ô nào: gọi vào là xoá trắng phiếu thật.
+  Chụp trạng thái và giá trị ô riêng rồi điền lại ô sau khi vẽ.
+- Màn dựng trạng thái ngay trong hàm của nó (nhập kho theo phiếu, form hoàn
+  tiền) không đặt trạng thái từ ngoài được; phải có móc `sdGhep` ngay sau chỗ
+  dựng. `hoanMoFormDu`/`hoanMoFormHuy` phải TRẢ promise, không thì bản bọc
+  không chờ được tới lúc form vẽ xong.
