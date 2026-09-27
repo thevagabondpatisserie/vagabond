@@ -171,3 +171,28 @@ def _cong_khai_du_nhan():
 		la("bản cũ chưa có nhãn vẫn đủ khoá", set(ndw.cong_khai()["nhan"]), set(NHAN))
 	finally:
 		ndw._ban_cong_khai = goc
+
+
+@ca("v532 giao diện: tiêu đề mục dùng phông thương hiệu, phông có đủ dấu tiếng Việt")
+def _phong_thuong_hieu():
+	trang = _doc("vagabond", "trang", "banh.html")
+	dung("h1 dùng Vagabond Sans và vẫn đè cua-hang.css", "html body .h1{font-family:'Vagabond Sans'" in trang)
+	dung("không còn ép phông hệ thống lên h1", "html body .h1{font-family:var(--sans)" not in trang)
+	try:
+		from fontTools.ttLib import TTFont
+	except ImportError:
+		return  # CI tay không không có fontTools; phần glyph đã kiểm tại máy làm việc 27/09/2026
+	cmap = TTFont(os.path.join(GOC, "vagabond", "public", "mau_in", "VagabondSans-Regular.otf")).getBestCmap()
+	chu = "".join(v["mac_dinh"] for v in NHAN.values()) + "".join(k.get("tieu_de", "") for k in MAC_DINH["khoi"])
+	chu += "ăâđêôơưẠẢÃẤẦẨẪẬẮẰẲẴẶẸẺẼẾỀỂỄỆỈĨỊỌỎÕỐỒỔỖỘỚỜỞỠỢỤỦŨỨỪỬỮỰỲỴỶỸ"
+	thieu = sorted({c for c in chu if not c.isspace() and ord(c) not in cmap})
+	la("phông có đủ ký tự cho mọi nhãn và dấu tiếng Việt", thieu, [])
+
+
+@ca("v532 giao diện: nút thêm nhanh vẽ bằng nét SVG, không còn chữ + thô")
+def _nut_them():
+	trang = _doc("vagabond", "trang", "banh.html")
+	dung("nút thêm nhanh không còn là chữ +", 'vào giỏ">+</button>' not in trang)
+	la("hai chỗ dựng nút (bánh và hàng mùa) cùng một biểu tượng", trang.count('class="c-them"'), 2)
+	la("biểu tượng SVG nét 1.6", trang.count('stroke-width="1.6" stroke-linecap="round"/></svg></button>'), 2)
+	dung("nút là vòng kính mờ có viền, không còn nền cyan đặc", "background:rgba(0,0,0,.42)" in trang and ".c-them{" in trang and "background:var(--cyan);color:#00201d" not in trang.split(".c-them{")[1].split("}")[0])

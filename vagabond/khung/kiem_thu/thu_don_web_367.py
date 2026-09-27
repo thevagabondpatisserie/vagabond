@@ -1304,7 +1304,9 @@ RA({cs:EL('#fChinhSach').innerHTML, doc:EL('#docChinhSach').innerHTML, lh:EL('#f
 @ca("#367 L chữ tiếng Việt và số dùng phông thường, tên bánh có dấu cũng vậy")
 def _():
 	w = _doc("vagabond/trang/banh.html")
-	dung("tiêu đề mục dùng phông hệ thống, đè được cua-hang.css", "html body .h1{font-family:var(--sans)" in w)
+	# v532: anh Việt 27/09 chốt tiêu đề mục dùng phông thương hiệu Vagabond Sans
+	# (phông có đủ dấu tiếng Việt, kiểm trong thu_nhan_web_532). Vẫn "html body".
+	dung("tiêu đề mục dùng phông thương hiệu, đè được cua-hang.css", "html body .h1{font-family:'Vagabond Sans'" in w)
 	dung("không còn số ngày khổ lớn", "html body .h1 em#bigDate{display:none}" in w)
 	r = _chay("2026-09-24T08:00:00", r"""
 RA({vi:laChuViet('Phi Tử Tiếu'), en:laChuViet('Roman de la Rose'), dong:dongTrangThai(13,'13h - 15h','09:59'),
