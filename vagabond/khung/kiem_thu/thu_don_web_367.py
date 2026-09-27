@@ -1421,16 +1421,14 @@ def _():
 	Đó mới là gốc của mục 8 trên #367, không phải bộ nhớ đệm."""
 	# v532: dat-ban.py đổi thành dat_ban.py vì trang đặt bàn bắt đầu phụ thuộc
 	# get_context (nhãn marketing). Codex bắt trên PR #376 vòng 1: tên gạch nối
-	# thì {{ nhan... }} in nguyên văn cho mọi khách. thanh-vien.py còn chờ.
+	# thì {{ nhan... }} in nguyên văn cho mọi khách. v532b: thanh-vien.py cũng
+	# đổi (site thật in nguyên văn {{ csrf_token }}), hết ngoại lệ.
 	for html, py in (("bien-tap-web.html", "bien_tap_web.py"), ("chinh-sach.html", "chinh_sach.py"),
-			("banh/xong.html", "banh/xong.py"), ("dat-ban.html", "dat_ban.py")):
+			("banh/xong.html", "banh/xong.py"), ("dat-ban.html", "dat_ban.py"),
+			("thanh-vien.html", "thanh_vien.py")):
 		dung("%s có mô đun %s" % (html, py), (GOI / "www" / py).exists())
 	dung("không còn dat-ban.py gạch nối", not (GOI / "www" / "dat-ban.py").exists())
 	for p in (GOI / "www").rglob("*.py"):
-		if p.name in ("thanh-vien.py",):
-			# Trang của #300 cùng lỗi này, ngoài phạm vi: đã ghi vào bàn giao,
-			# chưa đổi để không đụng trang đang chạy khi chưa kiểm.
-			continue
 		dung("%s không có gạch nối" % p.name, "-" not in p.name)
 
 
