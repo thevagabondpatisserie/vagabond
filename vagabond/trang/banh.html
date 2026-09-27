@@ -390,10 +390,14 @@ html body .h1 em#bigDate{display:none}
 .card-o{position:relative;min-width:0}
 .card-o>.card{width:100%}
 /* v532: nut them nhanh nhe tay hon (anh Viet 27/09/2026): vong kinh mo tren
-   anh, vien mong, dau cong ve bang net SVG 1.6px thay cho chu "+" dam. */
-.c-them{position:absolute;top:10px;right:10px;z-index:3;width:40px;height:40px;border-radius:50%;background:rgba(0,0,0,.42);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.32);color:var(--paper);display:grid;place-items:center;padding:0;transition:border-color .25s,color .25s,background .25s}
-.c-them svg{width:16px;height:16px;display:block}
-.c-them:hover,.c-them:focus-visible{border-color:var(--cyan);color:var(--cyan);background:rgba(0,0,0,.6)}
+   anh, vien mong, dau cong ve bang net SVG 1.6px thay cho chu "+" dam.
+   v532b (Codex #376): vung bam 44x44 theo AGENTS.md dieu 13; vong kinh 40px
+   ve bang ::before (inset 2px) nen nhin van nhu cu, tam vong khong doi. */
+.c-them{position:absolute;top:8px;right:8px;z-index:3;width:44px;height:44px;min-width:44px;min-height:44px;border-radius:50%;background:none;border:0;color:var(--paper);display:grid;place-items:center;padding:0;transition:color .25s}
+.c-them::before{content:"";position:absolute;inset:2px;border-radius:50%;background:rgba(0,0,0,.42);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.32);transition:border-color .25s,background .25s}
+.c-them svg{position:relative;width:16px;height:16px;display:block}
+.c-them:hover,.c-them:focus-visible{color:var(--cyan)}
+.c-them:hover::before,.c-them:focus-visible::before{border-color:var(--cyan);background:rgba(0,0,0,.6)}
 .c-them:active{transform:scale(.94)}
 .bar .cnt small{display:block;font-size:12px;color:var(--fog);margin-top:1px}
 .bar.nhich .cnt b{animation:vgbNhich .15s ease-out}
