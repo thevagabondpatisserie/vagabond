@@ -378,3 +378,42 @@ def _gieo_moi():
 		except _Loi as e:
 			ket = str(e)
 		la("bản cũ nổ như site thật", ket, "Vagabond Noi Dung Web order not found")
+
+
+@ca("v531 patch gieo lại (Codex #375): gieo hỏng thì patch NỔ để migrate dừng, không nuốt lỗi rồi ghi là đã chạy")
+def _patch_khong_nuot():
+	import importlib
+	from vagabond import noi_dung_web
+	pt = importlib.import_module("vagabond.patches.gieo_chinh_sach_531")
+	goi = []
+
+	def hong():
+		goi.append(1)
+		raise _Loi("Vagabond Noi Dung Web order not found")
+	with patch.object(noi_dung_web, "gieo_tu_tep", side_effect=hong):
+		try:
+			pt.execute()
+			ket = "nuốt lỗi"
+		except _Loi as e:
+			ket = str(e)
+	la("gọi gieo đúng một lần", len(goi), 1)
+	la("lỗi nổ ra ngoài patch", ket, "Vagabond Noi Dung Web order not found")
+	with patch.object(noi_dung_web, "gieo_tu_tep", return_value=True) as g:
+		pt.execute()
+	la("gieo được thì chạy êm", g.call_count, 1)
+
+
+@ca("v531 ca bench gieo (Codex #375): không gọi frappe.delete_doc, vì on_trash của Nội dung web chặn xoá vô điều kiện")
+def _bench_khong_delete_doc():
+	# Không chạy được ca bench ở tầng khung (cần site thật); chốt bằng cây cú
+	# pháp: thân _gieo_that không có lời gọi delete_doc, và on_trash vẫn chặn.
+	import ast
+	import os
+	goc = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+	cay = ast.parse(open(os.path.join(goc, "khung", "kiem_that", "thu_so_hd_that_531.py"), encoding="utf-8").read())
+	ham = next(n for n in cay.body if isinstance(n, ast.FunctionDef) and n.name == "_gieo_that")
+	goi = {getattr(n.func, "attr", getattr(n.func, "id", "")) for n in ast.walk(ham) if isinstance(n, ast.Call)}
+	dung("không gọi delete_doc", "delete_doc" not in goi)
+	dung("xoá bằng frappe.db.delete trong điểm lưu", "delete" in goi)
+	dt = open(os.path.join(goc, "vagabond", "doctype", "vagabond_noi_dung_web", "vagabond_noi_dung_web.py"), encoding="utf-8").read()
+	dung("on_trash vẫn chặn xoá (lý do của ca này)", "def on_trash" in dt and "frappe.throw" in dt.split("def on_trash", 1)[1])
