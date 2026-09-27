@@ -79,6 +79,9 @@ function mayChu(canh) {
           tong_don: 500000, da_nhan: 500000, muc_hoan: 500000, noi_dung_ck: 'HOAN ' + a.ma_don };
       }
       if (m === 'vagabond.don_huy.tao_hoan') return { ho_so: 'HS-1', phieu_thu: 'PT-1', phieu_chi: 'PC-1' };
+      /* Khuon that cua nop_quy.tao: lech tu 1.000d ma chua co ly do thi TRA
+         VE THANH CONG voi co can_ly_do, CHUA tao phieu. */
+      if (m === 'vagabond.nop_quy.tao') return (a && a.ly_do_lech) ? { ok: 1, ma: 'NQ-26-1' } : { can_ly_do: 1, lech: 5000 };
       return {};
     },
   };
@@ -449,6 +452,26 @@ async function chayHet() {
     bang('gui dung so tai khoan', gui[0].a.so_tk, '0123456789');
     bang('gui dung ly do', gui[0].a.ly_do, 'Trung don');
     bang('gui xong het ban nhap', cacKhoa(kho), []);
+  });
+
+  await ca('Codex #378: may chu tra can_ly_do (chua tao phieu) thi KHONG xoa nhap; tra phieu that moi xoa', async function () {
+    /* Codex #378 (74dbae0b): nop_quy.tao va tao_theo_ngay tra thanh cong
+       {can_ly_do: 1} truoc khi insert. Ban cu xoa nhap ngay luot goi dau.
+       Tai hien truoc khi sua: sau luot 1 con 0 ban nhap. */
+    var kho = khoMay();
+    var a = appMoi(kho);
+    await moTrangChu(a);
+    var g = a.g;
+    var dk = g.sdKhoa('nop_quy', '');
+    g.sdDangKy('nop_quy', 'scrNopQuyTao', dk, g.S.stack[g.S.stack.length - 1], [], '', '');
+    g.sdGhi(dk, { v: 1, loai: 'nop_quy', man: 'scrNopQuyTao', ma: '', args: [], luc: Date.now(), tieu_de: '', anh: 0, js: '{"s":null,"o":{"@data-mg=500000":"3"}}' });
+    var kq1 = await g.api('vagabond.nop_quy.tao', { ca: ['CA-1'] });
+    bang('luot 1 may chu hoi ly do', kq1.can_ly_do, 1);
+    bang('luot 1: nhap van con', cacKhoa(kho).length, 1);
+    bang('luot 1: van theo doi', g.SD.dk, dk);
+    var kq2 = await g.api('vagabond.nop_quy.tao', { ca: ['CA-1'], ly_do_lech: 'Thiếu tiền lẻ' });
+    bang('luot 2 tao phieu', kq2.ma, 'NQ-26-1');
+    bang('luot 2: het nhap', cacKhoa(kho), []);
   });
 
   await ca('Anh chup (base64, File) khong luu vao ban nhap; mo lai bo dung phan tu anh, giu phan con lai', async function () {
