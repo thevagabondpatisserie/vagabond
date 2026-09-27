@@ -50,6 +50,9 @@ CAU_SALES_GUI_KHACH = {
 	"Bên em đã đính kèm báo giá đã chốt làm Phụ lục 01 của Hợp đồng ạ.",
 	"Sau khi nhận cọc đợt 1 bên em sẽ lên lịch sản xuất ngay ạ.",
 	"Anh chị cần điều chỉnh chỗ nào thì báo em, bên em gửi lại bản mới ạ.",
+	# v532: câu trên trang order nói với khách, nay là mặc định của nhãn
+	# marketing trong noi_dung_web.NHAN. Giọng tiệm nói với khách, giữ nguyên.
+	"Hôm nay đã hết khung giờ nhận. Anh chị đặt cho ngày mai giúp em nhé.",
 }
 
 
@@ -98,6 +101,8 @@ def _soi_python():
 				if id(nut) in ghi_chu:
 					continue
 				if any(a <= nut.lineno <= b for a, b in chua):
+					continue
+				if nut.value in CAU_SALES_GUI_KHACH:
 					continue
 				if _xung_em(nut.value):
 					ra.append("%s:%d %s" % (os.path.relpath(p, GOI), nut.lineno,

@@ -1311,8 +1311,9 @@ RA({vi:laChuViet('Phi Tử Tiếu'), en:laChuViet('Roman de la Rose'), dong:dong
     het:dongTrangThai(null,'','21:00')});
 """)
 	la("tên có dấu", (r["vi"], r["en"]), (True, False))
-	dung("một dòng trạng thái", "13 bánh</b> có sẵn · nhận từ <b>13h - 15h</b>" in r["dong"] and "cập nhật 09:59" in r["dong"])
-	dung("chưa tải tồn thì không đoán số", "bánh</b> có sẵn" not in r["het"])
+	# v532: câu do marketing sửa được, chỉ số và khung giờ in đậm.
+	dung("một dòng trạng thái", "<b>13</b> bánh có sẵn · nhận từ <b>13h - 15h</b>" in r["dong"] and "cập nhật 09:59" in r["dong"])
+	dung("chưa tải tồn thì không đoán số", "bánh có sẵn" not in r["het"])
 
 
 # --------------------------------------------------------------- M. trang biên nhận

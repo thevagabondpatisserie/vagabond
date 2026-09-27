@@ -82,7 +82,7 @@ def ma_bam_asset():
                 'vagabond/www/banh/xong.html','vagabond/www/chinh-sach.html','vagabond/www/bien-tap-web.html'):
         s=(GOC/ten).read_text()
         for tep in ('nen.css','thanh-vien.css','thanh-vien.js','dat-ban.js','trang-khach.css','bien-nhan.js',
-                    'bien-tap.css','bien-tap.js'):
+                    'bien-tap.css','bien-tap.js','cua-hang.js'):
             duong='/assets/vagabond/web_order/'+tep
             if duong not in s:continue
             bam=hashlib.sha256((GOC/'vagabond/public/web_order'/tep).read_bytes()).hexdigest()[:12]
