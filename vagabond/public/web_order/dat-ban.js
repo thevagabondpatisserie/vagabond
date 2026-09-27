@@ -4,6 +4,7 @@
   const tim = id => document.getElementById(id);
   let cauHinh, dip = '', khuVuc = '', gio = '', dangGui = false, yeuCau = null;
   const ma = crypto.randomUUID();
+  const nutGui = tim('gui').textContent;
   function bao(chu, loi) { tim('trang-thai').textContent = chu; tim('trang-thai').classList.toggle('loi', !!loi); }
   function chip(id, ds, chon) {
     ds.forEach(g => {const b=document.createElement('button');b.type='button';b.textContent=g;
@@ -13,7 +14,8 @@
   try {
     const r = await fetch('/api/method/vagabond.dat_ban.cau_hinh'); const d = await r.json();
     if (!r.ok || !d.message) throw new Error(); cauHinh = d.message;
-    if (!cauHinh.bat) { bao('Tiệm chưa mở nhận đặt bàn online. Gọi 0931 224 334 để được hỗ trợ.'); return; }
+    /* v532: câu đóng do marketing soạn, máy chủ đặt sẵn vào data-dong. */
+    if (!cauHinh.bat) { bao(tim('trang-thai').dataset.dong || 'Tiệm chưa mở nhận đặt bàn online. Gọi 0931 224 334 để được hỗ trợ.'); return; }
     tim('co-so').textContent = cauHinh.ten_co_so;
     const coSo=document.createElement('span');coSo.textContent=cauHinh.ten_co_so;coSo.className='trang-thai-don xanh';tim('chi-nhanh').append(coSo);
     chip('dip',cauHinh.dip||[],v=>dip=v);chip('khu-vuc',cauHinh.khu_vuc||[],v=>khuVuc=v);
@@ -43,7 +45,7 @@
         throw new Error('Chưa nhận được kết quả. Bấm Gửi lại cùng yêu cầu để kiểm tra, không cần nhập lại.');
       }
       tim('dat-ban').hidden=true;bao('Đã tiếp nhận yêu cầu '+d.message.ma+'. Tiệm sẽ gọi xác nhận. Bàn chưa được giữ cho tới khi tiệm xác nhận.');
-    } catch(e) { bao(e.message==='Failed to fetch'?'Mất kết nối. Bấm Gửi lại cùng yêu cầu để kiểm tra.':e.message,true);tim('gui').textContent=yeuCau?'Gửi lại cùng yêu cầu':'Gửi yêu cầu đặt bàn'; }
+    } catch(e) { bao(e.message==='Failed to fetch'?'Mất kết nối. Bấm Gửi lại cùng yêu cầu để kiểm tra.':e.message,true);tim('gui').textContent=yeuCau?'Gửi lại cùng yêu cầu':nutGui; }
     finally { dangGui=false;tim('gui').disabled=false; }
   };
 })();

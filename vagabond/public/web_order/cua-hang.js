@@ -12,7 +12,21 @@
     document.querySelectorAll('[data-vgb-vi-tri]').forEach(g => {
       window.VgbKhoi.ve(g, {khoi: (nd.khoi || []).filter(k => k.loai !== 'tieu_de_muc' && (k.vi_tri || 'cuoi_trang') === g.dataset.vgbViTri)});
     });
+    /* v532: nhãn cố định (tab, nút đầu trang) và các câu có số. Máy chủ đã
+       ghép mặc định vào cong_khai; trong preview bản nháp có thể thiếu khoá
+       hoặc để trống, khi đó giữ chữ gốc trong HTML. textContent: chữ của
+       marketing không thành HTML. */
+    const nhan = nd.nhan || {};
+    document.querySelectorAll('[data-vgb-nhan]').forEach(g => {
+      const k = g.dataset.vgbNhan;
+      if (!(k in nhanGoc)) nhanGoc[k] = g.textContent;
+      const chu = typeof nhan[k] === 'string' && nhan[k].trim() ? nhan[k] : nhanGoc[k];
+      if (g.textContent !== chu) g.textContent = chu;
+    });
+    window.vgbNhan = nhan;
+    document.dispatchEvent(new CustomEvent('vgb-nhan'));
   }
+  const nhanGoc = {};
   if (window.vgbXemThu) {
     window.addEventListener('message', e => {
       if (e.origin !== location.origin || e.source !== parent || e.data?.loai !== 'vgb-noi-dung') return;
