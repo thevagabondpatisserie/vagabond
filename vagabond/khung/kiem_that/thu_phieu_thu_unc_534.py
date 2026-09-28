@@ -56,8 +56,12 @@ class _Tep:
 	cách dọn với ca #265.
 	"""
 
-	def __init__(self, gan_vao=None):
+	def __init__(self, gan_vao=None, vao_o=False):
 		self.gan_vao = gan_vao
+		# vao_o: ghi luôn tệp vào ô UNC khách gửi của phiếu, như người dùng
+		# đã đính đúng chỗ từ trước. Không bật thì tệp chỉ gắn vào phiếu,
+		# như một ảnh bất kỳ ở mục khác (Codex #382).
+		self.vao_o = vao_o
 		self.tep = None
 
 	def __enter__(self):
@@ -67,6 +71,10 @@ class _Tep:
 			d.update(attached_to_doctype='Payment Entry', attached_to_name=self.gan_vao)
 		self.tep = frappe.get_doc(d)
 		self.tep.insert(ignore_permissions=True); _DA_TAO.append((self.tep.doctype, self.tep.name))
+		if self.gan_vao and self.vao_o:
+			from vagabond import tep_dinh_kem
+			frappe.db.set_value('Payment Entry', self.gan_vao, 'vgb_thu_unc',
+				tep_dinh_kem.ghi_ds([self.tep.file_url]), update_modified=False)
 		return self.tep
 
 	def __exit__(self, *a):
@@ -131,13 +139,32 @@ def _thieu_unc():
 	la('hoá đơn còn nợ', float(si.outstanding_amount), float(TIEN))
 
 
+@ca('#380 v534 Codex #382: ảnh bất kỳ gắn vào phiếu mà ô UNC khách gửi trống thì KHÔNG ghi sổ')
+def _tep_khac_muc():
+	si, g, pe = _du_lieu()
+	with _Tep(gan_vao=pe.name):
+		la('ô UNC trống', frappe.db.get_value('Payment Entry', pe.name, 'vgb_thu_unc') or '', '')
+		ds = [p for p in tt.phieu_thu_nhap(cac_si=[si.name]) if p['pe'] == pe.name]
+		la('màn Tiền đã về không đếm tệp mục khác', ds[0]['so_tep'], 0)
+		try:
+			tt.ghi_so_phieu_thu(pe.name)
+		except frappe.ValidationError as e:
+			dung('câu nói thiếu uỷ nhiệm chi', 'uỷ nhiệm chi' in str(e))
+		else:
+			dung('phải chặn khi ô UNC trống', False)
+		pe.reload(); si.reload()
+		la('phiếu còn nháp', pe.docstatus, 0)
+		la('không GL', _gl(pe), [])
+		la('hoá đơn còn nợ', float(si.outstanding_amount), float(TIEN))
+
+
 @ca('#380 v534 giao dịch đã nối chứng từ khác thì chặn, không ghi tiền hai lần')
 def _da_noi():
 	si, g, pe = _du_lieu()
 	# Giao dịch đã bị ai đó phân bổ một phần: phiếu thu không còn khớp.
 	frappe.db.set_value('Bank Transaction', g.name, {'allocated_amount': 1, 'unallocated_amount': float(TIEN) - 1},
 		update_modified=False)
-	with _Tep(gan_vao=pe.name):
+	with _Tep(gan_vao=pe.name, vao_o=True):
 		try:
 			tt.ghi_so_phieu_thu(pe.name)
 		except frappe.ValidationError as e:
@@ -154,7 +181,7 @@ def _hong_giua():
 	from erpnext.accounts.doctype.bank_transaction.bank_transaction import BankTransaction
 
 	si, g, pe = _du_lieu()
-	with _Tep(gan_vao=pe.name):
+	with _Tep(gan_vao=pe.name, vao_o=True):
 		def hong(self, *a, **k):
 			raise ValueError('KT534 hỏng khi nối giao dịch')
 		with patch.object(BankTransaction, 'add_payment_entries', hong):
