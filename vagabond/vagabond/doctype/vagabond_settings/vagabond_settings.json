@@ -712,7 +712,7 @@
    "fieldname": "webhook_dat_ban",
    "fieldtype": "Data",
    "label": "Webhook nhóm đặt bàn (Lark)",
-   "description": "Nhóm riêng của FOH. Để trống thì không gửi thông báo đặt bàn."
+   "description": "Nhóm riêng của FOH. Để trống thì yêu cầu đặt bàn nhắn vào nhóm Sales đơn web ở ô trên; cả hai trống mới không gửi."
   },
   {
    "fieldname": "cb_gui_thu",
