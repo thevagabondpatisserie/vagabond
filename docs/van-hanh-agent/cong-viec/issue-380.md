@@ -98,3 +98,12 @@ Lối vào: thêm thẻ ở nhóm Bán hàng cho Sales và quản lý cửa hàn
 Số thật 28/09: 41 đơn tặng (1 chờ duyệt, 40 hoàn tất), công nợ 29 khách, tiền đã về chờ ghi sổ 1.428 dòng.
 
 Bằng chứng giao diện: ca hành vi node (không tính CSS) trên PR; ảnh site thật 390px chỉ có sau deploy, ghi rõ nguồn.
+
+## Vòng 1 review Codex trên #382 (SHA dee3dc09)
+
+Cả 4 finding tái hiện được, số liệu trước/sau đo bằng bộ giả lập thuần:
+
+- G1 đếm mọi File của phiếu: ô UNC trống, một ảnh bất kỳ gắn vào phiếu, kế toán bấm ghi sổ. Trước: `{ok: 1}`, phiếu đã submit. Sau: bị chặn "Chưa có uỷ nhiệm chi khách gửi". Phép đếm mới `dem_tep_unc` chỉ nhận tệp có trong ô `vgb_thu_unc` VÀ còn gắn vào phiếu; màn Tiền đã về đếm cùng phép. Ca bench mới `_tep_khac_muc`; hai ca `_da_noi`, `_hong_giua` đổi sang ghi tệp vào đúng ô.
+- G2 hai lần chuyển 600.000 + 400.000 cho hoá đơn 1.000.000. Trước: phân bổ 600.000, hoá đơn nằm lại Đang nợ. Sau: 1.000.000, tách sang Tiền đã về. Hai phiếu nháp trùng một số FT vẫn chỉ tính 600.000 (không cộng hai lần).
+- G3 app cũ gửi `trang_thai="Đã duyệt"`. Trước: trả cả 4 đơn mẫu (mọi đơn). Sau: đúng 2 đơn như ds_don cũ (chờ ghi sổ và đã ghi sổ). Không quy về chặng `cho_ghi_so` như gợi ý, vì bộ lọc cũ gồm cả đơn đã ghi sổ; chép đúng phép cũ vào `hop_trang_thai_cu`.
+- G4 thêm chú thích điều kiện lõi ở đầu `ghi_so_phieu_thu` (Frappe v16.27.1 `Document.submit`/`_save`/`set_workflow_state_on_action`; ERPNext version-16 `add_payment_entries`, `allocate_payment_entries`, `get_clearance_details`). Đọc lõi lộ thêm một điều: giao dịch có thể cấp THIẾU tiền cho phiếu (`min(allocable, remaining)`), nên sau khi nối có thêm phép kiểm số được cấp phải đủ số phiếu, thiếu thì lùi cả lượt. Hàm chẩn đoán chạy thêm `_validate_links` và `_validate` cho khớp thứ tự `_save`.
