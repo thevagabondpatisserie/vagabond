@@ -262,8 +262,12 @@ def _nop_quy_chip_theo_o_tim():
 
 @ca("hang tang: chip Cho duyet loc ra duoc ca dong de trong")
 def _hang_tang_o_trong():
-	s = _doc("hang_tang.py")
-	dung("loc gom ca o trong", 'loc["vgb_tang_duyet"] = ["in", [TT_CHO, "", None]]' in s)
+	# v534: chip loc theo CHANG tinh o Python, khong con loc o co so du lieu.
+	# Giu dung y goc bang phep chay that: o trong va None deu la Cho duyet.
+	from vagabond.hang_tang import chang_cua
+	la("o trong la cho duyet", chang_cua("", 0), "cho_duyet")
+	la("o None la cho duyet", chang_cua(None, 0), "cho_duyet")
+	la("don huy mem o trong van la cho duyet", chang_cua("", "0"), "cho_duyet")
 
 
 @ca("de nghi chi: nhan chip dung voi thu no chua")

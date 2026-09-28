@@ -288,13 +288,17 @@ def _():
 @ca("hàng tặng: danh sách màn duyệt đọc ở máy chủ, không cắt dòng trước khi lọc")
 def _():
 	s = _doc("vagabond", "hang_tang.py")
-	i = s.find("def ds_don(")
+	# v534: phép lọc và đếm dời vào `_tap` (dùng chung với Excel), `ds_don`
+	# chỉ còn cắt dòng ở bước cuối bằng `cat_dong`.
+	i = s.find("def _tap(")
 	j = s.find("\n@frappe.whitelist", i + 10)
 	than = s[i:j]
 	dung("lọc bằng or_filters ở tầng cơ sở dữ liệu", "or_filters=hoac" in than)
 	dung("đọc hết rồi mới cắt, không cắt trước", "limit_page_length=0" in than)
-	dung("cắt dòng ở bước cuối", "ra[:tran]" in than)
-	dung("đếm ba họ chip", "dem_diem" in than and "dem_loai" in than and "dem_tt" in than)
+	i = s.find("def ds_don(")
+	j = s.find("\n# Cột Excel", i + 10)
+	dung("cắt dòng ở bước cuối", "cat_dong(ra, so_dong)" in s[i:j])
+	dung("đếm bốn họ chip", "dem_diem" in than and "dem_loai" in than and "dem_chang" in than and "dem_tt" in than)
 
 
 @ca("hàng tặng: chuỗi cuối ngày bỏ qua đơn chưa duyệt thay vì nổ lỗi")

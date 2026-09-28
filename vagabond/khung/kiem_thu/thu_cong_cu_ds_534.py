@@ -1,0 +1,365 @@
+"""v534 (issue #380): bộ công cụ danh sách dùng chung, sổ hàng tặng, tiền đã về.
+
+Sales Manager báo 28/09/2026: khách đã trả tiền vẫn nằm trong Công nợ phải
+thu, và đơn hàng tặng xong rồi thì không có chỗ xem lại bill. Anh Việt chốt
+cùng ngày: chip lọc, xuất Excel, chip trạng thái theo chặng là tối cần thiết,
+áp dụng cho mọi màn.
+
+Các ca ở đây chạy trên phép THUẦN: không cần Frappe, không cần site, không
+cần requests (cong_no.py kéo ban_hang nên KHÔNG được nạp ở đây). Hành vi màn
+hình chạy thật ở hanh_vi/cong_cu_ds_534.js; ghi sổ phiếu thu chạy trên sổ cái
+thật ở kiem_that/thu_phieu_thu_unc_534.py (bench).
+"""
+
+import io
+import os
+import re
+
+from vagabond.khung.kiem_thu.nen import ca, dung, la, nem
+
+GOI = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+BEP = os.path.join(GOI, "public", "js", "bep")
+
+
+def _doc(*p):
+	return io.open(os.path.join(GOI, *p), encoding="utf-8").read()
+
+
+# ------------------------------------------------------------ chip ngày
+
+@ca("v534 chip ngày ra đúng khoảng, hai đầu đều tính")
+def _khoang_ky():
+	from vagabond.khung.cong_cu_ds import khoang_ky
+	hn = "2026-09-28"
+	la("mọi ngày không lọc", khoang_ky("", hn), (None, None))
+	la("khoá lạ không lọc, không nổ", khoang_ky("nam_ngoai", hn), (None, None))
+	la("hôm nay", khoang_ky("hom_nay", hn), ("2026-09-28", "2026-09-28"))
+	la("7 ngày gồm cả hôm nay", khoang_ky("7_ngay", hn), ("2026-09-22", "2026-09-28"))
+	la("tháng này", khoang_ky("thang_nay", hn), ("2026-09-01", "2026-09-28"))
+	la("tháng trước", khoang_ky("thang_truoc", hn), ("2026-08-01", "2026-08-31"))
+	la("tháng trước qua năm", khoang_ky("thang_truoc", "2026-01-15"), ("2025-12-01", "2025-12-31"))
+	la("tháng trước tháng hai năm nhuận", khoang_ky("thang_truoc", "2028-03-02"), ("2028-02-01", "2028-02-29"))
+	la("tuỳ chọn gõ ngược thì đảo", khoang_ky("tuy_chon", hn, "2026-09-20", "2026-09-01"), ("2026-09-01", "2026-09-20"))
+	la("tuỳ chọn thiếu một đầu", khoang_ky("tuy_chon", hn, "2026-09-20", ""), ("2026-09-20", None))
+	la("tuỳ chọn gõ bậy", khoang_ky("tuy_chon", hn, "abc", "xyz"), (None, None))
+
+
+@ca("v534 trong_khoang tính cả hai đầu, ngày hỏng thì loại")
+def _trong_khoang():
+	from vagabond.khung.cong_cu_ds import trong_khoang
+	dung("không lọc thì nhận hết", trong_khoang("", None, None))
+	dung("đầu trái", trong_khoang("2026-09-01", "2026-09-01", "2026-09-30"))
+	dung("đầu phải", trong_khoang("2026-09-30", "2026-09-01", "2026-09-30"))
+	dung("ngoài phải", not trong_khoang("2026-10-01", "2026-09-01", "2026-09-30"))
+	dung("ngày trống khi đang lọc thì loại", not trong_khoang("", "2026-09-01", None))
+
+
+# ------------------------------------------------------------ bảng Excel
+
+@ca("v534 dung_bang: tiêu đề đúng thứ tự cột, tiền là số, ngày dd/mm/yyyy, thiếu ô thì trống")
+def _dung_bang():
+	from vagabond.khung.cong_cu_ds import dung_bang
+	cot = [{"k": "ngay", "nhan": "Ngày", "kieu": "ngay"}, {"k": "khach", "nhan": "Khách"},
+		{"k": "tien", "nhan": "Số tiền", "kieu": "tien"}, {"k": "x", "nhan": "Lạ", "kieu": "bat_ky"}]
+	b = dung_bang(cot, [{"ngay": "2026-09-23", "khach": "Khách A", "tien": 5785500.0},
+		{"khach": None, "tien": "12.5"}])
+	la("hàng tiêu đề", b[0], ["Ngày", "Khách", "Số tiền", "Lạ"])
+	la("dòng một", b[1], ["23/09/2026", "Khách A", 5785500, ""])
+	la("dòng thiếu ô", b[2], ["", "", 12.5, ""])
+	la("tiền là kiểu số để kế toán cộng được", type(b[1][2]).__name__, "int")
+	la("không cột nào thì chỉ còn hàng tiêu đề rỗng", dung_bang([], [{"a": 1}]), [[], []])
+
+
+@ca("v534 tên tệp Excel an toàn cho điện thoại")
+def _ten_tep():
+	from vagabond.khung.cong_cu_ds import ten_tep
+	la("bỏ ký tự lạ", ten_tep("Sổ đơn / tặng", "2026-09-28"), "Sổ-đơn-tặng-2026-09-28.xlsx")
+	la("trống thì có tên mặc định", ten_tep("", "2026-09-28"), "danh-sach-2026-09-28.xlsx")
+
+
+@ca("v534 sổ khai xuất: mỗi màn trỏ tới adapter có thật, adapter KHÔNG mở ra ngoài")
+def _so_khai():
+	from vagabond.khung.cong_cu_ds import MAN_XUAT
+	from vagabond.khung.kiem_thu.thu_cua_ngo import _ten_whitelist
+	la("ba màn đợt 1", sorted(MAN_XUAT), ["cong_no", "hang_tang", "tien_da_ve"])
+	for man, duong in MAN_XUAT.items():
+		mo_dun, ham = duong.rsplit(".", 1)
+		tep = mo_dun.split(".", 1)[1].replace(".", "/") + ".py"
+		ma = _doc(tep)
+		dung("%s: có def %s" % (man, ham), ("\ndef %s(" % ham) in ma)
+		dung("%s: adapter nhận khoá lạ mà không nổ" % man,
+			re.search(r"\ndef %s\([^)]*\*\*khac\)" % ham, ma) is not None)
+		# Adapter chỉ đi qua cửa xuat_excel; mở thẳng ra ngoài là thêm một
+		# cửa đọc dữ liệu không qua sổ khai.
+		dung("%s: adapter không whitelist" % man, ham not in _ten_whitelist(os.path.join(GOI, tep)))
+
+
+@ca("v534 cửa xuất Excel từ chối tên màn lạ, không nạp mô đun theo chuỗi người gửi")
+def _cua_la():
+	from vagabond.khung import cong_cu_ds
+	import frappe
+	nem("màn lạ bị chặn", lambda: cong_cu_ds.xuat_excel("os.system", "{}"), frappe.ValidationError)
+	nem("màn trống bị chặn", lambda: cong_cu_ds.xuat_excel("", "{}"), frappe.ValidationError)
+
+
+# ------------------------------------------------------------ sổ hàng tặng
+
+@ca("v534 hàng tặng: chặng tách Đã duyệt thành Chờ ghi sổ và Hoàn tất")
+def _chang():
+	from vagabond.hang_tang import chang_cua, KHOA_CHANG
+	la("bốn chặng", KHOA_CHANG, ("cho_duyet", "cho_ghi_so", "hoan_tat", "tu_choi"))
+	la("chờ duyệt", chang_cua("Chờ duyệt", 0), "cho_duyet")
+	la("ô trống là chờ duyệt", chang_cua("", 0), "cho_duyet")
+	la("đã duyệt chưa ghi sổ", chang_cua("Đã duyệt", 0), "cho_ghi_so")
+	la("đã duyệt đã ghi sổ", chang_cua("Đã duyệt", 1), "hoan_tat")
+	la("đơn cũ ghi sổ trước khi có luồng duyệt", chang_cua("", 1), "hoan_tat")
+	la("từ chối", chang_cua("Từ chối", 0), "tu_choi")
+	la("docstatus dạng chuỗi", chang_cua("Đã duyệt", "1"), "hoan_tat")
+	# Số thật 28/09/2026: 41 đơn tặng, 40 đã duyệt và đã ghi sổ, 1 chờ duyệt.
+	dem = {}
+	for tt, ds, n in (("Đã duyệt", 1, 40), ("Chờ duyệt", 0, 1)):
+		for _ in range(n):
+			k = chang_cua(tt, ds)
+			dem[k] = dem.get(k, 0) + 1
+	la("site thật 28/09 ra 40 hoàn tất, 1 chờ duyệt", dem, {"hoan_tat": 40, "cho_duyet": 1})
+
+
+@ca("v534 hàng tặng: màn cắt 200/500 dòng, Excel lấy ĐỦ (Codex #381 F5, ca 501 dòng)")
+def _cat_dong():
+	from vagabond.hang_tang import cat_dong
+	ra = [{"name": "HDB-%04d" % i} for i in range(501)]
+	la("màn mặc định 200", len(cat_dong(ra, None)), 200)
+	la("màn trần 500", len(cat_dong(ra, 9999)), 500)
+	la("Excel đủ 501", len(cat_dong(ra, 200, day_du=1)), 501)
+	la("Excel giữ đúng dòng cuối", cat_dong(ra, 200, day_du=1)[-1]["name"], "HDB-0500")
+	la("số lạ về 200", len(cat_dong(ra, "abc")), 200)
+
+
+@ca("v534 hàng tặng: màn và Excel dùng CHUNG một tập lọc, bill mở lại được")
+def _tang_chung():
+	s = _doc("hang_tang.py")
+	i = s.find("def ds_don(")
+	j = s.find("\n# Cột Excel", i)
+	dung("ds_don đọc từ _tap", "_tap(diem, chang, loai, tim, ky, tu, den, trang_thai)" in s[i:j])
+	i = s.find("def xuat_ds(")
+	dung("xuat_ds đọc từ _tap", "_tap(diem, chang, loai, tim, ky, tu, den)" in s[i:i + 900])
+	dung("xuat_ds kiểm quyền như màn", "_quyen()" in s[i:i + 900])
+	js = io.open(os.path.join(BEP, "41-duyet-don-tang.js"), encoding="utf-8").read()
+	dung("nút xem lại bill", "data-dtgbill" in js and "scrPosBill(maB)" in js)
+	tc = io.open(os.path.join(BEP, "02-trang-chu.js"), encoding="utf-8").read()
+	dung("lối vào Sổ hàng tặng ở nhóm Bán hàng", "'CN', 'SOTANG'" in tc)
+	dung("lối vào mở sẵn chặng Hoàn tất", "if (k === 'SOTANG') { dtgChang = 'hoan_tat';" in tc)
+
+
+# ------------------------------------------------------ tiền đã về, phiếu thu
+
+def _pe(**k):
+	d = {"payment_type": "Receive", "docstatus": 0, "reference_no": "FT26266374066864",
+		"paid_amount": 5785500, "paid_to": "11211 - Tiền gửi MB Bank - TV", "company": "TV"}
+	d.update(k)
+	return d
+
+
+def _gd(**k):
+	d = {"name": "ACC-BTN-2026-06238", "docstatus": 1, "deposit": 5785500, "withdrawal": 0,
+		"currency": "VND", "unallocated_amount": 5785500, "allocated_amount": 0, "so_noi": 0}
+	d.update(k)
+	return d
+
+
+TK = "11211 - Tiền gửi MB Bank - TV"
+
+
+@ca("v534 xác minh tiền về: ca thật 23/09 (5.785.500 đ, FT...6864) khớp")
+def _xac_minh_dung():
+	from vagabond.thu_tien import xac_minh_tien_ve
+	la("khớp", xac_minh_tien_ve(_pe(), _gd(), TK, "TV"), (True, ""))
+
+
+@ca("v534 xác minh tiền về: mọi đường sai đều KHÔNG tách khỏi nợ (Codex #381 F2, F4)")
+def _xac_minh_sai():
+	from vagabond.thu_tien import xac_minh_tien_ve
+	ca_sai = {
+		"phiếu chi": (_pe(payment_type="Pay"), _gd()),
+		"phiếu đã ghi sổ": (_pe(docstatus=1), _gd()),
+		"phiếu không số tham chiếu": (_pe(reference_no=""), _gd()),
+		"không có giao dịch": (_pe(), None),
+		"giao dịch trùng số": (_pe(), _gd(trung=2)),
+		"giao dịch nháp": (_pe(), _gd(docstatus=0)),
+		"tiền ra": (_pe(), _gd(deposit=0, withdrawal=5785500)),
+		"ngoại tệ": (_pe(), _gd(currency="USD")),
+		"giao dịch đã nối chứng từ khác": (_pe(), _gd(so_noi=1)),
+		"giao dịch đã phân bổ một phần": (_pe(), _gd(allocated_amount=1000000, unallocated_amount=4785500)),
+		"giao dịch ít tiền hơn phiếu": (_pe(), _gd(deposit=5000000, unallocated_amount=5000000)),
+		"phiếu không có tiền": (_pe(paid_amount=0), _gd()),
+	}
+	for nhan, (pe, gd) in ca_sai.items():
+		ok, ly_do = xac_minh_tien_ve(pe, gd, TK, "TV")
+		dung(nhan + ": không khớp", not ok)
+		dung(nhan + ": có câu lý do", bool(ly_do))
+	ok, _ = xac_minh_tien_ve(_pe(), _gd(), "11212 - Tiền gửi khác - TV", "TV")
+	dung("tài khoản khác: không khớp", not ok)
+	ok, _ = xac_minh_tien_ve(_pe(), _gd(), TK, "CTY KHAC")
+	dung("công ty khác: không khớp", not ok)
+	ok, _ = xac_minh_tien_ve(_pe(paid_amount=5785500.4), _gd(), TK, "TV")
+	dung("lệch dưới nửa đồng vẫn khớp", ok)
+
+
+@ca("v534 tách tiền đã về: chỉ khi đã xác minh VÀ phủ đủ số còn nợ")
+def _tach():
+	from vagabond.thu_tien import tach_tien_da_ve
+	dung("đủ và đã xác minh", tach_tien_da_ve(5785500, 5785500, 1))
+	dung("chưa xác minh thì vẫn là nợ", not tach_tien_da_ve(5785500, 5785500, 0))
+	dung("phủ một phần thì vẫn là nợ", not tach_tien_da_ve(5785500, 3000000, 1))
+	dung("không còn nợ thì không có gì để tách", not tach_tien_da_ve(0, 5785500, 1))
+	dung("lệch một đồng làm tròn vẫn tách", tach_tien_da_ve(5785500, 5785499, 1))
+
+
+@ca("v534 ghi sổ phiếu thu: phải có UNC khách gửi, chỉ kế toán bấm (anh Việt 28/09)")
+def _soat_ghi_so():
+	from vagabond.thu_tien import soat_ghi_so_thu
+	la("đủ ba điều kiện", soat_ghi_so_thu(True, "", 1, True), (True, ""))
+	ok, ly = soat_ghi_so_thu(True, "", 0, True)
+	dung("thiếu UNC bị chặn", not ok and "uỷ nhiệm chi" in ly)
+	ok, ly = soat_ghi_so_thu(True, "", 2, False)
+	dung("Sales có UNC vẫn chờ kế toán", not ok and "kế toán" in ly)
+	ok, ly = soat_ghi_so_thu(False, "Giao dịch X đã nối với chứng từ khác.", 1, True)
+	la("chưa khớp giao dịch thì trả đúng lý do xác minh", (ok, ly), (False, "Giao dịch X đã nối với chứng từ khác."))
+
+
+@ca("v534 ghi sổ phiếu thu: một lượt nguyên khối, khoá, lùi điểm lưu khi hỏng, không đặt tay bước duyệt")
+def _nguyen_khoi():
+	s = _doc("thu_tien.py")
+	i = s.find("def ghi_so_phieu_thu(")
+	j = s.find("\n@frappe.whitelist", i + 10)
+	than = s[i:j]
+	dung("POST", '@frappe.whitelist(methods=["POST"])\ndef ghi_so_phieu_thu(' in s)
+	dung("khoá phiếu", "frappe.get_doc(PE, name, for_update=True)" in than)
+	dung("khoá giao dịch", "frappe.get_doc(BT, g[\"name\"], for_update=True)" in than)
+	dung("soát lại trên bản đã khoá", "if gdoc.payment_entries or flt(gdoc.allocated_amount) > LECH:" in than)
+	dung("có điểm lưu", 'frappe.db.savepoint("vgb_ghi_so_thu")' in than)
+	dung("lùi điểm lưu khi hỏng", 'frappe.db.rollback(save_point="vgb_ghi_so_thu")' in than)
+	dung("nối giao dịch rồi tải lại xác minh", "add_payment_entries" in than and "gdoc.reload()" in than)
+	# Frappe tự đặt bước duyệt đúng docstatus khi submit (set_workflow_state_on_action).
+	# Đặt tay "Đã duyệt - Đã ghi sổ" từ "Nháp" là một bước chuyển workflow không khai.
+	dung("không đặt tay workflow_state", "workflow_state" not in than)
+	dung("không tự commit", "frappe.db.commit" not in than)
+	i = s.find("def chan_doan_ghi_so(")
+	than = s[i:s.find("\ndef _ghi_vet_thu", i)]
+	dung("chẩn đoán chỉ chạy bước kiểm, không submit", "run_before_save_methods()" in than and ".submit(" not in than)
+	dung("chẩn đoán luôn lùi điểm lưu", 'finally:\n\t\tfrappe.db.rollback(save_point="vgb_chan_doan_thu")' in than)
+
+
+@ca("v534 ô UNC khách gửi dựng lúc migrate, sau ô UNC phiếu chi")
+def _truong():
+	from vagabond.thu_tien import TRUONG_MOI
+	o = TRUONG_MOI["Payment Entry"][0]
+	la("tên ô", o["fieldname"], "vgb_thu_unc")
+	la("đứng sau ô UNC chi", o["insert_after"], "vgb_chi_unc")
+	t = _doc("truong_tu_them.py")
+	dung("dựng nhóm thu_tien", '_dung_nhom(thu_tien.TRUONG_MOI, "thu_tien")' in t)
+	dung("dựng SAU nhóm duyet_chi", t.find('_dung_nhom(duyet_chi.TRUONG_MOI') < t.find('_dung_nhom(thu_tien.TRUONG_MOI'))
+
+
+@ca("v534 công nợ: tách tiền đã về dựa trên phép xác minh, không đọc cờ nháp")
+def _cong_no_tach():
+	s = _doc("cong_no.py")
+	i = s.find("def ds_khach_no(")
+	than = s[i:s.find("\ndef ", i + 10)]
+	dung("gọi phép tách thuần", 'tt.tach_tien_da_ve(r["con_no"], p["phan_bo"], p["da_xac_minh"])' in than)
+	dung("tổng nợ tính trước ô tìm", than.find("tong = sum(") < than.find("if tim:"))
+	i = s.find("def _tien_da_ve_theo_hd(")
+	than = s[i:s.find("\ndef ", i + 10) if s.find("\ndef ", i + 10) > 0 else len(s)]
+	dung("chỉ nhận phiếu đã xác minh", 'if not p["da_xac_minh"]:\n\t\t\tcontinue' in than)
+
+
+# -------------------------------------------- mọi màn danh sách đều có công cụ
+
+# Màn danh sách CHƯA dùng thanh công cụ chung, kèm lý do. Làm tới màn nào thì
+# xoá dòng của màn đó; ca kiểm dưới bắt lỗi nếu màn đã dùng mà vẫn nằm ở đây.
+DOT1B = "đợt 1b (Sales), anh Việt chốt làm sau v534"
+DOT2 = "đợt 2 (Kế toán)"
+DOT3 = "đợt 3 (Kho, bếp, giao hàng)"
+KHONG_PHAI = "màn chọn trong lúc lập phiếu hoặc danh mục cài đặt ngắn, không phải sổ để tra"
+MIEN = {
+	"scrDsView": DOT1B, "scrKhachHang": DOT1B, "scrHopDong": DOT1B, "scrHopDongHub": DOT1B,
+	"scrBaoGia": DOT1B, "scrKhuyenMai": DOT1B, "scrHoanTien": DOT1B, "scrDonHuy": DOT1B,
+	"scrPhieuHoanHuy": DOT1B, "scrTqDot": DOT1B, "scrTqDs": DOT1B, "scrBntDs": DOT1B,
+	"scrMuaVuDs": DOT1B, "scrMuaVu": DOT1B, "scrKhachChiTiet": DOT1B,
+	"scrHdBan": DOT2, "scrHdMua": DOT2, "scrDoiChieuMua": DOT2, "scrHoSoTT": DOT2,
+	"scrDeNghiChi": DOT2, "scrTTNB": DOT2, "scrNopQuy": DOT2, "scrButToan": DOT2,
+	"scrTaiSan": DOT2, "scrBangGia": DOT2, "scrNcc": DOT2, "scrDonMua": DOT2,
+	"scrDuyetYc": DOT2, "scrBaoCao": DOT2, "scrKPI": DOT2,
+	"scrXkHuyList": DOT3, "scrXkCkList": DOT3, "scrMfgList": DOT3, "scrRecvList": DOT3,
+	"scrVanDon": DOT3, "scrVdView": DOT3, "scrVdTuyen": DOT3, "scrKhsxDsPhieu": DOT3,
+	"scrXkNbList": DOT3, "scrXkTraList": DOT3, "scrXkSiList": DOT3, "scrXkPvList": DOT3,
+	"scrVclList": DOT3, "scrHuongDan": DOT3,
+	"scrHoSoTTTao": KHONG_PHAI, "scrHoanUngTao": KHONG_PHAI, "scrChiCongTyTao": KHONG_PHAI,
+	"scrNccGan": KHONG_PHAI, "scrTraTruocTao": KHONG_PHAI, "scrPhLap": KHONG_PHAI,
+	"scrDiemBan": KHONG_PHAI, "scrPtThanhToan": KHONG_PHAI, "scrTaiKhoan": KHONG_PHAI,
+	"scrCaiDatKho": KHONG_PHAI, "scrMayIn": KHONG_PHAI, "scrNguoiDung": KHONG_PHAI,
+	"scrMauBg": KHONG_PHAI, "scrMauIn": KHONG_PHAI,
+}
+DOT1 = ("scrCongNo", "scrDuyetTang")
+
+
+def _man_danh_sach():
+	"""Màn nào là màn danh sách: hàm scr* gọi một hàm máy chủ kiểu danh sách.
+
+	Đây là phép dò chuỗi, chỉ dùng để CHỐT PHẠM VI (quy tắc 16): màn mới
+	thêm vào mà không dùng công cụ chung và không khai miễn thì đỏ.
+	"""
+	ra = {}
+	for f in sorted(os.listdir(BEP)):
+		if not re.match(r"^\d\d-.+\.js$", f):
+			continue
+		s = io.open(os.path.join(BEP, f), encoding="utf-8").read()
+		for m in re.finditer(r"^(?:async )?function (scr\w+)\(", s, re.M):
+			i = m.start()
+			j = min(x for x in (s.find("\nfunction ", i + 10), s.find("\nasync function ", i + 10), len(s)) if x > 0)
+			than = s[i:j]
+			goi = re.findall(r"api\('vagabond\.([\w.]+)'", than)
+			if any(re.search(r"\.(ds|danh_sach|ds_\w+|\w+_ds|bang)$", g) for g in goi):
+				ra[m.group(1)] = (f, "dsCongCu(" in than)
+	return ra
+
+
+@ca("v534 mọi màn danh sách dùng thanh công cụ chung, hoặc nằm trong danh sách miễn có lý do")
+def _moi_man():
+	ds = _man_danh_sach()
+	dung("dò ra được màn danh sách", len(ds) >= 50)
+	sot = sorted(t for t, (_, co) in ds.items() if not co and t not in MIEN)
+	la("màn danh sách chưa có công cụ mà không khai miễn", sot, [])
+	thua = sorted(t for t in MIEN if t not in ds)
+	la("miễn cho màn không còn tồn tại hoặc không còn là danh sách", thua, [])
+	da_lam = sorted(t for t in MIEN if t in ds and ds[t][1])
+	la("màn đã dùng công cụ mà vẫn nằm trong danh sách miễn", da_lam, [])
+	for t in DOT1:
+		dung("%s (đợt 1) dùng thanh công cụ chung" % t, t in ds and ds[t][1])
+	for t, ly in MIEN.items():
+		dung("miễn %s có lý do" % t, bool((ly or "").strip()))
+
+
+@ca("v534 thanh công cụ: đúng thứ tự khối, nút Excel gọi cửa dùng chung, chạm đủ 44 điểm")
+def _thanh():
+	s = io.open(os.path.join(BEP, "15-khuon-danh-sach.js"), encoding="utf-8").read()
+	i = s.find("function dsCongCu(c)")
+	than = s[i:s.find("\nasync function dsXuatExcel", i)]
+	thu_tu = [than.find("if (c.chang)"), than.find("(c.ho || [])"), than.find("if (c.ky)"), than.find("var coTim")]
+	dung("đủ bốn khối", all(x > 0 for x in thu_tu))
+	la("thứ tự chặng, lọc riêng, ngày, tìm và Excel", thu_tu, sorted(thu_tu))
+	dung("Excel gọi cửa dùng chung", "api('vagabond.khung.cong_cu_ds.xuat_excel'" in s)
+	dung("ô tìm và nút Excel cao 44", "height:44px" in than and "min-height:44px" in than)
+	dung("không có ô select", "<select" not in than)
+
+
+@ca("v534 ca hành vi chạy trong cổng trước deploy")
+def _cong():
+	sh = io.open(os.path.join(os.path.dirname(GOI), "kiem_truoc_deploy.sh"), encoding="utf-8").read()
+	dung("cổng chạy cong_cu_ds_534.js", "node vagabond/khung/kiem_thu/hanh_vi/cong_cu_ds_534.js" in sh)
+
+
+@ca("v534 ca tích hợp sổ cái đăng ký vào bộ kiểm thật (bench)")
+def _dang_ky_that():
+	c = _doc("khung", "kiem_that", "cua.py")
+	dung("cua.py nạp thu_phieu_thu_unc_534", "import thu_phieu_thu_unc_534" in c)

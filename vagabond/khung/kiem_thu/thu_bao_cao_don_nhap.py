@@ -280,8 +280,12 @@ def _man_cong_tac():
 
 @ca("Man duyet don hang tang: ba ho chip ba mau")
 def _chip_tang_ba_mau():
+	# v534 (#380): man nay ve chip bang thanh cong cu dung chung dsCongCu.
+	# Y goc giu nguyen: moi ho chip mot mau, mau di xuong tan nut.
 	js = _doc("vagabond", "public", "js", "bep", "41-duyet-don-tang.js")
-	dung("ham chip nhan mau", "function dtgHangChip(thuoc, dsc, dem, chon, nhanTatCa, mau)" in js)
-	for mau in ("'#4338ca'", "'#0d9488'", "'#b45309'"):
+	kg = _doc("vagabond", "public", "js", "bep", "15-khuon-danh-sach.js")
+	dung("man dung thanh cong cu chung", "dsCongCu(cc)" in js)
+	for mau in ("'#4338ca'", "'#b45309'"):
 		dung("co mau " + mau, mau in js)
-	dung("mau truyen xuong nut", "chon === o.k, false, mau" in js)
+	dung("chip chang mau rieng", "c.chang.tatCa || 'Mọi chặng', '#0d9488'" in kg)
+	dung("mau truyen xuong nut", "chon === x.k, false, mau" in kg)
