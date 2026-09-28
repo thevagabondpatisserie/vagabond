@@ -45,6 +45,7 @@ def hook():
         f=NS(flags=NS(),db=NS(get_single_value=lambda *a:url,after_commit=NS(add=callbacks.append),commit=lambda:vet.append('commit_log')),enqueue=lambda *a,**k:vet.append(k))
         g=dict(frappe=f,partial=partial,_loi_lark=lambda x:vet.append('loi'))
         g['_xep_lark']=nap('dat_ban.py','_xep_lark',g)
+        g['_webhook_dat_ban']=nap('dat_ban.py','_webhook_dat_ban',g)  # v534: doc URL qua mot nguon
         nap('dat_ban.py','bao_dat_ban_moi',g)(D(name='TEST'))
         la('chưa xếp trước commit',vet,[])
         if url:
@@ -104,6 +105,7 @@ def worker():
                 get_doc=lambda *a:NS(as_dict=lambda:dict(nd,name='TEST')),
                 utils=NS(get_url_to_form=lambda *a:'https://fixture.invalid/app/vagabond-dat-ban/TEST')),
                 DOCTYPE='Vagabond Dat Ban',soan_tin_dat_ban=soan,_loi_lark=loi.append)
+        g['_webhook_dat_ban']=nap('dat_ban.py','_webhook_dat_ban',g)
         with patch.dict(sys.modules,{'vagabond.gui_thu':NS(ban_webhook=gui)}), patch.object(__import__('vagabond'),'diem_ban',NS(theo_ma=lambda ma:{'ten':'Tiệm Trần Cao Vân'}),create=True):
             nap('dat_ban.py','gui_lark',g)('TEST')
         la('gửi đúng số lượt',len(vet),1 if url else 0)
