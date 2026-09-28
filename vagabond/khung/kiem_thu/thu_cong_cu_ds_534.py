@@ -310,6 +310,35 @@ def _gom_tien_da_ve():
 	la("rỗng", gom_tien_da_ve(None), {})
 
 
+@ca("v534 tiền đã về: một giao dịch chia cho hai hoá đơn khác nhau chỉ tính MỘT phiếu (Codex #382 vòng 2)")
+def _mot_phieu_moi_gd():
+	from vagabond.thu_tien import gom_tien_da_ve, tach_tien_da_ve, mot_phieu_moi_giao_dich
+	hai_hd = [
+		{"pe": "PE1", "gd": "BT1", "ma_gd": "FT1", "tien": 1000000.0, "da_xac_minh": 1, "hd": [("SI1", 1000000.0)]},
+		{"pe": "PE2", "gd": "BT1", "ma_gd": "FT1", "tien": 1000000.0, "da_xac_minh": 1, "hd": [("SI2", 1000000.0)]},
+	]
+	g = gom_tien_da_ve(hai_hd)
+	tach = sorted(si for si in g if tach_tien_da_ve(1000000, g[si]["phan_bo"], 1))
+	la("một lần tiền về 1.000.000 chỉ tách một hoá đơn", tach, ["SI1"])
+	ra = mot_phieu_moi_giao_dich(hai_hd)
+	la("phiếu thua hạ về chưa xác minh", [p["da_xac_minh"] for p in ra], [1, 0])
+	dung("phiếu thua có câu lý do nêu phiếu thắng", "PE1" in ra[1]["ly_do"])
+	la("không sửa danh sách gốc", hai_hd[1]["da_xac_minh"], 1)
+	# Phiếu thắng chọn theo MỌI phiếu cùng mã trên hệ thống, không theo tập màn đang xem:
+	# màn chỉ đọc PE2 nhưng hệ thống còn PE0 lớn hơn thì PE2 vẫn thua.
+	ra = mot_phieu_moi_giao_dich([hai_hd[1]], {"FT1": [("PE0", 1200000.0), ("PE2", 1000000.0)]})
+	la("thua phiếu ngoài tập đang xem", ra[0]["da_xac_minh"], 0)
+	# Phiếu thắng tự nó không xác minh được thì không phiếu nào được tính.
+	ra = mot_phieu_moi_giao_dich([dict(hai_hd[0], da_xac_minh=0), hai_hd[1]])
+	la("thắng mà hỏng thì không ai tách", [p["da_xac_minh"] for p in ra], [0, 0])
+	la("một phiếu chia hai hoá đơn vẫn đủ cả hai", sorted(gom_tien_da_ve([{"pe": "P", "gd": "B", "ma_gd": "F",
+		"tien": 3.0, "da_xac_minh": 1, "hd": [("SI1", 1.0), ("SI2", 2.0)]}])), ["SI1", "SI2"])
+	s = _doc("thu_tien.py")
+	i = s.find("def phieu_thu_nhap(")
+	than = s[i:s.find("\ndef ", i + 10)]
+	dung("màn và công nợ cùng đi qua một chỗ chọn", "return mot_phieu_moi_giao_dich(ra, ung_vien)" in than)
+
+
 @ca("v534 ghi sổ phiếu thu: chỉ tệp nằm TRONG ô UNC khách gửi mới tính (Codex #382)")
 def _dem_tep_unc():
 	from vagabond.thu_tien import dem_tep_unc
