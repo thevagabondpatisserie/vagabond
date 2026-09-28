@@ -74,7 +74,13 @@ Object.defineProperty(ElementGia.prototype, 'attributes', {
 });
 
 ElementGia.prototype.addEventListener = function (loai, ham) {
-  (this._nghe[loai] = this._nghe[loai] || []).push(ham);
+  var ds = (this._nghe[loai] = this._nghe[loai] || []);
+  /* Như trình duyệt: cùng một hàm nghe cùng một loại chỉ đăng ký MỘT lần.
+     Màn Hàng tặng gắn `root.addEventListener('click', dtgBam)` mỗi lần vẽ
+     lại; trình duyệt tự bỏ lần trùng, bản giả cũ thì chạy hai lần và làm ca
+     kiểm thấy bill mở hai lần (v534). Thêm mới, hàm khác nhau vẫn như cũ. */
+  if (ds.indexOf(ham) >= 0) return;
+  ds.push(ham);
 };
 ElementGia.prototype.removeEventListener = function (loai, ham) {
   var ds = this._nghe[loai] || [];
