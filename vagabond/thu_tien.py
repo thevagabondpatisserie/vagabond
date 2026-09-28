@@ -285,23 +285,63 @@ def gom_tien_da_ve(ds):
 	hoá đơn đã trả đủ nằm lại "Đang nợ". Nhưng một giao dịch ngân hàng chỉ
 	được tính MỘT lần cho một hoá đơn: hai phiếu nháp trùng cùng một số FT
 	không phải hai lần tiền về.
+
+	Codex #382 vòng 2: khoá chống trùng không được chứa hoá đơn. Hai phiếu
+	nháp cùng một giao dịch 1.000.000 đ mà chia cho HAI hoá đơn khác nhau
+	thì trước đây cả hai hoá đơn cùng sang "Tiền đã về" (2.000.000 đ từ một
+	lần tiền về). Giờ mỗi giao dịch chỉ một phiếu được tính, chọn ở MỘT chỗ
+	là `mot_phieu_moi_giao_dich`.
 	"""
-	theo = {}
-	for p in ds or []:
+	ra = {}
+	for p in mot_phieu_moi_giao_dich(ds):
 		if not p.get("da_xac_minh"):
 			continue
-		gd = p.get("gd") or p.get("pe") or ""
 		for si, pb in p.get("hd") or []:
-			k = (si, gd)
-			cu = theo.get(k)
-			if cu is None or _so(pb) > cu[0]:
-				theo[k] = (_so(pb), p.get("pe"))
-	ra = {}
-	for (si, _gd), (pb, pe) in sorted(theo.items(), key=lambda x: (x[0][0], x[0][1])):
-		o = ra.setdefault(si, {"phan_bo": 0.0, "cac_pe": [], "da_xac_minh": 1})
-		o["phan_bo"] += pb
-		o["cac_pe"].append(pe)
+			o = ra.setdefault(si, {"phan_bo": 0.0, "cac_pe": [], "da_xac_minh": 1})
+			o["phan_bo"] += _so(pb)
+			if p.get("pe") not in o["cac_pe"]:
+				o["cac_pe"].append(p.get("pe"))
 	return ra
+
+
+def _khoa_gd(p):
+	return (p.get("ma_gd") or p.get("gd") or "").strip()
+
+
+def mot_phieu_moi_giao_dich(ds, ung_vien=None):
+	"""Mỗi giao dịch ngân hàng chỉ MỘT phiếu thu nháp được coi là đã xác minh. THUẦN.
+
+	`ds`: các phiếu (dict có `pe`, `tien`, `ma_gd` hoặc `gd`, `da_xac_minh`).
+	`ung_vien`: {mã giao dịch: [(phiếu, số tiền), ...]} gồm MỌI phiếu thu nháp
+	mang mã đó trên hệ thống, kể cả phiếu nằm ngoài `ds` (màn chỉ đọc phiếu
+	của vài hoá đơn). Không truyền thì lấy từ chính `ds`.
+
+	Phiếu được giữ là phiếu tiền lớn nhất, bằng tiền thì mã nhỏ hơn, nên kết
+	quả không đổi theo cách lọc màn. Phiếu còn lại hạ về chưa xác minh, kèm
+	câu lý do, để hoá đơn của nó vẫn nằm trong "Đang nợ" cho kế toán xem tay.
+	Phiếu thắng mà không tự xác minh được thì không phiếu nào được tính.
+	"""
+	ds = [dict(p) for p in (ds or [])]
+	if ung_vien is None:
+		ung_vien = {}
+		for p in ds:
+			k = _khoa_gd(p)
+			if k:
+				ung_vien.setdefault(k, []).append((p.get("pe"), _so(p.get("tien"))))
+	thang = {}
+	for k, cac in ung_vien.items():
+		cac = [(ten, _so(t)) for ten, t in cac if ten]
+		if cac:
+			thang[k] = sorted(cac, key=lambda x: (-x[1], str(x[0])))[0][0]
+	for p in ds:
+		k = _khoa_gd(p)
+		if not p.get("da_xac_minh") or not k or k not in thang:
+			continue
+		if thang[k] != p.get("pe"):
+			p["da_xac_minh"] = 0
+			p["ly_do"] = ("Giao dịch %s đã có phiếu thu nháp %s; phiếu này cần kế toán xem tay."
+				% (k, thang[k]))
+	return ds
 
 
 def dem_tep_unc(ds_url_o, url_da_gan):
@@ -745,7 +785,16 @@ def phieu_thu_nhap(cac_si=None, chi_ma_gd=True):
 			"gd": (g or {}).get("name") or "", "hd": ref.get(p.name, []),
 			"so_tep": tep.get(p.name, 0), "da_xac_minh": 1 if ok else 0, "ly_do": ly_do,
 		})
-	return ra
+	# Codex #382 vòng 2: một giao dịch chỉ một phiếu được tính. Đọc MỌI phiếu
+	# thu nháp cùng mã giao dịch, kể cả phiếu của hoá đơn ngoài tập đang xem,
+	# để phiếu được chọn không đổi theo cách lọc màn.
+	ung_vien = {}
+	for lo in _chia({p.reference_no.strip() for p in cac_pe if (p.reference_no or "").strip()}):
+		for r in frappe.get_all(PE, filters={"docstatus": 0, "payment_type": "Receive",
+				"reference_no": ["in", lo]}, fields=["name", "reference_no", "paid_amount"],
+				limit_page_length=0):
+			ung_vien.setdefault((r.reference_no or "").strip(), []).append((r.name, flt(r.paid_amount)))
+	return mot_phieu_moi_giao_dich(ra, ung_vien)
 
 
 def _so_tep_unc(ten_pe, o_unc):
