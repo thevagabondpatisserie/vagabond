@@ -1377,9 +1377,13 @@ Cách phòng:
   gắn vào chứng từ (Codex #382). Đếm cả chứng từ là để một ảnh chụp bất kỳ ở
   mục khác mở khoá ghi sổ; chính ca bench đầu tiên của v534 đã vô tình đi
   qua lỗ đó vì gắn tệp chung chung. Phép chung: `thu_tien.dem_tep_unc`.
-- Một hoá đơn trả bằng nhiều lần chuyển thì CỘNG các phiếu đã xác minh, mỗi
-  giao dịch ngân hàng tính một lần; lấy phiếu lớn nhất là để hoá đơn đã trả đủ
-  nằm lại "Đang nợ" (Codex #382, `thu_tien.gom_tien_da_ve`).
+- Một hoá đơn trả bằng nhiều lần chuyển thì CỘNG các phiếu đã xác minh; lấy
+  phiếu lớn nhất là để hoá đơn đã trả đủ nằm lại "Đang nợ" (Codex #382,
+  `thu_tien.gom_tien_da_ve`). Nhưng chống trùng phải theo GIAO DỊCH trên toàn hệ
+  thống, không theo cặp (hoá đơn, giao dịch): khoá có chứa hoá đơn thì một lần
+  tiền về chia cho hai phiếu hai hoá đơn được tính hai lần (Codex #382 vòng 2).
+  Chọn phiếu thắng ở MỘT chỗ (`mot_phieu_moi_giao_dich`), trên mọi phiếu cùng
+  mã giao dịch chứ không trên tập màn đang lọc.
 - Đổi tham số lọc cho màn mà vẫn nhận tham số cũ "để app cũ không vỡ" thì phải
   chép ĐÚNG phép lọc cũ, không quy gần đúng về khái niệm mới (Codex #382:
   "Đã duyệt" cũ = chờ ghi sổ + đã ghi sổ, không trùng chặng nào).
