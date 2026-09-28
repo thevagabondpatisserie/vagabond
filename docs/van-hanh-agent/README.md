@@ -48,6 +48,7 @@ Quy tắc mới: [tiết kiệm token và mẫu tag](tiet-kiem-token.md). Tái d
 
 - [Issue 294: cloud và lưu bàn giao](cong-viec/issue-294.md)
 - [Issue 296: lưu đơn và thư NCC](cong-viec/issue-296.md)
+- [Issue 380: công nợ đã trả vẫn hiện, sổ đơn tặng, công cụ danh sách chung](cong-viec/issue-380.md)
 - [Mẫu bàn giao](mau-ban-giao.md)
 - [Luồng cloud cần nghiệm thu](luong-cloud.md)
 
