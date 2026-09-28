@@ -240,9 +240,17 @@ def _nguyen_khoi():
 	dung("có điểm lưu", 'frappe.db.savepoint("vgb_ghi_so_thu")' in than)
 	dung("lùi điểm lưu khi hỏng", 'frappe.db.rollback(save_point="vgb_ghi_so_thu")' in than)
 	dung("nối giao dịch rồi tải lại xác minh", "add_payment_entries" in than and "gdoc.reload()" in than)
+	dung("giao dịch cấp thiếu tiền cho phiếu thì lùi", "flt(dong[0].allocated_amount) + LECH < flt(doc.paid_amount)" in than)
+	# Codex #382: ghi rõ điều kiện lõi đã đọc, để nâng ERPNext còn đối chiếu.
+	for moc in ("frappe/model/document.py", "set_workflow_state_on_action",
+			"erpnext/accounts/doctype/bank_transaction/bank_transaction.py",
+			"add_payment_entries", "allocate_payment_entries", "get_clearance_details"):
+		dung("chú thích lõi có " + moc, moc in than)
 	# Frappe tự đặt bước duyệt đúng docstatus khi submit (set_workflow_state_on_action).
 	# Đặt tay "Đã duyệt - Đã ghi sổ" từ "Nháp" là một bước chuyển workflow không khai.
-	dung("không đặt tay workflow_state", "workflow_state" not in than)
+	# Chú thích lõi có nhắc tên hàm set_workflow_state_on_action nên soát
+	# đúng các kiểu ĐẶT giá trị, không soát chữ trần.
+	dung("không đặt tay workflow_state", not re.search(r"\.workflow_state\s*=|[\"']workflow_state[\"']", than))
 	dung("không tự commit", "frappe.db.commit" not in than)
 	i = s.find("def chan_doan_ghi_so(")
 	than = s[i:s.find("\ndef _ghi_vet_thu", i)]
@@ -270,7 +278,86 @@ def _cong_no_tach():
 	dung("tổng nợ tính trước ô tìm", than.find("tong = sum(") < than.find("if tim:"))
 	i = s.find("def _tien_da_ve_theo_hd(")
 	than = s[i:s.find("\ndef ", i + 10) if s.find("\ndef ", i + 10) > 0 else len(s)]
-	dung("chỉ nhận phiếu đã xác minh", 'if not p["da_xac_minh"]:\n\t\t\tcontinue' in than)
+	dung("cộng qua phép thuần gom_tien_da_ve", "return tt.gom_tien_da_ve(ds)" in than)
+
+
+@ca("v534 tiền đã về: hai lần chuyển cộng lại phủ đủ thì tách, trùng một giao dịch không cộng hai lần (Codex #382)")
+def _gom_tien_da_ve():
+	from vagabond.thu_tien import gom_tien_da_ve, tach_tien_da_ve
+	hai_lan = [
+		{"pe": "PE1", "gd": "BT1", "da_xac_minh": 1, "hd": [("SI1", 600000.0)]},
+		{"pe": "PE2", "gd": "BT2", "da_xac_minh": 1, "hd": [("SI1", 400000.0)]},
+	]
+	g = gom_tien_da_ve(hai_lan)
+	la("600.000 + 400.000", g["SI1"]["phan_bo"], 1000000.0)
+	la("giữ cả hai phiếu", g["SI1"]["cac_pe"], ["PE1", "PE2"])
+	dung("hoá đơn 1.000.000 đã trả đủ thì tách", tach_tien_da_ve(1000000, g["SI1"]["phan_bo"], 1))
+	trung = [
+		{"pe": "PE1", "gd": "BT1", "da_xac_minh": 1, "hd": [("SI1", 600000.0)]},
+		{"pe": "PE3", "gd": "BT1", "da_xac_minh": 1, "hd": [("SI1", 600000.0)]},
+	]
+	la("hai phiếu nháp cùng một FT chỉ tính một lần", gom_tien_da_ve(trung)["SI1"]["phan_bo"], 600000.0)
+	chua = [
+		{"pe": "PE1", "gd": "BT1", "da_xac_minh": 1, "hd": [("SI1", 600000.0)]},
+		{"pe": "PE4", "gd": "BT4", "da_xac_minh": 0, "hd": [("SI1", 400000.0)]},
+	]
+	g = gom_tien_da_ve(chua)
+	la("phiếu chưa xác minh không cộng", g["SI1"]["phan_bo"], 600000.0)
+	dung("nên hoá đơn vẫn ở Đang nợ", not tach_tien_da_ve(1000000, g["SI1"]["phan_bo"], 1))
+	la("một phiếu chia hai hoá đơn", gom_tien_da_ve([{"pe": "P", "gd": "B", "da_xac_minh": 1,
+		"hd": [("SI1", 1.0), ("SI2", 2.0)]}]), {"SI1": {"phan_bo": 1.0, "cac_pe": ["P"], "da_xac_minh": 1},
+		"SI2": {"phan_bo": 2.0, "cac_pe": ["P"], "da_xac_minh": 1}})
+	la("rỗng", gom_tien_da_ve(None), {})
+
+
+@ca("v534 ghi sổ phiếu thu: chỉ tệp nằm TRONG ô UNC khách gửi mới tính (Codex #382)")
+def _dem_tep_unc():
+	from vagabond.thu_tien import dem_tep_unc
+	la("ô trống, có một ảnh bất kỳ gắn vào phiếu", dem_tep_unc([], {"/private/files/anh-bat-ky.png"}), 0)
+	la("ô có tệp và tệp còn gắn vào phiếu", dem_tep_unc(["/private/files/unc.png"], {"/private/files/unc.png"}), 1)
+	la("ô có tệp nhưng tệp đã gỡ khỏi phiếu", dem_tep_unc(["/private/files/unc.png"], set()), 0)
+	la("ô ghi trùng một tệp hai lần", dem_tep_unc(["/a", "/a"], {"/a"}), 1)
+	la("hai tệp UNC, thêm một tệp mục khác", dem_tep_unc(["/a", "/b"], {"/a", "/b", "/khac"}), 2)
+	s = _doc("thu_tien.py")
+	i = s.find("def ghi_so_phieu_thu(")
+	than = s[i:s.find("\n@frappe.whitelist", i + 10)]
+	dung("ghi sổ đếm qua ô UNC", 'so_tep = _so_tep_unc(doc.name, doc.get("vgb_thu_unc"))' in than)
+	dung("không còn đếm mọi File của phiếu", 'frappe.db.count("File"' not in than)
+	i = s.find("def phieu_thu_nhap(")
+	than = s[i:s.find("\ndef ", i + 10)]
+	dung("màn Tiền đã về đếm cùng phép", "dem_tep_unc(tep_dinh_kem.doc_ds(p.get(\"vgb_thu_unc\"))" in than)
+
+
+@ca("v534 hàng tặng: bản app cũ gửi trang_thai vẫn lọc ĐÚNG như trước v534 (Codex #382)")
+def _tt_cu():
+	from unittest.mock import patch
+	from vagabond.khung.kiem_thu import nen
+	from vagabond import hang_tang as ht
+	dung("Đã duyệt cũ: nhận đơn chờ ghi sổ", ht.hop_trang_thai_cu("Đã duyệt", "Đã duyệt"))
+	dung("Đã duyệt cũ: không nhận chờ duyệt", not ht.hop_trang_thai_cu("Đã duyệt", "Chờ duyệt"))
+	dung("Chờ duyệt cũ nhận ô trống", ht.hop_trang_thai_cu("Chờ duyệt", ""))
+	dung("trạng thái lạ thì không lọc", ht.hop_trang_thai_cu("abc", "Từ chối"))
+	cu = nen.BANG_GIA.get("Sales Invoice")
+	nen.BANG_GIA["Sales Invoice"] = [
+		dict(name="A", creation="2026-09-01 10:00", owner="x", docstatus=0, posting_date="2026-09-01", vgb_tang_duyet="Đã duyệt", vgb_quay=""),
+		dict(name="B", creation="2026-09-02 10:00", owner="x", docstatus=1, posting_date="2026-09-02", vgb_tang_duyet="Đã duyệt", vgb_quay=""),
+		dict(name="C", creation="2026-09-03 10:00", owner="x", docstatus=0, posting_date="2026-09-03", vgb_tang_duyet="", vgb_quay=""),
+		dict(name="D", creation="2026-09-04 10:00", owner="x", docstatus=0, posting_date="2026-09-04", vgb_tang_duyet="Từ chối", vgb_quay=""),
+		dict(name="E", creation="2026-09-05 10:00", owner="x", docstatus=1, posting_date="2026-09-05", vgb_tang_duyet="", vgb_quay=""),
+	]
+	try:
+		with patch.object(ht, "_diem_cua_don", lambda q: "Q1"), patch.object(ht.ten_nguoi, "gan", lambda *a, **k: None):
+			ten = lambda **k: sorted(r["name"] for r in ht._tap(**k)["ra"])
+			la("app cũ bấm Đã duyệt: cả chờ ghi sổ lẫn đã ghi sổ", ten(trang_thai="Đã duyệt"), ["A", "B"])
+			la("app cũ bấm Chờ duyệt: gồm ô trống như cũ", ten(trang_thai="Chờ duyệt"), ["C", "E"])
+			la("app cũ bấm Từ chối", ten(trang_thai="Từ chối"), ["D"])
+			la("app mới bấm chặng thì chặng thắng", ten(chang="hoan_tat", trang_thai="Đã duyệt"), ["B", "E"])
+			la("không lọc", ten(), ["A", "B", "C", "D", "E"])
+	finally:
+		if cu is None:
+			nen.BANG_GIA.pop("Sales Invoice", None)
+		else:
+			nen.BANG_GIA["Sales Invoice"] = cu
 
 
 # -------------------------------------------- mọi màn danh sách đều có công cụ
