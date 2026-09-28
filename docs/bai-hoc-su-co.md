@@ -1349,3 +1349,27 @@ Cách phòng:
   `nop_quy.tao` và `tao_theo_ngay` trả `{can_ly_do: 1}` trước khi insert để
   màn hỏi lý do lệch rồi gọi lại. Xoá nháp ngay khi promise xong là mất cả
   bảng kê nếu người dùng huỷ hộp lý do. Chỉ xoá khi `sdDaTaoPhieu(kq)` đúng.
+
+## 28/09/2026 (v534, #380): phiếu thu kẹt nháp im lặng sáu tuần, và công cụ danh sách chung
+
+- Triệu chứng: khách đã chuyển đủ tiền vẫn nằm trong Công nợ phải thu. Gốc:
+  script tự lập phiếu thu từ giao dịch SePay `insert()` rồi `submit()` trong
+  `try`, `except` nuốt lỗi vào một biến, cuối cùng vẫn `commit()`. Submit hỏng
+  (chốt đính kèm 16/08 áp cả chiều thu) nên bản NHÁP được lưu, không dòng nào
+  vào Error Log, và lần chạy sau thấy hoá đơn đã có phiếu nên không thử lại.
+  Tới 28/09 đã là 1.428 phiếu, 1,33 tỷ. Cách phòng: script nào tạo chứng từ
+  thì lỗi submit phải ra chỗ con người đọc được (Việc hôm nay, Error Log), và
+  không commit bản dở; chuyển logic đó về repo để có ca kiểm (#380 mục 1C).
+- Đừng tách một khoản ra khỏi "còn phải đòi" chỉ vì có phiếu thu nháp (Codex
+  #381 F4): phiếu nhập tay, phiếu lỗi cũng là nháp. Chỉ tách khi giao dịch
+  ngân hàng đã xác minh độc lập (`thu_tien.xac_minh_tien_ve`).
+- Ghi sổ phiếu thu có workflow: KHÔNG đặt tay `workflow_state` từ "Nháp"
+  sang bước đã ghi sổ (không khai bước chuyển đó). Cứ `submit()`, Frappe tự
+  đặt bước ứng với docstatus 1 (`set_workflow_state_on_action`).
+- Màn danh sách mới: dùng `dsCongCu` (15-khuon-danh-sach.js) cho chip chặng,
+  chip lọc, chip ngày, ô tìm, Excel; Excel khai MỘT adapter trong
+  `khung/cong_cu_ds.MAN_XUAT`. Ca `thu_cong_cu_ds_534.py` đỏ nếu màn danh sách
+  mới không dùng công cụ mà không khai miễn kèm lý do.
+- DOM giả (`dom_gia.js`) trước v534 không bỏ lần đăng ký trùng của cùng một
+  hàm nghe như trình duyệt; màn gắn `root.addEventListener(..., hamCoTen)` mỗi
+  lần vẽ thì ca kiểm thấy sự kiện chạy hai lần. Đã sửa cho khớp trình duyệt.
