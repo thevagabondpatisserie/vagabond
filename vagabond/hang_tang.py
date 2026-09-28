@@ -128,6 +128,22 @@ def chang_cua(tang_duyet, docstatus):
 	return "cho_duyet"
 
 
+def hop_trang_thai_cu(tt_cu, tang_duyet):
+	"""Phép lọc theo ô duyệt của bản app trước v534. THUẦN.
+
+	Chép đúng ds_don cũ (main 44399628): "Chờ duyệt" nhận cả ô trống, các
+	trạng thái khác so bằng; không lọc thì nhận hết. Không quy về chặng, vì
+	"Đã duyệt" cũ gồm cả đơn chờ ghi sổ lẫn đơn đã ghi sổ.
+	"""
+	tt_cu = (tt_cu or "").strip()
+	if tt_cu not in TT_DS:
+		return True
+	o = (tang_duyet or "").strip()
+	if tt_cu == TT_CHO:
+		return o in (TT_CHO, "")
+	return o == tt_cu
+
+
 def cat_dong(ra, so_dong, day_du=0):
 	"""Cắt danh sách cho MÀN HÌNH; xuất Excel thì không cắt. THUẦN.
 
@@ -859,8 +875,13 @@ def _tap(diem="", chang="", loai="", tim="", ky="", tu="", den="", trang_thai=""
 
 	loc = {"vgb_pt_thanh_toan": PT_TANG, "docstatus": ["<", 2]}
 	ch = chuoi(chang)
+	tt_cu = ""
 	if ch not in KHOA_CHANG:
-		ch = {TT_CHO: "cho_duyet", TT_TU_CHOI: "tu_choi"}.get(chuoi(trang_thai), "")
+		ch = ""
+		# Bản app cũ lọc theo ô duyệt chứ không theo chặng. Giữ ĐÚNG phép
+		# lọc cũ (Codex #382): "Đã duyệt" là cả đơn chờ ghi sổ lẫn đơn đã
+		# ghi sổ, không có chặng mới nào khớp đúng tập đó.
+		tt_cu = chuoi(trang_thai) if chuoi(trang_thai) in TT_DS else ""
 	tu_ngay, den_ngay = khoang_ky(ky, nowdate(), tu, den)
 	if tu_ngay and den_ngay:
 		loc["posting_date"] = ["between", [tu_ngay, den_ngay]]
@@ -913,7 +934,7 @@ def _tap(diem="", chang="", loai="", tim="", ky="", tu="", den="", trang_thai=""
 	lo = chuoi(loai)
 	hop_diem = lambda r: not dm or r["diem_ban"] == dm
 	hop_loai = lambda r: not lo or chuoi(r.get("vgb_tang_loai")) == lo
-	hop_chang = lambda r: not ch or r["chang"] == ch
+	hop_chang = lambda r: (not ch or r["chang"] == ch) and hop_trang_thai_cu(tt_cu, r.get("vgb_tang_duyet"))
 
 	dem_diem, dem_chang, dem_loai, dem_tt = {}, {}, {}, {}
 	for r in dong:

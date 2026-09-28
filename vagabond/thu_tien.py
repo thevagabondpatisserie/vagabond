@@ -273,6 +273,57 @@ def tach_tien_da_ve(con_no, phan_bo, da_xac_minh):
 	return bool(da_xac_minh) and no > 0 and _so(phan_bo) + 1 >= no
 
 
+def gom_tien_da_ve(ds):
+	"""Cộng tiền đã về theo từng hoá đơn, từ các phiếu thu nháp ĐÃ XÁC MINH. THUẦN.
+
+	`ds` là kết quả `phieu_thu_nhap`: mỗi phiếu có `da_xac_minh`, `gd` (giao
+	dịch ngân hàng) và `hd` = [(hoá đơn, số phân bổ)]. Trả {hoá đơn:
+	{"phan_bo": tổng, "cac_pe": [...], "da_xac_minh": 1}}.
+
+	Codex #382: khách trả một hoá đơn bằng HAI lần chuyển (600.000 đ rồi
+	400.000 đ) thì hai phiếu cộng lại mới phủ đủ; lấy phiếu lớn nhất là để
+	hoá đơn đã trả đủ nằm lại "Đang nợ". Nhưng một giao dịch ngân hàng chỉ
+	được tính MỘT lần cho một hoá đơn: hai phiếu nháp trùng cùng một số FT
+	không phải hai lần tiền về.
+	"""
+	theo = {}
+	for p in ds or []:
+		if not p.get("da_xac_minh"):
+			continue
+		gd = p.get("gd") or p.get("pe") or ""
+		for si, pb in p.get("hd") or []:
+			k = (si, gd)
+			cu = theo.get(k)
+			if cu is None or _so(pb) > cu[0]:
+				theo[k] = (_so(pb), p.get("pe"))
+	ra = {}
+	for (si, _gd), (pb, pe) in sorted(theo.items(), key=lambda x: (x[0][0], x[0][1])):
+		o = ra.setdefault(si, {"phan_bo": 0.0, "cac_pe": [], "da_xac_minh": 1})
+		o["phan_bo"] += pb
+		o["cac_pe"].append(pe)
+	return ra
+
+
+def dem_tep_unc(ds_url_o, url_da_gan):
+	"""Số tệp uỷ nhiệm chi khách gửi thật sự nằm trên phiếu. THUẦN.
+
+	`ds_url_o` là danh sách đường dẫn ghi trong ô `vgb_thu_unc`, `url_da_gan`
+	là các đường dẫn File đang gắn vào đúng phiếu này. Chỉ đếm tệp có mặt ở
+	CẢ HAI: có trong ô (người dùng đính đúng chỗ) và còn gắn vào phiếu (tệp
+	thật, chưa bị gỡ hay chuyển sang chứng từ khác).
+
+	Codex #382: đếm mọi File gắn vào phiếu là để một ảnh chụp màn hình bất
+	kỳ, hay tệp đính ở mục khác, mở khoá ghi sổ mà không có uỷ nhiệm chi.
+	"""
+	gan = set(url_da_gan or [])
+	ra = []
+	for u in ds_url_o or []:
+		u = str(u or "").strip()
+		if u and u in gan and u not in ra:
+			ra.append(u)
+	return len(ra)
+
+
 def soat_ghi_so_thu(da_xac_minh, ly_do, so_tep, la_ke_toan):
 	"""Được bấm ghi sổ phiếu thu chưa. THUẦN. Trả (được hay không, câu lý do)."""
 	if not da_xac_minh:
@@ -670,13 +721,18 @@ def phieu_thu_nhap(cac_si=None, chi_ma_gd=True):
 			fields=["parent", "reference_name", "allocated_amount"], limit_page_length=0,
 		):
 			ref.setdefault(r.parent, []).append((r.reference_name, flt(r.allocated_amount)))
-	tep = {}
+	from vagabond import tep_dinh_kem
+
+	url_gan = {}
 	for lo in _chia(ten):
 		for r in frappe.get_all(
 			"File", filters={"attached_to_doctype": PE, "attached_to_name": ["in", lo]},
-			fields=["attached_to_name"], limit_page_length=0,
+			fields=["attached_to_name", "file_url"], limit_page_length=0,
 		):
-			tep[r.attached_to_name] = tep.get(r.attached_to_name, 0) + 1
+			url_gan.setdefault(r.attached_to_name, set()).add(r.file_url)
+	# Chỉ đếm tệp nằm trong ô UNC khách gửi (Codex #382), xem dem_tep_unc.
+	tep = {p.name: dem_tep_unc(tep_dinh_kem.doc_ds(p.get("vgb_thu_unc")), url_gan.get(p.name))
+		for p in cac_pe}
 	gd = _gd_theo_so([p.reference_no for p in cac_pe])
 	ra = []
 	for p in cac_pe:
@@ -692,6 +748,18 @@ def phieu_thu_nhap(cac_si=None, chi_ma_gd=True):
 	return ra
 
 
+def _so_tep_unc(ten_pe, o_unc):
+	"""Số tệp UNC khách gửi thật sự trên phiếu: có trong ô VÀ còn gắn vào phiếu."""
+	from vagabond import tep_dinh_kem
+
+	ds = tep_dinh_kem.doc_ds(o_unc)
+	if not ds:
+		return 0
+	gan = frappe.get_all("File", filters={"attached_to_doctype": PE, "attached_to_name": ten_pe,
+		"file_url": ["in", ds]}, pluck="file_url", limit_page_length=0)
+	return dem_tep_unc(ds, gan)
+
+
 @frappe.whitelist(methods=["POST"])
 def ghi_so_phieu_thu(name=None, unc=None):
 	"""Đính uỷ nhiệm chi khách gửi vào phiếu thu nháp, và kế toán thì ghi sổ luôn.
@@ -703,6 +771,29 @@ def ghi_so_phieu_thu(name=None, unc=None):
 	ngân hàng, soát lại, ghi sổ phiếu thu, nối giao dịch vào phiếu, tải lại
 	xác minh. Hỏng ở bất cứ bước nào thì lùi cả lượt về điểm lưu, phiếu thu
 	quay về nháp như chưa bấm.
+
+	ĐIỀU KIỆN CỦA LÕI mà hàm này dựa vào (Codex #382, AGENTS mục đọc lõi).
+	Đọc ngày 28/09/2026; site chạy Frappe v16.27.1 (f33ac3f), ERPNext nhánh
+	version-16 (đọc tại 12cd563f, v16.35.0). Nâng lõi thì đối chiếu lại:
+
+	1. frappe/model/document.py `Document.submit` -> `_submit`: đặt
+	   docstatus = 1 rồi `save()`. `_save` chạy `run_before_save_methods`
+	   (before_validate, validate, before_submit, trong đó có hook
+	   `chung_tu_tien.chan_thieu_dinh_kem`), rồi `_validate` ->
+	   `validate_workflow` -> frappe/model/workflow.py
+	   `set_workflow_state_on_action` tự đặt bước duyệt đúng docstatus 1.
+	   Vì vậy KHÔNG đặt tay bước duyệt ở đây.
+	2. erpnext/accounts/doctype/bank_transaction/bank_transaction.py
+	   `BankTransaction.add_payment_entries`: ném lỗi khi
+	   `unallocated_amount <= 0`, còn lại chỉ thêm dòng `allocated_amount = 0`.
+	3. Cùng tệp, `save()` trên giao dịch đã submit chạy
+	   `before_update_after_submit` -> `allocate_payment_entries`: dòng có
+	   allocated 0 được cấp `min(allocable, remaining)`, trong đó allocable
+	   lấy từ GL của phiếu vào ĐÚNG tài khoản của Bank Account
+	   (`get_related_bank_gl_entries`, `get_clearance_details`: phiếu không
+	   chạm tài khoản đó thì ném lỗi, allocable = 0 thì XOÁ dòng). Hệ quả:
+	   phải submit phiếu TRƯỚC khi nối (có GL mới có allocable), và phải tải
+	   lại giao dịch để kiểm dòng còn đó và được cấp đủ số tiền phiếu.
 	"""
 	from vagabond.ban_hang import _kiem_quyen_doc_luu_don
 
@@ -725,7 +816,7 @@ def ghi_so_phieu_thu(name=None, unc=None):
 			frappe.db.set_value(PE, doc.name, "vgb_thu_unc", tep_dinh_kem.ghi_ds(da + them),
 				update_modified=False)
 			doc.reload()
-	so_tep = frappe.db.count("File", {"attached_to_doctype": PE, "attached_to_name": doc.name})
+	so_tep = _so_tep_unc(doc.name, doc.get("vgb_thu_unc"))
 
 	g = _gd_theo_so([doc.reference_no]).get((doc.reference_no or "").strip())
 	ok, ly_do = xac_minh_tien_ve(doc.as_dict(), g, (g or {}).get("tk", ""), (g or {}).get("cty", ""))
@@ -754,8 +845,15 @@ def ghi_so_phieu_thu(name=None, unc=None):
 		gdoc.add_payment_entries([{"payment_doctype": PE, "payment_name": doc.name}])
 		gdoc.save(ignore_permissions=True)
 		gdoc.reload()
-		if not any(r.payment_entry == doc.name for r in (gdoc.payment_entries or [])):
+		dong = [r for r in (gdoc.payment_entries or []) if r.payment_entry == doc.name]
+		if not dong:
 			frappe.throw("Giao dịch ngân hàng chưa nối được vào phiếu thu. Đã lùi cả lượt.")
+		# allocate_payment_entries cấp min(allocable, remaining): cấp thiếu
+		# là giao dịch và phiếu lệch nhau, không nhận (điều 3 ở đầu hàm).
+		if flt(dong[0].allocated_amount) + LECH < flt(doc.paid_amount):
+			frappe.throw("Giao dịch ngân hàng chỉ nhận %s đ cho phiếu thu %s đ. Đã lùi cả lượt."
+				% ("{:,.0f}".format(flt(dong[0].allocated_amount)).replace(",", "."),
+					"{:,.0f}".format(flt(doc.paid_amount)).replace(",", ".")))
 	except Exception as e:
 		frappe.db.rollback(save_point="vgb_ghi_so_thu")
 		frappe.clear_messages()
@@ -776,7 +874,9 @@ def chan_doan_ghi_so(name=None):
 
 	Codex #381 F1: lý do 1.428 phiếu thu kẹt nháp mới là giả thuyết, vì
 	script tự lập phiếu nuốt lỗi. Hàm này chạy đúng các bước kiểm mà Frappe
-	chạy trước khi ghi sổ (before_validate, validate, before_submit), KHÔNG
+	chạy trước khi ghi sổ, theo thứ tự của frappe/model/document.py `_save`
+	(v16.27.1): `_validate_links`, `run_before_save_methods` (before_validate,
+	validate, before_submit), `_validate` (bắt buộc nhập, workflow). KHÔNG
 	chạy on_submit nên không sinh bút toán, rồi lùi về điểm lưu. Trả nguyên
 	văn câu lỗi đầu tiên.
 	"""
@@ -795,7 +895,9 @@ def chan_doan_ghi_so(name=None):
 		doc._action = "submit"
 		doc.flags.ignore_permissions = True
 		doc.load_doc_before_save()
+		doc._validate_links()
 		doc.run_before_save_methods()
+		doc._validate()
 	except Exception as e:
 		loi = str(e) or e.__class__.__name__
 	finally:

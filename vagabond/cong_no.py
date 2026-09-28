@@ -527,9 +527,10 @@ def xuat_tien_da_ve(nguon="cong_no", ky="", tu="", den="", tim="", **khac):
 def _tien_da_ve_theo_hd(cac_si):
 	"""Hoa don nao co phieu thu nhap da xac minh tien ve, phan bo bao nhieu.
 
-	Mot hoa don co nhieu phieu nhap thi lay phieu DA XAC MINH phan bo lon
-	nhat. Loi doc thi tra rong: man cong no van hien du no nhu cu, khong
-	vi phan moi ma trang man.
+	Mot hoa don co nhieu phieu nhap DA XAC MINH thi CONG lai, moi giao dich
+	ngan hang tinh mot lan (Codex #382, xem thu_tien.gom_tien_da_ve). Loi
+	doc thi tra rong: man cong no van hien du no nhu cu, khong vi phan moi
+	ma trang man.
 	"""
 	from vagabond import thu_tien as tt
 
@@ -538,15 +539,7 @@ def _tien_da_ve_theo_hd(cac_si):
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "cong_no: doc phieu thu nhap")
 		return {}
-	ra = {}
-	for p in ds:
-		if not p["da_xac_minh"]:
-			continue
-		for si, pb in p["hd"]:
-			cu = ra.get(si)
-			if not cu or pb > cu["phan_bo"]:
-				ra[si] = {"phan_bo": pb, "pe": p["pe"], "da_xac_minh": 1}
-	return ra
+	return tt.gom_tien_da_ve(ds)
 
 
 @frappe.whitelist()
