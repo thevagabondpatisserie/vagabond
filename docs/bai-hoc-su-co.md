@@ -1373,3 +1373,13 @@ Cách phòng:
 - DOM giả (`dom_gia.js`) trước v534 không bỏ lần đăng ký trùng của cùng một
   hàm nghe như trình duyệt; màn gắn `root.addEventListener(..., hamCoTen)` mỗi
   lần vẽ thì ca kiểm thấy sự kiện chạy hai lần. Đã sửa cho khớp trình duyệt.
+- Điều kiện "phải có tệp X" thì đếm tệp NẰM TRONG Ô X, không đếm mọi File
+  gắn vào chứng từ (Codex #382). Đếm cả chứng từ là để một ảnh chụp bất kỳ ở
+  mục khác mở khoá ghi sổ; chính ca bench đầu tiên của v534 đã vô tình đi
+  qua lỗ đó vì gắn tệp chung chung. Phép chung: `thu_tien.dem_tep_unc`.
+- Một hoá đơn trả bằng nhiều lần chuyển thì CỘNG các phiếu đã xác minh, mỗi
+  giao dịch ngân hàng tính một lần; lấy phiếu lớn nhất là để hoá đơn đã trả đủ
+  nằm lại "Đang nợ" (Codex #382, `thu_tien.gom_tien_da_ve`).
+- Đổi tham số lọc cho màn mà vẫn nhận tham số cũ "để app cũ không vỡ" thì phải
+  chép ĐÚNG phép lọc cũ, không quy gần đúng về khái niệm mới (Codex #382:
+  "Đã duyệt" cũ = chờ ghi sổ + đã ghi sổ, không trùng chặng nào).
