@@ -93,6 +93,56 @@ LOAI_CAN_ANH = ("den_bu",)
 # sổ, mà cuối tháng chốt sổ thì nó thành lỗ hổng doanh thu.
 CHO_NGAY = 1
 
+# Chặng của một đơn tặng (v534, issue #380). Trạng thái duyệt chỉ có ba giá
+# trị, nhưng "Đã duyệt" gộp hai việc khác hẳn nhau: đã duyệt mà CHƯA ghi sổ
+# (còn việc phải làm) và đã ghi sổ xong (hoàn tất, chỉ còn để tra lại). Sales
+# Manager hỏi 28/09/2026 chỗ xem lại các bill đã tặng thành công: đó chính là
+# chặng Hoàn tất, nên phải tách ra thành chip riêng.
+CHANG = (
+	("cho_duyet", "Chờ duyệt", "⏳"),
+	("cho_ghi_so", "Chờ ghi sổ", "📝"),
+	("hoan_tat", "Hoàn tất", "✅"),
+	("tu_choi", "Từ chối", "✖️"),
+)
+KHOA_CHANG = tuple(k for k, _, _ in CHANG)
+
+
+def chang_cua(tang_duyet, docstatus):
+	"""Đơn tặng đang ở chặng nào. THUẦN.
+
+	Đã ghi sổ thì là Hoàn tất, bất kể ô duyệt: máy chủ chặn ghi sổ đơn chưa
+	duyệt, nên đơn đã ghi sổ mà ô duyệt trống chỉ có thể là đơn cũ trước khi
+	có luồng duyệt. Còn nháp thì đọc ô duyệt; ô trống là Chờ duyệt.
+	"""
+	try:
+		ds = int(docstatus or 0)
+	except (TypeError, ValueError):
+		ds = 0
+	if ds == 1:
+		return "hoan_tat"
+	tt = (tang_duyet or "").strip()
+	if tt == TT_TU_CHOI:
+		return "tu_choi"
+	if tt == TT_DUYET:
+		return "cho_ghi_so"
+	return "cho_duyet"
+
+
+def cat_dong(ra, so_dong, day_du=0):
+	"""Cắt danh sách cho MÀN HÌNH; xuất Excel thì không cắt. THUẦN.
+
+	Codex #381 F5: nếu xuất Excel đi qua cùng trần 500 dòng của màn thì tệp
+	kế toán tải về thiếu dòng mà không ai biết.
+	"""
+	ra = list(ra or [])
+	if day_du:
+		return ra
+	try:
+		tran = int(so_dong or 200)
+	except (TypeError, ValueError):
+		tran = 200
+	return ra[:max(1, min(tran, 500))]
+
 # Ô nào trên đơn phải khai trước khi lưu. Câu phải nói RÕ PHẢI LÀM GÌ.
 THIEU = {
 	"ly_do": (
@@ -792,32 +842,32 @@ def _ten_diem():
 		return []
 
 
-@frappe.whitelist()
-def ds_don(diem="", trang_thai="", loai="", tim="", so_dong=200):
-	"""Danh sách đơn hàng tặng cho màn duyệt.
+def _tap(diem="", chang="", loai="", tim="", ky="", tu="", den="", trang_thai=""):
+	"""Tập đơn tặng đã lọc và các số đếm chip. Màn và Excel dùng CHUNG hàm này.
 
-	BA HỌ CHIP: điểm bán, trạng thái duyệt, loại tặng. Mỗi họ đếm trên tập
-	đã lọc bởi hai họ kia, để bấm một chip xong thì số trên các chip còn lại
-	vẫn nói đúng "bấm thêm cái này thì còn bao nhiêu".
+	BỐN HỌ CHIP: chặng, điểm bán, loại tặng, và ngày. Chặng, điểm, loại đếm
+	trên tập đã lọc bởi hai họ kia, để bấm một chip xong thì số trên các chip
+	còn lại vẫn nói đúng "bấm thêm cái này thì còn bao nhiêu". Ngày là nền
+	chung, lọc ở cơ sở dữ liệu trước mọi phép đếm.
 
-	Ô tìm chạy Ở MÁY CHỦ (QT-19): `or_filters` ở tầng cơ sở dữ liệu, không
-	đọc N dòng về rồi lọc bằng Python. Phép cắt dòng làm ở bước CUỐI, sau
-	khi đã lọc và đã đếm xong.
+	Ô tìm chạy Ở MÁY CHỦ (QT-19): `or_filters` ở tầng cơ sở dữ liệu.
+
+	`trang_thai` là tham số cũ (trước v534), vẫn nhận để bản app cũ còn
+	trong máy người dùng không vỡ: đổi ra chặng tương ứng.
 	"""
-	_quyen()
+	from vagabond.khung.cong_cu_ds import khoang_ky
+
 	loc = {"vgb_pt_thanh_toan": PT_TANG, "docstatus": ["<", 2]}
-	tt = chuoi(trang_thai)
-	if tt in TT_DS:
-		# Ô trạng thái để TRỐNG cũng là "chờ duyệt".
-		#
-		# Vòng đếm chip ở dưới quy ô trống về TT_CHO, nhưng bộ lọc này lại so
-		# bằng nên không bao giờ bắt được dòng trống. Kết quả: chip báo có N
-		# đơn chờ duyệt, bấm vào thì mất mấy dòng. Đơn bị huỷ mềm hay rơi vào
-		# cảnh này vì bộ chuẩn hoá trạng thái bỏ qua đơn đã huỷ.
-		if tt == TT_CHO:
-			loc["vgb_tang_duyet"] = ["in", [TT_CHO, "", None]]
-		else:
-			loc["vgb_tang_duyet"] = tt
+	ch = chuoi(chang)
+	if ch not in KHOA_CHANG:
+		ch = {TT_CHO: "cho_duyet", TT_TU_CHOI: "tu_choi"}.get(chuoi(trang_thai), "")
+	tu_ngay, den_ngay = khoang_ky(ky, nowdate(), tu, den)
+	if tu_ngay and den_ngay:
+		loc["posting_date"] = ["between", [tu_ngay, den_ngay]]
+	elif tu_ngay:
+		loc["posting_date"] = [">=", tu_ngay]
+	elif den_ngay:
+		loc["posting_date"] = ["<=", den_ngay]
 	hoac = dieu_kien_tim(tim, TRUONG_TIM)
 
 	dong = frappe.get_all(
@@ -844,10 +894,15 @@ def ds_don(diem="", trang_thai="", loai="", tim="", so_dong=200):
 		d["diem_ban"] = _diem_cua_don(d.get("vgb_quay"))
 		d["nhan_loai"] = NHAN_LOAI.get(chuoi(d.get("vgb_tang_loai")), "Chưa chọn")
 		d["da_ghi_so"] = 1 if cint(d.get("docstatus")) == 1 else 0
+		d["chang"] = chang_cua(d.get("vgb_tang_duyet"), d.get("docstatus"))
 		so_ngay, keu = cho_bao_lau(d.get("vgb_tang_duyet"), d.get("creation"), hom_nay)
+		# Đơn đã ghi sổ thì không còn "chờ" gì nữa, đừng tô đỏ nó.
+		if d["da_ghi_so"]:
+			so_ngay, keu = 0, False
 		d["cho_ngay"] = so_ngay
 		d["cho_lau"] = 1 if keu else 0
 		d["creation"] = str(d.get("creation") or "")[:16]
+		d["posting_date"] = str(d.get("posting_date") or "")[:10]
 		d["vgb_tang_luc_duyet"] = str(d.get("vgb_tang_luc_duyet") or "")[:16]
 
 	# Hien TEN nguoi chu khong hien dia chi thu, doi mot luot cho ca trang.
@@ -856,49 +911,101 @@ def ds_don(diem="", trang_thai="", loai="", tim="", so_dong=200):
 
 	dm = chuoi(diem).upper()
 	lo = chuoi(loai)
-	hop = lambda r: ((not dm or r["diem_ban"] == dm)
-		and (not lo or chuoi(r.get("vgb_tang_loai")) == lo))
+	hop_diem = lambda r: not dm or r["diem_ban"] == dm
+	hop_loai = lambda r: not lo or chuoi(r.get("vgb_tang_loai")) == lo
+	hop_chang = lambda r: not ch or r["chang"] == ch
 
-	dem_diem, dem_tt, dem_loai = {}, {}, {}
+	dem_diem, dem_chang, dem_loai, dem_tt = {}, {}, {}, {}
 	for r in dong:
-		if not lo or chuoi(r.get("vgb_tang_loai")) == lo:
+		if hop_loai(r) and hop_chang(r):
 			k = r["diem_ban"] or "?"
 			dem_diem[k] = dem_diem.get(k, 0) + 1
 			dem_diem["tat_ca"] = dem_diem.get("tat_ca", 0) + 1
-		if hop(r):
+		if hop_diem(r) and hop_loai(r):
+			dem_chang[r["chang"]] = dem_chang.get(r["chang"], 0) + 1
+			dem_chang["tat_ca"] = dem_chang.get("tat_ca", 0) + 1
 			k = chuoi(r.get("vgb_tang_duyet")) or TT_CHO
 			dem_tt[k] = dem_tt.get(k, 0) + 1
 			dem_tt["tat_ca"] = dem_tt.get("tat_ca", 0) + 1
-		if not dm or r["diem_ban"] == dm:
+		if hop_diem(r) and hop_chang(r):
 			k = chuoi(r.get("vgb_tang_loai")) or "khac"
 			dem_loai[k] = dem_loai.get(k, 0) + 1
 			dem_loai["tat_ca"] = dem_loai.get("tat_ca", 0) + 1
 
-	ra = [r for r in dong if hop(r)]
+	ra = [r for r in dong if hop_diem(r) and hop_loai(r) and hop_chang(r)]
 	# Đơn chờ quá hạn lên đầu: đó là thứ người mở màn cần thấy trước.
-	ra.sort(key=lambda r: (0 if r["cho_lau"] else 1, r["creation"]), reverse=False)
 	ra.sort(key=lambda r: 0 if r["cho_lau"] else 1)
-
-	tran = max(1, min(int(so_dong or 200), 500))
 	return {
-		"dong": ra[:tran],
+		"ra": ra, "chang": ch, "tu": tu_ngay or "", "den": den_ngay or "",
+		"dem_diem": dem_diem, "dem_chang": dem_chang, "dem_loai": dem_loai, "dem": dem_tt,
+	}
+
+
+@frappe.whitelist()
+def ds_don(diem="", trang_thai="", loai="", tim="", so_dong=200, chang="", ky="", tu="", den=""):
+	"""Danh sách đơn hàng tặng cho màn duyệt và sổ đơn tặng.
+
+	Phép lọc và đếm nằm ở `_tap`, dùng chung với Excel (`xuat_ds`). Phép cắt
+	dòng làm ở bước CUỐI, sau khi đã lọc và đã đếm xong.
+	"""
+	_quyen()
+	t = _tap(diem, chang, loai, tim, ky, tu, den, trang_thai)
+	ra = t["ra"]
+	return {
+		"dong": cat_dong(ra, so_dong),
 		"tong_dong": len(ra),
-		"con_nua": 1 if len(ra) > tran else 0,
+		"con_nua": 1 if len(ra) > len(cat_dong(ra, so_dong)) else 0,
 		"diem": _ten_diem(),
-		"loai": [{"k": k, "ten": t} for k, t in LOAI_TANG],
+		"loai": [{"k": k, "ten": t2} for k, t2 in LOAI_TANG],
 		"loai_can_anh": list(LOAI_CAN_ANH),
 		"trang_thai": list(TT_DS),
-		"dem_diem": dem_diem,
-		"dem": dem_tt,
-		"dem_loai": dem_loai,
-		"tien_cho": sum(flt(r["grand_total"]) for r in ra
-			if chuoi(r.get("vgb_tang_duyet")) == TT_CHO),
-		"tien_duyet": sum(flt(r["grand_total"]) for r in ra
-			if chuoi(r.get("vgb_tang_duyet")) == TT_DUYET),
+		"cac_chang": [{"k": k, "ten": ten, "ic": ic} for k, ten, ic in CHANG],
+		"chang": t["chang"],
+		"tu": t["tu"], "den": t["den"],
+		"dem_diem": t["dem_diem"],
+		"dem_chang": t["dem_chang"],
+		"dem": t["dem"],
+		"dem_loai": t["dem_loai"],
+		"tien_cho": sum(flt(r["grand_total"]) for r in ra if r["chang"] == "cho_duyet"),
+		"tien_duyet": sum(flt(r["grand_total"]) for r in ra if r["chang"] == "cho_ghi_so"),
 		"duyet_duoc": 1 if duoc_duyet() else 0,
 		"thieu_tai_khoan": _thieu_tai_khoan(),
 		"nguong_cho": CHO_NGAY,
 	}
+
+
+# Cột Excel của sổ đơn tặng. Khai MỘT lần, adapter đọc thẳng.
+COT_XUAT = [
+	{"k": "posting_date", "nhan": "Ngày", "kieu": "ngay"},
+	{"k": "name", "nhan": "Mã đơn", "kieu": "chu"},
+	{"k": "custom_pancake_display_id", "nhan": "Mã Pancake", "kieu": "chu"},
+	{"k": "customer_name", "nhan": "Khách", "kieu": "chu"},
+	{"k": "ten_diem", "nhan": "Điểm bán", "kieu": "chu"},
+	{"k": "nhan_loai", "nhan": "Loại tặng", "kieu": "chu"},
+	{"k": "vgb_tang_ly_do", "nhan": "Lý do", "kieu": "chu"},
+	{"k": "grand_total", "nhan": "Giá trị (đ)", "kieu": "tien"},
+	{"k": "ten_chang", "nhan": "Chặng", "kieu": "chu"},
+	{"k": "owner_ten", "nhan": "Người lập", "kieu": "chu"},
+	{"k": "vgb_tang_nguoi_duyet_ten", "nhan": "Người duyệt", "kieu": "chu"},
+	{"k": "vgb_tang_luc_duyet", "nhan": "Duyệt lúc", "kieu": "chu"},
+	{"k": "custom_hddt_so", "nhan": "Số HĐĐT", "kieu": "chu"},
+]
+
+
+def xuat_ds(diem="", chang="", loai="", tim="", ky="", tu="", den="", **khac):
+	"""Adapter Excel của sổ đơn tặng (khung/cong_cu_ds.MAN_XUAT). ĐỦ dòng.
+
+	Cùng cổng quyền với màn, cùng `_tap` với màn, nên tệp Excel và màn hình
+	không bao giờ lệch nhau. Khoá lọc lạ bị bỏ qua.
+	"""
+	_quyen()
+	t = _tap(diem, chang, loai, tim, ky, tu, den)
+	ten_diem = {x["k"]: x["ten"] for x in _ten_diem()}
+	ten_chang = {k: ten for k, ten, _ in CHANG}
+	for r in t["ra"]:
+		r["ten_diem"] = ten_diem.get(r.get("diem_ban"), r.get("diem_ban") or "")
+		r["ten_chang"] = ten_chang.get(r.get("chang"), "")
+	return ("So-don-hang-tang", COT_XUAT, cat_dong(t["ra"], 0, day_du=1))
 
 
 @frappe.whitelist()

@@ -320,6 +320,11 @@ def dung():
 	from vagabond import duyet_chi
 
 	_dung_nhom(duyet_chi.TRUONG_MOI, "duyet_chi")
+	# Phieu thu: o uy nhiem chi khach gui (v534, issue #380). Dat SAU nhom
+	# duyet_chi vi o nay dung ngay sau o vgb_chi_unc.
+	from vagabond import thu_tien
+
+	_dung_nhom(thu_tien.TRUONG_MOI, "thu_tien")
 	# Duong duyet phieu chi: tach buoc duyet ra khoi buoc ghi so.
 	try:
 		duyet_chi.dung_workflow()

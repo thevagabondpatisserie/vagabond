@@ -249,7 +249,7 @@ def _hd_da_gom():
 
 
 @frappe.whitelist()
-def ds_khach_no():
+def ds_khach_no(tim=""):
 	"""Danh sach khach dang con no, kem so tien va so hoa don.
 
 	Chi tinh hoa don DA GHI SO - hoa don con o ban nhap thi chua phai no.
@@ -300,14 +300,26 @@ def ds_khach_no():
 	rows.sort(key=lambda r: str(r.get("posting_date") or ""))
 	bang_dong = tt.bang_dong_cua([r["name"] for r in rows])
 	da_gom = _hd_da_gom()
-	khach = {}
 	for r in rows:
 		r["con_no"] = tt.con_no_cua(
 			r.get("grand_total"), r.get("outstanding_amount"),
 			bang_dong.get(r["name"]) or [], r.get("vgb_pt_thanh_toan"),
 		)
-		# Da thu het thi khong con la no, du co con ghi gi di nua.
-		if r["con_no"] <= 0:
+	# Da thu het thi khong con la no, du co con ghi gi di nua.
+	rows = [r for r in rows if r["con_no"] > 0]
+	# v534 (issue #380): tien khach chuyen DA VE, may da lap phieu thu nhung
+	# phieu chua ghi so (thieu uy nhiem chi khach gui). Chi tach ra khi giao
+	# dich ngan hang da xac minh doc lap (Codex #381 F4); con lai van la no.
+	ve = _tien_da_ve_theo_hd([r["name"] for r in rows])
+	khach = {}
+	cho_ghi_so = {"so_hd": 0, "tien": 0.0, "so_khach": 0}
+	khach_cho = set()
+	for r in rows:
+		p = ve.get(r["name"])
+		if p and tt.tach_tien_da_ve(r["con_no"], p["phan_bo"], p["da_xac_minh"]):
+			cho_ghi_so["so_hd"] += 1
+			cho_ghi_so["tien"] += flt(r["con_no"])
+			khach_cho.add(r.get("vgb_khach_no") or r.customer or "")
 			continue
 		# Don da ghi so roi moi phat hien gan nham khach le thi ke toan gan
 		# chu no vao truong phu vgb_khach_no - khong sua duoc customer nua
@@ -355,7 +367,186 @@ def ds_khach_no():
 	hom_nay = getdate(nowdate())
 	for v in ra:
 		v["so_ngay"] = (hom_nay - getdate(v["cu_nhat"])).days if v["cu_nhat"] else 0
-	return {"khach": ra, "tong": sum(v["tien"] for v in ra)}
+	tong = sum(v["tien"] for v in ra)
+	cho_ghi_so["so_khach"] = len(khach_cho)
+	# O tim loc o MAY CHU (QT-19), SAU khi da cong tong: the so tren dau man
+	# van noi tong no that, khong teo lai theo chu dang go.
+	tim = (tim or "").strip().lower()
+	so_khach_tat_ca = len(ra)
+	if tim:
+		ra = [v for v in ra if tim in (v.get("ten") or "").lower() or tim in (v.get("khach") or "").lower()
+			or any(tim in (d.get("name") or "").lower() for d in v.get("hd") or [])]
+	return {
+		"khach": ra, "tong": tong, "so_khach_tat_ca": so_khach_tat_ca,
+		# Tien da ve cho ghi so: KHONG cong vao "con phai doi", nhung so cai
+		# van ghi la no cho toi khi phieu thu vao so. Man hien ca hai.
+		"cho_ghi_so": cho_ghi_so,
+	}
+
+
+NGUON_VE = (
+	("cong_no", "Khách công nợ"),
+	("chuyen_khoan", "Đơn chuyển khoản"),
+)
+
+
+def _tap_tien_da_ve(nguon="", ky="", tu="", den="", tim=""):
+	"""Mọi phiếu thu nháp ĐÃ XÁC MINH tiền về, kèm số đếm chip. CHỈ ĐỌC.
+
+	Nguồn "Khách công nợ" là phiếu phân bổ vào hoá đơn công nợ (cờ Công nợ
+	hoặc có dòng công nợ); còn lại là đơn chuyển khoản. Ngày lọc theo ngày
+	TIỀN VỀ trên giao dịch ngân hàng. Phiếu chưa xác minh được thì không vào
+	danh sách này (nó vẫn là nợ), chỉ đếm lại kèm lý do hay gặp nhất.
+	"""
+	from vagabond import thu_tien as tt
+	from vagabond.khung.cong_cu_ds import khoang_ky, trong_khoang
+
+	ds = tt.phieu_thu_nhap()
+	si = set()
+	for p in ds:
+		for ten, _ in p["hd"]:
+			si.add(ten)
+	thong_tin = {}
+	for i in range(0, len(si), 150):
+		lo = list(si)[i:i + 150]
+		for r in frappe.get_all(
+			"Sales Invoice", filters={"name": ["in", lo]},
+			fields=["name", "customer_name", "vgb_pt_thanh_toan", "posting_date",
+				"custom_pancake_display_id", "vgb_khach_no"],
+			limit_page_length=0,
+		):
+			thong_tin[r.name] = r
+	co_dong_cn = tt.si_co_dong_cong_no()
+	tu_ngay, den_ngay = khoang_ky(ky, nowdate(), tu, den)
+	tim = (tim or "").strip().lower()
+	dem = {"tat_ca": 0}
+	ly_do = {}
+	ra = []
+	for p in ds:
+		if not p["da_xac_minh"]:
+			ly_do[p["ly_do"]] = ly_do.get(p["ly_do"], 0) + 1
+			continue
+		hd = [thong_tin.get(ten) for ten, _ in p["hd"] if thong_tin.get(ten)]
+		la_cn = any(tt.la_cong_no(h.vgb_pt_thanh_toan) or h.vgb_khach_no or h.name in co_dong_cn for h in hd)
+		p["nguon"] = "cong_no" if la_cn else "chuyen_khoan"
+		p["ten_khach"] = (hd[0].customer_name if hd else "") or p["ten_khach"]
+		p["so_hd"] = len(p["hd"])
+		p["hd_dau"] = p["hd"][0][0] if p["hd"] else ""
+		p["ma_don"] = (hd[0].custom_pancake_display_id if hd else "") or ""
+		p["ngay_hd"] = str(hd[0].posting_date)[:10] if hd else ""
+		if not trong_khoang(p["ngay_ve"], tu_ngay, den_ngay):
+			continue
+		if tim and not any(tim in str(x or "").lower() for x in (
+				p["ten_khach"], p["hd_dau"], p["pe"], p["ma_gd"], p["ma_don"])):
+			continue
+		dem[p["nguon"]] = dem.get(p["nguon"], 0) + 1
+		dem["tat_ca"] += 1
+		if nguon and p["nguon"] != nguon:
+			continue
+		ra.append(p)
+	ra.sort(key=lambda p: (p["ngay_ve"], p["pe"]), reverse=True)
+	chua = sorted(ly_do.items(), key=lambda x: -x[1])
+	return {
+		"ra": ra, "dem": dem, "tu": tu_ngay or "", "den": den_ngay or "",
+		"chua_xac_minh": sum(ly_do.values()),
+		"ly_do_hay_gap": [{"ly_do": k, "so": v} for k, v in chua[:3]],
+	}
+
+
+@frappe.whitelist()
+def ds_tien_da_ve(nguon="cong_no", ky="", tu="", den="", tim="", so_dong=200):
+	"""Tab "Tiền đã về" của màn Công nợ (v534, issue #380). CHỈ ĐỌC."""
+	_kiem_quyen()
+	from vagabond import thu_tien as tt
+
+	nguon = nguon if nguon in dict(NGUON_VE) else ""
+	t = _tap_tien_da_ve(nguon, ky, tu, den, tim)
+	try:
+		tran = max(1, min(int(so_dong or 200), 500))
+	except (TypeError, ValueError):
+		tran = 200
+	ra = t["ra"]
+	return {
+		"dong": ra[:tran], "tong_dong": len(ra), "con_nua": max(0, len(ra) - tran),
+		"tien": sum(flt(p["tien"]) for p in ra),
+		"dem": t["dem"], "nguon": nguon,
+		"cac_nguon": [{"k": k, "ten": ten} for k, ten in NGUON_VE],
+		"tu": t["tu"], "den": t["den"],
+		"chua_xac_minh": t["chua_xac_minh"], "ly_do_hay_gap": t["ly_do_hay_gap"],
+		"ke_toan": 1 if tt.la_ke_toan() else 0,
+	}
+
+
+COT_NO = [
+	{"k": "ten", "nhan": "Khách", "kieu": "chu"},
+	{"k": "name", "nhan": "Hoá đơn", "kieu": "chu"},
+	{"k": "ngay", "nhan": "Ngày hoá đơn", "kieu": "ngay"},
+	{"k": "tong_don", "nhan": "Tổng đơn (đ)", "kieu": "tien"},
+	{"k": "da_thu", "nhan": "Đã thu (đ)", "kieu": "tien"},
+	{"k": "tien", "nhan": "Còn phải đòi (đ)", "kieu": "tien"},
+	{"k": "nguon", "nhan": "Nguồn", "kieu": "chu"},
+]
+
+COT_VE = [
+	{"k": "ngay_ve", "nhan": "Ngày tiền về", "kieu": "ngay"},
+	{"k": "ten_khach", "nhan": "Khách", "kieu": "chu"},
+	{"k": "hd_dau", "nhan": "Hoá đơn", "kieu": "chu"},
+	{"k": "ma_don", "nhan": "Mã đơn", "kieu": "chu"},
+	{"k": "tien", "nhan": "Số tiền (đ)", "kieu": "tien"},
+	{"k": "ma_gd", "nhan": "Mã giao dịch", "kieu": "chu"},
+	{"k": "pe", "nhan": "Phiếu thu nháp", "kieu": "chu"},
+	{"k": "ten_nguon", "nhan": "Nguồn", "kieu": "chu"},
+	{"k": "co_unc", "nhan": "Uỷ nhiệm chi khách gửi", "kieu": "chu"},
+]
+
+
+def xuat_no(tim="", **khac):
+	"""Adapter Excel tab Đang nợ (khung/cong_cu_ds.MAN_XUAT). Một dòng một hoá đơn."""
+	kq = ds_khach_no(tim=tim)
+	dong = []
+	for k in kq["khach"]:
+		for d in k.get("hd") or []:
+			x = dict(d)
+			x["ten"] = k.get("ten")
+			dong.append(x)
+	return ("Cong-no-phai-thu", COT_NO, dong)
+
+
+def xuat_tien_da_ve(nguon="cong_no", ky="", tu="", den="", tim="", **khac):
+	"""Adapter Excel tab Tiền đã về. ĐỦ dòng, không cắt 200."""
+	_kiem_quyen()
+	nguon = nguon if nguon in dict(NGUON_VE) else ""
+	t = _tap_tien_da_ve(nguon, ky, tu, den, tim)
+	ten = dict(NGUON_VE)
+	for p in t["ra"]:
+		p["ten_nguon"] = ten.get(p.get("nguon"), "")
+		p["co_unc"] = "Có" if p.get("so_tep") else "Chưa"
+	return ("Tien-da-ve-cho-ghi-so", COT_VE, t["ra"])
+
+
+def _tien_da_ve_theo_hd(cac_si):
+	"""Hoa don nao co phieu thu nhap da xac minh tien ve, phan bo bao nhieu.
+
+	Mot hoa don co nhieu phieu nhap thi lay phieu DA XAC MINH phan bo lon
+	nhat. Loi doc thi tra rong: man cong no van hien du no nhu cu, khong
+	vi phan moi ma trang man.
+	"""
+	from vagabond import thu_tien as tt
+
+	try:
+		ds = tt.phieu_thu_nhap(cac_si=cac_si)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "cong_no: doc phieu thu nhap")
+		return {}
+	ra = {}
+	for p in ds:
+		if not p["da_xac_minh"]:
+			continue
+		for si, pb in p["hd"]:
+			cu = ra.get(si)
+			if not cu or pb > cu["phan_bo"]:
+				ra[si] = {"phan_bo": pb, "pe": p["pe"], "da_xac_minh": 1}
+	return ra
 
 
 @frappe.whitelist()

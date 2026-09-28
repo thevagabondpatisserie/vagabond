@@ -184,6 +184,112 @@ def khoa_chong_trung(si_name, nguon):
 	return ("THU:%s:%s" % ((si_name or "").strip(), (nguon or "").strip()))[:140]
 
 
+# ------------------------------- phiếu thu nháp: tiền đã về, chờ ghi sổ
+#
+# Issue #380, 28/09/2026. Tiền khách chuyển đã về tài khoản và máy đã tự lập
+# phiếu thu, nhưng phiếu kẹt ở nháp vì chốt 16/08 bắt chứng từ qua ngân hàng
+# phải có tệp đính kèm (chung_tu_tien.chan_thieu_dinh_kem). Đo ngày 28/09:
+# 1.428 phiếu, 1,33 tỷ; sổ cái vẫn ghi khách còn nợ nên màn Công nợ vẫn đòi
+# những khách đã trả.
+#
+# Anh Việt chốt 28/09: KHÔNG coi riêng giao dịch ngân hàng là đủ chứng từ.
+# Phải có uỷ nhiệm chi khách gửi đính vào phiếu thì mới ghi sổ.
+#
+# Codex #381: chỉ được tách một khoản ra khỏi "còn phải đòi" khi giao dịch
+# ngân hàng đã được XÁC MINH độc lập, không phải cứ có phiếu nháp là tách.
+# Phiếu nhập tay, phiếu lỗi, phiếu treo lâu mà chưa có tiền về thì vẫn là nợ.
+
+TRUONG_MOI = {
+	"Payment Entry": [
+		{
+			"fieldname": "vgb_thu_unc",
+			"label": "Uỷ nhiệm chi khách gửi",
+			"fieldtype": "Small Text",
+			"read_only": 1,
+			"insert_after": "vgb_chi_unc",
+			"description": (
+				"Ảnh hoặc tệp chuyển khoản khách gửi cho phiếu thu này. Anh Việt "
+				"chốt 28/09/2026: có tệp này mới ghi sổ phiếu thu tiền về ngân hàng."
+			),
+		},
+	],
+}
+
+LECH = 0.5
+
+
+def xac_minh_tien_ve(pe, gd, tk_gd="", cty_gd=""):
+	"""Phiếu thu nháp này có khớp một khoản tiền ĐÃ VỀ thật không. THUẦN.
+
+	`pe` là phiếu thu (dict), `gd` là Bank Transaction mang cùng số tham
+	chiếu (dict hoặc None), `tk_gd` và `cty_gd` là tài khoản sổ cái và công
+	ty của tài khoản ngân hàng nhận giao dịch.
+
+	Soát đủ các điểm Codex nêu ở #381 F2: chiều tiền, tài khoản, công ty,
+	tiền tệ, đã nối chứng từ khác chưa, số chưa phân bổ còn đủ không.
+	Trả (đúng hay sai, câu lý do bằng tiếng người).
+	"""
+	pe = pe or {}
+	if (pe.get("payment_type") or "") != "Receive":
+		return (False, "Không phải phiếu thu tiền khách.")
+	if int(pe.get("docstatus") or 0) != 0:
+		return (False, "Phiếu thu đã ghi sổ hoặc đã huỷ.")
+	ref = (pe.get("reference_no") or "").strip()
+	if not ref:
+		return (False, "Phiếu thu không mang số giao dịch ngân hàng.")
+	if not gd:
+		return (False, "Không tìm thấy giao dịch ngân hàng mang số %s." % ref)
+	if gd.get("trung"):
+		return (False, "Có %s giao dịch ngân hàng cùng số %s, cần kế toán chọn tay." % (gd.get("trung"), ref))
+	if int(gd.get("docstatus") or 0) != 1:
+		return (False, "Giao dịch ngân hàng %s chưa được xác nhận." % ref)
+	if _so(gd.get("withdrawal")) > 0 or _so(gd.get("deposit")) <= 0:
+		return (False, "Giao dịch %s không phải tiền vào." % ref)
+	if (gd.get("currency") or "VND") != "VND":
+		return (False, "Giao dịch %s không phải tiền đồng." % ref)
+	if tk_gd and (pe.get("paid_to") or "") != tk_gd:
+		return (False, "Giao dịch %s về tài khoản khác với tài khoản trên phiếu thu." % ref)
+	if cty_gd and (pe.get("company") or "") != cty_gd:
+		return (False, "Giao dịch %s thuộc công ty khác." % ref)
+	if _so(gd.get("allocated_amount")) > LECH or int(gd.get("so_noi") or 0) > 0:
+		return (False, "Giao dịch %s đã nối với chứng từ khác." % ref)
+	tien = _so(pe.get("paid_amount"))
+	con = _so(gd.get("unallocated_amount"))
+	if tien <= 0:
+		return (False, "Phiếu thu không có số tiền.")
+	if con + LECH < tien:
+		return (False, "Giao dịch %s còn %s đ chưa phân bổ, ít hơn số trên phiếu %s đ."
+			% (ref, "{:,.0f}".format(con).replace(",", "."), "{:,.0f}".format(tien).replace(",", ".")))
+	return (True, "")
+
+
+def tach_tien_da_ve(con_no, phan_bo, da_xac_minh):
+	"""Hoá đơn này có chuyển sang nhóm "Tiền đã về, chờ ghi sổ" không. THUẦN.
+
+	Chỉ khi phiếu thu đã xác minh VÀ phần phân bổ phủ đủ số còn nợ. Phủ một
+	phần thì hoá đơn vẫn ở nhóm đang nợ: khách còn thiếu thật.
+	"""
+	no = _so(con_no)
+	return bool(da_xac_minh) and no > 0 and _so(phan_bo) + 1 >= no
+
+
+def soat_ghi_so_thu(da_xac_minh, ly_do, so_tep, la_ke_toan):
+	"""Được bấm ghi sổ phiếu thu chưa. THUẦN. Trả (được hay không, câu lý do)."""
+	if not da_xac_minh:
+		return (False, ly_do or "Phiếu thu chưa khớp giao dịch ngân hàng.")
+	if int(so_tep or 0) <= 0:
+		return (False, "Chưa có uỷ nhiệm chi khách gửi. Đính ảnh chuyển khoản khách gửi rồi ghi sổ.")
+	if not la_ke_toan:
+		return (False, "Đã có uỷ nhiệm chi. Chỉ kế toán bấm ghi sổ phiếu thu.")
+	return (True, "")
+
+
+def duoi_ma(ma, so=4):
+	"""Bốn số cuối của mã giao dịch cho nhãn gọn trên màn. THUẦN."""
+	ma = (ma or "").strip()
+	return ma[-so:] if len(ma) > so else ma
+
+
 # ------------------------------------------------------- phần cần Frappe
 
 
@@ -464,3 +570,246 @@ def soat_thieu_chung_tu(gioi_han=500):
 			for k, v in sorted(theo_pt.items(), key=lambda x: -x[1]["tien"])],
 		"hoa_don": ra,
 	}
+
+
+# ------------------------------------ phiếu thu nháp: phần cần Frappe (v534)
+
+PE = "Payment Entry"
+BT = "Bank Transaction"
+VAI_KE_TOAN = {"AP Kiểm soát (FIN)", "Accounts Manager", "Accounts User", "System Manager"}
+
+
+def la_ke_toan():
+	return bool(VAI_KE_TOAN & set(frappe.get_roles()))
+
+
+def _chia(ds, co=150):
+	ds = list(ds)
+	for i in range(0, len(ds), co):
+		yield ds[i:i + co]
+
+
+def _gd_theo_so(cac_so):
+	"""Bank Transaction theo số tham chiếu, kèm tài khoản sổ cái và công ty."""
+	ra, dem = {}, {}
+	for lo in _chia({x for x in cac_so if x}):
+		for g in frappe.get_all(
+			BT, filters={"reference_number": ["in", lo], "docstatus": ["<", 2]},
+			fields=["name", "reference_number", "docstatus", "date", "deposit", "withdrawal",
+				"currency", "unallocated_amount", "allocated_amount", "bank_account"],
+			limit_page_length=0,
+		):
+			k = g.reference_number
+			dem[k] = dem.get(k, 0) + 1
+			ra[k] = dict(g)
+	# Giao dịch đã nối chứng từ nào chưa: đếm dòng con, không tin mỗi ô tiền.
+	ten = [g["name"] for g in ra.values()]
+	so_noi = {}
+	for lo in _chia(ten):
+		for r in frappe.get_all(
+			"Bank Transaction Payments", filters={"parent": ["in", lo], "parenttype": BT},
+			fields=["parent"], limit_page_length=0,
+		):
+			so_noi[r.parent] = so_noi.get(r.parent, 0) + 1
+	tk = {}
+	for ba in {g.get("bank_account") for g in ra.values() if g.get("bank_account")}:
+		tk[ba] = frappe.db.get_value("Bank Account", ba, ["account", "company"], as_dict=True) or {}
+	for k, g in ra.items():
+		if dem.get(k, 0) > 1:
+			g["trung"] = dem[k]
+		g["so_noi"] = so_noi.get(g["name"], 0)
+		b = tk.get(g.get("bank_account")) or {}
+		g["tk"] = b.get("account") or ""
+		g["cty"] = b.get("company") or ""
+	return ra
+
+
+def phieu_thu_nhap(cac_si=None, chi_ma_gd=True):
+	"""Phiếu thu nháp và kết quả xác minh. CHỈ ĐỌC.
+
+	`cac_si` để trống là mọi phiếu thu nháp mang số tham chiếu; có danh sách
+	thì chỉ phiếu phân bổ vào những hoá đơn đó. Trả list dict, mỗi phiếu
+	một dict có `hd` là danh sách (hoá đơn, số phân bổ).
+	"""
+	ten_pe = None
+	ref = {}
+	if cac_si is not None:
+		ten_pe = set()
+		for lo in _chia(set(cac_si)):
+			for r in frappe.get_all(
+				"Payment Entry Reference",
+				filters={"reference_doctype": SI, "reference_name": ["in", lo],
+					"docstatus": 0, "parenttype": PE},
+				fields=["parent", "reference_name", "allocated_amount"], limit_page_length=0,
+			):
+				ten_pe.add(r.parent)
+		if not ten_pe:
+			return []
+	loc = {"docstatus": 0, "payment_type": "Receive", "party_type": "Customer"}
+	if chi_ma_gd:
+		loc["reference_no"] = ["is", "set"]
+	cac_pe = []
+	if ten_pe is None:
+		cac_pe = frappe.get_all(PE, filters=loc, fields=[
+			"name", "payment_type", "docstatus", "paid_amount", "paid_to", "company",
+			"reference_no", "party", "party_name", "posting_date", "vgb_thu_unc"], limit_page_length=0)
+	else:
+		for lo in _chia(ten_pe):
+			l2 = dict(loc)
+			l2["name"] = ["in", lo]
+			cac_pe += frappe.get_all(PE, filters=l2, fields=[
+				"name", "payment_type", "docstatus", "paid_amount", "paid_to", "company",
+				"reference_no", "party", "party_name", "posting_date", "vgb_thu_unc"], limit_page_length=0)
+	if not cac_pe:
+		return []
+	ten = [p.name for p in cac_pe]
+	for lo in _chia(ten):
+		for r in frappe.get_all(
+			"Payment Entry Reference",
+			filters={"parent": ["in", lo], "parenttype": PE, "reference_doctype": SI},
+			fields=["parent", "reference_name", "allocated_amount"], limit_page_length=0,
+		):
+			ref.setdefault(r.parent, []).append((r.reference_name, flt(r.allocated_amount)))
+	tep = {}
+	for lo in _chia(ten):
+		for r in frappe.get_all(
+			"File", filters={"attached_to_doctype": PE, "attached_to_name": ["in", lo]},
+			fields=["attached_to_name"], limit_page_length=0,
+		):
+			tep[r.attached_to_name] = tep.get(r.attached_to_name, 0) + 1
+	gd = _gd_theo_so([p.reference_no for p in cac_pe])
+	ra = []
+	for p in cac_pe:
+		g = gd.get((p.reference_no or "").strip())
+		ok, ly_do = xac_minh_tien_ve(dict(p), g, (g or {}).get("tk", ""), (g or {}).get("cty", ""))
+		ra.append({
+			"pe": p.name, "tien": flt(p.paid_amount), "khach": p.party, "ten_khach": p.party_name or p.party,
+			"ma_gd": p.reference_no or "", "duoi_gd": duoi_ma(p.reference_no),
+			"ngay_ve": str((g or {}).get("date") or p.posting_date or "")[:10],
+			"gd": (g or {}).get("name") or "", "hd": ref.get(p.name, []),
+			"so_tep": tep.get(p.name, 0), "da_xac_minh": 1 if ok else 0, "ly_do": ly_do,
+		})
+	return ra
+
+
+@frappe.whitelist(methods=["POST"])
+def ghi_so_phieu_thu(name=None, unc=None):
+	"""Đính uỷ nhiệm chi khách gửi vào phiếu thu nháp, và kế toán thì ghi sổ luôn.
+
+	Anh Việt chốt 28/09/2026: có uỷ nhiệm chi khách gửi mới ghi sổ. Ai có
+	quyền màn Công nợ đính được tệp; chỉ kế toán bấm ghi sổ.
+
+	Ghi sổ là MỘT lượt nguyên khối (Codex #381 F2): khoá phiếu và giao dịch
+	ngân hàng, soát lại, ghi sổ phiếu thu, nối giao dịch vào phiếu, tải lại
+	xác minh. Hỏng ở bất cứ bước nào thì lùi cả lượt về điểm lưu, phiếu thu
+	quay về nháp như chưa bấm.
+	"""
+	from vagabond.ban_hang import _kiem_quyen_doc_luu_don
+
+	_kiem_quyen_doc_luu_don()
+	name = (name or "").strip()
+	if not name or not frappe.db.exists(PE, name):
+		frappe.throw("Không tìm thấy phiếu thu.")
+	doc = frappe.get_doc(PE, name, for_update=True)
+	if int(doc.docstatus) == 1:
+		return {"ok": 1, "da_lam_roi": 1, "name": doc.name}
+	if int(doc.docstatus) != 0 or doc.payment_type != "Receive":
+		frappe.throw("Phiếu này không phải phiếu thu nháp.")
+
+	if unc:
+		from vagabond import tep_dinh_kem
+
+		da = tep_dinh_kem.doc_ds(doc.get("vgb_thu_unc"))
+		them = tep_dinh_kem.gan_vao(PE, doc.name, "vgb_thu_unc", unc)
+		if them:
+			frappe.db.set_value(PE, doc.name, "vgb_thu_unc", tep_dinh_kem.ghi_ds(da + them),
+				update_modified=False)
+			doc.reload()
+	so_tep = frappe.db.count("File", {"attached_to_doctype": PE, "attached_to_name": doc.name})
+
+	g = _gd_theo_so([doc.reference_no]).get((doc.reference_no or "").strip())
+	ok, ly_do = xac_minh_tien_ve(doc.as_dict(), g, (g or {}).get("tk", ""), (g or {}).get("cty", ""))
+	duoc, vi_sao = soat_ghi_so_thu(ok, ly_do, so_tep, la_ke_toan())
+	if not duoc:
+		# Đính tệp xong mà chưa đủ điều kiện ghi sổ thì vẫn là một việc đã
+		# làm được, không phải lỗi: trả lại câu cho màn hình hiện.
+		if unc and so_tep:
+			return {"ok": 0, "da_dinh": 1, "so_tep": so_tep, "vi_sao": vi_sao, "name": doc.name}
+		frappe.throw(vi_sao, title="Chưa ghi sổ phiếu thu được")
+
+	frappe.db.savepoint("vgb_ghi_so_thu")
+	try:
+		gdoc = frappe.get_doc(BT, g["name"], for_update=True)
+		# Soát lại trên bản đã khoá: giữa lúc đọc và lúc khoá có thể có
+		# người khác vừa nối giao dịch này vào chứng từ khác.
+		if gdoc.payment_entries or flt(gdoc.allocated_amount) > LECH:
+			frappe.throw("Giao dịch %s vừa được nối với chứng từ khác. Tải lại màn để kiểm." % doc.reference_no)
+		if flt(gdoc.unallocated_amount) + LECH < flt(doc.paid_amount):
+			frappe.throw("Giao dịch %s không còn đủ tiền chưa phân bổ." % doc.reference_no)
+		doc.flags.ignore_permissions = True
+		doc.submit()
+		doc.reload()
+		if int(doc.docstatus) != 1:
+			frappe.throw("Phiếu thu chưa vào sổ. Đã lùi cả lượt.")
+		gdoc.add_payment_entries([{"payment_doctype": PE, "payment_name": doc.name}])
+		gdoc.save(ignore_permissions=True)
+		gdoc.reload()
+		if not any(r.payment_entry == doc.name for r in (gdoc.payment_entries or [])):
+			frappe.throw("Giao dịch ngân hàng chưa nối được vào phiếu thu. Đã lùi cả lượt.")
+	except Exception as e:
+		frappe.db.rollback(save_point="vgb_ghi_so_thu")
+		frappe.clear_messages()
+		# Tệp vừa đính nằm TRƯỚC điểm lưu nên vẫn còn. Trả câu lỗi cho màn
+		# thay vì ném, để request không lùi luôn tệp người dùng vừa tải.
+		if unc and so_tep:
+			return {"ok": 0, "da_dinh": 1, "so_tep": so_tep, "name": doc.name,
+				"vi_sao": str(e) or "Chưa ghi sổ được, tệp đã lưu."}
+		raise
+	_ghi_vet_thu(doc.name, "Ghi sổ phiếu thu kèm %d tệp uỷ nhiệm chi khách gửi, nối giao dịch %s"
+		% (so_tep, doc.reference_no))
+	return {"ok": 1, "name": doc.name, "gd": gdoc.name}
+
+
+@frappe.whitelist()
+def chan_doan_ghi_so(name=None):
+	"""CHỈ ĐỌC: chạy thử bước kiểm trước ghi sổ của một phiếu thu nháp, rồi lùi.
+
+	Codex #381 F1: lý do 1.428 phiếu thu kẹt nháp mới là giả thuyết, vì
+	script tự lập phiếu nuốt lỗi. Hàm này chạy đúng các bước kiểm mà Frappe
+	chạy trước khi ghi sổ (before_validate, validate, before_submit), KHÔNG
+	chạy on_submit nên không sinh bút toán, rồi lùi về điểm lưu. Trả nguyên
+	văn câu lỗi đầu tiên.
+	"""
+	if not la_ke_toan():
+		frappe.throw("Chỉ kế toán xem được chẩn đoán này.")
+	name = (name or "").strip()
+	if not frappe.db.exists(PE, name):
+		frappe.throw("Không tìm thấy phiếu.")
+	frappe.db.savepoint("vgb_chan_doan_thu")
+	loi = ""
+	try:
+		doc = frappe.get_doc(PE, name)
+		if int(doc.docstatus) != 0:
+			return {"name": name, "loi": "", "ghi_chu": "Phiếu không còn là nháp."}
+		doc.docstatus = 1
+		doc._action = "submit"
+		doc.flags.ignore_permissions = True
+		doc.load_doc_before_save()
+		doc.run_before_save_methods()
+	except Exception as e:
+		loi = str(e) or e.__class__.__name__
+	finally:
+		frappe.db.rollback(save_point="vgb_chan_doan_thu")
+		frappe.clear_messages()
+	return {"name": name, "loi": loi, "qua": 0 if loi else 1}
+
+
+def _ghi_vet_thu(name, viec):
+	try:
+		frappe.get_doc({
+			"doctype": "Comment", "comment_type": "Info",
+			"reference_doctype": PE, "reference_name": name,
+			"content": "%s - %s" % (viec, frappe.session.user),
+		}).insert(ignore_permissions=True)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "thu_tien: ghi vet phieu thu")
