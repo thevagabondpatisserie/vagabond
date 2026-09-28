@@ -154,6 +154,11 @@ async function scrHome() {
         card('🔐', 'Mã OTP quản lý', 'Cấp mã cho nhân viên sửa hoặc xoá hoá đơn', 0, 'OTP') +
       card('🎫', 'Chương trình khuyến mãi - combo', 'Bảy cách thức khuyến mãi, combo rã món, mã voucher, báo cáo tiền đã giảm', 0, 'KM') +
       card('📒', 'Công nợ phải thu', 'Khách sỉ gom hoá đơn trả sau: gom phiếu, sinh QR, đối soát', 0, 'CN') +
+      /* Sổ hàng tặng cho Sales và quản lý cửa hàng (anh Việt 28/09/2026,
+         issue #380): cùng màn Duyệt đơn hàng tặng bên Kế toán, mở sẵn chip
+         Hoàn tất để tra lại bill đã tặng. Nút Duyệt vẫn chỉ hiện với giám
+         đốc, chặn thật ở máy chủ (hang_tang.duoc_duyet). */
+      card('🎁', 'Sổ hàng tặng', 'Đơn tặng đã xong và đang chờ duyệt, xem lại bill, xuất Excel', 0, 'SOTANG') +
       card('👥', 'Danh sách khách hàng', 'Tra cứu khách sỉ và lẻ, hạng khách, mức chi tiêu', 0, 'KH') +
       /* Don treo phai co mot cua rieng, khong nap trong man Doanh thu Sales:
          don treo cua NGAY CU khong ai mo lai ngay do de xem (anh Viet
@@ -481,7 +486,7 @@ var VGB_NHOM = [
   { k: 'NK', ten: 'Nhập kho', icon: '📥', keys: ['RCV', 'NHANDC', 'NBANH'] },
   { k: 'XK', ten: 'Xuất kho', icon: '📤', keys: ['XKH', 'XKNB', 'XKPV', 'XKD', 'XKTRA', 'XKSI'] },
   { k: 'KK', ten: 'Kiểm kê', icon: '🧮', keys: ['KK', 'STOCK', 'TONCHANG'] },
-  { k: 'BH', ten: 'Bán hàng', icon: '🎂', keys: ['KBD', 'KBM', 'POS', 'TQV', 'HDG', 'OTP', 'KM', 'CN', 'KH', 'DTREO', 'PHHUY', 'BNTM'] },
+  { k: 'BH', ten: 'Bán hàng', icon: '🎂', keys: ['KBD', 'KBM', 'POS', 'TQV', 'HDG', 'OTP', 'KM', 'CN', 'SOTANG', 'KH', 'DTREO', 'PHHUY', 'BNTM'] },
   { k: 'GH', ten: 'Giao hàng', icon: '🚚', keys: ['VD', 'CPX', 'DSCOD', 'CBTT'] },
   { k: 'BC', ten: 'Báo cáo', icon: '📈', keys: ['BCSANG', 'BCHUB', 'BC:BC03', 'BC:BC04', 'BC:BC05', 'BC:BC08', 'BC:BC07'] },
   /* Thu mua (anh Việt 18/08/2026): "các nút tính năng của luồng Mua hàng
@@ -971,7 +976,7 @@ function vclMo(x) {
      doc chi tiet bang mot loi goi rieng luc nguoi ta bam vao, mo san ma
      chua goi thi no dung mai o cau "Dang doc tung mon". */
   if (l === 'hang_tang') return go(function () {
-    dtgTt = ''; dtgDiem = ''; dtgLoai = ''; dtgTim = x.ma; return scrDuyetTang();
+    dtgChang = ''; dtgKy = ''; dtgDiem = ''; dtgLoai = ''; dtgTim = x.ma; return scrDuyetTang();
   });
   /* Viec giao tu man Viec hom nay (#351): mo man chi tiet, co nut bao xong. */
   if (l === 'goi_y') return go(function () { return scrViecGoiY(x.ma); });
@@ -1255,7 +1260,8 @@ function vgbGo(k) {
   if (k === 'HDBAN') return go(scrHdBan);
   if (k === 'APPTT') return go(scrHoSoTT);
   if (k === 'DSTTNB') return go(scrTTNB);
-  if (k === 'DUYETTANG') return go(scrDuyetTang);
+  if (k === 'DUYETTANG') { dtgChang = ''; return go(scrDuyetTang); }
+  if (k === 'SOTANG') { dtgChang = 'hoan_tat'; return go(scrDuyetTang); }
   if (k === 'HDMUA') return go(scrHdMua);
   if (k === 'DCM') return go(scrDoiChieuMua);
   if (k && k.indexOf('BC:') === 0) { bcMa = k.slice(3); return go(scrBaoCaoXem); }

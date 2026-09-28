@@ -528,3 +528,121 @@ function ttnbTienTrinh(r) {
     {ten:'Kế toán xử lý', xong:muc > 2, dang:muc === 2}
   ]);
 }
+
+/* ==========================================================================
+   v534 (issue #380) - THANH CÔNG CỤ DANH SÁCH DÙNG CHUNG
+
+   Anh Việt chốt 28/09/2026: chip lọc, xuất Excel, chip trạng thái theo chặng
+   là tối cần thiết, áp dụng cho MỌI màn danh sách. Tới v533 mỗi màn tự vẽ
+   hàng chip của nó, chín màn có Excel viết riêng, còn lại không có. Đây là
+   MỘT chỗ vẽ, màn nào cũng gọi, để chip ngày "Tháng trước" ở màn nào cũng
+   nghĩa là cùng một khoảng và nút Excel ở màn nào cũng xuất đúng tập đang
+   lọc (máy chủ: vagabond/khung/cong_cu_ds.py).
+
+   Thứ tự khối cố định, theo đặc tả trong docs/van-hanh-agent/cong-viec/
+   issue-380.md mục "Giao diện":
+     1. hàng chip chặng
+     2. các hàng chip lọc riêng của màn, mỗi họ một màu
+     3. hàng chip ngày (Tuỳ chọn mới hiện hai ô ngày)
+     4. ô tìm và nút viền Xuất Excel trên cùng một hàng
+
+   Cách dùng:
+     html += dsCongCu(c);                 vẽ
+     dsCongCuNoi(khung, c, doi);          nối sự kiện sau khi frame()
+   `doi(ho, k)` được gọi khi bấm chip (ho = 'chang', tên họ lọc, 'ky') hoặc
+   khi gõ tìm (ho = 'tim') hay đổi ô ngày (ho = 'tu' / 'den'). Màn tự lưu
+   lựa chọn vào biến của nó rồi vẽ lại. Nút Excel gọi c.xuat.man với bộ lọc
+   c.xuat.loc(), màn không phải viết gì thêm.
+   ========================================================================== */
+var DS_KY = [['', 'Mọi ngày'], ['hom_nay', 'Hôm nay'], ['7_ngay', '7 ngày'],
+  ['thang_nay', 'Tháng này'], ['thang_truoc', 'Tháng trước'], ['tuy_chon', 'Tuỳ chọn']];
+
+function dsccHang(ho, ds, dem, chon, tatCa, mau) {
+  var so = function (k) { var n = (dem || {})[k || 'tat_ca']; return n ? ' <b>' + money(n) + '</b>' : ''; };
+  var ra = [];
+  if (tatCa) ra.push(posChipNut('data-dscc="' + h(ho) + '|"', h(tatCa) + so(''), !chon, false, mau));
+  (ds || []).forEach(function (x) {
+    /* Chip không có dòng nào thì ẩn, trừ chip đang chọn: bấm rồi mà chip
+       biến mất thì người dùng không biết mình đang lọc theo gì. */
+    if (dem && !dem[x.k] && chon !== x.k) return;
+    ra.push(posChipNut('data-dscc="' + h(ho) + '|' + h(x.k) + '"',
+      (x.ic ? x.ic + ' ' : '') + h(x.ten) + so(x.k), chon === x.k, false, mau));
+  });
+  return ra.length ? kmHangChip(ra.join('')) : '';
+}
+
+function dsCongCu(c) {
+  c = c || {};
+  var ma = c.ma || 'ds';
+  var hang = [];
+  if (c.chang) hang.push(dsccHang('chang', c.chang.ds, c.chang.dem, c.chang.chon || '', c.chang.tatCa || 'Mọi chặng', '#0d9488'));
+  (c.ho || []).forEach(function (f) {
+    hang.push(dsccHang(f.k, f.ds, f.dem, f.chon || '', f.tatCa, f.mau || '#4338ca'));
+  });
+  if (c.ky) {
+    var k = c.ky.chon || '';
+    hang.push(kmHangChip(DS_KY.map(function (n) {
+      return posChipNut('data-dscc="ky|' + n[0] + '"', h(n[1]), k === n[0], false, '#b45309');
+    }).join('')));
+    if (k === 'tuy_chon') {
+      hang.push('<div style="display:flex;gap:8px;align-items:center">' +
+        '<input class="tin" id="' + ma + 'DsTu" type="date" value="' + h(c.ky.tu || '') + '" style="flex:1;min-width:0">' +
+        '<span style="color:#98a2b3">đến</span>' +
+        '<input class="tin" id="' + ma + 'DsDen" type="date" value="' + h(c.ky.den || '') + '" style="flex:1;min-width:0"></div>');
+    }
+  }
+  var coTim = !!c.tim, coXuat = !!c.xuat;
+  if (coTim || coXuat) {
+    hang.push('<div style="display:flex;gap:8px;align-items:center">' +
+      (coTim ? '<input class="tin" id="' + ma + 'DsTim" type="search" enterkeyhint="search" placeholder="' +
+        h(c.tim.goiY || 'Tìm') + '" value="' + h(c.tim.gt || '') + '" style="flex:1;min-width:0;height:44px">' : '<span style="flex:1"></span>') +
+      (coXuat ? '<button class="btn gh" data-dsxuat="1" style="flex:0 0 auto;width:auto;margin:0;min-height:44px;padding:0 14px;white-space:nowrap">📊 Xuất Excel' +
+        (c.xuat.so != null ? ' ' + money(c.xuat.so) : '') + '</button>' : '') +
+      '</div>');
+  }
+  hang = hang.filter(Boolean);
+  if (!hang.length) return '';
+  return '<div class="card" data-dscongcu="' + h(ma) + '" style="padding:10px 12px;display:flex;flex-direction:column;gap:9px">' +
+    hang.join('') + '</div>';
+}
+
+async function dsXuatExcel(man, loc) {
+  busy(true);
+  try {
+    var f = await api('vagabond.khung.cong_cu_ds.xuat_excel', { man: man, loc: JSON.stringify(loc || {}) });
+    busy(false);
+    if (!f || !f.b64) return baoTin('Máy chủ chưa trả tệp Excel. Thử lại sau ít phút.');
+    bcTaiVe(f.ten_file, f.b64);
+  } catch (e) {
+    busy(false);
+    baoTin(errMsg(e) || 'Chưa xuất được Excel.');
+  }
+}
+
+function dsCongCuNoi(khung, c, doi) {
+  if (!khung || !c) return;
+  var ma = c.ma || 'ds';
+  khung.addEventListener('click', function (e) {
+    var t = e.target.closest('[data-dscc]');
+    if (t) {
+      var v = t.getAttribute('data-dscc'), i = v.indexOf('|');
+      doi(v.slice(0, i), v.slice(i + 1));
+      return;
+    }
+    if (e.target.closest('[data-dsxuat]') && c.xuat) {
+      dsXuatExcel(c.xuat.man, typeof c.xuat.loc === 'function' ? c.xuat.loc() : (c.xuat.loc || {}));
+    }
+  });
+  var o = document.getElementById(ma + 'DsTim');
+  if (o) {
+    /* Tìm khi bấm Enter hoặc rời ô, không tìm theo từng phím: mỗi lần tìm
+       là một lượt hỏi máy chủ (QT-19), gõ mười chữ là mười lượt. */
+    var cu = (c.tim && c.tim.gt) || '';
+    var tim = function () { var v = o.value.trim(); if (v === cu) return; cu = v; doi('tim', v); };
+    o.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); tim(); } });
+    o.addEventListener('change', tim);
+  }
+  var tu = document.getElementById(ma + 'DsTu'), den = document.getElementById(ma + 'DsDen');
+  if (tu) tu.addEventListener('change', function () { doi('tu', tu.value); });
+  if (den) den.addEventListener('change', function () { doi('den', den.value); });
+}
