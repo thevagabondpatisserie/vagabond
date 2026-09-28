@@ -158,6 +158,33 @@ def _tep_khac_muc():
 		la('hoá đơn còn nợ', float(si.outstanding_amount), float(TIEN))
 
 
+@ca('#380 v534 Codex #382 vòng 2: một giao dịch có hai phiếu nháp cho hai hoá đơn thì chỉ một hoá đơn sang Tiền đã về')
+def _mot_gd_hai_hd():
+	from erpnext.accounts.doctype.payment_entry.payment_entry import get_payment_entry
+
+	si, g, pe = _du_lieu()
+	cty, tk, _mau = _nen()
+	si2 = _app(cty, [dict(item_code=_mon(tk), qty=1, rate=TIEN)])
+	si2.vgb_tam_tinh = 0
+	si2.vgb_pt_thanh_toan = 'GrabFood'
+	si2.vgb_ma_tham_chieu = 'KT534B-' + frappe.generate_hash(length=8)
+	si2.save(ignore_permissions=True)
+	si2.submit(); si2.reload()
+	pe2 = get_payment_entry('Sales Invoice', si2.name, party_amount=si2.grand_total, bank_account=pe.paid_to)
+	pe2.reference_no = pe.reference_no
+	pe2.reference_date = today()
+	pe2.insert(ignore_permissions=True); _DA_TAO.append((pe2.doctype, pe2.name))
+	ds = [p for p in tt.phieu_thu_nhap(cac_si=[si.name, si2.name]) if p['pe'] in (pe.name, pe2.name)]
+	la('đọc ra hai phiếu', len(ds), 2)
+	la('chỉ một phiếu được tính là đã xác minh', sum(p['da_xac_minh'] for p in ds), 1)
+	g2 = tt.gom_tien_da_ve(ds)
+	tach = [x for x in (si.name, si2.name) if x in g2 and tt.tach_tien_da_ve(float(TIEN), g2[x]['phan_bo'], 1)]
+	la('một lần tiền về chỉ tách một hoá đơn', len(tach), 1)
+	# Đọc riêng từng hoá đơn vẫn ra cùng một phiếu thắng.
+	rieng = [p for c in (si.name, si2.name) for p in tt.phieu_thu_nhap(cac_si=[c]) if p['da_xac_minh']]
+	la('đọc từng hoá đơn vẫn chỉ một phiếu thắng', len(rieng), 1)
+
+
 @ca('#380 v534 giao dịch đã nối chứng từ khác thì chặn, không ghi tiền hai lần')
 def _da_noi():
 	si, g, pe = _du_lieu()
