@@ -185,6 +185,16 @@ def kiem_phieu(doc):
         frappe.throw('Chọn trạng thái đặt bàn hợp lệ.')
 
 
+def _webhook_dat_ban():
+    """URL nhóm nhận yêu cầu đặt bàn. v534: ô riêng để trống thì dùng chung
+    nhóm Sales đơn web, để tiệm mở đặt bàn mà không phải lập thêm nhóm."""
+    for truong in ('webhook_dat_ban', 'webhook_don_web'):
+        url = str(frappe.db.get_single_value('Vagabond Settings', truong) or '').strip()
+        if url:
+            return url
+    return ''
+
+
 def _loi_lark(ten):
     # Không đưa URL chứa khóa hoặc nội dung khách vào Error Log.
     frappe.log_error(title='Đặt bàn: chưa gửi được Lark',
@@ -196,7 +206,7 @@ def bao_dat_ban_moi(doc, method=None):
     if getattr(frappe.flags, 'vagabond_kiem_that', False):
         return
     try:
-        if not frappe.db.get_single_value('Vagabond Settings', 'webhook_dat_ban'):
+        if not _webhook_dat_ban():
             return
         frappe.db.after_commit.add(partial(_xep_lark, doc.name))
     except Exception:
@@ -222,7 +232,7 @@ def gui_lark(ten):
     if getattr(frappe.flags, 'vagabond_kiem_that', False):
         return
     try:
-        url = str(frappe.db.get_single_value('Vagabond Settings', 'webhook_dat_ban') or '').strip()
+        url = _webhook_dat_ban()
         if not url:
             return
         doc = frappe.get_doc(DOCTYPE, ten).as_dict()

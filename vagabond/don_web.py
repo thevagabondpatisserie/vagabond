@@ -149,6 +149,25 @@ def _chu_so(s):
 	return "".join(ch for ch in str(s or "") if ch.isdigit())
 
 
+def chuan_zalo(zalo, dien_thoai_so):
+	"""Đường dẫn Zalo cho chân trang. THUẦN.
+
+	v534: Settings đang giữ "zalo.me/." nên chân trang site thật từng in một
+	liên kết hỏng. Nhận: đường dẫn zalo.me / zalo.link / zaloapp.com có phần
+	sau dấu gạch chéo từ 3 ký tự, thiếu https thì tự thêm. Không hợp lệ hoặc
+	trống thì suy từ số điện thoại; không có số thì không hiện.
+	"""
+	z = str(zalo or "").strip()
+	if z and not re.match(r"^https?://", z):
+		z = "https://" + z
+	if not re.match(r"^https://(www\.)?(zalo\.me|zalo\.link|zaloapp\.com)/[A-Za-z0-9_.\-]{3,}/?$", z):
+		z = ""
+	so = _chu_so(dien_thoai_so)
+	if not z and so:
+		z = "https://zalo.me/" + so
+	return z
+
+
 def khoa_chong_trung(sdt, hang, ngay_nhan, nonce):
 	"""Khoá nhận ra hai lần bấm của CÙNG một lần đặt.
 
@@ -546,9 +565,7 @@ def nguong_mien_phi():
 def lien_he():
 	"""Số điện thoại, email, mạng xã hội cho chân trang. Anh Việt điền ở Settings."""
 	dt = str(cfg_o("web_dien_thoai") or "").strip()
-	zalo = str(cfg_o("web_zalo") or "").strip()
-	if not zalo and _chu_so(dt):
-		zalo = "https://zalo.me/" + _chu_so(dt)
+	zalo = chuan_zalo(cfg_o("web_zalo"), dt)
 	return {
 		"dien_thoai": dt,
 		"dien_thoai_so": _chu_so(dt),
