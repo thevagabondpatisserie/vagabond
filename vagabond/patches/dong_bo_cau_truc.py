@@ -165,6 +165,22 @@ def execute():
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "patches: quyen vai duyet chi")
 
+	# v537 xuat Excel: phu lai moi lan migrate cho bao cao moi xuat hien sau
+	# lan chay dau cua patch xuat_excel_v537 (Codex #385). Boc try: o day
+	# hong thi ghi Error Log, khong chan ca lan migrate. Lan dau van do
+	# patch xuat_excel_v537 lo va lam do migrate neu cap khong an.
+	try:
+		from vagabond import quyen_ap
+
+		kq = quyen_ap.cap_xuat_excel_v537()
+		if kq.get("them"):
+			frappe.logger().info(
+				"dong_bo_cau_truc: bat xuat Excel %d dong: %s"
+				% (len(kq["them"]), ", ".join(kq["them"]))
+			)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "patches: quyen xuat Excel bao cao")
+
 	# Tach o "San xuat" cu thanh hai o: "San xuat" cua bep va "Tong nha in
 	# giao" cua nha in (anh Viet chot 21/08/2026). Chuyen so cua cac dong HOP
 	# sang o moi, dong banh le giu nguyen.
