@@ -156,3 +156,67 @@ def _():
 	# vào doctype chưa có dòng nào chính là cái đẻ ra sự cố này.
 	dung("đi qua add_permission", "add_permission(" in src)
 	dung("đi qua update_permission_property", "update_permission_property(" in src)
+
+
+# ------------------------------------------------ v537: xuất Excel mọi báo cáo
+
+@ca("v537 xuất Excel: chỉ bật export cho vai kế toán ĐÃ đọc được doctype gốc của báo cáo, không cấp read, không lặp doctype")
+def _():
+	doc = {("Purchase Invoice", "Accounts User"), ("Purchase Invoice", "Accounts Manager"),
+		("Purchase Invoice", "AP Kiểm soát (FIN)"), ("GL Entry", "Accounts User"), ("Sales Invoice", "Accounts Manager")}
+	xuat = {("GL Entry", "Accounts User")}
+	kh = quyen_ap.ke_hoach_xuat_excel(["Purchase Invoice", "Purchase Invoice", "GL Entry", "Sales Invoice", "", None, "Stock Ledger Entry"],
+		lambda dt, vai: (dt, vai) in doc, lambda dt, vai: (dt, vai) in xuat)
+	la("kế hoạch", kh, [("Purchase Invoice", "Accounts User"), ("Purchase Invoice", "Accounts Manager"),
+		("Purchase Invoice", "AP Kiểm soát (FIN)"), ("Sales Invoice", "Accounts Manager")])
+	dung("không đụng doctype vai chưa đọc được", not any(dt == "Stock Ledger Entry" for dt, _ in kh))
+	la("ba vai kế toán, có chị Dung (AP Kiểm soát FIN)", sorted(quyen_ap.VAI_XUAT_EXCEL),
+		["AP Kiểm soát (FIN)", "Accounts Manager", "Accounts User"])
+
+
+@ca("v537 xuất Excel: patch đọc bảng Report trên site, cấp qua hai hàm của Frappe, chỉ bật ô export, hỏng thì làm hỏng migrate")
+def _():
+	import sys
+	import unittest.mock
+	from types import SimpleNamespace as NS
+	from vagabond.khung.kiem_thu.nen import nem
+	goi_ = []
+	quyen = {("Purchase Invoice", "Accounts User"): {"read": 1, "export": 0},
+		("Purchase Invoice", "Accounts Manager"): {"read": 1, "export": 1},
+		("Sales Invoice", "Accounts User"): {"read": 1, "export": 0}}
+
+	def _doc_duoc(dt, vai):
+		return bool(quyen.get((dt, vai), {}).get("read"))
+
+	def _thieu(dt, vai, q):
+		return not quyen.get((dt, vai), {}).get(q)
+
+	def throw(m):
+		raise ValueError(m)
+	f = NS(get_all=lambda dt, **k: ["Purchase Invoice", "Purchase Invoice", "Sales Invoice", "Report Khong Co", None],
+		db=NS(exists=lambda dt, n=None: n != "Report Khong Co"),
+		clear_cache=lambda: goi_.append("cache"), throw=throw)
+	perms = NS(add_permission=lambda dt, vai, lv: goi_.append(("add", dt, vai)),
+		update_permission_property=lambda dt, vai, lv, q, v: (goi_.append(("set", dt, vai, q, v)), quyen[(dt, vai)].__setitem__(q, v)))
+	with unittest.mock.patch.object(quyen_ap, "frappe", f), unittest.mock.patch.object(quyen_ap, "_thieu", _thieu), \
+			unittest.mock.patch.object(quyen_ap, "_doc_duoc", _doc_duoc), \
+			unittest.mock.patch.dict(sys.modules, {"frappe.permissions": perms}):
+		kq = quyen_ap.cap_xuat_excel_v537()
+	la("cấp đúng hai dòng đang thiếu", kq["them"], ["Purchase Invoice · Accounts User", "Sales Invoice · Accounts User"])
+	la("đi qua add_permission rồi chỉ bật export", [g for g in goi_ if g != "cache"],
+		[("add", "Purchase Invoice", "Accounts User"), ("set", "Purchase Invoice", "Accounts User", "export", 1),
+		("add", "Sales Invoice", "Accounts User"), ("set", "Sales Invoice", "Accounts User", "export", 1)])
+	dung("xoá cache sau khi cấp", "cache" in goi_)
+	# Cấp không ăn thì ném, để migrate đỏ chứ không báo xong giả.
+	perms.update_permission_property = lambda *a: None
+	quyen[("Purchase Invoice", "Accounts User")]["export"] = 0
+	with unittest.mock.patch.object(quyen_ap, "frappe", f), unittest.mock.patch.object(quyen_ap, "_thieu", _thieu), \
+			unittest.mock.patch.object(quyen_ap, "_doc_duoc", _doc_duoc), \
+			unittest.mock.patch.dict(sys.modules, {"frappe.permissions": perms}):
+		nem("cấp không ăn thì ném", quyen_ap.cap_xuat_excel_v537, ValueError)
+	goi = os.path.dirname(os.path.abspath(hs.__file__))
+	p = io.open(os.path.join(goi, "patches", "xuat_excel_v537.py"), encoding="utf-8").read()
+	dung("patch gọi đúng hàm, không bọc try", "cap_xuat_excel_v537()" in p and "except" not in p)
+	dong = io.open(os.path.join(goi, "patches.txt"), encoding="utf-8").read().splitlines()
+	dung("patches.txt có dòng v537 trước dòng đồng bộ cấu trúc",
+		dong.index("vagabond.patches.xuat_excel_v537") < dong.index("vagabond.patches.dong_bo_cau_truc #v537"))
