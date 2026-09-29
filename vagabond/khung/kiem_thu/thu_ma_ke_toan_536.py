@@ -153,7 +153,9 @@ def _nen(khach=None, ncc=None, da_nap="1", loi_set=None):
 	mac_dinh = {mk.KHOA_DA_NAP: da_nap}
 	f = NS(db=NS(get_value=get_value, set_value=set_value, sql=sql, exists=lambda dt, n: True,
 			get_single_value=lambda *a: "Khách lẻ", get_default=lambda k: mac_dinh.get(k),
-			commit=lambda: vet.append(("commit",)), count=lambda *a, **k: 0, has_column=lambda *a: True),
+			commit=lambda: vet.append(("commit",)), count=lambda *a, **k: 0, has_column=lambda *a: True,
+			after_commit=NS(add=lambda fn: vet.append(("sau_commit", fn))),
+			after_rollback=NS(add=lambda fn: vet.append(("sau_rollback", fn)))),
 		get_all=get_all, get_doc=get_doc, log_error=lambda *a, **k: vet.append(("log",) + a),
 		get_traceback=lambda: "", get_roles=lambda: ["Accounts Manager"], throw=_throw,
 		defaults=NS(set_global_default=lambda k, v: mac_dinh.__setitem__(k, v)))
@@ -207,9 +209,9 @@ def _cap_ma():
 		mk.dien_ma_khach_hoa_don(d)
 	la("nối tiếp sau KH001588", d.vgb_ma_khach_ke_toan, "KH001589")
 	la("ghi vào hồ sơ khách, không tạo khách mới", (bang["Customer"]["KH000015"]["custom_ma_khach"], tao), ("KH001589", []))
-	thu_tu = [v[1][:14] if v[0] == "sql" else v[0] for v in vet if v[0] in ("sql", "set")]
-	la("khoá trước khi đọc mã lớn nhất, ghi, rồi nhả khoá",
-		thu_tu, ["select get_loc", "select `custom", "set", "select release"])
+	thu_tu = [v[1][:14] if v[0] == "sql" else v[0] for v in vet if v[0] in ("sql", "set", "sau_commit")]
+	la("khoá trước khi đọc mã lớn nhất, ghi; khoá giữ tới commit (Codex #383 F2)",
+		thu_tu, ["select get_loc", "sau_commit", "select `custom", "set"])
 	# Lượt hai cùng khách: trả mã đang có, không cấp thêm.
 	with unittest.mock.patch.object(mk, "frappe", f):
 		la("đã có mã thì giữ", mk.cap_ma("Customer", "KH000015"), "KH001589")
@@ -218,7 +220,7 @@ def _cap_ma():
 	with unittest.mock.patch.object(mk, "frappe", f):
 		d = _D(name="HDB-6", customer="KL042334", vgb_xhd_mst="0317064683")
 		mk.dien_ma_khach_hoa_don(d)
-	dung("nhả khoá dù ghi hỏng", any(v[0] == "sql" and "release" in v[1] for v in vet))
+	dung("ghi hỏng thì khoá nhả theo rollback của giao dịch, đã đăng ký", any(v[0] == "sau_rollback" for v in vet))
 	dung("lỗi vào Error Log, đơn vẫn lưu", any(v[0] == "log" for v in vet) and not d.get("vgb_ma_khach_ke_toan"))
 
 
@@ -478,7 +480,7 @@ def _khai():
 	la("báo cáo trên bảng tờ, không phải trên đơn", bc["ref_doctype"], "MInvoice Invoice")
 	dong = (GOC / "patches.txt").read_text(encoding="utf-8").splitlines()
 	dung("patch v536 đứng trước dòng đồng bộ cấu trúc v536",
-		dong.index("vagabond.patches.ma_ke_toan_v536") < dong.index("vagabond.patches.dong_bo_cau_truc #v536"))
+		dong.index("vagabond.patches.ma_ke_toan_v536") < dong.index("vagabond.patches.dong_bo_cau_truc #v538"))
 	# Ô Đơn ERP trên tờ nay lọc được ngay trên danh sách.
 	o = next(x for x in ds.TRUONG_MOI["MInvoice Invoice"] if x["fieldname"] == "vgb_don_erp")
 	la("ô Đơn ERP lọc được, nhãn không còn 'nối tay'", (o.get("in_standard_filter"), o["label"]), (1, "Đơn ERP"))
@@ -528,3 +530,72 @@ def _patch():
 			unittest.mock.patch.object(ds, "ghi_don_erp_cua_to", lambda *a, **k: noi.append(a) or True):
 		p.execute()
 	la("không nối gì, vẫn commit", (noi, ("commit",) in vet), ([], True))
+
+
+# --------------------------------------------- Codex #383 vòng 1, ba finding P1
+
+@ca("Codex #383 F1: nạp tệp với tao_moi=0, mã Fast lớn nhất chưa có bản ghi ERP vẫn được giữ làm sàn, mã máy cấp sau đó không trùng Fast")
+def _f1_san_fast():
+	# ERP chỉ có mã tới KH000200; tệp Fast có KH001588 gắn MST chưa có trong ERP
+	# và người nạp chọn tao_moi=0 (bỏ qua). Trước sửa: cờ đã nạp bật, máy cấp
+	# KH000201 cho khách mới, trùng với KH000201 đang tồn tại bên Fast.
+	khach = {"DN000002": {"customer_name": "Sỉ B", "tax_id": "0300000002", "custom_ma_khach": "KH000200"},
+		"KH000015": {"customer_name": "Oliver", "tax_id": "0317064683", "custom_ma_khach": ""}}
+	f, bang, vet, tao = _nen(khach, da_nap="")
+	with unittest.mock.patch.object(mk, "frappe", f), unittest.mock.patch.object(mk, "dien_ma_hang_loat", lambda: 0):
+		kq = mk.nap_danh_muc_fast([{"ma": "KH001588", "ten": "Chưa có trong ERP", "mst": "0300009999"},
+			{"ma": "NC000504", "ten": "NCC Fast", "mst": "0300008888"}], tao_moi=0)
+		la("dòng bị bỏ qua vì tao_moi=0", kq["chua_tao"], 2)
+		ma = mk.cap_ma("Customer", "KH000015")
+		la("mã cấp sau khi nạp phải vượt sàn Fast KH001588", ma, "KH001589")
+		bang["Supplier"]["NCC-MOI"] = {"tax_id": "0300007777", "custom_ma_ncc": ""}
+		la("sàn NC cũng giữ", mk.cap_ma("Supplier", "NCC-MOI"), "NC000505")
+	la("sàn ghi vào mặc định toàn site", (f.db.get_default(mk.KHOA_SAN + "KH"), f.db.get_default(mk.KHOA_SAN + "NC")), ("1588", "504"))
+
+
+@ca("Codex #383 F2: khoá cấp mã giữ tới lúc commit, không nhả trong hàm; get_lock trả 0 thì không cấp")
+def _f2_khoa():
+	f, bang, vet, tao = _nen(dict((k, dict(v)) for k, v in KH.items()))
+	with unittest.mock.patch.object(mk, "frappe", f):
+		la("cấp được", mk.cap_ma("Customer", "KH000015"), "KH001589")
+		dung("trong hàm KHÔNG nhả khoá", not any(v[0] == "sql" and "release" in v[1] for v in vet))
+		sau_commit = [v[1] for v in vet if v[0] == "sau_commit"]
+		sau_rollback = [v[1] for v in vet if v[0] == "sau_rollback"]
+		la("đăng ký nhả khoá sau commit và sau rollback", (len(sau_commit), len(sau_rollback)), (1, 1))
+		sau_commit[0]()
+		dung("nhả khoá khi commit", any(v[0] == "sql" and "release" in v[1] for v in vet))
+	# Khoá không lấy được (đang có lượt khác giữ quá 10 giây): không cấp, không ghi.
+	f2, bang2, vet2, _ = _nen(dict((k, dict(v)) for k, v in KH.items()))
+	sql_cu = f2.db.sql
+
+	def sql_khong_khoa(q, a=None, **k):
+		if "get_lock" in q:
+			return [(0,)]
+		return sql_cu(q, a, **k)
+	f2.db.sql = sql_khong_khoa
+	with unittest.mock.patch.object(mk, "frappe", f2):
+		d = _D(name="HDB-9", customer="KL042334", vgb_xhd_mst="0317064683")
+		mk.dien_ma_khach_hoa_don(d)
+	la("không lấy được khoá: để trống, không ghi mã", (d.get("vgb_ma_khach_ke_toan"), bang2["Customer"]["KH000015"]["custom_ma_khach"]), (None, ""))
+	dung("lỗi vào Error Log", any(v[0] == "log" for v in vet2))
+
+
+@ca("Codex #383 F3: patch đọc tờ đang trống ô Đơn ERP bằng 'is not set' để bắt cả NULL")
+def _f3_null():
+	import importlib
+	import sys
+	p = importlib.import_module("vagabond.patches.ma_ke_toan_v536")
+	hoi = []
+
+	def get_all(dt, filters=None, fields=None, limit_page_length=0, **k):
+		hoi.append((dt, filters))
+		return []
+	f_frappe = NS(db=NS(updatedb=lambda dt: None, exists=lambda *a: True, has_column=lambda *a: True, commit=lambda: None),
+		get_all=get_all, logger=lambda *a: NS(info=lambda m: None))
+	cf = NS(create_custom_fields=lambda khai, update=True: None)
+	with unittest.mock.patch.dict(sys.modules, {"frappe": f_frappe, "frappe.custom.doctype.custom_field.custom_field": cf}), \
+			unittest.mock.patch.object(mk, "dien_ma_hang_loat", lambda: 0):
+		p.execute()
+	loc = [h[1] for h in hoi if h[0] == "MInvoice Invoice"]
+	la("một câu đọc tờ", len(loc), 1)
+	la("lọc ô trống bắt cả NULL", loc[0].get("vgb_don_erp"), ["is", "not set"])
