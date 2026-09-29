@@ -99,6 +99,13 @@ function mayChu(canh) {
           cac_nguon: [{ k: 'cong_no', ten: 'Khách công nợ' }, { k: 'chuyen_khoan', ten: 'Đơn chuyển khoản' }],
           chua_xac_minh: 3, ke_toan: canh.keToan ? 1 : 0 };
       }
+      if (m === 'vagabond.thu_tien.ung_vien_tien_ve' && canh.nhieuGd) {
+        var het = [1, 2, 3, 4].map(function (i) {
+          return { name: 'BT-N' + i, ngay: '2026-09-2' + i, tien: 1000000, con: 1000000, mo_ta: 'CK ' + i, ma_gd: 'FTN' + i, khop: ['đúng số tiền'] };
+        });
+        return { si: a.si, khach: 'Ms.Thanh', con_no: 1000000, ngay_hd: '2026-09-01',
+          gd: a.tat_ca ? het : het.slice(0, 1), con_lai: a.tat_ca ? 0 : 3 };
+      }
       if (m === 'vagabond.thu_tien.ung_vien_tien_ve') {
         return { si: a.si, khach: 'Ms.Thanh', con_no: 1000000, ngay_hd: '2026-09-25', gd: canh.khongGd ? [] : [
           { name: 'BT-7', ngay: '2026-09-26', tien: 1000000, con: 1000000, mo_ta: 'NGUYEN VAN A CHUYEN TIEN', ma_gd: 'FT7', khop: ['đúng số tiền'] },
@@ -452,6 +459,27 @@ async function moCongNo(canh) {
     await app2.bam(app2.mot('[data-hop="Khách đã chuyển tiền"]').querySelectorAll('[data-cnchongd="BT-7"]')[0]);
     dung('câu lỗi máy chủ', app2.tin.some(function (t) { return t.indexOf('đã có phiếu thu APP-1') >= 0; }));
     bang('không mở hộp UNC', app2.tim('[data-hop="Uỷ nhiệm chi khách gửi"]').length, 0);
+  });
+
+  /* Codex #389 P2: giao dịch ngoài số gợi ý tối đa không được biến mất lặng
+     lẽ. Người bấm Xem thêm thì máy hỏi lại với tat_ca và hiện đủ để chọn. */
+  await ca('Công nợ v541: còn giao dịch ngoài danh sách thì có nút Xem thêm, bấm thì hiện đủ để chọn', async function () {
+    var app = await moCongNo({ nhieuGd: 1 });
+    await app.bam(app.mot('[data-cnmo="KL1"]'));
+    await app.bam(app.mot('[data-cnnhan="HDB-1"]'));
+    var hop = app.mot('[data-hop="Khách đã chuyển tiền"]');
+    bang('lần đầu một giao dịch', hop.querySelectorAll('[data-cnchongd]').length, 1);
+    var xem = hop.querySelectorAll('[data-cnxemhet]');
+    bang('có nút Xem thêm', xem.length, 1);
+    dung('nói rõ còn 3 giao dịch', xem[0]._chu.indexOf('Xem thêm 3 giao dịch') >= 0);
+    await app.bam(xem[0]);
+    bang('hỏi lại lấy hết', app.mc.cuoi('vagabond.thu_tien.ung_vien_tien_ve').a, { si: 'HDB-1', tat_ca: 1 });
+    var hops = app.tim('[data-hop="Khách đã chuyển tiền"]');
+    var moi = hops[hops.length - 1];
+    bang('hiện đủ bốn giao dịch', moi.querySelectorAll('[data-cnchongd]').length, 4);
+    bang('hết thì không còn nút Xem thêm', moi.querySelectorAll('[data-cnxemhet]').length, 0);
+    await app.bam(moi.querySelectorAll('[data-cnchongd="BT-N4"]')[0]);
+    bang('chọn được giao dịch cũ nhất', app.mc.cuoi('vagabond.thu_tien.nhan_tien_ve').a, { si: 'HDB-1', gd: 'BT-N4' });
   });
 
   console.log('  cong_cu_ds_534: ' + ket.dat + ' ca đạt, ' + ket.hong + ' ca hỏng');
