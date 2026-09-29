@@ -140,7 +140,25 @@ def ke_hoach_nap(dong_ds, hien_co, ma_dang_dung=None):
 				if m:
 					ma_dang_dung.setdefault(loai, {})[m] = mst
 	da_thay = {}
-	for d in doc_tep_fast(dong_ds):
+	# Codex #389 (P1): một MST trong tệp chỉ được một mã. Dòng lặp y hệt thì
+	# xử một lần (không sinh hai lần tạo mới); một MST mang hai mã khác nhau
+	# thì cả MST đó là xung đột, không ghi gì cho nó, để người quyết.
+	sach = doc_tep_fast(dong_ds)
+	ma_cua_mst = {}
+	for d in sach:
+		ma_cua_mst.setdefault((d["loai"], d["mst"]), set()).add(d["ma"])
+	da_xu = set()
+	for d in sach:
+		km = (d["loai"], d["mst"])
+		if len(ma_cua_mst[km]) > 1:
+			if km not in da_xu:
+				da_xu.add(km)
+				ra["xung_dot"].append(dict(d, ly_do="MST %s mang %d mã trong tệp: %s" % (
+					d["mst"], len(ma_cua_mst[km]), ", ".join(sorted(ma_cua_mst[km])))))
+			continue
+		if km in da_xu:
+			continue
+		da_xu.add(km)
 		k = (d["loai"], d["ma"])
 		if k in da_thay and da_thay[k] != d["mst"]:
 			ra["xung_dot"].append(dict(d, ly_do="mã %s gắn cho hai MST %s và %s trong tệp" % (d["ma"], da_thay[k], d["mst"])))
