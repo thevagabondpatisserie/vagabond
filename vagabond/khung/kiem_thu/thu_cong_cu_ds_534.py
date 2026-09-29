@@ -519,7 +519,8 @@ def _dem_tep_unc():
 	dung("không còn đếm mọi File của phiếu", 'frappe.db.count("File"' not in than)
 	i = s.find("def phieu_thu_nhap(")
 	than = s[i:s.find("\ndef ", i + 10)]
-	dung("màn Tiền đã về đếm cùng phép", "dem_tep_unc(tep_dinh_kem.doc_ds(p.get(\"vgb_thu_unc\"))" in than)
+	dung("màn Tiền đã về đọc đúng ô UNC", 'o_unc = {p.name: tep_dinh_kem.doc_ds(p.get("vgb_thu_unc"))' in than)
+	dung("màn Tiền đã về đếm cùng phép", "dem_tep_unc(o_unc[p.name]" in than)
 
 
 @ca("v534 UNC khách gửi: chỉ tệp gắn vào phiếu QUA ô UNC mới tính, ảnh ở mục khác không đổi nhãn được (Codex #382 vòng 7)")
@@ -548,11 +549,12 @@ def _o_unc_muc_khac():
 	s = _doc("thu_tien.py")
 	i = s.find("def _so_tep_unc(")
 	than = s[i:s.find("\n@frappe.whitelist", i)]
-	dung("cổng ghi sổ đếm qua url_trong_o_unc", "return dem_tep_unc(ds, url_trong_o_unc(gan))" in than)
-	dung("đọc kèm ô gắn của File", '"attached_to_field"' in than)
+	dung("cổng ghi sổ đếm qua url_unc_that", "return dem_tep_unc(ds, url_unc_that(ten_pe, rows))" in than)
+	dung("đọc MỌI dòng File mang đường dẫn, không lọc theo phiếu", 'filters={"file_url": ["in", ds]}' in than)
 	i = s.find("def phieu_thu_nhap(")
 	than = s[i:s.find("\ndef ", i + 10)]
-	dung("màn Tiền đã về đếm cùng phép", "url_trong_o_unc(file_gan.get(p.name))" in than)
+	dung("màn Tiền đã về đếm cùng phép", "tep = {p.name: dem_tep_unc(o_unc[p.name], url_unc_that(" in than)
+	dung("màn Tiền đã về đọc mọi dòng File theo đường dẫn", 'filters={"file_url": ["in", lo]}' in than)
 	i = s.find("def ghi_so_phieu_thu(")
 	than = s[i:s.find("\n@frappe.whitelist", i + 10)]
 	a1, a2 = than.find("khac = tep_muc_khac(moi, cua_phieu)"), than.find('gan_vao(PE, doc.name, "vgb_thu_unc", unc)')
@@ -561,6 +563,35 @@ def _o_unc_muc_khac():
 	# Đột biến bỏ lời từ chối (M41 vòng 7) lọt tầng thuần khi thiếu dòng này:
 	# lớp đếm vẫn chặn ghi sổ, nhưng tệp kẹp giấy bị ghi tên vào ô UNC.
 	dung("có mục khác thì từ chối", 'if khac:\n\t\t\tfrappe.throw("Tệp đã chọn đang đính ở mục khác' in than)
+
+
+@ca("v534 UNC khách gửi: bản chép do ô Attach sinh ra không được tính (bench #382 vòng 8)")
+def _unc_ban_chep():
+	from vagabond.thu_tien import url_unc_that, dem_tep_unc
+
+	def f(url, dt="Payment Entry", ten="PE1", o=None):
+		return {"file_url": url, "attached_to_doctype": dt, "attached_to_name": ten, "attached_to_field": o}
+	# Frappe attach_files_to_document: trỏ ô Attach vào đường dẫn có sẵn thì
+	# CHÉP ra một dòng mới gắn qua ô đó. Bench vòng 7 đổ đúng chỗ này.
+	kep = "/private/files/anh-bat-ky.png"
+	la("ảnh kẹp giấy được chép sang ô Desk: không tính",
+		url_unc_that("PE1", [f(kep), f(kep, o="vgb_thu_unc_tep")]), set())
+	unc_b = "/private/files/unc-phieu-khac.png"
+	la("UNC của phiếu khác chép sang ô Desk: không tính",
+		url_unc_that("PE1", [f(unc_b, ten="PE2", o="vgb_thu_unc"), f(unc_b, o="vgb_thu_unc_tep")]), set())
+	la("tệp của chứng từ khác loại chép sang: không tính",
+		url_unc_that("PE1", [f("/files/x.png", dt="Sales Invoice", ten="SI1", o=None), f("/files/x.png", o="vgb_thu_unc_tep")]), set())
+	la("tệp tải lên thật qua ô Desk: tính", url_unc_that("PE1", [f("/private/files/d.png", o="vgb_thu_unc_tep")]),
+		{"/private/files/d.png"})
+	la("tệp tải lên thật qua app: tính", url_unc_that("PE1", [f("/private/files/a.png", o="vgb_thu_unc")]),
+		{"/private/files/a.png"})
+	la("UNC của phiếu khác không tính cho phiếu này",
+		url_unc_that("PE1", [f("/private/files/a.png", ten="PE2", o="vgb_thu_unc")]), set())
+	la("một dòng treo chưa gắn cùng đường dẫn: không tính",
+		url_unc_that("PE1", [f("/private/files/a.png", o="vgb_thu_unc"), f("/private/files/a.png", dt=None, ten=None)]), set())
+	la("đếm: hai tệp thật, một bản chép", dem_tep_unc(["/private/files/a.png", "/private/files/d.png", kep],
+		url_unc_that("PE1", [f("/private/files/a.png", o="vgb_thu_unc"), f("/private/files/d.png", o="vgb_thu_unc_tep"),
+			f(kep), f(kep, o="vgb_thu_unc_tep")])), 2)
 
 
 @ca("v534 Excel: chữ mở đầu bằng ký tự công thức không thành công thức (Codex #382 vòng 7)")
