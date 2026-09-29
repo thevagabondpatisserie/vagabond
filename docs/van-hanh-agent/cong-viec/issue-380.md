@@ -124,3 +124,7 @@ Cả 4 finding tái hiện được, số liệu trước/sau đo bằng bộ gi
 
 - K1 hook UNC khách gửi gặp lỗi lạ thì ghi log rồi cho qua (fail open). Tái hiện bằng ca thuần: `frappe.db.exists` ném lỗi, trước: hook trả về bình thường; sau: ghi log rồi ném lại, ghi sổ bị chặn.
 - K2 nút đính UNC trên app gắn tệp vào mọi phiếu thu nháp trước khi soát loại phiếu. Sửa: `_thuoc_tap_unc` (một chỗ, dùng chung với hook ghi sổ) soát TRƯỚC `gan_vao`; phiếu ngoài tập bị từ chối, không gắn tệp. Bench `_ngoai_tap`.
+
+## Vòng 5 review Codex trên #382 (SHA 87dda5ee)
+
+- L1 (P1) so tiền phiếu thu với giao dịch ngân hàng bằng `paid_amount`, là tiền phía khách. Giao dịch và phần lõi cấp cho phiếu tính theo tiền tài khoản nhận (`received_amount`). Tái hiện thuần trên 87dda5ee: phiếu 100 USD ghi có 2.500.000 đ với giao dịch 1.000.000 đ ra `(True, "")`; phiếu tiền đồng tỉ giá đích 2 cũng `(True, "")`. Sửa: một phép chung `thu_tien.tien_phia_ngan_hang` chỉ nhận phiếu tiền đồng thuần (hai tài khoản VND, hai tỉ giá 1, tiền hai phía bằng nhau) và trả tiền tài khoản nhận; `xac_minh_tien_ve`, bước soát trên bản đã khoá, bước đọc lại sau submit và bước soát số lõi cấp đều dùng nó. Màn Tiền đã về đọc kèm năm trường tiền tệ (`TRUONG_TIEN_TE`). Phiếu khác đi thì trả lý do, kế toán ghi sổ tay trên Desk. Ca thuần `_tien_te`, bench `_ti_gia`.
