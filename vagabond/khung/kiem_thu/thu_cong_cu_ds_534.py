@@ -263,6 +263,52 @@ def _tach():
 	dung("lệch một đồng làm tròn vẫn tách", tach_tien_da_ve(5785500, 5785499, 1))
 
 
+@ca("v534 công nợ: tiền đã về một phần trừ khỏi số còn phải đòi, hoá đơn vẫn ở Đang nợ (Codex #382 vòng 8)")
+def _chia_con_no():
+	from vagabond.thu_tien import chia_con_no
+	la("600.000 đã về trên nợ 1.000.000", chia_con_no(1000000, 600000, 1), (400000.0, 600000.0))
+	la("chưa xác minh thì không trừ", chia_con_no(1000000, 600000, 0), (1000000.0, 0.0))
+	la("phủ đủ thì tách hẳn", chia_con_no(1000000, 1000000, 1), (0.0, 1000000.0))
+	la("lệch một đồng làm tròn vẫn là phủ đủ", chia_con_no(1000000, 999999, 1), (0.0, 1000000.0))
+	la("về nhiều hơn nợ chỉ tính tới số nợ", chia_con_no(1000000, 1500000, 1), (0.0, 1000000.0))
+	la("không còn nợ", chia_con_no(0, 600000, 1), (0.0, 0.0))
+	la("không có phiếu", chia_con_no(1000000, None, None), (1000000.0, 0.0))
+	# Phép thuần mà ds_khach_no dùng, chạy trên bốn hoá đơn mẫu. Không nạp
+	# cong_no ở đây: cong_no kéo ban_hang, ban_hang kéo requests, máy CI
+	# không có (bài học 20/08).
+	from vagabond.thu_tien import chia_no_hoa_don
+
+	def hd(ten, khach, no):
+		return {"name": ten, "customer": khach, "vgb_khach_no": "", "con_no": no}
+	rows = [hd("HD1", "K1", 1000000), hd("HD2", "K1", 500000), hd("HD3", "K2", 700000), hd("HD4", "K2", 300000)]
+	ve = {"HD1": {"phan_bo": 600000.0, "cac_pe": ["P1"], "da_xac_minh": 1},
+		"HD2": {"phan_bo": 500000.0, "cac_pe": ["P2"], "da_xac_minh": 1},
+		"HD3": {"phan_bo": 700000.0, "cac_pe": ["P3"], "da_xac_minh": 0}}
+	con, the, khach = chia_no_hoa_don(rows, ve)
+	dong = {r["name"]: r for r in con}
+	la("HD1 còn phải đòi 400.000", dong["HD1"]["con_doi"], 400000.0)
+	la("HD1 ghi rõ 600.000 đã về", dong["HD1"]["da_ve"], 600000.0)
+	la("HD1 nợ sổ cái giữ nguyên", dong["HD1"]["con_no"], 1000000)
+	dung("HD2 phủ đủ nên rời Đang nợ", "HD2" not in dong)
+	la("HD3 chưa xác minh vẫn đòi đủ", (dong["HD3"]["con_doi"], dong["HD3"]["da_ve"]), (700000.0, 0.0))
+	la("HD4 không có phiếu", dong["HD4"]["con_doi"], 300000.0)
+	tong = sum(r["con_doi"] for r in con)
+	la("tổng Còn phải đòi", tong, 400000.0 + 700000.0 + 300000.0)
+	la("thẻ Tiền đã về: tiền cộng cả phần về một phần", the["tien"], 600000.0 + 500000.0)
+	la("thẻ Tiền đã về: số hoá đơn có tiền về", the["so_hd"], 2)
+	la("khách có tiền về", khach, {"K1"})
+	la("sổ cái vẫn đủ: đòi + đã về = nợ trên sổ", tong + the["tien"], 1000000.0 + 500000.0 + 700000.0 + 300000.0)
+	s = _doc("cong_no.py")
+	i = s.find("def ds_khach_no(")
+	than = s[i:s.find("\ndef ", i + 10)]
+	dung("ds_khach_no đi qua phép thuần", "rows, the_ve, khach_cho = tt.chia_no_hoa_don(rows, ve)" in than)
+	dung("cộng khách theo số còn đòi", 'o["tien"] += flt(r["con_doi"])' in than)
+	dung("dòng hoá đơn: tiền là số còn đòi", '"tien": flt(r["con_doi"])' in than)
+	dung("dòng hoá đơn: có số đã về", '"da_ve": flt(r["da_ve"])' in than)
+	dung("dòng hoá đơn: đã thu theo sổ cái", '"da_thu": flt(r.grand_total) - flt(r["con_no"])' in than)
+	dung("Excel Đang nợ có cột tiền đã về", '{"k": "da_ve", "nhan": "Tiền đã về, chờ ghi sổ (đ)", "kieu": "tien"}' in s)
+
+
 @ca("v534 ghi sổ phiếu thu: phải có UNC khách gửi, chỉ kế toán bấm (anh Việt 28/09)")
 def _soat_ghi_so():
 	from vagabond.thu_tien import soat_ghi_so_thu
@@ -387,7 +433,7 @@ def _cong_no_tach():
 	s = _doc("cong_no.py")
 	i = s.find("def ds_khach_no(")
 	than = s[i:s.find("\ndef ", i + 10)]
-	dung("gọi phép tách thuần", 'tt.tach_tien_da_ve(r["con_no"], p["phan_bo"], p["da_xac_minh"])' in than)
+	dung("gọi phép chia thuần", "tt.chia_no_hoa_don(rows, ve)" in than)
 	dung("tổng nợ tính trước ô tìm", than.find("tong = sum(") < than.find("if tim:"))
 	i = s.find("def _tien_da_ve_theo_hd(")
 	than = s[i:s.find("\ndef ", i + 10) if s.find("\ndef ", i + 10) > 0 else len(s)]

@@ -238,7 +238,10 @@ def _ma_thue_bo_cong_no():
 @ca("man cong no doc so no that, khong cong grand_total")
 def _man_cong_no():
 	dung("goi phep tinh no", "tt.con_no_cua(" in CN)
-	dung("cong so con no", 'o["tien"] += flt(r["con_no"])' in CN)
+	# v534 vòng 8: cộng số CÒN PHẢI ĐÒI, tức con_no trừ phần tiền đã về đã
+	# xác minh (thu_tien.chia_no_hoa_don); con_no vẫn là gốc của phép đó.
+	dung("cong so con phai doi", 'o["tien"] += flt(r["con_doi"])' in CN)
+	dung("con phai doi tinh tu con_no", "rows, the_ve, khach_cho = tt.chia_no_hoa_don(rows, ve)" in CN)
 	dung("khong cong ca to nua", 'o["tien"] += flt(r.grand_total)' not in CN)
 	# Man phai bay ca tong to va phan da tra, khong bat ai tru tay.
 	dung("bay tong to", '"tong_don": flt(r.grand_total)' in CN)
