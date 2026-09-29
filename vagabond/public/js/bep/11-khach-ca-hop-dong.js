@@ -103,7 +103,7 @@ async function scrCongNo() {
             /* v541 (anh Việt 29/09/2026): tiền đã về mà nội dung chuyển khoản
                không mang mã đơn thì máy không tự lập phiếu thu, hoá đơn kẹt ở
                Đang nợ. Nút này cho người chọn đúng giao dịch ngân hàng. */
-            '<button class="btn gh" data-cnnhan="' + h(d.name) + '" style="width:auto;margin:6px 0 0;min-height:36px;padding:0 12px;font-size:13px">💰 Khách đã chuyển tiền</button>' +
+            '<button class="btn gh" data-cnnhan="' + h(d.name) + '" style="width:auto;margin:6px 0 0;min-height:44px;padding:0 14px;font-size:13.5px">💰 Khách đã chuyển tiền</button>' +
             '</div>' +
             '<b style="white-space:nowrap">' + money(d.tien) + ' đ</b></div>';
         });
@@ -298,59 +298,47 @@ function cnMoUnc(pe, kv) {
    chưa nối, người CHỌN (máy chỉ gợi ý mã đơn, số điện thoại, số tiền; không
    tự gán theo số tiền). Chọn xong máy lập phiếu thu nháp nối đúng giao dịch,
    hoá đơn sang tab Tiền đã về, và mở luôn hộp đính UNC khách gửi. */
-async function cnNhanTien(si, kv, tatCa) {
+async function cnNhanTien(si, kv) {
   busy(true);
   var r;
-  try { r = await api('vagabond.thu_tien.ung_vien_tien_ve', tatCa ? { si: si, tat_ca: 1 } : { si: si }); }
+  try { r = await api('vagabond.thu_tien.ung_vien_tien_ve', { si: si }); }
   catch (e) { busy(false); return baoTin(errMsg(e) || 'Chưa đọc được giao dịch ngân hàng.'); }
   busy(false);
   var ds = (r && r.gd) || [];
-  var than = '<div style="font-size:13.5px;color:#374151;line-height:1.6;margin-bottom:10px">' +
-    '<b>' + h(r.khach || '') + '</b> · ' + h(si) + ' · còn nợ <b>' + money(r.con_no) + ' đ</b><br>' +
-    '<span style="color:#667085">Chọn đúng khoản tiền khách đã chuyển. Máy chỉ gợi ý, người chọn.</span></div>';
   if (!ds.length) {
-    than += '<div class="emp" style="padding:18px"><div>Chưa thấy giao dịch tiền vào nào chưa nối từ ngày ' + posNgayVn(r.ngay_hd) +
-      ' mà khớp số tiền hay mã đơn. Kiểm lại sao kê hoặc báo kế toán.</div></div>';
+    return baoTin('Chưa thấy giao dịch tiền vào nào chưa nối từ ngày ' + posNgayVn(r.ngay_hd) +
+      ' mà khớp số tiền hay mã đơn. Kiểm lại sao kê hoặc báo kế toán.', 'Khách đã chuyển tiền');
   }
-  ds.forEach(function (g) {
-    than += '<div data-cnchongd="' + h(g.name) + '" style="border:1.5px solid #e4e7ec;border-radius:10px;padding:10px 12px;margin-bottom:8px;cursor:pointer">' +
-      '<div style="display:flex;gap:8px;align-items:baseline"><b style="flex:1">' + money(g.tien) + ' đ</b>' +
-      '<span style="font-size:12.5px;color:#667085">' + posNgayVn(g.ngay) + '</span></div>' +
-      (g.con < g.tien ? '<div style="font-size:12px;color:#b45309">còn ' + money(g.con) + ' đ chưa nối</div>' : '') +
-      '<div style="font-size:12px;color:#475467;margin-top:3px;word-break:break-word">' + h(g.mo_ta) + '</div>' +
-      ((g.khop || []).length ? '<div style="font-size:12px;color:#15803d;margin-top:3px">✓ ' + h(g.khop.join(', ')) + '</div>' : '') +
-      '</div>';
+  /* Codex #389 P2 (vòng 2): chọn là tìm. Đủ mọi khoản, trong bottom sheet có
+     ô tìm theo nội dung, mã giao dịch, số tiền, ngày (AGENTS.md điều 2). */
+  var items = ds.map(function (g) {
+    return {
+      value: g.name,
+      label: money(g.tien) + ' đ · ' + posNgayVn(g.ngay) + ((g.khop || []).length ? ' · ✓ ' + g.khop.join(', ') : ''),
+      phu: (g.con < g.tien ? 'còn ' + money(g.con) + ' đ chưa nối · ' : '') + (g.mo_ta || ''),
+      tim: [g.mo_ta, g.ma_gd, g.tien, money(g.tien), posNgayVn(g.ngay)].join(' '),
+      g: g
+    };
   });
-  /* Codex #389 P2: khoản ngoài GOI_Y_TOI_DA không được biến mất lặng lẽ. */
-  if (r.con_lai > 0) {
-    than += '<button class="btn2" data-cnxemhet="1" style="width:100%;margin-top:4px">Xem thêm ' + r.con_lai +
-      ' giao dịch cũ hơn</button>';
-  }
-  var k = hopKhung('Khách đã chuyển tiền', than, '');
-  k.box.onclick = async function (e) {
-    if (e.target.closest('.x')) { k.dong(); return; }
-    if (e.target.closest('[data-cnxemhet]')) { k.dong(); return cnNhanTien(si, kv, true); }
-    var t = e.target.closest('[data-cnchongd]');
-    if (!t) return;
-    var g = ds.filter(function (x) { return x.name === t.getAttribute('data-cnchongd'); })[0];
-    if (!g) return;
-    k.dong();
-    var tien = Math.min(g.con, r.con_no);
-    var ok = await confirmSheet('Nhận ' + money(tien) + ' đ cho ' + si,
-      'Giao dịch ' + (g.ma_gd || g.name) + ' ngày ' + posNgayVn(g.ngay) + '.\nMáy lập phiếu thu nháp nối đúng giao dịch này. Ghi sổ vẫn cần ảnh chuyển khoản khách gửi.',
-      'Đúng khoản này');
-    if (!ok) return;
-    busy(true);
-    var x;
-    try { x = await api('vagabond.thu_tien.nhan_tien_ve', { si: si, gd: g.name }); }
-    catch (e2) { busy(false); return baoTin(errMsg(e2) || 'Chưa lập được phiếu thu.'); }
-    busy(false);
-    toast('Đã lập phiếu thu ' + x.pe + '. Đính ảnh chuyển khoản khách gửi.', 3500);
-    /* Vẽ lại trước: hoá đơn đã sang tab Tiền đã về dù người đóng hộp UNC. */
-    go(scrCongNo, true);
-    return cnMoUnc(x.pe, { dong: [{ pe: x.pe, ten_khach: x.ten_khach, tien: x.tien, ngay_ve: x.ngay_ve, ma_gd: x.ma_gd }],
-      ke_toan: (kv || {}).ke_toan });
-  };
+  sheet((r.khach || '') + ' · còn nợ ' + money(r.con_no) + ' đ · chọn khoản khách đã chuyển', items, null,
+    async function (it) {
+      var g = it.g;
+      var tien = Math.min(g.con, r.con_no);
+      var ok = await confirmSheet('Nhận ' + money(tien) + ' đ cho ' + si,
+        'Giao dịch ' + (g.ma_gd || g.name) + ' ngày ' + posNgayVn(g.ngay) + '.\nMáy lập phiếu thu nháp nối đúng giao dịch này. Ghi sổ vẫn cần ảnh chuyển khoản khách gửi.',
+        'Đúng khoản này');
+      if (!ok) return;
+      busy(true);
+      var x;
+      try { x = await api('vagabond.thu_tien.nhan_tien_ve', { si: si, gd: g.name }); }
+      catch (e2) { busy(false); return baoTin(errMsg(e2) || 'Chưa lập được phiếu thu.'); }
+      busy(false);
+      toast('Đã lập phiếu thu ' + x.pe + '. Đính ảnh chuyển khoản khách gửi.', 3500);
+      /* Vẽ lại trước: hoá đơn đã sang tab Tiền đã về dù người đóng hộp UNC. */
+      go(scrCongNo, true);
+      return cnMoUnc(x.pe, { dong: [{ pe: x.pe, ten_khach: x.ten_khach, tien: x.tien, ngay_ve: x.ngay_ve, ma_gd: x.ma_gd }],
+        ke_toan: (kv || {}).ke_toan });
+    }, true);
 }
 
 async function cnGhiSo(pe, unc) {
