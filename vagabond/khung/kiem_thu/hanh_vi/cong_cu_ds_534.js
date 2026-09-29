@@ -69,6 +69,11 @@ function mayChu(canh) {
         return { ten_file: a.man + '.xlsx', b64: 'UEsDBA==', so_dong: 3 };
       }
       if (m === 'vagabond.cong_no.ds_khach_no') {
+        if (canh.veMotPhan) {
+          return { khach: [{ khach: 'KL1', ten: 'Công ty A', so_hd: 1, tien: 400000, so_ngay: 3,
+            hd: [{ name: 'HDB-1', tien: 400000, ngay: '2026-09-25', tong_don: 1000000, da_thu: 0, da_ve: 600000 }] }],
+            tong: 400000, so_khach_tat_ca: 1, cho_ghi_so: { so_hd: 1, tien: 600000, so_khach: 1 } };
+        }
         return { khach: [{ khach: 'KL1', ten: 'Công ty A', so_hd: 1, tien: 1000000, so_ngay: 3, hd: [{ name: 'HDB-1', tien: 1000000, ngay: '2026-09-25' }] }],
           tong: 1000000, so_khach_tat_ca: 1, cho_ghi_so: { so_hd: 7, tien: 27622100, so_khach: 7 } };
       }
@@ -361,6 +366,22 @@ async function moCongNo(canh) {
     var app = await moCongNo({ veLoi: 1 });
     bang('tab Đang nợ vẫn có khách', app.tim('[data-cntab="no"]').length, 1);
     bang('chip không kèm số', app.mot('[data-cntab="ve"]').textContent, '💰 Tiền đã về');
+  });
+
+  await ca('Công nợ: hoá đơn có tiền về một phần hiện số còn đòi và dòng đã về chờ ghi sổ (Codex #382 vòng 8)', async function () {
+    var app = await moCongNo({ veMotPhan: 1 });
+    await app.bam(app.mot('[data-cnmo="KL1"]'));
+    var dv = app.mot('[data-cndave]');
+    bang('dòng tiền đã về', dv.textContent, '600000 đ đã về tài khoản, chờ ghi sổ');
+    var chu = app.tl.body.querySelectorAll('b').map(function (x) { return x.textContent; });
+    dung('số bên phải là số còn đòi 400000', chu.indexOf('400000 đ') >= 0);
+    dung('không còn hiện đòi 1000000', chu.indexOf('1000000 đ') < 0);
+  });
+
+  await ca('Công nợ: hoá đơn không có tiền về thì không hiện dòng chờ ghi sổ', async function () {
+    var app = await moCongNo();
+    await app.bam(app.mot('[data-cnmo="KL1"]'));
+    bang('không có dòng', app.tim('[data-cndave]').length, 0);
   });
 
   console.log('  cong_cu_ds_534: ' + ket.dat + ' ca đạt, ' + ket.hong + ' ca hỏng');
