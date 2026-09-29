@@ -476,6 +476,78 @@ def _dem_tep_unc():
 	dung("màn Tiền đã về đếm cùng phép", "dem_tep_unc(tep_dinh_kem.doc_ds(p.get(\"vgb_thu_unc\"))" in than)
 
 
+@ca("v534 UNC khách gửi: chỉ tệp gắn vào phiếu QUA ô UNC mới tính, ảnh ở mục khác không đổi nhãn được (Codex #382 vòng 7)")
+def _o_unc_muc_khac():
+	from vagabond.thu_tien import url_trong_o_unc, tep_muc_khac, O_UNC
+	la("hai ô được nhận", O_UNC, ("vgb_thu_unc", "vgb_thu_unc_tep"))
+	kep = {"file_url": "/private/files/anh-bat-ky.png", "attached_to_field": None}
+	app = {"file_url": "/private/files/unc-app.png", "attached_to_field": "vgb_thu_unc"}
+	desk = {"file_url": "/private/files/unc-desk.png", "attached_to_field": "vgb_thu_unc_tep"}
+	o_khac = {"file_url": "/private/files/hd.pdf", "attached_to_field": "vgb_tep_hoa_don"}
+	la("chỉ tệp gắn qua hai ô UNC", url_trong_o_unc([kep, app, desk, o_khac]),
+		{"/private/files/unc-app.png", "/private/files/unc-desk.png"})
+	la("rỗng", url_trong_o_unc(None), set())
+	# Ca Codex nêu: ô UNC trống, gửi đường dẫn ảnh kẹp giấy của chính phiếu.
+	la("ảnh kẹp giấy bị trả ra để từ chối", tep_muc_khac([kep["file_url"]], [kep]), [kep["file_url"]])
+	la("tệp ô chứng từ khác cũng vậy", tep_muc_khac([o_khac["file_url"]], [o_khac]), [o_khac["file_url"]])
+	la("tệp mới tải lên (chưa gắn đâu) thì nhận", tep_muc_khac(["/private/files/moi.png"], [kep]), [])
+	la("tệp đã gắn qua ô UNC thì nhận", tep_muc_khac([app["file_url"], desk["file_url"]], [app, desk]), [])
+	# Cùng một đường dẫn có hai bản ghi File (kẹp giấy và ô UNC): đã có
+	# bản gắn qua ô UNC thì là tệp UNC thật.
+	hai = [kep, {"file_url": kep["file_url"], "attached_to_field": "vgb_thu_unc"}]
+	la("cùng đường dẫn có bản qua ô UNC thì nhận", tep_muc_khac([kep["file_url"]], hai), [])
+	from vagabond.thu_tien import dem_tep_unc
+	la("đếm: ô ghi tên ảnh kẹp giấy thì 0", dem_tep_unc([kep["file_url"]], url_trong_o_unc([kep])), 0)
+	la("đếm: tệp qua ô Desk thì 1", dem_tep_unc([desk["file_url"]], url_trong_o_unc([kep, desk])), 1)
+	s = _doc("thu_tien.py")
+	i = s.find("def _so_tep_unc(")
+	than = s[i:s.find("\n@frappe.whitelist", i)]
+	dung("cổng ghi sổ đếm qua url_trong_o_unc", "return dem_tep_unc(ds, url_trong_o_unc(gan))" in than)
+	dung("đọc kèm ô gắn của File", '"attached_to_field"' in than)
+	i = s.find("def phieu_thu_nhap(")
+	than = s[i:s.find("\ndef ", i + 10)]
+	dung("màn Tiền đã về đếm cùng phép", "url_trong_o_unc(file_gan.get(p.name))" in than)
+	i = s.find("def ghi_so_phieu_thu(")
+	than = s[i:s.find("\n@frappe.whitelist", i + 10)]
+	a1, a2 = than.find("khac = tep_muc_khac(moi, cua_phieu)"), than.find('gan_vao(PE, doc.name, "vgb_thu_unc", unc)')
+	dung("nút đính soát mục khác TRƯỚC khi gắn tệp", 0 < a1 < a2)
+	# Dò chuỗi, vì ghi_so_phieu_thu chỉ chạy thật trên bench (ca _doi_nhan).
+	# Đột biến bỏ lời từ chối (M41 vòng 7) lọt tầng thuần khi thiếu dòng này:
+	# lớp đếm vẫn chặn ghi sổ, nhưng tệp kẹp giấy bị ghi tên vào ô UNC.
+	dung("có mục khác thì từ chối", 'if khac:\n\t\t\tfrappe.throw("Tệp đã chọn đang đính ở mục khác' in than)
+
+
+@ca("v534 Excel: chữ mở đầu bằng ký tự công thức không thành công thức (Codex #382 vòng 7)")
+def _chu_an_toan():
+	from vagabond.khung.cong_cu_ds import chu_an_toan, dung_bang
+	for goc in ('=HYPERLINK("http://x.invalid","Bấm")', "=1+1", "{=SUM(1,2)}", "@SUM(1)", "+cmd|x",
+			"-2+3", "\t=1", "\r=1"):
+		la("thêm nháy: " + repr(goc), chu_an_toan(goc), "'" + goc)
+	for goc in ("Khách thường", "+84 90 123 4567", "-150000", "0901234567", "HDB-26-09-04242", "", "a=b"):
+		la("giữ nguyên: " + repr(goc), chu_an_toan(goc), goc)
+	la("None ra rỗng", chu_an_toan(None), "")
+	b = dung_bang([{"k": "ten", "nhan": "Tên", "kieu": "chu"}, {"k": "tien", "nhan": "Tiền", "kieu": "tien"}],
+		[{"ten": "=1+1", "tien": 5}])
+	la("dựng bảng đi qua phép an toàn, số vẫn là số", b[1], ["'=1+1", 5])
+	# Có xlsxwriter (máy làm việc, site thật) thì ghi thật và đọc lại XML:
+	# không ô nào là công thức. Máy CI tay không thì phép thuần ở trên chốt.
+	try:
+		import xlsxwriter
+	except ImportError:
+		return
+	import io, zipfile
+	bo = io.BytesIO()
+	wb = xlsxwriter.Workbook(bo, {"constant_memory": True})
+	ws = wb.add_worksheet("x")
+	for goc in ('=HYPERLINK("http://x.invalid","Bấm")', "{=SUM(1,2)}"):
+		ws.write(0, 0, dung_bang([{"k": "t", "nhan": "T"}], [{"t": goc}])[1][0])
+		ws.write(1, 0, goc)
+	wb.close()
+	xml = zipfile.ZipFile(io.BytesIO(bo.getvalue())).read("xl/worksheets/sheet1.xml").decode()
+	dung("dòng chưa qua phép an toàn là công thức (chứng minh phép đo đúng)", "<f" in xml.split('r="2"', 1)[1])
+	dung("dòng đã qua phép an toàn là chữ", "<f" not in xml.split('r="1"', 1)[1].split('r="2"', 1)[0])
+
+
 @ca("v534 hàng tặng: bản app cũ gửi trang_thai vẫn lọc ĐÚNG như trước v534 (Codex #382)")
 def _tt_cu():
 	from unittest.mock import patch
