@@ -298,10 +298,10 @@ function cnMoUnc(pe, kv) {
    chưa nối, người CHỌN (máy chỉ gợi ý mã đơn, số điện thoại, số tiền; không
    tự gán theo số tiền). Chọn xong máy lập phiếu thu nháp nối đúng giao dịch,
    hoá đơn sang tab Tiền đã về, và mở luôn hộp đính UNC khách gửi. */
-async function cnNhanTien(si, kv) {
+async function cnNhanTien(si, kv, tatCa) {
   busy(true);
   var r;
-  try { r = await api('vagabond.thu_tien.ung_vien_tien_ve', { si: si }); }
+  try { r = await api('vagabond.thu_tien.ung_vien_tien_ve', tatCa ? { si: si, tat_ca: 1 } : { si: si }); }
   catch (e) { busy(false); return baoTin(errMsg(e) || 'Chưa đọc được giao dịch ngân hàng.'); }
   busy(false);
   var ds = (r && r.gd) || [];
@@ -321,9 +321,15 @@ async function cnNhanTien(si, kv) {
       ((g.khop || []).length ? '<div style="font-size:12px;color:#15803d;margin-top:3px">✓ ' + h(g.khop.join(', ')) + '</div>' : '') +
       '</div>';
   });
+  /* Codex #389 P2: khoản ngoài GOI_Y_TOI_DA không được biến mất lặng lẽ. */
+  if (r.con_lai > 0) {
+    than += '<button class="btn2" data-cnxemhet="1" style="width:100%;margin-top:4px">Xem thêm ' + r.con_lai +
+      ' giao dịch cũ hơn</button>';
+  }
   var k = hopKhung('Khách đã chuyển tiền', than, '');
   k.box.onclick = async function (e) {
     if (e.target.closest('.x')) { k.dong(); return; }
+    if (e.target.closest('[data-cnxemhet]')) { k.dong(); return cnNhanTien(si, kv, true); }
     var t = e.target.closest('[data-cnchongd]');
     if (!t) return;
     var g = ds.filter(function (x) { return x.name === t.getAttribute('data-cnchongd'); })[0];
