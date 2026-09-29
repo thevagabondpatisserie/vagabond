@@ -1407,3 +1407,8 @@ Cách phòng:
 - Xuất Excel bằng `make_xlsx`: xlsxwriter ghi chuỗi mở đầu bằng "=" và dạng
   "{=...}" thành công thức. Dữ liệu từ khách (tên, lý do, mã đơn) phải qua
   `khung.cong_cu_ds.chu_an_toan` trước khi ghi (Codex #382 vòng 7).
+- Ô Attach trên Desk KHÔNG chứng minh tệp được tải lên qua ô đó: khi lưu,
+  Frappe `attach_files_to_document` chép một đường dẫn có sẵn thành dòng File
+  mới gắn qua ô. Cổng "tệp phải nằm ở ô X" phải xét cả các dòng khác cùng
+  đường dẫn (`thu_tien.url_unc_that`). Ca thuần giả lập không thấy được hành
+  vi này; chỉ bench mới bắt (#382 vòng 8).
