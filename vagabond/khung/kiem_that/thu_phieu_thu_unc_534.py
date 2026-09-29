@@ -16,6 +16,7 @@ from vagabond import thu_tien as tt
 from vagabond.khung.kiem_that.nen import ca, la, dung, _DA_TAO
 from vagabond.khung.kiem_that.thu_cua_thue_243 import _nen, _mon, _app
 from vagabond.khung.kiem_that.thu_ho_so_tt_v445 import _tk_ngan_hang
+from vagabond.khung.kiem_that.thu_sepay_mb_247 import _tai_khoan_cong_ty_moi
 
 TIEN = 1000000
 
@@ -31,8 +32,12 @@ def _du_lieu():
 	si.vgb_ma_tham_chieu = 'KT534-' + frappe.generate_hash(length=8)
 	si.save(ignore_permissions=True)
 	si.submit(); si.reload()
-	ba = _tk_ngan_hang(cty)
+	# Tài khoản sổ cái số hiệu 112 như site thật: hai hook ghi sổ (tệp đính
+	# kèm chung và UNC khách gửi) chỉ soi tài khoản ngân hàng theo số hiệu,
+	# tài khoản Bank mặc định của bench không mang 112 nên sẽ lọt hook.
+	ba = _tai_khoan_cong_ty_moi(_tk_ngan_hang(cty)).name
 	tk_gl = frappe.db.get_value('Bank Account', ba, 'account')
+	dung('tài khoản thử là 112', str(tk_gl).startswith('112'))
 	ref = 'FTKT534' + frappe.generate_hash(length=10)
 	g = frappe.get_doc({
 		'doctype': 'Bank Transaction', 'date': today(), 'bank_account': ba,
@@ -183,6 +188,43 @@ def _mot_gd_hai_hd():
 	# Đọc riêng từng hoá đơn vẫn ra cùng một phiếu thắng.
 	rieng = [p for c in (si.name, si2.name) for p in tt.phieu_thu_nhap(cac_si=[c]) if p['da_xac_minh']]
 	la('đọc từng hoá đơn vẫn chỉ một phiếu thắng', len(rieng), 1)
+
+
+@ca('#380 v534 Codex #382 vòng 3: phiếu thu có mã giao dịch mà không gắn hoá đơn thì không vào Tiền đã về, không thắng phiếu công nợ')
+def _khong_hd():
+	si, g, pe = _du_lieu()
+	le = frappe.copy_doc(pe)
+	le.references = []
+	le.reference_no = pe.reference_no
+	le.paid_amount = le.received_amount = float(TIEN) * 2
+	le.insert(ignore_permissions=True); _DA_TAO.append((le.doctype, le.name))
+	ds = tt.phieu_thu_nhap()
+	dung('phiếu không gắn hoá đơn không hiện', all(p['pe'] != le.name for p in ds))
+	cua_si = [p for p in tt.phieu_thu_nhap(cac_si=[si.name]) if p['pe'] == pe.name]
+	la('phiếu công nợ thật vẫn đã xác minh dù phiếu lẻ lớn hơn', cua_si[0]['da_xac_minh'], 1)
+
+
+@ca('#380 v534 anh Việt 29/09: ghi sổ thẳng trên Desk cũng phải có tệp trong ô UNC khách gửi')
+def _desk():
+	si, g, pe = _du_lieu()
+	with _Tep(gan_vao=pe.name) as t:
+		# Đường Desk: tệp bất kỳ bằng nút kẹp giấy, bấm Ghi sổ (submit thẳng).
+		try:
+			pe.reload(); pe.submit()
+		except frappe.ValidationError as e:
+			dung('câu nói thiếu uỷ nhiệm chi khách gửi', 'uỷ nhiệm chi' in str(e) and 'khách gửi' in str(e))
+		else:
+			dung('Desk phải bị chặn khi ô UNC khách gửi trống', False)
+		pe.reload()
+		la('phiếu còn nháp', pe.docstatus, 0)
+		la('không GL', _gl(pe), [])
+		# Đính đúng ô trên Desk rồi lưu: tệp gộp vào ô danh sách, ghi sổ được.
+		pe.vgb_thu_unc_tep = t.file_url
+		pe.save(ignore_permissions=True); pe.reload()
+		dung('tệp Desk gộp vào ô UNC khách gửi', t.file_url in (pe.get('vgb_thu_unc') or ''))
+		pe.submit(); pe.reload()
+		la('ghi sổ được sau khi đính đúng ô', pe.docstatus, 1)
+		la('GL hai dòng', len(_gl(pe)), 2)
 
 
 @ca('#380 v534 giao dịch đã nối chứng từ khác thì chặn, không ghi tiền hai lần')
