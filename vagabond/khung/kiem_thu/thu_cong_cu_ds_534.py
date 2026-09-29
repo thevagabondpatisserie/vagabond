@@ -205,6 +205,54 @@ def _xac_minh_sai():
 	dung("lệch dưới nửa đồng vẫn khớp", ok)
 
 
+@ca("v534 xác minh tiền về: so theo tiền TÀI KHOẢN NHẬN, phiếu ngoại tệ hoặc tỉ giá khác 1 thì không nhận (Codex #382 vòng 5)")
+def _tien_te():
+	from vagabond.thu_tien import xac_minh_tien_ve, tien_phia_ngan_hang
+	# Ca Codex nêu: 100 USD ghi có 2.500.000 đ, giao dịch chỉ 1.000.000 đ.
+	# Trên 87dda5ee phép so dùng paid_amount (100) nên ra (True, "").
+	usd = _pe(paid_amount=100.0, received_amount=2500000.0, paid_from_account_currency="USD",
+		paid_to_account_currency="VND", source_exchange_rate=25000.0, target_exchange_rate=1.0)
+	ok, ly_do = xac_minh_tien_ve(usd, _gd(deposit=1000000, unallocated_amount=1000000), TK, "TV")
+	dung("100 USD với giao dịch 1.000.000 đ: không khớp", not ok)
+	dung("có câu lý do ngoại tệ", "ngoại tệ" in ly_do)
+	ti_gia = _pe(received_amount=5785500, paid_from_account_currency="VND",
+		paid_to_account_currency="VND", source_exchange_rate=1.0, target_exchange_rate=2.0)
+	dung("tỉ giá đích khác 1: không khớp", not xac_minh_tien_ve(ti_gia, _gd(), TK, "TV")[0])
+	dung("tỉ giá nguồn khác 1: không khớp", not xac_minh_tien_ve(
+		_pe(source_exchange_rate=0.5), _gd(), TK, "TV")[0])
+	dung("tài khoản nhận ngoại tệ: không khớp", not xac_minh_tien_ve(
+		_pe(paid_to_account_currency="USD"), _gd(), TK, "TV")[0])
+	# Tiền hai phía lệch nhau: giao dịch đủ cho paid_amount nhưng thiếu cho
+	# received_amount thì phải dựa vào received_amount.
+	lech = _pe(paid_amount=1000000, received_amount=2500000)
+	ok, ly_do = xac_minh_tien_ve(lech, _gd(deposit=1000000, unallocated_amount=1000000), TK, "TV")
+	dung("tiền hai phía lệch: không khớp", not ok and bool(ly_do))
+	# Chiều ngược lại: tiền vào tài khoản đủ giao dịch mà phiếu gạch nợ khách
+	# nhiều hơn. Chỉ phép soát hai phía bằng nhau chặn được, phép so tiền
+	# chưa phân bổ không đỡ (đột biến M31 vòng 5 lọt khi chưa có dòng này).
+	nguoc = _pe(paid_amount=2500000, received_amount=1000000)
+	ok, ly_do = xac_minh_tien_ve(nguoc, _gd(deposit=1000000, unallocated_amount=1000000), TK, "TV")
+	dung("phiếu gạch nợ nhiều hơn tiền vào: không khớp", not ok)
+	dung("câu lý do nói hai phía lệch", "lệch" in ly_do)
+	vnd = _pe(received_amount=5785500, paid_from_account_currency="VND",
+		paid_to_account_currency="VND", source_exchange_rate=1.0, target_exchange_rate=1.0)
+	la("phiếu tiền đồng thuần đủ trường vẫn khớp", xac_minh_tien_ve(vnd, _gd(), TK, "TV"), (True, ""))
+	la("số dùng để so là tiền tài khoản nhận", tien_phia_ngan_hang(vnd), (5785500.0, ""))
+	la("phiếu cũ thiếu trường tiền tệ: dùng paid_amount", tien_phia_ngan_hang(_pe()), (5785500.0, ""))
+	la("tỉ giá để trống coi là 1", tien_phia_ngan_hang(_pe(target_exchange_rate=None))[1], "")
+	s = _doc("thu_tien.py")
+	i = s.find("def ghi_so_phieu_thu(")
+	than = s[i:s.find("\n@frappe.whitelist", i + 10)]
+	dung("ghi sổ không còn so với paid_amount", "flt(doc.paid_amount)" not in than)
+	la("ghi sổ đọc tiền tài khoản nhận trước submit và sau submit",
+		than.count("tien_nh, sai_tien = tien_phia_ngan_hang(doc.as_dict())"), 2)
+	dung("soát đủ tiền chưa phân bổ theo tiền nhận", "flt(gdoc.unallocated_amount) + LECH < tien_nh" in than)
+	dung("soát số lõi cấp theo tiền nhận", "flt(dong[0].allocated_amount) + LECH < tien_nh" in than)
+	i = s.find("def phieu_thu_nhap(")
+	than = s[i:s.find("\ndef ", i + 10)]
+	la("màn Tiền đã về đọc kèm trường tiền tệ ở cả hai nhánh", than.count("+ TRUONG_TIEN_TE"), 2)
+
+
 @ca("v534 tách tiền đã về: chỉ khi đã xác minh VÀ phủ đủ số còn nợ")
 def _tach():
 	from vagabond.thu_tien import tach_tien_da_ve
@@ -240,7 +288,7 @@ def _nguyen_khoi():
 	dung("có điểm lưu", 'frappe.db.savepoint("vgb_ghi_so_thu")' in than)
 	dung("lùi điểm lưu khi hỏng", 'frappe.db.rollback(save_point="vgb_ghi_so_thu")' in than)
 	dung("nối giao dịch rồi tải lại xác minh", "add_payment_entries" in than and "gdoc.reload()" in than)
-	dung("giao dịch cấp thiếu tiền cho phiếu thì lùi", "flt(dong[0].allocated_amount) + LECH < flt(doc.paid_amount)" in than)
+	dung("giao dịch cấp thiếu tiền cho phiếu thì lùi", "flt(dong[0].allocated_amount) + LECH < tien_nh" in than)
 	# Codex #382: ghi rõ điều kiện lõi đã đọc, để nâng ERPNext còn đối chiếu.
 	for moc in ("frappe/model/document.py", "set_workflow_state_on_action",
 			"erpnext/accounts/doctype/bank_transaction/bank_transaction.py",
