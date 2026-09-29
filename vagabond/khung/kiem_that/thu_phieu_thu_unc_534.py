@@ -262,6 +262,32 @@ def _da_noi():
 		la('không GL', _gl(pe), [])
 
 
+@ca('#380 v534 Codex #382 vòng 5: phiếu thu tỉ giá khác 1 không được xác minh, không ghi sổ, giao dịch không bị nối')
+def _ti_gia():
+	si, g, pe = _du_lieu()
+	# Phiếu thật của bench là tiền đồng thuần: hai phía bằng nhau, tỉ giá 1.
+	la('phiếu thật tiền đồng thuần', (float(pe.received_amount), float(pe.target_exchange_rate)),
+		(float(pe.paid_amount), 1.0))
+	# Đặt thẳng vào cơ sở dữ liệu như một phiếu nhập tay lệch tỉ giá: màn
+	# không được coi là tiền đã về, nút ghi sổ phải từ chối trước submit.
+	frappe.db.set_value('Payment Entry', pe.name, 'target_exchange_rate', 2.0, update_modified=False)
+	ds = [p for p in tt.phieu_thu_nhap(cac_si=[si.name]) if p['pe'] == pe.name]
+	la('màn Tiền đã về: chưa xác minh', ds[0]['da_xac_minh'], 0)
+	dung('câu lý do nói tỉ giá', 'tỉ giá' in ds[0]['ly_do'])
+	with _Tep(gan_vao=pe.name, vao_o=True):
+		try:
+			tt.ghi_so_phieu_thu(pe.name)
+		except frappe.ValidationError as e:
+			dung('câu nói tỉ giá', 'tỉ giá' in str(e))
+		else:
+			dung('phải chặn phiếu tỉ giá khác 1', False)
+		pe.reload(); g.reload()
+		la('phiếu còn nháp', pe.docstatus, 0)
+		la('không GL', _gl(pe), [])
+		la('giao dịch chưa nối', len(g.payment_entries or []), 0)
+		la('giao dịch còn nguyên tiền chưa phân bổ', float(g.unallocated_amount), float(g.deposit))
+
+
 @ca('#380 v534 hỏng sau khi phiếu đã submit: lùi sạch cả lượt, thử lại được')
 def _hong_giua():
 	from erpnext.accounts.doctype.bank_transaction.bank_transaction import BankTransaction
