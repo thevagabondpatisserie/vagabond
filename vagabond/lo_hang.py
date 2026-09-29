@@ -217,6 +217,25 @@ def ton_kha_dung_theo_so(tai_luc, bien_dong_sau):
 	return ra
 
 
+def con_sua_lo(docstatus, action):
+	"""Hook gán lô còn được sửa dòng của phiếu không. THUẦN.
+
+	Nháp thì được. Bấm Gửi (Submit) thẳng trên một nháp ĐÃ LƯU thì Frappe
+	đặt docstatus=1 TRƯỚC khi chạy before_validate, và đánh dấu `_action` =
+	"submit" (frappe/model/document.py: _submit rồi check_docstatus_transition).
+	Chặn theo docstatus != 0 như trước v540 làm hook bỏ qua đúng đường này,
+	nên nháp đã lưu mang lô sai (PSX-2026-00116) bấm Gửi vẫn bị ERPNext chặn
+	âm lô (Codex #390). Phiếu đã ghi sổ sửa sau khi gửi, hay huỷ, thì không.
+	"""
+	try:
+		ds = int(docstatus or 0)
+	except (TypeError, ValueError):
+		return False
+	if ds == 0:
+		return True
+	return ds == 1 and action == "submit"
+
+
 def flt_thuan(x):
 	try:
 		return float(x or 0)
@@ -732,7 +751,7 @@ def gan_lo(doc, method=None):
 	Mã thay thế CHỈ áp cho luồng sản xuất, xem `duoc_thay_ma`.
 	"""
 	try:
-		if cint(getattr(doc, "docstatus", 0)) != 0:
+		if not con_sua_lo(getattr(doc, "docstatus", 0), getattr(doc, "_action", None)):
 			return
 		if not getattr(doc, "items", None):
 			return
