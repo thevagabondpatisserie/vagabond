@@ -1349,3 +1349,27 @@ Cách phòng:
   `nop_quy.tao` và `tao_theo_ngay` trả `{can_ly_do: 1}` trước khi insert để
   màn hỏi lý do lệch rồi gọi lại. Xoá nháp ngay khi promise xong là mất cả
   bảng kê nếu người dùng huỷ hộp lý do. Chỉ xoá khi `sdDaTaoPhieu(kq)` đúng.
+
+## 29/09/2026 (v536): đơn không phải là sổ hoá đơn, và mã cấp trước khi nạp danh mục
+
+- Chị Dung tìm tờ thay thế 14576 trên danh sách hoá đơn bán không ra: tờ đó
+  chỉ nằm dưới dạng chữ "1C26MPV 14576" trong ô ghi tay của đơn gốc, còn tên
+  công ty thì đơn đứng tên người đặt Pancake. Mọi lần "đồng bộ hoá đơn" trước
+  đều lấy ĐƠN làm gốc rồi cố gắn số tờ lên đơn, nên tờ thay thế, tờ tách, tờ
+  lập tay không bao giờ có dòng riêng. Sổ kế toán phải lấy TỜ (bảng MInvoice
+  Invoice, bản chụp 1:1 của m-invoice) làm gốc và trỏ về đơn, không phải
+  ngược lại. Báo cáo `So hoa don dien tu ban ra` làm đúng chiều đó.
+- Mã khách kế toán: máy cấp mã nối tiếp mã lớn nhất, nhưng danh mục Fast của
+  chị Dung đã đi trước ERP (KH001588 so với KH001382). Cấp mã trước khi nạp
+  tệp của chị là hai công ty chung một mã mà không ai thấy. Vì vậy
+  `ma_ke_toan.cap_ma` chỉ cấp sau khi cờ `vgb_ma_ke_toan_da_nap` được bật ở
+  lượt `nap_danh_muc_fast` đầu tiên; trước đó ô để trống chứ không tạm ghi
+  MST (anh Việt chốt 29/09/2026).
+- Patch cần cột mới thì phải tự dựng cột trong patch: `after_migrate` (nơi
+  `truong_tu_them` dựng ô) chạy SAU `patches.txt`. Bench mới còn thiếu cả
+  doctype khai trên site (MInvoice Invoice) và ô do lần deploy trước dựng
+  (vgb_don_erp), nên patch soát `has_column` rồi dừng êm, không nổ migrate.
+- Nhãn "Hoá đơn đầu ra do Fabi xuất" từng gắn cho cả 5.697 tờ tháng 9 trong
+  khi phần lớn do ERP xuất. Một nhãn sai nhưng vô hại lâu ngày thành sự thật
+  trong đầu người đọc; nhịp kéo nay nối tờ ERP về đơn ngay lúc kéo và ghi
+  đúng lý do.
