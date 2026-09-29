@@ -100,11 +100,10 @@ function mayChu(canh) {
           chua_xac_minh: 3, ke_toan: canh.keToan ? 1 : 0 };
       }
       if (m === 'vagabond.thu_tien.ung_vien_tien_ve' && canh.nhieuGd) {
-        var het = [1, 2, 3, 4].map(function (i) {
-          return { name: 'BT-N' + i, ngay: '2026-09-2' + i, tien: 1000000, con: 1000000, mo_ta: 'CK ' + i, ma_gd: 'FTN' + i, khop: ['đúng số tiền'] };
-        });
-        return { si: a.si, khach: 'Ms.Thanh', con_no: 1000000, ngay_hd: '2026-09-01',
-          gd: a.tat_ca ? het : het.slice(0, 1), con_lai: a.tat_ca ? 0 : 3 };
+        var het = [];
+        for (var i = 1; i <= 15; i++) het.push({ name: 'BT-N' + i, ngay: '2026-09-' + (10 + i), tien: 1000000, con: 1000000,
+          mo_ta: 'CK ' + i, ma_gd: 'FTN' + (100 + i), khop: ['đúng số tiền'] });
+        return { si: a.si, khach: 'Ms.Thanh', con_no: 1000000, ngay_hd: '2026-09-01', gd: het };
       }
       if (m === 'vagabond.thu_tien.ung_vien_tien_ve') {
         return { si: a.si, khach: 'Ms.Thanh', con_no: 1000000, ngay_hd: '2026-09-25', gd: canh.khongGd ? [] : [
@@ -169,6 +168,9 @@ function appMoi(canh) {
     'async function scrHome() { frame(APPNAME, "<div></div>"); }',
     'function scrTangBaoCao() {}',
   ].join('\n'), Object.assign(g, { __tin: tin, __mc: mc, __tai: tai, __bill: bill, __tep: tep }));
+  /* sheet() THẬT từ 00-nen.js (Codex #389: hộp chọn giao dịch là bottom sheet có ô tìm). */
+  var nen = doc('00-nen.js');
+  vm.runInContext(nen.slice(nen.indexOf('function sheet('), nen.indexOf('function confirmSheet(')), g);
   vm.runInContext(doc('01-khung-app.js'), g);
   vm.runInContext(doc('15-khuon-danh-sach.js'), g);
   vm.runInContext(doc('41-duyet-don-tang.js'), g);
@@ -415,17 +417,27 @@ async function moCongNo(canh) {
 
   /* v541 (anh Việt 29/09/2026): tiền đã về mà hoá đơn nằm ở Đang nợ vì nội
      dung chuyển khoản không mang mã đơn. Ca đi ĐÚNG chuỗi của người dùng:
-     mở khách, bấm nút trên dòng hoá đơn, chọn giao dịch, xác nhận, đính UNC. */
-  await ca('Công nợ v541: dòng hoá đơn Đang nợ có nút Khách đã chuyển tiền; bấm không làm đổi dấu tick', async function () {
+     mở khách, bấm nút trên dòng hoá đơn, chọn giao dịch trong bottom sheet có
+     ô tìm (Codex #389 vòng 2), xác nhận, đính UNC. sheet() là bản THẬT. */
+  function shiCua(app, ten) {
+    var lst = app.tl.body.querySelectorAll('.shl'); lst = lst[lst.length - 1];
+    /* Tìm dòng theo chữ trong HTML của sheet: mỗi mảnh sau 'class="shi' là một dòng, cùng thứ tự querySelectorAll. */
+    var manh = lst.innerHTML.split('class="shi').slice(1), rows = lst.querySelectorAll('.shi'), r = [];
+    manh.forEach(function (m, i) { if (m.indexOf(ten) >= 0) r.push(rows[i]); });
+    return { lst: lst, row: r[0], dem: r.length };
+  }
+  await ca('Công nợ v541: dòng hoá đơn Đang nợ có nút Khách đã chuyển tiền cao 44px; bấm không làm đổi dấu tick', async function () {
     var app = await moCongNo();
     await app.bam(app.mot('[data-cnmo="KL1"]'));
     var nut = app.mot('[data-cnnhan="HDB-1"]');
+    var cao = /min-height:\s*(\d+)px/.exec(nut.getAttribute('style') || '');
+    dung('nút cao ít nhất 44px (AGENTS.md điều 13)', cao && +cao[1] >= 44);
     await app.bam(nut);
     bang('hỏi đúng hoá đơn', app.mc.cuoi('vagabond.thu_tien.ung_vien_tien_ve').a, { si: 'HDB-1' });
-    var hop = app.mot('[data-hop="Khách đã chuyển tiền"]');
-    bang('hai giao dịch để người chọn', hop.querySelectorAll('[data-cnchongd]').length, 2);
-    var chu = hop.querySelectorAll('div').map(function (d) { return d._chu; }).join('|');
-    dung('hiện lý do khớp mã đơn', chu.indexOf('nội dung có mã đơn 93367') >= 0);
+    var lst = app.mot('.shl');
+    bang('hai giao dịch để người chọn', lst.querySelectorAll('.shi').length, 2);
+    dung('bottom sheet có ô tìm', app.mot('.shb').querySelectorAll('input').length === 1);
+    dung('hiện lý do khớp mã đơn', lst.innerHTML.indexOf('nội dung có mã đơn 93367') >= 0);
     bang('chưa lập phiếu khi chưa chọn', app.mc.dem('vagabond.thu_tien.nhan_tien_ve'), 0);
     var o = app.mot('[data-cnhd="KL1|HDB-1"]');
     dung('ô tick không bị bật', o.innerHTML.indexOf('✓') < 0);
@@ -435,8 +447,9 @@ async function moCongNo(canh) {
     var app = await moCongNo();
     await app.bam(app.mot('[data-cnmo="KL1"]'));
     await app.bam(app.mot('[data-cnnhan="HDB-1"]'));
-    var hop = app.mot('[data-hop="Khách đã chuyển tiền"]');
-    await app.bam(hop.querySelectorAll('[data-cnchongd="BT-9"]')[0]);
+    var c = shiCua(app, 'CK DON 93367');
+    bang('đúng một dòng của giao dịch BT-9', c.dem, 1);
+    c.lst.onclick({ target: c.row }); await nghi(); await nghi(); await nghi();
     bang('gửi đúng hoá đơn và giao dịch', app.mc.cuoi('vagabond.thu_tien.nhan_tien_ve').a, { si: 'HDB-1', gd: 'BT-9' });
     dung('báo đã lập phiếu', app.tin.some(function (t) { return t.indexOf('toast:Đã lập phiếu thu APP-MOI') === 0; }));
     var unc = app.tim('[data-hop="Uỷ nhiệm chi khách gửi"]');
@@ -451,35 +464,31 @@ async function moCongNo(canh) {
     var app = await moCongNo({ khongGd: 1 });
     await app.bam(app.mot('[data-cnmo="KL1"]'));
     await app.bam(app.mot('[data-cnnhan="HDB-1"]'));
-    var chu = app.mot('[data-hop="Khách đã chuyển tiền"]').querySelectorAll('div').map(function (d) { return d._chu; }).join('|');
-    dung('câu chưa thấy giao dịch', chu.indexOf('Chưa thấy giao dịch tiền vào') >= 0);
+    dung('câu chưa thấy giao dịch', app.tin.some(function (t) { return t.indexOf('baoTin:Chưa thấy giao dịch tiền vào') === 0; }));
+    bang('không mở sheet rỗng', app.tim('.shl').length, 0);
     var app2 = await moCongNo({ nhanLoi: 1 });
     await app2.bam(app2.mot('[data-cnmo="KL1"]'));
     await app2.bam(app2.mot('[data-cnnhan="HDB-1"]'));
-    await app2.bam(app2.mot('[data-hop="Khách đã chuyển tiền"]').querySelectorAll('[data-cnchongd="BT-7"]')[0]);
+    var c = shiCua(app2, 'NGUYEN VAN A');
+    c.lst.onclick({ target: c.row }); await nghi(); await nghi(); await nghi();
     dung('câu lỗi máy chủ', app2.tin.some(function (t) { return t.indexOf('đã có phiếu thu APP-1') >= 0; }));
     bang('không mở hộp UNC', app2.tim('[data-hop="Uỷ nhiệm chi khách gửi"]').length, 0);
   });
 
-  /* Codex #389 P2: giao dịch ngoài số gợi ý tối đa không được biến mất lặng
-     lẽ. Người bấm Xem thêm thì máy hỏi lại với tat_ca và hiện đủ để chọn. */
-  await ca('Công nợ v541: còn giao dịch ngoài danh sách thì có nút Xem thêm, bấm thì hiện đủ để chọn', async function () {
+  /* Codex #389 P2 (hai vòng): mọi khoản thoả luật đều có mặt, không cắt; nhiều
+     khoản thì gõ tìm theo mã giao dịch, số tiền, nội dung, ngày rồi chọn. */
+  await ca('Công nợ v541: nhiều giao dịch thì hiện đủ, gõ tìm mã giao dịch còn đúng một dòng và chọn được', async function () {
     var app = await moCongNo({ nhieuGd: 1 });
     await app.bam(app.mot('[data-cnmo="KL1"]'));
     await app.bam(app.mot('[data-cnnhan="HDB-1"]'));
-    var hop = app.mot('[data-hop="Khách đã chuyển tiền"]');
-    bang('lần đầu một giao dịch', hop.querySelectorAll('[data-cnchongd]').length, 1);
-    var xem = hop.querySelectorAll('[data-cnxemhet]');
-    bang('có nút Xem thêm', xem.length, 1);
-    dung('nói rõ còn 3 giao dịch', xem[0]._chu.indexOf('Xem thêm 3 giao dịch') >= 0);
-    await app.bam(xem[0]);
-    bang('hỏi lại lấy hết', app.mc.cuoi('vagabond.thu_tien.ung_vien_tien_ve').a, { si: 'HDB-1', tat_ca: 1 });
-    var hops = app.tim('[data-hop="Khách đã chuyển tiền"]');
-    var moi = hops[hops.length - 1];
-    bang('hiện đủ bốn giao dịch', moi.querySelectorAll('[data-cnchongd]').length, 4);
-    bang('hết thì không còn nút Xem thêm', moi.querySelectorAll('[data-cnxemhet]').length, 0);
-    await app.bam(moi.querySelectorAll('[data-cnchongd="BT-N4"]')[0]);
-    bang('chọn được giao dịch cũ nhất', app.mc.cuoi('vagabond.thu_tien.nhan_tien_ve').a, { si: 'HDB-1', gd: 'BT-N4' });
+    var lst = app.mot('.shl');
+    bang('đủ 15 giao dịch, không cắt', lst.querySelectorAll('.shi').length, 15);
+    var o = app.mot('.shb').querySelectorAll('input')[0];
+    o.value = 'FTN103'; o.oninput();
+    var r = lst.querySelectorAll('.shi');
+    bang('tìm mã giao dịch còn một dòng', r.length, 1);
+    lst.onclick({ target: r[0] }); await nghi(); await nghi(); await nghi();
+    bang('chọn đúng giao dịch tìm được', app.mc.cuoi('vagabond.thu_tien.nhan_tien_ve').a, { si: 'HDB-1', gd: 'BT-N3' });
   });
 
   console.log('  cong_cu_ds_534: ' + ket.dat + ' ca đạt, ' + ket.hong + ' ca hỏng');
