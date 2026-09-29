@@ -147,3 +147,7 @@ Cả 4 finding tái hiện được, số liệu trước/sau đo bằng bộ gi
 ## Vòng 9 review Codex trên #382 (SHA 8719455a)
 
 - Q1 (P1) đang tìm một khách thì thẻ "Còn phải đòi" vẫn là tổng mọi khách trong khi danh sách và Excel chỉ còn phần khớp. Tái hiện bằng cách chạy thật `ds_khach_no(tim=...)` với hai khách 1.000.000 và 5.000.000, tìm khách thứ nhất: trước, thẻ 6.000.000, không có tổng phần khớp; sau, thẻ vẫn 6.000.000 (giữ nguyên ý "không teo theo chữ đang gõ") và máy chủ trả thêm `tong_loc` 1.000.000, màn hiện dòng "Khớp ô tìm: 1 khách · 1.000.000 đ" ngay trên danh sách. Phép lọc gom về `thu_tien.loc_khach_no` (thuần). Bench 8719455a: hai lượt 295/295, đủ 13/13 ca `#380 v534`.
+
+## Vòng 10 review Codex trên #382 (SHA 2133d930)
+
+- R1 (P1) xoá hay thay tệp ở ô "Đính uỷ nhiệm chi khách gửi" trên Desk thì đường dẫn cũ vẫn nằm trong ô danh sách `vgb_thu_unc`, mà Frappe giữ nguyên dòng File khi ô Attach bị xoá, nên tệp đã gỡ vẫn được đếm và phiếu ghi sổ được. Tái hiện được bằng chạy thật hook `gop_unc_desk` với bản trước khi lưu: xoá ô Desk thì ô danh sách vẫn giữ `b.pdf`; thay `b` bằng `c` thì còn cả hai. Sửa: phép thuần `thu_tien.doi_unc_desk(ds, cu, moi)` bỏ đường dẫn cũ của ô Desk khi ô bị xoá hoặc thay, gộp đường dẫn mới; hook đọc giá trị cũ từ `get_doc_before_save`. Tệp đính qua app không bị đụng. Bench mới `_desk_go`: đính qua ô Desk, xoá, lưu, ghi sổ phải bị chặn; thay tệp khác thì ghi sổ được và ô danh sách chỉ còn tệp mới.
