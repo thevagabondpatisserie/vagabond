@@ -429,6 +429,25 @@ def _unc_desk():
 	tt.gop_unc_desk(dd)
 	la("lưu trên Desk: tệp ô Desk gộp vào ô danh sách", dd["vgb_thu_unc"],
 		'["/private/files/a.png", "/private/files/b.pdf"]')
+	# Codex #382 vòng 10: xoá hay thay tệp ở ô Desk thì bỏ đường dẫn cũ khỏi
+	# ô danh sách. Chạy thật hook với bản trước khi lưu, như Frappe gọi.
+	class DocTruoc(Doc):
+		def get_doc_before_save(self):
+			return self.get("_truoc")
+	xoa = DocTruoc(name="PE1", vgb_thu_unc='["/private/files/a.png", "/private/files/b.pdf"]',
+		vgb_thu_unc_tep=None, _truoc={"vgb_thu_unc_tep": "/private/files/b.pdf"})
+	tt.gop_unc_desk(xoa)
+	la("xoá ô Desk: bỏ tệp Desk, giữ tệp app", xoa["vgb_thu_unc"], '["/private/files/a.png"]')
+	thay = DocTruoc(name="PE1", vgb_thu_unc='["/private/files/a.png", "/private/files/b.pdf"]',
+		vgb_thu_unc_tep="/private/files/c.pdf", _truoc={"vgb_thu_unc_tep": "/private/files/b.pdf"})
+	tt.gop_unc_desk(thay)
+	la("thay ô Desk: tệp cũ ra, tệp mới vào", thay["vgb_thu_unc"], '["/private/files/a.png", "/private/files/c.pdf"]')
+	chi_desk = DocTruoc(name="PE1", vgb_thu_unc='["/private/files/b.pdf"]',
+		vgb_thu_unc_tep="", _truoc={"vgb_thu_unc_tep": "/private/files/b.pdf"})
+	tt.gop_unc_desk(chi_desk)
+	la("xoá tệp Desk duy nhất: ô danh sách trống", chi_desk["vgb_thu_unc"], None)
+	la("thuần: không đổi thì giữ nguyên", tt.doi_unc_desk(["/a", "/b"], "/b", "/b"), ["/a", "/b"])
+	la("thuần: lần lưu đầu chỉ gộp", tt.doi_unc_desk(["/a"], "", "/b"), ["/a", "/b"])
 	import runpy
 	pe_ev = runpy.run_path(os.path.join(GOI, "hooks.py"))["doc_events"]["Payment Entry"]
 	bs = pe_ev["before_submit"]
