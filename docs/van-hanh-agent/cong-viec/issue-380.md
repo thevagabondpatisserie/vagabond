@@ -119,3 +119,8 @@ Cả 4 finding tái hiện được, số liệu trước/sau đo bằng bộ gi
   - Hook before_submit `thu_tien.chan_thieu_unc_khach` (sau hook tệp chung): phiếu trong tập `can_unc_khach` (Receive, Customer, tài khoản 112, có phân bổ hoá đơn bán, mã giao dịch khớp Bank Transaction đã xác nhận, không phải phiếu đặt bánh hay hồ sơ hoàn tiền) phải có tệp trong ô UNC khách gửi, đường nào gọi submit cũng vậy. Hai luồng đặt bánh và hoàn tiền giữ luật giấy báo Có như cũ.
   - Bench `_desk`: tệp bất kỳ rồi submit thẳng bị chặn, phiếu còn nháp, 0 GL; đính vào ô Desk, lưu, tệp gộp vào ô UNC, submit được, GL hai dòng. Bench v534 chuyển sang tài khoản 112 như site thật để hai hook ghi sổ thực sự chạy.
 - J2 phiếu thu có mã giao dịch nhưng không phân bổ hoá đơn vẫn vào tab Tiền đã về và Excel. Sửa: `phieu_thu_nhap` bỏ phiếu không gắn hoá đơn bán trước khi đọc tệp và giao dịch; ứng viên chọn phiếu thắng cũng phải gắn hoá đơn, nên phiếu lẻ lớn hơn không hạ phiếu công nợ thật. Bench `_khong_hd`.
+
+## Vòng 4 review Codex trên #382 (SHA 5f38338c)
+
+- K1 hook UNC khách gửi gặp lỗi lạ thì ghi log rồi cho qua (fail open). Tái hiện bằng ca thuần: `frappe.db.exists` ném lỗi, trước: hook trả về bình thường; sau: ghi log rồi ném lại, ghi sổ bị chặn.
+- K2 nút đính UNC trên app gắn tệp vào mọi phiếu thu nháp trước khi soát loại phiếu. Sửa: `_thuoc_tap_unc` (một chỗ, dùng chung với hook ghi sổ) soát TRƯỚC `gan_vao`; phiếu ngoài tập bị từ chối, không gắn tệp. Bench `_ngoai_tap`.
