@@ -1393,3 +1393,9 @@ Cách phòng:
 - Đổi tham số lọc cho màn mà vẫn nhận tham số cũ "để app cũ không vỡ" thì phải
   chép ĐÚNG phép lọc cũ, không quy gần đúng về khái niệm mới (Codex #382:
   "Đã duyệt" cũ = chờ ghi sổ + đã ghi sổ, không trùng chặng nào).
+- Payment Entry có HAI số tiền: `paid_amount` là tiền phía bên kia (khách
+  với phiếu thu), `received_amount` là tiền vào tài khoản nhận. So với giao
+  dịch ngân hàng thì phải dùng phía tài khoản ngân hàng, hoặc chặn hẳn phiếu
+  ngoại tệ và tỉ giá khác 1 (Codex #382 vòng 5, `thu_tien.tien_phia_ngan_hang`).
+  Tiệm chỉ dùng tiền đồng nên hai số luôn bằng nhau trên dữ liệu thật, và vì
+  thế không ca kiểm nào dựng từ dữ liệu thật bắt được lỗi này.
