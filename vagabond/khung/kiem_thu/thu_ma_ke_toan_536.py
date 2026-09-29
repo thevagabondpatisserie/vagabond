@@ -462,6 +462,43 @@ def _nap_rong():
 		la("NCC chưa có sàn thì không cấp", mk.cap_ma("Supplier", "NCC-A"), "")
 
 
+@ca("Codex #389 P1 vòng 2: tệp Fast có dòng lặp thì xử một lần; một MST mang hai mã thì là xung đột, không ghi gì cho MST đó")
+def _trung_mst():
+	kh = mk.ke_hoach_nap([
+		{"ma": "KH000300", "ten": "Mới", "mst": "0300000300"},
+		{"ma": "KH000300", "ten": "Mới", "mst": "0300000300"},
+		{"ma": "KH000401", "ten": "A", "mst": "0300000401"},
+		{"ma": "KH000402", "ten": "A lặp mã", "mst": "0300000401"},
+	], {"Customer": {}})
+	la("dòng lặp y hệt chỉ tạo một lần", [d["ma"] for d in kh["tao_moi"]], ["KH000300"])
+	la("MST hai mã: một xung đột, nêu đủ hai mã", [(d["mst"], "KH000401" in d["ly_do"] and "KH000402" in d["ly_do"]) for d in kh["xung_dot"]],
+		[("0300000401", True)])
+	kh = mk.ke_hoach_nap([{"ma": "KH000401", "mst": "0300000401"}, {"ma": "KH000402", "mst": "0300000401"}],
+		{"Customer": {"0300000401": {"name": "C-A", "ma": ""}}})
+	la("MST hai mã không cập nhật bản ghi đang có", kh["cap_nhat"], [])
+
+
+@ca("Codex #389 P1 vòng 2: lọc chỉ tờ chưa nối xét CẢ ba đường tra đơn trên cả kỳ rồi mới cắt TOI_DA")
+def _chua_noi_truoc_cat():
+	bc = _bao_cao()
+	# 5 tờ đầu kỳ ô Đơn ERP trống nhưng tra theo số ra đơn (đã nối gián tiếp), tờ cuối kỳ chưa nối thật.
+	TO = [_D(name="id-%d" % i, so_hd=100 + i, ky_hieu="C26MPV", ngay_lap=datetime.date(2026, 9, i), nguoi_mua_ban="Khách lẻ",
+		mst_doi_tac="", trang_thai="Gốc", hd_goc="", vgb_don_erp="") for i in range(1, 6)]
+	TO.append(_D(name="id-cuoi", so_hd=999, ky_hieu="C26MPV", ngay_lap=datetime.date(2026, 9, 29), nguoi_mua_ban="Khách lẻ",
+		mst_doi_tac="", trang_thai="Gốc", hd_goc="", vgb_don_erp=""))
+
+	def get_all(dt, filters=None, **k):
+		if dt == "Sales Invoice" and "custom_hddt_so" in (filters or {}):
+			return [_D(name="HDB-%d" % i, custom_hddt_so=str(100 + i), custom_hddt_ky_hieu="1C26MPV") for i in range(1, 6)]
+		return []
+	f = NS(get_list=lambda dt, **k: _loc_ten(TO, k), get_all=get_all, throw=_throw)
+	with unittest.mock.patch.object(bc, "frappe", f), unittest.mock.patch.object(mk, "frappe", f), \
+			unittest.mock.patch.object(bc, "TOI_DA", 2):
+		_, rows, msg = bc.execute({"tu_ngay": "2026-09-01", "den_ngay": "2026-09-30", "chi_chua_noi": 1})
+	la("chỉ tờ chưa nối thật, dù nằm cuối kỳ", [r["so_hd"] for r in rows], ["999"])
+	dung("không báo quá nhiều tờ khi thật ra chỉ có một", "Quá" not in msg)
+
+
 # ------------------------------------------------------------- sổ hoá đơn
 
 def _bao_cao():

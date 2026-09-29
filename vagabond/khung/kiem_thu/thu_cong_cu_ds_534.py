@@ -810,11 +810,51 @@ def _goi_y_tien_ve():
 	la("dòng lệch tiền không có lý do", xep[3]["khop"], [])
 	la("không có dấu hiệu gì thì rỗng", tt.dau_hieu_don("", ""), {"ma_don": [], "dien_thoai": [], "ten_si": ""})
 	# Codex #389 P2: nhiều khoản cùng điểm (cùng số tiền, không mã) thì khoản
-	# MỚI trước, để khoản khách vừa chuyển không rơi khỏi GOI_Y_TOI_DA.
+	# MỚI trước, để khoản khách vừa chuyển nằm đầu danh sách.
 	cung = [{"name": "BT-%02d" % i, "date": "2026-09-%02d" % i, "unallocated_amount": 745000, "description": "ck"}
 		for i in range(1, 16)]
 	xep = tt.xep_ung_vien(cung, dh, 745000)
 	la("cùng điểm: mới nhất đứng đầu", [x["name"] for x in xep[:3]], ["BT-15", "BT-14", "BT-13"])
-	dung("khoản mới nhất nằm trong số gợi ý tối đa", "BT-15" in [x["name"] for x in xep[:tt.GOI_Y_TOI_DA]])
+	la("không cắt: đủ 15 khoản", len(xep), 15)
+	dung("không còn trần gợi ý nào (Codex #389 vòng 2)", not hasattr(tt, "GOI_Y_TOI_DA"))
 	cung.append({"name": "BT-ma", "date": "2026-09-01", "unallocated_amount": 745000, "description": "DON 93367"})
 	la("điểm cao vẫn trước ngày", tt.xep_ung_vien(cung, dh, 745000)[0]["name"], "BT-ma")
+
+
+class _A(dict):
+	__getattr__ = dict.get
+
+
+@ca("Codex #389 P2 vòng 2: máy chủ trả ĐỦ mọi giao dịch ứng viên, không cắt, khoản mới nhất đứng đầu")
+def _ung_vien_du():
+	# Chạy ung_vien_tien_ve THẬT; chỉ giả frappe (bảng giao dịch 40 khoản cùng số
+	# tiền, tôn trọng limit_page_length như site) và hàm kiểm quyền của ban_hang
+	# (ban_hang kéo requests, CI tay không không có).
+	import sys
+	import types
+	import unittest.mock
+	from vagabond import thu_tien as tt
+	gd = [_A(name="BT-%02d" % i, date="2026-09-%02d" % (i % 28 + 1), deposit=745000, unallocated_amount=745000,
+		description="ck %d" % i, reference_number="FT%02d" % i, bank_account="MB") for i in range(1, 41)]
+	gd.sort(key=lambda x: x["date"], reverse=True)
+
+	def get_all(dt, filters=None, fields=None, pluck=None, limit_page_length=0, order_by=None, **k):
+		if dt == "Bank Account":
+			return ["MB"]
+		if dt == tt.PE:
+			return []
+		if dt == tt.BT:
+			ra = [g for g in gd if "description" not in (filters or {})]
+			return ra[:limit_page_length] if limit_page_length else ra
+		return []
+	hd = _A(name="HDB-1", docstatus=1, outstanding_amount=745000, posting_date="2026-09-01", company="V",
+		remarks="Pancake #93367", customer_name="Ms.Thanh")
+	f = types.SimpleNamespace(get_all=get_all, db=types.SimpleNamespace(get_value=lambda *a, **k: hd),
+		throw=lambda m: (_ for _ in ()).throw(ValueError(m)))
+	gia_bh = types.ModuleType("vagabond.ban_hang")
+	gia_bh._kiem_quyen_doc_luu_don = lambda: None
+	with unittest.mock.patch.object(tt, "frappe", f), unittest.mock.patch.dict(sys.modules, {"vagabond.ban_hang": gia_bh}), \
+			unittest.mock.patch("frappe.utils.add_days", lambda d, n: d, create=True):
+		r = tt.ung_vien_tien_ve("HDB-1")
+	la("đủ 40 khoản, không cắt", len(r["gd"]), 40)
+	la("khoản mới nhất đứng đầu", r["gd"][0]["ngay"], max(g["date"] for g in gd))
