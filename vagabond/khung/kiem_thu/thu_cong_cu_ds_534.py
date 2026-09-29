@@ -309,6 +309,28 @@ def _chia_con_no():
 	dung("Excel Đang nợ có cột tiền đã về", '{"k": "da_ve", "nhan": "Tiền đã về, chờ ghi sổ (đ)", "kieu": "tien"}' in s)
 
 
+@ca("v534 công nợ: đang tìm thì phần hiện ra có tổng riêng, thẻ trên đầu giữ tổng thật (Codex #382 vòng 9)")
+def _loc_khach_no():
+	from vagabond.thu_tien import loc_khach_no
+	ds = [{"khach": "K1", "ten": "Công ty A", "tien": 1000000.0, "hd": [{"name": "HDB-1"}]},
+		{"khach": "K2", "ten": "Công ty B", "tien": 5000000.0, "hd": [{"name": "HDB-2"}, {"name": "HDB-9"}]}]
+	la("không tìm: đủ và tổng đủ", loc_khach_no(ds, ""), (ds, 6000000.0))
+	la("tìm theo tên", loc_khach_no(ds, " công ty a "), ([ds[0]], 1000000.0))
+	la("tìm theo số hoá đơn", loc_khach_no(ds, "hdb-9"), ([ds[1]], 5000000.0))
+	la("tìm theo mã khách", loc_khach_no(ds, "k2"), ([ds[1]], 5000000.0))
+	la("không khớp ai", loc_khach_no(ds, "zzz"), ([], 0))
+	la("rỗng", loc_khach_no(None, "a"), ([], 0))
+	s = _doc("cong_no.py")
+	i = s.find("def ds_khach_no(")
+	than = s[i:s.find("\ndef ", i + 10)]
+	dung("ds_khach_no lọc qua phép thuần", "ra, tong_loc = tt.loc_khach_no(ra, tim)" in than)
+	dung("trả tổng phần lọc", '"tong_loc": tong_loc' in than)
+	# Dò chuỗi vì ds_khach_no kéo requests, không chạy được trên CI tay không.
+	# Đột biến trả tong_loc vào ô "tong" (M57 vòng 9) lọt khi thiếu dòng này.
+	dung("thẻ trên đầu trả tổng thật, không phải tổng lọc", '"khach": ra, "tong": tong, "so_khach_tat_ca"' in than)
+	dung("thẻ trên đầu vẫn là tổng trước khi lọc", 0 < than.find("tong = sum(") < than.find("tt.loc_khach_no(ra, tim)"))
+
+
 @ca("v534 ghi sổ phiếu thu: phải có UNC khách gửi, chỉ kế toán bấm (anh Việt 28/09)")
 def _soat_ghi_so():
 	from vagabond.thu_tien import soat_ghi_so_thu
@@ -434,7 +456,7 @@ def _cong_no_tach():
 	i = s.find("def ds_khach_no(")
 	than = s[i:s.find("\ndef ", i + 10)]
 	dung("gọi phép chia thuần", "tt.chia_no_hoa_don(rows, ve)" in than)
-	dung("tổng nợ tính trước ô tìm", than.find("tong = sum(") < than.find("if tim:"))
+	dung("tổng nợ tính trước ô tìm", 0 < than.find("tong = sum(") < than.find("tt.loc_khach_no(ra, tim)"))
 	i = s.find("def _tien_da_ve_theo_hd(")
 	than = s[i:s.find("\ndef ", i + 10) if s.find("\ndef ", i + 10) > 0 else len(s)]
 	dung("cộng qua phép thuần gom_tien_da_ve", "return tt.gom_tien_da_ve(ds)" in than)
