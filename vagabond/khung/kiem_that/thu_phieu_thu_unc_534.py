@@ -259,6 +259,41 @@ def _desk():
 		la('GL hai dòng', len(_gl(pe)), 2)
 
 
+@ca('#380 v534 Codex #382 vòng 10: xoá hay thay tệp ở ô UNC trên Desk thì tệp cũ không còn được tính')
+def _desk_go():
+	si, g, pe = _du_lieu()
+	with _Tep(gan_vao=pe.name, o='vgb_thu_unc_tep') as t2:
+		pe.reload()
+		pe.vgb_thu_unc_tep = t2.file_url
+		pe.save(ignore_permissions=True); pe.reload()
+		dung('tệp Desk vào ô danh sách', t2.file_url in (pe.get('vgb_thu_unc') or ''))
+		# Người dùng bấm xoá tệp ở ô Desk rồi lưu.
+		pe.vgb_thu_unc_tep = None
+		pe.save(ignore_permissions=True); pe.reload()
+		dung('dòng File vẫn còn (Frappe giữ lại)', bool(frappe.db.exists('File', t2.name)))
+		dung('tệp đã gỡ ra khỏi ô danh sách', t2.file_url not in (pe.get('vgb_thu_unc') or ''))
+		try:
+			pe.submit()
+		except frappe.ValidationError as e:
+			dung('câu nói thiếu uỷ nhiệm chi khách gửi', 'uỷ nhiệm chi' in str(e))
+		else:
+			dung('gỡ tệp Desk rồi thì phải bị chặn ghi sổ', False)
+		pe.reload()
+		la('phiếu còn nháp', pe.docstatus, 0)
+		la('không GL', _gl(pe), [])
+		# Thay bằng tệp khác: tệp cũ ra, tệp mới vào, ghi sổ được.
+		with _Tep(gan_vao=pe.name, o='vgb_thu_unc_tep') as t3:
+			pe.vgb_thu_unc_tep = t2.file_url
+			pe.save(ignore_permissions=True); pe.reload()
+			pe.vgb_thu_unc_tep = t3.file_url
+			pe.save(ignore_permissions=True); pe.reload()
+			ds = pe.get('vgb_thu_unc') or ''
+			dung('thay tệp: tệp mới có, tệp cũ không', t3.file_url in ds and t2.file_url not in ds)
+			pe.submit(); pe.reload()
+			la('ghi sổ được với tệp đang chọn', pe.docstatus, 1)
+			la('GL hai dòng', len(_gl(pe)), 2)
+
+
 @ca('#380 v534 Codex #382 vòng 7: nút đính UNC không nhận ảnh đã đính ở mục khác của chính phiếu đó')
 def _doi_nhan():
 	si, g, pe = _du_lieu()
