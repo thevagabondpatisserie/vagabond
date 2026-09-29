@@ -137,12 +137,20 @@ def execute(filters=None):
 	thu_tu = "ngay_lap asc, so_hd asc"
 	tim = str(f.get("nguoi_mua") or "").strip()
 	mk = str(f.get("ma_khach") or "").strip()
-	if tim or mk:
-		# Lọc trên CẢ kỳ bằng ba cột nhẹ, rồi mới cắt TOI_DA (Codex #389 P1).
-		nhe = frappe.get_list("MInvoice Invoice", filters=loc, fields=["name", "nguoi_mua_ban", "mst_doi_tac"],
-			order_by=thu_tu, limit_page_length=0)
+	chua_noi = bool(f.get("chi_chua_noi"))
+	if tim or mk or chua_noi:
+		# Mọi bộ lọc tính ở Python (người mua, mã khách, và "chưa nối" theo CẢ
+		# ba đường tra đơn) chạy trên CẢ kỳ bằng các cột nhẹ, rồi mới cắt
+		# TOI_DA (Codex #389 P1, hai vòng). Cắt trước thì tờ cần tìm ở cuối kỳ
+		# bị che bởi tờ đầu kỳ mà bộ lọc sẽ loại.
+		nhe = frappe.get_list("MInvoice Invoice", filters=loc, fields=["name", "so_hd", "ky_hieu", "ngay_lap",
+			"nguoi_mua_ban", "mst_doi_tac", "vgb_don_erp"], order_by=thu_tu, limit_page_length=0)
 		bang = ma_ke_toan.bang_ma_theo_mst([t.get("mst_doi_tac") for t in nhe]) if mk else {}
-		ten = [t["name"] for t in chon_to(nhe, tim, mk, bang)]
+		chon = chon_to(nhe, tim, mk, bang)
+		if chua_noi and chon:
+			tra_nhe = _don_cua_to_tren_site(chon)
+			chon = [t for t in chon if not tra_nhe(t)[0]]
+		ten = [t["name"] for t in chon]
 		qua = len(ten) > TOI_DA
 		to_ds = frappe.get_list("MInvoice Invoice", filters={"name": ["in", ten[:TOI_DA + 1]]}, fields=truong,
 			order_by=thu_tu, limit_page_length=0) if ten else []
@@ -153,8 +161,6 @@ def execute(filters=None):
 	ma_theo_mst = ma_ke_toan.bang_ma_theo_mst([t.get("mst_doi_tac") for t in to_ds])
 	tra = _don_cua_to_tren_site(to_ds) if to_ds else (lambda t: ("", ""))
 	rows = [dong_so(t, ma_theo_mst, tra) for t in to_ds]
-	if f.get("chi_chua_noi"):
-		rows = [r for r in rows if not r["don_erp"]]
 	msg = "%d tờ." % len(rows)
 	if qua:
 		msg += " Quá %d tờ, thu hẹp khoảng ngày để xem hết." % TOI_DA
