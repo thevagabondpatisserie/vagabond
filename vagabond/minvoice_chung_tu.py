@@ -782,8 +782,13 @@ def _dong_pi(x, tk_chi_phi, mapped=None, uom=None, he_so=1):
 		dong["uom"] = uom
 	else:
 		dong["item_name"] = (x["ten"] or "Hàng hoá/dịch vụ")[:140]
-		dong["uom"] = uom or "Nos"
-		dong["stock_uom"] = uom or "Nos"
+		# Đơn vị lót: số lượng lẻ mà đơn vị bắt số nguyên thì đổi sang đơn
+		# vị lót lẻ, xem dvt_mua.DVT_LOT_LE (tờ 26/02/2026 kẹt 1.943 lượt).
+		lot = dvt_mua.dvt_lot_cho(x["sl"], uom, _bat_so_nguyen)
+		if lot == dvt_mua.DVT_LOT_LE:
+			_bao_dam_dvt_lot_le()
+		dong["uom"] = lot
+		dong["stock_uom"] = lot
 	# TEN NHA CUNG CAP GHI PHAI CON LAI TREN MOI DONG, ke ca dong da co ma
 	# hang. Truoc 04/09/2026 o nay chi ghi cho dong CHUA co ma, nen mot khi
 	# dong duoc gan ma thi ERPNext thay `item_name` bang ten Mon cua minh va
@@ -795,6 +800,18 @@ def _dong_pi(x, tk_chi_phi, mapped=None, uom=None, he_so=1):
 	if tk_chi_phi:
 		dong["expense_account"] = tk_chi_phi
 	return dong
+
+
+def _bat_so_nguyen(uom):
+	return bool(cint(frappe.db.get_value("UOM", uom, "must_be_whole_number")))
+
+
+def _bao_dam_dvt_lot_le():
+	"""Tạo đơn vị lót lẻ nếu chưa có. Lặp lại được."""
+	if frappe.db.exists("UOM", dvt_mua.DVT_LOT_LE):
+		return
+	frappe.get_doc({"doctype": "UOM", "uom_name": dvt_mua.DVT_LOT_LE, "enabled": 1,
+		"must_be_whole_number": 0}).insert(ignore_permissions=True)
 
 
 @frappe.whitelist()
@@ -1341,10 +1358,11 @@ def _mot_to(r):
 			_ghi_xong(ma, "Đã có chứng từ %s." % cu)
 			return (0, "da_co")
 		if (r.get("loai") or "") == LOAI_RA:
-			# Anh Việt chốt 26/08/2026: đầu ra bán lẻ do Fabi xuất. Xem mục
-			# "Hoá đơn đầu ra không phải việc của mô đun này" ở đầu tệp.
-			_ghi_xong(ma, "Hoá đơn đầu ra do Fabi xuất, hệ không dựng chứng từ.")
-			return (0, "dau_ra_fabi")
+			# Anh Việt chốt 26/08/2026: đầu ra không dựng chứng từ ở đây. Xem
+			# mục "Hoá đơn đầu ra không phải việc của mô đun này" ở đầu tệp.
+			# v536: tờ do chính ERP phát hành thì nối ngay vào đơn. Cùng một
+			# phép với đường đóng dấu hàng loạt `_dong_dau_ra` (xem _xu_to_dau_ra).
+			return (0, _xu_to_dau_ra(ma, r.get("ky_hieu"), r.get("so_hd")))
 		trung = _trung_theo_so_hoa_don(r)
 		if trung:
 			_ghi_hong(ma, "Đã có chứng từ %s cùng nhà cung cấp và cùng số hoá "
@@ -1370,7 +1388,7 @@ def _mot_to(r):
 # ngày 31/08/2026 lượt chạy tay báo "173 con_hong" trong khi cả 173 tờ đều
 # là đầu ra Fabi, tức là không có gì hỏng cả. Con số báo động sai còn nguy
 # hơn không báo: nhìn quen rồi thì tới lúc hỏng thật cũng không ai giật mình.
-LY_DO_BO_QUA_HOP_LE = ("khoi_dung", "da_co", "dau_ra_fabi")
+LY_DO_BO_QUA_HOP_LE = ("khoi_dung", "da_co", "dau_ra_fabi", "dau_ra_erp")
 
 # Mỗi lượt đóng dấu tối đa bao nhiêu tờ đầu ra. Đóng dấu chỉ là một câu
 # UPDATE nên nhẹ hơn dựng chứng từ rất nhiều, cho phép nhiều hơn MOI_LUOT.
@@ -1398,14 +1416,31 @@ def _dong_dau_ra(gioi_han=None):
 	ds = frappe.get_all(
 		DT_HD,
 		filters={"da_tao_chung_tu": 0, "loai": LOAI_RA},
-		pluck="name",
+		fields=["name", "ky_hieu", "so_hd"],
 		limit_page_length=cint(gioi_han) or DAU_RA_MOI_LUOT,
 	)
-	for ma in ds:
-		_ghi_xong(ma, "Hoá đơn đầu ra do Fabi xuất, hệ không dựng chứng từ.")
+	# Codex #386: tờ đầu ra mới về đi qua ĐƯỜNG NÀY, không tới _mot_to (hàng
+	# đợi dựng chứng từ chỉ lấy đầu vào). Nối tờ ERP phát hành phải nằm ở
+	# đây, không thì tờ ERP vẫn bị gắn nhãn Fabi và ô đơn ERP để trống.
+	for r in ds:
+		_xu_to_dau_ra(r.get("name"), r.get("ky_hieu"), r.get("so_hd"))
 	if ds:
 		frappe.db.commit()
 	return len(ds)
+
+
+def _xu_to_dau_ra(ma, ky_hieu, so_hd):
+	"""MỘT chỗ xử tờ đầu ra, cho cả đóng dấu hàng loạt lẫn _mot_to. Trả mã lý do.
+
+	Tờ do ERP phát hành thì nối vào đơn và ghi đúng lý do; không có đơn ERP
+	thì là Fabi hoặc lập tay. Không dựng chứng từ nào (anh Việt 26/08/2026)."""
+	from vagabond import doi_soat_hddt_ra
+	don = doi_soat_hddt_ra.noi_to_goc_tu_dong(ma, ky_hieu, so_hd)
+	if don:
+		_ghi_xong(ma, "Tờ do ERP phát hành cho đơn %s." % don)
+		return "dau_ra_erp"
+	_ghi_xong(ma, "Hoá đơn đầu ra không có đơn ERP (Fabi hoặc lập tay), hệ không dựng chứng từ.")
+	return "dau_ra_fabi"
 
 
 def _chay(tu_ngay=None, den_ngay=None, gioi_han=None):
