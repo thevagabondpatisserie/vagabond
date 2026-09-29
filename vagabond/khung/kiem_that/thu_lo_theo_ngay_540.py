@@ -138,10 +138,49 @@ def _chua_co_lo():
 		la("sổ ghi đúng ngày lùi", s[0][3], str(add_days(nowdate(), -10)))
 
 
-@ca("v540 that: dòng đã mang sẵn lô sinh sau ngày ghi (như PSX-2026-00116): lưu lại thì máy bù sang lô hợp lệ, ghi sổ được")
+def _nhap_da_luu_lo_sai(cty, kho, kho_tp, ma, tp, moi):
+	"""Nháp ĐÃ LƯU mang lô sinh sau ngày ghi, đúng như PSX-2026-00116 lưu
+	trước v540. Lưu nháp qua insert() sẽ chạy gan_lo và chữa lô ngay, nên
+	sau đó đặt lại lô sai thẳng vào bảng dòng để có đúng trạng thái cũ."""
+	se = frappe.new_doc("Stock Entry")
+	se.company = cty
+	se.purpose = "Manufacture"
+	se.stock_entry_type = "Manufacture"
+	se.set_posting_time = 1
+	se.posting_date = add_days(nowdate(), -10)
+	se.posting_time = "23:59:00"
+	se.from_warehouse = kho
+	se.to_warehouse = kho_tp
+	se.append("items", {"item_code": ma, "qty": 4, "s_warehouse": kho, "batch_no": moi, "use_serial_batch_fields": 1})
+	se.append("items", {"item_code": tp, "qty": 1, "t_warehouse": kho_tp, "is_finished_item": 1})
+	se.flags.ignore_permissions = True
+	se.insert(ignore_permissions=True)
+	nen._DA_TAO.append(("Stock Entry", se.name))
+	dong_nvl = [d for d in se.items if d.item_code == ma]
+	for d in dong_nvl[1:]:
+		frappe.db.delete("Stock Entry Detail", d.name)
+	frappe.db.set_value("Stock Entry Detail", dong_nvl[0].name,
+		{"batch_no": moi, "qty": 4, "transfer_qty": 4, "use_serial_batch_fields": 1, "serial_and_batch_bundle": None},
+		update_modified=False)
+	return se.name
+
+
+@ca("v540 that Codex #390: nháp ĐÃ LƯU mang lô sinh sau ngày ghi (như PSX-2026-00116), bấm Gửi thẳng không lưu lại: máy bù sang lô hợp lệ, ghi sổ được")
 def _da_gan_lo_sai():
+	# Bản đầu của ca này gọi insert() với lô sai rồi submit(). insert() chạy
+	# gan_lo ở docstatus 0 nên lô đã được chữa TRƯỚC lượt Gửi, ca xanh mà
+	# đường Gửi thẳng (docstatus=1 trước before_validate) chưa hề được kiểm.
+	# Giữ đúng chuỗi của khách: nháp đã lưu sẵn, mở ra, bấm Gửi.
 	cty, kho, kho_tp, ma, tp, cu, moi = _dung()
-	se = khong_nem("ghi sổ phiếu mang lô sai", lambda: _san_xuat(cty, kho, kho_tp, ma, tp, lo=moi))
+	ten = _nhap_da_luu_lo_sai(cty, kho, kho_tp, ma, tp, moi)
+	nhap = frappe.get_doc("Stock Entry", ten)
+	la("nháp đang mang lô sai", [d.batch_no for d in nhap.items if d.item_code == ma], [moi])
+
+	def gui():
+		nhap.flags.ignore_permissions = True
+		nhap.submit()
+		return nhap
+	se = khong_nem("Gửi thẳng nháp đã lưu", gui)
 	if not se:
 		return
 	s = _sle(se.name, ma)
