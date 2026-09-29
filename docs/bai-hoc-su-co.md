@@ -1349,3 +1349,66 @@ Cách phòng:
   `nop_quy.tao` và `tao_theo_ngay` trả `{can_ly_do: 1}` trước khi insert để
   màn hỏi lý do lệch rồi gọi lại. Xoá nháp ngay khi promise xong là mất cả
   bảng kê nếu người dùng huỷ hộp lý do. Chỉ xoá khi `sdDaTaoPhieu(kq)` đúng.
+
+## 28/09/2026 (v534, #380): phiếu thu kẹt nháp im lặng sáu tuần, và công cụ danh sách chung
+
+- Triệu chứng: khách đã chuyển đủ tiền vẫn nằm trong Công nợ phải thu. Gốc:
+  script tự lập phiếu thu từ giao dịch SePay `insert()` rồi `submit()` trong
+  `try`, `except` nuốt lỗi vào một biến, cuối cùng vẫn `commit()`. Submit hỏng
+  (chốt đính kèm 16/08 áp cả chiều thu) nên bản NHÁP được lưu, không dòng nào
+  vào Error Log, và lần chạy sau thấy hoá đơn đã có phiếu nên không thử lại.
+  Tới 28/09 đã là 1.428 phiếu, 1,33 tỷ. Cách phòng: script nào tạo chứng từ
+  thì lỗi submit phải ra chỗ con người đọc được (Việc hôm nay, Error Log), và
+  không commit bản dở; chuyển logic đó về repo để có ca kiểm (#380 mục 1C).
+- Đừng tách một khoản ra khỏi "còn phải đòi" chỉ vì có phiếu thu nháp (Codex
+  #381 F4): phiếu nhập tay, phiếu lỗi cũng là nháp. Chỉ tách khi giao dịch
+  ngân hàng đã xác minh độc lập (`thu_tien.xac_minh_tien_ve`).
+- Ghi sổ phiếu thu có workflow: KHÔNG đặt tay `workflow_state` từ "Nháp"
+  sang bước đã ghi sổ (không khai bước chuyển đó). Cứ `submit()`, Frappe tự
+  đặt bước ứng với docstatus 1 (`set_workflow_state_on_action`).
+- Màn danh sách mới: dùng `dsCongCu` (15-khuon-danh-sach.js) cho chip chặng,
+  chip lọc, chip ngày, ô tìm, Excel; Excel khai MỘT adapter trong
+  `khung/cong_cu_ds.MAN_XUAT`. Ca `thu_cong_cu_ds_534.py` đỏ nếu màn danh sách
+  mới không dùng công cụ mà không khai miễn kèm lý do.
+- DOM giả (`dom_gia.js`) trước v534 không bỏ lần đăng ký trùng của cùng một
+  hàm nghe như trình duyệt; màn gắn `root.addEventListener(..., hamCoTen)` mỗi
+  lần vẽ thì ca kiểm thấy sự kiện chạy hai lần. Đã sửa cho khớp trình duyệt.
+- Điều kiện "phải có tệp X" thì đếm tệp NẰM TRONG Ô X, không đếm mọi File
+  gắn vào chứng từ (Codex #382). Đếm cả chứng từ là để một ảnh chụp bất kỳ ở
+  mục khác mở khoá ghi sổ; chính ca bench đầu tiên của v534 đã vô tình đi
+  qua lỗ đó vì gắn tệp chung chung. Phép chung: `thu_tien.dem_tep_unc`.
+- Một hoá đơn trả bằng nhiều lần chuyển thì CỘNG các phiếu đã xác minh; lấy
+  phiếu lớn nhất là để hoá đơn đã trả đủ nằm lại "Đang nợ" (Codex #382,
+  `thu_tien.gom_tien_da_ve`). Nhưng chống trùng phải theo GIAO DỊCH trên toàn hệ
+  thống, không theo cặp (hoá đơn, giao dịch): khoá có chứa hoá đơn thì một lần
+  tiền về chia cho hai phiếu hai hoá đơn được tính hai lần (Codex #382 vòng 2).
+  Chọn phiếu thắng ở MỘT chỗ (`mot_phieu_moi_giao_dich`), trên mọi phiếu cùng
+  mã giao dịch chứ không trên tập màn đang lọc.
+- Luật chứng từ đặt ở NÚT BẤM thì Desk đi vòng được: mọi đường gọi `submit()`
+  (Desk, script, tác vụ nền) chỉ đi qua hook `before_submit`. Luật nghiệp vụ
+  bắt buộc phải có một hook, nút trên app chỉ báo sớm (Codex #382 vòng 3).
+- Bench mặc định có tài khoản Bank không mang số hiệu 112, nên mọi hook soi
+  ngân hàng theo số hiệu (`la_ngan_hang`) lọt qua trong ca kiểm. Ca kiểm luồng
+  ngân hàng phải dựng tài khoản 112 như site thật (`_tai_khoan_cong_ty_moi`).
+- Đổi tham số lọc cho màn mà vẫn nhận tham số cũ "để app cũ không vỡ" thì phải
+  chép ĐÚNG phép lọc cũ, không quy gần đúng về khái niệm mới (Codex #382:
+  "Đã duyệt" cũ = chờ ghi sổ + đã ghi sổ, không trùng chặng nào).
+- Payment Entry có HAI số tiền: `paid_amount` là tiền phía bên kia (khách
+  với phiếu thu), `received_amount` là tiền vào tài khoản nhận. So với giao
+  dịch ngân hàng thì phải dùng phía tài khoản ngân hàng, hoặc chặn hẳn phiếu
+  ngoại tệ và tỉ giá khác 1 (Codex #382 vòng 5, `thu_tien.tien_phia_ngan_hang`).
+  Tiệm chỉ dùng tiền đồng nên hai số luôn bằng nhau trên dữ liệu thật, và vì
+  thế không ca kiểm nào dựng từ dữ liệu thật bắt được lỗi này.
+- Cổng "phải có tệp ở ô X" phải xét tệp GẮN QUA ô X (`attached_to_field`),
+  không chỉ xét đường dẫn nằm trong ô. `tep_dinh_kem.gan_vao` coi tệp đã gắn
+  vào chứng từ là xong mà không xét ô, nên một ảnh kẹp giấy có sẵn đổi nhãn
+  được thành tệp bắt buộc, cả trên app lẫn qua ô Attach trên Desk (Codex #382
+  vòng 7, `thu_tien.url_trong_o_unc`).
+- Xuất Excel bằng `make_xlsx`: xlsxwriter ghi chuỗi mở đầu bằng "=" và dạng
+  "{=...}" thành công thức. Dữ liệu từ khách (tên, lý do, mã đơn) phải qua
+  `khung.cong_cu_ds.chu_an_toan` trước khi ghi (Codex #382 vòng 7).
+- Ô Attach trên Desk KHÔNG chứng minh tệp được tải lên qua ô đó: khi lưu,
+  Frappe `attach_files_to_document` chép một đường dẫn có sẵn thành dòng File
+  mới gắn qua ô. Cổng "tệp phải nằm ở ô X" phải xét cả các dòng khác cùng
+  đường dẫn (`thu_tien.url_unc_that`). Ca thuần giả lập không thấy được hành
+  vi này; chỉ bench mới bắt (#382 vòng 8).

@@ -26,7 +26,10 @@
    Tiền tố dtg = duyệt tặng. Đã kiểm và chạm tên trước khi đặt (QT-28). */
 
 var dtgDiem = '';      // chip điểm bán đang chọn, rỗng là tất cả
-var dtgTt = '';        // chip trạng thái duyệt
+var dtgChang = '';     // chip chặng (v534): cho_duyet, cho_ghi_so, hoan_tat, tu_choi
+var dtgKy = '';        // chip ngày (v534), khoá theo DS_KY ở 15-khuon-danh-sach.js
+var dtgTu = '';        // hai ô ngày khi chọn Tuỳ chọn
+var dtgDen = '';
 var dtgLoai = '';      // chip loại tặng
 var dtgTim = '';       // ô tìm
 var dtgMo = {};        // mã đơn nào đang mở rộng
@@ -39,18 +42,11 @@ function dtgMauTt(tt) {
   return ['#f8fafc', '#e2e8f0', '#64748b'];
 }
 
-/* Một hàng chip, cùng khuôn với màn Danh sách phiếu hoàn tiền. Chip rỗng thì
-   ẩn, riêng chip đang chọn luôn hiện dù đếm 0 - không thì bấm vào là nó biến
-   mất và người ta không biết đường bấm lại. */
-function dtgHangChip(thuoc, dsc, dem, chon, nhanTatCa, mau) {
-  var s = posChipNut(thuoc + '=""', (nhanTatCa || 'Tất cả') + ' · ' +
-    (dem.tat_ca || 0), chon === '', false, mau);
-  (dsc || []).forEach(function (o) {
-    var n = dem[o.k] || 0;
-    if (!n && chon !== o.k) return;
-    s += posChipNut(thuoc + '="' + h(o.k) + '"', o.ten + ' · ' + n, chon === o.k, false, mau);
-  });
-  return '<div style="display:flex;gap:7px;flex-wrap:wrap;margin:7px 0">' + s + '</div>';
+/* v534: bốn họ chip (chặng, điểm bán, loại tặng, ngày), ô tìm và nút Excel
+   vẽ bằng thanh công cụ dùng chung `dsCongCu` (15-khuon-danh-sach.js). Hàm
+   vẽ chip riêng của màn này bỏ đi, để màn tặng không lệch khỏi mọi màn khác. */
+function dtgLoc() {
+  return { diem: dtgDiem, chang: dtgChang, loai: dtgLoai, tim: dtgTim, ky: dtgKy, tu: dtgTu, den: dtgDen };
 }
 
 /* Nhãn nhỏ, mỗi nhãn không được gãy giữa chừng trên màn hình hẹp. Cùng bài
@@ -66,15 +62,31 @@ function dtgNhan(cac) {
   return s + '</div>';
 }
 
+var DTG_TEN = 'Hàng tặng: duyệt và sổ đơn';
+
+/* Cấu hình thanh công cụ cho màn này: đọc thẳng số đếm máy chủ trả về. */
+function dtgCongCu(kq) {
+  var tong = (kq.dem_chang || {}).tat_ca || 0;
+  return {
+    ma: 'dtg',
+    chang: { ds: kq.cac_chang || [], dem: kq.dem_chang || {}, chon: dtgChang, tatCa: 'Mọi chặng' },
+    ho: [
+      { k: 'diem', ds: kq.diem || [], dem: kq.dem_diem || {}, chon: dtgDiem, tatCa: 'Mọi điểm bán', mau: '#4338ca' },
+      { k: 'loai', ds: kq.loai || [], dem: kq.dem_loai || {}, chon: dtgLoai, tatCa: 'Mọi loại tặng', mau: '#b45309' },
+    ],
+    ky: { chon: dtgKy, tu: dtgTu, den: dtgDen },
+    tim: { gt: dtgTim, goiY: 'Tìm mã đơn, tên khách, lý do' },
+    xuat: { man: 'hang_tang', so: kq.tong_dong != null ? kq.tong_dong : tong, loc: dtgLoc },
+  };
+}
+
 async function scrDuyetTang() {
-  frame('Duyệt đơn hàng tặng', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc danh sách...</div></div>');
+  frame(DTG_TEN, '<div class="emp"><div class="e1">⏳</div><div>Đang đọc danh sách...</div></div>');
   var kq;
   try {
-    kq = await api('vagabond.hang_tang.ds_don', {
-      diem: dtgDiem, trang_thai: dtgTt, loai: dtgLoai, tim: dtgTim,
-    });
+    kq = await api('vagabond.hang_tang.ds_don', dtgLoc());
   } catch (e) {
-    frame('Duyệt đơn hàng tặng', '<div class="emp"><div class="e1">⚠️</div><div>' +
+    frame(DTG_TEN, '<div class="emp"><div class="e1">⚠️</div><div>' +
       h(errMsg(e)) + '</div></div>');
     return;
   }
@@ -82,9 +94,10 @@ async function scrDuyetTang() {
 
   var html = '<div class="card" style="padding:12px 13px">' +
     '<div style="font-size:13px;color:#344054;line-height:1.6">' +
-    'Đơn trả bằng <b>Hàng tặng</b> không thu tiền của khách. Hoá đơn vẫn xuất ' +
-    '<b>nguyên giá và nguyên thuế</b> theo luật hàng biếu tặng, phần khách phải ' +
-    'trả được gạt sang chi phí biếu tặng. Đơn chỉ ghi sổ được sau khi duyệt ở đây.' +
+    /* v534: lời giải thích thu về hai dòng (AGENTS mục 2b điều 17), khối
+       chỉ để đọc không được đẩy thanh công cụ xuống khỏi màn đầu. */
+    'Đơn tặng không thu tiền, hoá đơn xuất <b>nguyên giá</b>. ' +
+    'Chỉ ghi sổ sau khi giám đốc duyệt.' +
     '</div>' +
     '<div style="margin-top:9px;display:flex;gap:18px;flex-wrap:wrap">' +
     '<div><div style="font-size:12px;color:#8a8f9c">ĐANG CHỜ DUYỆT</div>' +
@@ -106,16 +119,8 @@ async function scrDuyetTang() {
   /* Ba họ chip ba màu, cùng bảng màu với màn Danh sách phiếu hoàn tiền:
      ba hàng xếp chồng mà cùng một màu thì không biết mình đang lọc theo
      cái gì. Anh Việt nhắc 31/08/2026. */
-  html += dtgHangChip('data-dtgd', kq.diem, kq.dem_diem || {}, dtgDiem, 'Mọi điểm bán', '#4338ca');
-  html += dtgHangChip('data-dtgt', (kq.trang_thai || []).map(function (k) {
-    return { k: k, ten: k };
-  }), kq.dem || {}, dtgTt, 'Mọi trạng thái', '#0d9488');
-  html += dtgHangChip('data-dtgl', kq.loai, kq.dem_loai || {}, dtgLoai, 'Mọi loại tặng', '#b45309');
-
-  html += '<div class="card" style="padding:9px 11px"><input id="dtgTim" type="search" ' +
-    'placeholder="Tìm theo mã đơn, tên khách, mã Pancake, lý do tặng" value="' + h(dtgTim) + '" ' +
-    'style="width:100%;height:38px;border:1.5px solid #e4e7ec;border-radius:9px;' +
-    'padding:0 10px;font-size:14px"></div>';
+  var cc = dtgCongCu(kq);
+  html += dsCongCu(cc);
 
   html += '<div class="sec">' + dong.length + ' đơn' +
     (kq.con_nua ? ' trên tổng ' + kq.tong_dong : '') +
@@ -158,15 +163,20 @@ async function scrDuyetTang() {
   });
   html += '</div>';
 
-  frame('Duyệt đơn hàng tặng', html, {
+  var than = frame(DTG_TEN, html, {
     footer: '<button class="btn gh" data-dtgbc="1" style="width:100%;margin:0">' +
       '📊 Báo cáo hàng tặng</button>',
   });
-  var o = document.getElementById('dtgTim');
-  if (o) {
-    o.onchange = function () { dtgTim = o.value.trim(); go(scrDuyetTang, true); };
-    o.onkeydown = function (e) { if (e.key === 'Enter') { dtgTim = o.value.trim(); go(scrDuyetTang, true); } };
-  }
+  dsCongCuNoi(than, cc, function (ho, k) {
+    if (ho === 'chang') dtgChang = k;
+    else if (ho === 'diem') dtgDiem = k;
+    else if (ho === 'loai') dtgLoai = k;
+    else if (ho === 'ky') { dtgKy = k; if (k !== 'tuy_chon') { dtgTu = ''; dtgDen = ''; } }
+    else if (ho === 'tu') dtgTu = k;
+    else if (ho === 'den') dtgDen = k;
+    else if (ho === 'tim') dtgTim = k;
+    go(scrDuyetTang, true);
+  });
   /* Nghe trên `root` chứ không trên thân màn, xem bài học ở đầu 29-don-huy.js
      và ca kiểm `thu_chan_man.py`. */
   root.addEventListener('click', dtgBam);
@@ -246,6 +256,8 @@ function dtgThan(r, kq) {
       'Người lập này đã lập <b>' + (ct.thang_nay.so || 0) + ' đơn tặng</b> trong tháng, ' +
       'tổng <b>' + money(ct.thang_nay.tien || 0) + ' đ</b>.</div>';
   }
+  s += '<div style="margin-top:10px"><button class="btn gh" data-dtgbill="' + h(r.name) +
+    '" style="width:100%;margin:0;min-height:44px">🧾 Xem lại bill</button></div>';
   if (kq.duyet_duoc && !r.da_ghi_so && (r.vgb_tang_duyet || 'Chờ duyệt') !== 'Đã duyệt') {
     s += '<div style="display:flex;gap:9px;margin-top:10px">' +
       '<button class="btn gh" data-dtgtc="' + h(r.name) + '" style="flex:1;margin:0">✖️ Từ chối</button>' +
@@ -258,14 +270,13 @@ function dtgThan(r, kq) {
 }
 
 async function dtgBam(ev) {
-  var t = ev.target.closest('[data-dtgd]');
-  if (t) { dtgDiem = t.getAttribute('data-dtgd'); return go(scrDuyetTang, true); }
-  t = ev.target.closest('[data-dtgt]');
-  if (t) { dtgTt = t.getAttribute('data-dtgt'); return go(scrDuyetTang, true); }
-  t = ev.target.closest('[data-dtgl]');
-  if (t) { dtgLoai = t.getAttribute('data-dtgl'); return go(scrDuyetTang, true); }
-
+  var t;
   if (ev.target.closest('[data-dtgbc]')) return go(scrTangBaoCao);
+
+  /* Sales Manager 28/09/2026: đơn tặng xong rồi vẫn phải mở lại được đúng
+     tờ bill để tra, không phải đi tìm ở màn khác. */
+  t = ev.target.closest('[data-dtgbill]');
+  if (t) { var maB = t.getAttribute('data-dtgbill'); return go(function () { return scrPosBill(maB); }); }
 
   t = ev.target.closest('[data-dtgok]');
   if (t) {

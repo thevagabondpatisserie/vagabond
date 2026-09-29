@@ -48,7 +48,7 @@ Giai đoạn 2 (bỏ vỏ hàm, phục vụ thẳng các phần, khỏi đẩy 1
 | `12-van-don.js` | 10.137 - 11.541 | vận đơn, chi phí xe, phiếu in, lọc và xếp tuyến. **APPVER nằm ở đây** |
 | `13-khuyen-mai.js` | 11.542 - 12.994 | khuyến mãi trên màn tính tiền, chương trình, combo, voucher |
 | `14-bao-cao.js` | 12.995 - 13.369 | phân hệ báo cáo |
-| `15-khuon-danh-sach.js` | 13.370 - 13.688 | khuôn màn danh sách dùng chung, tiền tố `kg` |
+| `15-khuon-danh-sach.js` | 13.370 - 13.688 | khuôn màn danh sách dùng chung, tiền tố `kg`; từ v534 thêm thanh công cụ dùng chung `dsCongCu` (chip chặng, chip lọc, chip ngày, ô tìm, Xuất Excel) cho mọi màn danh sách |
 | `16-mua-hang.js` | 13.689 - 13.962 | đơn mua, công nợ phải trả, hai màn hoá đơn |
 | `17-cai-dat.js` | 13.963 - 15.700 | điểm bán, nguồn đơn, hạng khách, combo nhóm món |
 | `18-doi-chieu-may-in.js` | 15.701 - 16.590 | đối chiếu hoá đơn mua, máy in, hồ sơ khách, đơn treo |

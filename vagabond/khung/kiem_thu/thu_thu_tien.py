@@ -142,7 +142,7 @@ def _chong_trung():
 @ca("kich ban 9: to da thanh toan het KHONG duoc nam trong cong no")
 def _het_no_thi_bien():
 	la("so cai ve 0 la het no", con_no_cua(TONG_92523, 0, [], "Công nợ"), 0.0)
-	dung("man cong no bo qua to het no", 'if r["con_no"] <= 0:' in CN)
+	dung("man cong no bo qua to het no", 'rows = [r for r in rows if r["con_no"] > 0]' in CN)
 
 
 # ------------------------------------ Cửa giữ cho 2.183 tờ cũ nằm yên
@@ -238,7 +238,10 @@ def _ma_thue_bo_cong_no():
 @ca("man cong no doc so no that, khong cong grand_total")
 def _man_cong_no():
 	dung("goi phep tinh no", "tt.con_no_cua(" in CN)
-	dung("cong so con no", 'o["tien"] += flt(r["con_no"])' in CN)
+	# v534 vòng 8: cộng số CÒN PHẢI ĐÒI, tức con_no trừ phần tiền đã về đã
+	# xác minh (thu_tien.chia_no_hoa_don); con_no vẫn là gốc của phép đó.
+	dung("cong so con phai doi", 'o["tien"] += flt(r["con_doi"])' in CN)
+	dung("con phai doi tinh tu con_no", "rows, the_ve, khach_cho = tt.chia_no_hoa_don(rows, ve)" in CN)
 	dung("khong cong ca to nua", 'o["tien"] += flt(r.grand_total)' not in CN)
 	# Man phai bay ca tong to va phan da tra, khong bat ai tru tay.
 	dung("bay tong to", '"tong_don": flt(r.grand_total)' in CN)
@@ -256,7 +259,10 @@ def _quet_duong_thu_hai():
 @ca("bang liet ke to thieu chung tu chi DOC, khong sua gi - dieu 11")
 def _bang_liet_ke():
 	i = TT.find("def soat_thieu_chung_tu")
-	than = TT[i:]
+	# Chi than ham nay (v534 them ham ghi so phieu thu phia sau trong tep).
+	j = TT.find("\n@frappe.whitelist", i + 10)
+	j2 = TT.find("\n# ------", i + 10)
+	than = TT[i:min(x for x in (j, j2, len(TT)) if x > 0)]
 	dung("co bang liet ke", i > 0)
 	dung("khong sinh chung tu trong do", "ghi_thu_tien(" not in than)
 	dung("khong ghi gi", "set_value" not in than and "insert(" not in than)

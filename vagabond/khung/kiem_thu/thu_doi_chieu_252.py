@@ -297,7 +297,13 @@ def _property_setter():
 		and ("Payment Entry", "reference_date", "mandatory_depends_on", "") in goi)
 	dung("gọi từ patch migrate", "tham_chieu_tien.dung()" in _doc("vagabond/patches/dong_bo_cau_truc.py"))
 	h = _doc("vagabond/hooks.py")
-	dung("hook before_validate đã gắn", '"before_validate": "vagabond.tham_chieu_tien.dien_khi_trong"' in h)
+	# v534 (#380) đổi before_validate của Payment Entry thành danh sách để
+	# thêm hook gộp ô UNC Desk; điều cần giữ là dien_khi_trong vẫn gắn và
+	# chạy ĐẦU TIÊN, nên đọc thẳng cấu hình chứ không dò đúng một dòng chữ.
+	import runpy
+	bv = runpy.run_path(os.path.join(GOC, "vagabond", "hooks.py"))["doc_events"]["Payment Entry"]["before_validate"]
+	bv = [bv] if isinstance(bv, str) else list(bv)
+	la("hook before_validate đã gắn và chạy đầu tiên", bv[:1], ["vagabond.tham_chieu_tien.dien_khi_trong"])
 	khoi = h[h.index('"Payment Entry": {'):h.index('"Sales Invoice": {')]
 	dung("không đặt muộn trong danh sách validate", khoi.count('"vagabond.tham_chieu_tien.dien_khi_trong"') == 1)
 	dung("gắn đúng doctype", h.index('"Payment Entry": {') < h.index('"vagabond.tham_chieu_tien.dien_khi_trong"'))

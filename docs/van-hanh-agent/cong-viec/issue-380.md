@@ -1,0 +1,153 @@
+# Issue 380: công nợ đã trả vẫn hiện, sổ đơn tặng, bộ công cụ danh sách chung
+
+- Nguồn: https://github.com/thevagabondpatisserie/vagabond/issues/380 (góp ý Sales Manager 28/09/2026, anh Việt giao lên phương án cùng Codex, duyệt rồi mới làm PR code).
+- Owner: Claude (Cowork). Nền: main 44399628 (v533). Kiểm site thật 28/09/2026, chỉ đọc.
+- Trạng thái: anh Việt đã chốt 4 câu ngày 28/09 (mục "Quyết định" dưới). Đợt 1 làm ở nhánh v534, xếp chồng trên tài liệu này.
+
+## Kết quả có bằng chứng (chỉ đọc)
+
+Triệu chứng: khách đã chuyển đủ tiền vẫn nằm trong "Khách đang nợ" của màn Công nợ phải thu.
+
+Chuỗi nguyên nhân đã chứng minh trên một ca thật (tên khách và số chứng từ để trong nhật ký riêng, không đưa vào repo công khai):
+
+1. `cong_no.ds_khach_no` tính nợ bằng `thu_tien.con_no_cua`, trả `min(outstanding_amount, theo_dong)`. Hoá đơn còn `outstanding_amount` đầy đủ nên còn nợ. Code màn hình đúng, sai nằm ở dữ liệu thu tiền.
+2. Có Payment Entry chiều Receive đúng số tiền, `reference_no` là số FT ngân hàng, phân bổ đúng hoá đơn, nhưng `docstatus = 0`.
+3. Người lập là Administrator, remarks mặc định ERPNext: do Server Script API `vgb_khop_sepay` (chạy 15 phút một lần) lập. Script `insert()` rồi `submit()` trong `try`, `except` nuốt lỗi vào `pt_loi`, cuối cùng `frappe.db.commit()`. Nên bản nháp được lưu, lỗi không vào Error Log.
+4. (Giả thuyết mạnh, chưa có nguyên văn lỗi, Codex #381) `submit()` hỏng vì hook `before_submit` `chung_tu_tien.chan_thieu_dinh_kem` (NGAY_CHOT 16/08/2026) đòi tệp đính kèm cho mọi chứng từ chạm TK ngân hàng, cả chiều thu.
+5. Lần chạy sau, script bỏ qua hoá đơn đã có Payment Entry Reference `docstatus < 2`, nên không bao giờ thử lại.
+
+Số đo 28/09/2026:
+
+- 1.428 Payment Entry Receive nháp mang `reference_no` FT, 16/08 tới 27/09, tổng 1.330.492.197 đ; 0 phiếu FT nào ghi sổ được kể từ 16/08; khoảng 25 tới 36 phiếu mỗi ngày.
+- 1.428 hoá đơn tương ứng, tất cả còn `outstanding_amount > 0` (tổng 1.374.915.695 đ); 1.422 mang phương thức Chuyển khoản, 6 mang Công nợ.
+- Màn Công nợ: 67 hoá đơn, 182.258.100 đ; 7 hoá đơn (7 khách, 27.622.100 đ) có phiếu thu nháp.
+- Cùng nguyên nhân đã ghi ở nhật ký 22/08/2026 (lúc đó 139 phiếu), ba phương án chưa được chốt.
+
+Màn Duyệt đơn hàng tặng (`41-duyet-don-tang.js`, `hang_tang.ds_don`): 3 trạng thái `Chờ duyệt / Đã duyệt / Từ chối`; `da_ghi_so` chỉ là nhãn, không phải chip; không lọc ngày; không mở lại bill; không Excel.
+
+Khảo sát nhanh bằng dò chuỗi (ước lượng, không phải kiểm thử): khoảng 60 hàm `scr*` gọi API danh sách; khoảng 33 có chip; 9 hàm `xuat_excel` máy chủ viết riêng (bao_cao, de_nghi_chi, don_huy x2, ho_so_tt, hoan_tien, ncc, nop_quy, van_don); khuôn `khung.ds` (phần 15) có chip, lọc, tóm tắt nhưng chưa có Excel.
+
+## Phương án
+
+### 1. Công nợ
+
+- 1A (quyết định kế toán, anh Việt và chị Dung): `chan_thieu_dinh_kem` cho qua phiếu Receive khi `reference_no` khớp một Bank Transaction đã ghi sổ và số tiền không vượt `unallocated_amount`. Chiều Pay giữ nguyên. Thuần hoá phép so khớp để kiểm không cần site.
+- 1B (màn hình, không đụng dữ liệu): `ds_khach_no` trả thêm nhóm `cho_ghi_so` gồm hoá đơn có Payment Entry Receive nháp phân bổ đủ phần còn nợ. Nhóm này không cộng vào `tong`, hiện ở chip riêng "Tiền đã về, chờ ghi sổ" với số tiền, ngày tiền về, mã phiếu thu. Hàm phân loại là phép thuần.
+- 1C (cần duyệt riêng vì chạm Server Script): chuyển phần lập phiếu thu sang `vagabond/thu_tien.py` (git quản, có ca kiểm, đăng ký `thu_cua_ngo.py` nếu whitelist), lỗi submit ghi thành việc cho kế toán thay vì nuốt. Tắt Server Script chỉ khi anh Việt tự bấm hoặc cho phép rõ.
+- 1D: không tự ghi sổ 1.428 phiếu tồn (điều 11). Thêm bảng chỉ đọc cho chị Dung, ghi sổ theo đợt có rà soát sau khi chốt 1A.
+
+### 2. Sổ đơn hàng tặng
+
+- `ds_don` nhận thêm `chang` (cho_duyet, cho_ghi_so, hoan_tat, tu_choi) và `tu`, `den`; đếm chip ở máy chủ. `hoan_tat` = đã duyệt và `docstatus = 1`.
+- Mỗi dòng hoàn tất: nút xem lại hoặc in lại bill (dùng hàm in bill có sẵn), số HĐĐT, người duyệt.
+- Excel qua hàm dùng chung ở mục 3. Sales đọc được, duyệt giữ `duoc_duyet()`.
+
+### 3. Bộ công cụ danh sách dùng chung
+
+- Máy chủ `vagabond/khung/xuat_bang.py`: `dung_bang(cot, dong)` thuần, `xuat(ma_man, **loc)` chạy lại hàm danh sách của màn với `day_du=1`, kiểm quyền bằng chính hàm gốc, trả xlsx base64. Một sổ khai `MAN_XUAT = {ma: (ham, cot)}`.
+- App: `dsCongCu({chip, chang, tim, xuat})` vẽ một hàng chip lọc, một hàng chip chặng từ bảng `CHANG[loai]`, ô tìm, nút Xuất Excel. Gắn vào khuôn `kg` trước.
+- Ca kiểm chốt kiểu v533: mọi màn danh sách phải dùng `dsCongCu` hoặc nằm trong `MIEN` kèm lý do; Excel xuất đúng số dòng màn đếm (ca hành vi trên `gia_lap_trang.js`).
+- Đợt 1 (Sales), đợt 2 (Kế toán), đợt 3 (Kho, bếp), mỗi đợt một PR.
+
+## Còn lại và bàn giao
+
+- Chờ anh Việt trả lời 4 câu ở issue #380.
+- Codex: rà phương án (đúng nguyên nhân chưa, rủi ro 1A với luật chứng từ, thiết kế 3 có vỡ màn cũ không). Không có code để rà.
+- Chưa kiểm: lý do submit cụ thể của từng phiếu trong 1.428 (script không lưu); đã suy ra từ hook và từ việc 0 phiếu FT ghi sổ sau 16/08. Quyền của tài khoản Sales với màn Duyệt tặng chưa kiểm bằng tài khoản thật.
+- Không merge, không deploy.
+
+## Quyết định anh Việt 28/09/2026
+
+1. Không công nhận riêng giao dịch ngân hàng làm chứng từ gốc chiều thu. Thêm ô đính **uỷ nhiệm chi khách gửi**; có tệp đó mới ghi sổ phiếu thu. Hook đính kèm giữ nguyên. Phương án 1A cũ bỏ.
+2. Đồng ý chuyển phần tự lập phiếu thu từ Server Script về repo (1C). Làm PR riêng sau v534, vì phải tắt phần tạo phiếu của Server Script cùng lúc.
+3. Đợt 1 gộp một PR: màn Công nợ, sổ Hàng tặng, bộ công cụ danh sách chung.
+4. Sales được xem sổ Hàng tặng (chỉ xem). Quản lý cửa hàng cũng xem được. Kiểm site 28/09: hai tài khoản Sales Manager và quản lý cửa hàng đều mang vai Sales User nên đã qua cổng quyền đọc; chỉ thiếu lối vào ở nhóm Bán hàng.
+
+## Trả lời 6 finding Codex trên #381 (SHA f7d1d9a)
+
+- F1 nguyên nhân submit chưa có nguyên văn: đồng ý, đã đổi thành giả thuyết. Bằng chứng thêm 28/09: cả 1.428 phiếu có `paid_to` bắt đầu 112, `creation` từ 2026-08-16 23:01, 0 tệp đính kèm, nên `chan_thieu_dinh_kem` chắc chắn ném lỗi nếu tới lượt before_submit. Chưa loại được một lỗi ở `validate` chạy trước. v534 thêm hàm chẩn đoán chỉ đọc (chạy validate và before_submit trong savepoint rồi lùi, không chạy on_submit, không sinh GL) để lấy nguyên văn trên site sau deploy.
+- F2 giữ chỗ giao dịch ngân hàng: 1A bỏ, nhưng bước ghi sổ phiếu thu mới vẫn đối soát Bank Transaction: khoá dòng (for_update), kiểm chiều tiền vào, cùng tài khoản sổ cái với `paid_to`, cùng công ty, VND, chưa nối chứng từ khác, số chưa phân bổ đủ; ghi sổ xong `add_payment_entries` rồi tải lại xác minh; lỗi giữa chừng lùi cả lượt bằng savepoint. Theo mẫu `tam_ung_app.ghi_nhan_cap`.
+- F3 ca tích hợp sổ cái: thêm ca `kiem_that` chạy trên bench: SI thật, BT thật, PE nháp, tệp UNC, ghi sổ, đọc GL, thử lại không ghi hai lần, thiếu tệp bị chặn, BT đã nối chứng từ khác bị chặn, lỗi sau submit lùi sạch.
+- F4 giữ khoản chưa ghi sổ trong tổng nợ: sửa lại. "Tiền đã về, chờ ghi sổ" chỉ tách khi Bank Transaction đã xác minh độc lập (điều kiện ở F2). Thẻ tổng hiện cả hai con số, kèm một dòng "Sổ cái vẫn tính nợ khoản tiền đã về cho tới khi phiếu thu được ghi sổ", không để con số nợ trên sổ lặng lẽ biến mất.
+- F5 Excel đủ dòng: sổ khai mỗi màn một adapter riêng nhận đúng bộ lọc của màn, bỏ trần dòng khi xuất; có ca thuần chốt xuất 501 dòng ra đủ 501.
+- F6 đặc tả giao diện: khối dưới đây.
+
+## Giao diện (v534)
+
+Khung dùng lại: frame, card, posChipNut, kmHangChip, sheet có sẵn, tdkKhoi (ô tải tệp dùng chung), bcTaiVe.
+
+Thanh công cụ dùng chung `dsCongCu` (thêm vào 15-khuon-danh-sach.js), thứ tự từ trên xuống:
+1. Hàng chip chặng (màu xanh két), có số đếm máy chủ.
+2. Các hàng chip lọc riêng của màn (mỗi họ một màu như cũ).
+3. Hàng chip ngày: Mọi ngày, Hôm nay, 7 ngày, Tháng này, Tháng trước, Tuỳ chọn (bấm Tuỳ chọn mới hiện hai ô ngày).
+4. Một hàng: ô tìm (chiếm phần còn lại) và nút viền "Xuất Excel N" bên phải.
+Nhãn chip tối đa khoảng 16 ký tự, số đếm in đậm sau nhãn; hàng chip cuộn ngang, chừa lề. Chạm tối thiểu 44 điểm.
+
+Công nợ phải thu:
+1. Thẻ số: CÒN PHẢI ĐÒI (cam), TIỀN ĐÃ VỀ CHỜ GHI SỔ (xanh), ĐÃ GỬI CHỜ TIỀN (xanh dương); một dòng nhỏ dưới nói sổ cái vẫn tính nợ khoản tiền đã về cho tới khi phiếu thu vào sổ.
+2. Chip tab: "Đang nợ N", "Tiền đã về N", "Phiếu đã gửi N".
+3. Thanh công cụ. Tab Đang nợ: tìm tên khách, Excel. Tab Tiền đã về: chip nguồn "Khách công nợ" (mặc định) và "Đơn chuyển khoản", chip ngày, tìm, Excel.
+4. Danh sách. Dòng Tiền đã về: tên khách đậm, dòng phụ "HĐ ... · về dd/mm · GD ...1234" (mã giao dịch rút bốn số cuối), số tiền bên phải; chip "Chưa có UNC" đỏ nhạt hoặc "Có UNC" xanh; nút "📎 Đính UNC khách gửi" (viền); tài khoản kế toán thêm nút chính "Ghi sổ phiếu thu".
+Ba trạng thái: 0 dòng "Không có khoản nào đang chờ ghi sổ."; 1 dòng hiện đủ; 60 dòng trở lên chỉ hiện 200 dòng đầu kèm câu "còn N dòng, thu hẹp bằng chip ngày hoặc tìm" (Excel vẫn đủ). Lỗi: câu tiếng người lấy từ máy chủ, không trắng màn.
+
+Sổ hàng tặng (màn Duyệt đơn hàng tặng, đổi tên hiển thị "Hàng tặng: duyệt và sổ đơn"):
+1. Thẻ tóm tắt như cũ (thu gọn lời giải thích thành hai dòng).
+2. Thanh công cụ: chip chặng Chờ duyệt, Chờ ghi sổ, Hoàn tất, Từ chối; chip điểm bán; chip loại tặng; chip ngày; tìm; Excel.
+3. Danh sách như cũ; dòng mở rộng thêm nút viền "🧾 Xem lại bill".
+Lối vào: thêm thẻ ở nhóm Bán hàng cho Sales và quản lý cửa hàng; nút Duyệt vẫn chỉ hiện với giám đốc.
+Số thật 28/09: 41 đơn tặng (1 chờ duyệt, 40 hoàn tất), công nợ 29 khách, tiền đã về chờ ghi sổ 1.428 dòng.
+
+Bằng chứng giao diện: ca hành vi node (không tính CSS) trên PR; ảnh site thật 390px chỉ có sau deploy, ghi rõ nguồn.
+
+## Vòng 1 review Codex trên #382 (SHA dee3dc09)
+
+Cả 4 finding tái hiện được, số liệu trước/sau đo bằng bộ giả lập thuần:
+
+- G1 đếm mọi File của phiếu: ô UNC trống, một ảnh bất kỳ gắn vào phiếu, kế toán bấm ghi sổ. Trước: `{ok: 1}`, phiếu đã submit. Sau: bị chặn "Chưa có uỷ nhiệm chi khách gửi". Phép đếm mới `dem_tep_unc` chỉ nhận tệp có trong ô `vgb_thu_unc` VÀ còn gắn vào phiếu; màn Tiền đã về đếm cùng phép. Ca bench mới `_tep_khac_muc`; hai ca `_da_noi`, `_hong_giua` đổi sang ghi tệp vào đúng ô.
+- G2 hai lần chuyển 600.000 + 400.000 cho hoá đơn 1.000.000. Trước: phân bổ 600.000, hoá đơn nằm lại Đang nợ. Sau: 1.000.000, tách sang Tiền đã về. Hai phiếu nháp trùng một số FT vẫn chỉ tính 600.000 (không cộng hai lần).
+- G3 app cũ gửi `trang_thai="Đã duyệt"`. Trước: trả cả 4 đơn mẫu (mọi đơn). Sau: đúng 2 đơn như ds_don cũ (chờ ghi sổ và đã ghi sổ). Không quy về chặng `cho_ghi_so` như gợi ý, vì bộ lọc cũ gồm cả đơn đã ghi sổ; chép đúng phép cũ vào `hop_trang_thai_cu`.
+- G4 thêm chú thích điều kiện lõi ở đầu `ghi_so_phieu_thu` (Frappe v16.27.1 `Document.submit`/`_save`/`set_workflow_state_on_action`; ERPNext version-16 `add_payment_entries`, `allocate_payment_entries`, `get_clearance_details`). Đọc lõi lộ thêm một điều: giao dịch có thể cấp THIẾU tiền cho phiếu (`min(allocable, remaining)`), nên sau khi nối có thêm phép kiểm số được cấp phải đủ số phiếu, thiếu thì lùi cả lượt. Hàm chẩn đoán chạy thêm `_validate_links` và `_validate` cho khớp thứ tự `_save`.
+
+## Vòng 2 review Codex trên #382 (SHA 9eed19a0)
+
+- H1 chống trùng giao dịch khoá theo (hoá đơn, giao dịch): một giao dịch 1.000.000 đ có hai phiếu nháp chia cho hai hoá đơn khác nhau. Tái hiện trên 9eed19a0: cả SI1 và SI2 sang Tiền đã về, tổng tách 2.000.000 đ. Sau sửa: chỉ SI1, 1.000.000 đ. Sửa bằng một chỗ chọn duy nhất `thu_tien.mot_phieu_moi_giao_dich`: mỗi mã giao dịch chỉ một phiếu thu nháp được tính (tiền lớn nhất, bằng tiền thì mã nhỏ hơn), chọn trên MỌI phiếu nháp cùng mã trên hệ thống nên không đổi theo tập màn đang xem; phiếu thua hạ về chưa xác minh kèm câu lý do, hoá đơn của nó vẫn ở Đang nợ. `phieu_thu_nhap` (màn Tiền đã về, Excel, công nợ) và `gom_tien_da_ve` cùng đi qua hàm đó.
+
+## Vòng 3 review Codex trên #382 (SHA bea2de43)
+
+- J1 luật UNC khách gửi chỉ chặn ở nút ghi sổ trên app; ghi sổ thẳng trên Desk chỉ qua hook chung `chung_tu_tien.chan_thieu_dinh_kem` (đếm mọi File). Tái hiện bằng đọc cấu hình hook trên bea2de43: không có hook nào soi ô `vgb_thu_unc`, và hook chung cho qua khi có 1 tệp bất kỳ. Anh Việt quyết 29/09: "Làm thêm cả ô đính trên desk cho đồng bộ". Sửa:
+  - Ô Desk mới `vgb_thu_unc_tep` (Attach, chỉ hiện với phiếu thu khách). Hook before_validate `thu_tien.gop_unc_desk` gộp tệp ô này vào `vgb_thu_unc`, nên mọi phép đếm vẫn chỉ đọc một ô.
+  - Hook before_submit `thu_tien.chan_thieu_unc_khach` (sau hook tệp chung): phiếu trong tập `can_unc_khach` (Receive, Customer, tài khoản 112, có phân bổ hoá đơn bán, mã giao dịch khớp Bank Transaction đã xác nhận, không phải phiếu đặt bánh hay hồ sơ hoàn tiền) phải có tệp trong ô UNC khách gửi, đường nào gọi submit cũng vậy. Hai luồng đặt bánh và hoàn tiền giữ luật giấy báo Có như cũ.
+  - Bench `_desk`: tệp bất kỳ rồi submit thẳng bị chặn, phiếu còn nháp, 0 GL; đính vào ô Desk, lưu, tệp gộp vào ô UNC, submit được, GL hai dòng. Bench v534 chuyển sang tài khoản 112 như site thật để hai hook ghi sổ thực sự chạy.
+- J2 phiếu thu có mã giao dịch nhưng không phân bổ hoá đơn vẫn vào tab Tiền đã về và Excel. Sửa: `phieu_thu_nhap` bỏ phiếu không gắn hoá đơn bán trước khi đọc tệp và giao dịch; ứng viên chọn phiếu thắng cũng phải gắn hoá đơn, nên phiếu lẻ lớn hơn không hạ phiếu công nợ thật. Bench `_khong_hd`.
+
+## Vòng 4 review Codex trên #382 (SHA 5f38338c)
+
+- K1 hook UNC khách gửi gặp lỗi lạ thì ghi log rồi cho qua (fail open). Tái hiện bằng ca thuần: `frappe.db.exists` ném lỗi, trước: hook trả về bình thường; sau: ghi log rồi ném lại, ghi sổ bị chặn.
+- K2 nút đính UNC trên app gắn tệp vào mọi phiếu thu nháp trước khi soát loại phiếu. Sửa: `_thuoc_tap_unc` (một chỗ, dùng chung với hook ghi sổ) soát TRƯỚC `gan_vao`; phiếu ngoài tập bị từ chối, không gắn tệp. Bench `_ngoai_tap`.
+
+## Vòng 5 review Codex trên #382 (SHA 87dda5ee)
+
+- L1 (P1) so tiền phiếu thu với giao dịch ngân hàng bằng `paid_amount`, là tiền phía khách. Giao dịch và phần lõi cấp cho phiếu tính theo tiền tài khoản nhận (`received_amount`). Tái hiện thuần trên 87dda5ee: phiếu 100 USD ghi có 2.500.000 đ với giao dịch 1.000.000 đ ra `(True, "")`; phiếu tiền đồng tỉ giá đích 2 cũng `(True, "")`. Sửa: một phép chung `thu_tien.tien_phia_ngan_hang` chỉ nhận phiếu tiền đồng thuần (hai tài khoản VND, hai tỉ giá 1, tiền hai phía bằng nhau) và trả tiền tài khoản nhận; `xac_minh_tien_ve`, bước soát trên bản đã khoá, bước đọc lại sau submit và bước soát số lõi cấp đều dùng nó. Màn Tiền đã về đọc kèm năm trường tiền tệ (`TRUONG_TIEN_TE`). Phiếu khác đi thì trả lý do, kế toán ghi sổ tay trên Desk. Ca thuần `_tien_te`, bench `_ti_gia`.
+
+## Vòng 6 review Codex trên #382 (SHA 8bcaa06b)
+
+- M1 (P2) chip "Tiền đã về" đếm số hoá đơn đã được phủ đủ nợ (`cho_ghi_so.so_hd`) trong khi tab liệt kê từng phiếu thu đã xác minh. Phiếu trả một phần hiện trong tab mà chip ghi 0; một phiếu cho hai hoá đơn thì chip ghi 2 mà tab một dòng. Tái hiện bằng ca hành vi (nạp trang vào node): máy chủ giả trả 7 hoá đơn phủ đủ và 2 phiếu, chip ghi "Tiền đã về 7" trên cả hai tab. Sửa: màn Công nợ luôn đọc `ds_tien_da_ve` với đúng bộ lọc tab đang giữ, chip lấy `tong_dong` của chính lần gọi đó, nên chip và danh sách là một nguồn. Ở tab khác mà lần đọc này hỏng thì chip bỏ số, màn vẫn mở. Thẻ số phía trên giữ nghĩa cũ: tiền và số hoá đơn đã được phủ đủ.
+
+## Vòng 7 review Codex trên #382 (SHA 7ff1ed90)
+
+- N1 (P1) nút đính UNC nhận ảnh đã gắn vào chính phiếu ở mục khác: `tep_dinh_kem.gan_vao` coi tệp đã gắn vào phiếu là xong, không xét ô, rồi đường dẫn được ghi vào ô UNC và `_so_tep_unc` đếm nó. Tái hiện bằng giả lập Frappe thuần (bảng File trong bộ nhớ): ảnh kẹp giấy của phiếu, gửi làm UNC, trước: `gan_vao` nhận, đếm được 1; sau: đếm 0 và nút đính từ chối. Đường Desk có cùng lỗ: trỏ ô đính Desk vào ảnh kẹp giấy thì ghi sổ được; ca bench `_desk` cũ chính là đi qua lỗ đó. Sửa: mọi phép đếm UNC chỉ nhận File gắn vào phiếu QUA ô UNC (`O_UNC`: ô danh sách của app và ô đính Desk), gom ở `url_trong_o_unc`; nút đính gọi `tep_muc_khac` trước `gan_vao`. Không đổi `gan_vao` vì nhiều màn khác dùng chung.
+- N2 (P2) Excel: chữ mở đầu bằng "=" hoặc dạng "{=...}" bị xlsxwriter (bộ ghi của `make_xlsx`) ghi thành công thức. Tái hiện bằng xlsxwriter 3.2.9 (đúng bản Frappe v16.27.1 ghim): `=HYPERLINK(...)` và `{=SUM(1,2)}` ra thẻ công thức; "+", "-", "@" ra chữ. Sửa: `cong_cu_ds.chu_an_toan` thêm dấu nháy đơn trước chuỗi mở đầu bằng =, +, -, @, tab, xuống dòng hoặc dạng {...}; số và số điện thoại giữ nguyên. Các màn xuất Excel cũ ngoài PR này (báo cáo, nhà cung cấp, đề nghị chi, hồ sơ thanh toán, hoàn tiền) chưa qua phép này, liệt kê để làm riêng.
+
+## Vòng 8 review Codex trên #382 (SHA 65f7dc8f)
+
+- P1 hoá đơn có tiền về MỘT PHẦN (đã xác minh) vẫn đòi đủ: nợ 1.000.000 đ, phiếu thu nháp 600.000 đ đã khớp giao dịch, tab Tiền đã về báo 600.000 đ mà tab Đang nợ vẫn đòi 1.000.000 đ. Tái hiện bằng cách chạy thật `ds_khach_no` với nguồn dữ liệu giả: trước, thẻ Còn phải đòi 1.000.000, dòng hoá đơn 1.000.000, thẻ Tiền đã về 0; sau, 400.000, 400.000 kèm "600.000 đ đã về tài khoản, chờ ghi sổ", thẻ Tiền đã về 600.000. Sửa: phép thuần `thu_tien.chia_con_no` và `chia_no_hoa_don` (một nguồn cho ds_khach_no); phủ một phần thì hoá đơn vẫn ở Đang nợ với số còn đòi đã trừ phần về, phủ đủ thì tách như cũ; chưa xác minh không trừ. "Đã thu" vẫn theo sổ cái, "đã về" là cột riêng (màn và Excel). Tổng Còn phải đòi cộng Tiền đã về vẫn bằng nợ trên sổ cái, nên không có khoản nào lặng lẽ biến mất (giữ ý #381 F4).
+- Không đổi: `tao_phieu` (gom phiếu đòi nợ) vẫn ghi số tiền theo tổng tờ hoá đơn như trước v534, kể cả với hoá đơn đã trả một phần trên sổ cái. Đây là hành vi có từ trước, ghi lại để quyết riêng.
+- Bench tự bắt trên 65f7dc8f (không phải finding Codex): ca `_desk` đổ ở bước "đổi nhãn ảnh kẹp giấy phải bị chặn", phiếu vào sổ. Nguyên nhân đọc từ lõi Frappe v16.27.1 `frappe/core/doctype/file/utils.py` `attach_files_to_document`: khi lưu chứng từ, ô Attach trỏ vào đường dẫn có sẵn thì Frappe CHÉP ra một dòng File mới gắn qua đúng ô đó, nên phép "gắn qua ô UNC" của vòng 7 bị qua mặt trên Desk. Sửa: `thu_tien.url_unc_that` chỉ tính đường dẫn khi có dòng gắn đúng phiếu qua ô UNC VÀ không có dòng nào của cùng đường dẫn nằm chỗ khác; cổng ghi sổ và màn Tiền đã về đọc mọi dòng File theo đường dẫn. Ca thuần `_unc_ban_chep`; bench `_desk` nay khẳng định luôn Frappe có chép ra dòng mới, rồi chặn.
+
+## Vòng 9 review Codex trên #382 (SHA 8719455a)
+
+- Q1 (P1) đang tìm một khách thì thẻ "Còn phải đòi" vẫn là tổng mọi khách trong khi danh sách và Excel chỉ còn phần khớp. Tái hiện bằng cách chạy thật `ds_khach_no(tim=...)` với hai khách 1.000.000 và 5.000.000, tìm khách thứ nhất: trước, thẻ 6.000.000, không có tổng phần khớp; sau, thẻ vẫn 6.000.000 (giữ nguyên ý "không teo theo chữ đang gõ") và máy chủ trả thêm `tong_loc` 1.000.000, màn hiện dòng "Khớp ô tìm: 1 khách · 1.000.000 đ" ngay trên danh sách. Phép lọc gom về `thu_tien.loc_khach_no` (thuần). Bench 8719455a: hai lượt 295/295, đủ 13/13 ca `#380 v534`.
+
+## Vòng 10 review Codex trên #382 (SHA 2133d930)
+
+- R1 (P1) xoá hay thay tệp ở ô "Đính uỷ nhiệm chi khách gửi" trên Desk thì đường dẫn cũ vẫn nằm trong ô danh sách `vgb_thu_unc`, mà Frappe giữ nguyên dòng File khi ô Attach bị xoá, nên tệp đã gỡ vẫn được đếm và phiếu ghi sổ được. Tái hiện được bằng chạy thật hook `gop_unc_desk` với bản trước khi lưu: xoá ô Desk thì ô danh sách vẫn giữ `b.pdf`; thay `b` bằng `c` thì còn cả hai. Sửa: phép thuần `thu_tien.doi_unc_desk(ds, cu, moi)` bỏ đường dẫn cũ của ô Desk khi ô bị xoá hoặc thay, gộp đường dẫn mới; hook đọc giá trị cũ từ `get_doc_before_save`. Tệp đính qua app không bị đụng. Bench mới `_desk_go`: đính qua ô Desk, xoá, lưu, ghi sổ phải bị chặn; thay tệp khác thì ghi sổ được và ô danh sách chỉ còn tệp mới.

@@ -315,7 +315,8 @@ CUA_NGO = {
 	# Thu tien hoa don ban, them 04/09/2026. `tom_tat` cho man hinh doc bon
 	# con so; `soat_thieu_chung_tu` la bang LIET KE cho ke toan truong, chi
 	# doc, khong sinh chung tu nao (dieu 11).
-	"thu_tien.py": ["soat_hinh_thuc_chua_khai", "soat_thieu_chung_tu", "tom_tat"],
+	# v534 (#380): ghi so phieu thu kem uy nhiem chi khach gui, va chan doan chi doc.
+	"thu_tien.py": ["chan_doan_ghi_so", "ghi_so_phieu_thu", "soat_hinh_thuc_chua_khai", "soat_thieu_chung_tu", "tom_tat"],
 	"don_huy.py": ["bo_qua", "dem_cho_hoan", "dem_phieu_cho", "dong_bo", "ds",
 		"ds_phieu", "tai_tep", "tao_hoan", "tim_don_de_hoan", "xem_hoan",
 		"xuat_excel", "xuat_excel_phieu"],
@@ -492,6 +493,12 @@ CUA_NGO = {
 	# Viet mo nut Tao moi cho ca 16 danh muc: mot duong ghi duy nhat cho ca
 	# khung, va no chi ghi duoc dung nhung truong da khai trong tao()["o"].
 	"khung/ds.py": ["chay", "danh_ba", "tao_moi", "tim_lien_ket"],
+	# v534 (#380): man Cong no them tab Tien da ve (ds_tien_da_ve).
+	"cong_no.py": ["ds_khach_no", "ds_phieu", "ds_tien_da_ve", "gui_thu_da_nhan", "huy_phieu",
+		"khop_tay", "kiem_sepay", "tao_phieu", "thong_tin_xhd", "tim_giao_dich_thu", "tim_khach",
+		"xem_phieu", "xem_truoc_phieu", "xem_truoc_thu", "xuat_phieu"],
+	# v534 (#380): cua xuat Excel dung chung cho moi man danh sach.
+	"khung/cong_cu_ds.py": ["xuat_excel"],
 	# Kiem banh theo mua, khai 21/08/2026 khi them tab San luong theo ngay.
 	# Ba duong them_san_luong, sua_san_luong, xoa_san_luong nam ngay canh
 	# nhau va ngay tren mot ham cu, tuc dung cho de mot decorator bam nham.
