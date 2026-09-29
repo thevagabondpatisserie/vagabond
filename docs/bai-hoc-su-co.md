@@ -1399,3 +1399,11 @@ Cách phòng:
   ngoại tệ và tỉ giá khác 1 (Codex #382 vòng 5, `thu_tien.tien_phia_ngan_hang`).
   Tiệm chỉ dùng tiền đồng nên hai số luôn bằng nhau trên dữ liệu thật, và vì
   thế không ca kiểm nào dựng từ dữ liệu thật bắt được lỗi này.
+- Cổng "phải có tệp ở ô X" phải xét tệp GẮN QUA ô X (`attached_to_field`),
+  không chỉ xét đường dẫn nằm trong ô. `tep_dinh_kem.gan_vao` coi tệp đã gắn
+  vào chứng từ là xong mà không xét ô, nên một ảnh kẹp giấy có sẵn đổi nhãn
+  được thành tệp bắt buộc, cả trên app lẫn qua ô Attach trên Desk (Codex #382
+  vòng 7, `thu_tien.url_trong_o_unc`).
+- Xuất Excel bằng `make_xlsx`: xlsxwriter ghi chuỗi mở đầu bằng "=" và dạng
+  "{=...}" thành công thức. Dữ liệu từ khách (tên, lý do, mã đơn) phải qua
+  `khung.cong_cu_ds.chu_an_toan` trước khi ghi (Codex #382 vòng 7).
