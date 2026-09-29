@@ -200,6 +200,7 @@ def _():
 		update_permission_property=lambda dt, vai, lv, q, v: (goi_.append(("set", dt, vai, q, v)), quyen[(dt, vai)].__setitem__(q, v)))
 	with unittest.mock.patch.object(quyen_ap, "frappe", f), unittest.mock.patch.object(quyen_ap, "_thieu", _thieu), \
 			unittest.mock.patch.object(quyen_ap, "_doc_duoc", _doc_duoc), \
+			unittest.mock.patch.object(quyen_ap, "_xuat_duoc", lambda dt, vai: not _thieu(dt, vai, "export")), \
 			unittest.mock.patch.dict(sys.modules, {"frappe.permissions": perms}):
 		kq = quyen_ap.cap_xuat_excel_v537()
 	la("cấp đúng hai dòng đang thiếu", kq["them"], ["Purchase Invoice · Accounts User", "Sales Invoice · Accounts User"])
@@ -212,6 +213,7 @@ def _():
 	quyen[("Purchase Invoice", "Accounts User")]["export"] = 0
 	with unittest.mock.patch.object(quyen_ap, "frappe", f), unittest.mock.patch.object(quyen_ap, "_thieu", _thieu), \
 			unittest.mock.patch.object(quyen_ap, "_doc_duoc", _doc_duoc), \
+			unittest.mock.patch.object(quyen_ap, "_xuat_duoc", lambda dt, vai: not _thieu(dt, vai, "export")), \
 			unittest.mock.patch.dict(sys.modules, {"frappe.permissions": perms}):
 		nem("cấp không ăn thì ném", quyen_ap.cap_xuat_excel_v537, ValueError)
 	goi = os.path.dirname(os.path.abspath(hs.__file__))
@@ -220,3 +222,93 @@ def _():
 	dong = io.open(os.path.join(goi, "patches.txt"), encoding="utf-8").read().splitlines()
 	dung("patches.txt có dòng v537 trước dòng đồng bộ cấu trúc",
 		dong.index("vagabond.patches.xuat_excel_v537") < dong.index("vagabond.patches.dong_bo_cau_truc #v537"))
+
+
+# ------------------------------------------------ Codex #385: hai finding P2 trên mã v537
+
+@ca("v537 sửa #385: quyền hiệu lực đọc Custom DocPerm nếu doctype đã có dòng tuỳ biến, ngược lại đọc DocPerm chuẩn")
+def _():
+	tb = [{"role": "Accounts User", "permlevel": 0, "if_owner": 0, "read": 1, "export": 0}]
+	chuan = [{"role": "Accounts User", "permlevel": 0, "if_owner": 0, "read": 1, "export": 1},
+		{"role": "Accounts Manager", "permlevel": 1, "if_owner": 0, "read": 1, "export": 1},
+		{"role": "Stock User", "permlevel": 0, "if_owner": 1, "read": 1, "export": 1}]
+	f = quyen_ap.co_quyen_hieu_luc
+	dung("chưa có dòng tuỳ biến: bảng chuẩn cho export là đã xuất được", f([], chuan, "Accounts User", "export"))
+	dung("đã có dòng tuỳ biến: bảng chuẩn hết hiệu lực", not f(tb, chuan, "Accounts User", "export"))
+	dung("đọc được theo dòng tuỳ biến", f(tb, chuan, "Accounts User", "read"))
+	dung("dòng permlevel 1 không tính", not f([], chuan, "Accounts Manager", "export"))
+	dung("dòng chỉ-chủ-sở-hữu không tính", not f([], chuan, "Stock User", "export"))
+	dung("vai không có dòng", not f([], chuan, "AP Kiểm soát (FIN)", "read"))
+
+
+@ca("v537 sửa #385 (P2 thứ nhất): doctype mà bảng quyền CHUẨN đã cho export thì patch không gọi add_permission, không đóng băng bảng chuẩn")
+def _():
+	# Chạy thật cap_xuat_excel_v537 với _doc_duoc/_xuat_duoc thật, chỉ giả
+	# bảng DocPerm/Custom DocPerm trong bộ nhớ. Tái hiện trên 393374be:
+	# Sales Invoice chưa có dòng tuỳ biến, bảng chuẩn cho Accounts User
+	# read+export, bản cũ vẫn gọi add_permission (đóng băng bảng chuẩn).
+	import sys
+	import unittest.mock
+	from types import SimpleNamespace as NS
+	bang = {"DocPerm": {
+		"Sales Invoice": [{"role": v, "permlevel": 0, "if_owner": 0, "read": 1, "export": 1}
+			for v in quyen_ap.VAI_XUAT_EXCEL],
+		"Purchase Invoice": [{"role": v, "permlevel": 0, "if_owner": 0, "read": 1, "export": 0}
+			for v in quyen_ap.VAI_XUAT_EXCEL]},
+		"Custom DocPerm": {}}
+	goi_ = []
+
+	def get_all(dt, filters=None, fields=None, pluck=None, **k):
+		if dt == "Report":
+			return ["Sales Invoice", "Purchase Invoice"]
+		return [dict(r) for r in bang[dt].get(filters["parent"], [])]
+
+	def add_permission(dt, vai, lv):
+		goi_.append(("add", dt, vai))
+		if not bang["Custom DocPerm"].get(dt):
+			bang["Custom DocPerm"][dt] = [dict(r) for r in bang["DocPerm"][dt]]
+
+	def update_permission_property(dt, vai, lv, q, v):
+		goi_.append(("set", dt, vai, q))
+		for r in bang["Custom DocPerm"][dt]:
+			if r["role"] == vai and not r["permlevel"]:
+				r[q] = v
+
+	def _thieu(dt, vai, q):
+		return not quyen_ap.co_quyen_hieu_luc(bang["Custom DocPerm"].get(dt), [], vai, q)
+
+	def throw(m):
+		raise ValueError(m)
+	f = NS(get_all=get_all, db=NS(exists=lambda dt, n=None: True), clear_cache=lambda: None, throw=throw)
+	perms = NS(add_permission=add_permission, update_permission_property=update_permission_property)
+	with unittest.mock.patch.object(quyen_ap, "frappe", f), unittest.mock.patch.object(quyen_ap, "_thieu", _thieu), \
+			unittest.mock.patch.dict(sys.modules, {"frappe.permissions": perms}):
+		kq = quyen_ap.cap_xuat_excel_v537()
+		kq2 = quyen_ap.cap_xuat_excel_v537()
+	dung("không đụng Sales Invoice", not any(g[1] == "Sales Invoice" for g in goi_))
+	dung("Sales Invoice vẫn chưa có dòng tuỳ biến", "Sales Invoice" not in bang["Custom DocPerm"])
+	la("chỉ cấp Purchase Invoice cho ba vai", sorted(kq["them"]),
+		sorted("Purchase Invoice · %s" % v for v in quyen_ap.VAI_XUAT_EXCEL))
+	la("chạy lần hai không thêm gì", kq2["them"], [])
+
+
+@ca("v537 sửa #385 (P2 thứ hai): đồng bộ cấu trúc MỖI lần migrate gọi lại cấp xuất Excel, lỗi ở đó không chặn migrate")
+def _():
+	import unittest.mock
+	from vagabond.patches import dong_bo_cau_truc as dbct
+	goi_ = []
+
+	def hong():
+		goi_.append(1)
+		raise RuntimeError("gia lap cap hong")
+	m = unittest.mock.MagicMock()
+	with unittest.mock.patch.object(quyen_ap, "cap_xuat_excel_v537", hong), \
+			unittest.mock.patch.object(dbct, "frappe", m):
+		loi = None
+		try:
+			dbct.execute()
+		except Exception as e:  # noqa: BLE001
+			loi = e
+	la("được gọi đúng một lần mỗi lượt đồng bộ", len(goi_), 1)
+	dung("lỗi không chặn migrate", loi is None)
+	dung("lỗi ghi Error Log", any("quyen xuat Excel" in str(c) for c in m.log_error.call_args_list))
