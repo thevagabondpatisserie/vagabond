@@ -420,6 +420,39 @@ def dem_tep_unc(ds_url_o, url_da_gan):
 	return len(ra)
 
 
+# Hai ô là nơi đính uỷ nhiệm chi khách gửi: ô danh sách của app và ô đính
+# trên Desk (gộp vào ô danh sách ở gop_unc_desk).
+O_UNC = ("vgb_thu_unc", "vgb_thu_unc_tep")
+
+
+def url_trong_o_unc(ds_file):
+	"""Tập đường dẫn File gắn vào phiếu QUA Ô UNC khách gửi. THUẦN.
+
+	`ds_file` là các dòng File đang gắn vào đúng phiếu, mỗi dòng có
+	`file_url` và `attached_to_field`. Codex #382 vòng 7: tệp đã gắn vào
+	phiếu ở mục khác (nút kẹp giấy, ô chứng từ khác) mà ghi tên vào ô UNC thì
+	không được tính: đó là đổi nhãn một ảnh có sẵn để qua cổng ghi sổ.
+	"""
+	return {str(r.get("file_url")) for r in ds_file or []
+		if r.get("file_url") and (r.get("attached_to_field") or "") in O_UNC}
+
+
+def tep_muc_khac(ds_url, ds_file):
+	"""Đường dẫn người dùng gửi làm UNC mà đang gắn vào phiếu ở MỤC KHÁC. THUẦN.
+
+	Tệp mới tải lên (chưa gắn đâu) và tệp đã gắn qua ô UNC thì được; tệp đã
+	gắn vào phiếu mà không qua ô UNC thì trả ra để từ chối.
+	"""
+	gan = {str(r.get("file_url")) for r in ds_file or [] if r.get("file_url")}
+	trong = url_trong_o_unc(ds_file)
+	ra = []
+	for u in ds_url or []:
+		u = str(u or "").strip()
+		if u and u in gan and u not in trong and u not in ra:
+			ra.append(u)
+	return ra
+
+
 def can_unc_khach(pe, co_hoa_don, khop_giao_dich):
 	"""Phiếu này có bắt buộc ô UNC khách gửi lúc ghi sổ không. THUẦN.
 
@@ -859,15 +892,16 @@ def phieu_thu_nhap(cac_si=None, chi_ma_gd=True):
 	ten = [p.name for p in cac_pe]
 	from vagabond import tep_dinh_kem
 
-	url_gan = {}
+	file_gan = {}
 	for lo in _chia(ten):
 		for r in frappe.get_all(
 			"File", filters={"attached_to_doctype": PE, "attached_to_name": ["in", lo]},
-			fields=["attached_to_name", "file_url"], limit_page_length=0,
+			fields=["attached_to_name", "file_url", "attached_to_field"], limit_page_length=0,
 		):
-			url_gan.setdefault(r.attached_to_name, set()).add(r.file_url)
-	# Chỉ đếm tệp nằm trong ô UNC khách gửi (Codex #382), xem dem_tep_unc.
-	tep = {p.name: dem_tep_unc(tep_dinh_kem.doc_ds(p.get("vgb_thu_unc")), url_gan.get(p.name))
+			file_gan.setdefault(r.attached_to_name, []).append(r)
+	# Chỉ đếm tệp nằm trong ô UNC khách gửi (Codex #382) VÀ gắn vào phiếu qua
+	# chính ô đó (Codex #382 vòng 7), xem dem_tep_unc và url_trong_o_unc.
+	tep = {p.name: dem_tep_unc(tep_dinh_kem.doc_ds(p.get("vgb_thu_unc")), url_trong_o_unc(file_gan.get(p.name)))
 		for p in cac_pe}
 	gd = _gd_theo_so([p.reference_no for p in cac_pe])
 	ra = []
@@ -910,8 +944,8 @@ def _so_tep_unc(ten_pe, o_unc):
 	if not ds:
 		return 0
 	gan = frappe.get_all("File", filters={"attached_to_doctype": PE, "attached_to_name": ten_pe,
-		"file_url": ["in", ds]}, pluck="file_url", limit_page_length=0)
-	return dem_tep_unc(ds, gan)
+		"file_url": ["in", ds]}, fields=["file_url", "attached_to_field"], limit_page_length=0)
+	return dem_tep_unc(ds, url_trong_o_unc(gan))
 
 
 @frappe.whitelist(methods=["POST"])
@@ -972,6 +1006,15 @@ def ghi_so_phieu_thu(name=None, unc=None):
 		from vagabond import tep_dinh_kem
 
 		da = tep_dinh_kem.doc_ds(doc.get("vgb_thu_unc"))
+		# Codex #382 vòng 7: gan_vao coi tệp đã gắn vào phiếu này là xong,
+		# không xét ô. Chỉ nhận tệp mới tải lên hoặc tệp đã gắn qua ô UNC.
+		moi = tep_dinh_kem.doc_ds(unc)
+		cua_phieu = frappe.get_all("File", filters={"attached_to_doctype": PE, "attached_to_name": doc.name,
+			"file_url": ["in", moi]}, fields=["file_url", "attached_to_field"], limit_page_length=0) if moi else []
+		khac = tep_muc_khac(moi, cua_phieu)
+		if khac:
+			frappe.throw("Tệp đã chọn đang đính ở mục khác của phiếu thu %s, không dùng làm uỷ nhiệm chi "
+				"khách gửi được. Tải ảnh hoặc PDF chuyển khoản khách gửi lên lại." % doc.name)
 		them = tep_dinh_kem.gan_vao(PE, doc.name, "vgb_thu_unc", unc)
 		if them:
 			frappe.db.set_value(PE, doc.name, "vgb_thu_unc", tep_dinh_kem.ghi_ds(da + them),
