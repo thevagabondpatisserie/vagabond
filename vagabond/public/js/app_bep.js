@@ -16127,7 +16127,13 @@ async function scrCongNo() {
   try {
     kq = await api('vagabond.cong_no.ds_khach_no', { tim: cnTimNo });
     kp = await api('vagabond.cong_no.ds_phieu', {});
+    /* Codex #382 vòng 6: chip "Tiền đã về" và danh sách tab đó đọc CHUNG
+       một lần gọi, cùng bộ lọc đang chọn, nên số trên chip luôn là số phiếu
+       tab hiện. Ở tab khác mà tải hỏng thì chip chỉ bỏ số, màn vẫn mở. */
     if (cnTab === 've') kv = await api('vagabond.cong_no.ds_tien_da_ve', cnLocVe());
+    else {
+      try { kv = await api('vagabond.cong_no.ds_tien_da_ve', cnLocVe()); } catch (e2) { kv = null; }
+    }
   } catch (e) {
     frame('Công nợ phải thu', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>');
     return;
@@ -16156,7 +16162,7 @@ async function scrCongNo() {
 
   html += '<div class="card" style="padding:10px 12px">' + kmHangChip(
     posChipNut('data-cntab="no"', '📒 Đang nợ ' + soKhach, cnTab === 'no') +
-    posChipNut('data-cntab="ve"', '💰 Tiền đã về ' + (cg.so_hd || 0), cnTab === 've', false, '#15803d') +
+    posChipNut('data-cntab="ve"', '💰 Tiền đã về' + (kv ? ' ' + (kv.tong_dong || 0) : ''), cnTab === 've', false, '#15803d') +
     posChipNut('data-cntab="phieu"', '📤 Phiếu đã gửi ' + phieu.length, cnTab === 'phieu')) + '</div>';
   var cc = null;
 
