@@ -918,6 +918,13 @@ def ghi_so_phieu_thu(name=None, unc=None):
 		return {"ok": 1, "da_lam_roi": 1, "name": doc.name}
 	if int(doc.docstatus) != 0 or doc.payment_type != "Receive":
 		frappe.throw("Phiếu này không phải phiếu thu nháp.")
+	# Codex #382 vòng 4: soát loại phiếu TRƯỚC khi gắn tệp. Nút này chỉ dành
+	# cho phiếu thu tiền khách chuyển khoản có gắn hoá đơn, đúng tập hook ghi
+	# sổ bắt UNC; phiếu khác (hoàn tiền nhà cung cấp, thu lẻ không gắn hoá
+	# đơn...) không được nhận tệp qua cửa này.
+	if not _thuoc_tap_unc(doc):
+		frappe.throw("Phiếu %s không phải phiếu thu tiền khách chuyển khoản có gắn hoá đơn, "
+			"không đính uỷ nhiệm chi khách gửi qua màn Công nợ được." % doc.name)
 
 	if unc:
 		from vagabond import tep_dinh_kem
@@ -1032,6 +1039,15 @@ def gop_unc_desk(doc, method=None):
 	doc.vgb_thu_unc = tep_dinh_kem.ghi_ds(moi)
 
 
+def _thuoc_tap_unc(doc):
+	"""Phiếu này thuộc tập bắt buộc UNC khách gửi không. MỘT chỗ cho cả hook
+	ghi sổ và nút đính UNC trên app (Codex #382 vòng 4)."""
+	co_hd = any((r.get("reference_doctype") == SI) for r in (doc.get("references") or []))
+	ref = (doc.get("reference_no") or "").strip()
+	khop = bool(ref) and bool(frappe.db.exists(BT, {"reference_number": ref, "docstatus": 1}))
+	return can_unc_khach(doc.as_dict(), co_hd, khop)
+
+
 def chan_thieu_unc_khach(doc, method=None):
 	"""Hook before_submit: phiếu thu tiền khách chuyển khoản phải có UNC khách gửi.
 
@@ -1043,11 +1059,9 @@ def chan_thieu_unc_khach(doc, method=None):
 	try:
 		if doc.doctype != PE:
 			return
-		co_hd = any((r.get("reference_doctype") == SI) for r in (doc.get("references") or []))
-		ref = (doc.get("reference_no") or "").strip()
-		khop = bool(ref) and bool(frappe.db.exists(BT, {"reference_number": ref, "docstatus": 1}))
-		if not can_unc_khach(doc.as_dict(), co_hd, khop):
+		if not _thuoc_tap_unc(doc):
 			return
+		ref = (doc.get("reference_no") or "").strip()
 		if _so_tep_unc(doc.name, doc.get("vgb_thu_unc")) > 0:
 			return
 		frappe.throw(
@@ -1060,7 +1074,11 @@ def chan_thieu_unc_khach(doc, method=None):
 	except frappe.ValidationError:
 		raise
 	except Exception:
+		# Codex #382 vòng 4: cổng chứng từ bắt buộc thì hỏng là CHẶN, không
+		# cho qua. Ghi lỗi để biết vì sao, rồi ném lại: kế toán thấy lỗi và
+		# báo, còn hơn phiếu vào sổ mà không ai soát UNC.
 		frappe.log_error(frappe.get_traceback(), "thu_tien: kiem UNC khach gui loi")
+		raise
 
 
 def _ghi_vet_thu(name, viec):
