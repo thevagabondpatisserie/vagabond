@@ -51,11 +51,26 @@ def so_cua_ma(ma, tien_to):
 	return int(m[len(tien_to):]) if la_ma(m, tien_to) else 0
 
 
-def ma_ke_tiep(cac_ma, tien_to, rong=RONG_MA):
+def ma_ke_tiep(cac_ma, tien_to, rong=RONG_MA, san=0):
 	"""Mã kế tiếp sau mã lớn nhất trong danh sách. Danh sách trống thì bắt
-	đầu từ 1. Mã không đúng dạng (KL0001, chữ, rỗng) không tính."""
-	lon_nhat = max([so_cua_ma(m, tien_to) for m in (cac_ma or [])] + [0])
+	đầu từ 1. Mã không đúng dạng (KL0001, chữ, rỗng) không tính. `san` là
+	số lớn nhất Fast đang giữ (kể cả mã chưa có bản ghi ERP), mã cấp ra
+	phải vượt cả sàn đó."""
+	lon_nhat = max([so_cua_ma(m, tien_to) for m in (cac_ma or [])] + [0, int(san or 0)])
 	return "%s%0*d" % (tien_to, rong, lon_nhat + 1)
+
+
+def san_cua_tep(dong_ds):
+	"""{loai: số lớn nhất} của MỌI mã KH và NC trong tệp Fast, kể cả dòng
+	sẽ không được tạo bản ghi (tao_moi=0) hay không có MST. Codex #383 F1:
+	dòng bị bỏ qua vẫn là mã Fast đang dùng, máy cấp đè lên là trùng."""
+	ra = {}
+	for d in dong_ds or []:
+		ma = str(d.get("ma") or "").strip().upper()
+		for loai, tt in TIEN_TO.items():
+			if la_ma(ma, tt):
+				ra[loai] = max(ra.get(loai, 0), so_cua_ma(ma, tt))
+	return ra
 
 
 def ma_ke_toan_cua_hoa_don(mst, tra_ma):
@@ -155,6 +170,8 @@ def _tra_theo_mst(doctype, mst):
 
 
 KHOA_DA_NAP = "vgb_ma_ke_toan_da_nap"
+# Sàn mã Fast theo tiền tố, ghi lúc nạp tệp: khoá mặc định "vgb_ma_ke_toan_san_KH".
+KHOA_SAN = "vgb_ma_ke_toan_san_"
 
 
 def da_nap_danh_muc():
@@ -164,30 +181,39 @@ def da_nap_danh_muc():
 	return str(frappe.db.get_default(KHOA_DA_NAP) or "") == "1"
 
 
+def _nha_khoa():
+	frappe.db.sql("select release_lock(%s)", (KHOA_CAP_MA,))
+
+
 def cap_ma(doctype, name):
-	"""Cấp mã kế tiếp cho một khách hoặc NCC chưa có mã. Khoá tên toàn
-	site trong lúc đọc mã lớn nhất để hai lượt lưu cùng lúc không cùng
-	nhận một mã. Đã có mã thì trả mã đang có. Chưa nạp danh mục Fast thì
-	trả rỗng, không cấp."""
+	"""Cấp mã kế tiếp cho một khách hoặc NCC chưa có mã. Đã có mã thì trả
+	mã đang có. Chưa nạp danh mục Fast thì trả rỗng, không cấp.
+
+	Khoá tên toàn site (GET_LOCK) trong lúc đọc mã lớn nhất, và GIỮ KHOÁ TỚI
+	LÚC COMMIT hoặc ROLLBACK chứ không nhả ngay trong hàm (Codex #383 F2):
+	mã vừa ghi chỉ thấy được với lượt khác sau khi commit, nhả sớm là lượt
+	sau đọc mã lớn nhất cũ và tính ra cùng một mã. Không lấy được khoá
+	(lượt khác giữ quá 10 giây) thì ném, không cấp bừa."""
 	o = O_MA[doctype]
 	hien = str(frappe.db.get_value(doctype, name, o) or "").strip()
 	if hien:
 		return hien
 	if not da_nap_danh_muc():
 		return ""
-	frappe.db.sql("select get_lock(%s, 10)", (KHOA_CAP_MA,))
-	try:
-		hien = str(frappe.db.get_value(doctype, name, o) or "").strip()
-		if hien:
-			return hien
-		tien_to = TIEN_TO[doctype]
-		cac_ma = [r[0] for r in frappe.db.sql(
-			"select `%s` from `tab%s` where `%s` like %%s" % (o, doctype, o), (tien_to + "%",))]
-		ma = ma_ke_tiep(cac_ma, tien_to)
-		frappe.db.set_value(doctype, name, o, ma, update_modified=False)
-		return ma
-	finally:
-		frappe.db.sql("select release_lock(%s)", (KHOA_CAP_MA,))
+	duoc = frappe.db.sql("select get_lock(%s, 10)", (KHOA_CAP_MA,))
+	if not duoc or cint(duoc[0][0]) != 1:
+		frappe.throw("Không lấy được khoá cấp mã kế toán, thử lưu lại sau vài giây.")
+	frappe.db.after_commit.add(_nha_khoa)
+	frappe.db.after_rollback.add(_nha_khoa)
+	hien = str(frappe.db.get_value(doctype, name, o) or "").strip()
+	if hien:
+		return hien
+	tien_to = TIEN_TO[doctype]
+	cac_ma = [r[0] for r in frappe.db.sql(
+		"select `%s` from `tab%s` where `%s` like %%s" % (o, doctype, o), (tien_to + "%",))]
+	ma = ma_ke_tiep(cac_ma, tien_to, san=frappe.db.get_default(KHOA_SAN + tien_to))
+	frappe.db.set_value(doctype, name, o, ma, update_modified=False)
+	return ma
 
 
 def ma_theo_mst(doctype, mst, ten="", tao_moi=False):
@@ -311,6 +337,14 @@ def nap_danh_muc_fast(dong, tao_moi=0):
 				tao += 1
 			except Exception:
 				frappe.log_error(frappe.get_traceback(), "ma_ke_toan: tao %s %s" % (d["loai"], d["ma"]))
+	# Sàn mã Fast: giữ số lớn nhất của MỌI dòng trong tệp, kể cả dòng bị bỏ
+	# qua, để máy không bao giờ cấp lại một mã Fast đang dùng (Codex #383 F1).
+	# Chỉ nâng, không hạ: tệp nạp lần sau cũ hơn cũng không kéo sàn xuống.
+	for loai, so in san_cua_tep(rows).items():
+		tt = TIEN_TO[loai]
+		cu = cint(frappe.db.get_default(KHOA_SAN + tt) or 0)
+		if so > cu:
+			frappe.defaults.set_global_default(KHOA_SAN + tt, str(so))
 	# Từ đây máy được cấp mã nối tiếp; hoá đơn cũ đang trống mã thì điền
 	# theo danh mục vừa nạp.
 	frappe.defaults.set_global_default(KHOA_DA_NAP, "1")

@@ -234,3 +234,76 @@ def dung():
 	if them:
 		frappe.clear_cache()
 	return {"them": them}
+
+
+# ==================================================================
+# v537: nut Xuat Excel tren moi man bao cao cho ke toan
+# ==================================================================
+#
+# Anh Viet 29/09/2026: chi Dung mo "Tom tat phai tra" (Accounts Payable
+# Summary), menu "..." chi co Sua, In, PDF, khong co Xuat. Doc thang
+# frappe/public/js/frappe/views/reports/query_report.js (version-16):
+#
+#     { label: __("Export"), action: () => this.export_report(),
+#       condition: () => frappe.model.can_export(this.report_doc.ref_doctype) }
+#
+# Nut Xuat chi hien khi vai cua nguoi dung co quyen `export` tren DOCTYPE
+# GOC cua bao cao, khong phai tren bao cao. Tren site, bang quyen chuan cua
+# Purchase Invoice (ke ca dong DocPerm chuan) de export=0 cho ca Accounts
+# User lan Accounts Manager, nen ke toan truong khong xuat noi mot bao cao
+# nao ve cong no phai tra.
+#
+# Cach cap: khong liet ke cung tung doctype (moi ban ERPNext them bao cao la
+# lai thieu), ma doc bang Report tren site, gom `ref_doctype` cua MOI bao
+# cao con bat, roi cap `export` cho vai ke toan tren nhung doctype ma vai do
+# DA doc duoc. Khong cap read moi, khong mo them doctype nao; chi bat mot o
+# tren dong quyen von co. Doc lai "VI SAO CHI DUNG VAO PURCHASE ORDER" o dau
+# tep: moi doctype duoc cham vao la dong bang bang quyen chuan cua no. Chap
+# nhan, vi ke toan phai xuat duoc so ra Excel de doi chieu voi Fast.
+VAI_XUAT_EXCEL = ("Accounts User", "Accounts Manager", "AP Kiểm soát (FIN)")
+
+
+def ke_hoach_xuat_excel(ref_doctypes, doc_duoc, xuat_duoc):
+	"""(doctype, vai) can bat export. THUAN.
+
+	ref_doctypes: doctype goc cua cac bao cao (co the trung, co the rong).
+	doc_duoc(dt, vai) / xuat_duoc(dt, vai): vai dang doc / dang xuat duoc dt.
+	Chi cap khi vai DA doc duoc va CHUA xuat duoc."""
+	ra = []
+	for dt in sorted({d for d in ref_doctypes or [] if d}):
+		for vai in VAI_XUAT_EXCEL:
+			if doc_duoc(dt, vai) and not xuat_duoc(dt, vai):
+				ra.append((dt, vai))
+	return ra
+
+
+def _doc_duoc(dt, vai):
+	"""Vai co dong quyen read o muc 0, o Custom DocPerm hay DocPerm chuan."""
+	for bang in ("Custom DocPerm", "DocPerm"):
+		if frappe.db.get_value(bang, {"parent": dt, "role": vai, "permlevel": 0, "if_owner": 0, "read": 1}):
+			return True
+		if bang == "Custom DocPerm" and frappe.db.exists("Custom DocPerm", {"parent": dt}):
+			# Da co dong tuy bien thi bang chuan khong con hieu luc.
+			return False
+	return False
+
+
+def cap_xuat_excel_v537():
+	"""Patch v537. Khong nuot loi o buoc cap: thieu quyen sau khi cap la lam
+	hong migrate."""
+	from frappe.permissions import add_permission, update_permission_property
+
+	ref = frappe.get_all("Report", filters={"disabled": 0}, pluck="ref_doctype", limit_page_length=0)
+	ref = [d for d in ref if d and frappe.db.exists("DocType", d)]
+	them = []
+	for dt, vai in ke_hoach_xuat_excel(ref, _doc_duoc, lambda dt, vai: not _thieu(dt, vai, "export")):
+		if not frappe.db.exists("Role", vai):
+			continue
+		add_permission(dt, vai, 0)
+		update_permission_property(dt, vai, 0, "export", 1)
+		if _thieu(dt, vai, "export"):
+			frappe.throw("Cấp quyền xuất Excel %s cho %s không ăn." % (dt, vai))
+		them.append("%s · %s" % (dt, vai))
+	if them:
+		frappe.clear_cache()
+	return {"them": them}
