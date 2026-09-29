@@ -69,6 +69,10 @@ function mayChu(canh) {
         return { ten_file: a.man + '.xlsx', b64: 'UEsDBA==', so_dong: 3 };
       }
       if (m === 'vagabond.cong_no.ds_khach_no') {
+        if (a.tim) {
+          return { khach: [{ khach: 'KL1', ten: 'Công ty A', so_hd: 1, tien: 1000000, so_ngay: 3, hd: [{ name: 'HDB-1', tien: 1000000, ngay: '2026-09-25' }] }],
+            tong: 6000000, tong_loc: 1000000, dang_loc: 1, so_khach_tat_ca: 2, cho_ghi_so: { so_hd: 0, tien: 0, so_khach: 0 } };
+        }
         if (canh.veMotPhan) {
           return { khach: [{ khach: 'KL1', ten: 'Công ty A', so_hd: 1, tien: 400000, so_ngay: 3,
             hd: [{ name: 'HDB-1', tien: 400000, ngay: '2026-09-25', tong_don: 1000000, da_thu: 0, da_ve: 600000 }] }],
@@ -382,6 +386,15 @@ async function moCongNo(canh) {
     var app = await moCongNo();
     await app.bam(app.mot('[data-cnmo="KL1"]'));
     bang('không có dòng', app.tim('[data-cndave]').length, 0);
+  });
+
+  await ca('Công nợ: đang tìm thì hiện tổng của phần khớp, thẻ trên đầu giữ tổng thật (Codex #382 vòng 9)', async function () {
+    var app = await moCongNo();
+    bang('chưa tìm thì không có dòng tổng lọc', app.tim('[data-cntongloc]').length, 0);
+    await app.goTim('cnnoDsTim', 'Công ty A');
+    bang('dòng tổng phần khớp, số của máy chủ', app.mot('[data-cntongloc]').textContent, 'Khớp ô tìm: 1 khách · 1000000 đ');
+    var chu = app.tl.body.querySelectorAll('div').map(function (d) { return d._chu; }).join('|');
+    dung('thẻ Còn phải đòi vẫn là tổng thật 6000000', chu.indexOf('6000000 đ') >= 0);
   });
 
   console.log('  cong_cu_ds_534: ' + ket.dat + ' ca đạt, ' + ket.hong + ' ca hỏng');
