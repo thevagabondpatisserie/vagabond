@@ -74,6 +74,13 @@ function mayChu(canh) {
       }
       if (m === 'vagabond.cong_no.ds_phieu') return { phieu: [] };
       if (m === 'vagabond.cong_no.ds_tien_da_ve') {
+        if (canh.veLoi && a.nguon !== 'chuyen_khoan') throw new Error('Máy chủ bận');
+        if (canh.demTheoNguon && a.nguon === 'chuyen_khoan') {
+          return { dong: [{ pe: 'APP-26-09-950', tien: 300000, ten_khach: 'Khách C', hd_dau: 'HDB-3', so_hd: 1, ngay_ve: '2026-09-25',
+            ma_gd: 'FT3', duoi_gd: '0003', so_tep: 0 }], tong_dong: 1, con_nua: 0, tien: 300000,
+            dem: { tat_ca: 3, cong_no: 2, chuyen_khoan: 1 }, nguon: a.nguon,
+            cac_nguon: [{ k: 'cong_no', ten: 'Khách công nợ' }, { k: 'chuyen_khoan', ten: 'Đơn chuyển khoản' }], chua_xac_minh: 0 };
+        }
         return { dong: [
           { pe: 'APP-26-09-894', tien: 5785500, ten_khach: 'Khách Jen', hd_dau: 'HDB-26-09-04242', so_hd: 1, ngay_ve: '2026-09-23',
             ma_gd: 'FT26266374066864', duoi_gd: '6864', so_tep: canh.coTep ? 1 : 0 },
@@ -256,7 +263,11 @@ async function moCongNo(canh) {
     var chu = app.tl.body.querySelectorAll('div').map(function (d) { return d._chu; }).join('|');
     dung('có nhãn tiền đã về', chu.indexOf('TIỀN ĐÃ VỀ, CHỜ GHI SỔ') >= 0);
     dung('có dòng nhắc sổ cái', chu.indexOf('Sổ cái vẫn tính nợ') >= 0);
-    bang('tab Đang nợ chưa hỏi danh sách tiền về', app.mc.dem('vagabond.cong_no.ds_tien_da_ve'), 0);
+    /* Trước vòng 6 tab Đang nợ không hỏi danh sách tiền về, nên chip phải
+       mượn số hoá đơn phủ đủ và lệch với tab (Codex #382 vòng 6). Giờ hỏi
+       đúng một lần, cùng bộ lọc tab sẽ dùng, để chip đếm đúng tập đó. */
+    bang('tab Đang nợ hỏi danh sách tiền về đúng một lần', app.mc.dem('vagabond.cong_no.ds_tien_da_ve'), 1);
+    bang('cùng bộ lọc mặc định của tab', app.mc.cuoi('vagabond.cong_no.ds_tien_da_ve').a.nguon, 'cong_no');
     await app.bam(app.mot('[data-cntab="ve"]'));
     bang('nguồn mặc định', app.mc.cuoi('vagabond.cong_no.ds_tien_da_ve').a.nguon, 'cong_no');
     bang('hai dòng', app.tim('[data-cnunc]').length, 2);
@@ -327,6 +338,29 @@ async function moCongNo(canh) {
     var x = app.mc.cuoi('vagabond.khung.cong_cu_ds.xuat_excel');
     bang('màn', x.a.man, 'cong_no');
     bang('chữ tìm', JSON.parse(x.a.loc).tim, 'Công ty A');
+  });
+
+  /* Codex #382 vòng 6: chip "Tiền đã về" từng lấy số hoá đơn đã phủ đủ nợ
+     (cho_ghi_so.so_hd = 7 trong máy chủ giả) trong khi tab liệt kê từng
+     phiếu thu (2 dòng). Chip phải đếm ĐÚNG tập phiếu mà tab đang hiện. */
+  await ca('Công nợ: chip Tiền đã về đếm đúng số phiếu tab đang hiện, ở cả hai tab và khi đổi nguồn', async function () {
+    var app = await moCongNo({ demTheoNguon: 1 });
+    var chipVe = function () { return app.mot('[data-cntab="ve"]').textContent; };
+    bang('tab Đang nợ: chip bằng số phiếu tab Tiền đã về sẽ hiện', chipVe(), '💰 Tiền đã về 2');
+    await app.bam(app.mot('[data-cntab="ve"]'));
+    bang('tab Tiền đã về: số dòng', app.tim('[data-cnunc]').length, 2);
+    bang('chip khớp số dòng', chipVe(), '💰 Tiền đã về 2');
+    await app.bam(chip(app, 'nguon|chuyen_khoan'));
+    bang('đổi nguồn: số dòng', app.tim('[data-cnunc]').length, 1);
+    bang('đổi nguồn: chip khớp', chipVe(), '💰 Tiền đã về 1');
+    await app.bam(app.mot('[data-cntab="no"]'));
+    bang('về tab Đang nợ vẫn đếm theo nguồn đang chọn', chipVe(), '💰 Tiền đã về 1');
+  });
+
+  await ca('Công nợ: tải Tiền đã về hỏng thì tab Đang nợ vẫn mở, chip không bịa số', async function () {
+    var app = await moCongNo({ veLoi: 1 });
+    bang('tab Đang nợ vẫn có khách', app.tim('[data-cntab="no"]').length, 1);
+    bang('chip không kèm số', app.mot('[data-cntab="ve"]').textContent, '💰 Tiền đã về');
   });
 
   console.log('  cong_cu_ds_534: ' + ket.dat + ' ca đạt, ' + ket.hong + ' ca hỏng');
