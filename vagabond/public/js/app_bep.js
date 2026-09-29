@@ -1707,11 +1707,6 @@ async function scrHome() {
         card('🔐', 'Mã OTP quản lý', 'Cấp mã cho nhân viên sửa hoặc xoá hoá đơn', 0, 'OTP') +
       card('🎫', 'Chương trình khuyến mãi - combo', 'Bảy cách thức khuyến mãi, combo rã món, mã voucher, báo cáo tiền đã giảm', 0, 'KM') +
       card('📒', 'Công nợ phải thu', 'Khách sỉ gom hoá đơn trả sau: gom phiếu, sinh QR, đối soát', 0, 'CN') +
-      /* Sổ hàng tặng cho Sales và quản lý cửa hàng (anh Việt 28/09/2026,
-         issue #380): cùng màn Duyệt đơn hàng tặng bên Kế toán, mở sẵn chip
-         Hoàn tất để tra lại bill đã tặng. Nút Duyệt vẫn chỉ hiện với giám
-         đốc, chặn thật ở máy chủ (hang_tang.duoc_duyet). */
-      card('🎁', 'Sổ hàng tặng', 'Đơn tặng đã xong và đang chờ duyệt, xem lại bill, xuất Excel', 0, 'SOTANG') +
       card('👥', 'Danh sách khách hàng', 'Tra cứu khách sỉ và lẻ, hạng khách, mức chi tiêu', 0, 'KH') +
       /* Don treo phai co mot cua rieng, khong nap trong man Doanh thu Sales:
          don treo cua NGAY CU khong ai mo lai ngay do de xem (anh Viet
@@ -2039,7 +2034,7 @@ var VGB_NHOM = [
   { k: 'NK', ten: 'Nhập kho', icon: '📥', keys: ['RCV', 'NHANDC', 'NBANH'] },
   { k: 'XK', ten: 'Xuất kho', icon: '📤', keys: ['XKH', 'XKNB', 'XKPV', 'XKD', 'XKTRA', 'XKSI'] },
   { k: 'KK', ten: 'Kiểm kê', icon: '🧮', keys: ['KK', 'STOCK', 'TONCHANG'] },
-  { k: 'BH', ten: 'Bán hàng', icon: '🎂', keys: ['KBD', 'KBM', 'POS', 'TQV', 'HDG', 'OTP', 'KM', 'CN', 'SOTANG', 'KH', 'DTREO', 'PHHUY', 'BNTM'] },
+  { k: 'BH', ten: 'Bán hàng', icon: '🎂', keys: ['KBD', 'KBM', 'POS', 'TQV', 'HDG', 'OTP', 'KM', 'CN', 'KH', 'DTREO', 'PHHUY', 'BNTM'] },
   { k: 'GH', ten: 'Giao hàng', icon: '🚚', keys: ['VD', 'CPX', 'DSCOD', 'CBTT'] },
   { k: 'BC', ten: 'Báo cáo', icon: '📈', keys: ['BCSANG', 'BCHUB', 'BC:BC03', 'BC:BC04', 'BC:BC05', 'BC:BC08', 'BC:BC07'] },
   /* Thu mua (anh Việt 18/08/2026): "các nút tính năng của luồng Mua hàng
@@ -2529,7 +2524,7 @@ function vclMo(x) {
      doc chi tiet bang mot loi goi rieng luc nguoi ta bam vao, mo san ma
      chua goi thi no dung mai o cau "Dang doc tung mon". */
   if (l === 'hang_tang') return go(function () {
-    dtgChang = ''; dtgKy = ''; dtgDiem = ''; dtgLoai = ''; dtgTim = x.ma; return scrDuyetTang();
+    dtgTt = ''; dtgDiem = ''; dtgLoai = ''; dtgTim = x.ma; return scrDuyetTang();
   });
   /* Viec giao tu man Viec hom nay (#351): mo man chi tiet, co nut bao xong. */
   if (l === 'goi_y') return go(function () { return scrViecGoiY(x.ma); });
@@ -2813,8 +2808,7 @@ function vgbGo(k) {
   if (k === 'HDBAN') return go(scrHdBan);
   if (k === 'APPTT') return go(scrHoSoTT);
   if (k === 'DSTTNB') return go(scrTTNB);
-  if (k === 'DUYETTANG') { dtgChang = ''; return go(scrDuyetTang); }
-  if (k === 'SOTANG') { dtgChang = 'hoan_tat'; return go(scrDuyetTang); }
+  if (k === 'DUYETTANG') return go(scrDuyetTang);
   if (k === 'HDMUA') return go(scrHdMua);
   if (k === 'DCM') return go(scrDoiChieuMua);
   if (k && k.indexOf('BC:') === 0) { bcMa = k.slice(3); return go(scrBaoCaoXem); }
@@ -16114,26 +16108,13 @@ PHIEU DOI NO co ma QR rieng de khach chuyen mot phat.
 Co y de hai tab tach han: "Khach đang nợ" la viec di doi, "Phiếu đã gửi"
 la viec doi soat. Tron chung vao mot danh sach la ke toan roi ngay. */
 var cnTab = 'no', cnChon = {}, cnKhachMo = '';
-/* v534 (issue #380): tab "Tiền đã về". Tiền khách chuyển đã về tài khoản, máy
-   đã lập phiếu thu nhưng phiếu còn nháp vì thiếu uỷ nhiệm chi khách gửi (anh
-   Việt chốt 28/09/2026: có tệp đó mới ghi sổ). Chỉ phiếu đã khớp giao dịch
-   ngân hàng thật mới vào tab này; phiếu chưa khớp vẫn tính là nợ. */
-var cnNguon = 'cong_no', cnKy = '', cnTu = '', cnDen = '', cnTimNo = '', cnTimVe = '';
-function cnLocVe() { return { nguon: cnNguon, ky: cnKy, tu: cnTu, den: cnDen, tim: cnTimVe }; }
 
 async function scrCongNo() {
   frame('Công nợ phải thu', '<div class="emp"><div class="e1">⏳</div><div>Đang cộng sổ công nợ...</div></div>');
-  var kq, kp, kv = null;
+  var kq, kp;
   try {
-    kq = await api('vagabond.cong_no.ds_khach_no', { tim: cnTimNo });
+    kq = await api('vagabond.cong_no.ds_khach_no', {});
     kp = await api('vagabond.cong_no.ds_phieu', {});
-    /* Codex #382 vòng 6: chip "Tiền đã về" và danh sách tab đó đọc CHUNG
-       một lần gọi, cùng bộ lọc đang chọn, nên số trên chip luôn là số phiếu
-       tab hiện. Ở tab khác mà tải hỏng thì chip chỉ bỏ số, màn vẫn mở. */
-    if (cnTab === 've') kv = await api('vagabond.cong_no.ds_tien_da_ve', cnLocVe());
-    else {
-      try { kv = await api('vagabond.cong_no.ds_tien_da_ve', cnLocVe()); } catch (e2) { kv = null; }
-    }
   } catch (e) {
     frame('Công nợ phải thu', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được') + '</div></div>');
     return;
@@ -16142,37 +16123,21 @@ async function scrCongNo() {
   var choThu = phieu.filter(function (p) { return p.trang_thai === 'Cho thu' || p.trang_thai === 'Thu thieu'; });
   var tienChoThu = choThu.reduce(function (t, p) { return t + (p.con_thieu || 0); }, 0);
 
-  var cg = kq.cho_ghi_so || { so_hd: 0, tien: 0 };
-  var soKhach = kq.so_khach_tat_ca != null ? kq.so_khach_tat_ca : khach.length;
-  var o3 = function (nhan, tien, mau, phu, vien) {
-    return '<div style="flex:1;min-width:0' + (vien ? ';border-left:1px solid #eef0f4;padding-left:10px' : '') + '">' +
-      '<div style="font-size:11.5px;color:#98a2b3;line-height:1.3">' + nhan + '</div>' +
-      '<div style="font-size:17px;font-weight:800;color:' + mau + ';white-space:nowrap">' + money(tien || 0) + ' đ</div>' +
-      '<div style="font-size:12px;color:#98a2b3">' + phu + '</div></div>';
-  };
-  var html = '<div class="card" style="padding:12px 14px">' +
-    '<div style="display:flex;gap:10px">' +
-    o3('CÒN PHẢI ĐÒI', kq.tong, '#b45309', soKhach + ' khách', false) +
-    o3('TIỀN ĐÃ VỀ, CHỜ GHI SỔ', cg.tien, '#15803d', cg.so_hd + ' hoá đơn', true) +
-    o3('ĐÃ GỬI, CHỜ TIỀN', tienChoThu, '#0b7c93', choThu.length + ' phiếu', true) + '</div>' +
-    /* Codex #381 F4: khoản tiền đã về vẫn là nợ trên sổ cái cho tới khi
-       phiếu thu vào sổ. Nói thẳng một dòng, không để con số tự biến mất. */
-    (cg.tien ? '<div style="font-size:12px;color:#667085;margin-top:8px;line-height:1.5">Sổ cái vẫn tính nợ khoản tiền đã về cho tới khi phiếu thu được ghi sổ.</div>' : '') +
-    '</div>';
+  var html = '<div class="card" style="padding:12px 14px;display:flex;gap:10px">' +
+    '<div style="flex:1"><div style="font-size:12px;color:#98a2b3">CÒN PHẢI ĐÒI · CHƯA GOM PHIẾU</div>' +
+    '<div style="font-size:19px;font-weight:800;color:#b45309">' + money(kq.tong || 0) + ' đ</div>' +
+    '<div style="font-size:12px;color:#98a2b3">' + khach.length + ' khách</div></div>' +
+    '<div style="flex:1;border-left:1px solid #eef0f4;padding-left:10px"><div style="font-size:12px;color:#98a2b3">ĐÃ GỬI, CHỜ TIỀN</div>' +
+    '<div style="font-size:19px;font-weight:800;color:#0b7c93">' + money(tienChoThu) + ' đ</div>' +
+    '<div style="font-size:12px;color:#98a2b3">' + choThu.length + ' phiếu</div></div></div>';
 
-  html += '<div class="card" style="padding:10px 12px">' + kmHangChip(
-    posChipNut('data-cntab="no"', '📒 Đang nợ ' + soKhach, cnTab === 'no') +
-    posChipNut('data-cntab="ve"', '💰 Tiền đã về' + (kv ? ' ' + (kv.tong_dong || 0) : ''), cnTab === 've', false, '#15803d') +
-    posChipNut('data-cntab="phieu"', '📤 Phiếu đã gửi ' + phieu.length, cnTab === 'phieu')) + '</div>';
-  var cc = null;
+  html += '<div class="card" style="padding:10px 12px;display:flex;gap:8px">' +
+    posChipNut('data-cntab="no"', '📒 Khách đang nợ ' + khach.length, cnTab === 'no') +
+    posChipNut('data-cntab="phieu"', '📤 Phiếu đã gửi ' + phieu.length, cnTab === 'phieu') + '</div>';
 
   if (cnTab === 'no') {
-    cc = { ma: 'cnno', tim: { gt: cnTimNo, goiY: 'Tìm tên khách hoặc số hoá đơn' },
-      xuat: { man: 'cong_no', so: khach.reduce(function (t, k) { return t + (k.so_hd || 0); }, 0), loc: function () { return { tim: cnTimNo }; } } };
-    html += dsCongCu(cc);
     if (!khach.length) {
-      html += '<div class="card"><div class="emp" style="padding:26px"><div class="e1">' + (cnTimNo ? '🔎' : '🎉') + '</div><div>' +
-        (cnTimNo ? 'Không có khách nào khớp ô tìm.' : 'Không còn khoản công nợ nào chưa gom. Sạch sổ.') + '</div></div></div>';
+      html += '<div class="card"><div class="emp" style="padding:26px"><div class="e1">🎉</div><div>Không còn khoản công nợ nào chưa gom. Sạch sổ.</div></div></div>';
     }
     khach.forEach(function (k) {
       var mo = cnKhachMo === k.khach;
@@ -16199,9 +16164,6 @@ async function scrCongNo() {
             /* Tra mot phan thi phai thay ngay, khong bat ai tru tay: con so
                ben phai la SO CON PHAI DOI, khong phai tong to. */
             (d.da_thu > 0 ? '<div style="font-size:12px;color:#15803d">đã thu ' + money(d.da_thu) + ' đ trên tổng ' + money(d.tong_don) + ' đ</div>' : '') +
-            /* v534 vòng 8 (Codex #382): tiền đã về tài khoản mà phiếu thu còn
-               chờ UNC khách gửi thì đã trừ khỏi số bên phải; nói rõ ra. */
-            (d.da_ve > 0 ? '<div data-cndave="1" style="font-size:12px;color:#0b7c93">' + money(d.da_ve) + ' đ đã về tài khoản, chờ ghi sổ</div>' : '') +
             '</div>' +
             '<b style="white-space:nowrap">' + money(d.tien) + ' đ</b></div>';
         });
@@ -16214,10 +16176,6 @@ async function scrCongNo() {
       }
       html += '</div>';
     });
-  } else if (cnTab === 've') {
-    cc = cnCongCuVe(kv);
-    html += dsCongCu(cc);
-    html += cnVeDs(kv);
   } else {
     var CPL = [
       { k: '', nhan: 'Tất cả', loc: function () { return true; } },
@@ -16248,23 +16206,8 @@ async function scrCongNo() {
   }
 
   var b = frame('Công nợ phải thu', html);
-  if (cc) dsCongCuNoi(b, cc, function (ho, k) {
-    if (cnTab === 'no') { if (ho === 'tim') cnTimNo = k; }
-    else {
-      if (ho === 'nguon') cnNguon = k;
-      else if (ho === 'ky') { cnKy = k; if (k !== 'tuy_chon') { cnTu = ''; cnDen = ''; } }
-      else if (ho === 'tu') cnTu = k;
-      else if (ho === 'den') cnDen = k;
-      else if (ho === 'tim') cnTimVe = k;
-    }
-    go(scrCongNo, true);
-  });
   b.onclick = async function (e) {
-    var t = e.target.closest('[data-cnunc]');
-    if (t) return cnMoUnc(t.getAttribute('data-cnunc'), kv);
-    t = e.target.closest('[data-cngs]');
-    if (t) return cnGhiSo(t.getAttribute('data-cngs'), null);
-    t = e.target.closest('[data-cntab]');
+    var t = e.target.closest('[data-cntab]');
     if (t) { cnTab = t.getAttribute('data-cntab'); return go(scrCongNo, true); }
     t = e.target.closest('[data-cnlp]');
     if (t) { cnLocPhieu = t.getAttribute('data-cnlp'); return go(scrCongNo, true); }
@@ -16312,99 +16255,6 @@ async function scrCongNo() {
   };
 }
 var cnLocPhieu = '';
-
-/* ---- v534: tab Tiền đã về ---- */
-function cnCongCuVe(kv) {
-  kv = kv || {};
-  return {
-    ma: 'cnve',
-    ho: [{ k: 'nguon', ds: kv.cac_nguon || [], dem: kv.dem || {}, chon: cnNguon, tatCa: 'Mọi nguồn', mau: '#15803d' }],
-    ky: { chon: cnKy, tu: cnTu, den: cnDen },
-    tim: { gt: cnTimVe, goiY: 'Tìm khách, hoá đơn, mã giao dịch' },
-    xuat: { man: 'tien_da_ve', so: kv.tong_dong || 0, loc: cnLocVe },
-  };
-}
-
-function cnVeDs(kv) {
-  kv = kv || {};
-  var dong = kv.dong || [];
-  var html = '';
-  if (!dong.length) {
-    return '<div class="card"><div class="emp" style="padding:26px"><div class="e1">💰</div><div>' +
-      ((cnTimVe || cnKy) ? 'Không có khoản nào khớp bộ lọc.' : 'Không có khoản nào đang chờ ghi sổ.') + '</div></div></div>';
-  }
-  html += '<div class="sec">' + money(kv.tong_dong || dong.length) + ' khoản · ' + money(kv.tien || 0) + ' đ</div>';
-  dong.forEach(function (p) {
-    var coUnc = (p.so_tep || 0) > 0;
-    html += '<div class="card" style="margin-bottom:10px;padding:12px 14px">' +
-      '<div style="display:flex;align-items:flex-start;gap:10px">' +
-      '<div style="flex:1;min-width:0"><b style="font-size:15px">' + h(p.ten_khach || p.khach || '') + '</b>' +
-      '<div style="font-size:12.5px;color:#667085;margin-top:2px">' + h(p.hd_dau || '') +
-      (p.so_hd > 1 ? ' và ' + (p.so_hd - 1) + ' hoá đơn nữa' : '') +
-      ' · về ' + posNgayVn(p.ngay_ve) + ' · GD …' + h(p.duoi_gd || '') + '</div>' +
-      '<div style="margin-top:6px">' + (coUnc
-        ? '<span style="background:#ecfdf3;border:1px solid #a6f4c5;color:#05603a;border-radius:20px;padding:2px 9px;font-size:11.5px;white-space:nowrap">Có UNC · ' + p.so_tep + ' tệp</span>'
-        : '<span style="background:#fef2f2;border:1px solid #fecaca;color:#b3261e;border-radius:20px;padding:2px 9px;font-size:11.5px;white-space:nowrap">Chưa có UNC</span>') +
-      '</div></div>' +
-      '<b style="font-size:15.5px;white-space:nowrap">' + money(p.tien) + ' đ</b></div>' +
-      '<div style="display:flex;gap:8px;margin-top:10px">' +
-      '<button class="btn gh" data-cnunc="' + h(p.pe) + '" style="flex:1;margin:0;min-height:44px">📎 Đính UNC khách gửi</button>' +
-      (kv.ke_toan && coUnc ? '<button class="btn" data-cngs="' + h(p.pe) + '" style="flex:1;margin:0;min-height:44px">Ghi sổ phiếu thu</button>' : '') +
-      '</div></div>';
-  });
-  if (kv.con_nua) {
-    html += '<div class="card" style="padding:10px 13px;font-size:12.5px;color:#92400e;background:#fffbeb;border:1px solid #fcd34d">' +
-      'Đang hiện ' + money(dong.length) + ' khoản đầu, còn ' + money(kv.con_nua) +
-      ' khoản. Thu hẹp bằng chip ngày hoặc ô tìm; Xuất Excel vẫn đủ.</div>';
-  }
-  /* Khối chỉ đọc đặt DƯỚI danh sách, một dòng (AGENTS mục 2b điều 17). */
-  if (kv.chua_xac_minh) {
-    html += '<div style="font-size:12px;color:#667085;padding:4px 4px 12px;line-height:1.5">' +
-      money(kv.chua_xac_minh) + ' phiếu thu nháp khác chưa khớp được giao dịch ngân hàng, vẫn tính là nợ.</div>';
-  }
-  return html;
-}
-
-function cnMoUnc(pe, kv) {
-  var p = ((kv || {}).dong || []).filter(function (x) { return x.pe === pe; })[0] || { pe: pe };
-  var id = 'cnunc';
-  var o = { nhan: '📎 Chọn ảnh chuyển khoản khách gửi', goi_y: 'Ảnh chụp màn hình chuyển khoản hoặc tệp PDF uỷ nhiệm chi khách gửi qua Zalo, email.', style: 'margin-top:0' };
-  tdkNap(id, []);
-  var ketoan = !!(kv || {}).ke_toan;
-  var than = '<div style="font-size:13.5px;color:#374151;line-height:1.6;margin-bottom:10px">' +
-    '<b>' + h(p.ten_khach || '') + '</b> · ' + money(p.tien || 0) + ' đ · về ' + posNgayVn(p.ngay_ve) + '<br>' +
-    '<span style="color:#667085">Phiếu thu ' + h(pe) + ' · giao dịch ' + h(p.ma_gd || '') + '</span></div>' +
-    '<div id="cnUncKhung">' + tdkKhoi(id, o) + '</div>' +
-    '<div style="font-size:12px;color:#667085;margin-top:9px;line-height:1.5">' +
-    (ketoan ? 'Lưu xong máy ghi sổ phiếu thu và nối giao dịch ngân hàng ngay.' : 'Lưu xong kế toán sẽ ghi sổ phiếu thu.') + '</div>';
-  var k = hopKhung('Uỷ nhiệm chi khách gửi', than,
-    '<button class="btn" data-cnluu style="flex:1;margin:0;min-height:44px">' + (ketoan ? 'Lưu và ghi sổ' : 'Lưu uỷ nhiệm chi') + '</button>');
-  tdkNoi(k.box, id, o);
-  k.box.onclick = async function (e) {
-    if (e.target.closest('.x')) { k.dong(); return; }
-    if (!e.target.closest('[data-cnluu]')) return;
-    var unc = (tdkDs(id) || []).filter(Boolean);
-    if (!unc.length) return baoTin('Chọn ảnh chuyển khoản khách gửi trước rồi bấm lưu.');
-    k.dong();
-    await cnGhiSo(pe, unc);
-  };
-}
-
-async function cnGhiSo(pe, unc) {
-  busy(true);
-  var r;
-  try {
-    r = await api('vagabond.thu_tien.ghi_so_phieu_thu', unc ? { name: pe, unc: JSON.stringify(unc) } : { name: pe });
-  } catch (e) {
-    busy(false);
-    return baoTin(errMsg(e) || 'Chưa ghi sổ phiếu thu được.', 'Chưa ghi sổ phiếu thu');
-  }
-  busy(false);
-  if (r && r.ok) toast(r.da_lam_roi ? 'Phiếu thu này đã vào sổ từ trước.' : 'Đã ghi sổ phiếu thu ' + pe + '.', 3500);
-  else if (r && r.da_dinh) await baoTin((r.vi_sao || '') + '\nĐã lưu ' + (r.so_tep || 0) + ' tệp uỷ nhiệm chi vào phiếu.', 'Đã lưu uỷ nhiệm chi');
-  if (unc) tdkNap('cnunc', []);
-  return go(scrCongNo, true);
-}
 
 /* Chi tiet mot phieu doi no: ma QR de gui khach, danh sach hoa don trong
    phieu, va nut doi chieu SePay. */
@@ -22189,7 +22039,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '534';
+var APPVER = '537';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -26019,124 +25869,6 @@ function ttnbTienTrinh(r) {
     {ten:'Duyệt', xong:muc > 1, dang:muc === 1},
     {ten:'Kế toán xử lý', xong:muc > 2, dang:muc === 2}
   ]);
-}
-
-/* ==========================================================================
-   v534 (issue #380) - THANH CÔNG CỤ DANH SÁCH DÙNG CHUNG
-
-   Anh Việt chốt 28/09/2026: chip lọc, xuất Excel, chip trạng thái theo chặng
-   là tối cần thiết, áp dụng cho MỌI màn danh sách. Tới v533 mỗi màn tự vẽ
-   hàng chip của nó, chín màn có Excel viết riêng, còn lại không có. Đây là
-   MỘT chỗ vẽ, màn nào cũng gọi, để chip ngày "Tháng trước" ở màn nào cũng
-   nghĩa là cùng một khoảng và nút Excel ở màn nào cũng xuất đúng tập đang
-   lọc (máy chủ: vagabond/khung/cong_cu_ds.py).
-
-   Thứ tự khối cố định, theo đặc tả trong docs/van-hanh-agent/cong-viec/
-   issue-380.md mục "Giao diện":
-     1. hàng chip chặng
-     2. các hàng chip lọc riêng của màn, mỗi họ một màu
-     3. hàng chip ngày (Tuỳ chọn mới hiện hai ô ngày)
-     4. ô tìm và nút viền Xuất Excel trên cùng một hàng
-
-   Cách dùng:
-     html += dsCongCu(c);                 vẽ
-     dsCongCuNoi(khung, c, doi);          nối sự kiện sau khi frame()
-   `doi(ho, k)` được gọi khi bấm chip (ho = 'chang', tên họ lọc, 'ky') hoặc
-   khi gõ tìm (ho = 'tim') hay đổi ô ngày (ho = 'tu' / 'den'). Màn tự lưu
-   lựa chọn vào biến của nó rồi vẽ lại. Nút Excel gọi c.xuat.man với bộ lọc
-   c.xuat.loc(), màn không phải viết gì thêm.
-   ========================================================================== */
-var DS_KY = [['', 'Mọi ngày'], ['hom_nay', 'Hôm nay'], ['7_ngay', '7 ngày'],
-  ['thang_nay', 'Tháng này'], ['thang_truoc', 'Tháng trước'], ['tuy_chon', 'Tuỳ chọn']];
-
-function dsccHang(ho, ds, dem, chon, tatCa, mau) {
-  var so = function (k) { var n = (dem || {})[k || 'tat_ca']; return n ? ' <b>' + money(n) + '</b>' : ''; };
-  var ra = [];
-  if (tatCa) ra.push(posChipNut('data-dscc="' + h(ho) + '|"', h(tatCa) + so(''), !chon, false, mau));
-  (ds || []).forEach(function (x) {
-    /* Chip không có dòng nào thì ẩn, trừ chip đang chọn: bấm rồi mà chip
-       biến mất thì người dùng không biết mình đang lọc theo gì. */
-    if (dem && !dem[x.k] && chon !== x.k) return;
-    ra.push(posChipNut('data-dscc="' + h(ho) + '|' + h(x.k) + '"',
-      (x.ic ? x.ic + ' ' : '') + h(x.ten) + so(x.k), chon === x.k, false, mau));
-  });
-  return ra.length ? kmHangChip(ra.join('')) : '';
-}
-
-function dsCongCu(c) {
-  c = c || {};
-  var ma = c.ma || 'ds';
-  var hang = [];
-  if (c.chang) hang.push(dsccHang('chang', c.chang.ds, c.chang.dem, c.chang.chon || '', c.chang.tatCa || 'Mọi chặng', '#0d9488'));
-  (c.ho || []).forEach(function (f) {
-    hang.push(dsccHang(f.k, f.ds, f.dem, f.chon || '', f.tatCa, f.mau || '#4338ca'));
-  });
-  if (c.ky) {
-    var k = c.ky.chon || '';
-    hang.push(kmHangChip(DS_KY.map(function (n) {
-      return posChipNut('data-dscc="ky|' + n[0] + '"', h(n[1]), k === n[0], false, '#b45309');
-    }).join('')));
-    if (k === 'tuy_chon') {
-      hang.push('<div style="display:flex;gap:8px;align-items:center">' +
-        '<input class="tin" id="' + ma + 'DsTu" type="date" value="' + h(c.ky.tu || '') + '" style="flex:1;min-width:0">' +
-        '<span style="color:#98a2b3">đến</span>' +
-        '<input class="tin" id="' + ma + 'DsDen" type="date" value="' + h(c.ky.den || '') + '" style="flex:1;min-width:0"></div>');
-    }
-  }
-  var coTim = !!c.tim, coXuat = !!c.xuat;
-  if (coTim || coXuat) {
-    hang.push('<div style="display:flex;gap:8px;align-items:center">' +
-      (coTim ? '<input class="tin" id="' + ma + 'DsTim" type="search" enterkeyhint="search" placeholder="' +
-        h(c.tim.goiY || 'Tìm') + '" value="' + h(c.tim.gt || '') + '" style="flex:1;min-width:0;height:44px">' : '<span style="flex:1"></span>') +
-      (coXuat ? '<button class="btn gh" data-dsxuat="1" style="flex:0 0 auto;width:auto;margin:0;min-height:44px;padding:0 14px;white-space:nowrap">📊 Xuất Excel' +
-        (c.xuat.so != null ? ' ' + money(c.xuat.so) : '') + '</button>' : '') +
-      '</div>');
-  }
-  hang = hang.filter(Boolean);
-  if (!hang.length) return '';
-  return '<div class="card" data-dscongcu="' + h(ma) + '" style="padding:10px 12px;display:flex;flex-direction:column;gap:9px">' +
-    hang.join('') + '</div>';
-}
-
-async function dsXuatExcel(man, loc) {
-  busy(true);
-  try {
-    var f = await api('vagabond.khung.cong_cu_ds.xuat_excel', { man: man, loc: JSON.stringify(loc || {}) });
-    busy(false);
-    if (!f || !f.b64) return baoTin('Máy chủ chưa trả tệp Excel. Thử lại sau ít phút.');
-    bcTaiVe(f.ten_file, f.b64);
-  } catch (e) {
-    busy(false);
-    baoTin(errMsg(e) || 'Chưa xuất được Excel.');
-  }
-}
-
-function dsCongCuNoi(khung, c, doi) {
-  if (!khung || !c) return;
-  var ma = c.ma || 'ds';
-  khung.addEventListener('click', function (e) {
-    var t = e.target.closest('[data-dscc]');
-    if (t) {
-      var v = t.getAttribute('data-dscc'), i = v.indexOf('|');
-      doi(v.slice(0, i), v.slice(i + 1));
-      return;
-    }
-    if (e.target.closest('[data-dsxuat]') && c.xuat) {
-      dsXuatExcel(c.xuat.man, typeof c.xuat.loc === 'function' ? c.xuat.loc() : (c.xuat.loc || {}));
-    }
-  });
-  var o = document.getElementById(ma + 'DsTim');
-  if (o) {
-    /* Tìm khi bấm Enter hoặc rời ô, không tìm theo từng phím: mỗi lần tìm
-       là một lượt hỏi máy chủ (QT-19), gõ mười chữ là mười lượt. */
-    var cu = (c.tim && c.tim.gt) || '';
-    var tim = function () { var v = o.value.trim(); if (v === cu) return; cu = v; doi('tim', v); };
-    o.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); tim(); } });
-    o.addEventListener('change', tim);
-  }
-  var tu = document.getElementById(ma + 'DsTu'), den = document.getElementById(ma + 'DsDen');
-  if (tu) tu.addEventListener('change', function () { doi('tu', tu.value); });
-  if (den) den.addEventListener('change', function () { doi('den', den.value); });
 }
 /* ---------------- Don mua hang (PO) ---------------- */
 
@@ -48181,10 +47913,7 @@ function phlMoForm(ma) {
    Tiền tố dtg = duyệt tặng. Đã kiểm và chạm tên trước khi đặt (QT-28). */
 
 var dtgDiem = '';      // chip điểm bán đang chọn, rỗng là tất cả
-var dtgChang = '';     // chip chặng (v534): cho_duyet, cho_ghi_so, hoan_tat, tu_choi
-var dtgKy = '';        // chip ngày (v534), khoá theo DS_KY ở 15-khuon-danh-sach.js
-var dtgTu = '';        // hai ô ngày khi chọn Tuỳ chọn
-var dtgDen = '';
+var dtgTt = '';        // chip trạng thái duyệt
 var dtgLoai = '';      // chip loại tặng
 var dtgTim = '';       // ô tìm
 var dtgMo = {};        // mã đơn nào đang mở rộng
@@ -48197,11 +47926,18 @@ function dtgMauTt(tt) {
   return ['#f8fafc', '#e2e8f0', '#64748b'];
 }
 
-/* v534: bốn họ chip (chặng, điểm bán, loại tặng, ngày), ô tìm và nút Excel
-   vẽ bằng thanh công cụ dùng chung `dsCongCu` (15-khuon-danh-sach.js). Hàm
-   vẽ chip riêng của màn này bỏ đi, để màn tặng không lệch khỏi mọi màn khác. */
-function dtgLoc() {
-  return { diem: dtgDiem, chang: dtgChang, loai: dtgLoai, tim: dtgTim, ky: dtgKy, tu: dtgTu, den: dtgDen };
+/* Một hàng chip, cùng khuôn với màn Danh sách phiếu hoàn tiền. Chip rỗng thì
+   ẩn, riêng chip đang chọn luôn hiện dù đếm 0 - không thì bấm vào là nó biến
+   mất và người ta không biết đường bấm lại. */
+function dtgHangChip(thuoc, dsc, dem, chon, nhanTatCa, mau) {
+  var s = posChipNut(thuoc + '=""', (nhanTatCa || 'Tất cả') + ' · ' +
+    (dem.tat_ca || 0), chon === '', false, mau);
+  (dsc || []).forEach(function (o) {
+    var n = dem[o.k] || 0;
+    if (!n && chon !== o.k) return;
+    s += posChipNut(thuoc + '="' + h(o.k) + '"', o.ten + ' · ' + n, chon === o.k, false, mau);
+  });
+  return '<div style="display:flex;gap:7px;flex-wrap:wrap;margin:7px 0">' + s + '</div>';
 }
 
 /* Nhãn nhỏ, mỗi nhãn không được gãy giữa chừng trên màn hình hẹp. Cùng bài
@@ -48217,31 +47953,15 @@ function dtgNhan(cac) {
   return s + '</div>';
 }
 
-var DTG_TEN = 'Hàng tặng: duyệt và sổ đơn';
-
-/* Cấu hình thanh công cụ cho màn này: đọc thẳng số đếm máy chủ trả về. */
-function dtgCongCu(kq) {
-  var tong = (kq.dem_chang || {}).tat_ca || 0;
-  return {
-    ma: 'dtg',
-    chang: { ds: kq.cac_chang || [], dem: kq.dem_chang || {}, chon: dtgChang, tatCa: 'Mọi chặng' },
-    ho: [
-      { k: 'diem', ds: kq.diem || [], dem: kq.dem_diem || {}, chon: dtgDiem, tatCa: 'Mọi điểm bán', mau: '#4338ca' },
-      { k: 'loai', ds: kq.loai || [], dem: kq.dem_loai || {}, chon: dtgLoai, tatCa: 'Mọi loại tặng', mau: '#b45309' },
-    ],
-    ky: { chon: dtgKy, tu: dtgTu, den: dtgDen },
-    tim: { gt: dtgTim, goiY: 'Tìm mã đơn, tên khách, lý do' },
-    xuat: { man: 'hang_tang', so: kq.tong_dong != null ? kq.tong_dong : tong, loc: dtgLoc },
-  };
-}
-
 async function scrDuyetTang() {
-  frame(DTG_TEN, '<div class="emp"><div class="e1">⏳</div><div>Đang đọc danh sách...</div></div>');
+  frame('Duyệt đơn hàng tặng', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc danh sách...</div></div>');
   var kq;
   try {
-    kq = await api('vagabond.hang_tang.ds_don', dtgLoc());
+    kq = await api('vagabond.hang_tang.ds_don', {
+      diem: dtgDiem, trang_thai: dtgTt, loai: dtgLoai, tim: dtgTim,
+    });
   } catch (e) {
-    frame(DTG_TEN, '<div class="emp"><div class="e1">⚠️</div><div>' +
+    frame('Duyệt đơn hàng tặng', '<div class="emp"><div class="e1">⚠️</div><div>' +
       h(errMsg(e)) + '</div></div>');
     return;
   }
@@ -48249,10 +47969,9 @@ async function scrDuyetTang() {
 
   var html = '<div class="card" style="padding:12px 13px">' +
     '<div style="font-size:13px;color:#344054;line-height:1.6">' +
-    /* v534: lời giải thích thu về hai dòng (AGENTS mục 2b điều 17), khối
-       chỉ để đọc không được đẩy thanh công cụ xuống khỏi màn đầu. */
-    'Đơn tặng không thu tiền, hoá đơn xuất <b>nguyên giá</b>. ' +
-    'Chỉ ghi sổ sau khi giám đốc duyệt.' +
+    'Đơn trả bằng <b>Hàng tặng</b> không thu tiền của khách. Hoá đơn vẫn xuất ' +
+    '<b>nguyên giá và nguyên thuế</b> theo luật hàng biếu tặng, phần khách phải ' +
+    'trả được gạt sang chi phí biếu tặng. Đơn chỉ ghi sổ được sau khi duyệt ở đây.' +
     '</div>' +
     '<div style="margin-top:9px;display:flex;gap:18px;flex-wrap:wrap">' +
     '<div><div style="font-size:12px;color:#8a8f9c">ĐANG CHỜ DUYỆT</div>' +
@@ -48274,8 +47993,16 @@ async function scrDuyetTang() {
   /* Ba họ chip ba màu, cùng bảng màu với màn Danh sách phiếu hoàn tiền:
      ba hàng xếp chồng mà cùng một màu thì không biết mình đang lọc theo
      cái gì. Anh Việt nhắc 31/08/2026. */
-  var cc = dtgCongCu(kq);
-  html += dsCongCu(cc);
+  html += dtgHangChip('data-dtgd', kq.diem, kq.dem_diem || {}, dtgDiem, 'Mọi điểm bán', '#4338ca');
+  html += dtgHangChip('data-dtgt', (kq.trang_thai || []).map(function (k) {
+    return { k: k, ten: k };
+  }), kq.dem || {}, dtgTt, 'Mọi trạng thái', '#0d9488');
+  html += dtgHangChip('data-dtgl', kq.loai, kq.dem_loai || {}, dtgLoai, 'Mọi loại tặng', '#b45309');
+
+  html += '<div class="card" style="padding:9px 11px"><input id="dtgTim" type="search" ' +
+    'placeholder="Tìm theo mã đơn, tên khách, mã Pancake, lý do tặng" value="' + h(dtgTim) + '" ' +
+    'style="width:100%;height:38px;border:1.5px solid #e4e7ec;border-radius:9px;' +
+    'padding:0 10px;font-size:14px"></div>';
 
   html += '<div class="sec">' + dong.length + ' đơn' +
     (kq.con_nua ? ' trên tổng ' + kq.tong_dong : '') +
@@ -48318,20 +48045,15 @@ async function scrDuyetTang() {
   });
   html += '</div>';
 
-  var than = frame(DTG_TEN, html, {
+  frame('Duyệt đơn hàng tặng', html, {
     footer: '<button class="btn gh" data-dtgbc="1" style="width:100%;margin:0">' +
       '📊 Báo cáo hàng tặng</button>',
   });
-  dsCongCuNoi(than, cc, function (ho, k) {
-    if (ho === 'chang') dtgChang = k;
-    else if (ho === 'diem') dtgDiem = k;
-    else if (ho === 'loai') dtgLoai = k;
-    else if (ho === 'ky') { dtgKy = k; if (k !== 'tuy_chon') { dtgTu = ''; dtgDen = ''; } }
-    else if (ho === 'tu') dtgTu = k;
-    else if (ho === 'den') dtgDen = k;
-    else if (ho === 'tim') dtgTim = k;
-    go(scrDuyetTang, true);
-  });
+  var o = document.getElementById('dtgTim');
+  if (o) {
+    o.onchange = function () { dtgTim = o.value.trim(); go(scrDuyetTang, true); };
+    o.onkeydown = function (e) { if (e.key === 'Enter') { dtgTim = o.value.trim(); go(scrDuyetTang, true); } };
+  }
   /* Nghe trên `root` chứ không trên thân màn, xem bài học ở đầu 29-don-huy.js
      và ca kiểm `thu_chan_man.py`. */
   root.addEventListener('click', dtgBam);
@@ -48411,8 +48133,6 @@ function dtgThan(r, kq) {
       'Người lập này đã lập <b>' + (ct.thang_nay.so || 0) + ' đơn tặng</b> trong tháng, ' +
       'tổng <b>' + money(ct.thang_nay.tien || 0) + ' đ</b>.</div>';
   }
-  s += '<div style="margin-top:10px"><button class="btn gh" data-dtgbill="' + h(r.name) +
-    '" style="width:100%;margin:0;min-height:44px">🧾 Xem lại bill</button></div>';
   if (kq.duyet_duoc && !r.da_ghi_so && (r.vgb_tang_duyet || 'Chờ duyệt') !== 'Đã duyệt') {
     s += '<div style="display:flex;gap:9px;margin-top:10px">' +
       '<button class="btn gh" data-dtgtc="' + h(r.name) + '" style="flex:1;margin:0">✖️ Từ chối</button>' +
@@ -48425,13 +48145,14 @@ function dtgThan(r, kq) {
 }
 
 async function dtgBam(ev) {
-  var t;
-  if (ev.target.closest('[data-dtgbc]')) return go(scrTangBaoCao);
+  var t = ev.target.closest('[data-dtgd]');
+  if (t) { dtgDiem = t.getAttribute('data-dtgd'); return go(scrDuyetTang, true); }
+  t = ev.target.closest('[data-dtgt]');
+  if (t) { dtgTt = t.getAttribute('data-dtgt'); return go(scrDuyetTang, true); }
+  t = ev.target.closest('[data-dtgl]');
+  if (t) { dtgLoai = t.getAttribute('data-dtgl'); return go(scrDuyetTang, true); }
 
-  /* Sales Manager 28/09/2026: đơn tặng xong rồi vẫn phải mở lại được đúng
-     tờ bill để tra, không phải đi tìm ở màn khác. */
-  t = ev.target.closest('[data-dtgbill]');
-  if (t) { var maB = t.getAttribute('data-dtgbill'); return go(function () { return scrPosBill(maB); }); }
+  if (ev.target.closest('[data-dtgbc]')) return go(scrTangBaoCao);
 
   t = ev.target.closest('[data-dtgok]');
   if (t) {
