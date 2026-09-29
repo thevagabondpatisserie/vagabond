@@ -481,6 +481,34 @@ def url_trong_o_unc(ds_file):
 		if r.get("file_url") and (r.get("attached_to_field") or "") in O_UNC}
 
 
+def url_unc_that(ten_pe, ds_file):
+	"""Tập đường dẫn là UNC khách gửi THẬT của phiếu `ten_pe`. THUẦN.
+
+	`ds_file` là MỌI dòng File mang các đường dẫn đang xét, ở bất cứ chứng
+	từ nào (file_url, attached_to_doctype, attached_to_name,
+	attached_to_field). Một đường dẫn chỉ được tính khi có ít nhất một dòng
+	gắn vào đúng phiếu qua ô UNC VÀ không có dòng nào nằm chỗ khác.
+
+	Vì sao phải xét cả dòng ở chỗ khác (bench #382 vòng 8): Frappe v16.27.1
+	`frappe/core/doctype/file/utils.py` `attach_files_to_document` chạy khi
+	lưu mọi chứng từ; ô Attach trỏ vào một đường dẫn đã có thì nó CHÉP ra một
+	dòng File mới gắn qua đúng ô đó. Trỏ ô Desk vào ảnh kẹp giấy, hay vào UNC
+	của phiếu khác, là có ngay một dòng "gắn qua ô UNC". Tệp tải lên thật qua
+	ô UNC (app hoặc Desk) chỉ có một dòng, nằm đúng chỗ.
+	"""
+	dung_cho, sai_cho = set(), set()
+	for r in ds_file or []:
+		u = str(r.get("file_url") or "")
+		if not u:
+			continue
+		if (r.get("attached_to_doctype") == PE and r.get("attached_to_name") == ten_pe
+				and (r.get("attached_to_field") or "") in O_UNC):
+			dung_cho.add(u)
+		else:
+			sai_cho.add(u)
+	return dung_cho - sai_cho
+
+
 def tep_muc_khac(ds_url, ds_file):
 	"""Đường dẫn người dùng gửi làm UNC mà đang gắn vào phiếu ở MỤC KHÁC. THUẦN.
 
@@ -936,17 +964,20 @@ def phieu_thu_nhap(cac_si=None, chi_ma_gd=True):
 	ten = [p.name for p in cac_pe]
 	from vagabond import tep_dinh_kem
 
-	file_gan = {}
-	for lo in _chia(ten):
+	o_unc = {p.name: tep_dinh_kem.doc_ds(p.get("vgb_thu_unc")) for p in cac_pe}
+	file_theo_url = {}
+	for lo in _chia({u for ds in o_unc.values() for u in ds}):
 		for r in frappe.get_all(
-			"File", filters={"attached_to_doctype": PE, "attached_to_name": ["in", lo]},
-			fields=["attached_to_name", "file_url", "attached_to_field"], limit_page_length=0,
+			"File", filters={"file_url": ["in", lo]},
+			fields=["file_url", "attached_to_doctype", "attached_to_name", "attached_to_field"],
+			limit_page_length=0,
 		):
-			file_gan.setdefault(r.attached_to_name, []).append(r)
-	# Chỉ đếm tệp nằm trong ô UNC khách gửi (Codex #382) VÀ gắn vào phiếu qua
-	# chính ô đó (Codex #382 vòng 7), xem dem_tep_unc và url_trong_o_unc.
-	tep = {p.name: dem_tep_unc(tep_dinh_kem.doc_ds(p.get("vgb_thu_unc")), url_trong_o_unc(file_gan.get(p.name)))
-		for p in cac_pe}
+			file_theo_url.setdefault(r.file_url, []).append(r)
+	# Chỉ đếm tệp nằm trong ô UNC khách gửi (Codex #382), gắn vào phiếu qua
+	# chính ô đó (vòng 7) và không có bản ở chỗ khác (vòng 8): url_unc_that,
+	# cùng một phép với cổng ghi sổ _so_tep_unc.
+	tep = {p.name: dem_tep_unc(o_unc[p.name], url_unc_that(
+		p.name, [r for u in o_unc[p.name] for r in file_theo_url.get(u, [])])) for p in cac_pe}
 	gd = _gd_theo_so([p.reference_no for p in cac_pe])
 	ra = []
 	for p in cac_pe:
@@ -987,9 +1018,11 @@ def _so_tep_unc(ten_pe, o_unc):
 	ds = tep_dinh_kem.doc_ds(o_unc)
 	if not ds:
 		return 0
-	gan = frappe.get_all("File", filters={"attached_to_doctype": PE, "attached_to_name": ten_pe,
-		"file_url": ["in", ds]}, fields=["file_url", "attached_to_field"], limit_page_length=0)
-	return dem_tep_unc(ds, url_trong_o_unc(gan))
+	# Đọc MỌI dòng File mang các đường dẫn này, không chỉ dòng của phiếu:
+	# bản chép do ô Attach sinh ra phải bị lộ (url_unc_that).
+	rows = frappe.get_all("File", filters={"file_url": ["in", ds]}, fields=[
+		"file_url", "attached_to_doctype", "attached_to_name", "attached_to_field"], limit_page_length=0)
+	return dem_tep_unc(ds, url_unc_that(ten_pe, rows))
 
 
 @frappe.whitelist(methods=["POST"])
