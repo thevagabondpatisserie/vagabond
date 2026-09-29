@@ -227,6 +227,23 @@ def _desk():
 		la('GL hai dòng', len(_gl(pe)), 2)
 
 
+@ca('#380 v534 Codex #382 vòng 4: phiếu thu không thuộc màn công nợ thì nút đính UNC từ chối, không gắn tệp')
+def _ngoai_tap():
+	si, g, pe = _du_lieu()
+	le = frappe.copy_doc(pe)
+	le.references = []
+	le.insert(ignore_permissions=True); _DA_TAO.append((le.doctype, le.name))
+	with _Tep() as t:
+		try:
+			tt.ghi_so_phieu_thu(le.name, unc=[t.file_url])
+		except frappe.ValidationError as e:
+			dung('câu nói không phải phiếu thu công nợ', 'không phải phiếu thu' in str(e))
+		else:
+			dung('phải từ chối phiếu ngoài tập', False)
+		la('tệp không bị gắn vào phiếu', frappe.db.get_value('File', t.name, 'attached_to_name') or '', '')
+		la('ô UNC của phiếu vẫn trống', frappe.db.get_value('Payment Entry', le.name, 'vgb_thu_unc') or '', '')
+
+
 @ca('#380 v534 giao dịch đã nối chứng từ khác thì chặn, không ghi tiền hai lần')
 def _da_noi():
 	si, g, pe = _du_lieu()
