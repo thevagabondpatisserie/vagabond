@@ -1301,3 +1301,155 @@ def _ghi_vet_thu(name, viec):
 		}).insert(ignore_permissions=True)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "thu_tien: ghi vet phieu thu")
+
+
+# ==================================================================
+# v541: tab Đang nợ, nút "Khách đã chuyển" (anh Việt 29/09/2026)
+# ==================================================================
+#
+# Ca thật: hoá đơn Pancake 745.000 đ trả Công nợ, tiền đã về tài khoản
+# công ty nhưng nội dung chuyển khoản không mang mã đơn, nên script khớp
+# SePay không lập phiếu thu nháp và hoá đơn nằm mãi ở tab Đang nợ. Tab Tiền
+# đã về chỉ nhận hoá đơn ĐÃ có phiếu thu khớp giao dịch, nên không có cửa
+# nào để người biết tiền đã về chọn đúng giao dịch. Cửa này: người chọn
+# giao dịch ngân hàng (máy chỉ gợi ý, KHÔNG tự gán theo số tiền, cùng luật
+# với hồ sơ thanh toán v528), máy lập phiếu thu NHÁP nối đúng giao dịch,
+# hoá đơn sang tab Tiền đã về, rồi đính UNC khách gửi và ghi sổ như cũ.
+
+SO_NGAY_TRUOC_HD = 7     # giao dịch về sớm hơn ngày hoá đơn tối đa bấy nhiêu ngày
+GOI_Y_TOI_DA = 12
+
+
+def dau_hieu_don(remarks, ten_si=""):
+	"""Mã đơn và số điện thoại đọc được trên hoá đơn để đối với nội dung
+	chuyển khoản. THUẦN. remarks kiểu "Pancake #93367 - Ms.Thanh - 0933346399"."""
+	import re
+	s = str(remarks or "")
+	ma = re.findall(r"#\s*(\d{4,})", s)
+	dt = [d[-9:] for d in re.findall(r"\d{9,11}", s)]
+	return {"ma_don": ma, "dien_thoai": [d for d in dt if d not in ma], "ten_si": str(ten_si or "")}
+
+
+def xep_ung_vien(ds_gd, dau_hieu, con_no):
+	"""Xếp giao dịch ứng viên, gắn lý do khớp. THUẦN.
+
+	Chỉ GỢI Ý: đúng số tiền, nội dung có mã đơn, có số điện thoại khách.
+	Không bỏ giao dịch nào vì không khớp nội dung: người mới là người chọn."""
+	dh = dau_hieu or {}
+	ra = []
+	for g in ds_gd or []:
+		mo = str(g.get("description") or "")
+		chu = "".join(mo.split()).upper()
+		ly = []
+		diem = 0
+		for m in dh.get("ma_don") or []:
+			if m and m in chu:
+				ly.append("nội dung có mã đơn %s" % m)
+				diem += 4
+				break
+		for d in dh.get("dien_thoai") or []:
+			if d and d in chu:
+				ly.append("có số điện thoại khách")
+				diem += 2
+				break
+		ten = str(dh.get("ten_si") or "").upper()
+		if ten and ten.replace("-", "") in chu.replace("-", ""):
+			ly.append("có số hoá đơn")
+			diem += 3
+		con = _so(g.get("unallocated_amount"))
+		if abs(con - _so(con_no)) <= LECH:
+			ly.append("đúng số tiền")
+			diem += 1
+		ra.append(dict(g, khop=ly, diem=diem))
+	ra.sort(key=lambda x: (-x["diem"], str(x.get("date") or "")))
+	return ra
+
+
+def _ma_gd_dang_dung():
+	"""Số giao dịch đã có phiếu thu (nháp hoặc đã ghi sổ) mang theo."""
+	return set(frappe.get_all(PE, filters={"docstatus": ["<", 2], "reference_no": ["is", "set"],
+		"payment_type": "Receive"}, pluck="reference_no", limit_page_length=0))
+
+
+@frappe.whitelist()
+def ung_vien_tien_ve(si=None):
+	"""Giao dịch ngân hàng có thể là tiền khách trả cho hoá đơn này."""
+	from vagabond.ban_hang import _kiem_quyen_doc_luu_don
+	from frappe.utils import add_days
+
+	_kiem_quyen_doc_luu_don()
+	d = frappe.db.get_value(SI, si, ["name", "docstatus", "outstanding_amount", "posting_date",
+		"company", "remarks", "customer_name"], as_dict=True) if si else None
+	if not d or int(d.docstatus) != 1:
+		frappe.throw("Không tìm thấy hoá đơn đã ghi sổ.")
+	con_no = flt(d.outstanding_amount)
+	if con_no <= LECH:
+		frappe.throw("Hoá đơn %s không còn nợ." % d.name)
+	tk_cty = frappe.get_all("Bank Account", filters={"is_company_account": 1, "company": d.company},
+		pluck="name", limit_page_length=0)
+	dh = dau_hieu_don(d.remarks, d.name)
+	loc = {"docstatus": 1, "deposit": [">", 0], "unallocated_amount": [">", LECH],
+		"bank_account": ["in", tk_cty or [""]], "date": [">=", add_days(d.posting_date, -SO_NGAY_TRUOC_HD)]}
+	truong = ["name", "date", "deposit", "unallocated_amount", "description", "reference_number", "bank_account"]
+	gd = frappe.get_all(BT, filters=dict(loc, unallocated_amount=["between", [con_no - LECH, con_no + LECH]]),
+		fields=truong, order_by="date asc", limit_page_length=200)
+	# Khách chuyển gộp nhiều đơn: số tiền lớn hơn nhưng nội dung có mã đơn.
+	for m in dh["ma_don"]:
+		gd += frappe.get_all(BT, filters=dict(loc, description=["like", "%" + m + "%"]),
+			fields=truong, limit_page_length=20)
+	dung = _ma_gd_dang_dung()
+	thay, sach = set(), []
+	for g in gd:
+		if g.name in thay or (g.reference_number or "") in dung:
+			continue
+		thay.add(g.name)
+		sach.append(g)
+	xep = xep_ung_vien(sach, dh, con_no)[:GOI_Y_TOI_DA]
+	return {"si": d.name, "khach": d.customer_name, "con_no": con_no, "ngay_hd": str(d.posting_date),
+		"gd": [{"name": g["name"], "ngay": str(g["date"]), "tien": flt(g["deposit"]),
+			"con": flt(g["unallocated_amount"]), "mo_ta": str(g.get("description") or "")[:160],
+			"ma_gd": g.get("reference_number") or "", "khop": g["khop"]} for g in xep]}
+
+
+@frappe.whitelist(methods=["POST"])
+def nhan_tien_ve(si=None, gd=None):
+	"""Người chọn giao dịch ngân hàng cho hoá đơn: lập phiếu thu NHÁP nối đúng
+	giao dịch đó. Không ghi sổ (ghi sổ vẫn cần UNC khách gửi, v534)."""
+	from erpnext.accounts.doctype.payment_entry.payment_entry import get_payment_entry
+	from vagabond.ban_hang import _kiem_quyen_doc_luu_don
+
+	_kiem_quyen_doc_luu_don()
+	if not si or not gd or not frappe.db.exists(SI, si) or not frappe.db.exists(BT, gd):
+		frappe.throw("Thiếu hoá đơn hoặc giao dịch ngân hàng.")
+	g = frappe.get_doc(BT, gd, for_update=True)
+	doc = frappe.get_doc(SI, si, for_update=True)
+	if int(doc.docstatus) != 1 or flt(doc.outstanding_amount) <= LECH:
+		frappe.throw("Hoá đơn %s không còn nợ." % si)
+	if int(g.docstatus) != 1 or flt(g.deposit) <= 0 or (g.currency or "VND") != "VND":
+		frappe.throw("Giao dịch %s không phải tiền vào đã xác nhận." % gd)
+	ref = (g.reference_number or "").strip()
+	if not ref:
+		frappe.throw("Giao dịch %s không có số tham chiếu ngân hàng." % gd)
+	if g.payment_entries or flt(g.unallocated_amount) <= LECH:
+		frappe.throw("Giao dịch %s đã nối với chứng từ khác." % ref)
+	cu = frappe.get_all(PE, filters={"docstatus": ["<", 2], "reference_no": ref, "payment_type": "Receive"},
+		pluck="name", limit_page_length=1)
+	if cu:
+		frappe.throw("Giao dịch %s đã có phiếu thu %s. Mở tab Tiền đã về." % (ref, cu[0]))
+	nhap = frappe.get_all("Payment Entry Reference", filters={"reference_doctype": SI, "reference_name": si,
+		"docstatus": 0, "parenttype": PE}, pluck="parent", limit_page_length=1)
+	if nhap:
+		frappe.throw("Hoá đơn %s đã có phiếu thu nháp %s. Mở tab Tiền đã về." % (si, nhap[0]))
+	b = frappe.db.get_value("Bank Account", g.bank_account, ["account", "company", "is_company_account"], as_dict=True) or {}
+	if not b.get("account") or not b.get("is_company_account") or b.get("company") != doc.company:
+		frappe.throw("Giao dịch %s không về tài khoản ngân hàng của công ty." % ref)
+	tien = min(flt(doc.outstanding_amount), flt(g.unallocated_amount))
+	pe = get_payment_entry(SI, si, party_amount=tien, bank_account=b["account"])
+	pe.reference_no = ref
+	pe.reference_date = g.date
+	pe.remarks = "Khách chuyển khoản, giao dịch %s, người chọn trên màn Công nợ." % ref
+	pe.flags.ignore_permissions = True
+	pe.insert(ignore_permissions=True)
+	_ghi_vet_thu(pe.name, "Lập phiếu thu nháp cho hoá đơn %s theo giao dịch %s do người chọn" % (si, ref))
+	return {"pe": pe.name, "tien": flt(pe.paid_amount), "ma_gd": ref, "ngay_ve": str(g.date),
+		"ten_khach": doc.customer_name, "con_no_sau": flt(doc.outstanding_amount) - tien}
