@@ -63,6 +63,11 @@ async function scrCongNo() {
     cc = { ma: 'cnno', tim: { gt: cnTimNo, goiY: 'Tìm tên khách hoặc số hoá đơn' },
       xuat: { man: 'cong_no', so: khach.reduce(function (t, k) { return t + (k.so_hd || 0); }, 0), loc: function () { return { tim: cnTimNo }; } } };
     html += dsCongCu(cc);
+    /* Codex #382 vòng 9: thẻ trên đầu giữ tổng nợ thật của mọi khách; khi
+       đang tìm thì phần đang hiện có dòng tổng riêng, số do máy chủ cộng. */
+    if (kq.dang_loc && khach.length) {
+      html += '<div data-cntongloc="1" class="sec">Khớp ô tìm: ' + khach.length + ' khách · ' + money(kq.tong_loc || 0) + ' đ</div>';
+    }
     if (!khach.length) {
       html += '<div class="card"><div class="emp" style="padding:26px"><div class="e1">' + (cnTimNo ? '🔎' : '🎉') + '</div><div>' +
         (cnTimNo ? 'Không có khách nào khớp ô tìm.' : 'Không còn khoản công nợ nào chưa gom. Sạch sổ.') + '</div></div></div>';
