@@ -510,7 +510,14 @@ def _chay_noi_thay_the(to, don, chen=None):
 			return [_D(t) for t in to]
 		return [_D(v) for v in _loc(list(kho.values()), filters)]
 
+	to_noi = {}
+
 	def sql(cau, ts):
+		# v536: máy nối cả phía tờ (ô Đơn ERP), có điều kiện ô đang trống.
+		if "tabMInvoice Invoice" in cau:
+			if not to_noi.get(ts["to"]):
+				to_noi[ts["to"]] = ts["don"]
+			return
 		# Bảng giả làm ĐÚNG câu ghi nhận được: câu có điều kiện ô cũ thì mới xét
 		# (lần đầu bảng giả tự xét điều kiện nên đột biến bỏ điều kiện R6 không đổ).
 		if chen:
@@ -527,11 +534,13 @@ def _chay_noi_thay_the(to, don, chen=None):
 	import frappe as _fr
 	f = NS(get_all=get_all, throw=_fr.throw, log_error=lambda *a, **k: None, get_traceback=lambda: "",
 		get_doc=lambda d: _Doc(d), db=NS(get_single_value=lambda *a: "1C26MPV", sql=sql, commit=lambda: None,
-			rollback=lambda: None, get_value=lambda dt, n, fld: kho[n].get(fld)))
+			rollback=lambda: None,
+			get_value=lambda dt, n, fld: (to_noi.get(n, "") if dt == ds.DT_TO else kho[n].get(fld))))
 	with unittest.mock.patch.object(ds, "frappe", f), \
 			unittest.mock.patch.object(ds, "getdate", lambda *a: datetime.date(2026, 9, 25)), \
 			unittest.mock.patch.object(ds, "now_datetime", lambda: datetime.datetime(2026, 9, 25, 15, 0)):
 		so_ghi = ds.noi_thay_the_tu_dong()
+	_chay_noi_thay_the.to_noi = to_noi
 	return so_ghi, ghi, nhat_ky, hoi
 
 
@@ -540,6 +549,8 @@ def _thay_the_that():
 	to = [_to(15439, "2026-09-22", "Thay thế", 12736)]
 	so_ghi, ghi, nk, hoi = _chay_noi_thay_the(to, [_dthay("HDB-26-09-01138", "12736")])
 	la("ghi một đơn", (so_ghi, ghi), (1, [("HDB-26-09-01138", "1C26MPV 15439")]))
+	# v536: phía tờ cũng được nối về đúng đơn, để sổ hoá đơn mở từ tờ ra đơn.
+	la("tờ thay thế nối về đơn", list(_chay_noi_thay_the.to_noi.values()), ["HDB-26-09-01138"])
 	dung("nhật ký nói rõ máy ghi theo m-invoice", len(nk) == 1 and "m-invoice" in nk[0][1] and "15439" in nk[0][1])
 	loc_to = [h[1] for h in hoi if h[0] == ds.DT_TO][0]
 	la("quét đúng 30 ngày ngày lập", str(loc_to["ngay_lap"][1]), "2026-08-26")
