@@ -317,7 +317,7 @@ CUA_NGO = {
 	# con so; `soat_thieu_chung_tu` la bang LIET KE cho ke toan truong, chi
 	# doc, khong sinh chung tu nao (dieu 11).
 	# v534 (#380): ghi so phieu thu kem uy nhiem chi khach gui, va chan doan chi doc.
-	"thu_tien.py": ["chan_doan_ghi_so", "ghi_so_phieu_thu", "soat_hinh_thuc_chua_khai", "soat_thieu_chung_tu", "tom_tat"],
+	"thu_tien.py": ["chan_doan_ghi_so", "ghi_so_phieu_thu", "nhan_tien_ve", "soat_hinh_thuc_chua_khai", "soat_thieu_chung_tu", "tom_tat", "ung_vien_tien_ve"],
 	"don_huy.py": ["bo_qua", "dem_cho_hoan", "dem_phieu_cho", "dong_bo", "ds",
 		"ds_phieu", "tai_tep", "tao_hoan", "tim_don_de_hoan", "xem_hoan",
 		"xuat_excel", "xuat_excel_phieu"],

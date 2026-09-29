@@ -788,3 +788,24 @@ def _cong():
 def _dang_ky_that():
 	c = _doc("khung", "kiem_that", "cua.py")
 	dung("cua.py nạp thu_phieu_thu_unc_534", "import thu_phieu_thu_unc_534" in c)
+
+
+@ca("v541 Khách đã chuyển tiền: đọc mã đơn, số điện thoại; xếp gợi ý nhưng không bỏ giao dịch nào")
+def _goi_y_tien_ve():
+	from vagabond import thu_tien as tt
+	dh = tt.dau_hieu_don("Pancake #93367 - Ms.Thanh - 0933346399", "HDB-26-09-01294")
+	la("mã đơn", dh["ma_don"], ["93367"])
+	la("số điện thoại 9 số cuối", dh["dien_thoai"], ["933346399"])
+	ds = [
+		{"name": "BT-a", "date": "2026-09-10", "unallocated_amount": 745000, "description": "Lam Ngoc chuyen"},
+		{"name": "BT-b", "date": "2026-09-12", "unallocated_amount": 1490000, "description": "CK DON 93367 VA 93368"},
+		{"name": "BT-c", "date": "2026-09-09", "unallocated_amount": 745000, "description": "0933346399 chuyen tien banh"},
+		{"name": "BT-d", "date": "2026-09-11", "unallocated_amount": 300000, "description": "khac"},
+	]
+	xep = tt.xep_ung_vien(ds, dh, 745000)
+	la("đủ bốn, không bỏ cái nào", len(xep), 4)
+	la("mã đơn lên đầu, rồi số điện thoại, rồi đúng tiền", [x["name"] for x in xep], ["BT-b", "BT-c", "BT-a", "BT-d"])
+	la("lý do của dòng có mã đơn", xep[0]["khop"], ["nội dung có mã đơn 93367"])
+	la("dòng điện thoại và đúng tiền", xep[1]["khop"], ["có số điện thoại khách", "đúng số tiền"])
+	la("dòng lệch tiền không có lý do", xep[3]["khop"], [])
+	la("không có dấu hiệu gì thì rỗng", tt.dau_hieu_don("", ""), {"ma_don": [], "dien_thoai": [], "ten_si": ""})
