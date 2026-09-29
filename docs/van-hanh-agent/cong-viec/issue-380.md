@@ -111,3 +111,11 @@ Cả 4 finding tái hiện được, số liệu trước/sau đo bằng bộ gi
 ## Vòng 2 review Codex trên #382 (SHA 9eed19a0)
 
 - H1 chống trùng giao dịch khoá theo (hoá đơn, giao dịch): một giao dịch 1.000.000 đ có hai phiếu nháp chia cho hai hoá đơn khác nhau. Tái hiện trên 9eed19a0: cả SI1 và SI2 sang Tiền đã về, tổng tách 2.000.000 đ. Sau sửa: chỉ SI1, 1.000.000 đ. Sửa bằng một chỗ chọn duy nhất `thu_tien.mot_phieu_moi_giao_dich`: mỗi mã giao dịch chỉ một phiếu thu nháp được tính (tiền lớn nhất, bằng tiền thì mã nhỏ hơn), chọn trên MỌI phiếu nháp cùng mã trên hệ thống nên không đổi theo tập màn đang xem; phiếu thua hạ về chưa xác minh kèm câu lý do, hoá đơn của nó vẫn ở Đang nợ. `phieu_thu_nhap` (màn Tiền đã về, Excel, công nợ) và `gom_tien_da_ve` cùng đi qua hàm đó.
+
+## Vòng 3 review Codex trên #382 (SHA bea2de43)
+
+- J1 luật UNC khách gửi chỉ chặn ở nút ghi sổ trên app; ghi sổ thẳng trên Desk chỉ qua hook chung `chung_tu_tien.chan_thieu_dinh_kem` (đếm mọi File). Tái hiện bằng đọc cấu hình hook trên bea2de43: không có hook nào soi ô `vgb_thu_unc`, và hook chung cho qua khi có 1 tệp bất kỳ. Anh Việt quyết 29/09: "Làm thêm cả ô đính trên desk cho đồng bộ". Sửa:
+  - Ô Desk mới `vgb_thu_unc_tep` (Attach, chỉ hiện với phiếu thu khách). Hook before_validate `thu_tien.gop_unc_desk` gộp tệp ô này vào `vgb_thu_unc`, nên mọi phép đếm vẫn chỉ đọc một ô.
+  - Hook before_submit `thu_tien.chan_thieu_unc_khach` (sau hook tệp chung): phiếu trong tập `can_unc_khach` (Receive, Customer, tài khoản 112, có phân bổ hoá đơn bán, mã giao dịch khớp Bank Transaction đã xác nhận, không phải phiếu đặt bánh hay hồ sơ hoàn tiền) phải có tệp trong ô UNC khách gửi, đường nào gọi submit cũng vậy. Hai luồng đặt bánh và hoàn tiền giữ luật giấy báo Có như cũ.
+  - Bench `_desk`: tệp bất kỳ rồi submit thẳng bị chặn, phiếu còn nháp, 0 GL; đính vào ô Desk, lưu, tệp gộp vào ô UNC, submit được, GL hai dòng. Bench v534 chuyển sang tài khoản 112 như site thật để hai hook ghi sổ thực sự chạy.
+- J2 phiếu thu có mã giao dịch nhưng không phân bổ hoá đơn vẫn vào tab Tiền đã về và Excel. Sửa: `phieu_thu_nhap` bỏ phiếu không gắn hoá đơn bán trước khi đọc tệp và giao dịch; ứng viên chọn phiếu thắng cũng phải gắn hoá đơn, nên phiếu lẻ lớn hơn không hạ phiếu công nợ thật. Bench `_khong_hd`.
