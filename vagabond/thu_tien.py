@@ -58,7 +58,7 @@ không bao giờ đòi khách số tiền họ đã trả.
 """
 
 import frappe
-from frappe.utils import flt, nowdate
+from frappe.utils import cint, flt, nowdate
 
 SI = "Sales Invoice"
 
@@ -1361,7 +1361,11 @@ def xep_ung_vien(ds_gd, dau_hieu, con_no):
 			ly.append("đúng số tiền")
 			diem += 1
 		ra.append(dict(g, khop=ly, diem=diem))
-	ra.sort(key=lambda x: (-x["diem"], str(x.get("date") or "")))
+	# Cùng điểm thì giao dịch MỚI trước (Codex #389 P2): hoá đơn cũ có hơn
+	# GOI_Y_TOI_DA khoản trùng số tiền thì khoản khách vừa chuyển không được
+	# rơi khỏi danh sách. Hai lượt sort ổn định: ngày giảm, rồi điểm giảm.
+	ra.sort(key=lambda x: str(x.get("date") or ""), reverse=True)
+	ra.sort(key=lambda x: -x["diem"])
 	return ra
 
 
@@ -1372,8 +1376,11 @@ def _ma_gd_dang_dung():
 
 
 @frappe.whitelist()
-def ung_vien_tien_ve(si=None):
-	"""Giao dịch ngân hàng có thể là tiền khách trả cho hoá đơn này."""
+def ung_vien_tien_ve(si=None, tat_ca=0):
+	"""Giao dịch ngân hàng có thể là tiền khách trả cho hoá đơn này.
+
+	Mặc định trả GOI_Y_TOI_DA khoản đầu và báo còn bao nhiêu khoản nữa;
+	tat_ca=1 thì trả hết để người xem cả những khoản cũ hơn (Codex #389 P2)."""
 	from vagabond.ban_hang import _kiem_quyen_doc_luu_don
 	from frappe.utils import add_days
 
@@ -1392,7 +1399,7 @@ def ung_vien_tien_ve(si=None):
 		"bank_account": ["in", tk_cty or [""]], "date": [">=", add_days(d.posting_date, -SO_NGAY_TRUOC_HD)]}
 	truong = ["name", "date", "deposit", "unallocated_amount", "description", "reference_number", "bank_account"]
 	gd = frappe.get_all(BT, filters=dict(loc, unallocated_amount=["between", [con_no - LECH, con_no + LECH]]),
-		fields=truong, order_by="date asc", limit_page_length=200)
+		fields=truong, order_by="date desc", limit_page_length=500 if cint(tat_ca) else 200)
 	# Khách chuyển gộp nhiều đơn: số tiền lớn hơn nhưng nội dung có mã đơn.
 	for m in dh["ma_don"]:
 		gd += frappe.get_all(BT, filters=dict(loc, description=["like", "%" + m + "%"]),
@@ -1404,8 +1411,10 @@ def ung_vien_tien_ve(si=None):
 			continue
 		thay.add(g.name)
 		sach.append(g)
-	xep = xep_ung_vien(sach, dh, con_no)[:GOI_Y_TOI_DA]
+	xep_het = xep_ung_vien(sach, dh, con_no)
+	xep = xep_het if cint(tat_ca) else xep_het[:GOI_Y_TOI_DA]
 	return {"si": d.name, "khach": d.customer_name, "con_no": con_no, "ngay_hd": str(d.posting_date),
+		"con_lai": len(xep_het) - len(xep),
 		"gd": [{"name": g["name"], "ngay": str(g["date"]), "tien": flt(g["deposit"]),
 			"con": flt(g["unallocated_amount"]), "mo_ta": str(g.get("description") or "")[:160],
 			"ma_gd": g.get("reference_number") or "", "khop": g["khop"]} for g in xep]}

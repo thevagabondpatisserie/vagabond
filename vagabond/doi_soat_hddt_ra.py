@@ -759,14 +759,21 @@ def don_cua_to_goc(ma_to, ky_hieu, so_hd):
 
 def noi_to_goc_tu_dong(ma_to, ky_hieu, so_hd):
 	"""Gọi lúc kéo một tờ Đầu ra về: tờ do ERP phát hành thì nối ngay vào đơn.
-	Trả tên đơn hoặc rỗng. Không ném."""
+	Trả tên đơn, rỗng nếu THẬT SỰ không có đơn ERP, hoặc None nếu tra hỏng.
+	Không ném.
+
+	Codex #389 (P1): bản trước trả rỗng cả khi tra hỏng, nên một lỗi cơ sở dữ
+	liệu thoáng qua cũng khiến tờ ERP bị đóng dấu vĩnh viễn là Fabi và không
+	bao giờ được thử lại. None là "chưa biết", bên gọi phải để tờ lại cho lượt
+	sau, không được đóng dấu."""
 	try:
 		don = don_cua_to_goc(ma_to, ky_hieu, so_hd)
 		if don and ghi_don_erp_cua_to(ma_to, don, "Tờ do ERP phát hành cho đơn %s." % don):
 			return don
+		return ""
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "doi_soat_hddt_ra: noi to goc %s" % ma_to)
-	return ""
+		return None
 
 
 def noi_thay_the_tu_dong(so_ngay=SO_NGAY_THAY_THE):

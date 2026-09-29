@@ -1422,11 +1422,14 @@ def _dong_dau_ra(gioi_han=None):
 	# Codex #386: tờ đầu ra mới về đi qua ĐƯỜNG NÀY, không tới _mot_to (hàng
 	# đợi dựng chứng từ chỉ lấy đầu vào). Nối tờ ERP phát hành phải nằm ở
 	# đây, không thì tờ ERP vẫn bị gắn nhãn Fabi và ô đơn ERP để trống.
+	dong = 0
 	for r in ds:
-		_xu_to_dau_ra(r.get("name"), r.get("ky_hieu"), r.get("so_hd"))
+		if _xu_to_dau_ra(r.get("name"), r.get("ky_hieu"), r.get("so_hd")) != "dau_ra_loi":
+			dong += 1
 	if ds:
 		frappe.db.commit()
-	return len(ds)
+	# Đếm tờ THẬT SỰ đã đóng dấu; tờ tra hỏng còn nằm lại chờ lượt sau.
+	return dong
 
 
 def _xu_to_dau_ra(ma, ky_hieu, so_hd):
@@ -1436,6 +1439,10 @@ def _xu_to_dau_ra(ma, ky_hieu, so_hd):
 	thì là Fabi hoặc lập tay. Không dựng chứng từ nào (anh Việt 26/08/2026)."""
 	from vagabond import doi_soat_hddt_ra
 	don = doi_soat_hddt_ra.noi_to_goc_tu_dong(ma, ky_hieu, so_hd)
+	if don is None:
+		# Tra đơn hỏng (Codex #389 P1): KHÔNG đóng dấu, để lượt sau thử lại.
+		# Đóng dấu Fabi lúc này là gắn nhãn sai vĩnh viễn cho tờ ERP.
+		return "dau_ra_loi"
 	if don:
 		_ghi_xong(ma, "Tờ do ERP phát hành cho đơn %s." % don)
 		return "dau_ra_erp"

@@ -82,6 +82,20 @@ def ma_ke_toan_cua_hoa_don(mst, tra_ma):
 	return str(tra_ma(m) or "").strip().upper()
 
 
+def loi_tep_danh_muc(dong_ds):
+	"""Tệp danh mục Fast có đủ để bật cấp mã nối tiếp không. THUẦN.
+
+	Trả lời nhắn cho người nạp, hoặc rỗng nếu đủ. Codex #389 (P1): tệp rỗng,
+	hay tệp mà mọi dòng đều bị loại, không lập được sàn mã Fast nào, vậy mà
+	bản trước vẫn bật cờ "đã nạp"; máy liền cấp mã từ số lớn nhất của ERP,
+	thấp hơn Fast, và cấp trùng mã Fast đang dùng. Tệp chỉ có một loại mã
+	(ví dụ chỉ khách) thì vẫn nhận, nhưng cap_ma chỉ cấp cho loại ĐÃ có sàn."""
+	if san_cua_tep(dong_ds):
+		return ""
+	return ("Tệp danh mục không có mã KH hay NC hợp lệ nào nên chưa bật cấp mã nối tiếp. "
+		"Xuất lại danh mục khách hoặc nhà cung cấp từ Fast (cột mã, tên, MST, địa chỉ) rồi nạp lại.")
+
+
 def doc_tep_fast(dong_ds):
 	"""Danh mục Fast (mã, tên, địa chỉ, MST) thành các dòng đã làm sạch.
 
@@ -209,9 +223,14 @@ def cap_ma(doctype, name):
 	if hien:
 		return hien
 	tien_to = TIEN_TO[doctype]
+	san = frappe.db.get_default(KHOA_SAN + tien_to)
+	if not cint(san):
+		# Chưa nạp danh mục Fast cho loại mã này (Codex #389 P1): không có sàn
+		# thì mã lớn nhất của ERP thấp hơn Fast, cấp là trùng mã Fast.
+		return ""
 	cac_ma = [r[0] for r in frappe.db.sql(
 		"select `%s` from `tab%s` where `%s` like %%s" % (o, doctype, o), (tien_to + "%",))]
-	ma = ma_ke_tiep(cac_ma, tien_to, san=frappe.db.get_default(KHOA_SAN + tien_to))
+	ma = ma_ke_tiep(cac_ma, tien_to, san=san)
 	frappe.db.set_value(doctype, name, o, ma, update_modified=False)
 	return ma
 
@@ -309,6 +328,10 @@ def nap_danh_muc_fast(dong, tao_moi=0):
 	if not (set(frappe.get_roles()) & VAI_NAP):
 		frappe.throw("Chỉ kế toán trưởng hoặc quản trị được nạp danh mục mã.")
 	rows = json.loads(dong) if isinstance(dong, str) else dong
+	loi = loi_tep_danh_muc(rows)
+	if loi:
+		# Chặn TRƯỚC mọi lần ghi: cờ "đã nạp" chưa bật thì máy chưa cấp mã.
+		frappe.throw(loi)
 	hien_co = {}
 	for dt in ("Customer", "Supplier"):
 		hien_co[dt] = {}
