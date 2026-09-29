@@ -809,3 +809,12 @@ def _goi_y_tien_ve():
 	la("dòng điện thoại và đúng tiền", xep[1]["khop"], ["có số điện thoại khách", "đúng số tiền"])
 	la("dòng lệch tiền không có lý do", xep[3]["khop"], [])
 	la("không có dấu hiệu gì thì rỗng", tt.dau_hieu_don("", ""), {"ma_don": [], "dien_thoai": [], "ten_si": ""})
+	# Codex #389 P2: nhiều khoản cùng điểm (cùng số tiền, không mã) thì khoản
+	# MỚI trước, để khoản khách vừa chuyển không rơi khỏi GOI_Y_TOI_DA.
+	cung = [{"name": "BT-%02d" % i, "date": "2026-09-%02d" % i, "unallocated_amount": 745000, "description": "ck"}
+		for i in range(1, 16)]
+	xep = tt.xep_ung_vien(cung, dh, 745000)
+	la("cùng điểm: mới nhất đứng đầu", [x["name"] for x in xep[:3]], ["BT-15", "BT-14", "BT-13"])
+	dung("khoản mới nhất nằm trong số gợi ý tối đa", "BT-15" in [x["name"] for x in xep[:tt.GOI_Y_TOI_DA]])
+	cung.append({"name": "BT-ma", "date": "2026-09-01", "unallocated_amount": 745000, "description": "DON 93367"})
+	la("điểm cao vẫn trước ngày", tt.xep_ung_vien(cung, dh, 745000)[0]["name"], "BT-ma")

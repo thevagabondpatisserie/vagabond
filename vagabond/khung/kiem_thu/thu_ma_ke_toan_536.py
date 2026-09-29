@@ -151,6 +151,9 @@ def _nen(khach=None, ncc=None, da_nap="1", loi_set=None):
 		return doc
 
 	mac_dinh = {mk.KHOA_DA_NAP: da_nap}
+	if da_nap == "1":
+		# Nạp thật luôn lập sàn cho loại mã có trong tệp; cap_ma cần sàn (Codex #389).
+		mac_dinh.update({mk.KHOA_SAN + "KH": "1", mk.KHOA_SAN + "NC": "1"})
 	f = NS(db=NS(get_value=get_value, set_value=set_value, sql=sql, exists=lambda dt, n: True,
 			get_single_value=lambda *a: "Khách lẻ", get_default=lambda k: mac_dinh.get(k),
 			commit=lambda: vet.append(("commit",)), count=lambda *a, **k: 0, has_column=lambda *a: True,
@@ -398,6 +401,67 @@ def _mot_to():
 		ma.count('_ghi_xong(ma, "Hoá đơn đầu ra') == 1 and '"Hoá đơn đầu ra do Fabi xuất' not in ma)
 
 
+@ca("Codex #389 P1: tra đơn của tờ đầu ra hỏng thì KHÔNG đóng dấu Fabi, tờ nằm lại cho lượt sau thử lại")
+def _tra_hong_thu_lai():
+	# Đi đúng chuỗi của nhịp thật: noi_to_goc_tu_dong THẬT (chỉ giả frappe cho
+	# câu tra ném lỗi), rồi _chay_trong_khoa. Không giả _xu_to_dau_ra.
+	from vagabond import minvoice_chung_tu as mc
+	from vagabond import doi_soat_hddt_ra as ds2
+	log = []
+
+	def ne(*a, **k):
+		raise RuntimeError("mat ket noi")
+	f_ds = NS(get_all=ne, log_error=lambda *a, **k: log.append(a[-1]), get_traceback=lambda: "")
+	with unittest.mock.patch.object(ds2, "frappe", f_ds):
+		la("tra hỏng trả None, không phải rỗng", ds2.noi_to_goc_tu_dong("id-14514", "C26MPV", 14514), None)
+	dung("có ghi Error Log", any("id-14514" in str(x) for x in log))
+	ghi = []
+	to_ra = [_D(name="id-14514", loai=mc.LOAI_RA, ky_hieu="C26MPV", so_hd=14514),
+		_D(name="id-fabi", loai=mc.LOAI_RA, ky_hieu="C26MPV", so_hd=1)]
+
+	def get_all(dt, filters=None, **k):
+		return list(to_ra) if (filters or {}).get("loai") == mc.LOAI_RA else []
+	f = NS(get_all=get_all, db=NS(commit=lambda: None, rollback=lambda *a, **k: None),
+		local=NS(message_log=[]), log_error=lambda *a, **k: None)
+	with unittest.mock.patch.object(mc, "frappe", f), \
+			unittest.mock.patch.object(mc, "_mo_lai_dau_sai", lambda *a: 0), \
+			unittest.mock.patch.object(mc, "_ghi_xong", lambda ma, ly_do: ghi.append(ma)), \
+			unittest.mock.patch.object(ds2, "noi_to_goc_tu_dong", lambda ma, kh, so: None if ma == "id-14514" else ""):
+		kq = mc._chay_trong_khoa("2026-09-01", "2026-09-29")
+	la("chỉ đóng dấu tờ tra được", ghi, ["id-fabi"])
+	la("đếm đúng số tờ đã đóng dấu", kq["dau_ra_dong_dau"], 1)
+	with unittest.mock.patch.object(mc, "khoi_dung_duoc", lambda tt: False), \
+			unittest.mock.patch.object(mc, "_da_co_chung_tu", lambda ma: ""), \
+			unittest.mock.patch.object(mc, "_ghi_xong", lambda ma, ly_do: ghi.append(ma)), \
+			unittest.mock.patch.object(mc, "frappe", NS(local=NS(message_log=[]))), \
+			unittest.mock.patch.object(ds2, "noi_to_goc_tu_dong", lambda ma, kh, so: None):
+		la("qua _mot_to: báo lỗi, không đóng dấu", mc._mot_to(to_ra[0]), (0, "dau_ra_loi"))
+	la("không thêm lần đóng dấu nào", ghi, ["id-fabi"])
+	dung("dau_ra_loi không phải bỏ qua hợp lệ", "dau_ra_loi" not in mc.LY_DO_BO_QUA_HOP_LE)
+
+
+@ca("Codex #389 P1: tệp danh mục rỗng hay bị loại hết thì không bật cấp mã; loại mã chưa có sàn thì không cấp")
+def _nap_rong():
+	la("tệp rỗng báo lỗi", bool(mk.loi_tep_danh_muc([])), True)
+	la("tệp chỉ có mã riêng của Fast báo lỗi", bool(mk.loi_tep_danh_muc([{"ma": "CTY001", "mst": "0300000001"}, {"ma": "NV001"}])), True)
+	la("tệp có mã KH hợp lệ thì nhận", mk.loi_tep_danh_muc([{"ma": "KH001588", "mst": ""}]), "")
+	f, bang, vet, tao = _nen(dict((k, dict(v)) for k, v in KH.items()), da_nap="")
+	f.get_roles = lambda: ["Accounts Manager"]
+	with unittest.mock.patch.object(mk, "frappe", f):
+		nem("nạp tệp rỗng bị chặn", lambda: mk.nap_danh_muc_fast("[]"), ValueError)
+		nem("nạp tệp bị loại hết bị chặn", lambda: mk.nap_danh_muc_fast([{"ma": "CTY001", "mst": "0300000001"}]), ValueError)
+	dung("cờ đã nạp vẫn tắt", f.db.get_default(mk.KHOA_DA_NAP) in ("", None))
+	with unittest.mock.patch.object(mk, "frappe", f):
+		la("chưa nạp thì không cấp", mk.cap_ma("Customer", "KH000015"), "")
+	# Đã nạp tệp CHỈ có mã khách: khách được cấp, nhà cung cấp chưa có sàn thì chưa.
+	with unittest.mock.patch.object(mk, "frappe", f), unittest.mock.patch.object(mk, "dien_ma_hang_loat", lambda: 0):
+		mk.nap_danh_muc_fast([{"ma": "KH001588", "ten": "X", "mst": "0300001588"}])
+	la("bật cờ khi tệp có mã hợp lệ", f.db.get_default(mk.KHOA_DA_NAP), "1")
+	dung("chưa có sàn NC", not f.db.get_default(mk.KHOA_SAN + "NC"))
+	with unittest.mock.patch.object(mk, "frappe", f):
+		la("NCC chưa có sàn thì không cấp", mk.cap_ma("Supplier", "NCC-A"), "")
+
+
 # ------------------------------------------------------------- sổ hoá đơn
 
 def _bao_cao():
@@ -421,6 +485,44 @@ def _so():
 	cot = [c["fieldname"] for c in bc.cot()]
 	for c in ("so_hd", "ky_hieu", "ngay_lap", "nguoi_mua_ban", "trang_thai", "ma_khach", "don_erp", "to_goc", "mst_doi_tac"):
 		dung("có cột " + c, c in cot)
+
+
+def _loc_ten(to_ds, k):
+	"""get_list giả: giữ lọc theo tên và giới hạn dòng như site thật, vì bộ lọc
+	của sổ giờ đi hai bước (tra nhẹ rồi đọc đủ theo tên), Codex #389."""
+	ra = list(to_ds)
+	ten = ((k.get("filters") or {}).get("name") or [None, None])[1]
+	if ten is not None:
+		ra = [t for t in ra if t["name"] in ten]
+	n = k.get("limit_page_length") or 0
+	return ra[:n] if n else ra
+
+
+@ca("Codex #389 P1: sổ HĐĐT lọc người mua và mã khách trên CẢ kỳ rồi mới cắt TOI_DA; lời báo quá nhiều tờ không mất")
+def _so_loc_truoc_cat():
+	bc = _bao_cao()
+	TO = [_D(name="id-%d" % i, so_hd=i, ky_hieu="C26MPV", ngay_lap=datetime.date(2026, 9, i), nguoi_mua_ban="Khách lẻ",
+		mst_doi_tac="", trang_thai="Gốc", hd_goc="", vgb_don_erp="HDB-%d" % i) for i in range(1, 6)]
+	TO.append(_D(name="id-cuoi", so_hd=99, ky_hieu="C26MPV", ngay_lap=datetime.date(2026, 9, 29), nguoi_mua_ban="OLIVER MARKETING",
+		mst_doi_tac="0317064683", trang_thai="Gốc", hd_goc="", vgb_don_erp="HDB-99"))
+
+	def get_all(dt, filters=None, **k):
+		return [_D(tax_id="0317064683", custom_ma_khach="KH000015")] if dt == "Customer" else []
+	f = NS(get_list=lambda dt, **k: _loc_ten(TO, k), get_all=get_all, throw=_throw)
+	ky = {"tu_ngay": "2026-09-01", "den_ngay": "2026-09-30"}
+	with unittest.mock.patch.object(bc, "frappe", f), unittest.mock.patch.object(mk, "frappe", f), \
+			unittest.mock.patch.object(bc, "TOI_DA", 2):
+		_, rows, msg = bc.execute(dict(ky, nguoi_mua="oliver"))
+		la("tờ cuối kỳ vẫn tìm ra theo tên", [r["so_hd"] for r in rows], ["99"])
+		_, rows, _ = bc.execute(dict(ky, nguoi_mua="0317064683"))
+		la("tờ cuối kỳ vẫn tìm ra theo MST", [r["so_hd"] for r in rows], ["99"])
+		_, rows, _ = bc.execute(dict(ky, ma_khach="KH000015"))
+		la("tờ cuối kỳ vẫn tìm ra theo mã khách", [r["so_hd"] for r in rows], ["99"])
+		_, rows, msg = bc.execute(dict(ky, ma_khach="kl0001"))
+		la("lọc mã khách cắt đúng TOI_DA + 1", len(rows), 3)
+		dung("còn lời báo quá nhiều tờ khi đã lọc", "Quá 2 tờ" in msg)
+		_, rows, msg = bc.execute(ky)
+		dung("còn lời báo khi không lọc", "Quá 2 tờ" in msg)
 
 
 @ca("v536 sổ HĐĐT bán ra trên site: đọc bảng tờ, tra đơn ba đường, lọc theo tên hoặc MST và theo mã khách, đếm tờ thiếu mã")
@@ -447,7 +549,7 @@ def _so_site():
 		if dt == "Customer":
 			return [_D(tax_id="0317064683", custom_ma_khach="KH000015")]
 		return []
-	f = NS(get_list=lambda dt, **k: list(TO), get_all=get_all, throw=_throw)
+	f = NS(get_list=lambda dt, **k: _loc_ten(TO, k), get_all=get_all, throw=_throw)
 	with unittest.mock.patch.object(bc, "frappe", f), unittest.mock.patch.object(mk, "frappe", f):
 		cot, rows, msg = bc.execute({"tu_ngay": "2026-09-01", "den_ngay": "2026-09-30"})
 		la("ba dòng, ba cách nối", [(r["so_hd"], r["don_erp"], r["cach_noi"]) for r in rows],
