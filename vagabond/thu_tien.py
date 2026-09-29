@@ -212,6 +212,20 @@ TRUONG_MOI = {
 				"chốt 28/09/2026: có tệp này mới ghi sổ phiếu thu tiền về ngân hàng."
 			),
 		},
+		# Anh Việt 29/09/2026: trên Desk cũng phải có ô đính UNC khách gửi cho
+		# đồng bộ với app. Tệp đính ở ô này được gộp vào ô danh sách phía
+		# trên lúc lưu (gop_unc_desk), nên mọi phép đếm chỉ đọc MỘT ô.
+		{
+			"fieldname": "vgb_thu_unc_tep",
+			"label": "Đính uỷ nhiệm chi khách gửi",
+			"fieldtype": "Attach",
+			"insert_after": "vgb_thu_unc",
+			"depends_on": "eval:doc.payment_type=='Receive' && doc.party_type=='Customer'",
+			"description": (
+				"Phiếu thu tiền khách chuyển khoản có gắn hoá đơn: đính ảnh hoặc PDF "
+				"chuyển khoản khách gửi vào đây rồi lưu, sau đó mới ghi sổ được."
+			),
+		},
 	],
 }
 
@@ -362,6 +376,38 @@ def dem_tep_unc(ds_url_o, url_da_gan):
 		if u and u in gan and u not in ra:
 			ra.append(u)
 	return len(ra)
+
+
+def can_unc_khach(pe, co_hoa_don, khop_giao_dich):
+	"""Phiếu này có bắt buộc ô UNC khách gửi lúc ghi sổ không. THUẦN.
+
+	Đúng tập phiếu mà màn Công nợ tab Tiền đã về xử lý: phiếu thu tiền khách
+	(Receive, Customer) vào tài khoản ngân hàng, có phân bổ vào hoá đơn bán,
+	mang mã giao dịch khớp một dòng sao kê ngân hàng. Trừ phiếu thu đặt bánh
+	(có ô phiếu đặt) và phiếu của hồ sơ hoàn tiền: hai luồng đó có luật chứng
+	từ riêng (giấy báo Có), anh Việt không đổi.
+
+	Anh Việt 29/09/2026: Desk và app phải cùng một luật (Codex #382 vòng 3).
+	"""
+	from vagabond.chung_tu_tien import la_ngan_hang
+
+	pe = pe or {}
+	if (pe.get("payment_type") or "") != "Receive" or (pe.get("party_type") or "") != "Customer":
+		return False
+	if not la_ngan_hang(pe.get("paid_to")):
+		return False
+	if pe.get("vgb_phieu_dat") or pe.get("vgb_hoan_tien"):
+		return False
+	return bool(co_hoa_don) and bool(khop_giao_dich)
+
+
+def gop_tep(ds_url, them):
+	"""Thêm một đường dẫn tệp vào danh sách, không trùng, giữ thứ tự. THUẦN."""
+	ra = [str(u).strip() for u in (ds_url or []) if str(u or "").strip()]
+	them = str(them or "").strip()
+	if them and them not in ra:
+		ra.append(them)
+	return ra
 
 
 def soat_ghi_so_thu(da_xac_minh, ly_do, so_tep, la_ke_toan):
@@ -761,6 +807,14 @@ def phieu_thu_nhap(cac_si=None, chi_ma_gd=True):
 			fields=["parent", "reference_name", "allocated_amount"], limit_page_length=0,
 		):
 			ref.setdefault(r.parent, []).append((r.reference_name, flt(r.allocated_amount)))
+	# Codex #382 vòng 3: chỉ phiếu thu CÓ phân bổ vào hoá đơn bán mới thuộc
+	# màn công nợ. Phiếu thu tạm ứng, thu hộ, thu tay không gắn hoá đơn mà
+	# lọt vào đây thì tab Tiền đã về và Excel hiện khoản không phải công nợ,
+	# lại cho người chỉ có quyền Bán hàng xem.
+	cac_pe = [p for p in cac_pe if ref.get(p.name)]
+	if not cac_pe:
+		return []
+	ten = [p.name for p in cac_pe]
 	from vagabond import tep_dinh_kem
 
 	url_gan = {}
@@ -794,6 +848,15 @@ def phieu_thu_nhap(cac_si=None, chi_ma_gd=True):
 				"reference_no": ["in", lo]}, fields=["name", "reference_no", "paid_amount"],
 				limit_page_length=0):
 			ung_vien.setdefault((r.reference_no or "").strip(), []).append((r.name, flt(r.paid_amount)))
+	# Ứng viên cũng phải là phiếu có gắn hoá đơn: phiếu không thuộc màn này
+	# không được "thắng" rồi hạ phiếu công nợ thật về chưa xác minh.
+	ten_uv = {t for cac in ung_vien.values() for t, _ in cac}
+	co_hd = set()
+	for lo in _chia(ten_uv):
+		for r in frappe.get_all("Payment Entry Reference", filters={"parent": ["in", lo],
+				"parenttype": PE, "reference_doctype": SI}, fields=["parent"], limit_page_length=0):
+			co_hd.add(r.parent)
+	ung_vien = {k: [(t, v) for t, v in cac if t in co_hd] for k, cac in ung_vien.items()}
 	return mot_phieu_moi_giao_dich(ra, ung_vien)
 
 
@@ -953,6 +1016,51 @@ def chan_doan_ghi_so(name=None):
 		frappe.db.rollback(save_point="vgb_chan_doan_thu")
 		frappe.clear_messages()
 	return {"name": name, "loi": loi, "qua": 0 if loi else 1}
+
+
+def gop_unc_desk(doc, method=None):
+	"""Hook before_validate: tệp đính ở ô Desk gộp vào ô danh sách UNC khách gửi.
+
+	Giữ MỘT nguồn: app và Desk cùng ghi vào `vgb_thu_unc`, mọi phép đếm chỉ
+	đọc ô đó (dem_tep_unc).
+	"""
+	if doc.doctype != PE or not doc.get("vgb_thu_unc_tep"):
+		return
+	from vagabond import tep_dinh_kem
+
+	moi = gop_tep(tep_dinh_kem.doc_ds(doc.get("vgb_thu_unc")), doc.get("vgb_thu_unc_tep"))
+	doc.vgb_thu_unc = tep_dinh_kem.ghi_ds(moi)
+
+
+def chan_thieu_unc_khach(doc, method=None):
+	"""Hook before_submit: phiếu thu tiền khách chuyển khoản phải có UNC khách gửi.
+
+	Anh Việt 29/09/2026 (Codex #382 vòng 3): ghi sổ trên Desk hay bất cứ
+	đường nào gọi submit() cũng phải qua cùng luật với nút ghi sổ trên app.
+	Hook `chung_tu_tien.chan_thieu_dinh_kem` (tệp bất kỳ) vẫn chạy như cũ cho
+	mọi chứng từ ngân hàng; hook này chặt hơn và chỉ cho tập can_unc_khach.
+	"""
+	try:
+		if doc.doctype != PE:
+			return
+		co_hd = any((r.get("reference_doctype") == SI) for r in (doc.get("references") or []))
+		ref = (doc.get("reference_no") or "").strip()
+		khop = bool(ref) and bool(frappe.db.exists(BT, {"reference_number": ref, "docstatus": 1}))
+		if not can_unc_khach(doc.as_dict(), co_hd, khop):
+			return
+		if _so_tep_unc(doc.name, doc.get("vgb_thu_unc")) > 0:
+			return
+		frappe.throw(
+			"Phiếu thu %s là tiền khách chuyển khoản (giao dịch %s) nên phải có uỷ nhiệm chi "
+			"khách gửi mới ghi sổ được. Trên Desk: đính ảnh hoặc PDF chuyển khoản khách gửi vào ô "
+			"\"Đính uỷ nhiệm chi khách gửi\", lưu, rồi ghi sổ lại. Trên app: màn Công nợ, tab "
+			"Tiền đã về, nút Đính UNC khách gửi." % (doc.name, ref),
+			title="Thiếu uỷ nhiệm chi khách gửi",
+		)
+	except frappe.ValidationError:
+		raise
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "thu_tien: kiem UNC khach gui loi")
 
 
 def _ghi_vet_thu(name, viec):

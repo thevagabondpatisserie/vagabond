@@ -637,7 +637,12 @@ doc_events = {
 		# Phai dien TRUOC controller validate cua ERPNext. Neu dat trong
 		# validate thi core chay truoc doc_event va nem loi hai o tham chieu,
 		# hook cua minh khong bao gio toi luot. Issue #252, bench run #95.
-		"before_validate": "vagabond.tham_chieu_tien.dien_khi_trong",
+		"before_validate": [
+			"vagabond.tham_chieu_tien.dien_khi_trong",
+			# O dinh UNC khach gui tren Desk gop vao o danh sach UNC (anh Viet
+			# 29/09/2026, #380). Doc thu_tien.gop_unc_desk.
+			"vagabond.thu_tien.gop_unc_desk",
+		],
 		"before_save": "vagabond.coc_app.chan_sua_lich_su",
 		"before_update_after_submit": "vagabond.coc_app.chan_sua_lich_su",
 		# Ten goi dung theo tai khoan tien: 111 la Phieu thu/Phieu chi, 112
@@ -655,6 +660,10 @@ doc_events = {
 			# Chung tu qua NGAN HANG phai co Uy nhiem chi dinh kem. Chi Dung
 			# KHONG cong nhan dong sao ke SePay thay cho tep nay.
 			"vagabond.chung_tu_tien.chan_thieu_dinh_kem",
+			# Phieu thu tien khach chuyen khoan co gan hoa don: phai co tep
+			# trong o UNC khach gui, Desk hay app cung vay (anh Viet 29/09/2026,
+			# Codex #382 vong 3). Doc thu_tien.chan_thieu_unc_khach.
+			"vagabond.thu_tien.chan_thieu_unc_khach",
 			"vagabond.hoan_tien.chan_thieu_uy_nhiem_chi",
 			# Phieu chi tra truoc: duyet chi va ghi so la HAI viec. Chan ghi
 			# so khi chua qua chu ky giam doc, chua dinh dung to uy nhiem
