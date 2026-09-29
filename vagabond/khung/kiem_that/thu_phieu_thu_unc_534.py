@@ -61,12 +61,16 @@ class _Tep:
 	cách dọn với ca #265.
 	"""
 
-	def __init__(self, gan_vao=None, vao_o=False):
+	def __init__(self, gan_vao=None, vao_o=False, o=None):
 		self.gan_vao = gan_vao
 		# vao_o: ghi luôn tệp vào ô UNC khách gửi của phiếu, như người dùng
 		# đã đính đúng chỗ từ trước. Không bật thì tệp chỉ gắn vào phiếu,
 		# như một ảnh bất kỳ ở mục khác (Codex #382).
 		self.vao_o = vao_o
+		# o: ô mà tệp gắn qua (attached_to_field). Đính đúng chỗ thì tệp gắn
+		# QUA ô UNC, như gan_vao của app hay nút đính trên Desk vẫn làm; bỏ
+		# trống là nút kẹp giấy (Codex #382 vòng 7).
+		self.o = o or ('vgb_thu_unc' if vao_o else None)
 		self.tep = None
 
 	def __enter__(self):
@@ -74,6 +78,8 @@ class _Tep:
 			content='UNC khach gui KT534 ' + frappe.generate_hash(length=16))
 		if self.gan_vao:
 			d.update(attached_to_doctype='Payment Entry', attached_to_name=self.gan_vao)
+			if self.o:
+				d.update(attached_to_field=self.o)
 		self.tep = frappe.get_doc(d)
 		self.tep.insert(ignore_permissions=True); _DA_TAO.append((self.tep.doctype, self.tep.name))
 		if self.gan_vao and self.vao_o:
@@ -218,13 +224,47 @@ def _desk():
 		pe.reload()
 		la('phiếu còn nháp', pe.docstatus, 0)
 		la('không GL', _gl(pe), [])
-		# Đính đúng ô trên Desk rồi lưu: tệp gộp vào ô danh sách, ghi sổ được.
+		# Codex #382 vòng 7: trỏ ô Desk vào chính ảnh kẹp giấy (đổi nhãn tệp
+		# có sẵn) thì tệp gộp vào ô danh sách nhưng KHÔNG được tính, vì nó
+		# không gắn vào phiếu qua ô UNC. Bản trước vòng 7 ca này ghi sổ được.
 		pe.vgb_thu_unc_tep = t.file_url
 		pe.save(ignore_permissions=True); pe.reload()
-		dung('tệp Desk gộp vào ô UNC khách gửi', t.file_url in (pe.get('vgb_thu_unc') or ''))
+		dung('tệp kẹp giấy vẫn gộp vào ô danh sách', t.file_url in (pe.get('vgb_thu_unc') or ''))
+		try:
+			pe.submit()
+		except frappe.ValidationError as e:
+			dung('đổi nhãn ảnh kẹp giấy vẫn bị chặn', 'uỷ nhiệm chi' in str(e))
+		else:
+			dung('đổi nhãn ảnh kẹp giấy phải bị chặn', False)
+		pe.reload()
+		la('phiếu còn nháp sau khi đổi nhãn', pe.docstatus, 0)
+	# Đính đúng ô trên Desk: nút đính của ô tải tệp MỚI, tệp gắn qua ô đó.
+	with _Tep(gan_vao=pe.name, o='vgb_thu_unc_tep') as t2:
+		pe.reload()
+		pe.vgb_thu_unc_tep = t2.file_url
+		pe.save(ignore_permissions=True); pe.reload()
+		dung('tệp Desk gộp vào ô UNC khách gửi', t2.file_url in (pe.get('vgb_thu_unc') or ''))
 		pe.submit(); pe.reload()
 		la('ghi sổ được sau khi đính đúng ô', pe.docstatus, 1)
 		la('GL hai dòng', len(_gl(pe)), 2)
+
+
+@ca('#380 v534 Codex #382 vòng 7: nút đính UNC không nhận ảnh đã đính ở mục khác của chính phiếu đó')
+def _doi_nhan():
+	si, g, pe = _du_lieu()
+	with _Tep(gan_vao=pe.name) as t:
+		la('ảnh kẹp giấy không gắn qua ô nào', frappe.db.get_value('File', t.name, 'attached_to_field') or '', '')
+		try:
+			tt.ghi_so_phieu_thu(pe.name, unc=[t.file_url])
+		except frappe.ValidationError as e:
+			dung('câu nói tệp ở mục khác', 'mục khác' in str(e))
+		else:
+			dung('phải từ chối đổi nhãn ảnh có sẵn thành UNC', False)
+		pe.reload(); si.reload()
+		la('ô UNC vẫn trống', pe.get('vgb_thu_unc') or '', '')
+		la('phiếu còn nháp', pe.docstatus, 0)
+		la('không GL', _gl(pe), [])
+		la('hoá đơn còn nợ', float(si.outstanding_amount), float(TIEN))
 
 
 @ca('#380 v534 Codex #382 vòng 4: phiếu thu không thuộc màn công nợ thì nút đính UNC từ chối, không gắn tệp')
