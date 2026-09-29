@@ -36,6 +36,34 @@ def cot():
 	]
 
 
+def ma_khach_cua_to(t, ma_theo_mst):
+	"""Mã khách kế toán hiện trên sổ cho một tờ. THUẦN, dùng chung cho dòng
+	sổ và bộ lọc để hai nơi không bao giờ tính khác nhau."""
+	return ma_ke_toan.ma_ke_toan_cua_hoa_don(t.get("mst_doi_tac"),
+		lambda m: ma_theo_mst.get(m, "")) or "(chưa có mã)"
+
+
+def chon_to(to_nhe, tim, ma_khach, ma_theo_mst):
+	"""Lọc người mua (tên hoặc MST) và mã khách KT trên TOÀN BỘ tờ của kỳ,
+	trước khi cắt TOI_DA. THUẦN. Trả danh sách tờ giữ nguyên thứ tự.
+
+	Codex #389 (P1): bản trước cắt 5.001 tờ đầu kỳ rồi mới lọc, nên tờ cần
+	tìm nằm cuối kỳ thì sổ trả rỗng dù tờ có thật, và lời báo "quá nhiều tờ"
+	cũng biến mất vì đếm sau khi lọc."""
+	tim = str(tim or "").strip().lower()
+	mk = str(ma_khach or "").strip().upper()
+	so_tim = ma_ke_toan.chuan_mst(tim) if tim else ""
+	ra = []
+	for t in to_nhe or []:
+		if tim and not (tim in str(t.get("nguoi_mua_ban") or "").lower()
+				or (so_tim and ma_ke_toan.chuan_mst(t.get("mst_doi_tac")) == so_tim)):
+			continue
+		if mk and ma_khach_cua_to(t, ma_theo_mst) != mk:
+			continue
+		ra.append(t)
+	return ra
+
+
 def dong_so(t, ma_theo_mst, don_cua_to):
 	"""Một dòng sổ từ một tờ. THUẦN: ma_theo_mst là {mst_chuan: mã},
 	don_cua_to(t) trả (đơn, cách nối)."""
@@ -44,8 +72,7 @@ def dong_so(t, ma_theo_mst, don_cua_to):
 	return {
 		"to": t.get("name"), "ngay_lap": t.get("ngay_lap"), "ky_hieu": kh(t.get("ky_hieu")),
 		"so_hd": so(t.get("so_hd")),
-		"ma_khach": ma_ke_toan.ma_ke_toan_cua_hoa_don(t.get("mst_doi_tac"),
-			lambda m: ma_theo_mst.get(m, "")) or "(chưa có mã)",
+		"ma_khach": ma_khach_cua_to(t, ma_theo_mst),
 		"nguoi_mua_ban": t.get("nguoi_mua_ban") or "", "mst_doi_tac": ma_ke_toan.chuan_mst(t.get("mst_doi_tac")) or "",
 		"tien_truoc_thue": t.get("tien_truoc_thue"), "tien_thue": t.get("tien_thue"), "tong_tien": t.get("tong_tien"),
 		"trang_thai": t.get("trang_thai") or "", "to_goc": goc[1] if goc else "",
@@ -105,24 +132,31 @@ def execute(filters=None):
 		loc["trang_thai"] = f["trang_thai"]
 	if f.get("chi_chua_noi"):
 		loc["vgb_don_erp"] = ["is", "not set"]
-	to_ds = frappe.get_list("MInvoice Invoice", filters=loc, fields=["name", "so_hd", "ky_hieu", "ngay_lap",
-		"nguoi_mua_ban", "mst_doi_tac", "tien_truoc_thue", "tien_thue", "tong_tien", "trang_thai", "hd_goc",
-		"vgb_don_erp", "ma_cqt", "ngay_ky"], order_by="ngay_lap asc, so_hd asc", limit_page_length=TOI_DA + 1)
-	tim = str(f.get("nguoi_mua") or "").strip().lower()
-	if tim:
-		so_tim = ma_ke_toan.chuan_mst(tim)
-		to_ds = [t for t in to_ds if tim in str(t.get("nguoi_mua_ban") or "").lower()
-			or (so_tim and ma_ke_toan.chuan_mst(t.get("mst_doi_tac")) == so_tim)]
+	truong = ["name", "so_hd", "ky_hieu", "ngay_lap", "nguoi_mua_ban", "mst_doi_tac", "tien_truoc_thue",
+		"tien_thue", "tong_tien", "trang_thai", "hd_goc", "vgb_don_erp", "ma_cqt", "ngay_ky"]
+	thu_tu = "ngay_lap asc, so_hd asc"
+	tim = str(f.get("nguoi_mua") or "").strip()
+	mk = str(f.get("ma_khach") or "").strip()
+	if tim or mk:
+		# Lọc trên CẢ kỳ bằng ba cột nhẹ, rồi mới cắt TOI_DA (Codex #389 P1).
+		nhe = frappe.get_list("MInvoice Invoice", filters=loc, fields=["name", "nguoi_mua_ban", "mst_doi_tac"],
+			order_by=thu_tu, limit_page_length=0)
+		bang = ma_ke_toan.bang_ma_theo_mst([t.get("mst_doi_tac") for t in nhe]) if mk else {}
+		ten = [t["name"] for t in chon_to(nhe, tim, mk, bang)]
+		qua = len(ten) > TOI_DA
+		to_ds = frappe.get_list("MInvoice Invoice", filters={"name": ["in", ten[:TOI_DA + 1]]}, fields=truong,
+			order_by=thu_tu, limit_page_length=0) if ten else []
+	else:
+		to_ds = frappe.get_list("MInvoice Invoice", filters=loc, fields=truong, order_by=thu_tu,
+			limit_page_length=TOI_DA + 1)
+		qua = len(to_ds) > TOI_DA
 	ma_theo_mst = ma_ke_toan.bang_ma_theo_mst([t.get("mst_doi_tac") for t in to_ds])
 	tra = _don_cua_to_tren_site(to_ds) if to_ds else (lambda t: ("", ""))
 	rows = [dong_so(t, ma_theo_mst, tra) for t in to_ds]
-	if f.get("ma_khach"):
-		mk = str(f["ma_khach"]).strip().upper()
-		rows = [r for r in rows if r["ma_khach"] == mk]
 	if f.get("chi_chua_noi"):
 		rows = [r for r in rows if not r["don_erp"]]
 	msg = "%d tờ." % len(rows)
-	if len(to_ds) > TOI_DA:
+	if qua:
 		msg += " Quá %d tờ, thu hẹp khoảng ngày để xem hết." % TOI_DA
 	thieu = sum(1 for r in rows if r["ma_khach"] == "(chưa có mã)")
 	if thieu:
