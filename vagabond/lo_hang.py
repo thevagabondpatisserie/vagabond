@@ -178,8 +178,32 @@ def _so(x):
 
 # ------------------------------------------------------- phần cần Frappe
 
+def ton_kha_dung(tai_luc, hien_tai):
+	"""Tồn dùng được của từng lô cho một phiếu ghi lùi ngày. THUẦN.
+
+	Phiếu ghi ngày 31/08 thì lô phải có hàng VÀO ngày 31/08, và lấy ra rồi
+	thì các phiếu đã ghi sau đó vẫn không được âm, nên lấy số nhỏ hơn của
+	hai thời điểm. Lô chưa tồn tại lúc ghi phiếu (sinh sau ngày đó) thì
+	không có trong `tai_luc`, nên không dùng được. v540, ca thật 29/09/2026:
+	PSX-2026-00116 ghi 31/08, máy chọn lô LO-260914-000105 sinh 14/09.
+	"""
+	ra = {}
+	for lo, so in (tai_luc or {}).items():
+		kha = min(flt_thuan(so), flt_thuan((hien_tai or {}).get(lo, 0)))
+		if kha > LI_TI:
+			ra[lo] = kha
+	return ra
+
+
+def flt_thuan(x):
+	try:
+		return float(x or 0)
+	except (TypeError, ValueError):
+		return 0.0
+
+
 import frappe
-from frappe.utils import cint, flt
+from frappe.utils import cint, flt, get_datetime, now_datetime
 
 from vagabond import lo_het_han
 
@@ -201,7 +225,36 @@ def _theo_lo(ma):
 		return 0
 
 
-def _ton_tung_lo(ma, kho, ke_ca_qua_han=False):
+def luc_cua_phieu(doc):
+	"""Thời điểm ghi sổ của phiếu, MỘT nguồn cho mọi phép tính tồn lô.
+
+	None khi phiếu ghi theo giờ hiện tại. Có giá trị khi phiếu ghi lùi ngày
+	(kế toán giá thành làm phiếu cuối tháng cho tháng trước). v540.
+	"""
+	ngay = getattr(doc, "posting_date", None) or (doc.get("posting_date") if hasattr(doc, "get") else None)
+	if not ngay:
+		return None
+	gio = (getattr(doc, "posting_time", None) or "23:59:59")
+	try:
+		luc = get_datetime("%s %s" % (ngay, gio))
+	except Exception:
+		return None
+	if luc >= now_datetime():
+		return None
+	return {"posting_date": str(ngay), "posting_time": str(gio)}
+
+
+def _ton_tung_lo(ma, kho, ke_ca_qua_han=False, luc=None):
+	"""Tồn từng lô dùng được cho phiếu. Phiếu ghi theo giờ hiện tại thì
+	đúng bằng tồn hôm nay; phiếu ghi lùi ngày thì chỉ lô có hàng vào ngày
+	đó, xem `ton_kha_dung`."""
+	hien = _ton_tung_lo_tai(ma, kho, ke_ca_qua_han)
+	if not luc:
+		return hien
+	return ton_kha_dung(_ton_tung_lo_tai(ma, kho, ke_ca_qua_han, luc), hien)
+
+
+def _ton_tung_lo_tai(ma, kho, ke_ca_qua_han=False, luc=None):
 	"""Tồn từng lô của một mã tại một kho. Trả về {tên lô: tồn}.
 
 	`ke_ca_qua_han` bật thì gọi ERPNext kèm cờ `for_stock_levels`, là cách
@@ -215,7 +268,8 @@ def _ton_tung_lo(ma, kho, ke_ca_qua_han=False):
 		from erpnext.stock.doctype.batch.batch import get_batch_qty
 
 		ds = get_batch_qty(
-			item_code=ma, warehouse=kho, for_stock_levels=bool(ke_ca_qua_han)
+			item_code=ma, warehouse=kho, for_stock_levels=bool(ke_ca_qua_han),
+			**(luc or {})
 		) or []
 		if isinstance(ds, (list, tuple)):
 			for d in ds:
@@ -236,9 +290,12 @@ def _ton_tung_lo(ma, kho, ke_ca_qua_han=False):
 	# sổ kho đúng một dòng, batch_no của nó NULL. Nay cộng cả hai đường.
 	# Số trong gói đã mang dấu sẵn (nhập dương, xuất âm) nên cộng thẳng.
 	try:
+		loc_so = {"item_code": ma, "warehouse": kho, "is_cancelled": 0}
+		if luc:
+			loc_so["posting_datetime"] = ["<=", "%s %s" % (luc["posting_date"], luc["posting_time"])]
 		dong = frappe.get_all(
 			"Stock Ledger Entry",
-			filters={"item_code": ma, "warehouse": kho, "is_cancelled": 0},
+			filters=loc_so,
 			fields=["batch_no", "actual_qty", "serial_and_batch_bundle"],
 			limit_page_length=0,
 		)
@@ -310,9 +367,9 @@ def _bo_lo_khong_dung(cac_lo, ke_ca_qua_han):
 	return ra
 
 
-def _ton_lo_qua_han(ma, kho, da_tinh=None):
+def _ton_lo_qua_han(ma, kho, da_tinh=None, luc=None):
 	"""Tồn của riêng các lô ĐÃ QUÁ HẠN, trừ các lô vòng thường đã tính."""
-	tat = _ton_tung_lo(ma, kho, ke_ca_qua_han=True)
+	tat = _ton_tung_lo(ma, kho, ke_ca_qua_han=True, luc=luc)
 	if not tat:
 		return {}
 	# Vòng cuối chỉ lô tắt/quá hạn, không vét lại hàng tốt đã bị giữ POS.
@@ -484,7 +541,7 @@ def _lo_trong_goi(ten_goi):
 	return ra
 
 
-def _tui_lo(bo, ma, kho, ke_ca_qua_han=False, da_dung=None):
+def _tui_lo(bo, ma, kho, ke_ca_qua_han=False, da_dung=None, luc=None):
 	"""Túi lô dùng chung cho CẢ PHIẾU của một cặp (mã, kho).
 
 	Tính tồn đúng MỘT LẦN cho mỗi cặp rồi trừ dần, xem `rut_tu_kho`. Hai
@@ -494,7 +551,7 @@ def _tui_lo(bo, ma, kho, ke_ca_qua_han=False, da_dung=None):
 	"""
 	k = (ma, kho)
 	if k not in bo:
-		ton = _ton_tung_lo(ma, kho, ke_ca_qua_han=ke_ca_qua_han)
+		ton = _ton_tung_lo(ma, kho, ke_ca_qua_han=ke_ca_qua_han, luc=luc)
 		tay = (da_dung or {}).get(k) or {}
 		ton = tru_da_dung(ton, tay)
 		bo[k] = {"con": _xep_het_han_truoc(ton), "goc": dict(ton), "vet": 0,
@@ -502,7 +559,7 @@ def _tui_lo(bo, ma, kho, ke_ca_qua_han=False, da_dung=None):
 	return bo[k]
 
 
-def _vet_qua_han(muc, ma, kho):
+def _vet_qua_han(muc, ma, kho, luc=None):
 	"""Đổ thêm lô QUÁ HẠN vào túi, đúng một lần cho mỗi cặp (mã, kho).
 
 	Lô quá hạn mà người đã chọn tay cũng bị trừ phần đó, cùng luật với lô
@@ -511,7 +568,7 @@ def _vet_qua_han(muc, ma, kho):
 	if muc.get("vet"):
 		return
 	muc["vet"] = 1
-	hh = _ton_lo_qua_han(ma, kho, da_tinh=muc.get("goc") or {})
+	hh = _ton_lo_qua_han(ma, kho, da_tinh=muc.get("goc") or {}, luc=luc)
 	hh = tru_da_dung(hh, muc.get("tay") or {})
 	if hh:
 		muc["con"] = list(muc.get("con") or []) + _xep_het_han_truoc(hh)
@@ -526,6 +583,7 @@ def _bo_sung_lo_tay(doc):
 	if getattr(doc, "purpose", None) not in lo_het_han.PHIEU_BI_CHAN:
 		return
 	tui, moi, doi, da_gap_goi, nhac = {}, [], False, set(), []
+	luc = luc_cua_phieu(doc)
 	for d in doc.items:
 		lo, goi = d.get("batch_no"), d.get("serial_and_batch_bundle")
 		ma, kho = d.get("item_code"), d.get("s_warehouse")
@@ -561,7 +619,7 @@ def _bo_sung_lo_tay(doc):
 				frappe.throw("Lô %s không thuộc mã %s." % (ten, ma))
 		k = (ma, kho)
 		if k not in tui:
-			tui[k] = _ton_tung_lo(ma, kho, ke_ca_qua_han=True)
+			tui[k] = _ton_tung_lo(ma, kho, ke_ca_qua_han=True, luc=luc)
 		ton = tui[k]
 		phan = {}
 		for ten, so in chon.items():
@@ -621,6 +679,7 @@ def gan_lo(doc, method=None):
 			return
 
 		thay_ma = duoc_thay_ma(getattr(doc, "purpose", None))
+		luc = luc_cua_phieu(doc)
 		bo = {}
 		da_dung = phan_da_chon_tay(doc.items, lo_trong_goi=_lo_trong_goi)
 		moi = []
@@ -638,7 +697,7 @@ def gan_lo(doc, method=None):
 			# tính theo đơn vị gốc - chia theo d.qty trần là chia sai.
 			he_so = flt(d.get("conversion_factor")) or 1
 			can_goc = flt(d.qty) * he_so
-			muc = _tui_lo(bo, ma, kho, da_dung=da_dung)
+			muc = _tui_lo(bo, ma, kho, da_dung=da_dung, luc=luc)
 			phan, thieu = rut_tu_kho(muc, can_goc, chi_tot=True)
 
 			# Thiếu thì thử MÃ THAY THẾ đã duyệt trước khi chặn: hết bơ
@@ -652,7 +711,7 @@ def gan_lo(doc, method=None):
 			cac_ma_thay = _cac_ma_thay_the(ma) if thieu > LI_TI and thay_ma else []
 			if thieu > LI_TI and thay_ma:
 				for ma_thay in cac_ma_thay:
-					muc_thay = _tui_lo(bo, ma_thay, kho, da_dung=da_dung)
+					muc_thay = _tui_lo(bo, ma_thay, kho, da_dung=da_dung, luc=luc)
 					p2, thieu = rut_tu_kho(muc_thay, thieu, chi_tot=True)
 					for ten_lo, so in p2:
 						phan_thay.append((ma_thay, ten_lo, so))
@@ -662,13 +721,13 @@ def gan_lo(doc, method=None):
 			# cuối cùng lô cảnh báo của mã thay đã duyệt (#308).
 			# Chính sách v489: HSD/lô tắt chỉ cảnh báo, không cho âm kho.
 			if thieu > LI_TI:
-				_vet_qua_han(muc, ma, kho)
+				_vet_qua_han(muc, ma, kho, luc)
 				p3, thieu = rut_tu_kho(muc, thieu)
 				phan = list(phan) + list(p3)
 			if thieu > LI_TI:
 				for ma_thay in cac_ma_thay:
-					muc_thay = _tui_lo(bo, ma_thay, kho, da_dung=da_dung)
-					_vet_qua_han(muc_thay, ma_thay, kho)
+					muc_thay = _tui_lo(bo, ma_thay, kho, da_dung=da_dung, luc=luc)
+					_vet_qua_han(muc_thay, ma_thay, kho, luc)
 					p4, thieu = rut_tu_kho(muc_thay, thieu)
 					phan_thay.extend((ma_thay, ten_lo, so) for ten_lo, so in p4)
 					if thieu <= LI_TI:
