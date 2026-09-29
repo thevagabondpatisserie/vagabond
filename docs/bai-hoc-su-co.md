@@ -1349,3 +1349,16 @@ Cách phòng:
   `nop_quy.tao` và `tao_theo_ngay` trả `{can_ly_do: 1}` trước khi insert để
   màn hỏi lý do lệch rồi gọi lại. Xoá nháp ngay khi promise xong là mất cả
   bảng kê nếu người dùng huỷ hộp lý do. Chỉ xoá khi `sdDaTaoPhieu(kq)` đúng.
+
+## 29/09/2026 (v540): phiếu ghi lùi ngày mà máy chọn lô theo tồn hôm nay
+
+- Khải làm phiếu sản xuất cuối tháng ghi ngày 31/08. Máy chọn lô sữa
+  LO-260914-000105 vì hôm nay lô đó còn hàng, nhưng lô đó sinh 14/09. ERPNext
+  kiểm tồn lô TẠI NGÀY GHI SỔ nên chặn "negative stock", lần nào lưu cũng
+  chặn vì dòng đã mang sẵn lô sai và phép bù lô cũng đọc tồn hôm nay.
+- Mọi phép đọc tồn lô cho một phiếu phải đi qua `lo_hang.luc_cua_phieu(doc)`
+  (một nguồn) rồi `_ton_tung_lo(..., luc=)`. Phiếu ghi lùi: lấy số NHỎ HƠN
+  giữa tồn tại ngày ghi và tồn hôm nay, để vừa có hàng vào ngày đó vừa không
+  làm âm các phiếu đã ghi sau.
+- Giới hạn còn lại: lấy min hai thời điểm không bắt được trường hợp lô xuống
+  thấp ở GIỮA hai mốc rồi được nhập lại. Hiếm, ERPNext vẫn chặn nếu xảy ra.
