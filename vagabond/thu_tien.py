@@ -363,6 +363,22 @@ def chia_no_hoa_don(rows, ve):
 	return con, the, khach
 
 
+def loc_khach_no(ds_khach, tim):
+	"""Lọc danh sách khách đang nợ theo ô tìm, kèm tổng của phần lọc ra. THUẦN.
+
+	Khớp tên khách, mã khách hoặc số hoá đơn. Trả (danh sách khớp, tổng còn
+	phải đòi của danh sách khớp). Codex #382 vòng 9: thẻ trên đầu màn giữ
+	tổng nợ thật của mọi khách (không teo theo chữ đang gõ), còn phần đang
+	hiện phải có tổng riêng do máy chủ cộng, để Sales không đọc nhầm số.
+	"""
+	tim = (tim or "").strip().lower()
+	ds = list(ds_khach or [])
+	if tim:
+		ds = [v for v in ds if tim in (v.get("ten") or "").lower() or tim in (v.get("khach") or "").lower()
+			or any(tim in (d.get("name") or "").lower() for d in v.get("hd") or [])]
+	return ds, sum(_so(v.get("tien")) for v in ds)
+
+
 def tach_tien_da_ve(con_no, phan_bo, da_xac_minh):
 	"""Hoá đơn này có chuyển sang nhóm "Tiền đã về, chờ ghi sổ" không. THUẦN.
 

@@ -370,13 +370,12 @@ def ds_khach_no(tim=""):
 	cho_ghi_so["so_khach"] = len(khach_cho)
 	# O tim loc o MAY CHU (QT-19), SAU khi da cong tong: the so tren dau man
 	# van noi tong no that, khong teo lai theo chu dang go.
-	tim = (tim or "").strip().lower()
 	so_khach_tat_ca = len(ra)
-	if tim:
-		ra = [v for v in ra if tim in (v.get("ten") or "").lower() or tim in (v.get("khach") or "").lower()
-			or any(tim in (d.get("name") or "").lower() for d in v.get("hd") or [])]
+	# Codex #382 vong 9: phan loc ra co tong rieng do may chu cong (QT-19).
+	ra, tong_loc = tt.loc_khach_no(ra, tim)
 	return {
 		"khach": ra, "tong": tong, "so_khach_tat_ca": so_khach_tat_ca,
+		"tong_loc": tong_loc, "dang_loc": 1 if (tim or "").strip() else 0,
 		# Tien da ve cho ghi so: KHONG cong vao "con phai doi", nhung so cai
 		# van ghi la no cho toi khi phieu thu vao so. Man hien ca hai.
 		"cho_ghi_so": cho_ghi_so,
