@@ -1412,3 +1412,23 @@ Cách phòng:
   mới gắn qua ô. Cổng "tệp phải nằm ở ô X" phải xét cả các dòng khác cùng
   đường dẫn (`thu_tien.url_unc_that`). Ca thuần giả lập không thấy được hành
   vi này; chỉ bench mới bắt (#382 vòng 8).
+
+## 29/09/2026 (v540): phiếu ghi lùi ngày mà máy chọn lô theo tồn hôm nay
+
+- Khải làm phiếu sản xuất cuối tháng ghi ngày 31/08. Máy chọn lô sữa
+  LO-260914-000105 vì hôm nay lô đó còn hàng, nhưng lô đó sinh 14/09. ERPNext
+  kiểm tồn lô TẠI NGÀY GHI SỔ nên chặn "negative stock", lần nào lưu cũng
+  chặn vì dòng đã mang sẵn lô sai và phép bù lô cũng đọc tồn hôm nay.
+- Mọi phép đọc tồn lô cho một phiếu phải đi qua `lo_hang.luc_cua_phieu(doc)`
+  (một nguồn) rồi `_ton_tung_lo(..., luc=)`. Phiếu ghi lùi: lấy số NHỎ HƠN
+  giữa tồn tại ngày ghi và tồn hôm nay, để vừa có hàng vào ngày đó vừa không
+  làm âm các phiếu đã ghi sau.
+- Vòng 2: tồn khả dụng là số dư THẤP NHẤT của lô từ ngày ghi tới nay (đọc
+  biến động sổ kho sau ngày ghi), vì lô có thể về 0 giữa chừng rồi được nhập
+  lại. Hạn dùng cũng xét theo NGÀY GHI: get_batch_qty mặc định bỏ lô hết hạn
+  tính tới hôm nay, nên trứng còn hạn ngày 31/08 từng bị coi là không có.
+- Chỉ tin ngày trên phiếu khi `set_posting_time` bật; không bật thì ERPNext
+  đặt lại ngày giờ hiện tại SAU hook before_validate (Codex #388 F1).
+- Ca kiểm tầng khung phải có ca giữ đúng đường nối, không giả hết các hàm
+  con: đột biến "bỏ biến động sau" từng không làm đổ ca nào vì ca duy nhất
+  đi qua đó đã giả nó rỗng.
