@@ -277,26 +277,56 @@ def ke_hoach_xuat_excel(ref_doctypes, doc_duoc, xuat_duoc):
 	return ra
 
 
+def co_quyen_hieu_luc(dong_tuy_bien, dong_chuan, vai, q):
+	"""Vai co quyen `q` o muc 0 theo bang quyen DANG HIEU LUC. THUAN.
+
+	Frappe: doctype da co bat ky dong Custom DocPerm nao thi bang DocPerm
+	chuan het hieu luc; chua co dong nao thi bang chuan la bang dang dung.
+	Codex #385 (P2): truoc day phan "xuat duoc" chi hoi Custom DocPerm, nen
+	doctype ma bang CHUAN da cho export van bi coi la thieu, patch goi
+	add_permission va dong bang ca bang quyen chuan mot cach vo ich."""
+	bang = dong_tuy_bien if dong_tuy_bien else dong_chuan
+	for r in bang or []:
+		if (r.get("role") == vai and not r.get("permlevel") and not r.get("if_owner")
+				and r.get(q)):
+			return True
+	return False
+
+
+def _dong_quyen(dt):
+	cot = ["role", "permlevel", "if_owner", "read", "export"]
+	return (frappe.get_all("Custom DocPerm", filters={"parent": dt}, fields=cot, limit_page_length=0),
+		frappe.get_all("DocPerm", filters={"parent": dt}, fields=cot, limit_page_length=0))
+
+
 def _doc_duoc(dt, vai):
 	"""Vai co dong quyen read o muc 0, o Custom DocPerm hay DocPerm chuan."""
-	for bang in ("Custom DocPerm", "DocPerm"):
-		if frappe.db.get_value(bang, {"parent": dt, "role": vai, "permlevel": 0, "if_owner": 0, "read": 1}):
-			return True
-		if bang == "Custom DocPerm" and frappe.db.exists("Custom DocPerm", {"parent": dt}):
-			# Da co dong tuy bien thi bang chuan khong con hieu luc.
-			return False
-	return False
+	tuy_bien, chuan = _dong_quyen(dt)
+	return co_quyen_hieu_luc(tuy_bien, chuan, vai, "read")
+
+
+def _xuat_duoc(dt, vai):
+	"""Vai da co export o muc 0 theo bang quyen dang hieu luc."""
+	tuy_bien, chuan = _dong_quyen(dt)
+	return co_quyen_hieu_luc(tuy_bien, chuan, vai, "export")
 
 
 def cap_xuat_excel_v537():
 	"""Patch v537. Khong nuot loi o buoc cap: thieu quyen sau khi cap la lam
-	hong migrate."""
+	hong migrate.
+
+	Codex #385 (P2): patch chi chay mot lan, ma danh sach bao cao doc dong
+	tu bang Report, nen bao cao moi (nang ERPNext, bao cao tuy bien) tren
+	doctype moi se khong bao gio duoc phu. Vi vay ham nay con duoc goi lai
+	o MOI lan migrate tu patches/dong_bo_cau_truc.py (boc try o do de khong
+	chan migrate). Chay lai duoc: chi cap cai con thieu theo bang dang hieu
+	luc, lan thu hai khong doi gi."""
 	from frappe.permissions import add_permission, update_permission_property
 
 	ref = frappe.get_all("Report", filters={"disabled": 0}, pluck="ref_doctype", limit_page_length=0)
 	ref = [d for d in ref if d and frappe.db.exists("DocType", d)]
 	them = []
-	for dt, vai in ke_hoach_xuat_excel(ref, _doc_duoc, lambda dt, vai: not _thieu(dt, vai, "export")):
+	for dt, vai in ke_hoach_xuat_excel(ref, _doc_duoc, _xuat_duoc):
 		if not frappe.db.exists("Role", vai):
 			continue
 		add_permission(dt, vai, 0)
