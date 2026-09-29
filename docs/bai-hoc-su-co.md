@@ -1384,6 +1384,12 @@ Cách phòng:
   tiền về chia cho hai phiếu hai hoá đơn được tính hai lần (Codex #382 vòng 2).
   Chọn phiếu thắng ở MỘT chỗ (`mot_phieu_moi_giao_dich`), trên mọi phiếu cùng
   mã giao dịch chứ không trên tập màn đang lọc.
+- Luật chứng từ đặt ở NÚT BẤM thì Desk đi vòng được: mọi đường gọi `submit()`
+  (Desk, script, tác vụ nền) chỉ đi qua hook `before_submit`. Luật nghiệp vụ
+  bắt buộc phải có một hook, nút trên app chỉ báo sớm (Codex #382 vòng 3).
+- Bench mặc định có tài khoản Bank không mang số hiệu 112, nên mọi hook soi
+  ngân hàng theo số hiệu (`la_ngan_hang`) lọt qua trong ca kiểm. Ca kiểm luồng
+  ngân hàng phải dựng tài khoản 112 như site thật (`_tai_khoan_cong_ty_moi`).
 - Đổi tham số lọc cho màn mà vẫn nhận tham số cũ "để app cũ không vỡ" thì phải
   chép ĐÚNG phép lọc cũ, không quy gần đúng về khái niệm mới (Codex #382:
   "Đã duyệt" cũ = chờ ghi sổ + đã ghi sổ, không trùng chặng nào).
