@@ -1432,3 +1432,8 @@ Cách phòng:
 - Ca kiểm tầng khung phải có ca giữ đúng đường nối, không giả hết các hàm
   con: đột biến "bỏ biến động sau" từng không làm đổ ca nào vì ca duy nhất
   đi qua đó đã giả nó rỗng.
+- Bấm Gửi thẳng trên nháp ĐÃ LƯU: Frappe đặt docstatus=1 TRƯỚC before_validate
+  và đánh dấu `_action="submit"`. Hook nào chặn theo `docstatus != 0` sẽ bỏ qua
+  đúng lượt Gửi này (Codex #390). Ca thật dựng bằng insert() rồi submit() không
+  bắt được, vì insert() đã chạy hook ở docstatus 0 và chữa trước; phải dựng
+  nháp đã lưu sẵn trạng thái sai rồi mới Gửi.
