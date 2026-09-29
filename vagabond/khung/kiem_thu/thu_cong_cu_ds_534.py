@@ -258,6 +258,61 @@ def _nguyen_khoi():
 	dung("chẩn đoán luôn lùi điểm lưu", 'finally:\n\t\tfrappe.db.rollback(save_point="vgb_chan_doan_thu")' in than)
 
 
+@ca("v534 anh Việt 29/09: Desk và app cùng một luật UNC khách gửi (Codex #382 vòng 3)")
+def _unc_desk():
+	from unittest.mock import patch
+	from vagabond import thu_tien as tt
+	vao = dict(payment_type="Receive", party_type="Customer", paid_to="11211 - MB - TV")
+	dung("phiếu thu tiền khách chuyển khoản gắn hoá đơn, khớp giao dịch", tt.can_unc_khach(vao, True, True))
+	for nhan, doi, hd, gd in (
+			("phiếu chi", dict(payment_type="Pay"), True, True),
+			("thu nhà cung cấp", dict(party_type="Supplier"), True, True),
+			("thu tiền mặt", dict(paid_to="1111 - Tiền mặt - TV"), True, True),
+			("thu đặt bánh", dict(vgb_phieu_dat="PD-1"), True, True),
+			("hồ sơ hoàn tiền", dict(vgb_hoan_tien="HT-1"), True, True),
+			("không gắn hoá đơn", {}, False, True),
+			("không khớp giao dịch", {}, True, False)):
+		dung(nhan + ": không bắt ô UNC khách gửi", not tt.can_unc_khach(dict(vao, **doi), hd, gd))
+	la("gộp tệp Desk vào danh sách", tt.gop_tep(["/a"], "/b"), ["/a", "/b"])
+	la("gộp tệp trùng thì giữ nguyên", tt.gop_tep(["/a"], " /a "), ["/a"])
+	la("không có tệp Desk", tt.gop_tep([], ""), [])
+
+	class Doc(dict):
+		doctype = "Payment Entry"
+		def get(self, k, d=None):
+			return dict.get(self, k, d)
+		def __getattr__(self, k):
+			return dict.get(self, k)
+		def __setattr__(self, k, v):
+			self[k] = v
+		def as_dict(self):
+			return dict(self)
+	import frappe
+	d = Doc(name="PE1", reference_no="FT1", vgb_thu_unc=None,
+		references=[{"reference_doctype": "Sales Invoice"}], **vao)
+	with patch.object(frappe.db, "exists", lambda *a, **k: True, create=True), \
+			patch.object(tt, "_so_tep_unc", lambda *a: 0):
+		nem("Desk: ô UNC trống thì chặn ghi sổ", lambda: tt.chan_thieu_unc_khach(d), frappe.ValidationError)
+	with patch.object(frappe.db, "exists", lambda *a, **k: True, create=True), \
+			patch.object(tt, "_so_tep_unc", lambda *a: 1):
+		la("Desk: có tệp trong ô thì cho qua", tt.chan_thieu_unc_khach(d), None)
+	with patch.object(frappe.db, "exists", lambda *a, **k: False, create=True), \
+			patch.object(tt, "_so_tep_unc", lambda *a: 0):
+		la("không khớp giao dịch thì hook này không chặn", tt.chan_thieu_unc_khach(d), None)
+	dd = Doc(name="PE1", vgb_thu_unc='["/private/files/a.png"]', vgb_thu_unc_tep="/private/files/b.pdf")
+	tt.gop_unc_desk(dd)
+	la("lưu trên Desk: tệp ô Desk gộp vào ô danh sách", dd["vgb_thu_unc"],
+		'["/private/files/a.png", "/private/files/b.pdf"]')
+	import runpy
+	pe_ev = runpy.run_path(os.path.join(GOI, "hooks.py"))["doc_events"]["Payment Entry"]
+	bs = pe_ev["before_submit"]
+	dung("hook ghi sổ đã gắn, sau hook tệp chung",
+		bs.index("vagabond.thu_tien.chan_thieu_unc_khach") > bs.index("vagabond.chung_tu_tien.chan_thieu_dinh_kem"))
+	dung("hook gộp tệp Desk đã gắn", "vagabond.thu_tien.gop_unc_desk" in pe_ev["before_validate"])
+	o = tt.TRUONG_MOI["Payment Entry"][1]
+	la("ô Desk", (o["fieldname"], o["fieldtype"], o["insert_after"]), ("vgb_thu_unc_tep", "Attach", "vgb_thu_unc"))
+
+
 @ca("v534 ô UNC khách gửi dựng lúc migrate, sau ô UNC phiếu chi")
 def _truong():
 	from vagabond.thu_tien import TRUONG_MOI
@@ -337,6 +392,12 @@ def _mot_phieu_moi_gd():
 	i = s.find("def phieu_thu_nhap(")
 	than = s[i:s.find("\ndef ", i + 10)]
 	dung("màn và công nợ cùng đi qua một chỗ chọn", "return mot_phieu_moi_giao_dich(ra, ung_vien)" in than)
+	# Codex #382 vòng 3: phiếu không gắn hoá đơn bán không thuộc màn công nợ,
+	# và không được làm ứng viên thắng.
+	dung("bỏ phiếu không gắn hoá đơn", "cac_pe = [p for p in cac_pe if ref.get(p.name)]" in than)
+	dung("ứng viên cũng phải gắn hoá đơn", "if t in co_hd]" in than)
+	dung("lọc hoá đơn trước khi đọc tệp và giao dịch",
+		than.find("cac_pe = [p for p in cac_pe if ref.get(p.name)]") < than.find("_gd_theo_so("))
 
 
 @ca("v534 ghi sổ phiếu thu: chỉ tệp nằm TRONG ô UNC khách gửi mới tính (Codex #382)")
