@@ -221,3 +221,28 @@ def _bu_lo_da_gan():
 @ca("v540 phiếu ghi 31/08 xin nhiều hơn tồn khả dụng ngày đó: chặn với lời thiếu hàng, không cấp lô sinh sau")
 def _thieu_that():
 	nem("thiếu thật thì chặn", lambda: _chay(lh.gan_lo, _phieu(qty=60000)), lh.frappe.ValidationError)
+
+
+@ca("v540 Codex #390: hook gán lô chạy cho nháp và cho lượt Gửi thẳng trên nháp đã lưu; không chạy khi sửa sau gửi hay huỷ")
+def _con_sua_lo():
+	la("nháp", lh.con_sua_lo(0, "save"), True)
+	la("Gửi thẳng nháp đã lưu (Frappe đặt docstatus=1 trước before_validate)", lh.con_sua_lo(1, "submit"), True)
+	la("sửa sau khi gửi", lh.con_sua_lo(1, "update_after_submit"), False)
+	la("huỷ", lh.con_sua_lo(2, "cancel"), False)
+	la("docstatus 1 mà không có _action", lh.con_sua_lo(1, None), False)
+
+
+@ca("v540 Codex #390: nháp PSX-2026-00116 ĐÃ LƯU mang lô sinh sau ngày ghi, bấm Gửi thẳng (docstatus=1, _action=submit): gan_lo vẫn bù sang lô hợp lệ")
+def _gui_thang_nhap_da_luu():
+	# Dựng đúng trạng thái Frappe đưa vào before_validate khi bấm Gửi trên
+	# nháp đã lưu: Document._submit đặt docstatus=1 rồi check_if_latest đặt
+	# _action="submit". Không gọi thêm lượt lưu nháp nào "cho chắc": lượt đó
+	# chạy gan_lo ở docstatus 0 và chữa lô trước khi ca kịp nhìn (bài học 06/09).
+	p = _phieu(lo="LO-260914-000105")
+	p.docstatus, p._action = 1, "submit"
+	ra = _chay(lh.gan_lo, p)
+	la("chuyển sang lô có hàng ngày 31/08", ra,
+		[("KKK2600009-NVLT00013", 2414.812), ("KKK2600007-NVLT00013", 478.37)])
+	q = _phieu(lo="LO-260914-000105")
+	q.docstatus, q._action = 1, "update_after_submit"
+	la("sửa sau khi gửi: không đụng", _chay(lh.gan_lo, q), [("LO-260914-000105", 2893.182)])
