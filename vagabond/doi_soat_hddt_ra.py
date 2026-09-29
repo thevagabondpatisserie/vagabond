@@ -744,17 +744,32 @@ def don_cua_to_goc(ma_to, ky_hieu, so_hd):
 	"""Đơn ERP đã phát hành tờ này: theo mã m-invoice (một trong hai ô), không
 	có thì theo ký hiệu và số. Chỉ đơn đã ghi sổ. Rỗng nếu không có. v536."""
 	for o in ("custom_minvoice_id", "custom_hddt_id"):
-		r = frappe.get_all("Sales Invoice", filters={o: ma_to, "docstatus": 1}, fields=["name"], limit_page_length=1)
-		if r:
+		r = frappe.get_all("Sales Invoice", filters={o: ma_to, "docstatus": 1}, fields=["name"], limit_page_length=2)
+		if len(r) == 1:
 			return r[0]["name"]
+		if r:
+			return ""
 	n = so(so_hd)
 	if not n:
 		return ""
-	for r in frappe.get_all("Sales Invoice", filters={"custom_hddt_so": ["in", [n, n.zfill(len(str(so_hd or "")))]],
-			"docstatus": 1}, fields=["name", "custom_hddt_ky_hieu"], limit_page_length=5):
-		if kh(r.get("custom_hddt_ky_hieu")) in (kh(ky_hieu), ""):
-			return r["name"]
-	return ""
+	ds = frappe.get_all("Sales Invoice", filters={"custom_hddt_so": ["in", [n, n.zfill(len(str(so_hd or "")))]],
+		"docstatus": 1}, fields=["name", "custom_hddt_ky_hieu"], limit_page_length=0)
+	return chon_don_duy_nhat(ds, ky_hieu)
+
+
+def chon_don_duy_nhat(ds, ky_hieu):
+	"""Đơn DUY NHẤT khớp ký hiệu và số, hoặc rỗng. THUẦN.
+
+	Codex #389 (P1 vòng 3): bản trước lấy dòng đầu tiên khớp ký hiệu hoặc ký
+	hiệu trống, không thứ tự, nên cùng một số dùng lại qua năm hay qua ký hiệu
+	khác thì máy ghi vĩnh viễn một đơn lịch sử bất kỳ. Khớp đúng ký hiệu được
+	ưu tiên; không có thì mới xét đơn cũ ký hiệu trống; lớp nào cũng phải DUY
+	NHẤT mới nối, hai đơn trở lên là để người nối tay."""
+	dung = [r["name"] for r in ds or [] if kh(r.get("custom_hddt_ky_hieu")) == kh(ky_hieu) and kh(ky_hieu)]
+	if dung:
+		return dung[0] if len(set(dung)) == 1 else ""
+	trong = [r["name"] for r in ds or [] if not kh(r.get("custom_hddt_ky_hieu"))]
+	return trong[0] if len(set(trong)) == 1 else ""
 
 
 def noi_to_goc_tu_dong(ma_to, ky_hieu, so_hd):

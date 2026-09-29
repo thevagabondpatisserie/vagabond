@@ -1329,6 +1329,28 @@ def dau_hieu_don(remarks, ten_si=""):
 	return {"ma_don": ma, "dien_thoai": [d for d in dt if d not in ma], "ten_si": str(ten_si or "")}
 
 
+def la_ung_vien(g, ngay_hd, dau_hieu, con_no):
+	"""Giao dịch g có thoả luật ứng viên của hoá đơn không. THUẦN, MỘT nguồn
+	cho cả lúc liệt kê (ung_vien_tien_ve) lẫn lúc lập phiếu (nhan_tien_ve).
+
+	Luật: về không sớm hơn SO_NGAY_TRUOC_HD ngày trước ngày hoá đơn, và hoặc
+	đúng số tiền còn nợ, hoặc nội dung có mã đơn. Codex #389 (P1 vòng 3):
+	bản trước chỉ lọc lúc liệt kê, lời gọi lập phiếu tự dựng tay hay danh
+	sách cũ vẫn nối được giao dịch của khách khác vào hoá đơn."""
+	import datetime
+	def _ngay(x):
+		return datetime.date.fromisoformat(str(x)[:10])
+	try:
+		if _ngay(g.get("date")) < _ngay(ngay_hd) - datetime.timedelta(days=SO_NGAY_TRUOC_HD):
+			return False
+	except (TypeError, ValueError):
+		return False
+	if abs(_so(g.get("unallocated_amount")) - _so(con_no)) <= LECH:
+		return True
+	chu = "".join(str(g.get("description") or "").split()).upper()
+	return any(m and m in chu for m in (dau_hieu or {}).get("ma_don") or [])
+
+
 def xep_ung_vien(ds_gd, dau_hieu, con_no):
 	"""Xếp giao dịch ứng viên, gắn lý do khớp. THUẦN.
 
@@ -1408,6 +1430,8 @@ def ung_vien_tien_ve(si=None):
 	for g in gd:
 		if g.name in thay or (g.reference_number or "") in dung:
 			continue
+		if not la_ung_vien(g, d.posting_date, dh, con_no):
+			continue
 		thay.add(g.name)
 		sach.append(g)
 	xep = xep_ung_vien(sach, dh, con_no)
@@ -1438,6 +1462,10 @@ def nhan_tien_ve(si=None, gd=None):
 		frappe.throw("Giao dịch %s không có số tham chiếu ngân hàng." % gd)
 	if g.payment_entries or flt(g.unallocated_amount) <= LECH:
 		frappe.throw("Giao dịch %s đã nối với chứng từ khác." % ref)
+	# Áp lại ĐÚNG luật ứng viên sau khi khoá cả hai (Codex #389 P1 vòng 3).
+	if not la_ung_vien(g.as_dict(), doc.posting_date, dau_hieu_don(doc.remarks, doc.name), flt(doc.outstanding_amount)):
+		frappe.throw("Giao dịch %s không khớp hoá đơn %s: không đúng số tiền còn nợ, nội dung không có mã đơn, "
+			"hoặc về sớm hơn %d ngày trước ngày hoá đơn." % (ref, si, SO_NGAY_TRUOC_HD))
 	cu = frappe.get_all(PE, filters={"docstatus": ["<", 2], "reference_no": ref, "payment_type": "Receive"},
 		pluck="name", limit_page_length=1)
 	if cu:

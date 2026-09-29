@@ -139,17 +139,27 @@ def ke_hoach_nap(dong_ds, hien_co, ma_dang_dung=None):
 				m = str((v or {}).get("ma") or "").strip().upper()
 				if m:
 					ma_dang_dung.setdefault(loai, {})[m] = mst
-	da_thay = {}
 	# Codex #389 (P1): một MST trong tệp chỉ được một mã. Dòng lặp y hệt thì
 	# xử một lần (không sinh hai lần tạo mới); một MST mang hai mã khác nhau
 	# thì cả MST đó là xung đột, không ghi gì cho nó, để người quyết.
 	sach = doc_tep_fast(dong_ds)
-	ma_cua_mst = {}
+	ma_cua_mst, mst_cua_ma = {}, {}
 	for d in sach:
 		ma_cua_mst.setdefault((d["loai"], d["mst"]), set()).add(d["ma"])
-	da_xu = set()
+		mst_cua_ma.setdefault((d["loai"], d["ma"]), set()).add(d["mst"])
+	da_xu, ma_da_bao = set(), set()
 	for d in sach:
 		km = (d["loai"], d["mst"])
+		k = (d["loai"], d["ma"])
+		# Codex #389 (P2 vòng 3): một mã gắn cho nhiều MST thì loại MỌI dòng của
+		# mã đó khỏi kế hoạch ghi, kể cả dòng đứng trước. Để thứ tự dòng trong
+		# tệp quyết định mã về tay ai là sai.
+		if len(mst_cua_ma[k]) > 1:
+			if k not in ma_da_bao:
+				ma_da_bao.add(k)
+				ra["xung_dot"].append(dict(d, ly_do="mã %s gắn cho %d MST trong tệp: %s" % (
+					d["ma"], len(mst_cua_ma[k]), ", ".join(sorted(mst_cua_ma[k])))))
+			continue
 		if len(ma_cua_mst[km]) > 1:
 			if km not in da_xu:
 				da_xu.add(km)
@@ -159,11 +169,6 @@ def ke_hoach_nap(dong_ds, hien_co, ma_dang_dung=None):
 		if km in da_xu:
 			continue
 		da_xu.add(km)
-		k = (d["loai"], d["ma"])
-		if k in da_thay and da_thay[k] != d["mst"]:
-			ra["xung_dot"].append(dict(d, ly_do="mã %s gắn cho hai MST %s và %s trong tệp" % (d["ma"], da_thay[k], d["mst"])))
-			continue
-		da_thay[k] = d["mst"]
 		co = (hien_co.get(d["loai"]) or {}).get(d["mst"])
 		chu_khac = (ma_dang_dung.get(d["loai"]) or {}).get(d["ma"])
 		if chu_khac is not None and chu_khac != d["mst"]:
