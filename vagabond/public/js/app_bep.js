@@ -16199,6 +16199,9 @@ async function scrCongNo() {
             /* Tra mot phan thi phai thay ngay, khong bat ai tru tay: con so
                ben phai la SO CON PHAI DOI, khong phai tong to. */
             (d.da_thu > 0 ? '<div style="font-size:12px;color:#15803d">đã thu ' + money(d.da_thu) + ' đ trên tổng ' + money(d.tong_don) + ' đ</div>' : '') +
+            /* v534 vòng 8 (Codex #382): tiền đã về tài khoản mà phiếu thu còn
+               chờ UNC khách gửi thì đã trừ khỏi số bên phải; nói rõ ra. */
+            (d.da_ve > 0 ? '<div data-cndave="1" style="font-size:12px;color:#0b7c93">' + money(d.da_ve) + ' đ đã về tài khoản, chờ ghi sổ</div>' : '') +
             '</div>' +
             '<b style="white-space:nowrap">' + money(d.tien) + ' đ</b></div>';
         });
