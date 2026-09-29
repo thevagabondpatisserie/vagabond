@@ -225,11 +225,16 @@ def _desk():
 		la('phiếu còn nháp', pe.docstatus, 0)
 		la('không GL', _gl(pe), [])
 		# Codex #382 vòng 7: trỏ ô Desk vào chính ảnh kẹp giấy (đổi nhãn tệp
-		# có sẵn) thì tệp gộp vào ô danh sách nhưng KHÔNG được tính, vì nó
-		# không gắn vào phiếu qua ô UNC. Bản trước vòng 7 ca này ghi sổ được.
+		# có sẵn). Bench vòng 7 đổ ở đây: khi lưu, Frappe
+		# attach_files_to_document CHÉP ra một dòng File mới gắn qua ô
+		# vgb_thu_unc_tep, nên phép "gắn qua ô UNC" một mình không đủ. Vòng 8
+		# xét thêm: đường dẫn có dòng nằm chỗ khác thì không tính.
 		pe.vgb_thu_unc_tep = t.file_url
 		pe.save(ignore_permissions=True); pe.reload()
 		dung('tệp kẹp giấy vẫn gộp vào ô danh sách', t.file_url in (pe.get('vgb_thu_unc') or ''))
+		chep = frappe.get_all('File', filters={'file_url': t.file_url, 'name': ['!=', t.name]},
+			fields=['name', 'attached_to_field'])
+		la('Frappe đã chép ra một dòng gắn qua ô Desk', [x.attached_to_field for x in chep], ['vgb_thu_unc_tep'])
 		try:
 			pe.submit()
 		except frappe.ValidationError as e:
@@ -238,6 +243,11 @@ def _desk():
 			dung('đổi nhãn ảnh kẹp giấy phải bị chặn', False)
 		pe.reload()
 		la('phiếu còn nháp sau khi đổi nhãn', pe.docstatus, 0)
+		# Dọn bản chép và ô Desk để tệp thử được xoá sạch trên đĩa khi ra khỏi khối.
+		for x in chep:
+			frappe.delete_doc('File', x.name, ignore_permissions=True, force=True)
+		frappe.db.set_value('Payment Entry', pe.name, {'vgb_thu_unc_tep': None, 'vgb_thu_unc': ''},
+			update_modified=False)
 	# Đính đúng ô trên Desk: nút đính của ô tải tệp MỚI, tệp gắn qua ô đó.
 	with _Tep(gan_vao=pe.name, o='vgb_thu_unc_tep') as t2:
 		pe.reload()
