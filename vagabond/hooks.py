@@ -900,3 +900,17 @@ _cu_bt = doc_events.setdefault("Journal Entry", {}).get("before_cancel", [])
 doc_events["Journal Entry"]["before_cancel"] = ([_cu_bt] if isinstance(_cu_bt, str) else list(_cu_bt)) + [
 	"vagabond.ho_so_bo_sung.chan_huy_bu_tru"]
 del _cu_bt
+# v536: mã khách kế toán (mã Fast) trên hoá đơn bán và cấp mã nối tiếp cho
+# khách hoặc NCC có MST mà chưa có mã. Nối vào chuỗi sẵn có, không thay hook
+# cũ. Đặt CUỐI dãy validate của Sales Invoice: ô Xuất HĐ cho đã qua các phép
+# kiểm trước đó. Hàm không bao giờ chặn lưu, lỗi ghi Error Log.
+for _dt_mk, _sk_mk, _ham_mk in (
+	("Sales Invoice", "validate", "vagabond.ma_ke_toan.dien_ma_khach_hoa_don"),
+	("Customer", "after_insert", "vagabond.ma_ke_toan.cap_ma_khi_luu"),
+	("Customer", "on_update", "vagabond.ma_ke_toan.cap_ma_khi_luu"),
+	("Supplier", "after_insert", "vagabond.ma_ke_toan.cap_ma_khi_luu"),
+	("Supplier", "on_update", "vagabond.ma_ke_toan.cap_ma_khi_luu"),
+):
+	_cu_mk = doc_events.setdefault(_dt_mk, {}).get(_sk_mk, [])
+	doc_events[_dt_mk][_sk_mk] = ([_cu_mk] if isinstance(_cu_mk, str) else list(_cu_mk)) + [_ham_mk]
+del _dt_mk, _sk_mk, _ham_mk, _cu_mk

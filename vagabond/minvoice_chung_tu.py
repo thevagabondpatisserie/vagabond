@@ -1341,9 +1341,17 @@ def _mot_to(r):
 			_ghi_xong(ma, "Đã có chứng từ %s." % cu)
 			return (0, "da_co")
 		if (r.get("loai") or "") == LOAI_RA:
-			# Anh Việt chốt 26/08/2026: đầu ra bán lẻ do Fabi xuất. Xem mục
-			# "Hoá đơn đầu ra không phải việc của mô đun này" ở đầu tệp.
-			_ghi_xong(ma, "Hoá đơn đầu ra do Fabi xuất, hệ không dựng chứng từ.")
+			# Anh Việt chốt 26/08/2026: đầu ra không dựng chứng từ ở đây. Xem
+			# mục "Hoá đơn đầu ra không phải việc của mô đun này" ở đầu tệp.
+			# v536: tờ do chính ERP phát hành thì nối ngay vào đơn và ghi đúng
+			# lý do; nhãn "do Fabi xuất" từng gắn cho cả 5.697 tờ tháng 9/2026
+			# trong khi phần lớn là ERP xuất.
+			from vagabond import doi_soat_hddt_ra
+			don = doi_soat_hddt_ra.noi_to_goc_tu_dong(ma, r.get("ky_hieu"), r.get("so_hd"))
+			if don:
+				_ghi_xong(ma, "Tờ do ERP phát hành cho đơn %s." % don)
+				return (0, "dau_ra_erp")
+			_ghi_xong(ma, "Hoá đơn đầu ra không có đơn ERP (Fabi hoặc lập tay), hệ không dựng chứng từ.")
 			return (0, "dau_ra_fabi")
 		trung = _trung_theo_so_hoa_don(r)
 		if trung:
@@ -1370,7 +1378,7 @@ def _mot_to(r):
 # ngày 31/08/2026 lượt chạy tay báo "173 con_hong" trong khi cả 173 tờ đều
 # là đầu ra Fabi, tức là không có gì hỏng cả. Con số báo động sai còn nguy
 # hơn không báo: nhìn quen rồi thì tới lúc hỏng thật cũng không ai giật mình.
-LY_DO_BO_QUA_HOP_LE = ("khoi_dung", "da_co", "dau_ra_fabi")
+LY_DO_BO_QUA_HOP_LE = ("khoi_dung", "da_co", "dau_ra_fabi", "dau_ra_erp")
 
 # Mỗi lượt đóng dấu tối đa bao nhiêu tờ đầu ra. Đóng dấu chỉ là một câu
 # UPDATE nên nhẹ hơn dựng chứng từ rất nhiều, cho phép nhiều hơn MOI_LUOT.
