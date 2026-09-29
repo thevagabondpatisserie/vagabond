@@ -573,6 +573,20 @@ def gop_tep(ds_url, them):
 	return ra
 
 
+def doi_unc_desk(ds_url, cu, moi):
+	"""Đối chiếu ô danh sách UNC với ô Desk khi lưu. THUẦN.
+
+	cu: giá trị ô Desk trước khi lưu, moi: giá trị bây giờ. Ô Desk bị xoá
+	hoặc thay thì bỏ đường dẫn cũ; có giá trị mới thì gộp vào (không trùng).
+	Tệp đính qua app không đụng tới."""
+	cu = str(cu or "").strip()
+	moi = str(moi or "").strip()
+	ra = [str(u).strip() for u in (ds_url or []) if str(u or "").strip()]
+	if cu and cu != moi:
+		ra = [u for u in ra if u != cu]
+	return gop_tep(ra, moi)
+
+
 def soat_ghi_so_thu(da_xac_minh, ly_do, so_tep, la_ke_toan):
 	"""Được bấm ghi sổ phiếu thu chưa. THUẦN. Trả (được hay không, câu lý do)."""
 	if not da_xac_minh:
@@ -1218,12 +1232,22 @@ def gop_unc_desk(doc, method=None):
 	Giữ MỘT nguồn: app và Desk cùng ghi vào `vgb_thu_unc`, mọi phép đếm chỉ
 	đọc ô đó (dem_tep_unc).
 	"""
-	if doc.doctype != PE or not doc.get("vgb_thu_unc_tep"):
+	if doc.doctype != PE:
+		return
+	# Codex #382 vòng 10: xoá hay thay tệp ở ô Desk thì đường dẫn cũ phải ra
+	# khỏi ô danh sách. Frappe giữ nguyên dòng File khi ô Attach bị xoá (xem
+	# de_nghi_chi.py), nên nếu chỉ gộp thêm thì tệp đã gỡ vẫn được đếm và
+	# phiếu ghi sổ được mà không có UNC đang chọn.
+	lay_truoc = getattr(doc, "get_doc_before_save", None)
+	truoc = lay_truoc() if callable(lay_truoc) else None
+	cu = (truoc.get("vgb_thu_unc_tep") if truoc else "") or ""
+	moi = doc.get("vgb_thu_unc_tep") or ""
+	if not cu and not moi:
 		return
 	from vagabond import tep_dinh_kem
 
-	moi = gop_tep(tep_dinh_kem.doc_ds(doc.get("vgb_thu_unc")), doc.get("vgb_thu_unc_tep"))
-	doc.vgb_thu_unc = tep_dinh_kem.ghi_ds(moi)
+	ds = doi_unc_desk(tep_dinh_kem.doc_ds(doc.get("vgb_thu_unc")), cu, moi)
+	doc.vgb_thu_unc = tep_dinh_kem.ghi_ds(ds)
 
 
 def _thuoc_tap_unc(doc):
