@@ -78,7 +78,9 @@ def _ke_hoach():
 		{"ma": "NC000001", "ten": "E", "mst": "0300000010"},
 	], hien)
 	la("điền mã", [(d["name"], d["ma"]) for d in kh["cap_nhat"]], [("DN000001", "KH000015")])
-	la("tạo mới", [d["ma"] for d in kh["tao_moi"]], ["KH000030"])
+	# Codex #389 P2 vòng 3: bản trước mong KH000030 được tạo cho MST đứng trước
+	# (thứ tự dòng quyết định). Nay mã gắn cho hai MST thì không dòng nào được ghi.
+	la("tạo mới: mã hai MST không về tay dòng nào", [d["ma"] for d in kh["tao_moi"]], [])
 	la("giữ", kh["giu"], 1)
 	la("xung đột: ERP giữ mã khác; cùng mã hai MST trong tệp; mã đang là của NCC khác",
 		[d["ma"] for d in kh["xung_dot"]], ["KH000016", "KH000030", "NC000001"])
@@ -476,6 +478,39 @@ def _trung_mst():
 	kh = mk.ke_hoach_nap([{"ma": "KH000401", "mst": "0300000401"}, {"ma": "KH000402", "mst": "0300000401"}],
 		{"Customer": {"0300000401": {"name": "C-A", "ma": ""}}})
 	la("MST hai mã không cập nhật bản ghi đang có", kh["cap_nhat"], [])
+	# Codex #389 P2 vòng 3: một mã gắn hai MST thì cả hai dòng đều không ghi, dù dòng nào đứng trước.
+	for thu_tu in (0, 1):
+		dong = [{"ma": "KH000500", "mst": "0300000501"}, {"ma": "KH000500", "mst": "0300000502"}]
+		kh = mk.ke_hoach_nap(dong[::-1] if thu_tu else dong, {"Customer": {"0300000501": {"name": "C-1", "ma": ""}}})
+		la("mã hai MST: không ghi gì (thứ tự %d)" % thu_tu, (kh["tao_moi"], kh["cap_nhat"]), ([], []))
+		la("mã hai MST: một xung đột nêu đủ MST (thứ tự %d)" % thu_tu,
+			[("0300000501" in d["ly_do"] and "0300000502" in d["ly_do"]) for d in kh["xung_dot"]], [True])
+
+
+@ca("Codex #389 P1 vòng 3: nối tờ theo ký hiệu và số chỉ khi DUY NHẤT; trùng số qua năm hay qua ký hiệu thì để người nối")
+def _so_duy_nhat():
+	c = ds.chon_don_duy_nhat
+	la("một đơn đúng ký hiệu", c([{"name": "A", "custom_hddt_ky_hieu": "1C26MPV"}], "C26MPV"), "A")
+	la("hai đơn cùng ký hiệu cùng số: không nối", c([{"name": "A", "custom_hddt_ky_hieu": "1C26MPV"},
+		{"name": "B", "custom_hddt_ky_hieu": "1C26MPV"}], "C26MPV"), "")
+	la("đúng ký hiệu thắng đơn cũ ký hiệu trống", c([{"name": "CU", "custom_hddt_ky_hieu": ""},
+		{"name": "A", "custom_hddt_ky_hieu": "1C26MPV"}], "C26MPV"), "A")
+	la("khác năm không nối", c([{"name": "A", "custom_hddt_ky_hieu": "1C25MPV"}], "C26MPV"), "")
+	la("hai đơn cũ ký hiệu trống: không nối", c([{"name": "X", "custom_hddt_ky_hieu": ""},
+		{"name": "Y", "custom_hddt_ky_hieu": None}], "C26MPV"), "")
+	la("một đơn cũ ký hiệu trống", c([{"name": "X", "custom_hddt_ky_hieu": ""}], "C26MPV"), "X")
+	# Qua hàm chạm hệ THẬT: đọc đủ ứng viên (không cắt 5 dòng) rồi mới chọn.
+	hoi = []
+
+	def get_all(dt, filters=None, fields=None, limit_page_length=0, **k):
+		hoi.append(limit_page_length)
+		if "custom_hddt_so" in (filters or {}):
+			return [_D(name="HDB-2025", custom_hddt_ky_hieu="1C25MPV"), _D(name="HDB-A", custom_hddt_ky_hieu="1C26MPV"),
+				_D(name="HDB-B", custom_hddt_ky_hieu="1C26MPV")]
+		return []
+	with unittest.mock.patch.object(ds, "frappe", NS(get_all=get_all)):
+		la("trùng số trong cùng ký hiệu: rỗng", ds.don_cua_to_goc("id-x", "C26MPV", 14514), "")
+	dung("đọc đủ ứng viên, không cắt", hoi[-1] == 0)
 
 
 @ca("Codex #389 P1 vòng 2: lọc chỉ tờ chưa nối xét CẢ ba đường tra đơn trên cả kỳ rồi mới cắt TOI_DA")
