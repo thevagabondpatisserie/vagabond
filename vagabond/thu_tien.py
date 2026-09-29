@@ -319,6 +319,50 @@ def xac_minh_tien_ve(pe, gd, tk_gd="", cty_gd=""):
 	return (True, "")
 
 
+def chia_con_no(con_no, phan_bo, da_xac_minh):
+	"""Chia số còn nợ trên sổ cái thành (còn phải đòi, tiền đã về chờ ghi sổ). THUẦN.
+
+	Codex #382 vòng 8: hoá đơn nợ 1.000.000 đ đã có 600.000 đ về tài khoản
+	(giao dịch xác minh độc lập, phiếu thu còn nháp) thì Sales chỉ còn phải
+	đòi 400.000 đ. Hoá đơn vẫn nằm ở nhóm đang nợ, số đòi trừ phần đã về.
+	Phủ đủ (lệch tới 1 đ làm tròn) thì còn phải đòi 0, hoá đơn tách hẳn
+	sang "Tiền đã về, chờ ghi sổ" như tach_tien_da_ve. Chưa xác minh thì
+	không trừ gì: tiền chưa chứng minh là đã về.
+	"""
+	no = _so(con_no)
+	if no <= 0:
+		return (0.0, 0.0)
+	ve = _so(phan_bo) if da_xac_minh else 0.0
+	if ve <= 0:
+		return (no, 0.0)
+	if ve + 1 >= no:
+		return (0.0, no)
+	return (no - ve, ve)
+
+
+def chia_no_hoa_don(rows, ve):
+	"""Chia danh sách hoá đơn còn nợ theo tiền đã về. THUẦN.
+
+	`rows` là hoá đơn còn nợ (mỗi dòng có name, con_no, customer,
+	vgb_khach_no), `ve` là kết quả gom_tien_da_ve theo hoá đơn. Gán cho mỗi
+	dòng `con_doi` (còn phải đòi) và `da_ve` (đã về, chờ ghi sổ) theo
+	chia_con_no. Trả (các dòng còn phải đòi, thẻ tiền đã về {so_hd, tien},
+	tập khách có tiền về). Tách khỏi cong_no để kiểm được không cần Frappe
+	(cong_no kéo ban_hang, ban_hang kéo requests).
+	"""
+	con, the, khach = [], {"so_hd": 0, "tien": 0.0}, set()
+	for r in rows or []:
+		p = (ve or {}).get(r["name"]) or {}
+		r["con_doi"], r["da_ve"] = chia_con_no(r["con_no"], p.get("phan_bo"), p.get("da_xac_minh"))
+		if r["da_ve"] > 0:
+			the["so_hd"] += 1
+			the["tien"] += r["da_ve"]
+			khach.add(r.get("vgb_khach_no") or r.get("customer") or "")
+		if r["con_doi"] > 0:
+			con.append(r)
+	return con, the, khach
+
+
 def tach_tien_da_ve(con_no, phan_bo, da_xac_minh):
 	"""Hoá đơn này có chuyển sang nhóm "Tiền đã về, chờ ghi sổ" không. THUẦN.
 

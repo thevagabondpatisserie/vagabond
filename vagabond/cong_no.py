@@ -312,15 +312,11 @@ def ds_khach_no(tim=""):
 	# dich ngan hang da xac minh doc lap (Codex #381 F4); con lai van la no.
 	ve = _tien_da_ve_theo_hd([r["name"] for r in rows])
 	khach = {}
-	cho_ghi_so = {"so_hd": 0, "tien": 0.0, "so_khach": 0}
-	khach_cho = set()
+	# Codex #382 vong 8: phan da ve (da xac minh) tru khoi so con phai doi,
+	# ke ca khi moi phu mot phan; phu du thi hoa don tach han. Phep thuan.
+	rows, the_ve, khach_cho = tt.chia_no_hoa_don(rows, ve)
+	cho_ghi_so = {"so_hd": the_ve["so_hd"], "tien": the_ve["tien"], "so_khach": 0}
 	for r in rows:
-		p = ve.get(r["name"])
-		if p and tt.tach_tien_da_ve(r["con_no"], p["phan_bo"], p["da_xac_minh"]):
-			cho_ghi_so["so_hd"] += 1
-			cho_ghi_so["tien"] += flt(r["con_no"])
-			khach_cho.add(r.get("vgb_khach_no") or r.customer or "")
-			continue
 		# Don da ghi so roi moi phat hien gan nham khach le thi ke toan gan
 		# chu no vao truong phu vgb_khach_no - khong sua duoc customer nua
 		# vi but toan da len so cai. Cot phu nay uu tien hon customer.
@@ -344,7 +340,7 @@ def ds_khach_no(tim=""):
 		if r.name in da_gom:
 			continue
 		o["so_hd"] += 1
-		o["tien"] += flt(r["con_no"])
+		o["tien"] += flt(r["con_doi"])
 		if not o["cu_nhat"] or str(r.posting_date) < o["cu_nhat"]:
 			o["cu_nhat"] = str(r.posting_date)
 		o["hd"].append(
@@ -353,9 +349,12 @@ def ds_khach_no(tim=""):
 				"ngay": str(r.posting_date),
 				# `tien` la SO CON PHAI DOI, khong phai tong to. Man hinh bay
 				# ca hai de nguoi doc thay ngay to nao da tra mot phan.
-				"tien": flt(r["con_no"]),
+				"tien": flt(r["con_doi"]),
 				"tong_don": flt(r.grand_total),
 				"da_thu": flt(r.grand_total) - flt(r["con_no"]),
+				# Tien da ve tai khoan, phieu thu chua ghi so (v534 vong 8):
+				# da tru khoi `tien`, so cai chua tru nen khong nam trong da_thu.
+				"da_ve": flt(r["da_ve"]),
 				"nguon": r.custom_nguon or "",
 				"quay": r.vgb_quay or "",
 				"ma": r.vgb_ma_tham_chieu or "",
@@ -483,6 +482,7 @@ COT_NO = [
 	{"k": "ngay", "nhan": "Ngày hoá đơn", "kieu": "ngay"},
 	{"k": "tong_don", "nhan": "Tổng đơn (đ)", "kieu": "tien"},
 	{"k": "da_thu", "nhan": "Đã thu (đ)", "kieu": "tien"},
+	{"k": "da_ve", "nhan": "Tiền đã về, chờ ghi sổ (đ)", "kieu": "tien"},
 	{"k": "tien", "nhan": "Còn phải đòi (đ)", "kieu": "tien"},
 	{"k": "nguon", "nhan": "Nguồn", "kieu": "chu"},
 ]
