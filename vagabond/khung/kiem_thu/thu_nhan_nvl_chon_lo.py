@@ -107,9 +107,9 @@ def chay_gan_lo(purpose, dong, ton, qua_han=None, thay_the=None, chan=0, goi=Non
 		lh.frappe.get_cached_value = lambda dt, ten, o=None, **k: "Gram"
 		lh._bo_sung_lo_tay = lambda doc: None  # ca bù lô chạy riêng bên dưới
 		lh._theo_lo = lambda ma: 1
-		lh._ton_tung_lo = lambda ma, kho, ke_ca_qua_han=False: dict(
+		lh._ton_tung_lo = lambda ma, kho, ke_ca_qua_han=False, luc=None: dict(
 			ton.get((ma, kho), {}))
-		lh._ton_lo_qua_han = lambda ma, kho, da_tinh=None: {
+		lh._ton_lo_qua_han = lambda ma, kho, da_tinh=None, luc=None: {
 			k: v for k, v in (qua_han.get((ma, kho), {}) or {}).items()
 			if k not in (da_tinh or {})
 		}
@@ -506,7 +506,8 @@ def _ho_so_hong():
 def _duong_du_phong_co_loc():
 	import inspect
 
-	nguon = inspect.getsource(lh._ton_tung_lo)
+	# v540: thân đọc sổ chuyển sang _ton_tung_lo_tai, _ton_tung_lo chỉ bọc theo ngày phiếu.
+	nguon = inspect.getsource(lh._ton_tung_lo_tai)
 	dung("có gọi bộ lọc", "_bo_lo_khong_dung(ra, ke_ca_qua_han)" in nguon)
 
 
