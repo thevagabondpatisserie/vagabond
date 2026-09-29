@@ -30,6 +30,7 @@ cổng quyền của màn, tự chọn những khoá lọc nó hiểu, bỏ qua 
 ĐỦ dòng. Trả về (tên tệp, cột, dòng).
 """
 
+import re
 import datetime
 
 # Một bộ chip ngày cho mọi màn. Khoá rỗng là "không lọc ngày".
@@ -114,6 +115,33 @@ def trong_khoang(ngay, tu, den):
 	return True
 
 
+_SO_HOAC_DIEN_THOAI = re.compile(r"^[+-]?[0-9][0-9 .,()/-]*$")
+
+
+def chu_an_toan(v):
+	"""Ô chữ đưa vào Excel không được thành công thức. THUẦN.
+
+	Codex #382 vòng 7: tên khách, lý do tặng, mã đơn đến từ dữ liệu khách.
+	Bộ ghi xlsxwriter của Frappe (v16.27.1, xlsxwriter 3.2.9) ghi chuỗi bắt
+	đầu bằng "=" và chuỗi dạng "{=...}" thành CÔNG THỨC, kế toán mở tệp là
+	Excel chạy. Thêm dấu nháy đơn phía trước cho mọi chuỗi mở đầu bằng ký tự
+	công thức (=, +, -, @, tab, xuống dòng) hoặc có dạng {...}; riêng số và
+	số điện thoại như "+84 90 123 4567", "-150000" giữ nguyên cho dễ đọc.
+	"""
+	s = "" if v is None else str(v)
+	if not s:
+		return s
+	if s[0] in "\t\r\n":
+		return "'" + s
+	if s[0] == "{" and s.endswith("}"):
+		return "'" + s
+	if s[0] in "=@":
+		return "'" + s
+	if s[0] in "+-" and not _SO_HOAC_DIEN_THOAI.match(s):
+		return "'" + s
+	return s
+
+
 def _o(kieu, v):
 	if kieu in ("tien", "so"):
 		try:
@@ -126,7 +154,7 @@ def _o(kieu, v):
 		return n.strftime("%d/%m/%Y") if n else ""
 	if v is None:
 		return ""
-	return str(v)
+	return chu_an_toan(v)
 
 
 def dung_bang(cot, dong):
