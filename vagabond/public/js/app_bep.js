@@ -16207,6 +16207,10 @@ async function scrCongNo() {
             /* v534 vòng 8 (Codex #382): tiền đã về tài khoản mà phiếu thu còn
                chờ UNC khách gửi thì đã trừ khỏi số bên phải; nói rõ ra. */
             (d.da_ve > 0 ? '<div data-cndave="1" style="font-size:12px;color:#0b7c93">' + money(d.da_ve) + ' đ đã về tài khoản, chờ ghi sổ</div>' : '') +
+            /* v541 (anh Việt 29/09/2026): tiền đã về mà nội dung chuyển khoản
+               không mang mã đơn thì máy không tự lập phiếu thu, hoá đơn kẹt ở
+               Đang nợ. Nút này cho người chọn đúng giao dịch ngân hàng. */
+            '<button class="btn gh" data-cnnhan="' + h(d.name) + '" style="width:auto;margin:6px 0 0;min-height:36px;padding:0 12px;font-size:13px">💰 Khách đã chuyển tiền</button>' +
             '</div>' +
             '<b style="white-space:nowrap">' + money(d.tien) + ' đ</b></div>';
         });
@@ -16275,6 +16279,8 @@ async function scrCongNo() {
     if (t) { cnLocPhieu = t.getAttribute('data-cnlp'); return go(scrCongNo, true); }
     t = e.target.closest('[data-cnmo]');
     if (t) { var m = t.getAttribute('data-cnmo'); cnKhachMo = cnKhachMo === m ? '' : m; return go(scrCongNo, true); }
+    t = e.target.closest('[data-cnnhan]');
+    if (t) return cnNhanTien(t.getAttribute('data-cnnhan'), kv);
     t = e.target.closest('[data-cnhd]');
     if (t) {
       var v = t.getAttribute('data-cnhd').split('|');
@@ -16392,6 +16398,59 @@ function cnMoUnc(pe, kv) {
     if (!unc.length) return baoTin('Chọn ảnh chuyển khoản khách gửi trước rồi bấm lưu.');
     k.dong();
     await cnGhiSo(pe, unc);
+  };
+}
+
+/* v541: hoá đơn ở tab Đang nợ mà tiền đã về. Máy đưa các giao dịch ngân hàng
+   chưa nối, người CHỌN (máy chỉ gợi ý mã đơn, số điện thoại, số tiền; không
+   tự gán theo số tiền). Chọn xong máy lập phiếu thu nháp nối đúng giao dịch,
+   hoá đơn sang tab Tiền đã về, và mở luôn hộp đính UNC khách gửi. */
+async function cnNhanTien(si, kv) {
+  busy(true);
+  var r;
+  try { r = await api('vagabond.thu_tien.ung_vien_tien_ve', { si: si }); }
+  catch (e) { busy(false); return baoTin(errMsg(e) || 'Chưa đọc được giao dịch ngân hàng.'); }
+  busy(false);
+  var ds = (r && r.gd) || [];
+  var than = '<div style="font-size:13.5px;color:#374151;line-height:1.6;margin-bottom:10px">' +
+    '<b>' + h(r.khach || '') + '</b> · ' + h(si) + ' · còn nợ <b>' + money(r.con_no) + ' đ</b><br>' +
+    '<span style="color:#667085">Chọn đúng khoản tiền khách đã chuyển. Máy chỉ gợi ý, người chọn.</span></div>';
+  if (!ds.length) {
+    than += '<div class="emp" style="padding:18px"><div>Chưa thấy giao dịch tiền vào nào chưa nối từ ngày ' + posNgayVn(r.ngay_hd) +
+      ' mà khớp số tiền hay mã đơn. Kiểm lại sao kê hoặc báo kế toán.</div></div>';
+  }
+  ds.forEach(function (g) {
+    than += '<div data-cnchongd="' + h(g.name) + '" style="border:1.5px solid #e4e7ec;border-radius:10px;padding:10px 12px;margin-bottom:8px;cursor:pointer">' +
+      '<div style="display:flex;gap:8px;align-items:baseline"><b style="flex:1">' + money(g.tien) + ' đ</b>' +
+      '<span style="font-size:12.5px;color:#667085">' + posNgayVn(g.ngay) + '</span></div>' +
+      (g.con < g.tien ? '<div style="font-size:12px;color:#b45309">còn ' + money(g.con) + ' đ chưa nối</div>' : '') +
+      '<div style="font-size:12px;color:#475467;margin-top:3px;word-break:break-word">' + h(g.mo_ta) + '</div>' +
+      ((g.khop || []).length ? '<div style="font-size:12px;color:#15803d;margin-top:3px">✓ ' + h(g.khop.join(', ')) + '</div>' : '') +
+      '</div>';
+  });
+  var k = hopKhung('Khách đã chuyển tiền', than, '');
+  k.box.onclick = async function (e) {
+    if (e.target.closest('.x')) { k.dong(); return; }
+    var t = e.target.closest('[data-cnchongd]');
+    if (!t) return;
+    var g = ds.filter(function (x) { return x.name === t.getAttribute('data-cnchongd'); })[0];
+    if (!g) return;
+    k.dong();
+    var tien = Math.min(g.con, r.con_no);
+    var ok = await confirmSheet('Nhận ' + money(tien) + ' đ cho ' + si,
+      'Giao dịch ' + (g.ma_gd || g.name) + ' ngày ' + posNgayVn(g.ngay) + '.\nMáy lập phiếu thu nháp nối đúng giao dịch này. Ghi sổ vẫn cần ảnh chuyển khoản khách gửi.',
+      'Đúng khoản này');
+    if (!ok) return;
+    busy(true);
+    var x;
+    try { x = await api('vagabond.thu_tien.nhan_tien_ve', { si: si, gd: g.name }); }
+    catch (e2) { busy(false); return baoTin(errMsg(e2) || 'Chưa lập được phiếu thu.'); }
+    busy(false);
+    toast('Đã lập phiếu thu ' + x.pe + '. Đính ảnh chuyển khoản khách gửi.', 3500);
+    /* Vẽ lại trước: hoá đơn đã sang tab Tiền đã về dù người đóng hộp UNC. */
+    go(scrCongNo, true);
+    return cnMoUnc(x.pe, { dong: [{ pe: x.pe, ten_khach: x.ten_khach, tien: x.tien, ngay_ve: x.ngay_ve, ma_gd: x.ma_gd }],
+      ke_toan: (kv || {}).ke_toan });
   };
 }
 
@@ -22194,7 +22253,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '539';
+var APPVER = '541';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
