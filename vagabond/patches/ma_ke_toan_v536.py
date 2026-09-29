@@ -34,7 +34,9 @@ def execute():
 	if not frappe.db.exists("DocType", DT_TO) or not frappe.db.has_column(DT_TO, "vgb_don_erp"):
 		frappe.db.commit()
 		return
-	to_ds = frappe.get_all(DT_TO, filters={"loai": LOAI_RA, "vgb_don_erp": ["in", ["", None]]},
+	# "is not set" thành ifnull(cột, '') = '': bắt cả NULL lẫn chuỗi rỗng.
+	# ["in", ["", None]] chỉ bắt chuỗi rỗng, tờ cũ NULL bị bỏ sót (Codex #383 F3).
+	to_ds = frappe.get_all(DT_TO, filters={"loai": LOAI_RA, "vgb_don_erp": ["is", "not set"]},
 		fields=["name", "ky_hieu", "so_hd"], limit_page_length=0)
 	if not to_ds:
 		frappe.db.commit()
