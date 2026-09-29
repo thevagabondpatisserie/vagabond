@@ -299,6 +299,16 @@ def _unc_desk():
 	with patch.object(frappe.db, "exists", lambda *a, **k: False, create=True), \
 			patch.object(tt, "_so_tep_unc", lambda *a: 0):
 		la("không khớp giao dịch thì hook này không chặn", tt.chan_thieu_unc_khach(d), None)
+	# Codex #382 vòng 4: hỏng giữa chừng thì CHẶN, không cho qua.
+	def hong(*a, **k):
+		raise RuntimeError("hỏng đọc giao dịch")
+	with patch.object(frappe.db, "exists", hong, create=True), patch.object(frappe, "log_error", lambda *a, **k: None):
+		nem("lỗi lạ trong hook thì chặn ghi sổ", lambda: tt.chan_thieu_unc_khach(d), RuntimeError)
+	s2 = _doc("thu_tien.py")
+	i = s2.find("def ghi_so_phieu_thu(")
+	than2 = s2[i:s2.find("\n@frappe.whitelist", i + 10)]
+	dung("nút đính UNC soát loại phiếu trước khi gắn tệp",
+		0 < than2.find("if not _thuoc_tap_unc(doc):") < than2.find("tep_dinh_kem.gan_vao("))
 	dd = Doc(name="PE1", vgb_thu_unc='["/private/files/a.png"]', vgb_thu_unc_tep="/private/files/b.pdf")
 	tt.gop_unc_desk(dd)
 	la("lưu trên Desk: tệp ô Desk gộp vào ô danh sách", dd["vgb_thu_unc"],
