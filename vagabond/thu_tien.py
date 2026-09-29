@@ -232,6 +232,46 @@ TRUONG_MOI = {
 LECH = 0.5
 
 
+def _ti_gia_mot(v):
+	"""Tỉ giá trống coi là 1 (phiếu cũ, dữ liệu kiểm), có số thì phải đúng 1."""
+	if v in (None, ""):
+		return True
+	return abs(_so(v) - 1) < 1e-9
+
+
+# Trường tiền tệ phải đọc kèm mỗi khi đưa phiếu thu vào xac_minh_tien_ve.
+TRUONG_TIEN_TE = ["received_amount", "paid_from_account_currency", "paid_to_account_currency",
+	"source_exchange_rate", "target_exchange_rate"]
+
+
+def tien_phia_ngan_hang(pe):
+	"""Số tiền phiếu thu tính theo tiền của TÀI KHOẢN NGÂN HÀNG nhận. THUẦN.
+
+	Codex #382 vòng 5: `paid_amount` là tiền phía khách, còn giao dịch ngân
+	hàng và phần lõi cấp cho phiếu tính theo tiền tài khoản nhận
+	(`received_amount`). Phiếu 100 USD ghi có 2.500.000 đ mà so `paid_amount`
+	thì giao dịch 1.000.000 đ vẫn lọt. Màn này chỉ nhận phiếu tiền đồng thuần:
+	hai tài khoản đều VND, hai tỉ giá đều 1, tiền hai phía bằng nhau; khác đi
+	thì trả lý do để kế toán xử lý tay trên Desk.
+	Trả (số tiền, câu lý do); lý do rỗng là dùng được.
+	"""
+	pe = pe or {}
+	for truong in ("paid_from_account_currency", "paid_to_account_currency"):
+		if (pe.get(truong) or "VND") != "VND":
+			return (0.0, "Phiếu thu dùng ngoại tệ, kế toán ghi sổ tay trên Desk.")
+	for truong in ("source_exchange_rate", "target_exchange_rate"):
+		if not _ti_gia_mot(pe.get(truong)):
+			return (0.0, "Phiếu thu có tỉ giá khác 1, kế toán ghi sổ tay trên Desk.")
+	tra = _so(pe.get("paid_amount"))
+	nhan = pe.get("received_amount")
+	if nhan in (None, ""):
+		return (tra, "")
+	nhan = _so(nhan)
+	if abs(nhan - tra) > LECH:
+		return (0.0, "Tiền khách trả và tiền vào tài khoản trên phiếu thu lệch nhau, kế toán soát tay trên Desk.")
+	return (nhan, "")
+
+
 def xac_minh_tien_ve(pe, gd, tk_gd="", cty_gd=""):
 	"""Phiếu thu nháp này có khớp một khoản tiền ĐÃ VỀ thật không. THUẦN.
 
@@ -267,7 +307,9 @@ def xac_minh_tien_ve(pe, gd, tk_gd="", cty_gd=""):
 		return (False, "Giao dịch %s thuộc công ty khác." % ref)
 	if _so(gd.get("allocated_amount")) > LECH or int(gd.get("so_noi") or 0) > 0:
 		return (False, "Giao dịch %s đã nối với chứng từ khác." % ref)
-	tien = _so(pe.get("paid_amount"))
+	tien, sai_tien = tien_phia_ngan_hang(pe)
+	if sai_tien:
+		return (False, sai_tien)
 	con = _so(gd.get("unallocated_amount"))
 	if tien <= 0:
 		return (False, "Phiếu thu không có số tiền.")
@@ -789,14 +831,14 @@ def phieu_thu_nhap(cac_si=None, chi_ma_gd=True):
 	if ten_pe is None:
 		cac_pe = frappe.get_all(PE, filters=loc, fields=[
 			"name", "payment_type", "docstatus", "paid_amount", "paid_to", "company",
-			"reference_no", "party", "party_name", "posting_date", "vgb_thu_unc"], limit_page_length=0)
+			"reference_no", "party", "party_name", "posting_date", "vgb_thu_unc"] + TRUONG_TIEN_TE, limit_page_length=0)
 	else:
 		for lo in _chia(ten_pe):
 			l2 = dict(loc)
 			l2["name"] = ["in", lo]
 			cac_pe += frappe.get_all(PE, filters=l2, fields=[
 				"name", "payment_type", "docstatus", "paid_amount", "paid_to", "company",
-				"reference_no", "party", "party_name", "posting_date", "vgb_thu_unc"], limit_page_length=0)
+				"reference_no", "party", "party_name", "posting_date", "vgb_thu_unc"] + TRUONG_TIEN_TE, limit_page_length=0)
 	if not cac_pe:
 		return []
 	ten = [p.name for p in cac_pe]
@@ -954,13 +996,22 @@ def ghi_so_phieu_thu(name=None, unc=None):
 		# người khác vừa nối giao dịch này vào chứng từ khác.
 		if gdoc.payment_entries or flt(gdoc.allocated_amount) > LECH:
 			frappe.throw("Giao dịch %s vừa được nối với chứng từ khác. Tải lại màn để kiểm." % doc.reference_no)
-		if flt(gdoc.unallocated_amount) + LECH < flt(doc.paid_amount):
+		# Codex #382 vòng 5: so theo tiền tài khoản nhận, không theo tiền
+		# phía khách. Xem tien_phia_ngan_hang.
+		tien_nh, sai_tien = tien_phia_ngan_hang(doc.as_dict())
+		if sai_tien:
+			frappe.throw(sai_tien)
+		if flt(gdoc.unallocated_amount) + LECH < tien_nh:
 			frappe.throw("Giao dịch %s không còn đủ tiền chưa phân bổ." % doc.reference_no)
 		doc.flags.ignore_permissions = True
 		doc.submit()
 		doc.reload()
 		if int(doc.docstatus) != 1:
 			frappe.throw("Phiếu thu chưa vào sổ. Đã lùi cả lượt.")
+		# Submit có thể tính lại tiền hai phía: đọc lại trên bản đã vào sổ.
+		tien_nh, sai_tien = tien_phia_ngan_hang(doc.as_dict())
+		if sai_tien:
+			frappe.throw(sai_tien + " Đã lùi cả lượt.")
 		gdoc.add_payment_entries([{"payment_doctype": PE, "payment_name": doc.name}])
 		gdoc.save(ignore_permissions=True)
 		gdoc.reload()
@@ -969,10 +1020,10 @@ def ghi_so_phieu_thu(name=None, unc=None):
 			frappe.throw("Giao dịch ngân hàng chưa nối được vào phiếu thu. Đã lùi cả lượt.")
 		# allocate_payment_entries cấp min(allocable, remaining): cấp thiếu
 		# là giao dịch và phiếu lệch nhau, không nhận (điều 3 ở đầu hàm).
-		if flt(dong[0].allocated_amount) + LECH < flt(doc.paid_amount):
+		if flt(dong[0].allocated_amount) + LECH < tien_nh:
 			frappe.throw("Giao dịch ngân hàng chỉ nhận %s đ cho phiếu thu %s đ. Đã lùi cả lượt."
 				% ("{:,.0f}".format(flt(dong[0].allocated_amount)).replace(",", "."),
-					"{:,.0f}".format(flt(doc.paid_amount)).replace(",", ".")))
+					"{:,.0f}".format(tien_nh).replace(",", ".")))
 	except Exception as e:
 		frappe.db.rollback(save_point="vgb_ghi_so_thu")
 		frappe.clear_messages()
