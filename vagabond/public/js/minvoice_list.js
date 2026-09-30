@@ -125,7 +125,7 @@
 			return e(o.ten) + ': <b>' + so(o.so_to) + '</b>';
 		}).join(' &middot; ');
 		return '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">' +
-			'<div style="flex:1;min-width:240px"><b>' + so(kq.so_to) + ' hoá đơn đầu vào đã nhận nhưng chưa thành phiếu mua</b>' +
+			'<div style="flex:1;min-width:240px"><b>' + so(kq.so_to) + ' hoá đơn đầu vào đã nhận nhưng máy chưa tự tạo được Hoá đơn mua hàng</b>' +
 			' (tổng ' + so(Math.round(kq.tong_tien || 0)) + ' đ)<br><span style="font-size:12px">' + nhom + '</span></div>' +
 			'<button class="btn btn-sm btn-default" data-vgb-xem-cho="1">Xem danh sách</button></div>';
 	}
@@ -182,7 +182,7 @@
 		   lai, de nguoi doc biet la chua kiem duoc chu khong phai da sach. */
 		function loi() {
 			var o = dat('<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">' +
-				'<div style="flex:1;min-width:240px"><b>Chưa tải được danh sách hoá đơn đầu vào chưa thành phiếu mua.</b>' +
+				'<div style="flex:1;min-width:240px"><b>Chưa tải được danh sách hoá đơn đầu vào máy chưa tự tạo được Hoá đơn mua hàng.</b>' +
 				'<br><span style="font-size:12px">Chưa biết còn tờ nào đang chờ hay không. Bấm Thử lại; vẫn lỗi thì báo quản lý.</span></div>' +
 				'<button class="btn btn-sm btn-default" data-vgb-thu-lai="1">Thử lại</button></div>', 'loi');
 			var n = o.querySelector('[data-vgb-thu-lai]');
@@ -198,7 +198,7 @@
 				if (!o) return;
 				var nut = o.querySelector('[data-vgb-xem-cho]');
 				if (nut) nut.onclick = function () {
-					frappe.msgprint({ title: 'Hoá đơn đầu vào chưa thành phiếu mua', message: htmlBangCho(kq), wide: true });
+					frappe.msgprint({ title: 'Hoá đơn đầu vào máy chưa tự tạo được Hoá đơn mua hàng', message: htmlBangCho(kq), wide: true });
 				};
 			},
 			error: function () { loi(); },
