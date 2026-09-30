@@ -134,7 +134,7 @@ def sepay_sales():
 		vet=[]
 		def doc(shop, ids):vet.append(ids);return {'296':{'nhan':100000,'gd':['GD1']}}
 		g=dict(frappe=NS(get_all=lambda *a,**kw:[d],utils=NS(cint=lambda x:int(x or 0))),
-			_kiem_quyen=lambda:None,_loc_diem_ban=lambda q:{},getdate=lambda x:x,nowdate=lambda:'2026-09-13',flt=lambda x:float(x or 0),
+			_kiem_quyen=lambda:None,_kiem_quyen_ban=lambda:None,_loc_diem_ban=lambda q:{},getdate=lambda x:x,nowdate=lambda:'2026-09-13',flt=lambda x:float(x or 0),
 			_sepay_theo_ma_bill=lambda *a:({'VGB296':{'nhan':100000,'gd':['GD1']}} if co_ma_bill else {},[]),
 			_sepay_theo_don=doc,cfg=lambda:D(pancake_shop_id='SHOP'),chiem_sao_ke=chiem_sao_ke,
 			pt_thanh_toan=NS(chua_ve_tien=lambda:[],ve_sau=lambda:[],khong_thu=lambda:[]))

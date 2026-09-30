@@ -21,7 +21,7 @@ def nen(d, vet):
     d.save = lambda: vet.append('save')
     d.submit = lambda: vet.append('submit')
     return dict(frappe=NS(throw=nem, db=NS(commit=lambda: vet.append('commit'))),
-        _kiem_quyen=lambda: None, _kiem_quyen_doc_luu_don=lambda: None, _pos_lay=lambda n:d, _nan_pt_theo_nguon=lambda s:s.vgb_pt_thanh_toan,
+        _kiem_quyen=lambda: None, _kiem_quyen_ban=lambda: None, _kiem_quyen_doc_luu_don=lambda: None, _pos_lay=lambda n:d, _nan_pt_theo_nguon=lambda s:s.vgb_pt_thanh_toan,
         _chuan_ma_tham_chieu=lambda p,m:m, _kiem_trung_ma=lambda *a,**k:None,
         _soat_sepay=lambda *a:None, XHD_MAC_DINH='Bán cho người tiêu dùng',
         flt=lambda x:float(x or 0), _tien=lambda x:str(x), KHACH_LE='LE')
@@ -135,7 +135,7 @@ def quyen_truoc_ghi_so():
         for ten in ('bang_doanh_so','cau_hinh_ban_hang','tim_don','don_treo','luu_xhd','luu_thanh_toan','luu_khach_no','doi_ngay_hoa_don','xuat_hoa_don_dien_tu','xuat_hddt_con_thieu'):
             vet=[]
             def doc(*a,**kw):vet.append('qua_quyen');raise ValueError('Dừng sau quyền')
-            g=dict(frappe=NS(get_roles=lambda:[vai],throw=nem,get_doc=doc,db=NS(get_value=doc)),QUYEN_BAN_HANG={'System Manager','Sales User','Sales Manager','Bộ phận đặt hàng'},QUYEN_SUA_NGAY={'System Manager','Sales Manager','Accounts User','Accounts Manager'},getdate=doc,pt_thanh_toan=NS(bang_tham_chieu=doc),chuan_tim=doc,_quet_don_treo=doc,_xuat_hddt_con_thieu=doc)
+            g=dict(frappe=NS(get_roles=lambda:[vai],throw=nem,get_doc=doc,db=NS(get_value=doc)),QUYEN_BAN_HANG={'System Manager','Sales User','Sales Manager','Bộ phận đặt hàng'},QUYEN_BAN_HANG_THAT={'System Manager','Sales User','Sales Manager'},QUYEN_SUA_NGAY={'System Manager','Sales Manager','Accounts User','Accounts Manager'},getdate=doc,pt_thanh_toan=NS(bang_tham_chieu=doc),chuan_tim=doc,_quet_don_treo=doc,_xuat_hddt_con_thieu=doc)
             nap('ban_hang.py','_kiem_quyen',g)
             if 'def _kiem_quyen_doc_luu_don(' in nguon:nap('ban_hang.py','_kiem_quyen_doc_luu_don',g)
             try:
