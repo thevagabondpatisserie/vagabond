@@ -304,32 +304,42 @@ def _lui_truoc_reload():
 	dung("lượt lùi đặt lại cờ bán trừ kho", "self.vgb_tru_kho_ban = 1" in than)
 
 
-@ca("v542 Codex #397: phiếu Sản xuất không còn áp dụng thì trả dòng 621/154 về tài khoản và trung tâm chi phí lõi tự điền")
+@ca("v542 Codex #397: tắt 621/154 chỉ trả dòng máy đã gắn, về đúng giá trị trước khi gắn; dòng kế toán tự chọn 621 giữ nguyên")
 def _tra_tk_cu():
 	cu = lambda d: {"expense_account": "CL - X", "cost_center": "Chính - X"}
-	dong = [_Dong(expense_account="621 - X", cost_center="Bếp Baker - X"),
-		_Dong(expense_account="154 - X", cost_center="Bếp Baker - X"),
-		_Dong(expense_account="Khác - X", cost_center="Bếp Pastry - X")]
-	dem = hk.tra_tai_khoan_cu(dong, {"621 - X", "154 - X"}, cu)
-	la("trả 2 dòng", dem, 2)
-	la("dòng nguyên liệu về tài khoản cũ", dong[0].expense_account, "CL - X")
-	la("dòng nguyên liệu về trung tâm cũ", dong[0].cost_center, "Chính - X")
-	la("dòng thành phẩm về tài khoản cũ", dong[1].expense_account, "CL - X")
-	la("dòng thành phẩm về trung tâm cũ", dong[1].cost_center, "Chính - X")
-	la("dòng khác giữ tài khoản", dong[2].expense_account, "Khác - X")
-	la("dòng khác giữ trung tâm", dong[2].cost_center, "Bếp Pastry - X")
-	dong2 = [_Dong(expense_account="621 - X", cost_center="Bếp Baker - X")]
-	la("không tra được thì để nguyên", hk.tra_tai_khoan_cu(dong2, {"621 - X"}, lambda d: None), 0)
-	la("giữ 621 khi không có tài khoản cũ", dong2[0].expense_account, "621 - X")
-	la("giữ trung tâm khi không trả tài khoản", dong2[0].cost_center, "Bếp Baker - X")
+	moi = {"621 - X", "154 - X"}
+	nl = _Dong(expense_account="Trước - X", cost_center="TT trước - X", s_warehouse="Baker - NL - TV")
+	tp = _Dong(expense_account="", cost_center="", t_warehouse="Baker - TP - TV", is_finished_item=1)
+	tay = _Dong(expense_account="621 - X", cost_center="Bếp Pastry - X")
+	hk.gan_tai_khoan_sx([nl, tp], "621 - X", "154 - X", lambda k: "Bếp Baker - X")
+	la("máy gắn dấu dòng nguyên liệu", nl.get(hk.O_MAY_GAN), 1)
+	la("nhớ tài khoản trước", nl.get(hk.O_TK_TRUOC), "Trước - X")
+	la("nhớ trung tâm trước", nl.get(hk.O_TT_TRUOC), "TT trước - X")
+	la("đã gắn 621", nl.expense_account, "621 - X")
+	hk.gan_tai_khoan_sx([nl], "621 - X", "154 - X", lambda k: "Bếp Baker - X")
+	la("lưu lại lần hai không ghi đè giá trị trước", nl.get(hk.O_TK_TRUOC), "Trước - X")
+	dem = hk.tra_tai_khoan_cu([nl, tp, tay], moi, cu)
+	la("trả 2 dòng máy gắn", dem, 2)
+	la("nguyên liệu về tài khoản trước khi gắn", nl.expense_account, "Trước - X")
+	la("nguyên liệu về trung tâm trước khi gắn", nl.cost_center, "TT trước - X")
+	la("thành phẩm trống giá trị trước thì lấy cách lõi tự điền", tp.expense_account, "CL - X")
+	la("thành phẩm về trung tâm lõi", tp.cost_center, "Chính - X")
+	la("bỏ dấu sau khi trả", nl.get(hk.O_MAY_GAN), 0)
+	la("621 kế toán tự chọn giữ nguyên", tay.expense_account, "621 - X")
+	la("trung tâm kế toán tự chọn giữ nguyên", tay.cost_center, "Bếp Pastry - X")
+	tp2 = _Dong(expense_account="154 - X", cost_center="Bếp Baker - X", vgb_tk_may_gan=1, vgb_tk_truoc="", vgb_tt_truoc="")
+	la("không tra được thì để nguyên", hk.tra_tai_khoan_cu([tp2], moi, lambda d: None), 0)
+	la("giữ 154 khi không có tài khoản cũ", tp2.expense_account, "154 - X")
 
 
 @ca("v542 Codex #397: nháp Sản xuất lưu lúc bật, kế toán xoá ngày, lưu/ghi sổ lại thì bỏ 621/154")
 def _tat_giua_chung():
 	import unittest.mock as m
 	phieu = _Tho(purpose="Manufacture", posting_date="2026-10-02", company="C", items=[
-		_Dong(item_code="NVL", s_warehouse="Baker - Nguyên liệu - TV", expense_account="621 - X"),
-		_Dong(item_code="TP", t_warehouse="Baker - Thành phẩm - TV", is_finished_item=1, expense_account="154 - X")])
+		_Dong(item_code="NVL", s_warehouse="Baker - Nguyên liệu - TV", expense_account="621 - X", cost_center="Bếp Baker - X",
+			vgb_tk_may_gan=1, vgb_tk_truoc="", vgb_tt_truoc=""),
+		_Dong(item_code="TP", t_warehouse="Baker - Thành phẩm - TV", is_finished_item=1, expense_account="154 - X",
+			vgb_tk_may_gan=1, vgb_tk_truoc="", vgb_tt_truoc="")])
 	phieu.get_item_details = lambda args: {"expense_account": "CL - X", "cost_center": "Chính - X"}
 	with m.patch.object(hk, "_moc", lambda o: None), \
 			m.patch.object(hk, "_tk_moi_cua", lambda c: {"621 - X", "154 - X"}), \
@@ -338,13 +348,21 @@ def _tat_giua_chung():
 	la("nguyên liệu về cũ", phieu["items"][0].expense_account, "CL - X")
 	la("thành phẩm về cũ", phieu["items"][1].expense_account, "CL - X")
 	la("trung tâm chi phí về cũ", phieu["items"][0].cost_center, "Chính - X")
-	phieu["items"][0].expense_account = "621 - X"
+	phieu["items"][0].update(expense_account="621 - X", vgb_tk_may_gan=1, vgb_tk_truoc="", vgb_tt_truoc="")
 	phieu["posting_date"] = "2026-09-29"
 	with m.patch.object(hk, "_moc", lambda o: "2026-10-01"), \
 			m.patch.object(hk, "_tk_moi_cua", lambda c: {"621 - X", "154 - X"}), \
 			m.patch.object(hk.frappe, "_dict", dict, create=True):
 		hk.sx_gan_tai_khoan(phieu)
 	la("lùi ngày ghi về trước mốc: về cũ", phieu["items"][0].expense_account, "CL - X")
+	tay = _Tho(purpose="Manufacture", posting_date="2026-10-02", company="C", items=[
+		_Dong(item_code="NVL", s_warehouse="Baker - Nguyên liệu - TV", expense_account="621 - X")])
+	tay.get_item_details = lambda args: {"expense_account": "CL - X", "cost_center": "Chính - X"}
+	with m.patch.object(hk, "_moc", lambda o: None), \
+			m.patch.object(hk, "_tk_moi_cua", lambda c: {"621 - X", "154 - X"}), \
+			m.patch.object(hk.frappe, "_dict", dict, create=True):
+		hk.sx_gan_tai_khoan(tay)
+	la("tắt mà 621 kế toán tự chọn: giữ nguyên", tay["items"][0].expense_account, "621 - X")
 
 
 @ca("v542 Codex #397: lùi ghi sổ không trừ kho thì gỡ gói lô ở cả dòng hàng lẫn thành phần bộ")
