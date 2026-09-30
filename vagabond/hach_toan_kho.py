@@ -241,8 +241,16 @@ TRUONG_MOI = {
 
 
 def _moc(o):
+	"""Đọc thẳng bảng Singles, không qua cache.
+
+	Bench 2407560: xoá ngày rồi đọc lại trong cùng lượt vẫn ra ngày cũ dù đã
+	dọn cache Settings. Trên site thật cũng vậy: kế toán xoá ngày để tắt khẩn
+	thì phải có hiệu lực ngay ở mọi worker, không chờ cache hết hạn.
+	"""
 	try:
-		return frappe.db.get_single_value("Vagabond Settings", o)
+		r = frappe.db.sql("select value from `tabSingles` where doctype=%s and field=%s",
+			("Vagabond Settings", o))
+		return (r[0][0] or None) if r else None
 	except Exception:
 		return None
 
@@ -350,7 +358,7 @@ def _bo_tru_kho(doc, ly_do):
 	doc.update_stock = 0
 	doc.vgb_chua_tru_kho = 1
 	doc.vgb_ly_do_chua_tru_kho = (ly_do or "")[:1000]
-	for d in doc.get("items") or []:
+	for d in (doc.get("items") or []) + (doc.get("packed_items") or []):
 		if d.get("serial_and_batch_bundle"):
 			d.serial_and_batch_bundle = None
 
@@ -477,10 +485,15 @@ def ban_truoc_ghi_so(doc, method=None):
 		_bo_tru_kho(doc, "Thiếu hàng: " + ly_do_thieu(thieu))
 		return
 	from vagabond.hang_tang_kho import chia_lo_xuat
+	# Codex #397: chia lô cả thành phần bộ sản phẩm (packed_items), và bọc
+	# trong điểm lưu để gói lô đã tạo cho dòng trước không bị bỏ mồ côi khi
+	# dòng sau thiếu lô rồi lùi về ghi sổ không trừ kho.
+	moc = "vgb_lo_" + frappe.generate_hash(length=10)
+	frappe.db.savepoint(moc)
 	try:
-		chia_lo_xuat(doc, {k for k in nhom if any(d.item_code == k[0] and d.warehouse == k[1]
-			for d in doc.get("items") or [])})
+		chia_lo_xuat(doc, set(nhom))
 	except frappe.ValidationError as loi:
+		frappe.db.rollback(save_point=moc)
 		frappe.clear_last_message()
 		_bo_tru_kho(doc, "Lô không đủ: %s" % loi)
 
