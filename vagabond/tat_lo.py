@@ -43,6 +43,17 @@ def chon_ma(ds):
 	return ra
 
 
+def dieu_kien_loc(ma=None):
+	"""THUẦN: điều kiện tìm mã phải tắt. Mã còn bật BẤT KỲ cờ nào trong ba cờ.
+
+	Codex #399: bản đầu chỉ lọc has_batch_no = 1, nên mã đã bỏ tick lô mà còn
+	cờ hạn dùng hay cờ tự sinh lô không bao giờ tới được can_tat(). Site thật
+	30/09/2026 có 1 mã còn cờ hạn dùng và 1 mã còn cờ tự sinh lô như vậy."""
+	loc = [["name", "in", list(ma)]] if ma else []
+	hoac = [[t, "=", 1] for t in TRUONG_LO]
+	return loc, hoac
+
+
 def tat_lo(ma=None):
 	"""Tắt ba cờ lô. `ma` là danh sách mã; để trống là mọi mã đang bật lô.
 
@@ -50,10 +61,8 @@ def tat_lo(ma=None):
 	đã tắt."""
 	import frappe
 
-	loc = [["has_batch_no", "=", 1]]
-	if ma:
-		loc.append(["name", "in", list(ma)])
-	ds = frappe.get_all("Item", filters=loc, fields=["name"] + list(TRUONG_LO),
+	loc, hoac = dieu_kien_loc(ma)
+	ds = frappe.get_all("Item", filters=loc, or_filters=hoac, fields=["name"] + list(TRUONG_LO),
 		limit_page_length=0)
 	cac_ma = chon_ma(ds)
 	for m in cac_ma:
