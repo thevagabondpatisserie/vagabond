@@ -9589,7 +9589,8 @@ var RNDLS = {
 };
 var rnd = { newf: null };
 function isRnd() { return hasRole('Mua hàng R&D') || hasRole('System Manager'); }
-function isSales() { return hasRole('Sales User') || hasRole('Sales Manager') || hasRole('Bộ phận đặt hàng') || hasRole('System Manager'); }
+// 01/10/2026: Bộ phận đặt hàng là vai thu mua, không phải Sales.
+function isSales() { return hasRole('Sales User') || hasRole('Sales Manager') || hasRole('System Manager'); }
 /* ================= HOP THOAI DUNG CHUNG =================
    Anh Viet 13/08/2026: "phai bien thanh dang chip het de chon chu khong
    phai dang go 1 hay 2 tho so nhu the nay. Ca header cung xau not
@@ -22247,7 +22248,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '545';
+var APPVER = '546';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
