@@ -1489,3 +1489,19 @@ bản ghi cùng MST, kể cả bản đầu trống. Ca hồi quy phải đảo 
 - Luật: độ lẻ tiền sau giảm của dòng không được thấp hơn độ lẻ tổng của tờ.
   Muốn đổi độ lẻ một trường thì soát mọi phép tính ERPNext trộn trường đó với
   trường khác độ lẻ.
+
+## 30/09/2026 (v544, #395/#397): hạch toán kho bật theo ngày thì mọi lối không áp dụng phải trả về luồng cũ
+
+- Triệu chứng (review Codex và bench): tờ nháp lưu khi ngày bật chưa tới, ghi
+  sổ sau khi bật mà lõi báo lỗi kho thì bị reload mất cờ và chặn bán (F5); nháp
+  Sản xuất lưu lúc đang bật mang sẵn 621/154 trong dòng, kế toán xoá ngày để
+  tắt khẩn thì hook chỉ return sớm nên lần ghi sổ sau vẫn đi 621/154; bench đặt
+  ngày về trống mà không dọn cache Settings nên ngày cũ vẫn được đọc.
+- Nguyên nhân: giá trị tính lúc lưu nháp được lưu xuống dòng, còn điều kiện
+  bật/tắt đổi được giữa lúc lưu và lúc ghi sổ. Return sớm không gỡ những gì lần
+  lưu trước đã ghi. Quyết định lùi dựa trên cờ trong bộ nhớ thì phải chốt trước
+  khi rollback/reload.
+- Cách phòng: công tắc theo ngày phải có đường TẮT tường minh, trả dòng về giá
+  trị lõi tự điền; ca bench phải dựng chuỗi lưu lúc bật, tắt, rồi ghi sổ và
+  đọc GL. Đổi Single Settings trong ca kiểm thì luôn dọn cache sau khi đặt,
+  cả lúc tắt lẫn lúc bật. Nguồn: PR #395, PR #397.
