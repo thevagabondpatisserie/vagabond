@@ -1475,3 +1475,17 @@ Chỉ chuẩn hóa đầu vào rồi WHERE tax_id IN hai dạng gạch/không g�
 MST có khoảng trắng mà bộ chuẩn chấp nhận. Dùng cùng chuẩn phía dữ liệu
 đọc, cả tra/cấp mã lẫn báo cáo. Nạp danh mục phải nhìn toàn bộ mã trên mọi
 bản ghi cùng MST, kể cả bản đầu trống. Ca hồi quy phải đảo thứ tự bản ghi.
+
+## 30/09/2026 (v543): hạ độ lẻ tiền dòng mà không hạ độ lẻ tổng thì chiết khấu chia lệch
+
+- Hoá đơn GSM C26TBB/77683, 889 dòng cước và một dòng chiết khấu, dựng ra thiếu
+  21 đồng rồi "Không nhận". Dựng thử trên site thật (System Console, không
+  commit): KHÔNG gắn nguồn MInvoice thì đúng tuyệt đối, gắn nguồn thì lệch -21.
+- Nguyên nhân: `do_chinh_xac_mua` gán độ lẻ nguồn (0) cho cả `net_amount` của
+  dòng, trong khi `net_total` của tờ vẫn 2. ERPNext `apply_discount_amount` làm
+  tròn net từng dòng theo độ lẻ DÒNG rồi bù phần chênh theo độ lẻ TỔNG, phần bù
+  dưới nửa đồng bị làm tròn mất ở dòng nhưng vẫn cộng vào tổng, dồn qua nhiều
+  dòng thành hàng chục đồng.
+- Luật: độ lẻ tiền sau giảm của dòng không được thấp hơn độ lẻ tổng của tờ.
+  Muốn đổi độ lẻ một trường thì soát mọi phép tính ERPNext trộn trường đó với
+  trường khác độ lẻ.
