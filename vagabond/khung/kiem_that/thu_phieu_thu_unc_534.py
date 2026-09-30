@@ -21,7 +21,7 @@ from vagabond.khung.kiem_that.thu_sepay_mb_247 import _tai_khoan_cong_ty_moi
 TIEN = 1000000
 
 
-def _du_lieu():
+def _du_lieu(co_phieu=True):
 	"""SI đã ghi sổ còn nợ đủ, giao dịch ngân hàng tiền vào, phiếu thu nháp."""
 	from erpnext.accounts.doctype.payment_entry.payment_entry import get_payment_entry
 
@@ -46,6 +46,10 @@ def _du_lieu():
 	})
 	g.insert(ignore_permissions=True); _DA_TAO.append((g.doctype, g.name))
 	g.submit()
+	if not co_phieu:
+		# v541: tiền về mà nội dung không mang mã đơn, script khớp không lập
+		# phiếu thu nào. Hoá đơn nằm ở Đang nợ, giao dịch chưa nối.
+		return si, g, None
 	pe = get_payment_entry('Sales Invoice', si.name, party_amount=si.grand_total, bank_account=tk_gl)
 	pe.reference_no = ref
 	pe.reference_date = today()
@@ -292,6 +296,37 @@ def _desk_go():
 			pe.submit(); pe.reload()
 			la('ghi sổ được với tệp đang chọn', pe.docstatus, 1)
 			la('GL hai dòng', len(_gl(pe)), 2)
+
+
+@ca('#380 v534 v541: hoá đơn Đang nợ mà tiền đã về, người chọn giao dịch thì lập phiếu thu nháp nối đúng, đính UNC rồi ghi sổ')
+def _nhan_tay():
+	si, g, _ = _du_lieu(co_phieu=False)
+	uv = tt.ung_vien_tien_ve(si.name)
+	dung('giao dịch có trong danh sách gợi ý', g.name in [x['name'] for x in uv['gd']])
+	x = [x for x in uv['gd'] if x['name'] == g.name][0]
+	dung('gợi ý đúng số tiền', 'đúng số tiền' in x['khop'])
+	kq = tt.nhan_tien_ve(si.name, g.name)
+	_DA_TAO.append(('Payment Entry', kq['pe']))
+	pe = frappe.get_doc('Payment Entry', kq['pe'])
+	la('phiếu thu nháp', pe.docstatus, 0)
+	la('mang đúng số giao dịch', pe.reference_no, g.reference_number)
+	la('đúng hoá đơn', [r.reference_name for r in pe.references], [si.name])
+	la('không GL khi còn nháp', _gl(pe), [])
+	cua_si = [p for p in tt.phieu_thu_nhap(cac_si=[si.name]) if p['pe'] == pe.name]
+	la('hoá đơn sang Tiền đã về (phiếu đã xác minh)', cua_si[0]['da_xac_minh'], 1)
+	try:
+		tt.nhan_tien_ve(si.name, g.name)
+	except frappe.ValidationError as e:
+		dung('bấm lần hai bị chặn, nói phiếu đã có', 'đã có phiếu thu' in str(e))
+	else:
+		dung('bấm lần hai phải bị chặn', False)
+	dung('giao dịch đã dùng thì không gợi ý nữa', g.name not in [x['name'] for x in tt.ung_vien_tien_ve(si.name)['gd']])
+	with _Tep() as t:
+		r = tt.ghi_so_phieu_thu(pe.name, unc=[t.file_url])
+		pe.reload(); si.reload()
+		la('ghi sổ được sau khi đính UNC', (r.get('ok'), pe.docstatus), (1, 1))
+		la('GL hai dòng', len(_gl(pe)), 2)
+		la('hoá đơn hết nợ', float(si.outstanding_amount), 0.0)
 
 
 @ca('#380 v534 Codex #382 vòng 7: nút đính UNC không nhận ảnh đã đính ở mục khác của chính phiếu đó')
