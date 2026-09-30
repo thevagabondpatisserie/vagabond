@@ -119,3 +119,55 @@ def _chay_cong_doc_luu_don():
 	except PermissionError:
 		qua = False
 	dung("cổng chung vẫn cho Bộ phận đặt hàng qua", qua)
+
+
+# Codex #398 vòng 3 (review 1b08afa61f): giữ vai trong cổng chung thì mọi hàm
+# ghi đơn bán còn gọi _kiem_quyen() vẫn mở cho Bộ phận đặt hàng qua API trực
+# tiếp, dù màn hình đã ẩn. Sửa bằng MỘT cổng riêng _kiem_quyen_ban cho toàn bộ
+# mô đun bán hàng và hoàn tiền, và chốt "không còn chỗ nào dùng cổng chung".
+MO_DUN_BAN = ("ban_hang.py", "hoan_tien.py")
+
+
+@ca("v545 Codex #398 v3: mô đun bán hàng và hoàn tiền không còn gọi cổng chung _kiem_quyen()")
+def _khong_con_cong_chung_trong_ban():
+	for t in MO_DUN_BAN:
+		s = _doc(t)
+		con = [m.start() for m in re.finditer(r"(?<![\w.])_kiem_quyen\(\)", s)
+			if not s[max(0, m.start() - 4):m.start()].endswith("def ")]
+		dung("%s còn %d chỗ gọi cổng chung" % (t, len(con)), not con)
+		dung("%s có gọi cổng bán hàng" % t, "_kiem_quyen_ban()" in s)
+	s = _doc("ban_hang.py")
+	i = s.index("def _kiem_quyen_ban(")
+	than = s[i:s.index("\ndef ", i + 10)]
+	dung("cổng bán hàng dùng QUYEN_BAN_HANG_THAT", "QUYEN_BAN_HANG_THAT" in than and "QUYEN_BAN_HANG &" not in than)
+
+
+@ca("v545 Codex #398 v3: chạy thật pos_chot, pos_luu_don, dong_bo_doanh_so với vai Bộ phận đặt hàng thì bị chặn trước khi đọc đơn")
+def _chay_that_ham_ghi_ban():
+	from types import SimpleNamespace as NS
+	from vagabond.khung.kiem_thu.thu_su_co_290 import nap
+
+	def nem(cau, **kw):
+		raise PermissionError(cau)
+
+	for vai, mong in ((VAI, False), ("Guest", False), ("Sales User", True), ("Sales Manager", True)):
+		for ten, doi in (("pos_chot", ("SI1",)), ("pos_luu_don", ("SI1",)), ("dong_bo_doanh_so", ())):
+			vet = []
+
+			def doc(*a, **k):
+				vet.append("doc")
+				raise LookupError("dừng sau quyền")
+
+			g = dict(frappe=NS(get_roles=lambda v=vai: [v], throw=nem),
+				QUYEN_BAN_HANG={"System Manager", "Sales User", "Sales Manager", VAI},
+				QUYEN_BAN_HANG_THAT={"System Manager", "Sales User", "Sales Manager"},
+				_pos_lay=doc, _dong_bo_doanh_so=doc)
+			nap("ban_hang.py", "_kiem_quyen", g)
+			nap("ban_hang.py", "_kiem_quyen_ban", g)
+			try:
+				nap("ban_hang.py", ten, g)(*doi)
+			except PermissionError:
+				pass
+			except LookupError:
+				pass
+			dung("%s / %s %s" % (ten, vai, "qua quyền" if mong else "bị chặn"), (vet == ["doc"]) == mong)

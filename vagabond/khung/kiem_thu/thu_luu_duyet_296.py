@@ -21,7 +21,7 @@ def nen(d, vet):
     d.save = lambda: vet.append('save')
     d.submit = lambda: vet.append('submit')
     return dict(frappe=NS(throw=nem, db=NS(commit=lambda: vet.append('commit'))),
-        _kiem_quyen=lambda: None, _kiem_quyen_doc_luu_don=lambda: None, _pos_lay=lambda n:d, _nan_pt_theo_nguon=lambda s:s.vgb_pt_thanh_toan,
+        _kiem_quyen=lambda: None, _kiem_quyen_ban=lambda: None, _kiem_quyen_doc_luu_don=lambda: None, _pos_lay=lambda n:d, _nan_pt_theo_nguon=lambda s:s.vgb_pt_thanh_toan,
         _chuan_ma_tham_chieu=lambda p,m:m, _kiem_trung_ma=lambda *a,**k:None,
         _soat_sepay=lambda *a:None, XHD_MAC_DINH='Bán cho người tiêu dùng',
         flt=lambda x:float(x or 0), _tien=lambda x:str(x), KHACH_LE='LE')
