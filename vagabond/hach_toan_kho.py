@@ -151,6 +151,26 @@ def gan_tai_khoan_sx(dong_ds, tk621, tk154, tt_theo_kho):
 	return dem
 
 
+def tra_tai_khoan_cu(dong_ds, tk_moi, tai_khoan_cu):
+	"""Codex #397: phiếu Sản xuất KHÔNG áp dụng 621/154 thì trả về tài khoản cũ.
+
+	Nháp lưu lúc đang bật đã mang 621/154 trong từng dòng. Kế toán tắt khẩn
+	(xoá ngày) hoặc đổi ngày ghi về trước mốc thì lần lưu/ghi sổ sau vẫn
+	đi 621/154 nếu chỉ return sớm. Dòng nào đang mang một trong tk_moi thì
+	đặt lại bằng tai_khoan_cu(dong) (cách lõi tự điền); trả None thì để nguyên.
+	Trả về số dòng đã trả.
+	"""
+	dem = 0
+	for d in dong_ds:
+		if d.get("expense_account") not in tk_moi:
+			continue
+		cu = tai_khoan_cu(d)
+		if cu and cu not in tk_moi:
+			_dat(d, "expense_account", cu)
+			dem += 1
+	return dem
+
+
 def thieu_hang(can, ton):
 	"""can, ton: {(mã, kho): số}. Trả danh sách (mã, kho, cần, còn) còn thiếu."""
 	ra = []
@@ -245,14 +265,48 @@ def _tt_theo_kho_cua(cong_ty):
 # ------------------------------------------------------------ sản xuất
 
 def sx_gan_tai_khoan(doc, method=None):
-	"""Hook validate của Stock Entry, chạy SAU validate của lõi."""
+	"""Hook validate của Stock Entry, chạy SAU validate của lõi.
+
+	Codex #397: mọi nhánh không gắn 621/154 đều trả dòng về tài khoản cũ,
+	để nháp lưu lúc đang bật rồi tắt ngày (hay lùi ngày ghi) không lọt 621/154.
+	"""
 	if doc.docstatus == 2 or doc.get("purpose") != "Manufacture":
 		return
+	if not _sx_gan_moi(doc):
+		_tra_ve_luong_cu(doc)
+
+
+def _tk_moi_cua(cong_ty):
+	return set(frappe.get_all("Account", filters={"company": cong_ty,
+		"account_number": ["in", [SO_621, SO_154]]}, pluck="name"))
+
+
+def _tra_ve_luong_cu(doc):
+	try:
+		tk_moi = _tk_moi_cua(doc.company)
+	except Exception:
+		return 0
+	if not tk_moi:
+		return 0
+
+	def cu(d):
+		try:
+			ct = doc.get_item_details(frappe._dict(item_code=d.get("item_code"), company=doc.company,
+				project=doc.get("project"), uom=d.get("uom"), s_warehouse=d.get("s_warehouse"),
+				is_finished_item=d.get("is_finished_item")))
+		except Exception:
+			return None
+		return (ct or {}).get("expense_account")
+	return tra_tai_khoan_cu(doc.get("items") or [], tk_moi, cu)
+
+
+def _sx_gan_moi(doc):
+	"""Gắn 621/154 nếu áp dụng được. Trả True khi đã gắn."""
 	if not ap_dung(doc.get("posting_date"), _moc(O_SX_TU)):
-		return
+		return False
 	from erpnext import is_perpetual_inventory_enabled
 	if not is_perpetual_inventory_enabled(doc.company):
-		return
+		return False
 	try:
 		tk621 = _tk(doc.company, SO_621, "Expense")
 		tk154 = _tk(doc.company, SO_154, "Asset")
@@ -261,14 +315,15 @@ def sx_gan_tai_khoan(doc, method=None):
 		# cũ và nhắc kế toán (bench CI 30/09: công ty không có 621).
 		frappe.clear_last_message()
 		frappe.msgprint("Phiếu này chưa ghi qua 621/154: %s" % loi, indicator="orange", alert=1)
-		return
+		return False
 	if frappe.db.get_value("Account", tk154, "account_type") == "Stock":
 		# Lõi chặn ô chênh lệch loại Tồn kho. Không chặn sản xuất: giữ luồng
 		# cũ và nhắc kế toán (patch v542 chưa gỡ được 154 vì kho còn tồn).
 		frappe.msgprint("Tài khoản 154 còn là loại Tồn kho nên phiếu này chưa ghi qua 621/154. "
 			"Kế toán gỡ 154 khỏi các kho Dở dang và bỏ loại Tồn kho của 154.", indicator="orange", alert=1)
-		return
+		return False
 	gan_tai_khoan_sx(doc.get("items") or [], tk621, tk154, _tt_theo_kho_cua(doc.company))
+	return True
 
 
 # ------------------------------------------------------------ bán hàng
