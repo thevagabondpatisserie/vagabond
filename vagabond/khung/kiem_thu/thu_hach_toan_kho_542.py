@@ -277,3 +277,28 @@ def _tu_bat():
 	la("giữ kho người chọn", hd["items"][0].warehouse, "Kho riêng - TV")
 	la("giữ lô", hd["items"][0].batch_no, "LO-1")
 	la("không đánh dấu", hd.vgb_chua_tru_kho, None)
+
+
+@ca("v542 Codex #395 F6: tờ trộn dòng Phiếu giao hàng với dòng thêm tay thì đánh dấu Chưa trừ kho, không lọt im lặng")
+def _tron_phieu_giao():
+	hd = _chay_chuan_bi(_Tho(posting_date="2026-10-01", company="C", items=[
+		_Dong(item_code="BANU00015", delivery_note="PGH-1", dn_detail="x"),
+		_Dong(item_code="BANU00016")]), ton=("BANU00015", "BANU00016"))
+	la("không trừ kho cả tờ", hd.update_stock, None)
+	la("đánh dấu", hd.vgb_chua_tru_kho, 1)
+	dung("lý do nói dòng thêm tay", "thêm tay" in (hd.vgb_ly_do_chua_tru_kho or ""))
+	hd2 = _chay_chuan_bi(_Tho(posting_date="2026-10-01", company="C", items=[
+		_Dong(item_code="BANU00015", delivery_note="PGH-1", dn_detail="x")]), ton=("BANU00015",))
+	dung("tờ chỉ có dòng phiếu giao: không đánh dấu", not hd2.vgb_chua_tru_kho)
+
+
+@ca("v542 Codex #395 F5: _save quyết định lùi trước khi reload, lượt lùi giữ cờ bán trừ kho")
+def _lui_truoc_reload():
+	import os
+	goc = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+	s = open(os.path.join(goc, "hoa_don_hang_tang.py"), encoding="utf-8").read()
+	i = s.index("def _save(")
+	than = s[i:s.index("\n\tdef ", i + 10)]
+	dung("co_the_lui gọi trước rollback", than.index("lui = co_the_lui(self, loi)") < than.index("frappe.db.rollback(save_point=moc)"))
+	dung("co_the_lui gọi trước reload", than.index("lui = co_the_lui(self, loi)") < than.index("self.reload()"))
+	dung("lượt lùi đặt lại cờ bán trừ kho", "self.vgb_tru_kho_ban = 1" in than)
