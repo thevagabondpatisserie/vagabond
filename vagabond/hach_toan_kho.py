@@ -177,6 +177,23 @@ def tra_tai_khoan_cu(dong_ds, tk_moi, gia_tri_cu):
 	return dem
 
 
+def nhu_cau_kho(dong_hang, thanh_phan):
+	"""Lượng kho cần theo (mã, kho), đúng đơn vị lõi ghi sổ kho.
+
+	Dòng hàng: stock_qty. Thành phần bộ (Packed Item): qty, KHÔNG nhân
+	conversion_factor, vì selling_controller.get_item_list đưa thẳng p.qty
+	vào SLE (Codex #397: nhân thêm hệ số làm 2 thành 2.000, báo thiếu giả).
+	"""
+	nhom = {}
+	for d in dong_hang:
+		k = (d.get("item_code"), d.get("warehouse"))
+		nhom[k] = nhom.get(k, 0) + float(d.get("stock_qty") or 0)
+	for p in thanh_phan:
+		k = (p.get("item_code"), p.get("warehouse"))
+		nhom[k] = nhom.get(k, 0) + float(p.get("qty") or 0)
+	return nhom
+
+
 def thieu_hang(can, ton):
 	"""can, ton: {(mã, kho): số}. Trả danh sách (mã, kho, cần, còn) còn thiếu."""
 	ra = []
@@ -468,13 +485,8 @@ def ban_truoc_ghi_so(doc, method=None):
 		return
 	if not cint(doc.update_stock):
 		return
-	nhom = {}
-	for d in _hang_ton(doc):
-		nhom[(d.item_code, d.warehouse)] = nhom.get((d.item_code, d.warehouse), 0) + flt(d.stock_qty)
-	for p in doc.get("packed_items") or []:
-		if p.get("item_code") and frappe.get_cached_value("Item", p.item_code, "is_stock_item"):
-			k = (p.item_code, p.warehouse)
-			nhom[k] = nhom.get(k, 0) + flt(p.qty) * flt(p.get("conversion_factor") or 1)
+	nhom = nhu_cau_kho(_hang_ton(doc), [p for p in doc.get("packed_items") or []
+		if p.get("item_code") and frappe.get_cached_value("Item", p.item_code, "is_stock_item")])
 	from erpnext.stock.utils import get_stock_balance
 	ton = {}
 	for (ma, kho) in sorted(nhom):
