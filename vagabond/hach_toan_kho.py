@@ -78,6 +78,11 @@ TIEN_TO_BEP = (
 )
 
 O_SX_TU = "vgb_sx_621_tu"
+# Dấu trên dòng phiếu Sản xuất: máy đã gắn 621/154 và giá trị trước đó
+# (Codex #397: tắt thì chỉ trả dòng máy gắn, giữ 621 kế toán tự chọn).
+O_MAY_GAN = "vgb_tk_may_gan"
+O_TK_TRUOC = "vgb_tk_truoc"
+O_TT_TRUOC = "vgb_tt_truoc"
 O_BAN_TU = "vgb_ban_tru_kho_tu"
 
 
@@ -142,6 +147,10 @@ def gan_tai_khoan_sx(dong_ds, tk621, tk154, tt_theo_kho):
 		vai = vai_dong_sx(d)
 		if not vai:
 			continue
+		if not d.get(O_MAY_GAN):
+			_dat(d, O_TK_TRUOC, d.get("expense_account") or "")
+			_dat(d, O_TT_TRUOC, d.get("cost_center") or "")
+			_dat(d, O_MAY_GAN, 1)
 		_dat(d, "expense_account", tk621 if vai == "nguyen_lieu" else tk154)
 		kho = d.get("s_warehouse") if vai == "nguyen_lieu" else d.get("t_warehouse")
 		tt = tt_theo_kho(kho) or tt_phieu
@@ -154,25 +163,29 @@ def gan_tai_khoan_sx(dong_ds, tk621, tk154, tt_theo_kho):
 def tra_tai_khoan_cu(dong_ds, tk_moi, gia_tri_cu):
 	"""Codex #397: phiếu Sản xuất KHÔNG áp dụng 621/154 thì trả về luồng cũ.
 
-	Nháp lưu lúc đang bật đã mang 621/154 và trung tâm chi phí bếp trong từng
-	dòng. Kế toán tắt khẩn (xoá ngày) hoặc đổi ngày ghi về trước mốc thì lần
-	lưu/ghi sổ sau vẫn đi 621/154 nếu chỉ return sớm. Dòng nào đang mang một
-	trong tk_moi thì đặt lại CẢ tài khoản lẫn trung tâm chi phí bằng
-	gia_tri_cu(dong) -> {"expense_account", "cost_center"} (cách lõi tự điền).
-	Không tra được tài khoản cũ thì để nguyên dòng. Trả về số dòng đã trả.
-	Trung tâm chi phí chỉ trả ở dòng đã trả tài khoản, vì đó là dòng máy gắn.
+	Chỉ trả những dòng máy đã gắn (dấu O_MAY_GAN), về đúng tài khoản và trung
+	tâm chi phí dòng mang trước khi máy gắn. Dòng kế toán tự chọn 621/154 mà
+	máy chưa từng gắn thì để nguyên. Dòng máy gắn mà không còn giá trị trước
+	(trống) thì lấy gia_tri_cu(dong) -> {"expense_account", "cost_center"},
+	cách lõi tự điền; tra không được thì để nguyên. Trả về số dòng đã trả.
 	"""
 	dem = 0
 	for d in dong_ds:
-		if d.get("expense_account") not in tk_moi:
+		if not d.get(O_MAY_GAN):
 			continue
-		cu = gia_tri_cu(d) or {}
-		tk = cu.get("expense_account")
-		if not tk or tk in tk_moi:
-			continue
+		tk, tt = d.get(O_TK_TRUOC), d.get(O_TT_TRUOC)
+		if not tk:
+			cu = gia_tri_cu(d) or {}
+			tk = cu.get("expense_account")
+			tt = tt or cu.get("cost_center")
+			if not tk or tk in tk_moi:
+				continue
 		_dat(d, "expense_account", tk)
-		if cu.get("cost_center"):
-			_dat(d, "cost_center", cu["cost_center"])
+		if tt:
+			_dat(d, "cost_center", tt)
+		_dat(d, O_MAY_GAN, 0)
+		_dat(d, O_TK_TRUOC, "")
+		_dat(d, O_TT_TRUOC, "")
 		dem += 1
 	return dem
 
@@ -244,6 +257,14 @@ TRUONG_MOI = {
 		dict(fieldname="vgb_ly_do_chua_tru_kho", label="Lý do chưa trừ kho", fieldtype="Small Text",
 			read_only=1, no_copy=1, depends_on="eval:doc.vgb_chua_tru_kho", insert_after="vgb_chua_tru_kho"),
 	],
+	"Stock Entry Detail": [
+		dict(fieldname=O_MAY_GAN, label="Máy gắn 621/154 (v544)", fieldtype="Check",
+			read_only=1, no_copy=1, hidden=1, insert_after="cost_center"),
+		dict(fieldname=O_TK_TRUOC, label="Tài khoản trước khi máy gắn", fieldtype="Data",
+			read_only=1, no_copy=1, hidden=1, insert_after=O_MAY_GAN),
+		dict(fieldname=O_TT_TRUOC, label="Trung tâm chi phí trước khi máy gắn", fieldtype="Data",
+			read_only=1, no_copy=1, hidden=1, insert_after=O_TK_TRUOC),
+	],
 	"Vagabond Settings": [
 		dict(fieldname="vgb_sec_hach_toan_kho", label="Hạch toán kho (v542)", fieldtype="Section Break",
 			insert_after="hang_tang_xuat_kho_that"),
@@ -313,12 +334,13 @@ def _tk_moi_cua(cong_ty):
 
 
 def _tra_ve_luong_cu(doc):
+	dong_ds = doc.get("items") or []
+	if not any(d.get(O_MAY_GAN) for d in dong_ds):
+		return 0
 	try:
 		tk_moi = _tk_moi_cua(doc.company)
 	except Exception:
-		return 0
-	if not tk_moi:
-		return 0
+		tk_moi = set()
 
 	def cu(d):
 		try:
@@ -329,7 +351,7 @@ def _tra_ve_luong_cu(doc):
 			return None
 		ct = ct or {}
 		return {"expense_account": ct.get("expense_account"), "cost_center": ct.get("cost_center")}
-	return tra_tai_khoan_cu(doc.get("items") or [], tk_moi, cu)
+	return tra_tai_khoan_cu(dong_ds, tk_moi, cu)
 
 
 def _sx_gan_moi(doc):
