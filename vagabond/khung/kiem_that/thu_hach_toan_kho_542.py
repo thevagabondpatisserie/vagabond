@@ -12,7 +12,7 @@ from vagabond import diem_ban
 from vagabond import hach_toan_kho as hk
 from vagabond.khung.kiem_that import nen
 from vagabond.khung.kiem_that.nen import ca, cong_ty, dung, la
-from vagabond.khung.kiem_that.thu_ma_cap_so import _mon_thu, _bom_thu
+from vagabond.khung.kiem_that.thu_ma_cap_so import _mon_thu, _bom_thu, _nhom_hang, _uom, _lo_thu
 
 
 def _luu(d):
@@ -63,6 +63,10 @@ def _tat():
 	"""
 	for o in (hk.O_BAN_TU, hk.O_SX_TU):
 		frappe.db.set_single_value("Vagabond Settings", o, None)
+		# Như kế toán xoá ô ngày trên Desk: không còn giá trị trong Singles.
+		frappe.db.sql("delete from `tabSingles` where doctype=%s and field=%s", ("Vagabond Settings", o))
+	la("đã tắt ngày bán", hk._moc(hk.O_BAN_TU), None)
+	la("đã tắt ngày sản xuất", hk._moc(hk.O_SX_TU), None)
 	frappe.clear_document_cache("Vagabond Settings")
 	frappe.clear_cache(doctype="Vagabond Settings")
 
@@ -141,7 +145,7 @@ def _sx_truoc_moc():
 	la("không chạm 621", _so(_gl("Stock Entry", sx.name), tk621), 0)
 
 
-def _hoa_don(ct, tp, sl):
+def _hoa_don(ct, tp, sl, dong=None):
 	from vagabond.hang_tang_so_cai import tai_khoan
 	khach = frappe.db.get_value("Customer", {"disabled": 0, "is_internal_customer": 0}, "name")
 	hd = frappe.new_doc("Sales Invoice")
@@ -151,7 +155,8 @@ def _hoa_don(ct, tp, sl):
 	hd.taxes_and_charges = None
 	hd.append("taxes", {"charge_type": "On Net Total", "account_head": tai_khoan(ct, "33311", "Liability"),
 		"rate": 8, "description": "VAT ca kiểm v542", "included_in_print_rate": 1})
-	hd.append("items", {"item_code": tp, "qty": sl, "rate": 108000})
+	for ma, so in (dong or [(tp, sl)]):
+		hd.append("items", {"item_code": ma, "qty": so, "rate": 108000})
 	hd.flags.ignore_permissions = True
 	_luu(hd)
 	hd.reload()
@@ -279,3 +284,72 @@ def _sx_tat_giua_chung():
 	la("không 154", _so(gl, tk154), 0)
 	dung("sổ cái không mang trung tâm bếp", all(d.cost_center != tt_bep for d in gl))
 	la("sổ cân", round(sum(d.debit - d.credit for d in gl), 2), 0)
+
+
+def _nhap_lo(ct, kho, ma, sl):
+	from erpnext.stock.doctype.stock_entry.stock_entry_utils import make_stock_entry
+	lo = _lo_thu(ma).name
+	ph = make_stock_entry(item_code=ma, qty=sl, company=ct, to_warehouse=kho, rate=20000, do_not_save=True)
+	for d in ph.items:
+		d.batch_no = lo
+		d.use_serial_batch_fields = 1
+	_luu(ph)
+	ph.submit()
+	return lo
+
+
+def _bo_san_pham(ct, tp, sl=2):
+	ma = "KT542-BO-" + frappe.generate_hash(length=8)
+	it = frappe.new_doc("Item")
+	it.update(dict(item_code=ma, item_name="Ca kiem bo %s" % ma, item_group=_nhom_hang(), stock_uom=_uom(), is_stock_item=0))
+	it.flags.ignore_permissions = True
+	_luu(it)
+	pb = frappe.get_doc(dict(doctype="Product Bundle", new_item_code=ma, items=[{"item_code": tp, "qty": sl}]))
+	pb.flags.ignore_permissions = True
+	_luu(pb)
+	return ma
+
+
+@ca("v542 Codex #397: bộ sản phẩm có thành phần theo lô, đủ hàng: trừ kho thành phần theo lô, ghi 632, không đánh dấu")
+@_sach
+def _bo_thanh_phan_lo():
+	ct, kho, tk621, tk154, tk632 = _nen()
+	tp = _mon_thu("KT542-TPL-" + frappe.generate_hash(length=8), theo_lo=1)
+	lo = _nhap_lo(ct, kho, tp, 5)
+	dung("có lô nhập", bool(lo))
+	bo = _bo_san_pham(ct, tp, 2)
+	hd = _hoa_don(ct, bo, 1)
+	la("nháp bật trừ kho", hd.update_stock, 1)
+	dung("có dòng thành phần", any(p.item_code == tp for p in hd.packed_items))
+	hd.submit()
+	hd.reload()
+	la("ghi sổ", hd.docstatus, 1)
+	la("vẫn trừ kho", hd.update_stock, 1)
+	la("không đánh dấu", hd.vgb_chua_tru_kho, 0)
+	sle = frappe.get_all("Stock Ledger Entry", filters={"voucher_type": "Sales Invoice", "voucher_no": hd.name,
+		"item_code": tp, "is_cancelled": 0}, fields=["actual_qty", "serial_and_batch_bundle"])
+	la("một dòng sổ kho thành phần", len(sle), 1)
+	la("trừ 2", sle[0].actual_qty if sle else None, -2)
+	dung("sổ kho có gói lô", bool(sle and sle[0].serial_and_batch_bundle))
+	dung("632 có giá vốn", _so(_gl("Sales Invoice", hd.name), tk632) > 0)
+
+
+@ca("v542 Codex #397: dòng sau thiếu lô còn dùng thì lùi không trừ kho và không để lại gói lô mồ côi của dòng trước")
+@_sach
+def _khong_goi_mo_coi():
+	ct, kho, tk621, tk154, tk632 = _nen()
+	a = _mon_thu("KT542-LA-" + frappe.generate_hash(length=8), theo_lo=1)
+	b = _mon_thu("KT542-LB-" + frappe.generate_hash(length=8), theo_lo=1)
+	_nhap_lo(ct, kho, a, 5)
+	lo_b = _nhap_lo(ct, kho, b, 5)
+	frappe.db.set_value("Batch", lo_b, "disabled", 1)
+	frappe.clear_document_cache("Batch", lo_b)
+	hd = _hoa_don(ct, a, 1, dong=[(a, 1), (b, 1)])
+	la("nháp bật trừ kho", hd.update_stock, 1)
+	hd.submit()
+	hd.reload()
+	la("ghi sổ", hd.docstatus, 1)
+	la("lùi không trừ kho", hd.update_stock, 0)
+	la("đánh dấu", hd.vgb_chua_tru_kho, 1)
+	la("không còn gói lô gắn hoá đơn", frappe.db.count("Serial and Batch Bundle", {"voucher_no": hd.name}), 0)
+	la("không sổ kho", frappe.db.count("Stock Ledger Entry", {"voucher_no": hd.name, "is_cancelled": 0}), 0)
