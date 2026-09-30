@@ -53,6 +53,32 @@ def _nen():
 	return ct, kho, tk621, tk154, tk632
 
 
+def _tat():
+	"""Trả hai ngày bật về trống và dọn cache Settings.
+
+	Bench CI 30/09 (e8124fb): get_single_value đọc qua cache, rollback điểm
+	lưu không dọn cache, nên ngày bật của ca này rò sang 36 ca sau (#243,
+	#225...) và làm phiếu Sản xuất của chúng đi luồng 621/154 trên bench
+	không có tài khoản 621. Mỗi ca v542 phải tắt lại trong finally.
+	"""
+	for o in (hk.O_BAN_TU, hk.O_SX_TU):
+		frappe.db.set_single_value("Vagabond Settings", o, None)
+	frappe.clear_document_cache("Vagabond Settings")
+	frappe.clear_cache(doctype="Vagabond Settings")
+
+
+def _sach(ham):
+	import functools
+
+	@functools.wraps(ham)
+	def boc():
+		try:
+			return ham()
+		finally:
+			_tat()
+	return boc
+
+
 def _gl(dt, ten):
 	return frappe.get_all("GL Entry", filters={"voucher_type": dt, "voucher_no": ten, "is_cancelled": 0},
 		fields=["account", "debit", "credit", "cost_center"])
@@ -81,6 +107,7 @@ def _san_xuat(ct, kho, sl_nvl=10, sl_tp=5):
 
 
 @ca("v542 sản xuất thật: Nợ 621 / Có kho nguyên liệu, Nợ kho thành phẩm / Có 154, cân sổ")
+@_sach
 def _sx_that():
 	ct, kho, tk621, tk154, tk632 = _nen()
 	nvl, tp, sx = _san_xuat(ct, kho)
@@ -99,6 +126,7 @@ def _sx_that():
 
 
 @ca("v542 sản xuất trước ngày bật giữ luồng cũ (không 621)")
+@_sach
 def _sx_truoc_moc():
 	ct, kho, tk621, tk154, tk632 = _nen()
 	frappe.db.set_single_value("Vagabond Settings", hk.O_SX_TU, "2099-01-01")
@@ -125,6 +153,7 @@ def _hoa_don(ct, tp, sl):
 
 
 @ca("v542 bán đủ hàng: trừ kho điểm bán, Nợ 632 bằng giá vốn sổ kho")
+@_sach
 def _ban_du():
 	ct, kho, tk621, tk154, tk632 = _nen()
 	nvl, tp, sx = _san_xuat(ct, kho)
@@ -145,6 +174,7 @@ def _ban_du():
 
 
 @ca("v542 bán thiếu hàng: vẫn ghi sổ doanh thu, không trừ kho, đánh dấu Chưa trừ kho kèm lý do")
+@_sach
 def _ban_thieu():
 	ct, kho, tk621, tk154, tk632 = _nen()
 	nvl, tp, sx = _san_xuat(ct, kho)
@@ -160,6 +190,7 @@ def _ban_thieu():
 
 
 @ca("v542 lõi báo lỗi kho lúc ghi sổ: lùi một lần, ghi sổ không trừ kho")
+@_sach
 def _ban_loi_loi():
 	from unittest.mock import patch
 	ct, kho, tk621, tk154, tk632 = _nen()
