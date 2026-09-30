@@ -24,9 +24,11 @@ from vagabond.khung.kiem_that.do_chinh_xac_mua_259 import _mon
 
 
 def _dong():
-	gia = [23325, 56574, 18000, 31234, 42111, 27000, 19873, 24560, 36789]
-	tien = [gia[(i * 7) % len(gia)] for i in range(889)]
-	tien[-1] += 23851398 - sum(tien)
+	# Mọi dòng dương như tờ thật; dòng cuối là phần còn lại 23.144. Bản đầu
+	# cộng bù vào dòng cuối nên nó âm và ERPNext chặn ghi sổ (Bench #396).
+	gia = [23325, 36574, 18000, 31234, 23959, 27000, 19873, 24560, 36789]
+	tien = [gia[(i * 7) % len(gia)] for i in range(888)]
+	tien.append(23851398 - sum(tien))
 	raw = [dict(ten="Cước chuyến thử 543 số %d" % i, sluong=1, dgia=t, thtien=t,
 		dvtinh="Gram", tchat=1, stckhau=0) for i, t in enumerate(tien)]
 	raw.append(dict(ten="Chiết khấu thương mại/ khuyến mại", sluong=1, dgia=1489862,
