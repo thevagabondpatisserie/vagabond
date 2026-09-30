@@ -25,6 +25,11 @@ TAP_BAN_HANG = [
 	("doi_soat.py", "QUYEN"),
 	("khuyen_mai.py", "QUYEN_KM"),
 	("viec_can_lam.py", "VAI_SALES"),
+	# Codex #400 v7: xuất bán sỉ tạo và ghi sổ Phiếu xuất kho cho khách.
+	("xuat_ban.py", "QUYEN_BAN"),
+	# Hợp đồng bán, thu tiền hợp đồng (thu_hop_dong dùng chung cổng này), báo giá khách.
+	("hop_dong.py", "QUYEN"),
+	("bao_gia.py", "QUYEN_XEM"),
 ]
 
 
@@ -363,3 +368,28 @@ def _chay_that_tim_gd_vao():
 		except (PermissionError, LookupError):
 			pass
 		dung("tim_gd_vao / %s %s" % (vai, "qua quyền" if mong else "bị chặn"), (vet == ["doc"]) == mong)
+
+
+@ca("v546 Codex #400 v7: chạy thật cổng xuất bán sỉ, Bộ phận đặt hàng bị chặn, kho và Sales vẫn qua")
+def _chay_that_xuat_ban():
+	from types import SimpleNamespace as NS
+	from vagabond.khung.kiem_thu.thu_su_co_290 import nap
+
+	def nem(cau, **kw):
+		raise PermissionError(cau)
+
+	s = _doc("xuat_ban.py")
+	m = re.search(r"^QUYEN_BAN = \{.*?^\}", s, re.M | re.S)
+	g0 = {}
+	exec(m.group(0), g0)
+	for vai, mong in ((VAI, False), ("Manufacturing User", False), ("Stock User", True),
+			("Sales User", True), ("Accounts Manager", True)):
+		g = dict(frappe=NS(get_roles=lambda v=vai: [v], throw=nem), QUYEN_BAN=g0["QUYEN_BAN"])
+		try:
+			nap("xuat_ban.py", "_kiem_quyen", g)()
+			qua = True
+		except PermissionError:
+			qua = False
+		dung("xuat_ban / %s %s" % (vai, "qua" if mong else "bị chặn"), qua == mong)
+	i = s.index("def luu(")
+	dung("xuat_ban.luu kiểm cổng trước khi làm gì", "_kiem_quyen()" in s[i:i + 1500])
