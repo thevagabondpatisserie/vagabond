@@ -355,3 +355,22 @@ def _khong_goi_mo_coi():
 	la("đánh dấu", hd.vgb_chua_tru_kho, 1)
 	la("không còn gói lô gắn hoá đơn", frappe.db.count("Serial and Batch Bundle", {"voucher_no": hd.name}), 0)
 	la("không sổ kho", frappe.db.count("Stock Ledger Entry", {"voucher_no": hd.name, "is_cancelled": 0}), 0)
+
+
+@ca("v542 Codex #397: đang tắt 621/154, kế toán tự chọn 621 cho dòng nguyên liệu: ghi sổ giữ 621")
+@_sach
+def _sx_tay_621_khi_tat():
+	ct, kho, tk621, tk154, tk632 = _nen()
+	_tat()
+	nvl, tp, sx = _san_xuat(ct, kho, ghi_so=False)
+	sx.reload()
+	for d in sx.items:
+		if d.s_warehouse and not d.t_warehouse:
+			d.expense_account = tk621
+	sx.save()
+	sx.submit()
+	sx.reload()
+	dung("dòng nguyên liệu giữ 621 kế toán chọn", all(d.expense_account == tk621 for d in sx.items if d.s_warehouse and not d.t_warehouse))
+	dung("máy không gắn dấu", not any(d.get(hk.O_MAY_GAN) for d in sx.items))
+	gia_nvl = sum(d.amount for d in sx.items if d.s_warehouse and not d.t_warehouse)
+	la("621 Nợ đúng giá nguyên liệu", _so(_gl("Stock Entry", sx.name), tk621), round(gia_nvl, 2))
