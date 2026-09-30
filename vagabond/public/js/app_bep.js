@@ -2336,7 +2336,9 @@ function vgbGomNhom() {
    Hong thi IM LANG. O khong deo so van dung nhu truoc, con hien mot loi do
    giua trang chu vi mot con so phu thi lam ca man xau di. */
 async function vgbDemVCL() {
-  if (!nenCoQuyen('ban_hang')) return;
+  /* #398 vong 4: Viec can lam di cong chung (bep, kho, thu mua cung co), nen
+     hoi co cong_chung, khong hoi co ban_hang da thu hep. */
+  if (!nenCoQuyen('cong_chung')) return;
   var o = document.getElementById('vgbSoVCL');
   if (!o) return;
   try {
