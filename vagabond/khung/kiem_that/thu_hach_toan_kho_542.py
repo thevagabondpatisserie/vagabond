@@ -32,7 +32,7 @@ def _tk(ct, so, ten, root, loai=None):
 		company=ct, parent_account=cha, is_group=0, account_type=loai or "", account_currency="VND"))).name
 
 
-def _nen():
+def _nen(tien_to_kho="KT542-"):
 	ct = cong_ty()
 	for truong, gia_tri in (("enable_serial_and_batch_no_for_item", 1), ("use_serial_batch_fields", 1), ("allow_negative_stock", 0)):
 		frappe.db.set_single_value("Stock Settings", truong, gia_tri)
@@ -41,7 +41,7 @@ def _nen():
 	tk154 = _tk(ct, "154", "Chi phí SXKD dở dang", "Asset", "")
 	tk632 = _tk(ct, "632", "Giá vốn hàng bán", "Expense", "Cost of Goods Sold")
 	tk_kho = frappe.db.get_value("Account", {"company": ct, "account_type": "Stock", "is_group": 0, "disabled": 0}, "name")
-	kho = _luu(frappe.get_doc(dict(doctype="Warehouse", warehouse_name="KT542-" + frappe.generate_hash(length=9),
+	kho = _luu(frappe.get_doc(dict(doctype="Warehouse", warehouse_name=tien_to_kho + frappe.generate_hash(length=9),
 		company=ct, account=tk_kho))).name
 	for o in (hk.O_BAN_TU, hk.O_SX_TU):
 		frappe.db.set_single_value("Vagabond Settings", o, today())
@@ -246,21 +246,36 @@ def _nhap_cu_loi_loi():
 	dung("lý do có lỗi lõi", "KT542 F5" in (hd.vgb_ly_do_chua_tru_kho or ""))
 
 
-@ca("v542 Codex #397: nháp Sản xuất lưu lúc bật, kế toán xoá ngày rồi ghi sổ: về luồng cũ, không 621/154")
+def _tt_bep(ct, ten="Bếp Baker"):
+	abbr = frappe.get_cached_value("Company", ct, "abbr")
+	day_du = "%s - %s" % (ten, abbr)
+	if frappe.db.exists("Cost Center", day_du):
+		return day_du
+	goc = frappe.db.get_value("Cost Center", {"company": ct, "is_group": 1, "parent_cost_center": ["in", ["", None]]}, "name") \
+		or frappe.db.get_value("Cost Center", {"company": ct, "is_group": 1}, "name")
+	return _luu(frappe.get_doc(dict(doctype="Cost Center", cost_center_name=ten, company=ct,
+		parent_cost_center=goc, is_group=0))).name
+
+
+@ca("v542 Codex #397: nháp Sản xuất lưu lúc bật, kế toán xoá ngày rồi ghi sổ: về luồng cũ, không 621/154, không trung tâm bếp")
 @_sach
 def _sx_tat_giua_chung():
-	ct, kho, tk621, tk154, tk632 = _nen()
+	ct, kho, tk621, tk154, tk632 = _nen("Baker - KT542-")
+	tt_bep = _tt_bep(ct)
 	nvl, tp, sx = _san_xuat(ct, kho, ghi_so=False)
 	sx.reload()
 	dung("nháp đã mang 621", any(d.expense_account == tk621 for d in sx.items))
 	dung("nháp đã mang 154", any(d.expense_account == tk154 for d in sx.items))
+	dung("nháp đã mang trung tâm bếp", any(d.cost_center == tt_bep for d in sx.items))
 	_tat()
 	sx.reload()
 	sx.submit()
 	sx.reload()
 	dung("dòng không còn 621/154", all(d.expense_account not in (tk621, tk154) for d in sx.items))
+	dung("dòng không còn trung tâm bếp", all(d.cost_center != tt_bep for d in sx.items))
 	gl = _gl("Stock Entry", sx.name)
 	dung("có sổ cái", len(gl) > 0)
 	la("không 621", _so(gl, tk621), 0)
 	la("không 154", _so(gl, tk154), 0)
+	dung("sổ cái không mang trung tâm bếp", all(d.cost_center != tt_bep for d in gl))
 	la("sổ cân", round(sum(d.debit - d.credit for d in gl), 2), 0)
