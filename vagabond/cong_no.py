@@ -230,6 +230,9 @@ def _khai_doi_soat():
 		loc_chiem={"trang_thai": ["!=", "Huy"]},
 		truong_nguoi="nguoi_khop_tay",
 		truong_luc="ngay_khop_tay",
+		# Codex #400 v5: cua ngo SePay chung kiem quyen theo luong nay.
+		quyen_doc=_kiem_quyen_ban,
+		quyen_ghi=_kiem_quyen_ban,
 	)
 
 

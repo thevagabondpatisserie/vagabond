@@ -3488,6 +3488,19 @@ def _khi_khop_hoan_tien(doc, ma_gd):
 	return None
 
 
+def _quyen_xem_doi_soat():
+	vai = set(frappe.get_roles())
+	from vagabond.ban_hang import QUYEN_BAN_VA_KE_TOAN
+
+	if not (QUYEN_BAN_VA_KE_TOAN | {"Giám đốc"}) & vai:
+		frappe.throw("Tài khoản của bạn chưa được xem đối soát phiếu hoàn tiền.")
+
+
+def _quyen_khop_doi_soat():
+	if not _duoc_tu_choi():
+		frappe.throw("Chỉ kế toán hoặc giám đốc mới khớp lệnh chi được.")
+
+
 def _khai_doi_soat():
 	"""Khai luồng hoàn tiền vào sổ đối soát SePay dùng chung."""
 	from vagabond import doi_soat_sepay as dss
@@ -3504,6 +3517,11 @@ def _khai_doi_soat():
 		loc_chiem={"trang_thai": ["!=", "Da huy"]},
 		truong_nguoi="nguoi_khop_tay",
 		truong_luc="ngay_khop_tay",
+		# Codex #400 v5: cua ngo SePay chung kiem quyen theo luong nay. Xem ung
+		# vien: Sales, ke toan, giam doc. Khop (ghi): chi ke toan, giam doc, dung
+		# mot cua voi hoan_tien.khop_tay.
+		quyen_doc=_quyen_xem_doi_soat,
+		quyen_ghi=_quyen_khop_doi_soat,
 	)
 
 
