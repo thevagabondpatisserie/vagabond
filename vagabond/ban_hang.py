@@ -83,6 +83,17 @@ def _kiem_quyen():
 		frappe.throw("Tài khoản của bạn chưa được cấp quyền ghi nhận doanh số.")
 
 
+def _kiem_quyen_ban():
+	"""Cổng riêng cho mọi thao tác bán hàng (quầy, doanh số, hoá đơn, hoàn tiền).
+
+	Codex #398 vòng 3: nếu để các hàm ghi đơn bán dùng cổng chung _kiem_quyen thì
+	vai "Bộ phận đặt hàng" (đặt hàng lên thu mua) vẫn gọi thẳng được API tạo, sửa,
+	chốt hoá đơn bán dù màn hình đã ẩn. Cổng chung giữ cho các mô đun dùng chung.
+	"""
+	if not QUYEN_BAN_HANG_THAT & set(frappe.get_roles()):
+		frappe.throw("Tài khoản của bạn chưa được cấp quyền bán hàng.")
+
+
 def _kiem_quyen_doc_luu_don():
 	"""Các bước đọc/lưu đơn phục vụ Sales và kế toán trước khi ghi sổ."""
 	if not (QUYEN_BAN_HANG_THAT | {"Accounts User", "Accounts Manager"}) & set(frappe.get_roles()):
@@ -125,7 +136,7 @@ def _otp_ma(buoc):
 @frappe.whitelist()
 def otp_hien_tai():
 	"""Ma OTP dang hieu luc - chi quan ly duoc xem."""
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	if not _otp_la_sep():
 		frappe.throw(
 			"Chỉ quản lý được cấp mã OTP. Bạn cần sửa hoặc xoá hoá đơn thì "
@@ -824,7 +835,7 @@ def _anh_quay_da_luu(ma):
 @frappe.whitelist()
 def pos_anh_quay_luu(ma=None, url=None):
 	"""Doi anh thumbnail cua mot quay. Chi sales va ke toan duoc doi."""
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	ma = (ma or "").strip()
 	url = (url or "").strip()
 	if not ma:
@@ -1667,7 +1678,7 @@ def _upsert_hoa_don(o, ngay, cong_ty, khach):
 @frappe.whitelist()
 def dong_bo_doanh_so(ngay=None):
 	"""Keo don Pancake giao thanh cong cua mot ngay ve thanh SI nhap."""
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	return _dong_bo_doanh_so(ngay)
 
 
@@ -2123,7 +2134,7 @@ def ds_don_trung(ngay=None):
 	tu. Neu ca hai phieu deu da ghi so thi may KHONG tu go, phai ke toan
 	huy dung nghiep vu.
 	"""
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	ngay = getdate(ngay or nowdate())
 	sis = frappe.db.get_all(
 		"Sales Invoice",
@@ -2182,7 +2193,7 @@ def go_don_trung(ngay=None):
 	"cai nay thua thi xoa cho gon" da lam mat 37 hoa don quay Tran Cao Van.
 	Phieu thua nam lai thi cung khong hai ai - no bi loc khoi moi so lieu.
 	"""
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	kq = ds_don_trung(ngay)
 	da_go, ket = [], []
 	for n in kq["nhom"]:
@@ -2248,7 +2259,7 @@ TRUONG_TRUNG = [
 @frappe.whitelist()
 def ra_trung_toan_bo():
 	"""Ra ca lich su, khong bo ngay nao. Chay truoc khi dat khoa duy nhat."""
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	sis = frappe.db.get_all(
 		"Sales Invoice",
 		filters={"custom_pancake_id": ["!=", ""], "docstatus": ["<", 2]},
@@ -3952,7 +3963,7 @@ def _hddt_diem_dang_bat():
 @frappe.whitelist()
 def cai_dat_cuoi_ngay():
 	"""Man Cai dat tren app doc cau hinh chuoi cuoi ngay theo tung diem ban."""
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	c = cfg()
 	quay_bat = [
 		q.strip().upper()
@@ -4010,7 +4021,7 @@ def luu_cai_dat_cuoi_ngay(bat=None, gio=None, ghi_so=None, hddt=None):
 	hoa don dien tu, ma diem ban duoc dich sang danh sach NGUON DON ma bo
 	Server Script m-invoice dung de loc.
 	"""
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	if not QUYEN_SUA_NGAY & set(frappe.get_roles()):
 		frappe.throw("Chỉ quản lý hoặc kế toán mới được đổi cấu hình cuối ngày.")
 	if isinstance(ghi_so, str):
@@ -4075,7 +4086,7 @@ def _ghi_vet_cai_dat(viec):
 @frappe.whitelist()
 def chay_cuoi_ngay_ngay_bay_gio():
 	"""Nut chay tay tren app: lam ngay chuoi cuoi ngay, khong doi toi gio."""
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	if not QUYEN_SUA_NGAY & set(frappe.get_roles()):
 		frappe.throw("Chỉ quản lý hoặc kế toán mới được chạy tay.")
 	# Xoa co "da chay hom nay" de chuoi chiu chay lai, roi goi thang voi
@@ -4099,7 +4110,7 @@ def bu_email_xhd(ngay=None):
 
 	Chay lai bao nhieu lan cung duoc: don nao co email roi thi bo qua.
 	"""
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	ngay = getdate(ngay or nowdate())
 	ds = frappe.get_all(
 		"Sales Invoice",
@@ -4209,7 +4220,7 @@ def tao_don_tay(
 	doi khong nhan so tien giam tu may khach, khong thi ai mo Devtools cung
 	tu ha bill cua minh ve 0.
 	"""
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	ngay = getdate(ngay or nowdate())
 	if isinstance(items, str):
 		items = json.loads(items or "[]")
@@ -4550,7 +4561,7 @@ def pos_bill_them(name=None):
 	nay. Quan trong nhat la THU NGAN: ban in lai phai ghi ten nguoi da bam
 	bill, khong phai ten nguoi dang cam may in - neu khong thi in lai mot
 	bill cua ca truoc se doi sang ten nguoi ca sau."""
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	name = (name or "").strip()
 	if not name or not frappe.db.exists("Sales Invoice", name):
 		return {"diem": None, "thu_ngan": ""}
@@ -4579,7 +4590,7 @@ def ai_lam_gi(name=None):
 
 	Chỉ ĐỌC. Không sửa gì trên hoá đơn, nên gọi lúc nào cũng an toàn.
 	"""
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	name = (name or "").strip()
 	if not name:
 		return {}
@@ -5423,7 +5434,7 @@ def pos_kiem_sepay(noi_dung=None, tien=0):
 	"""Man tinh tien goi vai giay mot lan khi dang chia QR chuyen khoan:
 	khach chuyen den noi la cashier thay ngay tren man hinh, khoi mo app
 	ngan hang hay cho Lark."""
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	g = _sepay_bill(noi_dung)
 	nhan = flt(g.get("nhan"))
 	if nhan >= flt(tien) - 1:
@@ -5583,7 +5594,7 @@ def pos_do_tien(tien=0, ngay=None, name=None, quay=None):
 	Goi duoc ca khi bill CHUA luu (man bam bill, truyen `tien` va `quay`)
 	lan khi bill da luu (truyen `name`, may tu biet diem va so tien).
 	"""
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	t = flt(tien)
 	diem = str(quay or "").strip().upper()
 	if name:
@@ -5643,7 +5654,7 @@ def pos_gan_tien(name=None, gd=None):
 	trong ghi chu doi soat. Gan tay ma khong ghi lai thi cuoi thang ke toan
 	thay con so la khong biet ai gan, gan luc nao.
 	"""
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	ten = str(name or "").strip()
 	ma_gd = str(gd or "").strip()
 	if not ten or not ma_gd:
@@ -5703,7 +5714,7 @@ def pos_gan_tien(name=None, gd=None):
 @frappe.whitelist()
 def pos_ds_bill(quay=None, ngay=None):
 	"""Danh sach bill trong ngay cua MOT quay, kem tinh trang SePay va HDDT."""
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	quay = (quay or "").strip()
 	if not quay:
 		frappe.throw("Thiếu mã điểm bán.")
@@ -5931,7 +5942,7 @@ def pos_chot(name, pt=None, ma_tham_chieu=None, giam_gia=None, ghi_chu=None, otp
 	"""Chot mot bill tam tinh: khach thanh toan xong, cashier chon phuong
 	thuc, bill thanh bill thuong cho ghi so. Cung dung de sua pt/ghi chu
 	cua bill nhap chua ghi so."""
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	si = _pos_lay(name)
 	if si.docstatus != 0:
 		frappe.throw("Hoá đơn này đã ghi sổ rồi, không sửa được nữa.")
@@ -5983,7 +5994,7 @@ def pos_xoa(name, otp=None, ly_do=None):
 	quay: Sales gio nhap duoc don "Tại chỗ" va "Mang về" nen cung phai co
 	duong huy khi bam nham.
 	"""
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	si = _huy_lay(name)
 	if si.docstatus != 0:
 		frappe.throw(
@@ -6039,7 +6050,7 @@ def pos_sua_don(
 	thong tin xuat hoa don). Hoa don DA GHI SO thi so tien da vao so sach,
 	chi cho sua ghi chu - so ban - thong tin xuat hoa don; muon doi tien
 	phai huy hoa don ben ke toan."""
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	si = _pos_lay(name)
 	if cint(si.get("vgb_huy")):
 		frappe.throw(
@@ -6235,7 +6246,7 @@ def _kiem_quyen_ghi_so():
 @frappe.whitelist()
 def pos_luu_don(name, pt=None, ma_tham_chieu=None, ghi_chu=None):
 	"""Lưu nháp đã đủ điều kiện, không submit và không phát hành (#296)."""
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	si = _pos_lay(name)
 	if si.docstatus != 0:
 		frappe.throw("Đơn đã ghi sổ hoặc đã huỷ, không lưu nháp được nữa.")
@@ -6280,7 +6291,7 @@ def pos_ds_tuy_chon():
 	(moi dong mot cai), nhom mon ap dung. Khach khong chon gi = mac dinh
 	100% duong 100% da, khong ghi gi len bill.
 	"""
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	try:
 		ds = frappe.get_all(
 			"Vagabond Tuy Chon Mon",
@@ -6311,7 +6322,7 @@ def pos_ds_khuyen_mai(quay=None):
 	Cashier chon voucher la may tu tinh o giam gia, ten voucher di vao
 	ghi chu bill de doi soat.
 	"""
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	quay = (quay or "").strip()
 	try:
 		ds = frappe.get_all(
@@ -6358,7 +6369,7 @@ def pos_chot_ca(quay=None, ngay=None):
 	"""Bang tong ket cuoi ca cua MOT quay: tien mat phai co trong ket,
 	chuyen khoan doi voi SePay da ve, the theo tung may - lech la thay ngay
 	truoc khi giao ca, khoi cai nhau hom sau (anh Viet 09/08/2026)."""
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	quay = (quay or "").strip()
 	if not quay:
 		frappe.throw("Thiếu mã điểm bán.")
@@ -6499,7 +6510,7 @@ def pos_link_xhd(name, tao_moi=0):
 	from vagabond.minvoice_an_toan import da_gui
 	from urllib.parse import urlencode
 
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	si = frappe.get_doc("Sales Invoice", name)
 	si.check_permission("read")
 	_chan_phieu_xhd(si)
@@ -6697,7 +6708,7 @@ def _quyen_hddt_thay_the():
 
 
 def _chan_khong_phai_ke_toan():
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	if not _quyen_hddt_thay_the():
 		frappe.throw(
 			"Chỉ kế toán hoặc quản trị mới ghi nhận được hoá đơn thay thế. "
@@ -6828,7 +6839,7 @@ def _ds_bbtt(si_name):
 @frappe.whitelist()
 def bien_ban_thay_the(si_name=None):
 	"""Khoi hoa don thay the cua mot don, cho man Chi tiet don ve lai."""
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	d = frappe.db.get_value(
 		"Sales Invoice", si_name,
 		["name", "custom_hddt_so", "custom_hddt_ky_hieu", "posting_date",
@@ -6948,7 +6959,7 @@ def tai_bien_ban_thay_the(si_name=None, tep=None, co="lon"):
 	Chong doc chui: tep phai dang dinh vao DUNG don nay va phai mang dau
 	BBTT-. Dua ma File cua don khac la bi tu choi, du ma do co that.
 	"""
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	f = frappe.db.get_value(
 		"File",
 		{"name": tep, "attached_to_doctype": "Sales Invoice", "attached_to_name": si_name},
