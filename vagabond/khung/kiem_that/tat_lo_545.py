@@ -127,3 +127,14 @@ def _khong_xoa_lo():
 	tat_lo.tat_lo([ma])
 	la("số lô không đổi", frappe.db.count("Batch", {"item": ma}), truoc)
 	la("tồn không đổi", _ton(ma, kho), 20.0)
+
+
+@ca("v545 that Codex #399: mã đã bỏ tick lô nhưng còn cờ hạn dùng hoặc cờ tự sinh lô cũng được tắt nốt")
+def _con_co_le():
+	ma = _mon_lo("NVLT-KT545D")
+	ma2 = _mon_lo("NVLT-KT545E")
+	frappe.db.set_value("Item", ma, {"has_batch_no": 0, "has_expiry_date": 1, "create_new_batch": 0})
+	frappe.db.set_value("Item", ma2, {"has_batch_no": 0, "has_expiry_date": 0, "create_new_batch": 1})
+	la("tắt cả hai mã", sorted(tat_lo.tat_lo([ma, ma2])), sorted([ma, ma2]))
+	for m in (ma, ma2):
+		la("ba cờ về 0 " + m, frappe.db.get_value("Item", m, ["has_batch_no", "has_expiry_date", "create_new_batch"]), (0, 0, 0))
