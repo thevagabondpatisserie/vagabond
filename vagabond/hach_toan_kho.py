@@ -333,6 +333,10 @@ def ban_chuan_bi(doc):
 		# lại thì tính lại từ đầu, cấu hình đã sửa thì trừ kho bình thường.
 		doc.vgb_chua_tru_kho = 0
 		doc.vgb_ly_do_chua_tru_kho = None
+	if cint(doc.get("update_stock")) and not doc.get("vgb_tru_kho_ban"):
+		# Người lập tự bật "Cập nhật kho" và chọn kho/lô trên Desk: tôn trọng,
+		# không đổi kho, không đè tài khoản (bench 489: SI tự trừ kho có lô).
+		return
 	du = du_dieu_kien_ban(doc, _moc(O_BAN_TU), _la_tang(doc), doc.get("items") or [])
 	if du:
 		du = _ghi_so_lien_tuc(doc.company)
