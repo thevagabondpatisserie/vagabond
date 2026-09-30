@@ -133,3 +133,25 @@ def _moc_noi():
 	dung("_save gọi co_the_lui", "co_the_lui(self, loi)" in lop)
 	p = open(os.path.join(goc, "patches.txt"), encoding="utf-8").read()
 	dung("patch v542 có trong patches.txt", "vagabond.patches.hach_toan_kho_v542" in p)
+
+
+@ca("v542 Codex #395 F1: hoá đơn lập từ Phiếu giao hàng không trừ kho lần hai")
+def _phieu_giao():
+	hd = {"posting_date": "2026-10-02"}
+	dung("dòng có delivery_note thì không trừ", not hk.du_dieu_kien_ban(hd, hk.NGAY_CAT, False,
+		[{"item_code": "A", "delivery_note": "PGH-0001", "dn_detail": "x1"}]))
+	dung("chỉ có dn_detail cũng không", not hk.du_dieu_kien_ban(hd, hk.NGAY_CAT, False, [{"dn_detail": "x1"}]))
+	dung("một dòng giao, một dòng không: không trừ cả tờ", not hk.du_dieu_kien_ban(hd, hk.NGAY_CAT, False,
+		[{"item_code": "A"}, {"item_code": "B", "delivery_note": "PGH-0002"}]))
+	dung("không phiếu giao thì trừ", hk.du_dieu_kien_ban(hd, hk.NGAY_CAT, False, [{"item_code": "A"}]))
+
+
+@ca("v542 Codex #395 F2: hoàn tiền toàn bộ hoá đơn đã trừ kho không chuyển kho bán sang kho huỷ lần nữa")
+def _hoan_tien():
+	import os
+	goc = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+	s = open(os.path.join(goc, "hoan_tien.py"), encoding="utf-8").read()
+	i = s.index("def _chuyen_kho_huy(")
+	than = s[i:s.index("\ndef ", i + 10)]
+	dung("thoát sớm khi hoá đơn gốc đã trừ kho", 'if cint(si.get("update_stock")):' in than)
+	dung("thoát trước khi dựng dòng chuyển", than.index('if cint(si.get("update_stock")):') < than.index("dong = []"))
