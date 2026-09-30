@@ -37,6 +37,11 @@ class HoaDonHangTang(SalesInvoice):
 		try:
 			return super()._save(*args, **kwargs)
 		except Exception as loi:
+			# Codex #395 F5: quyết định lùi TRƯỚC khi reload. Tờ nháp cũ chỉ
+			# đủ điều kiện trừ kho ngay trong lượt ghi sổ này (cờ nằm trong bộ
+			# nhớ); reload về bản nháp trong DB là mất cờ và chặn bán.
+			from vagabond.hach_toan_kho import co_the_lui
+			lui = co_the_lui(self, loi)
 			frappe.db.rollback(save_point=moc)
 			for bo, cu in hang_doi:
 				bo._functions = cu
@@ -44,10 +49,10 @@ class HoaDonHangTang(SalesInvoice):
 			# v542: bán trừ kho mà lõi báo lỗi kho (lô, tồn tương lai...) thì
 			# ghi sổ lại MỘT lần không trừ kho, đánh dấu cho kế toán. Không
 			# bao giờ để thu ngân hay nhịp Pancake đứng vì tồn chưa khớp.
-			from vagabond.hach_toan_kho import co_the_lui
-			if not co_the_lui(self, loi):
+			if not lui:
 				raise
 			frappe.clear_last_message()
+			self.vgb_tru_kho_ban = 1
 			self.vgb_chua_tru_kho = 1
 			self.vgb_ly_do_chua_tru_kho = ("Lõi báo lỗi khi trừ kho: %s" % loi)[:1000]
 			self.update_stock = 0

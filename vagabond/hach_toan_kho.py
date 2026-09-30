@@ -341,6 +341,16 @@ def ban_chuan_bi(doc):
 	if du:
 		du = _ghi_so_lien_tuc(doc.company)
 	if not du:
+		dong_ds = doc.get("items") or []
+		if (ap_dung(doc.get("posting_date"), _moc(O_BAN_TU)) and co_phieu_giao(dong_ds)
+				and any(not (d.get("delivery_note") or d.get("dn_detail")) and d.get("item_code")
+					and frappe.get_cached_value("Item", d.item_code, "is_stock_item") for d in dong_ds)):
+			# Codex #395 F6: tờ trộn dòng từ Phiếu giao hàng với dòng thêm tay.
+			# Không trừ kho cả tờ (tránh trừ hai lần dòng đã giao), nhưng đánh
+			# dấu để kế toán xử lý dòng thêm tay, không để lọt im lặng.
+			doc.vgb_chua_tru_kho = 1
+			doc.vgb_ly_do_chua_tru_kho = ("Hoá đơn trộn dòng lập từ Phiếu giao hàng với dòng hàng thêm tay; "
+				"dòng thêm tay chưa trừ kho, kế toán xử lý hoặc tách hoá đơn.")
 		if doc.get("vgb_tru_kho_ban"):
 			# Đổi ngày, đổi sang trả hàng hay hàng tặng: trả về luồng cũ.
 			doc.vgb_tru_kho_ban = 0
