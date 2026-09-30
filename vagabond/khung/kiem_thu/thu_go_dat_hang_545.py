@@ -19,7 +19,7 @@ GOC = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))
 VAI = "Bộ phận đặt hàng"
 
 TAP_BAN_HANG = [
-	("ban_hang.py", "QUYEN_BAN_HANG"),
+	("ban_hang.py", "QUYEN_BAN_HANG_THAT"),
 	("van_don.py", "QUYEN_SALES"),
 	("web_dong_bo.py", "QUYEN"),
 	("doi_soat.py", "QUYEN"),
@@ -66,3 +66,56 @@ def _thu_mua_giu():
 	dung("viec_can_lam.VAI_THU_MUA giữ", VAI in (_tap("viec_can_lam.py", "VAI_THU_MUA") or ""))
 	dung("kiem_ke.VAI_DEM giữ", VAI in (_tap("kiem_ke.py", "VAI_DEM") or ""))
 	dung("xuat_kho.VAI_XUAT giữ", VAI in (_tap("xuat_kho.py", "VAI_XUAT") or ""))
+
+
+@ca("v545 Codex #398: cổng chung QUYEN_BAN_HANG giữ Bộ phận đặt hàng, Việc cần làm của bếp, kho, thu mua không bị khoá")
+def _cong_chung_giu():
+	than = _tap("ban_hang.py", "QUYEN_BAN_HANG")
+	dung("QUYEN_BAN_HANG còn Bộ phận đặt hàng", than is not None and VAI in than)
+	s = _doc("viec_can_lam.py")
+	i = s.index("def danh_sach(")
+	dung("Việc cần làm vẫn qua cổng chung QUYEN_BAN_HANG", "QUYEN_BAN_HANG & set(vai)" in s[i:i + 1500])
+
+
+@ca("v545 đọc, lưu đơn và thu tiền khách chỉ cho Sales thật và kế toán")
+def _doc_luu_don_chi_sales():
+	s = _doc("ban_hang.py")
+	i = s.index("def _kiem_quyen_doc_luu_don(")
+	than = s[i:s.index("\ndef ", i + 10)]
+	dung("dùng QUYEN_BAN_HANG_THAT", "QUYEN_BAN_HANG_THAT" in than)
+	dung("không dùng cổng chung", "(QUYEN_BAN_HANG |" not in than)
+	t = _doc("thu_tien.py")
+	for ham in ("def nhan_tien_ve(", "def ung_vien_tien_ve(", "def ghi_so_phieu_thu("):
+		j = t.index(ham)
+		dung("%s qua cổng đọc, lưu đơn" % ham, "_kiem_quyen_doc_luu_don()" in t[j:j + 2500])
+
+
+@ca("v545 chạy thật cổng đọc, lưu đơn: Bộ phận đặt hàng bị chặn, Sales và kế toán qua")
+def _chay_cong_doc_luu_don():
+	from types import SimpleNamespace as NS
+	from vagabond.khung.kiem_thu.thu_su_co_290 import nap
+
+	def nem(cau, **kw):
+		raise PermissionError(cau)
+
+	for vai, mong in (("Bộ phận đặt hàng", False), ("Sales User", True), ("Sales Manager", True),
+			("Accounts User", True), ("Accounts Manager", True), ("Guest", False)):
+		g = dict(frappe=NS(get_roles=lambda v=vai: [v], throw=nem),
+			QUYEN_BAN_HANG={"System Manager", "Sales User", "Sales Manager", VAI},
+			QUYEN_BAN_HANG_THAT={"System Manager", "Sales User", "Sales Manager"})
+		ham = nap("ban_hang.py", "_kiem_quyen_doc_luu_don", g)
+		try:
+			ham()
+			qua = True
+		except PermissionError:
+			qua = False
+		dung("%s %s" % (vai, "qua" if mong else "bị chặn"), qua == mong)
+	g = dict(frappe=NS(get_roles=lambda: [VAI], throw=nem),
+		QUYEN_BAN_HANG={"System Manager", "Sales User", "Sales Manager", VAI})
+	ham = nap("ban_hang.py", "_kiem_quyen", g)
+	try:
+		ham()
+		qua = True
+	except PermissionError:
+		qua = False
+	dung("cổng chung vẫn cho Bộ phận đặt hàng qua", qua)
