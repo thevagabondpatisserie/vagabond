@@ -428,3 +428,11 @@ def _diem_luu_chia_lo():
 	than = s[i:s.index("\ndef ", i + 10)]
 	dung("có điểm lưu trước chia lô", than.index("frappe.db.savepoint(moc)") < than.index("chia_lo_xuat(doc, set(nhom))"))
 	dung("quay về điểm lưu trước khi lùi", than.index("frappe.db.rollback(save_point=moc)") < than.index('_bo_tru_kho(doc, "Lô không đủ'))
+
+
+@ca("v542 Codex #397: lượng cần của thành phần bộ lấy đúng qty lõi ghi sổ, không nhân lại hệ số quy đổi")
+def _nhu_cau_thanh_phan():
+	nhom = hk.nhu_cau_kho([_Dong(item_code="A", warehouse="K", stock_qty=3)],
+		[_Dong(item_code="TP", warehouse="K", qty=2, conversion_factor=1000), _Dong(item_code="A", warehouse="K", qty=1, conversion_factor=5)])
+	la("thành phần cần 2, không phải 2.000", nhom[("TP", "K")], 2)
+	la("cộng dồn cùng mã cùng kho", nhom[("A", "K")], 4)
