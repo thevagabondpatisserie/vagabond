@@ -169,6 +169,15 @@ def truoc_ghi_so(doc):
         if not math.isfinite(sl) or sl <= 0 or flt(ton) + 0.000001 < sl:
             frappe.throw('Món %s tại %s còn %s, cần %s. Nhập hoặc chuyển hàng thật vào đúng kho rồi ghi sổ; '
                 'không xuất âm hàng tặng.' % (ma, kho, ton, sl))
+    chia_lo_xuat(doc, nhom)
+
+
+def chia_lo_xuat(doc, nhom):
+    """Chia lô theo hạn dùng cho các cặp (mã, kho) trong nhom, tạo gói lô xuất.
+
+    Tách ra từ truoc_ghi_so (#243) để hoá đơn bán trừ kho v542 dùng lại
+    đúng một đường chia lô, không viết bản thứ hai.
+    """
     from erpnext.stock.serial_batch_bundle import SerialBatchCreation
     from erpnext.stock.doctype.batch.batch import get_available_batches
     lo_con = {}

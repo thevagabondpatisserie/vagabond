@@ -28,6 +28,8 @@ def dung():
 	vai_cua_hang.dung()
 	from vagabond import combo_mon
 	_dung_nhom(combo_mon.TRUONG_MOI, "combo_mon")
+	from vagabond import hach_toan_kho
+	_dung_nhom(hach_toan_kho.TRUONG_MOI, "hach_toan_kho")
 	from vagabond import can_tru_san
 	_dung_nhom(can_tru_san.TRUONG_MOI, "can_tru_san")
 	from vagabond import tam_ung_app

@@ -923,3 +923,18 @@ for _dt_mk, _sk_mk, _ham_mk in (
 	_cu_mk = doc_events.setdefault(_dt_mk, {}).get(_sk_mk, [])
 	doc_events[_dt_mk][_sk_mk] = ([_cu_mk] if isinstance(_cu_mk, str) else list(_cu_mk)) + [_ham_mk]
 del _dt_mk, _sk_mk, _ham_mk, _cu_mk
+
+# v542: hạch toán kho theo sơ đồ Khải (anh Việt chốt 30/09/2026), từ 01/10.
+#  - Hoá đơn bán trừ kho điểm bán, giá vốn 632. Thiếu hàng thì ghi sổ không
+#    trừ kho và đánh dấu "Chưa trừ kho", không bao giờ chặn bán. Chạy TRƯỚC
+#    hang_tang_so_cai để đơn vừa đổi sang Hàng tặng trả về luồng tặng.
+#  - Phiếu Sản xuất: dòng nguyên liệu 621, dòng thành phẩm 154, trung tâm chi
+#    phí theo bếp. Đặt ở validate, chạy sau validate của lõi.
+_ds_bs = doc_events["Sales Invoice"]["before_submit"]
+_ds_bs = [_ds_bs] if isinstance(_ds_bs, str) else list(_ds_bs)
+_ds_bs.insert(_ds_bs.index("vagabond.hang_tang_so_cai.truoc_khi_ghi_so"), "vagabond.hach_toan_kho.ban_truoc_ghi_so")
+doc_events["Sales Invoice"]["before_submit"] = _ds_bs
+_ds_se = doc_events["Stock Entry"]["validate"]
+doc_events["Stock Entry"]["validate"] = ([_ds_se] if isinstance(_ds_se, str) else list(_ds_se)) + [
+	"vagabond.hach_toan_kho.sx_gan_tai_khoan"]
+del _ds_bs, _ds_se

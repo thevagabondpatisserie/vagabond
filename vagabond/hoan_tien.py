@@ -1699,6 +1699,12 @@ def _chuyen_kho_huy(si, tra, kho, ly_do):
 	Bo qua mat hang khong theo doi ton kho (ve workshop, phi giao...): ep
 	chuyen kho nhung thu do la nem loi vo ich giua mot luong dang chay.
 	"""
+	if cint(si.get("update_stock")):
+		# Codex #395 F2: tu v542 hoa don ban da TRU KHO (update_stock = 1) nen
+		# hang khong con nam o kho ban. Chuyen tiep tu kho ban sang Kho Hang
+		# Huy la tru kho ban them mot lan nua. Gia von cua hang khach tra da
+		# nam o 632; ke toan xu ly phan tieu huy bang tay theo ban chat.
+		return ""
 	try:
 		dong = []
 		for d in tra.items:
