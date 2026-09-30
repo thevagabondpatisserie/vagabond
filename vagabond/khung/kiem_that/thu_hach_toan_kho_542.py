@@ -278,8 +278,10 @@ def _sx_tat_giua_chung():
 	sx.reload()
 	dung("dòng không còn 621/154", all(d.expense_account not in (tk621, tk154) for d in sx.items))
 	dung("dòng không còn trung tâm bếp", all(d.cost_center != tt_bep for d in sx.items))
+	# Bench 8ee08fb: luồng cũ trên bench có thể ra 0 dòng sổ cái (nguyên liệu và
+	# thành phẩm cùng một kho, cùng tài khoản kho, lõi gộp Nợ/Có triệt tiêu), nên
+	# không đòi "có sổ cái". Chốt ở dòng phiếu (nguồn của sổ cái) và ở sổ cái nếu có.
 	gl = _gl("Stock Entry", sx.name)
-	dung("có sổ cái", len(gl) > 0)
 	la("không 621", _so(gl, tk621), 0)
 	la("không 154", _so(gl, tk154), 0)
 	dung("sổ cái không mang trung tâm bếp", all(d.cost_center != tt_bep for d in gl))
