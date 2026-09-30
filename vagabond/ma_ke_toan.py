@@ -119,7 +119,8 @@ def doc_tep_fast(dong_ds):
 def ke_hoach_nap(dong_ds, hien_co, ma_dang_dung=None):
 	"""Việc phải làm khi nạp danh mục Fast. THUẦN.
 
-	hien_co: {loai: {mst_chuan: {"name", "ma"}}} là bản ghi ERP đang có.
+	hien_co: {loai: {mst_chuan: {"name", "ma", "cac_ma"}}}; cac_ma gồm mọi
+	mã ERP cùng MST, name/ma là bản ghi đầu để điền khi không xung đột.
 	ma_dang_dung: {loai: {ma: mst_chuan hoặc ""}} mọi mã ERP đang giữ, kể cả
 	bản ghi không MST; bỏ trống thì suy từ hien_co.
 	Trả {"cap_nhat": [...], "tao_moi": [...], "xung_dot": [...], "giu": n}.
@@ -171,18 +172,20 @@ def ke_hoach_nap(dong_ds, hien_co, ma_dang_dung=None):
 		da_xu.add(km)
 		co = (hien_co.get(d["loai"]) or {}).get(d["mst"])
 		chu_khac = (ma_dang_dung.get(d["loai"]) or {}).get(d["ma"])
-		if chu_khac is not None and chu_khac != d["mst"]:
-			ra["xung_dot"].append(dict(d, ly_do="ERP đang dùng mã %s cho đối tác khác (MST %s)" % (d["ma"], chu_khac or "trống")))
+		chu_ds = set(chu_khac) if isinstance(chu_khac, (set, list, tuple)) else ({chu_khac} if chu_khac is not None else set())
+		if chu_ds - {d["mst"]}:
+			ra["xung_dot"].append(dict(d, ly_do="ERP đang dùng mã %s cho đối tác khác (MST %s)" % (d["ma"], ", ".join(sorted(m or "trống" for m in chu_ds)))))
 			continue
-		if not co:
+		ma_ds = {str(m or "").strip().upper() for m in (co.get("cac_ma", [co.get("ma")]) if co else []) if str(m or "").strip()}
+		if ma_ds - {d["ma"]}:
+			ra["xung_dot"].append(dict(d, name=co["name"], ma_erp=", ".join(sorted(ma_ds)),
+				ly_do="ERP đang giữ %s, tệp ghi %s" % (", ".join(sorted(ma_ds)), d["ma"])))
+		elif not co:
 			ra["tao_moi"].append(d)
 		elif not str(co.get("ma") or "").strip():
 			ra["cap_nhat"].append(dict(d, name=co["name"]))
-		elif str(co.get("ma")).strip().upper() == d["ma"]:
-			ra["giu"] += 1
 		else:
-			ra["xung_dot"].append(dict(d, name=co["name"], ma_erp=co["ma"],
-				ly_do="ERP đang giữ %s, tệp ghi %s" % (co["ma"], d["ma"])))
+			ra["giu"] += 1
 	return ra
 
 
@@ -190,20 +193,21 @@ import frappe
 from frappe.utils import cint
 
 
+def _ban_ghi_mst(doctype, ds_mst):
+	"""Tra tất cả cách viết MST mà chuan_mst chấp nhận, không lấy dòng đầu."""
+	o = O_MA[doctype]  # Chỉ Customer/Supplier, không nhận tên bảng/cột tùy ý.
+	mst = sorted({chuan_mst(m).replace("-", "") for m in ds_mst if chuan_mst(m)})
+	if not mst:
+		return []
+	return frappe.db.sql("""select name, tax_id, `%s` from `tab%s`
+		where regexp_replace(ifnull(tax_id, ''), '[^0-9]', '') in %%s
+		order by creation asc, name asc""" % (o, doctype), (tuple(mst),), as_dict=True)
+
+
 def _tra_theo_mst(doctype, mst):
-	"""Bản ghi (name, mã) đang mang mã số thuế này. So cả dạng có gạch và
-	không gạch vì dữ liệu cũ trước 12/08/2026 mất dấu gạch."""
-	m = chuan_mst(mst)
-	if not m:
-		return None
-	ung = [m]
-	if "-" in m:
-		ung.append(m.replace("-", ""))
-	r = frappe.get_all(doctype, filters={"tax_id": ["in", ung]}, fields=["name", O_MA[doctype], "tax_id"],
-		order_by="creation asc", limit_page_length=0)
+	r = _ban_ghi_mst(doctype, [mst])
 	if not r:
 		return None
-	# Không để thứ tự bản ghi chọn mã khi một MST có nhiều mã.
 	ma = ma_dung_lai([d.get(O_MA[doctype]) for d in r])
 	return {"name": r[0]["name"], "ma": ma or "", "xung_dot": ma is None}
 
@@ -262,9 +266,7 @@ def cap_ma(doctype, name):
 	# không thể mỗi lượt cấp một mã.
 	mst = chuan_mst(frappe.db.get_value(doctype, name, "tax_id"))
 	if mst:
-		ung = [mst] + ([mst.replace("-", "")] if "-" in mst else [])
-		cung = [r.get(o) for r in frappe.get_all(doctype, filters={"tax_id": ["in", ung]}, fields=["name", o],
-			limit_page_length=0) if r.get("name") != name]
+		cung = [r.get(o) for r in _ban_ghi_mst(doctype, [mst]) if r.get("name") != name]
 		dung_lai = ma_dung_lai(cung)
 		if dung_lai is None:
 			return ""
@@ -358,10 +360,8 @@ def bang_ma_theo_mst(ds_mst):
 	mst_ds = sorted({chuan_mst(m) for m in ds_mst or [] if chuan_mst(m)})
 	if not mst_ds:
 		return {}
-	ung = set(mst_ds) | {m.replace("-", "") for m in mst_ds if "-" in m}
 	ra = {}
-	for r in frappe.get_all("Customer", filters={"tax_id": ["in", sorted(ung)]},
-			fields=["tax_id", "custom_ma_khach"], order_by="creation asc", limit_page_length=0):
+	for r in _ban_ghi_mst("Customer", mst_ds):
 		k = chuan_mst(r.get("tax_id"))
 		if k:
 			ra.setdefault(k, []).append(r.get("custom_ma_khach"))
@@ -389,8 +389,9 @@ def nap_danh_muc_fast(dong, tao_moi=0):
 		for r in frappe.get_all(dt, filters={"tax_id": ["is", "set"]}, fields=["name", "tax_id", O_MA[dt]],
 				order_by="creation asc", limit_page_length=0):
 			k = chuan_mst(r.get("tax_id"))
-			if k and k not in hien_co[dt]:
-				hien_co[dt][k] = {"name": r["name"], "ma": r.get(O_MA[dt]) or ""}
+			if k:
+				co = hien_co[dt].setdefault(k, {"name": r["name"], "ma": r.get(O_MA[dt]) or "", "cac_ma": []})
+				co["cac_ma"].append(r.get(O_MA[dt]) or "")
 	ma_dang_dung = {}
 	for dt in ("Customer", "Supplier"):
 		ma_dang_dung[dt] = {}
@@ -398,7 +399,7 @@ def nap_danh_muc_fast(dong, tao_moi=0):
 				limit_page_length=0):
 			m = str(r.get(O_MA[dt]) or "").strip().upper()
 			if m:
-				ma_dang_dung[dt].setdefault(m, chuan_mst(r.get("tax_id")))
+				ma_dang_dung[dt].setdefault(m, set()).add(chuan_mst(r.get("tax_id")))
 	kh = ke_hoach_nap(rows, hien_co, ma_dang_dung)
 	for d in kh["cap_nhat"]:
 		frappe.db.set_value(d["loai"], d["name"], O_MA[d["loai"]], d["ma"], update_modified=False)

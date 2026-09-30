@@ -138,6 +138,9 @@ def _nen(khach=None, ncc=None, da_nap="1", loi_set=None):
 		if q.strip().startswith("select"):
 			dt = "Customer" if "tabCustomer" in q else "Supplier"
 			o = mk.O_MA[dt]
+			if "regexp_replace" in q:
+				return [_D(dict(r, name=n)) for n, r in bang[dt].items()
+					if mk.chuan_mst(r.get("tax_id")).replace("-", "") in a[0]]
 			return [(r.get(o),) for r in bang[dt].values() if str(r.get(o) or "").startswith(a[0][:-1])]
 		return []
 
@@ -216,7 +219,7 @@ def _cap_ma():
 	la("ghi vào hồ sơ khách, không tạo khách mới", (bang["Customer"]["KH000015"]["custom_ma_khach"], tao), ("KH001589", []))
 	thu_tu = [v[1][:14] if v[0] == "sql" else v[0] for v in vet if v[0] in ("sql", "set", "sau_commit")]
 	la("khoá trước khi đọc mã lớn nhất, ghi; khoá giữ tới commit (Codex #383 F2)",
-		thu_tu, ["select get_loc", "sau_commit", "select `custom", "set"])
+		thu_tu, ["select name, t", "select get_loc", "sau_commit", "select name, t", "select `custom", "set"])
 	# Lượt hai cùng khách: trả mã đang có, không cấp thêm.
 	with unittest.mock.patch.object(mk, "frappe", f):
 		la("đã có mã thì giữ", mk.cap_ma("Customer", "KH000015"), "KH001589")
@@ -570,6 +573,7 @@ def _chua_noi_truoc_cat():
 			return [_D(name="HDB-%d" % i, custom_hddt_so=str(100 + i), custom_hddt_ky_hieu="1C26MPV") for i in range(1, 6)]
 		return []
 	f = NS(get_list=lambda dt, **k: _loc_ten(TO, k), get_all=get_all, throw=_throw)
+	f.db = NS(sql=lambda q, a, **kw: [r for r in get_all("Customer") if mk.chuan_mst(r.get("tax_id")).replace("-", "") in a[0]])
 	with unittest.mock.patch.object(bc, "frappe", f), unittest.mock.patch.object(mk, "frappe", f), \
 			unittest.mock.patch.object(bc, "TOI_DA", 2):
 		_, rows, msg = bc.execute({"tu_ngay": "2026-09-01", "den_ngay": "2026-09-30", "chi_chua_noi": 1})
@@ -624,6 +628,7 @@ def _so_loc_truoc_cat():
 	def get_all(dt, filters=None, **k):
 		return [_D(tax_id="0317064683", custom_ma_khach="KH000015")] if dt == "Customer" else []
 	f = NS(get_list=lambda dt, **k: _loc_ten(TO, k), get_all=get_all, throw=_throw)
+	f.db = NS(sql=lambda q, a, **kw: [r for r in get_all("Customer") if mk.chuan_mst(r.get("tax_id")).replace("-", "") in a[0]])
 	ky = {"tu_ngay": "2026-09-01", "den_ngay": "2026-09-30"}
 	with unittest.mock.patch.object(bc, "frappe", f), unittest.mock.patch.object(mk, "frappe", f), \
 			unittest.mock.patch.object(bc, "TOI_DA", 2):
@@ -665,6 +670,7 @@ def _so_site():
 			return [_D(tax_id="0317064683", custom_ma_khach="KH000015")]
 		return []
 	f = NS(get_list=lambda dt, **k: _loc_ten(TO, k), get_all=get_all, throw=_throw)
+	f.db = NS(sql=lambda q, a, **kw: [r for r in get_all("Customer") if mk.chuan_mst(r.get("tax_id")).replace("-", "") in a[0]])
 	with unittest.mock.patch.object(bc, "frappe", f), unittest.mock.patch.object(mk, "frappe", f):
 		cot, rows, msg = bc.execute({"tu_ngay": "2026-09-01", "den_ngay": "2026-09-30"})
 		la("ba dòng, ba cách nối", [(r["so_hd"], r["don_erp"], r["cach_noi"]) for r in rows],
@@ -879,3 +885,28 @@ def _so_khong_chon_don_dau():
 	f = NS(get_all=lambda dt, filters=None, **kw: [_D(name="A", **{o:"TO-X"}) for o in ("custom_minvoice_id", "custom_hddt_id") if o in filters])
 	with unittest.mock.patch.object(bc, "frappe", f):
 		la("một đơn ở cả hai ô", bc._don_cua_to_tren_site([t])(t), ("A", "ERP xuất"))
+
+@ca('#389 MST khác cách viết: tra, cấp và báo cáo dùng đúng mã, không tạo đối tác thứ hai')
+def _mst_khac_cach_viet():
+	for dt, o, prefix in (("Customer", "custom_ma_khach", "KH"), ("Supplier", "custom_ma_ncc", "NC")):
+		rows = {"OLD": {"tax_id":"0317 064 683", o:prefix+"000002"}, "NEW":{"tax_id":"0317064683",o:""}}
+		f, bang, vet, tao = _nen(**({'khach':rows} if dt == 'Customer' else {'ncc':rows}))
+		with unittest.mock.patch.object(mk, 'frappe', f):
+			la('tra mã cũ', mk.ma_theo_mst(dt,'0317064683',ten='A',tao_moi=True),prefix+'000002')
+			la('cấp dùng lại mã', mk.cap_ma(dt,'NEW'),prefix+'000002')
+			la('không tạo đối tác',tao,[])
+			if dt == 'Customer':
+				la('báo cáo cùng mã',mk.bang_ma_theo_mst(['0317064683']),{'0317064683':'KH000002'})
+
+@ca('#389 nạp Fast xét mọi bản ghi ERP cùng MST, không phụ thuộc thứ tự')
+def _nap_trung_erp():
+	for dt, o, prefix in (("Customer", "custom_ma_khach", "KH"), ("Supplier", "custom_ma_ncc", "NC")):
+		for dao in (False,True):
+			rows=[('A',{'tax_id':'0317064683',o:''}),('B',{'tax_id':'0317 064 683',o:prefix+'000002'})]
+			f,bang,vet,tao=_nen(**({'khach':dict(reversed(rows) if dao else rows)} if dt=='Customer' else {'ncc':dict(reversed(rows) if dao else rows)}))
+			with unittest.mock.patch.object(mk,'frappe',f):
+				kq=mk.nap_danh_muc_fast([dict(ma=prefix+'000001',mst='0317064683',ten='A')],tao_moi=1)
+				la('xung đột được nêu',len(kq['xung_dot']),1)
+				la('không ghi mã',kq['cap_nhat'],0)
+				la('không tạo',tao,[])
+				la('giữ ô trống',bang[dt]['A'][o],'')

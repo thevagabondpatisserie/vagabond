@@ -1444,3 +1444,9 @@ khi duy nhất; xung đột phải còn trong hàng chờ xử lý. Ô dẫn xu�
 khi đầu vào mới không phân giải được, kể cả tra lỗi, tránh giữ mã khách lẻ
 cho hóa đơn doanh nghiệp. Ca backfill phải chạy UPDATE thật trên MariaDB,
 không chỉ khẳng định chuỗi SQL có WHERE. Nguồn PR389/comment5903869461.
+
+### 30/09/2026 - PR389: chuẩn MST ở mọi cửa, giữ mọi bản ghi trùng
+Chỉ chuẩn hóa đầu vào rồi WHERE tax_id IN hai dạng gạch/không gạch vẫn bỏ
+MST có khoảng trắng mà bộ chuẩn chấp nhận. Dùng cùng chuẩn phía dữ liệu
+đọc, cả tra/cấp mã lẫn báo cáo. Nạp danh mục phải nhìn toàn bộ mã trên mọi
+bản ghi cùng MST, kể cả bản đầu trống. Ca hồi quy phải đảo thứ tự bản ghi.

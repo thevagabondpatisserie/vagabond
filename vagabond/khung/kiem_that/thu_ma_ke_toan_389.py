@@ -20,7 +20,7 @@ def _dien_ma_sql():
     mst = '7' + so
     mst_don = '8' + so
     khach = []
-    for tax, ma in ((mst, 'KH900001'), (mst, 'KH900002'),
+    for tax, ma in ((mst, 'KH900001'), (mst[:4]+' '+mst[4:], 'KH900002'),
                     (mst_don+'-001', 'KH900003'), (mst_don+'001', ' kh900003 ')):
         d = frappe.get_doc(dict(doctype='Customer', customer_name='KT389-'+frappe.generate_hash(length=10),
             customer_type='Company', customer_group=frappe.db.get_value('Customer Group', {'is_group':0}, 'name'),
@@ -28,6 +28,9 @@ def _dien_ma_sql():
         d.insert(ignore_permissions=True); _DA_TAO.append((d.doctype,d.name))
         frappe.db.set_value('Customer', d.name, {'tax_id':tax, 'custom_ma_khach':ma})
         khach.append(d.name)
+    la('SQL tra MST giữ xung đột cả cách viết khoảng trắng', mk.ma_theo_mst('Customer', mst), '')
+    la('SQL tra nhánh có/không gạch dùng một mã', mk.ma_theo_mst('Customer', mst_don+'001'), 'KH900003')
+    la('bảng mã báo cáo cũng bỏ xung đột', mk.bang_ma_theo_mst([mst,mst_don+'001']), {mk.chuan_mst(mst_don+'001'):'KH900003'})
     hd = []
     for kh, tax, ma in ((khach[0],mst,''), (khach[0],'',''),
                         (khach[2],mst_don+'001',''), (khach[2],'',''),
