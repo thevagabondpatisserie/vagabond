@@ -51,6 +51,7 @@ class HoaDonHangTang(SalesInvoice):
 			self.vgb_chua_tru_kho = 1
 			self.vgb_ly_do_chua_tru_kho = ("Lõi báo lỗi khi trừ kho: %s" % loi)[:1000]
 			self.update_stock = 0
+			self.flags.vgb_lui_tru_kho = True
 			frappe.db._disable_transaction_control -= 1
 			try:
 				return self.submit()

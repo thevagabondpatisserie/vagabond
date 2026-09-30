@@ -253,8 +253,15 @@ def sx_gan_tai_khoan(doc, method=None):
 	from erpnext import is_perpetual_inventory_enabled
 	if not is_perpetual_inventory_enabled(doc.company):
 		return
-	tk621 = _tk(doc.company, SO_621, "Expense")
-	tk154 = _tk(doc.company, SO_154, "Asset")
+	try:
+		tk621 = _tk(doc.company, SO_621, "Expense")
+		tk154 = _tk(doc.company, SO_154, "Asset")
+	except frappe.ValidationError as loi:
+		# Không bao giờ chặn sản xuất vì thiếu cấu hình tài khoản: giữ luồng
+		# cũ và nhắc kế toán (bench CI 30/09: công ty không có 621).
+		frappe.clear_last_message()
+		frappe.msgprint("Phiếu này chưa ghi qua 621/154: %s" % loi, indicator="orange", alert=1)
+		return
 	if frappe.db.get_value("Account", tk154, "account_type") == "Stock":
 		# Lõi chặn ô chênh lệch loại Tồn kho. Không chặn sản xuất: giữ luồng
 		# cũ và nhắc kế toán (patch v542 chưa gỡ được 154 vì kho còn tồn).
@@ -286,6 +293,27 @@ def _bo_tru_kho(doc, ly_do):
 			d.serial_and_batch_bundle = None
 
 
+def _la_tang(doc):
+	from vagabond.minvoice_an_toan import la_hang_tang
+	return la_hang_tang(doc)
+
+
+def _ghi_so_lien_tuc(cong_ty):
+	from erpnext import is_perpetual_inventory_enabled
+	return bool(is_perpetual_inventory_enabled(cong_ty))
+
+
+def _la_bo(ma):
+	return bool(ma and frappe.db.exists("Product Bundle", {"new_item_code": ma, "disabled": 0}))
+
+
+def _kiem_cau_hinh(kho, cong_ty):
+	"""Tài khoản 632 nếu kho và tài khoản hợp lệ; lỗi thì ném."""
+	from vagabond.hang_tang_kho import kiem_kho
+	kiem_kho(kho, cong_ty)
+	return _tk(cong_ty, SO_632, "Expense")
+
+
 def ban_chuan_bi(doc):
 	"""Gọi từ HoaDonHangTang.set_missing_values, SAU hang_tang_kho.chuan_bi."""
 	if not doc.meta.has_field("vgb_tru_kho_ban"):
@@ -296,11 +324,18 @@ def ban_chuan_bi(doc):
 		cu = frappe.db.get_value("Sales Invoice", doc.name, "docstatus")
 		if cu and cu != 0:
 			return
-	from vagabond.minvoice_an_toan import la_hang_tang
-	du = du_dieu_kien_ban(doc, _moc(O_BAN_TU), la_hang_tang(doc), doc.get("items") or [])
+	if doc.flags.get("vgb_lui_tru_kho"):
+		# Lượt ghi sổ lại sau lỗi của lõi (HoaDonHangTang._save): giữ dấu.
+		doc.update_stock = 0
+		return
+	if doc.get("vgb_chua_tru_kho"):
+		# Codex #395 F4: dấu "Chưa trừ kho" chỉ chốt lúc ghi sổ. Tờ nháp lưu
+		# lại thì tính lại từ đầu, cấu hình đã sửa thì trừ kho bình thường.
+		doc.vgb_chua_tru_kho = 0
+		doc.vgb_ly_do_chua_tru_kho = None
+	du = du_dieu_kien_ban(doc, _moc(O_BAN_TU), _la_tang(doc), doc.get("items") or [])
 	if du:
-		from erpnext import is_perpetual_inventory_enabled
-		du = bool(is_perpetual_inventory_enabled(doc.company))
+		du = _ghi_so_lien_tuc(doc.company)
 	if not du:
 		if doc.get("vgb_tru_kho_ban"):
 			# Đổi ngày, đổi sang trả hàng hay hàng tặng: trả về luồng cũ.
@@ -309,10 +344,10 @@ def ban_chuan_bi(doc):
 				doc.update_stock = 0
 		return
 	doc.vgb_tru_kho_ban = 1
-	if doc.get("vgb_chua_tru_kho"):
-		doc.update_stock = 0
-		return
-	hang = _hang_ton(doc)
+	# Codex #395 F3: dòng bộ sản phẩm (món cha không theo tồn, thành phần
+	# nằm ở packed_items) cũng phải trừ kho theo thành phần.
+	hang = [d for d in doc.get("items") or [] if d.get("item_code") and (
+		frappe.get_cached_value("Item", d.item_code, "is_stock_item") or _la_bo(d.item_code))]
 	if not hang:
 		doc.update_stock = 0
 		return
@@ -321,9 +356,7 @@ def ban_chuan_bi(doc):
 		_bo_tru_kho(doc, "Điểm bán chưa khai kho xuất (Cài đặt > Điểm bán).")
 		return
 	try:
-		from vagabond.hang_tang_kho import kiem_kho
-		kiem_kho(kho, doc.company)
-		tk632 = _tk(doc.company, SO_632, "Expense")
+		tk632 = _kiem_cau_hinh(kho, doc.company)
 	except Exception as loi:
 		frappe.clear_last_message()
 		_bo_tru_kho(doc, "Cấu hình kho hoặc tài khoản giá vốn chưa hợp lệ: %s" % loi)
