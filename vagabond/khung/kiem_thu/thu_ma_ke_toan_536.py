@@ -513,6 +513,49 @@ def _so_duy_nhat():
 	dung("đọc đủ ứng viên, không cắt", hoi[-1] == 0)
 
 
+@ca("Codex #389 P1 vòng 4: nối tờ theo mã m-invoice gom CẢ HAI ô rồi mới quyết; hai đơn khác nhau thì không nối")
+def _hai_o_ma():
+	def chay(o1, o2):
+		def get_all(dt, filters=None, fields=None, limit_page_length=0, **k):
+			f = filters or {}
+			if "custom_minvoice_id" in f:
+				return [_D(name=n) for n in o1]
+			if "custom_hddt_id" in f:
+				return [_D(name=n) for n in o2]
+			return []
+		with unittest.mock.patch.object(ds, "frappe", NS(get_all=get_all)):
+			return ds.don_cua_to_goc("id-x", "C26MPV", "")
+	la("ô mới một đơn, ô cũ đơn khác: không nối", chay(["HDB-A"], ["HDB-B"]), "")
+	la("hai ô cùng một đơn: nối", chay(["HDB-A"], ["HDB-A"]), "HDB-A")
+	la("chỉ ô cũ có đơn: nối", chay([], ["HDB-B"]), "HDB-B")
+	la("một ô hai đơn: không nối", chay(["HDB-A", "HDB-C"], []), "")
+
+
+@ca("Codex #389 P1 vòng 4: cùng MST chỉ một mã: bản ghi thứ hai dùng lại mã đã cấp; nhiều mã khác nhau thì không cấp")
+def _cung_mst_mot_ma():
+	la("không ai có mã", mk.ma_dung_lai(["", None]), "")
+	la("một mã, không phân biệt hoa thường", mk.ma_dung_lai(["kh000777", "KH000777 "]), "KH000777")
+	la("hai mã khác nhau", mk.ma_dung_lai(["KH000777", "KH000778"]), None)
+	# Chuỗi thật: hai khách cùng MST, cùng chưa có mã, lưu nối tiếp qua hook cap_ma_khi_luu.
+	kh = {"C-A": {"customer_name": "A", "tax_id": "0300009999", "custom_ma_khach": ""},
+		"C-B": {"customer_name": "A chi nhánh nhập tay", "tax_id": "0300009999", "custom_ma_khach": ""},
+		"DN000001": {"customer_name": "Falcons", "tax_id": "0300000001", "custom_ma_khach": "KH001588"}}
+	f, bang, vet, tao = _nen(kh)
+	with unittest.mock.patch.object(mk, "frappe", f):
+		for ten in ("C-A", "C-B"):
+			mk.cap_ma_khi_luu(_D(dict(bang["Customer"][ten], name=ten, doctype="Customer")))
+	la("hai bản ghi cùng MST cùng một mã", (bang["Customer"]["C-A"]["custom_ma_khach"], bang["Customer"]["C-B"]["custom_ma_khach"]),
+		("KH001589", "KH001589"))
+	kh = {"C-X": {"tax_id": "0300008888", "custom_ma_khach": ""},
+		"C-Y": {"tax_id": "0300008888", "custom_ma_khach": "KH000100"},
+		"C-Z": {"tax_id": "0300008888-", "custom_ma_khach": "KH000200"},
+		"C-W": {"tax_id": "0300008888", "custom_ma_khach": "KH000300"}}
+	f, bang, vet, tao = _nen(kh)
+	with unittest.mock.patch.object(mk, "frappe", f):
+		la("MST đã mang hai mã khác nhau: không cấp thêm", mk.cap_ma("Customer", "C-X"), "")
+	la("không ghi gì", bang["Customer"]["C-X"]["custom_ma_khach"], "")
+
+
 @ca("Codex #389 P1 vòng 2: lọc chỉ tờ chưa nối xét CẢ ba đường tra đơn trên cả kỳ rồi mới cắt TOI_DA")
 def _chua_noi_truoc_cat():
 	bc = _bao_cao()
