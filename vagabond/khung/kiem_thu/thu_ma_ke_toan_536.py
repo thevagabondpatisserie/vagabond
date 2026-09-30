@@ -206,7 +206,7 @@ def _cap_ma():
 	with unittest.mock.patch.object(mk, "frappe", f):
 		d = _D(name="HDB-5", customer="KL042334", vgb_xhd_mst="0317064683", vgb_xhd_ten="Oliver")
 		mk.dien_ma_khach_hoa_don(d)
-		la("chưa nạp danh mục: KHÔNG cấp, để trống, không tạm ghi MST", d.get("vgb_ma_khach_ke_toan"), None)
+		la("chưa nạp danh mục: KHÔNG cấp, để trống, không tạm ghi MST", d.vgb_ma_khach_ke_toan, "")
 		dung("chưa nạp: không đụng khoá", not any(v[0] == "sql" and "get_lock" in v[1] for v in vet))
 	f, bang, vet, tao = _nen(dict((k, dict(v)) for k, v in KH.items()))
 	with unittest.mock.patch.object(mk, "frappe", f):
@@ -285,7 +285,7 @@ def _hang_loat():
 		dung("chỉ ghi ô mã", c.startswith("update `tabSales Invoice` hd") and "set hd.vgb_ma_khach_ke_toan =" in c
 			and c.count(" set ") == 1 and "ifnull(hd.vgb_ma_khach_ke_toan, '') = ''" in c)
 		dung("không chạm ô khác", not any(o in c.split(" set ")[1].split(" where ")[0] for o in ("customer", "posting_date", "custom_hddt_so")))
-	dung("câu 1 so MST bỏ dấu gạch hai phía", "replace(k.tax_id, '-', '') = replace(hd.vgb_xhd_mst, '-', '')" in cau[0])
+	dung("hai đường chỉ nhận MST có đúng một mã", all("count(distinct upper(trim(`custom_ma_khach`))) = 1" in c for c in cau[:2]))
 	dung("câu 3 chỉ khi không MST ở đâu cả", "ifnull(k.tax_id, '') = ''" in cau[2] and "ifnull(hd.vgb_xhd_mst, '') = ''" in cau[2])
 	# Bench không có ô mã Fast: chỉ chạy câu khách lẻ.
 	cau.clear()
@@ -805,7 +805,7 @@ def _f2_khoa():
 	with unittest.mock.patch.object(mk, "frappe", f2):
 		d = _D(name="HDB-9", customer="KL042334", vgb_xhd_mst="0317064683")
 		mk.dien_ma_khach_hoa_don(d)
-	la("không lấy được khoá: để trống, không ghi mã", (d.get("vgb_ma_khach_ke_toan"), bang2["Customer"]["KH000015"]["custom_ma_khach"]), (None, ""))
+	la("không lấy được khoá: để trống, không ghi mã", (d.vgb_ma_khach_ke_toan, bang2["Customer"]["KH000015"]["custom_ma_khach"]), ("", ""))
 	dung("lỗi vào Error Log", any(v[0] == "log" for v in vet2))
 
 
@@ -828,3 +828,54 @@ def _f3_null():
 	loc = [h[1] for h in hoi if h[0] == "MInvoice Invoice"]
 	la("một câu đọc tờ", len(loc), 1)
 	la("lọc ô trống bắt cả NULL", loc[0].get("vgb_don_erp"), ["is", "not set"])
+
+
+@ca("#389 vòng cuối: hook xóa mã cũ khi thêm MST chưa có mã, có xung đột hoặc tra lỗi")
+def _ma_cu_khi_doi_mst():
+	class Doc(_D):
+		__setattr__ = dict.__setitem__
+	f, bang, vet, tao = _nen({"A": {"tax_id": "0300001234", "custom_ma_khach": ""}}, da_nap="")
+	with unittest.mock.patch.object(mk, "frappe", f):
+		d = Doc(name="SI-KT", vgb_xhd_mst="", vgb_ma_khach_ke_toan="KH999999")
+		mk.dien_ma_khach_hoa_don(d)
+		la("lẻ ban đầu", d.vgb_ma_khach_ke_toan, "KL0001")
+		d.vgb_xhd_mst = "0300001234"
+		mk.dien_ma_khach_hoa_don(d)
+		la("chưa nạp mã không giữ KL", d.vgb_ma_khach_ke_toan, "")
+		bang["Customer"]["A"]["custom_ma_khach"] = "KH000111"
+		bang["Customer"]["B"] = dict(tax_id="0300001234", custom_ma_khach="KH000222")
+		d.vgb_ma_khach_ke_toan = "KL0001"
+		mk.dien_ma_khach_hoa_don(d)
+		la("MST xung đột không giữ mã bất kỳ", d.vgb_ma_khach_ke_toan, "")
+		la("sổ cũng không chọn mã đầu", mk.bang_ma_theo_mst(["0300001234"]), {})
+		with unittest.mock.patch.object(mk, "ma_theo_mst", side_effect=RuntimeError("DB")):
+			d.vgb_ma_khach_ke_toan = "KH000111"
+			mk.dien_ma_khach_hoa_don(d)
+			la("tra lỗi xóa mã cũ, vẫn lưu được", d.vgb_ma_khach_ke_toan, "")
+
+
+@ca("#389 vòng cuối: sổ giữ tờ trùng ID, số và thay thế trong hàng chờ nối tay")
+def _so_khong_chon_don_dau():
+	bc = _bao_cao()
+	t = _D(name="TO-X", so_hd=123, ky_hieu="C26MPV", ngay_lap=datetime.date(2026, 9, 1), mst_doi_tac="", vgb_don_erp="")
+	for duong in ("id", "so", "thay"):
+		for dao in (False, True):
+			def get_all(dt, filters=None, **kw):
+				if dt != "Sales Invoice": return []
+				if duong == "id":
+					for o, n in (("custom_minvoice_id", "A"), ("custom_hddt_id", "B")):
+						if o in filters: return [_D(name=n, **{o:"TO-X"})]
+				rows = []
+				if duong == "so" and "custom_hddt_so" in filters:
+					rows = [_D(name=n, custom_hddt_so="123", custom_hddt_ky_hieu="C26MPV") for n in ("A", "B")]
+				if duong == "thay" and "custom_hddt_thay_the" in filters:
+					rows = [_D(name=n, custom_hddt_thay_the="1C26MPV 123") for n in ("A", "B")]
+				return list(reversed(rows)) if dao else rows
+			f = NS(get_all=get_all, get_list=lambda dt, **kw: [t], throw=_throw)
+			with unittest.mock.patch.object(bc, "frappe", f), unittest.mock.patch.object(mk, "frappe", f):
+				_, rows, _ = bc.execute(dict(tu_ngay="2026-09-01", den_ngay="2026-09-30", chi_chua_noi=1))
+				la(duong+": tờ vẫn hiện để nối tay", [(r["to"],r["don_erp"]) for r in rows], [("TO-X", "")])
+	# Cùng một đơn xuất hiện trong cả hai ô không phải hai ứng viên.
+	f = NS(get_all=lambda dt, filters=None, **kw: [_D(name="A", **{o:"TO-X"}) for o in ("custom_minvoice_id", "custom_hddt_id") if o in filters])
+	with unittest.mock.patch.object(bc, "frappe", f):
+		la("một đơn ở cả hai ô", bc._don_cua_to_tren_site([t])(t), ("A", "ERP xuất"))

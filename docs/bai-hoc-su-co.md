@@ -1436,3 +1436,11 @@ Cách phòng:
   khi phần lớn do ERP xuất. Một nhãn sai nhưng vô hại lâu ngày thành sự thật
   trong đầu người đọc; nhịp kéo nay nối tờ ERP về đơn ngay lúc kéo và ghi
   đúng lý do.
+
+## PR389 - Giữ xung đột qua mọi đường đọc và điền mã
+Sửa đường ghi chưa đủ: bảng tra để hiển thị và backfill SQL vẫn có thể lấy
+bản ghi đầu khi MST hoặc mã tờ trùng. Giữ tập ứng viên, chỉ suy mã/liên kết
+khi duy nhất; xung đột phải còn trong hàng chờ xử lý. Ô dẫn xuất phải xóa
+khi đầu vào mới không phân giải được, kể cả tra lỗi, tránh giữ mã khách lẻ
+cho hóa đơn doanh nghiệp. Ca backfill phải chạy UPDATE thật trên MariaDB,
+không chỉ khẳng định chuỗi SQL có WHERE. Nguồn PR389/comment5903869461.

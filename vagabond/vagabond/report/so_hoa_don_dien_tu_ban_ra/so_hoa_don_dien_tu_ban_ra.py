@@ -89,31 +89,31 @@ def _don_cua_to_tren_site(to_ds):
 		for o in ("custom_minvoice_id", "custom_hddt_id"):
 			for r in frappe.get_all("Sales Invoice", filters={o: ["in", ten], "docstatus": 1},
 					fields=["name", o], limit_page_length=0):
-				theo_id.setdefault(r[o], r["name"])
+				theo_id.setdefault(r[o], set()).add(r["name"])
 	so_ds = sorted({so(t.get("so_hd")) for t in to_ds if so(t.get("so_hd"))})
 	if so_ds:
 		for r in frappe.get_all("Sales Invoice", filters={"custom_hddt_so": ["in", so_ds], "docstatus": 1},
 				fields=["name", "custom_hddt_so", "custom_hddt_ky_hieu"], limit_page_length=0):
-			theo_so.setdefault((kh(r.get("custom_hddt_ky_hieu")), so(r.get("custom_hddt_so"))), r["name"])
+			theo_so.setdefault((kh(r.get("custom_hddt_ky_hieu")), so(r.get("custom_hddt_so"))), set()).add(r["name"])
 		for r in frappe.get_all("Sales Invoice", filters={"custom_hddt_thay_the": ["is", "set"], "docstatus": 1,
 				"posting_date": [">=", add_days(min(getdate(t["ngay_lap"]) for t in to_ds if t.get("ngay_lap")) if any(t.get("ngay_lap") for t in to_ds) else getdate(), -120)]},
 				fields=["name", "custom_hddt_thay_the"], limit_page_length=0):
 			cap = tach_ghi_thay_the(r.get("custom_hddt_thay_the"))
 			if cap:
-				theo_thay.setdefault(cap, r["name"])
+				theo_thay.setdefault(cap, set()).add(r["name"])
 
 	def tra(t):
 		if str(t.get("vgb_don_erp") or "").strip():
 			return t["vgb_don_erp"], "đã nối"
 		k, n = kh(t.get("ky_hieu")), so(t.get("so_hd"))
-		if t["name"] in theo_id:
-			return theo_id[t["name"]], "ERP xuất"
-		d = theo_so.get((k, n)) or theo_so.get(("", n))
-		if d:
-			return d, "ERP xuất"
-		d = theo_thay.get((k, n))
-		if d:
-			return d, "thay thế"
+		# Giữ tập ứng viên ở cả hai ô ID, số và tờ thay thế. Xung đột ở
+		# đường ưu tiên phải còn trong hàng chờ nối tay, không rơi xuống
+		# đường yếu hơn để che mất xung đột.
+		for ds, cach in ((theo_id.get(t["name"]), "ERP xuất"),
+				(theo_so.get((k, n)) or theo_so.get(("", n)), "ERP xuất"),
+				(theo_thay.get((k, n)), "thay thế")):
+			if ds:
+				return (next(iter(ds)), cach) if len(ds) == 1 else ("", "trùng ứng viên")
 		return "", ""
 	return tra
 

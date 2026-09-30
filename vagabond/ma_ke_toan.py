@@ -200,10 +200,12 @@ def _tra_theo_mst(doctype, mst):
 	if "-" in m:
 		ung.append(m.replace("-", ""))
 	r = frappe.get_all(doctype, filters={"tax_id": ["in", ung]}, fields=["name", O_MA[doctype], "tax_id"],
-		order_by="creation asc", limit_page_length=2)
+		order_by="creation asc", limit_page_length=0)
 	if not r:
 		return None
-	return {"name": r[0]["name"], "ma": r[0].get(O_MA[doctype]) or ""}
+	# Không để thứ tự bản ghi chọn mã khi một MST có nhiều mã.
+	ma = ma_dung_lai([d.get(O_MA[doctype]) for d in r])
+	return {"name": r[0]["name"], "ma": ma or "", "xung_dot": ma is None}
 
 
 KHOA_DA_NAP = "vgb_ma_ke_toan_da_nap"
@@ -288,7 +290,7 @@ def ma_theo_mst(doctype, mst, ten="", tao_moi=False):
 	co = _tra_theo_mst(doctype, mst)
 	if not co and tao_moi and ten:
 		co = {"name": _tao_doi_tac(doctype, mst, ten), "ma": ""}
-	if not co:
+	if not co or co.get("xung_dot"):
 		return ""
 	return co["ma"] or cap_ma(doctype, co["name"])
 
@@ -325,13 +327,15 @@ def mst_cua_hoa_don(doc):
 def dien_ma_khach_hoa_don(doc, method=None):
 	"""Hook validate Sales Invoice: điền ô Mã khách kế toán. Không bao giờ
 	chặn lưu đơn: lỗi thì để trống và ghi Error Log."""
+	# Xóa giá trị dẫn xuất cũ cả khi tra mã lỗi; không để KL0001 bám vào MST mới.
+	doc.vgb_ma_khach_ke_toan = ""
 	try:
 		mst = mst_cua_hoa_don(doc)
 		if not mst:
 			ma = KHACH_LE
 		else:
 			ma = ma_theo_mst("Customer", mst, ten=doc.get("vgb_xhd_ten") or doc.get("customer_name"), tao_moi=True)
-		if ma and ma != (doc.get("vgb_ma_khach_ke_toan") or ""):
+		if ma != (doc.get("vgb_ma_khach_ke_toan") or ""):
 			doc.vgb_ma_khach_ke_toan = ma
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "ma_ke_toan: dien ma khach %s" % doc.get("name"))
@@ -359,9 +363,9 @@ def bang_ma_theo_mst(ds_mst):
 	for r in frappe.get_all("Customer", filters={"tax_id": ["in", sorted(ung)]},
 			fields=["tax_id", "custom_ma_khach"], order_by="creation asc", limit_page_length=0):
 		k = chuan_mst(r.get("tax_id"))
-		if k and k not in ra and str(r.get("custom_ma_khach") or "").strip():
-			ra[k] = str(r["custom_ma_khach"]).strip().upper()
-	return ra
+		if k:
+			ra.setdefault(k, []).append(r.get("custom_ma_khach"))
+	return {k: ma for k, ds in ra.items() if (ma := ma_dung_lai(ds))}
 
 
 VAI_NAP = {"System Manager", "Accounts Manager"}
@@ -435,18 +439,24 @@ def dien_ma_hang_loat():
 	# Ô mã Fast là ô khai trên site (06/08/2026); bench mới không có thì chỉ
 	# điền được khách lẻ.
 	if frappe.db.has_column("Customer", o):
-		# 1. Theo MST xuất hoá đơn: khách nào mang MST đó (cả dạng có gạch và
-		#    không gạch) và đã có mã.
+		# Gom mã trên TOÀN BỘ MST trước khi nối vào hóa đơn. Một MST nhiều
+		# mã thì bỏ cả nhóm, không để kế hoạch JOIN chọn một mã tùy ý (#389).
+		# REGEXP_REPLACE cùng chuẩn bỏ ký tự không phải số của chuan_mst.
+		bang = """(select regexp_replace(ifnull(tax_id, ''), '[^0-9]', '') as mst,
+			min(upper(trim(`%s`))) as ma from `tabCustomer`
+			where ifnull(trim(`%s`), '') <> ''
+			group by mst having length(mst) in (10, 12, 13)
+			and count(distinct upper(trim(`%s`))) = 1)""" % (o, o, o)
+		# 1. MST trên hóa đơn ưu tiên; 2. không khai mới xét khách của đơn.
 		frappe.db.sql("""update `tabSales Invoice` hd
-			join `tabCustomer` k on replace(k.tax_id, '-', '') = replace(hd.vgb_xhd_mst, '-', '')
-				and ifnull(k.`%s`, '') <> ''
-			set hd.vgb_ma_khach_ke_toan = upper(trim(k.`%s`))
-			where ifnull(hd.vgb_ma_khach_ke_toan, '') = '' and ifnull(hd.vgb_xhd_mst, '') <> ''""" % (o, o))
-		# 2. Không có MST xuất hoá đơn: theo MST của chính khách hàng.
+			join %s k on k.mst = regexp_replace(ifnull(hd.vgb_xhd_mst, ''), '[^0-9]', '')
+			set hd.vgb_ma_khach_ke_toan = k.ma
+			where ifnull(hd.vgb_ma_khach_ke_toan, '') = '' and ifnull(hd.vgb_xhd_mst, '') <> ''""" % bang)
 		frappe.db.sql("""update `tabSales Invoice` hd
-			join `tabCustomer` k on k.name = hd.customer and ifnull(k.tax_id, '') <> '' and ifnull(k.`%s`, '') <> ''
-			set hd.vgb_ma_khach_ke_toan = upper(trim(k.`%s`))
-			where ifnull(hd.vgb_ma_khach_ke_toan, '') = '' and ifnull(hd.vgb_xhd_mst, '') = ''""" % (o, o))
+			join `tabCustomer` chu on chu.name = hd.customer
+			join %s k on k.mst = regexp_replace(ifnull(chu.tax_id, ''), '[^0-9]', '')
+			set hd.vgb_ma_khach_ke_toan = k.ma
+			where ifnull(hd.vgb_ma_khach_ke_toan, '') = '' and ifnull(hd.vgb_xhd_mst, '') = ''""" % bang)
 	# 3. Không MST ở đâu cả: khách lẻ.
 	frappe.db.sql("""update `tabSales Invoice` hd
 		left join `tabCustomer` k on k.name = hd.customer
