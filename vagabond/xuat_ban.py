@@ -41,6 +41,8 @@ from frappe.utils import add_days, cint, flt, nowdate
 
 from vagabond import xuat_kho
 
+# 01/10/2026 (Codex #400 v7): gỡ vai đặt hàng lên thu mua khỏi tập này, vì nó
+# không phải vai bán hàng; kho vẫn vào bằng Stock User.
 QUYEN_BAN = {
 	"System Manager",
 	"Sales Manager",
@@ -48,7 +50,6 @@ QUYEN_BAN = {
 	"Stock Manager",
 	"Stock User",
 	"Accounts Manager",
-	"Bộ phận đặt hàng",
 }
 
 TRUONG_MOI = {

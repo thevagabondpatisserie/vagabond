@@ -11,6 +11,8 @@ from frappe.utils import cint, flt, getdate, nowdate
 # Anh Viet 14/08/2026: *"cấp quyền truy cập cho Loan Anh, thu mua và kế toán"*.
 # Loan Anh dang co vai Sales User nen vao duoc ngay. Them thu mua va ke toan
 # truong vao day cho du bo.
+# 01/10/2026 (#400 v7): gỡ vai đặt hàng lên thu mua; thu mua vào bằng Purchase
+# User/Manager. Màn hợp đồng trên app vốn chỉ hiện cho Sales, thu mua, kế toán.
 QUYEN = {
 	"System Manager",
 	"Sales User",
@@ -19,7 +21,6 @@ QUYEN = {
 	"Accounts Manager",
 	"Purchase User",
 	"Purchase Manager",
-	"Bộ phận đặt hàng",
 }
 
 
