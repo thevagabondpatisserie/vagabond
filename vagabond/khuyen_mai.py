@@ -35,7 +35,7 @@ from frappe.utils import cint, flt, get_datetime, getdate, now_datetime, nowdate
 CHU_MA = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # bo O/0 va I/1 cho khoi doc nham
 DAI_MA = 6
 
-QUYEN_KM = {"System Manager", "Sales User", "Sales Manager", "Bộ phận đặt hàng"}
+QUYEN_KM = {"System Manager", "Sales User", "Sales Manager"}  # 01/10: gỡ Bộ phận đặt hàng (vai thu mua)
 # "VGB - Quan ly khuyen mai" la vai tro rieng cua tiem, dat ra 12/08/2026 cho
 # quan ly cua hang. Khong cap thang Sales Manager vi vai tro do con mo them
 # ca sua diem ban, sua phuong thuc thanh toan (ke ca ma gui co quan thue) va

@@ -16,7 +16,7 @@ from frappe.utils import flt
 
 from vagabond.lib import PANCAKE, TIMEOUT, cfg, key
 
-QUYEN = {"System Manager", "Sales Manager", "Sales User", "Bộ phận đặt hàng"}
+QUYEN = {"System Manager", "Sales Manager", "Sales User"}  # 01/10: gỡ Bộ phận đặt hàng (vai thu mua)
 
 HAU_TO_SIZE = re.compile(r"(MINI|[SML])\d{1,2}CM$", re.IGNORECASE)
 
