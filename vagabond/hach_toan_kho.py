@@ -151,23 +151,29 @@ def gan_tai_khoan_sx(dong_ds, tk621, tk154, tt_theo_kho):
 	return dem
 
 
-def tra_tai_khoan_cu(dong_ds, tk_moi, tai_khoan_cu):
-	"""Codex #397: phiếu Sản xuất KHÔNG áp dụng 621/154 thì trả về tài khoản cũ.
+def tra_tai_khoan_cu(dong_ds, tk_moi, gia_tri_cu):
+	"""Codex #397: phiếu Sản xuất KHÔNG áp dụng 621/154 thì trả về luồng cũ.
 
-	Nháp lưu lúc đang bật đã mang 621/154 trong từng dòng. Kế toán tắt khẩn
-	(xoá ngày) hoặc đổi ngày ghi về trước mốc thì lần lưu/ghi sổ sau vẫn
-	đi 621/154 nếu chỉ return sớm. Dòng nào đang mang một trong tk_moi thì
-	đặt lại bằng tai_khoan_cu(dong) (cách lõi tự điền); trả None thì để nguyên.
-	Trả về số dòng đã trả.
+	Nháp lưu lúc đang bật đã mang 621/154 và trung tâm chi phí bếp trong từng
+	dòng. Kế toán tắt khẩn (xoá ngày) hoặc đổi ngày ghi về trước mốc thì lần
+	lưu/ghi sổ sau vẫn đi 621/154 nếu chỉ return sớm. Dòng nào đang mang một
+	trong tk_moi thì đặt lại CẢ tài khoản lẫn trung tâm chi phí bằng
+	gia_tri_cu(dong) -> {"expense_account", "cost_center"} (cách lõi tự điền).
+	Không tra được tài khoản cũ thì để nguyên dòng. Trả về số dòng đã trả.
+	Trung tâm chi phí chỉ trả ở dòng đã trả tài khoản, vì đó là dòng máy gắn.
 	"""
 	dem = 0
 	for d in dong_ds:
 		if d.get("expense_account") not in tk_moi:
 			continue
-		cu = tai_khoan_cu(d)
-		if cu and cu not in tk_moi:
-			_dat(d, "expense_account", cu)
-			dem += 1
+		cu = gia_tri_cu(d) or {}
+		tk = cu.get("expense_account")
+		if not tk or tk in tk_moi:
+			continue
+		_dat(d, "expense_account", tk)
+		if cu.get("cost_center"):
+			_dat(d, "cost_center", cu["cost_center"])
+		dem += 1
 	return dem
 
 
@@ -296,7 +302,8 @@ def _tra_ve_luong_cu(doc):
 				is_finished_item=d.get("is_finished_item")))
 		except Exception:
 			return None
-		return (ct or {}).get("expense_account")
+		ct = ct or {}
+		return {"expense_account": ct.get("expense_account"), "cost_center": ct.get("cost_center")}
 	return tra_tai_khoan_cu(doc.get("items") or [], tk_moi, cu)
 
 
