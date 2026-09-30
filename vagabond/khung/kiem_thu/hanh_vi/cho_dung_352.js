@@ -80,7 +80,7 @@ ca('mo man Hoa don mua hang: thanh bao nam DAU man, dem so to, tong tien va chia
   var thanh = m.main.firstChild;
   bang('thanh nam dau man', thanh.getAttribute('class'), 'vgb-thanh-cho');
   var html = thanh.innerHTML;
-  dungDk('dem so to', html.indexOf('<b>3 hoá đơn đầu vào đã nhận nhưng chưa thành phiếu mua</b>') >= 0);
+  dungDk('dem so to', html.indexOf('<b>3 hoá đơn đầu vào đã nhận nhưng máy chưa tự tạo được Hoá đơn mua hàng</b>') >= 0);
   dungDk('chia theo viec', html.indexOf('Cần khai quy cách mua: <b>2</b>') >= 0 && html.indexOf('Cần xem lý do: <b>1</b>') >= 0);
   bang('van con nut dong bo', m.nut[0][0], 'Đồng bộ M-Invoice');
 });
