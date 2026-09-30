@@ -1505,3 +1505,20 @@ bản ghi cùng MST, kể cả bản đầu trống. Ca hồi quy phải đảo 
   trị lõi tự điền; ca bench phải dựng chuỗi lưu lúc bật, tắt, rồi ghi sổ và
   đọc GL. Đổi Single Settings trong ca kiểm thì luôn dọn cache sau khi đặt,
   cả lúc tắt lẫn lúc bật. Nguồn: PR #395, PR #397.
+
+## 01/10/2026 (v546, #398/#400): gỡ một vai khỏi quyền bán hàng phải rà cổng chung, mô đun thu tiền và cửa ngõ nhận `loai`
+
+- Triệu chứng (Codex bốn vòng liên tiếp): gỡ "Bộ phận đặt hàng" khỏi
+  `QUYEN_BAN_HANG` thì khoá bếp, kho, thu mua khỏi Việc cần làm (cổng này là
+  cổng chung của hơn 150 hàm). Giữ vai trong cổng chung thì các hàm ghi hoá đơn
+  bán, công nợ, hoàn tiền vẫn gọi thẳng API được. Cửa ngõ SePay chung nhận
+  `loai` từ người gọi và chỉ kiểm cổng chung, nên đi vòng được cửa riêng của
+  luồng hoàn tiền. Hai kế toán chỉ vào được màn bán hàng nhờ chính vai đó.
+- Nguyên nhân: một tập quyền làm hai việc (cổng chung vận hành và cổng bán
+  hàng), và quyền đi theo tên hàm chứ không theo luồng nghiệp vụ.
+- Cách phòng: tách một cổng bán hàng riêng (`_kiem_quyen_ban`, tập
+  `QUYEN_BAN_VA_KE_TOAN`) cho mọi mô đun bán hàng, công nợ, dòng tiền quầy, hoàn
+  tiền; cửa ngõ dùng chung nhận `loai` phải kiểm quyền do luồng đó khai. Trước
+  khi gỡ vai, đọc trên site ai đang giữ vai đó mà không có vai thay thế (đã bắt
+  được hai kế toán). Ca kiểm quyền đọc đúng tập quyền trong tệp, không tự gõ lại.
+  Nguồn: PR #398, PR #400.
