@@ -290,10 +290,13 @@ def _():
 	doan = MA.split("def _mot_to")[1].split("\ndef ")[0]
 	dung("đầu ra đi đường ghi xong", "_ghi_xong" in doan)
 	# Cat dung tu dong soi LOAI_RA toi cau return cua chinh nhanh do.
-	nhanh = doan.split("LOAI_RA")[1].split("return")[0]
-	dung("nhánh đầu ra KHÔNG gọi ghi hỏng", "_ghi_hong" not in nhanh)
-	dung("nhánh đầu ra gọi ghi xong", "_ghi_xong" in nhanh)
-	dung("có nói rõ là Fabi xuất", "Fabi" in doan)
+	nhanh = doan.split("LOAI_RA")[1].split("\n\t\ttrung")[0]
+	# Codex #386: nhánh đầu ra gọi MỘT phép chung với đường đóng dấu hàng loạt.
+	dung("nhánh đầu ra đi qua phép chung", "_xu_to_dau_ra(" in nhanh)
+	xu = MA.split("def _xu_to_dau_ra")[1].split("\ndef ")[0]
+	dung("nhánh đầu ra KHÔNG gọi ghi hỏng", "_ghi_hong" not in nhanh and "_ghi_hong" not in xu)
+	dung("phép chung gọi ghi xong", "_ghi_xong" in xu)
+	dung("có nói rõ là Fabi", "Fabi" in xu)
 
 
 @ca("dau ra: cua con_sot dem rieng chu khong tron vao viec phai lam")
@@ -625,3 +628,42 @@ def _():
 	dung("có câu cấm ghi sổ khi còn trùng", "ĐỪNG GHI SỔ" in doan)
 	dung("có chỉ cách gỡ", "Đã huỷ" in doan)
 	dung("có kể tên tờ đang trùng", 'n.get("ten")' in doan)
+
+
+# ------------------------------------------------ 29/09/2026: dòng trống mã số lượng lẻ
+
+@ca("dòng trống mã số lượng lẻ: đơn vị lót không bắt số nguyên, tờ không kẹt")
+def _dong_le():
+	# Ca thật: tờ đầu vào ngày 26/02/2026, dòng 2,5 "Kilogam" (không có trong
+	# danh mục) rơi về lót "Nos" bắt số nguyên, ERPNext ném
+	# UOMMustBeIntegerError, tờ bị thử lại 1.943 lần mỗi 15 phút.
+	import unittest.mock
+	from types import SimpleNamespace as NS
+	from vagabond import dvt_mua as dv
+	from vagabond import minvoice_chung_tu as mc
+	bat = lambda u: u in ("Nos", "Cuộn")
+	la("2,5 và Nos thì lót lẻ", dv.dvt_lot_cho(2.5, None, bat), dv.DVT_LOT_LE)
+	la("2 và Nos giữ Nos", dv.dvt_lot_cho(2, None, bat), "Nos")
+	la("2.0 dạng chuỗi giữ Nos", dv.dvt_lot_cho("2.0", "", bat), "Nos")
+	la("2,5 với đơn vị cho số lẻ giữ nguyên", dv.dvt_lot_cho(2.5, "Kg", bat), "Kg")
+	la("2,5 với đơn vị bắt nguyên đổi lót lẻ", dv.dvt_lot_cho("2.5", "Cuộn", bat), dv.DVT_LOT_LE)
+	la("số hỏng không coi là lẻ", dv.la_so_le("abc"), False)
+	la("lót lẻ không bị đọc thành đơn vị nhà cung cấp", dv.dvt_ncc_cua_dong("", dv.DVT_LOT_LE), "")
+	# Chạy thật _dong_pi với danh mục đơn vị giả: Nos bắt nguyên, chưa có lót lẻ.
+	tao = []
+	danh_muc = {"Nos": 1}
+	f = NS(db=NS(get_value=lambda dt, n, fld: danh_muc.get(n, 0),
+		exists=lambda dt, n=None: n in danh_muc),
+		get_doc=lambda d: NS(insert=lambda **k: (tao.append(d), danh_muc.__setitem__(d["uom_name"], 0))))
+	x = {"sl": 2.5, "gia": 222222.22, "ten": "Nến sinh nhật", "dvt": "Kilogam", "ma": ""}
+	with unittest.mock.patch.object(mc, "frappe", f):
+		d = mc._dong_pi(dict(x), None, None, None, 1)
+		d2 = mc._dong_pi(dict(x, sl=2), None, None, None, 1)
+		d3 = mc._dong_pi(dict(x), None, None, None, 1)
+	la("dòng lẻ mang đơn vị lót lẻ", (d["uom"], d["stock_uom"]), (dv.DVT_LOT_LE, dv.DVT_LOT_LE))
+	la("số lượng giữ nguyên 2,5", d["qty"], 2.5)
+	la("đơn vị nhà cung cấp vẫn ghi đúng", d["vgb_dvt_ncc"], "Kilogam")
+	la("dòng nguyên vẫn Nos", d2["uom"], "Nos")
+	la("tạo đơn vị lót lẻ đúng một lần, cho số lẻ", [(t["uom_name"], t["must_be_whole_number"]) for t in tao],
+		[(dv.DVT_LOT_LE, 0)])
+	dung("lần sau không tạo lại", d3["uom"] == dv.DVT_LOT_LE and len(tao) == 1)

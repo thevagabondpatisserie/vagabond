@@ -43,6 +43,7 @@ Quy tắc mới: [tiết kiệm token và mẫu tag](tiet-kiem-token.md). Tái d
 ## Mục lục
 
 - [Đối chiếu công nợ 30/09: phương án chờ review](cong-viec/doi-chieu-cong-no-20260930.md)
+- [PR389: mã kế toán và liên kết sổ HĐĐT](cong-viec/pr-389.md)
 
 - [Issue287: Telegram](cong-viec/issue-287.md)
 

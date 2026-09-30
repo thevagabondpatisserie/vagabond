@@ -1422,3 +1422,80 @@ outstanding để ép số bằng nhau. Purchase Register có bill_date không c
 nghĩa đã có payment_date. Incoming/Outgoing trong Payment Period là chiều
 tiền, không phải chiều hóa đơn. Nguồn và ca nghiệm thu:
 [hồ sơ đối chiếu](van-hanh-agent/cong-viec/doi-chieu-cong-no-20260930.md).
+
+## 29/09/2026 (v540): phiếu ghi lùi ngày mà máy chọn lô theo tồn hôm nay
+
+- Khải làm phiếu sản xuất cuối tháng ghi ngày 31/08. Máy chọn lô sữa
+  LO-260914-000105 vì hôm nay lô đó còn hàng, nhưng lô đó sinh 14/09. ERPNext
+  kiểm tồn lô TẠI NGÀY GHI SỔ nên chặn "negative stock", lần nào lưu cũng
+  chặn vì dòng đã mang sẵn lô sai và phép bù lô cũng đọc tồn hôm nay.
+- Mọi phép đọc tồn lô cho một phiếu phải đi qua `lo_hang.luc_cua_phieu(doc)`
+  (một nguồn) rồi `_ton_tung_lo(..., luc=)`. Phiếu ghi lùi: lấy số NHỎ HƠN
+  giữa tồn tại ngày ghi và tồn hôm nay, để vừa có hàng vào ngày đó vừa không
+  làm âm các phiếu đã ghi sau.
+- Vòng 2: tồn khả dụng là số dư THẤP NHẤT của lô từ ngày ghi tới nay (đọc
+  biến động sổ kho sau ngày ghi), vì lô có thể về 0 giữa chừng rồi được nhập
+  lại. Hạn dùng cũng xét theo NGÀY GHI: get_batch_qty mặc định bỏ lô hết hạn
+  tính tới hôm nay, nên trứng còn hạn ngày 31/08 từng bị coi là không có.
+- Chỉ tin ngày trên phiếu khi `set_posting_time` bật; không bật thì ERPNext
+  đặt lại ngày giờ hiện tại SAU hook before_validate (Codex #388 F1).
+- Ca kiểm tầng khung phải có ca giữ đúng đường nối, không giả hết các hàm
+  con: đột biến "bỏ biến động sau" từng không làm đổ ca nào vì ca duy nhất
+  đi qua đó đã giả nó rỗng.
+- Bấm Gửi thẳng trên nháp ĐÃ LƯU: Frappe đặt docstatus=1 TRƯỚC before_validate
+  và đánh dấu `_action="submit"`. Hook nào chặn theo `docstatus != 0` sẽ bỏ qua
+  đúng lượt Gửi này (Codex #390). Ca thật dựng bằng insert() rồi submit() không
+  bắt được, vì insert() đã chạy hook ở docstatus 0 và chữa trước; phải dựng
+  nháp đã lưu sẵn trạng thái sai rồi mới Gửi.
+
+## 29/09/2026 (v536): đơn không phải là sổ hoá đơn, và mã cấp trước khi nạp danh mục
+
+- Chị Dung tìm tờ thay thế 14576 trên danh sách hoá đơn bán không ra: tờ đó
+  chỉ nằm dưới dạng chữ "1C26MPV 14576" trong ô ghi tay của đơn gốc, còn tên
+  công ty thì đơn đứng tên người đặt Pancake. Mọi lần "đồng bộ hoá đơn" trước
+  đều lấy ĐƠN làm gốc rồi cố gắn số tờ lên đơn, nên tờ thay thế, tờ tách, tờ
+  lập tay không bao giờ có dòng riêng. Sổ kế toán phải lấy TỜ (bảng MInvoice
+  Invoice, bản chụp 1:1 của m-invoice) làm gốc và trỏ về đơn, không phải
+  ngược lại. Báo cáo `So hoa don dien tu ban ra` làm đúng chiều đó.
+- Mã khách kế toán: máy cấp mã nối tiếp mã lớn nhất, nhưng danh mục Fast của
+  chị Dung đã đi trước ERP (KH001588 so với KH001382). Cấp mã trước khi nạp
+  tệp của chị là hai công ty chung một mã mà không ai thấy. Vì vậy
+  `ma_ke_toan.cap_ma` chỉ cấp sau khi cờ `vgb_ma_ke_toan_da_nap` được bật ở
+  lượt `nap_danh_muc_fast` đầu tiên; trước đó ô để trống chứ không tạm ghi
+  MST (anh Việt chốt 29/09/2026).
+- Patch cần cột mới thì phải tự dựng cột trong patch: `after_migrate` (nơi
+  `truong_tu_them` dựng ô) chạy SAU `patches.txt`. Bench mới còn thiếu cả
+  doctype khai trên site (MInvoice Invoice) và ô do lần deploy trước dựng
+  (vgb_don_erp), nên patch soát `has_column` rồi dừng êm, không nổ migrate.
+- Nhãn "Hoá đơn đầu ra do Fabi xuất" từng gắn cho cả 5.697 tờ tháng 9 trong
+  khi phần lớn do ERP xuất. Một nhãn sai nhưng vô hại lâu ngày thành sự thật
+  trong đầu người đọc; nhịp kéo nay nối tờ ERP về đơn ngay lúc kéo và ghi
+  đúng lý do.
+
+## PR389 - Giữ xung đột qua mọi đường đọc và điền mã
+Sửa đường ghi chưa đủ: bảng tra để hiển thị và backfill SQL vẫn có thể lấy
+bản ghi đầu khi MST hoặc mã tờ trùng. Giữ tập ứng viên, chỉ suy mã/liên kết
+khi duy nhất; xung đột phải còn trong hàng chờ xử lý. Ô dẫn xuất phải xóa
+khi đầu vào mới không phân giải được, kể cả tra lỗi, tránh giữ mã khách lẻ
+cho hóa đơn doanh nghiệp. Ca backfill phải chạy UPDATE thật trên MariaDB,
+không chỉ khẳng định chuỗi SQL có WHERE. Nguồn PR389/comment5903869461.
+
+### 30/09/2026 - PR389: chuẩn MST ở mọi cửa, giữ mọi bản ghi trùng
+Chỉ chuẩn hóa đầu vào rồi WHERE tax_id IN hai dạng gạch/không gạch vẫn bỏ
+MST có khoảng trắng mà bộ chuẩn chấp nhận. Dùng cùng chuẩn phía dữ liệu
+đọc, cả tra/cấp mã lẫn báo cáo. Nạp danh mục phải nhìn toàn bộ mã trên mọi
+bản ghi cùng MST, kể cả bản đầu trống. Ca hồi quy phải đảo thứ tự bản ghi.
+
+## 30/09/2026 (v543): hạ độ lẻ tiền dòng mà không hạ độ lẻ tổng thì chiết khấu chia lệch
+
+- Hoá đơn GSM C26TBB/77683, 889 dòng cước và một dòng chiết khấu, dựng ra thiếu
+  21 đồng rồi "Không nhận". Dựng thử trên site thật (System Console, không
+  commit): KHÔNG gắn nguồn MInvoice thì đúng tuyệt đối, gắn nguồn thì lệch -21.
+- Nguyên nhân: `do_chinh_xac_mua` gán độ lẻ nguồn (0) cho cả `net_amount` của
+  dòng, trong khi `net_total` của tờ vẫn 2. ERPNext `apply_discount_amount` làm
+  tròn net từng dòng theo độ lẻ DÒNG rồi bù phần chênh theo độ lẻ TỔNG, phần bù
+  dưới nửa đồng bị làm tròn mất ở dòng nhưng vẫn cộng vào tổng, dồn qua nhiều
+  dòng thành hàng chục đồng.
+- Luật: độ lẻ tiền sau giảm của dòng không được thấp hơn độ lẻ tổng của tờ.
+  Muốn đổi độ lẻ một trường thì soát mọi phép tính ERPNext trộn trường đó với
+  trường khác độ lẻ.

@@ -105,7 +105,8 @@ def _cach_va():
 @ca("v406 hỏi tồn từng lô phải biết đường xin cả lô quá hạn")
 def _xin_lo_qua_han():
 	src = _py("lo_hang.py")
-	dung("có cờ ke_ca_qua_han", "def _ton_tung_lo(ma, kho, ke_ca_qua_han=False)" in src)
+	# v540: hàm có thêm tham số luc (thời điểm ghi sổ của phiếu), cờ vẫn giữ nguyên.
+	dung("có cờ ke_ca_qua_han", "def _ton_tung_lo(ma, kho, ke_ca_qua_han=False, luc=None)" in src)
 	dung("truyền cờ của ERPNext", "for_stock_levels=bool(ke_ca_qua_han)" in src)
 
 

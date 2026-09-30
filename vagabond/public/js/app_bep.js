@@ -16207,6 +16207,10 @@ async function scrCongNo() {
             /* v534 vòng 8 (Codex #382): tiền đã về tài khoản mà phiếu thu còn
                chờ UNC khách gửi thì đã trừ khỏi số bên phải; nói rõ ra. */
             (d.da_ve > 0 ? '<div data-cndave="1" style="font-size:12px;color:#0b7c93">' + money(d.da_ve) + ' đ đã về tài khoản, chờ ghi sổ</div>' : '') +
+            /* v541 (anh Việt 29/09/2026): tiền đã về mà nội dung chuyển khoản
+               không mang mã đơn thì máy không tự lập phiếu thu, hoá đơn kẹt ở
+               Đang nợ. Nút này cho người chọn đúng giao dịch ngân hàng. */
+            '<button class="btn gh" data-cnnhan="' + h(d.name) + '" style="width:auto;margin:6px 0 0;min-height:44px;padding:0 14px;font-size:13.5px">💰 Khách đã chuyển tiền</button>' +
             '</div>' +
             '<b style="white-space:nowrap">' + money(d.tien) + ' đ</b></div>';
         });
@@ -16275,6 +16279,8 @@ async function scrCongNo() {
     if (t) { cnLocPhieu = t.getAttribute('data-cnlp'); return go(scrCongNo, true); }
     t = e.target.closest('[data-cnmo]');
     if (t) { var m = t.getAttribute('data-cnmo'); cnKhachMo = cnKhachMo === m ? '' : m; return go(scrCongNo, true); }
+    t = e.target.closest('[data-cnnhan]');
+    if (t) return cnNhanTien(t.getAttribute('data-cnnhan'), kv);
     t = e.target.closest('[data-cnhd]');
     if (t) {
       var v = t.getAttribute('data-cnhd').split('|');
@@ -16393,6 +16399,53 @@ function cnMoUnc(pe, kv) {
     k.dong();
     await cnGhiSo(pe, unc);
   };
+}
+
+/* v541: hoá đơn ở tab Đang nợ mà tiền đã về. Máy đưa các giao dịch ngân hàng
+   chưa nối, người CHỌN (máy chỉ gợi ý mã đơn, số điện thoại, số tiền; không
+   tự gán theo số tiền). Chọn xong máy lập phiếu thu nháp nối đúng giao dịch,
+   hoá đơn sang tab Tiền đã về, và mở luôn hộp đính UNC khách gửi. */
+async function cnNhanTien(si, kv) {
+  busy(true);
+  var r;
+  try { r = await api('vagabond.thu_tien.ung_vien_tien_ve', { si: si }); }
+  catch (e) { busy(false); return baoTin(errMsg(e) || 'Chưa đọc được giao dịch ngân hàng.'); }
+  busy(false);
+  var ds = (r && r.gd) || [];
+  if (!ds.length) {
+    return baoTin('Chưa thấy giao dịch tiền vào nào chưa nối từ ngày ' + posNgayVn(r.ngay_hd) +
+      ' mà khớp số tiền hay mã đơn. Kiểm lại sao kê hoặc báo kế toán.', 'Khách đã chuyển tiền');
+  }
+  /* Codex #389 P2 (vòng 2): chọn là tìm. Đủ mọi khoản, trong bottom sheet có
+     ô tìm theo nội dung, mã giao dịch, số tiền, ngày (AGENTS.md điều 2). */
+  var items = ds.map(function (g) {
+    return {
+      value: g.name,
+      label: money(g.tien) + ' đ · ' + posNgayVn(g.ngay) + ((g.khop || []).length ? ' · ✓ ' + g.khop.join(', ') : ''),
+      phu: (g.con < g.tien ? 'còn ' + money(g.con) + ' đ chưa nối · ' : '') + (g.mo_ta || ''),
+      tim: [g.mo_ta, g.ma_gd, g.tien, money(g.tien), posNgayVn(g.ngay)].join(' '),
+      g: g
+    };
+  });
+  sheet((r.khach || '') + ' · còn nợ ' + money(r.con_no) + ' đ · chọn khoản khách đã chuyển', items, null,
+    async function (it) {
+      var g = it.g;
+      var tien = Math.min(g.con, r.con_no);
+      var ok = await confirmSheet('Nhận ' + money(tien) + ' đ cho ' + si,
+        'Giao dịch ' + (g.ma_gd || g.name) + ' ngày ' + posNgayVn(g.ngay) + '.\nMáy lập phiếu thu nháp nối đúng giao dịch này. Ghi sổ vẫn cần ảnh chuyển khoản khách gửi.',
+        'Đúng khoản này');
+      if (!ok) return;
+      busy(true);
+      var x;
+      try { x = await api('vagabond.thu_tien.nhan_tien_ve', { si: si, gd: g.name }); }
+      catch (e2) { busy(false); return baoTin(errMsg(e2) || 'Chưa lập được phiếu thu.'); }
+      busy(false);
+      toast('Đã lập phiếu thu ' + x.pe + '. Đính ảnh chuyển khoản khách gửi.', 3500);
+      /* Vẽ lại trước: hoá đơn đã sang tab Tiền đã về dù người đóng hộp UNC. */
+      go(scrCongNo, true);
+      return cnMoUnc(x.pe, { dong: [{ pe: x.pe, ten_khach: x.ten_khach, tien: x.tien, ngay_ve: x.ngay_ve, ma_gd: x.ma_gd }],
+        ke_toan: (kv || {}).ke_toan });
+    }, true);
 }
 
 async function cnGhiSo(pe, unc) {
@@ -22194,7 +22247,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '539';
+var APPVER = '543';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }

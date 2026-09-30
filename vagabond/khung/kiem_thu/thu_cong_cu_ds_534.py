@@ -788,3 +788,118 @@ def _cong():
 def _dang_ky_that():
 	c = _doc("khung", "kiem_that", "cua.py")
 	dung("cua.py nạp thu_phieu_thu_unc_534", "import thu_phieu_thu_unc_534" in c)
+
+
+@ca("v541 Khách đã chuyển tiền: đọc mã đơn, số điện thoại; xếp gợi ý nhưng không bỏ giao dịch nào")
+def _goi_y_tien_ve():
+	from vagabond import thu_tien as tt
+	dh = tt.dau_hieu_don("Pancake #93367 - Ms.Thanh - 0933346399", "HDB-26-09-01294")
+	la("mã đơn", dh["ma_don"], ["93367"])
+	la("số điện thoại 9 số cuối", dh["dien_thoai"], ["933346399"])
+	ds = [
+		{"name": "BT-a", "date": "2026-09-10", "unallocated_amount": 745000, "description": "Lam Ngoc chuyen"},
+		{"name": "BT-b", "date": "2026-09-12", "unallocated_amount": 1490000, "description": "CK DON 93367 VA 93368"},
+		{"name": "BT-c", "date": "2026-09-09", "unallocated_amount": 745000, "description": "0933346399 chuyen tien banh"},
+		{"name": "BT-d", "date": "2026-09-11", "unallocated_amount": 300000, "description": "khac"},
+	]
+	xep = tt.xep_ung_vien(ds, dh, 745000)
+	la("đủ bốn, không bỏ cái nào", len(xep), 4)
+	la("mã đơn lên đầu, rồi số điện thoại, rồi đúng tiền", [x["name"] for x in xep], ["BT-b", "BT-c", "BT-a", "BT-d"])
+	la("lý do của dòng có mã đơn", xep[0]["khop"], ["nội dung có mã đơn 93367"])
+	la("dòng điện thoại và đúng tiền", xep[1]["khop"], ["có số điện thoại khách", "đúng số tiền"])
+	la("dòng lệch tiền không có lý do", xep[3]["khop"], [])
+	la("không có dấu hiệu gì thì rỗng", tt.dau_hieu_don("", ""), {"ma_don": [], "dien_thoai": [], "ten_si": ""})
+	# Codex #389 P2: nhiều khoản cùng điểm (cùng số tiền, không mã) thì khoản
+	# MỚI trước, để khoản khách vừa chuyển nằm đầu danh sách.
+	cung = [{"name": "BT-%02d" % i, "date": "2026-09-%02d" % i, "unallocated_amount": 745000, "description": "ck"}
+		for i in range(1, 16)]
+	xep = tt.xep_ung_vien(cung, dh, 745000)
+	la("cùng điểm: mới nhất đứng đầu", [x["name"] for x in xep[:3]], ["BT-15", "BT-14", "BT-13"])
+	la("không cắt: đủ 15 khoản", len(xep), 15)
+	dung("không còn trần gợi ý nào (Codex #389 vòng 2)", not hasattr(tt, "GOI_Y_TOI_DA"))
+	cung.append({"name": "BT-ma", "date": "2026-09-01", "unallocated_amount": 745000, "description": "DON 93367"})
+	la("điểm cao vẫn trước ngày", tt.xep_ung_vien(cung, dh, 745000)[0]["name"], "BT-ma")
+
+
+class _A(dict):
+	__getattr__ = dict.get
+
+
+@ca("Codex #389 P2 vòng 2: máy chủ trả ĐỦ mọi giao dịch ứng viên, không cắt, khoản mới nhất đứng đầu")
+def _ung_vien_du():
+	# Chạy ung_vien_tien_ve THẬT; chỉ giả frappe (bảng giao dịch 40 khoản cùng số
+	# tiền, tôn trọng limit_page_length như site) và hàm kiểm quyền của ban_hang
+	# (ban_hang kéo requests, CI tay không không có).
+	import sys
+	import types
+	import unittest.mock
+	from vagabond import thu_tien as tt
+	gd = [_A(name="BT-%02d" % i, date="2026-09-%02d" % (i % 28 + 1), deposit=745000, unallocated_amount=745000,
+		description="ck %d" % i, reference_number="FT%02d" % i, bank_account="MB") for i in range(1, 41)]
+	# Một khoản về sớm hơn khung 7 ngày: bảng giả trả về, máy chủ phải tự loại
+	# bằng CHUNG luật với lúc lập phiếu (la_ung_vien, Codex #389 vòng 3).
+	gd.append(_A(name="BT-SOM", date="2026-08-01", deposit=745000, unallocated_amount=745000,
+		description="ck som", reference_number="FTSOM", bank_account="MB"))
+	gd.sort(key=lambda x: x["date"], reverse=True)
+
+	def get_all(dt, filters=None, fields=None, pluck=None, limit_page_length=0, order_by=None, **k):
+		if dt == "Bank Account":
+			return ["MB"]
+		if dt == tt.PE:
+			return []
+		if dt == tt.BT:
+			ra = [g for g in gd if "description" not in (filters or {})]
+			return ra[:limit_page_length] if limit_page_length else ra
+		return []
+	hd = _A(name="HDB-1", docstatus=1, outstanding_amount=745000, posting_date="2026-09-01", company="V",
+		remarks="Pancake #93367", customer_name="Ms.Thanh")
+	f = types.SimpleNamespace(get_all=get_all, db=types.SimpleNamespace(get_value=lambda *a, **k: hd),
+		throw=lambda m: (_ for _ in ()).throw(ValueError(m)))
+	gia_bh = types.ModuleType("vagabond.ban_hang")
+	gia_bh._kiem_quyen_doc_luu_don = lambda: None
+	with unittest.mock.patch.object(tt, "frappe", f), unittest.mock.patch.dict(sys.modules, {"vagabond.ban_hang": gia_bh}), \
+			unittest.mock.patch("frappe.utils.add_days", lambda d, n: d, create=True):
+		r = tt.ung_vien_tien_ve("HDB-1")
+	la("đủ 40 khoản, không cắt, loại khoản sớm", len(r["gd"]), 40)
+	dung("khoản sớm hơn khung không có mặt", "BT-SOM" not in [x["name"] for x in r["gd"]])
+	la("khoản mới nhất đứng đầu", r["gd"][0]["ngay"], max(g["date"] for g in gd))
+
+
+@ca("Codex #389 P1 vòng 3: lập phiếu áp lại luật ứng viên sau khi khoá; giao dịch ngoài luật bị chặn trước khi tạo gì")
+def _nhan_ap_lai_luat():
+	import sys
+	import types
+	import unittest.mock
+	from vagabond import thu_tien as tt
+	dh = tt.dau_hieu_don("Pancake #93367", "HDB-1")
+	la("đúng số tiền trong khung ngày", tt.la_ung_vien({"date": "2026-09-05", "unallocated_amount": 745000}, "2026-09-01", dh, 745000), True)
+	la("sớm hơn 7 ngày", tt.la_ung_vien({"date": "2026-08-20", "unallocated_amount": 745000}, "2026-09-01", dh, 745000), False)
+	la("lệch tiền, không mã đơn", tt.la_ung_vien({"date": "2026-09-05", "unallocated_amount": 500000, "description": "ck"}, "2026-09-01", dh, 745000), False)
+	la("lệch tiền nhưng có mã đơn", tt.la_ung_vien({"date": "2026-09-05", "unallocated_amount": 1490000, "description": "DON 93367 93368"}, "2026-09-01", dh, 745000), True)
+	la("ngày hỏng thì không nhận", tt.la_ung_vien({"date": "", "unallocated_amount": 745000}, "2026-09-01", dh, 745000), False)
+	# Qua nhan_tien_ve THẬT với giao dịch của khách khác (lệch tiền, không mã, sớm).
+	tao = []
+	g = _A(name="BT-LA", docstatus=1, deposit=300000, unallocated_amount=300000, currency="VND", reference_number="FTLA",
+		payment_entries=[], date="2026-08-01", description="khach khac", bank_account="MB")
+	g.as_dict = lambda: dict(g)
+	doc = _A(name="HDB-1", docstatus=1, outstanding_amount=745000, posting_date="2026-09-01", remarks="Pancake #93367",
+		company="V", customer_name="Ms.Thanh")
+
+	def get_doc(dt, name, for_update=False):
+		return g if dt == tt.BT else doc
+	f = types.SimpleNamespace(db=types.SimpleNamespace(exists=lambda *a: True), get_doc=get_doc,
+		get_all=lambda *a, **k: tao.append("get_all") or [], throw=lambda m: (_ for _ in ()).throw(ValueError(m)))
+	gia_bh = types.ModuleType("vagabond.ban_hang")
+	gia_bh._kiem_quyen_doc_luu_don = lambda: None
+	gia_pe = types.ModuleType("erpnext.accounts.doctype.payment_entry.payment_entry")
+	gia_pe.get_payment_entry = lambda *a, **k: tao.append("pe")
+	with unittest.mock.patch.object(tt, "frappe", f), unittest.mock.patch.dict(sys.modules, {
+			"vagabond.ban_hang": gia_bh, "erpnext.accounts.doctype.payment_entry.payment_entry": gia_pe}):
+		try:
+			tt.nhan_tien_ve("HDB-1", "BT-LA")
+		except ValueError as e:
+			loi = str(e)
+		else:
+			loi = ""
+	dung("bị chặn, nói rõ không khớp hoá đơn", "không khớp hoá đơn HDB-1" in loi)
+	la("không lập phiếu nào", tao.count("pe"), 0)

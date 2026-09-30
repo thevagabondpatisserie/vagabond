@@ -35,6 +35,7 @@ from vagabond.khung.kiem_that import thu_ccdc_dung_ngay_524  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_hach_toan_526  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_noi_hd_sau_530  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_so_hd_that_531  # noqa: F401,E402
+from vagabond.khung.kiem_that import thu_ma_ke_toan_389  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_phieu_thu_unc_534  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_bao_ve_hddt_225  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_link_thue_227  # noqa: F401,E402
@@ -55,6 +56,8 @@ from vagabond.khung.kiem_that import thu_mau_in  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_nhan_nvl  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_kiem_banh_document  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_nhap_kho  # noqa: F401,E402
+from vagabond.khung.kiem_that import thu_lo_theo_ngay_540  # noqa: F401,E402
+from vagabond.khung.kiem_that import gsm_lam_tron_543  # noqa: F401,E402
 
 QUYEN = ("System Manager", "Giám đốc", "AP Giám đốc")
 
