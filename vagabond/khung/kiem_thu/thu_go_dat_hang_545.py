@@ -189,7 +189,9 @@ def _chay_that_ham_ghi_ban():
 # tập QUYEN_BAN_HANG từ ban_hang. Mô đun dùng chung (Việc cần làm, mua vụ,
 # kho, thu mua) vẫn dùng cổng chung, có chủ đích.
 MO_DUN_THU_TIEN = ("cong_no.py", "thanh_toan_nhieu.py", "nop_quy.py", "don_huy.py",
-	"ca_quay.py", "diem_otp.py", "khach_hang.py", "nguoi_ban.py", "hang_tang.py", "hoan_tien.py")
+	"ca_quay.py", "diem_otp.py", "khach_hang.py", "nguoi_ban.py", "hang_tang.py", "hoan_tien.py",
+	# Codex #400 v6: sepay.tim_gd_vao trả sao kê tiền vào (số tiền, nội dung, tài khoản).
+	"sepay.py")
 
 
 @ca("v546 Codex #398 v4: mô đun công nợ, dòng tiền quầy, hoàn tiền không nhập cổng chung")
@@ -321,3 +323,43 @@ def _sepay_chay_that():
 		except (PermissionError, LookupError):
 			pass
 		dung("%s %s / %s %s" % (ham, loai, vai, "qua quyền" if mong else "bị chặn"), (vet == ["doc"]) == mong)
+
+
+@ca("v546 Codex #400 v6: chạy thật sepay.tim_gd_vao, bếp, kho, thu mua không đọc được sao kê tiền vào")
+def _chay_that_tim_gd_vao():
+	import sys
+	from types import SimpleNamespace as NS
+	from unittest.mock import patch
+	from vagabond.khung.kiem_thu.thu_su_co_290 import nap
+
+	def nem(cau, **kw):
+		raise PermissionError(cau)
+
+	for vai, mong in ((VAI, False), ("Manufacturing User", False), ("Stock User", False),
+			("Sales User", True), ("Accounts User", True)):
+		vet = []
+
+		def doc(*a, **k):
+			vet.append("doc")
+			raise LookupError("dừng sau quyền")
+
+		g = dict(frappe=NS(get_roles=lambda v=vai: [v], throw=nem, get_all=doc, db=NS(sql=doc)),
+			flt=lambda x: float(x or 0), cint=lambda x: int(x or 0), **_tap_that())
+		that = nap("ban_hang.py", "_kiem_quyen_ban", g)
+
+		def cong():
+			# Chạy cổng THẬT; qua cổng thì ghi dấu. Phần sau cổng cần cả môi
+			# trường Frappe nên ca này dừng ngay sau cổng.
+			that()
+			vet.append("doc")
+			raise LookupError("dừng sau quyền")
+
+		gia = {"vagabond.ban_hang": NS(_kiem_quyen_ban=cong),
+			"vagabond.khop_sao_ke": NS(xep_ung_vien=doc),
+			"frappe.utils": NS(add_days=lambda d, n: d, nowdate=lambda: "2026-10-01")}
+		try:
+			with patch.dict(sys.modules, gia):
+				nap("sepay.py", "tim_gd_vao", g)(100000, "2026-10-01")
+		except (PermissionError, LookupError):
+			pass
+		dung("tim_gd_vao / %s %s" % (vai, "qua quyền" if mong else "bị chặn"), (vet == ["doc"]) == mong)
