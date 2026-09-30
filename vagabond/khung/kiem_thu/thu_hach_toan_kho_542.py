@@ -266,3 +266,14 @@ def _sx_thieu_tk():
 		hk.sx_gan_tai_khoan(phieu)
 	la("giữ tài khoản cũ", phieu["items"][0].expense_account, "cu")
 	la("có nhắc kế toán", len(nhac), 1)
+
+
+@ca("v542 hoá đơn người lập tự bật Cập nhật kho, tự chọn kho và lô: máy không đè")
+def _tu_bat():
+	hd = _chay_chuan_bi(_Tho(posting_date="2026-10-01", company="C", update_stock=1,
+		items=[_Dong(item_code="BANU00015", warehouse="Kho riêng - TV", batch_no="LO-1", expense_account="cu")]),
+		ton=("BANU00015",), kho="")
+	la("vẫn trừ kho", hd.update_stock, 1)
+	la("giữ kho người chọn", hd["items"][0].warehouse, "Kho riêng - TV")
+	la("giữ lô", hd["items"][0].batch_no, "LO-1")
+	la("không đánh dấu", hd.vgb_chua_tru_kho, None)
