@@ -35,3 +35,13 @@ def _chon_ma():
 def _ba_co():
 	la("ba cờ", tat_lo.TRUONG_LO, ("has_batch_no", "has_expiry_date", "create_new_batch"))
 	dung("không đụng shelf_life_in_days", "shelf_life_in_days" not in tat_lo.TRUONG_LO)
+
+
+@ca("v545 Codex #399: tìm mã theo BẤT KỲ cờ lô nào, không chỉ has_batch_no")
+def _dieu_kien_loc():
+	loc, hoac = tat_lo.dieu_kien_loc()
+	la("không lọc cứng has_batch_no", loc, [])
+	la("hoặc một trong ba cờ", hoac, [["has_batch_no", "=", 1], ["has_expiry_date", "=", 1], ["create_new_batch", "=", 1]])
+	loc, hoac = tat_lo.dieu_kien_loc(["A", "B"])
+	la("giới hạn theo danh sách mã", loc, [["name", "in", ["A", "B"]]])
+	la("vẫn hoặc ba cờ", len(hoac), 3)
