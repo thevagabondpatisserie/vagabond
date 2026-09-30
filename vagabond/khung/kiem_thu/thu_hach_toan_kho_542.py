@@ -345,3 +345,86 @@ def _tat_giua_chung():
 			m.patch.object(hk.frappe, "_dict", dict, create=True):
 		hk.sx_gan_tai_khoan(phieu)
 	la("lùi ngày ghi về trước mốc: về cũ", phieu["items"][0].expense_account, "CL - X")
+
+
+@ca("v542 Codex #397: lùi ghi sổ không trừ kho thì gỡ gói lô ở cả dòng hàng lẫn thành phần bộ")
+def _bo_ca_goi_thanh_phan():
+	hd = _Tho(items=[_Dong(serial_and_batch_bundle="SABB-1")], packed_items=[_Dong(serial_and_batch_bundle="SABB-2")])
+	hk._bo_tru_kho(hd, "Lô không đủ")
+	la("dòng hàng bỏ gói", hd["items"][0].serial_and_batch_bundle, None)
+	la("thành phần bỏ gói", hd["packed_items"][0].serial_and_batch_bundle, None)
+	la("không trừ kho", hd.update_stock, 0)
+
+
+class _Goi:
+	tao = []
+
+	def __init__(self, a):
+		self.a = a
+
+	def make_serial_and_batch_bundle(self):
+		_Goi.tao.append(self.a)
+		return _Dong(name="SABB-%d" % len(_Goi.tao))
+
+
+def _chia(dong, bo_lo, lo_con, nhom):
+	import sys
+	import types
+	import unittest.mock as m
+	from vagabond import hang_tang_kho as htk
+	_Goi.tao = []
+	sbb = types.ModuleType("erpnext.stock.serial_batch_bundle")
+	sbb.SerialBatchCreation = _Goi
+	bt = types.ModuleType("erpnext.stock.doctype.batch.batch")
+	bt.get_available_batches = lambda a: list(lo_con.get((a["item_code"], a["warehouse"]), {}).items())
+	def nem(msg, *a, **k):
+		raise RuntimeError(msg)
+	class _Hd:
+		doctype, name, company, posting_date, posting_time = "Sales Invoice", "HD-1", "C", "2026-10-01", "10:00:00"
+		items = [x for x in dong if x.doctype != "Packed Item"]
+		packed_items = [x for x in dong if x.doctype == "Packed Item"]
+
+		def get(self, k, d=None):
+			return getattr(self, k, d)
+	hd = _Hd()
+	with m.patch.dict(sys.modules, {"erpnext.stock.serial_batch_bundle": sbb, "erpnext.stock.doctype.batch.batch": bt}), \
+			m.patch.object(htk.frappe, "get_cached_value", lambda dt, ma, o: ma in bo_lo, create=True), \
+			m.patch.object(htk.frappe, "_dict", dict, create=True), \
+			m.patch.object(htk.frappe, "throw", nem, create=True):
+		htk.chia_lo_xuat(hd, nhom)
+	return hd
+
+
+@ca("v542 Codex #397: thành phần có lô của bộ sản phẩm được chia lô, gói gắn dòng hàng cha")
+def _chia_lo_thanh_phan():
+	bo = _Dong(doctype="Sales Invoice Item", idx=1, name="R1", item_code="BO", warehouse="K", stock_qty=1)
+	tp = _Dong(doctype="Packed Item", item_code="TP", warehouse="K", qty=2, parent_detail_docname="R1", parent_item="BO")
+	hd = _chia([bo, tp], {"TP"}, {("TP", "K"): {"L1": 5}}, {("TP", "K")})
+	la("thành phần có gói lô", tp.serial_and_batch_bundle, "SABB-1")
+	la("một gói", len(_Goi.tao), 1)
+	la("gói gắn dòng hàng cha", _Goi.tao[0]["voucher_detail_no"], "R1")
+	la("lượng theo thành phần", _Goi.tao[0]["qty"], 2)
+	la("lấy lô L1", _Goi.tao[0]["batches"], {"L1": 2})
+	dung("dòng bộ không lô không có gói", not bo.get("serial_and_batch_bundle"))
+
+
+@ca("v542 Codex #397: thành phần thiếu lô còn dùng thì báo lỗi để lùi, không lọt im lặng")
+def _chia_lo_thanh_phan_thieu():
+	tp = _Dong(doctype="Packed Item", item_code="TP", warehouse="K", qty=3, parent_detail_docname="R1", parent_item="BO")
+	try:
+		_chia([_Dong(doctype="Sales Invoice Item", idx=1, name="R1", item_code="BO", warehouse="K", stock_qty=1), tp],
+			{"TP"}, {("TP", "K"): {"L1": 1}}, {("TP", "K")})
+		dung("phải báo lỗi", False)
+	except RuntimeError as e:
+		dung("báo thiếu theo lô", "thiếu" in str(e))
+
+
+@ca("v542 Codex #397: chia lô bọc trong điểm lưu, lỗi thì quay về điểm lưu trước khi lùi")
+def _diem_luu_chia_lo():
+	import os
+	goc = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+	s = open(os.path.join(goc, "hach_toan_kho.py"), encoding="utf-8").read()
+	i = s.index("def ban_truoc_ghi_so(")
+	than = s[i:s.index("\ndef ", i + 10)]
+	dung("có điểm lưu trước chia lô", than.index("frappe.db.savepoint(moc)") < than.index("chia_lo_xuat(doc, set(nhom))"))
+	dung("quay về điểm lưu trước khi lùi", than.index("frappe.db.rollback(save_point=moc)") < than.index('_bo_tru_kho(doc, "Lô không đủ'))
