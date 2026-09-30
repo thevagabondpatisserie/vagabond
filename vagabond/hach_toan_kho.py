@@ -166,13 +166,24 @@ def ly_do_thieu(ds):
 		" (và %d món khác)" % (len(ds) - 8) if len(ds) > 8 else "")
 
 
-def du_dieu_kien_ban(hd, moc, la_tang):
-	"""Hoá đơn bán thường, ghi từ ngày mốc, thì trừ kho."""
+def co_phieu_giao(dong_ds):
+	"""Hoá đơn lập từ Phiếu giao hàng: kho và giá vốn đã ghi ở phiếu giao."""
+	return any(d.get("delivery_note") or d.get("dn_detail") for d in dong_ds or [])
+
+
+def du_dieu_kien_ban(hd, moc, la_tang, dong_ds=None):
+	"""Hoá đơn bán thường, ghi từ ngày mốc, thì trừ kho.
+
+	Codex #395 F1: hoá đơn lập từ Phiếu giao hàng (xuất bán sỉ, xuat_ban.py)
+	đã trừ kho và ghi giá vốn ở phiếu giao; trừ lần nữa là trừ hai lần.
+	"""
 	if not ap_dung(hd.get("posting_date"), moc):
 		return False
 	if hd.get("is_return") or hd.get("is_debit_note") or hd.get("is_opening") == "Yes":
 		return False
 	if la_tang or hd.get("vgb_tang_kho_moi"):
+		return False
+	if co_phieu_giao(dong_ds if dong_ds is not None else hd.get("items")):
 		return False
 	return True
 
@@ -286,7 +297,7 @@ def ban_chuan_bi(doc):
 		if cu and cu != 0:
 			return
 	from vagabond.minvoice_an_toan import la_hang_tang
-	du = du_dieu_kien_ban(doc, _moc(O_BAN_TU), la_hang_tang(doc))
+	du = du_dieu_kien_ban(doc, _moc(O_BAN_TU), la_hang_tang(doc), doc.get("items") or [])
 	if du:
 		from erpnext import is_perpetual_inventory_enabled
 		du = bool(is_perpetual_inventory_enabled(doc.company))
