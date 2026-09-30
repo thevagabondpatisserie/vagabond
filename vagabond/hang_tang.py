@@ -693,9 +693,9 @@ def khi_huy(doc, method=None):
 
 
 def _quyen():
-	from vagabond.ban_hang import _kiem_quyen
+	from vagabond.ban_hang import _kiem_quyen_ban
 
-	_kiem_quyen()
+	_kiem_quyen_ban()
 
 
 def _thieu_tai_khoan():

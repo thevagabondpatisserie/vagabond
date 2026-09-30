@@ -32,9 +32,10 @@ DT = "Bao Gia Ban Hang"
 DT_TV = "Bao Gia Thu Vien"
 DT_CD = "Bao Gia Cai Dat"
 
+# 01/10/2026 (#400 v7): gỡ vai đặt hàng lên thu mua khỏi quyền xem báo giá khách.
 QUYEN_XEM = {
 	"System Manager", "Sales User", "Sales Manager", "Accounts User",
-	"Accounts Manager", "Purchase User", "Purchase Manager", "Bộ phận đặt hàng",
+	"Accounts Manager", "Purchase User", "Purchase Manager",
 }
 QUYEN_SUA = {
 	"System Manager", "Sales User", "Sales Manager", "Accounts User",

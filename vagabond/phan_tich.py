@@ -141,7 +141,7 @@ XEM_BO_PHAN = {
 # vẫn tìm được mọi tài khoản đang bật.
 NHAN_BO_PHAN = {
 	"marketing": {VAI_MARKETING},
-	"sales": {"Bộ phận đặt hàng", "Sales Manager"},
+	"sales": {"Sales User", "Sales Manager"},  # 01/10: Bộ phận đặt hàng là vai thu mua
 	"bep": {"Bếp trưởng", "Bếp phó", "Manufacturing Manager"},
 	"kho": {"Stock Manager"},
 }

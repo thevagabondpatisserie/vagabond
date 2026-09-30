@@ -14,7 +14,7 @@ deploy.
 import frappe
 from frappe.utils import add_months, cint, flt, getdate, nowdate
 
-from vagabond.ban_hang import _kiem_quyen
+from vagabond.ban_hang import _kiem_quyen_ban
 from vagabond.lib import sdt
 
 # Sua bang hang, cong tru diem tay, chuyen hang hang loat: ba viec nay deu
@@ -59,7 +59,7 @@ def _nhom_si():
 @frappe.whitelist()
 def ds_hang():
 	"""Bang hang khach dang cau hinh, xep tu thap len cao."""
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	try:
 		ds = frappe.get_all(
 			"Vagabond Hang Khach",
@@ -145,7 +145,7 @@ def ds_khach(tu_khoa="", dang="", hang=""):
 	Chi tieu tinh trong 12 thang gan nhat theo hoa don DA GHI SO - don con
 	o ban nhap chua phai la tien that.
 	"""
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	q = (tu_khoa or "").strip()
 	# Loc phai chay o MAY CHU truoc khi cat bot, khong thi khach si nam
 	# cuoi bang chu cai se bien mat: co 1545 khach ma chi tai 500 cai dau
@@ -245,7 +245,7 @@ def ds_khach(tu_khoa="", dang="", hang=""):
 def dat_hang(khach=None, hang=None):
 	"""Gan hang cho mot khach. Hang gan tay (FAMILY, AMBASSADOR) chi quan
 	ly moi dat duoc, nen di qua ham nay chu khong sua thang tren Desk."""
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	khach = (khach or "").strip()
 	hang = (hang or "").strip().upper()
 	if not khach or not frappe.db.exists("Customer", khach):
@@ -267,7 +267,7 @@ def dat_hang(khach=None, hang=None):
 def goi_y_hang(khach=None):
 	"""Hang ma khach DANG DUOC HUONG theo chi tieu, de quan ly doi chieu
 	voi hang dang gan. Khong tu doi hang - doi hang la viec cua nguoi."""
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	khach = (khach or "").strip()
 	if not khach:
 		return {}
@@ -429,7 +429,7 @@ def hoan_diem_hoa_don(doc, method=None):
 @frappe.whitelist()
 def so_diem(khach=None, so_dong=50):
 	"""So du va cac but gan nhat cua mot khach."""
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	khach = (khach or "").strip()
 	if not khach:
 		return {"so_du": 0, "but": []}
@@ -446,7 +446,7 @@ def so_diem(khach=None, so_dong=50):
 @frappe.whitelist()
 def sua_diem(khach=None, diem=None, ghi_chu=None):
 	"""Cong hoac tru diem tay. Bat buoc ghi ly do."""
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	if not QUYEN_SUA_HANG & set(frappe.get_roles()):
 		frappe.throw("Chỉ quản lý mới cộng trừ điểm tay được.")
 	khach = (khach or "").strip()
@@ -469,7 +469,7 @@ LOAI_HANG = ["Theo chi tieu", "Gan tay"]
 @frappe.whitelist()
 def cai_dat_hang():
 	"""Bang hang day du cho man Cai dat, ke ca hang dang tat."""
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	ds = frappe.get_all(
 		"Vagabond Hang Khach",
 		fields=[
@@ -543,7 +543,7 @@ def _kiem_hang(ra):
 @frappe.whitelist()
 def luu_hang(hang=None):
 	"""Luu ca bang hang tu man Cai dat."""
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	if not QUYEN_SUA_HANG & set(frappe.get_roles()):
 		frappe.throw("Chỉ quản lý mới sửa được bảng hạng thành viên.")
 	if isinstance(hang, str):
@@ -654,7 +654,7 @@ def xet_lai(ap=0, so_khach=500):
 	Khong bao gio dong toi khach dang deo hang GAN TAY: nhan vien, dai su,
 	nguoi nha - may tu ha hang cua ho la mat mat that voi nguoi that.
 	"""
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	ap = cint(ap)
 	if ap and not QUYEN_SUA_HANG & set(frappe.get_roles()):
 		frappe.throw("Chỉ quản lý mới chuyển hạng hàng loạt được.")
@@ -760,7 +760,7 @@ def _bac(bang, ten):
 @frappe.whitelist()
 def dat_hang_nhieu(khach=None, hang=None):
 	"""Gan mot hang cho nhieu khach cung luc, tu man Danh sach khach hang."""
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	if not QUYEN_SUA_HANG & set(frappe.get_roles()):
 		frappe.throw("Chỉ quản lý mới chuyển hạng hàng loạt được.")
 	if isinstance(khach, str):
@@ -861,7 +861,7 @@ def _lien_he(khach):
 @frappe.whitelist()
 def ho_so(khach=None):
 	"""Ho so day du cua mot khach, cho man Chi tiet khach hang tren app."""
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	khach = (khach or "").strip()
 	if not khach or not frappe.db.exists("Customer", khach):
 		frappe.throw("Không có khách hàng %s." % (khach or "(trống)"))
@@ -968,7 +968,7 @@ def luu_ho_so(khach=None, dat=None):
 	nhat, gioi tinh, dia chi, nhan. Cac o mang tu Fabi sang deu de chi doc -
 	sua chung khong lam khach duoc cham soc tot hon, ma lai mat dau vet.
 	"""
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	khach = (khach or "").strip()
 	if not khach or not frappe.db.exists("Customer", khach):
 		frappe.throw("Không có khách hàng %s." % (khach or "(trống)"))
@@ -1104,7 +1104,7 @@ def the_tren_don(khach=None, tien=0, hoa_don=None):
 	CHI DOC. Khong ghi mot but diem nao - viec cong diem van do hook
 	on_submit cua hoa don lam, dung mot cho duy nhat.
 	"""
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	khach = (khach or "").strip()
 	if not khach:
 		return {"co": 0}

@@ -2336,7 +2336,9 @@ function vgbGomNhom() {
    Hong thi IM LANG. O khong deo so van dung nhu truoc, con hien mot loi do
    giua trang chu vi mot con so phu thi lam ca man xau di. */
 async function vgbDemVCL() {
-  if (!nenCoQuyen('ban_hang')) return;
+  /* #398 vong 4: Viec can lam di cong chung (bep, kho, thu mua cung co), nen
+     hoi co cong_chung, khong hoi co ban_hang da thu hep. */
+  if (!nenCoQuyen('cong_chung')) return;
   var o = document.getElementById('vgbSoVCL');
   if (!o) return;
   try {
@@ -9589,7 +9591,8 @@ var RNDLS = {
 };
 var rnd = { newf: null };
 function isRnd() { return hasRole('Mua hàng R&D') || hasRole('System Manager'); }
-function isSales() { return hasRole('Sales User') || hasRole('Sales Manager') || hasRole('Bộ phận đặt hàng') || hasRole('System Manager'); }
+// 01/10/2026: Bộ phận đặt hàng là vai thu mua, không phải Sales.
+function isSales() { return hasRole('Sales User') || hasRole('Sales Manager') || hasRole('System Manager'); }
 /* ================= HOP THOAI DUNG CHUNG =================
    Anh Viet 13/08/2026: "phai bien thanh dang chip het de chon chu khong
    phai dang go 1 hay 2 tho so nhu the nay. Ca header cung xau not
@@ -22247,7 +22250,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '545';
+var APPVER = '546';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }

@@ -67,7 +67,7 @@ def _tao_link():
 	gio = datetime(2026, 9, 8, 20, 0, 0)
 	f = SimpleNamespace(get_doc=lambda *a: p, throw=nem,
 		local=SimpleNamespace(conf={"encryption_key": "thu"}))
-	ns = {"frappe": f, "cint": lambda x: int(x or 0), "_kiem_quyen": lambda: None,
+	ns = {"frappe": f, "cint": lambda x: int(x or 0), "_kiem_quyen": lambda: None, "_kiem_quyen_ban": lambda: None,
 		"link_khach": lambda x: "https://order.example" + x, "ky_link": ky_link,
 		"da_gui": da_gui, "now_datetime": lambda: gio,
 		"getdate": lambda x: datetime.fromisoformat(str(x)).date(),

@@ -391,9 +391,9 @@ def xin_ma(si_name=None, so_diem=None):
 	So diem duyet duoc ghi thang vao ban ghi OTP. Pha xac nhan doc tu do
 	chu khong nhan lai tu may khach - xem ghi chu dau tep.
 	"""
-	from vagabond.ban_hang import _kiem_quyen
+	from vagabond.ban_hang import _kiem_quyen_ban
 
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	si = _hoa_don(si_name)
 	_kiem_don_con_tru_duoc(si)
 
@@ -477,9 +477,9 @@ def xac_nhan(si_name=None, ma=None):
 
 	KHONG nhan so diem tu may khach. So diem lay tu ban ghi OTP.
 	"""
-	from vagabond.ban_hang import _kiem_quyen
+	from vagabond.ban_hang import _kiem_quyen_ban
 
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	si = _hoa_don(si_name)
 	_kiem_don_con_tru_duoc(si)
 	khach = _khach_cua_don(si)
@@ -655,9 +655,9 @@ def go_luot_tru(si_name=None, ly_do=""):
 	Dung khi thu ngan bam nham so diem. Khong sua but cu (QT-20), ghi but
 	hoan roi cho phep tru lai tu dau.
 	"""
-	from vagabond.ban_hang import _kiem_quyen
+	from vagabond.ban_hang import _kiem_quyen_ban
 
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	si = _hoa_don(si_name)
 	if cint(si.get("docstatus")) != 0:
 		frappe.throw("Hoá đơn %s đã ghi sổ nên không gỡ được. Báo kế toán huỷ hoá đơn." % si["name"])
@@ -751,9 +751,9 @@ def _ghi_vet(si_name, viec):
 @frappe.whitelist()
 def tinh_trang(si_name=None):
 	"""Man Chi tiet don hoi: don nay tru diem duoc khong, da tru bao nhieu."""
-	from vagabond.ban_hang import _kiem_quyen
+	from vagabond.ban_hang import _kiem_quyen_ban
 
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	si = _hoa_don(si_name)
 	c = _cd()
 	ra = {
@@ -929,9 +929,9 @@ def xin_ma_quay(khach=None, so_diem=None, items=None, giam_gia=0, phi_ship=0,
 	"""Pha 1 cua luong quay: duyet so diem va gui ZNS. CHUA tru diem."""
 	import json as _json
 
-	from vagabond.ban_hang import _kiem_quyen
+	from vagabond.ban_hang import _kiem_quyen_ban
 
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	khach = (khach or "").strip()
 	if not khach:
 		frappe.throw(
@@ -1014,9 +1014,9 @@ def xin_ma_quay(khach=None, so_diem=None, items=None, giam_gia=0, phi_ship=0,
 @rate_limit(limit=60, seconds=600)
 def xac_nhan_quay(phien=None, ma=None):
 	"""Pha 2 cua luong quay: so ma. Dung thi cap VE, VAN CHUA tru diem."""
-	from vagabond.ban_hang import _kiem_quyen
+	from vagabond.ban_hang import _kiem_quyen_ban
 
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	ma = re.sub(r"\D", "", str(ma or ""))
 	if len(ma) != 6:
 		frappe.throw("Mã xác nhận gồm 6 chữ số. Vui lòng nhập lại.")
@@ -1113,9 +1113,9 @@ def bo_ve(phien=None):
 
 	Khong xoa ban ghi (QT-20), chi danh dau da dung de khong ai xai lai.
 	"""
-	from vagabond.ban_hang import _kiem_quyen
+	from vagabond.ban_hang import _kiem_quyen_ban
 
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	o = frappe.db.get_value(DT_OTP, phien, ["name", "da_dung", "muc_dich"], as_dict=True)
 	if not o or o.get("muc_dich") != MUC_DICH:
 		return {"ok": 1}
@@ -1132,9 +1132,9 @@ def bo_ve(phien=None):
 @frappe.whitelist()
 def tinh_trang_quay(khach=None, tong=0):
 	"""Man tinh tien hoi: khach nay dung duoc bao nhieu diem. CHI DOC."""
-	from vagabond.ban_hang import _kiem_quyen
+	from vagabond.ban_hang import _kiem_quyen_ban
 
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	khach = (khach or "").strip()
 	c = _cd()
 	ra = {

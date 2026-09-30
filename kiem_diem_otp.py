@@ -5849,7 +5849,7 @@ la("so tai khoan chua khai duoc dien san vao o", "(d.chua_map || [])[0]" in _js1
 _tai46 = _ht46.split("def tai_unc(")[1].split("\n@frappe.whitelist()")[0]
 la("tai_unc doi tep phai dinh dung phieu chi cua ho so",
    '"attached_to_name": ma_pe' in _tai46, True)
-la("tai_unc co cong chan quyen", "_kiem_quyen()" in _tai46, True)
+la("tai_unc co cong chan quyen", "_kiem_quyen_ban()" in _tai46, True)
 la("hinh thu nho co gioi han kich thuoc", "thumbnail((360, 360))" in _tai46, True)
 la("khong nen duoc thi tra nguyen ban chu khong vo", "pass" in _tai46.split("except Exception:")[-1], True)
 _dsu46 = _ht46.split("def _ds_unc(")[1].split("\n@frappe.whitelist()")[0]

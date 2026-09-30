@@ -426,9 +426,9 @@ def qua_han_don_dep(huy_luc, hom_nay, ngay_giu=NGAY_GIU):
 
 
 def _quyen():
-	from vagabond.ban_hang import _kiem_quyen
+	from vagabond.ban_hang import _kiem_quyen_ban
 
-	_kiem_quyen()
+	_kiem_quyen_ban()
 
 
 # Man danh sach phieu hoan tien la man CHI DOC: khong ham nao o day sua duoc
@@ -439,11 +439,11 @@ def _quyen():
 # day khong co vai Sales User nen bi chan ngay tu cua, du ho chinh la nguoi
 # hay phai tra loi khach ve tien hoan.
 def _vai_xem_phieu():
-	from vagabond.ban_hang import QUYEN_BAN_HANG
+	from vagabond.ban_hang import QUYEN_BAN_HANG_THAT
 	from vagabond.hoan_tien import VAI_KE_TOAN
 	from vagabond.vai_cua_hang import VAI_QLCH
 
-	return set(QUYEN_BAN_HANG) | set(VAI_KE_TOAN) | {VAI_QLCH, "Giám đốc", "AP Giám đốc"}
+	return set(QUYEN_BAN_HANG_THAT) | set(VAI_KE_TOAN) | {VAI_QLCH, "Giám đốc", "AP Giám đốc"}
 
 
 def _quyen_xem_phieu():

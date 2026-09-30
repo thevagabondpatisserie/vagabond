@@ -803,11 +803,11 @@ def tao(
 	di huy mot to da ghi so, tuc la de lai vet trong so sach cho mot viec
 	chua bao gio xay ra.
 	"""
-	from vagabond.ban_hang import _kiem_quyen
+	from vagabond.ban_hang import _kiem_quyen_ban
 
 	# KHONG con hoi ma PIN (anh Viet chot 16/08/2026). Tham so otp giu lai
 	# de man cu goi vao khong vo, nhung khong dung den.
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	si = frappe.get_doc(SI, si_name)
 	_kiem_tra_duoc(si)
 
@@ -888,9 +888,9 @@ def xem_tien_du(si_name=None):
 	Tra ve du con so de man hinh giai thich cho sales hieu vi sao duoc hoac
 	khong duoc, thay vi chi bao mot cau cut ngun.
 	"""
-	from vagabond.ban_hang import _kiem_quyen
+	from vagabond.ban_hang import _kiem_quyen_ban
 
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	si = frappe.get_doc(SI, si_name)
 	nhan = _tien_da_nhan(si)
 	duoc, tran, nhac = tran_tien_du(nhan, flt(si.grand_total))
@@ -942,9 +942,9 @@ def tao_tien_du(
 	nhan bao nhieu, hoa don ghi bao nhieu, phan chenh la con so may tu tinh
 	ra chu khong ai khai. Bat anh o day la bat mot thu khong noi them dieu gi.
 	"""
-	from vagabond.ban_hang import _kiem_quyen
+	from vagabond.ban_hang import _kiem_quyen_ban
 
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	si = frappe.get_doc(SI, si_name)
 	_kiem_tra_duoc(si)
 
@@ -1215,9 +1215,9 @@ def _kiem_huy_nhap_duoc(si):
 @frappe.whitelist()
 def xem_huy_nhap(si_name=None):
 	"""Don nhap nay huy va hoan lai duoc bao nhieu. Man hinh hoi TRUOC khi mo form."""
-	from vagabond.ban_hang import _kiem_quyen
+	from vagabond.ban_hang import _kiem_quyen_ban
 
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	si = frappe.get_doc(SI, si_name)
 	nhan = _tien_da_nhan(si)
 	duoc, tran, nhac = tran_huy_nhap(nhan, flt(si.grand_total))
@@ -1282,9 +1282,9 @@ def tao_huy_nhap(
 	ly. Cua moi nay dung lai dung chot do chu khong tu mo mot duong vong.
 	"""
 	from vagabond import chung_tu
-	from vagabond.ban_hang import _ghi_vet, _kiem_quyen, _otp_kiem
+	from vagabond.ban_hang import _ghi_vet, _kiem_quyen_ban, _otp_kiem
 
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	si = frappe.get_doc(SI, si_name)
 	_kiem_huy_nhap_duoc(si)
 
@@ -2177,9 +2177,9 @@ def _doi_soat_khop(ho_so=None, so_ngay=30):
 	la tien RA. Duong ong nay da co san tu truoc, o day chi them mach buoc
 	giao dich vao dung mot phieu.
 	"""
-	from vagabond.ban_hang import _kiem_quyen
+	from vagabond.ban_hang import _kiem_quyen_ban
 
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	# Phieu da huy hoac bi tu choi KHONG duoc tu khop.
 	#
 	# Duong SePay goi thang (sepay_tien_ra) da loai "Da huy" tu 16/08, nhung
@@ -2459,9 +2459,9 @@ def sinh_lai(ho_so=None):
 
 	Không khớp sao kê lại: tiền ra đã là sự thật đã ghi. Chỉ chạy lại đúng
 	bước sinh chứng từ, và chỉ khi phiếu còn trắng chứng từ."""
-	from vagabond.ban_hang import _kiem_quyen
+	from vagabond.ban_hang import _kiem_quyen_ban
 
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	if not _duoc_tu_choi():
 		frappe.throw("Chỉ kế toán được sinh lại chứng từ hoàn tiền.")
 	if not ho_so or not frappe.db.exists(DT, ho_so):
@@ -2506,9 +2506,9 @@ def sepay_tien_ra(mo_ta="", so_tien=0, ma_gd=""):
 	Hai duong dung chung mot phep khop va chung mot buoc sinh chung tu, nen
 	khong the lech nhau.
 	"""
-	from vagabond.ban_hang import _kiem_quyen
+	from vagabond.ban_hang import _kiem_quyen_ban
 
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	# #327: endpoint trực tiếp cũng phải có dòng sao kê thật và mapping active.
 	# Không dùng payload để tự tạo bằng chứng một lần tiền ra.
 	from vagabond.doi_soat_sepay import ly_do_tai_khoan_sepay
@@ -2717,10 +2717,10 @@ def thong_tin_chuyen_khoan(ho_so=None):
 	  dong_tab - dan thang vao tep lo cua MB, moi cot mot o
 	  noi_dung - chuoi rieng de bam chep cho o Noi dung tren MB Biz
 	"""
-	from vagabond.ban_hang import _kiem_quyen
+	from vagabond.ban_hang import _kiem_quyen_ban
 	from vagabond.ho_so_tt import _bo_dau
 
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	d = frappe.get_doc(DT, ho_so)
 	ten_nh = ""
 	if d.ngan_hang:
@@ -2810,9 +2810,9 @@ def ds_ngan_hang(tim=""):
 @frappe.whitelist()
 def tinh_trang(si_name=None):
 	"""Man Chi tiet don hoi: don nay hoan tien duoc khong, da hoan chua."""
-	from vagabond.ban_hang import _kiem_quyen
+	from vagabond.ban_hang import _kiem_quyen_ban
 
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	d = frappe.db.get_value(
 		SI, si_name, ["name", "docstatus", "vgb_huy", "grand_total", "custom_hddt_so"], as_dict=True
 	)
@@ -2998,9 +2998,9 @@ def ds(trang_thai="", so_dong=100, tim=""):
 	tram phieu, keo het ve dien thoai roi loc bang JavaScript la treo may -
 	va con sai, vi so tren chip se chi dem phan da keo ve.
 	"""
-	from vagabond.ban_hang import _kiem_quyen
+	from vagabond.ban_hang import _kiem_quyen_ban
 
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	loc = {}
 	tt = (trang_thai or "").strip()
 	if tt and tt != "tat_ca":
@@ -3150,9 +3150,9 @@ def dem_cho_chi():
 	Ham nay co the bi goi moi lan mo trang chu nen phai re: mot phep dem,
 	khong keo dong nao ve.
 	"""
-	from vagabond.ban_hang import _kiem_quyen
+	from vagabond.ban_hang import _kiem_quyen_ban
 
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	return {"cho_chi": frappe.db.count(DT, {"trang_thai": "Cho chi"})}
 
 
@@ -3167,9 +3167,9 @@ def xuat_excel(trang_thai="", tim="", so_dong=500):
 	Tep Excel ma khac man hinh la mot ngay nao do hai ben cai nhau ve mot
 	con so, nen o day goi thang ds() chu khong viet lai truy van.
 	"""
-	from vagabond.ban_hang import _kiem_quyen
+	from vagabond.ban_hang import _kiem_quyen_ban
 
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	kq = ds(trang_thai=trang_thai, so_dong=so_dong, tim=tim)
 	# ds() tra danh sach duoi khoa "ds", KHONG phai "rows".
 	#
@@ -3248,9 +3248,9 @@ def chi_tiet(ho_so):
 	so tai khoan khach, hoa don goc gom nhung mon gi, ai lap luc nao thi
 	phai co mot cho rieng.
 	"""
-	from vagabond.ban_hang import _kiem_quyen
+	from vagabond.ban_hang import _kiem_quyen_ban
 
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	if not frappe.db.exists(DT, ho_so):
 		frappe.throw(
 			"Không tìm thấy phiếu hoàn tiền %s. Có thể phiếu đã bị xoá trên Desk; anh chị vui lòng quay lại danh sách rồi mở phiếu khác." % ho_so
@@ -3395,9 +3395,9 @@ def gan_gd_vao(ho_so=None, gd=None):
 	KHONG doi so tien cua phieu, khong sinh chung tu. Day thuan tuy la mot
 	dau vet de chi Dung quyet chi.
 	"""
-	from vagabond.ban_hang import _kiem_quyen
+	from vagabond.ban_hang import _kiem_quyen_ban
 
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	if not _duoc_tu_choi():
 		frappe.throw("Chỉ kế toán hoặc giám đốc mới đối chiếu giao dịch tiền vào được.")
 	if not frappe.db.exists(DT, ho_so):
@@ -3488,6 +3488,19 @@ def _khi_khop_hoan_tien(doc, ma_gd):
 	return None
 
 
+def _quyen_xem_doi_soat():
+	vai = set(frappe.get_roles())
+	from vagabond.ban_hang import QUYEN_BAN_VA_KE_TOAN
+
+	if not (QUYEN_BAN_VA_KE_TOAN | {"Giám đốc"}) & vai:
+		frappe.throw("Tài khoản của bạn chưa được xem đối soát phiếu hoàn tiền.")
+
+
+def _quyen_khop_doi_soat():
+	if not _duoc_tu_choi():
+		frappe.throw("Chỉ kế toán hoặc giám đốc mới khớp lệnh chi được.")
+
+
 def _khai_doi_soat():
 	"""Khai luồng hoàn tiền vào sổ đối soát SePay dùng chung."""
 	from vagabond import doi_soat_sepay as dss
@@ -3504,6 +3517,11 @@ def _khai_doi_soat():
 		loc_chiem={"trang_thai": ["!=", "Da huy"]},
 		truong_nguoi="nguoi_khop_tay",
 		truong_luc="ngay_khop_tay",
+		# Codex #400 v5: cua ngo SePay chung kiem quyen theo luong nay. Xem ung
+		# vien: Sales, ke toan, giam doc. Khop (ghi): chi ke toan, giam doc, dung
+		# mot cua voi hoan_tien.khop_tay.
+		quyen_doc=_quyen_xem_doi_soat,
+		quyen_ghi=_quyen_khop_doi_soat,
 	)
 
 
@@ -3593,9 +3611,9 @@ def tu_choi(ho_so, ly_do=None):
 	  luc nao   chi khi tien CHUA ra; da doi soat thi tu choi la noi doi so
 	  ly do gi  bat buoc, va phai la mot cau chu khong phai mot dau cham
 	"""
-	from vagabond.ban_hang import _kiem_quyen
+	from vagabond.ban_hang import _kiem_quyen_ban
 
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	if not _duoc_tu_choi():
 		frappe.throw(
 			"Từ chối hoàn tiền là quyền của Kế toán và Giám đốc. Anh chị nhờ chị Dung hoặc anh Việt bấm giúp, hoặc báo bộ phận kỹ thuật cấp thêm chức vụ trong màn Quản lý người dùng."
@@ -3771,9 +3789,9 @@ def tai_unc(ho_so=None, tep=None, co="lon"):
 	co="nho" tra ve hinh thu nho ~360px cho luoi anh; "lon" tra nguyen
 	ruot tep de phong to va tai ve.
 	"""
-	from vagabond.ban_hang import _kiem_quyen
+	from vagabond.ban_hang import _kiem_quyen_ban
 
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	if not ho_so or not frappe.db.exists(DT, ho_so):
 		frappe.throw("Không tìm thấy phiếu hoàn tiền %s. Vui lòng tải lại danh sách." % ho_so)
 	ma_pe = frappe.db.get_value(DT, ho_so, "phieu_chi")
@@ -3857,9 +3875,9 @@ def dinh_unc(ho_so=None, ten=None, noi_dung=None):
 	chan_thieu_uy_nhiem_chi dem tep tren Payment Entry, va vi ho so con
 	dang giu anh bang chung cua Sales.
 	"""
-	from vagabond.ban_hang import _kiem_quyen
+	from vagabond.ban_hang import _kiem_quyen_ban
 
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	if not _duoc_tu_choi():
 		frappe.throw(
 			"Chỉ kế toán hoặc giám đốc mới đính uỷ nhiệm chi được. Nhờ chị Dung "
@@ -3947,9 +3965,9 @@ def go_unc(ho_so=None, tep=None):
 	    so giai trinh thue (QT-20: khong xoa chung tu, va khong dung vao
 	    du lieu qua khu).
 	"""
-	from vagabond.ban_hang import _kiem_quyen
+	from vagabond.ban_hang import _kiem_quyen_ban
 
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	if not _duoc_tu_choi():
 		frappe.throw(
 			"Chỉ kế toán hoặc giám đốc mới gỡ được uỷ nhiệm chi. Nhờ chị Dung gỡ giúp."
@@ -4003,9 +4021,9 @@ def go_anh_bang_chung(ho_so=None, tep=None):
 	man nay chi dinh vao duoc chu khong go ra: Sales chup nham mot tam la
 	no nam do va di theo ca ho so len ban ke toan.
 	"""
-	from vagabond.ban_hang import _kiem_quyen
+	from vagabond.ban_hang import _kiem_quyen_ban
 
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	if not frappe.db.exists(DT, ho_so):
 		frappe.throw("Không tìm thấy phiếu hoàn tiền %s. Vui lòng tải lại danh sách." % ho_so)
 
@@ -4052,9 +4070,9 @@ def hoan_thanh(ho_so=None):
 	Lap lai duoc: phieu chi da ghi so roi thi khong ghi lan hai, chi dong
 	ho so lai. Ke toan bam nham hai lan khong sinh ra hai but toan.
 	"""
-	from vagabond.ban_hang import _kiem_quyen
+	from vagabond.ban_hang import _kiem_quyen_ban
 
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	if not _duoc_tu_choi():
 		frappe.throw("Chỉ kế toán hoặc giám đốc mới kết thúc phiếu hoàn tiền được.")
 	if not frappe.db.exists(DT, ho_so):
@@ -4168,9 +4186,9 @@ def ghi_hddt_thay_the(ma_phieu, so, ky_hieu=None):
 	"""
 	# Import tai cho nhu cac ham khac trong tep: v295 quen dong nay o ba ham
 	# nay, bam nut la NameError (bat duoc 03/09/2026 khi ra lai email).
-	from vagabond.ban_hang import _kiem_quyen
+	from vagabond.ban_hang import _kiem_quyen_ban
 
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	so = (str(so or "")).strip()
 	if not so:
 		frappe.throw(
@@ -4243,9 +4261,9 @@ def go_hddt_thay_the(ma_phieu, ly_do):
 	"""
 	# Import tai cho nhu cac ham khac trong tep: v295 quen dong nay o ba ham
 	# nay, bam nut la NameError (bat duoc 03/09/2026 khi ra lai email).
-	from vagabond.ban_hang import _kiem_quyen
+	from vagabond.ban_hang import _kiem_quyen_ban
 
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	ly_do = (str(ly_do or "")).strip()
 	if not ly_do:
 		frappe.throw("Phải ghi lý do gỡ thì người sau mới hiểu vì sao ô này trống lại.")
@@ -4282,9 +4300,9 @@ def can_ghi_thay_the(so_ngay=90):
 	"""
 	# Import tai cho nhu cac ham khac trong tep: v295 quen dong nay o ba ham
 	# nay, bam nut la NameError (bat duoc 03/09/2026 khi ra lai email).
-	from vagabond.ban_hang import _kiem_quyen
+	from vagabond.ban_hang import _kiem_quyen_ban
 
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	tu = add_days(nowdate(), -int(so_ngay or 90))
 	ra = []
 	for d in frappe.get_all(
