@@ -67,6 +67,12 @@ def _tat():
 	frappe.clear_cache(doctype="Vagabond Settings")
 
 
+def _bat(o, ngay=None):
+	frappe.db.set_single_value("Vagabond Settings", o, ngay or today())
+	frappe.clear_document_cache("Vagabond Settings")
+	frappe.clear_cache(doctype="Vagabond Settings")
+
+
 def _sach(ham):
 	import functools
 
@@ -88,7 +94,7 @@ def _so(gl, tk):
 	return round(sum(d.debit - d.credit for d in gl if d.account == tk), 2)
 
 
-def _san_xuat(ct, kho, sl_nvl=10, sl_tp=5):
+def _san_xuat(ct, kho, sl_nvl=10, sl_tp=5, ghi_so=True):
 	from erpnext.stock.doctype.stock_entry.stock_entry_utils import make_stock_entry
 	nvl = _mon_thu("KT542-NVL-" + frappe.generate_hash(length=8))
 	tp = _mon_thu("KT542-TP-" + frappe.generate_hash(length=8))
@@ -102,7 +108,8 @@ def _san_xuat(ct, kho, sl_nvl=10, sl_tp=5):
 	from erpnext.manufacturing.doctype.work_order.work_order import make_stock_entry as lam
 	sx = frappe.get_doc(lam(wo.name, "Manufacture", qty=sl_tp))
 	_luu(sx)
-	sx.submit()
+	if ghi_so:
+		sx.submit()
 	return nvl, tp, sx
 
 
@@ -217,12 +224,13 @@ def _nhap_cu_loi_loi():
 	from unittest.mock import patch
 	ct, kho, tk621, tk154, tk632 = _nen()
 	nvl, tp, sx = _san_xuat(ct, kho)
-	for o in (hk.O_BAN_TU, hk.O_SX_TU):
-		frappe.db.set_single_value("Vagabond Settings", o, None)
+	# Bench 7fc4d84: đặt None mà không dọn cache thì ngày cũ còn đọc được,
+	# nháp "trước ngày bật" vẫn trừ kho. Tắt và bật đều phải qua dọn cache.
+	_tat()
 	hd = _hoa_don(ct, tp, 1)
 	la("nháp cũ chưa bật trừ kho", hd.update_stock, 0)
 	la("nháp cũ chưa có cờ", hd.vgb_tru_kho_ban, 0)
-	frappe.db.set_single_value("Vagabond Settings", hk.O_BAN_TU, today())
+	_bat(hk.O_BAN_TU)
 	lop = type(hd)
 	goc = lop.update_stock_ledger
 	def hong(self, *a, **kw):
@@ -236,3 +244,23 @@ def _nhap_cu_loi_loi():
 	la("không trừ kho", hd.update_stock, 0)
 	la("đánh dấu", hd.vgb_chua_tru_kho, 1)
 	dung("lý do có lỗi lõi", "KT542 F5" in (hd.vgb_ly_do_chua_tru_kho or ""))
+
+
+@ca("v542 Codex #397: nháp Sản xuất lưu lúc bật, kế toán xoá ngày rồi ghi sổ: về luồng cũ, không 621/154")
+@_sach
+def _sx_tat_giua_chung():
+	ct, kho, tk621, tk154, tk632 = _nen()
+	nvl, tp, sx = _san_xuat(ct, kho, ghi_so=False)
+	sx.reload()
+	dung("nháp đã mang 621", any(d.expense_account == tk621 for d in sx.items))
+	dung("nháp đã mang 154", any(d.expense_account == tk154 for d in sx.items))
+	_tat()
+	sx.reload()
+	sx.submit()
+	sx.reload()
+	dung("dòng không còn 621/154", all(d.expense_account not in (tk621, tk154) for d in sx.items))
+	gl = _gl("Stock Entry", sx.name)
+	dung("có sổ cái", len(gl) > 0)
+	la("không 621", _so(gl, tk621), 0)
+	la("không 154", _so(gl, tk154), 0)
+	la("sổ cân", round(sum(d.debit - d.credit for d in gl), 2), 0)
