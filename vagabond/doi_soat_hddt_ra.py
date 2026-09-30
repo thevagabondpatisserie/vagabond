@@ -378,9 +378,10 @@ TRUONG_TO = ["name", "so_hd", "ky_hieu", "ngay_lap", "trang_thai", "hd_goc", "to
 # của minvoice_chung_tu. Không đổi số hoá đơn trên đơn, không ghi sổ.
 TRUONG_MOI = {
 	DT_TO: [
-		{"fieldname": "vgb_don_erp", "label": "Đơn ERP (nối tay)", "fieldtype": "Link",
-			"options": "Sales Invoice", "insert_after": "hd_goc", "read_only": 1,
-			"description": "Kế toán nối tờ lập thẳng trên m-invoice vào đơn, từ báo cáo BC17."},
+		{"fieldname": "vgb_don_erp", "label": "Đơn ERP", "fieldtype": "Link",
+			"options": "Sales Invoice", "insert_after": "hd_goc", "read_only": 1, "in_standard_filter": 1,
+			"description": "Đơn bán hàng của tờ này. Máy tự nối tờ ERP phát hành và tờ thay thế (v536); "
+				"tờ lập thẳng trên m-invoice thì kế toán nối tay từ báo cáo BC17."},
 		{"fieldname": "vgb_don_erp_nguoi", "label": "Người nối", "fieldtype": "Link",
 			"options": "User", "insert_after": "vgb_don_erp", "read_only": 1},
 		{"fieldname": "vgb_don_erp_luc", "label": "Lúc nối", "fieldtype": "Datetime",
@@ -723,6 +724,75 @@ def _ghi_nhat_ky_don(ten, noi_dung):
 
 SO_NGAY_THAY_THE = 30
 NGUOI_MAY_THAY_THE = "Máy đồng bộ m-invoice (v527)"
+NGUOI_MAY_NOI = "Administrator"
+
+
+def ghi_don_erp_cua_to(to, don, ghi_chu=""):
+	"""Ghi ô Đơn ERP của một tờ, CÓ ĐIỀU KIỆN ô đang trống (kế toán nối tay
+	thì người thắng). Trả True khi sau lệnh ô đúng là đơn này. v536."""
+	if not to or not don:
+		return False
+	frappe.db.sql("""update `tabMInvoice Invoice`
+		set vgb_don_erp = %(don)s, vgb_don_erp_nguoi = %(nguoi)s, vgb_don_erp_luc = %(luc)s,
+			ly_do_bo_qua = if(%(ghi_chu)s = '', ly_do_bo_qua, %(ghi_chu)s)
+		where name = %(to)s and ifnull(vgb_don_erp, '') = ''""",
+		{"don": don, "nguoi": NGUOI_MAY_NOI, "luc": now_datetime(), "to": to, "ghi_chu": ghi_chu or ""})
+	return str(frappe.db.get_value(DT_TO, to, "vgb_don_erp") or "") == don
+
+
+def don_cua_to_goc(ma_to, ky_hieu, so_hd):
+	"""Đơn ERP đã phát hành tờ này: theo mã m-invoice (một trong hai ô), không
+	có thì theo ký hiệu và số. Chỉ đơn đã ghi sổ. Rỗng nếu không có. v536."""
+	# Codex #389 (P1 vòng 4): gom ứng viên từ CẢ HAI ô mã tờ rồi mới quyết.
+	# Hỏi ô thứ nhất ra một dòng mà chốt luôn thì ô nào hỏi trước quyết đơn.
+	theo_ma = set()
+	for o in ("custom_minvoice_id", "custom_hddt_id"):
+		theo_ma |= {r["name"] for r in frappe.get_all("Sales Invoice", filters={o: ma_to, "docstatus": 1},
+			fields=["name"], limit_page_length=0)}
+	if len(theo_ma) == 1:
+		return theo_ma.pop()
+	if theo_ma:
+		return ""
+	n = so(so_hd)
+	if not n:
+		return ""
+	ds = frappe.get_all("Sales Invoice", filters={"custom_hddt_so": ["in", [n, n.zfill(len(str(so_hd or "")))]],
+		"docstatus": 1}, fields=["name", "custom_hddt_ky_hieu"], limit_page_length=0)
+	return chon_don_duy_nhat(ds, ky_hieu)
+
+
+def chon_don_duy_nhat(ds, ky_hieu):
+	"""Đơn DUY NHẤT khớp ký hiệu và số, hoặc rỗng. THUẦN.
+
+	Codex #389 (P1 vòng 3): bản trước lấy dòng đầu tiên khớp ký hiệu hoặc ký
+	hiệu trống, không thứ tự, nên cùng một số dùng lại qua năm hay qua ký hiệu
+	khác thì máy ghi vĩnh viễn một đơn lịch sử bất kỳ. Khớp đúng ký hiệu được
+	ưu tiên; không có thì mới xét đơn cũ ký hiệu trống; lớp nào cũng phải DUY
+	NHẤT mới nối, hai đơn trở lên là để người nối tay."""
+	dung = [r["name"] for r in ds or [] if kh(r.get("custom_hddt_ky_hieu")) == kh(ky_hieu) and kh(ky_hieu)]
+	if dung:
+		return dung[0] if len(set(dung)) == 1 else ""
+	trong = [r["name"] for r in ds or [] if not kh(r.get("custom_hddt_ky_hieu"))]
+	return trong[0] if len(set(trong)) == 1 else ""
+
+
+def noi_to_goc_tu_dong(ma_to, ky_hieu, so_hd):
+	"""Gọi lúc kéo một tờ Đầu ra về: tờ do ERP phát hành thì nối ngay vào đơn.
+	Trả tên đơn, rỗng nếu THẬT SỰ không có đơn ERP, hoặc None nếu tra hỏng.
+	Không ném.
+
+	Codex #389 (P1): bản trước trả rỗng cả khi tra hỏng, nên một lỗi cơ sở dữ
+	liệu thoáng qua cũng khiến tờ ERP bị đóng dấu vĩnh viễn là Fabi và không
+	bao giờ được thử lại. None là "chưa biết", bên gọi phải để tờ lại cho lượt
+	sau, không được đóng dấu."""
+	try:
+		don = don_cua_to_goc(ma_to, ky_hieu, so_hd)
+		if don and ghi_don_erp_cua_to(ma_to, don, "Tờ do ERP phát hành cho đơn %s." % don):
+			return don
+		return ""
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "doi_soat_hddt_ra: noi to goc %s" % ma_to)
+		return None
 
 
 def noi_thay_the_tu_dong(so_ngay=SO_NGAY_THAY_THE):
@@ -762,6 +832,8 @@ def noi_thay_the_tu_dong(so_ngay=SO_NGAY_THAY_THE):
 				continue
 			_ghi_nhat_ky_don(v["don"], "Ghi tờ thay thế %s theo m-invoice%s. %s." % (
 				v["moi"], (" (thay cho %s)" % v["cu"]) if v["cu"] else "", NGUOI_MAY_THAY_THE))
+			# v536: nối cả phía tờ, để sổ hoá đơn điện tử mở từ tờ ra đơn.
+			ghi_don_erp_cua_to(v.get("to"), v["don"], "Tờ thay thế, máy nối theo tờ gốc.")
 			frappe.db.commit()
 			ghi += 1
 		except Exception:
