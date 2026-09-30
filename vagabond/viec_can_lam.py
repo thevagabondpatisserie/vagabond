@@ -48,7 +48,7 @@ VAI_QUAN_LY = {"Sales Manager", VAI_QLCH}
 # `VAI_SALES` lấy đúng bộ đã dùng nhất quán khắp repo (ban_hang.QUYEN_BAN_HANG,
 # van_don.QUYEN_SALES, khuyen_mai.QUYEN_KM), không tự chế bộ mới: hai danh
 # sách cho cùng một việc thì sớm muộn cũng lệch nhau, và người chịu là Sales.
-VAI_SALES = {"Sales User", "Sales Manager", "Bộ phận đặt hàng"}
+VAI_SALES = {"Sales User", "Sales Manager"}  # 01/10: gỡ Bộ phận đặt hàng (vai thu mua)
 
 # Vai Marketing do MÃ NGUỒN dựng, xem vai_cua_hang.BANG_VAI. Trước 25/08/2026
 # cả hệ KHÔNG có vai nào mang nghĩa Marketing, mà cột "Phụ trách" trong bảng

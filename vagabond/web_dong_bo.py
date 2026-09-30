@@ -42,7 +42,7 @@ KHOA_LAN_CUOI = "vgb_web_dong_bo_lan_cuoi"
 
 # Ai bấm được: những người đang cầm danh mục bên Pancake và bên Next.
 # Trung voi bo vai cua doi_soat.py, vi nut nay keo danh muc qua chinh cua do.
-QUYEN = {"System Manager", "Sales Manager", "Sales User", "Bộ phận đặt hàng"}
+QUYEN = {"System Manager", "Sales Manager", "Sales User"}  # 01/10: gỡ Bộ phận đặt hàng (vai thu mua)
 
 # Ma banh si khong bao gio len web ban le (anh Viet 10/08/2026).
 TIEN_TO_KHONG_LEN_WEB = ("BAWS",)

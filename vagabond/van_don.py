@@ -28,7 +28,7 @@ from vagabond import pickup
 from vagabond.lib import PANCAKE, TIMEOUT, cache_get, cache_set, cfg, key
 from vagabond.vai_cua_hang import VAI_QLCH
 
-QUYEN_SALES = {"System Manager", "Sales User", "Sales Manager", "Bộ phận đặt hàng"}
+QUYEN_SALES = {"System Manager", "Sales User", "Sales Manager"}  # 01/10: gỡ Bộ phận đặt hàng (vai thu mua)
 QUYEN_KE_TOAN = {"System Manager", "Accounts User", "Purchase User"}
 
 

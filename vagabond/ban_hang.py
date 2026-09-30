@@ -65,7 +65,10 @@ KHACH_LE = "Khách lẻ Online"
 # DVBH00001 la item "Phí Dịch Vụ Vận Chuyển" co san ben Next (bo ma chuan).
 MA_PHI_GIAO = "DVBH00001"
 
-QUYEN_BAN_HANG = {"System Manager", "Sales User", "Sales Manager", "Bộ phận đặt hàng"}
+# Anh Việt 01/10/2026: "Bộ phận đặt hàng" là vai nhân viên đặt hàng lên cho
+# thu mua (bếp, kho, thu mua đều giữ), KHÔNG phải vai bán hàng. Gỡ khỏi mọi
+# tập quyền bán hàng; Sales thật đều giữ Sales User.
+QUYEN_BAN_HANG = {"System Manager", "Sales User", "Sales Manager"}
 
 
 def _kiem_quyen():
