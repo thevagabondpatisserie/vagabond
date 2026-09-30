@@ -454,3 +454,16 @@ def _nhu_cau_thanh_phan():
 		[_Dong(item_code="TP", warehouse="K", qty=2, conversion_factor=1000), _Dong(item_code="A", warehouse="K", qty=1, conversion_factor=5)])
 	la("thành phần cần 2, không phải 2.000", nhom[("TP", "K")], 2)
 	la("cộng dồn cùng mã cùng kho", nhom[("A", "K")], 4)
+
+
+@ca("v542 Codex #397: tờ trộn dòng Phiếu giao hàng với bộ sản phẩm thêm tay cũng đánh dấu Chưa trừ kho")
+def _tron_phieu_giao_bo():
+	hd = _chay_chuan_bi(_Tho(posting_date="2026-10-01", company="C", items=[
+		_Dong(item_code="BANU00015", delivery_note="PGH-1", dn_detail="x"),
+		_Dong(item_code="BO-01")]), ton=("BANU00015",), bo=("BO-01",))
+	la("không trừ kho cả tờ", hd.update_stock, None)
+	la("đánh dấu", hd.vgb_chua_tru_kho, 1)
+	hd2 = _chay_chuan_bi(_Tho(posting_date="2026-10-01", company="C", items=[
+		_Dong(item_code="BANU00015", delivery_note="PGH-1", dn_detail="x"),
+		_Dong(item_code="PHI-SHIP")]), ton=("BANU00015",), bo=())
+	dung("thêm dòng dịch vụ không tồn kho: không đánh dấu", not hd2.vgb_chua_tru_kho)
