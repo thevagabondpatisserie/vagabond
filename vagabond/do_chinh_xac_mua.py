@@ -44,6 +44,32 @@ def quy_uoc(doc, goc):
     return {'gia': 9, 'tien': so_le_tien(goc), 'sl': 9}
 
 
+TIEN_DONG = ('amount', 'base_amount')
+TIEN_RONG = ('net_amount', 'base_net_amount')
+
+
+def bang_do_chinh_xac(qc, so_le_tong):
+    """Độ lẻ gán cho từng dòng. THUẦN.
+
+    Tiền DÒNG (amount) theo độ lẻ nguồn, để thành tiền ra đúng số nguyên như
+    hoá đơn. Tiền SAU GIẢM (net_amount) thì KHÔNG được ít lẻ hơn tổng của cả
+    tờ (`so_le_tong`, độ lẻ của net_total).
+
+    Vì sao - ca thật GSM C26TBB/77683 ngày 30/09/2026: 889 dòng cước, chiết
+    khấu 1.489.862 chia đều vào từng dòng. ERPNext (taxes_and_totals
+    .apply_discount_amount) làm tròn net_amount từng dòng theo độ lẻ DÒNG,
+    rồi bù phần chênh theo độ lẻ TỔNG. Dòng 0 lẻ mà tổng 2 lẻ thì phần bù
+    0,3 đồng bị làm tròn mất ở dòng nhưng vẫn được cộng vào tổng, dồn qua
+    889 dòng thành tờ thiếu 21 đồng, và hàng rào cuối "Không nhận".
+    """
+    tien = qc['tien']
+    bang = {k: qc['gia'] for k in GIA}
+    bang.update({k: tien for k in TIEN_DONG})
+    bang.update({k: max(tien, so_le_tong or 0) for k in TIEN_RONG})
+    bang['qty'] = qc['sl']
+    return bang
+
+
 def _gan(doc, khoa, bang):
     # Chỉ cache riêng object, không gán df.precision vào metadata/cache chung.
     import frappe
@@ -72,9 +98,8 @@ def truoc_khi_tinh(doc, method=None):
         return
     doc._vgb_precision_mua_cu = [(d, hasattr(d, '_precision'), deepcopy(getattr(d, '_precision', None)))
         for d in [doc] + list(doc.get('items') or []) + list(doc.get('taxes') or [])]
-    bang = {k: qc['gia'] for k in GIA}
-    bang.update({k: qc['tien'] for k in TIEN})
-    bang['qty'] = qc['sl']
+    # Đọc độ lẻ net_total TRƯỚC khi gán cho tờ; cùng công thức gán ở dưới.
+    bang = bang_do_chinh_xac(qc, max(doc.precision('net_total') or 0, qc['tien']))
     _gan(doc, 'items', bang)
     for d in doc.get('items') or []:
         _gan(d, 'main', bang)
