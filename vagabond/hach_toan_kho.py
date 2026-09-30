@@ -453,7 +453,10 @@ def ban_chuan_bi(doc):
 		dong_ds = doc.get("items") or []
 		if (ap_dung(doc.get("posting_date"), _moc(O_BAN_TU)) and co_phieu_giao(dong_ds)
 				and any(not (d.get("delivery_note") or d.get("dn_detail")) and d.get("item_code")
-					and frappe.get_cached_value("Item", d.item_code, "is_stock_item") for d in dong_ds)):
+					# Codex #397: bộ sản phẩm thêm tay (hàng cha không tồn kho, thành
+					# phần có tồn) cũng là hàng thêm tay cần đánh dấu.
+					and (frappe.get_cached_value("Item", d.item_code, "is_stock_item") or _la_bo(d.item_code))
+					for d in dong_ds)):
 			# Codex #395 F6: tờ trộn dòng từ Phiếu giao hàng với dòng thêm tay.
 			# Không trừ kho cả tờ (tránh trừ hai lần dòng đã giao), nhưng đánh
 			# dấu để kế toán xử lý dòng thêm tay, không để lọt im lặng.
