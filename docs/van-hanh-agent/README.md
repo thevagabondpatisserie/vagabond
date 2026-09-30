@@ -42,6 +42,8 @@ Quy tắc mới: [tiết kiệm token và mẫu tag](tiet-kiem-token.md). Tái d
 
 ## Mục lục
 
+- [PR389: mã kế toán và liên kết sổ HĐĐT](cong-viec/pr-389.md)
+
 - [Issue287: Telegram](cong-viec/issue-287.md)
 
 - [Issue 206: lô và giá vốn sản xuất](cong-viec/issue-206.md)
