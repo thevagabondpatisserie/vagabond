@@ -302,3 +302,38 @@ def _lui_truoc_reload():
 	dung("co_the_lui gọi trước rollback", than.index("lui = co_the_lui(self, loi)") < than.index("frappe.db.rollback(save_point=moc)"))
 	dung("co_the_lui gọi trước reload", than.index("lui = co_the_lui(self, loi)") < than.index("self.reload()"))
 	dung("lượt lùi đặt lại cờ bán trừ kho", "self.vgb_tru_kho_ban = 1" in than)
+
+
+@ca("v542 Codex #397: phiếu Sản xuất không còn áp dụng thì trả dòng 621/154 về tài khoản lõi tự điền")
+def _tra_tk_cu():
+	dong = [_Dong(expense_account="621 - X"), _Dong(expense_account="154 - X"), _Dong(expense_account="Khác - X")]
+	dem = hk.tra_tai_khoan_cu(dong, {"621 - X", "154 - X"}, lambda d: "CL - X")
+	la("trả 2 dòng", dem, 2)
+	la("dòng nguyên liệu về cũ", dong[0].expense_account, "CL - X")
+	la("dòng thành phẩm về cũ", dong[1].expense_account, "CL - X")
+	la("dòng khác giữ nguyên", dong[2].expense_account, "Khác - X")
+	dong2 = [_Dong(expense_account="621 - X")]
+	la("không tra được thì để nguyên", hk.tra_tai_khoan_cu(dong2, {"621 - X"}, lambda d: None), 0)
+	la("giữ 621 khi không có tài khoản cũ", dong2[0].expense_account, "621 - X")
+
+
+@ca("v542 Codex #397: nháp Sản xuất lưu lúc bật, kế toán xoá ngày, lưu/ghi sổ lại thì bỏ 621/154")
+def _tat_giua_chung():
+	import unittest.mock as m
+	phieu = _Tho(purpose="Manufacture", posting_date="2026-10-02", company="C", items=[
+		_Dong(item_code="NVL", s_warehouse="Baker - Nguyên liệu - TV", expense_account="621 - X"),
+		_Dong(item_code="TP", t_warehouse="Baker - Thành phẩm - TV", is_finished_item=1, expense_account="154 - X")])
+	phieu.get_item_details = lambda args: {"expense_account": "CL - X"}
+	with m.patch.object(hk, "_moc", lambda o: None), \
+			m.patch.object(hk, "_tk_moi_cua", lambda c: {"621 - X", "154 - X"}), \
+			m.patch.object(hk.frappe, "_dict", dict, create=True):
+		hk.sx_gan_tai_khoan(phieu)
+	la("nguyên liệu về cũ", phieu["items"][0].expense_account, "CL - X")
+	la("thành phẩm về cũ", phieu["items"][1].expense_account, "CL - X")
+	phieu["items"][0].expense_account = "621 - X"
+	phieu["posting_date"] = "2026-09-29"
+	with m.patch.object(hk, "_moc", lambda o: "2026-10-01"), \
+			m.patch.object(hk, "_tk_moi_cua", lambda c: {"621 - X", "154 - X"}), \
+			m.patch.object(hk.frappe, "_dict", dict, create=True):
+		hk.sx_gan_tai_khoan(phieu)
+	la("lùi ngày ghi về trước mốc: về cũ", phieu["items"][0].expense_account, "CL - X")
