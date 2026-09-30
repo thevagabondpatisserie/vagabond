@@ -65,10 +65,17 @@ KHACH_LE = "Khách lẻ Online"
 # DVBH00001 la item "Phí Dịch Vụ Vận Chuyển" co san ben Next (bo ma chuan).
 MA_PHI_GIAO = "DVBH00001"
 
+# QUYEN_BAN_HANG thực tế là CỔNG CHUNG của app: hơn 150 lời gọi _kiem_quyen ở
+# thông báo, gợi ý YCSX, đề nghị chi, việc cần làm... mà bếp, kho, thu mua
+# đi qua nhờ vai "Bộ phận đặt hàng". Codex #398: gỡ vai này khỏi đây là khoá
+# việc của họ. Giữ nguyên cổng chung.
+QUYEN_BAN_HANG = {"System Manager", "Sales User", "Sales Manager", "Bộ phận đặt hàng"}
+
 # Anh Việt 01/10/2026: "Bộ phận đặt hàng" là vai nhân viên đặt hàng lên cho
-# thu mua (bếp, kho, thu mua đều giữ), KHÔNG phải vai bán hàng. Gỡ khỏi mọi
-# tập quyền bán hàng; Sales thật đều giữ Sales User.
-QUYEN_BAN_HANG = {"System Manager", "Sales User", "Sales Manager"}
+# thu mua (bếp, kho, thu mua đều giữ), KHÔNG phải vai bán hàng. Các bước đọc,
+# lưu đơn bán và thu tiền khách (màn Công nợ, nút "Khách đã chuyển tiền")
+# chỉ cho Sales thật và kế toán.
+QUYEN_BAN_HANG_THAT = {"System Manager", "Sales User", "Sales Manager"}
 
 
 def _kiem_quyen():
@@ -78,7 +85,7 @@ def _kiem_quyen():
 
 def _kiem_quyen_doc_luu_don():
 	"""Các bước đọc/lưu đơn phục vụ Sales và kế toán trước khi ghi sổ."""
-	if not (QUYEN_BAN_HANG | {"Accounts User", "Accounts Manager"}) & set(frappe.get_roles()):
+	if not (QUYEN_BAN_HANG_THAT | {"Accounts User", "Accounts Manager"}) & set(frappe.get_roles()):
 		frappe.throw("Tài khoản của bạn chưa được cấp quyền xem và xử lý đơn bán hàng.")
 
 
