@@ -76,6 +76,10 @@ QUYEN_BAN_HANG = {"System Manager", "Sales User", "Sales Manager", "Bộ phận 
 # lưu đơn bán và thu tiền khách (màn Công nợ, nút "Khách đã chuyển tiền")
 # chỉ cho Sales thật và kế toán.
 QUYEN_BAN_HANG_THAT = {"System Manager", "Sales User", "Sales Manager"}
+# Cổng bán hàng mở cho Sales thật và kế toán (kế toán chi hoàn tiền, đối soát công
+# nợ). Hai kế toán hiện có chỉ vào được nhờ vai Bộ phận đặt hàng, nên phải có kế
+# toán ở đây, không thì gỡ vai là khoá luôn kế toán (#398 vòng 4).
+QUYEN_BAN_VA_KE_TOAN = QUYEN_BAN_HANG_THAT | {"Accounts User", "Accounts Manager"}
 
 
 def _kiem_quyen():
@@ -90,13 +94,13 @@ def _kiem_quyen_ban():
 	vai "Bộ phận đặt hàng" (đặt hàng lên thu mua) vẫn gọi thẳng được API tạo, sửa,
 	chốt hoá đơn bán dù màn hình đã ẩn. Cổng chung giữ cho các mô đun dùng chung.
 	"""
-	if not QUYEN_BAN_HANG_THAT & set(frappe.get_roles()):
+	if not QUYEN_BAN_VA_KE_TOAN & set(frappe.get_roles()):
 		frappe.throw("Tài khoản của bạn chưa được cấp quyền bán hàng.")
 
 
 def _kiem_quyen_doc_luu_don():
 	"""Các bước đọc/lưu đơn phục vụ Sales và kế toán trước khi ghi sổ."""
-	if not (QUYEN_BAN_HANG_THAT | {"Accounts User", "Accounts Manager"}) & set(frappe.get_roles()):
+	if not QUYEN_BAN_VA_KE_TOAN & set(frappe.get_roles()):
 		frappe.throw("Tài khoản của bạn chưa được cấp quyền xem và xử lý đơn bán hàng.")
 
 

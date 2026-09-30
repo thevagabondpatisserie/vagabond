@@ -275,7 +275,7 @@ def noi_dung_mac_dinh(ten_ngan, tu_ngay=None, den_ngay=None):
 
 
 def _kiem_quyen():
-	from vagabond.ban_hang import _kiem_quyen as kq
+	from vagabond.ban_hang import _kiem_quyen_ban as kq
 
 	kq()
 

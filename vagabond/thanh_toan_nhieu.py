@@ -392,9 +392,9 @@ def _vnd(so):
 @frappe.whitelist()
 def xem(si=None):
 	"""Màn hình đọc các dòng thanh toán của một hoá đơn."""
-	from vagabond.ban_hang import _kiem_quyen
+	from vagabond.ban_hang import _kiem_quyen_ban
 
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	si = (si or "").strip()
 	if not si or not frappe.db.exists(SI, si):
 		frappe.throw("Không tìm thấy hoá đơn %s." % si)
@@ -418,9 +418,9 @@ def luu(si=None, dong=None):
 	tờ đã vào sổ là đổi số của ca đã chốt; việc đó đi đường huỷ và lập lại
 	như mọi sửa đổi sau ghi sổ khác, không mở thêm một cửa lặng lẽ.
 	"""
-	from vagabond.ban_hang import _chuan_ma_tham_chieu, _kiem_quyen
+	from vagabond.ban_hang import _chuan_ma_tham_chieu, _kiem_quyen_ban
 
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	si = (si or "").strip()
 	if not si or not frappe.db.exists(SI, si):
 		frappe.throw("Không tìm thấy hoá đơn %s." % si)

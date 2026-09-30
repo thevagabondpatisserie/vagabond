@@ -146,10 +146,10 @@ def gan(name=None, nguoi=None):
 	tới một con số tiền nào, không đụng hoá đơn điện tử, nên gán lại lúc
 	nào cũng an toàn.
 	"""
-	from vagabond.ban_hang import _kiem_quyen
+	from vagabond.ban_hang import _kiem_quyen_ban
 	from vagabond import ten_nguoi
 
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	name = (name or "").strip()
 	nguoi = (nguoi or "").strip()
 	if not name or not frappe.db.exists(DT, name):

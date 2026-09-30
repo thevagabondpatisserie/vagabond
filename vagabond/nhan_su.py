@@ -297,7 +297,9 @@ def khoi_dong():
 		limit_page_length=0,
 	)
 	# Dùng đúng bộ vai của cửa máy chủ, không tạo thêm quy tắc quyền trên JS.
-	from vagabond.ban_hang import QUYEN_BAN_HANG
+	# #398 vòng 4: cờ này mở các lời gọi sang cổng bán hàng, nên dùng đúng bộ vai
+	# của cổng đó (Sales thật và kế toán), không dùng cổng chung.
+	from vagabond.ban_hang import QUYEN_BAN_HANG, QUYEN_BAN_VA_KE_TOAN
 	from vagabond.bao_cao import QUYEN_XEM
 	from vagabond.phan_tich import QUYEN_BANG_SANG
 	vai = set(frappe.get_roles())
@@ -306,6 +308,7 @@ def khoi_dong():
 		"Purchase Receipt", "RnD Purchase Request", "Phieu Kiem Ke", "Sales Invoice",
 	)}
 	return {"vai": sorted(vai), "kho": kho, "nhom": nhom,
-		"quyen_nen": {"doc": doc, "ban_hang": bool(vai & QUYEN_BAN_HANG),
+		"quyen_nen": {"doc": doc, "ban_hang": bool(vai & QUYEN_BAN_VA_KE_TOAN),
+			"cong_chung": bool(vai & QUYEN_BAN_HANG),
 			"bao_cao": bool(vai & QUYEN_XEM),
 			"bang_sang": bool(vai & QUYEN_BANG_SANG)}}
