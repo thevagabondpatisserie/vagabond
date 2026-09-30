@@ -239,3 +239,85 @@ def _co_quyen_nen():
 	dung("kế toán nằm trong cổng bán hàng", {"Accounts User", "Accounts Manager"} <= t["QUYEN_BAN_VA_KE_TOAN"])
 	dung("Bộ phận đặt hàng không nằm trong cổng bán hàng", VAI not in t["QUYEN_BAN_VA_KE_TOAN"])
 	dung("Bộ phận đặt hàng vẫn trong cổng chung", VAI in t["QUYEN_BAN_HANG"])
+
+
+# Codex #400 vòng 5 (review ba723d500b): cửa ngõ SePay chung (doi_soat_sepay)
+# nhận `loai` từ người gọi mà chỉ kiểm cổng chung, nên vai Bộ phận đặt hàng gọi
+# thẳng khop_tay("hoan_tien") hay ("cong_no") được. Sửa: mỗi luồng khai quyền
+# xem và quyền ghi của nó, cửa ngõ chung kiểm theo luồng trước khi đọc phiếu.
+@ca("v546 Codex #400 v5: ba cửa ngõ SePay chung kiểm quyền theo luồng, không còn cổng chung trần")
+def _sepay_kiem_theo_luong():
+	s = _doc("doi_soat_sepay.py")
+	for ham, ghi in (("def tu_dong(", "True"), ("def ung_vien(", "False"), ("def khop_tay(", "True")):
+		i = s.index(ham)
+		than = s[i:s.index("\n@frappe.whitelist()", i) if "\n@frappe.whitelist()" in s[i:] else len(s)]
+		dung("%s gọi kiem_quyen_luong(ghi=%s)" % (ham, ghi), "kiem_quyen_luong(loai, ghi=%s)" % ghi in than)
+		dung("%s không gọi cổng chung trần" % ham, "_kiem_quyen()" not in than)
+		k = than.index("kiem_quyen_luong(")
+		for doc in ("frappe.get_doc(", "frappe.get_all("):
+			if doc in than:
+				dung("%s kiểm quyền trước %s" % (ham, doc), k < than.index(doc))
+	for t, doc_q, ghi_q in (("cong_no.py", "quyen_doc=_kiem_quyen_ban", "quyen_ghi=_kiem_quyen_ban"),
+			("hoan_tien.py", "quyen_doc=_quyen_xem_doi_soat", "quyen_ghi=_quyen_khop_doi_soat")):
+		x = _doc(t)
+		dung("%s khai quyền xem theo luồng" % t, doc_q in x)
+		dung("%s khai quyền ghi theo luồng" % t, ghi_q in x)
+
+
+@ca("v546 Codex #400 v5: chạy thật khop_tay, tu_dong, ung_vien của cửa ngõ SePay theo từng vai và từng luồng")
+def _sepay_chay_that():
+	from types import SimpleNamespace as NS
+	from vagabond.khung.kiem_thu.thu_su_co_290 import nap
+
+	def nem(cau, **kw):
+		raise PermissionError(cau)
+
+	# (vai, loai, ham, mong qua)
+	bang = []
+	for vai in (VAI, "Sales User", "Accounts User", "Giám đốc", "Manufacturing User"):
+		for loai in ("cong_no", "hoan_tien"):
+			for ham in ("khop_tay", "tu_dong", "ung_vien"):
+				if vai in (VAI, "Manufacturing User"):
+					mong = False
+				elif loai == "cong_no":
+					mong = vai in ("Sales User", "Accounts User")
+				elif ham == "ung_vien":
+					mong = True
+				else:
+					mong = vai in ("Accounts User", "Giám đốc")
+				bang.append((vai, loai, ham, mong))
+	for vai, loai, ham, mong in bang:
+		vet = []
+
+		def doc(*a, **k):
+			vet.append("doc")
+			raise LookupError("dừng sau quyền")
+
+		f = NS(get_roles=lambda *a, v=vai: [v], throw=nem, get_doc=doc, get_all=doc,
+			session=NS(user="u@x"))
+		g = dict(frappe=f, flt=lambda x: float(x or 0), **_tap_that())
+		g["_kiem_quyen_ban"] = nap("ban_hang.py", "_kiem_quyen_ban", g)
+		g["_kiem_quyen"] = nap("ban_hang.py", "_kiem_quyen", g)
+		nap("hoan_tien.py", "_duoc_tu_choi", g)
+		xem = nap("hoan_tien.py", "_quyen_xem_doi_soat", g)
+		khop = nap("hoan_tien.py", "_quyen_khop_doi_soat", g)
+		g.update(nap_so=lambda: None, _SO={
+			"cong_no": {"doctype": "Vagabond Cong No", "dang_cho": {}, "quyen_doc": g["_kiem_quyen_ban"],
+				"quyen_ghi": g["_kiem_quyen_ban"]},
+			"hoan_tien": {"doctype": "Vagabond Hoan Tien", "dang_cho": {}, "quyen_doc": xem, "quyen_ghi": khop},
+		})
+		nap("doi_soat_sepay.py", "_ban", g)
+		nap("doi_soat_sepay.py", "kiem_quyen_luong", g)
+		# hoan_tien._quyen_xem_doi_soat nhập tập quyền từ ban_hang lúc chạy; ban_hang
+		# kéo requests mà máy CI không có, nên đưa đúng tập thật vào sys.modules.
+		import sys
+		from unittest.mock import patch
+		try:
+			with patch.dict(sys.modules, {"vagabond.ban_hang": NS(**_tap_that())}):
+				if ham == "khop_tay":
+					nap("doi_soat_sepay.py", ham, g)(loai, "P1", "GD1")
+				else:
+					nap("doi_soat_sepay.py", ham, g)(loai, "P1")
+		except (PermissionError, LookupError):
+			pass
+		dung("%s %s / %s %s" % (ham, loai, vai, "qua quyền" if mong else "bị chặn"), (vet == ["doc"]) == mong)
