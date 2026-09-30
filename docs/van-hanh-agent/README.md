@@ -42,6 +42,8 @@ Quy tắc mới: [tiết kiệm token và mẫu tag](tiet-kiem-token.md). Tái d
 
 ## Mục lục
 
+- [Đối chiếu công nợ 30/09: phương án chờ review](cong-viec/doi-chieu-cong-no-20260930.md)
+
 - [Issue287: Telegram](cong-viec/issue-287.md)
 
 - [Issue 206: lô và giá vốn sản xuất](cong-viec/issue-206.md)
