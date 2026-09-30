@@ -155,3 +155,114 @@ def _hoan_tien():
 	than = s[i:s.index("\ndef ", i + 10)]
 	dung("thoát sớm khi hoá đơn gốc đã trừ kho", 'if cint(si.get("update_stock")):' in than)
 	dung("thoát trước khi dựng dòng chuyển", than.index('if cint(si.get("update_stock")):') < than.index("dong = []"))
+
+
+class _Dong(dict):
+	def __getattr__(self, k):
+		return self.get(k)
+
+	def __setattr__(self, k, v):
+		self[k] = v
+
+
+class _Meta:
+	def has_field(self, f):
+		return True
+
+
+class _Tho(dict):
+	"""Tờ hoá đơn nháp mới, đủ cho ban_chuan_bi (không chạm DB)."""
+	docstatus = 0
+	meta = _Meta()
+
+	def __init__(self, **kw):
+		super().__init__(**kw)
+		self.flags = {}
+
+	def __getattr__(self, k):
+		return self.get(k)
+
+	def __setattr__(self, k, v):
+		if k == "flags":
+			dict.__setattr__(self, k, v)
+		else:
+			self[k] = v
+
+	def is_new(self):
+		return True
+
+
+def _chay_chuan_bi(hd, ton=(), bo=(), kho="Kho Sales Online - TV", loi_cau_hinh=None):
+	import unittest.mock as m
+	def cau_hinh(k, c):
+		if loi_cau_hinh:
+			raise Exception(loi_cau_hinh)
+		return "632 - GV - TV"
+	with m.patch.object(hk, "_moc", lambda o: "2026-10-01"), \
+			m.patch.object(hk, "_la_tang", lambda d: False), \
+			m.patch.object(hk, "_ghi_so_lien_tuc", lambda c: True), \
+			m.patch.object(hk, "_la_bo", lambda ma: ma in bo), \
+			m.patch.object(hk, "_kho_diem_ban", lambda d: kho), \
+			m.patch.object(hk, "_kiem_cau_hinh", cau_hinh), \
+			m.patch.object(hk.frappe, "get_cached_value", lambda dt, ma, o: ma in ton, create=True), \
+			m.patch.object(hk.frappe, "clear_last_message", lambda: None, create=True):
+		hk.ban_chuan_bi(hd)
+	return hd
+
+
+@ca("v542 Codex #395 F3: hoá đơn chỉ có bộ sản phẩm vẫn bật trừ kho theo thành phần")
+def _bo_san_pham():
+	hd = _chay_chuan_bi(_Tho(posting_date="2026-10-01", company="C",
+		items=[_Dong(item_code="BO-01", warehouse=None)]), ton=(), bo=("BO-01",))
+	la("bật trừ kho", hd.update_stock, 1)
+	la("dòng bộ nhận kho điểm bán", hd["items"][0].warehouse, "Kho Sales Online - TV")
+	la("dòng bộ nhận 632", hd["items"][0].expense_account, "632 - GV - TV")
+	hd2 = _chay_chuan_bi(_Tho(posting_date="2026-10-01", company="C",
+		items=[_Dong(item_code="PHI-SHIP")]), ton=(), bo=())
+	la("chỉ dịch vụ thì không trừ kho", hd2.update_stock, 0)
+
+
+@ca("v542 Codex #395 F4: nháp lỡ đánh dấu Chưa trừ kho vì cấu hình, sửa cấu hình rồi lưu lại thì trừ kho")
+def _tinh_lai_nhap():
+	hd = _chay_chuan_bi(_Tho(posting_date="2026-10-01", company="C",
+		items=[_Dong(item_code="BANU00015")]), ton=("BANU00015",), loi_cau_hinh="Kho chưa gắn tài khoản")
+	la("lần đầu lỗi cấu hình: đánh dấu", hd.vgb_chua_tru_kho, 1)
+	la("lần đầu không trừ", hd.update_stock, 0)
+	_chay_chuan_bi(hd, ton=("BANU00015",))
+	la("lưu lại sau khi sửa: bỏ dấu", hd.vgb_chua_tru_kho, 0)
+	la("lưu lại sau khi sửa: trừ kho", hd.update_stock, 1)
+	dung("xoá lý do cũ", not hd.vgb_ly_do_chua_tru_kho)
+
+
+@ca("v542 lượt ghi sổ lại sau lỗi lõi giữ dấu Chưa trừ kho, không tính lại")
+def _giu_khi_lui():
+	hd = _Tho(posting_date="2026-10-01", company="C", items=[_Dong(item_code="BANU00015")],
+		vgb_chua_tru_kho=1, update_stock=1)
+	hd.flags = {"vgb_lui_tru_kho": True}
+	_chay_chuan_bi(hd, ton=("BANU00015",))
+	la("giữ dấu", hd.vgb_chua_tru_kho, 1)
+	la("không trừ kho", hd.update_stock, 0)
+
+
+@ca("v542 thiếu tài khoản 621/154: phiếu Sản xuất vẫn lưu được theo luồng cũ, không chặn")
+def _sx_thieu_tk():
+	import sys
+	import types
+	import unittest.mock as m
+	loi_cls = getattr(hk.frappe, "ValidationError", None) or type("ValidationError", (Exception,), {})
+	def tk(c, so, goc):
+		raise loi_cls("Kế toán kiểm tài khoản %s" % so)
+	nhac = []
+	phieu = _Tho(purpose="Manufacture", posting_date="2026-10-02", company="C",
+		items=[_Dong(s_warehouse="Baker - Nguyên liệu - TV", expense_account="cu")])
+	erp = types.ModuleType("erpnext")
+	erp.is_perpetual_inventory_enabled = lambda c: True
+	with m.patch.dict(sys.modules, {"erpnext": erp}), \
+			m.patch.object(hk, "_moc", lambda o: "2026-10-01"), \
+			m.patch.object(hk, "_tk", tk), \
+			m.patch.object(hk.frappe, "ValidationError", loi_cls, create=True), \
+			m.patch.object(hk.frappe, "clear_last_message", lambda: None, create=True), \
+			m.patch.object(hk.frappe, "msgprint", lambda *a, **k: nhac.append(a), create=True):
+		hk.sx_gan_tai_khoan(phieu)
+	la("giữ tài khoản cũ", phieu["items"][0].expense_account, "cu")
+	la("có nhắc kế toán", len(nhac), 1)
