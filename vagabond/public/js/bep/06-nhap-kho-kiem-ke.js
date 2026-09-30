@@ -1908,4 +1908,5 @@ var RNDLS = {
 };
 var rnd = { newf: null };
 function isRnd() { return hasRole('Mua hàng R&D') || hasRole('System Manager'); }
-function isSales() { return hasRole('Sales User') || hasRole('Sales Manager') || hasRole('Bộ phận đặt hàng') || hasRole('System Manager'); }
+// 01/10/2026: Bộ phận đặt hàng là vai thu mua, không phải Sales.
+function isSales() { return hasRole('Sales User') || hasRole('Sales Manager') || hasRole('System Manager'); }
