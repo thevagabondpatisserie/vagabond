@@ -209,3 +209,30 @@ def _ban_loi_loi():
 	la("không trừ kho", hd.update_stock, 0)
 	la("đánh dấu", hd.vgb_chua_tru_kho, 1)
 	dung("lý do có lỗi lõi", "KT542" in (hd.vgb_ly_do_chua_tru_kho or ""))
+
+
+@ca("v542 Codex #395 F5: nháp lưu trước ngày bật, ghi sổ sau khi bật mà lõi lỗi kho: vẫn lùi ghi sổ không trừ kho")
+@_sach
+def _nhap_cu_loi_loi():
+	from unittest.mock import patch
+	ct, kho, tk621, tk154, tk632 = _nen()
+	nvl, tp, sx = _san_xuat(ct, kho)
+	for o in (hk.O_BAN_TU, hk.O_SX_TU):
+		frappe.db.set_single_value("Vagabond Settings", o, None)
+	hd = _hoa_don(ct, tp, 1)
+	la("nháp cũ chưa bật trừ kho", hd.update_stock, 0)
+	la("nháp cũ chưa có cờ", hd.vgb_tru_kho_ban, 0)
+	frappe.db.set_single_value("Vagabond Settings", hk.O_BAN_TU, today())
+	lop = type(hd)
+	goc = lop.update_stock_ledger
+	def hong(self, *a, **kw):
+		if self.update_stock:
+			raise frappe.ValidationError("KT542 F5 lõi kho giả")
+		return goc(self, *a, **kw)
+	with patch.object(lop, "update_stock_ledger", hong):
+		hd.submit()
+	hd.reload()
+	la("ghi sổ", hd.docstatus, 1)
+	la("không trừ kho", hd.update_stock, 0)
+	la("đánh dấu", hd.vgb_chua_tru_kho, 1)
+	dung("lý do có lỗi lõi", "KT542 F5" in (hd.vgb_ly_do_chua_tru_kho or ""))
