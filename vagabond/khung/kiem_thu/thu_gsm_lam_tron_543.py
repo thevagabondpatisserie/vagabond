@@ -50,9 +50,12 @@ def _chia_chiet_khau(tien_dong, chiet_khau, le_dong, le_tong):
 
 def _dong_giong_gsm():
 	"""889 dòng cước nguyên đồng, tổng 23.851.398 như tờ 77683."""
-	gia = [23325, 56574, 18000, 31234, 42111, 27000, 19873, 24560, 36789]
-	dong = [gia[(i * 7) % len(gia)] for i in range(889)]
-	dong[-1] += 23851398 - sum(dong)
+	# Mọi dòng DƯƠNG như tờ thật: 888 dòng theo bảng giá, dòng cuối là phần
+	# còn lại (23.144). Bản đầu cộng bù vào dòng cuối nên nó thành âm và
+	# ERPNext chặn ghi sổ "rate must be a positive number" (Bench #396).
+	gia = [23325, 36574, 18000, 31234, 23959, 27000, 19873, 24560, 36789]
+	dong = [gia[(i * 7) % len(gia)] for i in range(888)]
+	dong.append(23851398 - sum(dong))
 	return dong
 
 
