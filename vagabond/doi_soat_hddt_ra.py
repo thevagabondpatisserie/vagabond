@@ -743,12 +743,16 @@ def ghi_don_erp_cua_to(to, don, ghi_chu=""):
 def don_cua_to_goc(ma_to, ky_hieu, so_hd):
 	"""Đơn ERP đã phát hành tờ này: theo mã m-invoice (một trong hai ô), không
 	có thì theo ký hiệu và số. Chỉ đơn đã ghi sổ. Rỗng nếu không có. v536."""
+	# Codex #389 (P1 vòng 4): gom ứng viên từ CẢ HAI ô mã tờ rồi mới quyết.
+	# Hỏi ô thứ nhất ra một dòng mà chốt luôn thì ô nào hỏi trước quyết đơn.
+	theo_ma = set()
 	for o in ("custom_minvoice_id", "custom_hddt_id"):
-		r = frappe.get_all("Sales Invoice", filters={o: ma_to, "docstatus": 1}, fields=["name"], limit_page_length=2)
-		if len(r) == 1:
-			return r[0]["name"]
-		if r:
-			return ""
+		theo_ma |= {r["name"] for r in frappe.get_all("Sales Invoice", filters={o: ma_to, "docstatus": 1},
+			fields=["name"], limit_page_length=0)}
+	if len(theo_ma) == 1:
+		return theo_ma.pop()
+	if theo_ma:
+		return ""
 	n = so(so_hd)
 	if not n:
 		return ""

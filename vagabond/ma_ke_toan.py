@@ -222,6 +222,15 @@ def _nha_khoa():
 	frappe.db.sql("select release_lock(%s)", (KHOA_CAP_MA,))
 
 
+def ma_dung_lai(cac_ma):
+	"""Mã đã cấp của các bản ghi khác cùng MST. THUẦN. Rỗng: chưa ai có mã,
+	được cấp mới. Một mã: dùng lại. Nhiều mã khác nhau: None, xung đột."""
+	ds = {str(m or "").strip().upper() for m in cac_ma or [] if str(m or "").strip()}
+	if not ds:
+		return ""
+	return ds.pop() if len(ds) == 1 else None
+
+
 def cap_ma(doctype, name):
 	"""Cấp mã kế tiếp cho một khách hoặc NCC chưa có mã. Đã có mã thì trả
 	mã đang có. Chưa nạp danh mục Fast thì trả rỗng, không cấp.
@@ -245,6 +254,21 @@ def cap_ma(doctype, name):
 	hien = str(frappe.db.get_value(doctype, name, o) or "").strip()
 	if hien:
 		return hien
+	# Codex #389 (P1 vòng 4): cùng một MST chỉ một mã. Bản ghi khác cùng MST
+	# đã có mã thì dùng lại mã đó; có nhiều mã khác nhau thì không cấp gì, để
+	# người gộp. Đọc SAU khi giữ khoá, nên hai lượt lưu nối tiếp cùng MST
+	# không thể mỗi lượt cấp một mã.
+	mst = chuan_mst(frappe.db.get_value(doctype, name, "tax_id"))
+	if mst:
+		ung = [mst] + ([mst.replace("-", "")] if "-" in mst else [])
+		cung = [r.get(o) for r in frappe.get_all(doctype, filters={"tax_id": ["in", ung]}, fields=["name", o],
+			limit_page_length=0) if r.get("name") != name]
+		dung_lai = ma_dung_lai(cung)
+		if dung_lai is None:
+			return ""
+		if dung_lai:
+			frappe.db.set_value(doctype, name, o, dung_lai, update_modified=False)
+			return dung_lai
 	tien_to = TIEN_TO[doctype]
 	san = frappe.db.get_default(KHOA_SAN + tien_to)
 	if not cint(san):
