@@ -67,6 +67,7 @@ CUA_NGO = {
 	"hddt_cho_xuat.py": ["xu_ly_ngay_cu"],
 	# v527: noi tay to lap thang tren m-invoice vao don, tu bang phu BC17.
 	"doi_soat_hddt_ra.py": ["ung_vien_don", "noi_to_vao_don", "go_to_khoi_don"],
+	"ma_ke_toan.py": ["nap_danh_muc_fast"],
 	# Them 12/09/2026 (#284): don ba bang nhat ky. `don_dep_hang_ngay` KHONG
 	# mo ra ngoai, no la nhip dem cua scheduler. Hai cua duoi day deu tu kiem
 	# System Manager o dong dau.
@@ -316,7 +317,7 @@ CUA_NGO = {
 	# con so; `soat_thieu_chung_tu` la bang LIET KE cho ke toan truong, chi
 	# doc, khong sinh chung tu nao (dieu 11).
 	# v534 (#380): ghi so phieu thu kem uy nhiem chi khach gui, va chan doan chi doc.
-	"thu_tien.py": ["chan_doan_ghi_so", "ghi_so_phieu_thu", "soat_hinh_thuc_chua_khai", "soat_thieu_chung_tu", "tom_tat"],
+	"thu_tien.py": ["chan_doan_ghi_so", "ghi_so_phieu_thu", "nhan_tien_ve", "soat_hinh_thuc_chua_khai", "soat_thieu_chung_tu", "tom_tat", "ung_vien_tien_ve"],
 	"don_huy.py": ["bo_qua", "dem_cho_hoan", "dem_phieu_cho", "dong_bo", "ds",
 		"ds_phieu", "tai_tep", "tao_hoan", "tim_don_de_hoan", "xem_hoan",
 		"xuat_excel", "xuat_excel_phieu"],

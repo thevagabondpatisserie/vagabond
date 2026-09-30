@@ -103,6 +103,9 @@ def dung():
 	_dung_nhom(ccdc_dung_ngay.TRUONG_MOI, "ccdc_dung_ngay")
 	_dung_nhom(buoc_hoa_don_mua.TRUONG_MOI, "buoc_hoa_don_mua")
 	_dung_nhom(sepay.TRUONG_MOI, "sepay")
+	# v536: ô Mã khách kế toán (mã Fast) trên hoá đơn bán.
+	from vagabond import ma_ke_toan
+	_dung_nhom(ma_ke_toan.TRUONG_MOI, "ma_ke_toan")
 	# O nguoi ban tren hoa don (them 02/09/2026). Doc dau tep
 	# vagabond/nguoi_ban.py de biet vi sao may CO Y de trong voi don dong bo.
 	from vagabond import nguoi_ban

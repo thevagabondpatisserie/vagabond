@@ -169,10 +169,14 @@ def dung():
 		{"fieldname": "custom_hddt_id", "fieldtype": "Data", "label": "HDDT id", "insert_after": "customer"},
 		{"fieldname": "custom_hddt_ky_hieu", "fieldtype": "Data", "label": "HDDT ky hieu", "insert_after": "customer"},
 		{"fieldname": "custom_hddt_sobaomat", "fieldtype": "Data", "label": "HDDT sobaomat", "insert_after": "customer"},
+		# Ô kế toán ghi tay tờ thay thế ("1C26MPV 14576"), site thật có; patch v536 đọc.
+		{"fieldname": "custom_hddt_thay_the", "fieldtype": "Data", "label": "HDDT thay the", "insert_after": "customer"},
 		{"fieldname": "custom_minvoice_id", "fieldtype": "Data", "label": "MInvoice id", "insert_after": "customer"},
 		{"fieldname": "custom_minvoice_ngay_day", "fieldtype": "Data", "label": "MInvoice ngay day", "insert_after": "customer"},
 	])
-	_truong("Customer", [{"fieldname": "vgb_hang", "fieldtype": "Data", "label": "Hang", "insert_after": "customer_name"}])
+	_truong("Customer", [{"fieldname": "vgb_hang", "fieldtype": "Data", "label": "Hang", "insert_after": "customer_name"},
+		# Mã khách Fast, site thật có từ 06/08/2026 (ma_ke_toan.py đọc và cấp).
+		{"fieldname": "custom_ma_khach", "fieldtype": "Data", "label": "Mã khách hàng", "insert_after": "customer_name"}])
 	_truong("Supplier", [{"fieldname": "custom_ma_ncc", "fieldtype": "Data", "label": "Mã NCC", "insert_after": "supplier_name"}, {"fieldname": "email_cc", "fieldtype": "Small Text", "label": "Email phụ cần CC", "insert_after": "email_id"}])
 	_truong("Purchase Invoice", [
 		{"fieldname": "custom_minvoice_id", "fieldtype": "Data", "label": "MInvoice id", "insert_after": "supplier"},

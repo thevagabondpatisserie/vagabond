@@ -415,7 +415,7 @@ def dvt_ncc_cua_dong(mo_ta, uom_dong, ten_ncc=None, dvt_o=None):
 	if dvt:
 		return dvt
 	raw = str(uom_dong or "").strip()
-	return "" if raw == DVT_LOT else raw
+	return "" if raw in (DVT_LOT, DVT_LOT_LE) else raw
 
 
 def chan_hang_kho_khong_dvt(dvt_ncc, la_hang_kho):
@@ -489,6 +489,33 @@ def cint_thuan(x):
 
 
 DVT_LOT = "Nos"   # đơn vị lót của dòng trống mã, không phải đơn vị nhà cung cấp
+# Đơn vị lót khi số lượng lẻ (2,5). "Nos" bắt số nguyên, nên dòng trống mã
+# 2,5 kg mà đơn vị gốc chưa có trong danh mục thì cả tờ không dựng được và
+# bị thử lại mỗi 15 phút (tờ ngày 26/02/2026 thử 1.943 lần, anh Việt
+# 29/09/2026: "sửa ngay đi không lại kẹt luồng đồng bộ"). Máy tự tạo đơn
+# vị này, cho phép số lẻ, và nó cũng chỉ là đơn vị lót như "Nos".
+DVT_LOT_LE = "Đơn vị lẻ"
+
+
+def la_so_le(sl):
+	"""Số lượng có phần lẻ không. THUẦN."""
+	try:
+		v = float(sl or 0)
+	except (TypeError, ValueError):
+		return False
+	return abs(v - round(v)) > 1e-9
+
+
+def dvt_lot_cho(sl, uom, bat_nguyen):
+	"""Đơn vị ghi lên dòng trống mã. THUẦN.
+
+	uom: đơn vị trong danh mục trùng tên đơn vị nhà cung cấp (có thể rỗng).
+	bat_nguyen(u): đơn vị u có bắt số nguyên không. Số lượng lẻ mà đơn vị
+	đang chọn bắt số nguyên thì dùng đơn vị lót lẻ, không làm hỏng cả tờ."""
+	u = str(uom or "").strip() or DVT_LOT
+	if la_so_le(sl) and bat_nguyen(u):
+		return DVT_LOT_LE
+	return u
 KHONG_GHI = "(không ghi)"   # hoá đơn gốc để trống ô đơn vị
 
 
