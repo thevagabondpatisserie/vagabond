@@ -1,14 +1,18 @@
 /* v547: chạy THẬT màn Ghi sổ kiểm kê (scrKkPost, kkpSubmit) trong DOM giả. Không đo CSS.
    Ca 1: giá lấy từ goi_y_gia (sổ kho đúng kho), mặc định Điều chỉnh tồn, ghi sổ gửi đúng giá.
-   Ca 2 (Codex #401 F3): goi_y_gia lỗi thì CHẶN ghi sổ, không rơi về Item.valuation_rate. */
+   Ca 2 (Codex #401 F3): goi_y_gia lỗi thì CHẶN ghi sổ, không rơi về Item.valuation_rate.
+   Vòng 3: tra giá và ghi sổ dùng CÙNG một mốc ngày giờ. */
 const fs=require('fs'), vm=require('vm'), assert=require('assert');
 const {taiLieuGia,ElementGia}=require('./dom_gia.js');
 async function canh(loiGia){
  const document=taiLieuGia(),goi=[],toast=[];
+ /* Codex #401 vong 3: moi lan goi hmOf ra mot gio KHAC, nen code nao goi hmOf
+    hai lan (mot lan tra gia, mot lan ghi so) se lo ra gio lech. */
+ let soGio=0;
  const c={document,console,Date,Math,JSON,Promise,setTimeout,COMPANY:'CTY',
   h:x=>String(x==null?'':x),num:String,dmy:String,shortWh:String,vgbCss:()=>{},busy:()=>{},
   toast:m=>toast.push(m),errMsg:e=>String(e&&e.message||e),back:()=>{},go:()=>{},reset:()=>{},scrHome:()=>{},scrKkList:()=>{},kk:{},
-  sheet:()=>{},confirmSheet:async()=>true,ymdOf:()=> '2026-10-01',hmOf:()=> '08:00:00',
+  sheet:()=>{},confirmSheet:async()=>true,ymdOf:()=> '2026-10-01',hmOf:()=> '08:'+String(10+(soGio++))+':00',
   inChunks:async(a,n,f)=>f(a),
   getList:async(dt)=>{
    if(dt==='Item')return [{name:'M',item_name:'Món',stock_uom:'Gram',has_batch_no:0,valuation_rate:0,last_purchase_rate:0}];
@@ -39,6 +43,9 @@ async function canh(loiGia){
   assert(ins,'đã tạo phiếu điều chỉnh');
   assert.strictEqual(ins.args.doc.purpose,'Stock Reconciliation','kiểu Điều chỉnh tồn');
   assert.strictEqual(ins.args.doc.items[0].valuation_rate,400,'giá sổ kho 400, không phải Item.valuation_rate 0');
+  assert.strictEqual(gy.args.ngay,ins.args.doc.posting_date,'tra giá đúng ngày ghi sổ');
+  assert.strictEqual(gy.args.ngay,'2026-09-30','ngày ghi sổ là ngày kiểm');
+  assert.strictEqual(gy.args.gio,ins.args.doc.posting_time,'tra giá đúng giờ ghi sổ (Codex #401 vòng 3)');
  }
 }
 (async()=>{await canh(false);await canh(true);console.log('PASS 547: gia von tu goi_y_gia, mac dinh dieu chinh ton, tra gia loi thi chan');})().catch(e=>{console.error(e);process.exit(1);});
