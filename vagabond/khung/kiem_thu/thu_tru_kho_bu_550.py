@@ -259,21 +259,26 @@ def _long():
 
 # ------------------------------------------------------------ hook
 
-@ca("v550 phiếu nhập vào kho điểm bán: xếp việc sau commit, gộp theo kho; phiếu bù của máy không xếp")
+@ca("v550 phiếu nhập vào kho điểm bán: xếp việc SAU commit (không chạm hàng đợi trong phiếu), gộp theo kho; phiếu bù của máy không xếp")
 def _hook_nhap():
-	goi = []
+	goi, sau_commit = [], []
 	f = tb.frappe
+	db = NS(after_commit=NS(add=lambda fn: sau_commit.append(fn)))
 	with patch.object(f, "enqueue", lambda *a, **k: goi.append((a, k)), create=True), \
+			patch.object(f, "db", db), \
 			patch.object(f, "scrub", lambda s: s.lower().replace(" ", "_"), create=True), \
 			patch.object(tb, "tat_ca_kho_diem", lambda: {KHO}):
 		tb.khi_nhap_kho(D(items=[D(t_warehouse=KHO), D(t_warehouse=KHO)]))
 		tb.khi_nhap_kho(D(vgb_hd_tru_bu="HDB-1", items=[D(t_warehouse=KHO)]))
 		tb.khi_nhap_kho(D(items=[D(t_warehouse="Baker - Thành phẩm - TV")]))
+		la("chưa chạm hàng đợi trước commit", goi, [])
+		la("một việc chờ commit cho D1", len(sau_commit), 1)
+		for fn in sau_commit:
+			fn()
 	la("một việc cho D1", len(goi), 1)
 	a, k = goi[0]
 	la("đúng hàm", a[0], "vagabond.tru_kho_bu.tru_bu_kho")
 	la("đúng kho", k["kho"], KHO)
-	la("chạy sau commit", k.get("enqueue_after_commit"), True)
 	la("gộp trùng", k.get("deduplicate"), True)
 
 
@@ -366,3 +371,93 @@ def _node():
 	kq = subprocess.run(["node", p], capture_output=True, text=True, timeout=60)
 	la("hành vi node: " + kq.stdout + kq.stderr, kq.returncode, 0)
 	dung("cổng chạy tru_kho_bu_550.js", "node vagabond/khung/kiem_thu/hanh_vi/tru_kho_bu_550.js" in _doc("kiem_truoc_deploy.sh"))
+
+
+# ------------------------------------------- vòng 3: Codex review 3c93e55
+
+def _ds_gia(rows):
+	"""get_all giả tôn trọng limit_page_length như Frappe thật."""
+	def get_all(dt, filters=None, fields=None, order_by=None, limit_page_length=20, **k):
+		n = limit_page_length if limit_page_length else len(rows)
+		return [D(r) for r in rows[:n]]
+	return get_all
+
+
+@ca("v550 F1 (Codex 3c93e55): 300 tờ Gỡ tay hay kho khác đứng đầu không chặn tờ thứ 301 đủ điều kiện")
+def _f1_tran():
+	rows = [{"name": "G%03d" % i, "vgb_quay": "TCV", "vgb_tru_bu": "Gỡ tay"} for i in range(300)]
+	rows += [{"name": "K%03d" % i, "vgb_quay": "NVHTN", "vgb_tru_bu": ""} for i in range(50)]
+	rows.append({"name": "T301", "vgb_quay": "TCV", "vgb_tru_bu": ""})
+	kho = {"TCV": KHO, "NVHTN": "Kho NVHTN - TV"}
+	with patch.object(tb.frappe, "get_all", _ds_gia(rows)), \
+			patch.object(tb, "_kho_diem_ban", lambda r: kho[r.vgb_quay]), \
+			patch("vagabond.hach_toan_kho._moc", lambda o: "2026-10-01"):
+		dung("nhịp toàn hệ thống tới được T301", "T301" in tb._hd_cho(None))
+		la("hàng về D1 tới được T301", tb._hd_cho(KHO), ["T301"])
+		dung("nút cả điểm (kể cả Gỡ tay) vẫn tới T301", "T301" in tb._hd_cho(KHO, tu_dong=False))
+
+
+@ca("v550 F1: tờ thiếu hàng đứng đầu hàng đợi không làm tờ sau có tồn bị bỏ qua mãi")
+def _f1_tien_trien():
+	rows = [{"name": "H%03d" % i, "vgb_quay": "TCV", "vgb_tru_bu": ""} for i in range(320)]
+	da = []
+	with patch.object(tb.frappe, "get_all", _ds_gia(rows)), \
+			patch.object(tb.frappe, "db", NS(commit=lambda: None)), \
+			patch.object(tb, "_kho_diem_ban", lambda r: KHO), \
+			patch.object(tb, "tru_bu", lambda ten, nguon=None: da.append(ten) or {"ok": 1}), \
+			patch("vagabond.hach_toan_kho._moc", lambda o: "2026-10-01"):
+		tb.tru_bu_kho(KHO)
+	dung("lượt quét tới tờ cuối", "H319" in da)
+	la("mỗi tờ một lần", len(da), len(set(da)))
+
+
+@ca("v550 F2 (Codex 3c93e55): hàng đợi lỗi không làm hỏng phiếu nhập kho")
+def _f2_hang_doi():
+	f = tb.frappe
+	sau_commit, nhat_ky = [], []
+
+	def hong(*a, **k):
+		raise ConnectionError("redis down")
+
+	db = NS(after_commit=NS(add=lambda fn: sau_commit.append(fn)))
+	with patch.object(f, "enqueue", hong, create=True), \
+			patch.object(f, "db", db), \
+			patch.object(f, "scrub", lambda s: s.lower().replace(" ", "_"), create=True), \
+			patch.object(f, "log_error", lambda *a, **k: nhat_ky.append(a)), \
+			patch.object(tb, "tat_ca_kho_diem", lambda: {KHO}):
+		loi = None
+		try:
+			tb.khi_nhap_kho(D(items=[D(t_warehouse=KHO)]))
+		except Exception as e:  # noqa: BLE001
+			loi = e
+		la("hook phiếu nhập không ném", loi, None)
+		la("đặt việc sau commit", len(sau_commit), 1)
+		loi = None
+		try:
+			for fn in sau_commit:
+				fn()
+		except Exception as e:  # noqa: BLE001
+			loi = e
+		la("việc sau commit không ném khi hàng đợi lỗi", loi, None)
+		dung("có ghi nhật ký lỗi", len(nhat_ky) >= 1)
+
+
+@ca("v550 F3 (Codex 3c93e55): tờ đã trừ trực tiếp hiện Đã trừ đúng số, không báo Đủ để trừ")
+def _f3_da_tru():
+	def sql(q, a=None, **k):
+		if "Stock Ledger Entry" in q:
+			return [("BANU00062", KHO, 2.0)]
+		return []
+	with patch.object(tb.frappe, "db", NS(sql=sql)):
+		da = tb.da_tru_cua("HDB-2")
+	la("đã trừ lấy từ sổ kho của hoá đơn", da, {("BANU00062", KHO): 2.0})
+	la("nhãn món", tb.nhan_dong(2, da.get(("BANU00062", KHO)), 5), "da_tru")
+
+	def sql2(q, a=None, **k):
+		if "Stock Ledger Entry" in q:
+			return [("A", KHO, 1.0)]
+		if "Stock Entry Detail" in q:
+			return [("A", KHO, 1.0), ("B", KHO, 3.0)]
+		return []
+	with patch.object(tb.frappe, "db", NS(sql=sql2)):
+		la("cộng cả hai nguồn", tb.da_tru_cua("HDB-3"), {("A", KHO): 2.0, ("B", KHO): 3.0})
