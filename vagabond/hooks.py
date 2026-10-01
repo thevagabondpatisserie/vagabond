@@ -390,6 +390,9 @@ doc_events = {
 	# HAI PHIEN CUNG THEM VAO DAY trong ngay 03/09/2026, giu CA HAI theo quy
 	# tac 8: cung them vao mot cho thi khong ai duoc chon bo ai.
 	"Stock Reconciliation": {
+		# v547: gia von trong hoac 0 thi dien theo so kho, go o lo cu sau v545.
+		# Mot luat chung cho Desk va app, doc dau tep gia_von_kiem_ke.py.
+		"before_validate": ["vagabond.gia_von_kiem_ke.dien_gia"],
 		"validate": ["vagabond.kho_san_xuat.canh_bao_kiem_ke_sai_kho"],
 	},
 	"Stock Entry": {

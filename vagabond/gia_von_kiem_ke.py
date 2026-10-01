@@ -1,0 +1,123 @@
+# -*- coding: utf-8 -*-
+"""v547: giá vốn phiếu kiểm kê, MỘT luật chung cho app và Desk.
+
+Ca thật 30/09-01/10/2026:
+- Kiên lập phiếu kiểm kê Kho tổng 307 trên Desk, nạp nhiều dòng một lượt.
+  Cột giá vốn ra 0 cả loạt dù sổ kho có giá (bơ 400 đ/g, Feuille 315 đ/g).
+  ERPNext v16 coi giá 0 ghi sẵn là "định giá lại về 0" và không tự tra
+  (stock_reconciliation.py: "an explicitly set zero rate is a real
+  revaluation"), chỉ tự tra khi ô để TRỐNG.
+- Màn Ghi sổ kiểm kê trên app lấy Item.valuation_rate (ô chung của mã,
+  thường 0) thay vì giá sổ kho của đúng kho, nên phiếu Kho D1 của Dễ đòi
+  điền tay 15 giá dù Kho D1 có giá cho phần lớn các món đó.
+
+Luật chung (gia_von): dòng có số lượng mà giá vốn trống hoặc 0 thì lấy, theo
+thứ tự, cái đầu tiên lớn hơn 0:
+  1. giá bình quân trên sổ kho của ĐÚNG kho, tại ngày giờ phiếu;
+  2. giá sổ kho gần nhất của mã ở kho khác;
+  3. giá mua gần nhất của mã (Item.last_purchase_rate);
+  4. giá vốn chung của mã (Item.valuation_rate).
+Không có gì thì để trống, ERPNext tự chặn "Valuation Rate required" và nêu
+tên món. Dòng bật "Cho phép định giá bằng 0" thì giữ nguyên.
+
+App gọi goi_y_gia (cùng luật) để điền sẵn, Desk đi qua hook trước khi lưu.
+"""
+
+import frappe
+from frappe.utils import flt
+
+NGUON = ("so_kho", "kho_khac", "gia_mua", "gia_ma")
+
+
+def can_dien(qty, gia, cho_phep_0=0):
+	"""THUẦN: dòng có số lượng, giá trống hoặc 0, không chủ ý định giá 0."""
+	try:
+		if int(cho_phep_0 or 0):
+			return False
+	except (TypeError, ValueError):
+		pass
+	return flt(qty) > 0 and (gia in (None, "") or flt(gia) <= 0)
+
+
+def chon_gia(cac_gia):
+	"""THUẦN: cac_gia là [(nguồn, giá)] theo thứ tự ưu tiên. Trả (giá, nguồn)
+	của cái đầu tiên > 0, không có thì (None, None)."""
+	for nguon, gia in cac_gia or []:
+		if flt(gia) > 0:
+			return flt(gia), nguon
+	return None, None
+
+
+def _gia_so_kho(ma, kho, ngay=None, gio=None):
+	from erpnext.stock.utils import get_stock_balance
+
+	try:
+		kq = get_stock_balance(ma, kho, ngay, gio, with_valuation_rate=True)
+		return flt(kq[1]) if isinstance(kq, (list, tuple)) and len(kq) > 1 else 0
+	except Exception:
+		return 0
+
+
+def _gia_kho_khac(ma):
+	r = frappe.db.sql(
+		"""select valuation_rate from `tabStock Ledger Entry`
+		where item_code=%s and is_cancelled=0 and valuation_rate > 0
+		order by posting_datetime desc, creation desc limit 1""",
+		(ma,),
+	)
+	return flt(r[0][0]) if r else 0
+
+
+def gia_von(ma, kho, ngay=None, gio=None):
+	"""Giá vốn đề xuất cho một mã ở một kho. Trả (giá, nguồn) hoặc (None, None)."""
+	it = frappe.db.get_value("Item", ma, ["last_purchase_rate", "valuation_rate"], as_dict=True) or {}
+	return chon_gia([
+		("so_kho", _gia_so_kho(ma, kho, ngay, gio)),
+		("kho_khac", _gia_kho_khac(ma)),
+		("gia_mua", it.get("last_purchase_rate")),
+		("gia_ma", it.get("valuation_rate")),
+	])
+
+
+def dien_gia(doc, method=None):
+	"""Hook before_validate Stock Reconciliation (Desk, app, API đều đi qua).
+
+	Hai việc trên từng dòng:
+	- Mã không còn quản lý theo lô hay serial (v545) thì gỡ các ô lô cũ còn
+	  dính trên dòng, để tờ mở từ trước khi tắt lô vẫn lưu được.
+	- Giá vốn trống hoặc 0 thì điền theo gia_von.
+	"""
+	if doc.docstatus == 2:
+		return
+	for r in doc.get("items") or []:
+		if not r.item_code:
+			continue
+		co = frappe.db.get_value("Item", r.item_code, ["has_batch_no", "has_serial_no"], as_dict=True) or {}
+		if not co.get("has_batch_no") and not co.get("has_serial_no"):
+			for f in ("batch_no", "serial_no", "serial_and_batch_bundle", "current_serial_and_batch_bundle"):
+				if r.get(f):
+					r.set(f, None)
+			if r.get("use_serial_batch_fields"):
+				r.use_serial_batch_fields = 0
+		if can_dien(r.qty, r.valuation_rate, r.get("allow_zero_valuation_rate")):
+			gia, _nguon = gia_von(r.item_code, r.warehouse or doc.get("set_warehouse"),
+				doc.posting_date, doc.posting_time)
+			if gia:
+				r.valuation_rate = gia
+
+
+@frappe.whitelist()
+def goi_y_gia(kho, ma, ngay=None):
+	"""Cho màn Ghi sổ kiểm kê trên app: giá đề xuất theo cùng luật với Desk.
+
+	Trả {mã: {"gia": giá, "nguon": nguồn}}; mã không có giá thì không có mặt."""
+	if not frappe.has_permission("Stock Reconciliation", "create"):
+		frappe.throw("Không có quyền lập phiếu kiểm kê.", frappe.PermissionError)
+	if isinstance(ma, str):
+		ma = frappe.parse_json(ma)
+	ra = {}
+	for m in (ma or [])[:2000]:
+		gia, nguon = gia_von(m, kho, ngay)
+		if gia:
+			ra[m] = {"gia": gia, "nguon": nguon}
+	return ra
