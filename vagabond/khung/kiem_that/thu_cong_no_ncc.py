@@ -77,3 +77,77 @@ def _quyen():
             pass
     finally:
         frappe.set_user(truoc)
+
+
+def _tk_tam(cty):
+    """Tài khoản tạm (Temporary) của công ty bench; site thật có sẵn, bench có
+    thể chưa có thì dựng một cái dưới nhóm Nợ phải trả."""
+    ds = frappe.get_all("Account", filters={"company": cty, "account_type": "Temporary", "is_group": 0, "disabled": 0}, pluck="name")
+    if ds:
+        return ds[0]
+    cha = frappe.get_all("Account", filters={"company": cty, "is_group": 1, "root_type": "Liability"}, pluck="name", order_by="lft desc", limit=1)
+    tk = frappe.get_doc({"doctype": "Account", "account_name": "Tam cho xu ly dau ky 549", "company": cty,
+        "parent_account": cha[0], "account_type": "Temporary", "is_group": 0}).insert(ignore_permissions=True)
+    _DA_TAO.append((tk.doctype, tk.name))
+    return tk.name
+
+
+@ca("v549 hóa đơn trả trước khi lên ERP: thu mua gửi nháp không giảm nợ, kế toán duyệt mới giảm; Có tài khoản tạm, không đụng ngân hàng")
+def _tra_truoc_erp():
+    hd = _hoa_don_mua(1000000)
+    tam = _tk_tam(hd.company)
+    truoc = frappe.session.user
+    u = frappe.get_doc({"doctype": "User", "email": "kiem549-%s@example.invalid" % frappe.generate_hash(length=8),
+        "first_name": "Thu mua 549", "enabled": 1, "send_welcome_email": 0,
+        "roles": [{"role": "Purchase User"}]}).insert(ignore_permissions=True)
+    _DA_TAO.append((u.doctype, u.name))
+    try:
+        frappe.set_user(u.name)
+        f = frappe.get_doc({"doctype": "File", "file_name": "UNC-549-%s.txt" % frappe.generate_hash(length=6),
+            "content": "UNC tra truoc ERP", "is_private": 1}).insert(ignore_permissions=True)
+        _DA_TAO.append((f.doctype, f.name))
+        try:
+            cn.lap_truoc_erp(hd.name, 400000, "2026-04-10", "[]", "", "TE-549-a-" + frappe.generate_hash(length=6))
+            dung("thu mua thiếu UNC phải bị chặn", False)
+        except frappe.ValidationError:
+            pass
+        ma = "TE-549-" + frappe.generate_hash(length=10)
+        k = cn.lap_truoc_erp(hd.name, 400000, "2026-04-10", frappe.as_json([f.file_url]), "Printeco tháng 4", ma)
+        _DA_TAO.append(("Journal Entry", k["je"]))
+        la("thu mua chỉ lập nháp", k["da_ghi_so"], False)
+        k2 = cn.lap_truoc_erp(hd.name, 400000, "2026-04-10", frappe.as_json([f.file_url]), "", ma)
+        la("bấm lại cùng mã trả bút toán cũ", (k2["je"], k2.get("da_lam_roi")), (k["je"], 1))
+        hd.reload()
+        la("nháp chưa giảm nợ", float(hd.outstanding_amount), 1000000.)
+        try:
+            cn.lap_truoc_erp(hd.name, 700000, "2026-04-10", frappe.as_json([f.file_url]), "", "TE-549-b-" + frappe.generate_hash(length=6))
+            dung("vượt dư trừ phần chờ duyệt phải bị chặn", False)
+        except frappe.ValidationError:
+            pass
+        dong = cn.danh_sach(cong_ty=hd.company, tu_khoa=hd.name)["dong"][0]
+        la("màn thấy phần chờ duyệt", dong["cho_duyet"], [{"je": k["je"], "so_tien": 400000.}])
+        try:
+            cn.duyet_truoc_erp(k["je"])
+            dung("thu mua không tự duyệt được", False)
+        except frappe.ValidationError:
+            pass
+    finally:
+        frappe.set_user(truoc)
+    r = cn.duyet_truoc_erp(k["je"])
+    dung("kế toán duyệt ghi sổ", r["da_ghi_so"])
+    hd.reload()
+    la("duyệt xong mới giảm nợ", float(hd.outstanding_amount), 600000.)
+    gl = frappe.get_all("GL Entry", filters={"voucher_no": k["je"], "is_cancelled": 0}, fields=["account", "debit", "credit"])
+    la("chỉ hai tài khoản: công nợ và tạm", sorted(g.account for g in gl), sorted([hd.credit_to, tam]))
+    la("Có tài khoản tạm đúng tiền", sum(g.credit for g in gl if g.account == tam), 400000.)
+    la("UNC gắn vào bút toán", frappe.db.get_value("File", f.name, "attached_to_name"), k["je"])
+    # Kế toán tự lập thì ghi sổ luôn, không cần UNC; nháp thứ hai thì bỏ được.
+    k3 = cn.lap_truoc_erp(hd.name, 100000, "2026-04-11", "[]", "", "TE-549-c-" + frappe.generate_hash(length=6))
+    _DA_TAO.append(("Journal Entry", k3["je"]))
+    dung("kế toán lập là ghi sổ", k3["da_ghi_so"])
+    hd.reload()
+    la("dư còn lại", float(hd.outstanding_amount), 500000.)
+    je = frappe.get_doc("Journal Entry", k3["je"])
+    je.cancel()
+    hd.reload()
+    la("hủy bút toán trả lại công nợ", float(hd.outstanding_amount), 600000.)
