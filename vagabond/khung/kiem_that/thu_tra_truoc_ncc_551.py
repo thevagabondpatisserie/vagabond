@@ -36,7 +36,7 @@ def _hoa_don_nhap(tien, ncc):
 	return hd
 
 
-def _ho_so(ncc, dong):
+def _ho_so(ncc, dong, loai_cp_thue="Chi phi khong hop le"):
 	"""Hồ sơ Chi từ TK công ty Đã duyệt, có UNC và sao kê đúng tổng."""
 	cty = cong_ty()
 	h = frappe.new_doc("Vagabond Ho So TT")
@@ -44,7 +44,7 @@ def _ho_so(ncc, dong):
 	h.loai, h.ngay, h.trang_thai, h.da_tam_ung = "TK cong ty", today(), "Da duyet", 0
 	h.nha_cung_cap = ncc
 	h.tk_chi = _tk_ngan_hang(cty)
-	h.loai_cp_thue = "Chi phi khong hop le"
+	h.loai_cp_thue = loai_cp_thue
 	for d in dong:
 		h.append("dong", d)
 	h.flags.ignore_permissions = True
@@ -169,7 +169,10 @@ def _lan():
 		return
 	h = khong_nem("hồ sơ lẫn", lambda: _ho_so(mot_nha_cung_cap(), [
 		{"noi_dung": "Chờ hoá đơn", "so_tien": 70000, "cho_hoa_don": 1},
-		{"noi_dung": "Phí không hoá đơn", "so_tien": 30000, "cho_hoa_don": 0, "tk_no": tk_cp}]))
+		{"noi_dung": "Phí có hoá đơn sẵn", "so_tien": 30000, "cho_hoa_don": 0, "tk_no": tk_cp}],
+		# Hồ sơ không hợp lệ có khoản không chờ hoá đơn thì controller đòi đính
+		# chứng từ từng khoản; ca này chỉ kiểm cách tách bút toán.
+		"Chi phi hop le"))
 	if not h:
 		return
 	kq = _ghi_nhan(h)
