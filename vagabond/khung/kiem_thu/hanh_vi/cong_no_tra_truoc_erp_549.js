@@ -85,8 +85,13 @@ async function moi(vai,{pe=[],cho=[],keToan=false,loiLap=false}={}){
  assert(p.g.choices.some(x=>x.value==='PE-1'),'vẫn giữ phiếu chi cũ');
 
  // Ca 5: dòng có nháp chờ duyệt: kế toán thấy Duyệt, thu mua chỉ thấy Rút lại.
- const c=await moi(['Accounts User'],{cho:[{je:'PKT-9',so_tien:1000}],keToan:true});
+ const c=await moi(['Accounts User'],{cho:[{je:'PKT-9',so_tien:1000,unc:['/private/files/unc-9.pdf'],nguoi_gui:'Uyên',luc_gui:'2026-10-01 15:00',ngay_tra:'2026-04-10',dien_giai:'MB 1234'}],keToan:true});
  assert(c.root.innerHTML.includes('Chờ kế toán duyệt'));
+ // Codex #403 vòng 3: kế toán thấy bằng chứng trước khi duyệt.
+ assert(c.root.innerHTML.includes('href="/private/files/unc-9.pdf"'),'có liên kết UNC');
+ assert(c.root.innerHTML.includes('Uyên')&&c.root.innerHTML.includes('2026-04-10')&&c.root.innerHTML.includes('MB 1234'),'có người gửi, ngày trả, ghi chú');
+ const c0=await moi(['Accounts User'],{cho:[{je:'PKT-8',so_tien:1000,unc:[]}],keToan:true});
+ assert(c0.root.innerHTML.includes('Chưa có UNC'),'không có UNC thì nói rõ');
  await c.click('[data-cntduyet="PKT-9"]');assert.equal(c.goi('duyet_truoc_erp')[0].a.je,'PKT-9');
  const t=await moi(['Purchase User'],{cho:[{je:'PKT-9',so_tien:1000}]});
  assert(!t.root.querySelector('[data-cntduyet]'),'thu mua không duyệt được');
