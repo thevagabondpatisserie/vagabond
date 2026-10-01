@@ -164,6 +164,23 @@ def _hoa_don(ct, tp, sl, dong=None):
 	return hd
 
 
+def _ghi_lui(lui):
+	"""Ghi lại mỗi lần hoá đơn phải lùi ghi sổ vì lỗi lõi (HoaDonHangTang._save)."""
+	from unittest.mock import patch
+	goc = hk.co_the_lui
+	return patch.object(hk, "co_the_lui", lambda d, loi: lui.append(str(loi)) or goc(d, loi))
+
+
+def _da_tru_bu(hd):
+	"""v550: tờ ghi sổ không trừ kho nhưng kho có hàng thì máy trừ bù ngay lúc
+	ghi sổ bằng Phiếu xuất dùng gắn hoá đơn; tờ hết Chưa trừ kho, ô Trừ bù Đủ.
+	Trước v550 các ca này mong tờ còn "Chưa trừ kho"."""
+	bu = frappe.get_all("Stock Entry", filters={"vgb_hd_tru_bu": hd.name, "docstatus": 1}, pluck="name")
+	dung("có phiếu xuất dùng bù", len(bu) >= 1)
+	la("v550: hết Chưa trừ kho sau trừ bù", hd.vgb_chua_tru_kho, 0)
+	la("v550: ô Trừ bù", hd.vgb_tru_bu, "Đủ")
+
+
 @ca("v542 bán đủ hàng: trừ kho điểm bán, Nợ 632 bằng giá vốn sổ kho")
 @_sach
 def _ban_du():
@@ -214,13 +231,14 @@ def _ban_loi_loi():
 		if self.update_stock:
 			raise frappe.ValidationError("KT542 lõi kho giả")
 		return goc(self, *a, **kw)
-	with patch.object(lop, "update_stock_ledger", hong):
+	lui = []
+	with patch.object(lop, "update_stock_ledger", hong), _ghi_lui(lui):
 		hd.submit()
 	hd.reload()
 	la("ghi sổ", hd.docstatus, 1)
-	la("không trừ kho", hd.update_stock, 0)
-	la("đánh dấu", hd.vgb_chua_tru_kho, 1)
-	dung("lý do có lỗi lõi", "KT542" in (hd.vgb_ly_do_chua_tru_kho or ""))
+	la("hoá đơn không tự trừ kho", hd.update_stock, 0)
+	dung("đã lùi vì lỗi lõi", any("KT542" in x for x in lui))
+	_da_tru_bu(hd)
 
 
 @ca("v542 Codex #395 F5: nháp lưu trước ngày bật, ghi sổ sau khi bật mà lõi lỗi kho: vẫn lùi ghi sổ không trừ kho")
@@ -242,13 +260,14 @@ def _nhap_cu_loi_loi():
 		if self.update_stock:
 			raise frappe.ValidationError("KT542 F5 lõi kho giả")
 		return goc(self, *a, **kw)
-	with patch.object(lop, "update_stock_ledger", hong):
+	lui = []
+	with patch.object(lop, "update_stock_ledger", hong), _ghi_lui(lui):
 		hd.submit()
 	hd.reload()
 	la("ghi sổ", hd.docstatus, 1)
-	la("không trừ kho", hd.update_stock, 0)
-	la("đánh dấu", hd.vgb_chua_tru_kho, 1)
-	dung("lý do có lỗi lõi", "KT542 F5" in (hd.vgb_ly_do_chua_tru_kho or ""))
+	la("hoá đơn không tự trừ kho", hd.update_stock, 0)
+	dung("đã lùi vì lỗi lõi", any("KT542 F5" in x for x in lui))
+	_da_tru_bu(hd)
 
 
 def _tt_bep(ct, ten="Bếp Baker"):
@@ -352,7 +371,9 @@ def _khong_goi_mo_coi():
 	hd.reload()
 	la("ghi sổ", hd.docstatus, 1)
 	la("lùi không trừ kho", hd.update_stock, 0)
-	la("đánh dấu", hd.vgb_chua_tru_kho, 1)
+	# v550: hoá đơn không tự trừ kho nữa thì máy trừ bù ngay bằng Phiếu xuất
+	# dùng. Lô tắt chỉ cảnh báo trên phiếu kho (#206), nên cả hai món được trừ.
+	_da_tru_bu(hd)
 	la("không còn gói lô gắn hoá đơn", frappe.db.count("Serial and Batch Bundle", {"voucher_no": hd.name}), 0)
 	la("không sổ kho", frappe.db.count("Stock Ledger Entry", {"voucher_no": hd.name, "is_cancelled": 0}), 0)
 
