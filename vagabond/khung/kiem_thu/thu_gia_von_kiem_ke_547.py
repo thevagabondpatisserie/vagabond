@@ -24,3 +24,18 @@ def _chon_gia():
 	la("chỉ còn giá chung của mã", gv.chon_gia([("so_kho", None), ("kho_khac", 0), ("gia_mua", 0), ("gia_ma", 900)]), (900.0, "gia_ma"))
 	la("không có gì thì để trống cho ERPNext chặn", gv.chon_gia([("so_kho", 0), ("kho_khac", 0), ("gia_mua", None), ("gia_ma", 0)]), (None, None))
 	la("thứ tự nguồn cố định", gv.NGUON, ("so_kho", "kho_khac", "gia_mua", "gia_ma"))
+
+
+@ca("v547 Codex #401 F1: dòng đã tra được giá hiện tại mà gõ 0 là chủ ý định giá lại, không điền")
+def _giu_0_chu_y():
+	dung("giá hiện tại 400, gõ 0: giữ", not gv.can_dien(10, 0, 0, 400))
+	dung("chưa tra giá hiện tại (dòng nạp một lượt như phiếu Kiên): điền", gv.can_dien(10, 0, 0, 0))
+	dung("giá hiện tại 400 nhưng ô giá trống: vẫn điền", gv.can_dien(10, None, 0, 400))
+
+
+@ca("v547 Codex #401 F2: mốc thời gian phiếu để chặn giá tương lai")
+def _moc():
+	la("đủ ngày giờ", gv.moc("2026-09-25", "08:30:00"), "2026-09-25 08:30:00")
+	la("giờ thiếu giây", gv.moc("2026-09-25", "08:30"), "2026-09-25 08:30:00")
+	la("thiếu giờ thì cuối ngày", gv.moc("2026-09-25"), "2026-09-25 23:59:59")
+	la("thiếu ngày thì không chặn", gv.moc(None), None)
