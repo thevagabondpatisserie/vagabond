@@ -1561,3 +1561,8 @@ hiện nhãn 0 cũ khiến người dùng tải trùng. Có ca Node giữ ba hà
   phiếu trả trước nào (suy lại là bộ chứng từ hồ sơ cũ bỗng "thiếu phiếu").
 - 8 bút toán bù trừ cũ (PKT-2026-00043..00050, 724.316.246 đ) giữ nguyên,
   chỉ liệt kê cho kế toán, không tự sửa.
+- Bẫy bench vòng 2: dòng tờ nối có ô `but_toan` là Link tới Journal Entry.
+  Ghi tên phiếu chi (Payment Entry) vào đó thì lưu hồ sơ ném "Could not find
+  Row #1". Ca tờ nháp vẫn xanh vì đường đó ghi bằng `frappe.db.set_value`,
+  vốn BỎ QUA kiểm link. Chứng từ khác loại phải có ô Link riêng (`phieu_chi`),
+  và ca kiểm phải đi qua `save()` thật ít nhất một đường, đừng chỉ set_value.
