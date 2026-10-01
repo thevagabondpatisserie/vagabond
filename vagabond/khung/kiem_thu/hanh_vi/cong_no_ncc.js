@@ -1,0 +1,42 @@
+/* #391: chạy màn thật, chip/tìm/xuất/chọn cấn với API giả, không ghi tiền. */
+'use strict';
+const fs=require('fs'),path=require('path'),vm=require('vm'),assert=require('assert');
+const dom=require('./dom_gia');
+const bep=path.resolve(__dirname,'../../../public/js/bep');
+function doc(n){return fs.readFileSync(path.join(bep,n),'utf8');}
+async function nghi(){for(let i=0;i<10;i++)await Promise.resolve();await new Promise(r=>setImmediate(r));}
+async function moi(fin=true,loi=false){
+ const document=dom.taiLieuGia(),root=document.createElement('div');root.id='vgb';document.body.appendChild(root);
+ const calls=[],writes=[],opened=[],downloads=[];
+ const row={name:'HD-1',bill_no:'00001',supplier:'NCC',supplier_name:'Nhà cung cấp',ma_ncc:'M001',ngay:'2026-09-01',con_no:100,account_currency:'VND',currency:'VND',company:'CTY',credit_to:'331',trang_thai:'Còn nợ',tre_ngay:3};
+ const g={frappe:{session:{user:"test"}},document,console,Promise,JSON,Math,Number,String,Object,Array,Date,Error,RegExp,parseInt,parseFloat,setTimeout,clearTimeout,
+  location:{href:'https://erp/bep',pathname:'/bep',hostname:'erp',search:'',hash:''},history:{pushState(){},replaceState(){},back(){}},requestAnimationFrame:f=>f(),
+  h:s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'),money:String,ngayNgan:String,
+  toast(){},busy(){},baoTin:s=>writes.push(['tin',s]),dSkin(){},errMsg:e=>e.message,
+  posChipNut:(a,n)=>'<button '+a+'>'+n+'</button>',kmHangChip:s=>'<div>'+s+'</div>',
+  hasRole:()=>fin,hsCoQuyenCanCoc:()=>fin,hsCocLan:null,hsMoCanCoc:(...a)=>writes.push(a),hsThuLaiCanCoc:()=>writes.push(['retry']),
+  bcTaiVe:(...a)=>downloads.push(a),open:(...a)=>opened.push(a),
+  sheet:(t,ds,chon,cb)=>{g.choices=ds;g.pick=cb;},
+  api:async(m,a)=>{calls.push({m,a});if(loi)throw new Error('Mất mạng');if(m.endsWith('xuat_excel'))return {ten_file:'no.xlsx',b64:'AA=='};
+   return {cong_ty:'CTY',cac_cong_ty:['CTY'],cac_nhom:['Hàng'],ngay_doc:'2026-10-01',so_hd:65,so_ncc:1,tong_theo_tien:{VND:100},dem:{tat_ca:65,con_no:65,qua_han:65},con_nua:!a.trang,dong:a.tu_khoa==='rỗng'?[]:[row]};}
+ };
+ g.window=g;g.root=root;vm.createContext(g);
+ vm.runInContext(doc('01-khung-app.js'),g);vm.runInContext(doc('15-khuon-danh-sach.js'),g);
+ const src=doc('16-mua-hang.js');vm.runInContext(src.slice(src.indexOf('/* Công nợ NCC:'),src.indexOf('/* ---------------- Hoa don ban ra')),g);
+ await g.scrNoPhaiTra();
+ return {g,root,document,calls,writes,opened,downloads,row,async click(sel){const el=root.querySelector(sel);assert(el,sel);el.dispatchEvent(dom.suKien('click',{},el));await nghi();}};
+}
+(async()=>{
+ const m=await moi();
+ await m.click('[data-dscc="chang|qua_han"]');assert.equal(m.calls.at(-1).a.trang_thai,'qua_han');
+ await m.click('#cntSau');assert.equal(m.calls.at(-1).a.trang,1);
+ const inp=m.document.getElementById('cntDsTim');inp.value='00001';inp.dispatchEvent(dom.suKien('keydown',{key:'Enter'},inp));await nghi();
+ assert.equal(m.calls.at(-1).a.tu_khoa,'00001');assert.equal(m.calls.at(-1).a.trang,0);
+ await m.click('[data-dsxuat]');const loc=JSON.parse(m.calls.at(-1).a.loc);assert.equal(loc.tu_khoa,'00001');assert.equal(loc.trang_thai,'qua_han');assert.equal(m.downloads.length,1);
+ await m.click('[data-cntdong]');m.g.pick({value:'can'});assert.equal(m.writes[0][0],'NCC');assert.deepEqual(JSON.parse(JSON.stringify(m.writes[0][1])),[{hoa_don:'HD-1',so_tien:100}]);
+ m.g.hsCocLan={payload:'pending'};m.g.pick({value:'can'});assert.equal(m.writes.at(-1)[0],'retry');
+ const u=await moi(false);await u.click('[data-cntdong]');assert(!u.g.choices.some(x=>x.value==='can'||x.value==='loi'));assert.equal(u.writes.length,0);
+ const e=await moi(true,true);assert(e.document.getElementById('cntThuLai'));await e.click('#cntThuLai');assert.equal(e.calls.length,2);
+ const inp2=m.document.getElementById('cntDsTim');inp2.value='rỗng';inp2.dispatchEvent(dom.suKien('change',{},inp2));await nghi();assert(!m.root.querySelector('[data-cntdong]'));
+ console.log('Công nợ NCC: chip, tìm, phân trang, Excel, quyền, cấn, retry, lỗi và rỗng PASS');
+})().catch(e=>{console.error(e);process.exit(1);});

@@ -1522,3 +1522,12 @@ bản ghi cùng MST, kể cả bản đầu trống. Ca hồi quy phải đảo 
   khi gỡ vai, đọc trên site ai đang giữ vai đó mà không có vai thay thế (đã bắt
   được hai kế toán). Ca kiểm quyền đọc đúng tập quyền trong tệp, không tự gõ lại.
   Nguồn: PR #398, PR #400.
+
+## 01/10/2026 - Dư hóa đơn và nhãn Đã chi ngoài ERP (#391)
+
+Màn công nợ cộng PI còn nợ dễ bị hiểu là tổng phải chuyển thêm, dù còn tiền
+trả trước/JE chưa phân bổ. File dò chỉ bằng MST và số hóa đơn có thể gộp khác
+ký hiệu/năm hoặc dòng chưa chi. Phòng tái diễn: ghi rõ nguồn/phạm vi của tổng,
+giữ tiền tệ riêng, đối chiếu chứng từ trước cấn; không tạo DMH/PNK để sửa nợ.
+Màn và Excel dùng một bộ lọc và không cắt tổng theo trang. Giảm dư không đồng
+nghĩa đã chuyển tiền; dùng “Giảm một phần” thay cho suy đoán “Đã trả”.

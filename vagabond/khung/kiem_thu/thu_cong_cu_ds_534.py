@@ -81,7 +81,7 @@ def _ten_tep():
 def _so_khai():
 	from vagabond.khung.cong_cu_ds import MAN_XUAT
 	from vagabond.khung.kiem_thu.thu_cua_ngo import _ten_whitelist
-	la("ba màn đợt 1", sorted(MAN_XUAT), ["cong_no", "hang_tang", "tien_da_ve"])
+	la("sổ màn xuất", sorted(MAN_XUAT), ["cong_no", "cong_no_ncc", "hang_tang", "tien_da_ve"])
 	for man, duong in MAN_XUAT.items():
 		mo_dun, ham = duong.rsplit(".", 1)
 		tep = mo_dun.split(".", 1)[1].replace(".", "/") + ".py"

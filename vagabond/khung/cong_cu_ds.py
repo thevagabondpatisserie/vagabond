@@ -48,6 +48,7 @@ KHOA_KY = tuple(k for k, _ in KY_NGAY)
 # adapter trong mô đun của màn. Ca kiểm `thu_cong_cu_ds_534` chốt mọi dòng
 # trỏ tới hàm có thật.
 MAN_XUAT = {
+	"cong_no_ncc": "vagabond.cong_no_ncc.xuat_ds",
 	"hang_tang": "vagabond.hang_tang.xuat_ds",
 	"cong_no": "vagabond.cong_no.xuat_no",
 	"tien_da_ve": "vagabond.cong_no.xuat_tien_da_ve",

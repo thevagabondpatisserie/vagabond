@@ -791,73 +791,90 @@ function nccMoO(cac) {
 }
 
 
-/* ---------------- Cong no phai tra ---------------- */
-var cntNcc = null;
+/* Công nợ NCC: một bộ lọc cho màn và Excel, không tự ghi sổ từ file cũ. */
+var cntLoc = {cong_ty:'', trang_thai:'con_no', tu_khoa:'', ky:'', nhom:'', trang:0};
+var cntLan = 0;
+function cntThamSo() { return Object.assign({}, cntLoc); }
+function cntTien(kq, khoa) {
+  return Object.keys(kq[khoa] || {}).map(function (t) { return money(kq[khoa][t]) + ' ' + h(t); }).join(' · ') || '0';
+}
+function cntBuoc(r) {
+  /* Dư bằng 0 có thể do bù trừ, không chứng minh đã chuyển tiền hoặc có UNC. */
+  return tienTrinhPhieu([{ten:'Ghi sổ',xong:true},
+    {ten:'Kiểm khoản đã trả',dang:r.con_no > 0},
+    {ten:'Phân bổ'},
+    {ten:'Hết dư nợ',xong:r.con_no === 0}]);
+}
 async function scrNoPhaiTra() {
-  frame('Công nợ phải trả', '<div class="emp"><div class="e1">⏳</div><div>Đang cộng sổ nợ nhà cung cấp...</div></div>');
-  var kq;
-  try { kq = await api('vagabond.mua_hang.cong_no_phai_tra', {}); }
+  var lan = ++cntLan, loc = cntThamSo(), kq;
+  frame('Công nợ phải trả', '<div class="emp">Đang đọc dư hóa đơn...</div>');
+  try { kq = await api('vagabond.cong_no_ncc.danh_sach', loc); }
   catch (e) {
-    frame('Công nợ phải trả', '<div class="emp"><div class="e1">🔒</div><div>' + h((e && e.message) || 'Không mở được') + '</div></div>');
-    return;
+    if (lan !== cntLan) return;
+    var loi = frame('Công nợ phải trả', '<div class="card">' + h(e.message || 'Chưa đọc được công nợ.') + '<button class="btn" id="cntThuLai">Tải lại</button></div>');
+    loi.querySelector('#cntThuLai').onclick = function () { go(scrNoPhaiTra, true); }; return;
   }
-  var html = '<div class="card" style="padding:14px">' +
-    '<div style="font-size:12px;color:#98a2b3">TỔNG CÒN PHẢI TRẢ</div>' +
-    '<div style="font-size:28px;font-weight:800">' + money(kq.tong) + ' đ</div>' +
-    '<div style="font-size:12.5px;color:#6b7280">' + money(kq.so_ncc) + ' nhà cung cấp</div>' +
-    (kq.tong_qua_han
-      ? '<div style="margin-top:9px;background:#fef2f2;border:1.5px solid #fecaca;border-radius:9px;padding:10px 12px;font-size:13px;color:#b3261e">' +
-        'Trong đó <b>' + money(kq.tong_qua_han) + ' đ</b> đã quá hạn trả.</div>'
-      : '<div style="margin-top:9px;font-size:13px;color:#0f766e">Chưa có khoản nào quá hạn.</div>') +
-    '</div>';
-
-  if (!(kq.ncc || []).length) {
-    html += '<div class="card"><div class="emp" style="padding:26px"><div class="e1">🎉</div><div>Không nợ nhà cung cấp nào.</div></div></div>';
-  } else {
-    html += '<div class="sec">Nợ nhiều và quá hạn xếp lên đầu</div><div class="lst">' +
-      kq.ncc.map(function (n) {
-        return '<div class="shi" data-ncc="' + h(n.ncc) + '" style="display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-bottom:1px solid #f2f4f7;cursor:pointer">' +
-          '<div style="flex:1;min-width:0"><b style="font-size:14.5px">' + h(n.ten) + '</b>' +
-          '<div style="font-size:12px;color:#98a2b3">' + money(n.so_hd) + ' hoá đơn' +
-          (n.han_gan_nhat ? ' · hạn gần nhất ' + ngayNgan(n.han_gan_nhat) : '') + '</div>' +
-          (n.qua_han
-            ? '<div style="font-size:12px;color:#b3261e;font-weight:600;margin-top:3px">Quá hạn ' + money(n.qua_han) + ' đ · ' + n.so_hd_qua_han + ' hoá đơn</div>'
-            : '') + '</div>' +
-          '<b style="white-space:nowrap">' + money(n.tien) + ' đ</b></div>';
-      }).join('') + '</div>';
-  }
-
+  if (lan !== cntLan) return;
+  cntLoc.cong_ty = kq.cong_ty;
+  var html = '<div class="card" style="padding:12px"><b>Dư hóa đơn theo bộ lọc</b><div style="font-size:23px;font-weight:800">' + cntTien(kq,'tong_theo_tien') + '</div>' +
+    '<div>' + kq.so_hd + ' hóa đơn · ' + kq.so_ncc + ' NCC</div><div style="font-size:12px">Dư hiện tại ' + ngayNgan(kq.ngay_doc) + '. Chưa bù trả trước/bút toán khác.</div></div>';
+  html += '<button class="btn gh" id="cntCongTy">' + h(kq.cong_ty || 'Chọn công ty') + '</button>';
+  var cc = {ma:'cnt',tim:{gt:cntLoc.tu_khoa,goiY:'Tìm NCC, mã ERP, số hóa đơn...'},
+    xuat:{man:'cong_no_ncc',loc:cntThamSo,so:kq.so_hd},
+    chang:{ds:[['con_no','Còn nợ'],['qua_han','Quá hạn'],['mot_phan','Giảm một phần'],['het_no','Hết dư nợ']].map(function(s){return {k:s[0],ten:s[1]};}),
+      dem:Object.assign({'':kq.dem.tat_ca},kq.dem),chon:cntLoc.trang_thai==='tat_ca'?'':cntLoc.trang_thai,tatCa:'Tất cả'},
+    ho:[{k:'ngay',chon:cntLoc.ky,tatCa:'Mọi ngày HĐ',ds:[{k:'thang_nay',ten:'Tháng này'},{k:'thang_truoc',ten:'Tháng trước'},{k:'7_ngay',ten:'7 ngày'}]}]};
+  html += dsCongCu(cc);
+  html += '<button class="btn gh" id="cntNhom">Nhóm NCC: ' + h(cntLoc.nhom || 'Tất cả') + '</button>';
+  html += '<div class="card" style="padding:10px"><button class="btn" id="cntHuongDan">Khoản đã trả trước ERP</button></div>';
+  if (!kq.dong.length) html += '<div class="emp">Không có hóa đơn theo bộ lọc. Thử “Tất cả”, “Mọi ngày HĐ” hoặc chọn công ty khác.</div>';
+  html += kq.dong.map(function (r,i) {
+    return '<div class="card" style="padding:12px"><b>' + h(r.supplier_name) + '</b><div style="font-size:12px">' + h(r.ma_ncc) + ' · HĐ ' + h(r.bill_no || 'chưa có số NCC') + '</div>' +
+      '<div>' + h(r.name) + ' · ' + ngayNgan(r.ngay) + '</div><b>' + money(r.con_no) + ' ' + h(r.account_currency) + '</b> ' +
+      '<span class="badge">' + h(r.trang_thai) + (r.tre_ngay ? ' · trễ ' + r.tre_ngay + ' ngày' : '') + '</span>' + cntBuoc(r) +
+      '<button class="btn gh" data-cntdong="' + i + '">Xem và xử lý</button></div>';
+  }).join('');
+  html += '<div style="display:flex;gap:8px"><button class="btn gh" id="cntTruoc" ' + (cntLoc.trang ? '' : 'disabled') + '>Trang trước</button><button class="btn gh" id="cntSau" ' + (kq.con_nua ? '' : 'disabled') + '>Trang sau</button></div>';
+  html += '<button class="btn gh" id="cntSo">Mở báo cáo công nợ lõi</button>';
   var b = frame('Công nợ phải trả', html);
   b.onclick = function (e) {
-    var t = e.target.closest('[data-ncc]');
-    if (!t) return;
-    var ma = t.getAttribute('data-ncc');
-    var n = (kq.ncc || []).filter(function (x) { return x.ncc === ma; })[0];
-    if (n) mkSheetNoNcc(n);
+    var t = e.target.closest('[data-cntdong]');
+    if (t) return cntXuLy(kq.dong[Number(t.getAttribute('data-cntdong'))]);
   };
-}
+  dsCongCuNoi(b,cc,function(k,v) {
+    if(k==='tim') cntLoc.tu_khoa=v;
+    if(k==='chang') cntLoc.trang_thai=v || 'tat_ca';
+    if(k==='ngay') cntLoc.ky=v;
+    cntLoc.trang=0;go(scrNoPhaiTra,true);
+  });
+  b.querySelector('#cntCongTy').onclick = function () { sheet('Chọn công ty', kq.cac_cong_ty.map(function (x) {return {value:x,label:x};}),cntLoc.cong_ty,function (x) {cntLoc.cong_ty=x.value;cntLoc.trang=0;go(scrNoPhaiTra,true);},true); };
+  b.querySelector('#cntNhom').onclick = function () { sheet('Nhóm NCC', [{value:'',label:'Tất cả'}].concat(kq.cac_nhom.map(function (x) {return {value:x,label:x};})),cntLoc.nhom,function(x) {cntLoc.nhom=x.value;cntLoc.trang=0;go(scrNoPhaiTra,true);},true); };
+  b.querySelector('#cntTruoc').onclick = function () {cntLoc.trang=Math.max(0,cntLoc.trang-1);go(scrNoPhaiTra,true);};
+  b.querySelector('#cntSau').onclick = function () {cntLoc.trang++;go(scrNoPhaiTra,true);};
+  b.querySelector('#cntHuongDan').onclick = cntHuongDan;
+  b.querySelector('#cntSo').onclick = function () { window.open('/desk/query-report/Accounts%20Payable?company='+encodeURIComponent(cntLoc.cong_ty),'_blank','noopener'); };
 
-function mkSheetNoNcc(n) {
-  var ov = document.createElement('div'); ov.className = 'sh';
-  var box = document.createElement('div'); box.className = 'shb';
-  box.innerHTML = '<div class="shh"><b>' + h(n.ten) + '</b><div class="x">&times;</div></div>' +
-    '<div style="padding:4px 14px calc(env(safe-area-inset-bottom,0px) + 16px);max-height:78vh;overflow:auto">' +
-    '<div style="font-size:13px;color:#374151;margin:8px 0 12px">Còn nợ <b>' + money(n.tien) + ' đ</b> trên ' + money(n.so_hd) + ' hoá đơn' +
-    (n.qua_han ? ', trong đó <b style="color:#b3261e">' + money(n.qua_han) + ' đ quá hạn</b>' : '') + '.</div>' +
-    n.hd.map(function (x) {
-      return '<div style="border:1.5px solid ' + (x.tre_ngay ? '#fecaca' : '#e5e7eb') + ';background:' + (x.tre_ngay ? '#fef2f2' : '#fff') + ';border-radius:10px;padding:10px 12px;margin-bottom:8px">' +
-        '<div style="display:flex;justify-content:space-between;gap:10px">' +
-        '<b style="font-size:13.5px">' + h(x.name) + '</b><b>' + money(x.con_no) + ' đ</b></div>' +
-        '<div style="font-size:12px;color:#6b7280;margin-top:3px">' +
-        (x.so_hd_ncc ? 'Số hoá đơn NCC ' + h(x.so_hd_ncc) + ' · ' : '') +
-        'ngày ' + ngayNgan(x.ngay) + (x.han ? ' · hạn trả ' + ngayNgan(x.han) : '') +
-        (x.tre_ngay ? ' · <b style="color:#b3261e">trễ ' + x.tre_ngay + ' ngày</b>' : '') + '</div>' +
-        (x.tong !== x.con_no ? '<div style="font-size:12px;color:#98a2b3">Tổng hoá đơn ' + money(x.tong) + ' đ, đã trả ' + money(x.tong - x.con_no) + ' đ</div>' : '') +
-        '</div>';
-    }).join('') + '</div>';
-  ov.appendChild(box); document.body.appendChild(ov);
-  ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
-  box.querySelector('.x').onclick = function () { ov.remove(); };
+}
+function cntHuongDan() {
+  baoTin('1. Kiểm đúng NCC, số hóa đơn, ngày và tiền đã trả trên file cũ cùng chứng từ ngân hàng/tiền mặt.\n\n2. ERP đã có phiếu thanh toán đã ghi sổ: kế toán dùng Cấn khoản đã trả hoặc Đối chiếu thanh toán lõi để phân bổ vào đúng hóa đơn. Không tạo phiếu chi lần hai.\n\n3. ERP chưa có chứng từ: chuyển bằng chứng cho kế toán kiểm số dư chuyển đổi và lập chứng từ thanh toán/bù trừ phù hợp. Không tạo lại đơn mua hay nhập kho; không chuyển tiền thêm.\n\n4. Tải lại và kiểm dư hóa đơn cùng báo cáo công nợ lõi. Chỉ phần đã phân bổ hợp lệ mới giảm nợ.', 'Khoản đã trả trước ERP');
+}
+function cntXuLy(r) {
+  var ds=[{value:'hoa_don',label:'Mở hóa đơn ERP'}, {value:'huong_dan',label:'Hướng dẫn khoản đã trả trước ERP'}];
+  if (hsCoQuyenCanCoc()) {
+    if (r.con_no > 0 && r.account_currency === 'VND' && r.currency === 'VND') ds.unshift({value:'can',label:hsCocLan ? 'Kiểm lần cấn đang chờ' : 'Cấn khoản đã trả (có sao kê)'});
+    ds.push({value:'loi',label:'Đối chiếu thanh toán lõi (kế toán)'});
+  }
+  sheet('HĐ ' + (r.bill_no || r.name),ds,'',function (x) {
+    if(x.value==='huong_dan') return cntHuongDan();
+    if(x.value==='can') {
+      var xong=function () {go(scrNoPhaiTra,true);};
+      if(hsCocLan) return hsThuLaiCanCoc(xong);
+      return hsMoCanCoc(r.supplier,[{hoa_don:r.name,so_tien:r.con_no}],xong);
+    }
+    var url=x.value==='hoa_don' ? '/desk/purchase-invoice/'+encodeURIComponent(r.name) :
+      '/desk/payment-reconciliation?company='+encodeURIComponent(r.company)+'&party_type=Supplier&party='+encodeURIComponent(r.supplier)+'&receivable_payable_account='+encodeURIComponent(r.credit_to);
+    window.open(url,'_blank','noopener');
+  });
 }
 
 /* ---------------- Hoa don ban ra ---------------- */
