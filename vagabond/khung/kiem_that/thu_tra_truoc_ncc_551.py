@@ -119,7 +119,7 @@ def _noi_va_go():
 	la("phiếu chi trỏ tờ", [(r.reference_doctype, r.reference_name, flt(r.allocated_amount))
 		for r in frappe.get_doc("Payment Entry", pe).references], [("Purchase Invoice", hd.name, 100000.0)])
 	p = frappe.get_doc("Vagabond Ho So TT", h.name)
-	la("dòng nối trỏ phiếu chi", [(r.hoa_don, r.but_toan, flt(r.bu_tru)) for r in p.hd_sau], [(hd.name, pe, 100000.0)])
+	la("dòng nối trỏ phiếu chi", [(r.hoa_don, r.phieu_chi, r.but_toan or "", flt(r.bu_tru)) for r in p.hd_sau], [(hd.name, pe, "", 100000.0)])
 	ke = hs._ke_hoach_duyet(p)
 	la("bộ chứng từ vẫn đủ sau phân bổ", hs._kiem_bo_chung_tu(ke, hs._but_toan_cua_ho_so(h.name), hs._do_chinh_xac())["du"], 1)
 	g = khong_nem("gỡ", lambda: bo.go_noi(h.name, hd.name)) or {}
@@ -155,8 +155,8 @@ def _to_nhap():
 	la("công nợ tờ về 0 ngay lúc ghi sổ", flt(frappe.db.get_value("Purchase Invoice", hd.name, "outstanding_amount")), 0.0)
 	la("phiếu chi đã phân bổ hết", flt(frappe.db.get_value("Payment Entry", pe, "unallocated_amount")), 0.0)
 	p = frappe.get_doc("Vagabond Ho So TT", h.name)
-	la("dòng nối cập nhật", [(r.hoa_don, r.da_ghi_so, r.but_toan, flt(r.bu_tru)) for r in p.hd_sau],
-		[(hd.name, 1, pe, 100000.0)])
+	la("dòng nối cập nhật", [(r.hoa_don, r.da_ghi_so, r.phieu_chi, r.but_toan or "", flt(r.bu_tru)) for r in p.hd_sau],
+		[(hd.name, 1, pe, "", 100000.0)])
 
 
 @ca("v551 hồ sơ lẫn khoản: phần chờ hoá đơn ra phiếu chi, phần không hoá đơn giữ bút toán chi phí")
