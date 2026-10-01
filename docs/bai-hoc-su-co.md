@@ -1541,3 +1541,13 @@ nhãn field; ca bench kiểm số 2.500.000 VND và trạng thái chưa giảm m
 Đính UNC là tác vụ riêng với cấn tiền: lỗi lưu phải dừng trước phân bổ,
 Chỉ lưu UNC không gọi phân bổ. Cập nhật số/link UNC ngay sau lưu để không
 hiện nhãn 0 cũ khiến người dùng tải trùng. Có ca Node giữ ba hành vi này.
+
+## 01/10/2026 - v550: lọc "khác giá trị" trên ô Select để trống
+
+Ô Select mới thêm (`vgb_tru_bu`) để trống là NULL trên các hoá đơn cũ. Lọc
+`["!=", "Gỡ tay"]` bằng SQL sẽ loại luôn mọi dòng NULL, tức là loại đúng những
+tờ chưa trừ bù lần nào, và nhịp trừ bù tự động lặng lẽ không làm gì. Cách
+phòng: lọc "khác" trên ô có thể NULL bằng Python sau khi đọc, hoặc dùng
+`ifnull`. Bộ chạy đột biến tự viết phải đọc kết quả qua `nen.chay_het` (các
+hàm `la`/`dung` ghi lỗi vào danh sách chứ không ném), không đếm ngoại lệ:
+lần đầu đếm ngoại lệ ra 0 trên 14 đột biến, tưởng bộ kiểm yếu. Nguồn: v550.
