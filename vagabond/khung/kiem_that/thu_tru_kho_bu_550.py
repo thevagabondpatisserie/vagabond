@@ -23,6 +23,28 @@ def _nhap(ct, kho, ma, sl):
 	return ph
 
 
+from contextlib import contextmanager
+
+
+@contextmanager
+def _viec_sau_commit():
+	"""Các việc phiếu vừa đăng ký vào frappe.db.after_commit (CallbackManager thật).
+
+	CallbackManager có __slots__ nên không vá được `add` (bench f635488 đỏ vì
+	vá như vậy). Đọc hàng đợi thật trước và sau, lấy phần mới của tru_kho_bu,
+	rồi gỡ ra khỏi hàng đợi để ca kiểm tự chạy đúng như Frappe sẽ chạy sau commit.
+	"""
+	cm = frappe.db.after_commit
+	truoc = list(cm._functions)
+	moi = []
+	yield moi
+	for fn in list(cm._functions):
+		# Chỉ lấy việc của tru_kho_bu; việc của lõi để nguyên cho khung kiểm.
+		if fn not in truoc and getattr(fn, "__module__", "") == "vagabond.tru_kho_bu":
+			moi.append(fn)
+			cm._functions.remove(fn)
+
+
 def _bu(hd):
 	return frappe.get_all("Stock Entry", filters={"vgb_hd_tru_bu": hd, "docstatus": 1},
 		fields=["name", "purpose"])
@@ -49,10 +71,11 @@ def _hang_ve():
 	la("đánh dấu chưa trừ kho", hd.vgb_chua_tru_kho, 1)
 	la("chưa có phiếu bù", _bu(hd.name), [])
 	la("ô Trừ bù trống", hd.vgb_tru_bu or "", "")
-	viec, sau_commit = [], []
-	with patch.object(frappe, "enqueue", lambda *a, **k: viec.append((a, k))), \
-			patch.object(frappe.db.after_commit, "add", lambda fn: sau_commit.append(fn)):
-		_nhap(ct, kho, tp, 5)
+	viec = []
+	with patch.object(frappe, "enqueue", lambda *a, **k: viec.append((a, k))):
+		with _viec_sau_commit() as sau_commit:
+			_nhap(ct, kho, tp, 5)
+		dung("phiếu nhập đã đăng ký việc sau commit", len(sau_commit) >= 1)
 		la("trong lúc ghi phiếu nhập chưa chạm hàng đợi", [x for x in viec if x[0] and x[0][0] == "vagabond.tru_kho_bu.tru_bu_kho"], [])
 		# Ca kiểm không commit (điểm lưu), nên chạy tay đúng các việc phiếu nhập
 		# đã đăng ký cho lúc sau commit, như Frappe sẽ chạy.
@@ -221,10 +244,10 @@ def _hang_doi_loi():
 
 	def hong(*a, **k):
 		raise ConnectionError("KT550 redis down")
-	sau_commit = []
-	with patch.object(frappe, "enqueue", hong), \
-			patch.object(frappe.db.after_commit, "add", lambda fn: sau_commit.append(fn)):
-		ph = _nhap(ct, kho, tp, 5)
+	with patch.object(frappe, "enqueue", hong):
+		with _viec_sau_commit() as sau_commit:
+			ph = _nhap(ct, kho, tp, 5)
+		dung("phiếu nhập đã đăng ký việc sau commit", len(sau_commit) >= 1)
 		loi = None
 		try:
 			for fn in sau_commit:
