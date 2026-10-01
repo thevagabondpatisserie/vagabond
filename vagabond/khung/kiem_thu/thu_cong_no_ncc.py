@@ -114,3 +114,21 @@ def _dong_truoc_erp():
     la("vế Có tài khoản tạm", (d[1]["account"], d[1]["credit_in_account_currency"]), ("Temporary Opening - TV", 212090400.0))
     dung("vế Có không gắn NCC/hóa đơn", "party" not in d[1] and "reference_name" not in d[1])
     la("cân", d[0]["debit_in_account_currency"], d[1]["credit_in_account_currency"])
+
+
+@ca("v549 Codex #403: lap_truoc_erp khóa hóa đơn TRƯỚC khi tra mã lần (chạy chồng không lập hai bút toán)")
+def _khoa_truoc_tra_ma():
+    # Không dựng được hai giao dịch chồng nhau khi không có site; chốt thứ tự
+    # trong mã nguồn để không ai đảo lại. Ca bench _tra_truoc_erp kiểm retry thật.
+    import inspect
+    nguon = inspect.getsource(cn.lap_truoc_erp)
+    khoa = nguon.find("for update")
+    tra = nguon.find('"cheque_no": ma_lan')
+    dung("có khóa và có tra mã lần", khoa > 0 and tra > 0)
+    dung("khóa đứng trước tra mã lần", khoa < tra)
+    dung("tra mã lần bỏ qua nháp đã bỏ", "DAU_TRUOC_ERP" in nguon[tra:tra + 200])
+    duyet = inspect.getsource(cn.duyet_truoc_erp)
+    dung("duyệt có khóa hóa đơn", "for update" in duyet)
+    dung("duyệt kiểm lại số tiền với dư sống", "kiem_so_tien_truoc_erp" in duyet)
+    bo = inspect.getsource(cn.bo_truoc_erp)
+    dung("từ chối không xóa bút toán", "delete_doc" not in bo)

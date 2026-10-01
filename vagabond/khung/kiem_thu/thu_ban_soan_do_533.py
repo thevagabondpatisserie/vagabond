@@ -33,7 +33,7 @@ MAN_LAP_PHIEU = [
 	"scrBtLap", "scrNopQuyTao", "scrNopQuySua", "scrCongThucSua", "scrTraTruocTao",
 	"scrTiecXuat", "scrTqSua", "scrTqLapDot", "scrBntTao", "scrKPITuKhai",
 	"scrXkNbNew", "scrXkTraNew", "scrXkSiNew", "scrXkPvNew", "scrRecvDoc",
-	"scrNhpDon", "scrMfgDeclare",
+	"scrNhpDon", "scrMfgDeclare", "scrCntTruocErp",
 	"hoanMoForm", "hoanMoFormDu", "hoanMoFormHuy", "dhMo", "kmSheetCtkm",
 ]
 # Man ten giong man lap phieu nhung CO Y khong boc, kem ly do.
