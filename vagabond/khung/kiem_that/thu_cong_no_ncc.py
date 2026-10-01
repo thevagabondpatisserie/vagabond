@@ -125,7 +125,13 @@ def _tra_truoc_erp():
         except frappe.ValidationError:
             pass
         dong = cn.danh_sach(cong_ty=hd.company, tu_khoa=hd.name)["dong"][0]
-        la("màn thấy phần chờ duyệt", dong["cho_duyet"], [{"je": k["je"], "so_tien": 400000.}])
+        c = dong["cho_duyet"]
+        la("màn thấy phần chờ duyệt", [(x["je"], x["so_tien"]) for x in c], [(k["je"], 400000.)])
+        # Codex #403 vòng 3: kế toán thấy bằng chứng ngay trên dòng.
+        la("UNC hiện trên dòng chờ", c[0]["unc"], [f.file_url])
+        la("ngày đã trả", c[0]["ngay_tra"], "2026-04-10")
+        dung("có người gửi và lúc gửi", bool(c[0]["nguoi_gui"]) and bool(c[0]["luc_gui"]))
+        dung("có ghi chú", "Printeco tháng 4" in c[0]["dien_giai"])
         try:
             cn.duyet_truoc_erp(k["je"])
             dung("thu mua không tự duyệt được", False)
