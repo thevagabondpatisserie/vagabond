@@ -495,6 +495,9 @@ CUA_NGO = {
 	# khung, va no chi ghi duoc dung nhung truong da khai trong tao()["o"].
 	"khung/ds.py": ["chay", "danh_ba", "tao_moi", "tim_lien_ket"],
 	# v534 (#380): man Cong no them tab Tien da ve (ds_tien_da_ve).
+	# v548 (#402) + v549: cong no NCC, them luong tra truoc khi len ERP.
+	"cong_no_ncc.py": ["bo_truoc_erp", "danh_sach", "duyet_truoc_erp", "khoan_da_tra", "lap_truoc_erp",
+		"luu_unc", "xem_truoc_erp"],
 	"cong_no.py": ["ds_khach_no", "ds_phieu", "ds_tien_da_ve", "gui_thu_da_nhan", "huy_phieu",
 		"khop_tay", "kiem_sepay", "tao_phieu", "thong_tin_xhd", "tim_giao_dich_thu", "tim_khach",
 		"xem_phieu", "xem_truoc_phieu", "xem_truoc_thu", "xuat_phieu"],

@@ -689,6 +689,16 @@ sdKhai('but_toan', 'scrBtLap', {
   dat: function (v) { btDong = v.dong || []; btMau = v.mau || null; btNgay = v.ngay || btNgay; btDienGiai = v.dg || ''; },
   tieuDe: sdTieuDe('dg'), luu: ['vagabond.but_toan.tao']
 });
+sdKhai('tra_truoc_erp', 'scrCntTruocErp', {
+  /* v549 Codex #403: khoản đã trả trước khi lên ERP. Giữ cả mã lần trong bản
+     nháp: tải lại trang vẫn gửi cùng mã, máy chủ không lập bút toán thứ hai. */
+  ten: 'Khoản đã trả trước ERP',
+  lay: function () { return cntTe ? { hoa_don: cntTe.hoa_don, maLan: cntTe.maLan, tep: tdkDs('cnttruoc') } : null; },
+  dat: function (v) { cntTe = { hoa_don: v.hoa_don, maLan: v.maLan, tep: v.tep || [] }; },
+  ma: function (a) { return a[0] || ''; },
+  tieuDe: function (v) { return v ? 'Hóa đơn ' + v.hoa_don : ''; },
+  luu: ['vagabond.cong_no_ncc.lap_truoc_erp']
+});
 sdKhai('nop_quy', 'scrNopQuyTao', { ten: 'Phiếu nộp quỹ', phat: 1, luu: ['vagabond.nop_quy.tao'] });
 sdKhai('nop_quy_sua', 'scrNopQuySua', {
   ten: 'Sửa phiếu nộp quỹ', phat: 1, ma: function () { return nqSuaMa || ''; }, luu: ['vagabond.nop_quy.sua']
@@ -844,6 +854,7 @@ scrHoSoTTTao = sdBoc('ho_so_tt', 'scrHoSoTTTao', scrHoSoTTTao);
 scrHoanUngTao = sdBoc('hoan_ung', 'scrHoanUngTao', scrHoanUngTao);
 scrChiCongTyTao = sdBoc('chi_cong_ty', 'scrChiCongTyTao', scrChiCongTyTao);
 scrBtLap = sdBoc('but_toan', 'scrBtLap', scrBtLap);
+scrCntTruocErp = sdBoc('tra_truoc_erp', 'scrCntTruocErp', scrCntTruocErp);
 scrNopQuyTao = sdBoc('nop_quy', 'scrNopQuyTao', scrNopQuyTao);
 scrNopQuySua = sdBoc('nop_quy_sua', 'scrNopQuySua', scrNopQuySua);
 scrCongThucSua = sdBoc('cong_thuc', 'scrCongThucSua', scrCongThucSua);

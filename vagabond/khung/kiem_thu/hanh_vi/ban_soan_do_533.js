@@ -534,7 +534,8 @@ async function chayHet() {
       } catch (e) { sai.push(l + ': ' + e.message); }
     });
     bang('khong dong khai nao loi', sai, []);
-    bang('du 40 loai phieu', Object.keys(k.SD_MAN).length, 40);
+    /* v549: them tra_truoc_erp (khoan da tra truoc khi len ERP, Codex #403). */
+    bang('du 41 loai phieu', Object.keys(k.SD_MAN).length, 41);
   });
 
   console.log('ban_soan_do_533: dat ' + ket.dat + ', hong ' + ket.hong);
