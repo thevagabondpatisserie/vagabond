@@ -1541,3 +1541,23 @@ nhãn field; ca bench kiểm số 2.500.000 VND và trạng thái chưa giảm m
 Đính UNC là tác vụ riêng với cấn tiền: lỗi lưu phải dừng trước phân bổ,
 Chỉ lưu UNC không gọi phân bổ. Cập nhật số/link UNC ngay sau lưu để không
 hiện nhãn 0 cũ khiến người dùng tải trùng. Có ca Node giữ ba hành vi này.
+
+## 02/10/2026 (v551): chi trước hoá đơn về sau thì ghi trả trước NCC, không ghi chi phí rồi đảo bằng bút toán tay
+
+- Ca thật: Adecco hoá đơn 5802 (686.810.159 đ). Hồ sơ APP.26.09.009 chi từ
+  TK công ty ghi Nợ 621/6411/6421 / Có 1121 lúc chi (gồm cả VAT), hoá đơn về
+  ghi Nợ 6271/6417/6427 + 1331 / Có 331, rồi máy lập bút toán tay
+  PKT-2026-00043 Nợ 331 / Có lại chi phí. Số dư cuối đúng nhưng chị Dung bác:
+  phiếu kế toán chỉ cho trích lương, khấu hao, phân bổ, trích trước, kết
+  chuyển, điều chỉnh; trả tiền NCC phải là phiếu chi Nợ 331 / Có 1121.
+- Hệ quả của đường cũ: sổ chi tiết chi phí phát sinh hai chiều, VAT nằm trong
+  chi phí trong lúc chờ, hồ sơ chi tháng này mà hoá đơn về tháng sau thì báo
+  cáo tháng chi dư chi phí.
+- Từ v551: khoản chờ hoá đơn của hồ sơ TK công ty có NCC ghi MỘT phiếu chi
+  trả trước (Payment Entry chưa phân bổ). Nối tờ đã ghi sổ thì phân bổ phiếu
+  vào tờ qua bộ đối chiếu thanh toán lõi; tờ nháp thì ghi sổ tờ là máy tự
+  phân bổ. Khoản mang dấu `tra_truoc` đặt lúc chi: đã chi rồi thì KHÔNG suy
+  lại từ cờ chờ hoá đơn, vì cờ đó còn đổi được sau và hồ sơ cũ không có
+  phiếu trả trước nào (suy lại là bộ chứng từ hồ sơ cũ bỗng "thiếu phiếu").
+- 8 bút toán bù trừ cũ (PKT-2026-00043..00050, 724.316.246 đ) giữ nguyên,
+  chỉ liệt kê cho kế toán, không tự sửa.
