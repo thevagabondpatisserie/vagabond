@@ -9429,6 +9429,14 @@ function kkpLyDoChip(r, dv) {
 
 function kkpDraw() {
   var d = kkp.doc;
+  if (kkp.loiGia) {
+    frame('Ghi sổ kiểm kê', '<div class="kwn"><b>Chưa tra được giá vốn</b><br>' +
+      h(kkp.loiGia) + '<br>Chưa thể ghi sổ phiếu ' + h(d.name) +
+      '. Bấm Thử lại để tra giá trước khi tiếp tục.</div>',
+      { footer: '<button class="btn" id="kkpthulai">Thử lại</button>' });
+    document.getElementById('kkpthulai').onclick = function () { return scrKkPost(d.name); };
+    return;
+  }
   var noRate = kkp.rows.filter(function (r) { return kkNum(r.so_luong) > 0 && !kkp.rates[r.item_code]; });
   var batchN = kkp.rows.filter(function (r) { return (kkp.info[r.item_code] || {}).has_batch_no && kkNum(r.so_luong) > 0; }).length;
 

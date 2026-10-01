@@ -14,11 +14,9 @@ Ca thật 30/09-01/10/2026:
 Luật chung (gia_von): dòng có số lượng mà giá vốn trống hoặc 0 thì lấy, theo
 thứ tự, cái đầu tiên lớn hơn 0:
   1. giá bình quân trên sổ kho của ĐÚNG kho, tại ngày giờ phiếu;
-  2. giá sổ kho gần nhất của mã ở kho khác;
-  3. giá mua gần nhất của mã (Item.last_purchase_rate);
-  4. giá vốn chung của mã (Item.valuation_rate).
-Không có gì thì để trống, ERPNext tự chặn "Valuation Rate required" và nêu
-tên món. Dòng bật "Cho phép định giá bằng 0" thì giữ nguyên.
+  2. giá sổ kho gần nhất của mã ở kho khác cùng công ty, không sau mốc phiếu.
+Không dùng giá hiện tại trên Item vì không có lịch sử tại mốc phiếu.
+Không có giá thì yêu cầu kế toán nhập giá vốn đã xác minh cho dòng đó. Dòng bật "Cho phép định giá bằng 0" thì giữ nguyên.
 
 App gọi goi_y_gia (cùng luật) để điền sẵn, Desk đi qua hook trước khi lưu.
 """
@@ -26,7 +24,7 @@ App gọi goi_y_gia (cùng luật) để điền sẵn, Desk đi qua hook trư�
 import frappe
 from frappe.utils import flt
 
-NGUON = ("so_kho", "kho_khac", "gia_mua", "gia_ma")
+NGUON = ("so_kho", "kho_khac")
 
 
 def can_dien(qty, gia, cho_phep_0=0, gia_hien_tai=None):
@@ -102,13 +100,12 @@ def _gia_kho_khac(ma, kho, ngay=None, gio=None):
 
 def gia_von(ma, kho, ngay=None, gio=None):
 	"""Giá vốn đề xuất cho một mã ở một kho. Trả (giá, nguồn) hoặc (None, None)."""
-	it = frappe.db.get_value("Item", ma, ["last_purchase_rate", "valuation_rate"], as_dict=True) or {}
-	return chon_gia([
-		("so_kho", _gia_so_kho(ma, kho, ngay, gio)),
-		("kho_khac", _gia_kho_khac(ma, kho, ngay, gio)),
-		("gia_mua", it.get("last_purchase_rate")),
-		("gia_ma", it.get("valuation_rate")),
-	])
+	# Item.last_purchase_rate / valuation_rate không có mốc lịch sử hay công ty.
+	# Cả phiếu hôm nay cũng có thể ghi trước lần cập nhật giá trong cùng ngày.
+	gia = _gia_so_kho(ma, kho, ngay, gio)
+	if flt(gia) > 0:
+		return flt(gia), "so_kho"
+	return chon_gia([("kho_khac", _gia_kho_khac(ma, kho, ngay, gio))])
 
 
 def dien_gia(doc, method=None):
@@ -136,6 +133,12 @@ def dien_gia(doc, method=None):
 				doc.posting_date, doc.posting_time)
 			if gia:
 				r.valuation_rate = gia
+			else:
+				# Core ERPNext (bench de591661), validate_data: giá trống còn rơi
+				# sang Item Price/Item hiện tại. Chặn trước để Desk không đi vòng.
+				frappe.throw("Dòng %s, món %s: chưa có giá vốn trên sổ kho tới %s. "
+					"Nhập giá vốn tại thời điểm kiểm kê đã được kế toán xác minh."
+					% (r.idx, r.item_code, moc(doc.posting_date, doc.posting_time)))
 
 
 @frappe.whitelist()

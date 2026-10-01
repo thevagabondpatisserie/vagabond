@@ -33,13 +33,20 @@ async function canh(loiGia){
  await c.scrKkPost('KK-1');
  const kkp=vm.runInContext('kkp',c);
  assert.strictEqual(kkp.opening,0,'mặc định Điều chỉnh tồn, không phải Tồn đầu kỳ');
- const gy=goi.find(x=>x.url==='vagabond.gia_von_kiem_ke.goi_y_gia');assert(gy,'đã gọi goi_y_gia');assert.strictEqual(gy.args.kho,'Kho D1','tra đúng kho');
+ let gy=goi.find(x=>x.url==='vagabond.gia_von_kiem_ke.goi_y_gia');assert(gy,'đã gọi goi_y_gia');assert.strictEqual(gy.args.kho,'Kho D1','tra đúng kho');
+ if(loiGia){
+  assert(!document.getElementById('kkpgo'),'không hiện nút ghi sổ khi tra lỗi');
+  assert(!document.querySelector('[data-rate]'),'không mời nhập giá tay khi tra lỗi');
+  assert(document.getElementById('vgbBody').innerHTML.includes('Chưa tra được giá vốn'),'hiện lỗi ngay');
+  await c.kkpSubmit();
+  assert(!goi.some(x=>x.url==='frappe.client.insert'),'chặn cả gọi submit trực tiếp');
+  loiGia=false;
+  await document.getElementById('kkpthulai').onclick();
+  gy=goi.filter(x=>x.url==='vagabond.gia_von_kiem_ke.goi_y_gia').slice(-1)[0];
+ }
  await document.getElementById('kkpgo').onclick();
  const ins=goi.find(x=>x.url==='frappe.client.insert');
- if(loiGia){
-  assert(!ins,'tra giá lỗi thì không tạo phiếu');
-  assert(toast.some(m=>m.includes('Chưa tra được giá vốn')),'báo rõ lý do chặn');
- }else{
+ {
   assert(ins,'đã tạo phiếu điều chỉnh');
   assert.strictEqual(ins.args.doc.purpose,'Stock Reconciliation','kiểu Điều chỉnh tồn');
   assert.strictEqual(ins.args.doc.items[0].valuation_rate,400,'giá sổ kho 400, không phải Item.valuation_rate 0');

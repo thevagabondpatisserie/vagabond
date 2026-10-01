@@ -23,13 +23,20 @@ def _kho(cty):
 	return _kho_bep(cty, "baker" if "baker" in ksx.BEP else "pastry", ksx.NGUYEN_LIEU)
 
 
-def _phieu_kk(cty, kho, dong, gui=True):
+def _phieu_kk(cty, kho, dong, gui=True, ngay=None, gio=None, dau_ky=False):
 	tk = frappe.db.get_value("Company", cty, "stock_adjustment_account")
 	sr = frappe.new_doc("Stock Reconciliation")
 	sr.company = cty
-	sr.purpose = "Stock Reconciliation"
+	sr.purpose = "Opening Stock" if dau_ky else "Stock Reconciliation"
+	if dau_ky:
+		from erpnext.stock.doctype.stock_reconciliation.stock_reconciliation import get_difference_account
+		tk = get_difference_account(sr.purpose, cty)
 	sr.expense_account = tk
 	sr.set_warehouse = kho
+	if ngay:
+		sr.set_posting_time = 1
+		sr.posting_date = ngay
+		sr.posting_time = gio or "08:00:00"
 	for d in dong:
 		r = {"warehouse": kho}
 		r.update(d)
@@ -57,16 +64,27 @@ def _gia_0_lay_so_kho():
 	dung("giá trị tồn 90 x 400, không về 0", abs(gt - 36000) < 1)
 
 
-@ca("v547 that: mã chưa từng có trong kho nào, có giá mua gần nhất 1500: phiếu giá 0 lấy 1500")
+@ca("v547 vòng 4: giá Item hiện tại không được áp vào phiếu lùi ngày hoặc cùng ngày; nhập giá xác minh vẫn được")
 def _gia_mua():
+	from frappe.utils import add_days, nowdate
 	cty = cong_ty()
 	kho = _kho(cty)
 	ma = _mon("NVLT-KT547B")
-	frappe.db.set_value("Item", ma, {"last_purchase_rate": 1500, "valuation_rate": 0})
-	sr = khong_nem("kiểm kê 3 với giá 0", lambda: _phieu_kk(cty, kho, [{"item_code": ma, "qty": 3, "valuation_rate": 0}]))
-	if not sr:
-		return
-	la("giá lấy từ giá mua", flt(sr.items[0].valuation_rate), 1500.0)
+	frappe.db.set_value("Item", ma, {"last_purchase_rate": 1500, "valuation_rate": 900})
+	for ngay in (add_days(nowdate(), -5), nowdate()):
+		for gia in (0, None):
+			loi = None
+			try:
+				_phieu_kk(cty, kho, [{"item_code": ma, "qty": 3, "valuation_rate": gia}], ngay=ngay)
+			except frappe.ValidationError as e:
+				loi = str(e)
+			dung("chặn trước fallback core, báo đúng món", bool(loi and ma in loi and "chưa có giá vốn" in loi))
+	la("chưa ghi tồn", _ton(ma, kho), 0.0)
+	dung("không sinh phiếu nháp dở", not frappe.db.exists("Stock Reconciliation Item", {"item_code": ma}))
+	sr = khong_nem("giá nhập tay đã xác minh", lambda: _phieu_kk(cty, kho, [{"item_code": ma, "qty": 3, "valuation_rate": 700}], dau_ky=True))
+	if sr:
+		la("giữ giá nhập tay", flt(sr.items[0].valuation_rate), 700.0)
+		la("giá trị tồn theo giá nhập tay", flt(frappe.db.get_value("Bin", {"item_code": ma, "warehouse": kho}, "stock_value")), 2100.0)
 
 
 @ca("v547 that: dòng còn dính ô lô từ trước v545 trên mã đã tắt lô: lưu và ghi sổ được")
@@ -119,9 +137,11 @@ def _giu_0_chu_y():
 	ma = _mon("NVLT-KT547F")
 	khong_nem("nhập 10 giá 400", lambda: _phieu(cty, kho, ma, 10, "Material Receipt", 400))
 	sr = khong_nem("lưu nháp giá 0 có giá hiện tại 400",
-		lambda: _phieu_kk(cty, kho, [{"item_code": ma, "qty": 10, "valuation_rate": 0, "current_valuation_rate": 400}], gui=False))
+		lambda: _phieu_kk(cty, kho, [{"item_code": ma, "qty": 9, "valuation_rate": 0, "current_valuation_rate": 400}], gui=False))
 	if not sr:
 		return
+	# Core bench de591661 loại dòng qty không đổi + rate 0 trong remove_items_with_no_change.
+	# Đếm 9 thay cho 10 để kiểm được hook giữ ý định giá 0 qua insert thật.
 	la("giá vẫn 0, không bị điền", flt(sr.items[0].valuation_rate), 0.0)
 
 
@@ -132,7 +152,7 @@ def _dinh_gia_0_co_co():
 	ma = _mon("NVLT-KT547G")
 	khong_nem("nhập 10 giá 400", lambda: _phieu(cty, kho, ma, 10, "Material Receipt", 400))
 	sr = khong_nem("ghi sổ giá 0 có cờ",
-		lambda: _phieu_kk(cty, kho, [{"item_code": ma, "qty": 10, "valuation_rate": 0, "allow_zero_valuation_rate": 1}]))
+		lambda: _phieu_kk(cty, kho, [{"item_code": ma, "qty": 9, "valuation_rate": 0, "allow_zero_valuation_rate": 1}]))
 	if not sr:
 		return
 	la("giá giữ 0", flt(sr.items[0].valuation_rate), 0.0)

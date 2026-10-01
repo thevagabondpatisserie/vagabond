@@ -16,14 +16,12 @@ def _can_dien():
 	dung("cho phép định giá 0 thì giữ", not gv.can_dien(5, 0, 1))
 
 
-@ca("v547: chọn giá theo thứ tự sổ kho đúng kho, kho khác, giá mua, giá chung; lấy cái đầu tiên lớn hơn 0")
+@ca("v547: ưu tiên sổ kho đúng kho rồi kho khác; không có giá thì để trống")
 def _chon_gia():
-	la("sổ kho đúng kho đứng trước", gv.chon_gia([("so_kho", 400), ("kho_khac", 380), ("gia_mua", 410)]), (400.0, "so_kho"))
-	la("kho chưa có giá thì lấy kho khác", gv.chon_gia([("so_kho", 0), ("kho_khac", 6755), ("gia_mua", 0)]), (6755.0, "kho_khac"))
-	la("chưa từng có trong kho thì lấy giá mua", gv.chon_gia([("so_kho", 0), ("kho_khac", 0), ("gia_mua", 1500), ("gia_ma", 900)]), (1500.0, "gia_mua"))
-	la("chỉ còn giá chung của mã", gv.chon_gia([("so_kho", None), ("kho_khac", 0), ("gia_mua", 0), ("gia_ma", 900)]), (900.0, "gia_ma"))
-	la("không có gì thì để trống cho ERPNext chặn", gv.chon_gia([("so_kho", 0), ("kho_khac", 0), ("gia_mua", None), ("gia_ma", 0)]), (None, None))
-	la("thứ tự nguồn cố định", gv.NGUON, ("so_kho", "kho_khac", "gia_mua", "gia_ma"))
+	la("sổ kho đúng kho đứng trước", gv.chon_gia([("so_kho", 400), ("kho_khac", 380)]), (400.0, "so_kho"))
+	la("kho chưa có giá thì lấy kho khác", gv.chon_gia([("so_kho", 0), ("kho_khac", 6755)]), (6755.0, "kho_khac"))
+	la("không có giá", gv.chon_gia([("so_kho", 0), ("kho_khac", 0)]), (None, None))
+	la("thứ tự nguồn cố định", gv.NGUON, ("so_kho", "kho_khac"))
 
 
 @ca("v547 Codex #401 F1: dòng đã tra được giá hiện tại mà gõ 0 là chủ ý định giá lại, không điền")
@@ -71,3 +69,11 @@ def _so_kho_loi_thi_nem():
 				sys.modules.pop(k, None)
 			else:
 				sys.modules[k] = v
+
+
+@ca("v547 vòng 4: không lấy giá Item hiện tại khi thiếu lịch sử, kể cả cùng ngày")
+def _khong_lay_item_hien_tai():
+	from unittest.mock import patch
+	with patch.object(gv, "_gia_so_kho", return_value=0), patch.object(gv, "_gia_kho_khac", return_value=0), patch.object(gv.frappe.db, "get_value", return_value={"last_purchase_rate": 1500, "valuation_rate": 900}):
+		for ngay, gio in (("2026-09-25", "08:00:00"), ("2026-10-01", "08:00:00"), (None, None)):
+			la("không lấy giá không có mốc", gv.gia_von("M", "Kho", ngay, gio), (None, None))
