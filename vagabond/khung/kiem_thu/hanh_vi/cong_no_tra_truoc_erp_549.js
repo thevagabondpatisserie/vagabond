@@ -89,7 +89,23 @@ async function moi(vai,{pe=[],cho=[],keToan=false,loiLap=false}={}){
  assert(c.root.innerHTML.includes('Chờ kế toán duyệt'));
  // Codex #403 vòng 3: kế toán thấy bằng chứng trước khi duyệt.
  assert(c.root.innerHTML.includes('href="/private/files/unc-9.pdf"'),'có liên kết UNC');
- assert(c.root.innerHTML.includes('Uyên')&&c.root.innerHTML.includes('2026-04-10')&&c.root.innerHTML.includes('MB 1234'),'có người gửi, ngày trả, ghi chú');
+ assert(c.root.innerHTML.includes('Uyên')&&c.root.innerHTML.includes('MB 1234'),'có người gửi, ghi chú');
+ // Codex #403 vòng 4: ngày theo dd/mm/yyyy, không để ISO của máy chủ.
+ assert(c.root.innerHTML.includes('Đã trả ngày 10/04/2026'),'ngày trả dd/mm/yyyy');
+ assert(c.root.innerHTML.includes('lúc 01/10/2026 15:00'),'lúc gửi dd/mm/yyyy hh:mm');
+ assert(!/2026-04-10|2026-10-01/.test(c.root.innerHTML),'không còn ngày ISO trên thẻ');
+ // Vòng 4: ghi chú 300 ký tự và 3 UNC không được đẩy nút duyệt xuống: tóm tắt
+ // đúng hai dòng cắt gọn, chỉ UNC đầu ở trên nút, phần đủ nằm dưới nút.
+ const dai='x'.repeat(300);
+ const l=await moi(['Accounts User'],{cho:[{je:'PKT-7',so_tien:1000,unc:['/f/a.pdf','/f/b.pdf','/f/c.pdf'],nguoi_gui:'Uyên',luc_gui:'2026-10-01 15:00:09.5',ngay_tra:'2026-04-10',dien_giai:dai}],keToan:true});
+ const th=l.root.innerHTML,nut=th.indexOf('data-cntduyet="PKT-7"');
+ assert(nut>0,'có nút duyệt');
+ const truoc=th.slice(th.indexOf('Chờ kế toán duyệt'),nut);
+ assert.equal((truoc.match(/text-overflow:ellipsis/g)||[]).length,2,'tóm tắt đúng hai dòng cắt gọn');
+ assert(truoc.includes('href="/f/a.pdf"')&&!truoc.includes('href="/f/b.pdf"')&&!truoc.includes('href="/f/c.pdf"'),'trên nút chỉ UNC đầu');
+ assert(truoc.includes('và 2 UNC khác'),'báo còn UNC khác');
+ const sau=th.slice(nut);
+ assert(sau.indexOf('<details')>0&&sau.includes('href="/f/b.pdf"')&&sau.includes('href="/f/c.pdf"')&&sau.includes(dai),'đủ ghi chú và UNC nằm dưới nút');
  const c0=await moi(['Accounts User'],{cho:[{je:'PKT-8',so_tien:1000,unc:[]}],keToan:true});
  assert(c0.root.innerHTML.includes('Chưa có UNC'),'không có UNC thì nói rõ');
  await c.click('[data-cntduyet="PKT-9"]');assert.equal(c.goi('duyet_truoc_erp')[0].a.je,'PKT-9');
