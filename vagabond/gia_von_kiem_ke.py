@@ -29,13 +29,20 @@ from frappe.utils import flt
 NGUON = ("so_kho", "kho_khac", "gia_mua", "gia_ma")
 
 
-def can_dien(qty, gia, cho_phep_0=0):
-	"""THUẦN: dòng có số lượng, giá trống hoặc 0, không chủ ý định giá 0."""
+def can_dien(qty, gia, cho_phep_0=0, gia_hien_tai=None):
+	"""THUẦN: dòng có số lượng, giá trống hoặc 0, không chủ ý định giá 0.
+
+	Codex #401 F1: dòng đã tra được giá hiện tại (> 0) mà người dùng gõ 0 là
+	CHỦ Ý định giá lại về 0, giữ nguyên để ERPNext tự xử (không bật "Cho phép
+	định giá bằng 0" thì ERPNext chặn khi ghi sổ). Chỉ điền khi dòng chưa từng
+	được tra giá, như các dòng nạp một lượt trên phiếu của Kiên."""
 	try:
 		if int(cho_phep_0 or 0):
 			return False
 	except (TypeError, ValueError):
 		pass
+	if flt(gia_hien_tai) > 0 and gia not in (None, ""):
+		return False
 	return flt(qty) > 0 and (gia in (None, "") or flt(gia) <= 0)
 
 
@@ -58,13 +65,35 @@ def _gia_so_kho(ma, kho, ngay=None, gio=None):
 		return 0
 
 
-def _gia_kho_khac(ma):
+def moc(ngay=None, gio=None):
+	"""THUẦN: mốc thời gian 'YYYY-MM-DD HH:MM:SS' của phiếu, thiếu giờ thì cuối ngày."""
+	if not ngay:
+		return None
+	g = str(gio or "23:59:59")
+	if len(g) == 5:
+		g += ":00"
+	return "%s %s" % (str(ngay)[:10], g[:8])
+
+
+def _gia_kho_khac(ma, kho, ngay=None, gio=None):
+	"""Giá sổ kho gần nhất của mã ở KHO KHÁC cùng công ty, KHÔNG muộn hơn mốc
+	phiếu (Codex #401 F2: phiếu ghi lùi ngày không được lấy giá tương lai)."""
+	cty = frappe.db.get_value("Warehouse", kho, "company") if kho else None
+	dk = ["item_code=%(ma)s", "is_cancelled=0", "valuation_rate > 0"]
+	gt = {"ma": ma}
+	if kho:
+		dk.append("warehouse != %(kho)s")
+		gt["kho"] = kho
+	if cty:
+		dk.append("company = %(cty)s")
+		gt["cty"] = cty
+	m = moc(ngay, gio)
+	if m:
+		dk.append("posting_datetime <= %(moc)s")
+		gt["moc"] = m
 	r = frappe.db.sql(
-		"""select valuation_rate from `tabStock Ledger Entry`
-		where item_code=%s and is_cancelled=0 and valuation_rate > 0
-		order by posting_datetime desc, creation desc limit 1""",
-		(ma,),
-	)
+		"select valuation_rate from `tabStock Ledger Entry` where " + " and ".join(dk)
+		+ " order by posting_datetime desc, creation desc limit 1", gt)
 	return flt(r[0][0]) if r else 0
 
 
@@ -73,7 +102,7 @@ def gia_von(ma, kho, ngay=None, gio=None):
 	it = frappe.db.get_value("Item", ma, ["last_purchase_rate", "valuation_rate"], as_dict=True) or {}
 	return chon_gia([
 		("so_kho", _gia_so_kho(ma, kho, ngay, gio)),
-		("kho_khac", _gia_kho_khac(ma)),
+		("kho_khac", _gia_kho_khac(ma, kho, ngay, gio)),
 		("gia_mua", it.get("last_purchase_rate")),
 		("gia_ma", it.get("valuation_rate")),
 	])
@@ -99,7 +128,7 @@ def dien_gia(doc, method=None):
 					r.set(f, None)
 			if r.get("use_serial_batch_fields"):
 				r.use_serial_batch_fields = 0
-		if can_dien(r.qty, r.valuation_rate, r.get("allow_zero_valuation_rate")):
+		if can_dien(r.qty, r.valuation_rate, r.get("allow_zero_valuation_rate"), r.get("current_valuation_rate")):
 			gia, _nguon = gia_von(r.item_code, r.warehouse or doc.get("set_warehouse"),
 				doc.posting_date, doc.posting_time)
 			if gia:
