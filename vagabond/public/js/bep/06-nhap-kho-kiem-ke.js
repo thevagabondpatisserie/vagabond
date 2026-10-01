@@ -1704,10 +1704,16 @@ async function scrKkPost(name) {
   kkp.rates = {};
   kkp.nguonGia = {};
   kkp.loiGia = '';
+  /* Codex #401 vong 3: MOT moc ngay gio duy nhat cho ca tra gia lan ghi so.
+     Ban truoc tra gia theo ngay (moc 23:59:59) roi ghi so luc hmOf(now), nen
+     phieu ghi lui van lay duoc gia muon hon gio ghi so trong cung ngay. */
+  var luc = new Date();
+  kkp.ngay = d.ngay_kiem || ymdOf(luc);
+  kkp.gio = hmOf(luc);
   /* Codex #401 F3: tra gia loi thi CHAN ghi so, khong roi ve cach doc cu
      (Item.valuation_rate) vi chinh cach do lam sai gia o Kho D1. */
   try {
-    var gy = await api('vagabond.gia_von_kiem_ke.goi_y_gia', { kho: d.kho, ma: JSON.stringify(codes), ngay: d.ngay_kiem || '' });
+    var gy = await api('vagabond.gia_von_kiem_ke.goi_y_gia', { kho: d.kho, ma: JSON.stringify(codes), ngay: kkp.ngay, gio: kkp.gio });
     Object.keys(gy || {}).forEach(function (m) { kkp.rates[m] = kkNum(gy[m].gia); kkp.nguonGia[m] = gy[m].nguon; });
   } catch (e) {
     kkp.rates = {};
@@ -1874,13 +1880,12 @@ async function kkpSubmit() {
     }
 
     /* 2. dung phieu dieu chinh ton kho */
-    var now = new Date();
     var sr = {
       doctype: 'Stock Reconciliation',
       company: COMPANY,
       purpose: kkp.opening ? 'Opening Stock' : 'Stock Reconciliation',
-      posting_date: d.ngay_kiem || ymdOf(now),
-      posting_time: hmOf(now),
+      posting_date: kkp.ngay,
+      posting_time: kkp.gio,
       set_posting_time: 1,
       set_warehouse: d.kho,
       expense_account: kkp.acc,
