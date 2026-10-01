@@ -146,6 +146,7 @@ node vagabond/khung/kiem_thu/hanh_vi/ban_soan_do_533.js
 # v534 (#380): thanh cong cu danh sach chung, so hang tang, tab Tien da ve (man that).
 node vagabond/khung/kiem_thu/hanh_vi/cong_cu_ds_534.js
 node vagabond/khung/kiem_thu/hanh_vi/cong_no_ncc.js
+node vagabond/khung/kiem_thu/hanh_vi/cong_no_tra_truoc_erp_549.js
 # Trang /kiem-banh: chuoi go o Huy. Codex doi tren PR #218 mot ca chay that
 # chuoi bam - go - cho phan hoi - kiem so, chu khong do chuoi. Dat o day chu
 # khong de chay tay: mot ca kiem khong nam trong cong la mot ca kiem se quen.
