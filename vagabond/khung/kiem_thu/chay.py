@@ -67,7 +67,7 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_giao_dien_xuat_huy_va_tro_ly,
 	thu_goi_y_ycsx,
 	thu_gui_thu,
-	thu_hang_tang, thu_hddt_bu, thu_hddt_cho_xuat, thu_hddt_dung_ngay_527, thu_doi_soat_hddt_ra_527, thu_ma_ke_toan_536, thu_lo_theo_ngay_phieu_540, thu_gsm_lam_tron_543, thu_hach_toan_kho_542, thu_tat_lo_545, thu_go_dat_hang_545,
+	thu_hang_tang, thu_hddt_bu, thu_hddt_cho_xuat, thu_hddt_dung_ngay_527, thu_doi_soat_hddt_ra_527, thu_ma_ke_toan_536, thu_lo_theo_ngay_phieu_540, thu_gsm_lam_tron_543, thu_hach_toan_kho_542, thu_tat_lo_545, thu_gia_von_kiem_ke_547, thu_go_dat_hang_545,
 	thu_nguyen_tac_man_hinh,
 	thu_kho_sap,
 	thu_o_cai_dat,
