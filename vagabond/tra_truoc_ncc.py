@@ -278,7 +278,7 @@ def khi_ghi_so_hd(doc, method=None):
 	for r in frappe.get_all("Vagabond Ho So TT HD Sau", filters={"parent": ho_so, "hoa_don": doc.name},
 			fields=["name"], limit_page_length=0):
 		frappe.db.set_value("Vagabond Ho So TT HD Sau", r.name, {
-			"da_ghi_so": 1, "bu_tru": tong, "but_toan": da[0][0] if da else ""}, update_modified=False)
+			"da_ghi_so": 1, "bu_tru": tong, "phieu_chi": da[0][0] if da else ""}, update_modified=False)
 	con_no = can - tong
 	frappe.get_doc("Vagabond Ho So TT", ho_so).add_comment("Comment", (
 		"Hoá đơn %s (số %s) đã ghi sổ: máy phân bổ %s đ từ phiếu chi trả trước %s vào tờ này."

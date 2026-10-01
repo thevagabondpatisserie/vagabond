@@ -1202,7 +1202,7 @@ def noi_nhieu(name, hoa_don, ngoai_ncc=0):
 		dong = {"hoa_don": ma, "so_hd_ncc": hd.get("bill_no") or "", "ncc": hd["supplier"],
 			"tong_hd": _tien(hd.get("grand_total")), "tien_khop": tk, "da_ghi_so": 1 if hs.da_ghi_so(hd) else 0,
 			"ngoai_ncc": 0 if trong_nhom else 1, "noi_boi": frappe.session.user, "noi_luc": now_datetime(),
-			"bu_tru": 0, "but_toan": ""}
+			"bu_tru": 0, "but_toan": "", "phieu_chi": ""}
 		if phieu_tt and hs.da_ghi_so(hd):
 			lay, chia = ttn.chia_phan_bo(phieu_tt, tk, hd["supplier"])
 			if lay <= 0.5:
@@ -1214,7 +1214,7 @@ def noi_nhieu(name, hoa_don, ngoai_ncc=0):
 					if p["name"] == ten_pe:
 						p["con"] = _tien(p["con"]) - t
 			dong["bu_tru"] = lay
-			dong["but_toan"] = chia[0][0]
+			dong["phieu_chi"] = chia[0][0]
 			phan_bo.append((ma, chia))
 		elif tkct and hs.da_ghi_so(hd):
 			if d.trang_thai != "Da thanh toan":
@@ -1285,11 +1285,14 @@ def go_noi(name, hoa_don):
 		frappe.throw("Hồ sơ %s không có tờ %s nối ở mức hồ sơ. Tờ nối kiểu cũ theo khoản thì nhờ kế toán xử lý." % (name, ma))
 	# v551: tờ đã phân bổ phiếu chi trả trước thì gỡ đúng phần phân bổ vào tờ
 	# đó (Unreconcile Payment lõi), không huỷ phiếu chi: tiền vẫn đã chi.
-	la_pe = bool(dong.but_toan) and bool(frappe.db.get_value("Payment Entry", dong.but_toan, "name"))
+	# Phiếu chi nằm ở ô phieu_chi riêng: but_toan là Link tới Journal Entry,
+	# ghi tên phiếu chi vào đó thì lưu hồ sơ lỗi link (bench #405 vòng 2).
+	pe_go = (dong.get("phieu_chi") or "").strip()
+	la_pe = bool(pe_go)
 	# Tờ nối cùng lần chung một bút toán bù trừ: huỷ bút toán là cả nhóm mất
 	# bù trừ, nên gỡ cả nhóm (màn đã báo trước khi hỏi).
 	nhom = [dong] if la_pe else ([r for r in d.hd_sau if dong.but_toan and r.but_toan == dong.but_toan] or [dong])
-	but_toan = dong.but_toan or ""
+	but_toan = "" if la_pe else (dong.but_toan or "")
 	for r in nhom:
 		d.remove(r)
 	tkct = (getattr(d, "loai", None) or "") == LOAI_TKCT
@@ -1303,8 +1306,7 @@ def go_noi(name, hoa_don):
 	if la_pe:
 		from vagabond.tra_truoc_ncc import go_phan_bo
 		khoa_hoa_don(ma)
-		go_pb = go_phan_bo(but_toan, ma) or ""
-		but_toan = ""
+		go_pb = go_phan_bo(pe_go, ma) or ""
 	if but_toan:
 		je = frappe.get_doc("Journal Entry", but_toan)
 		if je.docstatus == 1:
@@ -1315,6 +1317,6 @@ def go_noi(name, hoa_don):
 	d.add_comment("Comment", "Gỡ hoá đơn đến sau %s.%s%s%s" % (
 		", ".join(go), (" Huỷ bút toán bù trừ %s, công nợ các tờ trở lại." % but_toan) if but_toan else "",
 		(" Gỡ phân bổ phiếu chi trả trước %s khỏi tờ (%s), công nợ tờ trở lại, phiếu chi trở lại trả trước."
-			% (dong.but_toan, go_pb)) if go_pb else "",
+			% (pe_go, go_pb)) if go_pb else "",
 		" Hồ sơ trở lại chi phí không hợp lệ tính thuế vì không còn đủ hoá đơn." if ve else ""))
 	return {"ok": 1, "huy_but_toan": but_toan, "go_phan_bo": go_pb, "go": go, "ve_khong_hop_le": ve}

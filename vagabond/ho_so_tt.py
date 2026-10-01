@@ -1851,7 +1851,7 @@ def _hd_sau_cho_man(doc):
 		ra.append({
 			"hoa_don": r.hoa_don, "so_hd_ncc": r.so_hd_ncc or "", "ncc_ten": hd.get("supplier_name") or r.ncc or "",
 			"ngay_hd": str(hd.get("bill_date") or ""), "tong_hd": flt(r.tong_hd), "tien_khop": flt(r.tien_khop),
-			"da_ghi_so": cint(r.da_ghi_so), "bu_tru": flt(r.bu_tru), "but_toan": r.but_toan or "",
+			"da_ghi_so": cint(r.da_ghi_so), "bu_tru": flt(r.bu_tru), "but_toan": r.but_toan or "", "phieu_chi": r.get("phieu_chi") or "",
 			"ngoai_ncc": cint(r.ngoai_ncc), "nhan": nhan_to(hd) if hd else "Không còn tờ này",
 			"scan": ct["scan"],
 		})
