@@ -19,7 +19,7 @@ khi ghi sổ máy lập một Phiếu xuất dùng (Material Issue, mã PXD-) g�
 từ kho điểm bán những món đang có, Nợ 632. Phần còn thiếu chờ hàng về:
 
   - Phiếu kho hay phiếu kiểm kê nhập vào kho điểm bán: máy xếp việc trừ bù
-    cho kho đó sau khi phiếu ghi sổ xong (enqueue_after_commit).
+    cho kho đó sau khi phiếu ghi sổ xong (frappe.db.after_commit).
   - Nhịp mỗi giờ quét lại phòng khi hàng về bằng đường không có hook.
   - Nút "Trừ bù" trên từng hoá đơn và "Trừ bù cả điểm" trên màn
     Hoá đơn chưa trừ kho.
@@ -264,13 +264,27 @@ def can_cua(si, kho):
 
 
 def da_tru_cua(ten_si):
-	"""{(mã, kho): số} đã trừ qua các Phiếu xuất dùng còn hiệu lực gắn hoá đơn."""
+	"""{(mã, kho): số} đã trừ của hoá đơn, cộng HAI nguồn chứng từ.
+
+	1. Sổ kho của chính hoá đơn (hoá đơn tự trừ kho, update_stock=1). Đọc
+	   Stock Ledger Entry nên gồm cả thành phần bộ sản phẩm.
+	2. Các Phiếu xuất dùng bù còn hiệu lực gắn hoá đơn.
+	Codex 3c93e55 F3: trước đây chỉ đọc nguồn 2, tờ trừ trực tiếp hiện "Đã trừ
+	0" cạnh chip "Đã trừ kho". Một hàm cho cả màn và tru_bu, không tính lại ở
+	chỗ khác.
+	"""
 	ra = {}
+	for r in frappe.db.sql("""select item_code, warehouse, -sum(actual_qty)
+		from `tabStock Ledger Entry`
+		where voucher_type = 'Sales Invoice' and voucher_no = %s and is_cancelled = 0
+		group by item_code, warehouse""", (ten_si,)):
+		if flt(r[2]) > 0:
+			ra[(r[0], r[1])] = ra.get((r[0], r[1]), 0) + flt(r[2])
 	for r in frappe.db.sql("""select d.item_code, d.s_warehouse, sum(d.transfer_qty)
 		from `tabStock Entry Detail` d join `tabStock Entry` s on s.name = d.parent
 		where s.vgb_hd_tru_bu = %s and s.docstatus = 1 and ifnull(d.s_warehouse, '') != ''
 		group by d.item_code, d.s_warehouse""", (ten_si,)):
-		ra[(r[0], r[1])] = flt(r[2])
+		ra[(r[0], r[1])] = ra.get((r[0], r[1]), 0) + flt(r[2])
 	return ra
 
 
@@ -417,15 +431,21 @@ def tru_bu(ten_si, nguon="máy", tay=False):
 		frappe.flags.vgb_dang_tru_bu = False
 
 
-def _hd_cho(kho=None, tu_dong=True, gioi_han=300):
-	"""Hoá đơn đã ghi sổ còn chờ trừ kho, cũ trước, tuỳ chọn theo một kho."""
+def _hd_cho(kho=None, tu_dong=True):
+	"""Hoá đơn đã ghi sổ còn chờ trừ kho, cũ trước, tuỳ chọn theo một kho.
+
+	Codex 3c93e55 F1: KHÔNG cắt số dòng trước khi lọc Gỡ tay và lọc kho. Cắt
+	300 dòng đầu thì 300 tờ Gỡ tay, kho khác hay thiếu hàng đứng đầu sẽ chặn
+	mãi tờ sau. Tập chờ chỉ gồm tờ còn Chưa trừ kho từ ngày bật, đọc ba cột
+	nhẹ, nên đọc đủ rồi lọc bằng Python.
+	"""
 	from vagabond import hach_toan_kho as hk
 	loc = {"docstatus": 1, "vgb_tru_kho_ban": 1, "vgb_chua_tru_kho": 1}
 	moc = hk._moc(hk.O_BAN_TU)
 	if moc:
 		loc["posting_date"] = [">=", moc]
 	ds = frappe.get_all("Sales Invoice", filters=loc, fields=["name", "vgb_quay", "vgb_tru_bu"],
-		order_by="posting_date asc, posting_time asc, name asc", limit_page_length=gioi_han)
+		order_by="posting_date asc, posting_time asc, name asc", limit_page_length=0)
 	# Lọc "Gỡ tay" bằng Python: ô Select để trống là NULL, phép != của SQL
 	# loại luôn NULL, tức là loại cả những tờ chưa trừ bù lần nào.
 	if tu_dong:
@@ -522,8 +542,30 @@ def khi_nhap_kho(doc, method=None):
 	except Exception:
 		return
 	for kho in kho_ds:
+		# Codex 3c93e55 F2: enqueue của lõi chạm Redis (get_job, get_queue)
+		# ngay lúc gọi, kể cả với enqueue_after_commit. Lỗi ở đó từng thoát ra
+		# khỏi on_submit và lùi cả phiếu nhập. Nay chỉ đăng ký một việc nhỏ
+		# chạy SAU commit, việc đó tự nuốt lỗi; trượt thì nhịp mỗi giờ bù.
+		try:
+			frappe.db.after_commit.add(_viec_sau_commit(kho))
+		except Exception:
+			_xep_viec(kho)
+
+
+def _viec_sau_commit(kho):
+	return lambda: _xep_viec(kho)
+
+
+def _xep_viec(kho):
+	"""Xếp việc trừ bù cho một kho. Không bao giờ ném."""
+	try:
 		frappe.enqueue("vagabond.tru_kho_bu.tru_bu_kho", queue="short", kho=kho,
-			job_id="vgb_tru_bu_" + frappe.scrub(kho), deduplicate=True, enqueue_after_commit=True)
+			job_id="vgb_tru_bu_" + frappe.scrub(kho), deduplicate=True)
+	except Exception:
+		try:
+			frappe.log_error(frappe.get_traceback(), "tru_kho_bu: chưa xếp được việc trừ bù %s" % kho)
+		except Exception:
+			pass
 
 
 # ------------------------------------------------------------ app
