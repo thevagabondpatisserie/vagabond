@@ -1110,7 +1110,9 @@ function mkBangHd(ds, loai) {
         (d.docstatus === 0 && !d.vgb_huy ? ' · <b style="color:#b45309">còn nháp</b>' : '') +
         (d.docstatus === 2 || d.vgb_huy ? ' · <b style="color:#b3261e">🚫 đã huỷ</b>' : '') +
         (d.vgb_huy && d.vgb_huy_ly_do ? ' <span style="color:#b3261e">(' + h(d.vgb_huy_ly_do) + ')</span>' : '') +
-        (d.da_sua ? ' · <b style="color:#92400e">✏️ đã sửa</b>' : '') + '</div>' +
+        (d.da_sua ? ' · <b style="color:#92400e">✏️ đã sửa</b>' : '') +
+        /* v550: trang thai kho, cung bang chu voi moi man (49-tru-kho-bu.js). */
+        (tkChip(d) ? ' · <b style="color:' + tkChip(d)[1] + '">' + tkChip(d)[2] + '</b>' : '') + '</div>' +
         /* Nguoi ban ngay tren dong danh sach. Anh Viet chot 02/09/2026:
            moi man hoa don phai thay duoc ai ban to nay. May chu tra ve TEN
            chu khong tra dia chi thu, xem `vagabond/ten_nguoi.py`. */
