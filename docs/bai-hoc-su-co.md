@@ -1531,3 +1531,13 @@ ký hiệu/năm hoặc dòng chưa chi. Phòng tái diễn: ghi rõ nguồn/ph�
 giữ tiền tệ riêng, đối chiếu chứng từ trước cấn; không tạo DMH/PNK để sửa nợ.
 Màn và Excel dùng một bộ lọc và không cắt tổng theo trang. Giảm dư không đồng
 nghĩa đã chuyển tiền; dùng “Giảm một phần” thay cho suy đoán “Đã trả”.
+
+### 01/10/2026 - PR402: kiểm đúng đơn vị của dư nợ, cập nhật bằng chứng ngay
+
+Review cho rằng PI ngoại tệ lưu dư theo tiền hóa đơn. Mã core pinned
+`accounts/utils.py:update_voucher_outstanding` và ca insert-submit-reload
+PI USD100/TK VND xác nhận dư theo tiền tài khoản. Không đổi logic chỉ dựa
+nhãn field; ca bench kiểm số 2.500.000 VND và trạng thái chưa giảm một phần.
+Đính UNC là tác vụ riêng với cấn tiền: lỗi lưu phải dừng trước phân bổ,
+Chỉ lưu UNC không gọi phân bổ. Cập nhật số/link UNC ngay sau lưu để không
+hiện nhãn 0 cũ khiến người dùng tải trùng. Có ca Node giữ ba hành vi này.

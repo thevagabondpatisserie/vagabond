@@ -14,7 +14,7 @@ async function moi(fin=true,loi=false){
   h:s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'),money:String,ngayNgan:String,
   toast(){},busy(){},baoTin:s=>writes.push(['tin',s]),dSkin(){},errMsg:e=>e.message,
   posChipNut:(a,n)=>'<button '+a+'>'+n+'</button>',kmHangChip:s=>'<div>'+s+'</div>',
-  tdkNap:(id,a)=>{g.files=a;},tdkDs:()=>g.files||[],tdkKhoi:()=>'<div></div>',tdkNoi(){},hsChonCanCoc:(...a)=>writes.push(a),
+  tdkNap:(id,a)=>{g.files=a;},tdkDs:()=>g.files||[],tdkKhoi:()=>'<div></div>',tdkNoi(){},tdkVeLai(){},hsChonCanCoc:(...a)=>writes.push(a),
   hasRole:()=>fin,hsCoQuyenCanCoc:()=>fin,hsCocLan:null,hsMoCanCoc:(...a)=>writes.push(a),hsThuLaiCanCoc:()=>writes.push(['retry']),
   bcTaiVe:(...a)=>downloads.push(a),open:(...a)=>opened.push(a),
   sheet:(t,ds,chon,cb)=>{g.choices=ds;g.pick=cb;},
@@ -40,6 +40,14 @@ async function moi(fin=true,loi=false){
  const confirm=m.document.getElementById('cntXacNhanCan');confirm.dispatchEvent(dom.suKien('click',{},confirm));await nghi();
  assert.equal(m.calls.at(-1).m,'vagabond.cong_no_ncc.luu_unc');
  assert.equal(m.writes[0][0],'NCC');assert.deepEqual(JSON.parse(JSON.stringify(m.writes[0][1])),[{hoa_don:'HD-1',so_tien:40}]);
+ assert(m.document.getElementById('cntUncCu').textContent.includes('UNC đã đính: 1'));
+ const f=await moi();await f.click('[data-cntcan]');f.g.pick({value:'PE-1'});await nghi();
+ f.document.getElementById('cntSoTien').value='61';await f.click('#cntXacNhanCan');
+ assert(!f.writes.some(x=>x[0]==='NCC'),'vượt dư không được cấn');
+ f.document.getElementById('cntSoTien').value='40';f.g.files=['/private/files/unc.pdf'];
+ const apiCu=f.g.api;f.g.api=async(m,a)=>{if(m.endsWith('luu_unc'))throw new Error('Không lưu được UNC');return apiCu(m,a);};
+ await f.click('#cntXacNhanCan');assert(!f.writes.some(x=>x[0]==='NCC'),'UNC lỗi phải dừng trước phân bổ');
+ f.g.api=apiCu;await f.click('#cntLuuUnc');assert(!f.writes.some(x=>x[0]==='NCC'),'chỉ lưu UNC không phân bổ');
  m.g.hsCocLan={payload:'pending'};await m.g.cntCanTru(m.row);assert.equal(m.writes.at(-1)[0],'retry');
  await m.g.scrNoPhaiTra();
  const u=await moi(false);await u.click('[data-cntdong]');assert(!u.g.choices.some(x=>x.value==='can'||x.value==='loi'));assert.equal(u.writes.length,0);

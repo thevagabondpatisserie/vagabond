@@ -900,7 +900,7 @@ function cntManCan(r,ds,pe) {
   var html='<div class="card" style="padding:12px"><b>HĐ '+h(r.bill_no || r.name)+'</b><div>'+h(r.supplier_name)+'</div><div>Khoản đã trả: '+h(pe.name)+'</div><div>Còn có thể cấn '+money(Math.min(Number(ds.con_no),Number(pe.con_coc)))+' đ</div></div>'+
     '<div class="card" style="padding:12px"><label for="cntSoTien">Số tiền cấn</label><input class="tin" style="width:100%;font-size:20px" id="cntSoTien" type="number" inputmode="decimal" min="1" value="'+Math.min(Number(ds.con_no),Number(pe.con_coc))+'">'+tdkKhoi(id,opt)+
     '<button class="btn gh" id="cntLuuUnc">Chỉ lưu UNC</button></div>'+
-    '<details class="card" style="padding:12px"><summary>UNC đã đính: '+pe.unc.length+'</summary>'+pe.unc.map(function(u){return '<p><a target="_blank" rel="noopener" href="'+h(u)+'">Xem UNC</a></p>';}).join('')+'</details>';
+    '<details class="card" id="cntUncCu" style="padding:12px"><summary>UNC đã đính: '+pe.unc.length+'</summary>'+pe.unc.map(function(u){return '<p><a target="_blank" rel="noopener" href="'+h(u)+'">Xem UNC</a></p>';}).join('')+'</details>';
   var b=frame('Cấn trừ công nợ',html,{footer:'<button class="btn" id="cntXacNhanCan">Xác nhận cấn, không chuyển tiền</button>'});
   tdkNoi(b,id,opt);
   var dang=false;
@@ -909,7 +909,9 @@ function cntManCan(r,ds,pe) {
     if(!urls.length)return false;
     var k=await api('vagabond.cong_no_ncc.luu_unc',{hoa_don:r.name,payment_entry:pe.name,unc:JSON.stringify(urls)});
     pe.unc=pe.unc.concat(urls.filter(function(u){return pe.unc.indexOf(u)<0;}));
-    tdkNap(id,[]);toast('Đã lưu '+k.so_unc+' UNC.',3000);return true;
+    tdkNap(id,[]);tdkVeLai(id,opt);
+    b.querySelector('#cntUncCu').innerHTML='<summary>UNC đã đính: '+pe.unc.length+'</summary>'+pe.unc.map(function(u){return '<p><a target="_blank" rel="noopener" href="'+h(u)+'">Xem UNC</a></p>';}).join('');
+    toast('Đã lưu '+k.so_unc+' UNC.',3000);return true;
   }
   b.querySelector('#cntLuuUnc').onclick=async function(){
     if(dang)return;dang=true;
