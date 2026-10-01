@@ -22255,7 +22255,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '548';
+var APPVER = '549';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -27038,6 +27038,7 @@ async function scrNoPhaiTra() {
     return '<div class="card" style="padding:12px"><b>' + h(r.supplier_name) + '</b><div style="font-size:12px">' + h(r.ma_ncc) + ' · HĐ ' + h(r.bill_no || 'chưa có số NCC') + '</div>' +
       '<div>' + h(r.name) + ' · ' + ngayNgan(r.ngay) + '</div><b>' + money(r.con_no) + ' ' + h(r.account_currency) + '</b> ' +
       '<span class="badge">' + h(r.trang_thai) + (r.tre_ngay ? ' · trễ ' + r.tre_ngay + ' ngày' : '') + '</span>' + cntBuoc(r) +
+      cntDongCho(r, kq.ke_toan) +
       (r.con_no > 0 ? '<button class="btn" data-cntcan="' + i + '">Cấn trừ công nợ</button>' : '') +
       '<button class="btn gh" data-cntdong="' + i + '">Xem chứng từ</button></div>';
   }).join('');
@@ -27047,6 +27048,10 @@ async function scrNoPhaiTra() {
   b.onclick = function (e) {
     var can = e.target.closest('[data-cntcan]');
     if (can) return cntCanTru(kq.dong[Number(can.getAttribute('data-cntcan'))]);
+    var dy = e.target.closest('[data-cntduyet]');
+    if (dy) return cntDuyetTruocErp(dy.getAttribute('data-cntduyet'));
+    var bo = e.target.closest('[data-cntbo]');
+    if (bo) return cntBoTruocErp(bo.getAttribute('data-cntbo'));
     var t = e.target.closest('[data-cntdong]');
     if (t) return cntXuLy(kq.dong[Number(t.getAttribute('data-cntdong'))]);
   };
@@ -27088,14 +27093,20 @@ function cntXuLy(r) {
 
 /* UNC gắn vào khoản đã chi, không dùng ảnh thay cho chứng từ thanh toán. */
 async function cntCanTru(r) {
-  if (!hsCoQuyenCanCoc()) return cntHuongDan();
+  /* v549: hóa đơn trả trước khi lên ERP (Printeco 04/04/2026) không có phiếu
+     chi nào trên ERP để cấn. Bản v548 rơi về hướng dẫn, anh Việt bấm thấy
+     "chẳng ra cái gì". Nay luôn có lối "Đã trả trước khi lên ERP". */
+  var lap = cntCoQuyenLapTruocErp();
+  if (!hsCoQuyenCanCoc()) return lap ? cntMoTruocErp(r) : cntHuongDan();
   if (hsCocLan) return hsThuLaiCanCoc(function () {go(scrNoPhaiTra,true);});
   if(r.currency !== 'VND' || r.account_currency !== 'VND') return cntXuLy(r);
   var ds;
   try {ds=await api('vagabond.cong_no_ncc.khoan_da_tra',{hoa_don:r.name});}
   catch(e){return baoTin(e.message || 'Chưa đọc được khoản đã trả. Tải lại rồi thử.');}
-  if (!ds.rows.length) return cntHuongDan();
-  sheet('Chọn khoản đã trả',ds.rows.map(function(p){return {value:p.name,label:p.name+' · còn '+money(p.con_coc)+' đ',phu:ngayNgan(p.ngay)+' · '+p.unc.length+' UNC'};}),'',function(x){
+  if (!ds.rows.length) return cntMoTruocErp(r);
+  sheet('Chọn khoản đã trả',ds.rows.map(function(p){return {value:p.name,label:p.name+' · còn '+money(p.con_coc)+' đ',phu:ngayNgan(p.ngay)+' · '+p.unc.length+' UNC'};})
+    .concat([{value:'__truoc_erp',label:'Đã trả trước khi lên ERP',phu:'Không có phiếu chi trên ERP'}]),'',function(x){
+    if (x.value === '__truoc_erp') return cntMoTruocErp(r);
     var pe=ds.rows.filter(function(p){return p.name===x.value;})[0];
     go(function(){cntManCan(r,ds,pe);});
   },true);
@@ -27134,6 +27145,82 @@ function cntManCan(r,ds,pe) {
       await hsChonCanCoc(ds.ncc,[{hoa_don:r.name,so_tien:tien}],function(){go(scrNoPhaiTra,true);},ds,pe.name);
     } catch(e){baoTin(e.message || 'Chưa nhận được kết quả; kiểm lần cấn trước khi thử lại.');}
     finally {dang=false;}
+  };
+}
+
+/* v549: khoản đã trả TRƯỚC KHI LÊN ERP. Ghi Nợ 331 đúng hóa đơn / Có tài
+   khoản tạm chờ xử lý đầu kỳ (anh Việt chốt 01/10/2026), không đụng ngân
+   hàng vì tiền đã ra trước khi lên ERP. Thu mua lập kèm UNC, kế toán duyệt
+   mới ghi sổ; kế toán tự lập thì ghi sổ luôn. */
+function cntCoQuyenLapTruocErp() {
+  return ['Purchase User','Purchase Manager','Accounts User','Accounts Manager','AP Kiểm soát (FIN)','System Manager']
+    .some(function (v) { return hasRole(v); });
+}
+function cntDongCho(r, keToan) {
+  var cho = r.cho_duyet || [];
+  if (!cho.length) return '';
+  return cho.map(function (c) {
+    return '<div class="card" style="padding:8px 10px;margin:8px 0;background:#fff7e6"><div style="font-size:13px">Chờ kế toán duyệt: <b>' +
+      money(c.so_tien) + ' đ</b> đã trả trước ERP · ' + h(c.je) + '</div>' +
+      (keToan ? '<button class="btn" data-cntduyet="' + h(c.je) + '">Duyệt ghi sổ</button>' : '') +
+      '<button class="btn gh" data-cntbo="' + h(c.je) + '">' + (keToan ? 'Từ chối' : 'Rút lại') + '</button></div>';
+  }).join('');
+}
+async function cntDuyetTruocErp(je) {
+  if (!await confirmSheet('Duyệt ghi sổ', 'Ghi Nợ 331 hóa đơn / Có tài khoản tạm chờ xử lý đầu kỳ.\nKhông chuyển tiền, không đụng số dư ngân hàng.', 'Duyệt ghi sổ')) return;
+  busy(true);
+  try { await api('vagabond.cong_no_ncc.duyet_truoc_erp', {je: je}); toast('Đã ghi sổ ' + je + '. Dư hóa đơn đã giảm.', 4000); }
+  catch (e) { busy(false); return baoTin(e.message || 'Chưa duyệt được. Tải lại rồi thử.'); }
+  busy(false); go(scrNoPhaiTra, true);
+}
+async function cntBoTruocErp(je) {
+  if (!await confirmSheet('Bỏ bút toán nháp', 'Bỏ ' + je + '? Hóa đơn giữ nguyên dư nợ.', 'Bỏ', true)) return;
+  busy(true);
+  try { await api('vagabond.cong_no_ncc.bo_truoc_erp', {je: je}); toast('Đã bỏ ' + je + '.', 3000); }
+  catch (e) { busy(false); return baoTin(e.message || 'Chưa bỏ được. Tải lại rồi thử.'); }
+  busy(false); go(scrNoPhaiTra, true);
+}
+async function cntMoTruocErp(r) {
+  if (r.currency !== 'VND' || r.account_currency !== 'VND') return cntXuLy(r);
+  var tt;
+  try { tt = await api('vagabond.cong_no_ncc.xem_truoc_erp', {hoa_don: r.name}); }
+  catch (e) { return baoTin(e.message || 'Chưa mở được. Tải lại rồi thử.'); }
+  go(function () { cntManTruocErp(r, tt); });
+}
+function cntManTruocErp(r, tt) {
+  var id = 'cnttruoc', opt = {nhan: '📎 Đính UNC / phiếu chi', goi_y: 'Chứng từ của lần trả trước khi lên ERP.'};
+  var conCan = Math.max(0, Number(tt.con_no) - Number(tt.dang_cho || 0));
+  var maLan = sinhMaLanNhan().replace(/^LN-/, 'TE-');
+  tdkNap(id, []);
+  var html = '<div class="card" style="padding:12px"><b>HĐ ' + h(r.bill_no || r.name) + '</b><div>' + h(r.supplier_name) + '</div>' +
+    '<div>Còn nợ ' + money(tt.con_no) + ' đ' + (tt.dang_cho ? ' · đang chờ duyệt ' + money(tt.dang_cho) + ' đ' : '') + '</div>' +
+    '<div style="font-size:12.5px;color:#6b7280;margin-top:6px">Dùng cho khoản đã trả nhà cung cấp TRƯỚC khi lên ERP. Máy ghi Nợ 331 hóa đơn này / Có tài khoản tạm chờ xử lý đầu kỳ (' + h(tt.tk_tam) + '). Không chuyển tiền, không trừ ngân hàng.</div></div>' +
+    '<div class="card" style="padding:12px"><label for="cntTeTien">Số tiền đã trả</label><input class="tin" style="width:100%;font-size:20px" id="cntTeTien" type="number" inputmode="decimal" min="1" value="' + conCan + '">' +
+    '<label for="cntTeNgay" style="display:block;margin-top:10px">Ngày đã trả</label><input class="tin" style="width:100%" id="cntTeNgay" type="date">' +
+    '<label for="cntTeGhiChu" style="display:block;margin-top:10px">Ghi chú (tài khoản đã trả, số UNC...)</label><input class="tin" style="width:100%" id="cntTeGhiChu">' +
+    tdkKhoi(id, opt) + '</div>';
+  var b = frame('Đã trả trước khi lên ERP', html, {footer: '<button class="btn" id="cntTeGui">' + (tt.ke_toan ? 'Ghi sổ cấn trừ' : 'Gửi kế toán duyệt') + '</button>'});
+  tdkNoi(b, id, opt);
+  var dang = false;
+  document.getElementById('cntTeGui').onclick = async function () {
+    if (dang) return;
+    var tien = Number(b.querySelector('#cntTeTien').value), ngay = b.querySelector('#cntTeNgay').value;
+    var urls = tdkDs(id).map(function (x) { return typeof x === 'string' ? x : x.url; }).filter(Boolean);
+    if (!Number.isFinite(tien) || tien <= 0 || tien > conCan) return baoTin('Nhập số tiền lớn hơn 0, không vượt ' + money(conCan) + ' đ còn có thể cấn.');
+    if (!ngay) return baoTin('Chọn ngày đã trả cho nhà cung cấp.');
+    if (!urls.length && !tt.ke_toan) return baoTin('Đính UNC hoặc phiếu chi để kế toán duyệt.');
+    if (!await confirmSheet(tt.ke_toan ? 'Ghi sổ cấn trừ' : 'Gửi kế toán duyệt',
+      money(tien) + ' đ cho HĐ ' + (r.bill_no || r.name) + ', đã trả ngày ' + ngay + '.\nNợ 331 / Có tài khoản tạm chờ xử lý đầu kỳ. Không chuyển tiền.',
+      tt.ke_toan ? 'Ghi sổ' : 'Gửi')) return;
+    dang = true; busy(true);
+    try {
+      var k = await api('vagabond.cong_no_ncc.lap_truoc_erp', {hoa_don: r.name, so_tien: tien, ngay_tra: ngay,
+        unc: JSON.stringify(urls), ghi_chu: b.querySelector('#cntTeGhiChu').value, ma_lan: maLan});
+      busy(false);
+      toast(k.da_ghi_so ? 'Đã ghi sổ ' + k.je + '. Dư hóa đơn đã giảm.' : 'Đã gửi ' + k.je + ' chờ kế toán duyệt.', 5000);
+      go(scrNoPhaiTra, true);
+    } catch (e) { busy(false); baoTin(e.message || 'Chưa nhận được kết quả. Bấm lại: máy nhận ra lần gửi cũ, không ghi hai lần.'); }
+    finally { dang = false; }
   };
 }
 
