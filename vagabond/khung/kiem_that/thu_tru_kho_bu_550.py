@@ -49,12 +49,17 @@ def _hang_ve():
 	la("đánh dấu chưa trừ kho", hd.vgb_chua_tru_kho, 1)
 	la("chưa có phiếu bù", _bu(hd.name), [])
 	la("ô Trừ bù trống", hd.vgb_tru_bu or "", "")
-	viec = []
-	with patch.object(frappe, "enqueue", lambda *a, **k: viec.append((a, k))):
+	viec, sau_commit = [], []
+	with patch.object(frappe, "enqueue", lambda *a, **k: viec.append((a, k))), \
+			patch.object(frappe.db.after_commit, "add", lambda fn: sau_commit.append(fn)):
 		_nhap(ct, kho, tp, 5)
+		la("trong lúc ghi phiếu nhập chưa chạm hàng đợi", [x for x in viec if x[0] and x[0][0] == "vagabond.tru_kho_bu.tru_bu_kho"], [])
+		# Ca kiểm không commit (điểm lưu), nên chạy tay đúng các việc phiếu nhập
+		# đã đăng ký cho lúc sau commit, như Frappe sẽ chạy.
+		for fn in sau_commit:
+			fn()
 	viec = [(a, k) for a, k in viec if a and a[0] == "vagabond.tru_kho_bu.tru_bu_kho"]
 	la("phiếu nhập xếp đúng một việc trừ bù", [k.get("kho") for a, k in viec], [kho])
-	la("chạy sau khi phiếu nhập commit", viec[0][1].get("enqueue_after_commit"), True)
 	# Hàng đợi chạy đúng lời gọi vừa xếp.
 	a, k = viec[0]
 	tb.tru_bu_kho(kho=k["kho"])
@@ -204,3 +209,49 @@ def _man():
 	la("món chưa có", mon[chua], (1, 0, 0, "het"))
 	dung("đếm chip Đã trừ một phần", kq["dem"]["mot_phan"] >= 1)
 	la("có phiếu bù", len(o["phieu"]), 1)
+
+
+@ca("v550 F2 (Codex 3c93e55): hàng đợi lỗi lúc nhập kho: phiếu nhập vẫn ghi sổ đủ sổ kho, nhịp sau trừ bù đúng một lần")
+@_sach
+def _hang_doi_loi():
+	ct, kho, tk621, tk154, tk632 = _nen("KT550-")
+	tp = _mon_thu("KT550-HD-" + frappe.generate_hash(length=8))
+	hd = _hoa_don(ct, tp, 2)
+	hd.submit()
+
+	def hong(*a, **k):
+		raise ConnectionError("KT550 redis down")
+	sau_commit = []
+	with patch.object(frappe, "enqueue", hong), \
+			patch.object(frappe.db.after_commit, "add", lambda fn: sau_commit.append(fn)):
+		ph = _nhap(ct, kho, tp, 5)
+		loi = None
+		try:
+			for fn in sau_commit:
+				fn()
+		except Exception as e:  # noqa: BLE001
+			loi = e
+	la("việc sau commit không ném", loi, None)
+	ph.reload()
+	la("phiếu nhập đã ghi sổ", ph.docstatus, 1)
+	la("sổ kho phiếu nhập còn nguyên", frappe.db.count("Stock Ledger Entry",
+		{"voucher_type": "Stock Entry", "voucher_no": ph.name, "is_cancelled": 0}), 1)
+	tb.tru_bu_kho(kho=kho)
+	tb.tru_bu_kho(kho=kho)
+	la("chỉ một phiếu bù dù quét hai lần", len(_bu(hd.name)), 1)
+	la("tồn còn 3", _ton(tp, kho), 3)
+
+
+@ca("v550 F3 (Codex 3c93e55): khối Kho của tờ đã tự trừ kho hiện Đã trừ đúng số, không báo Đủ để trừ")
+@_sach
+def _da_tru_truc_tiep():
+	ct, kho, tk621, tk154, tk632 = _nen("KT550-")
+	tp = _mon_thu("KT550-TT-" + frappe.generate_hash(length=8))
+	_nhap(ct, kho, tp, 5)
+	hd = _hoa_don(ct, tp, 2)
+	hd.submit()
+	hd.reload()
+	la("tờ tự trừ kho", hd.update_stock, 1)
+	o = tb.tt_hoa_don(hd.name)
+	la("chip", o["tt_kho"], "da_tru")
+	la("món: bán 2, đã trừ 2, nhãn Đã trừ", [(d["can"], d["da_tru"], d["nhan"]) for d in o["dong"]], [(2, 2, "da_tru")])
