@@ -12,6 +12,7 @@ def _can_dien():
 	dung("giá trống", gv.can_dien(5, None))
 	dung("giá chuỗi rỗng", gv.can_dien(5, ""))
 	dung("đã có giá thì giữ", not gv.can_dien(5, 400))
+	dung("giá âm phải để core từ chối, không âm thầm điền lại", not gv.can_dien(5, -1))
 	dung("đếm 0 thì không cần giá", not gv.can_dien(0, 0))
 	dung("cho phép định giá 0 thì giữ", not gv.can_dien(5, 0, 1))
 

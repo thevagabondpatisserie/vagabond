@@ -41,7 +41,7 @@ def can_dien(qty, gia, cho_phep_0=0, gia_hien_tai=None):
 		pass
 	if flt(gia_hien_tai) > 0 and gia not in (None, ""):
 		return False
-	return flt(qty) > 0 and (gia in (None, "") or flt(gia) <= 0)
+	return flt(qty) > 0 and (gia in (None, "") or flt(gia) == 0)
 
 
 def chon_gia(cac_gia):

@@ -32,3 +32,6 @@ Nền review: 70741d0664296f3b42363ede5077a21c79c51f00.
 Tiếp theo: đọc bench trên SHA chứa tài liệu này, sửa nếu đỏ; review delta
 và phát hành chỉ sau đủ cổng. Không đẩy commit chỉ để cập nhật kết quả CI;
 kết quả cuối ghi một comment PR cùng full SHA.
+
+Rà cuối phát hiện can_dien nhận cả giá âm: sửa chỉ nhận trống/0, giữ giá âm
+để core từ chối. Ca insert thật chứng minh không đổi tồn/không để nháp dở.

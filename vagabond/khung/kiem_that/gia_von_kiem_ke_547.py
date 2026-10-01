@@ -173,3 +173,19 @@ def _khong_lay_gia_tuong_lai():
 	la("không có giá trước mốc phiếu", gia, None)
 	gia2, nguon2 = gv.gia_von(ma, kho, nowdate(), "23:59:59")
 	la("giá kho khác khi phiếu ghi hôm nay", (gia2, nguon2), (900.0, "kho_khac"))
+
+
+@ca("v547 vòng 4: giá âm bị core từ chối, không bị hook thay bằng giá sổ kho")
+def _gia_am():
+	cty = cong_ty()
+	kho = _kho(cty)
+	ma = _mon("NVLT-KT547I")
+	khong_nem("nhập 10 giá 400", lambda: _phieu(cty, kho, ma, 10, "Material Receipt", 400))
+	loi = None
+	try:
+		_phieu_kk(cty, kho, [{"item_code": ma, "qty": 9, "valuation_rate": -1}])
+	except frappe.ValidationError as e:
+		loi = str(e)
+	dung("core báo giá âm", bool(loi and "Negative Valuation Rate" in loi))
+	la("không đổi tồn", _ton(ma, kho), 10.0)
+	dung("không để phiếu nháp dở", not frappe.db.exists("Stock Reconciliation Item", {"item_code": ma}))
