@@ -27156,18 +27156,33 @@ function cntCoQuyenLapTruocErp() {
   return ['Purchase User','Purchase Manager','Accounts User','Accounts Manager','AP Kiểm soát (FIN)','System Manager']
     .some(function (v) { return hasRole(v); });
 }
+/* "2026-10-01 15:00:12.3" -> "01/10/2026 15:00"; rỗng -> "-". */
+function cntLucGui(t) {
+  var p = String(t || '').split(' ');
+  return p[0] ? ngayNgan(p[0]) + (p[1] ? ' ' + p[1].slice(0, 5) : '') : '-';
+}
 function cntDongCho(r, keToan) {
   var cho = r.cho_duyet || [];
   if (!cho.length) return '';
   return cho.map(function (c) {
-    /* Codex #403 vòng 3: kế toán duyệt ngay ở đây nên hiện đủ bằng chứng. */
-    var unc = (c.unc || []).map(function (u, i) { return '<a target="_blank" rel="noopener" href="' + h(u) + '">Xem UNC ' + (i + 1) + '</a>'; }).join(' · ');
+    /* Codex #403 vòng 3: kế toán duyệt ngay ở đây nên hiện đủ bằng chứng.
+       Vòng 4: ngày theo dd/mm/yyyy; tóm tắt tối đa hai dòng cắt gọn để nút
+       Duyệt/Từ chối luôn trong màn đầu; ghi chú dài và đủ UNC để dưới nút. */
+    var uncs = c.unc || [];
+    var link = function (u, i) { return '<a target="_blank" rel="noopener" href="' + h(u) + '">Xem UNC ' + (i + 1) + '</a>'; };
+    var mot = 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+    var chiTiet = (c.dien_giai || uncs.length > 1) ?
+      '<details style="font-size:12.5px;margin-top:6px"><summary style="min-height:44px;line-height:44px;cursor:pointer">Xem đủ ghi chú và UNC</summary>' +
+      (c.dien_giai ? '<div style="white-space:pre-wrap">' + h(c.dien_giai) + '</div>' : '') +
+      (uncs.length ? '<div>' + uncs.map(link).join(' · ') + '</div>' : '') + '</details>' : '';
     return '<div class="card" style="padding:8px 10px;margin:8px 0;background:#fff7e6"><div style="font-size:13px">Chờ kế toán duyệt: <b>' +
       money(c.so_tien) + ' đ</b> đã trả trước ERP · ' + h(c.je) + '</div>' +
-      '<div style="font-size:12.5px;color:#5a6070;margin:4px 0">Đã trả ngày ' + h(c.ngay_tra || '?') + ' · gửi bởi ' + h(c.nguoi_gui || '?') +
-      ' lúc ' + h(c.luc_gui || '?') + '<br>' + h(c.dien_giai || '') + '<br>' + (unc || '<b>Chưa có UNC</b>') + '</div>' +
+      '<div style="font-size:12.5px;color:#5a6070;margin:4px 0"><div style="' + mot + '">Đã trả ngày ' + ngayNgan(c.ngay_tra) + ' · gửi bởi ' + h(c.nguoi_gui || '?') +
+      ' lúc ' + cntLucGui(c.luc_gui) + '</div><div style="' + mot + '">' +
+      (uncs.length ? link(uncs[0], 0) + (uncs.length > 1 ? ' và ' + (uncs.length - 1) + ' UNC khác' : '') : '<b>Chưa có UNC</b>') +
+      (c.dien_giai ? ' · ' + h(c.dien_giai) : '') + '</div></div>' +
       (keToan ? '<button class="btn" data-cntduyet="' + h(c.je) + '">Duyệt ghi sổ</button>' : '') +
-      '<button class="btn gh" data-cntbo="' + h(c.je) + '">' + (keToan ? 'Từ chối' : 'Rút lại') + '</button></div>';
+      '<button class="btn gh" data-cntbo="' + h(c.je) + '">' + (keToan ? 'Từ chối' : 'Rút lại') + '</button>' + chiTiet + '</div>';
   }).join('');
 }
 async function cntDuyetTruocErp(je) {
