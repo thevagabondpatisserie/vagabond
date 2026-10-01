@@ -147,3 +147,17 @@ def _ke_hoach():
 	la("phần trả trước 70 cho NCC A từ ngân hàng", ke.get("tra_truoc"), {"tien": 70.0, "supplier": "A", "nguon_chi": NH})
 	la("Nợ chỉ còn khoản không hoá đơn", ke.get("no"), {"6427": 30.0})
 	la("Có ngân hàng chỉ phần bút toán", ke.get("co"), {NH: 30.0})
+
+
+@ca("v551 nguồn chi của hồ sơ có phần trả trước: một tài khoản ngân hàng, không báo nhiều nguồn (bench #405)")
+def _nguon():
+	from unittest.mock import patch
+	from vagabond import ho_so_tt as hs
+	from vagabond import doi_chieu_app as dc
+	ke_chi_tt = _ke(100)
+	ke_lan = _ke(70, {"6427": 30}, {NH: 30})
+	for nhan, ke in (("chỉ phần trả trước", ke_chi_tt), ("lẫn trả trước và bút toán", ke_lan)):
+		with patch.object(hs, "_dung_ke_hoach_chi", return_value=ke), \
+				patch.object(hs, "_so_phai_chuyen", return_value={"con": 100}), \
+				patch.object(hs, "_do_chinh_xac", return_value=2):
+			la(nhan, dc._nguon({"name": "APP.1"}), ("CTY", NH, 100))
