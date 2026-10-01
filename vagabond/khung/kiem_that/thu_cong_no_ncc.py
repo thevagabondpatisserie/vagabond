@@ -151,3 +151,53 @@ def _tra_truoc_erp():
     je.cancel()
     hd.reload()
     la("hủy bút toán trả lại công nợ", float(hd.outstanding_amount), 600000.)
+
+
+@ca("v549 Codex #403: duyệt kiểm dư sống lúc duyệt; từ chối giữ bản ghi, không xóa")
+def _duyet_du_song_va_tu_choi():
+    hd = _hoa_don_mua(1000000)
+    tam = _tk_tam(hd.company)
+    truoc = frappe.session.user
+    u = frappe.get_doc({"doctype": "User", "email": "kiem549b-%s@example.invalid" % frappe.generate_hash(length=8),
+        "first_name": "Thu mua 549b", "enabled": 1, "send_welcome_email": 0,
+        "roles": [{"role": "Purchase User"}]}).insert(ignore_permissions=True)
+    _DA_TAO.append((u.doctype, u.name))
+    try:
+        frappe.set_user(u.name)
+        f = frappe.get_doc({"doctype": "File", "file_name": "UNC-549b-%s.txt" % frappe.generate_hash(length=6),
+            "content": "UNC", "is_private": 1}).insert(ignore_permissions=True)
+        _DA_TAO.append((f.doctype, f.name))
+        k = cn.lap_truoc_erp(hd.name, 400000, "2026-04-10", frappe.as_json([f.file_url]), "", "TE-549-d-" + frappe.generate_hash(length=6))
+        _DA_TAO.append(("Journal Entry", k["je"]))
+    finally:
+        frappe.set_user(truoc)
+    # Một chứng từ khác (ngoài luồng này) giảm dư 800.000 sau khi Uyên gửi.
+    je = frappe.new_doc("Journal Entry")
+    je.company = hd.company
+    je.posting_date = today()
+    je.user_remark = "Ca kiểm 549: chứng từ khác giảm dư"
+    for r in cn.dong_but_toan_truoc_erp({"name": hd.name, "supplier": hd.supplier, "credit_to": hd.credit_to}, tam, 800000,
+            frappe.db.get_value("Company", hd.company, "cost_center")):
+        je.append("accounts", r)
+    je.insert(ignore_permissions=True)
+    _DA_TAO.append((je.doctype, je.name))
+    je.submit()
+    hd.reload()
+    la("dư sau chứng từ khác", float(hd.outstanding_amount), 200000.)
+    try:
+        cn.duyet_truoc_erp(k["je"])
+        dung("duyệt vượt dư sống phải bị chặn", False)
+    except frappe.ValidationError as e:
+        dung("lỗi nói rõ không duyệt được", "Không duyệt được" in str(e))
+    la("nháp vẫn là nháp", frappe.db.get_value("Journal Entry", k["je"], "docstatus"), 0)
+    cn.bo_truoc_erp(k["je"])
+    dung("từ chối không xóa bút toán", bool(frappe.db.exists("Journal Entry", k["je"])))
+    dung("đánh dấu đã bỏ", frappe.db.get_value("Journal Entry", k["je"], "user_remark").startswith(cn.DAU_DA_BO))
+    la("UNC vẫn gắn bút toán", frappe.db.get_value("File", f.name, "attached_to_name"), k["je"])
+    la("ra khỏi phần chờ duyệt", cn.danh_sach(cong_ty=hd.company, tu_khoa=hd.name)["dong"][0]["cho_duyet"], [])
+    try:
+        cn.duyet_truoc_erp(k["je"])
+        dung("không duyệt được nháp đã bỏ", False)
+    except frappe.ValidationError:
+        pass
+    je.cancel()
