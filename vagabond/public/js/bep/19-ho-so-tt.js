@@ -2173,7 +2173,10 @@ async function scrChiCongTyTao() {
         });
       } else {
         if (!huDong.length) { busy(false); return baoTin('Chưa nhập khoản chi nào.'); }
-        var thieu = huDong.filter(function (x) { return !x.tk_no; });
+        /* v551 (chi Dung 01/10/2026): khoan hoa don den sau ghi phieu chi
+           tra truoc NCC (No 331), tai khoan chi phi di theo to hoa don khi
+           ve. Khong bat chon tai khoan No cho khoan do. */
+        var thieu = huDong.filter(function (x) { return !x.tk_no && !(huLaTkct() && x.cho_hoa_don && huNguoi); });
         if (thieu.length) { busy(false); return baoTin('Còn ' + thieu.length + ' khoản chưa chọn tài khoản Nợ.'); }
         /* Chung tu nam o TUNG DONG tu 24/08/2026, khong con o tong nua.
            Chan ngay tren man cho no noi ro khoan nao thieu, thay vi de may
