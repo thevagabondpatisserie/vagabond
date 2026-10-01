@@ -118,12 +118,24 @@ def danh_sach(cong_ty=None, trang_thai="con_no", tu_khoa="", ky="", nhom="", tra
     ten = [r["name"] for r in kq["dong"]]
     cho = {}
     if ten:
-        for hd, je, tien in frappe.db.sql("""select a.reference_name, je.name, sum(a.debit_in_account_currency)
+        # Codex #403 vòng 3: kế toán duyệt ngay trên dòng nên phải THẤY bằng
+        # chứng: UNC, ngày đã trả, ghi chú, người gửi, lúc gửi.
+        hang = frappe.db.sql("""select a.reference_name, je.name, sum(a.debit_in_account_currency),
+                    je.owner, je.creation, je.cheque_date, je.user_remark
                 from `tabJournal Entry` je join `tabJournal Entry Account` a on a.parent = je.name
                 where je.docstatus = 0 and a.reference_type = 'Purchase Invoice' and a.reference_name in %s
                   and je.user_remark like %s group by a.reference_name, je.name""",
-                (tuple(ten), DAU_TRUOC_ERP + "%")):
-            cho.setdefault(hd, []).append({"je": je, "so_tien": float(tien or 0)})
+                (tuple(ten), DAU_TRUOC_ERP + "%"))
+        tep = {}
+        if hang:
+            for f in frappe.get_all("File", filters={"attached_to_doctype": "Journal Entry",
+                    "attached_to_name": ["in", [h[1] for h in hang]]}, fields=["attached_to_name", "file_url"], order_by="creation"):
+                if (f.file_url or "").startswith(("/private/files/", "/files/")):
+                    tep.setdefault(f.attached_to_name, []).append(f.file_url)
+        for hd, je, tien, ai, luc, ngay_tra, dg in hang:
+            cho.setdefault(hd, []).append({"je": je, "so_tien": float(tien or 0), "unc": tep.get(je, []),
+                "nguoi_gui": frappe.utils.get_fullname(ai), "luc_gui": str(luc)[:16],
+                "ngay_tra": str(ngay_tra or "")[:10], "dien_giai": (dg or "")[len(DAU_TRUOC_ERP):].strip()})
     for r in kq["dong"]:
         r["cho_duyet"] = cho.get(r["name"], [])
     kq["ke_toan"] = _la_ke_toan()
