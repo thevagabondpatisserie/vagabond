@@ -9386,14 +9386,15 @@ async function scrKkPost(name) {
      Item.valuation_rate (o chung, thuong 0) nen Kho D1 co gia van bi hoi. */
   kkp.rates = {};
   kkp.nguonGia = {};
+  kkp.loiGia = '';
+  /* Codex #401 F3: tra gia loi thi CHAN ghi so, khong roi ve cach doc cu
+     (Item.valuation_rate) vi chinh cach do lam sai gia o Kho D1. */
   try {
     var gy = await api('vagabond.gia_von_kiem_ke.goi_y_gia', { kho: d.kho, ma: JSON.stringify(codes), ngay: d.ngay_kiem || '' });
     Object.keys(gy || {}).forEach(function (m) { kkp.rates[m] = kkNum(gy[m].gia); kkp.nguonGia[m] = gy[m].nguon; });
   } catch (e) {
-    kkp.rows.forEach(function (r) {
-      var i = info[r.item_code] || {};
-      kkp.rates[r.item_code] = kkNum(i.valuation_rate) || kkNum(i.last_purchase_rate) || 0;
-    });
+    kkp.rates = {};
+    kkp.loiGia = errMsg(e) || 'Không tra được giá vốn';
   }
   kkpDraw();
 }
@@ -9522,6 +9523,7 @@ async function kkpSubmit() {
   var d = kkp.doc;
   var rows = kkp.rows.filter(function (r) { return kkNum(r.so_luong) > 0 || kkNum(r.ton_he_thong) > 0; });
   if (!rows.length) return toast('Phiếu không có món nào để ghi sổ');
+  if (kkp.loiGia) return toast('Chưa tra được giá vốn từ sổ kho (' + kkp.loiGia + '). Mở lại màn này rồi ghi sổ.', 5000);
   var bad = rows.filter(function (r) { return kkNum(r.so_luong) > 0 && !kkp.rates[r.item_code]; });
   if (bad.length) return toast('Còn ' + bad.length + ' món chưa có giá vốn, vui lòng điền rồi ghi sổ lại');
   if (!kkp.acc) return toast('Chọn tài khoản đối ứng chênh lệch trước đã');
