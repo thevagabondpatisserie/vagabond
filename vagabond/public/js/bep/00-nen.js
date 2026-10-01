@@ -30,6 +30,11 @@ body{-webkit-text-size-adjust:100%;font-family:-apple-system,BlinkMacSystemFont,
 .page_content,.container,main,section,article,#page-index{padding:0!important;margin:0!important;max-width:none!important;width:auto!important}
 #vgb *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 #vgb{position:fixed;inset:0;display:flex;flex-direction:column;background:#eef0f5;overflow:hidden;z-index:9}
+/* Công nợ NCC: hai hàng trạng thái/ngày cuộn ngang, không đẩy nút xử lý
+   xuống dưới màn đầu khi có đủ năm trạng thái. */
+[data-dscongcu="cnt"]>div:nth-child(-n+2){flex-wrap:nowrap!important;overflow-x:auto;padding:2px;min-width:0}
+[data-dscongcu="cnt"] [data-dscc]{flex:0 0 auto;min-height:44px}
+[data-dscongcu="cnt"] input{font-size:15px!important}
 .vh{flex:0 0 auto;background:#50DBF2;color:#05323C;padding:calc(env(safe-area-inset-top,0px) + 10px) 8px 12px;display:flex;align-items:center;gap:4px;box-shadow:0 2px 8px rgba(0,0,0,.12)}
 .vh b{flex:1;font-size:17px;font-weight:600;text-align:center;line-height:1.25;padding:0 4px}
 .vh .ic{width:40px;height:40px;flex:0 0 40px;display:flex;align-items:center;justify-content:center;font-size:22px;border-radius:12px;cursor:pointer;background:transparent;border:0;color:#05323C}

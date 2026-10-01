@@ -92,3 +92,5 @@ quả phụ thuộc lượt sau thực sự đọc, xác minh và dùng bài h�
 Quy tắc hiện hành: [sáu thay đổi](van-hanh-chung.md).
 
 - [Issue342: tiến trình phiếu và dấu duyệt](cong-viec/issue-342.md)
+
+- [Công nợ NCC: màn lọc và khoản đã trả trước ERP](cong-viec/cong-no-ncc-20261001.md) (#391, Codex code, chờ review).

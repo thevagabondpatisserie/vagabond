@@ -17,7 +17,8 @@ const {chromium} = require('playwright');
       for (const [vai, duong, nhan, sanSang] of [
         ['sales', 'van-don', 'Vận đơn', '#vdDate'],
         ['bep', 'san-xuat', 'Lệnh sản xuất', '#mNoBom'],
-        ['ke_toan', 'ho-so-thanh-toan', 'Hồ sơ', '#hsTimO']
+        ['ke_toan', 'ho-so-thanh-toan', 'Hồ sơ', '#hsTimO'],
+        ['ke_toan', 'cong-no-phai-tra', 'Công nợ phải trả', '#cntDsTim']
       ]) {
       const canh = await trinh.newContext({viewport: {width: rong, height: 900}, serviceWorkers: 'block'});
       // Không gửi telemetry, ảnh ngoài hay API của nhà cung cấp thật.
@@ -71,6 +72,13 @@ const {chromium} = require('playwright');
           await trang.locator('#vgb .vh b').filter({hasText: nhan}).waitFor({timeout: 60000});
           // Chỉ nhận màn có control cuối cùng, không coi chữ "Đang tải" là sẵn sàng.
           await trang.locator(sanSang).waitFor({state: 'visible', timeout: 60000});
+          if (duong === 'cong-no-phai-tra') {
+            await trang.locator('#cntHuongDan').click();
+            await trang.getByText('Không tạo lại đơn mua hay nhập kho', {exact: false}).waitFor();
+            await trang.getByRole('button', {name: 'Đã hiểu', exact: true}).click();
+            const co = await trang.evaluate(() => ({rong: document.documentElement.clientWidth, noiDung: document.documentElement.scrollWidth}));
+            if (co.noiDung > co.rong + 1) throw new Error('Màn công nợ tràn ngang.');
+          }
           const than = await trang.locator('#vgb').innerText();
           if (/Loi khoi dong|Traceback|Không tải được/.test(than)) throw new Error('Màn hiện lỗi tải.');
           if (loi.length || api.some(r => r.status >= 400)) throw new Error('Có lỗi JS/API.');
@@ -87,7 +95,7 @@ const {chromium} = require('playwright');
         if (!dat) fs.writeFileSync(path.join(dich, 'vai-' + vai + '-' + duong + '-' + rong + '-loi.html'), await trang.content());
         await trang.screenshot({path: path.join(dich, 'vai-' + vai + '-' + duong + '-' + rong + '.png'), fullPage: true});
         await trang.close();
-      await canh.tracing.stop({path: path.join(dich, 'vai-' + vai + '-' + rong + '.zip')});
+      await canh.tracing.stop({path: path.join(dich, 'vai-' + vai + '-' + duong + '-' + rong + '.zip')});
       await canh.close();
       }
     }
@@ -96,5 +104,5 @@ const {chromium} = require('playwright');
     fs.writeFileSync(path.join(dich, 'mo-man-theo-vai.json'), JSON.stringify(ket, null, 2));
   }
   console.log(JSON.stringify({tong: ket.length, dat: ket.filter(x => x.dat).length, ket}, null, 2));
-  if (ket.length !== 6 || ket.some(x => !x.dat)) process.exitCode = 1;
+  if (ket.length !== 8 || ket.some(x => !x.dat)) process.exitCode = 1;
 })().catch(e => {console.error(e); process.exitCode = 1;});
