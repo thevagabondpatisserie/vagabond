@@ -954,8 +954,12 @@ function cntDongCho(r, keToan) {
   var cho = r.cho_duyet || [];
   if (!cho.length) return '';
   return cho.map(function (c) {
+    /* Codex #403 vòng 3: kế toán duyệt ngay ở đây nên hiện đủ bằng chứng. */
+    var unc = (c.unc || []).map(function (u, i) { return '<a target="_blank" rel="noopener" href="' + h(u) + '">Xem UNC ' + (i + 1) + '</a>'; }).join(' · ');
     return '<div class="card" style="padding:8px 10px;margin:8px 0;background:#fff7e6"><div style="font-size:13px">Chờ kế toán duyệt: <b>' +
       money(c.so_tien) + ' đ</b> đã trả trước ERP · ' + h(c.je) + '</div>' +
+      '<div style="font-size:12.5px;color:#5a6070;margin:4px 0">Đã trả ngày ' + h(c.ngay_tra || '?') + ' · gửi bởi ' + h(c.nguoi_gui || '?') +
+      ' lúc ' + h(c.luc_gui || '?') + '<br>' + h(c.dien_giai || '') + '<br>' + (unc || '<b>Chưa có UNC</b>') + '</div>' +
       (keToan ? '<button class="btn" data-cntduyet="' + h(c.je) + '">Duyệt ghi sổ</button>' : '') +
       '<button class="btn gh" data-cntbo="' + h(c.je) + '">' + (keToan ? 'Từ chối' : 'Rút lại') + '</button></div>';
   }).join('');
