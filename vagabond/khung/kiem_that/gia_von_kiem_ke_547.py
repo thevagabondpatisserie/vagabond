@@ -110,3 +110,46 @@ def _goi_y():
 		return
 	la("giá gợi ý", flt((kq.get(ma) or {}).get("gia")), 700.0)
 	la("nguồn", (kq.get(ma) or {}).get("nguon"), "so_kho")
+
+
+@ca("v547 that Codex #401 F1: dòng đã có giá hiện tại 400 mà gõ 0 thì không bị điền lại")
+def _giu_0_chu_y():
+	cty = cong_ty()
+	kho = _kho(cty)
+	ma = _mon("NVLT-KT547F")
+	khong_nem("nhập 10 giá 400", lambda: _phieu(cty, kho, ma, 10, "Material Receipt", 400))
+	sr = khong_nem("lưu nháp giá 0 có giá hiện tại 400",
+		lambda: _phieu_kk(cty, kho, [{"item_code": ma, "qty": 10, "valuation_rate": 0, "current_valuation_rate": 400}], gui=False))
+	if not sr:
+		return
+	la("giá vẫn 0, không bị điền", flt(sr.items[0].valuation_rate), 0.0)
+
+
+@ca("v547 that Codex #401 F1: định giá về 0 có bật cờ cho phép thì ghi sổ được và giá trị tồn về 0")
+def _dinh_gia_0_co_co():
+	cty = cong_ty()
+	kho = _kho(cty)
+	ma = _mon("NVLT-KT547G")
+	khong_nem("nhập 10 giá 400", lambda: _phieu(cty, kho, ma, 10, "Material Receipt", 400))
+	sr = khong_nem("ghi sổ giá 0 có cờ",
+		lambda: _phieu_kk(cty, kho, [{"item_code": ma, "qty": 10, "valuation_rate": 0, "allow_zero_valuation_rate": 1}]))
+	if not sr:
+		return
+	la("giá giữ 0", flt(sr.items[0].valuation_rate), 0.0)
+	la("giá trị tồn về 0", flt(frappe.db.get_value("Bin", {"item_code": ma, "warehouse": kho}, "stock_value")), 0.0)
+
+
+@ca("v547 that Codex #401 F2: phiếu ghi lùi 5 ngày không lấy giá kho khác nhập SAU mốc phiếu")
+def _khong_lay_gia_tuong_lai():
+	from frappe.utils import add_days, nowdate
+	from vagabond import gia_von_kiem_ke as gv
+	cty = cong_ty()
+	kho = _kho(cty)
+	kho2 = _kho_bep(cty, "baker" if "baker" in ksx.BEP else "pastry", ksx.THANH_PHAM)
+	ma = _mon("NVLT-KT547H")
+	frappe.db.set_value("Item", ma, {"last_purchase_rate": 0, "valuation_rate": 0})
+	khong_nem("nhập kho khác hôm nay giá 900", lambda: _phieu(cty, kho2, ma, 4, "Material Receipt", 900))
+	gia, nguon = gv.gia_von(ma, kho, add_days(nowdate(), -5), "08:00:00")
+	la("không có giá trước mốc phiếu", gia, None)
+	gia2, nguon2 = gv.gia_von(ma, kho, nowdate(), "23:59:59")
+	la("giá kho khác khi phiếu ghi hôm nay", (gia2, nguon2), (900.0, "kho_khac"))
