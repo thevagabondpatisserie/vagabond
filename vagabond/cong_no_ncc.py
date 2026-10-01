@@ -113,6 +113,20 @@ def danh_sach(cong_ty=None, trang_thai="con_no", tu_khoa="", ky="", nhom="", tra
     dau = max(0, cint(trang)) * 30
     kq["dong"] = kq["dong"][dau:dau + 30]
     kq["con_nua"] = dau + 30 < kq["so_hd"]
+    # v549: phần đã trả trước ERP đang chờ kế toán duyệt, để dòng không nói
+    # "chưa làm gì" khi Uyên đã gửi. Chỉ đọc 30 dòng đang xem.
+    ten = [r["name"] for r in kq["dong"]]
+    cho = {}
+    if ten:
+        for hd, je, tien in frappe.db.sql("""select a.reference_name, je.name, sum(a.debit_in_account_currency)
+                from `tabJournal Entry` je join `tabJournal Entry Account` a on a.parent = je.name
+                where je.docstatus = 0 and a.reference_type = 'Purchase Invoice' and a.reference_name in %s
+                  and je.user_remark like %s group by a.reference_name, je.name""",
+                (tuple(ten), DAU_TRUOC_ERP + "%")):
+            cho.setdefault(hd, []).append({"je": je, "so_tien": float(tien or 0)})
+    for r in kq["dong"]:
+        r["cho_duyet"] = cho.get(r["name"], [])
+    kq["ke_toan"] = _la_ke_toan()
     return kq
 
 
@@ -183,3 +197,191 @@ def luu_unc(hoa_don, payment_entry, unc):
     if moi != cu:
         pe.add_comment("Comment", "Đính bổ sung UNC từ màn công nợ NCC; không thay số dư hay bút toán.")
     return {"so_unc": len(moi)}
+
+
+# ---------------------------------------------------------------------------
+# v549: hóa đơn đã trả TRƯỚC KHI LÊN ERP.
+#
+# Ca thật 01/10/2026: hóa đơn Printeco 04/04/2026 (212.090.400 đ) trả từ tháng
+# 4, trước khi ERP chạy, nên trên ERP không có phiếu chi nào để cấn. Nút Cấn
+# trừ công nợ của v548 chỉ cấn được vào phiếu chi đã có, nên với hóa đơn này
+# chỉ hiện hướng dẫn. Anh Việt chốt cách ghi:
+#   Nợ 331 (đúng NCC, đúng hóa đơn) / Có tài khoản tạm "chờ xử lý đầu kỳ"
+#   (Account loại Temporary của công ty).
+# Không Có 1121: tiền đã ra khỏi ngân hàng trước khi lên ERP, số dư ngân hàng
+# mang sang ERP đã trừ khoản này rồi, Có 1121 nữa là trừ hai lần. Kế toán kết
+# chuyển tài khoản tạm khi chốt số dư đầu kỳ.
+# Thu mua (Uyên) lập bút toán NHÁP kèm UNC; kế toán duyệt mới ghi sổ. Kế toán
+# tự lập thì ghi sổ luôn.
+# ---------------------------------------------------------------------------
+
+DAU_TRUOC_ERP = "[Trả trước khi lên ERP]"
+
+
+def kiem_so_tien_truoc_erp(so_tien, con_no, dang_cho=0):
+    """THUẦN: lỗi (chuỗi) hoặc None. Không vượt dư trừ phần đang chờ duyệt."""
+    try:
+        tien = _so(so_tien)
+    except Exception:
+        return "Nhập số tiền đã trả bằng số."
+    if tien <= 0:
+        return "Nhập số tiền đã trả lớn hơn 0."
+    con = _so(con_no) - _so(dang_cho)
+    if con <= 0:
+        return "Hóa đơn này đã có khoản chờ kế toán duyệt bằng toàn bộ dư nợ. Chờ duyệt xong rồi xem lại."
+    if tien > con:
+        return "Số tiền vượt phần còn nợ có thể cấn (%s đ)." % "{:,.0f}".format(con).replace(",", ".")
+    return None
+
+
+def kiem_ngay_tra(ngay_tra, ngay_hd, hom_nay):
+    """THUẦN: ngày đã trả phải có, không sau hôm nay. Trả lỗi hoặc None."""
+    n = str(ngay_tra or "")[:10]
+    if len(n) != 10:
+        return "Chọn ngày đã trả cho nhà cung cấp."
+    if n > str(hom_nay)[:10]:
+        return "Ngày đã trả không được sau hôm nay."
+    return None
+
+
+def dong_but_toan_truoc_erp(hd, tk_tam, so_tien, ttcp=None):
+    """THUẦN: hai dòng Journal Entry. hd là dict có name, supplier, credit_to."""
+    tien = float(_so(so_tien))
+    no = {"account": hd["credit_to"], "party_type": "Supplier", "party": hd["supplier"],
+        "debit_in_account_currency": tien, "reference_type": "Purchase Invoice",
+        "reference_name": hd["name"]}
+    co = {"account": tk_tam, "credit_in_account_currency": tien}
+    if ttcp:
+        no["cost_center"] = ttcp
+        co["cost_center"] = ttcp
+    return [no, co]
+
+
+def _vai_lap_truoc_erp():
+    from vagabond import ho_so_tt as hs
+    return hs.VAI_LAP | hs.VAI_FIN
+
+
+def _la_ke_toan():
+    from vagabond import ho_so_tt as hs
+    return bool(hs.VAI_FIN & hs._vai())
+
+
+def _tk_tam(cong_ty):
+    ds = frappe.get_all("Account", filters={"company": cong_ty, "account_type": "Temporary",
+        "is_group": 0, "disabled": 0}, pluck="name", order_by="name")
+    if len(ds) != 1:
+        frappe.throw("Công ty %s cần đúng một tài khoản tạm (loại Temporary) để ghi khoản đã trả "
+            "trước khi lên ERP; đang có %s. Báo kế toán kiểm danh mục tài khoản." % (cong_ty, len(ds)))
+    return ds[0]
+
+
+def _cho_duyet(hoa_don):
+    """Bút toán nháp của luồng này đang treo trên hóa đơn: [(tên, tiền)]."""
+    rows = frappe.db.sql("""select je.name, sum(a.debit_in_account_currency)
+        from `tabJournal Entry` je join `tabJournal Entry Account` a on a.parent = je.name
+        where je.docstatus = 0 and a.reference_type = 'Purchase Invoice' and a.reference_name = %s
+          and je.user_remark like %s
+        group by je.name order by je.creation""", (hoa_don, DAU_TRUOC_ERP + "%"))
+    return [(r[0], float(r[1] or 0)) for r in rows]
+
+
+def _hd_truoc_erp(hoa_don):
+    from vagabond import ho_so_tt as hs
+    hs._kiem(_vai_lap_truoc_erp(), "ghi khoản đã trả trước khi lên ERP")
+    hd = frappe.get_doc("Purchase Invoice", hoa_don)
+    hd.check_permission("read")
+    if hd.docstatus != 1 or hd.is_return:
+        frappe.throw("Chọn hóa đơn mua thường đã ghi sổ.")
+    if hd.currency != "VND" or (frappe.db.get_value("Account", hd.credit_to, "account_currency") or "VND") != "VND":
+        frappe.throw("Hóa đơn ngoại tệ: kế toán xử lý ở Đối chiếu thanh toán lõi.")
+    return hd
+
+
+@frappe.whitelist()
+def xem_truoc_erp(hoa_don):
+    """Màn khai khoản đã trả trước ERP: dư, phần đang chờ duyệt, ai được duyệt."""
+    hd = _hd_truoc_erp(hoa_don)
+    cho = _cho_duyet(hd.name)
+    return {"hoa_don": hd.name, "ncc": hd.supplier, "ten_ncc": hd.supplier_name,
+        "con_no": float(hd.outstanding_amount), "cho_duyet": [{"je": j, "so_tien": t} for j, t in cho],
+        "dang_cho": sum(t for _, t in cho), "ke_toan": _la_ke_toan(), "tk_tam": _tk_tam(hd.company)}
+
+
+@frappe.whitelist(methods=["POST"])
+def lap_truoc_erp(hoa_don, so_tien, ngay_tra, unc=None, ghi_chu="", ma_lan=""):
+    """Thu mua lập nháp chờ kế toán duyệt; kế toán lập thì ghi sổ luôn.
+
+    ma_lan chống bấm hai lần khi mất phản hồi: cùng mã thì trả lại bút toán cũ."""
+    from frappe.utils import nowdate
+    from vagabond import tep_dinh_kem
+    hd = _hd_truoc_erp(hoa_don)
+    ma_lan = str(ma_lan or "").strip()[:60]
+    if ma_lan:
+        cu = frappe.db.get_value("Journal Entry", {"cheque_no": ma_lan, "docstatus": ["<", 2]},
+            ["name", "docstatus"], as_dict=True)
+        if cu:
+            return {"je": cu.name, "da_ghi_so": cu.docstatus == 1, "da_lam_roi": 1}
+    frappe.db.sql("select name from `tabPurchase Invoice` where name=%s for update", hd.name)
+    hd.reload()
+    loi = kiem_ngay_tra(ngay_tra, hd.bill_date or hd.posting_date, nowdate()) or \
+        kiem_so_tien_truoc_erp(so_tien, hd.outstanding_amount, sum(t for _, t in _cho_duyet(hd.name)))
+    if loi:
+        frappe.throw(loi)
+    urls = tep_dinh_kem.doc_ds(unc)
+    ke_toan = _la_ke_toan()
+    if not urls and not ke_toan:
+        frappe.throw("Đính UNC hoặc phiếu chi của khoản đã trả để kế toán duyệt.")
+    ttcp = frappe.db.get_value("Company", hd.company, "cost_center")
+    je = frappe.new_doc("Journal Entry")
+    je.voucher_type = "Journal Entry"
+    je.company = hd.company
+    je.posting_date = nowdate()
+    je.cheque_no = ma_lan or None
+    je.cheque_date = str(ngay_tra)[:10] if ma_lan else None
+    je.user_remark = "%s Cấn hóa đơn %s (HĐ %s) của %s, đã trả ngày %s. %s" % (
+        DAU_TRUOC_ERP, hd.name, hd.bill_no or "", hd.supplier_name, str(ngay_tra)[:10], (ghi_chu or "").strip()[:300])
+    for r in dong_but_toan_truoc_erp({"name": hd.name, "supplier": hd.supplier, "credit_to": hd.credit_to},
+            _tk_tam(hd.company), so_tien, ttcp):
+        je.append("accounts", r)
+    je.flags.ignore_permissions = True
+    je.insert(ignore_permissions=True)
+    if urls:
+        da = tep_dinh_kem.gan_vao("Journal Entry", je.name, "unc_truoc_erp", urls)
+        if len(da) != len(urls):
+            frappe.throw("Có tệp UNC không còn tồn tại. Chọn lại tệp rồi gửi.")
+    if ke_toan:
+        je.submit()
+    je.add_comment("Comment", "Lập từ màn Công nợ phải trả: khoản đã trả trước khi lên ERP%s." % (
+        ", kế toán ghi sổ luôn" if ke_toan else ", chờ kế toán duyệt"))
+    return {"je": je.name, "da_ghi_so": je.docstatus == 1}
+
+
+@frappe.whitelist(methods=["POST"])
+def duyet_truoc_erp(je):
+    """Kế toán duyệt bút toán nháp của luồng này. Kiểm lại dư tại lúc duyệt."""
+    from vagabond import ho_so_tt as hs
+    hs._kiem(hs.VAI_FIN, "duyệt khoản đã trả trước khi lên ERP")
+    doc = frappe.get_doc("Journal Entry", je)
+    if not (doc.user_remark or "").startswith(DAU_TRUOC_ERP):
+        frappe.throw("Bút toán này không thuộc luồng khoản đã trả trước khi lên ERP.")
+    if doc.docstatus == 1:
+        return {"je": doc.name, "da_ghi_so": True, "da_lam_roi": 1}
+    if doc.docstatus != 0:
+        frappe.throw("Bút toán đã hủy.")
+    doc.check_permission("submit")
+    doc.submit()
+    return {"je": doc.name, "da_ghi_so": True}
+
+
+@frappe.whitelist(methods=["POST"])
+def bo_truoc_erp(je):
+    """Kế toán từ chối hoặc người lập rút lại một bút toán NHÁP của luồng này."""
+    from vagabond import ho_so_tt as hs
+    doc = frappe.get_doc("Journal Entry", je)
+    if not (doc.user_remark or "").startswith(DAU_TRUOC_ERP) or doc.docstatus != 0:
+        frappe.throw("Chỉ bỏ được bút toán nháp của luồng khoản đã trả trước khi lên ERP.")
+    if doc.owner != frappe.session.user:
+        hs._kiem(hs.VAI_FIN, "từ chối khoản đã trả trước khi lên ERP")
+    frappe.delete_doc("Journal Entry", doc.name, ignore_permissions=True)
+    return {"ok": 1}
