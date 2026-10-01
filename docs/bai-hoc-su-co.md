@@ -1522,3 +1522,24 @@ bản ghi cùng MST, kể cả bản đầu trống. Ca hồi quy phải đảo 
   khi gỡ vai, đọc trên site ai đang giữ vai đó mà không có vai thay thế (đã bắt
   được hai kế toán). Ca kiểm quyền đọc đúng tập quyền trong tệp, không tự gõ lại.
   Nguồn: PR #398, PR #400.
+
+
+## 01/10/2026 (#401 vòng 4): giá kiểm kê phải có mốc và lỗi tra giá cần đường thử lại
+
+- Item.last_purchase_rate và valuation_rate là giá hiện tại, không chứng minh
+  được giá tại ngày giờ kiểm kê, kể cả phiếu ghi sớm hơn trong cùng ngày.
+  Chỉ tự gợi ý từ SLE đúng kho hoặc kho khác cùng công ty tới mốc phiếu.
+  Không có thì kế toán nhập giá đã xác minh, không tự lấy giá Item.
+- Core ERPNext tại SHA bench de591661, StockReconciliation.validate_data,
+  còn lấy Item Price/Item khi giá trống. Hook phải báo thiếu giá trước đường
+  đó; chỉ bỏ fallback trong helper vẫn chưa đủ bảo vệ Desk.
+- Lỗi API khác với đọc thành công nhưng chưa có giá: khi API lỗi, ẩn ô nhập
+  tay và nút ghi sổ, hiện lỗi cùng nút Thử lại. Giữ chặn trong submit để
+  không thể gọi vòng. Ca DOM chạy lỗi, thử lại thành công rồi ghi sổ.
+- Hai ca hồi quy mới đỏ trên 70741d06. Cổng local đạt sau khi dùng đúng
+  Python/Node runtime; lượt đầu thiếu Node trong PATH không phải lỗi code.
+- Bench nền 70741d06 đỏ 3/325 ca ở mỗi lượt: một ca nhập tồn mới dùng tài
+  khoản chi phí; hai ca qty không đổi + giá 0 bị core de591661 loại là không
+  thay đổi. Fixture mới dùng Opening Stock/tài khoản Temporary cho tồn mới,
+  và đếm 9 từ tồn 10 cho hai ca giữ giá 0. Không khẳng định core bench hỗ trợ
+  định giá về 0 khi số lượng không đổi.
