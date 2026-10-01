@@ -39,3 +39,35 @@ def _moc():
 	la("giờ thiếu giây", gv.moc("2026-09-25", "08:30"), "2026-09-25 08:30:00")
 	la("thiếu giờ thì cuối ngày", gv.moc("2026-09-25"), "2026-09-25 23:59:59")
 	la("thiếu ngày thì không chặn", gv.moc(None), None)
+
+
+@ca("v547 Codex #401 vòng 3: sổ kho đọc lỗi thì NÉM lỗi, không coi như kho chưa có giá")
+def _so_kho_loi_thi_nem():
+	import sys
+	import types
+
+	cu = {k: sys.modules.get(k) for k in ("erpnext", "erpnext.stock", "erpnext.stock.utils")}
+	gia = types.ModuleType("erpnext.stock.utils")
+
+	def _hong(*a, **k):
+		raise RuntimeError("sổ kho đọc lỗi")
+
+	gia.get_stock_balance = _hong
+	sys.modules["erpnext"] = types.ModuleType("erpnext")
+	sys.modules["erpnext.stock"] = types.ModuleType("erpnext.stock")
+	sys.modules["erpnext.stock.utils"] = gia
+	try:
+		try:
+			gv._gia_so_kho("M", "Kho D1", "2026-09-30", "08:00:00")
+			nem = False
+		except RuntimeError:
+			nem = True
+		dung("lỗi sổ kho nổi lên, không thành giá 0", nem)
+		gia.get_stock_balance = lambda *a, **k: (5, 400)
+		la("đọc được thì trả giá", gv._gia_so_kho("M", "Kho D1", "2026-09-30", "08:00:00"), 400.0)
+	finally:
+		for k, v in cu.items():
+			if v is None:
+				sys.modules.pop(k, None)
+			else:
+				sys.modules[k] = v
