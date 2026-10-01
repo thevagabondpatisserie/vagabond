@@ -624,6 +624,13 @@ def chan_ghi_so_hd_da_chi(doc, method=None):
 	# mọi đường gọi, rồi đọc dấu nối hiện hành (Codex #368 finding 2).
 	khoa_hoa_don(doc.name)
 	giu = ho_so_dang_giu(doc.name, khoa=True, chi_tkct=True)
+	# v551: hồ sơ đã chi theo đường trả trước NCC (phiếu chi Nợ 331) thì chi
+	# phí CHƯA vào sổ: tờ phải ghi sổ để lên chi phí, và lúc ghi sổ máy tự
+	# phân bổ phiếu chi vào tờ (tra_truoc_ncc.khi_ghi_so_hd).
+	if giu:
+		from vagabond.tra_truoc_ncc import co_tra_truoc
+		if co_tra_truoc(giu, khoa=True):
+			return
 	if giu:
 		frappe.throw(
 			"Hoá đơn %s đã nối làm hoá đơn đến sau của hồ sơ %s: khoản chi đã ghi chi phí "
@@ -1170,6 +1177,12 @@ def noi_nhieu(name, hoa_don, ngoai_ncc=0):
 	da_dung = sum(_tien(r.get("bu_tru")) if cint(r.get("da_ghi_so")) else _tien(r.get("tien_khop"))
 		for r in _lien_ket_cua(d))
 	bu = []
+	# v551: hồ sơ đã chi theo đường trả trước NCC. Tờ đã ghi sổ thì phân bổ
+	# phiếu chi vào tờ, không lập bút toán bù trừ; tờ nháp thì nối làm căn
+	# cứ, ghi sổ tờ là máy tự phân bổ. Hồ sơ chi theo cách cũ đi đường cũ.
+	from vagabond import tra_truoc_ncc as ttn
+	phieu_tt = ttn.phieu_con(d.name, khoa=True) if tkct else []
+	phan_bo = []
 	for ma in ds:
 		if ma in da_co:
 			frappe.throw("Hoá đơn %s đã nối vào chính hồ sơ này rồi." % ma)
@@ -1190,7 +1203,20 @@ def noi_nhieu(name, hoa_don, ngoai_ncc=0):
 			"tong_hd": _tien(hd.get("grand_total")), "tien_khop": tk, "da_ghi_so": 1 if hs.da_ghi_so(hd) else 0,
 			"ngoai_ncc": 0 if trong_nhom else 1, "noi_boi": frappe.session.user, "noi_luc": now_datetime(),
 			"bu_tru": 0, "but_toan": ""}
-		if tkct and hs.da_ghi_so(hd):
+		if phieu_tt and hs.da_ghi_so(hd):
+			lay, chia = ttn.chia_phan_bo(phieu_tt, tk, hd["supplier"])
+			if lay <= 0.5:
+				frappe.throw("Phiếu chi trả trước của hồ sơ %s không còn tiền chưa phân bổ cho nhà cung cấp của tờ %s. "
+					"Kiểm lại các tờ đã nối, hoặc trả tờ này bằng hồ sơ trả nhà cung cấp." % (d.name, ma),
+					title="Chưa nối được")
+			for p in phieu_tt:
+				for ten_pe, t in chia:
+					if p["name"] == ten_pe:
+						p["con"] = _tien(p["con"]) - t
+			dong["bu_tru"] = lay
+			dong["but_toan"] = chia[0][0]
+			phan_bo.append((ma, chia))
+		elif tkct and hs.da_ghi_so(hd):
 			if d.trang_thai != "Da thanh toan":
 				frappe.throw("Hồ sơ %s chưa ghi nhận đã chi tiền, nên chưa có chi phí nào để bù trừ tờ đã ghi sổ %s. "
 					"Ghi nhận thanh toán trước, hoặc trả tờ này bằng hồ sơ trả nhà cung cấp." % (d.name, ma))
@@ -1206,8 +1232,14 @@ def noi_nhieu(name, hoa_don, ngoai_ncc=0):
 		d.append("hd_sau", dong)
 		da_co.add(ma)
 	but_toan = []
+	for ma, chia in phan_bo:
+		for ten_pe, t in chia:
+			ttn.phan_bo(ten_pe, ma, t)
+			if ten_pe not in but_toan:
+				but_toan.append(ten_pe)
+	ten_bt = ""
 	if bu:
-		ten = _lap_bu_tru(d, [(hd, so, ke) for hd, so, ke, _d in bu])
+		ten = ten_bt = _lap_bu_tru(d, [(hd, so, ke) for hd, so, ke, _d in bu])
 		but_toan.append(ten)
 		ma_bu = {x[0]["name"] for x in bu}
 		for r in d.hd_sau:
@@ -1222,7 +1254,8 @@ def noi_nhieu(name, hoa_don, ngoai_ncc=0):
 	d.add_comment("Comment", "Nối %d hoá đơn đến sau: %s.%s%s%s Đã nối %s đ trên %s đ cần.%s" % (
 		len(ds), ", ".join(ds),
 		(" Đánh dấu hoá đơn đến sau cho khoản %s." % ", ".join(str(i) for i in danh_dau)) if danh_dau else "",
-		(" Bút toán bù trừ: %s." % ", ".join(but_toan)) if but_toan else "",
+		((" Phân bổ phiếu chi trả trước %s vào tờ đã ghi sổ." % ", ".join(sorted({c[0] for _m, ch in phan_bo for c in ch})))
+			if phan_bo else "") + ((" Bút toán bù trừ: %s." % ten_bt) if ten_bt else ""),
 		" Có tờ ngoài nhà cung cấp, người nối đã xác nhận." if cint(ngoai_ncc) else "",
 		hs.dd(phu["da_noi"]), hs.dd(phu["can"]),
 		" Đủ hoá đơn, hồ sơ chuyển sang chi phí hợp lệ tính thuế." if doi == 1 else (
@@ -1250,9 +1283,12 @@ def go_noi(name, hoa_don):
 	dong = next((r for r in (d.get("hd_sau") or []) if r.hoa_don == ma), None)
 	if not dong:
 		frappe.throw("Hồ sơ %s không có tờ %s nối ở mức hồ sơ. Tờ nối kiểu cũ theo khoản thì nhờ kế toán xử lý." % (name, ma))
+	# v551: tờ đã phân bổ phiếu chi trả trước thì gỡ đúng phần phân bổ vào tờ
+	# đó (Unreconcile Payment lõi), không huỷ phiếu chi: tiền vẫn đã chi.
+	la_pe = bool(dong.but_toan) and bool(frappe.db.get_value("Payment Entry", dong.but_toan, "name"))
 	# Tờ nối cùng lần chung một bút toán bù trừ: huỷ bút toán là cả nhóm mất
 	# bù trừ, nên gỡ cả nhóm (màn đã báo trước khi hỏi).
-	nhom = [r for r in d.hd_sau if dong.but_toan and r.but_toan == dong.but_toan] or [dong]
+	nhom = [dong] if la_pe else ([r for r in d.hd_sau if dong.but_toan and r.but_toan == dong.but_toan] or [dong])
 	but_toan = dong.but_toan or ""
 	for r in nhom:
 		d.remove(r)
@@ -1263,6 +1299,12 @@ def go_noi(name, hoa_don):
 	# Codex #373 vòng 1: gỡ dòng nối (lưu hồ sơ) TRƯỚC rồi mới huỷ bút toán,
 	# để lúc huỷ không còn dòng nào trỏ vào bút toán. Cùng một giao dịch: huỷ
 	# lỗi thì cả lần gỡ lùi lại, dòng nối trở về.
+	go_pb = ""
+	if la_pe:
+		from vagabond.tra_truoc_ncc import go_phan_bo
+		khoa_hoa_don(ma)
+		go_pb = go_phan_bo(but_toan, ma) or ""
+		but_toan = ""
 	if but_toan:
 		je = frappe.get_doc("Journal Entry", but_toan)
 		if je.docstatus == 1:
@@ -1270,7 +1312,9 @@ def go_noi(name, hoa_don):
 			je.flags.vgb_go_noi = True
 			je.cancel()
 	go = [r.hoa_don for r in nhom]
-	d.add_comment("Comment", "Gỡ hoá đơn đến sau %s.%s%s" % (
+	d.add_comment("Comment", "Gỡ hoá đơn đến sau %s.%s%s%s" % (
 		", ".join(go), (" Huỷ bút toán bù trừ %s, công nợ các tờ trở lại." % but_toan) if but_toan else "",
+		(" Gỡ phân bổ phiếu chi trả trước %s khỏi tờ (%s), công nợ tờ trở lại, phiếu chi trở lại trả trước."
+			% (dong.but_toan, go_pb)) if go_pb else "",
 		" Hồ sơ trở lại chi phí không hợp lệ tính thuế vì không còn đủ hoá đơn." if ve else ""))
-	return {"ok": 1, "huy_but_toan": but_toan, "go": go, "ve_khong_hop_le": ve}
+	return {"ok": 1, "huy_but_toan": but_toan, "go_phan_bo": go_pb, "go": go, "ve_khong_hop_le": ve}
