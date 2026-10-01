@@ -216,6 +216,9 @@ def luu_unc(hoa_don, payment_entry, unc):
 # ---------------------------------------------------------------------------
 
 DAU_TRUOC_ERP = "[Trả trước khi lên ERP]"
+# Codex #403: Từ chối/Rút lại KHÔNG xóa bút toán nháp (mất dấu vết ai gửi, ai
+# bỏ, UNC nào). Đổi dấu đầu diễn giải để nháp ra khỏi phần chờ duyệt, giữ bản ghi.
+DAU_DA_BO = "[Đã bỏ - trả trước ERP]"
 
 
 def kiem_so_tien_truoc_erp(so_tien, con_no, dang_cho=0):
@@ -303,7 +306,7 @@ def xem_truoc_erp(hoa_don):
     """Màn khai khoản đã trả trước ERP: dư, phần đang chờ duyệt, ai được duyệt."""
     hd = _hd_truoc_erp(hoa_don)
     cho = _cho_duyet(hd.name)
-    return {"hoa_don": hd.name, "ncc": hd.supplier, "ten_ncc": hd.supplier_name,
+    return {"hoa_don": hd.name, "ncc": hd.supplier, "ten_ncc": hd.supplier_name, "bill_no": hd.bill_no or "",
         "con_no": float(hd.outstanding_amount), "cho_duyet": [{"je": j, "so_tien": t} for j, t in cho],
         "dang_cho": sum(t for _, t in cho), "ke_toan": _la_ke_toan(), "tk_tam": _tk_tam(hd.company)}
 
@@ -317,12 +320,15 @@ def lap_truoc_erp(hoa_don, so_tien, ngay_tra, unc=None, ghi_chu="", ma_lan=""):
     from vagabond import tep_dinh_kem
     hd = _hd_truoc_erp(hoa_don)
     ma_lan = str(ma_lan or "").strip()[:60]
+    # Codex #403: KHÓA hóa đơn TRƯỚC rồi mới tra mã lần. Tra trước khóa thì hai
+    # yêu cầu cùng mã chạy chồng đều qua được bước tra, yêu cầu sau chờ khóa
+    # xong lại lập thêm một bút toán.
+    frappe.db.sql("select name from `tabPurchase Invoice` where name=%s for update", hd.name)
     if ma_lan:
-        cu = frappe.db.get_value("Journal Entry", {"cheque_no": ma_lan, "docstatus": ["<", 2]},
-            ["name", "docstatus"], as_dict=True)
+        cu = frappe.db.get_value("Journal Entry", {"cheque_no": ma_lan, "docstatus": ["<", 2],
+            "user_remark": ["like", DAU_TRUOC_ERP + "%"]}, ["name", "docstatus"], as_dict=True)
         if cu:
             return {"je": cu.name, "da_ghi_so": cu.docstatus == 1, "da_lam_roi": 1}
-    frappe.db.sql("select name from `tabPurchase Invoice` where name=%s for update", hd.name)
     hd.reload()
     loi = kiem_ngay_tra(ngay_tra, hd.bill_date or hd.posting_date, nowdate()) or \
         kiem_so_tien_truoc_erp(so_tien, hd.outstanding_amount, sum(t for _, t in _cho_duyet(hd.name)))
@@ -370,6 +376,19 @@ def duyet_truoc_erp(je):
     if doc.docstatus != 0:
         frappe.throw("Bút toán đã hủy.")
     doc.check_permission("submit")
+    # Codex #403: kiểm dư SỐNG ngay lúc duyệt, có khóa. Sau khi Uyên gửi, một
+    # phiếu chi khác có thể đã giảm dư; duyệt nguyên số cũ là cấn quá dư.
+    hd_ten = next((a.reference_name for a in doc.accounts if a.reference_type == "Purchase Invoice"), None)
+    if not hd_ten:
+        frappe.throw("Bút toán không gắn hóa đơn mua nào.")
+    frappe.db.sql("select name from `tabPurchase Invoice` where name=%s for update", hd_ten)
+    con_no = frappe.db.get_value("Purchase Invoice", hd_ten, "outstanding_amount")
+    tien = sum(float(a.debit_in_account_currency or 0) for a in doc.accounts if a.reference_name == hd_ten)
+    khac = sum(t for j, t in _cho_duyet(hd_ten) if j != doc.name)
+    loi = kiem_so_tien_truoc_erp(tien, con_no, khac)
+    if loi:
+        frappe.throw("Không duyệt được %s: %s Hóa đơn %s hiện còn %s đ. Từ chối nháp này rồi để thu mua gửi lại đúng số."
+            % (doc.name, loi, hd_ten, "{:,.0f}".format(float(con_no or 0)).replace(",", ".")))
     doc.submit()
     return {"je": doc.name, "da_ghi_so": True}
 
@@ -381,7 +400,12 @@ def bo_truoc_erp(je):
     doc = frappe.get_doc("Journal Entry", je)
     if not (doc.user_remark or "").startswith(DAU_TRUOC_ERP) or doc.docstatus != 0:
         frappe.throw("Chỉ bỏ được bút toán nháp của luồng khoản đã trả trước khi lên ERP.")
-    if doc.owner != frappe.session.user:
+    tu_chu = doc.owner == frappe.session.user
+    if not tu_chu:
         hs._kiem(hs.VAI_FIN, "từ chối khoản đã trả trước khi lên ERP")
-    frappe.delete_doc("Journal Entry", doc.name, ignore_permissions=True)
+    # Không xóa: giữ nháp, UNC và người gửi; đổi dấu để ra khỏi phần chờ duyệt.
+    frappe.db.set_value("Journal Entry", doc.name, "user_remark",
+        DAU_DA_BO + doc.user_remark[len(DAU_TRUOC_ERP):])
+    doc.add_comment("Comment", "%s bởi %s. Bút toán giữ lại ở trạng thái nháp, không ghi sổ." % (
+        "Rút lại" if tu_chu else "Từ chối", frappe.session.user))
     return {"ok": 1}
