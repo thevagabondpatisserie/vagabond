@@ -27,6 +27,8 @@ def tong_hop(ds, hom_nay, trang_thai="con_no", tu_khoa="", ky="", nhom=""):
         if tim and tim not in " ".join(str(r.get(k) or "") for k in
                 ("name", "supplier", "supplier_name", "ma_ncc", "bill_no")).casefold():
             continue
+        # ERPNext de591661 accounts/utils.py:update_voucher_outstanding
+        # ghi outstanding_in_account_currency vào PI, không phải currency HĐ.
         no = _so(r.get("outstanding_amount"))
         tong = _so((r.get("rounded_total") or r.get("grand_total")) if r.get("account_currency") == r.get("currency") else (r.get("base_rounded_total") or r.get("base_grand_total")))
         han = str(r.get("due_date") or "")[:10]
@@ -126,3 +128,58 @@ def xuat_ds(**khac):
         ("nguon", "Phạm vi số liệu", "chu"), ("ngay_doc", "Ngày đọc dư hiện tại", "ngay")]
     return "Du-hoa-don-NCC", [dict(k=k, nhan=n, kieu=t) for k, n, t in cot], [
         dict(r, nguon=kq["nguon"], ngay_doc=kq["ngay_doc"]) for r in kq["dong"]]
+
+
+def _cap_chung_tu(hoa_don, payment_entry=None, khoa=False):
+    """Đúng công ty/NCC/tài khoản trước khi cho xem hoặc gắn bằng chứng."""
+    from vagabond import ho_so_tt as hs, coc_app
+    hs._kiem(hs.VAI_FIN, "cấn trừ công nợ nhà cung cấp")
+    hd = frappe.get_doc("Purchase Invoice", hoa_don)
+    hd.check_permission("read")
+    if hd.docstatus != 1 or hd.is_return:
+        frappe.throw("Chọn hóa đơn mua thường đã ghi sổ để cấn trừ.")
+    if not payment_entry:
+        return hd, None
+    pe, _ = coc_app._phieu(payment_entry, hd.supplier, khoa=khoa, can_sao_ke=False)
+    if pe.company != hd.company or pe.paid_to != hd.credit_to or hd.currency != "VND":
+        frappe.throw("Chọn khoản đã trả cùng công ty, nhà cung cấp, tài khoản công nợ và tiền VND của hóa đơn.")
+    return hd, pe
+
+
+@frappe.whitelist()
+def khoan_da_tra(hoa_don):
+    from vagabond import coc_app, tep_dinh_kem
+    hd, _ = _cap_chung_tu(hoa_don)
+    # Chỉ trả lựa chọn cùng công ty/tài khoản; không đợi bấm cấn mới báo sai.
+    hop_le = set(frappe.get_list("Payment Entry", filters={"docstatus": 1,
+        "company": hd.company, "party_type": "Supplier", "party": hd.supplier,
+        "paid_to": hd.credit_to}, pluck="name", limit_page_length=0))
+    ds = [r for r in coc_app.danh_sach(hd.supplier)["rows"] if r["name"] in hop_le]
+    for r in ds:
+        pe = frappe.get_doc("Payment Entry", r["name"])
+        pe.check_permission("read")
+        r["unc"] = tep_dinh_kem.doc_ds(pe.get("vgb_chi_unc"))
+        r["unc"] = [u for u in r["unc"] if u.startswith(("/private/files/", "/files/"))]
+    return {"rows": ds, "hoa_don": hd.name, "ncc": hd.supplier, "con_no": hd.outstanding_amount}
+
+
+@frappe.whitelist(methods=["POST"])
+def luu_unc(hoa_don, payment_entry, unc):
+    """Chỉ gắn tệp vào phiếu đã chi, tuyệt đối không ghi giảm công nợ."""
+    from vagabond import tep_dinh_kem
+    _, pe = _cap_chung_tu(hoa_don, payment_entry, khoa=True)
+    pe.check_permission("write")
+    cu = tep_dinh_kem.doc_ds(pe.get("vgb_chi_unc"))
+    urls = tep_dinh_kem.doc_ds(unc)
+    if not urls:
+        frappe.throw("Chọn tệp UNC trước khi lưu.")
+    if len(set(cu + urls)) > tep_dinh_kem.CAP_SO_TEP:
+        frappe.throw("Phiếu đã đủ số tệp cho phép. Mở phiếu để xem các tệp đã đính.")
+    them = tep_dinh_kem.gan_vao("Payment Entry", pe.name, "vgb_chi_unc", urls)
+    if len(them) != len(urls):
+        frappe.throw("Có tệp không còn tồn tại. Chọn lại tệp UNC rồi lưu.")
+    moi = tep_dinh_kem.doc_ds(tep_dinh_kem.ghi_ds(cu + them))
+    frappe.db.set_value("Payment Entry", pe.name, "vgb_chi_unc", tep_dinh_kem.ghi_ds(moi))
+    if moi != cu:
+        pe.add_comment("Comment", "Đính bổ sung UNC từ màn công nợ NCC; không thay số dư hay bút toán.")
+    return {"so_unc": len(moi)}

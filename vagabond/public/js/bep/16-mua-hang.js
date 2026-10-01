@@ -832,12 +832,15 @@ async function scrNoPhaiTra() {
     return '<div class="card" style="padding:12px"><b>' + h(r.supplier_name) + '</b><div style="font-size:12px">' + h(r.ma_ncc) + ' · HĐ ' + h(r.bill_no || 'chưa có số NCC') + '</div>' +
       '<div>' + h(r.name) + ' · ' + ngayNgan(r.ngay) + '</div><b>' + money(r.con_no) + ' ' + h(r.account_currency) + '</b> ' +
       '<span class="badge">' + h(r.trang_thai) + (r.tre_ngay ? ' · trễ ' + r.tre_ngay + ' ngày' : '') + '</span>' + cntBuoc(r) +
-      '<button class="btn gh" data-cntdong="' + i + '">Xem và xử lý</button></div>';
+      (r.con_no > 0 ? '<button class="btn" data-cntcan="' + i + '">Cấn trừ công nợ</button>' : '') +
+      '<button class="btn gh" data-cntdong="' + i + '">Xem chứng từ</button></div>';
   }).join('');
   html += '<div style="display:flex;gap:8px"><button class="btn gh" id="cntTruoc" ' + (cntLoc.trang ? '' : 'disabled') + '>Trang trước</button><button class="btn gh" id="cntSau" ' + (kq.con_nua ? '' : 'disabled') + '>Trang sau</button></div>';
   html += '<button class="btn gh" id="cntSo">Mở báo cáo công nợ lõi</button>';
   var b = frame('Công nợ phải trả', html);
   b.onclick = function (e) {
+    var can = e.target.closest('[data-cntcan]');
+    if (can) return cntCanTru(kq.dong[Number(can.getAttribute('data-cntcan'))]);
     var t = e.target.closest('[data-cntdong]');
     if (t) return cntXuLy(kq.dong[Number(t.getAttribute('data-cntdong'))]);
   };
@@ -869,12 +872,61 @@ function cntXuLy(r) {
     if(x.value==='can') {
       var xong=function () {go(scrNoPhaiTra,true);};
       if(hsCocLan) return hsThuLaiCanCoc(xong);
-      return hsMoCanCoc(r.supplier,[{hoa_don:r.name,so_tien:r.con_no}],xong);
+      return cntCanTru(r);
     }
     var url=x.value==='hoa_don' ? '/desk/purchase-invoice/'+encodeURIComponent(r.name) :
       '/desk/payment-reconciliation?company='+encodeURIComponent(r.company)+'&party_type=Supplier&party='+encodeURIComponent(r.supplier)+'&receivable_payable_account='+encodeURIComponent(r.credit_to);
     window.open(url,'_blank','noopener');
   });
+}
+
+/* UNC gắn vào khoản đã chi, không dùng ảnh thay cho chứng từ thanh toán. */
+async function cntCanTru(r) {
+  if (!hsCoQuyenCanCoc()) return cntHuongDan();
+  if (hsCocLan) return hsThuLaiCanCoc(function () {go(scrNoPhaiTra,true);});
+  if(r.currency !== 'VND' || r.account_currency !== 'VND') return cntXuLy(r);
+  var ds;
+  try {ds=await api('vagabond.cong_no_ncc.khoan_da_tra',{hoa_don:r.name});}
+  catch(e){return baoTin(e.message || 'Chưa đọc được khoản đã trả. Tải lại rồi thử.');}
+  if (!ds.rows.length) return cntHuongDan();
+  sheet('Chọn khoản đã trả',ds.rows.map(function(p){return {value:p.name,label:p.name+' · còn '+money(p.con_coc)+' đ',phu:ngayNgan(p.ngay)+' · '+p.unc.length+' UNC'};}),'',function(x){
+    var pe=ds.rows.filter(function(p){return p.name===x.value;})[0];
+    go(function(){cntManCan(r,ds,pe);});
+  },true);
+}
+function cntManCan(r,ds,pe) {
+  var id='cntunc', opt={nhan:'📎 Đính UNC',goi_y:'UNC của khoản đã trả, không phải yêu cầu chuyển thêm tiền.'};
+  tdkNap(id,[]);
+  var html='<div class="card" style="padding:12px"><b>HĐ '+h(r.bill_no || r.name)+'</b><div>'+h(r.supplier_name)+'</div><div>Khoản đã trả: '+h(pe.name)+'</div><div>Còn có thể cấn '+money(Math.min(Number(ds.con_no),Number(pe.con_coc)))+' đ</div></div>'+
+    '<div class="card" style="padding:12px"><label for="cntSoTien">Số tiền cấn</label><input class="tin" style="width:100%;font-size:20px" id="cntSoTien" type="number" inputmode="decimal" min="1" value="'+Math.min(Number(ds.con_no),Number(pe.con_coc))+'">'+tdkKhoi(id,opt)+
+    '<button class="btn gh" id="cntLuuUnc">Chỉ lưu UNC</button></div>'+
+    '<details class="card" style="padding:12px"><summary>UNC đã đính: '+pe.unc.length+'</summary>'+pe.unc.map(function(u){return '<p><a target="_blank" rel="noopener" href="'+h(u)+'">Xem UNC</a></p>';}).join('')+'</details>';
+  var b=frame('Cấn trừ công nợ',html,{footer:'<button class="btn" id="cntXacNhanCan">Xác nhận cấn, không chuyển tiền</button>'});
+  tdkNoi(b,id,opt);
+  var dang=false;
+  async function luu(){
+    var urls=tdkDs(id).map(function(x){return typeof x==='string'?x:x.url;}).filter(Boolean);
+    if(!urls.length)return false;
+    var k=await api('vagabond.cong_no_ncc.luu_unc',{hoa_don:r.name,payment_entry:pe.name,unc:JSON.stringify(urls)});
+    pe.unc=pe.unc.concat(urls.filter(function(u){return pe.unc.indexOf(u)<0;}));
+    tdkNap(id,[]);toast('Đã lưu '+k.so_unc+' UNC.',3000);return true;
+  }
+  b.querySelector('#cntLuuUnc').onclick=async function(){
+    if(dang)return;dang=true;
+    try{if(!await luu())baoTin('Chọn UNC trước khi lưu.');}
+    catch(e){baoTin(e.message || 'Chưa lưu được UNC.');}finally{dang=false;}
+  };
+  document.getElementById('cntXacNhanCan').onclick=async function(){
+    if(dang)return;
+    var tien=Number(b.querySelector('#cntSoTien').value);
+    if(!Number.isFinite(tien)||tien<=0||tien>Math.min(Number(ds.con_no),Number(pe.con_coc)))return baoTin('Nhập số tiền lớn hơn 0, không vượt dư hóa đơn và khoản đã trả.');
+    dang=true;
+    try {
+      await luu();
+      await hsChonCanCoc(ds.ncc,[{hoa_don:r.name,so_tien:tien}],function(){go(scrNoPhaiTra,true);},ds,pe.name);
+    } catch(e){baoTin(e.message || 'Chưa nhận được kết quả; kiểm lần cấn trước khi thử lại.');}
+    finally {dang=false;}
+  };
 }
 
 /* ---------------- Hoa don ban ra ---------------- */

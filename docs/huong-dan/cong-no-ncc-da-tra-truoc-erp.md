@@ -24,9 +24,11 @@ chứng từ hủy và sổ thanh toán; không lập thêm phiếu chi để ch
 Nếu còn tiền chưa phân bổ:
 
 - Trong app sau khi bản sửa được phát hành: Công nợ phải trả → tìm NCC hoặc
-  số hóa đơn → Xem và xử lý → Cấn khoản đã trả (có sao kê). Nút này dành cho
+  số hóa đơn → Cấn trừ công nợ. Nút này dành cho
   kế toán, dùng lại luồng cấn cọc đã có. Chọn phiếu cọc đã ghi sổ đúng NCC,
-  kiểm số tiền và hóa đơn trong xác nhận. Máy lấy tối đa phần cọc còn lại.
+  điền số tiền cần cấn (mặc định tối đa phần còn lại). Có UNC thì đính ngay
+  trên màn này; nút Chỉ lưu UNC không làm giảm nợ. Bấm Xác nhận cấn, không
+  chuyển tiền rồi kiểm lại số tiền và hóa đơn trong hộp xác nhận.
   Không tạo thêm bút toán ngân hàng. Nếu mất phản hồi, chọn Kiểm lần cấn đang
   chờ, không tạo yêu cầu khác.
 - Phiếu cũ không có sao kê SePay, Journal Entry hoặc ngoại tệ: chọn Đối chiếu

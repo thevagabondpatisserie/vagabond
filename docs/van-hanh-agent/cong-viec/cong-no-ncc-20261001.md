@@ -39,3 +39,18 @@ bấm phân bổ/ghi sổ. Chưa chỉnh khoản nào trong file rà soát.
 Cổng trước merge: CI/bench trên SHA cuối, Claude review và UAT bằng vai Thu
 mua/Kế toán (bao gồm get_list Company/Supplier). Quyền xem dữ liệu không được
 nới nếu UAT lỗi; tìm đúng permission nguồn. Chưa merge/deploy.
+
+## Bổ sung 01/10 theo anh Việt
+
+Anh cho Codex tự review, đủ cổng thì merge/deploy vì Claude hết token. Nút
+Cấn trừ công nợ ngay từng dòng: chọn khoản đã trả, nhập số tiền, đính UNC,
+xác nhận. UNC gắn vào PE đã có và chỉ có quyền FIN + write PE, không sinh
+GL/giảm nợ. Upload và cấn là hai tác vụ riêng; cấn vẫn qua cửa coc_app và
+kiểm sao kê/idempotency cũ. Không có PE thì hướng dẫn kế toán xử lý số dư
+chuyển đổi; không lập giả tiền/kho.
+
+Native Codex nêu nghi vấn outstanding PI USD với TK VND. Mã ERPNext pinned
+de591661 accounts/utils.py:update_voucher_outstanding lấy
+outstanding_in_account_currency. Giữ nhãn tiền TK, thêm ca bench PI USD100
+TK VND2.500.000 để kiểm dữ liệu thật trước kết luận. Thêm ca UNC không sinh
+GL, cấn một phần/retry/hủy và Accounts User đọc màn/Excel, Guest bị từ chối.
