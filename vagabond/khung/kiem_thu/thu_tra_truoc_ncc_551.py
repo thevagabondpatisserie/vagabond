@@ -161,3 +161,24 @@ def _nguon():
 				patch.object(hs, "_so_phai_chuyen", return_value={"con": 100}), \
 				patch.object(hs, "_do_chinh_xac", return_value=2):
 			la(nhan, dc._nguon({"name": "APP.1"}), ("CTY", NH, 100))
+
+
+@ca("v551 tờ nối phân bổ phiếu chi ghi vào ô phieu_chi (Link Payment Entry), không vào but_toan (Link Journal Entry); vẫn giữ hồ sơ ở Đã thanh toán (bench #405 vòng 2)")
+def _o_phieu_chi():
+	import json
+	from pathlib import Path
+	from vagabond.hoa_don_sau import loi_bo_thanh_toan, TRUONG_HD_SAU
+	goc = Path(__file__).resolve().parents[2]
+	dt = json.loads((goc / "vagabond/doctype/vagabond_ho_so_tt_hd_sau/vagabond_ho_so_tt_hd_sau.json").read_text(encoding="utf-8"))
+	o = {f["fieldname"]: f for f in dt["fields"]}
+	la("but_toan chỉ nhận bút toán", (o["but_toan"]["fieldtype"], o["but_toan"]["options"]), ("Link", "Journal Entry"))
+	la("phieu_chi nhận phiếu chi", (o["phieu_chi"]["fieldtype"], o["phieu_chi"]["options"]), ("Link", "Payment Entry"))
+	dung("phieu_chi có trong field_order", "phieu_chi" in dt["field_order"])
+	dung("phieu_chi khoá sửa tay", "phieu_chi" in TRUONG_HD_SAU)
+	dung("tờ đã phân bổ phiếu chi chặn bỏ Đã thanh toán",
+		"HDM-1" in loi_bo_thanh_toan("Da thanh toan", "Da duyet", [dict(hoa_don="HDM-1", but_toan="", phieu_chi="ACC-PAY-1")]))
+	# Hai chỗ ghi dòng nối phải ghi phiếu chi vào phieu_chi. Dò chuỗi chỉ chốt
+	# điều này; hành vi thật do ca bench _noi_va_go và _to_nhap kiểm.
+	nguon = (goc / "ho_so_bo_sung.py").read_text(encoding="utf-8") + (goc / "tra_truoc_ncc.py").read_text(encoding="utf-8")
+	dung("không còn chỗ ghi phiếu chi vào but_toan",
+		'dong["but_toan"] = chia' not in nguon and '"but_toan": da[0][0]' not in nguon)
