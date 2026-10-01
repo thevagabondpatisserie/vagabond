@@ -44,6 +44,29 @@ Cấn cọc trong app yêu cầu sao kê theo quy tắc hiện hành; không t�
 
 ## 3. ERP chưa có chứng từ thanh toán
 
+### Đã trả TRƯỚC KHI LÊN ERP (từ v549)
+
+Ví dụ hóa đơn Printeco 04/04/2026: tiền đã ra khỏi ngân hàng trước khi ERP
+chạy, số dư ngân hàng mang sang ERP đã trừ khoản này. Anh Việt chốt 01/10/2026
+cách ghi: **Nợ 331 (đúng NCC, đúng hóa đơn) / Có tài khoản tạm chờ xử lý đầu
+kỳ** (tài khoản loại Temporary của công ty). Không Có 1121, vì sẽ trừ ngân
+hàng hai lần. Kế toán kết chuyển tài khoản tạm khi chốt số dư đầu kỳ.
+
+Trên app: Công nợ phải trả → dòng hóa đơn → **Cấn trừ công nợ**. Hóa đơn
+không có phiếu chi nào trên ERP thì vào thẳng màn **Đã trả trước khi lên
+ERP**; có phiếu chi thì chọn dòng cùng tên ở cuối danh sách.
+
+- Uyên: điền số tiền, ngày đã trả, đính UNC hoặc phiếu chi (bắt buộc), bấm
+  **Gửi kế toán duyệt**. Máy lập bút toán NHÁP, dư hóa đơn chưa giảm; dòng
+  hóa đơn hiện "Chờ kế toán duyệt". Uyên có thể Rút lại nháp của mình.
+- Kế toán: bấm **Duyệt ghi sổ** ngay trên dòng (hoặc Từ chối). Kế toán tự
+  lập thì nút là **Ghi sổ cấn trừ**, ghi sổ luôn, UNC không bắt buộc.
+- Mất mạng giữa chừng: bấm lại, máy nhận ra lần gửi cũ, không ghi hai lần.
+- Ghi nhầm sau khi đã ghi sổ: kế toán hủy bút toán đó trên Desk, dư hóa đơn
+  trở lại như cũ.
+
+### Các trường hợp khác
+
 Uyên chuyển bộ bằng chứng cho kế toán. Kế toán kiểm số dư chuyển đổi và sổ
 cũ trước khi tạo chứng từ, tránh ghi tiền ra lần hai nếu số dư ngân hàng/quỹ
 đã mang khoản chi đó sang ERP.
