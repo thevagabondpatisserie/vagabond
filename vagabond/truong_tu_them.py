@@ -30,6 +30,10 @@ def dung():
 	_dung_nhom(combo_mon.TRUONG_MOI, "combo_mon")
 	from vagabond import hach_toan_kho
 	_dung_nhom(hach_toan_kho.TRUONG_MOI, "hach_toan_kho")
+	# v550: ô Trừ bù kho trên hoá đơn bán, ô Hoá đơn được trừ bù trên phiếu
+	# kho. Dựng SAU hach_toan_kho vì ô mới chèn sau ô Lý do chưa trừ kho.
+	from vagabond import tru_kho_bu
+	_dung_nhom(tru_kho_bu.TRUONG_MOI, "tru_kho_bu")
 	from vagabond import can_tru_san
 	_dung_nhom(can_tru_san.TRUONG_MOI, "can_tru_san")
 	from vagabond import tam_ung_app

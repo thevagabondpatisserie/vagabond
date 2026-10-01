@@ -516,7 +516,12 @@ def ban_truoc_ghi_so(doc, method=None):
 	ton = {}
 	for (ma, kho) in sorted(nhom):
 		frappe.db.sql("select name from `tabBin` where item_code=%s and warehouse=%s for update", (ma, kho))
-		ton[(ma, kho)] = flt(get_stock_balance(ma, kho, doc.posting_date, doc.posting_time)) if kho else 0
+		# v550: lấy nhỏ hơn giữa tồn lúc bán và tồn hiện tại. Hoá đơn ghi sổ
+		# cuối ngày mang giờ bán sớm; hàng tồn lúc đó có thể đã được xuất
+		# (phiếu bù của tờ trước, phiếu điều chuyển đi) nên trừ theo giờ bán
+		# sẽ làm âm kho về sau và lõi chặn. Thiếu thì để trừ bù lo.
+		ton[(ma, kho)] = min(flt(get_stock_balance(ma, kho, doc.posting_date, doc.posting_time)),
+			flt(get_stock_balance(ma, kho))) if kho else 0
 	thieu = thieu_hang(nhom, ton)
 	if thieu:
 		_bo_tru_kho(doc, "Thiếu hàng: " + ly_do_thieu(thieu))
