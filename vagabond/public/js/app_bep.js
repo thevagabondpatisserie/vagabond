@@ -9343,7 +9343,10 @@ async function kkReopen() {
 }
 
 /* ---------- 14e. Ghi so: tao Stock Reconciliation ---------- */
-var kkp = { doc: null, rows: [], rates: {}, opening: 1 };
+/* v547: mac dinh Dieu chinh ton (kiem ke dinh ky). Ton dau ky chi dung cho
+   lan dau dua so len may, nguoi ghi so tu chon. Ba phieu Khai ghi so 30/09
+   deu la Dieu chinh ton + 632, man nay mac dinh Ton dau ky la lech. */
+var kkp = { doc: null, rows: [], rates: {}, opening: 0 };
 
 async function scrKkPost(name) {
   frame('Ghi sổ kiểm kê', '<div class="emp"><div class="e1">⏳</div></div>');
@@ -9378,11 +9381,20 @@ async function scrKkPost(name) {
   try {
     kkp.accs = (await getList('Account', { fields: ['name'], filters: { company: COMPANY, is_group: 0 }, limit_page_length: 0, order_by: 'name' })).map(function (a) { return { value: a.name, label: a.name }; });
   } catch (e) { kkp.accs = []; }
+  /* v547: gia von theo CUNG luat voi Desk (vagabond.gia_von_kiem_ke): so kho
+     dung kho, roi kho khac, gia mua gan nhat, gia chung cua ma. Ban cu doc
+     Item.valuation_rate (o chung, thuong 0) nen Kho D1 co gia van bi hoi. */
   kkp.rates = {};
-  kkp.rows.forEach(function (r) {
-    var i = info[r.item_code] || {};
-    kkp.rates[r.item_code] = kkNum(i.valuation_rate) || kkNum(i.last_purchase_rate) || 0;
-  });
+  kkp.nguonGia = {};
+  try {
+    var gy = await api('vagabond.gia_von_kiem_ke.goi_y_gia', { kho: d.kho, ma: JSON.stringify(codes), ngay: d.ngay_kiem || '' });
+    Object.keys(gy || {}).forEach(function (m) { kkp.rates[m] = kkNum(gy[m].gia); kkp.nguonGia[m] = gy[m].nguon; });
+  } catch (e) {
+    kkp.rows.forEach(function (r) {
+      var i = info[r.item_code] || {};
+      kkp.rates[r.item_code] = kkNum(i.valuation_rate) || kkNum(i.last_purchase_rate) || 0;
+    });
+  }
   kkpDraw();
 }
 
@@ -22250,7 +22262,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '546';
+var APPVER = '547';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
