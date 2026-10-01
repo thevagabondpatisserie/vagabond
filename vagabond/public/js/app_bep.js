@@ -27180,19 +27180,28 @@ async function cntBoTruocErp(je) {
   catch (e) { busy(false); return baoTin(e.message || 'Chưa bỏ được. Tải lại rồi thử.'); }
   busy(false); go(scrNoPhaiTra, true);
 }
-async function cntMoTruocErp(r) {
+function cntMoTruocErp(r) {
   if (r.currency !== 'VND' || r.account_currency !== 'VND') return cntXuLy(r);
-  var tt;
-  try { tt = await api('vagabond.cong_no_ncc.xem_truoc_erp', {hoa_don: r.name}); }
-  catch (e) { return baoTin(e.message || 'Chưa mở được. Tải lại rồi thử.'); }
-  go(function () { cntManTruocErp(r, tt); });
+  go(function () { scrCntTruocErp(r.name); });
 }
-function cntManTruocErp(r, tt) {
+/* Codex #403: màn có bản nháp tự lưu (48-ban-soan-do.js, loại tra_truoc_erp).
+   Trạng thái nằm ở cntTe để bản nháp giữ được MÃ LẦN: tải lại trang sau khi
+   mất phản hồi vẫn gửi cùng mã, máy chủ nhận ra lần cũ, không ghi hai lần. */
+var cntTe = null;
+async function scrCntTruocErp(hoaDon) {
+  if (!cntTe || cntTe.hoa_don !== hoaDon) cntTe = {hoa_don: hoaDon, maLan: sinhMaLanNhan().replace(/^LN-/, 'TE-'), tep: []};
+  frame('Đã trả trước khi lên ERP', '<div class="emp">Đang đọc hóa đơn...</div>');
+  var tt;
+  try { tt = await api('vagabond.cong_no_ncc.xem_truoc_erp', {hoa_don: hoaDon}); }
+  catch (e) {
+    var l = frame('Đã trả trước khi lên ERP', '<div class="card">' + h(e.message || 'Chưa mở được.') + '<button class="btn" id="cntTeLai">Tải lại</button></div>');
+    l.querySelector('#cntTeLai').onclick = function () { go(function () { scrCntTruocErp(hoaDon); }, true); };
+    return;
+  }
   var id = 'cnttruoc', opt = {nhan: '📎 Đính UNC / phiếu chi', goi_y: 'Chứng từ của lần trả trước khi lên ERP.'};
   var conCan = Math.max(0, Number(tt.con_no) - Number(tt.dang_cho || 0));
-  var maLan = sinhMaLanNhan().replace(/^LN-/, 'TE-');
-  tdkNap(id, []);
-  var html = '<div class="card" style="padding:12px"><b>HĐ ' + h(r.bill_no || r.name) + '</b><div>' + h(r.supplier_name) + '</div>' +
+  tdkNap(id, cntTe.tep || []);
+  var html = '<div class="card" style="padding:12px"><b>HĐ ' + h(tt.bill_no || tt.hoa_don) + '</b><div>' + h(tt.ten_ncc) + '</div>' +
     '<div>Còn nợ ' + money(tt.con_no) + ' đ' + (tt.dang_cho ? ' · đang chờ duyệt ' + money(tt.dang_cho) + ' đ' : '') + '</div>' +
     '<div style="font-size:12.5px;color:#6b7280;margin-top:6px">Dùng cho khoản đã trả nhà cung cấp TRƯỚC khi lên ERP. Máy ghi Nợ 331 hóa đơn này / Có tài khoản tạm chờ xử lý đầu kỳ (' + h(tt.tk_tam) + '). Không chuyển tiền, không trừ ngân hàng.</div></div>' +
     '<div class="card" style="padding:12px"><label for="cntTeTien">Số tiền đã trả</label><input class="tin" style="width:100%;font-size:20px" id="cntTeTien" type="number" inputmode="decimal" min="1" value="' + conCan + '">' +
@@ -27210,13 +27219,14 @@ function cntManTruocErp(r, tt) {
     if (!ngay) return baoTin('Chọn ngày đã trả cho nhà cung cấp.');
     if (!urls.length && !tt.ke_toan) return baoTin('Đính UNC hoặc phiếu chi để kế toán duyệt.');
     if (!await confirmSheet(tt.ke_toan ? 'Ghi sổ cấn trừ' : 'Gửi kế toán duyệt',
-      money(tien) + ' đ cho HĐ ' + (r.bill_no || r.name) + ', đã trả ngày ' + ngay + '.\nNợ 331 / Có tài khoản tạm chờ xử lý đầu kỳ. Không chuyển tiền.',
+      money(tien) + ' đ cho HĐ ' + (tt.bill_no || tt.hoa_don) + ', đã trả ngày ' + ngay + '.\nNợ 331 / Có tài khoản tạm chờ xử lý đầu kỳ. Không chuyển tiền.',
       tt.ke_toan ? 'Ghi sổ' : 'Gửi')) return;
     dang = true; busy(true);
     try {
-      var k = await api('vagabond.cong_no_ncc.lap_truoc_erp', {hoa_don: r.name, so_tien: tien, ngay_tra: ngay,
-        unc: JSON.stringify(urls), ghi_chu: b.querySelector('#cntTeGhiChu').value, ma_lan: maLan});
+      var k = await api('vagabond.cong_no_ncc.lap_truoc_erp', {hoa_don: tt.hoa_don, so_tien: tien, ngay_tra: ngay,
+        unc: JSON.stringify(urls), ghi_chu: b.querySelector('#cntTeGhiChu').value, ma_lan: cntTe.maLan});
       busy(false);
+      cntTe = null;
       toast(k.da_ghi_so ? 'Đã ghi sổ ' + k.je + '. Dư hóa đơn đã giảm.' : 'Đã gửi ' + k.je + ' chờ kế toán duyệt.', 5000);
       go(scrNoPhaiTra, true);
     } catch (e) { busy(false); baoTin(e.message || 'Chưa nhận được kết quả. Bấm lại: máy nhận ra lần gửi cũ, không ghi hai lần.'); }
@@ -53019,6 +53029,16 @@ sdKhai('but_toan', 'scrBtLap', {
   dat: function (v) { btDong = v.dong || []; btMau = v.mau || null; btNgay = v.ngay || btNgay; btDienGiai = v.dg || ''; },
   tieuDe: sdTieuDe('dg'), luu: ['vagabond.but_toan.tao']
 });
+sdKhai('tra_truoc_erp', 'scrCntTruocErp', {
+  /* v549 Codex #403: khoản đã trả trước khi lên ERP. Giữ cả mã lần trong bản
+     nháp: tải lại trang vẫn gửi cùng mã, máy chủ không lập bút toán thứ hai. */
+  ten: 'Khoản đã trả trước ERP',
+  lay: function () { return cntTe ? { hoa_don: cntTe.hoa_don, maLan: cntTe.maLan, tep: tdkDs('cnttruoc') } : null; },
+  dat: function (v) { cntTe = { hoa_don: v.hoa_don, maLan: v.maLan, tep: v.tep || [] }; },
+  ma: function (a) { return a[0] || ''; },
+  tieuDe: function (v) { return v ? 'Hóa đơn ' + v.hoa_don : ''; },
+  luu: ['vagabond.cong_no_ncc.lap_truoc_erp']
+});
 sdKhai('nop_quy', 'scrNopQuyTao', { ten: 'Phiếu nộp quỹ', phat: 1, luu: ['vagabond.nop_quy.tao'] });
 sdKhai('nop_quy_sua', 'scrNopQuySua', {
   ten: 'Sửa phiếu nộp quỹ', phat: 1, ma: function () { return nqSuaMa || ''; }, luu: ['vagabond.nop_quy.sua']
@@ -53174,6 +53194,7 @@ scrHoSoTTTao = sdBoc('ho_so_tt', 'scrHoSoTTTao', scrHoSoTTTao);
 scrHoanUngTao = sdBoc('hoan_ung', 'scrHoanUngTao', scrHoanUngTao);
 scrChiCongTyTao = sdBoc('chi_cong_ty', 'scrChiCongTyTao', scrChiCongTyTao);
 scrBtLap = sdBoc('but_toan', 'scrBtLap', scrBtLap);
+scrCntTruocErp = sdBoc('tra_truoc_erp', 'scrCntTruocErp', scrCntTruocErp);
 scrNopQuyTao = sdBoc('nop_quy', 'scrNopQuyTao', scrNopQuyTao);
 scrNopQuySua = sdBoc('nop_quy_sua', 'scrNopQuySua', scrNopQuySua);
 scrCongThucSua = sdBoc('cong_thuc', 'scrCongThucSua', scrCongThucSua);
