@@ -82,3 +82,35 @@ def _doc_quyen():
 def _lam_tron():
     k=cn.tong_hop([dong(grand_total=100.4,rounded_total=100)],"2026-10-01")
     la("không giảm",k["dem"]["mot_phan"],0)
+
+
+@ca("v549 trả trước ERP: số tiền không vượt dư trừ phần đang chờ duyệt")
+def _so_tien_truoc_erp():
+    la("đủ dư", cn.kiem_so_tien_truoc_erp(212090400, 212090400), None)
+    dung("0 đồng", cn.kiem_so_tien_truoc_erp(0, 100))
+    dung("âm", cn.kiem_so_tien_truoc_erp(-5, 100))
+    dung("chữ", cn.kiem_so_tien_truoc_erp("abc", 100))
+    dung("vượt dư", cn.kiem_so_tien_truoc_erp(101, 100))
+    dung("vượt phần còn sau khi trừ nháp chờ duyệt", cn.kiem_so_tien_truoc_erp(60, 100, 50))
+    la("vừa đủ phần còn lại", cn.kiem_so_tien_truoc_erp(50, 100, 50), None)
+    dung("đã chờ duyệt hết dư", "chờ kế toán duyệt" in cn.kiem_so_tien_truoc_erp(1, 100, 100))
+
+
+@ca("v549 trả trước ERP: ngày đã trả bắt buộc, không sau hôm nay")
+def _ngay_truoc_erp():
+    la("ngày hợp lệ", cn.kiem_ngay_tra("2026-04-10", "2026-04-04", "2026-10-01"), None)
+    dung("thiếu ngày", cn.kiem_ngay_tra("", "2026-04-04", "2026-10-01"))
+    dung("ngày tương lai", cn.kiem_ngay_tra("2026-10-02", "2026-04-04", "2026-10-01"))
+
+
+@ca("v549 trả trước ERP: Nợ 331 đúng NCC và hóa đơn / Có tài khoản tạm, không đụng ngân hàng")
+def _dong_truoc_erp():
+    d = cn.dong_but_toan_truoc_erp({"name": "PI-1", "supplier": "NCC", "credit_to": "331 - TV"},
+        "Temporary Opening - TV", 212090400, "Main - TV")
+    la("hai dòng", len(d), 2)
+    la("vế Nợ", (d[0]["account"], d[0]["party_type"], d[0]["party"], d[0]["debit_in_account_currency"],
+        d[0]["reference_type"], d[0]["reference_name"]),
+        ("331 - TV", "Supplier", "NCC", 212090400.0, "Purchase Invoice", "PI-1"))
+    la("vế Có tài khoản tạm", (d[1]["account"], d[1]["credit_in_account_currency"]), ("Temporary Opening - TV", 212090400.0))
+    dung("vế Có không gắn NCC/hóa đơn", "party" not in d[1] and "reference_name" not in d[1])
+    la("cân", d[0]["debit_in_account_currency"], d[1]["credit_in_account_currency"])
