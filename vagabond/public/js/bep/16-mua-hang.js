@@ -961,18 +961,23 @@ function cntDongCho(r, keToan) {
   return cho.map(function (c) {
     /* Codex #403 vòng 3: kế toán duyệt ngay ở đây nên hiện đủ bằng chứng.
        Vòng 4: ngày theo dd/mm/yyyy; tóm tắt tối đa hai dòng cắt gọn để nút
-       Duyệt/Từ chối luôn trong màn đầu; ghi chú dài và đủ UNC để dưới nút. */
+       Duyệt/Từ chối luôn trong màn đầu; ghi chú dài và đủ UNC để dưới nút.
+       Vòng 5: tóm tắt bị cắt trên máy hẹp nên phần mở rộng luôn có và nhắc
+       lại đủ ngày trả, người gửi, lúc gửi; mọi dòng trong đó tự xuống dòng
+       (overflow-wrap) vì .card có overflow:hidden, chuỗi dài không dấu cách
+       như số UNC sẽ bị cắt mất nếu không ngắt. Đo trên Chromium thật 390px. */
     var uncs = c.unc || [];
     var link = function (u, i) { return '<a target="_blank" rel="noopener" href="' + h(u) + '">Xem UNC ' + (i + 1) + '</a>'; };
     var mot = 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
-    var chiTiet = (c.dien_giai || uncs.length > 1) ?
-      '<details style="font-size:12.5px;margin-top:6px"><summary style="min-height:44px;line-height:44px;cursor:pointer">Xem đủ ghi chú và UNC</summary>' +
-      (c.dien_giai ? '<div style="white-space:pre-wrap">' + h(c.dien_giai) + '</div>' : '') +
-      (uncs.length ? '<div>' + uncs.map(link).join(' · ') + '</div>' : '') + '</details>' : '';
+    var ngat = 'overflow-wrap:anywhere';
+    var dong1 = 'Đã trả ngày ' + ngayNgan(c.ngay_tra) + ' · gửi bởi ' + h(c.nguoi_gui || '?') + ' lúc ' + cntLucGui(c.luc_gui);
+    var chiTiet = '<details style="font-size:12.5px;margin-top:6px"><summary style="min-height:44px;line-height:44px;cursor:pointer">Xem đủ chi tiết, ghi chú và UNC</summary>' +
+      '<div style="' + ngat + '">' + dong1 + '</div>' +
+      (c.dien_giai ? '<div style="white-space:pre-wrap;' + ngat + '">' + h(c.dien_giai) + '</div>' : '') +
+      '<div style="' + ngat + '">' + (uncs.length ? uncs.map(link).join(' · ') : '<b>Chưa có UNC</b>') + '</div></details>';
     return '<div class="card" style="padding:8px 10px;margin:8px 0;background:#fff7e6"><div style="font-size:13px">Chờ kế toán duyệt: <b>' +
       money(c.so_tien) + ' đ</b> đã trả trước ERP · ' + h(c.je) + '</div>' +
-      '<div style="font-size:12.5px;color:#5a6070;margin:4px 0"><div style="' + mot + '">Đã trả ngày ' + ngayNgan(c.ngay_tra) + ' · gửi bởi ' + h(c.nguoi_gui || '?') +
-      ' lúc ' + cntLucGui(c.luc_gui) + '</div><div style="' + mot + '">' +
+      '<div style="font-size:12.5px;color:#5a6070;margin:4px 0"><div style="' + mot + '">' + dong1 + '</div><div style="' + mot + '">' +
       (uncs.length ? link(uncs[0], 0) + (uncs.length > 1 ? ' và ' + (uncs.length - 1) + ' UNC khác' : '') : '<b>Chưa có UNC</b>') +
       (c.dien_giai ? ' · ' + h(c.dien_giai) : '') + '</div></div>' +
       (keToan ? '<button class="btn" data-cntduyet="' + h(c.je) + '">Duyệt ghi sổ</button>' : '') +
