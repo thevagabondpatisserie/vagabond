@@ -56,13 +56,16 @@ def chon_gia(cac_gia):
 
 
 def _gia_so_kho(ma, kho, ngay=None, gio=None):
+	"""Giá bình quân sổ kho đúng kho tại mốc phiếu.
+
+	Codex #401 vòng 3: KHÔNG nuốt lỗi. Sổ kho đọc không được (lỗi CSDL, lỗi
+	ERPNext) khác hẳn kho chưa có giá; nuốt lỗi thành 0 thì gia_von rơi sang
+	kho khác hay giá chung của mã và ghi sổ sai giá mà không ai biết. Để lỗi
+	nổi lên: Desk không lưu được phiếu, app báo và chặn ghi sổ."""
 	from erpnext.stock.utils import get_stock_balance
 
-	try:
-		kq = get_stock_balance(ma, kho, ngay, gio, with_valuation_rate=True)
-		return flt(kq[1]) if isinstance(kq, (list, tuple)) and len(kq) > 1 else 0
-	except Exception:
-		return 0
+	kq = get_stock_balance(ma, kho, ngay, gio, with_valuation_rate=True)
+	return flt(kq[1]) if isinstance(kq, (list, tuple)) and len(kq) > 1 else 0
 
 
 def moc(ngay=None, gio=None):
@@ -136,8 +139,12 @@ def dien_gia(doc, method=None):
 
 
 @frappe.whitelist()
-def goi_y_gia(kho, ma, ngay=None):
+def goi_y_gia(kho, ma, ngay=None, gio=None):
 	"""Cho màn Ghi sổ kiểm kê trên app: giá đề xuất theo cùng luật với Desk.
+
+	`ngay`, `gio` phải là đúng ngày giờ app sẽ ghi sổ phiếu (Codex #401 vòng 3:
+	chỉ gửi ngày thì mốc thành 23:59:59, phiếu ghi lùi vẫn lấy được giá muộn
+	hơn giờ ghi sổ trong cùng ngày).
 
 	Trả {mã: {"gia": giá, "nguon": nguồn}}; mã không có giá thì không có mặt."""
 	if not frappe.has_permission("Stock Reconciliation", "create"):
@@ -146,7 +153,7 @@ def goi_y_gia(kho, ma, ngay=None):
 		ma = frappe.parse_json(ma)
 	ra = {}
 	for m in (ma or [])[:2000]:
-		gia, nguon = gia_von(m, kho, ngay)
+		gia, nguon = gia_von(m, kho, ngay, gio)
 		if gia:
 			ra[m] = {"gia": gia, "nguon": nguon}
 	return ra
