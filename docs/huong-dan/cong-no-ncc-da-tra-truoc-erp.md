@@ -65,6 +65,25 @@ ERP**; có phiếu chi thì chọn dòng cùng tên ở cuối danh sách.
 - Ghi nhầm sau khi đã ghi sổ: kế toán hủy bút toán đó trên Desk, dư hóa đơn
   trở lại như cũ.
 
+### Chi trước trên ERP, hóa đơn về sau (từ v551)
+
+Ví dụ Adecco T08/2026 (chị Dung chốt 01/10/2026): hồ sơ Chi từ TK công ty có
+khoản đánh dấu **Hóa đơn đến sau**.
+
+- Lúc lập hồ sơ: khoản hóa đơn đến sau KHÔNG cần chọn tài khoản Nợ. Tài
+  khoản chi phí đi theo tờ hóa đơn khi về.
+- Lúc ghi nhận đã thanh toán: máy lập **phiếu chi trả trước** Nợ 331 đúng
+  NCC / Có ngân hàng. Không ghi chi phí, không bút toán tay.
+- Hóa đơn về, đã ghi sổ (Nợ chi phí + 1331 / Có 331): trên hồ sơ bấm **Nối
+  hóa đơn**, máy phân bổ phiếu chi vào tờ, 331 của tờ về 0.
+- Hóa đơn về còn nháp: nối vào hồ sơ, rồi ghi sổ tờ như mọi tờ khác. Lúc ghi
+  sổ máy tự phân bổ phiếu chi, không phải bấm gì thêm.
+- Nối nhầm: bấm **Gỡ** trên hồ sơ, máy gỡ phần phân bổ, công nợ tờ trở lại,
+  phiếu chi trở lại khoản trả trước (không hủy phiếu chi).
+- Khoản không có hóa đơn (phí, biên lai nội bộ) vẫn ghi bút toán theo tài
+  khoản Nợ đã chọn như trước.
+- Hồ sơ đã chi trước v551 (chi phí ngay, bù trừ khi nối) giữ nguyên đường cũ.
+
 ### Các trường hợp khác
 
 Uyên chuyển bộ bằng chứng cho kế toán. Kế toán kiểm số dư chuyển đổi và sổ
