@@ -39,6 +39,9 @@ function dsChips(r) {
   } else if (r.docstatus === 1) {
     out += dsChip('Chưa có HĐĐT', '#fee2e2', '#991b1b');
   }
+  /* v550: trang thai kho do may chu tinh (tt_kho), xem 49-tru-kho-bu.js. */
+  var mKho = tkChip(r);
+  if (mKho) out += dsChip(mKho[2], mKho[0], mKho[1]);
   if (r.vgb_pt_thanh_toan) out += dsChip(h(r.vgb_pt_thanh_toan), '#e0f2fe', '#075985');
   else out += dsChip('Chưa chọn thanh toán', '#fee2e2', '#991b1b');
   /* SePay doc thang tu giao dich ngan hang, khong phu thuoc ai co go tay ma
@@ -109,7 +112,7 @@ async function scrDoanhSo() {
     { k: 'chua_hddt', nhan: '📌 Chưa có hoá đơn điện tử', loc: function (r) { return r.docstatus === 1 && !r.custom_hddt_so; } },
     { k: 'xhd_cty', nhan: '🏢 Xuất hoá đơn công ty', loc: function (r) { return !!(r.vgb_xhd_mst || r.can_hddt); } },
     { k: 'trung', nhan: '⚠ Trùng phiếu', loc: function (r) { return !!r.trung; } }
-  ];
+  ].concat(tkLoc());
   var DSNG = locNguonPt(rows);
   var DSHD = locHddt();
   if (!locTim(DSTT, dsLoc) || locTim(DSTT, dsLoc).k !== dsLoc) dsLoc = 'tat_ca';
@@ -678,7 +681,10 @@ async function scrDsView(name, can) {
      no nam cuoi man, sau moi thu ve tien. Anh Viet chot 02/09/2026. */
   html += await hdAiLamGi(d.name);
 
-  frame('Chi tiết đơn', html, foot ? { footer: foot } : {});
+  /* v550: khoi Kho, ve cho truoc, nap sau. */
+  html += tkKhoiChiTiet(d);
+  var bTk = frame('Chi tiết đơn', html, foot ? { footer: foot } : {});
+  tkNapKhoi(bTk);
   /* Nut gan nguoi ban nam trong khoi `hdAiLamGi`, phai noi SAU khi dung
      khung. Man Sales la cho don may dong bo ve do lai nhieu nhat, nen day
      moi la cho nut nay duoc bam nhieu nhat. */

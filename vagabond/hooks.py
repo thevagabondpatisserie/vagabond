@@ -938,3 +938,22 @@ _ds_se = doc_events["Stock Entry"]["validate"]
 doc_events["Stock Entry"]["validate"] = ([_ds_se] if isinstance(_ds_se, str) else list(_ds_se)) + [
 	"vagabond.hach_toan_kho.sx_gan_tai_khoan"]
 del _ds_bs, _ds_se
+
+# v550: trừ kho từng món và trừ bù khi hàng về (anh Việt chốt 01/10/2026).
+# Nối vào chuỗi sẵn có, không thay hook cũ. Xem đầu tệp vagabond/tru_kho_bu.py.
+#  - Hoá đơn bán ghi sổ thiếu hàng: trừ ngay những món đang có (CUỐI dãy
+#    on_submit, sau khi lõi đã ghi sổ cái). Không bao giờ chặn ghi sổ.
+#  - Huỷ hoá đơn: huỷ theo phiếu bù. Huỷ tay phiếu bù: hoá đơn về Chưa trừ kho.
+#  - Phiếu nhập vào kho điểm bán: xếp việc trừ bù sau khi phiếu commit.
+for _dt_tb, _sk_tb, _ham_tb in (
+	("Sales Invoice", "on_submit", "vagabond.tru_kho_bu.khi_ghi_so_hd"),
+	("Sales Invoice", "on_cancel", "vagabond.tru_kho_bu.khi_huy_hd"),
+	("Stock Entry", "on_cancel", "vagabond.tru_kho_bu.khi_huy_phieu"),
+	("Stock Entry", "on_submit", "vagabond.tru_kho_bu.khi_nhap_kho"),
+	("Stock Reconciliation", "on_submit", "vagabond.tru_kho_bu.khi_nhap_kho"),
+	("Purchase Receipt", "on_submit", "vagabond.tru_kho_bu.khi_nhap_kho"),
+):
+	_cu_tb = doc_events.setdefault(_dt_tb, {}).get(_sk_tb, [])
+	doc_events[_dt_tb][_sk_tb] = ([_cu_tb] if isinstance(_cu_tb, str) else list(_cu_tb)) + [_ham_tb]
+del _dt_tb, _sk_tb, _ham_tb, _cu_tb
+scheduler_events.setdefault("hourly", []).append("vagabond.tru_kho_bu.quet_moi_gio")

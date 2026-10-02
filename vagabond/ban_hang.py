@@ -1988,6 +1988,10 @@ def bang_doanh_so(ngay=None):
 			# Danh sach doc no de gan chip "Don co giam gia", khoi phai mo
 			# tung don ra moi biet (anh Viet 24/08/2026).
 			"vgb_lech_pancake",
+			# v550: chip và chip lọc trạng thái kho (Đã trừ kho, Chưa trừ kho,
+			# Đã trừ một phần, Đã trừ bù). Máy chủ tính khoá tt_kho, xem
+			# tru_kho_bu.trang_thai_kho; màn hình không tự suy.
+			"update_stock", "vgb_tru_kho_ban", "vgb_chua_tru_kho", "vgb_tru_bu",
 		],
 		order_by="custom_pancake_display_id",
 	)
@@ -2026,6 +2030,8 @@ def bang_doanh_so(ngay=None):
 	# Cung mot phep voi man tinh tien cua cac diem ban: chip "Khong ghi so
 	# duoc" phai noi CUNG MOT CAU o moi man (anh Viet 27/08/2026).
 	_gan_ly_do_treo(sis)
+	from vagabond.tru_kho_bu import gan_trang_thai
+	gan_trang_thai(sis)
 
 	return {
 		"ngay": str(ngay),
@@ -5751,6 +5757,10 @@ def pos_ds_bill(quay=None, ngay=None):
 			# khong, nen phai doc ve cung mot luot. Thieu o nay thi chip
 			# "Khong ghi so duoc" im lang bo qua ca nhom don tang.
 			"vgb_tang_duyet", "vgb_tang_loai", "vgb_tang_ly_do",
+			# v550: chip và chip lọc trạng thái kho (Đã trừ kho, Chưa trừ kho,
+			# Đã trừ một phần, Đã trừ bù). Máy chủ tính khoá tt_kho, xem
+			# tru_kho_bu.trang_thai_kho; màn hình không tự suy.
+			"update_stock", "vgb_tru_kho_ban", "vgb_chua_tru_kho", "vgb_tru_bu",
 		],
 		order_by="creation desc",
 		limit_page_length=0,
@@ -5794,6 +5804,8 @@ def pos_ds_bill(quay=None, ngay=None):
 	# Duong doi soat that su phai sua nam o CHO KHAC: moi diem ban mot tai
 	# khoan ao rieng, de sao ke tu no tach san theo diem. Xem `tai_khoan.py`.
 	_gan_ly_do_treo(ds)
+	from vagabond.tru_kho_bu import gan_trang_thai
+	gan_trang_thai(ds)
 	# Tinh trang keo don Pancake. Man hinh dan cau nay len dau bang khi don
 	# chua ve, thay vi de Sales nhin danh sach it hon roi tu doan (bai hoc
 	# 26-27/08/2026: hai ngay don khong ve ma khong man nao noi mot cau).

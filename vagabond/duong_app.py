@@ -109,6 +109,7 @@ MAN = (
 	("DHUY", "Đơn đã huỷ", None),
 	("PHHUY", "Danh sách phiếu hoàn tiền", "phieu-hoan-tien"),
 	("DUYETTANG", "Duyệt đơn hàng tặng", None),
+	("TRUKHO", "Hoá đơn chưa trừ kho", None),
 	# --- Nhan su (HRM). Anh Viet chot 01/09/2026, lam trong app Vagabond
 	# chu chua cai phan he HR cua Frappe.
 	("KPI", "KPI và hoa hồng", "kpi"),

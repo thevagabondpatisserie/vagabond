@@ -232,8 +232,12 @@ async function scrHome() {
       var tg = nenCoQuyen('ban_hang') ? await api('vagabond.hang_tang.dem_cho_duyet', {}) : {};
       tgCho = tg.cho || 0; tgQuaHan = tg.qua_han || 0;
     } catch (e) { }
+    /* v550: so hoa don ghi so luc kho chua co hang, lay tu may chu. */
+    var tkCho = 0;
+    try { tkCho = (await api('vagabond.tru_kho_bu.dem_chua_tru_kho', {})).so || 0; } catch (e) { }
     html += '<div class="sec">Kế toán</div><div class="card">' +
       card('🧾', 'Hoá đơn bán ra', 'Lọc theo điểm bán và trạng thái hoá đơn điện tử', 0, 'HDBAN') +
+      card('📦', 'Hoá đơn chưa trừ kho', 'Bán lúc kho điểm bán chưa có hàng, trừ bù khi hàng về', tkCho, 'TRUKHO') +
       card('🛒', 'Hoá đơn mua vào', 'Lọc theo nhà cung cấp, hạn trả, còn nợ', 0, 'HDMUA') +
       card('🔗', 'Đối chiếu hoá đơn mua', 'Nối hoá đơn nhà cung cấp với phiếu nhập kho rồi ghi sổ một nút', 0, 'DCM') +
       card('📒', 'Công nợ phải thu', 'Khách nào còn nợ mình', 0, 'CN') +
@@ -497,7 +501,7 @@ var VGB_NHOM = [
      coQuyenMua() trong scrHome, nên người không có quyền thì nhóm rỗng và
      vòng lặp dưới tự bỏ qua. Chặn thật nằm ở máy chủ, quyen_phan_he.py. */
   { k: 'TM', ten: 'Thu mua', icon: '🧾', keys: ['DUYETYC', 'PO', 'CNPT', 'NCC', 'BGIA', 'KHPO', 'KHHDM'] },
-  { k: 'KT', ten: 'Kế toán', icon: '🧮', keys: ['HDBAN', 'HDMUA', 'DCM', 'CN', 'CNPT', 'HT', 'APPTT', 'DSTTNB', 'PAY', 'TS', 'NQ', 'BT', 'DUYETTANG', 'BC:BC05'] },
+  { k: 'KT', ten: 'Kế toán', icon: '🧮', keys: ['HDBAN', 'TRUKHO', 'HDMUA', 'DCM', 'CN', 'CNPT', 'HT', 'APPTT', 'DSTTNB', 'PAY', 'TS', 'NQ', 'BT', 'DUYETTANG', 'BC:BC05'] },
   /* Nhan su (anh Viet chot 01/09/2026). Nhom nay CHI hien voi quan ly, ke
      toan va giam doc - dieu kien coQuyenHRM() dung o scrHome. O "KPI cua
      toi" thi nguoc lai, ai cung vao duoc, vi do la diem cua chinh ho. */
@@ -1066,6 +1070,7 @@ var VGB_DUONG = {
   'hang-khach': 'CDHT',
   'ho-so-thanh-toan': 'APPTT',
   'hoa-don-ban': 'HDBAN',
+  'hoa-don-chua-tru-kho': 'TRUKHO',
   'hoa-don-mua': 'HDMUA',
   'hoan-tien': 'HT',
   'hop-dong': 'HDG',
@@ -1260,6 +1265,7 @@ function vgbGo(k) {
   if (k === 'KHHDM') return kgMo('HDM');
   if (k === 'CNPT') return go(scrNoPhaiTra);
   if (k === 'HDBAN') return go(scrHdBan);
+  if (k === 'TRUKHO') { tkDiem = ''; tkLocChon = 'cho'; return go(scrTruKho); }
   if (k === 'APPTT') return go(scrHoSoTT);
   if (k === 'DSTTNB') return go(scrTTNB);
   if (k === 'DUYETTANG') { dtgChang = ''; return go(scrDuyetTang); }

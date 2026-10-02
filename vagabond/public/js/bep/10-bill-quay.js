@@ -306,6 +306,9 @@ function posChipBill(r) {
   if (r.docstatus === 1) c.push(the('#dcfce7', '#166534', '✅ Đã ghi sổ'));
   else if (r.vgb_tam_tinh) c.push(the('#fef3c7', '#92400e', '🕐 Tạm tính'));
   else c.push(the('#e5e7eb', '#374151', '📄 Chưa ghi sổ'));
+  /* v550: trang thai kho do may chu tinh (tt_kho), xem 49-tru-kho-bu.js. */
+  var mKho = tkChip(r);
+  if (mKho) c.push(the(mKho[0], mKho[1], mKho[2]));
   if (r.vgb_pt_thanh_toan) c.push(the('#e0f2fe', '#075985', h(r.vgb_pt_thanh_toan)));
   /* CHIP DOI SOAT CHUYEN KHOAN, sua 31/08/2026.
 
@@ -389,6 +392,15 @@ async function scrPosDs() {
       'border:1px solid #fde68a;color:#92400e;font-size:12.5px;line-height:1.55">' +
       '⚠ ' + h(pk.cau_bao) + '</div>';
   }
+  /* v550: bill ghi so luc kho chua co hang. Noi ra ngay dau danh sach va
+     dan sang man Hoa don chua tru kho cua dung diem nay. */
+  var soChoKho = ds.filter(tkConCho).length;
+  if (soChoKho) {
+    html += '<div class="card" style="padding:11px 13px;background:#fff7ed;border:1px solid #fed7aa;' +
+      'color:#9a3412;font-size:12.5px;line-height:1.55;display:flex;align-items:center;gap:10px">' +
+      '<div style="flex:1">📦 ' + soChoKho + ' hoá đơn ghi sổ lúc kho chưa có hàng. Máy tự trừ bù khi hàng nhập về kho điểm bán.</div>' +
+      '<button class="btn gh" id="posDsTruKho" style="margin:0;padding:8px 11px;font-size:12.5px;flex:none">Xem</button></div>';
+  }
   /* Lich chon ngay: xem lai bill ngay qua khu (anh Viet 09/08). */
   html += '<div class="card" style="padding:12px 14px;display:flex;align-items:center;gap:12px">' +
     '<div style="font-weight:600;white-space:nowrap">' + posNgayVn(posDsNgay) + '</div>' +
@@ -416,7 +428,8 @@ async function scrPosDs() {
     { k: 'ket', nhan: '🚧 Không ghi sổ được', loc: function (r) { return !!r.ly_do_treo && r.ly_do_treo !== 'tam_tinh'; } },
     { k: 'tam_tinh', nhan: '🕐 Tạm tính', loc: function (r) { return !!r.vgb_tam_tinh && !r.vgb_huy; } },
     { k: 'da_huy', nhan: '🚫 Đã huỷ', loc: function (r) { return !!r.vgb_huy; } },
-    { k: 'da_sua', nhan: '✏️ Đã sửa', loc: function (r) { return !!r.vgb_lan_sua; } },
+    { k: 'da_sua', nhan: '✏️ Đã sửa', loc: function (r) { return !!r.vgb_lan_sua; } }
+  ].concat(tkLoc(), [
     /* Chip loc nay truoc day nhat MOI bill chuyen khoan chua khop duoc theo
        ma, tuc la gan nhu ca ngay. Nay dung nghia: chi bill may chu that su
        chan vi chua ve tien. Muon nhin cac bill chua doi soat duoc thi dung
@@ -430,7 +443,7 @@ async function scrPosDs() {
     { k: 'ban', nhan: '🪑 Có số bàn', loc: function (r) { return !!r.vgb_so_ban; } },
     { k: 'ghi_chu', nhan: '📝 Có ghi chú', loc: function (r) { return !!r.vgb_ghi_chu; } },
     { k: 'trung', nhan: '⚠ Trùng mã trong ngày', loc: function (r) { return !!r.trung_ma; } }
-  ];
+  ]);
   var PNG = locNguonPt(ds);
   var PHD = locHddt();
   var pTt = locTim(PTT, posLocTt), pNg = locTim(PNG, posLocNg), pHd = locTim(PHD, posLocHd);
@@ -466,6 +479,8 @@ async function scrPosDs() {
   });
   html += '</div>';
   var b = frame(tieuDe, html);
+  var oTk = document.getElementById('posDsTruKho');
+  if (oTk) oTk.onclick = function () { tkDiem = (posQuay && posQuay.ma) || 'SALES'; tkLocChon = 'cho'; go(scrTruKho); };
   var oD = document.getElementById('posDsDate');
   if (oD) oD.onchange = function () { posDsNgay = oD.value || today(); posLocTt = 'tat_ca'; posLocNg = ''; go(scrPosDs, true); };
   veODate('posDsDate');
@@ -947,8 +962,11 @@ async function scrPosBill(name) {
   /* Ai da lam gi tren to hoa don nay, xem `hdAiLamGi`. Chi hien khi to
      hoa don DA LUU: bill dang soan thi chua co gi de quy trach nhiem. */
   if (d.name && !nhap) html += await hdAiLamGi(d.name);
+  /* v550: khoi Kho, ve cho truoc, nap sau. */
+  html += tkKhoiChiTiet(d);
 
   var b = frame('Hoá đơn ' + (maBill || d.name), html, { footer: foot });
+  tkNapKhoi(b);
   var nutLinkXhd = document.getElementById('pbLinkXhd');
   if (nutLinkXhd) nutLinkXhd.onclick = async function () {
     nutLinkXhd.disabled = true;

@@ -56,6 +56,9 @@ CUA_NGO = {
 		"dinh_bien_ban_thay_the", "go_bien_ban_thay_the", "tai_bien_ban_thay_the", "tim_don",
 	],
 	"can_tru_san.py": ["diem_ban", "doi_chieu", "thu_lai"],
+	# v550: trừ kho từng món và trừ bù. tru_bu, tru_bu_kho, xuat_ds là nội bộ
+	# (hook, việc nền, adapter Excel), không mở ra ngoài.
+	"tru_kho_bu.py": ["ds_chua_tru_kho", "tt_hoa_don", "dem_chua_tru_kho", "tru_bu_hd", "tru_bu_diem"],
 	# v528: `nho_mau` nhớ mẫu sao kê khoản trả tiện ích cho NCC. `chon`,
 	# `goi_y_khong_ma`, `de_nghi_nho_mau` là hàm nội bộ, không mở ra ngoài.
 	"doi_chieu_app.py": ["danh_sach", "bo", "gan", "nho_mau"],
