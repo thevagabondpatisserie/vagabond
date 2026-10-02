@@ -1,0 +1,120 @@
+{
+ "actions": [],
+ "autoname": "field:khoa",
+ "creation": "2026-10-02 18:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "khoa",
+  "nhom",
+  "chat_id",
+  "loai",
+  "chu_de",
+  "cb1",
+  "trang_thai",
+  "luc_gui",
+  "loi",
+  "sec_nd",
+  "noi_dung"
+ ],
+ "fields": [
+  {
+   "fieldname": "khoa",
+   "fieldtype": "Data",
+   "label": "Khoá chống trùng",
+   "unique": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "nhom",
+   "fieldtype": "Data",
+   "label": "Nhóm",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "chat_id",
+   "fieldtype": "Data",
+   "label": "Mã chat",
+   "read_only": 1
+  },
+  {
+   "fieldname": "loai",
+   "fieldtype": "Data",
+   "label": "Loại tin",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "chu_de",
+   "fieldtype": "Data",
+   "label": "Chủ đề",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "trang_thai",
+   "fieldtype": "Select",
+   "label": "Trạng thái gửi",
+   "options": "Đang gửi\nĐã gửi\nĐã gửi gộp\nHoãn giờ im\nLỗi\nChưa rõ",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "luc_gui",
+   "fieldtype": "Datetime",
+   "label": "Lúc gửi",
+   "read_only": 1
+  },
+  {
+   "fieldname": "loi",
+   "fieldtype": "Small Text",
+   "label": "Lỗi",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_nd",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "noi_dung",
+   "fieldtype": "Small Text",
+   "label": "Nội dung đã gửi",
+   "read_only": 1
+  }
+ ],
+ "in_create": 1,
+ "links": [],
+ "modified": "2026-10-02 18:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Vagabond Tin Kenh",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "read": 1,
+   "role": "System Manager",
+   "delete": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "read": 1,
+   "role": "Accounts Manager",
+   "report": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "nhom",
+ "track_changes": 0
+}
