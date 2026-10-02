@@ -209,7 +209,7 @@ def _duyet_du_song_va_tu_choi():
     je.cancel()
 
 
-@ca("v552 chị Dung: đổi vế Có nháp trả trước ERP sang tài khoản ngân hàng rồi ghi sổ ở màn Bút toán")
+@ca("v552 chị Dung: chọn vế Có ngân hàng ngay khi duyệt khoản trả trước ERP; màn Bút toán chỉ tra cứu")
 def _doi_ve_co_552():
     from vagabond import but_toan as bt
     hd = _hoa_don_mua(1000000)
@@ -237,30 +237,32 @@ def _doi_ve_co_552():
         _DA_TAO.append(("Journal Entry", k["je"]))
     finally:
         frappe.set_user(truoc)
+    # Anh Việt 02/10 "nhiều nút quá": màn Bút toán chỉ tra cứu loại này.
     x = bt.xem(k["je"])
-    no = [d for d in x["dong"] if d["no"] > 0][0]
+    la("màn Bút toán không ghi sổ, nhắc duyệt ở công nợ", (x["ghi_duoc"], x["duyet_o_cong_no"]), (0, 1))
+    la("không dòng nào đổi được ở màn Bút toán", [d["doi_duoc"] for d in x["dong"]], [0, 0])
     co = [d for d in x["dong"] if d["co"] > 0][0]
-    la("vế Nợ 331 không đổi được", no["doi_duoc"], 0)
-    la("vế Có đổi được", co["doi_duoc"], 1)
     try:
-        bt.doi_tai_khoan(k["je"], no["ma_dong"], nh[0])
-        dung("đổi vế Nợ 331 phải bị chặn", False)
+        bt.doi_tai_khoan(k["je"], co["ma_dong"], nh[0])
+        dung("đổi ở màn Bút toán phải bị chặn", False)
+    except frappe.ValidationError as e:
+        dung("chỉ đường về Công nợ phải trả", "Công nợ phải trả" in str(e))
+    # Chọn tài khoản công nợ làm vế Có trong hộp duyệt: bị chặn, vẫn nháp.
+    try:
+        cn.duyet_truoc_erp(k["je"], tk_co=hd.credit_to)
+        dung("vế Có là tài khoản công nợ phải bị chặn", False)
     except frappe.ValidationError:
         pass
-    bt.doi_tai_khoan(k["je"], co["ma_dong"], nh[0])
+    la("vẫn là nháp sau khi bị chặn", frappe.db.get_value("Journal Entry", k["je"], "docstatus"), 0)
+    # Kế toán chọn vế Có ngân hàng ngay khi duyệt.
+    cn.duyet_truoc_erp(k["je"], tk_co=nh[0])
     je = frappe.get_doc("Journal Entry", k["je"])
+    la("đã ghi sổ", je.docstatus, 1)
     la("vế Có đã là tài khoản ngân hàng", [a.account for a in je.accounts if a.credit_in_account_currency], [nh[0]])
     la("vế Nợ vẫn gắn hóa đơn", [a.reference_name for a in je.accounts if a.debit_in_account_currency], [hd.name])
-    la("vẫn là nháp", je.docstatus, 0)
-    r = bt.ghi_so(k["je"])
-    dung("ghi sổ qua đường duyệt", "Đã ghi sổ" in r["loi_nhan"])
     hd.reload()
     la("dư hóa đơn giảm đúng", float(hd.outstanding_amount), 600000.)
     la("sổ cái có Có ngân hàng", frappe.db.get_value("GL Entry", {"voucher_no": k["je"], "account": nh[0],
         "is_cancelled": 0}, "credit"), 400000.)
-    try:
-        bt.doi_tai_khoan(k["je"], co["ma_dong"], _tk_tam(hd.company))
-        dung("đã ghi sổ thì không đổi được", False)
-    except frappe.ValidationError:
-        pass
+    dung("danh sách chọn vế Có có tài khoản ngân hàng", nh[0] in [r["ma"] for r in cn.tk_co_chon_duoc(hd.company)])
     frappe.get_doc("Journal Entry", k["je"]).cancel()
