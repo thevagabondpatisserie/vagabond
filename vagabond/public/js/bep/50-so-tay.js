@@ -23,7 +23,12 @@
    Lien ket chi nhan dia chi dang /chu-thuong-gach-ngang, khong nhan duong
    dan ngoai. */
 
-var st = { d: null, chuong: '', tim: '', mo: {} };
+/* Ten trang thai PHAI rieng: moi phan bep/ ghep chung MOT pham vi ham, va
+   00-nen.js da co `var st` giu the <style> cua ca app. Ban dau phan nay
+   khai lai `var st` nen keepCss() cua nen goi appendChild voi doi tuong
+   trang thai, nem loi o moi man (Codex #412 F2, bench 37013787339). Ca kiem
+   thu_so_tay_554.py `_khong_trung_ten` chot khong cho trung ten lan nua. */
+var stS = { d: null, chuong: '', tim: '', mo: {} };
 
 function stCss() {
   if (document.getElementById('stCss')) return;
@@ -156,7 +161,7 @@ function stMd(txt) {
 /* Bo dau tieng Viet de tim khong can go dau. Cung cach voi bo_dau ben
    tro_ly_so_tay.py. */
 function stBoDau(s) {
-  return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+  return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .replace(/đ/g, 'd').replace(/Đ/g, 'd').toLowerCase();
 }
 
@@ -181,7 +186,7 @@ function stLoc(d, tim) {
 }
 
 function stTheMuc(c, m, k, hienChuong) {
-  var mo = !!st.mo[k];
+  var mo = !!stS.mo[k];
   return '<div class="stMuc"><div class="stMucD" data-stk="' + h(k) + '">' +
     '<b>' + h(m.ten) + '</b>' +
     (hienChuong ? '<span class="stCh">' + h(c.ten) + '</span>' : '') +
@@ -194,9 +199,9 @@ function stTheMuc(c, m, k, hienChuong) {
 
 async function scrSoTay() {
   stCss();
-  if (!st.d) {
+  if (!stS.d) {
     frame('Sổ tay', '<div class="emp"><div class="e1">⏳</div></div>');
-    try { st.d = await api('vagabond.tro_ly_so_tay.doc_so_tay', {}); }
+    try { stS.d = await api('vagabond.tro_ly_so_tay.doc_so_tay', {}); }
     catch (e) {
       frame('Sổ tay', '<div class="emp"><div class="e1">🔒</div><div>' + h(errMsg(e)) + '</div></div>');
       return;
@@ -209,52 +214,52 @@ async function scrSoTay() {
    de go o tim hay mo mot muc chi ve lai khoi nay, khong ve lai ca man: ve
    lai ca man la mat con tro dang go trong o tim. */
 function stDsHtml() {
-  var d = st.d || { chuong: [] };
-  if (st.tim.trim()) {
-    var kq = stLoc(d, st.tim);
+  var d = stS.d || { chuong: [] };
+  if (stS.tim.trim()) {
+    var kq = stLoc(d, stS.tim);
     return kq.length
       ? kq.slice(0, 40).map(function (x) { return stTheMuc(x.c, x.m, x.k, 1); }).join('')
       : '<div class="stRong">Chưa có mục nào khớp. Thử chữ khác, hoặc hỏi trợ lý.</div>';
   }
-  if (!st.chuong) {
+  if (!stS.chuong) {
     return '<div class="stLuoi">' + (d.chuong || []).map(function (c) {
       return '<div class="stO" data-stc="' + h(c.ma) + '"><div class="stOt">' + h(c.ten) + '</div>' +
         '<div class="stOs">' + (c.muc || []).length + ' việc</div></div>';
     }).join('') + '</div>';
   }
   var c = null;
-  (d.chuong || []).forEach(function (x) { if (x.ma === st.chuong) c = x; });
+  (d.chuong || []).forEach(function (x) { if (x.ma === stS.chuong) c = x; });
   return c ? (c.muc || []).map(function (m, j) { return stTheMuc(c, m, c.ma + ':' + j, 0); }).join('')
     : '<div class="stRong">Không thấy chương này.</div>';
 }
 
 function stChipHtml() {
-  var d = st.d || { chuong: [] };
-  return '<div class="chips" id="stChip"><div class="chip' + (!st.chuong ? ' on' : '') + '" data-stc="">Tất cả chương</div>' +
+  var d = stS.d || { chuong: [] };
+  return '<div class="chips" id="stChip"><div class="chip' + (!stS.chuong ? ' on' : '') + '" data-stc="">Tất cả chương</div>' +
     (d.chuong || []).map(function (c) {
-      return '<div class="chip' + (st.chuong === c.ma ? ' on' : '') + '" data-stc="' + h(c.ma) + '">' + h(c.ten) + '</div>';
+      return '<div class="chip' + (stS.chuong === c.ma ? ' on' : '') + '" data-stc="' + h(c.ma) + '">' + h(c.ten) + '</div>';
     }).join('') + '</div>';
 }
 
 function stVe() {
   var html = '<div class="srch"><span style="color:#98a2b3">&#128269;</span>' +
-    '<input id="stTim" placeholder="Tìm: nhập kho, hoàn tiền, mật khẩu..." value="' + h(st.tim) + '"></div>';
+    '<input id="stTim" placeholder="Tìm: nhập kho, hoàn tiền, mật khẩu..." value="' + h(stS.tim) + '"></div>';
   var body = frame('Sổ tay', html + stChipHtml() + '<div id="stDs">' + stDsHtml() + '</div>');
   var o = document.getElementById('stTim');
   if (o) {
     o.addEventListener('input', function () {
-      st.tim = o.value;
+      stS.tim = o.value;
       var ds = document.getElementById('stDs');
       if (ds) ds.innerHTML = stDsHtml();
     });
   }
   if (body) body.onclick = function (e) {
     var c = e.target.closest('[data-stc]');
-    if (c) { st.chuong = c.dataset.stc; st.tim = ''; st.mo = {}; stVe(); return; }
+    if (c) { stS.chuong = c.dataset.stc; stS.tim = ''; stS.mo = {}; stVe(); return; }
     var m = e.target.closest('[data-stk]');
     if (m) {
       var k = m.dataset.stk;
-      st.mo[k] = !st.mo[k];
+      stS.mo[k] = !stS.mo[k];
       var ds = document.getElementById('stDs');
       if (ds) ds.innerHTML = stDsHtml();
     }
