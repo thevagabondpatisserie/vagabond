@@ -448,6 +448,15 @@ def lap_truoc_erp(hoa_don, so_tien, ngay_tra, unc=None, ghi_chu="", ma_lan=""):
         je.submit()
     je.add_comment("Comment", "Lập từ màn Công nợ phải trả: khoản đã trả trước khi lên ERP%s." % (
         ", kế toán ghi sổ luôn" if ke_toan else ", chờ kế toán duyệt"))
+    if not ke_toan:
+        # v555 (#410): báo nhóm Kế toán trên Zalo. Gửi sau commit, lỗi không chặn lưu.
+        from vagabond import kenh_zalo
+        kenh_zalo.bao("viec", "cong_no", "Khoản trả trước ERP chờ duyệt: %s" % je.name,
+            ["HĐ %s của %s" % (hd.bill_no or hd.name, hd.supplier_name),
+             "%s đ, đã trả ngày %s" % ("{:,.0f}".format(float(_so(so_tien))).replace(",", "."), str(ngay_tra)[:10]),
+             "Gửi bởi %s" % frappe.utils.get_fullname(frappe.session.user)],
+            link=frappe.utils.get_url("/cong-no-phai-tra"), khoa="cho_duyet:" + je.name,
+            nguoi="Kế toán", han="Trong ngày")
     return {"je": je.name, "da_ghi_so": je.docstatus == 1}
 
 

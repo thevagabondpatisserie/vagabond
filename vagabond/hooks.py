@@ -965,3 +965,6 @@ for _dt_tb, _sk_tb, _ham_tb in (
 	doc_events[_dt_tb][_sk_tb] = ([_cu_tb] if isinstance(_cu_tb, str) else list(_cu_tb)) + [_ham_tb]
 del _dt_tb, _sk_tb, _ham_tb, _cu_tb
 scheduler_events.setdefault("hourly", []).append("vagabond.tru_kho_bu.quet_moi_gio")
+
+# v555 (#410): bắn tin Zalo. Mỗi giờ gửi bản gộp tin hoãn trong giờ im.
+scheduler_events.setdefault("hourly", []).append("vagabond.kenh_zalo.xa_gio_im")
