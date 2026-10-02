@@ -1,479 +1,668 @@
 # Kho
 
+## Thu mua in sẵn phiếu nhập kho nháp từ đơn mua
+Từ khoá: phiếu nhập kho nháp, lập phiếu nháp, in phiếu nhập, phiếu chờ ký, phiếu in sẵn, PNK nháp, draft purchase receipt, create purchase receipt, thu mua tạo phiếu, Đã tạo - chờ ký
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Thu mua | Desk: Đơn mua hàng | [[desk:Tạo]] |
+
+Phiếu nhập kho nháp là tờ in sẵn để thủ kho cầm đi đếm. Phiếu này hiện ở thẻ [[Chờ nhận]] của màn Nhập kho.
+
+**Các bước**
+1. Trên Desk, mở Đơn mua hàng đã xác nhận.
+2. Bấm [[desk:Tạo]], chọn [[desk:Phiếu nhập kho]]. Nhà cung cấp, món, số lượng, kho nhận tự điền.
+3. Bấm [[desk:Lưu]], để ở dạng nháp, không bấm [[desk:Xác nhận]].
+4. Bấm [[desk:In]], đưa tờ phiếu cho thủ kho.
+
+**Lưu ý**
+- Phiếu in khi chưa nhập có chữ PRINT chìm, có mã vạch từng món, cột số thực nhận và HSD để ghi tay, khung ký hai bên.
+- Không tạo được phiếu nhập kho khi không có Đơn mua hàng.
+- Không in phiếu cũng được: thủ kho nhận thẳng theo đơn ở thẻ [[Còn phải nhận]].
+- Đơn đã có phiếu in sẵn thì nhận trên chính phiếu đó ở thẻ [[Chờ nhận]], để phiếu nháp không nằm lại.
+
 ## Tạo phiếu nhập kho khi nhà cung cấp giao hàng
 Từ khoá: nhập kho, phiếu nhập, phiếu nhập kho, nhận hàng, nhận hàng nhà cung cấp, hàng về, PNK, purchase receipt, goods receipt, nhập mua, đếm hàng nhập
-Ai dùng: Kho (thủ kho), Thu mua, Kế toán
-Màn hình: Nhập kho (/nhap-kho)
 
-Hàng nhà cung cấp giao tới thì thủ kho đếm và nhập kho trên app. Phiếu nhập kho nháp do thu mua tạo từ Đơn mua hàng nằm ở tab Chờ nhận.
-<!-- kiểm: thu mua tạo phiếu nháp trên Desk từ Đơn mua hàng (nút Tạo > Phiếu nhập kho) hay đường nào khác -->
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Thủ kho, Thu mua, Kế toán | Nhập kho (/nhap-kho) | [[Xác nhận nhập kho]] |
 
-Các bước:
-1. Mở màn Nhập kho. Có bốn tab: Chờ nhận, Còn phải nhận, Đã nhập kho, Đã huỷ.
-2. Bấm biểu tượng máy ảnh ở góc trên để quét mã vạch số phiếu in trên tờ phiếu, hoặc chọn phiếu trong tab Chờ nhận.
-3. Mỗi món có ô Số lượng thực nhận, máy điền sẵn số còn lại phải nhận (không phải số đặt ban đầu). Đếm tới đâu sửa số tới đó bằng nút trừ, cộng hoặc gõ số.
-4. Bấm dấu ✓ ở từng món để đánh dấu đã đếm, hoặc bấm máy ảnh để quét mã từng món.
-5. Mục Chứng từ giao nhận (không bắt buộc): đính Ảnh hàng đã nhận (1), (2) và bản scan biên bản giao nhận của NCC.
-6. Bấm Xác nhận nhập kho, rồi bấm Nhập kho ở hộp xác nhận.
+Hàng nhà cung cấp giao tới thì thủ kho đếm và nhập kho trên app theo phiếu thu mua đã in sẵn.
 
-Lưu ý:
-- Xác nhận xong là phiếu khoá lại, muốn sửa phải báo kế toán.
-- Món nào nhận thiếu thì phần còn lại vẫn treo trên đơn mua, nhận tiếp ở tab Còn phải nhận.
-- Đơn có món chưa có đơn giá vẫn nhập kho được nhưng giá vốn ghi 0, báo kế toán bổ sung giá.
+**Các bước**
+1. Mở màn Nhập kho, chọn thẻ [[Chờ nhận]] (các thẻ khác: [[Còn phải nhận]], [[Đã nhập kho]], [[Đã huỷ]]).
+2. Chọn phiếu, hoặc bấm biểu tượng máy ảnh để quét mã vạch số phiếu trên tờ in.
+3. Sửa ô Số lượng thực nhận từng món theo số đếm (máy điền sẵn số còn phải nhận).
+4. Đánh dấu từng món đã đếm, hoặc quét mã từng món.
+5. Đính ảnh hàng đã nhận và bản scan biên bản giao nhận nếu có.
+6. Bấm [[Xác nhận nhập kho]], rồi [[Nhập kho]] ở hộp xác nhận.
 
-Hạch toán: Nợ 152 (tài khoản của kho nhận) / Có 3311 Phải trả người bán, hàng về chưa có hoá đơn.
+**Hạch toán**
+| Nợ | Có | Khi nào |
+|---|---|---|
+| Tài khoản kho nhận (152) | 3311 Phải trả người bán, hàng về chưa có hoá đơn | Khi bấm Nhập kho |
+
+**Lưu ý**
+- Xác nhận xong là phiếu khoá. Nhập sai số thì liên hệ kế toán trưởng.
+- Món nhận thiếu thì phần còn lại vẫn treo trên đơn, nhận tiếp ở thẻ [[Còn phải nhận]].
+- Món chưa có giá: máy lấy giá mua gần nhất, không có thì nhập giá 0 và ghi chú để kế toán bổ sung.
+- Hộp "Đã nhận hàng - kiểm tra hạn dùng" chỉ là lời nhắc, không chặn. Kiểm chất lượng thật trước khi dùng.
 
 ## Nhận hàng đợt sau khi nhà cung cấp giao thiếu
-Từ khoá: giao thiếu, nhận đợt 2, nhận tiếp, còn nợ hàng, còn phải nhận, giao làm nhiều đợt, giao từng phần, partial receipt, đơn mua còn thiếu, hàng về sau
-Ai dùng: Kho, Thu mua
-Màn hình: Nhập kho (/nhap-kho), tab Còn phải nhận
+Từ khoá: giao thiếu, nhận đợt 2, nhận tiếp, còn nợ hàng, còn phải nhận, giao làm nhiều đợt, giao từng phần, partial receipt, đơn mua còn thiếu, hàng về sau, nhận theo đơn
 
-Đơn mua nào nhà cung cấp mới giao một phần thì nằm ở tab Còn phải nhận cho tới khi nhận đủ. Đơn trễ hẹn hiện chip đỏ "Trễ N ngày" và đứng đầu danh sách.
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Thủ kho, Thu mua | Nhập kho (/nhap-kho), thẻ Còn phải nhận | [[Xác nhận nhận hàng đợt N]] |
 
-Các bước:
-1. Mở Nhập kho, chọn tab Còn phải nhận, bấm vào đơn cần nhận.
-2. Màn Nhận hàng đợt N hiện ba con số cho từng món: Đặt, Đã nhận, Còn lại. Phần Đã nhận các đợt trước liệt kê ở trên.
-3. Ô Số lượng thực nhận điền sẵn số Còn lại. Sửa theo số đếm thật. Món đã nhận đủ bị làm mờ, không gõ được.
+Thẻ [[Còn phải nhận]] liệt kê mọi đơn mua đã xác nhận còn món chưa nhận đủ, kể cả đơn chưa có phiếu in. Đơn trễ hẹn có chip đỏ "Trễ N ngày" và đứng đầu.
+
+**Các bước**
+1. Mở Nhập kho, chọn thẻ [[Còn phải nhận]], bấm vào đơn.
+2. Xem ba con số từng món: Đặt, Đã nhận, Còn lại.
+3. Sửa ô Số lượng thực nhận theo số đếm (máy điền sẵn số Còn lại).
 4. Đính ảnh hàng và biên bản nếu có.
-5. Bấm Xác nhận nhận hàng đợt N, rồi bấm Nhận hàng.
+5. Bấm [[Xác nhận nhận hàng đợt N]], rồi [[Nhận hàng]].
 
-Lưu ý:
-- Mỗi đợt máy lập một phiếu nhập kho mới từ đơn mua, không cần thu mua tạo phiếu nháp.
-- Xong máy báo số phiếu và đơn còn nợ bao nhiêu. Còn nợ thì đơn vẫn ở tab Còn phải nhận.
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Đơn ... chưa ghi sổ nên chưa nhận hàng được | Báo thu mua gửi duyệt đơn |
+| Đơn ... đã huỷ, không nhận hàng vào đơn này được | Báo thu mua |
+| Đơn ... đã đóng nên không nhận thêm được | Thu mua mở lại đơn |
+| Trong lúc anh chị đang đếm thì ... đã được người khác nhận mất rồi | Thoát ra, mở lại đơn |
 
-Vì sao bị chặn:
-- "Đơn ... chưa ghi sổ nên chưa nhận hàng được": báo thu mua gửi duyệt đơn.
-- "Đơn ... đã đóng nên không nhận thêm được": mở lại đơn bên phần Đơn mua hàng.
-- "Trong lúc anh chị đang đếm thì ... đã được người khác nhận mất rồi": thoát ra mở lại đơn để lấy số còn lại mới nhất.
+**Lưu ý**
+- Mỗi đợt máy tự lập một phiếu nhập kho mới, không cần thu mua tạo phiếu nháp.
+- Món đã nhận đủ bị làm mờ, không gõ được.
 
 ## Nhà cung cấp giao dư hoặc báo không giao nữa
-Từ khoá: giao dư, giao thừa, nhận dư, vượt số đặt, dung sai, over delivery, đóng đơn, không giao nữa, hết hàng, đóng phần còn lại, huỷ phần còn lại
-Ai dùng: Kho, Thu mua
-Màn hình: Nhập kho (/nhap-kho)
+Từ khoá: giao dư, giao thừa, nhận dư, vượt số đặt, dung sai, ngưỡng kho, over delivery, tolerance, đóng đơn, không giao nữa, hết hàng, đóng phần còn lại, huỷ phần còn lại
 
-Giao dư:
-- Ở tab Còn phải nhận, nhà cung cấp giao dư trong mức dung sai (phần trăm hiện trên màn) thì máy cho nhận và ghi lại vết trên phiếu. Dư quá mức thì bị chặn với câu "Nhận dư quá mức cho phép".
-- Ở tab Chờ nhận (phiếu nháp), máy không cho nhập quá số còn lại phải nhận.
-- Dư nhiều thì báo thu mua lên đơn bổ sung rồi nhập sau, không nhập dồn vào đơn cũ.
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Thủ kho, Thu mua | Nhập kho (/nhap-kho) | [[Nhà cung cấp không giao nữa · đóng phần còn lại]] |
 
-Không giao nữa:
-1. Mở đơn ở tab Còn phải nhận.
-2. Bấm nút "Nhà cung cấp không giao nữa · đóng phần còn lại".
-3. Ghi lý do (bắt buộc), ví dụ nhà cung cấp báo hết hàng.
-4. Bấm Đóng phần còn lại.
+Giao dư trong mức dung sai thì máy cho nhận và ghi vết. Nhà cung cấp báo không giao nữa thì đóng phần còn lại của đơn.
 
-Lưu ý:
-- Đóng xong đơn không hiện ở tab Còn phải nhận nữa. Số đã đặt giữ nguyên, không xoá dòng nào, mở lại được bất cứ lúc nào.
-- Mức dung sai giao dư do quản lý đặt trong phần Cài đặt kho. <!-- kiểm: tên màn cài đặt dung sai (Cài đặt kho, khoá CDKHO) chưa có trong bảng địa chỉ -->
+**Các bước đóng phần còn lại**
+1. Mở đơn ở thẻ [[Còn phải nhận]].
+2. Bấm [[Nhà cung cấp không giao nữa · đóng phần còn lại]].
+3. Ghi lý do (bắt buộc), ví dụ nhà cung cấp hết hàng.
+4. Bấm [[Đóng phần còn lại]].
+
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Nhận dư quá mức cho phép | Nhận đúng số trong mức, báo thu mua lên đơn bổ sung cho phần dư |
+| Nhà cung cấp giao dư ... món so với số còn phải nhận | Phiếu in sẵn chỉ nhận tới số còn lại, phần dư báo thu mua |
+
+**Lưu ý**
+- Mức dung sai (mặc định 5%) do quản lý kho hoặc kế toán đặt ở màn Ngưỡng kho, trong phân hệ Cài đặt (/phan-he-cai-dat).
+- Đóng xong đơn rời thẻ Còn phải nhận. Số đã đặt giữ nguyên, mở lại được.
 
 ## Vì sao không xác nhận nhập kho được
-Từ khoá: lỗi nhập kho, không nhập kho được, bị chặn nhập kho, phiếu nhập báo lỗi, không ghi được phiếu nhập, lỗi nhận hàng
-Ai dùng: Kho, Thu mua
-Màn hình: Nhập kho (/nhap-kho)
+Từ khoá: lỗi nhập kho, không nhập kho được, bị chặn nhập kho, phiếu nhập báo lỗi, không ghi được phiếu nhập, lỗi nhận hàng, quét phiếu không thấy
 
-Vì sao bị chặn:
-- "Chưa có món nào có số lượng, chưa nhập kho được": mọi ô Số lượng thực nhận đang là 0.
-- "Nhà cung cấp giao dư ... món so với số còn phải nhận": trên phiếu nháp chỉ nhập đúng số còn lại, phần dư báo thu mua lên đơn bổ sung.
-- "Phiếu vừa được sửa. Mở lại phiếu để lấy số liệu mới rồi nhận hàng": có người vừa sửa phiếu nháp, thoát ra mở lại.
-- "Số thực nhận phải lớn hơn 0 và không vượt phiếu nháp": sửa lại số.
-- "Chỉ nhận hàng trên phiếu nháp nhập mua, không phải phiếu trả": phiếu đang mở là phiếu trả nhà cung cấp.
-- "Màn nhận hàng chỉ mở cho kho, thu mua và kế toán": báo quản lý cấp thêm quyền Kho.
-- "Không thấy phiếu ... trong hệ thống" khi quét: mã vạch in sai hoặc phiếu chưa tạo. "Phiếu ... đã nhập máy xong rồi": phiếu đã ở tab Đã nhập kho.
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Thủ kho, Thu mua | Nhập kho (/nhap-kho) | [[Xác nhận nhập kho]] |
 
-Lưu ý: phiếu đã nhập kho sai số thì không tự sửa, liên hệ kế toán trưởng.
+Các câu máy báo hay gặp khi nhập kho và cách gỡ.
+
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Chưa có món nào có số lượng, chưa nhập kho được | Gõ số thực nhận cho ít nhất một món |
+| Phiếu vừa được sửa. Mở lại phiếu để lấy số liệu mới rồi nhận hàng | Thoát ra, mở lại phiếu |
+| Số thực nhận phải lớn hơn 0 và không vượt phiếu nháp | Sửa lại số |
+| Chỉ nhận hàng trên phiếu nháp nhập mua, không phải phiếu trả | Phiếu đang mở là phiếu trả nhà cung cấp |
+| Màn nhận hàng chỉ mở cho kho, thu mua và kế toán | Báo quản lý cấp quyền Kho |
+| Không thấy phiếu ... trong hệ thống (khi quét) | Mã vạch in sai hoặc phiếu chưa tạo |
+| Phiếu ... đã nhập máy xong rồi | Phiếu đã ở thẻ Đã nhập kho |
+| Đang có phiếu kiểm kê mở trên những mặt hàng này | Xem mục "Đang có phiếu kiểm kê mở" |
+
+**Lưu ý**
+- Phiếu đã nhập kho sai số thì không tự sửa, liên hệ kế toán trưởng.
 
 ## Nối phiếu nhập kho với hoá đơn mua
 Từ khoá: nối phiếu, nối phiếu nhập kho, gắn phiếu nhập vào hoá đơn, đối chiếu hoá đơn mua, khớp hoá đơn với phiếu nhập, HDM, PNK, purchase invoice, ghi sổ hoá đơn mua, 3 way match
-Ai dùng: Thu mua, Kế toán
-Màn hình: Đối chiếu mua (/doi-chieu-mua)
 
-Hàng nhập kho trước, hoá đơn nhà cung cấp về sau. Hoá đơn mua phải nối với phiếu nhập kho của đúng lô hàng đó thì mới ghi sổ đúng giá vốn.
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Thu mua, Kế toán | Đối chiếu mua (/doi-chieu-mua) | [[Nối phiếu, chuyển kế toán ghi sổ]] |
 
-Các bước:
-1. Mở màn Đối chiếu hoá đơn mua, lọc nhóm Chờ đối chiếu hoặc Lệch tiền, bấm vào tờ hoá đơn.
-2. Phần "Phiếu nhập kho của nhà cung cấp này" liệt kê các phiếu còn chưa hoá đơn nào lấy. Chạm để chọn (hiện ✅) một hoặc nhiều phiếu.
-3. Xem bảng so sánh từng dòng: lệch số lượng, lệch đơn giá, lệch đơn vị.
-4. Thu mua bấm "🔗 Nối phiếu, chuyển kế toán ghi sổ". Kế toán thấy hai nút "🔗 Chỉ nối phiếu" và "✅ Khớp và ghi sổ".
+Hàng nhập kho trước, hoá đơn về sau. Hoá đơn mua phải nối với phiếu nhập kho của đúng lô hàng thì mới ghi sổ đúng.
 
-Lưu ý:
-- Nối xong tờ hoá đơn nằm ở nhóm Chờ ghi sổ cho kế toán.
-- Không bấm nút "Lấy mặt hàng từ" trên Desk: nó chép đè dòng hàng, làm mất dòng phí dịch vụ, phí giao hàng.
-- Hoá đơn đang bật Cập nhật tồn kho thì không nối được, nhờ tắt ô đó bên Desk.
-- Hàng không qua kho (xăng, dịch vụ, phí ship) không có phiếu nhập: kế toán bấm "✅ Ghi sổ thẳng, không nối phiếu".
-<!-- kiểm: nút "Nối phiếu nhập kho" trên Desk: mã nói chỉ gắn, màn Đối chiếu mua nói chép đè giá; có nên hướng dẫn không -->
+**Các bước**
+1. Mở Đối chiếu mua, lọc nhóm Chờ đối chiếu hoặc Lệch tiền, bấm vào tờ hoá đơn.
+2. Ở phần "Phiếu nhập kho của nhà cung cấp này", chạm chọn một hoặc nhiều phiếu.
+3. Xem bảng so sánh từng dòng: lệch số lượng, đơn giá, đơn vị.
+4. Thu mua bấm [[Nối phiếu, chuyển kế toán ghi sổ]].
+5. Kế toán bấm [[Chỉ nối phiếu]] hoặc [[Khớp và ghi sổ]].
 
-Hạch toán: Nợ 3311 và Nợ 133 / Có 331 Phải trả người bán. <!-- kiểm: tài khoản kế toán chị Dung xác nhận -->
+**Hạch toán**
+| Nợ | Có | Khi nào |
+|---|---|---|
+| 3311 và 1331 | 331 Phải trả người bán | Khi kế toán ghi sổ hoá đơn |
+
+**Lưu ý**
+- Không bấm [[desk:Lấy mặt hàng từ]] trên Desk: nó chép đè dòng hàng, mất dòng phí dịch vụ, phí giao hàng.
+- Nên nối trên màn Đối chiếu mua. <!-- kiểm: nút "Nối phiếu nhập kho" trên Desk: dòng nhắc trên Desk nói nút chỉ gắn, không sửa số lượng và đơn giá; màn Đối chiếu mua nói nút đó chép đè giá phiếu nhập lên hoá đơn. Chưa rõ bên nào đúng -->
+- Hàng không qua kho (dịch vụ, phí ship) không có phiếu nhập: kế toán bấm [[Ghi sổ thẳng, không nối phiếu]].
 
 ## Vì sao không nối được phiếu nhập kho vào hoá đơn
-Từ khoá: lỗi nối phiếu, không nối được, lệch đơn vị, lệch giá hoá đơn, hoá đơn lệch phiếu nhập, dấu nối cũ, chưa nối phiếu nhập, không ghi sổ được hoá đơn mua
-Ai dùng: Thu mua, Kế toán
-Màn hình: Đối chiếu mua (/doi-chieu-mua)
+Từ khoá: lỗi nối phiếu, không nối được, lệch đơn vị, lệch giá hoá đơn, hoá đơn lệch phiếu nhập, chưa nối phiếu nhập, không ghi sổ được hoá đơn mua, cập nhật kho
 
-Vì sao bị chặn:
-- "Chưa nối được vì lệch đơn vị": hoá đơn điện tử ghi đơn vị máy chưa biết. Bấm "Đổi đơn vị dòng này thành ..." cho dòng đó, hoặc "Khai đơn vị ... cho món này" để lần sau máy tự hiểu.
-- "Phiếu nhập đã bị hoá đơn khác lấy mất lượng": bấm Nối phiếu lại để máy chia theo lượng còn thật, hoặc "Bỏ nối, chọn lại phiếu từ đầu".
-- "Dòng N: món ... là hàng qua kho mà chưa nối phiếu nhập": hàng qua kho không ghi sổ thẳng được, phải nối phiếu trước.
-- "Giá trên hoá đơn khác giá phiếu nhập": tờ vẫn ghi sổ được nhưng phải là kế toán ghi.
-- "Lệch so với hoá đơn điện tử của nhà cung cấp": bấm "Dựng lại theo hoá đơn điện tử" nếu có nút.
-- "Không thấy phiếu nhập kho nào...": hàng chưa nhập kho hoặc phiếu nhập còn nháp. Nhập kho trước rồi quay lại.
-- "Chỉ kế toán hoặc thu mua mới nối phiếu và ghi sổ hoá đơn mua được": cần quyền phù hợp.
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Thu mua, Kế toán | Đối chiếu mua (/doi-chieu-mua) | [[Nối phiếu, chuyển kế toán ghi sổ]] |
+
+Các câu máy báo khi nối phiếu và cách gỡ.
+
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Chưa nối được vì lệch đơn vị | Bấm [[Đổi đơn vị dòng này thành ...]], hoặc khai đơn vị cho món để lần sau máy tự hiểu |
+| Phiếu nhập đã bị hoá đơn khác lấy mất lượng | Nối lại, hoặc [[Bỏ nối, chọn lại phiếu từ đầu]] |
+| Dòng N: món ... là hàng qua kho mà chưa nối phiếu nhập | Nối phiếu trước, không ghi sổ thẳng |
+| Lệch so với hoá đơn điện tử của nhà cung cấp | Bấm [[Dựng lại theo hoá đơn điện tử]] nếu có nút |
+| Hoá đơn ... đang bật "Cập nhật tồn kho" | Nhờ kế toán tắt ô [[desk:Cập nhật kho]] trên Desk rồi nối lại |
+| Không thấy phiếu nhập kho nào | Hàng chưa nhập kho hoặc phiếu còn nháp: nhập kho trước |
+| Chỉ kế toán mới ghi sổ hoá đơn mua được | Thu mua bấm [[Chỉ nối phiếu]], kế toán ghi sổ sau |
+
+**Lưu ý**
+- Giá trên hoá đơn khác giá phiếu nhập thì vẫn ghi sổ được, nhưng phải là kế toán ghi.
 
 ## Xác nhận hàng chuyển về kho tôi
 Từ khoá: nhận điều chuyển, nhận hàng điều chuyển, hàng chuyển về, hàng về kho bếp, hàng về cửa hàng, xác nhận nhận hàng, nhận thiếu, kho khác chuyển sang, transfer receipt, PDC
-Ai dùng: Bếp, Cửa hàng, mọi bộ phận giữ kho
-Màn hình: Hàng chuyển về kho tôi (/hang-chuyen-ve-kho-toi)
 
-Kho khác lập phiếu điều chuyển là hàng đã vào kho của bạn trong sổ ngay lúc đó. Màn này để bạn khai số thật đếm được.
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Bếp, Cửa hàng, người giữ kho | Hàng chuyển về kho tôi (/hang-chuyen-ve-kho-toi) | [[✓ Xác nhận nhận hàng]] |
 
-Các bước:
-1. Mở Hàng chuyển về kho tôi. Chọn khoảng 7 ngày, 14 ngày hoặc 30 ngày.
-2. Bấm vào một phiếu để xem danh sách hàng.
-3. Bấm ✓ Xác nhận nhận hàng.
-4. Máy điền sẵn số theo số kho giao. Đúng đủ thì giữ nguyên. Dòng nào lệch thì gõ số đếm thật, ghi chú nếu cần.
-5. Bấm Xác nhận đã nhận, rồi Xác nhận.
+Phiếu điều chuyển ghi sổ là hàng đã vào kho bạn trong sổ. Màn này để bạn khai số đếm thật.
 
-Lưu ý:
-- Màn này KHÔNG sửa tồn kho. Phần nhận thiếu treo thành việc cần làm cho thủ kho đối chiếu.
-- Đã xác nhận rồi thì không xác nhận đè được. Khai sai thì báo thủ kho.
-- Bếp xin hàng bằng phiếu yêu cầu điều chuyển thì mở phiếu đó trong Yêu cầu điều chuyển nội bộ và bấm 📦 Đã nhận hàng: bước này trừ kho xuất và nhập kho nhận thật. <!-- kiểm: địa chỉ màn Yêu cầu điều chuyển nội bộ chưa có trong bảng -->
+**Các bước**
+1. Mở Hàng chuyển về kho tôi, chọn [[7 ngày]], [[14 ngày]] hoặc [[30 ngày]].
+2. Bấm vào một phiếu để xem hàng.
+3. Bấm [[✓ Xác nhận nhận hàng]].
+4. Dòng nào lệch thì gõ số đếm thật và ghi chú. Đủ thì giữ nguyên.
+5. Bấm [[Xác nhận đã nhận]], rồi [[Xác nhận]].
 
-Vì sao bị chặn:
-- "Tài khoản của bạn chưa khai Kho phụ trách": báo anh Việt khai ở màn Người dùng.
-- "Phiếu này chuyển về kho ..., không phải kho bạn phụ trách": chỉ người giữ kho nhận mới xác nhận được.
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Tài khoản của bạn chưa khai Kho phụ trách | Báo anh Việt khai ở màn Người dùng |
+| Phiếu này chuyển về kho ..., không phải kho bạn phụ trách | Người giữ kho nhận xác nhận |
+
+**Lưu ý**
+- Màn này KHÔNG sửa tồn. Phần nhận thiếu thành việc cần làm cho thủ kho đối chiếu.
+- Đã xác nhận thì không xác nhận đè. Khai sai thì báo thủ kho.
+- Hàng xin bằng Yêu cầu điều chuyển nội bộ (phân hệ Đặt hàng, /phan-he-dat-hang): mở phiếu, bấm [[Đã nhận hàng]]. Bước này trừ kho xuất và cộng kho nhận thật.
 
 ## Xuất điều chuyển hàng sang kho khác
 Từ khoá: điều chuyển, chuyển kho, xuất chuyển, chuyển hàng sang bếp, chuyển bánh ra cửa hàng, chuyển nguyên liệu, material transfer, stock transfer, PDC, chuyển nội bộ
-Ai dùng: Kho, Bếp, Cửa hàng
-Màn hình: Xuất điều chuyển (/xuat-dieu-chuyen)
 
-Các bước:
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Kho, Bếp, Cửa hàng | Xuất điều chuyển (/xuat-dieu-chuyen) | [[Ghi sổ phiếu chuyển]] |
+
+Chuyển hàng từ kho này sang kho khác. Phiếu ghi sổ ngay.
+
+**Các bước**
 1. Mở Xuất điều chuyển, bấm nút +.
-2. Nếu chuyển theo phiếu yêu cầu, chọn ở ô "Theo phiếu yêu cầu điều chuyển": máy tự điền kho và danh sách hàng.
+2. Chuyển theo phiếu yêu cầu thì chọn ở ô "Theo phiếu yêu cầu điều chuyển", máy tự điền.
 3. Chọn Kho xuất và Kho nhận.
-4. Bấm + Thêm hàng, gõ tên hoặc mã (chỉ hiện mã còn tồn ở kho xuất), chọn món. Sửa số lượng từng dòng, bấm × để bỏ dòng.
-5. Ghi chú nếu cần, bấm Ghi sổ phiếu chuyển.
+4. Bấm [[+ Thêm hàng]], chọn món (chỉ hiện mã còn tồn ở kho xuất), sửa số lượng.
+5. Ghi chú nếu cần, bấm [[Ghi sổ phiếu chuyển]].
 
-Lưu ý:
-- Phiếu ghi sổ ngay, hàng nằm ở kho nhận luôn. Kho nhận vẫn phải đếm lại và xác nhận ở màn Hàng chuyển về kho tôi.
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Phải chọn cả kho xuất và kho nhận | Chọn đủ hai kho |
+| Kho xuất và kho nhận không được trùng nhau | Chọn lại kho nhận |
+| Số lượng xuất vượt quá tồn kho: ... | Sửa số, hoặc xem tồn ở màn Tồn kho |
+
+**Hạch toán**
+| Nợ | Có | Khi nào |
+|---|---|---|
+| Tài khoản kho nhận | Tài khoản kho xuất | Khi ghi sổ, chỉ khi hai kho khác tài khoản |
+
+**Lưu ý**
+- Kho nhận vẫn phải đếm và xác nhận ở màn Hàng chuyển về kho tôi.
 - Đổi kho xuất thì phải chọn lại hàng.
-- Trên phiếu đã ghi sổ có nút 🛵 Lập vận đơn giao hàng này để phân công shipper.
-
-Vì sao bị chặn:
-- "Phải chọn cả kho xuất và kho nhận", "Kho xuất và kho nhận không được trùng nhau".
-- "Số lượng xuất vượt quá tồn kho: ...": sửa số, hoặc kiểm tra tồn ở màn Tồn kho.
-
-Hạch toán: hai kho cùng tài khoản thì không sinh bút toán; khác tài khoản (ví dụ kho nguyên liệu sang kho thành phẩm) thì Nợ tài khoản kho nhận / Có tài khoản kho xuất. <!-- kiểm: tài khoản gắn từng kho hiện hành -->
+- Phiếu đã ghi sổ có nút [[Lập vận đơn giao hàng này]] để phân công shipper.
 
 ## Xuất huỷ hàng hỏng, hết hạn
 Từ khoá: xuất huỷ, huỷ hàng, bỏ hàng, hàng hỏng, hàng hết hạn, hàng vỡ, bánh trưng bày hết ngày, thất thoát, write off, scrap, material issue, PXD
-Ai dùng: Mọi bộ phận giữ kho lập; Quản lý kho ghi sổ
-Màn hình: Xuất huỷ (/xuat-huy)
 
-Các bước:
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Người giữ kho lập, Quản lý kho ghi sổ | Xuất huỷ (/xuat-huy) | [[Lưu phiếu, chờ quản lý ghi sổ]] |
+
+Hàng hỏng thật, hết hạn, thất thoát thì lập phiếu xuất huỷ. Tồn chỉ trừ khi quản lý kho ghi sổ.
+
+**Các bước**
 1. Mở Xuất huỷ, bấm nút +.
-2. Chọn Kho xuất (bắt buộc).
-3. Chọn Lý do huỷ (bắt buộc): Hỏng, vỡ trong quá trình làm; Hết hạn sử dụng; Không đạt chất lượng; Mẫu thử, nếm, chụp hình; Bánh trưng bày hết ngày; Thất thoát chưa rõ nguyên nhân; Khác.
-4. Chụp Ảnh chứng minh (bắt buộc).
-5. Bấm + Thêm hàng, chọn món và sửa số lượng.
-6. Ghi chú, bấm "Lưu phiếu, chờ quản lý ghi sổ".
+2. Chọn Kho xuất.
+3. Chọn Lý do huỷ: Hỏng, vỡ trong quá trình làm; Hết hạn sử dụng; Không đạt chất lượng; Mẫu thử, nếm, chụp hình; Bánh trưng bày hết ngày; Thất thoát chưa rõ nguyên nhân; Khác.
+4. Chụp ảnh chứng minh (bắt buộc).
+5. Bấm [[+ Thêm hàng]], chọn món, sửa số lượng.
+6. Bấm [[Lưu phiếu, chờ quản lý ghi sổ]].
 
-Lưu ý:
-- Tồn kho chỉ trừ sau khi quản lý kho bấm Ghi sổ phiếu này. Phiếu nằm ở tab Chờ ghi sổ.
-- Bánh chụp ảnh, mời khách, ăn ca thì dùng Xuất dùng nội bộ, không dùng Xuất huỷ.
-- Phiếu điều chuyển đã ghi sổ có nút "🗑️ Xuất huỷ hàng này tại ..." để huỷ hàng nhận về không bán được.
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Chưa chọn kho xuất / Chưa chọn lý do huỷ | Chọn đủ |
+| Phiếu xuất huỷ bắt buộc có ảnh chứng minh | Chụp ảnh |
+| Số lượng xuất vượt quá tồn kho | Sửa số |
+| Chỉ quản lý kho mới được ghi sổ phiếu xuất huỷ | Nhờ quản lý kho |
 
-Vì sao bị chặn: "Chưa chọn kho xuất", "Chưa chọn lý do huỷ", "Phiếu xuất huỷ bắt buộc có ảnh chứng minh", "Số lượng xuất vượt quá tồn kho", "Chỉ quản lý kho mới được ghi sổ phiếu xuất huỷ".
+**Hạch toán**
+| Nợ | Có | Khi nào |
+|---|---|---|
+| 632 Giá vốn hàng bán | Tài khoản kho xuất | Khi quản lý ghi sổ |
 
-Hạch toán: Nợ 632 Giá vốn hàng bán / Có tài khoản kho (152 hoặc 1551). Hao hụt ngoài định mức kế toán chuyển tay sang 811.
+**Lưu ý**
+- Hao hụt ngoài định mức kế toán chuyển tay sang 811.
+- Bánh chụp ảnh, mời khách, ăn ca thì dùng Xuất dùng nội bộ.
+- Phiếu điều chuyển đã ghi sổ có nút [[Xuất huỷ hàng này tại ...]] cho hàng nhận về không bán được.
 
 ## Xuất dùng nội bộ: chụp ảnh, mẫu thử, mời khách, ăn ca
 Từ khoá: xuất dùng nội bộ, xuất dùng, xuất cho marketing, bánh chụp ảnh, mẫu thử, nếm thử, R&D, mời khách, tặng đối tác, nhân viên ăn ca, đào tạo, internal use, PXD
-Ai dùng: Marketing, Bếp, Lab, Cửa hàng; Quản lý kho ghi sổ
-Màn hình: Xuất dùng nội bộ (/xuat-dung-noi-bo)
 
-Hàng ra khỏi kho mà tiệm vẫn dùng. Hàng hỏng thật thì dùng Xuất huỷ.
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Marketing, Bếp, Lab, Cửa hàng; Quản lý kho ghi sổ | Xuất dùng nội bộ (/xuat-dung-noi-bo) | [[Lưu phiếu, chờ quản lý ghi sổ]] |
 
-Các bước:
+Hàng ra khỏi kho mà tiệm vẫn dùng. Tồn chỉ trừ khi quản lý kho ghi sổ.
+
+**Các bước**
 1. Mở Xuất dùng nội bộ, bấm nút +.
 2. Chọn kho xuất.
-3. Chọn Mục đích xuất dùng: Marketing chụp ảnh, quay phim; Mẫu thử, nghiên cứu công thức; Mời khách, tặng đối tác; Nhân viên ăn ca; Đào tạo, huấn luyện; Việc nội bộ khác.
-4. Chọn Bộ phận chịu chi phí (máy gợi ý theo mục đích, đổi được).
-5. Bấm + Thêm hàng, chọn món, gõ số lượng.
-6. Ảnh không bắt buộc. Ghi chú, bấm "Lưu phiếu, chờ quản lý ghi sổ".
+3. Chọn Mục đích: Marketing chụp ảnh, quay phim; Mẫu thử, nghiên cứu công thức; Mời khách, tặng đối tác; Nhân viên ăn ca; Đào tạo, huấn luyện; Việc nội bộ khác.
+4. Chọn Bộ phận chịu chi phí (máy gợi ý theo mục đích).
+5. Bấm [[+ Thêm hàng]], chọn món, gõ số lượng.
+6. Ghi chú, bấm [[Lưu phiếu, chờ quản lý ghi sổ]].
 
-Lưu ý: tồn chỉ trừ khi quản lý kho bấm Ghi sổ phiếu này. Mục "Việc nội bộ khác" nhớ ghi rõ ở Ghi chú.
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Chưa chọn mục đích xuất dùng / Chưa chọn bộ phận chịu chi phí | Chọn đủ |
+| Có ... món vượt tồn | Sửa số |
+| Bộ phận ... chưa có trong hệ thống | Báo anh Việt |
+| Chỉ quản lý kho mới được ghi sổ phiếu xuất dùng nội bộ | Nhờ quản lý kho |
 
-Vì sao bị chặn: "Chưa chọn mục đích xuất dùng", "Chưa chọn bộ phận chịu chi phí", "Có ... món vượt tồn", "Bộ phận ... chưa có trong hệ thống" (báo anh Việt), "Chỉ quản lý kho mới được ghi sổ phiếu xuất dùng nội bộ".
+**Hạch toán**
+| Nợ | Có | Khi nào |
+|---|---|---|
+| Marketing 641x; mẫu thử, đào tạo 627x; mời khách, ăn ca, việc khác 642x | Tài khoản kho xuất | Khi quản lý ghi sổ |
 
-Hạch toán: Nợ tài khoản chi phí theo mục đích (Marketing 641x; mẫu thử, đào tạo 627x; mời khách, ăn ca, việc khác 642x) / Có tài khoản kho.
+**Lưu ý**
+- Chọn "Việc nội bộ khác" thì ghi rõ ở Ghi chú. Ảnh không bắt buộc.
 
 ## Xuất kho phục vụ bán hàng: chốt bao bì, nguyên liệu tại điểm bán
 Từ khoá: xuất kho phục vụ bán hàng, chốt kho điểm bán, chốt bao bì, xuất bao bì, túi hộp ly, nguyên liệu pha chế, đếm còn lại, xuất dùng cửa hàng, công cụ dụng cụ quầy, văn phòng phẩm, PXD
-Ai dùng: Cửa hàng, Sales Online
-Màn hình: Xuất kho phục vụ bán hàng (/xuat-kho-phuc-vu-ban-hang)
 
-Màn này là bảng đếm: máy liệt kê mọi mã đang có tồn ở kho, bạn chỉ gõ số CÒN LẠI, máy tự tính số đã dùng.
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Cửa hàng, Sales Online | Xuất kho phục vụ bán hàng (/xuat-kho-phuc-vu-ban-hang) | [[Ghi sổ phiếu xuất]] |
 
-Các bước:
-1. Mở màn, bấm nút + (Chốt kho điểm bán).
+Màn này là bảng đếm: bạn gõ số CÒN LẠI của từng mã, máy tự tính số đã dùng và trừ kho.
+
+**Các bước**
+1. Mở màn, bấm nút + ([[Chốt kho điểm bán]]).
 2. Chọn kho và Bộ phận chịu chi phí.
-3. Ở mục Đếm còn lại, gõ số còn lại cho từng mã đã đếm. Mã chưa đếm thì bỏ trống, máy không tính. Dùng ô tìm hoặc chip nhóm để lọc.
-4. Ghi chú (ví dụ chốt tuần 38), bấm Ghi sổ phiếu xuất, rồi Ghi sổ.
+3. Ở mục Đếm còn lại, gõ số còn lại từng mã đã đếm. Mã chưa đếm thì bỏ trống.
+4. Ghi chú (ví dụ chốt tuần 38), bấm [[Ghi sổ phiếu xuất]], rồi [[Ghi sổ]].
 
-Lưu ý:
-- Bấm là tồn kho trừ ngay theo số đã dùng, không chờ kế toán (từ 20/09/2026).
-- Bánh và đồ uống thành phẩm không có trong bảng vì đã trừ kho theo hoá đơn bán. Khai ở đây nữa là trừ hai lần.
-- Dòng gõ sai (số còn lại lớn hơn tồn) bị tô đỏ, sửa trước khi lưu.
+**Hạch toán**
+| Nợ | Có | Khi nào |
+|---|---|---|
+| 641x (bao bì, công cụ dụng cụ, văn phòng phẩm) | Tài khoản kho | Khi bấm Ghi sổ |
+| 632 (nguyên liệu, bán thành phẩm) | Tài khoản kho | Khi bấm Ghi sổ |
 
-Hạch toán: bao bì, công cụ dụng cụ, văn phòng phẩm: Nợ 641x Chi phí bán hàng; nguyên liệu, bán thành phẩm: Nợ 632 Giá vốn / Có tài khoản kho.
+**Lưu ý**
+- Bấm là tồn trừ ngay, không chờ kế toán.
+- Bánh và đồ uống thành phẩm không có trong bảng vì đã trừ kho theo hoá đơn bán. Khai ở đây là trừ hai lần.
+- Dòng số còn lại lớn hơn tồn bị tô đỏ, sửa trước khi lưu.
 
 ## Xuất trả hàng cho nhà cung cấp
-Từ khoá: trả hàng nhà cung cấp, trả NCC, hàng lỗi trả lại, trả hàng hư, giao sai hàng, purchase return, return to supplier, giảm công nợ, phiếu trả hàng
-Ai dùng: Kho, Thu mua, Kế toán
-Màn hình: Xuất trả nhà cung cấp (/xuat-tra-nha-cung-cap)
+Từ khoá: trả hàng nhà cung cấp, trả NCC, hàng lỗi trả lại, trả hàng hư, giao sai hàng, purchase return, return to supplier, giảm công nợ, phiếu trả hàng, PNK-TRA
 
-Các bước:
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Kho, Thu mua, Kế toán | Xuất trả nhà cung cấp (/xuat-tra-nha-cung-cap) | [[Lưu và ghi sổ phiếu trả]] |
+
+Trả hàng lỗi, giao sai về nhà cung cấp, neo vào phiếu nhập gốc để hoàn đúng giá đã nhập.
+
+**Các bước**
 1. Mở màn, bấm nút +.
 2. Chọn Nhà cung cấp (chỉ hiện nhà cung cấp có phiếu nhập trong 90 ngày).
-3. Chọn Phiếu nhập gốc: máy hoàn đúng giá đã nhập của lô đó.
+3. Chọn Phiếu nhập gốc.
 4. Chọn Lý do trả.
-5. Gõ số lượng trả cho từng món (máy hiện số còn trả được).
-6. Ảnh hàng lỗi và Ghi chú không bắt buộc. Bấm "Lưu và ghi sổ phiếu trả", rồi Ghi sổ.
+5. Gõ số lượng trả từng món (máy hiện số còn trả được).
+6. Bấm [[Lưu và ghi sổ phiếu trả]], rồi [[Ghi sổ]].
 
-Lưu ý: phiếu ghi sổ ngay, tồn giảm và công nợ phải trả nhà cung cấp giảm cùng lúc. Không dùng Xuất huỷ cho hàng trả nhà cung cấp.
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Phiếu nhập ... chưa ghi sổ nên chưa trả hàng theo nó được | Nhập kho phiếu gốc trước |
+| Số trả vượt quá số còn trả được | Mở lại phiếu lấy số mới nhất |
+| Màn trả hàng nhà cung cấp chỉ mở cho kho, thu mua và kế toán | Báo quản lý cấp quyền |
 
-Vì sao bị chặn:
-- "Phiếu nhập ... chưa ghi sổ nên chưa trả hàng theo nó được".
-- "Số trả vượt quá số còn trả được": mở lại phiếu để lấy số mới nhất.
-- "Màn trả hàng nhà cung cấp chỉ mở cho kho, thu mua và kế toán".
+**Hạch toán**
+| Nợ | Có | Khi nào |
+|---|---|---|
+| 3311 | Tài khoản kho | Khi ghi sổ, ngược phiếu nhập gốc |
 
-Hạch toán: ngược phiếu nhập gốc, Nợ 3311 / Có tài khoản kho. <!-- kiểm: tài khoản khi phiếu gốc đã có hoá đơn mua -->
+<!-- kiểm: phiếu gốc đã có hoá đơn mua ghi sổ thì kế toán xử lý phần công nợ thế nào (hoá đơn trả hàng HDM-TRA hay cách khác), nguồn chưa nói -->
+
+**Lưu ý**
+- Phiếu ghi sổ ngay, tồn giảm cùng lúc. Không dùng Xuất huỷ cho hàng trả nhà cung cấp.
 
 ## Xuất bán sỉ, lập phiếu giao hàng cho khách doanh nghiệp
-Từ khoá: xuất bán sỉ, bán sỉ, wholesale, giao hàng khách doanh nghiệp, phiếu giao hàng, delivery note, giao đơn sỉ, PGH, biên bản giao nhận
-Ai dùng: Sales, Kho, Kế toán
-Màn hình: Xuất bán sỉ (/xuat-ban-si)
+Từ khoá: xuất bán sỉ, bán sỉ, wholesale, giao hàng khách doanh nghiệp, phiếu giao hàng, delivery note, giao đơn sỉ, PGH, biên bản giao nhận, trừ kho hai lần
 
-Các bước:
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Sales, Kho, Kế toán | Xuất bán sỉ (/xuat-ban-si) | [[Lưu và ghi sổ phiếu giao]] |
+
+Phiếu giao hàng cho khách sỉ trừ kho thật và ghi giá vốn ngay khi ghi sổ.
+
+**Các bước**
 1. Mở Xuất bán sỉ, bấm nút +.
 2. Đọc khung cảnh báo vàng ở đầu màn.
 3. Chọn Khách hàng và kho xuất.
-4. Bấm + Thêm hàng, chọn món, gõ số lượng.
-5. Ghi Người nhận hàng (tên người ký nhận bên khách) và Ghi chú.
-6. Bấm "Lưu và ghi sổ phiếu giao", rồi Ghi sổ.
+4. Bấm [[+ Thêm hàng]], chọn món, gõ số lượng.
+5. Ghi Người nhận hàng (người ký nhận bên khách) và Ghi chú.
+6. Bấm [[Lưu và ghi sổ phiếu giao]], rồi [[Ghi sổ]].
 
-Lưu ý:
-- Phiếu ghi sổ ngay, trừ kho thật và ghi giá vốn.
-- Hoá đơn cho đơn này kế toán không bật thêm Cập nhật kho, không thì hàng bị trừ hai lần.
-<!-- kiểm: từ 01/10/2026 hoá đơn bán tự trừ kho theo từng bill; cần xác nhận đơn sỉ đã lập phiếu giao có bị trừ lần hai qua hoá đơn không -->
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Chưa chọn khách hàng / Chưa chọn kho xuất | Chọn đủ |
+| Có ... món vượt tồn | Sửa số |
+| Màn xuất bán sỉ chỉ mở cho Sales, kho và kế toán | Báo quản lý cấp quyền |
 
-Vì sao bị chặn: "Chưa chọn khách hàng", "Chưa chọn kho xuất", "Có ... món vượt tồn", "Màn xuất bán sỉ chỉ mở cho Sales, kho và kế toán".
+**Hạch toán**
+| Nợ | Có | Khi nào |
+|---|---|---|
+| 632 Giá vốn hàng bán | Tài khoản kho xuất | Khi ghi sổ phiếu giao |
 
-Hạch toán: Nợ 632 Giá vốn hàng bán / Có tài khoản kho.
+**Lưu ý**
+- Hoá đơn của đơn sỉ phải lập từ chính phiếu giao này (trên Desk mở phiếu, bấm [[desk:Tạo]], chọn [[desk:Hóa đơn bán hàng]]). Hoá đơn nối với phiếu giao thì máy không trừ kho lần hai.
+- Hoá đơn lập rời, không nối phiếu giao, thì từ 01/10/2026 máy coi như bán thường và có thể trừ kho lần nữa. Gặp tờ như vậy báo kế toán.
+- Hoá đơn trộn dòng lấy từ phiếu giao với dòng gõ thêm thì dòng gõ thêm không trừ kho, tờ hiện "Chưa trừ kho" để kế toán xử lý.
 
 ## Ghi sổ hoặc bỏ phiếu xuất đang chờ
 Từ khoá: ghi sổ phiếu xuất, duyệt phiếu xuất huỷ, duyệt xuất dùng, phiếu chờ ghi sổ, bỏ phiếu, huỷ phiếu nháp, xoá phiếu xuất, lập nhầm phiếu
-Ai dùng: Quản lý kho (ghi sổ); người lập phiếu (bỏ phiếu)
-Màn hình: Xuất huỷ (/xuat-huy), Xuất dùng nội bộ (/xuat-dung-noi-bo)
 
-Các bước ghi sổ:
-1. Mở màn, chọn tab Chờ ghi sổ, bấm vào phiếu.
-2. Xem kho, lý do hoặc mục đích, ảnh và danh sách hàng.
-3. Bấm Ghi sổ phiếu này. Tồn kho trừ thật.
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Quản lý kho ghi sổ; người lập bỏ phiếu | Xuất huỷ (/xuat-huy), Xuất dùng nội bộ (/xuat-dung-noi-bo) | [[Ghi sổ phiếu này]] |
 
-Các bước bỏ phiếu nháp sai:
-1. Mở phiếu đang chờ, bấm 🚫 Bỏ phiếu này.
+Phiếu xuất huỷ và xuất dùng nội bộ nằm ở thẻ Chờ ghi sổ cho tới khi quản lý kho ghi sổ hoặc người lập bỏ phiếu.
+
+**Các bước ghi sổ**
+1. Mở màn, chọn thẻ Chờ ghi sổ, bấm vào phiếu.
+2. Xem kho, lý do hoặc mục đích, ảnh, danh sách hàng.
+3. Bấm [[Ghi sổ phiếu này]]. Tồn trừ thật.
+
+**Các bước bỏ phiếu lập sai**
+1. Mở phiếu đang chờ, bấm [[Bỏ phiếu này]].
 2. Ghi lý do (lập nhầm, sai kho, sai số lượng), xác nhận.
 
-Lưu ý:
-- Phiếu không bị xoá, chỉ đánh dấu đã bỏ và vẫn nằm trong danh sách để tra.
-- Chỉ người tạo phiếu hoặc quản lý kho bỏ được phiếu.
-- Ảnh chứng minh gỡ được (nút ✕ ở góc ảnh) khi phiếu chưa ghi sổ.
-- Phiếu đã ghi sổ không bỏ được trên app. Cần huỷ thì liên hệ kế toán trưởng.
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Phiếu này đã bỏ nên không ghi sổ được | Lập phiếu mới |
+| Phiếu này không còn ở trạng thái bản nháp | Phiếu đã ghi sổ hoặc đã bỏ |
+| Chỉ người tạo phiếu hoặc quản lý kho mới bỏ được phiếu này | Nhờ người lập hoặc quản lý kho |
+| Phiếu đã ghi sổ thì phải huỷ đúng nghiệp vụ bên máy tính | Liên hệ kế toán trưởng |
 
-Vì sao bị chặn: "Phiếu này đã bỏ nên không ghi sổ được" (lập phiếu mới), "Phiếu này không còn ở trạng thái bản nháp", "Phiếu này không phải phiếu xuất dùng nội bộ. Phiếu xuất huỷ thì ghi sổ ở màn Xuất huỷ".
+**Lưu ý**
+- Phiếu bỏ không bị xoá, vẫn nằm trong danh sách để tra.
+- Ảnh gỡ được (nút ✕ góc ảnh) khi phiếu chưa ghi sổ.
 
 ## Kiểm kê kho: tạo phiếu và đếm hàng
 Từ khoá: kiểm kê, kiểm kho, đếm kho, đếm hàng tồn, phiếu kiểm kê, stock take, stocktake, inventory count, KK, kiểm tồn cuối tháng, đếm mù
-Ai dùng: Kho, Bếp, Cửa hàng, Kiểm kê viên
-Màn hình: Kiểm kê (/kiem-ke)
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Kho, Bếp, Cửa hàng, Kiểm kê viên | Kiểm kê (/kiem-ke) | [[Chốt phiếu]] |
 
 Mỗi phiếu kiểm kê là một kho, một nhóm hàng. Phiếu tự lưu nên đếm được nhiều buổi.
 
-Các bước:
+**Các bước**
 1. Mở Kiểm kê, bấm dấu +.
-2. Chọn Ngày kiểm, Kho kiểm, Nhóm hàng kiểm (Nguyên vật liệu, Bán thành phẩm, Thành phẩm, Công cụ - Bao bì, Tất cả), và Vị trí kiểm nếu kho có chia tủ.
-3. Bấm Bắt đầu kiểm.
-4. Bấm 📷 Quét mã vạch liên tục, hoặc gõ tên món vào ô tìm rồi bấm + để thêm. Nhập số đếm được.
-5. Bấm Lưu lại giữa chừng. Đếm xong bấm Chốt phiếu.
+2. Chọn Ngày kiểm, Kho kiểm, Nhóm hàng kiểm, Vị trí kiểm nếu kho chia tủ.
+3. Bấm [[Bắt đầu kiểm]].
+4. Bấm [[Quét mã vạch liên tục]], hoặc gõ tên món rồi bấm + để thêm. Nhập số đếm.
+5. Bấm [[Lưu lại]] giữa chừng. Đếm xong bấm [[Chốt phiếu]].
 
-Lưu ý:
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Tài khoản của bạn chưa được cấp quyền kiểm kê | Báo quản lý cấp quyền |
+| Kho này đang có phiếu kiểm dở | Mở phiếu đó đếm tiếp, tránh đếm trùng |
+
+**Lưu ý**
 - Người đếm không thấy tồn trên máy (đếm mù), cứ ghi đúng số đếm.
-- Món trong nhóm mà chưa đếm thì KHÔNG ghi vào sổ, tồn giữ nguyên.
-- Kho đang có phiếu dở cùng nhóm hàng thì máy mời mở phiếu đó, tránh đếm trùng.
-- Kho tổng 307 chỉ bộ phận Kho tổng 307 chốt số, người khác chỉ mở xem.
-- Chốt rồi vẫn bấm Mở lại để sửa được. Bấm Huỷ phiếu kiểm kê này nếu lập nhầm.
-
-Vì sao bị chặn: "Tài khoản của bạn chưa được cấp quyền kiểm kê".
+- Món trong nhóm mà chưa đếm thì không ghi vào sổ, tồn giữ nguyên.
+- Kho tổng 307 chỉ bộ phận Kho tổng 307 chốt số.
+- Chốt rồi vẫn bấm [[Mở lại để sửa]] được. Lập nhầm thì bấm [[Huỷ phiếu kiểm kê này]].
 
 ## Ghi sổ phiếu kiểm kê và chọn lý do chênh lệch
-Từ khoá: ghi sổ kiểm kê, chốt kiểm kê, điều chỉnh tồn, lý do chênh lệch, lệch tồn, hao hụt, stock reconciliation, PKK, giá vốn kiểm kê, tồn đầu kỳ
-Ai dùng: Quản lý kho, Giám đốc
-Màn hình: Kiểm kê (/kiem-ke)
+Từ khoá: ghi sổ kiểm kê, chốt kiểm kê, điều chỉnh tồn, lý do chênh lệch, lệch tồn, hao hụt, stock reconciliation, PKK, giá vốn kiểm kê, tồn đầu kỳ, opening stock
 
-Các bước:
-1. Mở phiếu trạng thái Chờ duyệt hoặc Đã chốt, bấm Ghi sổ vào phần mềm.
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Quản lý kho, Giám đốc | Kiểm kê (/kiem-ke) | [[Ghi sổ vào phần mềm]] |
+
+Ghi sổ là lúc tồn trên máy đổi theo số đếm. Máy lập phiếu điều chỉnh tồn (mã PKK) và nộp luôn.
+
+**Các bước**
+1. Mở phiếu đã chốt, bấm [[Ghi sổ vào phần mềm]].
 2. Chọn Kiểu ghi sổ: Điều chỉnh tồn (kiểm kê định kỳ) hoặc Tồn đầu kỳ (lần đầu đưa số lên máy).
 3. Kiểm tra Tài khoản đối ứng chênh lệch và Trung tâm chi phí.
-4. Mục Cần điền giá vốn: điền giá mua 1 đơn vị (chưa VAT) cho món máy chưa biết giá.
-5. Mục Lệch so với máy: chọn lý do cho từng món lệch (Hao hụt tự nhiên; Hư hỏng, hết hạn; Xuất dùng quên lập phiếu; Mất hàng; Nhập quên lập phiếu; Lệch đơn vị hoặc quy cách; Định lượng công thức sai).
-6. Bấm Tạo phiếu điều chỉnh và nộp, rồi Ghi sổ ngay.
+4. Mục Cần điền giá vốn: gõ giá mua 1 đơn vị (chưa VAT) cho món máy chưa biết giá.
+5. Mục Lệch so với máy: chọn lý do cho từng món lệch.
+6. Bấm [[Tạo phiếu điều chỉnh và nộp]], rồi [[Ghi sổ ngay]].
 
-Lưu ý: ghi sổ xong tồn đổi theo số đếm và không sửa lại bằng app. Sai thì liên hệ kế toán trưởng.
-<!-- kiểm: bản v547 cho máy tự lấy giá vốn khi trống; repo hiện hành vẫn bắt điền tay -->
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Còn ... món chưa có giá vốn | Điền giá ở mục Cần điền giá vốn |
+| Còn ... món lệch chưa chọn lý do | Chọn đủ lý do |
+| Chọn tài khoản đối ứng chênh lệch trước đã | Chọn tài khoản |
 
-Vì sao bị chặn:
-- "Còn ... món lệch chưa chọn lý do": lý do là bắt buộc.
-- "Lý do chọn ngược chiều với chênh lệch": thiếu hàng chọn lý do bên thiếu, thừa chọn bên thừa.
-- "Còn ... món chưa có giá vốn".
+**Hạch toán**
+| Nợ | Có | Khi nào |
+|---|---|---|
+| Tài khoản kho (thừa) hoặc tài khoản đối ứng (thiếu) | Bên còn lại | Khi Ghi sổ ngay |
 
-Hạch toán: chênh lệch đối ứng vào tài khoản đã chọn (mặc định của công ty, màn ghi 811). Tồn đầu kỳ dùng Temporary Opening.
+Tài khoản đối ứng máy điền sẵn tài khoản chênh lệch mặc định của công ty; Tồn đầu kỳ dùng tài khoản tạm đầu kỳ. <!-- kiểm: số tài khoản chênh lệch mặc định: dòng nhắc trên màn ghi 811, ghi chép 25/08 dùng 6328, ghi chép 01/10 ghi 632. Kế toán chốt -->
+
+**Lưu ý**
+- Ghi sổ xong không sửa bằng app được. Sai thì liên hệ kế toán trưởng.
+- Lý do lệch: thiếu hàng chọn lý do bên thiếu, thừa chọn bên thừa.
 
 ## Vì sao bị chặn "Đang có phiếu kiểm kê mở trên những mặt hàng này"
-Từ khoá: phiếu kiểm kê đang mở, khoá kiểm kê, không ghi sổ được vì đang kiểm, bị khoá mã hàng, đang đếm kho
-Ai dùng: Mọi bộ phận
-Màn hình: Kiểm kê (/kiem-ke)
+Từ khoá: phiếu kiểm kê đang mở, khoá kiểm kê, không ghi sổ được vì đang kiểm, bị khoá mã hàng, đang đếm kho, freeze
 
-Khi một phiếu kiểm kê đang ở trạng thái Đang kiểm, Chờ duyệt hoặc Đã chốt, các mã hàng trong phiếu bị khoá ở đúng kho đó. Chứng từ kho khác chạm vào các mã này (nhập, xuất, điều chuyển) bị chặn với câu "Đang có phiếu kiểm kê mở trên những mặt hàng này nên chưa ghi sổ được", kèm tên món và kho.
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Mọi bộ phận | Kiểm kê (/kiem-ke) | [[Ghi sổ vào phần mềm]] |
 
-Cách gỡ:
-1. Mở màn Kiểm kê, tìm phiếu của kho đó ở mục Đang kiểm dở hoặc Đã chốt.
-2. Đếm xong và nhờ quản lý ghi sổ phiếu kiểm, hoặc huỷ phiếu nếu lập nhầm.
+Phiếu kiểm kê ở trạng thái Đang kiểm, Chờ duyệt hoặc Đã chốt sẽ khoá các mã trong phiếu ở đúng kho đó. Nhập, xuất, điều chuyển chạm mã đó bị chặn, câu báo kèm tên món và kho.
+
+**Các bước gỡ**
+1. Mở Kiểm kê, tìm phiếu của kho đó đang kiểm dở hoặc đã chốt.
+2. Đếm xong, nhờ quản lý ghi sổ phiếu kiểm. Lập nhầm thì huỷ phiếu.
 3. Quay lại lưu chứng từ, lúc này lưu được ngay.
 
-Lưu ý: khoá chỉ còn hiệu lực trong 2 ngày kể từ ngày kiểm. Lý do khoá: ghi sổ lúc đang đếm thì con số chênh lệch không còn đúng với thời điểm nào.
+**Lưu ý**
+- Khoá chỉ hiệu lực trong 2 ngày kể từ ngày kiểm.
+- Lý do khoá: ghi sổ lúc đang đếm thì số chênh lệch không còn đúng với thời điểm nào.
 
 ## Tra tồn kho
 Từ khoá: tồn kho, xem tồn, tra tồn, còn bao nhiêu, kho còn hàng không, stock, stock balance, inventory, tồn âm, cận hạn, giá trị tồn
-Ai dùng: Mọi bộ phận
-Màn hình: Tồn kho (/ton-kho)
 
-Các bước:
-1. Mở Tra tồn kho, bấm ô Kho để chọn kho.
-2. Gõ tên hoặc mã hàng vào ô tìm, hoặc quét mã vạch.
-3. Lọc bằng chip nhóm hàng; chip ⏰ Cận hạn và ⚠ Tồn âm hiện khi có.
-4. Đổi thứ tự sắp xếp bằng các nút cạnh dòng tóm tắt.
-5. Bấm vào một món để xem Chi tiết tồn: tồn theo từng kho và các lô còn hàng.
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Mọi bộ phận | Tồn kho (/ton-kho) | Ô Kho |
 
-Lưu ý:
-- Dòng tóm tắt 📊 cho biết số mã và tổng của bộ lọc đang chọn.
+Xem mỗi món còn bao nhiêu ở từng kho.
+
+**Các bước**
+1. Mở Tồn kho, bấm ô Kho để chọn kho.
+2. Gõ tên hoặc mã hàng, hoặc quét mã vạch.
+3. Lọc bằng chip nhóm hàng; chip Cận hạn và Tồn âm hiện khi có.
+4. Bấm vào một món để xem tồn theo từng kho và các lô còn hàng.
+
+**Lưu ý**
+- Dòng tóm tắt cho biết số mã và tổng của bộ lọc đang chọn.
 - Giá trị tồn chỉ hiện với người được xem giá.
-- Danh sách dài thì máy chỉ hiện một phần, gõ ô tìm để thu hẹp.
-- Muốn biết hàng của bếp đang ở chặng nào thì dùng Tồn kho theo chặng.
+- Danh sách dài thì gõ ô tìm để thu hẹp.
+- Muốn biết hàng bếp đang ở chặng nào thì dùng Tồn kho theo chặng.
 
 ## Tồn kho theo chặng và hàng nằm sai kho
 Từ khoá: tồn theo chặng, chặng, nguyên liệu, bán thành phẩm, BTP sơ cấp, BTP sẵn sàng, thành phẩm, sai kho, chuyển về đúng kho, chưa phân chặng, tồn bếp
-Ai dùng: Bếp, Kế toán giá thành, Kho
-Màn hình: Tồn kho theo chặng (/ton-kho-theo-chang)
 
-Màn này trả lời câu "hàng của bếp đang đứng ở chặng nào": Nguyên liệu, BTP sơ cấp, BTP sẵn sàng, Thành phẩm.
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Bếp, Kế toán giá thành, Kho | Tồn kho theo chặng (/ton-kho-theo-chang) | [[Lập phiếu nháp]] |
 
-Các bước:
-1. Mở Tồn kho theo chặng. Chọn bếp: Cả hai bếp, Pastry hoặc Baker.
-2. Bấm chip chặng để lọc; chip ❓ Chưa phân chặng là món chưa gắn chặng.
-3. Chip ⚠ Sai kho liệt kê món đang nằm ở kho không đúng chặng của nó.
-4. Ở món sai kho, bấm 📦 Chuyển về ... rồi Lập phiếu nháp.
+Màn này cho biết hàng của bếp đang ở chặng nào: Nguyên liệu, BTP sơ cấp, BTP sẵn sàng, Thành phẩm.
 
-Lưu ý:
-- Chuyển về đúng kho chỉ lập phiếu chuyển kho NHÁP, chuyển hết số đang nằm sai. Quản lý xem lại trên máy tính rồi mới ghi sổ.
+**Các bước**
+1. Mở Tồn kho theo chặng, chọn bếp: Cả hai bếp, Pastry hoặc Baker.
+2. Bấm chip chặng để lọc; chip Chưa phân chặng là món chưa gắn chặng.
+3. Chip Sai kho liệt kê món nằm ở kho không đúng chặng.
+4. Ở món sai kho, bấm [[Chuyển về ...]], rồi [[Lập phiếu nháp]].
+
+**Lưu ý**
+- Phiếu chuyển lập ra là NHÁP, chuyển hết số nằm sai. Quản lý xem lại trên máy tính rồi mới ghi sổ.
 - Máy chỉ nhắc, không chặn hàng nằm sai kho.
 
 ## Hoá đơn chưa trừ kho và trừ bù
 Từ khoá: hoá đơn chưa trừ kho, chưa trừ kho, trừ bù, trừ kho bù, trừ kho sau, bán khi kho chưa có hàng, đã trừ một phần, phiếu bù, giá vốn hoá đơn bán
-Ai dùng: Kế toán, Quản lý cửa hàng, Giám đốc (Sales chỉ xem)
-Màn hình: Hoá đơn chưa trừ kho (/hoa-don-chua-tru-kho)
 
-Hoá đơn bán lúc kho điểm bán chưa có hàng vẫn ghi sổ doanh thu. Máy trừ ngay món đang có; món còn thiếu tự trừ bù khi hàng nhập về kho điểm bán, và quét lại mỗi giờ.
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Kế toán, Quản lý cửa hàng, Giám đốc (Sales chỉ xem) | Hoá đơn chưa trừ kho (/hoa-don-chua-tru-kho) | [[Trừ bù]] |
 
-Các bước trừ bù tay:
-1. Mở Hoá đơn chưa trừ kho. Lọc theo điểm bán, khoảng ngày, chip trạng thái.
-2. Chip "✅ Kho đủ để trừ bù" là hoá đơn bấm trừ được ngay.
-3. Bấm 🔁 Trừ bù trên từng hoá đơn, hoặc 🔁 Trừ bù cả điểm này.
+Hoá đơn bán lúc kho điểm bán chưa có hàng vẫn ghi sổ doanh thu. Máy trừ ngay món đang có; món còn thiếu tự trừ bù khi hàng về kho điểm bán, và quét lại mỗi giờ.
 
-Lưu ý:
-- Chip trạng thái: Chưa trừ kho, Đã trừ một phần, Đã trừ bù, Phiếu bù bị gỡ tay. Chip tồn hiện tại: Kho đủ để trừ bù, Kho đủ một phần, Kho chưa có hàng.
-- Mỗi lần trừ bù máy lập một phiếu xuất dùng (mã PXD) gắn với hoá đơn.
-- Website đặt bánh không bị ảnh hưởng, số trên web đã trừ ngay lúc lưu hoá đơn.
+**Các bước trừ bù tay**
+1. Mở Hoá đơn chưa trừ kho, lọc theo điểm bán, khoảng ngày, chip trạng thái.
+2. Chip [[Kho đủ để trừ bù]] là hoá đơn trừ được ngay.
+3. Bấm [[Trừ bù]] trên từng hoá đơn, hoặc [[Trừ bù cả điểm này]].
 
-Vì sao bị chặn: "Chỉ kế toán, quản lý cửa hàng hoặc giám đốc được bấm trừ bù"; "Điểm bán ... chưa khai kho xuất".
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Chỉ kế toán, quản lý cửa hàng hoặc giám đốc được bấm trừ bù | Nhờ người có quyền |
+| Điểm bán ... chưa khai kho xuất | Báo anh Việt khai kho cho điểm bán |
+| Chưa trừ bù được | Kho chưa đủ hàng, chờ hàng về |
 
-Hạch toán: Nợ 632 Giá vốn hàng bán / Có tài khoản kho điểm bán.
+**Hạch toán**
+| Nợ | Có | Khi nào |
+|---|---|---|
+| 632 Giá vốn hàng bán | Tài khoản kho điểm bán | Mỗi lần trừ bù (máy lập phiếu PXD gắn hoá đơn) |
+
+**Lưu ý**
+- Chip trạng thái: Chưa trừ kho, Đã trừ một phần, Đã trừ bù, Phiếu bù bị gỡ tay. Chip tồn: Kho đủ để trừ bù, Kho đủ một phần, Kho chưa có hàng.
+- Trang đặt bánh web không trừ thêm lần nữa vì đã giữ hàng lúc lưu hoá đơn.
 
 ## Lô hàng và hạn sử dụng khi nhập, xuất kho
-Từ khoá: lô, lô hàng, batch, mẻ, quản lý theo mẻ, hạn sử dụng, HSD, hết hạn, cận hạn, FEFO, gói số seri và lô, lô quá hạn
-Ai dùng: Kho, Bếp, Kế toán
-Màn hình: Nhập kho (/nhap-kho), Tồn kho (/ton-kho)
+Từ khoá: lô, lô hàng, batch, mẻ, quản lý theo mẻ, hạn sử dụng, HSD, hết hạn, cận hạn, FEFO, gói số seri và lô, lô quá hạn, hạn dùng tối thiểu
 
-Từ 30/09/2026 tiệm đã tắt quản lý theo lô cho toàn bộ mã hàng (bánh, bán thành phẩm, nhân, nguyên liệu thô). Từ nay nhập, xuất, sản xuất, kiểm kê không cần chọn lô.
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Kho, Bếp, Kế toán | Nhập kho (/nhap-kho), Tồn kho (/ton-kho) | Không có |
 
-Lưu ý:
-- Màn Nhập kho chỉ hiện ô Hạn sử dụng cho món còn quản lý theo lô. Món đã tắt lô thì không có ô này.
-- Tồn cũ nằm ở các lô cũ được coi là tồn chung của mã.
-- Chứng từ cũ có lô giữ nguyên. Huỷ một chứng từ cũ có lô có thể bị báo lỗi, liên hệ kế toán trưởng.
-- Còn gặp câu "Vui lòng thêm Gói Số seri và Lô" thì mã đó vẫn đang bật lô: báo anh Việt hoặc kế toán kiểm tra mã hàng, không tự sửa.
-- Lô quá hạn trên chứng từ cũ chỉ bị cảnh báo, không chặn.
+Từ 30/09/2026 tiệm tắt quản lý theo lô cho toàn bộ mã hàng. Nhập, xuất, sản xuất, kiểm kê không cần chọn lô.
 
-Việc bật lại lô cho mã nào do anh Việt quyết.
+**Lưu ý**
+- Màn Nhập kho chỉ hiện ô Hạn sử dụng cho món còn quản lý theo lô.
+- Tồn cũ ở các lô cũ coi là tồn chung của mã. Chứng từ cũ có lô giữ nguyên.
+- Huỷ chứng từ cũ có lô có thể báo lỗi: liên hệ kế toán trưởng.
+- Còn gặp câu "Vui lòng thêm Gói Số seri và Lô" thì mã đó vẫn bật lô: báo anh Việt hoặc kế toán, không tự sửa.
+- Hạn dùng ngắn hoặc quá hạn lúc nhận chỉ bị nhắc, không chặn.
+- Bật lại lô cho mã nào do anh Việt quyết.
 
 ## Cây kho: kho nào dùng cho việc gì
-Từ khoá: cây kho, danh sách kho, kho nào, kho tổng 307, kho D1, kho NVHTN, kho Sales Online, kho bếp, kho nguyên liệu bếp, kho thành phẩm, kho Lab, warehouse
-Ai dùng: Mọi bộ phận
-Màn hình: Tồn kho (/ton-kho)
+Từ khoá: cây kho, danh sách kho, kho nào, kho tổng 307, kho D1, kho NVHTN, kho Sales Online, kho bếp, kho nguyên liệu bếp, kho thành phẩm, kho Lab, kho phụ trách, warehouse
 
-- Kho tổng 307 (307/1 Nguyễn Văn Trỗi): nguyên liệu mua về nhập vào đây, bộ phận kho giữ.
-- Bếp Pastry và Bếp Baker, mỗi bếp có kho Nguyên liệu và kho Thành phẩm. Nguyên liệu chuyển từ Kho tổng 307 sang kho Nguyên liệu của bếp; lệnh sản xuất rút nguyên liệu từ đó, thành phẩm nhập kho Thành phẩm.
-- Hai kho BTP sơ cấp và BTP sẵn sàng đã tắt từ 28/08/2026, không dùng nữa.
-- Kho Lab: bếp nghiên cứu Sonneto Lab.
-- Kho D1 (9 Trần Cao Vân), Kho NVHTN (21 Phạm Ngọc Thạch), Kho Sales Online: kho điểm bán. Bánh từ kho Thành phẩm bếp chuyển ra đây để bán.
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Mọi bộ phận | Kho hàng (/tra-cuu-kho-hang) | Không có |
 
-Lưu ý:
-- Mỗi tài khoản có ô Kho phụ trách; màn xuất kho chỉ cho chọn kho mình phụ trách. Cần thêm kho thì báo anh Việt khai ở màn Người dùng.
+Mỗi kho trên máy ứng với một nơi giữ hàng thật.
+
+| Kho | Dùng cho |
+|---|---|
+| Kho tổng 307 (307/1 Nguyễn Văn Trỗi) | Nguyên liệu mua về, bộ phận kho giữ |
+| Pastry, Baker: Nguyên liệu | Nguyên liệu và bán thành phẩm của bếp; lệnh sản xuất rút từ đây |
+| Pastry, Baker: Thành phẩm | Bánh làm xong |
+| Kho Lab | Bếp nghiên cứu Sonneto Lab |
+| Kho D1 (9 Trần Cao Vân), Kho NVHTN (21 Phạm Ngọc Thạch), Kho Sales Online | Kho điểm bán, bánh từ kho Thành phẩm chuyển ra |
+
+**Lưu ý**
+- Hai kho BTP sơ cấp và BTP sẵn sàng đã tắt từ 28/08/2026.
+- Mỗi tài khoản có ô Kho phụ trách. Cần thêm kho thì báo anh Việt khai ở màn Người dùng.
 - Máy không chặn chuyển hàng giữa các kho, chỉ nhắc khi hàng nằm sai chặng.
-<!-- kiểm: danh sách kho hiện hành và địa chỉ lấy từ ghi chép 07-08/2026; cần đối chiếu cây kho trên site -->
 
 ## Mã chứng từ kho: PNK, PDC, PXD, PKK là gì
-Từ khoá: mã phiếu, mã chứng từ, số phiếu, PNK, PDC, PXD, PKK, PSX, KK, YCDC, DMH, HDM, PGH, tiền tố phiếu, naming series
-Ai dùng: Mọi bộ phận
-Màn hình: Desk: các chứng từ kho
+Từ khoá: mã phiếu, mã chứng từ, số phiếu, PNK, PNK-TRA, PDC, PXD, PKK, PSX, KK, YCDC, YCXD, DMH, HDM, PGH, HDB, tiền tố phiếu, naming series, MAT-STE
 
-Mã có dạng MÃ-NĂM-SỐ, ví dụ PNK-2026-00054.
-- DMH: đơn mua hàng.
-- PNK: phiếu nhập kho mua hàng.
-- HDM: hoá đơn mua.
-- YCDC: yêu cầu điều chuyển; YCXD: yêu cầu xuất dùng.
-- PDC: phiếu điều chuyển kho.
-- PXD: phiếu xuất dùng (xuất huỷ, xuất dùng nội bộ, xuất phục vụ bán hàng, phiếu trừ kho bù).
-- PSX: phiếu sản xuất.
-- KK: phiếu kiểm kê trên app (phiếu đếm).
-- PKK: phiếu điều chỉnh tồn sinh ra khi ghi sổ kiểm kê.
-- PGH: phiếu giao hàng (xuất bán sỉ).
-- HDB: hoá đơn bán.
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Mọi bộ phận | Mọi màn kho | Không có |
 
-Lưu ý: phiếu tạo trước 03/08/2026 còn mang mã cũ của ERPNext (MAT-STE, MAT-PRE...), vẫn dùng bình thường.
-<!-- kiểm: mã xuất huỷ có thật là PXD không, mã phiếu trả nhà cung cấp, mã phiếu giao hàng PGH, và mã KK đầy đủ của phiếu kiểm kê app -->
+Mã có dạng MÃ-NĂM-SỐ, ví dụ PNK-2026-00054. Nhìn tiền tố là biết loại phiếu.
+
+| Mã | Phiếu |
+|---|---|
+| DMH | Đơn mua hàng |
+| PNK | Phiếu nhập kho mua hàng |
+| PNK-TRA | Phiếu trả hàng nhà cung cấp |
+| HDM | Hoá đơn mua |
+| YCDC / YCXD | Yêu cầu điều chuyển / Yêu cầu xuất dùng |
+| PDC | Phiếu điều chuyển kho |
+| PXD | Phiếu xuất dùng: xuất huỷ, xuất dùng nội bộ, xuất phục vụ bán hàng, phiếu trừ bù |
+| PSX | Phiếu sản xuất |
+| KK | Phiếu kiểm kê trên app (phiếu đếm) |
+| PKK | Phiếu điều chỉnh tồn khi ghi sổ kiểm kê |
+| PGH | Phiếu giao hàng (xuất bán sỉ); trên Desk gọi là Phiếu xuất kho |
+| HDB | Hoá đơn bán |
+
+**Lưu ý**
+- Phiếu tạo trước 03/08/2026 còn mang mã cũ của ERPNext (MAT-STE, MAT-PRE...), vẫn dùng bình thường.
+- Xuất huỷ và xuất dùng cùng mã PXD; phân biệt bằng màn đã lập phiếu.
 
 ## Các câu chặn hay gặp khi ghi sổ phiếu kho
-Từ khoá: lỗi ghi sổ phiếu kho, thiếu hàng, không đủ hàng, tồn âm, vượt tồn, thiếu lô, tài khoản chi phí, tài khoản chênh lệch, không có quyền xuất kho, lỗi phiếu xuất
-Ai dùng: Mọi bộ phận
-Màn hình: các màn Xuất kho, Nhập kho, Kiểm kê
+Từ khoá: lỗi ghi sổ phiếu kho, thiếu hàng, không đủ hàng, tồn âm, vượt tồn, thiếu lô, tài khoản chi phí, không có quyền xuất kho, lỗi phiếu xuất
 
-Vì sao bị chặn:
-- "Số lượng xuất vượt quá tồn kho: mã (tồn ..., xuất ...)": tiệm không cho tồn âm. Sửa số, hoặc chuyển hàng về kho này trước, hoặc kiểm kê lại.
-- "Kho ... không đủ ... để trừ: còn thiếu ..." (tiêu đề Thiếu hàng trong kho): câu này nói luôn kho nào còn mã đó. Chuyển kho phần thiếu rồi bấm lại.
-- "Đang có phiếu kiểm kê mở trên những mặt hàng này": xem mục Vì sao bị chặn "Đang có phiếu kiểm kê mở".
-- "Vui lòng thêm Gói Số seri và Lô": mã vẫn bật lô dù tiệm đã tắt lô; báo anh Việt hoặc kế toán.
-- "Chưa có tài khoản chi phí nào để ghi giá trị hàng huỷ, nhờ kế toán khai thêm": báo kế toán.
-- "Tài khoản của bạn chưa được cấp quyền xuất kho": báo quản lý cấp quyền.
-- "Kho này không nằm trong các kho bạn phụ trách": báo anh Việt khai thêm Kho phụ trách.
-- "Phiếu đã ghi sổ thì phải huỷ đúng nghiệp vụ bên máy tính": liên hệ kế toán trưởng.
-- "Phiếu chưa có dòng hàng nào có số lượng lớn hơn 0": gõ số lượng cho ít nhất một dòng.
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Mọi bộ phận | Các màn Xuất kho, Nhập kho, Kiểm kê | Không có |
+
+Tiệm không cho tồn âm, nên mọi phiếu kho đều kiểm tồn trước khi ghi sổ.
+
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Số lượng xuất vượt quá tồn kho: mã (tồn ..., xuất ...) | Sửa số, chuyển hàng về kho này trước, hoặc kiểm kê lại |
+| Kho ... không đủ ... để trừ: còn thiếu ... | Câu báo nói kho nào còn mã đó, chuyển phần thiếu rồi bấm lại |
+| Đang có phiếu kiểm kê mở trên những mặt hàng này | Xem mục "Đang có phiếu kiểm kê mở" |
+| Vui lòng thêm Gói Số seri và Lô | Mã vẫn bật lô, báo anh Việt hoặc kế toán |
+| Chưa có tài khoản chi phí nào để ghi giá trị hàng huỷ, nhờ kế toán khai thêm | Báo kế toán |
+| Tài khoản của bạn chưa được cấp quyền xuất kho | Báo quản lý cấp quyền |
+| Kho này không nằm trong các kho bạn phụ trách | Báo anh Việt khai Kho phụ trách |
+| Phiếu đã ghi sổ thì phải huỷ đúng nghiệp vụ bên máy tính | Liên hệ kế toán trưởng |
+| Phiếu chưa có dòng hàng nào có số lượng lớn hơn 0 | Gõ số lượng cho ít nhất một dòng |

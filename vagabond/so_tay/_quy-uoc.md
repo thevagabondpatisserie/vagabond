@@ -1,55 +1,86 @@
 # Quy ước viết sổ tay cho trợ lý
 
 Tệp nào trong thư mục này bắt đầu bằng dấu gạch dưới (như tệp này) thì trợ lý
-KHÔNG nạp. Mọi tệp `.md` khác là một chương của sổ tay.
+và màn Sổ tay KHÔNG nạp. Mọi tệp `.md` khác là một chương.
 
-Anh Việt giao 02/10/2026: nhân viên hỏi trợ lý trong app thay vì nhắn anh.
-Trước bản này trợ lý chỉ có đoạn mô tả đầu tệp mã nguồn làm tư liệu. Đó là
-ghi chép của lập trình viên, kể vì sao làm, không kể bấm nút nào. Cả ba câu
-hỏi thật đầu tiên trong nhật ký (cấn trừ công nợ, tạo phiếu nhập kho, đặt lại
-mật khẩu) đều nhận câu "chưa có tài liệu".
+Anh Việt giao 02/10/2026: nhân viên hỏi trợ lý hoặc mở màn Sổ tay thay vì
+nhắn anh. Bản đầu nhiều chữ, nhìn đơn điệu. Từ vòng 3, mỗi mục viết theo
+khuôn dưới: ít chữ, có bảng, nút hiện như nút thật trên app.
 
-## Một mục là một việc
+## Khuôn một mục
 
-Mỗi mục mở bằng một dòng `## ` và là MỘT việc người ta muốn làm hoặc MỘT câu
-người ta hay hỏi. Tên mục viết như câu người dùng gõ: "Tạo phiếu nhập kho",
-"Vì sao không hoàn tất được lệnh sản xuất". Trợ lý chấm điểm tên mục nặng
-nhất, nên tên mục phải chứa đúng chữ người ta sẽ dùng.
+    ## Tạo phiếu nhập kho khi nhà cung cấp giao hàng
+    Từ khoá: nhập kho, phiếu nhập, nhận hàng, PNK, purchase receipt
 
-Ngay dưới tên mục là các dòng khai, mỗi dòng một khoá:
+    | Ai dùng | Màn hình | Nút chính |
+    |---|---|---|
+    | Thủ kho | Nhập kho (/nhap-kho) | [[Xác nhận nhập kho]] |
 
-    Từ khoá: các cách gọi khác, tên tiếng Anh, viết tắt, cách gọi đời thường
-    Ai dùng: bộ phận hoặc vai
-    Màn hình: tên màn (địa chỉ), hoặc "Desk: tên chứng từ" nếu làm trên Desk
+    Một câu nói việc này là gì, khi nào làm.
 
-Dòng `Từ khoá` là chỗ quan trọng nhất cho việc tìm. Người ta hỏi "cấn trừ",
-"bù trừ", "đối trừ", "clearing" cho cùng một việc. Thiếu chữ nào trong dòng
-này thì câu hỏi dùng chữ đó có thể không tìm ra mục.
+    **Các bước**
+    1. Mở màn Nhập kho, chọn thẻ [[Chờ nhận]].
+    2. Sửa ô Số lượng thực nhận cho từng món.
+    3. Bấm [[Xác nhận nhập kho]], rồi [[Nhập kho]] ở hộp xác nhận.
 
-Sau đó là thân mục, theo thứ tự nếu có:
+    **Vì sao bị chặn**
+    | Máy báo | Cách gỡ |
+    |---|---|
+    | Đang có phiếu kiểm kê mở | Ghi sổ hoặc huỷ phiếu kiểm kê trước |
 
-1. Một hai câu: việc này là gì, khi nào làm.
-2. `Các bước:` đánh số, mỗi bước một thao tác, ghi ĐÚNG tên nút, tên ô như trên
-   màn hình.
-3. `Vì sao bị chặn:` các câu báo lỗi hay gặp và cách gỡ.
-4. `Lưu ý:` điều dễ sai.
-5. `Hạch toán:` nếu chứng từ sinh bút toán, ghi Nợ/Có.
+    **Hạch toán**
+    | Nợ | Có | Khi nào |
+    |---|---|---|
+    | 152 | 3311 | Khi bấm Xác nhận nhập kho |
+
+    **Lưu ý**
+    - Xác nhận xong là phiếu khoá, muốn sửa phải báo kế toán.
+
+Bỏ khối nào không có nội dung. Không viết đoạn văn dài: mỗi bước một dòng,
+mỗi dòng một thao tác.
+
+## Ký hiệu đặc biệt
+
+| Viết | Hiện ra |
+|---|---|
+| `[[Tên nút]]` | Nút vẽ đúng kiểu nút của app, có mũi tên chỉ vào |
+| `[[desk:Tên nút]]` | Nút vẽ theo kiểu nút trên Desk (trang quản trị ERPNext) |
+| `(/dia-chi)` trong cột Màn hình | Đường dẫn bấm mở thẳng màn đó |
+
+Chữ trong `[[ ]]` phải ĐÚNG từng chữ như trên nút thật, kể cả hoa thường.
+Thẻ (tab) và mục chọn cũng dùng `[[ ]]`.
+
+## Thuật ngữ: 100% tiếng Việt như trên màn hình
+
+- Màn trong app: dùng đúng chữ trên nút, tiêu đề, ô nhập trong mã giao diện.
+- Màn trên Desk: dùng đúng bản dịch tiếng Việt site đang hiện (bảng dịch
+  tren_man_hinh), ví dụ Bill of Materials là "Công thức", Item Alternative
+  là "Mặt hàng thay thế", Journal Entry là "Bút toán", Allow Alternative Item
+  là "Cho phép mặt hàng thay thế".
+- Tiếng Anh chỉ được nằm ở dòng `Từ khoá` để người gõ tiếng Anh vẫn tìm ra.
+
+## Dòng Từ khoá
+
+Là chỗ quan trọng nhất cho việc tìm. Ghi mọi cách gọi khác: tiếng Việt đời
+thường, viết tắt, tên tiếng Anh. Thiếu chữ nào thì câu hỏi dùng chữ đó có thể
+không ra mục.
 
 ## Chỉ viết cái có thật
 
-- Tên nút, tên ô, câu báo lỗi lấy từ mã nguồn, không đặt theo trí nhớ.
-- Chỗ nào chưa chắc thì để chú thích HTML `<!-- kiểm: ... -->` ngay cạnh câu
-  chưa chắc. Bộ nạp đổi nó thành dấu `[CHƯA XÁC MINH: ...]` gửi kèm cho trợ
-  lý, và trợ lý phải nói với người hỏi rằng điểm đó chưa được xác minh. Kiểm
-  xong trên site thì XOÁ chú thích đó. Chú thích HTML khác bị bỏ khi nạp.
-- Không ghi tên hàm, tên tệp, tên trường máy. Người đọc là nhân viên.
+- Tên nút, ô, câu báo lỗi lấy từ mã nguồn hoặc bản dịch site, không đặt theo
+  trí nhớ.
+- Chỗ chưa chắc thì để chú thích HTML `<!-- kiểm: ... -->` ngay cạnh câu chưa
+  chắc. Bộ nạp đổi nó thành dấu `[CHƯA XÁC MINH: ...]` gửi kèm cho trợ lý, và
+  trợ lý phải nói với người hỏi rằng điểm đó chưa được xác minh. Kiểm xong thì
+  XOÁ chú thích đó. Chú thích HTML khác bị bỏ khi nạp.
+- Không ghi tên hàm, tên tệp, tên trường máy.
 - Câu thuộc về CHÍNH SÁCH (giá, giảm giá, thưởng phạt, có được làm không) thì
-  không trả lời, ghi "Việc này do anh Việt quyết".
+  ghi "Việc này do anh Việt quyết".
 - Không hướng dẫn sửa, huỷ chứng từ quá khứ đã ghi sổ hay hoá đơn điện tử đã
   phát hành. Ghi "liên hệ kế toán trưởng".
-- Không dùng dấu gạch dài, chỉ dùng dấu gạch ngang thường.
+- Không dùng dấu gạch dài, chỉ dùng dấu gạch ngang thường. Không dùng emoji.
 
 ## Độ dài
 
-Một mục dưới 1500 ký tự. Dài hơn thì tách thành hai việc. Trợ lý chỉ gửi kèm
-khoảng 9000 ký tự tư liệu mỗi câu hỏi.
+Phần chữ người soạn viết (không tính dấu chưa xác minh) dưới 1600 ký tự một
+mục. Dài hơn thì tách thành hai việc.
