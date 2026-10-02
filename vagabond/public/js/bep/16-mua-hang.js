@@ -843,7 +843,9 @@ async function scrNoPhaiTra() {
     var can = e.target.closest('[data-cntcan]');
     if (can) return cntCanTru(kq.dong[Number(can.getAttribute('data-cntcan'))]);
     var dy = e.target.closest('[data-cntduyet]');
-    if (dy) return cntDuyetTruocErp(dy.getAttribute('data-cntduyet'));
+    if (dy) return cntDuyetTruocErp(dy.getAttribute('data-cntduyet'), dy.getAttribute('data-cntco'));
+    var su = e.target.closest('[data-cntsua]');
+    if (su) { var jeSua = su.getAttribute('data-cntsua'); return go(function () { scrButToanXem(jeSua); }); }
     var bo = e.target.closest('[data-cntbo]');
     if (bo) return cntBoTruocErp(bo.getAttribute('data-cntbo'));
     var t = e.target.closest('[data-cntdong]');
@@ -945,7 +947,9 @@ function cntManCan(r,ds,pe) {
 /* v549: khoản đã trả TRƯỚC KHI LÊN ERP. Ghi Nợ 331 đúng hóa đơn / Có tài
    khoản tạm chờ xử lý đầu kỳ (anh Việt chốt 01/10/2026), không đụng ngân
    hàng vì tiền đã ra trước khi lên ERP. Thu mua lập kèm UNC, kế toán duyệt
-   mới ghi sổ; kế toán tự lập thì ghi sổ luôn. */
+   mới ghi sổ; kế toán tự lập thì ghi sổ luôn.
+   v552 (chị Dung 02/10/2026): vế Có mặc định 11211 tiền gửi MB Bank, kế toán
+   sửa được trước khi duyệt (nút Sửa định khoản mở màn Bút toán). */
 function cntCoQuyenLapTruocErp() {
   return ['Purchase User','Purchase Manager','Accounts User','Accounts Manager','AP Kiểm soát (FIN)','System Manager']
     .some(function (v) { return hasRole(v); });
@@ -980,12 +984,14 @@ function cntDongCho(r, keToan) {
       '<div style="font-size:12.5px;color:#5a6070;margin:4px 0"><div style="' + mot + '">' + dong1 + '</div><div style="' + mot + '">' +
       (uncs.length ? link(uncs[0], 0) + (uncs.length > 1 ? ' và ' + (uncs.length - 1) + ' UNC khác' : '') : '<b>Chưa có UNC</b>') +
       (c.dien_giai ? ' · ' + h(c.dien_giai) : '') + '</div></div>' +
-      (keToan ? '<button class="btn" data-cntduyet="' + h(c.je) + '">Duyệt ghi sổ</button>' : '') +
+      (c.tk_co ? '<div style="font-size:12.5px;color:#5a6070;margin:0 0 4px;' + ngat + '">Nợ 331 / Có <b>' + h(c.tk_co) + '</b></div>' : '') +
+      (keToan ? '<button class="btn" data-cntduyet="' + h(c.je) + '" data-cntco="' + h(c.tk_co || '') + '">Duyệt ghi sổ</button>' +
+        '<button class="btn gh" data-cntsua="' + h(c.je) + '">✏️ Sửa định khoản</button>' : '') +
       '<button class="btn gh" data-cntbo="' + h(c.je) + '">' + (keToan ? 'Từ chối' : 'Rút lại') + '</button>' + chiTiet + '</div>';
   }).join('');
 }
-async function cntDuyetTruocErp(je) {
-  if (!await confirmSheet('Duyệt ghi sổ', 'Ghi Nợ 331 hóa đơn / Có tài khoản tạm chờ xử lý đầu kỳ.\nKhông chuyển tiền, không đụng số dư ngân hàng.', 'Duyệt ghi sổ')) return;
+async function cntDuyetTruocErp(je, tkCo) {
+  if (!await confirmSheet('Duyệt ghi sổ', 'Ghi Nợ 331 hóa đơn / Có ' + (tkCo || 'tài khoản trên bút toán') + '.\nMuốn đổi vế Có thì bấm Sửa định khoản trước.', 'Duyệt ghi sổ')) return;
   busy(true);
   try { await api('vagabond.cong_no_ncc.duyet_truoc_erp', {je: je}); toast('Đã ghi sổ ' + je + '. Dư hóa đơn đã giảm.', 4000); }
   catch (e) { busy(false); return baoTin(e.message || 'Chưa duyệt được. Tải lại rồi thử.'); }
@@ -1021,7 +1027,7 @@ async function scrCntTruocErp(hoaDon) {
   tdkNap(id, cntTe.tep || []);
   var html = '<div class="card" style="padding:12px"><b>HĐ ' + h(tt.bill_no || tt.hoa_don) + '</b><div>' + h(tt.ten_ncc) + '</div>' +
     '<div>Còn nợ ' + money(tt.con_no) + ' đ' + (tt.dang_cho ? ' · đang chờ duyệt ' + money(tt.dang_cho) + ' đ' : '') + '</div>' +
-    '<div style="font-size:12.5px;color:#6b7280;margin-top:6px">Dùng cho khoản đã trả nhà cung cấp TRƯỚC khi lên ERP. Máy ghi Nợ 331 hóa đơn này / Có tài khoản tạm chờ xử lý đầu kỳ (' + h(tt.tk_tam) + '). Không chuyển tiền, không trừ ngân hàng.</div></div>' +
+    '<div style="font-size:12.5px;color:#6b7280;margin-top:6px">Dùng cho khoản đã trả nhà cung cấp TRƯỚC khi lên ERP. Máy ghi Nợ 331 hóa đơn này / Có ' + h(tt.tk_co || tt.tk_tam) + '. Không chuyển tiền; kế toán sửa được vế Có trước khi ghi sổ.</div></div>' +
     '<div class="card" style="padding:12px"><label for="cntTeTien">Số tiền đã trả</label><input class="tin" style="width:100%;font-size:20px" id="cntTeTien" type="number" inputmode="decimal" min="1" value="' + conCan + '">' +
     '<label for="cntTeNgay" style="display:block;margin-top:10px">Ngày đã trả</label><input class="tin" style="width:100%" id="cntTeNgay" type="date">' +
     '<label for="cntTeGhiChu" style="display:block;margin-top:10px">Ghi chú (tài khoản đã trả, số UNC...)</label><input class="tin" style="width:100%" id="cntTeGhiChu">' +
@@ -1037,7 +1043,7 @@ async function scrCntTruocErp(hoaDon) {
     if (!ngay) return baoTin('Chọn ngày đã trả cho nhà cung cấp.');
     if (!urls.length && !tt.ke_toan) return baoTin('Đính UNC hoặc phiếu chi để kế toán duyệt.');
     if (!await confirmSheet(tt.ke_toan ? 'Ghi sổ cấn trừ' : 'Gửi kế toán duyệt',
-      money(tien) + ' đ cho HĐ ' + (tt.bill_no || tt.hoa_don) + ', đã trả ngày ' + ngay + '.\nNợ 331 / Có tài khoản tạm chờ xử lý đầu kỳ. Không chuyển tiền.',
+      money(tien) + ' đ cho HĐ ' + (tt.bill_no || tt.hoa_don) + ', đã trả ngày ' + ngay + '.\nNợ 331 / Có ' + (tt.tk_co || tt.tk_tam) + '. Không chuyển tiền.',
       tt.ke_toan ? 'Ghi sổ' : 'Gửi')) return;
     dang = true; busy(true);
     try {

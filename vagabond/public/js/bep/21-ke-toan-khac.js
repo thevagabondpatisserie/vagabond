@@ -494,6 +494,24 @@ async function btGui(ghi) {
 }
 
 
+async function btDoiTk(ma, maDong) {
+  var tu = await hoiChu('Đổi tài khoản', 'Gõ số hiệu hoặc tên tài khoản muốn dùng.', '', { goi_y: '11211 hoặc MB Bank' });
+  if (tu === null) return;
+  var d;
+  try { d = await api('vagabond.but_toan.tim_tai_khoan', { tu_khoa: tu || '' }); }
+  catch (e) { return baoTin((e && e.message) || 'Tìm lỗi'); }
+  var rows = (d.rows || []).filter(function (x) { return !x.can_ben; });
+  if (!rows.length) return baoTin('Không thấy tài khoản nào khớp "' + tu + '".');
+  var tk = await hoiChon('Chọn tài khoản', 'Chỉ hiện tài khoản chi tiết, không hiện tài khoản nhóm và tài khoản công nợ.',
+    rows.slice(0, 30).map(function (x) { return { k: x.ma, nhan: x.ten, mo_ta: x.kieu || x.loai, icon: '🏷' }; }), null);
+  if (!tk) return;
+  busy(true);
+  try { var kq = await api('vagabond.but_toan.doi_tai_khoan', { ma: ma, ma_dong: maDong, tk: tk }); busy(false); toast(kq.loi_nhan, 4000); }
+  catch (er) { busy(false); return baoTin((er && er.message) || 'Đổi tài khoản lỗi'); }
+  go(function () { scrButToanXem(ma); }, true);
+}
+
+
 async function scrButToanXem(ma) {
   frame('Bút toán', '<div class="emp"><div class="e1">⏳</div><div>Đang mở...</div></div>');
   var d;
@@ -511,7 +529,8 @@ async function scrButToanXem(ma) {
     html += '<div style="display:flex;align-items:center;gap:9px;padding:10px 0;border-bottom:1px solid #f1f3f6">' +
       '<span class="vxtag ' + (no ? 'c' : 'd') + '" style="flex:0 0 auto">' + (no ? 'Nợ' : 'Có') + '</span>' +
       '<div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + h(x.ten_tk || x.tk) + '</div>' +
-      (x.ben ? '<div style="font-size:11.5px;color:#98a2b3">' + h(x.ben) + '</div>' : '') + '</div>' +
+      (x.ben ? '<div style="font-size:11.5px;color:#98a2b3">' + h(x.ben) + '</div>' : '') +
+      (x.doi_duoc ? '<button class="btn gh" data-btdoi="' + h(x.ma_dong) + '" style="margin:6px 0 0;padding:6px 10px;width:auto;font-size:12.5px">✏️ Đổi tài khoản</button>' : '') + '</div>' +
       '<b style="white-space:nowrap">' + money(no ? x.no : x.co) + ' đ</b></div>';
   });
   html += '<div style="display:flex;justify-content:space-between;padding:12px 0 2px;font-weight:800">' +
@@ -521,6 +540,12 @@ async function scrButToanXem(ma) {
   if (!d.nhap && d.trang_thai === 'Đã ghi sổ' && d.ghi_duoc) html += '<button class="btn dg" id="btHuy">🚫 Huỷ bút toán</button>';
 
   frame('Bút toán', html, { back: function () { go(scrButToan); } });
+  /* v552 (chị Dung 02/10/2026): đổi tài khoản một dòng của bút toán nháp,
+     ví dụ vế Có tài khoản tạm thành 11211 tiền gửi MB Bank. Dòng công nợ gắn
+     NCC hay hoá đơn không có nút này (máy chủ cũng chặn). */
+  Array.prototype.forEach.call(document.querySelectorAll('[data-btdoi]'), function (el) {
+    el.onclick = function () { btDoiTk(d.ma, el.getAttribute('data-btdoi')); };
+  });
   var g = document.getElementById('btGhi');
   if (g) g.onclick = async function () {
     if (!await hoiCo('Ghi sổ', 'Ghi sổ bút toán ' + d.ma + '? Ghi rồi thì chỉ huỷ được chứ không sửa.', 'Ghi sổ')) return;
