@@ -616,7 +616,12 @@ doc_events = {
 		# Chi nghe HOA DON luc ghi so, va chi nhan dong co don vi sach. Doc
 		# dau tep bang_gia_nhap.py de biet vi sao khong bat thang o cua
 		# ERPNext.
-		"on_submit": "vagabond.bang_gia_nhap.cap_nhat_tu_hoa_don",
+		"on_submit": [
+			"vagabond.bang_gia_nhap.cap_nhat_tu_hoa_don",
+			# v551: tờ nối làm hoá đơn đến sau của hồ sơ đã chi trả trước NCC
+			# thì máy tự phân bổ phiếu chi trả trước vào tờ ngay lúc ghi sổ.
+			"vagabond.tra_truoc_ncc.khi_ghi_so_hd",
+		],
 	},
 	# De nghi chi noi bo: dien ho tai khoan hach toan va tai khoan nhan tien,
 	# chan thang phan loai tai san co dinh. Luat nam o de_nghi_chi.py.

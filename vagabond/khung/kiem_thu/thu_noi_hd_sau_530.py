@@ -638,9 +638,9 @@ def _cong():
 def _sua_moi_o():
 	from vagabond.hoa_don_sau import loi_sua_hd_sau, TRUONG_HD_SAU
 	goc = dict(hoa_don="HDM-1", so_hd_ncc="5802", ncc="ADECCO", tong_hd=686810159, tien_khop=686810159,
-		da_ghi_so=1, bu_tru=686810159, but_toan="PKT-1", ngoai_ncc=0, noi_boi="dung@vgb", noi_luc="2026-09-25 22:00:00")
+		da_ghi_so=1, bu_tru=686810159, but_toan="PKT-1", phieu_chi="", ngoai_ncc=0, noi_boi="dung@vgb", noi_luc="2026-09-25 22:00:00")
 	doi = {"so_hd_ncc": "9999", "ncc": "KHAC", "tong_hd": 1, "tien_khop": 1, "da_ghi_so": 0, "bu_tru": 1,
-		"but_toan": "PKT-2", "ngoai_ncc": 1, "noi_boi": "ai@vgb", "noi_luc": "2026-01-01 00:00:00", "hoa_don": "HDM-2"}
+		"but_toan": "PKT-2", "phieu_chi": "ACC-PAY-1", "ngoai_ncc": 1, "noi_boi": "ai@vgb", "noi_luc": "2026-01-01 00:00:00", "hoa_don": "HDM-2"}
 	la("đủ mọi ô", sorted(doi), sorted(TRUONG_HD_SAU))
 	lot = [k for k, v in doi.items() if not loi_sua_hd_sau([goc], [dict(goc, **{k: v})])]
 	la("không ô nào sửa tay lọt", lot, [])
