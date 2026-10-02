@@ -115,6 +115,11 @@ def doan_dau_tep(nguon_py, dai=DAI_DOAN):
 	return ""
 
 
+DAU_CHUA_XAC_MINH = "CHƯA XÁC MINH"
+DONG_DAN_CHUA_XAC_MINH = ("Lưu ý cho trợ lý: mục này có điểm đánh dấu [CHƯA XÁC MINH]. "
+	"Phần đó không được hướng dẫn như điều chắc chắn.")
+
+
 def doc_chuong(nguon_md):
 	"""Tách một chương sổ tay viết tay thành các mục. THUẦN.
 
@@ -126,9 +131,25 @@ def doc_chuong(nguon_md):
 
 	Mỗi mục mở bằng `## `. Dòng `Từ khoá:` đi vào ô mô tả (chấm điểm nặng
 	hơn thân mục) vì đó là chỗ khai các cách gọi khác của cùng một việc.
-	Chú thích HTML là ghi chú cho người rà soát, KHÔNG gửi cho mô hình.
+	Chú thích HTML thường là ghi chú cho người rà soát, không gửi mô hình.
+
+	RIÊNG chú thích `<!-- kiểm: ... -->` (điểm người soạn CHƯA XÁC MINH)
+	thì KHÔNG được xoá im lặng. Review #412 F1: bản đầu xoá hết, nên mô hình
+	nhận câu khẳng định mà không biết đó là điều chưa ai thử, và luật "chỉ
+	dựa vào tư liệu" trong `tro_ly.py` lại bảo nó tin tư liệu. Hướng dẫn sai
+	về tiền, kho, quyền hay phiên đăng nhập mà nói giọng chắc chắn thì tệ
+	hơn không nói. Nên chú thích đó đổi thành dấu `[CHƯA XÁC MINH: ...]`
+	nằm đúng chỗ trong thân mục, mục được gắn cờ `chua_xac_minh`, và đầu
+	thân mục có một dòng dặn mô hình. `tro_ly.py` có luật đi kèm.
 	"""
-	s = re.sub(r"<!--.*?-->", "", str(nguon_md or ""), flags=re.S)
+	def _doi(m):
+		than_cmt = m.group(1).strip()
+		if bo_dau(than_cmt).startswith("kiem"):
+			y = than_cmt.split(":", 1)[1].strip() if ":" in than_cmt else than_cmt
+			return "[%s: %s]" % (DAU_CHUA_XAC_MINH, y)
+		return ""
+
+	s = re.sub(r"<!--(.*?)-->", _doi, str(nguon_md or ""), flags=re.S)
 	chuong = ""
 	m = re.search(r"^# +(.+)$", s, re.M)
 	if m:
@@ -146,12 +167,23 @@ def doc_chuong(nguon_md):
 				continue
 			than.append(d)
 		than = re.sub(r"\n{3,}", "\n\n", "\n".join(than)).strip()
+		chua = ("[" + DAU_CHUA_XAC_MINH + ":") in than
+		dau = ("Chương: %s\n" % chuong) if chuong else ""
+		if chua:
+			dau += DONG_DAN_CHUA_XAC_MINH + "\n"
+		# Dia chi man lay tu dong "Man hinh: Ten (/dia-chi)" (review #412,
+		# bo sung 1). Lay dia chi DAU TIEN co dang /chu-thuong.
+		duong = ""
+		md = re.search(r"^M\u00e0n h\u00ecnh:.*?\((/[a-z0-9-]+)", than, re.M)
+		if md:
+			duong = md.group(1)
 		ra.append({
 			"loai": "so_tay",
 			"ten": ten,
-			"duong": "",
+			"duong": duong,
 			"mo_ta": ("Từ khoá: " + tu) if tu else "",
-			"chi_tiet": (("Chương: %s\n" % chuong) if chuong else "") + than,
+			"chi_tiet": dau + than,
+			"chua_xac_minh": 1 if chua else 0,
 		})
 	return ra
 
@@ -197,6 +229,9 @@ def diem_khop(tu_hoi, muc):
 # trong `tro_ly.py` va nhiet do 0. Nguong nay khong phai lop duy nhat, no
 # chi khong duoc phep vo dung nhu truoc.
 TI_LE_PHU = 0.75
+
+# Muc phu phai dat it nhat ty le nay cua diem muc dau. Xem chon_muc.
+TI_LE_DIEM_PHU = 0.4
 
 
 def phu_tu_khoa(tu_hoi, muc):
@@ -250,7 +285,19 @@ def chon_muc(cau_hoi, so_tay, so_muc=6, ti_le=TI_LE_PHU):
 		-x[1], str(x[2].get("ten") or "")))
 	if not du_lien_quan(tu, cham[0][2], ti_le):
 		return []
-	return [m for _p, _d, m in cham[: max(1, int(so_muc or 6))]]
+	# Review #412 bo sung 2: muc PHU chi giu khi diem du gan muc dau. Do
+	# phu thi gan nhu muc dai nao cung du (than muc dai chua du chu), nen hoi
+	# "dat lai mat khau" van keo theo "Lam bao gia" (diem 0,16 muc dau) vao
+	# tu lieu: ton token va tron huong dan. Do tren 6 cau that 02/10/2026:
+	# muc phu dung viec deu tu 0,41 tro len, muc lac de deu duoi 0,33.
+	d0 = cham[0][1] or 1
+	ra = [cham[0][2]]
+	for _p, d, m in cham[1:]:
+		if len(ra) >= max(1, int(so_muc or 6)):
+			break
+		if d >= d0 * TI_LE_DIEM_PHU:
+			ra.append(m)
+	return ra
 
 
 def gon_tu_lieu(cac_muc, tran=9000):
