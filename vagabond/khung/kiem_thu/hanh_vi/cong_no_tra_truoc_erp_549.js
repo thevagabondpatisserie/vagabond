@@ -25,7 +25,7 @@ async function moi(vai,{pe=[],cho=[],keToan=false,loiLap=false}={}){
   sheet:(t,ds,chon,cb)=>{g.choices=ds;g.pick=cb;},
   api:async(m,a)=>{calls.push({m,a});
    if(m.endsWith('khoan_da_tra'))return {ncc:'NCC',con_no:212090400,rows:pe};
-   if(m.endsWith('xem_truoc_erp'))return {hoa_don:row.name,con_no:212090400,dang_cho:0,cho_duyet:[],ke_toan:keToan,tk_tam:'Temporary Opening - TV'};
+   if(m.endsWith('xem_truoc_erp'))return {hoa_don:row.name,con_no:212090400,dang_cho:0,cho_duyet:[],ke_toan:keToan,tk_tam:'Temporary Opening - TV',tk_co:'11211 - Tiền gửi MB Bank 31561568'};
    if(m.endsWith('lap_truoc_erp')){if(loiLap)throw new Error('Mất mạng');return {je:'PKT-1',da_ghi_so:keToan};}
    if(m.endsWith('duyet_truoc_erp')||m.endsWith('bo_truoc_erp'))return {ok:1};
    return {cong_ty:'CTY',cac_cong_ty:['CTY'],cac_nhom:['Hàng'],ngay_doc:'2026-10-01',so_hd:1,so_ncc:1,tong_theo_tien:{VND:212090400},dem:{tat_ca:1,con_no:1,qua_han:1},con_nua:false,dong:[row],ke_toan:keToan};}
@@ -48,6 +48,9 @@ async function moi(vai,{pe=[],cho=[],keToan=false,loiLap=false}={}){
  assert.equal(u.goi('xem_truoc_erp').length,1,'thu mua mở được màn khai, không rơi về hướng dẫn');
  assert.equal(u.tin.length,0,'không hiện hộp hướng dẫn');
  assert(u.document.getElementById('cntTeGui').textContent.includes('Gửi kế toán duyệt'));
+ // v552: màn khai nói đúng vế Có mặc định MB Bank, không còn chữ tài khoản tạm.
+ assert(u.root.innerHTML.includes('Có 11211 - Tiền gửi MB Bank 31561568.'),'màn khai nói vế Có MB Bank');
+ assert(!/tài khoản tạm/.test(u.root.innerHTML),'không còn chữ tài khoản tạm trên màn khai');
  u.document.getElementById('cntTeNgay').value='2026-04-10';
  await u.click('#cntTeGui');
  assert.equal(u.goi('lap_truoc_erp').length,0,'thiếu UNC thì chưa gửi');
@@ -60,7 +63,9 @@ async function moi(vai,{pe=[],cho=[],keToan=false,loiLap=false}={}){
  assert.equal(lap[0].a.hoa_don,'ACC-PINV-2026-01226');assert.equal(lap[0].a.so_tien,212090400);
  assert.equal(lap[0].a.ngay_tra,'2026-04-10');assert.deepEqual(JSON.parse(lap[0].a.unc),['/private/files/unc-printeco.pdf']);
  assert(/^TE-/.test(lap[0].a.ma_lan),'có mã lần chống gửi hai lần');
- assert(/Có tài khoản tạm/.test(u.xacNhan.at(-1)),'hộp xác nhận nói rõ bút toán, không chuyển tiền');
+ // v552 (chị Dung 02/10/2026): vế Có mặc định 11211 MB Bank thay tài khoản tạm.
+ assert(/Có 11211 - Tiền gửi MB Bank/.test(u.xacNhan.at(-1)),'hộp xác nhận nói rõ vế Có MB Bank, không chuyển tiền');
+ assert(/Không chuyển tiền/.test(u.xacNhan.at(-1)));
 
  // Ca 2 (đúng ca anh Việt): kế toán, hóa đơn KHÔNG có phiếu chi trên ERP.
  // v548 rơi về hướng dẫn; nay mở thẳng màn khai và ghi sổ luôn, không bắt UNC.
@@ -109,6 +114,18 @@ async function moi(vai,{pe=[],cho=[],keToan=false,loiLap=false}={}){
  const c0=await moi(['Accounts User'],{cho:[{je:'PKT-8',so_tien:1000,unc:[]}],keToan:true});
  assert(c0.root.innerHTML.includes('Chưa có UNC'),'không có UNC thì nói rõ');
  await c.click('[data-cntduyet="PKT-9"]');assert.equal(c.goi('duyet_truoc_erp')[0].a.je,'PKT-9');
+
+ // v552: thẻ chờ duyệt cho kế toán thấy vế Có hiện tại và có nút Sửa định
+ // khoản mở màn Bút toán của đúng bút toán đó; hộp duyệt nói đúng vế Có.
+ const s5=await moi(['Accounts Manager'],{cho:[{je:'PKT-2026-00067',so_tien:37584000,unc:[],tk_co:'Temporary Opening'}],keToan:true});
+ assert(s5.root.innerHTML.includes('Nợ 331 / Có <b>Temporary Opening</b>'),'thấy vế Có đang là tài khoản tạm');
+ const moXem=[];s5.g.scrButToanXem=function(je){moXem.push(je);};
+ await s5.click('[data-cntsua="PKT-2026-00067"]');
+ assert.deepEqual(moXem,['PKT-2026-00067'],'Sửa định khoản mở màn Bút toán đúng bút toán');
+ await s5.click('[data-cntduyet="PKT-2026-00067"]');
+ assert(/Có Temporary Opening/.test(s5.xacNhan.at(-1)),'hộp duyệt nói đúng vế Có hiện tại');
+ const s6=await moi(['Purchase User'],{cho:[{je:'PKT-2026-00067',so_tien:1,tk_co:'Temporary Opening'}]});
+ assert(!s6.root.querySelector('[data-cntsua]'),'thu mua không có nút sửa định khoản');
  const t=await moi(['Purchase User'],{cho:[{je:'PKT-9',so_tien:1000}]});
  assert(!t.root.querySelector('[data-cntduyet]'),'thu mua không duyệt được');
  assert(t.root.querySelector('[data-cntbo="PKT-9"]'));
@@ -116,5 +133,5 @@ async function moi(vai,{pe=[],cho=[],keToan=false,loiLap=false}={}){
  // Ca 6: không có vai nào thì chỉ có hướng dẫn, không gọi API ghi.
  const n=await moi([]);await n.click('[data-cntcan]');
  assert.equal(n.tin.length,1);assert.equal(n.goi('xem_truoc_erp').length,0);
- console.log('PASS 549: cấn hóa đơn trả trước ERP, thu mua gửi nháp, kế toán ghi sổ, chống gửi hai lần');
+ console.log('PASS 549+552: cấn hóa đơn trả trước ERP, thu mua gửi nháp, kế toán sửa vế Có rồi ghi sổ, chống gửi hai lần');
 })().catch(e=>{console.error(e);process.exit(1);});
