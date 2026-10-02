@@ -397,6 +397,9 @@ doc_events = {
 		"before_validate": [
 			"vagabond.tai_khoan_chi_phi.kiem",
 			"vagabond.lo_het_han.mo_chot",
+			# v552: mã KHÔNG theo lô thiếu thì lấy mã thay thế đã khai, trước
+			# gan_lo (gan_lo chỉ xét dòng theo lô). Đọc lo_hang.thay_ma_khong_lo.
+			"vagabond.lo_hang.thay_ma_khong_lo",
 			"vagabond.lo_hang.gan_lo",
 			"vagabond.kho_san_xuat.gan_kho_thanh_pham",
 		],
