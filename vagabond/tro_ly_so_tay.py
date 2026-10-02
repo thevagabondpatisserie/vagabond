@@ -215,6 +215,46 @@ def chuong_cho_man(nguon_md, ma=""):
 	return {"ma": ma, "ten": ten, "muc": muc}
 
 
+def duoc_xem_so_tay(nguoi, loai_tk, vai, la_noi_bo):
+	"""Người này có được mở màn Sổ tay không. THUẦN.
+
+	Codex #412 F3: bản đầu chỉ chặn Guest, nên tài khoản khách hàng hay nhà
+	cung cấp đăng nhập cổng web vẫn đọc đủ sáu chương. Sổ tay cho MỌI NHÂN
+	VIÊN, không phải mọi tài khoản đăng nhập. `la_noi_bo` là phép phân biệt
+	người của tiệm đang dùng ở màn Quản lý người dùng
+	(`nguoi_dung.trong_pham_vi_quan_ly`): tài khoản nội bộ luôn qua, tài
+	khoản web chỉ qua khi giữ vai trong gói chức vụ, nên bạn bếp Lab dạng
+	Website User vẫn vào được, còn khách và nhà cung cấp thì không.
+	"""
+	if str(nguoi or "") in ("", "Guest"):
+		return False
+	return bool(la_noi_bo(loai_tk, vai))
+
+
+def dong_goi_tu_lieu(cac_muc, tran=9000):
+	"""Như `gon_tu_lieu` nhưng trả thêm các mục THẬT SỰ được đóng gói. THUẦN.
+
+	Codex #412: câu cấn trừ chọn 6 mục nhưng trần 9000 ký tự chỉ chứa 5, mà
+	nhật ký vẫn ghi đủ 6 nguồn. Nguồn ghi vào nhật ký phải là mục mô hình
+	đã đọc, không phải mục đã chọn.
+	"""
+	phan, dai, da = [], 0, []
+	for m in cac_muc or []:
+		khoi = "## %s\n" % (m.get("ten") or "")
+		if m.get("duong"):
+			khoi += "Địa chỉ mở màn: %s\n" % m["duong"]
+		if m.get("mo_ta"):
+			khoi += "%s\n" % m["mo_ta"]
+		if m.get("chi_tiet"):
+			khoi += "%s\n" % m["chi_tiet"]
+		if dai + len(khoi) > tran:
+			break
+		phan.append(khoi)
+		da.append(m)
+		dai += len(khoi)
+	return "\n".join(phan).strip(), da
+
+
 def diem_khop(tu_hoi, muc):
 	"""Mục này khớp câu hỏi tới đâu. THUẦN.
 
@@ -331,22 +371,10 @@ def gon_tu_lieu(cac_muc, tran=9000):
 	"""Ghép các mục đã chọn thành tư liệu gửi kèm câu hỏi. THUẦN.
 
 	Có trần ký tự: một câu hỏi kéo theo cả mã nguồn là vừa chậm vừa tốn
-	tiền, mà mô hình cũng đọc kém đi khi tư liệu quá dài.
+	tiền, mà mô hình cũng đọc kém đi khi tư liệu quá dài. Phần ghép nằm ở
+	`dong_goi_tu_lieu`, hàm này giữ cho nơi gọi cũ.
 	"""
-	phan, dai = [], 0
-	for m in cac_muc or []:
-		khoi = "## %s\n" % (m.get("ten") or "")
-		if m.get("duong"):
-			khoi += "Địa chỉ mở màn: %s\n" % m["duong"]
-		if m.get("mo_ta"):
-			khoi += "%s\n" % m["mo_ta"]
-		if m.get("chi_tiet"):
-			khoi += "%s\n" % m["chi_tiet"]
-		if dai + len(khoi) > tran:
-			break
-		phan.append(khoi)
-		dai += len(khoi)
-	return "\n".join(phan).strip()
+	return dong_goi_tu_lieu(cac_muc, tran)[0]
 
 
 # ------------------------------------------------------- phan can Frappe
@@ -441,12 +469,17 @@ def so_tay(dung_lai=0):
 def doc_so_tay():
 	"""Toàn bộ sổ tay viết tay cho màn Sổ tay (v554). CHỈ ĐỌC.
 
-	Ai đăng nhập cũng xem được, kể cả tài khoản bếp Lab dạng Website User:
-	sổ tay chỉ có cách dùng app, không có số liệu của tiệm. Khác trợ lý
-	(chỉ cấp quản lý) vì trợ lý tốn tiền gọi mô hình, sổ tay thì không.
+	Mọi NHÂN VIÊN xem được, kể cả tài khoản bếp Lab dạng Website User;
+	khách hàng và nhà cung cấp thì không (Codex #412 F3, xem
+	`duoc_xem_so_tay`). Khác trợ lý (chỉ cấp quản lý) vì trợ lý tốn tiền gọi
+	mô hình, sổ tay thì không.
 	"""
-	if frappe.session.user in (None, "", "Guest"):
-		frappe.throw("Vui lòng đăng nhập để xem sổ tay.", frappe.PermissionError)
+	from vagabond.nguoi_dung import trong_pham_vi_quan_ly
+
+	nguoi = frappe.session.user
+	loai = frappe.db.get_value("User", nguoi, "user_type") if nguoi not in (None, "", "Guest") else ""
+	if not duoc_xem_so_tay(nguoi, loai, frappe.get_roles(nguoi), trong_pham_vi_quan_ly):
+		frappe.throw("Sổ tay chỉ mở cho nhân viên của tiệm.", frappe.PermissionError)
 	thu_muc = os.path.join(_goc(), "so_tay")
 	ra = []
 	if os.path.isdir(thu_muc):

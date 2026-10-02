@@ -245,7 +245,10 @@ def hoi(cau_hoi=None, man=None):
 		ma = _ghi_nhat_ky(cau_hoi, KHONG_BIET, man, [], "")
 		return {"tra_loi": KHONG_BIET, "nhat_ky": ma, "nguon": []}
 
-	tu_lieu = tro_ly_so_tay.gon_tu_lieu(cac_muc)
+	# Nguon ghi nhat ky la muc THAT SU dong goi gui mo hinh, khong phai muc
+	# da chon (Codex #412: tran 9000 ky tu co the cat bot muc cuoi).
+	tu_lieu, da_goi = tro_ly_so_tay.dong_goi_tu_lieu(cac_muc)
+	nguon = [str(m.get("ten") or "") for m in da_goi]
 	tra_loi, mo_hinh = _goi_mo_hinh(c, cau_hoi, tu_lieu, man)
 	ma = _ghi_nhat_ky(cau_hoi, tra_loi, man, nguon, mo_hinh)
 	return {"tra_loi": tra_loi, "nhat_ky": ma, "nguon": nguon}
