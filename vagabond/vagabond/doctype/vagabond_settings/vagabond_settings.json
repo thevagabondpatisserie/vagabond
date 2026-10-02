@@ -144,7 +144,14 @@
   "meta_capi_token",
   "cb_meta_pixel",
   "meta_test_event_code",
-  "meta_graph_phien_ban"
+  "meta_graph_phien_ban",
+  "sec_zalo_bot",
+  "zalo_bot_bat",
+  "zalo_bot_token",
+  "zalo_bi_mat",
+  "cb_zalo_bot",
+  "zalo_chat_moi",
+  "zalo_nhom"
  ],
  "fields": [
   {
@@ -926,11 +933,52 @@
    "fieldtype": "Data",
    "label": "Phiên bản Graph API",
    "description": "Để trống dùng mặc định của máy."
+  },
+  {
+   "fieldname": "sec_zalo_bot",
+   "fieldtype": "Section Break",
+   "label": "Bắn tin vào nhóm Zalo (#410)",
+   "collapsible": 1,
+   "description": "Tạo bot ở bot.zaloplatforms.com, dán token vào đây, bấm nút Nối Zalo Bot ở góc trên. Thêm bot vào từng nhóm Zalo rồi @nhắc bot một lần, mã nhóm hiện ở ô Chat vừa nhắn bot; chép mã đó vào bảng Nhóm nhận tin."
+  },
+  {
+   "fieldname": "zalo_bot_bat",
+   "fieldtype": "Check",
+   "label": "Bật bắn tin Zalo"
+  },
+  {
+   "fieldname": "zalo_bot_token",
+   "fieldtype": "Password",
+   "label": "Token Zalo Bot"
+  },
+  {
+   "fieldname": "zalo_bi_mat",
+   "fieldtype": "Password",
+   "label": "Khoá bí mật đường nhận (máy tự sinh)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb_zalo_bot",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "zalo_chat_moi",
+   "fieldtype": "Code",
+   "label": "Chat vừa nhắn bot",
+   "read_only": 1,
+   "options": "JSON",
+   "description": "20 cuộc chat gần nhất đã nhắn hoặc @nhắc bot: mã chat, tên nhóm hoặc người, lúc nhắn. Không lưu nội dung tin nhắn."
+  },
+  {
+   "fieldname": "zalo_nhom",
+   "fieldtype": "Table",
+   "label": "Nhóm nhận tin",
+   "options": "Vagabond Kenh Zalo"
   }
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-09-14 12:00:00.000000",
+ "modified": "2026-10-02 18:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Settings",
