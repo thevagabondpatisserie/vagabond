@@ -12,6 +12,7 @@ Toàn phép thuần, không Frappe, không requests.
 
 import io
 import os
+import re
 
 from vagabond.khung.kiem_thu.nen import ca, dung, la
 from vagabond.khung.kiem_thu.thu_tro_ly import GOI, T
@@ -52,7 +53,7 @@ def _tach():
 	la("hai muc", [x["ten"] for x in m], ["Tạo phiếu nhập kho", "Kiểm kê"])
 	la("loai", m[0]["loai"], "so_tay")
 	la("tu khoa", m[0]["mo_ta"], "Từ khoá: nhận hàng, PNK")
-	dung("chu thich khong gui mo hinh", "kiểm:" not in m[0]["chi_tiet"])
+	dung("chu thich khong con dang HTML", "<!--" not in m[0]["chi_tiet"])
 	dung("dong tu khoa khong lap trong than", "Từ khoá" not in m[0]["chi_tiet"])
 	dung("ghi chuong", m[0]["chi_tiet"].startswith("Chương: Kho"))
 	dung("giu cac buoc", "1. Bấm Nhập kho" in m[0]["chi_tiet"])
@@ -66,10 +67,14 @@ def _quy_uoc():
 		for m in T["doc_chuong"](_doc(os.path.join(THU_MUC, f))):
 			n += 1
 			than = m["ten"] + m["mo_ta"] + m["chi_tiet"]
+			# Do dai tinh tren chu NGUOI SOAN viet: dau CHUA XAC MINH va dong
+			# dan do bo nap them vao, khong tinh (review #412 F1).
+			viet = re.sub(r"\[CHƯA XÁC MINH:[^\]]*\]", "",
+				than.replace(T["DONG_DAN_CHUA_XAC_MINH"], ""))
 			if not m["mo_ta"]:
 				sai.append("%s: %s thieu Tu khoa" % (f, m["ten"]))
-			if len(than) > 1600:
-				sai.append("%s: %s dai %d" % (f, m["ten"], len(than)))
+			if len(viet) > 1600:
+				sai.append("%s: %s dai %d" % (f, m["ten"], len(viet)))
 			if "\u2014" in than or "\u2013" in than:
 				sai.append("%s: %s co gach dai" % (f, m["ten"]))
 	dung("co it nhat 100 muc (dem duoc %d)" % n, n >= 100)
@@ -112,3 +117,69 @@ def _uu_tien():
 	]
 	ra = T["chon_muc"]("nhập kho", st)
 	la("so tay dung dau", ra[0]["loai"], "so_tay")
+
+
+# --------------------------------------------- review #412 F1 va bo sung
+#
+# F1 (P1): ban dau doc_chuong XOA moi chu thich, ke ca <!-- kiem: --> la
+# diem nguoi soan CHUA XAC MINH. Mo hinh nhan cau khang dinh ma khong biet,
+# trong khi luat tro_ly bao no tin tu lieu. Cac ca duoi chay tren tu lieu
+# CUOI CUNG gui mo hinh (chon_muc roi gon_tu_lieu), khong chi tren muc dau.
+
+
+@ca("so tay #412 F1: diem chua xac minh thanh dau ro rang, muc gan co")
+def _chua_xac_minh_tach():
+	md = ("# Kho\n\n## Viec A\nTừ khoá: a\nBước 1.\n<!-- kiểm: nút này tên gì -->\n"
+		"<!-- ghi chú thường -->\n\n## Viec B\nTừ khoá: b\nBước 1.\n")
+	a, b = T["doc_chuong"](md)
+	dung("dau chua xac minh co mat", "[CHƯA XÁC MINH: nút này tên gì]" in a["chi_tiet"])
+	dung("co dong dan mo hinh", T["DONG_DAN_CHUA_XAC_MINH"] in a["chi_tiet"])
+	la("co muc A", a["chua_xac_minh"], 1)
+	dung("chu thich thuong van bo", "ghi chú thường" not in a["chi_tiet"])
+	la("co muc B", b["chua_xac_minh"], 0)
+	dung("muc B khong co dong dan", T["DONG_DAN_CHUA_XAC_MINH"] not in b["chi_tiet"])
+
+
+@ca("so tay #412 F1: tu lieu that cua cau dat lai mat khau mang dau CHUA XAC MINH")
+def _chua_xac_minh_tu_lieu():
+	# Dung chuoi reviewer tai hien: chon_muc roi gon_tu_lieu tren so tay that.
+	st = _so_tay_that()
+	tl = T["gon_tu_lieu"](T["chon_muc"](CAU_THAT[2][0], st))
+	dung("tu lieu co dau chua xac minh", "[CHƯA XÁC MINH:" in tl)
+	dung("tu lieu khong con chu thich tho", "<!--" not in tl)
+	# Muc khong con diem nao chua chac thi khong bi gan co oan.
+	sach = [m for m in st if m.get("loai") == "so_tay" and not m.get("chua_xac_minh")]
+	dung("van co muc da xac minh (%d)" % len(sach), len(sach) > 0)
+	dung("muc sach khong mang dau", all("[CHƯA XÁC MINH:" not in m["chi_tiet"] for m in sach))
+
+
+@ca("so tay #412 F1: luat tro ly co cau xu ly dau CHUA XAC MINH")
+def _luat_chua_xac_minh():
+	# Day la phep do chuoi, chi chot rang luat CO dong do (dieu 16): tro_ly.py
+	# goi mang nen khong nap duoc vao bo kiem tang khung.
+	ma = io.open(os.path.join(GOI, "tro_ly.py"), encoding="utf-8").read()
+	i, j = ma.find('LUAT = """'), ma.find('"""', ma.find('LUAT = """') + 10)
+	luat = ma[i:j]
+	dung("luat nhac dau", "[CHƯA XÁC MINH" in luat)
+	dung("luat bao noi ro chua xac minh", "chưa được xác minh" in luat)
+
+
+@ca("so tay #412 bo sung 2: muc lac de khong lot vao tu lieu cau mat khau")
+def _loc_muc_phu():
+	st = _so_tay_that()
+	ten = [m["ten"] for m in T["chon_muc"](CAU_THAT[2][0], st)]
+	dung("khong co Lam bao gia: %s" % ten, not any("báo giá" in x for x in ten))
+	dung("khong co Moi tai khoan moi", not any("Mời tài khoản" in x for x in ten))
+	dung("van giu Quen mat khau", any("Quên mật khẩu" in x for x in ten))
+	# Cau can tru: muc phu dung viec van giu du.
+	ten2 = [m["ten"] for m in T["chon_muc"](CAU_THAT[0][0], st)]
+	dung("can tru giu it nhat 4 muc (%d)" % len(ten2), len(ten2) >= 4)
+
+
+@ca("so tay #412 bo sung 1: muc co dia chi man lay tu dong Man hinh")
+def _duong():
+	m = T["doc_chuong"]("# K\n\n## Nhap\nTừ khoá: x\nMàn hình: Nhập kho (/nhap-kho), tab Chờ nhận\n")[0]
+	la("dia chi", m["duong"], "/nhap-kho")
+	st = _so_tay_that()
+	co = sum(1 for x in st if x.get("loai") == "so_tay" and x.get("duong"))
+	dung("phan lon muc so tay co dia chi (%d)" % co, co >= 60)
