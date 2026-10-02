@@ -279,3 +279,64 @@ def _luat_trinh_bay():
 	dung("luat nhac [[Ten nut]]", "[[Tên nút]]" in luat)
 	dung("luat nhac [[desk:", "[[desk:" in luat)
 	dung("luat nhac bang", "bảng markdown" in luat)
+
+
+# --------------------------------------------------- vong 4: Codex #412 F2/F3
+
+# Ten trung DA CO tu truoc v554, ca nay khong xet lai, chi chan ten trung MOI.
+TRUNG_CU = {"BEPS", "flt0", "rcv"}
+
+
+@ca("#412 F2: khong phan bep/ nao khai lai ten cap cao nhat da co o phan khac")
+def _khong_trung_ten():
+	# Moi phan bep/ ghep chung MOT pham vi ham trong app_bep.js. v554 vong 3
+	# khai `var st` trong 50-so-tay.js, trung `var st` (the <style>) cua
+	# 00-nen.js: keepCss() goi appendChild voi doi tuong trang thai, do o
+	# moi man (bench 37013787339). Python va kiem thu rieng tung tep khong
+	# bao, chi lo khi chay ca app.
+	import collections
+	import glob
+	bep = os.path.join(GOI, "public", "js", "bep")
+	ten = collections.defaultdict(list)
+	mau = re.compile(r"^(?:var|let|const)\s+([A-Za-z_$][\w$]*)|^(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(", re.M)
+	for p in sorted(glob.glob(os.path.join(bep, "*.js"))):
+		for m in mau.finditer(_doc(p)):
+			ten[m.group(1) or m.group(2)].append(os.path.basename(p))
+	trung = sorted("%s: %s" % (k, ", ".join(v)) for k, v in ten.items() if len(v) > 1 and k not in TRUNG_CU)
+	la("ten cap cao nhat bi khai hai lan", trung, [])
+
+
+@ca("#412 F3: so tay mo cho nhan vien (ke ca Website User co vai), chan khach, nha cung cap, Guest")
+def _quyen_xem():
+	# Nap nguoi_dung qua bo kiem cua no: bo do dung san nhanh frappe.core gia
+	# ma nguoi_dung -> nhan_su can, khong dung lai o day.
+	from vagabond.khung.kiem_thu.thu_quan_ly_nguoi_dung import nd
+	noi_bo = nd.trong_pham_vi_quan_ly
+
+	x = T["duoc_xem_so_tay"]
+	dung("Guest bi chan", not x("Guest", "Website User", ["Guest"], noi_bo))
+	dung("chua dang nhap bi chan", not x("", "", [], noi_bo))
+	dung("tai khoan noi bo qua", x("ke.toan@vgb", "System User", ["All"], noi_bo))
+	dung("ban bep Lab dang Website User co vai qua", x("lab@vgb", "Website User", ["Bếp phó", "All"], noi_bo))
+	dung("khach hang bi chan", not x("khach@x", "Website User", ["Customer", "All"], noi_bo))
+	dung("nha cung cap bi chan", not x("ncc@x", "Website User", ["Supplier", "All"], noi_bo))
+	dung("tai khoan web khong vai noi bo bi chan", not x("ai@x", "Website User", ["All", "Guest"], noi_bo))
+	ma = io.open(os.path.join(GOI, "tro_ly_so_tay.py"), encoding="utf-8").read()
+	than = ma[ma.find("def doc_so_tay("):]
+	dung("cua doc_so_tay dung dung phep nay", "duoc_xem_so_tay(" in than and "trong_pham_vi_quan_ly" in than)
+
+
+@ca("#412: nguon ghi nhat ky la muc THAT SU dong goi, cau can tru bi tran cat bot")
+def _nguon_dong_goi():
+	st = _so_tay_that()
+	chon = T["chon_muc"](CAU_THAT[0][0], st)
+	tl, da = T["dong_goi_tu_lieu"](chon)
+	dung("co muc", bool(da))
+	dung("khong nhieu hon so da chon", len(da) <= len(chon))
+	for m in da:
+		dung("muc da goi co trong tu lieu: " + m["ten"], ("## " + m["ten"]) in tl)
+	for m in chon[len(da):]:
+		dung("muc bi cat khong nam trong tu lieu: " + m["ten"], ("## " + m["ten"]) not in tl)
+	la("gon_tu_lieu van tra cung chu", T["gon_tu_lieu"](chon), tl)
+	ma = io.open(os.path.join(GOI, "tro_ly.py"), encoding="utf-8").read()
+	dung("hoi() lay nguon tu muc da goi", "for m in da_goi]" in ma)
