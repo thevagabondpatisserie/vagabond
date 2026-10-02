@@ -183,3 +183,99 @@ def _duong():
 	st = _so_tay_that()
 	co = sum(1 for x in st if x.get("loai") == "so_tay" and x.get("duong"))
 	dung("phan lon muc so tay co dia chi (%d)" % co, co >= 60)
+
+
+# --------------------------------------------------------- vong 3 (02/10)
+#
+# Anh Viet: "Su dung 100% thuat ngu da duoc dich sang tieng Viet cua app/
+# desktop cho phan so tay", "co hinh cua cai nut do", "nhieu chu, nhin hoi
+# don thuan". Khuon moi: bang tom tat, [[Ten nut]] ve thanh nut that.
+
+TU_ANH_CAM = (
+	"Purchase Receipt", "Purchase Invoice", "Purchase Order", "Sales Invoice",
+	"Work Order", "Journal Entry", "Payment Entry", "Payment Reconciliation",
+	"Item Alternative", "Stock Entry", "Material Request", "Bill of Materials",
+	"Maintain Stock", "Is Phantom", "Phantom BOM", "Phantom Item", "Submit",
+	"Delivery Note", "Stock Reconciliation", "Allow Alternative", "Logout",
+	"Reset Password", "Bank Transaction", "Bank Account", "Update Stock",
+	"Serial No", "Batch No", "Cost Center",
+)
+
+
+@ca("so tay vong 3: than muc 100% thuat ngu tieng Viet, tieng Anh chi o dong Tu khoa")
+def _thuat_ngu():
+	sai = []
+	for f in _chuong():
+		for so, dong in enumerate(_doc(os.path.join(THU_MUC, f)).split("\n"), 1):
+			if T["bo_dau"](dong).startswith("tu khoa:"):
+				continue
+			dong = re.sub(r"<!--.*?-->", "", dong)
+			for t in TU_ANH_CAM:
+				if re.search(r"\b" + re.escape(t) + r"\b", dong, re.I):
+					sai.append("%s:%d %s" % (f, so, t))
+	la("cho con tieng Anh", sai, [])
+
+
+def _nguon_giao_dien():
+	"""Chu that tren man: ma JS cua app, giai \\uXXXX va the HTML thanh chu."""
+	import glob
+	import html as _html
+	bep = os.path.join(GOI, "public", "js", "bep")
+	s = "".join(_doc(p) for p in sorted(glob.glob(os.path.join(bep, "*.js"))))
+	s += "".join(_doc(p) for p in sorted(glob.glob(os.path.join(GOI, "*.py"))))
+	s = re.sub(r"\\u([0-9a-fA-F]{4})", lambda m: chr(int(m.group(1), 16)), s)
+	return _html.unescape(s)
+
+
+@ca("so tay vong 3: moi [[nut app]] co that trong giao dien, tru nhan co so dem N hay ...")
+def _nut_co_that():
+	# Nut ghi sai mot chu la nhan vien di tim mot nut khong ton tai. Nhan co
+	# so dem doi theo du lieu (vi du "Tao N lenh") thi so tay ghi N hoac ...
+	# va duoc mien, vi chu that ghep tu bien luc chay.
+	nguon = _nguon_giao_dien()
+	thieu = []
+	n = 0
+	for f in _chuong():
+		for x in re.findall(r"\[\[(?!desk:)([^\]]+)\]\]", _doc(os.path.join(THU_MUC, f))):
+			n += 1
+			if x in nguon or "..." in x or re.search(r"\bN\b|\d", x):
+				continue
+			thieu.append("%s: %s" % (f, x))
+	dung("so tay co dung nut app (%d)" % n, n >= 300)
+	la("nut khong thay trong giao dien", thieu, [])
+
+
+@ca("so tay vong 3: muc nao cung co bang tom tat Ai dung, Man hinh, Nut chinh")
+def _bang_tom_tat():
+	thieu = []
+	for f in _chuong():
+		for m in T["doc_chuong"](_doc(os.path.join(THU_MUC, f))):
+			if not re.search(r"\|\s*Ai dùng\s*\|\s*Màn hình\s*\|", m["chi_tiet"]):
+				thieu.append("%s: %s" % (f, m["ten"]))
+	la("muc thieu bang tom tat", thieu, [])
+
+
+@ca("so tay vong 3: man So tay bo dong Chuong va dong dan tro ly, GIU dau chua xac minh")
+def _chuong_cho_man():
+	md = ("# Kho\n\n## Viec A\nTừ khoá: a, b\n\n| Ai dùng | Màn hình | Nút chính |\n"
+		"|---|---|---|\n| Kho | Nhập kho (/nhap-kho) | [[Lưu]] |\n\nBước 1 <!-- kiểm: tên nút -->\n")
+	c = T["chuong_cho_man"](md, "kho")
+	la("ten chuong", c["ten"], "Kho")
+	la("ma chuong", c["ma"], "kho")
+	m = c["muc"][0]
+	la("tu khoa khong kem nhan", m["tu_khoa"], "a, b")
+	dung("bo dong Chuong", not m["than"].startswith("Chương:"))
+	dung("bo dong dan tro ly", T["DONG_DAN_CHUA_XAC_MINH"] not in m["than"])
+	dung("giu dau chua xac minh", "[CHƯA XÁC MINH: tên nút]" in m["than"])
+	la("dia chi tu bang tom tat", m["duong"], "/nhap-kho")
+	la("co chua xac minh", m["chua_xac_minh"], 1)
+
+
+@ca("so tay vong 3: luat tro ly bao viet nut dang [[...]] va dung bang")
+def _luat_trinh_bay():
+	ma = io.open(os.path.join(GOI, "tro_ly.py"), encoding="utf-8").read()
+	i = ma.find('LUAT = """')
+	luat = ma[i:ma.find('"""', i + 10)]
+	dung("luat nhac [[Ten nut]]", "[[Tên nút]]" in luat)
+	dung("luat nhac [[desk:", "[[desk:" in luat)
+	dung("luat nhac bang", "bảng markdown" in luat)
