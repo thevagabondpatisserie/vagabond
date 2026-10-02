@@ -56,14 +56,19 @@ class _Dong(types.SimpleNamespace):
 	pass
 
 
-def _je(docstatus=0):
+TRUOC_ERP = "[Trả trước khi lên ERP] Cấn hóa đơn PI-1"
+
+
+def _je(docstatus=0, remark="Bút toán tay chờ chỉnh"):
 	no = _Dong(name="r1", idx=1, account="331 - Phải trả cho người bán - TV", party_type="Supplier", party="NCC",
-		reference_type="Purchase Invoice", reference_name="PI-1", account_currency="VND")
+		reference_type="Purchase Invoice", reference_name="PI-1", account_currency="VND",
+		debit_in_account_currency=37584000, credit_in_account_currency=0, user_remark=None)
 	co = _Dong(name="r2", idx=2, account="Temporary Opening - TV", party_type=None, party=None,
-		reference_type=None, reference_name=None, account_currency="VND")
+		reference_type=None, reference_name=None, account_currency="VND",
+		debit_in_account_currency=0, credit_in_account_currency=37584000, user_remark=None)
 	ghi = {"luu": 0, "nhan_xet": []}
 	je = types.SimpleNamespace(name="PKT-2026-00067", docstatus=docstatus, company="TV", accounts=[no, co],
-		flags=types.SimpleNamespace(), user_remark="[Trả trước khi lên ERP] Cấn hóa đơn PI-1")
+		flags=types.SimpleNamespace(), user_remark=remark, posting_date="2026-10-02", title="", total_debit=37584000)
 	je.save = lambda **k: ghi.__setitem__("luu", ghi["luu"] + 1)
 	je.add_comment = lambda loai, nd: ghi["nhan_xet"].append(nd)
 	return je, ghi
@@ -123,7 +128,7 @@ def _quyen_dung():
 
 @ca("v552 Ghi sổ ở màn Bút toán với khoản trả trước ERP đi qua đường duyệt có kiểm dư sống")
 def _ghi_qua_duyet():
-	je, _ = _je()
+	je, _ = _je(remark=TRUOC_ERP)
 	da_nop = []
 	je.submit = lambda: da_nop.append(1)
 	goi = []
@@ -171,3 +176,66 @@ def _tk_co_mac_dinh():
 		la("thiếu 11211 thì tạm", cn._tk_co_truoc_erp("TV"), "Temporary Opening - TV")
 	dung("lap_truoc_erp dùng vế Có mặc định mới",
 		"_tk_co_truoc_erp(hd.company)" in __import__("inspect").getsource(cn.lap_truoc_erp))
+
+
+@ca("v552 anh Việt 'nhiều nút quá': khoản trả trước ERP không đổi, không ghi sổ ở màn Bút toán")
+def _mot_cho():
+	je, ghi = _je(remark=TRUOC_ERP)
+	_, loi = _goi(je, "r2", tk())
+	dung("đổi tài khoản bị chặn, chỉ đường về Công nợ phải trả", loi and "Công nợ phải trả" in loi)
+	la("không lưu", ghi["luu"], 0)
+	la("vế Có giữ nguyên", je.accounts[1].account, "Temporary Opening - TV")
+	f = bt.frappe
+	for remark, mong in ((TRUOC_ERP, (0, 0, 1)), ("Trích lương", (1, 1, 0))):
+		j, _ = _je(remark=remark)
+		with patch.object(f, "get_roles", lambda *a, **k: ["AP Kiểm soát (FIN)"]), \
+				patch.object(f, "get_doc", lambda *a, **k: j), \
+				patch.object(f.db, "get_value", lambda *a, **k: Doi(account_number="331", account_name="X")):
+			x = bt.xem(j.name)
+		co = [d for d in x["dong"] if d["ma_dong"] == "r2"][0]
+		la("%s: ghi_duoc, đổi vế Có, nhắc duyệt ở công nợ" % remark[:12], (x["ghi_duoc"], co["doi_duoc"], x["duyet_o_cong_no"]), mong)
+
+
+@ca("v552 duyệt chọn vế Có: đổi mọi vế Có không gắn công nợ, giữ vế Nợ 331, chặn tài khoản sai")
+def _doi_ve_co():
+	je, _ = _je(remark=TRUOC_ERP)
+	for a in je.accounts:
+		a.credit_in_account_currency = 0 if a.name == "r1" else 37584000
+	f = cn.frappe
+	with patch.object(f.db, "get_value", lambda *a, **k: Doi(tk())):
+		la("đổi đúng một dòng", cn.doi_ve_co(je, tk()["name"]), 1)
+	la("vế Có thành MB Bank", je.accounts[1].account, "11211 - Tiền gửi MB Bank 31561568 - TV")
+	la("vế Nợ 331 giữ nguyên", je.accounts[0].account, "331 - Phải trả cho người bán - TV")
+	with patch.object(f.db, "get_value", lambda *a, **k: Doi(tk())):
+		la("chọn lại đúng tài khoản đang có thì không đổi gì", cn.doi_ve_co(je, tk()["name"]), 0)
+	je2, _ = _je(remark=TRUOC_ERP)
+	for a in je2.accounts:
+		a.credit_in_account_currency = 0 if a.name == "r1" else 1
+	with patch.object(f.db, "get_value", lambda *a, **k: Doi(tk(account_type="Payable"))):
+		try:
+			cn.doi_ve_co(je2, "331 - TV")
+			dung("chọn tài khoản công nợ phải bị chặn", False)
+		except Exception as e:
+			dung("báo tài khoản công nợ", "công nợ" in str(e))
+	la("bị chặn thì vế Có giữ nguyên", je2.accounts[1].account, "Temporary Opening - TV")
+
+
+@ca("v552 hộp duyệt: danh sách vế Có có ngân hàng, tiền mặt, tạm; mặc định 11211 đứng đầu; bỏ ngoại tệ")
+def _tk_co_chon():
+	f = cn.frappe
+	rows = [Doi(name="1111 - TM - TV", account_number="1111", account_name="Tiền mặt", account_currency="VND"),
+		Doi(name="11211 - MB - TV", account_number="11211", account_name="Tiền gửi MB Bank", account_currency="VND"),
+		Doi(name="1122 - NT - TV", account_number="1122", account_name="Ngoại tệ", account_currency="USD"),
+		Doi(name="Temporary Opening - TV", account_number=None, account_name="Temporary Opening", account_currency="VND")]
+	loc = []
+
+	def ga(dt, filters=None, **k):
+		loc.append(filters or {})
+		if (filters or {}).get("account_number") == "11211":
+			return ["11211 - MB - TV"]
+		return rows
+	with patch.object(f, "get_all", ga):
+		ds = cn.tk_co_chon_duoc("TV")
+	la("mặc định đứng đầu", ds[0], {"ma": "11211 - MB - TV", "ten": "11211 - Tiền gửi MB Bank"})
+	la("bỏ ngoại tệ, giữ tiền mặt và tạm", sorted(x["ma"] for x in ds), ["1111 - TM - TV", "11211 - MB - TV", "Temporary Opening - TV"])
+	dung("chỉ loại Bank, Cash, Temporary", loc[0].get("account_type") == ["in", ["Bank", "Cash", "Temporary"]])
