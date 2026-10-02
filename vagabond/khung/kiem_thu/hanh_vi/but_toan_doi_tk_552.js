@@ -1,27 +1,31 @@
 /* v552 (chị Dung 02/10/2026): màn Bút toán hiện số hiệu tài khoản và cho kế
-   toán đổi tài khoản một dòng của bút toán NHÁP. Chạy màn thật scrButToanXem
-   với API giả, bấm đúng nút như chị Dung trên PKT-2026-00067: vế Có tạm thành
-   11211 MB Bank. Không ghi tiền thật. */
+   toán đổi tài khoản một dòng của bút toán tay NHÁP. Khoản trả trước khi lên
+   ERP thì màn này chỉ tra cứu (anh Việt 02/10: "nhiều nút quá"); chọn vế Có
+   ở hộp Duyệt bên Công nợ phải trả. Chạy màn thật scrButToanXem với API giả.
+   Không ghi tiền thật. */
 'use strict';
 const fs=require('fs'),path=require('path'),vm=require('vm'),assert=require('assert');
 const dom=require('./dom_gia');
 const bep=path.resolve(__dirname,'../../../public/js/bep');
 function doc(n){return fs.readFileSync(path.join(bep,n),'utf8');}
 async function nghi(){for(let i=0;i<10;i++)await Promise.resolve();await new Promise(r=>setImmediate(r));}
-function butToan(nhap,ghi){
- return {ma:'PKT-2026-00067',ngay:'2026-10-02',dien_giai:'[Trả trước khi lên ERP] Cấn hóa đơn ACC-PINV-2026-01919',
-  trang_thai:nhap?'Nháp':'Đã ghi sổ',nhap:nhap?1:0,tong:37584000,ghi_duoc:ghi?1:0,sua_duoc:(nhap&&ghi)?1:0,
+/* Máy chủ quyết ghi_duoc/doi_duoc (ca tầng khung chốt); giả lập trả đúng
+   như máy chủ: khoản trả trước ERP thì ghi_duoc 0, doi_duoc 0, duyet_o_cong_no 1. */
+function butToan(nhap,ghi,truocErp){
+ const sua=(nhap&&ghi&&!truocErp)?1:0;
+ return {ma:'PKT-2026-00067',ngay:'2026-10-02',dien_giai:truocErp?'[Trả trước khi lên ERP] Cấn hóa đơn ACC-PINV-2026-01919':'Bút toán tay tháng 10',
+  trang_thai:nhap?'Nháp':'Đã ghi sổ',nhap:nhap?1:0,tong:37584000,ghi_duoc:(ghi&&!truocErp)?1:0,sua_duoc:sua,duyet_o_cong_no:truocErp?1:0,
   dong:[{ma_dong:'r1',tk:'331 - Phải trả cho người bán - TV',ten_tk:'331 - Phải trả cho người bán',no:37584000,co:0,ben:'CÔNG TY TNHH TÁC KHÍ VIỆT',doi_duoc:0},
-   {ma_dong:'r2',tk:'Temporary Opening - TV',ten_tk:'Temporary Opening',no:0,co:37584000,ben:'',doi_duoc:(nhap&&ghi)?1:0}]};
+   {ma_dong:'r2',tk:'Temporary Opening - TV',ten_tk:'Temporary Opening',no:0,co:37584000,ben:'',doi_duoc:sua}]};
 }
-async function moi({nhap=true,ghi=true,go_tu='11211',chon='11211 - Tiền gửi MB Bank 31561568 - TV'}={}){
+async function moi({nhap=true,ghi=true,truocErp=false,go_tu='11211',chon='11211 - Tiền gửi MB Bank 31561568 - TV'}={}){
  const document=dom.taiLieuGia(),root=document.createElement('div');root.id='vgb';document.body.appendChild(root);
  const calls=[],tin=[],hoi=[];
  const g={frappe:{session:{user:'dung'}},document,console,Promise,JSON,Math,Number,String,Object,Array,Date,Error,RegExp,parseInt,parseFloat,setTimeout,clearTimeout,
   location:{href:'https://erp/bep',pathname:'/bep',hostname:'erp',search:'',hash:''},history:{pushState(){},replaceState(){},back(){}},requestAnimationFrame:f=>f(),
   h:s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'),money:x=>String(x),hsNgayVn:String,toast(){},busy(){},baoTin:s=>tin.push(s),dSkin(){},
   api:async(m,a)=>{calls.push({m,a});
-   if(m.endsWith('.xem'))return butToan(nhap,ghi);
+   if(m.endsWith('.xem'))return butToan(nhap,ghi,truocErp);
    if(m.endsWith('tim_tai_khoan'))return {rows:[
     {ma:'11211 - Tiền gửi MB Bank 31561568 - TV',ten:'11211 - Tiền gửi MB Bank 31561568',kieu:'Bank',can_ben:0},
     {ma:'331 - Phải trả cho người bán - TV',ten:'331 - Phải trả cho người bán',kieu:'Payable',can_ben:1}]};
@@ -65,5 +69,14 @@ async function moi({nhap=true,ghi=true,go_tu='11211',chon='11211 - Tiền gửi 
  assert(!s.root.querySelector('[data-btdoi]'),'đã ghi sổ thì không đổi');
  const k=await moi({ghi:false});
  assert(!k.root.querySelector('[data-btdoi]'),'không quyền ghi sổ thì không đổi');
- console.log('PASS 552: màn Bút toán hiện số hiệu, kế toán đổi vế Có nháp sang 11211 MB Bank');
+ // Ca 5 (anh Việt 02/10 "nhiều nút quá"): khoản trả trước ERP ở màn này chỉ tra cứu:
+ // không Ghi sổ, không Đổi tài khoản, có dòng nhắc duyệt ở Công nợ phải trả.
+ const t=await moi({truocErp:true});
+ assert(!t.root.querySelector('[data-btdoi]'),'không có nút đổi');
+ assert(!t.document.getElementById('btGhi'),'không có nút Ghi sổ');
+ assert(t.root.innerHTML.includes('Công nợ phải trả'),'nhắc duyệt ở Công nợ phải trả');
+ assert(t.root.innerHTML.includes('331 - Phải trả cho người bán'),'vẫn hiện số hiệu để tra cứu');
+ // Bút toán tay thường vẫn có Ghi sổ.
+ const m2=await moi();assert(m2.document.getElementById('btGhi'),'bút toán tay vẫn ghi sổ được');
+ console.log('PASS 552: màn Bút toán hiện số hiệu, đổi tài khoản bút toán tay nháp; khoản trả trước ERP chỉ tra cứu');
 })().catch(e=>{console.error(e);process.exit(1);});

@@ -21,14 +21,16 @@ async function moi(vai,{pe=[],cho=[],keToan=false,loiLap=false}={}){
   tdkNap:(id,a)=>{g.files=a;},tdkDs:()=>g.files||[],tdkKhoi:()=>'<div></div>',tdkNoi(){},tdkVeLai(){},hsChonCanCoc(){},
   hasRole:r=>vai.indexOf(r)>=0,hsCoQuyenCanCoc:()=>vai.some(v=>['Accounts User','Accounts Manager','AP Kiểm soát (FIN)','System Manager'].indexOf(v)>=0),
   hsCocLan:null,hsThuLaiCanCoc(){},bcTaiVe(){},open(){},
-  confirmSheet:async(t,m)=>{xacNhan.push(m);return true;},sinhMaLanNhan:()=>'LN-ma'+(++soLan),
+  confirmSheet:async(t,m)=>{xacNhan.push(m);return true;},
+  /* v552: hộp Duyệt ghi sổ là hộp chọn vế Có; mặc định chọn dòng đang tô. */
+  hoiChon:async(t,m,ds,k)=>{g.hop={t,m,ds,k};return g.chonCo===undefined?(k||(ds[0]&&ds[0].k)):g.chonCo;},sinhMaLanNhan:()=>'LN-ma'+(++soLan),
   sheet:(t,ds,chon,cb)=>{g.choices=ds;g.pick=cb;},
   api:async(m,a)=>{calls.push({m,a});
    if(m.endsWith('khoan_da_tra'))return {ncc:'NCC',con_no:212090400,rows:pe};
    if(m.endsWith('xem_truoc_erp'))return {hoa_don:row.name,con_no:212090400,dang_cho:0,cho_duyet:[],ke_toan:keToan,tk_tam:'Temporary Opening - TV',tk_co:'11211 - Tiền gửi MB Bank 31561568'};
    if(m.endsWith('lap_truoc_erp')){if(loiLap)throw new Error('Mất mạng');return {je:'PKT-1',da_ghi_so:keToan};}
    if(m.endsWith('duyet_truoc_erp')||m.endsWith('bo_truoc_erp'))return {ok:1};
-   return {cong_ty:'CTY',cac_cong_ty:['CTY'],cac_nhom:['Hàng'],ngay_doc:'2026-10-01',so_hd:1,so_ncc:1,tong_theo_tien:{VND:212090400},dem:{tat_ca:1,con_no:1,qua_han:1},con_nua:false,dong:[row],ke_toan:keToan};}
+   return {cong_ty:'CTY',cac_cong_ty:['CTY'],cac_nhom:['Hàng'],ngay_doc:'2026-10-01',so_hd:1,so_ncc:1,tong_theo_tien:{VND:212090400},dem:{tat_ca:1,con_no:1,qua_han:1},con_nua:false,dong:[row],ke_toan:keToan,tk_co_chon:keToan?[{ma:'11211 - MB - TV',ten:'11211 - Tiền gửi MB Bank 31561568'},{ma:'Temporary Opening - TV',ten:'Temporary Opening'}]:[]};}
  };
  g.window=g;g.root=root;vm.createContext(g);
  vm.runInContext(doc('01-khung-app.js'),g);vm.runInContext(doc('15-khuon-danh-sach.js'),g);
@@ -117,15 +119,24 @@ async function moi(vai,{pe=[],cho=[],keToan=false,loiLap=false}={}){
 
  // v552: thẻ chờ duyệt cho kế toán thấy vế Có hiện tại và có nút Sửa định
  // khoản mở màn Bút toán của đúng bút toán đó; hộp duyệt nói đúng vế Có.
- const s5=await moi(['Accounts Manager'],{cho:[{je:'PKT-2026-00067',so_tien:37584000,unc:[],tk_co:'Temporary Opening'}],keToan:true});
+ const s5=await moi(['Accounts Manager'],{cho:[{je:'PKT-2026-00067',so_tien:37584000,unc:[],tk_co:'Temporary Opening',tk_co_ma:'Temporary Opening - TV'}],keToan:true});
  assert(s5.root.innerHTML.includes('Nợ 331 / Có <b>Temporary Opening</b>'),'thấy vế Có đang là tài khoản tạm');
- const moXem=[];s5.g.scrButToanXem=function(je){moXem.push(je);};
- await s5.click('[data-cntsua="PKT-2026-00067"]');
- assert.deepEqual(moXem,['PKT-2026-00067'],'Sửa định khoản mở màn Bút toán đúng bút toán');
+ // Anh Việt 02/10 "nhiều nút quá": thẻ chỉ còn Duyệt và Từ chối, không còn nút Sửa định khoản.
+ assert(!s5.root.querySelector('[data-cntsua]'),'không còn nút Sửa định khoản');
+ assert.equal(s5.root.querySelectorAll('[data-cntduyet]').length+s5.root.querySelectorAll('[data-cntbo]').length+s5.root.querySelectorAll('[data-cntsua]').length,2,'thẻ chờ duyệt đúng hai nút');
+ // Chị Dung bấm Duyệt: một hộp chọn vế Có, tài khoản đang có được tô sẵn; chọn MB là ghi sổ luôn.
+ s5.g.chonCo='11211 - MB - TV';
  await s5.click('[data-cntduyet="PKT-2026-00067"]');
- assert(/Có Temporary Opening/.test(s5.xacNhan.at(-1)),'hộp duyệt nói đúng vế Có hiện tại');
+ assert.equal(s5.g.hop.k,'Temporary Opening - TV','tô sẵn tài khoản đang có');
+ assert(s5.g.hop.ds.some(x=>x.k==='11211 - MB - TV'),'có MB Bank trong hộp');
+ const dy5=s5.goi('duyet_truoc_erp');assert.equal(dy5.length,1);
+ assert.deepEqual(dy5[0].a,{je:'PKT-2026-00067',tk_co:'11211 - MB - TV'},'gửi đúng vế Có đã chọn');
+ // Bấm Thôi thì không ghi gì.
+ const s7=await moi(['Accounts Manager'],{cho:[{je:'PKT-2026-00068',so_tien:1,tk_co_ma:'Temporary Opening - TV'}],keToan:true});
+ s7.g.chonCo=null;await s7.click('[data-cntduyet="PKT-2026-00068"]');
+ assert.equal(s7.goi('duyet_truoc_erp').length,0,'Thôi thì không ghi sổ');
  const s6=await moi(['Purchase User'],{cho:[{je:'PKT-2026-00067',so_tien:1,tk_co:'Temporary Opening'}]});
- assert(!s6.root.querySelector('[data-cntsua]'),'thu mua không có nút sửa định khoản');
+ assert(!s6.root.querySelector('[data-cntduyet]'),'thu mua không duyệt được');
  const t=await moi(['Purchase User'],{cho:[{je:'PKT-9',so_tien:1000}]});
  assert(!t.root.querySelector('[data-cntduyet]'),'thu mua không duyệt được');
  assert(t.root.querySelector('[data-cntbo="PKT-9"]'));
@@ -133,5 +144,5 @@ async function moi(vai,{pe=[],cho=[],keToan=false,loiLap=false}={}){
  // Ca 6: không có vai nào thì chỉ có hướng dẫn, không gọi API ghi.
  const n=await moi([]);await n.click('[data-cntcan]');
  assert.equal(n.tin.length,1);assert.equal(n.goi('xem_truoc_erp').length,0);
- console.log('PASS 549+552: cấn hóa đơn trả trước ERP, thu mua gửi nháp, kế toán sửa vế Có rồi ghi sổ, chống gửi hai lần');
+ console.log('PASS 549+552: cấn hóa đơn trả trước ERP, thu mua gửi nháp, kế toán chọn vế Có ngay trong hộp duyệt, chống gửi hai lần');
 })().catch(e=>{console.error(e);process.exit(1);});
