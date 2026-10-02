@@ -121,6 +121,28 @@ function tim(m, chon) { return m.khung.querySelectorAll(chon); }
     dung('o canh bao', o.indexOf('<span class="stCxm">Chưa xác minh: nhãn nút chưa thử</span>') >= 0);
   });
 
+  /* Codex #412 F2: moi phan bep/ ghep chung MOT pham vi. Ca nay nap hai
+     dong THAT cua 00-nen.js (the <style> `st` va keepCss) cung pham vi voi
+     toan tep 50-so-tay.js, dung nhu app_bep.js, roi goi keepCss. Ca nap
+     rieng 50-so-tay khong the bat dung ten voi nen. */
+  await ca('cung pham vi voi nen: nap So tay xong keepCss cua nen van chay', async function () {
+    var NEN = fs.readFileSync(path.join(BEP, '00-nen.js'), 'utf8');
+    function dong(dau) { var i = NEN.indexOf(dau); if (i < 0) throw new Error('khong thay ' + dau); return NEN.slice(i, NEN.indexOf('\n', i)); }
+    var tai = dg.taiLieuGia();
+    var dau = { children: [], lastElementChild: null, appendChild: function (x) {
+      if (!x || typeof x.nodeType !== 'number') throw new Error("appendChild: parameter 1 is not of type 'Node'");
+      this.children.push(x); x.parentNode = this; this.lastElementChild = x; return x; } };
+    tai.head = dau;
+    var goc = tai.createElement;
+    tai.createElement = function (t) { var e = goc ? goc.call(tai, t) : new dg.ElementGia(t); e.nodeType = 1; return e; };
+    var that = { document: tai, CSS: '', h: function (x) { return String(x); }, console: console };
+    that.globalThis = that;
+    var ma = dong('var st = document.createElement') + '\n' + dong('function keepCss()') + '\n' + SRC +
+      '\nkeepCss(); __ok = 1;';
+    vm.runInNewContext(ma, that, { filename: 'nen+so-tay' });
+    bang('keepCss chay xong', that.__ok, 1);
+  });
+
   await ca('mo man: luoi chuong cua so tay that, moi chuong mot o', async function () {
     var m = dungMan();
     await m.g.scrSoTay(); await tick();
@@ -164,9 +186,9 @@ function tim(m, chon) { return m.khung.querySelectorAll(chon); }
     dung('co ket qua tren man', tim(m, '.stMucD').length > 0);
     /* Thu tu xep do chinh ham loc cua man quyet dinh; doc ten muc dau tu do,
        cung du lieu, khong tu xep lai o day. */
-    var dau = m.g.stLoc(m.g.st.d, 'quen mat khau')[0].m.ten;
+    var dau = m.g.stLoc(m.g.stS.d, 'quen mat khau')[0].m.ten;
     dung('muc dau ve mat khau: ' + dau, /mật khẩu/i.test(dau));
-    bang('man hien dung so ket qua', tim(m, '.stMucD').length, Math.min(40, m.g.stLoc(m.g.st.d, 'quen mat khau').length));
+    bang('man hien dung so ket qua', tim(m, '.stMucD').length, Math.min(40, m.g.stLoc(m.g.stS.d, 'quen mat khau').length));
     /* Ve lai ca man thi o tim moi thay o cu, tren may that la mat con tro
        dang go. Kiem bang DUNG doi tuong o, khong chi kiem co o. */
     dung('van la dung o dang go (khong ve lai ca man)', m.tai.getElementById('stTim') === o);
