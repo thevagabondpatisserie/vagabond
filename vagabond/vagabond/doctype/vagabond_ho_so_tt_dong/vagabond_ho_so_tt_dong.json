@@ -21,7 +21,8 @@
   "ma_giao_dich",
   "ghi_chu",
   "cho_hoa_don",
-  "hoa_don_bo_sung"
+  "hoa_don_bo_sung",
+  "tra_truoc"
  ],
  "fields": [
   {
@@ -149,11 +150,20 @@
    "label": "Hóa đơn bổ sung",
    "read_only": 1,
    "description": "Chứng từ bổ sung sau chi tiền, không thay liên kết sinh bút toán."
+  },
+  {
+   "fieldname": "tra_truoc",
+   "fieldtype": "Check",
+   "label": "Đã chi trả trước NCC",
+   "read_only": 1,
+   "no_copy": 1,
+   "default": "0",
+   "description": "v551: khoản này đã ghi phiếu chi trả trước nhà cung cấp (Nợ 331). Máy đặt lúc ghi nhận thanh toán."
   }
  ],
  "istable": 1,
  "links": [],
- "modified": "2026-08-22 20:00:00.000000",
+ "modified": "2026-10-02 09:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Ho So TT Dong",
