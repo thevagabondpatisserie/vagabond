@@ -1575,3 +1575,21 @@ lần đầu đếm ngoại lệ ra 0 trên 14 đột biến, tưởng bộ ki�
   Row #1". Ca tờ nháp vẫn xanh vì đường đó ghi bằng `frappe.db.set_value`,
   vốn BỎ QUA kiểm link. Chứng từ khác loại phải có ô Link riêng (`phieu_chi`),
   và ca kiểm phải đi qua `save()` thật ít nhất một đường, đừng chỉ set_value.
+
+## 02/10/2026 (v552): khai mặt hàng thay thế xong vẫn bị chặn thiếu hàng
+
+- Ca thật: lệnh sản xuất ở kho Baker - Nguyên liệu cần 1.248 ml whipping
+  Lescure (NVLT00002), tồn 0. Whipping Pauls (NVLT00329) còn 87.915 ml cùng
+  kho, Khải đã khai cặp thay thế hai chiều. Bấm Hoàn tất vẫn bị ERPNext chặn
+  "Cần 1248.113 đơn vị".
+- Gốc: đường lấy mã thay thế chỉ nằm trong `lo_hang.gan_lo`, mà hàm đó chỉ
+  xét dòng THEO LÔ. Cả 15 cặp thay thế đang khai trên site đều là mã không
+  theo lô, tức chức năng thay thế chưa từng chạy cho cặp nào. Ca kiểm cũ của
+  #206 đều dựng mã theo lô nên không lộ.
+- Từ v552: `lo_hang.thay_ma_khong_lo` chạy ngay trước `gan_lo`, cùng luật
+  (chỉ luồng sản xuất, mã thay đã khai, cùng đơn vị, món gốc bật cho phép
+  thay, mã gốc dùng trước, cùng kho, một túi tồn cho cả phiếu), dòng thay
+  mang `original_item` để lệnh vẫn tính đã dùng nguyên liệu gốc.
+- Bài học: một tính năng có hai nhánh (theo lô, không theo lô) thì ca kiểm
+  phải dựng cả hai nhánh. Trước khi viết ca, đếm dữ liệu thật đang rơi vào
+  nhánh nào; ở đây 15 trên 15 rơi vào đúng nhánh chưa có code.
