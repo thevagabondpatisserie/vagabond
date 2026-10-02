@@ -171,10 +171,12 @@ def doc_chuong(nguon_md):
 		dau = ("Chương: %s\n" % chuong) if chuong else ""
 		if chua:
 			dau += DONG_DAN_CHUA_XAC_MINH + "\n"
-		# Dia chi man lay tu dong "Man hinh: Ten (/dia-chi)" (review #412,
-		# bo sung 1). Lay dia chi DAU TIEN co dang /chu-thuong.
+		# Dia chi man (review #412, bo sung 1). Vong 3 doi khuon: man hinh
+		# nam trong BANG tom tat, khong con dong "Man hinh:" rieng. Lay dia chi
+		# DAU TIEN dang "(/chu-thuong)" trong than muc, la o cot Man hinh cua
+		# bang tom tat theo quy uoc.
 		duong = ""
-		md = re.search(r"^M\u00e0n h\u00ecnh:.*?\((/[a-z0-9-]+)", than, re.M)
+		md = re.search(r"\((/[a-z0-9][a-z0-9-]*)\)", than)
 		if md:
 			duong = md.group(1)
 		ra.append({
@@ -186,6 +188,31 @@ def doc_chuong(nguon_md):
 			"chua_xac_minh": 1 if chua else 0,
 		})
 	return ra
+
+
+def chuong_cho_man(nguon_md, ma=""):
+	"""Một chương dạng dành cho màn Sổ tay trong app. THUẦN.
+
+	Khác tư liệu gửi mô hình ở hai chỗ: bỏ dòng "Chương:" và dòng dặn trợ lý
+	(người đọc không cần), còn dấu [CHƯA XÁC MINH: ...] thì GIỮ để màn vẽ
+	thành ô cảnh báo màu, người đọc biết chỗ nào chưa ai thử.
+	"""
+	s = str(nguon_md or "")
+	m = re.search(r"^# +(.+)$", s, re.M)
+	ten = m.group(1).strip() if m else ma
+	muc = []
+	for x in doc_chuong(s):
+		than = x["chi_tiet"]
+		than = re.sub(r"^Chương: .*\n", "", than, count=1)
+		than = than.replace(DONG_DAN_CHUA_XAC_MINH + "\n", "")
+		muc.append({
+			"ten": x["ten"],
+			"tu_khoa": (x["mo_ta"] or "").replace("Từ khoá: ", "", 1),
+			"than": than.strip(),
+			"duong": x["duong"],
+			"chua_xac_minh": x["chua_xac_minh"],
+		})
+	return {"ma": ma, "ten": ten, "muc": muc}
 
 
 def diem_khop(tu_hoi, muc):
@@ -408,3 +435,22 @@ def so_tay(dung_lai=0):
 	ra = dung_so_tay()
 	frappe.cache().set_value(KHOA_NHO, ra, expires_in_sec=3600)
 	return ra
+
+
+@frappe.whitelist()
+def doc_so_tay():
+	"""Toàn bộ sổ tay viết tay cho màn Sổ tay (v554). CHỈ ĐỌC.
+
+	Ai đăng nhập cũng xem được, kể cả tài khoản bếp Lab dạng Website User:
+	sổ tay chỉ có cách dùng app, không có số liệu của tiệm. Khác trợ lý
+	(chỉ cấp quản lý) vì trợ lý tốn tiền gọi mô hình, sổ tay thì không.
+	"""
+	if frappe.session.user in (None, "", "Guest"):
+		frappe.throw("Vui lòng đăng nhập để xem sổ tay.", frappe.PermissionError)
+	thu_muc = os.path.join(_goc(), "so_tay")
+	ra = []
+	if os.path.isdir(thu_muc):
+		for ten_tep in sorted(os.listdir(thu_muc)):
+			if ten_tep.endswith(".md") and not ten_tep.startswith("_"):
+				ra.append(chuong_cho_man(_doc(os.path.join(thu_muc, ten_tep)), ten_tep[:-3]))
+	return {"chuong": ra}
