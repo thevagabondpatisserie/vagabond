@@ -38,8 +38,10 @@ Sau đó là thân mục, theo thứ tự nếu có:
 ## Chỉ viết cái có thật
 
 - Tên nút, tên ô, câu báo lỗi lấy từ mã nguồn, không đặt theo trí nhớ.
-- Chỗ nào chưa chắc thì để chú thích HTML `<!-- kiểm: ... -->`. Trợ lý bỏ qua
-  chú thích này khi nạp, người rà soát đọc được.
+- Chỗ nào chưa chắc thì để chú thích HTML `<!-- kiểm: ... -->` ngay cạnh câu
+  chưa chắc. Bộ nạp đổi nó thành dấu `[CHƯA XÁC MINH: ...]` gửi kèm cho trợ
+  lý, và trợ lý phải nói với người hỏi rằng điểm đó chưa được xác minh. Kiểm
+  xong trên site thì XOÁ chú thích đó. Chú thích HTML khác bị bỏ khi nạp.
 - Không ghi tên hàm, tên tệp, tên trường máy. Người đọc là nhân viên.
 - Câu thuộc về CHÍNH SÁCH (giá, giảm giá, thưởng phạt, có được làm không) thì
   không trả lời, ghi "Việc này do anh Việt quyết".
