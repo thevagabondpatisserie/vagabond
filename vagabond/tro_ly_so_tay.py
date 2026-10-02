@@ -51,7 +51,7 @@ DAI_DOAN = 1800
 TU_BO = frozenset("""
 la va cua o cho khi thi ma nhu de duoc co khong con nao day kia
 mot hai ba bon nam sau bay tam chin muoi
-lam sao the nay do gi ai dau bao nhieu vi cai
+lam sao the nay do gi ai dau bao nhieu vi cai cach
 toi minh anh chi ban ho ta
 tren duoi trong ngoai truoc sau
 """.split())
@@ -113,6 +113,47 @@ def doan_dau_tep(nguon_py, dai=DAI_DOAN):
 			than = re.sub(r"\n{3,}", "\n\n", than).strip()
 			return than[:dai]
 	return ""
+
+
+def doc_chuong(nguon_md):
+	"""Tách một chương sổ tay viết tay thành các mục. THUẦN.
+
+	v554, anh Việt giao 02/10/2026. Ba câu hỏi thật đầu tiên trong nhật ký
+	(cấn trừ công nợ, tạo phiếu nhập kho, đặt lại mật khẩu) đều nhận câu
+	"chưa có tài liệu": đoạn mô tả đầu tệp mã nguồn kể VÌ SAO làm, không kể
+	BẤM NÚT NÀO. Nên thêm một nguồn thứ tư là sổ tay viết cho nhân viên đọc,
+	nằm trong `vagabond/so_tay/`, quy ước ở `_quy-uoc.md` cùng thư mục.
+
+	Mỗi mục mở bằng `## `. Dòng `Từ khoá:` đi vào ô mô tả (chấm điểm nặng
+	hơn thân mục) vì đó là chỗ khai các cách gọi khác của cùng một việc.
+	Chú thích HTML là ghi chú cho người rà soát, KHÔNG gửi cho mô hình.
+	"""
+	s = re.sub(r"<!--.*?-->", "", str(nguon_md or ""), flags=re.S)
+	chuong = ""
+	m = re.search(r"^# +(.+)$", s, re.M)
+	if m:
+		chuong = m.group(1).strip()
+	ra = []
+	for khoi in re.split(r"^## +", s, flags=re.M)[1:]:
+		dong = khoi.split("\n")
+		ten = dong[0].strip()
+		if not ten:
+			continue
+		than, tu = [], ""
+		for d in dong[1:]:
+			if not tu and bo_dau(d).startswith("tu khoa:"):
+				tu = d.split(":", 1)[1].strip()
+				continue
+			than.append(d)
+		than = re.sub(r"\n{3,}", "\n\n", "\n".join(than)).strip()
+		ra.append({
+			"loai": "so_tay",
+			"ten": ten,
+			"duong": "",
+			"mo_ta": ("Từ khoá: " + tu) if tu else "",
+			"chi_tiet": (("Chương: %s\n" % chuong) if chuong else "") + than,
+		})
+	return ra
 
 
 def diem_khop(tu_hoi, muc):
@@ -202,7 +243,11 @@ def chon_muc(cau_hoi, so_tay, so_muc=6, ti_le=TI_LE_PHU):
 	# co dinh toi cau hoi khong", con diem tra loi cau "dinh toi muc nao
 	# manh hon". Xep nham thu tu thi muc phu tron ven cau hoi co the bi mot
 	# muc dai lem nhem day xuong duoi, va cai chan ben duoi soi nham nguoi.
-	cham.sort(key=lambda x: (-x[0], -x[1], str(x[2].get("ten") or "")))
+	# v554: cung do phu thi muc so tay viet tay dung truoc doan mo ta dau
+	# tep. So tay noi bam nut nao, doan mo ta noi vi sao lam; nguoi hoi
+	# "cach lam X" can cai truoc.
+	cham.sort(key=lambda x: (-x[0], 0 if x[2].get("loai") == "so_tay" else 1,
+		-x[1], str(x[2].get("ten") or "")))
 	if not du_lien_quan(tu, cham[0][2], ti_le):
 		return []
 	return [m for _p, _d, m in cham[: max(1, int(so_muc or 6))]]
@@ -242,7 +287,7 @@ __init__.py hooks.py lib.py dich.py mau_chuan.py
 tro_ly.py tro_ly_so_tay.py
 """.split())
 
-KHOA_NHO = "vgb_tro_ly_so_tay"
+KHOA_NHO = "vgb_tro_ly_so_tay_v554"
 
 
 def _goc():
@@ -272,6 +317,14 @@ def dung_so_tay():
 		dia_chi.setdefault(khoa, "/" + slug)
 
 	ra = []
+	# So tay viet tay (v554) nap TRUOC. Tep bat dau bang "_" la quy uoc,
+	# khong nap.
+	thu_muc = os.path.join(goc, "so_tay")
+	if os.path.isdir(thu_muc):
+		for ten_tep in sorted(os.listdir(thu_muc)):
+			if ten_tep.endswith(".md") and not ten_tep.startswith("_"):
+				ra.extend(doc_chuong(_doc(os.path.join(thu_muc, ten_tep))))
+
 	for hang in getattr(duong_app, "MAN", ()):
 		ma, ten = hang[0], hang[1]
 		ra.append({
