@@ -32,7 +32,10 @@ def _nen(cho_thay=1, khai=True):
 	goc = _mon_thu("KT552-GOC-" + tag)
 	thay = _mon_thu("KT552-THAY-" + tag)
 	tp = _mon_thu("KT552-TP-" + tag)
+	# Cặp hai chiều: ERPNext đòi CẢ HAI món bật cho phép thay (bench #408 lượt
+	# 1 đỏ vì ca chỉ bật món gốc). Trên site 15/15 cặp đều bật cả hai.
 	frappe.db.set_value("Item", goc, "allow_alternative_item", 1)
+	frappe.db.set_value("Item", thay, "allow_alternative_item", 1)
 	if khai:
 		ia = frappe.get_doc({"doctype": "Item Alternative", "item_code": goc,
 			"alternative_item_code": thay, "two_way": 1})
