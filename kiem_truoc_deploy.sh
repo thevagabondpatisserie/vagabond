@@ -189,3 +189,5 @@ echo " do. Doc AGENTS.md muc 6."
 node vagabond/khung/kiem_thu/hanh_vi/van_don_237.js
 
 node vagabond/khung/kiem_thu/hanh_vi/thanh_vien_245.cjs
+# v554: man So tay va bo ve nut/bang dung chung voi tro ly (so tay that tu thu muc so_tay).
+node vagabond/khung/kiem_thu/hanh_vi/so_tay_554.js
