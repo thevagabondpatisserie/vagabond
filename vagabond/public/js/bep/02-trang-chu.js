@@ -766,6 +766,13 @@ function vgbGomNhom() {
       '<div><div class="gn">' + h(nh.ten) + '</div>' +
       '<div class="gs">' + co + ' nghiệp vụ</div></div></div>';
   }
+  /* O So tay (v554, anh Viet 02/10/2026: "lam nut so tay trong app"). Dung
+     rieng nhu o Viec can lam, KHONG thuoc phan he nao, de ai mo app cung
+     thay va bam mot lan la vao thang, khong qua man phan he trung gian. */
+  g += '<div class="gt" data-nhom="SOTAY">' +
+    '<div class="gi">📘</div>' +
+    '<div><div class="gn">Sổ tay</div>' +
+    '<div class="gs">Hướng dẫn dùng app theo từng việc</div></div></div>';
   g += '</div>';
   body.innerHTML = g;
   body.onclick = function (e) {
@@ -777,6 +784,7 @@ function vgbGomNhom() {
        chi. Bo qua cua nay dung mot lan la o lon mat dia chi, va do dung la
        loi anh Viet bao ngay 24/08 voi phan he Ke toan. */
     if (t.dataset.nhom === 'VCL') return vgbGo('VCL');
+    if (t.dataset.nhom === 'SOTAY') return vgbGo('SOTAY');
     if (nh) vgbGo('PH:' + nh.k);
   };
   vgbDemVCL();
@@ -1112,6 +1120,7 @@ var VGB_DUONG = {
   'quyen-quay': 'CDQQ',
   'san-xuat': 'MFG',
   'sepay': 'CDSE',
+  'so-tay': 'SOTAY',
   'tai-khoan-cua-toi': 'ACC',
   'tai-khoan-ke-toan': 'CDTK',
   'tai-san': 'TS',
@@ -1227,6 +1236,7 @@ function vgbGo(k) {
     return go(function () { scrNhom(nhx); });
   }
   if (k === 'VCL') return go(scrVclList);
+  if (k === 'SOTAY') return go(scrSoTay);
   if (k === 'KBD') { location.href = '/kiem-banh'; return; }
   if (k === 'KBM') return go(scrMuaVuDs);
   if (k === 'BTPO') { location.href = '/btp'; return; }
