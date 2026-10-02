@@ -334,7 +334,11 @@ def xem(ma):
 	_kiem(QUYEN_XEM, "xem bút toán")
 	d = frappe.get_doc("Journal Entry", ma)
 	ghi = 1 if (QUYEN_GHI & set(frappe.get_roles())) else 0
-	sua = 1 if (ghi and d.docstatus == 0) else 0
+	# v552 (anh Viet 02/10/2026, "nhieu nut qua"): khoan tra truoc khi len ERP
+	# chi duyet o MOT cho la the cho duyet ben Cong no phai tra; man nay chi
+	# hien de tra cuu, khong ghi so, khong doi tai khoan.
+	o_cong_no = 1 if _la_truoc_erp(d) else 0
+	sua = 1 if (ghi and d.docstatus == 0 and not o_cong_no) else 0
 
 	def _nhan(tk):
 		r = frappe.db.get_value("Account", tk, ["account_number", "account_name"], as_dict=True) or {}
@@ -360,9 +364,15 @@ def xem(ma):
 			}
 			for x in d.accounts
 		],
-		"ghi_duoc": ghi,
+		"ghi_duoc": 0 if o_cong_no else ghi,
 		"sua_duoc": sua,
+		"duyet_o_cong_no": o_cong_no,
 	}
+
+
+def _la_truoc_erp(d):
+	from vagabond import cong_no_ncc
+	return (d.user_remark or "").startswith(cong_no_ncc.DAU_TRUOC_ERP)
 
 
 def dong_doi_duoc(x):
@@ -394,14 +404,16 @@ def kiem_tk_moi(tk, cty, tien_te_dong=None):
 
 @frappe.whitelist(methods=["POST"])
 def doi_tai_khoan(ma, ma_dong, tk):
-	"""v552: ke toan doi tai khoan mot dong cua but toan NHAP ngay tren app.
+	"""v552: ke toan doi tai khoan mot dong cua but toan tay NHAP tren app.
 
-	Chi Dung 02/10/2026 khi duyet khoan tra truoc khi len ERP: ve Co phai la
-	11211 tien gui MB Bank chu khong phai tai khoan tam, va muon tu sua duoc.
+	Chi Dung 02/10/2026 xin sua duoc tai khoan tren app. Rieng khoan tra
+	truoc khi len ERP thi chon ve Co o hop Duyet ben Cong no phai tra.
 	Chi doi dong khong gan doi tuong, khong gan chung tu (xem dong_doi_duoc);
 	so tien, ben No/Co giu nguyen nen but toan van can."""
 	_kiem(QUYEN_GHI, "sửa bút toán")
 	d = frappe.get_doc("Journal Entry", ma)
+	if _la_truoc_erp(d):
+		frappe.throw("Khoản trả trước khi lên ERP: chọn tài khoản Có khi bấm Duyệt ghi sổ ở Công nợ phải trả.")
 	if d.docstatus != 0:
 		frappe.throw("Chỉ sửa được bút toán còn nháp. Bút toán đã ghi sổ thì huỷ rồi lập lại.")
 	dong = next((x for x in d.accounts if x.name == ma_dong), None)
@@ -504,8 +516,10 @@ def ghi_so(ma):
 	# v552: bút toán "trả trước khi lên ERP" phải đi qua đường duyệt riêng
 	# (khóa hóa đơn, kiểm lại dư sống, Codex #403). Ghi thẳng ở đây là bỏ
 	# qua bước đó, có thể cấn quá dư nếu phiếu chi khác đã giảm dư.
+	# Nút Ghi sổ đã ẩn cho loại này (duyệt ở Công nợ phải trả); vẫn giữ đường
+	# vòng này phòng ai gọi thẳng API.
 	from vagabond import cong_no_ncc
-	if (d.user_remark or "").startswith(cong_no_ncc.DAU_TRUOC_ERP):
+	if _la_truoc_erp(d):
 		cong_no_ncc.duyet_truoc_erp(d.name)
 		return {"ok": 1, "loi_nhan": "Đã ghi sổ bút toán %s. Dư hóa đơn đã giảm." % ma}
 	d.submit()

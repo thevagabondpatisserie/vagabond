@@ -144,11 +144,14 @@ def danh_sach(cong_ty=None, trang_thai="con_no", tu_khoa="", ky="", nhom="", tra
         for hd, je, tien, ai, luc, ngay_tra, dg in hang:
             cho.setdefault(hd, []).append({"je": je, "so_tien": float(tien or 0), "unc": tep.get(je, []),
                 "tk_co": ", ".join(_nhan_tk(t) for t in vco.get(je, [])),
+                "tk_co_ma": (vco.get(je) or [""])[0],
                 "nguoi_gui": frappe.utils.get_fullname(ai), "luc_gui": str(luc)[:16],
                 "ngay_tra": str(ngay_tra or "")[:10], "dien_giai": (dg or "")[len(DAU_TRUOC_ERP):].strip()})
     for r in kq["dong"]:
         r["cho_duyet"] = cho.get(r["name"], [])
     kq["ke_toan"] = _la_ke_toan()
+    # v552: danh sách tài khoản Có cho hộp Duyệt ghi sổ (chỉ khi có thẻ chờ).
+    kq["tk_co_chon"] = tk_co_chon_duoc(kq.get("cong_ty")) if (cho and kq["ke_toan"] and kq.get("cong_ty")) else []
     return kq
 
 
@@ -240,9 +243,12 @@ def luu_unc(hoa_don, payment_entry, unc):
 #   Nợ 331 Phải trả người bán / Có 11211 Tiền gửi MB Bank
 # và muốn tự sửa được tài khoản trên app trước khi ghi sổ. Máy đặt sẵn vế Có
 # là tài khoản số hiệu SO_TK_CO_TRUOC_ERP; công ty không có tài khoản đó thì
-# lùi về tài khoản tạm như v549. Kế toán đổi vế Có ở màn Bút toán (nút Đổi
-# tài khoản, but_toan.doi_tai_khoan). Hạch toán theo bản chất từng khoản là
-# việc của kế toán (anh Việt chốt 30/09/2026), máy chỉ đặt mặc định.
+# lùi về tài khoản tạm như v549. Hạch toán theo bản chất từng khoản là việc
+# của kế toán (anh Việt chốt 30/09/2026), máy chỉ đặt mặc định.
+# Anh Việt 02/10/2026: "nhiều nút quá, chảy ra nhiều vị trí, kế toán mệt".
+# Nên MỘT chỗ duy nhất: kế toán chọn vế Có ngay lúc bấm Duyệt ghi sổ trên thẻ
+# chờ duyệt (duyet_truoc_erp nhận tk_co). Màn Bút toán chỉ hiện để tra cứu,
+# không ghi sổ, không đổi tài khoản loại bút toán này.
 # ---------------------------------------------------------------------------
 
 SO_TK_CO_TRUOC_ERP = "11211"
@@ -318,6 +324,40 @@ def _tk_co_truoc_erp(cong_ty):
     if len(ds) == 1:
         return ds[0]
     return _tk_tam(cong_ty)
+
+
+def tk_co_chon_duoc(cong_ty):
+    """Các tài khoản kế toán chọn làm vế Có khi duyệt: tiền gửi/tiền mặt VND
+    chi tiết đang dùng, cộng tài khoản tạm. [{ma, ten}], mặc định đứng đầu."""
+    ds = frappe.get_all("Account", filters={"company": cong_ty, "is_group": 0, "disabled": 0,
+        "account_type": ["in", ["Bank", "Cash", "Temporary"]]},
+        fields=["name", "account_number", "account_name", "account_currency"], order_by="account_number asc, name asc")
+    from vagabond.but_toan import nhan_tk
+    mac_dinh = _tk_co_truoc_erp(cong_ty)
+    ra = [{"ma": r.name, "ten": nhan_tk(r.account_number, r.account_name)} for r in ds
+        if (r.account_currency or "VND") == "VND"]
+    ra.sort(key=lambda x: x["ma"] != mac_dinh)
+    return ra
+
+
+def doi_ve_co(doc, tk_co):
+    """Đổi mọi dòng vế Có không gắn NCC/hóa đơn của bút toán nháp sang tk_co.
+
+    Trả số dòng đã đổi. Kiểm tài khoản bằng but_toan.kiem_tk_moi (chi tiết,
+    đúng công ty, đang dùng, không phải công nợ, đúng tiền tệ)."""
+    from vagabond.but_toan import dong_doi_duoc, kiem_tk_moi
+    moi = frappe.db.get_value("Account", tk_co,
+        ["name", "company", "is_group", "disabled", "account_type", "account_currency"], as_dict=True)
+    doi = 0
+    for a in doc.accounts:
+        if float(a.credit_in_account_currency or 0) > 0 and dong_doi_duoc(a):
+            loi = kiem_tk_moi(moi, doc.company, a.account_currency)
+            if loi:
+                frappe.throw(loi)
+            if a.account != moi.name:
+                a.account = moi.name
+                doi += 1
+    return doi
 
 
 def _nhan_tk(tk):
@@ -412,8 +452,10 @@ def lap_truoc_erp(hoa_don, so_tien, ngay_tra, unc=None, ghi_chu="", ma_lan=""):
 
 
 @frappe.whitelist(methods=["POST"])
-def duyet_truoc_erp(je):
-    """Kế toán duyệt bút toán nháp của luồng này. Kiểm lại dư tại lúc duyệt."""
+def duyet_truoc_erp(je, tk_co=None):
+    """Kế toán duyệt bút toán nháp của luồng này. Kiểm lại dư tại lúc duyệt.
+
+    v552: tk_co là tài khoản vế Có kế toán chọn ngay trong hộp duyệt."""
     from vagabond import ho_so_tt as hs
     hs._kiem(hs.VAI_FIN, "duyệt khoản đã trả trước khi lên ERP")
     doc = frappe.get_doc("Journal Entry", je)
@@ -437,6 +479,10 @@ def duyet_truoc_erp(je):
     if loi:
         frappe.throw("Không duyệt được %s: %s Hóa đơn %s hiện còn %s đ. Từ chối nháp này rồi để thu mua gửi lại đúng số."
             % (doc.name, loi, hd_ten, "{:,.0f}".format(float(con_no or 0)).replace(",", ".")))
+    if tk_co:
+        cu = [a.account for a in doc.accounts if float(a.credit_in_account_currency or 0) > 0]
+        if doi_ve_co(doc, tk_co):
+            doc.add_comment("Comment", "Kế toán chọn vế Có %s khi duyệt (trước đó: %s)." % (tk_co, ", ".join(cu)))
     doc.submit()
     return {"je": doc.name, "da_ghi_so": True}
 
