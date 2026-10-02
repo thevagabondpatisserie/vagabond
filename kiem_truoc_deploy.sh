@@ -148,6 +148,7 @@ node vagabond/khung/kiem_thu/hanh_vi/cong_cu_ds_534.js
 node vagabond/khung/kiem_thu/hanh_vi/cong_no_ncc.js
 node vagabond/khung/kiem_thu/hanh_vi/cong_no_tra_truoc_erp_549.js
 node vagabond/khung/kiem_thu/hanh_vi/cong_no_tra_truoc_erp_ban_nhap_549.js
+node vagabond/khung/kiem_thu/hanh_vi/but_toan_doi_tk_552.js
 # v550: tru kho tung mon va tru bu (chip, chip loc, man Hoa don chua tru kho, khoi Kho).
 node vagabond/khung/kiem_thu/hanh_vi/tru_kho_bu_550.js
 # Trang /kiem-banh: chuoi go o Huy. Codex doi tren PR #218 mot ca chay that

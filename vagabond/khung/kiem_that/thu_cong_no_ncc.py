@@ -207,3 +207,62 @@ def _duyet_du_song_va_tu_choi():
     except frappe.ValidationError:
         pass
     je.cancel()
+
+
+@ca("v552 chị Dung: chọn vế Có ngân hàng ngay khi duyệt khoản trả trước ERP; màn Bút toán chỉ tra cứu")
+def _doi_ve_co_552():
+    from vagabond import but_toan as bt
+    hd = _hoa_don_mua(1000000)
+    _tk_tam(hd.company)
+    nh = frappe.get_all("Account", filters={"company": hd.company, "account_type": "Bank", "is_group": 0,
+        "disabled": 0, "account_currency": ["in", ["VND", "", None]]}, pluck="name", limit=1)
+    if not nh:
+        cha = frappe.get_all("Account", filters={"company": hd.company, "is_group": 1, "root_type": "Asset"},
+            pluck="name", limit=1)
+        a = frappe.get_doc({"doctype": "Account", "company": hd.company, "account_name": "Kiem 552 NH",
+            "parent_account": cha[0], "account_type": "Bank", "is_group": 0}).insert(ignore_permissions=True)
+        _DA_TAO.append((a.doctype, a.name))
+        nh = [a.name]
+    truoc = frappe.session.user
+    u = frappe.get_doc({"doctype": "User", "email": "kiem552-%s@example.invalid" % frappe.generate_hash(length=8),
+        "first_name": "Thu mua 552", "enabled": 1, "send_welcome_email": 0,
+        "roles": [{"role": "Purchase User"}]}).insert(ignore_permissions=True)
+    _DA_TAO.append((u.doctype, u.name))
+    try:
+        frappe.set_user(u.name)
+        f = frappe.get_doc({"doctype": "File", "file_name": "UNC-552-%s.txt" % frappe.generate_hash(length=6),
+            "content": "UNC", "is_private": 1}).insert(ignore_permissions=True)
+        _DA_TAO.append((f.doctype, f.name))
+        k = cn.lap_truoc_erp(hd.name, 400000, "2026-06-02", frappe.as_json([f.file_url]), "", "TE-552-" + frappe.generate_hash(length=6))
+        _DA_TAO.append(("Journal Entry", k["je"]))
+    finally:
+        frappe.set_user(truoc)
+    # Anh Việt 02/10 "nhiều nút quá": màn Bút toán chỉ tra cứu loại này.
+    x = bt.xem(k["je"])
+    la("màn Bút toán không ghi sổ, nhắc duyệt ở công nợ", (x["ghi_duoc"], x["duyet_o_cong_no"]), (0, 1))
+    la("không dòng nào đổi được ở màn Bút toán", [d["doi_duoc"] for d in x["dong"]], [0, 0])
+    co = [d for d in x["dong"] if d["co"] > 0][0]
+    try:
+        bt.doi_tai_khoan(k["je"], co["ma_dong"], nh[0])
+        dung("đổi ở màn Bút toán phải bị chặn", False)
+    except frappe.ValidationError as e:
+        dung("chỉ đường về Công nợ phải trả", "Công nợ phải trả" in str(e))
+    # Chọn tài khoản công nợ làm vế Có trong hộp duyệt: bị chặn, vẫn nháp.
+    try:
+        cn.duyet_truoc_erp(k["je"], tk_co=hd.credit_to)
+        dung("vế Có là tài khoản công nợ phải bị chặn", False)
+    except frappe.ValidationError:
+        pass
+    la("vẫn là nháp sau khi bị chặn", frappe.db.get_value("Journal Entry", k["je"], "docstatus"), 0)
+    # Kế toán chọn vế Có ngân hàng ngay khi duyệt.
+    cn.duyet_truoc_erp(k["je"], tk_co=nh[0])
+    je = frappe.get_doc("Journal Entry", k["je"])
+    la("đã ghi sổ", je.docstatus, 1)
+    la("vế Có đã là tài khoản ngân hàng", [a.account for a in je.accounts if a.credit_in_account_currency], [nh[0]])
+    la("vế Nợ vẫn gắn hóa đơn", [a.reference_name for a in je.accounts if a.debit_in_account_currency], [hd.name])
+    hd.reload()
+    la("dư hóa đơn giảm đúng", float(hd.outstanding_amount), 600000.)
+    la("sổ cái có Có ngân hàng", frappe.db.get_value("GL Entry", {"voucher_no": k["je"], "account": nh[0],
+        "is_cancelled": 0}, "credit"), 400000.)
+    dung("danh sách chọn vế Có có tài khoản ngân hàng", nh[0] in [r["ma"] for r in cn.tk_co_chon_duoc(hd.company)])
+    frappe.get_doc("Journal Entry", k["je"]).cancel()

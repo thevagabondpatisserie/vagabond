@@ -190,16 +190,38 @@ def _kiem(quyen, viec):
 		frappe.throw("Tài khoản của bạn không có quyền %s." % viec)
 
 
+def nhan_tk(so, ten):
+	"""THUAN: nhan tai khoan kem so hieu, vi du "331 - Phai tra cho nguoi ban".
+
+	v552 (chi Dung 02/10/2026): man But toan chi hien ten tai khoan, ke toan
+	phai doan "Phai tra cho nguoi ban" la 331 hay 3388. So hieu nam o truong
+	account_number, KHONG nam trong account_name, nen phai ghep."""
+	so = (so or "").strip()
+	ten = (ten or "").strip()
+	if not so:
+		return ten
+	if not ten or ten == so or ten.startswith(so + " "):
+		return ten or so
+	return so + " - " + ten
+
+
 def _tim_tk(so, cty=None):
-	"""Tim Account theo so hieu dat o dau ten. Tra ve None neu khong thay."""
+	"""Tim Account theo so hieu. Tra ve None neu khong thay.
+
+	v552: so hieu that nam o account_number (site 02/10/2026: "331", ten
+	"Phai tra cho nguoi ban"); ban cu chi do account_name bat dau bang so hieu
+	nen mau nao cung bao thieu tai khoan. Giu cach cu lam duong lui."""
 	cty = cty or _cty()
-	ra = frappe.get_all(
-		"Account",
-		filters={"company": cty, "is_group": 0, "account_name": ["like", so + " %"]},
-		fields=["name", "account_name", "account_type"],
-		limit=1,
-	)
-	return ra[0] if ra else None
+	for dk in ({"account_number": so}, {"account_name": ["like", so + " %"]}):
+		dk.update({"company": cty, "is_group": 0})
+		ra = frappe.get_all(
+			"Account", filters=dk,
+			fields=["name", "account_name", "account_type", "account_number"],
+			limit=1,
+		)
+		if ra:
+			return ra[0]
+	return None
 
 
 @frappe.whitelist()
@@ -217,7 +239,7 @@ def danh_sach_mau():
 			dong.append({
 				"tk": d["tk"],
 				"tk_day_du": tk["name"] if tk else None,
-				"ten_tk": tk["account_name"] if tk else None,
+				"ten_tk": nhan_tk(tk.get("account_number"), tk["account_name"]) if tk else None,
 				"ben": d["ben"],
 				"nhan": d["nhan"],
 				"tu_tinh": cint(d.get("tu_tinh")),
@@ -236,16 +258,21 @@ def tim_tai_khoan(tu_khoa="", so_dong=40):
 	_kiem(QUYEN_XEM, "tra cứu tài khoản")
 	cty = _cty()
 	dk = {"company": cty, "is_group": 0, "disabled": 0}
+	hoac = None
 	if (tu_khoa or "").strip():
-		dk["account_name"] = ["like", "%" + tu_khoa.strip() + "%"]
+		# v552: go "112" phai ra 1121, 11211 MB Bank: so hieu nam o
+		# account_number chu khong nam trong ten.
+		mau = "%" + tu_khoa.strip() + "%"
+		hoac = {"account_name": ["like", mau], "account_number": ["like", tu_khoa.strip() + "%"]}
 	ds = frappe.get_all(
-		"Account", filters=dk, fields=["name", "account_name", "account_type", "root_type"],
-		order_by="account_name asc", limit_page_length=cint(so_dong) or 40,
+		"Account", filters=dk, or_filters=hoac,
+		fields=["name", "account_name", "account_type", "root_type", "account_number"],
+		order_by="account_number asc, account_name asc", limit_page_length=cint(so_dong) or 40,
 	)
 	return {
 		"rows": [
 			{
-				"ma": x["name"], "ten": x["account_name"],
+				"ma": x["name"], "ten": nhan_tk(x.get("account_number"), x["account_name"]),
 				"kieu": x["account_type"] or "", "loai": x["root_type"] or "",
 				"can_ben": 1 if x["account_type"] in ("Receivable", "Payable") else 0,
 			}
@@ -306,6 +333,17 @@ def danh_sach(so_ngay=60, chip=None, tu_khoa=None):
 def xem(ma):
 	_kiem(QUYEN_XEM, "xem bút toán")
 	d = frappe.get_doc("Journal Entry", ma)
+	ghi = 1 if (QUYEN_GHI & set(frappe.get_roles())) else 0
+	# v552 (anh Viet 02/10/2026, "nhieu nut qua"): khoan tra truoc khi len ERP
+	# chi duyet o MOT cho la the cho duyet ben Cong no phai tra; man nay chi
+	# hien de tra cuu, khong ghi so, khong doi tai khoan.
+	o_cong_no = 1 if _la_truoc_erp(d) else 0
+	sua = 1 if (ghi and d.docstatus == 0 and not o_cong_no) else 0
+
+	def _nhan(tk):
+		r = frappe.db.get_value("Account", tk, ["account_number", "account_name"], as_dict=True) or {}
+		return nhan_tk(r.get("account_number"), r.get("account_name") or tk)
+
 	return {
 		"ma": d.name,
 		"ngay": d.posting_date,
@@ -315,17 +353,88 @@ def xem(ma):
 		"tong": flt(d.total_debit),
 		"dong": [
 			{
+				"ma_dong": x.name,
 				"tk": x.account,
-				"ten_tk": frappe.db.get_value("Account", x.account, "account_name"),
+				"ten_tk": _nhan(x.account),
 				"no": flt(x.debit_in_account_currency),
 				"co": flt(x.credit_in_account_currency),
 				"ben": x.party or "",
 				"dien_giai": x.user_remark or "",
+				"doi_duoc": 1 if (sua and dong_doi_duoc(x)) else 0,
 			}
 			for x in d.accounts
 		],
-		"ghi_duoc": 1 if (QUYEN_GHI & set(frappe.get_roles())) else 0,
+		"ghi_duoc": 0 if o_cong_no else ghi,
+		"sua_duoc": sua,
+		"duyet_o_cong_no": o_cong_no,
 	}
+
+
+def _la_truoc_erp(d):
+	from vagabond import cong_no_ncc
+	return (d.user_remark or "").startswith(cong_no_ncc.DAU_TRUOC_ERP)
+
+
+def dong_doi_duoc(x):
+	"""THUAN: dong but toan nao doi tai khoan duoc ma khong pha lien ket.
+
+	Dong gan doi tuong (NCC, khach) hoac gan chung tu (hoa don mua) la dong
+	cong no: doi tai khoan la mat dau can tru hoa don. Chi doi dong thuan tai
+	khoan, vi du ve Co tien gui ngan hang hay tai khoan tam."""
+	g = (lambda k: x.get(k)) if isinstance(x, dict) else (lambda k: getattr(x, k, None))
+	return not (g("party") or g("party_type") or g("reference_type") or g("reference_name"))
+
+
+def kiem_tk_moi(tk, cty, tien_te_dong=None):
+	"""THUAN: tk la dict Account (hoac None). Tra ve loi (chuoi) hoac None."""
+	if not tk:
+		return "Không thấy tài khoản này. Tìm lại theo số hiệu."
+	if tk.get("company") != cty:
+		return "Tài khoản %s không thuộc công ty của bút toán." % tk.get("name")
+	if cint(tk.get("is_group")):
+		return "Tài khoản %s là tài khoản nhóm, không hạch toán thẳng vào được." % tk.get("name")
+	if cint(tk.get("disabled")):
+		return "Tài khoản %s đã ngừng dùng." % tk.get("name")
+	if tk.get("account_type") in ("Receivable", "Payable"):
+		return "Tài khoản %s là tài khoản công nợ, phải gắn khách hoặc NCC; lập bút toán mới thay vì đổi." % tk.get("name")
+	if tien_te_dong and tk.get("account_currency") and tk.get("account_currency") != tien_te_dong:
+		return "Tài khoản %s dùng tiền %s, dòng này đang là %s." % (tk.get("name"), tk.get("account_currency"), tien_te_dong)
+	return None
+
+
+@frappe.whitelist(methods=["POST"])
+def doi_tai_khoan(ma, ma_dong, tk):
+	"""v552: ke toan doi tai khoan mot dong cua but toan tay NHAP tren app.
+
+	Chi Dung 02/10/2026 xin sua duoc tai khoan tren app. Rieng khoan tra
+	truoc khi len ERP thi chon ve Co o hop Duyet ben Cong no phai tra.
+	Chi doi dong khong gan doi tuong, khong gan chung tu (xem dong_doi_duoc);
+	so tien, ben No/Co giu nguyen nen but toan van can."""
+	_kiem(QUYEN_GHI, "sửa bút toán")
+	d = frappe.get_doc("Journal Entry", ma)
+	if _la_truoc_erp(d):
+		frappe.throw("Khoản trả trước khi lên ERP: chọn tài khoản Có khi bấm Duyệt ghi sổ ở Công nợ phải trả.")
+	if d.docstatus != 0:
+		frappe.throw("Chỉ sửa được bút toán còn nháp. Bút toán đã ghi sổ thì huỷ rồi lập lại.")
+	dong = next((x for x in d.accounts if x.name == ma_dong), None)
+	if not dong:
+		frappe.throw("Không thấy dòng này trong bút toán %s. Tải lại rồi thử." % ma)
+	if not dong_doi_duoc(dong):
+		frappe.throw("Dòng công nợ gắn nhà cung cấp, khách hoặc hoá đơn thì không đổi tài khoản được.")
+	moi = frappe.db.get_value("Account", tk,
+		["name", "company", "is_group", "disabled", "account_type", "account_currency"], as_dict=True)
+	loi = kiem_tk_moi(moi, d.company, dong.account_currency)
+	if loi:
+		frappe.throw(loi)
+	cu = dong.account
+	if cu == moi.name:
+		return {"ok": 1, "loi_nhan": "Dòng này đã là %s." % cu}
+	dong.account = moi.name
+	d.flags.ignore_permissions = True
+	d.save(ignore_permissions=True)
+	d.add_comment("Comment", "Đổi tài khoản dòng %s: %s thành %s (trên app, %s)." % (
+		dong.idx, cu, moi.name, frappe.session.user))
+	return {"ok": 1, "loi_nhan": "Đã đổi %s thành %s. Soát lại rồi bấm Ghi sổ." % (cu, moi.name)}
 
 
 @frappe.whitelist()
@@ -404,6 +513,15 @@ def ghi_so(ma):
 	d = frappe.get_doc("Journal Entry", ma)
 	if d.docstatus != 0:
 		frappe.throw("Bút toán này không còn ở dạng nháp.")
+	# v552: bút toán "trả trước khi lên ERP" phải đi qua đường duyệt riêng
+	# (khóa hóa đơn, kiểm lại dư sống, Codex #403). Ghi thẳng ở đây là bỏ
+	# qua bước đó, có thể cấn quá dư nếu phiếu chi khác đã giảm dư.
+	# Nút Ghi sổ đã ẩn cho loại này (duyệt ở Công nợ phải trả); vẫn giữ đường
+	# vòng này phòng ai gọi thẳng API.
+	from vagabond import cong_no_ncc
+	if _la_truoc_erp(d):
+		cong_no_ncc.duyet_truoc_erp(d.name)
+		return {"ok": 1, "loi_nhan": "Đã ghi sổ bút toán %s. Dư hóa đơn đã giảm." % ma}
 	d.submit()
 	return {"ok": 1, "loi_nhan": "Đã ghi sổ bút toán %s." % ma}
 
