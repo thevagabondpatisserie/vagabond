@@ -60,6 +60,11 @@ def _nguon(doc):
 		nguon = {(r["company"], r["nguon_chi"]) for r in ke["hoa_don"].values()}
 	else:
 		nguon = {(ke["company"], tk) for tk, tien in ke["co"].items() if tien > 0}
+		# v551: phần chờ hoá đơn là phiếu chi trả trước NCC, tiền ra từ cùng
+		# tài khoản ngân hàng của hồ sơ (bench #405 bắt: thiếu dòng này thì hồ
+		# sơ chỉ có phần trả trước bị báo "nhiều nguồn chi" vì bộ nguồn rỗng).
+		if ke.get("tra_truoc"):
+			nguon.add((ke["company"], ke["tra_truoc"]["nguon_chi"]))
 	if len(nguon) != 1:
 		frappe.throw("Hồ sơ %s có nhiều nguồn chi. Kế toán đối chiếu từng bút toán trong Đối chiếu ngân hàng." % doc.name)
 	cty, tk = next(iter(nguon))
