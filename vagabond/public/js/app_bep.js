@@ -22285,7 +22285,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '551';
+var APPVER = '552';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -27079,7 +27079,9 @@ async function scrNoPhaiTra() {
     var can = e.target.closest('[data-cntcan]');
     if (can) return cntCanTru(kq.dong[Number(can.getAttribute('data-cntcan'))]);
     var dy = e.target.closest('[data-cntduyet]');
-    if (dy) return cntDuyetTruocErp(dy.getAttribute('data-cntduyet'));
+    if (dy) return cntDuyetTruocErp(dy.getAttribute('data-cntduyet'), dy.getAttribute('data-cntco'));
+    var su = e.target.closest('[data-cntsua]');
+    if (su) { var jeSua = su.getAttribute('data-cntsua'); return go(function () { scrButToanXem(jeSua); }); }
     var bo = e.target.closest('[data-cntbo]');
     if (bo) return cntBoTruocErp(bo.getAttribute('data-cntbo'));
     var t = e.target.closest('[data-cntdong]');
@@ -27181,7 +27183,9 @@ function cntManCan(r,ds,pe) {
 /* v549: khoản đã trả TRƯỚC KHI LÊN ERP. Ghi Nợ 331 đúng hóa đơn / Có tài
    khoản tạm chờ xử lý đầu kỳ (anh Việt chốt 01/10/2026), không đụng ngân
    hàng vì tiền đã ra trước khi lên ERP. Thu mua lập kèm UNC, kế toán duyệt
-   mới ghi sổ; kế toán tự lập thì ghi sổ luôn. */
+   mới ghi sổ; kế toán tự lập thì ghi sổ luôn.
+   v552 (chị Dung 02/10/2026): vế Có mặc định 11211 tiền gửi MB Bank, kế toán
+   sửa được trước khi duyệt (nút Sửa định khoản mở màn Bút toán). */
 function cntCoQuyenLapTruocErp() {
   return ['Purchase User','Purchase Manager','Accounts User','Accounts Manager','AP Kiểm soát (FIN)','System Manager']
     .some(function (v) { return hasRole(v); });
@@ -27216,12 +27220,14 @@ function cntDongCho(r, keToan) {
       '<div style="font-size:12.5px;color:#5a6070;margin:4px 0"><div style="' + mot + '">' + dong1 + '</div><div style="' + mot + '">' +
       (uncs.length ? link(uncs[0], 0) + (uncs.length > 1 ? ' và ' + (uncs.length - 1) + ' UNC khác' : '') : '<b>Chưa có UNC</b>') +
       (c.dien_giai ? ' · ' + h(c.dien_giai) : '') + '</div></div>' +
-      (keToan ? '<button class="btn" data-cntduyet="' + h(c.je) + '">Duyệt ghi sổ</button>' : '') +
+      (c.tk_co ? '<div style="font-size:12.5px;color:#5a6070;margin:0 0 4px;' + ngat + '">Nợ 331 / Có <b>' + h(c.tk_co) + '</b></div>' : '') +
+      (keToan ? '<button class="btn" data-cntduyet="' + h(c.je) + '" data-cntco="' + h(c.tk_co || '') + '">Duyệt ghi sổ</button>' +
+        '<button class="btn gh" data-cntsua="' + h(c.je) + '">✏️ Sửa định khoản</button>' : '') +
       '<button class="btn gh" data-cntbo="' + h(c.je) + '">' + (keToan ? 'Từ chối' : 'Rút lại') + '</button>' + chiTiet + '</div>';
   }).join('');
 }
-async function cntDuyetTruocErp(je) {
-  if (!await confirmSheet('Duyệt ghi sổ', 'Ghi Nợ 331 hóa đơn / Có tài khoản tạm chờ xử lý đầu kỳ.\nKhông chuyển tiền, không đụng số dư ngân hàng.', 'Duyệt ghi sổ')) return;
+async function cntDuyetTruocErp(je, tkCo) {
+  if (!await confirmSheet('Duyệt ghi sổ', 'Ghi Nợ 331 hóa đơn / Có ' + (tkCo || 'tài khoản trên bút toán') + '.\nMuốn đổi vế Có thì bấm Sửa định khoản trước.', 'Duyệt ghi sổ')) return;
   busy(true);
   try { await api('vagabond.cong_no_ncc.duyet_truoc_erp', {je: je}); toast('Đã ghi sổ ' + je + '. Dư hóa đơn đã giảm.', 4000); }
   catch (e) { busy(false); return baoTin(e.message || 'Chưa duyệt được. Tải lại rồi thử.'); }
@@ -27257,7 +27263,7 @@ async function scrCntTruocErp(hoaDon) {
   tdkNap(id, cntTe.tep || []);
   var html = '<div class="card" style="padding:12px"><b>HĐ ' + h(tt.bill_no || tt.hoa_don) + '</b><div>' + h(tt.ten_ncc) + '</div>' +
     '<div>Còn nợ ' + money(tt.con_no) + ' đ' + (tt.dang_cho ? ' · đang chờ duyệt ' + money(tt.dang_cho) + ' đ' : '') + '</div>' +
-    '<div style="font-size:12.5px;color:#6b7280;margin-top:6px">Dùng cho khoản đã trả nhà cung cấp TRƯỚC khi lên ERP. Máy ghi Nợ 331 hóa đơn này / Có tài khoản tạm chờ xử lý đầu kỳ (' + h(tt.tk_tam) + '). Không chuyển tiền, không trừ ngân hàng.</div></div>' +
+    '<div style="font-size:12.5px;color:#6b7280;margin-top:6px">Dùng cho khoản đã trả nhà cung cấp TRƯỚC khi lên ERP. Máy ghi Nợ 331 hóa đơn này / Có ' + h(tt.tk_co || tt.tk_tam) + '. Không chuyển tiền; kế toán sửa được vế Có trước khi ghi sổ.</div></div>' +
     '<div class="card" style="padding:12px"><label for="cntTeTien">Số tiền đã trả</label><input class="tin" style="width:100%;font-size:20px" id="cntTeTien" type="number" inputmode="decimal" min="1" value="' + conCan + '">' +
     '<label for="cntTeNgay" style="display:block;margin-top:10px">Ngày đã trả</label><input class="tin" style="width:100%" id="cntTeNgay" type="date">' +
     '<label for="cntTeGhiChu" style="display:block;margin-top:10px">Ghi chú (tài khoản đã trả, số UNC...)</label><input class="tin" style="width:100%" id="cntTeGhiChu">' +
@@ -27273,7 +27279,7 @@ async function scrCntTruocErp(hoaDon) {
     if (!ngay) return baoTin('Chọn ngày đã trả cho nhà cung cấp.');
     if (!urls.length && !tt.ke_toan) return baoTin('Đính UNC hoặc phiếu chi để kế toán duyệt.');
     if (!await confirmSheet(tt.ke_toan ? 'Ghi sổ cấn trừ' : 'Gửi kế toán duyệt',
-      money(tien) + ' đ cho HĐ ' + (tt.bill_no || tt.hoa_don) + ', đã trả ngày ' + ngay + '.\nNợ 331 / Có tài khoản tạm chờ xử lý đầu kỳ. Không chuyển tiền.',
+      money(tien) + ' đ cho HĐ ' + (tt.bill_no || tt.hoa_don) + ', đã trả ngày ' + ngay + '.\nNợ 331 / Có ' + (tt.tk_co || tt.tk_tam) + '. Không chuyển tiền.',
       tt.ke_toan ? 'Ghi sổ' : 'Gửi')) return;
     dang = true; busy(true);
     try {
@@ -38254,6 +38260,24 @@ async function btGui(ghi) {
 }
 
 
+async function btDoiTk(ma, maDong) {
+  var tu = await hoiChu('Đổi tài khoản', 'Gõ số hiệu hoặc tên tài khoản muốn dùng.', '', { goi_y: '11211 hoặc MB Bank' });
+  if (tu === null) return;
+  var d;
+  try { d = await api('vagabond.but_toan.tim_tai_khoan', { tu_khoa: tu || '' }); }
+  catch (e) { return baoTin((e && e.message) || 'Tìm lỗi'); }
+  var rows = (d.rows || []).filter(function (x) { return !x.can_ben; });
+  if (!rows.length) return baoTin('Không thấy tài khoản nào khớp "' + tu + '".');
+  var tk = await hoiChon('Chọn tài khoản', 'Chỉ hiện tài khoản chi tiết, không hiện tài khoản nhóm và tài khoản công nợ.',
+    rows.slice(0, 30).map(function (x) { return { k: x.ma, nhan: x.ten, mo_ta: x.kieu || x.loai, icon: '🏷' }; }), null);
+  if (!tk) return;
+  busy(true);
+  try { var kq = await api('vagabond.but_toan.doi_tai_khoan', { ma: ma, ma_dong: maDong, tk: tk }); busy(false); toast(kq.loi_nhan, 4000); }
+  catch (er) { busy(false); return baoTin((er && er.message) || 'Đổi tài khoản lỗi'); }
+  go(function () { scrButToanXem(ma); }, true);
+}
+
+
 async function scrButToanXem(ma) {
   frame('Bút toán', '<div class="emp"><div class="e1">⏳</div><div>Đang mở...</div></div>');
   var d;
@@ -38271,7 +38295,8 @@ async function scrButToanXem(ma) {
     html += '<div style="display:flex;align-items:center;gap:9px;padding:10px 0;border-bottom:1px solid #f1f3f6">' +
       '<span class="vxtag ' + (no ? 'c' : 'd') + '" style="flex:0 0 auto">' + (no ? 'Nợ' : 'Có') + '</span>' +
       '<div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + h(x.ten_tk || x.tk) + '</div>' +
-      (x.ben ? '<div style="font-size:11.5px;color:#98a2b3">' + h(x.ben) + '</div>' : '') + '</div>' +
+      (x.ben ? '<div style="font-size:11.5px;color:#98a2b3">' + h(x.ben) + '</div>' : '') +
+      (x.doi_duoc ? '<button class="btn gh" data-btdoi="' + h(x.ma_dong) + '" style="margin:6px 0 0;padding:6px 10px;width:auto;font-size:12.5px">✏️ Đổi tài khoản</button>' : '') + '</div>' +
       '<b style="white-space:nowrap">' + money(no ? x.no : x.co) + ' đ</b></div>';
   });
   html += '<div style="display:flex;justify-content:space-between;padding:12px 0 2px;font-weight:800">' +
@@ -38281,6 +38306,12 @@ async function scrButToanXem(ma) {
   if (!d.nhap && d.trang_thai === 'Đã ghi sổ' && d.ghi_duoc) html += '<button class="btn dg" id="btHuy">🚫 Huỷ bút toán</button>';
 
   frame('Bút toán', html, { back: function () { go(scrButToan); } });
+  /* v552 (chị Dung 02/10/2026): đổi tài khoản một dòng của bút toán nháp,
+     ví dụ vế Có tài khoản tạm thành 11211 tiền gửi MB Bank. Dòng công nợ gắn
+     NCC hay hoá đơn không có nút này (máy chủ cũng chặn). */
+  Array.prototype.forEach.call(document.querySelectorAll('[data-btdoi]'), function (el) {
+    el.onclick = function () { btDoiTk(d.ma, el.getAttribute('data-btdoi')); };
+  });
   var g = document.getElementById('btGhi');
   if (g) g.onclick = async function () {
     if (!await hoiCo('Ghi sổ', 'Ghi sổ bút toán ' + d.ma + '? Ghi rồi thì chỉ huỷ được chứ không sửa.', 'Ghi sổ')) return;
