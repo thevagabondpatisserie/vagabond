@@ -22285,7 +22285,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '550';
+var APPVER = '551';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -35237,7 +35237,10 @@ async function scrChiCongTyTao() {
         });
       } else {
         if (!huDong.length) { busy(false); return baoTin('Chưa nhập khoản chi nào.'); }
-        var thieu = huDong.filter(function (x) { return !x.tk_no; });
+        /* v551 (chi Dung 01/10/2026): khoan hoa don den sau ghi phieu chi
+           tra truoc NCC (No 331), tai khoan chi phi di theo to hoa don khi
+           ve. Khong bat chon tai khoan No cho khoan do. */
+        var thieu = huDong.filter(function (x) { return !x.tk_no && !(huLaTkct() && x.cho_hoa_don && huNguoi); });
         if (thieu.length) { busy(false); return baoTin('Còn ' + thieu.length + ' khoản chưa chọn tài khoản Nợ.'); }
         /* Chung tu nam o TUNG DONG tu 24/08/2026, khong con o tong nua.
            Chan ngay tren man cho no noi ro khoan nao thieu, thay vi de may
@@ -36893,7 +36896,8 @@ function hsKhoiHdSau(d, hs, Q) {
       + '<div style="font-size:12.5px;line-height:1.55;color:#6b7280;margin-top:2px">' + h(x.hoa_don) + ' · ' + h(x.ncc_ten)
       + (x.ngay_hd ? ' · ' + h(String(x.ngay_hd).split('-').reverse().join('/')) : '') + '</div>'
       + '<div style="font-size:12.5px;line-height:1.55;color:#374151;margin-top:2px">' + h(x.nhan)
-      + (x.bu_tru > 0 ? ' · đã bù trừ ' + money(x.bu_tru) + ' đ (bút toán ' + h(x.but_toan) + ')' : '')
+      + (x.bu_tru > 0 ? (x.phieu_chi ? ' · đã trừ ' + money(x.bu_tru) + ' đ từ phiếu chi trả trước ' + h(x.phieu_chi)
+        : ' · đã bù trừ ' + money(x.bu_tru) + ' đ (bút toán ' + h(x.but_toan) + ')') : '')
       + (x.ngoai_ncc ? ' · <b style="color:#b45309">ngoài nhà cung cấp</b>' : '') + '</div>'
       + '<div style="display:flex;gap:8px;margin-top:8px">'
       + '<button class="btn gh" style="margin:0;flex:1;padding:11px;font-size:14px" data-hsv="bthbo|' + h(x.hoa_don) + '">Bản thể hiện</button>'
@@ -36921,7 +36925,7 @@ async function hsNoiHdSau(hs) {
   catch (e) { busy(false); return baoTin((e && e.message) || 'Chưa nối được. Tải lại hồ sơ rồi thử lại.'); }
   busy(false);
   var tin = 'Đã nối ' + chon.ds.length + ' hoá đơn.';
-  if (r && (r.but_toan || []).length) tin += ' Máy lập bút toán bù trừ ' + r.but_toan.join(', ') + '.';
+  if (r && (r.but_toan || []).length) tin += ' Chứng từ máy lập hoặc phân bổ: ' + r.but_toan.join(', ') + '.';
   if (r && r.hop_le) tin += ' Đủ hoá đơn, hồ sơ chuyển sang Hợp lệ tính thuế.';
   else if (r && r.phu && !r.phu.du) tin += ' Còn thiếu ' + money(r.phu.con_thieu) + ' đ.';
   toast(tin, 6000);
