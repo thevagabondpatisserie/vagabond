@@ -98,7 +98,7 @@ def _mac_dinh_trung():
 		la("mặc định %s trùng máy chủ" % khoa, chu, NHAN[khoa]["mac_dinh"])
 	la("trang có đủ câu có số", set(js), {k for k in NHAN if k.startswith("cau_")})
 	dat_ban_js = _doc("vagabond", "public", "web_order", "dat-ban.js")
-	dung("câu đóng dự phòng trong dat-ban.js trùng máy chủ", "'" + NHAN["dat_ban_dong"]["mac_dinh"] + "'" in dat_ban_js)
+	dung("câu đóng dự phòng trong dat-ban.js trùng máy chủ", NHAN["dat_ban_dong"]["mac_dinh"] in dat_ban_js)
 
 
 @ca("v532 nhãn: trang order không còn tự ghép câu, mọi câu có số đi qua cauNhan")
@@ -200,6 +200,6 @@ def _phong_thuong_hieu():
 def _nut_them():
 	trang = _doc("vagabond", "trang", "banh.html")
 	dung("nút thêm nhanh không còn là chữ +", 'vào giỏ">+</button>' not in trang)
-	la("hai chỗ dựng nút (bánh và hàng mùa) cùng một biểu tượng", trang.count('class="c-them"'), 2)
-	la("biểu tượng SVG nét 1.6", trang.count('stroke-width="1.6" stroke-linecap="round"/></svg></button>'), 2)
+	la("hai chỗ dựng nút (bánh và hàng mùa) cùng một biểu tượng", trang.replace('\\"', '"').count('class="c-them"'), 2)
+	la("biểu tượng SVG nét 1.6", trang.replace('\\"', '"').replace('" + "', '').count('stroke-width="1.6" stroke-linecap="round"/></svg></button>'), 2)
 	dung("nút là vòng kính mờ có viền, không còn nền cyan đặc", "background:rgba(0,0,0,.42)" in trang and ".c-them{" in trang and "background:var(--cyan);color:#00201d" not in trang.split(".c-them{")[1].split("}")[0])

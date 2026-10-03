@@ -2,8 +2,26 @@
 (function () {
   'use strict';
   const tim = id => document.getElementById(id);
-  const tenLoai = {tieu_de_muc: 'Tiêu đề mục bán hàng', anh_bia: 'Ảnh bìa', cau_chuyen: 'Câu chuyện', anh_chu: 'Ảnh và chữ', thong_bao: 'Thông báo'};
+  const tenLoai = {tieu_de_muc: 'Tiêu đề mục bán hàng', anh_bia: 'Ảnh bìa', cau_chuyen: 'Câu chuyện', anh_chu: 'Ảnh và chữ', thong_bao: 'Thông báo', hoi_dap: 'Câu hỏi thường gặp'};
   let bang, nhap, chon = '', doi = false, ban = false, keo = '', mobile = false;
+  let cacBuoc = [], buoc = -1, nhomChu = '', tuTim = '';
+  const khoaPhucHoi = 'vgb-web-nhap:' + document.body.dataset.nguoi;
+  function ghiBuoc() {
+    const chu = JSON.stringify(nhap);
+    if (cacBuoc[buoc] !== chu) { cacBuoc = cacBuoc.slice(0, buoc + 1); cacBuoc.push(chu); if (cacBuoc.length > 60) cacBuoc.shift(); buoc = cacBuoc.length - 1; }
+    nutHoanTac();
+  }
+  function nutHoanTac() { tim('hoan-tac').disabled = ban || buoc <= 0; tim('lam-lai').disabled = ban || buoc >= cacBuoc.length - 1; }
+  function giuBanTrenMay() {
+    try { sessionStorage.setItem(khoaPhucHoi, JSON.stringify({phien_ban:bang.phien_ban, noi_dung:nhap})); }
+    catch (_) { bao('Bộ nhớ tab không lưu được bản phục hồi. Hãy Lưu nháp hoặc Tải bản đang sửa.', true); }
+  }
+  function veTatCa() { thongKe(); danhSach(); veChinhSach(); veNhanWeb(); thuocTinh(); xem(); }
+  function hoanTac(huong) {
+    const moi = buoc + huong; if (ban || moi < 0 || moi >= cacBuoc.length) return;
+    buoc = moi; nhap = JSON.parse(cacBuoc[buoc]); doi = JSON.stringify(nhap) !== JSON.stringify(bang.nhap);
+    giuBanTrenMay(); nutHoanTac(); veTatCa();
+  }
   /* #367: ba trang chính sách đi chung luồng nháp và xuất bản của trang. */
   const CS = {chinh_sach_bao_mat: 'Chính sách bảo mật', dieu_khoan: 'Điều khoản sử dụng', giao_hang_doi_tra: 'Giao hàng và đổi trả'};
   const RE_CHO_TRONG = /\[[^\]\n]{1,80}\](?!\()/g;
@@ -62,20 +80,60 @@
   function suaNhanWeb(g) {
     const mau = bang.nhan_mau || {}, nhan = nhanCua();
     g.append(tao('p', 'Mỗi ô là một chỗ chữ trên website. Để trống thì dùng chữ mặc định ghi dưới ô. Chỗ trong ngoặc nhọn như {so}, {khung}, {gio} là chỗ máy tự điền số, phải giữ lại. Bấm Xuất bản để khách thấy.', 'goi-y'));
-    Object.entries(mau).forEach(([khoa, m]) => {
-      const nhanO = tao('label', '', 'truong'); nhanO.append(tao('span', m.ten));
-      const o = tao(khoa.startsWith('dat_ban_') || (m.mac_dinh || '').length > 60 ? 'textarea' : 'input');
-      o.maxLength = 300; o.value = nhan[khoa] || ''; o.placeholder = m.mac_dinh;
-      const canh = tao('small', 'Mặc định: ' + m.mac_dinh, 'goi-y');
-      function veCanh() {
-        const chu = o.value; const thieu = choDien(m.mac_dinh).filter(x => !choDien(chu).includes(x));
-        canh.textContent = chu.trim() && thieu.length ? 'Thiếu chỗ điền ' + thieu.join(', ') + ', máy sẽ không lưu được.' : 'Mặc định: ' + m.mac_dinh;
-        canh.classList.toggle('loi', !!(chu.trim() && thieu.length));
-      }
-      o.oninput = () => { if (o.value.trim()) nhan[khoa] = o.value; else delete nhan[khoa]; daDoi(); veCanh(); };
-      o.onchange = veNhanWeb;
-      nhanO.append(o, canh); g.append(nhanO);
+    const timChu = tao('input'); timChu.type = 'search'; timChu.placeholder = 'Tìm câu chữ, nút hoặc nội dung đang sửa'; timChu.value = tuTim; timChu.setAttribute('aria-label', 'Tìm nội dung website');
+    const locNhom = tao('div', '', 'them-khoi loc-nhom'), ds = tao('div'), dem = tao('p', '', 'goi-y');
+    const tenNhom = {chung:'Điều hướng', dat_banh:'Chọn bánh', gio_hang:'Giỏ hàng và checkout', san_pham:'Chi tiết bánh', dat_ban:'Đặt bàn', thanh_vien:'Thành viên', bien_nhan:'Biên nhận', chinh_sach:'Chính sách', chan_trang:'Chân trang'};
+    ['', ...new Set(Object.values(mau).map(m => m.nhom || 'chung'))].forEach(n => {
+      const b = tao('button', n ? (tenNhom[n] || n) : 'Tất cả'); b.setAttribute('aria-pressed', String(nhomChu === n));
+      b.onclick = () => { nhomChu = n; locNhom.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); veO(); }; locNhom.append(b);
     });
+    g.append(timChu, locNhom, dem, ds);
+    function veO() {
+      ds.replaceChildren(); const q = tuTim.toLocaleLowerCase('vi');
+      const cac = Object.entries(mau).filter(([k, m]) => (!nhomChu || (m.nhom || 'chung') === nhomChu) && (!q || [m.ten, m.mac_dinh, nhan[k], k].join(' ').toLocaleLowerCase('vi').includes(q)));
+      dem.textContent = cac.length + ' nội dung' + (cac.length ? '' : '. Thử từ khác hoặc chọn Tất cả.');
+      cac.forEach(([khoa, m]) => {
+        const nhanO = tao('label', '', 'truong'); nhanO.append(tao('span', m.ten));
+        const o = tao(m.nhieu_dong || khoa.startsWith('dat_ban_') || (m.mac_dinh || '').length > 60 ? 'textarea' : 'input');
+        o.maxLength = m.nhieu_dong ? 4000 : 300; o.value = nhan[khoa] || ''; o.placeholder = m.mac_dinh; o.dataset.khoaChu = khoa;
+        const canh = tao('small', '', 'goi-y');
+        function veCanh() {
+          const chu = o.value; const cacCho = choDien(chu), goc = choDien(m.mac_dinh);
+          const sai = goc.filter(x => !cacCho.includes(x)).concat(cacCho.filter(x => !goc.includes(x)));
+          canh.textContent = chu.trim() && sai.length ? 'Giữ đúng các chỗ điền: ' + goc.join(', ') : 'Mặc định: ' + m.mac_dinh;
+          canh.classList.toggle('loi', !!(chu.trim() && sai.length)); o.setAttribute('aria-invalid', String(!!(chu.trim() && sai.length)));
+        }
+        o.oninput = () => { if (o.value.trim()) nhan[khoa] = o.value; else delete nhan[khoa]; daDoi(); veCanh(); };
+        o.onchange = veNhanWeb;
+        nhanO.append(o, canh); ds.append(nhanO); veCanh();
+      });
+    }
+    timChu.oninput = () => { tuTim = timChu.value; veO(); }; veO();
+  }
+
+  let monMau = null;
+  async function suaSanPham(g) {
+    g.append(tao('p', 'Nội dung riêng theo mã bánh. Để trống để dùng danh mục gốc. Giá, tồn và mã đặt hàng giữ theo hệ thống.', 'goi-y'));
+    const timMon = tao('input'); timMon.type = 'search'; timMon.placeholder = 'Tìm tên bánh hoặc mã'; timMon.setAttribute('aria-label','Tìm sản phẩm');
+    const ds = tao('div'); g.append(timMon, ds);
+    ds.textContent = 'Đang tải danh mục...';
+    try { if (!monMau) monMau = await api('san_pham_bien_tap'); }
+    catch (e) { ds.textContent = 'Chưa tải được danh mục. Chọn lại mục Nội dung bánh để thử lại.'; return; }
+    if (chon !== 'san_pham') return;
+    function veMon() {
+      ds.replaceChildren(); const q = timMon.value.toLocaleLowerCase('vi');
+      const cac = monMau.filter(m => (m.ten + ' ' + m.ma).toLocaleLowerCase('vi').includes(q));
+      if (!cac.length) ds.append(tao('p', 'Chưa có bánh phù hợp. Thử từ khác hoặc kiểm danh mục bán.'));
+      cac.forEach(m => {
+        const muc = tao('details'); muc.append(tao('summary', m.ten + ' · ' + m.ma));
+        [['ten','Tên hiển thị'],['mo_ta','Mô tả'],['tang','Tầng hương lớp vị (mỗi dòng một tầng)'],['theo_mua','Nhãn theo mùa'],['khau_phan','Khẩu phần']].forEach(([k,ten]) => {
+          const l = tao('label','','truong'), o = tao('textarea'); l.append(tao('span',ten));
+          o.maxLength=4000; o.value=(nhap.san_pham || {})[m.ma]?.[k] || ''; o.placeholder=m[k] || '';
+          o.oninput=()=>{ nhap.san_pham=nhap.san_pham || {}; nhap.san_pham[m.ma]=nhap.san_pham[m.ma] || {}; nhap.san_pham[m.ma][k]=o.value; daDoi(); }; l.append(o); muc.append(l);
+        }); ds.append(muc);
+      });
+    }
+    timMon.oninput=veMon; veMon();
   }
   function coPreview() {
     const khung = document.querySelector('.khung-preview'), f = tim('preview');
@@ -103,7 +161,7 @@
     }
     return d.message;
   }
-  function khoa(b) { ban = b; ['luu-nhap', 'xuat-ban', 'tai-lai'].forEach(id => tim(id).disabled = b); tim('thuoc-tinh').inert = b; tim('danh-sach').inert = b; tim('them-khoi').inert = b; tim('lich-su').inert = b; if (tim('chinh-sach')) tim('chinh-sach').inert = b; if (tim('nhan-web')) tim('nhan-web').inert = b; }
+  function khoa(b) { ban = b; ['luu-nhap', 'xuat-ban', 'tai-lai'].forEach(id => tim(id).disabled = b); tim('thuoc-tinh').inert = b; tim('danh-sach').inert = b; tim('them-khoi').inert = b; tim('lich-su').inert = b; if (tim('chinh-sach')) tim('chinh-sach').inert = b; if (tim('nhan-web')) tim('nhan-web').inert = b; nutHoanTac(); }
   function thongKe() {
     tim('so-khoi').textContent = nhap.khoi.length;
     tim('so-hien').textContent = nhap.khoi.filter(k => k.hien).length;
@@ -113,7 +171,7 @@
   function xem() {
     if (nhap) tim('preview').contentWindow.postMessage({loai:'vgb-noi-dung',noi_dung:nhap,chon:chon}, location.origin);
   }
-  function daDoi() { doi = true; thongKe(); xem(); }
+  function daDoi() { doi = true; ghiBuoc(); giuBanTrenMay(); thongKe(); xem(); }
   function doiCho(id, buoc) {
     if (ban) return;
     const i = nhap.khoi.findIndex(k => k.id === id), j = i + buoc;
@@ -143,6 +201,7 @@
   function thuocTinh() {
     const g = tim('thuoc-tinh'); g.replaceChildren();
     if (chon.startsWith('cs:') && CS[chon.slice(3)]) { suaChinhSach(g, chon.slice(3)); return; }
+    if (chon === 'san_pham') { suaSanPham(g); return; }
     if (chon === 'nhan') { suaNhanWeb(g); return; }
     const k = nhap.khoi.find(x => x.id === chon);
     if (!k) { g.append(tao('p', 'Chọn một khối để chỉnh nội dung.')); return; }
@@ -152,6 +211,11 @@
       const o = tao('textarea'); o.maxLength=120; o.value=k.tieu_de; o.oninput=()=>{k.tieu_de=o.value;daDoi();}; o.onchange=danhSach;
       nhan.append(o);g.append(nhan);return;
     }
+    const sao = tao('button', 'Nhân bản khối'); sao.onclick = () => {
+      if (ban || nhap.khoi.length >= 30) { bao('Tối đa 30 khối. Tái sử dụng một khối đang ẩn.', true); return; }
+      const moi = structuredClone(k); moi.id = 'k-' + crypto.randomUUID(); moi.hien = false;
+      nhap.khoi.splice(nhap.khoi.indexOf(k) + 1, 0, moi); chon = moi.id; daDoi(); veTatCa();
+    }; g.append(sao);
     g.append(tao('p', 'Loại khối · có thể đổi để tái sử dụng khối cũ', 'goi-y'));
     const cacLoai = tao('div', '', 'them-khoi');
     Object.entries(tenLoai).filter(([ma]) => ma !== 'tieu_de_muc').forEach(([ma, ten]) => { const b = tao('button', ten); b.setAttribute('aria-pressed', String(k.loai === ma)); b.onclick = () => { k.loai = ma; daDoi(); danhSach(); thuocTinh(); }; cacLoai.append(b); });
@@ -194,21 +258,21 @@
       const dong = tao('div', '', 'lich-su-item'); dong.append(tao('b', 'Bản trước lần xuất bản ' + v.luc), tao('small', v.nguoi));
       const b = tao('button', 'Khôi phục vào nháp'); b.onclick = () => {
         if (doi && !window.confirm('Thay bản đang sửa bằng nội dung đã chọn trong lịch sử?')) return;
-        nhap = structuredClone(v.noi_dung); chon = nhap.khoi[0]?.id || ''; daDoi(); danhSach(); thuocTinh(); bao('Đã khôi phục vào nháp trên màn hình. Xem lại rồi lưu hoặc xuất bản.');
+        nhap = structuredClone(v.noi_dung); chon = nhap.khoi[0]?.id || ''; daDoi(); veTatCa(); bao('Đã khôi phục vào nháp trên màn hình. Xem lại rồi lưu hoặc xuất bản.');
       }; dong.append(b); g.append(dong);
     });
   }
-  function nhanBang(d) { bang = d; nhap = structuredClone(d.nhap); doi = false; if (!chon.startsWith('cs:') && chon !== 'nhan' && !nhap.khoi.some(k => k.id === chon)) chon = nhap.khoi[0]?.id || ''; thongKe(); danhSach(); veChinhSach(); veNhanWeb(); thuocTinh(); lichSu(); xem(); }
+  function nhanBang(d) { bang = d; nhap = structuredClone(d.nhap); doi = false; cacBuoc = []; buoc = -1; ghiBuoc(); if (!chon.startsWith('cs:') && chon !== 'nhan' && chon !== 'san_pham' && !nhap.khoi.some(k => k.id === chon)) chon = nhap.khoi[0]?.id || ''; thongKe(); danhSach(); veChinhSach(); veNhanWeb(); thuocTinh(); lichSu(); xem(); }
   async function tai() {
     if (doi && !window.confirm('Tải lại sẽ bỏ phần chưa lưu trên màn hình. Tiếp tục?')) return;
-    khoa(true); try { nhanBang(await api('doc_bang')); bao('Đã tải nội dung. Thay đổi chỉ ra website khi bấm Xuất bản.'); } catch (e) { bao(e.message, true); } finally { khoa(false); }
+    khoa(true); try { nhanBang(await api('doc_bang')); kiemBanPhucHoi(); bao('Đã tải nội dung. Thay đổi chỉ ra website khi bấm Xuất bản.'); } catch (e) { bao(e.message, true); } finally { khoa(false); }
   }
   async function luu(hanhDong) {
     if (!bang || ban) return;
     if (hanhDong === 'xuat_ban' && !window.confirm('Xuất bản nội dung đang xem lên website đặt bánh?')) return;
     khoa(true); try {
       const d = await api('luu', {noi_dung: JSON.stringify(nhap), phien_ban: bang.phien_ban, hanh_dong: hanhDong});
-      nhanBang(d); bao(hanhDong === 'xuat_ban' ? 'Đã xuất bản. Khách tải lại website sẽ thấy nội dung mới.' : 'Đã lưu nháp. Website đang giữ bản đã xuất bản.');
+      try { sessionStorage.removeItem(khoaPhucHoi); } catch (_) {} tim('phuc-hoi').hidden = true; nhanBang(d); bao(hanhDong === 'xuat_ban' ? 'Đã xuất bản. Khách tải lại website sẽ thấy nội dung mới.' : 'Đã lưu nháp. Website đang giữ bản đã xuất bản.');
     } catch (e) { bao(e.message, true); } finally { khoa(false); }
   }
   Object.entries(tenLoai).filter(([ma]) => ma !== 'tieu_de_muc').forEach(([ma, ten]) => { const b = tao('button', '+ ' + ten); b.onclick = () => {
@@ -216,6 +280,19 @@
     const k = {id: 'k-' + crypto.randomUUID(), loai: ma, hien: true, vi_tri: 'cuoi_trang', nhan: '', tieu_de: ten, noi_dung: '', anh: '', mo_ta_anh: '', nut: '', lien_ket: ''};
     nhap.khoi.push(k); chon = k.id; daDoi(); danhSach(); thuocTinh();
   }; tim('them-khoi').append(b); });
+  function kiemBanPhucHoi() {
+    const g = tim('phuc-hoi'); g.replaceChildren(); g.hidden = true;
+    let cu; try { cu = JSON.parse(sessionStorage.getItem(khoaPhucHoi)); } catch (_) { return; }
+    if (!cu || !cu.noi_dung || JSON.stringify(cu.noi_dung) === JSON.stringify(nhap)) return;
+    g.hidden = false;
+    g.append(tao('p', 'Tab này có nội dung chưa lưu.' + (cu.phien_ban !== bang.phien_ban ? ' Website đã có phiên bản mới. So sánh trước khi lưu lại.' : '')));
+    const b = tao('button', 'Mở bản phục hồi'); b.onclick = () => { if (ban) return; if (cu.phien_ban !== bang.phien_ban && !window.confirm('Bản phục hồi có thể thay nội dung mới của người khác. Tải bản đang sửa để đối chiếu trước. Vẫn mở bản phục hồi?')) return; nhap = structuredClone(cu.noi_dung); daDoi(); veTatCa(); g.hidden = true; bao('Đã phục hồi trên màn hình. Chưa xuất bản.'); };
+    const bo = tao('button', 'Bỏ bản phục hồi'); bo.onclick = () => { try { sessionStorage.removeItem(khoaPhucHoi); } catch (_) {} g.hidden = true; };
+    g.append(b, bo);
+  }
+  tim('hoan-tac').onclick = () => hoanTac(-1); tim('lam-lai').onclick = () => hoanTac(1);
+  tim('tai-ban').onclick = () => { if (!nhap) return; const u = URL.createObjectURL(new Blob([JSON.stringify(nhap, null, 2)], {type:'application/json'})); const a = tao('a'); a.href = u; a.download = 'noi-dung-web-chua-xuat-ban.json'; a.click(); setTimeout(() => URL.revokeObjectURL(u), 1000); };
+  tim('sua-san-pham').onclick = () => { chon = 'san_pham'; veTatCa(); };
   tim('tai-lai').onclick = tai; tim('luu-nhap').onclick = () => luu('nhap'); tim('xuat-ban').onclick = () => luu('xuat_ban');
   ['desktop', 'mobile'].forEach(id => tim(id).onclick = () => { mobile = id === 'mobile'; coPreview(); ['desktop','mobile'].forEach(x => tim(x).setAttribute('aria-pressed', String(x === id))); });
   new ResizeObserver(coPreview).observe(document.querySelector('.khung-preview'));

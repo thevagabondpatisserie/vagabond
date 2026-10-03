@@ -1593,3 +1593,20 @@ lần đầu đếm ngoại lệ ra 0 trên 14 đột biến, tưởng bộ ki�
 - Bài học: một tính năng có hai nhánh (theo lô, không theo lô) thì ca kiểm
   phải dựng cả hai nhánh. Trước khi viết ca, đếm dữ liệu thật đang rơi vào
   nhánh nào; ở đây 15 trên 15 rơi vào đúng nhánh chưa có code.
+
+
+## 03/10/2026 - Chữ web, font gốc và tra địa chỉ (#367)
+
+- Headline tiếng Việt từng bị rẽ sang font hệ thống. Kiểm cmap font gốc và
+  computed style trên 390 px trước khi quyết định fallback; Vagabond Sans
+  hiện có đủ dấu của câu đã duyệt.
+- Chỉ thay chữ tĩnh không làm mọi câu sửa được: các renderer giỏ/chi tiết,
+  lỗi OTP và biên nhận còn tự tạo chuỗi. Dùng khóa chung, giữ biến số và
+  escape đúng sink; kiểm nhãn chứa thẻ qua renderer thật, không chỉ grep.
+- Không chốt nhãn động vào object trước khi tải CMS. Dùng getter hoặc đợi
+  nhãn có giới hạn thời gian; thử sửa tên bánh trong Editor và Undo thật.
+- Che địa chỉ ở UI không bảo vệ response API. tra_khach phải kiểm số trong
+  phiên OTP trước HTTP Pancake, no-store và bỏ response nếu người dùng đã
+  chuyển sang số khác. Ca Guest/sai số/đúng số gọi thân hàm thật với HTTP stub.
+- Khi phát hành chữ được duyệt, chuyển nháp và công khai riêng, giữ snapshot
+  lịch sử; không lấy nguyên bản nháp để đẩy công khai trong migration.

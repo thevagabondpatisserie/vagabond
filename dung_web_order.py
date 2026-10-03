@@ -4,8 +4,8 @@ import hashlib
 import re
 
 GOC = Path(__file__).resolve().parent
-TRANG = ('vagabond/trang/banh.html', 'vagabond/www/thanh-vien.html', 'vagabond/www/dat-ban.html')
-TEP = ('nen.css', 'thanh-vien.css', 'thanh-vien.js', 'dat-ban.js')
+TRANG = ('vagabond/trang/banh.html', 'vagabond/www/thanh-vien.html', 'vagabond/www/dat-ban.html', 'vagabond/www/bien-tap-web.html', 'vagabond/www/banh/xong.html', 'vagabond/www/chinh-sach.html')
+TEP = tuple(p.name for p in (GOC / 'vagabond/public/web_order').iterdir() if p.suffix in ('.css', '.js'))
 
 
 def dung():

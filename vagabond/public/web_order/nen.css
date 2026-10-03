@@ -37,3 +37,8 @@ header{position:sticky;top:0;z-index:40;background:rgba(0,0,0,.82);backdrop-filt
 .btn:not(.btn-md):not(.btn-lg):not(.btn-xs){padding:14px 30px;font-size:11px;line-height:1.2;border-radius:0}
 .s-head{padding:0}
 .s-head h2{margin:0;font-family:'Vagabond Sans',var(--sans);font-size:clamp(40px,11vw,88px);line-height:.94;letter-spacing:.02em;text-transform:uppercase;font-weight:400;color:var(--cyan)}
+
+/* Anh Việt duyệt 03/10: toàn bộ headline dùng Vagabond Sans, cả chữ Việt. */
+html body h1,html body h2,html body h3,html body .f-big,html body .f-big em,html body .h-sec em,html body .quay .q-ten{font-family:'Vagabond Sans',var(--sans);font-weight:400;font-style:normal}
+
+html body .sec h3,html body .s-head h2.vi,html body .c-name.vi,html body .bn h1,html body .cs h1,html body .cs h2,html body .cs h3{font-family:'Vagabond Sans',var(--sans);font-weight:400}

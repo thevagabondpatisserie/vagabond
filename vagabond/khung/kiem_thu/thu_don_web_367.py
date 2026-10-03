@@ -1162,7 +1162,7 @@ await submitOrder();
 RA({chuyen:GHI.chuyenTrang, hint:EL('#sendHint').innerHTML});
 """)
 	la("không chuyển", r["chuyen"], [])
-	dung("vẫn báo đã nhận", "Tiệm đã nhận đơn" in r["hint"])
+	dung("vẫn báo đã nhận", "Chúng tôi đã tiếp nhận yêu cầu" in r["hint"])
 
 
 @ca("#367 L thanh giỏ: 999.999 nhắc ngưỡng, đúng 1.000.000 báo miễn phí; bảng tóm tắt không cộng phí")

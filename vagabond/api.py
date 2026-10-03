@@ -17,11 +17,14 @@ from vagabond.lib import PANCAKE, TIMEOUT, VIETQR, cache_get, cache_set, cfg, ke
 @frappe.whitelist(allow_guest=True)
 @rate_limit(limit=20, seconds=60)
 def tra_khach(phone=None):
-	"""Dia chi cu cua khach theo so dien thoai.
-
-	api_key cua shop tuyet doi khong duoc lo ra trinh duyet, nen phai di qua day.
-	Tra ve kem ban da che so nha, portal chi hien ban che cho toi khi khach bam chon.
-	"""
+	"""Chỉ trả địa chỉ của số đã xác thực OTP. Che chữ ở UI không bảo vệ
+	được dữ liệu trong response; biết số điện thoại không phải quyền đọc."""
+	from vagabond import dang_nhap
+	from vagabond.thanh_vien import COOKIE
+	frappe.local.response_headers['Cache-Control'] = 'private, no-store'
+	so_da_xac_thuc = dang_nhap._phien(frappe.request.cookies.get(COOKIE))
+	if not so_da_xac_thuc or dang_nhap._chuan_sdt(phone) != so_da_xac_thuc:
+		return {"addresses": [], "ly_do": "can_xac_thuc"}
 	phone = "".join(ch for ch in (phone or "") if ch.isdigit())
 	if len(phone) < 9:
 		return {"addresses": []}

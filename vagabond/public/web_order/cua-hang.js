@@ -23,7 +23,9 @@
       const chu = typeof nhan[k] === 'string' && nhan[k].trim() ? nhan[k] : nhanGoc[k];
       if (g.textContent !== chu) g.textContent = chu;
     });
+    window.vgbSanPham = nd.san_pham || {};
     window.vgbNhan = nhan;
+    if (window.vgbApChu) window.vgbApChu();
     document.dispatchEvent(new CustomEvent('vgb-nhan'));
   }
   const nhanGoc = {};
