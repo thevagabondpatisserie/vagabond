@@ -4841,7 +4841,8 @@ la("doi chip loai thi bo chip trang thai cu",
    "vclLoc.trang_thai = '';" in _tc43, True)
 
 # --- PWA ---
-la("manifest co ten thuong hieu", _mf43.get("short_name"), "Vagabond")
+# 03/10/2026 anh Viet chot ten bieu tuong tren man hinh chinh: ERP The Vagabond.
+la("manifest co ten thuong hieu", _mf43.get("short_name"), "ERP The Vagabond")
 la("manifest mo thang vao app", _mf43.get("start_url"), "/bep")
 _ic43 = {str(i.get("sizes")): i for i in _mf43.get("icons") or []}
 la("co bieu tuong 192", "192x192" in _ic43, True)

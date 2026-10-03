@@ -343,7 +343,7 @@ Tem in theo Mẻ của lệnh: tên món, NSX, HSD, điều kiện bảo quản,
 3. Bấm [[In thử 1 tem]] hoặc [[In N tem]].
 
 **Lưu ý**
-- Đừng tự bật lại Có quản lý lô trên Desk để in tem: việc tắt lô là quyết định của anh Việt 30/09/2026, bật lại ảnh hưởng nhập, xuất, kiểm kê. Cần tem thì báo anh Việt. <!-- kiểm: chưa có quyết định tem HACCP sẽ in thế nào khi không còn lô; mã nguồn hiện vẫn đòi lô mới cho in -->
+- Đừng tự bật lại Có quản lý lô trên Desk để in tem: việc tắt lô là quyết định của anh Việt 30/09/2026, bật lại ảnh hưởng nhập, xuất, kiểm kê. Anh Việt chốt 03/10/2026: tem bỏ ô lô, thay bằng dòng "Ngày: ..." để nhân viên điền tay; phần sửa nút In tem đang làm.
 - Hạn dùng trên tem lấy từ số giờ hạn dùng hoặc Thời gian Sử dụng theo Ngày trên hồ sơ món.
 - In cả nhóm cần máy in tem đã nối QZ Tray; chưa nối thì máy báo "chỉ in được từng lệnh một".
 
@@ -549,7 +549,8 @@ Mặt hàng ảo không có tồn nên không chuyển kho được. Nếu thự
 **Lưu ý**
 - Thiếu bước công thức cha thì lệnh món cha vẫn trừ thẳng nguyên liệu thô, không lấy từ tồn bán thành phẩm.
 - Chỉ áp từ nay về sau, không sửa lệnh hay phiếu kho đã ghi sổ.
-- Có giữ tồn mã nào hay không: Việc này do anh Việt quyết. <!-- kiểm: chưa có công cụ bỏ ảo trên app; ERPNext chặn đổi Quản lý tồn kho khi mã đã có giao dịch (ghi chú mã nguồn màn Chuyển phantom), chưa thử trên site xem bản nháp tạo từ Điều chỉnh có giữ ô Là ĐMNVL ảo và sửa được trên Desk không -->
+- Có giữ tồn mã nào hay không: Việc này do anh Việt quyết.
+- Sắp có công cụ bỏ ảo trên app và Desk. Trong lúc chờ, nhờ kỹ thuật.
 
 ## Chuyển bán thành phẩm sang mặt hàng ảo hàng loạt
 Từ khoá: chuyển phantom, chuyển sang phantom, chuyển sang ảo, bỏ ghi sổ kho BTP, dọn chứng từ thử, đóng lệnh treo, chạy thử, chạy thật

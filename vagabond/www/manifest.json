@@ -1,6 +1,6 @@
 {
- "name": "The Vagabond Pâtisserie",
- "short_name": "Vagabond",
+ "name": "ERP The Vagabond",
+ "short_name": "ERP The Vagabond",
  "description": "Ứng dụng vận hành The Vagabond Pâtisserie: bán hàng, kho, sản xuất, kế toán.",
  "start_url": "/bep",
  "scope": "/",

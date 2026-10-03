@@ -72,7 +72,8 @@ Mở phiếu để xem thu mua đã duyệt, đã đặt, hàng đã về tới 
 | Về một phần | Kho mới nhận một phần |
 | Đã nhập kho | Hàng đã về đủ |
 | Lấy từ kho nội bộ | Lấy hàng sẵn có trong tiệm, không mua mới |
-| Đang xử lý, Đã dừng | Hỏi thu mua <!-- kiểm: nghĩa của nhãn Đang xử lý và Đã dừng; trạng thái này do máy chủ tính ngoài mã nguồn app, chưa đọc được luật --> |
+| Đang xử lý | Đã gửi đơn cho nhà cung cấp, đang chờ giao hàng. Giao rồi thì thành Đã nhận hàng |
+| Đã dừng | Không mua nữa |
 
 **Lưu ý**
 - Thu mua có thể duyệt ít hơn số xin hoặc từ chối dòng, kèm lý do. Hỏi thu mua nếu chưa rõ.
@@ -148,7 +149,7 @@ App chưa có nút tạo đơn mua. Đơn mua lập trên Desk từ phiếu yêu
 3. Chọn nhà cung cấp, kiểm đơn giá và thuế từng dòng.
 4. Đổi thuế cả đơn: chọn mẫu thuế đầu phiếu, bấm [[desk:Áp mẫu thuế đã chọn cho mọi dòng]].
 5. Bấm [[desk:Lưu]], đọc hộp "Theo đúng số đã duyệt" nếu hiện, rồi bấm [[desk:Xác nhận]].
-6. Đơn kênh Email: gửi thư cho nhà cung cấp từ đơn, máy gợi ý sẵn người nhận. <!-- kiểm: nhãn đúng của nút gửi thư trên Đơn mua hàng (Desk dịch Email là "Gửi email"); bản nháp cũ ghi đơn tự gửi khi xác nhận, nguồn 01/08 ghi phải bấm gửi -->
+6. Đơn kênh Email: máy KHÔNG tự gửi khi xác nhận. Bấm [[desk:Gửi email]] trên đơn, kiểm người nhận máy gợi ý sẵn rồi gửi.
 
 **Vì sao bị chặn**
 | Máy báo | Cách gỡ |

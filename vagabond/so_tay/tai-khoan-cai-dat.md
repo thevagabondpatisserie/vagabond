@@ -20,7 +20,7 @@ Tự đặt mật khẩu mới qua thư, dùng cả khi mới được cấp tà
 | Máy báo | Cách gỡ |
 |---|---|
 | Nhập địa chỉ email của bạn vào ô trên rồi bấm lại dòng này. | Gõ email trước rồi mới bấm |
-| Không có tài khoản nào dùng email này. | Hỏi quản lý email đăng nhập đúng của bạn <!-- kiểm: Frappe 16.33.1 luôn trả lời như đã gửi thư, kể cả email sai hoặc tài khoản đã tắt, nên câu này có thể không bao giờ hiện; chưa rõ site đang chạy bản Frappe nào (tài liệu gần nhất ghi 16.27.1 và 16.28.0) --> |
+| Không có tài khoản nào dùng email này. | Hỏi quản lý email đăng nhập đúng của bạn |
 | Chưa gửi được thư (mã 429) | Đã bấm quá số lần cho phép trong một giờ. Chờ rồi thử lại, đừng bấm liên tục |
 | Chưa gửi được thư (mã khác) | Báo quản trị viên |
 | Mật khẩu không khớp | Gõ lại hai ô cho giống nhau |
@@ -394,7 +394,7 @@ Từ khoá: sổ tay, hướng dẫn, cẩm nang, tài liệu, manual, handbook,
 |---|---|---|
 | Mọi nhân viên | Sổ tay (/so-tay) | [[Sổ tay]] |
 
-Đọc thẳng hướng dẫn từng việc, cùng nguồn trợ lý dùng để trả lời. Không cần lượt hỏi. <!-- kiểm: màn Sổ tay chưa có trong mã nguồn lúc viết; chưa rõ ai mở được (nút nằm cạnh nút trợ lý, mà trợ lý chỉ mở cho cấp quản lý) và chữ trên ô tìm kiếm -->
+Đọc thẳng hướng dẫn từng việc, cùng nguồn trợ lý dùng để trả lời. Không cần lượt hỏi. App ERP chỉ dành cho nhân viên của tiệm.
 
 **Các bước**
 1. Bấm nút [[Sổ tay]] cạnh nút tròn của trợ lý, hoặc mở app.thevagabondpatisserie.com/so-tay.
@@ -460,8 +460,8 @@ App chạy trên trình duyệt, không cần tải từ kho ứng dụng.
 **Các bước**
 1. Mở Safari (iPhone) hoặc Chrome (Android), vào app.thevagabondpatisserie.com, đăng nhập bằng email.
 2. iPhone: bấm nút Chia sẻ, chọn Thêm vào MH chính.
-3. Android: bấm menu ba chấm của Chrome, chọn Thêm vào màn hình chính hoặc Cài đặt ứng dụng. <!-- kiểm: nhãn menu Chrome Android tiếng Việt đổi theo phiên bản Chrome, chưa đối chiếu trên máy thật -->
-4. Từ nay mở app bằng biểu tượng trên màn hình chính.
+3. Android: bấm menu ba chấm của Chrome, chọn Thêm vào màn hình chính hoặc Cài đặt ứng dụng (tên mục đổi theo phiên bản Chrome).
+4. Từ nay mở app bằng biểu tượng ERP The Vagabond trên màn hình chính.
 
 **Lưu ý**
 - Trên iPhone phải thêm ra màn hình chính thì mới bật được thông báo.
