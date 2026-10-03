@@ -230,3 +230,23 @@ def _():
 	dung("đường cất ghim", "'vagabond.ghim.luu'" in ma)
 	dung("mô đun bên Python mở đúng hai cửa đó",
 		hasattr(ghim, "lay") and hasattr(ghim, "luu"))
+
+
+@ca("ghim.py: hai phép thuần phải nằm TRÊN dòng import frappe")
+def _():
+	# Codex bat o PR #430. Tang kiem thu khung chay tay khong, khong site,
+	# nen de doc duoc chuan() va doc_chuoi() thi hai ham do phai dinh nghia
+	# truoc dong "import frappe", dung AGENTS.md muc "Tach phan thuan va
+	# phan can Frappe". Ca nay CHOT thu tu, de ban sau don tep khong keo
+	# dong import nguoc len dau lai.
+	import ast
+
+	cay = ast.parse(io.open(os.path.join(GOI, "ghim.py"), encoding="utf-8").read())
+	dong_frappe = [n.lineno for n in ast.walk(cay)
+		if isinstance(n, ast.Import) and any(a.name == "frappe" for a in n.names)]
+	la("chỉ nạp frappe đúng một lần", len(dong_frappe), 1)
+	for ten in ("chuan", "doc_chuoi"):
+		o = [n.lineno for n in cay.body
+			if isinstance(n, ast.FunctionDef) and n.name == ten]
+		la("có hàm %s ở tầng ngoài cùng" % ten, len(o), 1)
+		dung("%s định nghĩa trước khi nạp frappe" % ten, o[0] < dong_frappe[0])
