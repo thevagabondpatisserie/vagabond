@@ -1608,8 +1608,13 @@ lần đầu đếm ngoại lệ ra 0 trên 14 đột biến, tưởng bộ ki�
   dòng "Chưa rõ" thì để người xem. Mọi đường gửi đều phải có mốc này (vòng 10
   lộ đường gửi gộp sau giờ im còn thiếu). Lỗi mạng cũng phải chia hai: chưa mở
   được kết nối (DNS, từ chối kết nối) là chắc chắn chưa gửi, trả về chờ gửi
-  lại; đứt giữa chừng hay hết giờ chờ trả lời là Chưa rõ (vòng 11). Tắt hay gỡ
-  người nhận thì dọn cả tin đang hoãn của họ.
+  lại; đứt giữa chừng, hết giờ chờ trả lời hay phản hồi không đọc được là Chưa
+  rõ (vòng 11, 12). Tắt hay gỡ người nhận thì dọn cả tin đang hoãn của họ.
+- Gốc 7, nuốt lỗi chết giao dịch (#428): bao() bọc try rộng để Zalo không chặn
+  lưu chứng từ, nhưng deadlock khi ghi hộp thư thì MariaDB đã rollback cả giao
+  dịch, kể cả savepoint; nuốt lỗi đó là chứng từ báo thành công mà không còn gì
+  trong sổ. Phòng: mọi try rộng quanh lệnh ghi cơ sở dữ liệu phải để lỗi chết
+  giao dịch (deadlock, chờ khoá quá hạn, mất kết nối) đi lên.
 - Gốc 2, gửi trùng: hai tiến trình cùng nhận một dòng. Phòng: nhận bằng
   UPDATE có điều kiện trạng thái kèm mã lô, commit, đọc lại mã lô mới gửi.
 - Gốc 3, cài đặt bị đè: webhook ghi mã chat mới vào Vagabond Settings đọc
