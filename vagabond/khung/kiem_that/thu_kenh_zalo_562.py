@@ -69,3 +69,29 @@ def _truong_moi():
 	tt = (t.get_field("trang_thai").options or "").split("\n")
 	dung("đủ trạng thái", all(x in tt for x in ("Đang gửi gộp", "Bỏ qua (đã xử lý)")))
 	dung("ô xác minh", bool(frappe.get_meta("Vagabond Settings").get_field("zalo_noi_trang_thai")))
+
+
+@ca("v562 #425 vòng 9: trên MariaDB thật, dòng kẹt Đang gửi quá 10 phút được gửi bù một lần; dòng Chưa rõ và tin hoãn của nhóm tắt xử lý đúng")
+def _ket_that():
+	from frappe.utils import add_to_date, now_datetime
+	chat = "chat-thu-" + uuid.uuid4().hex[:8]
+	ten = {}
+	for tt in ("Đang gửi", "Chưa rõ", "Hoãn giờ im"):
+		k = "ZL-thu562-" + uuid.uuid4().hex[:12]
+		frappe.get_doc({"doctype": "Vagabond Tin Kenh", "name": k, "khoa": k, "nhom": "Thử kẹt", "chat_id": chat,
+			"loai": "viec", "noi_dung": "Việc kẹt", "trang_thai": tt, "ma_lo": "lo-cu"}).insert(ignore_permissions=True)
+		ten[tt] = k
+	cu = add_to_date(now_datetime(), minutes=-30)
+	frappe.db.sql("update `tabVagabond Tin Kenh` set creation=%s, modified=%s where chat_id=%s", (cu, cu, chat))
+	goi = []
+	nhom = [{"ten_nhom": "Thử kẹt", "chat_id": chat, "loai_tin": "", "chu_de": "", "im_tu": "", "im_den": "", "bat": 1}]
+	with patch.object(kz, "_bat", lambda: 1), patch.object(kz, "_cac_nhom", lambda: nhom), \
+			patch.object(kz, "_gui_zalo", lambda c, t: (goi.append(c), ("Đã gửi", ""))[1]), \
+			patch.object(frappe.db, "commit", lambda: None):
+		kz.quet_cho_gui()
+		kz.quet_cho_gui()
+		la("dòng Đang gửi kẹt: gửi bù một lần", (goi.count(chat), frappe.db.get_value("Vagabond Tin Kenh", ten["Đang gửi"], "trang_thai")),
+			(1, "Đã gửi"))
+		la("dòng Chưa rõ: để nguyên", frappe.db.get_value("Vagabond Tin Kenh", ten["Chưa rõ"], "trang_thai"), "Chưa rõ")
+		kz._bo_hoan_nhom_tat(["chat-khac"])
+		la("tin hoãn của nhóm không còn bật: Bỏ qua", frappe.db.get_value("Vagabond Tin Kenh", ten["Hoãn giờ im"], "trang_thai"), kz.BO_QUA)
