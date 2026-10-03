@@ -1593,3 +1593,41 @@ lần đầu đếm ngoại lệ ra 0 trên 14 đột biến, tưởng bộ ki�
 - Bài học: một tính năng có hai nhánh (theo lô, không theo lô) thì ca kiểm
   phải dựng cả hai nhánh. Trước khi viết ca, đếm dữ liệu thật đang rơi vào
   nhánh nào; ở đây 15 trên 15 rơi vào đúng nhánh chưa có code.
+
+## 03/10/2026 (v565, Zalo #410/#413/#417/#423/#425): gửi tin ra ngoài từ hook chứng từ
+
+- Ca thật: bản tin Zalo cho nhóm bộ phận qua tám vòng Codex review. Mỗi vòng
+  lộ một đường làm mất tin hoặc gửi trùng mà ca kiểm cũ không thấy.
+- Gốc 1, mất tin: hook xếp việc nền (`frappe.enqueue`) rồi mới ghi sổ. Hàng
+  đợi hỏng lúc xếp thì chứng từ vẫn lưu mà không còn dấu vết tin nào.
+  Phòng: ghi hộp thư "Chờ gửi" TRONG giao dịch của chứng từ (mỗi dòng một
+  savepoint để trùng khoá không làm hỏng giao dịch chính), xếp việc nền sau
+  commit, và có lịch 5 phút gửi bù dòng Chờ gửi quá hạn. Worker chết giữa
+  chừng thì phải biết đã gọi ra ngoài chưa: đổi sang "Chưa rõ" và commit NGAY
+  TRƯỚC lời gọi, nhờ vậy dòng kẹt ở trạng thái trước đó được gửi bù an toàn,
+  dòng "Chưa rõ" thì để người xem. Mọi đường gửi đều phải có mốc này (vòng 10
+  lộ đường gửi gộp sau giờ im còn thiếu). Lỗi mạng cũng phải chia hai: chưa mở
+  được kết nối (DNS, từ chối kết nối) là chắc chắn chưa gửi, trả về chờ gửi
+  lại; đứt giữa chừng, hết giờ chờ trả lời, phản hồi 5xx hay không đọc được là
+  Chưa rõ (vòng 11 đến 13). Tắt hay gỡ người nhận thì dọn cả tin đang hoãn của họ.
+- Gốc 7, nuốt lỗi chết giao dịch (#428): bao() bọc try rộng để Zalo không chặn
+  lưu chứng từ, nhưng deadlock khi ghi hộp thư thì MariaDB đã rollback cả giao
+  dịch, kể cả savepoint; nuốt lỗi đó là chứng từ báo thành công mà không còn gì
+  trong sổ. Phòng: mọi try rộng quanh lệnh ghi cơ sở dữ liệu phải để lỗi chết
+  giao dịch (deadlock, chờ khoá quá hạn, mất kết nối) đi lên.
+- Gốc 2, gửi trùng: hai tiến trình cùng nhận một dòng. Phòng: nhận bằng
+  UPDATE có điều kiện trạng thái kèm mã lô, commit, đọc lại mã lô mới gửi.
+- Gốc 3, cài đặt bị đè: webhook ghi mã chat mới vào Vagabond Settings đọc
+  qua cache rồi ghi lại cả chuỗi, hai tin tới cùng lúc thì mất một. Phòng:
+  khoá dòng Singles (select for update) và đọc thẳng bảng, không qua cache.
+- Gốc 4, nối bot "thành công" giả: setWebhook lưu URL dù xác minh hỏng, và
+  bot chưa bật quyền vào nhóm thì không nhận tin nhóm. Phòng: đọc kết quả
+  xác minh, gọi getMe kiểm can_join_groups, báo rõ cho người cài.
+- Gốc 5, ô gõ tay: mã chat, loại tin, chủ đề, giờ im gõ sai thì nhóm bị bỏ
+  lặng lẽ. Phòng: chỉ chọn từ danh mục hoặc từ nhóm đã nhắn bot, kiểm lại
+  lúc lưu.
+- Gốc 6, ca kiểm bắn tin thật: bench kiểm thật gọi tới Zalo. Phòng: cờ chế
+  độ kiểm chặn mọi lời gọi ra ngoài.
+- Bài học chung: tác dụng phụ ra ngoài hệ (Zalo, email, Telegram) phải đi qua
+  hộp thư ghi cùng giao dịch, có người nhận độc quyền và có đường gửi bù.
+  Nguồn: PR #413, #417, #423, #425.
