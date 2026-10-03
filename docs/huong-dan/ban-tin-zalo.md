@@ -61,8 +61,9 @@ duyệt" gửi nhóm Kế toán. Các tin khác thêm dần sau khi chạy ổn.
 - Trước khi gửi (kể cả sau giờ im) máy hỏi lại việc còn mở không. Khoản trả
   trước đã được duyệt, từ chối hay rút lại thì ghi "Bỏ qua (đã xử lý)", không
   nhắc nữa.
-- Dòng kẹt ở "Đang gửi gộp" nghĩa là chưa rõ đã tới nhóm (máy dừng giữa
-  chừng). Xem nhóm Zalo; máy không tự gửi lại.
+- Dòng kẹt ở "Đang gửi gộp" quá 10 phút cũng là máy dừng TRƯỚC khi gọi Zalo:
+  máy tự đưa về Hoãn giờ im và gửi lại ở lượt xả sau. Phần đang gọi Zalo lúc
+  máy dừng thì nằm "Chưa rõ", máy không tự gửi lại.
 - "Chưa rõ" là Zalo không trả lời kịp: tin có thể đã tới. Xem nhóm trước khi
   gửi lại, máy không tự gửi lại.
 - Zalo lỗi không bao giờ chặn lưu chứng từ.
