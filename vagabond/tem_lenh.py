@@ -174,6 +174,15 @@ def html_tem(d):
 
 TRUONG_MON = ["name", "item_name", "shelf_life_in_days", "custom_han_dung_gio",
 	"custom_dieu_kien_bao_quan", "custom_khoi_luong_tinh", "custom_chat_gay_di_ung"]
+# O chuan cua ERPNext luon co; o tu them (custom_) chi doc khi site co that.
+# Codex #421: tren site chua tao custom_khoi_luong_tinh hay
+# custom_chat_gay_di_ung thi get_value bao loi cot la, MOI lan in tem hong.
+TRUONG_CHUAN = {"name", "item_name", "shelf_life_in_days"}
+
+
+def truong_doc_duoc(co_truong):
+	"""THUAN. Loc TRUONG_MON con nhung o site that su co."""
+	return [f for f in TRUONG_MON if f in TRUONG_CHUAN or co_truong(f)]
 
 
 @frappe.whitelist()
@@ -189,6 +198,7 @@ def trang(ma=None, lenh=None, n=1):
 		ma = ma or frappe.db.get_value("Work Order", lenh, "production_item")
 	if not ma or not frappe.db.exists("Item", ma):
 		frappe.throw("Không tìm thấy món để in tem.")
-	mon = frappe.db.get_value("Item", ma, TRUONG_MON, as_dict=True) or {}
+	meta = frappe.get_meta("Item")
+	mon = frappe.db.get_value("Item", ma, truong_doc_duoc(meta.has_field), as_dict=True) or {}
 	d = du_lieu_tem(mon, now_datetime(), lenh or "", n)
 	return Response(html_tem(d), mimetype="text/html")
