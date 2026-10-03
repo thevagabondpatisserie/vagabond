@@ -1593,3 +1593,13 @@ lần đầu đếm ngoại lệ ra 0 trên 14 đột biến, tưởng bộ ki�
 - Bài học: một tính năng có hai nhánh (theo lô, không theo lô) thì ca kiểm
   phải dựng cả hai nhánh. Trước khi viết ca, đếm dữ liệu thật đang rơi vào
   nhánh nào; ở đây 15 trên 15 rơi vào đúng nhánh chưa có code.
+
+## 03/10/2026 - #420: đủ tổng nguồn chưa phải đủ tiền về
+
+Báo cáo vendor ngày/tháng có thể chứa cùng sự kiện; tên file và hash byte
+không đủ chống trùng kinh tế. Khóa cần phạm vi công ty/vendor/merchant/tiền
+tệ và ID ổn định; nội dung thay đổi phải giữ lỗi để kiểm bản điều chỉnh.
+Phép xem trước dùng snapshot chỉ bắt trùng đã biết, không thay khóa DB ở cửa
+ghi. Nhận phần hợp lệ phải chặn cả nhóm ID lặp, không để bản đầu còn Mới.
+46 ca phần thuần kiểm tiền theo locale rõ, giữ dấu hoàn, đủ dòng/tổng và nhóm
+xung đột; chưa phải bằng chứng nhận email, phân bổ sao kê hoặc ghi sổ.
