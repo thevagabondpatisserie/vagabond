@@ -16,10 +16,14 @@ phải dựng doctype mới, không phải di trú dữ liệu. Một dòng cho 
 trên máy chủ và cũng đặt trần số ô, không cho ghim vô hạn.
 """
 
+# phần thuần
+#
+# Codex bắt ở PR #430: tệp này từng đặt "import frappe" ngay đầu, nên hễ
+# nạp module là máy phải có Frappe, kể cả khi chỉ cần hai phép thuần dưới
+# đây. Tầng kiểm thử khung chạy tay không, không site, nên "import frappe"
+# phải nằm DƯỚI phần thuần, đúng AGENTS.md.
 import json
 import re
-
-import frappe
 
 TOI_DA = 5
 KHOA = "vgb_ghim_nghiep_vu"
@@ -28,9 +32,6 @@ KHOA = "vgb_ghim_nghiep_vu"
 # (ví dụ POS, CNPT, BC:BC05, DM:DMSP). Chặn ở đây để không ai nhét được
 # chuỗi lạ vào bảng mặc định của Frappe qua cửa này.
 MAU_KHOA = re.compile(r"^[A-Za-z0-9:_-]{1,40}$")
-
-
-# ------------------------------------------------------------- phép thuần
 
 
 def chuan(ds):
@@ -69,6 +70,8 @@ def doc_chuoi(v):
 
 
 # ------------------------------------------------------- phần cần Frappe
+
+import frappe
 
 
 @frappe.whitelist()
