@@ -507,8 +507,12 @@ def quet_cho_gui():
 	# Codex #425 vòng 9: worker chết sau khi nhận mà trước khi gọi Zalo thì dòng kẹt
 	# "Đang gửi"; quá KET_PHUT phút thì trả về Chờ gửi, xoá mã lô để lượt cũ (nếu
 	# còn sống) không gửi được nữa.
-	frappe.db.sql("""update `tabVagabond Tin Kenh` set trang_thai=%s, ma_lo=null, modified=%s
-		where trang_thai=%s and modified < %s""", (CHO_GUI, now_datetime(), DANG_GUI, add_to_date(now_datetime(), minutes=-KET_PHUT)))
+	han = add_to_date(now_datetime(), minutes=-KET_PHUT)
+	for cu, moi in ((DANG_GUI, CHO_GUI), ("Đang gửi gộp", "Hoãn giờ im")):
+		# Vòng 10: dòng gộp kẹt cũng chưa gọi Zalo (có mốc Chưa rõ), trả về Hoãn giờ im
+		# để lượt xả sau gửi lại.
+		frappe.db.sql("""update `tabVagabond Tin Kenh` set trang_thai=%s, ma_lo=null, modified=%s
+			where trang_thai=%s and modified < %s""", (moi, now_datetime(), cu, han))
 	frappe.db.commit()
 	ds = frappe.get_all("Vagabond Tin Kenh", filters={"trang_thai": CHO_GUI,
 		"creation": ["<", add_to_date(now_datetime(), minutes=-2)]}, pluck="name", order_by="creation asc",
@@ -524,11 +528,24 @@ def _nhan_lo(chat_id, ma_lo):
 	một lần (khoá dòng của MariaDB), lượt sau đọc theo ma_lo của chính mình nên
 	không thấy dòng của lượt trước. Commit TRƯỚC khi gọi Zalo.
 	Codex #417: nhận theo mã chat, đổi tên nhóm không làm kẹt tin hoãn."""
-	frappe.db.sql("""update `tabVagabond Tin Kenh` set trang_thai='Đang gửi gộp', ma_lo=%s
-		where chat_id=%s and trang_thai='Hoãn giờ im' order by creation limit %s""", (ma_lo, chat_id, LO_GOP))
+	frappe.db.sql("""update `tabVagabond Tin Kenh` set trang_thai='Đang gửi gộp', ma_lo=%s, modified=%s
+		where chat_id=%s and trang_thai='Hoãn giờ im' order by creation limit %s""", (ma_lo, now_datetime(), chat_id, LO_GOP))
 	frappe.db.commit()
 	return frappe.get_all("Vagabond Tin Kenh", filters={"ma_lo": ma_lo},
 		fields=["name", "noi_dung", "kiem", "nguon"], order_by="creation asc", limit_page_length=LO_GOP)
+
+
+def _moc_chua_ro(ten_ds, ma_lo):
+	"""Codex #425 vòng 10: đổi đúng các dòng của MỘT phần gộp sang "Chưa rõ" và commit
+	ngay trước lời gọi Zalo. Trả True nếu lượt này còn giữ các dòng đó.
+
+	Các dòng một phần được nhận cùng lúc nên bị trả về Hoãn giờ im cùng lúc: hoặc
+	còn giữ đủ, hoặc mất hết. Mất thì lượt này dừng, lượt khác đã gửi."""
+	frappe.db.sql("update `tabVagabond Tin Kenh` set trang_thai=%s, modified=%s where ma_lo=%s and trang_thai='Đang gửi gộp'"
+		" and name in (" + ", ".join(["%s"] * len(ten_ds)) + ")", tuple([CHUA_RO, now_datetime(), ma_lo] + list(ten_ds)))
+	frappe.db.commit()
+	return all((frappe.db.get_value("Vagabond Tin Kenh", t, ["trang_thai", "ma_lo"], as_dict=True) or {}).get("ma_lo") == ma_lo
+		for t in ten_ds)
 
 
 def _bo_hoan_nhom_tat(dang_bat):
@@ -547,8 +564,10 @@ def xa_gio_im():
 	"""Mỗi giờ: nhóm nào hết giờ im mà còn tin hoãn thì gửi tin tổng hợp.
 
 	Codex #413: chia theo độ dài thật, mỗi việc nằm trọn trong một tin và chỉ
-	việc nằm trong tin đã gửi mới được ghi "Đã gửi gộp". Worker chết sau khi gọi
-	Zalo thì dòng kẹt ở "Đang gửi gộp" (nghĩa là chưa rõ), máy KHÔNG tự gửi lại."""
+	việc nằm trong tin đã gửi mới được ghi "Đã gửi gộp".
+	Codex #425 vòng 10: ngay trước mỗi lời gọi Zalo, đúng các dòng của phần đó đổi
+	sang "Chưa rõ". Worker chết thì dòng kẹt "Đang gửi gộp" chắc chắn chưa gọi Zalo
+	(quet_cho_gui trả về Hoãn giờ im để gửi lại), dòng "Chưa rõ" thì không tự gửi lại."""
 	if not _bat():
 		return
 	gio = now_datetime().strftime("%H:%M")
@@ -558,7 +577,8 @@ def xa_gio_im():
 		chat = str(n.get("chat_id") or "").strip()
 		if not cint(n.get("bat")) or not chat or trong_gio_im(gio, n.get("im_tu"), n.get("im_den")):
 			continue
-		ds = _nhan_lo(chat, frappe.generate_hash(length=20))
+		ma = frappe.generate_hash(length=20)
+		ds = _nhan_lo(chat, ma)
 		con = []
 		for r in ds:
 			if _con_can(r.get("kiem"), r.get("nguon")):
@@ -569,6 +589,8 @@ def xa_gio_im():
 		if not con:
 			continue
 		for tin, idx in chia_lo_gop([dong_gop(r.noi_dung) for r in con]):
+			if not _moc_chua_ro([con[i].name for i in idx], ma):
+				break
 			tt, loi = _gui_zalo(chat, tin)
 			for i in idx:
 				frappe.db.set_value("Vagabond Tin Kenh", con[i].name, {
