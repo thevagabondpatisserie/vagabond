@@ -882,7 +882,9 @@ function vgbCss() {
     '.vgbtrong{padding:18px 4px;font-size:14px;color:#98a2b3;text-align:center}' +
     /* Nut ghim trong ket qua tim: vung bam rong 40px de ngon tay khong
        cham vao dong ben canh roi mo nham man. */
-    '.vgbgb{flex:none;width:40px;height:40px;line-height:40px;text-align:center;' +
+    /* Vung bam 44 diem, dung AGENTS.md dieu 13 ("nut, chip, dong cao it nhat
+       44 diem"). Ban dau dat 40 va Codex bat tren PR #426. */
+    '.vgbgb{flex:none;width:44px;height:44px;line-height:44px;text-align:center;' +
     'border-radius:999px;background:#f2f4f7;font-size:17px;opacity:.45;cursor:pointer}' +
     '.vgbgb.on{background:#e4f6fc;opacity:1}' +
     '.vgbghim{background:#fff;border-radius:16px;margin:12px 12px 0;padding:12px 12px 14px;' +
@@ -896,10 +898,17 @@ function vgbCss() {
     'border-radius:13px;padding:11px 6px 9px;text-align:center;cursor:pointer}' +
     '.vgbgo:active{transform:scale(.97)}' +
     '.vgbgi{font-size:24px;line-height:1}' +
-    '.vgbgn{font-size:11.5px;font-weight:600;color:#344054;margin-top:6px;line-height:1.25;' +
-    'max-height:29px;overflow:hidden}' +
+    /* 13 diem la san AGENTS.md dieu 13 ("chu toi thieu 13 diem"); ban dau
+       dat 11.5 cho gon o. Hai dong van vua trong o rong 88. */
+    '.vgbgn{font-size:13px;font-weight:600;color:#344054;margin-top:6px;line-height:1.25;' +
+    'max-height:34px;overflow:hidden}' +
+    /* Dau X ve nho cho khoi che mat o, nhung VUNG BAM phai du 44 diem
+       (AGENTS.md dieu 13). Noi rong bang mot lop phu trong suot: bam vao lop
+       do la trinh duyet tinh nhu bam vao chinh dau X, nen closest() van tim
+       ra data-ghim. */
     '.vgbgx{position:absolute;top:-6px;right:-6px;width:24px;height:24px;line-height:24px;' +
     'border-radius:999px;background:#d92d20;color:#fff;font-size:13px;font-weight:700;z-index:2}' +
+    '.vgbgx::after{content:"";position:absolute;top:-10px;left:-10px;width:44px;height:44px}' +
     /* Ghi chu nho canh ten nhom trong man phan he, kieu "lam hang ngay". */
     '.sec i{font-style:normal;font-weight:600;color:#c3c8d4;text-transform:none;' +
     'letter-spacing:0;margin-left:7px}' +
@@ -935,7 +944,14 @@ function vgbGomNhom() {
   VGB_HUB = {};
   var body = document.getElementById('vgbBody');
   if (!body) return;
-  var rows = body.querySelectorAll('[data-go]');
+  /* CHI doc dong nguon khi trang chu CHUA duoc gom lan nao.
+     Codex bat tren PR #426: tu v563 trang chu con co o ghim va ket qua tim,
+     ca hai deu mang [data-go]. Luot gom thu hai (vgbNapKhungCo ve muon) doc
+     phai chung va nhan nham lam dong goc, VGB_DONG_GOC tu 23 o con 1 o va
+     gan het phan he bien mat. Do duoc tren DOM gia dung mot o ghim: 23 -> 1.
+     Co .gwrap nghia la lan gom truoc da ghi de body bang luoi, nen moi
+     [data-go] dang co deu la do minh sinh ra, khong phai nguon. */
+  var rows = body.querySelector('.gwrap') ? [] : body.querySelectorAll('[data-go]');
   if (rows.length) {
     VGB_DONG_GOC = {};
     for (var i = 0; i < rows.length; i++) {
@@ -1158,6 +1174,19 @@ function vgbVeTim(tu) {
   kq.innerHTML = r;
 }
 
+/* Ve lai MOI cho co nut ghim: khoi ghim va ca ket qua tim dang mo.
+
+   Mot ham duy nhat chu khong di goi tung cho (CLAUDE.md dieu 18). Codex bat
+   tren PR #426: vgbNapGhim truoc day chi ve lai khoi ghim, nen ai go o tim
+   TRUOC khi may chu tra ve se thay nut ghim o trang thai tat du da ghim, bam
+   vao la BO ghim. Do duoc tren DOM gia: ghim ['CNPT'], go "cong no", bam nut
+   -> VGB_GHIM thanh []. */
+function vgbVeLaiGhim() {
+  vgbVeGhim();
+  var oTim = document.getElementById('vgbTim');
+  if (oTim && oTim.value) vgbVeTim(oTim.value);
+}
+
 function vgbVeGhim() {
   var w = document.getElementById('vgbGhimW');
   if (!w) return;
@@ -1189,7 +1218,33 @@ async function vgbNapGhim() {
   var kq;
   try { kq = await api('vagabond.ghim.lay', {}); } catch (e) { return; }
   VGB_GHIM = vgbChuanGhim((kq && kq.ghim) || [], function (k) { return !!VGB_HUB[k]; });
-  if (S.stack[S.stack.length - 1] === scrHome) vgbVeGhim();
+  if (S.stack[S.stack.length - 1] === scrHome) vgbVeLaiGhim();
+}
+
+/* Cat ghim len may chu, NOI TIEP nhau chu khong song song.
+
+   Codex bat tren PR #426: moi lan bam truoc day goi api ngay, nen bam hai o
+   lien tiep la hai loi goi chay song song va co the ve nguoc thu tu. Do duoc
+   tren DOM gia voi lan dau cham 60ms, lan sau 10ms: may chu giu lai ["POS"]
+   trong khi man hien ["POS","CNPT"], mo app lan sau la mat o vua ghim.
+
+   Cach gom: moi lan cat lay mot so thu tu. Lan nao da bi lan sau vuot mat thi
+   KHONG gui nua - trang thai sau cung la cai duy nhat dang gui, va no luon
+   duoc gui sau cung vi ca day noi tiep nhau. */
+var VGB_GHIM_LUOT = 0;
+var VGB_GHIM_DAY = null;
+
+function vgbCatGhim(ds) {
+  var luot = ++VGB_GHIM_LUOT;
+  var chuoi = (VGB_GHIM_DAY || Promise.resolve()).then(function () {
+    if (luot !== VGB_GHIM_LUOT) return;
+    return api('vagabond.ghim.luu', { ghim: JSON.stringify(ds) }).catch(function () {
+      toast('Ch\u01b0a c\u1ea5t \u0111\u01b0\u1ee3c ghim l\u00ean m\u00e1y ch\u1ee7. ' +
+        'L\u1ea7n sau m\u1edf app s\u1ebd v\u1ec1 nh\u01b0 c\u0169.', 3800);
+    });
+  });
+  VGB_GHIM_DAY = chuoi;
+  return chuoi;
 }
 
 /* Bat tat ghim mot nghiep vu.
@@ -1206,14 +1261,8 @@ async function vgbBatGhim(k) {
       ' nghi\u1ec7p v\u1ee5. B\u1ecf m\u1ed9t \u00f4 c\u0169 r\u1ed3i ghim l\u1ea1i.', 3400);
   } else ds.push(k);
   VGB_GHIM = vgbChuanGhim(ds, function (x) { return !!VGB_HUB[x]; });
-  vgbVeGhim();
-  var oTim = document.getElementById('vgbTim');
-  if (oTim && oTim.value) vgbVeTim(oTim.value);
-  try { await api('vagabond.ghim.luu', { ghim: JSON.stringify(VGB_GHIM) }); }
-  catch (e) {
-    toast('Ch\u01b0a c\u1ea5t \u0111\u01b0\u1ee3c ghim l\u00ean m\u00e1y ch\u1ee7. ' +
-      'L\u1ea7n sau m\u1edf app s\u1ebd v\u1ec1 nh\u01b0 c\u0169.', 3800);
-  }
+  vgbVeLaiGhim();
+  await vgbCatGhim(VGB_GHIM);
 }
 
 /* Hoi may chu xem nguoi nay con bao nhieu viec, roi deo len o.
