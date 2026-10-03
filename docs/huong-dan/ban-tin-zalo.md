@@ -1,0 +1,57 @@
+# Bắn tin ERP vào nhóm Zalo (v559, issue #410)
+
+Dành cho quản trị. Bản thử: một tin đầu tiên là "Khoản trả trước ERP chờ
+duyệt" gửi nhóm Kế toán. Các tin khác thêm dần sau khi chạy ổn.
+
+## 1. Tạo bot (một lần)
+
+1. Vào bot.zaloplatforms.com bằng tài khoản Zalo của công ty, tạo bot.
+2. Chép token của bot (dạng `số:chuỗi`). Không gửi token qua chat hay issue.
+3. Desk, Vagabond Settings, mục **Bắn tin vào nhóm Zalo (#410)**: dán token,
+   tích **Bật bắn tin Zalo**, Lưu.
+4. Bấm **Zalo > Nối Zalo Bot** ở góc trên. Máy kiểm token, tự sinh khoá bí
+   mật, đăng ký đường nhận và đọc kết quả Zalo gọi thử. Chỉ khi báo xanh
+   "Đã nối bot ... gọi thử thành công" mới là xong. Báo cam (thất bại hoặc
+   chưa rõ) thì bấm **Zalo > Kiểm lại đường nhận** sau ít phút; ô **Kết quả
+   xác minh đường nhận** ghi lần kiểm gần nhất.
+
+## 2. Gắn từng nhóm
+
+1. Thêm bot vào nhóm Zalo (ví dụ nhóm Kế toán).
+2. Trong nhóm, một người @nhắc bot một lần (gõ @tên bot và một chữ bất kỳ).
+3. Tải lại Vagabond Settings: ô **Chat vừa nhắn bot** hiện mã chat và tên
+   nhóm. Máy không lưu nội dung tin nhắn.
+4. Bảng **Nhóm nhận tin**: thêm dòng, Tên nhóm "Kế toán", dán Mã chat Zalo,
+   Loại tin để trống (nhận tất) hoặc ghi `viec, canh_bao`, Chủ đề `cong_no`,
+   Giờ im 22:00 đến 07:00 nếu muốn. Lưu.
+5. Bấm **Zalo > Gửi thử tới một nhóm**, chọn nhóm. Nhóm thấy tin thử là xong.
+   **Zalo > Xem trước tin mẫu** chỉ hiện nội dung, không gửi.
+
+## 3. Năm loại tin
+
+| Mã | Đầu tin | Khi nào |
+|---|---|---|
+| thong_bao | ℹ️ THÔNG BÁO | Việc đã xảy ra, không cần làm gì |
+| viec | ✅ VIỆC CẦN LÀM | Có người phải xử lý, có đường mở đúng màn |
+| canh_bao | 🚨 CẢNH BÁO | Bất thường cần xử lý gấp; vẫn gửi trong giờ im |
+| ban_tin | 📊 BẢN TIN | Tổng hợp; tin hoãn trong giờ im được gộp thành một bản tin |
+| phat_hanh | 🚀 PHÁT HÀNH | Sau mỗi lần deploy đã kiểm site thật |
+
+## 4. Kiểm và xử lý
+
+- Sổ **Vagabond Tin Kenh** (Desk) ghi từng tin: nhóm, loại, trạng thái, lỗi
+  nếu có. Trạng thái: Đã gửi, Hoãn giờ im, Đang gửi gộp, Đã gửi gộp, Bỏ qua
+  (đã xử lý), Lỗi, Chưa rõ.
+- Hết giờ im, các tin hoãn được gộp; nhiều việc thì chia thành vài tin, mỗi
+  việc nằm trọn trong một tin, không việc nào bị cắt.
+- Trước khi gửi (kể cả sau giờ im) máy hỏi lại việc còn mở không. Khoản trả
+  trước đã được duyệt, từ chối hay rút lại thì ghi "Bỏ qua (đã xử lý)", không
+  nhắc nữa.
+- Dòng kẹt ở "Đang gửi gộp" nghĩa là chưa rõ đã tới nhóm (máy dừng giữa
+  chừng). Xem nhóm Zalo; máy không tự gửi lại.
+- "Chưa rõ" là Zalo không trả lời kịp: tin có thể đã tới. Xem nhóm trước khi
+  gửi lại, máy không tự gửi lại.
+- Zalo lỗi không bao giờ chặn lưu chứng từ.
+- Tài liệu chính thức của Zalo Bot ghi sendMessage nhận mã người hoặc mã
+  cuộc trò chuyện, nhưng chưa nói rõ riêng về nhóm. Nếu gửi thử vào nhóm báo
+  lỗi thì thử với chat riêng (một người nhắn bot) và báo lại để chỉnh.
