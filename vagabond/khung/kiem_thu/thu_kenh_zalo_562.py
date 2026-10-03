@@ -242,6 +242,14 @@ class _SoGia:
 		self.commit_luc = []
 
 	def sql(self, q, tham=None):
+		if "luc_gui=%s where trang_thai='Hoãn giờ im'" in q:
+			# Codex #425 vòng 9: tin hoãn của nhóm không còn bật thì Bỏ qua.
+			tt, loi, _luc, *bat = tham
+			assert q.count("%s") == 3 + len(bat)
+			for d in self.dong:
+				if d["trang_thai"] == "Hoãn giờ im" and d.get("chat_id") not in bat:
+					d["trang_thai"], d["loi"] = tt, loi
+			return []
 		if "update `tabVagabond Tin Kenh`" in q:
 			ma, chat, gioi_han = tham
 			assert "where chat_id=%s" in q, "claim phải theo mã chat (Codex #417)"
@@ -270,7 +278,10 @@ class _SoGia:
 
 
 class _So(_SoGia):
-	"""Sổ giả đủ cho đường gửi ngay: chèn có khoá chính, claim một dòng theo tên, đọc dòng."""
+	"""Sổ giả đủ cho đường gửi ngay: chèn có khoá chính, claim một dòng theo tên, đọc dòng.
+
+	gio: đồng hồ giả (số phút) ghi vào modified, để ca kiểm tua được dòng kẹt."""
+	gio = 0
 
 	def chen(self, d):
 		if any(x["name"] == d["name"] for x in self.dong):
@@ -279,10 +290,22 @@ class _So(_SoGia):
 
 	def sql(self, q, tham=None):
 		if "where name=%s and trang_thai=%s" in q:
-			ma, ten, tt = tham
+			ma, _luc, ten, tt = tham
 			for d in self.dong:
 				if d["name"] == ten and d["trang_thai"] == tt:
-					d["trang_thai"], d["ma_lo"] = "Đang gửi", ma
+					d["trang_thai"], d["ma_lo"], d["modified"] = "Đang gửi", ma, self.gio
+			return []
+		if "where name=%s and ma_lo=%s and trang_thai=%s" in q:
+			tt, _luc, ten, ma, cu = tham
+			for d in self.dong:
+				if d["name"] == ten and d.get("ma_lo") == ma and d["trang_thai"] == cu:
+					d["trang_thai"], d["modified"] = tt, self.gio
+			return []
+		if "ma_lo=null" in q and "modified < %s" in q:
+			tt, _luc, cu, han = tham
+			for d in self.dong:
+				if d["trang_thai"] == cu and d.get("modified", self.gio) < han:
+					d["trang_thai"], d["ma_lo"], d["modified"] = tt, None, self.gio
 			return []
 		return super().sql(q, tham)
 
@@ -854,6 +877,106 @@ def _lich_gui_bu():
 		kz.quet_cho_gui()
 	la("lọc Chờ gửi, tạo trước 09:58", (loc[0]["trang_thai"], loc[0]["creation"][0], str(loc[0]["creation"][1])[:16]),
 		(kz.CHO_GUI, "<", "2026-10-03 09:58"))
+
+
+# ===================================================================
+# Vòng 9 (Codex review #425 trên 513a800): dòng kẹt "Đang gửi" được trả về
+# Chờ gửi; tin hoãn của nhóm đã tắt hoặc bị gỡ được ghi Bỏ qua.
+
+class _Gio(int):
+	"""Đồng hồ giả tính bằng phút, có strftime cho đường kiểm giờ im."""
+	def strftime(self, fmt):
+		return "10:00"
+
+
+def _gui_bu(so, gui, phut, con_can=None):
+	"""Chạy quet_cho_gui ở phút thứ `phut` trên sổ giả (đúng đường của lịch 5 phút)."""
+	f = kz.frappe
+	import frappe.utils as fu
+	so.gio = phut
+	so.get_all = lambda dt, filters=None, **k: [d["name"] for d in so.dong if d["trang_thai"] == kz.CHO_GUI]
+	with patch.object(kz, "now_datetime", lambda: _Gio(phut)), \
+			patch.object(fu, "add_to_date", lambda d, minutes=0, **k: d + minutes, create=True), \
+			patch.object(f, "get_all", so.get_all, create=True):
+		kz.quet_cho_gui()
+
+
+@ca("v562 #425 vòng 9 tái hiện Codex: worker chết sau khi nhận dòng, trước khi gọi Zalo, thì dòng kẹt Đang gửi mãi; giờ quá 10 phút được gửi bù đúng một lần")
+def _ket_dang_gui():
+	so = _So([])
+	goi = []
+	gui = lambda c, t: (goi.append(c), ("Đã gửi", ""))[1]
+	with _gia(so, [nhom()], "10:00", gui, lambda k, n: True):
+		ten = kz._ghi_hop_thu(TIN)
+		so.gio = 0
+		kz._nhan_mot(ten[0])  # worker nhận dòng rồi chết, chưa gọi Zalo
+		la("kẹt Đang gửi", so.dong[0]["trang_thai"], "Đang gửi")
+		_gui_bu(so, gui, 5)
+		la("chưa quá 10 phút: chưa đụng", (goi, so.dong[0]["trang_thai"]), ([], "Đang gửi"))
+		_gui_bu(so, gui, 11)
+		_gui_bu(so, gui, 16)
+	la("quá 10 phút: gửi bù đúng một lần", (goi, so.dong[0]["trang_thai"]), (["c1"], "Đã gửi"))
+
+
+@ca("v562 #425 vòng 9: dòng kẹt Chưa rõ (worker chết lúc đang gọi Zalo) không tự gửi lại")
+def _ket_chua_ro():
+	so = _So([])
+	goi = []
+
+	class _Chet(Exception):
+		pass
+
+	def chet(c, t):
+		goi.append(c)
+		raise _Chet("worker bị giết giữa lúc gọi Zalo")
+	with _gia(so, [nhom()], "10:00", chet, lambda k, n: True):
+		ten = kz._ghi_hop_thu(TIN)
+		try:
+			kz.gui_hang_doi(ten)
+		except _Chet:
+			pass
+		la("kẹt Chưa rõ", so.dong[0]["trang_thai"], kz.CHUA_RO)
+		_gui_bu(so, lambda c, t: (goi.append(c), ("Đã gửi", ""))[1], 30)
+	la("không gửi lại", goi, ["c1"])
+
+
+@ca("v562 #425 vòng 9: lượt cũ còn sống sau khi dòng đã bị trả về Chờ gửi thì không gửi trùng")
+def _lot_cu_song_lai():
+	so = _So([])
+	goi = []
+	gui = lambda c, t: (goi.append(c), ("Đã gửi", ""))[1]
+	vao = [0]
+
+	def con_can(k, n):
+		# Lượt đầu treo ở bước hỏi lại việc; trong lúc đó qua 10 phút, lịch gửi bù
+		# trả dòng về Chờ gửi và lượt mới gửi xong. Rồi lượt đầu chạy tiếp.
+		if not vao[0]:
+			vao[0] = 1
+			_gui_bu(so, gui, 11)
+		return True
+	with _gia(so, [nhom()], "10:00", gui, con_can):
+		ten = kz._ghi_hop_thu(TIN)
+		so.gio = 0
+		with patch.object(kz, "now_datetime", lambda: _Gio(0)):
+			kz.gui_hang_doi(ten)
+	la("chỉ một lần gửi", goi, ["c1"])
+	la("trạng thái cuối", so.dong[0]["trang_thai"], "Đã gửi")
+
+
+@ca("v562 #425 vòng 9 tái hiện Codex: tin hoãn của nhóm đã tắt hoặc bị gỡ ghi Bỏ qua; bật lại nhóm không bắn tin cũ")
+def _hoan_nhom_tat():
+	so = _SoGia([_hoan(1, "Việc nhóm còn bật"), _hoan(2, "Việc nhóm đã tắt", chat_id="c2", nhom_ten="Kho"),
+		_hoan(3, "Việc nhóm đã gỡ", chat_id="c9", nhom_ten="Cũ")])
+	ds = [nhom(), nhom(ten_nhom="Kho", chat_id="c2", bat=0)]
+	gui = _xa(so, nhom_ds=ds)
+	la("chỉ gửi nhóm còn bật", [c for c, _ in gui], ["c1"])
+	la("tin của nhóm tắt và nhóm gỡ: Bỏ qua kèm lý do", [(d["trang_thai"], d.get("loi")) for d in so.dong[1:]],
+		[(kz.BO_QUA, kz.NHOM_TAT)] * 2)
+	gui2 = _xa(so, nhom_ds=[nhom(), nhom(ten_nhom="Kho", chat_id="c2"), nhom(ten_nhom="Cũ", chat_id="c9")])
+	la("bật lại nhóm: không bắn tin cũ", gui2, [])
+	so2 = _SoGia([_hoan(4, "Không còn nhóm nào bật")])
+	_xa(so2, nhom_ds=[nhom(bat=0)])
+	la("không nhóm nào bật: mọi tin hoãn Bỏ qua", so2.dong[0]["trang_thai"], kz.BO_QUA)
 
 
 @ca("v562 #425: bài học Zalo đã ghi vào docs/bai-hoc-su-co.md")
