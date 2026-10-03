@@ -328,22 +328,19 @@ Từ khoá: in tem, tem HACCP, tem nhãn, nhãn bánh, NSX, HSD, hạn dùng, m�
 |---|---|---|
 | Bếp | Sản xuất (/san-xuat), chi tiết lệnh | [[In tem]] |
 
-Tem in theo Mẻ của lệnh: tên món, NSX, HSD, điều kiện bảo quản, mã mẻ. Từ 30/09/2026 mọi mã đã tắt quản lý theo lô, nên hiện nút này không in được.
+Tem ghi tên món, khối lượng tịnh, điều kiện bảo quản, chất gây dị ứng, NSX, HSD, mã vạch món. Từ 03/10/2026 tem không cần lô: dòng lô cũ đổi thành "Ngày: ......" để bếp điền tay.
 
-**Hiện trạng**
-| Bấm | Máy làm |
-|---|---|
-| [[In tem]] (trước hoàn tất) hoặc [[In lại tem]] | Báo "Món này chưa bật theo dõi lô nên chưa in được tem" |
-| [[In tem cả N lệnh]] trên thẻ gộp | Báo như trên |
-| [[Hoàn thành]] | Hoàn tất bình thường, nhưng không tự mở màn In tem HACCP nữa |
-
-**Các bước khi mã có bật lô** (cách cũ, để tra lại)
-1. Mở lệnh, bấm [[In tem]] hoặc [[In lại tem]].
+**Các bước**
+1. Mở lệnh, bấm [[In tem]] hoặc [[In lại tem]]. Bấm [[Hoàn thành]] xong máy cũng tự mở màn In tem HACCP.
 2. Chỉnh Số tem cần in.
 3. Bấm [[In thử 1 tem]] hoặc [[In N tem]].
+4. Dán tem, điền tay ngày vào dòng Ngày.
+
+**In cả nhóm**: trên thẻ gộp bấm [[In tem cả N lệnh]], mỗi lệnh một xấp tem theo số đã làm.
 
 **Lưu ý**
-- Đừng tự bật lại Có quản lý lô trên Desk để in tem: việc tắt lô là quyết định của anh Việt 30/09/2026, bật lại ảnh hưởng nhập, xuất, kiểm kê. Anh Việt chốt 03/10/2026: tem bỏ ô lô, thay bằng dòng "Ngày: ..." để nhân viên điền tay; phần sửa nút In tem đang làm.
+- NSX là giờ bấm in, HSD tính từ NSX. In trước để dán sau thì sửa tay cho đúng.
+- Đừng tự bật lại Có quản lý lô trên Desk: tắt lô là quyết định của anh Việt 30/09/2026.
 - Hạn dùng trên tem lấy từ số giờ hạn dùng hoặc Thời gian Sử dụng theo Ngày trên hồ sơ món.
 - In cả nhóm cần máy in tem đã nối QZ Tray; chưa nối thì máy báo "chỉ in được từng lệnh một".
 
