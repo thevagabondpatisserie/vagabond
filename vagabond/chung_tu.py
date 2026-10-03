@@ -459,6 +459,7 @@ def cai_dat_khoa_so():
 		"so_to_dang_mo": dem,
 		"sua_duoc": 1 if QUYEN_KHOA_SO & set(frappe.get_roles()) else 0,
 		"loai": sorted(TEN_VIET.get(x, x) for x in KHOA_XOA),
+		"loai_ma": sorted([[x, TEN_VIET.get(x, x)] for x in KHOA_XOA], key=lambda a: a[1]),
 	}
 
 
@@ -510,6 +511,60 @@ def mo_khoa_mot_to(doctype, name, ly_do=None):
 	_ghi_vet(doctype, name, "MỞ KHOÁ SỔ để sửa. Lý do: %s" % ly_do.strip())
 	frappe.db.commit()
 	return {"ok": 1}
+
+
+def trang_thai_khoa(ngay, khoa, da_mo):
+	"""THUAN. Mot to dang o trang thai nao doi voi khoa so.
+
+	"mo"     : ke toan da mo khoa rieng to nay, sua duoc, nho dong lai.
+	"khoa"   : ngay cua to nam trong ky da khoa, muon sua phai mo khoa.
+	"tu_do"  : chua toi ky khoa (hoac khong khoa gi), khong can lam gi.
+	Co mo khoa duoc xet TRUOC: to da mo thi van phai thay nut Dong khoa du
+	ky khoa co bi ke toan noi rong hay thu hep sau do.
+	"""
+	if da_mo:
+		return "mo"
+	if khoa and ngay and ngay <= khoa:
+		return "khoa"
+	return "tu_do"
+
+
+@frappe.whitelist()
+def khoa_cua_to(doctype, name):
+	"""Nut Mo khoa / Dong khoa tren Desk hoi trang thai cua dung mot to.
+
+	Anh Viet chot 03/10/2026: nut mo khoa phai co ca tren app lan Desk.
+	Truoc do mo_khoa_mot_to co san o may chu ma khong nut nao goi toi.
+	"""
+	if doctype not in KHOA_XOA:
+		return {"ap_dung": 0}
+	if not frappe.db.exists(doctype, name):
+		return {"ap_dung": 0}
+	doc = frappe.get_doc(doctype, name)
+	khoa = ngay_khoa()
+	tt = trang_thai_khoa(_ngay_cua(doc), khoa, cint(doc.get("vgb_mo_khoa") or 0))
+	return {
+		"ap_dung": 1,
+		"trang_thai": tt,
+		"ngay_khoa": str(khoa) if khoa else "",
+		"sua_duoc": 1 if QUYEN_KHOA_SO & set(frappe.get_roles()) else 0,
+	}
+
+
+@frappe.whitelist()
+def ds_to_dang_mo():
+	"""Man Khoa so tren app: liet ke tung to dang mo khoa de dong lai."""
+	if not (QUYEN_HUY | QUYEN_KHOA_SO) & set(frappe.get_roles()):
+		frappe.throw("Khoá sổ chỉ mở cho kế toán và giám đốc.")
+	ra = []
+	for dt in sorted(KHOA_XOA):
+		try:
+			cac = frappe.get_all(dt, filters={"vgb_mo_khoa": 1}, fields=["name"], limit_page_length=200)
+		except Exception:
+			continue
+		for x in cac:
+			ra.append({"doctype": dt, "loai": TEN_VIET.get(dt, dt), "name": x.name})
+	return ra
 
 
 @frappe.whitelist()
