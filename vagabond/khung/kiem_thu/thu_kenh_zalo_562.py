@@ -548,7 +548,9 @@ def _kiem_trung():
 			return dict(self)
 
 	def cai_dat(ds):
-		return types.SimpleNamespace(phu_thu=0, kitchen_lat=10.7, kitchen_lng=106.6,
+		# v562 #425: mã chat mới phải có trong Chat vừa nhắn bot và là nhóm.
+		moi = json.dumps([{"chat_id": c, "loai": "GROUP", "ten": c} for c in ("c1", "c2")])
+		return types.SimpleNamespace(phu_thu=0, kitchen_lat=10.7, kitchen_lng=106.6, zalo_chat_moi=moi,
 			get=lambda k: [_Dong(r) for r in ds] if k == "zalo_nhom" else None)
 	with patch.object(tai_khoan_btp, "kiem_o_cau_hinh", lambda doc: None):
 		vs.VagabondSettings.validate(cai_dat([nhom(), nhom(ten_nhom="Kho", chat_id="c2")]))
@@ -664,3 +666,63 @@ def _huong_dan_nut():
 	# Dò chuỗi ở đây chỉ để chốt tài liệu khớp giao diện (điều 16).
 	dung("có hai nút chọn", "Chọn loại tin" in s and "Chọn chủ đề" in s)
 	dung("không còn bảo ghi mã vào ô", "hoặc ghi `viec" not in s)
+
+
+# ===================================================================
+# Vòng 7 (Codex review #425 trên 9d5ede0): bot không được vào nhóm; mã chat
+# chỉ nhận nhóm đã nhắn bot.
+
+@ca("v562 #425 tái hiện Codex: getMe can_join_groups=false trước đây vẫn nối được; giờ dừng trước setWebhook và chỉ cách sửa")
+def _bot_khong_vao_nhom():
+	f = kz.frappe
+	la("bot không vào nhóm bị chặn", "chưa được phép vào nhóm" in kz.kiem_bot({"can_join_groups": False}), True)
+	la("bot vào nhóm được", kz.kiem_bot({"can_join_groups": True}), "")
+	la("thiếu trường thì không chặn", kz.kiem_bot({"account_name": "x"}), "")
+	goi = []
+
+	def gia(m, body):
+		goi.append(m)
+		return ("Đã gửi", "", {"account_name": "VGB", "can_join_groups": False}) if m == "getMe" else ("Đã gửi", "", {})
+	# Dựng đủ đường đi như ca _noi để nếu bỏ chặn thì luồng chạy tới setWebhook
+	# (lần đầu ca này thiếu, đột biến T1 không đổ vì luồng gãy sớm ở get_single).
+	s = types.SimpleNamespace(flags=types.SimpleNamespace(), get_password=lambda *a, **k: "x" * 40, save=lambda **k: None)
+	with patch.object(kz, "_chi_quan_tri", lambda: None), patch.object(kz, "_goi", gia), \
+			patch.object(kz, "_ghi_noi", lambda *a: None), patch.object(kz, "get_url", lambda p: "https://erp" + p), \
+			patch.object(f, "get_single", lambda *a: s, create=True), patch.object(f.db, "commit", lambda: None, create=True):
+		nem("Nối bot dừng lại", kz.dang_ky_webhook)
+	la("không gọi setWebhook", goi, ["getMe"])
+
+
+@ca("v562 #425 tái hiện Codex: mã chat gõ nhầm hoặc là chat riêng trước đây lưu được; giờ chỉ nhận nhóm đã nhắn bot")
+def _ma_chat():
+	moi = [{"chat_id": "g1", "loai": "GROUP", "ten": "Kế toán"}, {"chat_id": "p1", "loai": "PRIVATE", "ten": "Dung"}]
+	la("nhóm đã nhắn bot", kz.kiem_ma_chat([nhom(chat_id="g1")], [], moi), "")
+	dung("gõ nhầm mã", "chưa thấy trong Chat vừa nhắn bot" in kz.kiem_ma_chat([nhom(chat_id="g1x")], [], moi))
+	dung("chat riêng", "là chat riêng của Dung" in kz.kiem_ma_chat([nhom(chat_id="p1")], [], moi))
+	la("dòng đã lưu từ trước không bị kiểm lại", kz.kiem_ma_chat([nhom(chat_id="cu")], ["cu"], moi), "")
+	la("chưa có mã chat thì để đó", kz.kiem_ma_chat([nhom(chat_id="")], [], moi), "")
+	# Chạy thật validate của Cài đặt với dòng mới gõ nhầm.
+	from vagabond.vagabond.doctype.vagabond_settings import vagabond_settings as vs
+	from vagabond import tai_khoan_btp
+
+	class _D(dict):
+		def as_dict(self):
+			return dict(self)
+	cai = types.SimpleNamespace(phu_thu=0, kitchen_lat=10.7, kitchen_lng=106.6, zalo_chat_moi=json.dumps(moi),
+		get=lambda k: [_D(nhom(chat_id="p1"))] if k == "zalo_nhom" else None)
+	with patch.object(tai_khoan_btp, "kiem_o_cau_hinh", lambda doc: None):
+		nem("validate chặn chat riêng", lambda: vs.VagabondSettings.validate(cai))
+		cai2 = types.SimpleNamespace(phu_thu=0, kitchen_lat=10.7, kitchen_lng=106.6, zalo_chat_moi="[]",
+			get_doc_before_save=lambda: types.SimpleNamespace(get=lambda k: [types.SimpleNamespace(chat_id="cu")]),
+			get=lambda k: [_D(nhom(chat_id="cu"))] if k == "zalo_nhom" else None)
+		vs.VagabondSettings.validate(cai2)
+
+
+@ca("v562 #425: ô mã chat chỉ đọc, hướng dẫn chỉ cách chọn nhóm")
+def _ma_chat_chi_doc():
+	import os
+	p = os.path.join(os.path.dirname(kz.__file__), "vagabond", "doctype", "vagabond_kenh_zalo", "vagabond_kenh_zalo.json")
+	d = json.load(open(p, encoding="utf-8"))
+	la("chat_id read_only", [x.get("read_only") for x in d["fields"] if x["fieldname"] == "chat_id"], [1])
+	h = open(os.path.join(os.path.dirname(os.path.dirname(kz.__file__)), "docs", "huong-dan", "ban-tin-zalo.md"), encoding="utf-8").read()
+	dung("hướng dẫn có nút chọn nhóm, bỏ lối thử chat riêng", "Chọn nhóm đã nhắn bot" in h and "thử với chat riêng" not in h)
