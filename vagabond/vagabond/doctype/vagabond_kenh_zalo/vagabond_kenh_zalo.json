@@ -39,14 +39,16 @@
    "label": "Loại tin nhận",
    "in_list_view": 1,
    "columns": 2,
-   "description": "Cách nhau dấu phẩy: thong_bao, viec, canh_bao, ban_tin, phat_hanh. Để trống là nhận tất."
+   "description": "Mở dòng, bấm Chọn loại tin. Mã: thong_bao, viec, canh_bao, ban_tin, phat_hanh. Để trống là nhận tất.",
+   "read_only": 1
   },
   {
    "fieldname": "chu_de",
    "fieldtype": "Small Text",
    "label": "Chủ đề nhận",
    "columns": 2,
-   "description": "Cách nhau dấu phẩy: kho, san_xuat, cong_no, ban_hang, don_web, dat_ban, phat_hanh. Để trống là nhận tất."
+   "description": "Mở dòng, bấm Chọn chủ đề. Mã: kho, san_xuat, cong_no, ban_hang, don_web, dat_ban, phat_hanh. Để trống là nhận tất.",
+   "read_only": 1
   },
   {
    "fieldname": "cb1",
@@ -56,13 +58,13 @@
    "fieldname": "im_tu",
    "fieldtype": "Data",
    "label": "Giờ im từ (HH:MM)",
-   "description": "Ví dụ 22:00. Trong giờ im chỉ Cảnh báo được gửi; tin khác gộp gửi khi hết giờ im."
+   "description": "Ví dụ 22:00. Trong giờ im chỉ Cảnh báo được gửi; tin khác gộp gửi khi hết giờ im. Dạng HH:MM, điền đủ hai đầu."
   },
   {
    "fieldname": "im_den",
    "fieldtype": "Data",
    "label": "Giờ im đến (HH:MM)",
-   "description": "Ví dụ 07:00"
+   "description": "Ví dụ 07:00 Dạng HH:MM, điền đủ hai đầu."
   },
   {
    "fieldname": "bat",
@@ -74,7 +76,7 @@
   }
  ],
  "links": [],
- "modified": "2026-10-02 18:00:00.000000",
+ "modified": "2026-10-03 16:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Kenh Zalo",
