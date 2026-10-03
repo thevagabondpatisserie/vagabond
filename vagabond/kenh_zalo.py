@@ -397,6 +397,19 @@ def chet_giao_dich(e):
 	return bool(a) and isinstance(a[0], int) and a[0] in MA_CHET_GIAO_DICH
 
 
+def loi_get_me(tt, loi):
+	"""THUẦN: câu báo cho quản trị sau khi gọi getMe, rỗng là token dùng được.
+
+	Codex #428 vòng 14: Zalo trục trặc tạm thời (hết giờ, 5xx, chưa kết nối được)
+	không có nghĩa token sai; báo thử lại sau, đừng bảo người ta đổi token đúng."""
+	if tt == "Đã gửi":
+		return ""
+	if tt in ("Chưa rõ", MANG_LOI):
+		return ("Chưa kiểm được token vì Zalo đang không trả lời ổn định (%s). Token CHƯA bị coi là sai, "
+			"đừng đổi token; bấm Nối Zalo Bot lại sau ít phút." % loi)
+	return "Token Zalo Bot chưa đúng. %s" % loi
+
+
 def chua_gui_di(e):
 	"""THUẦN: True nếu lỗi xảy ra trước khi gửi được gì tới Zalo (DNS, không mở được
 	kết nối, proxy từ chối). Dò cả chuỗi lỗi bọc nhau của requests và urllib3."""
@@ -735,8 +748,9 @@ def dang_ky_webhook():
 	result.verification chứ không tin ok:true ở ngoài."""
 	_chi_quan_tri()
 	tt, loi, toi = _goi("getMe", {})
-	if tt != "Đã gửi":
-		frappe.throw("Token Zalo Bot chưa đúng. %s" % loi)
+	bao_loi = loi_get_me(tt, loi)
+	if bao_loi:
+		frappe.throw(bao_loi)
 	loi_bot = kiem_bot(toi)
 	if loi_bot:
 		frappe.throw(loi_bot)
