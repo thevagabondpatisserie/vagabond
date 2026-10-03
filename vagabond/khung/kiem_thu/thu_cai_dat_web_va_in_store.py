@@ -174,7 +174,12 @@ def _():
 	tc = _doc("vagabond/public/js/bep/02-trang-chu.js")
 	dung("co the tren man Cai dat", "'CDWEB')" in tc)
 	dung("co nhanh dieu huong", "if (k === 'CDWEB') return go(scrCaiDatWeb);" in tc)
-	dung("nam trong nhom KHAC", "'CDWEB'" in _than(tc, "{ k: 'KHAC'", "\n"))
+	# v565: bang VGB_NHOM da tach nhieu dong de them truong `nhom`, nen khong
+	# doc duoc bang cach cat mot DONG nua. Doc ca khoi keys cua phan he do.
+	import re as _re
+	_kh = _re.search(r"k: 'KHAC',.*?keys: \[(.*?)\]", tc, _re.S)
+	dung("co nhom KHAC", bool(_kh))
+	dung("nam trong nhom KHAC", bool(_kh) and "'CDWEB'" in _kh.group(1))
 	cd = _doc("vagabond/public/js/bep/17-cai-dat.js")
 	dung("co man", "async function scrCaiDatWeb()" in cd)
 	man = _than(cd, "async function scrCaiDatWeb()", None)

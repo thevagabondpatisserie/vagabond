@@ -113,7 +113,7 @@ body{-webkit-text-size-adjust:100%;font-family:-apple-system,BlinkMacSystemFont,
 .hub .hi,.li .hi{width:44px;height:44px;flex:0 0 44px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:23px;background:#E4F9FD}
 .hub .ht{flex:1;min-width:0}
 .hub .h1{font-size:16px;font-weight:600;margin-bottom:2px}
-.hub .h2{font-size:12.5px;color:#8a8f9c;line-height:1.35}
+.hub .h2{font-size:13px;color:#8a8f9c;line-height:1.35}
 .hub.chon{background:#E4F9FD}
 .hub.chon:active{background:#DBF6FB}
 /* O nhap tien nam trong mot dong danh sach. .tin la o toan man cao 52px,

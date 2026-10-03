@@ -128,6 +128,9 @@ node vagabond/khung/kiem_thu/hanh_vi/stk_tai_cho_515.js
 node vagabond/khung/kiem_thu/hanh_vi/bang_sang_351.js
 # #352: ma QR xuat hoa don tren bill ve tai may, khong phu thuoc mang ngoai.
 node vagabond/khung/kiem_thu/hanh_vi/qr_xhd_bill_352.js
+# v565: o tim nghiep vu, o ghim va viec gom nhom trong man phan he - chay
+# that chuoi go va bam tren DOM gia (anh Viet 03/10/2026).
+node vagabond/khung/kiem_thu/hanh_vi/trang_chu_565.js
 # v530: hop chon hoa don den sau muc ho so, o tim giu display:flex.
 node vagabond/khung/kiem_thu/hanh_vi/hoa_don_sau_530.js
 # #352: thanh bao hoa don dau vao chua thanh phieu mua tren Desk.
