@@ -22295,7 +22295,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '556';
+var APPVER = '558';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -28790,6 +28790,8 @@ mien co ma OTP - nghia la so lieu thang truoc, da nop thue, da doi soat
 voi ngan hang, van doi duoc ma khong ai hay. */
 
 var ksData = null, ksNgay = 0, ksDen = '';
+/* Mo khoa mot to tren app (anh Viet chot 03/10/2026, v558). */
+var ksMoDs = [], ksLoaiMo = '';
 
 async function scrKhoaSo() {
   frame('Khoá sổ', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc cấu hình...</div></div>');
@@ -28800,7 +28802,12 @@ async function scrKhoaSo() {
   }
   ksNgay = ksData.so_ngay || 0;
   ksDen = ksData.den || '';
+  await ksTaiMo();
   ksVe();
+}
+
+async function ksTaiMo() {
+  try { ksMoDs = await api('vagabond.chung_tu.ds_to_dang_mo', {}) || []; } catch (e) { ksMoDs = []; }
 }
 
 function ksVe() {
@@ -28844,11 +28851,31 @@ function ksVe() {
     'Dùng sau khi chốt sổ một kỳ: đặt ngày cuối kỳ vào đây thì kỳ đó khoá vĩnh viễn, ' +
     'không trôi theo ngày như ô trên. Để trống nếu chưa cần.</div></div>';
 
-  if (ksData.so_to_dang_mo) {
+  if (ksMoDs.length || ksData.so_to_dang_mo) {
     html += '<div class="card" style="padding:12px 14px;background:#fef2f2;border:1px solid #fecaca">' +
-      '<b style="font-size:14px;color:#991b1b">Đang có ' + ksData.so_to_dang_mo + ' hoá đơn được mở khoá</b>' +
+      '<b style="font-size:14px;color:#991b1b">Đang có ' + (ksMoDs.length || ksData.so_to_dang_mo) + ' tờ được mở khoá</b>' +
       '<div style="font-size:12.5px;color:#7f1d1d;margin-top:3px;line-height:1.6">' +
-      'Sửa xong nhớ đóng lại, không thì mấy tờ đó vẫn sửa được mãi.</div></div>';
+      'Sửa xong nhớ đóng lại, không thì mấy tờ đó vẫn sửa được mãi.</div>' +
+      ksMoDs.map(function (x, i) {
+        return '<div style="display:flex;align-items:center;gap:8px;margin-top:8px">' +
+          '<span style="flex:1;min-width:0;font-size:13px;color:#7f1d1d">' + h(x.loai) + ' <b>' + h(x.name) + '</b></span>' +
+          (ksData.sua_duoc ? '<button class="btn gh" data-ksdong="' + i + '" style="margin:0;width:auto;padding:6px 12px">🔒 Đóng khoá</button>' : '') +
+          '</div>';
+      }).join('') + '</div>';
+  }
+
+  if (ksData.sua_duoc && ksData.ngay_khoa) {
+    var loaiMa = ksData.loai_ma || [];
+    if (!ksLoaiMo && loaiMa.length) ksLoaiMo = loaiMa[0][0];
+    html += '<div class="sec">Mở khoá một tờ</div><div class="card" style="padding:11px 12px">' +
+      kmHangChip(loaiMa.map(function (x) {
+        return posChipNut('data-ksl="' + h(x[0]) + '"', x[1], ksLoaiMo === x[0]);
+      }).join('')) +
+      '<input class="tin" id="ksSoTo" placeholder="Số chứng từ, ví dụ HDM-26-08-00012" style="width:100%;margin:9px 0 0">' +
+      '<input class="tin" id="ksLyDoMo" placeholder="Lý do mở khoá (bắt buộc)" style="width:100%;margin:8px 0 0">' +
+      '<button class="btn" id="ksMoTo" style="margin:9px 0 0">🔓 Mở khoá tờ này</button>' +
+      '<div style="font-size:11.5px;color:#98a2b3;margin-top:7px;line-height:1.6">' +
+      'Chỉ mở riêng tờ đó, máy ghi lại lý do và tên người mở. Trên máy tính, mở tờ đó ra sẽ thấy nút Mở khoá sổ.</div></div>';
   }
 
   html += '<div style="font-size:11.5px;color:#98a2b3;padding:8px 14px;line-height:1.6">' +
@@ -28860,8 +28887,21 @@ function ksVe() {
 
   b.onclick = function (e) {
     var t = e.target.closest('[data-ksn]');
-    if (t) { ksDoc(); ksNgay = +t.getAttribute('data-ksn'); ksVe(); }
+    if (t) { ksDoc(); ksNgay = +t.getAttribute('data-ksn'); ksVe(); return; }
+    var l = e.target.closest('[data-ksl]');
+    if (l) {
+      var so = (document.getElementById('ksSoTo') || {}).value || '';
+      var ld = (document.getElementById('ksLyDoMo') || {}).value || '';
+      ksDoc(); ksLoaiMo = l.getAttribute('data-ksl'); ksVe();
+      document.getElementById('ksSoTo').value = so;
+      document.getElementById('ksLyDoMo').value = ld;
+      return;
+    }
+    var dg = e.target.closest('[data-ksdong]');
+    if (dg) { ksDongTo(ksMoDs[+dg.getAttribute('data-ksdong')]); }
   };
+  var mt = document.getElementById('ksMoTo');
+  if (mt) mt.onclick = function () { ksMoTo(); };
   var n = document.getElementById('ksLuu');
   if (n) n.onclick = function () { ksLuu(); };
 }
@@ -28879,6 +28919,33 @@ function ksDoc() {
   var c = document.getElementById('ksDenTay');
   if (a && a.value !== '') ksNgay = Math.max(0, Math.min(3650, +a.value || 0));
   if (c) ksDen = c.value || '';
+}
+
+async function ksMoTo() {
+  var so = ((document.getElementById('ksSoTo') || {}).value || '').trim();
+  var ld = ((document.getElementById('ksLyDoMo') || {}).value || '').trim();
+  if (!so) return toast('Gõ số chứng từ cần mở khoá');
+  if (!ld) return toast('Ghi lý do mở khoá thì sau này còn giải trình được');
+  busy(true);
+  try {
+    await api('vagabond.chung_tu.mo_khoa_mot_to', { doctype: ksLoaiMo, name: so, ly_do: ld });
+    await ksTaiMo();
+    busy(false);
+    toast('Đã mở khoá ' + so + '. Sửa xong nhớ đóng lại.', 4000);
+    ksVe();
+  } catch (e) { busy(false); baoTin((e && e.message) || 'Không mở khoá được'); }
+}
+
+async function ksDongTo(x) {
+  if (!x) return;
+  busy(true);
+  try {
+    await api('vagabond.chung_tu.dong_khoa_mot_to', { doctype: x.doctype, name: x.name });
+    await ksTaiMo();
+    busy(false);
+    toast('Đã đóng khoá ' + x.name, 3000);
+    ksVe();
+  } catch (e) { busy(false); baoTin((e && e.message) || 'Không đóng khoá được'); }
 }
 
 async function ksLuu() {

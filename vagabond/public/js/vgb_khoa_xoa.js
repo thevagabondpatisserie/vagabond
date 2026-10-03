@@ -115,12 +115,65 @@ vgb.nut_huy = function (frm) {
   });
 };
 
+/* Mo khoa / Dong khoa so cho DUNG MOT to (anh Viet chot 03/10/2026: nut
+   phai co ca tren app lan Desk). May chu da co mo_khoa_mot_to tu truoc ma
+   khong nut nao goi toi, nen ke toan khong biet bam o dau. Nut chi hien voi
+   ke toan truong va giam doc (may chu kiem lai quyen, nut chi la loi vao). */
+vgb.nut_khoa_so = function (frm) {
+  if (frm.is_new()) return;
+  frappe.call({
+    method: 'vagabond.chung_tu.khoa_cua_to',
+    args: { doctype: frm.doctype, name: frm.doc.name },
+    callback: function (r) {
+      var k = r && r.message;
+      if (!k || !k.ap_dung) return;
+      if (k.trang_thai === 'mo') {
+        frm.dashboard.set_headline(
+          '<span style="color:#b42318"><b>Tờ này đang được mở khoá sổ.</b> Sửa xong nhớ bấm Đóng khoá sổ.</span>');
+      }
+      if (!k.sua_duoc) return;
+      if (k.trang_thai === 'khoa') {
+        frm.add_custom_button('Mở khoá sổ', function () {
+          var d = new frappe.ui.Dialog({
+            title: 'Mở khoá sổ cho ' + frm.doc.name,
+            fields: [
+              { fieldtype: 'HTML', options: '<div style="color:#475467;line-height:1.6">Chỉ mở riêng tờ này. Máy ghi lại lý do và tên người mở. Sửa xong nhớ đóng lại.</div>' },
+              { fieldtype: 'Small Text', fieldname: 'ly_do', label: 'Lý do mở khoá', reqd: 1 }
+            ],
+            primary_action_label: 'Mở khoá',
+            primary_action: function (v) {
+              d.hide();
+              frappe.call({
+                method: 'vagabond.chung_tu.mo_khoa_mot_to',
+                args: { doctype: frm.doctype, name: frm.doc.name, ly_do: v.ly_do },
+                freeze: true,
+                callback: function () { frm.reload_doc(); }
+              });
+            }
+          });
+          d.show();
+        });
+      } else if (k.trang_thai === 'mo') {
+        frm.add_custom_button('Đóng khoá sổ', function () {
+          frappe.call({
+            method: 'vagabond.chung_tu.dong_khoa_mot_to',
+            args: { doctype: frm.doctype, name: frm.doc.name },
+            freeze: true,
+            callback: function () { frm.reload_doc(); }
+          });
+        });
+      }
+    }
+  });
+};
+
 vgb.KHOA_XOA.forEach(function (dt) {
   frappe.ui.form.on(dt, {
     refresh: function (frm) {
       vgb.bo_nut_xoa(frm);
       vgb.the_da_huy(frm);
       vgb.nut_huy(frm);
+      vgb.nut_khoa_so(frm);
     }
   });
 });
