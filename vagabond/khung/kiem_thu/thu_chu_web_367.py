@@ -190,3 +190,36 @@ tenMua:EL('#sm-name').textContent,ruotMua:EL('#sm-ruot').innerHTML,nutMua:EL('#s
     dung('mô tả mùa cập nhật','Ruột mới' in d['ruotMua'])
     la('nút mùa cập nhật',d['nutMua'],'Thêm bản mới')
     la('giữ vị trí cuộn',d['cuon'],123)
+
+
+@ca("#431 F2: thêm vào giỏ báo đúng tên bánh Marketing đã đổi (bánh, thêm nhanh, hàng mùa)")
+def _toast_ten_moi():
+    kich = r'''
+const c=CAKES[0], s=c.sizes[0];
+window.vgbSanPham={[s.id]:{ten:'Tên mới'},TEST:{ten:'Hộp mới'}};
+TODAY[s.id]=4;renderSheet(c);setSize(s.id);addToCart();
+const t1=EL('#toast').textContent;
+CART.length=0;EL('#toast').textContent='';for(const z of c.sizes)TODAY[z.id]=0;TODAY[s.id]=4;themNhanh(c.k,true);
+const t2=EL('#toast').textContent;
+MUA={co:1,ten_mua:'Mùa thử',mon:[{ma:'TEST',ten:'Hộp cũ',con:3,gia:100000,het:false}]};
+CART.length=0;EL('#toast').textContent='';themHangMua('TEST');
+RA({t1,t2,t3:EL('#toast').textContent,cu:c.k});
+'''
+    r=subprocess.run(['node',str(GOC/'khung/kiem_thu/gia_lap_trang.js'),str(GOC/'trang/banh.html'),'2026-10-03T08:00:00+07:00',kich],capture_output=True,text=True,timeout=30)
+    la('chạy chuỗi bấm thật',r.returncode,0)
+    if r.returncode: raise AssertionError(r.stderr[:1000])
+    d=json.loads(r.stdout)
+    dung('thêm từ hộp bánh: tên mới (%s)' % d['t1'], 'Tên mới' in d['t1'] and d['cu'] not in d['t1'])
+    dung('thêm nhanh: tên mới (%s)' % d['t2'], 'Tên mới' in d['t2'] and d['cu'] not in d['t2'])
+    dung('hàng mùa: tên mới (%s)' % d['t3'], 'Hộp mới' in d['t3'] and 'Hộp cũ' not in d['t3'])
+
+
+@ca("#431 F1: tên công ty, mã số thuế, địa chỉ pháp lý không nằm trong chữ Marketing sửa được")
+def _phap_ly():
+    mau = json.loads((GOC / 'public/web_order/chu-mac-dinh.json').read_text())
+    chu = json.dumps(mau, ensure_ascii=False)
+    for x in ('0318561568', 'Công ty TNHH Patisserie Vagabond', '9 Trần Cao Vân', '307/1 Nguyễn Văn Trỗi'):
+        dung('không có khóa sửa được chứa %s' % x, x not in chu)
+    trang = (GOC / 'trang/banh.html').read_text()
+    dung('chân trang vẫn in mã số thuế cố định', 'Mã số thuế 0318561568' in trang)
+    dung('mã số thuế không gắn data-vgb-chu', re.search(r'data-vgb-chu="[^"]+">Mã số thuế 0318561568', trang) is None)
