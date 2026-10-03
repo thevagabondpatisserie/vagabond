@@ -1,4 +1,61 @@
-# Issue 367: trang đặt bánh đủ điều kiện chạy quảng cáo Meta (PR1)
+# Issue 367: website đặt bánh và Marketing Studio
+
+## Hiện tại 03/10/2026: chữ, font và Editor
+
+Owner: Codex, nhánh `codex/web-order-noi-dung-day-du`; Claude review độc lập.
+Anh Việt đã duyệt giao diện JPEG, yêu cầu lời chào chính xác "Chúng tôi mong
+được phục vụ cho quý khách", xưng "chúng tôi/quý khách", headline dùng
+Vagabond Sans gốc và Marketing sửa được nội dung web. Bản trước ở dưới là
+lịch sử PR372, không dùng vai trò hoặc trạng thái chưa deploy cũ cho phiên này.
+
+- Mở hơn 400 chỗ chữ qua danh mục có khóa, tìm kiếm theo màn; placeholder,
+  nút, thông báo có số, giỏ, đặt bàn, thành viên, biên nhận, chính sách.
+- Tên/mô tả/tầng hương/khẩu phần theo mã bánh; tên hiển thị không đổi mã
+  đặt hàng, giá hoặc tồn. Nội dung fallback 24 mã cũng tìm được trong Editor.
+- FAQ, nhân bản khối ẩn, hoàn tác/làm lại 60 bước, phục hồi bản chưa lưu
+  theo người dùng/tab, tải JSON; lưu/xuất bản giữ kiểm revision hiện hành.
+- Font có sẵn tại public/mau_in/VagabondSans-Regular.otf, đã đọc cmap, đủ
+  dấu câu chào; không cần dựng hoặc thay font bằng bản mô phỏng.
+- Patch chuyển đúng các câu mặc định cũ và thêm 4 khối hỗ trợ. Chuyển
+  nháp/công khai riêng, giữ lịch sử, không tự bật chính sách còn chỗ trống.
+- Khắc phục finding audit: tra_khach chỉ trả địa chỉ khi cookie OTP xác
+  thực đúng số. Guest vẫn tự nhập địa chỉ mới. Không gọi Pancake nếu thiếu
+  quyền; request cũ về chậm không thay địa chỉ của số mới.
+
+Kiểm trước tích hợp main mới: cổng kiem_truoc_deploy.sh exit 0, 3.865 ca
+tầng khung; kiểm trình duyệt 390 px không tràn ngang, tên bánh sửa trong
+Editor đổi ngay ở preview, Undo khôi phục, giữ nguyên giá/lời chúc/lịch nhận.
+Đã thêm ca bench Frappe thật cho nháp/xuất bản/revision, chỉ chạy site
+bench-ci.localhost. SHA cuối, CI, bench và Claude còn chờ ở PR phát hành.
+Ảnh local chỉ là chứng cứ preview, chưa phải site production.
+
+Giới hạn: giá, tồn, ngày giờ, liên hệ và cấu hình nghiệp vụ lấy từ hệ thống;
+Editor chỉ soạn chữ. Voucher WEB50 trong bộ duyệt là đề xuất, chưa kích hoạt
+chi tiêu hoặc hạn mức. Bản này chưa thay luồng checkout thành ba màn riêng,
+chưa có lập lịch xuất bản hoặc trạng thái vận đơn mới. Các mục đó theo
+nghiệm thu tiếp của Issue367, không nhận hoàn thành từ giao diện phác thảo.
+
+### Review PR424
+
+PR: https://github.com/thevagabondpatisserie/vagabond/pull/424.
+Trên e4171bc999199585636f6c4e8fe00302ed47987e, CI và bench hai lượt đạt
+(run37123417221, run37123417230). Claude run37123464175 hoàn tất bước model
+nhưng chưa có kết luận đăng lên PR; log có 5 permission denials, không coi
+check xanh là review đạt.
+
+- R1: escape nhãn tại nhánh lỗi mã số thuế, địa chỉ rỗng, phí giao và quầy;
+  escape cả tên công ty/địa chỉ trả từ API. Canary tái hiện trên SHA trên,
+  không còn tạo thẻ HTML sau sửa.
+- R2: sự kiện vgb-nhan đã làm mới cards/cart ở SHA trên; bổ sung phụ kiện,
+  tình trạng và hộp hàng mùa đang mở. Ca hành vi giữ size/giá/nến/lời chúc/
+  scroll; bản cũ giữ nội dung mùa cũ, bản sửa nhận đúng chữ mới.
+- Nhóm lọc Editor nằm gọn theo hàng; tăng cỡ headline Vagabond Sans cho
+  dễ đọc. Ảnh local08-editor-tim-chu-preview.png, chưa là production.
+
+Merge/deploy/migrate/live vẫn chờ kết luận độc lập và kiểm SHA cuối.
+
+## Lịch sử PR1 quảng cáo Meta
+
 
 - Nguồn: issue #367, sáu điểm Claude chốt 24/09, quyết định phí giao của anh
   Việt 24/09, ba bản nháp chính sách anh Việt duyệt 25/09, mục 8 lối đăng nhập.
