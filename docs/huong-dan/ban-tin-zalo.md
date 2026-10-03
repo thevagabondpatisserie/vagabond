@@ -47,8 +47,11 @@ duyệt" gửi nhóm Kế toán. Các tin khác thêm dần sau khi chạy ổn.
 ## 4. Kiểm và xử lý
 
 - Sổ **Vagabond Tin Kenh** (Desk) ghi từng tin: nhóm, loại, trạng thái, lỗi
-  nếu có. Trạng thái: Đã gửi, Hoãn giờ im, Đang gửi gộp, Đã gửi gộp, Bỏ qua
-  (đã xử lý), Lỗi, Chưa rõ.
+  nếu có. Trạng thái: Chờ gửi, Đang gửi, Đã gửi, Hoãn giờ im, Đang gửi gộp,
+  Đã gửi gộp, Bỏ qua (đã xử lý), Lỗi, Chưa rõ.
+- Tin được ghi "Chờ gửi" cùng lúc lưu chứng từ, rồi mới gửi đi. Nếu lúc đó
+  máy gửi nền trục trặc, cứ 5 phút máy tự gửi bù các dòng Chờ gửi quá 2 phút,
+  nên tin không bị mất. Nhóm đã tắt hoặc bị gỡ thì ghi "Bỏ qua".
 - Hết giờ im, các tin hoãn được gộp; nhiều việc thì chia thành vài tin, mỗi
   việc nằm trọn trong một tin, không việc nào bị cắt.
 - Trước khi gửi (kể cả sau giờ im) máy hỏi lại việc còn mở không. Khoản trả
