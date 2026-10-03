@@ -10,6 +10,33 @@ lại. Đăng nhập rồi mà thấy "chưa có quyền soạn nội dung" thì
 vai Marketing trên Desk (User, thêm dòng Marketing). Góc phải có tên người
 đang đăng nhập và nút Đăng xuất.
 
+## Sửa nội dung chữ
+
+Trong **Nhãn và câu chữ**, gõ một phần câu đang thấy trên website để tìm,
+hoặc lọc theo Chọn bánh, Giỏ hàng, Đặt bàn, Thành viên, Biên nhận. Sửa cả
+headline, nút, hướng dẫn và câu báo lỗi ở đây. Giữ nguyên các chỗ như
+{so}, {khung}, {gia_tri_a}; hệ thống tự điền số thực tế. Để trống dùng mặc định.
+
+Trong **Nội dung bánh**, tìm tên hoặc mã, mở từng mã để sửa tên hiển thị,
+mô tả, tầng hương, nhãn theo mùa và khẩu phần. Mỗi cỡ là một mã; thẻ danh mục
+hiện tên của mã đầu tiên, khi chọn cỡ thì chi tiết hiện chữ của đúng mã đó.
+Giá, tồn và mã bán hàng không thay đổi khi sửa chữ.
+
+Câu hỏi thường gặp là loại khối mới. Có thể đổi thứ tự, ẩn/hiện, nhân bản
+khối (bản sao ban đầu ẩn) và chỉnh chữ trong từng khối. Headline dùng font
+Vagabond Sans gốc; không cần chèn HTML hay định dạng font trong nội dung.
+
+**Hoàn tác/Làm lại** giữ 60 bước trong phiên. **Tải bản đang sửa** tải JSON
+để giữ một bản trên máy. Nếu tab còn nội dung chưa lưu khi tải lại, banner
+**Mở bản phục hồi** giúp lấy lại. Đây là bản trong tab/trình duyệt hiện tại,
+không thay việc Lưu nháp trên máy chủ. Có phiên bản mới từ người khác thì
+phải đối chiếu trước; hệ thống chặn ghi đè revision cũ.
+
+Bấm **Lưu nháp** để giữ nội dung riêng. Bấm **Xuất bản** để khách thấy sau
+khi tải lại web. Khôi phục lịch sử chỉ đưa vào nháp, cần xuất bản lại.
+Preview hiện trang đặt bánh; chữ các trang phụ chỉnh ở nhóm tương ứng,
+kiểm trang phụ sau khi xuất bản. Nội dung dạng thẻ HTML được giữ là chữ.
+
 ## Ảnh bánh
 
 Ảnh trên web lấy theo thứ tự: ảnh trong hồ sơ món trên ERP, rồi ảnh Pancake,

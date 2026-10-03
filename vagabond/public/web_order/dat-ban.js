@@ -1,6 +1,7 @@
 /* Giữ nguyên khóa và nội dung khi mất phản hồi, tránh gửi hai yêu cầu đặt bàn. */
 (async function () {
   'use strict';
+  if (window.vgbChuSanSang) await window.vgbChuSanSang;
   const tim = id => document.getElementById(id);
   let cauHinh, dip = '', khuVuc = '', gio = '', dangGui = false, yeuCau = null;
   const ma = crypto.randomUUID();
@@ -15,37 +16,37 @@
     const r = await fetch('/api/method/vagabond.dat_ban.cau_hinh'); const d = await r.json();
     if (!r.ok || !d.message) throw new Error(); cauHinh = d.message;
     /* v532: câu đóng do marketing soạn, máy chủ đặt sẵn vào data-dong. */
-    if (!cauHinh.bat) { bao(tim('trang-thai').dataset.dong || 'Tiệm chưa mở nhận đặt bàn online. Gọi 0931 224 334 để được hỗ trợ.'); return; }
+    if (!cauHinh.bat) { bao(tim('trang-thai').dataset.dong || (chuWeb("dat_ban_b8bab06ff", "Chúng tôi chưa mở nhận đặt bàn online. Gọi 0931 224 334 để được hỗ trợ."))); return; }
     tim('co-so').textContent = cauHinh.ten_co_so;
     const coSo=document.createElement('span');coSo.textContent=cauHinh.ten_co_so;coSo.className='trang-thai-don xanh';tim('chi-nhanh').append(coSo);
     chip('dip',cauHinh.dip||[],v=>dip=v);chip('khu-vuc',cauHinh.khu_vuc||[],v=>khuVuc=v);
-    if(!(cauHinh.khu_vuc||[]).length)tim('khu-vuc').textContent='Tiệm sẽ tư vấn chỗ ngồi khi xác nhận.'; tim('dia-chi').textContent = cauHinh.dia_chi;
+    if(!(cauHinh.khu_vuc||[]).length)tim('khu-vuc').textContent=(chuWeb("dat_ban_48f698c3f", "Chúng tôi sẽ tư vấn chỗ ngồi khi xác nhận.")); tim('dia-chi').textContent = cauHinh.dia_chi;
     tim('ngay').min = cauHinh.hom_nay; tim('ngay').value = cauHinh.hom_nay;
     tim('so-khach').max = cauHinh.toi_da_khach; tim('so-khach').value = Math.min(2,cauHinh.toi_da_khach);
     cauHinh.khung_gio.forEach(g => { const b = document.createElement('button'); b.type='button'; b.textContent=g; b.setAttribute('aria-pressed','false'); b.onclick=()=>{gio=g;tim('gio').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));};tim('gio').append(b); });
-    tim('dat-ban').hidden = false; bao('Tiệm sẽ liên hệ xác nhận sau khi nhận yêu cầu.');
-  } catch (_) { bao('Chưa tải được lịch. Tải lại trang hoặc gọi tiệm để đặt bàn.', true); return; }
+    tim('dat-ban').hidden = false; bao((chuWeb("dat_ban_f33d5c7c4", "Chúng tôi sẽ liên hệ xác nhận sau khi nhận yêu cầu.")));
+  } catch (_) { bao((chuWeb("dat_ban_13864d971", "Chưa tải được lịch. Tải lại trang hoặc gọi cho chúng tôi để đặt bàn.")), true); return; }
   tim('dat-ban').onsubmit = async e => {
     e.preventDefault(); if (dangGui) return;
-    if (!gio) { bao('Chọn giờ mong muốn trước khi gửi.',true); return; }
+    if (!gio) { bao((chuWeb("dat_ban_77af89de2", "Chọn giờ mong muốn trước khi gửi.")),true); return; }
     if (!yeuCau) yeuCau = {co_so:cauHinh.co_so,ngay:tim('ngay').value,gio,so_khach:Number(tim('so-khach').value),ten:tim('ten').value,sdt:tim('sdt').value,ghi_chu:tim('ghi-chu').value,dip,khu_vuc:khuVuc,tre_em:tim('tre-em').value,email:tim('email').value,banh_kem_theo:tim('banh-kem-theo').value};
     dangGui=true; tim('gui').disabled=true;
     tim('dat-ban').querySelectorAll('input,textarea,.chip button').forEach(x=>x.disabled=true);
-    bao('Đang gửi yêu cầu...');
+    bao((chuWeb("dat_ban_115591cea", "Đang gửi yêu cầu...")));
     try {
       const r = await fetch('/api/method/vagabond.dat_ban.gui',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-Frappe-CSRF-Token':document.querySelector('meta[name=csrf-token]').content},body:JSON.stringify({du_lieu:yeuCau,ma_lan_gui:ma})});
       const d=await r.json();
       if (!r.ok || !d.message?.ok) {
         if (r.status>=400 && r.status<500 && r.status!==408) {
           yeuCau=null; tim('dat-ban').querySelectorAll('input,textarea,.chip button').forEach(x=>x.disabled=false);
-          let chu='Kiểm tra thông tin hoặc chờ vài phút rồi gửi lại.';
+          let chu=(chuWeb("dat_ban_bd4e008af", "Kiểm tra thông tin hoặc chờ vài phút rồi gửi lại."));
           try { chu=JSON.parse(d._server_messages||'[]').map(x=>JSON.parse(x).message).join(' ')||chu; } catch (_) {}
           throw new Error(chu);
         }
-        throw new Error('Chưa nhận được kết quả. Bấm Gửi lại cùng yêu cầu để kiểm tra, không cần nhập lại.');
+        throw new Error((chuWeb("dat_ban_71fbea24c", "Chưa nhận được kết quả. Bấm Gửi lại cùng yêu cầu để kiểm tra, không cần nhập lại.")));
       }
-      tim('dat-ban').hidden=true;bao('Đã tiếp nhận yêu cầu '+d.message.ma+'. Tiệm sẽ gọi xác nhận. Bàn chưa được giữ cho tới khi tiệm xác nhận.');
-    } catch(e) { bao(e.message==='Failed to fetch'?'Mất kết nối. Bấm Gửi lại cùng yêu cầu để kiểm tra.':e.message,true);tim('gui').textContent=yeuCau?'Gửi lại cùng yêu cầu':nutGui; }
+      tim('dat-ban').hidden=true;bao((chuWeb("dat_ban_27a5e32c3", "Đã tiếp nhận yêu cầu") + " ")+d.message.ma+(chuWeb("dat_ban_89b8870d9", ". Chúng tôi sẽ gọi xác nhận. Bàn chưa được giữ cho tới khi chúng tôi xác nhận.")));
+    } catch(e) { bao(e.message==='Failed to fetch'?(chuWeb("dat_ban_60ae7eb78", "Mất kết nối. Bấm Gửi lại cùng yêu cầu để kiểm tra.")):e.message,true);tim('gui').textContent=yeuCau?(chuWeb("dat_ban_5ed44ed1c", "Gửi lại cùng yêu cầu")):nutGui; }
     finally { dangGui=false;tim('gui').disabled=false; }
   };
 })();

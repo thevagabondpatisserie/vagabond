@@ -29,7 +29,7 @@ const kichBan = process.argv[4];
 const html = fs.readFileSync(duong, 'utf8');
 const m = html.match(/<script>([\s\S]*)<\/script>/);
 if (!m) { throw new Error('khong thay khoi script trong trang'); }
-let ma = m[1];
+let ma = fs.readFileSync(require('path').join(require('path').dirname(duong), '../public/web_order/chu.js'), 'utf8').split('(function ()')[0] + '\n' + m[1];
 
 /* Cat cac loi goi khoi dong o cuoi tep: chung nap du lieu qua mang va dat
    nhip 60 giay, khong lien quan gi den viec dang kiem. */
@@ -170,12 +170,14 @@ function EL(sel) {
 	return kho.get(sel);
 }
 
+const suKienTaiLieu = {};
 const document = {
 	querySelector: EL,
 	querySelectorAll: sel => [EL(sel)],
 	getElementById: id => EL('#' + id),
 	createElement: t => taoEl('<' + t + '>'),
-	addEventListener() {},
+	addEventListener(ten, ham) { (suKienTaiLieu[ten] ||= []).push(ham); },
+	dispatchEvent(e) { (suKienTaiLieu[e.type] || []).forEach(f => f(e)); },
 	body: taoEl('body'),
 	documentElement: taoEl('html'),
 	head: taoEl('head')
