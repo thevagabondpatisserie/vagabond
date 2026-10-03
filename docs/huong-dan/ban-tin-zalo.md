@@ -64,7 +64,8 @@ duyệt" gửi nhóm Kế toán. Các tin khác thêm dần sau khi chạy ổn.
 - Dòng kẹt ở "Đang gửi gộp" quá 10 phút cũng là máy dừng TRƯỚC khi gọi Zalo:
   máy tự đưa về Hoãn giờ im và gửi lại ở lượt xả sau. Phần đang gọi Zalo lúc
   máy dừng thì nằm "Chưa rõ", máy không tự gửi lại.
-- "Chưa rõ" là Zalo không trả lời kịp hoặc đứt kết nối giữa chừng: tin có thể
+- "Chưa rõ" là Zalo không trả lời kịp, đứt kết nối giữa chừng, hoặc trả trang
+  lỗi không đọc được: tin có thể
   đã tới. Xem nhóm trước khi gửi lại, máy không tự gửi lại.
 - Mạng hỏng TRƯỚC khi tới được Zalo (không phân giải được tên, không mở được
   kết nối) thì chắc chắn chưa gửi: máy đưa tin về Chờ gửi (tin hoãn thì về
