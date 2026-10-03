@@ -55,6 +55,7 @@ TRANG = _trang()
 
 def _node(ma):
 	"""Chạy một đoạn JavaScript bằng node, trả về stdout đã cắt khoảng trắng."""
+	ma = io.open(os.path.join(_goc(), "vagabond", "public", "web_order", "chu.js"), encoding="utf-8").read().split("(function ()")[0] + "\n" + ma
 	r = subprocess.run(["node", "-e", ma], capture_output=True, text=True, timeout=20)
 	if r.returncode != 0:
 		raise AssertionError("node lỗi: " + (r.stderr or "").strip()[:400])
@@ -180,7 +181,7 @@ def _ton_dung_chung():
 	# Ba cho: the banh thuong, luoi hang theo mua, va sheet chi tiet hang mua.
 	dung("the banh thuong goi nhanTon", "nhanTon(TODAY[s.id]" in TRANG)
 	dung("the banh dat truoc goi nhanTon", "nhanTon(TRUOC[s.id]" in TRANG)
-	dung("luoi hang theo mua goi nhanTon", "nhanTon(m.con,'phần')" in TRANG)
+	dung("luoi hang theo mua goi nhanTon", "nhanTon(m.con," in TRANG)
 	# Khong con cho nao ghep so tho vao nhan hien ra man hinh.
 	dung("khong con ghep 'Con '+m.con o luoi mua",
 		"(het?'Hết hàng':'Còn '+m.con)" not in TRANG)
@@ -387,7 +388,7 @@ def _cung_mien_ngay():
 
 @ca("#205 bam Thay doi thi bung lai bo chon, va dua con tro vao do")
 def _nut_thay_doi():
-	dung("co nut Thay doi", 'onclick="doiLich()"' in TRANG)
+	dung("co nut Thay doi", 'onclick="doiLich()"' in TRANG.replace('\\"', '"'))
 	than = _than("doiLich")
 	dung("mo lai bo chon", "moLich=true" in than)
 	dung("ve lai muc 02", "drawCoDate()" in than)

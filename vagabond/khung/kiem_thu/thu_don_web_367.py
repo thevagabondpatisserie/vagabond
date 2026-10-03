@@ -966,7 +966,8 @@ def _():
 	than = x[x.index("def cong_khai("):x.index("def chinh_sach_dang_hien(")]
 	dung("bỏ chinh_sach khỏi dữ liệu trang đặt bánh", 'ra.pop("chinh_sach", None)' in than)
 	cs = {"chinh_sach_bao_mat": {"hien": True, "vn": "# A", "en": ""}, "dieu_khoan": {"hien": False, "vn": "# B", "en": ""}}
-	g = dict(_ban_cong_khai=lambda: {"khoi": [], "chinh_sach": cs}, CHINH_SACH=noi_dung_web.CHINH_SACH)
+	g = dict(_ban_cong_khai=lambda: {"khoi": [], "chinh_sach": cs}, CHINH_SACH=noi_dung_web.CHINH_SACH,
+		nhan_day_du=noi_dung_web.nhan_day_du, nhan_cong_khai=lambda:noi_dung_web.nhan_day_du({}))
 	la("chân trang chỉ trang đang hiện", [c["khoa"] for c in nap("noi_dung_web.py", "chinh_sach_dang_hien", g)()],
 		["chinh_sach_bao_mat"])
 	goi = []
@@ -1162,7 +1163,7 @@ await submitOrder();
 RA({chuyen:GHI.chuyenTrang, hint:EL('#sendHint').innerHTML});
 """)
 	la("không chuyển", r["chuyen"], [])
-	dung("vẫn báo đã nhận", "Tiệm đã nhận đơn" in r["hint"])
+	dung("vẫn báo đã nhận", "Chúng tôi đã tiếp nhận yêu cầu" in r["hint"])
 
 
 @ca("#367 L thanh giỏ: 999.999 nhắc ngưỡng, đúng 1.000.000 báo miễn phí; bảng tóm tắt không cộng phí")
@@ -1229,7 +1230,7 @@ GHI.traLoi=function(url){ return url.indexOf('phi_giao')>=0 ? {message:{ok:0, ly
 EL('#f-addr').value='9 Tran Cao Van, Quan 1, TP HCM'; setMode('ship'); await CHO_XONG();
 RA({sum:EL('#sum').innerHTML, hint:EL('#shipHint').innerHTML, tong:coTotals().total});
 """)
-	dung("dòng phí nói Sales báo", "Sales báo phí khi xác nhận" in r["sum"])
+	dung("dòng phí nói sẽ xác nhận", "Chúng tôi báo phí khi xác nhận" in r["sum"])
 	dung("nhãn tổng nói chưa gồm phí", "Tạm tính, chưa gồm phí giao" in r["sum"])
 	dung("không nói miễn phí", "iễn phí" not in r["sum"] and "iễn phí" not in r["hint"])
 	la("tổng chỉ tiền bánh", r["tong"], 500000)
