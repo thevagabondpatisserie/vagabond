@@ -76,7 +76,7 @@ def _ket_that():
 	from frappe.utils import add_to_date, now_datetime
 	chat = "chat-thu-" + uuid.uuid4().hex[:8]
 	ten = {}
-	for tt in ("Đang gửi", "Chưa rõ", "Hoãn giờ im"):
+	for tt in ("Đang gửi", "Chưa rõ", "Hoãn giờ im", "Đang gửi gộp"):
 		k = "ZL-thu562-" + uuid.uuid4().hex[:12]
 		frappe.get_doc({"doctype": "Vagabond Tin Kenh", "name": k, "khoa": k, "nhom": "Thử kẹt", "chat_id": chat,
 			"loai": "viec", "noi_dung": "Việc kẹt", "trang_thai": tt, "ma_lo": "lo-cu"}).insert(ignore_permissions=True)
@@ -93,5 +93,7 @@ def _ket_that():
 		la("dòng Đang gửi kẹt: gửi bù một lần", (goi.count(chat), frappe.db.get_value("Vagabond Tin Kenh", ten["Đang gửi"], "trang_thai")),
 			(1, "Đã gửi"))
 		la("dòng Chưa rõ: để nguyên", frappe.db.get_value("Vagabond Tin Kenh", ten["Chưa rõ"], "trang_thai"), "Chưa rõ")
+		la("dòng Đang gửi gộp kẹt (vòng 10): về Hoãn giờ im, mất mã lô",
+			frappe.db.get_value("Vagabond Tin Kenh", ten["Đang gửi gộp"], ["trang_thai", "ma_lo"]), ("Hoãn giờ im", None))
 		kz._bo_hoan_nhom_tat(["chat-khac"])
 		la("tin hoãn của nhóm không còn bật: Bỏ qua", frappe.db.get_value("Vagabond Tin Kenh", ten["Hoãn giờ im"], "trang_thai"), kz.BO_QUA)
