@@ -110,6 +110,16 @@ function dungTrangChu(ghimTraVe, hoan) {
           setTimeout(function () { catXong.push(ts.ghim); r({ ghim: JSON.parse(ts.ghim), toi_da: 5 }); }, tre);
         });
       }
+      if (duong === 'vagabond.khung.ds.danh_ba') {
+        /* Danh ba quyen. Giu lai loi hua khi ca kiem muon tu quyet dinh luc
+           no ve, de dung lai canh "danh ba ve muon". */
+        if (hoan.danhBa) {
+          return new Promise(function (r) {
+            hoan.traDanhBa = function (v) { r(v || hoan.dsDanhBa || []); };
+          });
+        }
+        return Promise.resolve(hoan.dsDanhBa || []);
+      }
       return Promise.reject(new Error('khong co cua ' + duong));
     },
     toast: function (c) { thongBao.push(String(c)); },
@@ -179,11 +189,13 @@ function go(m, chu) {
     dung('co o tim', !!o);
     bang('la o nhap', o.tagName, 'INPUT');
     dung('co luoi o lon', !!m.than.querySelector('.gwrap'));
-    /* O tim phai nam TRUOC luoi trong cay DOM, khong thi phai cuon het trang
-       chu moi thay no. */
+    /* O tim phai nam TRUOC phan thay doi trong cay DOM, khong thi phai cuon
+       het trang chu moi thay no. Tu vong 2 cua #426, phan thay doi nam trong
+       #vgbDuoi de luot gom sau khong dung toi o nhap. */
     var ds = m.than.children;
-    dung('o tim dung truoc luoi', ds.indexOf(m.than.querySelector('.vgbtimw')) <
-      ds.indexOf(m.than.querySelector('.gwrap')));
+    dung('co khung #vgbDuoi rieng', !!m.tai.getElementById('vgbDuoi'));
+    dung('o tim dung truoc phan thay doi', ds.indexOf(m.than.querySelector('.vgbtimw')) <
+      ds.indexOf(m.tai.getElementById('vgbDuoi')));
   });
 
   await ca('go KHONG DAU van ra, va o dung ten dung tren o chi khop mo ta', async function () {
@@ -340,6 +352,9 @@ function go(m, chu) {
     var m = dungTrangChu(['DUYETYC', 'khong-ton-tai', 'POS']);
     m.g.vgbGomNhom();
     delete m.g.VGB_HUB.DUYETYC;
+    /* Danh ba quyen DA biet. Tu vong 2 cua #426, chua biet danh ba thi KHONG
+       loc - mat mang khong phai la mat quyen (ca #426-R2F2b chot cho do). */
+    m.g.VGB_KHUNG_CO = {};
     await m.g.vgbNapGhim();
     bang('chi con o con dung duoc', m.g.VGB_GHIM.length, 1);
     bang('dung o con lai', m.g.VGB_GHIM[0], 'POS');
@@ -453,15 +468,189 @@ function go(m, chu) {
       m.catXong[m.catXong.length - 1], JSON.stringify(m.g.VGB_GHIM));
   });
 
-  await ca('#426-4: vung bam cua nut ghim va dau X du 44 diem (AGENTS.md dieu 13)', async function () {
+  await ca('#426-4: khai bao CSS cho vung bam, va GHI CHU vi sao cho nay con yeu', async function () {
+    /* DOC KY TRUOC KHI SUA CA NAY.
+     *
+     * Ca nay DO CHUOI, va do chuoi KHONG chung minh duoc vung bam. Vong 2 cua
+     * #426 da chung minh dung dieu do: ban dau `.vgbgb` khai 44x44, ca nay
+     * xanh, nhung do that tren Chromium 390x844 ra 21x19 - vi `.vgbgb` la the
+     * <span>, ma span mac dinh `display:inline` nen trinh duyet bo qua width
+     * va height. Dau X cung vay: khai 44x44, do that ra 44x29 vi dai o ghim
+     * co overflow-x:auto nen trinh duyet cat phan tran ra ngoai mep.
+     *
+     * Vi vay ca nay CHI chot nhung thu khong the quen: cac khai bao ma thieu
+     * chung thi chac chan sai. Con phep do THAT nam o
+     * vagabond/khung/kiem_thu/do_vung_bam_563.js, chay bang Chromium, va phai
+     * chay no truoc khi ban giao giao dien. No khong nam trong cong vi may
+     * chay CI cua GitHub khong co trinh duyet.
+     */
     var m = dungTrangChu([]);
     m.g.vgbCss();
     var css = m.tai.head.children.map(function (x) { return x.textContent; }).join('');
-    dung('nut ghim rong 44', css.indexOf('.vgbgb{flex:none;width:44px;height:44px') >= 0);
-    /* Dau X ve nho nhung noi rong vung bam bang lop phu. */
-    dung('dau X co lop phu noi rong vung bam', /\.vgbgx::after\{[^}]*width:44px;height:44px/.test(css));
-    /* AGENTS.md dieu 13 con chot chu toi thieu 13 diem. */
+    dung('nut ghim khai 44 diem', css.indexOf('width:44px;height:44px') >= 0);
+    /* Dong nay la cai da tung thieu va lam vung bam that con 21x19. */
+    dung('nut ghim KHONG con la the inline',
+      /\.vgbgb\{[^}]*display:inline-flex/.test(css));
+    dung('dau X co lop phu noi rong vung bam',
+      /\.vgbgx::after\{[^}]*width:44px;height:44px/.test(css));
+    /* Dau X phai nam HAN TRONG o, khong treo ra ngoai mep: treo ra ngoai la
+       bi dai cuon ngang cat mat mot nua vung bam. */
+    dung('dau X khong treo ra ngoai mep o', /\.vgbgx\{[^}]*top:10px;right:10px/.test(css));
     dung('ten o ghim khong duoi 13 diem', css.indexOf('.vgbgn{font-size:13px') >= 0);
+  });
+
+  // --------------------------- bon finding vong 2 cua Codex tren PR #426
+
+  await ca('#426-R2F1: bam ghim TRUOC khi doc xong thi khong duoc mat ghim cu', async function () {
+    /* Codex: `(VGB_GHIM || [])` coi "chua doc" la "chua ghim gi", nen bam mot
+       o luc dang cho se cat len may chu dung o do va xoa sach ghim cu. Do
+       duoc: ghim san ["CNPT"], bam POS truoc khi doc ve -> may chu giu
+       ["POS"] con man hien ["CNPT"]. */
+    var m = dungTrangChu(['CNPT'], { lay: true });
+    m.g.vgbGomNhom();
+    go(m, 'tinh tien');
+    bam(m, m.than.querySelector('[data-ghim]'));
+    await tick();
+    m.hoan.traLay();
+    await new Promise(function (r) { setTimeout(r, 40); });
+    bang('giu ca ghim cu lan ghim moi', m.g.VGB_GHIM.join(','), 'CNPT,POS');
+    bang('may chu giu dung cai man dang hien',
+      m.catXong[m.catXong.length - 1], JSON.stringify(m.g.VGB_GHIM));
+  });
+
+  await ca('#426-R2F1b: doc ghim HONG thi khong ghi de bang danh sach rong', async function () {
+    var m = dungTrangChu([]);
+    m.g.api = function (duong, ts) {
+      m.goi.push({ duong: duong, ts: ts });
+      return Promise.reject(new Error('mang hong'));
+    };
+    m.g.vgbGomNhom();
+    await tick();
+    go(m, 'tinh tien');
+    bam(m, m.than.querySelector('[data-ghim]'));
+    await new Promise(function (r) { setTimeout(r, 40); });
+    bang('khong cat gi len may chu',
+      m.goi.filter(function (x) { return x.duong === 'vagabond.ghim.luu'; }).length, 0);
+    dung('co noi cho nguoi dung biet', m.bao.join(' ').length > 0);
+  });
+
+  await ca('#426-R2F1c: hai luot gom chong nhau chi hoi may chu MOT lan', async function () {
+    var m = dungTrangChu(['POS'], { lay: true });
+    m.g.vgbGomNhom();
+    m.g.vgbGomNhom();
+    m.hoan.traLay();
+    await new Promise(function (r) { setTimeout(r, 40); });
+    bang('chi mot lan doc', m.goi.filter(function (x) {
+      return x.duong === 'vagabond.ghim.lay';
+    }).length, 1);
+  });
+
+  await ca('#426-R2F2: ghim mat quyen that thi duoc go, khong chiem cho vo hinh', async function () {
+    /* Codex: ghim 5 o Danh muc roi danh ba tra ve rong thi 5 o do bien mat
+       khoi man nhung van chiem du 5 cho; bam ghim o moi chi nhan duoc cau
+       "Chi ghim duoc 5 nghiep vu" trong khi khong con o cu nao de bo. */
+    var m = dungTrangChu(['DM:DMSP', 'DM:DMNSP', 'DM:DMDVT', 'DM:DMQD', 'DM:DMKHO'],
+      { danhBa: true });
+    m.g.vgbGomNhom();
+    await tick();
+    bang('luot dau giu du nam ghim', m.g.VGB_GHIM.length, 5);
+    var p = m.g.vgbNapKhungCo();
+    await tick();
+    m.hoan.traDanhBa([]);                 /* danh ba quyen: khong con man nao */
+    await p;
+    await new Promise(function (r) { setTimeout(r, 40); });
+    bang('o mat quyen da duoc go', m.g.VGB_GHIM.length, 0);
+    bang('va cat lai len may chu', m.catXong[m.catXong.length - 1], '[]');
+    go(m, 'tinh tien');
+    bam(m, m.than.querySelector('[data-ghim]'));
+    await new Promise(function (r) { setTimeout(r, 40); });
+    bang('ghim duoc o moi', m.g.VGB_GHIM.join(','), 'POS');
+    bang('khong con bao het cho', m.bao.length, 0);
+  });
+
+  await ca('#426-R2F2b: danh ba CHUA biet thi KHONG duoc go ghim nao', async function () {
+    /* Mat mang la chuyen thuong. Go ghim luc do la xoa du lieu cua nguoi ta
+       chi vi mang cham, khong phai vi ho mat quyen.
+
+       Phai chon mot khoa KHONG co san trong trang chu thu (KM - Khuyen mai),
+       khong thi loc hay khong loc deu cho cung ket qua va ca kiem khong noi
+       duoc gi. Viet lan dau da chon nham va dot bien "loc ca khi chua biet
+       danh ba" khong bat duoc. */
+    var m = dungTrangChu(['KM', 'POS'], { danhBa: true });
+    bang('o KM co y khong co tren trang chu thu',
+      DONG.indexOf('data-go="KM"') >= 0, false);
+    m.g.vgbGomNhom();
+    await new Promise(function (r) { setTimeout(r, 40); });
+    bang('giu nguyen ca hai', m.g.VGB_GHIM.join(','), 'KM,POS');
+    bang('khong cat lai gi', m.catXong.length, 0);
+    /* Danh ba ve roi thi o do la mat quyen THAT, luc nay moi duoc go. */
+    var p = m.g.vgbNapKhungCo();
+    await tick();
+    m.hoan.traDanhBa([]);
+    await p;
+    await new Promise(function (r) { setTimeout(r, 40); });
+    bang('danh ba ve roi thi go', m.g.VGB_GHIM.join(','), 'POS');
+    bang('va cat lai len may chu', m.catXong[m.catXong.length - 1], '["POS"]');
+  });
+
+  await ca('#426-R2F3: danh ba ve muon KHONG duoc xoa chu dang go', async function () {
+    /* Codex: callback danh ba goi vgbGomNhom va ghi de ca body, keo theo o
+       nhap. Do duoc: dang go "cong no" ra 3 ket qua, danh ba ve xong thi o
+       trong va 0 ket qua. */
+    var m = dungTrangChu([], { danhBa: true });
+    m.g.vgbGomNhom();
+    await tick();
+    go(m, 'cong no');
+    var oTruoc = m.tai.getElementById('vgbTim');
+    var kqTruoc = m.than.querySelectorAll('.vgbkqd').length;
+    dung('dang co ket qua', kqTruoc > 0);
+    var p = m.g.vgbNapKhungCo();
+    await tick();
+    m.hoan.traDanhBa([]);
+    await p;
+    await new Promise(function (r) { setTimeout(r, 40); });
+    var oSau = m.tai.getElementById('vgbTim');
+    bang('chu dang go con nguyen', oSau.value, 'cong no');
+    dung('van la DUNG o nhap cu, khong thay moi', oTruoc === oSau);
+    dung('ket qua van hien', m.than.querySelectorAll('.vgbkqd').length > 0);
+    bang('luoi o lon van dang an vi dang tim',
+      m.than.querySelector('.gwrap').style.display, 'none');
+  });
+
+  await ca('#426-R2F4: Viec can lam va So tay tim duoc, mo duoc, ghim duoc', async function () {
+    /* Codex: hai o nay ve rieng bang data-nhom nen khong co trong VGB_HUB;
+       go "so tay" ra 0 ket qua du day la mot trong hai loi vao bam nhieu
+       nhat tren trang chu. */
+    var m = dungTrangChu([]);
+    m.g.vgbGomNhom();
+    await tick();
+    go(m, 'so tay');
+    bang('go khong dau ra dung mot ket qua', m.than.querySelectorAll('.vgbkqd').length, 1);
+    bang('dung o So tay',
+      m.than.querySelector('.vgbkqd').querySelector('.h1').textContent, 'S\u1ed5 tay');
+    bam(m, m.than.querySelector('.vgbkqd'));
+    bang('bam vao mo dung man', m.daGo.join(','), 'SOTAY');
+    go(m, 'viec can lam');
+    bang('o kia cung tim duoc', m.than.querySelectorAll('.vgbkqd').length, 1);
+    bam(m, m.than.querySelector('[data-ghim]'));
+    await new Promise(function (r) { setTimeout(r, 40); });
+    bang('ghim duoc', m.g.VGB_GHIM.join(','), 'VCL');
+    bang('o ghim ve ra duoc', m.than.querySelectorAll('.vgbgo').length, 1);
+  });
+
+  await ca('#426-R2F4b: hai o rieng KHONG mọc trung trong Cai dat hay nhom Khac', async function () {
+    var m = dungTrangChu([]);
+    m.g.vgbGomNhom();
+    var truoc = m.than.querySelectorAll('.gt').length;
+    var kh = m.g.vgbNhomTheoKhoa('KHAC');
+    dung('khong keo VCL vao Cai dat', kh.keys.indexOf('VCL') < 0);
+    dung('khong keo SOTAY vao Cai dat', kh.keys.indexOf('SOTAY') < 0);
+    m.g.vgbGomNhom();
+    bang('gom lai khong moc them o lon', m.than.querySelectorAll('.gt').length, truoc);
+    var nhom = m.g.vgbChiaNhom(kh, function (k) { return !!m.g.VGB_HUB[k]; });
+    var moi = [];
+    nhom.forEach(function (x) { moi = moi.concat(x.keys); });
+    dung('man Cai dat khong ve o So tay', moi.indexOf('SOTAY') < 0);
   });
 
   // ------------------------------------------------------------ gom nhom
