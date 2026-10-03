@@ -604,3 +604,31 @@ def _danh_muc_js():
 	lay = lambda k: re.findall(r"'([a-z_]+)'", re.search(k + r": \[([^\]]*)\]", s).group(1))
 	la("loại tin trùng LOAI", lay("loai_tin"), list(kz.LOAI))
 	la("chủ đề trùng CHU_DE", lay("chu_de"), list(kz.CHU_DE))
+
+
+# ===================================================================
+# Vòng 5 (Codex review #423 trên 89c046c): giờ im gõ sai bị chặn lúc lưu;
+# Loại tin, Chủ đề không gõ tay được.
+
+@ca("v559 #423 tái hiện Codex: giờ im 22h, 24:00, 07:99 hoặc thiếu một đầu từng được lưu và coi như không im; giờ bị chặn")
+def _gio_im_sai():
+	for tu, den in (("22h", "07:00"), ("24:00", "07:00"), ("22:00", "07:99"), ("22:00", "")):
+		la("trước đây coi như không im: %s-%s" % (tu, den), kz.trong_gio_im("23:30", tu, den), False)
+		dung("lưu bị chặn: %s-%s" % (tu, den), kz.kiem_gio_im([nhom(im_tu=tu, im_den=den)]) != "")
+	dung("báo đúng ô sai", "Giờ im đến phải dạng HH:MM" in kz.kiem_gio_im([nhom(im_tu="22:00", im_den="07:99")]))
+	dung("thiếu một đầu", "điền đủ" in kz.kiem_gio_im([nhom(im_tu="", im_den="07:00")]))
+	dung("hai đầu trùng", "trùng nhau" in kz.kiem_gio_im([nhom(im_tu="07:00", im_den="07:00")]))
+	la("hợp lệ: 22:00-07:00, 00:00-23:59, để trống", kz.kiem_gio_im([nhom(im_tu="22:00", im_den="07:00"),
+		nhom(im_tu="00:00", im_den="23:59"), nhom()]), "")
+	la("đọc giờ chặt", [kz.gio_hop_le(x) for x in ("07:05", "7:05", "24:00", "23:59", "", None)], [425, None, None, 1439, None, None])
+	dung("gộp vào kiểm bảng nhóm", "HH:MM" in kz.kiem_bang_nhom([nhom(im_tu="22h", im_den="07:00")]))
+
+
+@ca("v559 #423: Loại tin và Chủ đề trên bảng nhóm là ô chỉ đọc, chỉ đổi qua hộp chọn")
+def _o_chi_doc():
+	import json
+	import os
+	p = os.path.join(os.path.dirname(kz.__file__), "vagabond", "doctype", "vagabond_kenh_zalo", "vagabond_kenh_zalo.json")
+	d = json.load(open(p, encoding="utf-8"))
+	la("read_only", {x["fieldname"]: x.get("read_only") for x in d["fields"] if x["fieldname"] in ("loai_tin", "chu_de")},
+		{"loai_tin": 1, "chu_de": 1})
