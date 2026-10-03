@@ -735,6 +735,38 @@ Chứng từ của ngày đã khoá thì không ghi sổ, không huỷ, không s
 | Chỉ kế toán trưởng hoặc giám đốc mới đụng được vào khoá sổ. | Nhờ đúng người |
 
 **Lưu ý**
-- Cần sửa thật một tờ cũ thì kế toán trưởng mở khoá riêng tờ đó, máy ghi lý do và tên người mở. Anh Việt chốt 03/10/2026: nút Mở khoá sẽ có trên cả app và Desk; phần này đang làm, trong lúc chờ báo kỹ thuật.
+- Cần sửa thật một tờ cũ thì kế toán trưởng mở khoá riêng tờ đó: xem mục "Mở khoá riêng một tờ đã khoá sổ".
 - Thẻ đỏ "Đang có ... hoá đơn được mở khoá" nhắc sửa xong phải đóng lại.
 - Danh sách loại chứng từ áp dụng ghi ở cuối màn.
+
+## Mở khoá riêng một tờ đã khoá sổ
+Từ khoá: mở khoá, mở khoá sổ, mở khoá chứng từ, sửa chứng từ cũ, sửa hoá đơn đã khoá, đóng khoá, khoá lại, unlock, sổ đã khoá
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Kế toán trưởng, giám đốc | Khoá sổ (/khoa-so), hoặc Desk: mở chính tờ đó | [[Mở khoá tờ này]], [[desk:Mở khoá sổ]] |
+
+Mở riêng một tờ thuộc kỳ đã khoá để sửa. Các tờ khác vẫn khoá. Máy ghi lý do và tên người mở.
+
+**Các bước trên app**
+1. Mở Khoá sổ, kéo xuống phần Mở khoá một tờ.
+2. Chọn loại chứng từ, gõ số chứng từ, ghi lý do.
+3. Bấm [[Mở khoá tờ này]].
+4. Sửa xong, quay lại Khoá sổ, bấm [[Đóng khoá]] ở dòng tờ đó.
+
+**Các bước trên Desk**
+1. Mở chính tờ cần sửa. Tờ thuộc kỳ khoá thì có nút [[desk:Mở khoá sổ]].
+2. Ghi lý do, bấm [[desk:Mở khoá]].
+3. Sửa xong bấm [[desk:Đóng khoá sổ]].
+
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Phải ghi lý do mở khoá thì sau này còn giải trình được. | Ghi lý do rồi bấm lại |
+| Không tìm thấy chứng từ ... | Kiểm lại số chứng từ và loại chứng từ đã chọn |
+| Chỉ kế toán trưởng hoặc giám đốc mới đụng được vào khoá sổ. | Nhờ đúng người |
+
+**Lưu ý**
+- Không thấy nút: tờ đó chưa tới kỳ khoá, sửa được như thường; hoặc bạn không phải kế toán trưởng.
+- Hoá đơn điện tử đã phát hành thì mở khoá cũng không sửa nội dung đã gửi cơ quan thuế. Liên hệ kế toán trưởng.
+- Sửa xong phải đóng lại. Thẻ đỏ trên màn Khoá sổ liệt kê các tờ còn đang mở.

@@ -149,9 +149,9 @@ Hàng nhập kho trước, hoá đơn về sau. Hoá đơn mua phải nối vớ
 
 **Lưu ý**
 - Không bấm [[desk:Lấy mặt hàng từ]] trên Desk: nó chép đè dòng hàng, mất dòng phí dịch vụ, phí giao hàng.
-- Giá trên hoá đơn luôn là giá đúng. Nối phiếu ở đâu thì máy cũng giữ số lượng và đơn giá theo hoá đơn điện tử của nhà cung cấp, không lấy giá phiếu nhập.
-- Giá trên hoá đơn sai thì nhà cung cấp xuất hoá đơn thay thế, không sửa giá trên phiếu.
-- Nên nối trên màn Đối chiếu mua.
+- Giá trên hoá đơn luôn là giá đúng. Giá sai thì nhà cung cấp xuất hoá đơn thay thế, không sửa giá trên phiếu.
+- Chỉ nối trên màn Đối chiếu mua: màn này giữ nguyên số lượng và đơn giá của hoá đơn.
+- Không bấm [[desk:Nối phiếu nhập kho]] trên Desk: nút này chép giá phiếu nhập đè lên hoá đơn. Hoá đơn dựng từ hoá đơn điện tử thì máy dựng lại giá gốc khi lưu, hoá đơn nhập tay thì không.
 - Hàng không qua kho (dịch vụ, phí ship) không có phiếu nhập: kế toán bấm [[Ghi sổ thẳng, không nối phiếu]].
 
 ## Vì sao không nối được phiếu nhập kho vào hoá đơn
