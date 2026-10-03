@@ -556,6 +556,8 @@ CUA_NGO = {
 		# go_anh them 24/08/2026 (v294): nut X tren anh giao va chu ky.
 		# Chu ky chan chat hon anh giao, xem TT_GO_DUOC_ANH trong van_don.
 		"go_anh",
+		# Man "Phi giao hang book app" (anh Viet 03/10/2026).
+		"phi_book_app", "phi_book_app_xuat_excel",
 		"gop_chuyen", "huy_van_don", "khach_khong_ky", "luu_chu_ky",
 		"luu_dieu_chuyen",
 		"mon_van_don", "nap_mon_thieu", "nhan_don",
