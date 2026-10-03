@@ -68,3 +68,14 @@ def _ma_vach():
 	# 9 ky tu (*TP-0001*), moi ky tu 5 vach den
 	la("so vach", a.count("<rect"), 9 * 5)
 	la("bo ky tu la", T.ma_vach_svg("TP_0001").count("<rect"), 8 * 5)
+
+
+@ca("Codex #421: chỉ đọc ô tự thêm khi site có, thiếu ô thì tem vẫn in")
+def _truong_thieu():
+	co = {"custom_han_dung_gio", "custom_dieu_kien_bao_quan"}
+	ds = T.truong_doc_duoc(lambda f: f in co)
+	dung("khong doc o site chua co", "custom_khoi_luong_tinh" not in ds and "custom_chat_gay_di_ung" not in ds)
+	dung("van doc o chuan va o co that", {"name", "item_name", "shelf_life_in_days", "custom_han_dung_gio"} <= set(ds))
+	la("site du o thi doc het", T.truong_doc_duoc(lambda f: True), T.TRUONG_MON)
+	h = T.html_tem(T.du_lieu_tem({"name": "TP-1", "item_name": "X"}, LUC))
+	dung("thieu ca KL va di ung van ra tem", h.count('<div class="tem">') == 1 and "Dị ứng" not in h)
