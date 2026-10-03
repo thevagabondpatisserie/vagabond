@@ -256,7 +256,13 @@ def _ke_hoach():
 		for ma in cac:
 			chang_cua_ma[ma] = chang
 
-	btp = sorted(theo_chang.get(CHANG_BTP) or [])
+	# v564: mã đã bỏ ảo thì giữ tồn như ruột bánh, không biến về ảo nữa.
+	from vagabond.bo_ao import danh_sach_giu_ton
+
+	giu = set(danh_sach_giu_ton())
+	for ma in giu:
+		chang_cua_ma[ma] = CHANG_C1
+	btp = sorted(set(theo_chang.get(CHANG_BTP) or []) - giu)
 
 	# --- việc 1: mã nào đổi sang Phantom
 	doi_ma = []
@@ -283,7 +289,7 @@ def _ke_hoach():
 			})
 
 	# --- việc 2 và 3: dòng nào trong BOM cha phải sửa cờ nổ
-	con = set(btp) | set(theo_chang.get(CHANG_C1) or []) | set(theo_chang.get(CHANG_C2) or [])
+	con = set(btp) | set(theo_chang.get(CHANG_C1) or []) | set(theo_chang.get(CHANG_C2) or []) | giu
 	doi_dong, bom_dung_lai = [], set()
 	if con:
 		for d in frappe.get_all(
