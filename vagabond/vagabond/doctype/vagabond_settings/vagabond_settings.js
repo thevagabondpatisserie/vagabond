@@ -1,7 +1,7 @@
 // v559 (#410): nút cho phần Bắn tin vào nhóm Zalo. Chỉ quản trị mở được
 // Cài đặt này, máy chủ cũng kiểm lại quyền ở từng hàm.
-// v559 Codex #417: Loại tin và Chủ đề chọn từ danh mục, không gõ tay; máy chủ
-// vẫn kiểm lại lúc lưu.
+// v559 Codex #417, #423: Loại tin và Chủ đề chỉ chọn từ danh mục (hai ô này
+// read_only, không gõ tay được); máy chủ vẫn kiểm lại lúc lưu.
 const ZALO_DANH_MUC = {
 	loai_tin: ['thong_bao', 'viec', 'canh_bao', 'ban_tin', 'phat_hanh'],
 	chu_de: ['kho', 'san_xuat', 'cong_no', 'ban_hang', 'don_web', 'dat_ban', 'phat_hanh'],
@@ -25,12 +25,13 @@ frappe.ui.form.on('Vagabond Kenh Zalo', {
 	form_render(frm, cdt, cdn) {
 		const g = frm.fields_dict.zalo_nhom.grid.grid_rows_by_docname[cdn];
 		if (!g || !g.grid_form) return;
-		['loai_tin', 'chu_de'].forEach(f => {
-			const ctl = g.grid_form.fields_dict[f];
-			if (ctl && !ctl.$wrapper.find('.zalo-chon').length) {
-				$('<button class="btn btn-xs btn-default zalo-chon" style="margin-top:4px">Chọn từ danh mục</button>')
-					.appendTo(ctl.$wrapper).on('click', () => zalo_chon(frm, cdt, cdn, f));
-			}
+		// Ô read_only để trống thì Frappe ẩn cả ô, nên nút đặt ở đầu khung dòng.
+		const khung = $(g.grid_form.wrapper);
+		if (khung.find('.zalo-chon').length) return;
+		const hang = $('<div class="zalo-chon" style="margin:8px 0;display:flex;gap:8px"></div>').prependTo(khung.find('.form-area').first().length ? khung.find('.form-area').first() : khung);
+		[['loai_tin', 'Chọn loại tin'], ['chu_de', 'Chọn chủ đề']].forEach(([f, nhan]) => {
+			$('<button class="btn btn-xs btn-default"></button>').text(nhan).appendTo(hang)
+				.on('click', () => zalo_chon(frm, cdt, cdn, f));
 		});
 	},
 });
