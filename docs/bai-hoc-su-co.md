@@ -1412,6 +1412,16 @@ Cách phòng:
   mới gắn qua ô. Cổng "tệp phải nằm ở ô X" phải xét cả các dòng khác cùng
   đường dẫn (`thu_tien.url_unc_that`). Ca thuần giả lập không thấy được hành
   vi này; chỉ bench mới bắt (#382 vòng 8).
+# 30/09/2026 - So công nợ phải giữ cùng phạm vi
+
+PI outstanding dương, AP/AR có credit chưa phân bổ và Sổ đối tác từ GL
+không phải ba cách gọi cùng một chỉ tiêu. Purchase Receipt có Party trên
+tài khoản chờ hóa đơn có thể vào Sổ NCC mà không có PLE/AP. Truy đến
+voucher/account trước khi nhận là thiếu thanh toán; không tạo PE hay đổi
+outstanding để ép số bằng nhau. Purchase Register có bill_date không có
+nghĩa đã có payment_date. Incoming/Outgoing trong Payment Period là chiều
+tiền, không phải chiều hóa đơn. Nguồn và ca nghiệm thu:
+[hồ sơ đối chiếu](van-hanh-agent/cong-viec/doi-chieu-cong-no-20260930.md).
 
 ## 29/09/2026 (v540): phiếu ghi lùi ngày mà máy chọn lô theo tồn hôm nay
 
