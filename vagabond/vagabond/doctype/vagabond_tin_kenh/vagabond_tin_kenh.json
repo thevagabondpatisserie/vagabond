@@ -41,7 +41,8 @@
    "fieldname": "chat_id",
    "fieldtype": "Data",
    "label": "Mã chat",
-   "read_only": 1
+   "read_only": 1,
+   "search_index": 1
   },
   {
    "fieldname": "loai",
@@ -125,7 +126,6 @@
   {
    "read": 1,
    "role": "System Manager",
-   "delete": 1,
    "report": 1,
    "export": 1
   },
