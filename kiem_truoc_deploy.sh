@@ -191,3 +191,9 @@ node vagabond/khung/kiem_thu/hanh_vi/van_don_237.js
 node vagabond/khung/kiem_thu/hanh_vi/thanh_vien_245.cjs
 # v554: man So tay va bo ve nut/bang dung chung voi tro ly (so tay that tu thu muc so_tay).
 node vagabond/khung/kiem_thu/hanh_vi/so_tay_554.js
+# v558: nut mo khoa / dong khoa mot to tren man Khoa so (17-cai-dat.js that).
+node vagabond/khung/kiem_thu/hanh_vi/mo_khoa_558.cjs
+# v560: tem HACCP khong can lo (05-san-xuat.js that).
+node vagabond/khung/kiem_thu/hanh_vi/tem_khong_lo_560.js
+# v561: goi y va nho tai khoan chenh lech kiem ke (06-nhap-kho-kiem-ke.js that).
+node vagabond/khung/kiem_thu/hanh_vi/goi_y_tk_561.js
