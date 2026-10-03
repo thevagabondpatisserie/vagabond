@@ -566,10 +566,10 @@ html body .h1 em#bigDate{display:none}
   <!-- #367: phap nhan viet thang trong HTML de bo kiem cua Meta doc duoc ca
        khi khong chay JavaScript. Lien he va chinh sach nap tu may chu. -->
   <div class="f-phap-nhan" id="fPhapNhan">
-    <b><span data-vgb-chu="dat_banh_15f2c7f29">Công ty TNHH Patisserie Vagabond</span></b><br>
-    <span data-vgb-chu="dat_banh_2085c9658">Mã số thuế 0318561568</span><br>
-    <span data-vgb-chu="dat_banh_2f7b911ea">Cửa hàng Sài Gòn: 9 Trần Cao Vân, Phường Sài Gòn (Quận 1 cũ), TP. Hồ Chí Minh</span><br>
-    <span data-vgb-chu="dat_banh_cc4a76159">Bếp Tân Sơn Hoà: 307/1 Nguyễn Văn Trỗi, Phường Tân Sơn Hoà (Tân Bình cũ), TP. Hồ Chí Minh</span><br>
+    <b>Công ty TNHH Patisserie Vagabond</b><br>
+    Mã số thuế 0318561568<br>
+    Cửa hàng Sài Gòn: 9 Trần Cao Vân, Phường Sài Gòn (Quận 1 cũ), TP. Hồ Chí Minh<br>
+    Bếp Tân Sơn Hoà: 307/1 Nguyễn Văn Trỗi, Phường Tân Sơn Hoà (Tân Bình cũ), TP. Hồ Chí Minh<br>
     <span id="fLienHe"><span data-vgb-chu="dat_banh_08fc3ada4">Điện thoại</span> <a href="tel:0931224334">0931 224 334</a></span>
   </div>
   <nav class="f-cs" id="fChinhSach" aria-label="Chính sách" data-vgb-aria-label="dat_banh_e9ba7dd58"></nav>
@@ -1526,6 +1526,8 @@ function gioiHanNhan(id){
   if(!Object.keys(TRUOC).length) return 0;
   return TRUOC[id]||0;
 }
+/* #431: tên hiện trong câu báo giỏ đi cùng một nguồn với dòng giỏ, theo mã đã chọn. */
+function tenMonGio(o){ return chuMonWeb(o.id,'ten',o.k); }
 function daCoTrongGio(id){ return CART.filter(x=>x.id===id).reduce((a,x)=>a+x.qty,0); }
 function addToCart(){
   if(!cur||!curSize) return;
@@ -1541,7 +1543,7 @@ function addToCart(){
   if(hit) hit.qty++; else CART.push(o);
   drawBar(true); drawCart();
   suKien('AddToCart', {content_ids:[o.id], content_type:'product', value:lineUnit(o), currency:'VND'});
-  toast(hit?(chuWeb("dat_banh_9bebfe783", "Thêm 1 bánh nữa, giỏ có {gia_tri_a} bánh", {gia_tri_a:(cartCount())})):(chuWeb("dat_banh_01548bfbc", "Đã thêm {gia_tri_a} vào giỏ", {gia_tri_a:(cur.k)})));
+  toast(hit?(chuWeb("dat_banh_9bebfe783", "Thêm 1 bánh nữa, giỏ có {gia_tri_a} bánh", {gia_tri_a:(cartCount())})):(chuWeb("dat_banh_01548bfbc", "Đã thêm {gia_tri_a} vào giỏ", {gia_tri_a:(tenMonGio(o))})));
   closeSheet();
 }
 function cartQty(i,d){
@@ -2330,7 +2332,7 @@ function themHangMua(ma){
   if(hit) hit.qty++; else CART.push(o);
   drawBar(true); drawCart();
   suKien('AddToCart', {content_ids:[o.id], content_type:'product', value:o.price, currency:'VND'});
-  toast(hit?((chuWeb("dat_banh_cf8a493c0", "Thêm 1 phần nữa, giỏ có") + " ")+cartCount()+(" " + chuWeb("dat_banh_9900d8257", "món"))):((chuWeb("dat_banh_1998bbe74", "Đã thêm") + " ")+m.ten+(" " + chuWeb("dat_banh_478beb847", "vào giỏ"))));
+  toast(hit?((chuWeb("dat_banh_cf8a493c0", "Thêm 1 phần nữa, giỏ có") + " ")+cartCount()+(" " + chuWeb("dat_banh_9900d8257", "món"))):((chuWeb("dat_banh_1998bbe74", "Đã thêm") + " ")+chuMonWeb(m.ma,'ten',m.ten)+(" " + chuWeb("dat_banh_478beb847", "vào giỏ"))));
 }
 
 napHangMua();
@@ -2442,7 +2444,7 @@ function themNhanh(k, cheDo){
   if(hit) hit.qty++; else CART.push(o);
   drawBar(true); drawCart();
   suKien('AddToCart', {content_ids:[o.id], content_type:'product', value:lineUnit(o), currency:'VND'});
-  toast((chuWeb("dat_banh_7e42d2e7b", "Đã thêm {gia_tri_a}{gia_tri_b}. Bấm vào bánh để thêm lời chúc, phụ kiện.", {gia_tri_a:(c.k), gia_tri_b:(sz.cm?' '+sz.cm+'cm':'')})));
+  toast((chuWeb("dat_banh_7e42d2e7b", "Đã thêm {gia_tri_a}{gia_tri_b}. Bấm vào bánh để thêm lời chúc, phụ kiện.", {gia_tri_a:(tenMonGio(o)), gia_tri_b:(sz.cm?' '+sz.cm+'cm':'')})));
 }
 
 /* =======================================================
