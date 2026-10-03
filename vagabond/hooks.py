@@ -968,3 +968,5 @@ scheduler_events.setdefault("hourly", []).append("vagabond.tru_kho_bu.quet_moi_g
 
 # v562 (#410): bắn tin Zalo. Mỗi giờ gửi bản gộp tin hoãn trong giờ im.
 scheduler_events.setdefault("hourly", []).append("vagabond.kenh_zalo.xa_gio_im")
+# Codex #425: gửi bù tin Zalo còn Chờ gửi (hàng đợi hỏng lúc xếp).
+scheduler_events.setdefault("cron", {}).setdefault("*/5 * * * *", []).append("vagabond.kenh_zalo.quet_cho_gui")

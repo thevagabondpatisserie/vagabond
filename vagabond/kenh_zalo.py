@@ -58,6 +58,7 @@ DIEU_KIEN = {
 	"cho_duyet_truoc_erp": "vagabond.cong_no_ncc.con_cho_duyet_truoc_erp",
 }
 BO_QUA = "Bỏ qua (đã xử lý)"
+CHO_GUI = "Chờ gửi"
 
 
 # ------------------------------------------------------------------ THUẦN
@@ -367,23 +368,56 @@ def bao(loai, chu_de, tieu_de, dong=None, link=None, khoa=None, nguoi=None, han=
 	khoa: mã sự kiện để chống trùng (ví dụ "cho_duyet:PKT-2026-00067").
 	Thiếu khoa thì không chống trùng (chỉ dùng cho tin một lần).
 	kiem, nguon: mã trong DIEU_KIEN và tên chứng từ; trước khi gửi (kể cả sau
-	giờ im) máy hỏi lại việc còn mở không, hết việc thì bỏ, không nhắc thừa."""
+	giờ im) máy hỏi lại việc còn mở không, hết việc thì bỏ, không nhắc thừa.
+
+	Codex #425: ghi tin vào sổ ("Chờ gửi") NGAY TRONG giao dịch của chứng từ,
+	rồi mới xếp hàng đợi sau commit. Chứng từ rollback thì tin cũng mất theo;
+	Redis hỏng lúc xếp hàng thì tin vẫn nằm trong sổ, nhịp quet_cho_gui gửi bù."""
 	try:
 		if getattr(frappe.flags, "vagabond_kiem_that", False) or not _bat():
 			return
 		tin = {"loai": loai, "chu_de": chu_de, "tieu_de": tieu_de, "dong": list(dong or []),
 			"link": link, "khoa": khoa, "nguoi": nguoi, "han": han, "kiem": kiem, "nguon": nguon}
-		frappe.db.after_commit.add(lambda: _xep(tin))
+		ten = _ghi_hop_thu(tin)
+		if ten:
+			frappe.db.after_commit.add(lambda: _xep(ten))
 	except Exception:
-		frappe.log_error("Chưa xếp được tin Zalo loại %s." % loai, "kenh_zalo: bao loi")
+		frappe.log_error("Chưa ghi được tin Zalo loại %s." % loai, "kenh_zalo: bao loi")
 
 
-def _xep(tin):
+def _ghi_hop_thu(tin):
+	"""Ghi mỗi nhóm khớp một dòng "Chờ gửi" trong giao dịch hiện tại. Trả tên các dòng mới.
+
+	Mỗi dòng có savepoint riêng: trùng khoá (sự kiện đã ghi) hay lỗi lẻ thì lùi
+	đúng dòng đó, không đụng tới chứng từ đang lưu."""
+	noi_dung = soan_tin(tin.get("loai"), tin.get("tieu_de"), tin.get("dong"), tin.get("link"),
+		tin.get("nguoi"), tin.get("han"))
+	ra = []
+	for n in chon_nhom(_cac_nhom(), tin.get("loai"), tin.get("chu_de")):
+		ten = khoa_tin(tin.get("khoa") or frappe.generate_hash(length=12), n.get("chat_id"))
+		sp = "zl_" + frappe.generate_hash(length=8)
+		frappe.db.savepoint(sp)
+		try:
+			frappe.get_doc({"doctype": "Vagabond Tin Kenh", "name": ten, "khoa": ten,
+				"nhom": n.get("ten_nhom"), "chat_id": str(n.get("chat_id")).strip(), "loai": tin.get("loai"),
+				"chu_de": tin.get("chu_de"), "noi_dung": noi_dung,
+				"kiem": tin.get("kiem") or "", "nguon": tin.get("nguon") or "",
+				"trang_thai": CHO_GUI}).insert(ignore_permissions=True)
+			ra.append(ten)
+		except frappe.DuplicateEntryError:
+			frappe.db.rollback(save_point=sp)
+		except Exception:
+			frappe.db.rollback(save_point=sp)
+			frappe.log_error("Chưa ghi được một dòng tin Zalo loại %s." % tin.get("loai"), "kenh_zalo: ghi tin loi")
+	return ra
+
+
+def _xep(ten):
 	try:
-		frappe.enqueue("vagabond.kenh_zalo.gui_hang_doi", queue="short", tin=tin)
+		frappe.enqueue("vagabond.kenh_zalo.gui_hang_doi", queue="short", ten=list(ten))
 	except Exception:
-		frappe.log_error("Chưa xếp được tin Zalo loại %s vào hàng đợi." % tin.get("loai"), "kenh_zalo: hang doi loi")
-		frappe.db.commit()
+		# Dòng đã nằm trong sổ ở trạng thái Chờ gửi; quet_cho_gui sẽ gửi bù.
+		frappe.log_error("Chưa xếp được %s tin Zalo vào hàng đợi, sẽ gửi bù." % len(ten), "kenh_zalo: hang doi loi")
 
 
 def _ham_kiem(kiem):
@@ -404,36 +438,62 @@ def _con_can(kiem, nguon):
 		return True
 
 
-def gui_hang_doi(tin):
-	"""Chạy trong worker: mỗi nhóm khớp một bản ghi, claim bằng khoá chính rồi gửi."""
+def gui_hang_doi(ten):
+	"""Chạy trong worker: gửi các dòng Chờ gửi theo tên. Mỗi dòng claim nguyên tử."""
 	if not _bat():
 		return
 	gio = now_datetime().strftime("%H:%M")
-	noi_dung = soan_tin(tin.get("loai"), tin.get("tieu_de"), tin.get("dong"), tin.get("link"),
-		tin.get("nguoi"), tin.get("han"))
-	for n in chon_nhom(_cac_nhom(), tin.get("loai"), tin.get("chu_de")):
-		ten = khoa_tin(tin.get("khoa") or frappe.generate_hash(length=12), n.get("chat_id"))
-		hoan = tin.get("loai") != "canh_bao" and trong_gio_im(gio, n.get("im_tu"), n.get("im_den"))
-		try:
-			frappe.get_doc({"doctype": "Vagabond Tin Kenh", "name": ten, "khoa": ten,
-				"nhom": n.get("ten_nhom"), "chat_id": str(n.get("chat_id")).strip(), "loai": tin.get("loai"),
-				"chu_de": tin.get("chu_de"), "noi_dung": noi_dung,
-				"kiem": tin.get("kiem") or "", "nguon": tin.get("nguon") or "",
-				"trang_thai": "Hoãn giờ im" if hoan else "Đang gửi"}).insert(ignore_permissions=True)
-			frappe.db.commit()
-		except frappe.DuplicateEntryError:
-			frappe.db.rollback()
-			continue
-		if hoan:
-			continue
-		# Codex #413 P2: hỏi lại ngay trước HTTP, không tin ảnh chụp lúc tạo tin.
-		if not _con_can(tin.get("kiem"), tin.get("nguon")):
-			frappe.db.set_value("Vagabond Tin Kenh", ten, {"trang_thai": BO_QUA, "luc_gui": now_datetime()})
-			frappe.db.commit()
-			continue
-		tt, loi = _gui_zalo(n.get("chat_id"), noi_dung)
-		frappe.db.set_value("Vagabond Tin Kenh", ten, {"trang_thai": tt, "loi": loi, "luc_gui": now_datetime()})
+	theo_chat = {str(n.get("chat_id") or "").strip(): n for n in _cac_nhom()}
+	for t in ten or []:
+		_gui_mot(t, theo_chat, gio)
+
+
+def _nhan_mot(ten):
+	"""Claim một dòng Chờ gửi bằng UPDATE có điều kiện; trả dòng nếu lượt này nhận được."""
+	ma = frappe.generate_hash(length=20)
+	frappe.db.sql("""update `tabVagabond Tin Kenh` set trang_thai='Đang gửi', ma_lo=%s
+		where name=%s and trang_thai=%s""", (ma, ten, CHO_GUI))
+	frappe.db.commit()
+	r = frappe.db.get_value("Vagabond Tin Kenh", ten, ["name", "chat_id", "loai", "noi_dung", "kiem", "nguon", "ma_lo"],
+		as_dict=True)
+	return r if r and r.get("ma_lo") == ma else None
+
+
+def _gui_mot(ten, theo_chat, gio):
+	r = _nhan_mot(ten)
+	if not r:
+		return
+	n = theo_chat.get(str(r.get("chat_id") or "").strip())
+	if not n or not cint(n.get("bat")):
+		frappe.db.set_value("Vagabond Tin Kenh", ten, {"trang_thai": BO_QUA, "loi": "Nhóm đã tắt hoặc bị gỡ khỏi bảng.",
+			"luc_gui": now_datetime()})
 		frappe.db.commit()
+		return
+	if r.get("loai") != "canh_bao" and trong_gio_im(gio, n.get("im_tu"), n.get("im_den")):
+		frappe.db.set_value("Vagabond Tin Kenh", ten, {"trang_thai": "Hoãn giờ im"})
+		frappe.db.commit()
+		return
+	# Codex #413 P2: hỏi lại ngay trước HTTP, không tin ảnh chụp lúc tạo tin.
+	if not _con_can(r.get("kiem"), r.get("nguon")):
+		frappe.db.set_value("Vagabond Tin Kenh", ten, {"trang_thai": BO_QUA, "luc_gui": now_datetime()})
+		frappe.db.commit()
+		return
+	tt, loi = _gui_zalo(r.get("chat_id"), r.get("noi_dung"))
+	frappe.db.set_value("Vagabond Tin Kenh", ten, {"trang_thai": tt, "loi": loi, "luc_gui": now_datetime()})
+	frappe.db.commit()
+
+
+def quet_cho_gui():
+	"""5 phút một lần: gửi bù các dòng còn Chờ gửi quá 2 phút (hàng đợi hỏng, worker
+	chưa chạy). Claim trong _gui_mot nên chạy chồng với worker thường vẫn chỉ gửi một lần."""
+	if not _bat():
+		return
+	from frappe.utils import add_to_date
+	ds = frappe.get_all("Vagabond Tin Kenh", filters={"trang_thai": CHO_GUI,
+		"creation": ["<", add_to_date(now_datetime(), minutes=-2)]}, pluck="name", order_by="creation asc",
+		limit_page_length=100)
+	if ds:
+		gui_hang_doi(ds)
 
 
 def _nhan_lo(chat_id, ma_lo):
@@ -505,9 +565,14 @@ def nhan():
 		goi = json.loads(frappe.request.data or b"{}")
 	except Exception:
 		goi = {}
+	# Codex #425: hai nhóm nhắn cùng lúc thì hai yêu cầu cùng đọc danh sách cũ rồi
+	# ghi đè nhau. Khoá các dòng Cài đặt trước khi đọc, đọc thẳng từ bảng (không
+	# qua bộ nhớ đệm), ghi xong commit mới nhả khoá.
+	frappe.db.sql("select field from `tabSingles` where doctype='Vagabond Settings' for update")
 	cu = []
 	try:
-		cu = json.loads(frappe.db.get_single_value("Vagabond Settings", "zalo_chat_moi") or "[]")
+		v = frappe.db.sql("select value from `tabSingles` where doctype='Vagabond Settings' and field='zalo_chat_moi'")
+		cu = json.loads((v[0][0] if v else None) or "[]")
 	except Exception:
 		cu = []
 	ds, moi = ghi_chat_moi(cu, goi, now_datetime())
