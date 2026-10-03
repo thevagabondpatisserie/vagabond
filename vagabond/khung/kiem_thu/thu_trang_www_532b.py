@@ -186,4 +186,4 @@ def _nut_them_44():
 	dung("không có luật .c-them nào khác thu nhỏ lại", len(re.findall(r"\.c-them\{", trang)) == 1)
 	vong = re.search(r"\.c-them::before\{([^}]*)\}", trang)
 	dung("vòng kính vẽ ở ::before, cách mép 2px", bool(vong) and "inset:2px" in vong.group(1))
-	dung("hai nơi dựng nút đều dùng lớp c-them", trang.count('class="c-them"') >= 2)
+	dung("hai nơi dựng nút đều dùng lớp c-them", trang.replace('\\"', '"').count('class="c-them"') >= 2)
