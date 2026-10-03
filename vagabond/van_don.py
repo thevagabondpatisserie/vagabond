@@ -3017,3 +3017,165 @@ def luu_dieu_chuyen(name=None, so_kien=None, nguoi_giao=None, sdt_giao=None,
 	doc.save()
 	return {"name": doc.name, "so_kien": cint(doc.so_kien), "bao_quan": doc.bao_quan,
 		"phut_ngoai_lanh": cint(doc.phut_ngoai_lanh)}
+
+
+# ---------------------------------------------------------------- phi book app
+# Anh Viet 03/10/2026: man "Phi giao hang book app" gop phi tra cho cac app
+# giao ngoai, chia theo app va theo thang, co nut xuat Excel.
+#
+# Hai quyet dinh pham vi do anh Viet chot, dung doi khi chua hoi lai:
+#   1. CHI dem van don trang thai "Da giao". Don huy hay giao khong duoc thi
+#      ben app khong thu tien, cong vao la so khong khop voi tien that phai tra.
+#   2. CHI dem KENH_NGOAI. "Shipper noi bo" va "Khach tu lay" khong phai tien
+#      tra ra ngoai nen khong thuoc man nay.
+
+PHI_APP_TT = "Đã giao"
+
+
+def _phi_app_quet(tu_ngay=None, den_ngay=None, app=None):
+	"""Doc van don da giao qua app ngoai trong khoang ngay. Doc, khong ghi."""
+	loc = {
+		"trang_thai": PHI_APP_TT,
+		"kenh": ["in", sorted(KENH_NGOAI.keys())],
+	}
+	if tu_ngay and den_ngay:
+		loc["ngay_giao"] = ["between", [tu_ngay, den_ngay]]
+	elif tu_ngay:
+		loc["ngay_giao"] = [">=", tu_ngay]
+	elif den_ngay:
+		loc["ngay_giao"] = ["<=", den_ngay]
+	if app:
+		loc["kenh"] = app
+	return frappe.get_all(
+		"Van Don", filters=loc,
+		fields=["name", "ngay_giao", "kenh", "phi_giao", "booking_id",
+		        "ma_don", "khach", "shipper", "tien_thu_ho"],
+		order_by="ngay_giao desc, name desc", limit_page_length=0,
+	)
+
+
+def _phi_app_thang(ds):
+	"""Gom theo (thang, app). THUAN: khong cham Frappe, kiem thu duoc.
+
+	Tra ve ba thu: ma tran thang x app, cong theo app, cong theo thang. Moi
+	o giu ca SO DON va SO TIEN - chi tien khong du de biet gia binh quan mot
+	chuyen, ma gia binh quan moi la cai noi len app nao dang dat len.
+	"""
+	o, theo_app, theo_thang = {}, {}, {}
+	tong_don, tong_tien = 0, 0.0
+	for r in ds:
+		ngay = str(r.get("ngay_giao") or "")[:10]
+		if not ngay:
+			continue
+		thang = ngay[:7]
+		app = (r.get("kenh") or "").strip() or "Không rõ"
+		tien = flt(r.get("phi_giao"))
+		k = (thang, app)
+		cu = o.get(k) or {"don": 0, "tien": 0.0}
+		o[k] = {"don": cu["don"] + 1, "tien": cu["tien"] + tien}
+		a = theo_app.get(app) or {"don": 0, "tien": 0.0}
+		theo_app[app] = {"don": a["don"] + 1, "tien": a["tien"] + tien}
+		t = theo_thang.get(thang) or {"don": 0, "tien": 0.0}
+		theo_thang[thang] = {"don": t["don"] + 1, "tien": t["tien"] + tien}
+		tong_don += 1
+		tong_tien += tien
+
+	def _bq(d):
+		return round(d["tien"] / d["don"], 0) if d["don"] else 0.0
+
+	thangs = sorted(theo_thang.keys(), reverse=True)
+	apps = sorted(theo_app.keys(), key=lambda x: -theo_app[x]["tien"])
+	bang = []
+	for th in thangs:
+		dong = {"thang": th, "o": [], "don": theo_thang[th]["don"],
+			"tien": theo_thang[th]["tien"], "bq": _bq(theo_thang[th])}
+		for ap in apps:
+			d = o.get((th, ap)) or {"don": 0, "tien": 0.0}
+			dong["o"].append({"app": ap, "don": d["don"], "tien": d["tien"], "bq": _bq(d)})
+		bang.append(dong)
+	return {
+		"apps": [{"app": a, "don": theo_app[a]["don"], "tien": theo_app[a]["tien"],
+			"bq": _bq(theo_app[a])} for a in apps],
+		"bang": bang,
+		"tong_don": tong_don,
+		"tong_tien": tong_tien,
+		"bq_chung": round(tong_tien / tong_don, 0) if tong_don else 0.0,
+		"khong_khai_phi": sum(1 for r in ds if not flt(r.get("phi_giao"))),
+	}
+
+
+@frappe.whitelist()
+def phi_book_app(tu_ngay=None, den_ngay=None, app=None, chi_tiet=0):
+	"""Tong hop phi giao hang book qua app ngoai, chia theo app va theo thang."""
+	if not (_la_ke_toan() or _la_sales()):
+		frappe.throw("Chỉ kế toán, thu mua hoặc sales xem được phí book app.")
+	ds = _phi_app_quet(tu_ngay, den_ngay, app)
+	ra = _phi_app_thang(ds)
+	ra["app_co"] = sorted(KENH_NGOAI.keys())
+	ra["tu_ngay"] = tu_ngay or ""
+	ra["den_ngay"] = den_ngay or ""
+	ra["app"] = app or ""
+	# Danh sach don chi tra khi nguoi dung bam vao mot o, de khong keo ca
+	# nghin dong ve may khi ho chi muon xem con so thang.
+	ra["don"] = [dict(r) for r in ds[:400]] if cint(chi_tiet) else []
+	ra["con_nua"] = 1 if (cint(chi_tiet) and len(ds) > 400) else 0
+	return ra
+
+
+@frappe.whitelist()
+def phi_book_app_xuat_excel(tu_ngay=None, den_ngay=None, app=None):
+	"""Xuat hai sheet: bang thang x app, va danh sach tung van don."""
+	if not (_la_ke_toan() or _la_sales()):
+		frappe.throw("Chỉ kế toán, thu mua hoặc sales xuất được.")
+	ds = _phi_app_quet(tu_ngay, den_ngay, app)
+	tt = _phi_app_thang(ds)
+	apps = [x["app"] for x in tt["apps"]]
+
+	bang = [
+		["PHÍ GIAO HÀNG BOOK APP"],
+		["Từ %s đến %s%s" % (tu_ngay or "đầu kỳ", den_ngay or "hôm nay",
+			(" · %s" % app) if app else "")],
+		["Chỉ tính vận đơn trạng thái Đã giao, kênh giao là app ngoài"],
+		["Số chuyến", tt["tong_don"], "Tổng phí", tt["tong_tien"],
+		 "Bình quân một chuyến", tt["bq_chung"]],
+		[],
+	]
+	tieu_de = ["Tháng"]
+	for a in apps:
+		tieu_de += [a + " - số chuyến", a + " - phí"]
+	tieu_de += ["Tổng chuyến", "Tổng phí", "Bình quân một chuyến"]
+	bang.append(tieu_de)
+	for d in tt["bang"]:
+		dong = [d["thang"]]
+		for x in d["o"]:
+			dong += [x["don"], x["tien"]]
+		dong += [d["don"], d["tien"], d["bq"]]
+		bang.append(dong)
+	cong = ["TỔNG"]
+	for a in tt["apps"]:
+		cong += [a["don"], a["tien"]]
+	cong += [tt["tong_don"], tt["tong_tien"], tt["bq_chung"]]
+	bang.append(cong)
+
+	bang.append([])
+	bang.append(["CHI TIẾT TỪNG VẬN ĐƠN"])
+	bang.append(["Mã vận đơn", "Ngày giao", "App", "Phí giao",
+		"Mã booking bên app", "Mã đơn", "Khách", "Người book", "Thu hộ COD"])
+	for r in ds:
+		bang.append([
+			r.get("name") or "", str(r.get("ngay_giao") or ""), r.get("kenh") or "",
+			flt(r.get("phi_giao")), r.get("booking_id") or "", r.get("ma_don") or "",
+			r.get("khach") or "", r.get("shipper") or "", flt(r.get("tien_thu_ho")),
+		])
+
+	import base64
+	import io
+
+	from frappe.utils.xlsxutils import make_xlsx
+
+	tep = make_xlsx(bang, "Phi book app")
+	noi_dung = tep.getvalue() if isinstance(tep, io.BytesIO) else tep
+	return {
+		"ten_file": "phi-book-app-%s-%s.xlsx" % (tu_ngay or "dau", den_ngay or nowdate()),
+		"b64": base64.b64encode(noi_dung).decode(),
+	}

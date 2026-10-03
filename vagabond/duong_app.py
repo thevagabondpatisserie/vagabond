@@ -118,6 +118,7 @@ MAN = (
 	("VD", "Vận đơn", None),
 	("CPX", "Chi phí vận đơn", None),
 	("DSCOD", "Đối soát COD", None),
+	("PHIAPP", "Phí giao hàng book app", "phi-book-app"),
 	("DS", "Doanh số", None),
 	("POS", "Bán tại quầy", None),
 	("KH", "Khách hàng", None),
