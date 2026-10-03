@@ -62,6 +62,40 @@ def cau_chan(ma, co_lo, co_so_may, khong_co):
 	return ""
 
 
+def cau_khong_phai_ao(ma, da_la_hang_ton, so_bom_rieng, so_dong_cha_ao):
+	"""Mã không tồn kho mà cũng không nằm trong luồng phantom thì dừng. THUẦN.
+
+	Codex #427 F1: mã dịch vụ, phí, hàng tiêu hao không theo dõi kho cũng có
+	is_stock_item = 0. Công cụ chỉ đảo ngược luồng phantom, nên mã phải có
+	công thức ảo của riêng nó hoặc ít nhất một dòng cha đang đánh dấu ảo.
+	"""
+	if da_la_hang_ton or so_bom_rieng or so_dong_cha_ao:
+		return ""
+	return ("Mã %s không theo dõi tồn kho nhưng cũng không phải mã ảo (không có công "
+		"thức ảo, không dòng công thức nào dùng nó dạng ảo). Công cụ chỉ bỏ ảo, "
+		"không bật tồn kho cho mã dịch vụ hay mã thường. Báo kỹ thuật nếu thật cần." % ma)
+
+
+def dung_lai_lan_luot(thu_tu, dung):
+	"""Gọi dung(ten) theo thứ tự, gom tên đã xong và tên hỏng. THUẦN (dung do bên ngoài đưa)."""
+	da, hong = [], []
+	for ten in thu_tu:
+		try:
+			dung(ten)
+			da.append(ten)
+		except Exception as e:
+			hong.append({"bom": ten, "vi_sao": str(e)[:160]})
+	return da, hong
+
+
+def cau_hong(ma, hong):
+	"""Câu báo khi dựng lại hỏng: không ghi gì cả. THUẦN."""
+	ds = "; ".join("%s (%s)" % (x["bom"], x["vi_sao"]) for x in hong[:5])
+	them = " và %d công thức nữa" % (len(hong) - 5) if len(hong) > 5 else ""
+	return ("Chưa bỏ ảo %s, máy đã quay lui, không ghi gì: dựng lại %d công thức hỏng: %s%s. "
+		"Báo kỹ thuật." % (ma, len(hong), ds, them))
+
+
 def tong_ket(ma, da_la_hang_ton, so_bom_rieng, so_dong, so_dung_lai, vuot_chan):
 	"""Một câu cho người bấm. THUẦN."""
 	if da_la_hang_ton and not (so_bom_rieng or so_dong):
@@ -130,14 +164,19 @@ def _ke_hoach(ma):
 		return {"ma": ma, "chan": chan}
 	bom_rieng = [b.name for b in frappe.get_all("BOM", filters={"item": ma, "docstatus": 1,
 		"is_active": 1, "is_phantom_bom": 1}, fields=["name"], limit_page_length=0)]
-	dong = []
+	dong, so_dong_ao = [], 0
 	for d in frappe.get_all("BOM Item", filters={"parenttype": "BOM", "item_code": ma, "docstatus": 1},
 			fields=["name", "parent", "do_not_explode", "bom_no", "is_phantom_item"], limit_page_length=0):
 		if not frappe.db.get_value("BOM", d.parent, "is_active"):
 			continue
+		if cint(d.is_phantom_item) or (d.bom_no and d.bom_no in bom_rieng):
+			so_dong_ao += 1
 		gt = viec_dong_cha(d.do_not_explode, d.bom_no, d.is_phantom_item)
 		if gt:
 			dong.append({"dong": d.name, "bom_cha": d.parent, "gt": gt})
+	chan = cau_khong_phai_ao(ma, cint(it.is_stock_item), len(bom_rieng), so_dong_ao)
+	if chan:
+		return {"ma": ma, "chan": chan}
 	cha = sorted({d["bom_cha"] for d in dong})
 	co_giao_dich = bool(frappe.db.exists("Stock Ledger Entry", {"item_code": ma})
 		or frappe.db.exists("BOM Item", {"item_code": ma, "docstatus": 1}))
@@ -173,12 +212,11 @@ def chay(ma=None, ly_do=None, chay_that=0):
 	ke = _ke_hoach(ma)
 	if ke["chan"]:
 		frappe.throw(ke["chan"])
-	# Thu tu co y: danh sach giu ton va ma hang truoc, dong cha sau. Hong giua
-	# chung thi ma da co ton ma cong thuc cha van no xuong nguyen lieu, lenh
-	# van chay duoc; nguoc lai thi cha doi ton cua mot ma chua co ton.
+	# Moi buoc deu nam trong MOT giao dich, chi commit khi dung lai het. Codex
+	# #427 F2: ban dau bat loi dung lai roi van commit, de lai ma da co ton
+	# ma cong thuc cha con bang no cu. Gio hong mot cai la quay lui het.
 	frappe.db.set_default(KHOA_GIU_TON, json.dumps(them_giu_ton(danh_sach_giu_ton(), ma)))
 	frappe.db.set_value("Item", ma, "is_stock_item", 1, update_modified=False)
-	frappe.clear_document_cache("Item", ma)
 	for b in ke["bom_rieng"]:
 		frappe.db.set_value("BOM", b, "is_phantom_bom", 0, update_modified=False)
 	for d in ke["dong"]:
@@ -190,22 +228,17 @@ def chay(ma=None, ly_do=None, chay_that=0):
 	for d in frappe.get_all("BOM Item", filters={"parenttype": "BOM", "parent": ["in", list(can)],
 			"bom_no": ["!=", ""]}, fields=["parent", "bom_no"], limit_page_length=0):
 		con_cua[d.parent].append(d.bom_no)
-	da, hong = [], []
-	for ten in thu_tu_dung_lai(con_cua):
-		try:
-			frappe.get_doc("BOM", ten).update_exploded_items(save=True)
-			da.append(ten)
-		except Exception as e:
-			hong.append({"bom": ten, "vi_sao": str(e)[:160]})
-			frappe.log_error(frappe.get_traceback(), "bo_ao: dung lai %s" % ten)
-	try:
-		frappe.get_doc("Item", ma).add_comment("Comment", "Bỏ ảo, có tồn kho trở lại. Lý do: %s" % ly_do.strip())
-	except Exception:
-		frappe.log_error(frappe.get_traceback(), "bo_ao: ghi chu")
+	da, hong = dung_lai_lan_luot(thu_tu_dung_lai(con_cua),
+		lambda ten: frappe.get_doc("BOM", ten).update_exploded_items(save=True))
+	if hong:
+		frappe.db.rollback()
+		frappe.clear_cache()
+		frappe.log_error(json.dumps(hong, ensure_ascii=False), "bo_ao: quay lui %s" % ma)
+		frappe.throw(cau_hong(ma, hong))
+	frappe.get_doc("Item", ma).add_comment("Comment", "Bỏ ảo, có tồn kho trở lại. Lý do: %s" % ly_do.strip())
 	frappe.db.commit()
+	frappe.clear_document_cache("Item", ma)
 	frappe.clear_cache()
 	ke["da_dung_lai"], ke["hong"] = da, hong
 	ke["tong_ket"] = tong_ket(ma, 0, len(ke["bom_rieng"]), len(ke["dong"]), len(da), ke["vuot_chan"])
-	if hong:
-		ke["tong_ket"] += " Có %d công thức dựng lại hỏng, báo kỹ thuật." % len(hong)
 	return ke
