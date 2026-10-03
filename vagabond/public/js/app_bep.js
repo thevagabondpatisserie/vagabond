@@ -113,7 +113,7 @@ body{-webkit-text-size-adjust:100%;font-family:-apple-system,BlinkMacSystemFont,
 .hub .hi,.li .hi{width:44px;height:44px;flex:0 0 44px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:23px;background:#E4F9FD}
 .hub .ht{flex:1;min-width:0}
 .hub .h1{font-size:16px;font-weight:600;margin-bottom:2px}
-.hub .h2{font-size:12.5px;color:#8a8f9c;line-height:1.35}
+.hub .h2{font-size:13px;color:#8a8f9c;line-height:1.35}
 .hub.chon{background:#E4F9FD}
 .hub.chon:active{background:#DBF6FB}
 /* O nhap tien nam trong mot dong danh sach. .tin la o toan man cao 52px,
@@ -1600,12 +1600,13 @@ async function scrHome() {
         card('🧾', 'Đơn mua hàng', 'Đơn đã gửi nhà cung cấp, hàng về tới đâu', 0, 'PO') +
         card('💸', 'Công nợ phải trả', 'Còn nợ nhà cung cấp nào, khoản nào quá hạn', 0, 'CNPT') +
         card('🏭', 'Danh mục nhà cung cấp', 'Hồ sơ nhà cung cấp và gán nhà cung cấp cho mặt hàng', 0, 'NCC') +
-        card('💰', 'Bảng giá mua', 'Giá mua theo đơn vị mua, máy tự quy ra giá mỗi đơn vị kho', 0, 'BGIA') +
-        /* Hai o thu cua khuon danh sach dung chung (A2 + B3). Dat canh o
-           cu de anh Viet mo hai ben doi chieu tung con so. Go di khi da
-           chac hai duong khop nhau. */
-        card('🧪', 'Đơn mua hàng (bản khung)', 'Bản dựng từ khuôn dùng chung, để đối chiếu số với bản cũ', 0, 'KHPO') +
-        card('🧪', 'Hoá đơn mua vào (bản khung)', 'Bản dựng từ khuôn dùng chung, để đối chiếu số với bản cũ', 0, 'KHHDM')
+        card('💰', 'Bảng giá mua', 'Giá mua theo đơn vị mua, máy tự quy ra giá mỗi đơn vị kho', 0, 'BGIA')
+        /* v565, anh Viet 03/10/2026: *"dong y an luon ban khung di"*.
+           Hai o KHPO va KHHDM la ban dung tu khuon danh sach dung chung,
+           dat canh o cu de doi chieu tung con so. So da khop tu lau, giu
+           lai chi lam nhan vien thu mua bam nham vao ban doi chieu. Hai
+           MAN van con trong vgbGo, ai co dia chi van mo duoc de soi; chi
+           bo cai NUT tren man Thu mua. */
       : '') +
     '</div>';
   if (apRoles) {
@@ -2043,26 +2044,109 @@ var VGB_DM = [
   { m: 'DMTHUEM', ic: '🧾', ten: 'Thuế mua vào', mo: 'Mẫu thuế áp cho hoá đơn mua' }
 ];
 
+/* ---------- Gom nhom trong tung phan he (anh Viet 03/10/2026) ----------
+
+   Anh noi: *"ben trong tat ca cac nut phan he em cho nhom lai dum anh cac
+   nut tinh nang sao cho phu hop"*. Man Ke toan co 15 o xep thanh mot cot
+   dai, Cai dat co 23 o, nen tim mot viec phai cuon va doc het tu dau.
+
+   `nhom` chi la cach XEP CHO, KHONG phai cach chan quyen. Quyen van nam o
+   `keys` va o may chu: o nao nguoi nay khong duoc xem thi khong co trong
+   VGB_HUB, nhom chua no tu rong va khong hien. Them o moi ma quen xep vao
+   nhom thi o do roi xuong nhom "Khac" o cuoi man chu KHONG bien mat - ca
+   kiem thu_gom_nhom_565.py chot dung cho nay.
+
+   Thu tu nhom theo tan suat dung: viec hang ngay len tren.
+
+   Doi chieu SAP S/4HANA: ho gom theo LOAI CHUNG TU chu khong gom theo ten
+   man, nen Xuat kho o day tach "Xuat noi bo" (Stock Transfer, hang van
+   trong nha) khoi "Xuat ra ngoai" (Goods Issue, hang roi tiem) dung nhu ho
+   chia Goods Movement. */
 var VGB_NHOM = [
   /* Đặt hàng: ai cũng vào được, vì lập yêu cầu mua nguyên vật liệu là việc
      của mọi bộ phận. Các ô có giá mua và công nợ đã tách sang Thu mua. */
-  { k: 'DH', ten: 'Đặt hàng', icon: '🛒', keys: ['Purchase', 'Transfer', 'RND', 'DNC'] },
-  { k: 'SX', ten: 'Sản xuất', icon: '🧑‍🍳', keys: ['Manufacture', 'KIT', 'MFG', 'KHSX', 'BTPO', 'CTBOM', 'TIEC'] },
+  {
+    k: 'DH', ten: 'Đặt hàng', icon: '🛒', keys: ['Purchase', 'Transfer', 'RND', 'DNC'],
+    nhom: [
+      { t: 'Xin hàng', p: 'việc hàng ngày', keys: ['Purchase', 'Transfer'] },
+      { t: 'Khác', p: '', keys: ['RND', 'DNC'] }
+    ]
+  },
+  {
+    k: 'SX', ten: 'Sản xuất', icon: '🧑‍🍳',
+    keys: ['Manufacture', 'KIT', 'MFG', 'KHSX', 'BTPO', 'CTBOM', 'TIEC'],
+    nhom: [
+      { t: 'Việc bếp hôm nay', p: '', keys: ['KIT', 'Manufacture', 'MFG'] },
+      { t: 'Kế hoạch', p: '', keys: ['KHSX', 'TIEC'] },
+      { t: 'Công thức', p: '', keys: ['CTBOM', 'BTPO'] }
+    ]
+  },
   { k: 'NK', ten: 'Nhập kho', icon: '📥', keys: ['RCV', 'NHANDC', 'NBANH'] },
-  { k: 'XK', ten: 'Xuất kho', icon: '📤', keys: ['XKH', 'XKNB', 'XKPV', 'XKD', 'XKTRA', 'XKSI'] },
+  {
+    k: 'XK', ten: 'Xuất kho', icon: '📤',
+    keys: ['XKH', 'XKNB', 'XKPV', 'XKD', 'XKTRA', 'XKSI'],
+    nhom: [
+      { t: 'Xuất nội bộ', p: 'trong nhà, không ra ngoài', keys: ['XKD', 'XKNB', 'XKPV'] },
+      { t: 'Xuất ra ngoài', p: '', keys: ['XKSI', 'XKTRA'] },
+      { t: 'Xuất bỏ', p: '', keys: ['XKH'] }
+    ]
+  },
   { k: 'KK', ten: 'Kiểm kê', icon: '🧮', keys: ['KK', 'STOCK', 'TONCHANG'] },
-  { k: 'BH', ten: 'Bán hàng', icon: '🎂', keys: ['KBD', 'KBM', 'POS', 'TQV', 'HDG', 'OTP', 'KM', 'CN', 'SOTANG', 'KH', 'DTREO', 'PHHUY', 'BNTM'] },
-  { k: 'GH', ten: 'Giao hàng', icon: '🚚', keys: ['VD', 'CPX', 'DSCOD', 'PHIAPP', 'CBTT'] },
-  { k: 'BC', ten: 'Báo cáo', icon: '📈', keys: ['BCSANG', 'BCHUB', 'BC:BC03', 'BC:BC04', 'BC:BC05', 'BC:BC08', 'BC:BC07'] },
+  {
+    k: 'BH', ten: 'Bán hàng', icon: '🎂',
+    keys: ['KBD', 'KBM', 'POS', 'TQV', 'HDG', 'OTP', 'KM', 'CN', 'SOTANG', 'KH', 'DTREO', 'PHHUY', 'BNTM'],
+    nhom: [
+      { t: 'Bán và thu tiền', p: 'việc của quầy', keys: ['POS', 'DTREO', 'BNTM'] },
+      { t: 'Bánh và tồn', p: 'đầu ngày', keys: ['KBD', 'KBM'] },
+      { t: 'Khách hàng', p: 'chăm sóc và công nợ', keys: ['TQV', 'KH', 'CN', 'SOTANG'] },
+      { t: 'Chương trình và hợp đồng', p: '', keys: ['KM', 'HDG'] },
+      { t: 'Quản lý', p: 'ít dùng', keys: ['OTP', 'PHHUY'] }
+    ]
+  },
+  {
+    k: 'GH', ten: 'Giao hàng', icon: '🚚', keys: ['VD', 'CPX', 'DSCOD', 'PHIAPP', 'CBTT'],
+    nhom: [
+      { t: 'Vận đơn', p: 'việc hàng ngày', keys: ['VD'] },
+      { t: 'Tiền giao hàng', p: 'đối soát', keys: ['DSCOD', 'PHIAPP', 'CPX', 'CBTT'] }
+    ]
+  },
+  {
+    k: 'BC', ten: 'Báo cáo', icon: '📈',
+    keys: ['BCSANG', 'BCHUB', 'BC:BC03', 'BC:BC04', 'BC:BC05', 'BC:BC08', 'BC:BC07'],
+    nhom: [
+      { t: 'Xem hàng ngày', p: '', keys: ['BCSANG', 'BCHUB'] },
+      { t: 'Doanh thu', p: '', keys: ['BC:BC03', 'BC:BC04', 'BC:BC08'] },
+      { t: 'Kiểm soát', p: '', keys: ['BC:BC05', 'BC:BC07'] }
+    ]
+  },
   /* Thu mua (anh Việt 18/08/2026): "các nút tính năng của luồng Mua hàng
      đang để chung chung khiến toàn bộ nhân viên đều nhìn thấy". Nhóm này
      nằm ngay trên Kế toán và chỉ hiện với Thu mua, Kế toán, Giám đốc.
 
      Không cần khoá riêng ở đây: các ô bên trong đều dựng có điều kiện
      coQuyenMua() trong scrHome, nên người không có quyền thì nhóm rỗng và
-     vòng lặp dưới tự bỏ qua. Chặn thật nằm ở máy chủ, quyen_phan_he.py. */
-  { k: 'TM', ten: 'Thu mua', icon: '🧾', keys: ['DUYETYC', 'PO', 'CNPT', 'NCC', 'BGIA', 'KHPO', 'KHHDM'] },
-  { k: 'KT', ten: 'Kế toán', icon: '🧮', keys: ['HDBAN', 'TRUKHO', 'HDMUA', 'DCM', 'CN', 'CNPT', 'HT', 'APPTT', 'DSTTNB', 'PAY', 'TS', 'NQ', 'BT', 'DUYETTANG', 'BC:BC05'] },
+     vòng lặp dưới tự bỏ qua. Chặn thật nằm ở máy chủ, quyen_phan_he.py.
+
+     v565: hai ô "bản khung" (KHPO, KHHDM) đã ẩn khỏi đây theo anh Việt
+     03/10/2026. Hai ô đó dựng để đối chiếu số với bản cũ, số đã khớp từ
+     lâu, giữ lại chỉ làm nhân viên thu mua bấm nhầm vào bản đối chiếu. */
+  {
+    k: 'TM', ten: 'Thu mua', icon: '🧾', keys: ['DUYETYC', 'PO', 'CNPT', 'NCC', 'BGIA'],
+    nhom: [
+      { t: 'Mua hàng', p: 'việc hàng ngày', keys: ['DUYETYC', 'PO'] },
+      { t: 'Nhà cung cấp', p: '', keys: ['NCC', 'BGIA', 'CNPT'] }
+    ]
+  },
+  {
+    k: 'KT', ten: 'Kế toán', icon: '🧮',
+    keys: ['HDBAN', 'TRUKHO', 'HDMUA', 'DCM', 'CN', 'CNPT', 'HT', 'APPTT', 'DSTTNB', 'PAY', 'TS', 'NQ', 'BT', 'DUYETTANG', 'BC:BC05'],
+    nhom: [
+      { t: 'Hoá đơn', p: 'làm hàng ngày', keys: ['HDBAN', 'TRUKHO', 'HDMUA', 'DCM', 'BC:BC05'] },
+      { t: 'Công nợ', p: 'ai nợ ai', keys: ['CN', 'CNPT'] },
+      { t: 'Chi tiền', p: 'duyệt và trả', keys: ['APPTT', 'DSTTNB', 'PAY', 'HT', 'NQ'] },
+      { t: 'Tổng hợp và tài sản', p: 'cuối tháng', keys: ['BT', 'TS', 'DUYETTANG'] }
+    ]
+  },
   /* Nhan su (anh Viet chot 01/09/2026). Nhom nay CHI hien voi quan ly, ke
      toan va giam doc - dieu kien coQuyenHRM() dung o scrHome. O "KPI cua
      toi" thi nguoc lai, ai cung vao duoc, vi do la diem cua chinh ho. */
@@ -2070,11 +2154,210 @@ var VGB_NHOM = [
   /* Danh mục nằm ngay trên Cài đặt (anh Việt chốt 18/08/2026). Khoá của
      các ô mang tiền tố DM: nên vgbGo bắt bằng MỘT nhánh tiền tố, không phải
      16 nhánh chép tay. */
-  { k: 'DM', ten: 'Danh mục', icon: '📚', keys: VGB_DM.map(function (x) { return 'DM:' + x.m; }) },
-  { k: 'KHAC', ten: 'Cài đặt', icon: '⚙️', keys: ['CDDB', 'CDKS', 'CDPT', 'CDTK', 'CDSP', 'CDMI', 'CDMU', 'CDQQ', 'CDHT', 'CDCN', 'CDKHO', 'CDTL', 'CDSE', 'NHAPSK', 'CDTB', 'CDWEB', 'PTDON', 'PTCH', 'QLND', 'QLQ', 'ACC', 'STOCK', 'TONCHANG'] }
+  {
+    k: 'DM', ten: 'Danh mục', icon: '📚',
+    keys: VGB_DM.map(function (x) { return 'DM:' + x.m; }),
+    nhom: [
+      { t: 'Sản phẩm và kho', p: '', keys: ['DM:DMSP', 'DM:DMNSP', 'DM:DMDVT', 'DM:DMQD', 'DM:DMKHO', 'DM:DMBOM'] },
+      { t: 'Nhà cung cấp và giá mua', p: '', keys: ['DM:DMNCC', 'DM:DMNNCC', 'DM:DMGIA'] },
+      { t: 'Khách hàng', p: '', keys: ['DM:DMKH', 'DM:DMNKH'] },
+      { t: 'Kế toán và thanh toán', p: '', keys: ['DM:DMPT', 'DM:DMNH', 'DM:DMTK', 'DM:DMTHUE', 'DM:DMTHUEM'] }
+    ]
+  },
+  {
+    k: 'KHAC', ten: 'Cài đặt', icon: '⚙️',
+    keys: ['CDDB', 'CDKS', 'CDPT', 'CDTK', 'CDSP', 'CDMI', 'CDMU', 'CDQQ', 'CDHT', 'CDCN', 'CDKHO', 'CDTL', 'CDSE', 'NHAPSK', 'CDTB', 'CDWEB', 'PTDON', 'PTCH', 'QLND', 'QLQ', 'ACC', 'STOCK', 'TONCHANG'],
+    nhom: [
+      { t: 'Cửa hàng và bán hàng', p: '', keys: ['CDDB', 'CDPT', 'CDQQ', 'CDHT', 'CDCN', 'CDWEB'] },
+      { t: 'Kho và sản phẩm', p: '', keys: ['CDSP', 'CDKHO', 'STOCK', 'TONCHANG', 'PTCH'] },
+      { t: 'Kế toán và ngân hàng', p: '', keys: ['CDKS', 'CDTK', 'CDSE', 'NHAPSK', 'PTDON'] },
+      { t: 'In ấn và nhắc việc', p: '', keys: ['CDMI', 'CDMU', 'CDTB', 'CDTL'] },
+      { t: 'Người dùng', p: '', keys: ['QLND', 'QLQ', 'ACC'] }
+    ]
+  }
 ];
 
 var VGB_HUB = {};
+
+/* ---------- O tim nghiep vu, o ghim, va phep chia nhom (v565) ----------
+
+   Anh Viet 03/10/2026: *"them o 'Tim kiem nghiep vu' de go la ra nut de truy
+   cap luon"* va *"them tinh nang duoc pin 5 o hay truy cap nhat cho tung user
+   duoc dung (ke toan pin gi cua ke toan hay xai)"*.
+
+   Bon ham duoi day la PHEP THUAN: khong doc DOM, khong goi mang, khong doc
+   bien toan cuc nao ngoai tham so. Lam vay de kiem thu chay that duoc trong
+   node ma khong can trinh duyet - bai hoc dieu 16 cua CLAUDE.md: do chuoi
+   trong ma nguon khong phai la kiem thu. */
+
+/* Bo dau tieng Viet de go "cong no" van ra "Cong no", "kiem ke" ra "Kiem ke".
+
+   Phai bo ca chu d gach: normalize('NFD') khong tach duoc d thanh d + dau,
+   nen "don" se khong khop "don" neu thieu dong replace cuoi. */
+function vgbBoDau(s) {
+  return String(s == null ? '' : s).toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\u0111/g, 'd');
+}
+
+/* Tim nghiep vu theo tu khoa. PHEP THUAN.
+
+   Luat: MOI tu go vao deu phai khop o dau do (ten, ten phan he, hoac mo ta),
+   nen go them tu la loc hep lai chu khong no ra. Khop trong TEN duoc diem cao
+   hon khop trong mo ta, va khop tu dau ten duoc cao nhat - go "cong no" thi
+   "Cong no phai thu" phai dung tren "Hoa don mua vao" (mo ta co chu "con no").
+
+   Khi diem bang nhau thi giu DUNG thu tu danh ba dua vao, khong xep lai theo
+   bang chu cai: thu tu danh ba la thu tu phan he tren trang chu, nguoi dung
+   quen cai do. */
+function vgbTimNghiepVu(tu, ds) {
+  var t = vgbBoDau(tu).trim().replace(/\s+/g, ' ');
+  if (t.length < 2) return [];
+  var tus = t.split(' ');
+  var ra = [];
+  for (var i = 0; i < (ds || []).length; i++) {
+    var x = ds[i];
+    var ten = vgbBoDau(x.ten), mo = vgbBoDau(x.mo), ph = vgbBoDau(x.phanHe);
+    var du = 1, diem = 0;
+    for (var j = 0; j < tus.length; j++) {
+      var w = tus[j];
+      if (ten.indexOf(w) >= 0) diem += 10;
+      else if (ph.indexOf(w) >= 0) diem += 4;
+      else if (mo.indexOf(w) >= 0) diem += 2;
+      else { du = 0; break; }
+    }
+    if (!du) continue;
+    if (ten.indexOf(t) === 0) diem += 20;
+    else if (ten.indexOf(t) > 0) diem += 8;
+    ra.push({ k: x.k, ten: x.ten, mo: x.mo, phanHe: x.phanHe, diem: diem, tt: i });
+  }
+  ra.sort(function (a, b) { return b.diem - a.diem || a.tt - b.tt; });
+  return ra;
+}
+
+/* Tran so o ghim. Dat MOT cho, ca ben Python (vagabond/ghim.py) cung dat
+   mot cho, va ca kiem doi chieu hai con so phai bang nhau. */
+var VGB_GHIM_TOI_DA = 5;
+
+/* Hai o KHONG thuoc phan he nao: Viec can lam va So tay. Chung ve rieng tren
+   trang chu, bam mot lan la vao thang.
+
+   Vi sao phai khai thanh BANG (Codex bat R2-F4 tren PR #426): truoc day hai o
+   nay viet tay thang vao chuoi HTML cua luoi, nen chung khong co trong VGB_HUB
+   va o tim khong thay. Go "so tay" ra 0 ket qua, do la mot trong hai loi vao
+   nguoi ta bam nhieu nhat. Khai mot cho roi ca luoi, o tim va o ghim cung doc
+   tu day (CLAUDE.md dieu 18).
+
+   `rieng: 1` de vong gom "o chua xep nhom nao" KHONG keo chung vao Cai dat,
+   khong thi trang chu moc them mot o So tay thu hai. */
+var VGB_O_RIENG = [
+  { k: 'VCL', ic: '\ud83d\udccc', ten: 'Vi\u1ec7c c\u1ea7n l\u00e0m',
+    mo: 'Danh s\u00e1ch phi\u1ebfu \u0111ang ch\u1edd b\u1ea1n x\u1eed l\u00fd' },
+  { k: 'SOTAY', ic: '\ud83d\udcd8', ten: 'S\u1ed5 tay',
+    mo: 'H\u01b0\u1edbng d\u1eabn d\u00f9ng app theo t\u1eebng vi\u1ec7c' }
+];
+
+/* Chuan hoa danh sach ghim: bo rong, bo trung, bo o khong con quyen xem,
+   cat con toi da nam. PHEP THUAN, `co` la mot ham hoi "o nay co dung duoc
+   khong" chu khong doc VGB_HUB thang, de kiem thu truyen vao gi cung duoc.
+
+   Giu DUNG thu tu nguoi dung xep, khong xep lai: thu tu ghim la thu tu ho
+   muon thay tren trang chu. */
+function vgbChuanGhim(ds, co) {
+  var ra = [], da = {};
+  for (var i = 0; i < (ds || []).length; i++) {
+    var k = ds[i];
+    if (!k || typeof k !== 'string' || da[k]) continue;
+    if (co && !co(k)) continue;
+    da[k] = 1;
+    ra.push(k);
+    if (ra.length >= VGB_GHIM_TOI_DA) break;
+  }
+  return ra;
+}
+
+/* Chia cac o cua mot phan he thanh nhom de ve. PHEP THUAN.
+
+   Hai viec quan trong hon ve ngoai cua no:
+
+   1. O khai trong `nhom` ma khong co trong `keys` thi KHONG ve - khong duoc
+      lam cho mot o lot vao man nay chi vi ai danh may sai mot khoa.
+   2. O co trong `keys` ma chua xep vao nhom nao thi roi xuong nhom "Khac" o
+      cuoi, KHONG bien mat. Day la cho de mat nut nhat: them nghiep vu moi
+      la viec xay ra hang tuan, con nho sua bang nhom thi khong. */
+function vgbChiaNhom(nh, co) {
+  var coKey = {}, i, k;
+  for (i = 0; i < nh.keys.length; i++) coKey[nh.keys[i]] = 1;
+  var da = {}, ra = [], dsn = nh.nhom || [];
+  for (i = 0; i < dsn.length; i++) {
+    var g = dsn[i], ks = [];
+    for (var j = 0; j < g.keys.length; j++) {
+      k = g.keys[j];
+      if (da[k] || !coKey[k]) continue;
+      da[k] = 1;
+      if (co(k)) ks.push(k);
+    }
+    if (ks.length) ra.push({ t: g.t, p: g.p || '', keys: ks });
+  }
+  var le = [];
+  for (i = 0; i < nh.keys.length; i++) {
+    k = nh.keys[i];
+    if (da[k]) continue;
+    da[k] = 1;
+    if (co(k)) le.push(k);
+  }
+  if (le.length) ra.push({ t: ra.length ? 'Kh\u00e1c' : '', p: '', keys: le });
+  return ra;
+}
+
+/* Danh ba phang moi nghiep vu dang dung duoc, de o tim doc mot cho.
+
+   Ten phan he lay tu VGB_NHOM, cung mot nguon voi luoi o lon, nen khong co
+   chuyen o tim noi "Cong no phai tra" thuoc Thu mua ma luoi lai xep cho khac.
+   O nao thuoc hai phan he (Cong no phai tra o ca Thu mua va Ke toan) thi lay
+   phan he DAU TIEN tim thay, va chi hien mot dong trong ket qua. */
+function vgbDanhBaNghiepVu() {
+  var ra = [], da = {};
+  /* Hai o rieng dung dau danh ba: chung la loi vao dung nhieu nhat tren trang
+     chu nen go ra phai thay ngay (Codex R2-F4). */
+  for (var r = 0; r < VGB_O_RIENG.length; r++) {
+    var rk = VGB_O_RIENG[r].k, ro = VGB_HUB[rk];
+    if (!ro || da[rk]) continue;
+    da[rk] = 1;
+    ra.push({ k: rk, ten: ro.ten, mo: ro.mo || '', phanHe: 'Trang ch\u1ee7' });
+  }
+  for (var i = 0; i < VGB_NHOM.length; i++) {
+    var nh = VGB_NHOM[i];
+    for (var j = 0; j < nh.keys.length; j++) {
+      var k = nh.keys[j];
+      if (da[k]) continue;
+      var o = VGB_HUB[k];
+      if (!o || !o.ten) continue;
+      da[k] = 1;
+      ra.push({ k: k, ten: o.ten, mo: o.mo || '', phanHe: nh.ten });
+    }
+  }
+  return ra;
+}
+
+/* Doc ten, mo ta va bieu tuong tu doan HTML da dung san cua tung o.
+
+   Vi sao doc lai tu HTML chu khong bat moi cho dung o phai khai them ten:
+   cac o duoc dung o BON cho khac nhau (card() trong scrHome, vgbODong(),
+   vong lap VGB_DM, va o Thanh toan noi bo gan co dieu kien). Bat bon cho khai
+   them la bon cho se lech nhau. Doc lai tu ban da dung thi o tim thay dung
+   cai chu nguoi dung dang nhin. */
+function vgbDocNhanHub() {
+  var tam = document.createElement('div');
+  for (var k in VGB_HUB) {
+    var o = VGB_HUB[k];
+    if (!o || o.ten !== undefined) continue;
+    tam.innerHTML = o.html;
+    var e1 = tam.querySelector('.h1'), e2 = tam.querySelector('.h2'), ei = tam.querySelector('.hi');
+    o.ten = e1 ? (e1.textContent || '').trim() : '';
+    o.mo = e2 ? (e2.textContent || '').trim() : '';
+    o.ic = ei ? (ei.textContent || '').trim() : '';
+  }
+}
 
 function vgbCss() {
   if (document.getElementById('vgbHubCss')) return;
@@ -2172,6 +2455,75 @@ function vgbCss() {
     '.vxgm{font-size:11px;color:#98a2b3;margin-top:2px}' +
     '.vxgt{font-size:12px;font-weight:700;color:#027a48;margin-top:3px}' +
     '.vxgt.r{color:#d92d20}' +
+    /* O tim nghiep vu va o ghim (v565). */
+    '.vgbtimw{padding:12px 12px 0}' +
+    '.vgbtim{width:100%;box-sizing:border-box;border:1.5px solid #bfe9f6;border-radius:14px;' +
+    'padding:13px 14px;font-size:16px;background:#fff;color:#101828;' +
+    '-webkit-appearance:none;appearance:none}' +
+    '.vgbtim:focus{outline:0;border-color:#50DBF2;box-shadow:0 0 0 3px rgba(80,219,242,.25)}' +
+    '.vgbkq{padding:10px 12px 0}' +
+    '.vgbkq .hub{background:#fff;border-radius:12px;margin-bottom:8px}' +
+    '.vgbtrong{padding:18px 4px;font-size:14px;color:#98a2b3;text-align:center}' +
+    /* Nut ghim trong ket qua tim: vung bam rong 40px de ngon tay khong
+       cham vao dong ben canh roi mo nham man. */
+    /* Vung bam 44 diem, dung AGENTS.md dieu 13 ("nut, chip, dong cao it nhat
+       44 diem"). Ban dau dat 40 va Codex bat tren PR #426.
+
+       `display:inline-flex` o day la lop PHONG THU, khong phai lop duy nhat.
+
+       DINH CHINH mot con so em bao sai o vong truoc: em tung bao nut nay do
+       that chi 21x19. So do lay tren trang thu CHUA nap CSS nen cua app, nen
+       luc do `.hub` khong co `display:flex` va cai span bi tinh la inline
+       that. Tren app that, `.hub{display:flex}` lam no thanh flex item va
+       trinh duyet tu blockify, nen no van du 44x44 ngay ca khi bo dong nay -
+       da do lai de chung minh. Giu dong nay de o nay khong phai dua vao viec
+       cha no tinh co la mot flex container.
+
+       Bai hoc that nam o cho khac va van dung: phep do nao chay tren mot
+       trang thieu CSS thi no do mot thu khong co that. */
+    '.vgbgb{flex:none;display:inline-flex;align-items:center;justify-content:center;' +
+    'width:44px;height:44px;text-align:center;' +
+    'border-radius:999px;background:#f2f4f7;font-size:17px;opacity:.45;cursor:pointer}' +
+    '.vgbgb.on{background:#e4f6fc;opacity:1}' +
+    '.vgbghim{background:#fff;border-radius:16px;margin:12px 12px 0;padding:12px 12px 14px;' +
+    'box-shadow:0 1px 3px rgba(16,24,40,.08)}' +
+    '.vgbgh{display:flex;align-items:center;gap:8px;margin-bottom:10px}' +
+    '.vgbgh b{flex:1;font-size:15px;color:#101828}' +
+    /* Nut "Sua ghim" / "Xong" cung phai du 44 diem (AGENTS.md dieu 13).
+       Codex bat R3-F2 tren PR #429: do that ra 82x28 va 56x28. Lan truoc em
+       chi do nut ghim va dau X nen khong thay no - phep do nao bo sot mot nut
+       thi no khong chung minh duoc gi ve nut do. Da them ca hai vao
+       do_vung_bam_566.js. */
+    '.vgbgs{flex:none;display:inline-flex;align-items:center;justify-content:center;' +
+    'min-height:44px;font-size:13px;font-weight:700;color:#667085;background:#f2f4f7;' +
+    'border-radius:9px;padding:6px 13px;cursor:pointer}' +
+    '.vgbgl{display:flex;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch}' +
+    '.vgbgo{position:relative;flex:0 0 auto;width:88px;background:#f9fafb;border:1px solid #eef0f4;' +
+    'border-radius:13px;padding:11px 6px 9px;text-align:center;cursor:pointer}' +
+    '.vgbgo:active{transform:scale(.97)}' +
+    '.vgbgi{font-size:24px;line-height:1}' +
+    /* 13 diem la san AGENTS.md dieu 13 ("chu toi thieu 13 diem"); ban dau
+       dat 11.5 cho gon o. Hai dong van vua trong o rong 88. */
+    '.vgbgn{font-size:13px;font-weight:600;color:#344054;margin-top:6px;line-height:1.25;' +
+    'max-height:34px;overflow:hidden}' +
+    /* Dau X ve nho cho khoi che mat o, nhung VUNG BAM phai du 44 diem
+       (AGENTS.md dieu 13). Noi rong bang mot lop phu trong suot: bam vao lop
+       do la trinh duyet tinh nhu bam vao chinh dau X, nen closest() van tim
+       ra data-ghim.
+
+       Dau X nam HAN TRONG o chu khong treo ra ngoai mep. Ly do do duoc tren
+       Chromium: dai o ghim cuon ngang (`overflow-x:auto`), ma trinh duyet
+       bien luon truc doc thanh `overflow-y:auto`, nen phan tran ra ngoai mep
+       o bi CAT. Khai 44x44 nhung vung bam do duoc chi 44 ngang va 29 doc.
+       Dat top/right 10px thi lop phu trai tu 0 toi 44 trong long o (o rong
+       102, cao 86), khong cham mep nao nen khong bi cat. */
+    '.vgbgx{position:absolute;top:10px;right:10px;width:24px;height:24px;line-height:24px;' +
+    'text-align:center;' +
+    'border-radius:999px;background:#d92d20;color:#fff;font-size:13px;font-weight:700;z-index:2}' +
+    '.vgbgx::after{content:"";position:absolute;top:-10px;left:-10px;width:44px;height:44px}' +
+    /* Ghi chu nho canh ten nhom trong man phan he, kieu "lam hang ngay". */
+    '.sec i{font-style:normal;font-weight:600;color:#c3c8d4;text-transform:none;' +
+    'letter-spacing:0;margin-left:7px}' +
     '.gt.vcl{grid-column:1/-1;min-height:0;flex-direction:row;align-items:center;justify-content:flex-start;gap:12px;padding-right:56px}' +
     '.gt.vcl .gi{font-size:26px}' +
     '.rcvths{display:flex;gap:10px;padding:0 12px 8px;flex-wrap:wrap}' +
@@ -2204,7 +2556,23 @@ function vgbGomNhom() {
   VGB_HUB = {};
   var body = document.getElementById('vgbBody');
   if (!body) return;
-  var rows = body.querySelectorAll('[data-go]');
+  /* Trang chu chia hai tang: o tim nam ngoai, phan thay doi nam trong #vgbDuoi.
+
+     Vi sao phai tach (Codex bat R2-F3 tren PR #426): danh ba quyen ve muon thi
+     ham nay chay lan hai va ghi de ca body, keo theo o nhap. Do duoc: dang go
+     "cong no" ra 3 ket qua, danh ba ve xong thi o trong va 0 ket qua - mat
+     nguyen thao tac dang lam. Tach ra thi luot sau khong dung toi o nhap, nen
+     khong mat chu, khong mat con tro, khong tat ban phim.
+
+     CHI doc dong nguon khi trang chu CHUA duoc gom lan nao.
+     Codex bat tren PR #426: tu v565 trang chu con co o ghim va ket qua tim,
+     ca hai deu mang [data-go]. Luot gom thu hai (vgbNapKhungCo ve muon) doc
+     phai chung va nhan nham lam dong goc, VGB_DONG_GOC tu 23 o con 1 o va
+     gan het phan he bien mat. Do duoc tren DOM gia dung mot o ghim: 23 -> 1.
+     Co .gwrap nghia la lan gom truoc da ghi de body bang luoi, nen moi
+     [data-go] dang co deu la do minh sinh ra, khong phai nguon. */
+  var daGom = !!document.getElementById('vgbDuoi');
+  var rows = daGom ? [] : body.querySelectorAll('[data-go]');
   if (rows.length) {
     VGB_DONG_GOC = {};
     for (var i = 0; i < rows.length; i++) {
@@ -2288,12 +2656,23 @@ function vgbGomNhom() {
     html: vgbODong('NHANDC', '📦', 'Hàng chuyển về kho tôi', 'Kho khác vừa chuyển gì sang bộ phận mình')
   };
 
+  /* Hai o rieng vao VGB_HUB de o tim va o ghim thay chung. Danh dau `rieng`
+     de vong gom ben duoi khong keo chung vao phan he Cai dat. */
+  for (var ri = 0; ri < VGB_O_RIENG.length; ri++) {
+    var rx = VGB_O_RIENG[ri];
+    VGB_HUB[rx.k] = {
+      cnt: 0, rieng: 1, ten: rx.ten, mo: rx.mo, ic: rx.ic,
+      html: vgbODong(rx.k, rx.ic, rx.ten, rx.mo)
+    };
+  }
+
   var daXep = {};
   for (var a = 0; a < VGB_NHOM.length; a++) {
     for (var c = 0; c < VGB_NHOM[a].keys.length; c++) daXep[VGB_NHOM[a].keys[c]] = 1;
   }
   var khac = VGB_NHOM[VGB_NHOM.length - 1];
   for (var kk in VGB_HUB) {
+    if (VGB_HUB[kk] && VGB_HUB[kk].rieng) continue;
     if (!daXep[kk] && khac.keys.indexOf(kk) < 0) khac.keys.push(kk);
   }
 
@@ -2308,12 +2687,19 @@ function vgbGomNhom() {
 
      Con so lay tu may chu, GOM SAU khi ve xong luoi, de trang chu khong
      phai cho. Chua ve xong thi o van bam duoc nhu cu. */
-  var g = '<div class="gwrap">' +
+  /* Doc ten tung o NGAY TRUOC khi ve: o tim doc danh ba tu day, va danh ba
+     phai co du moi o ma nguoi nay dung duoc, ke ca cac o may chu vua tra
+     quyen o luot gom thu hai. */
+  vgbDocNhanHub();
+
+  var g = '<div id="vgbKQ" class="vgbkq" style="display:none"></div>' +
+    '<div id="vgbGhimW"></div>' +
+    '<div class="gwrap">' +
     '<div class="gt vcl" data-nhom="VCL">' +
     '<span class="gb" id="vgbSoVCL" style="display:none"></span>' +
-    '<div class="gi">📌</div>' +
-    '<div><div class="gn">Việc cần làm</div>' +
-    '<div class="gs">' + 'Danh sách phiếu đang chờ bạn xử lý' + '</div></div></div>';
+    '<div class="gi">' + VGB_O_RIENG[0].ic + '</div>' +
+    '<div><div class="gn">' + h(VGB_O_RIENG[0].ten) + '</div>' +
+    '<div class="gs">' + h(VGB_O_RIENG[0].mo) + '</div></div></div>';
   for (var j = 0; j < VGB_NHOM.length; j++) {
     var nh = VGB_NHOM[j];
     var co = 0;
@@ -2331,12 +2717,47 @@ function vgbGomNhom() {
      rieng nhu o Viec can lam, KHONG thuoc phan he nao, de ai mo app cung
      thay va bam mot lan la vao thang, khong qua man phan he trung gian. */
   g += '<div class="gt" data-nhom="SOTAY">' +
-    '<div class="gi">📘</div>' +
-    '<div><div class="gn">Sổ tay</div>' +
-    '<div class="gs">Hướng dẫn dùng app theo từng việc</div></div></div>';
+    '<div class="gi">' + VGB_O_RIENG[1].ic + '</div>' +
+    '<div><div class="gn">' + h(VGB_O_RIENG[1].ten) + '</div>' +
+    '<div class="gs">' + h(VGB_O_RIENG[1].mo) + '</div></div></div>';
   g += '</div>';
-  body.innerHTML = g;
+  if (daGom) {
+    /* Chi thay phan duoi. O nhap va moi thu dinh toi no giu nguyen. */
+    document.getElementById('vgbDuoi').innerHTML = g;
+  } else {
+    body.innerHTML = '<div class="vgbtimw">' +
+      '<input id="vgbTim" class="vgbtim" type="search" autocomplete="off" ' +
+      'placeholder="T\u00ecm nghi\u1ec7p v\u1ee5: c\u00f4ng n\u1ee3, ki\u1ec3m k\u00ea, ph\u00ed app...">' +
+      '</div><div id="vgbDuoi">' + g + '</div>';
+    var oTim = document.getElementById('vgbTim');
+    if (oTim) {
+      oTim.oninput = function () { vgbVeTim(oTim.value); };
+      /* Ban su kien 'search' la luc nguoi dung bam dau X trong o type=search.
+         Khong nghe cai nay thi bam X xoa chu ma ket qua cu van dinh tren man. */
+      oTim.onsearch = function () { vgbVeTim(oTim.value); };
+    }
+  }
+  vgbVeGhim();
+  /* Dang go do thi ve lai ket qua theo danh ba MOI, chu khong de ket qua cu
+     nam do. Khong dung toi o nhap.
+
+     CO MOT LOP THU HAI lam cung viec nay: vgbNapGhim goi vgbVeLaiGhim, ma ham
+     do cung ve lai ket qua tim. Dot bien chi go mot trong hai thi bo kiem van
+     xanh (CLAUDE.md dieu 17c), go het ca hai thi do. Giu ca hai la co y:
+     duong trong vgbNapGhim chay sau mot nhip (bat dong bo), nen co mot
+     khoanh khac ket qua trong neu chi dua vao no. */
+  var oDangGo = document.getElementById('vgbTim');
+  if (oDangGo && oDangGo.value) vgbVeTim(oDangGo.value);
   body.onclick = function (e) {
+    /* Nut ghim va bo ghim phai doc TRUOC data-go: o ghim nam trong mot the
+       co data-go, bam vao dau X ma doc data-go truoc thi no mo man thay vi
+       bo ghim. */
+    var gh = e.target.closest('[data-ghim]');
+    if (gh) return vgbBatGhim(gh.dataset.ghim);
+    var sg = e.target.closest('[data-suaghim]');
+    if (sg) { VGB_SUA_GHIM = !VGB_SUA_GHIM; return vgbVeGhim(); }
+    var r = e.target.closest('[data-go]');
+    if (r) return vgbGo(r.dataset.go);
     var t = e.target.closest('[data-nhom]');
     if (!t) return;
     var nh = null;
@@ -2349,6 +2770,217 @@ function vgbGomNhom() {
     if (nh) vgbGo('PH:' + nh.k);
   };
   vgbDemVCL();
+  /* Don ghim NGAY SAU khi doc xong: danh ba quyen vua ve co the da bo mot vai
+     o ma nguoi ta tung ghim. */
+  vgbNapGhim().then(vgbDonGhim);
+}
+
+/* ---------- Ve o tim va o ghim (v565) ----------
+
+   Ba ham duoi day chi lo viec VE. Phan quyet dinh (tim gi, ghim duoc khong)
+   nam o bon ham thuan phia tren, de kiem thu chot luat o day ma khong phai
+   dung ca man hinh. */
+
+/* Danh sach ghim cua nguoi dang dang nhap. null nghia la CHUA hoi may chu
+   lan nao; mang rong nghia la da hoi va nguoi nay chua ghim gi. Phan biet hai
+   cai de khong hoi lai may chu moi lan ve lai trang chu. */
+var VGB_GHIM = null;
+var VGB_SUA_GHIM = false;
+/* Loi hua doc ghim, dung chung cho moi luot gom: hai luot gom chong nhau cung
+   chi hoi may chu MOT lan. */
+var VGB_GHIM_NAP = null;
+/* Loc ghim theo quyen, nhung CHI khi danh ba quyen da biet.
+
+   Codex bat R2-F2 tren PR #426: danh ba chua ve thi cac o Danh muc tam co
+   trong VGB_HUB. Loc luc do la dung; nhung neu danh ba HONG (mang loi) ma van
+   loc thi la xoa ghim cua nguoi ta chi vi mang cham. VGB_KHUNG_CO con null
+   nghia la CHUA BIET, khac han voi biet va tra ve rong. */
+function vgbLocGhim(ds) {
+  return vgbChuanGhim(ds, VGB_KHUNG_CO ? function (k) { return !!VGB_HUB[k]; } : null);
+}
+
+/* Bo khoi danh sach ghim nhung o nguoi nay THAT SU khong con quyen xem.
+
+   Do duoc tren DOM gia: ghim 5 o Danh muc roi danh ba tra ve rong thi 5 o do
+   bien mat khoi man nhung van chiem du 5 cho, bam ghim o moi chi nhan duoc
+   cau "Chi ghim duoc 5 nghiep vu, bo mot o cu roi ghim lai" trong khi khong
+   con o cu nao de bo. */
+function vgbDonGhim() {
+  if (!VGB_GHIM || !VGB_KHUNG_CO) return;
+  var con = vgbLocGhim(VGB_GHIM);
+  if (con.length === VGB_GHIM.length) return;
+  VGB_GHIM = con;
+  vgbVeLaiGhim();
+  vgbCatGhim(VGB_GHIM);
+}
+
+function vgbVeTim(tu) {
+  var kq = document.getElementById('vgbKQ');
+  if (!kq) return;
+  var luoi = document.querySelector('.gwrap');
+  var gw = document.getElementById('vgbGhimW');
+  var co = vgbBoDau(tu).trim().length >= 2;
+  /* Dang go thi an luoi o lon va khoi ghim di, de ket qua nam ngay duoi o
+     go chu khong phai cuon qua het trang chu moi thay. */
+  kq.style.display = co ? '' : 'none';
+  if (luoi) luoi.style.display = co ? 'none' : '';
+  if (gw) gw.style.display = co ? 'none' : '';
+  if (!co) { kq.innerHTML = ''; return; }
+  var ds = vgbTimNghiepVu(tu, vgbDanhBaNghiepVu());
+  if (!ds.length) {
+    kq.innerHTML = '<div class="vgbtrong">Kh\u00f4ng c\u00f3 nghi\u1ec7p v\u1ee5 n\u00e0o kh\u1edbp v\u1edbi t\u1eeb n\u00e0y.</div>';
+    return;
+  }
+  var r = '', gh = VGB_GHIM || [];
+  for (var i = 0; i < ds.length && i < 30; i++) {
+    var x = ds[i];
+    var da = gh.indexOf(x.k) >= 0;
+    /* data-go dat o CA DONG chu khong rieng khoi chu: bam vao bieu tuong
+       cung phai mo man, khong thi nguoi dung bam trung vao bieu tuong roi
+       tuong nut chet. Nut ghim nam ngoai, va duoc doc truoc trong onclick. */
+    r += '<div class="hub vgbkqd" data-go="' + h(x.k) + '">' +
+      '<div class="hi">' + ((VGB_HUB[x.k] && VGB_HUB[x.k].ic) || '\u25b8') + '</div>' +
+      '<div class="ht">' +
+      '<div class="h1">' + h(x.ten) + '</div>' +
+      '<div class="h2">' + h(x.phanHe) + (x.mo ? ' \u00b7 ' + h(x.mo) : '') + '</div></div>' +
+      '<span class="vgbgb' + (da ? ' on' : '') + '" data-ghim="' + h(x.k) + '">\ud83d\udccc</span>' +
+      '</div>';
+  }
+  kq.innerHTML = r;
+}
+
+/* Ve lai MOI cho co nut ghim: khoi ghim va ca ket qua tim dang mo.
+
+   Mot ham duy nhat chu khong di goi tung cho (CLAUDE.md dieu 18). Codex bat
+   tren PR #426: vgbNapGhim truoc day chi ve lai khoi ghim, nen ai go o tim
+   TRUOC khi may chu tra ve se thay nut ghim o trang thai tat du da ghim, bam
+   vao la BO ghim. Do duoc tren DOM gia: ghim ['CNPT'], go "cong no", bam nut
+   -> VGB_GHIM thanh []. */
+function vgbVeLaiGhim() {
+  vgbVeGhim();
+  var oTim = document.getElementById('vgbTim');
+  if (oTim && oTim.value) vgbVeTim(oTim.value);
+}
+
+function vgbVeGhim() {
+  var w = document.getElementById('vgbGhimW');
+  if (!w) return;
+  var ds = VGB_GHIM || [];
+  /* Chua ghim gi thi khoi nay AN hoan toan, khong de mot khung rong chiem
+     cho tren dau trang chu (anh Viet duyet mockup 03/10/2026). */
+  if (!ds.length) { w.innerHTML = ''; VGB_SUA_GHIM = false; return; }
+  var o = '';
+  for (var i = 0; i < ds.length; i++) {
+    var x = VGB_HUB[ds[i]];
+    if (!x) continue;
+    o += '<div class="vgbgo"' + (VGB_SUA_GHIM ? '' : ' data-go="' + h(ds[i]) + '"') + '>' +
+      (VGB_SUA_GHIM ? '<span class="vgbgx" data-ghim="' + h(ds[i]) + '">\u2715</span>' : '') +
+      '<div class="vgbgi">' + (x.ic || '\ud83d\udccc') + '</div>' +
+      '<div class="vgbgn">' + h(x.ten) + '</div></div>';
+  }
+  w.innerHTML = '<div class="vgbghim"><div class="vgbgh">' +
+    '<b>\ud83d\udccc Ghim nghi\u1ec7p v\u1ee5 hay d\u00f9ng</b>' +
+    '<span class="vgbgs" data-suaghim="1">' +
+    (VGB_SUA_GHIM ? 'Xong' : 'S\u1eeda ghim') + '</span></div>' +
+    '<div class="vgbgl">' + o + '</div></div>';
+}
+
+/* Hoi may chu danh sach ghim. Hong thi IM LANG: mot loi doc o ghim khong
+   duoc lam vo trang chu cua ca quan, va trang chu khong co o ghim van dung
+   duoc het. */
+function vgbNapGhim() {
+  if (VGB_GHIM) { vgbVeLaiGhim(); return Promise.resolve(VGB_GHIM); }
+  if (!VGB_GHIM_NAP) {
+    VGB_GHIM_NAP = api('vagabond.ghim.lay', {}).then(function (kq) {
+      VGB_GHIM = vgbLocGhim((kq && kq.ghim) || []);
+      return VGB_GHIM;
+    }, function () {
+      /* Doc hong thi BO loi hua di, khong giu lai.
+         Codex bat R3-F1 tren PR #429: ban cu giu lai loi hua da hong, nen moi
+         lan mo lai trang chu va moi lan bam ghim deu dung lai dung ket qua
+         hong do ma khong he hoi may chu nua. Do duoc: lan doc dau reject,
+         sau do mang da tot tro lai nhung van readCalls=1, pins=null,
+         saves=[]. Nghia la cau "Mo lai trang chu roi thu lai" ma chinh minh
+         hien ra cho nguoi dung LA LOI NOI SUONG - khong co duong nao hoi lai
+         tru khi tai lai ca app.
+         Bo di thi lan sau hoi lai; con trong LUC dang hoi, loi hua van nam
+         day nen nhieu luot gom chong nhau van chi hoi mot lan. */
+      VGB_GHIM_NAP = null;
+      return null;
+    });
+  }
+  return VGB_GHIM_NAP.then(function (ds) {
+    if (ds && S.stack[S.stack.length - 1] === scrHome) vgbVeLaiGhim();
+    return ds;
+  });
+}
+
+/* Cat ghim len may chu, NOI TIEP nhau chu khong song song.
+
+   Codex bat tren PR #426: moi lan bam truoc day goi api ngay, nen bam hai o
+   lien tiep la hai loi goi chay song song va co the ve nguoc thu tu. Do duoc
+   tren DOM gia voi lan dau cham 60ms, lan sau 10ms: may chu giu lai ["POS"]
+   trong khi man hien ["POS","CNPT"], mo app lan sau la mat o vua ghim.
+
+   Cach gom: moi lan cat lay mot so thu tu. Lan nao da bi lan sau vuot mat thi
+   KHONG gui nua - trang thai sau cung la cai duy nhat dang gui, va no luon
+   duoc gui sau cung vi ca day noi tiep nhau. */
+var VGB_GHIM_LUOT = 0;
+var VGB_GHIM_DAY = null;
+
+function vgbCatGhim(ds) {
+  var luot = ++VGB_GHIM_LUOT;
+  var chuoi = (VGB_GHIM_DAY || Promise.resolve()).then(function () {
+    if (luot !== VGB_GHIM_LUOT) return;
+    return api('vagabond.ghim.luu', { ghim: JSON.stringify(ds) }).catch(function () {
+      toast('Ch\u01b0a c\u1ea5t \u0111\u01b0\u1ee3c ghim l\u00ean m\u00e1y ch\u1ee7. ' +
+        'L\u1ea7n sau m\u1edf app s\u1ebd v\u1ec1 nh\u01b0 c\u0169.', 3800);
+    });
+  });
+  VGB_GHIM_DAY = chuoi;
+  return chuoi;
+}
+
+/* Bat tat ghim mot nghiep vu.
+
+   Ve TRUOC roi cat sau: nguoi dung bam phai thay ngay, khong doi mang. Cat
+   hong thi noi ro la lan sau mo app se ve nhu cu, chu khong im lang de ho
+   tuong da ghim xong. */
+async function vgbBatGhim(k) {
+  /* CHUA doc xong danh sach cu thi CHO doc xong da.
+
+     Codex bat R2-F1 tren PR #426: truoc day `(VGB_GHIM || [])` coi "chua doc"
+     la "chua ghim gi", nen bam mot o luc dang cho se cat len may chu dung mot
+     o do va XOA sach ghim cu. Do duoc: ghim san ["CNPT"], bam POS truoc khi
+     doc ve -> may chu giu ["POS"] con man hien ["CNPT"].
+
+     Doc hong thi KHONG ghi gi ca. Ghi de bang mot danh sach minh khong biet
+     la cach mat du lieu nhanh nhat.
+
+     Buoc cho nay la lop DUY NHAT giu viec do, khong co lop thu hai do phia
+     sau. Ban dau con mot co "nguoi dung da sua" trong vgbNapGhim, nhung do
+     dot bien thay no khong lam do ca nao va truy ra thi khong con duong nao
+     chay vao no: ai bam ghim cung phai qua buoc cho nay truoc. Da go di cho
+     khoi de lai mot nhanh chet (CLAUDE.md dieu 17c). */
+  if (!VGB_GHIM) {
+    await vgbNapGhim();
+    if (!VGB_GHIM) {
+      return toast('Ch\u01b0a \u0111\u1ecdc \u0111\u01b0\u1ee3c danh s\u00e1ch ghim ' +
+        't\u1eeb m\u00e1y ch\u1ee7. M\u1edf l\u1ea1i trang ch\u1ee7 r\u1ed3i th\u1eed l\u1ea1i.', 3600);
+    }
+  }
+  /* Don truoc khi tinh tran: o da mat quyen khong duoc chiem cho vo hinh. */
+  vgbDonGhim();
+  var ds = (VGB_GHIM || []).slice();
+  var i = ds.indexOf(k);
+  if (i >= 0) ds.splice(i, 1);
+  else if (ds.length >= VGB_GHIM_TOI_DA) {
+    return toast('Ch\u1ec9 ghim \u0111\u01b0\u1ee3c ' + VGB_GHIM_TOI_DA +
+      ' nghi\u1ec7p v\u1ee5. B\u1ecf m\u1ed9t \u00f4 c\u0169 r\u1ed3i ghim l\u1ea1i.', 3400);
+  } else ds.push(k);
+  VGB_GHIM = vgbLocGhim(ds);
+  vgbVeLaiGhim();
+  await vgbCatGhim(VGB_GHIM);
 }
 
 /* Hoi may chu xem nguoi nay con bao nhieu viec, roi deo len o.
@@ -2573,12 +3205,21 @@ function vgbNhomTheoKhoa(k) {
 
 function scrNhom(nh) {
   vgbCss();
-  var rows = '';
-  for (var i = 0; i < nh.keys.length; i++) {
-    var o = VGB_HUB[nh.keys[i]];
-    if (o) rows += o.html;
+  /* v565: ve theo nhom. vgbChiaNhom lo phan quyet dinh, cho nay chi ve.
+     Phan he khong khai nhom (Nhap kho, Kiem ke, Nhan su - ba o mot man) thi
+     tra ve dung mot nhom khong ten, va ve ra y het ban truoc v565. */
+  var nhom = vgbChiaNhom(nh, function (k) { return !!VGB_HUB[k]; });
+  var html = '';
+  for (var i = 0; i < nhom.length; i++) {
+    var g = nhom[i], rows = '';
+    for (var j = 0; j < g.keys.length; j++) rows += VGB_HUB[g.keys[j]].html;
+    if (g.t) {
+      html += '<div class="sec">' + h(g.t) +
+        (g.p ? '<i>' + h(g.p) + '</i>' : '') + '</div>';
+    }
+    html += '<div class="card">' + rows + '</div>';
   }
-  var body = frame(nh.ten, '<div class="card">' + rows + '</div>');
+  var body = frame(nh.ten, html);
   root.onclick = null;
   body.onclick = function (e) {
     var r = e.target.closest('[data-go]');
