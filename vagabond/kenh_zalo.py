@@ -126,10 +126,14 @@ def chon_nhom(ds, loai, chu_de):
 	return ra
 
 
-def khoa_tin(khoa_su_kien, nhom):
-	"""THUẦN: tên bản ghi chống trùng, gọn trong 140 ký tự."""
+def khoa_tin(khoa_su_kien, chat_id):
+	"""THUẦN: tên bản ghi chống trùng, gọn trong 140 ký tự.
+
+	Codex #417: khoá theo MÃ CHAT (người nhận thật), không theo tên nhóm sửa
+	được. Hai dòng trùng tên khác mã chat trước đây vấp chung một khoá nên
+	một nhóm mất tin; đổi tên nhóm cũng không làm mất tin đang hoãn."""
 	import hashlib
-	tho = "%s|%s" % (khoa_su_kien or "", nhom or "")
+	tho = "%s|%s" % (khoa_su_kien or "", str(chat_id or "").strip())
 	return "ZL-" + hashlib.sha1(tho.encode("utf-8")).hexdigest()[:24]
 
 
@@ -140,6 +144,22 @@ def doc_ket_qua(goi):
 	if isinstance(goi, dict):
 		return "Lỗi", ("Zalo báo lỗi %s: %s" % (goi.get("error_code", "?"), goi.get("description", "")))[:300]
 	return "Chưa rõ", "Zalo trả về dữ liệu lạ."
+
+
+def kiem_nhom_trung(ds):
+	"""THUẦN: lỗi nếu bảng Nhóm nhận tin có hai dòng trùng tên hoặc trùng mã chat."""
+	loi, ten, ma = [], {}, {}
+	for i, r in enumerate(ds or [], 1):
+		t = str(r.get("ten_nhom") or "").strip().lower()
+		c = str(r.get("chat_id") or "").strip()
+		if t and t in ten:
+			loi.append("dòng %s và %s cùng tên nhóm \"%s\"" % (ten[t], i, r.get("ten_nhom")))
+		if c and c in ma:
+			loi.append("dòng %s và %s cùng mã chat" % (ma[c], i))
+		ten.setdefault(t, i)
+		if c:
+			ma.setdefault(c, i)
+	return ("Bảng Nhóm nhận tin Zalo: " + "; ".join(loi) + ". Mỗi nhóm một dòng.") if loi else ""
 
 
 def doc_xac_minh(kq):
@@ -312,11 +332,11 @@ def gui_hang_doi(tin):
 	noi_dung = soan_tin(tin.get("loai"), tin.get("tieu_de"), tin.get("dong"), tin.get("link"),
 		tin.get("nguoi"), tin.get("han"))
 	for n in chon_nhom(_cac_nhom(), tin.get("loai"), tin.get("chu_de")):
-		ten = khoa_tin(tin.get("khoa") or frappe.generate_hash(length=12), n.get("ten_nhom"))
+		ten = khoa_tin(tin.get("khoa") or frappe.generate_hash(length=12), n.get("chat_id"))
 		hoan = tin.get("loai") != "canh_bao" and trong_gio_im(gio, n.get("im_tu"), n.get("im_den"))
 		try:
 			frappe.get_doc({"doctype": "Vagabond Tin Kenh", "name": ten, "khoa": ten,
-				"nhom": n.get("ten_nhom"), "chat_id": n.get("chat_id"), "loai": tin.get("loai"),
+				"nhom": n.get("ten_nhom"), "chat_id": str(n.get("chat_id")).strip(), "loai": tin.get("loai"),
 				"chu_de": tin.get("chu_de"), "noi_dung": noi_dung,
 				"kiem": tin.get("kiem") or "", "nguon": tin.get("nguon") or "",
 				"trang_thai": "Hoãn giờ im" if hoan else "Đang gửi"}).insert(ignore_permissions=True)
@@ -336,14 +356,15 @@ def gui_hang_doi(tin):
 		frappe.db.commit()
 
 
-def _nhan_lo(nhom, ma_lo):
+def _nhan_lo(chat_id, ma_lo):
 	"""Claim NGUYÊN TỬ các tin hoãn của một nhóm bằng một câu UPDATE có điều kiện.
 
 	Codex #413 P2: hai lượt xả chạy chồng thì mỗi dòng chỉ đổi được trạng thái
 	một lần (khoá dòng của MariaDB), lượt sau đọc theo ma_lo của chính mình nên
-	không thấy dòng của lượt trước. Commit TRƯỚC khi gọi Zalo."""
+	không thấy dòng của lượt trước. Commit TRƯỚC khi gọi Zalo.
+	Codex #417: nhận theo mã chat, đổi tên nhóm không làm kẹt tin hoãn."""
 	frappe.db.sql("""update `tabVagabond Tin Kenh` set trang_thai='Đang gửi gộp', ma_lo=%s
-		where nhom=%s and trang_thai='Hoãn giờ im' order by creation limit %s""", (ma_lo, nhom, LO_GOP))
+		where chat_id=%s and trang_thai='Hoãn giờ im' order by creation limit %s""", (ma_lo, chat_id, LO_GOP))
 	frappe.db.commit()
 	return frappe.get_all("Vagabond Tin Kenh", filters={"ma_lo": ma_lo},
 		fields=["name", "noi_dung", "kiem", "nguon"], order_by="creation asc", limit_page_length=LO_GOP)
@@ -359,9 +380,10 @@ def xa_gio_im():
 		return
 	gio = now_datetime().strftime("%H:%M")
 	for n in _cac_nhom():
-		if not cint(n.get("bat")) or trong_gio_im(gio, n.get("im_tu"), n.get("im_den")):
+		chat = str(n.get("chat_id") or "").strip()
+		if not cint(n.get("bat")) or not chat or trong_gio_im(gio, n.get("im_tu"), n.get("im_den")):
 			continue
-		ds = _nhan_lo(n.get("ten_nhom"), frappe.generate_hash(length=20))
+		ds = _nhan_lo(chat, frappe.generate_hash(length=20))
 		con = []
 		for r in ds:
 			if _con_can(r.get("kiem"), r.get("nguon")):
@@ -372,7 +394,7 @@ def xa_gio_im():
 		if not con:
 			continue
 		for tin, idx in chia_lo_gop([dong_gop(r.noi_dung) for r in con]):
-			tt, loi = _gui_zalo(n.get("chat_id"), tin)
+			tt, loi = _gui_zalo(chat, tin)
 			for i in idx:
 				frappe.db.set_value("Vagabond Tin Kenh", con[i].name, {
 					"trang_thai": "Đã gửi gộp" if tt == "Đã gửi" else tt, "loi": loi, "luc_gui": now_datetime()})
