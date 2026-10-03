@@ -8,7 +8,7 @@ import json
 import types
 from unittest.mock import patch
 
-from vagabond.khung.kiem_thu.nen import ca, la, dung, Doi
+from vagabond.khung.kiem_thu.nen import ca, la, dung, nem, Doi
 from vagabond import kenh_zalo as kz
 
 
@@ -247,10 +247,11 @@ class _SoGia:
 
 	def sql(self, q, tham=None):
 		if "update `tabVagabond Tin Kenh`" in q:
-			ma, nhom, gioi_han = tham
+			ma, chat, gioi_han = tham
+			assert "where chat_id=%s" in q, "claim phải theo mã chat (Codex #417)"
 			n = 0
 			for d in self.dong:
-				if d["nhom"] == nhom and d["trang_thai"] == "Hoãn giờ im" and n < gioi_han:
+				if d["chat_id"] == chat and d["trang_thai"] == "Hoãn giờ im" and n < gioi_han:
 					d["trang_thai"], d["ma_lo"] = "Đang gửi gộp", ma
 					n += 1
 			return []
@@ -272,9 +273,9 @@ class _SoGia:
 		return next(d for d in self.dong if d["name"] == ten)
 
 
-def _hoan(i, tieu_de, kiem="", nguon="", nhom_ten="Kế toán"):
+def _hoan(i, tieu_de, kiem="", nguon="", nhom_ten="Kế toán", chat_id="c1"):
 	nd = kz.soan_tin("viec", tieu_de, ["dòng phụ"], "https://erp/viec/%s" % i)
-	return {"name": "R%02d" % i, "nhom": nhom_ten, "trang_thai": "Hoãn giờ im", "noi_dung": nd,
+	return {"name": "R%02d" % i, "nhom": nhom_ten, "chat_id": chat_id, "trang_thai": "Hoãn giờ im", "noi_dung": nd,
 		"kiem": kiem, "nguon": nguon, "ma_lo": None}
 
 
@@ -489,3 +490,77 @@ def _noi_chua_ro():
 	la("testWebhook ok thì báo đã nối", kq["ok"], 1)
 	kq2, _ = _noi({"url": "u"}, bi_mat_cu="x" * 40, test=("Chưa rõ", "timeout", None))
 	la("vẫn chưa rõ thì không báo đã nối", (kq2["ok"], kq2["xac_minh"]), (0, "chua_ro"))
+
+
+# ===================================================================
+# Vòng 3 (Codex review #417 trên 4ebb73e): khoá người nhận theo mã chat,
+# sổ gửi không cho xoá.
+
+def _gui_nhom(ds_nhom, tin=None):
+	f = kz.frappe
+	goi, co = [], set()
+
+	def get_doc(d):
+		def insert(**k):
+			if d["name"] in co:
+				raise _Trung()
+			co.add(d["name"])
+		return types.SimpleNamespace(insert=insert)
+	with patch.object(kz, "_bat", lambda: 1), patch.object(kz, "_cac_nhom", lambda: ds_nhom), \
+			patch.object(kz, "_gui_zalo", lambda c, t: (goi.append(c), ("Đã gửi", ""))[1]), \
+			patch.object(kz, "_con_can", lambda k, n: True), \
+			patch.object(kz, "now_datetime", lambda: types.SimpleNamespace(strftime=lambda fmt: "10:00")), \
+			patch.object(f, "get_doc", get_doc), patch.object(f, "DuplicateEntryError", _Trung, create=True), \
+			patch.object(f.db, "commit", lambda: None, create=True), patch.object(f.db, "rollback", lambda: None, create=True), \
+			patch.object(f.db, "set_value", lambda *a: None, create=True):
+		kz.gui_hang_doi(tin or TIN)
+	return goi
+
+
+@ca("v559 #417 tái hiện Codex: hai dòng trùng tên khác mã chat đều nhận tin (trước: 1 trên 2)")
+def _trung_ten():
+	la("cả hai mã chat đều được gửi", sorted(_gui_nhom([nhom(chat_id="c1"), nhom(chat_id="c2")])), ["c1", "c2"])
+	la("cùng một mã chat hai dòng thì chỉ gửi một lần", _gui_nhom([nhom(chat_id="c1"), nhom(ten_nhom="Khác", chat_id="c1")]), ["c1"])
+	la("khoá theo mã chat, bỏ khoảng trắng", kz.khoa_tin("a:1", " c1 "), kz.khoa_tin("a:1", "c1"))
+
+
+@ca("v559 #417: đổi tên nhóm trong giờ im thì tin hoãn vẫn được xả theo mã chat")
+def _doi_ten():
+	so = _SoGia([_hoan(0, "Việc cũ", nhom_ten="Kế toán cũ", chat_id="c1")])
+	tin = _xa(so, nhom_ds=[nhom(ten_nhom="Kế toán mới", chat_id="c1")])
+	la("vẫn gửi đúng mã chat", [c for c, _ in tin], ["c1"])
+	la("dòng hoãn đã gửi gộp", so.tim("R00")["trang_thai"], "Đã gửi gộp")
+	la("nhóm thiếu mã chat thì bỏ qua, không claim", _xa(_SoGia([_hoan(1, "x")]), nhom_ds=[nhom(chat_id="")]), [])
+
+
+@ca("v559 #417: Cài đặt chặn hai dòng nhóm trùng tên hoặc trùng mã chat")
+def _kiem_trung():
+	la("không trùng", kz.kiem_nhom_trung([nhom(), nhom(ten_nhom="Kho", chat_id="c2")]), "")
+	dung("trùng tên (không phân biệt hoa thường)", "cùng tên" in kz.kiem_nhom_trung([nhom(), nhom(ten_nhom="kế toán", chat_id="c2")]))
+	dung("trùng mã chat", "cùng mã chat" in kz.kiem_nhom_trung([nhom(), nhom(ten_nhom="Kho", chat_id=" c1 ")]))
+	la("dòng chưa có mã chat không tính trùng mã", kz.kiem_nhom_trung([nhom(chat_id=""), nhom(ten_nhom="Kho", chat_id="")]), "")
+	# Chạy thật validate của Cài đặt (không dò chuỗi): lưu bảng trùng phải bị chặn.
+	from vagabond.vagabond.doctype.vagabond_settings import vagabond_settings as vs
+	from vagabond import tai_khoan_btp
+
+	class _Dong(dict):
+		def as_dict(self):
+			return dict(self)
+
+	def cai_dat(ds):
+		return types.SimpleNamespace(phu_thu=0, kitchen_lat=10.7, kitchen_lng=106.6,
+			get=lambda k: [_Dong(r) for r in ds] if k == "zalo_nhom" else None)
+	with patch.object(tai_khoan_btp, "kiem_o_cau_hinh", lambda doc: None):
+		vs.VagabondSettings.validate(cai_dat([nhom(), nhom(ten_nhom="Kho", chat_id="c2")]))
+		nem("lưu bảng trùng mã chat bị chặn", lambda: vs.VagabondSettings.validate(cai_dat([nhom(), nhom(ten_nhom="Kho")])))
+
+
+@ca("v559 #417 tái hiện Codex: sổ gửi Zalo không vai nào được xoá (bằng chứng chống trùng phải còn)")
+def _so_khong_xoa():
+	import json
+	import os
+	p = os.path.join(os.path.dirname(kz.__file__), "vagabond", "doctype", "vagabond_tin_kenh", "vagabond_tin_kenh.json")
+	d = json.load(open(p, encoding="utf-8"))
+	la("không vai nào có quyền xoá", [x["role"] for x in d["permissions"] if x.get("delete")], [])
+	la("không vai nào được sửa tay", [x["role"] for x in d["permissions"] if x.get("write")], [])
+	dung("mã chat có chỉ mục để claim", any(x["fieldname"] == "chat_id" and x.get("search_index") for x in d["fields"]))
