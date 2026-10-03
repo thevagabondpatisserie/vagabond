@@ -227,8 +227,8 @@ def _phap_ly():
 
 @ca("#432 P1: dòng Đã chọn thêm không diễn giải nhãn phụ kiện, nến số thành HTML")
 def _da_chon_them():
-    # Chuoi bam cua khach: mo hop banh, chon phu kien, bo, chon nen so. Doc #s-addsum
-    # sau tung buoc; ca R1 cu khong chon phu kien nen bo sot vung nay (Codex #432).
+    # Chuỗi bấm của khách: mở hộp bánh, chọn phụ kiện, bỏ chọn, chọn nến số. Đọc #s-addsum
+    # sau từng bước; ca R1 cũ không chọn phụ kiện nên bỏ sót vùng này (Codex #432).
     kich = r'''
 window.vgbNhan={phu_kien_91d4d0b6f:'<vgb-canary>Phụ kiện</vgb-canary>',dat_banh_909dfa9ae:'<vgb-canary>Nến</vgb-canary>'};
 TODAY[CAKES[0].sizes[0].id]=4;renderSheet(CAKES[0]);
