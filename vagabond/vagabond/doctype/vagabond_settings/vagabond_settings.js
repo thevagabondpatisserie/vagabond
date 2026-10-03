@@ -21,6 +21,22 @@ function zalo_chon(frm, cdt, cdn, truong) {
 	});
 	d.show();
 }
+function zalo_chon_nhom(frm, cdt, cdn) {
+	let ds = [];
+	try { ds = JSON.parse(frm.doc.zalo_chat_moi || '[]'); } catch (e) { ds = []; }
+	ds = ds.filter(x => String(x.loai || '').toUpperCase() === 'GROUP');
+	if (!ds.length) {
+		frappe.msgprint('Chưa có nhóm nào nhắn bot. Thêm bot vào nhóm Zalo, @nhắc bot một lần, rồi tải lại trang.');
+		return;
+	}
+	const nhan = x => (x.ten || 'Nhóm không tên') + ' (' + x.chat_id + ')';
+	frappe.prompt({ fieldname: 'nhom', fieldtype: 'Select', label: 'Nhóm Zalo', reqd: 1, options: ds.map(nhan) }, (v) => {
+		const x = ds.find(y => nhan(y) === v.nhom);
+		if (!x) return;
+		frappe.model.set_value(cdt, cdn, 'chat_id', x.chat_id);
+		if (!locals[cdt][cdn].ten_nhom) frappe.model.set_value(cdt, cdn, 'ten_nhom', x.ten || '');
+	}, 'Chọn nhóm đã nhắn bot', 'Chọn');
+}
 frappe.ui.form.on('Vagabond Kenh Zalo', {
 	form_render(frm, cdt, cdn) {
 		const g = frm.fields_dict.zalo_nhom.grid.grid_rows_by_docname[cdn];
@@ -29,6 +45,9 @@ frappe.ui.form.on('Vagabond Kenh Zalo', {
 		const khung = $(g.grid_form.wrapper);
 		if (khung.find('.zalo-chon').length) return;
 		const hang = $('<div class="zalo-chon" style="margin:8px 0;display:flex;gap:8px"></div>').prependTo(khung.find('.form-area').first().length ? khung.find('.form-area').first() : khung);
+		// v562 Codex #425: mã chat chỉ chọn từ các NHÓM đã nhắn bot, không gõ tay.
+		$('<button class="btn btn-xs btn-default"></button>').text('Chọn nhóm đã nhắn bot').appendTo(hang)
+			.on('click', () => zalo_chon_nhom(frm, cdt, cdn));
 		[['loai_tin', 'Chọn loại tin'], ['chu_de', 'Chọn chủ đề']].forEach(([f, nhan]) => {
 			$('<button class="btn btn-xs btn-default"></button>').text(nhan).appendTo(hang)
 				.on('click', () => zalo_chon(frm, cdt, cdn, f));
