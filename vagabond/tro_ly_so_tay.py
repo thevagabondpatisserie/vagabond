@@ -389,7 +389,7 @@ __init__.py hooks.py lib.py dich.py mau_chuan.py
 tro_ly.py tro_ly_so_tay.py
 """.split())
 
-KHOA_NHO = "vgb_tro_ly_so_tay_v558"
+KHOA_NHO = "vgb_tro_ly_so_tay_v560"
 
 
 def _goc():
