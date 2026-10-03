@@ -448,7 +448,29 @@ def lap_truoc_erp(hoa_don, so_tien, ngay_tra, unc=None, ghi_chu="", ma_lan=""):
         je.submit()
     je.add_comment("Comment", "Lập từ màn Công nợ phải trả: khoản đã trả trước khi lên ERP%s." % (
         ", kế toán ghi sổ luôn" if ke_toan else ", chờ kế toán duyệt"))
+    if not ke_toan:
+        # v559 (#410): báo nhóm Kế toán trên Zalo. Gửi sau commit, lỗi không chặn lưu.
+        from vagabond import kenh_zalo
+        kenh_zalo.bao("viec", "cong_no", "Khoản trả trước ERP chờ duyệt: %s" % je.name,
+            ["HĐ %s của %s" % (hd.bill_no or hd.name, hd.supplier_name),
+             "%s đ, đã trả ngày %s" % ("{:,.0f}".format(float(_so(so_tien))).replace(",", "."), str(ngay_tra)[:10]),
+             "Gửi bởi %s" % frappe.utils.get_fullname(frappe.session.user)],
+            link=frappe.utils.get_url("/cong-no-phai-tra"), khoa="cho_duyet:" + je.name,
+            nguoi="Kế toán", han="Trong ngày", kiem="cho_duyet_truoc_erp", nguon=je.name)
     return {"je": je.name, "da_ghi_so": je.docstatus == 1}
+
+
+def la_cho_duyet_truoc_erp(docstatus, user_remark):
+    """THUẦN: bút toán còn đang chờ kế toán duyệt (nháp, còn dấu luồng trả trước).
+
+    Đã ghi sổ, đã hủy, hoặc bị từ chối/rút lại (đổi sang DAU_DA_BO) là hết việc."""
+    return docstatus == 0 and str(user_remark or "").startswith(DAU_TRUOC_ERP)
+
+
+def con_cho_duyet_truoc_erp(je):
+    """v559 Codex #413: tin Zalo "chờ duyệt" hỏi lại ngay trước khi gửi."""
+    r = frappe.db.get_value("Journal Entry", je, ["docstatus", "user_remark"], as_dict=True)
+    return bool(r) and la_cho_duyet_truoc_erp(r.docstatus, r.user_remark)
 
 
 @frappe.whitelist(methods=["POST"])
