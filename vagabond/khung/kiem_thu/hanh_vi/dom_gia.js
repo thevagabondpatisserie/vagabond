@@ -192,6 +192,34 @@ Object.defineProperty(ElementGia.prototype, 'innerHTML', {
   },
 });
 
+/* `el.outerHTML`: chuoi HTML cua CHINH the do, ke ca the mo va cac the con.
+ *
+ * Vi sao can (v563): vgbGomNhom() cua trang chu doc lai cac dong [data-go] ma
+ * scrHome de lai bang `el.outerHTML`, roi xep vao nhom. Thieu thuoc tinh nay
+ * thi moi o tren trang chu thanh RONG trong DOM gia, va ca kiem se "xanh" tren
+ * mot trang chu khong co o nao - dung kieu bo kiem tu che mat loi (bai hoc
+ * 06/09/2026). Chi dien them, khong doi hanh vi cu cua tep nay.
+ */
+function trongHTML(el) {
+  if (el._html != null) return el._html;
+  var t = el._chu || '';
+  el.children.forEach(function (c) { t += c.outerHTML; });
+  return t;
+}
+
+Object.defineProperty(ElementGia.prototype, 'outerHTML', {
+  get: function () {
+    var ten = this.tagName.toLowerCase();
+    var t = '<' + ten;
+    for (var k in this.attrs) {
+      t += ' ' + k + '="' + String(this.attrs[k]).replace(/"/g, '&quot;') + '"';
+    }
+    t += '>';
+    if (VOID[ten]) return t;
+    return t + trongHTML(this) + '</' + ten + '>';
+  },
+});
+
 Object.defineProperty(ElementGia.prototype, 'textContent', {
   get: function () {
     var ra = this._chu || '';
