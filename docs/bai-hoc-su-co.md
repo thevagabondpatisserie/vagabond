@@ -1605,8 +1605,9 @@ lần đầu đếm ngoại lệ ra 0 trên 14 đột biến, tưởng bộ ki�
   commit, và có lịch 5 phút gửi bù dòng Chờ gửi quá hạn. Worker chết giữa
   chừng thì phải biết đã gọi ra ngoài chưa: đổi sang "Chưa rõ" và commit NGAY
   TRƯỚC lời gọi, nhờ vậy dòng kẹt ở trạng thái trước đó được gửi bù an toàn,
-  dòng "Chưa rõ" thì để người xem. Tắt hay gỡ người nhận thì dọn cả tin đang
-  hoãn của họ.
+  dòng "Chưa rõ" thì để người xem. Mọi đường gửi đều phải có mốc này (vòng 10
+  lộ đường gửi gộp sau giờ im còn thiếu). Tắt hay gỡ người nhận thì dọn cả tin
+  đang hoãn của họ.
 - Gốc 2, gửi trùng: hai tiến trình cùng nhận một dòng. Phòng: nhận bằng
   UPDATE có điều kiện trạng thái kèm mã lô, commit, đọc lại mã lô mới gửi.
 - Gốc 3, cài đặt bị đè: webhook ghi mã chat mới vào Vagabond Settings đọc
