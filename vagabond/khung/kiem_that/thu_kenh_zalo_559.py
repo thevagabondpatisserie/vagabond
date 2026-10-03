@@ -34,7 +34,7 @@ def _so_gui():
 			patch.object(kz, "_gui_zalo", lambda c, t: (goi.append(c), ("Đã gửi", ""))[1]), \
 			patch.object(frappe.db, "commit", lambda: None), patch.object(frappe.db, "rollback", lambda: None):
 		kz.gui_hang_doi(tin)
-		ten = kz.khoa_tin(tin["khoa"], nhom[0]["ten_nhom"])
+		ten = kz.khoa_tin(tin["khoa"], nhom[0]["chat_id"])
 		la("đã gửi một lần", goi, ["c1"])
 		la("sổ ghi đã gửi", frappe.db.get_value("Vagabond Tin Kenh", ten, "trang_thai"), "Đã gửi")
 		try:
@@ -46,14 +46,14 @@ def _so_gui():
 
 @ca("v559 #413 P2: câu UPDATE claim lô giờ im trên MariaDB thật: lượt sau không lấy lại dòng lượt trước đã nhận")
 def _claim_that():
-	nhom = "Thử claim " + uuid.uuid4().hex[:6]
+	chat = "chat-thu-" + uuid.uuid4().hex[:8]
 	for i in range(3):
 		k = "ZL-thu559-" + uuid.uuid4().hex[:12]
-		frappe.get_doc({"doctype": "Vagabond Tin Kenh", "name": k, "khoa": k, "nhom": nhom, "loai": "viec",
+		frappe.get_doc({"doctype": "Vagabond Tin Kenh", "name": k, "khoa": k, "nhom": "Thử claim", "chat_id": chat, "loai": "viec",
 			"noi_dung": "Việc %s" % i, "trang_thai": "Hoãn giờ im"}).insert(ignore_permissions=True)
 	with patch.object(frappe.db, "commit", lambda: None):
-		a = kz._nhan_lo(nhom, "lo-a-" + uuid.uuid4().hex[:8])
-		b = kz._nhan_lo(nhom, "lo-b-" + uuid.uuid4().hex[:8])
+		a = kz._nhan_lo(chat, "lo-a-" + uuid.uuid4().hex[:8])
+		b = kz._nhan_lo(chat, "lo-b-" + uuid.uuid4().hex[:8])
 	la("lượt đầu nhận đủ 3", len(a), 3)
 	la("lượt sau không nhận lại", len(b), 0)
 	la("trạng thái sau claim", sorted({frappe.db.get_value("Vagabond Tin Kenh", r.name, "trang_thai") for r in a}), ["Đang gửi gộp"])
