@@ -33,8 +33,11 @@ def _so_gui():
 	with patch.object(kz, "_bat", lambda: 1), patch.object(kz, "_cac_nhom", lambda: nhom), \
 			patch.object(kz, "_gui_zalo", lambda c, t: (goi.append(c), ("Đã gửi", ""))[1]), \
 			patch.object(frappe.db, "commit", lambda: None), patch.object(frappe.db, "rollback", lambda: None):
-		kz.gui_hang_doi(tin)
+		# Codex #425: hộp thư ghi trong giao dịch trước, rồi mới gửi theo tên dòng.
+		ds = kz._ghi_hop_thu(tin)
 		ten = kz.khoa_tin(tin["khoa"], nhom[0]["chat_id"])
+		la("hộp thư ghi Chờ gửi", (ds, frappe.db.get_value("Vagabond Tin Kenh", ten, "trang_thai")), ([ten], kz.CHO_GUI))
+		kz.gui_hang_doi(ds)
 		la("đã gửi một lần", goi, ["c1"])
 		la("sổ ghi đã gửi", frappe.db.get_value("Vagabond Tin Kenh", ten, "trang_thai"), "Đã gửi")
 		try:
