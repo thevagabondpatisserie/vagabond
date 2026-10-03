@@ -528,7 +528,7 @@ Mặt hàng ảo không có tồn nên không chuyển kho được. Bán thành
 
 **Các bước trên app**
 1. Mở Chuyển Phantom, bấm [[Bỏ ảo một mã]].
-2. Gõ mã hàng, bấm [[Xem trước]]: máy kể công thức cha nào sẽ lấy mã này từ kho.
+2. Bấm [[Chọn mã hàng]], chọn mã: máy kể công thức cha nào sẽ lấy mã này từ kho.
 3. Ghi lý do, bấm [[Bỏ ảo mã này]].
 
 **Trên Desk**: mở hồ sơ Món của mã đó, bấm [[desk:Bỏ ảo (có tồn kho trở lại)]], ghi lý do.
@@ -543,11 +543,13 @@ Mặt hàng ảo không có tồn nên không chuyển kho được. Bán thành
 **Vì sao bị chặn**
 | Máy báo | Cách gỡ |
 |---|---|
-| Mã ... đang theo lô (hoặc số máy) nên công cụ không tự bỏ ảo | Báo kỹ thuật làm tay |
+| Mã ... đang theo lô (hoặc số máy) | Báo kỹ thuật làm tay |
 | Chỉ quản lý sản xuất hoặc giám đốc mới bỏ ảo mã hàng. | Nhờ đúng người |
+| ... cũng không phải mã ảo | Mã dịch vụ, phí: không cần bỏ ảo |
+| Chưa bỏ ảo ..., máy đã quay lui | Báo kỹ thuật kèm tên công thức hỏng |
 
 **Lưu ý**
-- Mã đã từng có giao dịch kho thì ERPNext chặn đổi Quản lý tồn kho; công cụ ghi thẳng, vượt chặn (anh Việt cho phép 03/10/2026).
+- Mã đã từng có giao dịch kho thì ERPNext chặn đổi Quản lý tồn kho; công cụ ghi thẳng, vượt chặn.
 - Từ đó phải làm lệnh riêng cho mã, nhập kho rồi mới dùng cho món cha.
 - Chỉ áp từ nay, lệnh và phiếu kho đã có giữ nguyên.
 
