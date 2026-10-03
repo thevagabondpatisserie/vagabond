@@ -1750,6 +1750,9 @@ async function scrHome() {
          chi phi xe hang thang nen dua han ra ngoai (anh Viet 13/08/2026). */
       + card('⛽', 'Chi phí xăng xe - sửa xe', 'Khai chi phí, duyệt, hoàn ứng và xuất Excel theo dõi', 0, 'CPX')
       + card('💵', 'Đối soát COD', 'Tiền shipper thu hộ và nộp về cuối ngày, theo từng người', 0, 'DSCOD')
+      /* Anh Viet 03/10/2026: tien tra cho app giao ngoai truoc day chi nam
+         roi tren tung van don, khong ai cong duoc theo thang. */
+      + card('🧾', 'Phí giao hàng book app', 'Tiền trả cho Ahamove, GreenSM, BE, Grab, Lalamove theo tháng', 0, 'PHIAPP')
       + card('⚠️', 'Cảnh báo thanh toán', 'Hoá đơn thiếu hoặc sai phương thức, vận đơn treo COD nhầm', 0, 'CBTT')
       + '</div>';
   }
@@ -2049,7 +2052,7 @@ var VGB_NHOM = [
   { k: 'XK', ten: 'Xuất kho', icon: '📤', keys: ['XKH', 'XKNB', 'XKPV', 'XKD', 'XKTRA', 'XKSI'] },
   { k: 'KK', ten: 'Kiểm kê', icon: '🧮', keys: ['KK', 'STOCK', 'TONCHANG'] },
   { k: 'BH', ten: 'Bán hàng', icon: '🎂', keys: ['KBD', 'KBM', 'POS', 'TQV', 'HDG', 'OTP', 'KM', 'CN', 'SOTANG', 'KH', 'DTREO', 'PHHUY', 'BNTM'] },
-  { k: 'GH', ten: 'Giao hàng', icon: '🚚', keys: ['VD', 'CPX', 'DSCOD', 'CBTT'] },
+  { k: 'GH', ten: 'Giao hàng', icon: '🚚', keys: ['VD', 'CPX', 'DSCOD', 'PHIAPP', 'CBTT'] },
   { k: 'BC', ten: 'Báo cáo', icon: '📈', keys: ['BCSANG', 'BCHUB', 'BC:BC03', 'BC:BC04', 'BC:BC05', 'BC:BC08', 'BC:BC07'] },
   /* Thu mua (anh Việt 18/08/2026): "các nút tính năng của luồng Mua hàng
      đang để chung chung khiến toàn bộ nhân viên đều nhìn thấy". Nhóm này
@@ -2673,6 +2676,7 @@ var VGB_DUONG = {
   'phan-he-thu-mua': 'PH:TM',
   'phan-he-xuat-kho': 'PH:XK',
   'phan-quyen': 'QLQ',
+  'phi-book-app': 'PHIAPP',
   'phieu-hoan-tien': 'PHHUY',
   'phuong-thuc-thanh-toan': 'CDPT',
   'quyen-quay': 'CDQQ',
@@ -2854,6 +2858,7 @@ function vgbGo(k) {
   if (k === 'KH') return go(scrKhachHang);
   if (k === 'VD') return go(scrVanDon);
   if (k === 'CPX') return go(scrVdChiPhi);
+  if (k === 'PHIAPP') return go(scrVdPhiApp);
   if (k === 'DSCOD') return go(scrVdCod);
   if (k === 'CBTT') return go(scrCanhBaoTT);
   if (k === 'RND') return go(scrRndList);
@@ -22295,7 +22300,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '554';
+var APPVER = '557';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -23338,6 +23343,208 @@ async function scrVdTuyen() {
     } catch (e1) {}
   }, 400);
 })();
+
+/* ------------------------------------------------ Phi giao hang book app ----
+   Anh Viet 03/10/2026: gop phi tra cho cac app giao ngoai, chia theo app va
+   theo thang, co nut xuat Excel.
+
+   Pham vi anh Viet chot: CHI van don "Da giao" va CHI kenh ngoai. Don huy
+   hay giao khong duoc thi app khong thu tien; shipper noi bo khong phai tien
+   tra ra ngoai. Hai luat do nam o may chu, man nay chi ve lai.
+
+   Vi sao bang la THANG x APP chu khong phai mot danh sach don: chi Dung xem
+   man nay de biet thang nay tieu bao nhieu cho app nao, va app nao dang dat
+   len. Danh sach tung don chi mo ra khi bam vao mot o. */
+
+var paTu = null, paDen = null, paKhoang = 180, paApp = '';
+
+function paKhoangNgay() {
+  if (paTu || paDen) return { tu_ngay: paTu || '', den_ngay: paDen || today() };
+  var d = new Date(); d.setDate(d.getDate() - (paKhoang - 1));
+  return {
+    tu_ngay: d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2),
+    den_ngay: today(),
+  };
+}
+
+function paTienO(v) {
+  /* O trong thi de dau cham mo chu khong de so 0: mot bang day so 0 doc rat
+     met, ma mat nguoi ta chi can luot qua la thay thang nao app nao co chay. */
+  return v ? h(tienChuoi(v)) : '<span style="color:#c7ccd4">·</span>';
+}
+
+function paThangChu(t) {
+  var p = String(t || '').split('-');
+  return p.length === 2 ? ('Tháng ' + p[1] + '/' + p[0]) : h(t);
+}
+
+async function scrVdPhiApp() {
+  frame('Phí giao hàng book app', '<div class="emp"><div class="e1">⏳</div><div>Đang cộng phí giao...</div></div>');
+  var kq;
+  var ts = paKhoangNgay();
+  if (paApp) ts.app = paApp;
+  try { kq = await api('vagabond.van_don.phi_book_app', ts); }
+  catch (e) {
+    frame('Phí giao hàng book app', '<div class="emp"><div class="e1">⚠️</div><div>' +
+      h((e && e.message) || 'Không tải được') + '</div></div>');
+    return;
+  }
+
+  var html = '<div class="card" style="padding:10px 12px">' + kmHangChip(
+    [[30, '30 ngày'], [90, '3 tháng'], [180, '6 tháng'], [365, '1 năm']].map(function (x) {
+      return posChipNut('data-pang="' + x[0] + '"', x[1], !paTu && !paDen && paKhoang === x[0]);
+    }).join('')) + '</div>';
+  html += '<div class="card" style="padding:10px 12px;display:flex;align-items:center;gap:8px">' +
+    '<input type="date" class="hin" id="paTu" value="' + h(ts.tu_ngay) + '" style="flex:1;margin:0;min-width:0">' +
+    '<span style="color:#9aa1ad">đến</span>' +
+    '<input type="date" class="hin" id="paDen" value="' + h(ts.den_ngay) + '" max="' + today() + '" style="flex:1;margin:0;min-width:0">' +
+    '</div>';
+
+  /* Chip loc theo app. Moi chip deo so chuyen cua app do trong khoang dang
+     xem, de biet app nao dang chay nhieu ma khong phai mo bang ra dem. */
+  var demApp = {};
+  (kq.apps || []).forEach(function (a) { demApp[a.app] = a.don; });
+  var chip = posChipNut('data-paapp=""', '📚 Mọi app', !paApp);
+  (kq.app_co || []).forEach(function (a) {
+    chip += posChipNut('data-paapp="' + h(a) + '"', h(a) + (demApp[a] ? ' ' + demApp[a] : ''), paApp === a);
+  });
+  html += '<div class="card" style="padding:10px 12px">' + kmHangChip(chip) + '</div>';
+
+  html += '<div class="card" style="padding:12px">' +
+    '<div style="display:flex;gap:10px;flex-wrap:wrap">' +
+    '<div style="flex:1;min-width:92px"><div style="color:#8a909b;font-size:12px">Số chuyến</div>' +
+      '<div style="font-size:19px;font-weight:700">' + (kq.tong_don || 0) + '</div></div>' +
+    '<div style="flex:1;min-width:110px"><div style="color:#8a909b;font-size:12px">Tổng phí</div>' +
+      '<div style="font-size:19px;font-weight:700;color:#A33223">' + h(tienChuoi(kq.tong_tien) || '0') + '</div></div>' +
+    '<div style="flex:1;min-width:110px"><div style="color:#8a909b;font-size:12px">Bình quân một chuyến</div>' +
+      '<div style="font-size:19px;font-weight:700">' + h(tienChuoi(kq.bq_chung) || '0') + '</div></div>' +
+    '</div>';
+  if (kq.khong_khai_phi) {
+    /* Khong doan ho con so: chi noi ro co bao nhieu chuyen chua khai phi, de
+       nguoi doc biet tong o tren con thieu phan nao. */
+    html += '<div style="margin-top:10px;padding:8px 10px;background:#FFF6E5;border-radius:8px;font-size:13px">' +
+      '⚠️ ' + kq.khong_khai_phi + ' chuyến chưa khai phí giao. Tổng ở trên chưa gồm các chuyến này.</div>';
+  }
+  html += '</div>';
+
+  var apps = kq.apps || [];
+  if (!apps.length) {
+    html += '<div class="emp"><div class="e1">🧾</div><div>Khoảng này chưa có chuyến nào book qua app.</div></div>';
+  } else {
+    html += '<div class="card" style="padding:0;overflow-x:auto">' +
+      '<table style="width:100%;border-collapse:collapse;font-size:13px;min-width:' + (150 + apps.length * 110) + 'px">' +
+      '<thead><tr style="background:#F4F6F9">' +
+      '<th style="text-align:left;padding:9px 10px;position:sticky;left:0;background:#F4F6F9">Tháng</th>';
+    apps.forEach(function (a) {
+      html += '<th style="text-align:right;padding:9px 10px;white-space:nowrap">' + h(a.app) + '</th>';
+    });
+    html += '<th style="text-align:right;padding:9px 10px">Tổng</th></tr></thead><tbody>';
+    (kq.bang || []).forEach(function (d) {
+      html += '<tr style="border-top:1px solid #EEF0F3">' +
+        '<td style="padding:9px 10px;white-space:nowrap;position:sticky;left:0;background:#fff">' +
+        paThangChu(d.thang) + '<div style="color:#9aa1ad;font-size:11px">' + d.don + ' chuyến</div></td>';
+      d.o.forEach(function (x) {
+        html += '<td style="text-align:right;padding:9px 10px;white-space:nowrap" ' +
+          'data-pao="' + h(d.thang) + '|' + h(x.app) + '">' + paTienO(x.tien) +
+          (x.don ? '<div style="color:#9aa1ad;font-size:11px">' + x.don + ' chuyến</div>' : '') + '</td>';
+      });
+      html += '<td style="text-align:right;padding:9px 10px;font-weight:700;white-space:nowrap">' +
+        h(tienChuoi(d.tien) || '0') +
+        '<div style="color:#9aa1ad;font-size:11px;font-weight:400">bq ' + h(tienChuoi(d.bq) || '0') + '</div></td></tr>';
+    });
+    html += '<tr style="border-top:2px solid #E3E6EB;background:#FAFBFC">' +
+      '<td style="padding:9px 10px;font-weight:700;position:sticky;left:0;background:#FAFBFC">TỔNG</td>';
+    apps.forEach(function (a) {
+      html += '<td style="text-align:right;padding:9px 10px;font-weight:700;white-space:nowrap">' +
+        h(tienChuoi(a.tien) || '0') + '<div style="color:#9aa1ad;font-size:11px;font-weight:400">' +
+        a.don + ' chuyến · bq ' + h(tienChuoi(a.bq) || '0') + '</div></td>';
+    });
+    html += '<td style="text-align:right;padding:9px 10px;font-weight:700">' +
+      h(tienChuoi(kq.tong_tien) || '0') + '</td></tr></tbody></table></div>';
+    html += '<div style="padding:2px 14px 10px;color:#9aa1ad;font-size:12px">' +
+      'Bấm vào một ô để xem danh sách chuyến của tháng đó.</div>';
+  }
+
+  html += '<div class="card" style="padding:10px 12px">' +
+    '<button class="btn" id="paXuat" style="width:100%">⬇️ Xuất Excel</button></div>';
+  html += '<div style="padding:0 14px 16px;color:#9aa1ad;font-size:12px;line-height:1.5">' +
+    'Chỉ tính vận đơn đã giao xong và đặt qua app ngoài. Đơn huỷ, đơn giao không được, ' +
+    'shipper nội bộ và khách tự lấy không nằm trong bảng này.</div>';
+
+  var b = frame('Phí giao hàng book app', html);
+
+  function doiNgay() {
+    var a = document.getElementById('paTu'), c = document.getElementById('paDen');
+    paTu = (a && a.value) || null; paDen = (c && c.value) || null;
+    go(scrVdPhiApp, true);
+  }
+  var it = document.getElementById('paTu'), id2 = document.getElementById('paDen');
+  if (it) it.onchange = doiNgay;
+  if (id2) id2.onchange = doiNgay;
+
+  var bx = document.getElementById('paXuat');
+  if (bx) bx.onclick = async function () {
+    busy(true);
+    try {
+      var t2 = paKhoangNgay();
+      if (paApp) t2.app = paApp;
+      var f = await api('vagabond.van_don.phi_book_app_xuat_excel', t2);
+      busy(false);
+      bcTaiVe(f.ten_file, f.b64);
+      toast('Đã tải ' + f.ten_file);
+    } catch (e) { busy(false); baoTin((e && e.message) || 'Xuất Excel lỗi'); }
+  };
+
+  b.addEventListener('click', function (e) {
+    var ng = e.target.closest('[data-pang]');
+    if (ng) { paKhoang = +ng.getAttribute('data-pang'); paTu = null; paDen = null; return go(scrVdPhiApp, true); }
+    var ap = e.target.closest('[data-paapp]');
+    if (ap) { paApp = ap.getAttribute('data-paapp') || ''; return go(scrVdPhiApp, true); }
+    var o = e.target.closest('[data-pao]');
+    if (o) {
+      var p = (o.getAttribute('data-pao') || '').split('|');
+      if (p.length === 2) return paChiTiet(p[0], p[1]);
+    }
+  });
+}
+
+async function paChiTiet(thang, app) {
+  /* Mot thang la mot khoang ngay tron: lay ngay dau va ngay cuoi cua thang do
+     roi hoi may chu, khong cat tu bang dang hien - bang chi giu con so gop. */
+  var y = +String(thang).slice(0, 4), m = +String(thang).slice(5, 7);
+  if (!y || !m) return;
+  var cuoi = new Date(y, m, 0).getDate();
+  var tu = thang + '-01', den = thang + '-' + ('0' + cuoi).slice(-2);
+  busy(true);
+  var kq;
+  try { kq = await api('vagabond.van_don.phi_book_app', { tu_ngay: tu, den_ngay: den, app: app, chi_tiet: 1 }); }
+  catch (e) { busy(false); return baoTin((e && e.message) || 'Không tải được'); }
+  busy(false);
+  var ds = kq.don || [];
+  if (!ds.length) return baoTin(paThangChu(thang) + ' không có chuyến nào của ' + app + '.');
+  var noi = '<div style="max-height:62vh;overflow:auto">';
+  ds.forEach(function (r) {
+    noi += '<div style="padding:9px 2px;border-bottom:1px solid #EEF0F3;display:flex;gap:10px">' +
+      '<div style="flex:1;min-width:0">' +
+      '<div style="font-weight:600">' + h(r.name || '') + '</div>' +
+      '<div style="color:#8a909b;font-size:12px">' + h(String(r.ngay_giao || '').slice(0, 10)) +
+      (r.booking_id ? ' · ' + h(r.booking_id) : '') + '</div>' +
+      (r.khach ? '<div style="color:#8a909b;font-size:12px">' + h(r.khach) + '</div>' : '') +
+      '</div>' +
+      '<div style="text-align:right;white-space:nowrap;font-weight:600">' +
+      h(tienChuoi(r.phi_giao) || '0') + '</div></div>';
+  });
+  noi += '</div>';
+  if (kq.con_nua) noi += '<div style="padding:8px 2px;color:#9aa1ad;font-size:12px">Còn nữa, bảng chỉ hiện 400 chuyến đầu. Xuất Excel để xem đủ.</div>';
+  noi += '<div style="margin-top:10px;padding-top:10px;border-top:1px solid #EEF0F3;display:flex;justify-content:space-between;font-weight:700">' +
+    '<span>' + ds.length + ' chuyến</span><span>' + h(tienChuoi(kq.tong_tien) || '0') + '</span></div>';
+  /* Dung hopKhung chu khong dung baoTin: baoTin escape ca chuoi nen danh sach
+     se hien ra duoi dang chu HTML. */
+  var k = hopKhung(paThangChu(thang) + ' · ' + app, noi,
+    '<button class="btn" data-padong style="flex:1;margin:0">Đóng</button>');
+  k.box.onclick = function (e) { if (e.target.closest('.x') || e.target.closest('[data-padong]')) k.dong(); };
+  k.ov.onclick = function (e) { if (e.target === k.ov) k.dong(); };
+}
 /* ---------- Khuyen mai tren man tinh tien (anh Viet 11/08/2026) ----------
 
 Cashier chon chuong trinh, bam combo, hoac go ma voucher. So tien giam
