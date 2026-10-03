@@ -188,8 +188,12 @@ def _chuyen_ma_con_lai(kq):
 	"""Mã chặng BTP thành phần còn theo tồn, chưa có bút toán kho nào, thì
 	chuyển sang không quản tồn. Đúng việc phantom.chuyen đang làm, chạy lại
 	cho những mã lọt lưới (BTPB00024 ngày 03/09)."""
+	from vagabond.bo_ao import danh_sach_giu_ton
+
+	# v564: ma da bo ao (anh Viet chot 03/10/2026) thi de yen, khong bien ve ao.
+	giu = set(danh_sach_giu_ton())
 	for b in _cac_bom_dang_chay():
-		if b.custom_chang != CHANG_BTP:
+		if b.custom_chang != CHANG_BTP or b.item in giu:
 			continue
 		if not cint(frappe.db.get_value("Item", b.item, "is_stock_item")):
 			continue
@@ -230,7 +234,9 @@ def _gan_co_phantom(kq):
 	boms = _cac_bom_dang_chay()
 	phantom = {b.item for b in boms
 		if not cint(frappe.db.get_value("Item", b.item, "is_stock_item"))}
-	giu_ton = {b.item for b in boms if b.custom_chang in CHANG_GIU_TON}
+	from vagabond.bo_ao import danh_sach_giu_ton
+
+	giu_ton = {b.item for b in boms if b.custom_chang in CHANG_GIU_TON} | set(danh_sach_giu_ton())
 	bom_cua = {}
 	for b in boms:
 		if b.item in phantom:

@@ -328,6 +328,8 @@ CUA_NGO = {
 	],
 	# v560: tem HACCP khong can lo, trang HTML in cho ca trinh duyet lan QZ.
 	"tem_lenh.py": ["trang"],
+	# v564: bo ao mot ma hang tren app va Desk.
+	"bo_ao.py": ["chay", "xem"],
 	"thu_tien.py": ["chan_doan_ghi_so", "ghi_so_phieu_thu", "nhan_tien_ve", "soat_hinh_thuc_chua_khai", "soat_thieu_chung_tu", "tom_tat", "ung_vien_tien_ve"],
 	"don_huy.py": ["bo_qua", "dem_cho_hoan", "dem_phieu_cho", "dong_bo", "ds",
 		"ds_phieu", "tai_tep", "tao_hoan", "tim_don_de_hoan", "xem_hoan",
