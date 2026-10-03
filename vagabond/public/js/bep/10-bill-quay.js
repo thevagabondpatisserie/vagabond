@@ -815,7 +815,7 @@ async function scrPosBill(name) {
       dongX('Tên công ty', d.vgb_xhd_ten) + dongX('Mã số thuế', d.vgb_xhd_mst) +
       dongX('Địa chỉ', d.vgb_xhd_dia_chi) + dongX('Email nhận', d.vgb_xhd_email) +
       '<div style="padding:8px 0;font-size:12.5px;color:' + (daKy ? '#15803d' : '#b45309') + '">' +
-      (daKy ? '✅ Đã phát hành hoá đơn điện tử số ' + h(d.custom_hddt_so) : '⏳ Chờ 23h30 máy đẩy sang m-invoice ký và gửi email cho khách') + '</div></div>';
+      (daKy ? '✅ Đã phát hành hoá đơn điện tử số ' + h(d.custom_hddt_so) : '⏳ Máy tự xuất hoá đơn sau 4 tiếng, muộn nhất 23:00') + '</div></div>';
   } else {
     html += '<div class="card" style="padding:12px 14px;font-size:13.5px;color:#6b7280;line-height:1.6">' +
       'Khách chưa gửi thông tin xuất hoá đơn. Khách quét mã QR cuối hoá đơn giấy để tự điền (mã có hiệu lực 2 tiếng), ' +

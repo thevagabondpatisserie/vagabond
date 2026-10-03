@@ -1039,7 +1039,7 @@ function pwaGan() {
       document.head.appendChild(c);
       var t = document.createElement('meta');
       t.name = 'apple-mobile-web-app-title';
-      t.content = 'Vagabond';
+      t.content = 'ERP The Vagabond';
       document.head.appendChild(t);
     }
     if (navigator.serviceWorker) {
