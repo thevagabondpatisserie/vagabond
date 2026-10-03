@@ -51,7 +51,11 @@ duyệt" gửi nhóm Kế toán. Các tin khác thêm dần sau khi chạy ổn.
   Đã gửi gộp, Bỏ qua (đã xử lý), Lỗi, Chưa rõ.
 - Tin được ghi "Chờ gửi" cùng lúc lưu chứng từ, rồi mới gửi đi. Nếu lúc đó
   máy gửi nền trục trặc, cứ 5 phút máy tự gửi bù các dòng Chờ gửi quá 2 phút,
-  nên tin không bị mất. Nhóm đã tắt hoặc bị gỡ thì ghi "Bỏ qua".
+  nên tin không bị mất. Nhóm đã tắt hoặc bị gỡ thì ghi "Bỏ qua", kể cả tin
+  đang hoãn giờ im (bật lại nhóm không bắn tin cũ).
+- Dòng kẹt "Đang gửi" quá 10 phút nghĩa là máy dừng TRƯỚC khi gọi Zalo; máy
+  tự đưa về Chờ gửi và gửi bù. Ngay trước khi gọi Zalo máy đổi sang "Chưa rõ",
+  nên dòng kẹt "Chưa rõ" thì xem nhóm trước, máy không tự gửi lại.
 - Hết giờ im, các tin hoãn được gộp; nhiều việc thì chia thành vài tin, mỗi
   việc nằm trọn trong một tin, không việc nào bị cắt.
 - Trước khi gửi (kể cả sau giờ im) máy hỏi lại việc còn mở không. Khoản trả
