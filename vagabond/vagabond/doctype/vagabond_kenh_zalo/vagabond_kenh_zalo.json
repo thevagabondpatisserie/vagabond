@@ -31,7 +31,8 @@
    "label": "Mã chat Zalo",
    "in_list_view": 1,
    "columns": 2,
-   "description": "Chép từ ô Chat vừa nhắn bot sau khi @nhắc bot trong nhóm."
+   "description": "Mở dòng, bấm Chọn nhóm đã nhắn bot. Chỉ nhận nhóm Zalo đã @nhắc bot, không nhận chat riêng.",
+   "read_only": 1
   },
   {
    "fieldname": "loai_tin",
@@ -64,7 +65,7 @@
    "fieldname": "im_den",
    "fieldtype": "Data",
    "label": "Giờ im đến (HH:MM)",
-   "description": "Ví dụ 07:00 Dạng HH:MM, điền đủ hai đầu."
+   "description": "Ví dụ 07:00. Dạng HH:MM, điền đủ hai đầu."
   },
   {
    "fieldname": "bat",
@@ -76,7 +77,7 @@
   }
  ],
  "links": [],
- "modified": "2026-10-03 16:00:00.000000",
+ "modified": "2026-10-03 20:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Kenh Zalo",
