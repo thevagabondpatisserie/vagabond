@@ -149,7 +149,9 @@ Hàng nhập kho trước, hoá đơn về sau. Hoá đơn mua phải nối vớ
 
 **Lưu ý**
 - Không bấm [[desk:Lấy mặt hàng từ]] trên Desk: nó chép đè dòng hàng, mất dòng phí dịch vụ, phí giao hàng.
-- Nên nối trên màn Đối chiếu mua. <!-- kiểm: nút "Nối phiếu nhập kho" trên Desk: dòng nhắc trên Desk nói nút chỉ gắn, không sửa số lượng và đơn giá; màn Đối chiếu mua nói nút đó chép đè giá phiếu nhập lên hoá đơn. Chưa rõ bên nào đúng -->
+- Giá trên hoá đơn luôn là giá đúng. Nối phiếu ở đâu thì máy cũng giữ số lượng và đơn giá theo hoá đơn điện tử của nhà cung cấp, không lấy giá phiếu nhập.
+- Giá trên hoá đơn sai thì nhà cung cấp xuất hoá đơn thay thế, không sửa giá trên phiếu.
+- Nên nối trên màn Đối chiếu mua.
 - Hàng không qua kho (dịch vụ, phí ship) không có phiếu nhập: kế toán bấm [[Ghi sổ thẳng, không nối phiếu]].
 
 ## Vì sao không nối được phiếu nhập kho vào hoá đơn
@@ -358,8 +360,6 @@ Trả hàng lỗi, giao sai về nhà cung cấp, neo vào phiếu nhập gốc 
 |---|---|---|
 | 3311 | Tài khoản kho | Khi ghi sổ, ngược phiếu nhập gốc |
 
-<!-- kiểm: phiếu gốc đã có hoá đơn mua ghi sổ thì kế toán xử lý phần công nợ thế nào (hoá đơn trả hàng HDM-TRA hay cách khác), nguồn chưa nói -->
-
 **Lưu ý**
 - Phiếu ghi sổ ngay, tồn giảm cùng lúc. Không dùng Xuất huỷ cho hàng trả nhà cung cấp.
 
@@ -484,7 +484,7 @@ Ghi sổ là lúc tồn trên máy đổi theo số đếm. Máy lập phiếu �
 |---|---|---|
 | Tài khoản kho (thừa) hoặc tài khoản đối ứng (thiếu) | Bên còn lại | Khi Ghi sổ ngay |
 
-Tài khoản đối ứng máy điền sẵn tài khoản chênh lệch mặc định của công ty; Tồn đầu kỳ dùng tài khoản tạm đầu kỳ. <!-- kiểm: số tài khoản chênh lệch mặc định: dòng nhắc trên màn ghi 811, ghi chép 25/08 dùng 6328, ghi chép 01/10 ghi 632. Kế toán chốt -->
+Tài khoản đối ứng do kế toán chọn, máy chỉ gợi ý. Tồn đầu kỳ dùng tài khoản tạm đầu kỳ. Sắp có: máy nhớ lựa chọn lần trước, xác nhận hàng loạt.
 
 **Lưu ý**
 - Ghi sổ xong không sửa bằng app được. Sai thì liên hệ kế toán trưởng.

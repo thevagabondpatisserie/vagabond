@@ -337,7 +337,7 @@ Từ khoá: hoá đơn đỏ, hoá đơn VAT, xuất hoá đơn, HĐĐT, hoá đ
 | Có mã số thuế thì phải có tên pháp nhân | Điền tên pháp nhân |
 
 **Lưu ý**
-- Bill quầy nằm yên 4 tiếng là máy tự xuất hoá đơn; khách cần hoá đơn công ty thì phải có thông tin trước lúc đó. <!-- kiểm: màn bill vẫn ghi "Chờ 23h30 máy đẩy sang m-invoice", còn lịch máy chủ (từ 03/09/2026) tự ghi sổ và xuất bill quầy sau 4 tiếng nằm yên, muộn nhất chuỗi cuối ngày giờ đặt ở Cài đặt cuối ngày (mặc định 23:00); chưa rõ chữ trên màn có được sửa theo không -->
+- Bill quầy nằm yên 4 tiếng là máy tự xuất hoá đơn, muộn nhất 23:00; khách cần hoá đơn công ty thì phải có thông tin trước lúc đó. Màn bill ghi đúng câu này.
 - Mỗi đơn một hoá đơn VAT riêng, không gộp đơn.
 - Hoá đơn đã phát hành mà sai thông tin: không tự sửa, liên hệ kế toán trưởng.
 

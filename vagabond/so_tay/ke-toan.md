@@ -735,6 +735,6 @@ Chứng từ của ngày đã khoá thì không ghi sổ, không huỷ, không s
 | Chỉ kế toán trưởng hoặc giám đốc mới đụng được vào khoá sổ. | Nhờ đúng người |
 
 **Lưu ý**
-- Cần sửa thật một tờ cũ thì kế toán trưởng mở khoá riêng tờ đó, máy ghi lý do và tên người mở. <!-- kiểm: mã máy chủ có phép mở khoá và đóng khoá riêng một tờ (bắt buộc ghi lý do), nhưng không thấy nút nào trên app hay mã Desk trong repo gọi tới; chưa rõ người dùng bấm ở đâu. -->
+- Cần sửa thật một tờ cũ thì kế toán trưởng mở khoá riêng tờ đó, máy ghi lý do và tên người mở. Anh Việt chốt 03/10/2026: nút Mở khoá sẽ có trên cả app và Desk; phần này đang làm, trong lúc chờ báo kỹ thuật.
 - Thẻ đỏ "Đang có ... hoá đơn được mở khoá" nhắc sửa xong phải đóng lại.
 - Danh sách loại chứng từ áp dụng ghi ở cuối màn.
