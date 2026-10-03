@@ -73,5 +73,28 @@ function moiTruong() {
   assert(m.ghi.in[1].indexOf('lenh=WO-2') > 0 && m.ghi.in[1].indexOf('n=3') > 0, m.ghi.in[1]);
   assert.strictEqual(m.ghi.lo, 0, 'khong duoc tao hay doc lo');
   assert(!m.ghi.toast.some(function (t) { return /chưa bật theo dõi lô/.test(t); }));
-  console.log('PASS 3 ca tem khong lo: man tem dong Ngay, giu duong co lo, in ca nhom theo lenh');
+  // 4. Codex #421: duong in ngam QZ cat moi con tem thanh mot trang rieng
+  var src27 = fs.readFileSync(path.resolve(__dirname, '..', '..', '..', 'public', 'js', 'bep', '27-in-ngam.js'), 'utf8');
+  var dau = src27.indexOf('async function inToTuDuongDan(');
+  var i0 = src27.indexOf('{', dau), sau = 0, het = -1;
+  for (var j = i0; j < src27.length; j++) { if (src27[j] === '{') sau++; else if (src27[j] === '}') { sau--; if (!sau) { het = j + 1; break; } } }
+  function chayQz(kho) {
+    var trang = [], cat = [];
+    var c = { console: console, Number: Number, window: { open: function () {} }, toast: function () {},
+      IN_QZ: { tuyen: { dpi: 203 } }, inChonMay: function () { return 'Xprinter'; },
+      inKho: function () { return kho; }, inCauHinh: function (m, r, cao) { return { cao: cao }; },
+      inChupRaster: async function (a, b, c2, d, catTheo) { cat.push(catTheo || ''); return catTheo ? ['t1', 't2', 't3'] : 'mot-dai'; },
+      qz: { print: async function (cfg, xap) { trang.push({ cao: cfg.cao, n: xap.length }); } } };
+    vm.createContext(c); vm.runInContext(src27.slice(dau, het), c);
+    return c.inToTuDuongDan('tem', 'Tem HACCP', '/api/method/vagabond.tem_lenh.trang?ma=TP001&n=3&trigger_print=1', 62, null)
+      .then(function () { return { trang: trang, cat: cat }; });
+  }
+  var q = await chayQz({ rong: 62, cao: 45 });
+  assert.strictEqual(q.cat[0], '.tem', 'phai cat theo the .tem');
+  assert.strictEqual(q.trang[0].n, 3, '3 tem phai la 3 trang QZ, duoc ' + q.trang[0].n);
+  assert.strictEqual(q.trang[0].cao, 45, 'moi trang cao dung con tem');
+  q = await chayQz({ rong: 80, cuon: 1 });
+  assert.strictEqual(q.trang[0].n, 1, 'giay cuon giu mot dai');
+  assert.strictEqual(q.trang[0].cao, 0);
+  console.log('PASS 4 ca tem khong lo: man tem dong Ngay, giu duong co lo, in ca nhom theo lenh, QZ moi tem mot trang');
 })().catch(function (e) { console.error(e); process.exitCode = 1; });
