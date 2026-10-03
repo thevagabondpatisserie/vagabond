@@ -71,6 +71,8 @@ duyệt" gửi nhóm Kế toán. Các tin khác thêm dần sau khi chạy ổn.
   kết nối) thì chắc chắn chưa gửi: máy đưa tin về Chờ gửi (tin hoãn thì về
   Hoãn giờ im) và tự gửi lại khi mạng có lại.
 - Zalo lỗi không bao giờ chặn lưu chứng từ.
+- Nối bot báo "Chưa kiểm được token vì Zalo đang không trả lời ổn định": token
+  vẫn có thể đúng, đừng đổi; bấm Nối Zalo Bot lại sau ít phút.
 - Nối bot báo bot "chưa được phép vào nhóm": vào bot.zaloplatforms.com bật
   quyền tham gia nhóm cho bot rồi bấm Nối Zalo Bot lại. Zalo ghi nhóm của bot
   đang ở giai đoạn thử (Beta).
