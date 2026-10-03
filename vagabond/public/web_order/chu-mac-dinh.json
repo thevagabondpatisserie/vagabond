@@ -1,0 +1,2546 @@
+{
+  "dat_banh_e63be2e31": {
+    "ten": "Ảnh cận cảnh",
+    "nhom": "dat_banh",
+    "mac_dinh": "Ảnh cận cảnh",
+    "nhieu_dong": true
+  },
+  "dat_banh_528886d0a": {
+    "ten": "Ảnh mặt cắt",
+    "nhom": "dat_banh",
+    "mac_dinh": "Ảnh mặt cắt",
+    "nhieu_dong": true
+  },
+  "dat_banh_19f93b2f5": {
+    "ten": "Ảnh chi tiết",
+    "nhom": "dat_banh",
+    "mac_dinh": "Ảnh chi tiết",
+    "nhieu_dong": true
+  },
+  "dat_banh_0b6583e53": {
+    "ten": "Ảnh đóng gói",
+    "nhom": "dat_banh",
+    "mac_dinh": "Ảnh đóng gói",
+    "nhieu_dong": true
+  },
+  "dat_banh_1b5f65383": {
+    "ten": "Bánh ra lò mỗi sáng",
+    "nhom": "dat_banh",
+    "mac_dinh": "Bánh ra lò mỗi sáng",
+    "nhieu_dong": true
+  },
+  "dat_banh_623513a9e": {
+    "ten": "Đặt trước 2 ngày là tốt nhất",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đặt trước 2 ngày là tốt nhất",
+    "nhieu_dong": true
+  },
+  "dat_banh_168ae5afd": {
+    "ten": "Bếp cần 4 tiếng chuẩn bị",
+    "nhom": "dat_banh",
+    "mac_dinh": "Bếp cần 4 tiếng chuẩn bị",
+    "nhieu_dong": true
+  },
+  "dat_banh_74cfc1c1f": {
+    "ten": "Số lượng cập nhật theo thời gian thực",
+    "nhom": "dat_banh",
+    "mac_dinh": "Số lượng cập nhật theo thời gian thực",
+    "nhieu_dong": true
+  },
+  "dat_banh_0048b6a40": {
+    "ten": "Hôm nay",
+    "nhom": "dat_banh",
+    "mac_dinh": "Hôm nay",
+    "nhieu_dong": true
+  },
+  "dat_banh_b2d702504": {
+    "ten": "Ngày mai",
+    "nhom": "dat_banh",
+    "mac_dinh": "Ngày mai",
+    "nhieu_dong": true
+  },
+  "dat_banh_053152152": {
+    "ten": "Tạm hết",
+    "nhom": "dat_banh",
+    "mac_dinh": "Tạm hết",
+    "nhieu_dong": true
+  },
+  "dat_banh_65a87a844": {
+    "ten": "Chỉ còn",
+    "nhom": "dat_banh",
+    "mac_dinh": "Chỉ còn",
+    "nhieu_dong": true
+  },
+  "dat_banh_9c6b482c5": {
+    "ten": "Còn hàng",
+    "nhom": "dat_banh",
+    "mac_dinh": "Còn hàng",
+    "nhieu_dong": true
+  },
+  "dat_banh_8b2c2134b": {
+    "ten": "chưa gồm phí giao",
+    "nhom": "gio_hang",
+    "mac_dinh": "chưa gồm phí giao",
+    "nhieu_dong": true
+  },
+  "dat_banh_7cdc938e9": {
+    "ten": "Đơn này được miễn phí giao",
+    "nhom": "gio_hang",
+    "mac_dinh": "Đơn này được miễn phí giao",
+    "nhieu_dong": true
+  },
+  "dat_banh_d6d862911": {
+    "ten": "Miễn phí giao cho đơn từ",
+    "nhom": "gio_hang",
+    "mac_dinh": "Miễn phí giao cho đơn từ",
+    "nhieu_dong": true
+  },
+  "dat_banh_06a446f5c": {
+    "ten": "Phí giao",
+    "nhom": "gio_hang",
+    "mac_dinh": "Phí giao",
+    "nhieu_dong": true
+  },
+  "dat_banh_750c8c2d4": {
+    "ten": "Tự lấy, không tính phí",
+    "nhom": "gio_hang",
+    "mac_dinh": "Tự lấy, không tính phí",
+    "nhieu_dong": true
+  },
+  "dat_banh_de995d836": {
+    "ten": "Tổng",
+    "nhom": "gio_hang",
+    "mac_dinh": "Tổng",
+    "nhieu_dong": true
+  },
+  "dat_banh_18b7b9c03": {
+    "ten": "Miễn phí giao",
+    "nhom": "gio_hang",
+    "mac_dinh": "Miễn phí giao",
+    "nhieu_dong": true
+  },
+  "dat_banh_c78196e46": {
+    "ten": "Phí giao dự kiến",
+    "nhom": "gio_hang",
+    "mac_dinh": "Phí giao dự kiến",
+    "nhieu_dong": true
+  },
+  "dat_banh_d38ede0d6": {
+    "ten": "Tạm tính, theo phí dự kiến",
+    "nhom": "gio_hang",
+    "mac_dinh": "Tạm tính, theo phí dự kiến",
+    "nhieu_dong": true
+  },
+  "dat_banh_a3dc0c8d7": {
+    "ten": "Chúng tôi báo phí khi xác nhận",
+    "nhom": "gio_hang",
+    "mac_dinh": "Chúng tôi báo phí khi xác nhận",
+    "nhieu_dong": true
+  },
+  "dat_banh_a68e4733f": {
+    "ten": "Tạm tính, chưa gồm phí giao",
+    "nhom": "gio_hang",
+    "mac_dinh": "Tạm tính, chưa gồm phí giao",
+    "nhieu_dong": true
+  },
+  "dat_banh_05ba51b4a": {
+    "ten": "Chọn khu vực hoặc nhập địa chỉ",
+    "nhom": "gio_hang",
+    "mac_dinh": "Chọn khu vực hoặc nhập địa chỉ",
+    "nhieu_dong": true
+  },
+  "dat_banh_9c4a42cb2": {
+    "ten": "cập nhật",
+    "nhom": "dat_banh",
+    "mac_dinh": "cập nhật",
+    "nhieu_dong": true
+  },
+  "dat_banh_8a6c6356d": {
+    "ten": "1 cỡ",
+    "nhom": "dat_banh",
+    "mac_dinh": "1 cỡ",
+    "nhieu_dong": true
+  },
+  "dat_banh_3556aabb5": {
+    "ten": "bánh",
+    "nhom": "san_pham",
+    "mac_dinh": "bánh",
+    "nhieu_dong": true
+  },
+  "dat_banh_c826c3782": {
+    "ten": "từ",
+    "nhom": "dat_banh",
+    "mac_dinh": "từ",
+    "nhieu_dong": true
+  },
+  "dat_banh_00b018c50": {
+    "ten": "Xem chi tiết →",
+    "nhom": "dat_banh",
+    "mac_dinh": "Xem chi tiết →",
+    "nhieu_dong": true
+  },
+  "dat_banh_342df54b8": {
+    "ten": "Đơn trong ngày cần trước",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đơn trong ngày cần trước",
+    "nhieu_dong": true
+  },
+  "dat_banh_ebdea35ca": {
+    "ten": "{gia_tri_a} tiếng",
+    "nhom": "dat_banh",
+    "mac_dinh": "{gia_tri_a} tiếng",
+    "nhieu_dong": true
+  },
+  "dat_banh_473907822": {
+    "ten": "Đơn cho ngày mai chỉ nhận",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đơn cho ngày mai chỉ nhận",
+    "nhieu_dong": true
+  },
+  "dat_banh_5d91a62f2": {
+    "ten": "từ {gia_tri_a}h trở đi",
+    "nhom": "dat_banh",
+    "mac_dinh": "từ {gia_tri_a}h trở đi",
+    "nhieu_dong": true
+  },
+  "dat_banh_5551ce67c": {
+    "ten": ", vì bếp cần thời gian chuẩn bị nguyên liệu.",
+    "nhom": "dat_banh",
+    "mac_dinh": ", vì bếp cần thời gian chuẩn bị nguyên liệu.",
+    "nhieu_dong": true
+  },
+  "dat_banh_62b9a66ce": {
+    "ten": "Đặt trước từ 2 ngày là",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đặt trước từ 2 ngày là",
+    "nhieu_dong": true
+  },
+  "dat_banh_dcc009366": {
+    "ten": "tốt nhất",
+    "nhom": "dat_banh",
+    "mac_dinh": "tốt nhất",
+    "nhieu_dong": true
+  },
+  "dat_banh_223f30099": {
+    "ten": ", bếp chủ động được nguyên liệu và quý khách chọn được mọi khung giờ.",
+    "nhom": "dat_banh",
+    "mac_dinh": ", bếp chủ động được nguyên liệu và quý khách chọn được mọi khung giờ.",
+    "nhieu_dong": true
+  },
+  "dat_banh_c3baf86a6": {
+    "ten": "Nhận bánh",
+    "nhom": "dat_banh",
+    "mac_dinh": "Nhận bánh",
+    "nhieu_dong": true
+  },
+  "dat_banh_685100bce": {
+    "ten": "Danh mục đặt trước đang được bếp cập nhật, quý khách quay lại sau chút xíu",
+    "nhom": "dat_banh",
+    "mac_dinh": "Danh mục đặt trước đang được bếp cập nhật, quý khách quay lại sau chút xíu",
+    "nhieu_dong": true
+  },
+  "dat_banh_786f9ed52": {
+    "ten": "Đặt trước · bếp làm theo đơn",
+    "nhom": "san_pham",
+    "mac_dinh": "Đặt trước · bếp làm theo đơn",
+    "nhieu_dong": true
+  },
+  "dat_banh_f84afdac6": {
+    "ten": "Tầng hương",
+    "nhom": "san_pham",
+    "mac_dinh": "Tầng hương",
+    "nhieu_dong": true
+  },
+  "dat_banh_17a765496": {
+    "ten": "lớp vị",
+    "nhom": "san_pham",
+    "mac_dinh": "lớp vị",
+    "nhieu_dong": true
+  },
+  "dat_banh_b96013446": {
+    "ten": "Mô tả và tầng hương lớp vị của món này đang được cập nhật.",
+    "nhom": "san_pham",
+    "mac_dinh": "Mô tả và tầng hương lớp vị của món này đang được cập nhật.",
+    "nhieu_dong": true
+  },
+  "dat_banh_909dfa9ae": {
+    "ten": "Nến số",
+    "nhom": "san_pham",
+    "mac_dinh": "Nến số",
+    "nhieu_dong": true
+  },
+  "dat_banh_21e08aca8": {
+    "ten": "Số trên bánh",
+    "nhom": "san_pham",
+    "mac_dinh": "Số trên bánh",
+    "nhieu_dong": true
+  },
+  "dat_banh_82339c0a8": {
+    "ten": "Xoá",
+    "nhom": "san_pham",
+    "mac_dinh": "Xoá",
+    "nhieu_dong": true
+  },
+  "dat_banh_16dd7180d": {
+    "ten": "Bấm lần lượt từng số, ví dụ bấm 2 rồi 6 được số 26.",
+    "nhom": "san_pham",
+    "mac_dinh": "Bấm lần lượt từng số, ví dụ bấm 2 rồi 6 được số 26.",
+    "nhieu_dong": true
+  },
+  "dat_banh_fc2a93d57": {
+    "ten": "Đã chọn thêm:",
+    "nhom": "san_pham",
+    "mac_dinh": "Đã chọn thêm:",
+    "nhieu_dong": true
+  },
+  "dat_banh_b6d0a562d": {
+    "ten": "· cộng thêm",
+    "nhom": "san_pham",
+    "mac_dinh": "· cộng thêm",
+    "nhieu_dong": true
+  },
+  "dat_banh_04267831d": {
+    "ten": "Size này chỉ còn nhận {gia_tri_a} bánh trong 3 ngày tới. Cần nhiều hơn quý khách gọi 0931 224 334",
+    "nhom": "dat_banh",
+    "mac_dinh": "Size này chỉ còn nhận {gia_tri_a} bánh trong 3 ngày tới. Cần nhiều hơn quý khách gọi 0931 224 334",
+    "nhieu_dong": true
+  },
+  "dat_banh_9bebfe783": {
+    "ten": "Thêm 1 bánh nữa, giỏ có {gia_tri_a} bánh",
+    "nhom": "dat_banh",
+    "mac_dinh": "Thêm 1 bánh nữa, giỏ có {gia_tri_a} bánh",
+    "nhieu_dong": true
+  },
+  "dat_banh_01548bfbc": {
+    "ten": "Đã thêm {gia_tri_a} vào giỏ",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đã thêm {gia_tri_a} vào giỏ",
+    "nhieu_dong": true
+  },
+  "dat_banh_abecb98cf": {
+    "ten": "Size này chỉ còn nhận {gia_tri_a} bánh trong 3 ngày tới.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Size này chỉ còn nhận {gia_tri_a} bánh trong 3 ngày tới.",
+    "nhieu_dong": true
+  },
+  "dat_banh_a2f8afb2e": {
+    "ten": "{gia_tri_a} bánh · {gia_tri_b}",
+    "nhom": "gio_hang",
+    "mac_dinh": "{gia_tri_a} bánh · {gia_tri_b}",
+    "nhieu_dong": true
+  },
+  "dat_banh_b5f223212": {
+    "ten": "Giỏ chưa có bánh nào.",
+    "nhom": "gio_hang",
+    "mac_dinh": "Giỏ chưa có bánh nào.",
+    "nhieu_dong": true
+  },
+  "dat_banh_1970655ae": {
+    "ten": "Lời chúc:",
+    "nhom": "gio_hang",
+    "mac_dinh": "Lời chúc:",
+    "nhieu_dong": true
+  },
+  "dat_banh_2c04193c6": {
+    "ten": "Thêm: {gia_tri_a}",
+    "nhom": "gio_hang",
+    "mac_dinh": "Thêm: {gia_tri_a}",
+    "nhieu_dong": true
+  },
+  "dat_banh_7498bc8a8": {
+    "ten": "Ø {gia_tri_a}cm · mã {gia_tri_b}",
+    "nhom": "gio_hang",
+    "mac_dinh": "Ø {gia_tri_a}cm · mã {gia_tri_b}",
+    "nhieu_dong": true
+  },
+  "dat_banh_15ec2c1bb": {
+    "ten": "Bỏ",
+    "nhom": "gio_hang",
+    "mac_dinh": "Bỏ",
+    "nhieu_dong": true
+  },
+  "dat_banh_2540d6d0f": {
+    "ten": "Ø {gia_tri_a}cm{gia_tri_b}",
+    "nhom": "san_pham",
+    "mac_dinh": "Ø {gia_tri_a}cm{gia_tri_b}",
+    "nhieu_dong": true
+  },
+  "dat_banh_9e6a654ba": {
+    "ten": "Thời gian nhận",
+    "nhom": "gio_hang",
+    "mac_dinh": "Thời gian nhận",
+    "nhieu_dong": true
+  },
+  "dat_banh_2d141c148": {
+    "ten": "Thay đổi",
+    "nhom": "gio_hang",
+    "mac_dinh": "Thay đổi",
+    "nhieu_dong": true
+  },
+  "dat_banh_e8c542574": {
+    "ten": "Ngày quý khách chọn lúc nãy đã qua rồi.",
+    "nhom": "gio_hang",
+    "mac_dinh": "Ngày quý khách chọn lúc nãy đã qua rồi.",
+    "nhieu_dong": true
+  },
+  "dat_banh_f7b357518": {
+    "ten": "Nhận",
+    "nhom": "gio_hang",
+    "mac_dinh": "Nhận",
+    "nhieu_dong": true
+  },
+  "dat_banh_95cee3e1c": {
+    "ten": "hôm nay",
+    "nhom": "gio_hang",
+    "mac_dinh": "hôm nay",
+    "nhieu_dong": true
+  },
+  "dat_banh_b3193b5f1": {
+    "ten": ". Bếp cần {gia_tri_a} tiếng nên các khung sớm hơn đã đóng.",
+    "nhom": "gio_hang",
+    "mac_dinh": ". Bếp cần {gia_tri_a} tiếng nên các khung sớm hơn đã đóng.",
+    "nhieu_dong": true
+  },
+  "dat_banh_02d0b5c10": {
+    "ten": "ngày mai {gia_tri_a}",
+    "nhom": "gio_hang",
+    "mac_dinh": "ngày mai {gia_tri_a}",
+    "nhieu_dong": true
+  },
+  "dat_banh_90baf9c6b": {
+    "ten": ", chỉ từ {gia_tri_a}h trở đi.",
+    "nhom": "gio_hang",
+    "mac_dinh": ", chỉ từ {gia_tri_a}h trở đi.",
+    "nhieu_dong": true
+  },
+  "dat_banh_7c2aa6fdc": {
+    "ten": "Cả đơn được giao một lần vào khung này.",
+    "nhom": "gio_hang",
+    "mac_dinh": "Cả đơn được giao một lần vào khung này.",
+    "nhieu_dong": true
+  },
+  "dat_banh_417ae3e9f": {
+    "ten": "Quý khách chọn lại ngày nhận",
+    "nhom": "gio_hang",
+    "mac_dinh": "Quý khách chọn lại ngày nhận",
+    "nhieu_dong": true
+  },
+  "dat_banh_967f3cc7d": {
+    "ten": "Khung giờ quý khách chọn lúc nãy không còn kịp nữa, quý khách chọn lại một khung khác.",
+    "nhom": "gio_hang",
+    "mac_dinh": "Khung giờ quý khách chọn lúc nãy không còn kịp nữa, quý khách chọn lại một khung khác.",
+    "nhieu_dong": true
+  },
+  "dat_banh_5ca501e79": {
+    "ten": "Khung giờ quý khách chọn lúc nãy không dùng được cho ngày này, quý khách chọn lại một khung khác.",
+    "nhom": "gio_hang",
+    "mac_dinh": "Khung giờ quý khách chọn lúc nãy không dùng được cho ngày này, quý khách chọn lại một khung khác.",
+    "nhieu_dong": true
+  },
+  "dat_banh_56b5e229a": {
+    "ten": "Quý khách chọn cả ngày và khung giờ nhận",
+    "nhom": "gio_hang",
+    "mac_dinh": "Quý khách chọn cả ngày và khung giờ nhận",
+    "nhieu_dong": true
+  },
+  "dat_banh_34d469c70": {
+    "ten": "Thêm vào giỏ · {gia_tri_a}",
+    "nhom": "san_pham",
+    "mac_dinh": "Thêm vào giỏ · {gia_tri_a}",
+    "nhieu_dong": true
+  },
+  "dat_banh_983bba817": {
+    "ten": "Chuyển khoản",
+    "nhom": "dat_banh",
+    "mac_dinh": "Chuyển khoản",
+    "nhieu_dong": true
+  },
+  "dat_banh_d2684b2c6": {
+    "ten": "Hiện mã VietQR, quét là xong, nội dung đã điền sẵn mã đơn",
+    "nhom": "dat_banh",
+    "mac_dinh": "Hiện mã VietQR, quét là xong, nội dung đã điền sẵn mã đơn",
+    "nhieu_dong": true
+  },
+  "dat_banh_ca5ee988f": {
+    "ten": "Thẻ tín dụng",
+    "nhom": "dat_banh",
+    "mac_dinh": "Thẻ tín dụng",
+    "nhieu_dong": true
+  },
+  "dat_banh_8483dcf77": {
+    "ten": "Nhận link thanh toán OnePay, nhập thẻ trên trang bảo mật của ngân hàng",
+    "nhom": "dat_banh",
+    "mac_dinh": "Nhận link thanh toán OnePay, nhập thẻ trên trang bảo mật của ngân hàng",
+    "nhieu_dong": true
+  },
+  "dat_banh_28c1cf2d1": {
+    "ten": "Giỏ chưa có bánh nào",
+    "nhom": "gio_hang",
+    "mac_dinh": "Giỏ chưa có bánh nào",
+    "nhieu_dong": true
+  },
+  "dat_banh_ca5c7ce1a": {
+    "ten": "Mã số thuế phải là 10 số, hoặc 13 số nếu là chi nhánh.",
+    "nhom": "gio_hang",
+    "mac_dinh": "Mã số thuế phải là 10 số, hoặc 13 số nếu là chi nhánh.",
+    "nhieu_dong": true
+  },
+  "dat_banh_6566710b9": {
+    "ten": "Đang tra mã số thuế...",
+    "nhom": "gio_hang",
+    "mac_dinh": "Đang tra mã số thuế...",
+    "nhieu_dong": true
+  },
+  "dat_banh_d329d680f": {
+    "ten": "Tên công ty tra về bị thiếu.",
+    "nhom": "gio_hang",
+    "mac_dinh": "Tên công ty tra về bị thiếu.",
+    "nhieu_dong": true
+  },
+  "dat_banh_e929e0d93": {
+    "ten": "Cổng thuế chỉ trả về \"{gia_tri_a}\". Quý khách xem giấy phép kinh doanh rồi gõ đủ tên vào ô Tên công ty.",
+    "nhom": "gio_hang",
+    "mac_dinh": "Cổng thuế chỉ trả về \"{gia_tri_a}\". Quý khách xem giấy phép kinh doanh rồi gõ đủ tên vào ô Tên công ty.",
+    "nhieu_dong": true
+  },
+  "dat_banh_0f9188544": {
+    "ten": "Đã tìm thấy",
+    "nhom": "gio_hang",
+    "mac_dinh": "Đã tìm thấy",
+    "nhieu_dong": true
+  },
+  "dat_banh_e9d253bb6": {
+    "ten": "Trạng thái thuế: {gia_tri_a}",
+    "nhom": "gio_hang",
+    "mac_dinh": "Trạng thái thuế: {gia_tri_a}",
+    "nhieu_dong": true
+  },
+  "dat_banh_30ed2f4a8": {
+    "ten": "- quý khách kiểm tra lại.",
+    "nhom": "gio_hang",
+    "mac_dinh": "- quý khách kiểm tra lại.",
+    "nhieu_dong": true
+  },
+  "dat_banh_179f87055": {
+    "ten": "Không tra được mã số thuế này. Quý khách điền tay tên và địa chỉ công ty, kế toán sẽ kiểm tra lại.",
+    "nhom": "gio_hang",
+    "mac_dinh": "Không tra được mã số thuế này. Quý khách điền tay tên và địa chỉ công ty, kế toán sẽ kiểm tra lại.",
+    "nhieu_dong": true
+  },
+  "dat_banh_1a6a68ddf": {
+    "ten": "Tìm thấy",
+    "nhom": "gio_hang",
+    "mac_dinh": "Tìm thấy",
+    "nhieu_dong": true
+  },
+  "dat_banh_ed129760c": {
+    "ten": "{gia_tri_a} địa chỉ",
+    "nhom": "gio_hang",
+    "mac_dinh": "{gia_tri_a} địa chỉ",
+    "nhieu_dong": true
+  },
+  "dat_banh_55044016e": {
+    "ten": "đã lưu của số này.",
+    "nhom": "gio_hang",
+    "mac_dinh": "đã lưu của số này.",
+    "nhieu_dong": true
+  },
+  "dat_banh_dd5afcc96": {
+    "ten": "Quý khách nhập địa chỉ bên dưới.",
+    "nhom": "gio_hang",
+    "mac_dinh": "Quý khách nhập địa chỉ bên dưới.",
+    "nhieu_dong": true
+  },
+  "dat_banh_3e7887810": {
+    "ten": "Chọn đúng địa chỉ bên dưới",
+    "nhom": "dat_banh",
+    "mac_dinh": "Chọn đúng địa chỉ bên dưới",
+    "nhieu_dong": true
+  },
+  "dat_banh_ddbf6a5fc": {
+    "ten": "Đang lấy toạ độ...",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đang lấy toạ độ...",
+    "nhieu_dong": true
+  },
+  "dat_banh_bd6afbdb9": {
+    "ten": "Bếp Nguyễn Văn Trỗi",
+    "nhom": "dat_banh",
+    "mac_dinh": "Bếp Nguyễn Văn Trỗi",
+    "nhieu_dong": true
+  },
+  "dat_banh_5dda87f4a": {
+    "ten": "Cửa hàng Trần Cao Vân",
+    "nhom": "dat_banh",
+    "mac_dinh": "Cửa hàng Trần Cao Vân",
+    "nhieu_dong": true
+  },
+  "dat_banh_e347a8e6c": {
+    "ten": "Chọn khu vực hoặc gõ địa chỉ, hệ thống báo phí giao dự kiến.",
+    "nhom": "gio_hang",
+    "mac_dinh": "Chọn khu vực hoặc gõ địa chỉ, hệ thống báo phí giao dự kiến.",
+    "nhieu_dong": true
+  },
+  "dat_banh_9e52d8e6b": {
+    "ten": "Đang hỏi phí giao...",
+    "nhom": "gio_hang",
+    "mac_dinh": "Đang hỏi phí giao...",
+    "nhieu_dong": true
+  },
+  "dat_banh_ddfe89cb9": {
+    "ten": ", TP. Hồ Chí Minh",
+    "nhom": "gio_hang",
+    "mac_dinh": ", TP. Hồ Chí Minh",
+    "nhieu_dong": true
+  },
+  "dat_banh_bb3c6100a": {
+    "ten": "Một phần khu vực",
+    "nhom": "gio_hang",
+    "mac_dinh": "Một phần khu vực",
+    "nhieu_dong": true
+  },
+  "dat_banh_aeed77c8c": {
+    "ten": "nằm ngoài bán kính giao bánh kem. Quý khách gõ địa chỉ để chúng tôi kiểm tra chính xác.",
+    "nhom": "gio_hang",
+    "mac_dinh": "nằm ngoài bán kính giao bánh kem. Quý khách gõ địa chỉ để chúng tôi kiểm tra chính xác.",
+    "nhieu_dong": true
+  },
+  "dat_banh_15567b400": {
+    "ten": ", còn địa chỉ này cách khoảng",
+    "nhom": "gio_hang",
+    "mac_dinh": ", còn địa chỉ này cách khoảng",
+    "nhieu_dong": true
+  },
+  "dat_banh_e54218837": {
+    "ten": "Đơn này được",
+    "nhom": "gio_hang",
+    "mac_dinh": "Đơn này được",
+    "nhieu_dong": true
+  },
+  "dat_banh_aea590df5": {
+    "ten": "miễn phí giao",
+    "nhom": "gio_hang",
+    "mac_dinh": "miễn phí giao",
+    "nhieu_dong": true
+  },
+  "dat_banh_fc72cffcb": {
+    "ten": ". Chúng tôi chưa kiểm được địa chỉ và sẽ gọi xác nhận.",
+    "nhom": "gio_hang",
+    "mac_dinh": ". Chúng tôi chưa kiểm được địa chỉ và sẽ gọi xác nhận.",
+    "nhieu_dong": true
+  },
+  "dat_banh_b4bab6e2c": {
+    "ten": "Chưa lấy được phí giao cho địa chỉ này.",
+    "nhom": "gio_hang",
+    "mac_dinh": "Chưa lấy được phí giao cho địa chỉ này.",
+    "nhieu_dong": true
+  },
+  "dat_banh_832bb0406": {
+    "ten": "Chúng tôi sẽ báo phí khi xác nhận đơn.",
+    "nhom": "gio_hang",
+    "mac_dinh": "Chúng tôi sẽ báo phí khi xác nhận đơn.",
+    "nhieu_dong": true
+  },
+  "dat_banh_8509dcd93": {
+    "ten": ", giao từ {gia_tri_a}",
+    "nhom": "gio_hang",
+    "mac_dinh": ", giao từ {gia_tri_a}",
+    "nhieu_dong": true
+  },
+  "dat_banh_6ea269703": {
+    "ten": ". Chúng tôi gọi xác nhận lại trước khi giao.",
+    "nhom": "gio_hang",
+    "mac_dinh": ". Chúng tôi gọi xác nhận lại trước khi giao.",
+    "nhieu_dong": true
+  },
+  "dat_banh_35e7005c4": {
+    "ten": "Phí giao dự kiến cho khu vực",
+    "nhom": "gio_hang",
+    "mac_dinh": "Phí giao dự kiến cho khu vực",
+    "nhieu_dong": true
+  },
+  "dat_banh_d6e63e5f0": {
+    "ten": ". Gõ địa chỉ để có số chính xác.",
+    "nhom": "gio_hang",
+    "mac_dinh": ". Gõ địa chỉ để có số chính xác.",
+    "nhieu_dong": true
+  },
+  "dat_banh_7238a477f": {
+    "ten": "cho khoảng {gia_tri_a} km",
+    "nhom": "gio_hang",
+    "mac_dinh": "cho khoảng {gia_tri_a} km",
+    "nhieu_dong": true
+  },
+  "dat_banh_d60cf33fc": {
+    "ten": ", tính đúng khung",
+    "nhom": "gio_hang",
+    "mac_dinh": ", tính đúng khung",
+    "nhieu_dong": true
+  },
+  "dat_banh_988f4d65a": {
+    "ten": "quý khách chọn.",
+    "nhom": "gio_hang",
+    "mac_dinh": "quý khách chọn.",
+    "nhieu_dong": true
+  },
+  "dat_banh_13d8a57e8": {
+    "ten": ". Đây là giá giờ hiện tại, khung giờ cao điểm có thể cao hơn.",
+    "nhom": "gio_hang",
+    "mac_dinh": ". Đây là giá giờ hiện tại, khung giờ cao điểm có thể cao hơn.",
+    "nhieu_dong": true
+  },
+  "dat_banh_5956a13dc": {
+    "ten": "Chúng tôi gọi xác nhận lại trước khi giao.",
+    "nhom": "gio_hang",
+    "mac_dinh": "Chúng tôi gọi xác nhận lại trước khi giao.",
+    "nhieu_dong": true
+  },
+  "dat_banh_67fba2f35": {
+    "ten": "×",
+    "nhom": "gio_hang",
+    "mac_dinh": "×",
+    "nhieu_dong": true
+  },
+  "dat_banh_f738100e0": {
+    "ten": "Tự lấy tại",
+    "nhom": "gio_hang",
+    "mac_dinh": "Tự lấy tại",
+    "nhieu_dong": true
+  },
+  "dat_banh_a3fb251a8": {
+    "ten": "Sau khi xác nhận đơn, chúng tôi sẽ gửi quý khách",
+    "nhom": "gio_hang",
+    "mac_dinh": "Sau khi xác nhận đơn, chúng tôi sẽ gửi quý khách",
+    "nhieu_dong": true
+  },
+  "dat_banh_0a8b2618a": {
+    "ten": "link thanh toán OnePay",
+    "nhom": "gio_hang",
+    "mac_dinh": "link thanh toán OnePay",
+    "nhieu_dong": true
+  },
+  "dat_banh_96cfeea73": {
+    "ten": "để nhập thẻ.",
+    "nhom": "gio_hang",
+    "mac_dinh": "để nhập thẻ.",
+    "nhieu_dong": true
+  },
+  "dat_banh_3f1b2677e": {
+    "ten": "Link có hiệu lực 15 phút",
+    "nhom": "gio_hang",
+    "mac_dinh": "Link có hiệu lực 15 phút",
+    "nhieu_dong": true
+  },
+  "dat_banh_03b6a741d": {
+    "ten": ", quá hạn mà chưa thanh toán thì đơn tự huỷ\n và bánh được mở lại cho khách khác, hệ thống sẽ nhắn báo quý khác",
+    "nhom": "gio_hang",
+    "mac_dinh": ", quá hạn mà chưa thanh toán thì đơn tự huỷ\n và bánh được mở lại cho khách khác, hệ thống sẽ nhắn báo quý khách.",
+    "nhieu_dong": true
+  },
+  "dat_banh_73816524a": {
+    "ten": "mã VietQR",
+    "nhom": "gio_hang",
+    "mac_dinh": "mã VietQR",
+    "nhieu_dong": true
+  },
+  "dat_banh_d0dc8fa4d": {
+    "ten": "để chuyển khoản.",
+    "nhom": "gio_hang",
+    "mac_dinh": "để chuyển khoản.",
+    "nhieu_dong": true
+  },
+  "dat_banh_9b84e7f46": {
+    "ten": "Mã có hiệu lực 15 phút",
+    "nhom": "gio_hang",
+    "mac_dinh": "Mã có hiệu lực 15 phút",
+    "nhieu_dong": true
+  },
+  "dat_banh_dda0df2c0": {
+    "ten": "Hệ thống của chúng tôi đang trục trặc.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Hệ thống của chúng tôi đang trục trặc.",
+    "nhieu_dong": true
+  },
+  "dat_banh_d3470ca1b": {
+    "ten": "Giỏ hàng trống hoặc món đã hết mã.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Giỏ hàng trống hoặc món đã hết mã.",
+    "nhieu_dong": true
+  },
+  "dat_banh_3261b803a": {
+    "ten": "Thiếu tên hoặc số điện thoại.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Thiếu tên hoặc số điện thoại.",
+    "nhieu_dong": true
+  },
+  "dat_banh_1c040d123": {
+    "ten": "Thiếu địa chỉ giao.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Thiếu địa chỉ giao.",
+    "nhieu_dong": true
+  },
+  "dat_banh_f578cc0d6": {
+    "ten": "Địa chỉ này ngoài vùng giao bánh kem của chúng tôi. Quý khách chọn tự lấy tại cửa hàng",
+    "nhom": "dat_banh",
+    "mac_dinh": "Địa chỉ này ngoài vùng giao bánh kem của chúng tôi. Quý khách chọn tự lấy tại cửa hàng",
+    "nhieu_dong": true
+  },
+  "dat_banh_35ec19a18": {
+    "ten": "Một món trong giỏ không tra được mã bán hàng, chúng tôi sẽ kiểm tra lại ngay.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Một món trong giỏ không tra được mã bán hàng, chúng tôi sẽ kiểm tra lại ngay.",
+    "nhieu_dong": true
+  },
+  "dat_banh_3baaae33b": {
+    "ten": "Hệ thống bán hàng của chúng tôi từ chối đơn này.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Hệ thống bán hàng của chúng tôi từ chối đơn này.",
+    "nhieu_dong": true
+  },
+  "dat_banh_4d688887d": {
+    "ten": "Không kết nối được với hệ thống bán hàng.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Không kết nối được với hệ thống bán hàng.",
+    "nhieu_dong": true
+  },
+  "dat_banh_dd0cf091b": {
+    "ten": "Dữ liệu đơn bị lỗi.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Dữ liệu đơn bị lỗi.",
+    "nhieu_dong": true
+  },
+  "dat_banh_cdfac34b3": {
+    "ten": "Dữ liệu đơn bị thiếu.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Dữ liệu đơn bị thiếu.",
+    "nhieu_dong": true
+  },
+  "dat_banh_b608d6713": {
+    "ten": "Trang đặt bánh vừa được cập nhật. Quý khách tải lại trang rồi gửi lại, giỏ hàng cần chọn lại.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Trang đặt bánh vừa được cập nhật. Quý khách tải lại trang rồi gửi lại, giỏ hàng cần chọn lại.",
+    "nhieu_dong": true
+  },
+  "dat_banh_ea9153cee": {
+    "ten": "Quý khách chọn ô đồng ý ngay trên nút gửi.",
+    "nhom": "gio_hang",
+    "mac_dinh": "Quý khách chọn ô đồng ý ngay trên nút gửi.",
+    "nhieu_dong": true
+  },
+  "dat_banh_b221cfead": {
+    "ten": "Một món mùa vụ trong giỏ vừa hết phần. Quý khách bớt số lượng rồi gửi lại.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Một món mùa vụ trong giỏ vừa hết phần. Quý khách bớt số lượng rồi gửi lại.",
+    "nhieu_dong": true
+  },
+  "dat_banh_848d6282f": {
+    "ten": "Đang gửi đơn...",
+    "nhom": "gio_hang",
+    "mac_dinh": "Đang gửi đơn...",
+    "nhieu_dong": true
+  },
+  "dat_banh_df2154067": {
+    "ten": "Gửi yêu cầu đặt bánh",
+    "nhom": "gio_hang",
+    "mac_dinh": "Gửi yêu cầu đặt bánh",
+    "nhieu_dong": true
+  },
+  "dat_banh_e8bc4dce3": {
+    "ten": "Khung giờ đã chọn không còn kịp, quý khách chọn lại",
+    "nhom": "gio_hang",
+    "mac_dinh": "Khung giờ đã chọn không còn kịp, quý khách chọn lại",
+    "nhieu_dong": true
+  },
+  "dat_banh_3c3291881": {
+    "ten": "Quý khách chọn ngày và khung giờ nhận bánh.",
+    "nhom": "gio_hang",
+    "mac_dinh": "Quý khách chọn ngày và khung giờ nhận bánh.",
+    "nhieu_dong": true
+  },
+  "dat_banh_bff348432": {
+    "ten": "Quý khách điền tên",
+    "nhom": "gio_hang",
+    "mac_dinh": "Quý khách điền tên",
+    "nhieu_dong": true
+  },
+  "dat_banh_971b60e8f": {
+    "ten": "Số điện thoại chưa đúng",
+    "nhom": "gio_hang",
+    "mac_dinh": "Số điện thoại chưa đúng",
+    "nhieu_dong": true
+  },
+  "dat_banh_147c2c4a9": {
+    "ten": "Quý khách điền địa chỉ giao",
+    "nhom": "gio_hang",
+    "mac_dinh": "Quý khách điền địa chỉ giao",
+    "nhieu_dong": true
+  },
+  "dat_banh_0e39768bd": {
+    "ten": "Địa chỉ ngoài vùng giao. Quý khách chọn \"Tự lấy tại cửa hàng\"",
+    "nhom": "gio_hang",
+    "mac_dinh": "Địa chỉ ngoài vùng giao. Quý khách chọn \"Tự lấy tại cửa hàng\"",
+    "nhieu_dong": true
+  },
+  "dat_banh_5db00ac93": {
+    "ten": "Không gửi được đơn lúc này.",
+    "nhom": "gio_hang",
+    "mac_dinh": "Không gửi được đơn lúc này.",
+    "nhieu_dong": true
+  },
+  "dat_banh_a9adfd6de": {
+    "ten": "Chưa gửi được đơn.",
+    "nhom": "gio_hang",
+    "mac_dinh": "Chưa gửi được đơn.",
+    "nhieu_dong": true
+  },
+  "dat_banh_ecb3ec835": {
+    "ten": "{gia_tri_a}\n Quý khách nhắn qua",
+    "nhom": "gio_hang",
+    "mac_dinh": "{gia_tri_a}\n Quý khách nhắn qua",
+    "nhieu_dong": true
+  },
+  "dat_banh_68074b808": {
+    "ten": "Messenger",
+    "nhom": "gio_hang",
+    "mac_dinh": "Messenger",
+    "nhieu_dong": true
+  },
+  "dat_banh_a1018afe8": {
+    "ten": ",\n hoặc bấm gửi lại sau ít phút.",
+    "nhom": "gio_hang",
+    "mac_dinh": ",\n hoặc bấm gửi lại sau ít phút.",
+    "nhieu_dong": true
+  },
+  "dat_banh_01d9e68a4": {
+    "ten": "Chúng tôi đã nhận yêu cầu.",
+    "nhom": "gio_hang",
+    "mac_dinh": "Chúng tôi đã nhận yêu cầu.",
+    "nhieu_dong": true
+  },
+  "dat_banh_f977b08ed": {
+    "ten": "Đang mở biên nhận...",
+    "nhom": "gio_hang",
+    "mac_dinh": "Đang mở biên nhận...",
+    "nhieu_dong": true
+  },
+  "dat_banh_1c80f9825": {
+    "ten": "Mã",
+    "nhom": "gio_hang",
+    "mac_dinh": "Mã",
+    "nhieu_dong": true
+  },
+  "dat_banh_9f58a0e15": {
+    "ten": ", quý khách chụp lại.",
+    "nhom": "gio_hang",
+    "mac_dinh": ", quý khách chụp lại.",
+    "nhieu_dong": true
+  },
+  "dat_banh_d7e8f3298": {
+    "ten": "Hàng theo mùa",
+    "nhom": "dat_banh",
+    "mac_dinh": "Hàng theo mùa",
+    "nhieu_dong": true
+  },
+  "dat_banh_0474d5ceb": {
+    "ten": "Nhận đặt tới hết",
+    "nhom": "dat_banh",
+    "mac_dinh": "Nhận đặt tới hết",
+    "nhieu_dong": true
+  },
+  "dat_banh_971a4e76d": {
+    "ten": "· còn",
+    "nhom": "dat_banh",
+    "mac_dinh": "· còn",
+    "nhieu_dong": true
+  },
+  "dat_banh_8ccdd0407": {
+    "ten": "ngày",
+    "nhom": "dat_banh",
+    "mac_dinh": "ngày",
+    "nhieu_dong": true
+  },
+  "dat_banh_d2cd4ec77": {
+    "ten": "phần",
+    "nhom": "dat_banh",
+    "mac_dinh": "phần",
+    "nhieu_dong": true
+  },
+  "dat_banh_afcf62369": {
+    "ten": "Gồm",
+    "nhom": "dat_banh",
+    "mac_dinh": "Gồm",
+    "nhieu_dong": true
+  },
+  "dat_banh_7fbd55eb5": {
+    "ten": "Hết hàng mùa này",
+    "nhom": "dat_banh",
+    "mac_dinh": "Hết hàng mùa này",
+    "nhieu_dong": true
+  },
+  "dat_banh_a6001ad7a": {
+    "ten": "Hết hàng",
+    "nhom": "dat_banh",
+    "mac_dinh": "Hết hàng",
+    "nhieu_dong": true
+  },
+  "dat_banh_b742ca205": {
+    "ten": "Thêm vào giỏ",
+    "nhom": "dat_banh",
+    "mac_dinh": "Thêm vào giỏ",
+    "nhieu_dong": true
+  },
+  "dat_banh_3b1a7e8cc": {
+    "ten": "Mùa này chỉ còn",
+    "nhom": "dat_banh",
+    "mac_dinh": "Mùa này chỉ còn",
+    "nhieu_dong": true
+  },
+  "dat_banh_5faac70d7": {
+    "ten": "phần. Cần nhiều hơn quý khách gọi 0931 224 334",
+    "nhom": "dat_banh",
+    "mac_dinh": "phần. Cần nhiều hơn quý khách gọi 0931 224 334",
+    "nhieu_dong": true
+  },
+  "dat_banh_cf8a493c0": {
+    "ten": "Thêm 1 phần nữa, giỏ có",
+    "nhom": "dat_banh",
+    "mac_dinh": "Thêm 1 phần nữa, giỏ có",
+    "nhieu_dong": true
+  },
+  "dat_banh_9900d8257": {
+    "ten": "món",
+    "nhom": "dat_banh",
+    "mac_dinh": "món",
+    "nhieu_dong": true
+  },
+  "dat_banh_1998bbe74": {
+    "ten": "Đã thêm",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đã thêm",
+    "nhieu_dong": true
+  },
+  "dat_banh_478beb847": {
+    "ten": "vào giỏ",
+    "nhom": "dat_banh",
+    "mac_dinh": "vào giỏ",
+    "nhieu_dong": true
+  },
+  "dat_banh_53b71aecf": {
+    "ten": "Zalo",
+    "nhom": "dat_banh",
+    "mac_dinh": "Zalo",
+    "nhieu_dong": true
+  },
+  "dat_banh_82da67b21": {
+    "ten": "Facebook",
+    "nhom": "dat_banh",
+    "mac_dinh": "Facebook",
+    "nhieu_dong": true
+  },
+  "dat_banh_5721bbef4": {
+    "ten": "Instagram",
+    "nhom": "dat_banh",
+    "mac_dinh": "Instagram",
+    "nhieu_dong": true
+  },
+  "dat_banh_fc49f156a": {
+    "ten": "TikTok",
+    "nhom": "dat_banh",
+    "mac_dinh": "TikTok",
+    "nhieu_dong": true
+  },
+  "dat_banh_a6738ef6d": {
+    "ten": "Giá đã gồm thuế GTGT. Miễn phí giao cho đơn từ",
+    "nhom": "dat_banh",
+    "mac_dinh": "Giá đã gồm thuế GTGT. Miễn phí giao cho đơn từ",
+    "nhieu_dong": true
+  },
+  "dat_banh_8b550092a": {
+    "ten": "Giá đã gồm thuế GTGT, chưa gồm phí vận chuyển",
+    "nhom": "dat_banh",
+    "mac_dinh": "Giá đã gồm thuế GTGT, chưa gồm phí vận chuyển",
+    "nhieu_dong": true
+  },
+  "dat_banh_cda7716cd": {
+    "ten": "Chọn khu vực để xem phí giao dự kiến",
+    "nhom": "dat_banh",
+    "mac_dinh": "Chọn khu vực để xem phí giao dự kiến",
+    "nhieu_dong": true
+  },
+  "dat_banh_7e42d2e7b": {
+    "ten": "Đã thêm {gia_tri_a}{gia_tri_b}. Bấm vào bánh để thêm lời chúc, phụ kiện.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đã thêm {gia_tri_a}{gia_tri_b}. Bấm vào bánh để thêm lời chúc, phụ kiện.",
+    "nhieu_dong": true
+  },
+  "dat_banh_8f92d9663": {
+    "ten": "Cập nhật",
+    "nhom": "dat_banh",
+    "mac_dinh": "Cập nhật",
+    "nhieu_dong": true
+  },
+  "dat_banh_75f5cf26e": {
+    "ten": "Còn",
+    "nhom": "dat_banh",
+    "mac_dinh": "Còn",
+    "nhieu_dong": true
+  },
+  "dat_banh_9ce7e8d31": {
+    "ten": "bánh ·",
+    "nhom": "dat_banh",
+    "mac_dinh": "bánh ·",
+    "nhieu_dong": true
+  },
+  "dat_banh_97a16dfdf": {
+    "ten": "loại",
+    "nhom": "dat_banh",
+    "mac_dinh": "loại",
+    "nhieu_dong": true
+  },
+  "dat_banh_71fb5d32e": {
+    "ten": "Hiện đã hết bánh trên tủ",
+    "nhom": "dat_banh",
+    "mac_dinh": "Hiện đã hết bánh trên tủ",
+    "nhieu_dong": true
+  },
+  "dat_banh_a85783ffc": {
+    "ten": "Quầy này đã bán hết bánh trong tủ. Bánh mới lên tủ theo từng đợt trong ngày.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Quầy này đã bán hết bánh trong tủ. Bánh mới lên tủ theo từng đợt trong ngày.",
+    "nhieu_dong": true
+  },
+  "dat_ban_b8bab06ff": {
+    "ten": "Chúng tôi chưa mở nhận đặt bàn online. Gọi 0931 224 334 để được hỗ trợ.",
+    "nhom": "dat_ban",
+    "mac_dinh": "Chúng tôi chưa mở nhận đặt bàn online. Gọi 0931 224 334 để được hỗ trợ.",
+    "nhieu_dong": true
+  },
+  "dat_ban_48f698c3f": {
+    "ten": "Chúng tôi sẽ tư vấn chỗ ngồi khi xác nhận.",
+    "nhom": "dat_ban",
+    "mac_dinh": "Chúng tôi sẽ tư vấn chỗ ngồi khi xác nhận.",
+    "nhieu_dong": true
+  },
+  "dat_ban_f33d5c7c4": {
+    "ten": "Chúng tôi sẽ liên hệ xác nhận sau khi nhận yêu cầu.",
+    "nhom": "dat_ban",
+    "mac_dinh": "Chúng tôi sẽ liên hệ xác nhận sau khi nhận yêu cầu.",
+    "nhieu_dong": true
+  },
+  "dat_ban_13864d971": {
+    "ten": "Chưa tải được lịch. Tải lại trang hoặc gọi cho chúng tôi để đặt bàn.",
+    "nhom": "dat_ban",
+    "mac_dinh": "Chưa tải được lịch. Tải lại trang hoặc gọi cho chúng tôi để đặt bàn.",
+    "nhieu_dong": true
+  },
+  "dat_ban_77af89de2": {
+    "ten": "Chọn giờ mong muốn trước khi gửi.",
+    "nhom": "dat_ban",
+    "mac_dinh": "Chọn giờ mong muốn trước khi gửi.",
+    "nhieu_dong": true
+  },
+  "dat_ban_115591cea": {
+    "ten": "Đang gửi yêu cầu...",
+    "nhom": "dat_ban",
+    "mac_dinh": "Đang gửi yêu cầu...",
+    "nhieu_dong": true
+  },
+  "dat_ban_bd4e008af": {
+    "ten": "Kiểm tra thông tin hoặc chờ vài phút rồi gửi lại.",
+    "nhom": "dat_ban",
+    "mac_dinh": "Kiểm tra thông tin hoặc chờ vài phút rồi gửi lại.",
+    "nhieu_dong": true
+  },
+  "dat_ban_71fbea24c": {
+    "ten": "Chưa nhận được kết quả. Bấm Gửi lại cùng yêu cầu để kiểm tra, không cần nhập lại.",
+    "nhom": "dat_ban",
+    "mac_dinh": "Chưa nhận được kết quả. Bấm Gửi lại cùng yêu cầu để kiểm tra, không cần nhập lại.",
+    "nhieu_dong": true
+  },
+  "dat_ban_27a5e32c3": {
+    "ten": "Đã tiếp nhận yêu cầu",
+    "nhom": "dat_ban",
+    "mac_dinh": "Đã tiếp nhận yêu cầu",
+    "nhieu_dong": true
+  },
+  "dat_ban_89b8870d9": {
+    "ten": ". Chúng tôi sẽ gọi xác nhận. Bàn chưa được giữ cho tới khi chúng tôi xác nhận.",
+    "nhom": "dat_ban",
+    "mac_dinh": ". Chúng tôi sẽ gọi xác nhận. Bàn chưa được giữ cho tới khi chúng tôi xác nhận.",
+    "nhieu_dong": true
+  },
+  "dat_ban_60ae7eb78": {
+    "ten": "Mất kết nối. Bấm Gửi lại cùng yêu cầu để kiểm tra.",
+    "nhom": "dat_ban",
+    "mac_dinh": "Mất kết nối. Bấm Gửi lại cùng yêu cầu để kiểm tra.",
+    "nhieu_dong": true
+  },
+  "dat_ban_5ed44ed1c": {
+    "ten": "Gửi lại cùng yêu cầu",
+    "nhom": "dat_ban",
+    "mac_dinh": "Gửi lại cùng yêu cầu",
+    "nhieu_dong": true
+  },
+  "thanh_vien_7df724744": {
+    "ten": "Chúng tôi đang hoàn thiện đăng nhập thành viên. Liên hệ 0931 224 334 để tra điểm.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Chúng tôi đang hoàn thiện đăng nhập thành viên. Liên hệ 0931 224 334 để tra điểm.",
+    "nhieu_dong": true
+  },
+  "thanh_vien_09fcbe5fb": {
+    "ten": "Kiểm tra lại số điện thoại.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Kiểm tra lại số điện thoại.",
+    "nhieu_dong": true
+  },
+  "thanh_vien_c3f74f579": {
+    "ten": "Đã gửi nhiều mã. Chờ 30 phút rồi thử lại.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Đã gửi nhiều mã. Chờ 30 phút rồi thử lại.",
+    "nhieu_dong": true
+  },
+  "thanh_vien_048bdca06": {
+    "ten": "Chưa gửi được mã qua Zalo. Chờ một chút hoặc gọi cho chúng tôi.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Chưa gửi được mã qua Zalo. Chờ một chút hoặc gọi cho chúng tôi.",
+    "nhieu_dong": true
+  },
+  "thanh_vien_27c413c51": {
+    "ten": "Mã đã hết hạn. Gửi mã mới để tiếp tục.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Mã đã hết hạn. Gửi mã mới để tiếp tục.",
+    "nhieu_dong": true
+  },
+  "thanh_vien_77e54d5e8": {
+    "ten": "Mã chưa đúng. Kiểm tra tin nhắn Zalo.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Mã chưa đúng. Kiểm tra tin nhắn Zalo.",
+    "nhieu_dong": true
+  },
+  "thanh_vien_aa07e7c30": {
+    "ten": "Đã nhập sai quá nhiều lần. Gửi mã mới để tiếp tục.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Đã nhập sai quá nhiều lần. Gửi mã mới để tiếp tục.",
+    "nhieu_dong": true
+  },
+  "thanh_vien_dd4609ef6": {
+    "ten": "Hồ sơ cần được chúng tôi đối chiếu. Gọi 0931 224 334 để được hỗ trợ.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Hồ sơ cần được chúng tôi đối chiếu. Gọi 0931 224 334 để được hỗ trợ.",
+    "nhieu_dong": true
+  },
+  "thanh_vien_dd35ada44": {
+    "ten": "Chưa kết nối được. Thử lại sau ít phút.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Chưa kết nối được. Thử lại sau ít phút.",
+    "nhieu_dong": true
+  },
+  "thanh_vien_a6daf06ad": {
+    "ten": "Không đọc được hồ sơ.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Không đọc được hồ sơ.",
+    "nhieu_dong": true
+  },
+  "thanh_vien_041a78ae1": {
+    "ten": "Chào quý khách",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Chào quý khách",
+    "nhieu_dong": true
+  },
+  "thanh_vien_b44660fa4": {
+    "ten": "Thành viên Vagabond",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Thành viên Vagabond",
+    "nhieu_dong": true
+  },
+  "thanh_vien_4a404c32e": {
+    "ten": "điểm",
+    "nhom": "thanh_vien",
+    "mac_dinh": "điểm",
+    "nhieu_dong": true
+  },
+  "thanh_vien_ed802e9dd": {
+    "ten": "Lịch sử đơn hàng chưa khả dụng. Liên hệ chúng tôi nếu quý khách cần tra cứu.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Lịch sử đơn hàng chưa khả dụng. Liên hệ chúng tôi nếu quý khách cần tra cứu.",
+    "nhieu_dong": true
+  },
+  "thanh_vien_9337f4dde": {
+    "ten": "Chưa tải được lịch sử đơn. Quý khách thử lại sau",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Chưa tải được lịch sử đơn. Quý khách thử lại sau",
+    "nhieu_dong": true
+  },
+  "thanh_vien_e353f2f3d": {
+    "ten": "Thử lại",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Thử lại",
+    "nhieu_dong": true
+  },
+  "thanh_vien_276b0b7ce": {
+    "ten": "Chưa có đơn đặt online để hiển thị.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Chưa có đơn đặt online để hiển thị.",
+    "nhieu_dong": true
+  },
+  "thanh_vien_0df913f30": {
+    "ten": "Đơn",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Đơn",
+    "nhieu_dong": true
+  },
+  "thanh_vien_c5be72c3f": {
+    "ten": "Chúng tôi đang cập nhật trạng thái",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Chúng tôi đang cập nhật trạng thái",
+    "nhieu_dong": true
+  },
+  "thanh_vien_d592564f9": {
+    "ten": "Ảnh món",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Ảnh món",
+    "nhieu_dong": true
+  },
+  "thanh_vien_50b133f3b": {
+    "ten": "Món bánh",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Món bánh",
+    "nhieu_dong": true
+  },
+  "thanh_vien_0433ae990": {
+    "ten": "Số lượng:",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Số lượng:",
+    "nhieu_dong": true
+  },
+  "thanh_vien_62cff3945": {
+    "ten": "Điểm đọc từ sổ điểm hiện tại của chúng tôi.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Điểm đọc từ sổ điểm hiện tại của chúng tôi.",
+    "nhieu_dong": true
+  },
+  "thanh_vien_389b3feae": {
+    "ten": "Số điện thoại đã xác thực; chưa có hồ sơ thành viên tại cửa hàng.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Số điện thoại đã xác thực; chưa có hồ sơ thành viên tại cửa hàng.",
+    "nhieu_dong": true
+  },
+  "thanh_vien_6168467d3": {
+    "ten": "Nhập số điện thoại đã mua bánh để xem hồ sơ.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Nhập số điện thoại đã mua bánh để xem hồ sơ.",
+    "nhieu_dong": true
+  },
+  "thanh_vien_f23771e85": {
+    "ten": "Chưa gửi được mã. Thử lại sau.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Chưa gửi được mã. Thử lại sau.",
+    "nhieu_dong": true
+  },
+  "thanh_vien_593248be0": {
+    "ten": "Đã gửi mã qua Zalo. Mã có hiệu lực 5 phút.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Đã gửi mã qua Zalo. Mã có hiệu lực 5 phút.",
+    "nhieu_dong": true
+  },
+  "thanh_vien_b345af644": {
+    "ten": "Không xác thực được. Gửi mã mới.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Không xác thực được. Gửi mã mới.",
+    "nhieu_dong": true
+  },
+  "thanh_vien_e2bfc6a0f": {
+    "ten": "Đã đăng xuất.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Đã đăng xuất.",
+    "nhieu_dong": true
+  },
+  "bien_nhan_fae8f9966": {
+    "ten": "BIÊN NHẬN",
+    "nhom": "bien_nhan",
+    "mac_dinh": "BIÊN NHẬN",
+    "nhieu_dong": true
+  },
+  "bien_nhan_37a6f269e": {
+    "ten": "Biên nhận chỉ mở được từ đường dẫn chúng tôi hiện ngay sau khi đặt.",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Biên nhận chỉ mở được từ đường dẫn chúng tôi hiện ngay sau khi đặt.",
+    "nhieu_dong": true
+  },
+  "bien_nhan_bbd687e19": {
+    "ten": "Quý khách xem lại mã yêu cầu trong tin nhắn của chúng tôi, hoặc nhắn chúng tôi qua Zalo, Messenger ở cuối tran",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Quý khách xem lại mã yêu cầu trong tin nhắn của chúng tôi, hoặc nhắn chúng tôi qua Zalo, Messenger ở cuối trang.",
+    "nhieu_dong": true
+  },
+  "bien_nhan_6be58a5f5": {
+    "ten": "Về trang đặt bánh",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Về trang đặt bánh",
+    "nhieu_dong": true
+  },
+  "dat_banh_e7c59d5a1": {
+    "ten": "Đặt bánh · The Vagabond Pâtisserie",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đặt bánh · The Vagabond Pâtisserie",
+    "nhieu_dong": true
+  },
+  "dat_banh_86376d53a": {
+    "ten": "Về trang chủ",
+    "nhom": "dat_banh",
+    "mac_dinh": "Về trang chủ",
+    "nhieu_dong": true
+  },
+  "dat_banh_913466c0d": {
+    "ten": "The Vagabond Pâtisserie",
+    "nhom": "dat_banh",
+    "mac_dinh": "The Vagabond Pâtisserie",
+    "nhieu_dong": true
+  },
+  "dat_banh_2c5093996": {
+    "ten": "Dịch vụ",
+    "nhom": "dat_banh",
+    "mac_dinh": "Dịch vụ",
+    "nhieu_dong": true
+  },
+  "dat_banh_f4a541343": {
+    "ten": "Lời chào từ chúng tôi",
+    "nhom": "dat_banh",
+    "mac_dinh": "Lời chào từ chúng tôi",
+    "nhieu_dong": true
+  },
+  "dat_banh_323acda9d": {
+    "ten": "00 / In season",
+    "nhom": "dat_banh",
+    "mac_dinh": "00 / In season",
+    "nhieu_dong": true
+  },
+  "dat_banh_289234b8c": {
+    "ten": "00 / In store",
+    "nhom": "dat_banh",
+    "mac_dinh": "00 / In store",
+    "nhieu_dong": true
+  },
+  "dat_banh_3e8df5af5": {
+    "ten": "Số bánh cập nhật theo từng hoá đơn tại quầy. Muốn giữ bánh thì nhắn",
+    "nhom": "dat_banh",
+    "mac_dinh": "Số bánh cập nhật theo từng hoá đơn tại quầy. Muốn giữ bánh thì nhắn",
+    "nhieu_dong": true
+  },
+  "dat_banh_bd0762c0f": {
+    "ten": "hoặc gọi",
+    "nhom": "dat_banh",
+    "mac_dinh": "hoặc gọi",
+    "nhieu_dong": true
+  },
+  "dat_banh_499d32a3f": {
+    "ten": ", chúng tôi để riêng cho quý khách tới lấy.",
+    "nhom": "dat_banh",
+    "mac_dinh": ", chúng tôi để riêng cho quý khách tới lấy.",
+    "nhieu_dong": true
+  },
+  "dat_banh_9360a53fc": {
+    "ten": "01 / Có sẵn",
+    "nhom": "dat_banh",
+    "mac_dinh": "01 / Có sẵn",
+    "nhieu_dong": true
+  },
+  "dat_banh_b69d165f8": {
+    "ten": "Hôm nay đã hết bánh",
+    "nhom": "dat_banh",
+    "mac_dinh": "Hôm nay đã hết bánh",
+    "nhieu_dong": true
+  },
+  "dat_banh_2da45f7bd": {
+    "ten": "Bánh ra lò mỗi sáng và thường hết trong ngày.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Bánh ra lò mỗi sáng và thường hết trong ngày.",
+    "nhieu_dong": true
+  },
+  "dat_banh_5e7da44cb": {
+    "ten": "Đặt bánh trước",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đặt bánh trước",
+    "nhieu_dong": true
+  },
+  "dat_banh_d0d81dd57": {
+    "ten": "02 / Đặt trước",
+    "nhom": "dat_banh",
+    "mac_dinh": "02 / Đặt trước",
+    "nhieu_dong": true
+  },
+  "dat_banh_0dc2a0248": {
+    "ten": "Bếp làm theo đơn",
+    "nhom": "dat_banh",
+    "mac_dinh": "Bếp làm theo đơn",
+    "nhieu_dong": true
+  },
+  "dat_banh_6dcd4ce23": {
+    "ten": "A",
+    "nhom": "dat_banh",
+    "mac_dinh": "A",
+    "nhieu_dong": true
+  },
+  "dat_banh_41d54a1aa": {
+    "ten": "Ngày nhận bánh",
+    "nhom": "dat_banh",
+    "mac_dinh": "Ngày nhận bánh",
+    "nhieu_dong": true
+  },
+  "dat_banh_ae4f281df": {
+    "ten": "B",
+    "nhom": "dat_banh",
+    "mac_dinh": "B",
+    "nhieu_dong": true
+  },
+  "dat_banh_722864cac": {
+    "ten": "Khung giờ nhận",
+    "nhom": "dat_banh",
+    "mac_dinh": "Khung giờ nhận",
+    "nhieu_dong": true
+  },
+  "dat_banh_32096c2e0": {
+    "ten": "C",
+    "nhom": "dat_banh",
+    "mac_dinh": "C",
+    "nhieu_dong": true
+  },
+  "dat_banh_29bae8a2d": {
+    "ten": "Bánh ổ sinh nhật",
+    "nhom": "dat_banh",
+    "mac_dinh": "Bánh ổ sinh nhật",
+    "nhieu_dong": true
+  },
+  "dat_banh_b69802262": {
+    "ten": "Câu chuyện Vagabond",
+    "nhom": "dat_banh",
+    "mac_dinh": "Câu chuyện Vagabond",
+    "nhieu_dong": true
+  },
+  "dat_banh_f98cd5e01": {
+    "ten": "Chúng tôi mong được phục vụ cho quý khách",
+    "nhom": "dat_banh",
+    "mac_dinh": "Chúng tôi mong được phục vụ cho quý khách",
+    "nhieu_dong": true
+  },
+  "dat_banh_7d6408613": {
+    "ten": "Café",
+    "nhom": "dat_banh",
+    "mac_dinh": "Café",
+    "nhieu_dong": true
+  },
+  "dat_banh_823758edf": {
+    "ten": "@thevagabond.patisserie",
+    "nhom": "dat_banh",
+    "mac_dinh": "@thevagabond.patisserie",
+    "nhieu_dong": true
+  },
+  "dat_banh_4c203e5ec": {
+    "ten": "Giá và tồn kho thay đổi theo mùa và nguyên liệu nhập khẩu",
+    "nhom": "dat_banh",
+    "mac_dinh": "Giá và tồn kho thay đổi theo mùa và nguyên liệu nhập khẩu",
+    "nhieu_dong": true
+  },
+  "dat_banh_08fc3ada4": {
+    "ten": "Điện thoại",
+    "nhom": "dat_banh",
+    "mac_dinh": "Điện thoại",
+    "nhieu_dong": true
+  },
+  "dat_banh_e9ba7dd58": {
+    "ten": "Chính sách",
+    "nhom": "dat_banh",
+    "mac_dinh": "Chính sách",
+    "nhieu_dong": true
+  },
+  "dat_banh_fb62c648d": {
+    "ten": "Xem giỏ",
+    "nhom": "dat_banh",
+    "mac_dinh": "Xem giỏ",
+    "nhieu_dong": true
+  },
+  "dat_banh_74ed5c7f8": {
+    "ten": "Thông tin đơn hàng",
+    "nhom": "dat_banh",
+    "mac_dinh": "Thông tin đơn hàng",
+    "nhieu_dong": true
+  },
+  "dat_banh_f257f0ff4": {
+    "ten": "Giỏ bánh",
+    "nhom": "dat_banh",
+    "mac_dinh": "Giỏ bánh",
+    "nhieu_dong": true
+  },
+  "dat_banh_7ddb8bc3b": {
+    "ten": "+ Chọn thêm bánh",
+    "nhom": "dat_banh",
+    "mac_dinh": "+ Chọn thêm bánh",
+    "nhieu_dong": true
+  },
+  "dat_banh_73b0921c0": {
+    "ten": "Ngày và giờ nhận",
+    "nhom": "dat_banh",
+    "mac_dinh": "Ngày và giờ nhận",
+    "nhieu_dong": true
+  },
+  "dat_banh_8e8a333b5": {
+    "ten": "Nhận bánh bằng cách nào",
+    "nhom": "dat_banh",
+    "mac_dinh": "Nhận bánh bằng cách nào",
+    "nhieu_dong": true
+  },
+  "dat_banh_391958765": {
+    "ten": "Giao tận nơi",
+    "nhom": "dat_banh",
+    "mac_dinh": "Giao tận nơi",
+    "nhieu_dong": true
+  },
+  "dat_banh_456ce7b1c": {
+    "ten": "Bếp gọi xe giao tới địa chỉ",
+    "nhom": "dat_banh",
+    "mac_dinh": "Bếp gọi xe giao tới địa chỉ",
+    "nhieu_dong": true
+  },
+  "dat_banh_ba7ce36b2": {
+    "ten": "Tự đến lấy",
+    "nhom": "dat_banh",
+    "mac_dinh": "Tự đến lấy",
+    "nhieu_dong": true
+  },
+  "dat_banh_61aacce28": {
+    "ten": "Lấy tại một trong hai địa điểm",
+    "nhom": "dat_banh",
+    "mac_dinh": "Lấy tại một trong hai địa điểm",
+    "nhieu_dong": true
+  },
+  "dat_banh_bd76ef893": {
+    "ten": "Người đặt",
+    "nhom": "dat_banh",
+    "mac_dinh": "Người đặt",
+    "nhieu_dong": true
+  },
+  "dat_banh_58f52301a": {
+    "ten": "Số điện thoại",
+    "nhom": "dat_banh",
+    "mac_dinh": "Số điện thoại",
+    "nhieu_dong": true
+  },
+  "dat_banh_639307e29": {
+    "ten": "09xx xxx xxx",
+    "nhom": "dat_banh",
+    "mac_dinh": "09xx xxx xxx",
+    "nhieu_dong": true
+  },
+  "dat_banh_4602d2995": {
+    "ten": "Quý khách có thể nhập địa chỉ mới. Địa chỉ đã lưu chỉ hiện sau khi xác thực thành viên.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Quý khách có thể nhập địa chỉ mới. Địa chỉ đã lưu chỉ hiện sau khi xác thực thành viên.",
+    "nhieu_dong": true
+  },
+  "dat_banh_3da3c8c27": {
+    "ten": "Họ tên",
+    "nhom": "dat_banh",
+    "mac_dinh": "Họ tên",
+    "nhieu_dong": true
+  },
+  "dat_banh_5bef63904": {
+    "ten": "Họ và tên người đặt",
+    "nhom": "dat_banh",
+    "mac_dinh": "Họ và tên người đặt",
+    "nhieu_dong": true
+  },
+  "dat_banh_f2a1fc421": {
+    "ten": "Email (không bắt buộc)",
+    "nhom": "dat_banh",
+    "mac_dinh": "Email (không bắt buộc)",
+    "nhieu_dong": true
+  },
+  "dat_banh_b768618e5": {
+    "ten": "email@...",
+    "nhom": "dat_banh",
+    "mac_dinh": "email@...",
+    "nhieu_dong": true
+  },
+  "dat_banh_19d05166b": {
+    "ten": "Địa chỉ nhận",
+    "nhom": "dat_banh",
+    "mac_dinh": "Địa chỉ nhận",
+    "nhieu_dong": true
+  },
+  "dat_banh_d754706bf": {
+    "ten": "Khu vực giao",
+    "nhom": "dat_banh",
+    "mac_dinh": "Khu vực giao",
+    "nhieu_dong": true
+  },
+  "dat_banh_c67579097": {
+    "ten": "Địa chỉ chi tiết",
+    "nhom": "dat_banh",
+    "mac_dinh": "Địa chỉ chi tiết",
+    "nhieu_dong": true
+  },
+  "dat_banh_dd58bee7e": {
+    "ten": "Gõ số nhà và tên đường, rồi chọn trong danh sách",
+    "nhom": "dat_banh",
+    "mac_dinh": "Gõ số nhà và tên đường, rồi chọn trong danh sách",
+    "nhieu_dong": true
+  },
+  "dat_banh_449171c11": {
+    "ten": "Người nhận",
+    "nhom": "dat_banh",
+    "mac_dinh": "Người nhận",
+    "nhieu_dong": true
+  },
+  "dat_banh_f9dae2775": {
+    "ten": "Người khác nhận bánh",
+    "nhom": "dat_banh",
+    "mac_dinh": "Người khác nhận bánh",
+    "nhieu_dong": true
+  },
+  "dat_banh_aec4fcb77": {
+    "ten": "Nhận thay, hoặc gửi tặng",
+    "nhom": "dat_banh",
+    "mac_dinh": "Nhận thay, hoặc gửi tặng",
+    "nhieu_dong": true
+  },
+  "dat_banh_c6a77e80c": {
+    "ten": "Tên người nhận",
+    "nhom": "dat_banh",
+    "mac_dinh": "Tên người nhận",
+    "nhieu_dong": true
+  },
+  "dat_banh_e2b6d704f": {
+    "ten": "Họ và tên người nhận",
+    "nhom": "dat_banh",
+    "mac_dinh": "Họ và tên người nhận",
+    "nhieu_dong": true
+  },
+  "dat_banh_d04237d6e": {
+    "ten": "Số điện thoại người nhận",
+    "nhom": "dat_banh",
+    "mac_dinh": "Số điện thoại người nhận",
+    "nhieu_dong": true
+  },
+  "dat_banh_6f5611da8": {
+    "ten": "Bánh tặng, không gửi kèm hoá đơn",
+    "nhom": "dat_banh",
+    "mac_dinh": "Bánh tặng, không gửi kèm hoá đơn",
+    "nhieu_dong": true
+  },
+  "dat_banh_c5e99412b": {
+    "ten": "Bếp sẽ bỏ hoá đơn ra khỏi hộp",
+    "nhom": "dat_banh",
+    "mac_dinh": "Bếp sẽ bỏ hoá đơn ra khỏi hộp",
+    "nhieu_dong": true
+  },
+  "dat_banh_d3f481f07": {
+    "ten": "Ghi chú cho bếp",
+    "nhom": "dat_banh",
+    "mac_dinh": "Ghi chú cho bếp",
+    "nhieu_dong": true
+  },
+  "dat_banh_251c930aa": {
+    "ten": "Ghi chú chung cho cả đơn",
+    "nhom": "dat_banh",
+    "mac_dinh": "Ghi chú chung cho cả đơn",
+    "nhieu_dong": true
+  },
+  "dat_banh_e2f0d554c": {
+    "ten": "Dị ứng, yêu cầu riêng, hướng dẫn giao...",
+    "nhom": "dat_banh",
+    "mac_dinh": "Dị ứng, yêu cầu riêng, hướng dẫn giao...",
+    "nhieu_dong": true
+  },
+  "dat_banh_99aa833e4": {
+    "ten": "Lời chúc in trên cờ cắm bánh thì điền ở trang chọn bánh, mỗi bánh một lời chúc riêng.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Lời chúc in trên cờ cắm bánh thì điền ở trang chọn bánh, mỗi bánh một lời chúc riêng.",
+    "nhieu_dong": true
+  },
+  "dat_banh_05ecd1510": {
+    "ten": "Hoá đơn",
+    "nhom": "dat_banh",
+    "mac_dinh": "Hoá đơn",
+    "nhieu_dong": true
+  },
+  "dat_banh_2b9cdf192": {
+    "ten": "Xuất hoá đơn cho công ty",
+    "nhom": "dat_banh",
+    "mac_dinh": "Xuất hoá đơn cho công ty",
+    "nhieu_dong": true
+  },
+  "dat_banh_2f21d2762": {
+    "ten": "Điền mã số thuế, hệ thống tự lấy tên và địa chỉ công ty",
+    "nhom": "dat_banh",
+    "mac_dinh": "Điền mã số thuế, hệ thống tự lấy tên và địa chỉ công ty",
+    "nhieu_dong": true
+  },
+  "dat_banh_bf1686a9c": {
+    "ten": "Mã số thuế",
+    "nhom": "dat_banh",
+    "mac_dinh": "Mã số thuế",
+    "nhieu_dong": true
+  },
+  "dat_banh_980763cf3": {
+    "ten": "10 hoặc 13 số",
+    "nhom": "dat_banh",
+    "mac_dinh": "10 hoặc 13 số",
+    "nhieu_dong": true
+  },
+  "dat_banh_e90c92c6b": {
+    "ten": "Gõ đủ mã số thuế, hệ thống sẽ tra tên công ty.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Gõ đủ mã số thuế, hệ thống sẽ tra tên công ty.",
+    "nhieu_dong": true
+  },
+  "dat_banh_24db39d3b": {
+    "ten": "Tên công ty",
+    "nhom": "dat_banh",
+    "mac_dinh": "Tên công ty",
+    "nhieu_dong": true
+  },
+  "dat_banh_e22f738f9": {
+    "ten": "Tự điền sau khi tra mã số thuế",
+    "nhom": "dat_banh",
+    "mac_dinh": "Tự điền sau khi tra mã số thuế",
+    "nhieu_dong": true
+  },
+  "dat_banh_36311276d": {
+    "ten": "Email nhận hoá đơn",
+    "nhom": "dat_banh",
+    "mac_dinh": "Email nhận hoá đơn",
+    "nhieu_dong": true
+  },
+  "dat_banh_0995a8a86": {
+    "ten": "ketoan@congty.vn",
+    "nhom": "dat_banh",
+    "mac_dinh": "ketoan@congty.vn",
+    "nhieu_dong": true
+  },
+  "dat_banh_8f0343ae6": {
+    "ten": "Địa chỉ trên hoá đơn",
+    "nhom": "dat_banh",
+    "mac_dinh": "Địa chỉ trên hoá đơn",
+    "nhieu_dong": true
+  },
+  "dat_banh_f10e63e4f": {
+    "ten": "Tên và địa chỉ lấy từ dữ liệu của Cục Thuế. Quý khách sửa lại được nếu công ty vừa đổi thông tin.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Tên và địa chỉ lấy từ dữ liệu của Cục Thuế. Quý khách sửa lại được nếu công ty vừa đổi thông tin.",
+    "nhieu_dong": true
+  },
+  "dat_banh_9d5a6614c": {
+    "ten": "Thanh toán",
+    "nhom": "dat_banh",
+    "mac_dinh": "Thanh toán",
+    "nhieu_dong": true
+  },
+  "dat_banh_e12f05e93": {
+    "ten": "Tôi đồng ý để The Vagabond Pâtisserie sử dụng họ tên, số điện thoại và địa chỉ để giao bánh và liên hệ về đơn ",
+    "nhom": "dat_banh",
+    "mac_dinh": "Tôi đồng ý để The Vagabond Pâtisserie sử dụng họ tên, số điện thoại và địa chỉ để giao bánh và liên hệ về đơn này",
+    "nhieu_dong": true
+  },
+  "dat_banh_01f52284d": {
+    "ten": "Theo chính sách bảo mật của chúng tôi.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Theo chính sách bảo mật của chúng tôi.",
+    "nhieu_dong": true
+  },
+  "dat_banh_71efef066": {
+    "ten": "Giá",
+    "nhom": "dat_banh",
+    "mac_dinh": "Giá",
+    "nhieu_dong": true
+  },
+  "dat_banh_c02f89b47": {
+    "ten": "Giá đã gồm thuế GTGT. Chưa gồm phí vận chuyển nếu có.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Giá đã gồm thuế GTGT. Chưa gồm phí vận chuyển nếu có.",
+    "nhieu_dong": true
+  },
+  "dat_banh_488b179ee": {
+    "ten": "Trong hộp có gì",
+    "nhom": "dat_banh",
+    "mac_dinh": "Trong hộp có gì",
+    "nhieu_dong": true
+  },
+  "dat_banh_0e619c4c4": {
+    "ten": "Giá bánh",
+    "nhom": "dat_banh",
+    "mac_dinh": "Giá bánh",
+    "nhieu_dong": true
+  },
+  "dat_banh_970e693a8": {
+    "ten": "Lời chúc in trên cờ",
+    "nhom": "dat_banh",
+    "mac_dinh": "Lời chúc in trên cờ",
+    "nhieu_dong": true
+  },
+  "dat_banh_ed04b0946": {
+    "ten": "Happy Birthday...",
+    "nhom": "dat_banh",
+    "mac_dinh": "Happy Birthday...",
+    "nhieu_dong": true
+  },
+  "dat_banh_05faf7b4b": {
+    "ten": "/60 ký tự. Nội dung sẽ được in thành cờ, khi vào tiệc thì cắm lên bánh.",
+    "nhom": "dat_banh",
+    "mac_dinh": "/60 ký tự. Nội dung sẽ được in thành cờ, khi vào tiệc thì cắm lên bánh.",
+    "nhieu_dong": true
+  },
+  "dat_banh_2320148b6": {
+    "ten": "Phụ kiện tặng kèm",
+    "nhom": "dat_banh",
+    "mac_dinh": "Phụ kiện tặng kèm",
+    "nhieu_dong": true
+  },
+  "dat_banh_b009ad199": {
+    "ten": "Phụ kiện mua thêm",
+    "nhom": "dat_banh",
+    "mac_dinh": "Phụ kiện mua thêm",
+    "nhieu_dong": true
+  },
+  "dat_banh_16c989c4d": {
+    "ten": "Quý khách chọn thêm phụ kiện cần dùng. Chúng tôi sẽ ghi nhận cùng đơn bánh.",
+    "nhom": "dat_banh",
+    "mac_dinh": "Quý khách chọn thêm phụ kiện cần dùng. Chúng tôi sẽ ghi nhận cùng đơn bánh.",
+    "nhieu_dong": true
+  },
+  "dat_banh_87aff9ee8": {
+    "ten": "17.000 đ / số",
+    "nhom": "dat_banh",
+    "mac_dinh": "17.000 đ / số",
+    "nhieu_dong": true
+  },
+  "dat_ban_92f9b37b8": {
+    "ten": "Đặt bàn · The Vagabond Pâtisserie",
+    "nhom": "dat_ban",
+    "mac_dinh": "Đặt bàn · The Vagabond Pâtisserie",
+    "nhieu_dong": true
+  },
+  "dat_ban_f7e2e7957": {
+    "ten": "VAGABOND",
+    "nhom": "dat_ban",
+    "mac_dinh": "VAGABOND",
+    "nhieu_dong": true
+  },
+  "dat_ban_71dd502d4": {
+    "ten": "Chọn bánh",
+    "nhom": "dat_ban",
+    "mac_dinh": "Chọn bánh",
+    "nhieu_dong": true
+  },
+  "dat_ban_7ed97a9c4": {
+    "ten": "Đang tải lịch nhận đặt bàn...",
+    "nhom": "dat_ban",
+    "mac_dinh": "Đang tải lịch nhận đặt bàn...",
+    "nhieu_dong": true
+  },
+  "dat_ban_a82343d6b": {
+    "ten": "Chi nhánh",
+    "nhom": "dat_ban",
+    "mac_dinh": "Chi nhánh",
+    "nhieu_dong": true
+  },
+  "dat_ban_0483e7073": {
+    "ten": "Ngày đến",
+    "nhom": "dat_ban",
+    "mac_dinh": "Ngày đến",
+    "nhieu_dong": true
+  },
+  "dat_ban_25d8ebb96": {
+    "ten": "Số khách",
+    "nhom": "dat_ban",
+    "mac_dinh": "Số khách",
+    "nhieu_dong": true
+  },
+  "dat_ban_82b3cd7ab": {
+    "ten": "Giờ mong muốn",
+    "nhom": "dat_ban",
+    "mac_dinh": "Giờ mong muốn",
+    "nhieu_dong": true
+  },
+  "dat_ban_7f550f446": {
+    "ten": "Chọn giờ đến",
+    "nhom": "dat_ban",
+    "mac_dinh": "Chọn giờ đến",
+    "nhieu_dong": true
+  },
+  "dat_ban_3da3c8c27": {
+    "ten": "Họ tên",
+    "nhom": "dat_ban",
+    "mac_dinh": "Họ tên",
+    "nhieu_dong": true
+  },
+  "dat_ban_58f52301a": {
+    "ten": "Số điện thoại",
+    "nhom": "dat_ban",
+    "mac_dinh": "Số điện thoại",
+    "nhieu_dong": true
+  },
+  "dat_ban_ce73da0ce": {
+    "ten": "Thông tin thêm (không bắt buộc)",
+    "nhom": "dat_ban",
+    "mac_dinh": "Thông tin thêm (không bắt buộc)",
+    "nhieu_dong": true
+  },
+  "dat_ban_b1e83dc84": {
+    "ten": "Dịp",
+    "nhom": "dat_ban",
+    "mac_dinh": "Dịp",
+    "nhieu_dong": true
+  },
+  "dat_ban_3ac048482": {
+    "ten": "Khu vực mong muốn",
+    "nhom": "dat_ban",
+    "mac_dinh": "Khu vực mong muốn",
+    "nhieu_dong": true
+  },
+  "dat_ban_7f42746d9": {
+    "ten": "Số trẻ em trong đoàn",
+    "nhom": "dat_ban",
+    "mac_dinh": "Số trẻ em trong đoàn",
+    "nhieu_dong": true
+  },
+  "dat_ban_84add5b29": {
+    "ten": "Email",
+    "nhom": "dat_ban",
+    "mac_dinh": "Email",
+    "nhieu_dong": true
+  },
+  "dat_ban_fcf535e0a": {
+    "ten": "Bánh muốn đặt sẵn",
+    "nhom": "dat_ban",
+    "mac_dinh": "Bánh muốn đặt sẵn",
+    "nhieu_dong": true
+  },
+  "dat_ban_ad0390992": {
+    "ten": "Tên bánh, số lượng hoặc điều quý khách muốn chúng tôi tư vấn...",
+    "nhom": "dat_ban",
+    "mac_dinh": "Tên bánh, số lượng hoặc điều quý khách muốn chúng tôi tư vấn...",
+    "nhieu_dong": true
+  },
+  "dat_ban_8d2bbdffc": {
+    "ten": "Ghi chú cho chúng tôi",
+    "nhom": "dat_ban",
+    "mac_dinh": "Ghi chú cho chúng tôi",
+    "nhieu_dong": true
+  },
+  "dat_ban_b5bace62b": {
+    "ten": "Điều quý khách muốn nhắn thêm cho chúng tôi...",
+    "nhom": "dat_ban",
+    "mac_dinh": "Điều quý khách muốn nhắn thêm cho chúng tôi...",
+    "nhieu_dong": true
+  },
+  "dat_ban_9118a9fe2": {
+    "ten": "Chúng tôi dùng thông tin này để liên hệ về yêu cầu đặt bàn của quý khách.",
+    "nhom": "dat_ban",
+    "mac_dinh": "Chúng tôi dùng thông tin này để liên hệ về yêu cầu đặt bàn của quý khách.",
+    "nhieu_dong": true
+  },
+  "thanh_vien_0da7f67c1": {
+    "ten": "Thành viên · The Vagabond Pâtisserie",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Thành viên · The Vagabond Pâtisserie",
+    "nhieu_dong": true
+  },
+  "thanh_vien_f7e2e7957": {
+    "ten": "VAGABOND",
+    "nhom": "thanh_vien",
+    "mac_dinh": "VAGABOND",
+    "nhieu_dong": true
+  },
+  "thanh_vien_71dd502d4": {
+    "ten": "Chọn bánh",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Chọn bánh",
+    "nhieu_dong": true
+  },
+  "thanh_vien_1299d058e": {
+    "ten": "THE VAGABOND COMMUNITY",
+    "nhom": "thanh_vien",
+    "mac_dinh": "THE VAGABOND COMMUNITY",
+    "nhieu_dong": true
+  },
+  "thanh_vien_b910c6338": {
+    "ten": "Thành viên Vagabond",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Thành viên Vagabond",
+    "nhieu_dong": true
+  },
+  "thanh_vien_b030e0bbc": {
+    "ten": "Xem hạng thành viên, điểm tích lũy và những đơn bánh đã đặt.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Xem hạng thành viên, điểm tích lũy và những đơn bánh đã đặt.",
+    "nhieu_dong": true
+  },
+  "thanh_vien_958013f33": {
+    "ten": "Đang kiểm tra phiên đăng nhập...",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Đang kiểm tra phiên đăng nhập...",
+    "nhieu_dong": true
+  },
+  "thanh_vien_927d3a4ef": {
+    "ten": "Đăng nhập bằng số điện thoại",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Đăng nhập bằng số điện thoại",
+    "nhieu_dong": true
+  },
+  "thanh_vien_5e7be2ebb": {
+    "ten": "Số điện thoại đã mua bánh",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Số điện thoại đã mua bánh",
+    "nhieu_dong": true
+  },
+  "thanh_vien_bf4cab164": {
+    "ten": "Chúng tôi gửi mã xác thực qua Zalo. Không cần tạo mật khẩu.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Chúng tôi gửi mã xác thực qua Zalo. Không cần tạo mật khẩu.",
+    "nhieu_dong": true
+  },
+  "thanh_vien_fcde881ef": {
+    "ten": "Gửi mã qua Zalo",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Gửi mã qua Zalo",
+    "nhieu_dong": true
+  },
+  "thanh_vien_0495eca7f": {
+    "ten": "Mã xác thực 6 số",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Mã xác thực 6 số",
+    "nhieu_dong": true
+  },
+  "thanh_vien_d53daf2f4": {
+    "ten": "Xác nhận",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Xác nhận",
+    "nhieu_dong": true
+  },
+  "thanh_vien_d513aac0b": {
+    "ten": "Đăng xuất",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Đăng xuất",
+    "nhieu_dong": true
+  },
+  "thanh_vien_10bd30829": {
+    "ten": "Thẻ hạng thành viên",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Thẻ hạng thành viên",
+    "nhieu_dong": true
+  },
+  "thanh_vien_cf472599b": {
+    "ten": "Điểm hiện có",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Điểm hiện có",
+    "nhieu_dong": true
+  },
+  "thanh_vien_58b08cf48": {
+    "ten": "Đơn bánh của quý khách",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Đơn bánh của quý khách",
+    "nhieu_dong": true
+  },
+  "thanh_vien_1a1774b48": {
+    "ten": "Cần hỗ trợ?",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Cần hỗ trợ?",
+    "nhieu_dong": true
+  },
+  "bien_nhan_8d4e8c5d8": {
+    "ten": "Biên nhận yêu cầu đặt bánh · The Vagabond Pâtisserie",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Biên nhận yêu cầu đặt bánh · The Vagabond Pâtisserie",
+    "nhieu_dong": true
+  },
+  "bien_nhan_b12284835": {
+    "ten": "THE VAGABOND",
+    "nhom": "bien_nhan",
+    "mac_dinh": "THE VAGABOND",
+    "nhieu_dong": true
+  },
+  "bien_nhan_784bff088": {
+    "ten": "PÂTISSERIE",
+    "nhom": "bien_nhan",
+    "mac_dinh": "PÂTISSERIE",
+    "nhieu_dong": true
+  },
+  "chinh_sach_b12284835": {
+    "ten": "THE VAGABOND",
+    "nhom": "chinh_sach",
+    "mac_dinh": "THE VAGABOND",
+    "nhieu_dong": true
+  },
+  "chinh_sach_784bff088": {
+    "ten": "PÂTISSERIE",
+    "nhom": "chinh_sach",
+    "mac_dinh": "PÂTISSERIE",
+    "nhieu_dong": true
+  },
+  "bien_nhan_ee537c03e": {
+    "ten": "Biên nhận: dòng giới thiệu",
+    "nhom": "bien_nhan",
+    "mac_dinh": "ĐÃ TIẾP NHẬN YÊU CẦU",
+    "nhieu_dong": true
+  },
+  "bien_nhan_0ea4a5a10": {
+    "ten": "Chúng tôi chưa thu tiền ở bước này. Chúng tôi sẽ gọi xác nhận rồi gửi hướng dẫn thanh toán.",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Chúng tôi chưa thu tiền ở bước này. Chúng tôi sẽ gọi xác nhận rồi gửi hướng dẫn thanh toán.",
+    "nhieu_dong": true
+  },
+  "bien_nhan_ed312c8e3": {
+    "ten": "Nhắn Zalo",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Nhắn Zalo",
+    "nhieu_dong": true
+  },
+  "bien_nhan_edbd31524": {
+    "ten": "Nhắn Messenger",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Nhắn Messenger",
+    "nhieu_dong": true
+  },
+  "bien_nhan_65781f4fe": {
+    "ten": "Mã yêu cầu ",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Mã yêu cầu ",
+    "nhieu_dong": true
+  },
+  "bien_nhan_d5ba29353": {
+    "ten": "Cách nhận",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Cách nhận",
+    "nhieu_dong": true
+  },
+  "bien_nhan_9d5a6614c": {
+    "ten": "Thanh toán",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Thanh toán",
+    "nhieu_dong": true
+  },
+  "bien_nhan_ea3b9f8b1": {
+    "ten": "Tiền bánh",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Tiền bánh",
+    "nhieu_dong": true
+  },
+  "bien_nhan_06a446f5c": {
+    "ten": "Phí giao",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Phí giao",
+    "nhieu_dong": true
+  },
+  "bien_nhan_de995d836": {
+    "ten": "Tổng",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Tổng",
+    "nhieu_dong": true
+  },
+  "bien_nhan_3f197d985": {
+    "ten": "Đặt thêm bánh",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Đặt thêm bánh",
+    "nhieu_dong": true
+  },
+  "bien_nhan_bd76ef893": {
+    "ten": "Người đặt",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Người đặt",
+    "nhieu_dong": true
+  },
+  "bien_nhan_c3baf86a6": {
+    "ten": "Nhận bánh",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Nhận bánh",
+    "nhieu_dong": true
+  },
+  "bien_nhan_cho": {
+    "ten": "Chúng tôi đã tiếp nhận yêu cầu và đang kiểm tra. Quý khách không cần đặt lại.",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Chúng tôi đã tiếp nhận yêu cầu và đang kiểm tra. Quý khách không cần đặt lại.",
+    "nhieu_dong": true
+  },
+  "bien_nhan_huy": {
+    "ten": "Đơn này đã được huỷ. Quý khách có thể đặt đơn mới hoặc liên hệ để được hỗ trợ.",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Đơn này đã được huỷ. Quý khách có thể đặt đơn mới hoặc liên hệ để được hỗ trợ.",
+    "nhieu_dong": true
+  },
+  "bien_nhan_nhan": {
+    "ten": "Chúng tôi đã nhận đơn. Nhân viên sẽ liên hệ xác nhận và hướng dẫn thanh toán.",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Chúng tôi đã nhận đơn. Nhân viên sẽ liên hệ xác nhận và hướng dẫn thanh toán.",
+    "nhieu_dong": true
+  },
+  "bien_nhan_tt_cho": {
+    "ten": "Đang xác nhận",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Đang xác nhận",
+    "nhieu_dong": true
+  },
+  "bien_nhan_tt_huy": {
+    "ten": "Đã huỷ",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Đã huỷ",
+    "nhieu_dong": true
+  },
+  "bien_nhan_tt_nhan": {
+    "ten": "Đã nhận",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Đã nhận",
+    "nhieu_dong": true
+  },
+  "anh_thu_tu": {
+    "ten": "Ảnh {so}",
+    "mac_dinh": "Ảnh {so}",
+    "nhom": "san_pham",
+    "nhieu_dong": true
+  },
+  "them_nhanh_mon": {
+    "ten": "Thêm nhanh {ten} vào giỏ",
+    "mac_dinh": "Thêm nhanh {ten} vào giỏ",
+    "nhom": "dat_banh",
+    "nhieu_dong": true
+  },
+  "doc_bao_mat": {
+    "ten": "Đọc chính sách bảo mật",
+    "mac_dinh": "Đọc chính sách bảo mật",
+    "nhom": "dat_banh",
+    "nhieu_dong": true
+  },
+  "phu_kien_e0fe21772": {
+    "ten": "Nến xoắn",
+    "mac_dinh": "Nến xoắn",
+    "nhom": "san_pham",
+    "nhieu_dong": true
+  },
+  "phu_kien_28be55676": {
+    "ten": "vỉ 6 cây, tặng kèm",
+    "mac_dinh": "vỉ 6 cây, tặng kèm",
+    "nhom": "san_pham",
+    "nhieu_dong": true
+  },
+  "phu_kien_8034a0777": {
+    "ten": "Cờ cắm in lời chúc",
+    "mac_dinh": "Cờ cắm in lời chúc",
+    "nhom": "san_pham",
+    "nhieu_dong": true
+  },
+  "phu_kien_da39a3ee5": {
+    "ten": "",
+    "mac_dinh": "",
+    "nhom": "san_pham",
+    "nhieu_dong": true
+  },
+  "phu_kien_262b4eaaa": {
+    "ten": "Dao gỗ cắt bánh",
+    "mac_dinh": "Dao gỗ cắt bánh",
+    "nhom": "san_pham",
+    "nhieu_dong": true
+  },
+  "phu_kien_6901061b9": {
+    "ten": "Nĩa gỗ",
+    "mac_dinh": "Nĩa gỗ",
+    "nhom": "san_pham",
+    "nhieu_dong": true
+  },
+  "phu_kien_865804acc": {
+    "ten": "khi quý khách yêu cầu",
+    "mac_dinh": "khi quý khách yêu cầu",
+    "nhom": "san_pham",
+    "nhieu_dong": true
+  },
+  "phu_kien_08ee935af": {
+    "ten": "Dĩa giấy bã mía",
+    "mac_dinh": "Dĩa giấy bã mía",
+    "nhom": "san_pham",
+    "nhieu_dong": true
+  },
+  "phu_kien_9908ba265": {
+    "ten": "Nến xoắn (vỉ 6 cây)",
+    "mac_dinh": "Nến xoắn (vỉ 6 cây)",
+    "nhom": "san_pham",
+    "nhieu_dong": true
+  },
+  "phu_kien_91d4d0b6f": {
+    "ten": "Thiệp chúc mừng sinh nhật",
+    "mac_dinh": "Thiệp chúc mừng sinh nhật",
+    "nhom": "san_pham",
+    "nhieu_dong": true
+  },
+  "phu_kien_f5af63739": {
+    "ten": "Nón sinh nhật",
+    "mac_dinh": "Nón sinh nhật",
+    "nhom": "san_pham",
+    "nhieu_dong": true
+  },
+  "phu_kien_55065e4f5": {
+    "ten": "Sash sinh nhật",
+    "mac_dinh": "Sash sinh nhật",
+    "nhom": "san_pham",
+    "nhieu_dong": true
+  },
+  "phu_kien_9ed7b3e1a": {
+    "ten": "Hộp bánh kem",
+    "mac_dinh": "Hộp bánh kem",
+    "nhom": "san_pham",
+    "nhieu_dong": true
+  },
+  "phu_kien_4decf2ff4": {
+    "ten": "Túi vải đen The Vagabond",
+    "mac_dinh": "Túi vải đen The Vagabond",
+    "nhom": "san_pham",
+    "nhieu_dong": true
+  },
+  "san_pham_co_san": {
+    "ten": "Có sẵn hôm nay",
+    "mac_dinh": "Có sẵn hôm nay",
+    "nhom": "san_pham",
+    "nhieu_dong": true
+  },
+  "san_pham_dat_truoc": {
+    "ten": "Đặt trước",
+    "mac_dinh": "Đặt trước",
+    "nhom": "san_pham",
+    "nhieu_dong": true
+  },
+  "gio_hang_nhan_ngay": {
+    "ten": "Nhận ngày",
+    "mac_dinh": "Nhận ngày",
+    "nhom": "gio_hang",
+    "nhieu_dong": true
+  },
+  "gio_hang_tien_banh": {
+    "ten": "Tiền bánh",
+    "mac_dinh": "Tiền bánh",
+    "nhom": "gio_hang",
+    "nhieu_dong": true
+  },
+  "giao_ngoai_vung": {
+    "ten": "Địa chỉ ngoài vùng giao",
+    "nhom": "gio_hang",
+    "mac_dinh": "Chúng tôi chưa hỗ trợ giao đến địa chỉ này. Bánh kem chỉ giao trong bán kính {km} km quanh bếp và cửa hàng. Quý khách có thể chọn tự đến lấy tại cửa hàng.",
+    "nhieu_dong": true
+  },
+  "don_da_tiep_nhan": {
+    "ten": "Đơn đã tiếp nhận (máy chủ chưa mở biên nhận)",
+    "nhom": "gio_hang",
+    "mac_dinh": "Chúng tôi đã tiếp nhận yêu cầu {ma}. Quý khách lưu lại mã này. Nhân viên sẽ liên hệ xác nhận và hướng dẫn thanh toán.",
+    "nhieu_dong": true
+  },
+  "nen_so": {
+    "ten": "Nến số {so}",
+    "mac_dinh": "Nến số {so}",
+    "nhom": "dat_banh",
+    "nhieu_dong": true
+  },
+  "dien_thoai": {
+    "ten": "Điện thoại",
+    "mac_dinh": "Điện thoại",
+    "nhom": "dat_banh",
+    "nhieu_dong": true
+  },
+  "goi_dien": {
+    "ten": "Gọi {so}",
+    "mac_dinh": "Gọi {so}",
+    "nhom": "dat_banh",
+    "nhieu_dong": true
+  },
+  "ma_so_thue": {
+    "ten": "Mã số thuế",
+    "mac_dinh": "Mã số thuế",
+    "nhom": "dat_banh",
+    "nhieu_dong": true
+  },
+  "bien_nhan_phi_cho": {
+    "ten": "Chúng tôi báo phí khi xác nhận",
+    "mac_dinh": "Chúng tôi báo phí khi xác nhận",
+    "nhom": "bien_nhan",
+    "nhieu_dong": true
+  },
+  "bien_nhan_tong_cho": {
+    "ten": "Chờ xác nhận phí giao",
+    "mac_dinh": "Chờ xác nhận phí giao",
+    "nhom": "bien_nhan",
+    "nhieu_dong": true
+  },
+  "bien_nhan_nhan_tai_quay": {
+    "ten": "Tự đến lấy",
+    "mac_dinh": "Tự đến lấy",
+    "nhom": "bien_nhan",
+    "nhieu_dong": true
+  },
+  "bien_nhan_giao_tan_noi": {
+    "ten": "Giao tận nơi",
+    "mac_dinh": "Giao tận nơi",
+    "nhom": "bien_nhan",
+    "nhieu_dong": true
+  },
+  "bien_nhan_chuyen_khoan": {
+    "ten": "Chuyển khoản (mã VietQR)",
+    "mac_dinh": "Chuyển khoản (mã VietQR)",
+    "nhom": "bien_nhan",
+    "nhieu_dong": true
+  },
+  "bien_nhan_the": {
+    "ten": "Thẻ qua cổng OnePay",
+    "mac_dinh": "Thẻ qua cổng OnePay",
+    "nhom": "bien_nhan",
+    "nhieu_dong": true
+  },
+  "chinh_sach_bao_mat_ten": {
+    "ten": "Chính sách bảo mật",
+    "mac_dinh": "Chính sách bảo mật",
+    "nhom": "chinh_sach",
+    "nhieu_dong": true
+  },
+  "dieu_khoan_ten": {
+    "ten": "Điều khoản sử dụng",
+    "mac_dinh": "Điều khoản sử dụng",
+    "nhom": "chinh_sach",
+    "nhieu_dong": true
+  },
+  "giao_hang_doi_tra_ten": {
+    "ten": "Giao hàng và đổi trả",
+    "mac_dinh": "Giao hàng và đổi trả",
+    "nhom": "chinh_sach",
+    "nhieu_dong": true
+  },
+  "ngon_ngu_vn": {
+    "ten": "Tiếng Việt",
+    "mac_dinh": "Tiếng Việt",
+    "nhom": "chinh_sach",
+    "nhieu_dong": true
+  },
+  "ngon_ngu_en": {
+    "ten": "English",
+    "mac_dinh": "English",
+    "nhom": "chinh_sach",
+    "nhieu_dong": true
+  },
+  "nhan_seasonal": {
+    "ten": "Seasonal",
+    "mac_dinh": "Seasonal",
+    "nhom": "chinh_sach",
+    "nhieu_dong": true
+  },
+  "bien_nhan_phi_tu_lay": {
+    "ten": "Tự lấy, không tính phí",
+    "mac_dinh": "Tự lấy, không tính phí",
+    "nhom": "bien_nhan",
+    "nhieu_dong": true
+  },
+  "bien_nhan_phi_mien": {
+    "ten": "Miễn phí giao",
+    "mac_dinh": "Miễn phí giao",
+    "nhom": "bien_nhan",
+    "nhieu_dong": true
+  },
+  "bien_nhan_tu_lay_tai": {
+    "ten": "Tự lấy tại",
+    "mac_dinh": "Tự lấy tại",
+    "nhom": "bien_nhan",
+    "nhieu_dong": true
+  }
+}

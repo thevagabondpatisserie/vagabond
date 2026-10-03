@@ -9,3 +9,8 @@
 /* #367: ba trang chính sách trong studio. */
 .cs-sua textarea{min-height:320px;font:13px/1.55 ui-monospace,Menlo,Consolas,monospace}.cs-canh{background:#fff4e5;border:1px solid #e9c78f;padding:10px 12px;border-radius:6px}.cs-canh b{color:#8a4b00}
 /* v532: dòng mặc định dưới ô nhãn */.truong small{display:block;margin-top:6px;padding:4px 8px;border-radius:6px}
+
+#phuc-hoi{padding:16px;border:1px solid var(--cyan,#29bdb3);margin:16px 0}#phuc-hoi button{margin:8px 8px 0 0}.loc-nhom{margin:12px 0}.truong textarea{min-height:88px}.truong small{overflow-wrap:anywhere}.hanh-dong{flex-wrap:wrap}#thuoc-tinh>input[type=search]{width:100%;padding:12px;min-height:44px}#thuoc-tinh{overflow-wrap:anywhere}
+/* Bộ lọc gọn để ô sửa nằm gần ô tìm; font thương hiệu cần cỡ đủ đọc. */
+.loc-nhom{display:flex;flex-wrap:wrap;gap:6px}.loc-nhom button{width:auto;flex:0 1 auto;font-size:12px;padding:8px 10px}
+h2{font-size:28px;line-height:1.15}h3{font-size:24px;line-height:1.15}.chinh-sua{min-width:0}
