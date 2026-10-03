@@ -21,8 +21,10 @@ duyệt" gửi nhóm Kế toán. Các tin khác thêm dần sau khi chạy ổn.
 2. Trong nhóm, một người @nhắc bot một lần (gõ @tên bot và một chữ bất kỳ).
 3. Tải lại Vagabond Settings: ô **Chat vừa nhắn bot** hiện mã chat và tên
    nhóm. Máy không lưu nội dung tin nhắn.
-4. Bảng **Nhóm nhận tin**: thêm dòng, gõ Tên nhóm "Kế toán", dán Mã chat
-   Zalo. Bấm vào dòng để mở khung dòng, rồi:
+4. Bảng **Nhóm nhận tin**: thêm dòng, bấm vào dòng để mở khung dòng, rồi:
+   - bấm **Chọn nhóm đã nhắn bot**, chọn nhóm (máy điền mã chat, và tên
+     nhóm nếu còn trống; sửa Tên nhóm cho dễ nhận, ví dụ "Kế toán"). Mã chat
+     không gõ tay được và chỉ nhận nhóm, không nhận chat riêng;
    - bấm **Chọn loại tin**, tích các loại nhóm này nhận (ví dụ Việc cần làm
      `viec` và Cảnh báo `canh_bao`), bấm Xong;
    - bấm **Chọn chủ đề**, tích chủ đề (ví dụ `cong_no`), bấm Xong.
@@ -57,6 +59,6 @@ duyệt" gửi nhóm Kế toán. Các tin khác thêm dần sau khi chạy ổn.
 - "Chưa rõ" là Zalo không trả lời kịp: tin có thể đã tới. Xem nhóm trước khi
   gửi lại, máy không tự gửi lại.
 - Zalo lỗi không bao giờ chặn lưu chứng từ.
-- Tài liệu chính thức của Zalo Bot ghi sendMessage nhận mã người hoặc mã
-  cuộc trò chuyện, nhưng chưa nói rõ riêng về nhóm. Nếu gửi thử vào nhóm báo
-  lỗi thì thử với chat riêng (một người nhắn bot) và báo lại để chỉnh.
+- Nối bot báo bot "chưa được phép vào nhóm": vào bot.zaloplatforms.com bật
+  quyền tham gia nhóm cho bot rồi bấm Nối Zalo Bot lại. Zalo ghi nhóm của bot
+  đang ở giai đoạn thử (Beta).
