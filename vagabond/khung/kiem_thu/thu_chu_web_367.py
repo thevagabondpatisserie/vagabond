@@ -223,3 +223,22 @@ def _phap_ly():
     trang = (GOC / 'trang/banh.html').read_text()
     dung('chân trang vẫn in mã số thuế cố định', 'Mã số thuế 0318561568' in trang)
     dung('mã số thuế không gắn data-vgb-chu', re.search(r'data-vgb-chu="[^"]+">Mã số thuế 0318561568', trang) is None)
+
+
+@ca("#432 P1: dòng Đã chọn thêm không diễn giải nhãn phụ kiện, nến số thành HTML")
+def _da_chon_them():
+    # Chuoi bam cua khach: mo hop banh, chon phu kien, bo, chon nen so. Doc #s-addsum
+    # sau tung buoc; ca R1 cu khong chon phu kien nen bo sot vung nay (Codex #432).
+    kich = r'''
+window.vgbNhan={phu_kien_91d4d0b6f:'<vgb-canary>Phụ kiện</vgb-canary>',dat_banh_909dfa9ae:'<vgb-canary>Nến</vgb-canary>'};
+TODAY[CAKES[0].sizes[0].id]=4;renderSheet(CAKES[0]);
+toggleAdd('BAPK00002');const a=EL('#s-addsum').innerHTML;
+toggleAdd('BAPK00002');toggleNum(2);const b=EL('#s-addsum').innerHTML;
+RA({a,b});
+'''
+    r=subprocess.run(['node',str(GOC/'khung/kiem_thu/gia_lap_trang.js'),str(GOC/'trang/banh.html'),'2026-10-03T08:00:00+07:00',kich],capture_output=True,text=True,timeout=30)
+    la('chạy chuỗi bấm thật',r.returncode,0)
+    if r.returncode: raise AssertionError(r.stderr[:1000])
+    d=json.loads(r.stdout)
+    dung('phụ kiện: không tạo thẻ (%s)' % d['a'][:120], '<vgb-canary' not in d['a'] and '&lt;vgb-canary&gt;' in d['a'])
+    dung('nến số: không tạo thẻ (%s)' % d['b'][:120], '<vgb-canary' not in d['b'] and '&lt;vgb-canary&gt;' in d['b'])
