@@ -199,6 +199,38 @@ def kiem_gio_im(ds):
 	return ("Bảng Nhóm nhận tin Zalo: " + "; ".join(loi) + ".") if loi else ""
 
 
+def kiem_bot(toi):
+	"""THUẦN: lỗi nếu getMe báo bot không được vào nhóm (can_join_groups = false).
+
+	Codex #425: bot loại này vẫn nối webhook được nên trông như đã xong, nhưng
+	không vào nhóm được, không bao giờ có mã nhóm. Thiếu trường thì không chặn."""
+	if isinstance(toi, dict) and toi.get("can_join_groups") is False:
+		return ("Bot Zalo này chưa được phép vào nhóm (can_join_groups = false). Vào bot.zaloplatforms.com "
+			"bật quyền tham gia nhóm cho bot (hoặc nâng loại bot), rồi bấm Nối Zalo Bot lại.")
+	return ""
+
+
+def kiem_ma_chat(ds, cu, chat_moi):
+	"""THUẦN: mã chat mới thêm phải là NHÓM đã nhắn bot (có trong Chat vừa nhắn bot).
+
+	Codex #425: ô mã chat gõ tự do thì gõ nhầm hoặc dán nhầm mã chat riêng
+	vẫn lưu được, tin việc đi sai chỗ. Dòng đã lưu từ trước (cu) giữ nguyên,
+	không bắt kiểm lại vì danh sách Chat vừa nhắn bot chỉ giữ 20 chat gần nhất."""
+	da_co = {str(x or "").strip() for x in (cu or [])}
+	biet = {str(x.get("chat_id") or "").strip(): x for x in (chat_moi or []) if isinstance(x, dict)}
+	loi = []
+	for i, r in enumerate(ds or [], 1):
+		c = str(r.get("chat_id") or "").strip()
+		if not c or c in da_co:
+			continue
+		x = biet.get(c)
+		if not x:
+			loi.append("dòng %s mã chat chưa thấy trong Chat vừa nhắn bot (thêm bot vào nhóm, @nhắc bot rồi chọn lại)" % i)
+		elif str(x.get("loai") or "").upper() != "GROUP":
+			loi.append("dòng %s là chat riêng của %s, không phải nhóm" % (i, x.get("ten") or x.get("nguoi") or "một người"))
+	return ("Bảng Nhóm nhận tin Zalo: " + "; ".join(loi) + ".") if loi else ""
+
+
 def kiem_bang_nhom(ds):
 	"""THUẦN: mọi lỗi của bảng Nhóm nhận tin (trùng, mã ngoài danh mục, giờ im sai), rỗng là hợp lệ."""
 	return " ".join(x for x in (kiem_nhom_trung(ds), kiem_bo_loc(ds), kiem_gio_im(ds)) if x)
@@ -515,6 +547,9 @@ def dang_ky_webhook():
 	tt, loi, toi = _goi("getMe", {})
 	if tt != "Đã gửi":
 		frappe.throw("Token Zalo Bot chưa đúng. %s" % loi)
+	loi_bot = kiem_bot(toi)
+	if loi_bot:
+		frappe.throw(loi_bot)
 	ten_bot = (toi or {}).get("account_name") or (toi or {}).get("display_name") or ""
 	s = frappe.get_single("Vagabond Settings")
 	bi_mat = s.get_password("zalo_bi_mat", raise_exception=False) or ""
