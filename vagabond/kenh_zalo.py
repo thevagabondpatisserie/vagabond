@@ -362,7 +362,9 @@ def _goi(method, body):
 		try:
 			goi = r.json()
 		except Exception:
-			return "Lỗi", "Zalo trả HTTP %s không đọc được." % r.status_code, None
+			# Codex #428 vòng 12: Zalo có thể đã nhận tin rồi trả trang lỗi (502, 504) hoặc
+			# bị cắt giữa chừng: không rõ đã tới chưa.
+			return "Chưa rõ", "Zalo trả HTTP %s không đọc được, không rõ tin đã tới chưa." % r.status_code, None
 		tt, loi = doc_ket_qua(goi)
 		return tt, loi, (goi.get("result") if isinstance(goi, dict) else None)
 	except Exception as e:
@@ -374,6 +376,21 @@ def _goi(method, body):
 		if "Timeout" in type(e).__name__:
 			return "Chưa rõ", "Zalo không trả lời trong %s giây." % TIMEOUT, None
 		return "Chưa rõ", "Đứt kết nối với Zalo (%s), không rõ tin đã tới chưa." % type(e).__name__, None
+
+
+# Codex #428 vòng 12: lỗi làm chết cả giao dịch (MariaDB đã tự rollback hết, kể cả
+# savepoint). Không được nuốt: chứng từ phải báo lỗi chứ không được báo thành công.
+LOI_CHET_GIAO_DICH = ("QueryDeadlockError", "QueryTimeoutError")
+MA_CHET_GIAO_DICH = (1205, 1213, 2006, 2013)
+
+
+def chet_giao_dich(e):
+	"""THUẦN: True nếu lỗi cơ sở dữ liệu làm hỏng cả giao dịch (deadlock, chờ khoá quá
+	hạn, mất kết nối). Khi đó savepoint đã mất, phải để lỗi đi lên cho chứng từ dừng."""
+	if type(e).__name__ in LOI_CHET_GIAO_DICH:
+		return True
+	a = getattr(e, "args", ()) or ()
+	return bool(a) and isinstance(a[0], int) and a[0] in MA_CHET_GIAO_DICH
 
 
 def chua_gui_di(e):
@@ -397,7 +414,9 @@ def _gui_zalo(chat_id, tin):
 
 
 def bao(loai, chu_de, tieu_de, dong=None, link=None, khoa=None, nguoi=None, han=None, kiem=None, nguon=None):
-	"""Điểm gọi DUY NHẤT cho mọi nơi trong app. Không bao giờ ném lỗi ra ngoài.
+	"""Điểm gọi DUY NHẤT cho mọi nơi trong app. Không ném lỗi ra ngoài, TRỪ lỗi làm chết
+	cả giao dịch (deadlock, chờ khoá quá hạn): khi đó chứng từ phải dừng, không được báo
+	thành công trong khi cơ sở dữ liệu đã rollback (Codex #428 vòng 12).
 
 	khoa: mã sự kiện để chống trùng (ví dụ "cho_duyet:PKT-2026-00067").
 	Thiếu khoa thì không chống trùng (chỉ dùng cho tin một lần).
@@ -415,7 +434,9 @@ def bao(loai, chu_de, tieu_de, dong=None, link=None, khoa=None, nguoi=None, han=
 		ten = _ghi_hop_thu(tin)
 		if ten:
 			frappe.db.after_commit.add(lambda: _xep(ten))
-	except Exception:
+	except Exception as e:
+		if chet_giao_dich(e):
+			raise
 		frappe.log_error("Chưa ghi được tin Zalo loại %s." % loai, "kenh_zalo: bao loi")
 
 
@@ -440,7 +461,9 @@ def _ghi_hop_thu(tin):
 			ra.append(ten)
 		except frappe.DuplicateEntryError:
 			frappe.db.rollback(save_point=sp)
-		except Exception:
+		except Exception as e:
+			if chet_giao_dich(e):
+				raise
 			frappe.db.rollback(save_point=sp)
 			frappe.log_error("Chưa ghi được một dòng tin Zalo loại %s." % tin.get("loai"), "kenh_zalo: ghi tin loi")
 	return ra
