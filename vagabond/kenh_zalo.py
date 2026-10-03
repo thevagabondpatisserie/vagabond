@@ -359,6 +359,10 @@ def _goi(method, body):
 		return "Lỗi", "Máy chủ thiếu thư viện gọi mạng.", None
 	try:
 		r = requests.post("%s/bot%s/%s" % (API, tk, method), json=body, timeout=TIMEOUT)
+		if (getattr(r, "status_code", 200) or 200) >= 500:
+			# Codex #428 vòng 13: cổng trung gian lỗi (502, 504) kể cả khi thân là JSON hợp
+			# lệ: Zalo có thể đã nhận tin trước đó, nên không rõ, không phải bị từ chối.
+			return "Chưa rõ", "Zalo trả HTTP %s, không rõ tin đã tới chưa." % r.status_code, None
 		try:
 			goi = r.json()
 		except Exception:
