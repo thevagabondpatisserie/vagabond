@@ -1219,19 +1219,27 @@ def _deadlock():
 	la("lỗi lẻ: lùi savepoint một lần, có log", (len(lui), len(log)), (1, 1))
 
 
-@ca("v565 #428 vòng 12 tái hiện Codex: Zalo trả trang lỗi 502 không đọc được trước đây ghi Lỗi (dễ bị gửi lại trùng); giờ Chưa rõ")
+@ca("v565 #428 vòng 12, 13 tái hiện Codex: phản hồi không đọc được, hoặc 5xx kể cả thân JSON hợp lệ, trước đây ghi Lỗi (dễ bị gửi lại trùng); giờ Chưa rõ")
 def _phan_hoi_hong():
-	gia = types.ModuleType("requests")
+	def goi(ma, than):
+		gia = types.ModuleType("requests")
 
-	class _R:
-		status_code = 502
+		class _R:
+			status_code = ma
 
-		def json(self):
-			raise ValueError("không phải JSON")
-	gia.post = lambda url, json=None, timeout=None: _R()
-	with patch.object(kz, "_token", lambda: "123:BIMAT"), patch.dict("sys.modules", {"requests": gia}):
-		tt, loi, _ = kz._goi("sendMessage", {"chat_id": "c", "text": "x"})
-	la("Chưa rõ, nói rõ mã HTTP", (tt, "502" in loi), ("Chưa rõ", True))
+			def json(self):
+				if than is None:
+					raise ValueError("không phải JSON hoặc bị cắt")
+				return than
+		gia.post = lambda url, json=None, timeout=None: _R()
+		with patch.object(kz, "_token", lambda: "123:BIMAT"), patch.dict("sys.modules", {"requests": gia}):
+			tt, loi, _ = kz._goi("sendMessage", {"chat_id": "c", "text": "x"})
+		return tt, str(ma) in loi
+	la("502 trang HTML", goi(502, None), ("Chưa rõ", True))
+	la("504 thân JSON hợp lệ (vòng 13)", goi(504, {"error": "Bad Gateway"}), ("Chưa rõ", True))
+	la("200 thân JSON bị cắt (vòng 12)", goi(200, None), ("Chưa rõ", True))
+	la("200 Zalo từ chối rõ ràng: vẫn là Lỗi", goi(200, {"ok": False, "error_code": 400, "description": "chat not found"})[0], "Lỗi")
+	la("200 gửi được", goi(200, {"ok": True, "result": {}})[0], "Đã gửi")
 
 
 @ca("v562 #425: bài học Zalo đã ghi vào docs/bai-hoc-su-co.md")
