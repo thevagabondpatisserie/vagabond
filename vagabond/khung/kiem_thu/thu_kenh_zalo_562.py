@@ -1242,6 +1242,35 @@ def _phan_hoi_hong():
 	la("200 gửi được", goi(200, {"ok": True, "result": {}})[0], "Đã gửi")
 
 
+# ===================================================================
+# Vòng 14 (Codex review #428 trên c2cdeba): Zalo trục trặc tạm thời khi nối bot
+# không bị báo thành token sai.
+
+@ca("v565 #428 vòng 14 tái hiện Codex: getMe gặp hết giờ hay 5xx trước đây báo token sai; giờ báo thử lại sau, không bảo đổi token")
+def _get_me_tam_thoi():
+	f = kz.frappe
+	la("token đúng", kz.loi_get_me("Đã gửi", ""), "")
+	dung("Zalo từ chối rõ: token sai", kz.loi_get_me("Lỗi", "Zalo báo lỗi 401").startswith("Token Zalo Bot chưa đúng"))
+	for tt in ("Chưa rõ", kz.MANG_LOI):
+		c = kz.loi_get_me(tt, "Zalo trả HTTP 503")
+		dung("%s: không nói token sai, bảo thử lại" % tt, "chưa đúng" not in c and "đừng đổi token" in c and "503" in c)
+	# Đi qua đường bấm nút thật: getMe trả 503 thì dừng, báo thử lại, không gọi setWebhook.
+	goi, bao = [], []
+
+	def gia(m, body):
+		goi.append(m)
+		return ("Chưa rõ", "Zalo trả HTTP 503, không rõ tin đã tới chưa.", None) if m == "getMe" else ("Đã gửi", "", {})
+
+	def nem_lai(msg, *a, **k):
+		bao.append(msg)
+		raise RuntimeError(msg)
+	with patch.object(kz, "_chi_quan_tri", lambda: None), patch.object(kz, "_goi", gia), \
+			patch.object(f, "throw", nem_lai, create=True):
+		nem("Nối bot dừng lại", kz.dang_ky_webhook)
+	la("chỉ gọi getMe", goi, ["getMe"])
+	dung("câu báo bảo thử lại, không nói token sai", bao and "đừng đổi token" in bao[0] and "chưa đúng" not in bao[0])
+
+
 @ca("v562 #425: bài học Zalo đã ghi vào docs/bai-hoc-su-co.md")
 def _bai_hoc():
 	import os
