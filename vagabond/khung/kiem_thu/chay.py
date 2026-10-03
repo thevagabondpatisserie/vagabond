@@ -18,6 +18,7 @@ if GOC not in sys.path:
 
 from vagabond.khung.kiem_thu import thu_cach_ly_243
 from vagabond.khung.kiem_thu import nen  # noqa: E402
+from vagabond.khung.kiem_thu import thu_doi_soat_nguon
 
 # Cai ban Frappe gia TRUOC khi nap bat ky mo dun nghiep vu nao. Neu doi thu
 # tu nay thi mo dun nghiep vu se doi Frappe that va no ngay.
