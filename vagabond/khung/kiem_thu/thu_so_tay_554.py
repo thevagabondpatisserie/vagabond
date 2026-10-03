@@ -140,13 +140,18 @@ def _chua_xac_minh_tach():
 	dung("muc B khong co dong dan", T["DONG_DAN_CHUA_XAC_MINH"] not in b["chi_tiet"])
 
 
-@ca("so tay #412 F1: tu lieu that cua cau dat lai mat khau mang dau CHUA XAC MINH")
+@ca("so tay #412 F1: dau CHUA XAC MINH di theo co, khong lot chu thich tho vao tu lieu that")
 def _chua_xac_minh_tu_lieu():
 	# Dung chuoi reviewer tai hien: chon_muc roi gon_tu_lieu tren so tay that.
+	# 03/10/2026 anh Viet chot du 12 diem nen cau mat khau khong con dau; co
+	# che dau van chot o _chua_xac_minh_tach. O day chot: dau va co luon di
+	# cung nhau tren so tay that, va tu lieu that khong lot chu thich tho.
 	st = _so_tay_that()
 	tl = T["gon_tu_lieu"](T["chon_muc"](CAU_THAT[2][0], st))
-	dung("tu lieu co dau chua xac minh", "[CHƯA XÁC MINH:" in tl)
 	dung("tu lieu khong con chu thich tho", "<!--" not in tl)
+	for m in st:
+		if m.get("loai") == "so_tay":
+			dung("co khop dau: %s" % m.get("ten"), bool(m.get("chua_xac_minh")) == ("[CHƯA XÁC MINH:" in m["chi_tiet"]))
 	# Muc khong con diem nao chua chac thi khong bi gan co oan.
 	sach = [m for m in st if m.get("loai") == "so_tay" and not m.get("chua_xac_minh")]
 	dung("van co muc da xac minh (%d)" % len(sach), len(sach) > 0)
