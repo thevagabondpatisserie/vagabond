@@ -77,29 +77,24 @@ class _Trung(Exception):
 	pass
 
 
-def _chay(nhom_ds, tin, gio="10:00", gui=None, da_co=()):
-	"""Chạy gui_hang_doi với Frappe giả; trả (danh sách gửi, bản ghi đã chèn, cập nhật)."""
-	f = kz.frappe
-	goi, chen, cap = [], [], []
-	co = set(da_co)
+def _chay(nhom_ds, tin, gio="10:00", gui=None, da_co=(), con_can=None):
+	"""Ghi tin vào sổ giả (_ghi_hop_thu) rồi chạy worker gui_hang_doi trên đúng các dòng đó.
 
-	def get_doc(d):
-		def insert(**k):
-			if d["name"] in co:
-				raise _Trung()
-			co.add(d["name"])
-			chen.append(dict(d))
-		return types.SimpleNamespace(insert=insert)
+	Trả (danh sách gửi, trạng thái CUỐI của các dòng mới ghi, các lần set_value).
+	v562 #425: tin được ghi "Chờ gửi" trước, worker claim từng dòng rồi mới gửi."""
+	so = _So([])
+	for t in da_co:
+		so.dong.append({"name": t, "trang_thai": "Đã gửi"})
+	goi, cap = [], []
 	gui = gui or (lambda c, t: ("Đã gửi", ""))
-	with patch.object(kz, "_bat", lambda: 1), patch.object(kz, "_cac_nhom", lambda: nhom_ds), \
-			patch.object(kz, "_gui_zalo", lambda c, t: (goi.append((c, t)), gui(c, t))[1]), \
-			patch.object(kz, "now_datetime", lambda: types.SimpleNamespace(strftime=lambda fmt: gio)), \
-			patch.object(f, "get_doc", get_doc), patch.object(f, "DuplicateEntryError", _Trung, create=True), \
-			patch.object(f.db, "commit", lambda: None, create=True), patch.object(f.db, "rollback", lambda: None, create=True), \
-			patch.object(f.db, "set_value", lambda dt, ten, v: cap.append((ten, v)), create=True), \
-			patch.object(kz, "_con_can", lambda k, n: True):
-		kz.gui_hang_doi(tin)
-	return goi, chen, cap
+
+	def sv(dt, ten, v):
+		cap.append((ten, v))
+		so.set_value(dt, ten, v)
+	with _gia(so, nhom_ds, gio, lambda c, t: (goi.append((c, t)), gui(c, t))[1], con_can or (lambda k, n: True), sv):
+		ten = kz._ghi_hop_thu(tin)
+		kz.gui_hang_doi(ten)
+	return goi, [so.tim(t) for t in ten], cap
 
 
 TIN = {"loai": "viec", "chu_de": "cong_no", "tieu_de": "Chờ duyệt PKT-1", "dong": ["a"], "link": "https://erp/x",
@@ -110,9 +105,9 @@ TIN = {"loai": "viec", "chu_de": "cong_no", "tieu_de": "Chờ duyệt PKT-1", "d
 def _gui():
 	goi, chen, cap = _chay([nhom(), nhom(ten_nhom="Kho", chat_id="c2", chu_de="kho")], TIN)
 	la("gửi đúng một nhóm", [c for c, _ in goi], ["c1"])
-	la("ghi một bản, đang gửi", [(r["nhom"], r["trang_thai"]) for r in chen], [("Kế toán", "Đang gửi")])
+	la("ghi một bản vào sổ, gửi xong là Đã gửi", [(r["nhom"], r["trang_thai"]) for r in chen], [("Kế toán", "Đã gửi")])
 	la("cập nhật đã gửi", cap[0][1]["trang_thai"], "Đã gửi")
-	goi2, chen2, _ = _chay([nhom()], TIN, da_co={chen[0]["name"]})
+	goi2, chen2, _ = _chay([nhom()], TIN, da_co=[chen[0]["name"]])
 	la("worker thứ hai vấp khoá chính, không gửi", (goi2, chen2), ([], []))
 
 
@@ -122,7 +117,7 @@ def _hoan():
 	goi, chen, _ = _chay(n, TIN, gio="23:10")
 	la("tin việc bị hoãn, không gửi", (goi, chen[0]["trang_thai"]), ([], "Hoãn giờ im"))
 	goi2, chen2, _ = _chay(n, dict(TIN, loai="canh_bao", khoa="cb:1"), gio="23:10")
-	la("cảnh báo vẫn gửi", ([c for c, _ in goi2], chen2[0]["trang_thai"]), (["c1"], "Đang gửi"))
+	la("cảnh báo vẫn gửi", ([c for c, _ in goi2], chen2[0]["trang_thai"]), (["c1"], "Đã gửi"))
 
 
 @ca("v562 Zalo: Zalo không trả lời thì ghi Chưa rõ, lỗi thì ghi Lỗi, không ném ra ngoài")
@@ -164,14 +159,15 @@ def _bao():
 	with patch.object(kz, "_bat", lambda: 0), patch.object(f.db, "after_commit", cm, create=True):
 		kz.bao("viec", "cong_no", "x")
 	la("tắt thì không xếp", da, [])
-	with patch.object(kz, "_bat", lambda: 1), patch.object(f.db, "after_commit", cm, create=True):
+	with patch.object(kz, "_bat", lambda: 1), patch.object(kz, "_ghi_hop_thu", lambda tin: ["ZL-x"]), \
+			patch.object(f.db, "after_commit", cm, create=True):
 		kz.bao("viec", "cong_no", "x", khoa="k")
 	la("bật thì xếp sau commit, chưa gửi ngay", len(da), 1)
 
 	def hong(fn):
 		raise RuntimeError("redis")
 	loi = []
-	with patch.object(kz, "_bat", lambda: 1), \
+	with patch.object(kz, "_bat", lambda: 1), patch.object(kz, "_ghi_hop_thu", lambda tin: ["ZL-x"]), \
 			patch.object(f.db, "after_commit", types.SimpleNamespace(add=hong), create=True), \
 			patch.object(f, "log_error", lambda *a, **k: loi.append(a), create=True):
 		kz.bao("viec", "cong_no", "TIEU-DE-RIENG", dong=["SO-TIEN-RIENG"])
@@ -192,7 +188,7 @@ def _nhan():
 				patch.object(f, "request", req, create=True), \
 				patch.object(f, "get_request_header", lambda k: header, create=True), \
 				patch.object(f, "local", types.SimpleNamespace(response=resp), create=True), \
-				patch.object(f.db, "get_single_value", lambda *a: "[]", create=True), \
+				patch.object(f.db, "sql", lambda q, *a, **k: [("[]",)] if "select value" in q else [], create=True), \
 				patch.object(f.db, "set_single_value", lambda dt, k, v: ghi.__setitem__(k, v), create=True), \
 				patch.object(f.db, "commit", lambda: None, create=True), \
 				patch.object(kz, "now_datetime", lambda: "2026-10-02 18:00"):
@@ -271,6 +267,53 @@ class _SoGia:
 
 	def tim(self, ten):
 		return next(d for d in self.dong if d["name"] == ten)
+
+
+class _So(_SoGia):
+	"""Sổ giả đủ cho đường gửi ngay: chèn có khoá chính, claim một dòng theo tên, đọc dòng."""
+
+	def chen(self, d):
+		if any(x["name"] == d["name"] for x in self.dong):
+			raise _Trung()
+		self.dong.append(dict(d, ma_lo=None))
+
+	def sql(self, q, tham=None):
+		if "where name=%s and trang_thai=%s" in q:
+			ma, ten, tt = tham
+			for d in self.dong:
+				if d["name"] == ten and d["trang_thai"] == tt:
+					d["trang_thai"], d["ma_lo"] = "Đang gửi", ma
+			return []
+		return super().sql(q, tham)
+
+	def get_value(self, dt, ten, fields=None, as_dict=False):
+		d = next((x for x in self.dong if x["name"] == ten), None)
+		return _Dong(d) if d else None
+
+
+_DEM_HASH = [0]
+
+
+def _gia(so, nhom_ds, gio, gui, con_can, sv=None):
+	"""Dựng Frappe giả cho đường gửi ngay. Mã băm luôn khác nhau giữa các lần gọi."""
+	import contextlib
+	f = kz.frappe
+
+	def hash_(length=10):
+		_DEM_HASH[0] += 1
+		return "h%06d" % _DEM_HASH[0]
+	db = types.SimpleNamespace(sql=so.sql, set_value=sv or so.set_value, commit=so.commit, get_value=so.get_value,
+		savepoint=lambda sp: None, rollback=lambda **k: None)
+	ps = [patch.object(kz, "_bat", lambda: 1), patch.object(kz, "_cac_nhom", lambda: nhom_ds),
+		patch.object(kz, "_gui_zalo", gui), patch.object(kz, "_con_can", con_can),
+		patch.object(kz, "now_datetime", lambda: types.SimpleNamespace(strftime=lambda fmt: gio)),
+		patch.object(f, "get_doc", lambda d: types.SimpleNamespace(insert=lambda **k: so.chen(d)), create=True),
+		patch.object(f, "DuplicateEntryError", _Trung, create=True), patch.object(f, "db", db, create=True),
+		patch.object(f, "get_all", so.get_all, create=True), patch.object(f, "generate_hash", hash_, create=True)]
+	st = contextlib.ExitStack()
+	for x in ps:
+		st.enter_context(x)
+	return st
 
 
 def _hoan(i, tieu_de, kiem="", nguon="", nhom_ten="Kế toán", chat_id="c1"):
@@ -384,21 +427,9 @@ def _gop_bo_qua():
 
 @ca("v562 #413 P2: tin gửi ngay cũng hỏi lại việc còn mở trước khi gọi Zalo")
 def _gui_ngay_bo_qua():
-	f = kz.frappe
-	goi, cap = [], []
-
-	def get_doc(d):
-		return types.SimpleNamespace(insert=lambda **k: None)
-	with patch.object(kz, "_bat", lambda: 1), patch.object(kz, "_cac_nhom", lambda: [nhom()]), \
-			patch.object(kz, "_gui_zalo", lambda c, t: (goi.append(c), ("Đã gửi", ""))[1]), \
-			patch.object(kz, "_con_can", lambda k, n: False), \
-			patch.object(kz, "now_datetime", lambda: types.SimpleNamespace(strftime=lambda fmt: "10:00")), \
-			patch.object(f, "get_doc", get_doc), patch.object(f, "DuplicateEntryError", _Trung, create=True), \
-			patch.object(f.db, "commit", lambda: None, create=True), \
-			patch.object(f.db, "set_value", lambda dt, ten, v: cap.append(v), create=True):
-		kz.gui_hang_doi(dict(TIN, kiem="cho_duyet_truoc_erp", nguon="PKT-1"))
+	goi, chen, _ = _chay([nhom()], dict(TIN, kiem="cho_duyet_truoc_erp", nguon="PKT-1"), con_can=lambda k, n: False)
 	la("không gọi Zalo", goi, [])
-	la("ghi Bỏ qua", cap[0]["trang_thai"], kz.BO_QUA)
+	la("ghi Bỏ qua", chen[0]["trang_thai"], kz.BO_QUA)
 
 
 @ca("v562 #413 P2: kiểm lại dùng bảng mã cố định; mã lạ hoặc hàm lỗi thì vẫn gửi và có log")
@@ -497,24 +528,7 @@ def _noi_chua_ro():
 # sổ gửi không cho xoá.
 
 def _gui_nhom(ds_nhom, tin=None):
-	f = kz.frappe
-	goi, co = [], set()
-
-	def get_doc(d):
-		def insert(**k):
-			if d["name"] in co:
-				raise _Trung()
-			co.add(d["name"])
-		return types.SimpleNamespace(insert=insert)
-	with patch.object(kz, "_bat", lambda: 1), patch.object(kz, "_cac_nhom", lambda: ds_nhom), \
-			patch.object(kz, "_gui_zalo", lambda c, t: (goi.append(c), ("Đã gửi", ""))[1]), \
-			patch.object(kz, "_con_can", lambda k, n: True), \
-			patch.object(kz, "now_datetime", lambda: types.SimpleNamespace(strftime=lambda fmt: "10:00")), \
-			patch.object(f, "get_doc", get_doc), patch.object(f, "DuplicateEntryError", _Trung, create=True), \
-			patch.object(f.db, "commit", lambda: None, create=True), patch.object(f.db, "rollback", lambda: None, create=True), \
-			patch.object(f.db, "set_value", lambda *a: None, create=True):
-		kz.gui_hang_doi(tin or TIN)
-	return goi
+	return [c for c, _ in _chay(ds_nhom, tin or TIN)[0]]
 
 
 @ca("v562 #417 tái hiện Codex: hai dòng trùng tên khác mã chat đều nhận tin (trước: 1 trên 2)")
@@ -726,3 +740,125 @@ def _ma_chat_chi_doc():
 	la("chat_id read_only", [x.get("read_only") for x in d["fields"] if x["fieldname"] == "chat_id"], [1])
 	h = open(os.path.join(os.path.dirname(os.path.dirname(kz.__file__)), "docs", "huong-dan", "ban-tin-zalo.md"), encoding="utf-8").read()
 	dung("hướng dẫn có nút chọn nhóm, bỏ lối thử chat riêng", "Chọn nhóm đã nhắn bot" in h and "thử với chat riêng" not in h)
+
+
+# ===================================================================
+# Vòng 8 (Codex review #425 trên 3fdf378): ghi tin vào sổ trước khi xếp hàng
+# đợi; khoá Cài đặt khi ghi Chat vừa nhắn bot; bài học vào docs.
+
+@ca("v562 #425 tái hiện Codex: Redis hỏng lúc xếp hàng thì tin vẫn còn trong sổ (Chờ gửi) và được gửi bù đúng một lần")
+def _hop_thu():
+	f = kz.frappe
+	so = _So([])
+	goi, sau_commit, log = [], [], []
+
+	def enq(*a, **k):
+		raise RuntimeError("redis chết")
+	with _gia(so, [nhom()], "10:00", lambda c, t: (goi.append(c), ("Đã gửi", ""))[1], lambda k, n: True), \
+			patch.object(f.db, "after_commit", types.SimpleNamespace(add=sau_commit.append), create=True), \
+			patch.object(f, "flags", types.SimpleNamespace(), create=True), \
+			patch.object(f, "enqueue", enq, create=True), \
+			patch.object(f, "log_error", lambda *a, **k: log.append(a), create=True):
+		kz.bao("viec", "cong_no", "Chờ duyệt PKT-9", khoa="cho_duyet:PKT-9")
+		# Trước fix: chưa có dòng nào cho tới khi worker chạy, Redis hỏng là mất tin.
+		la("dòng đã nằm trong sổ TRƯỚC commit", [d["trang_thai"] for d in so.dong], [kz.CHO_GUI])
+		for fn in sau_commit:
+			fn()
+		la("hàng đợi hỏng: có log, chưa gửi", (len(log), goi), (1, []))
+		so.get_all = lambda dt, filters=None, **k: [d["name"] for d in so.dong if d["trang_thai"] == kz.CHO_GUI]
+		with patch.object(f, "get_all", so.get_all, create=True):
+			kz.quet_cho_gui()
+			kz.quet_cho_gui()
+	la("nhịp gửi bù gửi đúng một lần", goi, ["c1"])
+	la("trạng thái cuối", [d["trang_thai"] for d in so.dong], ["Đã gửi"])
+
+
+@ca("v562 #425: worker thường và nhịp gửi bù chạy chồng trên cùng một dòng chỉ gửi một lần")
+def _hop_thu_chong():
+	so = _So([])
+	goi = []
+	vao = [0]
+
+	def gui(c, t):
+		goi.append(c)
+		if not vao[0]:
+			vao[0] = 1
+			kz.gui_hang_doi([so.dong[0]["name"]])  # lượt thứ hai chen vào giữa lúc lượt đầu đang gọi Zalo
+		return "Đã gửi", ""
+	with _gia(so, [nhom()], "10:00", gui, lambda k, n: True):
+		ten = kz._ghi_hop_thu(TIN)
+		kz.gui_hang_doi(ten)
+	la("chỉ một lần gửi", goi, ["c1"])
+
+
+@ca("v562 #425: nhóm bị tắt hoặc gỡ sau khi tin vào sổ thì không gửi, ghi Bỏ qua kèm lý do")
+def _nhom_tat():
+	so = _So([])
+	goi = []
+	with _gia(so, [nhom()], "10:00", lambda c, t: (goi.append(c), ("Đã gửi", ""))[1], lambda k, n: True):
+		ten = kz._ghi_hop_thu(TIN)
+	with _gia(so, [nhom(bat=0)], "10:00", lambda c, t: (goi.append(c), ("Đã gửi", ""))[1], lambda k, n: True):
+		kz.gui_hang_doi(ten)
+	la("không gửi", goi, [])
+	la("Bỏ qua có lý do", (so.dong[0]["trang_thai"], "tắt" in so.dong[0]["loi"]), (kz.BO_QUA, True))
+
+
+@ca("v562 #425 tái hiện Codex: ghi Chat vừa nhắn bot phải khoá dòng Cài đặt TRƯỚC khi đọc, đọc thẳng từ bảng")
+def _nhan_khoa():
+	f = kz.frappe
+	nk = []
+	cap = json.dumps({"message": {"chat": {"id": "g2", "chat_type": "GROUP", "title": "Kho"}}}).encode()
+
+	def sql(q, *a, **k):
+		nk.append("khoa" if "for update" in q else ("doc" if "select value" in q else q[:20]))
+		return [('[{"chat_id": "g1", "loai": "GROUP"}]',)] if "select value" in q else []
+	s = types.SimpleNamespace(get_password=lambda *a, **k: "khoa-bi-mat-16-ky-tu")
+	ghi = {}
+	with patch.object(f, "get_single", lambda *a: s, create=True), \
+			patch.object(f, "request", types.SimpleNamespace(data=cap), create=True), \
+			patch.object(f, "get_request_header", lambda k: "khoa-bi-mat-16-ky-tu", create=True), \
+			patch.object(f, "local", types.SimpleNamespace(response={}), create=True), \
+			patch.object(f.db, "sql", sql, create=True), \
+			patch.object(f.db, "get_single_value", lambda *a, **k: nk.append("doc_cache") or "[]", create=True), \
+			patch.object(f.db, "set_single_value", lambda dt, k, v: (nk.append("ghi"), ghi.__setitem__(k, v)), create=True), \
+			patch.object(f.db, "commit", lambda: nk.append("commit"), create=True), \
+			patch.object(kz, "now_datetime", lambda: "2026-10-03 10:00"):
+		kz.nhan()
+	la("thứ tự khoá, đọc, ghi, commit", nk, ["khoa", "doc", "ghi", "commit"])
+	la("giữ nhóm cũ, thêm nhóm mới", [x["chat_id"] for x in json.loads(ghi["zalo_chat_moi"])], ["g2", "g1"])
+
+
+@ca("v562 #425: trùng khoá khi ghi hộp thư chỉ lùi đúng savepoint của dòng đó, dòng sau vẫn ghi")
+def _ghi_savepoint():
+	f = kz.frappe
+	so = _So([])
+	sp, lui = [], []
+	with _gia(so, [nhom(), nhom(ten_nhom="Kho", chat_id="c2")], "10:00", lambda c, t: ("Đã gửi", ""), lambda k, n: True):
+		so.dong.append({"name": kz.khoa_tin(TIN["khoa"], "c1"), "trang_thai": "Đã gửi"})
+		with patch.object(f.db, "savepoint", sp.append), patch.object(f.db, "rollback", lambda **k: lui.append(k)):
+			ten = kz._ghi_hop_thu(TIN)
+	la("dòng trùng bỏ, dòng sau ghi", ten, [kz.khoa_tin(TIN["khoa"], "c2")])
+	la("mỗi dòng một savepoint riêng", len(set(sp)), 2)
+	la("chỉ lùi savepoint của dòng trùng", lui, [{"save_point": sp[0]}])
+
+
+@ca("v562 #425: nhịp gửi bù có trong lịch 5 phút và chỉ lấy dòng Chờ gửi quá 2 phút")
+def _lich_gui_bu():
+	from vagabond import hooks
+	dung("lịch 5 phút có quet_cho_gui", "vagabond.kenh_zalo.quet_cho_gui" in hooks.scheduler_events.get("cron", {}).get("*/5 * * * *", []))
+	f = kz.frappe
+	loc = []
+	from datetime import datetime
+	with patch.object(kz, "_bat", lambda: 1), patch.object(kz, "now_datetime", lambda: datetime(2026, 10, 3, 10, 0)), \
+			patch.object(f, "get_all", lambda dt, filters=None, **k: loc.append(filters) or [], create=True):
+		kz.quet_cho_gui()
+	la("lọc Chờ gửi, tạo trước 09:58", (loc[0]["trang_thai"], loc[0]["creation"][0], str(loc[0]["creation"][1])[:16]),
+		(kz.CHO_GUI, "<", "2026-10-03 09:58"))
+
+
+@ca("v562 #425: bài học Zalo đã ghi vào docs/bai-hoc-su-co.md")
+def _bai_hoc():
+	import os
+	h = open(os.path.join(os.path.dirname(os.path.dirname(kz.__file__)), "docs", "bai-hoc-su-co.md"), encoding="utf-8").read()
+	# Dò chuỗi chỉ để chốt tài liệu (điều 16).
+	dung("có mục Zalo #410", "Zalo" in h and "#425" in h)
