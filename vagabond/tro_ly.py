@@ -60,7 +60,7 @@ import requests
 from frappe.utils import cint, nowdate
 
 from vagabond import tro_ly_so_tay, tro_ly_loi
-from vagabond.lib import TIMEOUT, cfg, key
+from vagabond.lib import cfg, key
 from vagabond.vai_cua_hang import VAI_QLCH
 
 NHAT_KY = "Vagabond Nhat Ky Tro Ly"
@@ -83,6 +83,12 @@ NHIET_DO = 0
 # Tran do dai. Cau hoi dai qua thuong la ai do dan nguyen mot man hinh vao.
 DAI_CAU_HOI = 600
 DAI_TRA_LOI = 900
+# Cho mo hinh lau hon TIMEOUT chung (12 giay, danh cho API ngan cua
+# Pancake, SePay...). Cau tra loi 900 token tren tu lieu 9000 ky tu that su
+# mat 10 toi 25 giay. Duoi tran 120 giay cua may chu web.
+CHO_MO_HINH = 50
+CAU_QUA_LAU = ("Trợ lý trả lời quá lâu nên đã dừng. Bạn bấm Gửi lại, hoặc "
+	"mở nút Sổ tay để tra thẳng.")
 
 # Han muc mac dinh, doi duoc o man Cai dat.
 LUOT_NGAY_MAC_DINH = 30
@@ -200,13 +206,20 @@ def _goi_mo_hinh(c, cau_hoi, tu_lieu, man):
 		"system": LUAT + tu_lieu,
 		"messages": [{"role": "user", "content": nguoi}],
 	}
-	r = requests.post(
-		API,
-		headers={"x-api-key": khoa, "anthropic-version": BAN_API,
-			"content-type": "application/json"},
-		data=json.dumps(than),
-		timeout=TIMEOUT,
-	)
+	try:
+		r = requests.post(
+			API,
+			headers={"x-api-key": khoa, "anthropic-version": BAN_API,
+				"content-type": "application/json"},
+			data=json.dumps(than),
+			timeout=CHO_MO_HINH,
+		)
+	except (requests.Timeout, requests.ConnectionError) as e:
+		# 03/10/2026 v556: truoc day dung TIMEOUT chung 12 giay cua lib. Tu
+		# khi co so tay (v554) tu lieu dai hon nen cau tra loi hay qua 12 giay,
+		# requests nem ReadTimeout lot ra thanh "Loi may chu (ma 500)".
+		frappe.log_error(str(e)[:2000], "tro_ly: mo hinh tra loi qua lau")
+		frappe.throw(CAU_QUA_LAU, title="Trợ lý trả lời quá lâu")
 	if r.status_code >= 400:
 		frappe.log_error(r.text[:2000], "tro_ly: goi mo hinh hong")
 		# Noi ro BENH, dung noi chung chung. Ngay 26/08/2026 tro ly im tieng
