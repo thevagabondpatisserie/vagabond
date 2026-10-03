@@ -1504,7 +1504,7 @@ function drawAddons(){
       <span class="nm">${esc(a.n)}</span><span class="pr">${vnd(a.p)}</span></button></li>`).join('');
   const c=chosenAddons(); const box=$('#s-addsum');
   if(c.length){ box.style.display='block';
-    box.innerHTML=(htmlChuWeb("dat_banh_fc2a93d57", "Đã chọn thêm:") + " " + "<b>" + "" + (c.map(x=>x.n).join(', ')) + "</b>" + " " + htmlChuWeb("dat_banh_b6d0a562d", "· cộng thêm") + " " + "<b>" + "" + (vnd(c.reduce((a,x)=>a+x.p,0))) + "</b>"); }
+    box.innerHTML=(htmlChuWeb("dat_banh_fc2a93d57", "Đã chọn thêm:") + " " + "<b>" + "" + (c.map(x=>esc(x.n)).join(', ')) + "</b>" + " " + htmlChuWeb("dat_banh_b6d0a562d", "· cộng thêm") + " " + "<b>" + "" + (vnd(c.reduce((a,x)=>a+x.p,0))) + "</b>"); }
   else box.style.display='none';
   updateCta();
 }
