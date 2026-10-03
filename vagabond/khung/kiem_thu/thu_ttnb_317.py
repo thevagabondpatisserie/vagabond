@@ -314,7 +314,9 @@ def _o_ke_toan_508():
 	import re
 	goc = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 	js = open(os.path.join(goc, 'public/js/bep/02-trang-chu.js'), encoding='utf-8').read()
-	kt = re.search(r"\{ k: 'KT',[^\n]*keys: \[([^\]]*)\]", js)
+	# v565: bang VGB_NHOM tach nhieu dong de them truong `nhom`, nen khong con
+	# doc duoc trong MOT dong. Doc ca khoi keys cua phan he Ke toan.
+	kt = re.search(r"k: 'KT',.*?keys: \[(.*?)\]", js, re.S)
 	dung('có nhóm Kế toán', bool(kt))
 	dung('DSTTNB nằm trong nhóm Kế toán', bool(kt) and "'DSTTNB'" in kt.group(1))
 	dung('có ô trên lưới', "vgbODong('DSTTNB'" in js and 'Danh sách thanh toán nội bộ' in js)
