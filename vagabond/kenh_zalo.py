@@ -59,6 +59,12 @@ DIEU_KIEN = {
 }
 BO_QUA = "Bỏ qua (đã xử lý)"
 CHO_GUI = "Chờ gửi"
+DANG_GUI = "Đang gửi"
+CHUA_RO = "Chưa rõ"
+# Dòng nằm "Đang gửi" quá chừng này phút là worker đã chết TRƯỚC khi gọi Zalo
+# (trước khi gọi máy luôn đổi sang "Chưa rõ"), nên trả về Chờ gửi là an toàn.
+KET_PHUT = 10
+NHOM_TAT = "Nhóm đã tắt hoặc bị gỡ khỏi bảng."
 
 
 # ------------------------------------------------------------------ THUẦN
@@ -451,8 +457,8 @@ def gui_hang_doi(ten):
 def _nhan_mot(ten):
 	"""Claim một dòng Chờ gửi bằng UPDATE có điều kiện; trả dòng nếu lượt này nhận được."""
 	ma = frappe.generate_hash(length=20)
-	frappe.db.sql("""update `tabVagabond Tin Kenh` set trang_thai='Đang gửi', ma_lo=%s
-		where name=%s and trang_thai=%s""", (ma, ten, CHO_GUI))
+	frappe.db.sql("""update `tabVagabond Tin Kenh` set trang_thai='Đang gửi', ma_lo=%s, modified=%s
+		where name=%s and trang_thai=%s""", (ma, now_datetime(), ten, CHO_GUI))
 	frappe.db.commit()
 	r = frappe.db.get_value("Vagabond Tin Kenh", ten, ["name", "chat_id", "loai", "noi_dung", "kiem", "nguon", "ma_lo"],
 		as_dict=True)
@@ -465,7 +471,7 @@ def _gui_mot(ten, theo_chat, gio):
 		return
 	n = theo_chat.get(str(r.get("chat_id") or "").strip())
 	if not n or not cint(n.get("bat")):
-		frappe.db.set_value("Vagabond Tin Kenh", ten, {"trang_thai": BO_QUA, "loi": "Nhóm đã tắt hoặc bị gỡ khỏi bảng.",
+		frappe.db.set_value("Vagabond Tin Kenh", ten, {"trang_thai": BO_QUA, "loi": NHOM_TAT,
 			"luc_gui": now_datetime()})
 		frappe.db.commit()
 		return
@@ -478,6 +484,15 @@ def _gui_mot(ten, theo_chat, gio):
 		frappe.db.set_value("Vagabond Tin Kenh", ten, {"trang_thai": BO_QUA, "luc_gui": now_datetime()})
 		frappe.db.commit()
 		return
+	# Codex #425 vòng 9: đổi sang "Chưa rõ" và commit NGAY TRƯỚC khi gọi Zalo, có
+	# điều kiện theo mã lô. Nhờ vậy dòng kẹt "Đang gửi" chắc chắn chưa gọi Zalo
+	# (quet_cho_gui trả nó về Chờ gửi), còn dòng kẹt "Chưa rõ" thì không tự gửi lại.
+	# Lượt đã bị trả về Chờ gửi (mất mã lô) thì dừng, không gửi trùng.
+	frappe.db.sql("""update `tabVagabond Tin Kenh` set trang_thai=%s, modified=%s
+		where name=%s and ma_lo=%s and trang_thai=%s""", (CHUA_RO, now_datetime(), ten, r.get("ma_lo"), DANG_GUI))
+	frappe.db.commit()
+	if (frappe.db.get_value("Vagabond Tin Kenh", ten, ["trang_thai", "ma_lo"], as_dict=True) or {}).get("ma_lo") != r.get("ma_lo"):
+		return
 	tt, loi = _gui_zalo(r.get("chat_id"), r.get("noi_dung"))
 	frappe.db.set_value("Vagabond Tin Kenh", ten, {"trang_thai": tt, "loi": loi, "luc_gui": now_datetime()})
 	frappe.db.commit()
@@ -489,6 +504,12 @@ def quet_cho_gui():
 	if not _bat():
 		return
 	from frappe.utils import add_to_date
+	# Codex #425 vòng 9: worker chết sau khi nhận mà trước khi gọi Zalo thì dòng kẹt
+	# "Đang gửi"; quá KET_PHUT phút thì trả về Chờ gửi, xoá mã lô để lượt cũ (nếu
+	# còn sống) không gửi được nữa.
+	frappe.db.sql("""update `tabVagabond Tin Kenh` set trang_thai=%s, ma_lo=null, modified=%s
+		where trang_thai=%s and modified < %s""", (CHO_GUI, now_datetime(), DANG_GUI, add_to_date(now_datetime(), minutes=-KET_PHUT)))
+	frappe.db.commit()
 	ds = frappe.get_all("Vagabond Tin Kenh", filters={"trang_thai": CHO_GUI,
 		"creation": ["<", add_to_date(now_datetime(), minutes=-2)]}, pluck="name", order_by="creation asc",
 		limit_page_length=100)
@@ -510,6 +531,18 @@ def _nhan_lo(chat_id, ma_lo):
 		fields=["name", "noi_dung", "kiem", "nguon"], order_by="creation asc", limit_page_length=LO_GOP)
 
 
+def _bo_hoan_nhom_tat(dang_bat):
+	"""Codex #425 vòng 9: tin hoãn của nhóm đã tắt hoặc bị gỡ khỏi bảng thì ghi Bỏ qua,
+	để bật lại nhóm sau này không bắn ra tin cũ."""
+	# Giờ lấy từ máy chủ ứng dụng (múi giờ của site), không lấy giờ của MariaDB
+	# vì múi giờ cơ sở dữ liệu có thể khác.
+	q = "update `tabVagabond Tin Kenh` set trang_thai=%s, loi=%s, luc_gui=%s where trang_thai='Hoãn giờ im'"
+	if dang_bat:
+		q += " and chat_id not in (" + ", ".join(["%s"] * len(dang_bat)) + ")"
+	frappe.db.sql(q, tuple([BO_QUA, NHOM_TAT, now_datetime()] + list(dang_bat)))
+	frappe.db.commit()
+
+
 def xa_gio_im():
 	"""Mỗi giờ: nhóm nào hết giờ im mà còn tin hoãn thì gửi tin tổng hợp.
 
@@ -519,7 +552,9 @@ def xa_gio_im():
 	if not _bat():
 		return
 	gio = now_datetime().strftime("%H:%M")
-	for n in _cac_nhom():
+	nhom = _cac_nhom()
+	_bo_hoan_nhom_tat([str(n.get("chat_id") or "").strip() for n in nhom if cint(n.get("bat")) and str(n.get("chat_id") or "").strip()])
+	for n in nhom:
 		chat = str(n.get("chat_id") or "").strip()
 		if not cint(n.get("bat")) or not chat or trong_gio_im(gio, n.get("im_tu"), n.get("im_den")):
 			continue
