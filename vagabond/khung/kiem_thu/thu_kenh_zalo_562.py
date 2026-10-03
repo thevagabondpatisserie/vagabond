@@ -235,7 +235,10 @@ class _Dong(dict):
 
 class _SoGia:
 	"""Bảng Vagabond Tin Kenh giả, giữ đúng ngữ nghĩa câu UPDATE có điều kiện
-	của _nhan_lo: chỉ dòng còn "Hoãn giờ im" mới đổi được, mỗi dòng một lần."""
+	của _nhan_lo: chỉ dòng còn "Hoãn giờ im" mới đổi được, mỗi dòng một lần.
+
+	gio: đồng hồ giả (số phút) ghi vào modified, để ca kiểm tua được dòng kẹt."""
+	gio = 0
 
 	def __init__(self, dong):
 		self.dong = [dict(d) for d in dong]
@@ -250,13 +253,26 @@ class _SoGia:
 				if d["trang_thai"] == "Hoãn giờ im" and d.get("chat_id") not in bat:
 					d["trang_thai"], d["loi"] = tt, loi
 			return []
+		if "where ma_lo=%s and trang_thai='Đang gửi gộp' and name in" in q:
+			# Vòng 10: mốc Chưa rõ cho đúng các dòng của một phần gộp.
+			tt, _luc, ma, *ten = tham
+			for d in self.dong:
+				if d["name"] in ten and d.get("ma_lo") == ma and d["trang_thai"] == "Đang gửi gộp":
+					d["trang_thai"], d["modified"] = tt, self.gio
+			return []
+		if "ma_lo=null" in q and "modified < %s" in q:
+			tt, _luc, cu, han = tham
+			for d in self.dong:
+				if d["trang_thai"] == cu and d.get("modified", self.gio) < han:
+					d["trang_thai"], d["ma_lo"], d["modified"] = tt, None, self.gio
+			return []
 		if "update `tabVagabond Tin Kenh`" in q:
-			ma, chat, gioi_han = tham
+			ma, _luc, chat, gioi_han = tham
 			assert "where chat_id=%s" in q, "claim phải theo mã chat (Codex #417)"
 			n = 0
 			for d in self.dong:
 				if d["chat_id"] == chat and d["trang_thai"] == "Hoãn giờ im" and n < gioi_han:
-					d["trang_thai"], d["ma_lo"] = "Đang gửi gộp", ma
+					d["trang_thai"], d["ma_lo"], d["modified"] = "Đang gửi gộp", ma, self.gio
 					n += 1
 			return []
 		raise AssertionError("câu SQL lạ: " + q[:60])
@@ -264,6 +280,10 @@ class _SoGia:
 	def get_all(self, dt, filters=None, fields=None, order_by=None, limit_page_length=None):
 		ra = [_Dong(d) for d in self.dong if all(d.get(k) == v for k, v in (filters or {}).items())]
 		return ra[:limit_page_length] if limit_page_length else ra
+
+	def get_value(self, dt, ten, fields=None, as_dict=False):
+		d = next((x for x in self.dong if x["name"] == ten), None)
+		return _Dong(d) if d else None
 
 	def set_value(self, dt, ten, v):
 		for d in self.dong:
@@ -278,10 +298,7 @@ class _SoGia:
 
 
 class _So(_SoGia):
-	"""Sổ giả đủ cho đường gửi ngay: chèn có khoá chính, claim một dòng theo tên, đọc dòng.
-
-	gio: đồng hồ giả (số phút) ghi vào modified, để ca kiểm tua được dòng kẹt."""
-	gio = 0
+	"""Sổ giả đủ cho đường gửi ngay: chèn có khoá chính, claim một dòng theo tên, đọc dòng."""
 
 	def chen(self, d):
 		if any(x["name"] == d["name"] for x in self.dong):
@@ -301,17 +318,8 @@ class _So(_SoGia):
 				if d["name"] == ten and d.get("ma_lo") == ma and d["trang_thai"] == cu:
 					d["trang_thai"], d["modified"] = tt, self.gio
 			return []
-		if "ma_lo=null" in q and "modified < %s" in q:
-			tt, _luc, cu, han = tham
-			for d in self.dong:
-				if d["trang_thai"] == cu and d.get("modified", self.gio) < han:
-					d["trang_thai"], d["ma_lo"], d["modified"] = tt, None, self.gio
-			return []
 		return super().sql(q, tham)
 
-	def get_value(self, dt, ten, fields=None, as_dict=False):
-		d = next((x for x in self.dong if x["name"] == ten), None)
-		return _Dong(d) if d else None
 
 
 _DEM_HASH = [0]
@@ -359,7 +367,7 @@ def _xa(so, gui=None, con_can=None, nhom_ds=None):
 		_DEM_LO[0] += 1
 		return "lo%04d" % _DEM_LO[0]
 	gui = gui or (lambda c, t: ("Đã gửi", ""))
-	db = types.SimpleNamespace(sql=so.sql, set_value=so.set_value, commit=so.commit)
+	db = types.SimpleNamespace(sql=so.sql, set_value=so.set_value, commit=so.commit, get_value=so.get_value)
 	with patch.object(kz, "_bat", lambda: 1), \
 			patch.object(kz, "_cac_nhom", lambda: nhom_ds or [nhom()]), \
 			patch.object(kz, "_gui_zalo", lambda c, t: (da_gui.append((c, t)), gui(c, t))[1]), \
@@ -419,7 +427,7 @@ def _gop_chong():
 	la("Codex: concurrent_digest_sends phải là 1", ["\n".join(tat_ca).count("Việc %02d" % i) for i in range(5)], [1] * 5)
 
 
-@ca("v562 #413 P2: worker chết sau khi gọi Zalo thì dòng kẹt Đang gửi gộp, lượt sau KHÔNG gửi lại")
+@ca("v562 #413 P2: worker chết lúc đang gọi Zalo thì dòng kẹt Chưa rõ (vòng 10: trước là Đang gửi gộp), lượt sau và gửi bù KHÔNG gửi lại")
 def _gop_chet():
 	so = _SoGia([_hoan(i, "Việc %02d" % i) for i in range(3)])
 
@@ -432,8 +440,10 @@ def _gop_chet():
 		_xa(so, gui=gui)
 	except _Chet:
 		pass
-	la("kẹt ở Đang gửi gộp", sorted({d["trang_thai"] for d in so.dong}), ["Đang gửi gộp"])
+	la("kẹt ở Chưa rõ", sorted({d["trang_thai"] for d in so.dong}), [kz.CHUA_RO])
 	la("lượt sau không gửi gì", _xa(so), [])
+	_tra_ve(so, 60)
+	la("gửi bù không đụng dòng Chưa rõ", (sorted({d["trang_thai"] for d in so.dong}), _xa(so)), ([kz.CHUA_RO], []))
 	dung("claim đã commit trước khi gọi Zalo", len(so.commit_luc) >= 1)
 
 
@@ -977,6 +987,99 @@ def _hoan_nhom_tat():
 	so2 = _SoGia([_hoan(4, "Không còn nhóm nào bật")])
 	_xa(so2, nhom_ds=[nhom(bat=0)])
 	la("không nhóm nào bật: mọi tin hoãn Bỏ qua", so2.dong[0]["trang_thai"], kz.BO_QUA)
+
+
+# ===================================================================
+# Vòng 10 (Codex review #425 trên e74e7ef): đường gửi gộp sau giờ im có mốc
+# Chưa rõ cho từng phần; dòng kẹt Đang gửi gộp được trả về Hoãn giờ im.
+
+def _tra_ve(so, phut):
+	"""Chạy quet_cho_gui ở phút `phut` (chỉ phần trả dòng kẹt, sổ không có Chờ gửi)."""
+	f = kz.frappe
+	import frappe.utils as fu
+	so.gio = phut
+	with patch.object(kz, "_bat", lambda: 1), patch.object(kz, "now_datetime", lambda: _Gio(phut)), \
+			patch.object(fu, "add_to_date", lambda d, minutes=0, **k: d + minutes, create=True), \
+			patch.object(f, "db", types.SimpleNamespace(sql=so.sql, commit=so.commit), create=True), \
+			patch.object(f, "get_all", lambda *a, **k: [], create=True):
+		kz.quet_cho_gui()
+
+
+@ca("v562 #425 vòng 10 tái hiện Codex: worker chết sau khi nhận lô gộp, trước khi gọi Zalo, thì cả lô kẹt Đang gửi gộp mãi; giờ quá 10 phút trả về Hoãn giờ im và lượt sau gửi đủ một lần")
+def _gop_ket():
+	so = _SoGia([_hoan(i, "Việc %02d" % i) for i in range(3)])
+
+	class _Chet(Exception):
+		pass
+
+	def chet(k, n):
+		raise _Chet("worker chết ở bước hỏi lại việc, chưa gọi Zalo")
+	so.gio = 0
+	try:
+		_xa(so, con_can=chet)
+	except _Chet:
+		pass
+	la("kẹt Đang gửi gộp", sorted({d["trang_thai"] for d in so.dong}), ["Đang gửi gộp"])
+	la("trước 10 phút: lượt xả không gửi", _xa(so), [])
+	_tra_ve(so, 5)
+	la("phút 5: chưa trả về", sorted({d["trang_thai"] for d in so.dong}), ["Đang gửi gộp"])
+	_tra_ve(so, 11)
+	la("phút 11: trả về Hoãn giờ im", sorted({d["trang_thai"] for d in so.dong}), ["Hoãn giờ im"])
+	gui = _xa(so)
+	gop = "\n".join(t for _, t in gui)
+	la("lượt sau gửi đủ, mỗi việc một lần", [gop.count("Việc %02d" % i) for i in range(3)], [1, 1, 1])
+	la("trạng thái cuối", sorted({d["trang_thai"] for d in so.dong}), ["Đã gửi gộp"])
+
+
+@ca("v562 #425 vòng 10: lô gộp nhiều phần, chết giữa hai phần: phần đã gọi thành Chưa rõ, phần chưa gọi được gửi bù, không phần nào gửi hai lần")
+def _gop_ket_giua():
+	so = _SoGia([_hoan(i, "Khoản trả trước ERP chờ duyệt PKT-2026-%05d của nhà cung cấp tên rất dài số %02d" % (i, i))
+		for i in range(50)])
+
+	class _Chet(Exception):
+		pass
+	da = []
+
+	def gui(c, t):
+		if da:
+			raise _Chet("worker chết trước phần thứ hai")
+		da.append(t)
+		return "Đã gửi", ""
+	so.gio = 0
+	try:
+		_xa(so, gui=gui)
+	except _Chet:
+		pass
+	phan = kz.chia_lo_gop([kz.dong_gop(d["noi_dung"]) for d in so.dong])
+	dung("lô phải có ít nhất ba phần", len(phan) >= 3)
+	p2 = {so.dong[i]["name"] for i in phan[1][1]}
+	la("chết lúc gọi phần 2: đúng phần 2 là Chưa rõ, phần sau còn Đang gửi gộp",
+		({d["name"] for d in so.dong if d["trang_thai"] == kz.CHUA_RO}, len([d for d in so.dong if d["trang_thai"] == "Đang gửi gộp"])),
+		(p2, sum(len(x[1]) for x in phan[2:])))
+	_tra_ve(so, 11)
+	gui2 = _xa(so)
+	gop = "\n".join(da + [t for _, t in gui2])
+	la("không việc nào gửi hai lần", max(gop.count("PKT-2026-%05d " % i) for i in range(50)), 1)
+	la("phần 2 giữ Chưa rõ, mọi việc khác đã gửi", sorted({d["trang_thai"] for d in so.dong if d["name"] not in p2}), ["Đã gửi gộp"])
+	la("phần 2 không tự gửi lại", sorted({d["trang_thai"] for d in so.dong if d["name"] in p2}), [kz.CHUA_RO])
+
+
+@ca("v562 #425 vòng 10: lượt xả cũ treo quá lâu, dòng đã bị trả về và gửi ở lượt khác, thì lượt cũ không gửi trùng")
+def _gop_lot_cu():
+	so = _SoGia([_hoan(i, "Việc %02d" % i) for i in range(3)])
+	tat_ca = []
+	vao = [0]
+
+	def con_can(k, n):
+		if not vao[0]:
+			vao[0] = 1
+			_tra_ve(so, 11)
+			tat_ca.extend(t for _, t in _xa(so))
+		return True
+	so.gio = 0
+	tat_ca.extend(t for _, t in _xa(so, con_can=con_can))
+	la("mỗi việc gửi đúng một lần", ["\n".join(tat_ca).count("Việc %02d" % i) for i in range(3)], [1, 1, 1])
+	la("trạng thái cuối", sorted({d["trang_thai"] for d in so.dong}), ["Đã gửi gộp"])
 
 
 @ca("v562 #425: bài học Zalo đã ghi vào docs/bai-hoc-su-co.md")
