@@ -35,6 +35,25 @@ chi tiêu hoặc hạn mức. Bản này chưa thay luồng checkout thành ba m
 chưa có lập lịch xuất bản hoặc trạng thái vận đơn mới. Các mục đó theo
 nghiệm thu tiếp của Issue367, không nhận hoàn thành từ giao diện phác thảo.
 
+### Review PR424
+
+PR: https://github.com/thevagabondpatisserie/vagabond/pull/424.
+Trên e4171bc999199585636f6c4e8fe00302ed47987e, CI và bench hai lượt đạt
+(run37123417221, run37123417230). Claude run37123464175 hoàn tất bước model
+nhưng chưa có kết luận đăng lên PR; log có 5 permission denials, không coi
+check xanh là review đạt.
+
+- R1: escape nhãn tại nhánh lỗi mã số thuế, địa chỉ rỗng, phí giao và quầy;
+  escape cả tên công ty/địa chỉ trả từ API. Canary tái hiện trên SHA trên,
+  không còn tạo thẻ HTML sau sửa.
+- R2: sự kiện vgb-nhan đã làm mới cards/cart ở SHA trên; bổ sung phụ kiện,
+  tình trạng và hộp hàng mùa đang mở. Ca hành vi giữ size/giá/nến/lời chúc/
+  scroll; bản cũ giữ nội dung mùa cũ, bản sửa nhận đúng chữ mới.
+- Nhóm lọc Editor nằm gọn theo hàng; tăng cỡ headline Vagabond Sans cho
+  dễ đọc. Ảnh local08-editor-tim-chu-preview.png, chưa là production.
+
+Merge/deploy/migrate/live vẫn chờ kết luận độc lập và kiểm SHA cuối.
+
 ## Lịch sử PR1 quảng cáo Meta
 
 

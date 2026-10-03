@@ -14,3 +14,6 @@
 /* Cùng headline thương hiệu với website. */
 @font-face{font-family:'Vagabond Sans';src:url('/assets/vagabond/mau_in/VagabondSans-Regular.otf') format('opentype');font-display:swap}
 h1,h2,h3{font-family:'Vagabond Sans',sans-serif;font-weight:400}
+/* Bộ lọc gọn để ô sửa nằm gần ô tìm; font thương hiệu cần cỡ đủ đọc. */
+.loc-nhom{display:flex;flex-wrap:wrap;gap:6px}.loc-nhom button{width:auto;flex:0 1 auto;font-size:12px;padding:8px 10px}
+h2{font-size:28px;line-height:1.15}h3{font-size:24px;line-height:1.15}.chinh-sua{min-width:0}

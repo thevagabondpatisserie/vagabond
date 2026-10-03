@@ -131,3 +131,62 @@ def _chuyen():
         la('giữ lịch sử cũ', json.loads(d.lich_su)[0]['noi_dung'], cong_khai)
         la('chạy lại no-op', noi_dung_web.xuat_ban_chu_da_duyet_367(), False)
     la('lưu một lần',len(da_luu),1)
+
+
+@ca("#424 R1: lỗi thuế, địa chỉ, phí giao và quầy không diễn giải chữ thành HTML")
+def _loi_html():
+    nhan = {k:"<vgb-canary>" + " ".join(noi_dung_web.cho_dien(v["mac_dinh"])) for k,v in noi_dung_web.NHAN.items()}
+    kich = "window.vgbNhan=" + json.dumps(nhan) + ";" + r'''
+const ketQua={};
+EL('#f-mst').value='0318561568';
+GHI.traLoi=()=>({message:{ok:0}});lookupMst();await CHO_XONG();ketQua.thueLoi=EL('#mstHint').innerHTML;
+GHI.traLoi=()=>({message:{ok:1,ten:'<vgb-company>',nghi_thieu:true}});lookupMst();await CHO_XONG();ketQua.thueThieu=EL('#mstHint').innerHTML;
+GHI.traLoi=()=>({message:{ok:1,ten:'<vgb-company>',dia_chi:'Thử'}});lookupMst();await CHO_XONG();ketQua.thueTimThay=EL('#mstHint').innerHTML;
+EL('#f-phone').value='0900000001';GHI.traLoi=()=>({message:{addresses:[]}});lookupPhone();await CHO_XONG();ketQua.diaChiTrong=EL('#phoneHint').innerHTML;
+CO.addrList=[{full_name:'<vgb-customer>',phone_number:'0900000001',full_address:'9 <vgb-address>'}];drawSaved();ketQua.diaChi=EL('#savedAddr').innerHTML;
+TODAY[CAKES[0].sizes[0].id]=4;renderSheet(CAKES[0]);pick(2);pickSlot(6);addToCart();
+for(const kieu of ['du_kien','chinh_xac']){apPhiGiao({ok:1,total_fee:30000,diem_lay:'Bep Vagabond',distance:4},kieu,{ten:'Quận thử'});ketQua['phi'+kieu]=EL('#shipHint').innerHTML;}
+MIEN_PHI_TU=500000;apPhiGiao({ok:1,total_fee:30000,diem_lay:'Bep Vagabond',distance:4},'chinh_xac',null);ketQua.phiMien=EL('#shipHint').innerHTML;
+STORE={quay:[{ten:'Quầy thử',mon:[{ma:'TEST',ten:'Bánh',con:2,gia:10000}]}]};veTonQuay();ketQua.quay=EL('#storeBody').innerHTML;
+RA(ketQua);
+'''
+    r = subprocess.run(["node", str(GOC/"khung/kiem_thu/gia_lap_trang.js"),str(GOC/"trang/banh.html"),"2026-10-03T08:00:00+07:00",kich],capture_output=True,text=True,timeout=30)
+    la("chạy nhánh lỗi thật",r.returncode,0)
+    if r.returncode: raise AssertionError(r.stderr)
+    d=json.loads(r.stdout)
+    for k,v in d.items(): dung(k+" không tạo thẻ", "<vgb-" not in v)
+    dung("có nhãn xấu trong fixture", "&lt;vgb-canary&gt;" in d["thueLoi"])
+
+
+@ca("#424 R2: preview đổi chữ hộp đang mở, giữ lựa chọn và cuộn")
+def _preview_mo():
+    kich = r'''
+TODAY[CAKES[0].sizes[0].id]=4;renderSheet(CAKES[0]);
+if(cur.sizes[1])setSize(cur.sizes[1].id);
+picked_nums=[2,6];picked_add=new Set([ADDONS[0].id]);EL('#s-wish').value='Mừng sinh nhật';
+const truoc={ma:curSize.id,gia:curSize.p};
+MUA={co:1,ten_mua:'Mùa thử',mon:[{ma:'TEST',ten:'Hộp thử',ruot:'Nội dung cũ',con:3,gia:100000,het:false}]};
+veSheetMua(MUA.mon[0]);EL('#sheetMua').scrollTop=123;
+window.vgbNhan={phu_kien_e0fe21772:'Nến bản mới',san_pham_co_san:'Sẵn sàng mới',dat_banh_b742ca205:'Thêm bản mới'};
+window.vgbSanPham={[curSize.id]:{ten:'Tên mới',mo_ta:'Mô tả mới'},TEST:{ten:'Hộp mới',mo_ta:'Ruột mới'}};
+document.dispatchEvent({type:'vgb-nhan'});
+RA({truoc,sau:{ma:curSize.id,gia:curSize.p},nums:picked_nums,them:[...picked_add],themMong:ADDONS[0].id,loi:EL('#s-wish').value,
+ten:EL('#s-name').textContent,moTa:EL('#s-desc').textContent,phuKien:EL('#s-acc').innerHTML,coSan:EL('#s-avail').innerHTML,
+tenMua:EL('#sm-name').textContent,ruotMua:EL('#sm-ruot').innerHTML,nutMua:EL('#sm-cta').textContent,cuon:EL('#sheetMua').scrollTop});
+'''
+    r=subprocess.run(['node',str(GOC/'khung/kiem_thu/gia_lap_trang.js'),str(GOC/'trang/banh.html'),'2026-10-03T08:00:00+07:00',kich],capture_output=True,text=True,timeout=30)
+    la('chạy sự kiện preview thật',r.returncode,0)
+    if r.returncode: raise AssertionError(r.stderr)
+    d=json.loads(r.stdout)
+    la('giữ size và giá',d['sau'],d['truoc'])
+    la('giữ nến số',d['nums'],[2,6])
+    la('giữ phụ kiện',d['them'],[d['themMong']])
+    la('giữ lời chúc',d['loi'],'Mừng sinh nhật')
+    la('tên sản phẩm',d['ten'],'Tên mới')
+    la('mô tả sản phẩm',d['moTa'],'Mô tả mới')
+    dung('nhãn phụ kiện cập nhật', 'Nến bản mới' in d['phuKien'])
+    dung('nhãn có sẵn cập nhật', 'Sẵn sàng mới' in d['coSan'])
+    la('tên mùa cập nhật',d['tenMua'],'Hộp mới')
+    dung('mô tả mùa cập nhật','Ruột mới' in d['ruotMua'])
+    la('nút mùa cập nhật',d['nutMua'],'Thêm bản mới')
+    la('giữ vị trí cuộn',d['cuon'],123)

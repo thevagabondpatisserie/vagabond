@@ -1138,7 +1138,8 @@ function cauNhan(khoa, thay){
 document.addEventListener('vgb-nhan', function(){
   renderToday(); renderRail(); renderCakes(); drawCart(); drawBar(); veHangMua(); veTonQuay();
   if (CAU_HINH) apDungCauHinh(CAU_HINH);
-  if (cur && $('#sheet').classList.contains('open')) { veChuMonDangMo(); drawSizes(); updateCta(); }
+  if (cur && $('#sheet').classList.contains('open')) { veChuMonDangMo(); drawSizes(); drawAddons(); updateCta(); }
+  if (muaDangXem && $('#sheetMua').classList.contains('open')) { const viTri = $('#sheetMua').scrollTop; veSheetMua(muaDangXem); $('#sheetMua').scrollTop = viTri; }
 });
 
 function dongTrangThai(tong, khungSomNhat, gioCapNhat){
@@ -1451,13 +1452,8 @@ function renderSheet(c){
   $('#s-name').classList.toggle('vi', laChuViet(c.k));
   suKien('ViewContent', {content_ids:c.sizes.map(s=>s.id), content_type:'product', content_name:c.k,
     value:Math.min(...c.sizes.map(s=>s.p||0)), currency:'VND'});
-  $('#s-avail').innerHTML=avail.length
-    ? `<div class="avail"><i class="dot"></i>${htmlChuWeb('san_pham_co_san', 'Có sẵn hôm nay')} · ${esc(nhanTon(avail.reduce((a,s)=>a+TODAY[s.id],0),(chuWeb("dat_banh_3556aabb5", "bánh"))))}</div>`
-    : (chuMonWeb(c.sizes[0].id,'theo_mua',c.seasonal)?`<div class="avail">${esc(chuMonWeb(c.sizes[0].id,'theo_mua',c.seasonal))}</div>`:("<div class=\"avail\">" + htmlChuWeb("dat_banh_786f9ed52", "Đặt trước · bếp làm theo đơn") + "</div>"));
   veChuMonDangMo();
   vgbVeThumbs(c);
-  $('#s-acc').innerHTML=ACC.map(a=>`<li>${a.i?`<img src="${a.i}" alt="">`:'<img alt="">'}
-      <span class="nm">${esc(a.n)}${a.sub?`<small>${esc(a.sub)}</small>`:''}</span></li>`).join('');
   picked_nums=[]; picked_add=new Set(); $('#s-wish').value=''; wishCount(); drawAddons();
   drawSizes();
   $('#sheet').classList.add('open'); $('#sheet').scrollTop=0; document.body.style.overflow='hidden';
@@ -1465,6 +1461,12 @@ function renderSheet(c){
 function veChuMonDangMo(){
   if (!cur || !curSize) return;
   const c = cur, maMon = curSize.id;
+  const avail=c.sizes.filter(s=>TODAY[s.id]>0);
+  $('#s-avail').innerHTML=avail.length
+    ? `<div class="avail"><i class="dot"></i>${htmlChuWeb('san_pham_co_san', 'Có sẵn hôm nay')} · ${esc(nhanTon(avail.reduce((a,s)=>a+TODAY[s.id],0),(chuWeb("dat_banh_3556aabb5", "bánh"))))}</div>`
+    : (chuMonWeb(c.sizes[0].id,'theo_mua',c.seasonal)?`<div class="avail">${esc(chuMonWeb(c.sizes[0].id,'theo_mua',c.seasonal))}</div>`:("<div class=\"avail\">" + htmlChuWeb("dat_banh_786f9ed52", "Đặt trước · bếp làm theo đơn") + "</div>"));
+  $('#s-acc').innerHTML=ACC.map(a=>`<li>${a.i?`<img src="${a.i}" alt="">`:'<img alt="">'}
+      <span class="nm">${esc(a.n)}${a.sub?`<small>${esc(a.sub)}</small>`:''}</span></li>`).join('');
   $('#s-name').textContent=chuMonWeb(maMon,'ten',c.k);
   $('#s-desc').textContent=chuMonWeb(maMon,'mo_ta',c.desc);
   const tangChu = chuMonWeb(maMon, 'tang', '');
@@ -1753,13 +1755,13 @@ function lookupMst(){
          May chu chan lai luc luu, nhung bao ngay o day thi khach sua duoc lien. */
       if(d.nghi_thieu){
         $('#mstHint').innerHTML=("<b style=\"color:#FF7A6B\">" + htmlChuWeb("dat_banh_d329d680f", "Tên công ty tra về bị thiếu.") + "</b>" + " ")
-          + (chuWeb("dat_banh_e929e0d93", "Cổng thuế chỉ trả về \"{gia_tri_a}\". Quý khách xem giấy phép kinh doanh rồi gõ đủ tên vào ô Tên công ty.", {gia_tri_a:(d.ten)}));
+          + (htmlChuWeb("dat_banh_e929e0d93", "Cổng thuế chỉ trả về \"{gia_tri_a}\". Quý khách xem giấy phép kinh doanh rồi gõ đủ tên vào ô Tên công ty.", {gia_tri_a:(d.ten)}));
         $('#f-cname').focus();
       } else
-      $('#mstHint').innerHTML=(htmlChuWeb("dat_banh_0f9188544", "Đã tìm thấy") + " " + "<b style=\"color:var(--cyan)\">" + "" + (d.ten) + "</b>" + ".")
+      $('#mstHint').innerHTML=(htmlChuWeb("dat_banh_0f9188544", "Đã tìm thấy") + " " + "<b style=\"color:var(--cyan)\">" + "" + (esc(d.ten)) + "</b>" + ".")
         + (ngung?(" " + "<b style=\"color:#FF7A6B\">" + htmlChuWeb("dat_banh_e9d253bb6", "Trạng thái thuế: {gia_tri_a}", {gia_tri_a:(d.trang_thai)}) + "</b>" + " " + htmlChuWeb("dat_banh_30ed2f4a8", "- quý khách kiểm tra lại.")):'');
     }catch(e){
-      $('#mstHint').innerHTML=(chuWeb("dat_banh_179f87055", "Không tra được mã số thuế này. Quý khách điền tay tên và địa chỉ công ty, kế toán sẽ kiểm tra lại."));
+      $('#mstHint').innerHTML=(htmlChuWeb("dat_banh_179f87055", "Không tra được mã số thuế này. Quý khách điền tay tên và địa chỉ công ty, kế toán sẽ kiểm tra lại."));
     }
   },600);
 }
@@ -1787,7 +1789,7 @@ function lookupPhone(){
     }catch(e){}
     $('#phoneHint').innerHTML = CO.addrList.length
       ? (htmlChuWeb("dat_banh_1a6a68ddf", "Tìm thấy") + " " + "<b style=\"color:var(--cyan)\">" + htmlChuWeb("dat_banh_ed129760c", "{gia_tri_a} địa chỉ", {gia_tri_a:(CO.addrList.length)}) + "</b>" + " " + htmlChuWeb("dat_banh_55044016e", "đã lưu của số này."))
-      : (chuWeb("dat_banh_dd5afcc96", "Quý khách nhập địa chỉ bên dưới."));
+      : (htmlChuWeb("dat_banh_dd5afcc96", "Quý khách nhập địa chỉ bên dưới."));
     drawSaved();
   },400);
 }
@@ -1798,8 +1800,8 @@ function drawSaved(){
   $('#savedAddr').innerHTML = CO.addrList.map((a,i)=>{
     const on=CO.addrSel===i;
     return `<button class="pick ${on?'on':''}" onclick="selAddr(${i})">
-      <b>${a.full_name} · ${on?a.phone_number:maskPhone(a.phone_number)}</b>
-      <span>${on?a.full_address:maskAddr(a.full_address)}</span></button>`;}).join('');
+      <b>${esc(a.full_name)} · ${esc(on?a.phone_number:maskPhone(a.phone_number))}</b>
+      <span>${esc(on?a.full_address:maskAddr(a.full_address))}</span></button>`;}).join('');
 }
 function selAddr(i){ CO.addrSel=i; CO.pickedLoc=null; xoaGoiY(); $('#f-addr').value=CO.addrList[i].full_address; drawSaved(); quoteShip(); }
 
@@ -1952,18 +1954,18 @@ function apPhiGiao(m, kieu, q){
   const diem = TEN_DIEM[m.diem_lay] || m.diem_lay;
   if(mp){
     $('#shipHint').innerHTML=(htmlChuWeb("dat_banh_e54218837", "Đơn này được") + " " + "<b style=\"color:var(--cyan)\">" + htmlChuWeb("dat_banh_aea590df5", "miễn phí giao") + "</b>")
-      + (diem?(chuWeb("dat_banh_8509dcd93", ", giao từ {gia_tri_a}", {gia_tri_a:(diem)})):'') + (chuWeb("dat_banh_6ea269703", ". Chúng tôi gọi xác nhận lại trước khi giao."));
+      + (diem?(htmlChuWeb("dat_banh_8509dcd93", ", giao từ {gia_tri_a}", {gia_tri_a:(diem)})):'') + (htmlChuWeb("dat_banh_6ea269703", ". Chúng tôi gọi xác nhận lại trước khi giao."));
     return;
   }
   $('#shipHint').innerHTML=(kieu==='du_kien'
       ? (htmlChuWeb("dat_banh_35e7005c4", "Phí giao dự kiến cho khu vực") + " " + "<b>" + "" + (esc(q?q.ten:'')) + "</b>" + ": " + "<b style=\"color:var(--cyan)\">" + "" + (vnd(CO.ship)) + "</b>" + htmlChuWeb("dat_banh_d6e63e5f0", ". Gõ địa chỉ để có số chính xác."))
       : (htmlChuWeb("dat_banh_06a446f5c", "Phí giao") + " " + "<b style=\"color:var(--cyan)\">" + "" + (vnd(CO.ship)) + "</b>")
-        + (m.distance?(" " + chuWeb("dat_banh_7238a477f", "cho khoảng {gia_tri_a} km", {gia_tri_a:(Number(m.distance).toFixed(1))})):'')
-        + (diem?(chuWeb("dat_banh_8509dcd93", ", giao từ {gia_tri_a}", {gia_tri_a:(diem)})):'')
+        + (m.distance?(" " + htmlChuWeb("dat_banh_7238a477f", "cho khoảng {gia_tri_a} km", {gia_tri_a:(Number(m.distance).toFixed(1))})):'')
+        + (diem?(htmlChuWeb("dat_banh_8509dcd93", ", giao từ {gia_tri_a}", {gia_tri_a:(diem)})):'')
         + (m.theo_gio
             ? (htmlChuWeb("dat_banh_d60cf33fc", ", tính đúng khung") + " " + "<b>" + "" + (SLOTS[pickedSlot].t) + "</b>" + " " + htmlChuWeb("dat_banh_988f4d65a", "quý khách chọn."))
-            : (chuWeb("dat_banh_13d8a57e8", ". Đây là giá giờ hiện tại, khung giờ cao điểm có thể cao hơn.")))
-        + (" " + chuWeb("dat_banh_5956a13dc", "Chúng tôi gọi xác nhận lại trước khi giao.")));
+            : (htmlChuWeb("dat_banh_13d8a57e8", ". Đây là giá giờ hiện tại, khung giờ cao điểm có thể cao hơn.")))
+        + (" " + htmlChuWeb("dat_banh_5956a13dc", "Chúng tôi gọi xác nhận lại trước khi giao.")));
 }
 
 function chonQuan(){
@@ -2486,7 +2488,7 @@ function veTonQuay(){
     var dau='<div class="quay">'+
       '<div class="q-ten">'+esc(q.ten)+'</div>'+
       (q.dia_chi?'<div class="q-dc">'+esc(q.dia_chi)+'</div>':'')+
-      '<div class="q-con">'+(tong?((chuWeb("dat_banh_75f5cf26e", "Còn") + " ")+tong+(" " + chuWeb("dat_banh_9ce7e8d31", "bánh ·") + " ")+mon.length+(" " + chuWeb("dat_banh_97a16dfdf", "loại"))):(chuWeb("dat_banh_71fb5d32e", "Hiện đã hết bánh trên tủ")))+'</div>'+
+      '<div class="q-con">'+(tong?((htmlChuWeb("dat_banh_75f5cf26e", "Còn") + " ")+tong+(" " + htmlChuWeb("dat_banh_9ce7e8d31", "bánh ·") + " ")+mon.length+(" " + htmlChuWeb("dat_banh_97a16dfdf", "loại"))):(htmlChuWeb("dat_banh_71fb5d32e", "Hiện đã hết bánh trên tủ")))+'</div>'+
       '</div>';
     if(!mon.length) return dau+("<div class=\"store-empty\">" + htmlChuWeb("dat_banh_a85783ffc", "Quầy này đã bán hết bánh trong tủ. Bánh mới lên tủ theo từng đợt trong ngày.") + "</div>");
     /* Dung lai dung bo the cua banh hom nay. Khong co onclick: khong co

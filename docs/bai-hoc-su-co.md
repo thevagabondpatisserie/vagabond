@@ -1610,3 +1610,8 @@ lần đầu đếm ngoại lệ ra 0 trên 14 đột biến, tưởng bộ ki�
   chuyển sang số khác. Ca Guest/sai số/đúng số gọi thân hàm thật với HTTP stub.
 - Khi phát hành chữ được duyệt, chuyển nháp và công khai riêng, giữ snapshot
   lịch sử; không lấy nguyên bản nháp để đẩy công khai trong migration.
+- Nhãn CMS phải escape cả nhánh lỗi/không có dữ liệu; chỉ thử happy path
+  không đủ. Ca canary dùng đúng renderer lỗi thuế, phí giao, địa chỉ và quầy.
+- Preview cần làm mới hộp đang mở mà giữ lựa chọn và scroll. Đối chiếu
+  finding với sự kiện thật trước khi sửa: cards/cart đã cập nhật, phần còn
+  thiếu là phụ kiện/tình trạng và chi tiết hàng mùa.

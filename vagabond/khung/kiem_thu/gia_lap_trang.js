@@ -170,12 +170,14 @@ function EL(sel) {
 	return kho.get(sel);
 }
 
+const suKienTaiLieu = {};
 const document = {
 	querySelector: EL,
 	querySelectorAll: sel => [EL(sel)],
 	getElementById: id => EL('#' + id),
 	createElement: t => taoEl('<' + t + '>'),
-	addEventListener() {},
+	addEventListener(ten, ham) { (suKienTaiLieu[ten] ||= []).push(ham); },
+	dispatchEvent(e) { (suKienTaiLieu[e.type] || []).forEach(f => f(e)); },
 	body: taoEl('body'),
 	documentElement: taoEl('html'),
 	head: taoEl('head')
