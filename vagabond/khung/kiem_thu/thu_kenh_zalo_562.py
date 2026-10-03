@@ -1183,6 +1183,57 @@ def _o_chon_tim():
 	dung("chọn sai thì báo, không lặng lẽ bỏ", s.count("Chọn đúng một nhóm trong danh sách gợi ý.") == 2)
 
 
+# ===================================================================
+# Vòng 12 (Codex review #428 trên f200554): lỗi làm chết giao dịch không bị nuốt;
+# phản hồi Zalo không đọc được là Chưa rõ.
+
+@ca("v565 #428 vòng 12 tái hiện Codex: deadlock khi ghi hộp thư trước đây bị nuốt và chứng từ báo thành công; giờ lỗi đi lên")
+def _deadlock():
+	f = kz.frappe
+	QueryDeadlockError = type("QueryDeadlockError", (Exception,), {})
+	OperationalError = type("OperationalError", (Exception,), {})
+	la("nhận ra lỗi chết giao dịch", [kz.chet_giao_dich(x) for x in (QueryDeadlockError("deadlock"),
+		OperationalError(1213, "Deadlock found"), OperationalError(1205, "Lock wait timeout"), ValueError("lỗi lẻ"),
+		OperationalError(1062, "Duplicate"))], [True, True, True, False, False])
+	so = _So([])
+	log, lui = [], []
+
+	def chen_chet(d):
+		raise QueryDeadlockError("Deadlock found when trying to get lock")
+	with _gia(so, [nhom()], "10:00", lambda c, t: ("Đã gửi", ""), lambda k, n: True), \
+			patch.object(f, "flags", types.SimpleNamespace(), create=True), \
+			patch.object(f, "get_doc", lambda d: types.SimpleNamespace(insert=lambda **k: chen_chet(d)), create=True), \
+			patch.object(f, "log_error", lambda *a, **k: log.append(a), create=True), \
+			patch.object(f.db, "rollback", lambda **k: lui.append(k)), \
+			patch.object(f.db, "after_commit", types.SimpleNamespace(add=lambda fn: None), create=True):
+		nem("bao() để deadlock đi lên", lambda: kz.bao("viec", "cong_no", "Chờ duyệt PKT-9", khoa="cho_duyet:PKT-9"))
+	la("không lùi về savepoint đã mất, không nuốt vào log", (lui, log), ([], []))
+	# Lỗi lẻ của một dòng vẫn chỉ lùi dòng đó, chứng từ đi tiếp.
+	with _gia(so, [nhom()], "10:00", lambda c, t: ("Đã gửi", ""), lambda k, n: True), \
+			patch.object(f, "flags", types.SimpleNamespace(), create=True), \
+			patch.object(f, "get_doc", lambda d: types.SimpleNamespace(insert=lambda **k: (_ for _ in ()).throw(ValueError("lẻ"))), create=True), \
+			patch.object(f, "log_error", lambda *a, **k: log.append(a), create=True), \
+			patch.object(f.db, "rollback", lambda **k: lui.append(k)), \
+			patch.object(f.db, "after_commit", types.SimpleNamespace(add=lambda fn: None), create=True):
+		kz.bao("viec", "cong_no", "Chờ duyệt PKT-9", khoa="cho_duyet:PKT-9b")
+	la("lỗi lẻ: lùi savepoint một lần, có log", (len(lui), len(log)), (1, 1))
+
+
+@ca("v565 #428 vòng 12 tái hiện Codex: Zalo trả trang lỗi 502 không đọc được trước đây ghi Lỗi (dễ bị gửi lại trùng); giờ Chưa rõ")
+def _phan_hoi_hong():
+	gia = types.ModuleType("requests")
+
+	class _R:
+		status_code = 502
+
+		def json(self):
+			raise ValueError("không phải JSON")
+	gia.post = lambda url, json=None, timeout=None: _R()
+	with patch.object(kz, "_token", lambda: "123:BIMAT"), patch.dict("sys.modules", {"requests": gia}):
+		tt, loi, _ = kz._goi("sendMessage", {"chat_id": "c", "text": "x"})
+	la("Chưa rõ, nói rõ mã HTTP", (tt, "502" in loi), ("Chưa rõ", True))
+
+
 @ca("v562 #425: bài học Zalo đã ghi vào docs/bai-hoc-su-co.md")
 def _bai_hoc():
 	import os
