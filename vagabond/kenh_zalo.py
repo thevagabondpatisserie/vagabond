@@ -90,20 +90,9 @@ def soan_tin(loai, tieu_de, dong=None, link=None, nguoi=None, han=None):
 	return tin
 
 
-def _phut(hhmm):
-	s = str(hhmm or "").strip()
-	if not s:
-		return None
-	try:
-		p = s.split(":")
-		return int(p[0]) * 60 + int(p[1] if len(p) > 1 else 0)
-	except Exception:
-		return None
-
-
 def trong_gio_im(gio, im_tu, im_den):
 	"""THUẦN: gio "HH:MM" có nằm trong [im_tu, im_den) không; qua nửa đêm được."""
-	a, b, g = _phut(im_tu), _phut(im_den), _phut(gio)
+	a, b, g = gio_hop_le(im_tu), gio_hop_le(im_den), gio_hop_le(gio)
 	if a is None or b is None or g is None or a == b:
 		return False
 	return a <= g < b if a < b else (g >= a or g < b)
@@ -181,9 +170,38 @@ def kiem_bo_loc(ds):
 		% ("; ".join(loi), ", ".join(LOAI), ", ".join(CHU_DE)))
 
 
+def gio_hop_le(s):
+	"""THUẦN: "HH:MM" đúng 00:00 đến 23:59 thì trả số phút, sai thì None."""
+	m = __import__("re").fullmatch(r"(\d{2}):(\d{2})", str(s or "").strip())
+	if not m or int(m.group(1)) > 23 or int(m.group(2)) > 59:
+		return None
+	return int(m.group(1)) * 60 + int(m.group(2))
+
+
+def kiem_gio_im(ds):
+	"""THUẦN: lỗi nếu giờ im của một dòng gõ sai, thiếu một đầu, hoặc hai đầu trùng nhau.
+
+	Codex #423: "22h", "24:00", "07:99" hay chỉ điền một đầu trước đây được lưu,
+	trong_gio_im coi như không im và tin thường bắn cả đêm. Chặn ngay lúc lưu."""
+	loi = []
+	for i, r in enumerate(ds or [], 1):
+		tu, den = str(r.get("im_tu") or "").strip(), str(r.get("im_den") or "").strip()
+		if not tu and not den:
+			continue
+		if not tu or not den:
+			loi.append("dòng %s phải điền đủ Giờ im từ và Giờ im đến" % i)
+			continue
+		sai = [ten for ten, v in (("Giờ im từ", tu), ("Giờ im đến", den)) if gio_hop_le(v) is None]
+		if sai:
+			loi.append("dòng %s %s phải dạng HH:MM từ 00:00 đến 23:59" % (i, " và ".join(sai)))
+		elif gio_hop_le(tu) == gio_hop_le(den):
+			loi.append("dòng %s Giờ im từ và đến trùng nhau" % i)
+	return ("Bảng Nhóm nhận tin Zalo: " + "; ".join(loi) + ".") if loi else ""
+
+
 def kiem_bang_nhom(ds):
-	"""THUẦN: mọi lỗi của bảng Nhóm nhận tin (trùng, mã ngoài danh mục), rỗng là hợp lệ."""
-	return " ".join(x for x in (kiem_nhom_trung(ds), kiem_bo_loc(ds)) if x)
+	"""THUẦN: mọi lỗi của bảng Nhóm nhận tin (trùng, mã ngoài danh mục, giờ im sai), rỗng là hợp lệ."""
+	return " ".join(x for x in (kiem_nhom_trung(ds), kiem_bo_loc(ds), kiem_gio_im(ds)) if x)
 
 
 def doc_xac_minh(kq):
