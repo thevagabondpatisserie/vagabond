@@ -602,8 +602,11 @@ CUA_NGO = {
 	# Tro ly huong dan dung app (26/08/2026). Chi hai cua, va ca hai deu
 	# KHONG cham du lieu nghiep vu: `hoi` doc so tay sinh ra tu ma nguon,
 	# `bao_loi` chi cam co vao dong nhat ky cua chinh cau tra loi do.
-	# `tro_ly_so_tay.py` co y KHONG mo cua nao: no la thu vien noi bo.
+	# `tro_ly_so_tay.py` truoc v554 KHONG mo cua nao. Tu v554 mo dung MOT cua
+	# `doc_so_tay` cho man So tay: chi doc tep .md trong thu muc so_tay, khong
+	# cham du lieu nghiep vu, ai dang nhap cung xem duoc.
 	"tro_ly.py": ["bao_loi", "cai_dat", "hoi", "luu_cai_dat"],
+	"tro_ly_so_tay.py": ["doc_so_tay"],
 	# Huong dan che bien di kem moi BOM (them 25/08/2026, v301).
 	"huong_dan_che_bien.py": [
 		"chi_tiet", "danh_sach", "luu", "soat_cong_thuc_da_doi",

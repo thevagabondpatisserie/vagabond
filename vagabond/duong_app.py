@@ -219,6 +219,8 @@ MAN = (
 
 	# --- Man chung
 	("VCL", "Việc cần làm", None),
+	# v554: so tay viet tay, ai dang nhap cung xem (anh Viet 02/10/2026).
+	("SOTAY", "Sổ tay", None),
 )
 
 # Muoi sau man Danh muc di chung mot nhanh `DM:` trong vgbGo. Ten lay dung
