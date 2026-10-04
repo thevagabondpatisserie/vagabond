@@ -1626,7 +1626,35 @@ def lap_phieu_thu_theo_gd(cac_si, g, so_tien, ghi_chu=""):
 
 	Ném lỗi kèm lý do bằng lời khi không lập được, TRƯỚC khi đổi bất cứ thứ
 	gì, để người gọi không đánh dấu "đã thu" khi chưa có chứng từ.
-	Trả dict {pe, tien, hd: [(hoá đơn, phân bổ)]}.
+	Trả dict {pe, tien, hd: [(hoá đơn, phân bổ)]}. `so_tien` chỉ còn để
+	tương thích lời gọi: số tiền lấy từ giao dịch đã khoá (Codex #437 vòng 5).
+
+	ĐIỀU KIỆN CỦA ERPNEXT MÀ HÀM NÀY DỰA VÀO (Codex #437 vòng 7, AGENTS.md
+	mục 5). Đối chiếu ERPNext de591661b9ba0bd3f62ac25b99b5c85c723515f6 (bản
+	ghim của Bench tích hợp), tệp
+	erpnext/accounts/doctype/payment_entry/payment_entry.py:
+
+	  * setup_party_account_field() (dòng 157): payment_type "Receive" thì
+	    party_account_field = "paid_from", party_account = self.paid_from.
+	  * set_missing_values() (dòng 523): party_account trống thì
+	        party_account = get_party_account(self.party_type, self.party, self.company)
+	    rồi với paid_from, paid_to thiếu loại hay tiền tệ thì gọi
+	        acc = get_account_details(self.paid_from, self.posting_date, self.cost_center)
+	  * get_account_details() (dòng 2737) mở đầu bằng
+	        frappe.has_permission("Payment Entry", throw=True)
+	    và frappe.get_list("Account", {"name": account}, reference_doctype=
+	    "Payment Entry") - tức cần QUYỀN Payment Entry của người đang chạy,
+	    ignore_permissions trên insert không cứu được. Đây là chỗ Sales bị
+	    chặn; nên bước này chạy trong nang_quyen_lap_phieu.
+	  * validate() gọi validate_allocated_amount() (dòng 365) -> với Customer
+	    là validate_allocated_amount_with_latest_data() (dòng 419):
+	        if flt(d.allocated_amount) > 0 and flt(d.allocated_amount) > flt(latest.outstanding_amount):
+	            frappe.throw(...)
+	    latest.outstanding_amount là dư nợ trên sổ, phiếu NHÁP không trừ vào
+	    đó. Nên tổng các phiếu nháp có thể vượt dư nợ mà insert vẫn qua; hàm
+	    này tự chặn bằng con_chua_phu (trừ phân bổ nháp) và khoá hoá đơn.
+	  * insert() giữ docstatus 0; ghi sổ đi đường ghi_so_phieu_thu, nơi luật
+	    UNC (chung_tu_tien.chan_thieu_dinh_kem) chạy ở before_submit.
 	"""
 	ref = (g.reference_number or "").strip()
 	if not ref:
