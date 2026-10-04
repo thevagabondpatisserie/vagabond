@@ -1,0 +1,331 @@
+"""v571: khớp tay một giao dịch trả GỘP nhiều hoá đơn, và quyền lập phiếu thu.
+
+Ca thật 04/10/2026, Loan Anh (Sales Manager) báo:
+  * gộp hai hoá đơn của chị Hồng (HDB-26-09-01679 4.750.000, HDB-26-09-02477
+    2.850.000) vào phiếu DNTT-26-10-00002, khớp tay một giao dịch 7.600.000,
+    máy báo "Công nợ đã sạch" mà tab Đang nợ vẫn hiện đủ hai hoá đơn; tab
+    Phiếu đã gửi ghi "Đã thu đủ" mà dòng dưới "còn 7.600.000 đ".
+  * bấm "Khách đã chuyển tiền" cho Ms.Quyên thì bị chặn "không có quyền truy
+    cập doctype ... Phiếu thu/chi".
+
+Nhật ký lỗi site thật (Error Log "cong_no: sinh chung tu thu tien", 19:38
+04/10/2026): ERPNext payment_entry.get_account_details tự gọi
+frappe.has_permission("Payment Entry", throw=True), nên ignore_permissions
+trên insert không qua được.
+
+Các ca dưới đây CHẠY THẬT khop_tay và lap_phieu_thu_theo_gd trên bản Frappe
+giả của nen.py, thay đúng những cửa chạm hệ, rồi soi thứ tự việc xảy ra.
+Không dò chuỗi trong mã nguồn (CLAUDE.md điều 16).
+"""
+
+from vagabond.khung.kiem_thu.nen import ca, dung, la, nem, gia_lap
+
+fr = gia_lap()
+
+import sys  # noqa: E402
+import types  # noqa: E402
+
+from vagabond import thu_tien as tt  # noqa: E402
+
+
+def _nap_cong_no():
+	"""Nạp cong_no mà KHÔNG kéo ban_hang (ban_hang import requests).
+
+	Máy CI tay không, không có requests (bài học 20/08/2026). cong_no chỉ cần
+	đúng một tên từ ban_hang là cửa quyền _kiem_quyen_ban, mà ca kiểm nào cũng
+	thay cửa đó. Nên đặt một ban_hang giả TRONG LÚC nạp rồi gỡ ngay, để các ca
+	khác vẫn nạp ban_hang thật nếu máy có.
+	"""
+	if "vagabond.cong_no" in sys.modules:
+		return sys.modules["vagabond.cong_no"]
+	cu = sys.modules.get("vagabond.ban_hang")
+	if cu is None:
+		gia = types.ModuleType("vagabond.ban_hang")
+		gia._kiem_quyen_ban = lambda: None
+		sys.modules["vagabond.ban_hang"] = gia
+	try:
+		from vagabond import cong_no
+	finally:
+		if cu is None:
+			sys.modules.pop("vagabond.ban_hang", None)
+			import vagabond
+			if getattr(vagabond, "ban_hang", None) is not None and not hasattr(vagabond.ban_hang, "__file__"):
+				delattr(vagabond, "ban_hang")
+	return cong_no
+
+
+cn = _nap_cong_no()
+
+
+class Doi(dict):
+	def __getattr__(self, k):
+		return self.get(k)
+
+	def __setattr__(self, k, v):
+		self[k] = v
+
+
+class PhieuGia(Doi):
+	"""Payment Entry giả: ghi lại ai đang đăng nhập lúc từng bước chạy."""
+
+	def __init__(self, nhat_ky):
+		super().__init__(references=[], flags=Doi())
+		self["_nk"] = nhat_ky
+
+	def append(self, k, v):
+		self[k].append(Doi(v))
+
+	def setup_party_account_field(self):
+		pass
+
+	def set_missing_values(self):
+		# Đúng như ERPNext: bước này tự hỏi quyền đọc Payment Entry.
+		self["_nk"].append(("set_missing_values", fr.session.user))
+		if fr.session.user != "Administrator":
+			raise fr.ValidationError("khong co quyen Payment Entry")
+
+	def insert(self, **k):
+		self["_nk"].append(("insert", fr.session.user))
+		self.name = "APP-26-10-0001"
+
+	def submit(self):
+		self["_nk"].append(("submit", fr.session.user))
+
+
+HD = [
+	Doi(name="HDB-26-09-02477", customer="KH-HONG", company="TV", outstanding_amount=2850000.0,
+		posting_date="2026-09-13", grand_total=2850000.0, due_date="2026-09-13"),
+	Doi(name="HDB-26-09-01679", customer="KH-HONG", company="TV", outstanding_amount=4750000.0,
+		posting_date="2026-09-10", grand_total=4750000.0, due_date="2026-09-10"),
+]
+
+GD = Doi(name="BT-1", reference_number="FT26277123", docstatus=1, deposit=7600000.0,
+	currency="VND", payment_entries=[], unallocated_amount=7600000.0, bank_account="MB-TV",
+	date="2026-10-04")
+
+
+def _dung_he(hd=None, pe_cu=None, nhap=None, bank=None):
+	"""Thay các cửa chạm hệ của bản Frappe giả. Trả nhật ký và hàm trả lại."""
+	nk = []
+	cu = {}
+	moc = {
+		"get_all": fr.get_all, "new_doc": getattr(fr, "new_doc", None),
+		"set_user": getattr(fr, "set_user", None), "user": fr.session.user,
+		"get_value": fr.db.get_value, "exists": fr.db.exists,
+	}
+	hd = HD if hd is None else hd
+
+	def get_all(dt, filters=None, **k):
+		if dt == "Sales Invoice":
+			ten = (filters or {}).get("name")
+			ds = [h for h in hd if not ten or h.name in ten[1]]
+			if k.get("pluck") == "name":
+				return [h.name for h in ds if h.outstanding_amount > 0.5]
+			return [Doi(h) for h in ds]
+		if dt == "Payment Entry":
+			return list(pe_cu or [])
+		if dt == "Payment Entry Reference":
+			return list(nhap or [])
+		return []
+
+	def set_user(u):
+		nk.append(("set_user", u))
+		fr.session.user = u
+
+	fr.get_all = get_all
+	fr.new_doc = lambda dt: PhieuGia(nk)
+	fr.set_user = set_user
+	fr.db.get_value = lambda dt, ten, *a, **k: (
+		Doi(bank or {"account": "1121 - MB - TV", "company": "TV", "is_company_account": 1})
+		if dt == "Bank Account" else None)
+	fr.db.exists = lambda *a, **k: True
+	fr.session.user = "ntla.3008@gmail.com"
+	tt._ghi_vet_thu = lambda *a, **k: nk.append(("vet", fr.session.user))
+
+	def tra():
+		fr.get_all = moc["get_all"]
+		fr.new_doc = moc["new_doc"]
+		fr.set_user = moc["set_user"]
+		fr.session.user = moc["user"]
+		fr.db.get_value = moc["get_value"]
+		fr.db.exists = moc["exists"]
+	cu["tra"] = tra
+	return nk, tra
+
+
+@ca("v571: chia tiền gộp cho hoá đơn CŨ trước, không chia quá số còn nợ")
+def _():
+	ds = [{"name": "B", "con_no": 2850000, "ngay": "2026-09-13"},
+		{"name": "A", "con_no": 4750000, "ngay": "2026-09-10"}]
+	la("đủ tiền", tt.chia_tien_cho_hd(7600000, ds), [("A", 4750000), ("B", 2850000)])
+	la("thiếu tiền: tờ cũ đủ, tờ mới phần còn lại", tt.chia_tien_cho_hd(5000000, ds),
+		[("A", 4750000), ("B", 250000)])
+	la("thừa tiền: không gán phần dư", tt.chia_tien_cho_hd(9000000, ds),
+		[("A", 4750000), ("B", 2850000)])
+	la("không tiền", tt.chia_tien_cho_hd(0, ds), [])
+
+
+@ca("v571: lập MỘT phiếu thu nháp cho cả hai hoá đơn chị Hồng, mang mã giao dịch")
+def _():
+	nk, tra = _dung_he()
+	try:
+		kq = tt.lap_phieu_thu_theo_gd([h.name for h in HD], GD, 7600000, "Theo phiếu DNTT-26-10-00002.")
+	finally:
+		tra()
+	la("một phiếu", kq["pe"], "APP-26-10-0001")
+	la("phân bổ cũ trước", kq["hd"], [("HDB-26-09-01679", 4750000.0), ("HDB-26-09-02477", 2850000.0)])
+	la("mã giao dịch", kq["ma_gd"], "FT26277123")
+	la("không ghi sổ, chỉ insert", [x[0] for x in nk if x[0] in ("insert", "submit")], ["insert"])
+
+
+@ca("v571: Sales Manager lập được phiếu: bước hỏi quyền chạy bằng Administrator rồi TRẢ LẠI người gọi")
+def _():
+	nk, tra = _dung_he()
+	try:
+		tt.lap_phieu_thu_theo_gd([h.name for h in HD], GD, 7600000)
+		sau = fr.session.user
+	finally:
+		tra()
+	la("set_missing_values chạy quyền hệ thống", [u for b, u in nk if b == "set_missing_values"], ["Administrator"])
+	la("trả lại đúng người gọi", sau, "ntla.3008@gmail.com")
+	la("vết ghi bằng tên người gọi", [u for b, u in nk if b == "vet"], ["ntla.3008@gmail.com"])
+
+
+@ca("v571: lỗi giữa chừng vẫn TRẢ LẠI người gọi, không để request chạy quyền Administrator")
+def _():
+	nk, tra = _dung_he()
+	try:
+		def hong():
+			with tt.nang_quyen_lap_phieu():
+				raise RuntimeError("hong giua chung")
+		nem("lỗi được ném ra", hong, RuntimeError)
+		sau = fr.session.user
+	finally:
+		tra()
+	la("đã trả lại", sau, "ntla.3008@gmail.com")
+
+
+@ca("v571: giao dịch đã có phiếu thu, hoá đơn của hai mã khách, tài khoản lạ thì CHẶN, không lập gì")
+def _():
+	nk, tra = _dung_he(pe_cu=["APP-CU"])
+	try:
+		nem("đã có phiếu", lambda: tt.lap_phieu_thu_theo_gd([h.name for h in HD], GD, 7600000), fr.ValidationError)
+	finally:
+		tra()
+	la("không insert", [x for x in nk if x[0] == "insert"], [])
+	hai = [Doi(HD[0]), Doi(HD[1], customer="KH-KHAC")]
+	nk, tra = _dung_he(hd=hai)
+	try:
+		nem("hai mã khách", lambda: tt.lap_phieu_thu_theo_gd([h.name for h in hai], GD, 7600000), fr.ValidationError)
+	finally:
+		tra()
+	la("không insert", [x for x in nk if x[0] == "insert"], [])
+	nk, tra = _dung_he(bank={"account": "1121", "company": "CTY-KHAC", "is_company_account": 1})
+	try:
+		nem("tài khoản công ty khác", lambda: tt.lap_phieu_thu_theo_gd([h.name for h in HD], GD, 7600000), fr.ValidationError)
+	finally:
+		tra()
+
+
+@ca("v571: tiền đã nhận của phiếu là mốc cao hơn giữa SePay và số khớp tay")
+def _():
+	la("khớp tay, SePay 0", cn.da_thu_cua_phieu(0, 7600000), 7600000.0)
+	la("SePay tự khớp", cn.da_thu_cua_phieu(7600000, 0), 7600000.0)
+	la("chưa nhận gì", cn.da_thu_cua_phieu(0, 0), 0.0)
+
+
+@ca("v571: câu báo khớp tay nói ĐÚNG việc đã xảy ra, không báo sạch khi phiếu thu hỏng")
+def _():
+	c = cn.cau_bao_khop_tay("DNTT-26-10-00002", 7600000, "Da thu du",
+		{"pe": "APP-1", "hd": [("A", 1), ("B", 2)], "ma_gd": "FT1"}, [])
+	dung("có tên phiếu thu", "APP-1" in c)
+	dung("nói chuyển sang Tiền đã về", "Tiền đã về" in c)
+	dung("không nói đã sạch", "đã sạch" not in c)
+	c = cn.cau_bao_khop_tay("DNTT-26-10-00002", 7600000, "Da thu du", None, ["A: khong co quyen"])
+	dung("nói CHƯA lập được", "CHƯA lập được" in c)
+	dung("không nói đã sạch", "đã sạch" not in c)
+
+
+class PhieuNo(Doi):
+	def save(self, **k):
+		self["_nk"].append(("luu_phieu", self.trang_thai))
+
+	def add_comment(self, *a, **k):
+		pass
+
+
+@ca("v571: khop_tay lập phiếu thu TRƯỚC, hỏng thì phiếu đòi nợ KHÔNG bị đánh dấu đã thu")
+def _():
+	nk, tra = _dung_he()
+	doc = PhieuNo(name="DNTT-26-10-00002", ma_phieu="DNTT-26-10-00002", trang_thai="Cho thu",
+		tong_tien=7600000.0, da_thu=0.0, flags=Doi(), _nk=nk,
+		dong=[Doi(hoa_don=h.name) for h in HD])
+	moc = {"get_doc": fr.get_doc, "kq": cn._kiem_quyen_ban, "giu": cn._giu_gd,
+		"tim": tt.tim_giao_dich, "lap": tt.lap_phieu_thu_theo_gd, "gui": cn._gui_thu_da_nhan,
+		"ghi": cn.ghi_thu_cho_phieu}
+	fr.get_doc = lambda *a, **k: doc
+	cn._kiem_quyen_ban = lambda: None
+	cn._giu_gd = lambda d, ds: "FT26277123"
+	tt.tim_giao_dich = lambda ma: GD
+	cn._gui_thu_da_nhan = lambda d: None
+	cn.ghi_thu_cho_phieu = lambda *a, **k: nk.append(("ghi_thu_cu",))
+
+	def lap_hong(*a, **k):
+		nk.append(("lap",))
+		raise fr.ValidationError("Giao dịch FT26277123 đã nối với chứng từ khác.")
+	tt.lap_phieu_thu_theo_gd = lap_hong
+	try:
+		nem("lỗi lập phiếu được báo ra", lambda: cn.khop_tay(doc.name, 7600000, "FT26277123"), fr.ValidationError)
+		la("phiếu đòi nợ KHÔNG lưu", [x for x in nk if x[0] == "luu_phieu"], [])
+		la("vẫn Chờ thu", doc.trang_thai, "Cho thu")
+
+		def lap_ok(cac_si, g, so, gc=""):
+			nk.append(("lap", tuple(cac_si)))
+			return {"pe": "APP-1", "hd": [(s, 1) for s in cac_si], "ma_gd": "FT26277123"}
+		tt.lap_phieu_thu_theo_gd = lap_ok
+		kq = cn.khop_tay(doc.name, 7600000, "FT26277123")
+		buoc = [x[0] for x in nk]
+		dung("lập trước khi lưu phiếu", buoc.index("lap", 1) < buoc.index("luu_phieu"))
+		la("lập cho CẢ HAI hoá đơn", [x for x in nk if x[0] == "lap" and len(x) > 1][0][1],
+			("HDB-26-09-02477", "HDB-26-09-01679"))
+		la("không đi lối cũ từng hoá đơn", [x for x in nk if x[0] == "ghi_thu_cu"], [])
+		la("đã thu đủ", doc.trang_thai, "Da thu du")
+		la("trả tên phiếu thu", kq["pe"], "APP-1")
+	finally:
+		fr.get_doc = moc["get_doc"]
+		cn._kiem_quyen_ban = moc["kq"]
+		cn._giu_gd = moc["giu"]
+		tt.tim_giao_dich = moc["tim"]
+		tt.lap_phieu_thu_theo_gd = moc["lap"]
+		cn._gui_thu_da_nhan = moc["gui"]
+		cn.ghi_thu_cho_phieu = moc["ghi"]
+		tra()
+
+
+@ca("v571: phiếu ĐÃ thu đủ mà hoá đơn chưa có phiếu thu thì khớp lại được (ca DNTT-26-10-00002)")
+def _():
+	nk, tra = _dung_he()
+	doc = PhieuNo(name="DNTT-26-10-00002", ma_phieu="DNTT-26-10-00002", trang_thai="Da thu du",
+		tong_tien=7600000.0, da_thu=7600000.0, flags=Doi(), _nk=nk,
+		dong=[Doi(hoa_don=h.name) for h in HD])
+	moc = {"get_doc": fr.get_doc, "kq": cn._kiem_quyen_ban, "giu": cn._giu_gd,
+		"tim": tt.tim_giao_dich, "lap": tt.lap_phieu_thu_theo_gd, "gui": cn._gui_thu_da_nhan}
+	fr.get_doc = lambda *a, **k: doc
+	cn._kiem_quyen_ban = lambda: None
+	cn._giu_gd = lambda d, ds: "FT26277123"
+	tt.tim_giao_dich = lambda ma: GD
+	cn._gui_thu_da_nhan = lambda d: nk.append(("gui_thu",))
+	tt.lap_phieu_thu_theo_gd = lambda cac_si, g, so, gc="": (
+		nk.append(("lap", tuple(cac_si))) or {"pe": "APP-1", "hd": [], "ma_gd": "FT"})
+	try:
+		kq = cn.khop_tay(doc.name, 7600000, "FT26277123")
+		la("đã lập phiếu thu", kq["pe"], "APP-1")
+		la("không gửi lại thư báo nhận tiền lần hai", [x for x in nk if x[0] == "gui_thu"], [])
+	finally:
+		fr.get_doc = moc["get_doc"]
+		cn._kiem_quyen_ban = moc["kq"]
+		cn._giu_gd = moc["giu"]
+		tt.tim_giao_dich = moc["tim"]
+		tt.lap_phieu_thu_theo_gd = moc["lap"]
+		cn._gui_thu_da_nhan = moc["gui"]
+		tra()
