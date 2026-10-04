@@ -116,9 +116,13 @@ def _dung_he(hd=None, pe_cu=None, nhap=None, bank=None, bt=None):
 	hd = HD if hd is None else hd
 
 	def get_all(dt, filters=None, **k):
+		if dt == "Vagabond Cong No Dong":
+			return [Doi(hoa_don=h.name) for h in hd]
 		if dt == "Sales Invoice":
 			ten = (filters or {}).get("name")
 			ds = [h for h in hd if not ten or h.name in ten[1]]
+			if "posting_date" in str(k.get("order_by") or ""):
+				ds = sorted(ds, key=lambda h: str(h.posting_date))
 			if k.get("pluck") == "name":
 				return [h.name for h in ds if h.outstanding_amount > 0.5]
 			return [Doi(h) for h in ds]
@@ -157,6 +161,7 @@ def _dung_he(hd=None, pe_cu=None, nhap=None, bank=None, bt=None):
 	fr.db.get_value = get_value
 	fr.db.exists = lambda *a, **k: True
 	fr.session.user = "ntla.3008@gmail.com"
+	fr.generate_hash = lambda length=8, **k: "x" * length
 	tt._ghi_vet_thu = lambda *a, **k: nk.append(("vet", fr.session.user))
 	# Bảng phiếu thu nháp kèm kết quả xác minh: mỗi dòng nhap là một phân bổ,
 	# gom theo `pe` (mặc định mỗi dòng một phiếu), `xm` mặc định 1 (đã xác minh).
@@ -258,7 +263,7 @@ def _():
 		tra()
 
 
-@ca("v571 vòng 9: tiền đã nhận CỘNG DỒN ghi tay và từng giao dịch, mỗi giao dịch một lần, không quá tổng")
+@ca("v571 vòng 9: tiền đã nhận CỘNG DỒN số đã ghi và giao dịch SePay chưa ghi, không quá tổng")
 def _():
 	la("ghi tay 2tr + SePay 5,6tr", cn.tong_da_nhan(7600000, 2000000, {"BT-S": 5600000}), 7600000.0)
 	la("chưa nhận gì", cn.tong_da_nhan(7600000, 0, {}), 0.0)
@@ -315,7 +320,7 @@ def _():
 			nk.append(("lap", tuple(cac_si)))
 			# Phiếu nháp thật phủ đủ hai tờ: da_thu được tính lại từ đây.
 			nhap.extend(Doi(reference_name=h.name, allocated_amount=h.outstanding_amount) for h in HD)
-			return {"pe": "APP-1", "hd": [(s, 1) for s in cac_si], "ma_gd": "FT26277123"}
+			return {"pe": "APP-1", "hd": [(s, 1) for s in cac_si], "ma_gd": "FT26277123", "tien": 7600000.0}
 		tt.lap_phieu_thu_theo_gd = lap_ok
 		kq = cn.khop_tay(doc.name, 7600000, "FT26277123")
 		buoc = [x[0] for x in nk]
@@ -467,7 +472,7 @@ def _():
 	nhap = [Doi(reference_name="HDB-26-09-01679", allocated_amount=2000000.0)]
 	nk, tra = _dung_he(nhap=nhap, bt={"BT-0": 2000000.0, "BT-2": 5600000.0})
 	doc = PhieuNo(name="P", ma_phieu="DNTT-26-10-00002", trang_thai="Thu thieu",
-		tong_tien=7600000.0, da_thu=2000000.0, gd_khop_tay="BT-0", flags=Doi(), _nk=nk,
+		tong_tien=7600000.0, da_thu=2000000.0, ma_gd="BT-0", flags=Doi(), _nk=nk,
 		dong=[Doi(hoa_don=h.name) for h in HD])
 	moc = {"get_doc": fr.get_doc, "kq": cn._kiem_quyen_ban, "giu": cn._giu_gd,
 		"tim": tt.tim_giao_dich, "lap": tt.lap_phieu_thu_theo_gd, "gui": cn._gui_thu_da_nhan}
@@ -481,7 +486,7 @@ def _():
 		# Phiếu nháp mới đi vào sổ như thật: thêm phân bổ cho phần còn lại.
 		nhap.append(Doi(reference_name="HDB-26-09-01679", allocated_amount=2750000.0))
 		nhap.append(Doi(reference_name="HDB-26-09-02477", allocated_amount=2850000.0))
-		return {"pe": "APP-2", "hd": [], "ma_gd": "FT2"}
+		return {"pe": "APP-2", "hd": [], "ma_gd": "FT2", "tien": 5600000.0}
 	tt.lap_phieu_thu_theo_gd = lap
 	try:
 		cn.khop_tay(doc.name, 5600000, "FT2")
@@ -538,7 +543,7 @@ def _():
 	def lap(cac_si, g, so, gc=""):
 		nhap.append(Doi(reference_name="HDB-26-09-01679", allocated_amount=2750000.0, pe="APP-2"))
 		nhap.append(Doi(reference_name="HDB-26-09-02477", allocated_amount=2850000.0, pe="APP-2"))
-		return {"pe": "APP-2", "hd": [], "ma_gd": "FT2"}
+		return {"pe": "APP-2", "hd": [], "ma_gd": "FT2", "tien": 5600000.0}
 	tt.lap_phieu_thu_theo_gd = lap
 	try:
 		cn.khop_tay(doc.name, 5600000, "FT2")
@@ -620,7 +625,7 @@ def _():
 	# màn còn đòi 2.000.000 lần nữa.
 	nk, tra = _dung_he(bt={"BT-S": 5600000.0})
 	doc = PhieuNo(name="P", ma_phieu="DNTT-26-10-00002", trang_thai="Thu thieu",
-		tong_tien=7600000.0, da_thu=2000000.0, da_thu_tay=2000000.0, gd_khop_tay="",
+		tong_tien=7600000.0, da_thu=2000000.0,
 		ma_gd="", flags=Doi(), _nk=nk, dong=[Doi(hoa_don=h.name) for h in HD])
 	moc = {"get_doc": fr.get_doc, "kq": cn._kiem_quyen_ban, "giu": cn._giu_gd, "sp": cn._sepay_cn,
 		"gui": cn._gui_thu_da_nhan, "ghi": cn.ghi_thu_cho_phieu, "xem": cn.xem_phieu}
@@ -629,11 +634,13 @@ def _():
 	cn._giu_gd = lambda d, ds: "\n".join(ds)
 	cn._sepay_cn = lambda ma: {"nhan": 5600000.0, "so_gd": 1, "gd": ["BT-S"]}
 	cn._gui_thu_da_nhan = lambda d: None
-	cn.ghi_thu_cho_phieu = lambda *a, **k: []
+	cn.ghi_thu_cho_phieu = lambda *a, **k: nk.append(("ghi_thu", k.get("so_tien"), k.get("khoa"))) or []
 	cn.xem_phieu = lambda name: {}
 	try:
 		cn.kiem_sepay("P")
 		la("cộng dồn 7,6tr", doc.da_thu, 7600000.0)
+		la("phiếu thu chỉ cho PHẦN MỚI, khoá theo giao dịch",
+			[x[1:] for x in nk if x[0] == "ghi_thu"], [(5600000.0, "sepay:BT-S")])
 		la("đã thu đủ", doc.trang_thai, "Da thu du")
 		dung("giữ mã giao dịch SePay", "BT-S" in (doc.ma_gd or ""))
 	finally:
@@ -651,12 +658,38 @@ def _():
 def _():
 	nk, tra = _dung_he(bt={"BT-1": 7600000.0})
 	try:
-		doc = Doi(tong_tien=7600000.0, da_thu_tay=0.0, gd_khop_tay="BT-1")
-		la("không nhân đôi", cn._da_nhan_phieu(doc, {"gd": ["BT-1"]}), 7600000.0)
-		doc2 = Doi(tong_tien=15200000.0, da_thu_tay=0.0, gd_khop_tay="BT-1")
-		la("tổng lớn vẫn chỉ một lần", cn._da_nhan_phieu(doc2, {"gd": ["BT-1"]}), 7600000.0)
+		doc = Doi(tong_tien=15200000.0, da_thu=7600000.0, ma_gd="FT26277123\nBT-1")
+		la("giao dịch đã ghi không tính lại", cn._da_nhan_phieu(doc, {"gd": ["BT-1"]}), 7600000.0)
+		doc2 = Doi(tong_tien=15200000.0, da_thu=0.0, ma_gd="")
+		la("giao dịch SePay chưa ghi thì tính vào", cn._da_nhan_phieu(doc2, {"gd": ["BT-1"]}), 7600000.0)
 	finally:
 		tra()
+
+
+@ca("Codex #437 vòng 10: phiếu khớp TRƯỚC v571 vẫn đọc đúng số đã nhận, không về 0")
+def _():
+	nk, tra = _dung_he(bt={})
+	try:
+		cu = Doi(tong_tien=7600000.0, da_thu=7600000.0, ma_gd="FT26277123")
+		la("phiếu cũ giữ 7,6tr", cn._da_nhan_phieu(cu, {}), 7600000.0)
+	finally:
+		tra()
+
+
+@ca("Codex #437 vòng 10: lập phiếu thu cho PHẦN MỚI, chia phần chưa phủ, khoá riêng từng lần")
+def _():
+	nhap = [Doi(reference_name="HDB-26-09-01679", allocated_amount=2000000.0)]
+	nk, tra = _dung_he(nhap=nhap)
+	goc = tt.ghi_thu_tien
+	tt.ghi_thu_tien = lambda si, dong, nguon="", **k: nk.append(("thu", si, dong[0]["so_tien"], nguon)) or ["PE"]
+	try:
+		doc = PhieuNo(name="P", ma_phieu="DNTT-26-10-00002", da_thu=7600000.0, flags=Doi(), _nk=nk)
+		cn.ghi_thu_cho_phieu(doc, so_tien=5600000.0, khoa="sepay:BT-S")
+	finally:
+		tt.ghi_thu_tien = goc
+		tra()
+	la("chia phần còn lại, khoá theo lần nhận", [x[1:] for x in nk if x[0] == "thu"],
+		[("HDB-26-09-01679", 2750000.0, "phieu:P:sepay:BT-S"), ("HDB-26-09-02477", 2850000.0, "phieu:P:sepay:BT-S")])
 
 
 @ca("Codex #437 vòng 9: phiếu nháp CHƯA xác minh không làm hoá đơn trông như đã có phiếu thu")
@@ -674,3 +707,17 @@ def _():
 		la("nháp đã xác minh thì đủ", cn._hd_chua_co_phieu_thu([h.name for h in HD]), set())
 	finally:
 		tra()
+
+
+@ca("Codex #437 vòng 10: lần nhận 2tr thì chỉ lập phiếu thu 2tr, dù phiếu đã ghi nhận nhiều hơn")
+def _():
+	nk, tra = _dung_he()
+	goc = tt.ghi_thu_tien
+	tt.ghi_thu_tien = lambda si, dong, nguon="", **k: nk.append(("thu", si, dong[0]["so_tien"])) or ["PE"]
+	try:
+		doc = PhieuNo(name="P", ma_phieu="DNTT-26-10-00002", da_thu=7600000.0, flags=Doi(), _nk=nk)
+		cn.ghi_thu_cho_phieu(doc, so_tien=2000000.0, khoa="tay:1")
+	finally:
+		tt.ghi_thu_tien = goc
+		tra()
+	la("chỉ 2tr vào tờ cũ nhất", [x[1:] for x in nk if x[0] == "thu"], [("HDB-26-09-01679", 2000000.0)])

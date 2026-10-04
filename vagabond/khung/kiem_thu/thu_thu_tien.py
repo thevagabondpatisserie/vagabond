@@ -185,8 +185,10 @@ def _phieu_sinh_chung_tu():
 	# Ca Ms.Amber: phieu DNTT-26-09-00001 ghi da thu du 21.000.000 ma hoa
 	# don HDB-26-08-02800 van du no 21.000.000, va quay lai danh sach no.
 	dung("co ham sinh chung tu", "def ghi_thu_cho_phieu(doc" in CN)
-	dung("duong SePay co goi", 'ghi_thu_cho_phieu(doc, "Chuyển khoản", "Đối chiếu SePay.")' in CN)
-	dung("duong khop tay co goi", 'ghi_thu_cho_phieu(doc, "Chuyển khoản", "Kế toán khớp tay.")' in CN)
+	# v571: hai lời gọi nay truyền thêm so_tien (phần mới nhận) và khoá
+	# riêng từng lần nhận; hành vi chạy thật ở thu_cong_no_571.py.
+	dung("duong SePay co goi", 'ghi_thu_cho_phieu(doc, "Chuyển khoản", "Đối chiếu SePay.", so_tien=moi' in CN)
+	dung("duong khop tay co goi", 'ghi_thu_cho_phieu(doc, "Chuyển khoản", "Kế toán khớp tay.", so_tien=moi' in CN)
 	dung("phan bo to cu truoc", 'order_by="posting_date asc"' in CN)
 	# Loi sinh chung tu khong duoc lam rot viec danh dau phieu: tien da ve
 	# that roi, khong the bat ke toan lam lai tu dau.
