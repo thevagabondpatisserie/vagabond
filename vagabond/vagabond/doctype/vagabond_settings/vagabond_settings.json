@@ -210,7 +210,7 @@
   },
   {
    "default": "970448",
-   "description": "Bấm chọn ngân hàng ở hàng chip bên dưới, máy tự điền mã. Ví dụ OCB là 970448, MB là 970422.",
+   "description": "Gõ tên ngân hàng ở ô tìm bên dưới để đổi; máy tự điền mã BIN và tên hiện cho khách theo danh mục ngân hàng của hệ thống.",
    "fieldname": "ngan_hang_bin",
    "fieldtype": "Data",
    "label": "Mã BIN ngân hàng"
@@ -229,9 +229,11 @@
   },
   {
    "default": "OCB - Ngan hang Phuong Dong",
+   "description": "Máy tự điền khi chọn ngân hàng ở ô Mã BIN.",
    "fieldname": "ngan_hang_hien_thi",
    "fieldtype": "Data",
-   "label": "Tên ngân hàng hiện cho khách"
+   "label": "Tên ngân hàng hiện cho khách",
+   "read_only": 1
   },
   {
    "fieldname": "col_cd_2",
