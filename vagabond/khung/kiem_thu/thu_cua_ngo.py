@@ -600,6 +600,8 @@ CUA_NGO = {
 		# v561: goi y va nho tai khoan chenh lech ke toan da chon.
 		"tk_goi_y", "nho_tk",
 	],
+	# v547: goi y gia von cho man Ghi so kiem ke. `dien_gia` la HOOK, nam NGOAI.
+	"gia_von_kiem_ke.py": ["goi_y_gia"],
 	# Nguong kho: dung sai giao nhan va han dung toi thieu chung.
 	"kho_cai_dat.py": ["danh_sach", "luu"],
 	# Tach buoc duyet chi khoi buoc ghi so (03/09/2026). `chan_ghi_so_som`
