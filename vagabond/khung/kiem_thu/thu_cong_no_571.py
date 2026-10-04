@@ -277,7 +277,7 @@ class PhieuNo(Doi):
 		self["_nk"].append(("luu_phieu", self.trang_thai))
 
 	def add_comment(self, *a, **k):
-		pass
+		self["_nk"].append(("binh_luan", a[1] if len(a) > 1 else ""))
 
 
 @ca("v571: khop_tay lập phiếu thu TRƯỚC, hỏng thì phiếu đòi nợ KHÔNG bị đánh dấu đã thu")
@@ -561,3 +561,51 @@ def _():
 	la("chia đủ hai tờ", kq["hd"], [("HDB-26-09-01679", 4750000.0), ("HDB-26-09-02477", 2850000.0)])
 	la("tiền đã nhận thuần: ghi sổ + nháp xác minh, không quá tổng phiếu",
 		cn.tien_da_nhan({"A": 1000000}, {"A": 500000, "B": 9000000}, 7600000), 7600000.0)
+
+
+@ca("Codex #437 vòng 6: giao dịch LỚN hơn phần nợ chưa phủ thì dừng, không lập phiếu thiếu chiếm mã giao dịch")
+def _():
+	# Trên 529a684: nháp 2tr chưa xác minh đang giữ một phần, giao dịch thật
+	# 7,6tr lập phiếu 5,6tr, 2tr còn lại của giao dịch không bao giờ phân bổ được.
+	nhap = [Doi(reference_name="HDB-26-09-01679", allocated_amount=2000000.0, xm=0)]
+	nk, tra = _dung_he(nhap=nhap)
+	try:
+		nem("báo lỗi", lambda: tt.lap_phieu_thu_theo_gd([h.name for h in HD], GD, 7600000), fr.ValidationError)
+	finally:
+		tra()
+	la("không insert phiếu nào", [x for x in nk if x[0] == "insert"], [])
+
+
+@ca("Codex #437 vòng 6: bình luận và câu báo ghi ĐÚNG số máy chủ đã phân bổ, không ghi số máy khách gửi")
+def _():
+	nhap = []
+	nk, tra = _dung_he(nhap=nhap)
+	doc = PhieuNo(name="P", ma_phieu="DNTT-26-10-00002", trang_thai="Cho thu",
+		tong_tien=7600000.0, da_thu=0.0, flags=Doi(), _nk=nk,
+		dong=[Doi(hoa_don=h.name) for h in HD])
+	moc = {"get_doc": fr.get_doc, "kq": cn._kiem_quyen_ban, "giu": cn._giu_gd,
+		"tim": tt.tim_giao_dich, "lap": tt.lap_phieu_thu_theo_gd, "gui": cn._gui_thu_da_nhan}
+	fr.get_doc = lambda *a, **k: doc
+	cn._kiem_quyen_ban = lambda: None
+	cn._giu_gd = lambda d, ds: "FT1"
+	tt.tim_giao_dich = lambda ma: GD
+	cn._gui_thu_da_nhan = lambda d: None
+
+	def lap(cac_si, g, so, gc=""):
+		nhap.extend(Doi(reference_name=h.name, allocated_amount=h.outstanding_amount, pe="APP-1") for h in HD)
+		return {"pe": "APP-1", "hd": [(h.name, h.outstanding_amount) for h in HD], "ma_gd": "FT1", "tien": 7600000.0}
+	tt.lap_phieu_thu_theo_gd = lap
+	try:
+		kq = cn.khop_tay(doc.name, 1000000, "FT1")
+		bl = [x[1] for x in nk if x[0] == "binh_luan"]
+		dung("bình luận ghi 7.600.000, được " + str(bl), bl and "7.600.000" in bl[0])
+		dung("câu báo ghi 7.600.000", "7.600.000" in kq["loi_nhan"])
+		dung("không ghi 1.000.000", "1.000.000" not in kq["loi_nhan"])
+	finally:
+		fr.get_doc = moc["get_doc"]
+		cn._kiem_quyen_ban = moc["kq"]
+		cn._giu_gd = moc["giu"]
+		tt.tim_giao_dich = moc["tim"]
+		tt.lap_phieu_thu_theo_gd = moc["lap"]
+		cn._gui_thu_da_nhan = moc["gui"]
+		tra()
