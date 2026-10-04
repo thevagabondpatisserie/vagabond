@@ -153,6 +153,23 @@ NGAN_HANG = [
 ]
 
 
+# Codex #435 vòng 6: cặp "Mã BIN" và "Tên ngân hàng hiện cho khách" trên trang Cài
+# đặt phải đi cùng nhau. Ngân hàng ngoài danh sách trên (danh mục Napas 581 dòng
+# KHÔNG có BIN) vẫn khai được, nhưng phải đủ cả hai ô và BIN đúng 6 chữ số, để mã
+# QR không lỗi và khách không thấy tên lệch với tài khoản thật. THUẦN.
+def kiem_cap_ngan_hang(bin_, ten):
+	"""Trả câu báo lỗi, hoặc None khi hợp lệ. BIN trống là dùng mặc định MB."""
+	bin_ = str(bin_ or "").strip()
+	ten = str(ten or "").strip()
+	if not bin_:
+		return None
+	if not (len(bin_) == 6 and bin_.isdigit()):
+		return "Mã BIN ngân hàng phải đúng 6 chữ số."
+	if not ten:
+		return "Có Mã BIN thì phải có Tên ngân hàng hiện cho khách."
+	return None
+
+
 def _ten_ngan_hang(ma):
 	m = str(ma or "").strip()
 	for nh in NGAN_HANG:
