@@ -1571,6 +1571,29 @@ def nhan_tien_ve(si=None, gd=None):
 # UNC khách gửi rồi ghi sổ như mọi phiếu khác.
 
 
+def con_chua_phu(du_no, da_nhap):
+	"""Phần nợ của một hoá đơn CHƯA có phiếu thu nào phủ. THUẦN.
+
+	`du_no` là outstanding_amount (phiếu đã ghi sổ đã trừ vào đây), `da_nhap`
+	là tổng phân bổ của các phiếu thu NHÁP vào hoá đơn đó. Codex #437 vòng 3:
+	trước đây hễ hoá đơn có một phiếu thu bất kỳ là coi như phủ đủ, nên khách
+	trả góp 2.000.000 trên tờ 4.750.000 thì lần chuyển sau không chia được
+	vào phần 2.750.000 còn lại.
+	"""
+	return max(0.0, _so(du_no) - _so(da_nhap))
+
+
+def phan_bo_nhap_theo_hd(cac_si):
+	"""Tổng phân bổ của phiếu thu NHÁP vào từng hoá đơn bán."""
+	ra = {}
+	for lo in _chia(set(x for x in (cac_si or []) if x)):
+		for r in frappe.get_all("Payment Entry Reference", filters={"reference_doctype": SI,
+				"reference_name": ["in", lo], "docstatus": 0, "parenttype": PE},
+				fields=["reference_name", "allocated_amount"], limit_page_length=0):
+			ra[r.reference_name] = ra.get(r.reference_name, 0.0) + flt(r.allocated_amount)
+	return ra
+
+
 def tim_giao_dich(ma):
 	"""Bank Transaction theo mã người dùng chọn: số tham chiếu, hoặc tên."""
 	ma = str(ma or "").strip()
@@ -1609,14 +1632,14 @@ def lap_phieu_thu_theo_gd(cac_si, g, so_tien, ghi_chu=""):
 	hd = [h for h in hd if flt(h.outstanding_amount) > LECH]
 	if not hd:
 		frappe.throw("Các hoá đơn trong phiếu không còn nợ trên sổ.")
-	# Hoá đơn đã có phiếu thu nháp khác thì để nguyên phiếu đó, không chia
-	# tiền vào lần nữa.
-	nhap = set(frappe.get_all("Payment Entry Reference", filters={"reference_doctype": SI,
-		"reference_name": ["in", [h.name for h in hd]], "docstatus": 0, "parenttype": PE},
-		pluck="reference_name", limit_page_length=0))
-	hd = [h for h in hd if h.name not in nhap]
+	# Phần đã có phiếu thu NHÁP phủ thì không chia vào lần nữa, nhưng phần
+	# còn lại của cùng hoá đơn thì vẫn chia (Codex #437 vòng 3: trả góp).
+	nhap = phan_bo_nhap_theo_hd([h.name for h in hd])
+	for h in hd:
+		h.con_phu = con_chua_phu(h.outstanding_amount, nhap.get(h.name))
+	hd = [h for h in hd if h.con_phu > LECH]
 	if not hd:
-		frappe.throw("Các hoá đơn trong phiếu đều đã có phiếu thu nháp. Mở tab Tiền đã về.")
+		frappe.throw("Các hoá đơn trong phiếu đều đã có phiếu thu nháp phủ đủ. Mở tab Tiền đã về.")
 	kh = {h.customer for h in hd}
 	cty = {h.company for h in hd}
 	if len(kh) > 1 or len(cty) > 1:
@@ -1628,7 +1651,7 @@ def lap_phieu_thu_theo_gd(cac_si, g, so_tien, ghi_chu=""):
 	if not b.get("account") or not b.get("is_company_account") or b.get("company") != cong_ty:
 		frappe.throw("Giao dịch %s không về tài khoản ngân hàng của công ty." % ref)
 	tien = min(flt(so_tien), flt(g.unallocated_amount))
-	chia = chia_tien_cho_hd(tien, [{"name": h.name, "con_no": flt(h.outstanding_amount),
+	chia = chia_tien_cho_hd(tien, [{"name": h.name, "con_no": h.con_phu,
 		"ngay": str(h.posting_date)} for h in hd])
 	if not chia:
 		frappe.throw("Không chia được tiền giao dịch %s cho hoá đơn nào." % ref)

@@ -617,18 +617,24 @@ def da_thu_cua_phieu(sepay, da_thu):
 
 
 def _hd_chua_co_phieu_thu(cac_si):
-	"""Hoa don con no tren so ma CHUA co phieu thu nao (nhap hay da ghi so)."""
+	"""Hoa don con mot phan no CHUA co phieu thu nao phu (nhap hay da ghi so).
+
+	Codex #437 vong 3: khong coi "co mot phieu thu bat ky" la phu du. Phieu
+	da ghi so da tru vao outstanding_amount; phieu nhap thi tru phan bo cua
+	no (thu_tien.con_chua_phu).
+	"""
+	from vagabond import thu_tien as tt
+
 	cac_si = [x for x in set(cac_si or []) if x]
 	if not cac_si:
 		return set()
-	con = set(frappe.get_all("Sales Invoice", filters={"name": ["in", cac_si], "docstatus": 1,
-		"outstanding_amount": [">", 0.5]}, pluck="name", limit_page_length=0))
+	con = {r.name: flt(r.outstanding_amount) for r in frappe.get_all("Sales Invoice",
+		filters={"name": ["in", cac_si], "docstatus": 1, "outstanding_amount": [">", 0.5]},
+		fields=["name", "outstanding_amount"], limit_page_length=0)}
 	if not con:
 		return set()
-	co = set(frappe.get_all("Payment Entry Reference", filters={"reference_doctype": "Sales Invoice",
-		"reference_name": ["in", list(con)], "docstatus": ["<", 2], "parenttype": "Payment Entry"},
-		pluck="reference_name", limit_page_length=0))
-	return con - co
+	nhap = tt.phan_bo_nhap_theo_hd(list(con))
+	return {k for k, v in con.items() if tt.con_chua_phu(v, nhap.get(k)) > 0.5}
 
 
 @frappe.whitelist()
