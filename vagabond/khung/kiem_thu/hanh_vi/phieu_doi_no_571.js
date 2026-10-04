@@ -73,6 +73,15 @@ function dung(mo, dk) { if (!dk) throw new Error(mo); }
     dung('bao da nhan du dung so', v.html.indexOf('ĐÃ NHẬN ĐỦ 7600000') >= 0);
     dung('khong nut Khop tay', v.foot.indexOf('cnKhop') < 0);
   });
+  await ca('Codex #437 vong 7: khop tay mot phan (khong giao dich) thi QR va so chuyen khoan la PHAN CON LAI', async function () {
+    // Tren 193b578: da_thu 2tr, sepay 0 thi QR van ma hoa 7,6tr va khoi
+    // chuyen khoan van ghi 7,6tr, moi khach tra lai ca to.
+    var v = await moPhieu(Object.assign({}, PHIEU, { trang_thai: 'Thu thieu', da_thu: 2000000, sepay: 0, con_thieu: 5600000, thieu_phieu_thu: 0 }));
+    dung('QR ma hoa 5600000', v.html.indexOf('amount=5600000') >= 0);
+    dung('QR KHONG ma hoa ca to', v.html.indexOf('amount=7600000') < 0);
+    dung('khoi chuyen khoan ghi 5600000', v.html.indexOf('data-cnv="5600000 đ"') >= 0);
+    dung('noi da nhan 2000000', v.html.indexOf('nhận 2000000') >= 0);
+  });
   console.log('\n' + ket.dat + ' ca dat, ' + ket.hong + ' ca hong.');
   process.exit(ket.hong ? 1 : 0);
 })();
