@@ -138,6 +138,8 @@ node vagabond/khung/kiem_thu/hanh_vi/cai_dat_568.js
 # v571: o tim, chip nhom banh, chip trang thai tren trang /kiem-banh
 # (anh Viet 04/10/2026).
 node vagabond/khung/kiem_thu/hanh_vi/kiem_banh_loc_571.js
+# v571 Codex #437 F2: phieu doi no da thu du khong hien lai QR doi tien.
+node vagabond/khung/kiem_thu/hanh_vi/phieu_doi_no_571.js
 # v530: hop chon hoa don den sau muc ho so, o tim giu display:flex.
 node vagabond/khung/kiem_thu/hanh_vi/hoa_don_sau_530.js
 # #352: thanh bao hoa don dau vao chua thanh phieu mua tren Desk.
