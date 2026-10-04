@@ -46,7 +46,7 @@ ca('tình trạng: m-invoice thiếu mật khẩu là CHƯA khai, đủ ba ô m�
 });
 
 ca('tình trạng: khai đủ mà công tắc đang tắt là vàng, bật lên mới xanh', function () {
-  var d = { zalo_bot_token: '****', zalo_bot_bat: 0 };
+  var d = { zalo_bot_token: '****', zalo_bot_bat: 0, zalo_nhom: [{ ten_nhom: 'Vận hành', chat_id: 'g1', bat: 1 }] };
   la('đang tắt', tim(V.tinhTrang(d, BAY_GIO), 'Zalo bắn tin nhóm').trang, 'off');
   d.zalo_bot_bat = 1;
   la('đã bật', tim(V.tinhTrang(d, BAY_GIO), 'Zalo bắn tin nhóm').trang, 'ok');
@@ -398,6 +398,28 @@ ca('Codex #435 vòng 6: BIN đang lưu ngoài danh mục không bị báo lỗi;
   la('đủ thì ghi cả hai ô một lượt', ghi, [['ngan_hang_bin', '970999'], ['ngan_hang_hien_thi', 'Ngân hàng X']]);
 });
 
+ca('Codex #435 vòng 7: Zalo bắn tin nhóm chỉ xanh khi có ít nhất một nhóm ĐANG BẬT và CÓ mã chat', function () {
+  // Trên 7c36d4d: token + công tắc bật mà bảng nhóm rỗng vẫn xanh, trong khi
+  // kenh_zalo.chon_nhom trả rỗng và mọi tin tự động bị bỏ âm thầm.
+  var d = { zalo_bot_token: '*', zalo_bot_bat: 1 };
+  la('không có bảng nhóm', tim(V.tinhTrang(d, BAY_GIO), 'Zalo bắn tin nhóm').trang, 'no');
+  d.zalo_nhom = [];
+  la('bảng nhóm rỗng', tim(V.tinhTrang(d, BAY_GIO), 'Zalo bắn tin nhóm').trang, 'no');
+  d.zalo_nhom = [{ chat_id: 'g1', bat: 0 }, { chat_id: '', bat: 1 }, { chat_id: '  ', bat: 1 }];
+  la('mọi nhóm tắt hoặc thiếu mã chat', tim(V.tinhTrang(d, BAY_GIO), 'Zalo bắn tin nhóm').trang, 'no');
+  d.zalo_nhom.push({ chat_id: 'g2', bat: 1 });
+  la('có một nhóm bật và có mã chat', tim(V.tinhTrang(d, BAY_GIO), 'Zalo bắn tin nhóm').trang, 'ok');
+});
+
+ca('Codex #435 vòng 7: chỉ có tên ngân hàng mà không BIN thì bị chặn; nút Thử lại và Dùng ngân hàng này cao 44px', function () {
+  la('trống cả hai là hợp lệ (dùng MB)', V.kiemCapNganHang('', ''), null);
+  dung('chỉ có tên thì báo lỗi', /phải có Mã BIN/.test(V.kiemCapNganHang('', 'Ngân hàng X') || ''));
+  dung('tên toàn dấu cách coi như trống', V.kiemCapNganHang('', '   ') === null);
+  // CSS không chạy trong node; dò chuỗi chỉ để ghim con số (điều 16).
+  var s = require('fs').readFileSync(path.join(GOC, 'vagabond', 'vagabond', 'doctype', 'vagabond_settings', 'vagabond_settings.js'), 'utf8');
+  dung('luật 44px cho hai nút ngân hàng', /\.vgbc-thu-lai,\.vgb-cd \.vgbc-dung-khac\{min-height:44px/.test(s));
+});
+
 ca('Codex #435 H1: chip tình trạng hiện TRÊN đầu mục (s.head chính là .section-head như Frappe 16)', function () {
   // Dựng đúng hình dạng đo trên site thật: s.head có lớp section-head, con duy nhất
   // là .collapse-indicator. Trên 0613faa chip tìm .section-head BÊN TRONG nên rỗng.
@@ -418,7 +440,7 @@ ca('Codex #435 H2: thanh tình trạng thu gọn hai dòng, chip cần để ý 
   global.$ = $;
   var goc = new dg.ElementGia('div');
   goc.innerHTML = '<div class="form-tabs-list"></div>';
-  var frm = { doc: { goong_api_key: '*', pancake_api_key: '*', pancake_shop_id: '1', zalo_bot_token: '*', zalo_bot_bat: 0 },
+  var frm = { doc: { goong_api_key: '*', pancake_api_key: '*', pancake_shop_id: '1', zalo_bot_token: '*', zalo_bot_bat: 0, zalo_nhom: [{ chat_id: 'g1', bat: 1 }] },
     layout: { wrapper: goc }, fields_dict: {}, meta: { fields: [] } };
   V._desk.veThanh(frm);
   var tt = goc.querySelectorAll('.vgbc-tt')[0];
