@@ -40,7 +40,7 @@
    "label": "Loại tin nhận",
    "in_list_view": 1,
    "columns": 2,
-   "description": "Mở dòng, bấm Chọn loại tin. Mã: thong_bao, viec, canh_bao, ban_tin, phat_hanh. Để trống là nhận tất.",
+   "description": "Mở dòng, bấm Chọn loại tin: Thông báo, Việc cần làm, Cảnh báo, Bản tin, Phát hành. Mỗi loại có giải thích ngay trong hộp chọn. Để trống là nhận tất cả.",
    "read_only": 1
   },
   {
@@ -48,7 +48,7 @@
    "fieldtype": "Small Text",
    "label": "Chủ đề nhận",
    "columns": 2,
-   "description": "Mở dòng, bấm Chọn chủ đề. Mã: kho, san_xuat, cong_no, ban_hang, don_web, dat_ban, phat_hanh. Để trống là nhận tất.",
+   "description": "Mở dòng, bấm Chọn chủ đề: Kho, Sản xuất, Công nợ, Bán hàng, Đơn web, Đặt bàn, Phát hành app. Để trống là nhận tất cả.",
    "read_only": 1
   },
   {
@@ -77,7 +77,7 @@
   }
  ],
  "links": [],
- "modified": "2026-10-03 20:00:00.000000",
+ "modified": "2026-10-04 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Kenh Zalo",

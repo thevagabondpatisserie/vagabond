@@ -11,6 +11,11 @@ class VagabondSettings(Document):
 		# #307: hai ô tài khoản tồn kho BTP phải là tài khoản kho hợp lệ.
 		from vagabond.tai_khoan_btp import kiem_o_cau_hinh
 		kiem_o_cau_hinh(self)
+		# Codex #435 vòng 6: Mã BIN và Tên ngân hàng hiện cho khách đi thành cặp.
+		from vagabond.tai_khoan import kiem_cap_ngan_hang
+		loi = kiem_cap_ngan_hang(self.get("ngan_hang_bin"), self.get("ngan_hang_hien_thi"))
+		if loi:
+			frappe.throw(loi)
 		# v562 Codex #417: mỗi nhóm Zalo một dòng, không trùng tên, không trùng mã
 		# chat; Loại tin và Chủ đề chỉ nhận mã trong danh mục.
 		from vagabond.kenh_zalo import kiem_bang_nhom, kiem_ma_chat

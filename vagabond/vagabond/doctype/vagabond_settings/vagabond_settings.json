@@ -4,43 +4,70 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "tab_ban_hang",
+  "sec_vgb_tu_dong",
+  "tu_xuat_hddt",
+  "col_cd_1",
+  "hang_tang_xuat_kho_that",
+  "sec_tt",
+  "ngan_hang_bin",
+  "ngan_hang_stk",
+  "ngan_hang_ten",
+  "ngan_hang_hien_thi",
+  "col_cd_2",
+  "trang_thanh_toan",
+  "zns_template_thanh_toan",
+  "pancake_qr_provider",
+  "pancake_qr_account_id",
+  "sec_pancake",
+  "pancake_api_key",
+  "pancake_shop_id",
+  "col_cd_3",
+  "pancake_order_source_id",
+  "tab_ke_toan",
+  "sec_minvoice",
+  "minvoice_host",
+  "minvoice_username",
+  "minvoice_password",
+  "col_cd_4",
+  "minvoice_ma_dvcs",
+  "minvoice_series",
+  "minvoice_ma_thue",
+  "minvoice_mau_lien_ket",
+  "sec_khoa_so",
+  "sec_hoan_tien",
+  "kho_hang_huy",
+  "col_cd_5",
+  "tk_hoan_tien",
+  "sec_btp_1552",
+  "tk_ton_btp_cap1",
+  "col_cd_6",
+  "tk_ton_btp_cap2",
+  "tab_giao_hang",
   "sec_goong",
   "goong_api_key",
   "suggest_radius_km",
-  "cb1",
+  "ban_kinh_giao_km",
+  "col_cd_7",
   "kitchen_lat",
   "kitchen_lng",
   "kitchen_address",
   "store_lat",
   "store_lng",
   "store_address",
-  "ban_kinh_giao_km",
   "sec_aha",
   "ahamove_api_key",
   "ahamove_mobile",
   "ahamove_base",
-  "cb2",
+  "col_cd_8",
   "ma_dich_vu",
   "dung_dich_vu_de_vo",
   "phu_thu",
-  "sec_pancake",
-  "pancake_api_key",
-  "pancake_shop_id",
-  "pancake_order_source_id",
-  "sec_minvoice",
-  "minvoice_host",
-  "minvoice_username",
-  "minvoice_password",
-  "cb_minv",
-  "minvoice_ma_dvcs",
-  "minvoice_series",
-  "minvoice_ma_thue",
-  "minvoice_mau_lien_ket",
   "sec_gsm",
   "greensm_client_id",
   "greensm_client_secret",
   "greensm_token_url",
-  "cb_gsm",
+  "col_cd_9",
   "greensm_sandbox",
   "be_base",
   "be_token",
@@ -48,93 +75,71 @@
   "so_don_toi_da_chuyen",
   "toc_do_km_h",
   "phut_moi_diem",
-  "cb_tuyen",
+  "col_cd_10",
   "he_so_duong_thuc",
   "dung_goong_xep_tuyen",
   "link_app",
-  "sec_zalo",
-  "zalo_app_id",
-  "zalo_app_secret",
-  "zalo_refresh_token",
-  "cb_zalo",
-  "zalo_access_token",
-  "zalo_token_het_han",
-  "zns_template_otp",
-  "sec_tt",
-  "pancake_qr_provider",
-  "pancake_qr_account_id",
-  "ngan_hang_bin",
-  "ngan_hang_stk",
-  "ngan_hang_ten",
-  "cb_tt",
-  "ngan_hang_hien_thi",
-  "trang_thanh_toan",
-  "zns_template_thanh_toan",
-  "sec_wa",
-  "wa_phone_id",
-  "wa_token",
-  "cb_wa",
-  "wa_template_thanh_toan",
-  "wa_ngon_ngu",
-  "sec_ai",
-  "gemini_api_key",
-  "sec_vgb_tu_dong",
-  "tu_xuat_hddt",
-  "hang_tang_xuat_kho_that",
-  "cb_vgb_tu_dong",
-  "email_canh_bao",
+  "tab_khach_hang",
   "sec_diem",
   "diem_quy_doi",
   "diem_tran_pt",
   "diem_bill_toi_thieu",
-  "cb_diem",
+  "col_cd_11",
   "diem_otp_giay",
   "zns_template_diem",
   "diem_zns_gia_lap",
   "sec_diem_han",
   "diem_chu_ky",
   "diem_han_thang",
-  "cb_diem_han",
+  "col_cd_12",
   "diem_ngay_chot",
   "ha_hang_tung_bac",
-  "sec_hoan_tien",
-  "kho_hang_huy",
-  "cb_hoan_tien",
-  "tk_hoan_tien",
+  "tab_tin_nhan",
+  "sec_zalo_bot",
+  "zalo_bot_bat",
+  "zalo_bot_token",
+  "col_cd_13",
+  "zalo_nhom",
+  "sec_zalo_bot_goc",
+  "zalo_bi_mat",
+  "zalo_noi_trang_thai",
+  "col_cd_14",
+  "zalo_chat_moi",
+  "sec_zalo",
+  "zalo_app_id",
+  "zalo_app_secret",
+  "zalo_refresh_token",
+  "col_cd_15",
+  "zalo_access_token",
+  "zalo_token_het_han",
+  "zns_template_otp",
+  "sec_wa",
+  "wa_phone_id",
+  "wa_token",
+  "col_cd_16",
+  "wa_template_thanh_toan",
+  "wa_ngon_ngu",
+  "sec_gui_thu",
+  "email_canh_bao",
+  "webhook_bao_dong",
+  "col_cd_17",
+  "webhook_dat_ban",
   "sec_push",
   "push_khoa_cong_khai",
+  "col_cd_18",
   "push_khoa_rieng",
-  "sec_gui_thu",
-  "webhook_bao_dong",
-  "webhook_dat_ban",
-  "cb_gui_thu",
+  "sec_dau_vet_thu",
   "email_bao_dong_lan_cuoi",
+  "col_cd_19",
   "email_da_cuu_su_co_1608",
-  "sec_qz",
-  "qz_chung_thu",
-  "qz_khoa_rieng",
-  "cb_qz",
-  "qz_may_in_hoa_don",
-  "qz_may_in_tem",
-  "qz_dpi",
-  "sec_tro_ly",
-  "tro_ly_bat",
-  "tro_ly_khoa",
-  "tro_ly_mo_hinh",
-  "cb_tro_ly",
-  "tro_ly_luot_ngay",
-  "tro_ly_luot_thang",
-  "sec_btp_1552",
-  "tk_ton_btp_cap1",
-  "cb_btp_1552",
-  "tk_ton_btp_cap2",
+  "tab_web",
   "sec_web_dat_banh",
   "mien_phi_giao_tu",
   "web_dien_thoai",
   "web_email",
   "web_zalo",
   "web_messenger",
-  "cb_web_dat_banh",
+  "col_cd_20",
   "web_facebook",
   "web_instagram",
   "web_tiktok",
@@ -142,127 +147,122 @@
   "sec_meta_pixel",
   "meta_pixel_id",
   "meta_capi_token",
-  "cb_meta_pixel",
+  "col_cd_21",
   "meta_test_event_code",
   "meta_graph_phien_ban",
-  "sec_zalo_bot",
-  "zalo_bot_bat",
-  "zalo_bot_token",
-  "zalo_bi_mat",
-  "zalo_noi_trang_thai",
-  "cb_zalo_bot",
-  "zalo_chat_moi",
-  "zalo_nhom"
+  "tab_thiet_bi",
+  "sec_qz",
+  "qz_chung_thu",
+  "qz_khoa_rieng",
+  "col_cd_22",
+  "qz_may_in_hoa_don",
+  "qz_may_in_tem",
+  "qz_dpi",
+  "sec_tro_ly",
+  "tro_ly_bat",
+  "tro_ly_khoa",
+  "tro_ly_mo_hinh",
+  "col_cd_23",
+  "tro_ly_luot_ngay",
+  "tro_ly_luot_thang",
+  "sec_ai",
+  "gemini_api_key",
+  "tab_du_lieu_app",
+  "sec_tom_tat_app",
+  "html_du_lieu_app",
+  "sec_du_lieu_goc"
  ],
  "fields": [
   {
-   "fieldname": "sec_goong",
+   "fieldname": "tab_ban_hang",
+   "fieldtype": "Tab Break",
+   "label": "Bán hàng & thanh toán"
+  },
+  {
+   "description": "Những việc máy tự làm sau khi đơn đã ghi sổ.",
+   "fieldname": "sec_vgb_tu_dong",
    "fieldtype": "Section Break",
-   "label": "Goong"
+   "label": "Tự động hoá bán hàng"
   },
   {
-   "fieldname": "goong_api_key",
-   "fieldtype": "Password",
-   "label": "Goong API key",
-   "description": "Lay o account.goong.io muc Keys"
-  },
-  {
-   "fieldname": "suggest_radius_km",
-   "fieldtype": "Int",
-   "label": "Ban kinh goi y (km)",
-   "description": "De 30 la du cho Sai Gon"
-  },
-  {
-   "fieldname": "cb1",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "kitchen_lat",
-   "fieldtype": "Float",
-   "label": "Vi do bep",
-   "precision": "6"
-  },
-  {
-   "fieldname": "kitchen_lng",
-   "fieldtype": "Float",
-   "label": "Kinh do bep",
-   "precision": "6"
-  },
-  {
-   "fieldname": "kitchen_address",
-   "fieldtype": "Small Text",
-   "label": "Dia chi bep"
-  },
-  {
-   "fieldname": "store_lat",
-   "fieldtype": "Float",
-   "label": "Vi do cua hang",
-   "precision": "6"
-  },
-  {
-   "fieldname": "store_lng",
-   "fieldtype": "Float",
-   "label": "Kinh do cua hang",
-   "precision": "6"
-  },
-  {
-   "fieldname": "store_address",
-   "fieldtype": "Small Text",
-   "label": "Dia chi cua hang"
-  },
-  {
-   "fieldname": "ban_kinh_giao_km",
-   "fieldtype": "Float",
-   "label": "Ban kinh giao (km)",
-   "precision": "1",
-   "default": "12",
-   "description": "Duong chim bay tu diem lay gan khach nhat. Xa hon thi bao khong giao toi."
-  },
-  {
-   "fieldname": "sec_aha",
-   "fieldtype": "Section Break",
-   "label": "Ahamove"
-  },
-  {
-   "fieldname": "ahamove_api_key",
-   "fieldtype": "Password",
-   "label": "Ahamove API key"
-  },
-  {
-   "fieldname": "ahamove_mobile",
-   "fieldtype": "Data",
-   "label": "So dien thoai tai khoan Ahamove",
-   "description": "Dang 84xxxxxxxxx"
-  },
-  {
-   "fieldname": "ahamove_base",
-   "fieldtype": "Data",
-   "label": "Dia chi API Ahamove",
-   "description": "Thu nghiem partner-apistg, that partner-api"
-  },
-  {
-   "fieldname": "cb2",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "ma_dich_vu",
-   "fieldtype": "Data",
-   "label": "Ma dich vu",
-   "description": "SGN-BIKE"
-  },
-  {
-   "fieldname": "dung_dich_vu_de_vo",
+   "default": "1",
+   "description": "Áp dụng cho mọi nguồn đơn, kể cả đơn nhập tay GrabFood, ShopeeFood, BeFood, GreenSM. Tắt thì kế toán bấm xuất tay ở màn Hoá đơn.",
+   "fieldname": "tu_xuat_hddt",
    "fieldtype": "Check",
-   "label": "Bao hang de vo",
-   "description": "Ahamove cong them 10.000 d moi don"
+   "label": "Tự xuất hoá đơn điện tử ngay khi ghi sổ"
   },
   {
-   "fieldname": "phu_thu",
-   "fieldtype": "Currency",
-   "label": "Phu thu cua tiem",
-   "description": "Cong vao phi Ahamove truoc khi bao khach"
+   "fieldname": "col_cd_1",
+   "fieldtype": "Column Break"
   },
   {
+   "default": "0",
+   "description": "Chỉ bật khi kho điểm bán đã có tồn thực tế. Tắt: ghi VAT hàng tặng, chờ giá vốn và không sinh sổ kho; không thay chứng từ đã ghi sổ.",
+   "fieldname": "hang_tang_xuat_kho_that",
+   "fieldtype": "Check",
+   "label": "Hàng tặng xuất kho thật"
+  },
+  {
+   "description": "Tài khoản dự phòng cho trang thanh toán web và tin nhắn yêu cầu thanh toán.",
+   "fieldname": "sec_tt",
+   "fieldtype": "Section Break",
+   "label": "Chuyển khoản VietQR"
+  },
+  {
+   "default": "970448",
+   "description": "Gõ tên ngân hàng ở ô tìm bên dưới để đổi; máy tự điền mã BIN và tên hiện cho khách theo danh mục ngân hàng của hệ thống.",
+   "fieldname": "ngan_hang_bin",
+   "fieldtype": "Data",
+   "label": "Mã BIN ngân hàng"
+  },
+  {
+   "description": "Tài khoản dự phòng cho trang thanh toán web. Tài khoản theo từng điểm bán khai ở app, xem tab Dữ liệu app tự ghi.",
+   "fieldname": "ngan_hang_stk",
+   "fieldtype": "Data",
+   "label": "Số tài khoản nhận tiền"
+  },
+  {
+   "description": "Gõ không dấu, đúng như ngân hàng in trên thẻ.",
+   "fieldname": "ngan_hang_ten",
+   "fieldtype": "Data",
+   "label": "Tên chủ tài khoản"
+  },
+  {
+   "default": "OCB - Ngan hang Phuong Dong",
+   "description": "Máy tự điền khi chọn ngân hàng ở ô Mã BIN.",
+   "fieldname": "ngan_hang_hien_thi",
+   "fieldtype": "Data",
+   "label": "Tên ngân hàng hiện cho khách",
+   "read_only": 1
+  },
+  {
+   "fieldname": "col_cd_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "https://order.thevagabondpatisserie.com/tt",
+   "fieldname": "trang_thanh_toan",
+   "fieldtype": "Data",
+   "label": "Địa chỉ trang thanh toán"
+  },
+  {
+   "fieldname": "zns_template_thanh_toan",
+   "fieldtype": "Data",
+   "label": "Mã mẫu ZNS cho tin yêu cầu thanh toán"
+  },
+  {
+   "default": "mbbank",
+   "fieldname": "pancake_qr_provider",
+   "fieldtype": "Data",
+   "label": "Nhà cung cấp QR bên Pancake"
+  },
+  {
+   "fieldname": "pancake_qr_account_id",
+   "fieldtype": "Data",
+   "label": "Mã tài khoản nhận tiền trong Pancake"
+  },
+  {
+   "description": "Kéo đơn từ Pancake về app.",
    "fieldname": "sec_pancake",
    "fieldtype": "Section Break",
    "label": "Pancake"
@@ -270,30 +270,39 @@
   {
    "fieldname": "pancake_api_key",
    "fieldtype": "Password",
-   "label": "Pancake API key"
+   "label": "Khoá API Pancake"
   },
   {
    "fieldname": "pancake_shop_id",
    "fieldtype": "Data",
-   "label": "Ma shop Pancake"
+   "label": "Mã cửa hàng Pancake"
   },
   {
+   "fieldname": "col_cd_3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1843009595",
+   "description": "Dạng số. Tra ở GET /shops/<id>/order_source.",
    "fieldname": "pancake_order_source_id",
    "fieldtype": "Data",
-   "label": "Ma nguon don Pancake",
-   "description": "Dang so. Tra o GET /shops/<id>/order_source",
-   "default": "1843009595"
+   "label": "Mã nguồn đơn Pancake"
+  },
+  {
+   "fieldname": "tab_ke_toan",
+   "fieldtype": "Tab Break",
+   "label": "Hoá đơn & kế toán"
   },
   {
    "fieldname": "sec_minvoice",
    "fieldtype": "Section Break",
-   "label": "M-invoice (hoá đơn điện tử)"
+   "label": "Hoá đơn điện tử m-invoice"
   },
   {
+   "description": "Ví dụ https://<MST>-<số>.minvoice.site",
    "fieldname": "minvoice_host",
    "fieldtype": "Data",
-   "label": "Host m-invoice",
-   "description": "Ví dụ https://<MST>-<số>.minvoice.site"
+   "label": "Địa chỉ máy chủ m-invoice"
   },
   {
    "fieldname": "minvoice_username",
@@ -306,554 +315,601 @@
    "label": "Mật khẩu m-invoice"
   },
   {
-   "fieldname": "cb_minv",
+   "fieldname": "col_cd_4",
    "fieldtype": "Column Break"
   },
   {
+   "default": "VP",
    "fieldname": "minvoice_ma_dvcs",
    "fieldtype": "Data",
-   "label": "Mã ĐVCS",
-   "default": "VP"
+   "label": "Mã ĐVCS"
   },
   {
+   "description": "Ví dụ 1C26TYY, lấy trong m-invoice",
    "fieldname": "minvoice_series",
    "fieldtype": "Data",
-   "label": "Ký hiệu hoá đơn",
-   "description": "Ví dụ 1C26TYY, lấy trong m-invoice"
+   "label": "Ký hiệu hoá đơn"
   },
   {
+   "default": "8",
    "fieldname": "minvoice_ma_thue",
    "fieldtype": "Data",
-   "label": "Thuế suất (%)",
-   "default": "8"
+   "label": "Thuế suất (%)"
+  },
+  {
+   "description": "Để trống thì nút trên màn Hoàn tiền chỉ mở trang chủ m-invoice và chép sẵn mã tra cứu. Muốn bấm một lần ra đúng tờ hoá đơn: mở một tờ bất kỳ bên m-invoice, chép đường dẫn trên thanh địa chỉ vào đây rồi thay phần mã tờ hoá đơn bằng {id}. Bốn chỗ thay được: {host} {id} {so} {sobaomat}.",
+   "fieldname": "minvoice_mau_lien_ket",
+   "fieldtype": "Data",
+   "label": "Mẫu đường dẫn tới một tờ hoá đơn"
+  },
+  {
+   "description": "Chặn ghi, sửa, huỷ chứng từ trước mốc này.",
+   "fieldname": "sec_khoa_so",
+   "fieldtype": "Section Break",
+   "label": "Khoá sổ"
+  },
+  {
+   "fieldname": "sec_hoan_tien",
+   "fieldtype": "Section Break",
+   "label": "Hoàn tiền và trả hàng"
+  },
+  {
+   "description": "Hàng khách trả về nằm ở đây chờ tiêu huỷ. TUYỆT ĐỐI không trỏ vào kho bán.",
+   "fieldname": "kho_hang_huy",
+   "fieldtype": "Link",
+   "label": "Kho hàng huỷ",
+   "options": "Warehouse"
+  },
+  {
+   "fieldname": "col_cd_5",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Chị Dung chốt 16/08/2026: dùng tài khoản ngân hàng CÔNG TY (MB Bank), không dùng quỹ tạm ứng OCB.",
+   "fieldname": "tk_hoan_tien",
+   "fieldtype": "Link",
+   "label": "Tài khoản ngân hàng chi hoàn tiền",
+   "options": "Bank Account"
+  },
+  {
+   "fieldname": "sec_btp_1552",
+   "fieldtype": "Section Break",
+   "label": "Tài khoản tồn kho bán thành phẩm theo món"
+  },
+  {
+   "description": "Tài khoản loại Stock, chi tiết, còn dùng, VND. Món có tiền tố BTP, theo tồn, ô Chặng là BTP sơ cấp sẽ nhận tài khoản này vào Item Default khi lưu. Chỉ có tác dụng trên sổ khi Company bật tài khoản tồn kho theo món (kế toán bật tay đúng ngày cắt).",
+   "fieldname": "tk_ton_btp_cap1",
+   "fieldtype": "Link",
+   "label": "Tài khoản tồn kho BTP cấp 1",
+   "options": "Account"
+  },
+  {
+   "fieldname": "col_cd_6",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Như cấp 1, cho ô Chặng là BTP sẵn sàng. Dùng chung 1552 thì trỏ cùng tài khoản với cấp 1; tách 15521/15522 thì chỉ đổi hai ô này.",
+   "fieldname": "tk_ton_btp_cap2",
+   "fieldtype": "Link",
+   "label": "Tài khoản tồn kho BTP cấp 2",
+   "options": "Account"
+  },
+  {
+   "fieldname": "tab_giao_hang",
+   "fieldtype": "Tab Break",
+   "label": "Giao hàng"
+  },
+  {
+   "fieldname": "sec_goong",
+   "fieldtype": "Section Break",
+   "label": "Bản đồ và vị trí lấy hàng (Goong)"
+  },
+  {
+   "description": "Lấy ở account.goong.io, mục Keys.",
+   "fieldname": "goong_api_key",
+   "fieldtype": "Password",
+   "label": "Khoá API Goong"
+  },
+  {
+   "description": "Để 30 là đủ cho Sài Gòn.",
+   "fieldname": "suggest_radius_km",
+   "fieldtype": "Int",
+   "label": "Bán kính gợi ý địa chỉ (km)"
+  },
+  {
+   "default": "12",
+   "description": "Đường chim bay từ điểm lấy gần khách nhất. Xa hơn thì báo không giao tới.",
+   "fieldname": "ban_kinh_giao_km",
+   "fieldtype": "Float",
+   "label": "Bán kính giao (km)",
+   "precision": "1"
+  },
+  {
+   "fieldname": "col_cd_7",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "kitchen_lat",
+   "fieldtype": "Float",
+   "label": "Vĩ độ bếp",
+   "precision": "6"
+  },
+  {
+   "fieldname": "kitchen_lng",
+   "fieldtype": "Float",
+   "label": "Kinh độ bếp",
+   "precision": "6"
+  },
+  {
+   "fieldname": "kitchen_address",
+   "fieldtype": "Small Text",
+   "label": "Địa chỉ bếp"
+  },
+  {
+   "fieldname": "store_lat",
+   "fieldtype": "Float",
+   "label": "Vĩ độ cửa hàng",
+   "precision": "6"
+  },
+  {
+   "fieldname": "store_lng",
+   "fieldtype": "Float",
+   "label": "Kinh độ cửa hàng",
+   "precision": "6"
+  },
+  {
+   "fieldname": "store_address",
+   "fieldtype": "Small Text",
+   "label": "Địa chỉ cửa hàng"
+  },
+  {
+   "fieldname": "sec_aha",
+   "fieldtype": "Section Break",
+   "label": "Ahamove"
+  },
+  {
+   "fieldname": "ahamove_api_key",
+   "fieldtype": "Password",
+   "label": "Khoá API Ahamove"
+  },
+  {
+   "description": "Dạng 84xxxxxxxxx.",
+   "fieldname": "ahamove_mobile",
+   "fieldtype": "Data",
+   "label": "Số điện thoại tài khoản Ahamove"
+  },
+  {
+   "description": "Chạy thử dùng partner-apistg, chạy thật dùng partner-api.",
+   "fieldname": "ahamove_base",
+   "fieldtype": "Data",
+   "label": "Địa chỉ API Ahamove"
+  },
+  {
+   "fieldname": "col_cd_8",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Ví dụ SGN-BIKE.",
+   "fieldname": "ma_dich_vu",
+   "fieldtype": "Data",
+   "label": "Mã dịch vụ"
+  },
+  {
+   "description": "Ahamove cộng thêm 10.000 đ mỗi đơn.",
+   "fieldname": "dung_dich_vu_de_vo",
+   "fieldtype": "Check",
+   "label": "Báo hàng dễ vỡ"
+  },
+  {
+   "description": "Cộng vào phí Ahamove trước khi báo khách.",
+   "fieldname": "phu_thu",
+   "fieldtype": "Currency",
+   "label": "Phụ thu của tiệm"
   },
   {
    "fieldname": "sec_gsm",
    "fieldtype": "Section Break",
-   "label": "GreenSM Express (book xe)"
+   "label": "GreenSM Express và BE Delivery (book xe)"
   },
   {
    "fieldname": "greensm_client_id",
    "fieldtype": "Data",
-   "label": "GreenSM Client ID"
+   "label": "Mã ứng dụng GreenSM (Client ID)"
   },
   {
    "fieldname": "greensm_client_secret",
    "fieldtype": "Password",
-   "label": "GreenSM Client Secret"
+   "label": "Khoá bí mật GreenSM (Client Secret)"
   },
   {
    "fieldname": "greensm_token_url",
    "fieldtype": "Data",
-   "label": "GreenSM Token URL (OAuth2)"
+   "label": "Địa chỉ lấy token GreenSM (OAuth2)"
   },
   {
-   "fieldname": "cb_gsm",
+   "fieldname": "col_cd_9",
    "fieldtype": "Column Break"
   },
   {
+   "default": "1",
+   "description": "Bật là book xe ảo, không gọi tài xế thật.",
    "fieldname": "greensm_sandbox",
    "fieldtype": "Check",
-   "label": "Dung sandbox GreenSM",
-   "default": "1"
+   "label": "Dùng môi trường thử GreenSM"
   },
   {
    "fieldname": "be_base",
    "fieldtype": "Data",
-   "label": "BE Delivery Base URL (cho API)"
+   "label": "Địa chỉ API BE Delivery"
   },
   {
    "fieldname": "be_token",
    "fieldtype": "Password",
-   "label": "BE Delivery Token (cho API)"
+   "label": "Token BE Delivery"
   },
   {
    "fieldname": "sec_tuyen",
    "fieldtype": "Section Break",
-   "label": "Xep tuyen giao hang"
+   "label": "Xếp tuyến giao hàng"
   },
   {
+   "default": "12",
    "fieldname": "so_don_toi_da_chuyen",
    "fieldtype": "Int",
-   "label": "So don toi da moi chuyen",
-   "default": "12"
+   "label": "Số đơn tối đa mỗi chuyến"
   },
   {
+   "default": "20",
    "fieldname": "toc_do_km_h",
    "fieldtype": "Float",
-   "label": "Toc do xe may trung binh (km/h)",
-   "default": "20",
+   "label": "Tốc độ xe máy trung bình (km/h)",
    "precision": "1"
   },
   {
+   "default": "6",
    "fieldname": "phut_moi_diem",
    "fieldtype": "Int",
-   "label": "Phut dung moi diem giao",
-   "default": "6"
+   "label": "Số phút dừng mỗi điểm giao"
   },
   {
-   "fieldname": "cb_tuyen",
+   "fieldname": "col_cd_10",
    "fieldtype": "Column Break"
   },
   {
+   "default": "1.4",
+   "description": "Sài Gòn thường là 1,4.",
    "fieldname": "he_so_duong_thuc",
    "fieldtype": "Float",
-   "label": "He so duong thuc / duong chim bay",
-   "default": "1.4",
+   "label": "Hệ số đường thực so với đường chim bay",
    "precision": "2"
   },
   {
+   "default": "0",
+   "description": "Tắt thì máy ước theo đường chim bay nhân hệ số, không tốn lượt gọi Goong.",
    "fieldname": "dung_goong_xep_tuyen",
    "fieldtype": "Check",
-   "label": "Dung Goong Distance Matrix khi xep tuyen",
-   "default": "0"
+   "label": "Dùng Goong Distance Matrix khi xếp tuyến"
   },
   {
+   "description": "Để trống thì dùng địa chỉ của site.",
    "fieldname": "link_app",
    "fieldtype": "Data",
-   "label": "Dia chi app cho nhan vien (de trong = dia chi site)"
+   "label": "Địa chỉ app cho nhân viên"
   },
   {
+   "fieldname": "tab_khach_hang",
+   "fieldtype": "Tab Break",
+   "label": "Khách hàng & điểm"
+  },
+  {
+   "fieldname": "sec_diem",
+   "fieldtype": "Section Break",
+   "label": "Điểm thành viên và trừ điểm tại quầy"
+  },
+  {
+   "default": "1",
+   "fieldname": "diem_quy_doi",
+   "fieldtype": "Float",
+   "label": "1 điểm bằng bao nhiêu đồng",
+   "precision": "2"
+  },
+  {
+   "default": "50",
+   "fieldname": "diem_tran_pt",
+   "fieldtype": "Percent",
+   "label": "Tối đa bao nhiêu % bill được trả bằng điểm"
+  },
+  {
+   "default": "10000",
+   "fieldname": "diem_bill_toi_thieu",
+   "fieldtype": "Currency",
+   "label": "Bill sau khi trừ điểm không được thấp hơn (đ)"
+  },
+  {
+   "fieldname": "col_cd_11",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "180",
+   "fieldname": "diem_otp_giay",
+   "fieldtype": "Int",
+   "label": "Mã OTP trừ điểm sống bao nhiêu giây"
+  },
+  {
+   "fieldname": "zns_template_diem",
+   "fieldtype": "Data",
+   "label": "Mã mẫu ZNS xác nhận trừ điểm"
+  },
+  {
+   "default": "1",
+   "fieldname": "diem_zns_gia_lap",
+   "fieldtype": "Check",
+   "label": "Chạy thử: giả lập gửi ZNS, không gọi Zalo thật"
+  },
+  {
+   "fieldname": "sec_diem_han",
+   "fieldtype": "Section Break",
+   "label": "Hạn điểm và hạ hạng theo chu kỳ"
+  },
+  {
+   "default": "Tat",
+   "description": "Tắt: điểm không bao giờ hết hạn. Cuốn chiếu: mỗi bút sống N tháng kể từ ngày tích (công bằng nhất). Cuối năm: xoá sạch số dư vào ngày chốt. Ngày kỷ niệm: xoá sạch vào ngày khách vào hệ.",
+   "fieldname": "diem_chu_ky",
+   "fieldtype": "Select",
+   "label": "Cách tính hạn điểm",
+   "options": "Tat\nCuon chieu\nCuoi nam\nNgay ky niem"
+  },
+  {
+   "default": "12",
+   "description": "Với cách Cuốn chiếu: mỗi bút điểm sống chừng này tháng. Các cách khác dùng số này làm độ dài một kỳ, để không xử lý một khách hai lần trong cùng kỳ.",
+   "fieldname": "diem_han_thang",
+   "fieldtype": "Int",
+   "label": "Điểm sống bao nhiêu tháng"
+  },
+  {
+   "fieldname": "col_cd_12",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "31-12",
+   "description": "Dạng ngày-tháng, ví dụ 31-12. Dùng khi chọn Cuối năm.",
+   "fieldname": "diem_ngay_chot",
+   "fieldtype": "Data",
+   "label": "Ngày chốt hằng năm"
+  },
+  {
+   "default": "1",
+   "description": "Bật: khách tụt chi tiêu nhiều vẫn chỉ xuống đúng một hạng mỗi kỳ. Tắt: xuống thẳng tới hạng đúng với chi tiêu.",
+   "fieldname": "ha_hang_tung_bac",
+   "fieldtype": "Check",
+   "label": "Hạ hạng mỗi lần chỉ một bậc"
+  },
+  {
+   "fieldname": "tab_tin_nhan",
+   "fieldtype": "Tab Break",
+   "label": "Tin nhắn & cảnh báo"
+  },
+  {
+   "description": "Tạo bot ở bot.zaloplatforms.com, dán token vào đây, bấm nút Nối Zalo Bot ở góc trên. Thêm bot vào từng nhóm Zalo rồi @nhắc bot một lần, mã nhóm hiện ở ô Chat vừa nhắn bot; chép mã đó vào bảng Nhóm nhận tin.",
+   "fieldname": "sec_zalo_bot",
+   "fieldtype": "Section Break",
+   "label": "Bắn tin vào nhóm Zalo"
+  },
+  {
+   "fieldname": "zalo_bot_bat",
+   "fieldtype": "Check",
+   "label": "Bật bắn tin Zalo"
+  },
+  {
+   "fieldname": "zalo_bot_token",
+   "fieldtype": "Password",
+   "label": "Token Zalo Bot"
+  },
+  {
+   "fieldname": "col_cd_13",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "zalo_nhom",
+   "fieldtype": "Table",
+   "label": "Nhóm nhận tin",
+   "options": "Vagabond Kenh Zalo"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "sec_zalo_bot_goc",
+   "fieldtype": "Section Break",
+   "label": "Dữ liệu bot tự ghi (chỉ đọc)"
+  },
+  {
+   "fieldname": "zalo_bi_mat",
+   "fieldtype": "Password",
+   "label": "Khoá bí mật đường nhận (máy tự sinh)",
+   "read_only": 1
+  },
+  {
+   "description": "Zalo gọi thử đường nhận khi Nối bot hoặc Kiểm lại. Phải là Đã xác minh thì ô Chat vừa nhắn bot mới nhận được mã nhóm.",
+   "fieldname": "zalo_noi_trang_thai",
+   "fieldtype": "Small Text",
+   "label": "Kết quả xác minh đường nhận",
+   "read_only": 1
+  },
+  {
+   "fieldname": "col_cd_14",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "20 cuộc chat gần nhất đã nhắn hoặc @nhắc bot. Không lưu nội dung tin nhắn. Bấm nút Chọn nhóm đã nhắn bot trong bảng Nhóm nhận tin để chọn, không cần chép tay.",
+   "fieldname": "zalo_chat_moi",
+   "fieldtype": "Code",
+   "label": "Chat vừa nhắn bot",
+   "options": "JSON",
+   "read_only": 1
+  },
+  {
+   "description": "Gửi mã đăng nhập, yêu cầu thanh toán, xác nhận trừ điểm.",
    "fieldname": "sec_zalo",
    "fieldtype": "Section Break",
-   "label": "Zalo OA (ZNS - gui ma dang nhap cho khach)"
+   "label": "Zalo OA: gửi tin cho khách (ZNS)"
   },
   {
    "fieldname": "zalo_app_id",
    "fieldtype": "Data",
-   "label": "Zalo App ID"
+   "label": "Mã ứng dụng Zalo (App ID)"
   },
   {
    "fieldname": "zalo_app_secret",
    "fieldtype": "Password",
-   "label": "Zalo App Secret"
+   "label": "Khoá bí mật ứng dụng Zalo (App Secret)"
   },
   {
    "fieldname": "zalo_refresh_token",
    "fieldtype": "Password",
-   "label": "Zalo Refresh Token (OA)"
+   "label": "Refresh token của OA"
   },
   {
-   "fieldname": "cb_zalo",
+   "fieldname": "col_cd_15",
    "fieldtype": "Column Break"
   },
   {
    "fieldname": "zalo_access_token",
    "fieldtype": "Password",
-   "label": "Zalo Access Token (may tu lam moi)",
+   "label": "Access token (máy tự làm mới)",
    "read_only": 1
   },
   {
+   "description": "Máy tự ghi khi làm mới token.",
    "fieldname": "zalo_token_het_han",
    "fieldtype": "Datetime",
-   "label": "Token het han luc",
+   "label": "Token hết hạn lúc",
    "read_only": 1
   },
   {
    "fieldname": "zns_template_otp",
    "fieldtype": "Data",
-   "label": "Ma mau ZNS cho tin xac thuc"
+   "label": "Mã mẫu ZNS cho tin xác thực"
   },
   {
-   "fieldname": "sec_tt",
-   "fieldtype": "Section Break",
-   "label": "Thanh toan chuyen khoan (VietQR)"
-  },
-  {
-   "fieldname": "pancake_qr_provider",
-   "fieldtype": "Data",
-   "label": "Nha cung cap QR ben Pancake",
-   "default": "mbbank"
-  },
-  {
-   "fieldname": "pancake_qr_account_id",
-   "fieldtype": "Data",
-   "label": "Account ID tai khoan nhan tien trong Pancake"
-  },
-  {
-   "fieldname": "ngan_hang_bin",
-   "fieldtype": "Data",
-   "label": "Ma BIN ngan hang (OCB = 970448)",
-   "default": "970448"
-  },
-  {
-   "fieldname": "ngan_hang_stk",
-   "fieldtype": "Data",
-   "label": "So tai khoan nhan tien"
-  },
-  {
-   "fieldname": "ngan_hang_ten",
-   "fieldtype": "Data",
-   "label": "Ten chu tai khoan (khong dau)"
-  },
-  {
-   "fieldname": "cb_tt",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "ngan_hang_hien_thi",
-   "fieldtype": "Data",
-   "label": "Ten ngan hang hien cho khach",
-   "default": "OCB - Ngan hang Phuong Dong"
-  },
-  {
-   "fieldname": "trang_thanh_toan",
-   "fieldtype": "Data",
-   "label": "Dia chi trang thanh toan",
-   "default": "https://order.thevagabondpatisserie.com/tt"
-  },
-  {
-   "fieldname": "zns_template_thanh_toan",
-   "fieldtype": "Data",
-   "label": "Ma mau ZNS cho tin yeu cau thanh toan"
-  },
-  {
+   "description": "Chủ yếu cho khách nước ngoài.",
    "fieldname": "sec_wa",
    "fieldtype": "Section Break",
-   "label": "WhatsApp Business (chu yeu cho khach nuoc ngoai)"
+   "label": "WhatsApp Business"
   },
   {
    "fieldname": "wa_phone_id",
    "fieldtype": "Data",
-   "label": "WhatsApp Phone Number ID"
+   "label": "Mã số điện thoại WhatsApp (Phone Number ID)"
   },
   {
    "fieldname": "wa_token",
    "fieldtype": "Password",
-   "label": "WhatsApp token (System User, vinh vien)"
+   "label": "Token WhatsApp (System User, vĩnh viễn)"
   },
   {
-   "fieldname": "cb_wa",
+   "fieldname": "col_cd_16",
    "fieldtype": "Column Break"
   },
   {
    "fieldname": "wa_template_thanh_toan",
    "fieldtype": "Data",
-   "label": "Ten mau tin WhatsApp cho yeu cau thanh toan"
+   "label": "Tên mẫu tin WhatsApp cho yêu cầu thanh toán"
   },
   {
+   "default": "vi",
+   "description": "Ví dụ vi, en.",
    "fieldname": "wa_ngon_ngu",
    "fieldtype": "Data",
-   "label": "Ma ngon ngu mau WhatsApp",
-   "default": "vi"
-  },
-  {
-   "fieldname": "sec_vgb_tu_dong",
-   "fieldtype": "Section Break",
-   "label": "Tự động hoá bán hàng"
-  },
-  {
-   "fieldname": "tu_xuat_hddt",
-   "fieldtype": "Check",
-   "label": "Tự xuất hoá đơn điện tử ngay khi ghi sổ",
-   "default": "1",
-   "description": "Áp dụng cho mọi nguồn đơn, kể cả đơn nhập tay GrabFood, ShopeeFood, BeFood, GreenSM."
-  },
-  {
-   "fieldname": "hang_tang_xuat_kho_that",
-   "fieldtype": "Check",
-   "label": "Hàng tặng xuất kho thật",
-   "default": "0",
-   "description": "Chỉ bật khi kho điểm bán đã có tồn thực tế. Tắt: ghi VAT hàng tặng, chờ giá vốn và không sinh sổ kho; không thay chứng từ đã ghi sổ."
-  },
-  {
-   "fieldname": "cb_vgb_tu_dong",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "email_canh_bao",
-   "fieldtype": "Data",
-   "label": "Email nhận thư cảnh báo",
-   "description": "Nhiều địa chỉ thì ngăn nhau bằng dấu phẩy. Dùng cho thư báo đơn trùng hoá đơn."
-  },
-  {
-   "fieldname": "sec_ai",
-   "fieldtype": "Section Break",
-   "label": "Dich thuat (Google Gemini)"
-  },
-  {
-   "fieldname": "gemini_api_key",
-   "fieldtype": "Password",
-   "label": "Gemini API key (dan khoa vao de dich sang tieng Anh)"
-  },
-  {
-   "fieldname": "sec_diem",
-   "fieldtype": "Section Break",
-   "label": "Diem thanh vien va tru diem tai quay"
-  },
-  {
-   "fieldname": "diem_quy_doi",
-   "fieldtype": "Float",
-   "label": "1 diem bang bao nhieu dong",
-   "default": "1",
-   "precision": "2"
-  },
-  {
-   "fieldname": "diem_tran_pt",
-   "fieldtype": "Percent",
-   "label": "Toi da bao nhieu % gia tri bill duoc tra bang diem",
-   "default": "50"
-  },
-  {
-   "fieldname": "diem_bill_toi_thieu",
-   "fieldtype": "Currency",
-   "label": "Bill sau khi tru diem khong duoc thap hon (d)",
-   "default": "10000"
-  },
-  {
-   "fieldname": "cb_diem",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "diem_otp_giay",
-   "fieldtype": "Int",
-   "label": "Ma OTP tru diem song bao nhieu giay",
-   "default": "180"
-  },
-  {
-   "fieldname": "zns_template_diem",
-   "fieldtype": "Data",
-   "label": "Ma mau ZNS xac nhan tru diem"
-  },
-  {
-   "fieldname": "diem_zns_gia_lap",
-   "fieldtype": "Check",
-   "label": "Chay thu: gia lap gui ZNS, khong goi Zalo that",
-   "default": "1"
-  },
-  {
-   "fieldname": "sec_diem_han",
-   "fieldtype": "Section Break",
-   "label": "Han diem va ha hang theo chu ky"
-  },
-  {
-   "fieldname": "diem_chu_ky",
-   "fieldtype": "Select",
-   "label": "Cach tinh han diem",
-   "options": "Tat\nCuon chieu\nCuoi nam\nNgay ky niem",
-   "default": "Tat",
-   "description": "Tat: diem khong bao gio het han. Cuon chieu: moi but song N thang ke tu ngay tich (cong bang nhat). Cuoi nam: xoa sach so du vao ngay chot. Ngay ky niem: xoa sach vao ngay khach vao he."
-  },
-  {
-   "fieldname": "diem_han_thang",
-   "fieldtype": "Int",
-   "label": "Diem song bao nhieu thang",
-   "default": "12"
-  },
-  {
-   "fieldname": "cb_diem_han",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "diem_ngay_chot",
-   "fieldtype": "Data",
-   "label": "Ngay chot hang nam (dang 31-12)",
-   "default": "31-12"
-  },
-  {
-   "fieldname": "ha_hang_tung_bac",
-   "fieldtype": "Check",
-   "label": "Ha hang moi lan chi mot bac",
-   "default": "1",
-   "description": "Bat: khach tut chi tieu nhieu van chi xuong dung mot hang moi ky. Tat: xuong thang toi hang dung voi chi tieu."
-  },
-  {
-   "fieldname": "sec_hoan_tien",
-   "fieldtype": "Section Break",
-   "label": "Hoan tien va tra hang"
-  },
-  {
-   "fieldname": "kho_hang_huy",
-   "fieldtype": "Link",
-   "label": "Kho Hang Huy",
-   "options": "Warehouse",
-   "description": "Hang khach tra ve nam o day cho tieu huy. TUYET DOI khong tro vao kho ban."
-  },
-  {
-   "fieldname": "cb_hoan_tien",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "tk_hoan_tien",
-   "fieldtype": "Link",
-   "label": "Tai khoan ngan hang chi hoan tien",
-   "options": "Bank Account",
-   "description": "Chi Dung chot 16/08/2026: dung tai khoan ngan hang CONG TY (MB Bank), khong dung quy tam ung OCB."
-  },
-  {
-   "fieldname": "minvoice_mau_lien_ket",
-   "fieldtype": "Data",
-   "label": "Mau duong dan toi mot to hoa don",
-   "description": "De trong thi nut tren man Hoan tien chi mo trang chu M-Invoice va chep san ma tra cuu. Muon bam mot phat ra dung to hoa don: mo mot to bat ky ben M-Invoice, chep duong dan tren thanh dia chi vao day roi thay phan ma to hoa don bang {id}. Bon cho thay duoc: {host} {id} {so} {sobaomat}"
-  },
-  {
-   "fieldname": "sec_push",
-   "fieldtype": "Section Break",
-   "label": "Thong bao day (Web Push)"
-  },
-  {
-   "fieldname": "push_khoa_cong_khai",
-   "fieldtype": "Data",
-   "label": "Khoa cong khai VAPID",
-   "read_only": 1,
-   "description": "May tu sinh lan dau. Khoa nay gui xuong trinh duyet, cong khai la binh thuong."
-  },
-  {
-   "fieldname": "push_khoa_rieng",
-   "fieldtype": "Password",
-   "label": "Khoa rieng VAPID",
-   "read_only": 1,
-   "description": "May tu sinh, khong ai phai go. Khoa nay KHONG bao gio gui xuong trinh duyet."
+   "label": "Mã ngôn ngữ mẫu WhatsApp"
   },
   {
    "fieldname": "sec_gui_thu",
    "fieldtype": "Section Break",
-   "label": "Duong thu di va canh bao"
+   "label": "Thư cảnh báo và webhook"
   },
   {
+   "description": "Nhiều địa chỉ thì ngăn nhau bằng dấu phẩy. Dùng cho thư báo đơn trùng hoá đơn.",
+   "fieldname": "email_canh_bao",
+   "fieldtype": "Data",
+   "label": "Email nhận thư cảnh báo"
+  },
+  {
+   "description": "Dán đường dẫn webhook của nhóm Lark, Slack, Google Chat hoặc cầu Zalo vào đây. Để trống thì máy chỉ báo bằng thư tới ô Email nhận thư cảnh báo. Ô này sinh ra sau sự cố 16/08/2026, khi cả tiệm không gửi được email nào suốt nhiều ngày mà không ai biết.",
    "fieldname": "webhook_bao_dong",
    "fieldtype": "Data",
-   "label": "Webhook nhom quan tri (bao dong do)",
-   "description": "Dan duong dan webhook cua nhom Lark, Slack, Google Chat hoac cau Zalo vao day. De trong thi may chi bao bang thu toi o Email nhan thu canh bao. Tu 16/08/2026 ca tiem khong gui duoc email nao suot nhieu ngay ma khong ai biet, o nay sinh ra tu do."
+   "label": "Webhook nhóm quản trị (báo động đỏ)"
   },
   {
+   "fieldname": "col_cd_17",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Nhóm riêng của FOH. Để trống thì không gửi thông báo đặt bàn.",
    "fieldname": "webhook_dat_ban",
    "fieldtype": "Data",
-   "label": "Webhook nhóm đặt bàn (Lark)",
-   "description": "Nhóm riêng của FOH. Để trống thì không gửi thông báo đặt bàn."
+   "label": "Webhook nhóm đặt bàn (Lark)"
   },
   {
-   "fieldname": "cb_gui_thu",
+   "fieldname": "sec_push",
+   "fieldtype": "Section Break",
+   "label": "Thông báo đẩy (Web Push)"
+  },
+  {
+   "description": "Máy tự sinh lần đầu. Khoá này gửi xuống trình duyệt, công khai là bình thường.",
+   "fieldname": "push_khoa_cong_khai",
+   "fieldtype": "Data",
+   "label": "Khoá công khai VAPID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "col_cd_18",
    "fieldtype": "Column Break"
   },
   {
+   "description": "Máy tự sinh, không ai phải gõ. Khoá này KHÔNG bao giờ gửi xuống trình duyệt.",
+   "fieldname": "push_khoa_rieng",
+   "fieldtype": "Password",
+   "label": "Khoá riêng VAPID",
+   "read_only": 1
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "sec_dau_vet_thu",
+   "fieldtype": "Section Break",
+   "label": "Dấu vết máy tự ghi (chỉ đọc)"
+  },
+  {
+   "description": "Máy tự ghi. Hú xong thì im 3 tiếng để không bắn lại một sự cố suốt đêm.",
    "fieldname": "email_bao_dong_lan_cuoi",
    "fieldtype": "Datetime",
-   "label": "Lan hu coi gan nhat",
-   "read_only": 1,
-   "description": "May tu ghi. Hu xong thi im 3 tieng de khong ban lai mot su co suot dem."
+   "label": "Lần hú còi gần nhất",
+   "read_only": 1
   },
   {
+   "fieldname": "col_cd_19",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Máy tự ghi. Có mốc này rồi thì lệnh cứu không chạy lại được, tránh nhà cung cấp nhận hai lần một đơn.",
    "fieldname": "email_da_cuu_su_co_1608",
    "fieldtype": "Datetime",
-   "label": "Da chay lenh cuu email su co 16/08",
-   "read_only": 1,
-   "description": "May tu ghi. Co moc nay roi thi lenh cuu khong chay lai duoc, tranh nha cung cap nhan hai lan mot don."
+   "label": "Đã chạy lệnh cứu email sự cố 16/08",
+   "read_only": 1
   },
   {
-   "fieldname": "sec_qz",
-   "fieldtype": "Section Break",
-   "label": "In ngam QZ Tray (may in nhiet o quay)"
-  },
-  {
-   "fieldname": "qz_chung_thu",
-   "fieldtype": "Code",
-   "label": "Chung thu cong khai QZ Tray (PEM)",
-   "description": "Dan tron noi dung tep chung-thu.pem, ca dong BEGIN CERTIFICATE va END CERTIFICATE. De TRONG thi app in bang trinh duyet nhu cu, khong hong gi. Cach sinh chung thu xem project doc claude/v256-in-ngam-qz-va-loi-ke-toan-mua.md."
-  },
-  {
-   "fieldname": "qz_khoa_rieng",
-   "fieldtype": "Password",
-   "label": "Khoa rieng QZ Tray (PEM, khong dat mat khau)",
-   "description": "Khoa rieng chi nam o may chu, KHONG bao gio gui xuong trinh duyet. Frappe ma hoa o nay luc luu. Nghi lo khoa thi sinh cap moi va cai lai chung thu tren may quay."
-  },
-  {
-   "fieldname": "cb_qz",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "qz_may_in_hoa_don",
-   "fieldtype": "Data",
-   "label": "Manh ten may in HOA DON",
-   "default": "EPSON",
-   "description": "Chi can mot manh ten, khong can ten day du: ten may in tren Windows doi theo cong USB va theo may, con manh EPSON thi nam nguyen trong ten driver o moi may quay."
-  },
-  {
-   "fieldname": "qz_may_in_tem",
-   "fieldtype": "Data",
-   "label": "Manh ten may in TEM ly, tem hop",
-   "default": "Xprinter"
-  },
-  {
-   "fieldname": "qz_dpi",
-   "fieldtype": "Int",
-   "label": "Do phan giai may in nhiet (DPI)",
-   "default": "203",
-   "description": "May in nhiet 80mm va may dan tem thong dung deu la 203 DPI. Doi so nay la doi kich thuoc anh raster app dung xuong QZ."
-  },
-  {
-   "fieldname": "sec_tro_ly",
-   "fieldtype": "Section Break",
-   "label": "Tro ly huong dan dung app"
-  },
-  {
-   "fieldname": "tro_ly_bat",
-   "fieldtype": "Check",
-   "label": "Bat tro ly",
-   "description": "Tat o day la nut noi trong app bien mat va khong con goi API."
-  },
-  {
-   "fieldname": "tro_ly_khoa",
-   "fieldtype": "Password",
-   "label": "Khoa API cua mo hinh ngon ngu",
-   "description": "Dan khoa vao day, he thong tu ma hoa. Khong ai doc lai duoc dang chu."
-  },
-  {
-   "fieldname": "tro_ly_mo_hinh",
-   "fieldtype": "Data",
-   "label": "Ten mo hinh",
-   "description": "De trong thi dung mo hinh mac dinh."
-  },
-  {
-   "fieldname": "cb_tro_ly",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "tro_ly_luot_ngay",
-   "fieldtype": "Int",
-   "label": "Han muc luot moi nguoi moi ngay",
-   "description": "De trong hoac 0 thi lay mac dinh 30 luot."
-  },
-  {
-   "fieldname": "tro_ly_luot_thang",
-   "fieldtype": "Int",
-   "label": "Han muc luot ca tiem moi thang",
-   "description": "Chan hoa don API bat ngo. De trong hoac 0 thi lay mac dinh 1500 luot."
-  },
-  {
-   "fieldname": "sec_btp_1552",
-   "fieldtype": "Section Break",
-   "label": "Tài khoản tồn kho bán thành phẩm theo món (#307)"
-  },
-  {
-   "fieldname": "tk_ton_btp_cap1",
-   "fieldtype": "Link",
-   "label": "Tài khoản tồn kho BTP cấp 1",
-   "options": "Account",
-   "description": "Tài khoản loại Stock, chi tiết, còn dùng, VND. Món có tiền tố BTP, theo tồn, ô Chặng là BTP sơ cấp sẽ nhận tài khoản này vào Item Default khi lưu. Chỉ có tác dụng trên sổ khi Company bật tài khoản tồn kho theo món (kế toán bật tay đúng ngày cắt)."
-  },
-  {
-   "fieldname": "cb_btp_1552",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "tk_ton_btp_cap2",
-   "fieldtype": "Link",
-   "label": "Tài khoản tồn kho BTP cấp 2",
-   "options": "Account",
-   "description": "Như cấp 1, cho ô Chặng là BTP sẵn sàng. Dùng chung 1552 thì trỏ cùng tài khoản với cấp 1; tách 15521/15522 thì chỉ đổi hai ô này."
+   "fieldname": "tab_web",
+   "fieldtype": "Tab Break",
+   "label": "Web & quảng cáo"
   },
   {
    "fieldname": "sec_web_dat_banh",
    "fieldtype": "Section Break",
-   "label": "Trang đặt bánh và quảng cáo Meta (#367)",
-   "collapsible": 1
+   "label": "Trang đặt bánh"
   },
   {
+   "description": "Tiền bánh (chưa gồm phí giao, máy chủ tự tính) từ mức này trở lên thì khách không trả phí giao, tiệm chịu phí Ahamove. Để trống hoặc 0 là tắt miễn phí giao.",
    "fieldname": "mien_phi_giao_tu",
    "fieldtype": "Currency",
-   "label": "Miễn phí giao từ (đ)",
-   "description": "Tiền bánh (chưa gồm phí giao, máy chủ tự tính) từ mức này trở lên thì khách không trả phí giao, tiệm chịu phí Ahamove. Để trống hoặc 0 là tắt miễn phí giao."
+   "label": "Miễn phí giao từ (đ)"
   },
   {
    "fieldname": "web_dien_thoai",
@@ -867,10 +923,10 @@
    "options": "Email"
   },
   {
+   "description": "Để trống thì dùng zalo.me/<số điện thoại trên chân trang>.",
    "fieldname": "web_zalo",
    "fieldtype": "Data",
-   "label": "Đường dẫn Zalo của tiệm",
-   "description": "Để trống thì dùng zalo.me/<số điện thoại trên chân trang>."
+   "label": "Đường dẫn Zalo của tiệm"
   },
   {
    "fieldname": "web_messenger",
@@ -878,7 +934,7 @@
    "label": "Đường dẫn Messenger"
   },
   {
-   "fieldname": "cb_web_dat_banh",
+   "fieldname": "col_cd_20",
    "fieldtype": "Column Break"
   },
   {
@@ -897,22 +953,21 @@
    "label": "TikTok"
   },
   {
+   "description": "Đơn web quá 30 phút chưa ghép được với Pancake thì máy nhắn vào nhóm này.",
    "fieldname": "webhook_don_web",
    "fieldtype": "Data",
-   "label": "Webhook nhóm Sales đơn web (Lark)",
-   "description": "Đơn web quá 30 phút chưa ghép được với Pancake thì máy nhắn vào nhóm này."
+   "label": "Webhook nhóm Sales đơn web (Lark)"
   },
   {
    "fieldname": "sec_meta_pixel",
    "fieldtype": "Section Break",
-   "label": "Meta Pixel và Conversions API",
-   "collapsible": 1
+   "label": "Meta Pixel và Conversions API"
   },
   {
+   "description": "Để trống thì trang không nạp Pixel và máy không gửi sự kiện nào.",
    "fieldname": "meta_pixel_id",
    "fieldtype": "Data",
-   "label": "Meta Pixel ID",
-   "description": "Để trống thì trang không nạp Pixel và máy không gửi sự kiện nào."
+   "label": "Meta Pixel ID"
   },
   {
    "fieldname": "meta_capi_token",
@@ -920,73 +975,146 @@
    "label": "Meta CAPI token (chỉ máy chủ dùng)"
   },
   {
-   "fieldname": "cb_meta_pixel",
+   "fieldname": "col_cd_21",
    "fieldtype": "Column Break"
   },
   {
+   "description": "Chỉ điền khi đang thử trong Events Manager. Chạy thật thì để trống.",
    "fieldname": "meta_test_event_code",
    "fieldtype": "Data",
-   "label": "Mã sự kiện thử (Test Events)",
-   "description": "Chỉ điền khi đang thử trong Events Manager. Chạy thật thì để trống."
+   "label": "Mã sự kiện thử (Test Events)"
   },
   {
+   "description": "Để trống dùng mặc định của máy.",
    "fieldname": "meta_graph_phien_ban",
    "fieldtype": "Data",
-   "label": "Phiên bản Graph API",
-   "description": "Để trống dùng mặc định của máy."
+   "label": "Phiên bản Graph API"
   },
   {
-   "fieldname": "sec_zalo_bot",
+   "fieldname": "tab_thiet_bi",
+   "fieldtype": "Tab Break",
+   "label": "Thiết bị & trợ lý"
+  },
+  {
+   "fieldname": "sec_qz",
    "fieldtype": "Section Break",
-   "label": "Bắn tin vào nhóm Zalo (#410)",
-   "collapsible": 1,
-   "description": "Tạo bot ở bot.zaloplatforms.com, dán token vào đây, bấm nút Nối Zalo Bot ở góc trên. Thêm bot vào từng nhóm Zalo rồi @nhắc bot một lần, mã nhóm hiện ở ô Chat vừa nhắn bot; chép mã đó vào bảng Nhóm nhận tin."
+   "label": "In ngầm QZ Tray (máy in nhiệt ở quầy)"
   },
   {
-   "fieldname": "zalo_bot_bat",
-   "fieldtype": "Check",
-   "label": "Bật bắn tin Zalo"
+   "description": "Dán trọn nội dung tệp chung-thu.pem, cả dòng BEGIN CERTIFICATE và END CERTIFICATE. Để TRỐNG thì app in bằng trình duyệt như cũ, không hỏng gì.",
+   "fieldname": "qz_chung_thu",
+   "fieldtype": "Code",
+   "label": "Chứng thư công khai QZ Tray (PEM)"
   },
   {
-   "fieldname": "zalo_bot_token",
+   "description": "Khoá riêng chỉ nằm ở máy chủ, KHÔNG bao giờ gửi xuống trình duyệt. Nghi lộ khoá thì sinh cặp mới và cài lại chứng thư trên máy quầy.",
+   "fieldname": "qz_khoa_rieng",
    "fieldtype": "Password",
-   "label": "Token Zalo Bot"
+   "label": "Khoá riêng QZ Tray (PEM, không đặt mật khẩu)"
   },
   {
-   "fieldname": "zalo_bi_mat",
-   "fieldtype": "Password",
-   "label": "Khoá bí mật đường nhận (máy tự sinh)",
-   "read_only": 1
-  },
-  {
-   "fieldname": "zalo_noi_trang_thai",
-   "fieldtype": "Small Text",
-   "label": "Kết quả xác minh đường nhận",
-   "read_only": 1,
-   "description": "Zalo gọi thử đường nhận khi Nối bot hoặc Kiểm lại. Phải là Đã xác minh thì ô Chat vừa nhắn bot mới nhận được mã nhóm."
-  },
-  {
-   "fieldname": "cb_zalo_bot",
+   "fieldname": "col_cd_22",
    "fieldtype": "Column Break"
   },
   {
-   "fieldname": "zalo_chat_moi",
-   "fieldtype": "Code",
-   "label": "Chat vừa nhắn bot",
-   "read_only": 1,
-   "options": "JSON",
-   "description": "20 cuộc chat gần nhất đã nhắn hoặc @nhắc bot: mã chat, tên nhóm hoặc người, lúc nhắn. Không lưu nội dung tin nhắn."
+   "default": "EPSON",
+   "description": "Chỉ cần một mảnh tên, ví dụ EPSON. Tên đầy đủ trên Windows đổi theo cổng USB và theo máy, còn mảnh EPSON thì nằm nguyên trong tên driver ở mọi máy quầy.",
+   "fieldname": "qz_may_in_hoa_don",
+   "fieldtype": "Data",
+   "label": "Mảnh tên máy in HOÁ ĐƠN"
   },
   {
-   "fieldname": "zalo_nhom",
-   "fieldtype": "Table",
-   "label": "Nhóm nhận tin",
-   "options": "Vagabond Kenh Zalo"
+   "default": "Xprinter",
+   "description": "Ví dụ Xprinter.",
+   "fieldname": "qz_may_in_tem",
+   "fieldtype": "Data",
+   "label": "Mảnh tên máy in TEM ly, tem hộp"
+  },
+  {
+   "default": "203",
+   "description": "Máy in nhiệt 80mm và máy dán tem thông dụng đều là 203 DPI.",
+   "fieldname": "qz_dpi",
+   "fieldtype": "Int",
+   "label": "Độ phân giải máy in nhiệt (DPI)"
+  },
+  {
+   "fieldname": "sec_tro_ly",
+   "fieldtype": "Section Break",
+   "label": "Trợ lý hướng dẫn dùng app"
+  },
+  {
+   "description": "Tắt ở đây là nút nổi trong app biến mất và không còn gọi API.",
+   "fieldname": "tro_ly_bat",
+   "fieldtype": "Check",
+   "label": "Bật trợ lý"
+  },
+  {
+   "description": "Dán khoá vào đây, hệ thống tự mã hoá. Không ai đọc lại được dạng chữ.",
+   "fieldname": "tro_ly_khoa",
+   "fieldtype": "Password",
+   "label": "Khoá API của mô hình ngôn ngữ"
+  },
+  {
+   "description": "Để trống thì dùng mô hình mặc định.",
+   "fieldname": "tro_ly_mo_hinh",
+   "fieldtype": "Data",
+   "label": "Tên mô hình"
+  },
+  {
+   "fieldname": "col_cd_23",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Để trống hoặc 0 thì lấy mặc định 30 lượt.",
+   "fieldname": "tro_ly_luot_ngay",
+   "fieldtype": "Int",
+   "label": "Hạn mức lượt mỗi người mỗi ngày"
+  },
+  {
+   "description": "Chặn hoá đơn API bất ngờ. Để trống hoặc 0 thì lấy mặc định 1500 lượt.",
+   "fieldname": "tro_ly_luot_thang",
+   "fieldtype": "Int",
+   "label": "Hạn mức lượt cả tiệm mỗi tháng"
+  },
+  {
+   "fieldname": "sec_ai",
+   "fieldtype": "Section Break",
+   "label": "Dịch thuật (Google Gemini)"
+  },
+  {
+   "description": "Dán khoá vào để dịch thực đơn, mô tả món sang tiếng Anh.",
+   "fieldname": "gemini_api_key",
+   "fieldtype": "Password",
+   "label": "Khoá API Gemini"
+  },
+  {
+   "fieldname": "tab_du_lieu_app",
+   "fieldtype": "Tab Break",
+   "label": "Dữ liệu app tự ghi"
+  },
+  {
+   "description": "Những cấu hình này sửa ở app, màn Cài đặt; máy tự ghi xuống đây. Trang này chỉ tóm tắt cho dễ đọc, không cho gõ tay, để không ai gõ sai một dấu phẩy làm hỏng mã QR.",
+   "fieldname": "sec_tom_tat_app",
+   "fieldtype": "Section Break",
+   "label": "Tóm tắt cấu hình sửa ở app"
+  },
+  {
+   "fieldname": "html_du_lieu_app",
+   "fieldtype": "HTML",
+   "label": "Tóm tắt",
+   "options": "<div class=\"vgb-cd-tomtat\"></div>"
+  },
+  {
+   "collapsible": 1,
+   "description": "Dữ liệu dạng mã máy tự ghi. Chỉ để đối chiếu khi cần, đừng sửa ở đây.",
+   "fieldname": "sec_du_lieu_goc",
+   "fieldtype": "Section Break",
+   "label": "Xem dữ liệu gốc (chỉ đọc)"
   }
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-10-03 10:00:00.000000",
+ "modified": "2026-10-04 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Settings",

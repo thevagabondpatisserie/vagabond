@@ -49,6 +49,8 @@ TRUONG_MOI = {
 		{
 			"fieldname": TRUONG,
 			"label": "Tài khoản nhận chuyển khoản",
+			# v568: nằm trong mục Xem dữ liệu gốc (thu gọn) ở tab Dữ liệu app tự ghi.
+			"insert_after": "sec_du_lieu_goc",
 			"fieldtype": "Long Text",
 			"read_only": 1,
 			"description": (
@@ -149,6 +151,25 @@ NGAN_HANG = [
 	{"bin": "971011", "ten": "Viettel Money", "ma": "VIETTELMONEY"},
 	{"bin": "971005", "ten": "VNPT Money", "ma": "VNPTMONEY"},
 ]
+
+
+# Codex #435 vòng 6: cặp "Mã BIN" và "Tên ngân hàng hiện cho khách" trên trang Cài
+# đặt phải đi cùng nhau. Ngân hàng ngoài danh sách trên (danh mục Napas 581 dòng
+# KHÔNG có BIN) vẫn khai được, nhưng phải đủ cả hai ô và BIN đúng 6 chữ số, để mã
+# QR không lỗi và khách không thấy tên lệch với tài khoản thật. THUẦN.
+def kiem_cap_ngan_hang(bin_, ten):
+	"""Trả câu báo lỗi, hoặc None khi hợp lệ. BIN trống là dùng mặc định MB."""
+	bin_ = str(bin_ or "").strip()
+	ten = str(ten or "").strip()
+	if not bin_:
+		# Codex #435 vòng 7: chỉ có tên mà không BIN thì thanh_toan.py lấy BIN mặc
+		# định MB nhưng hiện tên ngân hàng khác, khách thấy tên lệch với QR.
+		return "Có Tên ngân hàng thì phải có Mã BIN (để trống cả hai là dùng MB mặc định)." if ten else None
+	if not (len(bin_) == 6 and bin_.isdigit()):
+		return "Mã BIN ngân hàng phải đúng 6 chữ số."
+	if not ten:
+		return "Có Mã BIN thì phải có Tên ngân hàng hiện cho khách."
+	return None
 
 
 def _ten_ngan_hang(ma):
