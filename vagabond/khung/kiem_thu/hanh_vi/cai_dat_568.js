@@ -117,7 +117,8 @@ ca('tóm tắt tài khoản: nguồn @diem hiện TÊN điểm bán, số tài k
   la('dòng phụ', tk.phu, 'Mặc định: MB …k5p6');
   la('dòng đầu', tk.dong[0], { trai: 'Trần Cao Văn', giua: 'MB …2999', trang: 'ok', nhan: 'Dùng' });
   la('phiếu đòi nợ đang tắt', tk.dong[2], { trai: 'Phiếu đòi nợ khách sỉ', giua: 'MB …1111', trang: 'no', nhan: 'Tắt' });
-  la('mã điểm chưa có trong danh sách thì hiện mã', tk.dong[3].trai, 'Điểm LA');
+  var la1 = V.tomTat({ vgb_tai_khoan_nhan: JSON.stringify({ theo_nguon: [{ bank: 'MB', stk: 'VQRQZZ2222', nguon: '@diem:LA' }] }) }).the[0];
+  la('mã điểm chưa có trong danh sách thì hiện mã', la1.dong[0].trai, 'Điểm LA');
   dung('không lộ số tài khoản đầy đủ', JSON.stringify(V.tomTat(MAU)).indexOf('VQRQALEAF2999') < 0);
   la('mở đúng màn sửa trong app', tk.duong, '/tai-khoan-ke-toan');
 });
@@ -182,11 +183,42 @@ ca('ô tìm: khớp ở NHÃN xếp trên khớp ở tên mục', function () {
   la('nhãn lên trước', V.timTruong('ahamove', ds).map(function (x) { return x.fn; }), ['a', 'b']);
 });
 
-ca('chip ngân hàng: mã BIN không trùng nhau, mỗi chip có tên hiện cho khách', function () {
-  var bin = V.NGAN_HANG.map(function (b) { return b.bin; });
-  la('không trùng', bin.length, new Set(bin).size);
-  dung('đủ sáu số', bin.every(function (b) { return /^\d{6}$/.test(b); }));
-  dung('có tên hiện', V.NGAN_HANG.every(function (b) { return b.hien && b.hien.indexOf(b.ten.split(' ')[0]) === 0; }));
+ca('Codex #433 F1: SePay chỉ còn khoá ở khe thứ hai hoặc thứ ba vẫn là ĐÃ KHAI', function () {
+  // Trước khi sửa (3364c30): chỉ có sepay_hmac_2 thì chip xám "chưa khai" dù
+  // webhook vẫn chạy vì sepay._cac_khoa() thử cả ba khe.
+  ['sepay_khoa_2', 'sepay_hmac_2', 'sepay_hmac_3', 'sepay_khoa', 'sepay_hmac'].forEach(function (k) {
+    var d = { sepay_bat: 1 }; d[k] = '****';
+    la(k, tim(V.tinhTrang(d, BAY_GIO), 'SePay ngân hàng').trang, 'ok');
+  });
+  la('không khe nào', tim(V.tinhTrang({ sepay_bat: 1 }, BAY_GIO), 'SePay ngân hàng').trang, 'no');
+});
+
+ca('Codex #433 F3: thẻ tài khoản 12 dòng chỉ hiện 3 dòng đầu và đếm phần còn lại', function () {
+  // Trước khi sửa: 12 dòng hiện đủ 12, đẩy nút Sửa ở app và các thẻ khác xuống.
+  var tn = [];
+  for (var i = 0; i < 12; i++) tn.push({ bank: 'MB', stk: 'VQR' + i + '0000', nguon: '@diem:D' + i, dung: 1 });
+  var the = V.tomTat({ vgb_tai_khoan_nhan: JSON.stringify({ mac_dinh: { bank: 'MB', stk: 'x' }, theo_nguon: tn }) }).the[0];
+  la('số dòng hiện', the.dong.length, 3);
+  la('còn lại', the.con, 9);
+  var it = V.tomTat(MAU).the[0];
+  la('đúng 3 dòng thì không có dòng còn lại', [it.dong.length, it.con || 0], [3, 1]);
+  var db = V.tomTat({ vgb_diem_ban: JSON.stringify([{ ma: 'a' }, { ma: 'b' }]) }).the[1];
+  la('ít dòng thì hiện đủ', [db.dong.length, db.con || 0], [2, 0]);
+});
+
+var DM_NH = [
+  { bin: '970422', ten: 'MB Bank', ma: 'MB' }, { bin: '970448', ten: 'OCB', ma: 'OCB' },
+  { bin: '970405', ten: 'Agribank', ma: 'VBA' }, { bin: '970432', ten: 'VPBank', ma: 'VPB' },
+  { bin: '970436', ten: 'Vietcombank', ma: 'VCB' },
+];
+ca('Codex #433 F2: ô chọn ngân hàng tìm trong danh mục máy chủ, kể cả ngân hàng ngoài nhóm hay dùng', function () {
+  la('agribank', V.timNganHang('agri', DM_NH).map(function (n) { return n.bin; }), ['970405']);
+  la('theo mã viết tắt', V.timNganHang('vpb', DM_NH).map(function (n) { return n.bin; }), ['970432']);
+  la('theo BIN', V.timNganHang('970448', DM_NH).map(function (n) { return n.ten; }), ['OCB']);
+  la('trống', V.timNganHang('', DM_NH), []);
+  la('BIN đang lưu ra đúng tên', V.nganHangTheoBin(DM_NH, ' 970422 ').ten, 'MB Bank');
+  la('BIN lạ', V.nganHangTheoBin(DM_NH, '123456'), null);
+  dung('JS không còn giữ danh sách ngân hàng riêng', V.NGAN_HANG === undefined);
 });
 
 ca('hộp chọn Zalo: mọi mã loại tin và chủ đề đều có tên, biểu tượng và dòng giải thích', function () {
