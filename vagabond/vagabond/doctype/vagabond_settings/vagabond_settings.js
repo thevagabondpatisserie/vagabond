@@ -82,3 +82,391 @@ frappe.ui.form.on('Vagabond Settings', {
 		}, 'Zalo');
 	}
 });
+
+// ====================================================================
+// v568: quy hoạch lại trang Cài đặt Vagabond.
+//
+// Anh Việt 04/10/2026, kèm hai ảnh trang Cài đặt: *"những phần mã code ở đầu
+// này có ẩn đi hay thu gọn lại được không? Chữ hướng dẫn thì không có dấu
+// tiếng Việt. Quy hoạch lại thành các field, các ô, chip lọc, chip chọn, chip
+// trạng thái... sao cho khoa học nhất, logic nhất"*.
+//
+// Phần dưới chỉ đổi CÁCH HIỂN THỊ. Không ô nào đổi tên, không giá trị nào đổi
+// cách lưu: công tắc vẫn lưu 0/1, chip chọn vẫn lưu đúng giá trị cũ của ô Chọn
+// (ví dụ "Cuon chieu"), chip ngân hàng vẫn ghi mã BIN vào ô cũ.
+//
+// Phép THUẦN gom trong VGB_CD để kiểm thử bằng node không cần Frappe
+// (khung/kiem_thu/hanh_vi/cai_dat_568.js). Phần chạm form nằm cuối tệp.
+// ====================================================================
+var VGB_CD = (function () {
+	function boDau(s) {
+		return String(s == null ? '' : s).toLowerCase()
+			.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd');
+	}
+	function co(v) { return v !== undefined && v !== null && String(v).trim() !== ''; }
+	function bat(v) { return parseInt(v, 10) === 1; }
+	function docJson(s) {
+		if (!co(s)) return null;
+		try { return JSON.parse(s); } catch (e) { return undefined; }
+	}
+
+	// Ô Chọn lưu giá trị không dấu từ trước; chip chỉ hiện nhãn có dấu.
+	var NHAN_CHON = {
+		diem_chu_ky: [['Tat', 'Không hết hạn'], ['Cuon chieu', 'Cuốn chiếu N tháng'], ['Cuoi nam', 'Chốt cuối năm'], ['Ngay ky niem', 'Ngày kỷ niệm']],
+	};
+	// Mã BIN theo NAPAS. Chọn chip là ghi BIN vào ô cũ và tên hiện cho khách.
+	var NGAN_HANG = [
+		{ ten: 'MB Bank', bin: '970422', hien: 'MB - Ngân hàng Quân đội' },
+		{ ten: 'OCB', bin: '970448', hien: 'OCB - Ngân hàng Phương Đông' },
+		{ ten: 'Vietcombank', bin: '970436', hien: 'Vietcombank - Ngân hàng Ngoại thương' },
+		{ ten: 'Techcombank', bin: '970407', hien: 'Techcombank - Ngân hàng Kỹ thương' },
+		{ ten: 'ACB', bin: '970416', hien: 'ACB - Ngân hàng Á Châu' },
+		{ ten: 'BIDV', bin: '970418', hien: 'BIDV - Ngân hàng Đầu tư và Phát triển' },
+		{ ten: 'VietinBank', bin: '970415', hien: 'VietinBank - Ngân hàng Công thương' },
+	];
+
+	// Mỗi kết nối: đủ các ô "can" (hoặc đủ một nhóm trong "canMot") là đã khai;
+	// có ô "bat" mà đang tắt thì vàng. "toi" là ô để nhảy tới khi bấm chip.
+	var KET_NOI = [
+		{ ten: 'Hoá đơn điện tử m-invoice', can: ['minvoice_host', 'minvoice_username', 'minvoice_password'], toi: 'minvoice_host', muc: 'sec_minvoice' },
+		{ ten: 'SePay ngân hàng', canMot: [['sepay_khoa'], ['sepay_hmac']], bat: 'sepay_bat', toi: 'sepay_bat', muc: 'sec_sepay' },
+		{ ten: 'Pancake', can: ['pancake_api_key', 'pancake_shop_id'], toi: 'pancake_api_key', muc: 'sec_pancake' },
+		{ ten: 'Ahamove', can: ['ahamove_api_key', 'ahamove_mobile'], toi: 'ahamove_api_key', muc: 'sec_aha' },
+		{ ten: 'Goong bản đồ', can: ['goong_api_key'], toi: 'goong_api_key', muc: 'sec_goong' },
+		{ ten: 'GreenSM / BE', canMot: [['greensm_client_id', 'greensm_client_secret'], ['be_token']], toi: 'greensm_client_id', muc: 'sec_gsm' },
+		{ ten: 'Zalo bắn tin nhóm', can: ['zalo_bot_token'], bat: 'zalo_bot_bat', toi: 'zalo_bot_bat', muc: 'sec_zalo_bot' },
+		{ ten: 'Zalo ZNS gửi khách', can: ['zalo_app_id', 'zalo_refresh_token'], toi: 'zalo_app_id', muc: 'sec_zalo' },
+		{ ten: 'WhatsApp', can: ['wa_phone_id', 'wa_token'], toi: 'wa_phone_id', muc: 'sec_wa' },
+		{ ten: 'Thông báo đẩy', can: ['push_khoa_cong_khai'], toi: 'push_khoa_cong_khai', muc: 'sec_push' },
+		{ ten: 'Meta Pixel', can: ['meta_pixel_id'], toi: 'meta_pixel_id', muc: 'sec_meta_pixel' },
+		{ ten: 'Máy in QZ Tray', can: ['qz_chung_thu', 'qz_khoa_rieng'], toi: 'qz_chung_thu', muc: 'sec_qz' },
+		{ ten: 'Trợ lý hướng dẫn', can: ['tro_ly_khoa'], bat: 'tro_ly_bat', toi: 'tro_ly_bat', muc: 'sec_tro_ly' },
+		{ ten: 'Dịch Gemini', can: ['gemini_api_key'], toi: 'gemini_api_key', muc: 'sec_ai' },
+	];
+
+	function duKhai(doc, k) {
+		if (k.can && !k.can.every(function (f) { return co(doc[f]); })) return false;
+		if (k.canMot && !k.canMot.some(function (nh) { return nh.every(function (f) { return co(doc[f]); }); })) return false;
+		return true;
+	}
+
+	// Trạng thái: ok xanh, no xám (chưa khai), off vàng (khai rồi nhưng tắt), err đỏ.
+	function tinhTrang(doc, bayGio) {
+		doc = doc || {};
+		var ra = KET_NOI.map(function (k) {
+			var tr = !duKhai(doc, k) ? 'no' : (k.bat && !bat(doc[k.bat]) ? 'off' : 'ok');
+			var ghi = tr === 'no' ? 'chưa khai' : (tr === 'off' ? 'đã khai, đang tắt' : 'đã khai');
+			return { ten: k.ten, trang: tr, ghi: ghi, toi: k.toi, muc: k.muc };
+		});
+		// Còi báo động: hú trong 24 giờ qua là đỏ, kể cả khi đã khai đủ.
+		var luc = co(doc.email_bao_dong_lan_cuoi) ? Date.parse(String(doc.email_bao_dong_lan_cuoi).replace(' ', 'T')) : NaN;
+		var gio = isNaN(luc) ? null : Math.floor(((bayGio || Date.now()) - luc) / 3600000);
+		var coDuong = co(doc.email_canh_bao) || co(doc.webhook_bao_dong);
+		var thu = { ten: 'Thư cảnh báo', toi: 'email_canh_bao', muc: 'sec_gui_thu' };
+		if (gio !== null && gio >= 0 && gio < 24) {
+			thu.trang = 'err'; thu.ghi = 'hú còi ' + (gio === 0 ? 'chưa tới 1 giờ' : gio + ' giờ') + ' trước';
+		} else if (coDuong) {
+			thu.trang = 'ok'; thu.ghi = 'đã khai';
+		} else {
+			thu.trang = 'no'; thu.ghi = 'chưa khai';
+		}
+		ra.push(thu);
+		return ra;
+	}
+
+	// Chip trên đầu từng mục: kết nối của mục đó, hoặc số công tắc đang bật.
+	var CONG_TAC_MUC = { sec_vgb_tu_dong: ['tu_xuat_hddt', 'tu_ghi_so_bat', 'hang_tang_xuat_kho_that'] };
+	function tinhTrangMuc(doc, bayGio) {
+		var ra = {};
+		tinhTrang(doc, bayGio).forEach(function (t) { ra[t.muc] = { trang: t.trang, ghi: t.ghi }; });
+		Object.keys(CONG_TAC_MUC).forEach(function (m) {
+			var ds = CONG_TAC_MUC[m];
+			var n = ds.filter(function (f) { return bat((doc || {})[f]); }).length;
+			ra[m] = { trang: n ? 'ok' : 'no', ghi: 'Đang bật ' + n + '/' + ds.length };
+		});
+		return ra;
+	}
+
+	function duoiSo(s) {
+		s = String(s || '').trim();
+		return s.length > 4 ? '…' + s.slice(-4) : s;
+	}
+
+	// Dữ liệu app tự ghi: mỗi ô thành một thẻ hoặc một dòng tóm tắt, kèm
+	// đường mở đúng màn sửa trong app. Ô hỏng định dạng thì báo đỏ, không nổ.
+	function tomTat(doc) {
+		doc = doc || {};
+		var diem = docJson(doc.vgb_diem_ban);
+		var tenDiem = {};
+		(Array.isArray(diem) ? diem : []).forEach(function (d) { if (d && d.ma) tenDiem[d.ma] = d.ten || d.ma; });
+		function tenNguon(n) {
+			n = String(n || '');
+			if (n.indexOf('@diem:') === 0) return tenDiem[n.slice(6)] || ('Điểm ' + n.slice(6));
+			if (n === '@phieu_cong_no') return 'Phiếu đòi nợ khách sỉ';
+			return n;
+		}
+		var the = [];
+		var dong = [];
+
+		var tk = docJson(doc.vgb_tai_khoan_nhan);
+		var tkThe = { ten: 'Tài khoản nhận chuyển khoản', duong: '/tai-khoan-ke-toan', dong: [] };
+		if (tk === undefined) { tkThe.phu = 'Dữ liệu hỏng định dạng, mở app để khai lại'; tkThe.loi = 1; }
+		else if (!tk) { tkThe.phu = 'Chưa khai, mọi điểm bán dùng tài khoản mặc định của máy'; }
+		else {
+			var md = tk.mac_dinh || {};
+			tkThe.phu = 'Mặc định: ' + (md.bank || '?') + ' ' + duoiSo(md.stk);
+			(tk.theo_nguon || []).forEach(function (x) {
+				tkThe.dong.push({ trai: tenNguon(x.nguon), giua: (x.bank || '') + ' ' + duoiSo(x.stk),
+					trang: (x.dung === undefined || bat(x.dung)) ? 'ok' : 'no',
+					nhan: (x.dung === undefined || bat(x.dung)) ? 'Dùng' : 'Tắt' });
+			});
+		}
+		the.push(tkThe);
+
+		var dbThe = { ten: 'Điểm bán', duong: '/diem-ban', dong: [] };
+		if (diem === undefined) { dbThe.phu = 'Dữ liệu hỏng định dạng'; dbThe.loi = 1; }
+		else if (!diem || !diem.length) { dbThe.phu = 'Chưa khai'; }
+		else {
+			var coQuay = diem.filter(function (d) { return bat(d.co_quay); }).length;
+			dbThe.phu = diem.length + ' điểm, ' + coQuay + ' điểm có quầy';
+			diem.forEach(function (d) {
+				dbThe.dong.push({ trai: d.ten || d.ma, giua: d.ma || '', trang: bat(d.co_quay) ? 'ok' : 'no', nhan: bat(d.co_quay) ? 'Có quầy' : 'Không quầy' });
+			});
+		}
+		the.push(dbThe);
+
+		var pt = docJson(doc.vgb_pt_thanh_toan_ds);
+		var ptThe = { ten: 'Phương thức thanh toán', duong: '/phuong-thuc-thanh-toan', chip: [] };
+		if (pt === undefined) { ptThe.phu = 'Dữ liệu hỏng định dạng'; ptThe.loi = 1; }
+		else if (!pt || !pt.length) { ptThe.phu = 'Chưa khai'; }
+		else {
+			var dangBat = pt.filter(function (x) { return x && (x.bat === undefined || bat(x.bat)); });
+			ptThe.phu = pt.length + ' phương thức, ' + dangBat.length + ' đang bật';
+			dangBat.slice(0, 6).forEach(function (x) { ptThe.chip.push(x.nhan || x.ten || ''); });
+			if (dangBat.length > 6) ptThe.chip.push('+' + (dangBat.length - 6));
+		}
+		the.push(ptThe);
+
+		function demDs(o, ten, donVi, duong) {
+			var v = docJson(doc[o]);
+			var r = { ten: ten, duong: duong || '/phan-he-cai-dat', o: o };
+			if (v === undefined) {
+				// Có ô từ trước lưu dạng chữ thường (ví dụ danh sách mã điểm), không phải mã hỏng.
+				r.ghi = String(doc[o]).slice(0, 60);
+			} else if (v === null || (Array.isArray(v) && !v.length) || (typeof v === 'object' && !Object.keys(v).length)) {
+				r.ghi = 'Chưa khai'; r.trong = 1;
+			} else if (Array.isArray(v)) {
+				r.ghi = v.length + ' ' + donVi;
+			} else {
+				r.ghi = 'Đã khai';
+			}
+			return r;
+		}
+		dong.push(demDs('vgb_may_in', 'Danh sách máy in', 'máy', '/may-in'));
+		dong.push(demDs('vgb_mau_in_quay', 'Mẫu in của quầy', 'mẫu', '/mau-in'));
+		dong.push(demDs('vgb_can_tem', 'Cân in tem', 'cân'));
+		var nhip = docJson(doc.vgb_pancake_nhip);
+		var nhipDong = { ten: 'Nhịp kéo đơn Pancake', duong: '/phan-he-cai-dat', o: 'vgb_pancake_nhip' };
+		if (nhip && typeof nhip === 'object') {
+			nhipDong.ghi = co(nhip.loi) ? 'Lần gần nhất báo lỗi' : ('Kéo được lần cuối ' + (nhip.ok_luc_nao || '?'));
+			if (co(nhip.loi)) nhipDong.loi = 1;
+		} else { nhipDong.ghi = 'Chưa chạy'; nhipDong.trong = 1; }
+		dong.push(nhipDong);
+		dong.push(demDs('vgb_hddt_quay', 'Điểm bán tự xuất hoá đơn điện tử', 'điểm'));
+		dong.push(demDs('vgb_kpi_cau_hinh', 'Cấu hình KPI', 'mục', '/kpi-bang-chi-tieu'));
+		dong.push(demDs('vgb_kho_sap', 'Ngưỡng kho', 'mục'));
+		dong.push(demDs('vgb_nhap_khach_tien_do', 'Tiến độ nhập danh sách khách', 'đợt'));
+		var qbm = { gioi_han: 'Giới hạn theo quyền', tat_ca: 'Ai cũng bỏ được', khong: 'Không ai bỏ được' };
+		dong.push({ ten: 'Quyền bỏ món khỏi bill', duong: '/quyen-quay', o: 'vgb_quyen_bo_mon',
+			ghi: co(doc.vgb_quyen_bo_mon) ? (qbm[doc.vgb_quyen_bo_mon] || doc.vgb_quyen_bo_mon) : 'Chưa khai', trong: co(doc.vgb_quyen_bo_mon) ? 0 : 1 });
+		return { the: the, dong: dong };
+	}
+
+	// Ô tìm: khớp mọi từ (bỏ dấu) trong nhãn, mô tả, tên tab, tên mục.
+	function timTruong(tu, ds) {
+		var cac = boDau(tu).split(/\s+/).filter(Boolean);
+		if (!cac.length) return [];
+		return (ds || []).map(function (x) {
+			var nhan = boDau(x.nhan), toan = nhan + ' ' + boDau(x.mo) + ' ' + boDau(x.tab) + ' ' + boDau(x.muc);
+			if (!cac.every(function (c) { return toan.indexOf(c) >= 0; })) return null;
+			var diem = 0;
+			cac.forEach(function (c) { if (nhan.indexOf(c) >= 0) diem += 10; });
+			if (nhan.indexOf(cac[0]) === 0) diem += 5;
+			return { x: x, diem: diem };
+		}).filter(Boolean).sort(function (a, b) { return b.diem - a.diem; }).slice(0, 8).map(function (r) { return r.x; });
+	}
+
+	return { boDau: boDau, tinhTrang: tinhTrang, tinhTrangMuc: tinhTrangMuc, tomTat: tomTat, timTruong: timTruong,
+		NHAN_CHON: NHAN_CHON, NGAN_HANG: NGAN_HANG, KET_NOI: KET_NOI, docJson: docJson };
+})();
+if (typeof module !== 'undefined' && module.exports) module.exports = VGB_CD;
+
+(function () {
+	if (typeof frappe === 'undefined' || !frappe.ui || !frappe.ui.form) return;
+	var esc = function (s) { return frappe.utils.escape_html(String(s == null ? '' : s)); };
+	var CSS = [
+		'.vgb-cd .vgbc-bar{background:var(--card-bg,#fff);border:1px solid var(--border-color,#e2e6e9);border-radius:12px;padding:16px 18px;margin:0 0 14px}',
+		'.vgb-cd .vgbc-tim{width:100%;min-height:44px;border:1px solid var(--border-color,#cfd6db);border-radius:10px;padding:0 14px;font-size:15px;background:var(--control-bg,#f4f5f6)}',
+		'.vgb-cd .vgbc-kq{margin-top:8px}',
+		'.vgb-cd .vgbc-kq a{display:flex;align-items:center;min-height:44px;padding:6px 10px;border-radius:8px;color:inherit;text-decoration:none;gap:8px;font-size:14px}',
+		'.vgb-cd .vgbc-kq a:hover{background:var(--fg-hover-color,#f4f5f6)}',
+		'.vgb-cd .vgbc-kq small{color:var(--text-muted,#6b737b);font-size:13px}',
+		'.vgb-cd .vgbc-h{font-weight:600;font-size:15px;margin:14px 0 2px}',
+		'.vgb-cd .vgbc-mo{font-size:13px;color:var(--text-muted,#6b737b);margin-bottom:10px}',
+		'.vgb-cd .vgbc-chips{display:flex;flex-wrap:wrap;gap:8px}',
+		'.vgb-cd .vgbc-chip{display:inline-flex;align-items:center;gap:7px;min-height:36px;padding:6px 12px;border-radius:999px;font-size:13px;font-weight:500;border:1px solid transparent;cursor:pointer;line-height:1.2}',
+		'.vgb-cd .vgbc-chip.nho{min-height:26px;padding:2px 10px;font-size:13px;cursor:default}',
+		'.vgb-cd .vgbc-chip i{width:8px;height:8px;border-radius:50%;flex:none}',
+		'.vgb-cd .vgbc-ok{background:#e9f7ef;color:#1e6b3c;border-color:#c6ead4}.vgb-cd .vgbc-ok i{background:#22a05a}',
+		'.vgb-cd .vgbc-no{background:#f3f4f6;color:#5b636b;border-color:#e2e5e8}.vgb-cd .vgbc-no i{background:#a3abb2}',
+		'.vgb-cd .vgbc-off{background:#fff6e5;color:#8a5a00;border-color:#f6dfaa}.vgb-cd .vgbc-off i{background:#e0a100}',
+		'.vgb-cd .vgbc-err{background:#fdecec;color:#a42424;border-color:#f6caca}.vgb-cd .vgbc-err i{background:#d93636}',
+		'.vgb-cd .vgbc-seg{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 4px}',
+		'.vgb-cd .vgbc-seg button{min-height:44px;padding:0 14px;border-radius:9px;border:1px solid var(--border-color,#d8dde1);background:var(--card-bg,#fff);font-size:13px;color:inherit}',
+		'.vgb-cd .vgbc-seg button.on{background:#171717;color:#fff;border-color:#171717}',
+		'.vgb-cd .vgbc-anchon select{display:none}',
+		// Công tắc thay hộp tích: chỉ đổi hình, ô vẫn là checkbox, vẫn lưu 0/1.
+		'.vgb-cd .frappe-control[data-fieldtype="Check"] input[type="checkbox"]{-webkit-appearance:none;appearance:none;width:42px;height:24px;border-radius:12px;background:#cfd6db;position:relative;border:0;margin:0 10px 0 0;cursor:pointer;flex:none;vertical-align:middle;transition:background .15s}',
+		'.vgb-cd .frappe-control[data-fieldtype="Check"] input[type="checkbox"]::after{content:"";position:absolute;width:18px;height:18px;border-radius:50%;background:#fff;top:3px;left:3px;transition:left .15s;box-shadow:0 1px 2px rgba(0,0,0,.2)}',
+		'.vgb-cd .frappe-control[data-fieldtype="Check"] input[type="checkbox"]:checked{background:#22a05a}',
+		'.vgb-cd .frappe-control[data-fieldtype="Check"] input[type="checkbox"]:checked::after{left:21px}',
+		'.vgb-cd .frappe-control[data-fieldtype="Check"] label{display:flex;align-items:center;min-height:44px}',
+		'.vgb-cd .vgbc-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}',
+		'.vgb-cd .vgbc-card{border:1px solid var(--border-color,#e2e6e9);border-radius:10px;padding:14px}',
+		'.vgb-cd .vgbc-card b{font-size:14px}',
+		'.vgb-cd .vgbc-card .p{font-size:13px;color:var(--text-muted,#6b737b);margin:2px 0 8px}',
+		'.vgb-cd .vgbc-r{display:flex;align-items:center;gap:8px;justify-content:space-between;font-size:13px;min-height:36px;border-top:1px dashed var(--border-color,#eceef0)}',
+		'.vgb-cd .vgbc-r span.g{font-family:var(--font-stack-monospace,monospace);color:var(--text-muted,#6b737b)}',
+		'.vgb-cd .vgbc-lnk{display:inline-flex;align-items:center;min-height:44px;font-size:13px;font-weight:500}',
+		'.vgb-cd .vgbc-dong{display:flex;align-items:center;justify-content:space-between;min-height:48px;border-top:1px solid var(--border-color,#eef0f2);font-size:14px;gap:12px}',
+		'.vgb-cd .vgbc-dong small{color:var(--text-muted,#6b737b);font-size:13px}',
+		'.vgb-cd .section-head .vgbc-chip{margin-left:10px;vertical-align:middle}',
+	].join('');
+
+	function chip(tr, chu, nho, toi) {
+		return '<span class="vgbc-chip ' + (nho ? 'nho ' : '') + 'vgbc-' + tr + '"' + (toi ? ' data-toi="' + esc(toi) + '"' : '') +
+			' role="' + (toi ? 'button' : 'note') + '"><i></i>' + esc(chu) + '</span>';
+	}
+
+	function chiMuc(frm) {
+		// Danh bạ cho ô tìm: mỗi ô có nhãn kèm tên tab và tên mục chứa nó.
+		var ds = [], tab = '', muc = '';
+		(frm.meta.fields || []).forEach(function (df) {
+			if (df.fieldtype === 'Tab Break') { tab = df.label || ''; return; }
+			if (df.fieldtype === 'Section Break') { muc = df.label || ''; return; }
+			if (df.fieldtype === 'Column Break' || df.hidden || !df.label) return;
+			ds.push({ fn: df.fieldname, nhan: df.label, mo: df.description || '', tab: tab, muc: muc });
+		});
+		return ds;
+	}
+
+	function veThanh(frm) {
+		var $w = $(frm.layout.wrapper);
+		var $tabs = $w.find('.form-tabs-list').first();
+		var $bar = $w.find('.vgbc-bar');
+		if (!$bar.length) {
+			$bar = $('<div class="vgbc-bar">' +
+				'<input class="vgbc-tim" type="search" placeholder="Tìm cài đặt: mã QR, Ahamove, máy in, điểm thành viên...">' +
+				'<div class="vgbc-kq"></div>' +
+				'<div class="vgbc-h">Tình trạng kết nối</div>' +
+				'<div class="vgbc-mo">Bấm một ô để nhảy tới phần cài đặt đó. Xanh là đã khai đủ, xám là chưa khai, vàng là đã khai nhưng đang tắt, đỏ là vừa có sự cố.</div>' +
+				'<div class="vgbc-chips vgbc-tt"></div></div>');
+			if ($tabs.length) $bar.insertBefore($tabs); else $bar.prependTo($w);
+			$bar.on('input', '.vgbc-tim', function () {
+				var kq = VGB_CD.timTruong(this.value, chiMuc(frm));
+				$bar.find('.vgbc-kq').html(kq.map(function (x) {
+					return '<a href="#" data-toi="' + esc(x.fn) + '"><b>' + esc(x.nhan) + '</b><small>' + esc(x.tab) + ' › ' + esc(x.muc) + '</small></a>';
+				}).join('') || (this.value.trim() ? '<small>Không thấy cài đặt nào khớp.</small>' : ''));
+			});
+			$bar.on('click', '[data-toi]', function (e) {
+				e.preventDefault();
+				frm.scroll_to_field($(this).attr('data-toi'));
+			});
+		}
+		$bar.find('.vgbc-tt').html(VGB_CD.tinhTrang(frm.doc).map(function (t) {
+			return chip(t.trang, t.ten + (t.trang === 'err' ? ': ' + t.ghi : ''), 0, t.toi);
+		}).join(''));
+	}
+
+	function veChipMuc(frm) {
+		var tt = VGB_CD.tinhTrangMuc(frm.doc);
+		(frm.layout.sections || []).forEach(function (s) {
+			var fn = s.df && s.df.fieldname;
+			if (!fn || !s.head) return;
+			s.head.find('.vgbc-chip').remove();
+			if (tt[fn]) s.head.find('.section-head, .ellipsis').first().append(chip(tt[fn].trang, tt[fn].ghi, 1));
+		});
+	}
+
+	function veMatKhau(frm) {
+		(frm.meta.fields || []).forEach(function (df) {
+			if (df.fieldtype !== 'Password' || !frm.fields_dict[df.fieldname]) return;
+			var $l = frm.fields_dict[df.fieldname].$wrapper.find('.control-label').first();
+			$l.find('.vgbc-chip').remove();
+			var c = frm.doc[df.fieldname] && String(frm.doc[df.fieldname]).trim() !== '';
+			$l.append(' ' + chip(c ? 'ok' : 'no', c ? 'Đã khai' : 'Chưa khai', 1));
+		});
+	}
+
+	function veChipChon(frm) {
+		Object.keys(VGB_CD.NHAN_CHON).forEach(function (fn) {
+			var f = frm.fields_dict[fn];
+			if (!f) return;
+			var $ci = f.$wrapper.find('.control-input').first();
+			$ci.addClass('vgbc-anchon');
+			f.$wrapper.find('.vgbc-seg').remove();
+			var $seg = $('<div class="vgbc-seg"></div>').insertBefore($ci);
+			VGB_CD.NHAN_CHON[fn].forEach(function (p) {
+				$('<button type="button"></button>').text(p[1]).toggleClass('on', frm.doc[fn] === p[0])
+					.appendTo($seg).on('click', function () { frm.set_value(fn, p[0]); });
+			});
+		});
+		var nh = frm.fields_dict.ngan_hang_bin;
+		if (nh) {
+			nh.$wrapper.find('.vgbc-seg').remove();
+			var $s = $('<div class="vgbc-seg"></div>').insertAfter(nh.$wrapper.find('.control-input-wrapper').first());
+			VGB_CD.NGAN_HANG.forEach(function (b) {
+				$('<button type="button"></button>').text(b.ten).toggleClass('on', String(frm.doc.ngan_hang_bin || '') === b.bin)
+					.appendTo($s).on('click', function () {
+						frm.set_value('ngan_hang_bin', b.bin);
+						frm.set_value('ngan_hang_hien_thi', b.hien);
+					});
+			});
+		}
+	}
+
+	function veDuLieuApp(frm) {
+		var f = frm.fields_dict.html_du_lieu_app;
+		if (!f) return;
+		var t = VGB_CD.tomTat(frm.doc);
+		var lnk = function (d) { return '<a class="vgbc-lnk" target="_blank" rel="noopener" href="' + esc(d) + '">Sửa ở app ›</a>'; };
+		var html = '<div class="vgbc-cards">' + t.the.map(function (c) {
+			return '<div class="vgbc-card"><b>' + esc(c.ten) + '</b><div class="p">' + (c.loi ? chip('err', c.phu, 1) : esc(c.phu)) + '</div>' +
+				(c.dong || []).map(function (r) {
+					return '<div class="vgbc-r"><span>' + esc(r.trai) + '</span><span class="g">' + esc(r.giua) + '</span>' + chip(r.trang, r.nhan, 1) + '</div>';
+				}).join('') +
+				(c.chip && c.chip.length ? '<div class="vgbc-chips" style="gap:6px">' + c.chip.map(function (x) { return chip('no', x, 1); }).join('') + '</div>' : '') +
+				'<div>' + lnk(c.duong) + '</div></div>';
+		}).join('') + '</div><div style="margin-top:12px">' + t.dong.map(function (r) {
+			return '<div class="vgbc-dong"><span>' + esc(r.ten) + ' <small>· ' + (r.loi ? '' : esc(r.ghi)) + '</small>' +
+				(r.loi ? chip('err', r.ghi, 1) : '') + '</span>' + lnk(r.duong) + '</div>';
+		}).join('') + '</div>';
+		f.$wrapper.html(html);
+	}
+
+	frappe.ui.form.on('Vagabond Settings', {
+		onload(frm) {
+			if (!document.getElementById('vgb-cd-css')) $('<style id="vgb-cd-css"></style>').text(CSS).appendTo('head');
+		},
+		refresh(frm) {
+			$(frm.wrapper).addClass('vgb-cd');
+			veThanh(frm);
+			veChipMuc(frm);
+			veMatKhau(frm);
+			veChipChon(frm);
+			veDuLieuApp(frm);
+		},
+		diem_chu_ky(frm) { veChipChon(frm); },
+		ngan_hang_bin(frm) { veChipChon(frm); },
+	});
+})();
