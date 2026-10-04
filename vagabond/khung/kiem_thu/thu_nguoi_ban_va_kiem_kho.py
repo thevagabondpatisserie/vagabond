@@ -189,8 +189,11 @@ def _():
 	dung("bill nhap van tru", "si.docstatus < 2" in than)
 	dung("bill huy khong tru", "ifnull(si.vgb_huy, 0) = 0" in than)
 	dung("phieu tam tinh khong tru", "ifnull(si.vgb_tam_tinh, 0) = 0" in than)
-	dung("loc dung quay", "ifnull(si.vgb_quay, '') = %s" in than)
-	dung("loc dung ngay", "si.posting_date = %s" in than)
+	dung("loc dung quay", "ifnull(si.vgb_quay, '') = %(quay)s" in than)
+	# v573: lọc theo ngày bán tại quầy qua một nguồn ngay_ban.dk_sql, không
+	# lọc thẳng posting_date (bill đổi ngày khi duyệt hàng tặng bị đếm hai lần).
+	# Hành vi chạy thật ở thu_ngay_ban_573.
+	dung("loc dung ngay", 'ngay_ban.dk_sql("si")' in than)
 
 
 @ca("kiem kho: da_ban khong mo ra ngoai, tam cua ngo con lai deu la cua man hinh")
