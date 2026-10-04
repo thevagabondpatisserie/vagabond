@@ -148,29 +148,29 @@ def _gl_tong(pe):
 	return list(gom.values())
 
 
-@ca("#437 vòng 3: khách trả góp, tờ đã có phiếu nháp một phần vẫn được chia phần còn lại")
+@ca("#437 trả góp hai lần qua khớp tay: lần sau chia phần còn lại, đã thu cộng dồn, phiếu đủ")
 def _tra_gop():
-	from erpnext.accounts.doctype.payment_entry.payment_entry import get_payment_entry
-
 	cty, tk, _mau = _nen()
 	a = _hd_no(tk, cty, 4750000)
 	b = _hd_no(tk, cty, 2850000)
 	ba = _tai_khoan_cong_ty_moi(_tk_ngan_hang(cty)).name
-	tk_gl = frappe.db.get_value("Bank Account", ba, "account")
-	g1 = _gd(ba, 2000000)
-	pe1 = get_payment_entry("Sales Invoice", a.name, party_amount=2000000, bank_account=tk_gl)
-	pe1.reference_no = g1.reference_number; pe1.reference_date = nowdate()
-	pe1.insert(ignore_permissions=True); _DA_TAO.append((pe1.doctype, pe1.name))
-	con = flt(a.grand_total) - 2000000 + flt(b.grand_total)
-	g2 = _gd(ba, con)
 	p = _phieu([a, b])
-	kq, _sau = _khop_bang(_sales(), p.name, con, g2.reference_number)
-	pe = _pe_moi(kq)
-	la("chia cả phần còn lại của tờ 1 và cả tờ 2",
-		sorted((r.reference_name, round(flt(r.allocated_amount))) for r in pe.references),
+	ai = _sales()
+	g1 = _gd(ba, 2000000)
+	kq1, _s = _khop_bang(ai, p.name, 2000000, g1.reference_number)
+	pe1 = _pe_moi(kq1)
+	la("lần 1 vào tờ cũ nhất", [(r.reference_name, round(flt(r.allocated_amount))) for r in pe1.references],
+		[(a.name, 2000000)])
+	la("lần 1 thu thiếu", frappe.db.get_value("Vagabond Cong No", p.name, "trang_thai"), "Thu thieu")
+	con = flt(a.grand_total) + flt(b.grand_total) - 2000000
+	g2 = _gd(ba, con)
+	kq2, _s = _khop_bang(ai, p.name, con, g2.reference_number)
+	pe2 = _pe_moi(kq2)
+	la("lần 2 chia phần còn lại của tờ 1 và cả tờ 2",
+		sorted((r.reference_name, round(flt(r.allocated_amount))) for r in pe2.references),
 		sorted([(a.name, round(flt(a.grand_total) - 2000000)), (b.name, round(flt(b.grand_total)))]))
-	la("không bơ vơ đồng nào", round(flt(pe.paid_amount)), round(con))
-	# Codex #437 vòng 4: đã thu cộng dồn cả phần nháp 2tr có từ trước.
+	la("không bơ vơ đồng nào", round(flt(pe2.paid_amount)), round(con))
+	# Codex #437 vòng 4 và 9: đã thu cộng dồn cả hai lần.
 	la("phiếu đòi nợ đã thu đủ", frappe.db.get_value("Vagabond Cong No", p.name, "trang_thai"), "Da thu du")
 	la("đã thu cộng dồn", round(flt(frappe.db.get_value("Vagabond Cong No", p.name, "da_thu"))),
 		round(flt(a.grand_total) + flt(b.grand_total)))
