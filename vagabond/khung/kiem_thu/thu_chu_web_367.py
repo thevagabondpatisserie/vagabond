@@ -214,15 +214,21 @@ RA({t1,t2,t3:EL('#toast').textContent,cu:c.k});
     dung('hàng mùa: tên mới (%s)' % d['t3'], 'Hộp mới' in d['t3'] and 'Hộp cũ' not in d['t3'])
 
 
-@ca("#431 F1: tên công ty, mã số thuế, địa chỉ pháp lý không nằm trong chữ Marketing sửa được")
+@ca("#367 duyệt 04/10: sửa chữ pháp lý chân trang trong Editor, giữ nguồn mặc định")
 def _phap_ly():
-    mau = json.loads((GOC / 'public/web_order/chu-mac-dinh.json').read_text())
-    chu = json.dumps(mau, ensure_ascii=False)
-    for x in ('0318561568', 'Công ty TNHH Patisserie Vagabond', '9 Trần Cao Vân', '307/1 Nguyễn Văn Trỗi'):
-        dung('không có khóa sửa được chứa %s' % x, x not in chu)
+    # Chỉ đổi chữ hiển thị website; không ghi Company/Tax ID của ERP.
+    keys = ('dat_banh_15f2c7f29','dat_banh_2085c9658','dat_banh_2f7b911ea','dat_banh_cc4a76159')
+    sua = {k:'Chữ mới <vgb-canary>' for k in keys}
+    nd = copy.deepcopy(noi_dung_web.MAC_DINH)
+    nd['nhan'] = sua
+    da_luu = noi_dung_web.chuan_hoa(nd)
+    la('máy chủ chấp nhận cả bốn nhãn', da_luu['nhan'], sua)
+    la('bản công khai nhận chữ đã soạn', {k:noi_dung_web.nhan_day_du(da_luu)[k] for k in keys}, sua)
     trang = (GOC / 'trang/banh.html').read_text()
-    dung('chân trang vẫn in mã số thuế cố định', 'Mã số thuế 0318561568' in trang)
-    dung('mã số thuế không gắn data-vgb-chu', re.search(r'data-vgb-chu="[^"]+">Mã số thuế 0318561568', trang) is None)
+    for k in keys:
+        dung(k+' dùng marker text an toàn', 'data-vgb-chu="'+k+'"' in trang)
+        dung(k+' vẫn có chữ mặc định', noi_dung_web.NHAN[k]['mac_dinh'] in trang)
+    la('để trống về mặc định',noi_dung_web.nhan_day_du({'nhan':{keys[0]:''}})[keys[0]],noi_dung_web.NHAN[keys[0]]['mac_dinh'])
 
 
 @ca("#432 P1: dòng Đã chọn thêm không diễn giải nhãn phụ kiện, nến số thành HTML")

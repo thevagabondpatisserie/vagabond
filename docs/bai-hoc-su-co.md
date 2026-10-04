@@ -1674,3 +1674,11 @@ lần đầu đếm ngoại lệ ra 0 trên 14 đột biến, tưởng bộ ki�
   thay đổi. Fixture mới dùng Opening Stock/tài khoản Temporary cho tồn mới,
   và đếm 9 từ tồn 10 cho hai ca giữ giá 0. Không khẳng định core bench hỗ trợ
   định giá về 0 khi số lượng không đổi.
+
+
+## 04/10/2026 - Phạm vi soạn chữ pháp lý website (#367)
+
+Anh Việt trực tiếp yêu cầu mở sửa toàn bộ chữ, gồm pháp nhân/MST/địa chỉ.
+Đây là override quyết định khóa ở #431, không là thay dữ liệu công ty ERP.
+Giữ kiểm HTML injection, revision và quyền Marketing; đổi ca kiểm cấm sửa
+thành kiểm nội dung được lưu/xuất đúng và fallback, không giữ luật cũ trái duyệt.

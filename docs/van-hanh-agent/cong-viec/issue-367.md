@@ -1,3 +1,18 @@
+# Cập nhật 04/10/2026 - mở toàn bộ chữ theo duyệt trực tiếp
+
+Anh Việt yêu cầu “cho sửa hết trong editor”, gồm bốn dòng pháp lý bị khóa
+ở PR431/432. Codex mở lại tên pháp nhân, MST và hai địa chỉ qua danh mục
+Nhãn và câu chữ, marker textContent hiện có; giữ fallback tĩnh trong HTML.
+Chỉ đổi chữ hiển thị, không ghi Company/Tax ID hoặc chứng từ ERP. Quyền
+Marketing, nháp/xuất bản/lịch sử không đổi. Không đổi font trong lượt này.
+
+Nền main b8a2bd142 (v570), branch codex/web-editor-toan-bo-chu.
+PR431 đã đóng; PR432 đã merge7544931a2 và code mới đã hiện trong HTML live
+(câu chào mới, escape tên phụ kiện), nhưng bốn nhãn vẫn đang khóa trên live.
+Ca cũ cấm sửa được thay bằng kiểm validator nhận đủ bốn nhãn, public snapshot
+nhận chữ, fallback trống và marker escape; 10/10 ca tập trung đạt.
+Cổng/SHA cuối theo PR tiếp nối; không dùng CI432 làm kiểm cho thay đổi mới.
+
 # Issue 367: website đặt bánh và Marketing Studio
 
 ## Hiện tại 03/10/2026: chữ, font và Editor

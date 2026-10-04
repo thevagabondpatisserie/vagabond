@@ -2542,5 +2542,29 @@
     "mac_dinh": "Tự lấy tại",
     "nhom": "bien_nhan",
     "nhieu_dong": true
+  },
+  "dat_banh_15f2c7f29": {
+    "ten": "Công ty TNHH Patisserie Vagabond",
+    "nhom": "dat_banh",
+    "mac_dinh": "Công ty TNHH Patisserie Vagabond",
+    "nhieu_dong": true
+  },
+  "dat_banh_2085c9658": {
+    "ten": "Mã số thuế 0318561568",
+    "nhom": "dat_banh",
+    "mac_dinh": "Mã số thuế 0318561568",
+    "nhieu_dong": true
+  },
+  "dat_banh_2f7b911ea": {
+    "ten": "Cửa hàng Sài Gòn: 9 Trần Cao Vân, Phường Sài Gòn (Quận 1 cũ), TP. Hồ Chí Minh",
+    "nhom": "dat_banh",
+    "mac_dinh": "Cửa hàng Sài Gòn: 9 Trần Cao Vân, Phường Sài Gòn (Quận 1 cũ), TP. Hồ Chí Minh",
+    "nhieu_dong": true
+  },
+  "dat_banh_cc4a76159": {
+    "ten": "Bếp Tân Sơn Hoà: 307/1 Nguyễn Văn Trỗi, Phường Tân Sơn Hoà (Tân Bình cũ), TP. Hồ Chí Minh",
+    "nhom": "dat_banh",
+    "mac_dinh": "Bếp Tân Sơn Hoà: 307/1 Nguyễn Văn Trỗi, Phường Tân Sơn Hoà (Tân Bình cũ), TP. Hồ Chí Minh",
+    "nhieu_dong": true
   }
 }
