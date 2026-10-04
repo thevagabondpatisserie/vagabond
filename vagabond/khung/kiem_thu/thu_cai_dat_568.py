@@ -283,3 +283,32 @@ def _():
 		la("loại %s: biểu tượng" % ma, v["loai_tin"][ma][0], ic)
 		la("loại %s: tên" % ma, v["loai_tin"][ma][1], ten)
 	la("chủ đề trùng CHU_DE", sorted(v["chu_de"]), sorted(kz.CHU_DE))
+
+
+@ca("cài đặt v568 Codex #433: chip SePay nhận đủ mọi khe khoá mà máy chủ chấp nhận")
+def _():
+	from vagabond import sepay
+
+	khe = sorted(f["fieldname"] for f in sepay.TRUONG_MOI["Vagabond Settings"]
+		if f["fieldtype"] == "Password" and re.match(r"^sepay_(khoa|hmac)(_\d)?$", f["fieldname"]))
+	ra = subprocess.check_output(
+		["node", "-e",
+		 "global.frappe={ui:{form:{on(){}}}};var V=require(process.argv[1]);"
+		 "console.log(JSON.stringify(V.KET_NOI.filter(k=>k.muc==='sec_sepay')[0].canMot))", JS_CD],
+		universal_newlines=True)
+	la("khe trong chip trùng khe trên Cài đặt", sorted(sum(json.loads(ra), [])), khe)
+	dung("máy chủ thử đủ ba khe", "ten_goc + \"_2\", ten_goc + \"_3\"" in io.open(sepay.__file__, encoding="utf-8").read())
+
+
+@ca("cài đặt v568 Codex #433: ngân hàng lấy từ MỘT danh mục máy chủ, JS không giữ danh sách BIN thứ hai")
+def _():
+	from vagabond import tai_khoan
+
+	s = io.open(JS_CD, encoding="utf-8").read()
+	# Dò chuỗi chỉ để chốt "không còn chỗ nào tự giữ danh sách" (điều 16).
+	la("số mã BIN viết cứng trong JS", len(re.findall(r"\b970\d{3}\b", s)), 0)
+	dung("JS gọi đúng cửa trả danh mục", "'vagabond.tai_khoan.danh_sach'" in s)
+	dung("cửa đó trả danh mục ngân hàng", '"ngan_hang": NGAN_HANG' in io.open(tai_khoan.__file__, encoding="utf-8").read())
+	dung("danh mục có hơn bảy ngân hàng hay dùng", len(tai_khoan.NGAN_HANG) > 7)
+	d = {f["fieldname"]: f for f in _json()["fields"]}
+	la("tên hiện cho khách chỉ đổi qua ô chọn", d["ngan_hang_hien_thi"].get("read_only"), 1)
