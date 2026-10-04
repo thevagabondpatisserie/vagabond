@@ -38,6 +38,10 @@ def dung():
 	_dung_nhom(can_tru_san.TRUONG_MOI, "can_tru_san")
 	from vagabond import tam_ung_app
 	_dung_nhom(tam_ung_app.TRUONG_MOI, "tam_ung_app")
+	# v573: ngày bán gốc của bill đổi ngày (duyệt hàng tặng, OTP kế toán),
+	# để Kiểm kho, Kiểm bánh không đếm một cái bánh hai ngày.
+	from vagabond import ngay_ban
+	_dung_nhom(ngay_ban.TRUONG_MOI, "ngay_ban")
 
 	# Hien HO TEN thay cho dia chi thu o moi o Link tro toi User, trong toan
 	# bo ERPNext ban may tinh. Anh Viet chot 02/09/2026. Mot dong, va moi o
