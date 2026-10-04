@@ -2502,6 +2502,12 @@ function vgbCss() {
     'border-radius:13px;padding:11px 6px 9px;text-align:center;cursor:pointer}' +
     '.vgbgo:active{transform:scale(.97)}' +
     '.vgbgi{font-size:24px;line-height:1}' +
+    /* O "+ Them" cuoi dai ghim va dai moi ghim khi chua ghim gi (v571). */
+    '.vgbgthem{flex:0 0 auto;width:88px;min-height:72px;border:1.5px dashed #c7d0dd;' +
+    'border-radius:13px;padding:11px 6px 9px;text-align:center;cursor:pointer;color:#667085}' +
+    '.vgbgtrong{cursor:pointer}.vgbgtrong .vgbgh{margin-bottom:4px}' +
+    '.vgbgthemn{color:#0f766e;background:#e6f6f4}' +
+    '.vgbgm{font-size:13px;line-height:1.5;color:#667085}' +
     /* 13 diem la san AGENTS.md dieu 13 ("chu toi thieu 13 diem"); ban dau
        dat 11.5 cho gon o. Hai dong van vua trong o rong 88. */
     '.vgbgn{font-size:13px;font-weight:600;color:#344054;margin-top:6px;line-height:1.25;' +
@@ -2756,6 +2762,7 @@ function vgbGomNhom() {
     if (gh) return vgbBatGhim(gh.dataset.ghim);
     var sg = e.target.closest('[data-suaghim]');
     if (sg) { VGB_SUA_GHIM = !VGB_SUA_GHIM; return vgbVeGhim(); }
+    if (e.target.closest('[data-themghim]')) return vgbChonGhim();
     var r = e.target.closest('[data-go]');
     if (r) return vgbGo(r.dataset.go);
     var t = e.target.closest('[data-nhom]');
@@ -2865,10 +2872,27 @@ function vgbVeLaiGhim() {
 function vgbVeGhim() {
   var w = document.getElementById('vgbGhimW');
   if (!w) return;
-  var ds = VGB_GHIM || [];
-  /* Chua ghim gi thi khoi nay AN hoan toan, khong de mot khung rong chiem
-     cho tren dau trang chu (anh Viet duyet mockup 03/10/2026). */
-  if (!ds.length) { w.innerHTML = ''; VGB_SUA_GHIM = false; return; }
+  /* CHUA doc duoc danh sach (null: dang hoi hoac may chu hong) thi khong ve
+     gi: khong biet nguoi nay ghim gi thi khong moi ho ghim them. */
+  if (!VGB_GHIM) { w.innerHTML = ''; return; }
+  var ds = VGB_GHIM;
+  /* Da doc va CHUA ghim gi: hien mot dai mong moi ghim, KHONG an han.
+
+     Ban v565 an han khoi nay cho gon (mockup 03/10/2026). Do tren site that
+     04/10/2026: khong mot tai khoan nao ghim duoc o nao, vi loi ghim duy
+     nhat nam trong ket qua o tim, ma o tim thi khong ai biet la co nut ghim.
+     Anh Viet hoi lai "sao khong thay bang ghim app hay dung?". Nen giu mot
+     dai mot dong, bam vao la mo hop chon nghiep vu de ghim. */
+  if (!ds.length) {
+    VGB_SUA_GHIM = false;
+    w.innerHTML = '<div class="vgbghim vgbgtrong" data-themghim="1">' +
+      '<div class="vgbgh"><b>\ud83d\udccc Ghim nghi\u1ec7p v\u1ee5 hay d\u00f9ng</b>' +
+      '<span class="vgbgs vgbgthemn">+ Ch\u1ecdn \u00f4 \u0111\u1ec3 ghim</span></div>' +
+      '<div class="vgbgm">Ghim t\u1ed1i \u0111a ' + VGB_GHIM_TOI_DA +
+      ' \u00f4 b\u1ea1n hay m\u1edf l\u00ean \u0111\u1ea7u trang ch\u1ee7. ' +
+      'C\u0169ng ghim \u0111\u01b0\u1ee3c b\u1eb1ng n\u00fat \ud83d\udccc trong k\u1ebft qu\u1ea3 \u00f4 t\u00ecm.</div></div>';
+    return;
+  }
   var o = '';
   for (var i = 0; i < ds.length; i++) {
     var x = VGB_HUB[ds[i]];
@@ -2877,6 +2901,12 @@ function vgbVeGhim() {
       (VGB_SUA_GHIM ? '<span class="vgbgx" data-ghim="' + h(ds[i]) + '">\u2715</span>' : '') +
       '<div class="vgbgi">' + (x.ic || '\ud83d\udccc') + '</div>' +
       '<div class="vgbgn">' + h(x.ten) + '</div></div>';
+  }
+  /* Con cho trong thi de mot o "+ Them" cuoi dai, de ghim them khong phai
+     di vong qua o tim. Dang sua ghim thi an di cho khoi bam nham. */
+  if (!VGB_SUA_GHIM && ds.length < VGB_GHIM_TOI_DA) {
+    o += '<div class="vgbgthem" data-themghim="1"><div class="vgbgi">\uff0b</div>' +
+      '<div class="vgbgn">Th\u00eam</div></div>';
   }
   w.innerHTML = '<div class="vgbghim"><div class="vgbgh">' +
     '<b>\ud83d\udccc Ghim nghi\u1ec7p v\u1ee5 hay d\u00f9ng</b>' +
@@ -2981,6 +3011,36 @@ async function vgbBatGhim(k) {
   VGB_GHIM = vgbLocGhim(ds);
   vgbVeLaiGhim();
   await vgbCatGhim(VGB_GHIM);
+}
+
+/* Mo hop chon de ghim them mot nghiep vu (v571).
+
+   Lay DUNG danh ba ma o tim dang dung (vgbDanhBaNghiepVu), nen o nao nguoi
+   nay khong co quyen thi cung khong hien de ghim. Bo nhung o da ghim roi.
+   Chon xong di qua vgbBatGhim, cua duy nhat doi danh sach ghim, de moi luat
+   (cho doc xong, tran 5 o, cat noi tiep) chi nam o mot cho. */
+async function vgbChonGhim() {
+  if (!VGB_GHIM) {
+    await vgbNapGhim();
+    if (!VGB_GHIM) {
+      return toast('Ch\u01b0a \u0111\u1ecdc \u0111\u01b0\u1ee3c danh s\u00e1ch ghim ' +
+        't\u1eeb m\u00e1y ch\u1ee7. M\u1edf l\u1ea1i trang ch\u1ee7 r\u1ed3i th\u1eed l\u1ea1i.', 3600);
+    }
+  }
+  var con = VGB_GHIM_TOI_DA - VGB_GHIM.length;
+  if (con <= 0) {
+    return toast('Ch\u1ec9 ghim \u0111\u01b0\u1ee3c ' + VGB_GHIM_TOI_DA +
+      ' nghi\u1ec7p v\u1ee5. B\u1ecf m\u1ed9t \u00f4 c\u0169 r\u1ed3i ghim l\u1ea1i.', 3400);
+  }
+  var ds = vgbDanhBaNghiepVu().filter(function (x) { return VGB_GHIM.indexOf(x.k) < 0; });
+  var k = await hoiChon('Ghim nghi\u1ec7p v\u1ee5 hay d\u00f9ng',
+    'Ch\u1ecdn m\u1ed9t \u00f4 \u0111\u1ec3 ghim l\u00ean \u0111\u1ea7u trang ch\u1ee7. C\u00f2n ghim \u0111\u01b0\u1ee3c ' + con + ' \u00f4.',
+    ds.map(function (x) {
+      return { k: x.k, nhan: x.ten, mo_ta: x.phanHe + (x.mo ? ' \u00b7 ' + x.mo : ''),
+        icon: (VGB_HUB[x.k] && VGB_HUB[x.k].ic) || '' };
+    }), null);
+  if (!k) return;
+  return vgbBatGhim(k);
 }
 
 /* Hoi may chu xem nguoi nay con bao nhieu viec, roi deo len o.
@@ -17018,7 +17078,11 @@ async function scrCongNo() {
         '<div style="font-size:12.5px;color:#98a2b3;margin-top:2px">' + h(p.ma_phieu) + ' · ' + p.so_hd + ' hoá đơn · tạo ' + posNgayVn(p.ngay_tao) + '</div>' +
         '<div style="font-size:12.5px;color:' + mau + ';font-weight:700;margin-top:3px">' + nhan +
         (p.het_han && p.trang_thai !== 'Da thu du' ? ' · QR hết hạn ' + posNgayVn(p.han_qr) : '') +
-        (p.sepay ? ' · SePay đã nhận ' + money(p.sepay) + ' đ' : '') + '</div></div>' +
+        (p.sepay ? ' · SePay đã nhận ' + money(p.sepay) + ' đ' : '') + '</div>' +
+        /* v571: phieu da thu du ma hoa don chua co phieu thu thi khach van o
+           tab Dang no. Noi thang ra de nguoi ta vao khop lai. */
+        (p.thieu_phieu_thu ? '<div style="font-size:12.5px;color:#b45309;font-weight:700;margin-top:3px">⚠ ' + p.thieu_phieu_thu + ' hoá đơn chưa có phiếu thu, khách vẫn ở Đang nợ</div>' : '') +
+        '</div>' +
         '<div style="text-align:right"><b style="font-size:16px">' + money(p.tong_tien) + ' đ</b>' +
         (p.con_thieu && p.trang_thai !== 'Huy' ? '<div style="font-size:12px;color:#b91c1c">còn ' + money(p.con_thieu) + ' đ</div>' : '') + '</div>' +
         '<span style="color:#c3c8d4;font-size:20px">›</span></div></div>';
@@ -17240,7 +17304,12 @@ async function scrCnPhieu(name) {
   var d;
   try { d = await api('vagabond.cong_no.xem_phieu', { name: name }); }
   catch (e) { frame('Phiếu đề nghị thanh toán', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không đọc được') + '</div></div>'); return; }
-  var du = d.sepay >= d.tong_tien - 1;
+  /* v571: tien da nhan la moc cao hon giua SePay tu khop va so khop tay.
+     Phieu "Da thu du" ma con hoa don chua co phieu thu thi CHUA xong: khach
+     van o tab Dang no, phai hien lai nut Khop tay de lam lai cho dung. */
+  var daNhan = Math.max(d.sepay || 0, d.da_thu || 0);
+  var thieuPT = d.thieu_phieu_thu || 0;
+  var du = (d.trang_thai === 'Da thu du' || d.sepay >= d.tong_tien - 1) && !thieuPT;
   var qr = d.qr || {};
   var url = qr.stk
     ? 'https://img.vietqr.io/image/' + (qr.bank || 'MB') + '-' + qr.stk + '-qr_only.png?amount=' + Math.round(d.tong_tien) +
@@ -17257,9 +17326,14 @@ async function scrCnPhieu(name) {
 
   if (du) {
     html += '<div class="card" style="padding:18px;text-align:center;border:2px solid #16a34a;background:#f0fdf4">' +
-      '<div style="font-size:34px">✅</div><div style="font-size:18px;font-weight:800;color:#15803d">ĐÃ NHẬN ĐỦ ' + money(d.sepay) + ' đ</div>' +
+      '<div style="font-size:34px">✅</div><div style="font-size:18px;font-weight:800;color:#15803d">ĐÃ NHẬN ĐỦ ' + money(daNhan) + ' đ</div>' +
       '<div style="font-size:13px;color:#15803d;margin-top:4px">Công nợ của khách này đã sạch.</div></div>';
   } else {
+    if (thieuPT) {
+      html += '<div class="card" style="padding:13px 14px;border:1.5px solid #fcd34d;background:#fffbeb;color:#92400e;font-size:13.5px;line-height:1.55">' +
+        '<b>⚠ Phiếu đã ghi nhận ' + money(daNhan) + ' đ nhưng ' + thieuPT + ' hoá đơn chưa có phiếu thu</b>, nên khách vẫn nằm ở tab Đang nợ. ' +
+        'Bấm <b>Khớp tay</b> và chọn đúng giao dịch khách chuyển: máy lập một phiếu thu nháp cho cả các hoá đơn, chuyển chúng sang mục Tiền đã về.</div>';
+    }
     html += '<div class="card" style="padding:14px;text-align:center">' +
       (d.het_han
         ? '<div style="background:#fef2f2;border:1.5px solid #fecaca;color:#b91c1c;border-radius:9px;padding:9px;font-size:13px;font-weight:700;margin-bottom:10px">Mã QR đã quá hạn ' + posNgayVn(d.han_qr) + '. Huỷ phiếu này rồi gom lại phiếu mới.</div>'
@@ -23016,7 +23090,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '570';
+var APPVER = '571';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -39561,7 +39635,11 @@ async function cnKhopTay(d) {
   busy(true);
   try {
     var kq = await api('vagabond.cong_no.khop_tay', { name: d.name, so_tien: soTien, ma_giao_dich: maGd, ghi_chu: gc || '' });
-    busy(false); toast(kq.loi_nhan, 5500);
+    busy(false);
+    /* v571: co lap phieu thu hay co loi thi bao bang hop, khong toast troi
+       mat: day la cau noi khach con o Dang no hay khong. */
+    if (kq.pe || (kq.loi && kq.loi.length)) await baoTin(kq.loi_nhan);
+    else toast(kq.loi_nhan, 5500);
   } catch (e) { busy(false); return baoTin((e && e.message) || 'Khớp tay lỗi'); }
   go(function () { scrCnPhieu(d.name); }, true);
 }
