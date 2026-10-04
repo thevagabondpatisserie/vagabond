@@ -104,7 +104,7 @@ GD = Doi(name="BT-1", reference_number="FT26277123", docstatus=1, deposit=760000
 	date="2026-10-04")
 
 
-def _dung_he(hd=None, pe_cu=None, nhap=None, bank=None):
+def _dung_he(hd=None, pe_cu=None, nhap=None, bank=None, bt=None):
 	"""Thay các cửa chạm hệ của bản Frappe giả. Trả nhật ký và hàm trả lại."""
 	nk = []
 	cu = {}
@@ -124,6 +124,11 @@ def _dung_he(hd=None, pe_cu=None, nhap=None, bank=None):
 			return [Doi(h) for h in ds]
 		if dt == "Payment Entry":
 			return list(pe_cu or [])
+		if dt == "Bank Transaction":
+			# bt: {tên giao dịch: tiền về}. Mặc định giao dịch GD 7,6tr.
+			bang = {"BT-1": 7600000.0} if bt is None else bt
+			ten = ((filters or {}).get("name") or ["in", []])[1]
+			return [Doi(name=n, deposit=v, withdrawal=0.0) for n, v in bang.items() if n in ten]
 		if dt == "Payment Entry Reference":
 			# nhap: list Doi(reference_name, allocated_amount) cua phieu thu NHAP.
 			# Phieu thu DA GHI SO (docstatus 1) ca kiem nay khong dung toi.
@@ -253,11 +258,11 @@ def _():
 		tra()
 
 
-@ca("v571: tiền đã nhận của phiếu là mốc cao hơn giữa SePay và số khớp tay")
+@ca("v571 vòng 9: tiền đã nhận CỘNG DỒN ghi tay và từng giao dịch, mỗi giao dịch một lần, không quá tổng")
 def _():
-	la("khớp tay, SePay 0", cn.da_thu_cua_phieu(0, 7600000), 7600000.0)
-	la("SePay tự khớp", cn.da_thu_cua_phieu(7600000, 0), 7600000.0)
-	la("chưa nhận gì", cn.da_thu_cua_phieu(0, 0), 0.0)
+	la("ghi tay 2tr + SePay 5,6tr", cn.tong_da_nhan(7600000, 2000000, {"BT-S": 5600000}), 7600000.0)
+	la("chưa nhận gì", cn.tong_da_nhan(7600000, 0, {}), 0.0)
+	la("không quá tổng phiếu", cn.tong_da_nhan(7600000, 5000000, {"BT-S": 5600000}), 7600000.0)
 
 
 @ca("v571: câu báo khớp tay nói ĐÚNG việc đã xảy ra, không báo sạch khi phiếu thu hỏng")
@@ -460,16 +465,16 @@ def _():
 	# Trên c6a3b7d: da_thu bị ghi đè còn 5.600.000, phiếu Thu thiếu, màn hiện
 	# lại QR đòi 2.000.000 khách đã trả.
 	nhap = [Doi(reference_name="HDB-26-09-01679", allocated_amount=2000000.0)]
-	nk, tra = _dung_he(nhap=nhap)
+	nk, tra = _dung_he(nhap=nhap, bt={"BT-0": 2000000.0, "BT-2": 5600000.0})
 	doc = PhieuNo(name="P", ma_phieu="DNTT-26-10-00002", trang_thai="Thu thieu",
-		tong_tien=7600000.0, da_thu=2000000.0, flags=Doi(), _nk=nk,
+		tong_tien=7600000.0, da_thu=2000000.0, gd_khop_tay="BT-0", flags=Doi(), _nk=nk,
 		dong=[Doi(hoa_don=h.name) for h in HD])
 	moc = {"get_doc": fr.get_doc, "kq": cn._kiem_quyen_ban, "giu": cn._giu_gd,
 		"tim": tt.tim_giao_dich, "lap": tt.lap_phieu_thu_theo_gd, "gui": cn._gui_thu_da_nhan}
 	fr.get_doc = lambda *a, **k: doc
 	cn._kiem_quyen_ban = lambda: None
 	cn._giu_gd = lambda d, ds: "FT2"
-	tt.tim_giao_dich = lambda ma: GD
+	tt.tim_giao_dich = lambda ma: Doi(GD, name="BT-2", deposit=5600000.0, unallocated_amount=5600000.0)
 	cn._gui_thu_da_nhan = lambda d: None
 
 	def lap(cac_si, g, so, gc=""):
@@ -518,7 +523,7 @@ def _():
 	# Trên 45ba543: da_thu tính từ mọi phân bổ nháp, nên nháp 2tr chưa có
 	# tiền về cộng với lần 5,6tr thật vẫn ra 7,6tr, Da thu du, gửi thư.
 	nhap = [Doi(reference_name="HDB-26-09-01679", allocated_amount=2000000.0, xm=0)]
-	nk, tra = _dung_he(nhap=nhap)
+	nk, tra = _dung_he(nhap=nhap, bt={"BT-2": 5600000.0})
 	doc = PhieuNo(name="P", ma_phieu="DNTT-26-10-00002", trang_thai="Cho thu",
 		tong_tien=7600000.0, da_thu=0.0, flags=Doi(), _nk=nk,
 		dong=[Doi(hoa_don=h.name) for h in HD])
@@ -527,7 +532,7 @@ def _():
 	fr.get_doc = lambda *a, **k: doc
 	cn._kiem_quyen_ban = lambda: None
 	cn._giu_gd = lambda d, ds: "FT2"
-	tt.tim_giao_dich = lambda ma: GD
+	tt.tim_giao_dich = lambda ma: Doi(GD, name="BT-2", deposit=5600000.0, unallocated_amount=5600000.0)
 	cn._gui_thu_da_nhan = lambda d: nk.append(("gui_thu",))
 
 	def lap(cac_si, g, so, gc=""):
@@ -559,8 +564,6 @@ def _():
 		tra()
 	la("lấy đủ 7,6tr của giao dịch", kq["tien"], 7600000.0)
 	la("chia đủ hai tờ", kq["hd"], [("HDB-26-09-01679", 4750000.0), ("HDB-26-09-02477", 2850000.0)])
-	la("tiền đã nhận thuần: ghi sổ + nháp xác minh, không quá tổng phiếu",
-		cn.tien_da_nhan({"A": 1000000}, {"A": 500000, "B": 9000000}, 7600000), 7600000.0)
 
 
 @ca("Codex #437 vòng 6: giao dịch LỚN hơn phần nợ chưa phủ thì dừng, không lập phiếu thiếu chiếm mã giao dịch")
@@ -608,4 +611,66 @@ def _():
 		tt.tim_giao_dich = moc["tim"]
 		tt.lap_phieu_thu_theo_gd = moc["lap"]
 		cn._gui_thu_da_nhan = moc["gui"]
+		tra()
+
+
+@ca("Codex #437 vòng 9: ghi tay 2tr rồi SePay tự khớp 5,6tr thì đã thu 7,6tr, không bị SePay ghi đè")
+def _():
+	# Trên 9db2bcd: kiem_sepay ghi da_thu = 5.600.000 đè lên 2.000.000 ghi tay,
+	# màn còn đòi 2.000.000 lần nữa.
+	nk, tra = _dung_he(bt={"BT-S": 5600000.0})
+	doc = PhieuNo(name="P", ma_phieu="DNTT-26-10-00002", trang_thai="Thu thieu",
+		tong_tien=7600000.0, da_thu=2000000.0, da_thu_tay=2000000.0, gd_khop_tay="",
+		ma_gd="", flags=Doi(), _nk=nk, dong=[Doi(hoa_don=h.name) for h in HD])
+	moc = {"get_doc": fr.get_doc, "kq": cn._kiem_quyen_ban, "giu": cn._giu_gd, "sp": cn._sepay_cn,
+		"gui": cn._gui_thu_da_nhan, "ghi": cn.ghi_thu_cho_phieu, "xem": cn.xem_phieu}
+	fr.get_doc = lambda *a, **k: doc
+	cn._kiem_quyen_ban = lambda: None
+	cn._giu_gd = lambda d, ds: "\n".join(ds)
+	cn._sepay_cn = lambda ma: {"nhan": 5600000.0, "so_gd": 1, "gd": ["BT-S"]}
+	cn._gui_thu_da_nhan = lambda d: None
+	cn.ghi_thu_cho_phieu = lambda *a, **k: []
+	cn.xem_phieu = lambda name: {}
+	try:
+		cn.kiem_sepay("P")
+		la("cộng dồn 7,6tr", doc.da_thu, 7600000.0)
+		la("đã thu đủ", doc.trang_thai, "Da thu du")
+		dung("giữ mã giao dịch SePay", "BT-S" in (doc.ma_gd or ""))
+	finally:
+		fr.get_doc = moc["get_doc"]
+		cn._kiem_quyen_ban = moc["kq"]
+		cn._giu_gd = moc["giu"]
+		cn._sepay_cn = moc["sp"]
+		cn._gui_thu_da_nhan = moc["gui"]
+		cn.ghi_thu_cho_phieu = moc["ghi"]
+		cn.xem_phieu = moc["xem"]
+		tra()
+
+
+@ca("Codex #437 vòng 9: một giao dịch vừa SePay thấy vừa khớp tay chỉ tính MỘT lần")
+def _():
+	nk, tra = _dung_he(bt={"BT-1": 7600000.0})
+	try:
+		doc = Doi(tong_tien=7600000.0, da_thu_tay=0.0, gd_khop_tay="BT-1")
+		la("không nhân đôi", cn._da_nhan_phieu(doc, {"gd": ["BT-1"]}), 7600000.0)
+		doc2 = Doi(tong_tien=15200000.0, da_thu_tay=0.0, gd_khop_tay="BT-1")
+		la("tổng lớn vẫn chỉ một lần", cn._da_nhan_phieu(doc2, {"gd": ["BT-1"]}), 7600000.0)
+	finally:
+		tra()
+
+
+@ca("Codex #437 vòng 9: phiếu nháp CHƯA xác minh không làm hoá đơn trông như đã có phiếu thu")
+def _():
+	nhap = [Doi(reference_name=h.name, allocated_amount=h.outstanding_amount, xm=0) for h in HD]
+	nk, tra = _dung_he(nhap=nhap)
+	try:
+		la("vẫn thiếu phiếu thu cả hai tờ", cn._hd_chua_co_phieu_thu([h.name for h in HD]),
+			{h.name for h in HD})
+	finally:
+		tra()
+	nhap2 = [Doi(reference_name=h.name, allocated_amount=h.outstanding_amount, xm=1) for h in HD]
+	nk, tra = _dung_he(nhap=nhap2)
+	try:
+		la("nháp đã xác minh thì đủ", cn._hd_chua_co_phieu_thu([h.name for h in HD]), set())
+	finally:
 		tra()
