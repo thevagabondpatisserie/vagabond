@@ -195,23 +195,6 @@ TRUONG_MOI = {
 			"insert_after": "nguoi_khop_tay",
 			"read_only": 1,
 		},
-		# v571 (Codex #437 vòng 9): tiền phiếu đã nhận phải CỘNG DỒN các lần
-		# trả, không lấy nguồn lớn hơn. Hai ô dưới giữ phần khớp tay để cộng
-		# với tiền SePay tự khớp, mỗi giao dịch ngân hàng chỉ tính một lần.
-		{
-			"fieldname": "da_thu_tay",
-			"label": "Đã thu ghi tay (không gắn giao dịch)",
-			"fieldtype": "Currency",
-			"insert_after": "ngay_khop_tay",
-			"read_only": 1,
-		},
-		{
-			"fieldname": "gd_khop_tay",
-			"label": "Giao dịch ngân hàng đã khớp tay",
-			"fieldtype": "Small Text",
-			"insert_after": "da_thu_tay",
-			"read_only": 1,
-		},
 	]
 }
 
@@ -623,39 +606,37 @@ def tao_phieu(khach=None, hoa_don=None, ghi_chu=""):
 	return xem_phieu(doc.name)
 
 
-def tong_da_nhan(tong_phieu, da_thu_tay, tien_theo_gd):
-	"""Tiền phiếu đòi nợ đã nhận, CỘNG DỒN mọi lần trả. THUẦN.
+def tong_da_nhan(tong_phieu, da_thu, tien_cho):
+	"""Tiền phiếu đòi nợ đã nhận, CỘNG DỒN. THUẦN.
 
-	`tien_theo_gd` là {tên giao dịch ngân hàng: số tiền về}, gồm cả giao dịch
-	SePay tự khớp theo mã phiếu lẫn giao dịch người khớp tay; khoá là TÊN
-	giao dịch nên một giao dịch dù hai nguồn cùng thấy cũng chỉ tính một lần.
-	`da_thu_tay` là phần khớp tay KHÔNG gắn giao dịch nào.
+	`da_thu` là số đã ghi nhận trên phiếu (mỗi lần khớp tay, mỗi lần SePay
+	đều CỘNG thêm, không ghi đè). `tien_cho` là {giao dịch: tiền} của các
+	giao dịch SePay mang mã phiếu mà CHƯA được ghi nhận (chưa nằm trong
+	ma_gd), để màn hình thấy ngay tiền vừa về trước khi đối chiếu.
 
-	Codex #437: vòng 4 (lần sau ghi đè lần trước), vòng 5 (không đếm phiếu
-	nháp chưa xác minh), vòng 9 (không lấy nguồn lớn hơn giữa SePay và khớp
-	tay: 2tr ghi tay rồi 5,6tr qua SePay là 7,6tr, không phải 5,6tr).
+	Giữ `da_thu` và `ma_gd` làm nguồn, đúng như dữ liệu cũ đã ghi, nên phiếu
+	khớp trước v571 vẫn đọc đúng mà không phải sửa dữ liệu quá khứ (Codex
+	#437 vòng 10). Mỗi giao dịch chỉ tính một lần: đã nằm trong ma_gd (theo
+	tên hay số tham chiếu) thì không còn trong `tien_cho`.
 	"""
-	tong = flt(da_thu_tay) + sum(flt(v) for v in (tien_theo_gd or {}).values())
+	tong = flt(da_thu) + sum(flt(v) for v in (tien_cho or {}).values())
 	return max(0.0, min(flt(tong_phieu), tong))
 
 
-def _tien_cac_gd(ten):
-	"""{tên Bank Transaction: tiền vào} của các giao dịch còn hiệu lực."""
-	ten = [x for x in set(ten or []) if x]
+def _gd_chua_ghi(ma_gd, cac_gd):
+	"""{tên giao dịch: tiền} của các giao dịch CHƯA nằm trong ma_gd."""
+	da = set(chiem_sao_ke.tach_gd(ma_gd))
+	ten = [x for x in set(cac_gd or []) if x and x not in da]
 	if not ten:
 		return {}
 	return {r.name: flt(r.deposit) - flt(r.withdrawal) for r in frappe.get_all("Bank Transaction",
 		filters={"name": ["in", ten], "docstatus": ["<", 2]},
-		fields=["name", "deposit", "withdrawal"], limit_page_length=0)}
-
-
-def _gd_cua_phieu(doc, sepay):
-	"""Tên mọi giao dịch đã tính cho phiếu: SePay theo mã phiếu + khớp tay."""
-	return set((sepay or {}).get("gd") or []) | set(chiem_sao_ke.tach_gd(doc.get("gd_khop_tay")))
+		fields=["name", "reference_number", "deposit", "withdrawal"], limit_page_length=0)
+		if (r.reference_number or "") not in da}
 
 
 def _da_nhan_phieu(doc, sepay):
-	return tong_da_nhan(doc.tong_tien, doc.get("da_thu_tay"), _tien_cac_gd(_gd_cua_phieu(doc, sepay)))
+	return tong_da_nhan(doc.tong_tien, doc.da_thu, _gd_chua_ghi(doc.get("ma_gd"), (sepay or {}).get("gd")))
 
 
 def _hd_chua_co_phieu_thu(cac_si):
@@ -693,7 +674,7 @@ def ds_phieu(trang_thai=None):
 		filters=dk,
 		fields=[
 			"name", "ma_phieu", "khach", "ten_khach", "ngay_tao", "han_qr",
-			"tong_tien", "da_thu", "trang_thai", "ghi_chu", "da_thu_tay", "gd_khop_tay",
+			"tong_tien", "da_thu", "trang_thai", "ghi_chu", "ma_gd",
 		],
 		order_by="creation desc",
 		limit_page_length=200,
@@ -709,13 +690,10 @@ def ds_phieu(trang_thai=None):
 				fields=["parent", "hoa_don"], limit_page_length=0):
 			hd_phieu.setdefault(x.parent, []).append(x.hoa_don)
 	thieu = _hd_chua_co_phieu_thu([h for v in hd_phieu.values() for h in v])
-	tien_gd = _tien_cac_gd(set(x for v in sepay.values() for x in (v.get("gd") or []))
-		| set(x for r in ds for x in chiem_sao_ke.tach_gd(r.get("gd_khop_tay"))))
 	for r in ds:
 		g = sepay.get(str(r.ma_phieu or "").upper()) or {}
 		r["sepay"] = flt(g.get("nhan"))
-		r["da_nhan"] = tong_da_nhan(r.tong_tien, r.get("da_thu_tay"),
-			{k: tien_gd.get(k, 0.0) for k in (set(g.get("gd") or []) | set(chiem_sao_ke.tach_gd(r.get("gd_khop_tay"))))})
+		r["da_nhan"] = tong_da_nhan(r.tong_tien, r.da_thu, _gd_chua_ghi(r.get("ma_gd"), g.get("gd")))
 		r["con_thieu"] = max(0.0, flt(r.tong_tien) - r["da_nhan"])
 		r["thieu_phieu_thu"] = len([h for h in hd_phieu.get(r.name, []) if h in thieu])
 		r["het_han"] = bool(r.han_qr and getdate(r.han_qr) < hom_nay)
@@ -764,7 +742,7 @@ def xem_phieu(name):
 	}
 
 
-def ghi_thu_cho_phieu(doc, pt="Chuyển khoản", ghi_chu=""):
+def ghi_thu_cho_phieu(doc, pt="Chuyển khoản", ghi_chu="", so_tien=None, khoa=""):
 	"""Sinh chung tu thu tien cho cac hoa don trong mot phieu doi no.
 
 	VI SAO PHAI CO (anh Viet 04/09/2026)
@@ -788,7 +766,10 @@ def ghi_thu_cho_phieu(doc, pt="Chuyển khoản", ghi_chu=""):
 	"""
 	from vagabond import thu_tien as tt
 
-	con = flt(doc.da_thu)
+	# v571 (Codex #437 vong 10): chi lap cho PHAN MOI nhan (so_tien), khoa
+	# chong trung rieng cho lan nhan do. Truoc day lap theo TOAN BO da_thu
+	# va dung chung mot khoa, nen lan tra gop sau bi bo qua.
+	con = flt(so_tien) if so_tien is not None else flt(doc.da_thu)
 	if con <= 0:
 		return []
 	ds = frappe.get_all(
@@ -806,16 +787,18 @@ def ghi_thu_cho_phieu(doc, pt="Chuyển khoản", ghi_chu=""):
 		order_by="posting_date asc", limit_page_length=0,
 	)
 	ra = []
+	# Phan phieu thu NHAP da phu thi khong chia vao lan nua (tra gop).
+	nhap = tt.phan_bo_nhap_theo_hd([h["name"] for h in hd])
 	for h in hd:
 		if con <= 0:
 			break
-		phan = min(flt(h["outstanding_amount"]), con)
+		phan = min(tt.con_chua_phu(h["outstanding_amount"], nhap.get(h["name"])), con)
 		if phan <= 0:
 			continue
 		try:
 			ra += tt.ghi_thu_tien(
 				h["name"], [{"pt": pt, "so_tien": phan}],
-				nguon="phieu:%s" % doc.name,
+				nguon="phieu:%s%s" % (doc.name, (":" + khoa) if khoa else ""),
 				ghi_chu=("Theo phiếu đòi nợ %s. %s" % (doc.ma_phieu or doc.name, ghi_chu)).strip(),
 			)
 		except Exception as e:
@@ -841,9 +824,13 @@ def kiem_sepay(name):
 	# nen khong the co phep chan nao ca: mot lan khach chuyen tien co the
 	# vua lam sach mot phieu cong no vua duoc tinh la tien cua mot bill quay.
 	# Nay ghi ro, va hoi ca cac luong khac truoc khi nhan.
-	gd = _giu_gd(doc, sepay.get("gd") or [])
-	# v571 (Codex #437 vong 9): CONG DON voi phan khop tay, khong ghi de.
-	nhan = _da_nhan_phieu(doc, sepay)
+	# v571 (Codex #437 vong 9, 10): chi tinh giao dich CHUA ghi nhan, CONG
+	# vao so da co (khop tay truoc do van giu), va phieu thu chi lap cho
+	# DUNG phan moi ve, khoa theo giao dich (khong lap lai phan cu).
+	cho = _gd_chua_ghi(doc.get("ma_gd"), sepay.get("gd") or [])
+	gd = _giu_gd(doc, list(cho))
+	moi = sum(cho.values())
+	nhan = min(flt(doc.tong_tien), flt(doc.da_thu) + moi)
 	doc.da_thu = nhan
 	# Lech duoi 1 dong coi nhu du - ngan hang lam tron.
 	if nhan >= flt(doc.tong_tien) - 1:
@@ -855,8 +842,9 @@ def kiem_sepay(name):
 	doc.save(ignore_permissions=True)
 	frappe.db.commit()
 	# TIEN VE THI SO CAI PHAI BIET. Xem `ghi_thu_cho_phieu`.
-	if doc.da_thu and not da_du_truoc:
-		ghi_thu_cho_phieu(doc, "Chuyển khoản", "Đối chiếu SePay.")
+	if moi > 0:
+		ghi_thu_cho_phieu(doc, "Chuyển khoản", "Đối chiếu SePay.", so_tien=moi,
+			khoa="sepay:" + ",".join(sorted(cho)))
 		frappe.db.commit()
 	# Thu bao vua nhan tien: chi gui MOT lan, dung luc phieu chuyen sang du.
 	if doc.trang_thai == "Da thu du" and not da_du_truoc:
@@ -1540,17 +1528,21 @@ def khop_tay(name, so_tien, ma_giao_dich="", ghi_chu=""):
 			[h for h in cac_hd if h in chua_pt], g, so_tien,
 			"Theo phiếu đòi nợ %s. %s" % (doc.ma_phieu or doc.name, (ghi_chu or "").strip()),
 		)
-	# Số đã nhận CỘNG DỒN (Codex #437 vòng 4, 5, 9): giao dịch khớp tay được
-	# ghi tên vào gd_khop_tay, khớp tay không giao dịch cộng vào da_thu_tay;
-	# rồi tính một lần cùng giao dịch SePay, mỗi giao dịch chỉ một lần.
+	# Số đã nhận CỘNG DỒN (Codex #437 vòng 4, 9, 10): mỗi lần khớp CỘNG phần
+	# mới nhận vào da_thu. Giao dịch đã nằm trong ma_gd (lần khớp trước, hay
+	# SePay đã ghi) thì không cộng lại: đây là lần sửa phiếu thu, không phải
+	# tiền mới.
+	da_ghi = set(chiem_sao_ke.tach_gd(doc.get("ma_gd")))
 	if g:
-		doc.gd_khop_tay = chiem_sao_ke.gom_gd(chiem_sao_ke.tach_gd(doc.get("gd_khop_tay")) + [g.name])
+		moi = 0.0 if ({g.name, g.reference_number or ""} & da_ghi) else flt(lap.get("tien"))
 	else:
-		doc.da_thu_tay = flt(doc.get("da_thu_tay")) + so_tien
-	doc.da_thu = _da_nhan_phieu(doc, _sepay_cn(doc.ma_phieu))
+		moi = so_tien
+	doc.da_thu = min(flt(doc.tong_tien), flt(doc.da_thu) + moi)
 	doc.trang_thai = "Da thu du" if flt(doc.da_thu) >= flt(doc.tong_tien) - 1 else "Thu thieu"
 	if gd:
-		doc.ma_gd = chiem_sao_ke.gom_gd(chiem_sao_ke.tach_gd(doc.get("ma_gd")) + chiem_sao_ke.tach_gd(gd))
+		# Ghi cả TÊN giao dịch để SePay theo mã phiếu không tính lại lần nữa.
+		doc.ma_gd = chiem_sao_ke.gom_gd(chiem_sao_ke.tach_gd(doc.get("ma_gd")) + chiem_sao_ke.tach_gd(gd)
+			+ ([g.name] if g else []))
 		doc.nguoi_khop_tay = frappe.session.user
 		doc.ngay_khop_tay = frappe.utils.now_datetime()
 	doc.save(ignore_permissions=True)
@@ -1571,7 +1563,8 @@ def khop_tay(name, so_tien, ma_giao_dich="", ghi_chu=""):
 	frappe.db.commit()
 	loi = []
 	if not lap and truoc != "Da thu du":
-		ghi_thu_cho_phieu(doc, "Chuyển khoản", "Kế toán khớp tay.")
+		ghi_thu_cho_phieu(doc, "Chuyển khoản", "Kế toán khớp tay.", so_tien=moi,
+			khoa="tay:%s" % frappe.generate_hash(length=8))
 		loi = doc.flags.loi_thu or []
 		frappe.db.commit()
 	if doc.trang_thai == "Da thu du" and truoc != "Da thu du":
