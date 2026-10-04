@@ -125,7 +125,11 @@ def _dung_he(hd=None, pe_cu=None, nhap=None, bank=None):
 		if dt == "Payment Entry":
 			return list(pe_cu or [])
 		if dt == "Payment Entry Reference":
-			return list(nhap or [])
+			# nhap: list Doi(reference_name, allocated_amount) cua phieu thu NHAP.
+			ds = list(nhap or [])
+			if k.get("pluck"):
+				return [r.get(k["pluck"]) for r in ds]
+			return [Doi(r) for r in ds]
 		return []
 
 	def set_user(u):
@@ -358,4 +362,55 @@ def _():
 		cn._giu_gd = moc["giu"]
 		tt.tim_giao_dich = moc["tim"]
 		cn.ghi_thu_cho_phieu = moc["ghi"]
+		tra()
+
+
+@ca("Codex #437 vòng 3: phần nợ chưa phủ = dư nợ trừ phân bổ phiếu thu NHÁP, không phải có phiếu là phủ đủ")
+def _():
+	la("trả góp 2tr trên tờ 4,75tr", tt.con_chua_phu(4750000, 2000000), 2750000.0)
+	la("chưa có phiếu nháp", tt.con_chua_phu(2850000, None), 2850000.0)
+	la("nháp phủ dư thì 0", tt.con_chua_phu(1000000, 1500000), 0.0)
+
+
+@ca("Codex #437 vòng 3: khách trả góp, lần chuyển sau chia vào CẢ phần còn lại của tờ đã có phiếu nháp")
+def _():
+	# Trên 3c40e63: tờ 4,75tr đã có phiếu nháp 2tr bị loại hẳn, giao dịch
+	# 5,6tr chỉ chia 2,85tr vào tờ kia, 2,75tr bơ vơ.
+	nhap = [Doi(reference_name="HDB-26-09-01679", allocated_amount=2000000.0)]
+	gd = Doi(GD, deposit=5600000.0, unallocated_amount=5600000.0)
+	nk, tra = _dung_he(nhap=nhap)
+	try:
+		kq = tt.lap_phieu_thu_theo_gd([h.name for h in HD], gd, 5600000)
+	finally:
+		tra()
+	la("chia đủ hai tờ", kq["hd"], [("HDB-26-09-01679", 2750000.0), ("HDB-26-09-02477", 2850000.0)])
+	la("không bơ vơ đồng nào", kq["tien"], 5600000.0)
+
+
+@ca("Codex #437 vòng 3: khop_tay đưa CẢ tờ đã có phiếu nháp một phần sang bước lập phiếu")
+def _():
+	nhap = [Doi(reference_name="HDB-26-09-01679", allocated_amount=2000000.0)]
+	nk, tra = _dung_he(nhap=nhap)
+	doc = PhieuNo(name="P", ma_phieu="DNTT-26-10-00002", trang_thai="Thu thieu",
+		tong_tien=7600000.0, da_thu=2000000.0, flags=Doi(), _nk=nk,
+		dong=[Doi(hoa_don=h.name) for h in HD])
+	moc = {"get_doc": fr.get_doc, "kq": cn._kiem_quyen_ban, "giu": cn._giu_gd,
+		"tim": tt.tim_giao_dich, "lap": tt.lap_phieu_thu_theo_gd, "gui": cn._gui_thu_da_nhan}
+	fr.get_doc = lambda *a, **k: doc
+	cn._kiem_quyen_ban = lambda: None
+	cn._giu_gd = lambda d, ds: "FT2"
+	tt.tim_giao_dich = lambda ma: GD
+	cn._gui_thu_da_nhan = lambda d: None
+	tt.lap_phieu_thu_theo_gd = lambda cac_si, g, so, gc="": (
+		nk.append(("lap", tuple(sorted(cac_si)))) or {"pe": "APP-2", "hd": [], "ma_gd": "FT2"})
+	try:
+		cn.khop_tay(doc.name, 5600000, "FT2")
+		la("đưa cả hai tờ", [x[1] for x in nk if x[0] == "lap"], [("HDB-26-09-01679", "HDB-26-09-02477")])
+	finally:
+		fr.get_doc = moc["get_doc"]
+		cn._kiem_quyen_ban = moc["kq"]
+		cn._giu_gd = moc["giu"]
+		tt.tim_giao_dich = moc["tim"]
+		tt.lap_phieu_thu_theo_gd = moc["lap"]
+		cn._gui_thu_da_nhan = moc["gui"]
 		tra()
