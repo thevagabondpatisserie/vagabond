@@ -1572,7 +1572,10 @@ def khop_tay(name, so_tien, ma_giao_dich="", ghi_chu="", ma_lan=""):
 	)
 	frappe.db.commit()
 	loi = []
-	if not lap and truoc != "Da thu du":
+	# Codex #437 sau merge (d9cda52): lối không giao dịch phải lập phiếu thu
+	# cả khi đang SỬA phiếu đã thu đủ mà còn hoá đơn thiếu phiếu thu. Trước
+	# đây điều kiện dựa trên trạng thái cũ nên lần sửa chỉ ghi bình luận.
+	if not lap and (truoc != "Da thu du" or chua_pt):
 		ghi_thu_cho_phieu(doc, "Chuyển khoản", "Kế toán khớp tay.", so_tien=moi,
 			khoa="tay:%s" % (ma_lan or frappe.generate_hash(length=8)))
 		loi = doc.flags.loi_thu or []
