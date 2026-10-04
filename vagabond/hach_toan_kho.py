@@ -266,8 +266,10 @@ TRUONG_MOI = {
 			read_only=1, no_copy=1, hidden=1, insert_after=O_TK_TRUOC),
 	],
 	"Vagabond Settings": [
-		dict(fieldname="vgb_sec_hach_toan_kho", label="Hạch toán kho (v542)", fieldtype="Section Break",
-			insert_after="hang_tang_xuat_kho_that"),
+		# v568: chuyển sang tab Hoá đơn & kế toán, ngay sau mục m-invoice. Neo cũ
+		# hang_tang_xuat_kho_that làm mục này chen giữa tab Bán hàng.
+		dict(fieldname="vgb_sec_hach_toan_kho", label="Hạch toán kho", fieldtype="Section Break",
+			insert_after="sec_minvoice"),
 		dict(fieldname=O_BAN_TU, label="Bán trừ kho từ ngày", fieldtype="Date",
 			insert_after="vgb_sec_hach_toan_kho",
 			description="Hoá đơn bán ghi từ ngày này tự trừ kho điểm bán và ghi giá vốn 632. Để trống là tắt."),
