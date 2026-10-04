@@ -17334,6 +17334,11 @@ async function scrCnPhieu(name) {
         '<b>⚠ Phiếu đã ghi nhận ' + money(daNhan) + ' đ nhưng ' + thieuPT + ' hoá đơn chưa có phiếu thu</b>, nên khách vẫn nằm ở tab Đang nợ. ' +
         'Bấm <b>Khớp tay</b> và chọn đúng giao dịch khách chuyển: máy lập một phiếu thu nháp cho cả các hoá đơn, chuyển chúng sang mục Tiền đã về.</div>';
     }
+  }
+  /* Codex #437 F2: tien da ve du (con_thieu 0) ma chi thieu phieu thu thi
+     KHONG ve QR va khoi chuyen khoan: hien ra la moi nhan vien gui khach doi
+     tien lan hai. Chi giu canh bao va nut Khop tay o chan trang. */
+  if (!du && !(thieuPT && !d.con_thieu)) {
     html += '<div class="card" style="padding:14px;text-align:center">' +
       (d.het_han
         ? '<div style="background:#fef2f2;border:1.5px solid #fecaca;color:#b91c1c;border-radius:9px;padding:9px;font-size:13px;font-weight:700;margin-bottom:10px">Mã QR đã quá hạn ' + posNgayVn(d.han_qr) + '. Huỷ phiếu này rồi gom lại phiếu mới.</div>'
