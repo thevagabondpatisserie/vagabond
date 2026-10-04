@@ -345,6 +345,29 @@ function go(m, chu) {
     bang('dang sua khong co o Them', m2.than.querySelectorAll('.vgbgthem').length, 0);
   });
 
+  await ca('Codex #437 vong 10: du 5 ghim nhung mot o mat quyen thi van them duoc', async function () {
+    /* Dung lai canh: 5 ghim, danh ba ve chi con 4 o. Thu tren 2b069d9:
+       danh ba ve thi vgbDonGhim tu go o mat quyen nen o Them hien lai; chua
+       tai hien duoc canh "danh ba da biet ma chua go". Van khoa them hai cho:
+       dem theo o con quyen, va go truoc khi tinh cho trong o hop chon. */
+    var hoan = { danhBa: true, chon: 'VD' };
+    var m = dungTrangChu(['POS', 'DTREO', 'KBD', 'CN', 'DM:DMSP'], hoan);
+    m.g.vgbGomNhom();
+    await tick();
+    var p = m.g.vgbNapKhungCo();
+    await tick();
+    m.hoan.traDanhBa(['POS', 'DTREO', 'KBD', 'CN', 'VD', 'CNPT']);
+    await p;
+    await new Promise(function (r) { setTimeout(r, 40); });
+    var them = m.than.querySelector('.vgbgthem');
+    dung('co o Them', !!them);
+    bam(m, them.querySelector('.vgbgn'));
+    await new Promise(function (r) { setTimeout(r, 20); });
+    dung('mo duoc hop chon', !!hoan.hoiChon);
+    dung('da ghim o moi', m.g.VGB_GHIM.indexOf('VD') >= 0);
+    dung('khong con o mat quyen', m.g.VGB_GHIM.indexOf('DM:DMSP') < 0);
+  });
+
   await ca('v571: may chu hong thi KHONG hien dai moi ghim', async function () {
     var m = dungTrangChu([]);
     m.g.api = function () { return Promise.reject(new Error('mang hong')); };
