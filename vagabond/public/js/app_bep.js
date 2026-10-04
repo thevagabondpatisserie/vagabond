@@ -17307,7 +17307,9 @@ async function scrCnPhieu(name) {
   /* v571: tien da nhan la moc cao hon giua SePay tu khop va so khop tay.
      Phieu "Da thu du" ma con hoa don chua co phieu thu thi CHUA xong: khach
      van o tab Dang no, phai hien lai nut Khop tay de lam lai cho dung. */
-  var daNhan = Math.max(d.sepay || 0, d.da_thu || 0);
+  /* Codex #437 vong 9: so da nhan lay tu may chu (cong don SePay va khop
+     tay, moi giao dich mot lan), khong tu lay nguon lon hon o day. */
+  var daNhan = d.da_nhan != null ? d.da_nhan : Math.max(d.sepay || 0, d.da_thu || 0);
   var thieuPT = d.thieu_phieu_thu || 0;
   var du = (d.trang_thai === 'Da thu du' || d.sepay >= d.tong_tien - 1) && !thieuPT;
   /* Codex #437 vong 7: da nhan mot phan (SePay hay khop tay) thi QR va khoi
