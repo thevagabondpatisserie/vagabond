@@ -126,6 +126,7 @@ def _dung_he(hd=None, pe_cu=None, nhap=None, bank=None):
 			return list(pe_cu or [])
 		if dt == "Payment Entry Reference":
 			# nhap: list Doi(reference_name, allocated_amount) cua phieu thu NHAP.
+			nk.append(("doc_nhap",))
 			ds = list(nhap or [])
 			if k.get("pluck"):
 				return [r.get(k["pluck"]) for r in ds]
@@ -139,9 +140,13 @@ def _dung_he(hd=None, pe_cu=None, nhap=None, bank=None):
 	fr.get_all = get_all
 	fr.new_doc = lambda dt: PhieuGia(nk)
 	fr.set_user = set_user
-	fr.db.get_value = lambda dt, ten, *a, **k: (
-		Doi(bank or {"account": "1121 - MB - TV", "company": "TV", "is_company_account": 1})
-		if dt == "Bank Account" else None)
+	def get_value(dt, ten, *a, **k):
+		if k.get("for_update"):
+			nk.append(("khoa", dt, ten))
+		if dt == "Bank Account":
+			return Doi(bank or {"account": "1121 - MB - TV", "company": "TV", "is_company_account": 1})
+		return None
+	fr.db.get_value = get_value
 	fr.db.exists = lambda *a, **k: True
 	fr.session.user = "ntla.3008@gmail.com"
 	tt._ghi_vet_thu = lambda *a, **k: nk.append(("vet", fr.session.user))
@@ -190,9 +195,9 @@ def _():
 		sau = fr.session.user
 	finally:
 		tra()
-	la("set_missing_values chạy quyền hệ thống", [u for b, u in nk if b == "set_missing_values"], ["Administrator"])
+	la("set_missing_values chạy quyền hệ thống", [x[1] for x in nk if x[0] == "set_missing_values"], ["Administrator"])
 	la("trả lại đúng người gọi", sau, "ntla.3008@gmail.com")
-	la("vết ghi bằng tên người gọi", [u for b, u in nk if b == "vet"], ["ntla.3008@gmail.com"])
+	la("vết ghi bằng tên người gọi", [x[1] for x in nk if x[0] == "vet"], ["ntla.3008@gmail.com"])
 
 
 @ca("v571: lỗi giữa chừng vẫn TRẢ LẠI người gọi, không để request chạy quyền Administrator")
@@ -260,7 +265,8 @@ class PhieuNo(Doi):
 
 @ca("v571: khop_tay lập phiếu thu TRƯỚC, hỏng thì phiếu đòi nợ KHÔNG bị đánh dấu đã thu")
 def _():
-	nk, tra = _dung_he()
+	nhap = []
+	nk, tra = _dung_he(nhap=nhap)
 	doc = PhieuNo(name="DNTT-26-10-00002", ma_phieu="DNTT-26-10-00002", trang_thai="Cho thu",
 		tong_tien=7600000.0, da_thu=0.0, flags=Doi(), _nk=nk,
 		dong=[Doi(hoa_don=h.name) for h in HD])
@@ -285,6 +291,8 @@ def _():
 
 		def lap_ok(cac_si, g, so, gc=""):
 			nk.append(("lap", tuple(cac_si)))
+			# Phiếu nháp thật phủ đủ hai tờ: da_thu được tính lại từ đây.
+			nhap.extend(Doi(reference_name=h.name, allocated_amount=h.outstanding_amount) for h in HD)
 			return {"pe": "APP-1", "hd": [(s, 1) for s in cac_si], "ma_gd": "FT26277123"}
 		tt.lap_phieu_thu_theo_gd = lap_ok
 		kq = cn.khop_tay(doc.name, 7600000, "FT26277123")
@@ -413,4 +421,76 @@ def _():
 		tt.tim_giao_dich = moc["tim"]
 		tt.lap_phieu_thu_theo_gd = moc["lap"]
 		cn._gui_thu_da_nhan = moc["gui"]
+		tra()
+
+
+@ca("Codex #437 vòng 4: KHOÁ từng hoá đơn theo thứ tự tên TRƯỚC khi đọc phân bổ nháp")
+def _():
+	nk, tra = _dung_he()
+	try:
+		tt.lap_phieu_thu_theo_gd([h.name for h in HD], GD, 7600000)
+	finally:
+		tra()
+	khoa = [x for x in nk if x[0] == "khoa"]
+	la("khoá hai tờ theo thứ tự tên", [(x[1], x[2]) for x in khoa],
+		[("Sales Invoice", "HDB-26-09-01679"), ("Sales Invoice", "HDB-26-09-02477")])
+	buoc = [x[0] for x in nk]
+	dung("khoá xong mới đọc nháp", buoc.index("doc_nhap") > max(i for i, b in enumerate(buoc) if b == "khoa"))
+
+
+@ca("Codex #437 vòng 4: trả góp 2tr rồi 5,6tr thì đã thu CỘNG DỒN 7,6tr, phiếu Đã thu đủ")
+def _():
+	# Trên c6a3b7d: da_thu bị ghi đè còn 5.600.000, phiếu Thu thiếu, màn hiện
+	# lại QR đòi 2.000.000 khách đã trả.
+	nhap = [Doi(reference_name="HDB-26-09-01679", allocated_amount=2000000.0)]
+	nk, tra = _dung_he(nhap=nhap)
+	doc = PhieuNo(name="P", ma_phieu="DNTT-26-10-00002", trang_thai="Thu thieu",
+		tong_tien=7600000.0, da_thu=2000000.0, flags=Doi(), _nk=nk,
+		dong=[Doi(hoa_don=h.name) for h in HD])
+	moc = {"get_doc": fr.get_doc, "kq": cn._kiem_quyen_ban, "giu": cn._giu_gd,
+		"tim": tt.tim_giao_dich, "lap": tt.lap_phieu_thu_theo_gd, "gui": cn._gui_thu_da_nhan}
+	fr.get_doc = lambda *a, **k: doc
+	cn._kiem_quyen_ban = lambda: None
+	cn._giu_gd = lambda d, ds: "FT2"
+	tt.tim_giao_dich = lambda ma: GD
+	cn._gui_thu_da_nhan = lambda d: None
+
+	def lap(cac_si, g, so, gc=""):
+		# Phiếu nháp mới đi vào sổ như thật: thêm phân bổ cho phần còn lại.
+		nhap.append(Doi(reference_name="HDB-26-09-01679", allocated_amount=2750000.0))
+		nhap.append(Doi(reference_name="HDB-26-09-02477", allocated_amount=2850000.0))
+		return {"pe": "APP-2", "hd": [], "ma_gd": "FT2"}
+	tt.lap_phieu_thu_theo_gd = lap
+	try:
+		cn.khop_tay(doc.name, 5600000, "FT2")
+		la("đã thu cộng dồn", doc.da_thu, 7600000.0)
+		la("đã thu đủ", doc.trang_thai, "Da thu du")
+	finally:
+		fr.get_doc = moc["get_doc"]
+		cn._kiem_quyen_ban = moc["kq"]
+		cn._giu_gd = moc["giu"]
+		tt.tim_giao_dich = moc["tim"]
+		tt.lap_phieu_thu_theo_gd = moc["lap"]
+		cn._gui_thu_da_nhan = moc["gui"]
+		tra()
+
+
+@ca("Codex #437 vòng 4: trả lại người gọi HỎNG thì báo lỗi, không chạy tiếp bằng Administrator")
+def _():
+	nk, tra = _dung_he()
+	goc_set = fr.set_user
+
+	def set_user_hong(u):
+		nk.append(("set_user", u))
+		if u != "Administrator":
+			raise RuntimeError("khong doi duoc nguoi dung")
+		fr.session.user = u
+	fr.set_user = set_user_hong
+	try:
+		def chay():
+			with tt.nang_quyen_lap_phieu():
+				pass
+		nem("lỗi bay ra ngoài", chay, Exception)
+	finally:
+		fr.set_user = goc_set
 		tra()
