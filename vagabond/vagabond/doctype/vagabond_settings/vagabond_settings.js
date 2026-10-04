@@ -158,7 +158,7 @@ var VGB_CD = (function () {
 	// Cùng luật với máy chủ tai_khoan.kiem_cap_ngan_hang (ca kiểm chốt hai bên khớp).
 	function kiemCapNganHang(bin, ten) {
 		bin = String(bin || '').trim(); ten = String(ten || '').trim();
-		if (!bin) return null;
+		if (!bin) return ten ? 'Có Tên ngân hàng thì phải có Mã BIN (để trống cả hai là dùng MB mặc định).' : null;
 		if (!/^\d{6}$/.test(bin)) return 'Mã BIN ngân hàng phải đúng 6 chữ số.';
 		if (!ten) return 'Có Mã BIN thì phải có Tên ngân hàng hiện cho khách.';
 		return null;
@@ -188,7 +188,10 @@ var VGB_CD = (function () {
 		// van_don._greensm_dat_don: client_id, client_secret và token_url. be_token
 		// không có dòng Python nào đọc, nên không làm chip xanh được.
 		{ ten: 'GreenSM', can: ['greensm_client_id', 'greensm_client_secret', 'greensm_token_url'], toi: 'greensm_client_id', muc: 'sec_gsm' },
-		{ ten: 'Zalo bắn tin nhóm', can: ['zalo_bot_token'], bat: 'zalo_bot_bat', toi: 'zalo_bot_bat', muc: 'sec_zalo_bot' },
+		// Codex #435 vòng 7: kenh_zalo.chon_nhom bỏ dòng tắt hoặc thiếu mã chat; không
+		// còn nhóm nào nhận thì mọi tin tự động bị bỏ âm thầm, nên phải có ít nhất
+		// một nhóm đang bật và có mã chat mới là đã khai.
+		{ ten: 'Zalo bắn tin nhóm', can: ['zalo_bot_token'], canNhom: 'zalo_nhom', bat: 'zalo_bot_bat', toi: 'zalo_bot_bat', muc: 'sec_zalo_bot' },
 		// zalo.py: làm mới token cần App ID, App Secret và Refresh Token.
 		// Codex #435: zalo.gui_tin từ chối khi không có mã mẫu ZNS, nên phải có ít
 		// nhất một mẫu (OTP đăng nhập, đòi tiền, trừ điểm) mới là đã khai.
@@ -207,6 +210,8 @@ var VGB_CD = (function () {
 	function duKhai(doc, k) {
 		if (k.can && !k.can.every(function (f) { return co(doc[f]); })) return false;
 		if (k.canMot && !k.canMot.some(function (nh) { return nh.every(function (f) { return co(doc[f]); }); })) return false;
+		// Cùng luật với kenh_zalo.chon_nhom: dòng phải đang bật và có mã chat.
+		if (k.canNhom && !(doc[k.canNhom] || []).some(function (r) { return r && bat(r.bat) && co(r.chat_id); })) return false;
 		return true;
 	}
 
@@ -438,6 +443,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = VGB_CD;
 		'.vgb-cd .section-head .vgbc-chip{margin-left:10px;vertical-align:middle}',
 		// Codex #435: chip bấm được để nhảy tới ô phải cao đủ 44px cho ngón tay.
 		'.vgb-cd .vgbc-chip[data-toi]{min-height:44px}',
+		// Codex #435 vòng 7: nút hành động của ô ngân hàng cũng đủ 44px.
+		'.vgb-cd .vgbc-thu-lai,.vgb-cd .vgbc-dung-khac{min-height:44px;padding:0 14px}',
 		// Codex #435: thanh tình trạng chỉ hai dòng (2 x 44px + khe 8px), phần còn
 		// lại sau nút Xem đủ.
 		'.vgb-cd .vgbc-tt.gon{max-height:96px;overflow:hidden}',
