@@ -27,7 +27,9 @@ from vagabond.khung.kiem_thu.nen import ca, dung, la
 
 GOI = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 JSON_CD = os.path.join(GOI, "vagabond", "doctype", "vagabond_settings", "vagabond_settings.json")
-JS_CD = os.path.join(GOI, "vagabond", "doctype", "vagabond_settings", "vagabond_settings.js")
+# v570: phép thuần dời sang tệp dùng chung cho cả Desk và app.
+JS_CD = os.path.join(GOI, "public", "js", "cai_dat_loi_chung.js")
+JS_DESK = os.path.join(GOI, "vagabond", "doctype", "vagabond_settings", "vagabond_settings.js")
 
 TAB = [
 	("tab_ban_hang", "Bán hàng & thanh toán"),
@@ -304,7 +306,7 @@ def _():
 def _():
 	from vagabond import tai_khoan
 
-	s = io.open(JS_CD, encoding="utf-8").read()
+	s = io.open(JS_CD, encoding="utf-8").read() + io.open(JS_DESK, encoding="utf-8").read()
 	# Dò chuỗi chỉ để chốt "không còn chỗ nào tự giữ danh sách" (điều 16).
 	la("số mã BIN viết cứng trong JS", len(re.findall(r"\b970\d{3}\b", s)), 0)
 	dung("JS gọi đúng cửa trả danh mục", "'vagabond.tai_khoan.danh_sach'" in s)

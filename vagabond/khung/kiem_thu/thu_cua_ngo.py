@@ -59,6 +59,9 @@ CUA_NGO = {
 	# v565: ghim nghiep vu hay dung tren trang chu, cat theo tung nguoi.
 	# `chuan` va `doc_chuoi` la phep thuan, KHONG mo ra ngoai.
 	"ghim.py": ["lay", "luu"],
+	# v570: trang Cài đặt lõi và API trên app. Phép thuần (bo_cuc, gia_tri,
+	# ep_kieu, kiem_thay_doi, kiem_dong_bang) KHÔNG mở ra ngoài.
+	"cai_dat_loi.py": ["lay", "luu", "tim_lien_ket"],
 	# v550: trừ kho từng món và trừ bù. tru_bu, tru_bu_kho, xuat_ds là nội bộ
 	# (hook, việc nền, adapter Excel), không mở ra ngoài.
 	"tru_kho_bu.py": ["ds_chua_tru_kho", "tt_hoa_don", "dem_chua_tru_kho", "tru_bu_hd", "tru_bu_diem"],
