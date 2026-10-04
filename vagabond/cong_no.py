@@ -1473,7 +1473,7 @@ def tim_giao_dich_thu(tu_khoa="", so_ngay=120, so_tien=None):
 
 
 @frappe.whitelist()
-def khop_tay(name, so_tien, ma_giao_dich="", ghi_chu=""):
+def khop_tay(name, so_tien, ma_giao_dich="", ghi_chu="", ma_lan=""):
 	"""Ghi nhan tay so tien da nhan cho mot phieu.
 
 	Dung khi SePay khong tu khop duoc. Ghi len phieu va de lai dau vet ai
@@ -1501,6 +1501,15 @@ def khop_tay(name, so_tien, ma_giao_dich="", ghi_chu=""):
 			"Phiếu chỉ %s đ mà khớp %s đ. Xem lại số tiền."
 			% (_tien_vn(doc.tong_tien), _tien_vn(so_tien))
 		)
+	# Codex #437 vòng 10: một lần bấm Khớp tay mang một mã lần (màn tạo khi
+	# mở hộp). Gửi lại cùng mã (mất phản hồi, bấm lại) thì KHÔNG cộng tiền
+	# hay lập phiếu thu lần hai. Phiếu đã khoá ở trên nên hai lời gọi trùng
+	# đi lần lượt, lời sau thấy dấu của lời trước.
+	ma_lan = str(ma_lan or "").strip()[:40]
+	if ma_lan and frappe.db.exists("Comment", {"reference_doctype": "Vagabond Cong No",
+			"reference_name": doc.name, "content": ["like", "%%[lần khớp %s]%%" % ma_lan]}):
+		return {"ok": 1, "da_lam_roi": 1, "pe": "", "loi": [],
+			"loi_nhan": "Lần khớp này đã ghi nhận rồi, không ghi thêm."}
 	truoc = doc.trang_thai
 	cac_hd = [d.hoa_don for d in doc.dong if d.hoa_don]
 	chua_pt = _hd_chua_co_phieu_thu(cac_hd)
@@ -1551,20 +1560,21 @@ def khop_tay(name, so_tien, ma_giao_dich="", ghi_chu=""):
 	so_ghi = flt(lap.get("tien")) if lap else so_tien
 	doc.add_comment(
 		"Comment",
-		"Khớp tay %s đ%s, người làm %s%s%s"
+		"Khớp tay %s đ%s, người làm %s%s%s%s"
 		% (
 			_tien_vn(so_ghi),
 			" (giao dịch %s)" % ma_giao_dich if ma_giao_dich else "",
 			frappe.session.user,
 			". Phiếu thu nháp %s" % lap["pe"] if lap else "",
 			". Ghi chú: %s" % ghi_chu if (ghi_chu or "").strip() else "",
+			" [lần khớp %s]" % ma_lan if ma_lan else "",
 		),
 	)
 	frappe.db.commit()
 	loi = []
 	if not lap and truoc != "Da thu du":
 		ghi_thu_cho_phieu(doc, "Chuyển khoản", "Kế toán khớp tay.", so_tien=moi,
-			khoa="tay:%s" % frappe.generate_hash(length=8))
+			khoa="tay:%s" % (ma_lan or frappe.generate_hash(length=8)))
 		loi = doc.flags.loi_thu or []
 		frappe.db.commit()
 	if doc.trang_thai == "Da thu du" and truoc != "Da thu du":
