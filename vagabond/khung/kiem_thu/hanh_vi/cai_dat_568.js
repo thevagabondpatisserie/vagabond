@@ -189,5 +189,22 @@ ca('chip ngân hàng: mã BIN không trùng nhau, mỗi chip có tên hiện cho
   dung('có tên hiện', V.NGAN_HANG.every(function (b) { return b.hien && b.hien.indexOf(b.ten.split(' ')[0]) === 0; }));
 });
 
+ca('hộp chọn Zalo: mọi mã loại tin và chủ đề đều có tên, biểu tượng và dòng giải thích', function () {
+  // Anh Việt 04/10/2026, kèm ảnh hộp chọn chỉ có mã ban_tin, canh_bao: "không có
+  // subtext để biết tin đó là tin gì". Mã mới thêm vào danh mục mà quên giải
+  // thích thì ca này đỏ.
+  ['loai_tin', 'chu_de'].forEach(function (k) {
+    V.ZALO_DANH_MUC[k].forEach(function (ma) {
+      var n = V.ZALO_NHAN[k][ma];
+      dung(k + '.' + ma + ' có nhãn', !!n);
+      dung(k + '.' + ma + ' có biểu tượng', !!(n && n[0]));
+      dung(k + '.' + ma + ' tên có dấu, không phải mã', n && n[1] && n[1] !== ma && /[^\x00-\x7f]/.test(n[1] + n[2]));
+      dung(k + '.' + ma + ' giải thích đủ một câu', n && n[2] && n[2].length >= 15);
+    });
+    la(k + ' không thừa nhãn ngoài danh mục', Object.keys(V.ZALO_NHAN[k]).sort(), V.ZALO_DANH_MUC[k].slice().sort());
+  });
+  dung('Cảnh báo nói rõ là loại vẫn gửi trong giờ im', /giờ im/.test(V.ZALO_NHAN.loai_tin.canh_bao[2]));
+});
+
 console.log('\n' + dat + ' ca dat, ' + hong + ' ca hong.');
 process.exit(hong ? 1 : 0);
