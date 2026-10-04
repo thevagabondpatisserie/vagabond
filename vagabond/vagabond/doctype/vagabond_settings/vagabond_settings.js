@@ -222,6 +222,16 @@ var VGB_CD = (function () {
 		return ra;
 	}
 
+	// Thứ tự HIỆN chip trên thanh: việc cần để ý lên trước (đỏ, vàng, xám rồi mới
+	// xanh), giữ nguyên thứ tự gốc trong cùng một màu. Thanh chỉ hiện hai dòng
+	// (Codex #435), nên chip cần xử lý phải nằm trong hai dòng đó.
+	var THU_TU_MAU = { err: 0, off: 1, no: 2, ok: 3 };
+	function xepTinhTrang(ds) {
+		return (ds || []).map(function (t, i) { return { t: t, i: i }; }).sort(function (a, b) {
+			return (THU_TU_MAU[a.t.trang] - THU_TU_MAU[b.t.trang]) || (a.i - b.i);
+		}).map(function (x) { return x.t; });
+	}
+
 	// Chip trên đầu từng mục: kết nối của mục đó, hoặc số công tắc đang bật.
 	var CONG_TAC_MUC = { sec_vgb_tu_dong: ['tu_xuat_hddt', 'tu_ghi_so_bat', 'hang_tang_xuat_kho_that'] };
 	function tinhTrangMuc(doc, bayGio) {
@@ -368,7 +378,7 @@ var VGB_CD = (function () {
 	}
 
 	return { boDau: boDau, tinhTrang: tinhTrang, tinhTrangMuc: tinhTrangMuc, tomTat: tomTat, timTruong: timTruong,
-		NHAN_CHON: NHAN_CHON, KET_NOI: KET_NOI, docJson: docJson, nganHangTheoBin: nganHangTheoBin, timNganHang: timNganHang, moToi: moToi,
+		NHAN_CHON: NHAN_CHON, KET_NOI: KET_NOI, docJson: docJson, nganHangTheoBin: nganHangTheoBin, timNganHang: timNganHang, moToi: moToi, xepTinhTrang: xepTinhTrang,
 		ZALO_NHAN: ZALO_NHAN, ZALO_DANH_MUC: ZALO_DANH_MUC };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = VGB_CD;
@@ -414,6 +424,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = VGB_CD;
 		'.vgb-cd .vgbc-dong{display:flex;align-items:center;justify-content:space-between;min-height:48px;border-top:1px solid var(--border-color,#eef0f2);font-size:14px;gap:12px}',
 		'.vgb-cd .vgbc-dong small{color:var(--text-muted,#6b737b);font-size:13px}',
 		'.vgb-cd .section-head .vgbc-chip{margin-left:10px;vertical-align:middle}',
+		// Codex #435: chip bấm được để nhảy tới ô phải cao đủ 44px cho ngón tay.
+		'.vgb-cd .vgbc-chip[data-toi]{min-height:44px}',
+		// Codex #435: thanh tình trạng chỉ hai dòng (2 x 44px + khe 8px), phần còn
+		// lại sau nút Xem đủ.
+		'.vgb-cd .vgbc-tt.gon{max-height:96px;overflow:hidden}',
+		'.vgb-cd .vgbc-xem{min-height:44px;margin-top:4px;padding:0 4px;background:none;border:0;color:var(--text-color,#1f272e);font-weight:600;font-size:13px;cursor:pointer;text-decoration:underline}',
 	].join('');
 
 	function chip(tr, chu, nho, toi) {
@@ -443,7 +459,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = VGB_CD;
 				'<div class="vgbc-kq"></div>' +
 				'<div class="vgbc-h">Tình trạng kết nối</div>' +
 				'<div class="vgbc-mo">Bấm một ô để nhảy tới phần cài đặt đó. Xanh là đã khai đủ, xám là chưa khai, vàng là đã khai nhưng đang tắt, đỏ là vừa có sự cố.</div>' +
-				'<div class="vgbc-chips vgbc-tt"></div></div>');
+				'<div class="vgbc-chips vgbc-tt gon"></div><button type="button" class="vgbc-xem"></button></div>');
 			if ($tabs.length) $bar.insertBefore($tabs); else $bar.prependTo($w);
 			$bar.on('input', '.vgbc-tim', function () {
 				var kq = VGB_CD.timTruong(this.value, chiMuc(frm));
@@ -455,10 +471,20 @@ if (typeof module !== 'undefined' && module.exports) module.exports = VGB_CD;
 				e.preventDefault();
 				VGB_CD.moToi(frm, $(this).attr('data-toi'));
 			});
+			$bar.on('click', '.vgbc-xem', function () {
+				frm.__vgb_mo_tt = !frm.__vgb_mo_tt;
+				veThanh(frm);
+			});
 		}
-		$bar.find('.vgbc-tt').html(VGB_CD.tinhTrang(frm.doc).map(function (t) {
+		var ds = VGB_CD.xepTinhTrang(VGB_CD.tinhTrang(frm.doc));
+		var $tt = $bar.find('.vgbc-tt');
+		$tt.html(ds.map(function (t) {
 			return chip(t.trang, t.ten + (t.trang === 'err' ? ': ' + t.ghi : ''), 0, t.toi);
 		}).join(''));
+		if (frm.__vgb_mo_tt) $tt.removeClass('gon'); else $tt.addClass('gon');
+		var can = ds.filter(function (t) { return t.trang !== 'ok'; }).length;
+		$bar.find('.vgbc-xem').text(frm.__vgb_mo_tt ? 'Thu gọn'
+			: 'Xem đủ ' + ds.length + ' kết nối' + (can ? ' (' + can + ' cần để ý, đã xếp lên đầu)' : ''));
 	}
 
 	function veChipMuc(frm) {
@@ -467,7 +493,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = VGB_CD;
 			var fn = s.df && s.df.fieldname;
 			if (!fn || !s.head) return;
 			s.head.find('.vgbc-chip').remove();
-			if (tt[fn]) s.head.find('.section-head, .ellipsis').first().append(chip(tt[fn].trang, tt[fn].ghi, 1));
+			// Codex #435: trên Frappe 16, s.head CHÍNH LÀ .section-head (con duy nhất là
+			// .collapse-indicator), nên tìm .section-head bên trong nó luôn ra rỗng và
+			// chip không bao giờ hiện. Gắn thẳng vào s.head.
+			var $h = s.head.is && s.head.is('.section-head') ? s.head : s.head.find('.section-head').first();
+			if (tt[fn] && $h.length) $h.append(chip(tt[fn].trang, tt[fn].ghi, 1));
 		});
 	}
 
@@ -582,5 +612,5 @@ if (typeof module !== 'undefined' && module.exports) module.exports = VGB_CD;
 		ngan_hang_bin(frm) { veChipChon(frm); },
 	});
 	// Chỉ cho ca kiểm node (hanh_vi/cai_dat_568.js); trên trình duyệt không có module.
-	if (typeof module !== 'undefined' && module.exports) module.exports._desk = { veNganHang: veNganHang };
+	if (typeof module !== 'undefined' && module.exports) module.exports._desk = { veNganHang: veNganHang, veChipMuc: veChipMuc, veThanh: veThanh };
 })();
