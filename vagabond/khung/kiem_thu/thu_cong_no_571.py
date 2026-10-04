@@ -721,3 +721,37 @@ def _():
 		tt.ghi_thu_tien = goc
 		tra()
 	la("chỉ 2tr vào tờ cũ nhất", [x[1:] for x in nk if x[0] == "thu"], [("HDB-26-09-01679", 2000000.0)])
+
+
+@ca("Codex #437 vòng 10: gửi lại cùng mã lần khớp tay thì KHÔNG cộng tiền, không lập phiếu thu lần hai")
+def _():
+	nk, tra = _dung_he()
+	binh = []
+	doc = PhieuNo(name="P", ma_phieu="DNTT-26-10-00002", trang_thai="Cho thu",
+		tong_tien=7600000.0, da_thu=0.0, ma_gd="", flags=Doi(), _nk=nk,
+		dong=[Doi(hoa_don=h.name) for h in HD])
+	moc = {"get_doc": fr.get_doc, "kq": cn._kiem_quyen_ban, "giu": cn._giu_gd,
+		"gui": cn._gui_thu_da_nhan, "ghi": cn.ghi_thu_cho_phieu, "ex": fr.db.exists}
+	fr.get_doc = lambda *a, **k: doc
+	cn._kiem_quyen_ban = lambda: None
+	cn._giu_gd = lambda d, ds: ""
+	cn._gui_thu_da_nhan = lambda d: None
+	cn.ghi_thu_cho_phieu = lambda *a, **k: nk.append(("ghi_thu", k.get("so_tien"), k.get("khoa"))) or []
+	# Dấu lần khớp nằm trong bình luận: exists đọc đúng các bình luận đã ghi.
+	fr.db.exists = lambda dt, f=None, **k: dt == "Comment" and any(
+		f["content"][1].strip("%") in x[1] for x in nk if x[0] == "binh_luan")
+	try:
+		cn.khop_tay("P", 2000000, "", "khach dua tien mat", ma_lan="lan1")
+		kq2 = cn.khop_tay("P", 2000000, "", "khach dua tien mat", ma_lan="lan1")
+		la("đã thu chỉ cộng một lần", doc.da_thu, 2000000.0)
+		la("chỉ một lần lập phiếu thu, khoá ổn định", [x[1:] for x in nk if x[0] == "ghi_thu"],
+			[(2000000.0, "tay:lan1")])
+		la("lần sau báo đã làm rồi", kq2.get("da_lam_roi"), 1)
+	finally:
+		fr.get_doc = moc["get_doc"]
+		cn._kiem_quyen_ban = moc["kq"]
+		cn._giu_gd = moc["giu"]
+		cn._gui_thu_da_nhan = moc["gui"]
+		cn.ghi_thu_cho_phieu = moc["ghi"]
+		fr.db.exists = moc["ex"]
+		tra()
