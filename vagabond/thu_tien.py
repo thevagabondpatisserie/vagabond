@@ -1678,6 +1678,17 @@ def lap_phieu_thu_theo_gd(cac_si, g, so_tien, ghi_chu=""):
 	# chưa phủ, KHÔNG tin số máy khách gửi lên. Lập thiếu thì phần còn lại
 	# của giao dịch bơ vơ, vì phiếu này đã chiếm mã giao dịch.
 	tien = min(flt(g.unallocated_amount), sum(h.con_phu for h in hd))
+	# Codex #437 vòng 6: giao dịch LỚN hơn phần nợ còn chưa phủ thì KHÔNG lập
+	# phiếu thiếu. Phiếu này chiếm mã giao dịch, phần dư sẽ không bao giờ
+	# phân bổ được nữa. Dừng, nói rõ phải làm gì.
+	if flt(g.unallocated_amount) > tien + LECH:
+		frappe.throw(
+			"Giao dịch %s còn %s đ, lớn hơn phần nợ chưa có phiếu thu của các hoá đơn "
+			"trong phiếu (%s đ). Thường do đã có phiếu thu nháp cũ đang giữ một phần "
+			"nợ: mở tab Tiền đã về xem và huỷ phiếu nháp không đúng rồi khớp lại; "
+			"nếu khách chuyển dư thật thì báo kế toán xử lý khoản dư."
+			% (ref, "{:,.0f}".format(flt(g.unallocated_amount)).replace(",", "."),
+				"{:,.0f}".format(tien).replace(",", ".")))
 	chia = chia_tien_cho_hd(tien, [{"name": h.name, "con_no": h.con_phu,
 		"ngay": str(h.posting_date)} for h in hd])
 	if not chia:

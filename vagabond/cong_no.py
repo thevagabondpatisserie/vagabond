@@ -1539,11 +1539,14 @@ def khop_tay(name, so_tien, ma_giao_dich="", ghi_chu=""):
 		doc.nguoi_khop_tay = frappe.session.user
 		doc.ngay_khop_tay = frappe.utils.now_datetime()
 	doc.save(ignore_permissions=True)
+	# Codex #437 vòng 6: có phiếu thu thì ghi ĐÚNG số máy chủ đã phân bổ,
+	# không ghi số máy khách gửi lên.
+	so_ghi = flt(lap.get("tien")) if lap else so_tien
 	doc.add_comment(
 		"Comment",
 		"Khớp tay %s đ%s, người làm %s%s%s"
 		% (
-			_tien_vn(so_tien),
+			_tien_vn(so_ghi),
 			" (giao dịch %s)" % ma_giao_dich if ma_giao_dich else "",
 			frappe.session.user,
 			". Phiếu thu nháp %s" % lap["pe"] if lap else "",
@@ -1562,7 +1565,7 @@ def khop_tay(name, so_tien, ma_giao_dich="", ghi_chu=""):
 		except Exception:
 			frappe.log_error(frappe.get_traceback(), "cong_no: gui thu sau khop tay loi")
 	return {"ok": 1, "pe": lap["pe"] if lap else "", "loi": loi,
-		"loi_nhan": cau_bao_khop_tay(doc.ma_phieu, so_tien, doc.trang_thai, lap, loi)}
+		"loi_nhan": cau_bao_khop_tay(doc.ma_phieu, so_ghi, doc.trang_thai, lap, loi)}
 
 
 def cau_bao_khop_tay(ma_phieu, so_tien, trang_thai, lap, loi):
