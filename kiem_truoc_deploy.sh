@@ -131,6 +131,9 @@ node vagabond/khung/kiem_thu/hanh_vi/qr_xhd_bill_352.js
 # v565: o tim nghiep vu, o ghim va viec gom nhom trong man phan he - chay
 # that chuoi go va bam tren DOM gia (anh Viet 03/10/2026).
 node vagabond/khung/kiem_thu/hanh_vi/trang_chu_565.js
+# v568: trang Cai dat Vagabond - chip tinh trang ket noi, the tom tat du lieu
+# app tu ghi, o tim cai dat (anh Viet 04/10/2026).
+node vagabond/khung/kiem_thu/hanh_vi/cai_dat_568.js
 # v530: hop chon hoa don den sau muc ho so, o tim giu display:flex.
 node vagabond/khung/kiem_thu/hanh_vi/hoa_don_sau_530.js
 # #352: thanh bao hoa don dau vao chua thanh phieu mua tren Desk.
