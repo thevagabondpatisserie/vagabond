@@ -182,8 +182,12 @@ var VGB_CD = (function () {
 		{ ten: 'GreenSM', can: ['greensm_client_id', 'greensm_client_secret', 'greensm_token_url'], toi: 'greensm_client_id', muc: 'sec_gsm' },
 		{ ten: 'Zalo bắn tin nhóm', can: ['zalo_bot_token'], bat: 'zalo_bot_bat', toi: 'zalo_bot_bat', muc: 'sec_zalo_bot' },
 		// zalo.py: làm mới token cần App ID, App Secret và Refresh Token.
-		{ ten: 'Zalo ZNS gửi khách', can: ['zalo_app_id', 'zalo_app_secret', 'zalo_refresh_token'], toi: 'zalo_app_id', muc: 'sec_zalo' },
-		{ ten: 'WhatsApp', can: ['wa_phone_id', 'wa_token'], toi: 'wa_phone_id', muc: 'sec_wa' },
+		// Codex #435: zalo.gui_tin từ chối khi không có mã mẫu ZNS, nên phải có ít
+		// nhất một mẫu (OTP đăng nhập, đòi tiền, trừ điểm) mới là đã khai.
+		{ ten: 'Zalo ZNS gửi khách', can: ['zalo_app_id', 'zalo_app_secret', 'zalo_refresh_token'],
+			canMot: [['zns_template_otp'], ['zns_template_thanh_toan'], ['zns_template_diem']], toi: 'zalo_app_id', muc: 'sec_zalo' },
+		// whatsapp.gui_mau từ chối khi không có tên mẫu; nơi gọi duy nhất dùng mẫu thanh toán.
+		{ ten: 'WhatsApp', can: ['wa_phone_id', 'wa_token', 'wa_template_thanh_toan'], toi: 'wa_phone_id', muc: 'sec_wa' },
 		// thong_bao.py gửi bằng khoá riêng VAPID; thiếu là "chua co khoa VAPID".
 		{ ten: 'Thông báo đẩy', can: ['push_khoa_cong_khai', 'push_khoa_rieng'], toi: 'push_khoa_cong_khai', muc: 'sec_push' },
 		{ ten: 'Meta Pixel', can: ['meta_pixel_id'], toi: 'meta_pixel_id', muc: 'sec_meta_pixel' },
@@ -534,11 +538,18 @@ if (typeof module !== 'undefined' && module.exports) module.exports = VGB_CD;
 		var f = frm.fields_dict.ngan_hang_bin;
 		if (!f) return;
 		f.$wrapper.find('.vgbc-nh').remove();
+		// Ô BIN gốc LUÔN ẩn: chỉ đổi qua danh mục, để Mã BIN và Tên hiện cho khách
+		// không lệch nhau (Codex #435). Không để ô BIN read_only trong doctype: Frappe
+		// ẩn cả ô read_only khi trống, mất luôn ô chọn.
+		f.$wrapper.find('.control-input').first().addClass('vgbc-anchon-in');
 		var $k = $('<div class="vgbc-nh"></div>').appendTo(f.$wrapper);
+		// Khi chưa có danh mục (đang tải hoặc tải hỏng) vẫn cho THẤY mã đang lưu,
+		// không để khung trống (Codex #433 vòng 3), nhưng không cho gõ tay.
+		function dangLuu() {
+			var bin = String(frm.doc.ngan_hang_bin || '').trim();
+			return bin ? chip('no', 'Đang lưu: ' + (frm.doc.ngan_hang_hien_thi || 'chưa có tên') + ' · BIN ' + bin, 1) : chip('no', 'Chưa chọn ngân hàng', 1);
+		}
 		function ve(ds) {
-			// Chỉ ẩn ô BIN gốc khi đã có ô chọn thay thế (Codex #433 vòng 3).
-			// Không để ô BIN read_only: Frappe ẩn cả ô read_only khi trống, mất luôn ô chọn.
-			f.$wrapper.find('.control-input').first().addClass('vgbc-anchon-in');
 			var hien = VGB_CD.nganHangTheoBin(ds, frm.doc.ngan_hang_bin);
 			$k.html('<div class="vgbc-chips" style="margin:6px 0">' +
 				(hien ? chip('ok', 'Đang dùng: ' + hien.ten, 1)
@@ -559,13 +570,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = VGB_CD;
 			});
 		}
 		if (frm.__vgb_nh) { ve(frm.__vgb_nh); return; }
-		// Tải hỏng (mất mạng, máy chủ lỗi): GIỮ ô BIN gốc để vẫn sửa được, báo rõ
-		// và có nút Thử lại, không để một khung trống (Codex #433 vòng 3).
+		$k.html('<div class="vgbc-chips" style="margin:6px 0">' + dangLuu() + '</div><div class="vgbc-mo">Đang tải danh mục ngân hàng...</div>');
+		// Tải hỏng (mất mạng, máy chủ lỗi): hiện mã đang lưu, báo rõ và có nút Thử
+		// lại; muốn đổi ngân hàng thì phải tải được danh mục (Codex #435).
 		function hong() {
-			f.$wrapper.find('.control-input').first().removeClass('vgbc-anchon-in');
-			$k.html('<div class="vgbc-chips" style="margin:6px 0">' + chip('err', 'Không tải được danh mục ngân hàng', 1) +
+			$k.html('<div class="vgbc-chips" style="margin:6px 0">' + dangLuu() + chip('err', 'Không tải được danh mục ngân hàng', 1) +
 				'</div><button type="button" class="btn btn-xs btn-default vgbc-thu-lai">Thử lại</button>' +
-				'<div class="vgbc-mo">Vẫn sửa được Mã BIN ở ô trên. Bấm Thử lại để chọn từ danh mục.</div>');
+				'<div class="vgbc-mo">Ngân hàng đang lưu vẫn dùng bình thường. Muốn đổi thì bấm Thử lại để chọn từ danh mục.</div>');
 			$k.on('click', '.vgbc-thu-lai', function () { veNganHang(frm); });
 		}
 		frappe.call({ method: 'vagabond.tai_khoan.danh_sach' }).then(function (r) {
