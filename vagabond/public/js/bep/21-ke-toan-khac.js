@@ -751,6 +751,9 @@ async function scrCanhBaoTT() {
    theo NOI DUNG chuyen khoan, ma ke toan ben khach si hay go noi dung
    theo he thong cua ho chu khong theo ma minh dat. Day la duong lui. */
 async function cnKhopTay(d) {
+  /* Codex #437 vong 10: mot lan mo hop khop tay mot ma lan. Gui lai (mat
+     phan hoi, bam lai) cung ma thi may chu khong ghi hai lan. */
+  var maLan = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   var con = d.con_thieu || d.tong_tien;
   var ds;
   try { ds = await api('vagabond.cong_no.tim_giao_dich_thu', { so_ngay: 120, so_tien: Math.round(con) }); }
@@ -789,7 +792,7 @@ async function cnKhopTay(d) {
     '\n\nCông nợ của khách sẽ được cập nhật theo số này. Nếu đủ, máy gửi luôn thư báo nhận tiền cho khách.', 'Khớp')) return;
   busy(true);
   try {
-    var kq = await api('vagabond.cong_no.khop_tay', { name: d.name, so_tien: soTien, ma_giao_dich: maGd, ghi_chu: gc || '' });
+    var kq = await api('vagabond.cong_no.khop_tay', { name: d.name, so_tien: soTien, ma_giao_dich: maGd, ghi_chu: gc || '', ma_lan: maLan });
     busy(false);
     /* v571: co lap phieu thu hay co loi thi bao bang hop, khong toast troi
        mat: day la cau noi khach con o Dang no hay khong. */

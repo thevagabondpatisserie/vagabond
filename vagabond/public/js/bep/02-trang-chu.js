@@ -1346,7 +1346,9 @@ function vgbVeGhim() {
   }
   /* Con cho trong thi de mot o "+ Them" cuoi dai, de ghim them khong phai
      di vong qua o tim. Dang sua ghim thi an di cho khoi bam nham. */
-  if (!VGB_SUA_GHIM && ds.length < VGB_GHIM_TOI_DA) {
+  /* Codex #437 vong 10: dem theo o CON QUYEN khi danh ba da biet, de mot o
+     mat quyen chua kip go khong an mat o "+ Them". */
+  if (!VGB_SUA_GHIM && (VGB_KHUNG_CO ? vgbLocGhim(ds).length : ds.length) < VGB_GHIM_TOI_DA) {
     o += '<div class="vgbgthem" data-themghim="1"><div class="vgbgi">\uff0b</div>' +
       '<div class="vgbgn">Th\u00eam</div></div>';
   }
@@ -1469,6 +1471,9 @@ async function vgbChonGhim() {
         't\u1eeb m\u00e1y ch\u1ee7. M\u1edf l\u1ea1i trang ch\u1ee7 r\u1ed3i th\u1eed l\u1ea1i.', 3600);
     }
   }
+  /* Go o mat quyen TRUOC khi tinh cho trong (Codex #437 vong 10), cung mot
+     phep voi vgbBatGhim. */
+  vgbDonGhim();
   var con = VGB_GHIM_TOI_DA - VGB_GHIM.length;
   if (con <= 0) {
     return toast('Ch\u1ec9 ghim \u0111\u01b0\u1ee3c ' + VGB_GHIM_TOI_DA +
