@@ -162,7 +162,9 @@ def kiem_cap_ngan_hang(bin_, ten):
 	bin_ = str(bin_ or "").strip()
 	ten = str(ten or "").strip()
 	if not bin_:
-		return None
+		# Codex #435 vòng 7: chỉ có tên mà không BIN thì thanh_toan.py lấy BIN mặc
+		# định MB nhưng hiện tên ngân hàng khác, khách thấy tên lệch với QR.
+		return "Có Tên ngân hàng thì phải có Mã BIN (để trống cả hai là dùng MB mặc định)." if ten else None
 	if not (len(bin_) == 6 and bin_.isdigit()):
 		return "Mã BIN ngân hàng phải đúng 6 chữ số."
 	if not ten:
