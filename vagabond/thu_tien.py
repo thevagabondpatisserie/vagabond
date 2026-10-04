@@ -745,6 +745,60 @@ def soat_hinh_thuc_chua_khai():
 	return {"cong_ty": cty, "chua_khai": ra, "so": len(ra)}
 
 
+def chia_tien_cho_hd(tien, ds_hd):
+	"""Chia mot khoan tien cho nhieu hoa don, hoa don CU truoc. THUAN.
+
+	`ds_hd` la list dict {name, con_no, ngay}. Tra list (ten, phan). Dong cu
+	nhat la dong de mat nhat nen tra truoc; khong bao gio chia qua so con no
+	cua mot to, phan du (neu co) khong gan vao dau.
+	"""
+	con = _so(tien)
+	ra = []
+	for h in sorted(ds_hd or [], key=lambda x: (str(x.get("ngay") or ""), str(x.get("name") or ""))):
+		if con <= LECH:
+			break
+		phan = min(_so(h.get("con_no")), con)
+		if phan <= LECH:
+			continue
+		ra.append((h.get("name"), phan))
+		con -= phan
+	return ra
+
+
+class nang_quyen_lap_phieu(object):
+	"""Lap phieu thu bang quyen he thong, roi TRA LAI dung nguoi goi.
+
+	Vi sao (v571, 04/10/2026). Loan Anh la Sales Manager, bam "Khach da
+	chuyen tien" va khop tay tren man Cong no deu nhan cau "khong co quyen
+	truy cap doctype ... Phieu thu/chi". Nhat ky loi site that ghi dung mot
+	cho: ERPNext `payment_entry.get_account_details` tu goi
+	`frappe.has_permission("Payment Entry", throw=True)` ngay trong
+	set_missing_values, nen co `ignore_permissions` tren insert cung khong
+	qua duoc. Mo quyen doc Payment Entry cho Sales thi Sales xem duoc moi
+	phieu thu chi cua cong ty, khong nen.
+
+	Nen: nguoi goi PHAI qua cua quyen nghiep vu truoc (ham whitelist goi
+	_kiem_quyen_ban hay _kiem_quyen_doc_luu_don), roi rieng buoc lap phieu
+	chay voi quyen he thong trong try/finally va tra lai nguoi goi (bai hoc
+	hddt_cho_xuat: quen tra lai la ca phan con lai cua request chay quyen
+	Administrator). Chu phieu ghi la nguoi goi, khong phai Administrator.
+	"""
+
+	def __enter__(self):
+		self.goc = frappe.session.user
+		if self.goc != "Administrator":
+			frappe.set_user("Administrator")
+		return self.goc
+
+	def __exit__(self, *loi):
+		if frappe.session.user != self.goc:
+			try:
+				frappe.set_user(self.goc)
+			except Exception:
+				pass
+		return False
+
+
 def _da_ghi_roi(khoa):
 	"""Khoản thu mang khoá này đã có chứng từ chưa. Chặn ghi hai lần."""
 	return bool(frappe.db.exists("Payment Entry", {"reference_no": khoa, "docstatus": ["<", 2]}))
@@ -793,37 +847,40 @@ def ghi_thu_tien(si_name, dong, nguon, ngay=None, ghi_chu=""):
 		tk, ba = tk_tien_thu(hd.company, pt)
 		if not tk:
 			frappe.throw(loi_chua_khai_tk(pt))
-		pe = frappe.new_doc("Payment Entry")
-		pe.payment_type = "Receive"
-		pe.company = hd.company
-		pe.posting_date = ngay
-		pe.party_type = "Customer"
-		pe.party = hd.customer
-		pe.paid_amount = phan_bo
-		pe.received_amount = phan_bo
-		pe.reference_no = khoa
-		pe.reference_date = ngay
-		if frappe.db.exists("Mode of Payment", pt):
-			pe.mode_of_payment = pt
-		pe.paid_to = tk
-		if ba:
-			pe.bank_account = ba
-		pe.append("references", {
-			"reference_doctype": SI,
-			"reference_name": si_name,
-			"total_amount": flt(hd.grand_total),
-			"outstanding_amount": con,
-			"allocated_amount": phan_bo,
-			"due_date": hd.due_date,
-		})
-		pe.remarks = ("Thu tiền hoá đơn %s bằng %s, số tiền %s đ.%s" % (
-			si_name, pt, "{:,.0f}".format(phan_bo),
-			(" " + ghi_chu) if ghi_chu else ""))[:1000]
-		pe.setup_party_account_field()
-		pe.set_missing_values()
-		pe.flags.ignore_permissions = True
-		pe.insert(ignore_permissions=True)
-		pe.submit()
+		# v571: lap phieu bang quyen he thong (xem nang_quyen_lap_phieu).
+		with nang_quyen_lap_phieu() as goc:
+			pe = frappe.new_doc("Payment Entry")
+			pe.payment_type = "Receive"
+			pe.company = hd.company
+			pe.posting_date = ngay
+			pe.party_type = "Customer"
+			pe.party = hd.customer
+			pe.paid_amount = phan_bo
+			pe.received_amount = phan_bo
+			pe.reference_no = khoa
+			pe.reference_date = ngay
+			if frappe.db.exists("Mode of Payment", pt):
+				pe.mode_of_payment = pt
+			pe.paid_to = tk
+			if ba:
+				pe.bank_account = ba
+			pe.append("references", {
+				"reference_doctype": SI,
+				"reference_name": si_name,
+				"total_amount": flt(hd.grand_total),
+				"outstanding_amount": con,
+				"allocated_amount": phan_bo,
+				"due_date": hd.due_date,
+			})
+			pe.remarks = ("Thu tiền hoá đơn %s bằng %s, số tiền %s đ.%s" % (
+				si_name, pt, "{:,.0f}".format(phan_bo),
+				(" " + ghi_chu) if ghi_chu else ""))[:1000]
+			pe.setup_party_account_field()
+			pe.set_missing_values()
+			pe.owner = goc
+			pe.flags.ignore_permissions = True
+			pe.insert(ignore_permissions=True)
+			pe.submit()
 		ra.append(pe.name)
 		con -= phan_bo
 	return ra
@@ -1478,12 +1535,136 @@ def nhan_tien_ve(si=None, gd=None):
 	if not b.get("account") or not b.get("is_company_account") or b.get("company") != doc.company:
 		frappe.throw("Giao dịch %s không về tài khoản ngân hàng của công ty." % ref)
 	tien = min(flt(doc.outstanding_amount), flt(g.unallocated_amount))
-	pe = get_payment_entry(SI, si, party_amount=tien, bank_account=b["account"])
-	pe.reference_no = ref
-	pe.reference_date = g.date
-	pe.remarks = "Khách chuyển khoản, giao dịch %s, người chọn trên màn Công nợ." % ref
-	pe.flags.ignore_permissions = True
-	pe.insert(ignore_permissions=True)
+	# v571: Sales Manager bam nut nay bi chan quyen ngay trong
+	# get_payment_entry (xem nang_quyen_lap_phieu). Cua quyen nghiep vu da
+	# qua o dau ham.
+	with nang_quyen_lap_phieu() as goc:
+		pe = get_payment_entry(SI, si, party_amount=tien, bank_account=b["account"])
+		pe.reference_no = ref
+		pe.reference_date = g.date
+		pe.remarks = "Khách chuyển khoản, giao dịch %s, người chọn trên màn Công nợ." % ref
+		pe.owner = goc
+		pe.flags.ignore_permissions = True
+		pe.insert(ignore_permissions=True)
 	_ghi_vet_thu(pe.name, "Lập phiếu thu nháp cho hoá đơn %s theo giao dịch %s do người chọn" % (si, ref))
 	return {"pe": pe.name, "tien": flt(pe.paid_amount), "ma_gd": ref, "ngay_ve": str(g.date),
 		"ten_khach": doc.customer_name, "con_no_sau": flt(doc.outstanding_amount) - tien}
+
+
+# ==================================================================
+# v571: một giao dịch ngân hàng trả GỘP nhiều hoá đơn (anh Việt 04/10/2026)
+# ==================================================================
+#
+# Ca thật: Loan Anh gộp hai hoá đơn của chị Hồng (4.750.000 + 2.850.000) vào
+# phiếu DNTT-26-10-00002, khách chuyển một lần 7.600.000, Loan Anh khớp tay
+# đúng giao dịch đó. Máy báo "Công nợ đã sạch" nhưng tab Đang nợ vẫn hiện đủ
+# hai hoá đơn. Nhật ký lỗi site thật: phiếu thu cho từng hoá đơn hỏng vì
+# quyền (Sales Manager không lập được Payment Entry), lỗi bị nuốt, phiếu đòi
+# nợ vẫn sang "Đã thu đủ".
+#
+# Sửa theo đúng luồng v534 đã chốt cho tiền khách chuyển: lập MỘT phiếu thu
+# NHÁP, số tham chiếu là mã giao dịch ngân hàng, phân bổ vào từng hoá đơn,
+# cũ trước. Một phiếu chứ không phải mỗi hoá đơn một phiếu: luật "một giao
+# dịch chỉ một phiếu được tính" (mot_phieu_moi_giao_dich, Codex #382) sẽ bỏ
+# rơi các phiếu sau nếu tách. Phiếu nháp mang mã giao dịch đã xác minh thì
+# màn Công nợ tự chuyển hoá đơn sang "Tiền đã về, chờ ghi sổ"; kế toán đính
+# UNC khách gửi rồi ghi sổ như mọi phiếu khác.
+
+
+def tim_giao_dich(ma):
+	"""Bank Transaction theo mã người dùng chọn: số tham chiếu, hoặc tên."""
+	ma = str(ma or "").strip()
+	if not ma:
+		return None
+	ten = frappe.get_all(BT, filters={"reference_number": ma, "docstatus": ["<", 2]},
+		pluck="name", limit_page_length=2)
+	if len(ten) > 1:
+		frappe.throw("Có nhiều giao dịch ngân hàng cùng số %s, cần kế toán chọn tay." % ma)
+	if not ten and frappe.db.exists(BT, ma):
+		ten = [ma]
+	return frappe.get_doc(BT, ten[0], for_update=True) if ten else None
+
+
+def lap_phieu_thu_theo_gd(cac_si, g, so_tien, ghi_chu=""):
+	"""Lập MỘT phiếu thu nháp cho nhiều hoá đơn theo một giao dịch ngân hàng.
+
+	Ném lỗi kèm lý do bằng lời khi không lập được, TRƯỚC khi đổi bất cứ thứ
+	gì, để người gọi không đánh dấu "đã thu" khi chưa có chứng từ.
+	Trả dict {pe, tien, hd: [(hoá đơn, phân bổ)]}.
+	"""
+	ref = (g.reference_number or "").strip()
+	if not ref:
+		frappe.throw("Giao dịch %s không có số tham chiếu ngân hàng." % g.name)
+	if int(g.docstatus) != 1 or flt(g.deposit) <= 0 or (g.currency or "VND") != "VND":
+		frappe.throw("Giao dịch %s không phải tiền vào đã xác nhận." % ref)
+	if g.payment_entries or flt(g.unallocated_amount) <= LECH:
+		frappe.throw("Giao dịch %s đã nối với chứng từ khác." % ref)
+	cu = frappe.get_all(PE, filters={"docstatus": ["<", 2], "reference_no": ref, "payment_type": "Receive"},
+		pluck="name", limit_page_length=1)
+	if cu:
+		frappe.throw("Giao dịch %s đã có phiếu thu %s. Mở tab Tiền đã về." % (ref, cu[0]))
+	hd = frappe.get_all(SI, filters={"name": ["in", list(cac_si or []) or [""]], "docstatus": 1},
+		fields=["name", "customer", "company", "outstanding_amount", "posting_date", "grand_total", "due_date"],
+		limit_page_length=0)
+	hd = [h for h in hd if flt(h.outstanding_amount) > LECH]
+	if not hd:
+		frappe.throw("Các hoá đơn trong phiếu không còn nợ trên sổ.")
+	# Hoá đơn đã có phiếu thu nháp khác thì để nguyên phiếu đó, không chia
+	# tiền vào lần nữa.
+	nhap = set(frappe.get_all("Payment Entry Reference", filters={"reference_doctype": SI,
+		"reference_name": ["in", [h.name for h in hd]], "docstatus": 0, "parenttype": PE},
+		pluck="reference_name", limit_page_length=0))
+	hd = [h for h in hd if h.name not in nhap]
+	if not hd:
+		frappe.throw("Các hoá đơn trong phiếu đều đã có phiếu thu nháp. Mở tab Tiền đã về.")
+	kh = {h.customer for h in hd}
+	cty = {h.company for h in hd}
+	if len(kh) > 1 or len(cty) > 1:
+		frappe.throw("Phiếu gồm hoá đơn của nhiều mã khách (%s). Khớp từng hoá đơn bằng nút "
+			"\"Khách đã chuyển tiền\" trong tab Đang nợ." % ", ".join(sorted(kh)))
+	b = frappe.db.get_value("Bank Account", g.bank_account, ["account", "company", "is_company_account"],
+		as_dict=True) or {}
+	cong_ty = list(cty)[0]
+	if not b.get("account") or not b.get("is_company_account") or b.get("company") != cong_ty:
+		frappe.throw("Giao dịch %s không về tài khoản ngân hàng của công ty." % ref)
+	tien = min(flt(so_tien), flt(g.unallocated_amount))
+	chia = chia_tien_cho_hd(tien, [{"name": h.name, "con_no": flt(h.outstanding_amount),
+		"ngay": str(h.posting_date)} for h in hd])
+	if not chia:
+		frappe.throw("Không chia được tiền giao dịch %s cho hoá đơn nào." % ref)
+	theo_ten = {h.name: h for h in hd}
+	tong = sum(p for _t, p in chia)
+	with nang_quyen_lap_phieu() as goc:
+		pe = frappe.new_doc(PE)
+		pe.payment_type = "Receive"
+		pe.company = cong_ty
+		# Ngày ghi là HÔM NAY như nhan_tien_ve, không lùi về ngày tiền về:
+		# không đẩy chứng từ mới vào kỳ có thể đã khoá sổ.
+		pe.posting_date = nowdate()
+		pe.party_type = "Customer"
+		pe.party = list(kh)[0]
+		pe.paid_amount = tong
+		pe.received_amount = tong
+		pe.reference_no = ref
+		pe.reference_date = g.date
+		pe.paid_to = b["account"]
+		pe.bank_account = g.bank_account
+		if frappe.db.exists("Mode of Payment", "Chuyển khoản"):
+			pe.mode_of_payment = "Chuyển khoản"
+		for ten, phan in chia:
+			h = theo_ten[ten]
+			pe.append("references", {
+				"reference_doctype": SI, "reference_name": ten,
+				"total_amount": flt(h.grand_total), "outstanding_amount": flt(h.outstanding_amount),
+				"allocated_amount": phan, "due_date": h.due_date,
+			})
+		pe.remarks = ("Khách chuyển khoản gộp %d hoá đơn, giao dịch %s. %s" % (
+			len(chia), ref, ghi_chu or "")).strip()[:1000]
+		pe.setup_party_account_field()
+		pe.set_missing_values()
+		pe.paid_to = b["account"]
+		pe.owner = goc
+		pe.flags.ignore_permissions = True
+		pe.insert(ignore_permissions=True)
+	_ghi_vet_thu(pe.name, "Lập phiếu thu nháp gộp %d hoá đơn theo giao dịch %s khi khớp tay" % (len(chia), ref))
+	return {"pe": pe.name, "tien": tong, "hd": chia, "ma_gd": ref}
