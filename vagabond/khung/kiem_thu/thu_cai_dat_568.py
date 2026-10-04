@@ -363,3 +363,25 @@ def _():
 	la("chip ZNS nhận đúng các mẫu máy chủ dùng", mau, mau_may_chu)
 	dung("không còn chip nào xanh nhờ be_token (máy chủ không đọc)",
 		all("be_token" not in json.dumps(k) for k in kn.values()))
+
+
+@ca("cài đặt v570 Codex #435 vòng 6: luật cặp Mã BIN và Tên ngân hàng giống hệt nhau ở JS và máy chủ, và validate có gọi")
+def _():
+	from vagabond import tai_khoan
+
+	ca_thu = [["", ""], ["", "X"], ["970422", "MB Bank"], ["970422", ""], ["97042", "MB"], ["9704222", "MB"],
+		["97042a", "MB"], [" 970422 ", " MB "], ["546034", "  "]]
+	ra = subprocess.check_output(
+		["node", "-e",
+		 "global.frappe={ui:{form:{on(){}}}};var V=require(process.argv[1]);var c=JSON.parse(process.argv[2]);"
+		 "console.log(JSON.stringify(c.map(function(x){return V.kiemCapNganHang(x[0],x[1]);})))", JS_CD, json.dumps(ca_thu)],
+		universal_newlines=True)
+	la("JS và máy chủ cho cùng kết quả", json.loads(ra), [tai_khoan.kiem_cap_ngan_hang(b, t) for b, t in ca_thu])
+	la("BIN trống là hợp lệ (dùng MB mặc định)", tai_khoan.kiem_cap_ngan_hang("", ""), None)
+	dung("BIN 5 số bị chặn", tai_khoan.kiem_cap_ngan_hang("97042", "MB") is not None)
+	dung("có BIN mà thiếu tên bị chặn", tai_khoan.kiem_cap_ngan_hang("970422", " ") is not None)
+	s = io.open(os.path.join(GOI, "vagabond", "doctype", "vagabond_settings", "vagabond_settings.py"), encoding="utf-8").read()
+	# Dò chuỗi chỉ để chốt "validate có gọi" (điều 16).
+	# Đột biến "gọi mà bỏ throw" từng lọt qua phép dò chỉ tìm lời gọi, nên chốt cả hai.
+	dung("VagabondSettings.validate gọi kiem_cap_ngan_hang VÀ chặn khi có lỗi", re.search(
+		r'loi = kiem_cap_ngan_hang\(self\.get\("ngan_hang_bin"\), self\.get\("ngan_hang_hien_thi"\)\)\s*\n\s*if loi:\s*\n\s*frappe\.throw\(loi\)', s) is not None)
