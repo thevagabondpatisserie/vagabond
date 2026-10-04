@@ -37,7 +37,10 @@ def _sales():
 def _hd_no(tk_thue, cty, tien):
 	si = _app(cty, [dict(item_code=_mon(tk_thue), qty=1, rate=tien)])
 	si.vgb_tam_tinh = 0
-	si.vgb_pt_thanh_toan = "Công nợ"
+	# Bench #437 lần 1: đơn GrabFood không nhận phương thức "Công nợ"
+	# (ban_hang.kiem_truoc_khi_luu). Khớp tay chỉ cần tờ đã ghi sổ còn nợ,
+	# nên giữ đúng phương thức của nguồn như ca #534.
+	si.vgb_pt_thanh_toan = "GrabFood"
 	si.vgb_ma_tham_chieu = "KT571-" + frappe.generate_hash(length=8)
 	si.save(ignore_permissions=True)
 	si.submit(); si.reload()
@@ -167,6 +170,10 @@ def _tra_gop():
 		sorted((r.reference_name, round(flt(r.allocated_amount))) for r in pe.references),
 		sorted([(a.name, round(flt(a.grand_total) - 2000000)), (b.name, round(flt(b.grand_total)))]))
 	la("không bơ vơ đồng nào", round(flt(pe.paid_amount)), round(con))
+	# Codex #437 vòng 4: đã thu cộng dồn cả phần nháp 2tr có từ trước.
+	la("phiếu đòi nợ đã thu đủ", frappe.db.get_value("Vagabond Cong No", p.name, "trang_thai"), "Da thu du")
+	la("đã thu cộng dồn", round(flt(frappe.db.get_value("Vagabond Cong No", p.name, "da_thu"))),
+		round(flt(a.grand_total) + flt(b.grand_total)))
 
 
 @ca("#437 Sales ghi thu tiền mặt cho hoá đơn: phiếu thu GHI SỔ thật, GL hai dòng, hết nợ, người lập là Sales")
