@@ -378,6 +378,8 @@ def _():
 		universal_newlines=True)
 	la("JS và máy chủ cho cùng kết quả", json.loads(ra), [tai_khoan.kiem_cap_ngan_hang(b, t) for b, t in ca_thu])
 	la("BIN trống là hợp lệ (dùng MB mặc định)", tai_khoan.kiem_cap_ngan_hang("", ""), None)
+	# Codex #435 vòng 7: chỉ có tên mà không BIN thì QR là MB nhưng tên là ngân hàng khác.
+	dung("chỉ có tên mà không BIN bị chặn", tai_khoan.kiem_cap_ngan_hang("", "Ngân hàng X") is not None)
 	dung("BIN 5 số bị chặn", tai_khoan.kiem_cap_ngan_hang("97042", "MB") is not None)
 	dung("có BIN mà thiếu tên bị chặn", tai_khoan.kiem_cap_ngan_hang("970422", " ") is not None)
 	s = io.open(os.path.join(GOI, "vagabond", "doctype", "vagabond_settings", "vagabond_settings.py"), encoding="utf-8").read()
