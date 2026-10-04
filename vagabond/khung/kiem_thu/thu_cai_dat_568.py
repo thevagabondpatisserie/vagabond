@@ -268,3 +268,18 @@ mien_phi_giao_tu web_dien_thoai web_email web_zalo web_messenger web_facebook we
 webhook_don_web meta_pixel_id meta_capi_token meta_test_event_code meta_graph_phien_ban zalo_bot_bat
 zalo_bot_token zalo_bi_mat zalo_noi_trang_thai zalo_chat_moi zalo_nhom
 """.split())
+
+
+@ca("cài đặt v568: tên và biểu tượng loại tin Zalo trên hộp chọn trùng tuyệt đối kenh_zalo.LOAI")
+def _():
+	from vagabond import kenh_zalo as kz
+
+	ra = subprocess.check_output(
+		["node", "-e",
+		 "global.frappe={ui:{form:{on(){}}}};var V=require(process.argv[1]);console.log(JSON.stringify(V.ZALO_NHAN))", JS_CD],
+		universal_newlines=True)
+	v = json.loads(ra)
+	for ma, (ic, ten) in kz.LOAI.items():
+		la("loại %s: biểu tượng" % ma, v["loai_tin"][ma][0], ic)
+		la("loại %s: tên" % ma, v["loai_tin"][ma][1], ten)
+	la("chủ đề trùng CHU_DE", sorted(v["chu_de"]), sorted(kz.CHU_DE))
