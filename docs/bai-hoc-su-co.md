@@ -1674,3 +1674,23 @@ lần đầu đếm ngoại lệ ra 0 trên 14 đột biến, tưởng bộ ki�
   thay đổi. Fixture mới dùng Opening Stock/tài khoản Temporary cho tồn mới,
   và đếm 9 từ tồn 10 cho hai ca giữ giá 0. Không khẳng định core bench hỗ trợ
   định giá về 0 khi số lượng không đổi.
+
+
+## 04/10/2026 (v573): đếm "đã bán trong ngày" theo posting_date bị đếm hai lần khi bill đổi ngày
+
+- Dễ báo: hàng tặng out bill tối ngày 1, bảng Kiểm kho ngày 1 trừ 1 cái; anh
+  Việt duyệt sáng ngày 2 thì ngày 2 trừ thêm 1 cái. Nút duyệt (và OTP kế toán)
+  đi qua `_doi_ngay_ban_nhap`, đổi `posting_date` sang ngày ghi sổ cho đúng
+  ngày HĐĐT. Ngày 1 thường đã chốt nên không đo lại, ngày 2 đếm thêm.
+- Ngày ghi sổ và ngày bánh rời quầy là hai việc khác nhau. Bill đổi ngày lần
+  đầu thì giữ ngày bán gốc ở `vgb_ngay_ban`; mọi chỗ đếm số bán dùng một nguồn
+  `ngay_ban.dk_sql`. Thêm chỗ đếm mới thì gọi hàm đó, không lọc thẳng
+  `posting_date`.
+- Ca kiểm chạy SQL thật của hai hàm đếm trên sqlite (chỉ đổi cú pháp tham số),
+  không dò chuỗi. Ca dò chuỗi "không còn chỗ lọc thẳng" lúc đầu khớp cả
+  docstring nên đột biến không đổ; phải dò đúng lời gọi.
+- Codex #438: ô `read_only` chỉ khoá giao diện, Desk/API vẫn ghi được. Ô
+  quyết định số liệu (ở đây là ngày trừ bánh) phải có hook validate chỉ cho
+  máy ghi (cờ trên doc), giá trị ngoài gửi vào trả về giá trị đang lưu; hàm
+  máy ghi cũng phải đọc giá trị đang lưu trong cơ sở dữ liệu, không đọc giá
+  trị trên đối tượng.
