@@ -329,3 +329,33 @@ def _():
 		tt.lap_phieu_thu_theo_gd = moc["lap"]
 		cn._gui_thu_da_nhan = moc["gui"]
 		tra()
+
+
+@ca("Codex #437 F1: chọn giao dịch mà không nạp được thì DỪNG, không đánh dấu đã thu, không đi lối cũ")
+def _():
+	# Trên 30e2b9d: tim_giao_dich trả None (mã gõ nhầm hay giao dịch vừa huỷ)
+	# thì khop_tay coi như không chọn giao dịch: phiếu thành Da thu du và đi
+	# ghi_thu_cho_phieu từng hoá đơn. Đo được: buoc = [luu_phieu, ghi_thu_cu].
+	nk, tra = _dung_he()
+	doc = PhieuNo(name="P", ma_phieu="DNTT-26-10-00002", trang_thai="Cho thu",
+		tong_tien=7600000.0, da_thu=0.0, flags=Doi(), _nk=nk,
+		dong=[Doi(hoa_don=h.name) for h in HD])
+	moc = {"get_doc": fr.get_doc, "kq": cn._kiem_quyen_ban, "giu": cn._giu_gd,
+		"tim": tt.tim_giao_dich, "ghi": cn.ghi_thu_cho_phieu}
+	fr.get_doc = lambda *a, **k: doc
+	cn._kiem_quyen_ban = lambda: None
+	cn._giu_gd = lambda d, ds: "FT-SAI"
+	tt.tim_giao_dich = lambda ma: None
+	cn.ghi_thu_cho_phieu = lambda *a, **k: nk.append(("ghi_thu_cu",))
+	try:
+		nem("báo lỗi", lambda: cn.khop_tay(doc.name, 7600000, "FT-SAI"), fr.ValidationError)
+		la("không lưu phiếu", [x for x in nk if x[0] == "luu_phieu"], [])
+		la("không đi lối cũ", [x for x in nk if x[0] == "ghi_thu_cu"], [])
+		la("vẫn Chờ thu", doc.trang_thai, "Cho thu")
+	finally:
+		fr.get_doc = moc["get_doc"]
+		cn._kiem_quyen_ban = moc["kq"]
+		cn._giu_gd = moc["giu"]
+		tt.tim_giao_dich = moc["tim"]
+		cn.ghi_thu_cho_phieu = moc["ghi"]
+		tra()
