@@ -287,6 +287,12 @@ function W(els) {
     appendTo: function (t) { t.els[0].appendChild(els[0]); return w; },
     html: function (h) { els.forEach(function (e) { e.innerHTML = h; }); return w; },
     on: function (ev, sel, fn) { els.forEach(function (e) { (e._jq = e._jq || []).push({ ev: ev, sel: sel, fn: fn }); }); return w; },
+    append: function (h) { els.forEach(function (e) { var c = new dg.ElementGia('div'); c.innerHTML = h; c.children.slice().forEach(function (k) { e.appendChild(k); }); }); return w; },
+    is: function (sel) { return els.some(function (e) { return e.closest(sel) === e; }); },
+    text: function (t) { if (t === undefined) return els.map(chuEl).join(''); els.forEach(function (e) { e.innerHTML = ''; e._chu = String(t); }); return w; },
+    insertBefore: function (t) { var d = t.els[0], cha = d.parentNode; cha.insertBefore(els[0], d); return w; },
+    prependTo: function (t) { t.els[0].appendChild(els[0]); return w; },
+    hasClass: function (c) { return els.some(function (e) { return String(e.getAttribute('class') || '').split(/\s+/).indexOf(c) >= 0; }); },
   };
   return w;
 }
@@ -335,6 +341,61 @@ ca('Codex #433 vòng 3 G3: đang chờ tải danh mục thì ô BIN gốc vẫn 
   global.frappe.call = function () { return { then: function () {} }; };
   V._desk.veNganHang({ fields_dict: { ngan_hang_bin: { $wrapper: W([goc]) } }, doc: {}, set_value: function () {} });
   dung('ô BIN gốc không bị ẩn khi đang chờ', lop(goc.querySelectorAll('.control-input')[0]).indexOf('vgbc-anchon-in') < 0);
+});
+
+ca('Codex #435 H1: chip tình trạng hiện TRÊN đầu mục (s.head chính là .section-head như Frappe 16)', function () {
+  // Dựng đúng hình dạng đo trên site thật: s.head có lớp section-head, con duy nhất
+  // là .collapse-indicator. Trên 0613faa chip tìm .section-head BÊN TRONG nên rỗng.
+  global.$ = $;
+  var head = new dg.ElementGia('div');
+  head.setAttribute('class', 'section-head collapsible');
+  head.innerHTML = 'Goong bản đồ<span class="collapse-indicator"></span>';
+  var frm = { doc: { goong_api_key: '*' }, layout: { sections: [{ df: { fieldname: 'sec_goong' }, head: W([head]) }, { df: { fieldname: 'sec_khong_co' }, head: W([new dg.ElementGia('div')]) }] } };
+  V._desk.veChipMuc(frm);
+  var c = head.querySelectorAll('.vgbc-chip');
+  la('một chip trên đầu mục Goong', c.length, 1);
+  dung('chip ghi đã khai', chuEl(c[0]).indexOf('đã khai') >= 0);
+  V._desk.veChipMuc(frm);
+  la('vẽ lại không nhân đôi chip', head.querySelectorAll('.vgbc-chip').length, 1);
+});
+
+ca('Codex #435 H2: thanh tình trạng thu gọn hai dòng, chip cần để ý xếp lên đầu, nút Xem đủ mở và thu lại', function () {
+  global.$ = $;
+  var goc = new dg.ElementGia('div');
+  goc.innerHTML = '<div class="form-tabs-list"></div>';
+  var frm = { doc: { goong_api_key: '*', pancake_api_key: '*', pancake_shop_id: '1', zalo_bot_token: '*', zalo_bot_bat: 0 },
+    layout: { wrapper: goc }, fields_dict: {}, meta: { fields: [] } };
+  V._desk.veThanh(frm);
+  var tt = goc.querySelectorAll('.vgbc-tt')[0];
+  dung('mặc định thu gọn', lop(tt).split(' ').indexOf('gon') >= 0);
+  var chips = tt.querySelectorAll('.vgbc-chip');
+  la('đủ mọi kết nối', chips.length, V.KET_NOI.length + 1);
+  dung('chip đầu là vàng (Zalo khai rồi mà tắt), không phải xanh', lop(chips[0]).indexOf('vgbc-off') >= 0);
+  dung('chip xanh nằm cuối', lop(chips[chips.length - 1]).indexOf('vgbc-ok') >= 0);
+  var nut = goc.querySelectorAll('.vgbc-xem')[0];
+  dung('nút ghi số kết nối và số cần để ý', /Xem đủ \d+ kết nối \(\d+ cần để ý/.test(chuEl(nut)));
+  bamJq(goc.querySelectorAll('.vgbc-bar')[0], nut);
+  tt = goc.querySelectorAll('.vgbc-tt')[0];
+  dung('bấm Xem đủ thì mở', lop(tt).split(' ').indexOf('gon') < 0);
+  la('nút đổi thành Thu gọn', chuEl(goc.querySelectorAll('.vgbc-xem')[0]), 'Thu gọn');
+  la('vẽ lại không nhân đôi thanh', goc.querySelectorAll('.vgbc-bar').length, 1);
+});
+
+ca('Codex #435 H2: xếp chip đỏ, vàng, xám rồi xanh; cùng màu giữ thứ tự gốc', function () {
+  var ds = [{ ten: 'a', trang: 'ok' }, { ten: 'b', trang: 'no' }, { ten: 'c', trang: 'err' }, { ten: 'd', trang: 'no' }, { ten: 'e', trang: 'off' }];
+  la('thứ tự', V.xepTinhTrang(ds).map(function (t) { return t.ten; }), ['c', 'e', 'b', 'd', 'a']);
+  la('không đổi mảng gốc', ds.map(function (t) { return t.ten; }), ['a', 'b', 'c', 'd', 'e']);
+});
+
+ca('Codex #435 H3: chip bấm được cao 44px, hai dòng chip đúng bằng chiều cao thu gọn', function () {
+  // CSS không chạy trong node; dò chuỗi chỉ để GHIM con số (điều 16). Ảnh site thật đính sau deploy.
+  var s = require('fs').readFileSync(path.join(GOC, 'vagabond', 'vagabond', 'doctype', 'vagabond_settings', 'vagabond_settings.js'), 'utf8');
+  var m = /\.vgbc-chip\[data-toi\]\{min-height:(\d+)px\}/.exec(s);
+  dung('có luật chiều cao cho chip bấm được', !!m);
+  la('cao 44px', m && +m[1], 44);
+  var g = /\.vgbc-tt\.gon\{max-height:(\d+)px/.exec(s);
+  var khe = /\.vgbc-chips\{display:flex;flex-wrap:wrap;gap:(\d+)px\}/.exec(s);
+  la('thu gọn = 2 dòng chip + 1 khe', g && +g[1], 2 * 44 + (khe ? +khe[1] : -1));
 });
 
 ca('Codex #433 vòng 3 G3: máy chủ trả danh mục rỗng cũng coi là hỏng, không để khung trống', function () {
