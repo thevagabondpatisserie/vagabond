@@ -331,23 +331,35 @@ def _():
 		("Ahamove", "van_don.py", r'if not \(key\(c, "ahamove_api_key"\) and c\.ahamove_base and c\.ahamove_mobile\)'),
 		("Zalo ZNS gửi khách", "zalo.py", r'if not \(app_id and bi_mat and refresh\)'),
 		("Thông báo đẩy", "thong_bao.py", r'rieng = c\.get_password\("push_khoa_rieng"'),
+		# Codex #435 vòng 5: không có mẫu thì máy chủ từ chối gửi.
+		("WhatsApp", "whatsapp.py", r'if not ten_mau:\s*\n\s*return False, "Chưa khai tên mẫu tin WhatsApp'),
 	]
 	can = {
 		"GreenSM": ["greensm_client_id", "greensm_client_secret", "greensm_token_url"],
 		"Ahamove": ["ahamove_api_key", "ahamove_base", "ahamove_mobile"],
 		"Zalo ZNS gửi khách": ["zalo_app_id", "zalo_app_secret", "zalo_refresh_token"],
 		"Thông báo đẩy": ["push_khoa_rieng"],
+		"WhatsApp": ["wa_phone_id", "wa_token", "wa_template_thanh_toan"],
 	}
 	for ten, tep, mau in MAY_CHU:
 		s = io.open(os.path.join(GOI, tep), encoding="utf-8").read()
 		dung("máy chủ %s vẫn kiểm như ghim (%s)" % (ten, tep), re.search(mau, s) is not None)
 		k = kn.get(ten) or {}
-		dung("chip %s không dùng canMot (đủ MỘT nhóm là xanh)" % ten, not k.get("canMot"))
+		# canMot chỉ được dùng THÊM vào can (ví dụ mẫu ZNS), không thay cho ô bắt buộc.
+		dung("chip %s đòi ô bắt buộc qua can" % ten, bool(k.get("can")))
 		thieu = [f for f in can[ten] if f not in (k.get("can") or [])]
 		la("chip %s đòi đủ ô máy chủ đòi" % ten, thieu, [])
 	# Mọi ô chip đòi phải có thật trên trang Cài đặt (JSON hoặc trường tự thêm).
 	co_that = {f["fieldname"] for f in _json()["fields"]} | {f["fieldname"] for f in _truong_tu_them()}
 	la_ = [f for k in kn.values() for f in (k.get("can") or []) + sum(k.get("canMot") or [], []) if f not in co_that]
 	la("không chip nào đòi ô không có", la_, [])
+	# ZNS: zalo.gui_tin trả "Chưa khai mã mẫu ZNS" khi không có mẫu; mỗi nơi gửi dùng
+	# một mẫu riêng (OTP, đòi tiền, trừ điểm), nên chip đòi ít nhất MỘT mẫu.
+	sz = io.open(os.path.join(GOI, "zalo.py"), encoding="utf-8").read()
+	dung("zalo.gui_tin vẫn từ chối khi không có mẫu", 'return False, "Chưa khai mã mẫu ZNS' in sz)
+	mau = sorted(sum(kn["Zalo ZNS gửi khách"].get("canMot") or [], []))
+	mau_may_chu = sorted(set(re.findall(r'"(zns_template_[a-z_]+)"', "".join(
+		io.open(os.path.join(GOI, f), encoding="utf-8").read() for f in ("thanh_toan.py", "diem_otp.py", "dang_nhap.py")))))
+	la("chip ZNS nhận đúng các mẫu máy chủ dùng", mau, mau_may_chu)
 	dung("không còn chip nào xanh nhờ be_token (máy chủ không đọc)",
 		all("be_token" not in json.dumps(k) for k in kn.values()))
