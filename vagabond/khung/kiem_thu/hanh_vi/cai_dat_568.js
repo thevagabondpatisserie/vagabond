@@ -289,6 +289,7 @@ function W(els) {
     html: function (h) { els.forEach(function (e) { e.innerHTML = h; }); return w; },
     on: function (ev, sel, fn) { els.forEach(function (e) { (e._jq = e._jq || []).push({ ev: ev, sel: sel, fn: fn }); }); return w; },
     append: function (h) { els.forEach(function (e) { var c = new dg.ElementGia('div'); c.innerHTML = h; c.children.slice().forEach(function (k) { e.appendChild(k); }); }); return w; },
+    val: function (v) { if (v === undefined) return els[0] ? els[0].value : undefined; els.forEach(function (e) { e.value = v; }); return w; },
     is: function (sel) { return els.some(function (e) { return e.closest(sel) === e; }); },
     text: function (t) { if (t === undefined) return els.map(chuEl).join(''); els.forEach(function (e) { e.innerHTML = ''; e._chu = String(t); }); return w; },
     insertBefore: function (t) { var d = t.els[0], cha = d.parentNode; cha.insertBefore(els[0], d); return w; },
@@ -364,6 +365,37 @@ ca('Codex #435 I2: Zalo ZNS cần ít nhất một mã mẫu, WhatsApp cần m�
   la('WhatsApp thiếu mẫu thanh toán', tim(V.tinhTrang(w, BAY_GIO), 'WhatsApp').trang, 'no');
   w.wa_template_thanh_toan = 'thanh_toan_vi';
   la('WhatsApp đủ', tim(V.tinhTrang(w, BAY_GIO), 'WhatsApp').trang, 'ok');
+});
+
+ca('Codex #435 vòng 6: BIN đang lưu ngoài danh mục không bị báo lỗi; khai ngân hàng ngoài danh sách phải đủ BIN 6 số và tên, ghi cả hai một lượt', function () {
+  // Trên a2419ff: BIN 546034 (ngoài 43 ngân hàng) hiện chip ĐỎ "không có trong danh
+  // mục" và không có cách nào chọn lại, vì ô BIN gốc đã ẩn.
+  global.$ = $;
+  var goc = new dg.ElementGia('div');
+  goc.innerHTML = '<div class="control-input"><input></div>';
+  var ghi = [];
+  global.frappe.call = function () { return { then: function (ok) { ok({ message: { ngan_hang: DM_NH } }); } }; };
+  var frm = { fields_dict: { ngan_hang_bin: { $wrapper: W([goc]) } }, doc: { ngan_hang_bin: '546034', ngan_hang_hien_thi: 'CAKE by VPBank' },
+    set_value: function (k, v) { ghi.push([k, v]); } };
+  V._desk.veNganHang(frm);
+  var k = goc.querySelectorAll('.vgbc-nh')[0];
+  var c = k.querySelectorAll('.vgbc-chip')[0];
+  dung('chip vàng, không đỏ', lop(c).indexOf('vgbc-off') >= 0 && lop(c).indexOf('vgbc-err') < 0);
+  dung('chip ghi tên và BIN đang lưu', chuEl(c).indexOf('CAKE by VPBank · BIN 546034') >= 0);
+  bamJq(k, k.querySelectorAll('.vgbc-khac')[0]);
+  la('hiện ô BIN và ô tên', [k.querySelectorAll('.vgbc-bin-moi').length, k.querySelectorAll('.vgbc-ten-moi').length], [1, 1]);
+  k.querySelectorAll('.vgbc-bin-moi')[0].value = '12345';
+  k.querySelectorAll('.vgbc-ten-moi')[0].value = 'Ngân hàng X';
+  bamJq(k, k.querySelectorAll('.vgbc-dung-khac')[0]);
+  la('BIN sai thì không ghi gì', ghi, []);
+  dung('báo lỗi 6 chữ số', chuEl(k.querySelectorAll('.vgbc-loi-khac')[0]).indexOf('6 chữ số') >= 0);
+  k.querySelectorAll('.vgbc-bin-moi')[0].value = '970999';
+  k.querySelectorAll('.vgbc-ten-moi')[0].value = '';
+  bamJq(k, k.querySelectorAll('.vgbc-dung-khac')[0]);
+  la('thiếu tên thì không ghi gì', ghi, []);
+  k.querySelectorAll('.vgbc-ten-moi')[0].value = ' Ngân hàng X ';
+  bamJq(k, k.querySelectorAll('.vgbc-dung-khac')[0]);
+  la('đủ thì ghi cả hai ô một lượt', ghi, [['ngan_hang_bin', '970999'], ['ngan_hang_hien_thi', 'Ngân hàng X']]);
 });
 
 ca('Codex #435 H1: chip tình trạng hiện TRÊN đầu mục (s.head chính là .section-head như Frappe 16)', function () {
