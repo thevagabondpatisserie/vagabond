@@ -426,6 +426,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = VGB_CD;
 		'.vgb-cd .vgbc-anchon select{display:none}',
 		'.vgb-cd .vgbc-anchon-in{display:none}',
 		// Công tắc thay hộp tích: chỉ đổi hình, ô vẫn là checkbox, vẫn lưu 0/1.
+		/* v571: tren site that Frappe ep o tich 18px va o .input-area la flex rong 26px,
+		   nen cong tac chi con nua hinh tron va de len chu nhan (do 04/10/2026). Phai
+		   noi rong hop chua va ep kich thuoc bang !important; thu truc tiep tren site
+		   thi cong tac du 42x24. Bo gia lap node khong tinh CSS nen bang chung la anh
+		   chup site that dinh tren PR. */
+		'.vgb-cd .frappe-control[data-fieldtype="Check"] .input-area{flex:none!important;width:auto!important;min-width:52px}',
+		'.vgb-cd .frappe-control[data-fieldtype="Check"] input[type="checkbox"]{width:42px!important;min-width:42px!important;max-width:42px!important;height:24px!important;min-height:24px}',
 		'.vgb-cd .frappe-control[data-fieldtype="Check"] input[type="checkbox"]{-webkit-appearance:none;appearance:none;width:42px;height:24px;border-radius:12px;background:#cfd6db;position:relative;border:0;margin:0 10px 0 0;cursor:pointer;flex:none;vertical-align:middle;transition:background .15s}',
 		'.vgb-cd .frappe-control[data-fieldtype="Check"] input[type="checkbox"]::after{content:"";position:absolute;width:18px;height:18px;border-radius:50%;background:#fff;top:3px;left:3px;transition:left .15s;box-shadow:0 1px 2px rgba(0,0,0,.2)}',
 		'.vgb-cd .frappe-control[data-fieldtype="Check"] input[type="checkbox"]:checked{background:#22a05a}',
