@@ -65,6 +65,7 @@ ca('Codex #433 vòng 3 G2: GreenSM thiếu token_url, Zalo ZNS thiếu App Secre
   var z = { zalo_app_id: '1', zalo_refresh_token: '*' };
   la('ZNS thiếu App Secret', tim(V.tinhTrang(z, BAY_GIO), 'Zalo ZNS gửi khách').trang, 'no');
   z.zalo_app_secret = '*';
+  z.zns_template_otp = 'T1';  // Codex #435: phải có ít nhất một mẫu ZNS
   la('ZNS đủ', tim(V.tinhTrang(z, BAY_GIO), 'Zalo ZNS gửi khách').trang, 'ok');
   var h = { ahamove_api_key: '*', ahamove_mobile: '09' };
   la('Ahamove thiếu base', tim(V.tinhTrang(h, BAY_GIO), 'Ahamove').trang, 'no');
@@ -307,7 +308,10 @@ global.frappe.utils = global.frappe.utils || { escape_html: function (x) { retur
 function lop(el) { return String(el.getAttribute('class') || ''); }
 function chuEl(el) { var s = el._chu || ''; (el.children || []).forEach(function (c) { s += chuEl(c); }); return s; }
 
-ca('Codex #433 vòng 3 G3: tải danh mục ngân hàng hỏng thì ô BIN gốc VẪN hiện, có báo lỗi và nút Thử lại; thử lại được thì ra ô chọn', function () {
+// Codex #435 I1 ĐỔI yêu cầu của vòng 3: tải hỏng thì KHÔNG được lộ ô BIN gốc (gõ tay
+// được một BIN lạ mà tên ngân hàng không đổi theo). Ba ca dưới vì vậy chốt: ô gốc
+// luôn ẩn, nhưng mã đang lưu vẫn hiện, có báo lỗi và nút Thử lại.
+ca('Codex #433 vòng 3 G3 + #435 I1: tải danh mục hỏng thì hiện mã đang lưu, báo lỗi, nút Thử lại, KHÔNG cho gõ tay; thử lại được thì ra ô chọn', function () {
   global.$ = $;
   var goc = new dg.ElementGia('div');
   goc.innerHTML = '<div class="control-input"><input></div>';
@@ -316,12 +320,14 @@ ca('Codex #433 vòng 3 G3: tải danh mục ngân hàng hỏng thì ô BIN gốc
     lanGoi++;
     return { then: function (ok, loi) { if (hong) loi(new Error('mất mạng')); else ok({ message: { ngan_hang: DM_NH } }); } };
   };
-  var frm = { fields_dict: { ngan_hang_bin: { $wrapper: W([goc]) } }, doc: { ngan_hang_bin: '970422' }, set_value: function () {} };
+  var frm = { fields_dict: { ngan_hang_bin: { $wrapper: W([goc]) } }, doc: { ngan_hang_bin: '970422', ngan_hang_hien_thi: 'MB Bank' }, set_value: function () {} };
   V._desk.veNganHang(frm);
   var ci = goc.querySelectorAll('.control-input')[0];
-  dung('ô BIN gốc không bị ẩn', lop(ci).indexOf('vgbc-anchon-in') < 0);
+  dung('ô BIN gốc bị ẩn, không gõ tay được', lop(ci).indexOf('vgbc-anchon-in') >= 0);
   var k = goc.querySelectorAll('.vgbc-nh')[0];
+  dung('vẫn thấy ngân hàng đang lưu', chuEl(k).indexOf('Đang lưu: MB Bank · BIN 970422') >= 0);
   dung('báo không tải được', chuEl(k).indexOf('Không tải được danh mục ngân hàng') >= 0);
+  la('không có ô nhập nào trong khung', k.querySelectorAll('input').length, 0);
   var nut = goc.querySelectorAll('.vgbc-thu-lai');
   la('có nút Thử lại', nut.length, 1);
   hong = false;
@@ -334,13 +340,30 @@ ca('Codex #433 vòng 3 G3: tải danh mục ngân hàng hỏng thì ô BIN gốc
   dung('có ô tìm ngân hàng', goc.querySelectorAll('.vgbc-tim').length === 1);
 });
 
-ca('Codex #433 vòng 3 G3: đang chờ tải danh mục thì ô BIN gốc vẫn hiện (chưa có gì thay thì không ẩn)', function () {
+ca('Codex #433 vòng 3 G3 + #435 I1: đang chờ tải danh mục thì hiện mã đang lưu và chữ Đang tải, không khung trống, không gõ tay', function () {
   global.$ = $;
   var goc = new dg.ElementGia('div');
   goc.innerHTML = '<div class="control-input"><input></div>';
   global.frappe.call = function () { return { then: function () {} }; };
-  V._desk.veNganHang({ fields_dict: { ngan_hang_bin: { $wrapper: W([goc]) } }, doc: {}, set_value: function () {} });
-  dung('ô BIN gốc không bị ẩn khi đang chờ', lop(goc.querySelectorAll('.control-input')[0]).indexOf('vgbc-anchon-in') < 0);
+  V._desk.veNganHang({ fields_dict: { ngan_hang_bin: { $wrapper: W([goc]) } }, doc: { ngan_hang_bin: '970405' }, set_value: function () {} });
+  dung('ô BIN gốc ẩn khi đang chờ', lop(goc.querySelectorAll('.control-input')[0]).indexOf('vgbc-anchon-in') >= 0);
+  var k = goc.querySelectorAll('.vgbc-nh')[0];
+  dung('thấy BIN đang lưu', chuEl(k).indexOf('BIN 970405') >= 0);
+  dung('có chữ đang tải', chuEl(k).indexOf('Đang tải danh mục ngân hàng') >= 0);
+});
+
+ca('Codex #435 I2: Zalo ZNS cần ít nhất một mã mẫu, WhatsApp cần mẫu thanh toán, mới là đã khai', function () {
+  // Trên 83fdbcf cả hai ra xanh khi thiếu mẫu, dù zalo.gui_tin và whatsapp.gui_mau từ chối đúng cấu hình đó.
+  var z = { zalo_app_id: '1', zalo_app_secret: '*', zalo_refresh_token: '*' };
+  la('ZNS chưa có mẫu nào', tim(V.tinhTrang(z, BAY_GIO), 'Zalo ZNS gửi khách').trang, 'no');
+  ['zns_template_otp', 'zns_template_thanh_toan', 'zns_template_diem'].forEach(function (m) {
+    var d = Object.assign({}, z); d[m] = 'T';
+    la('ZNS có mẫu ' + m, tim(V.tinhTrang(d, BAY_GIO), 'Zalo ZNS gửi khách').trang, 'ok');
+  });
+  var w = { wa_phone_id: '1', wa_token: '*' };
+  la('WhatsApp thiếu mẫu thanh toán', tim(V.tinhTrang(w, BAY_GIO), 'WhatsApp').trang, 'no');
+  w.wa_template_thanh_toan = 'thanh_toan_vi';
+  la('WhatsApp đủ', tim(V.tinhTrang(w, BAY_GIO), 'WhatsApp').trang, 'ok');
 });
 
 ca('Codex #435 H1: chip tình trạng hiện TRÊN đầu mục (s.head chính là .section-head như Frappe 16)', function () {
@@ -404,7 +427,8 @@ ca('Codex #433 vòng 3 G3: máy chủ trả danh mục rỗng cũng coi là hỏ
   goc.innerHTML = '<div class="control-input"><input></div>';
   global.frappe.call = function () { return { then: function (ok) { ok({ message: { ngan_hang: [] } }); } }; };
   V._desk.veNganHang({ fields_dict: { ngan_hang_bin: { $wrapper: W([goc]) } }, doc: {}, set_value: function () {} });
-  dung('ô BIN gốc không bị ẩn', lop(goc.querySelectorAll('.control-input')[0]).indexOf('vgbc-anchon-in') < 0);
+  dung('ô BIN gốc ẩn', lop(goc.querySelectorAll('.control-input')[0]).indexOf('vgbc-anchon-in') >= 0);
+  dung('báo chưa chọn ngân hàng', chuEl(goc.querySelectorAll('.vgbc-nh')[0]).indexOf('Chưa chọn ngân hàng') >= 0);
   la('có nút Thử lại', goc.querySelectorAll('.vgbc-thu-lai').length, 1);
 });
 
