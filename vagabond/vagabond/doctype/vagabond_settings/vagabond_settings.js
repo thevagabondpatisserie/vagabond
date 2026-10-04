@@ -155,6 +155,14 @@ var VGB_CD = (function () {
 		bin = String(bin || '').trim();
 		return (ds || []).filter(function (n) { return n.bin === bin; })[0] || null;
 	}
+	// Cùng luật với máy chủ tai_khoan.kiem_cap_ngan_hang (ca kiểm chốt hai bên khớp).
+	function kiemCapNganHang(bin, ten) {
+		bin = String(bin || '').trim(); ten = String(ten || '').trim();
+		if (!bin) return null;
+		if (!/^\d{6}$/.test(bin)) return 'Mã BIN ngân hàng phải đúng 6 chữ số.';
+		if (!ten) return 'Có Mã BIN thì phải có Tên ngân hàng hiện cho khách.';
+		return null;
+	}
 	function timNganHang(tu, ds) {
 		var cac = boDau(tu).split(/\s+/).filter(Boolean);
 		if (!cac.length) return [];
@@ -382,7 +390,7 @@ var VGB_CD = (function () {
 	}
 
 	return { boDau: boDau, tinhTrang: tinhTrang, tinhTrangMuc: tinhTrangMuc, tomTat: tomTat, timTruong: timTruong,
-		NHAN_CHON: NHAN_CHON, KET_NOI: KET_NOI, docJson: docJson, nganHangTheoBin: nganHangTheoBin, timNganHang: timNganHang, moToi: moToi, xepTinhTrang: xepTinhTrang,
+		NHAN_CHON: NHAN_CHON, KET_NOI: KET_NOI, docJson: docJson, nganHangTheoBin: nganHangTheoBin, timNganHang: timNganHang, moToi: moToi, xepTinhTrang: xepTinhTrang, kiemCapNganHang: kiemCapNganHang,
 		ZALO_NHAN: ZALO_NHAN, ZALO_DANH_MUC: ZALO_DANH_MUC };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = VGB_CD;
@@ -551,10 +559,30 @@ if (typeof module !== 'undefined' && module.exports) module.exports = VGB_CD;
 		}
 		function ve(ds) {
 			var hien = VGB_CD.nganHangTheoBin(ds, frm.doc.ngan_hang_bin);
+			// Codex #435 vòng 6: BIN đang lưu mà ngoài danh mục (ngân hàng khai tay)
+			// KHÔNG phải lỗi: vẫn dùng được, chỉ báo vàng và giữ nguyên.
 			$k.html('<div class="vgbc-chips" style="margin:6px 0">' +
 				(hien ? chip('ok', 'Đang dùng: ' + hien.ten, 1)
-					: chip(frm.doc.ngan_hang_bin ? 'err' : 'no', frm.doc.ngan_hang_bin ? 'Mã BIN này không có trong danh mục ngân hàng' : 'Chưa chọn ngân hàng', 1)) +
-				'</div><input class="vgbc-tim" type="search" placeholder="Gõ tên ngân hàng để đổi: MB, Vietcombank, OCB..."><div class="vgbc-kq"></div>');
+					: (frm.doc.ngan_hang_bin ? chip('off', 'Đang dùng: ' + (frm.doc.ngan_hang_hien_thi || 'chưa có tên') + ' · BIN ' + frm.doc.ngan_hang_bin + ', khai ngoài danh mục', 1)
+						: chip('no', 'Chưa chọn ngân hàng', 1))) +
+				'</div><input class="vgbc-tim" type="search" placeholder="Gõ tên ngân hàng để đổi: MB, Vietcombank, OCB..."><div class="vgbc-kq"></div>' +
+				'<button type="button" class="vgbc-xem vgbc-khac">Ngân hàng không có trong danh sách?</button><div class="vgbc-khac-o"></div>');
+			// Ngân hàng ngoài danh mục: khai CẢ HAI ô một lượt (BIN 6 số và tên hiện
+			// cho khách), máy chủ kiểm lại bằng tai_khoan.kiem_cap_ngan_hang.
+			$k.on('click', '.vgbc-khac', function () {
+				$k.find('.vgbc-khac-o').html('<div class="vgbc-mo">Mã BIN là 6 chữ số ngân hàng dùng cho mã QR (hỏi ngân hàng hoặc xem trên app ngân hàng). Tên là chữ khách thấy dưới mã QR.</div>' +
+					'<input class="vgbc-tim vgbc-bin-moi" inputmode="numeric" maxlength="6" placeholder="Mã BIN, 6 chữ số">' +
+					'<input class="vgbc-tim vgbc-ten-moi" placeholder="Tên ngân hàng hiện cho khách">' +
+					'<button type="button" class="btn btn-xs btn-default vgbc-dung-khac">Dùng ngân hàng này</button><div class="vgbc-loi-khac"></div>');
+			});
+			$k.on('click', '.vgbc-dung-khac', function () {
+				var bin = String($k.find('.vgbc-bin-moi').val() || '').trim();
+				var ten = String($k.find('.vgbc-ten-moi').val() || '').trim();
+				var loi = VGB_CD.kiemCapNganHang(bin, ten);
+				if (loi) { $k.find('.vgbc-loi-khac').html(chip('err', loi, 1)); return; }
+				frm.set_value('ngan_hang_bin', bin);
+				frm.set_value('ngan_hang_hien_thi', ten);
+			});
 			$k.on('input', '.vgbc-tim', function () {
 				var kq = VGB_CD.timNganHang(this.value, ds);
 				$k.find('.vgbc-kq').html(kq.map(function (n) {
