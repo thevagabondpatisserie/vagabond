@@ -126,6 +126,9 @@ def _dung_he(hd=None, pe_cu=None, nhap=None, bank=None):
 			return list(pe_cu or [])
 		if dt == "Payment Entry Reference":
 			# nhap: list Doi(reference_name, allocated_amount) cua phieu thu NHAP.
+			# Phieu thu DA GHI SO (docstatus 1) ca kiem nay khong dung toi.
+			if ((filters or {}).get("docstatus") == 1):
+				return []
 			nk.append(("doc_nhap",))
 			ds = list(nhap or [])
 			if k.get("pluck"):
@@ -150,6 +153,19 @@ def _dung_he(hd=None, pe_cu=None, nhap=None, bank=None):
 	fr.db.exists = lambda *a, **k: True
 	fr.session.user = "ntla.3008@gmail.com"
 	tt._ghi_vet_thu = lambda *a, **k: nk.append(("vet", fr.session.user))
+	# Bảng phiếu thu nháp kèm kết quả xác minh: mỗi dòng nhap là một phân bổ,
+	# gom theo `pe` (mặc định mỗi dòng một phiếu), `xm` mặc định 1 (đã xác minh).
+	moc["ptn"] = tt.phieu_thu_nhap
+
+	def phieu_thu_nhap(cac_si=None, **k):
+		theo = {}
+		for i, r in enumerate(nhap or []):
+			pe = r.get("pe") or "PE-%d" % i
+			p = theo.setdefault(pe, {"pe": pe, "da_xac_minh": 1 if r.get("xm", 1) else 0,
+				"ma_gd": r.get("ma_gd") or "FT-" + pe, "gd": "", "hd": []})
+			p["hd"].append((r.reference_name, r.allocated_amount))
+		return list(theo.values())
+	tt.phieu_thu_nhap = phieu_thu_nhap
 
 	def tra():
 		fr.get_all = moc["get_all"]
@@ -158,6 +174,7 @@ def _dung_he(hd=None, pe_cu=None, nhap=None, bank=None):
 		fr.session.user = moc["user"]
 		fr.db.get_value = moc["get_value"]
 		fr.db.exists = moc["exists"]
+		tt.phieu_thu_nhap = moc["ptn"]
 	cu["tra"] = tra
 	return nk, tra
 
@@ -494,3 +511,53 @@ def _():
 	finally:
 		fr.set_user = goc_set
 		tra()
+
+
+@ca("Codex #437 vòng 5: phiếu nháp CHƯA xác minh không tính là đã nhận, phiếu không được báo đã thu đủ")
+def _():
+	# Trên 45ba543: da_thu tính từ mọi phân bổ nháp, nên nháp 2tr chưa có
+	# tiền về cộng với lần 5,6tr thật vẫn ra 7,6tr, Da thu du, gửi thư.
+	nhap = [Doi(reference_name="HDB-26-09-01679", allocated_amount=2000000.0, xm=0)]
+	nk, tra = _dung_he(nhap=nhap)
+	doc = PhieuNo(name="P", ma_phieu="DNTT-26-10-00002", trang_thai="Cho thu",
+		tong_tien=7600000.0, da_thu=0.0, flags=Doi(), _nk=nk,
+		dong=[Doi(hoa_don=h.name) for h in HD])
+	moc = {"get_doc": fr.get_doc, "kq": cn._kiem_quyen_ban, "giu": cn._giu_gd,
+		"tim": tt.tim_giao_dich, "lap": tt.lap_phieu_thu_theo_gd, "gui": cn._gui_thu_da_nhan}
+	fr.get_doc = lambda *a, **k: doc
+	cn._kiem_quyen_ban = lambda: None
+	cn._giu_gd = lambda d, ds: "FT2"
+	tt.tim_giao_dich = lambda ma: GD
+	cn._gui_thu_da_nhan = lambda d: nk.append(("gui_thu",))
+
+	def lap(cac_si, g, so, gc=""):
+		nhap.append(Doi(reference_name="HDB-26-09-01679", allocated_amount=2750000.0, pe="APP-2"))
+		nhap.append(Doi(reference_name="HDB-26-09-02477", allocated_amount=2850000.0, pe="APP-2"))
+		return {"pe": "APP-2", "hd": [], "ma_gd": "FT2"}
+	tt.lap_phieu_thu_theo_gd = lap
+	try:
+		cn.khop_tay(doc.name, 5600000, "FT2")
+		la("chỉ tính phần đã xác minh", doc.da_thu, 5600000.0)
+		la("vẫn Thu thiếu", doc.trang_thai, "Thu thieu")
+		la("không gửi thư đã nhận đủ", [x for x in nk if x[0] == "gui_thu"], [])
+	finally:
+		fr.get_doc = moc["get_doc"]
+		cn._kiem_quyen_ban = moc["kq"]
+		cn._giu_gd = moc["giu"]
+		tt.tim_giao_dich = moc["tim"]
+		tt.lap_phieu_thu_theo_gd = moc["lap"]
+		cn._gui_thu_da_nhan = moc["gui"]
+		tra()
+
+
+@ca("Codex #437 vòng 5: số tiền phiếu thu lấy từ giao dịch, không tin số máy khách gửi")
+def _():
+	nk, tra = _dung_he()
+	try:
+		kq = tt.lap_phieu_thu_theo_gd([h.name for h in HD], GD, 1000000)
+	finally:
+		tra()
+	la("lấy đủ 7,6tr của giao dịch", kq["tien"], 7600000.0)
+	la("chia đủ hai tờ", kq["hd"], [("HDB-26-09-01679", 4750000.0), ("HDB-26-09-02477", 2850000.0)])
+	la("tiền đã nhận thuần: ghi sổ + nháp xác minh, không quá tổng phiếu",
+		cn.tien_da_nhan({"A": 1000000}, {"A": 500000, "B": 9000000}, 7600000), 7600000.0)
