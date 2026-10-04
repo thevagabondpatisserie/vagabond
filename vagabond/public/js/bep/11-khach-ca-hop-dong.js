@@ -142,7 +142,11 @@ async function scrCongNo() {
         '<div style="font-size:12.5px;color:#98a2b3;margin-top:2px">' + h(p.ma_phieu) + ' · ' + p.so_hd + ' hoá đơn · tạo ' + posNgayVn(p.ngay_tao) + '</div>' +
         '<div style="font-size:12.5px;color:' + mau + ';font-weight:700;margin-top:3px">' + nhan +
         (p.het_han && p.trang_thai !== 'Da thu du' ? ' · QR hết hạn ' + posNgayVn(p.han_qr) : '') +
-        (p.sepay ? ' · SePay đã nhận ' + money(p.sepay) + ' đ' : '') + '</div></div>' +
+        (p.sepay ? ' · SePay đã nhận ' + money(p.sepay) + ' đ' : '') + '</div>' +
+        /* v571: phieu da thu du ma hoa don chua co phieu thu thi khach van o
+           tab Dang no. Noi thang ra de nguoi ta vao khop lai. */
+        (p.thieu_phieu_thu ? '<div style="font-size:12.5px;color:#b45309;font-weight:700;margin-top:3px">⚠ ' + p.thieu_phieu_thu + ' hoá đơn chưa có phiếu thu, khách vẫn ở Đang nợ</div>' : '') +
+        '</div>' +
         '<div style="text-align:right"><b style="font-size:16px">' + money(p.tong_tien) + ' đ</b>' +
         (p.con_thieu && p.trang_thai !== 'Huy' ? '<div style="font-size:12px;color:#b91c1c">còn ' + money(p.con_thieu) + ' đ</div>' : '') + '</div>' +
         '<span style="color:#c3c8d4;font-size:20px">›</span></div></div>';
@@ -364,7 +368,12 @@ async function scrCnPhieu(name) {
   var d;
   try { d = await api('vagabond.cong_no.xem_phieu', { name: name }); }
   catch (e) { frame('Phiếu đề nghị thanh toán', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không đọc được') + '</div></div>'); return; }
-  var du = d.sepay >= d.tong_tien - 1;
+  /* v571: tien da nhan la moc cao hon giua SePay tu khop va so khop tay.
+     Phieu "Da thu du" ma con hoa don chua co phieu thu thi CHUA xong: khach
+     van o tab Dang no, phai hien lai nut Khop tay de lam lai cho dung. */
+  var daNhan = Math.max(d.sepay || 0, d.da_thu || 0);
+  var thieuPT = d.thieu_phieu_thu || 0;
+  var du = (d.trang_thai === 'Da thu du' || d.sepay >= d.tong_tien - 1) && !thieuPT;
   var qr = d.qr || {};
   var url = qr.stk
     ? 'https://img.vietqr.io/image/' + (qr.bank || 'MB') + '-' + qr.stk + '-qr_only.png?amount=' + Math.round(d.tong_tien) +
@@ -381,9 +390,14 @@ async function scrCnPhieu(name) {
 
   if (du) {
     html += '<div class="card" style="padding:18px;text-align:center;border:2px solid #16a34a;background:#f0fdf4">' +
-      '<div style="font-size:34px">✅</div><div style="font-size:18px;font-weight:800;color:#15803d">ĐÃ NHẬN ĐỦ ' + money(d.sepay) + ' đ</div>' +
+      '<div style="font-size:34px">✅</div><div style="font-size:18px;font-weight:800;color:#15803d">ĐÃ NHẬN ĐỦ ' + money(daNhan) + ' đ</div>' +
       '<div style="font-size:13px;color:#15803d;margin-top:4px">Công nợ của khách này đã sạch.</div></div>';
   } else {
+    if (thieuPT) {
+      html += '<div class="card" style="padding:13px 14px;border:1.5px solid #fcd34d;background:#fffbeb;color:#92400e;font-size:13.5px;line-height:1.55">' +
+        '<b>⚠ Phiếu đã ghi nhận ' + money(daNhan) + ' đ nhưng ' + thieuPT + ' hoá đơn chưa có phiếu thu</b>, nên khách vẫn nằm ở tab Đang nợ. ' +
+        'Bấm <b>Khớp tay</b> và chọn đúng giao dịch khách chuyển: máy lập một phiếu thu nháp cho cả các hoá đơn, chuyển chúng sang mục Tiền đã về.</div>';
+    }
     html += '<div class="card" style="padding:14px;text-align:center">' +
       (d.het_han
         ? '<div style="background:#fef2f2;border:1.5px solid #fecaca;color:#b91c1c;border-radius:9px;padding:9px;font-size:13px;font-weight:700;margin-bottom:10px">Mã QR đã quá hạn ' + posNgayVn(d.han_qr) + '. Huỷ phiếu này rồi gom lại phiếu mới.</div>'
