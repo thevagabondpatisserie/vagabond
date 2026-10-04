@@ -791,11 +791,13 @@ class nang_quyen_lap_phieu(object):
 		return self.goc
 
 	def __exit__(self, *loi):
+		# Codex #437 vòng 4: trả lại người gọi hỏng thì KHÔNG được nuốt lỗi
+		# rồi chạy tiếp bằng quyền Administrator. Để lỗi bay ra cho request
+		# dừng và lùi giao dịch, và soát lại cho chắc đã đổi được.
 		if frappe.session.user != self.goc:
-			try:
-				frappe.set_user(self.goc)
-			except Exception:
-				pass
+			frappe.set_user(self.goc)
+		if frappe.session.user != self.goc:
+			raise frappe.PermissionError("Không trả lại được người dùng sau khi lập phiếu thu.")
 		return False
 
 
@@ -1629,6 +1631,17 @@ def lap_phieu_thu_theo_gd(cac_si, g, so_tien, ghi_chu=""):
 	hd = frappe.get_all(SI, filters={"name": ["in", list(cac_si or []) or [""]], "docstatus": 1},
 		fields=["name", "customer", "company", "outstanding_amount", "posting_date", "grand_total", "due_date"],
 		limit_page_length=0)
+	# Codex #437 vòng 4: KHOÁ từng hoá đơn (theo thứ tự tên, tránh khoá
+	# chéo) trước khi đọc dư nợ và phân bổ nháp. Hai người khớp hai giao
+	# dịch trả góp cùng lúc thì người sau phải chờ người trước lập xong,
+	# rồi mới thấy phần nháp người trước đã phủ.
+	for ten in sorted(h.name for h in hd):
+		frappe.db.get_value(SI, ten, "name", for_update=True)
+	moi = {r.name: r for r in frappe.get_all(SI, filters={"name": ["in", [h.name for h in hd] or [""]]},
+		fields=["name", "outstanding_amount"], limit_page_length=0)}
+	for h in hd:
+		if h.name in moi:
+			h.outstanding_amount = moi[h.name].outstanding_amount
 	hd = [h for h in hd if flt(h.outstanding_amount) > LECH]
 	if not hd:
 		frappe.throw("Các hoá đơn trong phiếu không còn nợ trên sổ.")

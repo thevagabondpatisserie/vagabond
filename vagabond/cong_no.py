@@ -616,6 +616,30 @@ def da_thu_cua_phieu(sepay, da_thu):
 	return max(flt(sepay), flt(da_thu))
 
 
+def da_thu_theo_phu(tong_phieu, tong_chua_phu):
+	"""Tiền phiếu đã nhận, tính theo phần hoá đơn ĐÃ có phiếu thu phủ. THUẦN.
+
+	Codex #437 vòng 4: khớp tay lần hai (trả góp) trước đây GHI ĐÈ da_thu
+	bằng số của lần sau, nên 2.000.000 + 5.600.000 thành da_thu 5.600.000,
+	phiếu Thu thiếu và màn hiện lại QR đòi 2.000.000 đã nhận.
+	"""
+	return max(0.0, flt(tong_phieu) - max(0.0, flt(tong_chua_phu)))
+
+
+def _tong_chua_phu(cac_si):
+	"""Tổng phần nợ chưa có phiếu thu nào phủ của các hoá đơn."""
+	from vagabond import thu_tien as tt
+
+	cac_si = [x for x in set(cac_si or []) if x]
+	if not cac_si:
+		return 0.0
+	con = {r.name: flt(r.outstanding_amount) for r in frappe.get_all("Sales Invoice",
+		filters={"name": ["in", cac_si], "docstatus": 1},
+		fields=["name", "outstanding_amount"], limit_page_length=0)}
+	nhap = tt.phan_bo_nhap_theo_hd(list(con))
+	return sum(tt.con_chua_phu(v, nhap.get(k)) for k, v in con.items())
+
+
 def _hd_chua_co_phieu_thu(cac_si):
 	"""Hoa don con mot phan no CHUA co phieu thu nao phu (nhap hay da ghi so).
 
@@ -1454,7 +1478,8 @@ def khop_tay(name, so_tien, ma_giao_dich="", ghi_chu=""):
 	so_tien = flt(so_tien)
 	if so_tien <= 0:
 		frappe.throw("Số tiền khớp tay phải lớn hơn 0.")
-	doc = frappe.get_doc("Vagabond Cong No", name)
+	# Codex #437 vòng 4: khoá phiếu để hai người khớp cùng phiếu đi lần lượt.
+	doc = frappe.get_doc("Vagabond Cong No", name, for_update=True)
 	if doc.trang_thai == "Huy":
 		frappe.throw("Phiếu đã huỷ, không khớp được.")
 	if so_tien > flt(doc.tong_tien) + 1:
@@ -1489,8 +1514,13 @@ def khop_tay(name, so_tien, ma_giao_dich="", ghi_chu=""):
 			[h for h in cac_hd if h in chua_pt], g, so_tien,
 			"Theo phiếu đòi nợ %s. %s" % (doc.ma_phieu or doc.name, (ghi_chu or "").strip()),
 		)
-	doc.da_thu = so_tien
-	doc.trang_thai = "Da thu du" if so_tien >= flt(doc.tong_tien) - 1 else "Thu thieu"
+	if lap:
+		# Có phiếu thu theo giao dịch: số đã nhận lấy từ phần hoá đơn đã có
+		# phiếu thu phủ, cộng dồn mọi lần trả góp (Codex #437 vòng 4).
+		doc.da_thu = da_thu_theo_phu(doc.tong_tien, _tong_chua_phu(cac_hd))
+	else:
+		doc.da_thu = so_tien
+	doc.trang_thai = "Da thu du" if flt(doc.da_thu) >= flt(doc.tong_tien) - 1 else "Thu thieu"
 	if gd:
 		doc.ma_gd = gd
 		doc.nguoi_khop_tay = frappe.session.user
