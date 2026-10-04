@@ -1467,6 +1467,16 @@ def khop_tay(name, so_tien, ma_giao_dich="", ghi_chu=""):
 	# Goi TRUOC khi lap phieu thu: phieu thu mang ma giao dich se chiem ma do.
 	gd = _giu_gd(doc, [ma_giao_dich] if str(ma_giao_dich or "").strip() else [])
 	g = tt.tim_giao_dich(ma_giao_dich) if str(ma_giao_dich or "").strip() else None
+	# Codex #437 F1: CO chon giao dich ma khong nap duoc (go nham, da huy giua
+	# luc liet ke va luc bam) thi DUNG, khong roi xuong loi "khong giao dich"
+	# roi danh dau da thu. Tai hien tren 30e2b9d: phieu thanh Da thu du va di
+	# loi cu tung hoa don, khong co giao dich nao dung sau.
+	if str(ma_giao_dich or "").strip() and not g:
+		frappe.throw(
+			"Không tìm thấy giao dịch ngân hàng %s (có thể đã huỷ hoặc gõ nhầm). "
+			"Mở lại Khớp tay và chọn lại giao dịch; phiếu %s chưa bị đổi gì."
+			% (str(ma_giao_dich).strip(), doc.ma_phieu)
+		)
 	lap = None
 	if g:
 		lap = tt.lap_phieu_thu_theo_gd(
