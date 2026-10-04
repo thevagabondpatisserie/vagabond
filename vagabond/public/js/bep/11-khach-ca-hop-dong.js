@@ -374,9 +374,12 @@ async function scrCnPhieu(name) {
   var daNhan = Math.max(d.sepay || 0, d.da_thu || 0);
   var thieuPT = d.thieu_phieu_thu || 0;
   var du = (d.trang_thai === 'Da thu du' || d.sepay >= d.tong_tien - 1) && !thieuPT;
+  /* Codex #437 vong 7: da nhan mot phan (SePay hay khop tay) thi QR va khoi
+     chuyen khoan doi PHAN CON LAI do may chu tinh, khong doi lai ca to. */
+  var conPhaiChuyen = daNhan > 0 ? (d.con_thieu || 0) : d.tong_tien;
   var qr = d.qr || {};
   var url = qr.stk
-    ? 'https://img.vietqr.io/image/' + (qr.bank || 'MB') + '-' + qr.stk + '-qr_only.png?amount=' + Math.round(d.tong_tien) +
+    ? 'https://img.vietqr.io/image/' + (qr.bank || 'MB') + '-' + qr.stk + '-qr_only.png?amount=' + Math.round(conPhaiChuyen) +
       '&addInfo=' + encodeURIComponent(d.ma_phieu) + '&accountName=' + encodeURIComponent(qr.ten || '')
     : '';
 
@@ -408,13 +411,13 @@ async function scrCnPhieu(name) {
         ? '<div style="background:#fef2f2;border:1.5px solid #fecaca;color:#b91c1c;border-radius:9px;padding:9px;font-size:13px;font-weight:700;margin-bottom:10px">Mã QR đã quá hạn ' + posNgayVn(d.han_qr) + '. Huỷ phiếu này rồi gom lại phiếu mới.</div>'
         : '<div style="font-size:12.5px;color:#6b7280;margin-bottom:8px">Mã QR sống tới hết ngày <b>' + posNgayVn(d.han_qr) + '</b></div>') +
       (url ? '<img src="' + url + '" style="width:230px;height:230px;display:block;margin:0 auto;border:1px solid #eef0f4;border-radius:10px">' : '<div style="color:#b3261e;font-size:13px">Chưa khai số tài khoản nhận nên chưa sinh được QR.</div>') +
-      (d.sepay ? '<div style="margin-top:8px;color:#b45309;font-weight:700">SePay đã nhận ' + money(d.sepay) + ' đ, còn thiếu ' + money(d.con_thieu) + ' đ</div>' : '') +
+      (daNhan ? '<div style="margin-top:8px;color:#b45309;font-weight:700">' + (d.sepay >= daNhan ? 'SePay đã' : 'Đã') + ' nhận ' + money(daNhan) + ' đ, còn thiếu ' + money(d.con_thieu) + ' đ</div>' : '') +
       '</div>';
 
     /* Khoi chu cho khach khong quet duoc QR (anh Viet 14/08/2026). Ke toan
        ben khach si chuyen tu app ngan hang cua cong ty ho, ben do khong co
        cho quet ma phai go tay bon dong nay. Bay ro, bam mot cai la chep. */
-    var ckTien = d.sepay ? d.con_thieu : d.tong_tien;
+    var ckTien = conPhaiChuyen;
     var DONG_CK = [
       ['Ngân hàng', qr.bank || '', 0],
       ['Số tài khoản', qr.stk || '', 1],
