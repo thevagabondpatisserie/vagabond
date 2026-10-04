@@ -755,3 +755,40 @@ def _():
 		cn.ghi_thu_cho_phieu = moc["ghi"]
 		fr.db.exists = moc["ex"]
 		tra()
+
+
+@ca("Codex #437 sau merge: phiếu ĐÃ thu đủ còn hoá đơn thiếu phiếu thu, khớp tay KHÔNG giao dịch vẫn LẬP phiếu thu")
+def _():
+	# Codex trên d9cda52: lối "Không thấy giao dịch" bỏ qua ghi_thu_cho_phieu
+	# vì điều kiện cũ dựa trên trạng thái phiếu TRƯỚC khi khớp (Da thu du),
+	# nên bấm Khớp tay để sửa chỉ ghi bình luận rồi báo thành công, hoá đơn
+	# vẫn nợ. Điều kiện phải dựa trên việc còn hoá đơn thiếu phiếu thu.
+	nk, tra = _dung_he()
+	doc = PhieuNo(name="P2", ma_phieu="DNTT-26-10-00002", trang_thai="Da thu du",
+		tong_tien=7600000.0, da_thu=7600000.0, ma_gd="", flags=Doi(), _nk=nk,
+		dong=[Doi(hoa_don=h.name) for h in HD])
+	moc = {"get_doc": fr.get_doc, "kq": cn._kiem_quyen_ban, "giu": cn._giu_gd,
+		"gui": cn._gui_thu_da_nhan, "ghi": cn.ghi_thu_cho_phieu, "ex": fr.db.exists}
+	# _dung_he cho exists luôn True; ở đây exists chỉ thấy bình luận đã ghi,
+	# không thì dấu lần khớp làm khop_tay trả da_lam_roi sớm và ca xanh/đỏ sai lý do.
+	fr.db.exists = lambda dt, f=None, **k: dt == "Comment" and any(
+		f["content"][1].strip("%") in x[1] for x in nk if x[0] == "binh_luan")
+	fr.get_doc = lambda *a, **k: doc
+	cn._kiem_quyen_ban = lambda: None
+	cn._giu_gd = lambda d, ds: ""
+	cn._gui_thu_da_nhan = lambda d: nk.append(("gui_thu",))
+	cn.ghi_thu_cho_phieu = lambda *a, **k: nk.append(("ghi_thu", k.get("so_tien"), k.get("khoa"))) or []
+	try:
+		cn.khop_tay("P2", 7600000, "", "chuyen khoan khong ve sao ke", ma_lan="sua1")
+		la("đã lập phiếu thu cho phần sửa", [x[1:] for x in nk if x[0] == "ghi_thu"],
+			[(7600000.0, "tay:sua1")])
+		la("đã thu không cộng quá tổng", doc.da_thu, 7600000.0)
+		la("không gửi lại thư báo nhận tiền", [x for x in nk if x[0] == "gui_thu"], [])
+	finally:
+		fr.get_doc = moc["get_doc"]
+		cn._kiem_quyen_ban = moc["kq"]
+		cn._giu_gd = moc["giu"]
+		cn._gui_thu_da_nhan = moc["gui"]
+		cn.ghi_thu_cho_phieu = moc["ghi"]
+		fr.db.exists = moc["ex"]
+		tra()
