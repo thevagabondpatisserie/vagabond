@@ -6,16 +6,51 @@ const ZALO_DANH_MUC = {
 	loai_tin: ['thong_bao', 'viec', 'canh_bao', 'ban_tin', 'phat_hanh'],
 	chu_de: ['kho', 'san_xuat', 'cong_no', 'ban_hang', 'don_web', 'dat_ban', 'phat_hanh'],
 };
+// v568: anh Việt 04/10/2026, kèm ảnh hộp Chọn loại tin chỉ có mã ban_tin,
+// canh_bao...: *"không có subtext để biết tin đó là tin gì"*. Mã vẫn là giá trị
+// lưu (máy chủ kiểm theo mã); người dùng thấy tên, biểu tượng và một dòng giải
+// thích. Tên và biểu tượng loại tin phải trùng kenh_zalo.LOAI (ca kiểm chốt).
+const ZALO_NHAN = {
+	loai_tin: {
+		thong_bao: ['ℹ️', 'Thông báo', 'Tin cho biết, không cần làm gì: chứng từ đã ghi sổ, đơn đã giao.'],
+		viec: ['✅', 'Việc cần làm', 'Có việc chờ người trong nhóm xử lý, ví dụ khoản trả trước chờ duyệt. Việc xong trước giờ gửi thì máy bỏ, không nhắc nữa.'],
+		canh_bao: ['🚨', 'Cảnh báo', 'Sự cố cần xử lý ngay. Đây là loại DUY NHẤT vẫn gửi trong giờ im của nhóm.'],
+		ban_tin: ['📊', 'Bản tin', 'Báo cáo định kỳ, ví dụ số liệu cuối ngày. Tin gom sau giờ im vẫn tới đủ, không phụ thuộc lựa chọn này.'],
+		phat_hanh: ['🚀', 'Phát hành', 'App có bản mới: thêm gì, bộ phận cần làm gì.'],
+	},
+	chu_de: {
+		kho: ['📦', 'Kho', 'Nhập, xuất, điều chuyển, kiểm kê, ngưỡng tồn.'],
+		san_xuat: ['🧑‍🍳', 'Sản xuất', 'Phiếu yêu cầu, lệnh sản xuất, bảng bếp.'],
+		cong_no: ['💳', 'Công nợ', 'Phải thu, phải trả, khoản chờ duyệt chi.'],
+		ban_hang: ['🎂', 'Bán hàng', 'Đơn bán, hoá đơn, chốt ca quầy.'],
+		don_web: ['🌐', 'Đơn web', 'Đơn đặt bánh trên trang web.'],
+		dat_ban: ['🪑', 'Đặt bàn', 'Khách đặt bàn tại cửa hàng.'],
+		phat_hanh: ['🚀', 'Phát hành app', 'Tin bản mới của app.'],
+	},
+};
 function zalo_chon(frm, cdt, cdn, truong) {
 	const row = locals[cdt][cdn];
 	const dang = (row[truong] || '').split(/[,;]/).map(s => s.trim()).filter(Boolean);
+	const nhan = ZALO_NHAN[truong];
+	const e = frappe.utils.escape_html;
+	const html = '<div class="vgbz-goi">Không tích ô nào là nhóm nhận <b>tất cả</b> ' +
+		(truong === 'loai_tin' ? 'loại tin.' : 'chủ đề.') + '</div>' +
+		ZALO_DANH_MUC[truong].map(v => {
+			const n = nhan[v] || ['', v, ''];
+			return '<label class="vgbz-dong"><input type="checkbox" value="' + e(v) + '"' + (dang.includes(v) ? ' checked' : '') + '>' +
+				'<span class="vgbz-ic">' + e(n[0]) + '</span><span><b>' + e(n[1]) + '</b><small>' + e(n[2]) + '</small></span></label>';
+		}).join('') +
+		'<style>.vgbz-goi{font-size:13px;color:var(--text-muted);margin-bottom:8px}' +
+		'.vgbz-dong{display:flex;align-items:flex-start;gap:12px;min-height:56px;padding:10px 8px;border-top:1px solid var(--border-color);cursor:pointer;margin:0}' +
+		'.vgbz-dong input{margin-top:3px;width:18px;height:18px;flex:none}.vgbz-ic{font-size:18px;line-height:22px;flex:none}' +
+		'.vgbz-dong b{display:block;font-size:14px}.vgbz-dong small{display:block;font-size:13px;color:var(--text-muted);line-height:1.4}</style>';
 	const d = new frappe.ui.Dialog({
-		title: truong === 'loai_tin' ? 'Chọn loại tin (bỏ trống là nhận tất)' : 'Chọn chủ đề (bỏ trống là nhận tất)',
-		fields: [{ fieldname: 'chon', fieldtype: 'MultiCheck', columns: 2,
-			options: ZALO_DANH_MUC[truong].map(v => ({ label: v, value: v, checked: dang.includes(v) })) }],
+		title: truong === 'loai_tin' ? 'Nhóm này nhận loại tin nào?' : 'Nhóm này nhận chủ đề nào?',
+		fields: [{ fieldname: 'ds', fieldtype: 'HTML', options: html }],
 		primary_action_label: 'Xong',
-		primary_action(v) {
-			frappe.model.set_value(cdt, cdn, truong, (v.chon || []).join(', '));
+		primary_action() {
+			const chon = d.$wrapper.find('.vgbz-dong input:checked').map((i, x) => x.value).get();
+			frappe.model.set_value(cdt, cdn, truong, chon.join(', '));
 			d.hide();
 		},
 	});
@@ -297,7 +332,8 @@ var VGB_CD = (function () {
 	}
 
 	return { boDau: boDau, tinhTrang: tinhTrang, tinhTrangMuc: tinhTrangMuc, tomTat: tomTat, timTruong: timTruong,
-		NHAN_CHON: NHAN_CHON, NGAN_HANG: NGAN_HANG, KET_NOI: KET_NOI, docJson: docJson };
+		NHAN_CHON: NHAN_CHON, NGAN_HANG: NGAN_HANG, KET_NOI: KET_NOI, docJson: docJson,
+		ZALO_NHAN: ZALO_NHAN, ZALO_DANH_MUC: ZALO_DANH_MUC };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = VGB_CD;
 
