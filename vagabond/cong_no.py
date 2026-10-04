@@ -616,28 +616,39 @@ def da_thu_cua_phieu(sepay, da_thu):
 	return max(flt(sepay), flt(da_thu))
 
 
-def da_thu_theo_phu(tong_phieu, tong_chua_phu):
-	"""Tiền phiếu đã nhận, tính theo phần hoá đơn ĐÃ có phiếu thu phủ. THUẦN.
+def tien_da_nhan(ghi_so, nhap_xac_minh, tong_phieu):
+	"""Tiền phiếu đã nhận THẬT, cộng dồn mọi lần trả góp. THUẦN.
 
-	Codex #437 vòng 4: khớp tay lần hai (trả góp) trước đây GHI ĐÈ da_thu
-	bằng số của lần sau, nên 2.000.000 + 5.600.000 thành da_thu 5.600.000,
-	phiếu Thu thiếu và màn hiện lại QR đòi 2.000.000 đã nhận.
+	`ghi_so` là {hoá đơn: phân bổ của phiếu thu ĐÃ GHI SỔ}, `nhap_xac_minh`
+	là {hoá đơn: phân bổ của phiếu thu nháp có giao dịch ngân hàng ĐÃ XÁC
+	MINH} (thu_tien.gom_tien_da_ve). Không tính phiếu nháp chưa xác minh,
+	không tính phần dư nợ giảm do giảm trừ hay trả hàng.
+
+	Codex #437 vòng 4: lần khớp sau ghi đè số lần trước. Vòng 5: đếm cả phiếu
+	nháp chưa xác minh và giảm trừ thì có thể báo đã thu đủ khi tiền chưa về.
 	"""
-	return max(0.0, flt(tong_phieu) - max(0.0, flt(tong_chua_phu)))
+	tong = sum(flt(v) for v in (ghi_so or {}).values()) + \
+		sum(flt(v) for v in (nhap_xac_minh or {}).values())
+	return max(0.0, min(flt(tong_phieu), tong))
 
 
-def _tong_chua_phu(cac_si):
-	"""Tổng phần nợ chưa có phiếu thu nào phủ của các hoá đơn."""
+def _da_nhan_that(cac_si):
+	"""Hai bảng cho tien_da_nhan: phiếu thu đã ghi sổ, và phiếu nháp đã xác minh."""
 	from vagabond import thu_tien as tt
 
 	cac_si = [x for x in set(cac_si or []) if x]
-	if not cac_si:
-		return 0.0
-	con = {r.name: flt(r.outstanding_amount) for r in frappe.get_all("Sales Invoice",
-		filters={"name": ["in", cac_si], "docstatus": 1},
-		fields=["name", "outstanding_amount"], limit_page_length=0)}
-	nhap = tt.phan_bo_nhap_theo_hd(list(con))
-	return sum(tt.con_chua_phu(v, nhap.get(k)) for k, v in con.items())
+	ghi_so = {}
+	if cac_si:
+		ref = frappe.get_all("Payment Entry Reference", filters={"reference_doctype": "Sales Invoice",
+			"reference_name": ["in", cac_si], "docstatus": 1, "parenttype": "Payment Entry"},
+			fields=["parent", "reference_name", "allocated_amount"], limit_page_length=0)
+		thu = set(frappe.get_all("Payment Entry", filters={"name": ["in", list({r.parent for r in ref}) or [""]],
+			"payment_type": "Receive"}, pluck="name", limit_page_length=0)) if ref else set()
+		for r in ref:
+			if r.parent in thu:
+				ghi_so[r.reference_name] = ghi_so.get(r.reference_name, 0.0) + flt(r.allocated_amount)
+	nhap = {k: v.get("phan_bo") for k, v in tt.gom_tien_da_ve(tt.phieu_thu_nhap(cac_si=cac_si)).items()} if cac_si else {}
+	return ghi_so, nhap
 
 
 def _hd_chua_co_phieu_thu(cac_si):
@@ -1515,9 +1526,11 @@ def khop_tay(name, so_tien, ma_giao_dich="", ghi_chu=""):
 			"Theo phiếu đòi nợ %s. %s" % (doc.ma_phieu or doc.name, (ghi_chu or "").strip()),
 		)
 	if lap:
-		# Có phiếu thu theo giao dịch: số đã nhận lấy từ phần hoá đơn đã có
-		# phiếu thu phủ, cộng dồn mọi lần trả góp (Codex #437 vòng 4).
-		doc.da_thu = da_thu_theo_phu(doc.tong_tien, _tong_chua_phu(cac_hd))
+		# Có phiếu thu theo giao dịch: số đã nhận là tổng phiếu thu ĐÃ GHI SỔ
+		# và phiếu nháp ĐÃ XÁC MINH của các hoá đơn, cộng dồn mọi lần trả góp
+		# (Codex #437 vòng 4 và 5).
+		ghi_so, nhap_xm = _da_nhan_that(cac_hd)
+		doc.da_thu = tien_da_nhan(ghi_so, nhap_xm, doc.tong_tien)
 	else:
 		doc.da_thu = so_tien
 	doc.trang_thai = "Da thu du" if flt(doc.da_thu) >= flt(doc.tong_tien) - 1 else "Thu thieu"

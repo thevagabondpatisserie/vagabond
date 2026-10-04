@@ -745,6 +745,11 @@ def soat_hinh_thuc_chua_khai():
 	return {"cong_ty": cty, "chua_khai": ra, "so": len(ra)}
 
 
+def _da_ghi_roi(khoa):
+	"""Khoản thu mang khoá này đã có chứng từ chưa. Chặn ghi hai lần."""
+	return bool(frappe.db.exists("Payment Entry", {"reference_no": khoa, "docstatus": ["<", 2]}))
+
+
 def chia_tien_cho_hd(tien, ds_hd):
 	"""Chia mot khoan tien cho nhieu hoa don, hoa don CU truoc. THUAN.
 
@@ -801,9 +806,15 @@ class nang_quyen_lap_phieu(object):
 		return False
 
 
-def _da_ghi_roi(khoa):
-	"""Khoản thu mang khoá này đã có chứng từ chưa. Chặn ghi hai lần."""
-	return bool(frappe.db.exists("Payment Entry", {"reference_no": khoa, "docstatus": ["<", 2]}))
+def _giu_chu(pe, goc):
+	"""Ghi lại người lập thật sau khi insert bằng quyền hệ thống.
+
+	Bench #437: Frappe đặt owner theo phiên lúc insert, nên gán owner trước
+	insert vẫn ra Administrator. Ghi thẳng sau insert, không đổi modified.
+	"""
+	if goc and pe.owner != goc:
+		frappe.db.set_value(pe.doctype, pe.name, "owner", goc, update_modified=False)
+		pe.owner = goc
 
 
 def ghi_thu_tien(si_name, dong, nguon, ngay=None, ghi_chu=""):
@@ -879,9 +890,9 @@ def ghi_thu_tien(si_name, dong, nguon, ngay=None, ghi_chu=""):
 				(" " + ghi_chu) if ghi_chu else ""))[:1000]
 			pe.setup_party_account_field()
 			pe.set_missing_values()
-			pe.owner = goc
 			pe.flags.ignore_permissions = True
 			pe.insert(ignore_permissions=True)
+			_giu_chu(pe, goc)
 			pe.submit()
 		ra.append(pe.name)
 		con -= phan_bo
@@ -1545,9 +1556,9 @@ def nhan_tien_ve(si=None, gd=None):
 		pe.reference_no = ref
 		pe.reference_date = g.date
 		pe.remarks = "Khách chuyển khoản, giao dịch %s, người chọn trên màn Công nợ." % ref
-		pe.owner = goc
 		pe.flags.ignore_permissions = True
 		pe.insert(ignore_permissions=True)
+		_giu_chu(pe, goc)
 	_ghi_vet_thu(pe.name, "Lập phiếu thu nháp cho hoá đơn %s theo giao dịch %s do người chọn" % (si, ref))
 	return {"pe": pe.name, "tien": flt(pe.paid_amount), "ma_gd": ref, "ngay_ve": str(g.date),
 		"ten_khach": doc.customer_name, "con_no_sau": flt(doc.outstanding_amount) - tien}
@@ -1663,7 +1674,10 @@ def lap_phieu_thu_theo_gd(cac_si, g, so_tien, ghi_chu=""):
 	cong_ty = list(cty)[0]
 	if not b.get("account") or not b.get("is_company_account") or b.get("company") != cong_ty:
 		frappe.throw("Giao dịch %s không về tài khoản ngân hàng của công ty." % ref)
-	tien = min(flt(so_tien), flt(g.unallocated_amount))
+	# Codex #437 vòng 5: số tiền lấy từ GIAO DỊCH đã khoá và phần nợ còn
+	# chưa phủ, KHÔNG tin số máy khách gửi lên. Lập thiếu thì phần còn lại
+	# của giao dịch bơ vơ, vì phiếu này đã chiếm mã giao dịch.
+	tien = min(flt(g.unallocated_amount), sum(h.con_phu for h in hd))
 	chia = chia_tien_cho_hd(tien, [{"name": h.name, "con_no": h.con_phu,
 		"ngay": str(h.posting_date)} for h in hd])
 	if not chia:
@@ -1699,8 +1713,8 @@ def lap_phieu_thu_theo_gd(cac_si, g, so_tien, ghi_chu=""):
 		pe.setup_party_account_field()
 		pe.set_missing_values()
 		pe.paid_to = b["account"]
-		pe.owner = goc
 		pe.flags.ignore_permissions = True
 		pe.insert(ignore_permissions=True)
+		_giu_chu(pe, goc)
 	_ghi_vet_thu(pe.name, "Lập phiếu thu nháp gộp %d hoá đơn theo giao dịch %s khi khớp tay" % (len(chia), ref))
 	return {"pe": pe.name, "tien": tong, "hd": chia, "ma_gd": ref}
