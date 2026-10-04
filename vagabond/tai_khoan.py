@@ -49,6 +49,8 @@ TRUONG_MOI = {
 		{
 			"fieldname": TRUONG,
 			"label": "Tài khoản nhận chuyển khoản",
+			# v568: nằm trong mục Xem dữ liệu gốc (thu gọn) ở tab Dữ liệu app tự ghi.
+			"insert_after": "sec_du_lieu_goc",
 			"fieldtype": "Long Text",
 			"read_only": 1,
 			"description": (
