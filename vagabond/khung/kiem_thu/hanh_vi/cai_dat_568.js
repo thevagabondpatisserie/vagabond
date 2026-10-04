@@ -475,6 +475,15 @@ ca('Codex #435 H3: chip bấm được cao 44px, hai dòng chip đúng bằng ch
   la('thu gọn = 2 dòng chip + 1 khe', g && +g[1], 2 * 44 + (khe ? +khe[1] : -1));
 });
 
+ca('v571: công tắc đủ 42x24 trên site thật, hộp chứa không bị Frappe ép còn 26px', function () {
+  // Lỗi đo trên site thật sau deploy v570: Frappe ép ô tích 18px, .input-area flex
+  // rộng 26px, công tắc thành nửa hình tròn đè chữ. CSS không chạy trong node; dò
+  // chuỗi chỉ để GHIM luật đã thử đúng trên site (điều 16), bằng chứng là ảnh trên PR.
+  var s = require('fs').readFileSync(path.join(GOC, 'vagabond', 'vagabond', 'doctype', 'vagabond_settings', 'vagabond_settings.js'), 'utf8');
+  dung('hộp chứa không co theo flex', /\[data-fieldtype="Check"\] \.input-area\{flex:none!important;width:auto!important;min-width:52px\}/.test(s));
+  dung('công tắc ép rộng 42 có !important', /input\[type="checkbox"\]\{width:42px!important;min-width:42px!important;max-width:42px!important;height:24px!important/.test(s));
+});
+
 ca('Codex #433 vòng 3 G3: máy chủ trả danh mục rỗng cũng coi là hỏng, không để khung trống', function () {
   global.$ = $;
   var goc = new dg.ElementGia('div');
