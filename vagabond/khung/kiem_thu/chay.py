@@ -151,6 +151,7 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_day_ma_pancake, thu_day_pancake_hanh_vi,
 	thu_thu_tien,
 	thu_cong_no_571,
+	thu_gom_phap_nhan_575,
 	thu_van_don_dieu_chuyen,
 	thu_van_don_man_ds,
 	thu_viec_can_lam,
