@@ -765,33 +765,46 @@ async function cnKhopTay(d) {
   var maLan = CN_LAN_CHO[d.name] ||
     (CN_LAN_CHO[d.name] = Date.now().toString(36) + Math.random().toString(36).slice(2, 8));
   var con = d.con_thieu || d.tong_tien;
-  var ds;
   /* v577 (ca Loan Anh 05/10/2026, DNTT-26-10-00004): KHONG loc dung so tien
      nua. Kiet Tac chuyen 9.550.000 d cho phieu 8.450.000 d nen giao dich that
      khong hien, nguoi bam buoc phai chon "Khong thay giao dich". Nay dua MOI
-     giao dich con tien chua noi, khoan dung so xep dau, co o tim. */
-  try { ds = await api('vagabond.cong_no.tim_giao_dich_thu', { so_ngay: 120, so_tien: Math.round(con), chua_noi: 1 }); }
-  catch (e) { return baoTin((e && e.message) || 'Không đọc được sao kê'); }
+     giao dich con tien chua noi, khoan dung so xep dau.
+     Codex #444 F2: may chu tra toi da 300 dong moi nhat; TIM thi gui chu len
+     may chu de tim tren TOAN BO, khong loc tren danh sach da cat. */
+  var tuKhoa = '', rows, ds, chon;
+  for (;;) {
+    var ts = { so_ngay: 120, so_tien: Math.round(con), chua_noi: 1 };
+    if (tuKhoa) ts.tu_khoa = tuKhoa;
+    try { ds = await api('vagabond.cong_no.tim_giao_dich_thu', ts); }
+    catch (e) { return baoTin((e && e.message) || 'Không đọc được sao kê'); }
+    rows = ds.rows || [];
+    var lc = [{ k: '@tim', nhan: tuKhoa ? 'Tìm lại (đang tìm "' + tuKhoa + '")' : 'Tìm trong mọi giao dịch chưa nối',
+      mo_ta: 'Gõ tên khách, nội dung chuyển khoản, mã giao dịch hoặc số tiền; máy tìm trên toàn bộ 4 tháng.', icon: '🔎' }];
+    rows.forEach(function (r) {
+      var tien = r.con != null ? r.con : r.tien;
+      lc.push({
+        k: r.ma,
+        nhan: money(tien) + ' đ · ' + hsNgayVn(String(r.ngay).slice(0, 10)) + (r.dung_so ? ' · đúng số tiền' : ''),
+        mo_ta: (r.noi_dung || '(không có nội dung)').slice(0, 140),
+        icon: r.dung_so ? '✅' : '⬇️'
+      });
+    });
+    lc.push({ k: '@go_tay', nhan: 'Không thấy giao dịch nào khớp',
+      mo_ta: d.ke_toan ? 'Kế toán: tự gõ số tiền đã nhận, đính uỷ nhiệm chi khách gửi, máy ghi sổ phiếu thu ngay.'
+        : 'Chỉ kế toán làm được. Bấm để xem cần làm gì.', icon: '✏️' });
 
-  var rows = (ds.rows || []).slice(0, 150);
-  var lc = rows.map(function (r) {
-    var tien = r.con != null ? r.con : r.tien;
-    return {
-      k: r.ma,
-      nhan: money(tien) + ' đ · ' + hsNgayVn(String(r.ngay).slice(0, 10)) + (r.dung_so ? ' · đúng số tiền' : ''),
-      mo_ta: (r.noi_dung || '(không có nội dung)').slice(0, 140),
-      icon: r.dung_so ? '✅' : '⬇️'
-    };
-  });
-  lc.push({ k: '@go_tay', nhan: 'Không thấy giao dịch nào khớp',
-    mo_ta: d.ke_toan ? 'Kế toán: tự gõ số tiền đã nhận, đính uỷ nhiệm chi khách gửi, máy ghi sổ phiếu thu ngay.'
-      : 'Chỉ kế toán làm được. Bấm để xem cần làm gì.', icon: '✏️' });
-
-  var chon = await hoiChon('Khớp tay phiếu ' + d.ma_phieu,
-    'Mọi giao dịch tiền về chưa nối trong 4 tháng, khoản đúng ' + money(con) + ' đ xếp đầu. ' +
-    'Khách chuyển gộp nhiều phiếu thì số tiền khác: gõ tên khách hoặc số tiền để tìm.',
-    lc, null);
-  if (!chon) return;
+    chon = await hoiChon('Khớp tay phiếu ' + d.ma_phieu,
+      (tuKhoa ? 'Kết quả tìm "' + h(tuKhoa) + '": ' + (ds.tong || rows.length) + ' giao dịch. '
+        : 'Giao dịch tiền về chưa nối trong 4 tháng, khoản đúng ' + money(con) + ' đ xếp đầu. ') +
+      (ds.con_nua ? 'Đang hiện ' + rows.length + ' khoản mới nhất, còn ' + ds.con_nua + ' khoản: bấm Tìm để tìm hết. '
+        : 'Khách chuyển gộp nhiều phiếu thì số tiền khác: gõ tên khách hoặc số tiền để tìm.'),
+      lc, null);
+    if (!chon) return;
+    if (chon !== '@tim') break;
+    var q = await hoiChu('Tìm giao dịch', 'Tên khách, nội dung chuyển khoản, mã giao dịch hoặc số tiền.', tuKhoa, { goi_y: 'Kiet Tac' });
+    if (q === null) return;
+    tuKhoa = String(q || '').trim();
+  }
 
   var soTien = con, maGd = '', unc = null, lonHon = 0;
   if (chon === '@go_tay') {

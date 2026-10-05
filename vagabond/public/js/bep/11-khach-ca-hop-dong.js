@@ -494,7 +494,12 @@ async function scrCnPhieu(name) {
   if (du) {
     html += '<div class="card" style="padding:18px;text-align:center;border:2px solid #16a34a;background:#f0fdf4">' +
       '<div style="font-size:34px">✅</div><div style="font-size:18px;font-weight:800;color:#15803d">ĐÃ NHẬN ĐỦ ' + money(daNhan) + ' đ</div>' +
-      '<div style="font-size:13px;color:#15803d;margin-top:4px">Công nợ của khách này đã sạch.</div></div>';
+      /* v577 (Codex #444 F1): tiền đã về đủ nhưng phiếu thu còn NHÁP thì sổ
+         cái vẫn ghi nợ; nói đúng việc còn lại, không báo công nợ đã sạch. */
+      (d.cho_ghi_so
+        ? '<div data-cnchoghiso="1" style="font-size:13px;color:#15803d;margin-top:4px">Tiền đã về. ' + d.cho_ghi_so +
+          ' hoá đơn đang ở tab Tiền đã về, chờ kế toán đính UNC khách gửi và ghi sổ; tới lúc đó sổ cái vẫn ghi khách nợ. Thư báo nhận tiền gửi khách khi ghi sổ xong.</div></div>'
+        : '<div style="font-size:13px;color:#15803d;margin-top:4px">Công nợ của khách này đã sạch.</div></div>');
   } else {
     if (thieuPT) {
       html += '<div class="card" style="padding:13px 14px;border:1.5px solid #fcd34d;background:#fffbeb;color:#92400e;font-size:13.5px;line-height:1.55">' +
