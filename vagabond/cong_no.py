@@ -761,7 +761,7 @@ def xem_phieu(name):
 		# Huỷ phiếu "đã thu đủ" bị kẹt hỏi máy chủ huỷ được không.
 		"ke_toan": 1 if _la_ke_toan() else 0,
 		"huy_duoc": 1 if doc.trang_thai != "Da thu du" or huy_duoc_phieu_da_thu(
-			doc.get("ma_gd"), _phieu_thu_cua_phieu(doc.name, 1))[0] else 0,
+			doc.get("ma_gd"), _phieu_thu_cua_phieu(doc.name, 1), _gd_da_dung(doc.get("ma_gd")))[0] else 0,
 		"so_nhap_hong": len(_phieu_thu_cua_phieu(doc.name, 0)),
 		# Codex #444 F1: tiền đã về đủ mà sổ cái còn nợ (phiếu thu nháp chờ
 		# kế toán ghi sổ) thì màn KHÔNG được báo "công nợ đã sạch".
@@ -939,7 +939,8 @@ def kiem_sepay(name):
 				loi_lap.append("%s: %s" % (ten_gd, frappe.utils.strip_html(str(e) or type(e).__name__)[:300]))
 	doc.save(ignore_permissions=True)
 	if loi_lap:
-		doc.add_comment("Comment", "SePay nhận tiền nhưng chưa lập được phiếu thu nháp: %s. Bấm Khớp tay để làm lại."
+		doc.add_comment("Comment", "SePay nhận tiền nhưng chưa lập được phiếu thu nháp: %s. Bấm Khớp tay để làm lại; "
+			"giao dịch lớn hơn phiếu (khách trả gộp) thì bấm Huỷ phiếu rồi gom lại đủ hoá đơn khách đã trả."
 			% "; ".join(loi_lap))
 	frappe.db.commit()
 	# Thu bao vua nhan tien: chi gui MOT lan, dung luc phieu chuyen sang du.
@@ -948,7 +949,10 @@ def kiem_sepay(name):
 			_gui_thu_khi_sach(doc)
 		except Exception:
 			frappe.log_error(frappe.get_traceback(), "cong_no: gui thu bao da nhan loi")
-	return xem_phieu(name)
+	kq = xem_phieu(name)
+	# Codex #444 vòng 5: màn nói đúng lý do lập hỏng, không chỉ "Bấm Khớp tay".
+	kq["loi_lap"] = loi_lap
+	return kq
 
 
 @frappe.whitelist()
@@ -962,7 +966,8 @@ def huy_phieu(name, ly_do=""):
 		# v577 (ca Ms.Dung DNTT-26-10-00004): phiếu bị đánh dấu "đã thu đủ" bởi
 		# lần khớp tay hỏng (không gạch giao dịch, không lập được phiếu thu
 		# nào) thì vẫn huỷ được, để gom lại cho đúng.
-		duoc, vi_sao = huy_duoc_phieu_da_thu(doc.get("ma_gd"), _phieu_thu_cua_phieu(doc.name, 1))
+		duoc, vi_sao = huy_duoc_phieu_da_thu(doc.get("ma_gd"), _phieu_thu_cua_phieu(doc.name, 1),
+			_gd_da_dung(doc.get("ma_gd")))
 		if not duoc:
 			frappe.throw(vi_sao)
 	nhap = _phieu_thu_cua_phieu(doc.name, 0)
@@ -977,6 +982,11 @@ def huy_phieu(name, ly_do=""):
 	doc.trang_thai = "Huy"
 	doc.ghi_chu = ((doc.ghi_chu or "") + "\nHuỷ: " + (ly_do or "")).strip()
 	doc.save(ignore_permissions=True)
+	nha = chiem_sao_ke.tach_gd(doc.get("ma_gd"))
+	if nha:
+		# Codex #444 vòng 5: phiếu huỷ không còn giữ giao dịch; ma_gd ở lại để tra.
+		doc.add_comment("Comment", "Huỷ phiếu, nhả giao dịch %s: giao dịch về lại danh sách chưa nối để khớp "
+			"cho phiếu gom lại. Mã giao dịch vẫn ghi trên phiếu này để tra." % ", ".join(nha))
 	if nhap:
 		doc.add_comment("Comment", "Huỷ phiếu, gỡ %d phiếu thu nháp hỏng của các lần khớp trước khỏi hoá đơn "
 			"(giữ lại để tra, không ghi sổ): %s" % (len(nhap), ", ".join(nhap)))
@@ -1016,19 +1026,52 @@ def _go_nhap_hong(ten_pe, ma_phieu):
 	return True
 
 
-def huy_duoc_phieu_da_thu(ma_gd, phieu_thu_da_ghi):
+def huy_duoc_phieu_da_thu(ma_gd, phieu_thu_da_ghi, gd_da_dung=None):
 	"""Phiếu "Đã thu đủ" có huỷ được không. THUẦN. Trả (được, lý do).
 
-	Chỉ huỷ được khi tiền chưa từng gắn vào sổ: không gạch giao dịch ngân
-	hàng nào (ma_gd trống) và không có phiếu thu nào của phiếu này đã ghi sổ.
+	Chỉ huỷ được khi tiền chưa từng gắn vào sổ: không có phiếu thu nào của
+	phiếu này đã ghi sổ, và giao dịch ngân hàng đã gạch (ma_gd) chưa lập ra
+	phiếu thu nào.
+
+	Codex #444 vòng 5: SePay gạch giao dịch LỚN hơn phiếu (khách trả gộp)
+	thì lập phiếu thu hỏng, phiếu vẫn "Đã thu đủ". Trước đây cứ có ma_gd là
+	cấm huỷ, khớp lại thì hỏng y như cũ: kẹt vĩnh viễn. Nay giao dịch chưa
+	có phiếu thu nào (gd_da_dung rỗng) thì huỷ được; phiếu đã huỷ không còn
+	giữ giao dịch (luồng cong_no lọc trạng thái Huy), ma_gd ở lại để tra.
+	gd_da_dung=None là chưa biết: giữ luật cũ, không huỷ.
 	"""
-	if str(ma_gd or "").strip():
-		return (False, "Phiếu đã gạch giao dịch ngân hàng nên không huỷ được. Phiếu thu nháp của giao dịch "
-			"nằm ở tab Tiền đã về; sai thì báo kế toán.")
+	if str(ma_gd or "").strip() and (gd_da_dung is None or gd_da_dung):
+		return (False, "Phiếu đã gạch giao dịch ngân hàng%s nên không huỷ được. Phiếu thu nháp của giao dịch "
+			"nằm ở tab Tiền đã về; sai thì báo kế toán."
+			% ((" " + ", ".join(gd_da_dung) + " và giao dịch đã có phiếu thu") if gd_da_dung else ""))
 	if phieu_thu_da_ghi:
 		return (False, "Phiếu đã có phiếu thu ghi sổ (%s) nên không huỷ được. Báo kế toán."
 			% ", ".join(phieu_thu_da_ghi))
 	return (True, "")
+
+
+def _gd_da_dung(ma_gd):
+	"""Giao dịch đã gạch cho phiếu (ma_gd) mà ĐÃ có phiếu thu hay đã nối chứng từ.
+
+	Codex #444 vòng 5. Một giao dịch tính là đã dùng khi: Bank Transaction
+	đã phân bổ, hoặc có Payment Entry nhận tiền (nháp hay đã ghi) mang đúng
+	số tham chiếu (phiếu thu nháp đã gỡ mang khoá GO: nên không tính). Mã
+	trong ma_gd không tìm ra giao dịch nào thì coi như đã dùng, cho chắc.
+	"""
+	ds = chiem_sao_ke.tach_gd(ma_gd)
+	if not ds:
+		return []
+	gd = frappe.get_all("Bank Transaction", filters={"name": ["in", ds]},
+		fields=["name", "reference_number", "allocated_amount"], limit_page_length=0)
+	thay = {r.name for r in gd} | {(r.reference_number or "") for r in gd}
+	ra = [m for m in ds if m not in thay]
+	for r in gd:
+		ref = (r.reference_number or "").strip()
+		if flt(r.allocated_amount) > 0.5 or (ref and frappe.get_all("Payment Entry", filters={
+				"docstatus": ["<", 2], "payment_type": "Receive", "reference_no": ref},
+				pluck="name", limit_page_length=1)):
+			ra.append(r.name)
+	return sorted(set(ra))
 
 
 def _phieu_thu_cua_phieu(ten_phieu, docstatus):
@@ -1628,13 +1671,23 @@ def gui_thu_sau_ghi_so(cac_hd):
 	ten = sorted(set(frappe.get_all("Vagabond Cong No Dong", filters={"hoa_don": ["in", list(cac_hd or []) or [""]],
 		"parenttype": "Vagabond Cong No"}, pluck="parent", limit_page_length=0)))
 	ra = []
+	from vagabond.loi_csdl import chet_giao_dich
+
 	for t in ten:
 		d = frappe.get_doc("Vagabond Cong No", t)
+		frappe.db.savepoint("vgb_thu_sau_gs")
 		try:
 			# Đang giữa request ghi sổ CHƯA commit: xếp hàng, không gửi ngay.
 			if _gui_thu_khi_sach(d, xep_hang=True):
 				ra.append(t)
-		except Exception:
+		except Exception as e:
+			# Codex #444 vòng 5: chạy trong on_submit của phiếu thu. Lỗi làm
+			# chết cả giao dịch (deadlock, chờ khoá, mất kết nối) thì bút toán
+			# cũng đã mất: phải ném lên để ghi sổ báo lỗi, không báo thành công.
+			if chet_giao_dich(e):
+				raise
+			# Lỗi thường của thư: lùi đúng phần thư (hàng đợi, dấu đã gửi).
+			frappe.db.rollback(save_point="vgb_thu_sau_gs")
 			frappe.log_error(frappe.get_traceback(), "cong_no: gui thu sau ghi so")
 	return ra
 

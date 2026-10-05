@@ -1904,9 +1904,15 @@ def gui_thu_khi_ghi_so(doc, method=None):
 	cac = hd_cua_phieu_thu(doc)
 	if not cac:
 		return
+	from vagabond.loi_csdl import chet_giao_dich
+
 	try:
 		frappe.get_attr("vagabond.cong_no.gui_thu_sau_ghi_so")(cac)
-	except Exception:
+	except Exception as e:
+		# Codex #444 vòng 5: lỗi chết giao dịch thì ném lên, phiếu thu không
+		# được báo là đã ghi sổ khi bút toán đã lùi.
+		if chet_giao_dich(e):
+			raise
 		frappe.log_error(frappe.get_traceback(), "thu_tien: gui thu khi ghi so")
 
 
