@@ -40,6 +40,7 @@ var OSHIMA = { khach: 'CUS-OSHIMA', ten: "CÔNG TY TNHH OSHIMA'S", so_hd: 3, tie
 var VU = { khach: 'CUS-VU', ten: 'Anh Vũ Oshima', so_hd: 10, tien: 0, so_ngay: 40, hd: [] };
 for (var i = 1; i <= 10; i++) { VU.hd.push({ name: 'HDB-26-09-0' + (200 + i), tien: 500000, ngay: '2026-09-0' + ((i % 9) + 1) }); VU.tien += 500000; }
 
+var THEM_KHACH = [];
 function mayChu() {
   var goi = [];
   return {
@@ -49,7 +50,7 @@ function mayChu() {
     api: async function (m, a) {
       goi.push({ m: m, a: JSON.parse(JSON.stringify(a || {})) });
       if (m === 'vagabond.cong_no.ds_khach_no') {
-        var ds = [OSHIMA, VU].filter(function (k) { return !a.tim || k.ten.toLowerCase().indexOf(a.tim.toLowerCase()) >= 0; });
+        var ds = [OSHIMA, VU].concat(THEM_KHACH).filter(function (k) { return !a.tim || k.ten.toLowerCase().indexOf(a.tim.toLowerCase()) >= 0; });
         return { khach: ds, tong: OSHIMA.tien + VU.tien, so_khach_tat_ca: 2, dang_loc: a.tim ? 1 : 0,
           tong_loc: ds.reduce(function (t, k) { return t + k.tien; }, 0), cho_ghi_so: { so_hd: 0, tien: 0 } };
       }
@@ -222,6 +223,26 @@ function chu(el) { return String(el.textContent || el.innerHTML || ''); }
     bang('khach', t.a.khach, 'CUS-VU');
     bang('khong co co nhieu khach', t.a.nhieu_khach, undefined);
     bang('10 hoa don', JSON.parse(t.a.hoa_don).length, 10);
+  });
+
+  await ca('Codex #443: nhieu phap nhan thi hop chon co o tim, hop xac nhan chi ke 3 khach', async function () {
+    THEM_KHACH = [];
+    for (var j = 1; j <= 3; j++) THEM_KHACH.push({ khach: 'CUS-K' + j, ten: 'Khach ' + j, so_hd: 1, tien: 100000, so_ngay: 5,
+      hd: [{ name: 'HDB-K' + j, tien: 100000, ngay: '2026-09-10' }] });
+    try {
+      var app = await moCongNo();
+      var cac = ['CUS-OSHIMA', 'CUS-VU', 'CUS-K1', 'CUS-K2', 'CUS-K3'];
+      for (var i = 0; i < cac.length; i++) await tickHet(app, cac[i]);
+      dung('the gom chung dem 5 khach', chu(app.mot('[data-cngomchungthe]')).indexOf('của 5 khách') >= 0);
+      await app.bam(app.mot('[data-cngomchung]'));
+      bang('hop chon co o tim', app.tim('input').filter(function (x) { return x.getAttribute('placeholder') === 'Tìm nhanh...'; }).length, 1);
+      bang('hop chon du 5 khach', app.tim('.shi').length, 5);
+      await app.bam(app.tim('.shi')[0]);
+      var cau = app.hoi[0];
+      bang('chi ke 3 dong khach', (cau.match(/\n• [^v]/g) || []).length, 3);
+      dung('ghi so khach con lai: ' + cau, cau.indexOf('và 2 khách nữa') >= 0);
+      bang('van gui du 16 hoa don', JSON.parse(app.mc.cuoi('vagabond.cong_no.tao_phieu').a.hoa_don).length, 16);
+    } finally { THEM_KHACH = []; }
   });
 
   console.log('Bo ca kiem HANH VI v575: gom chung nhieu phap nhan (Loan Anh, Oshima)');
