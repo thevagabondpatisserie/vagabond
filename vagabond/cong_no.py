@@ -1681,6 +1681,38 @@ def gui_thu_nen(cac_hd):
 	return gui_thu_sau_ghi_so(cac_hd)
 
 
+GIO_QUET_THU = 48
+
+
+def hd_cua_phieu_thu_gan_day(tu):
+	"""Hoá đơn bán của các phiếu thu đã ghi sổ (sửa lần cuối) từ mốc `tu`."""
+	pe = frappe.get_all("Payment Entry", filters={"docstatus": 1, "payment_type": "Receive",
+		"modified": [">=", tu]}, pluck="name", limit_page_length=0)
+	if not pe:
+		return []
+	return sorted(set(frappe.get_all("Payment Entry Reference", filters={"parent": ["in", pe],
+		"parenttype": "Payment Entry", "reference_doctype": "Sales Invoice"},
+		pluck="reference_name", limit_page_length=0)))
+
+
+def quet_thu_bao_bo_lo():
+	"""Nhịp mỗi giờ: lưới an toàn cho thư báo nhận tiền (Codex #444 vòng 7).
+
+	Việc nền gửi thư được xếp SAU commit (thu_tien.xep_gui_thu). Redis lỗi
+	đúng lúc đó thì lời xếp mất, không có gì trong cơ sở dữ liệu nhắc lại.
+	Nhịp này soát phiếu thu ghi sổ trong GIO_QUET_THU giờ qua và chạy lại
+	đúng một cửa gui_thu_sau_ghi_so: phiếu đòi nợ đã thu đủ, sổ sạch, chưa
+	gửi thư thì gửi; còn lại bỏ qua. Chỉ soát phiếu thu gần đây nên không
+	gửi thư cho phiếu cũ trước v577.
+	"""
+	from frappe.utils import add_to_date, now_datetime
+
+	hd = hd_cua_phieu_thu_gan_day(add_to_date(now_datetime(), hours=-GIO_QUET_THU))
+	if not hd:
+		return []
+	return gui_thu_sau_ghi_so(hd)
+
+
 def gui_thu_sau_ghi_so(cac_hd):
 	"""Sau khi một phiếu thu vào sổ: phiếu đòi nợ nào vừa sạch sổ thì gửi thư báo."""
 	ten = sorted(set(frappe.get_all("Vagabond Cong No Dong", filters={"hoa_don": ["in", list(cac_hd or []) or [""]],

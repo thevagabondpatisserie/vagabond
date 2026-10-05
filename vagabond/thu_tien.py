@@ -1920,7 +1920,8 @@ def xep_gui_thu(cac_hd):
 
 	Chỉ gọi khi giao dịch đã commit (sau commit của on_submit, hay sau commit
 	của khớp tay, SePay). Không bao giờ ném: chứng từ đã lưu xong rồi, Redis
-	lỗi thì ghi log, kế toán vẫn bấm Thư báo gửi tay được.
+	lỗi thì ghi log; nhịp mỗi giờ cong_no.quet_thu_bao_bo_lo gửi bù (Codex
+	#444 vòng 7), kế toán vẫn bấm Thư báo gửi tay được.
 	"""
 	try:
 		frappe.enqueue("vagabond.cong_no.gui_thu_nen", queue="short", cac_hd=list(cac_hd or []))

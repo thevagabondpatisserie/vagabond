@@ -994,3 +994,7 @@ scheduler_events.setdefault("hourly", []).append("vagabond.tru_kho_bu.quet_moi_g
 scheduler_events.setdefault("hourly", []).append("vagabond.kenh_zalo.xa_gio_im")
 # Codex #425: gửi bù tin Zalo còn Chờ gửi (hàng đợi hỏng lúc xếp).
 scheduler_events.setdefault("cron", {}).setdefault("*/5 * * * *", []).append("vagabond.kenh_zalo.quet_cho_gui")
+
+# v577 (Codex #444 vong 7): luoi an toan cho thu bao nhan tien khi viec nen
+# xep sau commit bi mat (Redis loi). Doc cong_no.quet_thu_bao_bo_lo.
+scheduler_events.setdefault("hourly", []).append("vagabond.cong_no.quet_thu_bao_bo_lo")
