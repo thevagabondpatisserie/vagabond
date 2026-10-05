@@ -25,7 +25,10 @@ QUAY = "KT573"
 def _duyet_hom_sau():
 	hom_qua = add_days(today(), -1)
 	hd = _hoa_don()
-	hd.db_set({"vgb_quay": QUAY, "posting_date": hom_qua, "set_posting_time": 1, "due_date": hom_qua})
+	# Bench #443: bill có quầy là đơn hệ, lưu lại thì bắt nguồn đơn
+	# (ban_hang.kiem_truoc_khi_luu). Bill tặng thật tại quầy luôn có nguồn.
+	hd.db_set({"vgb_quay": QUAY, "custom_nguon": "Tại quầy", "posting_date": hom_qua,
+		"set_posting_time": 1, "due_date": hom_qua})
 	hd.reload()
 	ma = hd.items[0].item_code
 	la("trước duyệt: hôm qua trừ 1", kiem_kho.da_ban(QUAY, hom_qua).get(ma, 0), 1)
