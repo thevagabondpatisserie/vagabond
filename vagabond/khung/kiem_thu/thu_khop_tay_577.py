@@ -719,7 +719,7 @@ def _():
 		th.tra()
 
 
-@ca("Codex #444 F1: ghi sổ phiếu thu THÀNH CÔNG thì gọi gửi thư theo hoá đơn của phiếu; ghi sổ hỏng thì không")
+@ca("Codex #444 F1 + vòng 4: nút Ghi sổ trên app KHÔNG tự gọi gửi thư nữa, hook on_submit là cửa duy nhất")
 def _():
 	from vagabond.khung.kiem_thu.thu_gom_phap_nhan_575 import _bo_phieu, _ghi_so
 	goi = []
@@ -730,10 +730,13 @@ def _():
 		cac["APP-1"].references = [Doi(reference_doctype="Sales Invoice", reference_name="HD-OSH")]
 		cac["APP-2"].references = [Doi(reference_doctype="Sales Invoice", reference_name="HD-VU")]
 		la("phiếu 1 vào sổ", _ghi_so("APP-1", cac, g).get("ok"), 1)
-		la("gọi gửi thư đúng hoá đơn", goi, [("vagabond.cong_no.gui_thu_sau_ghi_so", ["HD-OSH"])])
+		# Codex #444 vòng 4: gửi thư dời về hook on_submit (một cửa cho Desk
+		# và app). Nút Ghi sổ trên app không gọi riêng nữa, để không có hai
+		# chỗ phải nhớ gọi. Hook thật chạy trong submit: kiem_that kiểm.
+		la("app không gọi riêng, hook on_submit lo", goi, [])
 		e = _bat(lambda: _ghi_so("APP-2", cac, g))
 		dung("phiếu khác nhóm bị chặn", e is not None)
-		la("ghi sổ hỏng không gọi gửi thư", len(goi), 1)
+		la("ghi sổ hỏng không gọi gửi thư", goi, [])
 	finally:
 		th.tra()
 
@@ -824,5 +827,74 @@ def _():
 		pe.docstatus = 0
 		la("lưu nháp giữ khoá: qua", _bat(lambda: tt.chan_nhap_da_go(pe)), None)
 		la("doctype khác: bỏ qua", _bat(lambda: tt.chan_nhap_da_go(PE(doctype="Journal Entry", flags=Doi()))), None)
+	finally:
+		th.tra()
+
+
+
+@ca("Codex #444 vòng 4: hook on_submit Payment Entry gửi thư theo hoá đơn bán của phiếu THU; phiếu chi, phiếu không hoá đơn thì không")
+def _():
+	goi, log = [], []
+	th = Thay()
+
+	def gui(ds):
+		goi.append(list(ds))
+		if "HD-NO" in ds:
+			raise RuntimeError("smtp hong")
+	th.dat(fr, "get_attr", lambda duong: gui if duong == "vagabond.cong_no.gui_thu_sau_ghi_so" else None)
+	th.dat(fr, "log_error", lambda *a, **k: log.append(a))
+	SI = "Sales Invoice"
+	try:
+		tt.gui_thu_khi_ghi_so(Doi(payment_type="Receive", references=[
+			Doi(reference_doctype=SI, reference_name="HD-1"), Doi(reference_doctype="Sales Order", reference_name="SO-1"),
+			Doi(reference_doctype=SI, reference_name="HD-2")]))
+		la("phiếu thu: gửi theo đúng hai hoá đơn bán", goi, [["HD-1", "HD-2"]])
+		tt.gui_thu_khi_ghi_so(Doi(payment_type="Pay", references=[Doi(reference_doctype=SI, reference_name="HD-3")]))
+		tt.gui_thu_khi_ghi_so(Doi(payment_type="Receive", references=[Doi(reference_doctype="Sales Order", reference_name="SO-2")]))
+		tt.gui_thu_khi_ghi_so(Doi(payment_type="Internal Transfer", references=[]))
+		la("phiếu chi, phiếu không hoá đơn: không gọi", len(goi), 1)
+		e = _bat(lambda: tt.gui_thu_khi_ghi_so(Doi(payment_type="Receive",
+			references=[Doi(reference_doctype=SI, reference_name="HD-NO")])))
+		la("lỗi gửi thư không chặn ghi sổ", e, None)
+		la("lỗi được ghi Error Log", len(log), 1)
+	finally:
+		th.tra()
+
+
+@ca("Codex #444 vòng 4: hook gửi thư đăng ký ở on_submit của Payment Entry, giữ hook phiếu chi cũ")
+def _():
+	from vagabond import hooks
+	ds = hooks.doc_events["Payment Entry"]["on_submit"]
+	ds = [ds] if isinstance(ds, str) else list(ds)
+	dung("có hook gửi thư", "vagabond.thu_tien.gui_thu_khi_ghi_so" in ds)
+	dung("giữ hook phiếu chi", "vagabond.hoan_tien.khi_ghi_so_phieu_chi" in ds)
+
+
+@ca("Codex #444 vòng 4: nút Thư báo gửi tay khi sổ cái còn nợ thì BỊ CHẶN ở máy chủ, không thư nào đi; sổ sạch thì gửi")
+def _():
+	gui = []
+	con_no = {"v": ["HD-1", "HD-2"]}
+	dat = []
+	th = Thay()
+	doc = Doi(name="P", ma_phieu="DNTT-26-10-00004", khach="K", ten_khach="K", tong_tien=2.0, da_thu=2.0,
+		email_da_gui=0, trang_thai="Da thu du", dong=[Doi(hoa_don="HD-1", so_tien=1.0), Doi(hoa_don="HD-2", so_tien=1.0)])
+	doc.db_set = lambda k, v, **kw: dat.append(k)
+	doc.add_comment = lambda *a, **k: None
+	th.dat(cn, "_kiem_quyen_ban", lambda: None)
+	th.dat(cn, "_email_thu", lambda d: "k@x.vn")
+	th.dat(cn, "_thu_da_nhan_html", lambda d, ds: "thu")
+	th.dat(fr, "sendmail", lambda **k: gui.append(k["recipients"]))
+	th.dat(fr, "get_doc", lambda *a, **k: doc)
+	th.dat(fr, "get_all", lambda dt, filters=None, **k: list(con_no["v"]) if dt == "Sales Invoice" else [])
+	try:
+		e = _bat(lambda: cn.gui_thu_da_nhan("P"))
+		dung("chặn và nói lý do: %s" % e, e is not None and "còn 2 hoá đơn chưa hết nợ" in str(e))
+		la("không thư nào", gui, [])
+		la("không đánh dấu đã gửi", dat, [])
+		la("xem trước báo lý do", cn.xem_truoc_thu("P")["chua_sach"], cn.cau_chua_sach_so(2))
+		con_no["v"] = []
+		la("sổ sạch: xem trước không vướng", cn.xem_truoc_thu("P")["chua_sach"], "")
+		la("sổ sạch: gửi", cn.gui_thu_da_nhan("P")["ok"], 1)
+		la("một thư", gui, ["k@x.vn"])
 	finally:
 		th.tra()
