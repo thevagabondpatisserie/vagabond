@@ -1769,3 +1769,6 @@ lần đầu đếm ngoại lệ ra 0 trên 14 đột biến, tưởng bộ ki�
   bị nuốt (Codex #444 vòng 6 bắt ở `db_set` dấu đã gửi). Cách gọn: `on_submit`
   chỉ `frappe.db.after_commit.add(...)`, việc nền tự đọc lại sổ rồi mới làm,
   như `can_tru_san`, `tru_kho_bu`, `thu_tien.gui_thu_khi_ghi_so`.
+- Dời việc phụ ra sau commit thì phải có lưới gửi bù: lời xếp việc nền nằm
+  trong Redis, Redis lỗi đúng lúc đó là mất hẳn (Codex #444 vòng 7). Thêm nhịp
+  quét theo chứng từ GẦN ĐÂY (không quét cả lịch sử kẻo gửi cho phiếu cũ).
