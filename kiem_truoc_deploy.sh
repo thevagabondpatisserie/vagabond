@@ -151,6 +151,9 @@ node vagabond/khung/kiem_thu/hanh_vi/hoa_don_sau_530.js
 node vagabond/khung/kiem_thu/hanh_vi/cho_dung_352.js
 # #358: may goi y Mon, nguoi chot Mon va he so; he so ghi vao Mon.
 node vagabond/khung/kiem_thu/hanh_vi/go_tay_358.js
+# v575: gom hoa don cua nhieu phap nhan vao mot phieu de nghi thanh toan
+# (Loan Anh, Oshima's va anh Vu Oshima 05/10/2026).
+node vagabond/khung/kiem_thu/hanh_vi/gom_chung_575.js
 # APP-26-09-799: dinh uy nhiem chi o buoc xac nhan da chuyen tien gui dung duong dan.
 node vagabond/khung/kiem_thu/hanh_vi/unc_app_518.js
 node vagabond/khung/kiem_thu/hanh_vi/sinh_lai_523.js
