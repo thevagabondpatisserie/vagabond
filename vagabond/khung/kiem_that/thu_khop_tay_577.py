@@ -277,3 +277,40 @@ def _sepay_nhap():
 	la("không còn hoá đơn thiếu phiếu thu", cn._hd_chua_co_phieu_thu([s.name for s in ds]), set())
 	# Codex #444 F1: tiền đã về nhưng phiếu thu còn nháp: màn không được báo sạch.
 	la("màn biết còn 2 hoá đơn chờ ghi sổ", _goi_bang(_sales(), lambda: cn.xem_phieu(p.name)).get("cho_ghi_so"), 2)
+
+
+@ca("v577 Codex #444 vòng 4: Thư báo gửi tay bị chặn khi phiếu thu còn nháp; kế toán ghi sổ THẲNG trên Desk thì hook on_submit xếp thư")
+def _desk_gui_thu():
+	cty, ba, acc, ds, p = _nen_577(so_hd=1)
+	tong = sum(flt(s.grand_total) for s in ds)
+	g = _gd(ba, tong)
+	with patch.object(cn, "_sepay_cn", lambda ma: {"nhan": tong, "so_gd": 1, "gd": [g.name]}), \
+			patch.object(cn, "_giu_gd", lambda d, ds_gd: "\n".join(ds_gd)):
+		_goi_bang(_sales(), lambda: cn.kiem_sepay(p.name))
+	nhap = _pe_cua(ds, 0)
+	la("một phiếu thu nháp", len(nhap), 1)
+	# Nút Thư báo: cửa gửi tay thật, không thay _gui_thu_da_nhan.
+	truoc = frappe.session.user
+	frappe.set_user(_sales())
+	try:
+		cn.gui_thu_da_nhan(p.name)
+		loi = ""
+	except frappe.ValidationError as e:
+		loi = str(e)
+	finally:
+		frappe.set_user(truoc)
+	dung("gửi tay bị chặn khi sổ còn nợ: " + loi[:160], "chưa hết nợ" in loi)
+	la("chưa đánh dấu đã gửi", frappe.db.get_value("Vagabond Cong No", p.name, "email_da_gui") or 0, 0)
+	# Đường Desk: đính tệp qua ô UNC rồi bấm Submit, không qua ghi_so_phieu_thu.
+	gui = []
+	pe = frappe.get_doc("Payment Entry", nhap[0])
+	with _Tep(gan_vao=pe.name, o="vgb_thu_unc_tep") as t:
+		pe.vgb_thu_unc_tep = t.file_url
+		pe.save(ignore_permissions=True); pe.reload()
+		with patch.object(cn, "_gui_thu_da_nhan", lambda d, **k: gui.append((d.name, k.get("xep_hang"))) or (True, "kt")):
+			pe.submit()
+		pe.reload()
+		la("phiếu thu vào sổ từ Desk", pe.docstatus, 1)
+		ds[0].reload()
+		la("hoá đơn hết nợ", flt(ds[0].outstanding_amount), 0.0)
+		la("hook xếp thư đúng phiếu đòi nợ, trong giao dịch", gui, [(p.name, True)])
