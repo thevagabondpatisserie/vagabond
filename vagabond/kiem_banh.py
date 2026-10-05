@@ -686,13 +686,19 @@ def _dem_don_khac(ngay, dang_theo_doi=None):
 	"GrabFood #GF-441" de sales biet so do tu don nao ra.
 	"""
 	ngay = getdate(ngay)
-	sis = frappe.get_all(
-		"Sales Invoice",
-		# vgb_huy 0: bill da huy khong con la hang ban ra nen khong duoc tru
-		# so tren bang kiem banh, khong thi sales dem thieu banh trong kho.
-		filters={"posting_date": str(ngay), "docstatus": ["<", 2], "vgb_huy": 0},
-		fields=["name", "custom_nguon", "custom_pancake_display_id"],
-		limit_page_length=0,
+	from vagabond import ngay_ban
+
+	# vgb_huy 0: bill da huy khong con la hang ban ra nen khong duoc tru
+	# so tren bang kiem banh, khong thi sales dem thieu banh trong kho.
+	# Ngay: theo ngay ban tai quay, khong theo ngay ghi so (v573, Dễ báo
+	# hàng tặng duyệt hôm sau bị trừ hai lần).
+	sis = frappe.db.sql(
+		"""select si.name, si.custom_nguon, si.custom_pancake_display_id
+		from `tabSales Invoice` si
+		where si.docstatus < 2 and ifnull(si.vgb_huy, 0) = 0
+		  and """ + ngay_ban.dk_sql("si"),
+		{"ngay": ngay},
+		as_dict=True,
 	)
 	theo_ten = {}
 	for si in sis:
@@ -909,11 +915,12 @@ def khi_doi_hoa_don(doc, method=None):
 			str(r.item_code or "").upper().startswith(TIEN_TO_MA) for r in (doc.get("items") or [])
 		):
 			return
-		from vagabond.dat_banh import hai_ngay_phai_do
+		from vagabond.ngay_ban import cac_ngay_phai_do
 
 		cu = (doc.get_doc_before_save() or {}) if hasattr(doc, "get_doc_before_save") else {}
-		for ngay in hai_ngay_phai_do(
-			(cu or {}).get("posting_date") if cu else None, doc.posting_date
+		for ngay in cac_ngay_phai_do(
+			(cu or {}).get("posting_date") if cu else None, doc.posting_date,
+			doc.get("vgb_ngay_ban"),
 		):
 			cap_nhat_don_khac(ngay)
 	except Exception:

@@ -16,7 +16,12 @@
 var path = require('path');
 var GOC = path.resolve(__dirname, '..', '..', '..', '..');
 global.frappe = { ui: { form: { on: function () {} } } };
-var V = require(path.join(GOC, 'vagabond', 'vagabond', 'doctype', 'vagabond_settings', 'vagabond_settings.js'));
+/* v570: phép thuần dời sang tệp dùng chung Desk và app. */
+var V = require(path.join(GOC, 'vagabond', 'public', 'js', 'cai_dat_loi_chung.js'));
+/* Phần chạm form Desk vẫn ở vagabond_settings.js và gọi VGB_CD như biến toàn cục,
+   đúng như trên trình duyệt sau khi tệp chung đã nạp. */
+global.VGB_CD = V;
+V._desk = require(path.join(GOC, 'vagabond', 'vagabond', 'doctype', 'vagabond_settings', 'vagabond_settings.js'))._desk;
 
 var dat = 0, hong = 0;
 function ca(ten, ham) {
@@ -92,7 +97,10 @@ ca('Codex #433 vòng 3 G1: bấm chip hay kết quả tìm thì MỞ đúng tab 
 ca('Codex #433 vòng 3 G1: thanh chip Desk gọi moToi chứ không gọi thẳng scroll_to_field', function () {
   // Dò chuỗi chỉ để chốt "không còn chỗ nào cuộn thẳng" (điều 16); hành vi moToi chạy thật ở ca trên.
   var s = require('fs').readFileSync(path.join(GOC, 'vagabond', 'vagabond', 'doctype', 'vagabond_settings', 'vagabond_settings.js'), 'utf8');
-  la('chỉ một chỗ gọi scroll_to_field, nằm trong moToi', (s.match(/scroll_to_field\(/g) || []).length, 1);
+  /* v572: moToi dời sang tệp chung cai_dat_loi_chung.js; tệp Desk không còn cuộn thẳng chỗ nào. */
+  var c = require('fs').readFileSync(path.join(GOC, 'vagabond', 'public', 'js', 'cai_dat_loi_chung.js'), 'utf8');
+  la('tệp Desk không gọi thẳng scroll_to_field', (s.match(/scroll_to_field\(/g) || []).length, 0);
+  la('chỉ một chỗ gọi scroll_to_field, nằm trong moToi ở tệp chung', (c.match(/scroll_to_field\(/g) || []).length, 1);
 });
 
 ca('tình trạng: ô chỉ có dấu cách coi như trống', function () {
@@ -473,6 +481,15 @@ ca('Codex #435 H3: chip bấm được cao 44px, hai dòng chip đúng bằng ch
   var g = /\.vgbc-tt\.gon\{max-height:(\d+)px/.exec(s);
   var khe = /\.vgbc-chips\{display:flex;flex-wrap:wrap;gap:(\d+)px\}/.exec(s);
   la('thu gọn = 2 dòng chip + 1 khe', g && +g[1], 2 * 44 + (khe ? +khe[1] : -1));
+});
+
+ca('v571: công tắc đủ 42x24 trên site thật, hộp chứa không bị Frappe ép còn 26px', function () {
+  // Lỗi đo trên site thật sau deploy v570: Frappe ép ô tích 18px, .input-area flex
+  // rộng 26px, công tắc thành nửa hình tròn đè chữ. CSS không chạy trong node; dò
+  // chuỗi chỉ để GHIM luật đã thử đúng trên site (điều 16), bằng chứng là ảnh trên PR.
+  var s = require('fs').readFileSync(path.join(GOC, 'vagabond', 'vagabond', 'doctype', 'vagabond_settings', 'vagabond_settings.js'), 'utf8');
+  dung('hộp chứa không co theo flex', /\[data-fieldtype="Check"\] \.input-area\{flex:none!important;width:auto!important;min-width:52px\}/.test(s));
+  dung('công tắc ép rộng 42 có !important', /input\[type="checkbox"\]\{width:42px!important;min-width:42px!important;max-width:42px!important;height:24px!important/.test(s));
 });
 
 ca('Codex #433 vòng 3 G3: máy chủ trả danh mục rỗng cũng coi là hỏng, không để khung trống', function () {

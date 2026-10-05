@@ -320,6 +320,11 @@ async function scrHome() {
     /* Trang dat banh web: Minh Vu doi anh ben Pancake xong bam mot nut la web
        doi theo, khong phai cho hay nho ai deploy (anh Viet 03/09/2026). Mo
        cho ca sales vi chinh sales la nguoi cam danh muc Pancake. */
+    /* Cai dat loi va API (v570): trang Vagabond Settings tren app. Chi quan
+       tri; may chu kiem lai quyen o tung cua vagabond.cai_dat_loi. */
+    (hasRole('System Manager')
+      ? card('🔑', 'Cài đặt lõi và API', 'Khoá kết nối, hoá đơn điện tử, ngân hàng, giao hàng, Zalo: điền ngay trên app', 0, 'CDLOI')
+      : '') +
     (coQuyenMua() || hasRole('Sales User') || hasRole('Sales Manager') || hasRole('System Manager')
       ? card('🌐', 'Trang đặt bánh web', 'Đồng bộ ảnh và mô tả từ Pancake, xem tab nào đang lên bao nhiêu mã', 0, 'CDWEB')
       : '') +
@@ -608,8 +613,9 @@ var VGB_NHOM = [
   },
   {
     k: 'KHAC', ten: 'Cài đặt', icon: '⚙️',
-    keys: ['CDDB', 'CDKS', 'CDPT', 'CDTK', 'CDSP', 'CDMI', 'CDMU', 'CDQQ', 'CDHT', 'CDCN', 'CDKHO', 'CDTL', 'CDSE', 'NHAPSK', 'CDTB', 'CDWEB', 'PTDON', 'PTCH', 'QLND', 'QLQ', 'ACC', 'STOCK', 'TONCHANG'],
+    keys: ['CDLOI', 'CDDB', 'CDKS', 'CDPT', 'CDTK', 'CDSP', 'CDMI', 'CDMU', 'CDQQ', 'CDHT', 'CDCN', 'CDKHO', 'CDTL', 'CDSE', 'NHAPSK', 'CDTB', 'CDWEB', 'PTDON', 'PTCH', 'QLND', 'QLQ', 'ACC', 'STOCK', 'TONCHANG'],
     nhom: [
+      { t: 'Lõi hệ thống', p: '', keys: ['CDLOI'] },
       { t: 'Cửa hàng và bán hàng', p: '', keys: ['CDDB', 'CDPT', 'CDQQ', 'CDHT', 'CDCN', 'CDWEB'] },
       { t: 'Kho và sản phẩm', p: '', keys: ['CDSP', 'CDKHO', 'STOCK', 'TONCHANG', 'PTCH'] },
       { t: 'Kế toán và ngân hàng', p: '', keys: ['CDKS', 'CDTK', 'CDSE', 'NHAPSK', 'PTDON'] },
@@ -944,6 +950,12 @@ function vgbCss() {
     'border-radius:13px;padding:11px 6px 9px;text-align:center;cursor:pointer}' +
     '.vgbgo:active{transform:scale(.97)}' +
     '.vgbgi{font-size:24px;line-height:1}' +
+    /* O "+ Them" cuoi dai ghim va dai moi ghim khi chua ghim gi (v571). */
+    '.vgbgthem{flex:0 0 auto;width:88px;min-height:72px;border:1.5px dashed #c7d0dd;' +
+    'border-radius:13px;padding:11px 6px 9px;text-align:center;cursor:pointer;color:#667085}' +
+    '.vgbgtrong{cursor:pointer}.vgbgtrong .vgbgh{margin-bottom:4px}' +
+    '.vgbgthemn{color:#0f766e;background:#e6f6f4}' +
+    '.vgbgm{font-size:13px;line-height:1.5;color:#667085}' +
     /* 13 diem la san AGENTS.md dieu 13 ("chu toi thieu 13 diem"); ban dau
        dat 11.5 cho gon o. Hai dong van vua trong o rong 88. */
     '.vgbgn{font-size:13px;font-weight:600;color:#344054;margin-top:6px;line-height:1.25;' +
@@ -1198,6 +1210,7 @@ function vgbGomNhom() {
     if (gh) return vgbBatGhim(gh.dataset.ghim);
     var sg = e.target.closest('[data-suaghim]');
     if (sg) { VGB_SUA_GHIM = !VGB_SUA_GHIM; return vgbVeGhim(); }
+    if (e.target.closest('[data-themghim]')) return vgbChonGhim();
     var r = e.target.closest('[data-go]');
     if (r) return vgbGo(r.dataset.go);
     var t = e.target.closest('[data-nhom]');
@@ -1307,10 +1320,27 @@ function vgbVeLaiGhim() {
 function vgbVeGhim() {
   var w = document.getElementById('vgbGhimW');
   if (!w) return;
-  var ds = VGB_GHIM || [];
-  /* Chua ghim gi thi khoi nay AN hoan toan, khong de mot khung rong chiem
-     cho tren dau trang chu (anh Viet duyet mockup 03/10/2026). */
-  if (!ds.length) { w.innerHTML = ''; VGB_SUA_GHIM = false; return; }
+  /* CHUA doc duoc danh sach (null: dang hoi hoac may chu hong) thi khong ve
+     gi: khong biet nguoi nay ghim gi thi khong moi ho ghim them. */
+  if (!VGB_GHIM) { w.innerHTML = ''; return; }
+  var ds = VGB_GHIM;
+  /* Da doc va CHUA ghim gi: hien mot dai mong moi ghim, KHONG an han.
+
+     Ban v565 an han khoi nay cho gon (mockup 03/10/2026). Do tren site that
+     04/10/2026: khong mot tai khoan nao ghim duoc o nao, vi loi ghim duy
+     nhat nam trong ket qua o tim, ma o tim thi khong ai biet la co nut ghim.
+     Anh Viet hoi lai "sao khong thay bang ghim app hay dung?". Nen giu mot
+     dai mot dong, bam vao la mo hop chon nghiep vu de ghim. */
+  if (!ds.length) {
+    VGB_SUA_GHIM = false;
+    w.innerHTML = '<div class="vgbghim vgbgtrong" data-themghim="1">' +
+      '<div class="vgbgh"><b>\ud83d\udccc Ghim nghi\u1ec7p v\u1ee5 hay d\u00f9ng</b>' +
+      '<span class="vgbgs vgbgthemn">+ Ch\u1ecdn \u00f4 \u0111\u1ec3 ghim</span></div>' +
+      '<div class="vgbgm">Ghim t\u1ed1i \u0111a ' + VGB_GHIM_TOI_DA +
+      ' \u00f4 b\u1ea1n hay m\u1edf l\u00ean \u0111\u1ea7u trang ch\u1ee7. ' +
+      'C\u0169ng ghim \u0111\u01b0\u1ee3c b\u1eb1ng n\u00fat \ud83d\udccc trong k\u1ebft qu\u1ea3 \u00f4 t\u00ecm.</div></div>';
+    return;
+  }
   var o = '';
   for (var i = 0; i < ds.length; i++) {
     var x = VGB_HUB[ds[i]];
@@ -1319,6 +1349,14 @@ function vgbVeGhim() {
       (VGB_SUA_GHIM ? '<span class="vgbgx" data-ghim="' + h(ds[i]) + '">\u2715</span>' : '') +
       '<div class="vgbgi">' + (x.ic || '\ud83d\udccc') + '</div>' +
       '<div class="vgbgn">' + h(x.ten) + '</div></div>';
+  }
+  /* Con cho trong thi de mot o "+ Them" cuoi dai, de ghim them khong phai
+     di vong qua o tim. Dang sua ghim thi an di cho khoi bam nham. */
+  /* Codex #437 vong 10: dem theo o CON QUYEN khi danh ba da biet, de mot o
+     mat quyen chua kip go khong an mat o "+ Them". */
+  if (!VGB_SUA_GHIM && (VGB_KHUNG_CO ? vgbLocGhim(ds).length : ds.length) < VGB_GHIM_TOI_DA) {
+    o += '<div class="vgbgthem" data-themghim="1"><div class="vgbgi">\uff0b</div>' +
+      '<div class="vgbgn">Th\u00eam</div></div>';
   }
   w.innerHTML = '<div class="vgbghim"><div class="vgbgh">' +
     '<b>\ud83d\udccc Ghim nghi\u1ec7p v\u1ee5 hay d\u00f9ng</b>' +
@@ -1423,6 +1461,39 @@ async function vgbBatGhim(k) {
   VGB_GHIM = vgbLocGhim(ds);
   vgbVeLaiGhim();
   await vgbCatGhim(VGB_GHIM);
+}
+
+/* Mo hop chon de ghim them mot nghiep vu (v571).
+
+   Lay DUNG danh ba ma o tim dang dung (vgbDanhBaNghiepVu), nen o nao nguoi
+   nay khong co quyen thi cung khong hien de ghim. Bo nhung o da ghim roi.
+   Chon xong di qua vgbBatGhim, cua duy nhat doi danh sach ghim, de moi luat
+   (cho doc xong, tran 5 o, cat noi tiep) chi nam o mot cho. */
+async function vgbChonGhim() {
+  if (!VGB_GHIM) {
+    await vgbNapGhim();
+    if (!VGB_GHIM) {
+      return toast('Ch\u01b0a \u0111\u1ecdc \u0111\u01b0\u1ee3c danh s\u00e1ch ghim ' +
+        't\u1eeb m\u00e1y ch\u1ee7. M\u1edf l\u1ea1i trang ch\u1ee7 r\u1ed3i th\u1eed l\u1ea1i.', 3600);
+    }
+  }
+  /* Go o mat quyen TRUOC khi tinh cho trong (Codex #437 vong 10), cung mot
+     phep voi vgbBatGhim. */
+  vgbDonGhim();
+  var con = VGB_GHIM_TOI_DA - VGB_GHIM.length;
+  if (con <= 0) {
+    return toast('Ch\u1ec9 ghim \u0111\u01b0\u1ee3c ' + VGB_GHIM_TOI_DA +
+      ' nghi\u1ec7p v\u1ee5. B\u1ecf m\u1ed9t \u00f4 c\u0169 r\u1ed3i ghim l\u1ea1i.', 3400);
+  }
+  var ds = vgbDanhBaNghiepVu().filter(function (x) { return VGB_GHIM.indexOf(x.k) < 0; });
+  var k = await hoiChon('Ghim nghi\u1ec7p v\u1ee5 hay d\u00f9ng',
+    'Ch\u1ecdn m\u1ed9t \u00f4 \u0111\u1ec3 ghim l\u00ean \u0111\u1ea7u trang ch\u1ee7. C\u00f2n ghim \u0111\u01b0\u1ee3c ' + con + ' \u00f4.',
+    ds.map(function (x) {
+      return { k: x.k, nhan: x.ten, mo_ta: x.phanHe + (x.mo ? ' \u00b7 ' + x.mo : ''),
+        icon: (VGB_HUB[x.k] && VGB_HUB[x.k].ic) || '' };
+    }), null);
+  if (!k) return;
+  return vgbBatGhim(k);
 }
 
 /* Hoi may chu xem nguoi nay con bao nhieu viec, roi deo len o.
@@ -1699,6 +1770,7 @@ var VGB_DUONG = {
   'bien-nhan-nop-tien-mat': 'BNTM',
   'but-toan': 'BT',
   'cai-dat-cuoi-ngay': 'CDCN',
+  'cai-dat-loi-va-api': 'CDLOI',
   'canh-bao-thanh-toan': 'CBTT',
   'chi-phi-van-don': 'CPX',
   'chuyen-phantom': 'PTCH',
@@ -1968,6 +2040,7 @@ function vgbGo(k) {
   if (k === 'CDTL') return go(scrTroLyCaiDat);
   if (k === 'CDTB') return go(scrThongBao);
   if (k === 'CDWEB') return go(scrCaiDatWeb);
+  if (k === 'CDLOI') return go(scrCaiDatLoi);
   if (k === 'PTDON') return go(scrDonChungTuThu);
   if (k === 'PTCH') return go(scrChuyenPhantom);
   if (k === 'NHAPSK') return go(scrNhapSaoKe);

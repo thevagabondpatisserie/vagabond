@@ -654,7 +654,8 @@ def _bo_loc():
 def _danh_muc_js():
 	import os
 	import re
-	p = os.path.join(os.path.dirname(kz.__file__), "vagabond", "doctype", "vagabond_settings", "vagabond_settings.js")
+	# v570: danh mục loại tin, chủ đề dời sang tệp dùng chung Desk và app.
+	p = os.path.join(os.path.dirname(kz.__file__), "public", "js", "cai_dat_loi_chung.js")
 	s = open(p, encoding="utf-8").read()
 	# Phép dò này chỉ chốt hai danh sách không lệch nhau (điều 16: không thay ca hành vi).
 	lay = lambda k: re.findall(r"'([a-z_]+)'", re.search(k + r": \[([^\]]*)\]", s).group(1))

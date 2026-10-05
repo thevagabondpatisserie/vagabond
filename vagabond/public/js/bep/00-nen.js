@@ -763,6 +763,44 @@ async function rawCall(method, args) {
   try { j = JSON.parse(txt); } catch (x) { }
   return j.message;
 }
+/* v574: phiên mất giữa chừng thì Frappe KHÔNG trả 401 (Loan Anh báo 05/10/2026).
+
+   Ca thật: Loan Anh đang ở màn Công nợ, đính ảnh UNC thì hiện "UNC.jpg: You
+   are not permitted to access this resource. Login to accessFunction
+   vagabond.tep_dinh_kem.nap_tam is not whitelisted". Hàm đó có quyền gọi đủ.
+   Đọc nhật ký đăng nhập: tài khoản chỉ cho 2 phiên cùng lúc, hôm đó đăng nhập
+   3 lần (14:49, 15:59, 16:04), lần thứ ba đẩy văng phiên cũ của máy đang mở
+   màn Công nợ. Lời gọi kế tiếp chạy dưới danh nghĩa khách, và Frappe trả 403
+   PermissionError "chưa whitelist" chứ không phải 401, nên app tưởng là thiếu
+   quyền và đưa nguyên câu tiếng Anh khó hiểu ra màn.
+
+   Câu báo đổi theo ngôn ngữ site nên không dò chữ. Gặp 403 PermissionError
+   thì hỏi máy chủ "tôi là ai": còn đăng nhập thì đúng là thiếu quyền, giữ lỗi
+   cũ; đã thành khách thì đưa về màn đăng nhập với câu dễ hiểu. */
+var PHIEN_MAT_CAU = 'Phiên đăng nhập đã hết (thường do tài khoản vừa đăng nhập ở máy khác). Vui lòng đăng nhập lại rồi làm lại bước vừa rồi.';
+/* Codex #441: lời hỏi "tôi là ai" cũng phải có hạn giờ. Mạng treo giữa
+   chừng mà không hạn thì màn đứng im mãi, đúng cái lỗi rawCall đã chữa. Hết
+   giờ thì coi như chưa biết, giữ nguyên lỗi cũ (cùng đường với mất mạng). */
+var PHIEN_HOI_HAN = 10000;
+function phienHetGio(ms) {
+  return new Promise(function (_ok, hong) { setTimeout(function () { hong(new Error('het gio')); }, ms); });
+}
+async function phienDaMat() {
+  var ctl = window.AbortController ? new AbortController() : null;
+  var han = phienHetGio(PHIEN_HOI_HAN);
+  han.catch(function () { try { if (ctl) ctl.abort(); } catch (x) { } });
+  try {
+    var r = await Promise.race([fetch('/api/method/frappe.auth.get_logged_user', {
+      method: 'GET', credentials: 'same-origin', cache: 'no-store', headers: { 'Accept': 'application/json' },
+      signal: ctl ? ctl.signal : undefined
+    }), han]);
+    if (r.status === 401 || r.status === 403) return true;
+    if (!r.ok) return false;
+    var j = {};
+    try { j = JSON.parse(await Promise.race([r.text(), han])); } catch (x) { return false; }
+    return !j.message || j.message === 'Guest';
+  } catch (e) { return false; }
+}
 async function api(method, args) {
   try { return await rawCall(method, args); }
   catch (e) {
@@ -772,6 +810,12 @@ async function api(method, args) {
       throw new Error('Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại');
     }
     if (e && (e.status === 401 || (e.exc_type || '').indexOf('AuthenticationError') >= 0)) sessionGone();
+    if (e && e.status === 403 && (e.exc_type || '').indexOf('PermissionError') >= 0 && await phienDaMat()) {
+      sessionGone();
+      var m = new Error(PHIEN_MAT_CAU);
+      m.status = 401; m.exc_type = 'AuthenticationError';
+      throw m;
+    }
     throw e;
   }
 }

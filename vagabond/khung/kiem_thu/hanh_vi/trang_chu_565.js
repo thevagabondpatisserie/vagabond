@@ -123,6 +123,12 @@ function dungTrangChu(ghimTraVe, hoan) {
       return Promise.reject(new Error('khong co cua ' + duong));
     },
     toast: function (c) { thongBao.push(String(c)); },
+    /* Hop chon gia (v571): ghi lai danh sach duoc dua ra, tra ve khoa ca
+       kiem dat san trong hoan.chon (null la bam Thoi). */
+    hoiChon: function (tua, moTa, ds) {
+      hoan.hoiChon = { tua: tua, moTa: moTa, ds: ds };
+      return Promise.resolve(hoan.chon === undefined ? null : hoan.chon);
+    },
     coQuyenKeToan: function () { return true; },
     coQuyenMua: function () { return true; },
     coQuyenHRM: function () { return true; },
@@ -272,12 +278,102 @@ function go(m, chu) {
 
   // -------------------------------------------------------------- ghim
 
-  await ca('chua ghim gi thi khoi ghim AN hoan toan, khong chiem cho', async function () {
+  /* DOI LUAT v571 (anh Viet 04/10/2026 "sao khong thay bang ghim app hay
+     dung?"). Ban v565 an han khoi ghim khi chua ghim gi; do tren site that
+     thi khong tai khoan nao ghim duoc o nao vi khong ai thay loi vao. Nay
+     chua ghim gi thi hien mot dai MOI GHIM, khong phai an han. Dung sua ca
+     nay ve nhu cu. */
+  await ca('chua ghim gi thi hien dai MOI GHIM, khong o ghim nao', async function () {
     var m = dungTrangChu([]);
     m.g.vgbGomNhom();
     await tick();
     bang('da hoi may chu', m.goi.filter(function (x) { return x.duong === 'vagabond.ghim.lay'; }).length, 1);
-    bang('khong co khoi ghim', m.than.querySelectorAll('.vgbghim').length, 0);
+    bang('co dai moi ghim', m.than.querySelectorAll('.vgbgtrong').length, 1);
+    bang('khong co o ghim nao', m.than.querySelectorAll('.vgbgo').length, 0);
+    dung('noi ro bam vao de ghim', /Ch\u1ecdn \u00f4 \u0111\u1ec3 ghim/.test(m.tai.getElementById('vgbGhimW').innerHTML));
+  });
+
+  await ca('v571: bam dai moi ghim, chon mot o thi o do duoc ghim va cat len may chu', async function () {
+    var hoan = { chon: 'CNPT' };
+    var m = dungTrangChu([], hoan);
+    m.g.vgbGomNhom();
+    await tick();
+    bam(m, m.than.querySelector('.vgbgm'));
+    await tick();
+    dung('da mo hop chon', !!hoan.hoiChon);
+    dung('hop chon co o Cong no phai tra', hoan.hoiChon.ds.some(function (x) { return x.k === 'CNPT'; }));
+    bang('mot o ghim', m.than.querySelectorAll('.vgbgo').length, 1);
+    bang('bam dai KHONG mo man nao', m.daGo.length, 0);
+    var luu = m.goi.filter(function (x) { return x.duong === 'vagabond.ghim.luu'; });
+    bang('cat dung khoa', luu[luu.length - 1].ts.ghim, '["CNPT"]');
+  });
+
+  await ca('v571: bam Thoi trong hop chon thi khong ghim gi, khong cat gi', async function () {
+    var hoan = {};
+    var m = dungTrangChu([], hoan);
+    m.g.vgbGomNhom();
+    await tick();
+    bam(m, m.than.querySelector('.vgbgtrong'));
+    await tick();
+    bang('khong o ghim', m.than.querySelectorAll('.vgbgo').length, 0);
+    bang('khong cat', m.goi.filter(function (x) { return x.duong === 'vagabond.ghim.luu'; }).length, 0);
+  });
+
+  await ca('v571: da ghim vai o thi co o Them, hop chon KHONG dua lai o da ghim', async function () {
+    var hoan = { chon: 'VD' };
+    var m = dungTrangChu(['POS', 'CN'], hoan);
+    m.g.vgbGomNhom();
+    await tick();
+    var them = m.than.querySelector('.vgbgthem');
+    dung('co o Them', !!them);
+    bam(m, them.querySelector('.vgbgn'));
+    await tick();
+    dung('khong dua lai POS', !hoan.hoiChon.ds.some(function (x) { return x.k === 'POS'; }));
+    dung('khong dua lai CN', !hoan.hoiChon.ds.some(function (x) { return x.k === 'CN'; }));
+    bang('ba o, o moi o cuoi', m.g.VGB_GHIM.join(','), 'POS,CN,VD');
+  });
+
+  await ca('v571: du 5 o thi het o Them; dang Sua ghim cung an o Them', async function () {
+    var m = dungTrangChu(['POS', 'DTREO', 'KBD', 'CN', 'CNPT']);
+    m.g.vgbGomNhom();
+    await tick();
+    bang('du 5 khong co o Them', m.than.querySelectorAll('.vgbgthem').length, 0);
+    var m2 = dungTrangChu(['POS']);
+    m2.g.vgbGomNhom();
+    await tick();
+    bam(m2, m2.than.querySelector('[data-suaghim]'));
+    bang('dang sua khong co o Them', m2.than.querySelectorAll('.vgbgthem').length, 0);
+  });
+
+  await ca('Codex #437 vong 10: du 5 ghim nhung mot o mat quyen thi van them duoc', async function () {
+    /* Dung lai canh: 5 ghim, danh ba ve chi con 4 o. Thu tren 2b069d9:
+       danh ba ve thi vgbDonGhim tu go o mat quyen nen o Them hien lai; chua
+       tai hien duoc canh "danh ba da biet ma chua go". Van khoa them hai cho:
+       dem theo o con quyen, va go truoc khi tinh cho trong o hop chon. */
+    var hoan = { danhBa: true, chon: 'VD' };
+    var m = dungTrangChu(['POS', 'DTREO', 'KBD', 'CN', 'DM:DMSP'], hoan);
+    m.g.vgbGomNhom();
+    await tick();
+    var p = m.g.vgbNapKhungCo();
+    await tick();
+    m.hoan.traDanhBa(['POS', 'DTREO', 'KBD', 'CN', 'VD', 'CNPT']);
+    await p;
+    await new Promise(function (r) { setTimeout(r, 40); });
+    var them = m.than.querySelector('.vgbgthem');
+    dung('co o Them', !!them);
+    bam(m, them.querySelector('.vgbgn'));
+    await new Promise(function (r) { setTimeout(r, 20); });
+    dung('mo duoc hop chon', !!hoan.hoiChon);
+    dung('da ghim o moi', m.g.VGB_GHIM.indexOf('VD') >= 0);
+    dung('khong con o mat quyen', m.g.VGB_GHIM.indexOf('DM:DMSP') < 0);
+  });
+
+  await ca('v571: may chu hong thi KHONG hien dai moi ghim', async function () {
+    var m = dungTrangChu([]);
+    m.g.api = function () { return Promise.reject(new Error('mang hong')); };
+    m.g.vgbGomNhom();
+    await tick();
+    bang('khong dai moi ghim', m.than.querySelectorAll('.vgbgtrong').length, 0);
   });
 
   await ca('bam nut ghim trong ket qua tim: khoi ghim hien ra va cat len may chu', async function () {

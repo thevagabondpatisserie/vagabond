@@ -152,7 +152,9 @@ def _hook_hai_ngay():
 	to hoa don da khong con o do."""
 	i = KB.find("def khi_doi_hoa_don(")
 	than = KB[i:KB.find("def dong_bo_tu_dong", i)]
-	dung("dung ham do hai ngay", "hai_ngay_phai_do" in than)
+	# v573: thay bằng cac_ngay_phai_do, đo cả ngày bán gốc của bill đổi ngày
+	# (vẫn gồm ngày cũ và ngày mới như luật #195).
+	dung("dung ham do ca ngay cu, ngay moi", "cac_ngay_phai_do" in than)
 	dung("doc lai ban truoc khi luu", "get_doc_before_save" in than)
 	dung("khong con goi thang mot ngay", "cap_nhat_don_khac(doc.posting_date)" not in than)
 
