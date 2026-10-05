@@ -540,7 +540,8 @@ def _mot_phieu_moi_gd():
 	# Codex #382 vòng 3: phiếu không gắn hoá đơn bán không thuộc màn công nợ,
 	# và không được làm ứng viên thắng.
 	dung("bỏ phiếu không gắn hoá đơn", "cac_pe = [p for p in cac_pe if ref.get(p.name)]" in than)
-	dung("ứng viên cũng phải gắn hoá đơn", "if t in co_hd]" in than)
+	# v576: ứng viên có thêm nhóm (vgb_nhom_gd) nên lọc theo phần tử đầu.
+	dung("ứng viên cũng phải gắn hoá đơn", "if m[0] in co_hd]" in than)
 	dung("lọc hoá đơn trước khi đọc tệp và giao dịch",
 		than.find("cac_pe = [p for p in cac_pe if ref.get(p.name)]") < than.find("_gd_theo_so("))
 
