@@ -491,11 +491,20 @@ async function inToTuDuongDan(vaiTro, tieuDe, duongDan, rongMm, w) {
     /* Bo trigger_print di: to nay chi de chup, khong duoc tu bung hop
        thoai in cua trinh duyet ngay giua luc in ngam. */
     var u = duongDan.replace(/[?&]trigger_print=1/, '');
-    var anh = await inChupRaster(null, rongMm, dpi, u);
-    /* Ban in do may chu dung: khong biet no chia trang bang the gi nen
-       khong cat, chi sua lai don vi mat do diem cho dung. */
-    var cfg = inCauHinh(may, rongMm, 0, dpi);
-    await qz.print(cfg, [{ type: 'pixel', format: 'image', flavor: 'base64', data: anh }]);
+    /* Tem do may chu dung (v561, Codex #421): moi con tem phai la mot trang
+       QZ rieng, cat theo the .tem y het inGiay o tren. Truoc day ca xap tem
+       duoc chup thanh mot anh dai roi day xuong mot lan, chay lech dan qua
+       khe cat cua giay die-cut. Giay cuon va tem xoay thi giu mot dai. */
+    var k = (typeof inKho === 'function') ? inKho(vaiTro) : null;
+    var caoMm = (k && !k.cuon && Number(k.cao) > 0) ? Number(k.cao) : 0;
+    var xoay = !!(k && Number(k.xoay) === 90);
+    var catTheo = (vaiTro === 'tem' && caoMm > 0 && !xoay) ? '.tem' : '';
+    var anh = await inChupRaster(null, rongMm, dpi, u, catTheo);
+    var cfg = inCauHinh(may, rongMm, catTheo ? caoMm : 0, dpi);
+    var xap = (catTheo ? anh : [anh]).map(function (a) {
+      return { type: 'pixel', format: 'image', flavor: 'base64', data: a };
+    });
+    await qz.print(cfg, xap);
     return 'qz';
   } catch (e) {
     IN_QZ.do_roi = 0; IN_QZ.co = 0;

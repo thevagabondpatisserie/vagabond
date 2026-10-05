@@ -328,22 +328,19 @@ Từ khoá: in tem, tem HACCP, tem nhãn, nhãn bánh, NSX, HSD, hạn dùng, m�
 |---|---|---|
 | Bếp | Sản xuất (/san-xuat), chi tiết lệnh | [[In tem]] |
 
-Tem in theo Mẻ của lệnh: tên món, NSX, HSD, điều kiện bảo quản, mã mẻ. Từ 30/09/2026 mọi mã đã tắt quản lý theo lô, nên hiện nút này không in được.
+Tem ghi tên món, khối lượng tịnh, điều kiện bảo quản, chất gây dị ứng, NSX, HSD, mã vạch món. Từ 03/10/2026 tem không cần lô: dòng lô cũ đổi thành "Ngày: ......" để bếp điền tay.
 
-**Hiện trạng**
-| Bấm | Máy làm |
-|---|---|
-| [[In tem]] (trước hoàn tất) hoặc [[In lại tem]] | Báo "Món này chưa bật theo dõi lô nên chưa in được tem" |
-| [[In tem cả N lệnh]] trên thẻ gộp | Báo như trên |
-| [[Hoàn thành]] | Hoàn tất bình thường, nhưng không tự mở màn In tem HACCP nữa |
-
-**Các bước khi mã có bật lô** (cách cũ, để tra lại)
-1. Mở lệnh, bấm [[In tem]] hoặc [[In lại tem]].
+**Các bước**
+1. Mở lệnh, bấm [[In tem]] hoặc [[In lại tem]]. Bấm [[Hoàn thành]] xong máy cũng tự mở màn In tem HACCP.
 2. Chỉnh Số tem cần in.
 3. Bấm [[In thử 1 tem]] hoặc [[In N tem]].
+4. Dán tem, điền tay ngày vào dòng Ngày.
+
+**In cả nhóm**: trên thẻ gộp bấm [[In tem cả N lệnh]], mỗi lệnh một xấp tem theo số đã làm.
 
 **Lưu ý**
-- Đừng tự bật lại Có quản lý lô trên Desk để in tem: việc tắt lô là quyết định của anh Việt 30/09/2026, bật lại ảnh hưởng nhập, xuất, kiểm kê. Anh Việt chốt 03/10/2026: tem bỏ ô lô, thay bằng dòng "Ngày: ..." để nhân viên điền tay; phần sửa nút In tem đang làm.
+- NSX là giờ bấm in, HSD tính từ NSX. In trước để dán sau thì sửa tay cho đúng.
+- Đừng tự bật lại Có quản lý lô trên Desk: tắt lô là quyết định của anh Việt 30/09/2026.
 - Hạn dùng trên tem lấy từ số giờ hạn dùng hoặc Thời gian Sử dụng theo Ngày trên hồ sơ món.
 - In cả nhóm cần máy in tem đã nối QZ Tray; chưa nối thì máy báo "chỉ in được từng lệnh một".
 
@@ -525,32 +522,36 @@ Từ khoá: tắt phantom, bỏ phantom, bỏ ảo, chuyển kho mã phantom, th
 
 | Ai dùng | Màn hình | Nút chính |
 |---|---|---|
-| Quản lý sản xuất, kế toán giá thành, kỹ thuật | Desk: Món, Desk: Công thức | |
+| Quản lý sản xuất, giám đốc | Chuyển Phantom (/chuyen-phantom), hoặc Desk: hồ sơ Món | [[Bỏ ảo một mã]], [[desk:Bỏ ảo (có tồn kho trở lại)]] |
 
-Mặt hàng ảo không có tồn nên không chuyển kho được. Nếu thực tế bán thành phẩm đó được làm sẵn, cất trữ hoặc chuyển giữa hai bếp thì phải bỏ ảo để nó có tồn trở lại.
+Mặt hàng ảo không có tồn nên không chuyển kho được. Bán thành phẩm làm sẵn, cất tủ hay chuyển giữa hai bếp thì bỏ ảo để có tồn trở lại.
 
-**Ba chỗ phải đổi cùng lúc, thiếu một là hỏng**
-| Chỗ | Ô | Đổi thành |
-|---|---|---|
-| Hồ sơ Món của mã | Quản lý tồn kho | Tick |
-| Công thức của chính mã đó (ra phiên bản mới) | Là ĐMNVL ảo | Bỏ tick |
-| Mọi công thức cha đang dùng mã (ra phiên bản mới) | Là MH ảo trên dòng của mã | Bỏ tick |
+**Các bước trên app**
+1. Mở Chuyển Phantom, bấm [[Bỏ ảo một mã]].
+2. Bấm [[Chọn mã hàng]], chọn mã: máy kể công thức cha nào sẽ lấy mã này từ kho.
+3. Ghi lý do, bấm [[Bỏ ảo mã này]].
 
-**Các bước**
-1. Báo quản lý sản xuất và kỹ thuật, nói rõ mã nào và vì sao cần giữ tồn.
-2. Kỹ thuật đổi ba chỗ trên rồi dựng lại công thức cha.
-3. Từ đó tạo lệnh riêng cho mã, nhập kho, chuyển kho như bán thành phẩm thường.
+**Trên Desk**: mở hồ sơ Món của mã đó, bấm [[desk:Bỏ ảo (có tồn kho trở lại)]], ghi lý do.
+
+**Máy làm gì**
+| Chỗ | Đổi thành |
+|---|---|
+| Hồ sơ Món: Quản lý tồn kho | Bật |
+| Công thức của mã: Là ĐMNVL ảo | Tắt |
+| Dòng của mã trong công thức cha | Chặn nổ, lấy từ kho |
 
 **Vì sao bị chặn**
 | Máy báo | Cách gỡ |
 |---|---|
-| Vì có giao dịch đã nộp theo MH ..., không thể đổi giá trị của Quản lý tồn kho | Desk không cho tick lại ô này khi mã đã từng có phiếu; nhờ kỹ thuật |
+| Mã ... đang theo lô (hoặc số máy) | Báo kỹ thuật làm tay |
+| Chỉ quản lý sản xuất hoặc giám đốc mới bỏ ảo mã hàng. | Nhờ đúng người |
+| ... cũng không phải mã ảo | Mã dịch vụ, phí: không cần bỏ ảo |
+| Chưa bỏ ảo ..., máy đã quay lui | Báo kỹ thuật kèm tên công thức hỏng |
 
 **Lưu ý**
-- Thiếu bước công thức cha thì lệnh món cha vẫn trừ thẳng nguyên liệu thô, không lấy từ tồn bán thành phẩm.
-- Chỉ áp từ nay về sau, không sửa lệnh hay phiếu kho đã ghi sổ.
-- Có giữ tồn mã nào hay không: Việc này do anh Việt quyết.
-- Sắp có công cụ bỏ ảo trên app và Desk. Trong lúc chờ, nhờ kỹ thuật.
+- Mã đã từng có giao dịch kho thì ERPNext chặn đổi Quản lý tồn kho; công cụ ghi thẳng, vượt chặn.
+- Từ đó phải làm lệnh riêng cho mã, nhập kho rồi mới dùng cho món cha.
+- Chỉ áp từ nay, lệnh và phiếu kho đã có giữ nguyên.
 
 ## Chuyển bán thành phẩm sang mặt hàng ảo hàng loạt
 Từ khoá: chuyển phantom, chuyển sang phantom, chuyển sang ảo, bỏ ghi sổ kho BTP, dọn chứng từ thử, đóng lệnh treo, chạy thử, chạy thật

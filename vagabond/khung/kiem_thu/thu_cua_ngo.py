@@ -39,7 +39,7 @@ CUA_NGO = {
 	# vang lai; cac ham con lai cua don_web la noi bo (hook, nhip, hang doi).
 	"don_hang.py": ["tao_don"],
 	"don_web.py": ["cau_hinh_web"],
-	"noi_dung_web.py": ["cong_khai", "doc_bang", "tai_anh", "luu"],
+	"noi_dung_web.py": ["cong_khai", "doc_bang", "tai_anh", "luu", "san_pham_bien_tap"],
 	# #296: chốt cả danh sách để cửa Lưu đơn không mất whitelist.
 	"ban_hang.py": [
 		"otp_hien_tai", "pos_anh_quay_luu", "cau_hinh_ban_hang", "dong_bo_doanh_so",
@@ -56,6 +56,12 @@ CUA_NGO = {
 		"dinh_bien_ban_thay_the", "go_bien_ban_thay_the", "tai_bien_ban_thay_the", "tim_don",
 	],
 	"can_tru_san.py": ["diem_ban", "doi_chieu", "thu_lai"],
+	# v565: ghim nghiep vu hay dung tren trang chu, cat theo tung nguoi.
+	# `chuan` va `doc_chuoi` la phep thuan, KHONG mo ra ngoai.
+	"ghim.py": ["lay", "luu"],
+	# v570: trang Cài đặt lõi và API trên app. Phép thuần (bo_cuc, gia_tri,
+	# ep_kieu, kiem_thay_doi, kiem_dong_bang) KHÔNG mở ra ngoài.
+	"cai_dat_loi.py": ["lay", "luu", "tim_lien_ket"],
 	# v550: trừ kho từng món và trừ bù. tru_bu, tru_bu_kho, xuat_ds là nội bộ
 	# (hook, việc nền, adapter Excel), không mở ra ngoài.
 	"tru_kho_bu.py": ["ds_chua_tru_kho", "tt_hoa_don", "dem_chua_tru_kho", "tru_bu_hd", "tru_bu_diem"],
@@ -320,6 +326,16 @@ CUA_NGO = {
 	# con so; `soat_thieu_chung_tu` la bang LIET KE cho ke toan truong, chi
 	# doc, khong sinh chung tu nao (dieu 11).
 	# v534 (#380): ghi so phieu thu kem uy nhiem chi khach gui, va chan doan chi doc.
+	# v558: anh Viet chot 03/10/2026 nut mo/dong khoa tren app va Desk.
+	"chung_tu.py": [
+		"huy_phieu_nhap", "bo_danh_dau_huy", "pham_vi_khoa", "cai_dat_khoa_so",
+		"luu_khoa_so", "khoa_cua_to", "ds_to_dang_mo", "mo_khoa_mot_to",
+		"dong_khoa_mot_to", "xem_truoc_huy_ghi_so", "huy_ghi_so_hang_loat",
+	],
+	# v560: tem HACCP khong can lo, trang HTML in cho ca trinh duyet lan QZ.
+	"tem_lenh.py": ["trang"],
+	# v564: bo ao mot ma hang tren app va Desk.
+	"bo_ao.py": ["chay", "xem"],
 	"thu_tien.py": ["chan_doan_ghi_so", "ghi_so_phieu_thu", "nhan_tien_ve", "soat_hinh_thuc_chua_khai", "soat_thieu_chung_tu", "tom_tat", "ung_vien_tien_ve"],
 	"don_huy.py": ["bo_qua", "dem_cho_hoan", "dem_phieu_cho", "dong_bo", "ds",
 		"ds_phieu", "tai_tep", "tao_hoan", "tim_don_de_hoan", "xem_hoan",
@@ -499,6 +515,9 @@ CUA_NGO = {
 	"khung/ds.py": ["chay", "danh_ba", "tao_moi", "tim_lien_ket"],
 	# v534 (#380): man Cong no them tab Tien da ve (ds_tien_da_ve).
 	# v548 (#402) + v549: cong no NCC, them luong tra truoc khi len ERP.
+	# v562 (#410): ban tin Zalo. `nhan` la diem nhan cua Zalo Bot (allow_guest,
+	# tu xac thuc bang header X-Bot-Api-Secret-Token); ba ham con lai chi quan tri.
+	"kenh_zalo.py": ["dang_ky_webhook", "gui_thu", "kiem_webhook", "nhan", "xem_truoc"],
 	# v552: man But toan them doi_tai_khoan (chi Dung doi ve Co tren nhap).
 	"but_toan.py": ["danh_sach", "danh_sach_mau", "doi_tai_khoan", "ghi_so", "huy", "tao", "tim_tai_khoan", "xem"],
 	"cong_no_ncc.py": ["bo_truoc_erp", "danh_sach", "duyet_truoc_erp", "khoan_da_tra", "lap_truoc_erp",
@@ -581,7 +600,11 @@ CUA_NGO = {
 	"kiem_ke.py": [
 		"ghi_ly_do", "lich_hom_nay", "ly_do_ds", "mo_phieu",
 		"phieu_cho_duyet", "phieu_dang_khoa", "tao_phieu_hom_nay",
+		# v561: goi y va nho tai khoan chenh lech ke toan da chon.
+		"tk_goi_y", "nho_tk",
 	],
+	# v547: goi y gia von cho man Ghi so kiem ke. `dien_gia` la HOOK, nam NGOAI.
+	"gia_von_kiem_ke.py": ["goi_y_gia"],
 	# Nguong kho: dung sai giao nhan va han dung toi thieu chung.
 	"kho_cai_dat.py": ["danh_sach", "luu"],
 	# Tach buoc duyet chi khoi buoc ghi so (03/09/2026). `chan_ghi_so_som`

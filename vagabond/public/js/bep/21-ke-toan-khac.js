@@ -750,7 +750,20 @@ async function scrCanhBaoTT() {
    Anh Viet 14/08/2026: "lo dau may doi chieu khong duoc". May doi chieu
    theo NOI DUNG chuyen khoan, ma ke toan ben khach si hay go noi dung
    theo he thong cua ho chu khong theo ma minh dat. Day la duong lui. */
+/* Ma lan khop tay dang cho may chu xac nhan, theo tung phieu.
+   Codex #437 vong 11: loi gui di ma mat phan hoi thi man van con, bam Khop
+   lan nua phai GUI LAI DUNG MA cu de may chu nhan ra la mot lan. Chi xoa
+   khi may chu tra loi thanh cong. */
+var CN_LAN_CHO = {};
+
 async function cnKhopTay(d) {
+  /* Codex #437 vong 10: mot lan mo hop khop tay mot ma lan. Gui lai (mat
+     phan hoi, bam lai) cung ma thi may chu khong ghi hai lan. */
+  /* Codex #437 vong 12: GIU CHO ma lan ngay dong dau, truoc moi await. Hai lan
+     cham cung luc (ca hai dang cho doc sao ke) vi the dung chung mot ma, may
+     chu da khoa phieu se coi lan sau la da_lam_roi. Chi xoa khi thanh cong. */
+  var maLan = CN_LAN_CHO[d.name] ||
+    (CN_LAN_CHO[d.name] = Date.now().toString(36) + Math.random().toString(36).slice(2, 8));
   var con = d.con_thieu || d.tong_tien;
   var ds;
   try { ds = await api('vagabond.cong_no.tim_giao_dich_thu', { so_ngay: 120, so_tien: Math.round(con) }); }
@@ -789,8 +802,13 @@ async function cnKhopTay(d) {
     '\n\nCông nợ của khách sẽ được cập nhật theo số này. Nếu đủ, máy gửi luôn thư báo nhận tiền cho khách.', 'Khớp')) return;
   busy(true);
   try {
-    var kq = await api('vagabond.cong_no.khop_tay', { name: d.name, so_tien: soTien, ma_giao_dich: maGd, ghi_chu: gc || '' });
-    busy(false); toast(kq.loi_nhan, 5500);
+    var kq = await api('vagabond.cong_no.khop_tay', { name: d.name, so_tien: soTien, ma_giao_dich: maGd, ghi_chu: gc || '', ma_lan: maLan });
+    delete CN_LAN_CHO[d.name];
+    busy(false);
+    /* v571: co lap phieu thu hay co loi thi bao bang hop, khong toast troi
+       mat: day la cau noi khach con o Dang no hay khong. */
+    if (kq.pe || (kq.loi && kq.loi.length)) await baoTin(kq.loi_nhan);
+    else toast(kq.loi_nhan, 5500);
   } catch (e) { busy(false); return baoTin((e && e.message) || 'Khớp tay lỗi'); }
   go(function () { scrCnPhieu(d.name); }, true);
 }

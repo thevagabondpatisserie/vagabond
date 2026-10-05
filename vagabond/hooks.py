@@ -390,6 +390,9 @@ doc_events = {
 	# HAI PHIEN CUNG THEM VAO DAY trong ngay 03/09/2026, giu CA HAI theo quy
 	# tac 8: cung them vao mot cho thi khong ai duoc chon bo ai.
 	"Stock Reconciliation": {
+		# v547: gia von trong hoac 0 thi dien theo so kho, go o lo cu sau v545.
+		# Mot luat chung cho Desk va app, doc dau tep gia_von_kiem_ke.py.
+		"before_validate": ["vagabond.gia_von_kiem_ke.dien_gia"],
 		"validate": ["vagabond.kho_san_xuat.canh_bao_kiem_ke_sai_kho"],
 	},
 	"Stock Entry": {
@@ -965,3 +968,8 @@ for _dt_tb, _sk_tb, _ham_tb in (
 	doc_events[_dt_tb][_sk_tb] = ([_cu_tb] if isinstance(_cu_tb, str) else list(_cu_tb)) + [_ham_tb]
 del _dt_tb, _sk_tb, _ham_tb, _cu_tb
 scheduler_events.setdefault("hourly", []).append("vagabond.tru_kho_bu.quet_moi_gio")
+
+# v562 (#410): bắn tin Zalo. Mỗi giờ gửi bản gộp tin hoãn trong giờ im.
+scheduler_events.setdefault("hourly", []).append("vagabond.kenh_zalo.xa_gio_im")
+# Codex #425: gửi bù tin Zalo còn Chờ gửi (hàng đợi hỏng lúc xếp).
+scheduler_events.setdefault("cron", {}).setdefault("*/5 * * * *", []).append("vagabond.kenh_zalo.quet_cho_gui")

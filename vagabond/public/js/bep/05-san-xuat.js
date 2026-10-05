@@ -1786,7 +1786,13 @@ async function scrMfgView(name) {
     busy(1);
     try {
       var it = await mfgLoadItem(d.production_item);
-      if (!it.has_batch_no) { busy(0); return toast('Món này chưa bật theo dõi lô nên chưa in được tem', 5000); }
+      /* v560: tat lo tu 30/09/2026 thi in tem theo lenh, dong lo thanh
+         "Ngay: ..." cho bep dien tay (anh Viet chot 03/10/2026). */
+      if (!it.has_batch_no) {
+        busy(0);
+        mfgL = { batch: '', lenh: d.name, item: d.production_item, name: d.item_name || d.production_item, qty: left || d.qty, uom: d.stock_uom, meta: it, pre: canDo ? 1 : 0 };
+        return go(scrMfgLabel);
+      }
       var bt = await mfgBatchOf(d.name);
       if (!bt) bt = await mfgMakeBatch(d.production_item, it, left || d.qty, d.name);
       busy(0);
@@ -1893,8 +1899,7 @@ async function mfgHoanTatMot(d, q, can, imLang) {
     busy(0);
     if (imLang) return 'lai';
     toast('Đã hoàn tất: trừ nguyên liệu theo ' + num(q) + ', nhập kho ' + num(can) + ' ' + (d.stock_uom || ''), 5000);
-    if (!batch) return 'lai';
-    mfgL = { batch: batch, item: d.production_item, name: d.item_name || d.production_item, qty: can, uom: d.stock_uom, meta: it };
+    mfgL = { batch: batch || '', lenh: batch ? '' : d.name, item: d.production_item, name: d.item_name || d.production_item, qty: can, uom: d.stock_uom, meta: it };
     go(scrMfgLabel, true);
     return 0;
   } catch (err) { busy(0); if (!imLang) toast(errMsg(err), 7000); throw err; }
@@ -1982,7 +1987,21 @@ async function mfgInTemNhom(g) {
   var me = [], thieu = [];
   try {
     var it = await mfgLoadItem(g.ma_mon);
-    if (!it.has_batch_no) { busy(0); return toast('Món này chưa bật theo dõi lô nên chưa in được tem', 5000); }
+    if (!it.has_batch_no) {
+      /* v560: khong co lo thi moi lenh mot xap tem theo lenh. */
+      busy(0);
+      var lenhs = con.map(function (c) { return { lenh: c.ten, n: Math.max(1, Math.ceil(c.so_da || c.so_can || 1)) }; });
+      var tongL = lenhs.reduce(function (a, x) { return a + x.n; }, 0);
+      if (!await confirmSheet('In tem cả nhóm',
+        'Máy in ' + tongL + ' tem cho ' + lenhs.length + ' lệnh của món ' + g.ten_mon + ', đẩy thẳng sang máy in tem. Dòng Ngày trên tem để bếp điền tay.',
+        'In ' + tongL + ' tem')) return;
+      busy(1);
+      for (var k = 0; k < lenhs.length; k++) {
+        try { await inToTuDuongDan('tem', 'Tem HACCP', mfgTemLenhUrl(g.ma_mon, lenhs[k].lenh, lenhs[k].n), inKho('tem').rong, null); } catch (e3) { }
+      }
+      busy(0);
+      return toast('Đã đẩy ' + tongL + ' tem sang máy in', 5000);
+    }
     for (var i = 0; i < con.length; i++) {
       var b = await mfgBatchOf(con[i].ten);
       if (!b) b = await mfgMakeBatch(g.ma_mon, it, r3(con[i].so_can - con[i].so_da) || con[i].so_can, con[i].ten);
@@ -2251,8 +2270,7 @@ async function mfgDeclareSubmit() {
       } catch (e2) { toast('Đã trừ kho xong. Phần lưu công thức chưa được: ' + errMsg(e2), 6000); }
       busy(0);
     }
-    if (!batch) return go(scrMfgList, true);
-    mfgL = { batch: batch, item: st.code, name: st.name, qty: st.qty, uom: st.stock_uom, meta: st.meta };
+    mfgL = { batch: batch || '', lenh: '', item: st.code, name: st.name, qty: st.qty, uom: st.stock_uom, meta: st.meta };
     return go(scrMfgLabel, true);
   } catch (err) { busy(0); toast(errMsg(err), 7000); }
 }
@@ -2284,7 +2302,7 @@ function scrMfgLabel() {
       '<div class="t2"><b>NSX</b> ' + dmy(nsx) + ' ' + gsx +
       (hsd ? ' &nbsp; <b>HSD</b> ' + dmy(hsd) + ' ' + ghh : '') + '</div>' +
       (bq ? '<div class="bq">' + h(bq) + '</div>' : '') +
-      '<div class="bcd">' + h(L.batch) + '</div></div>' +
+      '<div class="bcd">' + (L.batch ? h(L.batch) : 'Ngày: ..................') + '</div></div>' +
       '<div class="card"><div class="qw"><div style="flex:1;min-width:0"><div class="lb">Số tem cần in</div>' +
       '<div class="qr"><div class="stp"><button data-m>&minus;</button>' +
       '<input type="number" inputmode="numeric" id="mln" value="' + L.n + '"><button data-p>+</button></div>' +
@@ -2299,10 +2317,22 @@ function scrMfgLabel() {
       var el = document.getElementById('mln'); if (el) el.value = L.n;
       var g = document.getElementById('mlGo'); if (g) g.textContent = '🖨️ In ' + L.n + ' tem';
     };
-    document.getElementById('mlOne').onclick = function () { mfgPrint(L.batch, 1); };
-    document.getElementById('mlGo').onclick = function () { mfgPrint(L.batch, L.n); };
+    document.getElementById('mlOne').onclick = function () { mfgInTem(L, 1); };
+    document.getElementById('mlGo').onclick = function () { mfgInTem(L, L.n); };
   }
   draw();
+}
+/* v560: tem khong can lo. May chu dung tem tu ho so Mon (va ma lenh neu
+   co), dong lo thanh "Ngay: ..." cho bep dien tay. Xem vagabond/tem_lenh.py. */
+function mfgTemLenhUrl(ma, lenh, n) {
+  return '/api/method/vagabond.tem_lenh.trang?ma=' + encodeURIComponent(ma || '') +
+    (lenh ? '&lenh=' + encodeURIComponent(lenh) : '') + '&n=' + (n || 1) + '&trigger_print=1';
+}
+function mfgInTem(L, n) {
+  if (L.batch) return mfgPrint(L.batch, n);
+  var w = inMoCuaSoNeuCan('tem');
+  if (w === 'chan') return;
+  inToTuDuongDan('tem', 'Tem HACCP', mfgTemLenhUrl(L.item, L.lenh, n), inKho('tem').rong, w);
 }
 function mfgTemUrl(batch, n) {
   var fmt = n > 1 ? 'Vagabond - Tem HACCP nhieu tem' : 'Vagabond - Tem HACCP';

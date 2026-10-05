@@ -248,6 +248,20 @@ và nhiều dòng, phép đo ở 390x844 và ảnh chụp site thật. Codex d�
   xuống cơ sở dữ liệu.** Đọc để trình ra cho người xác nhận thì được.
 - **Hoá đơn điện tử đã gửi cơ quan thuế là vùng cấm.** Không tự động sửa,
   không tự động huỷ, không tự động gửi lại. Rất khó sửa chữa.
+- **Trang Vagabond Settings: Desk và app luôn đủ cả hai (anh Việt 04/10/2026).**
+  *"Mỗi lần em thêm gì trong trang này thì phải thêm cả trên bản desk và bản
+  app."* Màn app "Cài đặt lõi và API" (`bep/51-cai-dat-loi.js`) KHÔNG giữ danh
+  sách ô: máy chủ (`vagabond/cai_dat_loi.py`) đọc cấu trúc doctype, gồm cả
+  Custom Field, rồi gửi xuống. Thêm ô vào trang (JSON hoặc TRUONG_MOI) là app
+  tự có, nhưng phải tự kiểm ba việc:
+  1. Ô kiểu mới mà `ep_kieu` chưa biết thì app không sửa được: thêm nhánh và ca kiểm.
+  2. Ô cần hộp chọn riêng (như ngân hàng, nhóm Zalo) thì làm cả hai bên; phần
+     dùng chung (nhãn, giải thích, chip tình trạng, tóm tắt, tìm) đặt trong
+     `public/js/cai_dat_loi_chung.js`, không chép sang từng bên.
+  3. Ô chỉ đọc trên Desk mà app phải ghi được thì khai trong
+     `GHI_QUA_HOP_CHON` / `GHI_QUA_HOP_CHON_TRANG`, đừng bỏ read_only.
+  Khoá bí mật không bao giờ gửi xuống máy. Ca chốt: `thu_cai_dat_loi_570.py`
+  (app phủ đủ mọi ô Desk, đúng tab, đúng mục) và `hanh_vi/cai_dat_loi_570.js`.
 
 ---
 

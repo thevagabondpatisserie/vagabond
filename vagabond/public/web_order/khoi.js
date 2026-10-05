@@ -11,6 +11,10 @@
   function ve(goc, duLieu) {
     goc.replaceChildren();
     (duLieu.khoi || []).filter(k => k.hien).forEach(k => {
+      if (k.loai === 'hoi_dap') {
+        const muc = tao('details', 'web-khoi web-hoi-dap'); muc.dataset.khoi = k.id;
+        muc.append(tao('summary', '', k.tieu_de), tao('p', 'web-doan', k.noi_dung)); goc.append(muc); return;
+      }
       const khung = tao('section', 'web-khoi web-' + k.loai);
       khung.dataset.khoi = k.id;
       if (k.anh) {

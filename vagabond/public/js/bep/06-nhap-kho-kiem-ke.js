@@ -1660,7 +1660,10 @@ async function kkReopen() {
 }
 
 /* ---------- 14e. Ghi so: tao Stock Reconciliation ---------- */
-var kkp = { doc: null, rows: [], rates: {}, opening: 1 };
+/* v547: mac dinh Dieu chinh ton (kiem ke dinh ky). Ton dau ky chi dung cho
+   lan dau dua so len may, nguoi ghi so tu chon. Ba phieu Khai ghi so 30/09
+   deu la Dieu chinh ton + 632, man nay mac dinh Ton dau ky la lech. */
+var kkp = { doc: null, rows: [], rates: {}, opening: 0 };
 
 async function scrKkPost(name) {
   frame('Ghi sổ kiểm kê', '<div class="emp"><div class="e1">⏳</div></div>');
@@ -1692,14 +1695,31 @@ async function scrKkPost(name) {
     if (tmpa && tmpa.length) kkp.accOpen = tmpa[0].name;
   } catch (e) { }
   kkp.acc = kkp.opening ? (kkp.accOpen || kkp.accAdj) : (kkp.accAdj || kkp.accOpen);
+  await kkpGoiYTk();
   try {
     kkp.accs = (await getList('Account', { fields: ['name'], filters: { company: COMPANY, is_group: 0 }, limit_page_length: 0, order_by: 'name' })).map(function (a) { return { value: a.name, label: a.name }; });
   } catch (e) { kkp.accs = []; }
+  /* v547: gia von theo CUNG luat voi Desk (vagabond.gia_von_kiem_ke): so kho
+     dung kho, roi kho khac, gia mua gan nhat, gia chung cua ma. Ban cu doc
+     Item.valuation_rate (o chung, thuong 0) nen Kho D1 co gia van bi hoi. */
   kkp.rates = {};
-  kkp.rows.forEach(function (r) {
-    var i = info[r.item_code] || {};
-    kkp.rates[r.item_code] = kkNum(i.valuation_rate) || kkNum(i.last_purchase_rate) || 0;
-  });
+  kkp.nguonGia = {};
+  kkp.loiGia = '';
+  /* Codex #401 vong 3: MOT moc ngay gio duy nhat cho ca tra gia lan ghi so.
+     Ban truoc tra gia theo ngay (moc 23:59:59) roi ghi so luc hmOf(now), nen
+     phieu ghi lui van lay duoc gia muon hon gio ghi so trong cung ngay. */
+  var luc = new Date();
+  kkp.ngay = d.ngay_kiem || ymdOf(luc);
+  kkp.gio = hmOf(luc);
+  /* Codex #401 F3: tra gia loi thi CHAN ghi so, khong roi ve cach doc cu
+     (Item.valuation_rate) vi chinh cach do lam sai gia o Kho D1. */
+  try {
+    var gy = await api('vagabond.gia_von_kiem_ke.goi_y_gia', { kho: d.kho, ma: JSON.stringify(codes), ngay: kkp.ngay, gio: kkp.gio });
+    Object.keys(gy || {}).forEach(function (m) { kkp.rates[m] = kkNum(gy[m].gia); kkp.nguonGia[m] = gy[m].nguon; });
+  } catch (e) {
+    kkp.rates = {};
+    kkp.loiGia = errMsg(e) || 'Không tra được giá vốn';
+  }
   kkpDraw();
 }
 
@@ -1727,6 +1747,14 @@ function kkpLyDoChip(r, dv) {
 
 function kkpDraw() {
   var d = kkp.doc;
+  if (kkp.loiGia) {
+    frame('Ghi sổ kiểm kê', '<div class="kwn"><b>Chưa tra được giá vốn</b><br>' +
+      h(kkp.loiGia) + '<br>Chưa thể ghi sổ phiếu ' + h(d.name) +
+      '. Bấm Thử lại để tra giá trước khi tiếp tục.</div>',
+      { footer: '<button class="btn" id="kkpthulai">Thử lại</button>' });
+    document.getElementById('kkpthulai').onclick = function () { return scrKkPost(d.name); };
+    return;
+  }
   var noRate = kkp.rows.filter(function (r) { return kkNum(r.so_luong) > 0 && !kkp.rates[r.item_code]; });
   var batchN = kkp.rows.filter(function (r) { return (kkp.info[r.item_code] || {}).has_batch_no && kkNum(r.so_luong) > 0; }).length;
 
@@ -1742,12 +1770,14 @@ function kkpDraw() {
     '<div class="fl">Kiểu ghi sổ</div><div class="fv">' + (kkp.opening ? 'Tồn đầu kỳ (lần đầu đưa số lên máy)' : 'Điều chỉnh tồn (kiểm kê định kỳ)') + '</div></div>' +
     '<div class="fc">&#8250;</div></div>' +
     '<div class="fld" data-acc><div class="fi">🧾</div><div class="ft">' +
-    '<div class="fl">Tài khoản đối ứng chênh lệch</div><div class="fv' + (kkp.acc ? '' : ' ph') + '">' + h(kkp.acc || 'Chọn tài khoản') + '</div></div>' +
+    '<div class="fl">Tài khoản đối ứng chênh lệch</div><div class="fv' + (kkp.acc ? '' : ' ph') + '">' + h(kkp.acc || 'Chọn tài khoản') + '</div>' +
+    (kkp.accNguon && kkp.accNguon.indexOf('lan_truoc') === 0 ? '<div style="font-size:11.5px;color:#047857">Gợi ý theo lần trước kế toán chọn' + (kkp.accNguon === 'lan_truoc_kho' ? ' cho kho này' : '') + '</div>' : '') +
+    '</div>' +
     '<div class="fc">&#8250;</div></div>' +
     '<div class="fld" data-cc><div class="fi">🏷️</div><div class="ft">' +
     '<div class="fl">Trung tâm chi phí</div><div class="fv' + (kkp.cc ? '' : ' ph') + '">' + h(kkp.cc || 'Chọn') + '</div></div>' +
     '<div class="fc">&#8250;</div></div></div>' +
-    (kkp.opening ? '<div class="kwn">Ghi <b>tồn đầu kỳ</b> thì phần chênh lệch đối ứng vào tài khoản ở trên. Kế toán đã chốt dùng <b>Temporary Opening</b> cho lần đầu đưa số lên máy. Bút toán sẽ vào sổ cái thật.</div>' : '<div class="kwn">Kiểm kê định kỳ thì chênh lệch đối ứng vào tài khoản chi phí ở trên (mặc định 811 - Chi phí khác). Hỏi kế toán nếu không chắc.</div>');
+    (kkp.opening ? '<div class="kwn">Ghi <b>tồn đầu kỳ</b> thì phần chênh lệch đối ứng vào tài khoản ở trên. Kế toán đã chốt dùng <b>Temporary Opening</b> cho lần đầu đưa số lên máy. Bút toán sẽ vào sổ cái thật.</div>' : '<div class="kwn">Tài khoản đối ứng do kế toán chọn. Máy gợi ý tài khoản kế toán chọn lần trước, chưa chọn lần nào thì lấy mặc định của công ty. Hỏi kế toán nếu không chắc.</div>');
 
   if (batchN) {
     body += '<div class="kwn">Có ' + batchN + ' món quản lý theo lô. Máy sẽ tự tạo một lô tồn đầu kỳ cho mỗi món, đặt tên theo phiếu kiểm kê này, lấy hạn sử dụng đã nhập nếu có.</div>';
@@ -1785,7 +1815,7 @@ function kkpDraw() {
   var b = frame('Ghi sổ kiểm kê', body, { footer: '<button class="btn" id="kkpgo">Tạo phiếu điều chỉnh và nộp</button>' });
   b.onclick = function (e) {
     if (e.target.closest('[data-acc]')) {
-      return sheet('Tài khoản đối ứng', kkp.accs, kkp.acc, function (o) { kkp.acc = o.value; kkpDraw(); }, true);
+      return sheet('Tài khoản đối ứng', kkp.accs, kkp.acc, function (o) { kkp.acc = o.value; kkp.accNguon = 'tay'; kkpDraw(); }, true);
     }
     if (e.target.closest('[data-cc]')) {
       if (!kkp.ccs) {
@@ -1813,7 +1843,7 @@ function kkpDraw() {
       sheet('Kiểu ghi sổ', [
         { value: 1, label: 'Tồn đầu kỳ (lần đầu đưa số lên máy)' },
         { value: 0, label: 'Điều chỉnh tồn (kiểm kê định kỳ)' }
-      ], kkp.opening, function (o) { kkp.opening = o.value; kkp.acc = o.value ? (kkp.accOpen || kkp.accAdj) : (kkp.accAdj || kkp.accOpen); kkpDraw(); });
+      ], kkp.opening, async function (o) { kkp.opening = o.value; kkp.acc = o.value ? (kkp.accOpen || kkp.accAdj) : (kkp.accAdj || kkp.accOpen); await kkpGoiYTk(); kkpDraw(); });
     }
   };
   b.addEventListener('input', function (e) {
@@ -1823,10 +1853,22 @@ function kkpDraw() {
   document.getElementById('kkpgo').onclick = kkpSubmit;
 }
 
+/* v561: anh Viet chot 03/10/2026 tai khoan chenh lech do ke toan chon, may
+   chi goi y theo lan truoc ke toan da chon. Hoi may chu khong duoc thi giu
+   mac dinh cua cong ty da dien san. */
+async function kkpGoiYTk() {
+  kkp.accNguon = '';
+  try {
+    var g = await api('vagabond.kiem_ke.tk_goi_y', { kho: (kkp.doc || {}).kho, dau_ky: kkp.opening ? 1 : 0 });
+    if (g && g.tk) { kkp.acc = g.tk; kkp.accNguon = g.nguon || ''; }
+  } catch (e) { }
+}
+
 async function kkpSubmit() {
   var d = kkp.doc;
   var rows = kkp.rows.filter(function (r) { return kkNum(r.so_luong) > 0 || kkNum(r.ton_he_thong) > 0; });
   if (!rows.length) return toast('Phiếu không có món nào để ghi sổ');
+  if (kkp.loiGia) return toast('Chưa tra được giá vốn từ sổ kho (' + kkp.loiGia + '). Mở lại màn này rồi ghi sổ.', 5000);
   var bad = rows.filter(function (r) { return kkNum(r.so_luong) > 0 && !kkp.rates[r.item_code]; });
   if (bad.length) return toast('Còn ' + bad.length + ' món chưa có giá vốn, vui lòng điền rồi ghi sổ lại');
   if (!kkp.acc) return toast('Chọn tài khoản đối ứng chênh lệch trước đã');
@@ -1860,13 +1902,12 @@ async function kkpSubmit() {
     }
 
     /* 2. dung phieu dieu chinh ton kho */
-    var now = new Date();
     var sr = {
       doctype: 'Stock Reconciliation',
       company: COMPANY,
       purpose: kkp.opening ? 'Opening Stock' : 'Stock Reconciliation',
-      posting_date: d.ngay_kiem || ymdOf(now),
-      posting_time: hmOf(now),
+      posting_date: kkp.ngay,
+      posting_time: kkp.gio,
       set_posting_time: 1,
       set_warehouse: d.kho,
       expense_account: kkp.acc,
@@ -1881,6 +1922,10 @@ async function kkpSubmit() {
     var doc = await api('frappe.client.insert', { doc: sr });
     if (!doc || !doc.name) throw new Error('Không tạo được phiếu điều chỉnh');
     await api('frappe.client.submit', { doc: doc });
+
+    /* 2b. nho tai khoan vua chon de lan sau goi y (v561). Hong thi thoi,
+       phieu da ghi so roi. */
+    try { await api('vagabond.kiem_ke.nho_tk', { kho: d.kho, tk: kkp.acc, dau_ky: kkp.opening ? 1 : 0 }); } catch (en) { }
 
     /* 3. dong phieu kiem ke */
     d.trang_thai = 'Đã ghi sổ';

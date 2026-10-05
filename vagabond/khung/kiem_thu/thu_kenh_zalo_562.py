@@ -1,0 +1,1280 @@
+"""v562 (#410): bắn tin ERP vào nhóm Zalo qua Zalo Bot.
+
+Anh Việt 02/10/2026 chọn thử Zalo trước Lark. Các ca theo danh sách Codex
+góp ý trên #410: rollback không gửi, dịch vụ lỗi không chặn lưu, hai worker
+không cùng claim, giờ im, khoá bí mật không lộ, timeout ghi Chưa rõ.
+"""
+import json
+import types
+from unittest.mock import patch
+
+from vagabond.khung.kiem_thu.nen import ca, la, dung, nem, Doi
+from vagabond import kenh_zalo as kz
+
+
+@ca("v562 Zalo: soạn tin có loại, việc, phụ trách, hạn, đường mở; không quá 2000 ký tự")
+def _soan():
+	t = kz.soan_tin("viec", "Khoản trả trước chờ duyệt: PKT-1", ["HĐ 8", ""], "https://erp/cong-no-phai-tra",
+		nguoi="Kế toán", han="Trong ngày")
+	la("dòng đầu có loại", t.split("\n")[0], "✅ VIỆC CẦN LÀM: Khoản trả trước chờ duyệt: PKT-1")
+	dung("bỏ dòng rỗng", "- \n" not in t and t.count("- ") == 1)
+	dung("có phụ trách, hạn, đường mở", "Phụ trách: Kế toán" in t and "Hạn: Trong ngày" in t and t.endswith("Mở: https://erp/cong-no-phai-tra"))
+	dai = kz.soan_tin("canh_bao", "x", ["y" * 3000], "https://erp/l")
+	dung("cắt còn 2000 mà giữ đường mở", len(dai) <= 2000 and dai.endswith("Mở: https://erp/l"))
+	la("loại lạ thành Thông báo", kz.soan_tin("la", "a").split(":")[0], "ℹ️ THÔNG BÁO")
+
+
+@ca("v562 Zalo: giờ im theo nhóm, qua nửa đêm, để trống là không im")
+def _gio_im():
+	la("23:00 trong 22:00-07:00", kz.trong_gio_im("23:00", "22:00", "07:00"), True)
+	la("06:59 trong 22:00-07:00", kz.trong_gio_im("06:59", "22:00", "07:00"), True)
+	la("07:00 ngoài 22:00-07:00", kz.trong_gio_im("07:00", "22:00", "07:00"), False)
+	la("12:30 trong 12:00-13:00", kz.trong_gio_im("12:30", "12:00", "13:00"), True)
+	la("để trống", kz.trong_gio_im("23:00", "", ""), False)
+	la("gõ sai", kz.trong_gio_im("23:00", "abc", "07:00"), False)
+
+
+def nhom(**doi):
+	r = {"ten_nhom": "Kế toán", "chat_id": "c1", "loai_tin": "", "chu_de": "", "im_tu": "", "im_den": "", "bat": 1}
+	r.update(doi)
+	return r
+
+
+@ca("v562 Zalo: chọn nhóm theo loại tin và chủ đề; tắt hoặc thiếu mã chat thì bỏ")
+def _chon():
+	ds = [nhom(), nhom(ten_nhom="Kho", chat_id="c2", chu_de="kho"), nhom(ten_nhom="Tắt", bat=0),
+		nhom(ten_nhom="Thiếu mã", chat_id=" "), nhom(ten_nhom="Chỉ cảnh báo", chat_id="c3", loai_tin="canh_bao")]
+	la("việc công nợ", [r["ten_nhom"] for r in kz.chon_nhom(ds, "viec", "cong_no")], ["Kế toán"])
+	la("cảnh báo kho", [r["ten_nhom"] for r in kz.chon_nhom(ds, "canh_bao", "kho")], ["Kế toán", "Kho", "Chỉ cảnh báo"])
+	la("tách danh sách có khoảng trắng và chấm phẩy", kz.tach_ds(" viec ; canh_bao,,"), {"viec", "canh_bao"})
+
+
+@ca("v562 Zalo: đọc kết quả Zalo; khoá chống trùng ổn định theo sự kiện và nhóm")
+def _ket_qua():
+	la("ok", kz.doc_ket_qua({"ok": True, "result": {}}), ("Đã gửi", ""))
+	tt, loi = kz.doc_ket_qua({"ok": False, "error_code": 400, "description": "chat not found"})
+	la("lỗi có mã và mô tả", (tt, "400" in loi and "chat not found" in loi), ("Lỗi", True))
+	la("dữ liệu lạ", kz.doc_ket_qua("<html>")[0], "Chưa rõ")
+	la("cùng sự kiện cùng nhóm cùng khoá", kz.khoa_tin("a:1", "Kế toán"), kz.khoa_tin("a:1", "Kế toán"))
+	dung("khác nhóm khác khoá", kz.khoa_tin("a:1", "Kế toán") != kz.khoa_tin("a:1", "Kho"))
+	dung("khoá ngắn", len(kz.khoa_tin("x" * 500, "y" * 500)) <= 140)
+
+
+@ca("v562 Zalo: ghi mã chat khi có người @nhắc bot; bỏ trùng, giữ 20, không lưu nội dung")
+def _chat_moi():
+	cap = {"event_name": "message.text.received", "message": {"text": "@bot bí mật khách",
+		"chat": {"id": "g9", "chat_type": "GROUP", "title": "Kế toán Vagabond"}, "from": {"display_name": "Dung"}}}
+	ds, moi = kz.ghi_chat_moi([{"chat_id": "g9", "ten": "cũ"}, {"chat_id": "a"}], cap, "2026-10-02 18:00:01")
+	la("đưa lên đầu, bỏ trùng", [x["chat_id"] for x in ds], ["g9", "a"])
+	la("ghi tên nhóm và người", (moi["ten"], moi["nguoi"], moi["loai"]), ("Kế toán Vagabond", "Dung", "GROUP"))
+	dung("không lưu nội dung tin nhắn", "bí mật" not in json.dumps(ds, ensure_ascii=False))
+	ds2, _ = kz.ghi_chat_moi([{"chat_id": str(i)} for i in range(30)], cap, "x")
+	la("giữ 20", len(ds2), 20)
+	la("không có mã chat thì bỏ", kz.ghi_chat_moi([], {"message": {}}, "x")[1], None)
+
+
+class _Trung(Exception):
+	pass
+
+
+def _chay(nhom_ds, tin, gio="10:00", gui=None, da_co=(), con_can=None):
+	"""Ghi tin vào sổ giả (_ghi_hop_thu) rồi chạy worker gui_hang_doi trên đúng các dòng đó.
+
+	Trả (danh sách gửi, trạng thái CUỐI của các dòng mới ghi, các lần set_value).
+	v562 #425: tin được ghi "Chờ gửi" trước, worker claim từng dòng rồi mới gửi."""
+	so = _So([])
+	for t in da_co:
+		so.dong.append({"name": t, "trang_thai": "Đã gửi"})
+	goi, cap = [], []
+	gui = gui or (lambda c, t: ("Đã gửi", ""))
+
+	def sv(dt, ten, v):
+		cap.append((ten, v))
+		so.set_value(dt, ten, v)
+	with _gia(so, nhom_ds, gio, lambda c, t: (goi.append((c, t)), gui(c, t))[1], con_can or (lambda k, n: True), sv):
+		ten = kz._ghi_hop_thu(tin)
+		kz.gui_hang_doi(ten)
+	return goi, [so.tim(t) for t in ten], cap
+
+
+TIN = {"loai": "viec", "chu_de": "cong_no", "tieu_de": "Chờ duyệt PKT-1", "dong": ["a"], "link": "https://erp/x",
+	"khoa": "cho_duyet:PKT-1"}
+
+
+@ca("v562 Zalo: gửi đúng nhóm, ghi trạng thái; lần hai cùng sự kiện không gửi lại")
+def _gui():
+	goi, chen, cap = _chay([nhom(), nhom(ten_nhom="Kho", chat_id="c2", chu_de="kho")], TIN)
+	la("gửi đúng một nhóm", [c for c, _ in goi], ["c1"])
+	la("ghi một bản vào sổ, gửi xong là Đã gửi", [(r["nhom"], r["trang_thai"]) for r in chen], [("Kế toán", "Đã gửi")])
+	la("cập nhật đã gửi", cap[0][1]["trang_thai"], "Đã gửi")
+	goi2, chen2, _ = _chay([nhom()], TIN, da_co=[chen[0]["name"]])
+	la("worker thứ hai vấp khoá chính, không gửi", (goi2, chen2), ([], []))
+
+
+@ca("v562 Zalo: giờ im hoãn tin thường, Cảnh báo vẫn gửi")
+def _hoan():
+	n = [nhom(im_tu="22:00", im_den="07:00")]
+	goi, chen, _ = _chay(n, TIN, gio="23:10")
+	la("tin việc bị hoãn, không gửi", (goi, chen[0]["trang_thai"]), ([], "Hoãn giờ im"))
+	goi2, chen2, _ = _chay(n, dict(TIN, loai="canh_bao", khoa="cb:1"), gio="23:10")
+	la("cảnh báo vẫn gửi", ([c for c, _ in goi2], chen2[0]["trang_thai"]), (["c1"], "Đã gửi"))
+
+
+@ca("v562 Zalo: Zalo không trả lời thì ghi Chưa rõ, lỗi thì ghi Lỗi, không ném ra ngoài")
+def _loi():
+	_, _, cap = _chay([nhom()], TIN, gui=lambda c, t: ("Chưa rõ", "Zalo không trả lời trong 10 giây."))
+	la("timeout", cap[0][1]["trang_thai"], "Chưa rõ")
+	_, _, cap2 = _chay([nhom()], dict(TIN, khoa="k2"), gui=lambda c, t: ("Lỗi", "Zalo báo lỗi 400"))
+	la("lỗi", cap2[0][1]["trang_thai"], "Lỗi")
+
+
+@ca("v562 Zalo: gọi API không để lộ token; timeout thành Chưa rõ")
+def _goi_api():
+	class _Hong(Exception):
+		pass
+
+	class ReadTimeout(Exception):
+		pass
+	gia = types.ModuleType("requests")
+	da = []
+
+	def post(url, json=None, timeout=None):
+		da.append(url)
+		raise ReadTimeout("het gio " + url)
+	gia.post = post
+	with patch.object(kz, "_token", lambda: "123:BIMAT"), patch.dict("sys.modules", {"requests": gia}):
+		tt, loi, _ = kz._goi("sendMessage", {"chat_id": "c", "text": "x"})
+	la("timeout là Chưa rõ", tt, "Chưa rõ")
+	dung("đúng đường API", da and da[0] == "https://bot-api.zaloplatforms.com/bot123:BIMAT/sendMessage")
+	dung("lỗi trả về không chứa token", "BIMAT" not in loi)
+	with patch.object(kz, "_token", lambda: ""):
+		la("thiếu token", kz._goi("sendMessage", {})[0], "Lỗi")
+
+
+@ca("v562 Zalo: bao() tắt thì không xếp; hàng đợi lỗi không làm hỏng chứng từ")
+def _bao():
+	f = kz.frappe
+	da = []
+	cm = types.SimpleNamespace(add=lambda fn: da.append(fn))
+	with patch.object(kz, "_bat", lambda: 0), patch.object(f.db, "after_commit", cm, create=True):
+		kz.bao("viec", "cong_no", "x")
+	la("tắt thì không xếp", da, [])
+	with patch.object(kz, "_bat", lambda: 1), patch.object(kz, "_ghi_hop_thu", lambda tin: ["ZL-x"]), \
+			patch.object(f.db, "after_commit", cm, create=True):
+		kz.bao("viec", "cong_no", "x", khoa="k")
+	la("bật thì xếp sau commit, chưa gửi ngay", len(da), 1)
+
+	def hong(fn):
+		raise RuntimeError("redis")
+	loi = []
+	with patch.object(kz, "_bat", lambda: 1), patch.object(kz, "_ghi_hop_thu", lambda tin: ["ZL-x"]), \
+			patch.object(f.db, "after_commit", types.SimpleNamespace(add=hong), create=True), \
+			patch.object(f, "log_error", lambda *a, **k: loi.append(a), create=True):
+		kz.bao("viec", "cong_no", "TIEU-DE-RIENG", dong=["SO-TIEN-RIENG"])
+	dung("không ném lỗi, có ghi log không lộ nội dung", len(loi) == 1 and "RIENG" not in str(loi[0]))
+
+
+@ca("v562 Zalo: đường nhận chặn khoá bí mật sai, đúng khoá thì chỉ ghi mã chat")
+def _nhan():
+	f = kz.frappe
+	ghi = {}
+	cap = json.dumps({"message": {"chat": {"id": "g1", "chat_type": "GROUP", "title": "Kho"}, "from": {"display_name": "A"}}}).encode()
+
+	def chay(header):
+		resp = {}
+		req = types.SimpleNamespace(data=cap)
+		s = types.SimpleNamespace(get_password=lambda *a, **k: "khoa-bi-mat-16-ky-tu")
+		with patch.object(f, "get_single", lambda *a: s, create=True), \
+				patch.object(f, "request", req, create=True), \
+				patch.object(f, "get_request_header", lambda k: header, create=True), \
+				patch.object(f, "local", types.SimpleNamespace(response=resp), create=True), \
+				patch.object(f.db, "sql", lambda q, *a, **k: [("[]",)] if "select value" in q else [], create=True), \
+				patch.object(f.db, "set_single_value", lambda dt, k, v: ghi.__setitem__(k, v), create=True), \
+				patch.object(f.db, "commit", lambda: None, create=True), \
+				patch.object(kz, "now_datetime", lambda: "2026-10-02 18:00"):
+			return kz.nhan(), resp
+	kq, resp = chay("sai")
+	la("khoá sai bị 401", (kq, resp.get("http_status_code")), ({"ok": False}, 401))
+	la("khoá sai không ghi gì", ghi, {})
+	kq, resp = chay("khoa-bi-mat-16-ky-tu")
+	la("khoá đúng", kq, {"ok": True})
+	la("ghi mã nhóm", json.loads(ghi["zalo_chat_moi"])[0]["chat_id"], "g1")
+
+
+@ca("v562 Zalo: chỉ quản trị nối bot, gửi thử, xem trước")
+def _quyen():
+	f = kz.frappe
+	for ham, a in ((kz.gui_thu, ("c1",)), (kz.xem_truoc, ()), (kz.dang_ky_webhook, ())):
+		with patch.object(f, "get_roles", lambda *x, **k: ["Accounts Manager"]), \
+				patch.object(f, "PermissionError", Exception, create=True):
+			try:
+				ham(*a)
+				dung("%s phải chặn người không phải quản trị" % ham.__name__, False)
+			except Exception as e:
+				dung("%s báo quyền" % ham.__name__, "quản trị" in str(e))
+
+
+@ca("v562 Zalo: lap_truoc_erp báo nhóm Kế toán khi thu mua gửi, không báo khi kế toán tự ghi sổ")
+def _noi_cong_no():
+	import inspect
+	from vagabond import cong_no_ncc as cn
+	nguon = inspect.getsource(cn.lap_truoc_erp)
+	i = nguon.find("kenh_zalo.bao(")
+	dung("có gọi bao", i > 0)
+	dung("nằm trong nhánh not ke_toan", "if not ke_toan:" in nguon[max(0, i - 300):i])
+	dung("khoá chống trùng theo bút toán", '"cho_duyet:" + je.name' in nguon)
+
+
+# ===================================================================
+# Vòng 2 (Codex review #413 trên c4a7a89): bốn finding, mỗi ca dựng đúng
+# chuỗi Codex mô tả, không gọi thêm hàm nào "cho chắc" (bài học #205).
+
+class _Dong(dict):
+	__getattr__ = dict.get
+
+
+class _SoGia:
+	"""Bảng Vagabond Tin Kenh giả, giữ đúng ngữ nghĩa câu UPDATE có điều kiện
+	của _nhan_lo: chỉ dòng còn "Hoãn giờ im" mới đổi được, mỗi dòng một lần.
+
+	gio: đồng hồ giả (số phút) ghi vào modified, để ca kiểm tua được dòng kẹt."""
+	gio = 0
+
+	def __init__(self, dong):
+		self.dong = [dict(d) for d in dong]
+		self.commit_luc = []
+
+	def sql(self, q, tham=None):
+		if "luc_gui=%s where trang_thai='Hoãn giờ im'" in q:
+			# Codex #425 vòng 9: tin hoãn của nhóm không còn bật thì Bỏ qua.
+			tt, loi, _luc, *bat = tham
+			assert q.count("%s") == 3 + len(bat)
+			for d in self.dong:
+				if d["trang_thai"] == "Hoãn giờ im" and d.get("chat_id") not in bat:
+					d["trang_thai"], d["loi"] = tt, loi
+			return []
+		if "where ma_lo=%s and trang_thai='Đang gửi gộp' and name in" in q:
+			# Vòng 10: mốc Chưa rõ cho đúng các dòng của một phần gộp.
+			tt, _luc, ma, *ten = tham
+			for d in self.dong:
+				if d["name"] in ten and d.get("ma_lo") == ma and d["trang_thai"] == "Đang gửi gộp":
+					d["trang_thai"], d["modified"] = tt, self.gio
+			return []
+		if q.rstrip().endswith("where ma_lo=%s and trang_thai='Đang gửi gộp'"):
+			# Vòng 11: mạng hỏng trước khi gửi, các phần chưa gọi của lô về Hoãn giờ im.
+			_luc, ma = tham
+			for d in self.dong:
+				if d.get("ma_lo") == ma and d["trang_thai"] == "Đang gửi gộp":
+					d["trang_thai"], d["ma_lo"], d["modified"] = "Hoãn giờ im", None, self.gio
+			return []
+		if "ma_lo=null" in q and "modified < %s" in q:
+			tt, _luc, cu, han = tham
+			for d in self.dong:
+				if d["trang_thai"] == cu and d.get("modified", self.gio) < han:
+					d["trang_thai"], d["ma_lo"], d["modified"] = tt, None, self.gio
+			return []
+		if "update `tabVagabond Tin Kenh`" in q:
+			ma, _luc, chat, gioi_han = tham
+			assert "where chat_id=%s" in q, "claim phải theo mã chat (Codex #417)"
+			n = 0
+			for d in self.dong:
+				if d["chat_id"] == chat and d["trang_thai"] == "Hoãn giờ im" and n < gioi_han:
+					d["trang_thai"], d["ma_lo"], d["modified"] = "Đang gửi gộp", ma, self.gio
+					n += 1
+			return []
+		raise AssertionError("câu SQL lạ: " + q[:60])
+
+	def get_all(self, dt, filters=None, fields=None, order_by=None, limit_page_length=None):
+		ra = [_Dong(d) for d in self.dong if all(d.get(k) == v for k, v in (filters or {}).items())]
+		return ra[:limit_page_length] if limit_page_length else ra
+
+	def get_value(self, dt, ten, fields=None, as_dict=False):
+		d = next((x for x in self.dong if x["name"] == ten), None)
+		return _Dong(d) if d else None
+
+	def set_value(self, dt, ten, v):
+		for d in self.dong:
+			if d["name"] == ten:
+				d.update(v)
+
+	def commit(self):
+		self.commit_luc.append(len(self.dong))
+
+	def tim(self, ten):
+		return next(d for d in self.dong if d["name"] == ten)
+
+
+class _So(_SoGia):
+	"""Sổ giả đủ cho đường gửi ngay: chèn có khoá chính, claim một dòng theo tên, đọc dòng."""
+
+	def chen(self, d):
+		if any(x["name"] == d["name"] for x in self.dong):
+			raise _Trung()
+		self.dong.append(dict(d, ma_lo=None))
+
+	def sql(self, q, tham=None):
+		if "where name=%s and trang_thai=%s" in q:
+			ma, _luc, ten, tt = tham
+			for d in self.dong:
+				if d["name"] == ten and d["trang_thai"] == tt:
+					d["trang_thai"], d["ma_lo"], d["modified"] = "Đang gửi", ma, self.gio
+			return []
+		if "where name=%s and ma_lo=%s and trang_thai=%s" in q:
+			tt, _luc, ten, ma, cu = tham
+			for d in self.dong:
+				if d["name"] == ten and d.get("ma_lo") == ma and d["trang_thai"] == cu:
+					d["trang_thai"], d["modified"] = tt, self.gio
+			return []
+		return super().sql(q, tham)
+
+
+
+_DEM_HASH = [0]
+
+
+def _gia(so, nhom_ds, gio, gui, con_can, sv=None):
+	"""Dựng Frappe giả cho đường gửi ngay. Mã băm luôn khác nhau giữa các lần gọi."""
+	import contextlib
+	f = kz.frappe
+
+	def hash_(length=10):
+		_DEM_HASH[0] += 1
+		return "h%06d" % _DEM_HASH[0]
+	db = types.SimpleNamespace(sql=so.sql, set_value=sv or so.set_value, commit=so.commit, get_value=so.get_value,
+		savepoint=lambda sp: None, rollback=lambda **k: None)
+	ps = [patch.object(kz, "_bat", lambda: 1), patch.object(kz, "_cac_nhom", lambda: nhom_ds),
+		patch.object(kz, "_gui_zalo", gui), patch.object(kz, "_con_can", con_can),
+		patch.object(kz, "now_datetime", lambda: types.SimpleNamespace(strftime=lambda fmt: gio)),
+		patch.object(f, "get_doc", lambda d: types.SimpleNamespace(insert=lambda **k: so.chen(d)), create=True),
+		patch.object(f, "DuplicateEntryError", _Trung, create=True), patch.object(f, "db", db, create=True),
+		patch.object(f, "get_all", so.get_all, create=True), patch.object(f, "generate_hash", hash_, create=True)]
+	st = contextlib.ExitStack()
+	for x in ps:
+		st.enter_context(x)
+	return st
+
+
+def _hoan(i, tieu_de, kiem="", nguon="", nhom_ten="Kế toán", chat_id="c1"):
+	nd = kz.soan_tin("viec", tieu_de, ["dòng phụ"], "https://erp/viec/%s" % i)
+	return {"name": "R%02d" % i, "nhom": nhom_ten, "chat_id": chat_id, "trang_thai": "Hoãn giờ im", "noi_dung": nd,
+		"kiem": kiem, "nguon": nguon, "ma_lo": None}
+
+
+_DEM_LO = [0]
+
+
+def _xa(so, gui=None, con_can=None, nhom_ds=None):
+	"""Chạy xa_gio_im với sổ giả. Trả danh sách tin đã gửi (chat_id, nội dung)."""
+	f = kz.frappe
+	da_gui = []
+
+	def hash_(length=10):
+		# Mã lượt phải khác nhau giữa các lượt như generate_hash thật; dùng
+		# chung bộ đếm cho mọi lượt, kể cả lượt lồng nhau trong ca chạy chồng.
+		_DEM_LO[0] += 1
+		return "lo%04d" % _DEM_LO[0]
+	gui = gui or (lambda c, t: ("Đã gửi", ""))
+	db = types.SimpleNamespace(sql=so.sql, set_value=so.set_value, commit=so.commit, get_value=so.get_value)
+	with patch.object(kz, "_bat", lambda: 1), \
+			patch.object(kz, "_cac_nhom", lambda: nhom_ds or [nhom()]), \
+			patch.object(kz, "_gui_zalo", lambda c, t: (da_gui.append((c, t)), gui(c, t))[1]), \
+			patch.object(kz, "now_datetime", lambda: types.SimpleNamespace(strftime=lambda fmt: "10:00")), \
+			patch.object(kz, "_con_can", con_can or (lambda k, n: True)), \
+			patch.object(f, "db", db, create=True), patch.object(f, "get_all", so.get_all, create=True), \
+			patch.object(f, "generate_hash", hash_, create=True):
+		kz.xa_gio_im()
+	return da_gui
+
+
+@ca("v562 #413 P1 tái hiện Codex: 50 việc tiêu đề dài sau giờ im đều tới nhóm, không việc nào bị cắt mà vẫn ghi đã gửi")
+def _gop_50():
+	so = _SoGia([_hoan(i, "Khoản trả trước ERP chờ duyệt PKT-2026-%05d của nhà cung cấp tên rất dài số %02d" % (i, i))
+		for i in range(50)])
+	gui = _xa(so)
+	la("mọi tin đều trong giới hạn 2.000 ký tự", [len(t) <= 2000 for _, t in gui], [True] * len(gui))
+	dung("phải chia nhiều tin", len(gui) >= 2)
+	gop = "\n".join(t for _, t in gui)
+	la("việc CUỐI có mặt (Codex: last_task_present=False)", "PKT-2026-00049" in gop, True)
+	la("mỗi việc xuất hiện đúng một lần", [gop.count("PKT-2026-%05d " % i) for i in range(50)], [1] * 50)
+	dung("đường mở của từng việc còn trong tin gộp", "https://erp/viec/49" in gop)
+	dung("không có dấu cắt …", "…" not in gop)
+	la("50 dòng đều Đã gửi gộp", sorted({d["trang_thai"] for d in so.dong}), ["Đã gửi gộp"])
+
+
+@ca("v562 #413 P1: một phần gộp lỗi thì chỉ các việc trong phần đó ghi Lỗi, phần đã gửi ghi đã gửi")
+def _gop_mot_phan_loi():
+	so = _SoGia([_hoan(i, "Việc dài số %02d " % i + "x" * 150) for i in range(30)])
+	lan = [0]
+
+	def gui(c, t):
+		lan[0] += 1
+		return ("Lỗi", "Zalo báo lỗi 500") if lan[0] == 2 else ("Đã gửi", "")
+	tin = _xa(so, gui=gui)
+	phan2 = [d["name"] for d in so.dong if d["trang_thai"] == "Lỗi"]
+	dung("có phần thứ hai", len(tin) >= 2)
+	la("dòng Lỗi đúng là dòng nằm trong tin thứ hai",
+		sorted(phan2), sorted(d["name"] for d in so.dong if ("Việc dài số %s " % d["name"][1:]) in tin[1][1]))
+	dung("phần còn lại vẫn Đã gửi gộp", all(d["trang_thai"] == "Đã gửi gộp" for d in so.dong if d["name"] not in phan2))
+
+
+@ca("v562 #413 P2 tái hiện Codex: hai lượt xả chạy chồng chỉ gửi mỗi việc một lần")
+def _gop_chong():
+	so = _SoGia([_hoan(i, "Việc %02d" % i) for i in range(5)])
+	vao = [0]
+	tat_ca = []
+
+	def gui(c, t):
+		tat_ca.append(t)
+		if not vao[0]:
+			# Lượt thứ hai chen vào đúng lúc lượt đầu đang gọi Zalo (sau claim, trước cập nhật).
+			vao[0] = 1
+			tat_ca.extend(t2 for _, t2 in _xa(so))
+		return "Đã gửi", ""
+	_xa(so, gui=gui)
+	la("Codex: concurrent_digest_sends phải là 1", ["\n".join(tat_ca).count("Việc %02d" % i) for i in range(5)], [1] * 5)
+
+
+@ca("v562 #413 P2: worker chết lúc đang gọi Zalo thì dòng kẹt Chưa rõ (vòng 10: trước là Đang gửi gộp), lượt sau và gửi bù KHÔNG gửi lại")
+def _gop_chet():
+	so = _SoGia([_hoan(i, "Việc %02d" % i) for i in range(3)])
+
+	class _Chet(BaseException):
+		pass
+
+	def gui(c, t):
+		raise _Chet()
+	try:
+		_xa(so, gui=gui)
+	except _Chet:
+		pass
+	la("kẹt ở Chưa rõ", sorted({d["trang_thai"] for d in so.dong}), [kz.CHUA_RO])
+	la("lượt sau không gửi gì", _xa(so), [])
+	_tra_ve(so, 60)
+	la("gửi bù không đụng dòng Chưa rõ", (sorted({d["trang_thai"] for d in so.dong}), _xa(so)), ([kz.CHUA_RO], []))
+	dung("claim đã commit trước khi gọi Zalo", len(so.commit_luc) >= 1)
+
+
+@ca("v562 #413 P2: việc đã duyệt trong giờ im thì không nhắc; việc còn mở vẫn gửi")
+def _gop_bo_qua():
+	so = _SoGia([_hoan(0, "Chờ duyệt PKT-A", "cho_duyet_truoc_erp", "PKT-A"),
+		_hoan(1, "Chờ duyệt PKT-B", "cho_duyet_truoc_erp", "PKT-B")])
+	tin = _xa(so, con_can=lambda k, n: n != "PKT-A")
+	gop = "\n".join(t for _, t in tin)
+	dung("không nhắc việc đã duyệt", "PKT-A" not in gop)
+	dung("vẫn nhắc việc còn mở", "PKT-B" in gop)
+	la("trạng thái", [so.tim("R00")["trang_thai"], so.tim("R01")["trang_thai"]], [kz.BO_QUA, "Đã gửi gộp"])
+
+
+@ca("v562 #413 P2: tin gửi ngay cũng hỏi lại việc còn mở trước khi gọi Zalo")
+def _gui_ngay_bo_qua():
+	goi, chen, _ = _chay([nhom()], dict(TIN, kiem="cho_duyet_truoc_erp", nguon="PKT-1"), con_can=lambda k, n: False)
+	la("không gọi Zalo", goi, [])
+	la("ghi Bỏ qua", chen[0]["trang_thai"], kz.BO_QUA)
+
+
+@ca("v562 #413 P2: kiểm lại dùng bảng mã cố định; mã lạ hoặc hàm lỗi thì vẫn gửi và có log")
+def _con_can():
+	f = kz.frappe
+	la("không mã kiểm", kz.con_can_lam("", "x", None), True)
+	la("hàm trả False", kz.con_can_lam("k", "x", lambda n: False), False)
+	log = []
+	with patch.object(f, "log_error", lambda *a, **k: log.append(a), create=True):
+		la("mã lạ vẫn gửi", kz._con_can("ma_la", "x"), True)
+		with patch.object(f, "get_attr", lambda p: (lambda n: (_ for _ in ()).throw(RuntimeError("db"))), create=True):
+			la("hàm lỗi vẫn gửi", kz._con_can("cho_duyet_truoc_erp", "x"), True)
+		with patch.object(f, "get_attr", lambda p: (lambda n: n == "con"), create=True):
+			la("gọi đúng hàm theo bảng", (kz._con_can("cho_duyet_truoc_erp", "con"), kz._con_can("cho_duyet_truoc_erp", "het")), (True, False))
+	la("có log cho mã lạ và hàm lỗi", len(log), 2)
+	la("bảng trỏ đúng hàm công nợ", kz.DIEU_KIEN["cho_duyet_truoc_erp"], "vagabond.cong_no_ncc.con_cho_duyet_truoc_erp")
+
+
+@ca("v562 #413 P2: khoản trả trước còn chờ duyệt chỉ khi nháp và còn dấu luồng; đã duyệt, hủy, từ chối là hết việc")
+def _cho_duyet():
+	from vagabond import cong_no_ncc as cn
+	d = cn.DAU_TRUOC_ERP + " Cấn hóa đơn X"
+	la("nháp còn dấu", cn.la_cho_duyet_truoc_erp(0, d), True)
+	la("đã ghi sổ", cn.la_cho_duyet_truoc_erp(1, d), False)
+	la("đã hủy", cn.la_cho_duyet_truoc_erp(2, d), False)
+	la("từ chối hoặc rút lại", cn.la_cho_duyet_truoc_erp(0, cn.DAU_DA_BO + " Cấn hóa đơn X"), False)
+	nguon = __import__("inspect").getsource(cn.lap_truoc_erp)
+	dung("lap_truoc_erp gắn mã kiểm và nguồn", 'kiem="cho_duyet_truoc_erp", nguon=je.name' in nguon)
+
+
+@ca("v562 #413 P1: đọc kết quả xác minh đường nhận; ok:true ở ngoài không đủ")
+def _xac_minh():
+	la("setWebhook xác minh ok", kz.doc_xac_minh({"url": "u", "verification": {"ok": True, "hint": "fine"}}), ("ok", "fine"))
+	la("setWebhook xác minh hỏng", kz.doc_xac_minh({"url": "u", "verification": {"ok": False, "outcome": "webhook.timeout"}}),
+		("loi", "webhook.timeout"))
+	la("testWebhook hỏng", kz.doc_xac_minh({"ok": False, "hint": "401"})[0], "loi")
+	la("thiếu kết quả", kz.doc_xac_minh({"url": "u"})[0], "chua_ro")
+	la("không phải dict", kz.doc_xac_minh(None)[0], "chua_ro")
+
+
+def _noi(phan_hoi, bi_mat_cu="", test=None):
+	"""Chạy dang_ky_webhook với Zalo giả. Trả (kết quả, nhật ký sự kiện theo thứ tự)."""
+	f = kz.frappe
+	nk = []
+
+	class S:
+		flags = types.SimpleNamespace()
+
+		def get_password(self, *a, **k):
+			return bi_mat_cu
+
+		def save(self, **k):
+			nk.append("save")
+
+	def goi(m, body):
+		nk.append(m)
+		if m == "getMe":
+			return "Đã gửi", "", {"account_name": "VGB"}
+		if m == "setWebhook":
+			return "Đã gửi", "", phan_hoi
+		return test or ("Đã gửi", "", {"ok": True})
+	with patch.object(kz, "_chi_quan_tri", lambda: None), patch.object(kz, "_goi", goi), \
+			patch.object(kz, "_ghi_noi", lambda tt, g: nk.append("ghi:" + tt)), \
+			patch.object(kz, "get_url", lambda p: "https://erp" + p), \
+			patch.object(f, "get_single", lambda *a: S(), create=True), \
+			patch.object(f.db, "commit", lambda: nk.append("commit"), create=True):
+		return kz.dang_ky_webhook(), nk
+
+
+@ca("v562 #413 P1 tái hiện Codex: xác minh thất bại thì KHÔNG báo đã nối (failed_verification_reported_success phải 0)")
+def _noi_hong():
+	kq, nk = _noi({"url": "u", "verification": {"ok": False, "hint": "Endpoint returned 401"}})
+	la("không báo thành công", kq["ok"], 0)
+	dung("nói rõ thất bại và lý do", "THẤT BẠI" in kq["loi_nhan"] and "401" in kq["loi_nhan"])
+	dung("ghi kết quả vào Cài đặt", "ghi:loi" in nk)
+
+
+@ca("v562 #413 P1: khoá bí mật mới được commit TRƯỚC khi gọi setWebhook")
+def _noi_commit():
+	kq, nk = _noi({"url": "u", "verification": {"ok": True}})
+	la("thứ tự", [x for x in nk if x in ("save", "commit", "setWebhook")][:3], ["save", "commit", "setWebhook"])
+	la("báo thành công khi Zalo xác minh ok", kq["ok"], 1)
+
+
+@ca("v562 #413 P1: Zalo không trả kết quả xác minh thì gọi testWebhook kiểm lại, vẫn chưa rõ thì không báo đã nối")
+def _noi_chua_ro():
+	kq, nk = _noi({"url": "u"}, bi_mat_cu="x" * 40, test=("Đã gửi", "", {"ok": True, "hint": "ok"}))
+	dung("có gọi testWebhook", "testWebhook" in nk)
+	la("testWebhook ok thì báo đã nối", kq["ok"], 1)
+	kq2, _ = _noi({"url": "u"}, bi_mat_cu="x" * 40, test=("Chưa rõ", "timeout", None))
+	la("vẫn chưa rõ thì không báo đã nối", (kq2["ok"], kq2["xac_minh"]), (0, "chua_ro"))
+
+
+# ===================================================================
+# Vòng 3 (Codex review #417 trên 4ebb73e): khoá người nhận theo mã chat,
+# sổ gửi không cho xoá.
+
+def _gui_nhom(ds_nhom, tin=None):
+	return [c for c, _ in _chay(ds_nhom, tin or TIN)[0]]
+
+
+@ca("v562 #417 tái hiện Codex: hai dòng trùng tên khác mã chat đều nhận tin (trước: 1 trên 2)")
+def _trung_ten():
+	la("cả hai mã chat đều được gửi", sorted(_gui_nhom([nhom(chat_id="c1"), nhom(chat_id="c2")])), ["c1", "c2"])
+	la("cùng một mã chat hai dòng thì chỉ gửi một lần", _gui_nhom([nhom(chat_id="c1"), nhom(ten_nhom="Khác", chat_id="c1")]), ["c1"])
+	la("khoá theo mã chat, bỏ khoảng trắng", kz.khoa_tin("a:1", " c1 "), kz.khoa_tin("a:1", "c1"))
+
+
+@ca("v562 #417: đổi tên nhóm trong giờ im thì tin hoãn vẫn được xả theo mã chat")
+def _doi_ten():
+	so = _SoGia([_hoan(0, "Việc cũ", nhom_ten="Kế toán cũ", chat_id="c1")])
+	tin = _xa(so, nhom_ds=[nhom(ten_nhom="Kế toán mới", chat_id="c1")])
+	la("vẫn gửi đúng mã chat", [c for c, _ in tin], ["c1"])
+	la("dòng hoãn đã gửi gộp", so.tim("R00")["trang_thai"], "Đã gửi gộp")
+	la("nhóm thiếu mã chat thì bỏ qua, không claim", _xa(_SoGia([_hoan(1, "x")]), nhom_ds=[nhom(chat_id="")]), [])
+
+
+@ca("v562 #417: Cài đặt chặn hai dòng nhóm trùng tên hoặc trùng mã chat")
+def _kiem_trung():
+	la("không trùng", kz.kiem_nhom_trung([nhom(), nhom(ten_nhom="Kho", chat_id="c2")]), "")
+	dung("trùng tên (không phân biệt hoa thường)", "cùng tên" in kz.kiem_nhom_trung([nhom(), nhom(ten_nhom="kế toán", chat_id="c2")]))
+	dung("trùng mã chat", "cùng mã chat" in kz.kiem_nhom_trung([nhom(), nhom(ten_nhom="Kho", chat_id=" c1 ")]))
+	la("dòng chưa có mã chat không tính trùng mã", kz.kiem_nhom_trung([nhom(chat_id=""), nhom(ten_nhom="Kho", chat_id="")]), "")
+	# Chạy thật validate của Cài đặt (không dò chuỗi): lưu bảng trùng phải bị chặn.
+	from vagabond.vagabond.doctype.vagabond_settings import vagabond_settings as vs
+	from vagabond import tai_khoan_btp
+
+	class _Dong(dict):
+		def as_dict(self):
+			return dict(self)
+
+	def cai_dat(ds):
+		# v562 #425: mã chat mới phải có trong Chat vừa nhắn bot và là nhóm.
+		moi = json.dumps([{"chat_id": c, "loai": "GROUP", "ten": c} for c in ("c1", "c2")])
+		return types.SimpleNamespace(phu_thu=0, kitchen_lat=10.7, kitchen_lng=106.6, zalo_chat_moi=moi,
+			get=lambda k: [_Dong(r) for r in ds] if k == "zalo_nhom" else None)
+	with patch.object(tai_khoan_btp, "kiem_o_cau_hinh", lambda doc: None):
+		vs.VagabondSettings.validate(cai_dat([nhom(), nhom(ten_nhom="Kho", chat_id="c2")]))
+		nem("lưu bảng trùng mã chat bị chặn", lambda: vs.VagabondSettings.validate(cai_dat([nhom(), nhom(ten_nhom="Kho")])))
+
+
+@ca("v562 #417 tái hiện Codex: sổ gửi Zalo không vai nào được xoá (bằng chứng chống trùng phải còn)")
+def _so_khong_xoa():
+	import json
+	import os
+	p = os.path.join(os.path.dirname(kz.__file__), "vagabond", "doctype", "vagabond_tin_kenh", "vagabond_tin_kenh.json")
+	d = json.load(open(p, encoding="utf-8"))
+	la("không vai nào có quyền xoá", [x["role"] for x in d["permissions"] if x.get("delete")], [])
+	la("không vai nào được sửa tay", [x["role"] for x in d["permissions"] if x.get("write")], [])
+	dung("mã chat có chỉ mục để claim", any(x["fieldname"] == "chat_id" and x.get("search_index") for x in d["fields"]))
+
+
+# ===================================================================
+# Vòng 4 (Codex review #417 trên de30af3): Loại tin, Chủ đề chỉ nhận mã
+# trong danh mục, chặn lúc lưu.
+
+@ca("v562 #417 tái hiện Codex: gõ \"việc\" thay vì \"viec\" thì nhóm bị bỏ lặng lẽ; giờ lưu bị chặn và nói mã đúng")
+def _bo_loc():
+	sai = nhom(loai_tin="việc", chu_de="cong_no")
+	la("đúng như Codex tả: nhóm gõ sai không nhận tin việc", kz.chon_nhom([sai], "viec", "cong_no"), [])
+	loi = kz.kiem_bo_loc([sai])
+	dung("lưu bị chặn, chỉ rõ dòng và mã sai", "dòng 1 Loại tin không có: việc" in loi)
+	dung("liệt kê mã đúng", "viec" in loi and "canh_bao" in loi)
+	dung("chủ đề sai cũng bị chặn", "Chủ đề không có: congno" in kz.kiem_bo_loc([nhom(chu_de="congno")]))
+	la("mã đúng, có khoảng trắng, chấm phẩy: hợp lệ", kz.kiem_bo_loc([nhom(loai_tin=" viec ; canh_bao", chu_de="kho,cong_no")]), "")
+	la("để trống: hợp lệ (nhận tất)", kz.kiem_bo_loc([nhom()]), "")
+	dung("gộp với lỗi trùng", "cùng mã chat" in kz.kiem_bang_nhom([nhom(), nhom(ten_nhom="Kho", loai_tin="x")])
+		and "Loại tin không có: x" in kz.kiem_bang_nhom([nhom(), nhom(ten_nhom="Kho", loai_tin="x")]))
+	from vagabond.vagabond.doctype.vagabond_settings import vagabond_settings as vs
+	from vagabond import tai_khoan_btp
+
+	class _D(dict):
+		def as_dict(self):
+			return dict(self)
+	cai = types.SimpleNamespace(phu_thu=0, kitchen_lat=10.7, kitchen_lng=106.6,
+		get=lambda k: [_D(sai)] if k == "zalo_nhom" else None)
+	with patch.object(tai_khoan_btp, "kiem_o_cau_hinh", lambda doc: None):
+		nem("validate của Cài đặt chặn mã sai", lambda: vs.VagabondSettings.validate(cai))
+
+
+@ca("v562 #417: hộp chọn trên Cài đặt dùng đúng danh mục của máy chủ")
+def _danh_muc_js():
+	import os
+	import re
+	# v570: danh mục loại tin, chủ đề dời sang tệp dùng chung Desk và app.
+	p = os.path.join(os.path.dirname(kz.__file__), "public", "js", "cai_dat_loi_chung.js")
+	s = open(p, encoding="utf-8").read()
+	# Phép dò này chỉ chốt hai danh sách không lệch nhau (điều 16: không thay ca hành vi).
+	lay = lambda k: re.findall(r"'([a-z_]+)'", re.search(k + r": \[([^\]]*)\]", s).group(1))
+	la("loại tin trùng LOAI", lay("loai_tin"), list(kz.LOAI))
+	la("chủ đề trùng CHU_DE", lay("chu_de"), list(kz.CHU_DE))
+
+
+# ===================================================================
+# Vòng 5 (Codex review #423 trên 89c046c): giờ im gõ sai bị chặn lúc lưu;
+# Loại tin, Chủ đề không gõ tay được.
+
+@ca("v562 #423 tái hiện Codex: giờ im 22h, 24:00, 07:99 hoặc thiếu một đầu từng được lưu và coi như không im; giờ bị chặn")
+def _gio_im_sai():
+	for tu, den in (("22h", "07:00"), ("24:00", "07:00"), ("22:00", "07:99"), ("22:00", "")):
+		la("trước đây coi như không im: %s-%s" % (tu, den), kz.trong_gio_im("23:30", tu, den), False)
+		dung("lưu bị chặn: %s-%s" % (tu, den), kz.kiem_gio_im([nhom(im_tu=tu, im_den=den)]) != "")
+	dung("báo đúng ô sai", "Giờ im đến phải dạng HH:MM" in kz.kiem_gio_im([nhom(im_tu="22:00", im_den="07:99")]))
+	dung("thiếu một đầu", "điền đủ" in kz.kiem_gio_im([nhom(im_tu="", im_den="07:00")]))
+	dung("hai đầu trùng", "trùng nhau" in kz.kiem_gio_im([nhom(im_tu="07:00", im_den="07:00")]))
+	la("hợp lệ: 22:00-07:00, 00:00-23:59, để trống", kz.kiem_gio_im([nhom(im_tu="22:00", im_den="07:00"),
+		nhom(im_tu="00:00", im_den="23:59"), nhom()]), "")
+	la("đọc giờ chặt", [kz.gio_hop_le(x) for x in ("07:05", "7:05", "24:00", "23:59", "", None)], [425, None, None, 1439, None, None])
+	dung("gộp vào kiểm bảng nhóm", "HH:MM" in kz.kiem_bang_nhom([nhom(im_tu="22h", im_den="07:00")]))
+
+
+@ca("v562 #423: Loại tin và Chủ đề trên bảng nhóm là ô chỉ đọc, chỉ đổi qua hộp chọn")
+def _o_chi_doc():
+	import json
+	import os
+	p = os.path.join(os.path.dirname(kz.__file__), "vagabond", "doctype", "vagabond_kenh_zalo", "vagabond_kenh_zalo.json")
+	d = json.load(open(p, encoding="utf-8"))
+	la("read_only", {x["fieldname"]: x.get("read_only") for x in d["fields"] if x["fieldname"] in ("loai_tin", "chu_de")},
+		{"loai_tin": 1, "chu_de": 1})
+
+
+# ===================================================================
+# Vòng 6 (Codex review #423 trên 5e70822): chặn gọi Zalo khi kiểm thử site.
+
+@ca("v562 #423 tái hiện Codex: đang kiểm thử site thì cửa gọi Zalo không gửi HTTP, kể cả gọi thẳng worker")
+def _cam_goi_khi_kiem():
+	f = kz.frappe
+	gia = types.ModuleType("requests")
+	da = []
+	gia.post = lambda url, json=None, timeout=None: (da.append(url), types.SimpleNamespace(json=lambda: {"ok": True, "result": {}}))[1]
+	co = types.SimpleNamespace(vagabond_kiem_that=True)
+	with patch.object(kz, "_token", lambda: "123:BIMAT"), patch.dict("sys.modules", {"requests": gia}), \
+			patch.object(f, "flags", co, create=True):
+		tt, loi, _ = kz._goi("sendMessage", {"chat_id": "c", "text": "x"})
+		la("không gọi HTTP", da, [])
+		la("báo lỗi rõ", (tt, "kiểm thử" in loi), ("Lỗi", True))
+		la("gửi thử qua _gui_zalo cũng bị chặn", (kz._gui_zalo("c", "x")[0], da), ("Lỗi", []))
+	with patch.object(kz, "_token", lambda: "123:BIMAT"), patch.dict("sys.modules", {"requests": gia}), \
+			patch.object(f, "flags", types.SimpleNamespace(), create=True):
+		la("ngoài kiểm thử thì gọi bình thường", kz._goi("sendMessage", {})[0], "Đã gửi")
+	la("đã gọi đúng một lần khi không kiểm thử", len(da), 1)
+
+
+@ca("v562 #423: hướng dẫn cài nhóm chỉ cách dùng nút chọn, không bảo gõ mã vào ô chỉ đọc")
+def _huong_dan_nut():
+	import os
+	p = os.path.join(os.path.dirname(os.path.dirname(kz.__file__)), "docs", "huong-dan", "ban-tin-zalo.md")
+	s = open(p, encoding="utf-8").read()
+	# Dò chuỗi ở đây chỉ để chốt tài liệu khớp giao diện (điều 16).
+	dung("có hai nút chọn", "Chọn loại tin" in s and "Chọn chủ đề" in s)
+	dung("không còn bảo ghi mã vào ô", "hoặc ghi `viec" not in s)
+
+
+# ===================================================================
+# Vòng 7 (Codex review #425 trên 9d5ede0): bot không được vào nhóm; mã chat
+# chỉ nhận nhóm đã nhắn bot.
+
+@ca("v562 #425 tái hiện Codex: getMe can_join_groups=false trước đây vẫn nối được; giờ dừng trước setWebhook và chỉ cách sửa")
+def _bot_khong_vao_nhom():
+	f = kz.frappe
+	la("bot không vào nhóm bị chặn", "chưa được phép vào nhóm" in kz.kiem_bot({"can_join_groups": False}), True)
+	la("bot vào nhóm được", kz.kiem_bot({"can_join_groups": True}), "")
+	la("thiếu trường thì không chặn", kz.kiem_bot({"account_name": "x"}), "")
+	goi = []
+
+	def gia(m, body):
+		goi.append(m)
+		return ("Đã gửi", "", {"account_name": "VGB", "can_join_groups": False}) if m == "getMe" else ("Đã gửi", "", {})
+	# Dựng đủ đường đi như ca _noi để nếu bỏ chặn thì luồng chạy tới setWebhook
+	# (lần đầu ca này thiếu, đột biến T1 không đổ vì luồng gãy sớm ở get_single).
+	s = types.SimpleNamespace(flags=types.SimpleNamespace(), get_password=lambda *a, **k: "x" * 40, save=lambda **k: None)
+	with patch.object(kz, "_chi_quan_tri", lambda: None), patch.object(kz, "_goi", gia), \
+			patch.object(kz, "_ghi_noi", lambda *a: None), patch.object(kz, "get_url", lambda p: "https://erp" + p), \
+			patch.object(f, "get_single", lambda *a: s, create=True), patch.object(f.db, "commit", lambda: None, create=True):
+		nem("Nối bot dừng lại", kz.dang_ky_webhook)
+	la("không gọi setWebhook", goi, ["getMe"])
+
+
+@ca("v562 #425 tái hiện Codex: mã chat gõ nhầm hoặc là chat riêng trước đây lưu được; giờ chỉ nhận nhóm đã nhắn bot")
+def _ma_chat():
+	moi = [{"chat_id": "g1", "loai": "GROUP", "ten": "Kế toán"}, {"chat_id": "p1", "loai": "PRIVATE", "ten": "Dung"}]
+	la("nhóm đã nhắn bot", kz.kiem_ma_chat([nhom(chat_id="g1")], [], moi), "")
+	dung("gõ nhầm mã", "chưa thấy trong Chat vừa nhắn bot" in kz.kiem_ma_chat([nhom(chat_id="g1x")], [], moi))
+	dung("chat riêng", "là chat riêng của Dung" in kz.kiem_ma_chat([nhom(chat_id="p1")], [], moi))
+	la("dòng đã lưu từ trước không bị kiểm lại", kz.kiem_ma_chat([nhom(chat_id="cu")], ["cu"], moi), "")
+	la("chưa có mã chat thì để đó", kz.kiem_ma_chat([nhom(chat_id="")], [], moi), "")
+	# Chạy thật validate của Cài đặt với dòng mới gõ nhầm.
+	from vagabond.vagabond.doctype.vagabond_settings import vagabond_settings as vs
+	from vagabond import tai_khoan_btp
+
+	class _D(dict):
+		def as_dict(self):
+			return dict(self)
+	cai = types.SimpleNamespace(phu_thu=0, kitchen_lat=10.7, kitchen_lng=106.6, zalo_chat_moi=json.dumps(moi),
+		get=lambda k: [_D(nhom(chat_id="p1"))] if k == "zalo_nhom" else None)
+	with patch.object(tai_khoan_btp, "kiem_o_cau_hinh", lambda doc: None):
+		nem("validate chặn chat riêng", lambda: vs.VagabondSettings.validate(cai))
+		cai2 = types.SimpleNamespace(phu_thu=0, kitchen_lat=10.7, kitchen_lng=106.6, zalo_chat_moi="[]",
+			get_doc_before_save=lambda: types.SimpleNamespace(get=lambda k: [types.SimpleNamespace(chat_id="cu")]),
+			get=lambda k: [_D(nhom(chat_id="cu"))] if k == "zalo_nhom" else None)
+		vs.VagabondSettings.validate(cai2)
+
+
+@ca("v562 #425: ô mã chat chỉ đọc, hướng dẫn chỉ cách chọn nhóm")
+def _ma_chat_chi_doc():
+	import os
+	p = os.path.join(os.path.dirname(kz.__file__), "vagabond", "doctype", "vagabond_kenh_zalo", "vagabond_kenh_zalo.json")
+	d = json.load(open(p, encoding="utf-8"))
+	la("chat_id read_only", [x.get("read_only") for x in d["fields"] if x["fieldname"] == "chat_id"], [1])
+	h = open(os.path.join(os.path.dirname(os.path.dirname(kz.__file__)), "docs", "huong-dan", "ban-tin-zalo.md"), encoding="utf-8").read()
+	dung("hướng dẫn có nút chọn nhóm, bỏ lối thử chat riêng", "Chọn nhóm đã nhắn bot" in h and "thử với chat riêng" not in h)
+
+
+# ===================================================================
+# Vòng 8 (Codex review #425 trên 3fdf378): ghi tin vào sổ trước khi xếp hàng
+# đợi; khoá Cài đặt khi ghi Chat vừa nhắn bot; bài học vào docs.
+
+@ca("v562 #425 tái hiện Codex: Redis hỏng lúc xếp hàng thì tin vẫn còn trong sổ (Chờ gửi) và được gửi bù đúng một lần")
+def _hop_thu():
+	f = kz.frappe
+	so = _So([])
+	goi, sau_commit, log = [], [], []
+
+	def enq(*a, **k):
+		raise RuntimeError("redis chết")
+	with _gia(so, [nhom()], "10:00", lambda c, t: (goi.append(c), ("Đã gửi", ""))[1], lambda k, n: True), \
+			patch.object(f.db, "after_commit", types.SimpleNamespace(add=sau_commit.append), create=True), \
+			patch.object(f, "flags", types.SimpleNamespace(), create=True), \
+			patch.object(f, "enqueue", enq, create=True), \
+			patch.object(f, "log_error", lambda *a, **k: log.append(a), create=True):
+		kz.bao("viec", "cong_no", "Chờ duyệt PKT-9", khoa="cho_duyet:PKT-9")
+		# Trước fix: chưa có dòng nào cho tới khi worker chạy, Redis hỏng là mất tin.
+		la("dòng đã nằm trong sổ TRƯỚC commit", [d["trang_thai"] for d in so.dong], [kz.CHO_GUI])
+		for fn in sau_commit:
+			fn()
+		la("hàng đợi hỏng: có log, chưa gửi", (len(log), goi), (1, []))
+		so.get_all = lambda dt, filters=None, **k: [d["name"] for d in so.dong if d["trang_thai"] == kz.CHO_GUI]
+		with patch.object(f, "get_all", so.get_all, create=True):
+			kz.quet_cho_gui()
+			kz.quet_cho_gui()
+	la("nhịp gửi bù gửi đúng một lần", goi, ["c1"])
+	la("trạng thái cuối", [d["trang_thai"] for d in so.dong], ["Đã gửi"])
+
+
+@ca("v562 #425: worker thường và nhịp gửi bù chạy chồng trên cùng một dòng chỉ gửi một lần")
+def _hop_thu_chong():
+	so = _So([])
+	goi = []
+	vao = [0]
+
+	def gui(c, t):
+		goi.append(c)
+		if not vao[0]:
+			vao[0] = 1
+			kz.gui_hang_doi([so.dong[0]["name"]])  # lượt thứ hai chen vào giữa lúc lượt đầu đang gọi Zalo
+		return "Đã gửi", ""
+	with _gia(so, [nhom()], "10:00", gui, lambda k, n: True):
+		ten = kz._ghi_hop_thu(TIN)
+		kz.gui_hang_doi(ten)
+	la("chỉ một lần gửi", goi, ["c1"])
+
+
+@ca("v562 #425: nhóm bị tắt hoặc gỡ sau khi tin vào sổ thì không gửi, ghi Bỏ qua kèm lý do")
+def _nhom_tat():
+	so = _So([])
+	goi = []
+	with _gia(so, [nhom()], "10:00", lambda c, t: (goi.append(c), ("Đã gửi", ""))[1], lambda k, n: True):
+		ten = kz._ghi_hop_thu(TIN)
+	with _gia(so, [nhom(bat=0)], "10:00", lambda c, t: (goi.append(c), ("Đã gửi", ""))[1], lambda k, n: True):
+		kz.gui_hang_doi(ten)
+	la("không gửi", goi, [])
+	la("Bỏ qua có lý do", (so.dong[0]["trang_thai"], "tắt" in so.dong[0]["loi"]), (kz.BO_QUA, True))
+
+
+@ca("v562 #425 tái hiện Codex: ghi Chat vừa nhắn bot phải khoá dòng Cài đặt TRƯỚC khi đọc, đọc thẳng từ bảng")
+def _nhan_khoa():
+	f = kz.frappe
+	nk = []
+	cap = json.dumps({"message": {"chat": {"id": "g2", "chat_type": "GROUP", "title": "Kho"}}}).encode()
+
+	def sql(q, *a, **k):
+		nk.append("khoa" if "for update" in q else ("doc" if "select value" in q else q[:20]))
+		return [('[{"chat_id": "g1", "loai": "GROUP"}]',)] if "select value" in q else []
+	s = types.SimpleNamespace(get_password=lambda *a, **k: "khoa-bi-mat-16-ky-tu")
+	ghi = {}
+	with patch.object(f, "get_single", lambda *a: s, create=True), \
+			patch.object(f, "request", types.SimpleNamespace(data=cap), create=True), \
+			patch.object(f, "get_request_header", lambda k: "khoa-bi-mat-16-ky-tu", create=True), \
+			patch.object(f, "local", types.SimpleNamespace(response={}), create=True), \
+			patch.object(f.db, "sql", sql, create=True), \
+			patch.object(f.db, "get_single_value", lambda *a, **k: nk.append("doc_cache") or "[]", create=True), \
+			patch.object(f.db, "set_single_value", lambda dt, k, v: (nk.append("ghi"), ghi.__setitem__(k, v)), create=True), \
+			patch.object(f.db, "commit", lambda: nk.append("commit"), create=True), \
+			patch.object(kz, "now_datetime", lambda: "2026-10-03 10:00"):
+		kz.nhan()
+	la("thứ tự khoá, đọc, ghi, commit", nk, ["khoa", "doc", "ghi", "commit"])
+	la("giữ nhóm cũ, thêm nhóm mới", [x["chat_id"] for x in json.loads(ghi["zalo_chat_moi"])], ["g2", "g1"])
+
+
+@ca("v562 #425: trùng khoá khi ghi hộp thư chỉ lùi đúng savepoint của dòng đó, dòng sau vẫn ghi")
+def _ghi_savepoint():
+	f = kz.frappe
+	so = _So([])
+	sp, lui = [], []
+	with _gia(so, [nhom(), nhom(ten_nhom="Kho", chat_id="c2")], "10:00", lambda c, t: ("Đã gửi", ""), lambda k, n: True):
+		so.dong.append({"name": kz.khoa_tin(TIN["khoa"], "c1"), "trang_thai": "Đã gửi"})
+		with patch.object(f.db, "savepoint", sp.append), patch.object(f.db, "rollback", lambda **k: lui.append(k)):
+			ten = kz._ghi_hop_thu(TIN)
+	la("dòng trùng bỏ, dòng sau ghi", ten, [kz.khoa_tin(TIN["khoa"], "c2")])
+	la("mỗi dòng một savepoint riêng", len(set(sp)), 2)
+	la("chỉ lùi savepoint của dòng trùng", lui, [{"save_point": sp[0]}])
+
+
+@ca("v562 #425: nhịp gửi bù có trong lịch 5 phút và chỉ lấy dòng Chờ gửi quá 2 phút")
+def _lich_gui_bu():
+	from vagabond import hooks
+	dung("lịch 5 phút có quet_cho_gui", "vagabond.kenh_zalo.quet_cho_gui" in hooks.scheduler_events.get("cron", {}).get("*/5 * * * *", []))
+	f = kz.frappe
+	loc = []
+	from datetime import datetime
+	with patch.object(kz, "_bat", lambda: 1), patch.object(kz, "now_datetime", lambda: datetime(2026, 10, 3, 10, 0)), \
+			patch.object(f, "get_all", lambda dt, filters=None, **k: loc.append(filters) or [], create=True):
+		kz.quet_cho_gui()
+	la("lọc Chờ gửi, tạo trước 09:58", (loc[0]["trang_thai"], loc[0]["creation"][0], str(loc[0]["creation"][1])[:16]),
+		(kz.CHO_GUI, "<", "2026-10-03 09:58"))
+
+
+# ===================================================================
+# Vòng 9 (Codex review #425 trên 513a800): dòng kẹt "Đang gửi" được trả về
+# Chờ gửi; tin hoãn của nhóm đã tắt hoặc bị gỡ được ghi Bỏ qua.
+
+class _Gio(int):
+	"""Đồng hồ giả tính bằng phút, có strftime cho đường kiểm giờ im."""
+	def strftime(self, fmt):
+		return "10:00"
+
+
+def _gui_bu(so, gui, phut, con_can=None):
+	"""Chạy quet_cho_gui ở phút thứ `phut` trên sổ giả (đúng đường của lịch 5 phút)."""
+	f = kz.frappe
+	import frappe.utils as fu
+	so.gio = phut
+	so.get_all = lambda dt, filters=None, **k: [d["name"] for d in so.dong if d["trang_thai"] == kz.CHO_GUI]
+	with patch.object(kz, "now_datetime", lambda: _Gio(phut)), \
+			patch.object(fu, "add_to_date", lambda d, minutes=0, **k: d + minutes, create=True), \
+			patch.object(f, "get_all", so.get_all, create=True):
+		kz.quet_cho_gui()
+
+
+@ca("v562 #425 vòng 9 tái hiện Codex: worker chết sau khi nhận dòng, trước khi gọi Zalo, thì dòng kẹt Đang gửi mãi; giờ quá 10 phút được gửi bù đúng một lần")
+def _ket_dang_gui():
+	so = _So([])
+	goi = []
+	gui = lambda c, t: (goi.append(c), ("Đã gửi", ""))[1]
+	with _gia(so, [nhom()], "10:00", gui, lambda k, n: True):
+		ten = kz._ghi_hop_thu(TIN)
+		so.gio = 0
+		kz._nhan_mot(ten[0])  # worker nhận dòng rồi chết, chưa gọi Zalo
+		la("kẹt Đang gửi", so.dong[0]["trang_thai"], "Đang gửi")
+		_gui_bu(so, gui, 5)
+		la("chưa quá 10 phút: chưa đụng", (goi, so.dong[0]["trang_thai"]), ([], "Đang gửi"))
+		_gui_bu(so, gui, 11)
+		_gui_bu(so, gui, 16)
+	la("quá 10 phút: gửi bù đúng một lần", (goi, so.dong[0]["trang_thai"]), (["c1"], "Đã gửi"))
+
+
+@ca("v562 #425 vòng 9: dòng kẹt Chưa rõ (worker chết lúc đang gọi Zalo) không tự gửi lại")
+def _ket_chua_ro():
+	so = _So([])
+	goi = []
+
+	class _Chet(Exception):
+		pass
+
+	def chet(c, t):
+		goi.append(c)
+		raise _Chet("worker bị giết giữa lúc gọi Zalo")
+	with _gia(so, [nhom()], "10:00", chet, lambda k, n: True):
+		ten = kz._ghi_hop_thu(TIN)
+		try:
+			kz.gui_hang_doi(ten)
+		except _Chet:
+			pass
+		la("kẹt Chưa rõ", so.dong[0]["trang_thai"], kz.CHUA_RO)
+		_gui_bu(so, lambda c, t: (goi.append(c), ("Đã gửi", ""))[1], 30)
+	la("không gửi lại", goi, ["c1"])
+
+
+@ca("v562 #425 vòng 9: lượt cũ còn sống sau khi dòng đã bị trả về Chờ gửi thì không gửi trùng")
+def _lot_cu_song_lai():
+	so = _So([])
+	goi = []
+	gui = lambda c, t: (goi.append(c), ("Đã gửi", ""))[1]
+	vao = [0]
+
+	def con_can(k, n):
+		# Lượt đầu treo ở bước hỏi lại việc; trong lúc đó qua 10 phút, lịch gửi bù
+		# trả dòng về Chờ gửi và lượt mới gửi xong. Rồi lượt đầu chạy tiếp.
+		if not vao[0]:
+			vao[0] = 1
+			_gui_bu(so, gui, 11)
+		return True
+	with _gia(so, [nhom()], "10:00", gui, con_can):
+		ten = kz._ghi_hop_thu(TIN)
+		so.gio = 0
+		with patch.object(kz, "now_datetime", lambda: _Gio(0)):
+			kz.gui_hang_doi(ten)
+	la("chỉ một lần gửi", goi, ["c1"])
+	la("trạng thái cuối", so.dong[0]["trang_thai"], "Đã gửi")
+
+
+@ca("v562 #425 vòng 9 tái hiện Codex: tin hoãn của nhóm đã tắt hoặc bị gỡ ghi Bỏ qua; bật lại nhóm không bắn tin cũ")
+def _hoan_nhom_tat():
+	so = _SoGia([_hoan(1, "Việc nhóm còn bật"), _hoan(2, "Việc nhóm đã tắt", chat_id="c2", nhom_ten="Kho"),
+		_hoan(3, "Việc nhóm đã gỡ", chat_id="c9", nhom_ten="Cũ")])
+	ds = [nhom(), nhom(ten_nhom="Kho", chat_id="c2", bat=0)]
+	gui = _xa(so, nhom_ds=ds)
+	la("chỉ gửi nhóm còn bật", [c for c, _ in gui], ["c1"])
+	la("tin của nhóm tắt và nhóm gỡ: Bỏ qua kèm lý do", [(d["trang_thai"], d.get("loi")) for d in so.dong[1:]],
+		[(kz.BO_QUA, kz.NHOM_TAT)] * 2)
+	gui2 = _xa(so, nhom_ds=[nhom(), nhom(ten_nhom="Kho", chat_id="c2"), nhom(ten_nhom="Cũ", chat_id="c9")])
+	la("bật lại nhóm: không bắn tin cũ", gui2, [])
+	so2 = _SoGia([_hoan(4, "Không còn nhóm nào bật")])
+	_xa(so2, nhom_ds=[nhom(bat=0)])
+	la("không nhóm nào bật: mọi tin hoãn Bỏ qua", so2.dong[0]["trang_thai"], kz.BO_QUA)
+
+
+# ===================================================================
+# Vòng 10 (Codex review #425 trên e74e7ef): đường gửi gộp sau giờ im có mốc
+# Chưa rõ cho từng phần; dòng kẹt Đang gửi gộp được trả về Hoãn giờ im.
+
+def _tra_ve(so, phut):
+	"""Chạy quet_cho_gui ở phút `phut` (chỉ phần trả dòng kẹt, sổ không có Chờ gửi)."""
+	f = kz.frappe
+	import frappe.utils as fu
+	so.gio = phut
+	with patch.object(kz, "_bat", lambda: 1), patch.object(kz, "now_datetime", lambda: _Gio(phut)), \
+			patch.object(fu, "add_to_date", lambda d, minutes=0, **k: d + minutes, create=True), \
+			patch.object(f, "db", types.SimpleNamespace(sql=so.sql, commit=so.commit), create=True), \
+			patch.object(f, "get_all", lambda *a, **k: [], create=True):
+		kz.quet_cho_gui()
+
+
+@ca("v562 #425 vòng 10 tái hiện Codex: worker chết sau khi nhận lô gộp, trước khi gọi Zalo, thì cả lô kẹt Đang gửi gộp mãi; giờ quá 10 phút trả về Hoãn giờ im và lượt sau gửi đủ một lần")
+def _gop_ket():
+	so = _SoGia([_hoan(i, "Việc %02d" % i) for i in range(3)])
+
+	class _Chet(Exception):
+		pass
+
+	def chet(k, n):
+		raise _Chet("worker chết ở bước hỏi lại việc, chưa gọi Zalo")
+	so.gio = 0
+	try:
+		_xa(so, con_can=chet)
+	except _Chet:
+		pass
+	la("kẹt Đang gửi gộp", sorted({d["trang_thai"] for d in so.dong}), ["Đang gửi gộp"])
+	la("trước 10 phút: lượt xả không gửi", _xa(so), [])
+	_tra_ve(so, 5)
+	la("phút 5: chưa trả về", sorted({d["trang_thai"] for d in so.dong}), ["Đang gửi gộp"])
+	_tra_ve(so, 11)
+	la("phút 11: trả về Hoãn giờ im", sorted({d["trang_thai"] for d in so.dong}), ["Hoãn giờ im"])
+	gui = _xa(so)
+	gop = "\n".join(t for _, t in gui)
+	la("lượt sau gửi đủ, mỗi việc một lần", [gop.count("Việc %02d" % i) for i in range(3)], [1, 1, 1])
+	la("trạng thái cuối", sorted({d["trang_thai"] for d in so.dong}), ["Đã gửi gộp"])
+
+
+@ca("v562 #425 vòng 10: lô gộp nhiều phần, chết giữa hai phần: phần đã gọi thành Chưa rõ, phần chưa gọi được gửi bù, không phần nào gửi hai lần")
+def _gop_ket_giua():
+	so = _SoGia([_hoan(i, "Khoản trả trước ERP chờ duyệt PKT-2026-%05d của nhà cung cấp tên rất dài số %02d" % (i, i))
+		for i in range(50)])
+
+	class _Chet(Exception):
+		pass
+	da = []
+
+	def gui(c, t):
+		if da:
+			raise _Chet("worker chết trước phần thứ hai")
+		da.append(t)
+		return "Đã gửi", ""
+	so.gio = 0
+	try:
+		_xa(so, gui=gui)
+	except _Chet:
+		pass
+	phan = kz.chia_lo_gop([kz.dong_gop(d["noi_dung"]) for d in so.dong])
+	dung("lô phải có ít nhất ba phần", len(phan) >= 3)
+	p2 = {so.dong[i]["name"] for i in phan[1][1]}
+	la("chết lúc gọi phần 2: đúng phần 2 là Chưa rõ, phần sau còn Đang gửi gộp",
+		({d["name"] for d in so.dong if d["trang_thai"] == kz.CHUA_RO}, len([d for d in so.dong if d["trang_thai"] == "Đang gửi gộp"])),
+		(p2, sum(len(x[1]) for x in phan[2:])))
+	_tra_ve(so, 11)
+	gui2 = _xa(so)
+	gop = "\n".join(da + [t for _, t in gui2])
+	la("không việc nào gửi hai lần", max(gop.count("PKT-2026-%05d " % i) for i in range(50)), 1)
+	la("phần 2 giữ Chưa rõ, mọi việc khác đã gửi", sorted({d["trang_thai"] for d in so.dong if d["name"] not in p2}), ["Đã gửi gộp"])
+	la("phần 2 không tự gửi lại", sorted({d["trang_thai"] for d in so.dong if d["name"] in p2}), [kz.CHUA_RO])
+
+
+@ca("v562 #425 vòng 10: lượt xả cũ treo quá lâu, dòng đã bị trả về và gửi ở lượt khác, thì lượt cũ không gửi trùng")
+def _gop_lot_cu():
+	so = _SoGia([_hoan(i, "Việc %02d" % i) for i in range(3)])
+	tat_ca = []
+	vao = [0]
+
+	def con_can(k, n):
+		if not vao[0]:
+			vao[0] = 1
+			_tra_ve(so, 11)
+			tat_ca.extend(t for _, t in _xa(so))
+		return True
+	so.gio = 0
+	tat_ca.extend(t for _, t in _xa(so, con_can=con_can))
+	la("mỗi việc gửi đúng một lần", ["\n".join(tat_ca).count("Việc %02d" % i) for i in range(3)], [1, 1, 1])
+	la("trạng thái cuối", sorted({d["trang_thai"] for d in so.dong}), ["Đã gửi gộp"])
+
+
+# ===================================================================
+# Vòng 11 (Codex review #425 trên 93c2f23): lỗi mạng chắc chắn chưa gửi thì gửi
+# lại; lỗi không rõ thì Chưa rõ; ô chọn nhóm gõ tìm được.
+
+def _loi_mang():
+	"""Dựng đúng chuỗi lỗi bọc nhau như requests và urllib3 ném ra (chỉ tên lớp là thật)."""
+	def lop(ten, cha=Exception):
+		return type(ten, (cha,), {})
+	NewConnectionError, NameResolutionError, ProtocolError = lop("NewConnectionError"), lop("NameResolutionError"), lop("ProtocolError")
+	RemoteDisconnected = lop("RemoteDisconnected")
+
+	class MaxRetryError(Exception):
+		def __init__(self, reason):
+			super().__init__("max retries")
+			self.reason = reason
+	ConnectionError = lop("ConnectionError")
+	ConnectTimeout = lop("ConnectTimeout", ConnectionError)
+	ReadTimeout = lop("ReadTimeout")
+	return {
+		"dns": ConnectionError(MaxRetryError(NameResolutionError("không phân giải được tên"))),
+		"khong_mo_duoc": ConnectionError(MaxRetryError(NewConnectionError("connection refused"))),
+		"het_gio_ket_noi": ConnectTimeout(MaxRetryError(lop("ConnectTimeoutError")("connect timeout"))),
+		"het_gio_doc": ReadTimeout("read timeout"),
+		"dut_giua_chung": ConnectionError(ProtocolError("Connection aborted.", RemoteDisconnected("closed"))),
+	}
+
+
+@ca("v562 #425 vòng 11 tái hiện Codex: lỗi DNS hay không mở được kết nối trước đây ghi Lỗi và tin mất hẳn; giờ phân loại đúng chưa gửi và không rõ")
+def _phan_loai_loi():
+	e = _loi_mang()
+	la("chắc chắn chưa gửi", [kz.chua_gui_di(e[k]) for k in ("dns", "khong_mo_duoc", "het_gio_ket_noi")], [True] * 3)
+	la("có thể đã tới", [kz.chua_gui_di(e[k]) for k in ("het_gio_doc", "dut_giua_chung")], [False] * 2)
+	kq = {}
+	for k, loi in e.items():
+		gia = types.ModuleType("requests")
+
+		def post(url, json=None, timeout=None, loi=loi):
+			raise loi
+		gia.post = post
+		with patch.object(kz, "_token", lambda: "123:BIMAT"), patch.dict("sys.modules", {"requests": gia}):
+			kq[k] = kz._goi("sendMessage", {"chat_id": "c", "text": "x"})[0]
+	la("kết quả của cửa gọi Zalo", kq, {"dns": kz.MANG_LOI, "khong_mo_duoc": kz.MANG_LOI, "het_gio_ket_noi": kz.MANG_LOI,
+		"het_gio_doc": "Chưa rõ", "dut_giua_chung": "Chưa rõ"})
+
+
+@ca("v562 #425 vòng 11: mạng hỏng trước khi gửi thì tin về Chờ gửi, hết hỏng thì gửi bù đúng một lần")
+def _mang_loi_gui_bu():
+	so = _So([])
+	goi = []
+	mang = ["hong"]
+
+	def gui(c, t):
+		goi.append(c)
+		return (kz.MANG_LOI, "Chưa kết nối được Zalo") if mang[0] == "hong" else ("Đã gửi", "")
+	with _gia(so, [nhom()], "10:00", gui, lambda k, n: True):
+		ten = kz._ghi_hop_thu(TIN)
+		kz.gui_hang_doi(ten)
+		la("về Chờ gửi, mất mã lô, có lý do", (so.dong[0]["trang_thai"], so.dong[0]["ma_lo"], "Zalo" in so.dong[0]["loi"]),
+			(kz.CHO_GUI, None, True))
+		mang[0] = "tot"
+		_gui_bu(so, gui, 20)
+		_gui_bu(so, gui, 25)
+	la("lần hỏng + một lần gửi bù", (goi, so.dong[0]["trang_thai"]), (["c1", "c1"], "Đã gửi"))
+
+
+@ca("v562 #425 vòng 11: gửi gộp gặp mạng hỏng trước khi gửi thì cả lô về Hoãn giờ im, lượt sau gửi đủ một lần")
+def _mang_loi_gop():
+	so = _SoGia([_hoan(i, "Việc %02d" % i) for i in range(3)])
+	gui = _xa(so, gui=lambda c, t: (kz.MANG_LOI, "Chưa kết nối được Zalo"))
+	la("lượt hỏng có gọi", len(gui), 1)
+	la("cả lô về Hoãn giờ im, mất mã lô", sorted({(d["trang_thai"], d["ma_lo"]) for d in so.dong}), [("Hoãn giờ im", None)])
+	gui2 = _xa(so)
+	la("lượt sau gửi đủ, mỗi việc một lần", ["\n".join(t for _, t in gui2).count("Việc %02d" % i) for i in range(3)], [1, 1, 1])
+	la("trạng thái cuối", sorted({d["trang_thai"] for d in so.dong}), ["Đã gửi gộp"])
+	# Lô nhiều phần: các phần chưa gọi cũng về Hoãn giờ im ngay, không phải chờ 10 phút.
+	so2 = _SoGia([_hoan(i, "Khoản trả trước ERP chờ duyệt PKT-2026-%05d của nhà cung cấp tên rất dài số %02d" % (i, i))
+		for i in range(50)])
+	_xa(so2, gui=lambda c, t: (kz.MANG_LOI, "Chưa kết nối được Zalo"))
+	la("lô 50 việc nhiều phần: cả lô về Hoãn giờ im ngay", sorted({(d["trang_thai"], d["ma_lo"]) for d in so2.dong}), [("Hoãn giờ im", None)])
+
+
+@ca("v562 #425 vòng 11: ô chọn nhóm trên Cài đặt gõ tìm được, không còn ô xổ danh sách")
+def _o_chon_tim():
+	import os
+	import re
+	p = os.path.join(os.path.dirname(kz.__file__), "vagabond", "doctype", "vagabond_settings", "vagabond_settings.js")
+	s = open(p, encoding="utf-8").read()
+	# Dò chuỗi chỉ để chốt khai báo ô trên Desk (điều 16): bộ giả lập trang của repo
+	# chỉ dựng app /bep, không dựng form Desk của Frappe.
+	o = re.findall(r"fieldname: 'nhom', fieldtype: '(\w+)'", s)
+	la("hai ô chọn nhóm đều là Autocomplete", o, ["Autocomplete", "Autocomplete"])
+	dung("chọn sai thì báo, không lặng lẽ bỏ", s.count("Chọn đúng một nhóm trong danh sách gợi ý.") == 2)
+
+
+# ===================================================================
+# Vòng 12 (Codex review #428 trên f200554): lỗi làm chết giao dịch không bị nuốt;
+# phản hồi Zalo không đọc được là Chưa rõ.
+
+@ca("v565 #428 vòng 12 tái hiện Codex: deadlock khi ghi hộp thư trước đây bị nuốt và chứng từ báo thành công; giờ lỗi đi lên")
+def _deadlock():
+	f = kz.frappe
+	QueryDeadlockError = type("QueryDeadlockError", (Exception,), {})
+	OperationalError = type("OperationalError", (Exception,), {})
+	la("nhận ra lỗi chết giao dịch", [kz.chet_giao_dich(x) for x in (QueryDeadlockError("deadlock"),
+		OperationalError(1213, "Deadlock found"), OperationalError(1205, "Lock wait timeout"), ValueError("lỗi lẻ"),
+		OperationalError(1062, "Duplicate"))], [True, True, True, False, False])
+	so = _So([])
+	log, lui = [], []
+
+	def chen_chet(d):
+		raise QueryDeadlockError("Deadlock found when trying to get lock")
+	with _gia(so, [nhom()], "10:00", lambda c, t: ("Đã gửi", ""), lambda k, n: True), \
+			patch.object(f, "flags", types.SimpleNamespace(), create=True), \
+			patch.object(f, "get_doc", lambda d: types.SimpleNamespace(insert=lambda **k: chen_chet(d)), create=True), \
+			patch.object(f, "log_error", lambda *a, **k: log.append(a), create=True), \
+			patch.object(f.db, "rollback", lambda **k: lui.append(k)), \
+			patch.object(f.db, "after_commit", types.SimpleNamespace(add=lambda fn: None), create=True):
+		nem("bao() để deadlock đi lên", lambda: kz.bao("viec", "cong_no", "Chờ duyệt PKT-9", khoa="cho_duyet:PKT-9"))
+	la("không lùi về savepoint đã mất, không nuốt vào log", (lui, log), ([], []))
+	# Lỗi lẻ của một dòng vẫn chỉ lùi dòng đó, chứng từ đi tiếp.
+	with _gia(so, [nhom()], "10:00", lambda c, t: ("Đã gửi", ""), lambda k, n: True), \
+			patch.object(f, "flags", types.SimpleNamespace(), create=True), \
+			patch.object(f, "get_doc", lambda d: types.SimpleNamespace(insert=lambda **k: (_ for _ in ()).throw(ValueError("lẻ"))), create=True), \
+			patch.object(f, "log_error", lambda *a, **k: log.append(a), create=True), \
+			patch.object(f.db, "rollback", lambda **k: lui.append(k)), \
+			patch.object(f.db, "after_commit", types.SimpleNamespace(add=lambda fn: None), create=True):
+		kz.bao("viec", "cong_no", "Chờ duyệt PKT-9", khoa="cho_duyet:PKT-9b")
+	la("lỗi lẻ: lùi savepoint một lần, có log", (len(lui), len(log)), (1, 1))
+
+
+@ca("v565 #428 vòng 12, 13 tái hiện Codex: phản hồi không đọc được, hoặc 5xx kể cả thân JSON hợp lệ, trước đây ghi Lỗi (dễ bị gửi lại trùng); giờ Chưa rõ")
+def _phan_hoi_hong():
+	def goi(ma, than):
+		gia = types.ModuleType("requests")
+
+		class _R:
+			status_code = ma
+
+			def json(self):
+				if than is None:
+					raise ValueError("không phải JSON hoặc bị cắt")
+				return than
+		gia.post = lambda url, json=None, timeout=None: _R()
+		with patch.object(kz, "_token", lambda: "123:BIMAT"), patch.dict("sys.modules", {"requests": gia}):
+			tt, loi, _ = kz._goi("sendMessage", {"chat_id": "c", "text": "x"})
+		return tt, str(ma) in loi
+	la("502 trang HTML", goi(502, None), ("Chưa rõ", True))
+	la("504 thân JSON hợp lệ (vòng 13)", goi(504, {"error": "Bad Gateway"}), ("Chưa rõ", True))
+	la("200 thân JSON bị cắt (vòng 12)", goi(200, None), ("Chưa rõ", True))
+	la("200 Zalo từ chối rõ ràng: vẫn là Lỗi", goi(200, {"ok": False, "error_code": 400, "description": "chat not found"})[0], "Lỗi")
+	la("200 gửi được", goi(200, {"ok": True, "result": {}})[0], "Đã gửi")
+
+
+# ===================================================================
+# Vòng 14 (Codex review #428 trên c2cdeba): Zalo trục trặc tạm thời khi nối bot
+# không bị báo thành token sai.
+
+@ca("v565 #428 vòng 14 tái hiện Codex: getMe gặp hết giờ hay 5xx trước đây báo token sai; giờ báo thử lại sau, không bảo đổi token")
+def _get_me_tam_thoi():
+	f = kz.frappe
+	la("token đúng", kz.loi_get_me("Đã gửi", ""), "")
+	dung("Zalo từ chối rõ: token sai", kz.loi_get_me("Lỗi", "Zalo báo lỗi 401").startswith("Token Zalo Bot chưa đúng"))
+	for tt in ("Chưa rõ", kz.MANG_LOI):
+		c = kz.loi_get_me(tt, "Zalo trả HTTP 503")
+		dung("%s: không nói token sai, bảo thử lại" % tt, "chưa đúng" not in c and "đừng đổi token" in c and "503" in c)
+	# Đi qua đường bấm nút thật: getMe trả 503 thì dừng, báo thử lại, không gọi setWebhook.
+	goi, bao = [], []
+
+	def gia(m, body):
+		goi.append(m)
+		return ("Chưa rõ", "Zalo trả HTTP 503, không rõ tin đã tới chưa.", None) if m == "getMe" else ("Đã gửi", "", {})
+
+	def nem_lai(msg, *a, **k):
+		bao.append(msg)
+		raise RuntimeError(msg)
+	with patch.object(kz, "_chi_quan_tri", lambda: None), patch.object(kz, "_goi", gia), \
+			patch.object(f, "throw", nem_lai, create=True):
+		nem("Nối bot dừng lại", kz.dang_ky_webhook)
+	la("chỉ gọi getMe", goi, ["getMe"])
+	dung("câu báo bảo thử lại, không nói token sai", bao and "đừng đổi token" in bao[0] and "chưa đúng" not in bao[0])
+
+
+@ca("v562 #425: bài học Zalo đã ghi vào docs/bai-hoc-su-co.md")
+def _bai_hoc():
+	import os
+	h = open(os.path.join(os.path.dirname(os.path.dirname(kz.__file__)), "docs", "bai-hoc-su-co.md"), encoding="utf-8").read()
+	# Dò chuỗi chỉ để chốt tài liệu (điều 16).
+	dung("có mục Zalo #410", "Zalo" in h and "#425" in h)

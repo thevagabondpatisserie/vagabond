@@ -136,7 +136,10 @@ async function scrChuyenPhantom() {
   var noRa = (d.doi_dong || []).filter(function (x) { return x.viec === 'bat_no'; });
   var chan = (d.doi_dong || []).filter(function (x) { return x.viec === 'chan_no'; });
 
-  var html = '<div class="card" style="padding:13px 14px">' +
+  var html = '<div class="card" style="padding:12px 14px">' +
+    '<div style="font-size:12.5px;color:#374151;line-height:1.6">Cần một mã ảo có tồn kho trở lại?</div>' +
+    '<button class="btn2" id="ptBoAo" style="margin:8px 0 0;height:38px">Bỏ ảo một mã</button></div>' +
+    '<div class="card" style="padding:13px 14px">' +
     '<div style="font-size:12px;color:#98a2b3">BẢN CHẠY THỬ · CHƯA GHI GÌ</div>' +
     '<div style="font-size:12.5px;color:#374151;line-height:1.6;margin:5px 0 10px">' +
     'Đây là danh sách máy SẼ đổi nếu anh bấm chạy thật. Đọc kỹ ba con số dưới đây.</div>' +
@@ -191,6 +194,8 @@ async function scrChuyenPhantom() {
 
   var ve = document.getElementById('ptVeDon');
   if (ve) ve.onclick = function () { go(scrDonChungTuThu); };
+  var bo = document.getElementById('ptBoAo');
+  if (bo) bo.onclick = function () { go(scrBoAo); };
 
   var nut = document.getElementById('ptChay');
   if (nut) nut.onclick = async function () {
@@ -207,5 +212,75 @@ async function scrChuyenPhantom() {
     toast((r && r.ghi_chu) || 'Đã chuyển xong.', 9000);
     ptKe = null;
     go(scrChuyenPhantom, true);
+  };
+}
+
+
+/* ---------- Bo ao mot ma (v564, anh Viet chot 03/10/2026) ----------
+   Nguoc lai voi Chuyen Phantom, cho DUNG MOT ma: bat lai quan ly ton kho,
+   dong cong thuc cha lay ma do tu kho. Ma da tung co giao dich thi may ghi
+   thang, vuot chan cua ERPNext (anh Viet cho phep). Xem vagabond/bo_ao.py. */
+var boAoKe = null, boAoMa = '';
+
+/* Codex #427 F4: danh sach cong thuc cha dai thi noi ro con bao nhieu, khong cat im. */
+function boAoDsCha(ds) {
+  ds = ds || [];
+  var html = ds.slice(0, 40).map(function (b) { return ptO(h(b), 'lấy từ kho'); }).join('');
+  if (ds.length > 40) html += '<div style="font-size:12px;color:#667085;margin-top:6px">và ' + (ds.length - 40) + ' công thức nữa</div>';
+  return html;
+}
+
+async function boAoXem(ma) {
+  boAoMa = (ma || '').trim();
+  if (!boAoMa) return;
+  boAoKe = null;
+  busy(1);
+  try { boAoKe = await api('vagabond.bo_ao.xem', { ma: boAoMa }); }
+  catch (e) { busy(0); scrBoAo(); return toast(errMsg(e), 7000); }
+  busy(0);
+  scrBoAo();
+}
+
+function scrBoAo() {
+  var k = boAoKe;
+  var html = '<div class="card" style="padding:12px 14px">' +
+    '<div style="font-size:12px;color:#98a2b3">Mã cần bỏ ảo</div>' +
+    '<div style="font-size:14px;color:#111827;margin:3px 0 0">' + (boAoMa ? h(boAoMa) : 'Chưa chọn') + '</div>' +
+    '<button class="btn2" id="boChon" style="margin:9px 0 0;height:38px">' + (boAoMa ? 'Chọn mã khác' : 'Chọn mã hàng') + '</button></div>';
+  if (k && k.chan) {
+    html += '<div class="card" style="padding:13px 14px;border:1px solid #f5c2c0;background:#fff5f5">' +
+      '<div style="font-size:12.5px;color:#374151;line-height:1.6">' + h(k.chan) + '</div></div>';
+  } else if (k) {
+    html += '<div class="card" style="padding:13px 14px">' +
+      '<div style="font-size:12px;color:#98a2b3">' + h(k.ma) + ' · ' + h(k.ten || '') + '</div>' +
+      '<div style="font-size:13px;color:#374151;line-height:1.6;margin-top:5px">' + h(k.tong_ket || '') + '</div>' +
+      boAoDsCha(k.bom_cha) + '</div>';
+    if (!(k.da_la_hang_ton && !(k.dong || []).length && !(k.bom_rieng || []).length)) {
+      html += '<div class="card" style="padding:12px 14px"><input class="tin" id="boLyDo" placeholder="Lý do bỏ ảo (bắt buộc)" style="width:100%;margin:0"></div>';
+    }
+  }
+  var coNut = k && !k.chan && !(k.da_la_hang_ton && !(k.dong || []).length && !(k.bom_rieng || []).length);
+  frame('Bỏ ảo một mã', html, coNut ? {
+    footer: '<button class="btn" id="boChay" style="margin:0;background:#b3261e">Bỏ ảo mã này</button>'
+  } : null);
+  /* Codex #427 F3, QT-31: chon tu danh muc thi phai la o chon, khong go tay.
+     Dung lai o tim hang hoa chung cua app (mfgPickItem, 05-san-xuat.js). */
+  document.getElementById('boChon').onclick = function () {
+    return mfgPickItem('Chọn mã cần bỏ ảo', null, function (ma) { return boAoXem(ma); });
+  };
+  var c = document.getElementById('boChay');
+  if (c) c.onclick = async function () {
+    var ld = ((document.getElementById('boLyDo') || {}).value || '').trim();
+    if (!ld) return toast('Ghi lý do bỏ ảo thì sau này còn giải trình được');
+    if (!await confirmSheet('Bỏ ảo ' + k.ma + '?',
+      (k.tong_ket || '') + '\n\nChỉ áp từ nay, lệnh và phiếu kho đã có giữ nguyên.', 'Bỏ ảo')) return;
+    busy(1);
+    var r;
+    try { r = await api('vagabond.bo_ao.chay', { ma: k.ma, ly_do: ld, chay_that: 1 }); }
+    catch (e) { busy(0); return toast(errMsg(e), 9000); }
+    busy(0);
+    toast((r && r.tong_ket) || 'Đã bỏ ảo.', 9000);
+    boAoKe = null;
+    scrBoAo();
   };
 }

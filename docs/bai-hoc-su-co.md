@@ -1603,3 +1603,83 @@ Phép xem trước dùng snapshot chỉ bắt trùng đã biết, không thay kh
 ghi. Nhận phần hợp lệ phải chặn cả nhóm ID lặp, không để bản đầu còn Mới.
 46 ca phần thuần kiểm tiền theo locale rõ, giữ dấu hoàn, đủ dòng/tổng và nhóm
 xung đột; chưa phải bằng chứng nhận email, phân bổ sao kê hoặc ghi sổ.
+## 03/10/2026 (v565, Zalo #410/#413/#417/#423/#425): gửi tin ra ngoài từ hook chứng từ
+
+- Ca thật: bản tin Zalo cho nhóm bộ phận qua tám vòng Codex review. Mỗi vòng
+  lộ một đường làm mất tin hoặc gửi trùng mà ca kiểm cũ không thấy.
+- Gốc 1, mất tin: hook xếp việc nền (`frappe.enqueue`) rồi mới ghi sổ. Hàng
+  đợi hỏng lúc xếp thì chứng từ vẫn lưu mà không còn dấu vết tin nào.
+  Phòng: ghi hộp thư "Chờ gửi" TRONG giao dịch của chứng từ (mỗi dòng một
+  savepoint để trùng khoá không làm hỏng giao dịch chính), xếp việc nền sau
+  commit, và có lịch 5 phút gửi bù dòng Chờ gửi quá hạn. Worker chết giữa
+  chừng thì phải biết đã gọi ra ngoài chưa: đổi sang "Chưa rõ" và commit NGAY
+  TRƯỚC lời gọi, nhờ vậy dòng kẹt ở trạng thái trước đó được gửi bù an toàn,
+  dòng "Chưa rõ" thì để người xem. Mọi đường gửi đều phải có mốc này (vòng 10
+  lộ đường gửi gộp sau giờ im còn thiếu). Lỗi mạng cũng phải chia hai: chưa mở
+  được kết nối (DNS, từ chối kết nối) là chắc chắn chưa gửi, trả về chờ gửi
+  lại; đứt giữa chừng, hết giờ chờ trả lời, phản hồi 5xx hay không đọc được là
+  Chưa rõ (vòng 11 đến 13). Tắt hay gỡ người nhận thì dọn cả tin đang hoãn của họ.
+- Gốc 7, nuốt lỗi chết giao dịch (#428): bao() bọc try rộng để Zalo không chặn
+  lưu chứng từ, nhưng deadlock khi ghi hộp thư thì MariaDB đã rollback cả giao
+  dịch, kể cả savepoint; nuốt lỗi đó là chứng từ báo thành công mà không còn gì
+  trong sổ. Phòng: mọi try rộng quanh lệnh ghi cơ sở dữ liệu phải để lỗi chết
+  giao dịch (deadlock, chờ khoá quá hạn, mất kết nối) đi lên.
+- Gốc 2, gửi trùng: hai tiến trình cùng nhận một dòng. Phòng: nhận bằng
+  UPDATE có điều kiện trạng thái kèm mã lô, commit, đọc lại mã lô mới gửi.
+- Gốc 3, cài đặt bị đè: webhook ghi mã chat mới vào Vagabond Settings đọc
+  qua cache rồi ghi lại cả chuỗi, hai tin tới cùng lúc thì mất một. Phòng:
+  khoá dòng Singles (select for update) và đọc thẳng bảng, không qua cache.
+- Gốc 4, nối bot "thành công" giả: setWebhook lưu URL dù xác minh hỏng, và
+  bot chưa bật quyền vào nhóm thì không nhận tin nhóm. Phòng: đọc kết quả
+  xác minh, gọi getMe kiểm can_join_groups, báo rõ cho người cài.
+- Gốc 5, ô gõ tay: mã chat, loại tin, chủ đề, giờ im gõ sai thì nhóm bị bỏ
+  lặng lẽ. Phòng: chỉ chọn từ danh mục hoặc từ nhóm đã nhắn bot, kiểm lại
+  lúc lưu.
+- Gốc 6, ca kiểm bắn tin thật: bench kiểm thật gọi tới Zalo. Phòng: cờ chế
+  độ kiểm chặn mọi lời gọi ra ngoài.
+- Bài học chung: tác dụng phụ ra ngoài hệ (Zalo, email, Telegram) phải đi qua
+  hộp thư ghi cùng giao dịch, có người nhận độc quyền và có đường gửi bù.
+  Nguồn: PR #413, #417, #423, #425.
+
+
+## 03/10/2026 - Chữ web, font gốc và tra địa chỉ (#367)
+
+- Headline tiếng Việt từng bị rẽ sang font hệ thống. Kiểm cmap font gốc và
+  computed style trên 390 px trước khi quyết định fallback; Vagabond Sans
+  hiện có đủ dấu của câu đã duyệt.
+- Chỉ thay chữ tĩnh không làm mọi câu sửa được: các renderer giỏ/chi tiết,
+  lỗi OTP và biên nhận còn tự tạo chuỗi. Dùng khóa chung, giữ biến số và
+  escape đúng sink; kiểm nhãn chứa thẻ qua renderer thật, không chỉ grep.
+- Không chốt nhãn động vào object trước khi tải CMS. Dùng getter hoặc đợi
+  nhãn có giới hạn thời gian; thử sửa tên bánh trong Editor và Undo thật.
+- Che địa chỉ ở UI không bảo vệ response API. tra_khach phải kiểm số trong
+  phiên OTP trước HTTP Pancake, no-store và bỏ response nếu người dùng đã
+  chuyển sang số khác. Ca Guest/sai số/đúng số gọi thân hàm thật với HTTP stub.
+- Khi phát hành chữ được duyệt, chuyển nháp và công khai riêng, giữ snapshot
+  lịch sử; không lấy nguyên bản nháp để đẩy công khai trong migration.
+- Nhãn CMS phải escape cả nhánh lỗi/không có dữ liệu; chỉ thử happy path
+  không đủ. Ca canary dùng đúng renderer lỗi thuế, phí giao, địa chỉ và quầy.
+- Preview cần làm mới hộp đang mở mà giữ lựa chọn và scroll. Đối chiếu
+  finding với sự kiện thật trước khi sửa: cards/cart đã cập nhật, phần còn
+  thiếu là phụ kiện/tình trạng và chi tiết hàng mùa.
+
+
+## 01/10/2026 (#401 vòng 4): giá kiểm kê phải có mốc và lỗi tra giá cần đường thử lại
+
+- Item.last_purchase_rate và valuation_rate là giá hiện tại, không chứng minh
+  được giá tại ngày giờ kiểm kê, kể cả phiếu ghi sớm hơn trong cùng ngày.
+  Chỉ tự gợi ý từ SLE đúng kho hoặc kho khác cùng công ty tới mốc phiếu.
+  Không có thì kế toán nhập giá đã xác minh, không tự lấy giá Item.
+- Core ERPNext tại SHA bench de591661, StockReconciliation.validate_data,
+  còn lấy Item Price/Item khi giá trống. Hook phải báo thiếu giá trước đường
+  đó; chỉ bỏ fallback trong helper vẫn chưa đủ bảo vệ Desk.
+- Lỗi API khác với đọc thành công nhưng chưa có giá: khi API lỗi, ẩn ô nhập
+  tay và nút ghi sổ, hiện lỗi cùng nút Thử lại. Giữ chặn trong submit để
+  không thể gọi vòng. Ca DOM chạy lỗi, thử lại thành công rồi ghi sổ.
+- Hai ca hồi quy mới đỏ trên 70741d06. Cổng local đạt sau khi dùng đúng
+  Python/Node runtime; lượt đầu thiếu Node trong PATH không phải lỗi code.
+- Bench nền 70741d06 đỏ 3/325 ca ở mỗi lượt: một ca nhập tồn mới dùng tài
+  khoản chi phí; hai ca qty không đổi + giá 0 bị core de591661 loại là không
+  thay đổi. Fixture mới dùng Opening Stock/tài khoản Temporary cho tồn mới,
+  và đếm 9 từ tồn 10 cho hai ca giữ giá 0. Không khẳng định core bench hỗ trợ
+  định giá về 0 khi số lượng không đổi.

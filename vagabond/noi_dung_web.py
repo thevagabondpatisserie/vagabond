@@ -8,9 +8,10 @@ không nhận HTML/JS hay giá bán do người soạn gửi lên.
 import copy
 import json
 import re
+from pathlib import Path
 from urllib.parse import urlsplit
 
-LOAI = {"tieu_de_muc", "anh_bia", "cau_chuyen", "anh_chu", "thong_bao"}
+LOAI = {"tieu_de_muc", "anh_bia", "cau_chuyen", "anh_chu", "thong_bao", "hoi_dap"}
 TRUONG = {"id", "loai", "hien", "nhan", "tieu_de", "noi_dung", "anh", "mo_ta_anh", "nut", "lien_ket", "vi_tri"}
 VI_TRI = {"dau_trang", "today", "order", "store", "season", "cuoi_trang"}
 MAC_DINH = {"khoi": [
@@ -21,10 +22,16 @@ MAC_DINH = {"khoi": [
      "nhan": "THE VAGABOND PÂTISSERIE · SINCE 2015", "tieu_de": "Một chiếc bánh, một khoảnh khắc đáng nhớ.",
      "noi_dung": "", "anh": "", "mo_ta_anh": "", "nut": "", "lien_ket": ""},
     {"id": "cau-chuyen", "loai": "cau_chuyen", "hien": True, "vi_tri": "cuoi_trang",
-     "nhan": "TỪ TIỆM BÁNH", "tieu_de": "Những khoảnh khắc ngọt ngào",
+     "nhan": "TỪ THE VAGABOND PÂTISSERIE", "tieu_de": "Những khoảnh khắc ngọt ngào",
      "noi_dung": "Một chiếc bánh, một dịp gặp nhau. Chọn bánh có sẵn hôm nay hoặc đặt trước cho những ngày đặc biệt.",
      "anh": "", "mo_ta_anh": "", "nut": "Đặt bánh trước", "lien_ket": "#/dat-truoc"}
 ]}
+MAC_DINH["khoi"].extend([
+    {"id":"ho-tro", "loai":"thong_bao", "hien":True, "vi_tri":"cuoi_trang", "nhan":"HỖ TRỢ ĐẶT BÁNH", "tieu_de":"Chúng tôi mong được phục vụ cho quý khách", "noi_dung":"Quý khách có thể chọn bánh, ngày nhận và điền lời chúc ngay trên website."},
+    {"id":"hoi-lich-nhan", "loai":"hoi_dap", "hien":True, "vi_tri":"cuoi_trang", "tieu_de":"Tôi muốn nhận bánh hôm nay?", "noi_dung":"Quý khách chọn mục Có sẵn hôm nay và một khung giờ còn nhận. Lịch trên website cập nhật theo thời gian chuẩn bị của bếp."},
+    {"id":"hoi-xac-nhan", "loai":"hoi_dap", "hien":True, "vi_tri":"cuoi_trang", "tieu_de":"Gửi đơn xong đã thanh toán chưa?", "noi_dung":"Biên nhận xác nhận chúng tôi đã tiếp nhận yêu cầu. Nhân viên sẽ liên hệ xác nhận đơn và hướng dẫn thanh toán."},
+    {"id":"hoi-loi-chuc", "loai":"hoi_dap", "hien":True, "vi_tri":"cuoi_trang", "tieu_de":"Tôi có thể gửi lời chúc riêng?", "noi_dung":"Quý khách điền lời chúc trên trang từng bánh trước khi thêm vào giỏ. Mỗi bánh có thể có một lời chúc riêng."},
+])
 
 
 # #367: ba trang chính sách cùng đi luồng nháp, xuất bản, lịch sử của trang
@@ -58,17 +65,21 @@ NHAN = {
     "cau_chuan_bi": {"ten": "Câu giờ bếp chuẩn bị ({gio} là số tiếng, {khung} là khung giờ)",
                      "mac_dinh": "Bếp cần khoảng {gio} tiếng để chuẩn bị và đóng gói, nên hôm nay nhận được từ khung {khung} trở đi."},
     "cau_chuan_bi_het": {"ten": "Câu khi hôm nay hết khung giờ nhận (dưới danh sách bánh)",
-                         "mac_dinh": "Hôm nay đã hết khung giờ nhận. Anh chị đặt cho ngày mai giúp em nhé."},
+                         "mac_dinh": "Hôm nay đã hết khung giờ nhận. Quý khách vui lòng chọn ngày mai."},
     "dat_ban_nhan": {"ten": "Đặt bàn: dòng nhỏ trên tiêu đề", "mac_dinh": "HẸN MỘT BUỔI THONG THẢ"},
-    "dat_ban_tieu_de": {"ten": "Đặt bàn: tiêu đề", "mac_dinh": "Đặt bàn tại tiệm."},
+    "dat_ban_tieu_de": {"ten": "Đặt bàn: tiêu đề", "mac_dinh": "Đặt bàn tại Vagabond."},
     "dat_ban_mo_ta": {"ten": "Đặt bàn: đoạn mô tả",
-                      "mac_dinh": "Chọn ngày, giờ và số người. Tiệm sẽ liên hệ xác nhận chỗ; gửi yêu cầu chưa đồng nghĩa đã giữ được bàn."},
+                      "mac_dinh": "Chọn ngày, giờ và số người. Chúng tôi sẽ liên hệ xác nhận chỗ; gửi yêu cầu chưa đồng nghĩa đã giữ được bàn."},
     "dat_ban_dong": {"ten": "Đặt bàn: câu hiện khi tiệm chưa mở nhận đặt bàn online",
-                     "mac_dinh": "Tiệm chưa mở nhận đặt bàn online. Gọi 0931 224 334 để được hỗ trợ."},
+                     "mac_dinh": "Chúng tôi chưa mở nhận đặt bàn online. Gọi 0931 224 334 để được hỗ trợ."},
     "dat_ban_nut": {"ten": "Đặt bàn: chữ trên nút gửi", "mac_dinh": "Gửi yêu cầu đặt bàn"},
     "dat_ban_ho_tro": {"ten": "Đặt bàn: câu trước số điện thoại hỗ trợ", "mac_dinh": "Cần hỗ trợ ngay?"},
 }
 DAI_NHAN = 300
+# Danh mục dùng chung với bản mặc định của web. Khóa ổn định qua các lần
+# sửa chữ để lịch sử đã xuất bản không mất liên kết với chỗ đang hiển thị.
+with (Path(__file__).parent / "public/web_order/chu-mac-dinh.json").open(encoding="utf-8") as _tep_chu:
+    NHAN.update(json.load(_tep_chu))
 RE_CHO_DIEN = re.compile(r"\{[a-z_]+\}")
 
 
@@ -81,9 +92,10 @@ def _chuan_hoa_nhan(nhan):
     if not isinstance(nhan, dict) or set(nhan) - set(NHAN):
         raise ValueError("Nhãn không có trong danh sách cho phép. Tải lại trang biên tập.")
     for khoa, chu in nhan.items():
-        if not isinstance(chu, str) or len(chu) > DAI_NHAN:
-            raise ValueError("Nhãn %s quá dài hoặc không hợp lệ (tối đa %d ký tự)." % (NHAN[khoa]["ten"], DAI_NHAN))
-        if "\n" in chu and not khoa.startswith("dat_ban_"):
+        gioi_han = 4000 if NHAN[khoa].get("nhieu_dong") else DAI_NHAN
+        if not isinstance(chu, str) or len(chu) > gioi_han:
+            raise ValueError("Nhãn %s quá dài hoặc không hợp lệ (tối đa %d ký tự)." % (NHAN[khoa]["ten"], gioi_han))
+        if "\n" in chu and not (khoa.startswith("dat_ban_") or NHAN[khoa].get("nhieu_dong")):
             raise ValueError("Nhãn %s chỉ có một dòng." % NHAN[khoa]["ten"])
         if not chu.strip():
             continue  # để trống là dùng chữ mặc định
@@ -184,12 +196,20 @@ def chuan_hoa(du_lieu):
         if len(du_lieu) > 250000:
             raise ValueError("Nội dung quá dài. Giảm số khối hoặc độ dài bài viết.")
         du_lieu = json.loads(du_lieu)
-    if not isinstance(du_lieu, dict) or "khoi" not in du_lieu or set(du_lieu) - {"khoi", "chinh_sach", "nhan"}:
+    if not isinstance(du_lieu, dict) or "khoi" not in du_lieu or set(du_lieu) - {"khoi", "chinh_sach", "nhan", "san_pham"}:
         raise ValueError("Nội dung phải có danh sách khối.")
     if "chinh_sach" in du_lieu:
         _chuan_hoa_chinh_sach(du_lieu["chinh_sach"])
     if "nhan" in du_lieu:
         _chuan_hoa_nhan(du_lieu["nhan"])
+    san_pham = du_lieu.get("san_pham", {})
+    if not isinstance(san_pham, dict) or len(san_pham) > 500:
+        raise ValueError("Tối đa 500 mã sản phẩm có nội dung riêng.")
+    for ma, chu in san_pham.items():
+        if ma in {"__proto__", "constructor", "prototype"} or not re.fullmatch(r"[A-Za-z0-9_-]{1,80}", ma) or not isinstance(chu, dict) or set(chu) - {"ten", "mo_ta", "tang", "theo_mua", "khau_phan"}:
+            raise ValueError("Nội dung sản phẩm không hợp lệ. Tải lại danh mục.")
+        if any(not isinstance(v, str) or len(v) > 4000 for v in chu.values()):
+            raise ValueError("Mỗi ô nội dung sản phẩm tối đa 4.000 ký tự.")
     ds = du_lieu["khoi"]
     if not isinstance(ds, list) or len(ds) > 30:
         raise ValueError("Mỗi trang có tối đa 30 khối.")
@@ -276,9 +296,11 @@ def nhan_cong_khai():
 
 def chinh_sach_dang_hien():
     """Danh sách trang chính sách đã xuất bản và bật hiện, cho chân trang."""
-    cs = (_ban_cong_khai().get("chinh_sach") or {})
+    nd = _ban_cong_khai()
+    cs = nd.get("chinh_sach") or {}
+    nhan = nhan_day_du(nd)
     return [
-        {"khoa": k, "ten": CHINH_SACH[k]["ten"], "duong": CHINH_SACH[k]["duong"]}
+        {"khoa": k, "ten": nhan.get(k + "_ten", CHINH_SACH[k]["ten"]), "duong": CHINH_SACH[k]["duong"]}
         for k in CHINH_SACH
         if (cs.get(k) or {}).get("hien") and str((cs.get(k) or {}).get("vn") or "").strip()
     ]
@@ -300,11 +322,61 @@ def trang_chinh_sach(khoa, ngon_ngu="vn"):
         return None
     md = v.get("en") if ngon_ngu == "en" and str(v.get("en") or "").strip() else v.get("vn")
     return {
-        "ten": CHINH_SACH[khoa]["ten"],
+        "ten": nhan_cong_khai().get(khoa + "_ten", CHINH_SACH[khoa]["ten"]),
         "html": sanitize_html(md_to_html(md) or "", always_sanitize=True),
         "co_en": bool(str(v.get("en") or "").strip()),
         "ngon_ngu": "en" if md is v.get("en") and ngon_ngu == "en" else "vn",
     }
+
+
+
+def noi_dung_da_duyet_367(nd):
+    """Chuyển đúng câu mặc định cũ, thêm hỗ trợ đã duyệt. Không xuất bản nháp."""
+    nd = copy.deepcopy(nd)
+    cu = {
+        "cau_chuan_bi_het": "Hôm nay đã hết khung giờ nhận. Anh chị đặt cho ngày mai giúp em nhé.",
+        "dat_ban_tieu_de": "Đặt bàn tại tiệm.",
+        "dat_ban_mo_ta": "Chọn ngày, giờ và số người. Tiệm sẽ liên hệ xác nhận chỗ; gửi yêu cầu chưa đồng nghĩa đã giữ được bàn.",
+        "dat_ban_dong": "Tiệm chưa mở nhận đặt bàn online. Gọi 0931 224 334 để được hỗ trợ.",
+    }
+    nhan = nd.get("nhan") or {}
+    for k, chu_cu in cu.items():
+        if nhan.get(k) == chu_cu:
+            nhan[k] = NHAN[k]["mac_dinh"]
+    for k in nd["khoi"]:
+        if k.get("nhan") == "TỪ TIỆM BÁNH":
+            k["nhan"] = "TỪ THE VAGABOND PÂTISSERIE"
+        if k.get("tieu_de") == "Mình giúp gì cho bạn hôm nay?":
+            k["tieu_de"] = "Chúng tôi mong được phục vụ cho quý khách"
+    da_co = {k["id"] for k in nd["khoi"]}
+    for k in MAC_DINH["khoi"]:
+        if k["id"] in {"ho-tro", "hoi-lich-nhan", "hoi-xac-nhan", "hoi-loi-chuc"} and k["id"] not in da_co and len(nd["khoi"]) < 30:
+            nd["khoi"].append(copy.deepcopy(k))
+    return chuan_hoa(nd)
+
+
+def xuat_ban_chu_da_duyet_367():
+    """Patch một lần: nháp và công khai chuyển riêng, giữ lịch sử công khai."""
+    if not frappe.db.exists(DOCTYPE, TEN):
+        return False  # cong_khai/doc_bang dùng MAC_DINH đã cập nhật.
+    frappe.db.sql("select name from `tabVagabond Noi Dung Web` where name=%s for update", (TEN,))
+    d = _doc()
+    nhap_cu = json.loads(d.ban_nhap)
+    cong_khai_cu = json.loads(d.ban_cong_khai)
+    nhap = noi_dung_da_duyet_367(nhap_cu)
+    cong_khai = noi_dung_da_duyet_367(cong_khai_cu)
+    if nhap == nhap_cu and cong_khai == cong_khai_cu:
+        return False
+    if cong_khai != cong_khai_cu:
+        ls = json.loads(d.lich_su or "[]")
+        ls.insert(0, {"phien_ban": int(d.phien_ban or 0), "luc": str(frappe.utils.now()),
+                      "nguoi": frappe.session.user, "noi_dung": cong_khai_cu})
+        d.lich_su = json.dumps(ls[:20], ensure_ascii=False)
+    d.ban_nhap = json.dumps(nhap, ensure_ascii=False)
+    d.ban_cong_khai = json.dumps(cong_khai, ensure_ascii=False)
+    d.flags.luu_noi_dung_web = True
+    d.save(ignore_permissions=True)
+    return True
 
 
 def gieo_tu_tep():
@@ -436,3 +508,45 @@ def luu(noi_dung, phien_ban, hanh_dong="nhap"):
     else:
         d.insert()
     return doc_bang()
+
+
+@frappe.whitelist()
+def san_pham_bien_tap():
+    """Đọc danh mục bán công khai cho editor, không tạo một danh mục giá mới."""
+    kiem_quyen()
+    from vagabond.kiem_banh import co_the_ban_hom_nay
+    from vagabond.mua_vu import hang_theo_mua
+    from vagabond.kiem_kho import con_tren_quay_web
+    banh = co_the_ban_hom_nay() or {}
+    ra, da_co = [], set()
+    for g in list(banh.get("nhom") or []) + list((banh.get("dat_truoc") or {}).get("nhom") or []):
+        for size in g.get("sizes") or []:
+            ma = size.get("ma")
+            if not ma or ma in da_co:
+                continue
+            da_co.add(ma)
+            ra.append({"ma": ma, "ten": g.get("ten") or ma, "mo_ta": g.get("mo_ta") or "", "tang": "\n".join(g.get("tang") or [])})
+    mua = hang_theo_mua() or {}
+    for m in mua.get("mon") or []:
+        if m.get("ma") and m["ma"] not in da_co:
+            ra.append({"ma": m["ma"], "ten": m.get("ten") or m["ma"], "mo_ta": m.get("ruot") or ""})
+    for q in (con_tren_quay_web() or {}).get("quay") or []:
+        for m in q.get("mon") or []:
+            if m.get("ma") and m["ma"] not in {x["ma"] for x in ra}:
+                ra.append({"ma":m["ma"], "ten":m.get("ten") or m["ma"]})
+    with (Path(__file__).parent / "public/web_order/san-pham-mac-dinh.json").open(encoding="utf-8") as f:
+        mac_dinh = json.load(f)
+    theo_ma = {m["ma"]:m for m in ra}
+    for m in mac_dinh:
+        if m["ma"] not in theo_ma:
+            ra.append(m)
+        else:
+            for k, v in m.items():
+                if not theo_ma[m["ma"]].get(k):
+                    theo_ma[m["ma"]][k] = v
+    # Mã cũ Marketing từng sửa vẫn tìm được để sửa/xóa nội dung.
+    d = _doc() if frappe.db.exists(DOCTYPE, TEN) else None
+    for ma in (json.loads(d.ban_nhap).get("san_pham") or {}) if d else {}:
+        if ma not in {m["ma"] for m in ra}:
+            ra.append({"ma":ma, "ten":ma})
+    return ra[:500]
