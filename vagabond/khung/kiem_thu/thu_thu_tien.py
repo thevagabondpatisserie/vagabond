@@ -188,9 +188,7 @@ def _phieu_sinh_chung_tu():
 	# v571: hai lời gọi nay truyền thêm so_tien (phần mới nhận) và khoá
 	# riêng từng lần nhận; hành vi chạy thật ở thu_cong_no_571.py.
 	dung("duong SePay co goi", 'ghi_thu_cho_phieu(doc, "Chuyển khoản", "Đối chiếu SePay.", so_tien=moi' in CN)
-	# v576 (Codex #442): lời gọi xuống dòng và nêu mã giao dịch khi có; hành vi
-	# chạy thật ở thu_gom_phap_nhan_575.py và thu_cong_no_571.py.
-	dung("duong khop tay co goi", 'ghi_thu_cho_phieu(doc, "Chuyển khoản",\n\t\t\t"Kế toán khớp tay%s."' in CN)
+	dung("duong khop tay co goi", 'ghi_thu_cho_phieu(doc, "Chuyển khoản", "Kế toán khớp tay.", so_tien=moi' in CN)
 	dung("phan bo to cu truoc", 'order_by="posting_date asc"' in CN)
 	# Loi sinh chung tu khong duoc lam rot viec danh dau phieu: tien da ve
 	# that roi, khong the bat ke toan lam lai tu dau.

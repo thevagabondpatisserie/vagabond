@@ -139,36 +139,122 @@ def _():
 	la("không lưu gì", len(LUU), 0)
 
 
-@ca("v576 thuần (Codex #442): khớp tay phiếu nhiều pháp nhân thì đi đường từng hoá đơn")
+@ca("v576 thuần (Codex #442): phiếu có hoá đơn của nhiều khách thì tách phiếu thu theo khách")
 def _():
 	la("một khách", gpn.khop_tung_hoa_don(["A", "A"]), False)
 	la("hai khách", gpn.khop_tung_hoa_don(["A", "B"]), True)
 	la("bỏ rỗng", gpn.khop_tung_hoa_don(["A", "", None]), False)
 
 
-@ca("v576 thật (Codex #442): khớp tay giao dịch cho phiếu Oshima's + anh Vũ lập phiếu thu từng hoá đơn, không bị chặn")
+@ca("v576 thuần (Codex #442): nhóm phiếu thu chia một giao dịch được tính chung, phiếu lạ vẫn bị hạ")
 def _():
 	from vagabond import thu_tien as tt
-	from vagabond.khung.kiem_thu.thu_cong_no_571 import HD as HD571, GD, PhieuNo, _dung_he
 
-	hai = [Doi(HD571[0], customer="CUS-OSHIMA"), Doi(HD571[1], customer="CUS-VU")]
-	nk, tra = _dung_he(hd=hai)
+	ds = [{"pe": "APP-1", "tien": 4540000, "ma_gd": "FT1", "da_xac_minh": 1, "nhom": "FT1:ab"},
+		{"pe": "APP-2", "tien": 5000000, "ma_gd": "FT1", "da_xac_minh": 1, "nhom": "FT1:ab"},
+		{"pe": "APP-9", "tien": 6000000, "ma_gd": "FT1", "da_xac_minh": 1, "nhom": ""}]
+	ra = {p["pe"]: p["da_xac_minh"] for p in tt.mot_phieu_moi_giao_dich(ds)}
+	la("nhóm 9,54tr thắng phiếu lẻ 6tr", ra, {"APP-1": 1, "APP-2": 1, "APP-9": 0})
+	# Không nhóm thì như cũ: hai phiếu cùng giao dịch chỉ phiếu lớn nhất được tính.
+	cu = [{"pe": "A", "tien": 1, "ma_gd": "FT2", "da_xac_minh": 1}, {"pe": "B", "tien": 2, "ma_gd": "FT2", "da_xac_minh": 1}]
+	la("không nhóm: một phiếu", {p["pe"]: p["da_xac_minh"] for p in tt.mot_phieu_moi_giao_dich(cu)}, {"A": 0, "B": 1})
+	la("ứng viên dạng cũ hai phần tử vẫn đọc được",
+		{p["pe"]: p["da_xac_minh"] for p in tt.mot_phieu_moi_giao_dich(cu, {"FT2": [("A", 1), ("B", 2)]})}, {"A": 0, "B": 1})
+
+
+@ca("v576 thuần (Codex #442): chỉ phiếu cùng nhóm được nối tiếp vào giao dịch đã nối")
+def _():
+	from vagabond import thu_tien as tt
+
+	la("cùng nhóm", tt.cung_nhom_da_noi("G", "APP-2", [("APP-1", "G")]), True)
+	la("khác nhóm", tt.cung_nhom_da_noi("G", "APP-2", [("APP-1", "H")]), False)
+	la("phiếu đã nối không có nhóm", tt.cung_nhom_da_noi("G", "APP-2", [("APP-1", "")]), False)
+	la("phiếu này không nhóm", tt.cung_nhom_da_noi("", "APP-2", [("APP-1", "")]), False)
+	la("chưa nối gì thì không áp dụng", tt.cung_nhom_da_noi("G", "APP-2", []), False)
+	la("chính nó đã nối", tt.cung_nhom_da_noi("G", "APP-1", [("APP-1", "G")]), False)
+	gd = {"docstatus": 1, "deposit": 9540000, "unallocated_amount": 5000000, "allocated_amount": 4540000,
+		"so_noi": 1, "noi": [("APP-1", "FT1:ab")], "currency": "VND"}
+	pe = {"payment_type": "Receive", "docstatus": 0, "reference_no": "FT1", "paid_amount": 5000000,
+		"received_amount": 5000000, "name": "APP-2", "vgb_nhom_gd": "FT1:ab"}
+	la("phiếu thứ hai cùng nhóm xác minh được", tt.xac_minh_tien_ve(pe, gd)[0], True)
+	pe2 = dict(pe, vgb_nhom_gd="")
+	la("phiếu lạ không xác minh", tt.xac_minh_tien_ve(pe2, gd)[0], False)
+
+
+def _he_phieu(hd):
+	"""Frappe giả của thu_cong_no_571, mỗi phiếu thu một tên riêng."""
+	from vagabond.khung.kiem_thu.thu_cong_no_571 import PhieuGia, _dung_he
+
+	nk, tra = _dung_he(hd=hd)
+	dem = [0]
+	lap = []
+
+	class Phieu(PhieuGia):
+		def insert(self, **k):
+			dem[0] += 1
+			self.name = "APP-26-10-%04d" % dem[0]
+			lap.append(self)
+	fr.new_doc = lambda dt: Phieu(nk)
+	return nk, tra, lap
+
+
+@ca("v576 thật (Codex #442): một giao dịch cho Oshima's + anh Vũ lập HAI phiếu thu nháp, đúng khách, chung nhóm")
+def _():
+	from vagabond import thu_tien as tt
+	from vagabond.khung.kiem_thu.thu_cong_no_571 import HD as HD571, GD
+
+	hai = [Doi(HD571[0], customer="CUS-VU"), Doi(HD571[1], customer="CUS-OSHIMA")]
+	nk, tra, lap = _he_phieu(hai)
+	try:
+		nem("không bật tách thì vẫn chặn như cũ", lambda: tt.lap_phieu_thu_theo_gd([h.name for h in hai], GD, 7600000),
+			fr.ValidationError)
+		la("không lập gì", len(lap), 0)
+		kq = tt.lap_phieu_thu_theo_gd([h.name for h in hai], GD, 7600000, tach_khach=True)
+	finally:
+		tra()
+	la("hai phiếu", len(lap), 2)
+	la("mỗi phiếu một khách, đúng hoá đơn của khách đó",
+		sorted((p.party, tuple(r.reference_name for r in p.references)) for p in lap),
+		[("CUS-OSHIMA", ("HDB-26-09-01679",)), ("CUS-VU", ("HDB-26-09-02477",))])
+	la("tiền từng phiếu", sorted(p.paid_amount for p in lap), [2850000.0, 4750000.0])
+	la("cùng số giao dịch", {p.reference_no for p in lap}, {"FT26277123"})
+	dung("chung một mã nhóm khác rỗng", len({p.vgb_nhom_gd for p in lap}) == 1 and lap[0].vgb_nhom_gd)
+	la("tổng", kq["tien"], 7600000.0)
+	la("trả cả hai tên", kq["cac_pe"], ["APP-26-10-0001", "APP-26-10-0002"])
+
+
+@ca("v576 thật (Codex #442): một khách thì vẫn MỘT phiếu thu, không gắn nhóm")
+def _():
+	from vagabond import thu_tien as tt
+	from vagabond.khung.kiem_thu.thu_cong_no_571 import HD as HD571, GD
+
+	nk, tra, lap = _he_phieu(list(HD571))
+	try:
+		tt.lap_phieu_thu_theo_gd([h.name for h in HD571], GD, 7600000, tach_khach=True)
+	finally:
+		tra()
+	la("một phiếu", len(lap), 1)
+	la("không nhóm", lap[0].get("vgb_nhom_gd"), None)
+
+
+@ca("v576 thật (Codex #442): khớp tay giao dịch cho phiếu nhiều pháp nhân lập phiếu thu NHÁP, không đi đường ghi sổ thẳng")
+def _():
+	from vagabond import thu_tien as tt
+	from vagabond.khung.kiem_thu.thu_cong_no_571 import HD as HD571, GD, PhieuNo
+
+	hai = [Doi(HD571[0], customer="CUS-VU"), Doi(HD571[1], customer="CUS-OSHIMA")]
+	nk, tra, lap = _he_phieu(hai)
 	doc = PhieuNo(name="DNTT-26-10-00009", ma_phieu="DNTT-26-10-00009", trang_thai="Cho thu", khach="CUS-VU",
 		tong_tien=7600000.0, da_thu=0.0, flags=Doi(), _nk=nk, dong=[Doi(hoa_don=h.name) for h in hai])
 	moc = {"get_doc": fr.get_doc, "kq": cn._kiem_quyen_ban, "giu": cn._giu_gd, "tim": tt.tim_giao_dich,
-		"lap": tt.lap_phieu_thu_theo_gd, "gui": cn._gui_thu_da_nhan, "ghi": cn.ghi_thu_cho_phieu}
+		"gui": cn._gui_thu_da_nhan, "ghi": cn.ghi_thu_cho_phieu}
 	fr.get_doc = lambda *a, **k: doc
 	cn._kiem_quyen_ban = lambda: None
 	cn._giu_gd = lambda d, ds: "FT26277123"
 	tt.tim_giao_dich = lambda ma: GD
 	cn._gui_thu_da_nhan = lambda d: None
 	ghi = []
-	cn.ghi_thu_cho_phieu = lambda d, pt, gc, so_tien=None, khoa="": ghi.append((so_tien, gc))
-
-	def lap(*a, **k):
-		# Đường cũ: thu_tien chặn "nhiều mã khách". Ca kiểm gọi đúng hàm thật.
-		return moc["lap"](*a, **k)
-	tt.lap_phieu_thu_theo_gd = lap
+	cn.ghi_thu_cho_phieu = lambda *a, **k: ghi.append(k)
 	try:
 		kq = cn.khop_tay(doc.name, 7600000, "FT26277123")
 	finally:
@@ -176,12 +262,128 @@ def _():
 		cn._kiem_quyen_ban = moc["kq"]
 		cn._giu_gd = moc["giu"]
 		tt.tim_giao_dich = moc["tim"]
-		tt.lap_phieu_thu_theo_gd = moc["lap"]
 		cn._gui_thu_da_nhan = moc["gui"]
 		cn.ghi_thu_cho_phieu = moc["ghi"]
 		tra()
-	la("lập phiếu thu từng hoá đơn đúng số tiền", [x[0] for x in ghi], [7600000.0])
-	dung("ghi chú nêu giao dịch", "FT26277123" in ghi[0][1])
-	la("phiếu đã thu đủ", doc.trang_thai, "Da thu du")
-	dung("giữ mã giao dịch trên phiếu", "BT-1" in (doc.get("ma_gd") or ""))
-	la("không có phiếu thu gộp", kq["pe"], "")
+	la("không đi đường ghi sổ thẳng từng hoá đơn", ghi, [])
+	la("hai phiếu thu nháp", [p.name for p in lap], ["APP-26-10-0001", "APP-26-10-0002"])
+	la("không phiếu nào ghi sổ", [x for x in nk if x[0] == "submit"], [])
+	la("phiếu đòi nợ đã thu đủ", doc.trang_thai, "Da thu du")
+	dung("câu báo nêu cả hai phiếu thu", "APP-26-10-0001" in kq["loi_nhan"] and "APP-26-10-0002" in kq["loi_nhan"])
+
+
+class _Dong(Doi):
+	pass
+
+
+class _PhieuThu(Doi):
+	"""Phiếu thu nháp giả cho ghi_so_phieu_thu: submit, reload, as_dict."""
+
+	def as_dict(self):
+		return dict(self)
+
+	def submit(self):
+		self.docstatus = 1
+		self["_nk"].append(("submit", self.name))
+
+	def reload(self):
+		pass
+
+
+class _GiaoDich(Doi):
+	def add_payment_entries(self, ds):
+		for d in ds:
+			self.payment_entries.append(_Dong(payment_document=d["payment_doctype"], payment_entry=d["payment_name"],
+				allocated_amount=0.0))
+
+	def save(self, **k):
+		# Như allocate_payment_entries của ERPNext: dòng mới được cấp tiền phiếu.
+		for r in self.payment_entries:
+			if not r.allocated_amount:
+				r.allocated_amount = self["_tien"][r.payment_entry]
+		self.allocated_amount = sum(r.allocated_amount for r in self.payment_entries)
+		self.unallocated_amount = self.deposit - self.allocated_amount
+
+	def reload(self):
+		pass
+
+
+def _ghi_so(ten, cac_phieu, gdoc):
+	"""Chạy THẬT thu_tien.ghi_so_phieu_thu trên Frappe giả; chỉ thay cửa chạm hệ."""
+	import sys
+	import types
+	from vagabond import thu_tien as tt
+
+	nk = gdoc["_nk"]
+	ban = types.ModuleType("vagabond.ban_hang")
+	ban._kiem_quyen_doc_luu_don = lambda: None
+	cu_ban = sys.modules.get("vagabond.ban_hang")
+	sys.modules["vagabond.ban_hang"] = ban
+	moc = {k: getattr(fr.db, k, None) for k in ("exists", "savepoint", "rollback")}
+	moc.update(get_doc=fr.get_doc, get_all=fr.get_all, clear=getattr(fr, "clear_messages", None))
+	mtt = {k: getattr(tt, k) for k in ("_thuoc_tap_unc", "_so_tep_unc", "_gd_theo_so", "la_ke_toan", "_ghi_vet_thu")}
+
+	def gd_theo_so(cac):
+		noi = [(r.payment_entry, cac_phieu[r.payment_entry].get("vgb_nhom_gd") or "") for r in gdoc.payment_entries]
+		g = {"name": gdoc.name, "reference_number": "FT1", "docstatus": 1, "deposit": gdoc.deposit,
+			"withdrawal": 0, "currency": "VND", "unallocated_amount": gdoc.unallocated_amount,
+			"allocated_amount": gdoc.allocated_amount, "so_noi": len(noi), "noi": noi, "tk": "", "cty": ""}
+		return {"FT1": g}
+
+	fr.db.exists = lambda *a, **k: True
+	fr.db.savepoint = lambda *a, **k: None
+	fr.db.rollback = lambda *a, **k: nk.append(("lui",))
+	fr.clear_messages = lambda: None
+	fr.get_doc = lambda dt, ten_, **k: gdoc if dt == "Bank Transaction" else cac_phieu[ten_]
+	fr.get_all = lambda dt, filters=None, **k: [Doi(name=n, vgb_nhom_gd=cac_phieu[n].get("vgb_nhom_gd"))
+		for n in (filters or {}).get("name", ["in", []])[1] if n in cac_phieu]
+	tt._thuoc_tap_unc = lambda d: True
+	tt._so_tep_unc = lambda *a: 1
+	tt._gd_theo_so = gd_theo_so
+	tt.la_ke_toan = lambda: True
+	tt._ghi_vet_thu = lambda *a, **k: None
+	try:
+		return tt.ghi_so_phieu_thu(ten)
+	finally:
+		for k in ("exists", "savepoint", "rollback"):
+			setattr(fr.db, k, moc[k])
+		fr.get_doc, fr.get_all = moc["get_doc"], moc["get_all"]
+		if moc["clear"] is None:
+			del fr.clear_messages
+		else:
+			fr.clear_messages = moc["clear"]
+		for k, v in mtt.items():
+			setattr(tt, k, v)
+		if cu_ban is None:
+			sys.modules.pop("vagabond.ban_hang", None)
+		else:
+			sys.modules["vagabond.ban_hang"] = cu_ban
+
+
+def _bo_phieu(nhom2):
+	nk = []
+	def pt(ten, tien, nhom):
+		return _PhieuThu(name=ten, docstatus=0, payment_type="Receive", party_type="Customer", reference_no="FT1",
+			paid_amount=tien, received_amount=tien, vgb_nhom_gd=nhom, vgb_thu_unc="", flags=Doi(), _nk=nk)
+	cac = {"APP-1": pt("APP-1", 4540000.0, "FT1:ab"), "APP-2": pt("APP-2", 5000000.0, nhom2)}
+	g = _GiaoDich(name="BT-1", deposit=9540000.0, allocated_amount=0.0, unallocated_amount=9540000.0,
+		payment_entries=[], _nk=nk, _tien={"APP-1": 4540000.0, "APP-2": 5000000.0})
+	return nk, cac, g
+
+
+@ca("v576 thật (Codex #442): ghi sổ lần lượt hai phiếu thu cùng nhóm, giao dịch nối đủ cả hai")
+def _():
+	nk, cac, g = _bo_phieu("FT1:ab")
+	la("phiếu 1", _ghi_so("APP-1", cac, g).get("ok"), 1)
+	la("phiếu 2 cùng nhóm nối tiếp", _ghi_so("APP-2", cac, g).get("ok"), 1)
+	la("giao dịch nối cả hai", [r.payment_entry for r in g.payment_entries], ["APP-1", "APP-2"])
+	la("giao dịch hết tiền chưa phân bổ", g.unallocated_amount, 0.0)
+
+
+@ca("v576 thật (Codex #442): phiếu KHÁC nhóm không được nối vào giao dịch đã nối, như luật cũ")
+def _():
+	nk, cac, g = _bo_phieu("")
+	la("phiếu 1", _ghi_so("APP-1", cac, g).get("ok"), 1)
+	nem("phiếu lạ bị chặn", lambda: _ghi_so("APP-2", cac, g), fr.ValidationError)
+	la("phiếu lạ vẫn nháp", cac["APP-2"].docstatus, 0)
+	la("giao dịch chỉ nối phiếu 1", [r.payment_entry for r in g.payment_entries], ["APP-1"])
