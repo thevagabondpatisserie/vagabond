@@ -225,7 +225,11 @@ def da_ban(diem, ngay):
 	docstatus < 2 - bill con NHAP van tinh, xem dieu 2 dau tep.
 	vgb_huy = 0   - bill da huy tra hang ve tu.
 	vgb_tam_tinh  - phieu tam tinh chua phai ban, khong tru.
+	Ngay: theo ngay ban tai quay (ngay_ban.dk_sql), khong theo ngay ghi so,
+	de bill doi ngay khi duyet hang tang khong bi dem hai lan (v573).
 	"""
+	from vagabond import ngay_ban
+
 	try:
 		r = frappe.db.sql(
 			"""select sii.item_code as ma, sum(sii.qty) as sl
@@ -234,10 +238,10 @@ def da_ban(diem, ngay):
 			where si.docstatus < 2
 			  and ifnull(si.vgb_huy, 0) = 0
 			  and ifnull(si.vgb_tam_tinh, 0) = 0
-			  and ifnull(si.vgb_quay, '') = %s
-			  and si.posting_date = %s
+			  and ifnull(si.vgb_quay, '') = %(quay)s
+			  and """ + ngay_ban.dk_sql("si") + """
 			group by sii.item_code""",
-			(str(diem or "").strip().upper(), getdate(ngay)),
+			{"quay": str(diem or "").strip().upper(), "ngay": getdate(ngay)},
 			as_dict=True,
 		)
 	except Exception:

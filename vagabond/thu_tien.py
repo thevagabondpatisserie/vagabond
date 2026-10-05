@@ -226,6 +226,23 @@ TRUONG_MOI = {
 				"chuyển khoản khách gửi vào đây rồi lưu, sau đó mới ghi sổ được."
 			),
 		},
+		# v576 (Codex #442): một giao dịch khách chuyển gộp tiền cho NHIỀU pháp
+		# nhân (phiếu đòi nợ gom chung) thì máy lập mỗi khách một phiếu thu
+		# nháp, cùng số giao dịch. Các phiếu đó mang chung một mã nhóm ở đây,
+		# và chỉ phiếu CÙNG NHÓM mới được chia nhau một giao dịch.
+		{
+			"fieldname": "vgb_nhom_gd",
+			"label": "Nhóm chia giao dịch",
+			"fieldtype": "Data",
+			"read_only": 1,
+			"no_copy": 1,
+			"insert_after": "vgb_thu_unc_tep",
+			"depends_on": "eval:doc.vgb_nhom_gd",
+			"description": (
+				"Các phiếu thu cùng mã nhóm là một lần khách chuyển khoản trả cho nhiều "
+				"pháp nhân. Máy ghi, không sửa tay."
+			),
+		},
 	],
 }
 
@@ -306,7 +323,9 @@ def xac_minh_tien_ve(pe, gd, tk_gd="", cty_gd=""):
 	if cty_gd and (pe.get("company") or "") != cty_gd:
 		return (False, "Giao dịch %s thuộc công ty khác." % ref)
 	if _so(gd.get("allocated_amount")) > LECH or int(gd.get("so_noi") or 0) > 0:
-		return (False, "Giao dịch %s đã nối với chứng từ khác." % ref)
+		# v576: phiếu cùng nhóm chia một giao dịch thì nối tiếp được.
+		if not cung_nhom_da_noi(pe.get("vgb_nhom_gd"), pe.get("name"), gd.get("noi") or []):
+			return (False, "Giao dịch %s đã nối với chứng từ khác." % ref)
 	tien, sai_tien = tien_phia_ngan_hang(pe)
 	if sai_tien:
 		return (False, sai_tien)
@@ -425,17 +444,21 @@ def _khoa_gd(p):
 
 
 def mot_phieu_moi_giao_dich(ds, ung_vien=None):
-	"""Mỗi giao dịch ngân hàng chỉ MỘT phiếu thu nháp được coi là đã xác minh. THUẦN.
+	"""Mỗi giao dịch ngân hàng chỉ MỘT phiếu thu nháp (hay MỘT nhóm) được coi là đã xác minh. THUẦN.
 
-	`ds`: các phiếu (dict có `pe`, `tien`, `ma_gd` hoặc `gd`, `da_xac_minh`).
-	`ung_vien`: {mã giao dịch: [(phiếu, số tiền), ...]} gồm MỌI phiếu thu nháp
-	mang mã đó trên hệ thống, kể cả phiếu nằm ngoài `ds` (màn chỉ đọc phiếu
-	của vài hoá đơn). Không truyền thì lấy từ chính `ds`.
+	`ds`: các phiếu (dict có `pe`, `tien`, `ma_gd` hoặc `gd`, `da_xac_minh`,
+	`nhom`). `ung_vien`: {mã giao dịch: [(phiếu, số tiền[, nhóm]), ...]} gồm
+	MỌI phiếu thu nháp mang mã đó trên hệ thống, kể cả phiếu nằm ngoài `ds`
+	(màn chỉ đọc phiếu của vài hoá đơn). Không truyền thì lấy từ chính `ds`.
 
 	Phiếu được giữ là phiếu tiền lớn nhất, bằng tiền thì mã nhỏ hơn, nên kết
 	quả không đổi theo cách lọc màn. Phiếu còn lại hạ về chưa xác minh, kèm
 	câu lý do, để hoá đơn của nó vẫn nằm trong "Đang nợ" cho kế toán xem tay.
 	Phiếu thắng mà không tự xác minh được thì không phiếu nào được tính.
+
+	v576 (Codex #442): các phiếu CÙNG NHÓM (vgb_nhom_gd, máy lập một lượt
+	khi khách chuyển gộp cho nhiều pháp nhân) tính là MỘT đơn vị: tiền là
+	tổng của nhóm, nhóm thắng thì mọi phiếu trong nhóm đều được tính.
 	"""
 	ds = [dict(p) for p in (ds or [])]
 	if ung_vien is None:
@@ -443,21 +466,90 @@ def mot_phieu_moi_giao_dich(ds, ung_vien=None):
 		for p in ds:
 			k = _khoa_gd(p)
 			if k:
-				ung_vien.setdefault(k, []).append((p.get("pe"), _so(p.get("tien"))))
+				ung_vien.setdefault(k, []).append((p.get("pe"), _so(p.get("tien")), p.get("nhom") or ""))
 	thang = {}
 	for k, cac in ung_vien.items():
-		cac = [(ten, _so(t)) for ten, t in cac if ten]
-		if cac:
-			thang[k] = sorted(cac, key=lambda x: (-x[1], str(x[0])))[0][0]
+		don = {}
+		for muc in cac:
+			ten = muc[0]
+			if not ten:
+				continue
+			nhom = (muc[2] if len(muc) > 2 else "") or ""
+			khoa = ("n:" + nhom) if nhom else ("p:" + str(ten))
+			o = don.setdefault(khoa, {"tien": 0.0, "ten": []})
+			o["tien"] += _so(muc[1])
+			o["ten"].append(str(ten))
+		if don:
+			tot = sorted(don.values(), key=lambda o: (-o["tien"], min(o["ten"])))[0]
+			thang[k] = sorted(tot["ten"])
 	for p in ds:
 		k = _khoa_gd(p)
 		if not p.get("da_xac_minh") or not k or k not in thang:
 			continue
-		if thang[k] != p.get("pe"):
+		if str(p.get("pe")) not in thang[k]:
 			p["da_xac_minh"] = 0
 			p["ly_do"] = ("Giao dịch %s đã có phiếu thu nháp %s; phiếu này cần kế toán xem tay."
-				% (k, thang[k]))
+				% (k, ", ".join(thang[k])))
 	return ds
+
+
+def cung_nhom_da_noi(nhom, ten_pe, noi):
+	"""Giao dịch đã nối phiếu khác mà vẫn cho phiếu này nối tiếp không. THUẦN.
+
+	`noi` là danh sách (phiếu đã nối, nhóm của phiếu đó). Chỉ cho khi mọi
+	phiếu đã nối đều CÙNG NHÓM (khác rỗng) với phiếu này, và phiếu này chưa
+	nối. Không nhóm thì như cũ: một giao dịch một phiếu (Codex #382)."""
+	nhom = (nhom or "").strip()
+	if not nhom or not noi:
+		return False
+	for ten, n in noi:
+		if str(ten) == str(ten_pe) or (n or "").strip() != nhom:
+			return False
+	return True
+
+
+CO_MAY_GHI_NHOM = "vgb_may_ghi_nhom"
+
+
+def nhom_giu(nhom_cu, nhom_moi, may_ghi):
+	"""Giá trị ô nhóm chia giao dịch được phép lưu. THUẦN.
+
+	Codex #443 vòng 3: read_only chỉ khoá giao diện, Desk hay API vẫn gửi được
+	giá trị. Ô này cho phép một phiếu nối vào giao dịch đã nối, nên chỉ máy
+	được ghi (lap_phieu_thu_theo_gd đặt cờ). Mọi giá trị khác bị bỏ, giữ đúng
+	giá trị đang lưu (phiếu mới thì rỗng)."""
+	if may_ghi:
+		return (nhom_moi or "").strip() or None
+	return (nhom_cu or "").strip() or None
+
+
+def chan_ghi_tay_nhom(doc, method=None):
+	"""Hook validate của Payment Entry: chỉ máy được đặt ô vgb_nhom_gd."""
+	try:
+		if not doc.meta.has_field("vgb_nhom_gd"):
+			return
+	except Exception:
+		return
+	may_ghi = bool(doc.flags.get(CO_MAY_GHI_NHOM))
+	cu = None
+	if not may_ghi and not doc.is_new():
+		cu = frappe.db.get_value(doc.doctype, doc.name, "vgb_nhom_gd")
+	doc.set("vgb_nhom_gd", nhom_giu(cu, doc.get("vgb_nhom_gd"), may_ghi))
+
+
+def tach_theo_khach(chia, khach_cua_hd):
+	"""Gom phần chia theo khách của hoá đơn, giữ thứ tự xuất hiện. THUẦN.
+
+	`chia` là [(hoá đơn, phần tiền)], `khach_cua_hd` là {hoá đơn: khách}.
+	Trả [(khách, [(hoá đơn, phần tiền)])]."""
+	ra, vi_tri = [], {}
+	for ten, phan in chia or []:
+		k = khach_cua_hd.get(ten) or ""
+		if k not in vi_tri:
+			vi_tri[k] = len(ra)
+			ra.append((k, []))
+		ra[vi_tri[k]][1].append((ten, phan))
+	return ra
 
 
 def dem_tep_unc(ds_url_o, url_da_gan):
@@ -988,13 +1080,20 @@ def _gd_theo_so(cac_so):
 			ra[k] = dict(g)
 	# Giao dịch đã nối chứng từ nào chưa: đếm dòng con, không tin mỗi ô tiền.
 	ten = [g["name"] for g in ra.values()]
-	so_noi = {}
+	so_noi, noi = {}, {}
 	for lo in _chia(ten):
 		for r in frappe.get_all(
 			"Bank Transaction Payments", filters={"parent": ["in", lo], "parenttype": BT},
-			fields=["parent"], limit_page_length=0,
+			fields=["parent", "payment_document", "payment_entry"], limit_page_length=0,
 		):
 			so_noi[r.parent] = so_noi.get(r.parent, 0) + 1
+			noi.setdefault(r.parent, []).append((r.get("payment_document"), r.get("payment_entry")))
+	# v576: nhóm của các phiếu thu đã nối, để phiếu cùng nhóm nối tiếp được.
+	nhom_pe = {}
+	for lo in _chia({e for ds in noi.values() for d, e in ds if d == PE and e}):
+		for r in frappe.get_all(PE, filters={"name": ["in", lo]}, fields=["name", "vgb_nhom_gd"],
+				limit_page_length=0):
+			nhom_pe[r.name] = r.get("vgb_nhom_gd") or ""
 	tk = {}
 	for ba in {g.get("bank_account") for g in ra.values() if g.get("bank_account")}:
 		tk[ba] = frappe.db.get_value("Bank Account", ba, ["account", "company"], as_dict=True) or {}
@@ -1002,6 +1101,7 @@ def _gd_theo_so(cac_so):
 		if dem.get(k, 0) > 1:
 			g["trung"] = dem[k]
 		g["so_noi"] = so_noi.get(g["name"], 0)
+		g["noi"] = [(e, nhom_pe.get(e, "") if d == PE else "") for d, e in noi.get(g["name"], [])]
 		b = tk.get(g.get("bank_account")) or {}
 		g["tk"] = b.get("account") or ""
 		g["cty"] = b.get("company") or ""
@@ -1036,14 +1136,14 @@ def phieu_thu_nhap(cac_si=None, chi_ma_gd=True):
 	if ten_pe is None:
 		cac_pe = frappe.get_all(PE, filters=loc, fields=[
 			"name", "payment_type", "docstatus", "paid_amount", "paid_to", "company",
-			"reference_no", "party", "party_name", "posting_date", "vgb_thu_unc"] + TRUONG_TIEN_TE, limit_page_length=0)
+			"reference_no", "party", "party_name", "posting_date", "vgb_thu_unc", "vgb_nhom_gd"] + TRUONG_TIEN_TE, limit_page_length=0)
 	else:
 		for lo in _chia(ten_pe):
 			l2 = dict(loc)
 			l2["name"] = ["in", lo]
 			cac_pe += frappe.get_all(PE, filters=l2, fields=[
 				"name", "payment_type", "docstatus", "paid_amount", "paid_to", "company",
-				"reference_no", "party", "party_name", "posting_date", "vgb_thu_unc"] + TRUONG_TIEN_TE, limit_page_length=0)
+				"reference_no", "party", "party_name", "posting_date", "vgb_thu_unc", "vgb_nhom_gd"] + TRUONG_TIEN_TE, limit_page_length=0)
 	if not cac_pe:
 		return []
 	ten = [p.name for p in cac_pe]
@@ -1089,25 +1189,32 @@ def phieu_thu_nhap(cac_si=None, chi_ma_gd=True):
 			"ngay_ve": str((g or {}).get("date") or p.posting_date or "")[:10],
 			"gd": (g or {}).get("name") or "", "hd": ref.get(p.name, []),
 			"so_tep": tep.get(p.name, 0), "da_xac_minh": 1 if ok else 0, "ly_do": ly_do,
+			"nhom": p.get("vgb_nhom_gd") or "",
 		})
 	# Codex #382 vòng 2: một giao dịch chỉ một phiếu được tính. Đọc MỌI phiếu
 	# thu nháp cùng mã giao dịch, kể cả phiếu của hoá đơn ngoài tập đang xem,
 	# để phiếu được chọn không đổi theo cách lọc màn.
 	ung_vien = {}
 	for lo in _chia({p.reference_no.strip() for p in cac_pe if (p.reference_no or "").strip()}):
-		for r in frappe.get_all(PE, filters={"docstatus": 0, "payment_type": "Receive",
-				"reference_no": ["in", lo]}, fields=["name", "reference_no", "paid_amount"],
+		for r in frappe.get_all(PE, filters={"docstatus": ["<", 2], "payment_type": "Receive",
+				"reference_no": ["in", lo]}, fields=["name", "reference_no", "paid_amount", "vgb_nhom_gd", "docstatus"],
 				limit_page_length=0):
-			ung_vien.setdefault((r.reference_no or "").strip(), []).append((r.name, flt(r.paid_amount)))
+			# Codex #443 vòng 3: phiếu CÙNG NHÓM đã ghi sổ vẫn góp vào tiền của
+			# nhóm, không thì nhóm tụt điểm sau phiếu đầu và một phiếu lẻ cũ
+			# chen lên "thắng", giấu phiếu còn lại của nhóm khỏi Tiền đã về.
+			if int(r.docstatus or 0) == 1 and not (r.get("vgb_nhom_gd") or ""):
+				continue
+			ung_vien.setdefault((r.reference_no or "").strip(), []).append(
+				(r.name, flt(r.paid_amount), r.get("vgb_nhom_gd") or ""))
 	# Ứng viên cũng phải là phiếu có gắn hoá đơn: phiếu không thuộc màn này
 	# không được "thắng" rồi hạ phiếu công nợ thật về chưa xác minh.
-	ten_uv = {t for cac in ung_vien.values() for t, _ in cac}
+	ten_uv = {m[0] for cac in ung_vien.values() for m in cac}
 	co_hd = set()
 	for lo in _chia(ten_uv):
 		for r in frappe.get_all("Payment Entry Reference", filters={"parent": ["in", lo],
 				"parenttype": PE, "reference_doctype": SI}, fields=["parent"], limit_page_length=0):
 			co_hd.add(r.parent)
-	ung_vien = {k: [(t, v) for t, v in cac if t in co_hd] for k, cac in ung_vien.items()}
+	ung_vien = {k: [m for m in cac if m[0] in co_hd] for k, cac in ung_vien.items()}
 	return mot_phieu_moi_giao_dich(ra, ung_vien)
 
 
@@ -1215,7 +1322,14 @@ def ghi_so_phieu_thu(name=None, unc=None):
 		# Soát lại trên bản đã khoá: giữa lúc đọc và lúc khoá có thể có
 		# người khác vừa nối giao dịch này vào chứng từ khác.
 		if gdoc.payment_entries or flt(gdoc.allocated_amount) > LECH:
-			frappe.throw("Giao dịch %s vừa được nối với chứng từ khác. Tải lại màn để kiểm." % doc.reference_no)
+			# v576 (Codex #442): phiếu cùng nhóm chia một giao dịch thì nối tiếp.
+			da_noi = [r.payment_entry for r in (gdoc.payment_entries or []) if r.payment_document == PE]
+			nhom_noi = {r.name: r.get("vgb_nhom_gd") or "" for r in frappe.get_all(
+				PE, filters={"name": ["in", da_noi or [""]]}, fields=["name", "vgb_nhom_gd"], limit_page_length=0)}
+			noi = [(r.payment_entry, nhom_noi.get(r.payment_entry, "") if r.payment_document == PE else "")
+				for r in (gdoc.payment_entries or [])]
+			if not cung_nhom_da_noi(doc.get("vgb_nhom_gd"), doc.name, noi):
+				frappe.throw("Giao dịch %s vừa được nối với chứng từ khác. Tải lại màn để kiểm." % doc.reference_no)
 		# Codex #382 vòng 5: so theo tiền tài khoản nhận, không theo tiền
 		# phía khách. Xem tien_phia_ngan_hang.
 		tien_nh, sai_tien = tien_phia_ngan_hang(doc.as_dict())
@@ -1637,7 +1751,7 @@ def tim_giao_dich(ma):
 	return frappe.get_doc(BT, ten[0], for_update=True) if ten else None
 
 
-def lap_phieu_thu_theo_gd(cac_si, g, so_tien, ghi_chu=""):
+def lap_phieu_thu_theo_gd(cac_si, g, so_tien, ghi_chu="", tach_khach=False):
 	"""Lập MỘT phiếu thu nháp cho nhiều hoá đơn theo một giao dịch ngân hàng.
 
 	Ném lỗi kèm lý do bằng lời khi không lập được, TRƯỚC khi đổi bất cứ thứ
@@ -1710,7 +1824,10 @@ def lap_phieu_thu_theo_gd(cac_si, g, so_tien, ghi_chu=""):
 		frappe.throw("Các hoá đơn trong phiếu đều đã có phiếu thu nháp phủ đủ. Mở tab Tiền đã về.")
 	kh = {h.customer for h in hd}
 	cty = {h.company for h in hd}
-	if len(kh) > 1 or len(cty) > 1:
+	# v576 (Codex #442): phiếu đòi nợ gom nhiều pháp nhân (tach_khach) thì
+	# lập MỖI KHÁCH một phiếu thu nháp, cùng giao dịch, chung một mã nhóm.
+	# ERPNext buộc mọi hoá đơn trong một phiếu thu cùng một khách.
+	if (len(kh) > 1 and not tach_khach) or len(cty) > 1:
 		frappe.throw("Phiếu gồm hoá đơn của nhiều mã khách (%s). Khớp từng hoá đơn bằng nút "
 			"\"Khách đã chuyển tiền\" trong tab Đang nợ." % ", ".join(sorted(kh)))
 	b = frappe.db.get_value("Bank Account", g.bank_account, ["account", "company", "is_company_account"],
@@ -1739,37 +1856,49 @@ def lap_phieu_thu_theo_gd(cac_si, g, so_tien, ghi_chu=""):
 		frappe.throw("Không chia được tiền giao dịch %s cho hoá đơn nào." % ref)
 	theo_ten = {h.name: h for h in hd}
 	tong = sum(p for _t, p in chia)
+	cum = tach_theo_khach(chia, {h.name: h.customer for h in hd})
+	nhom = ("%s:%s" % (ref, frappe.generate_hash(length=6)))[:140] if len(cum) > 1 else ""
+	cac_pe = []
 	with nang_quyen_lap_phieu() as goc:
-		pe = frappe.new_doc(PE)
-		pe.payment_type = "Receive"
-		pe.company = cong_ty
-		# Ngày ghi là HÔM NAY như nhan_tien_ve, không lùi về ngày tiền về:
-		# không đẩy chứng từ mới vào kỳ có thể đã khoá sổ.
-		pe.posting_date = nowdate()
-		pe.party_type = "Customer"
-		pe.party = list(kh)[0]
-		pe.paid_amount = tong
-		pe.received_amount = tong
-		pe.reference_no = ref
-		pe.reference_date = g.date
-		pe.paid_to = b["account"]
-		pe.bank_account = g.bank_account
-		if frappe.db.exists("Mode of Payment", "Chuyển khoản"):
-			pe.mode_of_payment = "Chuyển khoản"
-		for ten, phan in chia:
-			h = theo_ten[ten]
-			pe.append("references", {
-				"reference_doctype": SI, "reference_name": ten,
-				"total_amount": flt(h.grand_total), "outstanding_amount": flt(h.outstanding_amount),
-				"allocated_amount": phan, "due_date": h.due_date,
-			})
-		pe.remarks = ("Khách chuyển khoản gộp %d hoá đơn, giao dịch %s. %s" % (
-			len(chia), ref, ghi_chu or "")).strip()[:1000]
-		pe.setup_party_account_field()
-		pe.set_missing_values()
-		pe.paid_to = b["account"]
-		pe.flags.ignore_permissions = True
-		pe.insert(ignore_permissions=True)
-		_giu_chu(pe, goc)
-	_ghi_vet_thu(pe.name, "Lập phiếu thu nháp gộp %d hoá đơn theo giao dịch %s khi khớp tay" % (len(chia), ref))
-	return {"pe": pe.name, "tien": tong, "hd": chia, "ma_gd": ref}
+		for khach, phan_khach in cum:
+			tien_khach = sum(p for _t, p in phan_khach)
+			pe = frappe.new_doc(PE)
+			pe.payment_type = "Receive"
+			pe.company = cong_ty
+			# Ngày ghi là HÔM NAY như nhan_tien_ve, không lùi về ngày tiền về:
+			# không đẩy chứng từ mới vào kỳ có thể đã khoá sổ.
+			pe.posting_date = nowdate()
+			pe.party_type = "Customer"
+			pe.party = khach
+			pe.paid_amount = tien_khach
+			pe.received_amount = tien_khach
+			pe.reference_no = ref
+			pe.reference_date = g.date
+			pe.paid_to = b["account"]
+			pe.bank_account = g.bank_account
+			if nhom:
+				pe.vgb_nhom_gd = nhom
+				pe.flags[CO_MAY_GHI_NHOM] = True
+			if frappe.db.exists("Mode of Payment", "Chuyển khoản"):
+				pe.mode_of_payment = "Chuyển khoản"
+			for ten, phan in phan_khach:
+				h = theo_ten[ten]
+				pe.append("references", {
+					"reference_doctype": SI, "reference_name": ten,
+					"total_amount": flt(h.grand_total), "outstanding_amount": flt(h.outstanding_amount),
+					"allocated_amount": phan, "due_date": h.due_date,
+				})
+			pe.remarks = ("Khách chuyển khoản gộp %d hoá đơn, giao dịch %s%s. %s" % (
+				len(chia), ref, (" (chia %d pháp nhân, nhóm %s)" % (len(cum), nhom)) if nhom else "",
+				ghi_chu or "")).strip()[:1000]
+			pe.setup_party_account_field()
+			pe.set_missing_values()
+			pe.paid_to = b["account"]
+			pe.flags.ignore_permissions = True
+			pe.insert(ignore_permissions=True)
+			_giu_chu(pe, goc)
+			cac_pe.append(pe.name)
+	for ten_pe in cac_pe:
+		_ghi_vet_thu(ten_pe, "Lập phiếu thu nháp gộp %d hoá đơn theo giao dịch %s khi khớp tay%s"
+			% (len(chia), ref, (", nhóm %s" % nhom) if nhom else ""))
+	return {"pe": ", ".join(cac_pe), "cac_pe": cac_pe, "tien": tong, "hd": chia, "ma_gd": ref, "nhom": nhom}

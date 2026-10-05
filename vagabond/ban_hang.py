@@ -2783,6 +2783,10 @@ def _doi_ngay_ban_nhap(si, ngay, ly_do, cach):
 	cu = si.posting_date
 	if getdate(cu) == moi:
 		return {"ok": 1, "ngay": str(moi), "doi": 0}
+	# v573: giữ ngày bán gốc trước khi đổi, để bảng Kiểm kho, Kiểm bánh không
+	# đếm cái bánh đã rời quầy hôm trước thêm một lần vào ngày ghi sổ.
+	from vagabond import ngay_ban
+	ngay_ban.ghi_khi_doi(si)
 	si.set_posting_time = 1
 	si.posting_date = str(moi)
 	si.payment_schedule = []

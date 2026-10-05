@@ -1674,3 +1674,54 @@ lần đầu đếm ngoại lệ ra 0 trên 14 đột biến, tưởng bộ ki�
   thay đổi. Fixture mới dùng Opening Stock/tài khoản Temporary cho tồn mới,
   và đếm 9 từ tồn 10 cho hai ca giữ giá 0. Không khẳng định core bench hỗ trợ
   định giá về 0 khi số lượng không đổi.
+
+
+## 04/10/2026 (v573): đếm "đã bán trong ngày" theo posting_date bị đếm hai lần khi bill đổi ngày
+
+- Dễ báo: hàng tặng out bill tối ngày 1, bảng Kiểm kho ngày 1 trừ 1 cái; anh
+  Việt duyệt sáng ngày 2 thì ngày 2 trừ thêm 1 cái. Nút duyệt (và OTP kế toán)
+  đi qua `_doi_ngay_ban_nhap`, đổi `posting_date` sang ngày ghi sổ cho đúng
+  ngày HĐĐT. Ngày 1 thường đã chốt nên không đo lại, ngày 2 đếm thêm.
+- Ngày ghi sổ và ngày bánh rời quầy là hai việc khác nhau. Bill đổi ngày lần
+  đầu thì giữ ngày bán gốc ở `vgb_ngay_ban`; mọi chỗ đếm số bán dùng một nguồn
+  `ngay_ban.dk_sql`. Thêm chỗ đếm mới thì gọi hàm đó, không lọc thẳng
+  `posting_date`.
+- Ca kiểm chạy SQL thật của hai hàm đếm trên sqlite (chỉ đổi cú pháp tham số),
+  không dò chuỗi. Ca dò chuỗi "không còn chỗ lọc thẳng" lúc đầu khớp cả
+  docstring nên đột biến không đổ; phải dò đúng lời gọi.
+- Codex #438: ô `read_only` chỉ khoá giao diện, Desk/API vẫn ghi được. Ô
+  quyết định số liệu (ở đây là ngày trừ bánh) phải có hook validate chỉ cho
+  máy ghi (cờ trên doc), giá trị ngoài gửi vào trả về giá trị đang lưu; hàm
+  máy ghi cũng phải đọc giá trị đang lưu trong cơ sở dữ liệu, không đọc giá
+  trị trên đối tượng.
+
+
+## 05/10/2026 (v574): "chưa được whitelist" có thể chỉ là phiên đăng nhập đã mất
+
+- Loan Anh đính UNC ở màn Công nợ thì nhận "You are not permitted to access
+  this resource. Login to access ... nap_tam is not whitelisted". Hàm có
+  `@frappe.whitelist()` và có trong danh sách cửa ngõ. Gốc: tài khoản để 2 phiên
+  cùng lúc, đăng nhập lần thứ ba đẩy văng phiên của máy đang mở màn.
+- Frappe trả 403 PermissionError (không phải 401) cho lời gọi của khách, nên app
+  coi là thiếu quyền. Câu báo đổi theo ngôn ngữ site, đừng dò chữ. App hỏi lại
+  `frappe.auth.get_logged_user` khi gặp 403 PermissionError để phân biệt.
+- Gặp báo "chưa whitelist" thì kiểm Activity Log đăng nhập và số phiên cùng lúc
+  của tài khoản TRƯỚC khi đi tìm lỗi quyền hay cấp thêm vai trò.
+
+
+## 05/10/2026 (v576): ca kiểm node có lời hứa treo mãi thì thoát mã 0, cổng tưởng là đạt
+
+- Codex #441: lời hỏi "tôi là ai" không có hạn giờ. Dựng lại bằng mạng giả treo
+  mãi thì bộ kiểm hành vi KHÔNG báo hỏng: node hết việc trong hàng đợi là tự
+  thoát với mã 0, không in dòng tổng nào. kiem_truoc_deploy.sh chỉ nhìn mã thoát.
+- Bộ kiểm hành vi có chờ lời hứa thì đặt cờ "đã chạy tới cuối" và bắt sự kiện
+  exit: chưa tới cuối thì in HONG và đặt mã 1 (xem hanh_vi/phien_mat_574.js).
+- Codex #442: thêm kiểu phiếu mới (gom nhiều pháp nhân) phải rà MỌI đường xử lý
+  phiếu đó, kể cả đường khớp tay theo giao dịch. Phiếu thu ERPNext chỉ một khách.
+  Lần đầu cho đi đường từng hoá đơn như SePay tự khớp thì sai: đường đó ghi sổ
+  thẳng, bị hook UNC chặn, lỗi bị nuốt mà phiếu đòi nợ vẫn báo đã thu. Cách đúng:
+  mỗi khách một phiếu thu NHÁP cùng giao dịch, chung mã nhóm `vgb_nhom_gd`; luật
+  "một giao dịch một phiếu" chỉ nới cho phiếu cùng nhóm (`cung_nhom_da_noi`).
+- Đường SePay tự khớp và khớp tay KHÔNG chọn giao dịch (`ghi_thu_cho_phieu`) lập
+  phiếu thu ghi sổ thẳng, sẽ bị `chan_thieu_dinh_kem` chặn với phiếu lập sau
+  16/08. Tồn đọng có sẵn từ trước, chưa sửa trong v576.
