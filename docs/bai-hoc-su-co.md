@@ -1674,3 +1674,16 @@ lần đầu đếm ngoại lệ ra 0 trên 14 đột biến, tưởng bộ ki�
   thay đổi. Fixture mới dùng Opening Stock/tài khoản Temporary cho tồn mới,
   và đếm 9 từ tồn 10 cho hai ca giữ giá 0. Không khẳng định core bench hỗ trợ
   định giá về 0 khi số lượng không đổi.
+
+
+## 05/10/2026 (v574): "chưa được whitelist" có thể chỉ là phiên đăng nhập đã mất
+
+- Loan Anh đính UNC ở màn Công nợ thì nhận "You are not permitted to access
+  this resource. Login to access ... nap_tam is not whitelisted". Hàm có
+  `@frappe.whitelist()` và có trong danh sách cửa ngõ. Gốc: tài khoản để 2 phiên
+  cùng lúc, đăng nhập lần thứ ba đẩy văng phiên của máy đang mở màn.
+- Frappe trả 403 PermissionError (không phải 401) cho lời gọi của khách, nên app
+  coi là thiếu quyền. Câu báo đổi theo ngôn ngữ site, đừng dò chữ. App hỏi lại
+  `frappe.auth.get_logged_user` khi gặp 403 PermissionError để phân biệt.
+- Gặp báo "chưa whitelist" thì kiểm Activity Log đăng nhập và số phiên cùng lúc
+  của tài khoản TRƯỚC khi đi tìm lỗi quyền hay cấp thêm vai trò.
