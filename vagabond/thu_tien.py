@@ -690,6 +690,38 @@ def soat_ghi_so_thu(da_xac_minh, ly_do, so_tep, la_ke_toan):
 	return (True, "")
 
 
+def cau_gd_lon_hon(ma_gd, tien_gd, con_no):
+	"""Câu báo khi giao dịch khách chuyển LỚN hơn phần nợ chưa phủ của phiếu. THUẦN.
+
+	v577, ca Loan Anh 05/10/2026: Kiệt Tác chuyển 9.550.000 đ cho phiếu Ms.Dung
+	8.450.000 đ. Phần dư thường là hoá đơn chưa gom vào phiếu, kể cả hoá đơn
+	của pháp nhân khác cùng chủ. Chỉ đường cụ thể, không chỉ báo "lớn hơn".
+	"""
+	def vn(x):
+		return "{:,.0f}".format(_so(x)).replace(",", ".")
+	return ("Giao dịch %s là %s đ, lớn hơn phần còn nợ chưa có phiếu thu của phiếu này (%s đ), dư %s đ. "
+		"Khách thường chuyển gộp cho cả hoá đơn chưa nằm trong phiếu, kể cả hoá đơn của pháp nhân khác "
+		"cùng chủ. Huỷ phiếu này, gom chung đủ các hoá đơn khách đã trả vào một phiếu mới đúng %s đ "
+		"rồi khớp tay lại. Nếu đã có phiếu thu nháp cũ giữ một phần nợ thì mở tab Tiền đã về kiểm trước; "
+		"khách chuyển dư thật thì báo kế toán."
+		% (ma_gd, vn(tien_gd), vn(con_no), vn(_so(tien_gd) - _so(con_no)), vn(tien_gd)))
+
+
+def xep_gd_khop_tay(ds, muc):
+	"""Xếp giao dịch cho hộp Khớp tay: đúng số tiền lên đầu, còn lại mới trước. THUẦN.
+
+	`ds` đã theo ngày mới trước; mỗi dòng có `con` (tiền chưa nối). Đánh dấu
+	`dung_so` cho dòng lệch dưới 1 đồng so với `muc` (số còn phải thu).
+	"""
+	muc = _so(muc)
+	dung, khac = [], []
+	for x in ds or []:
+		x = dict(x)
+		x["dung_so"] = 1 if muc and abs(_so(x.get("con")) - muc) <= 1 else 0
+		(dung if x["dung_so"] else khac).append(x)
+	return dung + khac
+
+
 def duoi_ma(ma, so=4):
 	"""Bốn số cuối của mã giao dịch cho nhãn gọn trên màn. THUẦN."""
 	ma = (ma or "").strip()
@@ -909,8 +941,13 @@ def _giu_chu(pe, goc):
 		pe.owner = goc
 
 
-def ghi_thu_tien(si_name, dong, nguon, ngay=None, ghi_chu=""):
+def ghi_thu_tien(si_name, dong, nguon, ngay=None, ghi_chu="", dinh=None):
 	"""Sinh chứng từ thu tiền cho phần ĐÃ THU THẬT của một hoá đơn.
+
+	v577: `dinh(phieu)` (tuỳ chọn) chạy SAU khi lưu nháp, TRƯỚC khi ghi
+	sổ, để đính uỷ nhiệm chi vào phiếu. Phiếu thu qua ngân hàng lập từ ngày
+	chốt mà không có tệp thì hook chan_thieu_dinh_kem chặn ghi sổ (ca Loan
+	Anh 05/10/2026, DNTT-26-10-00004: 17 phiếu hỏng cùng một lý do).
 
 	`dong` là list dict {pt, so_tien}. Dòng mang nhãn công nợ bị bỏ qua -
 	đó là phần chưa thu, ghi vào là tự xoá nợ của mình.
@@ -985,6 +1022,8 @@ def ghi_thu_tien(si_name, dong, nguon, ngay=None, ghi_chu=""):
 			pe.flags.ignore_permissions = True
 			pe.insert(ignore_permissions=True)
 			_giu_chu(pe, goc)
+			if dinh:
+				dinh(pe)
 			pe.submit()
 		ra.append(pe.name)
 		con -= phan_bo
@@ -1751,6 +1790,68 @@ def tim_giao_dich(ma):
 	return frappe.get_doc(BT, ten[0], for_update=True) if ten else None
 
 
+def soat_tep_unc_moi(unc):
+	"""v577: tệp UNC vừa tải lên cho lần kế toán khớp tay KHÔNG gắn giao dịch.
+
+	Soát bằng NGƯỜI ĐANG BẤM, trước khi vào bước lập phiếu (bước đó chạy
+	quyền hệ thống nên không còn soát chủ tệp được). Cùng ba điều kiện của
+	tep_dinh_kem.gan_vao: tệp có thật, chưa thuộc chứng từ nào, do chính
+	người bấm tải lên. Trả list dict {url, ten, ten_tep, rieng}.
+	"""
+	from vagabond import tep_dinh_kem
+
+	ds = tep_dinh_kem.doc_ds(unc)
+	if not ds:
+		frappe.throw("Khớp tay không gắn giao dịch ngân hàng phải đính uỷ nhiệm chi khách gửi. "
+			"Chọn ảnh hoặc PDF chuyển khoản rồi bấm lại.")
+	if len(ds) > tep_dinh_kem.CAP_SO_TEP:
+		frappe.throw("Một lần chỉ đính tối đa %s tệp." % tep_dinh_kem.CAP_SO_TEP)
+	vai = set(frappe.get_roles())
+	ra = []
+	for u in ds:
+		r = frappe.db.get_value("File", {"file_url": u},
+			["name", "owner", "file_name", "is_private", "attached_to_doctype", "attached_to_name"], as_dict=True)
+		if not r:
+			frappe.throw("Không thấy tệp %s. Chọn lại ảnh chuyển khoản rồi bấm lại." % u)
+		if r.attached_to_doctype or r.attached_to_name:
+			frappe.throw("Tệp %s đang thuộc chứng từ %s rồi. Tải ảnh chuyển khoản lên lại."
+				% (r.file_name, r.attached_to_name))
+		if r.owner != frappe.session.user and "System Manager" not in vai:
+			frappe.throw("Chỉ người tải tệp lên mới đính tệp đó vào phiếu thu được.")
+		ra.append({"url": u, "ten": r.name, "ten_tep": r.file_name, "rieng": int(r.is_private or 0)})
+	return ra
+
+
+def ham_dinh_unc(tep):
+	"""v577: hàm đính các tệp UNC đã soát vào từng phiếu thu trước khi ghi sổ.
+
+	Một lần khớp có thể lập nhiều phiếu thu (mỗi hoá đơn một phiếu). Phiếu
+	đầu nhận chính dòng File đã tải lên; phiếu sau nhận một dòng File mới
+	trỏ cùng đường dẫn, như ERPNext chép tệp đính kèm giữa chứng từ. Không
+	đổi is_private của bản chép, để Frappe không dời tệp sang thư mục khác.
+	"""
+	from vagabond import tep_dinh_kem
+
+	da = {"dau": True}
+
+	def dinh(pe):
+		for t in tep:
+			if da["dau"]:
+				frappe.db.set_value("File", t["ten"], {
+					"attached_to_doctype": PE, "attached_to_name": pe.name,
+					"attached_to_field": "vgb_thu_unc"}, update_modified=False)
+			else:
+				frappe.get_doc({
+					"doctype": "File", "file_url": t["url"], "file_name": t["ten_tep"],
+					"is_private": t["rieng"], "attached_to_doctype": PE,
+					"attached_to_name": pe.name, "attached_to_field": "vgb_thu_unc",
+				}).insert(ignore_permissions=True)
+		da["dau"] = False
+		pe.vgb_thu_unc = tep_dinh_kem.ghi_ds([t["url"] for t in tep])
+
+	return dinh
+
+
 def lap_phieu_thu_theo_gd(cac_si, g, so_tien, ghi_chu="", tach_khach=False):
 	"""Lập MỘT phiếu thu nháp cho nhiều hoá đơn theo một giao dịch ngân hàng.
 
@@ -1843,13 +1944,7 @@ def lap_phieu_thu_theo_gd(cac_si, g, so_tien, ghi_chu="", tach_khach=False):
 	# phiếu thiếu. Phiếu này chiếm mã giao dịch, phần dư sẽ không bao giờ
 	# phân bổ được nữa. Dừng, nói rõ phải làm gì.
 	if flt(g.unallocated_amount) > tien + LECH:
-		frappe.throw(
-			"Giao dịch %s còn %s đ, lớn hơn phần nợ chưa có phiếu thu của các hoá đơn "
-			"trong phiếu (%s đ). Thường do đã có phiếu thu nháp cũ đang giữ một phần "
-			"nợ: mở tab Tiền đã về xem và huỷ phiếu nháp không đúng rồi khớp lại; "
-			"nếu khách chuyển dư thật thì báo kế toán xử lý khoản dư."
-			% (ref, "{:,.0f}".format(flt(g.unallocated_amount)).replace(",", "."),
-				"{:,.0f}".format(tien).replace(",", ".")))
+		frappe.throw(cau_gd_lon_hon(ref, flt(g.unallocated_amount), tien))
 	chia = chia_tien_cho_hd(tien, [{"name": h.name, "con_no": h.con_phu,
 		"ngay": str(h.posting_date)} for h in hd])
 	if not chia:
