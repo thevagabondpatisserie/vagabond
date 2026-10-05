@@ -307,13 +307,28 @@ def _desk_gui_thu():
 	with _Tep(gan_vao=pe.name, o="vgb_thu_unc_tep") as t:
 		pe.vgb_thu_unc_tep = t.file_url
 		pe.save(ignore_permissions=True); pe.reload()
+		cu = len(frappe.db.after_commit._functions)
 		with patch.object(cn, "_gui_thu_da_nhan", lambda d, **k: gui.append((d.name, k.get("xep_hang"))) or (True, "kt")):
 			pe.submit()
 		pe.reload()
 		la("phiếu thu vào sổ từ Desk", pe.docstatus, 1)
 		ds[0].reload()
 		la("hoá đơn hết nợ", flt(ds[0].outstanding_amount), 0.0)
-		la("hook xếp thư đúng phiếu đòi nợ, trong giao dịch", gui, [(p.name, True)])
+		# Codex #444 vòng 6: trong giao dịch ghi sổ KHÔNG gửi gì, chỉ đăng ký
+		# việc chạy sau commit; việc đó xếp việc nền gui_thu_nen.
+		la("trong lúc ghi sổ chưa gửi", gui, [])
+		cua_minh = [f for f in list(frappe.db.after_commit._functions)[cu:] if getattr(f, "func", None) is tt.xep_gui_thu]
+		la("hook đăng ký đúng một việc sau commit", len(cua_minh), 1)
+		xep = []
+		with patch.object(frappe, "enqueue", lambda ham, **k: xep.append((ham, k))):
+			cua_minh[0]()
+		la("sau commit xếp việc nền đúng hoá đơn", xep,
+			[("vagabond.cong_no.gui_thu_nen", {"queue": "short", "cac_hd": [ds[0].name]})])
+		with patch.object(cn, "_gui_thu_da_nhan", lambda d, **k: gui.append((d.name, k.get("xep_hang"))) or (True, "kt")):
+			la("việc nền gửi đúng phiếu đòi nợ", frappe.get_attr(xep[0][0])(**{"cac_hd": xep[0][1]["cac_hd"]}), [p.name])
+		la("thư xếp hàng", gui, [(p.name, True)])
+		for f in cua_minh:
+			frappe.db.after_commit._functions.remove(f)
 
 
 @ca("v577 Codex #444 vòng 5: SePay gặp giao dịch LỚN hơn phiếu (khách trả gộp): phiếu không kẹt, Sales huỷ được, giao dịch được nhả")
