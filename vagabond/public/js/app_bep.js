@@ -17593,6 +17593,12 @@ async function scrCnPhieu(name) {
     try { var r = await api('vagabond.cong_no.kiem_sepay', { name: name }); busy(false);
       /* Codex #444 vòng 3: lập phiếu thu nháp hỏng thì hoá đơn KHÔNG ở tab
          Tiền đã về; chỉ đường Khớp tay trước (thieu_phieu_thu), rồi mới tới chờ ghi sổ. */
+      /* Codex #444 vong 5: lap phieu thu hong thi noi dung ly do may chu tra. */
+      if (r.loi_lap && r.loi_lap.length) {
+        await baoTin('SePay thấy tiền nhưng chưa lập được phiếu thu: ' + r.loi_lap.join('; ') +
+          '. Giao dịch lớn hơn phiếu (khách trả gộp) thì bấm Huỷ phiếu rồi gom lại đủ hoá đơn khách đã trả; còn lại bấm Khớp tay.');
+        go(function () { scrCnPhieu(name); }, true); return;
+      }
       toast(r.sepay >= r.tong_tien - 1
         ? (r.thieu_phieu_thu ? 'Tiền đã về đủ nhưng ' + r.thieu_phieu_thu + ' hoá đơn chưa có phiếu thu. Bấm Khớp tay để làm lại.'
           : r.cho_ghi_so ? 'Tiền đã về đủ. ' + r.cho_ghi_so + ' hoá đơn chờ kế toán đính UNC và ghi sổ ở tab Tiền đã về.'
@@ -39868,7 +39874,11 @@ async function cnKhopTay(d) {
     'Phiếu ' + d.ma_phieu + '\nGhi nhận đã thu ' + money(soTien) + ' đ' +
     (maGd ? '\nGắn với giao dịch ' + maGd : '\nKhông gắn giao dịch nào, kèm ' + unc.length + ' tệp uỷ nhiệm chi') +
     (lonHon ? '\nGiao dịch ' + money(lonHon) + ' đ lớn hơn số phiếu còn phải thu, máy sẽ kiểm phần dư.' : '') +
-    '\n\nCông nợ của khách sẽ được cập nhật theo số này. Nếu đủ, máy gửi luôn thư báo nhận tiền cho khách.', 'Khớp')) return;
+    /* Codex #444 vong 5: gan giao dich thi chi lap phieu thu NHAP; thu bao
+       cho toi khi ke toan ghi so, dung noi la da gui. */
+    (maGd
+      ? '\n\nMáy lập phiếu thu nháp, chuyển hoá đơn sang tab Tiền đã về. Sổ cái vẫn ghi khách nợ và thư báo nhận tiền CHƯA gửi cho tới khi kế toán đính UNC và ghi sổ.'
+      : '\n\nPhiếu thu ghi sổ ngay theo số này. Nếu đủ, máy gửi thư báo nhận tiền cho khách.'), 'Khớp')) return;
   busy(true);
   try {
     var ts = { name: d.name, so_tien: soTien, ma_giao_dich: maGd, ghi_chu: gc || '', ma_lan: maLan };
