@@ -1744,3 +1744,11 @@ lần đầu đếm ngoại lệ ra 0 trên 14 đột biến, tưởng bộ ki�
 - DOM giả (`hanh_vi/dom_gia.js`): chữ sau thẻ đóng dồn vào chữ của thẻ cha, nên
   textContent đổi thứ tự quanh `<b>`. Dò câu thì chọn đoạn KHÔNG vắt qua thẻ.
   Đừng viết điều kiện "hoặc" cho dễ đạt: ca v577 đã xanh oan vì vế hoặc khớp nhãn nút.
+- Chạy đột biến Python nhiều lần liên tiếp: đột biến GIỮ NGUYÊN độ dài dòng
+  (đổi `dung + khac` thành `khac + dung`) có thể chạy trên bytecode cũ trong
+  `__pycache__` và báo LỌT oan (v577, M10). Chạy đột biến với
+  `PYTHONDONTWRITEBYTECODE=1` và xoá `__pycache__` trước mỗi đột biến.
+- QT-20 áp cả cho phiếu NHÁP máy tự lập hỏng (Codex #444 vòng 2): không
+  `delete_doc`, gỡ khỏi hoá đơn, đổi khoá, ghi vết lên chính phiếu.
+- Thư "đã nhận thanh toán" gửi từ giữa request chưa commit (ghi sổ phiếu thu)
+  phải xếp hàng (`delayed=True`) trong cùng giao dịch, không gửi ngay.
