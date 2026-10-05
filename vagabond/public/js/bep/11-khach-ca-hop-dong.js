@@ -280,7 +280,8 @@ function cnChonDungTen(dt) {
     var ds = dt.slice().sort(function (a, b) { return b.tien - a.tien; });
     sheet('Phiếu đứng tên khách nào?', ds.map(function (x) {
       return { value: x.khach, label: x.ten, phu: x.hd.length + ' hoá đơn · ' + money(x.tien) + ' đ' };
-    }), ds[0].khach, function (it) { ok(it.value); });
+    /* Codex #443: nhiều pháp nhân thì danh sách dài, phải có ô tìm. */
+    }), ds[0].khach, function (it) { ok(it.value); }, true);
   });
 }
 async function cnGomChung() {
@@ -292,7 +293,10 @@ async function cnGomChung() {
   dt.forEach(function (x) { ds = ds.concat(x.hd); tien += x.tien; if (x.khach === dung) ten = x.ten; });
   var ok = await confirmSheet('Gom ' + ds.length + ' hoá đơn của ' + dt.length + ' khách · ' + money(tien) + ' đ',
     'Phiếu đứng tên: ' + ten + '\n' +
-    dt.map(function (x) { return '• ' + x.ten + ': ' + x.hd.length + ' hoá đơn · ' + money(x.tien) + ' đ'; }).join('\n') +
+    /* Codex #443: chỉ kể 3 khách, còn lại ghi số. Danh sách dài đẩy nút
+       Tạo phiếu ra khỏi màn điện thoại. */
+    dt.slice(0, 3).map(function (x) { return '• ' + x.ten + ': ' + x.hd.length + ' hoá đơn · ' + money(x.tien) + ' đ'; }).join('\n') +
+    (dt.length > 3 ? '\n• và ' + (dt.length - 3) + ' khách nữa' : '') +
     '\nMáy sinh một phiếu đề nghị thanh toán kèm mã QR sống 7 ngày. Tiền về thì phiếu thu lập cho từng hoá đơn, đúng khách của hoá đơn đó.',
     'Tạo phiếu gom chung');
   if (!ok) return;
