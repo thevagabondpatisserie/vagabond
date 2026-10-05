@@ -68,6 +68,8 @@ function mayChu(tl) {
       if (m === 'vagabond.cong_no.xem_phieu') return tl.__phieu;
       if (m === 'vagabond.cong_no.huy_phieu') return { ok: 1, da_go_nhap: ['APP-26-10-134', 'APP-26-10-150'] };
       if (m === 'vagabond.cong_no.kiem_sepay') return tl.__sepay;
+      if (m === 'vagabond.cong_no.xem_truoc_thu') return tl.__xt;
+      if (m === 'vagabond.cong_no.gui_thu_da_nhan') return { ok: 1, loi_nhan: 'Đã gửi thư báo tới k@x.vn.' };
       return {};
     },
   };
@@ -298,6 +300,26 @@ async function moKhop(app, them) {
     await app.bam(app.mot('#cnKiem'));
     t = app.tin.filter(function (x) { return x.indexOf('toast:') === 0; }).pop() || '';
     dung('thieu phieu thu thi chi Khop tay: ' + t, t.indexOf('17 hoá đơn chưa có phiếu thu') >= 0 && t.indexOf('Khớp tay') >= 0 && t.indexOf('Tiền đã về.') < 0);
+  });
+
+  await ca('Codex #444 vong 4: bam Thu bao khi so cai con no thi bao ly do, KHONG hoi gui, KHONG goi gui thu', async function () {
+    var app = appMoi();
+    app.tl.__phieu = Object.assign({}, PHIEU, { trang_thai: 'Da thu du', da_thu: 8450000, sepay: 8450000, da_nhan: 8450000,
+      con_thieu: 0, thieu_phieu_thu: 0, cho_ghi_so: 2, huy_duoc: 0, so_nhap_hong: 0, qr: {}, han_qr: '2026-10-12', cac_khach: [], dong: [] });
+    await app.g.scrCnPhieu('DNTT-26-10-00004'); await nghi();
+    app.tl.__xt = { html: 'thu', email: 'k@x.vn',
+      chua_sach: 'còn 2 hoá đơn chưa hết nợ trên sổ vì phiếu thu chưa ghi sổ. Máy tự gửi thư khi kế toán đính UNC và ghi sổ xong' };
+    await app.bam(app.mot('#cnThu'));
+    var b = app.bao();
+    dung('bao ly do so con no: ' + b, b.indexOf('Chưa gửi thư báo được') >= 0 && b.indexOf('còn 2 hoá đơn chưa hết nợ') >= 0);
+    dung('khong mo hop hoi Gui', app.tim('[data-hkok]').length === 0);
+    bang('khong goi gui thu', app.mc.dem('vagabond.cong_no.gui_thu_da_nhan'), 0);
+    await app.bam(app.mot('[data-hbok]'));
+    /* So sach: hoi Gui roi moi goi gui thu. */
+    app.tl.__xt = { html: 'thu', email: 'k@x.vn', chua_sach: '' };
+    await app.bam(app.mot('#cnThu'));
+    await app.bam(app.mot('[data-hkok]'));
+    bang('so sach: goi gui thu mot lan', app.mc.dem('vagabond.cong_no.gui_thu_da_nhan'), 1);
   });
 
   console.log('Bo ca kiem HANH VI v577: hop Khop tay va Huy phieu ket (Loan Anh, Ms.Dung)');
