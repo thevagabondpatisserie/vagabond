@@ -902,20 +902,27 @@ def _dem_kenh_khac_ngay(tu_ngay, den_ngay):
 	khong hoi co so du lieu lan hai. Hai duong dem doc lap la hai luat, va hai
 	luat se lech nhau vao mot ngay khong ai doan truoc.
 	"""
+	# v576 (Codex #440): đếm theo NGÀY BÁN GỐC, không theo posting_date.
+	# Bill hàng tặng duyệt hôm sau (hay kế toán ghi sổ bill cũ) đổi
+	# posting_date sang ngày ghi sổ; đọc posting_date thì bánh đã bán biến
+	# khỏi tổng mùa vụ khi ngày ghi sổ ra ngoài mùa, và lại mở bán thêm.
+	from vagabond import ngay_ban
+
+	ngay = ngay_ban.bieu_ngay_sql("si")
 	try:
 		r = frappe.db.sql(
-			"""select sii.item_code as ma, si.posting_date as ngay,
+			"""select sii.item_code as ma, """ + ngay + """ as ngay,
 			       sum(sii.qty) as sl, si.custom_nguon as nguon,
 			       si.custom_pancake_display_id as ma_don
 			from `tabSales Invoice Item` sii
 			join `tabSales Invoice` si on si.name = sii.parent
 			where si.docstatus < 2
 			  and ifnull(si.vgb_huy, 0) = 0
-			  and si.posting_date between %s and %s
+			  and """ + ngay_ban.dk_khoang_sql("si") + """
 			  and lower(ifnull(si.custom_nguon, '')) not in ('', 'pancake')
-			group by sii.item_code, si.posting_date, si.name,
+			group by sii.item_code, """ + ngay + """, si.name,
 			         si.custom_nguon, si.custom_pancake_display_id""",
-			(getdate(tu_ngay), getdate(den_ngay)),
+			{"tu": getdate(tu_ngay), "den": getdate(den_ngay)},
 			as_dict=True,
 		)
 	except Exception:

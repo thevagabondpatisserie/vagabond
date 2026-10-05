@@ -967,6 +967,14 @@ for _dt_tb, _sk_tb, _ham_tb in (
 	_cu_tb = doc_events.setdefault(_dt_tb, {}).get(_sk_tb, [])
 	doc_events[_dt_tb][_sk_tb] = ([_cu_tb] if isinstance(_cu_tb, str) else list(_cu_tb)) + [_ham_tb]
 del _dt_tb, _sk_tb, _ham_tb, _cu_tb
+
+# v573 (Codex #438): ô Ngày bán tại quầy chỉ máy được ghi, Desk/API gửi vào bị bỏ.
+# Chèn TRƯỚC hàm cuối (v536 chốt dien_ma_khach_hoa_don phải đứng cuối chuỗi).
+_cu_nb = doc_events.setdefault("Sales Invoice", {}).get("validate", [])
+_cu_nb = [_cu_nb] if isinstance(_cu_nb, str) else list(_cu_nb)
+_cu_nb.insert(max(len(_cu_nb) - 1, 0), "vagabond.ngay_ban.chan_ghi_tay")
+doc_events["Sales Invoice"]["validate"] = _cu_nb
+del _cu_nb
 scheduler_events.setdefault("hourly", []).append("vagabond.tru_kho_bu.quet_moi_gio")
 
 # v562 (#410): bắn tin Zalo. Mỗi giờ gửi bản gộp tin hoãn trong giờ im.

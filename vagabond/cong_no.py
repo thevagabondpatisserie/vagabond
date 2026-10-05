@@ -545,10 +545,17 @@ def _tien_da_ve_theo_hd(cac_si):
 
 
 @frappe.whitelist()
-def tao_phieu(khach=None, hoa_don=None, ghi_chu=""):
-	"""Gom nhung hoa don da tick thanh MOT phieu doi no."""
+def tao_phieu(khach=None, hoa_don=None, ghi_chu="", nhieu_khach=0):
+	"""Gom nhung hoa don da tick thanh MOT phieu doi no.
+
+	v575: nhieu_khach=1 cho gom hoa don cua nhieu phap nhan (Loan Anh
+	05/10/2026, Oshima's va anh Vu Oshima). `khach` la khach dung ten phieu,
+	phai co it nhat mot hoa don trong phieu. Xem gom_phap_nhan.py."""
+	from vagabond import gom_phap_nhan as gpn
+
 	_kiem_quyen_ban()
 	khach = (khach or "").strip()
+	nhieu_khach = bool(frappe.utils.cint(nhieu_khach))
 	if not khach:
 		frappe.throw("Chưa chọn khách hàng.")
 	if isinstance(hoa_don, str):
@@ -578,18 +585,18 @@ def tao_phieu(khach=None, hoa_don=None, ghi_chu=""):
 			frappe.throw("Hoá đơn %s không phải hoá đơn công nợ." % name)
 		# Chu no that nam o vgb_khach_no neu ke toan da gan lai sau khi ghi
 		# so - cot do uu tien hon customer, giong ben ds_khach_no.
-		if si.get("vgb_khach_no"):
-			si.customer = si.vgb_khach_no
-		if (si.customer or "") != khach:
-			frappe.throw("Hoá đơn %s không phải của khách này." % name)
 		dong.append(
 			{
 				"hoa_don": name,
+				"khach": gpn.chu_no(si.customer, si.get("vgb_khach_no")),
 				"ngay": si.posting_date,
 				"nguon": si.custom_nguon or "",
 				"so_tien": flt(si.grand_total),
 			}
 		)
+	loi, _cac = gpn.kiem_khach(khach, [(d["hoa_don"], d["khach"]) for d in dong], nhieu_khach)
+	if loi:
+		frappe.throw(loi)
 	doc = frappe.new_doc("Vagabond Cong No")
 	doc.ma_phieu = _sinh_ma_cn()
 	doc.khach = khach
@@ -690,6 +697,12 @@ def ds_phieu(trang_thai=None):
 				fields=["parent", "hoa_don"], limit_page_length=0):
 			hd_phieu.setdefault(x.parent, []).append(x.hoa_don)
 	thieu = _hd_chua_co_phieu_thu([h for v in hd_phieu.values() for h in v])
+	# v575: phieu gom nhieu phap nhan thi noi ra tren danh sach.
+	khach_dong = {}
+	if ds:
+		for x in frappe.get_all("Vagabond Cong No Dong", filters={"parent": ["in", [r.name for r in ds]]},
+				fields=["parent", "khach"], limit_page_length=0):
+			khach_dong.setdefault(x.parent, []).append(x.khach)
 	for r in ds:
 		g = sepay.get(str(r.ma_phieu or "").upper()) or {}
 		r["sepay"] = flt(g.get("nhan"))
@@ -698,12 +711,28 @@ def ds_phieu(trang_thai=None):
 		r["thieu_phieu_thu"] = len([h for h in hd_phieu.get(r.name, []) if h in thieu])
 		r["het_han"] = bool(r.han_qr and getdate(r.han_qr) < hom_nay)
 		r["so_hd"] = frappe.db.count("Vagabond Cong No Dong", {"parent": r.name})
+		r["so_khach"] = len(set([k for k in khach_dong.get(r.name, []) if k and k != r.khach])) + 1
 	return {"phieu": ds}
+
+
+def _cac_khach_phieu(doc):
+	"""v575: cac phap nhan trong phieu, kem ten, so hoa don, so tien."""
+	from vagabond import gom_phap_nhan as gpn
+
+	dong = [{"khach": d.get("khach"), "so_tien": d.so_tien} for d in doc.dong]
+	ra = gpn.gom_theo_khach(dong, doc.khach)
+	ten = {r.name: r.customer_name for r in frappe.get_all("Customer",
+		filters={"name": ["in", [x["khach"] for x in ra]]}, fields=["name", "customer_name"], limit_page_length=0)}
+	for x in ra:
+		x["ten"] = ten.get(x["khach"]) or x["khach"]
+	return ra
 
 
 @frappe.whitelist()
 def xem_phieu(name):
 	"""Chi tiet mot phieu doi no kem duong dan ma QR."""
+	from vagabond import gom_phap_nhan as gpn
+
 	_kiem_quyen_ban()
 	doc = frappe.get_doc("Vagabond Cong No", name)
 	sepay = _sepay_cn(doc.ma_phieu)
@@ -729,9 +758,11 @@ def xem_phieu(name):
 		# si hay chuyen theo noi dung cua ho chu khong theo noi dung minh dat
 		# (ca OSHIMA 11/08/2026), nen tach bang TAI KHOAN moi chac.
 		"qr": tai_khoan.tk_phieu_no(),
+		"cac_khach": _cac_khach_phieu(doc),
 		"dong": [
 			{
 				"hoa_don": d.hoa_don,
+				"khach": gpn.khach_dong(d.get("khach"), doc.khach),
 				"ngay": str(d.ngay or ""),
 				"nguon": d.nguon or "",
 				"so_gtgt": _so_hd_gtgt(d.hoa_don),
@@ -1145,13 +1176,22 @@ def _phieu_html(name):
 			   "white-space:nowrap;" if khong_ngat else "", noi)
 		)
 
+	# v575: phieu gom nhieu phap nhan thi moi dong ghi kem ten khach cua
+	# chinh hoa don do, de ke toan ben khach biet bill nao cua ai.
+	cac_khach = d.get("cac_khach") or []
+	ten_khach_dong = {x["khach"]: x["ten"] for x in cac_khach}
+	nhieu = len(cac_khach) > 1
 	hang = []
 	for i, x in enumerate(d.get("dong") or [], 1):
+		o_hd = esc(x.get("hoa_don") or "-")
+		if nhieu:
+			o_hd += '<div style="font-size:9.5px;color:#555;white-space:normal">%s</div>' % esc(
+				ten_khach_dong.get(x.get("khach")) or x.get("khach") or "")
 		hang.append(
 			"<tr>"
 			+ _td(str(i), "center")
 			+ _td(_ngay_vn(x.get("ngay")) or "-", "center", khong_ngat=True)
-			+ _td(esc(x.get("hoa_don") or "-"), khong_ngat=True)
+			+ _td(o_hd, khong_ngat=True)
 			+ _td(esc(x.get("so_gtgt") or "-"), "center", khong_ngat=True)
 			+ _td(_tien_vn(x.get("so_tien")), "right", dam=True, khong_ngat=True)
 			+ "</tr>"
@@ -1235,6 +1275,12 @@ def _phieu_html(name):
 		+ (
 			_o_tt("Mã khách hàng:", esc(d.get("khach") or ""))
 			if (d.get("khach") or "") != (d.get("ten_khach") or "")
+			else ""
+		)
+		+ (
+			_o_tt("Gồm hoá đơn của:", "<br>".join(
+				"%s (%s hoá đơn)" % (esc(x["ten"]), x["so_hd"]) for x in cac_khach))
+			if nhieu
 			else ""
 		)
 		+ _o_tt("Số hoá đơn trong phiếu:", str(len(d.get("dong") or [])))
@@ -1538,7 +1584,15 @@ def khop_tay(name, so_tien, ma_giao_dich="", ghi_chu="", ma_lan=""):
 	if not g and truoc == "Da thu du" and chua_pt:
 		_chan_sua_vuong_nhap(doc.ma_phieu or doc.name, chua_pt)
 	lap = None
+	tung_hd = False
 	if g:
+		# v576 (Codex #442): phiếu gom nhiều pháp nhân thì không lập được một
+		# phiếu thu gộp (ERPNext buộc một khách), đi đường từng hoá đơn.
+		from vagabond import gom_phap_nhan as gpn
+
+		tung_hd = gpn.khop_tung_hoa_don([r.customer for r in frappe.get_all("Sales Invoice",
+			filters={"name": ["in", cac_hd or [""]]}, fields=["name", "customer"], limit_page_length=0)])
+	if g and not tung_hd:
 		lap = tt.lap_phieu_thu_theo_gd(
 			[h for h in cac_hd if h in chua_pt], g, so_tien,
 			"Theo phiếu đòi nợ %s. %s" % (doc.ma_phieu or doc.name, (ghi_chu or "").strip()),
@@ -1548,7 +1602,16 @@ def khop_tay(name, so_tien, ma_giao_dich="", ghi_chu="", ma_lan=""):
 	# SePay đã ghi) thì không cộng lại: đây là lần sửa phiếu thu, không phải
 	# tiền mới.
 	da_ghi = set(chiem_sao_ke.tach_gd(doc.get("ma_gd")))
-	if g:
+	tien_lap = None
+	if g and tung_hd:
+		# Đường từng hoá đơn: tiền lấy theo giao dịch, không quá phần giao
+		# dịch còn chưa phân bổ. Giao dịch đã ghi rồi thì không cộng thêm,
+		# nhưng vẫn lập phiếu thu cho hoá đơn còn thiếu (làm lại việc cũ).
+		ghi_roi = bool({g.name, g.reference_number or ""} & da_ghi)
+		con_gd = flt(g.get("unallocated_amount")) if g.get("unallocated_amount") is not None else so_tien
+		moi = 0.0 if ghi_roi else min(so_tien, con_gd)
+		tien_lap = so_tien if ghi_roi else moi
+	elif g:
 		moi = 0.0 if ({g.name, g.reference_number or ""} & da_ghi) else flt(lap.get("tien"))
 	else:
 		moi = so_tien
@@ -1567,7 +1630,9 @@ def khop_tay(name, so_tien, ma_giao_dich="", ghi_chu="", ma_lan=""):
 	# Trước đây dấu đã commit trước nên lần thử lại chỉ nhận "đã làm rồi".
 	loi = []
 	if not lap and (truoc != "Da thu du" or chua_pt):
-		ghi_thu_cho_phieu(doc, "Chuyển khoản", "Kế toán khớp tay.", so_tien=moi,
+		ghi_thu_cho_phieu(doc, "Chuyển khoản",
+			"Kế toán khớp tay%s." % (" giao dịch %s" % (g.reference_number or g.name) if g else ""),
+			so_tien=moi if tien_lap is None else tien_lap,
 			khoa="tay:%s" % (ma_lan or frappe.generate_hash(length=8)))
 		loi = doc.flags.loi_thu or []
 	# Codex #437 vòng 6: có phiếu thu thì ghi ĐÚNG số máy chủ đã phân bổ,
