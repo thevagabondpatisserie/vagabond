@@ -1757,3 +1757,10 @@ lần đầu đếm ngoại lệ ra 0 trên 14 đột biến, tưởng bộ ki�
   #444 vòng 4). Đặt ở hook `on_submit` của doctype, nút app không gọi riêng.
 - Luật "chỉ gửi khi sổ sạch" đặt ở hàm gọi tự động thì nút gửi tay vẫn lách
   qua. Đặt điều kiện trong CỬA gửi chung mà mọi lối đều đi qua.
+- "Lập hỏng thì vẫn ghi nhận tiền, ghi lý do" chỉ đúng khi còn đường làm lại.
+  SePay gạch giao dịch LỚN hơn phiếu: khớp lại hỏng y như cũ, huỷ thì bị cấm vì
+  đã có `ma_gd`, phiếu kẹt vĩnh viễn (Codex #444 vòng 5). Luật cấm huỷ phải
+  hỏi giao dịch đã sinh chứng từ chưa, không chỉ "đã gạch hay chưa".
+- Hook chạy trong `on_submit` mà nuốt mọi lỗi thì deadlock, chờ khoá, mất kết
+  nối cũng bị nuốt: bút toán đã lùi mà màn báo ghi sổ xong. Dùng
+  `vagabond.loi_csdl.chet_giao_dich` để ném lại các lỗi đó.
