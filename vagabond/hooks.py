@@ -669,6 +669,10 @@ doc_events = {
 			# v576 (Codex #443): o nhom chia giao dich chi may ghi. Doc
 			# thu_tien.chan_ghi_tay_nhom.
 			"vagabond.thu_tien.chan_ghi_tay_nhom",
+			# v577 (Codex #444 vong 3): phieu thu nhap hong da GO khi huy phieu
+			# doi no (khoa GO:THU:) khong ghi so duoc, khong doi khoa lai duoc.
+			# Doc thu_tien.chan_nhap_da_go.
+			"vagabond.thu_tien.chan_nhap_da_go",
 		],
 		"before_submit": [
 			# Chung tu qua NGAN HANG phai co Uy nhiem chi dinh kem. Chi Dung
@@ -692,7 +696,13 @@ doc_events = {
 			# ma. Codex bat o PR #197.
 			"vagabond.dat_banh.chan_phieu_dat_banh",
 		],
-		"on_submit": "vagabond.hoan_tien.khi_ghi_so_phieu_chi",
+		"on_submit": [
+			"vagabond.hoan_tien.khi_ghi_so_phieu_chi",
+			# v577 (Codex #444 vong 4): phieu thu vao so tren Desk hay app deu
+			# xep thu bao "da nhan thanh toan" khi phieu doi no sach so. Doc
+			# thu_tien.gui_thu_khi_ghi_so.
+			"vagabond.thu_tien.gui_thu_khi_ghi_so",
+		],
 	},
 	# Phieu dat banh o cua khach (anh Viet chot 05/09/2026, issue #195).
 	#
@@ -984,3 +994,7 @@ scheduler_events.setdefault("hourly", []).append("vagabond.tru_kho_bu.quet_moi_g
 scheduler_events.setdefault("hourly", []).append("vagabond.kenh_zalo.xa_gio_im")
 # Codex #425: gửi bù tin Zalo còn Chờ gửi (hàng đợi hỏng lúc xếp).
 scheduler_events.setdefault("cron", {}).setdefault("*/5 * * * *", []).append("vagabond.kenh_zalo.quet_cho_gui")
+
+# v577 (Codex #444 vong 7): luoi an toan cho thu bao nhan tien khi viec nen
+# xep sau commit bi mat (Redis loi). Doc cong_no.quet_thu_bao_bo_lo.
+scheduler_events.setdefault("hourly", []).append("vagabond.cong_no.quet_thu_bao_bo_lo")

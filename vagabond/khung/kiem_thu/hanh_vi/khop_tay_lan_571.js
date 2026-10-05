@@ -41,13 +41,16 @@ function dung_moi(hanh) {
     go: function () {}, money: function (x) { return String(x); }, hsNgayVn: function (x) { return x; },
   };
   vm.runInNewContext(SRC, that, { filename: '21-ke-toan-khac.js' });
+  /* v577: loi "Khong thay giao dich" chi danh cho ke toan va bat dinh UNC.
+     Ca nay do ma lan, nen hop dinh UNC tra ngay mot tep. */
+  that.cnHoiUnc = function () { return Promise.resolve(['/private/files/unc.jpg']); };
   return { that: that, goi: goi };
 }
 
 var CA = [
   ['bam lai sau khi mat phan hoi gui dung ma lan cu, lan moi co ma moi', async function () {
     var m = dung_moi(function (n) { return n === 1 ? Promise.reject(new Error('mat ket noi')) : Promise.resolve({ ok: 1, loi_nhan: 'ok' }); });
-    var d = { name: 'DNTT-1', ma_phieu: 'DNTT-1', tong_tien: 7600000, con_thieu: 7600000 };
+    var d = { name: 'DNTT-1', ma_phieu: 'DNTT-1', tong_tien: 7600000, con_thieu: 7600000, ke_toan: 1 };
     await m.that.cnKhopTay(d);   // mat phan hoi
     await m.that.cnKhopTay(d);   // bam lai
     await m.that.cnKhopTay(d);   // lan khop moi sau khi da thanh cong
@@ -57,7 +60,7 @@ var CA = [
   }],
   ['hai lan cham cung luc truoc khi toi may chu dung chung mot ma lan', async function () {
     var m = dung_moi(function () { return Promise.resolve({ ok: 1, loi_nhan: 'ok' }); });
-    var d = { name: 'DNTT-2', ma_phieu: 'DNTT-2', tong_tien: 7600000, con_thieu: 7600000 };
+    var d = { name: 'DNTT-2', ma_phieu: 'DNTT-2', tong_tien: 7600000, con_thieu: 7600000, ke_toan: 1 };
     // KHONG await lan luot: ca hai lan cham deu dang cho tim_giao_dich_thu.
     var a = m.that.cnKhopTay(d), b = m.that.cnKhopTay(d);
     await Promise.all([a, b]);

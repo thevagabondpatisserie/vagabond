@@ -17487,12 +17487,21 @@ async function scrCnPhieu(name) {
   if (du) {
     html += '<div class="card" style="padding:18px;text-align:center;border:2px solid #16a34a;background:#f0fdf4">' +
       '<div style="font-size:34px">✅</div><div style="font-size:18px;font-weight:800;color:#15803d">ĐÃ NHẬN ĐỦ ' + money(daNhan) + ' đ</div>' +
-      '<div style="font-size:13px;color:#15803d;margin-top:4px">Công nợ của khách này đã sạch.</div></div>';
+      /* v577 (Codex #444 F1): tiền đã về đủ nhưng phiếu thu còn NHÁP thì sổ
+         cái vẫn ghi nợ; nói đúng việc còn lại, không báo công nợ đã sạch. */
+      (d.cho_ghi_so
+        ? '<div data-cnchoghiso="1" style="font-size:13px;color:#15803d;margin-top:4px">Tiền đã về. ' + d.cho_ghi_so +
+          ' hoá đơn đang ở tab Tiền đã về, chờ kế toán đính UNC khách gửi và ghi sổ; tới lúc đó sổ cái vẫn ghi khách nợ. Thư báo nhận tiền gửi khách khi ghi sổ xong.</div></div>'
+        : '<div style="font-size:13px;color:#15803d;margin-top:4px">Công nợ của khách này đã sạch.</div></div>');
   } else {
     if (thieuPT) {
       html += '<div class="card" style="padding:13px 14px;border:1.5px solid #fcd34d;background:#fffbeb;color:#92400e;font-size:13.5px;line-height:1.55">' +
         '<b>⚠ Phiếu đã ghi nhận ' + money(daNhan) + ' đ nhưng ' + thieuPT + ' hoá đơn chưa có phiếu thu</b>, nên khách vẫn nằm ở tab Đang nợ. ' +
-        'Bấm <b>Khớp tay</b> và chọn đúng giao dịch khách chuyển: máy lập một phiếu thu nháp cho cả các hoá đơn, chuyển chúng sang mục Tiền đã về.</div>';
+        'Bấm <b>Khớp tay</b> và chọn đúng giao dịch khách chuyển: máy lập một phiếu thu nháp cho cả các hoá đơn, chuyển chúng sang mục Tiền đã về.' +
+        /* v577 (ca Ms.Dung DNTT-26-10-00004): khách chuyển gộp nhiều hơn phiếu
+           thì giao dịch không khớp được phiếu này; huỷ rồi gom lại đủ hoá đơn. */
+        (d.huy_duoc ? ' Giao dịch khách chuyển lớn hơn phiếu (trả gộp cho hoá đơn khác, kể cả pháp nhân khác) thì bấm <b>Huỷ phiếu</b> rồi gom lại đủ các hoá đơn khách đã trả.' : '') +
+        '</div>';
     }
   }
   /* Codex #437 F2: tien da ve du (con_thieu 0) ma chi thieu phieu thu thi
@@ -17548,7 +17557,7 @@ async function scrCnPhieu(name) {
     '<button class="btn gh" id="cnKiem" style="flex:1;margin:0">🔄 Đối chiếu SePay</button>' +
     (du ? '<button class="btn gh" id="cnThu" style="flex:1;margin:0">✉️ Thư báo</button>'
         : '<button class="btn gh" id="cnKhop" style="flex:1;margin:0">🔎 Khớp tay</button>') +
-    (du || d.trang_thai === 'Huy' ? '' : '<button class="btn gh" id="cnHuy" style="flex:0 0 34%;margin:0;color:#b3261e">Huỷ phiếu</button>') +
+    (du || d.trang_thai === 'Huy' || d.huy_duoc === 0 ? '' : '<button class="btn gh" id="cnHuy" style="flex:0 0 34%;margin:0;color:#b3261e">Huỷ phiếu</button>') +
     '</div>';
   var b = frame('Phiếu ' + h(d.ma_phieu), html, { footer: foot });
   Array.prototype.forEach.call(document.querySelectorAll('[data-cnck]'), function (el) {
@@ -17563,6 +17572,7 @@ async function scrCnPhieu(name) {
   if (nthu) nthu.onclick = async function () {
     var xt;
     try { xt = await api('vagabond.cong_no.xem_truoc_thu', { name: name }); } catch (e) { return baoTin((e && e.message) || 'Không xem trước được'); }
+    if (xt.chua_sach) return baoTin('Chưa gửi thư báo được: ' + xt.chua_sach + '.');
     if (!xt.email) return baoTin('Khách này chưa có email trên hệ nên chưa gửi thư báo được. Vào Danh sách khách hàng điền email rồi quay lại.');
     if (!await hoiCo('Gửi thư báo nhận tiền', 'Gửi thư xác nhận đã nhận ' + money(d.sepay || d.tong_tien) + ' đ tới ' + xt.email + '?', 'Gửi')) return;
     busy(true);
@@ -17578,15 +17588,32 @@ async function scrCnPhieu(name) {
   };
   document.getElementById('cnKiem').onclick = async function () {
     busy(true);
-    try { var r = await api('vagabond.cong_no.kiem_sepay', { name: name }); busy(false); toast(r.sepay >= r.tong_tien - 1 ? 'Tiền đã về đủ, đã xoá nợ.' : 'SePay mới nhận ' + money(r.sepay) + ' đ.', 4000); go(function () { scrCnPhieu(name); }, true); }
+    /* Codex #444 vòng 2: SePay chỉ lập phiếu thu NHÁP; còn hoá đơn chờ ghi sổ
+       thì không báo đã xoá nợ (cùng nguồn cho_ghi_so với thẻ trên màn). */
+    try { var r = await api('vagabond.cong_no.kiem_sepay', { name: name }); busy(false);
+      /* Codex #444 vòng 3: lập phiếu thu nháp hỏng thì hoá đơn KHÔNG ở tab
+         Tiền đã về; chỉ đường Khớp tay trước (thieu_phieu_thu), rồi mới tới chờ ghi sổ. */
+      /* Codex #444 vong 5: lap phieu thu hong thi noi dung ly do may chu tra. */
+      if (r.loi_lap && r.loi_lap.length) {
+        await baoTin('SePay thấy tiền nhưng chưa lập được phiếu thu: ' + r.loi_lap.join('; ') +
+          '. Giao dịch lớn hơn phiếu (khách trả gộp) thì bấm Huỷ phiếu rồi gom lại đủ hoá đơn khách đã trả; còn lại bấm Khớp tay.');
+        go(function () { scrCnPhieu(name); }, true); return;
+      }
+      toast(r.sepay >= r.tong_tien - 1
+        ? (r.thieu_phieu_thu ? 'Tiền đã về đủ nhưng ' + r.thieu_phieu_thu + ' hoá đơn chưa có phiếu thu. Bấm Khớp tay để làm lại.'
+          : r.cho_ghi_so ? 'Tiền đã về đủ. ' + r.cho_ghi_so + ' hoá đơn chờ kế toán đính UNC và ghi sổ ở tab Tiền đã về.'
+          : 'Tiền đã về đủ, đã xoá nợ.')
+        : 'SePay mới nhận ' + money(r.sepay) + ' đ.', 4500); go(function () { scrCnPhieu(name); }, true); }
     catch (e) { busy(false); toast((e && e.message) || 'Không đối chiếu được', 4000); }
   };
   var nh = document.getElementById('cnHuy');
   if (nh) nh.onclick = async function () {
-    var ok = await confirmSheet('Huỷ phiếu ' + d.ma_phieu, 'Các hoá đơn trong phiếu sẽ quay lại danh sách chờ gom. Mã QR này sẽ không dùng nữa.', 'Huỷ phiếu');
+    var ok = await confirmSheet('Huỷ phiếu ' + d.ma_phieu, 'Các hoá đơn trong phiếu sẽ quay lại danh sách chờ gom. Mã QR này sẽ không dùng nữa.' +
+      (d.so_nhap_hong ? '\nMáy gỡ ' + d.so_nhap_hong + ' phiếu thu nháp hỏng của lần khớp tay trước khỏi hoá đơn (chưa vào sổ, giữ lại để tra).' : ''), 'Huỷ phiếu');
     if (!ok) return;
     busy(true);
-    try { await api('vagabond.cong_no.huy_phieu', { name: name, ly_do: S.me.full_name || S.user }); busy(false); toast('Đã huỷ phiếu.'); go(scrCongNo); }
+    try { var rh = await api('vagabond.cong_no.huy_phieu', { name: name, ly_do: S.me.full_name || S.user }); busy(false);
+      toast('Đã huỷ phiếu.' + (rh && rh.da_go_nhap && rh.da_go_nhap.length ? ' Đã gỡ ' + rh.da_go_nhap.length + ' phiếu thu nháp hỏng khỏi hoá đơn.' : ''), 4000); go(scrCongNo); }
     catch (e) { busy(false); toast((e && e.message) || 'Không huỷ được', 4000); }
   };
 }
@@ -23258,7 +23285,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '576';
+var APPVER = '577';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -39778,44 +39805,85 @@ async function cnKhopTay(d) {
   var maLan = CN_LAN_CHO[d.name] ||
     (CN_LAN_CHO[d.name] = Date.now().toString(36) + Math.random().toString(36).slice(2, 8));
   var con = d.con_thieu || d.tong_tien;
-  var ds;
-  try { ds = await api('vagabond.cong_no.tim_giao_dich_thu', { so_ngay: 120, so_tien: Math.round(con) }); }
-  catch (e) { return baoTin((e && e.message) || 'Không đọc được sao kê'); }
+  /* v577 (ca Loan Anh 05/10/2026, DNTT-26-10-00004): KHONG loc dung so tien
+     nua. Kiet Tac chuyen 9.550.000 d cho phieu 8.450.000 d nen giao dich that
+     khong hien, nguoi bam buoc phai chon "Khong thay giao dich". Nay dua MOI
+     giao dich con tien chua noi, khoan dung so xep dau.
+     Codex #444 F2: may chu tra toi da 300 dong moi nhat; TIM thi gui chu len
+     may chu de tim tren TOAN BO, khong loc tren danh sach da cat. */
+  var tuKhoa = '', rows, ds, chon;
+  for (;;) {
+    var ts = { so_ngay: 120, so_tien: Math.round(con), chua_noi: 1 };
+    if (tuKhoa) ts.tu_khoa = tuKhoa;
+    try { ds = await api('vagabond.cong_no.tim_giao_dich_thu', ts); }
+    catch (e) { return baoTin((e && e.message) || 'Không đọc được sao kê'); }
+    rows = ds.rows || [];
+    var lc = [{ k: '@tim', nhan: tuKhoa ? 'Tìm lại (đang tìm "' + tuKhoa + '")' : 'Tìm trong mọi giao dịch chưa nối',
+      mo_ta: 'Gõ tên khách, nội dung chuyển khoản, mã giao dịch hoặc số tiền; máy tìm trên toàn bộ 4 tháng.', icon: '🔎' }];
+    rows.forEach(function (r) {
+      var tien = r.con != null ? r.con : r.tien;
+      lc.push({
+        k: r.ma,
+        nhan: money(tien) + ' đ · ' + hsNgayVn(String(r.ngay).slice(0, 10)) + (r.dung_so ? ' · đúng số tiền' : ''),
+        mo_ta: (r.noi_dung || '(không có nội dung)').slice(0, 140),
+        icon: r.dung_so ? '✅' : '⬇️'
+      });
+    });
+    lc.push({ k: '@go_tay', nhan: 'Không thấy giao dịch nào khớp',
+      mo_ta: d.ke_toan ? 'Kế toán: tự gõ số tiền đã nhận, đính uỷ nhiệm chi khách gửi, máy ghi sổ phiếu thu ngay.'
+        : 'Chỉ kế toán làm được. Bấm để xem cần làm gì.', icon: '✏️' });
 
-  var lc = (ds.rows || []).slice(0, 25).map(function (r) {
-    return {
-      k: r.ma,
-      nhan: money(r.tien) + ' đ · ' + hsNgayVn(String(r.ngay).slice(0, 10)),
-      mo_ta: (r.noi_dung || '(không có nội dung)').slice(0, 110),
-      icon: '⬇️'
-    };
-  });
-  lc.push({ k: '@go_tay', nhan: 'Không thấy giao dịch nào khớp', mo_ta: 'Tự gõ số tiền đã nhận, không gắn giao dịch nào.', icon: '✏️' });
+    chon = await hoiChon('Khớp tay phiếu ' + d.ma_phieu,
+      (tuKhoa ? 'Kết quả tìm "' + h(tuKhoa) + '": ' + (ds.tong || rows.length) + ' giao dịch. '
+        : 'Giao dịch tiền về chưa nối trong 4 tháng, khoản đúng ' + money(con) + ' đ xếp đầu. ') +
+      (ds.con_nua ? 'Đang hiện ' + rows.length + ' khoản mới nhất, còn ' + ds.con_nua + ' khoản: bấm Tìm để tìm hết. '
+        : 'Khách chuyển gộp nhiều phiếu thì số tiền khác: gõ tên khách hoặc số tiền để tìm.'),
+      lc, null);
+    if (!chon) return;
+    if (chon !== '@tim') break;
+    var q = await hoiChu('Tìm giao dịch', 'Tên khách, nội dung chuyển khoản, mã giao dịch hoặc số tiền.', tuKhoa, { goi_y: 'Kiet Tac' });
+    if (q === null) return;
+    tuKhoa = String(q || '').trim();
+  }
 
-  var chon = await hoiChon('Khớp tay phiếu ' + d.ma_phieu,
-    'Đang lọc giao dịch tiền về đúng ' + money(con) + ' đ trong 4 tháng. Chọn giao dịch của khách này.',
-    lc, null);
-  if (!chon) return;
-
-  var soTien = con, maGd = '';
+  var soTien = con, maGd = '', unc = null, lonHon = 0;
   if (chon === '@go_tay') {
+    /* v577: loi nay ghi so phieu thu NGAY, ma phieu thu ngan hang phai co UNC
+       va chi ke toan ghi so. Nguoi khac bam vao thi chi duong, khong goi may chu. */
+    if (!d.ke_toan) {
+      return baoTin('Khớp tay không gắn giao dịch ngân hàng là ghi sổ phiếu thu ngay, nên chỉ kế toán làm được và phải đính uỷ nhiệm chi khách gửi.\n\n' +
+        'Mở lại Khớp tay, gõ tên khách hoặc số tiền vào ô tìm: khách hay chuyển gộp nhiều phiếu nên số tiền có thể khác số phiếu. ' +
+        'Giao dịch lớn hơn phiếu vì khách trả gộp cho hoá đơn khác thì huỷ phiếu này, gom lại đủ hoá đơn rồi khớp. Vẫn không thấy thì báo kế toán.', 'Khớp tay');
+    }
     soTien = await hoiSo('Khớp tay', 'Số tiền thực nhận cho phiếu này.', String(Math.round(con)));
     if (!soTien) return;
+    unc = await cnHoiUnc(d, soTien);
+    if (!unc) return;
   } else {
     maGd = chon;
-    var g = (ds.rows || []).filter(function (x) { return x.ma === chon; })[0] || {};
-    soTien = Math.round(g.tien || con);
+    var g = rows.filter(function (x) { return x.ma === chon; })[0] || {};
+    var tienGd = Math.round(g.con != null ? g.con : (g.tien || con));
+    /* Gui so khong vuot phieu; giao dich lon hon thi may chu noi ro phai lam gi. */
+    soTien = Math.min(tienGd, Math.round(con));
+    lonHon = tienGd > con + 1 ? tienGd : 0;
   }
   var gc = await hoiChu('Khớp tay', 'Ghi chú vì sao phải khớp tay (để sau này còn truy).', '', { nhieu_dong: 1, goi_y: 'Khách chuyển từ tài khoản công ty, nội dung không mang mã phiếu' });
   if (gc === null) return;
 
   if (!await hoiCo('Xác nhận khớp tay',
     'Phiếu ' + d.ma_phieu + '\nGhi nhận đã thu ' + money(soTien) + ' đ' +
-    (maGd ? '\nGắn với giao dịch ' + maGd : '\nKhông gắn giao dịch nào') +
-    '\n\nCông nợ của khách sẽ được cập nhật theo số này. Nếu đủ, máy gửi luôn thư báo nhận tiền cho khách.', 'Khớp')) return;
+    (maGd ? '\nGắn với giao dịch ' + maGd : '\nKhông gắn giao dịch nào, kèm ' + unc.length + ' tệp uỷ nhiệm chi') +
+    (lonHon ? '\nGiao dịch ' + money(lonHon) + ' đ lớn hơn số phiếu còn phải thu, máy sẽ kiểm phần dư.' : '') +
+    /* Codex #444 vong 5: gan giao dich thi chi lap phieu thu NHAP; thu bao
+       cho toi khi ke toan ghi so, dung noi la da gui. */
+    (maGd
+      ? '\n\nMáy lập phiếu thu nháp, chuyển hoá đơn sang tab Tiền đã về. Sổ cái vẫn ghi khách nợ và thư báo nhận tiền CHƯA gửi cho tới khi kế toán đính UNC và ghi sổ.'
+      : '\n\nPhiếu thu ghi sổ ngay theo số này. Nếu đủ, máy gửi thư báo nhận tiền cho khách.'), 'Khớp')) return;
   busy(true);
   try {
-    var kq = await api('vagabond.cong_no.khop_tay', { name: d.name, so_tien: soTien, ma_giao_dich: maGd, ghi_chu: gc || '', ma_lan: maLan });
+    var ts = { name: d.name, so_tien: soTien, ma_giao_dich: maGd, ghi_chu: gc || '', ma_lan: maLan };
+    if (unc) ts.unc = JSON.stringify(unc);
+    var kq = await api('vagabond.cong_no.khop_tay', ts);
     delete CN_LAN_CHO[d.name];
     busy(false);
     /* v571: co lap phieu thu hay co loi thi bao bang hop, khong toast troi
@@ -39824,6 +39892,34 @@ async function cnKhopTay(d) {
     else toast(kq.loi_nhan, 5500);
   } catch (e) { busy(false); return baoTin((e && e.message) || 'Khớp tay lỗi'); }
   go(function () { scrCnPhieu(d.name); }, true);
+}
+
+/* v577: hop dinh uy nhiem chi cho lan ke toan khop tay KHONG gan giao dich.
+   Dung chung bo tai tep cua man Cong no (43-tep-dinh-kem.js). Tra list duong
+   dan tep da tai len, hoac null neu thoi. */
+function cnHoiUnc(d, soTien) {
+  return new Promise(function (xong) {
+    var id = 'cnkunc';
+    var o = { nhan: '📎 Chọn ảnh chuyển khoản khách gửi', goi_y: 'Ảnh chụp màn hình chuyển khoản hoặc tệp PDF uỷ nhiệm chi khách gửi.', style: 'margin-top:0' };
+    tdkNap(id, []);
+    var than = '<div style="font-size:13.5px;color:#374151;line-height:1.6;margin-bottom:10px">' +
+      'Phiếu <b>' + h(d.ma_phieu) + '</b> · ' + money(soTien) + ' đ<br>' +
+      '<span style="color:#667085">Không gắn giao dịch ngân hàng nên máy ghi sổ phiếu thu ngay. Phiếu thu tiền về ngân hàng phải có uỷ nhiệm chi khách gửi.</span></div>' +
+      tdkKhoi(id, o);
+    var k = hopKhung('Uỷ nhiệm chi khách gửi', than,
+      '<button class="btn gh" data-cnkx style="flex:1;margin:0;min-height:44px">Thôi</button>' +
+      '<button class="btn" data-cnkok style="flex:2;margin:0;min-height:44px">Tiếp</button>');
+    tdkNoi(k.box, id, o);
+    var tra = function (v) { k.dong(); xong(v); };
+    k.box.onclick = function (e) {
+      if (e.target.closest('.x') || e.target.closest('[data-cnkx]')) return tra(null);
+      if (!e.target.closest('[data-cnkok]')) return;
+      var ds = (tdkDs(id) || []).filter(Boolean);
+      if (!ds.length) return baoTin('Chọn ảnh chuyển khoản khách gửi trước rồi bấm Tiếp.');
+      tra(ds);
+    };
+    k.ov.onclick = function (e) { if (e.target === k.ov) tra(null); };
+  });
 }
 
 

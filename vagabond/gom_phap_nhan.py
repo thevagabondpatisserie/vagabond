@@ -89,3 +89,22 @@ def khop_tung_hoa_don(cac_khach_hd):
 	khách một phiếu thu NHÁP cùng giao dịch, chung mã nhóm (vgb_nhom_gd),
 	vẫn chờ UNC khách gửi rồi kế toán ghi sổ như mọi lần khớp tay."""
 	return len({(k or "").strip() for k in (cac_khach_hd or []) if (k or "").strip()}) > 1
+
+
+def ds_email_thu(cac_khach, email_cua):
+	"""Email nhận thư báo đã nhận tiền của một phiếu. THUẦN (email_cua do người gọi đưa).
+
+	v577: phiếu gom nhiều pháp nhân thì gửi MỌI pháp nhân có email, khách
+	đứng tên trước, mỗi khách hỏi một lần, bỏ email trống và trùng (hai pháp
+	nhân dùng chung một hộp thư kế toán thì chỉ một bản).
+	"""
+	ra, da_hoi = [], set()
+	for k in cac_khach or []:
+		k = (k or "").strip()
+		if not k or k in da_hoi:
+			continue
+		da_hoi.add(k)
+		e = (email_cua(k) or "").strip()
+		if e and e.lower() not in {x.lower() for x in ra}:
+			ra.append(e)
+	return ra
