@@ -93,7 +93,10 @@ def _sepay_theo_ma_cn(ds_ma):
 		if RE_MA_CN.fullmatch(chuan) or RE_MA_DNTT.fullmatch(chuan):
 			theo_chuan[chuan] = goc
 	if not theo_chuan:
-		return {}
+		# v577 (bench #444): truoc day tra {} mot gia tri, noi goi go hai gia
+		# tri nen phieu co ma khong dung mau (DNTT-KT576-..., phieu nhap tay)
+		# lam xem_phieu va kiem_sepay no ValueError.
+		return {}, []
 	# Loc so bo o tang SQL cho nhe, roi loc lai chac chan o Python tren ban
 	# da chuan hoa. Loc SQL dung tien to vi dau gach co the bi ngan hang bo.
 	mau = "(%s)" % "|".join(
@@ -951,7 +954,7 @@ def huy_phieu(name, ly_do=""):
 	_kiem_quyen_ban()
 	doc = frappe.get_doc("Vagabond Cong No", name, for_update=True)
 	if doc.trang_thai == "Huy":
-		return {"ok": 1, "da_xoa_nhap": []}
+		return {"ok": 1, "da_go_nhap": []}
 	if doc.trang_thai == "Da thu du":
 		# v577 (ca Ms.Dung DNTT-26-10-00004): phiếu bị đánh dấu "đã thu đủ" bởi
 		# lần khớp tay hỏng (không gạch giao dịch, không lập được phiếu thu
@@ -962,17 +965,44 @@ def huy_phieu(name, ly_do=""):
 	nhap = _phieu_thu_cua_phieu(doc.name, 0)
 	from vagabond import thu_tien as tt
 
+	# Codex #444 vòng 2 (AGENTS QT-20): KHÔNG xoá. Gỡ nháp hỏng khỏi hoá đơn,
+	# đổi khoá sang "GO:" để không còn khớp mẫu phiếu này, ghi vết trên chính
+	# phiếu thu. Phiếu thu nháp ở lại để tra lần khớp hỏng.
 	with tt.nang_quyen_lap_phieu():
 		for ten in nhap:
-			frappe.delete_doc("Payment Entry", ten, ignore_permissions=True)
+			_go_nhap_hong(ten, doc.ma_phieu or doc.name)
 	doc.trang_thai = "Huy"
 	doc.ghi_chu = ((doc.ghi_chu or "") + "\nHuỷ: " + (ly_do or "")).strip()
 	doc.save(ignore_permissions=True)
 	if nhap:
-		doc.add_comment("Comment", "Huỷ phiếu, dọn %d phiếu thu nháp hỏng của các lần khớp trước: %s"
-			% (len(nhap), ", ".join(nhap)))
+		doc.add_comment("Comment", "Huỷ phiếu, gỡ %d phiếu thu nháp hỏng của các lần khớp trước khỏi hoá đơn "
+			"(giữ lại để tra, không ghi sổ): %s" % (len(nhap), ", ".join(nhap)))
 	frappe.db.commit()
-	return {"ok": 1, "da_xoa_nhap": nhap}
+	return {"ok": 1, "da_go_nhap": nhap}
+
+
+def ghi_chu_go_nhap(ma_phieu, hd):
+	"""Dòng ghi vết khi gỡ phiếu thu nháp hỏng khỏi hoá đơn. THUẦN.
+
+	hd: list (hoá đơn, số phân bổ) trước khi gỡ.
+	"""
+	ds = ", ".join("%s %s đ" % (t, _tien_vn(v)) for t, v in hd) or "không có"
+	return ("Gỡ khỏi hoá đơn (%s) khi huỷ phiếu đòi nợ %s: phiếu thu nháp hỏng của lần khớp tay trước, "
+		"thiếu uỷ nhiệm chi nên không ghi sổ được. Không ghi sổ phiếu này." % (ds, ma_phieu))
+
+
+def _go_nhap_hong(ten_pe, ma_phieu):
+	"""Gỡ một phiếu thu NHÁP hỏng khỏi hoá đơn, giữ phiếu và ghi vết (QT-20)."""
+	pe = frappe.get_doc("Payment Entry", ten_pe, for_update=True)
+	if int(pe.docstatus or 0) != 0:
+		return False
+	hd = [(r.reference_name, flt(r.allocated_amount)) for r in (pe.references or [])]
+	pe.set("references", [])
+	pe.reference_no = ("GO:" + (pe.reference_no or ""))[:140]
+	pe.remarks = (((pe.remarks or "") + "\n" + ghi_chu_go_nhap(ma_phieu, hd)).strip())[:1000]
+	pe.flags.ignore_permissions = True
+	pe.save(ignore_permissions=True)
+	return True
 
 
 def huy_duoc_phieu_da_thu(ma_gd, phieu_thu_da_ghi):
@@ -1566,7 +1596,7 @@ def _hd_con_no_so_cai(doc):
 		"outstanding_amount": [">", 0.5]}, pluck="name", limit_page_length=0)
 
 
-def _gui_thu_khi_sach(doc):
+def _gui_thu_khi_sach(doc, xep_hang=False):
 	"""v577 (Codex #444 F1): thư "đã nhận thanh toán, công nợ đã tất toán" chỉ
 	gửi khi sổ cái đã hết nợ mọi hoá đơn của phiếu.
 
@@ -1578,7 +1608,7 @@ def _gui_thu_khi_sach(doc):
 		return False
 	if _hd_con_no_so_cai(doc):
 		return False
-	da, _ly_do = _gui_thu_da_nhan(doc)
+	da, _ly_do = _gui_thu_da_nhan(doc, xep_hang=xep_hang)
 	return da
 
 
@@ -1590,15 +1620,22 @@ def gui_thu_sau_ghi_so(cac_hd):
 	for t in ten:
 		d = frappe.get_doc("Vagabond Cong No", t)
 		try:
-			if _gui_thu_khi_sach(d):
+			# Đang giữa request ghi sổ CHƯA commit: xếp hàng, không gửi ngay.
+			if _gui_thu_khi_sach(d, xep_hang=True):
 				ra.append(t)
 		except Exception:
 			frappe.log_error(frappe.get_traceback(), "cong_no: gui thu sau ghi so")
 	return ra
 
 
-def _gui_thu_da_nhan(doc, buoc_gui=False):
-	"""Gui thu bao da nhan tien. Tra ve (da_gui, ly_do)."""
+def _gui_thu_da_nhan(doc, buoc_gui=False, xep_hang=False):
+	"""Gui thu bao da nhan tien. Tra ve (da_gui, ly_do).
+
+	xep_hang (Codex #444 vong 2): goi tu giua mot request CHUA commit (ghi so
+	phieu thu) thi KHONG gui ngay ma xep vao Email Queue trong cung giao dich:
+	request lui thi thu lui theo, khong bao khach "da tat toan" khi so chua
+	ghi; dau email_da_gui cung nam trong giao dich do nen khong gui trung.
+	"""
 	if doc.get("email_da_gui") and not buoc_gui:
 		return False, "đã gửi rồi"
 	email = _email_thu(doc)
@@ -1611,7 +1648,7 @@ def _gui_thu_da_nhan(doc, buoc_gui=False):
 		recipients=email,
 		subject="The Vagabond Pâtisserie - đã nhận thanh toán %s" % (doc.ma_phieu or ""),
 		message=_thu_da_nhan_html(doc, ds_dong),
-		delayed=False,
+		delayed=bool(xep_hang),
 		retry=3,
 	)
 	try:
@@ -1892,7 +1929,7 @@ def cau_chan_nhap(ma_phieu, nhap):
 	return ("Phiếu %s: phần còn nợ đã có phiếu thu nháp chưa xác minh tiền về (%s), nên khớp tay "
 		"không lập thêm phiếu thu để khỏi thu trùng. Vào mục Tiền đã về: gắn đúng giao dịch cho phiếu "
 		"nháp đó, hoặc huỷ phiếu nháp sai rồi khớp tay lại. Phiếu nháp hỏng do chính phiếu này lập ở "
-		"lần khớp trước thì bấm Huỷ phiếu: máy dọn các phiếu nháp đó, hoá đơn về lại Đang nợ để gom lại. "
+		"lần khớp trước thì bấm Huỷ phiếu: máy gỡ các phiếu nháp đó khỏi hoá đơn (giữ lại để tra), hoá đơn về lại Đang nợ để gom lại. "
 		"Phiếu chưa bị đổi gì."
 		% (ma_phieu, ds or "không rõ phiếu"))
 
