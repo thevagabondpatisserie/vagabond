@@ -1531,6 +1531,12 @@ def khop_tay(name, so_tien, ma_giao_dich="", ghi_chu="", ma_lan=""):
 			"Mở lại Khớp tay và chọn lại giao dịch; phiếu %s chưa bị đổi gì."
 			% (str(ma_giao_dich).strip(), doc.ma_phieu)
 		)
+	# Codex #439 (U1): SỬA phiếu đã thu đủ bằng lối không giao dịch mà phần
+	# còn nợ đã bị phiếu thu NHÁP chưa xác minh phủ hết thì bước lập phiếu
+	# (trừ MỌI nháp để chống phủ trùng) không lập được gì. Trước đây vẫn báo
+	# "Công nợ đã sạch". Nay DỪNG trước mọi thay đổi và chỉ đúng phiếu nháp.
+	if not g and truoc == "Da thu du" and chua_pt:
+		_chan_sua_vuong_nhap(doc.ma_phieu or doc.name, chua_pt)
 	lap = None
 	if g:
 		lap = tt.lap_phieu_thu_theo_gd(
@@ -1555,6 +1561,15 @@ def khop_tay(name, so_tien, ma_giao_dich="", ghi_chu="", ma_lan=""):
 		doc.nguoi_khop_tay = frappe.session.user
 		doc.ngay_khop_tay = frappe.utils.now_datetime()
 	doc.save(ignore_permissions=True)
+	# Codex #439 (U2): lối không giao dịch LẬP PHIẾU THU TRƯỚC, rồi mới ghi dấu
+	# [lần khớp] và commit. Lỗi ngoài phần bắt lỗi từng hoá đơn thì cả lượt
+	# lùi lại, dấu lần khớp chưa thành, bấm lại cùng mã lần vẫn làm lại được.
+	# Trước đây dấu đã commit trước nên lần thử lại chỉ nhận "đã làm rồi".
+	loi = []
+	if not lap and (truoc != "Da thu du" or chua_pt):
+		ghi_thu_cho_phieu(doc, "Chuyển khoản", "Kế toán khớp tay.", so_tien=moi,
+			khoa="tay:%s" % (ma_lan or frappe.generate_hash(length=8)))
+		loi = doc.flags.loi_thu or []
 	# Codex #437 vòng 6: có phiếu thu thì ghi ĐÚNG số máy chủ đã phân bổ,
 	# không ghi số máy khách gửi lên.
 	so_ghi = flt(lap.get("tien")) if lap else so_tien
@@ -1571,12 +1586,6 @@ def khop_tay(name, so_tien, ma_giao_dich="", ghi_chu="", ma_lan=""):
 		),
 	)
 	frappe.db.commit()
-	loi = []
-	if not lap and truoc != "Da thu du":
-		ghi_thu_cho_phieu(doc, "Chuyển khoản", "Kế toán khớp tay.", so_tien=moi,
-			khoa="tay:%s" % (ma_lan or frappe.generate_hash(length=8)))
-		loi = doc.flags.loi_thu or []
-		frappe.db.commit()
 	if doc.trang_thai == "Da thu du" and truoc != "Da thu du":
 		try:
 			_gui_thu_da_nhan(doc)
@@ -1584,6 +1593,37 @@ def khop_tay(name, so_tien, ma_giao_dich="", ghi_chu="", ma_lan=""):
 			frappe.log_error(frappe.get_traceback(), "cong_no: gui thu sau khop tay loi")
 	return {"ok": 1, "pe": lap["pe"] if lap else "", "loi": loi,
 		"loi_nhan": cau_bao_khop_tay(doc.ma_phieu, so_ghi, doc.trang_thai, lap, loi)}
+
+
+def cau_chan_nhap(ma_phieu, nhap):
+	"""Câu báo khi phần nợ còn lại đã bị phiếu thu nháp chưa xác minh phủ. THUẦN.
+
+	nhap: {hoá đơn: [phiếu nháp]}.
+	"""
+	ds = "; ".join("%s: %s" % (hd, ", ".join(pe)) for hd, pe in sorted((nhap or {}).items()) if pe)
+	return ("Phiếu %s: phần còn nợ đã có phiếu thu nháp chưa xác minh tiền về (%s), nên khớp tay "
+		"không lập thêm phiếu thu để khỏi thu trùng. Vào mục Tiền đã về: gắn đúng giao dịch cho phiếu "
+		"nháp đó, hoặc huỷ phiếu nháp sai rồi khớp tay lại. Phiếu chưa bị đổi gì."
+		% (ma_phieu, ds or "không rõ phiếu"))
+
+
+def _chan_sua_vuong_nhap(ma_phieu, chua_pt):
+	"""Dừng lần SỬA không giao dịch nếu phiếu nháp chưa xác minh đã phủ hết phần nợ.
+
+	Cùng phép chia của ghi_thu_cho_phieu (dư nợ trừ MỌI phân bổ nháp), nên
+	khi ở đây còn 0 thì bước lập phiếu chắc chắn không lập được gì.
+	"""
+	from vagabond import thu_tien as tt
+
+	con = {r.name: flt(r.outstanding_amount) for r in frappe.get_all("Sales Invoice",
+		filters={"name": ["in", list(chua_pt)], "docstatus": 1, "outstanding_amount": [">", 0.5]},
+		fields=["name", "outstanding_amount"], limit_page_length=0)}
+	if not con:
+		return
+	nhap = tt.phan_bo_nhap_theo_hd(list(con))
+	if sum(max(tt.con_chua_phu(v, nhap.get(k)), 0) for k, v in con.items()) > 0.5:
+		return
+	frappe.throw(cau_chan_nhap(ma_phieu, tt.phieu_nhap_cua_hd(list(con))))
 
 
 def cau_bao_khop_tay(ma_phieu, so_tien, trang_thai, lap, loi):

@@ -16,7 +16,12 @@
 var path = require('path');
 var GOC = path.resolve(__dirname, '..', '..', '..', '..');
 global.frappe = { ui: { form: { on: function () {} } } };
-var V = require(path.join(GOC, 'vagabond', 'vagabond', 'doctype', 'vagabond_settings', 'vagabond_settings.js'));
+/* v570: phép thuần dời sang tệp dùng chung Desk và app. */
+var V = require(path.join(GOC, 'vagabond', 'public', 'js', 'cai_dat_loi_chung.js'));
+/* Phần chạm form Desk vẫn ở vagabond_settings.js và gọi VGB_CD như biến toàn cục,
+   đúng như trên trình duyệt sau khi tệp chung đã nạp. */
+global.VGB_CD = V;
+V._desk = require(path.join(GOC, 'vagabond', 'vagabond', 'doctype', 'vagabond_settings', 'vagabond_settings.js'))._desk;
 
 var dat = 0, hong = 0;
 function ca(ten, ham) {
@@ -92,7 +97,10 @@ ca('Codex #433 vòng 3 G1: bấm chip hay kết quả tìm thì MỞ đúng tab 
 ca('Codex #433 vòng 3 G1: thanh chip Desk gọi moToi chứ không gọi thẳng scroll_to_field', function () {
   // Dò chuỗi chỉ để chốt "không còn chỗ nào cuộn thẳng" (điều 16); hành vi moToi chạy thật ở ca trên.
   var s = require('fs').readFileSync(path.join(GOC, 'vagabond', 'vagabond', 'doctype', 'vagabond_settings', 'vagabond_settings.js'), 'utf8');
-  la('chỉ một chỗ gọi scroll_to_field, nằm trong moToi', (s.match(/scroll_to_field\(/g) || []).length, 1);
+  /* v572: moToi dời sang tệp chung cai_dat_loi_chung.js; tệp Desk không còn cuộn thẳng chỗ nào. */
+  var c = require('fs').readFileSync(path.join(GOC, 'vagabond', 'public', 'js', 'cai_dat_loi_chung.js'), 'utf8');
+  la('tệp Desk không gọi thẳng scroll_to_field', (s.match(/scroll_to_field\(/g) || []).length, 0);
+  la('chỉ một chỗ gọi scroll_to_field, nằm trong moToi ở tệp chung', (c.match(/scroll_to_field\(/g) || []).length, 1);
 });
 
 ca('tình trạng: ô chỉ có dấu cách coi như trống', function () {

@@ -320,6 +320,11 @@ async function scrHome() {
     /* Trang dat banh web: Minh Vu doi anh ben Pancake xong bam mot nut la web
        doi theo, khong phai cho hay nho ai deploy (anh Viet 03/09/2026). Mo
        cho ca sales vi chinh sales la nguoi cam danh muc Pancake. */
+    /* Cai dat loi va API (v570): trang Vagabond Settings tren app. Chi quan
+       tri; may chu kiem lai quyen o tung cua vagabond.cai_dat_loi. */
+    (hasRole('System Manager')
+      ? card('🔑', 'Cài đặt lõi và API', 'Khoá kết nối, hoá đơn điện tử, ngân hàng, giao hàng, Zalo: điền ngay trên app', 0, 'CDLOI')
+      : '') +
     (coQuyenMua() || hasRole('Sales User') || hasRole('Sales Manager') || hasRole('System Manager')
       ? card('🌐', 'Trang đặt bánh web', 'Đồng bộ ảnh và mô tả từ Pancake, xem tab nào đang lên bao nhiêu mã', 0, 'CDWEB')
       : '') +
@@ -608,8 +613,9 @@ var VGB_NHOM = [
   },
   {
     k: 'KHAC', ten: 'Cài đặt', icon: '⚙️',
-    keys: ['CDDB', 'CDKS', 'CDPT', 'CDTK', 'CDSP', 'CDMI', 'CDMU', 'CDQQ', 'CDHT', 'CDCN', 'CDKHO', 'CDTL', 'CDSE', 'NHAPSK', 'CDTB', 'CDWEB', 'PTDON', 'PTCH', 'QLND', 'QLQ', 'ACC', 'STOCK', 'TONCHANG'],
+    keys: ['CDLOI', 'CDDB', 'CDKS', 'CDPT', 'CDTK', 'CDSP', 'CDMI', 'CDMU', 'CDQQ', 'CDHT', 'CDCN', 'CDKHO', 'CDTL', 'CDSE', 'NHAPSK', 'CDTB', 'CDWEB', 'PTDON', 'PTCH', 'QLND', 'QLQ', 'ACC', 'STOCK', 'TONCHANG'],
     nhom: [
+      { t: 'Lõi hệ thống', p: '', keys: ['CDLOI'] },
       { t: 'Cửa hàng và bán hàng', p: '', keys: ['CDDB', 'CDPT', 'CDQQ', 'CDHT', 'CDCN', 'CDWEB'] },
       { t: 'Kho và sản phẩm', p: '', keys: ['CDSP', 'CDKHO', 'STOCK', 'TONCHANG', 'PTCH'] },
       { t: 'Kế toán và ngân hàng', p: '', keys: ['CDKS', 'CDTK', 'CDSE', 'NHAPSK', 'PTDON'] },
@@ -1764,6 +1770,7 @@ var VGB_DUONG = {
   'bien-nhan-nop-tien-mat': 'BNTM',
   'but-toan': 'BT',
   'cai-dat-cuoi-ngay': 'CDCN',
+  'cai-dat-loi-va-api': 'CDLOI',
   'canh-bao-thanh-toan': 'CBTT',
   'chi-phi-van-don': 'CPX',
   'chuyen-phantom': 'PTCH',
@@ -2033,6 +2040,7 @@ function vgbGo(k) {
   if (k === 'CDTL') return go(scrTroLyCaiDat);
   if (k === 'CDTB') return go(scrThongBao);
   if (k === 'CDWEB') return go(scrCaiDatWeb);
+  if (k === 'CDLOI') return go(scrCaiDatLoi);
   if (k === 'PTDON') return go(scrDonChungTuThu);
   if (k === 'PTCH') return go(scrChuyenPhantom);
   if (k === 'NHAPSK') return go(scrNhapSaoKe);

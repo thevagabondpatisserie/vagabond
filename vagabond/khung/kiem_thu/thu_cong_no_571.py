@@ -755,3 +755,186 @@ def _():
 		cn.ghi_thu_cho_phieu = moc["ghi"]
 		fr.db.exists = moc["ex"]
 		tra()
+
+
+@ca("Codex #437 sau merge: phiếu ĐÃ thu đủ còn hoá đơn thiếu phiếu thu, khớp tay KHÔNG giao dịch vẫn LẬP phiếu thu")
+def _():
+	# Codex trên d9cda52: lối "Không thấy giao dịch" bỏ qua ghi_thu_cho_phieu
+	# vì điều kiện cũ dựa trên trạng thái phiếu TRƯỚC khi khớp (Da thu du),
+	# nên bấm Khớp tay để sửa chỉ ghi bình luận rồi báo thành công, hoá đơn
+	# vẫn nợ. Điều kiện phải dựa trên việc còn hoá đơn thiếu phiếu thu.
+	nk, tra = _dung_he()
+	doc = PhieuNo(name="P2", ma_phieu="DNTT-26-10-00002", trang_thai="Da thu du",
+		tong_tien=7600000.0, da_thu=7600000.0, ma_gd="", flags=Doi(), _nk=nk,
+		dong=[Doi(hoa_don=h.name) for h in HD])
+	moc = {"get_doc": fr.get_doc, "kq": cn._kiem_quyen_ban, "giu": cn._giu_gd,
+		"gui": cn._gui_thu_da_nhan, "ghi": cn.ghi_thu_cho_phieu, "ex": fr.db.exists}
+	# _dung_he cho exists luôn True; ở đây exists chỉ thấy bình luận đã ghi,
+	# không thì dấu lần khớp làm khop_tay trả da_lam_roi sớm và ca xanh/đỏ sai lý do.
+	fr.db.exists = lambda dt, f=None, **k: dt == "Comment" and any(
+		f["content"][1].strip("%") in x[1] for x in nk if x[0] == "binh_luan")
+	fr.get_doc = lambda *a, **k: doc
+	cn._kiem_quyen_ban = lambda: None
+	cn._giu_gd = lambda d, ds: ""
+	cn._gui_thu_da_nhan = lambda d: nk.append(("gui_thu",))
+	cn.ghi_thu_cho_phieu = lambda *a, **k: nk.append(("ghi_thu", k.get("so_tien"), k.get("khoa"))) or []
+	try:
+		cn.khop_tay("P2", 7600000, "", "chuyen khoan khong ve sao ke", ma_lan="sua1")
+		la("đã lập phiếu thu cho phần sửa", [x[1:] for x in nk if x[0] == "ghi_thu"],
+			[(7600000.0, "tay:sua1")])
+		la("đã thu không cộng quá tổng", doc.da_thu, 7600000.0)
+		la("không gửi lại thư báo nhận tiền", [x for x in nk if x[0] == "gui_thu"], [])
+	finally:
+		fr.get_doc = moc["get_doc"]
+		cn._kiem_quyen_ban = moc["kq"]
+		cn._giu_gd = moc["giu"]
+		cn._gui_thu_da_nhan = moc["gui"]
+		cn.ghi_thu_cho_phieu = moc["ghi"]
+		fr.db.exists = moc["ex"]
+		tra()
+
+
+def _bat(ham):
+	"""Gọi ham, trả lỗi nó ném (None nếu không ném)."""
+	try:
+		ham()
+	except Exception as e:
+		return e
+	return None
+
+
+@ca("Codex #439 U1: sửa phiếu đã thu đủ mà phần nợ đã bị phiếu NHÁP chưa xác minh phủ thì DỪNG, chỉ đúng phiếu nháp")
+def _():
+	# Tái hiện trên 7e444d0: _hd_chua_co_phieu_thu coi hoá đơn còn thiếu (vì
+	# nháp chưa xác minh không tính), nhưng bước chia trừ MỌI nháp nên không
+	# lập được gì, vậy mà vẫn báo "Công nợ đã sạch".
+	nhap = [Doi(reference_name=h.name, allocated_amount=h.outstanding_amount, parent="APP-NHAP-1",
+		pe="APP-NHAP-1", xm=0) for h in HD]
+	nk, tra = _dung_he(nhap=nhap)
+	doc = PhieuNo(name="P3", ma_phieu="DNTT-26-10-00002", trang_thai="Da thu du",
+		tong_tien=7600000.0, da_thu=7600000.0, ma_gd="", flags=Doi(), _nk=nk,
+		dong=[Doi(hoa_don=h.name) for h in HD])
+	moc = {"get_doc": fr.get_doc, "kq": cn._kiem_quyen_ban, "giu": cn._giu_gd,
+		"gui": cn._gui_thu_da_nhan, "ex": fr.db.exists, "gtt": tt.ghi_thu_tien}
+	fr.get_doc = lambda *a, **k: doc
+	cn._kiem_quyen_ban = lambda: None
+	cn._giu_gd = lambda d, ds: ""
+	cn._gui_thu_da_nhan = lambda d: None
+	tt.ghi_thu_tien = lambda *a, **k: nk.append(("lap_phieu_thu", a[0])) or ["PE-X"]
+	fr.db.exists = lambda dt, f=None, **k: dt == "Comment" and any(
+		f["content"][1].strip("%") in x[1] for x in nk if x[0] == "binh_luan")
+	try:
+		e = _bat(lambda: cn.khop_tay("P3", 7600000, "", "chuyen khoan", ma_lan="sua2"))
+		dung("phải báo lỗi", e is not None)
+		dung("báo lỗi có tên phiếu nháp đang chặn", "APP-NHAP-1" in str(e))
+		dung("chỉ đường cho người bấm", "Tiền đã về" in str(e))
+		la("không lưu phiếu, không ghi dấu lần khớp, không lập phiếu thu",
+			[x[0] for x in nk if x[0] in ("luu_phieu", "binh_luan", "lap_phieu_thu")], [])
+	finally:
+		fr.get_doc = moc["get_doc"]
+		cn._kiem_quyen_ban = moc["kq"]
+		cn._giu_gd = moc["giu"]
+		cn._gui_thu_da_nhan = moc["gui"]
+		fr.db.exists = moc["ex"]
+		tt.ghi_thu_tien = moc["gtt"]
+		tra()
+
+
+@ca("Codex #439 U1: nháp chỉ phủ MỘT PHẦN thì vẫn lập phiếu thu cho phần còn lại, không chặn oan")
+def _():
+	nhap = [Doi(reference_name="HDB-26-09-01679", allocated_amount=2000000.0, parent="APP-NHAP-2",
+		pe="APP-NHAP-2", xm=0)]
+	la("câu báo thuần ghi đủ hoá đơn và phiếu", cn.cau_chan_nhap("DNTT-1", {"HD-A": ["APP-1", "APP-2"]}).count("APP-"), 2)
+	nk, tra = _dung_he(nhap=nhap)
+	doc = PhieuNo(name="P4", ma_phieu="DNTT-26-10-00002", trang_thai="Da thu du",
+		tong_tien=7600000.0, da_thu=7600000.0, ma_gd="", flags=Doi(), _nk=nk,
+		dong=[Doi(hoa_don=h.name) for h in HD])
+	moc = {"get_doc": fr.get_doc, "kq": cn._kiem_quyen_ban, "giu": cn._giu_gd,
+		"gui": cn._gui_thu_da_nhan, "ex": fr.db.exists, "gtt": tt.ghi_thu_tien}
+	fr.get_doc = lambda *a, **k: doc
+	cn._kiem_quyen_ban = lambda: None
+	cn._giu_gd = lambda d, ds: ""
+	cn._gui_thu_da_nhan = lambda d: None
+	tt.ghi_thu_tien = lambda si, ds, **k: nk.append(("lap_phieu_thu", si, ds[0]["so_tien"])) or ["PE-X"]
+	fr.db.exists = lambda dt, f=None, **k: dt == "Comment" and any(
+		f["content"][1].strip("%") in x[1] for x in nk if x[0] == "binh_luan")
+	try:
+		cn.khop_tay("P4", 7600000, "", "chuyen khoan", ma_lan="sua3")
+		la("lập phiếu thu phần chưa phủ, tờ cũ trước",
+			[x[1:] for x in nk if x[0] == "lap_phieu_thu"],
+			[("HDB-26-09-01679", 2750000.0), ("HDB-26-09-02477", 2850000.0)])
+	finally:
+		fr.get_doc = moc["get_doc"]
+		cn._kiem_quyen_ban = moc["kq"]
+		cn._giu_gd = moc["giu"]
+		cn._gui_thu_da_nhan = moc["gui"]
+		fr.db.exists = moc["ex"]
+		tt.ghi_thu_tien = moc["gtt"]
+		tra()
+
+
+@ca("Codex #439 U2: lập phiếu thu hỏng giữa chừng thì dấu lần khớp CHƯA thành, bấm lại cùng mã lần vẫn lập được")
+def _():
+	# Mô phỏng giao dịch CSDL: get_doc trả bản đã commit; commit mới ghi bản
+	# đang sửa thành bản gốc; lỗi giữa chừng thì những gì chưa commit mất hết
+	# (kể cả bình luận dấu lần khớp).
+	nk, tra = _dung_he()
+	goc = {"name": "P5", "ma_phieu": "DNTT-26-10-00005", "trang_thai": "Cho thu",
+		"tong_tien": 7600000.0, "da_thu": 0.0, "ma_gd": "", "dong": [Doi(hoa_don=h.name) for h in HD]}
+	da_commit = {"phieu": dict(goc), "binh_luan": []}
+	dang = {}
+
+	class PhieuTx(PhieuNo):
+		def add_comment(self, *a, **k):
+			dang.setdefault("binh_luan", []).append(a[1])
+			nk.append(("binh_luan_tam", a[1]))
+
+	def get_doc(*a, **k):
+		d = PhieuTx(dict(da_commit["phieu"]), flags=Doi(), _nk=nk)
+		dang.clear()
+		dang["doc"] = d
+		return d
+
+	def commit(*a, **k):
+		nk.append(("commit",))
+		da_commit["phieu"] = {x: v for x, v in dang["doc"].items() if x not in ("flags", "_nk")}
+		da_commit["binh_luan"] += dang.get("binh_luan", [])
+		dang["binh_luan"] = []
+
+	lan = {"n": 0}
+
+	def ghi_thu(doc, *a, **k):
+		lan["n"] += 1
+		if lan["n"] == 1:
+			raise RuntimeError("mat ket noi CSDL khi doc hoa don")
+		nk.append(("ghi_thu", k.get("so_tien"), k.get("khoa")))
+		return ["PE-OK"]
+
+	moc = {"get_doc": fr.get_doc, "kq": cn._kiem_quyen_ban, "giu": cn._giu_gd,
+		"gui": cn._gui_thu_da_nhan, "ghi": cn.ghi_thu_cho_phieu, "ex": fr.db.exists, "cm": fr.db.commit}
+	fr.get_doc = get_doc
+	fr.db.commit = commit
+	cn._kiem_quyen_ban = lambda: None
+	cn._giu_gd = lambda d, ds: ""
+	cn._gui_thu_da_nhan = lambda d: None
+	cn.ghi_thu_cho_phieu = ghi_thu
+	fr.db.exists = lambda dt, f=None, **k: dt == "Comment" and any(
+		f["content"][1].strip("%") in x for x in da_commit["binh_luan"])
+	try:
+		dung("lần đầu phải báo lỗi", _bat(lambda: cn.khop_tay("P5", 2000000, "", "khach dua", ma_lan="lanU2")) is not None)
+		la("lỗi lần đầu: dấu lần khớp chưa được ghi bền", da_commit["binh_luan"], [])
+		la("lỗi lần đầu: phiếu chưa đổi", da_commit["phieu"]["da_thu"], 0.0)
+		kq = cn.khop_tay("P5", 2000000, "", "khach dua", ma_lan="lanU2")
+		dung("bấm lại cùng mã lần KHÔNG bị coi là đã làm", not kq.get("da_lam_roi"))
+		la("lần lại lập được phiếu thu", [x[1:] for x in nk if x[0] == "ghi_thu"], [(2000000.0, "tay:lanU2")])
+		la("đã thu cộng đúng một lần", da_commit["phieu"]["da_thu"], 2000000.0)
+		dung("dấu lần khớp ghi bền sau khi lập xong", any("[lần khớp lanU2]" in x for x in da_commit["binh_luan"]))
+	finally:
+		fr.get_doc = moc["get_doc"]
+		fr.db.commit = moc["cm"]
+		cn._kiem_quyen_ban = moc["kq"]
+		cn._giu_gd = moc["giu"]
+		cn._gui_thu_da_nhan = moc["gui"]
+		cn.ghi_thu_cho_phieu = moc["ghi"]
+		fr.db.exists = moc["ex"]
+		tra()
