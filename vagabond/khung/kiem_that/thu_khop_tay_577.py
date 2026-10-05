@@ -314,3 +314,25 @@ def _desk_gui_thu():
 		ds[0].reload()
 		la("hoá đơn hết nợ", flt(ds[0].outstanding_amount), 0.0)
 		la("hook xếp thư đúng phiếu đòi nợ, trong giao dịch", gui, [(p.name, True)])
+
+
+@ca("v577 Codex #444 vòng 5: SePay gặp giao dịch LỚN hơn phiếu (khách trả gộp): phiếu không kẹt, Sales huỷ được, giao dịch được nhả")
+def _sepay_lon_hon_huy():
+	from vagabond import doi_soat_sepay as dss
+	cty, ba, acc, ds, p = _nen_577(so_hd=1)
+	tong = sum(flt(s.grand_total) for s in ds)
+	g = _gd(ba, tong + 1100000)
+	with patch.object(cn, "_sepay_cn", lambda ma: {"nhan": tong + 1100000, "so_gd": 1, "gd": [g.name]}), \
+			patch.object(cn, "_giu_gd", lambda d, ds_gd: "\n".join(ds_gd)):
+		kq = _goi_bang(_sales(), lambda: cn.kiem_sepay(p.name))
+	dung("báo lý do lập hỏng: %s" % kq.get("loi_lap"), any("1.100.000" in x for x in kq.get("loi_lap") or []))
+	la("không phiếu thu nào", _pe_cua(ds, 0) + _pe_cua(ds, 1), [])
+	la("phiếu ghi nhận giao dịch", frappe.db.get_value("Vagabond Cong No", p.name, ["trang_thai", "ma_gd"]),
+		("Da thu du", g.name))
+	la("giao dịch chưa có phiếu thu", cn._gd_da_dung(g.name), [])
+	la("màn cho huỷ", _goi_bang(_sales(), lambda: cn.xem_phieu(p.name)).get("huy_duoc"), 1)
+	_goi_bang(_sales(), lambda: cn.huy_phieu(p.name, "Kiet Tac tra gop"))
+	la("đã huỷ, mã giao dịch còn để tra", frappe.db.get_value("Vagabond Cong No", p.name, ["trang_thai", "ma_gd"]),
+		("Huy", g.name))
+	dung("giao dịch không còn thuộc phiếu đòi nợ nào",
+		not any("Cong No" in v or p.name in v for v in dss.chu_cua_giao_dich([g.name]).values()))
