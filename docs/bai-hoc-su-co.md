@@ -1717,5 +1717,11 @@ lần đầu đếm ngoại lệ ra 0 trên 14 đột biến, tưởng bộ ki�
 - Bộ kiểm hành vi có chờ lời hứa thì đặt cờ "đã chạy tới cuối" và bắt sự kiện
   exit: chưa tới cuối thì in HONG và đặt mã 1 (xem hanh_vi/phien_mat_574.js).
 - Codex #442: thêm kiểu phiếu mới (gom nhiều pháp nhân) phải rà MỌI đường xử lý
-  phiếu đó, kể cả đường khớp tay theo giao dịch. Phiếu thu ERPNext chỉ một khách,
-  nên phiếu nhiều khách đi đường từng hoá đơn như SePay tự khớp.
+  phiếu đó, kể cả đường khớp tay theo giao dịch. Phiếu thu ERPNext chỉ một khách.
+  Lần đầu cho đi đường từng hoá đơn như SePay tự khớp thì sai: đường đó ghi sổ
+  thẳng, bị hook UNC chặn, lỗi bị nuốt mà phiếu đòi nợ vẫn báo đã thu. Cách đúng:
+  mỗi khách một phiếu thu NHÁP cùng giao dịch, chung mã nhóm `vgb_nhom_gd`; luật
+  "một giao dịch một phiếu" chỉ nới cho phiếu cùng nhóm (`cung_nhom_da_noi`).
+- Đường SePay tự khớp và khớp tay KHÔNG chọn giao dịch (`ghi_thu_cho_phieu`) lập
+  phiếu thu ghi sổ thẳng, sẽ bị `chan_thieu_dinh_kem` chặn với phiếu lập sau
+  16/08. Tồn đọng có sẵn từ trước, chưa sửa trong v576.
