@@ -1468,7 +1468,7 @@ def ghi_so_phieu_thu(name=None, unc=None):
 	_ghi_vet_thu(doc.name, "Ghi sổ phiếu thu kèm %d tệp uỷ nhiệm chi khách gửi, nối giao dịch %s"
 		% (so_tep, doc.reference_no))
 	# Thư báo nhận tiền của phiếu đòi nợ: hook on_submit gui_thu_khi_ghi_so
-	# đã xếp hàng trong lúc submit ở trên (Codex #444 vòng 4), không gọi lại.
+	# đã đăng ký việc nền chạy sau commit (Codex #444 vòng 4, 6), không gọi lại.
 	return {"ok": 1, "name": doc.name, "gd": gdoc.name}
 
 
@@ -1904,16 +1904,31 @@ def gui_thu_khi_ghi_so(doc, method=None):
 	cac = hd_cua_phieu_thu(doc)
 	if not cac:
 		return
-	from vagabond.loi_csdl import chet_giao_dich
+	# Codex #444 vòng 5, 6: KHÔNG làm gì chạm cơ sở dữ liệu trong giao dịch
+	# ghi sổ. Gửi thư ngay trong on_submit thì một deadlock giữa chừng (ở
+	# hàng đợi thư, ở dấu đã gửi, ở cả các hàm dựng thư dùng chung) có thể
+	# bị nuốt, bút toán lùi mà màn báo ghi sổ xong. Chỉ đăng ký một việc
+	# chạy SAU commit (cùng cách can_tru_san, tru_kho_bu): giao dịch lùi thì
+	# Frappe bỏ luôn việc này; việc nền tự đọc lại sổ cái rồi mới gửi.
+	from functools import partial
 
+	frappe.db.after_commit.add(partial(xep_gui_thu, tuple(cac)))
+
+
+def xep_gui_thu(cac_hd):
+	"""Xếp việc nền gửi thư báo nhận tiền cho các phiếu đòi nợ chứa cac_hd.
+
+	Chỉ gọi khi giao dịch đã commit (sau commit của on_submit, hay sau commit
+	của khớp tay, SePay). Không bao giờ ném: chứng từ đã lưu xong rồi, Redis
+	lỗi thì ghi log, kế toán vẫn bấm Thư báo gửi tay được.
+	"""
 	try:
-		frappe.get_attr("vagabond.cong_no.gui_thu_sau_ghi_so")(cac)
-	except Exception as e:
-		# Codex #444 vòng 5: lỗi chết giao dịch thì ném lên, phiếu thu không
-		# được báo là đã ghi sổ khi bút toán đã lùi.
-		if chet_giao_dich(e):
-			raise
-		frappe.log_error(frappe.get_traceback(), "thu_tien: gui thu khi ghi so")
+		frappe.enqueue("vagabond.cong_no.gui_thu_nen", queue="short", cac_hd=list(cac_hd or []))
+	except Exception:
+		try:
+			frappe.log_error(frappe.get_traceback(), "thu_tien: chua xep duoc viec gui thu bao")
+		except Exception:
+			pass
 
 
 def ham_dinh_unc(tep):

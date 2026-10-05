@@ -944,11 +944,11 @@ def kiem_sepay(name):
 			% "; ".join(loi_lap))
 	frappe.db.commit()
 	# Thu bao vua nhan tien: chi gui MOT lan, dung luc phieu chuyen sang du.
+	# Codex #444 vong 6: qua viec nen chung (thu_tien.xep_gui_thu), da commit.
 	if doc.trang_thai == "Da thu du" and not da_du_truoc:
-		try:
-			_gui_thu_khi_sach(doc)
-		except Exception:
-			frappe.log_error(frappe.get_traceback(), "cong_no: gui thu bao da nhan loi")
+		from vagabond import thu_tien as tt
+
+		tt.xep_gui_thu([d.hoa_don for d in doc.dong if d.hoa_don])
 	kq = xem_phieu(name)
 	# Codex #444 vòng 5: màn nói đúng lý do lập hỏng, không chỉ "Bấm Khớp tay".
 	kq["loi_lap"] = loi_lap
@@ -1608,7 +1608,11 @@ def _ten_kinh_gui(doc):
 	ten = doc.ten_khach or doc.khach or "Quý khách"
 	try:
 		cac = [x["ten"] for x in _cac_khach_phieu(doc)] if doc.get("dong") else []
-	except Exception:
+	except Exception as e:
+		from vagabond.loi_csdl import chet_giao_dich
+
+		if chet_giao_dich(e):
+			raise
 		cac = []
 	if len(cac) > 1:
 		return ", ".join(cac[:-1]) + " và " + cac[-1]
@@ -1656,7 +1660,8 @@ def _gui_thu_khi_sach(doc, xep_hang=False):
 
 	Khớp theo giao dịch và SePay tự khớp chỉ lập phiếu thu NHÁP: tiền đã về
 	nhưng hoá đơn còn nợ trên sổ tới lúc kế toán đính UNC và ghi sổ. Lúc đó
-	thu_tien.ghi_so_phieu_thu gọi gui_thu_sau_ghi_so để gửi.
+	hook on_submit của phiếu thu (Desk hay app) xếp việc nền gui_thu_nen chạy
+	sau commit để gửi (Codex #444 vòng 4, 6).
 	"""
 	if doc.trang_thai != "Da thu du" or doc.get("email_da_gui"):
 		return False
@@ -1664,6 +1669,16 @@ def _gui_thu_khi_sach(doc, xep_hang=False):
 		return False
 	da, _ly_do = _gui_thu_da_nhan(doc, xep_hang=xep_hang)
 	return da
+
+
+def gui_thu_nen(cac_hd):
+	"""Việc nền SAU commit (thu_tien.xep_gui_thu): gửi thư cho phiếu đã sạch sổ.
+
+	Codex #444 vòng 6: một cửa cho mọi lối tự gửi (ghi sổ trên Desk hay app,
+	khớp tay, SePay). Chạy trong giao dịch riêng của việc nền nên lỗi ở đây
+	không chạm tới chứng từ đã lưu.
+	"""
+	return gui_thu_sau_ghi_so(cac_hd)
 
 
 def gui_thu_sau_ghi_so(cac_hd):
@@ -1674,7 +1689,9 @@ def gui_thu_sau_ghi_so(cac_hd):
 	from vagabond.loi_csdl import chet_giao_dich
 
 	for t in ten:
-		d = frappe.get_doc("Vagabond Cong No", t)
+		# Khoá dòng phiếu: hai việc nền cho cùng phiếu (ghi sổ hai phiếu thu
+		# liền nhau) chạy nối tiếp, việc sau đọc thấy email_da_gui thì thôi.
+		d = frappe.get_doc("Vagabond Cong No", t, for_update=True)
 		frappe.db.savepoint("vgb_thu_sau_gs")
 		try:
 			# Đang giữa request ghi sổ CHƯA commit: xếp hàng, không gửi ngay.
@@ -1730,8 +1747,13 @@ def _gui_thu_da_nhan(doc, buoc_gui=False, xep_hang=False):
 	try:
 		doc.db_set("email_da_gui", 1, update_modified=False)
 		doc.db_set("email_gui_toi", email, update_modified=False)
-	except Exception:
-		pass
+	except Exception as e:
+		# Codex #444 vòng 6: deadlock ở đây đã lùi cả thư vừa xếp; nuốt đi thì
+		# bình luận "đã gửi" ghi vào giao dịch mới trong khi không thư nào đi.
+		from vagabond.loi_csdl import chet_giao_dich
+
+		if chet_giao_dich(e):
+			raise
 	doc.add_comment("Comment", "Đã gửi thư báo nhận tiền tới %s" % email)
 	return True, email
 
@@ -1967,10 +1989,8 @@ def khop_tay(name, so_tien, ma_giao_dich="", ghi_chu="", ma_lan="", unc=None):
 	)
 	frappe.db.commit()
 	if doc.trang_thai == "Da thu du" and truoc != "Da thu du":
-		try:
-			_gui_thu_khi_sach(doc)
-		except Exception:
-			frappe.log_error(frappe.get_traceback(), "cong_no: gui thu sau khop tay loi")
+		# Codex #444 vòng 6: một cửa gửi tự động là việc nền sau commit.
+		tt.xep_gui_thu([d.hoa_don for d in doc.dong if d.hoa_don])
 	return {"ok": 1, "pe": lap["pe"] if lap else "", "loi": loi,
 		"loi_nhan": cau_bao_khop_tay(doc.ma_phieu, so_ghi, doc.trang_thai, lap, loi)}
 
