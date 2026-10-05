@@ -190,7 +190,23 @@ def _he_phieu(hd):
 	lap = []
 
 	class Phieu(PhieuGia):
+		doctype = "Payment Entry"
+
+		class meta:
+			@staticmethod
+			def has_field(f):
+				return f == "vgb_nhom_gd"
+
+		def is_new(self):
+			return True
+
+		def set(self, k, v):
+			self[k] = v
+
 		def insert(self, **k):
+			# Hook validate thật của Payment Entry chạy lúc insert (Codex #443 vòng 3).
+			from vagabond import thu_tien as tt
+			tt.chan_ghi_tay_nhom(self)
 			dem[0] += 1
 			self.name = "APP-26-10-%04d" % dem[0]
 			lap.append(self)
@@ -387,3 +403,104 @@ def _():
 	nem("phiếu lạ bị chặn", lambda: _ghi_so("APP-2", cac, g), fr.ValidationError)
 	la("phiếu lạ vẫn nháp", cac["APP-2"].docstatus, 0)
 	la("giao dịch chỉ nối phiếu 1", [r.payment_entry for r in g.payment_entries], ["APP-1"])
+
+
+def _nhap_he(bang_pe, ref_hd, g):
+	"""Frappe giả cho thu_tien.phieu_thu_nhap: bảng phiếu thu, phân bổ, giao dịch."""
+	from vagabond import thu_tien as tt
+
+	def get_all(dt, filters=None, fields=None, **k):
+		f = filters or {}
+		if dt == "Payment Entry Reference":
+			if "reference_name" in f:
+				ten = f["reference_name"][1]
+				return [Doi(parent=pe, reference_name=hd, allocated_amount=t) for pe, hd, t in ref_hd if hd in ten
+					and bang_pe[pe]["docstatus"] == f.get("docstatus", bang_pe[pe]["docstatus"])]
+			ten = f["parent"][1]
+			return [Doi(parent=pe, reference_name=hd, allocated_amount=t) for pe, hd, t in ref_hd if pe in ten]
+		if dt == "Payment Entry":
+			ra = []
+			for ten, p in bang_pe.items():
+				if "name" in f and ten not in f["name"][1]:
+					continue
+				if "reference_no" in f and isinstance(f["reference_no"], list) and f["reference_no"][0] == "in" \
+						and p["reference_no"] not in f["reference_no"][1]:
+					continue
+				ds = f.get("docstatus")
+				if isinstance(ds, list) and not p["docstatus"] < ds[1]:
+					continue
+				if isinstance(ds, int) and p["docstatus"] != ds:
+					continue
+				ra.append(Doi(dict(p, name=ten)))
+			return ra
+		return []
+	moc = (fr.get_all, tt._gd_theo_so)
+	fr.get_all = get_all
+	tt._gd_theo_so = lambda cac: {"FT1": g}
+	return moc
+
+
+@ca("v576 thật (Codex #443 vòng 3): phiếu còn lại của nhóm vẫn hiện ở Tiền đã về sau khi phiếu đầu ghi sổ, phiếu lẻ cũ không chen lên")
+def _():
+	from vagabond import thu_tien as tt
+
+	chung = dict(payment_type="Receive", party_type="Customer", reference_no="FT1", paid_to="", company="",
+		vgb_thu_unc="", party="X", party_name="X", posting_date="2026-10-05")
+	bang = {
+		"APP-1": dict(chung, docstatus=1, paid_amount=4540000.0, received_amount=4540000.0, vgb_nhom_gd="FT1:ab"),
+		"APP-2": dict(chung, docstatus=0, paid_amount=5000000.0, received_amount=5000000.0, vgb_nhom_gd="FT1:ab"),
+		# Phiếu lẻ cũ 6tr: lớn hơn phần còn lại của nhóm (5tr), nhỏ hơn cả nhóm (9,54tr).
+		"APP-9": dict(chung, docstatus=0, paid_amount=6000000.0, received_amount=6000000.0, vgb_nhom_gd=""),
+	}
+	ref = [("APP-1", "HD-OSH", 4540000.0), ("APP-2", "HD-VU", 5000000.0), ("APP-9", "HD-CU", 6000000.0)]
+	g = {"name": "BT-1", "reference_number": "FT1", "docstatus": 1, "deposit": 9540000.0, "withdrawal": 0,
+		"currency": "VND", "unallocated_amount": 5000000.0, "allocated_amount": 4540000.0, "so_noi": 1,
+		"noi": [("APP-1", "FT1:ab")], "tk": "", "cty": ""}
+	moc = _nhap_he(bang, ref, g)
+	try:
+		ds = tt.phieu_thu_nhap(cac_si=["HD-VU"])
+	finally:
+		fr.get_all, tt._gd_theo_so = moc
+	la("phiếu APP-2 xác minh được", [(p["pe"], p["da_xac_minh"]) for p in ds], [("APP-2", 1)])
+
+
+@ca("v576 (Codex #443 vòng 3): ô nhóm chia giao dịch chỉ máy ghi, Desk/API gửi vào thì bị bỏ")
+def _():
+	from vagabond import thu_tien as tt
+
+	la("máy ghi", tt.nhom_giu(None, "G", True), "G")
+	la("ngoài gửi, phiếu mới", tt.nhom_giu(None, "G", False), None)
+	la("ngoài gửi, đã có", tt.nhom_giu("G", "H", False), "G")
+	la("ngoài xoá", tt.nhom_giu("G", None, False), "G")
+
+	class _Pe(Doi):
+		doctype = "Payment Entry"
+
+		class meta:
+			@staticmethod
+			def has_field(f):
+				return f == "vgb_nhom_gd"
+
+		def is_new(self):
+			return self["_moi"]
+
+		def set(self, k, v):
+			self[k] = v
+	cu = fr.db.get_value
+	fr.db.get_value = lambda dt, ten, truong: {"APP-5": None, "APP-6": "FT1:ab"}.get(ten)
+	try:
+		gia = _Pe(name="APP-5", vgb_nhom_gd="FT1:ab", flags=Doi(), _moi=True)
+		tt.chan_ghi_tay_nhom(gia)
+		la("phiếu mới tự chế mang nhóm người khác: bị bỏ", gia.get("vgb_nhom_gd"), None)
+		sua = _Pe(name="APP-6", vgb_nhom_gd="KHAC", flags=Doi(), _moi=False)
+		tt.chan_ghi_tay_nhom(sua)
+		la("sửa tay phiếu đang lưu: trả về giá trị máy ghi", sua.get("vgb_nhom_gd"), "FT1:ab")
+		may = _Pe(name="APP-7", vgb_nhom_gd="FT1:cd", flags=Doi({tt.CO_MAY_GHI_NHOM: True}), _moi=True)
+		tt.chan_ghi_tay_nhom(may)
+		la("máy ghi thì giữ", may.get("vgb_nhom_gd"), "FT1:cd")
+	finally:
+		fr.db.get_value = cu
+	import os
+	h = open(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+		"hooks.py"), encoding="utf-8").read()
+	dung("hook đã đăng ký", '"vagabond.thu_tien.chan_ghi_tay_nhom"' in h)
