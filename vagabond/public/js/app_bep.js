@@ -17590,8 +17590,12 @@ async function scrCnPhieu(name) {
     /* Codex #444 vòng 2: SePay chỉ lập phiếu thu NHÁP; còn hoá đơn chờ ghi sổ
        thì không báo đã xoá nợ (cùng nguồn cho_ghi_so với thẻ trên màn). */
     try { var r = await api('vagabond.cong_no.kiem_sepay', { name: name }); busy(false);
+      /* Codex #444 vòng 3: lập phiếu thu nháp hỏng thì hoá đơn KHÔNG ở tab
+         Tiền đã về; chỉ đường Khớp tay trước (thieu_phieu_thu), rồi mới tới chờ ghi sổ. */
       toast(r.sepay >= r.tong_tien - 1
-        ? (r.cho_ghi_so ? 'Tiền đã về đủ. ' + r.cho_ghi_so + ' hoá đơn chờ kế toán đính UNC và ghi sổ ở tab Tiền đã về.' : 'Tiền đã về đủ, đã xoá nợ.')
+        ? (r.thieu_phieu_thu ? 'Tiền đã về đủ nhưng ' + r.thieu_phieu_thu + ' hoá đơn chưa có phiếu thu. Bấm Khớp tay để làm lại.'
+          : r.cho_ghi_so ? 'Tiền đã về đủ. ' + r.cho_ghi_so + ' hoá đơn chờ kế toán đính UNC và ghi sổ ở tab Tiền đã về.'
+          : 'Tiền đã về đủ, đã xoá nợ.')
         : 'SePay mới nhận ' + money(r.sepay) + ' đ.', 4500); go(function () { scrCnPhieu(name); }, true); }
     catch (e) { busy(false); toast((e && e.message) || 'Không đối chiếu được', 4000); }
   };
