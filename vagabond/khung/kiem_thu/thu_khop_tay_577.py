@@ -898,3 +898,124 @@ def _():
 		la("một thư", gui, ["k@x.vn"])
 	finally:
 		th.tra()
+
+
+
+@ca("Codex #444 vòng 5: luật huỷ phiếu Đã thu đủ: giao dịch đã gạch mà CHƯA có phiếu thu thì huỷ được")
+def _():
+	f = cn.huy_duoc_phieu_da_thu
+	la("không giao dịch, không phiếu ghi sổ", f("", [], []), (True, ""))
+	la("giao dịch chưa có phiếu thu", f("BT-S", [], []), (True, ""))
+	duoc, vi_sao = f("BT-S", [], ["BT-S"])
+	dung("giao dịch đã có phiếu thu: chặn, nói tên: " + vi_sao, not duoc and "BT-S" in vi_sao)
+	la("chưa biết giao dịch dùng chưa: giữ luật cũ", f("BT-S", [])[0], False)
+	la("có phiếu ghi sổ: chặn", f("", ["APP-1"], [])[0], False)
+
+
+@ca("Codex #444 vòng 5: SePay gạch giao dịch LỚN hơn phiếu, lập phiếu thu hỏng: Huỷ phiếu được, nhả giao dịch, giữ mã để tra")
+def _():
+	def lap(nk, cac_si, g, so, k):
+		raise fr.ValidationError(tt.cau_gd_lon_hon("FT-BT-S", 13000000, 9550000))
+	doc, nk, th = _he_sepay(lap)
+	try:
+		kq = cn.kiem_sepay("P")
+		la("phiếu đã thu đủ, giữ giao dịch", (doc.trang_thai, doc.ma_gd), ("Da thu du", "BT-S"))
+		dung("màn nhận lý do lập hỏng: %s" % kq.get("loi_lap"), len(kq.get("loi_lap") or []) == 1
+			and "dư 3.450.000 đ" in kq["loi_lap"][0])
+		bl = [x[1] for x in nk if x[0] == "binh_luan"]
+		dung("bình luận chỉ đường Huỷ phiếu", "Huỷ phiếu" in bl[0])
+		la("giao dịch chưa có phiếu thu nào", cn._gd_da_dung(doc.ma_gd), [])
+		nk[:] = []
+		th.dat(fr, "set_user", lambda u: setattr(fr.session, "user", u))
+		r = cn.huy_phieu("P", "Kiet Tac tra gop")
+		la("huỷ được", (r["ok"], doc.trang_thai), (1, "Huy"))
+		la("mã giao dịch vẫn ở trên phiếu để tra", doc.ma_gd, "BT-S")
+		dung("ghi vết nhả giao dịch", any("nhả giao dịch BT-S" in x[1] for x in nk if x[0] == "binh_luan"))
+	finally:
+		th.tra()
+
+
+@ca("Codex #444 vòng 5: giao dịch đã gạch MÀ đã có phiếu thu (nháp hay sổ) hoặc đã nối chứng từ thì vẫn KHÔNG huỷ")
+def _():
+	def lap(nk, cac_si, g, so, k):
+		return {"pe": "APP-1"}
+	for kieu in ("nhap", "phan_bo", "ma_la"):
+		doc, nk, th = _he_sepay(lap)
+		goc = fr.get_all
+
+		def get_all(dt, filters=None, **k):
+			if dt == "Payment Entry" and (filters or {}).get("reference_no") == "FT-BT-S":
+				return ["APP-1"] if kieu == "nhap" else []
+			if dt == "Bank Transaction" and kieu == "phan_bo":
+				return [Doi(name="BT-S", reference_number="FT-BT-S", allocated_amount=13000000.0, deposit=13000000.0)]
+			if dt == "Bank Transaction" and kieu == "ma_la" and "fields" in k and "allocated_amount" in k["fields"]:
+				return []
+			return goc(dt, filters, **k)
+		th.dat(fr, "get_all", get_all)
+		try:
+			cn.kiem_sepay("P")
+			la("%s: đã thu đủ" % kieu, doc.trang_thai, "Da thu du")
+			dung("%s: giao dịch tính là đã dùng" % kieu, cn._gd_da_dung(doc.ma_gd) == ["BT-S"])
+			th.dat(fr, "set_user", lambda u: setattr(fr.session, "user", u))
+			e = _bat(lambda: cn.huy_phieu("P", "x"))
+			dung("%s: chặn huỷ: %s" % (kieu, e), e is not None and "không huỷ được" in str(e))
+			la("%s: giữ trạng thái" % kieu, doc.trang_thai, "Da thu du")
+		finally:
+			th.tra()
+
+
+class QueryDeadlockError(Exception):
+	pass
+
+
+class OperationalError(Exception):
+	pass
+
+
+@ca("Codex #444 vòng 5: lỗi CSDL làm chết giao dịch trong hook on_submit thì NÉM lên, lỗi thư thường thì ghi log")
+def _():
+	log = []
+	th = Thay()
+	th.dat(fr, "log_error", lambda *a, **k: log.append(a))
+	pe = Doi(payment_type="Receive", references=[Doi(reference_doctype="Sales Invoice", reference_name="HD-1")])
+	try:
+		for loi in (QueryDeadlockError("deadlock"), OperationalError(1213, "Deadlock found"),
+				OperationalError(2013, "Lost connection"), OperationalError(1205, "Lock wait timeout")):
+			def gui(ds, loi=loi):
+				raise loi
+			th.dat(fr, "get_attr", lambda d, gui=gui: gui)
+			e = _bat(lambda: tt.gui_thu_khi_ghi_so(pe))
+			dung("ném lên %r" % (loi,), e is loi)
+		la("không ghi log lỗi chết", log, [])
+		th.dat(fr, "get_attr", lambda d: (lambda ds: (_ for _ in ()).throw(RuntimeError("smtp"))))
+		la("lỗi thường không chặn ghi sổ", _bat(lambda: tt.gui_thu_khi_ghi_so(pe)), None)
+		la("lỗi thường ghi log", len(log), 1)
+	finally:
+		th.tra()
+
+
+@ca("Codex #444 vòng 5: gửi thư sau ghi sổ: lỗi thường lùi ĐÚNG phần thư của phiếu đó và đi tiếp; lỗi chết thì ném")
+def _():
+	nk = []
+	th = Thay()
+	phieu = {t: Doi(name=t) for t in ("P1", "P2")}
+	th.dat(fr, "get_all", lambda dt, filters=None, **k: ["P1", "P2"] if dt == "Vagabond Cong No Dong" else [])
+	th.dat(fr, "get_doc", lambda dt, ten, **k: phieu[ten])
+	th.dat(fr.db, "savepoint", lambda ten: nk.append(("diem", ten)))
+	th.dat(fr.db, "rollback", lambda save_point=None: nk.append(("lui", save_point)))
+	th.dat(fr, "log_error", lambda *a, **k: nk.append(("log",)))
+
+	def sach(d, xep_hang=False):
+		if d.name == "P1":
+			raise RuntimeError("smtp")
+		return True
+	th.dat(cn, "_gui_thu_khi_sach", sach)
+	try:
+		la("phiếu sau vẫn gửi", cn.gui_thu_sau_ghi_so(["HD-1"]), ["P2"])
+		la("lùi đúng điểm lưu của phiếu hỏng", nk, [("diem", "vgb_thu_sau_gs"), ("lui", "vgb_thu_sau_gs"), ("log",),
+			("diem", "vgb_thu_sau_gs")])
+		th.dat(cn, "_gui_thu_khi_sach", lambda d, xep_hang=False: (_ for _ in ()).throw(QueryDeadlockError("x")))
+		e = _bat(lambda: cn.gui_thu_sau_ghi_so(["HD-1"]))
+		dung("lỗi chết ném lên", isinstance(e, QueryDeadlockError))
+	finally:
+		th.tra()
