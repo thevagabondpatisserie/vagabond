@@ -488,6 +488,7 @@ def _():
 			[x[:4] + (x[4][:4],) for x in nk if x[0] == "luu_pt"],
 			[("luu_pt", "APP-26-10-134", "Administrator", 0, "GO:T"),
 			("luu_pt", "APP-26-10-150", "Administrator", 0, "GO:T")])
+		dung("lưu bằng cờ máy gỡ (hook cho qua)", all(p.flags.get(tt.CO_MAY_GO_NHAP) for p in doc["_pts"].values()))
 		vet = doc["_pts"]["APP-26-10-134"].remarks
 		dung("ghi vết hoá đơn, số tiền, phiếu đòi nợ: " + vet[:160],
 			"HDB-APP-26-10-134 500.000 đ" in vet and "DNTT-26-10-00004" in vet and "Không ghi sổ" in vet)
@@ -753,6 +754,9 @@ def _():
 	th.dat(cn.tai_khoan, "tk_phieu_no", lambda: {})
 	try:
 		la("phiếu thu còn nháp: 2 hoá đơn chờ ghi sổ", cn.xem_phieu("P")["cho_ghi_so"], 2)
+		# Codex #444 vòng 3: hoá đơn chưa có phiếu thu nào (lập nháp hỏng) không tính là chờ ghi sổ.
+		th.dat(cn, "_hd_chua_co_phieu_thu", lambda ds: {"HD-1"})
+		la("hoá đơn thiếu phiếu thu không tính chờ ghi sổ", cn.xem_phieu("P")["cho_ghi_so"], 1)
 		con_no["v"] = []
 		la("sổ sạch: 0", cn.xem_phieu("P")["cho_ghi_so"], 0)
 	finally:
@@ -788,3 +792,37 @@ def _():
 	# Trên fe52e62 bench đỏ: _sepay_theo_ma_cn trả {} một giá trị, _sepay_cn gỡ hai giá trị.
 	la("không mã hợp lệ", cn._sepay_theo_ma_cn(["DNTT-KT576-abcdef", ""]), ({}, []))
 	la("đọc một mã lạ", cn._sepay_cn("PHIEU-TU-CHE"), {})
+
+
+
+@ca("Codex #444 vòng 3: phiếu thu đã GỠ không ghi sổ được, không đổi khoá về được, người không tự đánh dấu được")
+def _():
+	f = tt.ly_do_chan_nhap_da_go
+	G = "GO:THU:HDB-1:phieu:DNTT-1:tay:x|Chuyển khoản"
+	dung("ghi sổ phiếu đã gỡ: chặn", "không ghi sổ được" in f(G, G, 1, False, "APP-1"))
+	dung("đổi khoá về THU: chặn", "không đổi số tham chiếu" in f("THU:HDB-1", G, 0, False, "APP-1"))
+	dung("người tự gắn GO: chặn", "Chỉ máy" in f(G, "THU:HDB-1", 0, False))
+	la("máy gỡ: cho qua", f(G, "THU:HDB-1", 0, True), "")
+	la("lưu lại phiếu đã gỡ không đổi khoá: cho qua", f(G, G, 0, False), "")
+	la("phiếu thường: cho qua", f("FT123", "FT123", 1, False), "")
+	la("phiếu mới thường: cho qua", f("FT9", None, 0, False), "")
+
+
+@ca("Codex #444 vòng 3: hook validate thật chặn ghi sổ phiếu đã gỡ trên Desk")
+def _():
+	th = Thay()
+	th.dat(fr.db, "get_value", lambda dt, ten, f=None, **k: "GO:THU:HDB-1:phieu:DNTT-1:tay:x|Chuyển khoản")
+
+	class PE(Doi):
+		def is_new(self):
+			return False
+	try:
+		pe = PE(doctype="Payment Entry", name="APP-26-10-134", reference_no="GO:THU:HDB-1:phieu:DNTT-1:tay:x|Chuyển khoản",
+			docstatus=1, flags=Doi())
+		e = _bat(lambda: tt.chan_nhap_da_go(pe))
+		dung("chặn ghi sổ: " + str(e)[:80], e is not None and "APP-26-10-134" in str(e))
+		pe.docstatus = 0
+		la("lưu nháp giữ khoá: qua", _bat(lambda: tt.chan_nhap_da_go(pe)), None)
+		la("doctype khác: bỏ qua", _bat(lambda: tt.chan_nhap_da_go(PE(doctype="Journal Entry", flags=Doi()))), None)
+	finally:
+		th.tra()
