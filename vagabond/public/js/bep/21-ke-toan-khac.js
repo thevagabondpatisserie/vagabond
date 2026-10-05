@@ -766,43 +766,67 @@ async function cnKhopTay(d) {
     (CN_LAN_CHO[d.name] = Date.now().toString(36) + Math.random().toString(36).slice(2, 8));
   var con = d.con_thieu || d.tong_tien;
   var ds;
-  try { ds = await api('vagabond.cong_no.tim_giao_dich_thu', { so_ngay: 120, so_tien: Math.round(con) }); }
+  /* v577 (ca Loan Anh 05/10/2026, DNTT-26-10-00004): KHONG loc dung so tien
+     nua. Kiet Tac chuyen 9.550.000 d cho phieu 8.450.000 d nen giao dich that
+     khong hien, nguoi bam buoc phai chon "Khong thay giao dich". Nay dua MOI
+     giao dich con tien chua noi, khoan dung so xep dau, co o tim. */
+  try { ds = await api('vagabond.cong_no.tim_giao_dich_thu', { so_ngay: 120, so_tien: Math.round(con), chua_noi: 1 }); }
   catch (e) { return baoTin((e && e.message) || 'Không đọc được sao kê'); }
 
-  var lc = (ds.rows || []).slice(0, 25).map(function (r) {
+  var rows = (ds.rows || []).slice(0, 150);
+  var lc = rows.map(function (r) {
+    var tien = r.con != null ? r.con : r.tien;
     return {
       k: r.ma,
-      nhan: money(r.tien) + ' đ · ' + hsNgayVn(String(r.ngay).slice(0, 10)),
-      mo_ta: (r.noi_dung || '(không có nội dung)').slice(0, 110),
-      icon: '⬇️'
+      nhan: money(tien) + ' đ · ' + hsNgayVn(String(r.ngay).slice(0, 10)) + (r.dung_so ? ' · đúng số tiền' : ''),
+      mo_ta: (r.noi_dung || '(không có nội dung)').slice(0, 140),
+      icon: r.dung_so ? '✅' : '⬇️'
     };
   });
-  lc.push({ k: '@go_tay', nhan: 'Không thấy giao dịch nào khớp', mo_ta: 'Tự gõ số tiền đã nhận, không gắn giao dịch nào.', icon: '✏️' });
+  lc.push({ k: '@go_tay', nhan: 'Không thấy giao dịch nào khớp',
+    mo_ta: d.ke_toan ? 'Kế toán: tự gõ số tiền đã nhận, đính uỷ nhiệm chi khách gửi, máy ghi sổ phiếu thu ngay.'
+      : 'Chỉ kế toán làm được. Bấm để xem cần làm gì.', icon: '✏️' });
 
   var chon = await hoiChon('Khớp tay phiếu ' + d.ma_phieu,
-    'Đang lọc giao dịch tiền về đúng ' + money(con) + ' đ trong 4 tháng. Chọn giao dịch của khách này.',
+    'Mọi giao dịch tiền về chưa nối trong 4 tháng, khoản đúng ' + money(con) + ' đ xếp đầu. ' +
+    'Khách chuyển gộp nhiều phiếu thì số tiền khác: gõ tên khách hoặc số tiền để tìm.',
     lc, null);
   if (!chon) return;
 
-  var soTien = con, maGd = '';
+  var soTien = con, maGd = '', unc = null, lonHon = 0;
   if (chon === '@go_tay') {
+    /* v577: loi nay ghi so phieu thu NGAY, ma phieu thu ngan hang phai co UNC
+       va chi ke toan ghi so. Nguoi khac bam vao thi chi duong, khong goi may chu. */
+    if (!d.ke_toan) {
+      return baoTin('Khớp tay không gắn giao dịch ngân hàng là ghi sổ phiếu thu ngay, nên chỉ kế toán làm được và phải đính uỷ nhiệm chi khách gửi.\n\n' +
+        'Mở lại Khớp tay, gõ tên khách hoặc số tiền vào ô tìm: khách hay chuyển gộp nhiều phiếu nên số tiền có thể khác số phiếu. ' +
+        'Giao dịch lớn hơn phiếu vì khách trả gộp cho hoá đơn khác thì huỷ phiếu này, gom lại đủ hoá đơn rồi khớp. Vẫn không thấy thì báo kế toán.', 'Khớp tay');
+    }
     soTien = await hoiSo('Khớp tay', 'Số tiền thực nhận cho phiếu này.', String(Math.round(con)));
     if (!soTien) return;
+    unc = await cnHoiUnc(d, soTien);
+    if (!unc) return;
   } else {
     maGd = chon;
-    var g = (ds.rows || []).filter(function (x) { return x.ma === chon; })[0] || {};
-    soTien = Math.round(g.tien || con);
+    var g = rows.filter(function (x) { return x.ma === chon; })[0] || {};
+    var tienGd = Math.round(g.con != null ? g.con : (g.tien || con));
+    /* Gui so khong vuot phieu; giao dich lon hon thi may chu noi ro phai lam gi. */
+    soTien = Math.min(tienGd, Math.round(con));
+    lonHon = tienGd > con + 1 ? tienGd : 0;
   }
   var gc = await hoiChu('Khớp tay', 'Ghi chú vì sao phải khớp tay (để sau này còn truy).', '', { nhieu_dong: 1, goi_y: 'Khách chuyển từ tài khoản công ty, nội dung không mang mã phiếu' });
   if (gc === null) return;
 
   if (!await hoiCo('Xác nhận khớp tay',
     'Phiếu ' + d.ma_phieu + '\nGhi nhận đã thu ' + money(soTien) + ' đ' +
-    (maGd ? '\nGắn với giao dịch ' + maGd : '\nKhông gắn giao dịch nào') +
+    (maGd ? '\nGắn với giao dịch ' + maGd : '\nKhông gắn giao dịch nào, kèm ' + unc.length + ' tệp uỷ nhiệm chi') +
+    (lonHon ? '\nGiao dịch ' + money(lonHon) + ' đ lớn hơn số phiếu còn phải thu, máy sẽ kiểm phần dư.' : '') +
     '\n\nCông nợ của khách sẽ được cập nhật theo số này. Nếu đủ, máy gửi luôn thư báo nhận tiền cho khách.', 'Khớp')) return;
   busy(true);
   try {
-    var kq = await api('vagabond.cong_no.khop_tay', { name: d.name, so_tien: soTien, ma_giao_dich: maGd, ghi_chu: gc || '', ma_lan: maLan });
+    var ts = { name: d.name, so_tien: soTien, ma_giao_dich: maGd, ghi_chu: gc || '', ma_lan: maLan };
+    if (unc) ts.unc = JSON.stringify(unc);
+    var kq = await api('vagabond.cong_no.khop_tay', ts);
     delete CN_LAN_CHO[d.name];
     busy(false);
     /* v571: co lap phieu thu hay co loi thi bao bang hop, khong toast troi
@@ -811,6 +835,34 @@ async function cnKhopTay(d) {
     else toast(kq.loi_nhan, 5500);
   } catch (e) { busy(false); return baoTin((e && e.message) || 'Khớp tay lỗi'); }
   go(function () { scrCnPhieu(d.name); }, true);
+}
+
+/* v577: hop dinh uy nhiem chi cho lan ke toan khop tay KHONG gan giao dich.
+   Dung chung bo tai tep cua man Cong no (43-tep-dinh-kem.js). Tra list duong
+   dan tep da tai len, hoac null neu thoi. */
+function cnHoiUnc(d, soTien) {
+  return new Promise(function (xong) {
+    var id = 'cnkunc';
+    var o = { nhan: '📎 Chọn ảnh chuyển khoản khách gửi', goi_y: 'Ảnh chụp màn hình chuyển khoản hoặc tệp PDF uỷ nhiệm chi khách gửi.', style: 'margin-top:0' };
+    tdkNap(id, []);
+    var than = '<div style="font-size:13.5px;color:#374151;line-height:1.6;margin-bottom:10px">' +
+      'Phiếu <b>' + h(d.ma_phieu) + '</b> · ' + money(soTien) + ' đ<br>' +
+      '<span style="color:#667085">Không gắn giao dịch ngân hàng nên máy ghi sổ phiếu thu ngay. Phiếu thu tiền về ngân hàng phải có uỷ nhiệm chi khách gửi.</span></div>' +
+      tdkKhoi(id, o);
+    var k = hopKhung('Uỷ nhiệm chi khách gửi', than,
+      '<button class="btn gh" data-cnkx style="flex:1;margin:0;min-height:44px">Thôi</button>' +
+      '<button class="btn" data-cnkok style="flex:2;margin:0;min-height:44px">Tiếp</button>');
+    tdkNoi(k.box, id, o);
+    var tra = function (v) { k.dong(); xong(v); };
+    k.box.onclick = function (e) {
+      if (e.target.closest('.x') || e.target.closest('[data-cnkx]')) return tra(null);
+      if (!e.target.closest('[data-cnkok]')) return;
+      var ds = (tdkDs(id) || []).filter(Boolean);
+      if (!ds.length) return baoTin('Chọn ảnh chuyển khoản khách gửi trước rồi bấm Tiếp.');
+      tra(ds);
+    };
+    k.ov.onclick = function (e) { if (e.target === k.ov) tra(null); };
+  });
 }
 
 

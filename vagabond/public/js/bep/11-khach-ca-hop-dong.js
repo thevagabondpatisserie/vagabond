@@ -499,7 +499,11 @@ async function scrCnPhieu(name) {
     if (thieuPT) {
       html += '<div class="card" style="padding:13px 14px;border:1.5px solid #fcd34d;background:#fffbeb;color:#92400e;font-size:13.5px;line-height:1.55">' +
         '<b>⚠ Phiếu đã ghi nhận ' + money(daNhan) + ' đ nhưng ' + thieuPT + ' hoá đơn chưa có phiếu thu</b>, nên khách vẫn nằm ở tab Đang nợ. ' +
-        'Bấm <b>Khớp tay</b> và chọn đúng giao dịch khách chuyển: máy lập một phiếu thu nháp cho cả các hoá đơn, chuyển chúng sang mục Tiền đã về.</div>';
+        'Bấm <b>Khớp tay</b> và chọn đúng giao dịch khách chuyển: máy lập một phiếu thu nháp cho cả các hoá đơn, chuyển chúng sang mục Tiền đã về.' +
+        /* v577 (ca Ms.Dung DNTT-26-10-00004): khách chuyển gộp nhiều hơn phiếu
+           thì giao dịch không khớp được phiếu này; huỷ rồi gom lại đủ hoá đơn. */
+        (d.huy_duoc ? ' Giao dịch khách chuyển lớn hơn phiếu (trả gộp cho hoá đơn khác, kể cả pháp nhân khác) thì bấm <b>Huỷ phiếu</b> rồi gom lại đủ các hoá đơn khách đã trả.' : '') +
+        '</div>';
     }
   }
   /* Codex #437 F2: tien da ve du (con_thieu 0) ma chi thieu phieu thu thi
@@ -555,7 +559,7 @@ async function scrCnPhieu(name) {
     '<button class="btn gh" id="cnKiem" style="flex:1;margin:0">🔄 Đối chiếu SePay</button>' +
     (du ? '<button class="btn gh" id="cnThu" style="flex:1;margin:0">✉️ Thư báo</button>'
         : '<button class="btn gh" id="cnKhop" style="flex:1;margin:0">🔎 Khớp tay</button>') +
-    (du || d.trang_thai === 'Huy' ? '' : '<button class="btn gh" id="cnHuy" style="flex:0 0 34%;margin:0;color:#b3261e">Huỷ phiếu</button>') +
+    (du || d.trang_thai === 'Huy' || d.huy_duoc === 0 ? '' : '<button class="btn gh" id="cnHuy" style="flex:0 0 34%;margin:0;color:#b3261e">Huỷ phiếu</button>') +
     '</div>';
   var b = frame('Phiếu ' + h(d.ma_phieu), html, { footer: foot });
   Array.prototype.forEach.call(document.querySelectorAll('[data-cnck]'), function (el) {
@@ -590,10 +594,12 @@ async function scrCnPhieu(name) {
   };
   var nh = document.getElementById('cnHuy');
   if (nh) nh.onclick = async function () {
-    var ok = await confirmSheet('Huỷ phiếu ' + d.ma_phieu, 'Các hoá đơn trong phiếu sẽ quay lại danh sách chờ gom. Mã QR này sẽ không dùng nữa.', 'Huỷ phiếu');
+    var ok = await confirmSheet('Huỷ phiếu ' + d.ma_phieu, 'Các hoá đơn trong phiếu sẽ quay lại danh sách chờ gom. Mã QR này sẽ không dùng nữa.' +
+      (d.so_nhap_hong ? '\nMáy dọn luôn ' + d.so_nhap_hong + ' phiếu thu nháp hỏng của lần khớp tay trước (chưa vào sổ).' : ''), 'Huỷ phiếu');
     if (!ok) return;
     busy(true);
-    try { await api('vagabond.cong_no.huy_phieu', { name: name, ly_do: S.me.full_name || S.user }); busy(false); toast('Đã huỷ phiếu.'); go(scrCongNo); }
+    try { var rh = await api('vagabond.cong_no.huy_phieu', { name: name, ly_do: S.me.full_name || S.user }); busy(false);
+      toast('Đã huỷ phiếu.' + (rh && rh.da_xoa_nhap && rh.da_xoa_nhap.length ? ' Đã dọn ' + rh.da_xoa_nhap.length + ' phiếu thu nháp hỏng.' : ''), 4000); go(scrCongNo); }
     catch (e) { busy(false); toast((e && e.message) || 'Không huỷ được', 4000); }
   };
 }
