@@ -600,6 +600,12 @@ async function scrCnPhieu(name) {
     try { var r = await api('vagabond.cong_no.kiem_sepay', { name: name }); busy(false);
       /* Codex #444 vòng 3: lập phiếu thu nháp hỏng thì hoá đơn KHÔNG ở tab
          Tiền đã về; chỉ đường Khớp tay trước (thieu_phieu_thu), rồi mới tới chờ ghi sổ. */
+      /* Codex #444 vong 5: lap phieu thu hong thi noi dung ly do may chu tra. */
+      if (r.loi_lap && r.loi_lap.length) {
+        await baoTin('SePay thấy tiền nhưng chưa lập được phiếu thu: ' + r.loi_lap.join('; ') +
+          '. Giao dịch lớn hơn phiếu (khách trả gộp) thì bấm Huỷ phiếu rồi gom lại đủ hoá đơn khách đã trả; còn lại bấm Khớp tay.');
+        go(function () { scrCnPhieu(name); }, true); return;
+      }
       toast(r.sepay >= r.tong_tien - 1
         ? (r.thieu_phieu_thu ? 'Tiền đã về đủ nhưng ' + r.thieu_phieu_thu + ' hoá đơn chưa có phiếu thu. Bấm Khớp tay để làm lại.'
           : r.cho_ghi_so ? 'Tiền đã về đủ. ' + r.cho_ghi_so + ' hoá đơn chờ kế toán đính UNC và ghi sổ ở tab Tiền đã về.'

@@ -834,7 +834,11 @@ async function cnKhopTay(d) {
     'Phiếu ' + d.ma_phieu + '\nGhi nhận đã thu ' + money(soTien) + ' đ' +
     (maGd ? '\nGắn với giao dịch ' + maGd : '\nKhông gắn giao dịch nào, kèm ' + unc.length + ' tệp uỷ nhiệm chi') +
     (lonHon ? '\nGiao dịch ' + money(lonHon) + ' đ lớn hơn số phiếu còn phải thu, máy sẽ kiểm phần dư.' : '') +
-    '\n\nCông nợ của khách sẽ được cập nhật theo số này. Nếu đủ, máy gửi luôn thư báo nhận tiền cho khách.', 'Khớp')) return;
+    /* Codex #444 vong 5: gan giao dich thi chi lap phieu thu NHAP; thu bao
+       cho toi khi ke toan ghi so, dung noi la da gui. */
+    (maGd
+      ? '\n\nMáy lập phiếu thu nháp, chuyển hoá đơn sang tab Tiền đã về. Sổ cái vẫn ghi khách nợ và thư báo nhận tiền CHƯA gửi cho tới khi kế toán đính UNC và ghi sổ.'
+      : '\n\nPhiếu thu ghi sổ ngay theo số này. Nếu đủ, máy gửi thư báo nhận tiền cho khách.'), 'Khớp')) return;
   busy(true);
   try {
     var ts = { name: d.name, so_tien: soTien, ma_giao_dich: maGd, ghi_chu: gc || '', ma_lan: maLan };
