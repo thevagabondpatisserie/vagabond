@@ -1764,3 +1764,8 @@ lần đầu đếm ngoại lệ ra 0 trên 14 đột biến, tưởng bộ ki�
 - Hook chạy trong `on_submit` mà nuốt mọi lỗi thì deadlock, chờ khoá, mất kết
   nối cũng bị nuốt: bút toán đã lùi mà màn báo ghi sổ xong. Dùng
   `vagabond.loi_csdl.chet_giao_dich` để ném lại các lỗi đó.
+- Việc phụ sau ghi sổ (thư báo) mà chạy NGAY trong `on_submit` thì phải soát
+  mọi `except` của cả chuỗi hàm dựng thư dùng chung, sót một chỗ là deadlock
+  bị nuốt (Codex #444 vòng 6 bắt ở `db_set` dấu đã gửi). Cách gọn: `on_submit`
+  chỉ `frappe.db.after_commit.add(...)`, việc nền tự đọc lại sổ rồi mới làm,
+  như `can_tru_san`, `tru_kho_bu`, `thu_tien.gui_thu_khi_ghi_so`.
