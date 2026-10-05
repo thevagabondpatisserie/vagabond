@@ -53,7 +53,14 @@ function mayChu(tl) {
     dem: function (m) { return goi.filter(function (x) { return x.m === m; }).length; },
     api: async function (m, a) {
       goi.push({ m: m, a: JSON.parse(JSON.stringify(a || {})) });
-      if (m === 'vagabond.cong_no.tim_giao_dich_thu') return { rows: GD };
+      if (m === 'vagabond.cong_no.tim_giao_dich_thu') {
+        /* Codex #444 F2: may chu chi tra 300 dong moi nhat; khoan cu chi ra khi TIM. */
+        if (tl.__nhieu) {
+          if (a.tu_khoa) return { rows: tl.__nhieu.filter(function (r) { return r.noi_dung.toLowerCase().indexOf(a.tu_khoa.toLowerCase()) >= 0; }), tong: 1, con_nua: 0 };
+          return { rows: tl.__nhieu.slice(0, 300), tong: tl.__nhieu.length, con_nua: tl.__nhieu.length - 300 };
+        }
+        return { rows: GD, tong: GD.length, con_nua: 0 };
+      }
       if (m === 'vagabond.cong_no.khop_tay') {
         if (a.ma_giao_dich === 'FT-KIETTAC') throw new Error(CAU_LON_HON);
         return { ok: 1, pe: a.ma_giao_dich ? 'APP-1' : '', loi: [], loi_nhan: 'Đã ghi nhận.' };
@@ -148,10 +155,11 @@ async function moKhop(app, them) {
     var t = app.mc.cuoi('vagabond.cong_no.tim_giao_dich_thu');
     bang('hoi may chu moi giao dich chua noi', [t.a.chua_noi, t.a.so_tien], [1, 8450000]);
     var muc = app.tim('[data-hc]');
-    bang('du 10 giao dich va muc khong thay', muc.length, 11);
-    bang('khoan dung so dau tien', muc[0].getAttribute('data-hc'), 'FT-DUNGSO');
-    dung('nhan dung so tien', chu(muc[0]).indexOf('đúng số tiền') >= 0);
-    dung('giao dich Kiet Tac co trong hop', chu(muc[1]).indexOf('Kiet Tac doi soat') >= 0);
+    bang('muc Tim, du 10 giao dich va muc khong thay', muc.length, 12);
+    bang('muc dau la Tim tren may chu', muc[0].getAttribute('data-hc'), '@tim');
+    bang('khoan dung so dau tien', muc[1].getAttribute('data-hc'), 'FT-DUNGSO');
+    dung('nhan dung so tien', chu(muc[1]).indexOf('đúng số tiền') >= 0);
+    dung('giao dich Kiet Tac co trong hop', chu(muc[2]).indexOf('Kiet Tac doi soat') >= 0);
     dung('co o tim', app.tim('#hcTim').length === 1);
   });
 
@@ -237,6 +245,37 @@ async function moKhop(app, them) {
     bang('khong nut Huy', app.tim('#cnHuy').length, 0);
     dung('khong chi duong huy', chu(app.tl.body).indexOf('rồi gom lại đủ các hoá đơn khách đã trả') < 0);
     bang('van co nut Khop tay', app.tim('#cnKhop').length, 1);
+  });
+
+  await ca('Codex #444 F2: 450 giao dich chua noi, khoan Kiet Tac nam ngoai 300 dong: bam Tim, go ten, may chu tra ve, chon duoc', async function () {
+    var app = appMoi();
+    var nhieu = [];
+    for (var j = 0; j < 449; j++) nhieu.push({ ma: 'FT-L' + j, ngay: '2026-10-01', noi_dung: 'khach le ' + j, tien: 100000 + j, con: 100000 + j, dung_so: 0 });
+    nhieu.push({ ma: 'FT-KIETTAC', ngay: '2026-06-10', noi_dung: 'Kiet Tac doi soat Vagabond 8.9 nam 2026', tien: 8450000, con: 8450000, dung_so: 1 });
+    app.tl.__nhieu = nhieu;
+    var p = (await moKhop(app)).xong;
+    bang('chua tim: khong co khoan Kiet Tac', app.tim('[data-hc="FT-KIETTAC"]').length, 0);
+    dung('noi ro con bao nhieu khoan', chu(app.tl.body).indexOf('còn 150 khoản') >= 0);
+    await app.bam(app.mot('[data-hc="@tim"]'));
+    await app.go('kiet tac');
+    bang('gui chu len may chu', app.mc.cuoi('vagabond.cong_no.tim_giao_dich_thu').a.tu_khoa, 'kiet tac');
+    await app.bam(app.mot('[data-hc="FT-KIETTAC"]'));
+    await app.go('Kiet Tac');
+    await app.bam(app.mot('[data-hkok]'));
+    await p;
+    bang('khop dung giao dich tim ra', app.mc.cuoi('vagabond.cong_no.khop_tay').a.ma_giao_dich, 'FT-KIETTAC');
+  });
+
+  await ca('Codex #444 F1: tien da ve du ma phieu thu con nhap thi man KHONG bao cong no da sach', async function () {
+    var app = appMoi();
+    app.tl.__phieu = Object.assign({}, PHIEU, { trang_thai: 'Da thu du', da_thu: 8450000, sepay: 8450000, da_nhan: 8450000,
+      con_thieu: 0, thieu_phieu_thu: 0, cho_ghi_so: 2, huy_duoc: 0, so_nhap_hong: 0, qr: {}, han_qr: '2026-10-12', cac_khach: [], dong: [] });
+    await app.g.scrCnPhieu('DNTT-26-10-00004'); await nghi();
+    dung('khong bao da sach', chu(app.tl.body).indexOf('đã sạch') < 0);
+    dung('noi cho ke toan ghi so', chu(app.mot('[data-cnchoghiso]')).indexOf('2 hoá đơn đang ở tab Tiền đã về') >= 0);
+    app.tl.__phieu.cho_ghi_so = 0;
+    await app.g.scrCnPhieu('DNTT-26-10-00004'); await nghi();
+    dung('so sach roi thi bao da sach', chu(app.tl.body).indexOf('Công nợ của khách này đã sạch') >= 0);
   });
 
   console.log('Bo ca kiem HANH VI v577: hop Khop tay va Huy phieu ket (Loan Anh, Ms.Dung)');
