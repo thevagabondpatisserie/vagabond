@@ -1594,6 +1594,15 @@ lần đầu đếm ngoại lệ ra 0 trên 14 đột biến, tưởng bộ ki�
   phải dựng cả hai nhánh. Trước khi viết ca, đếm dữ liệu thật đang rơi vào
   nhánh nào; ở đây 15 trên 15 rơi vào đúng nhánh chưa có code.
 
+## 03/10/2026 - #420: đủ tổng nguồn chưa phải đủ tiền về
+
+Báo cáo vendor ngày/tháng có thể chứa cùng sự kiện; tên file và hash byte
+không đủ chống trùng kinh tế. Khóa cần phạm vi công ty/vendor/merchant/tiền
+tệ và ID ổn định; nội dung thay đổi phải giữ lỗi để kiểm bản điều chỉnh.
+Phép xem trước dùng snapshot chỉ bắt trùng đã biết, không thay khóa DB ở cửa
+ghi. Nhận phần hợp lệ phải chặn cả nhóm ID lặp, không để bản đầu còn Mới.
+46 ca phần thuần kiểm tiền theo locale rõ, giữ dấu hoàn, đủ dòng/tổng và nhóm
+xung đột; chưa phải bằng chứng nhận email, phân bổ sao kê hoặc ghi sổ.
 ## 03/10/2026 (v565, Zalo #410/#413/#417/#423/#425): gửi tin ra ngoài từ hook chứng từ
 
 - Ca thật: bản tin Zalo cho nhóm bộ phận qua tám vòng Codex review. Mỗi vòng
@@ -1675,6 +1684,14 @@ lần đầu đếm ngoại lệ ra 0 trên 14 đột biến, tưởng bộ ki�
   và đếm 9 từ tồn 10 cho hai ca giữ giá 0. Không khẳng định core bench hỗ trợ
   định giá về 0 khi số lượng không đổi.
 
+## 05/10/2026 — Mẫu Drive không tự có trong filesystem của cloud (#422)
+
+Trước kết luận người dùng chưa gửi mẫu, tra hồ sơ issue và nguồn Drive đã
+được cấp. Chuyển giao schema/fixture đã ẩn dữ liệu và danh mục thiếu chính
+xác; không chép dữ liệu ngân hàng/khách vào repo. Sheet chuyển đổi có thể
+đọc được nhưng không chứng minh byte CSV/XLS gốc hay đơn vị tiền. Không
+nhân/chia 1.000 chỉ để làm tổng khớp. Khóa sự kiện không chứa loại có thể
+thay đổi: cùng ID đổi loại phải vào luồng xung đột, không thành khoản mới.
 
 ## 04/10/2026 (v573): đếm "đã bán trong ngày" theo posting_date bị đếm hai lần khi bill đổi ngày
 
@@ -1725,3 +1742,10 @@ lần đầu đếm ngoại lệ ra 0 trên 14 đột biến, tưởng bộ ki�
 - Đường SePay tự khớp và khớp tay KHÔNG chọn giao dịch (`ghi_thu_cho_phieu`) lập
   phiếu thu ghi sổ thẳng, sẽ bị `chan_thieu_dinh_kem` chặn với phiếu lập sau
   16/08. Tồn đọng có sẵn từ trước, chưa sửa trong v576.
+
+## 05/10/2026 — Nhóm ID và cột nguồn (#422 v577)
+
+Gom căn cước sự kiện trước kiểm nội dung: nếu đợi tiền hợp lệ mới đăng ký
+ID thì bản lỗi không giữ được bản trùng, nút nhận phần hợp lệ vẫn lọt.
+Reader thô giữ mảng cột theo vị trí; header trống/trùng không đồng nghĩa
+nguồn hỏng. Kiểm mọi schema fixture, không chỉ hai mẫu đơn giản.
