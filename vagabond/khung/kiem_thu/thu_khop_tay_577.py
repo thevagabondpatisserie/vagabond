@@ -1072,3 +1072,39 @@ def _():
 		dung("lỗi chết ném lên", isinstance(e, QueryDeadlockError))
 	finally:
 		th.tra()
+
+
+@ca("Codex #444 vòng 7: Redis lỗi làm mất lời xếp thư thì nhịp mỗi giờ gửi bù, CHỈ theo phiếu thu ghi sổ trong 48 giờ qua")
+def _():
+	hoi, gui = [], []
+	th = Thay()
+
+	def get_all(dt, filters=None, **k):
+		hoi.append((dt, dict(filters or {})))
+		if dt == "Payment Entry":
+			return ["APP-1", "APP-2"]
+		if dt == "Payment Entry Reference":
+			return ["HD-2", "HD-1", "HD-2"]
+		return []
+	th.dat(fr, "get_all", get_all)
+	th.dat(cn, "gui_thu_sau_ghi_so", lambda ds: gui.append(list(ds)) or ["P1"])
+	try:
+		la("gửi bù qua đúng cửa chung", cn.quet_thu_bao_bo_lo(), ["P1"])
+		la("theo hoá đơn của các phiếu thu đó, không trùng", gui, [["HD-1", "HD-2"]])
+		loc = hoi[0][1]
+		la("chỉ phiếu thu tiền khách đã ghi sổ", (hoi[0][0], loc["docstatus"], loc["payment_type"]),
+			("Payment Entry", 1, "Receive"))
+		la("chỉ 48 giờ qua", (loc["modified"][0], str(loc["modified"][1])), (">=", "2026-08-13 09:00:00"))
+		la("dòng hoá đơn bán của đúng các phiếu đó", (hoi[1][1]["parent"], hoi[1][1]["reference_doctype"]),
+			(["in", ["APP-1", "APP-2"]], "Sales Invoice"))
+		th.dat(fr, "get_all", lambda dt, filters=None, **k: [])
+		gui[:] = []
+		la("không phiếu thu nào: không gọi gửi", (cn.quet_thu_bao_bo_lo(), gui), ([], []))
+	finally:
+		th.tra()
+
+
+@ca("Codex #444 vòng 7: nhịp gửi bù thư báo đăng ký mỗi giờ")
+def _():
+	from vagabond import hooks
+	dung("có trong hourly", "vagabond.cong_no.quet_thu_bao_bo_lo" in hooks.scheduler_events.get("hourly", []))
