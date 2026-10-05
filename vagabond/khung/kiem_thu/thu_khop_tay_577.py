@@ -160,6 +160,11 @@ class He(object):
 					raise fr.ValidationError("Giấy báo Có %s đi qua tài khoản ngân hàng %s nên bắt buộc phải có "
 						"Uỷ nhiệm chi đính kèm mới ghi sổ được." % (self.name, TK_NH))
 				self.docstatus = 1
+				# Như ERPNext: phiếu vào sổ thì trừ dư nợ hoá đơn trên sổ cái.
+				for r in self.get("references") or []:
+					for h in he.hd:
+						if h.name == r.reference_name:
+							h.outstanding_amount -= r.allocated_amount
 				he.nk.append(("submit", self.name, self.get("vgb_thu_unc")))
 
 		class TepGia(Doi):
@@ -194,7 +199,7 @@ class He(object):
 		th.dat(fr.session, "user", "ketoan@vagabond")
 		th.dat(cn, "_kiem_quyen_ban", lambda: None)
 		th.dat(cn, "_giu_gd", lambda d, ds: "")
-		th.dat(cn, "_gui_thu_da_nhan", lambda d: he.nk.append(("gui_thu",)))
+		th.dat(cn, "_gui_thu_da_nhan", lambda d, **k: he.nk.append(("gui_thu",)) or (True, "x@y"))
 		th.dat(tt, "phieu_thu_nhap", lambda cac_si=None, **k: [])
 
 	def phieu(self, **doi):
@@ -529,6 +534,8 @@ def _he_sepay(lap):
 		if dt == "Bank Transaction":
 			return [Doi(name="BT-S", reference_number="FT-BT-S", deposit=13000000.0, withdrawal=0.0)]
 		if dt == "Sales Invoice":
+			if (filters or {}).get("outstanding_amount"):
+				return ["HD-OSH", "HD-VU"]
 			return [Doi(name="HD-OSH", customer="OSHIMA"), Doi(name="HD-VU", customer="VU")]
 		return []
 	th.dat(fr, "get_doc", get_doc)
@@ -539,7 +546,7 @@ def _he_sepay(lap):
 	th.dat(cn, "_kiem_quyen_ban", lambda: None)
 	th.dat(cn, "_giu_gd", lambda d, ds: "\n".join(ds))
 	th.dat(cn, "_sepay_cn", lambda ma: {"nhan": 13000000.0, "so_gd": 1, "gd": ["BT-S"]})
-	th.dat(cn, "_gui_thu_da_nhan", lambda d: nk.append(("gui_thu",)))
+	th.dat(cn, "_gui_thu_da_nhan", lambda d, **k: nk.append(("gui_thu",)) or (True, "x@y"))
 	th.dat(cn, "xem_phieu", lambda name: {})
 	th.dat(tt, "lap_phieu_thu_theo_gd", lambda cac_si, g, so, gc="", **k: lap(nk, cac_si, g, so, k))
 	return doc, nk, th
@@ -558,7 +565,8 @@ def _():
 		la("đã thu đủ", doc.trang_thai, "Da thu du")
 		la("không ghi bình luận lỗi", [x for x in nk if x[0] == "binh_luan"], [])
 		dung("lập trước khi lưu phiếu", [x[0] for x in nk].index("lap") < [x[0] for x in nk].index("luu"))
-		la("gửi thư một lần", [x for x in nk if x[0] == "gui_thu"], [("gui_thu",)])
+		# Codex #444 F1: phiếu thu còn NHÁP, sổ cái vẫn nợ: chưa gửi thư "đã tất toán".
+		la("chưa gửi thư khi sổ cái còn nợ", [x for x in nk if x[0] == "gui_thu"], [])
 	finally:
 		th.tra()
 
@@ -605,5 +613,128 @@ def _():
 		la("một thư, đủ hai pháp nhân, khách đứng tên trước", [x[1] for x in mail], ["vu@gmail.com, ketoan@oshima.vn"])
 		la("kính gửi đủ tên", mail[0][2], "Kính gửi Công ty TNHH Oshima's và Anh Vũ Oshima")
 		dung("ghi lại gửi tới ai", ("db_set", "email_gui_toi", "vu@gmail.com, ketoan@oshima.vn") in gui)
+	finally:
+		th.tra()
+
+
+# ------------------------------------------- Codex #444: thư khi sổ sạch, tìm trên máy chủ
+
+
+@ca("Codex #444 F2: tìm giao dịch theo nội dung, mã, hoặc số tiền gõ có dấu chấm")
+def _():
+	k = tt.gd_khop_tu_khoa
+	dung("nội dung", k("kiet tac", "Kiet Tac doi soat Vagabond 8.9", "FT1", 9550000))
+	dung("mã", k("ft26278", "abc", "FT26278XYZ", 1))
+	dung("số tiền có dấu chấm", k("9.550.000", "abc", "FT1", 9550000.0))
+	dung("số tiền có chữ đ", k("9.550.000 đ", "abc", "FT1", 9550000.0))
+	dung("không khớp số khác", not k("9.550.000", "abc", "FT1", 8450000.0))
+	dung("số quá ngắn không dò theo tiền", not k("55", "abc", "FT1", 9550000.0))
+	dung("trống là khớp hết", k("", "abc", "FT1", 1))
+
+
+@ca("Codex #444 F2: máy chủ tìm trên TOÀN BỘ giao dịch chưa nối, kể cả khoản ngoài 300 dòng mới nhất")
+def _():
+	BT = [Doi(name="BT-%d" % i, date="2026-10-01", description="khach le %d" % i, deposit=100000.0 + i,
+		bank_account="MB", reference_number="FT-%d" % i, unallocated_amount=100000.0 + i) for i in range(400)]
+	BT.append(Doi(name="BT-KT", date="2026-06-10", description="Kiet Tac doi soat", deposit=9550000.0,
+		bank_account="MB", reference_number="FT-KIETTAC", unallocated_amount=9550000.0))
+	th = Thay()
+	th.dat(fr, "get_all", lambda dt, filters=None, **k: [Doi(b) for b in BT] if dt == "Bank Transaction" else [])
+	th.dat(cn, "_kiem_quyen_ban", lambda: None)
+	try:
+		het = cn.tim_giao_dich_thu(so_tien=8450000, chua_noi=1)
+		la("không gõ: 300 dòng, báo còn", (len(het["rows"]), het["con_nua"]), (300, 101))
+		dung("khoản Kiệt Tác nằm ngoài 300 dòng", "FT-KIETTAC" not in [r["ma"] for r in het["rows"]])
+		la("gõ tên khách thì ra", [r["ma"] for r in cn.tim_giao_dich_thu(tu_khoa="kiet tac", so_tien=8450000, chua_noi=1)["rows"]],
+			["FT-KIETTAC"])
+		la("gõ số tiền thì ra", [r["ma"] for r in cn.tim_giao_dich_thu(tu_khoa="9.550.000", so_tien=8450000, chua_noi=1)["rows"]],
+			["FT-KIETTAC"])
+	finally:
+		th.tra()
+
+
+@ca("Codex #444 F1: thư báo nhận tiền chỉ gửi khi sổ cái hết nợ mọi hoá đơn của phiếu")
+def _():
+	gui = []
+	con_no = {"v": ["HD-1"]}
+	th = Thay()
+	th.dat(fr, "get_all", lambda dt, filters=None, **k: list(con_no["v"]) if dt == "Sales Invoice" else [])
+	th.dat(cn, "_gui_thu_da_nhan", lambda d, **k: gui.append(d.name) or (True, "x@y"))
+	try:
+		d = Doi(name="P", trang_thai="Da thu du", email_da_gui=0, dong=[Doi(hoa_don="HD-1"), Doi(hoa_don="HD-2")])
+		la("sổ còn nợ: không gửi", cn._gui_thu_khi_sach(d), False)
+		con_no["v"] = []
+		la("sổ sạch: gửi", cn._gui_thu_khi_sach(d), True)
+		d.email_da_gui = 1
+		la("đã gửi rồi: không gửi lại", cn._gui_thu_khi_sach(Doi(d)), False)
+		la("phiếu chưa thu đủ: không gửi", cn._gui_thu_khi_sach(Doi(d, trang_thai="Thu thieu", email_da_gui=0)), False)
+		la("đúng một thư", gui, ["P"])
+	finally:
+		th.tra()
+
+
+@ca("Codex #444 F1: kế toán ghi sổ phiếu thu cuối thì phiếu đòi nợ chứa hoá đơn đó gửi thư, phiếu khác không")
+def _():
+	gui = []
+	phieu = {"P1": Doi(name="P1", trang_thai="Da thu du", email_da_gui=0, dong=[Doi(hoa_don="HD-1")]),
+		"P2": Doi(name="P2", trang_thai="Da thu du", email_da_gui=0, dong=[Doi(hoa_don="HD-2")])}
+	hoi = []
+	th = Thay()
+
+	def get_all(dt, filters=None, **k):
+		if dt == "Vagabond Cong No Dong":
+			hoi.append(sorted(filters["hoa_don"][1]))
+			return ["P1"]
+		if dt == "Sales Invoice":
+			return []
+		return []
+	th.dat(fr, "get_all", get_all)
+	th.dat(fr, "get_doc", lambda dt, ten, **k: phieu[ten])
+	th.dat(cn, "_gui_thu_da_nhan", lambda d, **k: gui.append(d.name) or (True, "x@y"))
+	try:
+		la("gửi đúng phiếu", cn.gui_thu_sau_ghi_so(["HD-1"]), ["P1"])
+		la("hỏi theo hoá đơn của phiếu thu", hoi, [["HD-1"]])
+		la("một thư", gui, ["P1"])
+	finally:
+		th.tra()
+
+
+@ca("Codex #444 F1: ghi sổ phiếu thu THÀNH CÔNG thì gọi gửi thư theo hoá đơn của phiếu; ghi sổ hỏng thì không")
+def _():
+	from vagabond.khung.kiem_thu.thu_gom_phap_nhan_575 import _bo_phieu, _ghi_so
+	goi = []
+	th = Thay()
+	th.dat(fr, "get_attr", lambda duong: (lambda ds: goi.append((duong, list(ds)))))
+	try:
+		nk, cac, g = _bo_phieu("KHAC")
+		cac["APP-1"].references = [Doi(reference_doctype="Sales Invoice", reference_name="HD-OSH")]
+		cac["APP-2"].references = [Doi(reference_doctype="Sales Invoice", reference_name="HD-VU")]
+		la("phiếu 1 vào sổ", _ghi_so("APP-1", cac, g).get("ok"), 1)
+		la("gọi gửi thư đúng hoá đơn", goi, [("vagabond.cong_no.gui_thu_sau_ghi_so", ["HD-OSH"])])
+		e = _bat(lambda: _ghi_so("APP-2", cac, g))
+		dung("phiếu khác nhóm bị chặn", e is not None)
+		la("ghi sổ hỏng không gọi gửi thư", len(goi), 1)
+	finally:
+		th.tra()
+
+
+@ca("Codex #444 F1: màn phiếu nhận số hoá đơn còn nợ trên sổ cái khi phiếu đã thu đủ, để không báo công nợ đã sạch")
+def _():
+	con_no = {"v": ["HD-1", "HD-2"]}
+	th = Thay()
+	doc = Doi(name="P", ma_phieu="DNTT-26-10-00007", khach="K", ten_khach="K", ngay_tao="", han_qr="",
+		tong_tien=2.0, da_thu=2.0, trang_thai="Da thu du", ghi_chu="", ma_gd="BT-1",
+		dong=[Doi(hoa_don="HD-1", ngay="", nguon="", so_tien=1.0), Doi(hoa_don="HD-2", ngay="", nguon="", so_tien=1.0)])
+	th.dat(fr, "get_doc", lambda *a, **k: doc)
+	th.dat(fr, "get_all", lambda dt, filters=None, **k: list(con_no["v"]) if dt == "Sales Invoice" else [])
+	for ten, gt in (("_kiem_quyen_ban", lambda: None), ("_sepay_cn", lambda ma: {}), ("_da_nhan_phieu", lambda d, s: 2.0),
+			("_hd_chua_co_phieu_thu", lambda ds: set()), ("_cac_khach_phieu", lambda d: []), ("_so_hd_gtgt", lambda hd: ""),
+			("_phieu_thu_cua_phieu", lambda t, ds: []), ("_la_ke_toan", lambda: False)):
+		th.dat(cn, ten, gt)
+	th.dat(cn.tai_khoan, "tk_phieu_no", lambda: {})
+	try:
+		la("phiếu thu còn nháp: 2 hoá đơn chờ ghi sổ", cn.xem_phieu("P")["cho_ghi_so"], 2)
+		con_no["v"] = []
+		la("sổ sạch: 0", cn.xem_phieu("P")["cho_ghi_so"], 0)
 	finally:
 		th.tra()
