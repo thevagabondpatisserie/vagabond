@@ -18,6 +18,8 @@ Owner Codex, branch `codex/web-editor-toan-bo-chu`, PR436 mở rộng trên main
   cũ khi phục hồi, không nhớ checkbox đồng ý/quote phí. Sửa một dòng bánh
   không cộng thêm số lượng, giữ nguồn today/order và dụng cụ. Bánh mùa vụ
   phục hồi sau API để lấy giá hiện tại, không có lời chúc/phụ kiện riêng.
+- Link chia sẻ bánh mở mới tự chọn đặt trước nếu không có cỡ bán hôm nay.
+  Một thẻ ưu đãi/tuyển dụng dùng bố cục ảnh/chữ hai cột; nhiều thẻ dùng lưới.
 - Kích thước chi tiết theo đúng tab; giờ hết hạn bị vô hiệu; tóm tắt chưa
   chọn giờ không hiện như đã xác nhận. Nến object-fit contain, 5 cột mobile,
   tăng nút +/-/Bỏ/Xoá; yêu cầu số nĩa/dĩa được đưa vào ghi chú đơn.
@@ -28,7 +30,7 @@ Browser fixture local: thêm nhanh Candle 650.000, sửa lời chúc + nến23 +
 ảnh57x64 nằm trọn nút; ảnh, tiêu đề Editor đổi ở iframe, Undo khôi phục;
 chọn NVHTN fixture rỗng hiện giải thích. Không gửi đơn thật.
 
-Cổng local trước chốt: 4.061 ca tầng khung đạt, không hỏng; 2 ca PDF #247
+Cổng local trước chốt: 4.062 ca tầng khung đạt, không hỏng; 2 ca PDF #247
 chưa chạy vì Python hệ thống thiếu pypdf; các cổng còn lại exit0. Bundle
 khớp. SHA cuối, CI/bench/Claude theo biên nhận PR, không dùng kết quả SHA cũ.
 

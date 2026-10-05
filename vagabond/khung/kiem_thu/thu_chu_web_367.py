@@ -323,3 +323,15 @@ console.log(JSON.stringify({first,newSrc:all.find(e=>e.tagName==='img').src}));
     la('tiêu đề là chữ',d['first']['text'],'<img onerror=alert(1)>')
     la('ảnh đã thay',d['newSrc'],'/files/two.jpg')
     dung('ứng tuyển đúng vị trí',d['first']['href'].startswith('mailto:hr@example.com?subject='))
+
+
+@ca('#367 mở rộng: link bánh đặt trước mở mới vẫn chọn đúng cỡ có bán')
+def _link_moi():
+    from vagabond.khung.kiem_thu.thu_trang_dat_banh import _chay
+    r=_chay('2026-10-05T08:00:00',r'''
+const c=CAKES.find(c=>c.sizes.length>1),z=c.sizes[c.sizes.length-1];
+TODAY={OTHER:2};TRUOC={[z.id]:3};tabNow='today';location.hash='#/banh/'+slug(c.k);applyRoute();
+RA({tab:tabNow,selected:curSize.id,expected:z.id});
+''')
+    la('link mở mới sang đặt trước khi không có bánh hôm nay',r['tab'],'order')
+    la('đúng cỡ còn nhận',r['selected'],r['expected'])

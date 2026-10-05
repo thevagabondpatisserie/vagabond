@@ -419,7 +419,7 @@ html body .h1 em#bigDate{display:none}
 @media(prefers-reduced-motion:reduce){.bar.nhich .cnt b{animation:none}.c-them:active{transform:none}}
 </style>
 <link rel="stylesheet" href="/assets/vagabond/web_order/cua-hang.css?v=8de7cda516fd">
-<script src="/assets/vagabond/web_order/chu.js?v=3fc5cafd0db4"></script><link rel="stylesheet" href="/assets/vagabond/web_order/chuyen-muc.css?v=bceec757e6c0">
+<script src="/assets/vagabond/web_order/chu.js?v=3fc5cafd0db4"></script><link rel="stylesheet" href="/assets/vagabond/web_order/chuyen-muc.css?v=10dcf63d49b8">
 </head>
 <body>
 <div class="sky" aria-hidden="true">
@@ -1268,6 +1268,9 @@ function applyRoute(){
   if(mBanh){
     const c=CAKES.find(x=>slug(x.k)===mBanh[1]);
     if(!c){ nav('#/',true); return; }
+    /* Link chia sẻ mở mới không có ngữ cảnh tab: bánh không còn hôm nay
+       vẫn cho chọn các cỡ đặt trước, cùng danh mục như thẻ Đặt bánh trước. */
+    if(tabNow==='today'&&!c.sizes.some(s=>TODAY[s.id]>0))setTab('order');
     dongDangSua=-1;closeCoUI(); dongSheetMuaUI(); renderSheet(c);
     return;
   }
