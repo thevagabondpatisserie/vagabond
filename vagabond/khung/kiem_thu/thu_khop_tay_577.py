@@ -453,25 +453,44 @@ def _he_huy(trang_thai, ma_gd="", da_ghi=(), nhap=("APP-26-10-134", "APP-26-10-1
 			ds = list(da_ghi) if filters["docstatus"] == 1 else list(nhap)
 			return ds if mau.endswith(":%") else []
 		return []
+	class PT(Doi):
+		def set(self, k, v):
+			self[k] = v
+
+		def save(self, **k):
+			nk.append(("luu_pt", self.name, fr.session.user, len(self.references), self.reference_no))
+
+	pts = {t: PT(name=t, docstatus=0, reference_no="THU:HDB-%s:phieu:DNTT-26-10-00004:tay:x|Chuyển khoản" % t,
+		remarks="Thu tiền", flags=Doi(), references=[Doi(reference_name="HDB-" + t, allocated_amount=500000.0)])
+		for t in nhap}
+
+	def get_doc(dt, *a, **k):
+		return pts[a[0]] if dt == "Payment Entry" else doc
 	th.dat(fr, "get_all", get_all)
-	th.dat(fr, "get_doc", lambda *a, **k: doc)
+	th.dat(fr, "get_doc", get_doc)
 	th.dat(fr, "set_user", lambda u: setattr(fr.session, "user", u))
 	th.dat(fr.session, "user", "ntla.3008@gmail.com")
-	th.dat(fr, "delete_doc", lambda dt, ten, **k: nk.append(("xoa", dt, ten, fr.session.user, k.get("ignore_permissions"))))
+	th.dat(fr, "delete_doc", lambda dt, ten, **k: nk.append(("xoa", dt, ten)))
+	doc["_pts"] = pts
 	th.dat(cn, "_kiem_quyen_ban", lambda: None)
 	return doc, nk, th
 
 
-@ca("v577 huỷ phiếu kẹt kiểu Ms.Dung: dọn đúng phiếu thu NHÁP hỏng của chính phiếu, rồi mới huỷ")
+@ca("v577 huỷ phiếu kẹt kiểu Ms.Dung: GỠ phiếu thu NHÁP hỏng khỏi hoá đơn, KHÔNG xoá, ghi vết, rồi mới huỷ")
 def _():
+	# Codex #444 vòng 2 (QT-20): trên fe52e62 hai nháp bị delete_doc. Nay gỡ liên kết, giữ phiếu.
 	doc, nk, th = _he_huy("Da thu du")
 	try:
 		kq = cn.huy_phieu("DNTT-26-10-00004", "Loan Anh")
-		la("dọn hai nháp hỏng", kq["da_xoa_nhap"], ["APP-26-10-134", "APP-26-10-150"])
-		la("xoá bằng quyền hệ thống rồi trả lại người gọi",
-			[x for x in nk if x[0] == "xoa"],
-			[("xoa", "Payment Entry", "APP-26-10-134", "Administrator", True),
-			("xoa", "Payment Entry", "APP-26-10-150", "Administrator", True)])
+		la("gỡ hai nháp hỏng", kq["da_go_nhap"], ["APP-26-10-134", "APP-26-10-150"])
+		la("không xoá phiếu nào", [x for x in nk if x[0] == "xoa"], [])
+		la("lưu bằng quyền hệ thống: hết dòng hoá đơn, khoá đổi sang GO:",
+			[x[:4] + (x[4][:4],) for x in nk if x[0] == "luu_pt"],
+			[("luu_pt", "APP-26-10-134", "Administrator", 0, "GO:T"),
+			("luu_pt", "APP-26-10-150", "Administrator", 0, "GO:T")])
+		vet = doc["_pts"]["APP-26-10-134"].remarks
+		dung("ghi vết hoá đơn, số tiền, phiếu đòi nợ: " + vet[:160],
+			"HDB-APP-26-10-134 500.000 đ" in vet and "DNTT-26-10-00004" in vet and "Không ghi sổ" in vet)
 		la("trả lại người gọi", fr.session.user, "ntla.3008@gmail.com")
 		la("tìm theo đúng mẫu khoá của phiếu", sorted({x[2] for x in nk if x[0] == "tim"}),
 			["THU:%:phieu:DNTT-26-10-00004:%", "THU:%:phieu:DNTT-26-10-00004|%"])
@@ -488,7 +507,7 @@ def _():
 		try:
 			e = _bat(lambda: cn.huy_phieu("DNTT-26-10-00004", "x"))
 			dung("phải chặn", e is not None and "không huỷ được" in str(e))
-			la("không xoá, không lưu", [x for x in nk if x[0] in ("xoa", "luu")], [])
+			la("không xoá, không lưu", [x for x in nk if x[0] in ("xoa", "luu", "luu_pt")], [])
 			la("giữ trạng thái", doc.trang_thai, "Da thu du")
 		finally:
 			th.tra()
@@ -498,11 +517,11 @@ def _():
 def _():
 	doc, nk, th = _he_huy("Cho thu", nhap=("APP-9",))
 	try:
-		la("dọn", cn.huy_phieu("DNTT-26-10-00004", "x")["da_xoa_nhap"], ["APP-9"])
+		la("gỡ", cn.huy_phieu("DNTT-26-10-00004", "x")["da_go_nhap"], ["APP-9"])
 		la("đã huỷ", doc.trang_thai, "Huy")
 		nk[:] = []
-		la("lần hai trả về ngay", cn.huy_phieu("DNTT-26-10-00004", "x")["da_xoa_nhap"], [])
-		la("không xoá gì thêm", [x for x in nk if x[0] == "xoa"], [])
+		la("lần hai trả về ngay", cn.huy_phieu("DNTT-26-10-00004", "x")["da_go_nhap"], [])
+		la("không đụng gì thêm", [x for x in nk if x[0] in ("xoa", "luu_pt")], [])
 	finally:
 		th.tra()
 
@@ -738,3 +757,34 @@ def _():
 		la("sổ sạch: 0", cn.xem_phieu("P")["cho_ghi_so"], 0)
 	finally:
 		th.tra()
+
+
+
+@ca("Codex #444 vòng 2: thư gửi từ giữa request ghi sổ (chưa commit) thì XẾP HÀNG trong giao dịch, không gửi ngay")
+def _():
+	gui = []
+	th = Thay()
+	doc = Doi(name="P", ma_phieu="DNTT-1", khach="K", ten_khach="K", tong_tien=1.0, da_thu=1.0, email_da_gui=0,
+		trang_thai="Da thu du", dong=[Doi(hoa_don="HD-1", khach="K", so_tien=1.0)])
+	doc.db_set = lambda *a, **k: None
+	doc.add_comment = lambda *a, **k: None
+	th.dat(cn, "_email_khach", lambda k: "k@x.vn")
+	th.dat(cn, "_thu_da_nhan_html", lambda d, ds: "thu")
+	th.dat(fr, "sendmail", lambda **k: gui.append(k["delayed"]))
+	th.dat(fr, "get_all", lambda dt, filters=None, **k: ["P"] if dt == "Vagabond Cong No Dong" else [])
+	th.dat(fr, "get_doc", lambda *a, **k: doc)
+	try:
+		cn._gui_thu_da_nhan(Doi(doc))
+		la("gửi tay (đã commit): gửi ngay như cũ", gui, [False])
+		la("sau ghi sổ: một phiếu", cn.gui_thu_sau_ghi_so(["HD-1"]), ["P"])
+		la("sau ghi sổ: xếp hàng", gui, [False, True])
+	finally:
+		th.tra()
+
+
+
+@ca("bench #444: mã phiếu không đúng mẫu thì đọc SePay trả rỗng đủ HAI giá trị, xem phiếu không nổ")
+def _():
+	# Trên fe52e62 bench đỏ: _sepay_theo_ma_cn trả {} một giá trị, _sepay_cn gỡ hai giá trị.
+	la("không mã hợp lệ", cn._sepay_theo_ma_cn(["DNTT-KT576-abcdef", ""]), ({}, []))
+	la("đọc một mã lạ", cn._sepay_cn("PHIEU-TU-CHE"), {})
