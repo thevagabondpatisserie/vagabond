@@ -579,6 +579,7 @@ async function scrCnPhieu(name) {
   if (nthu) nthu.onclick = async function () {
     var xt;
     try { xt = await api('vagabond.cong_no.xem_truoc_thu', { name: name }); } catch (e) { return baoTin((e && e.message) || 'Không xem trước được'); }
+    if (xt.chua_sach) return baoTin('Chưa gửi thư báo được: ' + xt.chua_sach + '.');
     if (!xt.email) return baoTin('Khách này chưa có email trên hệ nên chưa gửi thư báo được. Vào Danh sách khách hàng điền email rồi quay lại.');
     if (!await hoiCo('Gửi thư báo nhận tiền', 'Gửi thư xác nhận đã nhận ' + money(d.sepay || d.tong_tien) + ' đ tới ' + xt.email + '?', 'Gửi')) return;
     busy(true);
