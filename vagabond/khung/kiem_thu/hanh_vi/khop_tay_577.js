@@ -293,6 +293,11 @@ async function moKhop(app, them) {
     await app.bam(app.mot('#cnKiem'));
     t = app.tin.filter(function (x) { return x.indexOf('toast:') === 0; }).pop() || '';
     dung('so sach thi bao da xoa no: ' + t, t.indexOf('đã xoá nợ') >= 0);
+    /* Codex #444 vong 3: lap phieu thu nhap hong thi chi Khop tay, khong chi tab Tien da ve. */
+    app.tl.__sepay = { sepay: 8450000, tong_tien: 8450000, cho_ghi_so: 0, thieu_phieu_thu: 17 };
+    await app.bam(app.mot('#cnKiem'));
+    t = app.tin.filter(function (x) { return x.indexOf('toast:') === 0; }).pop() || '';
+    dung('thieu phieu thu thi chi Khop tay: ' + t, t.indexOf('17 hoá đơn chưa có phiếu thu') >= 0 && t.indexOf('Khớp tay') >= 0 && t.indexOf('Tiền đã về.') < 0);
   });
 
   console.log('Bo ca kiem HANH VI v577: hop Khop tay va Huy phieu ket (Loan Anh, Ms.Dung)');
