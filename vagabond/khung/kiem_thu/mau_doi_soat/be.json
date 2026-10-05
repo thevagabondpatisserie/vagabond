@@ -1,0 +1,26 @@
+{
+  "nguon": "Tên cột kiểm từ mẫu riêng tư trên Drive ngày 05/10/2026; không phải byte file gốc.",
+  "cot": [
+    "STT",
+    "Ngày",
+    "Mã đặt chuyến",
+    "Loại phương tiện",
+    "Điểm đón",
+    "Điểm đến",
+    "Cước phí vận tải",
+    "Phí cầu đường (Phí khác) (*)",
+    "Phụ phí giờ cao điểm",
+    "Phí điểm đón (*)",
+    "Phí bảo hiểm",
+    "Phí thông báo tình trạng đơn hàng (*)",
+    "Chiết khấu/Giảm giá",
+    "Tổng tiền",
+    "Cước phí được áp dụng  CKTM",
+    "Tỷ lệ CKTM",
+    "Chiết khấu thương mại (*)",
+    "Tổng tiền thanh toán sau khi trừ CKTM",
+    "Phí sử dụng ứng dụng (*)",
+    "Cước phí vận tải chịu thuế GTGT (*)",
+    "Driver city ID"
+  ]
+}

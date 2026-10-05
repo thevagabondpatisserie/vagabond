@@ -42,3 +42,20 @@ phạm vi vẫn thuộc đầu mối này. Không kích hoạt email/lịch ho�
 Model/effort thực tế và token provider: chưa có metadata xác minh. Không
 giả nhận đã dùng model theo tên trong instruction. Số lượt review bắt đầu:
 xem GitHub Actions; không suy từ số comment được đăng.
+
+## Tiếp nhận lại 05/10/2026
+
+Anh Việt yêu cầu tiếp tục PR422 vì đã gửi mẫu. Codex local đã mở lại mẫu
+Drive cả bảy nhóm; cloud thiếu bản nguồn cục bộ, không phải anh chưa gửi.
+Xem [bàn giao mẫu đã tìm lại](../../doi-soat-vendor/mau-da-tim-lai.md).
+Nguồn riêng không đưa lên GitHub; sáu schema chỉ có tiêu đề cột được lưu
+trong fixture để phiên cloud không lại kết luận không có mẫu nào.
+
+- Đã tích hợp main `339683a05` bằng merge `1a5fcfb19`, giữ lịch sử PR422.
+- Sửa F1/F2, thêm bộ đọc CSV/TAB thuần và tọa độ/hash/giới hạn đầu vào.
+- 53/53 ca tập trung đạt; đột biến bỏ F1 hoặc F2 mỗi lần đỏ một ca.
+- Bản ghép JS không đổi và khớp từng byte. Cổng tổng xem comment trên SHA cuối.
+- Chưa có adapter nghiệp vụ, API upload, lưu File, khóa DB hay UI sản phẩm.
+- Email tạm hoãn; Codex tiếp tục tải thủ công, Claude review delta.
+- Những chỗ còn cần byte gốc/đơn vị/khóa ổn định ghi rõ theo từng vendor;
+  không yêu cầu gửi lại toàn bộ nguồn và không đoán nhân/chia tiền.

@@ -111,7 +111,7 @@ def chuan_dong(nguon, dong):
 	ra = dict(pham_vi, ma_su_kien=ma, ma_don=ma_don, loai=loai, ngay=ngay.isoformat())
 	# Chuẩn 2 chữ số để 100 và 100.00 có cùng dấu vết nội dung.
 	ra.update({ten: format(so, ".2f") if so else "0.00" for ten, so in tien.items()})
-	ra["khoa"] = _bam(dict(pham_vi, ma_su_kien=ma, loai=loai))
+	ra["khoa"] = _bam(dict(pham_vi, ma_su_kien=ma))
 	ra["dau_noi_dung"] = _bam(ra)
 	return ra
 
@@ -140,8 +140,10 @@ def xem_truoc(nguon, cac_dong, da_nhan=None):
 	with localcontext() as canh:
 		canh.prec = 40
 		for vi_tri, dong in enumerate(cac_dong, 1):
+			chuan = None
 			try:
 				dong = chuan_dong(nguon, dong)
+				chuan = dong
 				tong += Decimal(dong["thuc_nhan"])
 				khoa, dau = dong["khoa"], dong["dau_noi_dung"]
 				if khoa in trong_file:
@@ -157,7 +159,10 @@ def xem_truoc(nguon, cac_dong, da_nhan=None):
 				ket_qua.append(dict(vi_tri=vi_tri, trang_thai=trang_thai, dong=dong))
 			except LoiNguon as loi:
 				trang_thai = "loi"
-				ket_qua.append(dict(vi_tri=vi_tri, trang_thai=trang_thai, ly_do=str(loi)))
+				ra = dict(vi_tri=vi_tri, trang_thai=trang_thai, ly_do=str(loi))
+				if chuan is not None:
+					ra["dong"] = chuan
+				ket_qua.append(ra)
 	for dong in ket_qua:
 		dem[dong["trang_thai"]] += 1
 	loi_nguon = []

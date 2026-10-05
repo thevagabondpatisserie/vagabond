@@ -1683,3 +1683,12 @@ xung đột; chưa phải bằng chứng nhận email, phân bổ sao kê hoặc
   thay đổi. Fixture mới dùng Opening Stock/tài khoản Temporary cho tồn mới,
   và đếm 9 từ tồn 10 cho hai ca giữ giá 0. Không khẳng định core bench hỗ trợ
   định giá về 0 khi số lượng không đổi.
+
+## 05/10/2026 — Mẫu Drive không tự có trong filesystem của cloud (#422)
+
+Trước kết luận người dùng chưa gửi mẫu, tra hồ sơ issue và nguồn Drive đã
+được cấp. Chuyển giao schema/fixture đã ẩn dữ liệu và danh mục thiếu chính
+xác; không chép dữ liệu ngân hàng/khách vào repo. Sheet chuyển đổi có thể
+đọc được nhưng không chứng minh byte CSV/XLS gốc hay đơn vị tiền. Không
+nhân/chia 1.000 chỉ để làm tổng khớp. Khóa sự kiện không chứa loại có thể
+thay đổi: cùng ID đổi loại phải vào luồng xung đột, không thành khoản mới.

@@ -167,3 +167,22 @@ def _():
 		[_dong(), _dong(thuc_nhan="217000", phi="53000"), _dong(thuc_nhan="217000", phi="53000")])
 	la("giữ ba lỗi", ra["dem"], dict(moi=0, trung=0, loi=3))
 	la("không khép dù tổng khớp", ra["du_nguon"], False)
+
+
+@ca("#422 F1: cùng ID đổi loại không trở thành sự kiện mới")
+def _():
+    dau = chuan_dong(_nguon(), _dong())
+    ra = xem_truoc(_nguon(), [_dong(loai="dieu_chinh")], {dau["khoa"]: dau["dau_noi_dung"]})
+    la("giữ chờ", ra["dem"], {"moi": 0, "trung": 0, "loi": 1})
+    la("không đủ nguồn", ra["du_nguon"], False)
+
+
+@ca("#422 F2: lỗi sau chuẩn hóa giữ dòng, lỗi đọc không bịa dòng")
+def _():
+    dau = chuan_dong(_nguon(), _dong())
+    ra = xem_truoc(_nguon(), [_dong(ma_don="0002")], {dau["khoa"]: dau["dau_noi_dung"]})
+    la("mã đối chiếu", ra["dong"][0]["dong"]["ma_don"], "0002")
+    lap = xem_truoc(_nguon(so_dong=2, tong_thuc_nhan="432000"), [_dong(), _dong()])
+    la("giữ cả nhóm", [bool(d.get("dong")) for d in lap["dong"]], [True, True])
+    sai = xem_truoc(_nguon(), [_dong(tien_hang="abc")])
+    la("không bịa", "dong" in sai["dong"][0], False)
