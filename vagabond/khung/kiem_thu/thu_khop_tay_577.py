@@ -1,0 +1,609 @@
+"""v577: khớp tay không gắn giao dịch, huỷ phiếu kẹt, SePay lập phiếu nháp, thư mọi pháp nhân.
+
+Ca thật 05/10/2026, Loan Anh báo phiếu DNTT-26-10-00004 (Ms.Dung, 17 hoá đơn,
+8.450.000 đ): "khớp tay, chọn đúng giao dịch ngân hàng, không có giao dịch khớp
+với bill, nhập số tiền đã nhận, Hoàn thành nhưng vẫn chưa clear được bill bên
+đang nợ". Site thật:
+  * khách Kiệt Tác chuyển 9.550.000 đ, hộp Khớp tay lọc ĐÚNG số tiền phiếu nên
+    giao dịch đó không hiện;
+  * lối "Không thấy giao dịch" lập 17 phiếu thu ngân hàng rồi ghi sổ thẳng,
+    hook chan_thieu_dinh_kem chặn cả 17 (thiếu UNC), lỗi bị nuốt, phiếu đòi nợ
+    vẫn "Đã thu đủ", 17 phiếu nháp hỏng ở lại giữ phần nợ.
+
+Các ca dưới CHẠY THẬT khop_tay, ghi_thu_cho_phieu, ghi_thu_tien, ham_dinh_unc,
+soat_tep_unc_moi, tim_giao_dich_thu, huy_phieu, kiem_sepay, _gui_thu_da_nhan
+trên bản Frappe giả của nen.py. Payment Entry giả ghi sổ HỎNG như hook thật khi
+chưa có tệp đính vào chính nó. Không dò chuỗi trong mã nguồn (CLAUDE.md điều 16).
+"""
+
+import json
+
+from vagabond.khung.kiem_thu.nen import ca, dung, la, gia_lap
+
+fr = gia_lap()
+
+from vagabond import thu_tien as tt  # noqa: E402
+from vagabond import gom_phap_nhan as gpn  # noqa: E402
+from vagabond.khung.kiem_thu.thu_cong_no_571 import cn, Doi  # noqa: E402
+
+
+class Thay(object):
+	"""Thay thuộc tính trong lúc chạy một ca, trả lại nguyên trạng dù ca ném lỗi."""
+
+	def __init__(self):
+		self.cu = []
+
+	def dat(self, obj, ten, gt):
+		self.cu.append((obj, ten, getattr(obj, ten, None), hasattr(obj, ten)))
+		setattr(obj, ten, gt)
+
+	def tra(self):
+		for obj, ten, gt, co in reversed(self.cu):
+			if co:
+				setattr(obj, ten, gt)
+			else:
+				delattr(obj, ten)
+
+
+def _bat(ham):
+	try:
+		ham()
+	except Exception as e:
+		return e
+	return None
+
+
+HD = [
+	Doi(name="HDB-26-08-00354", customer="KL028403", company="TV", outstanding_amount=500000.0,
+		posting_date="2026-08-17", grand_total=500000.0, due_date="2026-08-17", docstatus=1),
+	Doi(name="HDB-26-09-00999", customer="KL028403", company="TV", outstanding_amount=450000.0,
+		posting_date="2026-09-06", grand_total=450000.0, due_date="2026-09-06", docstatus=1),
+]
+TK_NH = "11211 - Tiền gửi MB Bank - TV"
+UNC = "/private/files/unc-kiet-tac.jpg"
+
+
+class He(object):
+	"""Bản hệ giả cho một ca: hoá đơn, phiếu thu, tệp, giao dịch CSDL.
+
+	Payment Entry giả ghi sổ như hook thật: phiếu thu về ngân hàng mà chưa có
+	dòng File nào gắn vào CHÍNH nó thì ném "bắt buộc phải có Uỷ nhiệm chi".
+	commit() mới ghi bền; lỗi giữa chừng thì những gì chưa commit mất hết.
+	"""
+
+	def __init__(self, vai=("Accounts User",), hd=None, tep=None, nhap=None, hong_o=None):
+		self.th = Thay()
+		self.nk = []
+		self.hd = [Doi(h) for h in (hd or HD)]
+		self.tep = dict(tep or {UNC: Doi(name="F-UNC", owner="ketoan@vagabond", file_name="unc.jpg",
+			is_private=1, attached_to_doctype=None, attached_to_name=None)})
+		self.gan = {}       # tên phiếu thu -> [đường dẫn tệp đã gắn]
+		self.pe = {}        # tên phiếu thu -> phiếu
+		self.nhap = list(nhap or [])
+		self.hong_o = hong_o  # lần ghi sổ thứ mấy thì hỏng vì lý do khác
+		self.ben = {"phieu": None, "binh_luan": []}
+		self.dang = {"binh_luan": []}
+		self.vai = list(vai)
+		self.dat_he()
+
+	def dat_he(self):
+		he = self
+		th = self.th
+
+		def get_all(dt, filters=None, **k):
+			f = filters or {}
+			if dt == "Vagabond Cong No Dong":
+				return [Doi(hoa_don=h.name) for h in he.hd]
+			if dt == "Sales Invoice":
+				ten = (f.get("name") or ["in", [h.name for h in he.hd]])[1]
+				ds = [h for h in he.hd if h.name in ten]
+				if f.get("outstanding_amount"):
+					ds = [h for h in ds if h.outstanding_amount > f["outstanding_amount"][1]]
+				ds = sorted(ds, key=lambda h: str(h.posting_date))
+				if k.get("pluck") == "name":
+					return [h.name for h in ds]
+				return [Doi(h) for h in ds]
+			if dt == "Payment Entry Reference":
+				return [Doi(r) for r in he.nhap]
+			if dt == "Customer":
+				return [Doi(name=h.customer, customer_name="Ms.Dung") for h in he.hd]
+			return []
+
+		def get_value(dt, ten, fields=None, as_dict=False, **k):
+			if dt == "Sales Invoice":
+				h = [x for x in he.hd if x.name == ten]
+				return Doi(h[0]) if h else None
+			if dt == "Mode of Payment Account":
+				return TK_NH
+			if dt == "Bank Account":
+				return "MB-TV"
+			if dt == "File":
+				return he.tep.get((ten or {}).get("file_url"))
+			return None
+
+		def exists(dt, f=None, **k):
+			if dt == "Mode of Payment":
+				return True
+			if dt == "Comment":
+				return any(f["content"][1].strip("%") in x for x in he.ben["binh_luan"])
+			return False
+
+		def set_value(dt, ten, gt, *a, **k):
+			if dt == "File":
+				t = [x for x in he.tep.values() if x.name == ten][0]
+				t.update(gt)
+				he.gan.setdefault(gt["attached_to_name"], []).append(("chuyen", [u for u, x in he.tep.items() if x is t][0]))
+				he.nk.append(("gan_tep", gt["attached_to_name"]))
+			else:
+				he.nk.append(("set_value", dt, ten))
+
+		class PE(Doi):
+			def append(self, k, v):
+				self.setdefault(k, []).append(Doi(v))
+
+			def setup_party_account_field(self):
+				pass
+
+			def set_missing_values(self):
+				pass
+
+			def insert(self, **k):
+				self.name = "APP-26-10-%03d" % (134 + len(he.pe))
+				self.owner = fr.session.user
+				he.pe[self.name] = self
+				he.nk.append(("insert", self.name))
+
+			def submit(self):
+				if he.hong_o and len([x for x in he.nk if x[0] == "submit"]) + 1 == he.hong_o:
+					raise fr.ValidationError("Kỳ kế toán đã khoá")
+				if self.paid_to == TK_NH and not he.gan.get(self.name):
+					raise fr.ValidationError("Giấy báo Có %s đi qua tài khoản ngân hàng %s nên bắt buộc phải có "
+						"Uỷ nhiệm chi đính kèm mới ghi sổ được." % (self.name, TK_NH))
+				self.docstatus = 1
+				he.nk.append(("submit", self.name, self.get("vgb_thu_unc")))
+
+		class TepGia(Doi):
+			def insert(self, **k):
+				he.gan.setdefault(self.attached_to_name, []).append(("chep", self.file_url))
+				he.nk.append(("chep_tep", self.attached_to_name))
+
+		def get_doc(*a, **k):
+			if a and isinstance(a[0], dict):
+				return TepGia(a[0])
+			return he.lay_phieu()
+
+		def set_user(u):
+			fr.session.user = u
+
+		def commit(*a, **k):
+			he.nk.append(("commit",))
+			he.ben["phieu"] = {x: v for x, v in he.dang["doc"].items() if x not in ("flags", "_he")}
+			he.ben["binh_luan"] += he.dang["binh_luan"]
+			he.dang["binh_luan"] = []
+
+		th.dat(fr, "get_all", get_all)
+		th.dat(fr.db, "get_value", get_value)
+		th.dat(fr.db, "exists", exists)
+		th.dat(fr.db, "set_value", set_value)
+		th.dat(fr.db, "commit", commit)
+		th.dat(fr, "new_doc", lambda dt: PE(docstatus=0, flags=Doi()))
+		th.dat(fr, "get_doc", get_doc)
+		th.dat(fr, "set_user", set_user)
+		th.dat(fr, "get_roles", lambda *a, **k: list(he.vai))
+		th.dat(fr, "generate_hash", lambda length=8, **k: "x" * length)
+		th.dat(fr.session, "user", "ketoan@vagabond")
+		th.dat(cn, "_kiem_quyen_ban", lambda: None)
+		th.dat(cn, "_giu_gd", lambda d, ds: "")
+		th.dat(cn, "_gui_thu_da_nhan", lambda d: he.nk.append(("gui_thu",)))
+		th.dat(tt, "phieu_thu_nhap", lambda cac_si=None, **k: [])
+
+	def phieu(self, **doi):
+		goc = dict(name="DNTT-26-10-00004", ma_phieu="DNTT-26-10-00004", khach="KL028403",
+			ten_khach="Ms.Dung", trang_thai="Cho thu", tong_tien=950000.0, da_thu=0.0, ma_gd="")
+		goc.update(doi)
+		self.ben["phieu"] = goc
+		return goc
+
+	def lay_phieu(self):
+		he = self
+
+		class PhieuNo(Doi):
+			def save(self, **k):
+				he.nk.append(("luu_phieu", self.trang_thai))
+
+			def add_comment(self, *a, **k):
+				he.dang["binh_luan"].append(a[1])
+
+		d = PhieuNo(dict(self.ben["phieu"]), flags=Doi(), dong=[Doi(hoa_don=h.name, so_tien=h.grand_total) for h in self.hd])
+		self.dang = {"doc": d, "binh_luan": []}
+		return d
+
+	def tra(self):
+		self.th.tra()
+
+
+# ------------------------------------------------------------ phép thuần
+
+
+@ca("v577 câu báo giao dịch lớn hơn phiếu nói đủ ba con số và chỉ đường huỷ rồi gom lại (ca Kiệt Tác)")
+def _():
+	c = tt.cau_gd_lon_hon("FT26278", 9550000, 8450000)
+	for x in ("9.550.000 đ", "8.450.000 đ", "dư 1.100.000 đ", "Huỷ phiếu này", "pháp nhân khác"):
+		dung("có '%s'" % x, x in c)
+
+
+@ca("v577 hộp Khớp tay: giao dịch ĐÚNG số tiền xếp đầu, khoản khác vẫn có, giữ thứ tự ngày")
+def _():
+	ds = [{"ma": "A", "con": 9550000.0}, {"ma": "B", "con": 8450000.0}, {"ma": "C", "con": 200000.0},
+		{"ma": "D", "con": 8450000.4}]
+	ra = tt.xep_gd_khop_tay(ds, 8450000)
+	la("đúng số lên đầu, rồi tới các khoản khác", [x["ma"] for x in ra], ["B", "D", "A", "C"])
+	la("đánh dấu đúng số", [x["dung_so"] for x in ra], [1, 1, 0, 0])
+	la("không có số cần thu thì không đánh dấu", [x["dung_so"] for x in tt.xep_gd_khop_tay(ds, 0)], [0, 0, 0, 0])
+
+
+@ca("v577 phiếu Đã thu đủ chỉ huỷ được khi chưa gạch giao dịch và chưa có phiếu thu vào sổ")
+def _():
+	la("kẹt kiểu Ms.Dung: huỷ được", cn.huy_duoc_phieu_da_thu("", [])[0], True)
+	ok, vi_sao = cn.huy_duoc_phieu_da_thu("FT123\nBT-9", [])
+	la("đã gạch giao dịch: không", ok, False)
+	dung("chỉ sang Tiền đã về", "Tiền đã về" in vi_sao)
+	ok, vi_sao = cn.huy_duoc_phieu_da_thu("", ["APP-1"])
+	la("có phiếu thu vào sổ: không", ok, False)
+	dung("nêu tên phiếu thu", "APP-1" in vi_sao)
+
+
+@ca("v577 thư báo nhận tiền: mọi pháp nhân có email, khách đứng tên trước, bỏ trống và trùng")
+def _():
+	email = {"OSHIMA": "ketoan@oshima.vn", "VU": "vu@gmail.com", "TRONG": "", "CHUNG": "KETOAN@oshima.vn"}
+	hoi = []
+
+	def cua(k):
+		hoi.append(k)
+		return email.get(k, "")
+	la("đủ, đúng thứ tự", gpn.ds_email_thu(["VU", "OSHIMA", "VU", "TRONG", "CHUNG", ""], cua),
+		["vu@gmail.com", "ketoan@oshima.vn"])
+	la("mỗi khách hỏi một lần", hoi, ["VU", "OSHIMA", "TRONG", "CHUNG"])
+
+
+# ------------------------------------------------- khớp tay không gắn giao dịch
+
+
+@ca("v577 Sales chọn không giao dịch: CHẶN trước mọi thay đổi, không lập phiếu thu, chỉ đường tìm giao dịch")
+def _():
+	he = He(vai=("Sales Manager", "Sales User"))
+	try:
+		he.phieu()
+		e = _bat(lambda: cn.khop_tay("DNTT-26-10-00004", 950000, "", "Kiet Tac", ma_lan="l1", unc=json.dumps([UNC])))
+		dung("phải chặn", e is not None)
+		dung("nói chỉ kế toán: " + str(e)[:80], "chỉ kế toán" in str(e))
+		dung("chỉ cách tìm giao dịch", "ô tìm" in str(e))
+		la("không lưu, không lập, không ghi sổ", [x[0] for x in he.nk if x[0] in ("luu_phieu", "insert", "submit", "commit")], [])
+		la("phiếu vẫn chờ thu", he.ben["phieu"]["trang_thai"], "Cho thu")
+	finally:
+		he.tra()
+
+
+@ca("v577 kế toán chọn không giao dịch mà không đính UNC: CHẶN trước mọi thay đổi")
+def _():
+	he = He()
+	try:
+		he.phieu()
+		e = _bat(lambda: cn.khop_tay("DNTT-26-10-00004", 950000, "", "Kiet Tac", ma_lan="l2"))
+		dung("phải chặn", e is not None)
+		dung("nói phải đính UNC: " + str(e)[:80], "uỷ nhiệm chi" in str(e))
+		la("không lưu, không lập", [x[0] for x in he.nk if x[0] in ("luu_phieu", "insert", "commit")], [])
+	finally:
+		he.tra()
+
+
+@ca("v577 TRƯỚC bản sửa (đo lại ca Ms.Dung): lối cũ không UNC nuốt lỗi từng hoá đơn, để lại phiếu thu nháp hỏng")
+def _():
+	# Gọi đúng lời gọi lối cũ (không chat, không dinh) trên cùng hệ giả: đây là
+	# số đo TRƯỚC khi sửa, để thấy ca sau đo đúng chỗ.
+	he = He()
+	try:
+		he.phieu()
+		doc = he.lay_phieu()
+		ra = cn.ghi_thu_cho_phieu(doc, "Chuyển khoản", "Kế toán khớp tay.", so_tien=950000.0, khoa="tay:cu")
+		la("không phiếu nào vào sổ", ra, [])
+		la("hai lỗi bị nuốt", len(doc.flags.loi_thu or []), 2)
+		dung("lỗi là thiếu UNC", all("Uỷ nhiệm chi" in x for x in doc.flags.loi_thu))
+		la("hai phiếu nháp hỏng ở lại", sorted(n for n, p in he.pe.items() if not p.get("docstatus")),
+			["APP-26-10-134", "APP-26-10-135"])
+	finally:
+		he.tra()
+
+
+@ca("v577 kế toán khớp tay không giao dịch, đính UNC: MỌI phiếu thu có tệp TRƯỚC khi ghi sổ, vào sổ hết, phiếu thu đủ")
+def _():
+	he = He()
+	try:
+		he.phieu()
+		kq = cn.khop_tay("DNTT-26-10-00004", 950000, "", "Kiet Tac doi soat", ma_lan="l3", unc=json.dumps([UNC]))
+		la("hai phiếu thu đã vào sổ", sorted(n for n, p in he.pe.items() if p.docstatus == 1),
+			["APP-26-10-134", "APP-26-10-135"])
+		buoc = [x[:2] for x in he.nk if x[0] in ("insert", "gan_tep", "chep_tep", "submit")]
+		la("từng phiếu: lưu nháp, gắn tệp, rồi mới ghi sổ", buoc, [
+			("insert", "APP-26-10-134"), ("gan_tep", "APP-26-10-134"), ("submit", "APP-26-10-134"),
+			("insert", "APP-26-10-135"), ("chep_tep", "APP-26-10-135"), ("submit", "APP-26-10-135")])
+		la("phiếu đầu nhận chính tệp đã tải, phiếu sau nhận bản chép cùng đường dẫn",
+			[he.gan[n] for n in ("APP-26-10-134", "APP-26-10-135")], [[("chuyen", UNC)], [("chep", UNC)]])
+		la("ô UNC trên cả hai phiếu", [x[2] for x in he.nk if x[0] == "submit"], [json.dumps([UNC])] * 2)
+		la("đã commit", he.ben["phieu"]["trang_thai"], "Da thu du")
+		la("không lỗi", kq["loi"], [])
+		la("gửi thư báo nhận tiền một lần", [x for x in he.nk if x[0] == "gui_thu"], [("gui_thu",)])
+	finally:
+		he.tra()
+
+
+@ca("v577 kế toán khớp tay không giao dịch: phiếu thu thứ hai HỎNG thì cả lượt lùi, phiếu đòi nợ KHÔNG thành đã thu")
+def _():
+	he = He(hong_o=2)
+	try:
+		he.phieu()
+		e = _bat(lambda: cn.khop_tay("DNTT-26-10-00004", 950000, "", "Kiet Tac", ma_lan="l4", unc=json.dumps([UNC])))
+		dung("phải báo lỗi", e is not None)
+		dung("nêu đúng hoá đơn hỏng: " + str(e)[:120], "HDB-26-09-00999" in str(e))
+		dung("nêu lý do thật", "Kỳ kế toán đã khoá" in str(e))
+		dung("nói phiếu chưa đổi", "chưa bị đổi gì" in str(e))
+		la("không commit gì", [x for x in he.nk if x[0] == "commit"], [])
+		la("phiếu đòi nợ bền vẫn chờ thu", he.ben["phieu"]["trang_thai"], "Cho thu")
+		la("dấu lần khớp chưa ghi bền", he.ben["binh_luan"], [])
+	finally:
+		he.tra()
+
+
+@ca("v577 kế toán khớp tay không giao dịch mà không còn phần nợ nào để lập: báo rõ, không thành đã thu")
+def _():
+	nhap = [Doi(reference_name=h.name, allocated_amount=h.outstanding_amount) for h in HD]
+	he = He(nhap=nhap)
+	try:
+		he.phieu()
+		e = _bat(lambda: cn.khop_tay("DNTT-26-10-00004", 950000, "", "Kiet Tac", ma_lan="l5", unc=json.dumps([UNC])))
+		dung("phải báo lỗi", e is not None)
+		dung("nói không còn phần nợ: " + str(e)[:100], "không còn phần nợ" in str(e))
+		la("không commit", [x for x in he.nk if x[0] == "commit"], [])
+	finally:
+		he.tra()
+
+
+@ca("v577 soát tệp UNC bằng người bấm: thiếu tệp, tệp đã thuộc chứng từ khác, tệp người khác đều chặn")
+def _():
+	he = He(vai=("Accounts User",), tep={
+		"/a.jpg": Doi(name="FA", owner="ketoan@vagabond", file_name="a.jpg", is_private=1),
+		"/b.jpg": Doi(name="FB", owner="ketoan@vagabond", file_name="b.jpg", is_private=1,
+			attached_to_doctype="Payment Entry", attached_to_name="APP-9"),
+		"/c.jpg": Doi(name="FC", owner="sales@vagabond", file_name="c.jpg", is_private=0),
+	})
+	try:
+		dung("rỗng", "uỷ nhiệm chi" in str(_bat(lambda: tt.soat_tep_unc_moi("[]"))))
+		dung("không có thật", "Không thấy tệp" in str(_bat(lambda: tt.soat_tep_unc_moi('["/z.jpg"]'))))
+		dung("đã thuộc chứng từ khác", "APP-9" in str(_bat(lambda: tt.soat_tep_unc_moi('["/b.jpg"]'))))
+		dung("tệp người khác", "người tải tệp" in str(_bat(lambda: tt.soat_tep_unc_moi('["/c.jpg"]'))))
+		la("tệp đúng", tt.soat_tep_unc_moi('["/a.jpg"]'),
+			[{"url": "/a.jpg", "ten": "FA", "ten_tep": "a.jpg", "rieng": 1}])
+	finally:
+		he.tra()
+
+
+# --------------------------------------------------- danh sách giao dịch
+
+
+@ca("v577 hộp Khớp tay nhận MỌI giao dịch chưa nối (ca Kiệt Tác 9,55tr cho phiếu 8,45tr), bỏ giao dịch đã có phiếu thu")
+def _():
+	loc = {}
+	BT = [Doi(name="BT-1", date="2026-10-05", description="Kiet Tac doi soat Vagabond 8.9 nam 2026", deposit=9550000.0,
+			bank_account="MB", reference_number="FT-KIETTAC", unallocated_amount=9550000.0),
+		Doi(name="BT-2", date="2026-10-04", description="DNTT khac", deposit=8450000.0, bank_account="MB",
+			reference_number="FT-DUNG", unallocated_amount=8450000.0),
+		Doi(name="BT-3", date="2026-10-03", description="da co phieu thu nhap", deposit=8450000.0, bank_account="MB",
+			reference_number="FT-DACO", unallocated_amount=8450000.0)]
+	th = Thay()
+
+	def get_all(dt, filters=None, **k):
+		if dt == "Bank Transaction":
+			loc.update(filters)
+			return [Doi(b) for b in BT]
+		if dt == "Payment Entry":
+			la("hỏi đúng mã giao dịch", sorted(filters["reference_no"][1]), ["FT-DACO", "FT-DUNG", "FT-KIETTAC"])
+			return ["FT-DACO"]
+		return []
+	th.dat(fr, "get_all", get_all)
+	th.dat(cn, "_kiem_quyen_ban", lambda: None)
+	try:
+		kq = cn.tim_giao_dich_thu(so_ngay=120, so_tien=8450000, chua_noi=1)
+		la("đúng số lên đầu, giao dịch lớn hơn vẫn có, bỏ khoản đã có phiếu", [r["ma"] for r in kq["rows"]],
+			["FT-DUNG", "FT-KIETTAC"])
+		la("lọc giao dịch đã xác nhận, còn tiền, chưa nối",
+			(loc.get("docstatus"), loc.get("unallocated_amount"), loc.get("allocated_amount")),
+			(1, [">", 0.5], ["<", 0.5]))
+		la("trả số tiền chưa nối", kq["rows"][1]["con"], 9550000.0)
+		cu = cn.tim_giao_dich_thu(so_ngay=120, so_tien=8450000)
+		la("cách gọi cũ vẫn lọc đúng số như trước", [r["ma"] for r in cu["rows"]], ["FT-DUNG", "FT-DACO"])
+	finally:
+		th.tra()
+
+
+# ------------------------------------------------------- huỷ phiếu kẹt
+
+
+def _he_huy(trang_thai, ma_gd="", da_ghi=(), nhap=("APP-26-10-134", "APP-26-10-150")):
+	nk = []
+	th = Thay()
+
+	class PhieuNo(Doi):
+		def save(self, **k):
+			nk.append(("luu", self.trang_thai))
+
+		def add_comment(self, *a, **k):
+			nk.append(("binh_luan", a[1]))
+
+	doc = PhieuNo(name="DNTT-26-10-00004", ma_phieu="DNTT-26-10-00004", trang_thai=trang_thai, ma_gd=ma_gd, ghi_chu="")
+
+	def get_all(dt, filters=None, **k):
+		if dt == "Payment Entry":
+			mau = filters["reference_no"][1]
+			nk.append(("tim", filters["docstatus"], mau))
+			ds = list(da_ghi) if filters["docstatus"] == 1 else list(nhap)
+			return ds if mau.endswith(":%") else []
+		return []
+	th.dat(fr, "get_all", get_all)
+	th.dat(fr, "get_doc", lambda *a, **k: doc)
+	th.dat(fr, "set_user", lambda u: setattr(fr.session, "user", u))
+	th.dat(fr.session, "user", "ntla.3008@gmail.com")
+	th.dat(fr, "delete_doc", lambda dt, ten, **k: nk.append(("xoa", dt, ten, fr.session.user, k.get("ignore_permissions"))))
+	th.dat(cn, "_kiem_quyen_ban", lambda: None)
+	return doc, nk, th
+
+
+@ca("v577 huỷ phiếu kẹt kiểu Ms.Dung: dọn đúng phiếu thu NHÁP hỏng của chính phiếu, rồi mới huỷ")
+def _():
+	doc, nk, th = _he_huy("Da thu du")
+	try:
+		kq = cn.huy_phieu("DNTT-26-10-00004", "Loan Anh")
+		la("dọn hai nháp hỏng", kq["da_xoa_nhap"], ["APP-26-10-134", "APP-26-10-150"])
+		la("xoá bằng quyền hệ thống rồi trả lại người gọi",
+			[x for x in nk if x[0] == "xoa"],
+			[("xoa", "Payment Entry", "APP-26-10-134", "Administrator", True),
+			("xoa", "Payment Entry", "APP-26-10-150", "Administrator", True)])
+		la("trả lại người gọi", fr.session.user, "ntla.3008@gmail.com")
+		la("tìm theo đúng mẫu khoá của phiếu", sorted({x[2] for x in nk if x[0] == "tim"}),
+			["THU:%:phieu:DNTT-26-10-00004:%", "THU:%:phieu:DNTT-26-10-00004|%"])
+		la("phiếu đã huỷ", doc.trang_thai, "Huy")
+		dung("ghi lại đã dọn gì", any("APP-26-10-150" in x[1] for x in nk if x[0] == "binh_luan"))
+	finally:
+		th.tra()
+
+
+@ca("v577 phiếu Đã thu đủ có giao dịch hay có phiếu thu vào sổ thì KHÔNG huỷ, không xoá gì")
+def _():
+	for ma_gd, da_ghi in (("FT-KIETTAC", ()), ("", ("APP-26-10-200",))):
+		doc, nk, th = _he_huy("Da thu du", ma_gd=ma_gd, da_ghi=da_ghi)
+		try:
+			e = _bat(lambda: cn.huy_phieu("DNTT-26-10-00004", "x"))
+			dung("phải chặn", e is not None and "không huỷ được" in str(e))
+			la("không xoá, không lưu", [x for x in nk if x[0] in ("xoa", "luu")], [])
+			la("giữ trạng thái", doc.trang_thai, "Da thu du")
+		finally:
+			th.tra()
+
+
+@ca("v577 huỷ phiếu chờ thu cũng dọn nháp hỏng của chính nó (lỗi SePay cũ), huỷ lần hai không làm gì")
+def _():
+	doc, nk, th = _he_huy("Cho thu", nhap=("APP-9",))
+	try:
+		la("dọn", cn.huy_phieu("DNTT-26-10-00004", "x")["da_xoa_nhap"], ["APP-9"])
+		la("đã huỷ", doc.trang_thai, "Huy")
+		nk[:] = []
+		la("lần hai trả về ngay", cn.huy_phieu("DNTT-26-10-00004", "x")["da_xoa_nhap"], [])
+		la("không xoá gì thêm", [x for x in nk if x[0] == "xoa"], [])
+	finally:
+		th.tra()
+
+
+# ------------------------------------------------------------ SePay
+
+
+def _he_sepay(lap):
+	nk = []
+	th = Thay()
+
+	class PhieuNo(Doi):
+		def save(self, **k):
+			nk.append(("luu", self.trang_thai))
+
+		def add_comment(self, *a, **k):
+			nk.append(("binh_luan", a[1]))
+
+	doc = PhieuNo(name="P", ma_phieu="DNTT-26-10-00007", khach="OSHIMA", trang_thai="Cho thu", tong_tien=13000000.0,
+		da_thu=0.0, ma_gd="", flags=Doi(), dong=[Doi(hoa_don="HD-OSH", khach="OSHIMA"), Doi(hoa_don="HD-VU", khach="VU")])
+
+	def get_doc(dt, *a, **k):
+		if dt == "Bank Transaction":
+			nk.append(("nap_gd", a[0], k.get("for_update")))
+			return Doi(name=a[0], reference_number="FT-" + a[0])
+		return doc
+
+	def get_all(dt, filters=None, **k):
+		if dt == "Bank Transaction":
+			return [Doi(name="BT-S", reference_number="FT-BT-S", deposit=13000000.0, withdrawal=0.0)]
+		if dt == "Sales Invoice":
+			return [Doi(name="HD-OSH", customer="OSHIMA"), Doi(name="HD-VU", customer="VU")]
+		return []
+	th.dat(fr, "get_doc", get_doc)
+	th.dat(fr, "get_all", get_all)
+	th.dat(fr.db, "savepoint", lambda ten: nk.append(("diem_luu", ten)))
+	th.dat(fr.db, "rollback", lambda save_point=None: nk.append(("lui", save_point)))
+	th.dat(fr.db, "commit", lambda: nk.append(("commit",)))
+	th.dat(cn, "_kiem_quyen_ban", lambda: None)
+	th.dat(cn, "_giu_gd", lambda d, ds: "\n".join(ds))
+	th.dat(cn, "_sepay_cn", lambda ma: {"nhan": 13000000.0, "so_gd": 1, "gd": ["BT-S"]})
+	th.dat(cn, "_gui_thu_da_nhan", lambda d: nk.append(("gui_thu",)))
+	th.dat(cn, "xem_phieu", lambda name: {})
+	th.dat(tt, "lap_phieu_thu_theo_gd", lambda cac_si, g, so, gc="", **k: lap(nk, cac_si, g, so, k))
+	return doc, nk, th
+
+
+@ca("v577 SePay tự khớp: lập phiếu thu NHÁP theo đúng giao dịch mới về, gom pháp nhân thì tách khách")
+def _():
+	def lap(nk, cac_si, g, so, k):
+		nk.append(("lap", tuple(cac_si), g.name, so, k.get("tach_khach")))
+		return {"pe": "APP-1, APP-2"}
+	doc, nk, th = _he_sepay(lap)
+	try:
+		cn.kiem_sepay("P")
+		la("lập theo giao dịch đã khoá, tách hai pháp nhân", [x for x in nk if x[0] in ("nap_gd", "lap")],
+			[("nap_gd", "BT-S", True), ("lap", ("HD-OSH", "HD-VU"), "BT-S", 13000000.0, True)])
+		la("đã thu đủ", doc.trang_thai, "Da thu du")
+		la("không ghi bình luận lỗi", [x for x in nk if x[0] == "binh_luan"], [])
+		dung("lập trước khi lưu phiếu", [x[0] for x in nk].index("lap") < [x[0] for x in nk].index("luu"))
+		la("gửi thư một lần", [x for x in nk if x[0] == "gui_thu"], [("gui_thu",)])
+	finally:
+		th.tra()
+
+
+@ca("v577 SePay tự khớp mà lập phiếu thu hỏng: lùi ĐÚNG lần lập đó, vẫn ghi nhận tiền, ghi rõ lý do lên phiếu")
+def _():
+	def lap(nk, cac_si, g, so, k):
+		raise fr.ValidationError(tt.cau_gd_lon_hon("FT-BT-S", 13000000, 9550000))
+	doc, nk, th = _he_sepay(lap)
+	try:
+		cn.kiem_sepay("P")
+		la("mở và lùi đúng điểm lưu", [x for x in nk if x[0] in ("diem_luu", "lui")],
+			[("diem_luu", "vgb_sepay_lap"), ("lui", "vgb_sepay_lap")])
+		la("tiền vẫn ghi nhận", doc.da_thu, 13000000.0)
+		bl = [x[1] for x in nk if x[0] == "binh_luan"]
+		la("một bình luận", len(bl), 1)
+		dung("có lý do và chỉ đường: " + (bl[0] if bl else "")[:120], "dư 3.450.000 đ" in bl[0] and "Khớp tay" in bl[0])
+		dung("bình luận trước commit", [x[0] for x in nk].index("binh_luan") < [x[0] for x in nk].index("commit"))
+	finally:
+		th.tra()
+
+
+# ------------------------------------------------------------ thư báo
+
+
+@ca("v577 thư báo nhận tiền phiếu gom: gửi MỌI pháp nhân, kính gửi đủ tên, khách đứng tên trước")
+def _():
+	gui = []
+	th = Thay()
+	doc = Doi(name="P", ma_phieu="DNTT-26-10-00007", khach="VU", ten_khach="Anh Vũ Oshima", tong_tien=13000000.0,
+		da_thu=13000000.0, email_da_gui=0,
+		dong=[Doi(hoa_don="HD-1", khach="OSHIMA", so_tien=3000000.0), Doi(hoa_don="HD-2", khach="VU", so_tien=10000000.0)])
+	doc.db_set = lambda *a, **k: gui.append(("db_set",) + a)
+	doc.add_comment = lambda *a, **k: gui.append(("bl", a[1]))
+	th.dat(cn, "_email_khach", lambda k: {"OSHIMA": "ketoan@oshima.vn", "VU": "vu@gmail.com"}.get(k, ""))
+	th.dat(cn, "_cac_khach_phieu", lambda d: [{"khach": "OSHIMA", "ten": "Công ty TNHH Oshima's"},
+		{"khach": "VU", "ten": "Anh Vũ Oshima"}])
+	th.dat(cn, "_thu_da_nhan_html", lambda d, ds: "Kính gửi " + cn._ten_kinh_gui(d))
+	th.dat(fr, "sendmail", lambda **k: gui.append(("mail", k["recipients"], k["message"])))
+	try:
+		da, toi = cn._gui_thu_da_nhan(doc)
+		la("gửi được", da, True)
+		mail = [x for x in gui if x[0] == "mail"]
+		la("một thư, đủ hai pháp nhân, khách đứng tên trước", [x[1] for x in mail], ["vu@gmail.com, ketoan@oshima.vn"])
+		la("kính gửi đủ tên", mail[0][2], "Kính gửi Công ty TNHH Oshima's và Anh Vũ Oshima")
+		dung("ghi lại gửi tới ai", ("db_set", "email_gui_toi", "vu@gmail.com, ketoan@oshima.vn") in gui)
+	finally:
+		th.tra()

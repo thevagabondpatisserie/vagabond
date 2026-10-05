@@ -193,6 +193,8 @@ def gia_lap():
 		get_all=fr.get_all,
 		set_value=lambda *a, **k: None,
 		commit=lambda *a, **k: None,
+		savepoint=lambda *a, **k: None,
+		rollback=lambda *a, **k: None,
 	)
 	fr.cache = lambda *a, **k: types.SimpleNamespace(
 		get_value=lambda *a, **k: None, set_value=lambda *a, **k: None
@@ -217,6 +219,7 @@ def gia_lap():
 		str(v or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 	)
 	ut.cstr = lambda v: "" if v is None else str(v)
+	ut.strip_html = lambda v: __import__("re").sub(r"<[^>]*>", "", str(v or ""))
 	ut.fmt_money = lambda v, **k: str(v)
 	ut.date_diff = lambda a, b: (_getdate(a) - _getdate(b)).days
 	fr.utils = ut
