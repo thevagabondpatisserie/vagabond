@@ -508,6 +508,35 @@ def cung_nhom_da_noi(nhom, ten_pe, noi):
 	return True
 
 
+CO_MAY_GHI_NHOM = "vgb_may_ghi_nhom"
+
+
+def nhom_giu(nhom_cu, nhom_moi, may_ghi):
+	"""Giá trị ô nhóm chia giao dịch được phép lưu. THUẦN.
+
+	Codex #443 vòng 3: read_only chỉ khoá giao diện, Desk hay API vẫn gửi được
+	giá trị. Ô này cho phép một phiếu nối vào giao dịch đã nối, nên chỉ máy
+	được ghi (lap_phieu_thu_theo_gd đặt cờ). Mọi giá trị khác bị bỏ, giữ đúng
+	giá trị đang lưu (phiếu mới thì rỗng)."""
+	if may_ghi:
+		return (nhom_moi or "").strip() or None
+	return (nhom_cu or "").strip() or None
+
+
+def chan_ghi_tay_nhom(doc, method=None):
+	"""Hook validate của Payment Entry: chỉ máy được đặt ô vgb_nhom_gd."""
+	try:
+		if not doc.meta.has_field("vgb_nhom_gd"):
+			return
+	except Exception:
+		return
+	may_ghi = bool(doc.flags.get(CO_MAY_GHI_NHOM))
+	cu = None
+	if not may_ghi and not doc.is_new():
+		cu = frappe.db.get_value(doc.doctype, doc.name, "vgb_nhom_gd")
+	doc.set("vgb_nhom_gd", nhom_giu(cu, doc.get("vgb_nhom_gd"), may_ghi))
+
+
 def tach_theo_khach(chia, khach_cua_hd):
 	"""Gom phần chia theo khách của hoá đơn, giữ thứ tự xuất hiện. THUẦN.
 
@@ -1167,14 +1196,19 @@ def phieu_thu_nhap(cac_si=None, chi_ma_gd=True):
 	# để phiếu được chọn không đổi theo cách lọc màn.
 	ung_vien = {}
 	for lo in _chia({p.reference_no.strip() for p in cac_pe if (p.reference_no or "").strip()}):
-		for r in frappe.get_all(PE, filters={"docstatus": 0, "payment_type": "Receive",
-				"reference_no": ["in", lo]}, fields=["name", "reference_no", "paid_amount", "vgb_nhom_gd"],
+		for r in frappe.get_all(PE, filters={"docstatus": ["<", 2], "payment_type": "Receive",
+				"reference_no": ["in", lo]}, fields=["name", "reference_no", "paid_amount", "vgb_nhom_gd", "docstatus"],
 				limit_page_length=0):
+			# Codex #443 vòng 3: phiếu CÙNG NHÓM đã ghi sổ vẫn góp vào tiền của
+			# nhóm, không thì nhóm tụt điểm sau phiếu đầu và một phiếu lẻ cũ
+			# chen lên "thắng", giấu phiếu còn lại của nhóm khỏi Tiền đã về.
+			if int(r.docstatus or 0) == 1 and not (r.get("vgb_nhom_gd") or ""):
+				continue
 			ung_vien.setdefault((r.reference_no or "").strip(), []).append(
 				(r.name, flt(r.paid_amount), r.get("vgb_nhom_gd") or ""))
 	# Ứng viên cũng phải là phiếu có gắn hoá đơn: phiếu không thuộc màn này
 	# không được "thắng" rồi hạ phiếu công nợ thật về chưa xác minh.
-	ten_uv = {t for cac in ung_vien.values() for t, _ in cac}
+	ten_uv = {m[0] for cac in ung_vien.values() for m in cac}
 	co_hd = set()
 	for lo in _chia(ten_uv):
 		for r in frappe.get_all("Payment Entry Reference", filters={"parent": ["in", lo],
@@ -1844,6 +1878,7 @@ def lap_phieu_thu_theo_gd(cac_si, g, so_tien, ghi_chu="", tach_khach=False):
 			pe.bank_account = g.bank_account
 			if nhom:
 				pe.vgb_nhom_gd = nhom
+				pe.flags[CO_MAY_GHI_NHOM] = True
 			if frappe.db.exists("Mode of Payment", "Chuyển khoản"):
 				pe.mode_of_payment = "Chuyển khoản"
 			for ten, phan in phan_khach:

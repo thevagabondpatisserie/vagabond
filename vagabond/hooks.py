@@ -666,6 +666,9 @@ doc_events = {
 			# nao noi ra (anh Viet 05/09/2026). Doc dau tep
 			# vagabond/nghiep_vu_tien.py.
 			"vagabond.nghiep_vu_tien.dat_nghiep_vu",
+			# v576 (Codex #443): o nhom chia giao dich chi may ghi. Doc
+			# thu_tien.chan_ghi_tay_nhom.
+			"vagabond.thu_tien.chan_ghi_tay_nhom",
 		],
 		"before_submit": [
 			# Chung tu qua NGAN HANG phai co Uy nhiem chi dinh kem. Chi Dung
