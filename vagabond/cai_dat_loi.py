@@ -221,6 +221,59 @@ def gop_dong(truong_con, dong_cu):
 		if _o(df, "fieldtype") not in KHONG_GIA_TRI}
 
 
+# Codex #439 (V1): mỗi ô Liên kết trên trang chỉ được chọn đúng loại bản ghi mà
+# nghiệp vụ dùng tới. Ô chọn chung "mọi bản ghi" từng đưa cả tài khoản ngân hàng
+# của NCC, của khách, tài khoản đã tắt vào ô Tài khoản chi hoàn tiền; hoan_tien
+# lấy thẳng tài khoản đó để lập phiếu chi. MỘT bảng này dùng cho cả hộp chọn
+# (tim_lien_ket) lẫn lúc lưu (luu), để không có lối nào chọn ngoài phạm vi.
+# Ô Liên kết mới thêm vào trang mà chưa khai ở đây thì app KHÔNG cho chọn và ca
+# kiểm thu_cai_dat_loi_570 đỏ, buộc người thêm ô phải quyết phạm vi.
+LOC_LIEN_KET = {
+	# hoan_tien.tk_chi: tài khoản ngân hàng CÔNG TY (chị Dung 16/08/2026).
+	"tk_hoan_tien": {"company": "@cong_ty", "is_company_account": 1, "disabled": 0},
+	# hoan_tien.kho_huy: kho lá của công ty, không trỏ vào kho bán (mô tả ô).
+	"kho_hang_huy": {"company": "@cong_ty", "is_group": 0, "disabled": 0},
+	# qua_tang_hoa_don._tk_chi_phi: tài khoản chi phí chi tiết.
+	"tk_chi_phi_qua_tang": {"company": "@cong_ty", "is_group": 0, "disabled": 0, "root_type": "Expense"},
+	# tai_khoan_btp.loi_tai_khoan: Stock, chi tiết, còn dùng, VND.
+	"tk_ton_btp_cap1": {"company": "@cong_ty", "is_group": 0, "disabled": 0, "account_type": "Stock", "account_currency": "VND"},
+	"tk_ton_btp_cap2": {"company": "@cong_ty", "is_group": 0, "disabled": 0, "account_type": "Stock", "account_currency": "VND"},
+}
+
+
+def loc_lien_ket(fn, cong_ty):
+	"""Bộ lọc của một ô Liên kết, thay @cong_ty bằng công ty đang dùng. THUẦN.
+
+	Trả None khi ô chưa khai phạm vi: người gọi phải từ chối, không mở rộng.
+	"""
+	loc = LOC_LIEN_KET.get(fn)
+	if loc is None:
+		return None
+	return {k: (cong_ty if v == "@cong_ty" else v) for k, v in loc.items()}
+
+
+def kiem_lien_ket(truong, ra, cong_ty, co_ban_ghi):
+	"""Lỗi cho các ô Liên kết sắp lưu mà nằm ngoài phạm vi. THUẦN.
+
+	co_ban_ghi(doctype, filters) -> bool do người gọi cấp (đọc CSDL). Để trống
+	là bỏ chọn, luôn được (ô bắt buộc đã do Frappe chặn lúc lưu).
+	"""
+	theo_ten = {_o(df, "fieldname"): df for df in truong}
+	loi = []
+	for fn, v in (ra or {}).items():
+		df = theo_ten.get(fn)
+		if df is None or _o(df, "fieldtype") != "Link" or v in (None, ""):
+			continue
+		nhan = _o(df, "label", "") or fn
+		loc = loc_lien_ket(fn, cong_ty)
+		if loc is None:
+			loi.append("Ô %s chưa khai phạm vi chọn trên app, sửa ở Desk." % nhan)
+			continue
+		if not co_ban_ghi(_o(df, "options"), dict(loc, name=v)):
+			loi.append("Ô %s: %s không đúng loại được dùng ở đây." % (nhan, v))
+	return loi
+
+
 MAU_TIM = re.compile(r"[%_\\]")
 
 
@@ -232,6 +285,10 @@ import frappe  # noqa: E402
 def _chi_quan_tri():
 	if not set(QUYEN) & set(frappe.get_roles()):
 		frappe.throw("Chỉ quản trị hệ thống mới mở được Cài đặt lõi và API.", frappe.PermissionError)
+
+
+def _cong_ty():
+	return frappe.defaults.get_global_default("company") or ""
 
 
 def _truong():
@@ -296,6 +353,9 @@ def luu(thay=None, bang=None, xoa_khoa=None, modified=None):
 			doc.set(fn, [])
 			for d in sach:
 				doc.append(fn, d)
+	# Codex #439 (V1): ô Liên kết phải nằm trong phạm vi, cùng bảng với hộp chọn.
+	loi.extend(kiem_lien_ket(truong, ra, _cong_ty(),
+		lambda dt, loc: bool(frappe.get_all(dt, filters=loc, pluck="name", limit_page_length=1))))
 	if loi:
 		frappe.throw("<br>".join(frappe.utils.escape_html(x) for x in loi))
 	for fn, v in ra.items():
@@ -311,6 +371,9 @@ def tim_lien_ket(o, tu=""):
 	df = {d.fieldname: d for d in _truong()}.get(o)
 	if not df or df.fieldtype != "Link":
 		frappe.throw("Ô này không phải ô chọn từ danh mục.")
+	loc = loc_lien_ket(o, _cong_ty())
+	if loc is None:
+		frappe.throw("Ô này chưa khai phạm vi chọn trên app, sửa ở Desk.")
 	tu = MAU_TIM.sub("", str(tu or ""))[:60]
-	dk = {"name": ["like", "%%%s%%" % tu]} if tu else {}
+	dk = dict(loc, **({"name": ["like", "%%%s%%" % tu]} if tu else {}))
 	return [r.name for r in frappe.get_list(df.options, filters=dk, fields=["name"], limit_page_length=20 if tu else 200, order_by="name asc")]
