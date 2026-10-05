@@ -17587,17 +17587,22 @@ async function scrCnPhieu(name) {
   };
   document.getElementById('cnKiem').onclick = async function () {
     busy(true);
-    try { var r = await api('vagabond.cong_no.kiem_sepay', { name: name }); busy(false); toast(r.sepay >= r.tong_tien - 1 ? 'Tiền đã về đủ, đã xoá nợ.' : 'SePay mới nhận ' + money(r.sepay) + ' đ.', 4000); go(function () { scrCnPhieu(name); }, true); }
+    /* Codex #444 vòng 2: SePay chỉ lập phiếu thu NHÁP; còn hoá đơn chờ ghi sổ
+       thì không báo đã xoá nợ (cùng nguồn cho_ghi_so với thẻ trên màn). */
+    try { var r = await api('vagabond.cong_no.kiem_sepay', { name: name }); busy(false);
+      toast(r.sepay >= r.tong_tien - 1
+        ? (r.cho_ghi_so ? 'Tiền đã về đủ. ' + r.cho_ghi_so + ' hoá đơn chờ kế toán đính UNC và ghi sổ ở tab Tiền đã về.' : 'Tiền đã về đủ, đã xoá nợ.')
+        : 'SePay mới nhận ' + money(r.sepay) + ' đ.', 4500); go(function () { scrCnPhieu(name); }, true); }
     catch (e) { busy(false); toast((e && e.message) || 'Không đối chiếu được', 4000); }
   };
   var nh = document.getElementById('cnHuy');
   if (nh) nh.onclick = async function () {
     var ok = await confirmSheet('Huỷ phiếu ' + d.ma_phieu, 'Các hoá đơn trong phiếu sẽ quay lại danh sách chờ gom. Mã QR này sẽ không dùng nữa.' +
-      (d.so_nhap_hong ? '\nMáy dọn luôn ' + d.so_nhap_hong + ' phiếu thu nháp hỏng của lần khớp tay trước (chưa vào sổ).' : ''), 'Huỷ phiếu');
+      (d.so_nhap_hong ? '\nMáy gỡ ' + d.so_nhap_hong + ' phiếu thu nháp hỏng của lần khớp tay trước khỏi hoá đơn (chưa vào sổ, giữ lại để tra).' : ''), 'Huỷ phiếu');
     if (!ok) return;
     busy(true);
     try { var rh = await api('vagabond.cong_no.huy_phieu', { name: name, ly_do: S.me.full_name || S.user }); busy(false);
-      toast('Đã huỷ phiếu.' + (rh && rh.da_xoa_nhap && rh.da_xoa_nhap.length ? ' Đã dọn ' + rh.da_xoa_nhap.length + ' phiếu thu nháp hỏng.' : ''), 4000); go(scrCongNo); }
+      toast('Đã huỷ phiếu.' + (rh && rh.da_go_nhap && rh.da_go_nhap.length ? ' Đã gỡ ' + rh.da_go_nhap.length + ' phiếu thu nháp hỏng khỏi hoá đơn.' : ''), 4000); go(scrCongNo); }
     catch (e) { busy(false); toast((e && e.message) || 'Không huỷ được', 4000); }
   };
 }
