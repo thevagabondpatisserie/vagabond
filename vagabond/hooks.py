@@ -669,6 +669,10 @@ doc_events = {
 			# v576 (Codex #443): o nhom chia giao dich chi may ghi. Doc
 			# thu_tien.chan_ghi_tay_nhom.
 			"vagabond.thu_tien.chan_ghi_tay_nhom",
+			# v577 (Codex #444 vong 3): phieu thu nhap hong da GO khi huy phieu
+			# doi no (khoa GO:THU:) khong ghi so duoc, khong doi khoa lai duoc.
+			# Doc thu_tien.chan_nhap_da_go.
+			"vagabond.thu_tien.chan_nhap_da_go",
 		],
 		"before_submit": [
 			# Chung tu qua NGAN HANG phai co Uy nhiem chi dinh kem. Chi Dung

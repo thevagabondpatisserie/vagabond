@@ -765,7 +765,10 @@ def xem_phieu(name):
 		"so_nhap_hong": len(_phieu_thu_cua_phieu(doc.name, 0)),
 		# Codex #444 F1: tiền đã về đủ mà sổ cái còn nợ (phiếu thu nháp chờ
 		# kế toán ghi sổ) thì màn KHÔNG được báo "công nợ đã sạch".
-		"cho_ghi_so": len(_hd_con_no_so_cai(doc)) if doc.trang_thai == "Da thu du" else 0,
+		# Codex #444 vòng 3: chỉ đếm hoá đơn CÓ phiếu thu nháp đã xác minh
+		# (đang ở tab Tiền đã về); hoá đơn chưa có phiếu thu là thieu_phieu_thu.
+		"cho_ghi_so": len(set(_hd_con_no_so_cai(doc)) - set(_hd_chua_co_phieu_thu([d.hoa_don for d in doc.dong])))
+		if doc.trang_thai == "Da thu du" else 0,
 		# Phieu doi no dung tai khoan ao rieng cua khach si neu da khai: khach
 		# si hay chuyen theo noi dung cua ho chu khong theo noi dung minh dat
 		# (ca OSHIMA 11/08/2026), nen tach bang TAI KHOAN moi chac.
@@ -992,15 +995,23 @@ def ghi_chu_go_nhap(ma_phieu, hd):
 
 
 def _go_nhap_hong(ten_pe, ma_phieu):
-	"""Gỡ một phiếu thu NHÁP hỏng khỏi hoá đơn, giữ phiếu và ghi vết (QT-20)."""
+	"""Gỡ một phiếu thu NHÁP hỏng khỏi hoá đơn, giữ phiếu và ghi vết (QT-20).
+
+	Khoá GO:THU: kèm hook thu_tien.chan_nhap_da_go: phiếu đã gỡ không ghi sổ
+	được trên Desk, không đổi khoá về như cũ được (Codex #444 vòng 3).
+	"""
+	from vagabond import thu_tien as tt
 	pe = frappe.get_doc("Payment Entry", ten_pe, for_update=True)
 	if int(pe.docstatus or 0) != 0:
 		return False
 	hd = [(r.reference_name, flt(r.allocated_amount)) for r in (pe.references or [])]
 	pe.set("references", [])
+	# Khoá máy lập luôn bắt đầu THU: (mẫu tìm ở _phieu_thu_cua_phieu), thêm
+	# "GO:" thành đúng tiền tố tt.TIEN_TO_DA_GO.
 	pe.reference_no = ("GO:" + (pe.reference_no or ""))[:140]
 	pe.remarks = (((pe.remarks or "") + "\n" + ghi_chu_go_nhap(ma_phieu, hd)).strip())[:1000]
 	pe.flags.ignore_permissions = True
+	pe.flags[tt.CO_MAY_GO_NHAP] = True
 	pe.save(ignore_permissions=True)
 	return True
 

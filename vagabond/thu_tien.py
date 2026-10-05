@@ -537,6 +537,46 @@ def chan_ghi_tay_nhom(doc, method=None):
 	doc.set("vgb_nhom_gd", nhom_giu(cu, doc.get("vgb_nhom_gd"), may_ghi))
 
 
+# v577 (Codex #444 vòng 3): phiếu thu nháp hỏng đã bị GỠ khi huỷ phiếu đòi
+# nợ mang khoá "GO:THU:..." và phải ở nguyên trạng thái gỡ: không ghi sổ, không
+# đổi khoá về như cũ. Chỉ máy (cờ dưới) được đặt trạng thái này.
+TIEN_TO_DA_GO = "GO:THU:"
+CO_MAY_GO_NHAP = "vgb_may_go_nhap"
+
+
+def ly_do_chan_nhap_da_go(ref_moi, ref_cu, docstatus, may_go, ten=""):
+	"""Phiếu thu đã gỡ có bị chặn ở lần lưu/ghi sổ này không. THUẦN. Trả câu lỗi hoặc "".
+
+	ref_cu là khoá đang lưu trong cơ sở dữ liệu (None khi phiếu mới).
+	"""
+	ref_moi = (ref_moi or "").strip()
+	ref_cu = (ref_cu or "").strip()
+	da_go = ref_cu.startswith(TIEN_TO_DA_GO) or ref_moi.startswith(TIEN_TO_DA_GO)
+	if not da_go or may_go:
+		return ""
+	if int(docstatus or 0) == 1:
+		return ("Phiếu thu %s đã bị gỡ khỏi hoá đơn khi huỷ phiếu đòi nợ (lần khớp tay hỏng, thiếu uỷ nhiệm chi) "
+			"nên không ghi sổ được. Muốn thu khoản này thì lập phiếu thu mới theo đúng giao dịch ngân hàng "
+			"ở màn Công nợ." % (ten or ""))
+	if ref_cu.startswith(TIEN_TO_DA_GO) and ref_moi != ref_cu:
+		return ("Phiếu thu %s đã bị gỡ khi huỷ phiếu đòi nợ; không đổi số tham chiếu của nó được. "
+			"Lập phiếu thu mới ở màn Công nợ." % (ten or ""))
+	if ref_moi.startswith(TIEN_TO_DA_GO) and not ref_cu.startswith(TIEN_TO_DA_GO):
+		return "Chỉ máy được đánh dấu phiếu thu đã gỡ (tiền tố %s)." % TIEN_TO_DA_GO
+	return ""
+
+
+def chan_nhap_da_go(doc, method=None):
+	"""Hook validate của Payment Entry: giữ phiếu thu đã gỡ ở nguyên trạng thái gỡ."""
+	if doc.doctype != "Payment Entry":
+		return
+	cu = None if doc.is_new() else frappe.db.get_value(doc.doctype, doc.name, "reference_no")
+	loi = ly_do_chan_nhap_da_go(doc.get("reference_no"), cu, doc.docstatus,
+		bool(doc.flags.get(CO_MAY_GO_NHAP)), doc.name)
+	if loi:
+		frappe.throw(loi)
+
+
 def tach_theo_khach(chia, khach_cua_hd):
 	"""Gom phần chia theo khách của hoá đơn, giữ thứ tự xuất hiện. THUẦN.
 
