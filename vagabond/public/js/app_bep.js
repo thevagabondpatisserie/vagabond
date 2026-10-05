@@ -55303,7 +55303,11 @@ function cdlVeO(o, doc) {
   if (o.kieu === 'Link') {
     return '<div class="cdl-f"' + id + '>' + nhan + '<div class="cdl-val">' +
       (v ? h(v) : '<span style="color:#9aa1a8">Chưa chọn</span>') +
-      '<span style="margin-left:auto"></span><button class="cdl-lnk" data-cdllk="' + h(o.fn) + '">Chọn</button></div>' + mo + '</div>';
+      '<span style="margin-left:auto"></span><button class="cdl-lnk" data-cdllk="' + h(o.fn) + '">Chọn</button>' +
+      /* Codex #439 (V2): ô không bắt buộc thì bỏ chọn được, về lối mặc định an toàn
+         (ví dụ Tài khoản chi hoàn tiền trống thì máy tự tìm tài khoản công ty). */
+      (v && !o.bat_buoc ? '<button class="cdl-lnk" data-cdlbo="' + h(o.fn) + '" style="color:#a42424">Bỏ chọn</button>' : '') +
+      '</div>' + mo + '</div>';
   }
   var giaTri = v == null ? '' : String(v);
   if (o.kieu === 'Small Text' || o.kieu === 'Text' || o.kieu === 'Long Text' || o.kieu === 'Code') {
@@ -55365,6 +55369,7 @@ function cdlBam(e, fnTab) {
   }
   if ((el = e.target.closest('[data-cdlnganhang]'))) return cdlChonNganHang(fnTab);
   if ((el = e.target.closest('[data-cdllk]'))) return cdlChonLienKet(el.getAttribute('data-cdllk'), fnTab);
+  if ((el = e.target.closest('[data-cdlbo]'))) { cdlDatThay(el.getAttribute('data-cdlbo'), ''); return cdlVeTab(fnTab); }
   if ((el = e.target.closest('[data-cdlbangthem]'))) return cdlMoDong(el.getAttribute('data-cdlbangthem'), -1);
   if ((el = e.target.closest('[data-cdldong]'))) {
     return cdlMoDong(el.getAttribute('data-cdlbang'), parseInt(el.getAttribute('data-cdldong'), 10));
