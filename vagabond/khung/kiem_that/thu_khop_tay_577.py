@@ -186,7 +186,7 @@ def _nhap_hong(si, p):
 	return pe.name
 
 
-@ca("v577 phiếu kẹt kiểu Ms.Dung (đã thu đủ, không giao dịch, nháp hỏng giữ nợ): Sales huỷ được, nháp hỏng được dọn")
+@ca("v577 phiếu kẹt kiểu Ms.Dung (đã thu đủ, không giao dịch, nháp hỏng giữ nợ): Sales huỷ được, nháp hỏng được GỠ khỏi hoá đơn, không xoá")
 def _huy_ket():
 	cty, ba, acc, ds, p = _nen_577(so_hd=2)
 	nhap = [_nhap_hong(s, p) for s in ds]
@@ -198,9 +198,14 @@ def _huy_ket():
 	la("màn biết huỷ được", xem.get("huy_duoc"), 1)
 	la("màn biết số nháp hỏng", xem.get("so_nhap_hong"), 2)
 	kq = _goi_bang(_sales(), lambda: cn.huy_phieu(p.name, "KT577"))
-	la("dọn đúng hai nháp hỏng", sorted(kq.get("da_xoa_nhap")), sorted(nhap))
+	la("gỡ đúng hai nháp hỏng", sorted(kq.get("da_go_nhap")), sorted(nhap))
 	for t in nhap:
-		dung("nháp %s đã xoá" % t, not frappe.db.exists("Payment Entry", t))
+		pe = frappe.get_doc("Payment Entry", t)
+		# Codex #444 vòng 2 (QT-20): giữ phiếu để tra, chỉ gỡ khỏi hoá đơn.
+		la("nháp %s vẫn còn, vẫn nháp" % t, pe.docstatus, 0)
+		la("nháp %s hết dòng hoá đơn" % t, len(pe.references), 0)
+		dung("nháp %s đổi khoá GO: và ghi vết phiếu đòi nợ" % t,
+			(pe.reference_no or "").startswith("GO:THU:") and (p.ma_phieu in (pe.remarks or "")))
 	la("phiếu đã huỷ", frappe.db.get_value("Vagabond Cong No", p.name, "trang_thai"), "Huy")
 	la("hoá đơn hết bị nháp giữ", tt.phan_bo_nhap_theo_hd([s.name for s in ds]), {})
 
