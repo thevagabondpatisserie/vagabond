@@ -75,7 +75,7 @@ def _goi_bang(ai, ham):
 	truoc = frappe.session.user
 	try:
 		frappe.set_user(ai)
-		with patch.object(cn, "_gui_thu_da_nhan", lambda d: None):
+		with patch.object(cn, "_gui_thu_da_nhan", lambda d, **k: (False, "kiem that")):
 			return ham()
 	finally:
 		frappe.set_user(truoc)
@@ -111,7 +111,7 @@ def _ke_toan_khong_gd():
 	try:
 		with _Tep() as t:
 			la("tệp do chính kế toán tải lên", t.owner, kt)
-			with patch.object(cn, "_gui_thu_da_nhan", lambda d: None):
+			with patch.object(cn, "_gui_thu_da_nhan", lambda d, **k: (False, "kiem that")):
 				kq = cn.khop_tay(p.name, tong, "", "KT577", ma_lan="kt577a", unc=json.dumps([t.file_url]))
 			frappe.set_user(truoc)
 			da = _pe_cua(ds, 1)
@@ -252,3 +252,5 @@ def _sepay_nhap():
 	xm = {x["pe"]: x["da_xac_minh"] for x in tt.phieu_thu_nhap(cac_si=[s.name for s in ds])}
 	la("Tiền đã về xác minh được", xm.get(nhap[0]), 1)
 	la("không còn hoá đơn thiếu phiếu thu", cn._hd_chua_co_phieu_thu([s.name for s in ds]), set())
+	# Codex #444 F1: tiền đã về nhưng phiếu thu còn nháp: màn không được báo sạch.
+	la("màn biết còn 2 hoá đơn chờ ghi sổ", _goi_bang(_sales(), lambda: cn.xem_phieu(p.name)).get("cho_ghi_so"), 2)
