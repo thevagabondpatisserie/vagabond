@@ -707,6 +707,25 @@ def cau_gd_lon_hon(ma_gd, tien_gd, con_no):
 		% (ma_gd, vn(tien_gd), vn(con_no), vn(_so(tien_gd) - _so(con_no)), vn(tien_gd)))
 
 
+def gd_khop_tu_khoa(tu_khoa, mo_ta, ma, tien):
+	"""Giao dịch có khớp chữ người gõ để tìm không. THUẦN.
+
+	Khớp nội dung chuyển khoản hoặc mã giao dịch (không phân biệt hoa thường),
+	hoặc SỐ TIỀN khi người gõ toàn số (bỏ dấu chấm, phẩy, chữ đ): gõ "9.550.000"
+	hay "9550000" đều ra giao dịch 9.550.000 đ (Codex #444 F2: tìm phải chạy
+	trên máy chủ, đủ mọi giao dịch, không chỉ danh sách đang hiện).
+	"""
+	k = (tu_khoa or "").strip().lower()
+	if not k:
+		return True
+	if k in (mo_ta or "").lower() or k in (ma or "").lower():
+		return True
+	so = "".join(c for c in k if c.isdigit())
+	if so and len(so) >= 4 and not any(c.isalpha() for c in k.replace("đ", "")):
+		return so in str(int(round(_so(tien))))
+	return False
+
+
 def xep_gd_khop_tay(ds, muc):
 	"""Xếp giao dịch cho hộp Khớp tay: đúng số tiền lên đầu, còn lại mới trước. THUẦN.
 
@@ -1408,6 +1427,13 @@ def ghi_so_phieu_thu(name=None, unc=None):
 		raise
 	_ghi_vet_thu(doc.name, "Ghi sổ phiếu thu kèm %d tệp uỷ nhiệm chi khách gửi, nối giao dịch %s"
 		% (so_tep, doc.reference_no))
+	# v577 (Codex #444 F1): thư báo nhận tiền của phiếu đòi nợ chỉ gửi khi sổ
+	# cái đã hết nợ. Phiếu thu nháp vừa vào sổ có thể là phiếu cuối cùng.
+	try:
+		frappe.get_attr("vagabond.cong_no.gui_thu_sau_ghi_so")(
+			[r.reference_name for r in (doc.references or []) if r.reference_doctype == SI])
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "thu_tien: gui thu sau ghi so")
 	return {"ok": 1, "name": doc.name, "gd": gdoc.name}
 
 

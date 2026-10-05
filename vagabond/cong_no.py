@@ -760,6 +760,9 @@ def xem_phieu(name):
 		"huy_duoc": 1 if doc.trang_thai != "Da thu du" or huy_duoc_phieu_da_thu(
 			doc.get("ma_gd"), _phieu_thu_cua_phieu(doc.name, 1))[0] else 0,
 		"so_nhap_hong": len(_phieu_thu_cua_phieu(doc.name, 0)),
+		# Codex #444 F1: tiền đã về đủ mà sổ cái còn nợ (phiếu thu nháp chờ
+		# kế toán ghi sổ) thì màn KHÔNG được báo "công nợ đã sạch".
+		"cho_ghi_so": len(_hd_con_no_so_cai(doc)) if doc.trang_thai == "Da thu du" else 0,
 		# Phieu doi no dung tai khoan ao rieng cua khach si neu da khai: khach
 		# si hay chuyen theo noi dung cua ho chu khong theo noi dung minh dat
 		# (ca OSHIMA 11/08/2026), nen tach bang TAI KHOAN moi chac.
@@ -936,7 +939,7 @@ def kiem_sepay(name):
 	# Thu bao vua nhan tien: chi gui MOT lan, dung luc phieu chuyen sang du.
 	if doc.trang_thai == "Da thu du" and not da_du_truoc:
 		try:
-			_gui_thu_da_nhan(doc)
+			_gui_thu_khi_sach(doc)
 		except Exception:
 			frappe.log_error(frappe.get_traceback(), "cong_no: gui thu bao da nhan loi")
 	return xem_phieu(name)
@@ -1554,6 +1557,46 @@ def _thu_da_nhan_html(doc, ds_dong):
 	return _tk.khung("Đã nhận được thanh toán", than, chan="khach", nhan="Công nợ")
 
 
+def _hd_con_no_so_cai(doc):
+	"""Hoá đơn của phiếu còn nợ TRÊN SỔ CÁI (phiếu thu nháp chưa trừ vào đây)."""
+	cac = [d.hoa_don for d in (doc.dong or []) if d.hoa_don]
+	if not cac:
+		return []
+	return frappe.get_all("Sales Invoice", filters={"name": ["in", cac], "docstatus": 1,
+		"outstanding_amount": [">", 0.5]}, pluck="name", limit_page_length=0)
+
+
+def _gui_thu_khi_sach(doc):
+	"""v577 (Codex #444 F1): thư "đã nhận thanh toán, công nợ đã tất toán" chỉ
+	gửi khi sổ cái đã hết nợ mọi hoá đơn của phiếu.
+
+	Khớp theo giao dịch và SePay tự khớp chỉ lập phiếu thu NHÁP: tiền đã về
+	nhưng hoá đơn còn nợ trên sổ tới lúc kế toán đính UNC và ghi sổ. Lúc đó
+	thu_tien.ghi_so_phieu_thu gọi gui_thu_sau_ghi_so để gửi.
+	"""
+	if doc.trang_thai != "Da thu du" or doc.get("email_da_gui"):
+		return False
+	if _hd_con_no_so_cai(doc):
+		return False
+	da, _ly_do = _gui_thu_da_nhan(doc)
+	return da
+
+
+def gui_thu_sau_ghi_so(cac_hd):
+	"""Sau khi một phiếu thu vào sổ: phiếu đòi nợ nào vừa sạch sổ thì gửi thư báo."""
+	ten = sorted(set(frappe.get_all("Vagabond Cong No Dong", filters={"hoa_don": ["in", list(cac_hd or []) or [""]],
+		"parenttype": "Vagabond Cong No"}, pluck="parent", limit_page_length=0)))
+	ra = []
+	for t in ten:
+		d = frappe.get_doc("Vagabond Cong No", t)
+		try:
+			if _gui_thu_khi_sach(d):
+				ra.append(t)
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "cong_no: gui thu sau ghi so")
+	return ra
+
+
 def _gui_thu_da_nhan(doc, buoc_gui=False):
 	"""Gui thu bao da nhan tien. Tra ve (da_gui, ly_do)."""
 	if doc.get("email_da_gui") and not buoc_gui:
@@ -1655,7 +1698,7 @@ def tim_giao_dich_thu(tu_khoa="", so_ngay=120, so_tien=None, chua_noi=0):
 			continue
 		mo_ta = r.get("description") or ""
 		ma = (r.get("reference_number") or r.get("name") or "").strip()
-		if k and k not in mo_ta.lower() and k not in ma.lower():
+		if k and not tt.gd_khop_tu_khoa(k, mo_ta, ma, tien):
 			continue
 		ra.append({
 			"ma": ma or r["name"],
@@ -1809,7 +1852,7 @@ def khop_tay(name, so_tien, ma_giao_dich="", ghi_chu="", ma_lan="", unc=None):
 	frappe.db.commit()
 	if doc.trang_thai == "Da thu du" and truoc != "Da thu du":
 		try:
-			_gui_thu_da_nhan(doc)
+			_gui_thu_khi_sach(doc)
 		except Exception:
 			frappe.log_error(frappe.get_traceback(), "cong_no: gui thu sau khop tay loi")
 	return {"ok": 1, "pe": lap["pe"] if lap else "", "loi": loi,
