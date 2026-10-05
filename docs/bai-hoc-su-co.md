@@ -1752,3 +1752,8 @@ lần đầu đếm ngoại lệ ra 0 trên 14 đột biến, tưởng bộ ki�
   `delete_doc`, gỡ khỏi hoá đơn, đổi khoá, ghi vết lên chính phiếu.
 - Thư "đã nhận thanh toán" gửi từ giữa request chưa commit (ghi sổ phiếu thu)
   phải xếp hàng (`delayed=True`) trong cùng giao dịch, không gửi ngay.
+- Việc phải xảy ra "sau khi ghi sổ" (gửi thư báo khách) mà chỉ gọi từ NÚT của
+  app thì kế toán ghi sổ thẳng trên Desk là việc đó không bao giờ chạy (Codex
+  #444 vòng 4). Đặt ở hook `on_submit` của doctype, nút app không gọi riêng.
+- Luật "chỉ gửi khi sổ sạch" đặt ở hàm gọi tự động thì nút gửi tay vẫn lách
+  qua. Đặt điều kiện trong CỬA gửi chung mà mọi lối đều đi qua.
