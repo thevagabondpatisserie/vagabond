@@ -1725,3 +1725,22 @@ lần đầu đếm ngoại lệ ra 0 trên 14 đột biến, tưởng bộ ki�
 - Đường SePay tự khớp và khớp tay KHÔNG chọn giao dịch (`ghi_thu_cho_phieu`) lập
   phiếu thu ghi sổ thẳng, sẽ bị `chan_thieu_dinh_kem` chặn với phiếu lập sau
   16/08. Tồn đọng có sẵn từ trước, chưa sửa trong v576.
+
+
+## 05/10/2026 (v577): thêm luật chặn ở hook mà không rà lối "nuốt lỗi" thì lối đó chết im lặng
+
+- Hook `chan_thieu_dinh_kem` (16/08) bắt phiếu thu ngân hàng có UNC mới ghi sổ.
+  `ghi_thu_cho_phieu` (04/09) lập và ghi sổ thẳng, lại cố tình NUỐT lỗi từng hoá
+  đơn "để không làm rớt việc đánh dấu". Ghép hai thứ: phiếu đòi nợ DNTT-26-10-00004
+  thành "Đã thu đủ", 17 phiếu thu hỏng hết, 17 nháp hỏng ở lại giữ phần nợ, bill
+  vẫn ở Đang nợ. Thêm luật chặn mới thì grep mọi lối gọi `submit()` của doctype đó
+  và mọi `except` nuốt lỗi quanh nó.
+- Lối có `try/except` nuốt lỗi quanh `insert()` rồi `submit()` mà không có điểm
+  lưu thì để lại bản nháp. Bản nháp đó vẫn được tính là "đã phủ nợ" ở nơi khác.
+  Dùng `frappe.db.savepoint` và lùi đúng lần làm hỏng, hoặc ném hẳn ra.
+- Hộp chọn lọc ĐÚNG số tiền thì giấu mất giao dịch thật khi khách trả gộp (Kiệt
+  Tác chuyển 9.550.000 cho phiếu 8.450.000), người dùng bị đẩy sang lối thoát
+  hiểm. Hộp chọn để đưa ra mọi ứng viên, xếp khoản khớp lên đầu, có ô tìm.
+- DOM giả (`hanh_vi/dom_gia.js`): chữ sau thẻ đóng dồn vào chữ của thẻ cha, nên
+  textContent đổi thứ tự quanh `<b>`. Dò câu thì chọn đoạn KHÔNG vắt qua thẻ.
+  Đừng viết điều kiện "hoặc" cho dễ đạt: ca v577 đã xanh oan vì vế hoặc khớp nhãn nút.
