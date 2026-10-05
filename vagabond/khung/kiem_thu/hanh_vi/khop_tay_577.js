@@ -66,7 +66,8 @@ function mayChu(tl) {
         return { ok: 1, pe: a.ma_giao_dich ? 'APP-1' : '', loi: [], loi_nhan: 'Đã ghi nhận.' };
       }
       if (m === 'vagabond.cong_no.xem_phieu') return tl.__phieu;
-      if (m === 'vagabond.cong_no.huy_phieu') return { ok: 1, da_xoa_nhap: ['APP-26-10-134', 'APP-26-10-150'] };
+      if (m === 'vagabond.cong_no.huy_phieu') return { ok: 1, da_go_nhap: ['APP-26-10-134', 'APP-26-10-150'] };
+      if (m === 'vagabond.cong_no.kiem_sepay') return tl.__sepay;
       return {};
     },
   };
@@ -232,9 +233,9 @@ async function moKhop(app, them) {
     dung('canh bao chi duong huy roi gom lai', chu(app.tl.body).indexOf('rồi gom lại đủ các hoá đơn khách đã trả') >= 0);
     var nut = app.mot('#cnHuy');
     await app.bam(nut);
-    dung('xac nhan ke 17 nhap hong: ' + app.hoi[0], app.hoi[0].indexOf('dọn luôn 17 phiếu thu nháp hỏng') >= 0);
+    dung('xac nhan ke 17 nhap hong, giu lai de tra: ' + app.hoi[0], app.hoi[0].indexOf('Máy gỡ 17 phiếu thu nháp hỏng') >= 0 && app.hoi[0].indexOf('giữ lại để tra') >= 0);
     bang('goi huy dung phieu', app.mc.cuoi('vagabond.cong_no.huy_phieu').a.name, 'DNTT-26-10-00004');
-    dung('bao da don', app.tin.some(function (x) { return x.indexOf('Đã dọn 2 phiếu thu nháp hỏng') >= 0; }));
+    dung('bao da go', app.tin.some(function (x) { return x.indexOf('Đã gỡ 2 phiếu thu nháp hỏng khỏi hoá đơn') >= 0; }));
   });
 
   await ca('Phieu da thu du ma may chu bao khong huy duoc thi KHONG co nut Huy', async function () {
@@ -276,6 +277,22 @@ async function moKhop(app, them) {
     app.tl.__phieu.cho_ghi_so = 0;
     await app.g.scrCnPhieu('DNTT-26-10-00004'); await nghi();
     dung('so sach roi thi bao da sach', chu(app.tl.body).indexOf('Công nợ của khách này đã sạch') >= 0);
+  });
+
+  await ca('Codex #444 vong 2: bam Doi chieu SePay thay du tien ma con hoa don cho ghi so thi KHONG bao da xoa no', async function () {
+    var app = appMoi();
+    app.tl.__phieu = Object.assign({}, PHIEU, { trang_thai: 'Cho thu', da_thu: 0, sepay: 0, da_nhan: 0, con_thieu: 8450000,
+      thieu_phieu_thu: 0, cho_ghi_so: 0, huy_duoc: 1, so_nhap_hong: 0, qr: {}, han_qr: '2026-10-12', cac_khach: [], dong: [] });
+    await app.g.scrCnPhieu('DNTT-26-10-00004'); await nghi();
+    app.tl.__sepay = { sepay: 8450000, tong_tien: 8450000, cho_ghi_so: 17 };
+    await app.bam(app.mot('#cnKiem'));
+    var t = app.tin.filter(function (x) { return x.indexOf('toast:') === 0; }).pop() || '';
+    dung('khong bao da xoa no: ' + t, t.indexOf('xoá nợ') < 0);
+    dung('noi 17 hoa don cho ghi so: ' + t, t.indexOf('17 hoá đơn chờ kế toán') >= 0);
+    app.tl.__sepay = { sepay: 8450000, tong_tien: 8450000, cho_ghi_so: 0 };
+    await app.bam(app.mot('#cnKiem'));
+    t = app.tin.filter(function (x) { return x.indexOf('toast:') === 0; }).pop() || '';
+    dung('so sach thi bao da xoa no: ' + t, t.indexOf('đã xoá nợ') >= 0);
   });
 
   console.log('Bo ca kiem HANH VI v577: hop Khop tay va Huy phieu ket (Loan Anh, Ms.Dung)');
