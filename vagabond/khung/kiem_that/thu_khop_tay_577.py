@@ -207,6 +207,24 @@ def _huy_ket():
 		dung("nháp %s đổi khoá GO: và ghi vết phiếu đòi nợ" % t,
 			(pe.reference_no or "").startswith("GO:THU:") and (p.ma_phieu in (pe.remarks or "")))
 	la("phiếu đã huỷ", frappe.db.get_value("Vagabond Cong No", p.name, "trang_thai"), "Huy")
+	# Codex #444 vòng 3: phiếu đã gỡ không ghi sổ được trên Desk, kể cả có tệp.
+	pe = frappe.get_doc("Payment Entry", nhap[0])
+	try:
+		pe.flags.ignore_permissions = True
+		pe.submit()
+		loi = ""
+	except frappe.ValidationError as e:
+		loi = str(e)
+	dung("ghi sổ phiếu đã gỡ bị chặn: " + loi[:100], "đã bị gỡ" in loi)
+	la("vẫn nháp", frappe.db.get_value("Payment Entry", nhap[0], "docstatus"), 0)
+	pe = frappe.get_doc("Payment Entry", nhap[0])
+	pe.reference_no = "THU:lay-lai"
+	try:
+		pe.save(ignore_permissions=True)
+		loi = ""
+	except frappe.ValidationError as e:
+		loi = str(e)
+	dung("đổi khoá về như cũ bị chặn: " + loi[:100], "không đổi số tham chiếu" in loi)
 	la("hoá đơn hết bị nháp giữ", tt.phan_bo_nhap_theo_hd([s.name for s in ds]), {})
 
 
