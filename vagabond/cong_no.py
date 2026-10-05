@@ -1639,6 +1639,12 @@ def gui_thu_sau_ghi_so(cac_hd):
 	return ra
 
 
+def cau_chua_sach_so(so_hd):
+	"""Câu báo khi chưa được gửi thư "đã tất toán" vì sổ cái còn nợ (phép thuần)."""
+	return ("còn %d hoá đơn chưa hết nợ trên sổ vì phiếu thu chưa ghi sổ. "
+		"Máy tự gửi thư khi kế toán đính UNC và ghi sổ xong" % int(so_hd))
+
+
 def _gui_thu_da_nhan(doc, buoc_gui=False, xep_hang=False):
 	"""Gui thu bao da nhan tien. Tra ve (da_gui, ly_do).
 
@@ -1649,6 +1655,12 @@ def _gui_thu_da_nhan(doc, buoc_gui=False, xep_hang=False):
 	"""
 	if doc.get("email_da_gui") and not buoc_gui:
 		return False, "đã gửi rồi"
+	# Codex #444 vòng 4: MỌI lối gửi (máy tự gửi, nút Thư báo gửi tay) qua
+	# đúng một cửa này. Thư nói "công nợ đã tất toán" nên sổ cái phải hết nợ
+	# thật; phiếu thu còn nháp (SePay, khớp theo giao dịch) thì chưa gửi.
+	con = _hd_con_no_so_cai(doc)
+	if con:
+		return False, cau_chua_sach_so(len(con))
 	email = _email_thu(doc)
 	if not email:
 		return False, "khách chưa có email trên hệ"
@@ -1677,9 +1689,12 @@ def xem_truoc_thu(name):
 	_kiem_quyen_ban()
 	doc = frappe.get_doc("Vagabond Cong No", name)
 	ds_dong = [{"hoa_don": x.hoa_don, "so_tien": flt(x.so_tien)} for x in (doc.dong or [])]
+	# Codex #444 vòng 4: màn biết trước khi hỏi "Gửi?" rằng sổ còn nợ.
+	con = _hd_con_no_so_cai(doc)
 	return {
 		"html": _thu_da_nhan_html(doc, ds_dong),
 		"email": _email_thu(doc),
+		"chua_sach": cau_chua_sach_so(len(con)) if con else "",
 	}
 
 

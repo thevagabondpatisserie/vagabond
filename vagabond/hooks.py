@@ -696,7 +696,13 @@ doc_events = {
 			# ma. Codex bat o PR #197.
 			"vagabond.dat_banh.chan_phieu_dat_banh",
 		],
-		"on_submit": "vagabond.hoan_tien.khi_ghi_so_phieu_chi",
+		"on_submit": [
+			"vagabond.hoan_tien.khi_ghi_so_phieu_chi",
+			# v577 (Codex #444 vong 4): phieu thu vao so tren Desk hay app deu
+			# xep thu bao "da nhan thanh toan" khi phieu doi no sach so. Doc
+			# thu_tien.gui_thu_khi_ghi_so.
+			"vagabond.thu_tien.gui_thu_khi_ghi_so",
+		],
 	},
 	# Phieu dat banh o cua khach (anh Viet chot 05/09/2026, issue #195).
 	#

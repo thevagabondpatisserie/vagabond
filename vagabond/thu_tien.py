@@ -1467,13 +1467,8 @@ def ghi_so_phieu_thu(name=None, unc=None):
 		raise
 	_ghi_vet_thu(doc.name, "Ghi sổ phiếu thu kèm %d tệp uỷ nhiệm chi khách gửi, nối giao dịch %s"
 		% (so_tep, doc.reference_no))
-	# v577 (Codex #444 F1): thư báo nhận tiền của phiếu đòi nợ chỉ gửi khi sổ
-	# cái đã hết nợ. Phiếu thu nháp vừa vào sổ có thể là phiếu cuối cùng.
-	try:
-		frappe.get_attr("vagabond.cong_no.gui_thu_sau_ghi_so")(
-			[r.reference_name for r in (doc.references or []) if r.reference_doctype == SI])
-	except Exception:
-		frappe.log_error(frappe.get_traceback(), "thu_tien: gui thu sau ghi so")
+	# Thư báo nhận tiền của phiếu đòi nợ: hook on_submit gui_thu_khi_ghi_so
+	# đã xếp hàng trong lúc submit ở trên (Codex #444 vòng 4), không gọi lại.
 	return {"ok": 1, "name": doc.name, "gd": gdoc.name}
 
 
@@ -1886,6 +1881,33 @@ def soat_tep_unc_moi(unc):
 			frappe.throw("Chỉ người tải tệp lên mới đính tệp đó vào phiếu thu được.")
 		ra.append({"url": u, "ten": r.name, "ten_tep": r.file_name, "rieng": int(r.is_private or 0)})
 	return ra
+
+
+def hd_cua_phieu_thu(doc):
+	"""Hoá đơn bán của một phiếu thu tiền khách; phiếu khác loại trả rỗng (phép thuần)."""
+	if (doc.get("payment_type") or "") != "Receive":
+		return []
+	return [r.reference_name for r in (doc.get("references") or [])
+		if getattr(r, "reference_doctype", None) == SI and getattr(r, "reference_name", None)]
+
+
+def gui_thu_khi_ghi_so(doc, method=None):
+	"""Hook on_submit của Payment Entry: phiếu thu vừa vào sổ có thể là phiếu
+	cuối cùng của một phiếu đòi nợ, lúc đó mới gửi thư "đã nhận thanh toán".
+
+	Codex #444 vòng 4: trước đây chỉ nút Ghi sổ trên app (ghi_so_phieu_thu)
+	gọi gửi thư; kế toán ghi sổ thẳng trên Desk thì sổ sạch mà thư không bao
+	giờ đi. Đặt ở on_submit thì Desk và app cùng đi một cửa. Thư XẾP HÀNG
+	trong cùng giao dịch (cong_no._gui_thu_da_nhan xep_hang): submit lùi thì
+	thư lùi theo. Không bao giờ chặn ghi sổ vì lỗi gửi thư.
+	"""
+	cac = hd_cua_phieu_thu(doc)
+	if not cac:
+		return
+	try:
+		frappe.get_attr("vagabond.cong_no.gui_thu_sau_ghi_so")(cac)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "thu_tien: gui thu khi ghi so")
 
 
 def ham_dinh_unc(tep):
