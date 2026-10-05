@@ -200,6 +200,7 @@ class He(object):
 		th.dat(cn, "_kiem_quyen_ban", lambda: None)
 		th.dat(cn, "_giu_gd", lambda d, ds: "")
 		th.dat(cn, "_gui_thu_da_nhan", lambda d, **k: he.nk.append(("gui_thu",)) or (True, "x@y"))
+		th.dat(tt, "xep_gui_thu", lambda ds: he.nk.append(("xep_thu", tuple(ds))))
 		th.dat(tt, "phieu_thu_nhap", lambda cac_si=None, **k: [])
 
 	def phieu(self, **doi):
@@ -337,7 +338,13 @@ def _():
 		la("ô UNC trên cả hai phiếu", [x[2] for x in he.nk if x[0] == "submit"], [json.dumps([UNC])] * 2)
 		la("đã commit", he.ben["phieu"]["trang_thai"], "Da thu du")
 		la("không lỗi", kq["loi"], [])
-		la("gửi thư báo nhận tiền một lần", [x for x in he.nk if x[0] == "gui_thu"], [("gui_thu",)])
+		# Codex #444 vòng 6: không gửi ngay trong request; xếp MỘT việc nền gửi
+		# thư, sau commit (việc nền tự soát sổ sạch rồi mới gửi).
+		xep = [x for x in he.nk if x[0] == "xep_thu"]
+		la("xếp việc gửi thư một lần", len(xep), 1)
+		dung("xếp sau commit", [x[0] for x in he.nk].index("xep_thu") > max(
+			i for i, x in enumerate(he.nk) if x[0] == "commit"))
+		la("không gửi thẳng trong request", [x for x in he.nk if x[0] == "gui_thu"], [])
 	finally:
 		he.tra()
 
@@ -568,6 +575,7 @@ def _he_sepay(lap):
 	th.dat(cn, "_sepay_cn", lambda ma: {"nhan": 13000000.0, "so_gd": 1, "gd": ["BT-S"]})
 	th.dat(cn, "_gui_thu_da_nhan", lambda d, **k: nk.append(("gui_thu",)) or (True, "x@y"))
 	th.dat(cn, "xem_phieu", lambda name: {})
+	th.dat(tt, "xep_gui_thu", lambda ds: nk.append(("xep_thu", tuple(ds))))
 	th.dat(tt, "lap_phieu_thu_theo_gd", lambda cac_si, g, so, gc="", **k: lap(nk, cac_si, g, so, k))
 	return doc, nk, th
 
@@ -587,6 +595,10 @@ def _():
 		dung("lập trước khi lưu phiếu", [x[0] for x in nk].index("lap") < [x[0] for x in nk].index("luu"))
 		# Codex #444 F1: phiếu thu còn NHÁP, sổ cái vẫn nợ: chưa gửi thư "đã tất toán".
 		la("chưa gửi thư khi sổ cái còn nợ", [x for x in nk if x[0] == "gui_thu"], [])
+		# Codex #444 vòng 6: chỉ xếp việc nền (tự soát sổ sạch), sau commit.
+		la("xếp một việc nền theo hoá đơn của phiếu", [x for x in nk if x[0] == "xep_thu"],
+			[("xep_thu", ("HD-OSH", "HD-VU"))])
+		dung("xếp sau commit", [x[0] for x in nk].index("xep_thu") > [x[0] for x in nk].index("commit"))
 	finally:
 		th.tra()
 
@@ -832,31 +844,30 @@ def _():
 
 
 
-@ca("Codex #444 vòng 4: hook on_submit Payment Entry gửi thư theo hoá đơn bán của phiếu THU; phiếu chi, phiếu không hoá đơn thì không")
+@ca("Codex #444 vòng 4, 6: hook on_submit chỉ ĐĂNG KÝ việc sau commit theo hoá đơn bán của phiếu THU; chạy việc đó mới xếp việc nền gửi thư")
 def _():
-	goi, log = [], []
+	sau, xep, log = [], [], []
 	th = Thay()
-
-	def gui(ds):
-		goi.append(list(ds))
-		if "HD-NO" in ds:
-			raise RuntimeError("smtp hong")
-	th.dat(fr, "get_attr", lambda duong: gui if duong == "vagabond.cong_no.gui_thu_sau_ghi_so" else None)
+	th.dat(fr.db, "after_commit", Doi(add=lambda f: sau.append(f)))
+	th.dat(fr, "enqueue", lambda ham, **k: xep.append((ham, k)))
 	th.dat(fr, "log_error", lambda *a, **k: log.append(a))
 	SI = "Sales Invoice"
 	try:
 		tt.gui_thu_khi_ghi_so(Doi(payment_type="Receive", references=[
 			Doi(reference_doctype=SI, reference_name="HD-1"), Doi(reference_doctype="Sales Order", reference_name="SO-1"),
 			Doi(reference_doctype=SI, reference_name="HD-2")]))
-		la("phiếu thu: gửi theo đúng hai hoá đơn bán", goi, [["HD-1", "HD-2"]])
+		la("một việc chờ commit", len(sau), 1)
+		la("trong lúc ghi sổ chưa xếp gì", xep, [])
+		sau[0]()
+		la("sau commit: xếp việc nền đúng hai hoá đơn bán", xep,
+			[("vagabond.cong_no.gui_thu_nen", {"queue": "short", "cac_hd": ["HD-1", "HD-2"]})])
 		tt.gui_thu_khi_ghi_so(Doi(payment_type="Pay", references=[Doi(reference_doctype=SI, reference_name="HD-3")]))
 		tt.gui_thu_khi_ghi_so(Doi(payment_type="Receive", references=[Doi(reference_doctype="Sales Order", reference_name="SO-2")]))
 		tt.gui_thu_khi_ghi_so(Doi(payment_type="Internal Transfer", references=[]))
-		la("phiếu chi, phiếu không hoá đơn: không gọi", len(goi), 1)
-		e = _bat(lambda: tt.gui_thu_khi_ghi_so(Doi(payment_type="Receive",
-			references=[Doi(reference_doctype=SI, reference_name="HD-NO")])))
-		la("lỗi gửi thư không chặn ghi sổ", e, None)
-		la("lỗi được ghi Error Log", len(log), 1)
+		la("phiếu chi, phiếu không hoá đơn: không đăng ký", len(sau), 1)
+		th.dat(fr, "enqueue", lambda ham, **k: (_ for _ in ()).throw(RuntimeError("redis")))
+		la("Redis lỗi sau commit: không ném", _bat(lambda: tt.xep_gui_thu(["HD-1"])), None)
+		la("Redis lỗi: ghi log", len(log), 1)
 	finally:
 		th.tra()
 
@@ -972,24 +983,66 @@ class OperationalError(Exception):
 	pass
 
 
-@ca("Codex #444 vòng 5: lỗi CSDL làm chết giao dịch trong hook on_submit thì NÉM lên, lỗi thư thường thì ghi log")
+@ca("Codex #444 vòng 5, 6: hook on_submit KHÔNG chạm cơ sở dữ liệu: mọi truy vấn, thư, bình luận đều nổ deadlock thì hook vẫn chỉ đăng ký")
 def _():
-	log = []
+	sau = []
 	th = Thay()
-	th.dat(fr, "log_error", lambda *a, **k: log.append(a))
-	pe = Doi(payment_type="Receive", references=[Doi(reference_doctype="Sales Invoice", reference_name="HD-1")])
+
+	def no(*a, **k):
+		raise QueryDeadlockError("1213")
+	for ten in ("get_all", "get_doc", "get_attr", "sendmail", "enqueue", "log_error"):
+		th.dat(fr, ten, no)
+	for ten in ("sql", "get_value", "set_value", "savepoint", "rollback"):
+		th.dat(fr.db, ten, no)
+	th.dat(fr.db, "after_commit", Doi(add=lambda f: sau.append(f)))
 	try:
-		for loi in (QueryDeadlockError("deadlock"), OperationalError(1213, "Deadlock found"),
-				OperationalError(2013, "Lost connection"), OperationalError(1205, "Lock wait timeout")):
-			def gui(ds, loi=loi):
+		e = _bat(lambda: tt.gui_thu_khi_ghi_so(Doi(payment_type="Receive",
+			references=[Doi(reference_doctype="Sales Invoice", reference_name="HD-1")])))
+		la("không đụng gì, không ném", e, None)
+		la("chỉ một việc chờ commit", len(sau), 1)
+	finally:
+		th.tra()
+
+
+@ca("Codex #444 vòng 6: cửa gửi thư: deadlock lúc đánh dấu đã gửi thì NÉM lên (không ghi bình luận đã gửi); lỗi thường thì thôi")
+def _():
+	bl = []
+	th = Thay()
+	doc = Doi(name="P", ma_phieu="X", khach="K", tong_tien=1.0, da_thu=1.0, email_da_gui=0, trang_thai="Da thu du",
+		dong=[Doi(hoa_don="HD-1", so_tien=1.0)])
+	doc.add_comment = lambda *a, **k: bl.append(a[1])
+	th.dat(cn, "_email_thu", lambda d: "k@x")
+	th.dat(cn, "_thu_da_nhan_html", lambda d, x: "t")
+	th.dat(fr, "sendmail", lambda **k: None)
+	th.dat(fr, "get_all", lambda *a, **k: [])
+	try:
+		for loi in (QueryDeadlockError("x"), OperationalError(2013, "Lost connection")):
+			def ds(*a, loi=loi, **k):
 				raise loi
-			th.dat(fr, "get_attr", lambda d, gui=gui: gui)
-			e = _bat(lambda: tt.gui_thu_khi_ghi_so(pe))
-			dung("ném lên %r" % (loi,), e is loi)
-		la("không ghi log lỗi chết", log, [])
-		th.dat(fr, "get_attr", lambda d: (lambda ds: (_ for _ in ()).throw(RuntimeError("smtp"))))
-		la("lỗi thường không chặn ghi sổ", _bat(lambda: tt.gui_thu_khi_ghi_so(pe)), None)
-		la("lỗi thường ghi log", len(log), 1)
+			doc.db_set = ds
+			e = _bat(lambda: cn._gui_thu_da_nhan(doc, xep_hang=True))
+			dung("ném %r" % (loi,), e is loi)
+		la("không bình luận đã gửi", bl, [])
+		doc.db_set = lambda *a, **k: (_ for _ in ()).throw(RuntimeError("cot thieu"))
+		la("lỗi thường: vẫn coi là đã xếp thư", cn._gui_thu_da_nhan(doc, xep_hang=True), (True, "k@x"))
+		th.dat(cn, "_cac_khach_phieu", lambda d: (_ for _ in ()).throw(QueryDeadlockError("y")))
+		dung("tên kính gửi: deadlock ném lên", isinstance(_bat(lambda: cn._ten_kinh_gui(doc)), QueryDeadlockError))
+		th.dat(cn, "_cac_khach_phieu", lambda d: (_ for _ in ()).throw(KeyError("ten")))
+		la("tên kính gửi: lỗi thường lấy tên khách", cn._ten_kinh_gui(Doi(doc, ten_khach="Ms.Dung")), "Ms.Dung")
+	finally:
+		th.tra()
+
+
+@ca("Codex #444 vòng 6: việc nền gửi thư KHOÁ dòng phiếu đòi nợ trước khi soát đã gửi chưa")
+def _():
+	hoi = []
+	th = Thay()
+	th.dat(fr, "get_all", lambda dt, filters=None, **k: ["P1"] if dt == "Vagabond Cong No Dong" else [])
+	th.dat(fr, "get_doc", lambda dt, ten, **k: hoi.append((dt, ten, k.get("for_update"))) or Doi(name=ten))
+	th.dat(cn, "_gui_thu_khi_sach", lambda d, xep_hang=False: True)
+	try:
+		la("gửi", cn.gui_thu_nen(["HD-1"]), ["P1"])
+		la("đọc phiếu có khoá", hoi, [("Vagabond Cong No", "P1", True)])
 	finally:
 		th.tra()
 
