@@ -36,7 +36,7 @@ function layThat() {
     'tr = t._truong_da_xep()',
     'doc = {f["fieldname"]: (0 if f["fieldtype"] == "Check" else None) for f in tr}',
     'doc.update({"pancake_api_key": "KHOA-PANCAKE-THAT", "sepay_bat": 0, "sepay_khoa": "KHOA-SEPAY-THAT",',
-    '  "tu_xuat_hddt": 1, "ngan_hang_bin": "970422", "ngan_hang_hien_thi": "MB Bank", "diem_chu_ky": "Cuon chieu",',
+    '  "tk_hoan_tien": "MB - TV", "tu_xuat_hddt": 1, "ngan_hang_bin": "970422", "ngan_hang_hien_thi": "MB Bank", "diem_chu_ky": "Cuon chieu",',
     '  "zalo_chat_moi": json.dumps([{"chat_id": "g-777", "ten": "Nhóm Bếp", "loai": "GROUP"}, {"chat_id": "u-1", "ten": "Anh A", "loai": "USER"}]),',
     '  "vgb_diem_ban": json.dumps([{"ma": "Q1", "ten": "Quận 1", "co_quay": 1}])})',
     'cot = t._cot_zalo()',
@@ -322,6 +322,20 @@ function moTab(m, fn) { bam(m, mot(m, '[data-cdltab="' + fn + '"]')); }
     bang('thay đổi còn', m.g.CDL.thay, { sepay_bat: 1 });
     dung('báo lỗi không còn thẻ br', m.toast.some(function (t) { return t.indexOf('sửa ở nơi khác') >= 0 && t.indexOf('<br') < 0; }));
     bang('nút Lưu bật lại', chu(nut(m)), 'Lưu 1 thay đổi');
+  });
+
+  await ca('Codex #439 V2: ô Liên kết không bắt buộc bỏ chọn được, lưu gửi chuỗi rỗng', async function () {
+    var m = await moMan();
+    var tab = LAY.bo_cuc.filter(function (t) { return t.muc.some(function (mu) { return mu.o.some(function (o) { return o.fn === 'tk_hoan_tien'; }); }); })[0];
+    moTab(m, tab.fn);
+    var b = mot(m, '[data-cdlbo="tk_hoan_tien"]');
+    dung('nút Bỏ chọn', chu(b) === 'Bỏ chọn');
+    bam(m, b);
+    bang('ghi thay đổi về rỗng', m.g.CDL.thay, { tk_hoan_tien: '' });
+    bang('đã bỏ thì không còn nút Bỏ chọn', tim(m, '[data-cdlbo="tk_hoan_tien"]').length, 0);
+    await m.g.cdlLuu();
+    var g = m.goi.filter(function (x) { return x.duong === 'vagabond.cai_dat_loi.luu'; })[0];
+    bang('lưu gửi chuỗi rỗng', JSON.parse(g.ts.thay), { tk_hoan_tien: '' });
   });
 
   console.log('\n' + ket.dat + ' ca dat, ' + ket.hong + ' ca hong.');
