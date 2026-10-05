@@ -43,5 +43,5 @@ thành công không chứng minh đủ tiền, đủ kỳ hoặc đã nhận ti�
 Codex tiếp tục adapter theo mẫu, cấu hình merchant/đơn vị/kỳ và tổng nguồn,
 lưu File riêng tư qua core, quyền người dùng, khóa chống nhận đồng thời và
 màn tải thủ công. Claude review contract và ca lỗi khi có khả năng chạy.
-Email để sau theo quyết định hiện tại. Không tăng APPVER cho module thuần
-chưa được gọi từ production; chưa đủ điều kiện phát hành tính năng.
+Email để sau theo quyết định hiện tại. Theo yêu cầu tiếp theo của anh Việt, đã đặt APPVER/patch v577 trên nền
+v576. Số phiên bản không thay bằng chứng đủ điều kiện phát hành tính năng.

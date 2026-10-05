@@ -28,7 +28,7 @@ def _():
 
 @ca("Đối soát file: không nuốt lỗi cột hoặc encoding để trả phần đã đọc")
 def _():
-	for b in (b'A,A\n1,2', b'A,\n1,2', b'A,B\n1,2\n3', b'A,B\n"unclosed', b'\xff', b'A\x00,B'):
+	for b in (b',\n1,2', b'A,B\n1,2\n3', b'A,B\n"unclosed', b'\xff', b'A\x00,B'):
 		nem('giữ nguồn lỗi', lambda: doc_bang(b, encoding='utf-8-sig', dau=','), LoiNguon)
 	nem('encoding không được đoán', lambda: doc_bang(b'A,B', encoding='ascii', dau=','), LoiNguon)
 	nem('header giữa ô', lambda: doc_bang(b'"x\ny"\nA,B', encoding='utf-8-sig', dau=',', dong_tieu_de=2), LoiNguon)
@@ -42,9 +42,9 @@ def _():
 	la('không chạy', r['dong'][0]['o'][1], '=1+2')
 
 
-@ca("Đối soát file: tiêu đề mẫu Payoo và Shopee đọc được, không đổi ô tiền")
+@ca("Đối soát file: tiêu đề mọi mẫu đã thu thập đọc được, không đổi ô tiền")
 def _():
-	for ten in ('payoo', 'shopee'):
+	for ten in ('payoo', 'shopee', 'onepay', 'shinhan', 'greensm', 'be'):
 		cot = json.loads((Path(__file__).parent / 'mau_doi_soat' / (ten + '.json')).read_text())['cot']
 		s = io.StringIO(newline='')
 		w = csv.writer(s, delimiter='\t')
@@ -53,3 +53,10 @@ def _():
 		r = doc_bang(s.getvalue().encode('utf-16'), encoding='utf-16', dau='\t')
 		la('đúng tiêu đề', r['cot'], cot)
 		la('không suy đơn vị', r['dong'][0]['o'][1], '82.488')
+
+
+@ca("#422 P2: cột rỗng và trùng giữ vị trí không ghi đè ô")
+def _():
+	r = doc_bang(b',Amount,Amount,\n001,10,20,030', encoding='utf-8-sig', dau=',')
+	la('đủ cột', r['cot'], ['', 'Amount', 'Amount', ''])
+	la('đủ ô', r['dong'][0]['o'], ['001', '10', '20', '030'])

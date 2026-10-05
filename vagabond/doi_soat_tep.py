@@ -44,9 +44,11 @@ def doc_bang(noi_dung, *, encoding, dau, dong_tieu_de=1):
 			if len(hang) > 100 or any(len(o) > 20000 for o in hang):
 				raise LoiNguon("Nguồn vượt giới hạn cột hoặc độ dài ô.")
 			if cot is None:
+				# Lưu theo vị trí, không dùng dict tên cột: mẫu có cột
+				# rỗng/trùng vẫn giữ đủ ô cho adapter xác minh schema.
 				cot = [o.strip() for o in hang]
-				if not cot or any(not o for o in cot) or len(set(cot)) != len(cot):
-					raise LoiNguon("Tiêu đề trống hoặc trùng; không tự bỏ cột.")
+				if not cot or not any(cot):
+					raise LoiNguon("Cả hàng tiêu đề trống; chọn lại dòng tiêu đề.")
 				continue
 			if not hang or all(not o.strip() for o in hang):
 				# Dòng trống cũng giữ để adapter phân loại; không coi đã đủ nguồn.
@@ -62,4 +64,4 @@ def doc_bang(noi_dung, *, encoding, dau, dong_tieu_de=1):
 	if cot is None:
 		raise LoiNguon("Không tìm thấy tiêu đề tại dòng đã chọn.")
 	return dict(sha256=hashlib.sha256(noi_dung).hexdigest(), cot=cot, dong=dong,
-		encoding=encoding, dau=dau, parser="bang-chu-1", du_nguon=False)
+		encoding=encoding, dau=dau, parser="bang-chu-2", du_nguon=False)

@@ -12,8 +12,9 @@ Anh Việt duyệt giao diện ngày 03/10/2026, giao Codex làm chính và Clau
 - `vagabond/doi_soat_nguon.py`: kiểm thuần báo cáo tiền bán đã được adapter
   chuẩn hóa. Chưa có adapter đọc Excel/PDF/email, endpoint hoặc lưu cơ sở dữ liệu.
 - `thu_doi_soat_nguon.py`: ca hành vi đã gắn vào cổng tầng khung.
-- Thiết kế, ranh giới và các cổng còn thiếu bên dưới. Không đổi phiên bản,
-  bundle app, hook, lịch chạy, chứng từ, thông tin tài khoản hay quyền production.
+- Thiết kế, ranh giới và các cổng còn thiếu bên dưới. Bản sửa review đặt
+  APPVER/patch v577 theo yêu cầu anh Việt; chưa nối API/UI hoặc đổi chứng từ,
+  thông tin tài khoản, lịch chạy hay quyền production.
 
 Ảnh JPEG gốc được gửi trực tiếp cho anh trước khi duyệt. Repo giữ nguồn HTML
 nhẹ để reviewer dựng lại, không nhân bản ảnh/log/tệp nghiệp vụ thật vào lịch sử.

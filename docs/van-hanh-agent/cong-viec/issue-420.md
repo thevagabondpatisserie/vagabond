@@ -59,3 +59,20 @@ trong fixture để phiên cloud không lại kết luận không có mẫu nào
 - Email tạm hoãn; Codex tiếp tục tải thủ công, Claude review delta.
 - Những chỗ còn cần byte gốc/đơn vị/khóa ổn định ghi rõ theo từng vendor;
   không yêu cầu gửi lại toàn bộ nguồn và không đoán nhân/chia tiền.
+
+## Sửa review và số phiên bản — 05/10/2026
+
+Yêu cầu trực tiếp của anh: sửa số phiên bản, sửa triệt để để Claude review
+trước merge/deploy. Main mới fbcb324cc (v576) đã merge giữ cả lịch sử.
+Đặt APPVER577 và patchv577, build bundle bằng dung_app_bep.py.
+
+- P1: gom ID/phạm vi trước khi chuẩn hóa tiền/ngày. Bản lỗi vẫn làm cả
+  nhóm chờ; đảo thứ tự, ba bản và sự kiện độc lập đã có ca kiểm.
+- P2: reader giữ header rỗng/trùng theo vị trí; cả6schema đã thu thập đều
+  chạy qua cửa đọc bytes, không còn chỉ kiểm Payoo/Shopee.
+- 55/55 ca tập trung đạt. Chạy ca mới với mã cũ e193be45a: P1 đỏ1ca,
+  P2 đỏ2ca. Không sửa code thật để làm phép thử.
+- Cổng tổng/CI/bench xem comment trên SHA cuối. Claude review delta mới.
+- Phạm vi vẫn là nền kiểm nguồn; API/persistence/adapter nghiệp vụ/UI
+  đầy đủ còn thiếu như checklist. Không coi tăng phiên bản là đã có
+  tính năng đối soát cho kế toán, chưa merge hoặc deploy trong lượt sửa.

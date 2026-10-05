@@ -133,7 +133,21 @@ def xem_truoc(nguon, cac_dong, da_nhan=None):
 	if type(so_dong) is not int or not 0 <= so_dong <= 10000:
 		raise LoiNguon("Chưa có số dòng nguồn đã kiểm; không tự chốt đủ báo cáo.")
 	tong_nguon = doc_tien(nguon.get("tong_thuc_nhan"), nguon.get("dinh_dang"))
-	ket_qua, trong_file = [], {}
+	ket_qua, nhom = [], {}
+	# Đăng ký căn cước trước khi đọc tiền/ngày: bản lỗi vẫn làm cả nhóm
+	# cùng ID chờ. Chỉ gom trong phạm vi nguồn đã xác minh, không theo số dòng.
+	pham_vi = _pham_vi(nguon)
+	khoa_dong = []
+	for dong in cac_dong:
+		try:
+			if not isinstance(dong, dict) or _pham_vi(dong) != pham_vi:
+				raise LoiNguon("Khác phạm vi nguồn.")
+			khoa = _bam(dict(pham_vi, ma_su_kien=_chu(dong, "ma_su_kien")))
+		except LoiNguon:
+			khoa = None
+		khoa_dong.append(khoa)
+		if khoa is not None:
+			nhom[khoa] = nhom.get(khoa, 0) + 1
 	da_nhan = dict(da_nhan or {})
 	dem = {"moi": 0, "trung": 0, "loi": 0}
 	tong = Decimal(0)
@@ -146,13 +160,8 @@ def xem_truoc(nguon, cac_dong, da_nhan=None):
 				chuan = dong
 				tong += Decimal(dong["thuc_nhan"])
 				khoa, dau = dong["khoa"], dong["dau_noi_dung"]
-				if khoa in trong_file:
-					# Không để bản đầu còn mang nhãn Mới khi cùng ID có hai
-					# dòng. Người dùng nhận phần hợp lệ sẽ vô tình chọn nó.
-					cu = ket_qua[trong_file[khoa]]
-					cu.update(trang_thai="loi", ly_do="Sự kiện có nhiều dòng trong báo cáo; kiểm cả nhóm.")
-					raise LoiNguon("Một sự kiện lặp trong cùng báo cáo; kiểm dòng gốc trước khi nhận.")
-				trong_file[khoa] = len(ket_qua)
+				if nhom.get(khoa_dong[vi_tri - 1], 0) > 1:
+					raise LoiNguon("Sự kiện có nhiều dòng trong báo cáo; kiểm cả nhóm, kể cả dòng lỗi.")
 				if khoa in da_nhan and da_nhan[khoa] != dau:
 					raise LoiNguon("Sự kiện đã nhận có nội dung khác; cần đối chiếu bản điều chỉnh.")
 				trang_thai = "trung" if khoa in da_nhan else "moi"

@@ -186,3 +186,15 @@ def _():
     la("giữ cả nhóm", [bool(d.get("dong")) for d in lap["dong"]], [True, True])
     sai = xem_truoc(_nguon(), [_dong(tien_hang="abc")])
     la("không bịa", "dong" in sai["dong"][0], False)
+
+
+@ca("#422 P1: một bản lỗi vẫn giữ cả nhóm ID theo mọi thứ tự")
+def _():
+	for sua in ({"tien_hang": "abc"}, {"thuc_nhan": "1"}, {"ngay": "2026-02-30"}, {"loai": "khong-ro"}):
+		for cac in ([_dong(), _dong(**sua)], [_dong(**sua), _dong()], [_dong(), _dong(**sua), _dong()]):
+			ra = xem_truoc(_nguon(so_dong=len(cac)), cac)
+			la("không nhận bản nào", ra["dem"], dict(moi=0, trung=0, loi=len(cac)))
+			la("chưa đủ", ra["du_nguon"], False)
+	# Nhóm lỗi không làm sự kiện khác biến mất.
+	ra = xem_truoc(_nguon(so_dong=3), [_dong(), _dong(tien_hang="abc"), _dong(ma_su_kien="E-002")])
+	la("chỉ sự kiện độc lập được mới", [d["trang_thai"] for d in ra["dong"]], ["loi", "loi", "moi"])

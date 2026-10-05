@@ -1742,3 +1742,10 @@ thay đổi: cùng ID đổi loại phải vào luồng xung đột, không thà
 - Đường SePay tự khớp và khớp tay KHÔNG chọn giao dịch (`ghi_thu_cho_phieu`) lập
   phiếu thu ghi sổ thẳng, sẽ bị `chan_thieu_dinh_kem` chặn với phiếu lập sau
   16/08. Tồn đọng có sẵn từ trước, chưa sửa trong v576.
+
+## 05/10/2026 — Nhóm ID và cột nguồn (#422 v577)
+
+Gom căn cước sự kiện trước kiểm nội dung: nếu đợi tiền hợp lệ mới đăng ký
+ID thì bản lỗi không giữ được bản trùng, nút nhận phần hợp lệ vẫn lọt.
+Reader thô giữ mảng cột theo vị trí; header trống/trùng không đồng nghĩa
+nguồn hỏng. Kiểm mọi schema fixture, không chỉ hai mẫu đơn giản.
