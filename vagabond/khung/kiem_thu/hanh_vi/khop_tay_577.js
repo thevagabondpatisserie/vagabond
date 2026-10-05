@@ -173,6 +173,8 @@ async function moKhop(app, them) {
     await app.go('Kiet Tac chuyen gop');
     var xn = chu(app.mot('[data-hkok]').parentNode.parentNode);
     dung('xac nhan noi giao dich lon hon: ' + xn.slice(0, 200), xn.indexOf('lớn hơn số phiếu còn phải thu') >= 0);
+    /* Codex #444 vong 5: gan giao dich chi lap nhap, khong hua da gui thu. */
+    dung('noi thu CHUA gui toi khi ghi so: ' + xn.slice(-200), xn.indexOf('thư báo nhận tiền CHƯA gửi') >= 0 && xn.indexOf('máy gửi thư báo') < 0);
     await app.bam(app.mot('[data-hkok]'));
     await p;
     var k = app.mc.cuoi('vagabond.cong_no.khop_tay');
@@ -209,6 +211,7 @@ async function moKhop(app, them) {
     await app.go('Khach chuyen tu tai khoan ca nhan');
     var xn = chu(app.mot('[data-hkok]').parentNode.parentNode);
     dung('xac nhan ke so tep UNC', xn.indexOf('kèm 1 tệp uỷ nhiệm chi') >= 0);
+    dung('ghi so ngay thi noi se gui thu khi du', xn.indexOf('Phiếu thu ghi sổ ngay') >= 0 && xn.indexOf('CHƯA gửi') < 0);
     await app.bam(app.mot('[data-hkok]'));
     await p;
     var k = app.mc.cuoi('vagabond.cong_no.khop_tay');
@@ -320,6 +323,19 @@ async function moKhop(app, them) {
     await app.bam(app.mot('#cnThu'));
     await app.bam(app.mot('[data-hkok]'));
     bang('so sach: goi gui thu mot lan', app.mc.dem('vagabond.cong_no.gui_thu_da_nhan'), 1);
+  });
+
+  await ca('Codex #444 vong 5: Doi chieu SePay lap phieu thu hong thi bao DUNG ly do may chu va chi duong Huy phieu', async function () {
+    var app = appMoi();
+    app.tl.__phieu = Object.assign({}, PHIEU, { trang_thai: 'Cho thu', da_thu: 0, sepay: 0, da_nhan: 0, con_thieu: 8450000,
+      thieu_phieu_thu: 0, cho_ghi_so: 0, huy_duoc: 1, so_nhap_hong: 0, qr: {}, han_qr: '2026-10-12', cac_khach: [], dong: [] });
+    await app.g.scrCnPhieu('DNTT-26-10-00004'); await nghi();
+    app.tl.__sepay = { sepay: 9550000, tong_tien: 8450000, cho_ghi_so: 0, thieu_phieu_thu: 17,
+      loi_lap: ['BT-1: Giao dịch FT-KIETTAC là 9.550.000 đ, lớn hơn phần còn nợ, dư 1.100.000 đ.'] };
+    await app.bam(app.mot('#cnKiem'));
+    var b = app.bao();
+    dung('bao ly do lap hong: ' + b.slice(0, 160), b.indexOf('dư 1.100.000 đ') >= 0 && b.indexOf('Huỷ phiếu') >= 0);
+    dung('khong toast da ve du', app.tin.filter(function (x) { return x.indexOf('toast:Tiền đã về đủ') === 0; }).length === 0);
   });
 
   console.log('Bo ca kiem HANH VI v577: hop Khop tay va Huy phieu ket (Loan Anh, Ms.Dung)');
