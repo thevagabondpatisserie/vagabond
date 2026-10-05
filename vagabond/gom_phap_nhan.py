@@ -82,12 +82,10 @@ def gom_theo_khach(dong, khach_phieu):
 
 
 def khop_tung_hoa_don(cac_khach_hd):
-	"""Khớp tay theo giao dịch: có phải lập phiếu thu TỪNG hoá đơn không. THUẦN.
+	"""Khớp tay theo giao dịch: hoá đơn của phiếu có thuộc nhiều khách không. THUẦN.
 
-	Codex #442: phiếu thu nháp gộp theo giao dịch (thu_tien.lap_phieu_thu_theo_gd)
-	chỉ nhận một mã khách, vì ERPNext buộc mọi hoá đơn trong một phiếu thu
-	cùng một khách. Phiếu gom nhiều pháp nhân thì đi đường từng hoá đơn như
-	SePay tự khớp (cong_no.ghi_thu_cho_phieu): mỗi hoá đơn một phiếu thu,
-	đúng khách của hoá đơn đó, mã giao dịch vẫn ghi vào phiếu đòi nợ để
-	không ai dùng lại."""
+	Codex #442: ERPNext buộc mọi hoá đơn trong một phiếu thu cùng một khách.
+	Phiếu gom nhiều pháp nhân thì thu_tien.lap_phieu_thu_theo_gd lập mỗi
+	khách một phiếu thu NHÁP cùng giao dịch, chung mã nhóm (vgb_nhom_gd),
+	vẫn chờ UNC khách gửi rồi kế toán ghi sổ như mọi lần khớp tay."""
 	return len({(k or "").strip() for k in (cac_khach_hd or []) if (k or "").strip()}) > 1

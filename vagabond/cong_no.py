@@ -1584,34 +1584,25 @@ def khop_tay(name, so_tien, ma_giao_dich="", ghi_chu="", ma_lan=""):
 	if not g and truoc == "Da thu du" and chua_pt:
 		_chan_sua_vuong_nhap(doc.ma_phieu or doc.name, chua_pt)
 	lap = None
-	tung_hd = False
 	if g:
-		# v576 (Codex #442): phiếu gom nhiều pháp nhân thì không lập được một
-		# phiếu thu gộp (ERPNext buộc một khách), đi đường từng hoá đơn.
+		# v576 (Codex #442): phiếu gom nhiều pháp nhân thì lập mỗi khách một
+		# phiếu thu nháp cùng giao dịch (thu_tien.lap_phieu_thu_theo_gd,
+		# tach_khach). Vẫn là phiếu NHÁP chờ UNC khách gửi như mọi lần khớp tay.
 		from vagabond import gom_phap_nhan as gpn
 
-		tung_hd = gpn.khop_tung_hoa_don([r.customer for r in frappe.get_all("Sales Invoice",
+		tach = gpn.khop_tung_hoa_don([r.customer for r in frappe.get_all("Sales Invoice",
 			filters={"name": ["in", cac_hd or [""]]}, fields=["name", "customer"], limit_page_length=0)])
-	if g and not tung_hd:
 		lap = tt.lap_phieu_thu_theo_gd(
 			[h for h in cac_hd if h in chua_pt], g, so_tien,
 			"Theo phiếu đòi nợ %s. %s" % (doc.ma_phieu or doc.name, (ghi_chu or "").strip()),
+			**({"tach_khach": True} if tach else {})
 		)
 	# Số đã nhận CỘNG DỒN (Codex #437 vòng 4, 9, 10): mỗi lần khớp CỘNG phần
 	# mới nhận vào da_thu. Giao dịch đã nằm trong ma_gd (lần khớp trước, hay
 	# SePay đã ghi) thì không cộng lại: đây là lần sửa phiếu thu, không phải
 	# tiền mới.
 	da_ghi = set(chiem_sao_ke.tach_gd(doc.get("ma_gd")))
-	tien_lap = None
-	if g and tung_hd:
-		# Đường từng hoá đơn: tiền lấy theo giao dịch, không quá phần giao
-		# dịch còn chưa phân bổ. Giao dịch đã ghi rồi thì không cộng thêm,
-		# nhưng vẫn lập phiếu thu cho hoá đơn còn thiếu (làm lại việc cũ).
-		ghi_roi = bool({g.name, g.reference_number or ""} & da_ghi)
-		con_gd = flt(g.get("unallocated_amount")) if g.get("unallocated_amount") is not None else so_tien
-		moi = 0.0 if ghi_roi else min(so_tien, con_gd)
-		tien_lap = so_tien if ghi_roi else moi
-	elif g:
+	if g:
 		moi = 0.0 if ({g.name, g.reference_number or ""} & da_ghi) else flt(lap.get("tien"))
 	else:
 		moi = so_tien
@@ -1630,9 +1621,7 @@ def khop_tay(name, so_tien, ma_giao_dich="", ghi_chu="", ma_lan=""):
 	# Trước đây dấu đã commit trước nên lần thử lại chỉ nhận "đã làm rồi".
 	loi = []
 	if not lap and (truoc != "Da thu du" or chua_pt):
-		ghi_thu_cho_phieu(doc, "Chuyển khoản",
-			"Kế toán khớp tay%s." % (" giao dịch %s" % (g.reference_number or g.name) if g else ""),
-			so_tien=moi if tien_lap is None else tien_lap,
+		ghi_thu_cho_phieu(doc, "Chuyển khoản", "Kế toán khớp tay.", so_tien=moi,
 			khoa="tay:%s" % (ma_lan or frappe.generate_hash(length=8)))
 		loi = doc.flags.loi_thu or []
 	# Codex #437 vòng 6: có phiếu thu thì ghi ĐÚNG số máy chủ đã phân bổ,
