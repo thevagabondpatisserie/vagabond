@@ -66,6 +66,7 @@ from vagabond.khung.kiem_that import thu_lo_theo_ngay_540  # noqa: F401,E402
 from vagabond.khung.kiem_that import gsm_lam_tron_543  # noqa: F401,E402
 from vagabond.khung.kiem_that import tat_lo_545  # noqa: F401,E402
 from vagabond.khung.kiem_that import gia_von_kiem_ke_547  # noqa: F401,E402
+from vagabond.khung.kiem_that import thu_ngay_ban_573  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_hach_toan_kho_542  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_tru_kho_bu_550  # noqa: F401,E402
 
