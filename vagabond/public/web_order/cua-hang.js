@@ -23,6 +23,7 @@
       const chu = typeof nhan[k] === 'string' && nhan[k].trim() ? nhan[k] : nhanGoc[k];
       if (g.textContent !== chu) g.textContent = chu;
     });
+    if (window.vgbVeChuyenMuc) window.vgbVeChuyenMuc(nd);
     window.vgbSanPham = nd.san_pham || {};
     window.vgbNhan = nhan;
     if (window.vgbApChu) window.vgbApChu();
@@ -33,6 +34,8 @@
     window.addEventListener('message', e => {
       if (e.origin !== location.origin || e.source !== parent || e.data?.loai !== 'vgb-noi-dung') return;
       ve(e.data.noi_dung);
+      const chon=(e.data.noi_dung.khoi||[]).find(k=>k.id===e.data.chon);
+      if(chon&&['uu_dai','tuyen_dung'].includes(chon.loai)&&typeof window.go==='function'&&window.location.hash!=='#/'+chon.loai.replace('_','-'))window.go(chon.loai);
       document.querySelectorAll('[data-khoi]').forEach(k => {
         k.classList.toggle('vgb-dang-chon', k.dataset.khoi === e.data.chon);
         k.onclick = suKien => { suKien.preventDefault(); parent.postMessage({loai:'vgb-chon-khoi',id:k.dataset.khoi}, location.origin); };

@@ -1,3 +1,48 @@
+# Cập nhật 05/10/2026 - Minh Vũ, Marketing và lỗi luồng khách
+
+Owner Codex, branch `codex/web-editor-toan-bo-chu`, PR436 mở rộng trên main
+`fbcb324cc` v576. Phiên bản dự kiến v578 (v577 đang dùng ở PR422).
+
+- In store: chọn điểm theo mã thật trong API, lọc Item Group, giữ quầy hết
+  hàng nhìn thấy; không gán TCV/NVHTN vào kho bằng tên đoán.
+- Ưu đãi/tuyển dụng: thêm hai loại nội dung trong CMS hiện có; không tạo
+  DocType. Có ảnh, chữ/nút/link, nhóm, thời hạn; việc làm thêm địa điểm,
+  hình thức, email. Nháp mới mặc định ẩn; nhân bản cũng ẩn. Công khai loại
+  nội dung ẩn/hết hạn, chương trình tương lai ghi Sắp diễn ra, ngày VN.
+- Editor tìm theo tên/mã/nhóm/nơi làm, lọc trạng thái có đếm; đổi ảnh bằng
+  upload có sẵn hoặc URL. Preview tự mở đúng chuyên mục, xem được bản ẩn;
+  Lưu nháp/Xuất bản, revision, lịch sử, Undo/Redo giữ luồng có sẵn.
+- Headline gọn, dùng Vagabond Sans gốc. Có JPEG tay làm bánh do AI tạo,
+  ảnh minh hoạ mặc định thay được; không phải ảnh nhân sự thật.
+- Giỏ: giữ bản đang soạn trong sessionStorage 24 giờ, loại dữ liệu giá
+  cũ khi phục hồi, không nhớ checkbox đồng ý/quote phí. Sửa một dòng bánh
+  không cộng thêm số lượng, giữ nguồn today/order và dụng cụ. Bánh mùa vụ
+  phục hồi sau API để lấy giá hiện tại, không có lời chúc/phụ kiện riêng.
+- Kích thước chi tiết theo đúng tab; giờ hết hạn bị vô hiệu; tóm tắt chưa
+  chọn giờ không hiện như đã xác nhận. Nến object-fit contain, 5 cột mobile,
+  tăng nút +/-/Bỏ/Xoá; yêu cầu số nĩa/dĩa được đưa vào ghi chú đơn.
+
+Bằng chứng: `/Users/jin/Documents/ChatGPT/ERP/output/web-order-20261005`.
+Browser fixture local: thêm nhanh Candle 650.000, sửa lời chúc + nến23 +
+6 nĩa -> vẫn 1 bánh, 684.000; reload giữ đủ. Mobile390: nút nến65x82,
+ảnh57x64 nằm trọn nút; ảnh, tiêu đề Editor đổi ở iframe, Undo khôi phục;
+chọn NVHTN fixture rỗng hiện giải thích. Không gửi đơn thật.
+
+Cổng local trước chốt: 4.061 ca tầng khung đạt, không hỏng; 2 ca PDF #247
+chưa chạy vì Python hệ thống thiếu pypdf; các cổng còn lại exit0. Bundle
+khớp. SHA cuối, CI/bench/Claude theo biên nhận PR, không dùng kết quả SHA cũ.
+
+**Chưa hoàn tất để phát hành:**
+- API live GET phi_giao ngày05/10, địa chỉ cửa hàng công khai: ok0,
+  ly_do=ahamove_loi. Nút thử lại không phải sửa gốc dịch vụ; cần log Ahamove
+  phía server để phân biệt auth/service/response. Không thay phí/credential.
+- Trang chính sách cần nội dung thật được duyệt và xuất bản. Link hỏi thông
+  tin bảo mật là đường hỗ trợ tạm thời, không thay thế chính sách công khai.
+- JPEG mới chờ duyệt; mẫu ưu đãi/job chỉ có ở fixture, không xuất bản giả,
+  không kích hoạt voucher/giảm tiền. Discount thực cần quy tắc/hạn mức.
+- CI/bench exact SHA, Claude review và UAT production còn chờ. Không merge,
+  deploy, migrate, gửi email trong phiên này khi các cổng chưa đủ.
+
 # Cập nhật 04/10/2026 - mở toàn bộ chữ theo duyệt trực tiếp
 
 Anh Việt yêu cầu “cho sửa hết trong editor”, gồm bốn dòng pháp lý bị khóa

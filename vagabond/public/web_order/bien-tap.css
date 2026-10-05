@@ -14,3 +14,6 @@
 /* Bộ lọc gọn để ô sửa nằm gần ô tìm; font thương hiệu cần cỡ đủ đọc. */
 .loc-nhom{display:flex;flex-wrap:wrap;gap:6px}.loc-nhom button{width:auto;flex:0 1 auto;font-size:12px;padding:8px 10px}
 h2{font-size:28px;line-height:1.15}h3{font-size:24px;line-height:1.15}.chinh-sua{min-width:0}
+
+/* Chiến dịch: bộ lọc giữ số lượng và ô tìm nằm trong cột ở mọi chiều rộng. */
+.loc-trang-thai{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}.loc-trang-thai button{font-size:12px;padding:8px}.studio>aside>input{width:100%;min-height:44px;padding:10px;border:1px solid #bac9c2;border-radius:6px;margin-top:12px}.dong-khoi small{display:block;margin:4px 0 10px}

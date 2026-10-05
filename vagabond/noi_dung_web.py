@@ -11,9 +11,9 @@ import re
 from pathlib import Path
 from urllib.parse import urlsplit
 
-LOAI = {"tieu_de_muc", "anh_bia", "cau_chuyen", "anh_chu", "thong_bao", "hoi_dap"}
-TRUONG = {"id", "loai", "hien", "nhan", "tieu_de", "noi_dung", "anh", "mo_ta_anh", "nut", "lien_ket", "vi_tri"}
-VI_TRI = {"dau_trang", "today", "order", "store", "season", "cuoi_trang"}
+LOAI = {"tieu_de_muc", "anh_bia", "cau_chuyen", "anh_chu", "thong_bao", "hoi_dap", "uu_dai", "tuyen_dung"}
+TRUONG = {"id", "loai", "hien", "nhan", "tieu_de", "noi_dung", "anh", "mo_ta_anh", "nut", "lien_ket", "vi_tri", "bat_dau", "ket_thuc", "nhom", "ma_uu_dai", "noi_lam", "hinh_thuc", "email"}
+VI_TRI = {"dau_trang", "today", "order", "store", "season", "cuoi_trang", "uu_dai", "tuyen_dung"}
 MAC_DINH = {"khoi": [
     {"id":"tieu-de-hom-nay", "loai":"tieu_de_muc", "hien":True, "vi_tri":"today", "tieu_de":"Bánh\nhôm nay"},
     {"id":"tieu-de-dat-truoc", "loai":"tieu_de_muc", "hien":True, "vi_tri":"order", "tieu_de":"Đặt\nbánh trước"},
@@ -238,6 +238,20 @@ def chuan_hoa(du_lieu):
             v = k.get(ten, "")
             if not isinstance(v, str) or len(v) > (4000 if ten == "noi_dung" else 1000):
                 raise ValueError("Chữ trong khối quá dài hoặc không hợp lệ: " + ten)
+        if k['loai'] in ('uu_dai', 'tuyen_dung'):
+            if not k.get('tieu_de', '').strip():
+                raise ValueError('Ưu đãi và vị trí tuyển dụng cần có tiêu đề.')
+            from datetime import date
+            for ten in ('bat_dau', 'ket_thuc'):
+                if k.get(ten):
+                    try: date.fromisoformat(k[ten])
+                    except ValueError: raise ValueError('Ngày bắt đầu/kết thúc không hợp lệ.')
+            if k.get('bat_dau') and k.get('ket_thuc') and k['bat_dau'] > k['ket_thuc']:
+                raise ValueError('Ngày kết thúc không được trước ngày bắt đầu.')
+            if k.get('email') and not re.fullmatch(r'[A-Za-z0-9_.+%-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}', k['email']):
+                raise ValueError('Email nhận hồ sơ không hợp lệ.')
+            if k['loai'] == 'tuyen_dung' and k['hien'] and not (k.get('email') or k.get('lien_ket')):
+                raise ValueError('Điền email hoặc liên kết ứng tuyển trước khi bật vị trí.')
         for ten in ("anh", "lien_ket"):
             v = k.get(ten, "")
             if not v:

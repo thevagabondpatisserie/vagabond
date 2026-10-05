@@ -1731,3 +1731,17 @@ thành kiểm nội dung được lưu/xuất đúng và fallback, không giữ 
 - Đường SePay tự khớp và khớp tay KHÔNG chọn giao dịch (`ghi_thu_cho_phieu`) lập
   phiếu thu ghi sổ thẳng, sẽ bị `chan_thieu_dinh_kem` chặn với phiếu lập sau
   16/08. Tồn đọng có sẵn từ trước, chưa sửa trong v576.
+
+## 05/10/2026 - Web order: xem giỏ như một khách thật (#367/436)
+
+- Thẻ đúng giá không đảm bảo hộp chi tiết đúng cỡ: cả hai phải theo cùng
+  nguồn today/order; giữ nguồn đó khi sửa giỏ sau reload.
+- Nến 60x240 bị crop bởi nút thấp có overflow:hidden; đo cả bounding box
+  ảnh và nút tại390px. object-fit không đủ nếu chiều cao ảnh vẫn cố định lớn.
+- Thêm nhanh cần đường sửa chính dòng giỏ, không hướng dẫn mở bánh để thêm
+  lần nữa. Khóa gộp phải chuẩn hóa dụng cụ 0 để không tách dòng giống nhau.
+- Promotion/recruitment CMS là nội dung; coupon tài chính và hồ sơ ứng viên
+  không được suy ra từ số mẫu/biểu mẫu prototype. Dùng nháp ẩn, ảnh thay được,
+  ngày Việt Nam, chống URL/thẻ HTML, và giữ luồng revision sẵn có.
+- GET phí giao ok0/ahamove_loi cần log server; không tuyên bố sửa bằng nút
+  thử lại và không biến lỗi báo giá thành phí0.

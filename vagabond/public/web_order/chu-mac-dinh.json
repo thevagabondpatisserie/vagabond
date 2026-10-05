@@ -1070,7 +1070,7 @@
   "dat_banh_7e42d2e7b": {
     "ten": "Đã thêm {gia_tri_a}{gia_tri_b}. Bấm vào bánh để thêm lời chúc, phụ kiện.",
     "nhom": "dat_banh",
-    "mac_dinh": "Đã thêm {gia_tri_a}{gia_tri_b}. Bấm vào bánh để thêm lời chúc, phụ kiện.",
+    "mac_dinh": "Đã thêm {gia_tri_a}{gia_tri_b}. Vào giỏ, chọn Sửa bánh để thêm lời chúc, phụ kiện.",
     "nhieu_dong": true
   },
   "dat_banh_8f92d9663": {
@@ -2566,5 +2566,145 @@
     "nhom": "dat_banh",
     "mac_dinh": "Bếp Tân Sơn Hoà: 307/1 Nguyễn Văn Trỗi, Phường Tân Sơn Hoà (Tân Bình cũ), TP. Hồ Chí Minh",
     "nhieu_dong": true
+  },
+  "tab_uu_dai": {
+    "ten": "Ưu đãi",
+    "mac_dinh": "Ưu đãi",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "tab_tuyen_dung": {
+    "ten": "Tuyển dụng",
+    "mac_dinh": "Tuyển dụng",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "uu_dai_rong": {
+    "ten": "Chưa có ưu đãi trong nhóm này. Quý khách có thể xem các nhóm khác.",
+    "mac_dinh": "Chưa có ưu đãi trong nhóm này. Quý khách có thể xem các nhóm khác.",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "tuyen_dung_rong": {
+    "ten": "Chưa có vị trí phù hợp trong nhóm này. Quý khách vui lòng quay lại sau.",
+    "mac_dinh": "Chưa có vị trí phù hợp trong nhóm này. Quý khách vui lòng quay lại sau.",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "tat_ca_muc": {
+    "ten": "Tất cả",
+    "mac_dinh": "Tất cả",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "dang_dien_ra": {
+    "ten": "Đang diễn ra",
+    "mac_dinh": "Đang diễn ra",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "sap_dien_ra": {
+    "ten": "Sắp diễn ra",
+    "mac_dinh": "Sắp diễn ra",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "ung_tuyen": {
+    "ten": "Ứng tuyển vị trí này",
+    "mac_dinh": "Ứng tuyển vị trí này",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "chua_han": {
+    "ten": "Đến khi đủ người",
+    "mac_dinh": "Đến khi đủ người",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "ma_uu_dai": {
+    "ten": "Mã ưu đãi",
+    "mac_dinh": "Mã ưu đãi",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "sua_banh": {
+    "ten": "Sửa bánh",
+    "mac_dinh": "Sửa bánh",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "luu_banh": {
+    "ten": "Lưu thay đổi",
+    "mac_dinh": "Lưu thay đổi",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "gio_da_sua": {
+    "ten": "Đã cập nhật bánh trong giỏ",
+    "mac_dinh": "Đã cập nhật bánh trong giỏ",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "chon_lai_gio": {
+    "ten": "Vui lòng chọn khung giờ còn nhận",
+    "mac_dinh": "Vui lòng chọn khung giờ còn nhận",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "het_size": {
+    "ten": "Kích thước này hiện chưa nhận đặt. Quý khách chọn kích thước khác.",
+    "mac_dinh": "Kích thước này hiện chưa nhận đặt. Quý khách chọn kích thước khác.",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "thu_phi": {
+    "ten": "Thử lại phí giao",
+    "mac_dinh": "Thử lại phí giao",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "yeu_cau_dung_cu": {
+    "ten": "Dụng cụ tặng kèm theo yêu cầu",
+    "mac_dinh": "Dụng cụ tặng kèm theo yêu cầu",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "so_nia": {
+    "ten": "Số nĩa gỗ",
+    "mac_dinh": "Số nĩa gỗ",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "so_dia": {
+    "ten": "Số dĩa giấy",
+    "mac_dinh": "Số dĩa giấy",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "chinh_sach_ho_tro": {
+    "ten": "Quý khách liên hệ chúng tôi để được cung cấp thông tin bảo mật trước khi gửi.",
+    "mac_dinh": "Quý khách liên hệ chúng tôi để được cung cấp thông tin bảo mật trước khi gửi.",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "tim_muc": {
+    "ten": "Tìm theo tên, nhóm hoặc nơi làm",
+    "mac_dinh": "Tìm theo tên, nhóm hoặc nơi làm",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "chon_quay": {
+    "ten": "Chọn điểm bán",
+    "mac_dinh": "Chọn điểm bán",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "quay_rong": {
+    "ten": "Chưa có dữ liệu tại điểm bán. Quý khách thử tải lại hoặc liên hệ chúng tôi.",
+    "mac_dinh": "Chưa có dữ liệu tại điểm bán. Quý khách thử tải lại hoặc liên hệ chúng tôi.",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "tai_lai_quay": {
+    "ten": "Tải lại danh sách",
+    "mac_dinh": "Tải lại danh sách",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "uu_dai_chu_y": {
+    "ten": "Điều kiện áp dụng theo từng chương trình. Vui lòng xem chi tiết trước khi đặt bánh.",
+    "mac_dinh": "Điều kiện áp dụng theo từng chương trình. Vui lòng xem chi tiết trước khi đặt bánh.",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "so_loai": {
+    "ten": "Đơn vị đếm loại bánh",
+    "mac_dinh": "loại",
+    "nhom": "dat_banh"
+  },
+  "xem_chi_tiet_muc": {
+    "ten": "Ưu đãi: nút mặc định",
+    "mac_dinh": "Xem chi tiết",
+    "nhom": "uu_dai"
+  },
+  "dung_cu_gio": {
+    "ten": "Giỏ: số dụng cụ tặng",
+    "mac_dinh": "{nia} nĩa gỗ · {dia} dĩa giấy",
+    "nhom": "gio_hang"
   }
 }

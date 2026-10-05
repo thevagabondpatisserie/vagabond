@@ -262,8 +262,8 @@ def _():
 	dung("goi dung cua", '"/api/method/vagabond.kiem_kho.con_tren_quay_web"' in w)
 	dung("co duong #/in-store", "'#/in-store'" in w and "isStore=/^\\/in-store/" in w)
 	dung("setTab biet tab store", "mQ.hidden=t!=='store'" in w)
-	khoi = _than(w, "var STORE={quay:[]};", "napTonQuay();\n/* Nhip")
-	for cam in ("themHangMua", "CART.push", "onclick=", "moSheetMua", "Thêm vào giỏ"):
+	khoi = _than(w, "var STORE={quay:[]};", "function suaDongGio(")
+	for cam in ("themHangMua", "CART.push", "moSheetMua", "Thêm vào giỏ"):
 		dung("khong co %s" % cam, cam not in khoi)
 	dung("het banh thi noi ro, khong an tab", "đã bán hết bánh trong tủ" in khoi)
 	dung("co cach giu banh", "m.me/thevagabond.saigon" in _than(w, '<main id="store" hidden>', "</main>"))
