@@ -222,3 +222,88 @@ def _():
 	dung("app nạp tệp chung", "/assets/vagabond/js/cai_dat_loi_chung.js" in app)
 	dung("Desk nạp tệp chung", "/assets/vagabond/js/cai_dat_loi_chung.js" in _doc(t568.JS_DESK))
 	dung("app lưu qua cửa máy chủ", "vagabond.cai_dat_loi.luu" in app and "vagabond.cai_dat_loi.lay" in app)
+
+
+def _goi_may_chu(ham, truong=None, ban_ghi=None, quyen=("System Manager",), doc=None):
+	"""Gọi một cửa của cai_dat_loi trên frappe giả, ghi lại lời gọi get_list/get_all."""
+	import types
+	import frappe as fr
+	nk = []
+	moc = {k: getattr(fr, k, None) for k in ("get_roles", "get_list", "get_all", "get_meta", "get_single", "defaults")}
+	tr = truong if truong is not None else _truong_da_xep()
+
+	def get_list(dt, filters=None, **k):
+		nk.append((dt, dict(filters or {})))
+		ds = [r for r in (ban_ghi or {}).get(dt, []) if all(
+			(r.get(a) == b) for a, b in (filters or {}).items() if not isinstance(b, list))]
+		return [r["name"] for r in ds] if k.get("pluck") == "name" else [types.SimpleNamespace(name=r["name"]) for r in ds]
+	fr.get_roles = lambda *a: list(quyen)
+	fr.get_list = get_list
+	fr.get_all = get_list
+	fr.get_meta = lambda dt: types.SimpleNamespace(fields=[types.SimpleNamespace(**f) for f in tr])
+	fr.get_single = lambda dt: doc
+	fr.defaults = types.SimpleNamespace(get_global_default=lambda k: "TV")
+	try:
+		return ham(), nk
+	finally:
+		for k, v in moc.items():
+			if v is None:
+				if hasattr(fr, k):
+					delattr(fr, k)
+			else:
+				setattr(fr, k, v)
+
+
+@ca("Codex #439 V1: mọi ô Liên kết trên trang đều đã khai phạm vi chọn, ô mới chưa khai thì ca đỏ")
+def _():
+	lk = [f["fieldname"] for f in _truong_da_xep() if f["fieldtype"] == "Link" and not f.get("hidden")]
+	dung("trang có ô Liên kết để kiểm", len(lk) >= 3)
+	la("không ô Liên kết nào thiếu phạm vi", [fn for fn in lk if cdl.loc_lien_ket(fn, "TV") is None], [])
+	la("ô lạ không có phạm vi (người gọi phải từ chối)", cdl.loc_lien_ket("o_lien_ket_moi", "TV"), None)
+	la("tài khoản chi hoàn tiền: chỉ tài khoản công ty còn dùng", cdl.loc_lien_ket("tk_hoan_tien", "TV"),
+		{"company": "TV", "is_company_account": 1, "disabled": 0})
+	la("tài khoản BTP: đúng luật tai_khoan_btp.loi_tai_khoan",
+		cdl.loc_lien_ket("tk_ton_btp_cap1", "TV"),
+		{"company": "TV", "is_group": 0, "disabled": 0, "account_type": "Stock", "account_currency": "VND"})
+
+
+@ca("Codex #439 V1: hộp chọn Tài khoản chi hoàn tiền chỉ trả tài khoản công ty còn dùng")
+def _():
+	# Tái hiện trên e067a75: tim_lien_ket gửi bộ lọc rỗng, nên tài khoản ngân hàng
+	# của NCC, của khách, tài khoản đã tắt đều hiện trong hộp chọn.
+	bg = {"Bank Account": [
+		{"name": "MB - TV", "company": "TV", "is_company_account": 1, "disabled": 0},
+		{"name": "NCC Bot Mi - VCB", "company": "TV", "is_company_account": 0, "disabled": 0},
+		{"name": "OCB cu - TV", "company": "TV", "is_company_account": 1, "disabled": 1},
+	]}
+	kq, nk = _goi_may_chu(lambda: cdl.tim_lien_ket("tk_hoan_tien"), ban_ghi=bg)
+	la("chỉ tài khoản công ty còn dùng", kq, ["MB - TV"])
+	la("bộ lọc gửi xuống đúng phạm vi", nk[-1][1], {"company": "TV", "is_company_account": 1, "disabled": 0})
+
+
+@ca("Codex #439 V1: lưu từ app một giá trị ngoài phạm vi thì máy chủ từ chối, bỏ chọn thì được")
+def _():
+	tr = _truong_da_xep()
+	co = lambda dt, loc: loc["name"] == "MB - TV"
+	la("giá trị đúng phạm vi: không lỗi", cdl.kiem_lien_ket(tr, {"tk_hoan_tien": "MB - TV"}, "TV", co), [])
+	loi = cdl.kiem_lien_ket(tr, {"tk_hoan_tien": "NCC Bot Mi - VCB"}, "TV", co)
+	dung("ngoài phạm vi: báo lỗi có tên giá trị", len(loi) == 1 and "NCC Bot Mi - VCB" in loi[0])
+	la("bỏ chọn (chuỗi rỗng): không lỗi", cdl.kiem_lien_ket(tr, {"tk_hoan_tien": ""}, "TV", co), [])
+	la("ô không phải Liên kết: không xét", cdl.kiem_lien_ket(tr, {"minvoice_host": "x"}, "TV", co), [])
+
+	class DocGia(dict):
+		modified = "m1"
+		def get(self, k, d=None):
+			return dict.get(self, k, d)
+		def set(self, k, v):
+			self[k] = v
+		def save(self):
+			self["_da_luu"] = 1
+	d = DocGia()
+	bg = {"Bank Account": [{"name": "MB - TV", "company": "TV", "is_company_account": 1, "disabled": 0}]}
+	try:
+		_goi_may_chu(lambda: cdl.luu(thay='{"tk_hoan_tien": "NCC Bot Mi - VCB"}', modified="m1"), ban_ghi=bg, doc=d)
+		dung("luu phải từ chối", False)
+	except Exception as e:
+		dung("câu từ chối nêu giá trị sai", "NCC Bot Mi - VCB" in str(e))
+	dung("không lưu gì", "_da_luu" not in d and "tk_hoan_tien" not in d)
