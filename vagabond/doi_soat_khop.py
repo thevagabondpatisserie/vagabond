@@ -321,7 +321,20 @@ def xac_nhan_con_dung(kieu, dong, ung_vien):
 GIU_GIAO_DICH = "Đã thấy tiền về"
 
 
-def khop_ngan_hang(mau, can_ve, ngay_tu, ngay_den, giao_dich, da_dung=()):
+def ly_do_khong_tu_nhan(mau, co_tien_mat=False):
+	"""Vì sao KHÔNG được tự nhận một giao dịch cùng số tiền. THUẦN. Rỗng là được.
+
+	Codex #450: nguồn không có mẫu nội dung chuyển khoản (Shinhan) thì mọi
+	tiền vào cùng số đều thành ứng viên; báo cáo GrabFood có đơn tiền mặt thì
+	chưa rõ Grab có trừ tiền tài xế thu hộ khỏi tiền chuyển (đặc tả nguồn)."""
+	if not MAU_TIEN_VE.get(nhom_tien_ve(mau), ""):
+		return "nguồn này không có nội dung chuyển khoản để nhận diện"
+	if co_tien_mat and mau.startswith("grab"):
+		return "báo cáo có đơn tiền mặt, chưa rõ Grab có trừ khỏi tiền chuyển"
+	return ""
+
+
+def khop_ngan_hang(mau, can_ve, ngay_tu, ngay_den, giao_dich, da_dung=(), ly_do_tay=""):
 	"""Tìm giao dịch tiền vào đúng số tiền vendor phải trả.
 
 	giao_dich: [{name, ngay, tien, mo_ta}] tiền VÀO trong khoảng ngày máy chủ
@@ -335,6 +348,9 @@ def khop_ngan_hang(mau, can_ve, ngay_tu, ngay_den, giao_dich, da_dung=()):
 		and (not mau_nd or re.search(mau_nd, (g["mo_ta"] or "").lower()))]
 	dung = [g for g in cung if g["tien"] == can_ve]
 	if len(dung) == 1:
+		if ly_do_tay:
+			return "Cần chọn tiền về", [], "Có giao dịch %s cùng %s đồng nhưng %s; kế toán xem sao kê rồi xác nhận." % (
+				dung[0]["name"], _vn(can_ve), ly_do_tay)
 		return "Đã thấy tiền về", [dung[0]["name"]], ""
 	if len(dung) > 1:
 		# Codex #450: nhiều giao dịch cùng số tiền thì KHÔNG tự chọn. Chọn bừa
