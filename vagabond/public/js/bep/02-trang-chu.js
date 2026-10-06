@@ -244,6 +244,9 @@ async function scrHome() {
       card('📦', 'Hoá đơn chưa trừ kho', 'Bán lúc kho điểm bán chưa có hàng, trừ bù khi hàng về', tkCho, 'TRUKHO') +
       card('🛒', 'Hoá đơn mua vào', 'Lọc theo nhà cung cấp, hạn trả, còn nợ', 0, 'HDMUA') +
       card('🔗', 'Đối chiếu hoá đơn mua', 'Nối hoá đơn nhà cung cấp với phiếu nhập kho rồi ghi sổ một nút', 0, 'DCM') +
+      /* v579 (#420): đối soát báo cáo vendor, tách khỏi ô Đối soát hoá đơn
+         điện tử (trạng thái phát hành HĐĐT) theo maquette anh duyệt 03/10. */
+      card('⇄', 'Đối soát nhà cung cấp', 'Tiền bán qua sàn và cổng thẻ · Chuyến đi · Thẻ tín dụng', 0, 'DSVN') +
       card('📒', 'Công nợ phải thu', 'Khách nào còn nợ mình', 0, 'CN') +
       card('💸', 'Công nợ phải trả', 'Mình còn nợ nhà cung cấp nào', 0, 'CNPT') +
       /* Hoan tien doi han tu khoi Ban hang sang day (anh Viet 18/08/2026).
@@ -586,9 +589,9 @@ var VGB_NHOM = [
   },
   {
     k: 'KT', ten: 'Kế toán', icon: '🧮',
-    keys: ['HDBAN', 'TRUKHO', 'HDMUA', 'DCM', 'CN', 'CNPT', 'HT', 'APPTT', 'DSTTNB', 'PAY', 'TS', 'NQ', 'BT', 'DUYETTANG', 'BC:BC05'],
+    keys: ['HDBAN', 'TRUKHO', 'HDMUA', 'DCM', 'DSVN', 'CN', 'CNPT', 'HT', 'APPTT', 'DSTTNB', 'PAY', 'TS', 'NQ', 'BT', 'DUYETTANG', 'BC:BC05'],
     nhom: [
-      { t: 'Hoá đơn', p: 'làm hàng ngày', keys: ['HDBAN', 'TRUKHO', 'HDMUA', 'DCM', 'BC:BC05'] },
+      { t: 'Hoá đơn', p: 'làm hàng ngày', keys: ['HDBAN', 'TRUKHO', 'HDMUA', 'DCM', 'DSVN', 'BC:BC05'] },
       { t: 'Công nợ', p: 'ai nợ ai', keys: ['CN', 'CNPT'] },
       { t: 'Chi tiền', p: 'duyệt và trả', keys: ['APPTT', 'DSTTNB', 'PAY', 'HT', 'NQ'] },
       { t: 'Tổng hợp và tài sản', p: 'cuối tháng', keys: ['BT', 'TS', 'DUYETTANG'] }
@@ -1783,6 +1786,7 @@ var VGB_DUONG = {
   'doanh-so': 'DS',
   'doi-chieu-mua': 'DCM',
   'doi-soat-cod': 'DSCOD',
+  'doi-soat-nha-cung-cap': 'DSVN',
   'don-chung-tu-thu': 'PTDON',
   'don-con-treo': 'DTREO',
   'don-da-huy': 'DHUY',
@@ -2041,6 +2045,7 @@ function vgbGo(k) {
   if (k === 'CDTB') return go(scrThongBao);
   if (k === 'CDWEB') return go(scrCaiDatWeb);
   if (k === 'CDLOI') return go(scrCaiDatLoi);
+  if (k === 'DSVN') return go(scrDsvn);
   if (k === 'PTDON') return go(scrDonChungTuThu);
   if (k === 'PTCH') return go(scrChuyenPhantom);
   if (k === 'NHAPSK') return go(scrNhapSaoKe);
