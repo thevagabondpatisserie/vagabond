@@ -231,3 +231,48 @@ def _():
 	la("nhóm", t["nhom"], "Tiền bán")
 	la("30 dòng mẫu", len(t["mau_dong"]), 30)
 	la("không lộ người", any("nguoi" in d for d in t["mau_dong"]), False)
+
+
+# ------------------------------------------------------------ Codex #446 (e19d3edfc)
+
+@ca("Codex #446 F3: tệp lẫn nhiều tài khoản Payoo thì giữ nguồn để xem, KHÔNG ghi dòng nào")
+def _():
+	from vagabond.khung.kiem_thu import thu_doi_soat_mau_579 as T
+	hai_tk = T.PAYOO_THE.replace("VAGABOND_TONG,VAGABOND_TONG,VAGABOND_307NVT", "VAGABOND_KHAC,VAGABOND_KHAC,VAGABOND_307NVT")
+	kq = M.doc(T._csv(T.TEN_PAYOO, hai_tk))
+	la("bộ đọc để trống tài khoản và báo lỗi", (kq["tai_khoan"], any("nhiều tài khoản" in l for l in kq["loi"])), ("", True))
+	xt = K.xem_truoc(kq, "C")
+	la("không dòng nào được nhận", xt["so"]["moi"], 0)
+	dung("lý do nói tách tệp", all("tách tệp" in x["ly_do"] for x in xt["dong"]))
+	# Tải lại bản đã tách: cùng sự kiện, khoá theo đúng tài khoản; không có
+	# dòng cũ khoá "-" nào nằm sẵn để bị nhận lần hai.
+	mot = M.doc(T._csv(T.TEN_PAYOO, T.PAYOO_THE))
+	la("bản tách nhận đủ", K.xem_truoc(mot, "C")["so"]["moi"], 3)
+
+
+@ca("Codex #446 F3: phạm vi khoá Xanh SM không đổi theo số cửa hàng trong tệp")
+def _():
+	from vagabond.khung.kiem_thu import thu_doi_soat_mau_579 as T
+	from vagabond import doi_soat_doc as D
+	o = D.doc_csv(T.XANH_CT.encode())[0]["o"]
+	mot = M.doc(T._luoi("Revenue_Report_x_20260124", ("Detail Transactions", o), ("Summary", T.XANH_TH)))
+	hai = [r[:] for r in o]
+	hai[-1][3] = "01K23YRC3K35J07ZYBVADZZSYK"
+	gop = M.doc(T._luoi("Revenue_Report_y_20260124", ("Detail Transactions", hai)))
+	la("cùng phạm vi", (mot["tai_khoan"], gop["tai_khoan"]), ("GREENSM", "GREENSM"))
+	k1 = {x["dong"]["khoa"] for x in K.xem_truoc(mot, "C")["dong"]}
+	k2 = {x["dong"]["khoa"] for x in K.xem_truoc(gop, "C")["dong"] if x["dong"]}
+	la("cùng khoá cho cùng đơn", k1 & k2 == k1, True)
+
+
+@ca("Codex #446 F1: hai doctype đối soát người chỉ đọc, controller chặn lưu tay")
+def _():
+	import json
+	import os
+	goc = os.path.join(os.path.dirname(__file__), "..", "..", "vagabond", "doctype")
+	for ten in ("vagabond_doi_soat_nguon", "vagabond_doi_soat_dong"):
+		d = json.load(open(os.path.join(goc, ten, ten + ".json"), encoding="utf-8"))
+		la(ten + ": không vai nào được tạo hay sửa",
+			[p["role"] for p in d["permissions"] if p.get("write") or p.get("create") or p.get("delete")], [])
+		src = open(os.path.join(goc, ten, ten + ".py"), encoding="utf-8").read()
+		dung(ten + ": validate chặn khi không đi qua cửa máy", "def validate" in src and "ignore_permissions" in src)
