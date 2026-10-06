@@ -1,0 +1,23 @@
+{
+  "nguon": "Tên cột kiểm từ mẫu riêng tư trên Drive ngày 05/10/2026; không phải byte file gốc.",
+  "cot": [
+    "Tài Khoản Payoo Tổng/Quản lý",
+    "Chi Nhánh/Đơn Vị Nhận Tiền Dịch Vụ",
+    "Tài Khoản Payoo Thực Hiện Giao Dịch",
+    "Ngày Giao Dịch",
+    "Chi Tiết H.Thức T.Toán",
+    "Mã giao dịch Payoo",
+    "Mã GD QR",
+    "Số Tiền Giao Dịch",
+    "Phí Xử Lý Giao Dịch QR",
+    "Số Tiền Payoo Thanh Toán",
+    "Ngày Payoo Thanh Toán",
+    "Mã thiết bị",
+    "Mã đơn hàng đối tác",
+    "Loại Tác Nghiệp",
+    "Ghi Chú",
+    "Tổng tiền đơn hàng",
+    "Số tiền giảm giá",
+    "Phí xử lý GD khuyến mãi"
+  ]
+}
