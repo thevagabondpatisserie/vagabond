@@ -42,7 +42,11 @@
   "sales_invoice",
   "purchase_invoice",
   "van_don",
-  "ghi_chu_khop"
+  "ghi_chu_khop",
+  "sec_thay",
+  "nguon_cu",
+  "khoa_cu",
+  "thay_luc"
  ],
  "fields": [
   {
@@ -50,7 +54,6 @@
    "label": "Nguồn đối soát",
    "fieldtype": "Link",
    "options": "Vagabond Doi Soat Nguon",
-   "reqd": 1,
    "in_standard_filter": 1,
    "search_index": 1
   },
@@ -231,7 +234,7 @@
    "fieldname": "trang_thai_khop",
    "label": "Trạng thái nối",
    "fieldtype": "Select",
-   "options": "Chưa nối\nĐã nối\nNối theo tiền\nLệch tiền\nNhiều chứng từ\nKhông thấy chứng từ\nKhông áp dụng",
+   "options": "Chưa nối\nĐã nối\nNối theo tiền\nLệch tiền\nNhiều chứng từ\nKhông thấy chứng từ\nKhông áp dụng\nĐã thay",
    "in_list_view": 1,
    "in_standard_filter": 1
   },
@@ -258,6 +261,32 @@
    "fieldname": "ghi_chu_khop",
    "label": "Ghi chú nối",
    "fieldtype": "Small Text"
+  },
+  {
+   "fieldname": "sec_thay",
+   "fieldtype": "Section Break",
+   "label": "Bản đọc đã thay",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "nguon_cu",
+   "label": "Nguồn của bản đọc cũ",
+   "fieldtype": "Link",
+   "options": "Vagabond Doi Soat Nguon",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "khoa_cu",
+   "label": "Khoá sự kiện cũ",
+   "fieldtype": "Data",
+   "read_only": 1
+  },
+  {
+   "fieldname": "thay_luc",
+   "label": "Bị thay lúc",
+   "fieldtype": "Datetime",
+   "read_only": 1
   }
  ],
  "permissions": [
@@ -287,5 +316,5 @@
  "title_field": "ma_don",
  "description": "#420 v579 đối soát vendor: một sự kiện trong báo cáo vendor (đơn, phí, chuyến, giao dịch thẻ)",
  "creation": "2026-10-06 12:00:00.000000",
- "modified": "2026-10-06 18:00:00.000000"
+ "modified": "2026-10-07 09:00:00.000000"
 }
