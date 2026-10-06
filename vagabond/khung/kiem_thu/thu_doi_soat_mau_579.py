@@ -527,3 +527,37 @@ def _goi_qua_tran():
 		for k in range(3):
 			z.writestr("bao-cao-%s.csv" % k, b"0" * (15 * 1024 * 1024))
 	return b.getvalue()
+
+
+@ca("Codex #450: PDF có trần số trang và số dòng chữ như CSV/Excel, quá trần thì dừng với lời người dùng")
+def _():
+	import sys
+	import types
+	from unittest.mock import patch
+
+	class Trang:
+		def __init__(self, n):
+			self.n = n
+
+		def get_text(self, *a, **k):
+			return "\n".join("dong %s" % i for i in range(self.n))
+
+	def gia(so_trang, dong_moi_trang):
+		class Tl:
+			needs_pass = False
+			page_count = so_trang
+
+			def __iter__(self):
+				return iter([Trang(dong_moi_trang) for _ in range(so_trang)])
+
+			def close(self):
+				pass
+		m = types.ModuleType("pymupdf")
+		m.open = lambda **k: Tl()
+		return m
+	with patch.dict(sys.modules, {"pymupdf": gia(D.TOI_DA_TRANG_PDF + 1, 1)}):
+		nem("quá số trang", lambda: D.doc_pdf(b"%PDF"), D.LoiTep)
+	with patch.dict(sys.modules, {"pymupdf": gia(3, D.TOI_DA_DONG // 2)}):
+		nem("quá số dòng chữ", lambda: D.doc_pdf(b"%PDF"), D.LoiTep)
+	with patch.dict(sys.modules, {"pymupdf": gia(2, 5)}):
+		la("PDF nhỏ vẫn đọc", [len(t["dong"]) for t in D.doc_pdf(b"%PDF")], [5, 5])

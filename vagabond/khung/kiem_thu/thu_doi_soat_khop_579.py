@@ -768,6 +768,8 @@ def _():
 			patch.object(V.frappe.utils, "now", lambda: "2026-10-07 10:00:00", create=True), \
 			patch.object(V.frappe, "get_doc", lambda *a, **k: NS(name="N1"), create=True), \
 			patch.object(V, "_goi_y_con_dung", lambda n: True), \
+			patch.object(V.frappe, "get_all", lambda *a, **k: [], create=True), \
+			patch.object(V, "_kieu_nguon", lambda n: "grab"), \
 			patch.object(V, "_dem_noi", lambda n: ghi.__setitem__("_dem", n.name)):
 		V.xac_nhan_noi(name="R9")
 		la("xác nhận: Đã nối, ghi người và lúc", (ghi["R9"]["trang_thai_khop"], ghi["R9"]["xac_nhan_boi"], ghi["R9"]["xac_nhan_luc"]),
@@ -853,11 +855,12 @@ def _():
 		tt = filters.get("trang_thai_khop")
 		ra = [r for r in khac if r["nguon"] != filters["nguon"][1] and (tt is None or
 			(tt[0] == "in" and r["trang_thai_khop"] in tt[1]) or (tt[0] == "!=" and r["trang_thai_khop"] != tt[1]))]
-		return [r["sales_invoice"] for r in ra]
+		return [Hang(sales_invoice=r["sales_invoice"], nguon=r["nguon"]) for r in ra]
 	dong = [Hang(name="R1", loai="ban", ngay="2026-07-17", ma_tham_chieu="GF-1", tien_hang=100000, giam_gia=0,
 		trang_thai_khop="Chưa nối", sales_invoice=None, xac_nhan_boi=None)]
 	ghi = {}
 	with patch.object(V, "_ung_vien_hd", lambda *a: [dict(name="SI-1", ngay="2026-07-17", tien=100000, ma=["GF-1"], tien_to="")]), \
+			patch.object(V, "_kieu_nguon", lambda n: "grab"), \
 			patch.object(V.frappe, "get_all", get_all, create=True), \
 			patch.object(V.frappe.utils, "add_days", lambda d, n: d, create=True), \
 			patch.object(V.frappe.db, "set_value", lambda dt, n, v, **k: ghi.__setitem__(n, v), create=True):
@@ -867,6 +870,7 @@ def _():
 	khac[0]["trang_thai_khop"] = "Đã nối"
 	ghi.clear()
 	with patch.object(V, "_ung_vien_hd", lambda *a: [dict(name="SI-1", ngay="2026-07-17", tien=100000, ma=["GF-1"], tien_to="")]), \
+			patch.object(V, "_kieu_nguon", lambda n: "grab"), \
 			patch.object(V.frappe, "get_all", get_all, create=True), \
 			patch.object(V.frappe.utils, "add_days", lambda d, n: d, create=True), \
 			patch.object(V.frappe.db, "set_value", lambda dt, n, v, **k: ghi.__setitem__(n, v), create=True):
@@ -886,8 +890,10 @@ def _():
 	ghi = {}
 	with patch.object(V, "_chan", lambda *a, **k: None), patch.object(V, "_chan_cong_ty", lambda ct: None), \
 			patch.object(V, "khoa_doi_chieu", lambda *a, **k: nullcontext()), \
-			patch.object(V.frappe.db, "get_value", lambda dt, n, f=None, **k: "N-KHAC" if isinstance(n, dict) else Hang(name=n,
+			patch.object(V.frappe.db, "get_value", lambda dt, n, f=None, **k: Hang(name=n,
 				nguon="N1", company="CT", trang_thai_khop="Nối theo tiền", sales_invoice="SI-9"), create=True), \
+			patch.object(V.frappe, "get_all", lambda *a, **k: [Hang(nguon="N-KHAC")], create=True), \
+			patch.object(V, "_kieu_nguon", lambda n: "payoo"), \
 			patch.object(V, "_goi_y_con_dung", lambda n: True), \
 			patch.object(V.frappe.db, "set_value", lambda dt, n, v, **k: ghi.__setitem__(n, v), create=True):
 		loi = ""
@@ -979,3 +985,45 @@ def _():
 			patch.object(V.frappe.utils, "add_days", lambda d, n: d, create=True), \
 			patch.object(V, "_ung_vien_hd", lambda *a: [dict(name="SI-1", tien=90000)]):
 		la("hoá đơn đổi tiền thì gợi ý không còn đúng", V._goi_y_con_dung("R9"), False)
+
+
+@ca("Codex #450: giữ hoá đơn theo từng kênh thanh toán; kênh khác vẫn nối được chân thanh toán của mình")
+def _():
+	from types import SimpleNamespace as NS
+	from unittest.mock import patch
+	from vagabond import doi_soat_vendor as V
+
+	class Hang(dict):
+		__getattr__ = dict.get
+	dong = [Hang(name="R1", loai="ban", ngay="2026-07-17", ma_tham_chieu="TT-SH-1", tien_hang=60000, giam_gia=0,
+		trang_thai_khop="Chưa nối", sales_invoice=None, xac_nhan_boi=None)]
+	ghi = {}
+	# Bill SI-1 trả 2 chân: Payoo (đã nối ở nguồn Payoo) và Shinhan (nguồn này).
+	with patch.object(V, "_ung_vien_hd", lambda *a: [dict(name="SI-1", ngay="2026-07-17", tien=60000, ma=["TT-SH-1"], tien_to="")]), \
+			patch.object(V.frappe, "get_all", lambda *a, **k: [Hang(sales_invoice="SI-1", nguon="N-PAYOO")], create=True), \
+			patch.object(V, "_kieu_nguon", lambda n: "payoo" if n == "N-PAYOO" else "shinhan"), \
+			patch.object(V.frappe.utils, "add_days", lambda d, n: d, create=True), \
+			patch.object(V.frappe.db, "set_value", lambda dt, n, v, **k: ghi.__setitem__(n, v), create=True):
+		V._noi_hoa_don_ban(NS(mau="shinhan_ngay", company="CT", name="N-SH"), dong)
+	la("chân Shinhan của bill vẫn nối được", (ghi["R1"]["trang_thai_khop"], ghi["R1"]["sales_invoice"]), ("Đã nối", "SI-1"))
+
+
+@ca("Codex #450: dấu nội dung đổi khi vendor sửa số hoá đơn, chuyến giao hàng, ngày tiền về hay thuế")
+def _():
+	goc = dict(ma_su_kien="E1", loai="chuyen", ngay="2026-09-01", ma_don="E1", ma_can_cu="", tien_hang=1, giam_gia=0, phi=0,
+		dieu_chinh=0, thuc_nhan=1, hoa_don="C26#1", giao_hang=False, ngay_tien_ve="2026-09-02", thue=0)
+	d0 = K.dau_noi_dung(goc)
+	for k, v in (("hoa_don", "C26#2"), ("giao_hang", True), ("ngay_tien_ve", "2026-09-03"), ("thue", 10)):
+		dung("đổi %s thì dấu đổi" % k, K.dau_noi_dung(dict(goc, **{k: v})) != d0)
+	la("không có khoá giao_hang cũng như False", K.dau_noi_dung({k: v for k, v in goc.items() if k != "giao_hang"}), d0)
+
+
+@ca("Codex #450: thẻ tóm tắt có tổng thực nhận và Tổng theo bộ lọc, cùng bộ lọc với danh sách")
+def _():
+	from vagabond import doi_soat_vendor as V
+	rows = [dict(nhom="Tiền bán", vendor="GrabFood", trang_thai="Đã nhận", trang_thai_tien="Lệch tiền về", so_chua_noi=0, thuc_nhan=100),
+		dict(nhom="Tiền bán", vendor="Payoo", trang_thai="Cần xử lý", trang_thai_tien="Chưa đối chiếu", so_chua_noi=0, thuc_nhan=50),
+		dict(nhom="Chuyến đi", vendor="Be", trang_thai="Đã nhận", trang_thai_tien="Không áp dụng", so_chua_noi=1, thuc_nhan=7)]
+	la("tổng nhóm, không lọc trạng thái", V.tong_tien(rows, "Tiền bán"), {"tat_ca": 150.0})
+	la("lọc Chờ tiền về", V.tong_tien(rows, "Tiền bán", "", "Chờ tiền về"), {"tat_ca": 150.0, "theo_loc": 100.0})
+	la("lọc nguồn và Cần xử lý", V.tong_tien(rows, "Tiền bán", "Payoo", "Cần xử lý"), {"tat_ca": 50.0, "theo_loc": 50.0})
