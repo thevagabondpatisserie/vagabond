@@ -2704,7 +2704,7 @@
   },
   "dung_cu_gio": {
     "ten": "Giỏ: số dụng cụ tặng",
-    "mac_dinh": "{nia} nĩa gỗ · {dia} dĩa giấy",
+    "mac_dinh": "{nia} nĩa gỗ, {dia} dĩa giấy",
     "nhom": "gio_hang"
   },
   "kenh_noi_nhan": {
