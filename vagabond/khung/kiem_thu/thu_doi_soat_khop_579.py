@@ -276,3 +276,58 @@ def _():
 			[p["role"] for p in d["permissions"] if p.get("write") or p.get("create") or p.get("delete")], [])
 		src = open(os.path.join(goc, ten, ten + ".py"), encoding="utf-8").read()
 		dung(ten + ": validate chặn khi không đi qua cửa máy", "def validate" in src and "ignore_permissions" in src)
+
+
+@ca("Codex #446 vòng 2: khoá đối chiếu: lấy khoá, commit mở ảnh mới, làm, commit, nhả; lỗi vẫn nhả")
+def _():
+	from vagabond.doi_soat_vendor import khoa_doi_chieu
+
+	class Db:
+		def __init__(self, duoc=1):
+			self.goi, self.duoc = [], duoc
+
+		def sql(self, q, a=None):
+			self.goi.append(q.split("(")[0].replace("select ", ""))
+			return [[self.duoc]] if "get_lock" in q else [[1]]
+
+		def commit(self):
+			self.goi.append("commit")
+
+	db = Db()
+	with khoa_doi_chieu(db):
+		db.goi.append("lam")
+	la("thứ tự", db.goi, ["get_lock", "commit", "lam", "commit", "release_lock"])
+	db = Db()
+	try:
+		with khoa_doi_chieu(db):
+			raise ValueError("hong")
+	except ValueError:
+		pass
+	la("lỗi giữa chừng: không commit lần hai, vẫn nhả", db.goi, ["get_lock", "commit", "release_lock"])
+	db = Db(duoc=0)
+	try:
+		with khoa_doi_chieu(db):
+			db.goi.append("lam")
+		bi_chan = False
+	except Exception:
+		bi_chan = True
+	la("không lấy được khoá thì không làm", (bi_chan, "lam" in db.goi), (True, False))
+
+
+@ca("Codex #446 vòng 2: mọi lối ghi nối và tiền về đều đi qua khoá đối chiếu (một nguồn)")
+def _():
+	import ast
+	import inspect
+	from vagabond import doi_soat_vendor as V
+	cay = ast.parse(inspect.getsource(V))
+	ham = {f.name: f for f in cay.body if isinstance(f, ast.FunctionDef)}
+
+	def goi(f, ten):
+		return any(isinstance(n, ast.Call) and getattr(n.func, "id", None) == ten for n in ast.walk(f))
+
+	def co_khoa(f):
+		return any(isinstance(n, ast.With) and any(getattr(getattr(i.context_expr, "func", None), "id", None) == "khoa_doi_chieu"
+			for i in n.items) for n in ast.walk(f))
+	la("ai gọi _doi_chieu", sorted(k for k, f in ham.items() if goi(f, "_doi_chieu")), ["_ghi_nguon", "doi_chieu_lai"])
+	la("ai gọi _ghi_nguon", sorted(k for k, f in ham.items() if goi(f, "_ghi_nguon")), ["_nhan_byte"])
+	la("hai cửa đều giữ khoá", (co_khoa(ham["_nhan_byte"]), co_khoa(ham["doi_chieu_lai"])), (True, True))

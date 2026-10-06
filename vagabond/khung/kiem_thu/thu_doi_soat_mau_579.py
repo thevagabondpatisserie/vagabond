@@ -442,3 +442,28 @@ def _():
 	la("shinhan", M.ngay_gio("09:44:15 19-07-2026"), ("2026-07-19", "09:44:15"))
 	la("dd/mm/yy", M.ngay("02/06/26"), "2026-06-02")
 	nem("30/02", lambda: M.ngay("30/02/2026"), M.LoiDong)
+
+
+@ca("Codex #446: gói nén giải ra quá trần thì dừng, không đọc hết vào bộ nhớ; tệp nén lồng bị từ chối")
+def _():
+	import io
+	import zipfile
+	b = io.BytesIO()
+	with zipfile.ZipFile(b, "w", zipfile.ZIP_DEFLATED) as z:
+		for k in range(3):
+			z.writestr("bao-cao-%s.csv" % k, b"0" * (15 * 1024 * 1024))
+	nen_ = b.getvalue()
+	dung("gói nén nhỏ hơn 20 MB", len(nen_) < D.TOI_DA_BYTE)
+	nem("ba tệp 15 MB vượt trần 40 MB cả gói", lambda: D.doc_zip(nen_), D.LoiTep)
+	try:
+		D.doc_zip(nen_)
+	except D.LoiTep as e:
+		dung("lý do nói trần cả gói", "40 MB" in str(e))
+	trong = io.BytesIO()
+	with zipfile.ZipFile(trong, "w") as z:
+		z.writestr("a.csv", "Ma,So\n1,2\n")
+	ngoai = io.BytesIO()
+	with zipfile.ZipFile(ngoai, "w") as z:
+		z.writestr("trong.zip", trong.getvalue())
+	nem("zip lồng zip", lambda: D.doc_tep("ngoai.zip", ngoai.getvalue()), D.LoiTep)
+	la("zip một tầng vẫn đọc", len(D.doc_tep("trong.zip", trong.getvalue())), 1)

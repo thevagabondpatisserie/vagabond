@@ -361,6 +361,25 @@ await napTonHomNay();RA({truoc,dangCho,sau,daLuu,gia0:cartTotal(),qty:CART[0].qt
     la('không đổi số lượng',r['qty'],1)
 
 
+@ca('Codex #446: bánh chỉ có trong danh mục sống không mất khi tải lại trước lúc danh mục về')
+def _gio_mon_dong():
+    from vagabond.khung.kiem_thu.thu_trang_dat_banh import _chay
+    r = _chay('2026-10-06T08:00:00', r'''
+sessionStorage.setItem('vgb-gio-v1',JSON.stringify({luc:Date.now(),gio:[{id:'KT446-MOI-20',cm:20,qty:2,price:1,wish:'Chúc',adds:[],nguon:'order'}]}));
+CART=[];phucHoiGio();
+const truoc={dong:CART.length,cho:gioBanhCho.length,luu:JSON.parse(sessionStorage.getItem('vgb-gio-v1')||'{"gio":[]}').gio.length};
+luuGioDangSoan();
+const giuKhiLuu=JSON.parse(sessionStorage.getItem('vgb-gio-v1')).gio.length;
+fetch=async()=>({json:async()=>({message:{banh:{},nhom:[{ten:'Bánh kiểm 446',sizes:[{ma:'KT446-MOI-20',cm:20,gia:450000}]}]}})});
+await napTonHomNay();
+RA({truoc,giuKhiLuu,sau:CART.map(o=>({id:o.id,qty:o.qty,price:o.price,wish:o.wish})),cho:gioBanhCho.length});
+''')
+    la('chưa có món: chưa vào giỏ, nằm chờ', (r['truoc']['dong'], r['truoc']['cho']), (0, 1))
+    la('lưu lại lúc đang chờ không mất dòng', r['giuKhiLuu'], 1)
+    la('danh mục về: dựng lại đúng dòng, giá theo danh mục', r['sau'], [{'id':'KT446-MOI-20','qty':2,'price':450000,'wish':'Chúc'}])
+    la('không còn dòng chờ', r['cho'], 0)
+
+
 @ca('#436 CMS: chặn vị trí mất khối, link lạ và Zalo cá nhân; nâng cấp không mất chữ')
 def _kenh_noi_va_vi_tri():
     nd = copy.deepcopy(noi_dung_web.MAC_DINH)
