@@ -13,6 +13,7 @@ Cach lam o day: GOI CHUC VU. Moi goi la mot cum vai tro da chon san theo dung
 cong viec that o tiem (Ban hang, Bep, Kho, Ke toan, Giam doc...). Gan nguoi
 vao goi la xong, khong phai biet "Stock Manager" la gi. Ai can khac goi thi
 mo phan chi tiet ra chinh le tung vai.
+Tu v582 (06/10/2026) mot nguoi giu duoc NHIEU goi, quyen cong don.
 
 Nguyen tac an toan:
   - Chi dong vao cac vai NAM TRONG goi (VAI_QUAN_LY). Vai nao khong thuoc goi
@@ -49,83 +50,100 @@ VAI_NEN = {
 }
 
 
-# Goi chuc vu. Thu tu o day la thu tu hien tren app: viec nhieu nguoi lam
-# nhat len truoc, quyen nang nhat xuong duoi.
+# Goi chuc vu theo PHAN HE (anh Viet chot 06/10/2026, docs/quyen-theo-phan-he.md).
+#
+# Moi nguoi nhan goi theo bo phan; nguoi kiem viec nhan HAI goi va quyen
+# duoc CONG DON (dat_goi nhan danh sach goi). Thu tu o day la thu tu hien
+# tren app: viec nhieu nguoi lam nhat len truoc, quyen nang nhat xuong duoi.
+#
+# Buoc 1 chi GOM quyen dang co theo bo phan, khong bot quyen cua ai, tru 8
+# diem anh Viet da chot (quay tao don ban, Sales giu sua bang gia va co
+# khuyen mai, ke toan toan quyen kho va san xuat, giam doc toan quyen...).
+_DAT_HANG = ["Bộ phận đặt hàng", "Nhan hang dieu chuyen", "Kiểm kê viên"]
+_SALES = ["Sales User", "Sales Manager", "VGB - Quản lý khuyến mãi", "Vagabond Bao cao"] + _DAT_HANG
+
 GOI = [
 	{
-		"k": "sales",
+		"k": "quay",
 		"bac": 2,
-		"ten": "Bán hàng (Sales)",
-		"icon": "🎂",
-		"mo_ta": "Nhận đơn, lên vận đơn, đối soát COD cuối ngày, tra cứu khách hàng.",
+		"ten": "Quầy",
+		"icon": "🏪",
+		"mo_ta": "Bán quầy, tạo đơn bán, nhận hàng điều chuyển, đặt hàng, kiểm kê.",
 		"lam_duoc": [
-			"Tạo đơn và sửa đơn trong ngày",
-			"Lên vận đơn, gán shipper, đối soát COD",
-			"Xem và sửa hồ sơ khách hàng",
-			"Đặt hàng nguyên vật liệu, nhận hàng điều chuyển, kiểm kê",
+			"Bán quầy và tạo đơn bán",
+			"Nhận hàng điều chuyển giữa các kho",
+			"Đặt hàng nguyên vật liệu, đếm kiểm kê",
 		],
-		"vai": ["Sales User", "Bộ phận đặt hàng", "Nhan hang dieu chuyen", "Kiểm kê viên"],
+		"vai": ["Sales User"] + _DAT_HANG,
 	},
 	{
-		"k": "salesql",
-		"bac": 4,
-		"ten": "Quản lý bán hàng",
-		"icon": "👑",
-		"mo_ta": "Như Bán hàng, thêm quyền sửa đơn ngày cũ, khuyến mãi và xem báo cáo.",
+		"k": "sales",
+		"bac": 3,
+		"ten": "Sales",
+		"icon": "🎂",
+		"mo_ta": "Đơn bán, khách hàng và bảng giá, khuyến mãi, công nợ phải thu, báo cáo bán.",
 		"lam_duoc": [
-			"Mọi quyền của Bán hàng",
-			"Sửa hoặc huỷ đơn của ngày đã qua",
-			"Tạo và tắt chương trình khuyến mãi, voucher",
-			"Xem toàn bộ phân hệ Báo cáo",
+			"Tạo và sửa đơn, lên vận đơn, đối soát COD",
+			"Sửa khách hàng và bảng giá, chạy khuyến mãi",
+			"Công nợ phải thu: gom phiếu, khớp tay theo giao dịch, đính UNC",
+			"Xem phân hệ Báo cáo",
 		],
-		"vai": [
-			"Sales Manager", "Sales User", "Bộ phận đặt hàng", "Nhan hang dieu chuyen",
-			"Kiểm kê viên", "VGB - Quản lý khuyến mãi", "Vagabond Bao cao",
+		"vai": list(_SALES),
+	},
+	{
+		"k": "qlch",
+		"bac": 4,
+		"ten": "Quản lý cửa hàng",
+		"icon": "👑",
+		"mo_ta": "Như Quầy và Sales, thêm ca, đơn treo, chốt kiểm kê và xuất huỷ.",
+		"lam_duoc": [
+			"Mọi quyền của Quầy và Sales",
+			"Quản lý ca, đơn treo, máy in cửa hàng",
+			"Chốt kiểm kê, duyệt xuất huỷ",
 		],
+		"vai": ["VGB - Quản lý cửa hàng", "Stock Manager"] + _SALES,
 	},
 	{
 		"k": "bep",
 		"bac": 2,
-		"ten": "Bếp và Sản xuất",
+		"ten": "Bếp",
 		"icon": "🧑‍🍳",
-		"mo_ta": "Lệnh sản xuất, bán thành phẩm, kiểm bánh, đặt nguyên liệu.",
+		"mo_ta": "Lệnh sản xuất, bán thành phẩm, kiểm bánh, đặt nguyên liệu, kiểm kê.",
 		"lam_duoc": [
 			"Nhận và chốt lệnh sản xuất, ghi bán thành phẩm",
 			"Kiểm bánh cuối ngày",
-			"Đặt hàng nguyên vật liệu",
-			"Đếm kiểm kê",
+			"Đặt hàng nguyên vật liệu, đếm kiểm kê",
 		],
 		"vai": ["Manufacturing User", "Bếp phó", "Bộ phận đặt hàng", "Kiểm kê viên"],
 	},
 	{
-		"k": "kho",
-		"bac": 2,
-		"ten": "Kho và Nhận hàng",
-		"icon": "📦",
-		"mo_ta": "Nhận hàng điều chuyển, đếm kiểm kê, đặt hàng.",
-		"lam_duoc": [
-			"Nhận hàng điều chuyển giữa các kho",
-			"Đếm kiểm kê",
-			"Đặt hàng nguyên vật liệu",
-		],
-		"vai": ["Nhan hang dieu chuyen", "Bộ phận đặt hàng", "Kiểm kê viên"],
-	},
-	{
-		"k": "khoql",
+		"k": "bepql",
 		"bac": 4,
-		"ten": "Quản lý kho",
-		"icon": "🏷️",
-		"mo_ta": "Như Kho, thêm quyền duyệt phiếu xuất và chốt kiểm kê.",
+		"ten": "Quản lý sản xuất",
+		"icon": "🍰",
+		"mo_ta": "Như Bếp, thêm duyệt sản xuất và mua hàng R&D.",
 		"lam_duoc": [
-			"Mọi quyền của Kho và Nhận hàng",
-			"Duyệt phiếu xuất huỷ và xuất điều chuyển",
-			"Chốt phiếu kiểm kê, lệch tồn ghi vào sổ",
-			"Tra tồn kho mọi kho",
+			"Mọi quyền của Bếp",
+			"Duyệt kế hoạch và lệnh sản xuất",
+			"Đặt mua hàng R&D",
 		],
 		"vai": [
-			"Stock Manager", "Stock User", "Nhan hang dieu chuyen",
-			"Bộ phận đặt hàng", "Kiểm kê viên",
+			"Manufacturing Manager", "Manufacturing User", "Bếp phó",
+			"Bộ phận đặt hàng", "Kiểm kê viên", "Mua hàng R&D",
 		],
+	},
+	{
+		"k": "kho",
+		"bac": 4,
+		"ten": "Kho",
+		"icon": "📦",
+		"mo_ta": "Nhập xuất kho, danh mục món, chốt kiểm kê.",
+		"lam_duoc": [
+			"Nhập, xuất, điều chuyển kho",
+			"Duyệt phiếu xuất huỷ, chốt kiểm kê",
+			"Sửa danh mục món",
+		],
+		"vai": ["Stock Manager", "Stock User", "Item Manager", "Mua hàng R&D"] + _DAT_HANG,
 	},
 	{
 		"k": "shipper",
@@ -141,70 +159,81 @@ GOI = [
 		"vai": ["Shipper"],
 	},
 	{
+		"k": "marketing",
+		"bac": 2,
+		"ten": "Marketing",
+		"icon": "📣",
+		"mo_ta": "Việc Marketing, đặt hàng, nhận hàng điều chuyển, kiểm kê.",
+		"lam_duoc": [
+			"Việc cần làm của Marketing, tặng quà khách VIP",
+			"Đặt hàng, nhận hàng điều chuyển, kiểm kê",
+		],
+		"vai": ["Marketing"] + _DAT_HANG,
+	},
+	{
 		"k": "muahang",
-		"bac": 3,
+		"bac": 4,
 		"ten": "Thu mua",
 		"icon": "🛒",
-		"mo_ta": "Đơn đặt hàng, danh mục nhà cung cấp, hoá đơn mua, lập hồ sơ thanh toán.",
+		"mo_ta": "Đơn mua, nhà cung cấp, hoá đơn mua, nối phiếu kho, lập hồ sơ thanh toán.",
 		"lam_duoc": [
 			"Gom yêu cầu thành đơn đặt hàng nhà cung cấp",
-			"Quản lý danh mục nhà cung cấp và gán nhà cung cấp cho mặt hàng",
-			"Đối chiếu hoá đơn mua với phiếu nhập kho",
+			"Quản lý nhà cung cấp, đối chiếu và nối hoá đơn mua với phiếu kho",
 			"Lập hồ sơ thanh toán (APP) gửi kế toán duyệt",
 		],
 		"vai": [
-			ROLE_THU_MUA, "Purchase User", "Bộ phận đặt hàng", "Mua hàng R&D",
-			"Kiểm kê viên",
+			ROLE_THU_MUA, "Purchase User", "Purchase Manager", "AP Officer",
+			# Khong co Stock Manager (Codex #449 vong 4): vai do duyet xuat huy va
+			# chot kiem ke, la viec cua goi Kho. Noi phieu kho da co vai rieng.
+			"Sua hoa don mua (noi phieu kho)", "Item Manager", "Stock User",
+			"Bộ phận đặt hàng", "Mua hàng R&D", "Kiểm kê viên",
 		],
 	},
 	{
 		"k": "ketoan",
-		"bac": 5,
+		"bac": 6,
 		"ten": "Kế toán",
 		"icon": "🧮",
-		"mo_ta": "Hồ sơ thanh toán, công nợ, đối soát, hoá đơn điện tử, báo cáo.",
+		"mo_ta": "Toàn quyền kế toán, kho và sản xuất: ghi sổ, công nợ, giá vốn, chứng từ.",
 		"lam_duoc": [
-			"Duyệt hồ sơ thanh toán ở cấp kế toán",
-			"Lập hồ sơ thanh toán, hồ sơ hoàn ứng",
-			"Xem công nợ phải thu và phải trả, đối soát SePay",
+			"Ghi sổ, huỷ ghi sổ, khoá sổ, phiếu thu chi, công nợ thu và trả",
+			"Giá vốn, công thức, toàn quyền chứng từ kho và sản xuất",
+			"Xem và sửa khách hàng, đơn bán, đơn mua",
 			"Xem toàn bộ phân hệ Báo cáo",
-		],
-		"vai": [
-			"Accounts User", "AP Kiểm soát (FIN)", "Purchase User", "Vagabond Bao cao",
-		],
-	},
-	{
-		"k": "ketoantruong",
-		"bac": 6,
-		"ten": "Kế toán trưởng",
-		"icon": "📊",
-		"mo_ta": "Như Kế toán, thêm quyền ghi sổ, huỷ chứng từ và khoá sổ.",
-		"lam_duoc": [
-			"Mọi quyền của Kế toán",
-			"Ghi sổ và huỷ ghi sổ hoá đơn, phiếu chi",
-			"Khoá sổ kỳ cũ",
-			"Đặt hàng và duyệt đơn mua",
 		],
 		"vai": [
 			"Accounts Manager", "Accounts User", "AP Kiểm soát (FIN)",
-			"Purchase Manager", "Purchase User", "Vagabond Bao cao",
+			"Purchase Manager", "Purchase User", "Sales Manager", "Sales Master Manager",
+			"Stock Manager", "Stock User", "Manufacturing Manager", "Manufacturing User",
+			"Item Manager", "VGB - Quản lý công thức", "Vagabond Bao cao",
+			"Bộ phận đặt hàng", "Kiểm kê viên",
 		],
 	},
 	{
+		"k": "nhansu",
+		"bac": 5,
+		"ten": "Quản lý người dùng",
+		"icon": "🪪",
+		"mo_ta": "Mời tài khoản, xếp gói chức vụ, bật tắt tài khoản. Không cấp được quyền quản trị.",
+		"lam_duoc": [
+			"Mời tài khoản mới, gửi lại thư đặt mật khẩu",
+			"Xếp người vào gói chức vụ, bật tắt tài khoản",
+		],
+		"vai": [VAI_QLND],
+	},
+	{
 		"k": "giamdoc",
-		"bac": 7,
+		"bac": 8,
 		"ten": "Giám đốc",
 		"icon": "🎩",
-		"mo_ta": "Duyệt chi cấp cuối, xem toàn bộ báo cáo, không sửa chứng từ.",
+		"mo_ta": "Toàn quyền nghiệp vụ mọi phân hệ, duyệt chi cấp cuối. Không gồm cấu hình hệ thống.",
 		"lam_duoc": [
+			"Mọi quyền của mọi gói ở trên",
 			"Duyệt chi hồ sơ thanh toán ở cấp giám đốc",
-			"Xem toàn bộ phân hệ Báo cáo",
-			"Xem công nợ, doanh số, giá vốn",
+			"Quản lý người dùng",
 		],
-		"vai": [
-			ROLE_GIAM_DOC, "AP Giám đốc", "Vagabond Bao cao", "Sales Manager",
-			"Accounts User",
-		],
+		# Điền ở dưới: hợp của mọi gói nghiệp vụ (anh Việt 06/10/2026 điểm 8).
+		"vai": [ROLE_GIAM_DOC, "AP Giám đốc"],
 	},
 	{
 		"k": "chucongty",
@@ -220,6 +249,13 @@ GOI = [
 		"vai": ["System Manager", VAI_QLND],
 	},
 ]
+
+# Giám đốc = hợp mọi gói nghiệp vụ (trừ Shipper và vai quản trị hệ thống).
+for _g in GOI:
+	if _g["k"] not in ("giamdoc", "chucongty", "shipper"):
+		for _v in _g["vai"]:
+			if _v not in GOI[-2]["vai"]:
+				GOI[-2]["vai"].append(_v)
 
 GOI_THEO_KEY = {g["k"]: g for g in GOI}
 
@@ -278,39 +314,142 @@ def _vai_cua(email):
 	return set(rows)
 
 
-def _doan_goi(vai_nguoi):
-	"""Goi nao khop nhat voi bo vai dang co.
+def doan_cac_goi(vai_nguoi, co_that, da_luu=None):
+	"""Cac goi nguoi nay dang giu. PHEP THUAN, goi nang nhat dau.
 
-	Khop = du toan bo vai cua goi (trong so vai co that tren site).
+	Tu 06/10/2026 mot nguoi giu duoc NHIEU goi, quyen cong don (anh Viet
+	chot: De la Quan ly cua hang kiem Quan ly nguoi dung).
 
-	Chon theo BAC truoc, so vai sau. Truoc do chi so sanh so vai nen anh Viet
-	- co System Manager - lai bi doan thanh "Thu mua", vi goi Thu mua co bon
-	vai con goi Chu cong ty chi co hai. Xep nguoi theo so luong vai la sai:
-	quyen nang khong do bang so dong.
+	NGUON SU THAT LA DANH SACH GOI DA CHON (da_luu), khong phai bo vai.
+	Codex #449 P1: nguoi duoc xep "Quay + Thu mua" thi HOP vai cua hai goi
+	vo tinh du tron goi Kho (Thu mua co vai kho, Quay co Nhan hang dieu
+	chuyen). Neu doan tu bo vai thi Kho hien thanh goi thu ba, hop doi goi
+	chon san Kho, va khi bo Thu mua roi Luu thi Kho "tu moc ra" giu nguyen
+	quyen kho le ra phai go. Nen:
+
+	  - Co danh sach da luu: chi lay nhung goi trong do ma nguoi nay con du
+	    vai (ai do go vai tren Desk thi goi do roi ra). Khong them goi nao
+	    khac, du bo vai co du, ke ca khi khong con goi nao (tra rong).
+	  - Chua luu (tai khoan xep truoc v582): doan tu bo vai, nhung chi giu
+	    BO GOI NHO NHAT phu du vai: bo goi da nam tron trong mot goi khac,
+	    roi bo goi ma cac goi con lai da phu du vai cua no (goi bac thap xet
+	    truoc). Lan Luu dau tien se ghi danh sach that.
 	"""
-	co_that = _vai_co_that()
-	tot = None
+	vai_nguoi = set(vai_nguoi or ())
+	co_that = set(co_that or ())
+	khop = []
 	for g in GOI:
 		can = set(g["vai"]) & co_that
-		if not can:
-			continue
-		if not (can <= vai_nguoi):
-			continue
-		if tot is None:
-			tot = g
-			continue
-		if (g.get("bac", 0), len(can)) > (
-			tot.get("bac", 0), len(set(tot["vai"]) & co_that)
-		):
-			tot = g
-	return tot
+		if can and can <= vai_nguoi:
+			khop.append((g, can))
+	if da_luu:
+		# Da luu thi KHONG BAO GIO doan them, ke ca khi moi goi da luu deu
+		# mat vai (Codex #449 vong 3: Quay + Thu mua mat Sales User va Thu mua
+		# thi phan con lai van du goi Kho; doan lai la Kho moc ra). Tra rong
+		# de man hien "Chua xep goi" va quyen thua, nguoi quan ly xep lai.
+		theo_khoa = {g["k"]: g for g, _ in khop}
+		ra = [theo_khoa[k] for k in da_luu if k in theo_khoa]
+		ra.sort(key=lambda g: -g.get("bac", 0))
+		return ra
+	con = list(khop)
+	# Bo goi ma cac goi con lai da phu du vai. Mot phep lo ca hai ca: goi
+	# nam tron trong goi khac (Quay trong Sales trong QLCH) va goi "ghep" tu
+	# nhieu goi khac (Kho trong Quay + Thu mua). Xet goi bac thap, it vai
+	# truoc, nen hai goi trung y vai thi giu goi bac cao hon.
+	for g, can in sorted(con, key=lambda x: (x[0].get("bac", 0), len(x[1]))):
+		khac = set()
+		for h, can_h in con:
+			if h is not g:
+				khac |= can_h
+		if can <= khac:
+			con = [x for x in con if x[0] is not g]
+	ra = [g for g, _ in con]
+	ra.sort(key=lambda g: -g.get("bac", 0))
+	return ra
 
 
-def _thua_so_voi_goi(vai_nguoi, goi):
-	"""Vai nghiep vu dang co ma goi khong bao gom."""
-	if not goi:
-		return sorted(vai_nguoi & VAI_QUAN_LY)
-	return sorted((vai_nguoi & VAI_QUAN_LY) - set(goi["vai"]))
+KHOA_GOI_DA_LUU = "vgb_goi_chuc_vu"
+
+
+def _goi_da_luu(email):
+	"""Danh sach khoa goi da chon cho nguoi nay (rong neu chua luu).
+
+	KHONG nuot loi doc (Codex #449 vong 2 P1): doc hong ma coi nhu "chua
+	luu" thi man hinh hien bo goi doan, nguoi quan ly bam Luu tu man do la
+	ghi de mat danh sach that ma khong ai biet kho luu dang hong. De loi di
+	len duong bao loi san co cua man hinh.
+	"""
+	v = frappe.defaults.get_user_default(KHOA_GOI_DA_LUU, email) or ""
+	return doc_khoa_da_luu(v)
+
+
+def doc_khoa_da_luu(v):
+	"""Chuoi "a,b" da luu ra danh sach khoa hop le. PHEP THUAN."""
+	ra = []
+	for k in str(v or "").split(","):
+		k = k.strip()
+		if k and k in GOI_THEO_KEY and k not in ra:
+			ra.append(k)
+	return ra
+
+
+def _luu_goi(email, cac_goi):
+	"""Ghi danh sach goi da chon. Luu trong Mac dinh cua nguoi dung, khong
+	them cot vao bang User."""
+	frappe.defaults.set_user_default(
+		KHOA_GOI_DA_LUU, ",".join(g["k"] for g in cac_goi), email
+	)
+
+
+def ten_cac_goi(cac_goi):
+	return " + ".join(g["ten"] for g in cac_goi) if cac_goi else "Chưa xếp gói"
+
+
+def vai_cua_cac_goi(cac_goi):
+	"""Hop vai cua cac goi. PHEP THUAN."""
+	ra = set()
+	for g in cac_goi or ():
+		ra |= set(g["vai"])
+	return ra
+
+
+def doc_cac_goi(goi):
+	"""Nhan goi dang chuoi "a,b", JSON '["a","b"]' hoac danh sach. Tra ve goi.
+
+	PHEP THUAN. Khoa la thi nem ValueError kem ten khoa, de ben goi bao dung
+	cai sai. Trung khoa thi gop. Giu thu tu nguoi dung chon.
+	"""
+	if goi is None:
+		return []
+	if isinstance(goi, str):
+		t = goi.strip()
+		if t.startswith("["):
+			goi = json.loads(t)
+		else:
+			goi = [x for x in t.split(",")]
+	ra, da = [], set()
+	for k in goi:
+		k = str(k or "").strip()
+		if not k or k in da:
+			continue
+		if k not in GOI_THEO_KEY:
+			raise ValueError(k)
+		da.add(k)
+		ra.append(GOI_THEO_KEY[k])
+	return ra
+
+
+def _doan_goi(vai_nguoi):
+	"""Goi nang nhat nguoi nay dang giu (giu cho cho cu)."""
+	ds = doan_cac_goi(vai_nguoi, _vai_co_that())
+	return ds[0] if ds else None
+
+
+def _thua_so_voi_goi(vai_nguoi, cac_goi):
+	"""Vai nghiep vu dang co ma KHONG goi nao nguoi do giu bao gom."""
+	if isinstance(cac_goi, dict):
+		cac_goi = [cac_goi]
+	return sorted((set(vai_nguoi) & VAI_QUAN_LY) - vai_cua_cac_goi(cac_goi))
 
 
 # ------------------------------------------------------------------ doc
@@ -354,8 +493,9 @@ def danh_sach(tu_khoa=None, chip=None, goi=None):
 		# tài khoản web không vai nào rơi vào ca này.
 		if not trong and u.name.lower() != tim_dung_email:
 			continue
-		g = _doan_goi(vai)
-		thua = _thua_so_voi_goi(vai, g)
+		cg = doan_cac_goi(vai, co_that, _goi_da_luu(u.name))
+		g = cg[0] if cg else None
+		thua = _thua_so_voi_goi(vai, cg)
 		nghiep_vu = sorted((vai & co_that) - VAI_NEN)
 		r = {
 			"email": u.name,
@@ -363,7 +503,8 @@ def danh_sach(tu_khoa=None, chip=None, goi=None):
 			"sdt": u.mobile_no or u.phone or "",
 			"bat": cint(u.enabled),
 			"goi": g["k"] if g else "",
-			"goi_ten": g["ten"] if g else "Chưa xếp gói",
+			"cac_goi": [x["k"] for x in cg],
+			"goi_ten": ten_cac_goi(cg),
 			"goi_icon": g["icon"] if g else "❔",
 			"vai": nghiep_vu,
 			"so_vai": len(nghiep_vu),
@@ -413,7 +554,8 @@ def danh_sach(tu_khoa=None, chip=None, goi=None):
 		rows = [r for r in rows if r["vai_thua"]]
 
 	if goi:
-		rows = [r for r in rows if r["goi"] == goi]
+		# Người giữ nhiều gói hiện ở MỌI gói họ giữ.
+		rows = [r for r in rows if goi in r["cac_goi"]]
 
 	if tu_khoa:
 		k = (tu_khoa or "").strip().lower()
@@ -430,7 +572,8 @@ def danh_sach(tu_khoa=None, chip=None, goi=None):
 	rows.sort(key=lambda r: (0 if r["bat"] else 1, (r["ten"] or "").lower()))
 	dem_goi = {}
 	for r in rows:
-		dem_goi[r["goi"]] = dem_goi.get(r["goi"], 0) + 1
+		for k in (r["cac_goi"] or [""]):
+			dem_goi[k] = dem_goi.get(k, 0) + 1
 	return {
 		"rows": rows,
 		"dem": dem,
@@ -467,12 +610,13 @@ def danh_sach_goi():
 		vai_u = _vai_cua(u)
 		if not trong_pham_vi_quan_ly(row.user_type, vai_u):
 			continue
-		g = _doan_goi(vai_u)
-		k = g["k"] if g else ""
-		dem[k] = dem.get(k, 0) + 1
-		nguoi_theo_goi.setdefault(k, []).append(
-			frappe.db.get_value("User", u, "full_name") or u
-		)
+		cg = doan_cac_goi(vai_u, co_that, _goi_da_luu(u))
+		ten_u = frappe.db.get_value("User", u, "full_name") or u
+		# Người giữ hai gói được đếm ở CẢ HAI gói, khớp với bộ lọc gói của
+		# màn danh sách người dùng.
+		for k in ([x["k"] for x in cg] or [""]):
+			dem[k] = dem.get(k, 0) + 1
+			nguoi_theo_goi.setdefault(k, []).append(ten_u)
 	ra = []
 	for g in GOI:
 		thieu = [v for v in g["vai"] if v not in co_that]
@@ -509,7 +653,13 @@ def chi_tiet(email):
 		frappe.throw("Không thấy tài khoản %s." % email)
 	vai = _vai_cua(email)
 	co_that = _vai_co_that()
-	g = _doan_goi(vai)
+	cg = doan_cac_goi(vai, co_that, _goi_da_luu(email))
+	g = cg[0] if cg else None
+	lam = []
+	for x in cg:
+		for viec in x["lam_duoc"]:
+			if viec not in lam:
+				lam.append(viec)
 	return {
 		"email": u.name,
 		"ten": u.full_name or u.name,
@@ -520,10 +670,11 @@ def chi_tiet(email):
 		"lan_cuoi": u.last_active,
 		"tao_luc": u.creation,
 		"goi": g["k"] if g else "",
-		"goi_ten": g["ten"] if g else "Chưa xếp gói",
-		"lam_duoc": g["lam_duoc"] if g else [],
+		"cac_goi": [x["k"] for x in cg],
+		"goi_ten": ten_cac_goi(cg),
+		"lam_duoc": lam,
 		"vai": sorted((vai & co_that) - VAI_NEN),
-		"vai_thua": _thua_so_voi_goi(vai, g),
+		"vai_thua": _thua_so_voi_goi(vai, cg),
 		"vai_chon_duoc": sorted((co_that - VAI_NEN)),
 		"la_quan_tri": 1 if _la_quan_tri() else 0,
 		"la_toi": 1 if email == frappe.session.user else 0,
@@ -630,23 +781,38 @@ def _dat_vai(email, vai_can, cham_vao):
 	return them, go
 
 
+def _doc_goi_hoac_bao(goi):
+	try:
+		return doc_cac_goi(goi)
+	except ValueError as e:
+		frappe.throw("Không có gói chức vụ %s." % e)
+
+
 @frappe.whitelist()
 def dat_goi(email, goi):
-	"""Xep mot nguoi vao goi chuc vu."""
+	"""Xep mot nguoi vao MOT HAY NHIEU goi chuc vu, quyen cong don.
+
+	goi: mot khoa ("sales"), chuoi "qlch,nhansu" hoac danh sach JSON.
+	Vai cua nguoi do trong pham vi goi = HOP vai cac goi chon; vai ngoai
+	moi goi giu nguyen nhu cu.
+	"""
 	_kiem("đổi quyền người dùng")
-	g = GOI_THEO_KEY.get(goi)
-	if not g:
-		frappe.throw("Không có gói chức vụ %s." % goi)
+	cac = _doc_goi_hoac_bao(goi)
+	if not cac:
+		frappe.throw("Chưa chọn gói chức vụ nào.")
 	if not frappe.db.exists("User", email):
 		frappe.throw("Không thấy tài khoản %s." % email)
-	them, go = _dat_vai(email, g["vai"], VAI_QUAN_LY)
-	_ghi_vet("Xếp %s vào gói %s" % (email, g["ten"]))
+	them, go = _dat_vai(email, vai_cua_cac_goi(cac), VAI_QUAN_LY)
+	_luu_goi(email, cac)
+	ten = ten_cac_goi(cac)
+	_ghi_vet("Xếp %s vào gói %s" % (email, ten))
 	return {
 		"ok": 1,
-		"goi_ten": g["ten"],
+		"goi_ten": ten,
+		"cac_goi": [g["k"] for g in cac],
 		"them": them,
 		"go": go,
-		"loi_nhan": "Đã xếp %s vào gói %s." % (email, g["ten"])
+		"loi_nhan": "Đã xếp %s vào gói %s." % (email, ten)
 		+ (" Thêm %d quyền." % len(them) if them else "")
 		+ (" Gỡ %d quyền." % len(go) if go else "")
 		+ ("" if (them or go) else " Bộ quyền vốn đã đúng, không đổi gì."),
@@ -728,10 +894,10 @@ def moi(email, ten, goi=None, sdt=None, gui_thu=1):
 				% email,
 			)
 		)
-	g = GOI_THEO_KEY.get(goi) if goi else None
-	if goi and not g:
-		frappe.throw("Không có gói chức vụ %s." % goi)
-	if g and VAI_QUAN_TRI in g["vai"] and not _la_quan_tri():
+	cac = _doc_goi_hoac_bao(goi) if goi else []
+	vai_moi = vai_cua_cac_goi(cac)
+	g = {"ten": ten_cac_goi(cac)} if cac else None
+	if VAI_QUAN_TRI in vai_moi and not _la_quan_tri():
 		frappe.throw("Chỉ Chủ công ty mới mời được tài khoản Chủ công ty.")
 
 	phan = ten.split()
@@ -750,7 +916,8 @@ def moi(email, ten, goi=None, sdt=None, gui_thu=1):
 
 	them = []
 	if g:
-		them, _ = _dat_vai(email, g["vai"], VAI_QUAN_LY)
+		them, _ = _dat_vai(email, vai_moi, VAI_QUAN_LY)
+		_luu_goi(email, cac)
 	_ghi_vet("Mời tài khoản %s (%s)" % (email, g["ten"] if g else "chưa xếp gói"))
 	return {
 		"ok": 1,

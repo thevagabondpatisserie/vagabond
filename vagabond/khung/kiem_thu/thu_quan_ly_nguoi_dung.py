@@ -158,7 +158,10 @@ class _Site(object):
 			"_kiem": nd._kiem,
 			"_la_quan_tri": nd._la_quan_tri,
 			"get_value": nd.frappe.db.get_value,
+			"_goi_da_luu": nd._goi_da_luu,
 		}
+		# v582: frappe gia khong co defaults; cac ca o day chua luu goi nao.
+		nd._goi_da_luu = lambda email: []
 
 		def _get_all(dt, **k):
 			if dt != "User":
@@ -190,6 +193,7 @@ class _Site(object):
 		nd._kiem = self.cu["_kiem"]
 		nd._la_quan_tri = self.cu["_la_quan_tri"]
 		nd.frappe.db.get_value = self.cu["get_value"]
+		nd._goi_da_luu = self.cu["_goi_da_luu"]
 		return False
 
 
