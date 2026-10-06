@@ -312,44 +312,75 @@ def _vai_cua(email):
 	return set(rows)
 
 
-def doan_cac_goi(vai_nguoi, co_that):
-	"""Moi goi nguoi nay dang giu tron, bo nhung goi da nam gon trong goi khac.
+def doan_cac_goi(vai_nguoi, co_that, da_luu=None):
+	"""Cac goi nguoi nay dang giu. PHEP THUAN, goi nang nhat dau.
 
-	PHEP THUAN, khong cham Frappe. Tra ve danh sach goi, goi nang nhat dau.
+	Tu 06/10/2026 mot nguoi giu duoc NHIEU goi, quyen cong don (anh Viet
+	chot: De la Quan ly cua hang kiem Quan ly nguoi dung).
 
-	Tu 06/10/2026 mot nguoi giu duoc NHIEU goi (anh Viet chot: quyen cong
-	don, vi du De la Quan ly cua hang kiem Quan ly nguoi dung). Nen khong con
-	"doan mot goi" nua: lay moi goi ma nguoi do co du vai, roi bo goi nao
-	da nam tron trong mot goi khac cung khop (Quay nam trong Sales, Bep nam
-	trong Quan ly san xuat, moi goi nghiep vu nam trong Giam doc). Neu khong
-	bo, Giam doc se hien thanh mot chuoi muoi goi.
+	NGUON SU THAT LA DANH SACH GOI DA CHON (da_luu), khong phai bo vai.
+	Codex #449 P1: nguoi duoc xep "Quay + Thu mua" thi HOP vai cua hai goi
+	vo tinh du tron goi Kho (Thu mua co vai kho, Quay co Nhan hang dieu
+	chuyen). Neu doan tu bo vai thi Kho hien thanh goi thu ba, hop doi goi
+	chon san Kho, va khi bo Thu mua roi Luu thi Kho "tu moc ra" giu nguyen
+	quyen kho le ra phai go. Nen:
 
-	Khop = du toan bo vai cua goi trong so vai co that tren site. Goi khong
-	co vai nao ton tai tren site thi khong bao gio khop.
+	  - Co danh sach da luu: chi lay nhung goi trong do ma nguoi nay con du
+	    vai (ai do go vai tren Desk thi goi do roi ra). Khong them goi nao
+	    khac, du bo vai co du.
+	  - Chua luu (tai khoan xep truoc v582): doan tu bo vai, nhung chi giu
+	    BO GOI NHO NHAT phu du vai: bo goi da nam tron trong mot goi khac,
+	    roi bo goi ma cac goi con lai da phu du vai cua no (goi bac thap xet
+	    truoc). Lan Luu dau tien se ghi danh sach that.
 	"""
 	vai_nguoi = set(vai_nguoi or ())
+	co_that = set(co_that or ())
 	khop = []
 	for g in GOI:
-		can = set(g["vai"]) & set(co_that or ())
+		can = set(g["vai"]) & co_that
 		if can and can <= vai_nguoi:
 			khop.append((g, can))
-	ra = []
-	for i, (g, can) in enumerate(khop):
-		bi_nuot = False
-		for j, (h, can_h) in enumerate(khop):
-			if i == j:
-				continue
-			if can < can_h:
-				bi_nuot = True
-			elif can == can_h and (h.get("bac", 0), -j) > (g.get("bac", 0), -i):
-				# Hai goi trung y vai: giu goi bac cao hon, bang bac thi goi dung truoc.
-				bi_nuot = True
-			if bi_nuot:
-				break
-		if not bi_nuot:
-			ra.append(g)
+	if da_luu:
+		theo_khoa = {g["k"]: g for g, _ in khop}
+		ra = [theo_khoa[k] for k in da_luu if k in theo_khoa]
+		if ra:
+			ra.sort(key=lambda g: -g.get("bac", 0))
+			return ra
+	con = list(khop)
+	# Bo goi ma cac goi con lai da phu du vai. Mot phep lo ca hai ca: goi
+	# nam tron trong goi khac (Quay trong Sales trong QLCH) va goi "ghep" tu
+	# nhieu goi khac (Kho trong Quay + Thu mua). Xet goi bac thap, it vai
+	# truoc, nen hai goi trung y vai thi giu goi bac cao hon.
+	for g, can in sorted(con, key=lambda x: (x[0].get("bac", 0), len(x[1]))):
+		khac = set()
+		for h, can_h in con:
+			if h is not g:
+				khac |= can_h
+		if can <= khac:
+			con = [x for x in con if x[0] is not g]
+	ra = [g for g, _ in con]
 	ra.sort(key=lambda g: -g.get("bac", 0))
 	return ra
+
+
+KHOA_GOI_DA_LUU = "vgb_goi_chuc_vu"
+
+
+def _goi_da_luu(email):
+	"""Danh sach khoa goi da chon cho nguoi nay (rong neu chua luu)."""
+	try:
+		v = frappe.defaults.get_user_default(KHOA_GOI_DA_LUU, email) or ""
+	except Exception:
+		v = ""
+	return [k for k in str(v).split(",") if k.strip() and k.strip() in GOI_THEO_KEY]
+
+
+def _luu_goi(email, cac_goi):
+	"""Ghi danh sach goi da chon. Luu trong Mac dinh cua nguoi dung, khong
+	them cot vao bang User."""
+	frappe.defaults.set_user_default(
+		KHOA_GOI_DA_LUU, ",".join(g["k"] for g in cac_goi), email
+	)
 
 
 def ten_cac_goi(cac_goi):
@@ -444,7 +475,7 @@ def danh_sach(tu_khoa=None, chip=None, goi=None):
 		# tài khoản web không vai nào rơi vào ca này.
 		if not trong and u.name.lower() != tim_dung_email:
 			continue
-		cg = doan_cac_goi(vai, co_that)
+		cg = doan_cac_goi(vai, co_that, _goi_da_luu(u.name))
 		g = cg[0] if cg else None
 		thua = _thua_so_voi_goi(vai, cg)
 		nghiep_vu = sorted((vai & co_that) - VAI_NEN)
@@ -561,7 +592,7 @@ def danh_sach_goi():
 		vai_u = _vai_cua(u)
 		if not trong_pham_vi_quan_ly(row.user_type, vai_u):
 			continue
-		cg = doan_cac_goi(vai_u, co_that)
+		cg = doan_cac_goi(vai_u, co_that, _goi_da_luu(u))
 		ten_u = frappe.db.get_value("User", u, "full_name") or u
 		# Người giữ hai gói được đếm ở CẢ HAI gói, khớp với bộ lọc gói của
 		# màn danh sách người dùng.
@@ -604,7 +635,7 @@ def chi_tiet(email):
 		frappe.throw("Không thấy tài khoản %s." % email)
 	vai = _vai_cua(email)
 	co_that = _vai_co_that()
-	cg = doan_cac_goi(vai, co_that)
+	cg = doan_cac_goi(vai, co_that, _goi_da_luu(email))
 	g = cg[0] if cg else None
 	lam = []
 	for x in cg:
@@ -754,6 +785,7 @@ def dat_goi(email, goi):
 	if not frappe.db.exists("User", email):
 		frappe.throw("Không thấy tài khoản %s." % email)
 	them, go = _dat_vai(email, vai_cua_cac_goi(cac), VAI_QUAN_LY)
+	_luu_goi(email, cac)
 	ten = ten_cac_goi(cac)
 	_ghi_vet("Xếp %s vào gói %s" % (email, ten))
 	return {
@@ -867,6 +899,7 @@ def moi(email, ten, goi=None, sdt=None, gui_thu=1):
 	them = []
 	if g:
 		them, _ = _dat_vai(email, vai_moi, VAI_QUAN_LY)
+		_luu_goi(email, cac)
 	_ghi_vet("Mời tài khoản %s (%s)" % (email, g["ten"] if g else "chưa xếp gói"))
 	return {
 		"ok": 1,
