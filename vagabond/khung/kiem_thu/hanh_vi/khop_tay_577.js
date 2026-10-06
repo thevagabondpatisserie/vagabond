@@ -338,6 +338,26 @@ async function moKhop(app, them) {
     dung('khong toast da ve du', app.tin.filter(function (x) { return x.indexOf('toast:Tiền đã về đủ') === 0; }).length === 0);
   });
 
+  await ca('v580 (chi Dung 06/10): the Tien da ve co UNC thi co nut Xem UNC mo dung tep, khong UNC thi khong co', async function () {
+    var app = appMoi();
+    var html = app.g.cnVeDs({ ke_toan: 1, tong_dong: 2, tien: 354000, dong: [
+      { pe: 'APP-1', ten_khach: 'Khach A', tien: 29000, so_tep: 2, tep_unc: ['/private/files/unc-a.jpg', '/private/files/unc-b.pdf'], hd_dau: 'HD-1', so_hd: 1 },
+      { pe: 'APP-2', ten_khach: 'Khach B', tien: 325000, so_tep: 0, tep_unc: [], hd_dau: 'HD-2', so_hd: 1 }] });
+    var d = app.tl.createElement('div'); d.innerHTML = html; app.tl.body.appendChild(d);
+    var a = app.tim('[data-cnxemunc]');
+    bang('hai nut xem cho hai tep', a.length, 2);
+    bang('mo dung tep', [a[0].getAttribute('href'), a[1].getAttribute('href')], ['/private/files/unc-a.jpg', '/private/files/unc-b.pdf']);
+    bang('mo tab moi', a[0].getAttribute('target'), '_blank');
+    dung('nhan nut', chu(a[0]).indexOf('Xem UNC 1') >= 0);
+    /* Codex #445: Sales khong mo duoc tep rieng tu nen khong hien nut, van thay "Co UNC". */
+    var app2 = appMoi();
+    var html2 = app2.g.cnVeDs({ ke_toan: 0, tong_dong: 1, tien: 29000, dong: [
+      { pe: 'APP-1', ten_khach: 'Khach A', tien: 29000, so_tep: 1, tep_unc: ['/private/files/unc-a.jpg'], hd_dau: 'HD-1', so_hd: 1 }] });
+    var d2 = app2.tl.createElement('div'); d2.innerHTML = html2; app2.tl.body.appendChild(d2);
+    bang('Sales: khong co nut xem', app2.tim('[data-cnxemunc]').length, 0);
+    dung('Sales: van thay Co UNC', chu(d2).indexOf('Có UNC') >= 0);
+  });
+
   console.log('Bo ca kiem HANH VI v577: hop Khop tay va Huy phieu ket (Loan Anh, Ms.Dung)');
   ket.loi.forEach(function (d) { console.log('  HONG  ' + d); });
   console.log(ket.dat + ' ca dat, ' + ket.hong + ' ca hong, tong ' + (ket.dat + ket.hong) + ' ca.');
