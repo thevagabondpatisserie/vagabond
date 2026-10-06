@@ -670,3 +670,121 @@ def _():
 	dung("mọi truy vấn lọc theo ngày bán và đúng pháp nhân",
 		all("s.vgb_ngay_ban between %(tu)s and %(den)s" in c and "s.company=%(ct)s" in c and t.get("ct") == "CT" for c, t in cau_ds))
 	la("ngày trả về là ngày bán", sorted({u["ngay"] for u in ra}), ["2026-10-01"])
+
+
+@ca("Codex #450: chuyến đi chỉ Đã nối khi đủ mọi chứng từ cần có, thiếu thì nói thiếu gì")
+def _():
+	f = K.chung_tu_chuyen
+	la("giao hàng có vận đơn", f(1, "", "VD-1", None)[0], "Đã nối")
+	tt, gc = f(1, "C26TGB#123", "VD-1", None)
+	la("giao hàng có hoá đơn riêng: có vận đơn, thiếu hoá đơn mua", tt, "Không thấy chứng từ")
+	dung("ghi chú nói có vận đơn và thiếu hoá đơn mua", "Vận đơn VD-1" in gc and "thiếu hoá đơn mua C26TGB số 123" in gc)
+	tt, gc = f(1, "C26TGB#123", None, "PI-1")
+	la("có hoá đơn mua, thiếu vận đơn", (tt, "thiếu vận đơn" in gc), ("Không thấy chứng từ", True))
+	la("đủ cả hai", f(1, "C26TGB#123", "VD-1", "PI-1")[0], "Đã nối")
+	la("chuyến thường không cần chứng từ", f(0, "", None, None), ("Chưa nối", ""))
+	la("số hoá đơn không kèm ký hiệu (Be, hoá đơn gộp kỳ) không bắt hoá đơn mua từng chuyến", f(0, "0001234", None, None)[0], "Chưa nối")
+
+
+def _noi_chuyen_that(ncc, pi_ds, dong_ds, mau="grab_business"):
+	from types import SimpleNamespace as NS
+	from unittest.mock import patch
+	from vagabond import doi_soat_vendor as V
+	bat = {"pi": [], "ghi": {}}
+
+	class Hang(dict):
+		__getattr__ = dict.get
+
+	def get_all(dt, filters=None, **k):
+		if dt == "Supplier":
+			bat["mst"] = filters.get("tax_id")
+			return ncc
+		if dt == "Purchase Invoice":
+			bat["pi"].append(dict(filters))
+			return [Hang(p) for p in pi_ds if p["supplier"] in filters["supplier"][1]]
+		return []
+	with patch.object(V.frappe, "get_all", get_all, create=True), \
+			patch.object(V.frappe.db, "table_exists", lambda dt: False, create=True), \
+			patch.object(V.frappe, "get_meta", lambda dt: NS(has_field=lambda f: True), create=True), \
+			patch.object(V.frappe.db, "set_value", lambda dt, n, v, **k: bat["ghi"].__setitem__(n, v), create=True):
+		V._noi_chuyen(NS(mau=mau, company="CT", den_ngay=None, thuc_nhan=0, tu_ngay=None, name="N1"),
+			[Hang(d) for d in dong_ds])
+	return bat
+
+
+@ca("Codex #450: hoá đơn mua của chuyến chỉ tìm trong nhà cung cấp mang đúng MST người bán")
+def _():
+	dong = [dict(name="R1", loai="chuyen", ma_su_kien="B1", ma_don="B1", giao_hang=0, hoa_don_nguon="C26TGB#00123")]
+	pi = [dict(name="PI-GRAB", supplier="NCC-GRAB", grand_total=1, custom_hddt_ky_hieu="C26TGB"),
+		dict(name="PI-KHAC", supplier="NCC-KHAC", grand_total=1, custom_hddt_ky_hieu="C26TGB")]
+	bat = _noi_chuyen_that(["NCC-GRAB"], pi, dong)
+	la("tra MST Grab", bat["mst"], "0312650437")
+	la("lọc theo nhà cung cấp", bat["pi"][0]["supplier"], ["in", ["NCC-GRAB"]])
+	la("nối đúng hoá đơn của Grab, không lẫn người bán khác cùng số", bat["ghi"]["R1"]["purchase_invoice"], "PI-GRAB")
+	bat = _noi_chuyen_that([], pi, dong)
+	la("chưa có nhà cung cấp mang MST: không đoán", (bat["ghi"]["R1"]["purchase_invoice"], bat["ghi"]["R1"]["trang_thai_khop"]),
+		(None, "Không thấy chứng từ"))
+
+
+@ca("Codex #450: Nối theo tiền tính là chưa nối; lọc Cần xem và Đã nối dùng cùng nguồn")
+def _():
+	from types import SimpleNamespace as NS
+	from unittest.mock import patch
+	from vagabond import doi_soat_vendor as V
+	bat = {}
+
+	def sql(cau, tham=None, *a, **k):
+		bat["tham"] = tham
+		return [(3, 2)]
+	n = NS(name="N1", db_set=lambda d: bat.update(ghi=d))
+	with patch.object(V.frappe.db, "sql", sql, create=True):
+		V._dem_noi(n)
+	la("chỉ Đã nối là đã nối", bat["tham"]["da"], ("Đã nối",))
+	dung("Nối theo tiền nằm trong chưa nối", "Nối theo tiền" not in bat["tham"]["khong"])
+	la("ghi số", bat["ghi"], {"so_da_noi": 3, "so_chua_noi": 2})
+
+
+@ca("Codex #450: kế toán xác nhận gợi ý nối theo tiền; dòng đã xác nhận giữ nguyên khi đối chiếu lại")
+def _():
+	from contextlib import nullcontext
+	from types import SimpleNamespace as NS
+	from unittest.mock import patch
+	from vagabond import doi_soat_vendor as V
+
+	class Hang(dict):
+		__getattr__ = dict.get
+	ghi = {}
+	trang = {"tt": "Nối theo tiền"}
+	with patch.object(V, "_chan", lambda *a, **k: None), patch.object(V, "_chan_cong_ty", lambda ct: None), \
+			patch.object(V, "khoa_doi_chieu", lambda *a, **k: nullcontext()), \
+			patch.object(V.frappe.db, "get_value", lambda dt, n, f=None, **k: Hang(name=n, nguon="N1", company="CT",
+				trang_thai_khop=trang["tt"], sales_invoice="SI-9"), create=True), \
+			patch.object(V.frappe.db, "set_value", lambda dt, n, v, **k: ghi.__setitem__(n, v), create=True), \
+			patch.object(V.frappe, "session", NS(user="ketoan@x"), create=True), \
+			patch.object(V.frappe.utils, "now", lambda: "2026-10-07 10:00:00", create=True), \
+			patch.object(V.frappe, "get_doc", lambda *a, **k: NS(name="N1"), create=True), \
+			patch.object(V, "_dem_noi", lambda n: ghi.__setitem__("_dem", n.name)):
+		V.xac_nhan_noi(name="R9")
+		la("xác nhận: Đã nối, ghi người và lúc", (ghi["R9"]["trang_thai_khop"], ghi["R9"]["xac_nhan_boi"], ghi["R9"]["xac_nhan_luc"]),
+			("Đã nối", "ketoan@x", "2026-10-07 10:00:00"))
+		la("đếm lại nguồn", ghi["_dem"], "N1")
+		trang["tt"] = "Đã nối"
+		loi = ""
+		try:
+			V.xac_nhan_noi(name="R9")
+		except Exception as e:
+			loi = str(e)
+		dung("dòng không còn là gợi ý thì từ chối", "không còn là gợi ý" in loi)
+	# Đối chiếu lại: dòng R1 đã xác nhận với SI-1 giữ nguyên; SI-1 không gợi ý cho dòng R2 cùng tiền.
+	dong = [Hang(name="R1", loai="ban", ngay="2026-07-17", ma_tham_chieu="", tien_hang=100000, giam_gia=0,
+			trang_thai_khop="Đã nối", sales_invoice="SI-1", xac_nhan_boi="ketoan@x"),
+		Hang(name="R2", loai="ban", ngay="2026-07-17", ma_tham_chieu="", tien_hang=100000, giam_gia=0,
+			trang_thai_khop="Chưa nối", sales_invoice=None, xac_nhan_boi=None)]
+	ghi = {}
+	with patch.object(V, "_ung_vien_hd", lambda *a: [dict(name="SI-1", ngay="2026-07-17", tien=100000, ma=[""], tien_to="")]), \
+			patch.object(V.frappe, "get_all", lambda *a, **k: [], create=True), \
+			patch.object(V.frappe.utils, "add_days", lambda d, n: d, create=True), \
+			patch.object(V.frappe.db, "set_value", lambda dt, n, v, **k: ghi.__setitem__(n, v), create=True):
+		V._noi_hoa_don_ban(NS(mau="grabfood", company="CT", name="N1"), dong)
+	dung("dòng đã xác nhận không bị ghi đè", "R1" not in ghi)
+	la("hoá đơn đã xác nhận không gợi ý cho dòng khác", (ghi.get("R2") or {}).get("sales_invoice"), None)
