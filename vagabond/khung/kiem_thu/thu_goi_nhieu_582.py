@@ -301,3 +301,39 @@ def _p1_moi_luu():
 	src = ND[ND.find("def moi("):]
 	src = src[:src.find("\ndef ", 10)]
 	dung("moi goi _luu_goi", "_luu_goi(email, cac)" in src)
+
+
+# ------------------------------------------- Codex #449 vong 2 P1: loi doc kho luu
+
+@ca("Codex #449 vong 2 P1: doc goi da luu hong thi NEM, khong coi nhu chua luu")
+def _p1v2_khong_nuot():
+	import types
+	cu = getattr(nd.frappe, "defaults", None)
+
+	def _hong(*a, **k):
+		raise RuntimeError("DefaultValue khoa bang")
+
+	nd.frappe.defaults = types.SimpleNamespace(get_user_default=_hong, set_user_default=_hong)
+	try:
+		nem("doc hong phai nem", lambda: nd._goi_da_luu("de@vgb"), RuntimeError)
+	finally:
+		if cu is None:
+			del nd.frappe.defaults
+		else:
+			nd.frappe.defaults = cu
+
+
+@ca("Codex #449 vong 2 P1: doc goi da luu binh thuong tra dung khoa")
+def _p1v2_doc_dung():
+	import types
+	cu = getattr(nd.frappe, "defaults", None)
+	nd.frappe.defaults = types.SimpleNamespace(
+		get_user_default=lambda k, u: " qlch , nhansu,abc,qlch" if k == nd.KHOA_GOI_DA_LUU else None)
+	try:
+		la("khoa sach, bo khoa la va trung", nd._goi_da_luu("de@vgb"), ["qlch", "nhansu"])
+	finally:
+		if cu is None:
+			del nd.frappe.defaults
+		else:
+			nd.frappe.defaults = cu
+	la("rong", nd.doc_khoa_da_luu(None), [])
