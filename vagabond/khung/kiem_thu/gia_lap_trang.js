@@ -7,7 +7,7 @@
    khung gio. Ba loi do chi lo ra khi CHAY that va TUA duoc dong ho.
 
    Cach dung:
-     node gia_lap_trang.js <duong-dan-banh.html> <ISO gio ban dau> <ma kich ban>
+     node gia_lap_trang.js <duong-dan-banh.html> <ISO gio ban dau> <ma kich ban> [JSON sessionStorage nap san]
 
    Ma kich ban chay trong cung pham vi voi ma cua trang, nen goi thang duoc
    pick(), pickSlot(), drawCoDate(), mocGioNhan()... Trong kich ban co san:
@@ -32,8 +32,16 @@ if (!m) { throw new Error('khong thay khoi script trong trang'); }
 let ma = fs.readFileSync(require('path').join(require('path').dirname(duong), '../public/web_order/chu.js'), 'utf8').split('(function ()')[0] + '\n' + m[1];
 
 /* Cat cac loi goi khoi dong o cuoi tep: chung nap du lieu qua mang va dat
-   nhip 60 giay, khong lien quan gi den viec dang kiem. */
-ma = ma.replace(/\nnapTonQuay\(\);[\s\S]*$/, '\n');
+   nhip 60 giay, khong lien quan gi den viec dang kiem.
+   Codex #450: RIENG phucHoiGio() la mot buoc cua luc tai trang (khong goi
+   mang) nen giu lai, dung thu tu: sau lan ve dau, truoc kich ban. Cat ca no
+   di thi kich ban phai tu goi lai phucHoiGio(), va chinh viec do da che mat
+   loi lan ve dau xoa gio da cat (gio khong bao gio khoi phuc duoc). */
+{
+	const duoi = ma.match(/\nnapTonQuay\(\);[\s\S]*$/);
+	ma = ma.replace(/\nnapTonQuay\(\);[\s\S]*$/, '\n');
+	if (duoi && /^phucHoiGio\(\);$/m.test(duoi[0])) ma += 'phucHoiGio();\n';
+}
 
 /* ---------------- DONG HO DIEU KHIEN DUOC ---------------- */
 let lech = 0;                       /* mili giay cong them vao dong ho that */
@@ -203,6 +211,13 @@ async function fetchGia(url, opt) {
 }
 
 const khoPhien = new Map();
+/* Codex #450: tham so thu nam (tuy chon) la JSON {khoa: chuoi} nap san vao
+   sessionStorage TRUOC khi ma trang chay, de dung dung canh tai lai trang
+   (gio da cat tu lan truoc). Dat sau khi trang chay roi goi lai ham khoi
+   phuc la ca kiem che loi, xem docs/bai-hoc-su-co.md. */
+if (process.argv[5]) {
+	for (const [k, v] of Object.entries(JSON.parse(process.argv[5]))) khoPhien.set(k, String(v));
+}
 const window = {
 	location: { hash: '', pathname: '/banh', href: 'http://x/banh', replace() {}, search: '',
 		assign(u) { GHI.chuyenTrang.push(String(u)); } },

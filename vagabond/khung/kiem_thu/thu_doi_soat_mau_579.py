@@ -482,3 +482,48 @@ def _():
 	la("hai phần tử: một đọc được, một lỗi", sorted(t["loai"] for t in ra), ["csv", "loi"])
 	tot = next(t for t in ra if t["loai"] == "csv")
 	la("tệp tốt vẫn nhận đủ", len(M.doc(tot)["dong"]), 3)
+
+
+@ca("Codex #450: tệp con sai CRC hay dữ liệu nén hỏng trong gói zip thành mục lỗi, tệp tốt bên cạnh vẫn đọc")
+def _():
+	# Khác ca H3 ở trên: ca đó nhét một tệp con CẤU TRÚC ĐÚNG nhưng không phải
+	# Excel, nên lỗi rơi ở bước đọc nội dung. Ở đây hỏng thật ở tầng giải nén:
+	# một tệp lưu thẳng bị sửa một byte (sai CRC) và một tệp nén deflate có
+	# dòng dữ liệu nén bị phá (zlib báo lỗi).
+	import io
+	import zipfile
+	b = io.BytesIO()
+	with zipfile.ZipFile(b, "w") as z:
+		z.writestr(TEN_PAYOO, PAYOO_THE.replace("\n", "\r\n").encode("utf-8"))
+		z.writestr("sai-crc.csv", b"MA_HONG_CRC,1,2,3\n" * 50, compress_type=zipfile.ZIP_STORED)
+		z.writestr("nen-hong.csv", ("dong %s,1,2\n" % "x" * 400).encode() * 40, compress_type=zipfile.ZIP_DEFLATED)
+	goi = bytearray(b.getvalue())
+	i = goi.find(b"MA_HONG_CRC")
+	dung("tìm thấy dữ liệu tệp lưu thẳng", i > 0)
+	goi[i] ^= 0xFF
+	with zipfile.ZipFile(io.BytesIO(bytes(goi))) as z:
+		tt = z.getinfo("nen-hong.csv")
+		dau = tt.header_offset + 30 + len(tt.filename.encode()) + len(tt.extra)
+	for k in range(dau + 2, dau + 40):
+		goi[k] = 0xFF
+	goi = bytes(goi)
+	ra = D.doc_tep("goi.zip", goi)
+	la("ba phần tử theo đúng tên", sorted((t["ten"], t["loai"]) for t in ra),
+		sorted([(TEN_PAYOO, "csv"), ("sai-crc.csv", "loi"), ("nen-hong.csv", "loi")]))
+	tot = next(t for t in ra if t["loai"] == "csv")
+	la("tệp tốt vẫn nhận đủ", len(M.doc(tot)["dong"]), 3)
+	hong = [t for t in ra if t["loai"] == "loi"]
+	dung("lý do nói tệp trong gói bị hỏng", all("bị hỏng" in t["loi"] for t in hong))
+	la("mã băm tệp hỏng ổn định và khác nhau", (len({t["sha256"] for t in hong}),
+		sorted(t["sha256"] for t in hong) == sorted(t["sha256"] for t in D.doc_tep("goi.zip", goi) if t["loai"] == "loi")), (2, True))
+	nem("trần cả gói vẫn dừng cả gói, không bị nuốt thành tệp lỗi", lambda: D.doc_zip(_goi_qua_tran()), D.LoiTep)
+
+
+def _goi_qua_tran():
+	import io
+	import zipfile
+	b = io.BytesIO()
+	with zipfile.ZipFile(b, "w", zipfile.ZIP_DEFLATED) as z:
+		for k in range(3):
+			z.writestr("bao-cao-%s.csv" % k, b"0" * (15 * 1024 * 1024))
+	return b.getvalue()

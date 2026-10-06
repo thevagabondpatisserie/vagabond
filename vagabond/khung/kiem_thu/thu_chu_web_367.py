@@ -363,6 +363,10 @@ await napTonHomNay();RA({truoc,dangCho,sau,daLuu,gia0:cartTotal(),qty:CART[0].qt
 
 @ca('Codex #446: bánh chỉ có trong danh mục sống không mất khi tải lại trước lúc danh mục về')
 def _gio_mon_dong():
+    # LƯU Ý (Codex #450): ca này đặt sessionStorage SAU khi trang đã chạy rồi
+    # tự gọi lại phucHoiGio(), nên KHÔNG thấy lỗi lần vẽ đầu xoá giỏ trước khi
+    # khôi phục. Giữ để kiểm phần ganGioCho; đường tải lại thật nằm ở ca
+    # "tải lại trang thật" ngay dưới. Đừng dùng ca này làm bằng chứng tải lại.
     from vagabond.khung.kiem_thu.thu_trang_dat_banh import _chay
     r = _chay('2026-10-06T08:00:00', r'''
 sessionStorage.setItem('vgb-gio-v1',JSON.stringify({luc:Date.now(),gio:[{id:'KT446-MOI-20',cm:20,qty:2,price:1,wish:'Chúc',adds:[],nguon:'order'}]}));
@@ -378,6 +382,29 @@ RA({truoc,giuKhiLuu,sau:CART.map(o=>({id:o.id,qty:o.qty,price:o.price,wish:o.wis
     la('lưu lại lúc đang chờ không mất dòng', r['giuKhiLuu'], 1)
     la('danh mục về: dựng lại đúng dòng, giá theo danh mục', r['sau'], [{'id':'KT446-MOI-20','qty':2,'price':450000,'wish':'Chúc'}])
     la('không còn dòng chờ', r['cho'], 0)
+
+
+@ca('Codex #450: tải lại trang thật, giỏ đã cất được khôi phục chứ không bị lần vẽ đầu xoá')
+def _gio_tai_lai_that():
+    # Nạp sẵn sessionStorage TRƯỚC khi mã trang chạy, đúng như trình duyệt
+    # tải lại. Kịch bản KHÔNG gọi phucHoiGio() hay luuGioDangSoan(): chỉ đọc
+    # trạng thái trang tự dựng, rồi cho danh mục về.
+    from vagabond.khung.kiem_thu.thu_trang_dat_banh import _chay
+    kho = {'vgb-gio-v1': json.dumps({'luc': 1791246600000, 'gio': [{'id': 'KT450-MOI-20', 'cm': 20, 'qty': 3,
+        'price': 1, 'wish': 'Mừng', 'adds': [], 'nguon': 'order'}], 'truong': {'f-note': 'Giao trước 10 giờ'}},
+        ensure_ascii=False)}
+    r = _chay('2026-10-06T08:00:00', r'''
+const luu=JSON.parse(sessionStorage.getItem('vgb-gio-v1')||'{"gio":[]}');
+const luc_dau={dong:CART.length,cho:gioBanhCho.length,luu:luu.gio.length,ghi_chu:(document.getElementById('f-note')||{}).value||''};
+fetch=async()=>({json:async()=>({message:{banh:{},nhom:[{ten:'Bánh kiểm 450',sizes:[{ma:'KT450-MOI-20',cm:20,gia:520000}]}]}})});
+await napTonHomNay();
+RA({luc_dau,sau:CART.map(o=>({id:o.id,qty:o.qty,price:o.price,wish:o.wish})),
+  luu_sau:JSON.parse(sessionStorage.getItem('vgb-gio-v1')||'{"gio":[]}').gio.length});
+''', kho_phien=kho)
+    la('sau tải lại: bản cất vẫn còn, dòng nằm chờ danh mục', (r['luc_dau']['luu'], r['luc_dau']['cho']), (1, 1))
+    # Ô nháp thanh toán không kiểm ở đây: DOM giả không có closest('#checkout').
+    la('danh mục về: dòng vào giỏ đúng giá danh mục', r['sau'], [{'id': 'KT450-MOI-20', 'qty': 3, 'price': 520000, 'wish': 'Mừng'}])
+    la('giỏ vẫn được cất sau khi khôi phục', r['luu_sau'], 1)
 
 
 @ca('#436 CMS: chặn vị trí mất khối, link lạ và Zalo cá nhân; nâng cấp không mất chữ')

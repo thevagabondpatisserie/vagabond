@@ -80,7 +80,7 @@ DAYS_JS = (
 )
 
 
-def _chay(gio, kich_ban):
+def _chay(gio, kich_ban, kho_phien=None):
 	"""Nạp TOÀN BỘ mã của trang vào node với đồng hồ đặt ở `gio`, chạy kịch
 	bản, rồi đọc lại JSON mà kịch bản in ra.
 
@@ -91,7 +91,7 @@ def _chay(gio, kich_ban):
 	js = os.path.join(_goc(), "vagabond", "khung", "kiem_thu", "gia_lap_trang.js")
 	trang = os.path.join(_goc(), "vagabond", "trang", "banh.html")
 	r = subprocess.run(
-		["node", js, trang, gio, kich_ban],
+		["node", js, trang, gio, kich_ban] + ([json.dumps(kho_phien, ensure_ascii=False)] if kho_phien else []),
 		capture_output=True, text=True, timeout=60,
 	)
 	if r.returncode != 0:

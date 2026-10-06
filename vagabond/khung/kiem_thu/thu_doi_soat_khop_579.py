@@ -380,3 +380,68 @@ def _():
 	from vagabond import doi_soat_vendor as V
 	dung("mỗi dòng bắt đầu với van_don và purchase_invoice rỗng",
 		'cap = {"van_don": None, "purchase_invoice": None}' in inspect.getsource(V._noi_chuyen))
+
+
+def _chay_thu(tep, tieu_de, da_co=None):
+	"""Chạy xu_ly_thu THẬT (cả _nhan_byte thật) với tầng chạm hệ được thay:
+	tep = {tên đính kèm: [(tên tệp con, có mẫu?)]}. Trả (ket, các nguồn đã ghi)."""
+	from contextlib import nullcontext
+	from types import SimpleNamespace as NS
+	from unittest.mock import patch
+	from vagabond import doi_soat_vendor as V
+	da_co = dict(da_co or {})
+	ghi = []
+
+	def doc_va_xem(ten, byte, cong_ty):
+		ra = []
+		for con, co_mau in tep[ten]:
+			kq = dict(mau="payoo_the" if co_mau else "", loi=[] if co_mau else ["Chưa nhận ra mẫu"])
+			ra.append((dict(ten=con, sha256="sha-" + con, loai="csv"), kq, dict(trang_thai="Đã nhận" if co_mau else "Lỗi tệp")))
+		return ra
+
+	def get_value(dt, loc, truong=None, as_dict=False):
+		if dt == "Communication":
+			return NS(subject=tieu_de, content="", sender="noreply@payoo.com.vn")
+		sha = loc.get("sha256") if isinstance(loc, dict) else None
+		return NS(name=da_co[sha][0], trang_thai=da_co[sha][1]) if sha in da_co else None
+
+	def ghi_nguon(cong_ty, t, kq, xt, kenh, file_url, comm, co_san=None):
+		ghi.append((t["ten"], co_san))
+		da_co[t["sha256"]] = ("N-" + t["ten"], xt["trang_thai"])
+		return dict(name="N-" + t["ten"], trang_thai=xt["trang_thai"], da_co=0, ten_tep=t["ten"])
+
+	tep_dinh = [NS(name="F-" + k, file_name=k, file_url="/private/files/" + k) for k in tep]
+	with patch.object(V, "khoa_doi_chieu", lambda *a, **k: nullcontext()), \
+			patch.object(V, "_cong_ty", lambda: "CT"), \
+			patch.object(V, "_doc_va_xem", doc_va_xem), \
+			patch.object(V, "_ghi_nguon", ghi_nguon), \
+			patch.object(V, "_byte_tep", lambda ten: b"x", create=True), \
+			patch.object(V.frappe, "get_doc", lambda *a, **k: NS(get_content=lambda: b"x"), create=True), \
+			patch.object(V.frappe, "get_all", lambda *a, **k: tep_dinh, create=True), \
+			patch.object(V.frappe.db, "get_value", get_value, create=True), \
+			patch.object(V, "_ghi_thu_khong_tep", lambda comm, c: ghi.append(("THAN_THU", None)) or [dict(name="N-than")]):
+		ket = V.xu_ly_thu("COMM-1")
+	return ket, ghi
+
+
+@ca("Codex #450: thư có báo cáo đọc được kèm một tệp hỏng hoặc chưa có mẫu thì tệp đó vẫn hiện ở Cần xử lý")
+def _():
+	ket, ghi = _chay_thu({"bao-cao.csv": [("bao-cao.csv", True)], "hong.xlsx": [("hong.xlsx", False)]}, "Thong bao")
+	la("ghi cả báo cáo lẫn tệp hỏng, mỗi tệp một lần", sorted(ghi), [("bao-cao.csv", None), ("hong.xlsx", None)])
+	la("kết quả không lặp", sorted(r["name"] for r in ket), ["N-bao-cao.csv", "N-hong.xlsx"])
+	# Gói zip có tệp con tốt và tệp con chưa có mẫu: chỉ ghi thêm tệp con bị bỏ qua.
+	ket, ghi = _chay_thu({"goi.zip": [("a.csv", True), ("b.pdf", False)]}, "Thong bao")
+	la("zip: tệp con tốt ghi một lần, tệp con lỗi được ghi", sorted(ghi), [("a.csv", None), ("b.pdf", None)])
+	la("zip: kết quả không lặp tệp con tốt", sorted(r["ten_tep"] for r in ket), ["a.csv", "b.pdf"])
+
+
+@ca("Codex #450: thư quảng cáo không có tệp nhận ra mẫu vẫn bỏ qua; quét lại không ghi lại hay sinh nguồn thân thư")
+def _():
+	ket, ghi = _chay_thu({"brochure.pdf": [("brochure.pdf", False)]}, "Ưu đãi tháng 10 cho đối tác")
+	la("quảng cáo: không ghi gì", (ghi, ket), ([], []))
+	ket, ghi = _chay_thu({"bang-ke.xlsx": [("bang-ke.xlsx", False)]}, "Payoo - Báo cáo đối soát tháng 09/2026")
+	la("thư báo cáo chỉ có tệp chưa có mẫu: ghi đúng tệp đó, không thêm nguồn thân thư", ghi, [("bang-ke.xlsx", None)])
+	# Lượt quét giờ sau: tệp đó đã có nguồn "Lỗi tệp".
+	ket, ghi = _chay_thu({"bang-ke.xlsx": [("bang-ke.xlsx", False)]}, "Payoo - Báo cáo đối soát tháng 09/2026",
+		da_co={"sha-bang-ke.xlsx": ("N-bang-ke.xlsx", "Lỗi tệp")})
+	la("quét lại: không ghi lại, không sinh nguồn thân thư", (ghi, [r["name"] for r in ket]), ([], ["N-bang-ke.xlsx"]))
