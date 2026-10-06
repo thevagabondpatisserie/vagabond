@@ -21,6 +21,7 @@ Không có gì ở đây tạo Payment Entry, Journal Entry hay gạch Bank Tran
 
 import base64
 import json
+from contextlib import contextmanager
 
 import frappe
 
@@ -182,18 +183,43 @@ def nhan(file_url=None):
 	return _nhan_byte(ten, byte, "Tải tay", file_url=file_url)
 
 
+KHOA_DOI_CHIEU = "vgb_doi_soat_vendor"
+
+
+@contextmanager
+def khoa_doi_chieu(db=None, cho=60):
+	"""Codex #446: mọi lượt nhận tệp và đối chiếu chạy nối tiếp nhau.
+
+	Hai lượt song song (hai thư cùng đến, kế toán bấm lúc thư đang đọc) cùng
+	đọc "giao dịch ngân hàng / hoá đơn nào còn trống" trước khi bên kia ghi,
+	rồi cùng nhận một giao dịch hay một hoá đơn. Khoá có tên của MariaDB giữ
+	qua commit, nên: lấy khoá, commit để mở ảnh dữ liệu mới (không dùng ảnh
+	đọc từ trước khi chờ khoá), làm việc, commit, rồi mới nhả khoá.
+	"""
+	db = db or frappe.db
+	r = db.sql("select get_lock(%s, %s)", (KHOA_DOI_CHIEU, cho))
+	if not r or r[0][0] != 1:
+		frappe.throw("Đang có lượt đối soát khác chạy. Đợi ít phút rồi bấm lại.")
+	try:
+		db.commit()
+		yield
+		db.commit()
+	finally:
+		db.sql("select release_lock(%s)", (KHOA_DOI_CHIEU,))
+
+
 def _nhan_byte(ten, byte, kenh, file_url=None, communication=None, chi_mau_quen=False):
-	cong_ty = _cong_ty()
-	ket = []
-	for t, kq, xt in _doc_va_xem(ten, byte, cong_ty):
-		if chi_mau_quen and not kq["mau"]:
-			continue
-		da = frappe.db.get_value(DT_NGUON, {"sha256": t["sha256"]}, ["name", "trang_thai"], as_dict=True)
-		if da:
-			ket.append(dict(name=da.name, trang_thai=da.trang_thai, da_co=1, ten_tep=t["ten"]))
-			continue
-		ket.append(_ghi_nguon(cong_ty, t, kq, xt, kenh, file_url, communication))
-	frappe.db.commit()
+	with khoa_doi_chieu():
+		cong_ty = _cong_ty()
+		ket = []
+		for t, kq, xt in _doc_va_xem(ten, byte, cong_ty):
+			if chi_mau_quen and not kq["mau"]:
+				continue
+			da = frappe.db.get_value(DT_NGUON, {"sha256": t["sha256"]}, ["name", "trang_thai"], as_dict=True)
+			if da:
+				ket.append(dict(name=da.name, trang_thai=da.trang_thai, da_co=1, ten_tep=t["ten"]))
+				continue
+			ket.append(_ghi_nguon(cong_ty, t, kq, xt, kenh, file_url, communication))
 	return ket
 
 
@@ -259,8 +285,8 @@ def _ghi_nguon(cong_ty, t, kq, xt, kenh, file_url, communication):
 @frappe.whitelist()
 def doi_chieu_lai(name=None):
 	_chan(True)
-	_doi_chieu(name)
-	frappe.db.commit()
+	with khoa_doi_chieu():
+		_doi_chieu(name)
 	return chi_tiet(name)
 
 

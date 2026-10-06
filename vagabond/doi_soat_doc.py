@@ -24,6 +24,9 @@ import zipfile
 
 TOI_DA_BYTE = 20 * 1024 * 1024
 TOI_DA_TEP_ZIP = 20
+# Codex #446: tổng dung lượng sau giải nén của một gói, đếm theo byte đọc
+# thật (không tin kích thước khai trong đầu zip).
+TOI_DA_GIAI_NEN = 40 * 1024 * 1024
 TOI_DA_DONG = 20000
 TOI_DA_COT = 200
 
@@ -189,9 +192,10 @@ def doc_pdf(noi_dung):
 
 
 def doc_zip(noi_dung, sau=0):
-	if sau > 1:
-		raise LoiTep("Tệp nén lồng nhiều tầng; giải nén rồi tải từng tệp.")
+	if sau > 0:
+		raise LoiTep("Tệp nén lồng trong tệp nén; giải nén rồi tải từng tệp.")
 	ra = []
+	con_lai = TOI_DA_GIAI_NEN
 	with zipfile.ZipFile(io.BytesIO(noi_dung)) as z:
 		ds = [i for i in z.infolist() if not i.is_dir() and not i.filename.startswith("__MACOSX")]
 		if len(ds) > TOI_DA_TEP_ZIP:
@@ -201,7 +205,21 @@ def doc_zip(noi_dung, sau=0):
 				raise LoiTep("Tệp nén có mật khẩu; giải nén bằng mật khẩu rồi tải tệp bên trong.")
 			if i.file_size > TOI_DA_BYTE:
 				raise LoiTep("Tệp trong gói nén quá 20 MB; tải riêng tệp đó.")
-			ra.append((i.filename.rsplit("/", 1)[-1], z.read(i)))
+			# Đọc từng khúc, dừng ngay khi vượt trần từng tệp hoặc trần cả gói.
+			khuc, da_doc = [], 0
+			with z.open(i) as f:
+				while True:
+					b = f.read(1024 * 1024)
+					if not b:
+						break
+					da_doc += len(b)
+					if da_doc > TOI_DA_BYTE:
+						raise LoiTep("Tệp trong gói nén quá 20 MB; tải riêng tệp đó.")
+					if da_doc > con_lai:
+						raise LoiTep("Gói nén giải ra quá 40 MB; tải từng tệp hoặc chia gói nhỏ hơn.")
+					khuc.append(b)
+			con_lai -= da_doc
+			ra.append((i.filename.rsplit("/", 1)[-1], b"".join(khuc)))
 	return ra
 
 
