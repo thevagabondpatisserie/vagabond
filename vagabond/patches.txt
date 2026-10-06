@@ -363,3 +363,4 @@ vagabond.patches.dong_bo_cau_truc #v571
 vagabond.patches.dong_bo_cau_truc #v572
 vagabond.patches.dong_bo_cau_truc #v576
 vagabond.patches.dong_bo_cau_truc #v577
+vagabond.patches.dong_bo_cau_truc #v580
