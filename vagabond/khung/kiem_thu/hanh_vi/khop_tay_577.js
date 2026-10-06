@@ -349,6 +349,13 @@ async function moKhop(app, them) {
     bang('mo dung tep', [a[0].getAttribute('href'), a[1].getAttribute('href')], ['/private/files/unc-a.jpg', '/private/files/unc-b.pdf']);
     bang('mo tab moi', a[0].getAttribute('target'), '_blank');
     dung('nhan nut', chu(a[0]).indexOf('Xem UNC 1') >= 0);
+    /* Codex #445: Sales khong mo duoc tep rieng tu nen khong hien nut, van thay "Co UNC". */
+    var app2 = appMoi();
+    var html2 = app2.g.cnVeDs({ ke_toan: 0, tong_dong: 1, tien: 29000, dong: [
+      { pe: 'APP-1', ten_khach: 'Khach A', tien: 29000, so_tep: 1, tep_unc: ['/private/files/unc-a.jpg'], hd_dau: 'HD-1', so_hd: 1 }] });
+    var d2 = app2.tl.createElement('div'); d2.innerHTML = html2; app2.tl.body.appendChild(d2);
+    bang('Sales: khong co nut xem', app2.tim('[data-cnxemunc]').length, 0);
+    dung('Sales: van thay Co UNC', chu(d2).indexOf('Có UNC') >= 0);
   });
 
   console.log('Bo ca kiem HANH VI v577: hop Khop tay va Huy phieu ket (Loan Anh, Ms.Dung)');
