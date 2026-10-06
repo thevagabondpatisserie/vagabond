@@ -10523,6 +10523,9 @@ function hoiChonNhieu(tuaDe, moTa, luaChon, dsDangChon, nhanNut) {
     var dang = {};
     (dsDangChon || []).forEach(function (k) { dang[String(k)] = 1; });
     var than = (moTa ? '<div style="font-size:13.5px;line-height:1.6;color:#4b5563;margin-bottom:12px">' + moTa + '</div>' : '');
+    /* Codex #449 P2: hon 8 muc thi phai co o tim (AGENTS.md "Chon la tim"),
+       giong hoiChon. Loc theo ten lan mo ta. */
+    than += vgbOTim('hcnTim', (luaChon || []).length, '🔎 Gõ để tìm nhanh');
     (luaChon || []).forEach(function (x) {
       than += '<div data-hcn="' + h(String(x.k)) + '" style="display:flex;align-items:flex-start;gap:11px;padding:13px 14px;border-radius:14px;margin-bottom:9px;cursor:pointer;min-height:44px;box-sizing:border-box">'
         + '<div data-hcn-o style="flex:0 0 auto;width:22px;height:22px;border-radius:7px;border:2px solid #0f766e;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px"></div>'
@@ -10552,6 +10555,7 @@ function hoiChonNhieu(tuaDe, moTa, luaChon, dsDangChon, nhanNut) {
       return so;
     };
     ve();
+    vgbNoiOTim(k.box, 'hcnTim', '[data-hcn]');
     var tra = function (v) { k.dong(); xong(v); };
     k.box.onclick = function (e) {
       if (e.target.closest('.x') || e.target.closest('[data-hcx]')) return tra(null);
