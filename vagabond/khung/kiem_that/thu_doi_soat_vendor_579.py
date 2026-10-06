@@ -115,8 +115,26 @@ def _goi(ai, ham):
 		frappe.set_user(truoc)
 
 
+def _pdf_hop_le(dau):
+	"""PDF một trang tối thiểu nhưng ĐÚNG cấu trúc (có bảng xref). Frappe mở
+	thử mọi PDF trước khi cất (dò mã chạy ngầm), nên byte giả "%PDF-1.4 ..."
+	làm thư viện đọc PDF nổ và ca kiểm chết trước khi tới phần cần kiểm."""
+	vat = [b"<< /Type /Catalog /Pages 2 0 R >>", b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+		b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 10 10] >>"]
+	ra = b"%PDF-1.4\n%" + dau.encode() + b"\n"
+	vi_tri = []
+	for i, v in enumerate(vat, 1):
+		vi_tri.append(len(ra))
+		ra += b"%d 0 obj\n" % i + v + b"\nendobj\n"
+	xref = len(ra)
+	ra += b"xref\n0 %d\n0000000000 65535 f \n" % (len(vat) + 1)
+	ra += b"".join(b"%010d 00000 n \n" % x for x in vi_tri)
+	ra += b"trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n" % (len(vat) + 1, xref)
+	return ra
+
+
 def _tai(ai, ten):
-	noi = "data:application/pdf;base64," + base64.b64encode(b"%PDF-1.4 KT579 " + frappe.generate_hash().encode()).decode()
+	noi = "data:application/pdf;base64," + base64.b64encode(_pdf_hop_le("KT579 " + frappe.generate_hash())).decode()
 	up = _goi(ai, lambda: dv.tai_len(ten=ten, noi_dung=noi))
 	_DA_TAO.append(("File", frappe.db.get_value("File", {"file_url": up["file_url"]}, "name")))
 	return up["file_url"]
@@ -193,6 +211,21 @@ def _():
 		ra = _goi(ai, lambda: dv.nhan(file_url=url))
 	_DA_TAO.append((dv.DT_NGUON, ra[0]["name"]))
 	la("không thêm bút toán, phiếu", (frappe.db.count("Journal Entry"), frappe.db.count("Payment Entry")), truoc)
+
+
+@ca("Codex #450 bench: PDF hỏng tải lên báo lời người dùng, không lộ lỗi thư viện đọc PDF")
+def _():
+	# Bench bee4853e8: byte giả "%PDF-1.4 ..." làm File.check_content của
+	# Frappe (dò mã chạy ngầm trong PDF) nổ lỗi pypdf ngay trong tai_len.
+	ai = _ke_toan()
+	hong = "data:application/pdf;base64," + base64.b64encode(b"%PDF-1.4 hong " + frappe.generate_hash().encode()).decode()
+	loi = ""
+	try:
+		_goi(ai, lambda: dv.tai_len(ten="hong-kt450.pdf", noi_dung=hong))
+	except frappe.ValidationError as e:
+		loi = str(e)
+	dung("báo tệp hỏng bằng lời người dùng", "tệp bị hỏng" in loi)
+	la("không cất tệp nào", frappe.db.count("File", {"file_name": "hong-kt450.pdf"}), 0)
 
 
 @ca("v579 site: thu ngân không mở được đối soát nhà cung cấp, máy chủ chặn thật")
