@@ -160,6 +160,9 @@ node vagabond/khung/kiem_thu/hanh_vi/gom_chung_575.js
 # v577: hop Khop tay dua moi giao dich chua noi; loi khong giao dich chi ke
 # toan, bat dinh UNC (Loan Anh, Ms.Dung DNTT-26-10-00004 05/10/2026).
 node vagabond/khung/kiem_thu/hanh_vi/khop_tay_577.js
+# v579 (#420): man Doi soat nha cung cap - loc, tai file xem truoc roi nhan,
+# chi tiet ba lop, khoi doi soat tren Chi tiet don (anh Viet 06/10/2026).
+node vagabond/khung/kiem_thu/hanh_vi/doi_soat_vendor_579.js
 # APP-26-09-799: dinh uy nhiem chi o buoc xac nhan da chuyen tien gui dung duong dan.
 node vagabond/khung/kiem_thu/hanh_vi/unc_app_518.js
 node vagabond/khung/kiem_thu/hanh_vi/sinh_lai_523.js
