@@ -294,7 +294,32 @@ def _nhan_byte(ten, byte, kenh, file_url=None, communication=None, chi_mau_quen=
 	return ket
 
 
+def _bo_dong_cu(name):
+	"""Codex #450: đọc lại một nguồn (sau khi sửa mẫu) thì bản đọc mới là bản
+	có hiệu lực. Dòng của lần đọc cũ được chụp lại vào du_lieu làm lịch sử rồi
+	gỡ khỏi nguồn, để sự kiện bản cũ đọc sai không còn nối hoá đơn hay giữ
+	khoá. Trả lịch sử các lần đọc (giữ 5 lần gần nhất)."""
+	cu = frappe.db.get_value(DT_NGUON, name, ["du_lieu", "so_dong", "thuc_nhan"], as_dict=True) or {}
+	try:
+		lich_su = (json.loads(cu.get("du_lieu") or "{}").get("lan_doc_truoc") or [])
+	except ValueError:
+		lich_su = []
+	dong = frappe.get_all(DT_DONG, filters={"nguon": name}, fields=["khoa", "ma_su_kien", "ngay", "thuc_nhan",
+		"trang_thai_khop", "sales_invoice", "purchase_invoice", "van_don"], order_by="ngay asc, gio asc",
+		limit_page_length=20000)
+	lich_su.append(dict(luc=str(frappe.utils.now_datetime()), so_dong=len(dong), thuc_nhan=cu.get("thuc_nhan"),
+		dong=[{k: v for k, v in d.items() if v} for d in dong[:2000]], cat_bot=max(0, len(dong) - 2000)))
+	frappe.db.delete(DT_DONG, {"nguon": name})
+	return lich_su[-5:]
+
+
 def _ghi_nguon(cong_ty, t, kq, xt, kenh, file_url, communication, co_san=None):
+	lich_su = None
+	if co_san:
+		# Gỡ dòng bản cũ TRƯỚC rồi mới xem trước lại: nếu không, dòng cũ cùng
+		# khoá bị tính là "đã có" và bản đọc mới không ghi được dòng đúng.
+		lich_su = _bo_dong_cu(co_san)
+		xt = khop.xem_truoc(kq, cong_ty, _da_nhan(cong_ty, kq))
 	tong_tep = (kq.get("tong") or {}).get("thuc_nhan")
 	so = xt["so"]
 	ly_do = "; ".join(xt["loi"][:5])
@@ -312,7 +337,8 @@ def _ghi_nguon(cong_ty, t, kq, xt, kenh, file_url, communication, co_san=None):
 		trang_thai_tien="Chưa đối chiếu",
 		du_lieu=json.dumps(dict(loi=xt["loi"], canh_bao=xt["canh_bao"], tong=kq.get("tong"), them=kq.get("them"),
 			ghi_chu_don_vi=kq.get("ghi_chu_don_vi"), dong_loi=[dict(vi_tri=x["vi_tri"], ly_do=x.get("ly_do", ""))
-				for x in xt["dong"] if x["trang_thai"] == "loi"][:300]), ensure_ascii=False, default=str),
+				for x in xt["dong"] if x["trang_thai"] == "loi"][:300], lan_doc_truoc=lich_su or None),
+			ensure_ascii=False, default=str),
 	)
 	if co_san:
 		# Codex #446 H4: nguồn lỗi hay cần xử lý được đọc lại bằng chính tệp
@@ -499,7 +525,10 @@ def _tien_ve(nguon):
 			pluck="giao_dich_ngan_hang"):
 		da_dung.update(x for x in (r or "").split("\n") if x)
 	tt, ds, ghi = khop.khop_ngan_hang(nguon.mau, int(round(nguon.thuc_nhan)), str(tu), str(den), gd, da_dung)
-	nguon.db_set({"trang_thai_tien": tt, "giao_dich_ngan_hang": "\n".join(ds)})
+	# Codex #450: chỉ khi khớp đúng một giao dịch mới ghi vào giao_dich_ngan_hang
+	# (trường này là danh sách giao dịch đã dùng cho mọi nguồn khác). Gợi ý của
+	# "Lệch tiền về" nằm trong ghi chú.
+	nguon.db_set({"trang_thai_tien": tt, "giao_dich_ngan_hang": "\n".join(ds) if tt == khop.GIU_GIAO_DICH else ""})
 	_ghi_them(nguon.name, tien_ve=ghi)
 
 
@@ -605,7 +634,7 @@ def ds(nhom=None, trang_thai=None, vendor=None, tim=None, ky=None, tu=None, den=
 		loc["vendor"] = vendor
 	if trang_thai == "Cần xử lý":
 		loc["trang_thai"] = ["in", ["Cần xử lý", "Lỗi tệp"]]
-	elif trang_thai in ("Chưa thấy tiền về", "Lệch tiền về"):
+	elif trang_thai in khop.CHO_TIEN_VE:
 		loc["trang_thai_tien"] = trang_thai
 	elif trang_thai == "Chưa nối đủ":
 		loc["so_chua_noi"] = [">", 0]
@@ -625,7 +654,7 @@ def ds(nhom=None, trang_thai=None, vendor=None, tim=None, ky=None, tu=None, den=
 		dem["nhom:" + nh] += n
 		if tt in ("Cần xử lý", "Lỗi tệp"):
 			dem["Cần xử lý"] = dem.get("Cần xử lý", 0) + n
-		if ttt in ("Chưa thấy tiền về", "Lệch tiền về"):
+		if ttt in khop.CHO_TIEN_VE:
 			dem[ttt] = dem.get(ttt, 0) + n
 		if cn:
 			dem["Chưa nối đủ"] = dem.get("Chưa nối đủ", 0) + n
@@ -680,8 +709,8 @@ def suc_khoe():
 	ct = _cong_ty_xem()
 	for vendor, nhom in [(t, n) for _k, _a, _b, t, n in mau_bc.MAU]:
 		r = frappe.db.sql("""select max(den_ngay), max(creation), sum(trang_thai in ('Cần xử lý','Lỗi tệp')),
-			sum(trang_thai_tien in ('Chưa thấy tiền về','Lệch tiền về')), count(*) from `tab%s`
-			where vendor=%%(v)s and company in %%(ct)s""" % DT_NGUON, dict(v=vendor, ct=ct))[0]
+			sum(trang_thai_tien in %%(cho)s), count(*) from `tab%s`
+			where vendor=%%(v)s and company in %%(ct)s""" % DT_NGUON, dict(v=vendor, ct=ct, cho=khop.CHO_TIEN_VE))[0]
 		ra.append(dict(vendor=vendor, nhom=khop.NHOM_TEN.get(nhom), ky_moi=str(r[0] or ""),
 			nhan_luc=str(r[1] or ""), can_xu_ly=int(r[2] or 0), chua_tien=int(r[3] or 0), so_nguon=int(r[4] or 0)))
 	return ra

@@ -256,6 +256,13 @@ def nhom_tien_ve(mau):
 	return mau
 
 
+# Trạng thái tiền về còn chờ kế toán xem (đếm ở thẻ Việc cần làm, lọc Chờ tiền về).
+CHO_TIEN_VE = ("Chưa thấy tiền về", "Lệch tiền về", "Cần chọn tiền về")
+# Chỉ trạng thái này mới GIỮ giao dịch: giao dịch gợi ý của "Lệch tiền về" không
+# chặn nguồn khác dùng đúng số tiền đó.
+GIU_GIAO_DICH = "Đã thấy tiền về"
+
+
 def khop_ngan_hang(mau, can_ve, ngay_tu, ngay_den, giao_dich, da_dung=()):
 	"""Tìm giao dịch tiền vào đúng số tiền vendor phải trả.
 
@@ -272,11 +279,15 @@ def khop_ngan_hang(mau, can_ve, ngay_tu, ngay_den, giao_dich, da_dung=()):
 	if len(dung) == 1:
 		return "Đã thấy tiền về", [dung[0]["name"]], ""
 	if len(dung) > 1:
-		return "Đã thấy tiền về", [dung[0]["name"]], "Có %s giao dịch cùng số tiền; đã chọn giao dịch sớm nhất." % len(dung)
+		# Codex #450: nhiều giao dịch cùng số tiền thì KHÔNG tự chọn. Chọn bừa
+		# (nhất là Shinhan không có mẫu nội dung) sẽ gắn nhầm tiền của khoản
+		# khác và chặn nguồn đúng dùng giao dịch đó về sau.
+		return "Cần chọn tiền về", [], "Có %s giao dịch cùng %s đồng (%s); máy không tự chọn. Xem sao kê để biết giao dịch nào của đợt này." % (
+			len(dung), _vn(can_ve), ", ".join(g["name"] for g in dung[:10]))
 	if cung and mau_nd:
 		gan = min(cung, key=lambda g: abs(g["tien"] - can_ve))
-		return "Lệch tiền về", [gan["name"]], "Gần nhất %s, báo cáo %s (lệch %s)." % (
-			_vn(gan["tien"]), _vn(can_ve), _vn(gan["tien"] - can_ve))
+		return "Lệch tiền về", [gan["name"]], "Gần nhất %s (%s), báo cáo %s (lệch %s)." % (
+			gan["name"], _vn(gan["tien"]), _vn(can_ve), _vn(gan["tien"] - can_ve))
 	return "Chưa thấy tiền về", [], "Chưa thấy giao dịch %s đồng từ %s đến %s." % (_vn(can_ve), ngay_tu, ngay_den)
 
 
