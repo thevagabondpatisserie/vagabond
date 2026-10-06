@@ -17336,7 +17336,10 @@ function cnVeDs(kv) {
          trước khi bấm Ghi sổ; chip "Có UNC" thành từng nút mở tệp. */
       '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">' + (coUnc
         ? '<span style="background:#ecfdf3;border:1px solid #a6f4c5;color:#05603a;border-radius:20px;padding:2px 9px;font-size:11.5px;white-space:nowrap">Có UNC · ' + p.so_tep + ' tệp</span>' +
-          (p.tep_unc || []).map(function (u, i) {
+          /* Codex #445: tệp UNC là tệp riêng tư, chỉ người đọc được Phiếu thu
+             (kế toán) mới mở được; Sales thấy nút mà bấm ra 403. Nên chỉ hiện
+             nút cho kế toán, đúng người cần xem trước khi Ghi sổ. */
+          (kv.ke_toan ? (p.tep_unc || []) : []).map(function (u, i) {
             return '<a data-cnxemunc="1" target="_blank" rel="noopener" href="' + h(u) + '" style="display:inline-flex;align-items:center;min-height:44px;padding:0 10px;font-size:13px;font-weight:600;color:#0e7490">👁 Xem UNC' + ((p.tep_unc || []).length > 1 ? ' ' + (i + 1) : '') + '</a>';
           }).join('')
         : '<span style="background:#fef2f2;border:1px solid #fecaca;color:#b3261e;border-radius:20px;padding:2px 9px;font-size:11.5px;white-space:nowrap">Chưa có UNC</span>') +
