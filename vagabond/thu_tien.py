@@ -592,6 +592,21 @@ def tach_theo_khach(chia, khach_cua_hd):
 	return ra
 
 
+def ds_tep_unc(ds_url_o, url_da_gan):
+	"""Đường dẫn các tệp UNC khách gửi thật sự nằm trên phiếu, giữ thứ tự ô. THUẦN.
+
+	v580. Một nguồn cho cả số đếm (dem_tep_unc) lẫn danh sách tệp để mở xem trên
+	màn Tiền đã về (chị Dung 06/10/2026: thấy "Có UNC" mà không bấm xem được).
+	"""
+	gan = set(url_da_gan or [])
+	ra = []
+	for u in ds_url_o or []:
+		u = str(u or "").strip()
+		if u and u in gan and u not in ra:
+			ra.append(u)
+	return ra
+
+
 def dem_tep_unc(ds_url_o, url_da_gan):
 	"""Số tệp uỷ nhiệm chi khách gửi thật sự nằm trên phiếu. THUẦN.
 
@@ -603,13 +618,7 @@ def dem_tep_unc(ds_url_o, url_da_gan):
 	Codex #382: đếm mọi File gắn vào phiếu là để một ảnh chụp màn hình bất
 	kỳ, hay tệp đính ở mục khác, mở khoá ghi sổ mà không có uỷ nhiệm chi.
 	"""
-	gan = set(url_da_gan or [])
-	ra = []
-	for u in ds_url_o or []:
-		u = str(u or "").strip()
-		if u and u in gan and u not in ra:
-			ra.append(u)
-	return len(ra)
+	return len(ds_tep_unc(ds_url_o, url_da_gan))
 
 
 # Hai ô là nơi đính uỷ nhiệm chi khách gửi: ô danh sách của app và ô đính
@@ -1274,7 +1283,7 @@ def phieu_thu_nhap(cac_si=None, chi_ma_gd=True):
 	# Chỉ đếm tệp nằm trong ô UNC khách gửi (Codex #382), gắn vào phiếu qua
 	# chính ô đó (vòng 7) và không có bản ở chỗ khác (vòng 8): url_unc_that,
 	# cùng một phép với cổng ghi sổ _so_tep_unc.
-	tep = {p.name: dem_tep_unc(o_unc[p.name], url_unc_that(
+	tep = {p.name: ds_tep_unc(o_unc[p.name], url_unc_that(
 		p.name, [r for u in o_unc[p.name] for r in file_theo_url.get(u, [])])) for p in cac_pe}
 	gd = _gd_theo_so([p.reference_no for p in cac_pe])
 	ra = []
@@ -1286,7 +1295,7 @@ def phieu_thu_nhap(cac_si=None, chi_ma_gd=True):
 			"ma_gd": p.reference_no or "", "duoi_gd": duoi_ma(p.reference_no),
 			"ngay_ve": str((g or {}).get("date") or p.posting_date or "")[:10],
 			"gd": (g or {}).get("name") or "", "hd": ref.get(p.name, []),
-			"so_tep": tep.get(p.name, 0), "da_xac_minh": 1 if ok else 0, "ly_do": ly_do,
+			"so_tep": len(tep.get(p.name, [])), "tep_unc": tep.get(p.name, []), "da_xac_minh": 1 if ok else 0, "ly_do": ly_do,
 			"nhom": p.get("vgb_nhom_gd") or "",
 		})
 	# Codex #382 vòng 2: một giao dịch chỉ một phiếu được tính. Đọc MỌI phiếu
