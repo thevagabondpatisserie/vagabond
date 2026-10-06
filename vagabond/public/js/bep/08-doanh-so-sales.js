@@ -679,12 +679,16 @@ async function scrDsView(name, can) {
   }
   /* Ai da lam gi tren to hoa don nay. Dat NGAY TRUOC khi dung khung, de
      no nam cuoi man, sau moi thu ve tien. Anh Viet chot 02/09/2026. */
+  /* v579 (#420): vùng Đối soát tiền bán (maquette màn 01). Vẽ chỗ trước,
+     nạp sau; không có dòng vendor nối với đơn thì không hiện gì. */
+  html += dsvnKhoiHd();
   html += await hdAiLamGi(d.name);
 
   /* v550: khoi Kho, ve cho truoc, nap sau. */
   html += tkKhoiChiTiet(d);
   var bTk = frame('Chi tiết đơn', html, foot ? { footer: foot } : {});
   tkNapKhoi(bTk);
+  dsvnNapKhoiHd(d.name);
   /* Nut gan nguoi ban nam trong khoi `hdAiLamGi`, phai noi SAU khi dung
      khung. Man Sales la cho don may dong bo ve do lai nhieu nhat, nen day
      moi la cho nut nay duoc bam nhieu nhat. */
