@@ -214,7 +214,7 @@ def _():
 	la("không thêm bút toán, phiếu", (frappe.db.count("Journal Entry"), frappe.db.count("Payment Entry")), truoc)
 
 
-@ca("Codex #450 bench: đọc lại nguồn Cần xử lý thay hẳn dòng bản cũ, bản cũ nằm trong lịch sử")
+@ca("Codex #450 bench: đọc lại nguồn Cần xử lý: bản mới có hiệu lực, dòng bản cũ còn nguyên ở trạng thái Đã thay")
 def _():
 	cty, tk, _mau = _nen()
 	ngay = nowdate()
@@ -229,6 +229,7 @@ def _():
 	_DA_TAO.append((dv.DT_NGUON, ra[0]["name"]))
 	ten = ra[0]["name"]
 	cu = sorted(frappe.get_all(dv.DT_DONG, filters={"nguon": ten}, pluck="ma_don"))
+	khoa_goc = sorted(frappe.get_all(dv.DT_DONG, filters={"nguon": ten}, pluck="khoa"))
 	la("bản cũ", cu, sorted(["GF-%s" % so_cu, "GF-%sF" % (so_cu + 1)]))
 	# Giả như bộ đọc cũ đọc sai và nguồn đang ở Cần xử lý; bộ đọc đã sửa ra mã khác.
 	frappe.db.set_value(dv.DT_NGUON, ten, "trang_thai", "Cần xử lý")
@@ -239,8 +240,13 @@ def _():
 	moi_ = sorted(frappe.get_all(dv.DT_DONG, filters={"nguon": ten}, pluck="ma_don"))
 	la("chỉ còn dòng của bản đọc mới", moi_, sorted(["GF-%s" % so_moi, "GF-%sF" % (so_moi + 1)]))
 	la("số dòng khớp số dòng của nguồn", len(moi_), frappe.db.get_value(dv.DT_NGUON, ten, "so_dong"))
+	thay = frappe.get_all(dv.DT_DONG, filters={"nguon_cu": ten}, fields=["ma_don", "khoa", "khoa_cu", "trang_thai_khop", "nguon"])
+	la("dòng bản cũ vẫn còn, Đã thay, tách khỏi nguồn, giữ khoá gốc",
+		(sorted(d.ma_don for d in thay), {d.trang_thai_khop for d in thay}, {d.nguon for d in thay}, sorted(d.khoa_cu for d in thay)),
+		(cu, {"Đã thay"}, {None}, khoa_goc))
+	dung("khoá của dòng đã thay không chặn khoá bản mới", all(d.khoa.startswith("thay:") for d in thay))
 	ls = json.loads(frappe.db.get_value(dv.DT_NGUON, ten, "du_lieu") or "{}").get("lan_doc_truoc") or []
-	la("lịch sử giữ bản cũ", (len(ls), ls[0]["so_dong"] if ls else None), (1, 2))
+	la("lịch sử số dòng lần đọc trước", (len(ls), ls[0]["so_dong"] if ls else None), (1, 2))
 
 
 @ca("Codex #450 bench: PDF hỏng tải lên báo lời người dùng, không lộ lỗi thư viện đọc PDF")
