@@ -492,7 +492,7 @@ async function scrNguoiDungXem(email) {
     '</div>';
 
   if ((d.lam_duoc || []).length) {
-    html += '<div class="sec">Với gói này, làm được</div><div class="card" style="padding:12px 14px">' +
+    html += '<div class="sec">Với ' + ((d.cac_goi || []).length > 1 ? 'các gói đang giữ' : 'gói này') + ', làm được</div><div class="card" style="padding:12px 14px">' +
       (d.lam_duoc || []).map(function (x) {
         return '<div style="display:flex;gap:9px;align-items:flex-start;padding:5px 0">' +
           '<span style="color:#0f766e;font-weight:800">✓</span>' +
@@ -525,14 +525,15 @@ async function scrNguoiDungXem(email) {
   document.getElementById('qndDoiGoi').onclick = async function () {
     var ds;
     try { ds = await api('vagabond.nguoi_dung.danh_sach_goi'); } catch (er) { return baoTin((er && er.message) || 'Không đọc được gói'); }
-    var chon = await hoiChon('Gói chức vụ cho ' + d.ten,
-      'Chọn gói đúng với công việc của người này. Máy sẽ đặt lại toàn bộ quyền trong gói, quyền riêng ngoài gói giữ nguyên.',
+    /* v582: chon duoc NHIEU goi, quyen cong don (anh Viet 06/10/2026). */
+    var chon = await hoiChonNhieu('Gói chức vụ cho ' + d.ten,
+      'Chọn một hoặc nhiều gói đúng với công việc của người này. Quyền cộng dồn. Máy đặt lại toàn bộ quyền trong các gói, quyền riêng ngoài gói giữ nguyên.',
       (ds.goi || []).map(function (g) { return { k: g.k, nhan: g.ten + ' · ' + g.so_nguoi + ' người', mo_ta: g.mo_ta, icon: g.icon }; }),
-      d.goi || null);
-    if (!chon) return;
+      d.cac_goi || (d.goi ? [d.goi] : []), 'Lưu gói');
+    if (!chon || !chon.length) return;
     busy(true);
     try {
-      var kq = await api('vagabond.nguoi_dung.dat_goi', { email: d.email, goi: chon });
+      var kq = await api('vagabond.nguoi_dung.dat_goi', { email: d.email, goi: chon.join(',') });
       busy(false); toast(kq.loi_nhan, 4500);
     } catch (er) { busy(false); return baoTin((er && er.message) || 'Đổi gói lỗi'); }
     go(function () { scrNguoiDungXem(d.email); }, true);
@@ -609,11 +610,12 @@ async function qndMoi() {
 
   var ds;
   try { ds = await api('vagabond.nguoi_dung.danh_sach_goi'); } catch (er) { return baoTin((er && er.message) || 'Không đọc được gói'); }
-  var goi = await hoiChon('Gói chức vụ', 'Chọn công việc của ' + h(ten) + '. Đổi lại lúc nào cũng được.',
-    (ds.goi || []).map(function (g) { return { k: g.k, nhan: g.ten, mo_ta: g.mo_ta, icon: g.icon }; }), null);
-  if (!goi) return;
+  var cacGoi = await hoiChonNhieu('Gói chức vụ', 'Chọn công việc của ' + h(ten) + ', chọn được nhiều gói. Đổi lại lúc nào cũng được.',
+    (ds.goi || []).map(function (g) { return { k: g.k, nhan: g.ten, mo_ta: g.mo_ta, icon: g.icon }; }), [], 'Chọn');
+  if (!cacGoi || !cacGoi.length) return;
+  var goi = cacGoi.join(',');
 
-  var g = (ds.goi || []).filter(function (x) { return x.k === goi; })[0] || {};
+  var g = { ten: (ds.goi || []).filter(function (x) { return cacGoi.indexOf(x.k) >= 0; }).map(function (x) { return x.ten; }).join(' + ') };
   if (!await hoiCo('Tạo tài khoản',
     ten + '\n' + email + (sdt ? '\n' + sdt : '') + '\n\nGói: ' + (g.ten || goi) +
     '\n\nMáy sẽ tạo tài khoản và gửi thư mời đặt mật khẩu ngay.', 'Tạo và gửi thư')) return;
