@@ -173,7 +173,12 @@ def _():
 		la("nguồn", (n.trang_thai, n.vendor, n.so_moi, int(n.thuc_nhan), n.kenh_nhan), ("Đã nhận", "GrabFood", 2, 355617, "Tải tay"))
 		dong = {d.ma_don: d for d in frappe.get_all(dv.DT_DONG, filters={"nguon": n.name}, fields=["*"])}
 		la("dòng GF nối đúng hoá đơn thật", (dong["GF-%s" % so].trang_thai_khop, dong["GF-%s" % so].sales_invoice), ("Đã nối", si.name))
-		la("tiền về gặp giao dịch thật", (n.trang_thai_tien, n.giao_dich_ngan_hang), ("Đã thấy tiền về", g.name))
+		# Codex #450: báo cáo này có đơn tiền mặt nên máy KHÔNG tự nhận giao dịch
+		# cùng số (chưa rõ Grab có trừ tiền mặt khỏi tiền chuyển); nêu giao dịch
+		# ứng viên để kế toán xem, không giữ giao dịch.
+		la("tiền về: thấy giao dịch thật nhưng chờ kế toán vì có đơn tiền mặt", (n.trang_thai_tien, n.giao_dich_ngan_hang or ""),
+			("Cần chọn tiền về", ""))
+		dung("ghi chú nêu giao dịch ứng viên", g.name in (json.loads(n.du_lieu or "{}").get("tien_ve") or ""))
 		la("khối trên hoá đơn", [r.nguon for r in _goi(ai, lambda: dv.cua_hoa_don(si=si.name))], [n.name])
 		# Tải lại đúng tệp: dừng ở mã băm.
 		ra2 = _goi(ai, lambda: dv.nhan(file_url=url))
