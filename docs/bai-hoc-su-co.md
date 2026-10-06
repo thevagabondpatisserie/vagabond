@@ -1864,3 +1864,17 @@ Gom căn cước sự kiện trước kiểm nội dung: nếu đợi tiền h�
 ID thì bản lỗi không giữ được bản trùng, nút nhận phần hợp lệ vẫn lọt.
 Reader thô giữ mảng cột theo vị trí; header trống/trùng không đồng nghĩa
 nguồn hỏng. Kiểm mọi schema fixture, không chỉ hai mẫu đơn giản.
+
+## 06/10/2026 - #450: bộ giả lập trang cắt mất bước khôi phục giỏ
+
+`gia_lap_trang.js` cắt cả đuôi khởi động của `banh.html` (để bỏ gọi mạng),
+nên cắt luôn `phucHoiGio()`. Mọi ca "tải lại giữ giỏ" vì thế đặt
+sessionStorage SAU khi trang chạy rồi tự gọi lại `phucHoiGio()`, tức là không
+bao giờ đi đúng thứ tự tải trang thật. Nay bộ giả lập giữ riêng bước đó và
+nhận tham số nạp sẵn sessionStorage trước khi mã trang chạy. Ca tải lại phải
+dùng tham số đó, không tự gọi hàm khôi phục.
+
+Ca kiểm trên bench tải PDF giả (`%PDF-1.4` + chữ) chết ở `File.check_content`
+của Frappe (mở thử PDF để dò mã chạy ngầm) trước khi tới phần cần kiểm. Ca
+kiểm site dùng PDF đúng cấu trúc; cửa tải lên phải đổi lỗi thư viện đọc PDF
+thành lời người dùng. Tầng khung không thấy được lỗi này vì không có Frappe.
