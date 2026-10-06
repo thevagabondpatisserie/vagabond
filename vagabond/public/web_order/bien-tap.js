@@ -2,9 +2,9 @@
 (function () {
   'use strict';
   const tim = id => document.getElementById(id);
-  const tenLoai = {tieu_de_muc: 'Tiêu đề mục bán hàng', anh_bia: 'Ảnh bìa', cau_chuyen: 'Câu chuyện', anh_chu: 'Ảnh và chữ', thong_bao: 'Thông báo', hoi_dap: 'Câu hỏi thường gặp'};
+  const tenLoai = {tieu_de_muc: 'Tiêu đề mục bán hàng', anh_bia: 'Ảnh bìa', cau_chuyen: 'Câu chuyện', anh_chu: 'Ảnh và chữ', thong_bao: 'Thông báo', hoi_dap: 'Câu hỏi thường gặp', uu_dai:'Ưu đãi', tuyen_dung:'Tuyển dụng', kenh_dat_hang:'Kênh đặt hàng', zalo_oa:'Zalo OA', nut_kenh:'Nút mở kênh đặt hàng'};
   let bang, nhap, chon = '', doi = false, ban = false, keo = '', mobile = false;
-  let cacBuoc = [], buoc = -1, nhomChu = '', tuTim = '';
+  let cacBuoc = [], buoc = -1, nhomChu = '', tuTim = '', locKhoi = '', timKhoi = '', locTrangThai = '';
   const khoaPhucHoi = 'vgb-web-nhap:' + document.body.dataset.nguoi;
   function ghiBuoc() {
     const chu = JSON.stringify(nhap);
@@ -179,13 +179,27 @@
     [nhap.khoi[i], nhap.khoi[j]] = [nhap.khoi[j], nhap.khoi[i]];
     daDoi(); danhSach();
   }
+  function trangThaiKhoi(k) {
+    if(!k.hien)return 'Đang ẩn';
+    const n=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+    if(k.ket_thuc&&k.ket_thuc<n)return 'Đã kết thúc';
+    if(k.bat_dau&&k.bat_dau>n)return 'Sắp diễn ra';
+    return 'Đang diễn ra';
+  }
   function danhSach() {
     const g = tim('danh-sach'); g.replaceChildren();
+    const locTT=tim('loc-trang-thai'); if(locTT){locTT.replaceChildren();['','Đang diễn ra','Sắp diễn ra','Đã kết thúc','Đang ẩn'].forEach(tt=>{const ds=nhap.khoi.filter(k=>(!locKhoi||k.loai===locKhoi)&&(!tt||trangThaiKhoi(k)===tt));const b=tao('button',(tt||'Tất cả trạng thái')+' '+ds.length);b.setAttribute('aria-pressed',String(tt===locTrangThai));b.onclick=()=>{locTrangThai=tt;danhSach();};locTT.append(b);});}
+    let soHien=0;
     if (!nhap.khoi.length) g.append(tao('p', 'Chưa có khối. Chọn một loại bên dưới để thêm.'));
     nhap.khoi.forEach((k, i) => {
+      if (locKhoi && k.loai !== locKhoi) return;
+      if(locTrangThai&&trangThaiKhoi(k)!==locTrangThai)return;
+      if (timKhoi && ![k.tieu_de,k.nhom,k.ma_uu_dai,k.noi_lam].join(' ').toLocaleLowerCase('vi').includes(timKhoi)) return;
+      soHien++;
       const dong = tao('div', '', 'dong-khoi' + (chon === k.id ? ' on' : '')); dong.draggable = true;
       const nut = tao('button', (i + 1) + '. ' + (k.tieu_de || tenLoai[k.loai]) + (k.hien ? '' : ' · Ẩn'), 'chon-khoi');
       nut.onclick = () => { chon = k.id; danhSach(); veChinhSach(); veNhanWeb(); thuocTinh(); xem(); }; dong.append(nut);
+      if(['uu_dai','tuyen_dung'].includes(k.loai))dong.append(tao('small',trangThaiKhoi(k)+' · '+(k.nhom||tenLoai[k.loai]),'goi-y'));
       const ds = tao('div', '', 'sap-xep');
       [['↑', -1, 'Đưa khối lên'], ['↓', 1, 'Đưa khối xuống']].forEach(([chu, buoc, nhan]) => {
         const b = tao('button', chu); b.setAttribute('aria-label', nhan); b.disabled = i + buoc < 0 || i + buoc >= nhap.khoi.length;
@@ -197,6 +211,7 @@
       dong.ondrop = e => { e.preventDefault(); if (ban || !keo) return; const a = nhap.khoi.findIndex(x => x.id === keo); const b = nhap.khoi.findIndex(x => x.id === k.id); if (a >= 0 && b >= 0) { const [x] = nhap.khoi.splice(a, 1); nhap.khoi.splice(b, 0, x); daDoi(); danhSach(); } keo = ''; };
       dong.ondragend = () => { keo = ''; }; g.append(dong);
     });
+    if(!soHien&&nhap.khoi.length)g.append(tao('p','Không có nội dung khớp bộ lọc. Chọn Tất cả hoặc xoá từ tìm.','goi-y'));
   }
   function thuocTinh() {
     const g = tim('thuoc-tinh'); g.replaceChildren();
@@ -212,28 +227,38 @@
       nhan.append(o);g.append(nhan);return;
     }
     const sao = tao('button', 'Nhân bản khối'); sao.onclick = () => {
+      if(k.loai==='nut_kenh'){bao('Chỉ có một nút mở kênh. Sửa logo của nút này.',true);return;}
       if (ban || nhap.khoi.length >= 30) { bao('Tối đa 30 khối. Tái sử dụng một khối đang ẩn.', true); return; }
       const moi = structuredClone(k); moi.id = 'k-' + crypto.randomUUID(); moi.hien = false;
       nhap.khoi.splice(nhap.khoi.indexOf(k) + 1, 0, moi); chon = moi.id; daDoi(); veTatCa();
     }; g.append(sao);
     g.append(tao('p', 'Loại khối · có thể đổi để tái sử dụng khối cũ', 'goi-y'));
     const cacLoai = tao('div', '', 'them-khoi');
-    Object.entries(tenLoai).filter(([ma]) => ma !== 'tieu_de_muc').forEach(([ma, ten]) => { const b = tao('button', ten); b.setAttribute('aria-pressed', String(k.loai === ma)); b.onclick = () => { k.loai = ma; daDoi(); danhSach(); thuocTinh(); }; cacLoai.append(b); });
+    Object.entries(tenLoai).filter(([ma]) => ma !== 'tieu_de_muc').forEach(([ma, ten]) => { const b = tao('button', ten); b.setAttribute('aria-pressed', String(k.loai === ma)); b.onclick = () => { if(ma==='nut_kenh'&&nhap.khoi.some(x=>x!==k&&x.loai===ma)){bao('Nút mở kênh đã có. Chọn nút đó trong danh sách để sửa.',true);return;} k.loai = ma; if(['uu_dai','tuyen_dung'].includes(ma))k.vi_tri=ma;else if(['uu_dai','tuyen_dung'].includes(k.vi_tri))k.vi_tri='cuoi_trang'; daDoi(); danhSach(); thuocTinh(); }; cacLoai.append(b); });
     g.append(cacLoai);
-    g.append(tao('p', 'Vị trí trên trang order', 'goi-y'));
+    if (['uu_dai','tuyen_dung'].includes(k.loai)) { g.append(tao('p', 'Hiển thị tại trang '+tenLoai[k.loai]+'. Ảnh bên dưới có thể thay bất cứ lúc nào. Ngày tính theo giờ Việt Nam.', 'goi-y')); }
+    if(['kenh_dat_hang','zalo_oa','nut_kenh'].includes(k.loai))g.append(tao('p', k.loai==='nut_kenh'?'Logo trên nút nổi mở danh sách ứng dụng. Tên dùng cho trình đọc màn hình; tắt hiển thị để ẩn nút và danh sách.':k.loai==='zalo_oa'?'Nút Zalo riêng. Có thể thay logo, tên và đường dẫn OA.':'Thay logo, tên và đường dẫn ứng dụng. Dùng mũi tên ở danh sách khối để đổi thứ tự; tắt hiển thị để ẩn kênh.', 'goi-y'));
+    if(!['uu_dai','tuyen_dung','kenh_dat_hang','zalo_oa','nut_kenh'].includes(k.loai)){g.append(tao('p', 'Vị trí trên trang order', 'goi-y'));
     const viTri = tao('div', '', 'them-khoi');
     Object.entries({dau_trang:'Dưới logo',today:'Có sẵn hôm nay',order:'Đặt bánh trước',store:'In store',season:'In season',cuoi_trang:'Cuối trang'}).forEach(([ma,ten]) => {
       const b = tao('button', ten); b.setAttribute('aria-pressed', String((k.vi_tri || 'cuoi_trang') === ma));
       b.onclick = () => { k.vi_tri = ma; daDoi(); thuocTinh(); }; viTri.append(b);
-    }); g.append(viTri);
-    [['nhan','Dòng giới thiệu'],['tieu_de','Tiêu đề'],['noi_dung','Nội dung'],['anh','Đường dẫn ảnh công khai'],['mo_ta_anh','Mô tả ảnh'],['nut','Chữ trên nút'],['lien_ket','Liên kết của nút']].forEach(([ma, ten]) => {
+    }); g.append(viTri);}
+    const kenhNoi=['kenh_dat_hang','zalo_oa','nut_kenh'].includes(k.loai);
+    (kenhNoi?(k.loai==='nut_kenh'?[['tieu_de','Tên trợ năng của nút'],['anh','Đường dẫn logo nút nổi']]:[['tieu_de','Tên nút / ứng dụng'],['anh','Đường dẫn logo ứng dụng'],['nut','Chữ dự phòng khi logo không tải được'],['lien_ket','Liên kết HTTPS']]):[['nhan','Dòng giới thiệu'],['tieu_de','Tiêu đề'],['noi_dung','Nội dung'],['anh','Đường dẫn ảnh công khai'],['mo_ta_anh','Mô tả ảnh'],['nut','Chữ trên nút'],['lien_ket','Liên kết của nút']]).forEach(([ma, ten]) => {
       const nhan = tao('label', '', 'truong'); nhan.append(tao('span', ten));
       const o = tao(ma === 'noi_dung' || ma === 'tieu_de' ? 'textarea' : 'input');
       o.value = k[ma] || ''; o.maxLength = ma === 'noi_dung' ? 4000 : 1000;
       o.oninput = () => { k[ma] = o.value; daDoi(); }; o.onchange = () => danhSach();
       nhan.append(o); g.append(nhan);
     });
-    const taiNhan = tao('label', '', 'truong'); taiNhan.append(tao('span', 'Tải ảnh từ máy (ảnh sẽ công khai)'));
+    if (['uu_dai','tuyen_dung'].includes(k.loai)) {
+      const truong = [['bat_dau','Ngày bắt đầu','date'],['ket_thuc','Ngày kết thúc (trống: chưa có hạn)','date'],['nhom','Nhóm / đối tượng','text']];
+      if(k.loai==='uu_dai') truong.push(['ma_uu_dai','Mã ưu đãi để giới thiệu (không tự giảm tiền)','text']);
+      else truong.push(['noi_lam','Nơi làm việc','text'],['hinh_thuc','Hình thức làm việc','text'],['email','Email nhận hồ sơ','email']);
+      truong.forEach(([ma,ten,loai])=>{const l=tao('label','','truong'),o=tao('input');l.append(tao('span',ten));o.type=loai;o.value=k[ma]||'';o.maxLength=1000;o.oninput=()=>{k[ma]=o.value;daDoi();};l.append(o);g.append(l);});
+    }
+    const taiNhan = tao('label', '', 'truong'); taiNhan.append(tao('span', kenhNoi?'Tải logo từ máy (PNG, JPG, WebP)':'Tải ảnh từ máy (ảnh sẽ công khai)'));
     const tep = tao('input'); tep.type = 'file'; tep.accept = 'image/png,image/jpeg,image/webp';
     tep.onchange = async () => {
       if (!tep.files[0]) return;
@@ -247,7 +272,7 @@
       } catch(e) { bao(e.message, true); } finally { khoa(false); }
     };
     taiNhan.append(tep); g.append(taiNhan);
-    g.append(tao('p', 'Ảnh: dán link HTTPS hoặc /files/ từ thư viện ảnh. Nút chọn bánh: #danh-muc-banh. Đặt trước: #/dat-truoc.', 'goi-y'));
+    g.append(tao('p', kenhNoi?'Logo hiển thị nguyên tỉ lệ. Dùng PNG nền trong suốt hoặc ảnh vuông; có thể dán link HTTPS hoặc /files/.':'Ảnh: dán link HTTPS hoặc /files/ từ thư viện ảnh. Nút chọn bánh: #danh-muc-banh. Đặt trước: #/dat-truoc.', 'goi-y'));
     const nhan = tao('label', '', 'truong'), o = tao('input'); o.type = 'checkbox'; o.checked = k.hien;
     o.onchange = () => { k.hien = o.checked; daDoi(); danhSach(); }; nhan.append(o, document.createTextNode(' Hiển thị khối')); g.append(nhan);
   }
@@ -276,10 +301,14 @@
     } catch (e) { bao(e.message, true); } finally { khoa(false); }
   }
   Object.entries(tenLoai).filter(([ma]) => ma !== 'tieu_de_muc').forEach(([ma, ten]) => { const b = tao('button', '+ ' + ten); b.onclick = () => {
-    if (!nhap || ban) return; if (nhap.khoi.length >= 30) { bao('Đã có 30 khối. Chọn khối cũ, đổi loại và nội dung để tái sử dụng.', true); return; }
-    const k = {id: 'k-' + crypto.randomUUID(), loai: ma, hien: true, vi_tri: 'cuoi_trang', nhan: '', tieu_de: ten, noi_dung: '', anh: '', mo_ta_anh: '', nut: '', lien_ket: ''};
+    if (!nhap || ban) return; if(ma==='nut_kenh'&&nhap.khoi.some(k=>k.loai===ma)){chon=nhap.khoi.find(k=>k.loai===ma).id;thuocTinh();bao('Đã chọn nút mở kênh hiện có.');return;} if (nhap.khoi.length >= 30) { bao('Đã có 30 khối. Chọn khối cũ, đổi loại và nội dung để tái sử dụng.', true); return; }
+    const k = {id: 'k-' + crypto.randomUUID(), loai: ma, hien: !['uu_dai','tuyen_dung','kenh_dat_hang','zalo_oa','nut_kenh'].includes(ma), vi_tri: ['uu_dai','tuyen_dung'].includes(ma)?ma:'cuoi_trang', nhan: '', tieu_de: ten, noi_dung: '', anh: ma==='tuyen_dung'?'/assets/vagabond/web_order/tay-lam-banh-minh-hoa.jpg':'', mo_ta_anh: ma==='tuyen_dung'?'Ảnh minh hoạ tay làm bánh':'', nut: '', lien_ket: ''};
     nhap.khoi.push(k); chon = k.id; daDoi(); danhSach(); thuocTinh();
   }; tim('them-khoi').append(b); });
+  const loc = tao('div','','them-khoi');
+  [['','Tất cả'],['uu_dai','Ưu đãi'],['tuyen_dung','Tuyển dụng']].forEach(([ma,ten])=>{const b=tao('button',ten);b.onclick=()=>{locKhoi=ma;locTrangThai='';loc.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));danhSach();};loc.append(b);});
+  const timK=tao('input');timK.placeholder='Tìm tiêu đề, mã ưu đãi, nơi làm';timK.setAttribute('aria-label',timK.placeholder);timK.oninput=()=>{timKhoi=timK.value.toLocaleLowerCase('vi');danhSach();};
+  const locTT=tao('div','','loc-trang-thai');locTT.id='loc-trang-thai';tim('danh-sach').before(loc,timK,locTT);
   function kiemBanPhucHoi() {
     const g = tim('phuc-hoi'); g.replaceChildren(); g.hidden = true;
     let cu; try { cu = JSON.parse(sessionStorage.getItem(khoaPhucHoi)); } catch (_) { return; }

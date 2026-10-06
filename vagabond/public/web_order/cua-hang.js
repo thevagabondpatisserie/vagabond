@@ -10,7 +10,7 @@
       if (k) g.dataset.khoi = k.id;
     });
     document.querySelectorAll('[data-vgb-vi-tri]').forEach(g => {
-      window.VgbKhoi.ve(g, {khoi: (nd.khoi || []).filter(k => k.loai !== 'tieu_de_muc' && (k.vi_tri || 'cuoi_trang') === g.dataset.vgbViTri)});
+      window.VgbKhoi.ve(g, {khoi: (nd.khoi || []).filter(k => !['tieu_de_muc','kenh_dat_hang','zalo_oa','nut_kenh','uu_dai','tuyen_dung'].includes(k.loai) && (k.vi_tri || 'cuoi_trang') === g.dataset.vgbViTri)});
     });
     /* v532: nhãn cố định (tab, nút đầu trang) và các câu có số. Máy chủ đã
        ghép mặc định vào cong_khai; trong preview bản nháp có thể thiếu khoá
@@ -23,6 +23,8 @@
       const chu = typeof nhan[k] === 'string' && nhan[k].trim() ? nhan[k] : nhanGoc[k];
       if (g.textContent !== chu) g.textContent = chu;
     });
+    if (window.vgbVeKenhNoi) window.vgbVeKenhNoi(nd);
+    if (window.vgbVeChuyenMuc) window.vgbVeChuyenMuc(nd);
     window.vgbSanPham = nd.san_pham || {};
     window.vgbNhan = nhan;
     if (window.vgbApChu) window.vgbApChu();
@@ -33,6 +35,8 @@
     window.addEventListener('message', e => {
       if (e.origin !== location.origin || e.source !== parent || e.data?.loai !== 'vgb-noi-dung') return;
       ve(e.data.noi_dung);
+      const chon=(e.data.noi_dung.khoi||[]).find(k=>k.id===e.data.chon);
+      if(chon&&['uu_dai','tuyen_dung'].includes(chon.loai)&&typeof window.go==='function'&&window.location.hash!=='#/'+chon.loai.replace('_','-'))window.go(chon.loai);
       document.querySelectorAll('[data-khoi]').forEach(k => {
         k.classList.toggle('vgb-dang-chon', k.dataset.khoi === e.data.chon);
         k.onclick = suKien => { suKien.preventDefault(); parent.postMessage({loai:'vgb-chon-khoi',id:k.dataset.khoi}, location.origin); };
