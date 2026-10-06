@@ -1,0 +1,291 @@
+{
+ "doctype": "DocType",
+ "name": "Vagabond Doi Soat Dong",
+ "module": "Vagabond",
+ "engine": "InnoDB",
+ "autoname": "hash",
+ "track_changes": 0,
+ "field_order": [
+  "nguon",
+  "company",
+  "nhom",
+  "vendor",
+  "tai_khoan",
+  "khoa",
+  "dau_noi_dung",
+  "ma_su_kien",
+  "cb1",
+  "ngay",
+  "gio",
+  "ngay_tien_ve",
+  "loai",
+  "merchant",
+  "diem_ban",
+  "sec_ma",
+  "ma_don",
+  "ma_tham_chieu",
+  "ma_can_cu",
+  "hoa_don_nguon",
+  "mo_ta",
+  "nguoi",
+  "giao_hang",
+  "sec_tien",
+  "tien_hang",
+  "giam_gia",
+  "phi",
+  "cb2",
+  "dieu_chinh",
+  "thue",
+  "thuc_nhan",
+  "sec_noi",
+  "trang_thai_khop",
+  "sales_invoice",
+  "purchase_invoice",
+  "van_don",
+  "ghi_chu_khop"
+ ],
+ "fields": [
+  {
+   "fieldname": "nguon",
+   "label": "Nguồn đối soát",
+   "fieldtype": "Link",
+   "options": "Vagabond Doi Soat Nguon",
+   "reqd": 1,
+   "in_standard_filter": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "company",
+   "label": "Công ty",
+   "fieldtype": "Link",
+   "options": "Company",
+   "reqd": 1
+  },
+  {
+   "fieldname": "nhom",
+   "label": "Nhóm",
+   "fieldtype": "Data",
+   "read_only": 1
+  },
+  {
+   "fieldname": "vendor",
+   "label": "Nguồn",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "tai_khoan",
+   "label": "Tài khoản phía nguồn",
+   "fieldtype": "Data",
+   "read_only": 1
+  },
+  {
+   "fieldname": "khoa",
+   "label": "Khoá sự kiện",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "dau_noi_dung",
+   "label": "Dấu nội dung",
+   "fieldtype": "Data",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ma_su_kien",
+   "label": "Mã sự kiện",
+   "fieldtype": "Data",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb1",
+   "label": "",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "ngay",
+   "label": "Ngày",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "gio",
+   "label": "Giờ",
+   "fieldtype": "Data"
+  },
+  {
+   "fieldname": "ngay_tien_ve",
+   "label": "Ngày tiền về",
+   "fieldtype": "Date"
+  },
+  {
+   "fieldname": "loai",
+   "label": "Loại",
+   "fieldtype": "Data",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "merchant",
+   "label": "Điểm chấp nhận phía nguồn",
+   "fieldtype": "Data"
+  },
+  {
+   "fieldname": "diem_ban",
+   "label": "Điểm bán",
+   "fieldtype": "Data"
+  },
+  {
+   "fieldname": "sec_ma",
+   "label": "Mã",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "ma_don",
+   "label": "Mã đơn phía nguồn",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "ma_tham_chieu",
+   "label": "Mã tham chiếu",
+   "fieldtype": "Data",
+   "search_index": 1
+  },
+  {
+   "fieldname": "ma_can_cu",
+   "label": "Căn cứ điều chỉnh / phí",
+   "fieldtype": "Data"
+  },
+  {
+   "fieldname": "hoa_don_nguon",
+   "label": "Hoá đơn của nguồn",
+   "fieldtype": "Data"
+  },
+  {
+   "fieldname": "mo_ta",
+   "label": "Mô tả",
+   "fieldtype": "Data"
+  },
+  {
+   "fieldname": "nguoi",
+   "label": "Người đặt / người đi",
+   "fieldtype": "Data"
+  },
+  {
+   "fieldname": "giao_hang",
+   "label": "Chuyến giao hàng",
+   "fieldtype": "Check"
+  },
+  {
+   "fieldname": "sec_tien",
+   "label": "Tiền",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "tien_hang",
+   "label": "Tiền hàng",
+   "fieldtype": "Currency"
+  },
+  {
+   "fieldname": "giam_gia",
+   "label": "Giảm giá",
+   "fieldtype": "Currency"
+  },
+  {
+   "fieldname": "phi",
+   "label": "Phí",
+   "fieldtype": "Currency"
+  },
+  {
+   "fieldname": "cb2",
+   "label": "",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "dieu_chinh",
+   "label": "Điều chỉnh",
+   "fieldtype": "Currency"
+  },
+  {
+   "fieldname": "thue",
+   "label": "Thuế trong phí",
+   "fieldtype": "Currency"
+  },
+  {
+   "fieldname": "thuc_nhan",
+   "label": "Thực nhận / phải trả",
+   "fieldtype": "Currency",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "sec_noi",
+   "label": "Nối chứng từ",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "trang_thai_khop",
+   "label": "Trạng thái nối",
+   "fieldtype": "Select",
+   "options": "Chưa nối\nĐã nối\nNối theo tiền\nLệch tiền\nNhiều chứng từ\nKhông thấy chứng từ\nKhông áp dụng",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "sales_invoice",
+   "label": "Hoá đơn bán",
+   "fieldtype": "Link",
+   "options": "Sales Invoice",
+   "search_index": 1
+  },
+  {
+   "fieldname": "purchase_invoice",
+   "label": "Hoá đơn mua",
+   "fieldtype": "Link",
+   "options": "Purchase Invoice"
+  },
+  {
+   "fieldname": "van_don",
+   "label": "Vận đơn",
+   "fieldtype": "Link",
+   "options": "Van Don"
+  },
+  {
+   "fieldname": "ghi_chu_khop",
+   "label": "Ghi chú nối",
+   "fieldtype": "Small Text"
+  }
+ ],
+ "permissions": [
+  {
+   "role": "Accounts Manager",
+   "read": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1
+  },
+  {
+   "role": "System Manager",
+   "read": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1
+  },
+  {
+   "role": "Accounts User",
+   "read": 1,
+   "report": 1,
+   "print": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "title_field": "ma_don",
+ "description": "#420 v579 đối soát vendor: một sự kiện trong báo cáo vendor (đơn, phí, chuyến, giao dịch thẻ)",
+ "creation": "2026-10-06 12:00:00.000000",
+ "modified": "2026-10-06 18:00:00.000000"
+}

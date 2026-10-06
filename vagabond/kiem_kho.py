@@ -744,7 +744,7 @@ def con_tren_quay_web():
 			continue
 		ds = frappe.get_all(
 			"Item", filters={"item_code": ["in", list(con_theo_ma)]},
-			fields=["item_code", "item_name", "image", "standard_rate", "disabled", "is_sales_item"],
+			fields=["item_code", "item_name", "image", "standard_rate", "disabled", "is_sales_item", "item_group"],
 			limit_page_length=0, ignore_permissions=True,
 		)
 		for x in sorted(ds, key=lambda x: str(x.get("item_name") or x["item_code"])):
@@ -765,5 +765,6 @@ def con_tren_quay_web():
 				"gia": int(x.get("standard_rate") or 0),
 				"anh": anh,
 				"con": int(con_theo_ma[x["item_code"]]),
+				"nhom": x.get("item_group") or "",
 			})
 	return ra

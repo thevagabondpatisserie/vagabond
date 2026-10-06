@@ -1,0 +1,25 @@
+{
+  "nguon": "Tên cột kiểm từ mẫu riêng tư trên Drive ngày 05/10/2026; không phải byte file gốc.",
+  "cot": [
+    "",
+    "No",
+    "Merchant ID",
+    "Transaction ID",
+    "Order Reference",
+    "Merchant Trans. Ref.",
+    "Transaction date",
+    "Transaction Type",
+    "Card Type",
+    "Status",
+    "Bin Country",
+    "Pay Channel",
+    "Transaction Amount",
+    "Currency",
+    "Exchange Rate",
+    "Successful Amount (VND)",
+    "Fix fee",
+    "Percent fee",
+    "Total fee",
+    "Advance amount"
+  ]
+}

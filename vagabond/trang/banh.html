@@ -375,7 +375,7 @@ nav.navbar .dropdown-item:hover{background:rgba(41,189,179,.12);color:#fff}
    Sans, cung phong voi ten banh va logo. Phong nay co du glyph tieng Viet
    (da kiem tung ky tu bang fontTools, xem thu_nhan_web_532), dau in hoa dat
    dung. Van giu "html body" de de cua-hang.css. */
-html body .h1{font-family:'Vagabond Sans',var(--sans);font-weight:400;letter-spacing:.01em;font-size:clamp(40px,10vw,84px);line-height:.98;text-transform:uppercase}
+html body .h1{font-family:'Vagabond Sans',var(--sans);font-weight:400;letter-spacing:.01em;font-size:clamp(36px,4vw,48px);line-height:1.12;text-transform:uppercase;margin-top:0}
 html body .h1 em#bigDate{display:none}
 /* v532 (anh Viet 27/09/2026): CHI con so (ngay, gia, so luong) dung phong he
    thong cho deu net. Moi tieu de (Tang huong, Dat banh nhan em nhe, o trong)
@@ -418,8 +418,9 @@ html body .h1 em#bigDate{display:none}
 .sum .row.phu span,.sum .row.phu b{color:var(--fog);font-size:13px}
 @media(prefers-reduced-motion:reduce){.bar.nhich .cnt b{animation:none}.c-them:active{transform:none}}
 </style>
-<link rel="stylesheet" href="/assets/vagabond/web_order/cua-hang.css?v=8de7cda516fd">
-<script src="/assets/vagabond/web_order/chu.js?v=3fc5cafd0db4"></script></head>
+<link rel="stylesheet" href="/assets/vagabond/web_order/cua-hang.css?v=a604801330bb">
+<script src="/assets/vagabond/web_order/chu.js?v=3fc5cafd0db4"></script><link rel="stylesheet" href="/assets/vagabond/web_order/kenh-noi.css?v=86dc663f411f"><link rel="stylesheet" href="/assets/vagabond/web_order/chuyen-muc.css?v=1f181d4b38f2">
+</head>
 <body>
 <div class="sky" aria-hidden="true">
 <svg viewBox="0 0 1200 1200" preserveAspectRatio="xMidYMid slice">
@@ -478,13 +479,19 @@ html body .h1 em#bigDate{display:none}
   <!-- In store: banh dang con tren tu tung quay. An toi khi may chu tra ve
        danh sach quay, de khach mo link thang vao van thay (anh Viet 03/09/2026). -->
   <button class="tab store" data-tab="store" id="tabStore" hidden data-vgb-nhan="tab_store">In store</button>
+  <button class="tab" data-tab="uu_dai" data-vgb-nhan="tab_uu_dai">Ưu đãi</button>
+  <button class="tab" data-tab="tuyen_dung" data-vgb-nhan="tab_tuyen_dung">Tuyển dụng</button>
   <button class="tab on" data-tab="today" data-vgb-nhan="tab_today">Có sẵn hôm nay</button>
   <button class="tab" data-tab="order" data-vgb-nhan="tab_order">Đặt bánh trước</button>
 </nav>
 
 <!-- ============ IN SEASON ============ -->
+<section class="wrap" id="uu_dai" hidden><header class="sec-head"><h1 class="h1" data-vgb-nhan="tab_uu_dai">Ưu đãi</h1></header><div id="noi-uu_dai"></div></section>
+<section class="wrap" id="tuyen_dung" hidden><header class="sec-head"><h1 class="h1" data-vgb-nhan="tab_tuyen_dung">Tuyển dụng</h1></header><div id="noi-tuyen_dung"></div></section>
+<script src="/assets/vagabond/web_order/kenh-noi.js?v=2856c55f0040" defer></script>
+<script src="/assets/vagabond/web_order/chuyen-muc.js?v=009145a4d7aa"></script>
 <script src="/assets/vagabond/web_order/khoi.js?v=3f9e2ef32ff5"></script>
-<script src="/assets/vagabond/web_order/cua-hang.js?v=3a2429f23bc1" defer></script>
+<script src="/assets/vagabond/web_order/cua-hang.js?v=095b467260db" defer></script>
 <main id="season" hidden>
   <div class="noi-dung-theo-tab" data-vgb-vi-tri="season"></div>
   <section class="wrap">
@@ -566,10 +573,10 @@ html body .h1 em#bigDate{display:none}
   <!-- #367: phap nhan viet thang trong HTML de bo kiem cua Meta doc duoc ca
        khi khong chay JavaScript. Lien he va chinh sach nap tu may chu. -->
   <div class="f-phap-nhan" id="fPhapNhan">
-    <b>Công ty TNHH Patisserie Vagabond</b><br>
-    Mã số thuế 0318561568<br>
-    Cửa hàng Sài Gòn: 9 Trần Cao Vân, Phường Sài Gòn (Quận 1 cũ), TP. Hồ Chí Minh<br>
-    Bếp Tân Sơn Hoà: 307/1 Nguyễn Văn Trỗi, Phường Tân Sơn Hoà (Tân Bình cũ), TP. Hồ Chí Minh<br>
+    <b><span data-vgb-chu="dat_banh_15f2c7f29">Công ty TNHH Patisserie Vagabond</span></b><br>
+    <span data-vgb-chu="dat_banh_2085c9658">Mã số thuế 0318561568</span><br>
+    <span data-vgb-chu="dat_banh_2f7b911ea">Cửa hàng Sài Gòn: 9 Trần Cao Vân, Phường Sài Gòn (Quận 1 cũ), TP. Hồ Chí Minh</span><br>
+    <span data-vgb-chu="dat_banh_cc4a76159">Bếp Tân Sơn Hoà: 307/1 Nguyễn Văn Trỗi, Phường Tân Sơn Hoà (Tân Bình cũ), TP. Hồ Chí Minh</span><br>
     <span id="fLienHe"><span data-vgb-chu="dat_banh_08fc3ada4">Điện thoại</span> <a href="tel:0931224334">0931 224 334</a></span>
   </div>
   <nav class="f-cs" id="fChinhSach" aria-label="Chính sách" data-vgb-aria-label="dat_banh_e9ba7dd58"></nav>
@@ -738,6 +745,7 @@ html body .h1 em#bigDate{display:none}
 
     <div class="sec"><span class="n">03</span><h3><span data-vgb-chu="dat_banh_2320148b6">Phụ kiện tặng kèm</span></h3><i class="rule"></i></div>
     <ul class="acc" id="s-acc"></ul>
+<h4 data-vgb-chu="yeu_cau_dung_cu">Dụng cụ tặng kèm theo yêu cầu</h4><div class="dung-cu"><label><span data-vgb-chu="so_nia">Số nĩa gỗ</span><input id="s-nia" type="number" min="0" max="30" value="0"></label><label><span data-vgb-chu="so_dia">Số dĩa giấy</span><input id="s-dia" type="number" min="0" max="30" value="0"></label></div>
 
     <div class="sec"><span class="n">04</span><h3><span data-vgb-chu="dat_banh_b009ad199">Phụ kiện mua thêm</span></h3><i class="rule"></i></div>
     <div class="addon-lead"><span data-vgb-chu="dat_banh_16c989c4d">Chọn thêm nếu quý khách cần, em ghi luôn vào đơn.</span></div>
@@ -892,7 +900,7 @@ function vgbTronMon(nhom) {
     }
     g.sizes.forEach(function (y) {
       var s = c.sizes.filter(function (z) { return z.cm === y.cm; })[0];
-      if (s) { s.id = y.ma; if (y.gia) s.p = y.gia; }
+      if (s) { s.id = y.ma; if (Number.isFinite(y.gia) && y.gia >= 0) s.p = y.gia; }
       else c.sizes.push({ cm: y.cm, p: y.gia || 0, id: y.ma });
     });
     c.sizes.sort(function (a, b) { return (a.cm || 0) - (b.cm || 0); });
@@ -917,7 +925,7 @@ function napTonHomNay(){
       vgbTronMon(dt);
       TRUOC={};
       dt.forEach(function(g){ (g.sizes||[]).forEach(function(y){ if(y.con>0) TRUOC[y.ma]=y.con; }); });
-      TON_NAP_XONG=true; })
+      TON_NAP_XONG=true; ganGioCho(); lamTuoiGiaGio(); })
     .catch(function(){});
 }
 const ACC = [
@@ -1232,6 +1240,7 @@ function navBack(){
 let tabNow='today';
 function setTab(t){
   tabNow=t;
+  ['uu_dai','tuyen_dung'].forEach(k=>{const e=document.getElementById(k);if(e)e.hidden=k!==t;});
   document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));
   $('#today').hidden=t!=='today'; $('#order').hidden=t!=='order';
   var mS=$('#season'); if(mS) mS.hidden=t!=='season';
@@ -1241,6 +1250,7 @@ function setTab(t){
   if(nutTab&&nutTab.scrollIntoView) try{ nutTab.scrollIntoView({block:'nearest',inline:'center'}); }catch(e){}
 }
 function go(t){
+  if(t==='uu_dai'||t==='tuyen_dung'){nav('#/'+t.replace('_','-'));window.scrollTo(0,0);return;}
   nav(t==='season'?'#/in-season':(t==='store'?'#/in-store':(t==='order'?'#/dat-truoc':'#/')));
   window.scrollTo({top:0,behavior:'smooth'});
 }
@@ -1254,11 +1264,15 @@ function applyRoute(){
   const isMua=/^\/in-season/.test(h);
   const mMua=h.match(/^\/in-season\/(.+)$/);
   const isStore=/^\/in-store/.test(h);
+  if(h==='/uu-dai'||h==='/tuyen-dung'){closeSheetUI();closeCoUI();dongSheetMuaUI();setTab(h.slice(1).replace('-','_'));drawBar();return;}
 
   if(mBanh){
     const c=CAKES.find(x=>slug(x.k)===mBanh[1]);
     if(!c){ nav('#/',true); return; }
-    closeCoUI(); dongSheetMuaUI(); renderSheet(c);
+    /* Link chia sẻ mở mới không có ngữ cảnh tab: bánh không còn hôm nay
+       vẫn cho chọn các cỡ đặt trước, cùng danh mục như thẻ Đặt bánh trước. */
+    if(tabNow==='today'&&!c.sizes.some(s=>TODAY[s.id]>0))setTab('order');
+    dongDangSua=-1;closeCoUI(); dongSheetMuaUI(); renderSheet(c);
     return;
   }
   /* Mon mua vu co duong rieng #/in-season/<ma>. Vao thang duong nay luc
@@ -1371,7 +1385,7 @@ function railHtml(n,cb){
 function slotsHtml(){
   return SLOTS.map((s,i)=>{
     const off=!slotOk(picked,s);
-    return `<button class="slot ${i===pickedSlot&&!off?'on':''} ${off?'off':''}" onclick="pickSlot(${i})">${s.t}</button>`;
+    return `<button class="slot ${i===pickedSlot&&!off?'on':''} ${off?'off':''}" onclick="pickSlot(${i})" ${off?'disabled aria-disabled="true"':''}>${s.t}</button>`;
   }).join('');
 }
 /* Doi ngay xong ma khung gio cu khong con dat duoc thi phai NHAY sang khung
@@ -1394,7 +1408,7 @@ function pick(i){
   if(fixSlot()){ daChonGio=false; moLich=true; gioBiDoi=true; }
   renderRail(); quoteShip();
 }
-function pickSlot(i){ pickedSlot=i; daChonGio=true; moLich=false; gioBiDoi=false; if(!ngayChon) neoNgay(picked); renderRail(); quoteShip(); }
+function pickSlot(i){ if(!SLOTS[i]||!slotOk(picked,SLOTS[i]))return; pickedSlot=i; daChonGio=true; moLich=false; gioBiDoi=false; if(!ngayChon) neoNgay(picked); renderRail(); quoteShip(); }
 /* Nut Thay doi o muc 02 cua checkout. */
 function doiLich(){ moLich=true; drawCoDate();
   const o=$('#c-days'); if(o){ const b=o.querySelector('.day.on')||o.querySelector('.day'); if(b) b.focus(); } }
@@ -1407,7 +1421,7 @@ function renderRail(){
   if(picked===0) extra=(" " + htmlChuWeb("dat_banh_342df54b8", "Đơn trong ngày cần trước") + " " + "<b>" + htmlChuWeb("dat_banh_ebdea35ca", "{gia_tri_a} tiếng", {gia_tri_a:(CONFIG.prepHours)}) + "</b>" + ".");
   else if(picked===1) extra=(" " + htmlChuWeb("dat_banh_473907822", "Đơn cho ngày mai chỉ nhận") + " " + "<b>" + htmlChuWeb("dat_banh_5d91a62f2", "từ {gia_tri_a}h trở đi", {gia_tri_a:(CONFIG.tomorrowFrom)}) + "</b>" + htmlChuWeb("dat_banh_5551ce67c", ", vì bếp cần thời gian chuẩn bị nguyên liệu."));
   else extra=(" " + htmlChuWeb("dat_banh_62b9a66ce", "Đặt trước từ 2 ngày là") + " " + "<b>" + htmlChuWeb("dat_banh_dcc009366", "tốt nhất") + "</b>" + htmlChuWeb("dat_banh_223f30099", ", bếp chủ động được nguyên liệu và quý khách chọn được mọi khung giờ."));
-  $('#orderNote').innerHTML=(htmlChuWeb("dat_banh_c3baf86a6", "Nhận bánh") + " " + "<b>" + "" + (DAYS[d.getDay()]) + " " + (dmy(d)) + "</b>" + ", khung " + "<b>" + "" + (SLOTS[pickedSlot].t) + "</b>" + ".")+extra;
+  $('#orderNote').innerHTML=(htmlChuWeb("dat_banh_c3baf86a6", "Nhận bánh") + " " + "<b>" + "" + (DAYS[d.getDay()]) + " " + (dmy(d)) + "</b>" + ", khung " + "<b>" + "" + (daChonGio&&slotOk(picked,SLOTS[pickedSlot])?SLOTS[pickedSlot].t:esc(chuWeb('chon_lai_gio','Vui lòng chọn khung giờ còn nhận'))) + "</b>" + ".")+extra;
   drawCoDate();
 }
 function renderCakes(){
@@ -1420,7 +1434,10 @@ function renderCakes(){
 
 /* ---------- chi tiet ---------- */
 let cur=null,curSize=null;
+let dongDangSua=-1;
+function kichThuocDangBan(c){const bang=tabNow==='today'?TODAY:TRUOC;return Object.keys(bang).length?c.sizes.filter(s=>bang[s.id]>0):c.sizes;}
 function openSheet(k){
+  dongDangSua=-1;
   const c=CAKES.find(x=>x.k===k); if(!c) return;
   nav('#/banh/'+slug(c.k));
 }
@@ -1446,8 +1463,9 @@ function vgbChonAnh(i) {
 
 function renderSheet(c){
   cur=c;
-  const avail=c.sizes.filter(s=>TODAY[s.id]>0);
+  const avail=kichThuocDangBan(c);
   curSize=avail[0]||c.sizes[0];
+  $('#s-nia').value=0;$('#s-dia').value=0;
   $('#s-img').src=c.img||ANH_NEN; $('#s-name').textContent=chuMonWeb(c.sizes[0].id,'ten',c.k);
   $('#s-name').classList.toggle('vi', laChuViet(c.k));
   suKien('ViewContent', {content_ids:c.sizes.map(s=>s.id), content_type:'product', content_name:c.k,
@@ -1476,7 +1494,7 @@ function veChuMonDangMo(){
       +tangHien.map((l,i)=>`<div class="layer"><span class="i">${String(i+1).padStart(2,'0')}</span><div><b>${esc(l[0])}</b><i>${esc(l[1])}</i></div></div>`).join('')+'</div>'
     : ("<div class=\"fine\" style=\"margin-top:20px\">" + htmlChuWeb("dat_banh_b96013446", "Mô tả và tầng hương lớp vị của món này đang được cập nhật.") + "</div>");
 }
-function closeSheetUI(){ $('#sheet').classList.remove('open'); document.body.style.overflow=''; }
+function closeSheetUI(){ dongDangSua=-1; $('#sheet').classList.remove('open'); document.body.style.overflow=''; }
 /* picked_nums la MANG chu khong phai Set: giu dung thu tu khach bam,
    de dat duoc so 26 khac 62, va dat duoc so lap nhu 11, 22. */
 let picked_nums=[], picked_add=new Set();
@@ -1515,7 +1533,7 @@ function drawAddons(){
    Cau hinh giong het nhau thi cong don so luong.
    ======================================================= */
 let CART=[];
-function cartKey(o){ return [o.id,o.wish,o.adds.map(a=>a.id).join('+')].join('|'); }
+function cartKey(o){ return [o.id,o.wish,o.adds.map(a=>a.id).join('+'),[o.dung_cu?.nia||0,o.dung_cu?.dia||0].join(',')].join('|'); }
 function cartCount(){ return CART.reduce((a,x)=>a+x.qty,0); }
 function lineUnit(o){ return o.price + o.adds.reduce((a,x)=>a+x.p,0); }
 function cartTotal(){ return CART.reduce((a,x)=>a+lineUnit(x)*x.qty,0); }
@@ -1531,13 +1549,16 @@ function tenMonGio(o){ return chuMonWeb(o.id,'ten',o.k); }
 function daCoTrongGio(id){ return CART.filter(x=>x.id===id).reduce((a,x)=>a+x.qty,0); }
 function addToCart(){
   if(!cur||!curSize) return;
+  if(!kichThuocDangBan(cur).some(s=>s.id===curSize.id)){toast(chuWeb('het_size','Kích thước này hiện chưa nhận đặt. Quý khách chọn kích thước khác.'));return;}
   const gh=gioiHanNhan(curSize.id);
-  if(gh&&daCoTrongGio(curSize.id)>=gh){
+  if(gh&&daCoTrongGio(curSize.id)-(dongDangSua>=0&&CART[dongDangSua]?.id===curSize.id?CART[dongDangSua].qty:0)+(dongDangSua>=0?CART[dongDangSua].qty:1)>gh){
     toast((chuWeb("dat_banh_04267831d", "Size này chỉ còn nhận {gia_tri_a} bánh trong 3 ngày tới. Cần nhiều hơn quý khách gọi 0931 224 334", {gia_tri_a:(gh)})));
     return;
   }
-  const o={ k:cur.k, img:cur.img, id:curSize.id, cm:curSize.cm, price:curSize.p,
-            wish:($('#s-wish').value||'').trim(), adds:chosenAddons(), qty:1 };
+  const o={ k:cur.k, img:cur.img, id:curSize.id, cm:curSize.cm, price:curSize.p, nguon:tabNow==='today'?'today':'order',
+            wish:($('#s-wish').value||'').trim(), adds:chosenAddons(), qty:dongDangSua>=0?CART[dongDangSua].qty:1,
+            dung_cu:{nia:Math.min(30,Math.max(0,parseInt($('#s-nia').value)||0)),dia:Math.min(30,Math.max(0,parseInt($('#s-dia').value)||0))} };
+  if(dongDangSua>=0){CART[dongDangSua]=o;dongDangSua=-1;drawBar();drawCart();nav('#/gio-hang',true);toast(chuWeb('gio_da_sua','Đã cập nhật bánh trong giỏ'));return;}
   const key=cartKey(o);
   const hit=CART.find(x=>cartKey(x)===key);
   if(hit) hit.qty++; else CART.push(o);
@@ -1562,6 +1583,7 @@ function cartQty(i,d){
 function cartRemove(i){ CART.splice(i,1); drawBar(); drawCart(); if(!CART.length) nav('#/',true); }
 
 function drawBar(nhich){
+  luuGioDangSoan();
   const b=$('#bar'), n=cartCount();
   b.classList.toggle('on', n>0 && !$('#checkout').classList.contains('open'));
   document.body.classList.toggle('has-bar', n>0);
@@ -1573,9 +1595,9 @@ function drawCart(){
   const el=$('#cartList');
   if(!CART.length){ el.innerHTML=("<li class=\"cart-empty\">" + htmlChuWeb("dat_banh_b5f223212", "Giỏ chưa có bánh nào.") + "</li>"); return; }
   el.innerHTML=CART.map((o,i)=>{
-    const ex=[ o.wish?(htmlChuWeb("dat_banh_1970655ae", "Lời chúc:") + " " + "<em>" + "" + (esc(o.wish)) + "</em>"):'',
+    const ex=[ o.dung_cu&&(o.dung_cu.nia||o.dung_cu.dia)?htmlChuWeb("dung_cu_gio","{nia} nĩa gỗ, {dia} dĩa giấy",{nia:o.dung_cu.nia,dia:o.dung_cu.dia}):'', o.wish?(htmlChuWeb("dat_banh_1970655ae", "Lời chúc:") + " " + "<em>" + "" + (esc(o.wish)) + "</em>"):'',
                o.adds.length?(htmlChuWeb("dat_banh_2c04193c6", "Thêm: {gia_tri_a}", {gia_tri_a:(o.adds.map(a=>a.n).join(', '))})):'' ].filter(Boolean).join('<br>');
-    return ("<li>" + "\n      " + "<div class=\"im\">" + "<img src=\"" + (o.img) + "\" alt=\"\">" + "</div>" + "\n      " + "<div class=\"bd\">" + "\n        " + "<div class=\"t\">" + "" + (esc(chuMonWeb(o.id,'ten',o.k))) + "</div>" + "\n        " + "<div class=\"s\">" + htmlChuWeb("dat_banh_7498bc8a8", "Ø {gia_tri_a}cm · mã {gia_tri_b}", {gia_tri_a:(o.cm), gia_tri_b:(o.id)}) + "</div>" + "\n        " + (ex?`<div class="ex">${ex}</div>`:'') + "\n      " + "</div>" + "\n      " + "<div class=\"rt\">" + "\n        " + "<div class=\"p\">" + "" + (vnd(lineUnit(o)*o.qty)) + "</div>" + "\n        " + "<div class=\"qty\">" + "<button onclick=\"cartQty(" + (i) + ",-1)\">" + "−" + "</button>" + "<span>" + "" + (o.qty) + "</span>" + "<button onclick=\"cartQty(" + (i) + ",1)\">" + "+" + "</button>" + "</div>" + "\n        " + "<button class=\"rm\" onclick=\"cartRemove(" + (i) + ")\">" + htmlChuWeb("dat_banh_15ec2c1bb", "Bỏ") + "</button>" + "\n      " + "</div>" + "</li>");
+    return ("<li>" + "\n      " + "<div class=\"im\">" + "<img src=\"" + (o.img) + "\" alt=\"\">" + "</div>" + "\n      " + "<div class=\"bd\">" + "\n        " + "<div class=\"t\">" + "" + (esc(chuMonWeb(o.id,'ten',o.k))) + "</div>" + "\n        " + "<div class=\"s\">" + htmlChuWeb("dat_banh_7498bc8a8", "Ø {gia_tri_a}cm · mã {gia_tri_b}", {gia_tri_a:(o.cm), gia_tri_b:(o.id)}) + "</div>" + "\n        " + (ex?`<div class="ex">${ex}</div>`:'') + "\n      " + "</div>" + "\n      " + "<div class=\"rt\">" + (o.cm?`<button class="sua-gio" onclick="suaDongGio(${i})">${htmlChuWeb("sua_banh","Sửa bánh")}</button>`:'') + "\n        " + "<div class=\"p\">" + "" + (vnd(lineUnit(o)*o.qty)) + "</div>" + "\n        " + "<div class=\"qty\">" + "<button onclick=\"cartQty(" + (i) + ",-1)\">" + "−" + "</button>" + "<span>" + "" + (o.qty) + "</span>" + "<button onclick=\"cartQty(" + (i) + ",1)\">" + "+" + "</button>" + "</div>" + "\n        " + "<button class=\"rm\" onclick=\"cartRemove(" + (i) + ")\">" + htmlChuWeb("dat_banh_15ec2c1bb", "Bỏ") + "</button>" + "\n      " + "</div>" + "</li>");
   }).join('');
 }
 function esc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
@@ -1585,7 +1607,7 @@ function toast(msg){
   clearTimeout(__toastT); __toastT=setTimeout(()=>t.classList.remove('on'),2200);
 }
 function drawSizes(){
-  $('#s-sizes').innerHTML=cur.sizes.map(s=>{
+  $('#s-sizes').innerHTML=kichThuocDangBan(cur).map(s=>{
     const n=TODAY[s.id]||0;
     const t=TRUOC[s.id]||0;
     /* Khong ghep so tho nua, di chung mot cua voi the va luoi (#205). */
@@ -1631,7 +1653,7 @@ function drawCoDate(){
       ? (htmlChuWeb("dat_banh_f7b357518", "Nhận") + " " + "<b>" + htmlChuWeb("dat_banh_95cee3e1c", "hôm nay") + "</b>" + htmlChuWeb("dat_banh_b3193b5f1", ". Bếp cần {gia_tri_a} tiếng nên các khung sớm hơn đã đóng.", {gia_tri_a:(CONFIG.prepHours)}))
       : picked===1
         ? (htmlChuWeb("dat_banh_f7b357518", "Nhận") + " " + "<b>" + htmlChuWeb("dat_banh_02d0b5c10", "ngày mai {gia_tri_a}", {gia_tri_a:(dmy(d))}) + "</b>" + htmlChuWeb("dat_banh_90baf9c6b", ", chỉ từ {gia_tri_a}h trở đi.", {gia_tri_a:(CONFIG.tomorrowFrom)}))
-        : (htmlChuWeb("dat_banh_f7b357518", "Nhận") + " " + "<b>" + "" + (DAYS[d.getDay()]) + " " + (dmy(d)) + "</b>" + ", khung " + "<b>" + "" + (SLOTS[pickedSlot].t) + "</b>" + "."))
+        : (htmlChuWeb("dat_banh_f7b357518", "Nhận") + " " + "<b>" + "" + (DAYS[d.getDay()]) + " " + (dmy(d)) + "</b>" + ", khung " + "<b>" + "" + (daChonGio&&slotOk(picked,SLOTS[pickedSlot])?SLOTS[pickedSlot].t:htmlChuWeb("chon_lai_gio","Vui lòng chọn khung giờ còn nhận")) + "</b>" + "."))
     + (ngayQua ? '' : (" " + htmlChuWeb("dat_banh_7c2aa6fdc", "Cả đơn được giao một lần vào khung này.")))
     + (ngayQua
         ? (" " + "<b>" + htmlChuWeb("dat_banh_417ae3e9f", "Quý khách chọn lại ngày nhận") + "</b>")
@@ -1643,10 +1665,9 @@ function drawCoDate(){
   if($('#checkout').classList.contains('open')) drawCo();
 }
 function updateCta(){
-  if(!cur||!curSize) return;
-  const add=chosenAddons();
-  const tot=curSize.p+add.reduce((a,x)=>a+x.p,0);
-  $('#s-cta').textContent=(chuWeb("dat_banh_34d469c70", "Thêm vào giỏ · {gia_tri_a}", {gia_tri_a:(vnd(tot))}));
+  if(!curSize) return;
+  const tot=curSize.p+chosenAddons().reduce((a,x)=>a+x.p,0);
+  $('#s-cta').textContent=dongDangSua>=0?chuWeb('luu_banh','Lưu thay đổi'):chuWeb("dat_banh_34d469c70", "Thêm vào giỏ · {gia_tri_a}", {gia_tri_a:vnd(tot)});
 }
 function closeSheet(){ navBack(); }
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeSheet(); });
@@ -1950,6 +1971,7 @@ function apPhiGiao(m, kieu, q){
     $('#shipHint').innerHTML=mp
       ? (htmlChuWeb("dat_banh_e54218837", "Đơn này được") + " " + "<b style=\"color:var(--cyan)\">" + htmlChuWeb("dat_banh_aea590df5", "miễn phí giao") + "</b>" + htmlChuWeb("dat_banh_fc72cffcb", ". Chúng tôi chưa kiểm được địa chỉ và sẽ gọi xác nhận."))
       : (htmlChuWeb("dat_banh_b4bab6e2c", "Chưa lấy được phí giao cho địa chỉ này.") + " " + "<b style=\"color:var(--cyan)\">" + htmlChuWeb("dat_banh_832bb0406", "Chúng tôi sẽ báo phí khi xác nhận đơn.") + "</b>");
+    const thu=document.createElement('button');thu.textContent=chuWeb('thu_phi','Thử lại phí giao');thu.className='cm-nut';thu.onclick=quoteShip;$('#shipHint').append(thu);
     return;
   }
   CO.ship=m.total_fee; CO.shipTrangThai=kieu;
@@ -1994,7 +2016,7 @@ function drawCo(){
   $('#sum').innerHTML=`
     ${CART.map(o=>`<div class="row"><span>${esc(chuMonWeb(o.id,'ten',o.k))} · Ø ${o.cm}cm${o.qty>1?(" " + htmlChuWeb("dat_banh_67fba2f35", "×") + " ")+o.qty:''}</span><b>${vnd(o.price*o.qty)}</b></div>`
       + o.adds.map(x=>`<div class="row"><span>+ ${esc(x.n)}${o.qty>1?(" " + htmlChuWeb("dat_banh_67fba2f35", "×") + " ")+o.qty:''}</span><b>${vnd(x.p*o.qty)}</b></div>`).join('')).join('')}
-    <div class="row"><span>${htmlChuWeb('gio_hang_nhan_ngay', 'Nhận ngày')}</span><b>${dmy(d)} · ${SLOTS[pickedSlot].t}</b></div>
+    <div class="row"><span>${htmlChuWeb('gio_hang_nhan_ngay', 'Nhận ngày')}</span><b>${dmy(d)} · ${slotOk(picked,SLOTS[pickedSlot])&&daChonGio?SLOTS[pickedSlot].t:htmlChuWeb("chon_lai_gio","Vui lòng chọn khung giờ còn nhận")}</b></div>
     ${CO.mode==='pick'?("<div class=\"row\">" + "<span>" + htmlChuWeb("dat_banh_f738100e0", "Tự lấy tại") + "</span>" + "<b>" + "" + (PICKUPS[CO.pickup].n) + "</b>" + "</div>"):''}
     <div class="row"><span>${htmlChuWeb('gio_hang_tien_banh', 'Tiền bánh')}</span><b>${vnd(S.items)}</b></div>
     <div class="row"><span>${esc(S.tt.nhan)}</span><b>${esc(S.tt.gia_tri)}</b></div>
@@ -2102,7 +2124,8 @@ async function submitOrder(){
     email    : ($('#f-cmail').value||'').trim()
   } : null;
   const vatLine = vat ? `[HOÁ ĐƠN] MST ${vat.tax_code} · ${vat.name} · ${vat.address} · mail ${vat.email}` : '';
-  const note = [ ($('#f-note').value||'').trim(), vatLine ].filter(Boolean).join('\n');
+  const dungCu=CART.filter(o=>o.dung_cu&&(o.dung_cu.nia||o.dung_cu.dia)).map(o=>`${tenMonGio(o)} x${o.qty}: ${o.dung_cu.nia*o.qty} nĩa gỗ, ${o.dung_cu.dia*o.qty} dĩa giấy`).join('; ');
+  const note = [ ($('#f-note').value||'').trim(), dungCu, vatLine ].filter(Boolean).join('\n');
 
   /* Gop dong trung ma lai voi nhau truoc khi gui, vi hai banh khac nhau
      van co the cung mot phu kien. */
@@ -2212,6 +2235,7 @@ function napHangMua(){
   return fetch("/api/method/vagabond.mua_vu.hang_theo_mua",{headers:{Accept:"application/json"}})
     .then(function(r){return r.json();})
     .then(function(j){ MUA=(j&&j.message)||{co:0,mon:[]}; veHangMua();
+      if(gioMuaCho&&gioMuaCho.length){gioMuaCho.forEach(o=>{const m=(MUA.mon||[]).find(m=>m.ma===o.id);if(m&&!m.het)CART.push({k:m.ten,img:m.anh||'',id:m.ma,cm:0,price:m.gia||0,wish:'',adds:[],qty:Math.min(o.qty,m.con)});});gioMuaCho=[];drawBar();drawCart();}
       if(/^#\/in-season\//.test(location.hash||'')) applyRoute(); })
     .catch(function(){});
 }
@@ -2405,6 +2429,7 @@ function apDungCauHinh(ch){
   var cs=(ch.chinh_sach||[]).filter(function(c){ return /^\/[a-z-]+$/.test(String(c.duong||'')); });
   var fc=$('#fChinhSach'); if(fc) fc.innerHTML=cs.map(function(c){ return '<a href="'+c.duong+'">'+esc(c.ten)+'</a>'; }).join('');
   var bm=cs.filter(function(c){ return c.khoa==='chinh_sach_bao_mat'; })[0];
+  if(!bm){const e=document.querySelector('[data-vgb-chu=dat_banh_01f52284d]');if(e){const a=document.createElement('a');a.href='mailto:hello@thevagabondpatisserie.com?subject=Chinh%20sach%20bao%20mat';a.textContent=chuWeb('chinh_sach_ho_tro','Quý khách liên hệ chúng tôi để được cung cấp thông tin bảo mật trước khi gửi.');e.replaceChildren(a);}}
   var dc=$('#docChinhSach'); if(dc) dc.innerHTML=bm?'<a href="'+bm.duong+('" target="_blank" rel="noopener">' + htmlChuWeb('doc_bao_mat','Đọc chính sách bảo mật') + "</a>"):'';
   var fn=$('#fNotePhi');
   if(fn) fn.textContent=MIEN_PHI_TU>0 ? (chuWeb("dat_banh_a6738ef6d", "Giá đã gồm thuế GTGT. Miễn phí giao cho đơn từ") + " ")+tienVN(MIEN_PHI_TU) : (chuWeb("dat_banh_8b550092a", "Giá đã gồm thuế GTGT, chưa gồm phí vận chuyển"));
@@ -2438,13 +2463,13 @@ function themNhanh(k, cheDo){
     toast((chuWeb("dat_banh_04267831d", "Size này chỉ còn nhận {gia_tri_a} bánh trong 3 ngày tới. Cần nhiều hơn quý khách gọi 0931 224 334", {gia_tri_a:(gh)})));
     return;
   }
-  const o={ k:c.k, img:c.img, id:sz.id, cm:sz.cm, price:sz.p, wish:'', adds:[], qty:1 };
+  const o={ k:c.k, img:c.img, id:sz.id, cm:sz.cm, price:sz.p, nguon:cheDo?'today':'order', wish:'', adds:[], qty:1 };
   const key=cartKey(o);
   const hit=CART.find(x=>cartKey(x)===key);
   if(hit) hit.qty++; else CART.push(o);
   drawBar(true); drawCart();
   suKien('AddToCart', {content_ids:[o.id], content_type:'product', value:lineUnit(o), currency:'VND'});
-  toast((chuWeb("dat_banh_7e42d2e7b", "Đã thêm {gia_tri_a}{gia_tri_b}. Bấm vào bánh để thêm lời chúc, phụ kiện.", {gia_tri_a:(tenMonGio(o)), gia_tri_b:(sz.cm?' '+sz.cm+'cm':'')})));
+  toast((chuWeb("dat_banh_7e42d2e7b", "Đã thêm {gia_tri_a}{gia_tri_b}. Vào giỏ, chọn Sửa bánh để thêm lời chúc, phụ kiện.", {gia_tri_a:(tenMonGio(o)), gia_tri_b:(sz.cm?' '+sz.cm+'cm':'')})));
 }
 
 /* =======================================================
@@ -2464,12 +2489,13 @@ function themNhanh(k, cheDo){
    thang cho khach; het banh thi noi ro "da het" chu khong an tab di.
    ======================================================= */
 var STORE={quay:[]};
+var quayDangChon="", nhomTaiQuay="";
 
 function napTonQuay(){
   return fetch("/api/method/vagabond.kiem_kho.con_tren_quay_web",{headers:{Accept:"application/json"}})
-    .then(function(r){return r.json();})
+    .then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json();})
     .then(function(j){ STORE=(j&&j.message)||{quay:[]}; veTonQuay(); })
-    .catch(function(){});
+    .catch(function(){const e=$('#storeBody');if(e)e.textContent=chuWeb('quay_rong','Chưa có dữ liệu tại điểm bán. Quý khách thử tải lại hoặc liên hệ chúng tôi.');});
 }
 
 function veTonQuay(){
@@ -2477,15 +2503,15 @@ function veTonQuay(){
   if(!tab||!than) return;
   var quay=STORE.quay||[];
   if(!quay.length){
-    tab.hidden=true;
-    if(tabNow==='store') go('today');
-    return;
+    tab.hidden=false;than.textContent=chuWeb('quay_rong','Chưa có dữ liệu tại điểm bán. Quý khách thử tải lại hoặc liên hệ chúng tôi.');
+    const b=document.createElement('button');b.className='cm-nut';b.textContent=chuWeb('tai_lai_quay','Tải lại danh sách');b.onclick=napTonQuay;than.append(b);return;
   }
   tab.hidden=false;
   var luc=$('#storeLuc');
   if(luc) luc.textContent=STORE.cap_nhat?((chuWeb("dat_banh_8f92d9663", "Cập nhật") + " ")+String(STORE.cap_nhat).slice(11,16)):'';
-  than.innerHTML=quay.map(function(q){
-    var mon=q.mon||[];
+  if(!quay.some(q=>q.ma===quayDangChon))quayDangChon=quay[0].ma;
+  than.innerHTML=quay.filter(q=>q.ma===quayDangChon).map(function(q){
+    var mon=(q.mon||[]).filter(m=>!nhomTaiQuay||m.nhom===nhomTaiQuay);
     var tong=mon.reduce(function(a,m){return a+(m.con||0);},0);
     var dau='<div class="quay">'+
       '<div class="q-ten">'+esc(q.ten)+'</div>'+
@@ -2507,7 +2533,76 @@ function veTonQuay(){
         '</div></div>';
     }).join('')+'</div>';
   }).join('');
+  const chon=document.createElement('div');chon.className='quay-chon';
+  quay.forEach(q=>{const b=document.createElement('button');b.setAttribute('aria-pressed',String(q.ma===quayDangChon));
+    const ten=document.createElement('b');ten.textContent=q.ten;const dc=document.createElement('span');dc.textContent=q.dia_chi||'';
+    const dem=document.createElement('span');dem.textContent=(q.mon||[]).reduce((a,m)=>a+(m.con||0),0)+' '+chuWeb('dat_banh_3556aabb5','bánh')+' · '+(q.mon||[]).length+' '+chuWeb('so_loai','loại');b.append(ten,dc,dem);
+    b.onclick=()=>{quayDangChon=q.ma;nhomTaiQuay='';veTonQuay();};chon.append(b);});
+  const loc=document.createElement('div');loc.className='cm-chips';
+  const ds=quay.find(q=>q.ma===quayDangChon)?.mon||[];
+  ['',...new Set(ds.map(m=>m.nhom).filter(Boolean))].forEach(n=>{const b=document.createElement('button');b.textContent=(n||chuWeb('tat_ca_muc','Tất cả'))+' · '+ds.filter(m=>!n||m.nhom===n).length;b.setAttribute('aria-pressed',String(n===nhomTaiQuay));b.onclick=()=>{nhomTaiQuay=n;veTonQuay();};loc.append(b);});
+  than.prepend(chon,loc);
 }
+
+function suaDongGio(i){
+  const o=CART[i];if(!o)return;const c=CAKES.find(c=>c.sizes.some(s=>s.id===o.id));if(!c)return;
+  setTab(o.nguon||(TODAY[o.id]>0?'today':'order'));nav('#/banh/'+slug(c.k));dongDangSua=i;curSize=c.sizes.find(s=>s.id===o.id);
+  $('#s-wish').value=o.wish||'';$('#s-nia').value=o.dung_cu?.nia||0;$('#s-dia').value=o.dung_cu?.dia||0;
+  picked_nums=o.adds.map(a=>NUMS.find(n=>n.id===a.id)?.n).filter(n=>n!==undefined);
+  picked_add=new Set(o.adds.filter(a=>!NUMS.some(n=>n.id===a.id)).map(a=>a.id));wishCount();drawSizes();drawAddons();
+}
+function luuGioDangSoan(){
+  if(typeof CO==='undefined'||window.vgbXemThu)return;
+  try{if(!CART.length&&!(gioMuaCho||[]).length&&!(gioBanhCho||[]).length){sessionStorage.removeItem('vgb-gio-v1');return;}const truong={};document.querySelectorAll('#checkout input[id],#checkout textarea[id]').forEach(e=>{if(e.type!=='checkbox')truong[e.id]=e.value;});
+    sessionStorage.setItem('vgb-gio-v1',JSON.stringify({luc:Date.now(),gio:CART.concat(gioMuaCho||[],gioBanhCho||[]),ngay:ngayChon,slot:pickedSlot,daChonNgay,daChonGio,truong,co:{mode:CO.mode,pickup:CO.pickup,pay:CO.pay,other:CO.other,gift:CO.gift,vat:CO.vat,quan:CO.quan,nonce:CO.nonce}}));
+  }catch(e){}
+}
+var gioMuaCho=[],gioBanhCho=[];
+/* Một nguồn duy nhất dựng dòng giỏ từ bản lưu: giá, cỡ, tên lấy từ CAKES hiện
+   có, không lấy giá trong bản lưu. Trả null khi CAKES chưa có món đó. */
+function dongGioTuLuu(o){
+  const c=CAKES.find(c=>c.sizes.some(s=>s.id===o.id)),z=c?.sizes.find(s=>s.id===o.id);if(!z)return null;
+  const adds=(o.adds||[]).slice(0,20).map(a=>{const n=NUMS.find(n=>n.id===a.id);return n?{id:n.id,n:'Nến số '+n.n,p:n.p}:ADDONS.find(x=>x.id===a.id);}).filter(Boolean);
+  return {k:c.k,img:c.img,id:z.id,cm:z.cm,price:z.p,nguon:o.nguon==='today'?'today':'order',qty:o.qty,wish:String(o.wish||'').slice(0,60),adds,dung_cu:{nia:Math.min(30,Math.max(0,parseInt(o.dung_cu?.nia)||0)),dia:Math.min(30,Math.max(0,parseInt(o.dung_cu?.dia)||0))}};
+}
+function ganGioCho(){
+  if(!gioBanhCho.length)return;
+  const con=[];let doi=false;
+  gioBanhCho.forEach(o=>{const dong=dongGioTuLuu(o);if(dong){CART.push(dong);doi=true;}else con.push(o);});
+  /* Danh mục đã về mà vẫn không có món: món đã ngừng bán, không giữ nữa. */
+  gioBanhCho=TON_NAP_XONG?[]:con;
+  if(doi){drawBar();drawCart();if($('#checkout').classList.contains('open'))drawCo();}
+  luuGioDangSoan();
+}
+function lamTuoiGiaGio(){
+  let doi=false;
+  CART.forEach(o=>{if(!o.cm)return;const c=CAKES.find(c=>c.sizes.some(s=>s.id===o.id)),z=c?.sizes.find(s=>s.id===o.id);
+    if(z&&Number.isFinite(z.p)&&o.price!==z.p){o.price=z.p;doi=true;}});
+  if(doi){drawBar();drawCart();if($('#checkout').classList.contains('open'))drawCo();luuGioDangSoan();}
+}
+function phucHoiGio(){
+  if(window.vgbXemThu)return;
+  try{const d=JSON.parse(sessionStorage.getItem('vgb-gio-v1')||'null');if(!d||Date.now()-d.luc>86400000||!Array.isArray(d.gio))return;
+    gioMuaCho=d.gio.slice(0,50).filter(o=>o.cm===0&&typeof o.id==='string'&&Number.isInteger(o.qty)&&o.qty>0&&o.qty<=99);
+    /* Codex #446: bánh thêm động từ danh mục sống (vgbTronMon) chưa có trong
+       CAKES lúc khôi phục. Giữ dòng đó ở gioBanhCho, khi danh mục về thì
+       ganGioCho() dựng lại bằng cùng một hàm dongGioTuLuu, không bỏ mất. */
+    const luu=d.gio.slice(0,50).filter(o=>o.cm!==0&&typeof o.id==='string'&&Number.isInteger(o.qty)&&o.qty>0&&o.qty<=99);
+    CART=[];gioBanhCho=[];
+    luu.forEach(o=>{const dong=dongGioTuLuu(o);if(dong)CART.push(dong);else gioBanhCho.push(o);});
+    if(TON_NAP_XONG)ganGioCho();
+    if(/^\d{4}-\d{2}-\d{2}$/.test(d.ngay||'')){ngayChon=d.ngay;dongBoNgay();}
+    if(Number.isInteger(d.slot)&&SLOTS[d.slot])pickedSlot=d.slot;
+    daChonNgay=d.daChonNgay===true&&picked>=0;daChonGio=d.daChonGio===true&&slotOk(picked,SLOTS[pickedSlot]);
+    const c=d.co||{};CO.mode=c.mode==='pick'?'pick':'ship';CO.pay=c.pay==='card'?'card':'bank';CO.pickup=c.pickup===1?1:0;
+    ['other','gift','vat'].forEach(k=>CO[k]=c[k]===true);CO.quan=typeof c.quan==='string'?c.quan:'';CO.nonce=/^[A-Za-z0-9_-]{32}$/.test(c.nonce||'')?c.nonce:'';
+    Object.entries(d.truong||{}).forEach(([k,v])=>{const e=document.getElementById(k);if(e&&e.closest('#checkout')&&e.type!=='checkbox'&&typeof v==='string')e.value=v.slice(0,4000);});
+    $('#f-quan').value=CO.quan;
+    setMode(CO.mode);['other','gift','vat'].forEach(k=>{const v=CO[k];CO[k]=!v;tgl(k);});
+  }catch(e){CART=[];}
+}
+document.addEventListener('input',e=>{if(e.target.closest('#checkout'))luuGioDangSoan();});
+window.addEventListener('pagehide',luuGioDangSoan);
 
 napTonQuay();
 /* Nhip 60 giay: banh tren tu doi theo tung hoa don, cung nhip voi tab hom nay. */
@@ -2515,6 +2610,7 @@ setInterval(napTonQuay,60000);
 
 lamTuoiTon();
 setInterval(lamTuoiTon,60000);
+phucHoiGio();
 applyRoute();
 napCauHinh();
 </script>

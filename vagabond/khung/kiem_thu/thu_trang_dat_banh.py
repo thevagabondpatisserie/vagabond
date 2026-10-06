@@ -197,6 +197,7 @@ var mon=CAKES[0], s0=mon.sizes[0];
 var ra=[];
 [[0,0],[1,0],[10,0],[11,0],[1393,0],[null,0],[0,5],[0,1393]].forEach(function(c){
   TODAY[s0.id]=c[0]; TRUOC[s0.id]=c[1];
+  tabNow=c[1]>0?'order':'today';
   renderSheet(mon);
   /* Chi doc PHAN NHAN TON: dong tren dau sheet, va cac the <em> trong tung
      co. Khong doc gia tien hay so do, hai thu do von la so that. */
