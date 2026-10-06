@@ -252,47 +252,50 @@ def _chi_tiet_hai_goi():
 
 
 def _vai_quay_mua():
-	return _vai("quay", "muahang")
+	# Ban dau Codex dung Quay + Thu mua. Tu vong 4 goi Thu mua bo Stock Manager
+	# nen cap do khong con du Kho; cap con du Kho la QLCH + Thu mua (nguoi
+	# quan ly cua hang kiem thu mua). Giu ten ham cu de doi chieu lich su.
+	return _vai("qlch", "muahang")
 
 
-@ca("Codex #449 P1: Quay + Thu mua du tron vai goi Kho (dung tien de cua finding)")
+@ca("Codex #449 P1: QLCH + Thu mua du tron vai goi Kho (tien de cua finding)")
 def _p1_tien_de():
 	dung("kho nam tron trong hop quay + thu mua", set(G["kho"]["vai"]) <= _vai_quay_mua())
 
 
 @ca("Codex #449 P1: chua luu goi thi doan BO NHO NHAT, khong moc them Kho")
 def _p1_doan_khong_luu():
-	la("chi hai goi", _khoa(nd.doan_cac_goi(_vai_quay_mua(), CO_THAT)), ["muahang", "quay"])
+	la("chi hai goi", _khoa(nd.doan_cac_goi(_vai_quay_mua(), CO_THAT)), ["qlch", "muahang"])
 
 
 @ca("Codex #449 P1: da luu goi thi chi tra dung goi da chon con du vai")
 def _p1_doan_da_luu():
-	la("dung hai goi da chon", _khoa(nd.doan_cac_goi(_vai_quay_mua(), CO_THAT, ["quay", "muahang"])),
-		["muahang", "quay"])
+	la("dung hai goi da chon", _khoa(nd.doan_cac_goi(_vai_quay_mua(), CO_THAT, ["qlch", "muahang"])),
+		["qlch", "muahang"])
 	# Chon Quay + Sales thi giu ca hai, du Quay nam trong Sales: do la lua chon that.
 	la("giu nguyen lua chon", _khoa(nd.doan_cac_goi(_vai("sales"), CO_THAT, ["quay", "sales"])),
 		["sales", "quay"])
 	# Ai do go mot vai cua Thu mua tren Desk: goi do roi ra, khong doan them.
 	vai = _vai_quay_mua() - {"Thu mua"}
-	la("thu mua roi ra", _khoa(nd.doan_cac_goi(vai, CO_THAT, ["quay", "muahang"])), ["quay"])
+	la("thu mua roi ra", _khoa(nd.doan_cac_goi(vai, CO_THAT, ["qlch", "muahang"])), ["qlch"])
 	# Moi goi da luu deu mat vai: KHONG doan lai (Codex #449 vong 3), tra rong.
 	la("khong doan lai", _khoa(nd.doan_cac_goi(_vai("sales"), CO_THAT, ["ketoan"])), [])
 
 
-@ca("Codex #449 P1: chuoi thao tac that - xep Quay + Thu mua, mo hop, bo Thu mua, Luu: mat quyen kho")
+@ca("Codex #449 P1: chuoi thao tac that - xep QLCH + Thu mua, mo hop, bo Thu mua, Luu: mat quyen kho")
 def _p1_chuoi_that():
 	email = "uyen@vgb"
 	doc = _UserGia(email, set())
 	with _Kho() as kho:
-		_dat(email, set(), "quay,muahang", kho=kho, doc=doc)
-		la("da luu hai goi", kho.luu[email], ["quay", "muahang"])
+		_dat(email, set(), "qlch,muahang", kho=kho, doc=doc)
+		la("da luu hai goi", kho.luu[email], ["qlch", "muahang"])
 		# Hop doi goi chon san theo chi_tiet: doc dung nhu man hinh.
 		dang = nd.doan_cac_goi(doc.vai(), CO_THAT, nd._goi_da_luu(email))
-		la("hop chon san dung hai goi, khong co Kho", _khoa(dang), ["muahang", "quay"])
+		la("hop chon san dung hai goi, khong co Kho", _khoa(dang), ["qlch", "muahang"])
 		chon = [k for k in _khoa(dang) if k != "muahang"]
 		_dat(email, set(), ",".join(chon), kho=kho, doc=doc)
-	la("vai sau = dung goi Quay", doc.vai(), _vai("quay"))
-	for v in ("Stock Manager", "Stock User", "Item Manager"):
+	la("vai sau = dung goi QLCH", doc.vai(), _vai("qlch"))
+	for v in ("Stock User", "Item Manager", "Mua hàng R&D"):
 		dung("da go %s" % v, v not in doc.vai())
 
 
@@ -339,10 +342,56 @@ def _p1v2_doc_dung():
 	la("rong", nd.doc_khoa_da_luu(None), [])
 
 
-@ca("Codex #449 vong 3 P1: Quay + Thu mua mat Sales User va Thu mua thi KHONG moc Kho")
+@ca("Codex #449 vong 3 P1: hai goi da luu deu mat vai thi KHONG moc Kho")
 def _p1v3_khong_moc_kho():
-	vai = _vai_quay_mua() - {"Sales User", "Thu mua"}
+	# Codex dung Quay + Thu mua mat Sales User va Thu mua; tu vong 4 cap con du
+	# Kho la QLCH + Thu mua, nen go vai rieng cua tung goi.
+	vai = _vai_quay_mua() - {"VGB - Quản lý cửa hàng", "Thu mua"}
 	dung("tien de: phan con lai van du goi Kho", set(G["kho"]["vai"]) <= vai)
-	la("khong goi nao, khong Kho", _khoa(nd.doan_cac_goi(vai, CO_THAT, ["quay", "muahang"])), [])
-	ds = nd.doan_cac_goi(vai, CO_THAT, ["quay", "muahang"])
+	la("khong goi nao, khong Kho", _khoa(nd.doan_cac_goi(vai, CO_THAT, ["qlch", "muahang"])), [])
+	ds = nd.doan_cac_goi(vai, CO_THAT, ["qlch", "muahang"])
 	dung("vai kho hien la quyen rieng de nguoi quan ly thay", "Stock Manager" in nd._thua_so_voi_goi(vai, ds))
+
+
+# ------------------------------------- Codex #449 vong 4: pham vi goi Thu mua, Quay
+
+def _tap_cong_no():
+	from vagabond.khung.kiem_thu.thu_go_dat_hang_545 import _tap_cong_no as t
+	return t()["QUYEN_CONG_NO_THU"]
+
+
+@ca("Codex #449 vong 4 P1: goi Thu mua KHONG co Stock Manager (duyet xuat huy, chot kiem ke)")
+def _p1v4_thu_mua():
+	dung("khong Stock Manager", "Stock Manager" not in G["muahang"]["vai"])
+	dung("van noi duoc phieu kho", "Sua hoa don mua (noi phieu kho)" in G["muahang"]["vai"])
+	dung("goi Kho van co Stock Manager", "Stock Manager" in G["kho"]["vai"])
+
+
+@ca("Codex #449 vong 4 P1: goi Quay KHONG qua cong Cong no phai thu, Sales/QLCH/Ke toan/Giam doc qua")
+def _p1v4_quay_cong_no():
+	tap = _tap_cong_no()
+	dung("quay bi chan", not (set(G["quay"]["vai"]) & tap))
+	for k in ("sales", "qlch", "ketoan", "giamdoc"):
+		dung("%s qua cong" % k, bool(set(G[k]["vai"]) & tap))
+	# Quay + Thu mua, Quay + Marketing cung khong lot.
+	for k in ("muahang", "marketing", "kho", "bep"):
+		dung("quay + %s van bi chan" % k, not ((set(G["quay"]["vai"]) | set(G[k]["vai"])) & tap))
+
+
+@ca("Codex #449 vong 4: o Cong no tren man an theo DUNG tap cua may chu")
+def _p1v4_js_khop():
+	import re
+	js = _doc_js("01-khung-app.js")
+	m = re.search(r"var QUYEN_CONG_NO_THU = \[([^\]]*)\]", js)
+	dung("co tap JS", bool(m))
+	la("JS khop may chu", set(re.findall(r"'([^']+)'", m.group(1))), _tap_cong_no())
+	tc = _doc_js("02-trang-chu.js")
+	i = tc.index("'Khách sỉ gom hoá đơn trả sau")
+	dung("o Cong no trong khoi Ban hang boc coQuyenCongNo()", "coQuyenCongNo() ? card(" in tc[i - 120:i])
+
+
+def _doc_js(ten):
+	import io, os
+	goc = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+	with io.open(os.path.join(goc, "public", "js", "bep", ten), encoding="utf-8") as f:
+		return f.read()
