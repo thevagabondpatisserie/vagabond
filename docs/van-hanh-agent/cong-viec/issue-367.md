@@ -1,3 +1,17 @@
+# Bổ sung 06/10/2026 - logo các kênh theo yêu cầu anh Việt
+
+Owner Codex, tiếp PR436. Nút mở app chỉ hiện logo Grab; popup có logo từng
+kênh. Dùng ảnh thương hiệu từ website chính thức và Beacons chính chủ,
+lưu asset local; nguồn ở `public/web_order/logo-kenh/README.md`.
+
+CMS có một khối `nut_kenh`: logo, tên trợ năng, bật/tắt độc lập. Kênh và
+Zalo dùng trường ảnh sẵn có, có tải PNG/JPG/WebP, tên/link/chữ dự phòng,
+thứ tự/ẩn-hiện. Nội dung popup vẫn ở Nhãn và câu chữ. Không thêm DocType.
+Renderer ảnh có fallback khi lỗi, URL kiểm backend và preview; image contain.
+Browser fixture390 không tràn,7ảnh tải đủ; Editor thay logo nút -> iframe
+đổi đúng ảnh, hoàn tác về Grab; chưa thử upload/xuất bản production.
+Gate/SHA mới theo comment PR; review độc lập vẫn chưa có kết luận.
+
 # Cập nhật 06/10/2026 - PR436, rút gọn và nút nổi
 
 Owner Codex; nền main `72b00ca1d` v577, PR vẫn v578. Chưa merge/deploy.

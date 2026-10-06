@@ -388,6 +388,16 @@ def _kenh_noi_va_vi_tri():
     oa=next(k for k in moi['khoi'] if k['id']=='kenh-zalo')
     la('OA mặc định được bật',oa['hien'],True)
     la('OA anh Việt cung cấp',oa['lien_ket'],'https://zalo.me/thevagabondsaigon')
+    cau_hinh={'id':'nut','loai':'nut_kenh','hien':True,'tieu_de':'Mở kênh','anh':'/files/custom.png'}
+    la('lưu logo nút riêng',noi_dung_web.chuan_hoa({'khoi':[cau_hinh]})['khoi'][0]['anh'],'/files/custom.png')
+    for anh in ['javascript:alert(1)','https://user:pass@example.com/logo.png','//example.com/logo.png','/private/files/logo.png','/files/logo.svg']:
+        try:noi_dung_web.chuan_hoa({'khoi':[dict(cau_hinh,anh=anh)]})
+        except ValueError:pass
+        else:dung('chặn ảnh logo sai '+anh,False)
+    try:noi_dung_web.chuan_hoa({'khoi':[cau_hinh,dict(cau_hinh,id='nut2')]})
+    except ValueError:pass
+    else:dung('chặn hai nút cấu hình',False)
+
 
 
 
@@ -399,19 +409,26 @@ class El{constructor(t){this.tagName=t;this.children=[];this.dataset={};this.att
 const walk=e=>[e,...e.children.flatMap(walk)],body=new El('body');
 const document={body,createElement:t=>new El(t),getElementById:()=>null,addEventListener:(k,f,capture)=>{suKien[k]={f,capture};}};
 const window={addEventListener(){}};vm.runInNewContext(fs.readFileSync(process.argv[1],'utf8'),{window,document,URL});
-const k={id:'app',loai:'kenh_dat_hang',hien:true,tieu_de:'<img onerror=x>',lien_ket:'https://example.com/menu'};
+const k={id:'app',loai:'kenh_dat_hang',hien:true,tieu_de:'<img onerror=x>',anh:'/files/logo-app.png',lien_ket:'https://example.com/menu'};
 window.vgbVeKenhNoi({khoi:[k,{...k,id:'bad',lien_ket:'javascript:alert(1)'},{...k,id:'hidden',hien:false},{id:'z',loai:'zalo_oa',hien:true,tieu_de:'Zalo',lien_ket:'https://zalo.me/0931224334'}]});
 let all=walk(body),links=all.filter(e=>e.tagName==='a'),b=all.find(e=>e.className==='kenh-bong kenh-app');b.onclick();
+const logo=walk(links[0]).find(e=>e.tagName==='img'),logoSrc=logo.src;logo.onerror();const fallbackVisible=logo.hidden&&!links[0].children[0].children[1].hidden;
 let stopped=false;suKien.keydown.f({key:'Escape',preventDefault(){},stopImmediatePropagation(){stopped=true;}});
-const first={links:links.length,label:links[0].children[1].textContent,expanded:b.attrs['aria-expanded'],focus:b.focused,capture:suKien.keydown.capture,stopped};
+const first={logoSrc,fallbackVisible,links:links.length,label:links[0].children[1].textContent,expanded:b.attrs['aria-expanded'],focus:b.focused,capture:suKien.keydown.capture,stopped};
 window.vgbVeKenhNoi({nhan:{kenh_noi_nut:'Đặt món'},khoi:[{...k,tieu_de:'App mới',lien_ket:'https://example.com/new'}]});all=walk(body);links=all.filter(e=>e.tagName==='a');
-const appButton=all.find(e=>e.className==='kenh-bong kenh-app').children[1].textContent;
+const appButton=all.find(e=>e.className==='kenh-bong kenh-app').attrs['aria-label'];
 window.vgbVeKenhNoi({khoi:[{id:'oa',loai:'zalo_oa',hien:true,tieu_de:'Nhắn Zalo',lien_ket:'https://zalo.me/thevagabondsaigon'}]});const oa=walk(body).find(e=>e.className==='kenh-bong kenh-zalo');
-console.log(JSON.stringify({oaHref:oa.href,oaTarget:oa.target,first,href:links[0].href,title:links[0].children[1].textContent,button:appButton}));
+window.vgbVeKenhNoi({khoi:[{id:'nut',loai:'nut_kenh',hien:true,tieu_de:'Mở app',anh:'/files/nut-moi.png'},k]});const nutMoi=walk(body).find(e=>e.className==='kenh-bong kenh-app');const nutImg=walk(nutMoi).find(e=>e.tagName==='img').src;
+window.vgbVeKenhNoi({khoi:[{id:'nut',loai:'nut_kenh',hien:false},k]});const hiddenApp=!walk(body).some(e=>e.className==='kenh-bong kenh-app');
+console.log(JSON.stringify({nutImg,hiddenApp,oaHref:oa.href,oaTarget:oa.target,first,href:links[0].href,title:links[0].children[1].textContent,button:appButton}));
 '''
     r=subprocess.run(['node','-e',script,str(GOC/'public/web_order/kenh-noi.js')],capture_output=True,text=True,timeout=30)
     if r.returncode:raise AssertionError(r.stderr)
     d=json.loads(r.stdout)
+    la('logo kênh từ CMS',d['first']['logoSrc'],'/files/logo-app.png')
+    dung('ảnh lỗi vẫn có chữ dự phòng',d['first']['fallbackVisible'])
+    la('thay logo nút độc lập',d['nutImg'],'/files/nut-moi.png')
+    dung('ẩn nút trong CMS',d['hiddenApp'])
     la('OA tên hiển thị đúng',d['oaHref'],'https://zalo.me/thevagabondsaigon')
     la('OA mở tab mới',d['oaTarget'],'_blank')
     la('chỉ một link hợp lệ',d['first']['links'],1)

@@ -11,7 +11,7 @@ import re
 from pathlib import Path
 from urllib.parse import urlsplit
 
-LOAI = {"tieu_de_muc", "anh_bia", "cau_chuyen", "anh_chu", "thong_bao", "hoi_dap", "uu_dai", "tuyen_dung", "kenh_dat_hang", "zalo_oa"}
+LOAI = {"tieu_de_muc", "anh_bia", "cau_chuyen", "anh_chu", "thong_bao", "hoi_dap", "uu_dai", "tuyen_dung", "kenh_dat_hang", "zalo_oa", "nut_kenh"}
 TRUONG = {"id", "loai", "hien", "nhan", "tieu_de", "noi_dung", "anh", "mo_ta_anh", "nut", "lien_ket", "vi_tri", "bat_dau", "ket_thuc", "nhom", "ma_uu_dai", "noi_lam", "hinh_thuc", "email"}
 VI_TRI = {"dau_trang", "today", "order", "store", "season", "cuoi_trang", "uu_dai", "tuyen_dung"}
 MAC_DINH = {"khoi": [
@@ -36,12 +36,13 @@ MAC_DINH["khoi"].extend([
 
 # #436: nguồn link do anh Việt cung cấp, kiểm trên Beacons ngày 06/10/2026.
 KENH_MAC_DINH = [
-    {"id":"kenh-grab", "loai":"kenh_dat_hang", "hien":True, "vi_tri":"cuoi_trang", "tieu_de":"GrabFood", "nut":"Grab", "lien_ket":"https://r.grab.com/g/6-20250920_005603_BAC6857576104ED4BB3FDE35D1BF1115_MEXMPS-5-C4E1NPWGG2WZFA"},
-    {"id":"kenh-shopee", "loai":"kenh_dat_hang", "hien":True, "vi_tri":"cuoi_trang", "tieu_de":"ShopeeFood", "nut":"Shopee", "lien_ket":"https://shopeefood.vn/now-food/shop/1228609"},
-    {"id":"kenh-be", "loai":"kenh_dat_hang", "hien":True, "vi_tri":"cuoi_trang", "tieu_de":"beFood", "nut":"be", "lien_ket":"https://begroup.onelink.me/ZOqn/c2ba8ar9"},
-    {"id":"kenh-xanh", "loai":"kenh_dat_hang", "hien":True, "vi_tri":"cuoi_trang", "tieu_de":"XanhSM", "nut":"Xanh", "lien_ket":"https://xanhsmngon.onelink.me/14WJ/72fp2t58"},
-    {"id":"kenh-beacons", "loai":"kenh_dat_hang", "hien":True, "vi_tri":"cuoi_trang", "tieu_de":"Xem tất cả kênh đặt hàng", "nut":"↗", "lien_ket":"https://beacons.ai/thevagabondpatisserie"},
-    {"id":"kenh-zalo", "loai":"zalo_oa", "hien":True, "vi_tri":"cuoi_trang", "tieu_de":"Nhắn Zalo", "lien_ket":"https://zalo.me/thevagabondsaigon"},
+    {"id":"nut-kenh", "loai":"nut_kenh", "hien":True, "vi_tri":"cuoi_trang", "tieu_de":"Mở các kênh đặt hàng", "anh":"/assets/vagabond/web_order/logo-kenh/grab.png"},
+    {"id":"kenh-grab", "anh":"/assets/vagabond/web_order/logo-kenh/grab.png", "loai":"kenh_dat_hang", "hien":True, "vi_tri":"cuoi_trang", "tieu_de":"GrabFood", "nut":"Grab", "lien_ket":"https://r.grab.com/g/6-20250920_005603_BAC6857576104ED4BB3FDE35D1BF1115_MEXMPS-5-C4E1NPWGG2WZFA"},
+    {"id":"kenh-shopee", "anh":"/assets/vagabond/web_order/logo-kenh/shopeefood.png", "loai":"kenh_dat_hang", "hien":True, "vi_tri":"cuoi_trang", "tieu_de":"ShopeeFood", "nut":"Shopee", "lien_ket":"https://shopeefood.vn/now-food/shop/1228609"},
+    {"id":"kenh-be", "anh":"/assets/vagabond/web_order/logo-kenh/be.png", "loai":"kenh_dat_hang", "hien":True, "vi_tri":"cuoi_trang", "tieu_de":"beFood", "nut":"be", "lien_ket":"https://begroup.onelink.me/ZOqn/c2ba8ar9"},
+    {"id":"kenh-xanh", "anh":"/assets/vagabond/web_order/logo-kenh/xanh-sm.png", "loai":"kenh_dat_hang", "hien":True, "vi_tri":"cuoi_trang", "tieu_de":"XanhSM", "nut":"Xanh", "lien_ket":"https://xanhsmngon.onelink.me/14WJ/72fp2t58"},
+    {"id":"kenh-beacons", "anh":"/assets/vagabond/web_order/logo-kenh/beacons.png", "loai":"kenh_dat_hang", "hien":True, "vi_tri":"cuoi_trang", "tieu_de":"Xem tất cả kênh đặt hàng", "nut":"↗", "lien_ket":"https://beacons.ai/thevagabondpatisserie"},
+    {"id":"kenh-zalo", "anh":"/assets/vagabond/web_order/logo-kenh/zalo.png", "loai":"zalo_oa", "hien":True, "vi_tri":"cuoi_trang", "tieu_de":"Nhắn Zalo", "lien_ket":"https://zalo.me/thevagabondsaigon"},
 ]
 MAC_DINH["khoi"].extend(KENH_MAC_DINH)
 
@@ -228,6 +229,7 @@ def chuan_hoa(du_lieu):
     da_co = set()
     tieu_de_da_co = set()
     zalo_da_co = False
+    nut_kenh_da_co = False
     for k in ds:
         if not isinstance(k, dict) or set(k) - TRUONG:
             raise ValueError("Khối có trường không được hỗ trợ.")
@@ -253,6 +255,12 @@ def chuan_hoa(du_lieu):
             v = k.get(ten, "")
             if not isinstance(v, str) or len(v) > (4000 if ten == "noi_dung" else 1000):
                 raise ValueError("Chữ trong khối quá dài hoặc không hợp lệ: " + ten)
+        if k['loai'] == 'nut_kenh':
+            if nut_kenh_da_co:
+                raise ValueError('Chỉ dùng một nút mở kênh đặt hàng. Sửa nút đã có.')
+            nut_kenh_da_co = True
+            if k['hien'] and not k.get('tieu_de', '').strip():
+                raise ValueError('Điền tên trợ năng cho nút mở kênh đặt hàng.')
         if k['loai'] == 'zalo_oa' and k['hien']:
             if zalo_da_co:
                 raise ValueError('Chỉ bật một nút Zalo OA trên website.')

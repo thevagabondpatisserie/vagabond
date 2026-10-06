@@ -11,3 +11,15 @@ body:has(.sheet.open) .kenh-noi,body:has(.co.open) .kenh-noi{display:none}
 @media(prefers-reduced-motion:reduce){.kenh-noi *{scroll-behavior:auto}}
 
 .kenh-lien-ket>span:nth-child(2),.kenh-bong>span:last-child{min-width:0;overflow-wrap:anywhere}
+/* Logo là ảnh trong CMS, giữ nguyên tỉ lệ và có khoảng trống quanh dấu hiệu. */
+.kenh-app{width:64px;height:64px;min-height:64px;padding:10px;border-radius:50%;background:#fff;border:1px solid #d8e8df}
+.kenh-app:hover{background:#edf9f1}
+.kenh-logo-nut{display:flex;align-items:center;justify-content:center;width:44px;height:44px;color:#00863d}
+.kenh-logo{display:flex;align-items:center;justify-content:center;flex:none;width:56px;height:44px;padding:6px;border-radius:10px;background:#fff;color:#15322e}
+.kenh-logo img,.kenh-logo-nut img,.kenh-logo-zalo img{display:block;max-width:100%;max-height:100%;width:100%;height:100%;object-fit:contain}
+.kenh-logo img[hidden],.kenh-logo-nut img[hidden],.kenh-logo-zalo img[hidden],.kenh-logo-du-phong[hidden]{display:none}
+.kenh-logo-du-phong{font-size:12px;line-height:1.2;overflow-wrap:anywhere}
+.kenh-logo-zalo{display:flex;align-items:center;justify-content:center;width:34px;height:28px;flex:none}
+.kenh-lien-ket{min-height:60px;gap:12px;padding:8px 4px}
+.kenh-bang{max-height:min(540px,calc(100dvh - 220px))}
+@media(max-width:600px){.kenh-app{width:56px;height:56px;min-height:56px;padding:8px}.kenh-logo-nut{width:38px;height:38px}}

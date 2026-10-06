@@ -1815,3 +1815,10 @@ thành kiểm nội dung được lưu/xuất đúng và fallback, không giữ 
 Nhận cả tên công khai và ID dài, giữ HTTPS/đúng host/không credentials;
 kiểm renderer và mobile390. Cấu trúc URL không chứng minh tài khoản đã xác
 thực: danh tính OA lấy từ nguồn chủ sở hữu và trang công khai.
+
+### 06/10/2026 - PR436: logo kênh bán phải biên tập được
+
+Dùng chữ viết tắt thay logo làm popup kênh thiếu nhận diện. Logo cần là ảnh
+CMS, tách logo nút mở khỏi logo từng kênh; tên trợ năng vẫn có khi bỏ chữ
+trên nút. Kiểm cả đổi ảnh trong iframe, ảnh hỏng và mobile; ảnh tải thành
+công chưa chứng minh đọc được (logo trắng trên nền trắng đã gặp khi thử).

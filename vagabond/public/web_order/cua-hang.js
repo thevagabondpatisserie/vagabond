@@ -10,7 +10,7 @@
       if (k) g.dataset.khoi = k.id;
     });
     document.querySelectorAll('[data-vgb-vi-tri]').forEach(g => {
-      window.VgbKhoi.ve(g, {khoi: (nd.khoi || []).filter(k => !['tieu_de_muc','kenh_dat_hang','zalo_oa','uu_dai','tuyen_dung'].includes(k.loai) && (k.vi_tri || 'cuoi_trang') === g.dataset.vgbViTri)});
+      window.VgbKhoi.ve(g, {khoi: (nd.khoi || []).filter(k => !['tieu_de_muc','kenh_dat_hang','zalo_oa','nut_kenh','uu_dai','tuyen_dung'].includes(k.loai) && (k.vi_tri || 'cuoi_trang') === g.dataset.vgbViTri)});
     });
     /* v532: nhãn cố định (tab, nút đầu trang) và các câu có số. Máy chủ đã
        ghép mặc định vào cong_khai; trong preview bản nháp có thể thiếu khoá
