@@ -72,11 +72,14 @@ function mayChu(canh) {
           { name: 'b', ma_don: '', mo_ta: '', loai: 'phi_ky', ngay: '2026-07-17', thuc_nhan: -49140, trang_thai_khop: 'Không áp dụng' },
           { name: 'c', ma_don: 'GF-103F', loai: 'ban', ngay: '2026-07-17', thuc_nhan: 144976, trang_thai_khop: 'Không thấy chứng từ',
             ghi_chu_khop: 'Không có hoá đơn bán cùng mã hoặc cùng tiền trong khoảng ngày.' }];
+        if (canh.theoTien) dong.push({ name: 'd', ma_don: 'GF-104', loai: 'ban', ngay: '2026-07-17', thuc_nhan: 99000,
+          trang_thai_khop: canh.daXacNhan ? 'Đã nối' : 'Nối theo tiền', sales_invoice: 'HDB-4', ghi_chu_khop: 'Chỉ khớp số tiền.' });
         if (a.loc === 'chua_noi') dong = dong.filter(function (d) { return d.trang_thai_khop !== 'Đã nối' && d.trang_thai_khop !== 'Không áp dụng'; });
         return { nguon: nguon(a.name, 'GrabFood', 'Đã nhận', { trang_thai_tien: 'Đã thấy tiền về', giao_dich_ngan_hang: 'BT-1', tong_tep: 668915,
           so_chua_noi: 1, so_da_noi: 1 }), them: { tien_ve: '' }, dong: dong, con: canh.nhieu && (a.trang || 0) < 2 ? 1 : 0 };
       }
       if (m === 'vagabond.doi_soat_vendor.doi_chieu_lai') return { ok: 1 };
+      if (m === 'vagabond.doi_soat_vendor.xac_nhan_noi') { canh.daXacNhan = true; return { ok: 1, nguon: 'DSN-1' }; }
       if (m === 'vagabond.doi_soat_vendor.quet_email') return { so_tep: 2 };
       if (m === 'vagabond.doi_soat_vendor.cua_hoa_don') {
         return [{ vendor: 'GrabFood', ma_don: 'GF-101', trang_thai_khop: 'Đã nối', tien_hang: 260000, phi: 49359, thuc_nhan: 210641, nguon: 'DSN-1' }];
@@ -298,6 +301,17 @@ async function moTrungTam(canh) {
     bang('hỏi máy chủ trang 2', app.mc.cuoi('vagabond.doi_soat_vendor.ds').a.trang, 1);
     await app.bam(app.tim('[data-dsvnnhom="Thẻ tín dụng"]')[0]);
     bang('đổi nhóm về trang đầu', app.mc.cuoi('vagabond.doi_soat_vendor.ds').a.trang, 0);
+  });
+
+  await ca('Codex #450: dòng Nối theo tiền có nút xác nhận; bấm thì gửi đúng dòng và vẽ lại thành Đã nối', async function () {
+    var app = await moTrungTam({ theoTien: true });
+    await app.bam(app.tim('[data-dsvnct="DSN-1"]')[0]);
+    bang('chỉ dòng nối theo tiền có nút', app.tim('[data-dsvnxn]').length, 1);
+    var truoc = app.mc.dem('vagabond.doi_soat_vendor.chi_tiet');
+    await app.bam(app.mot('[data-dsvnxn="d"]'));
+    bang('gửi đúng dòng', app.mc.cuoi('vagabond.doi_soat_vendor.xac_nhan_noi').a.name, 'd');
+    bang('vẽ lại từ máy chủ', app.mc.dem('vagabond.doi_soat_vendor.chi_tiet'), truoc + 1);
+    bang('hết nút sau khi xác nhận', app.tim('[data-dsvnxn]').length, 0);
   });
 
   console.log('Doi soat vendor 579: ' + ket.dat + ' dat, ' + ket.hong + ' hong');
