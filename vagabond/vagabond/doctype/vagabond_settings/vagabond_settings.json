@@ -99,6 +99,9 @@
   "zalo_bot_bat",
   "zalo_bot_token",
   "col_cd_13",
+  "zalo_tac_vu",
+  "sec_zalo_nhom",
+  "zalo_nhom_the",
   "zalo_nhom",
   "sec_zalo_bot_goc",
   "zalo_bi_mat",
@@ -690,7 +693,7 @@
    "label": "Tin nhắn & cảnh báo"
   },
   {
-   "description": "Tạo bot ở bot.zaloplatforms.com, dán token vào đây, bấm nút Nối Zalo Bot ở góc trên. Thêm bot vào từng nhóm Zalo rồi @nhắc bot một lần, mã nhóm hiện ở ô Chat vừa nhắn bot; chép mã đó vào bảng Nhóm nhận tin.",
+   "description": "Bật công tắc, dán token Zalo Bot rồi bấm Lưu, sau đó bấm Nối Zalo Bot ở bên cạnh. Thêm bot vào từng nhóm Zalo và @nhắc bot một lần, rồi thêm nhóm ở mục Nhóm nhận tin bên dưới.",
    "fieldname": "sec_zalo_bot",
    "fieldtype": "Section Break",
    "label": "Bắn tin vào nhóm Zalo"
@@ -708,6 +711,22 @@
   {
    "fieldname": "col_cd_13",
    "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "zalo_tac_vu",
+   "fieldtype": "HTML",
+   "label": "Nút Zalo"
+  },
+  {
+   "description": "Mỗi nhóm Zalo một thẻ. Bấm Sửa để chọn loại tin, chủ đề, giờ im; bấm Gửi thử để xem bot đã tới nhóm chưa. Sửa xong nhớ bấm Lưu.",
+   "fieldname": "sec_zalo_nhom",
+   "fieldtype": "Section Break",
+   "label": "Nhóm nhận tin"
+  },
+  {
+   "fieldname": "zalo_nhom_the",
+   "fieldtype": "HTML",
+   "label": "Thẻ nhóm nhận tin"
   },
   {
    "fieldname": "zalo_nhom",
@@ -1114,7 +1133,7 @@
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-10-04 12:00:00.000000",
+ "modified": "2026-10-06 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Settings",

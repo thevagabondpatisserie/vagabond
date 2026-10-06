@@ -163,6 +163,14 @@ frappe.ui.form.on('Vagabond Settings', {
 		// Codex #435: thanh tình trạng chỉ hai dòng (2 x 44px + khe 8px), phần còn
 		// lại sau nút Xem đủ.
 		'.vgb-cd .vgbc-tt.gon{max-height:96px;overflow:hidden}',
+		// v579: thẻ nhóm Zalo và hàng nút Zalo ngay trong mục.
+		'.vgb-cd .vgbc-zl-nut{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}',
+		'.vgb-cd .vgbc-zl-nut button,.vgb-cd .vgbc-zl-the button{min-height:44px;padding:0 14px;font-size:13px}',
+		'.vgb-cd .vgbc-zl-the{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}',
+		'.vgb-cd .vgbc-zl-the .vgbc-card .h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}',
+		'.vgb-cd .vgbc-zl-the .vgbc-card .d{font-size:13px;line-height:1.5;margin:2px 0}',
+		'.vgb-cd .vgbc-zl-the .vgbc-card .d small{color:var(--text-muted,#6b737b)}',
+		'.vgb-cd .vgbc-zl-the .vgbc-card .n{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}',
 		'.vgb-cd .vgbc-xem{min-height:44px;margin-top:4px;padding:0 4px;background:none;border:0;color:var(--text-color,#1f272e);font-weight:600;font-size:13px;cursor:pointer;text-decoration:underline}',
 	].join('');
 
@@ -357,6 +365,155 @@ frappe.ui.form.on('Vagabond Settings', {
 		f.$wrapper.html(html);
 	}
 
+	// ================================================================
+	// v579: mục Bắn tin vào nhóm Zalo. Anh Việt 06/10/2026: bảng Nhóm nhận tin
+	// chật nửa cột, hiện mã "zgr-d...", "thong...", "quá khó để nhập liệu", và hỏi
+	// có nút gửi thử không. Bảng gốc vẫn là nơi lưu (giữ nguyên cách lưu, máy chủ
+	// kiểm như cũ) nhưng ẩn đi trên Desk; người dùng thấy mỗi nhóm một thẻ có
+	// nút Sửa và Gửi thử, sửa trong hộp có tên tiếng Việt và dòng giải thích.
+	// ================================================================
+	function guiThuZalo(chat_id, ten) {
+		frappe.call({ method: 'vagabond.kenh_zalo.gui_thu', args: { chat_id: chat_id }, freeze: true, freeze_message: 'Đang gửi tin thử tới ' + ten + '...' })
+			.then(function (x) { frappe.show_alert({ message: ((x && x.message) || {}).loi_nhan || 'Đã gửi tin thử.', indicator: 'green' }); });
+	}
+
+	function veZaloNut(frm) {
+		var f = frm.fields_dict.zalo_tac_vu;
+		if (!f) return;
+		var kq = String(frm.doc.zalo_noi_trang_thai || '');
+		var tt = !kq ? chip('no', 'Chưa nối bot: dán token, Lưu, rồi bấm Nối Zalo Bot', 1)
+			: (kq.indexOf('Đã xác minh') === 0 ? chip('ok', 'Đã nối bot, Zalo gọi về được', 1)
+				: chip(kq.indexOf('THẤT BẠI') >= 0 ? 'err' : 'off', kq.split('. ')[0], 1));
+		var coNhom = (frm.doc.zalo_nhom || []).some(function (r) { return r.chat_id; });
+		f.$wrapper.html('<div class="vgbc-chips">' + tt + '</div><div class="vgbc-zl-nut">' +
+			'<button type="button" class="btn btn-default" data-zl="noi">Nối Zalo Bot</button>' +
+			'<button type="button" class="btn btn-default" data-zl="guithu"' + (coNhom ? '' : ' disabled') + '>Gửi thử tới một nhóm</button>' +
+			'<button type="button" class="btn btn-default" data-zl="xem">Xem trước tin mẫu</button>' +
+			'<button type="button" class="btn btn-default" data-zl="kiem">Kiểm lại đường nhận</button></div>' +
+			'<div class="vgbc-mo">' + (coNhom ? 'Gửi thử gửi một tin mẫu thật vào nhóm để xem bot đã tới chưa.' : 'Thêm nhóm ở mục Nhóm nhận tin bên dưới rồi mới gửi thử được.') + '</div>');
+		f.$wrapper.off('click.zl').on('click.zl', '[data-zl]', function () {
+			var v = $(this).attr('data-zl');
+			if (v === 'noi' || v === 'kiem') {
+				if (frm.is_dirty()) { frappe.msgprint('Bấm Lưu trước (Ctrl+S), rồi mới bấm nút này.'); return; }
+				frappe.call({ method: v === 'noi' ? 'vagabond.kenh_zalo.dang_ky_webhook' : 'vagabond.kenh_zalo.kiem_webhook', freeze: true })
+					.then(function (r) { var m = (r && r.message) || {}; frappe.msgprint({ message: m.loi_nhan || '', indicator: m.ok ? 'green' : 'orange' }); frm.reload_doc(); });
+			} else if (v === 'xem') {
+				frappe.call({ method: 'vagabond.kenh_zalo.xem_truoc', args: { loai: 'viec' } })
+					.then(function (r) { frappe.msgprint('<pre style="white-space:pre-wrap">' + esc(((r && r.message) || {}).tin || '') + '</pre>', 'Xem trước, chưa gửi'); });
+			} else if (v === 'guithu') {
+				var ds = (frm.doc.zalo_nhom || []).filter(function (r) { return r.chat_id; });
+				if (ds.length === 1) return guiThuZalo(ds[0].chat_id, ds[0].ten_nhom || 'nhóm');
+				var d = new frappe.ui.Dialog({ title: 'Gửi tin thử tới nhóm nào?', fields: [{ fieldname: 'nhom', fieldtype: 'Autocomplete', label: 'Gõ tên nhóm để tìm', reqd: 1,
+					options: ds.map(function (r) { return r.ten_nhom; }) }], primary_action_label: 'Gửi', primary_action: function (val) {
+					var r = ds.filter(function (x) { return x.ten_nhom === val.nhom; })[0];
+					if (!r) { frappe.msgprint('Chọn đúng một nhóm trong danh sách gợi ý.'); return; }
+					d.hide();
+					guiThuZalo(r.chat_id, r.ten_nhom);
+				} });
+				d.show();
+			}
+		});
+	}
+
+	function veZaloNhom(frm) {
+		var f = frm.fields_dict.zalo_nhom_the;
+		if (!f) return;
+		// Bảng gốc vẫn lưu dữ liệu nhưng không hiện: hai nơi sửa cùng một thứ là rối.
+		if (frm.fields_dict.zalo_nhom) frm.toggle_display('zalo_nhom', false);
+		var rows = frm.doc.zalo_nhom || [];
+		f.$wrapper.html((rows.length ? '<div class="vgbc-zl-the">' + rows.map(function (r, i) {
+			var t = VGB_CD.theNhomZalo(r);
+			return '<div class="vgbc-card"><div class="h"><b>' + esc(t.ten) + '</b>' + chip(t.trang, t.ghi, 1) + '</div>' +
+				'<div class="d"><small>Nhận:</small> ' + esc(t.loai) + '</div>' +
+				'<div class="d"><small>Chủ đề:</small> ' + esc(t.chu_de) + '</div>' +
+				'<div class="d"><small>Giờ im:</small> ' + esc(t.im) + '</div>' +
+				'<div class="n"><button type="button" class="btn btn-default" data-zls="' + i + '">Sửa</button>' +
+				(t.guiThu ? '<button type="button" class="btn btn-default" data-zlg="' + i + '">Gửi thử</button>' : '') + '</div></div>';
+		}).join('') + '</div>' : '<div class="vgbc-mo">Chưa có nhóm nào. Bấm Thêm nhóm nhận tin, chọn nhóm Zalo đã nhắn bot, chọn loại tin nhóm cần nhận.</div>') +
+			'<div class="vgbc-zl-nut"><button type="button" class="btn btn-primary" data-zls="-1">+ Thêm nhóm nhận tin</button></div>');
+		f.$wrapper.off('click.zl').on('click.zl', '[data-zls]', function () { suaNhomZalo(frm, parseInt($(this).attr('data-zls'), 10)); })
+			.on('click.zl', '[data-zlg]', function () {
+				var r = (frm.doc.zalo_nhom || [])[parseInt($(this).attr('data-zlg'), 10)];
+				if (r && r.chat_id) guiThuZalo(r.chat_id, r.ten_nhom || 'nhóm');
+			});
+	}
+
+	// Mỗi mã một ô tích có tên tiếng Việt và dòng giải thích HIỆN RA (MultiCheck của
+	// Frappe chỉ để giải thích trong chú thích di chuột). Giá trị lưu vẫn là mã.
+	function oChonMa(cot, dang) {
+		var N = VGB_CD.ZALO_NHAN[cot];
+		return VGB_CD.ZALO_DANH_MUC[cot].map(function (ma) {
+			return { fieldname: cot + '__' + ma, fieldtype: 'Check', label: N[ma][0] + ' ' + N[ma][1], description: N[ma][2], default: dang.indexOf(ma) >= 0 ? 1 : 0 };
+		});
+	}
+	function maDaChon(cot, v) {
+		return VGB_CD.ZALO_DANH_MUC[cot].filter(function (ma) { return v[cot + '__' + ma]; });
+	}
+
+	// i < 0 là thêm nhóm mới. Ghi vào bảng gốc theo đúng cách lưu cũ: mã nối bằng ", ".
+	function suaNhomZalo(frm, i) {
+		var r = i >= 0 ? (frm.doc.zalo_nhom || [])[i] : null;
+		var nhap = { ten_nhom: r ? r.ten_nhom || '' : '', chat_id: r ? r.chat_id || '' : '', im_tu: r ? r.im_tu || '' : '', im_den: r ? r.im_den || '' : '',
+			bat: r ? parseInt(r.bat, 10) === 1 : true };
+		var dsChat = VGB_CD.docJson(frm.doc.zalo_chat_moi) || [];
+		var nhomBot = (Array.isArray(dsChat) ? dsChat : []).filter(function (x) { return String(x.loai || '').toUpperCase() === 'GROUP'; });
+		var nhan = function (x) { return (x.ten || 'Nhóm không tên') + ' (' + x.chat_id + ')'; };
+		var dang = nhomBot.filter(function (x) { return x.chat_id === nhap.chat_id; })[0];
+		// Danh sách chat chỉ giữ 20 cuộc gần nhất; nhóm đã lưu từ trước mà không còn
+		// trong đó vẫn phải sửa được mà không bị bắt chọn lại.
+		if (nhap.chat_id && !dang) { dang = { ten: nhap.ten_nhom || 'Nhóm đang lưu', chat_id: nhap.chat_id }; nhomBot.unshift(dang); }
+		var d = new frappe.ui.Dialog({
+			title: i >= 0 ? 'Sửa nhóm nhận tin' : 'Thêm nhóm nhận tin',
+			fields: [
+				{ fieldname: 'nhom_zalo', fieldtype: 'Autocomplete', label: 'Nhóm Zalo', reqd: 1, options: nhomBot.map(nhan),
+					default: dang ? nhan(dang) : '', description: nhomBot.length ? 'Gõ tên nhóm để tìm. Chỉ hiện các nhóm đã thêm bot và @nhắc bot một lần.'
+						: 'Chưa có nhóm nào nhắn bot. Thêm bot vào nhóm Zalo, @nhắc bot một lần, rồi mở lại hộp này.' },
+				{ fieldname: 'ten_nhom', fieldtype: 'Data', label: 'Tên gọi trong ERP', reqd: 1, default: nhap.ten_nhom, description: 'Để bạn nhận ra nhóm, ví dụ Kế toán, Bếp.' },
+				{ fieldname: 'bat', fieldtype: 'Check', label: 'Nhóm đang nhận tin', default: nhap.bat ? 1 : 0 },
+				{ fieldtype: 'Section Break', label: 'Nhóm nhận loại tin nào?', description: 'Không tích ô nào là nhóm nhận tất cả loại tin.' },
+			].concat(oChonMa('loai_tin', VGB_CD.tachMa(r && r.loai_tin)), [
+				{ fieldtype: 'Section Break', label: 'Nhóm nhận chủ đề nào?', description: 'Không tích ô nào là nhóm nhận tất cả chủ đề.' },
+			], oChonMa('chu_de', VGB_CD.tachMa(r && r.chu_de)), [
+				{ fieldtype: 'Section Break', label: 'Giờ im (không bắt buộc)', description: 'Trong giờ im chỉ Cảnh báo được gửi; tin khác gom lại gửi khi hết giờ im. Dạng giờ:phút, ví dụ 22:00 và 07:00. Để trống cả hai là không im.' },
+				{ fieldname: 'im_tu', fieldtype: 'Data', label: 'Im từ', default: nhap.im_tu, placeholder: '22:00' },
+				{ fieldtype: 'Column Break' },
+				{ fieldname: 'im_den', fieldtype: 'Data', label: 'Im đến', default: nhap.im_den, placeholder: '07:00' },
+			]),
+			primary_action_label: 'Xong',
+			primary_action: function (v) {
+				var x = nhomBot.filter(function (y) { return nhan(y) === v.nhom_zalo; })[0];
+				var chat = x ? x.chat_id : '';
+				if (!chat) { frappe.msgprint('Chọn đúng một nhóm Zalo trong danh sách gợi ý.'); return; }
+				var row = r || frm.add_child('zalo_nhom');
+				var gt = { ten_nhom: String(v.ten_nhom || '').trim(), chat_id: chat, bat: v.bat ? 1 : 0,
+					loai_tin: maDaChon('loai_tin', v).join(', '), chu_de: maDaChon('chu_de', v).join(', '),
+					im_tu: String(v.im_tu || '').trim(), im_den: String(v.im_den || '').trim() };
+				Object.keys(gt).forEach(function (k) { frappe.model.set_value(row.doctype, row.name, k, gt[k]); });
+				d.hide();
+				frm.refresh_field('zalo_nhom');
+				frm.dirty();
+				veZalo(frm);
+				frappe.show_alert({ message: 'Đã ghi vào trang. Bấm Lưu (Ctrl+S) để áp dụng.', indicator: 'blue' });
+			},
+		});
+		if (r) {
+			d.set_secondary_action_label('Xoá nhóm này');
+			d.set_secondary_action(function () {
+				frappe.confirm('Xoá nhóm ' + esc(nhap.ten_nhom || '') + ' khỏi danh sách nhận tin? Bấm Lưu sau đó mới áp dụng.', function () {
+					frappe.model.clear_doc(r.doctype, r.name);
+					d.hide();
+					frm.refresh_field('zalo_nhom');
+					frm.dirty();
+					veZalo(frm);
+				});
+			});
+		}
+		d.show();
+		return d;
+	}
+
+	function veZalo(frm) { veZaloNut(frm); veZaloNhom(frm); }
+
 	frappe.ui.form.on('Vagabond Settings', {
 		onload(frm) {
 			if (!document.getElementById('vgb-cd-css')) $('<style id="vgb-cd-css"></style>').text(CSS).appendTo('head');
@@ -369,11 +526,13 @@ frappe.ui.form.on('Vagabond Settings', {
 				veMatKhau(frm);
 				veChipChon(frm);
 				veDuLieuApp(frm);
+				veZalo(frm);
 			}, function (e) { frappe.show_alert({ message: e.message, indicator: 'orange' }); });
 		},
 		diem_chu_ky(frm) { vgb_nap_cd_chung().then(function () { veChipChon(frm); }); },
 		ngan_hang_bin(frm) { vgb_nap_cd_chung().then(function () { veChipChon(frm); }); },
 	});
 	// Chỉ cho ca kiểm node (hanh_vi/cai_dat_568.js); trên trình duyệt không có module.
-	if (typeof module !== 'undefined' && module.exports) module.exports._desk = { veNganHang: veNganHang, veChipMuc: veChipMuc, veThanh: veThanh };
+	if (typeof module !== 'undefined' && module.exports) module.exports._desk = { veNganHang: veNganHang, veChipMuc: veChipMuc, veThanh: veThanh,
+		veZalo: veZalo, suaNhomZalo: suaNhomZalo };
 })();
