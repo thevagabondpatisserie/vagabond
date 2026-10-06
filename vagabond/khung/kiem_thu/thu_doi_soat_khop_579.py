@@ -496,8 +496,10 @@ def _():
 		("Lệch tiền về", "", True))
 
 
-@ca("Codex #450: đọc lại nguồn lỗi gỡ dòng bản cũ (chụp lại làm lịch sử) TRƯỚC khi xem trước và ghi bản mới")
+@ca("Codex #450: đọc lại nguồn lỗi chuyển dòng bản cũ thành Đã thay (không xoá) TRƯỚC khi xem trước và ghi bản mới")
 def _():
+	# Vòng 7: bản trước XOÁ dòng cũ và chỉ chụp 2.000 dòng vào du_lieu (Codex:
+	# mất tới 18.000 sự kiện cũ). Nay giữ đủ dòng, chỉ đổi trạng thái/khoá.
 	from types import SimpleNamespace as NS
 	from unittest.mock import patch
 	from vagabond import doi_soat_vendor as V
@@ -505,14 +507,13 @@ def _():
 	viec = []
 	kho = {"A": "dau-A", "B": "dau-B"}  # dòng bản cũ của nguồn N1 đang nằm trong DB
 
-	def get_all(dt, filters=None, **k):
-		if dt == V.DT_DONG and filters == {"nguon": "N1"}:
-			return [dict(khoa=x, ma_su_kien=x, ngay="2026-07-18", thuc_nhan=1, trang_thai_khop="Đã nối",
-				sales_invoice="SI-" + x, purchase_invoice=None, van_don=None) for x in sorted(kho)]
+	def sql(cau, tham=None, *a, **k):
+		if cau.lstrip().startswith("update"):
+			viec.append(("sql", " ".join(cau.split()), tham)); kho.clear()
 		return []
 
-	def xoa(dt, f):
-		viec.append(("xoa", dt, f)); kho.clear()
+	def xoa(*a, **k):
+		viec.append(("xoa",))
 
 	def da_nhan(ct, kq):
 		viec.append(("da_nhan", dict(kho))); return dict(kho)
@@ -523,21 +524,67 @@ def _():
 			tong=dict(tien_hang=1, phi=0, thuc_nhan=1), dong=[])
 	nguon = NS(name="N1", trang_thai="Đã nhận", db_set=lambda d: viec.append(("db_set", d)), reload=lambda: None)
 	kq = Mau.ket_qua("payoo_the", "tien_ban", "Payoo", "TK")
-	with patch.object(V.frappe, "get_all", get_all, create=True), \
+	with patch.object(V.frappe.db, "sql", sql, create=True), \
+			patch.object(V.frappe.db, "count", lambda dt, f=None: len(kho), create=True), \
 			patch.object(V.frappe.db, "get_value", lambda *a, **k: {"du_lieu": "{}", "so_dong": 2, "thuc_nhan": 2}, create=True), \
 			patch.object(V.frappe.db, "delete", xoa, create=True), \
 			patch.object(V.frappe.db, "savepoint", lambda n: None, create=True), \
 			patch.object(V.frappe, "get_doc", lambda *a, **k: nguon, create=True), \
-			patch.object(V.frappe.utils, "now_datetime", lambda: "2026-10-07 09:00", create=True), \
+			patch.object(V.frappe.utils, "now", lambda: "2026-10-07 09:00:00", create=True), \
 			patch.object(V, "_da_nhan", da_nhan), patch.object(V.khop, "xem_truoc", xem_truoc), \
 			patch.object(V, "_doi_chieu", lambda n: viec.append(("doi_chieu", n))):
 		V._ghi_nguon("CT", dict(ten="t.csv", sha256="s"), kq, dict(so=dict(moi=0, trung=2, loi=0)), "Tải tay", None, None, co_san="N1")
 	thu_tu = [v[0] for v in viec]
-	la("gỡ dòng cũ trước khi đọc snapshot và xem trước", thu_tu[:3], ["xoa", "da_nhan", "xem_truoc"])
+	la("chuyển dòng cũ trước khi đọc ảnh dữ liệu và xem trước", thu_tu[:3], ["sql", "da_nhan", "xem_truoc"])
+	dung("không xoá dòng nào", "xoa" not in thu_tu)
+	cau, tham = viec[0][1], viec[0][2]
+	dung("giữ khoá gốc, đổi khoá, giữ nguồn gốc, tách khỏi nguồn",
+		all(x in cau for x in ("khoa_cu=khoa", "khoa=concat('thay:', name)", "nguon_cu=nguon", "nguon=NULL")))
+	dung("không đụng liên kết hoá đơn/vận đơn (giữ làm vết)", "sales_invoice" not in cau and "van_don" not in cau)
+	la("trạng thái Đã thay, đúng nguồn", (tham[0], tham[2]), (K.DA_THAY, "N1"))
 	la("xem trước lại không còn thấy dòng bản cũ", viec[2][1], {})
 	import json
 	ghi_db = next(v for v in viec if v[0] == "db_set")[1]
 	ls = json.loads(ghi_db["du_lieu"])["lan_doc_truoc"]
-	la("lịch sử lần đọc trước giữ đủ dòng cũ", (len(ls), ls[0]["so_dong"], [d["sales_invoice"] for d in ls[0]["dong"]]),
-		(1, 2, ["SI-A", "SI-B"]))
+	la("lịch sử số dòng lần đọc trước", (len(ls), ls[0]["so_dong"]), (1, 2))
 	la("đối chiếu lại sau khi ghi", thu_tu[-1], "doi_chieu")
+
+
+@ca("Codex #450: dòng Đã thay không còn giữ hoá đơn, không vào khối trên hoá đơn, không cộng vào biên bản OnePay")
+def _():
+	import inspect
+	from vagabond import doi_soat_vendor as V
+	for ham, can in (("_noi_hoa_don_ban", '"trang_thai_khop": ["!=", khop.DA_THAY]'),
+			("cua_hoa_don", '"trang_thai_khop": ["!=", khop.DA_THAY]'), ("_tong_hop", "trang_thai_khop!=%%s")):
+		dung("%s bỏ qua dòng Đã thay" % ham, can in inspect.getsource(getattr(V, ham)))
+	# Mọi truy vấn bảng dòng không theo nguồn đều phải có điều kiện Đã thay.
+	src = inspect.getsource(V)
+	import re
+	theo = [m.group(0) for m in re.finditer(r"get_all\(DT_DONG, filters=\{[^}]*\}", src)]
+	ngoai = [x for x in theo if '"nguon": name' not in x and '"nguon": nguon.name' not in x and "khoa" not in x
+		and "DA_THAY" not in x and "filters=f" not in x]
+	la("không còn truy vấn dòng nào quên Đã thay", ngoai, [])
+
+
+@ca("Codex #450: máy chủ đếm và lọc 'Chờ tiền về' cùng một tập ba trạng thái")
+def _():
+	from types import SimpleNamespace as NS
+	from unittest.mock import patch
+	from vagabond import doi_soat_vendor as V
+	bat = {}
+
+	def get_all(dt, filters=None, **k):
+		bat["loc"] = filters
+		return []
+
+	def sql(cau, tham=None, *a, **k):
+		if "group by 1, 2, 3, 4" in cau:
+			return [("Tiền bán", "Đã nhận", "Chưa thấy tiền về", 0, 1), ("Tiền bán", "Đã nhận", "Lệch tiền về", 0, 2),
+				("Tiền bán", "Đã nhận", "Cần chọn tiền về", 0, 3), ("Tiền bán", "Đã nhận", "Đã thấy tiền về", 0, 7)]
+		return []
+	with patch.object(V, "_chan", lambda *a, **k: None), patch.object(V, "_cong_ty_xem", lambda: ["CT"]), \
+			patch.object(V.frappe, "get_all", get_all, create=True), patch.object(V.frappe.db, "sql", sql, create=True), \
+			patch.object(V.frappe.utils, "nowdate", lambda: "2026-10-07", create=True):
+		kq = V.ds(trang_thai="Chờ tiền về")
+	la("số gộp bằng tổng ba trạng thái chờ", kq["dem"]["Chờ tiền về"], 6)
+	la("lọc đúng ba trạng thái đó", sorted(bat["loc"]["trang_thai_tien"][1]), sorted(K.CHO_TIEN_VE))
