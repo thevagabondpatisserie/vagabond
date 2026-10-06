@@ -925,7 +925,7 @@ function napTonHomNay(){
       vgbTronMon(dt);
       TRUOC={};
       dt.forEach(function(g){ (g.sizes||[]).forEach(function(y){ if(y.con>0) TRUOC[y.ma]=y.con; }); });
-      TON_NAP_XONG=true; lamTuoiGiaGio(); })
+      TON_NAP_XONG=true; ganGioCho(); lamTuoiGiaGio(); })
     .catch(function(){});
 }
 const ACC = [
@@ -2553,11 +2553,27 @@ function suaDongGio(i){
 }
 function luuGioDangSoan(){
   if(typeof CO==='undefined'||window.vgbXemThu)return;
-  try{if(!CART.length&&!(gioMuaCho||[]).length){sessionStorage.removeItem('vgb-gio-v1');return;}const truong={};document.querySelectorAll('#checkout input[id],#checkout textarea[id]').forEach(e=>{if(e.type!=='checkbox')truong[e.id]=e.value;});
-    sessionStorage.setItem('vgb-gio-v1',JSON.stringify({luc:Date.now(),gio:CART.concat(gioMuaCho||[]),ngay:ngayChon,slot:pickedSlot,daChonNgay,daChonGio,truong,co:{mode:CO.mode,pickup:CO.pickup,pay:CO.pay,other:CO.other,gift:CO.gift,vat:CO.vat,quan:CO.quan,nonce:CO.nonce}}));
+  try{if(!CART.length&&!(gioMuaCho||[]).length&&!(gioBanhCho||[]).length){sessionStorage.removeItem('vgb-gio-v1');return;}const truong={};document.querySelectorAll('#checkout input[id],#checkout textarea[id]').forEach(e=>{if(e.type!=='checkbox')truong[e.id]=e.value;});
+    sessionStorage.setItem('vgb-gio-v1',JSON.stringify({luc:Date.now(),gio:CART.concat(gioMuaCho||[],gioBanhCho||[]),ngay:ngayChon,slot:pickedSlot,daChonNgay,daChonGio,truong,co:{mode:CO.mode,pickup:CO.pickup,pay:CO.pay,other:CO.other,gift:CO.gift,vat:CO.vat,quan:CO.quan,nonce:CO.nonce}}));
   }catch(e){}
 }
-var gioMuaCho=[];
+var gioMuaCho=[],gioBanhCho=[];
+/* Một nguồn duy nhất dựng dòng giỏ từ bản lưu: giá, cỡ, tên lấy từ CAKES hiện
+   có, không lấy giá trong bản lưu. Trả null khi CAKES chưa có món đó. */
+function dongGioTuLuu(o){
+  const c=CAKES.find(c=>c.sizes.some(s=>s.id===o.id)),z=c?.sizes.find(s=>s.id===o.id);if(!z)return null;
+  const adds=(o.adds||[]).slice(0,20).map(a=>{const n=NUMS.find(n=>n.id===a.id);return n?{id:n.id,n:'Nến số '+n.n,p:n.p}:ADDONS.find(x=>x.id===a.id);}).filter(Boolean);
+  return {k:c.k,img:c.img,id:z.id,cm:z.cm,price:z.p,nguon:o.nguon==='today'?'today':'order',qty:o.qty,wish:String(o.wish||'').slice(0,60),adds,dung_cu:{nia:Math.min(30,Math.max(0,parseInt(o.dung_cu?.nia)||0)),dia:Math.min(30,Math.max(0,parseInt(o.dung_cu?.dia)||0))}};
+}
+function ganGioCho(){
+  if(!gioBanhCho.length)return;
+  const con=[];let doi=false;
+  gioBanhCho.forEach(o=>{const dong=dongGioTuLuu(o);if(dong){CART.push(dong);doi=true;}else con.push(o);});
+  /* Danh mục đã về mà vẫn không có món: món đã ngừng bán, không giữ nữa. */
+  gioBanhCho=TON_NAP_XONG?[]:con;
+  if(doi){drawBar();drawCart();if($('#checkout').classList.contains('open'))drawCo();}
+  luuGioDangSoan();
+}
 function lamTuoiGiaGio(){
   let doi=false;
   CART.forEach(o=>{if(!o.cm)return;const c=CAKES.find(c=>c.sizes.some(s=>s.id===o.id)),z=c?.sizes.find(s=>s.id===o.id);
@@ -2568,9 +2584,13 @@ function phucHoiGio(){
   if(window.vgbXemThu)return;
   try{const d=JSON.parse(sessionStorage.getItem('vgb-gio-v1')||'null');if(!d||Date.now()-d.luc>86400000||!Array.isArray(d.gio))return;
     gioMuaCho=d.gio.slice(0,50).filter(o=>o.cm===0&&typeof o.id==='string'&&Number.isInteger(o.qty)&&o.qty>0&&o.qty<=99);
-    CART=d.gio.slice(0,50).flatMap(o=>{const c=CAKES.find(c=>c.sizes.some(s=>s.id===o.id)),z=c?.sizes.find(s=>s.id===o.id);if(!z||!Number.isInteger(o.qty)||o.qty<1||o.qty>99)return [];
-      const adds=(o.adds||[]).slice(0,20).map(a=>{const n=NUMS.find(n=>n.id===a.id);return n?{id:n.id,n:'Nến số '+n.n,p:n.p}:ADDONS.find(x=>x.id===a.id);}).filter(Boolean);
-      return [{k:c.k,img:c.img,id:z.id,cm:z.cm,price:z.p,nguon:o.nguon==='today'?'today':'order',qty:o.qty,wish:String(o.wish||'').slice(0,60),adds,dung_cu:{nia:Math.min(30,Math.max(0,parseInt(o.dung_cu?.nia)||0)),dia:Math.min(30,Math.max(0,parseInt(o.dung_cu?.dia)||0))}}];});
+    /* Codex #446: bánh thêm động từ danh mục sống (vgbTronMon) chưa có trong
+       CAKES lúc khôi phục. Giữ dòng đó ở gioBanhCho, khi danh mục về thì
+       ganGioCho() dựng lại bằng cùng một hàm dongGioTuLuu, không bỏ mất. */
+    const luu=d.gio.slice(0,50).filter(o=>o.cm!==0&&typeof o.id==='string'&&Number.isInteger(o.qty)&&o.qty>0&&o.qty<=99);
+    CART=[];gioBanhCho=[];
+    luu.forEach(o=>{const dong=dongGioTuLuu(o);if(dong)CART.push(dong);else gioBanhCho.push(o);});
+    if(TON_NAP_XONG)ganGioCho();
     if(/^\d{4}-\d{2}-\d{2}$/.test(d.ngay||'')){ngayChon=d.ngay;dongBoNgay();}
     if(Number.isInteger(d.slot)&&SLOTS[d.slot])pickedSlot=d.slot;
     daChonNgay=d.daChonNgay===true&&picked>=0;daChonGio=d.daChonGio===true&&slotOk(picked,SLOTS[pickedSlot]);
