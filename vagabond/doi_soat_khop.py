@@ -262,6 +262,38 @@ CHO_TIEN_VE = ("Chưa thấy tiền về", "Lệch tiền về", "Cần chọn t
 NHOM_CHO_TIEN = "Chờ tiền về"
 # Dòng của bản đọc cũ đã được bản đọc lại thay (giữ làm vết, không tính nữa).
 DA_THAY = "Đã thay"
+# Codex #450: chỉ "Đã nối" mới là đủ chứng từ. "Nối theo tiền" là GỢI Ý, còn
+# chờ kế toán xác nhận nên vẫn tính là chưa nối. Một nguồn cho đếm và lọc.
+DA_NOI = ("Đã nối",)
+KHONG_TINH_CHUA_NOI = ("Đã nối", "Không áp dụng")
+# Mã số thuế người bán của từng nguồn chuyến đi: hoá đơn mua chỉ tìm trong nhà
+# cung cấp mang đúng mã này (số và ký hiệu hoá đơn không duy nhất giữa người bán).
+MST_NCC = {"be": "0108269207", "xanh_taxi": "0110269067", "grab_business": "0312650437",
+	"grab_business_cu": "0312650437"}
+
+
+def chung_tu_chuyen(giao_hang, hoa_don_nguon, van_don, purchase_invoice):
+	"""Trạng thái nối của một dòng chuyến đi. THUẦN.
+
+	Codex #450: chuyến giao hàng cần vận đơn; chuyến có số hoá đơn riêng
+	(ký hiệu#số) cần hoá đơn mua. Chỉ "Đã nối" khi ĐỦ mọi chứng từ cần có;
+	thiếu một thứ thì nói rõ thiếu gì. Trả (trạng thái, ghi chú)."""
+	can = []
+	if giao_hang:
+		can.append(("van_don", "vận đơn"))
+	if hoa_don_nguon and "#" in hoa_don_nguon:
+		can.append(("purchase_invoice", "hoá đơn mua " + hoa_don_nguon.replace("#", " số ")))
+	co = {"van_don": van_don, "purchase_invoice": purchase_invoice}
+	da_co = ", ".join(x for x in (("Vận đơn " + van_don) if van_don else "",
+		("Hoá đơn mua " + purchase_invoice) if purchase_invoice else "") if x)
+	thieu = [ten for k, ten in can if not co[k]]
+	if can:
+		if not thieu:
+			return "Đã nối", da_co
+		return "Không thấy chứng từ", ((da_co + "; ") if da_co else "") + "thiếu " + ", ".join(thieu) + "."
+	if van_don or purchase_invoice:
+		return "Đã nối", da_co
+	return "Chưa nối", ""
 # Chỉ trạng thái này mới GIỮ giao dịch: giao dịch gợi ý của "Lệch tiền về" không
 # chặn nguồn khác dùng đúng số tiền đó.
 GIU_GIAO_DICH = "Đã thấy tiền về"
