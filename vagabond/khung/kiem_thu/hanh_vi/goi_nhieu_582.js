@@ -42,7 +42,7 @@ var GOI = [
   { k: 'nhansu', ten: 'Quản lý người dùng', icon: 'N', mo_ta: 'n', so_nguoi: 1 },
 ];
 
-function mayChu(chiTiet) {
+function mayChu(chiTiet, dsGoi) {
   var goi = [];
   return {
     goi: goi,
@@ -51,7 +51,7 @@ function mayChu(chiTiet) {
     api: async function (m, a) {
       goi.push({ m: m, a: JSON.parse(JSON.stringify(a || {})) });
       if (m === 'vagabond.nguoi_dung.chi_tiet') return chiTiet;
-      if (m === 'vagabond.nguoi_dung.danh_sach_goi') return { goi: GOI };
+      if (m === 'vagabond.nguoi_dung.danh_sach_goi') return { goi: dsGoi || GOI };
       if (m === 'vagabond.nguoi_dung.dat_goi') return { ok: 1, loi_nhan: 'Đã xếp' };
       if (m === 'vagabond.nguoi_dung.moi') return { ok: 1, loi_nhan: 'Đã tạo' };
       throw new Error('may chu gia khong biet ' + m);
@@ -59,10 +59,10 @@ function mayChu(chiTiet) {
   };
 }
 
-function appMoi(chiTiet) {
+function appMoi(chiTiet, dsGoi) {
   var tl = domGia.taiLieuGia();
   var vgb = tl.createElement('div'); vgb.id = 'vgb'; tl.body.appendChild(vgb);
-  var mc = mayChu(chiTiet);
+  var mc = mayChu(chiTiet, dsGoi);
   var tin = [], hoi = [], chu = [];
   var g = {
     console: console, JSON: JSON, Math: Math, Number: Number, String: String, Object: Object, Array: Array,
@@ -87,6 +87,8 @@ function appMoi(chiTiet) {
     'function hsNgayVn(x) { return String(x || ""); }',
     'function errMsg(e) { return String((e && e.message) || e); }',
     'function api(m, a) { return __mc.api(m, a); }',
+    /* Ban that o 11-khach-ca-hop-dong.js, o tim cua hop chon dung no. */
+    'function mvKhongDau(s) { s = String(s || "").toLowerCase(); try { s = s.normalize("NFD").replace(/[\\u0300-\\u036f]/g, ""); } catch (e) {} return s.replace(/đ/g, "d"); }',
   ].join('\n'), Object.assign(g, { __tin: tin, __mc: mc, __hoi: hoi }));
   vm.runInContext(doc('01-khung-app.js'), g);
   vm.runInContext(doc('07-hop-thoai.js'), g);
@@ -178,6 +180,31 @@ var CT = {
     await p;
     dung('hop xac nhan ghi hai goi: ' + app.hoi[0], app.hoi.length === 1 && app.hoi[0].indexOf('Gói: Sales + Quản lý người dùng') >= 0);
     bang('moi nhan goi', app.mc.cuoi('vagabond.nguoi_dung.moi').a.goi, 'sales,nhansu');
+  });
+
+  /* Codex #449 P2: hop that co 13 goi, phai co o tim nhu hoiChon. */
+  var GOI13 = ['quay', 'sales', 'qlch', 'bep', 'bepql', 'kho', 'shipper', 'marketing', 'muahang', 'ketoan', 'nhansu', 'giamdoc', 'chucongty']
+    .map(function (k) { return { k: k, ten: k === 'kho' ? 'Kho' : 'Gói ' + k, icon: '', mo_ta: k === 'kho' ? 'Nhập xuất kho' : 'mô tả ' + k, so_nguoi: 1 }; });
+  await ca('Codex #449 P2: hop 13 goi co o tim, go chu loc dung muc, chon muc da loc roi Luu', async function () {
+    var app = appMoi(CT, GOI13);
+    await app.g.scrNguoiDungXem('de@vgb'); await nghi();
+    await app.bam(app.mot('#qndDoiGoi'));
+    var o = app.mot('#hcnTim');
+    o.value = 'nhập xuất';
+    o.dispatchEvent(domGia.suKien('input', {}, o)); await nghi();
+    var hien = Array.prototype.filter.call(app.tim('[data-hcn]'), function (el) { return el.style.display !== 'none'; })
+      .map(function (el) { return el.getAttribute('data-hcn'); });
+    bang('chi con Kho', hien, ['kho']);
+    await app.bam(app.mot('[data-hcn="kho"]'));
+    await app.bam(app.mot('[data-hcn-xong]'));
+    bang('gui ca goi cu lan Kho', app.mc.cuoi('vagabond.nguoi_dung.dat_goi').a.goi, 'qlch,kho,nhansu');
+  });
+
+  await ca('Codex #449 P2: hop it muc (5 goi) khong ve o tim, giong hoiChon', async function () {
+    var app = appMoi(CT);
+    await app.g.scrNguoiDungXem('de@vgb'); await nghi();
+    await app.bam(app.mot('#qndDoiGoi'));
+    bang('khong co o tim', app.tim('#hcnTim').length, 0);
   });
 
   console.log('Bo ca kiem HANH VI v582: chon nhieu goi chuc vu');
