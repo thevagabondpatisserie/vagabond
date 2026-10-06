@@ -1,3 +1,121 @@
+# Bổ sung 06/10/2026 - logo các kênh theo yêu cầu anh Việt
+
+Owner Codex, tiếp PR436. Nút mở app chỉ hiện logo Grab; popup có logo từng
+kênh. Dùng ảnh thương hiệu từ website chính thức và Beacons chính chủ,
+lưu asset local; nguồn ở `public/web_order/logo-kenh/README.md`.
+
+CMS có một khối `nut_kenh`: logo, tên trợ năng, bật/tắt độc lập. Kênh và
+Zalo dùng trường ảnh sẵn có, có tải PNG/JPG/WebP, tên/link/chữ dự phòng,
+thứ tự/ẩn-hiện. Nội dung popup vẫn ở Nhãn và câu chữ. Không thêm DocType.
+Renderer ảnh có fallback khi lỗi, URL kiểm backend và preview; image contain.
+Browser fixture390 không tràn,7ảnh tải đủ; Editor thay logo nút -> iframe
+đổi đúng ảnh, hoàn tác về Grab; chưa thử upload/xuất bản production.
+Gate/SHA mới theo comment PR; review độc lập vẫn chưa có kết luận.
+
+# Cập nhật 06/10/2026 - PR436, rút gọn và nút nổi
+
+Owner Codex; nền main `72b00ca1d` v577, PR vẫn v578. Chưa merge/deploy.
+
+- Đã tái hiện và sửa review 4184968380: giá giỏ phục hồi cập nhật khi API
+  danh mục trả về trễ, tổng/miễn phí giao/bản lưu cùng dùng giá mới; giá 0
+  cũng cập nhật. Có ca async 100.000 -> 200.000 -> 0, giữ qty.
+- Đã sửa review 4184968391: Editor không cho khối thường chọn vị trí dành
+  riêng chiến dịch; đổi loại trả về Cuối trang, backend chặn vị trí sai.
+- Anh Việt yêu cầu bỏ hai khối `loi-chao`, `ho-tro`: mặc định ẩn, patch
+  `rut_gon_web_436` cập nhật riêng nháp/công khai, giữ chữ và lịch sử.
+- Headline chính 36px ở390, tối đa48px desktop; sửa đúng rule html body .h1,
+  bỏ hai rule kích thước bị specificity đè. H2 thẻ27/32, body15/16.
+- Nút nổi Đặt qua app mở GrabFood/ShopeeFood/beFood/XanhSM và Beacons.
+  Nguồn: https://beacons.ai/thevagabondpatisserie đọc DOM06/10. XanhSM link
+  gốc HTTP, bản HTTPS cùng URL trả301 tới App Store200. Link mở tab mới.
+  Từng kênh thêm/sửa/ẩn/đổi tên/link trong CMS; chữ chung ở Nhãn và câu chữ.
+- Zalo OA đã được anh Việt cung cấp và browser xác nhận trang chính chủ:
+  https://zalo.me/thevagabondsaigon. Bật mặc định nút Nhắn Zalo; frontend và
+  backend nhận tên OA hoặc ID dài, vẫn chặn điện thoại/link sai host/credentials.
+  Tên và URL vẫn sửa được trong Editor. PR chưa phát hành nên cập nhật seed
+  của patch436; giữ nguyên khối người dùng đã có, không ghi đè tuỳ chỉnh.
+  Browser fixture390: link đúng, target mới, nút44px, không tràn ngang;
+  ảnh bằng chứng `../bang-chung/pr436/zalo-oa-mobile.jpg`. Ca OA/renderer đạt.
+- Bubble cao >=44px, link52px, cách thanh giỏ16px theo chiều cao thực;
+  ẩn khi chi tiết/checkout mở. Escape đóng popup giữ focus, chặn handler
+  cũ closeSheet tránh tự quay về trang trước. Không nhúng SDK quảng cáo.
+
+Browser local390/desktop: bỏ hai khối lặp; popup không tràn; quick-add
+Candle650k -> sửa lời chúc/nến23 -> vẫn1bánh684k; bubble ẩn ởcheckout.
+Editor đổi nhãn app phản ánh ởiframe, Undo khôi phục; chuyển Ưu đãi sang
+Thông báo vẫn thấy1heading ởCuối trang. GET-only fixture, chưa kiểm ghi
+nháp/xuất bản production. Ảnh nằm output/web-order-20261006 tại workspace.
+
+Đợt trước42cba CI+bench đều đạt; Claude chưa có kết luận (tool denied).
+Đợt này xin Claude review code và UI/customer flow exactSHA; chỉ được nói
+đã dùng browser nếu thực sự có browser, nếu không phải ghi phần chưa kiểm.
+Cổng mới và phản hồi reviewer lấy từ comment PR hiện tại. Lỗi Ahamove/
+chính sách đã nêu bên dưới vẫn chưa đóng, không suy ra được deploy.
+
+---
+
+# Cập nhật 05/10/2026 - Minh Vũ, Marketing và lỗi luồng khách
+
+Owner Codex, branch `codex/web-editor-toan-bo-chu`, PR436 mở rộng trên main
+`fbcb324cc` v576. Phiên bản dự kiến v578 (v577 đang dùng ở PR422).
+
+- In store: chọn điểm theo mã thật trong API, lọc Item Group, giữ quầy hết
+  hàng nhìn thấy; không gán TCV/NVHTN vào kho bằng tên đoán.
+- Ưu đãi/tuyển dụng: thêm hai loại nội dung trong CMS hiện có; không tạo
+  DocType. Có ảnh, chữ/nút/link, nhóm, thời hạn; việc làm thêm địa điểm,
+  hình thức, email. Nháp mới mặc định ẩn; nhân bản cũng ẩn. Công khai loại
+  nội dung ẩn/hết hạn, chương trình tương lai ghi Sắp diễn ra, ngày VN.
+- Editor tìm theo tên/mã/nhóm/nơi làm, lọc trạng thái có đếm; đổi ảnh bằng
+  upload có sẵn hoặc URL. Preview tự mở đúng chuyên mục, xem được bản ẩn;
+  Lưu nháp/Xuất bản, revision, lịch sử, Undo/Redo giữ luồng có sẵn.
+- Headline gọn, dùng Vagabond Sans gốc. Có JPEG tay làm bánh do AI tạo,
+  ảnh minh hoạ mặc định thay được; không phải ảnh nhân sự thật.
+- Giỏ: giữ bản đang soạn trong sessionStorage 24 giờ, loại dữ liệu giá
+  cũ khi phục hồi, không nhớ checkbox đồng ý/quote phí. Sửa một dòng bánh
+  không cộng thêm số lượng, giữ nguồn today/order và dụng cụ. Bánh mùa vụ
+  phục hồi sau API để lấy giá hiện tại, không có lời chúc/phụ kiện riêng.
+- Link chia sẻ bánh mở mới tự chọn đặt trước nếu không có cỡ bán hôm nay.
+  Một thẻ ưu đãi/tuyển dụng dùng bố cục ảnh/chữ hai cột; nhiều thẻ dùng lưới.
+- Kích thước chi tiết theo đúng tab; giờ hết hạn bị vô hiệu; tóm tắt chưa
+  chọn giờ không hiện như đã xác nhận. Nến object-fit contain, 5 cột mobile,
+  tăng nút +/-/Bỏ/Xoá; yêu cầu số nĩa/dĩa được đưa vào ghi chú đơn.
+
+Bằng chứng: `/Users/jin/Documents/ChatGPT/ERP/output/web-order-20261005`.
+Browser fixture local: thêm nhanh Candle 650.000, sửa lời chúc + nến23 +
+6 nĩa -> vẫn 1 bánh, 684.000; reload giữ đủ. Mobile390: nút nến65x82,
+ảnh57x64 nằm trọn nút; ảnh, tiêu đề Editor đổi ở iframe, Undo khôi phục;
+chọn NVHTN fixture rỗng hiện giải thích. Không gửi đơn thật.
+
+Cổng local trước chốt: 4.062 ca tầng khung đạt, không hỏng; 2 ca PDF #247
+chưa chạy vì Python hệ thống thiếu pypdf; các cổng còn lại exit0. Bundle
+khớp. SHA cuối, CI/bench/Claude theo biên nhận PR, không dùng kết quả SHA cũ.
+
+**Chưa hoàn tất để phát hành:**
+- API live GET phi_giao ngày05/10, địa chỉ cửa hàng công khai: ok0,
+  ly_do=ahamove_loi. Nút thử lại không phải sửa gốc dịch vụ; cần log Ahamove
+  phía server để phân biệt auth/service/response. Không thay phí/credential.
+- Trang chính sách cần nội dung thật được duyệt và xuất bản. Link hỏi thông
+  tin bảo mật là đường hỗ trợ tạm thời, không thay thế chính sách công khai.
+- JPEG mới chờ duyệt; mẫu ưu đãi/job chỉ có ở fixture, không xuất bản giả,
+  không kích hoạt voucher/giảm tiền. Discount thực cần quy tắc/hạn mức.
+- CI/bench exact SHA, Claude review và UAT production còn chờ. Không merge,
+  deploy, migrate, gửi email trong phiên này khi các cổng chưa đủ.
+
+# Cập nhật 04/10/2026 - mở toàn bộ chữ theo duyệt trực tiếp
+
+Anh Việt yêu cầu “cho sửa hết trong editor”, gồm bốn dòng pháp lý bị khóa
+ở PR431/432. Codex mở lại tên pháp nhân, MST và hai địa chỉ qua danh mục
+Nhãn và câu chữ, marker textContent hiện có; giữ fallback tĩnh trong HTML.
+Chỉ đổi chữ hiển thị, không ghi Company/Tax ID hoặc chứng từ ERP. Quyền
+Marketing, nháp/xuất bản/lịch sử không đổi. Không đổi font trong lượt này.
+
+Nền main b8a2bd142 (v570), branch codex/web-editor-toan-bo-chu.
+PR431 đã đóng; PR432 đã merge7544931a2 và code mới đã hiện trong HTML live
+(câu chào mới, escape tên phụ kiện), nhưng bốn nhãn vẫn đang khóa trên live.
+Ca cũ cấm sửa được thay bằng kiểm validator nhận đủ bốn nhãn, public snapshot
+nhận chữ, fallback trống và marker escape; 10/10 ca tập trung đạt.
+Cổng/SHA cuối theo PR tiếp nối; không dùng CI432 làm kiểm cho thay đổi mới.
+
 # Issue 367: website đặt bánh và Marketing Studio
 
 ## Hiện tại 03/10/2026: chữ, font và Editor
