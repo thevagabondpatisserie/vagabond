@@ -998,3 +998,12 @@ scheduler_events.setdefault("cron", {}).setdefault("*/5 * * * *", []).append("va
 # v577 (Codex #444 vong 7): luoi an toan cho thu bao nhan tien khi viec nen
 # xep sau commit bi mat (Redis loi). Doc cong_no.quet_thu_bao_bo_lo.
 scheduler_events.setdefault("hourly", []).append("vagabond.cong_no.quet_thu_bao_bo_lo")
+
+# v579 (#420 doi soat vendor): thu tu ten mien vendor thi xep viec doc dinh
+# kem sau commit; luoi quet moi gio doc lai 2 ngay (trung ma bam thi bo qua).
+# Noi vao chuoi san co cua Communication (gac_thu_ncc), KHONG dat tren "*".
+_cu_ds = doc_events.setdefault("Communication", {}).get("after_insert", [])
+doc_events["Communication"]["after_insert"] = ([_cu_ds] if isinstance(_cu_ds, str) else list(_cu_ds)) + [
+    "vagabond.doi_soat_vendor.khi_co_thu"]
+del _cu_ds
+scheduler_events.setdefault("hourly", []).append("vagabond.doi_soat_vendor.quet_moi_gio")
