@@ -367,12 +367,25 @@ KHOA_GOI_DA_LUU = "vgb_goi_chuc_vu"
 
 
 def _goi_da_luu(email):
-	"""Danh sach khoa goi da chon cho nguoi nay (rong neu chua luu)."""
-	try:
-		v = frappe.defaults.get_user_default(KHOA_GOI_DA_LUU, email) or ""
-	except Exception:
-		v = ""
-	return [k for k in str(v).split(",") if k.strip() and k.strip() in GOI_THEO_KEY]
+	"""Danh sach khoa goi da chon cho nguoi nay (rong neu chua luu).
+
+	KHONG nuot loi doc (Codex #449 vong 2 P1): doc hong ma coi nhu "chua
+	luu" thi man hinh hien bo goi doan, nguoi quan ly bam Luu tu man do la
+	ghi de mat danh sach that ma khong ai biet kho luu dang hong. De loi di
+	len duong bao loi san co cua man hinh.
+	"""
+	v = frappe.defaults.get_user_default(KHOA_GOI_DA_LUU, email) or ""
+	return doc_khoa_da_luu(v)
+
+
+def doc_khoa_da_luu(v):
+	"""Chuoi "a,b" da luu ra danh sach khoa hop le. PHEP THUAN."""
+	ra = []
+	for k in str(v or "").split(","):
+		k = k.strip()
+		if k and k in GOI_THEO_KEY and k not in ra:
+			ra.append(k)
+	return ra
 
 
 def _luu_goi(email, cac_goi):
