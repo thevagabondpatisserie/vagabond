@@ -258,6 +258,10 @@ def nhom_tien_ve(mau):
 
 # Trạng thái tiền về còn chờ kế toán xem (đếm ở thẻ Việc cần làm, lọc Chờ tiền về).
 CHO_TIEN_VE = ("Chưa thấy tiền về", "Lệch tiền về", "Cần chọn tiền về")
+# Khoá lọc gộp cả ba trạng thái chờ (thẻ Việc cần làm và chip "Chờ tiền về").
+NHOM_CHO_TIEN = "Chờ tiền về"
+# Dòng của bản đọc cũ đã được bản đọc lại thay (giữ làm vết, không tính nữa).
+DA_THAY = "Đã thay"
 # Chỉ trạng thái này mới GIỮ giao dịch: giao dịch gợi ý của "Lệch tiền về" không
 # chặn nguồn khác dùng đúng số tiền đó.
 GIU_GIAO_DICH = "Đã thấy tiền về"

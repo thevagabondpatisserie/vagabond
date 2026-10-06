@@ -296,21 +296,22 @@ def _nhan_byte(ten, byte, kenh, file_url=None, communication=None, chi_mau_quen=
 
 def _bo_dong_cu(name):
 	"""Codex #450: đọc lại một nguồn (sau khi sửa mẫu) thì bản đọc mới là bản
-	có hiệu lực. Dòng của lần đọc cũ được chụp lại vào du_lieu làm lịch sử rồi
-	gỡ khỏi nguồn, để sự kiện bản cũ đọc sai không còn nối hoá đơn hay giữ
-	khoá. Trả lịch sử các lần đọc (giữ 5 lần gần nhất)."""
+	có hiệu lực. Dòng của bản cũ KHÔNG xoá: chuyển thành dòng "Đã thay", tách
+	khỏi nguồn (nguon_cu giữ nguồn gốc), khoá đổi thành "thay:<tên dòng>" (khoá
+	gốc giữ ở khoa_cu) để bản mới ghi được cùng sự kiện. Liên kết hoá đơn, vận
+	đơn giữ nguyên làm vết; mọi truy vấn "đã dùng" bỏ qua dòng Đã thay.
+	Trả lịch sử số dòng các lần đọc của nguồn."""
 	cu = frappe.db.get_value(DT_NGUON, name, ["du_lieu", "so_dong", "thuc_nhan"], as_dict=True) or {}
 	try:
 		lich_su = (json.loads(cu.get("du_lieu") or "{}").get("lan_doc_truoc") or [])
 	except ValueError:
 		lich_su = []
-	dong = frappe.get_all(DT_DONG, filters={"nguon": name}, fields=["khoa", "ma_su_kien", "ngay", "thuc_nhan",
-		"trang_thai_khop", "sales_invoice", "purchase_invoice", "van_don"], order_by="ngay asc, gio asc",
-		limit_page_length=20000)
-	lich_su.append(dict(luc=str(frappe.utils.now_datetime()), so_dong=len(dong), thuc_nhan=cu.get("thuc_nhan"),
-		dong=[{k: v for k, v in d.items() if v} for d in dong[:2000]], cat_bot=max(0, len(dong) - 2000)))
-	frappe.db.delete(DT_DONG, {"nguon": name})
-	return lich_su[-5:]
+	luc = frappe.utils.now()
+	so = frappe.db.count(DT_DONG, {"nguon": name})
+	frappe.db.sql("""update `tab%s` set khoa_cu=khoa, khoa=concat('thay:', name), nguon_cu=nguon, nguon=NULL,
+		trang_thai_khop=%%s, thay_luc=%%s where nguon=%%s""" % DT_DONG, (khop.DA_THAY, luc, name))
+	lich_su.append(dict(luc=str(luc), so_dong=so, thuc_nhan=cu.get("thuc_nhan")))
+	return lich_su[-50:]
 
 
 def _ghi_nguon(cong_ty, t, kq, xt, kenh, file_url, communication, co_san=None):
@@ -434,7 +435,7 @@ def _noi_hoa_don_ban(nguon, dong):
 	uv = _ung_vien_hd(kieu, tu, den, nguon.company)
 	# Hoá đơn đã nối với dòng của nguồn khác thì không đưa vào lại (một đối một toàn hệ).
 	da_noi = set(frappe.get_all(DT_DONG, filters={"sales_invoice": ["in", [u["name"] for u in uv] or [""]],
-		"nguon": ["!=", nguon.name]}, pluck="sales_invoice"))
+		"nguon": ["!=", nguon.name], "trang_thai_khop": ["!=", khop.DA_THAY]}, pluck="sales_invoice"))
 	uv = [u for u in uv if u["name"] not in da_noi]
 	dong_ds = [dict(loai=d.loai, ngay=str(d.ngay), ma_tham_chieu=d.ma_tham_chieu or "", tien_hang=int(d.tien_hang),
 		giam_gia=int(d.giam_gia)) for d in dong]
@@ -603,8 +604,9 @@ def _tong_hop(nguon):
 	d = json.loads(nguon.du_lieu or "{}")
 	kenh = (d.get("them") or {}).get("kenh") or ""
 	tien = frappe.db.sql("""select coalesce(sum(tien_hang),0), coalesce(sum(phi),0), coalesce(sum(thuc_nhan),0), count(*)
-		from `tab%s` where vendor='OnePay' and company=%%s and ma_su_kien like %%s and ngay_tien_ve between %%s and %%s""" % DT_DONG,
-		(nguon.company, "%s:%%" % kenh, nguon.tu_ngay, frappe.utils.add_days(nguon.den_ngay, 5)))[0]
+		from `tab%s` where vendor='OnePay' and company=%%s and ma_su_kien like %%s and ngay_tien_ve between %%s and %%s
+		and trang_thai_khop!=%%s""" % DT_DONG,
+		(nguon.company, "%s:%%" % kenh, nguon.tu_ngay, frappe.utils.add_days(nguon.den_ngay, 5), khop.DA_THAY))[0]
 	bb = d.get("tong") or {}
 	lech = {k: int(bb.get(k) or 0) - int(v or 0) for k, v in zip(("tien_hang", "phi", "thuc_nhan"), tien[:3])}
 	_ghi_them(nguon.name, doi_bien_ban=dict(da_nhan=dict(tien_hang=int(tien[0]), phi=int(tien[1]),
@@ -634,6 +636,10 @@ def ds(nhom=None, trang_thai=None, vendor=None, tim=None, ky=None, tu=None, den=
 		loc["vendor"] = vendor
 	if trang_thai == "Cần xử lý":
 		loc["trang_thai"] = ["in", ["Cần xử lý", "Lỗi tệp"]]
+	elif trang_thai == khop.NHOM_CHO_TIEN:
+		# Codex #450: thẻ "Chờ tiền về" đếm cả ba trạng thái chờ thì bấm vào
+		# cũng lọc đủ ba, không chỉ một.
+		loc["trang_thai_tien"] = ["in", list(khop.CHO_TIEN_VE)]
 	elif trang_thai in khop.CHO_TIEN_VE:
 		loc["trang_thai_tien"] = trang_thai
 	elif trang_thai == "Chưa nối đủ":
@@ -656,6 +662,7 @@ def ds(nhom=None, trang_thai=None, vendor=None, tim=None, ky=None, tu=None, den=
 			dem["Cần xử lý"] = dem.get("Cần xử lý", 0) + n
 		if ttt in khop.CHO_TIEN_VE:
 			dem[ttt] = dem.get(ttt, 0) + n
+			dem[khop.NHOM_CHO_TIEN] = dem.get(khop.NHOM_CHO_TIEN, 0) + n
 		if cn:
 			dem["Chưa nối đủ"] = dem.get("Chưa nối đủ", 0) + n
 		dem["tat_ca"] = dem.get("tat_ca", 0) + n
@@ -696,7 +703,8 @@ def chi_tiet(name=None, loc=None, trang=0):
 def cua_hoa_don(si=None):
 	"""Các dòng vendor đã nối với một hoá đơn bán (vùng Đối soát trên hoá đơn)."""
 	_chan()
-	return frappe.get_all(DT_DONG, filters={"sales_invoice": si, "company": ["in", _cong_ty_xem()]}, fields=["name", "nguon", "vendor", "ngay",
+	return frappe.get_all(DT_DONG, filters={"sales_invoice": si, "company": ["in", _cong_ty_xem()],
+		"trang_thai_khop": ["!=", khop.DA_THAY]}, fields=["name", "nguon", "vendor", "ngay",
 		"ma_don", "tien_hang", "giam_gia", "phi", "thuc_nhan", "trang_thai_khop", "ghi_chu_khop", "ngay_tien_ve"])
 
 
