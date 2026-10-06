@@ -79,33 +79,9 @@ frappe.ui.form.on('Vagabond Kenh Zalo', {
 		});
 	},
 });
-frappe.ui.form.on('Vagabond Settings', {
-	refresh(frm) {
-		frm.add_custom_button('Nối Zalo Bot', () => {
-			frappe.call({ method: 'vagabond.kenh_zalo.dang_ky_webhook', freeze: true })
-				.then(r => { const m = r.message || {}; frappe.msgprint({ message: m.loi_nhan || '', indicator: m.ok ? 'green' : 'orange' }); frm.reload_doc(); });
-		}, 'Zalo');
-		// v562 Codex #413: Zalo lưu đường nhận kể cả khi gọi thử thất bại, nên có nút kiểm lại.
-		frm.add_custom_button('Kiểm lại đường nhận', () => {
-			frappe.call({ method: 'vagabond.kenh_zalo.kiem_webhook', freeze: true })
-				.then(r => { const m = r.message || {}; frappe.msgprint({ message: m.loi_nhan || '', indicator: m.ok ? 'green' : 'orange' }); frm.reload_doc(); });
-		}, 'Zalo');
-		frm.add_custom_button('Xem trước tin mẫu', () => {
-			frappe.call({ method: 'vagabond.kenh_zalo.xem_truoc', args: { loai: 'viec' } })
-				.then(r => frappe.msgprint('<pre style="white-space:pre-wrap">' + frappe.utils.escape_html((r.message || {}).tin || '') + '</pre>', 'Xem trước, chưa gửi'));
-		}, 'Zalo');
-		frm.add_custom_button('Gửi thử tới một nhóm', () => {
-			const ds = (frm.doc.zalo_nhom || []).filter(r => r.chat_id).map(r => r.ten_nhom);
-			if (!ds.length) { frappe.msgprint('Chưa có nhóm nào có mã chat.'); return; }
-			frappe.prompt({ fieldname: 'nhom', fieldtype: 'Autocomplete', label: 'Gõ tên nhóm để tìm', options: ds, reqd: 1 }, (v) => {
-				const r = (frm.doc.zalo_nhom || []).find(x => x.ten_nhom === v.nhom);
-				if (!r) { frappe.msgprint('Chọn đúng một nhóm trong danh sách gợi ý.'); return; }
-				frappe.call({ method: 'vagabond.kenh_zalo.gui_thu', args: { chat_id: r.chat_id }, freeze: true })
-					.then(x => frappe.show_alert({ message: (x.message || {}).loi_nhan || 'Đã gửi', indicator: 'green' }));
-			}, 'Gửi tin thử thật', 'Gửi');
-		}, 'Zalo');
-	}
-});
+// v581 Codex #447: menu Zalo trên thanh công cụ nay dựng trong khối bên dưới và
+// đi qua cùng một hàm zaloTacVu với hàng nút trong mục, để mọi lối vào đều chặn
+// khi form chưa lưu (trước đây menu gọi máy chủ rồi reload_doc, xoá bản nháp).
 
 
 (function () {
@@ -391,28 +367,32 @@ frappe.ui.form.on('Vagabond Settings', {
 			'<button type="button" class="btn btn-default" data-zl="xem">Xem trước tin mẫu</button>' +
 			'<button type="button" class="btn btn-default" data-zl="kiem">Kiểm lại đường nhận</button></div>' +
 			'<div class="vgbc-mo">' + (coNhom ? 'Gửi thử gửi một tin mẫu thật vào nhóm để xem bot đã tới chưa.' : 'Thêm nhóm ở mục Nhóm nhận tin bên dưới rồi mới gửi thử được.') + '</div>');
-		f.$wrapper.off('click.zl').on('click.zl', '[data-zl]', function () {
-			var v = $(this).attr('data-zl');
+		f.$wrapper.off('click.zl').on('click.zl', '[data-zl]', function () { zaloTacVu(frm, $(this).attr('data-zl')); });
+	}
+
+	// Nguồn duy nhất cho bốn việc Zalo, dùng chung cho hàng nút trong mục và menu
+	// Zalo trên thanh công cụ (Codex #447). Nối và Kiểm gọi máy chủ trên cấu hình
+	// ĐÃ LƯU rồi tải lại form, nên phải chặn khi còn bản nháp.
+	function zaloTacVu(frm, v) {
 			if (v === 'noi' || v === 'kiem') {
-				if (frm.is_dirty()) { frappe.msgprint('Bấm Lưu trước (Ctrl+S), rồi mới bấm nút này.'); return; }
-				frappe.call({ method: v === 'noi' ? 'vagabond.kenh_zalo.dang_ky_webhook' : 'vagabond.kenh_zalo.kiem_webhook', freeze: true })
-					.then(function (r) { var m = (r && r.message) || {}; frappe.msgprint({ message: m.loi_nhan || '', indicator: m.ok ? 'green' : 'orange' }); frm.reload_doc(); });
-			} else if (v === 'xem') {
-				frappe.call({ method: 'vagabond.kenh_zalo.xem_truoc', args: { loai: 'viec' } })
-					.then(function (r) { frappe.msgprint('<pre style="white-space:pre-wrap">' + esc(((r && r.message) || {}).tin || '') + '</pre>', 'Xem trước, chưa gửi'); });
-			} else if (v === 'guithu') {
-				var ds = (frm.doc.zalo_nhom || []).filter(function (r) { return r.chat_id; });
-				if (ds.length === 1) return guiThuZalo(ds[0].chat_id, ds[0].ten_nhom || 'nhóm');
-				var d = new frappe.ui.Dialog({ title: 'Gửi tin thử tới nhóm nào?', fields: [{ fieldname: 'nhom', fieldtype: 'Autocomplete', label: 'Gõ tên nhóm để tìm', reqd: 1,
-					options: ds.map(function (r) { return r.ten_nhom; }) }], primary_action_label: 'Gửi', primary_action: function (val) {
-					var r = ds.filter(function (x) { return x.ten_nhom === val.nhom; })[0];
-					if (!r) { frappe.msgprint('Chọn đúng một nhóm trong danh sách gợi ý.'); return; }
-					d.hide();
-					guiThuZalo(r.chat_id, r.ten_nhom);
-				} });
-				d.show();
-			}
-		});
+			if (frm.is_dirty()) { frappe.msgprint('Bấm Lưu trước (Ctrl+S), rồi mới bấm nút này.'); return; }
+			frappe.call({ method: v === 'noi' ? 'vagabond.kenh_zalo.dang_ky_webhook' : 'vagabond.kenh_zalo.kiem_webhook', freeze: true })
+				.then(function (r) { var m = (r && r.message) || {}; frappe.msgprint({ message: m.loi_nhan || '', indicator: m.ok ? 'green' : 'orange' }); frm.reload_doc(); });
+		} else if (v === 'xem') {
+			frappe.call({ method: 'vagabond.kenh_zalo.xem_truoc', args: { loai: 'viec' } })
+				.then(function (r) { frappe.msgprint('<pre style="white-space:pre-wrap">' + esc(((r && r.message) || {}).tin || '') + '</pre>', 'Xem trước, chưa gửi'); });
+		} else if (v === 'guithu') {
+			var ds = (frm.doc.zalo_nhom || []).filter(function (r) { return r.chat_id; });
+			if (ds.length === 1) return guiThuZalo(ds[0].chat_id, ds[0].ten_nhom || 'nhóm');
+			var d = new frappe.ui.Dialog({ title: 'Gửi tin thử tới nhóm nào?', fields: [{ fieldname: 'nhom', fieldtype: 'Autocomplete', label: 'Gõ tên nhóm để tìm', reqd: 1,
+				options: ds.map(function (r) { return r.ten_nhom; }) }], primary_action_label: 'Gửi', primary_action: function (val) {
+				var r = ds.filter(function (x) { return x.ten_nhom === val.nhom; })[0];
+				if (!r) { frappe.msgprint('Chọn đúng một nhóm trong danh sách gợi ý.'); return; }
+				d.hide();
+				guiThuZalo(r.chat_id, r.ten_nhom);
+			} });
+			d.show();
+		}
 	}
 
 	function veZaloNhom(frm) {
@@ -519,6 +499,9 @@ frappe.ui.form.on('Vagabond Settings', {
 			if (!document.getElementById('vgb-cd-css')) $('<style id="vgb-cd-css"></style>').text(CSS).appendTo('head');
 		},
 		refresh(frm) {
+			[['Nối Zalo Bot', 'noi'], ['Kiểm lại đường nhận', 'kiem'], ['Xem trước tin mẫu', 'xem'], ['Gửi thử tới một nhóm', 'guithu']].forEach(function (x) {
+				frm.add_custom_button(x[0], function () { zaloTacVu(frm, x[1]); }, 'Zalo');
+			});
 			$(frm.wrapper).addClass('vgb-cd');
 			vgb_nap_cd_chung().then(function () {
 				veThanh(frm);
