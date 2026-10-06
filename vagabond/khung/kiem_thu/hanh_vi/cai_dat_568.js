@@ -15,7 +15,9 @@
 
 var path = require('path');
 var GOC = path.resolve(__dirname, '..', '..', '..', '..');
-global.frappe = { ui: { form: { on: function () {} } } };
+/* v581 Codex #447: giữ lại mọi bộ xử lý form.on để ca kiểm chạy được nút trên thanh công cụ. */
+var DANG_KY = [];
+global.frappe = { ui: { form: { on: function (dt, h) { DANG_KY.push([dt, h]); } } } };
 /* v570: phép thuần dời sang tệp dùng chung Desk và app. */
 var V = require(path.join(GOC, 'vagabond', 'public', 'js', 'cai_dat_loi_chung.js'));
 /* Phần chạm form Desk vẫn ở vagabond_settings.js và gọi VGB_CD như biến toàn cục,
@@ -629,6 +631,37 @@ ca('v579: nhóm đã lưu nhưng không còn trong 20 chat gần nhất vẫn s�
   la('sửa nhóm có nút Xoá', d.phu, 'Xoá nhóm này');
   d.phuFn();
   la('xoá đúng nhóm', z.frm.doc.zalo_nhom.map(function (x) { return x.name; }), ['r2']);
+});
+
+
+// v581 Codex #447 (finding 1): menu Zalo trên thanh công cụ (Nối Zalo Bot, Kiểm lại
+// đường nhận) gọi máy chủ rồi reload_doc mà KHÔNG chặn khi form chưa lưu, nên vừa
+// chạy trên cấu hình cũ vừa xoá bản nháp. Ca này chạy THẬT mọi hàm refresh đã đăng
+// ký và bấm THẬT nút trên thanh công cụ, không gọi hàm nội bộ nào khác.
+ca('v581: menu Zalo trên thanh công cụ cũng chặn khi form chưa lưu, không xoá bản nháp', function () {
+  global.$ = $;
+  ['Nối Zalo Bot', 'Kiểm lại đường nhận'].forEach(function (ten) {
+    [true, false].forEach(function (ban) {
+      var nut = {}, tai = 0;
+      var frm = { doc: { zalo_nhom: [] }, fields_dict: {}, wrapper: new dg.ElementGia('div'),
+        is_dirty: function () { return ban; }, reload_doc: function () { tai++; },
+        add_custom_button: function (t, fn, nhom) { if (nhom === 'Zalo') (nut[t] = nut[t] || []).push(fn); } };
+      var g = giaFrappe(frm);
+      global.frappe.call = function (o) { g.goi.push(o); return { then: function (fn) { fn({ message: { ok: 1, loi_nhan: 'x' } }); } }; };
+      DANG_KY.filter(function (x) { return x[0] === 'Vagabond Settings' && x[1].refresh; })
+        .forEach(function (x) { try { x[1].refresh(frm); } catch (e) { /* phần vẽ cần Desk thật */ } });
+      // Bấm MỌI nút cùng tên: lỡ còn khối đăng ký cũ đứng song song thì cũng lộ.
+      la('đúng một nút ' + ten + ' trong menu Zalo', (nut[ten] || []).length, 1);
+      nut[ten][0]();
+      if (ban) {
+        la(ten + ' khi chưa lưu: không gọi máy chủ', g.goi.length, 0);
+        la(ten + ' khi chưa lưu: không tải lại form', tai, 0);
+        dung(ten + ' khi chưa lưu: nhắc bấm Lưu', g.bao.some(function (m) { return String(m).indexOf('Lưu') >= 0; }));
+      } else {
+        la(ten + ' khi đã lưu: gọi máy chủ đúng một lần', g.goi.length, 1);
+      }
+    });
+  });
 });
 
 console.log('\n' + dat + ' ca dat, ' + hong + ' ca hong.');
