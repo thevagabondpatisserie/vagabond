@@ -327,7 +327,7 @@ def doan_cac_goi(vai_nguoi, co_that, da_luu=None):
 
 	  - Co danh sach da luu: chi lay nhung goi trong do ma nguoi nay con du
 	    vai (ai do go vai tren Desk thi goi do roi ra). Khong them goi nao
-	    khac, du bo vai co du.
+	    khac, du bo vai co du, ke ca khi khong con goi nao (tra rong).
 	  - Chua luu (tai khoan xep truoc v582): doan tu bo vai, nhung chi giu
 	    BO GOI NHO NHAT phu du vai: bo goi da nam tron trong mot goi khac,
 	    roi bo goi ma cac goi con lai da phu du vai cua no (goi bac thap xet
@@ -341,11 +341,14 @@ def doan_cac_goi(vai_nguoi, co_that, da_luu=None):
 		if can and can <= vai_nguoi:
 			khop.append((g, can))
 	if da_luu:
+		# Da luu thi KHONG BAO GIO doan them, ke ca khi moi goi da luu deu
+		# mat vai (Codex #449 vong 3: Quay + Thu mua mat Sales User va Thu mua
+		# thi phan con lai van du goi Kho; doan lai la Kho moc ra). Tra rong
+		# de man hien "Chua xep goi" va quyen thua, nguoi quan ly xep lai.
 		theo_khoa = {g["k"]: g for g, _ in khop}
 		ra = [theo_khoa[k] for k in da_luu if k in theo_khoa]
-		if ra:
-			ra.sort(key=lambda g: -g.get("bac", 0))
-			return ra
+		ra.sort(key=lambda g: -g.get("bac", 0))
+		return ra
 	con = list(khop)
 	# Bo goi ma cac goi con lai da phu du vai. Mot phep lo ca hai ca: goi
 	# nam tron trong goi khac (Quay trong Sales trong QLCH) va goi "ghep" tu
