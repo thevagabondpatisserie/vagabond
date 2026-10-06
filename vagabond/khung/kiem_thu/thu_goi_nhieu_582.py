@@ -275,8 +275,8 @@ def _p1_doan_da_luu():
 	# Ai do go mot vai cua Thu mua tren Desk: goi do roi ra, khong doan them.
 	vai = _vai_quay_mua() - {"Thu mua"}
 	la("thu mua roi ra", _khoa(nd.doan_cac_goi(vai, CO_THAT, ["quay", "muahang"])), ["quay"])
-	# Moi goi da luu deu mat vai: quay ve doan tu bo vai.
-	la("doan lai", _khoa(nd.doan_cac_goi(_vai("sales"), CO_THAT, ["ketoan"])), ["sales"])
+	# Moi goi da luu deu mat vai: KHONG doan lai (Codex #449 vong 3), tra rong.
+	la("khong doan lai", _khoa(nd.doan_cac_goi(_vai("sales"), CO_THAT, ["ketoan"])), [])
 
 
 @ca("Codex #449 P1: chuoi thao tac that - xep Quay + Thu mua, mo hop, bo Thu mua, Luu: mat quyen kho")
@@ -337,3 +337,12 @@ def _p1v2_doc_dung():
 		else:
 			nd.frappe.defaults = cu
 	la("rong", nd.doc_khoa_da_luu(None), [])
+
+
+@ca("Codex #449 vong 3 P1: Quay + Thu mua mat Sales User va Thu mua thi KHONG moc Kho")
+def _p1v3_khong_moc_kho():
+	vai = _vai_quay_mua() - {"Sales User", "Thu mua"}
+	dung("tien de: phan con lai van du goi Kho", set(G["kho"]["vai"]) <= vai)
+	la("khong goi nao, khong Kho", _khoa(nd.doan_cac_goi(vai, CO_THAT, ["quay", "muahang"])), [])
+	ds = nd.doan_cac_goi(vai, CO_THAT, ["quay", "muahang"])
+	dung("vai kho hien la quyen rieng de nguoi quan ly thay", "Stock Manager" in nd._thua_so_voi_goi(vai, ds))
