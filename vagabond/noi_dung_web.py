@@ -41,7 +41,7 @@ KENH_MAC_DINH = [
     {"id":"kenh-be", "loai":"kenh_dat_hang", "hien":True, "vi_tri":"cuoi_trang", "tieu_de":"beFood", "nut":"be", "lien_ket":"https://begroup.onelink.me/ZOqn/c2ba8ar9"},
     {"id":"kenh-xanh", "loai":"kenh_dat_hang", "hien":True, "vi_tri":"cuoi_trang", "tieu_de":"XanhSM", "nut":"Xanh", "lien_ket":"https://xanhsmngon.onelink.me/14WJ/72fp2t58"},
     {"id":"kenh-beacons", "loai":"kenh_dat_hang", "hien":True, "vi_tri":"cuoi_trang", "tieu_de":"Xem tất cả kênh đặt hàng", "nut":"↗", "lien_ket":"https://beacons.ai/thevagabondpatisserie"},
-    {"id":"kenh-zalo", "loai":"zalo_oa", "hien":False, "vi_tri":"cuoi_trang", "tieu_de":"Nhắn Zalo", "lien_ket":""},
+    {"id":"kenh-zalo", "loai":"zalo_oa", "hien":True, "vi_tri":"cuoi_trang", "tieu_de":"Nhắn Zalo", "lien_ket":"https://zalo.me/thevagabondsaigon"},
 ]
 MAC_DINH["khoi"].extend(KENH_MAC_DINH)
 
@@ -261,8 +261,8 @@ def chuan_hoa(du_lieu):
             u = urlsplit(k.get('lien_ket', ''))
             if k['hien'] and (not k.get('tieu_de', '').strip() or u.scheme != 'https' or not u.hostname):
                 raise ValueError('Nút nổi cần tên và liên kết HTTPS trước khi bật.')
-            if k['loai'] == 'zalo_oa' and k.get('lien_ket') and (u.hostname != 'zalo.me' or not re.fullmatch(r'/[0-9]{15,25}/?', u.path)):
-                raise ValueError('Dùng đường dẫn Zalo OA dạng https://zalo.me/mã-OA, không dùng số điện thoại cá nhân.')
+            if k['loai'] == 'zalo_oa' and k.get('lien_ket') and (u.hostname != 'zalo.me' or not re.fullmatch(r'/(?:[0-9]{15,25}|[A-Za-z][A-Za-z0-9._-]{2,59})/?', u.path)):
+                raise ValueError('Dùng đường dẫn Zalo OA dạng https://zalo.me/tên-OA hoặc mã OA, không dùng số điện thoại cá nhân.')
         if k['loai'] in ('uu_dai', 'tuyen_dung'):
             if not k.get('tieu_de', '').strip():
                 raise ValueError('Ưu đãi và vị trí tuyển dụng cần có tiêu đề.')

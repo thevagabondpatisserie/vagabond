@@ -6,7 +6,7 @@
   goc.className = 'kenh-noi'; document.body.append(goc);
   const tao = (the, chu, lop) => { const e=document.createElement(the);e.textContent=chu||'';if(lop)e.className=lop;return e; };
   function linkAnToan(v, zalo) {
-    try { const u=new URL(v);return u.protocol==='https:'&&!u.username&&!u.password&&(!zalo||(u.hostname==='zalo.me'&&/^\/[0-9]{15,25}\/?$/.test(u.pathname)))?u.href:''; }
+    try { const u=new URL(v);return u.protocol==='https:'&&!u.username&&!u.password&&(!zalo||(u.hostname==='zalo.me'&&/^\/(?:[0-9]{15,25}|[A-Za-z][A-Za-z0-9._-]{2,59})\/?$/.test(u.pathname)))?u.href:''; }
     catch(_){return '';}
   }
   let dong = () => {};

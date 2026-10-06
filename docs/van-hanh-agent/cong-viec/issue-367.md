@@ -15,9 +15,13 @@ Owner Codex; nền main `72b00ca1d` v577, PR vẫn v578. Chưa merge/deploy.
   Nguồn: https://beacons.ai/thevagabondpatisserie đọc DOM06/10. XanhSM link
   gốc HTTP, bản HTTPS cùng URL trả301 tới App Store200. Link mở tab mới.
   Từng kênh thêm/sửa/ẩn/đổi tên/link trong CMS; chữ chung ở Nhãn và câu chữ.
-- Zalo OA có loại CMS riêng, mặc định ẩn/chưa có URL. API public hiện chỉ
-  có https://zalo.me/0931224334 (điện thoại), ảnh anh gửi không có mã OA.
-  Đã hỏi link công khai; không đoán OA hay dùng số cá nhân thay OA.
+- Zalo OA đã được anh Việt cung cấp và browser xác nhận trang chính chủ:
+  https://zalo.me/thevagabondsaigon. Bật mặc định nút Nhắn Zalo; frontend và
+  backend nhận tên OA hoặc ID dài, vẫn chặn điện thoại/link sai host/credentials.
+  Tên và URL vẫn sửa được trong Editor. PR chưa phát hành nên cập nhật seed
+  của patch436; giữ nguyên khối người dùng đã có, không ghi đè tuỳ chỉnh.
+  Browser fixture390: link đúng, target mới, nút44px, không tràn ngang;
+  ảnh bằng chứng `../bang-chung/pr436/zalo-oa-mobile.jpg`. Ca OA/renderer đạt.
 - Bubble cao >=44px, link52px, cách thanh giỏ16px theo chiều cao thực;
   ẩn khi chi tiết/checkout mở. Escape đóng popup giữ focus, chặn handler
   cũ closeSheet tránh tự quay về trang trước. Không nhúng SDK quảng cáo.

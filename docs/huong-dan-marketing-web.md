@@ -96,8 +96,8 @@ Trong Các khối nội dung, chọn GrabFood, ShopeeFood, beFood, XanhSM để 
 Tên nút / ứng dụng, ký hiệu ngắn và Liên kết HTTPS. Thêm Kênh đặt hàng để
 thêm app; tắt Hiển thị khối để ẩn. Các kênh nằm trong nút Đặt qua app.
 Nhãn nút và lời dẫn chung nằm ở Nhãn và câu chữ, nhóm Kênh đặt hàng.
-Chọn Nhắn Zalo, điền URL OA công khai dạng https://zalo.me/mã-OA rồi bật
-hiện. Chỉ một OA được bật; không dùng link số điện thoại cá nhân.
+Nhắn Zalo mặc định dùng https://zalo.me/thevagabondsaigon theo ảnh OA anh Việt
+cung cấp ngày06/10. Có thể sửa URL OA theo tên hoặc mã số trong Editor. Chỉ một OA được bật; không dùng link số điện thoại cá nhân.
 Lưu nháp rồi Xuất bản như nội dung khác. Nút nổi tự ẩn khi mở chi tiết bánh
 hoặc thanh toán. Hai khối lời chào/hỗ trợ lặp được ẩn theo duyệt06/10,
 chữ vẫn giữ trong Editor và lịch sử để khôi phục khi cần.

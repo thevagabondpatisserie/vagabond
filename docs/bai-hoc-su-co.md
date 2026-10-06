@@ -1807,3 +1807,11 @@ thành kiểm nội dung được lưu/xuất đúng và fallback, không giữ 
   nháp/công khai riêng, giữ lịch sử, không xuất bản nháp để sửa phần lặp.
 - Link Zalo số điện thoại không phải bằng chứng OA. Thiếu mã thì giữ nút
   ẩn, cho nhập link OA trong Editor; không gán nhầm tài khoản.
+
+### 06/10/2026 - PR436: OA có đường dẫn theo tên
+
+Ảnh OA anh Việt cung cấp có zalo.me/thevagabondsaigon; mở browser xác nhận
+đúng The Vagabond Pâtisserie. Bộ kiểm chỉ nhận ID số sẽ loại oan OA hợp lệ.
+Nhận cả tên công khai và ID dài, giữ HTTPS/đúng host/không credentials;
+kiểm renderer và mobile390. Cấu trúc URL không chứng minh tài khoản đã xác
+thực: danh tính OA lấy từ nguồn chủ sở hữu và trang công khai.

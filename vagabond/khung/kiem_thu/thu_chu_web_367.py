@@ -379,6 +379,16 @@ def _kenh_noi_va_vi_tri():
         else:dung('chặn sai '+loai+' '+vi_tri+' '+link,False)
     k={'id':'test','loai':'zalo_oa','hien':True,'tieu_de':'Zalo','lien_ket':'https://zalo.me/1234567890123456789'}
     la('OA đúng cấu trúc lưu được',noi_dung_web.chuan_hoa({'khoi':[k]})['khoi'][0],k)
+    k['lien_ket']='https://zalo.me/thevagabondsaigon'
+    la('OA tên công khai lưu được',noi_dung_web.chuan_hoa({'khoi':[k]})['khoi'][0],k)
+    for url in ['https://zalo.me.evil.test/thevagabondsaigon','https://user:pass@zalo.me/thevagabondsaigon','http://zalo.me/thevagabondsaigon','https://zalo.me/thevagabondsaigon/extra']:
+        try:noi_dung_web.chuan_hoa({'khoi':[dict(k,lien_ket=url)]})
+        except ValueError:pass
+        else:dung('chặn OA sai '+url,False)
+    oa=next(k for k in moi['khoi'] if k['id']=='kenh-zalo')
+    la('OA mặc định được bật',oa['hien'],True)
+    la('OA anh Việt cung cấp',oa['lien_ket'],'https://zalo.me/thevagabondsaigon')
+
 
 
 @ca('#436 nút nổi: bỏ link nguy hiểm, sửa nhãn nguyên văn, Escape không chạy điều hướng khác')
@@ -395,11 +405,15 @@ let all=walk(body),links=all.filter(e=>e.tagName==='a'),b=all.find(e=>e.classNam
 let stopped=false;suKien.keydown.f({key:'Escape',preventDefault(){},stopImmediatePropagation(){stopped=true;}});
 const first={links:links.length,label:links[0].children[1].textContent,expanded:b.attrs['aria-expanded'],focus:b.focused,capture:suKien.keydown.capture,stopped};
 window.vgbVeKenhNoi({nhan:{kenh_noi_nut:'Đặt món'},khoi:[{...k,tieu_de:'App mới',lien_ket:'https://example.com/new'}]});all=walk(body);links=all.filter(e=>e.tagName==='a');
-console.log(JSON.stringify({first,href:links[0].href,title:links[0].children[1].textContent,button:all.find(e=>e.className==='kenh-bong kenh-app').children[1].textContent}));
+const appButton=all.find(e=>e.className==='kenh-bong kenh-app').children[1].textContent;
+window.vgbVeKenhNoi({khoi:[{id:'oa',loai:'zalo_oa',hien:true,tieu_de:'Nhắn Zalo',lien_ket:'https://zalo.me/thevagabondsaigon'}]});const oa=walk(body).find(e=>e.className==='kenh-bong kenh-zalo');
+console.log(JSON.stringify({oaHref:oa.href,oaTarget:oa.target,first,href:links[0].href,title:links[0].children[1].textContent,button:appButton}));
 '''
     r=subprocess.run(['node','-e',script,str(GOC/'public/web_order/kenh-noi.js')],capture_output=True,text=True,timeout=30)
     if r.returncode:raise AssertionError(r.stderr)
     d=json.loads(r.stdout)
+    la('OA tên hiển thị đúng',d['oaHref'],'https://zalo.me/thevagabondsaigon')
+    la('OA mở tab mới',d['oaTarget'],'_blank')
     la('chỉ một link hợp lệ',d['first']['links'],1)
     la('nhãn không trở thành HTML',d['first']['label'],'<img onerror=x>')
     la('Escape đóng và giữ focus',d['first']['expanded'],'false')
