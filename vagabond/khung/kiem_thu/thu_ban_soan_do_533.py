@@ -159,7 +159,8 @@ def _thu_tu():
 			not re.search(r"^\s*(frame|api)\s*=", m, re.M))
 	# v554: 50-so-tay.js (màn Sổ tay, chỉ đọc) qua đủ ba điều kiện trên.
 	# v570: 51-cai-dat-loi.js (màn Cài đặt lõi và API, không lập phiếu) qua đủ ba điều kiện trên.
-	la("chỉ phần được duyệt đứng giữa 48 và 99", sau[:-1], ["49-tru-kho-bu.js", "50-so-tay.js", "51-cai-dat-loi.js"])
+	# v579: 52-doi-soat-vendor.js (màn Đối soát nhà cung cấp, chỉ đọc và nhận tệp, không lập phiếu) qua đủ ba điều kiện trên.
+	la("chỉ phần được duyệt đứng giữa 48 và 99", sau[:-1], ["49-tru-kho-bu.js", "50-so-tay.js", "51-cai-dat-loi.js", "52-doi-soat-vendor.js"])
 	for t in _boc():
 		tep = [n for n, ma in CAC_PHAN.items() if re.search(r"^(?:async )?function %s\(" % t, ma, re.M)]
 		dung("%s nằm ở phần trước 48" % t, bool(tep) and tep[0] < "48-ban-soan-do.js")

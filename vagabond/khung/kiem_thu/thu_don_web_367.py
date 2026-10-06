@@ -1130,6 +1130,18 @@ RA({a:a, dong_y:d.dong_y, nonce:d.nonce, tt:d.thanh_toan, aria:EL('#c-dongy').ge
 	la("ô đồng ý báo trạng thái cho trình đọc màn hình", r["aria"], "true")
 
 
+@ca("Codex #446: dụng cụ từng bánh có trong note_print (bếp in) và note, cùng một chữ")
+def _():
+	r = _chay("2026-09-24T08:00:00", GIO_CHUA_DONG_Y + DON + r"""
+CART[0].qty=2;CART[0].dung_cu={nia:2,dia:1};tgl('dongy');
+GHI.goiMang.length=0; submitOrder(); await CHO_XONG();
+var d=cacDon()[0]||{};
+RA({in_bep:d.note_print||'', note:d.note||''});
+""")
+	dung("phiếu bếp có dụng cụ nhân số lượng", "dụng cụ: 4 nĩa gỗ, 2 dĩa giấy" in r["in_bep"])
+	dung("ghi chú đơn vẫn có", "4 nĩa gỗ, 2 dĩa giấy" in r["note"])
+
+
 @ca("#367 L gửi lỗi rồi gửi lại: CÙNG nonce để máy chủ nhận ra cùng một đơn; thành công thì sang biên nhận")
 def _():
 	r = _chay("2026-09-24T08:00:00", GIO_CHUA_DONG_Y + DON + r"""
