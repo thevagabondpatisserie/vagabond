@@ -29,6 +29,8 @@ TOI_DA_TEP_ZIP = 20
 # thật (không tin kích thước khai trong đầu zip).
 TOI_DA_GIAI_NEN = 40 * 1024 * 1024
 TOI_DA_DONG = 20000
+# Codex #450: PDF cũng có trần như CSV/Excel. Báo cáo vendor thật dưới 30 trang.
+TOI_DA_TRANG_PDF = 300
 TOI_DA_COT = 200
 
 
@@ -184,10 +186,18 @@ def doc_pdf(noi_dung):
 		raise LoiTep("Không mở được PDF; tải lại tệp gốc.") from None
 	if tl.needs_pass:
 		raise LoiTep("PDF có mật khẩu; mở bằng mật khẩu rồi in lại thành PDF không khoá.")
-	trang = []
+	if tl.page_count > TOI_DA_TRANG_PDF:
+		tl.close()
+		raise LoiTep("PDF quá %s trang; tải bản CSV hoặc Excel của báo cáo, hoặc chia theo kỳ." % TOI_DA_TRANG_PDF)
+	trang, tong_dong = [], 0
 	for so, tr in enumerate(tl, 1):
 		dong = [d.rstrip() for d in tr.get_text("text", sort=True).splitlines()]
-		trang.append(dict(ten="Trang %s" % so, dong=[d for d in dong if d.strip()]))
+		dong = [d for d in dong if d.strip()]
+		tong_dong += len(dong)
+		if tong_dong > TOI_DA_DONG:
+			tl.close()
+			raise LoiTep("PDF quá %s dòng chữ; tải bản CSV hoặc Excel của báo cáo, hoặc chia theo kỳ." % TOI_DA_DONG)
+		trang.append(dict(ten="Trang %s" % so, dong=dong))
 	tl.close()
 	return trang
 

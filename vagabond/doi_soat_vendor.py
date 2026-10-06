@@ -415,8 +415,9 @@ def xac_nhan_noi(name=None):
 			frappe.throw("Dòng này không còn là gợi ý nối theo tiền (có thể vừa được đối chiếu lại). Tải lại màn hình.")
 		if not _goi_y_con_dung(name):
 			frappe.throw("Hoá đơn %s không còn hợp lệ (đã huỷ, đổi tiền hoặc đổi ngày bán). Bấm Đối chiếu lại để máy tìm lại." % d.sales_invoice)
-		khac = frappe.db.get_value(DT_DONG, {"sales_invoice": d.sales_invoice, "name": ["!=", name],
-			"trang_thai_khop": ["in", list(khop.GIU_HOA_DON)]}, "nguon")
+		kieu = _kieu_nguon(d.nguon)
+		khac = next((r.nguon for r in frappe.get_all(DT_DONG, filters={"sales_invoice": d.sales_invoice, "name": ["!=", name],
+			"trang_thai_khop": ["in", list(khop.GIU_HOA_DON)]}, fields=["nguon"]) if _kieu_nguon(r.nguon) == kieu), None)
 		if khac:
 			frappe.throw("Hoá đơn %s đã nối chắc với một dòng của nguồn %s. Bấm Đối chiếu lại để máy tìm lại." % (d.sales_invoice, khac))
 		frappe.db.set_value(DT_DONG, name, {"trang_thai_khop": "Đã nối", "xac_nhan_boi": frappe.session.user,
@@ -482,8 +483,12 @@ def _noi_hoa_don_ban(nguon, dong):
 	# Hoá đơn đã nối với dòng của nguồn khác thì không đưa vào lại (một đối một toàn hệ).
 	# Hoá đơn đã nối CHẮC (theo mã hoặc đã xác nhận) với dòng của nguồn khác thì
 	# không đưa vào lại. Gợi ý nối theo tiền chưa xác nhận không giữ hoá đơn.
-	da_noi = set(frappe.get_all(DT_DONG, filters={"sales_invoice": ["in", [u["name"] for u in uv] or [""]],
-		"nguon": ["!=", nguon.name], "trang_thai_khop": ["in", list(khop.GIU_HOA_DON)]}, pluck="sales_invoice"))
+	# Codex #450: giữ theo TỪNG KÊNH thanh toán. Một bill trả nửa Payoo nửa
+	# Shinhan có hai chân thanh toán; nguồn Payoo nối chân Payoo không được chặn
+	# nguồn Shinhan nối chân Shinhan của cùng bill.
+	da_noi = {r.sales_invoice for r in frappe.get_all(DT_DONG, filters={"sales_invoice": ["in", [u["name"] for u in uv] or [""]],
+		"nguon": ["!=", nguon.name], "trang_thai_khop": ["in", list(khop.GIU_HOA_DON)]}, fields=["sales_invoice", "nguon"])
+		if _kieu_nguon(r.nguon) == kieu}
 	# Dòng kế toán đã xác nhận: còn đúng (hoá đơn còn hợp lệ, cùng tiền) thì giữ
 	# nguyên và hoá đơn không đưa cho dòng khác; không còn đúng thì bỏ xác nhận
 	# và đối chiếu lại như dòng thường, ghi rõ lý do.
@@ -513,6 +518,11 @@ def _noi_hoa_don_ban(nguon, dong):
 			cap.update(xac_nhan_boi=None, xac_nhan_luc=None, ghi_chu_khop=("Hoá đơn %s đã xác nhận trước đây nay không còn "
 				"hợp lệ (đã huỷ hoặc đổi tiền); xem lại. " % d.sales_invoice) + (r["ghi_chu"] or ""))
 		frappe.db.set_value(DT_DONG, d.name, cap, update_modified=False)
+
+
+def _kieu_nguon(ten):
+	"""Kênh thanh toán (khop.KIEU_THEO_MAU) của một nguồn."""
+	return khop.KIEU_THEO_MAU.get(frappe.db.get_value(DT_NGUON, ten, "mau") or "")
 
 
 def _dk_hd(co_ngay_ban, co_huy):
@@ -760,10 +770,10 @@ def ds(nhom=None, trang_thai=None, vendor=None, tim=None, ky=None, tu=None, den=
 		"so_trung", "so_loi", "so_da_noi", "so_chua_noi", "kenh_nhan", "ten_tep", "creation"],
 		order_by="coalesce(den_ngay, creation) desc, creation desc", start=trang * 50, page_length=51)
 	tat_ca = frappe.get_all(DT_NGUON, filters=loc_chung, or_filters=or_loc,
-		fields=["nhom", "vendor", "trang_thai", "trang_thai_tien", "so_chua_noi"], limit_page_length=0)
+		fields=["nhom", "vendor", "trang_thai", "trang_thai_tien", "so_chua_noi", "thuc_nhan"], limit_page_length=0)
 	dem, dem_vendor = dem_nguon(tat_ca, nhom, vendor)
 	return dict(hang=hang[:50], con=len(hang) > 50, dem=dem, vendor=sorted(dem_vendor.keys() - {"tat_ca"}),
-		dem_vendor=dem_vendor)
+		dem_vendor=dem_vendor, tong=tong_tien(tat_ca, nhom, vendor, trang_thai))
 
 
 def loc_trang_thai(trang_thai):
@@ -779,6 +789,36 @@ def loc_trang_thai(trang_thai):
 	if trang_thai == "Chưa nối đủ":
 		return {"so_chua_noi": [">", 0]}
 	return {}
+
+
+def khop_loc(r, loc):
+	"""Một nguồn có thuộc bộ lọc kiểu Frappe không. THUẦN (các dạng ds dùng)."""
+	for k, v in loc.items():
+		x = r.get(k)
+		if isinstance(v, list):
+			if v[0] == "in" and x not in v[1]:
+				return False
+			if v[0] == ">" and not ((x or 0) > v[1]):
+				return False
+		elif x != v:
+			return False
+	return True
+
+
+def tong_tien(rows, nhom=None, vendor=None, trang_thai=None):
+	"""Codex #450: thẻ tóm tắt có tổng thực nhận theo nhóm/nguồn đang chọn, và
+	"Tổng theo bộ lọc" khi đang lọc trạng thái. THUẦN, cùng bộ lọc với danh sách."""
+	loc = {}
+	if nhom:
+		loc["nhom"] = nhom
+	if vendor:
+		loc["vendor"] = vendor
+	chung = [r for r in rows if khop_loc(r, loc)]
+	ra = dict(tat_ca=sum(float(r.get("thuc_nhan") or 0) for r in chung))
+	loc_tt = loc_trang_thai(trang_thai)
+	if loc_tt:
+		ra["theo_loc"] = sum(float(r.get("thuc_nhan") or 0) for r in chung if khop_loc(r, loc_tt))
+	return ra
 
 
 def dem_nguon(rows, nhom=None, vendor=None):

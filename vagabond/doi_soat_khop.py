@@ -32,8 +32,11 @@ def khoa(cong_ty, vendor, tai_khoan, ma_su_kien):
 	return _bam(dict(cong_ty=cong_ty, vendor=vendor, merchant=tai_khoan, tien_te="VND", ma_su_kien=ma_su_kien))
 
 
+# Codex #450: mọi trường làm đổi kết quả đối chiếu (số hoá đơn, chuyến giao hàng,
+# ngày tiền về, thuế) đều nằm trong dấu nội dung; vendor sửa một trong số đó thì
+# là "nội dung khác", không bị coi là trùng rồi bỏ qua.
 _TRUONG_NOI_DUNG = ("ma_su_kien", "loai", "ngay", "ma_don", "ma_can_cu", "tien_hang", "giam_gia", "phi",
-	"dieu_chinh", "thuc_nhan")
+	"dieu_chinh", "thuc_nhan", "hoa_don", "giao_hang", "ngay_tien_ve", "thue")
 
 
 def doc_lai_duoc(trang_thai):
@@ -43,7 +46,9 @@ def doc_lai_duoc(trang_thai):
 
 
 def dau_noi_dung(dong):
-	return _bam({k: dong.get(k, "") for k in _TRUONG_NOI_DUNG})
+	# giao_hang: False và thiếu khoá là như nhau, để dòng cũ không chuyến giao hàng
+	# không đổi dấu chỉ vì bộ đọc thêm khoá.
+	return _bam({k: (bool(dong.get(k)) if k == "giao_hang" else dong.get(k, "")) for k in _TRUONG_NOI_DUNG})
 
 
 def xem_truoc(kq, cong_ty, da_nhan=None):
