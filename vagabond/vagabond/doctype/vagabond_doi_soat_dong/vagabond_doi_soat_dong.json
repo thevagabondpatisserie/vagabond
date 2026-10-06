@@ -264,8 +264,6 @@
   {
    "role": "Accounts Manager",
    "read": 1,
-   "write": 1,
-   "create": 1,
    "report": 1,
    "export": 1,
    "print": 1
@@ -273,8 +271,6 @@
   {
    "role": "System Manager",
    "read": 1,
-   "write": 1,
-   "create": 1,
    "report": 1,
    "export": 1,
    "print": 1
@@ -282,8 +278,6 @@
   {
    "role": "Accounts User",
    "read": 1,
-   "write": 1,
-   "create": 1,
    "report": 1,
    "print": 1
   }
@@ -291,5 +285,7 @@
  "sort_field": "modified",
  "sort_order": "DESC",
  "title_field": "ma_don",
- "description": "#420 v579 đối soát vendor: một sự kiện trong báo cáo vendor (đơn, phí, chuyến, giao dịch thẻ)"
+ "description": "#420 v579 đối soát vendor: một sự kiện trong báo cáo vendor (đơn, phí, chuyến, giao dịch thẻ)",
+ "creation": "2026-10-06 12:00:00.000000",
+ "modified": "2026-10-06 18:00:00.000000"
 }
