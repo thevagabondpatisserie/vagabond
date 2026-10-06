@@ -23285,7 +23285,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '577';
+var APPVER = '581';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -55612,6 +55612,7 @@ function cdlBam(e, fnTab) {
   if ((el = e.target.closest('[data-cdllk]'))) return cdlChonLienKet(el.getAttribute('data-cdllk'), fnTab);
   if ((el = e.target.closest('[data-cdlbo]'))) { cdlDatThay(el.getAttribute('data-cdlbo'), ''); return cdlVeTab(fnTab); }
   if ((el = e.target.closest('[data-cdlbangthem]'))) return cdlMoDong(el.getAttribute('data-cdlbangthem'), -1);
+  if ((el = e.target.closest('[data-cdlguithu]'))) return cdlGuiThuZalo((CDL.bang.zalo_nhom || [])[parseInt(el.getAttribute('data-cdlguithu'), 10)]);
   if ((el = e.target.closest('[data-cdldong]'))) {
     return cdlMoDong(el.getAttribute('data-cdlbang'), parseInt(el.getAttribute('data-cdldong'), 10));
   }
@@ -55653,12 +55654,22 @@ function cdlTomDongZalo(r) {
     r.chat_id ? '' : 'Chưa chọn nhóm Zalo'].filter(Boolean).join(' · ');
 }
 
+async function cdlGuiThuZalo(r) {
+  if (!r || !r.chat_id) return toast('Nhóm này chưa chọn nhóm Zalo.');
+  try {
+    var m = await api('vagabond.kenh_zalo.gui_thu', { chat_id: r.chat_id });
+    toast((m && m.loi_nhan) || 'Đã gửi tin thử.');
+  } catch (e) { toast((e && e.message) || 'Gửi thử chưa được'); }
+}
+
 function cdlVeBang(o) {
   var rows = CDL.bang[o.fn] || [];
   return '<label style="display:block;font-size:13px;color:#4b545c">' + h(o.nhan) + '</label>' +
     (rows.length ? rows.map(function (r, i) {
       return '<div class="cdl-grp" data-cdlbang="' + h(o.fn) + '" data-cdldong="' + i + '"><b style="font-size:14px">' + h(r.ten_nhom || ('Dòng ' + (i + 1))) +
-        '</b><div class="cdl-mo">' + h(o.fn === 'zalo_nhom' ? cdlTomDongZalo(r) : '') + '</div></div>';
+        '</b><div class="cdl-mo">' + h(o.fn === 'zalo_nhom' ? cdlTomDongZalo(r) : '') + '</div>' +
+        // v579: anh Việt hỏi có nút gửi thử vào nhóm không; Desk và app cùng có.
+        (o.fn === 'zalo_nhom' && r.chat_id ? '<button class="cdl-lnk" data-cdlguithu="' + i + '">Gửi thử vào nhóm này</button>' : '') + '</div>';
     }).join('') : '<div class="cdl-mo">Chưa có dòng nào.</div>') +
     '<button class="cdl-lnk" data-cdlbangthem="' + h(o.fn) + '">+ Thêm ' + (o.fn === 'zalo_nhom' ? 'nhóm nhận tin' : 'dòng') + '</button>';
 }
