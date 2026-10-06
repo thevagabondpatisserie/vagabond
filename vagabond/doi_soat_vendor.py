@@ -413,6 +413,10 @@ def xac_nhan_noi(name=None):
 		d = frappe.db.get_value(DT_DONG, name, ["name", "nguon", "trang_thai_khop", "sales_invoice"], as_dict=True)
 		if d.trang_thai_khop != "Nối theo tiền" or not d.sales_invoice:
 			frappe.throw("Dòng này không còn là gợi ý nối theo tiền (có thể vừa được đối chiếu lại). Tải lại màn hình.")
+		khac = frappe.db.get_value(DT_DONG, {"sales_invoice": d.sales_invoice, "name": ["!=", name],
+			"trang_thai_khop": ["in", list(khop.GIU_HOA_DON)]}, "nguon")
+		if khac:
+			frappe.throw("Hoá đơn %s đã nối chắc với một dòng của nguồn %s. Bấm Đối chiếu lại để máy tìm lại." % (d.sales_invoice, khac))
 		frappe.db.set_value(DT_DONG, name, {"trang_thai_khop": "Đã nối", "xac_nhan_boi": frappe.session.user,
 			"xac_nhan_luc": frappe.utils.now(), "ghi_chu_khop": "Kế toán xác nhận nối theo tiền với %s." % d.sales_invoice},
 			update_modified=False)
@@ -460,12 +464,23 @@ def _noi_hoa_don_ban(nguon, dong):
 	den = frappe.utils.add_days(max(str(d.ngay) for d in ban), lech)
 	uv = _ung_vien_hd(kieu, tu, den, nguon.company)
 	# Hoá đơn đã nối với dòng của nguồn khác thì không đưa vào lại (một đối một toàn hệ).
+	# Hoá đơn đã nối CHẮC (theo mã hoặc đã xác nhận) với dòng của nguồn khác thì
+	# không đưa vào lại. Gợi ý nối theo tiền chưa xác nhận không giữ hoá đơn.
 	da_noi = set(frappe.get_all(DT_DONG, filters={"sales_invoice": ["in", [u["name"] for u in uv] or [""]],
-		"nguon": ["!=", nguon.name], "trang_thai_khop": ["!=", khop.DA_THAY]}, pluck="sales_invoice"))
-	# Dòng kế toán đã xác nhận giữ nguyên liên kết; hoá đơn của nó không đưa lại
-	# cho dòng khác của cùng nguồn.
-	xac_nhan = {d.name for d in dong if d.get("xac_nhan_boi")}
-	da_noi |= {d.sales_invoice for d in dong if d.name in xac_nhan and d.sales_invoice}
+		"nguon": ["!=", nguon.name], "trang_thai_khop": ["in", list(khop.GIU_HOA_DON)]}, pluck="sales_invoice"))
+	# Dòng kế toán đã xác nhận: còn đúng (hoá đơn còn hợp lệ, cùng tiền) thì giữ
+	# nguyên và hoá đơn không đưa cho dòng khác; không còn đúng thì bỏ xác nhận
+	# và đối chiếu lại như dòng thường, ghi rõ lý do.
+	xac_nhan, hong_xn = set(), set()
+	for d in dong:
+		if not d.get("xac_nhan_boi"):
+			continue
+		if khop.xac_nhan_con_dung(kieu, dict(tien_hang=int(d.tien_hang or 0), giam_gia=int(d.giam_gia or 0),
+				sales_invoice=d.sales_invoice), uv):
+			xac_nhan.add(d.name)
+			da_noi.add(d.sales_invoice)
+		else:
+			hong_xn.add(d.name)
 	uv = [u for u in uv if u["name"] not in da_noi]
 	dong_ds = [dict(loai=d.loai, ngay=str(d.ngay), ma_tham_chieu=d.ma_tham_chieu or "", tien_hang=int(d.tien_hang),
 		giam_gia=int(d.giam_gia)) for d in dong]
@@ -474,8 +489,11 @@ def _noi_hoa_don_ban(nguon, dong):
 		r = kq.get(i)
 		if not r or d.name in xac_nhan:
 			continue
-		frappe.db.set_value(DT_DONG, d.name, {"trang_thai_khop": r["trang_thai"], "sales_invoice": r["hoa_don"] or None,
-			"ghi_chu_khop": r["ghi_chu"]}, update_modified=False)
+		cap = {"trang_thai_khop": r["trang_thai"], "sales_invoice": r["hoa_don"] or None, "ghi_chu_khop": r["ghi_chu"]}
+		if d.name in hong_xn:
+			cap.update(xac_nhan_boi=None, xac_nhan_luc=None, ghi_chu_khop=("Hoá đơn %s đã xác nhận trước đây nay không còn "
+				"hợp lệ (đã huỷ hoặc đổi tiền); xem lại. " % d.sales_invoice) + (r["ghi_chu"] or ""))
+		frappe.db.set_value(DT_DONG, d.name, cap, update_modified=False)
 
 
 def _dk_hd(co_ngay_ban, co_huy):
@@ -595,6 +613,7 @@ def _noi_chuyen(nguon, dong):
 	pi_meta = frappe.get_meta("Purchase Invoice")
 	co_hd = pi_meta.has_field("custom_hddt_so")
 	ncc = _ncc_theo_mau(nguon.mau)
+	hd_ky = _hoa_don_ky(nguon, ncc)
 	for d in dong:
 		if d.loai not in ("chuyen", "phi_quan_ly", "dieu_chinh"):
 			continue
@@ -615,16 +634,30 @@ def _noi_chuyen(nguon, dong):
 			if len(ung) == 1:
 				cap["purchase_invoice"] = ung[0].name
 		cap["trang_thai_khop"], cap["ghi_chu_khop"] = khop.chung_tu_chuyen(
-			d.giao_hang, d.hoa_don_nguon, cap["van_don"], cap["purchase_invoice"])
+			d.giao_hang, d.hoa_don_nguon, cap["van_don"], cap["purchase_invoice"], hd_ky)
 		frappe.db.set_value(DT_DONG, d.name, cap, update_modified=False)
-	# Hoá đơn gộp cả kỳ (Be, Xanh SM): tìm hoá đơn mua cùng tổng tiền sau kỳ.
-	if nguon.mau in ("be", "xanh_taxi") and nguon.den_ngay and nguon.thuc_nhan:
+
+
+def _hoa_don_ky(nguon, ncc):
+	"""Nguồn xuất một hoá đơn cả kỳ (Be, Xanh SM): tìm hoá đơn mua của đúng
+	người bán, cùng tổng tiền, sau kỳ. Trả None nếu nguồn không theo kiểu này,
+	ngược lại dict(pi, nhieu) dùng cho chung_tu_chuyen; ghi kèm vào nguồn để
+	màn chi tiết hiện."""
+	if nguon.mau not in KY_MOT_HOA_DON:
+		return None
+	hop = []
+	if nguon.den_ngay and nguon.thuc_nhan:
 		pi = frappe.get_all("Purchase Invoice", filters={"docstatus": ["<", 2], "company": nguon.company, "supplier": ["in", ncc or [""]],
 			"posting_date": ["between", [nguon.tu_ngay, frappe.utils.add_days(nguon.den_ngay, 40)]]},
 			fields=["name", "grand_total"], limit_page_length=50)
 		hop = [p.name for p in pi if int(round(p.grand_total or 0)) == int(round(nguon.thuc_nhan))]
-		_ghi_them(nguon.name, hoa_don_ky=hop, hoa_don_ky_ghi_chu=(
-			"Hoá đơn mua cùng tổng tiền: " + ", ".join(hop)) if hop else "Chưa thấy hoá đơn mua cùng tổng tiền của kỳ.")
+	_ghi_them(nguon.name, hoa_don_ky=hop, hoa_don_ky_ghi_chu=(
+		"Hoá đơn mua cùng tổng tiền: " + ", ".join(hop)) if hop else "Chưa thấy hoá đơn mua cùng tổng tiền của kỳ.")
+	return dict(pi=hop[0] if len(hop) == 1 else None, nhieu=hop)
+
+
+# Nguồn chuyến đi xuất MỘT hoá đơn cho cả kỳ (không có số hoá đơn từng chuyến).
+KY_MOT_HOA_DON = ("be", "xanh_taxi")
 
 
 def _ncc_theo_mau(mau):

@@ -266,34 +266,56 @@ DA_THAY = "Đã thay"
 # chờ kế toán xác nhận nên vẫn tính là chưa nối. Một nguồn cho đếm và lọc.
 DA_NOI = ("Đã nối",)
 KHONG_TINH_CHUA_NOI = ("Đã nối", "Không áp dụng")
+# Trạng thái GIỮ hoá đơn (nguồn khác không được dùng lại): nối theo mã hoặc đã
+# xác nhận. Gợi ý "Nối theo tiền" chưa xác nhận không giữ, để dòng mang đúng
+# mã của hoá đơn đó (ở nguồn khác) vẫn nối được.
+GIU_HOA_DON = ("Đã nối", "Lệch tiền")
 # Mã số thuế người bán của từng nguồn chuyến đi: hoá đơn mua chỉ tìm trong nhà
 # cung cấp mang đúng mã này (số và ký hiệu hoá đơn không duy nhất giữa người bán).
 MST_NCC = {"be": "0108269207", "xanh_taxi": "0110269067", "grab_business": "0312650437",
 	"grab_business_cu": "0312650437"}
 
 
-def chung_tu_chuyen(giao_hang, hoa_don_nguon, van_don, purchase_invoice):
+def chung_tu_chuyen(giao_hang, hoa_don_nguon, van_don, purchase_invoice, ky=None):
 	"""Trạng thái nối của một dòng chuyến đi. THUẦN.
 
 	Codex #450: chuyến giao hàng cần vận đơn; chuyến có số hoá đơn riêng
-	(ký hiệu#số) cần hoá đơn mua. Chỉ "Đã nối" khi ĐỦ mọi chứng từ cần có;
-	thiếu một thứ thì nói rõ thiếu gì. Trả (trạng thái, ghi chú)."""
+	(ký hiệu#số) cần hoá đơn mua; nguồn xuất MỘT hoá đơn cả kỳ (Be, Xanh SM)
+	thì mọi chuyến cần hoá đơn kỳ đó. ky=None là nguồn không có hoá đơn kỳ,
+	còn lại là dict(pi=tên hoá đơn kỳ hoặc None, nhieu=[các hoá đơn cùng tiền]).
+	Chỉ "Đã nối" khi ĐỦ mọi chứng từ cần có; thiếu thì nói rõ thiếu gì.
+	Trả (trạng thái, ghi chú)."""
 	can = []
 	if giao_hang:
 		can.append(("van_don", "vận đơn"))
 	if hoa_don_nguon and "#" in hoa_don_nguon:
 		can.append(("purchase_invoice", "hoá đơn mua " + hoa_don_nguon.replace("#", " số ")))
-	co = {"van_don": van_don, "purchase_invoice": purchase_invoice}
+	pi_ky = (ky or {}).get("pi")
+	if ky is not None:
+		can.append(("ky", "hoá đơn mua cả kỳ"))
+	co = {"van_don": van_don, "purchase_invoice": purchase_invoice, "ky": pi_ky}
 	da_co = ", ".join(x for x in (("Vận đơn " + van_don) if van_don else "",
-		("Hoá đơn mua " + purchase_invoice) if purchase_invoice else "") if x)
+		("Hoá đơn mua " + purchase_invoice) if purchase_invoice else "",
+		("Hoá đơn mua cả kỳ " + pi_ky) if pi_ky else "") if x)
 	thieu = [ten for k, ten in can if not co[k]]
 	if can:
 		if not thieu:
 			return "Đã nối", da_co
+		if ky is not None and not pi_ky and len((ky or {}).get("nhieu") or []) > 1:
+			return "Nhiều chứng từ", ((da_co + "; ") if da_co else "") + "nhiều hoá đơn mua cùng tổng tiền kỳ: " + \
+				", ".join(ky["nhieu"][:5]) + "."
 		return "Không thấy chứng từ", ((da_co + "; ") if da_co else "") + "thiếu " + ", ".join(thieu) + "."
 	if van_don or purchase_invoice:
 		return "Đã nối", da_co
 	return "Chưa nối", ""
+
+
+def xac_nhan_con_dung(kieu, dong, ung_vien):
+	"""Dòng kế toán đã xác nhận còn đúng không. THUẦN. Codex #450: hoá đơn
+	phải còn trong ứng viên hợp lệ (đã ghi sổ, chưa huỷ, đúng pháp nhân, trong
+	khoảng ngày bán) và còn đúng số tiền đối chiếu như lúc xác nhận."""
+	u = next((u for u in ung_vien if u["name"] == dong.get("sales_invoice")), None)
+	return bool(u) and u["tien"] == tien_so_sanh(kieu, dong)
 # Chỉ trạng thái này mới GIỮ giao dịch: giao dịch gợi ý của "Lệch tiền về" không
 # chặn nguồn khác dùng đúng số tiền đó.
 GIU_GIAO_DICH = "Đã thấy tiền về"
