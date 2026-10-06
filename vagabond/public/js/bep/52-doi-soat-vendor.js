@@ -11,14 +11,42 @@
  * tiết (ba lớp đủ nguồn / tiền về / chứng từ, từng dòng), màn 01 vùng Đối soát
  * trên Chi tiết đơn. Mọi con số do máy chủ đếm (QT-19); màn chỉ hiện.
  */
-var DSVN = { nhom: 'Tiền bán', tt: '', vendor: '', tim: '', ky: '', tu: '', den: '', cur: '', loc: '', xt: null, tep: null };
+var DSVN = { nhom: 'Tiền bán', tt: '', vendor: '', tim: '', ky: '', tu: '', den: '', cur: '', loc: '', xt: null, tep: null,
+  trang: { nguon: { dau: '', so: 0 }, dong: { dau: '', so: 0 } } };
+
+/* Codex #450: một nguồn đủ quyền có tới 20.000 dòng, danh sách có thể quá
+   50 nguồn. Một chỗ giữ trang đang xem cho cả hai màn: bộ lọc đổi (dấu khác)
+   thì về trang đầu, không nhớ trang cũ của bộ lọc khác. */
+function dsvnTrang(loai, dau) {
+  var t = DSVN.trang[loai];
+  if (t.dau !== dau) { t.dau = dau; t.so = 0; }
+  return t.so;
+}
+function dsvnPhanTrang(loai, so, con, coMoiTrang, donVi) {
+  if (!so && !con) return '';
+  var nut = function (buoc, chu) {
+    return '<button class="btn gh" data-dsvntrang="' + loai + ':' + buoc + '" style="margin:0;min-height:44px;padding:0 14px">' + chu + '</button>';
+  };
+  return '<div style="display:flex;justify-content:center;align-items:center;gap:8px;margin:10px 0">' +
+    (so > 0 ? nut(-1, '‹ Trang trước') : '') +
+    '<span style="font-size:13px;color:#667085">' + donVi + ' ' + money(so * coMoiTrang + 1) + ' đến ' + money(so * coMoiTrang + coMoiTrang) + '</span>' +
+    (con ? nut(1, 'Trang sau ›') : '') + '</div>';
+}
+function dsvnBamTrang(e, man) {
+  var x = e.target.closest('[data-dsvntrang]');
+  if (!x) return false;
+  var p = x.getAttribute('data-dsvntrang').split(':');
+  DSVN.trang[p[0]].so = Math.max(0, DSVN.trang[p[0]].so + Number(p[1]));
+  go(man, true);
+  return true;
+}
 var DSVN_NHOM = [['Tiền bán', '💰'], ['Chuyến đi', '🛵'], ['Thẻ tín dụng', '💳']];
 
 function dsvnChip(tt) {
   var mau = {
     'Đã nhận': ['#ecfdf3', '#067647'], 'Cần xử lý': ['#fffaeb', '#b54708'], 'Lỗi tệp': ['#fef3f2', '#b42318'],
     'Đã thấy tiền về': ['#ecfdf3', '#067647'], 'Lệch tiền về': ['#fef3f2', '#b42318'],
-    'Chưa thấy tiền về': ['#fffaeb', '#b54708'], 'Không áp dụng': ['#f2f4f7', '#475467'],
+    'Chưa thấy tiền về': ['#fffaeb', '#b54708'], 'Cần chọn tiền về': ['#fffaeb', '#b54708'], 'Không áp dụng': ['#f2f4f7', '#475467'],
     'Chưa đối chiếu': ['#f2f4f7', '#475467'], 'Đã nối': ['#ecfdf3', '#067647'],
     'Nối theo tiền': ['#eff8ff', '#175cd3'], 'Lệch tiền': ['#fef3f2', '#b42318'],
     'Nhiều chứng từ': ['#fffaeb', '#b54708'], 'Không thấy chứng từ': ['#fffaeb', '#b54708'],
@@ -47,7 +75,9 @@ async function scrDsvn() {
   frame('Đối soát nhà cung cấp', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc nguồn đối soát...</div></div>');
   var kq, sk = [];
   try {
-    kq = await api('vagabond.doi_soat_vendor.ds', { nhom: DSVN.nhom, trang_thai: DSVN.tt, vendor: DSVN.vendor, tim: DSVN.tim, ky: DSVN.ky, tu: DSVN.tu, den: DSVN.den });
+    var locDs = { nhom: DSVN.nhom, trang_thai: DSVN.tt, vendor: DSVN.vendor, tim: DSVN.tim, ky: DSVN.ky, tu: DSVN.tu, den: DSVN.den };
+    locDs.trang = dsvnTrang('nguon', JSON.stringify(locDs));
+    kq = await api('vagabond.doi_soat_vendor.ds', locDs);
     sk = await api('vagabond.doi_soat_vendor.suc_khoe', {});
   } catch (e) {
     frame('Đối soát nhà cung cấp', '<div class="emp"><div class="e1">🔒</div><div>' + h((e && e.message) || 'Không mở được đối soát. Thử lại sau ít phút.') + '</div></div>');
@@ -58,7 +88,7 @@ async function scrDsvn() {
     '<div style="font-size:12px;color:#98a2b3">VIỆC CẦN LÀM</div>' +
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">' +
     dsvnO('Cần xử lý', dem['Cần xử lý'] || 0, 'nguồn', '#b42318') +
-    dsvnO('Chưa thấy tiền về', (dem['Chưa thấy tiền về'] || 0) + (dem['Lệch tiền về'] || 0), 'đợt', '#b54708') +
+    dsvnO('Chưa thấy tiền về', (dem['Chưa thấy tiền về'] || 0) + (dem['Lệch tiền về'] || 0) + (dem['Cần chọn tiền về'] || 0), 'đợt', '#b54708') +
     dsvnO('Chưa nối đủ', dem['Chưa nối đủ'] || 0, 'nguồn', '#b54708') +
     dsvnO('', dem.tat_ca || 0, 'nguồn đã nhận', '#101828') + '</div>' +
     dsvnSucKhoe(sk) + '</div>';
@@ -86,8 +116,8 @@ async function scrDsvn() {
         (n.nhom === 'Tiền bán' ? dsvnChip(n.trang_thai_tien || 'Chưa đối chiếu') : '') +
         (n.so_chua_noi ? dsvnChip(n.so_chua_noi + ' chưa nối') : '') + '</span></div></div>';
     }).join('') + '</div>';
-    if (kq.con) html += '<div style="text-align:center;color:#667085;font-size:13px;margin:8px">Đang hiện 50 nguồn mới nhất. Lọc hoặc tìm để thu hẹp.</div>';
   }
+  html += dsvnPhanTrang('nguon', DSVN.trang.nguon.so, kq.con, 50, 'Nguồn');
   var foot = '<div style="display:flex;gap:8px"><button class="btn gh" id="dsvnEmail" style="margin:0;flex:1">Nhận lại từ email</button>' +
     '<button class="btn" id="dsvnTai" style="margin:0;flex:1">↑ Tải file</button></div>';
   var b = frame('Đối soát nhà cung cấp', html, { footer: foot });
@@ -101,6 +131,7 @@ async function scrDsvn() {
     go(scrDsvn, true);
   });
   b.addEventListener('click', function (e) {
+    if (dsvnBamTrang(e, scrDsvn)) return;
     var t = e.target.closest('[data-dsvnnhom]');
     if (t) { DSVN.nhom = t.getAttribute('data-dsvnnhom'); DSVN.vendor = ''; return go(scrDsvn, true); }
     t = e.target.closest('[data-dsvntt]');
@@ -127,7 +158,7 @@ function dsvnCongCu(kq) {
     ho: [
       { k: 'tt', tatCa: 'Mọi trạng thái', chon: DSVN.tt, dem: dem, mau: '#b42318',
         ds: [{ k: 'Cần xử lý', ten: 'Cần xử lý' }, { k: 'Chưa thấy tiền về', ten: 'Chờ tiền về' },
-          { k: 'Lệch tiền về', ten: 'Lệch tiền về' }, { k: 'Chưa nối đủ', ten: 'Chưa nối đủ' }] },
+          { k: 'Lệch tiền về', ten: 'Lệch tiền về' }, { k: 'Cần chọn tiền về', ten: 'Trùng số tiền' }, { k: 'Chưa nối đủ', ten: 'Chưa nối đủ' }] },
       { k: 'ven', tatCa: 'Mọi nguồn', chon: DSVN.vendor, dem: kq.dem_vendor || {}, mau: '#0d9488',
         ds: (kq.vendor || []).map(function (v) { return { k: v, ten: v.length > 16 ? v.slice(0, 15) + '…' : v }; }) }
     ],
@@ -256,7 +287,7 @@ async function dsvnNhanTep() {
 async function scrDsvnCt() {
   frame('Nguồn đối soát', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc nguồn...</div></div>');
   var kq;
-  try { kq = await api('vagabond.doi_soat_vendor.chi_tiet', { name: DSVN.cur, loc: DSVN.loc }); }
+  try { kq = await api('vagabond.doi_soat_vendor.chi_tiet', { name: DSVN.cur, loc: DSVN.loc, trang: dsvnTrang('dong', DSVN.cur + '|' + DSVN.loc) }); }
   catch (e) {
     frame('Nguồn đối soát', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không mở được nguồn. Quay lại danh sách.') + '</div></div>');
     return;
@@ -300,11 +331,12 @@ async function scrDsvnCt() {
     html += '<div class="emp"><div class="e1">✓</div><div>Không có dòng nào trong bộ lọc này.</div></div>';
   } else {
     html += '<div class="card" style="padding:0">' + dong.map(dsvnDong).join('') + '</div>';
-    if (kq.con) html += '<div style="text-align:center;color:#667085;font-size:13px;margin:8px">Đang hiện 100 dòng đầu. Lọc Chưa nối để xem dòng cần xử lý.</div>';
   }
+  html += dsvnPhanTrang('dong', DSVN.trang.dong.so, kq.con, 100, 'Dòng');
   var foot = '<button class="btn gh" id="dsvnLai" style="margin:0">Đối chiếu lại hoá đơn và tiền về</button>';
   var b = frame('Nguồn đối soát', html, { footer: foot });
   b.onclick = function (e) {
+    if (dsvnBamTrang(e, scrDsvnCt)) return;
     var x = e.target.closest('[data-dsvnloc]');
     if (x) { DSVN.loc = x.getAttribute('data-dsvnloc'); return go(scrDsvnCt, true); }
     x = e.target.closest('[data-dsvnsi]');
