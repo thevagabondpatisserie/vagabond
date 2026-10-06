@@ -325,7 +325,7 @@ async function scrDsvnCt() {
       ' điều cần xem</b> · ' + h(String(nhac[0]).slice(0, 80)) + '</summary><div style="font-size:13px;margin-top:6px;line-height:1.5">' +
       nhac.slice(0, 60).map(h).join('<br>') + '</div></details>';
   }
-  html += '<div class="chips" style="padding:0 2px">' + [['', 'Tất cả dòng'], ['chua_noi', 'Chưa nối'], ['da_noi', 'Đã nối']].map(function (c) {
+  html += '<div class="chips" style="padding:0 2px">' + [['', 'Tất cả dòng'], ['chua_noi', 'Cần xem'], ['da_noi', 'Đã nối']].map(function (c) {
     return '<div class="chip' + (DSVN.loc === c[0] ? ' on' : '') + '" data-dsvnloc="' + c[0] + '">' + c[1] + '</div>';
   }).join('') + '</div>';
   var dong = kq.dong || [];
@@ -337,8 +337,16 @@ async function scrDsvnCt() {
   html += dsvnPhanTrang('dong', DSVN.trang.dong.so, kq.con, 100, 'Dòng');
   var foot = '<button class="btn gh" id="dsvnLai" style="margin:0">Đối chiếu lại hoá đơn và tiền về</button>';
   var b = frame('Nguồn đối soát', html, { footer: foot });
-  b.onclick = function (e) {
+  b.onclick = async function (e) {
     if (dsvnBamTrang(e, scrDsvnCt)) return;
+    var xn = e.target.closest('[data-dsvnxn]');
+    if (xn) {
+      busy(true);
+      try { await api('vagabond.doi_soat_vendor.xac_nhan_noi', { name: xn.getAttribute('data-dsvnxn') }); toast('Đã xác nhận nối.'); go(scrDsvnCt, true); }
+      catch (er) { toast(errMsg(er)); }
+      finally { busy(false); }
+      return;
+    }
     var x = e.target.closest('[data-dsvnloc]');
     if (x) { DSVN.loc = x.getAttribute('data-dsvnloc'); return go(scrDsvnCt, true); }
     x = e.target.closest('[data-dsvnsi]');
@@ -384,7 +392,11 @@ function dsvnDong(d) {
     (d.phi ? ' · phí ' + money(d.phi) + ' đ' : '') + '</div>' +
     '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;margin-top:4px">' +
     '<span style="font-size:12.5px">' + ct + '</span>' + dsvnChip(d.trang_thai_khop || 'Chưa nối') + '</div>' +
-    (d.ghi_chu_khop ? '<div style="font-size:12px;color:#667085;margin-top:2px">' + h(d.ghi_chu_khop) + '</div>' : '') + '</div>';
+    (d.ghi_chu_khop ? '<div style="font-size:12px;color:#667085;margin-top:2px">' + h(d.ghi_chu_khop) + '</div>' : '') +
+    /* Codex #450: nối theo tiền chỉ là gợi ý; kế toán xem hoá đơn rồi bấm xác
+       nhận thì dòng mới tính là đã nối. */
+    (d.trang_thai_khop === 'Nối theo tiền' && d.sales_invoice ? '<button class="btn gh" data-dsvnxn="' + h(d.name) +
+      '" style="margin:6px 0 0;min-height:44px;width:100%">✓ Đúng hoá đơn ' + h(d.sales_invoice) + ', xác nhận nối</button>' : '') + '</div>';
 }
 
 /* ---------- Màn 01: vùng Đối soát trên Chi tiết đơn ---------- */
