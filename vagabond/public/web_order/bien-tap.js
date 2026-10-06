@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const tim = id => document.getElementById(id);
-  const tenLoai = {tieu_de_muc: 'Tiêu đề mục bán hàng', anh_bia: 'Ảnh bìa', cau_chuyen: 'Câu chuyện', anh_chu: 'Ảnh và chữ', thong_bao: 'Thông báo', hoi_dap: 'Câu hỏi thường gặp', uu_dai:'Ưu đãi', tuyen_dung:'Tuyển dụng'};
+  const tenLoai = {tieu_de_muc: 'Tiêu đề mục bán hàng', anh_bia: 'Ảnh bìa', cau_chuyen: 'Câu chuyện', anh_chu: 'Ảnh và chữ', thong_bao: 'Thông báo', hoi_dap: 'Câu hỏi thường gặp', uu_dai:'Ưu đãi', tuyen_dung:'Tuyển dụng', kenh_dat_hang:'Kênh đặt hàng', zalo_oa:'Zalo OA'};
   let bang, nhap, chon = '', doi = false, ban = false, keo = '', mobile = false;
   let cacBuoc = [], buoc = -1, nhomChu = '', tuTim = '', locKhoi = '', timKhoi = '', locTrangThai = '';
   const khoaPhucHoi = 'vgb-web-nhap:' + document.body.dataset.nguoi;
@@ -233,16 +233,18 @@
     }; g.append(sao);
     g.append(tao('p', 'Loại khối · có thể đổi để tái sử dụng khối cũ', 'goi-y'));
     const cacLoai = tao('div', '', 'them-khoi');
-    Object.entries(tenLoai).filter(([ma]) => ma !== 'tieu_de_muc').forEach(([ma, ten]) => { const b = tao('button', ten); b.setAttribute('aria-pressed', String(k.loai === ma)); b.onclick = () => { k.loai = ma; if(['uu_dai','tuyen_dung'].includes(ma))k.vi_tri=ma; daDoi(); danhSach(); thuocTinh(); }; cacLoai.append(b); });
+    Object.entries(tenLoai).filter(([ma]) => ma !== 'tieu_de_muc').forEach(([ma, ten]) => { const b = tao('button', ten); b.setAttribute('aria-pressed', String(k.loai === ma)); b.onclick = () => { k.loai = ma; if(['uu_dai','tuyen_dung'].includes(ma))k.vi_tri=ma;else if(['uu_dai','tuyen_dung'].includes(k.vi_tri))k.vi_tri='cuoi_trang'; daDoi(); danhSach(); thuocTinh(); }; cacLoai.append(b); });
     g.append(cacLoai);
     if (['uu_dai','tuyen_dung'].includes(k.loai)) { g.append(tao('p', 'Hiển thị tại trang '+tenLoai[k.loai]+'. Ảnh bên dưới có thể thay bất cứ lúc nào. Ngày tính theo giờ Việt Nam.', 'goi-y')); }
-    if(!['uu_dai','tuyen_dung'].includes(k.loai)){g.append(tao('p', 'Vị trí trên trang order', 'goi-y'));
+    if(['kenh_dat_hang','zalo_oa'].includes(k.loai))g.append(tao('p', k.loai==='zalo_oa'?'Nút Zalo riêng. Điền đúng link OA công khai rồi bật hiện.':'Kênh nằm trong nút nổi Đặt qua app. Tiêu đề là tên app, Chữ trên nút là ký hiệu ngắn; liên kết mở ở tab mới.', 'goi-y'));
+    if(!['uu_dai','tuyen_dung','kenh_dat_hang','zalo_oa'].includes(k.loai)){g.append(tao('p', 'Vị trí trên trang order', 'goi-y'));
     const viTri = tao('div', '', 'them-khoi');
-    Object.entries({dau_trang:'Dưới logo',today:'Có sẵn hôm nay',order:'Đặt bánh trước',store:'In store',season:'In season',cuoi_trang:'Cuối trang',uu_dai:'Ưu đãi',tuyen_dung:'Tuyển dụng'}).forEach(([ma,ten]) => {
+    Object.entries({dau_trang:'Dưới logo',today:'Có sẵn hôm nay',order:'Đặt bánh trước',store:'In store',season:'In season',cuoi_trang:'Cuối trang'}).forEach(([ma,ten]) => {
       const b = tao('button', ten); b.setAttribute('aria-pressed', String((k.vi_tri || 'cuoi_trang') === ma));
       b.onclick = () => { k.vi_tri = ma; daDoi(); thuocTinh(); }; viTri.append(b);
     }); g.append(viTri);}
-    [['nhan','Dòng giới thiệu'],['tieu_de','Tiêu đề'],['noi_dung','Nội dung'],['anh','Đường dẫn ảnh công khai'],['mo_ta_anh','Mô tả ảnh'],['nut','Chữ trên nút'],['lien_ket','Liên kết của nút']].forEach(([ma, ten]) => {
+    const kenhNoi=['kenh_dat_hang','zalo_oa'].includes(k.loai);
+    (kenhNoi?[['tieu_de','Tên nút / ứng dụng'],['nut','Ký hiệu ngắn (kênh đặt hàng)'],['lien_ket','Liên kết HTTPS']]:[['nhan','Dòng giới thiệu'],['tieu_de','Tiêu đề'],['noi_dung','Nội dung'],['anh','Đường dẫn ảnh công khai'],['mo_ta_anh','Mô tả ảnh'],['nut','Chữ trên nút'],['lien_ket','Liên kết của nút']]).forEach(([ma, ten]) => {
       const nhan = tao('label', '', 'truong'); nhan.append(tao('span', ten));
       const o = tao(ma === 'noi_dung' || ma === 'tieu_de' ? 'textarea' : 'input');
       o.value = k[ma] || ''; o.maxLength = ma === 'noi_dung' ? 4000 : 1000;
@@ -255,6 +257,7 @@
       else truong.push(['noi_lam','Nơi làm việc','text'],['hinh_thuc','Hình thức làm việc','text'],['email','Email nhận hồ sơ','email']);
       truong.forEach(([ma,ten,loai])=>{const l=tao('label','','truong'),o=tao('input');l.append(tao('span',ten));o.type=loai;o.value=k[ma]||'';o.maxLength=1000;o.oninput=()=>{k[ma]=o.value;daDoi();};l.append(o);g.append(l);});
     }
+    if(!kenhNoi){
     const taiNhan = tao('label', '', 'truong'); taiNhan.append(tao('span', 'Tải ảnh từ máy (ảnh sẽ công khai)'));
     const tep = tao('input'); tep.type = 'file'; tep.accept = 'image/png,image/jpeg,image/webp';
     tep.onchange = async () => {
@@ -270,6 +273,7 @@
     };
     taiNhan.append(tep); g.append(taiNhan);
     g.append(tao('p', 'Ảnh: dán link HTTPS hoặc /files/ từ thư viện ảnh. Nút chọn bánh: #danh-muc-banh. Đặt trước: #/dat-truoc.', 'goi-y'));
+    }
     const nhan = tao('label', '', 'truong'), o = tao('input'); o.type = 'checkbox'; o.checked = k.hien;
     o.onchange = () => { k.hien = o.checked; daDoi(); danhSach(); }; nhan.append(o, document.createTextNode(' Hiển thị khối')); g.append(nhan);
   }
@@ -299,7 +303,7 @@
   }
   Object.entries(tenLoai).filter(([ma]) => ma !== 'tieu_de_muc').forEach(([ma, ten]) => { const b = tao('button', '+ ' + ten); b.onclick = () => {
     if (!nhap || ban) return; if (nhap.khoi.length >= 30) { bao('Đã có 30 khối. Chọn khối cũ, đổi loại và nội dung để tái sử dụng.', true); return; }
-    const k = {id: 'k-' + crypto.randomUUID(), loai: ma, hien: !['uu_dai','tuyen_dung'].includes(ma), vi_tri: ['uu_dai','tuyen_dung'].includes(ma)?ma:'cuoi_trang', nhan: '', tieu_de: ten, noi_dung: '', anh: ma==='tuyen_dung'?'/assets/vagabond/web_order/tay-lam-banh-minh-hoa.jpg':'', mo_ta_anh: ma==='tuyen_dung'?'Ảnh minh hoạ tay làm bánh':'', nut: '', lien_ket: ''};
+    const k = {id: 'k-' + crypto.randomUUID(), loai: ma, hien: !['uu_dai','tuyen_dung','kenh_dat_hang','zalo_oa'].includes(ma), vi_tri: ['uu_dai','tuyen_dung'].includes(ma)?ma:'cuoi_trang', nhan: '', tieu_de: ten, noi_dung: '', anh: ma==='tuyen_dung'?'/assets/vagabond/web_order/tay-lam-banh-minh-hoa.jpg':'', mo_ta_anh: ma==='tuyen_dung'?'Ảnh minh hoạ tay làm bánh':'', nut: '', lien_ket: ''};
     nhap.khoi.push(k); chon = k.id; daDoi(); danhSach(); thuocTinh();
   }; tim('them-khoi').append(b); });
   const loc = tao('div','','them-khoi');

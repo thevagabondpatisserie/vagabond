@@ -335,3 +335,74 @@ RA({tab:tabNow,selected:curSize.id,expected:z.id});
 ''')
     la('link mở mới sang đặt trước khi không có bánh hôm nay',r['tab'],'order')
     la('đúng cỡ còn nhận',r['selected'],r['expected'])
+
+
+@ca('#436 giỏ phục hồi: phản hồi danh mục đến trễ cập nhật giá và tổng, kể cả giá 0')
+def _gia_sau_nap():
+    from vagabond.khung.kiem_thu.thu_trang_dat_banh import _chay
+    r = _chay('2026-10-06T08:00:00', r'''
+await napTonHomNay();
+const c=CAKES[0],z=c.sizes[0];TODAY={[z.id]:5};tabNow='today';z.p=100000;
+renderSheet(c);addToCart();luuGioDangSoan();CART=[];phucHoiGio();
+const truoc=cartTotal();let tra;
+fetch=()=>new Promise(r=>{tra=r;});
+const cho=napTonHomNay();const dangCho=cartTotal();
+tra({json:async()=>({message:{banh:{[z.id]:5},nhom:[{ten:c.k,sizes:[{ma:z.id,cm:z.cm,gia:200000}]}]}})});
+await cho;
+const sau=cartTotal(),daLuu=JSON.parse(sessionStorage.getItem('vgb-gio-v1')).gio[0].price;
+fetch=async()=>({json:async()=>({message:{banh:{[z.id]:5},nhom:[{ten:c.k,sizes:[{ma:z.id,cm:z.cm,gia:0}]}]}})});
+await napTonHomNay();RA({truoc,dangCho,sau,daLuu,gia0:cartTotal(),qty:CART[0].qty});
+''')
+    la('giá trước khi phản hồi',r['truoc'],100000)
+    la('phản hồi thực sự đang chờ',r['dangCho'],100000)
+    la('tổng dùng danh mục mới',r['sau'],200000)
+    la('lưu giá đã làm mới',r['daLuu'],200000)
+    la('giá 0 không giữ giá cũ',r['gia0'],0)
+    la('không đổi số lượng',r['qty'],1)
+
+
+@ca('#436 CMS: chặn vị trí mất khối, link lạ và Zalo cá nhân; nâng cấp không mất chữ')
+def _kenh_noi_va_vi_tri():
+    nd = copy.deepcopy(noi_dung_web.MAC_DINH)
+    for k in nd['khoi']:
+        if k['id'] in ('loi-chao','ho-tro'):k['hien']=True;k['noi_dung']='Bản sửa riêng'
+    nd['nhan']={'them_nhanh_mon':'Chọn {ten}'}
+    moi=noi_dung_web.rut_gon_va_kenh_436(nd)
+    la('lặp lại không đổi',noi_dung_web.rut_gon_va_kenh_436(moi),moi)
+    for k in moi['khoi']:
+        if k['id'] in ('loi-chao','ho-tro'):
+            la('ẩn đúng khối',k['hien'],False);la('không xoá chữ',k['noi_dung'],'Bản sửa riêng')
+    la('không đụng bản đầu',next(k for k in nd['khoi'] if k['id']=='ho-tro')['hien'],True)
+    for loai,vi_tri,link in [('thong_bao','uu_dai',''),('anh_chu','tuyen_dung',''),('kenh_dat_hang','cuoi_trang','javascript:alert(1)'),('zalo_oa','cuoi_trang','https://zalo.me/0931224334'),('zalo_oa','cuoi_trang','https://example.com/1234567890123456789')]:
+        try:noi_dung_web.chuan_hoa({'khoi':[{'id':'test','loai':loai,'vi_tri':vi_tri,'hien':True,'tieu_de':'Test','lien_ket':link}]})
+        except ValueError:pass
+        else:dung('chặn sai '+loai+' '+vi_tri+' '+link,False)
+    k={'id':'test','loai':'zalo_oa','hien':True,'tieu_de':'Zalo','lien_ket':'https://zalo.me/1234567890123456789'}
+    la('OA đúng cấu trúc lưu được',noi_dung_web.chuan_hoa({'khoi':[k]})['khoi'][0],k)
+
+
+@ca('#436 nút nổi: bỏ link nguy hiểm, sửa nhãn nguyên văn, Escape không chạy điều hướng khác')
+def _render_kenh_noi():
+    script=r'''
+const fs=require('fs'),vm=require('vm'),suKien={};
+class El{constructor(t){this.tagName=t;this.children=[];this.dataset={};this.attrs={};this.style={};this.textContent='';}append(...a){this.children.push(...a);}replaceChildren(...a){this.children=[...a];}setAttribute(k,v){this.attrs[k]=v;}focus(){this.focused=true;}contains(x){return walk(this).includes(x);}querySelector(){return walk(this).find(e=>e.className==='kenh-bang'&&!e.hidden);}}
+const walk=e=>[e,...e.children.flatMap(walk)],body=new El('body');
+const document={body,createElement:t=>new El(t),getElementById:()=>null,addEventListener:(k,f,capture)=>{suKien[k]={f,capture};}};
+const window={addEventListener(){}};vm.runInNewContext(fs.readFileSync(process.argv[1],'utf8'),{window,document,URL});
+const k={id:'app',loai:'kenh_dat_hang',hien:true,tieu_de:'<img onerror=x>',lien_ket:'https://example.com/menu'};
+window.vgbVeKenhNoi({khoi:[k,{...k,id:'bad',lien_ket:'javascript:alert(1)'},{...k,id:'hidden',hien:false},{id:'z',loai:'zalo_oa',hien:true,tieu_de:'Zalo',lien_ket:'https://zalo.me/0931224334'}]});
+let all=walk(body),links=all.filter(e=>e.tagName==='a'),b=all.find(e=>e.className==='kenh-bong kenh-app');b.onclick();
+let stopped=false;suKien.keydown.f({key:'Escape',preventDefault(){},stopImmediatePropagation(){stopped=true;}});
+const first={links:links.length,label:links[0].children[1].textContent,expanded:b.attrs['aria-expanded'],focus:b.focused,capture:suKien.keydown.capture,stopped};
+window.vgbVeKenhNoi({nhan:{kenh_noi_nut:'Đặt món'},khoi:[{...k,tieu_de:'App mới',lien_ket:'https://example.com/new'}]});all=walk(body);links=all.filter(e=>e.tagName==='a');
+console.log(JSON.stringify({first,href:links[0].href,title:links[0].children[1].textContent,button:all.find(e=>e.className==='kenh-bong kenh-app').children[1].textContent}));
+'''
+    r=subprocess.run(['node','-e',script,str(GOC/'public/web_order/kenh-noi.js')],capture_output=True,text=True,timeout=30)
+    if r.returncode:raise AssertionError(r.stderr)
+    d=json.loads(r.stdout)
+    la('chỉ một link hợp lệ',d['first']['links'],1)
+    la('nhãn không trở thành HTML',d['first']['label'],'<img onerror=x>')
+    la('Escape đóng và giữ focus',d['first']['expanded'],'false')
+    dung('chặn trước handler điều hướng',d['first']['capture'] and d['first']['stopped'] and d['first']['focus'])
+    la('đổi link trong preview',d['href'],'https://example.com/new')
+    la('đổi nhãn trong preview',d['button'],'Đặt món')

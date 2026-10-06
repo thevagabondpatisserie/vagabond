@@ -375,7 +375,7 @@ nav.navbar .dropdown-item:hover{background:rgba(41,189,179,.12);color:#fff}
    Sans, cung phong voi ten banh va logo. Phong nay co du glyph tieng Viet
    (da kiem tung ky tu bang fontTools, xem thu_nhan_web_532), dau in hoa dat
    dung. Van giu "html body" de de cua-hang.css. */
-html body .h1{font-family:'Vagabond Sans',var(--sans);font-weight:400;letter-spacing:.01em;font-size:clamp(40px,10vw,84px);line-height:.98;text-transform:uppercase}
+html body .h1{font-family:'Vagabond Sans',var(--sans);font-weight:400;letter-spacing:.01em;font-size:clamp(36px,4vw,48px);line-height:1.12;text-transform:uppercase;margin-top:0}
 html body .h1 em#bigDate{display:none}
 /* v532 (anh Viet 27/09/2026): CHI con so (ngay, gia, so luong) dung phong he
    thong cho deu net. Moi tieu de (Tang huong, Dat banh nhan em nhe, o trong)
@@ -418,8 +418,8 @@ html body .h1 em#bigDate{display:none}
 .sum .row.phu span,.sum .row.phu b{color:var(--fog);font-size:13px}
 @media(prefers-reduced-motion:reduce){.bar.nhich .cnt b{animation:none}.c-them:active{transform:none}}
 </style>
-<link rel="stylesheet" href="/assets/vagabond/web_order/cua-hang.css?v=8de7cda516fd">
-<script src="/assets/vagabond/web_order/chu.js?v=3fc5cafd0db4"></script><link rel="stylesheet" href="/assets/vagabond/web_order/chuyen-muc.css?v=10dcf63d49b8">
+<link rel="stylesheet" href="/assets/vagabond/web_order/cua-hang.css?v=a604801330bb">
+<script src="/assets/vagabond/web_order/chu.js?v=3fc5cafd0db4"></script><link rel="stylesheet" href="/assets/vagabond/web_order/kenh-noi.css?v=7bbb9d2647e9"><link rel="stylesheet" href="/assets/vagabond/web_order/chuyen-muc.css?v=1f181d4b38f2">
 </head>
 <body>
 <div class="sky" aria-hidden="true">
@@ -488,9 +488,10 @@ html body .h1 em#bigDate{display:none}
 <!-- ============ IN SEASON ============ -->
 <section class="wrap" id="uu_dai" hidden><header class="sec-head"><h1 class="h1" data-vgb-nhan="tab_uu_dai">Ưu đãi</h1></header><div id="noi-uu_dai"></div></section>
 <section class="wrap" id="tuyen_dung" hidden><header class="sec-head"><h1 class="h1" data-vgb-nhan="tab_tuyen_dung">Tuyển dụng</h1></header><div id="noi-tuyen_dung"></div></section>
+<script src="/assets/vagabond/web_order/kenh-noi.js?v=28b0c13d0302" defer></script>
 <script src="/assets/vagabond/web_order/chuyen-muc.js?v=009145a4d7aa"></script>
 <script src="/assets/vagabond/web_order/khoi.js?v=3f9e2ef32ff5"></script>
-<script src="/assets/vagabond/web_order/cua-hang.js?v=8b96e1d7e1dc" defer></script>
+<script src="/assets/vagabond/web_order/cua-hang.js?v=92d43a734cf4" defer></script>
 <main id="season" hidden>
   <div class="noi-dung-theo-tab" data-vgb-vi-tri="season"></div>
   <section class="wrap">
@@ -899,7 +900,7 @@ function vgbTronMon(nhom) {
     }
     g.sizes.forEach(function (y) {
       var s = c.sizes.filter(function (z) { return z.cm === y.cm; })[0];
-      if (s) { s.id = y.ma; if (y.gia) s.p = y.gia; }
+      if (s) { s.id = y.ma; if (Number.isFinite(y.gia) && y.gia >= 0) s.p = y.gia; }
       else c.sizes.push({ cm: y.cm, p: y.gia || 0, id: y.ma });
     });
     c.sizes.sort(function (a, b) { return (a.cm || 0) - (b.cm || 0); });
@@ -924,7 +925,7 @@ function napTonHomNay(){
       vgbTronMon(dt);
       TRUOC={};
       dt.forEach(function(g){ (g.sizes||[]).forEach(function(y){ if(y.con>0) TRUOC[y.ma]=y.con; }); });
-      TON_NAP_XONG=true; })
+      TON_NAP_XONG=true; lamTuoiGiaGio(); })
     .catch(function(){});
 }
 const ACC = [
@@ -2557,6 +2558,12 @@ function luuGioDangSoan(){
   }catch(e){}
 }
 var gioMuaCho=[];
+function lamTuoiGiaGio(){
+  let doi=false;
+  CART.forEach(o=>{if(!o.cm)return;const c=CAKES.find(c=>c.sizes.some(s=>s.id===o.id)),z=c?.sizes.find(s=>s.id===o.id);
+    if(z&&Number.isFinite(z.p)&&o.price!==z.p){o.price=z.p;doi=true;}});
+  if(doi){drawBar();drawCart();if($('#checkout').classList.contains('open'))drawCo();luuGioDangSoan();}
+}
 function phucHoiGio(){
   if(window.vgbXemThu)return;
   try{const d=JSON.parse(sessionStorage.getItem('vgb-gio-v1')||'null');if(!d||Date.now()-d.luc>86400000||!Array.isArray(d.gio))return;

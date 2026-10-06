@@ -1791,3 +1791,19 @@ thành kiểm nội dung được lưu/xuất đúng và fallback, không giữ 
 - Dời việc phụ ra sau commit thì phải có lưới gửi bù: lời xếp việc nền nằm
   trong Redis, Redis lỗi đúng lúc đó là mất hẳn (Codex #444 vòng 7). Thêm nhịp
   quét theo chứng từ GẦN ĐÂY (không quét cả lịch sử kẻo gửi cho phiếu cũ).
+
+
+## 06/10/2026 - PR436: dữ liệu đến trễ và nút nổi
+
+- Giá giỏ lấy từ catalog nhúng lúc reload vẫn có thể cũ: phải đồng bộ dòng
+  giỏ khi API catalog trả về, kiểm phản hồi trễ và giá 0 bằng hành vi.
+- Danh sách vị trí Editor phải khớp renderer. Đổi loại chiến dịch về loại
+  thường cần trả vị trí hợp lệ, backend cũng chặn vị trí làm mất khối.
+- CSS clamp mới không có tác dụng nếu rule cũ html body .h1 thắng; đo
+  computed font trên390 và sửa tại rule gốc, đừng cộng thêm override.
+- Escape ở popup phụ phải dừng handler đóng sheet/điều hướng của trang.
+  Chỉ nhìn popup đóng chưa đủ: kiểm URL và focus sau phím Escape.
+- Ẩn khối mặc định trong code không đổi CMS đã xuất bản. Patch cần xử lý
+  nháp/công khai riêng, giữ lịch sử, không xuất bản nháp để sửa phần lặp.
+- Link Zalo số điện thoại không phải bằng chứng OA. Thiếu mã thì giữ nút
+  ẩn, cho nhập link OA trong Editor; không gán nhầm tài khoản.

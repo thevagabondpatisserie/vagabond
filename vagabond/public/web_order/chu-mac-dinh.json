@@ -2706,5 +2706,35 @@
     "ten": "Giỏ: số dụng cụ tặng",
     "mac_dinh": "{nia} nĩa gỗ · {dia} dĩa giấy",
     "nhom": "gio_hang"
+  },
+  "kenh_noi_nhan": {
+    "nhom": "Kênh đặt hàng",
+    "ten": "Kênh đặt hàng và hỗ trợ",
+    "mac_dinh": "Kênh đặt hàng và hỗ trợ"
+  },
+  "kenh_noi_tieu_de": {
+    "nhom": "Kênh đặt hàng",
+    "ten": "Đặt qua ứng dụng",
+    "mac_dinh": "Đặt qua ứng dụng"
+  },
+  "kenh_noi_dong": {
+    "nhom": "Kênh đặt hàng",
+    "ten": "Đóng kênh đặt hàng",
+    "mac_dinh": "Đóng kênh đặt hàng"
+  },
+  "kenh_noi_mo_ta": {
+    "nhom": "Kênh đặt hàng",
+    "ten": "Quý khách chọn ứng dụng để xem thực đơn và đặt món.",
+    "mac_dinh": "Quý khách chọn ứng dụng để xem thực đơn và đặt món."
+  },
+  "kenh_noi_tab_moi": {
+    "nhom": "Kênh đặt hàng",
+    "ten": "Liên kết mở trong tab mới.",
+    "mac_dinh": "Liên kết mở trong tab mới."
+  },
+  "kenh_noi_nut": {
+    "nhom": "Kênh đặt hàng",
+    "ten": "Đặt qua app",
+    "mac_dinh": "Đặt qua app"
   }
 }

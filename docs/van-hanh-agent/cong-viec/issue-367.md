@@ -1,3 +1,41 @@
+# Cập nhật 06/10/2026 - PR436, rút gọn và nút nổi
+
+Owner Codex; nền main `72b00ca1d` v577, PR vẫn v578. Chưa merge/deploy.
+
+- Đã tái hiện và sửa review 4184968380: giá giỏ phục hồi cập nhật khi API
+  danh mục trả về trễ, tổng/miễn phí giao/bản lưu cùng dùng giá mới; giá 0
+  cũng cập nhật. Có ca async 100.000 -> 200.000 -> 0, giữ qty.
+- Đã sửa review 4184968391: Editor không cho khối thường chọn vị trí dành
+  riêng chiến dịch; đổi loại trả về Cuối trang, backend chặn vị trí sai.
+- Anh Việt yêu cầu bỏ hai khối `loi-chao`, `ho-tro`: mặc định ẩn, patch
+  `rut_gon_web_436` cập nhật riêng nháp/công khai, giữ chữ và lịch sử.
+- Headline chính 36px ở390, tối đa48px desktop; sửa đúng rule html body .h1,
+  bỏ hai rule kích thước bị specificity đè. H2 thẻ27/32, body15/16.
+- Nút nổi Đặt qua app mở GrabFood/ShopeeFood/beFood/XanhSM và Beacons.
+  Nguồn: https://beacons.ai/thevagabondpatisserie đọc DOM06/10. XanhSM link
+  gốc HTTP, bản HTTPS cùng URL trả301 tới App Store200. Link mở tab mới.
+  Từng kênh thêm/sửa/ẩn/đổi tên/link trong CMS; chữ chung ở Nhãn và câu chữ.
+- Zalo OA có loại CMS riêng, mặc định ẩn/chưa có URL. API public hiện chỉ
+  có https://zalo.me/0931224334 (điện thoại), ảnh anh gửi không có mã OA.
+  Đã hỏi link công khai; không đoán OA hay dùng số cá nhân thay OA.
+- Bubble cao >=44px, link52px, cách thanh giỏ16px theo chiều cao thực;
+  ẩn khi chi tiết/checkout mở. Escape đóng popup giữ focus, chặn handler
+  cũ closeSheet tránh tự quay về trang trước. Không nhúng SDK quảng cáo.
+
+Browser local390/desktop: bỏ hai khối lặp; popup không tràn; quick-add
+Candle650k -> sửa lời chúc/nến23 -> vẫn1bánh684k; bubble ẩn ởcheckout.
+Editor đổi nhãn app phản ánh ởiframe, Undo khôi phục; chuyển Ưu đãi sang
+Thông báo vẫn thấy1heading ởCuối trang. GET-only fixture, chưa kiểm ghi
+nháp/xuất bản production. Ảnh nằm output/web-order-20261006 tại workspace.
+
+Đợt trước42cba CI+bench đều đạt; Claude chưa có kết luận (tool denied).
+Đợt này xin Claude review code và UI/customer flow exactSHA; chỉ được nói
+đã dùng browser nếu thực sự có browser, nếu không phải ghi phần chưa kiểm.
+Cổng mới và phản hồi reviewer lấy từ comment PR hiện tại. Lỗi Ahamove/
+chính sách đã nêu bên dưới vẫn chưa đóng, không suy ra được deploy.
+
+---
+
 # Cập nhật 05/10/2026 - Minh Vũ, Marketing và lỗi luồng khách
 
 Owner Codex, branch `codex/web-editor-toan-bo-chu`, PR436 mở rộng trên main
