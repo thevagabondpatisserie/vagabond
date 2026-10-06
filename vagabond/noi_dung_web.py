@@ -11,14 +11,14 @@ import re
 from pathlib import Path
 from urllib.parse import urlsplit
 
-LOAI = {"tieu_de_muc", "anh_bia", "cau_chuyen", "anh_chu", "thong_bao", "hoi_dap"}
-TRUONG = {"id", "loai", "hien", "nhan", "tieu_de", "noi_dung", "anh", "mo_ta_anh", "nut", "lien_ket", "vi_tri"}
-VI_TRI = {"dau_trang", "today", "order", "store", "season", "cuoi_trang"}
+LOAI = {"tieu_de_muc", "anh_bia", "cau_chuyen", "anh_chu", "thong_bao", "hoi_dap", "uu_dai", "tuyen_dung", "kenh_dat_hang", "zalo_oa", "nut_kenh"}
+TRUONG = {"id", "loai", "hien", "nhan", "tieu_de", "noi_dung", "anh", "mo_ta_anh", "nut", "lien_ket", "vi_tri", "bat_dau", "ket_thuc", "nhom", "ma_uu_dai", "noi_lam", "hinh_thuc", "email"}
+VI_TRI = {"dau_trang", "today", "order", "store", "season", "cuoi_trang", "uu_dai", "tuyen_dung"}
 MAC_DINH = {"khoi": [
     {"id":"tieu-de-hom-nay", "loai":"tieu_de_muc", "hien":True, "vi_tri":"today", "tieu_de":"Bánh\nhôm nay"},
     {"id":"tieu-de-dat-truoc", "loai":"tieu_de_muc", "hien":True, "vi_tri":"order", "tieu_de":"Đặt\nbánh trước"},
     {"id":"tieu-de-tai-quay", "loai":"tieu_de_muc", "hien":True, "vi_tri":"store", "tieu_de":"Bánh trên tủ\ntại quầy"},
-    {"id": "loi-chao", "loai": "thong_bao", "hien": True, "vi_tri": "dau_trang",
+    {"id": "loi-chao", "loai": "thong_bao", "hien": False, "vi_tri": "dau_trang",
      "nhan": "THE VAGABOND PÂTISSERIE · SINCE 2015", "tieu_de": "Một chiếc bánh, một khoảnh khắc đáng nhớ.",
      "noi_dung": "", "anh": "", "mo_ta_anh": "", "nut": "", "lien_ket": ""},
     {"id": "cau-chuyen", "loai": "cau_chuyen", "hien": True, "vi_tri": "cuoi_trang",
@@ -27,11 +27,24 @@ MAC_DINH = {"khoi": [
      "anh": "", "mo_ta_anh": "", "nut": "Đặt bánh trước", "lien_ket": "#/dat-truoc"}
 ]}
 MAC_DINH["khoi"].extend([
-    {"id":"ho-tro", "loai":"thong_bao", "hien":True, "vi_tri":"cuoi_trang", "nhan":"HỖ TRỢ ĐẶT BÁNH", "tieu_de":"Chúng tôi mong được phục vụ cho quý khách", "noi_dung":"Quý khách có thể chọn bánh, ngày nhận và điền lời chúc ngay trên website."},
+    {"id":"ho-tro", "loai":"thong_bao", "hien":False, "vi_tri":"cuoi_trang", "nhan":"HỖ TRỢ ĐẶT BÁNH", "tieu_de":"Chúng tôi mong được phục vụ cho quý khách", "noi_dung":"Quý khách có thể chọn bánh, ngày nhận và điền lời chúc ngay trên website."},
     {"id":"hoi-lich-nhan", "loai":"hoi_dap", "hien":True, "vi_tri":"cuoi_trang", "tieu_de":"Tôi muốn nhận bánh hôm nay?", "noi_dung":"Quý khách chọn mục Có sẵn hôm nay và một khung giờ còn nhận. Lịch trên website cập nhật theo thời gian chuẩn bị của bếp."},
     {"id":"hoi-xac-nhan", "loai":"hoi_dap", "hien":True, "vi_tri":"cuoi_trang", "tieu_de":"Gửi đơn xong đã thanh toán chưa?", "noi_dung":"Biên nhận xác nhận chúng tôi đã tiếp nhận yêu cầu. Nhân viên sẽ liên hệ xác nhận đơn và hướng dẫn thanh toán."},
     {"id":"hoi-loi-chuc", "loai":"hoi_dap", "hien":True, "vi_tri":"cuoi_trang", "tieu_de":"Tôi có thể gửi lời chúc riêng?", "noi_dung":"Quý khách điền lời chúc trên trang từng bánh trước khi thêm vào giỏ. Mỗi bánh có thể có một lời chúc riêng."},
 ])
+
+
+# #436: nguồn link do anh Việt cung cấp, kiểm trên Beacons ngày 06/10/2026.
+KENH_MAC_DINH = [
+    {"id":"nut-kenh", "loai":"nut_kenh", "hien":True, "vi_tri":"cuoi_trang", "tieu_de":"Mở các kênh đặt hàng", "anh":"/assets/vagabond/web_order/logo-kenh/grab.png"},
+    {"id":"kenh-grab", "anh":"/assets/vagabond/web_order/logo-kenh/grab.png", "loai":"kenh_dat_hang", "hien":True, "vi_tri":"cuoi_trang", "tieu_de":"GrabFood", "nut":"Grab", "lien_ket":"https://r.grab.com/g/6-20250920_005603_BAC6857576104ED4BB3FDE35D1BF1115_MEXMPS-5-C4E1NPWGG2WZFA"},
+    {"id":"kenh-shopee", "anh":"/assets/vagabond/web_order/logo-kenh/shopeefood.png", "loai":"kenh_dat_hang", "hien":True, "vi_tri":"cuoi_trang", "tieu_de":"ShopeeFood", "nut":"Shopee", "lien_ket":"https://shopeefood.vn/now-food/shop/1228609"},
+    {"id":"kenh-be", "anh":"/assets/vagabond/web_order/logo-kenh/be.png", "loai":"kenh_dat_hang", "hien":True, "vi_tri":"cuoi_trang", "tieu_de":"beFood", "nut":"be", "lien_ket":"https://begroup.onelink.me/ZOqn/c2ba8ar9"},
+    {"id":"kenh-xanh", "anh":"/assets/vagabond/web_order/logo-kenh/xanh-sm.png", "loai":"kenh_dat_hang", "hien":True, "vi_tri":"cuoi_trang", "tieu_de":"XanhSM", "nut":"Xanh", "lien_ket":"https://xanhsmngon.onelink.me/14WJ/72fp2t58"},
+    {"id":"kenh-beacons", "anh":"/assets/vagabond/web_order/logo-kenh/beacons.png", "loai":"kenh_dat_hang", "hien":True, "vi_tri":"cuoi_trang", "tieu_de":"Xem tất cả kênh đặt hàng", "nut":"↗", "lien_ket":"https://beacons.ai/thevagabondpatisserie"},
+    {"id":"kenh-zalo", "anh":"/assets/vagabond/web_order/logo-kenh/zalo.png", "loai":"zalo_oa", "hien":True, "vi_tri":"cuoi_trang", "tieu_de":"Nhắn Zalo", "lien_ket":"https://zalo.me/thevagabondsaigon"},
+]
+MAC_DINH["khoi"].extend(KENH_MAC_DINH)
 
 
 # #367: ba trang chính sách cùng đi luồng nháp, xuất bản, lịch sử của trang
@@ -215,6 +228,8 @@ def chuan_hoa(du_lieu):
         raise ValueError("Mỗi trang có tối đa 30 khối.")
     da_co = set()
     tieu_de_da_co = set()
+    zalo_da_co = False
+    nut_kenh_da_co = False
     for k in ds:
         if not isinstance(k, dict) or set(k) - TRUONG:
             raise ValueError("Khối có trường không được hỗ trợ.")
@@ -225,6 +240,8 @@ def chuan_hoa(du_lieu):
         da_co.add(k["id"])
         if k.get("vi_tri", "cuoi_trang") not in VI_TRI:
             raise ValueError("Chọn vị trí khối trên trang đặt bánh.")
+        if k['loai'] not in ('uu_dai', 'tuyen_dung') and k.get('vi_tri') in ('uu_dai', 'tuyen_dung'):
+            raise ValueError('Khối nội dung thường cần chọn vị trí trên trang bán hàng.')
         if k['loai'] == 'tieu_de_muc':
             vi_tri = k.get('vi_tri')
             if vi_tri not in ('today', 'order', 'store') or vi_tri in tieu_de_da_co:
@@ -238,6 +255,36 @@ def chuan_hoa(du_lieu):
             v = k.get(ten, "")
             if not isinstance(v, str) or len(v) > (4000 if ten == "noi_dung" else 1000):
                 raise ValueError("Chữ trong khối quá dài hoặc không hợp lệ: " + ten)
+        if k['loai'] == 'nut_kenh':
+            if nut_kenh_da_co:
+                raise ValueError('Chỉ dùng một nút mở kênh đặt hàng. Sửa nút đã có.')
+            nut_kenh_da_co = True
+            if k['hien'] and not k.get('tieu_de', '').strip():
+                raise ValueError('Điền tên trợ năng cho nút mở kênh đặt hàng.')
+        if k['loai'] == 'zalo_oa' and k['hien']:
+            if zalo_da_co:
+                raise ValueError('Chỉ bật một nút Zalo OA trên website.')
+            zalo_da_co = True
+        if k['loai'] in ('kenh_dat_hang', 'zalo_oa'):
+            u = urlsplit(k.get('lien_ket', ''))
+            if k['hien'] and (not k.get('tieu_de', '').strip() or u.scheme != 'https' or not u.hostname):
+                raise ValueError('Nút nổi cần tên và liên kết HTTPS trước khi bật.')
+            if k['loai'] == 'zalo_oa' and k.get('lien_ket') and (u.hostname != 'zalo.me' or not re.fullmatch(r'/(?:[0-9]{15,25}|[A-Za-z][A-Za-z0-9._-]{2,59})/?', u.path)):
+                raise ValueError('Dùng đường dẫn Zalo OA dạng https://zalo.me/tên-OA hoặc mã OA, không dùng số điện thoại cá nhân.')
+        if k['loai'] in ('uu_dai', 'tuyen_dung'):
+            if not k.get('tieu_de', '').strip():
+                raise ValueError('Ưu đãi và vị trí tuyển dụng cần có tiêu đề.')
+            from datetime import date
+            for ten in ('bat_dau', 'ket_thuc'):
+                if k.get(ten):
+                    try: date.fromisoformat(k[ten])
+                    except ValueError: raise ValueError('Ngày bắt đầu/kết thúc không hợp lệ.')
+            if k.get('bat_dau') and k.get('ket_thuc') and k['bat_dau'] > k['ket_thuc']:
+                raise ValueError('Ngày kết thúc không được trước ngày bắt đầu.')
+            if k.get('email') and not re.fullmatch(r'[A-Za-z0-9_.+%-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}', k['email']):
+                raise ValueError('Email nhận hồ sơ không hợp lệ.')
+            if k['loai'] == 'tuyen_dung' and k['hien'] and not (k.get('email') or k.get('lien_ket')):
+                raise ValueError('Điền email hoặc liên kết ứng tuyển trước khi bật vị trí.')
         for ten in ("anh", "lien_ket"):
             v = k.get(ten, "")
             if not v:
@@ -355,7 +402,7 @@ def noi_dung_da_duyet_367(nd):
     return chuan_hoa(nd)
 
 
-def xuat_ban_chu_da_duyet_367():
+def xuat_ban_chu_da_duyet_367(bien_doi=noi_dung_da_duyet_367):
     """Patch một lần: nháp và công khai chuyển riêng, giữ lịch sử công khai."""
     if not frappe.db.exists(DOCTYPE, TEN):
         return False  # cong_khai/doc_bang dùng MAC_DINH đã cập nhật.
@@ -363,8 +410,8 @@ def xuat_ban_chu_da_duyet_367():
     d = _doc()
     nhap_cu = json.loads(d.ban_nhap)
     cong_khai_cu = json.loads(d.ban_cong_khai)
-    nhap = noi_dung_da_duyet_367(nhap_cu)
-    cong_khai = noi_dung_da_duyet_367(cong_khai_cu)
+    nhap = bien_doi(nhap_cu)
+    cong_khai = bien_doi(cong_khai_cu)
     if nhap == nhap_cu and cong_khai == cong_khai_cu:
         return False
     if cong_khai != cong_khai_cu:
@@ -377,6 +424,21 @@ def xuat_ban_chu_da_duyet_367():
     d.flags.luu_noi_dung_web = True
     d.save(ignore_permissions=True)
     return True
+
+
+def rut_gon_va_kenh_436(nd):
+    """Ẩn hai khối anh Việt chỉ ra, giữ chữ để phục hồi; nháp không tràn sang công khai."""
+    nd = copy.deepcopy(nd)
+    for k in nd['khoi']:
+        if k.get('id') in ('loi-chao', 'ho-tro'):
+            k['hien'] = False
+        if k.get('loai') not in ('uu_dai', 'tuyen_dung') and k.get('vi_tri') in ('uu_dai', 'tuyen_dung'):
+            k['vi_tri'] = 'cuoi_trang'
+    ids = {k['id'] for k in nd['khoi']}
+    for k in KENH_MAC_DINH:
+        if k['id'] not in ids and len(nd['khoi']) < 30:
+            nd['khoi'].append(copy.deepcopy(k))
+    return chuan_hoa(nd)
 
 
 def gieo_tu_tep():
