@@ -104,6 +104,10 @@ GD = Doi(name="BT-1", reference_number="FT26277123", docstatus=1, deposit=760000
 	date="2026-10-04")
 
 
+# v577: tệp UNC khách gửi cho lối khớp tay không giao dịch.
+UNC = '["/private/files/unc-khach.jpg"]'
+
+
 def _dung_he(hd=None, pe_cu=None, nhap=None, bank=None, bt=None):
 	"""Thay các cửa chạm hệ của bản Frappe giả. Trả nhật ký và hàm trả lại."""
 	nk = []
@@ -166,6 +170,11 @@ def _dung_he(hd=None, pe_cu=None, nhap=None, bank=None, bt=None):
 	# Bảng phiếu thu nháp kèm kết quả xác minh: mỗi dòng nhap là một phân bổ,
 	# gom theo `pe` (mặc định mỗi dòng một phiếu), `xm` mặc định 1 (đã xác minh).
 	moc["ptn"] = tt.phieu_thu_nhap
+	# v577: lối khớp tay không giao dịch bắt UNC (soát bằng người bấm). Các ca
+	# ở đây đo thứ tự lập phiếu và cộng tiền, tệp coi như đã soát đúng.
+	moc["soat"] = tt.soat_tep_unc_moi
+	tt.soat_tep_unc_moi = lambda unc: [{"url": u, "ten": "F-" + u, "ten_tep": u, "rieng": 1}
+		for u in __import__("json").loads(unc or "[]")] or fr.throw("thieu UNC")
 
 	def phieu_thu_nhap(cac_si=None, **k):
 		theo = {}
@@ -185,6 +194,7 @@ def _dung_he(hd=None, pe_cu=None, nhap=None, bank=None, bt=None):
 		fr.db.get_value = moc["get_value"]
 		fr.db.exists = moc["exists"]
 		tt.phieu_thu_nhap = moc["ptn"]
+		tt.soat_tep_unc_moi = moc["soat"]
 	cu["tra"] = tra
 	return nk, tra
 
@@ -628,19 +638,21 @@ def _():
 		tong_tien=7600000.0, da_thu=2000000.0,
 		ma_gd="", flags=Doi(), _nk=nk, dong=[Doi(hoa_don=h.name) for h in HD])
 	moc = {"get_doc": fr.get_doc, "kq": cn._kiem_quyen_ban, "giu": cn._giu_gd, "sp": cn._sepay_cn,
-		"gui": cn._gui_thu_da_nhan, "ghi": cn.ghi_thu_cho_phieu, "xem": cn.xem_phieu}
-	fr.get_doc = lambda *a, **k: doc
+		"gui": cn._gui_thu_da_nhan, "lap": tt.lap_phieu_thu_theo_gd, "xem": cn.xem_phieu}
+	# v577: SePay lập phiếu thu NHÁP theo đúng giao dịch mới về (không ghi sổ
+	# thẳng nữa), nên đo lời gọi lap_phieu_thu_theo_gd thay cho ghi_thu_cho_phieu.
+	fr.get_doc = lambda dt, *a, **k: Doi(name=a[0] if a else "", reference_number="FT-S") if dt == "Bank Transaction" else doc
 	cn._kiem_quyen_ban = lambda: None
 	cn._giu_gd = lambda d, ds: "\n".join(ds)
 	cn._sepay_cn = lambda ma: {"nhan": 5600000.0, "so_gd": 1, "gd": ["BT-S"]}
 	cn._gui_thu_da_nhan = lambda d: None
-	cn.ghi_thu_cho_phieu = lambda *a, **k: nk.append(("ghi_thu", k.get("so_tien"), k.get("khoa"))) or []
+	tt.lap_phieu_thu_theo_gd = lambda cac_si, g, so, gc="", **k: nk.append(("lap_nhap", g.name, so)) or {"pe": "APP-S"}
 	cn.xem_phieu = lambda name: {}
 	try:
 		cn.kiem_sepay("P")
 		la("cộng dồn 7,6tr", doc.da_thu, 7600000.0)
-		la("phiếu thu chỉ cho PHẦN MỚI, khoá theo giao dịch",
-			[x[1:] for x in nk if x[0] == "ghi_thu"], [(5600000.0, "sepay:BT-S")])
+		la("phiếu thu nháp chỉ cho giao dịch MỚI về",
+			[x[1:] for x in nk if x[0] == "lap_nhap"], [("BT-S", 5600000.0)])
 		la("đã thu đủ", doc.trang_thai, "Da thu du")
 		dung("giữ mã giao dịch SePay", "BT-S" in (doc.ma_gd or ""))
 	finally:
@@ -649,7 +661,7 @@ def _():
 		cn._giu_gd = moc["giu"]
 		cn._sepay_cn = moc["sp"]
 		cn._gui_thu_da_nhan = moc["gui"]
-		cn.ghi_thu_cho_phieu = moc["ghi"]
+		tt.lap_phieu_thu_theo_gd = moc["lap"]
 		cn.xem_phieu = moc["xem"]
 		tra()
 
@@ -741,8 +753,8 @@ def _():
 	fr.db.exists = lambda dt, f=None, **k: dt == "Comment" and any(
 		f["content"][1].strip("%") in x[1] for x in nk if x[0] == "binh_luan")
 	try:
-		cn.khop_tay("P", 2000000, "", "khach dua tien mat", ma_lan="lan1")
-		kq2 = cn.khop_tay("P", 2000000, "", "khach dua tien mat", ma_lan="lan1")
+		cn.khop_tay("P", 2000000, "", "khach dua tien mat", ma_lan="lan1", unc=UNC)
+		kq2 = cn.khop_tay("P", 2000000, "", "khach dua tien mat", ma_lan="lan1", unc=UNC)
 		la("đã thu chỉ cộng một lần", doc.da_thu, 2000000.0)
 		la("chỉ một lần lập phiếu thu, khoá ổn định", [x[1:] for x in nk if x[0] == "ghi_thu"],
 			[(2000000.0, "tay:lan1")])
@@ -779,7 +791,7 @@ def _():
 	cn._gui_thu_da_nhan = lambda d: nk.append(("gui_thu",))
 	cn.ghi_thu_cho_phieu = lambda *a, **k: nk.append(("ghi_thu", k.get("so_tien"), k.get("khoa"))) or []
 	try:
-		cn.khop_tay("P2", 7600000, "", "chuyen khoan khong ve sao ke", ma_lan="sua1")
+		cn.khop_tay("P2", 7600000, "", "chuyen khoan khong ve sao ke", ma_lan="sua1", unc=UNC)
 		la("đã lập phiếu thu cho phần sửa", [x[1:] for x in nk if x[0] == "ghi_thu"],
 			[(7600000.0, "tay:sua1")])
 		la("đã thu không cộng quá tổng", doc.da_thu, 7600000.0)
@@ -824,7 +836,7 @@ def _():
 	fr.db.exists = lambda dt, f=None, **k: dt == "Comment" and any(
 		f["content"][1].strip("%") in x[1] for x in nk if x[0] == "binh_luan")
 	try:
-		e = _bat(lambda: cn.khop_tay("P3", 7600000, "", "chuyen khoan", ma_lan="sua2"))
+		e = _bat(lambda: cn.khop_tay("P3", 7600000, "", "chuyen khoan", ma_lan="sua2", unc=UNC))
 		dung("phải báo lỗi", e is not None)
 		dung("báo lỗi có tên phiếu nháp đang chặn", "APP-NHAP-1" in str(e))
 		dung("chỉ đường cho người bấm", "Tiền đã về" in str(e))
@@ -859,7 +871,7 @@ def _():
 	fr.db.exists = lambda dt, f=None, **k: dt == "Comment" and any(
 		f["content"][1].strip("%") in x[1] for x in nk if x[0] == "binh_luan")
 	try:
-		cn.khop_tay("P4", 7600000, "", "chuyen khoan", ma_lan="sua3")
+		cn.khop_tay("P4", 7600000, "", "chuyen khoan", ma_lan="sua3", unc=UNC)
 		la("lập phiếu thu phần chưa phủ, tờ cũ trước",
 			[x[1:] for x in nk if x[0] == "lap_phieu_thu"],
 			[("HDB-26-09-01679", 2750000.0), ("HDB-26-09-02477", 2850000.0)])
@@ -921,10 +933,10 @@ def _():
 	fr.db.exists = lambda dt, f=None, **k: dt == "Comment" and any(
 		f["content"][1].strip("%") in x for x in da_commit["binh_luan"])
 	try:
-		dung("lần đầu phải báo lỗi", _bat(lambda: cn.khop_tay("P5", 2000000, "", "khach dua", ma_lan="lanU2")) is not None)
+		dung("lần đầu phải báo lỗi", _bat(lambda: cn.khop_tay("P5", 2000000, "", "khach dua", ma_lan="lanU2", unc=UNC)) is not None)
 		la("lỗi lần đầu: dấu lần khớp chưa được ghi bền", da_commit["binh_luan"], [])
 		la("lỗi lần đầu: phiếu chưa đổi", da_commit["phieu"]["da_thu"], 0.0)
-		kq = cn.khop_tay("P5", 2000000, "", "khach dua", ma_lan="lanU2")
+		kq = cn.khop_tay("P5", 2000000, "", "khach dua", ma_lan="lanU2", unc=UNC)
 		dung("bấm lại cùng mã lần KHÔNG bị coi là đã làm", not kq.get("da_lam_roi"))
 		la("lần lại lập được phiếu thu", [x[1:] for x in nk if x[0] == "ghi_thu"], [(2000000.0, "tay:lanU2")])
 		la("đã thu cộng đúng một lần", da_commit["phieu"]["da_thu"], 2000000.0)

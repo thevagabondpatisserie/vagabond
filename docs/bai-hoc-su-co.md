@@ -1745,3 +1745,49 @@ thành kiểm nội dung được lưu/xuất đúng và fallback, không giữ 
   ngày Việt Nam, chống URL/thẻ HTML, và giữ luồng revision sẵn có.
 - GET phí giao ok0/ahamove_loi cần log server; không tuyên bố sửa bằng nút
   thử lại và không biến lỗi báo giá thành phí0.
+
+## 05/10/2026 (v577): thêm luật chặn ở hook mà không rà lối "nuốt lỗi" thì lối đó chết im lặng
+
+- Hook `chan_thieu_dinh_kem` (16/08) bắt phiếu thu ngân hàng có UNC mới ghi sổ.
+  `ghi_thu_cho_phieu` (04/09) lập và ghi sổ thẳng, lại cố tình NUỐT lỗi từng hoá
+  đơn "để không làm rớt việc đánh dấu". Ghép hai thứ: phiếu đòi nợ DNTT-26-10-00004
+  thành "Đã thu đủ", 17 phiếu thu hỏng hết, 17 nháp hỏng ở lại giữ phần nợ, bill
+  vẫn ở Đang nợ. Thêm luật chặn mới thì grep mọi lối gọi `submit()` của doctype đó
+  và mọi `except` nuốt lỗi quanh nó.
+- Lối có `try/except` nuốt lỗi quanh `insert()` rồi `submit()` mà không có điểm
+  lưu thì để lại bản nháp. Bản nháp đó vẫn được tính là "đã phủ nợ" ở nơi khác.
+  Dùng `frappe.db.savepoint` và lùi đúng lần làm hỏng, hoặc ném hẳn ra.
+- Hộp chọn lọc ĐÚNG số tiền thì giấu mất giao dịch thật khi khách trả gộp (Kiệt
+  Tác chuyển 9.550.000 cho phiếu 8.450.000), người dùng bị đẩy sang lối thoát
+  hiểm. Hộp chọn để đưa ra mọi ứng viên, xếp khoản khớp lên đầu, có ô tìm.
+- DOM giả (`hanh_vi/dom_gia.js`): chữ sau thẻ đóng dồn vào chữ của thẻ cha, nên
+  textContent đổi thứ tự quanh `<b>`. Dò câu thì chọn đoạn KHÔNG vắt qua thẻ.
+  Đừng viết điều kiện "hoặc" cho dễ đạt: ca v577 đã xanh oan vì vế hoặc khớp nhãn nút.
+- Chạy đột biến Python nhiều lần liên tiếp: đột biến GIỮ NGUYÊN độ dài dòng
+  (đổi `dung + khac` thành `khac + dung`) có thể chạy trên bytecode cũ trong
+  `__pycache__` và báo LỌT oan (v577, M10). Chạy đột biến với
+  `PYTHONDONTWRITEBYTECODE=1` và xoá `__pycache__` trước mỗi đột biến.
+- QT-20 áp cả cho phiếu NHÁP máy tự lập hỏng (Codex #444 vòng 2): không
+  `delete_doc`, gỡ khỏi hoá đơn, đổi khoá, ghi vết lên chính phiếu.
+- Thư "đã nhận thanh toán" gửi từ giữa request chưa commit (ghi sổ phiếu thu)
+  phải xếp hàng (`delayed=True`) trong cùng giao dịch, không gửi ngay.
+- Việc phải xảy ra "sau khi ghi sổ" (gửi thư báo khách) mà chỉ gọi từ NÚT của
+  app thì kế toán ghi sổ thẳng trên Desk là việc đó không bao giờ chạy (Codex
+  #444 vòng 4). Đặt ở hook `on_submit` của doctype, nút app không gọi riêng.
+- Luật "chỉ gửi khi sổ sạch" đặt ở hàm gọi tự động thì nút gửi tay vẫn lách
+  qua. Đặt điều kiện trong CỬA gửi chung mà mọi lối đều đi qua.
+- "Lập hỏng thì vẫn ghi nhận tiền, ghi lý do" chỉ đúng khi còn đường làm lại.
+  SePay gạch giao dịch LỚN hơn phiếu: khớp lại hỏng y như cũ, huỷ thì bị cấm vì
+  đã có `ma_gd`, phiếu kẹt vĩnh viễn (Codex #444 vòng 5). Luật cấm huỷ phải
+  hỏi giao dịch đã sinh chứng từ chưa, không chỉ "đã gạch hay chưa".
+- Hook chạy trong `on_submit` mà nuốt mọi lỗi thì deadlock, chờ khoá, mất kết
+  nối cũng bị nuốt: bút toán đã lùi mà màn báo ghi sổ xong. Dùng
+  `vagabond.loi_csdl.chet_giao_dich` để ném lại các lỗi đó.
+- Việc phụ sau ghi sổ (thư báo) mà chạy NGAY trong `on_submit` thì phải soát
+  mọi `except` của cả chuỗi hàm dựng thư dùng chung, sót một chỗ là deadlock
+  bị nuốt (Codex #444 vòng 6 bắt ở `db_set` dấu đã gửi). Cách gọn: `on_submit`
+  chỉ `frappe.db.after_commit.add(...)`, việc nền tự đọc lại sổ rồi mới làm,
+  như `can_tru_san`, `tru_kho_bu`, `thu_tien.gui_thu_khi_ghi_so`.
+- Dời việc phụ ra sau commit thì phải có lưới gửi bù: lời xếp việc nền nằm
+  trong Redis, Redis lỗi đúng lúc đó là mất hẳn (Codex #444 vòng 7). Thêm nhịp
+  quét theo chứng từ GẦN ĐÂY (không quét cả lịch sử kẻo gửi cho phiếu cũ).
