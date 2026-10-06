@@ -1822,3 +1822,25 @@ Dùng chữ viết tắt thay logo làm popup kênh thiếu nhận diện. Logo 
 CMS, tách logo nút mở khỏi logo từng kênh; tên trợ năng vẫn có khi bỏ chữ
 trên nút. Kiểm cả đổi ảnh trong iframe, ảnh hỏng và mobile; ảnh tải thành
 công chưa chứng minh đọc được (logo trắng trên nền trắng đã gặp khi thử).
+
+## 03/10/2026 - #420: đủ tổng nguồn chưa phải đủ tiền về (Codex, mang sang v579)
+
+Báo cáo vendor ngày/tháng có thể chứa cùng sự kiện; tên file và hash byte
+không đủ chống trùng kinh tế. Khóa cần phạm vi công ty/vendor/merchant/tiền
+tệ và ID ổn định; nội dung thay đổi phải giữ lỗi để kiểm bản điều chỉnh.
+Phép xem trước dùng snapshot chỉ bắt trùng đã biết, không thay khóa DB ở cửa
+ghi. Nhận phần hợp lệ phải chặn cả nhóm ID lặp, không để bản đầu còn Mới.
+
+## 05/10/2026 - Mẫu Drive không tự có trong filesystem của cloud (#422)
+
+Trước kết luận người dùng chưa gửi mẫu, tra hồ sơ issue và nguồn Drive đã
+được cấp. Sheet chuyển đổi có thể đọc được nhưng không chứng minh byte CSV/XLS
+gốc hay đơn vị tiền. Không nhân/chia 1.000 chỉ để làm tổng khớp. Khóa sự kiện
+không chứa loại có thể thay đổi: cùng ID đổi loại phải vào luồng xung đột.
+
+## 05/10/2026 - Nhóm ID và cột nguồn (#422 v577 của Codex)
+
+Gom căn cước sự kiện trước kiểm nội dung: nếu đợi tiền hợp lệ mới đăng ký
+ID thì bản lỗi không giữ được bản trùng, nút nhận phần hợp lệ vẫn lọt.
+Reader thô giữ mảng cột theo vị trí; header trống/trùng không đồng nghĩa
+nguồn hỏng. Kiểm mọi schema fixture, không chỉ hai mẫu đơn giản.
