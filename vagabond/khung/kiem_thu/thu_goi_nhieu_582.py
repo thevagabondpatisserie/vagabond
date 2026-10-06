@@ -17,7 +17,7 @@ danh_sach_goi, chi_tiet trên lớp Frappe giả của thu_quan_ly_nguoi_dung.
 
 from vagabond.khung.kiem_thu.nen import ca, dung, la, nem
 from vagabond.khung.kiem_thu.thu_quan_ly_nguoi_dung import (  # noqa: E402
-	_Canh, _Site, _UserGia, _nguoi, nd,
+	ND, _Canh, _Site, _UserGia, _nguoi, nd,
 )
 
 # Site giả: mọi vai của mọi gói đều có thật, thêm một vai ngoài gói.
@@ -134,8 +134,25 @@ def _doc_tham_so():
 
 # ------------------------------------------------------------- ghi gói thật
 
-def _dat(email, vai_dau, goi):
-	doc = _UserGia(email, set(vai_dau))
+class _Kho(object):
+	"""Thay tam noi luu goi da chon (Mac dinh cua nguoi dung) bang mot dict."""
+
+	def __init__(self, ban_dau=None):
+		self.luu = dict(ban_dau or {})
+
+	def __enter__(self):
+		self.cu = (nd._goi_da_luu, nd._luu_goi)
+		nd._goi_da_luu = lambda email: list(self.luu.get(email, []))
+		nd._luu_goi = lambda email, cac: self.luu.__setitem__(email, [g["k"] for g in cac])
+		return self
+
+	def __exit__(self, *a):
+		nd._goi_da_luu, nd._luu_goi = self.cu
+		return False
+
+
+def _dat(email, vai_dau, goi, kho=None, doc=None):
+	doc = doc or _UserGia(email, set(vai_dau))
 	cu_ton = nd.frappe.db.exists
 	cu_vet = nd._ghi_vet
 	cu_kiem = nd._kiem
@@ -144,7 +161,11 @@ def _dat(email, vai_dau, goi):
 	nd._kiem = lambda *a, **k: None
 	try:
 		with _Canh(doc, CO_THAT):
-			kq = nd.dat_goi(email, goi)
+			if kho is not None:
+				kq = nd.dat_goi(email, goi)
+			else:
+				with _Kho():
+					kq = nd.dat_goi(email, goi)
 	finally:
 		nd.frappe.db.exists = cu_ton
 		nd._ghi_vet = cu_vet
@@ -189,7 +210,7 @@ def _site_hai_goi():
 @ca("v582: nguoi giu hai goi hien o CA HAI goi tren man danh sach va man goi")
 def _hai_man_hai_goi():
 	users, vai = _site_hai_goi()
-	with _Site(users, vai, CO_THAT):
+	with _Site(users, vai, CO_THAT), _Kho():
 		ds = nd.danh_sach()
 		loc_ns = nd.danh_sach(goi="nhansu")
 		loc_ch = nd.danh_sach(goi="qlch")
@@ -212,7 +233,7 @@ def _hai_man_hai_goi():
 @ca("v582: chi_tiet tra cac_goi va gom viec lam duoc cua moi goi, khong trung")
 def _chi_tiet_hai_goi():
 	users, vai = _site_hai_goi()
-	with _Site(users, vai, CO_THAT):
+	with _Site(users, vai, CO_THAT), _Kho():
 		cu = nd.frappe.db.get_value
 		nd.frappe.db.get_value = lambda *a, **k: nd.frappe._dict(
 			name="de@vgb", full_name="Dễ", first_name="", last_name="", enabled=1,
@@ -225,3 +246,58 @@ def _chi_tiet_hai_goi():
 	mong = list(G["nhansu"]["lam_duoc"]) + list(G["qlch"]["lam_duoc"])
 	la("viec lam duoc", ct["lam_duoc"], mong)
 	la("khong thua", ct["vai_thua"], [])
+
+
+# ------------------------------------------------- Codex #449 P1: gói "ghép"
+
+
+def _vai_quay_mua():
+	return _vai("quay", "muahang")
+
+
+@ca("Codex #449 P1: Quay + Thu mua du tron vai goi Kho (dung tien de cua finding)")
+def _p1_tien_de():
+	dung("kho nam tron trong hop quay + thu mua", set(G["kho"]["vai"]) <= _vai_quay_mua())
+
+
+@ca("Codex #449 P1: chua luu goi thi doan BO NHO NHAT, khong moc them Kho")
+def _p1_doan_khong_luu():
+	la("chi hai goi", _khoa(nd.doan_cac_goi(_vai_quay_mua(), CO_THAT)), ["muahang", "quay"])
+
+
+@ca("Codex #449 P1: da luu goi thi chi tra dung goi da chon con du vai")
+def _p1_doan_da_luu():
+	la("dung hai goi da chon", _khoa(nd.doan_cac_goi(_vai_quay_mua(), CO_THAT, ["quay", "muahang"])),
+		["muahang", "quay"])
+	# Chon Quay + Sales thi giu ca hai, du Quay nam trong Sales: do la lua chon that.
+	la("giu nguyen lua chon", _khoa(nd.doan_cac_goi(_vai("sales"), CO_THAT, ["quay", "sales"])),
+		["sales", "quay"])
+	# Ai do go mot vai cua Thu mua tren Desk: goi do roi ra, khong doan them.
+	vai = _vai_quay_mua() - {"Thu mua"}
+	la("thu mua roi ra", _khoa(nd.doan_cac_goi(vai, CO_THAT, ["quay", "muahang"])), ["quay"])
+	# Moi goi da luu deu mat vai: quay ve doan tu bo vai.
+	la("doan lai", _khoa(nd.doan_cac_goi(_vai("sales"), CO_THAT, ["ketoan"])), ["sales"])
+
+
+@ca("Codex #449 P1: chuoi thao tac that - xep Quay + Thu mua, mo hop, bo Thu mua, Luu: mat quyen kho")
+def _p1_chuoi_that():
+	email = "uyen@vgb"
+	doc = _UserGia(email, set())
+	with _Kho() as kho:
+		_dat(email, set(), "quay,muahang", kho=kho, doc=doc)
+		la("da luu hai goi", kho.luu[email], ["quay", "muahang"])
+		# Hop doi goi chon san theo chi_tiet: doc dung nhu man hinh.
+		dang = nd.doan_cac_goi(doc.vai(), CO_THAT, nd._goi_da_luu(email))
+		la("hop chon san dung hai goi, khong co Kho", _khoa(dang), ["muahang", "quay"])
+		chon = [k for k in _khoa(dang) if k != "muahang"]
+		_dat(email, set(), ",".join(chon), kho=kho, doc=doc)
+	la("vai sau = dung goi Quay", doc.vai(), _vai("quay"))
+	for v in ("Stock Manager", "Stock User", "Item Manager"):
+		dung("da go %s" % v, v not in doc.vai())
+
+
+@ca("Codex #449 P1: moi tai khoan cung luu dung goi da chon")
+def _p1_moi_luu():
+	src = ND[ND.find("def moi("):]
+	src = src[:src.find("\ndef ", 10)]
+	dung("moi goi _luu_goi", "_luu_goi(email, cac)" in src)
