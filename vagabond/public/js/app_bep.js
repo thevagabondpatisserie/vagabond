@@ -10514,6 +10514,62 @@ function hoiChon(tuaDe, moTa, luaChon, kDangChon) {
   });
 }
 
+/* v582: chon NHIEU muc, bam de bat tat tung muc, bam nut chot moi tra ve.
+   Dung cho goi chuc vu: mot nguoi giu duoc nhieu goi, quyen cong don (anh
+   Viet 06/10/2026). Tra ve mang k theo thu tu danh sach, hoac null neu thoi.
+   Chua chon muc nao thi nut chot mo nhat va bam khong an. */
+function hoiChonNhieu(tuaDe, moTa, luaChon, dsDangChon, nhanNut) {
+  return new Promise(function (xong) {
+    var dang = {};
+    (dsDangChon || []).forEach(function (k) { dang[String(k)] = 1; });
+    var than = (moTa ? '<div style="font-size:13.5px;line-height:1.6;color:#4b5563;margin-bottom:12px">' + moTa + '</div>' : '');
+    (luaChon || []).forEach(function (x) {
+      than += '<div data-hcn="' + h(String(x.k)) + '" style="display:flex;align-items:flex-start;gap:11px;padding:13px 14px;border-radius:14px;margin-bottom:9px;cursor:pointer;min-height:44px;box-sizing:border-box">'
+        + '<div data-hcn-o style="flex:0 0 auto;width:22px;height:22px;border-radius:7px;border:2px solid #0f766e;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px"></div>'
+        + (x.icon ? '<div style="font-size:20px;line-height:1.2;flex:0 0 auto">' + x.icon + '</div>' : '')
+        + '<div style="flex:1;min-width:0">'
+        + '<div style="font-size:15px;font-weight:700">' + h(x.nhan) + '</div>'
+        + (x.mo_ta ? '<div data-hcn-m style="font-size:12.5px;line-height:1.5;margin-top:3px">' + h(x.mo_ta) + '</div>' : '')
+        + '</div></div>';
+    });
+    var k = hopKhung(tuaDe, than,
+      '<button class="btn gh" data-hcx style="flex:1;margin:0">Thôi</button>' +
+      '<button class="btn" data-hcn-xong style="flex:2;margin:0">' + h(nhanNut || 'Lưu') + '</button>');
+    var ve = function () {
+      var so = 0;
+      Array.prototype.forEach.call(k.box.querySelectorAll('[data-hcn]'), function (el) {
+        var co = !!dang[el.getAttribute('data-hcn')];
+        if (co) so++;
+        el.style.background = co ? '#0f766e' : '#f4f6f9';
+        el.style.color = co ? '#fff' : '#20242e';
+        var o = el.querySelector('[data-hcn-o]');
+        if (o) { o.textContent = co ? '✓' : ''; o.style.background = co ? '#fff' : 'transparent'; o.style.color = '#0f766e'; }
+        var m = el.querySelector('[data-hcn-m]');
+        if (m) m.style.color = co ? '#d6f5f0' : '#6b7280';
+      });
+      var nut = k.box.querySelector('[data-hcn-xong]');
+      if (nut) { nut.style.opacity = so ? '1' : '.45'; nut.textContent = (nhanNut || 'Lưu') + (so ? ' (' + so + ')' : ''); }
+      return so;
+    };
+    ve();
+    var tra = function (v) { k.dong(); xong(v); };
+    k.box.onclick = function (e) {
+      if (e.target.closest('.x') || e.target.closest('[data-hcx]')) return tra(null);
+      if (e.target.closest('[data-hcn-xong]')) {
+        var ra = (luaChon || []).map(function (x) { return String(x.k); }).filter(function (x) { return dang[x]; });
+        if (!ra.length) return;
+        return tra(ra);
+      }
+      var el = e.target.closest('[data-hcn]');
+      if (!el) return;
+      var kk = el.getAttribute('data-hcn');
+      if (dang[kk]) delete dang[kk]; else dang[kk] = 1;
+      ve();
+    };
+    k.ov.onclick = function (e) { if (e.target === k.ov) tra(null); };
+  });
+}
+
 /* Nhap mot dong chu. tuyChon: {kieu: 'text'|'number'|'email', goi_y, nhieu_dong,
    bat_buoc, don_vi} */
 function hoiChu(tuaDe, nhan, macDinh, tuyChon) {
@@ -23285,7 +23341,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '581';
+var APPVER = '582';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -38816,7 +38872,7 @@ async function scrNguoiDungXem(email) {
     '</div>';
 
   if ((d.lam_duoc || []).length) {
-    html += '<div class="sec">Với gói này, làm được</div><div class="card" style="padding:12px 14px">' +
+    html += '<div class="sec">Với ' + ((d.cac_goi || []).length > 1 ? 'các gói đang giữ' : 'gói này') + ', làm được</div><div class="card" style="padding:12px 14px">' +
       (d.lam_duoc || []).map(function (x) {
         return '<div style="display:flex;gap:9px;align-items:flex-start;padding:5px 0">' +
           '<span style="color:#0f766e;font-weight:800">✓</span>' +
@@ -38849,14 +38905,15 @@ async function scrNguoiDungXem(email) {
   document.getElementById('qndDoiGoi').onclick = async function () {
     var ds;
     try { ds = await api('vagabond.nguoi_dung.danh_sach_goi'); } catch (er) { return baoTin((er && er.message) || 'Không đọc được gói'); }
-    var chon = await hoiChon('Gói chức vụ cho ' + d.ten,
-      'Chọn gói đúng với công việc của người này. Máy sẽ đặt lại toàn bộ quyền trong gói, quyền riêng ngoài gói giữ nguyên.',
+    /* v582: chon duoc NHIEU goi, quyen cong don (anh Viet 06/10/2026). */
+    var chon = await hoiChonNhieu('Gói chức vụ cho ' + d.ten,
+      'Chọn một hoặc nhiều gói đúng với công việc của người này. Quyền cộng dồn. Máy đặt lại toàn bộ quyền trong các gói, quyền riêng ngoài gói giữ nguyên.',
       (ds.goi || []).map(function (g) { return { k: g.k, nhan: g.ten + ' · ' + g.so_nguoi + ' người', mo_ta: g.mo_ta, icon: g.icon }; }),
-      d.goi || null);
-    if (!chon) return;
+      d.cac_goi || (d.goi ? [d.goi] : []), 'Lưu gói');
+    if (!chon || !chon.length) return;
     busy(true);
     try {
-      var kq = await api('vagabond.nguoi_dung.dat_goi', { email: d.email, goi: chon });
+      var kq = await api('vagabond.nguoi_dung.dat_goi', { email: d.email, goi: chon.join(',') });
       busy(false); toast(kq.loi_nhan, 4500);
     } catch (er) { busy(false); return baoTin((er && er.message) || 'Đổi gói lỗi'); }
     go(function () { scrNguoiDungXem(d.email); }, true);
@@ -38933,11 +38990,12 @@ async function qndMoi() {
 
   var ds;
   try { ds = await api('vagabond.nguoi_dung.danh_sach_goi'); } catch (er) { return baoTin((er && er.message) || 'Không đọc được gói'); }
-  var goi = await hoiChon('Gói chức vụ', 'Chọn công việc của ' + h(ten) + '. Đổi lại lúc nào cũng được.',
-    (ds.goi || []).map(function (g) { return { k: g.k, nhan: g.ten, mo_ta: g.mo_ta, icon: g.icon }; }), null);
-  if (!goi) return;
+  var cacGoi = await hoiChonNhieu('Gói chức vụ', 'Chọn công việc của ' + h(ten) + ', chọn được nhiều gói. Đổi lại lúc nào cũng được.',
+    (ds.goi || []).map(function (g) { return { k: g.k, nhan: g.ten, mo_ta: g.mo_ta, icon: g.icon }; }), [], 'Chọn');
+  if (!cacGoi || !cacGoi.length) return;
+  var goi = cacGoi.join(',');
 
-  var g = (ds.goi || []).filter(function (x) { return x.k === goi; })[0] || {};
+  var g = { ten: (ds.goi || []).filter(function (x) { return cacGoi.indexOf(x.k) >= 0; }).map(function (x) { return x.ten; }).join(' + ') };
   if (!await hoiCo('Tạo tài khoản',
     ten + '\n' + email + (sdt ? '\n' + sdt : '') + '\n\nGói: ' + (g.ten || goi) +
     '\n\nMáy sẽ tạo tài khoản và gửi thư mời đặt mật khẩu ngay.', 'Tạo và gửi thư')) return;
