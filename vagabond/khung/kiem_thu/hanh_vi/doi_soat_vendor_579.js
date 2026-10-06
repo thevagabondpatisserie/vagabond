@@ -49,7 +49,8 @@ function mayChu(canh) {
       if (m === 'vagabond.doi_soat_vendor.ds') {
         if (canh.dsLoi) throw new Error('Đối soát nhà cung cấp chỉ mở cho Kế toán và Giám đốc.');
         return { hang: [nguon('DSN-1', 'GrabFood', 'Đã nhận', { so_chua_noi: 2 }), nguon('DSN-2', 'Payoo', 'Cần xử lý')],
-          dem: { tat_ca: 2, 'Cần xử lý': 1, 'Chưa thấy tiền về': 1, 'nhom:Tiền bán': 2, 'nhom:Thẻ tín dụng': 1 },
+          dem: { tat_ca: 2, 'Cần xử lý': 1, 'Chưa thấy tiền về': 1, 'Lệch tiền về': 2, 'Cần chọn tiền về': 3, 'Chờ tiền về': 6,
+            'nhom:Tiền bán': 2, 'nhom:Thẻ tín dụng': 1 },
           dem_vendor: { tat_ca: 2, GrabFood: 1, Payoo: 1 }, vendor: ['GrabFood', 'Payoo'], con: canh.nhieuNguon && (a.trang || 0) < 1 ? 1 : 0 };
       }
       if (m === 'vagabond.doi_soat_vendor.suc_khoe') {
@@ -179,6 +180,16 @@ async function moTrungTam(canh) {
     var app = await moTrungTam();
     await app.bam(app.mot('[data-dsvntt="Cần xử lý"]'));
     bang('trạng thái', app.mc.cuoi('vagabond.doi_soat_vendor.ds').a.trang_thai, 'Cần xử lý');
+  });
+
+  await ca('Codex #450: ô Chờ tiền về hiện số máy chủ gộp và bấm vào lọc đúng khoá gộp đó', async function () {
+    var app = await moTrungTam();
+    var o = app.mot('[data-dsvntt="Chờ tiền về"]');
+    dung('số trên ô là số gộp của máy chủ (6), không tự cộng', o.outerHTML.indexOf('>6 <span') >= 0);
+    await app.bam(o);
+    bang('lọc khoá gộp', app.mc.cuoi('vagabond.doi_soat_vendor.ds').a.trang_thai, 'Chờ tiền về');
+    await app.bam(app.mot('[data-dscc="tt|Cần chọn tiền về"]'));
+    bang('chip Trùng số tiền lọc riêng', app.mc.cuoi('vagabond.doi_soat_vendor.ds').a.trang_thai, 'Cần chọn tiền về');
   });
 
   await ca('Không có quyền: máy chủ chặn thì hiện lời của máy chủ, không vẽ danh sách rỗng giả', async function () {
