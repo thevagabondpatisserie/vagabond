@@ -442,3 +442,15 @@ def _chan_doan():
 	la('phiếu còn nháp', pe.docstatus, 0)
 	la('không GL', _gl(pe), [])
 	dung('trả về có khoá qua hoặc loi', 'qua' in kq and 'loi' in kq)
+
+
+@ca('v580 (chị Dung 06/10/2026): màn Tiền đã về trả đúng đường dẫn tệp UNC Sales đã đính để kế toán mở xem')
+def _xem_unc_579():
+	si, g, pe = _du_lieu()
+	with _Tep(gan_vao=pe.name, vao_o=True) as t:
+		ds = [p for p in tt.phieu_thu_nhap(cac_si=[si.name]) if p['pe'] == pe.name]
+		la('một tệp', ds[0]['so_tep'], 1)
+		la('đúng đường dẫn tệp để mở', ds[0]['tep_unc'], [t.file_url])
+	with _Tep(gan_vao=pe.name) as t2:
+		ds = [p for p in tt.phieu_thu_nhap(cac_si=[si.name]) if p['pe'] == pe.name]
+		la('tệp ở mục khác không hiện để xem', ds[0]['tep_unc'], [])
