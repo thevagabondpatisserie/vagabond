@@ -167,7 +167,15 @@ def tai_len(ten=None, noi_dung=None):
 		frappe.throw("Tệp quá 20 MB. Chia theo kỳ rồi tải từng tệp.")
 	f = frappe.get_doc({"doctype": "File", "file_name": ten, "content": noi, "decode": True, "is_private": 1})
 	f.flags.ignore_permissions = True
-	f.insert(ignore_permissions=True)
+	try:
+		f.insert(ignore_permissions=True)
+	except frappe.ValidationError:
+		raise
+	except Exception:
+		# Frappe mở thử PDF trước khi cất (dò mã chạy ngầm); PDF hỏng làm thư
+		# viện đọc PDF nổ lỗi kỹ thuật. Báo bằng lời của người dùng.
+		frappe.log_error(title="Đối soát vendor: cất tệp tải lên %s" % ten)
+		frappe.throw("Không cất được tệp này: tệp bị hỏng hoặc không mở được. Tải lại tệp gốc từ email vendor rồi thử lại.")
 	frappe.db.commit()
 	return {"file_url": f.file_url, "ten": ten}
 
@@ -265,15 +273,21 @@ def khoa_doi_chieu(db=None, cho=60):
 		db.sql("select release_lock(%s)", (KHOA_DOI_CHIEU,))
 
 
-def _nhan_byte(ten, byte, kenh, file_url=None, communication=None, chi_mau_quen=False):
+def _nhan_byte(ten, byte, kenh, file_url=None, communication=None, chi_mau_quen=False, bo_qua=None, doc_lai=True):
+	"""bo_qua: nếu là list, ghi tên tệp con bị bỏ qua vì chưa nhận ra mẫu
+	hay đọc lỗi (chỉ khi chi_mau_quen), để xu_ly_thu quyết có ghi lại không.
+	doc_lai=False: nguồn đã có thì dừng ở mã băm kể cả khi đang lỗi (lượt
+	quét thư mỗi giờ không ghi lại mãi một tệp chưa có mẫu)."""
 	with khoa_doi_chieu():
 		cong_ty = _cong_ty()
 		ket = []
 		for t, kq, xt in _doc_va_xem(ten, byte, cong_ty):
 			if chi_mau_quen and not kq["mau"]:
+				if bo_qua is not None:
+					bo_qua.append(t["ten"])
 				continue
 			da = frappe.db.get_value(DT_NGUON, {"sha256": t["sha256"]}, ["name", "trang_thai"], as_dict=True)
-			if da and not khop.doc_lai_duoc(da.trang_thai):
+			if da and not (doc_lai and khop.doc_lai_duoc(da.trang_thai)):
 				ket.append(dict(name=da.name, trang_thai=da.trang_thai, da_co=1, ten_tep=t["ten"]))
 				continue
 			ket.append(_ghi_nguon(cong_ty, t, kq, xt, kenh, file_url, communication, co_san=da.name if da else None))
@@ -690,24 +704,48 @@ def khi_co_thu(doc, method=None):
 		frappe.log_error(title="Đối soát vendor: xếp việc đọc thư")
 
 
+def _byte_tep(ten_file):
+	byte = frappe.get_doc("File", ten_file).get_content()
+	return byte.encode("utf-8") if isinstance(byte, str) else byte
+
+
 def xu_ly_thu(comm):
 	ket = []
+	sot = []  # đính kèm có tệp chưa nhận ra mẫu hoặc đọc lỗi
 	for f in frappe.get_all("File", filters={"attached_to_doctype": "Communication", "attached_to_name": comm},
 			fields=["name", "file_name", "file_url"]):
 		if not (f.file_name or "").lower().endswith(DUOI):
 			continue
 		try:
-			byte = frappe.get_doc("File", f.name).get_content()
-			if isinstance(byte, str):
-				byte = byte.encode("utf-8")
-			ket.extend(_nhan_byte(f.file_name, byte, "Email", file_url=f.file_url, communication=comm, chi_mau_quen=True))
+			bo_qua = []
+			ket.extend(_nhan_byte(f.file_name, _byte_tep(f.name), "Email", file_url=f.file_url,
+				communication=comm, chi_mau_quen=True, bo_qua=bo_qua))
+			if bo_qua:
+				sot.append((f, set(bo_qua)))
 		except Exception:
 			frappe.db.rollback()
 			frappe.log_error(title="Đối soát vendor: đọc đính kèm %s" % f.file_name)
-	if not ket:
+	c = None
+	if sot or not ket:
 		c = frappe.db.get_value("Communication", comm, ["subject", "content", "sender"], as_dict=True)
-		if c and thu_co_bao_cao(c.subject, c.content):
-			ket.extend(_ghi_thu_khong_tep(comm, c))
+	# Codex #450: thư đã chắc là thư báo cáo (có tệp nhận ra mẫu, hoặc tiêu
+	# đề/thân thư nói là báo cáo) thì mọi đính kèm đọc lỗi hay chưa có mẫu đều
+	# hiện ở Cần xử lý, không lặng lẽ bỏ. Thư quảng cáo không có tệp nào nhận
+	# ra mẫu thì vẫn bỏ qua như cũ. Đi lại đúng một lối _nhan_byte: tệp con đã
+	# nhận ở lượt đầu dừng ở mã băm, chỉ tệp con bị bỏ qua được ghi thêm.
+	if sot and (ket or (c and thu_co_bao_cao(c.subject, c.content))):
+		for f, ten_bo_qua in sot:
+			try:
+				# Chỉ lấy tệp con đã bị bỏ qua (tệp con đã nhận ở lượt đầu không
+				# lặp lại). Tệp con lỗi đã ghi từ lượt quét trước trả da_co, vẫn
+				# tính vào ket để không sinh thêm nguồn "thân thư" thừa.
+				ket.extend(r for r in _nhan_byte(f.file_name, _byte_tep(f.name), "Email", file_url=f.file_url,
+					communication=comm, doc_lai=False) if r.get("ten_tep") in ten_bo_qua)
+			except Exception:
+				frappe.db.rollback()
+				frappe.log_error(title="Đối soát vendor: ghi đính kèm chưa có mẫu %s" % f.file_name)
+	if not ket and c and thu_co_bao_cao(c.subject, c.content):
+		ket.extend(_ghi_thu_khong_tep(comm, c))
 	return ket
 
 

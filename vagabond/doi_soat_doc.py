@@ -21,6 +21,7 @@ import csv
 import hashlib
 import io
 import zipfile
+import zlib
 
 TOI_DA_BYTE = 20 * 1024 * 1024
 TOI_DA_TEP_ZIP = 20
@@ -191,7 +192,13 @@ def doc_pdf(noi_dung):
 	return trang
 
 
+# Lỗi khi giải nén MỘT tệp con: sai CRC, dữ liệu nén hỏng, cụt giữa chừng,
+# kiểu nén không hỗ trợ. Không bắt LoiTep (trần dung lượng vẫn dừng cả gói).
+LOI_GIAI_NEN = (zipfile.BadZipFile, zlib.error, EOFError, NotImplementedError)
+
+
 def doc_zip(noi_dung, sau=0):
+	"""Trả [(tên, byte, lỗi, mã băm lỗi)]; tệp con hỏng có byte None và lý do."""
 	if sau > 0:
 		raise LoiTep("Tệp nén lồng trong tệp nén; giải nén rồi tải từng tệp.")
 	ra = []
@@ -205,21 +212,31 @@ def doc_zip(noi_dung, sau=0):
 				raise LoiTep("Tệp nén có mật khẩu; giải nén bằng mật khẩu rồi tải tệp bên trong.")
 			if i.file_size > TOI_DA_BYTE:
 				raise LoiTep("Tệp trong gói nén quá 20 MB; tải riêng tệp đó.")
+			ten_con = i.filename.rsplit("/", 1)[-1]
 			# Đọc từng khúc, dừng ngay khi vượt trần từng tệp hoặc trần cả gói.
 			khuc, da_doc = [], 0
-			with z.open(i) as f:
-				while True:
-					b = f.read(1024 * 1024)
-					if not b:
-						break
-					da_doc += len(b)
-					if da_doc > TOI_DA_BYTE:
-						raise LoiTep("Tệp trong gói nén quá 20 MB; tải riêng tệp đó.")
-					if da_doc > con_lai:
-						raise LoiTep("Gói nén giải ra quá 40 MB; tải từng tệp hoặc chia gói nhỏ hơn.")
-					khuc.append(b)
+			try:
+				with z.open(i) as f:
+					while True:
+						b = f.read(1024 * 1024)
+						if not b:
+							break
+						da_doc += len(b)
+						if da_doc > TOI_DA_BYTE:
+							raise LoiTep("Tệp trong gói nén quá 20 MB; tải riêng tệp đó.")
+						if da_doc > con_lai:
+							raise LoiTep("Gói nén giải ra quá 40 MB; tải từng tệp hoặc chia gói nhỏ hơn.")
+						khuc.append(b)
+			except LOI_GIAI_NEN:
+				# Codex #450: một tệp con sai CRC hay dữ liệu nén hỏng không làm
+				# mất các tệp tốt bên cạnh. Tệp hỏng thành mục lỗi riêng; mã băm
+				# lấy từ gói gốc và tên tệp con nên tải lại cùng gói vẫn khớp.
+				con_lai -= da_doc
+				ra.append((ten_con, None, "Tệp trong gói nén bị hỏng (sai CRC hoặc dữ liệu nén lỗi); tải lại tệp gốc từ email.",
+					bam(noi_dung + b"\0" + i.filename.encode("utf-8"))))
+				continue
 			con_lai -= da_doc
-			ra.append((i.filename.rsplit("/", 1)[-1], b"".join(khuc)))
+			ra.append((ten_con, b"".join(khuc), None, None))
 	return ra
 
 
@@ -236,10 +253,13 @@ def doc_tep(ten, noi_dung, sau=0):
 	loai = loai_tep(ten, noi_dung)
 	if loai == "zip":
 		ra = []
-		for ten_con, byte_con in doc_zip(noi_dung, sau):
+		for ten_con, byte_con, loi_con, sha_con in doc_zip(noi_dung, sau):
 			# Codex #446 H3: một tệp con hỏng không chặn các tệp con còn lại.
 			# Tệp con hỏng thành một phần tử loai="loi" mang lý do và mã băm
 			# riêng, để màn nhận hiện đúng tệp nào hỏng.
+			if loi_con:
+				ra.append(dict(ten=ten_con, loai="loi", sha256=sha_con, trang=[], loi=loi_con))
+				continue
 			try:
 				ra.extend(doc_tep(ten_con, byte_con, sau + 1))
 			except LoiTep as e:
