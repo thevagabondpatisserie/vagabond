@@ -51,7 +51,8 @@ function mayChu(canh) {
         return { hang: [nguon('DSN-1', 'GrabFood', 'Đã nhận', { so_chua_noi: 2 }), nguon('DSN-2', 'Payoo', 'Cần xử lý')],
           dem: { tat_ca: 2, 'Cần xử lý': 1, 'Chưa thấy tiền về': 1, 'Lệch tiền về': 2, 'Cần chọn tiền về': 3, 'Chờ tiền về': 6,
             'nhom:Tiền bán': 2, 'nhom:Thẻ tín dụng': 1 },
-          dem_vendor: { tat_ca: 2, GrabFood: 1, Payoo: 1 }, vendor: ['GrabFood', 'Payoo'], con: canh.nhieuNguon && (a.trang || 0) < 1 ? 1 : 0 };
+          dem_vendor: { tat_ca: 2, GrabFood: 1, Payoo: 1 }, vendor: ['GrabFood', 'Payoo'], con: canh.nhieuNguon && (a.trang || 0) < 1 ? 1 : 0,
+          tong: a.trang_thai ? { tat_ca: 1023532, theo_loc: 668915 } : { tat_ca: 1023532 } };
       }
       if (m === 'vagabond.doi_soat_vendor.suc_khoe') {
         return [{ vendor: 'GrabFood', so_nguon: 1, ky_moi: '2026-07-17' }, { vendor: 'Be', so_nguon: 0 }];
@@ -312,6 +313,16 @@ async function moTrungTam(canh) {
     bang('gửi đúng dòng', app.mc.cuoi('vagabond.doi_soat_vendor.xac_nhan_noi').a.name, 'd');
     bang('vẽ lại từ máy chủ', app.mc.dem('vagabond.doi_soat_vendor.chi_tiet'), truoc + 1);
     bang('hết nút sau khi xác nhận', app.tim('[data-dsvnxn]').length, 0);
+  });
+
+  await ca('Codex #450: thẻ tóm tắt hiện tổng thực nhận; đang lọc thì có thanh Tổng theo bộ lọc', async function () {
+    var app = await moTrungTam();
+    var c = app.chu();
+    dung('tổng thực nhận', c.indexOf('Tổng thực nhận') >= 0 && c.indexOf('1023532 đ') >= 0);
+    dung('chưa lọc thì không có thanh lọc', c.indexOf('Tổng theo bộ lọc') < 0);
+    await app.bam(app.mot('[data-dsvntt="Cần xử lý"]'));
+    c = app.chu();
+    dung('đang lọc: thanh Tổng theo bộ lọc lấy số máy chủ', c.indexOf('Tổng theo bộ lọc') >= 0 && c.indexOf('668915 đ') >= 0);
   });
 
   console.log('Doi soat vendor 579: ' + ket.dat + ' dat, ' + ket.hong + ' hong');
