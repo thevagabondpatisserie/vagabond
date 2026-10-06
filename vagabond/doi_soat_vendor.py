@@ -382,7 +382,10 @@ def _tien_ve(nguon):
 			"deposit": [">", 0]}, fields=["name", "date", "deposit", "description", "reference_number"],
 			order_by="date asc, name asc", limit_page_length=5000)]
 	da_dung = set()
-	for r in frappe.get_all(DT_NGUON, filters={"name": ["!=", nguon.name], "vendor": nguon.vendor,
+	# Codex #446 F2: một giao dịch đã gắn cho nguồn bất kỳ (mọi vendor) thì
+	# không đưa cho nguồn khác nữa. Shinhan không có mẫu nội dung, lọc theo
+	# vendor sẽ để Shinhan "thấy tiền về" bằng giao dịch của Payoo cùng số.
+	for r in frappe.get_all(DT_NGUON, filters={"name": ["!=", nguon.name],
 			"giao_dich_ngan_hang": ["is", "set"], "den_ngay": [">=", frappe.utils.add_days(goc, -60)]},
 			pluck="giao_dich_ngan_hang"):
 		da_dung.update(x for x in (r or "").split("\n") if x)

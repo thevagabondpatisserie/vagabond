@@ -63,6 +63,11 @@ def xem_truoc(kq, cong_ty, da_nhan=None):
 		try:
 			if not d["ma_su_kien"]:
 				raise LoiNguon("Thiếu mã sự kiện.")
+			if not tk:
+				# Codex #446 F3: khoá sự kiện gồm tài khoản nguồn. Chưa rõ tài
+				# khoản (một tệp lẫn nhiều tài khoản) mà vẫn ghi thì lúc tải lại
+				# tệp đã tách, cùng sự kiện ra khoá khác và bị nhận hai lần.
+				raise LoiNguon("Chưa xác định tài khoản nguồn của tệp; tách tệp theo tài khoản rồi tải lại.")
 			if dem[d["ma_su_kien"]] > 1:
 				raise LoiNguon("Mã sự kiện lặp trong cùng tệp; giữ cả nhóm để kế toán xem.")
 			if kq["nhom"] == "ban":

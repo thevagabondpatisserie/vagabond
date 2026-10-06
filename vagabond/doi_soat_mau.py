@@ -904,8 +904,9 @@ def doc_greensm(tep, mau):
 				mo_ta="Xanh SM Ngon"))
 		except LoiDong as e:
 			them_loi(kq, r + 1, e, h)
-	if len(cua_hang) == 1:
-		kq["tai_khoan"] = "GREENSM:" + next(iter(cua_hang))
+	# Codex #446 F3: mã đơn Xanh SM là ULID duy nhất toàn hệ, nên phạm vi khoá
+	# để cố định "GREENSM" dù tệp có một hay nhiều cửa hàng. Đổi phạm vi theo
+	# thành phần tệp là nhận trùng khi tải bản tách và bản gộp.
 	tong = None
 	for t in luoi:
 		if t["o"] is o:
@@ -1446,7 +1447,9 @@ def doc_the_shinhan(tep, mau):
 	ms = re.search(r"Ngày sao kê\s+(\d{2}/\d{2}/\d{4})", van)
 	mh = re.search(r"Ngày đến hạn thanh toán\s+(\d{2}/\d{2}/\d{4})", van)
 	tk = re.search(r"Tài khoản thanh toán\s*:\s*(\S+)", van)
-	kq["tai_khoan"] = "SHB-THE:" + (tk.group(1) if tk else "")
+	kq["tai_khoan"] = "SHB-THE:" + tk.group(1) if tk else ""
+	if not tk:
+		kq["loi"].append("Không thấy số tài khoản thanh toán trên sao kê thẻ; tải đúng PDF gốc ngân hàng gửi.")
 	so = {}
 	for nhan, khoa in (("Khoản tiền chưa thanh toán", "chua_tra_truoc"), ("Phí chậm trả", "phi_cham"),
 			("Đến hạn thanh toán của", "den_han_thang"), ("Đến hạn thanh toán ", "den_han")):
