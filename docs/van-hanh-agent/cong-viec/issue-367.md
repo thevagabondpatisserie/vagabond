@@ -1,3 +1,20 @@
+# Review tiếp 06/10/2026 - phần web đã chuyển sang PR446
+
+PR436 giữ nguyên31f148688. Claude đưa toàn bộ web sang PR446; đã sửa dấu
+chấm giữa không có glyph và giỏ bỏ bánh chỉ có trong danh mục API.
+
+Codex nhận finding4196138901 trên nền446 5e10a5e4f: yêu cầu nĩa/đĩa có
+trong note nhưng thiếu note_print. Dời phần tổng hợp dụng cụ lên trước khi
+chốt phiếu bếp và dùng cùng chuỗi cho cả hai ghi chú. Giữ tên bánh và lượng
+nhân số bánh, lời chúc/phụ kiện/quà tặng, không thêm dòng khi không chọn.
+Ca chạy submitOrder thật với mạng stub: trước1ca hỏng (hai yêu cầu đều mất
+trên phiếu), sau59ca web đạt. Không tạo đơn thật, không đổi giao diện.
+
+Main hiệnf684afb81 v581, PR446 còn nền72b00ca1d/v579: chủ tích hợp phải
+đồng bộ main/phiên bản trước merge. Không coi sửa web là đã chốt các finding
+đối soát/ZIP/quyền. Theo anh Việt: giữ chờ merge, không deploy trong lượt này.
+Kết quả gate và SHA sửa cuối ghi ở comment PR446.
+
 # Bổ sung 06/10/2026 - logo các kênh theo yêu cầu anh Việt
 
 Owner Codex, tiếp PR436. Nút mở app chỉ hiện logo Grab; popup có logo từng

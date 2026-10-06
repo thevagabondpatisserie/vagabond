@@ -1844,3 +1844,11 @@ Gom căn cước sự kiện trước kiểm nội dung: nếu đợi tiền h�
 ID thì bản lỗi không giữ được bản trùng, nút nhận phần hợp lệ vẫn lọt.
 Reader thô giữ mảng cột theo vị trí; header trống/trùng không đồng nghĩa
 nguồn hỏng. Kiểm mọi schema fixture, không chỉ hai mẫu đơn giản.
+
+### 06/10/2026 - PR436/446: dụng cụ phải có trong phiếu in bếp
+
+Finding4196138901: ghi chú đơn có nĩa/đĩa nhưng note_print đã chốt trước đó,
+khiến phiếu bếp thiếu yêu cầu. Dùng cùng chuỗi tổng hợp theo bánh và số lượng
+cho cả hai trường; ca phải gọi submitOrder và đọc payload thật qua mạng stub,
+kiểm cả lời chúc/phụ kiện/quà tặng. Khi chạy lẻ ca nen, phải dùng chay_het
+hoặc đọc _LOI: gọi hàm đơn thuần không tự ném lỗi assertion.

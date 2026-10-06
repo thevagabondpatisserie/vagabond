@@ -456,3 +456,27 @@ console.log(JSON.stringify({nutImg,hiddenApp,oaHref:oa.href,oaTarget:oa.target,f
     dung('chặn trước handler điều hướng',d['first']['capture'] and d['first']['stopped'] and d['first']['focus'])
     la('đổi link trong preview',d['href'],'https://example.com/new')
     la('đổi nhãn trong preview',d['button'],'Đặt món')
+
+
+@ca('#446 web: yêu cầu dụng cụ đi vào payload in bếp, nhân đúng số bánh')
+def _dung_cu_phieu_bep():
+    from vagabond.khung.kiem_thu.thu_trang_dat_banh import _chay, GIO_HANG, DON_GUI, I13
+    r = _chay('2026-10-06T08:00:00', GIO_HANG + DON_GUI + I13 + r'''
+CART=[
+ {id:'X1',k:'Candle',cm:12,price:100000,qty:2,adds:[{id:'N2',n:'Nến số 2',p:17000}],wish:'Mừng sinh nhật',dung_cu:{nia:3,dia:1}},
+ {id:'X2',k:'Rose',cm:16,price:200000,qty:3,adds:[],wish:'',dung_cu:{nia:0,dia:2}},
+ {id:'X3',k:'Không dụng cụ',cm:12,price:100000,qty:1,adds:[],wish:'',dung_cu:{nia:0,dia:0}},
+ {id:'X4',k:'Giỏ cũ',cm:12,price:100000,qty:1,adds:[],wish:''}
+];
+CO.gift=true;EL('#f-note').value='Gọi trước khi giao';
+pick(2);pickSlot(i13);GHI.goiMang.length=0;submitOrder();RA(donDaGui());
+''')
+    dung('thực sự gửi payload tới stub',r is not None)
+    for chu in ['Candle x2: 6 nĩa gỗ, 2 dĩa giấy', 'Rose x3: 0 nĩa gỗ, 6 dĩa giấy']:
+        la('phiếu bếp có đúng một yêu cầu '+chu, r['note_print'].count(chu), 1)
+        la('ghi chú chung giữ đúng một yêu cầu '+chu, r['note'].count(chu), 1)
+    dung('giữ lời chúc', 'lời chúc: Mừng sinh nhật' in r['note_print'])
+    dung('giữ phụ kiện', 'kèm: Nến số 2' in r['note_print'])
+    dung('giữ cảnh báo quà tặng', 'BÁNH TẶNG - KHÔNG KÈM HOÁ ĐƠN' in r['note_print'])
+    dung('không thêm dòng dụng cụ rỗng', '0 nĩa gỗ, 0 dĩa giấy' not in r['note_print'])
+    dung('ghi chú giao hàng còn nguyên', 'Gọi trước khi giao' in r['note'])

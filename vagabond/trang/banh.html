@@ -2111,6 +2111,8 @@ async function submitOrder(){
     if(o.adds.length) bits.push(`kèm: ${o.adds.map(a=>a.n).join(', ')}`);
     lines.push(`${i+1}. ${bits.join(' | ')}`);
   });
+  const dungCu=CART.filter(o=>o.dung_cu&&(o.dung_cu.nia||o.dung_cu.dia)).map(o=>`${tenMonGio(o)} x${o.qty}: ${o.dung_cu.nia*o.qty} nĩa gỗ, ${o.dung_cu.dia*o.qty} dĩa giấy`).join('; ');
+  if(dungCu) lines.push('DỤNG CỤ: '+dungCu);
   const notePrint=lines.join('\n');
 
   /* Hoa don doanh nghiep. Da thu that ngay 31/07: Pancake NHAN invoice_info_list
@@ -2124,7 +2126,6 @@ async function submitOrder(){
     email    : ($('#f-cmail').value||'').trim()
   } : null;
   const vatLine = vat ? `[HOÁ ĐƠN] MST ${vat.tax_code} · ${vat.name} · ${vat.address} · mail ${vat.email}` : '';
-  const dungCu=CART.filter(o=>o.dung_cu&&(o.dung_cu.nia||o.dung_cu.dia)).map(o=>`${tenMonGio(o)} x${o.qty}: ${o.dung_cu.nia*o.qty} nĩa gỗ, ${o.dung_cu.dia*o.qty} dĩa giấy`).join('; ');
   const note = [ ($('#f-note').value||'').trim(), dungCu, vatLine ].filter(Boolean).join('\n');
 
   /* Gop dong trung ma lai voi nhau truoc khi gui, vi hai banh khac nhau
