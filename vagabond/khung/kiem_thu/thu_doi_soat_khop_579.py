@@ -346,7 +346,7 @@ def _():
 	import inspect
 	from vagabond import doi_soat_vendor as V
 	src = inspect.getsource(V)
-	for ham, can in (("_ung_vien_hd", '"company": cong_ty'), ("_ung_vien_hd", "s.company=%(ct)s"),
+	for ham, can in (("_dk_hd", '"s.company=%(ct)s"'),
 			("_tien_ve", '{"company": nguon.company}'), ("_noi_chuyen", '"company": nguon.company'),
 			("_ky_the", '"company": nguon.company'), ("_tong_hop", "company=%%s"), ("ds", '"company": ["in", ct]'),
 			("chi_tiet", "_chan_cong_ty(n.company)"), ("suc_khoe", "company in %%(ct)s"), ("cua_hoa_don", '"company": ["in", _cong_ty_xem()]'),
@@ -568,23 +568,105 @@ def _():
 
 @ca("Codex #450: máy chủ đếm và lọc 'Chờ tiền về' cùng một tập ba trạng thái")
 def _():
+	from unittest.mock import patch
+	from vagabond import doi_soat_vendor as V
+	goi = []
+	nguon = [dict(nhom="Tiền bán", vendor="GrabFood", trang_thai="Đã nhận", trang_thai_tien=t, so_chua_noi=0)
+		for t in ("Chưa thấy tiền về", "Lệch tiền về", "Lệch tiền về", "Cần chọn tiền về", "Cần chọn tiền về",
+			"Cần chọn tiền về", "Đã thấy tiền về")]
+
+	def get_all(dt, filters=None, **k):
+		goi.append(dict(filters))
+		return nguon if k.get("limit_page_length") == 0 else []
+	with patch.object(V, "_chan", lambda *a, **k: None), patch.object(V, "_cong_ty_xem", lambda: ["CT"]), \
+			patch.object(V.frappe, "get_all", get_all, create=True), \
+			patch.object(V.frappe.utils, "nowdate", lambda: "2026-10-07", create=True):
+		kq = V.ds(nhom="Tiền bán", trang_thai="Chờ tiền về")
+	la("số gộp bằng tổng ba trạng thái chờ", kq["dem"]["Chờ tiền về"], 6)
+	la("danh sách lọc đúng ba trạng thái đó", sorted(goi[0]["trang_thai_tien"][1]), sorted(K.CHO_TIEN_VE))
+	la("lượt đếm dùng phạm vi chung, không kèm nhóm/nguồn/trạng thái", sorted(goi[1]), ["company"])
+
+
+def _khop_loc(r, loc):
+	"""Áp bộ lọc kiểu Frappe (các dạng ds dùng) lên một dòng, để so số trên thẻ với danh sách."""
+	for k, v in loc.items():
+		x = r.get(k)
+		if isinstance(v, list):
+			if v[0] == "in" and x not in v[1]:
+				return False
+			if v[0] == ">" and not ((x or 0) > v[1]):
+				return False
+		elif x != v:
+			return False
+	return True
+
+
+@ca("Codex #450: số trên mỗi thẻ và chip bằng đúng số dòng danh sách khi bấm vào (cùng nhóm, cùng nguồn)")
+def _():
+	from vagabond import doi_soat_vendor as V
+	rows = [
+		dict(nhom="Tiền bán", vendor="GrabFood", trang_thai="Lỗi tệp", trang_thai_tien="Chưa đối chiếu", so_chua_noi=0),
+		dict(nhom="Tiền bán", vendor="GrabFood", trang_thai="Đã nhận", trang_thai_tien="Lệch tiền về", so_chua_noi=2),
+		dict(nhom="Tiền bán", vendor="Payoo", trang_thai="Cần xử lý", trang_thai_tien="Chưa thấy tiền về", so_chua_noi=0),
+		dict(nhom="Chuyến đi", vendor="Be", trang_thai="Cần xử lý", trang_thai_tien="Không áp dụng", so_chua_noi=5),
+		dict(nhom="Thẻ tín dụng", vendor="Shinhan", trang_thai="Lỗi tệp", trang_thai_tien="Không áp dụng", so_chua_noi=0)]
+	for nhom, vendor in (("Tiền bán", ""), ("Tiền bán", "GrabFood"), ("Chuyến đi", ""), ("", "")):
+		dem, dem_vendor = V.dem_nguon(rows, nhom, vendor)
+		for khoa in ("Cần xử lý", "Chờ tiền về", "Lệch tiền về", "Chưa thấy tiền về", "Chưa nối đủ"):
+			loc = dict(V.loc_trang_thai(khoa))
+			if nhom:
+				loc["nhom"] = nhom
+			if vendor:
+				loc["vendor"] = vendor
+			la("%s/%s/%s: thẻ = danh sách" % (nhom or "mọi nhóm", vendor or "mọi nguồn", khoa), dem.get(khoa, 0),
+				sum(1 for r in rows if _khop_loc(r, loc)))
+	dem, dem_vendor = V.dem_nguon(rows, "Tiền bán", "GrabFood")
+	la("chip nhóm vẫn đếm mọi nhóm", (dem["nhom:Tiền bán"], dem["nhom:Chuyến đi"], dem["nhom:Thẻ tín dụng"]), (3, 1, 1))
+	la("chip nguồn đếm trong nhóm đang chọn, bỏ chọn nguồn", (dem_vendor.get("GrabFood"), dem_vendor.get("Payoo"), dem_vendor.get("Be")), (2, 1, None))
+
+
+@ca("Codex #450: ứng viên hoá đơn chọn theo NGÀY BÁN (vgb_ngay_ban), không theo ngày ghi sổ")
+def _():
+	import sqlite3
+	from vagabond import doi_soat_vendor as V
+	dk, bieu = V._dk_hd(True, True)
+	c = sqlite3.connect(":memory:")
+	c.execute("create table s (name, posting_date, vgb_ngay_ban, docstatus, company, vgb_huy)")
+	c.executemany("insert into s values (?,?,?,?,?,?)", [
+		("HD-DUYET-SAU", "2026-10-02", "2026-10-01", 1, "CT", 0),  # bán 01/10, duyệt ghi sổ 02/10
+		("HD-THUONG", "2026-10-01", None, 1, "CT", 0),
+		("HD-BAN-HOM-TRUOC", "2026-10-01", "2026-09-30", 1, "CT", 0),
+		("HD-KHAC-PN", "2026-10-01", None, 1, "CT2", 0), ("HD-HUY", "2026-10-01", None, 1, "CT", 1)])
+	cau = "select name, %s from s where %s order by name" % (bieu, dk)
+	cau = cau.replace("%(tu)s", ":tu").replace("%(den)s", ":den").replace("%(ct)s", ":ct")
+	ra = c.execute(cau, dict(tu="2026-10-01", den="2026-10-01", ct="CT")).fetchall()
+	la("báo cáo ngày 01/10 gặp đúng bill bán ngày 01/10, trả ngày bán", ra,
+		[("HD-DUYET-SAU", "2026-10-01"), ("HD-THUONG", "2026-10-01")])
+	dk0, bieu0 = V._dk_hd(False, False)
+	dung("site chưa có ô ngày bán: giữ cách cũ", "s.posting_date between %(tu)s and %(den)s" in dk0 and bieu0 == "s.posting_date")
+
+
+@ca("Codex #450: cả ba truy vấn ứng viên hoá đơn dùng chung điều kiện ngày bán và pháp nhân")
+def _():
 	from types import SimpleNamespace as NS
 	from unittest.mock import patch
 	from vagabond import doi_soat_vendor as V
-	bat = {}
+	cau_ds = []
 
-	def get_all(dt, filters=None, **k):
-		bat["loc"] = filters
-		return []
+	class Hang(dict):
+		__getattr__ = dict.get
 
-	def sql(cau, tham=None, *a, **k):
-		if "group by 1, 2, 3, 4" in cau:
-			return [("Tiền bán", "Đã nhận", "Chưa thấy tiền về", 0, 1), ("Tiền bán", "Đã nhận", "Lệch tiền về", 0, 2),
-				("Tiền bán", "Đã nhận", "Cần chọn tiền về", 0, 3), ("Tiền bán", "Đã nhận", "Đã thấy tiền về", 0, 7)]
-		return []
-	with patch.object(V, "_chan", lambda *a, **k: None), patch.object(V, "_cong_ty_xem", lambda: ["CT"]), \
-			patch.object(V.frappe, "get_all", get_all, create=True), patch.object(V.frappe.db, "sql", sql, create=True), \
-			patch.object(V.frappe.utils, "nowdate", lambda: "2026-10-07", create=True):
-		kq = V.ds(trang_thai="Chờ tiền về")
-	la("số gộp bằng tổng ba trạng thái chờ", kq["dem"]["Chờ tiền về"], 6)
-	la("lọc đúng ba trạng thái đó", sorted(bat["loc"]["trang_thai_tien"][1]), sorted(K.CHO_TIEN_VE))
+	def sql(cau, tham=None, as_dict=False, **k):
+		cau_ds.append((" ".join(cau.split()), dict(tham or {})))
+		if "Dong Thanh Toan" in cau:
+			return [Hang(parent="HD-2", so_tien=50000, ma_tham_chieu="GD-1", ngay="2026-10-01")]
+		return [Hang(name="HD-1", ngay="2026-10-01", grand_total=1, rounded_total=1, vgb_ma_tham_chieu="GF-1")]
+	with patch.object(V.frappe, "get_meta", lambda dt: NS(has_field=lambda f: True), create=True), \
+			patch.object(V.frappe.db, "sql", sql, create=True), \
+			patch.object(V.frappe.db, "table_exists", lambda dt: True, create=True), \
+			patch.object(V, "_ma_dong_tt", lambda si: []):
+		ra = V._ung_vien_hd("grab", "2026-10-01", "2026-10-01", "CT")
+	la("ba truy vấn", len(cau_ds), 3)
+	dung("mọi truy vấn lọc theo ngày bán và đúng pháp nhân",
+		all("s.vgb_ngay_ban between %(tu)s and %(den)s" in c and "s.company=%(ct)s" in c and t.get("ct") == "CT" for c, t in cau_ds))
+	la("ngày trả về là ngày bán", sorted({u["ngay"] for u in ra}), ["2026-10-01"])
