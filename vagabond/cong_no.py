@@ -20,6 +20,25 @@ import frappe
 from frappe.utils import add_days, flt, getdate, nowdate
 
 from vagabond.ban_hang import _kiem_quyen_ban
+
+# v582 (Codex #449 vong 4): Cong no phai thu CHI cho Sales that, Quan ly cua
+# hang, Ke toan, Giam doc. Truoc day dung cong ban hang chung (_kiem_quyen_ban)
+# nen ai co "Sales User" deu vao duoc, ke ca thu ngan goi Quay, trai voi bang
+# quyen anh Viet chot 06/10/2026 (Quay: khong cong no, khong tien ngan hang).
+# Hai ham tra khach (tim_khach, thong_tin_xhd) van dung cong ban hang vi man
+# Tinh tien cua quay goi chung. Man hinh an o theo coQuyenCongNo() cung tap nay.
+QUYEN_CONG_NO_THU = {
+	"System Manager", "Giám đốc", "Sales Manager", "VGB - Quản lý cửa hàng",
+	"Accounts User", "Accounts Manager",
+}
+
+
+def _kiem_quyen_cong_no():
+	if not QUYEN_CONG_NO_THU & set(frappe.get_roles()):
+		frappe.throw(
+			"Công nợ phải thu chỉ mở cho Sales, Quản lý cửa hàng, Kế toán và Giám đốc. "
+			"Cần dùng thì nhờ người quản lý xếp thêm gói Sales trong màn Quản lý người dùng."
+		)
 from vagabond import chiem_sao_ke, tai_khoan
 
 # Ma phieu yeu cau thanh toan.
@@ -234,8 +253,8 @@ def _khai_doi_soat():
 		truong_nguoi="nguoi_khop_tay",
 		truong_luc="ngay_khop_tay",
 		# Codex #400 v5: cua ngo SePay chung kiem quyen theo luong nay.
-		quyen_doc=_kiem_quyen_ban,
-		quyen_ghi=_kiem_quyen_ban,
+		quyen_doc=_kiem_quyen_cong_no,
+		quyen_ghi=_kiem_quyen_cong_no,
 	)
 
 
@@ -280,7 +299,7 @@ def ds_khach_no(tim=""):
 	Cong no. Duong thu hai bat duoc to tra hon hop ma phan da thu lon hon
 	phan no, vi khi do o phuong thuc chinh ghi ten phuong thuc kia.
 	"""
-	_kiem_quyen_ban()
+	_kiem_quyen_cong_no()
 	from vagabond import thu_tien as tt
 
 	TRUONG = [
@@ -460,7 +479,7 @@ def _tap_tien_da_ve(nguon="", ky="", tu="", den="", tim=""):
 @frappe.whitelist()
 def ds_tien_da_ve(nguon="cong_no", ky="", tu="", den="", tim="", so_dong=200):
 	"""Tab "Tiền đã về" của màn Công nợ (v534, issue #380). CHỈ ĐỌC."""
-	_kiem_quyen_ban()
+	_kiem_quyen_cong_no()
 	from vagabond import thu_tien as tt
 
 	nguon = nguon if nguon in dict(NGUON_VE) else ""
@@ -519,7 +538,7 @@ def xuat_no(tim="", **khac):
 
 def xuat_tien_da_ve(nguon="cong_no", ky="", tu="", den="", tim="", **khac):
 	"""Adapter Excel tab Tiền đã về. ĐỦ dòng, không cắt 200."""
-	_kiem_quyen_ban()
+	_kiem_quyen_cong_no()
 	nguon = nguon if nguon in dict(NGUON_VE) else ""
 	t = _tap_tien_da_ve(nguon, ky, tu, den, tim)
 	ten = dict(NGUON_VE)
@@ -556,7 +575,7 @@ def tao_phieu(khach=None, hoa_don=None, ghi_chu="", nhieu_khach=0):
 	phai co it nhat mot hoa don trong phieu. Xem gom_phap_nhan.py."""
 	from vagabond import gom_phap_nhan as gpn
 
-	_kiem_quyen_ban()
+	_kiem_quyen_cong_no()
 	khach = (khach or "").strip()
 	nhieu_khach = bool(frappe.utils.cint(nhieu_khach))
 	if not khach:
@@ -675,7 +694,7 @@ def _hd_chua_co_phieu_thu(cac_si):
 @frappe.whitelist()
 def ds_phieu(trang_thai=None):
 	"""Danh sach phieu doi no, kem tien SePay da ve."""
-	_kiem_quyen_ban()
+	_kiem_quyen_cong_no()
 	dk = {}
 	if trang_thai:
 		dk["trang_thai"] = trang_thai
@@ -736,7 +755,7 @@ def xem_phieu(name):
 	"""Chi tiet mot phieu doi no kem duong dan ma QR."""
 	from vagabond import gom_phap_nhan as gpn
 
-	_kiem_quyen_ban()
+	_kiem_quyen_cong_no()
 	doc = frappe.get_doc("Vagabond Cong No", name)
 	sepay = _sepay_cn(doc.ma_phieu)
 	nhan = flt(sepay.get("nhan"))
@@ -892,7 +911,7 @@ def ghi_thu_cho_phieu(doc, pt="Chuyển khoản", ghi_chu="", so_tien=None, khoa
 @frappe.whitelist()
 def kiem_sepay(name):
 	"""Doi chieu voi SePay va tu clear cong no khi tien da ve du."""
-	_kiem_quyen_ban()
+	_kiem_quyen_cong_no()
 	doc = frappe.get_doc("Vagabond Cong No", name)
 	truoc = doc.trang_thai
 	sepay = _sepay_cn(doc.ma_phieu)
@@ -958,7 +977,7 @@ def kiem_sepay(name):
 @frappe.whitelist()
 def huy_phieu(name, ly_do=""):
 	"""Huy phieu de nhung hoa don trong do quay lai danh sach cho gom."""
-	_kiem_quyen_ban()
+	_kiem_quyen_cong_no()
 	doc = frappe.get_doc("Vagabond Cong No", name, for_update=True)
 	if doc.trang_thai == "Huy":
 		return {"ok": 1, "da_go_nhap": []}
@@ -1544,14 +1563,14 @@ def _phieu_html(name):
 @frappe.whitelist()
 def xem_truoc_phieu(name):
 	"""HTML to phieu de xem truoc tren app truoc khi tai PDF."""
-	_kiem_quyen_ban()
+	_kiem_quyen_cong_no()
 	return {"html": _phieu_html(name)}
 
 
 @frappe.whitelist()
 def xuat_phieu(name):
 	"""To phieu yeu cau thanh toan ra PDF A4 doc de gui khach."""
-	_kiem_quyen_ban()
+	_kiem_quyen_cong_no()
 	from frappe.utils.pdf import get_pdf
 
 	d = xem_phieu(name)
@@ -1793,7 +1812,7 @@ def _gui_thu_da_nhan(doc, buoc_gui=False, xep_hang=False):
 @frappe.whitelist()
 def xem_truoc_thu(name):
 	"""Xem truoc thu bao da nhan tien, khong gui cho ai."""
-	_kiem_quyen_ban()
+	_kiem_quyen_cong_no()
 	doc = frappe.get_doc("Vagabond Cong No", name)
 	ds_dong = [{"hoa_don": x.hoa_don, "so_tien": flt(x.so_tien)} for x in (doc.dong or [])]
 	# Codex #444 vòng 4: màn biết trước khi hỏi "Gửi?" rằng sổ còn nợ.
@@ -1808,7 +1827,7 @@ def xem_truoc_thu(name):
 @frappe.whitelist()
 def gui_thu_da_nhan(name):
 	"""Gui tay thu bao da nhan tien, dung khi may gui hut hoac khach bao chua nhan."""
-	_kiem_quyen_ban()
+	_kiem_quyen_cong_no()
 	doc = frappe.get_doc("Vagabond Cong No", name)
 	da, ly_do = _gui_thu_da_nhan(doc, buoc_gui=True)
 	if not da:
@@ -1836,7 +1855,7 @@ def tim_giao_dich_thu(tu_khoa="", so_ngay=120, so_tien=None, chua_noi=0):
 	hộp Khớp tay lọc đúng số nên giao dịch thật không hiện, người bấm buộc
 	phải chọn "Không thấy giao dịch".
 	"""
-	_kiem_quyen_ban()
+	_kiem_quyen_cong_no()
 	from vagabond import thu_tien as tt
 
 	chua_noi = frappe.utils.cint(chua_noi)
@@ -1912,7 +1931,7 @@ def khop_tay(name, so_tien, ma_giao_dich="", ghi_chu="", ma_lan="", unc=None):
 	    ghi so;
 	  * mot phieu thu hong la NEM, ca luot lui lai, phieu doi no khong doi.
 	"""
-	_kiem_quyen_ban()
+	_kiem_quyen_cong_no()
 	from vagabond import thu_tien as tt
 
 	so_tien = flt(so_tien)

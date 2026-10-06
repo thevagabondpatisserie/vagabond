@@ -183,7 +183,9 @@ GOI = [
 		],
 		"vai": [
 			ROLE_THU_MUA, "Purchase User", "Purchase Manager", "AP Officer",
-			"Sua hoa don mua (noi phieu kho)", "Item Manager", "Stock Manager", "Stock User",
+			# Khong co Stock Manager (Codex #449 vong 4): vai do duyet xuat huy va
+			# chot kiem ke, la viec cua goi Kho. Noi phieu kho da co vai rieng.
+			"Sua hoa don mua (noi phieu kho)", "Item Manager", "Stock User",
 			"Bộ phận đặt hàng", "Mua hàng R&D", "Kiểm kê viên",
 		],
 	},
