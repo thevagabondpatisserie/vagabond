@@ -445,3 +445,99 @@ def _():
 	ket, ghi = _chay_thu({"bang-ke.xlsx": [("bang-ke.xlsx", False)]}, "Payoo - Báo cáo đối soát tháng 09/2026",
 		da_co={"sha-bang-ke.xlsx": ("N-bang-ke.xlsx", "Lỗi tệp")})
 	la("quét lại: không ghi lại, không sinh nguồn thân thư", (ghi, [r["name"] for r in ket]), ([], ["N-bang-ke.xlsx"]))
+
+
+@ca("Codex #450: nhiều giao dịch cùng số tiền thì không tự chọn; chỉ khớp đúng một mới giữ giao dịch")
+def _():
+	gd = [_gd("BT-1", 900000, "Shinhan POS"), _gd("BT-2", 900000, "Khach chuyen khoan"), _gd("BT-3", 455000, "x")]
+	tt, ds, ghi = K.khop_ngan_hang("shinhan_ngay", 900000, "2026-07-17", "2026-07-24", gd)
+	la("Shinhan hai giao dịch cùng tiền: cần chọn, không gắn", (tt, ds), ("Cần chọn tiền về", []))
+	dung("ghi chú nêu đủ các giao dịch ứng viên", "BT-1" in ghi and "BT-2" in ghi)
+	la("một giao dịch đã dùng thì còn đúng một: khớp", K.khop_ngan_hang("shinhan_ngay", 900000, "2026-07-17",
+		"2026-07-24", gd, {"BT-1"})[:2], ("Đã thấy tiền về", ["BT-2"]))
+	la("trạng thái chờ gồm cả Cần chọn", "Cần chọn tiền về" in K.CHO_TIEN_VE, True)
+
+
+def _tien_ve_that(tra_ve, gd_bank):
+	"""Chạy _tien_ve THẬT với tầng chạm hệ được thay; trả các trường đã ghi."""
+	from types import SimpleNamespace as NS
+	from unittest.mock import patch
+	from vagabond import doi_soat_vendor as V
+	ghi = {}
+	nguon = NS(name="N1", thuc_nhan=900000, mau="shinhan_ngay", ngay_tien_ve="2026-07-18", den_ngay="2026-07-18",
+		company="CT", db_set=lambda d, *a, **k: ghi.update(d if isinstance(d, dict) else {d: a[0]}))
+
+	def get_all(dt, **k):
+		if dt == "Bank Transaction":
+			return [NS(name=n, date="2026-07-18", deposit=t, description=m, reference_number="") for n, t, m in gd_bank]
+		return []
+	import datetime
+	from contextlib import ExitStack
+	with ExitStack() as st:
+		st.enter_context(patch.object(V.frappe, "get_all", get_all, create=True))
+		st.enter_context(patch.object(V.frappe, "get_meta", lambda dt: NS(has_field=lambda f: False), create=True))
+		st.enter_context(patch.object(V.frappe.utils, "add_days",
+			lambda d, n: str(datetime.date.fromisoformat(str(d)) + datetime.timedelta(days=n)), create=True))
+		st.enter_context(patch.object(V, "_ghi_them", lambda name, **k: ghi.update(_ghi_chu=k.get("tien_ve"))))
+		if tra_ve:
+			st.enter_context(patch.object(V.khop, "khop_ngan_hang", tra_ve))
+		V._tien_ve(nguon)
+	return ghi
+
+
+@ca("Codex #450: _tien_ve chỉ ghi giao dịch đã dùng khi khớp đúng một; trùng tiền hay lệch tiền không giữ giao dịch")
+def _():
+	trung = _tien_ve_that(None, [("BT-1", 900000, "a"), ("BT-2", 900000, "b")])
+	la("trùng tiền: cần chọn, không giữ giao dịch", (trung["trang_thai_tien"], trung["giao_dich_ngan_hang"]), ("Cần chọn tiền về", ""))
+	mot = _tien_ve_that(None, [("BT-1", 900000, "a"), ("BT-2", 100, "b")])
+	la("đúng một: giữ giao dịch", (mot["trang_thai_tien"], mot["giao_dich_ngan_hang"]), ("Đã thấy tiền về", "BT-1"))
+	lech = _tien_ve_that(lambda *a, **k: ("Lệch tiền về", ["BT-9"], "Gần nhất BT-9"), [("BT-9", 899000, "a")])
+	la("lệch tiền: gợi ý ở ghi chú, không giữ giao dịch", (lech["trang_thai_tien"], lech["giao_dich_ngan_hang"], "BT-9" in lech["_ghi_chu"]),
+		("Lệch tiền về", "", True))
+
+
+@ca("Codex #450: đọc lại nguồn lỗi gỡ dòng bản cũ (chụp lại làm lịch sử) TRƯỚC khi xem trước và ghi bản mới")
+def _():
+	from types import SimpleNamespace as NS
+	from unittest.mock import patch
+	from vagabond import doi_soat_vendor as V
+	from vagabond import doi_soat_mau as Mau
+	viec = []
+	kho = {"A": "dau-A", "B": "dau-B"}  # dòng bản cũ của nguồn N1 đang nằm trong DB
+
+	def get_all(dt, filters=None, **k):
+		if dt == V.DT_DONG and filters == {"nguon": "N1"}:
+			return [dict(khoa=x, ma_su_kien=x, ngay="2026-07-18", thuc_nhan=1, trang_thai_khop="Đã nối",
+				sales_invoice="SI-" + x, purchase_invoice=None, van_don=None) for x in sorted(kho)]
+		return []
+
+	def xoa(dt, f):
+		viec.append(("xoa", dt, f)); kho.clear()
+
+	def da_nhan(ct, kq):
+		viec.append(("da_nhan", dict(kho))); return dict(kho)
+
+	def xem_truoc(kq, ct, dn=None):
+		viec.append(("xem_truoc", dict(dn or {})))
+		return dict(so=dict(moi=1, trung=0, loi=0), loi=[], canh_bao=[], trang_thai="Đã nhận",
+			tong=dict(tien_hang=1, phi=0, thuc_nhan=1), dong=[])
+	nguon = NS(name="N1", trang_thai="Đã nhận", db_set=lambda d: viec.append(("db_set", d)), reload=lambda: None)
+	kq = Mau.ket_qua("payoo_the", "tien_ban", "Payoo", "TK")
+	with patch.object(V.frappe, "get_all", get_all, create=True), \
+			patch.object(V.frappe.db, "get_value", lambda *a, **k: {"du_lieu": "{}", "so_dong": 2, "thuc_nhan": 2}, create=True), \
+			patch.object(V.frappe.db, "delete", xoa, create=True), \
+			patch.object(V.frappe.db, "savepoint", lambda n: None, create=True), \
+			patch.object(V.frappe, "get_doc", lambda *a, **k: nguon, create=True), \
+			patch.object(V.frappe.utils, "now_datetime", lambda: "2026-10-07 09:00", create=True), \
+			patch.object(V, "_da_nhan", da_nhan), patch.object(V.khop, "xem_truoc", xem_truoc), \
+			patch.object(V, "_doi_chieu", lambda n: viec.append(("doi_chieu", n))):
+		V._ghi_nguon("CT", dict(ten="t.csv", sha256="s"), kq, dict(so=dict(moi=0, trung=2, loi=0)), "Tải tay", None, None, co_san="N1")
+	thu_tu = [v[0] for v in viec]
+	la("gỡ dòng cũ trước khi đọc snapshot và xem trước", thu_tu[:3], ["xoa", "da_nhan", "xem_truoc"])
+	la("xem trước lại không còn thấy dòng bản cũ", viec[2][1], {})
+	import json
+	ghi_db = next(v for v in viec if v[0] == "db_set")[1]
+	ls = json.loads(ghi_db["du_lieu"])["lan_doc_truoc"]
+	la("lịch sử lần đọc trước giữ đủ dòng cũ", (len(ls), ls[0]["so_dong"], [d["sales_invoice"] for d in ls[0]["dong"]]),
+		(1, 2, ["SI-A", "SI-B"]))
+	la("đối chiếu lại sau khi ghi", thu_tu[-1], "doi_chieu")
