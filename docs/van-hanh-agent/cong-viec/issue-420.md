@@ -1,0 +1,93 @@
+# Issue420: đối soát vendor
+
+- Issue: https://github.com/thevagabondpatisserie/vagabond/issues/420
+- Owner: Codex, nhánh `codex/doi-soat-vendor`. Claude review độc lập.
+- Anh Việt duyệt maquette 03/10/2026, yêu cầu đưa PR và cùng hoàn thiện để merge.
+- Base lúc dựng: `403cb217` (main v557); code đã kiểm:
+  `dca3ce509648062ea0cf16545ea26a3e3a78992c`.
+- Tài liệu đầy đủ: [thiết kế và maquette](../../doi-soat-vendor/README.md).
+
+## Có bằng chứng
+
+Module thuần `doi_soat_nguon.py`: đọc tiền Decimal theo locale rõ, giữ mã gốc,
+kiểm phạm vi/kỳ/dấu/tổng/số dòng, nhận biết sự kiện trùng hoặc thay nội dung;
+giữ lỗi cả nhóm trùng để không nhận bản đầu qua nút nhận phần hợp lệ.
+Không có API/ghi DB/hook/lịch/UI runtime hoặc adapter đọc file ở vòng này.
+
+- 46/46 ca tập trung đạt; đã gắn vào `khung/kiem_thu/chay.py`.
+- `dung_app_bep.py --kiem`: khớp từng byte.
+- `kiem_truoc_deploy.sh`: exit0; tầng khung 3908/3908, các cổng tiếp theo đạt.
+  Lượt đầu thiếu Node trong PATH nên dừng đúng; chạy lại bằng runtime bundled
+  Node/Python. Không sửa cổng hoặc bỏ ca.
+- Toàn bộ fixture là giả. Không đưa file vendor/email cá nhân vào Git.
+- Maquette đã render ở phiên duyệt, không phải kiểm UI ERP sau triển khai.
+
+## Còn lại và bàn giao
+
+Trạng thái: triển khai vòng đầu, chưa đủ merge toàn luồng. Push/CI/review xem
+trực tiếp trên PR theo HEAD; bench/merge/deploy/migrate/live chưa thực hiện.
+Không coi 46 ca thuần là bằng chứng khóa DB, phân bổ hoặc lưu nguồn thành công.
+
+Claude cần review: (1) persistence dùng core nào để giữ nguồn, phiên bản và
+ngoại lệ; (2) hợp đồng tiền, ID sự kiện, kỳ; (3) luồng thao tác và quyền;
+(4) bổ sung ca biên/ranh giới tiếp theo. Workflow Claude đang là read-only
+review; gửi đề xuất/diff trong findings, Codex tích hợp, không nhận rằng bot
+đã có quyền tự push vào file Codex đang claim.
+
+Codex làm tiếp các checkbox trong spec: persistence + adapter, hai đường
+email/tải tay, UI, gợi ý nối và bench trên SHA cuối. Không mở thêm PR con khi
+phạm vi vẫn thuộc đầu mối này. Không kích hoạt email/lịch hoặc giao dịch thật
+để chứng minh thiết kế. Chỉ phát hành sau review độc lập và đủ cổng.
+
+Model/effort thực tế và token provider: chưa có metadata xác minh. Không
+giả nhận đã dùng model theo tên trong instruction. Số lượt review bắt đầu:
+xem GitHub Actions; không suy từ số comment được đăng.
+
+## Tiếp nhận lại 05/10/2026
+
+Anh Việt yêu cầu tiếp tục PR422 vì đã gửi mẫu. Codex local đã mở lại mẫu
+Drive cả bảy nhóm; cloud thiếu bản nguồn cục bộ, không phải anh chưa gửi.
+Xem [bàn giao mẫu đã tìm lại](../../doi-soat-vendor/mau-da-tim-lai.md).
+Nguồn riêng không đưa lên GitHub; sáu schema chỉ có tiêu đề cột được lưu
+trong fixture để phiên cloud không lại kết luận không có mẫu nào.
+
+- Đã tích hợp main `339683a05` bằng merge `1a5fcfb19`, giữ lịch sử PR422.
+- Sửa F1/F2, thêm bộ đọc CSV/TAB thuần và tọa độ/hash/giới hạn đầu vào.
+- 53/53 ca tập trung đạt; đột biến bỏ F1 hoặc F2 mỗi lần đỏ một ca.
+- Bản ghép JS không đổi và khớp từng byte. Cổng tổng xem comment trên SHA cuối.
+- Chưa có adapter nghiệp vụ, API upload, lưu File, khóa DB hay UI sản phẩm.
+- Email tạm hoãn; Codex tiếp tục tải thủ công, Claude review delta.
+- Những chỗ còn cần byte gốc/đơn vị/khóa ổn định ghi rõ theo từng vendor;
+  không yêu cầu gửi lại toàn bộ nguồn và không đoán nhân/chia tiền.
+
+## Sửa review và số phiên bản - 05/10/2026
+
+Yêu cầu trực tiếp của anh: sửa số phiên bản, sửa triệt để để Claude review
+trước merge/deploy. Main mới fbcb324cc (v576) đã merge giữ cả lịch sử.
+Đặt APPVER577 và patchv577, build bundle bằng dung_app_bep.py.
+
+- P1: gom ID/phạm vi trước khi chuẩn hóa tiền/ngày. Bản lỗi vẫn làm cả
+  nhóm chờ; đảo thứ tự, ba bản và sự kiện độc lập đã có ca kiểm.
+- P2: reader giữ header rỗng/trùng theo vị trí; cả6schema đã thu thập đều
+  chạy qua cửa đọc bytes, không còn chỉ kiểm Payoo/Shopee.
+- 55/55 ca tập trung đạt. Chạy ca mới với mã cũ e193be45a: P1 đỏ1ca,
+  P2 đỏ2ca. Không sửa code thật để làm phép thử.
+- Cổng tổng/CI/bench xem comment trên SHA cuối. Claude review delta mới.
+- Phạm vi vẫn là nền kiểm nguồn; API/persistence/adapter nghiệp vụ/UI
+  đầy đủ còn thiếu như checklist. Không coi tăng phiên bản là đã có
+  tính năng đối soát cho kế toán, chưa merge hoặc deploy trong lượt sửa.
+
+## Claude dẫn đầu, làm trọn vòng đầu - 06/10/2026
+
+Anh Việt giao Claude dẫn đầu #420, Codex rà soát. Phạm vi anh chốt: đủ
+mười nguồn một lần, nối từng hoá đơn, nhận từ email; bấm nhận chỉ lưu và
+đối chiếu. Nhánh mới từ main, mang nền kiểm nguồn của PR #422 sang, sửa
+loại điều chỉnh phải có mã căn cứ, bỏ dấu dash.
+
+- Đọc tệp, mười bốn mẫu, lớp đối chiếu thuần, hai doctype có khoá duy nhất,
+  cửa máy chủ, hook thư vendor, màn /bep. Chi tiết: docs/doi-soat-vendor/.
+- Ca kiểm: tầng khung (mẫu, đối chiếu), hành vi DOM giả (màn), site thật
+  (nối hoá đơn, tiền về, không nhân đôi, quyền, hook thư).
+- Còn chờ anh: MID Shinhan theo cửa hàng, Email Account, CSV Payoo qua
+  email, Grab for Business kiểu cũ.
+- PR #422 giữ để đối chiếu lịch sử; PR mới dẫn chiếu lại.
