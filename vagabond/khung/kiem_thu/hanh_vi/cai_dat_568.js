@@ -664,5 +664,26 @@ ca('v581: menu Zalo trên thanh công cụ cũng chặn khi form chưa lưu, kh�
   });
 });
 
+
+// v581 Codex #447 vòng 2: gom về zaloTacVu làm mất câu báo "chưa có nhóm" của menu
+// cũ. Menu thanh công cụ luôn bật, nên khi chưa nhóm nào có mã chat thì bấm Gửi
+// thử mở hộp chọn rỗng, bắt buộc chọn mà không có gì để chọn. Bấm THẬT nút menu.
+ca('v581: menu Gửi thử khi chưa có nhóm nào có mã chat thì nói rõ cách thêm, không mở hộp rỗng', function () {
+  global.$ = $;
+  [[], [{ name: 'r1', ten_nhom: 'Bếp', chat_id: '', bat: 1 }]].forEach(function (rows) {
+    var nut = {};
+    var frm = { doc: { zalo_nhom: rows }, fields_dict: {}, wrapper: new dg.ElementGia('div'),
+      is_dirty: function () { return false; }, reload_doc: function () {},
+      add_custom_button: function (t, fn, nhom) { if (nhom === 'Zalo') (nut[t] = nut[t] || []).push(fn); } };
+    var g = giaFrappe(frm);
+    DANG_KY.filter(function (x) { return x[0] === 'Vagabond Settings' && x[1].refresh; })
+      .forEach(function (x) { try { x[1].refresh(frm); } catch (e) { /* phần vẽ cần Desk thật */ } });
+    nut['Gửi thử tới một nhóm'][0]();
+    la(rows.length + ' dòng: không mở hộp chọn', g.hop.length, 0);
+    la(rows.length + ' dòng: không gửi gì', g.goi.length, 0);
+    dung(rows.length + ' dòng: chỉ đường Thêm nhóm nhận tin', g.bao.some(function (m) { return String(m).indexOf('Thêm nhóm nhận tin') >= 0; }));
+  });
+});
+
 console.log('\n' + dat + ' ca dat, ' + hong + ' ca hong.');
 process.exit(hong ? 1 : 0);
