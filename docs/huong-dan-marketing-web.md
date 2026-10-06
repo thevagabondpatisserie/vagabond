@@ -88,3 +88,24 @@ Xử lý tay: gọi khách xác nhận. Tìm được đơn bên Pancake thì đ
 Pancake" rồi chọn trạng thái Đã nhận, lưu (yêu cầu hoá đơn công ty tự tạo
 theo mã đó). Khách không đặt nữa thì chọn Đã huỷ. Không ai chọn tay được
 "Đã ghi sổ": trạng thái đó chỉ đến từ hoá đơn thật.
+
+
+### Nút nổi đặt hàng và Zalo (PR436)
+
+Trong Các khối nội dung:
+
+- **Mở các kênh đặt hàng**: thay logo nút nổi (mặc định Grab), sửa tên trợ
+  năng hoặc tắt cả nút. Website chỉ hiện logo; tên giúp trình đọc màn hình
+  nhận biết hành động. Chỉ có một khối cấu hình nút này.
+- **GrabFood / ShopeeFood / beFood / XanhSM / Xem tất cả kênh đặt hàng**:
+  sửa logo, tên, chữ dự phòng và liên kết HTTPS. Tải logo PNG/JPG/WebP từ máy
+  hoặc dán đường dẫn ảnh. Nút lên/xuống đổi thứ tự; Hiển thị khối bật/tắt kênh.
+- **Nhắn Zalo**: thay logo, tên, link OA và bật/tắt. Mặc định dùng
+  https://zalo.me/thevagabondsaigon theo ảnh anh Việt cung cấp06/10.
+- Chữ tiêu đề, lời dẫn, nút đóng và chú thích trong bảng kênh nằm ở
+  **Nhãn và câu chữ > Kênh đặt hàng**. Thêm **Kênh đặt hàng** để thêm app.
+
+Logo giữ nguyên tỉ lệ. Thay logo nút nổi không làm đổi logo của từng kênh.
+Lưu nháp rồi Xuất bản như nội dung khác. Nút nổi tự ẩn khi mở chi tiết bánh
+hoặc thanh toán. Hai khối lời chào/hỗ trợ lặp được ẩn theo duyệt06/10,
+chữ vẫn giữ trong Editor và lịch sử để khôi phục khi cần.

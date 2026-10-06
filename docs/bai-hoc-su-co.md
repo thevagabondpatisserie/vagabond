@@ -1676,6 +1676,12 @@ lần đầu đếm ngoại lệ ra 0 trên 14 đột biến, tưởng bộ ki�
   định giá về 0 khi số lượng không đổi.
 
 
+## 04/10/2026 - Phạm vi soạn chữ pháp lý website (#367)
+
+Anh Việt trực tiếp yêu cầu mở sửa toàn bộ chữ, gồm pháp nhân/MST/địa chỉ.
+Đây là override quyết định khóa ở #431, không là thay dữ liệu công ty ERP.
+Giữ kiểm HTML injection, revision và quyền Marketing; đổi ca kiểm cấm sửa
+thành kiểm nội dung được lưu/xuất đúng và fallback, không giữ luật cũ trái duyệt.
 ## 04/10/2026 (v573): đếm "đã bán trong ngày" theo posting_date bị đếm hai lần khi bill đổi ngày
 
 - Dễ báo: hàng tặng out bill tối ngày 1, bảng Kiểm kho ngày 1 trừ 1 cái; anh
@@ -1726,6 +1732,19 @@ lần đầu đếm ngoại lệ ra 0 trên 14 đột biến, tưởng bộ ki�
   phiếu thu ghi sổ thẳng, sẽ bị `chan_thieu_dinh_kem` chặn với phiếu lập sau
   16/08. Tồn đọng có sẵn từ trước, chưa sửa trong v576.
 
+## 05/10/2026 - Web order: xem giỏ như một khách thật (#367/436)
+
+- Thẻ đúng giá không đảm bảo hộp chi tiết đúng cỡ: cả hai phải theo cùng
+  nguồn today/order; giữ nguồn đó khi sửa giỏ sau reload.
+- Nến 60x240 bị crop bởi nút thấp có overflow:hidden; đo cả bounding box
+  ảnh và nút tại390px. object-fit không đủ nếu chiều cao ảnh vẫn cố định lớn.
+- Thêm nhanh cần đường sửa chính dòng giỏ, không hướng dẫn mở bánh để thêm
+  lần nữa. Khóa gộp phải chuẩn hóa dụng cụ 0 để không tách dòng giống nhau.
+- Promotion/recruitment CMS là nội dung; coupon tài chính và hồ sơ ứng viên
+  không được suy ra từ số mẫu/biểu mẫu prototype. Dùng nháp ẩn, ảnh thay được,
+  ngày Việt Nam, chống URL/thẻ HTML, và giữ luồng revision sẵn có.
+- GET phí giao ok0/ahamove_loi cần log server; không tuyên bố sửa bằng nút
+  thử lại và không biến lỗi báo giá thành phí0.
 
 ## 05/10/2026 (v577): thêm luật chặn ở hook mà không rà lối "nuốt lỗi" thì lối đó chết im lặng
 
@@ -1793,3 +1812,55 @@ lần đầu đếm ngoại lệ ra 0 trên 14 đột biến, tưởng bộ ki�
   rồi reload_doc xoá bản nháp. Hai lối vào cho một việc phải đi qua MỘT hàm
   (`zaloTacVu`), và ca kiểm phải chạy thật mọi hàm refresh đã đăng ký rồi bấm
   từng nút trên thanh công cụ, đếm số nút cùng tên để lộ khối đăng ký cũ còn sót.
+
+## 06/10/2026 - PR436: dữ liệu đến trễ và nút nổi
+
+- Giá giỏ lấy từ catalog nhúng lúc reload vẫn có thể cũ: phải đồng bộ dòng
+  giỏ khi API catalog trả về, kiểm phản hồi trễ và giá 0 bằng hành vi.
+- Danh sách vị trí Editor phải khớp renderer. Đổi loại chiến dịch về loại
+  thường cần trả vị trí hợp lệ, backend cũng chặn vị trí làm mất khối.
+- CSS clamp mới không có tác dụng nếu rule cũ html body .h1 thắng; đo
+  computed font trên390 và sửa tại rule gốc, đừng cộng thêm override.
+- Escape ở popup phụ phải dừng handler đóng sheet/điều hướng của trang.
+  Chỉ nhìn popup đóng chưa đủ: kiểm URL và focus sau phím Escape.
+- Ẩn khối mặc định trong code không đổi CMS đã xuất bản. Patch cần xử lý
+  nháp/công khai riêng, giữ lịch sử, không xuất bản nháp để sửa phần lặp.
+- Link Zalo số điện thoại không phải bằng chứng OA. Thiếu mã thì giữ nút
+  ẩn, cho nhập link OA trong Editor; không gán nhầm tài khoản.
+
+### 06/10/2026 - PR436: OA có đường dẫn theo tên
+
+Ảnh OA anh Việt cung cấp có zalo.me/thevagabondsaigon; mở browser xác nhận
+đúng The Vagabond Pâtisserie. Bộ kiểm chỉ nhận ID số sẽ loại oan OA hợp lệ.
+Nhận cả tên công khai và ID dài, giữ HTTPS/đúng host/không credentials;
+kiểm renderer và mobile390. Cấu trúc URL không chứng minh tài khoản đã xác
+thực: danh tính OA lấy từ nguồn chủ sở hữu và trang công khai.
+
+### 06/10/2026 - PR436: logo kênh bán phải biên tập được
+
+Dùng chữ viết tắt thay logo làm popup kênh thiếu nhận diện. Logo cần là ảnh
+CMS, tách logo nút mở khỏi logo từng kênh; tên trợ năng vẫn có khi bỏ chữ
+trên nút. Kiểm cả đổi ảnh trong iframe, ảnh hỏng và mobile; ảnh tải thành
+công chưa chứng minh đọc được (logo trắng trên nền trắng đã gặp khi thử).
+
+## 03/10/2026 - #420: đủ tổng nguồn chưa phải đủ tiền về (Codex, mang sang v579)
+
+Báo cáo vendor ngày/tháng có thể chứa cùng sự kiện; tên file và hash byte
+không đủ chống trùng kinh tế. Khóa cần phạm vi công ty/vendor/merchant/tiền
+tệ và ID ổn định; nội dung thay đổi phải giữ lỗi để kiểm bản điều chỉnh.
+Phép xem trước dùng snapshot chỉ bắt trùng đã biết, không thay khóa DB ở cửa
+ghi. Nhận phần hợp lệ phải chặn cả nhóm ID lặp, không để bản đầu còn Mới.
+
+## 05/10/2026 - Mẫu Drive không tự có trong filesystem của cloud (#422)
+
+Trước kết luận người dùng chưa gửi mẫu, tra hồ sơ issue và nguồn Drive đã
+được cấp. Sheet chuyển đổi có thể đọc được nhưng không chứng minh byte CSV/XLS
+gốc hay đơn vị tiền. Không nhân/chia 1.000 chỉ để làm tổng khớp. Khóa sự kiện
+không chứa loại có thể thay đổi: cùng ID đổi loại phải vào luồng xung đột.
+
+## 05/10/2026 - Nhóm ID và cột nguồn (#422 v577 của Codex)
+
+Gom căn cước sự kiện trước kiểm nội dung: nếu đợi tiền hợp lệ mới đăng ký
+ID thì bản lỗi không giữ được bản trùng, nút nhận phần hợp lệ vẫn lọt.
+Reader thô giữ mảng cột theo vị trí; header trống/trùng không đồng nghĩa
+nguồn hỏng. Kiểm mọi schema fixture, không chỉ hai mẫu đơn giản.
