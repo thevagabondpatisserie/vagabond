@@ -448,47 +448,57 @@ def _noi_hoa_don_ban(nguon, dong):
 			"ghi_chu_khop": r["ghi_chu"]}, update_modified=False)
 
 
+def _dk_hd(co_ngay_ban, co_huy):
+	"""Điều kiện chung cho hoá đơn bán làm ứng viên nối. THUẦN.
+
+	Codex #450: bill nháp duyệt ngày sau thì posting_date đổi sang ngày ghi sổ,
+	ngày bán thật giữ ở vgb_ngay_ban. Báo cáo vendor ghi theo ngày bán, nên
+	chọn và trả ngày theo ngày bán (một nguồn: vagabond.ngay_ban)."""
+	from vagabond import ngay_ban
+	dk = ["s.docstatus=1", "s.company=%(ct)s",
+		ngay_ban.dk_khoang_sql("s") if co_ngay_ban else "s.posting_date between %(tu)s and %(den)s"]
+	if co_huy:
+		dk.append("ifnull(s.vgb_huy, 0)=0")
+	return " and ".join(dk), (ngay_ban.bieu_ngay_sql("s") if co_ngay_ban else "s.posting_date")
+
+
 def _ung_vien_hd(kieu, tu, den, cong_ty):
-	"""Hoá đơn bán đã ghi sổ, chưa huỷ mềm, trong khoảng ngày, đúng nguồn/phương thức."""
-	# Codex #446 H1: chỉ hoá đơn của đúng pháp nhân nguồn.
-	loc = {"docstatus": 1, "posting_date": ["between", [tu, den]], "company": cong_ty}
+	"""Hoá đơn bán đã ghi sổ, chưa huỷ mềm, trong khoảng NGÀY BÁN, đúng nguồn/phương thức."""
+	# Codex #446 H1: chỉ hoá đơn của đúng pháp nhân nguồn (s.company=%(ct)s trong _dk_hd).
 	meta = frappe.get_meta("Sales Invoice")
-	if meta.has_field("vgb_huy"):
-		loc["vgb_huy"] = 0
-	truong = ["name", "posting_date", "grand_total", "rounded_total"]
-	for f in ("vgb_ma_tham_chieu", "vgb_pt_thanh_toan", "custom_nguon"):
-		if meta.has_field(f):
-			truong.append(f)
+	dk, bieu_ngay = _dk_hd(meta.has_field("vgb_ngay_ban"), meta.has_field("vgb_huy"))
+	co_ma = meta.has_field("vgb_ma_tham_chieu")
+	cot = "s.name, %s as ngay, s.grand_total, s.rounded_total%s" % (bieu_ngay, ", s.vgb_ma_tham_chieu" if co_ma else "")
+	tham = dict(tu=tu, den=den, ct=cong_ty)
 	ra = []
 	tt = TIEN_TO_THEO_KIEU.get(kieu, {})
 	if kieu in NGUON_THEO_KIEU and meta.has_field("custom_nguon"):
-		loc_n = dict(loc, custom_nguon=["in", list(NGUON_THEO_KIEU[kieu])])
-		for r in frappe.get_all("Sales Invoice", filters=loc_n, fields=truong, limit_page_length=5000):
-			ra.append(dict(name=r.name, ngay=str(r.posting_date), tien=int(round(r.rounded_total or r.grand_total or 0)),
+		for r in frappe.db.sql("select %s from `tabSales Invoice` s where %s and s.custom_nguon in %%(nguon)s limit 5000"
+				% (cot, dk), dict(tham, nguon=tuple(NGUON_THEO_KIEU[kieu])), as_dict=True):
+			ra.append(dict(name=r.name, ngay=str(r.ngay), tien=int(round(r.rounded_total or r.grand_total or 0)),
 				ma=[r.get("vgb_ma_tham_chieu") or ""] + _ma_dong_tt(r.name), tien_to=tt.get("nguon", "")))
 	pt = PT_THEO_KIEU.get(kieu, ())
 	if not pt:
 		return ra
 	da_co = {u["name"] for u in ra}
 	# Một bill trả nhiều kênh: lấy đúng dòng thanh toán của phương thức này.
-	dong_tt = frappe.db.sql("""select d.parent, d.so_tien, d.ma_tham_chieu, s.posting_date
+	dong_tt = frappe.db.sql("""select d.parent, d.so_tien, d.ma_tham_chieu, %s as ngay
 		from `tabVagabond Dong Thanh Toan` d join `tabSales Invoice` s on s.name = d.parent
-		where d.parenttype='Sales Invoice' and d.pt in %(pt)s and s.docstatus=1 and s.company=%(ct)s
-			and s.posting_date between %(tu)s and %(den)s""", dict(pt=pt, tu=tu, den=den, ct=cong_ty), as_dict=True) \
+		where d.parenttype='Sales Invoice' and d.pt in %%(pt)s and %s""" % (bieu_ngay, dk), dict(tham, pt=pt), as_dict=True) \
 		if frappe.db.table_exists("Vagabond Dong Thanh Toan") else []
 	co_dong = set()
 	for r in dong_tt:
 		if r.parent in da_co:
 			continue
 		co_dong.add(r.parent)
-		ra.append(dict(name=r.parent, ngay=str(r.posting_date), tien=int(round(r.so_tien or 0)), ma=[r.ma_tham_chieu or ""],
+		ra.append(dict(name=r.parent, ngay=str(r.ngay), tien=int(round(r.so_tien or 0)), ma=[r.ma_tham_chieu or ""],
 			tien_to=tt.get("pt", "")))
 	if meta.has_field("vgb_pt_thanh_toan"):
-		loc_p = dict(loc, vgb_pt_thanh_toan=["in", list(pt)])
-		for r in frappe.get_all("Sales Invoice", filters=loc_p, fields=truong, limit_page_length=5000):
+		for r in frappe.db.sql("select %s from `tabSales Invoice` s where %s and s.vgb_pt_thanh_toan in %%(pt)s limit 5000"
+				% (cot, dk), dict(tham, pt=tuple(pt)), as_dict=True):
 			if r.name in co_dong or r.name in da_co:
 				continue
-			ra.append(dict(name=r.name, ngay=str(r.posting_date), tien=int(round(r.rounded_total or r.grand_total or 0)),
+			ra.append(dict(name=r.name, ngay=str(r.ngay), tien=int(round(r.rounded_total or r.grand_total or 0)),
 				ma=[r.get("vgb_ma_tham_chieu") or ""], tien_to=tt.get("pt", "")))
 	return ra
 
@@ -626,51 +636,73 @@ def ds(nhom=None, trang_thai=None, vendor=None, tim=None, ky=None, tu=None, den=
 	from vagabond.khung.cong_cu_ds import khoang_ky
 
 	ct = _cong_ty_xem()
-	loc = {"company": ["in", ct]}
+	# Codex #450: số trên thẻ, chip nhóm, chip nguồn đếm trong CÙNG phạm vi với
+	# danh sách (pháp nhân, kỳ, ô tìm), chỉ bỏ đúng tầng chip đó ra: thẻ trạng
+	# thái giữ nhóm và nguồn đang chọn, chip nhóm bỏ nhóm và nguồn, chip nguồn
+	# bỏ nguồn. Bấm thẻ nào thì danh sách ra đúng số trên thẻ đó.
+	loc_chung = {"company": ["in", ct]}
 	a, b = khoang_ky(ky, frappe.utils.nowdate(), tu, den)
 	if a or b:
-		loc["den_ngay"] = ["between", [a or "2000-01-01", b or "2100-12-31"]]
-	if nhom:
-		loc["nhom"] = nhom
-	if vendor:
-		loc["vendor"] = vendor
-	if trang_thai == "Cần xử lý":
-		loc["trang_thai"] = ["in", ["Cần xử lý", "Lỗi tệp"]]
-	elif trang_thai == khop.NHOM_CHO_TIEN:
-		# Codex #450: thẻ "Chờ tiền về" đếm cả ba trạng thái chờ thì bấm vào
-		# cũng lọc đủ ba, không chỉ một.
-		loc["trang_thai_tien"] = ["in", list(khop.CHO_TIEN_VE)]
-	elif trang_thai in khop.CHO_TIEN_VE:
-		loc["trang_thai_tien"] = trang_thai
-	elif trang_thai == "Chưa nối đủ":
-		loc["so_chua_noi"] = [">", 0]
+		loc_chung["den_ngay"] = ["between", [a or "2000-01-01", b or "2100-12-31"]]
 	or_loc = None
 	if tim:
 		t = "%%%s%%" % tim.strip()
 		or_loc = [["ten_tep", "like", t], ["vendor", "like", t], ["name", "like", t], ["tai_khoan", "like", t]]
+	loc = dict(loc_chung)
+	if nhom:
+		loc["nhom"] = nhom
+	if vendor:
+		loc["vendor"] = vendor
+	loc.update(loc_trang_thai(trang_thai))
 	trang = int(trang or 0)
 	hang = frappe.get_all(DT_NGUON, filters=loc, or_filters=or_loc, fields=["name", "nhom", "vendor", "ten_mau",
 		"tu_ngay", "den_ngay", "ngay_tien_ve", "trang_thai", "trang_thai_tien", "thuc_nhan", "so_dong", "so_moi",
 		"so_trung", "so_loi", "so_da_noi", "so_chua_noi", "kenh_nhan", "ten_tep", "creation"],
 		order_by="coalesce(den_ngay, creation) desc, creation desc", start=trang * 50, page_length=51)
-	dem = {}
-	for nh, tt, ttt, cn, n in frappe.db.sql("""select nhom, trang_thai, trang_thai_tien, so_chua_noi > 0, count(*)
-			from `tab%s` where company in %%(ct)s group by 1, 2, 3, 4""" % DT_NGUON, dict(ct=ct)):
-		dem.setdefault("nhom:" + nh, 0)
-		dem["nhom:" + nh] += n
-		if tt in ("Cần xử lý", "Lỗi tệp"):
-			dem["Cần xử lý"] = dem.get("Cần xử lý", 0) + n
-		if ttt in khop.CHO_TIEN_VE:
-			dem[ttt] = dem.get(ttt, 0) + n
-			dem[khop.NHOM_CHO_TIEN] = dem.get(khop.NHOM_CHO_TIEN, 0) + n
-		if cn:
-			dem["Chưa nối đủ"] = dem.get("Chưa nối đủ", 0) + n
-		dem["tat_ca"] = dem.get("tat_ca", 0) + n
-	dem_vendor = dict(frappe.db.sql("select vendor, count(*) from `tab%s` where nhom=%%(nhom)s and company in %%(ct)s group by vendor"
-		% DT_NGUON, dict(nhom=nhom or "Tiền bán", ct=ct)))
-	dem_vendor["tat_ca"] = sum(dem_vendor.values())
+	tat_ca = frappe.get_all(DT_NGUON, filters=loc_chung, or_filters=or_loc,
+		fields=["nhom", "vendor", "trang_thai", "trang_thai_tien", "so_chua_noi"], limit_page_length=0)
+	dem, dem_vendor = dem_nguon(tat_ca, nhom, vendor)
 	return dict(hang=hang[:50], con=len(hang) > 50, dem=dem, vendor=sorted(dem_vendor.keys() - {"tat_ca"}),
 		dem_vendor=dem_vendor)
+
+
+def loc_trang_thai(trang_thai):
+	"""Bộ lọc của một khoá trạng thái (thẻ hay chip). THUẦN. Cùng nghĩa với dem_nguon."""
+	if trang_thai == "Cần xử lý":
+		return {"trang_thai": ["in", ["Cần xử lý", "Lỗi tệp"]]}
+	if trang_thai == khop.NHOM_CHO_TIEN:
+		# Codex #450: thẻ "Chờ tiền về" đếm cả ba trạng thái chờ thì bấm vào
+		# cũng lọc đủ ba, không chỉ một.
+		return {"trang_thai_tien": ["in", list(khop.CHO_TIEN_VE)]}
+	if trang_thai in khop.CHO_TIEN_VE:
+		return {"trang_thai_tien": trang_thai}
+	if trang_thai == "Chưa nối đủ":
+		return {"so_chua_noi": [">", 0]}
+	return {}
+
+
+def dem_nguon(rows, nhom=None, vendor=None):
+	"""Đếm cho thẻ và chip. THUẦN. rows là mọi nguồn trong phạm vi chung
+	(pháp nhân, kỳ, ô tìm). Trả (dem, dem_vendor)."""
+	dem, dem_vendor = {}, {}
+	for r in rows:
+		nh, vd = r.get("nhom") or "", r.get("vendor") or ""
+		dem["nhom:" + nh] = dem.get("nhom:" + nh, 0) + 1
+		if (nhom or "Tiền bán") == nh:
+			dem_vendor[vd] = dem_vendor.get(vd, 0) + 1
+		if (nhom and nh != nhom) or (vendor and vd != vendor):
+			continue
+		dem["tat_ca"] = dem.get("tat_ca", 0) + 1
+		if r.get("trang_thai") in ("Cần xử lý", "Lỗi tệp"):
+			dem["Cần xử lý"] = dem.get("Cần xử lý", 0) + 1
+		ttt = r.get("trang_thai_tien")
+		if ttt in khop.CHO_TIEN_VE:
+			dem[ttt] = dem.get(ttt, 0) + 1
+			dem[khop.NHOM_CHO_TIEN] = dem.get(khop.NHOM_CHO_TIEN, 0) + 1
+		if (r.get("so_chua_noi") or 0) > 0:
+			dem["Chưa nối đủ"] = dem.get("Chưa nối đủ", 0) + 1
+	dem_vendor["tat_ca"] = sum(dem_vendor.values())
+	return dem, dem_vendor
 
 
 @frappe.whitelist()
