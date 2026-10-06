@@ -2556,12 +2556,16 @@ function suaDongGio(i){
   picked_add=new Set(o.adds.filter(a=>!NUMS.some(n=>n.id===a.id)).map(a=>a.id));wishCount();drawSizes();drawAddons();
 }
 function luuGioDangSoan(){
+  /* Codex #450: drawBar() lần vẽ đầu chạy TRƯỚC phucHoiGio(); lúc đó CART còn
+     rỗng nên lưu sẽ xoá giỏ đã cất và giỏ không bao giờ khôi phục được. Chưa
+     khôi phục xong thì không ghi gì. GIO_DA_PHUC_HOI chỉ bật trong phucHoiGio. */
+  if(!GIO_DA_PHUC_HOI)return;
   if(typeof CO==='undefined'||window.vgbXemThu)return;
   try{if(!CART.length&&!(gioMuaCho||[]).length&&!(gioBanhCho||[]).length){sessionStorage.removeItem('vgb-gio-v1');return;}const truong={};document.querySelectorAll('#checkout input[id],#checkout textarea[id]').forEach(e=>{if(e.type!=='checkbox')truong[e.id]=e.value;});
     sessionStorage.setItem('vgb-gio-v1',JSON.stringify({luc:Date.now(),gio:CART.concat(gioMuaCho||[],gioBanhCho||[]),ngay:ngayChon,slot:pickedSlot,daChonNgay,daChonGio,truong,co:{mode:CO.mode,pickup:CO.pickup,pay:CO.pay,other:CO.other,gift:CO.gift,vat:CO.vat,quan:CO.quan,nonce:CO.nonce}}));
   }catch(e){}
 }
-var gioMuaCho=[],gioBanhCho=[];
+var gioMuaCho=[],gioBanhCho=[],GIO_DA_PHUC_HOI=false;
 /* Một nguồn duy nhất dựng dòng giỏ từ bản lưu: giá, cỡ, tên lấy từ CAKES hiện
    có, không lấy giá trong bản lưu. Trả null khi CAKES chưa có món đó. */
 function dongGioTuLuu(o){
@@ -2586,6 +2590,9 @@ function lamTuoiGiaGio(){
 }
 function phucHoiGio(){
   if(window.vgbXemThu)return;
+  try{phucHoiGioTuKho();}finally{GIO_DA_PHUC_HOI=true;}
+}
+function phucHoiGioTuKho(){
   try{const d=JSON.parse(sessionStorage.getItem('vgb-gio-v1')||'null');if(!d||Date.now()-d.luc>86400000||!Array.isArray(d.gio))return;
     gioMuaCho=d.gio.slice(0,50).filter(o=>o.cm===0&&typeof o.id==='string'&&Number.isInteger(o.qty)&&o.qty>0&&o.qty<=99);
     /* Codex #446: bánh thêm động từ danh mục sống (vgbTronMon) chưa có trong
