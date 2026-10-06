@@ -16,6 +16,7 @@ phép đọc trên chữ đã tách. Ở đây thay đúng một bước doc_tep
 để ca không phụ thuộc phông chữ khi dựng PDF, mọi bước sau chạy thật.
 """
 import base64
+import json
 from unittest.mock import patch
 
 import frappe
@@ -211,6 +212,35 @@ def _():
 		ra = _goi(ai, lambda: dv.nhan(file_url=url))
 	_DA_TAO.append((dv.DT_NGUON, ra[0]["name"]))
 	la("không thêm bút toán, phiếu", (frappe.db.count("Journal Entry"), frappe.db.count("Payment Entry")), truoc)
+
+
+@ca("Codex #450 bench: đọc lại nguồn Cần xử lý thay hẳn dòng bản cũ, bản cũ nằm trong lịch sử")
+def _():
+	cty, tk, _mau = _nen()
+	ngay = nowdate()
+	so_cu = int(frappe.generate_hash(length=6), 16) % 9000000 + 1000000
+	so_moi = so_cu + 5
+	ai = _ke_toan()
+	sha = "kt450-doclai-" + frappe.generate_hash(length=16)
+	url = _tai(ai, "5-C4E1NPWGG2WZFA-doclai.pdf")
+	with patch.object(tep_doc, "doc_tep", lambda ten, byte: _tep(ten, _bao_cao_grab(ngay, so_cu), sha)), \
+			patch.object(dv, "_cong_ty", return_value=cty):
+		ra = _goi(ai, lambda: dv.nhan(file_url=url))
+	_DA_TAO.append((dv.DT_NGUON, ra[0]["name"]))
+	ten = ra[0]["name"]
+	cu = sorted(frappe.get_all(dv.DT_DONG, filters={"nguon": ten}, pluck="ma_don"))
+	la("bản cũ", cu, sorted(["GF-%s" % so_cu, "GF-%sF" % (so_cu + 1)]))
+	# Giả như bộ đọc cũ đọc sai và nguồn đang ở Cần xử lý; bộ đọc đã sửa ra mã khác.
+	frappe.db.set_value(dv.DT_NGUON, ten, "trang_thai", "Cần xử lý")
+	with patch.object(tep_doc, "doc_tep", lambda ten_, byte: _tep(ten_, _bao_cao_grab(ngay, so_moi), sha)), \
+			patch.object(dv, "_cong_ty", return_value=cty):
+		ra2 = _goi(ai, lambda: dv.nhan(file_url=url))
+	la("đọc lại vào đúng nguồn cũ", ra2[0]["name"], ten)
+	moi_ = sorted(frappe.get_all(dv.DT_DONG, filters={"nguon": ten}, pluck="ma_don"))
+	la("chỉ còn dòng của bản đọc mới", moi_, sorted(["GF-%s" % so_moi, "GF-%sF" % (so_moi + 1)]))
+	la("số dòng khớp số dòng của nguồn", len(moi_), frappe.db.get_value(dv.DT_NGUON, ten, "so_dong"))
+	ls = json.loads(frappe.db.get_value(dv.DT_NGUON, ten, "du_lieu") or "{}").get("lan_doc_truoc") or []
+	la("lịch sử giữ bản cũ", (len(ls), ls[0]["so_dong"] if ls else None), (1, 2))
 
 
 @ca("Codex #450 bench: PDF hỏng tải lên báo lời người dùng, không lộ lỗi thư viện đọc PDF")
