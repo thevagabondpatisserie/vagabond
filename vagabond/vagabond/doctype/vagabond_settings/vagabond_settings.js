@@ -383,6 +383,8 @@ frappe.ui.form.on('Vagabond Kenh Zalo', {
 				.then(function (r) { frappe.msgprint('<pre style="white-space:pre-wrap">' + esc(((r && r.message) || {}).tin || '') + '</pre>', 'Xem trước, chưa gửi'); });
 		} else if (v === 'guithu') {
 			var ds = (frm.doc.zalo_nhom || []).filter(function (r) { return r.chat_id; });
+			// Codex #447 vòng 2: menu thanh công cụ luôn bật, nên phải tự báo khi chưa có nhóm.
+			if (!ds.length) { frappe.msgprint('Chưa có nhóm nào chọn nhóm Zalo. Bấm + Thêm nhóm nhận tin ở mục Nhóm nhận tin bên dưới, chọn nhóm Zalo đã nhắn bot, bấm Lưu rồi gửi thử.'); return; }
 			if (ds.length === 1) return guiThuZalo(ds[0].chat_id, ds[0].ten_nhom || 'nhóm');
 			var d = new frappe.ui.Dialog({ title: 'Gửi tin thử tới nhóm nào?', fields: [{ fieldname: 'nhom', fieldtype: 'Autocomplete', label: 'Gõ tên nhóm để tìm', reqd: 1,
 				options: ds.map(function (r) { return r.ten_nhom; }) }], primary_action_label: 'Gửi', primary_action: function (val) {
