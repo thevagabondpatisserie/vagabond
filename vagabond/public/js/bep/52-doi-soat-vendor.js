@@ -93,6 +93,13 @@ async function scrDsvn() {
     dsvnO('Chờ tiền về', dem['Chờ tiền về'] || 0, 'đợt', '#b54708') +
     dsvnO('Chưa nối đủ', dem['Chưa nối đủ'] || 0, 'nguồn', '#b54708') +
     dsvnO('', dem.tat_ca || 0, 'nguồn đã nhận', '#101828') + '</div>' +
+    /* Codex #450: tổng thực nhận trong nhóm/nguồn đang chọn; đang lọc trạng
+       thái thì thêm thanh "Tổng theo bộ lọc" (máy chủ tính cùng bộ lọc). */
+    '<div style="display:flex;justify-content:space-between;gap:8px;margin-top:8px;font-size:13px;color:#475467">' +
+      '<span>Tổng thực nhận</span><b style="color:#101828">' + money((kq.tong || {}).tat_ca || 0) + ' đ</b></div>' +
+    ((kq.tong || {}).theo_loc != null ? '<div style="display:flex;justify-content:space-between;gap:8px;margin-top:4px;' +
+      'padding:6px 8px;border-radius:8px;background:#fffaeb;font-size:13px"><span>Tổng theo bộ lọc</span><b>' +
+      money(kq.tong.theo_loc) + ' đ</b></div>' : '') +
     dsvnSucKhoe(sk) + '</div>';
   html += '<div class="chips" style="padding:0 2px">' + DSVN_NHOM.map(function (n) {
     return '<div class="chip' + (DSVN.nhom === n[0] ? ' on' : '') + '" data-dsvnnhom="' + h(n[0]) + '">' + n[1] + ' ' + h(n[0]) +
