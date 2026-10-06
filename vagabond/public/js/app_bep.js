@@ -55871,7 +55871,7 @@ function dsvnChip(tt) {
     'Chưa đối chiếu': ['#f2f4f7', '#475467'], 'Đã nối': ['#ecfdf3', '#067647'],
     'Nối theo tiền': ['#eff8ff', '#175cd3'], 'Lệch tiền': ['#fef3f2', '#b42318'],
     'Nhiều chứng từ': ['#fffaeb', '#b54708'], 'Không thấy chứng từ': ['#fffaeb', '#b54708'],
-    'Chưa nối': ['#f2f4f7', '#475467']
+    'Chưa nối': ['#f2f4f7', '#475467'], 'Đã thay': ['#f2f4f7', '#475467']
   }[tt] || ['#f2f4f7', '#475467'];
   return '<span style="display:inline-block;background:' + mau[0] + ';color:' + mau[1] +
     ';border-radius:999px;padding:3px 9px;font-size:12px;font-weight:600;white-space:nowrap">' + h(tt) + '</span>';
@@ -55909,7 +55909,9 @@ async function scrDsvn() {
     '<div style="font-size:12px;color:#98a2b3">VIỆC CẦN LÀM</div>' +
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">' +
     dsvnO('Cần xử lý', dem['Cần xử lý'] || 0, 'nguồn', '#b42318') +
-    dsvnO('Chưa thấy tiền về', (dem['Chưa thấy tiền về'] || 0) + (dem['Lệch tiền về'] || 0) + (dem['Cần chọn tiền về'] || 0), 'đợt', '#b54708') +
+    /* Codex #450: số trên thẻ và bộ lọc khi bấm cùng một khoá gộp (máy chủ đếm
+       và lọc đủ ba trạng thái chờ), không cộng ở máy khách rồi lọc một. */
+    dsvnO('Chờ tiền về', dem['Chờ tiền về'] || 0, 'đợt', '#b54708') +
     dsvnO('Chưa nối đủ', dem['Chưa nối đủ'] || 0, 'nguồn', '#b54708') +
     dsvnO('', dem.tat_ca || 0, 'nguồn đã nhận', '#101828') + '</div>' +
     dsvnSucKhoe(sk) + '</div>';
@@ -55978,7 +55980,7 @@ function dsvnCongCu(kq) {
     ma: 'dsvn',
     ho: [
       { k: 'tt', tatCa: 'Mọi trạng thái', chon: DSVN.tt, dem: dem, mau: '#b42318',
-        ds: [{ k: 'Cần xử lý', ten: 'Cần xử lý' }, { k: 'Chưa thấy tiền về', ten: 'Chờ tiền về' },
+        ds: [{ k: 'Cần xử lý', ten: 'Cần xử lý' }, { k: 'Chờ tiền về', ten: 'Chờ tiền về' }, { k: 'Chưa thấy tiền về', ten: 'Chưa thấy tiền' },
           { k: 'Lệch tiền về', ten: 'Lệch tiền về' }, { k: 'Cần chọn tiền về', ten: 'Trùng số tiền' }, { k: 'Chưa nối đủ', ten: 'Chưa nối đủ' }] },
       { k: 'ven', tatCa: 'Mọi nguồn', chon: DSVN.vendor, dem: kq.dem_vendor || {}, mau: '#0d9488',
         ds: (kq.vendor || []).map(function (v) { return { k: v, ten: v.length > 16 ? v.slice(0, 15) + '…' : v }; }) }
