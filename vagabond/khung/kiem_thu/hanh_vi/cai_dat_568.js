@@ -302,6 +302,8 @@ function W(els) {
     text: function (t) { if (t === undefined) return els.map(chuEl).join(''); els.forEach(function (e) { e.innerHTML = ''; e._chu = String(t); }); return w; },
     insertBefore: function (t) { var d = t.els[0], cha = d.parentNode; cha.insertBefore(els[0], d); return w; },
     prependTo: function (t) { t.els[0].appendChild(els[0]); return w; },
+    off: function () { els.forEach(function (e) { e._jq = []; }); return w; },
+    attr: function (k) { return els[0] ? els[0].getAttribute(k) : undefined; },
     hasClass: function (c) { return els.some(function (e) { return String(e.getAttribute('class') || '').split(/\s+/).indexOf(c) >= 0; }); },
   };
   return w;
@@ -311,7 +313,7 @@ function $(x) {
   return W([].concat(x));
 }
 function bamJq(goc, dich) {
-  (goc._jq || []).forEach(function (hd) { if (hd.ev === 'click' && dich.closest(hd.sel)) hd.fn.call(dich, { preventDefault: function () {} }); });
+  (goc._jq || []).forEach(function (hd) { if (String(hd.ev).split('.')[0] === 'click' && dich.closest(hd.sel)) hd.fn.call(dich, { preventDefault: function () {} }); });
 }
 global.frappe.utils = global.frappe.utils || { escape_html: function (x) { return String(x == null ? '' : x).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); } };
 function lop(el) { return String(el.getAttribute('class') || ''); }
@@ -501,6 +503,132 @@ ca('Codex #433 vòng 3 G3: máy chủ trả danh mục rỗng cũng coi là hỏ
   dung('ô BIN gốc ẩn', lop(goc.querySelectorAll('.control-input')[0]).indexOf('vgbc-anchon-in') >= 0);
   dung('báo chưa chọn ngân hàng', chuEl(goc.querySelectorAll('.vgbc-nh')[0]).indexOf('Chưa chọn ngân hàng') >= 0);
   la('có nút Thử lại', goc.querySelectorAll('.vgbc-thu-lai').length, 1);
+});
+
+// ====================================================================
+// v579: mục Bắn tin vào nhóm Zalo trên Desk. Anh Việt 06/10/2026, kèm ảnh bảng
+// Nhóm nhận tin chật nửa cột chỉ thấy "ERP ...", "zgr-d...", "thong...": "Lỗi
+// hiển thị, quá khó để nhập liệu ... có nút để gửi thử tin vào nhóm Zalo không?"
+// Chạy THẬT veZalo và suaNhomZalo của vagabond_settings.js trên DOM giả.
+// ====================================================================
+var MA_ZALO = V.ZALO_DANH_MUC.loai_tin.concat(V.ZALO_DANH_MUC.chu_de);
+function khongLoMa(chu) { return MA_ZALO.filter(function (m) { return m.indexOf('_') > 0 && chu.indexOf(m) >= 0; }); }
+function frmZalo(rows, them) {
+  var nut = new dg.ElementGia('div'), the = new dg.ElementGia('div');
+  var f = { an: [], con: [], dat: [], ban: 0, ve: 0,
+    fields_dict: { zalo_tac_vu: { $wrapper: W([nut]) }, zalo_nhom_the: { $wrapper: W([the]) }, zalo_nhom: {} },
+    doc: Object.assign({ zalo_nhom: rows, zalo_chat_moi: JSON.stringify([{ chat_id: 'zgr-ke-toan', loai: 'GROUP', ten: 'Kế toán Vagabond' },
+      { chat_id: 'u-123', loai: 'PRIVATE', ten: 'Dung' }]) }, them || {}),
+    toggle_display: function (fn, hien) { f.an.push([fn, hien]); },
+    add_child: function () { var r = { doctype: 'Vagabond Kenh Zalo', name: 'moi' + (f.con.length + 1) }; f.con.push(r); f.doc.zalo_nhom.push(r); return r; },
+    refresh_field: function () {}, dirty: function () { f.ban++; }, is_dirty: function () { return false; }, reload_doc: function () {} };
+  return { frm: f, nut: nut, the: the };
+}
+function giaFrappe(f) {
+  var goi = [], hop = [], bao = [];
+  global.frappe.call = function (o) { goi.push(o); return { then: function () {} }; };
+  global.frappe.msgprint = function (m) { bao.push(m); };
+  global.frappe.show_alert = function (m) { bao.push(m); };
+  global.frappe.confirm = function (m, ok) { ok(); };
+  global.frappe.model = { set_value: function (dt, ten, k, v) { var r = f.doc.zalo_nhom.filter(function (x) { return x.name === ten; })[0]; if (r) r[k] = v; f.dat.push([ten, k, v]); },
+    clear_doc: function (dt, ten) { f.doc.zalo_nhom = f.doc.zalo_nhom.filter(function (x) { return x.name !== ten; }); } };
+  global.frappe.ui.Dialog = function (o) { this.o = o; this.an = 0; hop.push(this); };
+  global.frappe.ui.Dialog.prototype = { show: function () {}, hide: function () { this.an = 1; },
+    set_secondary_action_label: function (t) { this.phu = t; }, set_secondary_action: function (fn) { this.phuFn = fn; } };
+  return { goi: goi, hop: hop, bao: bao };
+}
+var ROWS = function () {
+  return [{ doctype: 'Vagabond Kenh Zalo', name: 'r1', ten_nhom: 'ERP Vagabond', chat_id: 'zgr-dau', loai_tin: 'thong_bao, canh_bao', chu_de: '', bat: 1, im_tu: '22:00', im_den: '07:00' },
+    { doctype: 'Vagabond Kenh Zalo', name: 'r2', ten_nhom: 'Bếp', chat_id: '', loai_tin: '', chu_de: 'kho', bat: 1 }];
+};
+
+ca('v579: mỗi nhóm Zalo là một thẻ đọc được, không lộ mã nội bộ; bảng gốc chật bị ẩn', function () {
+  global.$ = $;
+  var z = frmZalo(ROWS()); giaFrappe(z.frm);
+  V._desk.veZalo(z.frm);
+  var chu = chuEl(z.the);
+  la('hai thẻ', z.the.querySelectorAll('.vgbc-card').length, 2);
+  dung('tên loại tin tiếng Việt', chu.indexOf('Thông báo, Cảnh báo') >= 0);
+  dung('nhóm không chọn loại là nhận mọi loại', chu.indexOf('Mọi loại tin') >= 0);
+  dung('chủ đề tiếng Việt', chu.indexOf('Kho') >= 0);
+  dung('giờ im đọc được', chu.indexOf('Từ 22:00 đến 07:00') >= 0);
+  la('không lộ mã loại tin, chủ đề', khongLoMa(chu), []);
+  dung('không lộ mã nhóm Zalo', chu.indexOf('zgr-') < 0);
+  dung('báo nhóm chưa chọn nhóm Zalo', chu.indexOf('Chưa chọn nhóm Zalo') >= 0);
+  la('bảng gốc bị ẩn', z.frm.an, [['zalo_nhom', false]]);
+  la('chỉ nhóm có mã chat mới có nút Gửi thử', z.the.querySelectorAll('[data-zlg]').length, 1);
+  la('mỗi thẻ có nút Sửa, cộng nút Thêm', z.the.querySelectorAll('[data-zls]').length, 3);
+});
+
+ca('v579: bấm Gửi thử trên thẻ gửi đúng mã nhóm đó', function () {
+  global.$ = $;
+  var z = frmZalo(ROWS()), g = giaFrappe(z.frm);
+  V._desk.veZalo(z.frm);
+  bamJq(z.the, z.the.querySelectorAll('[data-zlg]')[0]);
+  la('gọi gửi thử', g.goi.map(function (o) { return [o.method, o.args.chat_id]; }), [['vagabond.kenh_zalo.gui_thu', 'zgr-dau']]);
+});
+
+ca('v579: hàng nút Zalo ngay trong mục: tình trạng nối bot, Gửi thử đi thẳng khi chỉ có một nhóm, tắt khi chưa có nhóm', function () {
+  global.$ = $;
+  var z = frmZalo(ROWS()), g = giaFrappe(z.frm);
+  V._desk.veZalo(z.frm);
+  dung('chưa nối bot thì nói rõ cách làm', chuEl(z.nut).indexOf('Chưa nối bot') >= 0);
+  bamJq(z.nut, z.nut.querySelectorAll('[data-zl="guithu"]')[0]);
+  la('một nhóm có mã chat thì gửi luôn', g.goi.map(function (o) { return o.args && o.args.chat_id; }), ['zgr-dau']);
+  var z2 = frmZalo([], { zalo_noi_trang_thai: 'Đã xác minh lúc 2026-10-06 05:30. ' }); giaFrappe(z2.frm);
+  V._desk.veZalo(z2.frm);
+  dung('đã nối bot', chuEl(z2.nut).indexOf('Đã nối bot') >= 0);
+  dung('chưa có nhóm thì nút Gửi thử tắt', z2.nut.querySelectorAll('[data-zl="guithu"]')[0].getAttribute('disabled') !== null);
+  dung('chưa có nhóm thì có lời dẫn Thêm nhóm', chuEl(z2.the).indexOf('Chưa có nhóm nào') >= 0);
+});
+
+ca('v579: hộp Thêm nhóm hiện tên và dòng giải thích từng loại tin, chỉ gợi ý nhóm (không chat riêng), lưu mã đúng cách cũ', function () {
+  global.$ = $;
+  var z = frmZalo(ROWS()), g = giaFrappe(z.frm);
+  V._desk.veZalo(z.frm);
+  bamJq(z.the, z.the.querySelectorAll('[data-zls="-1"]')[0]);
+  la('mở một hộp', g.hop.length, 1);
+  var o = g.hop[0].o, fs = o.fields;
+  var nz = fs.filter(function (x) { return x.fieldname === 'nhom_zalo'; })[0];
+  la('chỉ gợi ý nhóm đã nhắn bot', nz.options, ['Kế toán Vagabond (zgr-ke-toan)']);
+  V.ZALO_DANH_MUC.loai_tin.forEach(function (ma) {
+    var x = fs.filter(function (y) { return y.fieldname === 'loai_tin__' + ma; })[0];
+    dung('có ô ' + ma, x && x.fieldtype === 'Check');
+    dung('nhãn tiếng Việt, không lộ mã ' + ma, x.label.indexOf(V.ZALO_NHAN.loai_tin[ma][1]) >= 0 && x.label.indexOf(ma) < 0);
+    dung('có dòng giải thích ' + ma, String(x.description || '').length > 10);
+  });
+  la('đủ ô chủ đề', fs.filter(function (y) { return /^chu_de__/.test(y.fieldname || ''); }).length, V.ZALO_DANH_MUC.chu_de.length);
+  dung('nói rõ nghĩa để trống', fs.some(function (y) { return /Không tích ô nào là nhóm nhận tất cả loại tin/.test(y.description || ''); }));
+  o.primary_action({ nhom_zalo: 'Kế toán Vagabond (zgr-ke-toan)', ten_nhom: ' Kế toán ', bat: 1, loai_tin__canh_bao: 1, loai_tin__viec: 1,
+    chu_de__cong_no: 1, im_tu: '22:00', im_den: '07:00' });
+  la('thêm một dòng', z.frm.con.length, 1);
+  var r = z.frm.con[0];
+  la('giá trị lưu', [r.ten_nhom, r.chat_id, r.bat, r.loai_tin, r.chu_de, r.im_tu, r.im_den],
+    ['Kế toán', 'zgr-ke-toan', 1, 'viec, canh_bao', 'cong_no', '22:00', '07:00']);
+  dung('đánh dấu chưa lưu và nhắc bấm Lưu', z.frm.ban === 1 && g.bao.some(function (m) { return /Bấm Lưu/.test(m.message || m); }));
+  la('thẻ vẽ lại có ba nhóm', z.the.querySelectorAll('.vgbc-card').length, 3);
+});
+
+ca('v579: nhóm đã lưu nhưng không còn trong 20 chat gần nhất vẫn sửa được, không bắt chọn lại; gõ nhóm lạ thì không ghi', function () {
+  global.$ = $;
+  var z = frmZalo(ROWS()), g = giaFrappe(z.frm);
+  var d = V._desk.suaNhomZalo(z.frm, 0);
+  var nz = d.o.fields.filter(function (x) { return x.fieldname === 'nhom_zalo'; })[0];
+  la('nhóm đang lưu đứng đầu gợi ý và là mặc định', [nz.options[0], nz.default], ['ERP Vagabond (zgr-dau)', 'ERP Vagabond (zgr-dau)']);
+  la('ô loại tin tích sẵn đúng như đang lưu', d.o.fields.filter(function (x) { return /^loai_tin__/.test(x.fieldname || '') && x.default; }).map(function (x) { return x.fieldname; }),
+    ['loai_tin__thong_bao', 'loai_tin__canh_bao']);
+  d.o.primary_action({ nhom_zalo: nz.default, ten_nhom: 'ERP Vagabond', bat: 0, loai_tin__thong_bao: 1 });
+  var r = z.frm.doc.zalo_nhom[0];
+  la('giữ mã nhóm, đổi công tắc và loại tin', [r.chat_id, r.bat, r.loai_tin, r.chu_de], ['zgr-dau', 0, 'thong_bao', '']);
+  la('không thêm dòng mới', z.frm.con.length, 0);
+  dung('tắt nhóm thì thẻ vẽ lại báo Đang tắt (chip vàng)', chuEl(z.the).indexOf('Đang tắt') >= 0 && z.the.querySelectorAll('.vgbc-off').length === 1);
+  var d2 = V._desk.suaNhomZalo(z.frm, -1);
+  d2.o.primary_action({ nhom_zalo: 'gõ bừa', ten_nhom: 'X', bat: 1 });
+  la('nhóm lạ không ghi', z.frm.con.length, 0);
+  dung('báo chọn trong gợi ý', g.bao.some(function (m) { return /Chọn đúng một nhóm Zalo/.test(m); }));
+  la('sửa nhóm có nút Xoá', d.phu, 'Xoá nhóm này');
+  d.phuFn();
+  la('xoá đúng nhóm', z.frm.doc.zalo_nhom.map(function (x) { return x.name; }), ['r2']);
 });
 
 console.log('\n' + dat + ' ca dat, ' + hong + ' ca hong.');
