@@ -1772,3 +1772,24 @@ lần đầu đếm ngoại lệ ra 0 trên 14 đột biến, tưởng bộ ki�
 - Dời việc phụ ra sau commit thì phải có lưới gửi bù: lời xếp việc nền nằm
   trong Redis, Redis lỗi đúng lúc đó là mất hẳn (Codex #444 vòng 7). Thêm nhịp
   quét theo chứng từ GẦN ĐÂY (không quét cả lịch sử kẻo gửi cho phiếu cũ).
+
+
+## 06/10/2026 (v581, Zalo #410, PR #447): bảng con chật trên Desk và nút trùng lối vào
+
+- Triệu chứng: anh Việt gửi ảnh mục "Nhóm nhận tin" trên Cài đặt. Bảng con
+  (Table) nằm trong nửa cột nên mỗi ô chỉ còn vài chữ ("ERP ...", "zgr-d...",
+  "thong..."), lộ mã nội bộ, rất khó nhập và thêm dòng. Nút Gửi thử có sẵn từ
+  v565 nhưng giấu trong menu Zalo trên thanh công cụ nên anh không thấy.
+- Nguyên nhân: bảng con của Frappe chỉ hiện vài cột hẹp, ô Select/Data hiện
+  nguyên giá trị lưu là mã. Đặt bảng có ô mã nhiều lựa chọn vào mục hai cột là
+  chắc chắn chật. Nút quan trọng chỉ để trong menu thanh công cụ thì người dùng
+  không tìm ra.
+- Cách phòng: bảng con có mã lựa chọn hoặc mã máy thì ẨN lưới trên Desk, vẽ mỗi
+  dòng thành thẻ đọc được (tên tiếng Việt, trạng thái, nút Sửa) trong một trường
+  HTML, và sửa qua hộp thoại có ô tích kèm dòng giải thích. Bảng gốc vẫn là nơi
+  lưu, giá trị lưu giữ đúng định dạng cũ. Nút hay dùng đặt ngay trong mục.
+- Codex #447 vòng 1: thêm hàng nút mới có chặn "chưa lưu" mà để menu cũ trên
+  thanh công cụ gọi cùng máy chủ KHÔNG chặn thì menu cũ chạy trên cấu hình cũ
+  rồi reload_doc xoá bản nháp. Hai lối vào cho một việc phải đi qua MỘT hàm
+  (`zaloTacVu`), và ca kiểm phải chạy thật mọi hàm refresh đã đăng ký rồi bấm
+  từng nút trên thanh công cụ, đếm số nút cùng tên để lộ khối đăng ký cũ còn sót.
