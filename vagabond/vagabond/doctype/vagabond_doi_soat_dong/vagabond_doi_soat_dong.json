@@ -43,6 +43,8 @@
   "purchase_invoice",
   "van_don",
   "ghi_chu_khop",
+  "xac_nhan_boi",
+  "xac_nhan_luc",
   "sec_thay",
   "nguon_cu",
   "khoa_cu",
@@ -263,6 +265,19 @@
    "fieldtype": "Small Text"
   },
   {
+   "fieldname": "xac_nhan_boi",
+   "label": "Kế toán xác nhận",
+   "fieldtype": "Link",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "xac_nhan_luc",
+   "label": "Xác nhận lúc",
+   "fieldtype": "Datetime",
+   "read_only": 1
+  },
+  {
    "fieldname": "sec_thay",
    "fieldtype": "Section Break",
    "label": "Bản đọc đã thay",
@@ -316,5 +331,5 @@
  "title_field": "ma_don",
  "description": "#420 v579 đối soát vendor: một sự kiện trong báo cáo vendor (đơn, phí, chuyến, giao dịch thẻ)",
  "creation": "2026-10-06 12:00:00.000000",
- "modified": "2026-10-07 09:00:00.000000"
+ "modified": "2026-10-07 12:00:00.000000"
 }
