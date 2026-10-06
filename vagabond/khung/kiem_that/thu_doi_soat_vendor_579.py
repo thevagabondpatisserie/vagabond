@@ -219,3 +219,43 @@ def _():
 	viec = [x for x in goi if x[0] and x[0][0] == "vagabond.doi_soat_vendor.xu_ly_thu"]
 	la("đúng một việc, cho thư Grab", len(viec), 1)
 	la("xếp sau khi lưu", viec[0][1].get("enqueue_after_commit"), True)
+
+
+def _nguon_tay(cty, vendor, mau, tien, ngay, gd=""):
+	n = frappe.get_doc(dict(doctype=dv.DT_NGUON, company=cty, nhom="Tiền bán", vendor=vendor, mau=mau,
+		tai_khoan=vendor.upper(), tu_ngay=ngay, den_ngay=ngay, ngay_tien_ve=ngay, trang_thai="Đã nhận",
+		kenh_nhan="Tải tay", ten_tep="kt579-%s.csv" % frappe.generate_hash(length=6),
+		sha256="kt579-gd-" + frappe.generate_hash(length=20), so_dong=1, thuc_nhan=tien,
+		trang_thai_tien="Chưa đối chiếu", giao_dich_ngan_hang=gd))
+	n.insert(ignore_permissions=True)
+	_DA_TAO.append((n.doctype, n.name))
+	return n
+
+
+@ca("Codex #446 F2 site: giao dịch đã gắn cho Payoo không bị nguồn Shinhan cùng số tiền lấy lại")
+def _():
+	cty, _tk, _mau = _nen()
+	ngay = nowdate()
+	ba = _tai_khoan_cong_ty_moi(_tk_ngan_hang(cty)).name
+	tien = 700000 + int(frappe.generate_hash(length=4), 16) % 9000
+	g = _gd(ba, tien, "Payoo TT TD KT579 VAGABOND TONG", ngay)
+	_nguon_tay(cty, "Payoo", "payoo_the", tien, ngay, gd=g.name)
+	sh = _nguon_tay(cty, "Shinhan POS", "shinhan_ngay", tien, ngay)
+	dv._tien_ve(sh)
+	sh.reload()
+	dung("Shinhan không nhận giao dịch của Payoo", g.name not in (sh.giao_dich_ngan_hang or ""))
+
+
+@ca("Codex #446 F1 site: lưu tay nguồn đối soát bị chặn, cửa máy vẫn ghi được")
+def _():
+	cty, _tk, _mau = _nen()
+	n = _nguon_tay(cty, "Payoo", "payoo_the", 1000, nowdate())
+	d = frappe.get_doc(dv.DT_NGUON, n.name)
+	d.thuc_nhan = 999999
+	try:
+		d.save()
+		chan = False
+	except frappe.ValidationError:
+		chan = True
+	la("lưu tay bị chặn", chan, True)
+	la("số tiền không đổi", int(frappe.db.get_value(dv.DT_NGUON, n.name, "thuc_nhan")), 1000)
