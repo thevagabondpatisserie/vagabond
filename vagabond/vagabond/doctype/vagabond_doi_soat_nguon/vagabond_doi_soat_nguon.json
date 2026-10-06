@@ -235,7 +235,7 @@
    "fieldname": "trang_thai_tien",
    "label": "Tiền về ngân hàng",
    "fieldtype": "Select",
-   "options": "Chưa đối chiếu\nĐã thấy tiền về\nLệch tiền về\nChưa thấy tiền về\nKhông áp dụng",
+   "options": "Chưa đối chiếu\nĐã thấy tiền về\nLệch tiền về\nCần chọn tiền về\nChưa thấy tiền về\nKhông áp dụng",
    "read_only": 1,
    "in_standard_filter": 1
   },
@@ -297,5 +297,5 @@
  "title_field": "vendor",
  "description": "#420 v579 đối soát vendor: một tệp báo cáo nhận vào",
  "creation": "2026-10-06 12:00:00.000000",
- "modified": "2026-10-06 18:00:00.000000"
+ "modified": "2026-10-07 09:00:00.000000"
 }
