@@ -50,7 +50,7 @@ function mayChu(canh) {
         if (canh.dsLoi) throw new Error('Đối soát nhà cung cấp chỉ mở cho Kế toán và Giám đốc.');
         return { hang: [nguon('DSN-1', 'GrabFood', 'Đã nhận', { so_chua_noi: 2 }), nguon('DSN-2', 'Payoo', 'Cần xử lý')],
           dem: { tat_ca: 2, 'Cần xử lý': 1, 'Chưa thấy tiền về': 1, 'nhom:Tiền bán': 2, 'nhom:Thẻ tín dụng': 1 },
-          dem_vendor: { tat_ca: 2, GrabFood: 1, Payoo: 1 }, vendor: ['GrabFood', 'Payoo'], con: 0 };
+          dem_vendor: { tat_ca: 2, GrabFood: 1, Payoo: 1 }, vendor: ['GrabFood', 'Payoo'], con: canh.nhieuNguon && (a.trang || 0) < 1 ? 1 : 0 };
       }
       if (m === 'vagabond.doi_soat_vendor.suc_khoe') {
         return [{ vendor: 'GrabFood', so_nguon: 1, ky_moi: '2026-07-17' }, { vendor: 'Be', so_nguon: 0 }];
@@ -73,7 +73,7 @@ function mayChu(canh) {
             ghi_chu_khop: 'Không có hoá đơn bán cùng mã hoặc cùng tiền trong khoảng ngày.' }];
         if (a.loc === 'chua_noi') dong = dong.filter(function (d) { return d.trang_thai_khop !== 'Đã nối' && d.trang_thai_khop !== 'Không áp dụng'; });
         return { nguon: nguon(a.name, 'GrabFood', 'Đã nhận', { trang_thai_tien: 'Đã thấy tiền về', giao_dich_ngan_hang: 'BT-1', tong_tep: 668915,
-          so_chua_noi: 1, so_da_noi: 1 }), them: { tien_ve: '' }, dong: dong, con: 0 };
+          so_chua_noi: 1, so_da_noi: 1 }), them: { tien_ve: '' }, dong: dong, con: canh.nhieu && (a.trang || 0) < 2 ? 1 : 0 };
       }
       if (m === 'vagabond.doi_soat_vendor.doi_chieu_lai') return { ok: 1 };
       if (m === 'vagabond.doi_soat_vendor.quet_email') return { so_tep: 2 };
@@ -262,6 +262,31 @@ async function moTrungTam(canh) {
     app2.g.frame('Đơn', app2.g.dsvnKhoiHd());
     await app2.g.dsvnNapKhoiHd('HDB-1'); await nghi();
     bang('không gọi', app2.mc.dem('vagabond.doi_soat_vendor.cua_hoa_don'), 0);
+  });
+
+  await ca('Codex #450: nguồn quá 100 dòng xem được trang sau; đổi bộ lọc về trang đầu', async function () {
+    var app = await moTrungTam({ nhieu: true });
+    await app.bam(app.tim('[data-dsvnct="DSN-1"]')[0]);
+    bang('trang đầu không có nút trước', [app.tim('[data-dsvntrang="dong:-1"]').length, app.tim('[data-dsvntrang="dong:1"]').length], [0, 1]);
+    await app.bam(app.mot('[data-dsvntrang="dong:1"]'));
+    bang('hỏi máy chủ trang 2', app.mc.cuoi('vagabond.doi_soat_vendor.chi_tiet').a.trang, 1);
+    await app.bam(app.mot('[data-dsvntrang="dong:1"]'));
+    bang('trang 3', app.mc.cuoi('vagabond.doi_soat_vendor.chi_tiet').a.trang, 2);
+    bang('trang cuối chỉ còn nút trước', [app.tim('[data-dsvntrang="dong:-1"]').length, app.tim('[data-dsvntrang="dong:1"]').length], [1, 0]);
+    dung('nói đang xem dòng nào', app.chu().indexOf('Dòng 201 đến 300') >= 0);
+    await app.bam(app.mot('[data-dsvntrang="dong:-1"]'));
+    bang('lùi về trang 2', app.mc.cuoi('vagabond.doi_soat_vendor.chi_tiet').a.trang, 1);
+    await app.bam(app.mot('[data-dsvnloc="chua_noi"]'));
+    bang('đổi lọc thì về trang đầu', app.mc.cuoi('vagabond.doi_soat_vendor.chi_tiet').a.trang, 0);
+  });
+
+  await ca('Codex #450: danh sách quá 50 nguồn có trang sau; đổi nhóm về trang đầu', async function () {
+    var app = await moTrungTam({ nhieuNguon: true });
+    bang('trang đầu', app.mc.cuoi('vagabond.doi_soat_vendor.ds').a.trang, 0);
+    await app.bam(app.mot('[data-dsvntrang="nguon:1"]'));
+    bang('hỏi máy chủ trang 2', app.mc.cuoi('vagabond.doi_soat_vendor.ds').a.trang, 1);
+    await app.bam(app.tim('[data-dsvnnhom="Thẻ tín dụng"]')[0]);
+    bang('đổi nhóm về trang đầu', app.mc.cuoi('vagabond.doi_soat_vendor.ds').a.trang, 0);
   });
 
   console.log('Doi soat vendor 579: ' + ket.dat + ' dat, ' + ket.hong + ' hong');
