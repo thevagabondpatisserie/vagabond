@@ -1406,3 +1406,21 @@ def _():
 	la("bỏ tiền tố chi nhánh, một thành viên", ra["CHI NHÁNH CÔNG TY TNHH MỘT THÀNH VIÊN XYZ"], "XYZ")
 	dung("không nhãn nào quá 16 ký tự", all(len(v) <= TOI_DA_NHAN_CHIP for v in ra.values()))
 	la("không nhãn nào trùng", len(set(ra.values())), len(ra))
+
+
+@ca("Codex #450 vòng 18: đổi sang viết tắt xong vẫn kiểm trùng lại; viết tắt cũng trùng thì thêm số, vẫn trong 16 ký tự")
+def _():
+	from vagabond.doi_soat_vendor import TOI_DA_NHAN_CHIP, nhan_ngan_cong_ty
+	# Ví dụ của Codex trên 23887a497: trước đây ra A1, A2, A1.
+	ra = nhan_ngan_cong_ty([("CÔNG TY TNHH ABC", "A1"), ("CÔNG TY CỔ PHẦN ABC", "A2"), ("A1", "Z")])
+	la("viết tắt đụng nhãn khác thì đổi tiếp", ra, {"CÔNG TY TNHH ABC": "A1", "CÔNG TY CỔ PHẦN ABC": "A2", "A1": "Z"})
+	ra = nhan_ngan_cong_ty([("CÔNG TY TNHH ABC", "A"), ("CÔNG TY CỔ PHẦN ABC", "A"), ("CÔNG TY TNHH MTV ABC", "")])
+	la("viết tắt cũng trùng: thêm số theo thứ tự", ra,
+		{"CÔNG TY TNHH ABC": "A", "CÔNG TY CỔ PHẦN ABC": "A 2", "CÔNG TY TNHH MTV ABC": "ABC"})
+	ds = [("CÔNG TY TNHH %s" % ("Q" * 20), "") for _ in range(1)] + [("CHI NHÁNH CÔNG TY TNHH %s" % ("Q" * 20), ""),
+		("CÔNG TY CP %s" % ("Q" * 20), ""), ("CÔNG TY TNHH A", "A"), ("CÔNG TY CP A", "A"), ("A 2", "")]
+	ra = nhan_ngan_cong_ty(ds)
+	# "A 2" đứng SAU trong danh sách: số thêm vào phải tránh cả nhãn chưa duyệt tới.
+	la("số thêm vào không đụng nhãn sẵn có", (ra["A 2"], ra["CÔNG TY TNHH A"], ra["CÔNG TY CP A"]), ("A 2", "A", "A 3"))
+	la("mọi nhãn khác nhau", len(set(ra.values())), len(ds))
+	dung("không nhãn nào quá 16 ký tự", all(len(v) <= TOI_DA_NHAN_CHIP for v in ra.values()))
