@@ -1218,7 +1218,7 @@ def _():
 			patch.object(V, "_ghi_trung", lambda n, c, cap: viec.append(("trung", n, cap))), \
 			patch.object(V, "_chen_dong", lambda n, c, nh, vd, tk, d: viec.append(("chen", n, nh, d["mo_ta"])) or NS(name="R-MOI")), \
 			patch.object(V, "_doi_chieu", lambda n: viec.append(("doi_chieu", n))):
-		V.dung_ban_sua(name="N3", khoa=k)
+		V.dung_ban_sua(name="N3", khoa=k, dau_cu="dau-cu")
 	la("thứ tự", [v[0] for v in viec], ["thoi_tinh", "trung", "chen", "set", "db_set", "doi_chieu", "doi_chieu"])
 	la("thôi tính đúng dòng cũ", viec[0][1], "R-CU")
 	la("báo cáo cũ vẫn có sự kiện với tiền cũ", viec[1][1:], ("N1", [(k, 80000)]))
@@ -1229,8 +1229,11 @@ def _():
 	dung("bản sửa đánh dấu đã dùng", json.loads(so["du_lieu"])["ban_sua"][0]["da_dung"] == 1)
 	la("đối chiếu lại cả hai nguồn", [v[1] for v in viec[5:]], ["N3", "N1"])
 	# Bấm lại khi bản sửa đã dùng, hay dòng hiệu lực đã mang đúng nội dung: chặn.
-	for ten, dl, cu_ in (("đã dùng", dict(du_lieu, ban_sua=[dict(bs[0], da_dung=1)]), cu),
-			("đã đúng nội dung", du_lieu, NS(name="R", nguon="N1", dau_noi_dung=bs[0]["dong"]["dau_noi_dung"], thuc_nhan=1))):
+	# Vòng 15: màn đã cũ (phiên khác vừa dùng bản sửa C, kế toán đang so B với A): chặn.
+	for ten, dl, cu_, dau in (("đã dùng", dict(du_lieu, ban_sua=[dict(bs[0], da_dung=1)]), cu, "dau-cu"),
+			("đã đúng nội dung", du_lieu, NS(name="R", nguon="N1", dau_noi_dung=bs[0]["dong"]["dau_noi_dung"], thuc_nhan=1), "x"),
+			("bản đang tính vừa đổi", du_lieu, NS(name="R-C", nguon="N2", dau_noi_dung="dau-C", thuc_nhan=1), "dau-A"),
+			("thiếu dấu bản đang tính", du_lieu, cu, None)):
 		nguon.du_lieu = json.dumps(dl)
 		cu = cu_
 		viec.clear()
@@ -1241,8 +1244,21 @@ def _():
 				patch.object(V.frappe, "throw", lambda m: (_ for _ in ()).throw(ValueError(m)), create=True), \
 				patch.object(V, "_chen_dong", lambda *a: viec.append("chen")):
 			try:
-				V.dung_ban_sua(name="N3", khoa=k)
+				V.dung_ban_sua(name="N3", khoa=k, dau_cu=dau)
 				chan = False
 			except ValueError:
 				chan = True
 		la("chặn khi " + ten, (chan, viec), (True, []))
+
+
+@ca("Codex #450 vòng 15: dấu phiên bản cuối của patches.txt là số lớn nhất và bằng APPVER (không trông như lùi số)")
+def _():
+	import os
+	import re
+	goc = os.path.join(os.path.dirname(__file__), "..", "..")
+	dong = [d.strip() for d in open(os.path.join(goc, "patches.txt"), encoding="utf-8") if d.strip()]
+	so = [int(m.group(1)) for d in dong for m in [re.search(r"#v(\d+)\s*$", d)] if m]
+	js = open(os.path.join(goc, "public", "js", "bep", "12-van-don.js"), encoding="utf-8").read()
+	appver = int(re.search(r"var APPVER = '(\d+)';", js).group(1))
+	la("dấu cuối bằng APPVER", so[-1], appver)
+	la("dấu cuối là số lớn nhất", so[-1], max(so))
