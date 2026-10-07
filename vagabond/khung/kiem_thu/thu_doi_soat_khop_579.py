@@ -391,7 +391,7 @@ def _():
 _CT_DA_DOC = []  # pháp nhân mà _doc_va_xem được gọi với, trong _chay_thu
 
 
-def _chay_thu(tep, tieu_de, da_co=None):
+def _chay_thu(tep, tieu_de, da_co=None, hop_thu_loi=False):
 	"""Chạy xu_ly_thu THẬT (cả _nhan_byte thật) với tầng chạm hệ được thay:
 	tep = {tên đính kèm: [(tên tệp con, có mẫu?)]}. Trả (ket, các nguồn đã ghi)."""
 	from contextlib import nullcontext
@@ -410,6 +410,12 @@ def _chay_thu(tep, tieu_de, da_co=None):
 		return ra
 
 	def get_value(dt, loc, truong=None, as_dict=False):
+		if dt == "Communication" and truong == "email_account":
+			return "HOP-1"
+		if dt == "Email Account":
+			if hop_thu_loi:
+				raise RuntimeError("mất kết nối CSDL khi đọc hộp thư")
+			return None
 		if dt == "Communication":
 			return NS(subject=tieu_de, content="", sender="noreply@payoo.com.vn")
 		sha = loc.get("sha256") if isinstance(loc, dict) else None
@@ -1484,3 +1490,25 @@ def _():
 		ket, ghi = _chay_thu({"bao-cao.csv": [("bao-cao.csv", True)]}, "Thong bao")
 	la("ghi nguồn", [g[0] for g in ghi], ["bao-cao.csv"])
 	la("đọc theo pháp nhân B (mặc định site là CT)", _CT_DA_DOC[-1:], ["B"])
+
+
+@ca("v585 Codex #452: đọc pháp nhân của hộp thư lỗi thì không ghi nguồn vào pháp nhân mặc định, ghi Error Log để lượt quét sau thử lại")
+def _():
+	# Chạy xu_ly_thu và _cong_ty_cua_thu THẬT; chỉ cho lần đọc Email Account
+	# ném lỗi. Bản cũ nuốt lỗi thành "chưa khai" rồi ghi nguồn vào pháp nhân
+	# mặc định của site: sai pháp nhân mà không ai biết.
+	from unittest.mock import patch
+	from vagabond import doi_soat_vendor as V
+	log = []
+	truoc = len(_CT_DA_DOC)
+	with patch.object(V.frappe, "log_error", lambda *a, **k: log.append(k.get("title") or a), create=True), \
+			patch.object(V, "_cong_ty_demo", lambda: ""):
+		ket, ghi = _chay_thu({"bao-cao.csv": [("bao-cao.csv", True)]}, "Thong bao", hop_thu_loi=True)
+	la("không ghi nguồn nào", ghi, [])
+	la("không đọc tệp theo pháp nhân nào", _CT_DA_DOC[truoc:], [])
+	la("không trả kết quả", ket, [])
+	la("một dòng Error Log", len(log), 1)
+	dung("log nói rõ pháp nhân hộp thư", "pháp nhân" in str(log[0]))
+	with patch.object(V, "_cong_ty_demo", lambda: ""), patch.object(V.frappe.db, "exists", lambda *a, **k: True, create=True):
+		ket, ghi = _chay_thu({"bao-cao.csv": [("bao-cao.csv", True)]}, "Thong bao")
+	la("hộp thư đọc được mà chưa khai: về mặc định như cũ", (len(ghi), _CT_DA_DOC[-1]), (1, "CT"))
