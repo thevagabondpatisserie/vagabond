@@ -184,16 +184,18 @@ def _tham_ngan(ten):
 	return {"%s_n%d" % (ten, i): s for i, s in enumerate(_NGAN_CACH)}
 
 
-def sql_ung_vien(doctype, truong, cot, q, gioi_han=GIOI_HAN_DOC, ten="tg"):
-	"""Cau doc ung vien cho ca cum go: MOI tu cung trong mot cau (dieu kien
-	`sql` o tren), roi moi cat `limit`.
+def sql_ung_vien(doctype, truong, cot, q, gioi_han=None, ten="tg"):
+	"""MOT cau doc ung vien cho ca cum chu go: moi tu deu phai khop (AND giua
+	cac tu, OR giua cot va bien the), roi moi cat `limit`.
 
-	Gom het tu vao mot cau la de tran dong cat SAU khi da giao cac tu (Codex
-	#450 vong 2): cat theo tung tu thi mot tu chung ("banh") an het 5000 cho,
-	dong khop tu thu hai nam ngoai 5000 dong do bi bo sot.
+	Codex #450 (vong 2 phan o tim): ban truoc hoi tung tu mot, cat 5000 dong
+	ngay o tu dau roi moi giao voi tu sau. Tu dau pho bien (vd "chocolatine"
+	tren 5000 dong) thi dong duy nhat co ca tu sau bi cat mat, o tim ra rong.
+	Nay dieu kien cua MOI tu nam trong cung mot cau truoc `limit`, giong
+	het `sql` (tu dai so tren cot da bo dau ngan cach, tu ngan giu dau tieng).
 
 	`doctype`, `truong`, `cot` phai la ten that (soat dang o day, khong bao gio
-	noi chuoi go vao cau lenh). Tra ve (chuoi, tham_so), hoac ("", {}) khi go
+	noi chuoi go vao cau lenh). Tra ve (chuoi, tham_so), hoac (None, {}) khi go
 	rong.
 	"""
 	if not _TEN_DT.match(str(doctype or "")):
@@ -203,9 +205,10 @@ def sql_ung_vien(doctype, truong, cot, q, gioi_han=GIOI_HAN_DOC, ten="tg"):
 			raise ValueError("cot khong hop le: %r" % (c,))
 	dk, tham = sql(q, ["`%s`" % c for c in cot], ten)
 	if not dk:
-		return "", {}
-	return ("select %s from `tab%s` where %s order by `modified` desc limit %d" % (
-		", ".join("`%s`" % c for c in truong), doctype, dk, int(gioi_han)), tham)
+		return None, {}
+	return ("select %s from `tab%s` where %s order by `name` limit %d" % (
+		", ".join("`%s`" % c for c in truong), doctype, dk,
+		int(GIOI_HAN_DOC if gioi_han is None else gioi_han)), tham)
 
 
 def cot_hop_le(cot, co_that):
@@ -225,9 +228,9 @@ def ten_khop(doctype, q, cot, gioi_han=2000):
 	"""Ten cac ban ghi khop o tim. None neu khong go gi (de ben goi bo loc).
 
 	Hai buoc:
-	  1. MOT cau SQL (`sql_ung_vien`): moi tu deu phai co mat (AND), cot nao
-	     cung duoc (OR), tu dai so tren cot da bo dau ngan cach, tu ngan chi can
-	     dung dau mot tieng, roi moi cat tran dong. Buoc nay rong tay.
+	  1. MOT cau SQL (`sql_ung_vien`): moi tu deu phai co mat o mot cot (va
+	     moi bien the d/đ), dieu kien du ca cum truoc khi cat `limit`. Buoc nay
+	     rong tay (tu ngan chi can dung dau mot tieng).
 	  2. So lai tung dong bang `khop` (cung luat voi may khach) tren chinh cac
 	     cot da doc, de ket qua dung y het ban JS: tu ngan phai nguyen tieng khi
 	     go nhieu tu, va moi tu deu phai co mat.
@@ -240,10 +243,12 @@ def ten_khop(doctype, q, cot, gioi_han=2000):
 	if not tu or not cot:
 		return None
 	truong = ["name"] + [c for c in cot if c != "name"]
+	# Mot cau cho ca cum chu: moi tu deu phai khop TRUOC khi cat `limit`
+	# (Codex #450 vong 2). Khong hoi tung tu roi giao trong Python nua.
 	cau, tham = sql_ung_vien(doctype, truong, cot, q)
-	ds = frappe.db.sql(cau, tham, as_dict=True) if cau else []
-	ra = [r["name"] for r in ds if khop([r.get(c) for c in truong], q)]
-	ra.sort()
+	gia_tri = {r["name"]: [r.get(c) for c in truong] for r in frappe.db.sql(cau, tham, as_dict=True)}
+	con = set(gia_tri)
+	ra = sorted(m for m in (con or []) if khop(gia_tri.get(m) or [m], q))
 	if doctype == "Item":
 		# Go ma vach (in tren tem, quet khong duoc thi go tay) cung phai ra mon.
 		gon = "".join(tu)
