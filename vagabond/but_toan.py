@@ -257,15 +257,14 @@ def tim_tai_khoan(tu_khoa="", so_dong=40):
 	"""Goi y tai khoan de go tay. Chi tra ve tai khoan chi tiet, khong nhom."""
 	_kiem(QUYEN_XEM, "tra cứu tài khoản")
 	cty = _cty()
+	from vagabond import tim_kiem
+
 	dk = {"company": cty, "is_group": 0, "disabled": 0}
-	hoac = None
-	if (tu_khoa or "").strip():
-		# v552: go "112" phai ra 1121, 11211 MB Bank: so hieu nam o
-		# account_number chu khong nam trong ten.
-		mau = "%" + tu_khoa.strip() + "%"
-		hoac = {"account_name": ["like", mau], "account_number": ["like", tu_khoa.strip() + "%"]}
+	# v552: go "112" phai ra 1121, 11211 MB Bank: so hieu nam o
+	# account_number chu khong nam trong ten. v583: tim theo tung tu, bo dau.
 	ds = frappe.get_all(
-		"Account", filters=dk, or_filters=hoac,
+		"Account",
+		filters=tim_kiem.them_loc(dk, "Account", tu_khoa, ["name", "account_name", "account_number"]),
 		fields=["name", "account_name", "account_type", "root_type", "account_number"],
 		order_by="account_number asc, account_name asc", limit_page_length=cint(so_dong) or 40,
 	)
@@ -312,11 +311,11 @@ def danh_sach(so_ngay=60, chip=None, tu_khoa=None):
 	elif chip == "da_huy":
 		rows = [r for r in rows if r["docstatus"] == 2]
 	if tu_khoa:
-		k = tu_khoa.strip().lower()
+		from vagabond import tim_kiem
+
 		rows = [
 			r for r in rows
-			if k in (r["user_remark"] or "").lower() or k in (r["name"] or "").lower()
-			or k in (r["title"] or "").lower()
+			if tim_kiem.khop([r["user_remark"], r["name"], r["title"], r.get("cheque_no")], tu_khoa)
 		]
 	return {
 		"rows": rows[:200],

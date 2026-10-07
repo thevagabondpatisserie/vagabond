@@ -104,7 +104,9 @@ def loc(rows, chip="", tim=""):
 	chip: "" tất cả, một mã LOAI, "can_han" (có lô cận hạn hoặc quá hạn),
 	"am" (tồn âm), "het" (tồn 0 nhưng có trong danh sách vì có lô hay từng có).
 	"""
-	q = (tim or "").strip().lower()
+	from vagabond import tim_kiem
+
+	q = (tim or "").strip()
 	ra = []
 	for r in rows or []:
 		if chip in TEN_LOAI and r.get("loai") != chip:
@@ -113,7 +115,7 @@ def loc(rows, chip="", tim=""):
 			continue
 		if chip == "am" and flt(r.get("ton")) >= 0:
 			continue
-		if q and q not in ((r.get("ten") or "") + " " + (r.get("ma") or "")).lower():
+		if q and not tim_kiem.khop([r.get("ten"), r.get("ma")], q):
 			continue
 		ra.append(r)
 	return ra

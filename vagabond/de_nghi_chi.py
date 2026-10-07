@@ -1280,7 +1280,11 @@ def ds_man(chip="tat_ca", so_ngay=30, tim="", so_dong=100, nguoi_lap=""):
 	hoac = None
 	tim = (tim or "").strip()
 	if tim:
-		hoac = [["name", "like", "%" + tim + "%"], ["ten_khoan_chi", "like", "%" + tim + "%"]]
+		# v583: tim theo tung tu, bo dau, bo dau cau (tim_kiem.py). Mot dieu
+		# kien "name in" duy nhat trong or_filters, cac cho dung chung giu nguyen.
+		from vagabond import tim_kiem
+
+		hoac = [tim_kiem.loc_ten(DT, tim, ["name", "ten_khoan_chi"])]
 
 	nguoi = frappe.get_all(DT, filters=goc, fields=["nguoi_tao"], distinct=True, limit_page_length=0)
 	if nguoi_lap and (_vai() & (VAI_DUYET | VAI_KE_TOAN | VAI_GIAM_DOC)):
@@ -2144,7 +2148,9 @@ def xuat_excel(chip="tat_ca", so_ngay=30, tim="", nguoi_lap=""):
 		loc["creation"] = [">=", frappe.utils.add_days(nowdate(), -cint(so_ngay))]
 	if trang_thai_theo_chip(chip):
 		loc["trang_thai"] = ["in", trang_thai_theo_chip(chip)]
-	hoac = [["name", "like", "%" + tim + "%"], ["ten_khoan_chi", "like", "%" + tim + "%"]] if tim else None
+	from vagabond import tim_kiem
+
+	hoac = [tim_kiem.loc_ten(DT, tim, ["name", "ten_khoan_chi"])] if tim else None
 	ten = frappe.get_all(DT, filters=loc, or_filters=hoac, pluck="name", order_by="creation desc", limit_page_length=0)
 	bang = [["Mã phiếu", "Ngày lập", "Người lập", "Loại nghiệp vụ", "Phân loại", "Tên khoản chi", "Số hoá đơn", "Ngày hoá đơn", "MST người bán", "Hoá đơn VAT", "Tiền khoản", "Tổng phiếu", "Trạng thái", "Người duyệt", "Ngày duyệt", "Mã giao dịch", "Ngày đã chi", "Mã tạm ứng", "Mã YCPS"]]
 	for ma in ten:

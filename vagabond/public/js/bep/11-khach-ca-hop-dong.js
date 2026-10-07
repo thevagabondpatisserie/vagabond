@@ -3462,11 +3462,8 @@ function mvKhongDau(s) {
 }
 
 function mvKhop(x, q) {
-  if (!q) return true;
-  q = mvKhongDau(q).trim();
-  if (!q) return true;
-  return mvKhongDau((x.ten_banh || '') + ' ' + (x.ma_hang || '') + ' ' + (x.nhan_ngan || ''))
-    .indexOf(q) >= 0;
+  /* v583: tim theo tung tu, bo dau, bo dau cau (vgbKhop). */ 
+  return vgbKhop([x.ten_banh, x.ma_hang, x.nhan_ngan], q);
 }
 
 function mvLocDs(ds) {

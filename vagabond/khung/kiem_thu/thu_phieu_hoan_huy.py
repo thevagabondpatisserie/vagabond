@@ -127,24 +127,16 @@ def _():
 # ------------------------------------------------------- luật ô tìm
 
 
-@ca("ô tìm: rỗng thì trả None chứ không trả danh sách rỗng")
+# v583 (anh Viet 07/10/2026): ham rieng `dieu_kien_tim` da bo, moi o tim di
+# qua MOT nguon `vagabond/tim_kiem.py` (tach tung tu, bo dau, bo dau cau).
+# Ca kiem phep tim nam o thu_tim_kiem_583.py; o day chi chot man nay goi dung.
+@ca("ô tìm: rỗng thì không thêm bộ lọc nào")
 def _():
-	from vagabond.don_huy import dieu_kien_tim
+	from vagabond import tim_kiem
 
-	# `or_filters=[]` va `or_filters=None` la hai chuyen khac han voi Frappe.
-	la("rỗng", dieu_kien_tim("", ("a", "b")), None)
-	la("toàn khoảng trắng", dieu_kien_tim("   ", ("a",)), None)
-	la("None", dieu_kien_tim(None, ("a",)), None)
-
-
-@ca("ô tìm: dựng đủ một điều kiện cho mỗi ô, dạng like hai đầu")
-def _():
-	from vagabond.don_huy import dieu_kien_tim
-
-	dk = dieu_kien_tim("  92583 ", ("ma_don", "ten_khach"))
-	la("hai điều kiện", len(dk), 2)
-	la("ô đầu", dk[0], ["ma_don", "like", "%92583%"])
-	la("ô sau", dk[1], ["ten_khach", "like", "%92583%"])
+	la("rỗng", tim_kiem.them_loc({"a": 1}, "X", "", ("a",)), {"a": 1})
+	la("toàn khoảng trắng", tim_kiem.them_loc({"a": 1}, "X", "   ", ("a",)), {"a": 1})
+	la("None", tim_kiem.them_loc(None, "X", None, ("a",)), None)
 
 
 @ca("ô tìm: màn Đơn đã huỷ và màn Phiếu hoàn đều đẩy ô tìm xuống máy chủ")
@@ -155,9 +147,8 @@ def _():
 
 	for ham in (dh.ds, dh.ds_phieu):
 		c = inspect.getsource(ham)
-		dung("%s dùng or_filters" % ham.__name__, "or_filters=hoac" in c)
-		dung("%s dựng điều kiện bằng hàm chung" % ham.__name__,
-			"dieu_kien_tim(" in c)
+		dung("%s dựng điều kiện bằng hàm chung tim_kiem" % ham.__name__,
+			"tim_kiem.them_loc(" in c)
 	# Dem chip phai chay tren CUNG bo loc va CUNG o tim, khong thi go mot cai
 	# ten ra 2 dong ma chip van bao 40. Hai man lam theo hai duong khac nhau
 	# vi hinh dang du lieu khac nhau, nhung ket qua phai nhu nhau:
@@ -165,7 +156,7 @@ def _():
 	#   - man Phieu hoan doc HET so mot lan roi dem trong Python, vi diem ban
 	#     nam tren hoa don chu khong nam tren ho so, khong dua xuong SQL duoc.
 	c1 = inspect.getsource(dh.ds)
-	dung("màn Đơn đã huỷ đếm bằng truy vấn thứ hai", c1.count("or_filters=hoac") >= 2)
+	dung("màn Đơn đã huỷ đếm bằng truy vấn thứ hai", c1.count("tim_kiem.them_loc(") >= 2)
 	c2 = inspect.getsource(dh.ds_phieu)
 	dung("màn Phiếu hoàn đọc hết sổ rồi mới đếm", "limit_page_length=0" in c2)
 	dung("màn Phiếu hoàn không cắt dòng trước khi đếm",
@@ -452,7 +443,8 @@ def _():
 	c = inspect.getsource(dh.tim_don_de_hoan)
 	for cam in ("frappe.get_doc(", ".insert(", ".save(", ".submit("):
 		dung("không %s" % cam.strip("(."), cam not in c)
-	dung("ô tìm chạy ở máy chủ", "or_filters=hoac" in c)
+	# v583: o tim di qua tim_kiem.them_loc (van loc o may chu).
+	dung("ô tìm chạy ở máy chủ", "tim_kiem.them_loc(" in c)
 	dung("lọc theo điểm bán", 'loc["vgb_quay"]' in c)
 	dung("báo đơn đã có phiếu rồi", '"da_co_phieu"' in c)
 

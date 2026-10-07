@@ -39,7 +39,7 @@ def _kiem_quyen_cong_no():
 			"Công nợ phải thu chỉ mở cho Sales, Quản lý cửa hàng, Kế toán và Giám đốc. "
 			"Cần dùng thì nhờ người quản lý xếp thêm gói Sales trong màn Quản lý người dùng."
 		)
-from vagabond import chiem_sao_ke, tai_khoan
+from vagabond import chiem_sao_ke, tai_khoan, tim_kiem
 
 # Ma phieu yeu cau thanh toan.
 #
@@ -459,8 +459,9 @@ def _tap_tien_da_ve(nguon="", ky="", tu="", den="", tim=""):
 		p["ngay_hd"] = str(hd[0].posting_date)[:10] if hd else ""
 		if not trong_khoang(p["ngay_ve"], tu_ngay, den_ngay):
 			continue
-		if tim and not any(tim in str(x or "").lower() for x in (
-				p["ten_khach"], p["hd_dau"], p["pe"], p["ma_gd"], p["ma_don"])):
+		# v583: tim theo tung tu, bo dau, bo dau cau (tim_kiem.py).
+		if tim and not tim_kiem.khop(
+				[p["ten_khach"], p["hd_dau"], p["pe"], p["ma_gd"], p["ma_don"]], tim):
 			continue
 		dem[p["nguon"]] = dem.get(p["nguon"], 0) + 1
 		dem["tat_ca"] += 1
@@ -1135,15 +1136,13 @@ def tim_khach(tu_khoa=""):
 		)
 		return {"khach": ds}
 
+	from vagabond import tim_kiem
+
 	ds = frappe.get_all(
 		"Customer",
-		filters={"disabled": 0},
-		or_filters={
-			"name": ["like", "%" + q + "%"],
-			"customer_name": ["like", "%" + q + "%"],
-			"tax_id": ["like", "%" + q + "%"],
-			"mobile_no": ["like", "%" + q + "%"],
-		},
+		# v583: tim theo tung tu, bo dau, bo dau cau (tim_kiem.py).
+		filters=tim_kiem.them_loc({"disabled": 0}, "Customer", q,
+			["name", "customer_name", "tax_id", "mobile_no"]),
 		fields=truong,
 		order_by="customer_name asc",
 		limit_page_length=40,

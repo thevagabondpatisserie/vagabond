@@ -113,14 +113,15 @@ def danh_sach(tu_khoa="", chip=None, nhom=None, gioi_han=300):
 	"""Mat hang mua kem gia mua dang khai."""
 	_kiem(QUYEN_XEM, "xem bảng giá mua")
 	_bao_dam_bang_gia()
+	from vagabond import tim_kiem
+
 	loc = {"is_purchase_item": 1, "disabled": 0}
-	if (tu_khoa or "").strip():
-		loc["item_name"] = ["like", "%" + tu_khoa.strip() + "%"]
 	if nhom:
 		loc["item_group"] = nhom
 	mon = frappe.get_all(
 		"Item",
-		filters=loc,
+		# v583: tim theo tung tu, bo dau, bo dau cau (tim_kiem.py).
+		filters=tim_kiem.them_loc(loc, "Item", tu_khoa, ["name", "item_name"], gioi_han=5000),
 		fields=["name", "item_name", "stock_uom", "item_group", "purchase_uom"],
 		order_by="item_name asc",
 		limit_page_length=0,

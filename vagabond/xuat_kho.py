@@ -188,24 +188,10 @@ def _khop(hang, tu):
 	o" ra rong, nhin danh sach mac dinh khong thay banh o dau, va ket luan
 	la he thong thieu ma.
 	"""
-	kho_chu = _bo_dau(hang.get("ma")) + " " + _bo_dau(hang.get("ten"))
-	return all(_co_tu(kho_chu, t) for t in tu)
+	# v583: mot nguon cho moi o tim (tim_kiem.py), cung luat tu ngan o day.
+	from vagabond import tim_kiem
 
-
-def _co_tu(kho_chu, t):
-	"""Mot tu da go co nam trong chuoi khong.
-
-	TU NGAN PHAI DUNG DAU MOT TIENG, khong duoc nam giua long tu khac. Neu
-	khong thi go "banh o" se ra ca "Banh Croissant Avocado" - chu "o" nam
-	trong "croissant" - va danh sach loc ra y het danh sach chua loc, tuc la
-	o tim khong lam gi ca. Da vap dung cai nay khi viet ham nay.
-
-	Tu tu ba ky tu tro len thi cho khop o bat ky dau, de con go duoc mot
-	manh giua ma hang nhu "wc000".
-	"""
-	if len(t) >= 3:
-		return t in kho_chu
-	return re.search(r"(?<![a-z0-9])" + re.escape(t), kho_chu) is not None
+	return tim_kiem.khop([hang.get("ma"), hang.get("ten")], " ".join(tu))
 
 
 def _diem_khop(hang, tu_khoa_sach):

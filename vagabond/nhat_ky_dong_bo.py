@@ -93,12 +93,13 @@ def ds(so_dong=100, chi_can_xem=0, ma_don="", nhip=""):
 	if cint(chi_can_xem):
 		loc["can_nguoi_xem"] = 1
 		loc["da_xem"] = 0
-	if (ma_don or "").strip():
-		loc["ma_don"] = ["like", "%%%s%%" % ma_don.strip()]
 	if (nhip or "").strip():
 		loc["nhip"] = nhip.strip()
+	# v583: tim theo tung tu, bo dau, bo dau cau (tim_kiem.py).
+	from vagabond import tim_kiem
+
 	return frappe.get_all(
-		DT, filters=loc,
+		DT, filters=tim_kiem.them_loc(loc, DT, ma_don, ["ma_don"]),
 		fields=["name", "creation", "nhip", "ma_don", "doi_tuong", "ten_doi_tuong",
 		        "viec", "truong", "gia_tri_cu", "gia_tri_moi", "can_nguoi_xem",
 		        "da_xem", "ghi_chu"],

@@ -336,24 +336,6 @@ TRUONG_TIM_PHIEU = (
 TRUONG_TIM_DON = ("ma_don", "ma_hien_thi", "ten_khach", "sdt", "ma_gd")
 
 
-def dieu_kien_tim(tim, truong):
-	"""Dựng điều kiện HOẶC cho ô tìm, để đưa thẳng vào `or_filters`. THUẦN.
-
-	QT-19 và anh Việt nhắc lại 31/08/2026: *"ô tìm kiếm đã yêu cầu viết ở
-	backend cho MỌI MÀN"*. Lọc bằng Python SAU khi đã cắt dòng là cái bẫy
-	im lặng nhất trong repo này: màn vẫn chạy, vẫn ra kết quả, chỉ là kết
-	quả tìm trong đúng N dòng mới nhất. Đơn cũ hơn N thì gõ mã vào ô tìm ra
-	danh sách rỗng, và người dùng kết luận là đơn đã mất.
-
-	Trả None khi ô tìm rỗng, vì `or_filters=None` mới là "không lọc gì";
-	truyền danh sách rỗng xuống Frappe là một chuyện khác hẳn.
-	"""
-	q = str(tim or "").strip()
-	if not q:
-		return None
-	return [[c, "like", "%" + q + "%"] for c in truong]
-
-
 def buoc_cua_phieu(trang_thai, co_unc=0, da_ghi_so=0, da_doi_soat=0):
 	"""Phiếu đang đứng ở bước nào. THUẦN.
 
@@ -673,12 +655,14 @@ def ds(trang_thai="", tim="", so_dong=200):
 	# Ô tìm chạy Ở MÁY CHỦ, không lọc lại bằng Python sau khi đã cắt dòng.
 	# Trước 31/08/2026 chỗ này cắt 200 dòng mới nhất rồi mới lọc, nên gõ mã
 	# một đơn huỷ từ tháng trước là ra danh sách rỗng dù đơn vẫn còn nguyên.
-	hoac = dieu_kien_tim(tim, TRUONG_TIM_DON)
-	dong = frappe.get_all(DT, filters=loc, or_filters=hoac, fields=truong,
+	# v583: tìm theo từng từ, bỏ dấu, bỏ dấu câu, một nguồn ở tim_kiem.py.
+	from vagabond import tim_kiem
+
+	dong = frappe.get_all(DT, filters=tim_kiem.them_loc(loc, DT, tim, TRUONG_TIM_DON), fields=truong,
 		order_by="huy_luc desc", limit_page_length=int(so_dong or 200))
 	# Số trên chip đếm theo ĐÚNG ô tìm đang gõ. Nếu không thì gõ một cái tên
 	# ra 2 dòng mà chip vẫn báo 40, và người đọc không biết tin con số nào.
-	tat_ca = frappe.get_all(DT, filters={}, or_filters=hoac,
+	tat_ca = frappe.get_all(DT, filters=tim_kiem.them_loc({}, DT, tim, TRUONG_TIM_DON),
 		fields=["trang_thai", "da_nhan"], limit_page_length=0)
 	for d in dong:
 		d["nhan_trang_thai"] = NHAN_TT.get(d["trang_thai"], d["trang_thai"])
@@ -895,7 +879,10 @@ def ds_phieu(diem="", loai="", trang_thai="", tim="", so_dong=200):
 	tt = str(trang_thai or "").strip()
 	if tt and tt in TT_PHIEU:
 		loc["trang_thai"] = tt
-	hoac = dieu_kien_tim(tim, TRUONG_TIM_PHIEU)
+	# v583: tìm theo từng từ, bỏ dấu, bỏ dấu câu, một nguồn ở tim_kiem.py.
+	from vagabond import tim_kiem
+
+	loc = tim_kiem.them_loc(loc, HT, tim, TRUONG_TIM_PHIEU)
 
 	truong = ["name", "loai_hoan", "hoa_don", "ma_don_pancake", "diem_ban",
 		"so_tien",
@@ -903,7 +890,7 @@ def ds_phieu(diem="", loai="", trang_thai="", tim="", so_dong=200):
 		"sdt", "phieu_chi", "phieu_thu", "da_doi_soat", "ma_gd",
 		"ngay_doi_soat", "noi_dung_ck", "nguoi_duyet", "creation", "so_hddt",
 		"ly_do_tu_choi", "nguoi_tu_choi"]
-	dong = frappe.get_all(HT, filters=loc, or_filters=hoac, fields=truong,
+	dong = frappe.get_all(HT, filters=loc, fields=truong,
 		order_by="creation desc", limit_page_length=0)
 
 	# Quầy của hoá đơn gốc, một câu cho cả trang. Từ quầy mới ra điểm bán.
@@ -1092,11 +1079,11 @@ def tim_don_de_hoan(diem="", tim="", so_dong=40):
 		q = (d or {}).get("quay") or ""
 		# Sales Online khong mang ma quay, nen loc bang "quay de trong".
 		loc["vgb_quay"] = q if q else ["in", ["", None]]
-	q = str(tim or "").strip()
-	hoac = None
-	if q:
-		hoac = [[c, "like", "%" + q + "%"] for c in TRUONG_TIM_DON_HD]
-	dong = frappe.get_all("Sales Invoice", filters=loc, or_filters=hoac,
+	# v583: tìm theo từng từ, bỏ dấu, bỏ dấu câu, một nguồn ở tim_kiem.py.
+	from vagabond import tim_kiem
+
+	dong = frappe.get_all("Sales Invoice",
+		filters=tim_kiem.them_loc(loc, "Sales Invoice", tim, TRUONG_TIM_DON_HD),
 		fields=["name", "customer_name", "grand_total", "posting_date",
 			"docstatus", "custom_hddt_so", "vgb_quay", "vgb_huy",
 			# Ten that cua khach le nam trong ghi chu. Thieu ba o nay thi moi

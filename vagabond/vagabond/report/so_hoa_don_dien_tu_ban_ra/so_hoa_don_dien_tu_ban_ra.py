@@ -9,7 +9,7 @@ thay thế, tờ lập tay, tờ tách đều có mặt. Chỉ đọc.
 import frappe
 from frappe.utils import add_days, cint, getdate
 
-from vagabond import ma_ke_toan
+from vagabond import ma_ke_toan, tim_kiem
 from vagabond.doi_soat_hddt_ra import kh, so, tach_ghi_thay_the, tach_goc
 
 TOI_DA = 5000
@@ -55,7 +55,8 @@ def chon_to(to_nhe, tim, ma_khach, ma_theo_mst):
 	so_tim = ma_ke_toan.chuan_mst(tim) if tim else ""
 	ra = []
 	for t in to_nhe or []:
-		if tim and not (tim in str(t.get("nguoi_mua_ban") or "").lower()
+		# v583: ten tim theo tung tu, bo dau, bo dau cau (tim_kiem.py).
+		if tim and not (tim_kiem.khop(t.get("nguoi_mua_ban"), tim)
 				or (so_tim and ma_ke_toan.chuan_mst(t.get("mst_doi_tac")) == so_tim)):
 			continue
 		if mk and ma_khach_cua_to(t, ma_theo_mst) != mk:

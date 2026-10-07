@@ -621,7 +621,16 @@ def ung_vien_don(to=None, tu_khoa=None):
 	tim = str(tu_khoa or "").strip()
 	# Codex #369 vòng 5: có từ khoá thì tìm TOÀN BỘ đơn đã ghi sổ, không giới
 	# hạn khoảng ngày, để đơn cũ hay khác MST vẫn chọn được từ danh mục.
-	for loc in (loc_tim_don(tim) if tim else ({"posting_date": ["between", khoang]}, {"vgb_hddt_ngay_xuat": ["between", khoang]})):
+	cac_loc = loc_tim_don(tim) if tim else [{"posting_date": ["between", khoang]}, {"vgb_hddt_ngay_xuat": ["between", khoang]}]
+	if tim and cac_loc:
+		# v583: them mot luot tim theo tung tu, bo dau, bo dau cau (tim_kiem.py),
+		# de go "kiet tac" hay "kiệt tác, 8.9" van ra don.
+		from vagabond import tim_kiem
+
+		f = tim_kiem.loc_ten("Sales Invoice", tim, ["name", "custom_pancake_display_id", "customer_name"])
+		if f:
+			cac_loc = list(cac_loc) + [{"name": f[1:]}]
+	for loc in cac_loc:
 		for s in frappe.get_all("Sales Invoice", filters=dict({"docstatus": 1}, **loc), fields=truong,
 				limit_page_length=SO_KET_QUA_TIM if tim else 0, order_by="posting_date desc"):
 			gom[s.name] = s

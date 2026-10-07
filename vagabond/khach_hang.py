@@ -173,12 +173,11 @@ def ds_khach(tu_khoa="", dang="", hang=""):
 		"limit_page_length": 400,
 	}
 	if q:
-		doi["or_filters"] = {
-			"name": ["like", "%" + q + "%"],
-			"customer_name": ["like", "%" + q + "%"],
-			"tax_id": ["like", "%" + q + "%"],
-			"mobile_no": ["like", "%" + q + "%"],
-		}
+		# v583: tim theo tung tu, bo dau, bo dau cau (tim_kiem.py).
+		from vagabond import tim_kiem
+
+		doi["filters"] = tim_kiem.them_loc(loc, "Customer", q,
+			["name", "customer_name", "tax_id", "mobile_no"])
 	try:
 		tong_so = frappe.db.count("Customer", loc)
 	except Exception:

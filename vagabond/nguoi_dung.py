@@ -29,6 +29,8 @@ import json
 
 import frappe
 
+from vagabond import bo_phan_nguoi as bpn
+
 from vagabond.quyen_phan_he import ROLE_GIAM_DOC, ROLE_THU_MUA
 
 from frappe.utils import cint, now_datetime
@@ -558,13 +560,10 @@ def danh_sach(tu_khoa=None, chip=None, goi=None):
 		rows = [r for r in rows if goi in r["cac_goi"]]
 
 	if tu_khoa:
-		k = (tu_khoa or "").strip().lower()
-		rows = [
-			r for r in rows
-			if k in (r["ten"] or "").lower()
-			or k in (r["email"] or "").lower()
-			or k in (r["sdt"] or "").lower()
-		]
+		# v583: tim theo tung tu, bo dau, bo dau cau (tim_kiem.py).
+		from vagabond import tim_kiem
+
+		rows = [r for r in rows if tim_kiem.khop([r["ten"], r["email"], r["sdt"]], tu_khoa)]
 
 	co_roi = {r["email"] for r in rows}
 	rows = rows + [r for r in khop_email if r["email"] not in co_roi]
@@ -655,6 +654,7 @@ def chi_tiet(email):
 	co_that = _vai_co_that()
 	cg = doan_cac_goi(vai, co_that, _goi_da_luu(email))
 	g = cg[0] if cg else None
+	bo_phan = _bo_phan_cua(email)
 	lam = []
 	for x in cg:
 		for viec in x["lam_duoc"]:
@@ -678,7 +678,65 @@ def chi_tiet(email):
 		"vai_chon_duoc": sorted((co_that - VAI_NEN)),
 		"la_quan_tri": 1 if _la_quan_tri() else 0,
 		"la_toi": 1 if email == frappe.session.user else 0,
+		"bo_phan": bo_phan,
+		"bo_phan_ten": ten_ngan_bo_phan(bo_phan),
+		"bo_phan_bep": bep_cua_bo_phan(bo_phan),
+		# Site chua co o Bo phan tren User thi khong moi doi (khong ve nut).
+		"bo_phan_chon_duoc": cac_bo_phan_chon(_bo_phan_co_that()) if _co_o_bo_phan() else [],
 	}
+
+
+# ------------------------------------------------------------ bo phan
+#
+# Cac phep thuan nam o vagabond/bo_phan_nguoi.py (khong cham Frappe, Codex #450
+# vong 2). O day chi ghep cay bo phan that vao va doc/ghi User.
+
+_BEP_THAY_PHIEU = bpn.BEP_THAY_PHIEU
+ten_ngan_bo_phan = bpn.ten_ngan_bo_phan
+bep_cua_bo_phan = bpn.bep_cua_bo_phan
+
+
+def mo_ta_bo_phan(ten):
+	from vagabond.bo_phan import nhom_cua
+
+	return bpn.mo_ta_bo_phan(ten, nhom_cua)
+
+
+def cac_bo_phan_chon(ds):
+	from vagabond.bo_phan import cac_la, nhom_cua
+
+	return bpn.cac_bo_phan_chon(ds, cac_la(), nhom_cua)
+
+
+def _bo_phan_cua(email):
+	"""Bo phan dang ghi cua mot nguoi, doc DUNG hai o app dang doc."""
+	try:
+		u = frappe.db.get_value(
+			"User", email, ["custom_phong_ban", "custom_bo_phan"], as_dict=True
+		) or {}
+	except Exception:
+		return ""
+	return (u.get("custom_phong_ban") or u.get("custom_bo_phan") or "").strip()
+
+
+def _co_o_bo_phan():
+	"""User co o `custom_phong_ban` khong. O nay la Custom Field tao tren site
+	(Link Department), khong nam trong ma nguon, nen bench dung moi chua co."""
+	try:
+		return bool(frappe.get_meta("User").has_field("custom_phong_ban"))
+	except Exception:
+		return False
+
+
+def _bo_phan_co_that():
+	"""Cac Department chon duoc: khong phai nhom, khong bi tat."""
+	loc = {"is_group": 0}
+	try:
+		if frappe.get_meta("Department").has_field("disabled"):
+			loc["disabled"] = 0
+	except Exception:
+		pass
+	return frappe.get_all("Department", filters=loc, pluck="name", limit_page_length=0)
 
 
 # ------------------------------------------------------------------ ghi
@@ -854,6 +912,47 @@ def bat_tat(email, bat):
 		"ok": 1,
 		"bat": cint(bat),
 		"loi_nhan": "Đã %s tài khoản %s." % ("bật" if cint(bat) else "tắt", u.full_name or email),
+	}
+
+
+@frappe.whitelist()
+def dat_bo_phan(email, bo_phan):
+	"""Doi bo phan cua mot nguoi (anh Viet 07/10/2026).
+
+	Ghi THANG vao User bang db.set_value, KHONG doc.save(): luu ca tai lieu
+	User la khung dung lai vai tu bo vai mau (xem _go_bo_vai_mau), doi bo
+	phan khong duoc lam xao tron quyen. O cu `custom_bo_phan` (du lieu cu)
+	ghi theo ten ngan de moi cho con doc o do khong thay bo phan cu.
+	"""
+	_kiem("đổi bộ phận người dùng")
+	if email in BO_QUA_USER:
+		frappe.throw("Không đụng vào tài khoản hệ thống được.")
+	u = frappe.db.get_value("User", email, ["name", "full_name"], as_dict=True)
+	if not u:
+		frappe.throw("Không thấy tài khoản %s." % email)
+	if not _co_o_bo_phan():
+		frappe.throw("Tài khoản người dùng trên site này chưa có ô Bộ phận. Báo quản trị hệ thống thêm ô đó rồi đổi lại.")
+	bo_phan = str(bo_phan or "").strip()
+	if bo_phan not in set(_bo_phan_co_that()):
+		frappe.throw("Không có bộ phận %s. Chọn một bộ phận trong danh sách." % (bo_phan or "trống"))
+	cu = _bo_phan_cua(email)
+	frappe.db.set_value("User", email, "custom_phong_ban", bo_phan, update_modified=False)
+	try:
+		if frappe.get_meta("User").has_field("custom_bo_phan"):
+			frappe.db.set_value("User", email, "custom_bo_phan", ten_ngan_bo_phan(bo_phan),
+				update_modified=False)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "vagabond: dat bo phan, o du lieu cu")
+	ten = ten_ngan_bo_phan(bo_phan)
+	_ghi_vet("Đổi bộ phận %s: %s thành %s" % (email, ten_ngan_bo_phan(cu) or "chưa gắn", ten))
+	bep = bep_cua_bo_phan(bo_phan)
+	return {
+		"ok": 1,
+		"bo_phan": bo_phan,
+		"loi_nhan": "Đã chuyển %s sang %s.%s" % (
+			u.full_name or email, ten,
+			" Lần mở app tới sẽ thấy phiếu sản xuất của %s." % bep if bep else "",
+		),
 	}
 
 

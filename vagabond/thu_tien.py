@@ -390,11 +390,14 @@ def loc_khach_no(ds_khach, tim):
 	tổng nợ thật của mọi khách (không teo theo chữ đang gõ), còn phần đang
 	hiện phải có tổng riêng do máy chủ cộng, để Sales không đọc nhầm số.
 	"""
-	tim = (tim or "").strip().lower()
+	tim = (tim or "").strip()
 	ds = list(ds_khach or [])
 	if tim:
-		ds = [v for v in ds if tim in (v.get("ten") or "").lower() or tim in (v.get("khach") or "").lower()
-			or any(tim in (d.get("name") or "").lower() for d in v.get("hd") or [])]
+		# v583: tim theo tung tu, bo dau, bo dau cau (tim_kiem.py).
+		from vagabond import tim_kiem
+
+		ds = [v for v in ds if tim_kiem.khop(
+			[v.get("ten"), v.get("khach")] + [d.get("name") for d in v.get("hd") or []], tim)]
 	return ds, sum(_so(v.get("tien")) for v in ds)
 
 
@@ -758,7 +761,10 @@ def gd_khop_tu_khoa(tu_khoa, mo_ta, ma, tien):
 	k = (tu_khoa or "").strip().lower()
 	if not k:
 		return True
-	if k in (mo_ta or "").lower() or k in (ma or "").lower():
+	# v583: chu thi tim theo tung tu, bo dau, bo dau cau (tim_kiem.py).
+	from vagabond import tim_kiem
+
+	if tim_kiem.khop([mo_ta, ma], tu_khoa):
 		return True
 	so = "".join(c for c in k if c.isdigit())
 	if so and len(so) >= 4 and not any(c.isalpha() for c in k.replace("đ", "")):

@@ -29,7 +29,7 @@ from vagabond import ghi_so_dieu_kien
 from vagabond.hang_tang import (
 	CHO_NGAY, LOAI_TANG, NHAN_LOAI, PT_TANG, THIEU,
 	TT_CHO, TT_DUYET, TT_TU_CHOI,
-	can_duyet_lai, cho_bao_lau, dau_van, dieu_kien_tim, la_don_tang,
+	can_duyet_lai, cho_bao_lau, dau_van, la_don_tang,
 	ly_do_chua_ghi_so, thieu_gi, trang_thai_moi,
 )
 
@@ -155,13 +155,16 @@ def _():
 	dung("ngưỡng mặc định là một ngày", CHO_NGAY == 1)
 
 
-@ca("hàng tặng: ô tìm chạy ở máy chủ, không lọc bằng Python")
+@ca("hàng tặng: ô tìm chạy ở máy chủ qua tim_kiem (v583), không lọc bằng Python")
 def _():
-	la("ô tìm trống thì không thêm điều kiện", dieu_kien_tim("", ("name",)), None)
-	la("chỉ có khoảng trắng cũng vậy", dieu_kien_tim("   ", ("name",)), None)
-	la("có chữ thì dựng điều kiện like cho từng cột",
-		dieu_kien_tim("Lan", ("name", "customer_name")),
-		[["name", "like", "%Lan%"], ["customer_name", "like", "%Lan%"]])
+	import inspect
+
+	from vagabond import hang_tang as ht
+
+	# v583: ham rieng dieu_kien_tim da bo, o tim di qua MOT nguon tim_kiem.py.
+	dung("không còn hàm riêng", not hasattr(ht, "dieu_kien_tim"))
+	c = inspect.getsource(ht)
+	dung("màn hàng tặng tìm qua tim_kiem", "tim_kiem.them_loc(loc, SI, tim, TRUONG_TIM)" in c)
 
 
 @ca("hàng tặng: bản sao chuỗi bên ghi_so_dieu_kien không được lệch")
@@ -293,7 +296,8 @@ def _():
 	i = s.find("def _tap(")
 	j = s.find("\n@frappe.whitelist", i + 10)
 	than = s[i:j]
-	dung("lọc bằng or_filters ở tầng cơ sở dữ liệu", "or_filters=hoac" in than)
+	# v583: o tim di qua tim_kiem.them_loc (van loc o tang co so du lieu).
+	dung("lọc ở tầng cơ sở dữ liệu qua tim_kiem", "tim_kiem.them_loc(" in than)
 	dung("đọc hết rồi mới cắt, không cắt trước", "limit_page_length=0" in than)
 	i = s.find("def ds_don(")
 	j = s.find("\n# Cột Excel", i + 10)

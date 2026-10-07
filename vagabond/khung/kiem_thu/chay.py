@@ -154,12 +154,18 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_gom_phap_nhan_575,
 	thu_khop_tay_577,
 	thu_goi_nhieu_582,
+	thu_tim_kiem_583,
+	thu_bo_phan_583,
 	thu_van_don_dieu_chuyen,
 	thu_van_don_man_ds,
 	thu_viec_can_lam,
 	thu_xung_ho,
 	thu_tai_khoan_btp_307,
 	thu_luoi_do_nhom_307,
+	thu_doi_soat_nguon,
+	thu_doi_soat_tep,
+	thu_doi_soat_mau_579,
+	thu_doi_soat_khop_579,
 )
 
 

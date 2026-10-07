@@ -518,10 +518,12 @@ def tim_mon(diem=None, tu_khoa="", ngay=None):
 	except Exception:
 		da_co = set()
 	try:
+		from vagabond import tim_kiem
+
 		r = frappe.get_all(
 			"Item",
-			or_filters=[["name", "like", "%" + tu + "%"], ["item_name", "like", "%" + tu + "%"]],
-			filters={"disabled": 0},
+			# v583: tim theo tung tu, bo dau, bo dau cau (tim_kiem.py).
+			filters=tim_kiem.them_loc({"disabled": 0}, "Item", tu, ["name", "item_name"]),
 			fields=["name", "item_name", "image"], limit_page_length=30, ignore_permissions=True,
 		)
 	except Exception:
@@ -744,7 +746,7 @@ def con_tren_quay_web():
 			continue
 		ds = frappe.get_all(
 			"Item", filters={"item_code": ["in", list(con_theo_ma)]},
-			fields=["item_code", "item_name", "image", "standard_rate", "disabled", "is_sales_item"],
+			fields=["item_code", "item_name", "image", "standard_rate", "disabled", "is_sales_item", "item_group"],
 			limit_page_length=0, ignore_permissions=True,
 		)
 		for x in sorted(ds, key=lambda x: str(x.get("item_name") or x["item_code"])):
@@ -765,5 +767,6 @@ def con_tren_quay_web():
 				"gia": int(x.get("standard_rate") or 0),
 				"anh": anh,
 				"con": int(con_theo_ma[x["item_code"]]),
+				"nhom": x.get("item_group") or "",
 			})
 	return ra

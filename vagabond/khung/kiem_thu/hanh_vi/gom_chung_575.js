@@ -108,6 +108,7 @@ function appMoi() {
     'async function scrHome() { frame(APPNAME, "<div></div>"); }',
   ].join('\n'), Object.assign(g, { __tin: tin, __mc: mc, __hoi: hoi, __dongY: true }));
   var nen = doc('00-nen.js');
+  vm.runInContext(require('./tim_chung.js'), g);
   vm.runInContext(nen.slice(nen.indexOf('function sheet('), nen.indexOf('function confirmSheet(')), g);
   vm.runInContext(doc('01-khung-app.js'), g);
   vm.runInContext(doc('15-khuon-danh-sach.js'), g);

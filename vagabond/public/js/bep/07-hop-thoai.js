@@ -819,7 +819,7 @@ function vgbNoiOTim(goc, idO, mucSel, layChu) {
   var muc = [].slice.call(goc.querySelectorAll(mucSel));
   if (!muc.length) return;
   var chu = muc.map(function (el) {
-    return mvKhongDau(layChu ? layChu(el) : (el.textContent || ''));
+    return layChu ? layChu(el) : (el.textContent || '');
   });
   /* v530 (anh Viet 25/09/2026, anh o chon hoa don den sau): hien lai muc bang
      display '' la XOA LUON display:flex ghi thang tren the, muc thanh khoi
@@ -828,10 +828,11 @@ function vgbNoiOTim(goc, idO, mucSel, layChu) {
      tung muc, hien lai dung gia tri do. */
   var goc = muc.map(function (el) { return el.style.display === 'none' ? '' : el.style.display; });
   var chay = function () {
-    var q = mvKhongDau(o.value).trim();
+    var q = vgbChuan(o.value);
     var thay = 0;
     for (var i = 0; i < muc.length; i++) {
-      var hop = !q || chu[i].indexOf(q) >= 0;
+      /* v583: tim theo tung tu, bo dau, bo dau cau (vgbKhop). */
+      var hop = !q || vgbKhop(chu[i], q);
       muc[i].style.display = hop ? goc[i] : 'none';
       if (hop) thay++;
     }

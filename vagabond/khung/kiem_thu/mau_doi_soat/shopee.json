@@ -1,0 +1,17 @@
+{
+  "nguon": "Tên cột kiểm từ mẫu riêng tư trên Drive ngày 05/10/2026; không phải byte file gốc.",
+  "cot": [
+    "STT",
+    "Mã Đơn Hàng",
+    "ID cửa hàng",
+    "Tên cửa hàng",
+    "Thời gian hoàn thành/ huỷ đơn",
+    "Giá trị đơn hàng",
+    "Khuyến mại từ quán",
+    "Phí dịch vụ",
+    "Phí vận chuyển trả cho quán",
+    "Chiết khấu",
+    "Thuế khấu trừ",
+    "Thực thu"
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "_ghi_chu": "v583: bang mau dung CHUNG cho ca kiem Python (tim_kiem.khop) va JS (vgbKhop). Moi dong: chu tren ban ghi, chu go, ket qua mong.",
+  "ca": [
+    ["Bánh Chocolatine, Mini size BANU00050", "chocolatine mini", true, "ca that De 06/10: dau phay giua ten"],
+    ["Bánh Chocolatine, Mini size BANU00050", "mini chocolatine", true, "dao thu tu"],
+    ["Bánh Chocolatine, Mini size BANU00050", "CHOCOLATINE MINI", true, "hoa"],
+    ["Bánh Chocolatine, Mini size BANU00050", "chôcolatine, mini.", true, "dau thanh, dau cau thua"],
+    ["Bánh Chocolatine, Mini size BANU00050", "  chocolatine   mini  ", true, "dau cach thua"],
+    ["Bánh Chocolatine, Mini size BANU00050", "banu00050", true, "ma"],
+    ["Bánh Chocolatine, Mini size BANU00050", "BANU-00050", true, "ma co gach"],
+    ["Bánh Chocolatine, Mini size BANU00050", "chocolatinemini", true, "go dinh lien"],
+    ["Bánh Chocolatine, Mini size BANU00050", "chocolatine full", false, "thieu mot tu thi khong ra"],
+    ["Bông lan Chuối Đường đen", "duong den", true, "đ go thanh d"],
+    ["Bông lan Chuối Đường đen", "đường đen", true, "go du dau"],
+    ["Bột màu xanh dương gốc dầu", "duong den", false, "khong nham duong voi den"],
+    ["Bánh Ổ Roman De La Rose", "banh o", true, "tu ngan nguyen tieng"],
+    ["Bánh Croissant Avocado", "banh o", false, "o khong duoc nam giua croissant"],
+    ["Bánh Ống Quế", "banh o", false, "go nhieu tu thi tu ngan phai nguyen tieng"],
+    ["Bánh Chocolatine, Mini size", "ch", true, "go mot tu ngan: dau tieng la du"],
+    ["Bánh kem size 12cm", "kem 12", true, "so ngan khop dau tieng"],
+    ["WATER TH WATER 1032865615 ACC-BTN-2026-06150", "water bt", false, "bt khong khop ma ACC-BTN"],
+    ["WATER BT WATER 1032865688 ACC-BTN-2026-06151", "water bt", true, "bt nguyen tieng"],
+    ["Kho D1 - TV", "d1", true, "ma diem ban ngan"],
+    ["Công ty TNHH Kiệt Tác 0312345678", "kiet tac", true, "khach si"],
+    ["Công ty TNHH Kiệt Tác 0312345678", "0312345678", true, "ma so thue"],
+    ["", "", true, "go rong thi luon khop"],
+    ["Bánh mì", "", true, "go rong thi luon khop"]
+  ]
+}

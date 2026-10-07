@@ -1626,15 +1626,21 @@ def tim_mon(tu_khoa="", ngay=None):
 	# bang chuoi thi ro rang va di dung mot luot hoi.
 	#
 	# Moi gia tri deu di qua tham so %s, khong noi chuoi vao cau lenh.
-	dieu = " OR ".join(["item_code LIKE %s"] * len(TIEN_TO_THEM_TAY))
-	tham = ["%s%%" % t for t in TIEN_TO_THEM_TAY]
+	#
+	# v583: tham so doi sang dang CO TEN de ghep chung dieu kien tim theo tung
+	# tu, bo dau, bo dau cau (tim_kiem.py).
+	from vagabond import tim_kiem
+
+	ten_tham = {"tt%d" % i: "%s%%" % t for i, t in enumerate(TIEN_TO_THEM_TAY)}
+	dieu = " OR ".join("item_code LIKE %%(tt%d)s" % i for i in range(len(TIEN_TO_THEM_TAY)))
 	cau = """select item_code, item_name, image from `tabItem`
 		where ifnull(disabled, 0) = 0 and (%s)""" % dieu
-	if q:
-		cau += " and (item_code like %s or item_name like %s)"
-		tham += ["%" + q + "%", "%" + q + "%"]
+	d_tim, t_tim = tim_kiem.sql(q, ["item_code", "item_name"])
+	if d_tim:
+		cau += " and " + d_tim
+		ten_tham.update(t_tim)
 	cau += " order by item_code limit 80"
-	ds = frappe.db.sql(cau, tuple(tham), as_dict=True)
+	ds = frappe.db.sql(cau, ten_tham, as_dict=True)
 	da_co = set()
 	if ngay:
 		ten_bang = "KB-%s" % getdate(ngay)

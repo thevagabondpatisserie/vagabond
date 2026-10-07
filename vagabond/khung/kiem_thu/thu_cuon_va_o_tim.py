@@ -98,9 +98,9 @@ def _():
 def _():
 	js = _js("07-hop-thoai.js")
 	than = js.split("function vgbNoiOTim(")[1].split("\n}\n")[0]
-	# Go "dien luc" phai thay "ĐIỆN LỰC". Dung lai mvKhongDau da co san chu
-	# khong viet them mot ban bo dau thu hai trong app.
-	dung("bỏ dấu cả hai bên", than.count("mvKhongDau(") >= 2)
+	# Go "dien luc" phai thay "ĐIỆN LỰC". v583: dung phep chung vgbKhop /
+	# vgbChuan (00-nen.js), bo dau ca hai ben, bo dau cau, tach tung tu.
+	dung("bỏ dấu cả hai bên", "vgbKhop(chu[i], q)" in than and "vgbChuan(o.value)" in than)
 	js2 = _js("11-khach-ca-hop-dong.js")
 	dung("hàm bỏ dấu vẫn còn đó", "function mvKhongDau(" in js2)
 

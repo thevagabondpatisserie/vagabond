@@ -1,0 +1,301 @@
+{
+ "doctype": "DocType",
+ "name": "Vagabond Doi Soat Nguon",
+ "module": "Vagabond",
+ "engine": "InnoDB",
+ "autoname": "format:DSN-{YY}{MM}-{#####}",
+ "track_changes": 1,
+ "field_order": [
+  "company",
+  "nhom",
+  "vendor",
+  "mau",
+  "ten_mau",
+  "tai_khoan",
+  "cb1",
+  "tu_ngay",
+  "den_ngay",
+  "ngay_tien_ve",
+  "trang_thai",
+  "ly_do",
+  "sec_tep",
+  "kenh_nhan",
+  "ten_tep",
+  "tep",
+  "sha256",
+  "communication",
+  "phien_ban",
+  "sec_so",
+  "so_dong",
+  "so_moi",
+  "so_trung",
+  "so_loi",
+  "cb2",
+  "tien_hang",
+  "phi",
+  "thuc_nhan",
+  "tong_tep",
+  "sec_dc",
+  "trang_thai_tien",
+  "giao_dich_ngan_hang",
+  "cb3",
+  "so_da_noi",
+  "so_chua_noi",
+  "du_lieu"
+ ],
+ "fields": [
+  {
+   "fieldname": "company",
+   "label": "Công ty",
+   "fieldtype": "Link",
+   "options": "Company",
+   "reqd": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "nhom",
+   "label": "Nhóm",
+   "fieldtype": "Select",
+   "options": "Tiền bán\nChuyến đi\nThẻ tín dụng\nTổng hợp",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "vendor",
+   "label": "Nguồn",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "mau",
+   "label": "Mẫu báo cáo",
+   "fieldtype": "Data",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ten_mau",
+   "label": "Tên mẫu",
+   "fieldtype": "Data",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tai_khoan",
+   "label": "Tài khoản phía nguồn",
+   "fieldtype": "Data",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb1",
+   "label": "",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "tu_ngay",
+   "label": "Từ ngày",
+   "fieldtype": "Date",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "den_ngay",
+   "label": "Đến ngày",
+   "fieldtype": "Date"
+  },
+  {
+   "fieldname": "ngay_tien_ve",
+   "label": "Ngày tiền về / đến hạn",
+   "fieldtype": "Date"
+  },
+  {
+   "fieldname": "trang_thai",
+   "label": "Trạng thái",
+   "fieldtype": "Select",
+   "options": "Đã nhận\nCần xử lý\nLỗi tệp",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "ly_do",
+   "label": "Lý do",
+   "fieldtype": "Small Text",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_tep",
+   "label": "Tệp gốc",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "kenh_nhan",
+   "label": "Kênh nhận",
+   "fieldtype": "Select",
+   "options": "Tải tay\nEmail",
+   "reqd": 1
+  },
+  {
+   "fieldname": "ten_tep",
+   "label": "Tên tệp",
+   "fieldtype": "Data",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tep",
+   "label": "Tệp",
+   "fieldtype": "Attach",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sha256",
+   "label": "Mã băm tệp",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "unique": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "communication",
+   "label": "Thư nhận",
+   "fieldtype": "Link",
+   "options": "Communication",
+   "read_only": 1
+  },
+  {
+   "fieldname": "phien_ban",
+   "label": "Phiên bản bộ đọc",
+   "fieldtype": "Data",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_so",
+   "label": "Số liệu",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "so_dong",
+   "label": "Số dòng đọc được",
+   "fieldtype": "Int",
+   "read_only": 1
+  },
+  {
+   "fieldname": "so_moi",
+   "label": "Dòng mới",
+   "fieldtype": "Int",
+   "read_only": 1
+  },
+  {
+   "fieldname": "so_trung",
+   "label": "Dòng đã có",
+   "fieldtype": "Int",
+   "read_only": 1
+  },
+  {
+   "fieldname": "so_loi",
+   "label": "Dòng lỗi",
+   "fieldtype": "Int",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb2",
+   "label": "",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "tien_hang",
+   "label": "Tiền hàng",
+   "fieldtype": "Currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "phi",
+   "label": "Phí",
+   "fieldtype": "Currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "thuc_nhan",
+   "label": "Thực nhận / phải trả",
+   "fieldtype": "Currency",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "tong_tep",
+   "label": "Tổng in trên tệp",
+   "fieldtype": "Currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_dc",
+   "label": "Đối chiếu",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "trang_thai_tien",
+   "label": "Tiền về ngân hàng",
+   "fieldtype": "Select",
+   "options": "Chưa đối chiếu\nĐã thấy tiền về\nLệch tiền về\nCần chọn tiền về\nChưa thấy tiền về\nKhông áp dụng",
+   "read_only": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "giao_dich_ngan_hang",
+   "label": "Giao dịch ngân hàng",
+   "fieldtype": "Small Text",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb3",
+   "label": "",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "so_da_noi",
+   "label": "Dòng đã nối chứng từ",
+   "fieldtype": "Int",
+   "read_only": 1
+  },
+  {
+   "fieldname": "so_chua_noi",
+   "label": "Dòng chưa nối",
+   "fieldtype": "Int",
+   "read_only": 1
+  },
+  {
+   "fieldname": "du_lieu",
+   "label": "Chi tiết đọc tệp (máy ghi)",
+   "fieldtype": "Long Text",
+   "read_only": 1,
+   "hidden": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "Accounts Manager",
+   "read": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1
+  },
+  {
+   "role": "System Manager",
+   "read": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1
+  },
+  {
+   "role": "Accounts User",
+   "read": 1,
+   "report": 1,
+   "print": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "title_field": "vendor",
+ "description": "#420 v579 đối soát vendor: một tệp báo cáo nhận vào",
+ "creation": "2026-10-06 12:00:00.000000",
+ "modified": "2026-10-07 09:00:00.000000"
+}

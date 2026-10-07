@@ -156,8 +156,13 @@ def nguon(tim=None, nhom=None, gioi_han=800, ke_thu_vien=0, chi_thu_vien=0):
 			dk.append("i.item_group = %(nhom)s")
 			tham["nhom"] = nhom
 		if tim:
-			dk.append("(i.item_name like %(tim)s or i.name like %(tim)s)")
-			tham["tim"] = "%%%s%%" % tim
+			# v583: tim theo tung tu, bo dau, bo dau cau (tim_kiem.py).
+			from vagabond import tim_kiem
+
+			d_tim, t_tim = tim_kiem.sql(tim, ["i.item_name", "i.name"])
+			if d_tim:
+				dk.append(d_tim)
+				tham.update(t_tim)
 		ds = frappe.db.sql(
 			"""select i.name, i.item_name, i.item_group, i.stock_uom, i.image,
 				i.description, i.standard_rate
@@ -185,10 +190,11 @@ def nguon(tim=None, nhom=None, gioi_han=800, ke_thu_vien=0, chi_thu_vien=0):
 			limit_page_length=0,
 		)
 		if tim:
-			t = str(tim).lower()
+			from vagabond import tim_kiem
+
 			tv = [
 				x for x in tv
-				if t in ((x.get("ten_vi") or "") + " " + (x.get("ten_en") or "")).lower()
+				if tim_kiem.khop([x.get("ten_vi"), x.get("ten_en"), x.get("ma_item"), x.get("name")], tim)
 			]
 		# Mon thu vien co ma_item ma chua co hinh thi keo hinh tu Item ve, de
 		# khong bao gio co dong nao thieu anh tren bang chon.

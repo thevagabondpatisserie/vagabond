@@ -212,6 +212,7 @@ MAN = (
 	("CDSE", "SePay", None),
 	("CDTB", "Thông báo", None),
 	("CDWEB", "Trang đặt bánh web", None),
+	("DSVN", "Đối soát nhà cung cấp", None),
 	("CDLOI", "Cài đặt lõi và API", None),
 	("QLND", "Người dùng", None),
 	("QLQ", "Phân quyền", None),

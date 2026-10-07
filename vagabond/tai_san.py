@@ -361,11 +361,10 @@ def danh_sach(chip=None, tu_khoa=None, nhom=None):
 	if nhom:
 		rows = [r for r in rows if r["asset_category"] == nhom]
 	if tu_khoa:
-		k = tu_khoa.strip().lower()
-		rows = [
-			r for r in rows
-			if k in (r["asset_name"] or "").lower() or k in (r["name"] or "").lower()
-		]
+		# v583: tim theo tung tu, bo dau, bo dau cau (tim_kiem.py).
+		from vagabond import tim_kiem
+
+		rows = [r for r in rows if tim_kiem.khop([r["asset_name"], r["name"]], tu_khoa)]
 
 	return {
 		"rows": rows,
