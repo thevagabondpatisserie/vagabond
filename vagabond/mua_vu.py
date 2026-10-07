@@ -2051,15 +2051,16 @@ def tim_san_pham(tu_khoa="", mua=None):
 	from vagabond.ban_hang import _kiem_quyen
 
 	_kiem_quyen()
+	from vagabond import tim_kiem
+
 	q = str(tu_khoa or "").strip()
 	loc = {"disabled": 0}
-	if q:
-		loc["item_name"] = ["like", "%%%s%%" % q]
-	else:
+	if not q:
 		loc["item_code"] = ["like", "BASS%"]
 	ds = frappe.get_all(
 		"Item",
-		filters=loc,
+		# v583: tim theo tung tu, bo dau, bo dau cau (tim_kiem.py).
+		filters=tim_kiem.them_loc(loc, "Item", q, ["name", "item_name"]),
 		fields=["name", "item_name"],
 		limit_page_length=40,
 		order_by="name desc",

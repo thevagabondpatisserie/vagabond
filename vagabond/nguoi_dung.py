@@ -558,13 +558,10 @@ def danh_sach(tu_khoa=None, chip=None, goi=None):
 		rows = [r for r in rows if goi in r["cac_goi"]]
 
 	if tu_khoa:
-		k = (tu_khoa or "").strip().lower()
-		rows = [
-			r for r in rows
-			if k in (r["ten"] or "").lower()
-			or k in (r["email"] or "").lower()
-			or k in (r["sdt"] or "").lower()
-		]
+		# v583: tim theo tung tu, bo dau, bo dau cau (tim_kiem.py).
+		from vagabond import tim_kiem
+
+		rows = [r for r in rows if tim_kiem.khop([r["ten"], r["email"], r["sdt"]], tu_khoa)]
 
 	co_roi = {r["email"] for r in rows}
 	rows = rows + [r for r in khop_email if r["email"] not in co_roi]

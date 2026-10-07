@@ -526,10 +526,12 @@ def gan_day(so_dong=30, tim="", trang=1):
 	trang = max(1, cint(trang) or 1)
 	tu = (tim or "").strip()
 
-	loc = [["name", "like", "%%%s%%" % tu], ["item_name", "like", "%%%s%%" % tu]] if tu else None
+	from vagabond import tim_kiem
+
 	truong = ["name", "item_name", "item_group", "stock_uom", "standard_rate",
 		"disabled", "is_sales_item", "image"]
-	rows = frappe.get_all("Item", or_filters=loc, fields=truong,
+	# v583: tim theo tung tu, bo dau, bo dau cau (tim_kiem.py).
+	rows = frappe.get_all("Item", filters=tim_kiem.them_loc(None, "Item", tu, ["name", "item_name"]), fields=truong,
 		order_by="creation desc, name asc", limit_start=(trang - 1) * moi_trang,
 		limit_page_length=moi_trang + 1)
 	con_nua = len(rows) > moi_trang

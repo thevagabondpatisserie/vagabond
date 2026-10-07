@@ -156,11 +156,10 @@ def xep_ncc(ds):
 
 def loc_ncc(ds, tu_khoa):
 	"""Lọc theo từ khoá, khớp cả mã lẫn tên, không phân biệt hoa thường."""
-	q = str(tu_khoa or "").strip().lower()
-	if not q:
-		return list(ds or [])
-	return [o for o in (ds or [])
-		if q in (str(o.get("ten") or "") + " " + str(o.get("ncc") or "")).lower()]
+	# v583: tim theo tung tu, bo dau, bo dau cau (tim_kiem.py).
+	from vagabond import tim_kiem
+
+	return [o for o in (ds or []) if tim_kiem.khop([o.get("ten"), o.get("ncc")], tu_khoa)]
 
 # ---------------------------------------------------------------------------
 # GIOI HAN SO DONG CHO O CHON TAI KHOAN SO CAI

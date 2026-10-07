@@ -398,12 +398,13 @@ def mon_chua_gan(tu_khoa="", chi_co_goi_y=0, gioi_han=300):
 	da_gan = {r.parent for r in frappe.get_all("Item Supplier", fields=["parent"], limit_page_length=0)}
 
 	loc = {"is_purchase_item": 1, "disabled": 0}
+	from vagabond import tim_kiem
+
 	q = (tu_khoa or "").strip()
-	if q:
-		loc["item_name"] = ["like", "%" + q + "%"]
 	ds = frappe.get_all(
 		"Item",
-		filters=loc,
+		# v583: tim theo tung tu, bo dau, bo dau cau (tim_kiem.py).
+		filters=tim_kiem.them_loc(loc, "Item", q, ["name", "item_name"], gioi_han=5000),
 		fields=["name", "item_name", "stock_uom", "item_group"],
 		order_by="item_name asc",
 		limit_page_length=0,

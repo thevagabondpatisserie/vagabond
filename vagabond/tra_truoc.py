@@ -216,11 +216,12 @@ def ds_don_mua(tu_khoa="", gioi_han=40):
 	_chan()
 	loc = {"docstatus": 1, "status": ["not in", sorted(TT_DONG)]}
 	tu_khoa = (tu_khoa or "").strip()
-	if tu_khoa:
-		loc["supplier_name"] = ["like", "%" + tu_khoa + "%"]
+	# v583: tim theo tung tu, bo dau, bo dau cau (tim_kiem.py).
+	from vagabond import tim_kiem
+
 	ra = []
 	for d in frappe.get_all(
-		PO, filters=loc,
+		PO, filters=tim_kiem.them_loc(loc, PO, tu_khoa, ["name", "supplier", "supplier_name"]),
 		fields=[
 			"name", "supplier", "supplier_name", "transaction_date",
 			"grand_total", "advance_paid", "per_billed", "status", "currency",

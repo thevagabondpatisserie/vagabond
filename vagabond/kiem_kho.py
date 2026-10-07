@@ -518,10 +518,12 @@ def tim_mon(diem=None, tu_khoa="", ngay=None):
 	except Exception:
 		da_co = set()
 	try:
+		from vagabond import tim_kiem
+
 		r = frappe.get_all(
 			"Item",
-			or_filters=[["name", "like", "%" + tu + "%"], ["item_name", "like", "%" + tu + "%"]],
-			filters={"disabled": 0},
+			# v583: tim theo tung tu, bo dau, bo dau cau (tim_kiem.py).
+			filters=tim_kiem.them_loc({"disabled": 0}, "Item", tu, ["name", "item_name"]),
 			fields=["name", "item_name", "image"], limit_page_length=30, ignore_permissions=True,
 		)
 	except Exception:

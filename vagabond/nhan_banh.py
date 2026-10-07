@@ -330,11 +330,11 @@ def tim_mon(tu_khoa="", diem=None):
 			limit_page_length=0,
 		)
 		loc["item_group"] = ["in", [c["name"] for c in con]] if con else ["in", [GOC_HANG]]
-	if q:
-		loc["item_name"] = ["like", "%" + q + "%"]
+	from vagabond import tim_kiem
+
 	ds = frappe.get_all(
 		"Item",
-		filters=loc,
+		filters=tim_kiem.them_loc(loc, "Item", q, ["name", "item_name"]),
 		fields=["name", "item_name", "image", "item_group"],
 		order_by="item_name",
 		limit_page_length=60,

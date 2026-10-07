@@ -947,14 +947,12 @@ def khach_co_hang(tu_khoa="", hang="", dot="", so_dong=200):
 	loc = {"disabled": 0, "vgb_hang": ["is", "set"]}
 	if (hang or "").strip():
 		loc["vgb_hang"] = (hang or "").strip()
-	tu = (tu_khoa or "").strip()
+	from vagabond import tim_kiem
+
 	ds = frappe.get_all(
 		"Customer",
-		filters=loc,
-		or_filters=(
-			{"name": ["like", "%" + tu + "%"], "customer_name": ["like", "%" + tu + "%"]}
-			if tu else None
-		),
+		# v583: tim theo tung tu, bo dau, bo dau cau (tim_kiem.py).
+		filters=tim_kiem.them_loc(loc, "Customer", tu_khoa, ["name", "customer_name", "mobile_no", "tax_id"]),
 		fields=["name", "customer_name", "customer_group", "vgb_hang"],
 		order_by="customer_name asc",
 		limit_page_length=cint(so_dong) or 200,

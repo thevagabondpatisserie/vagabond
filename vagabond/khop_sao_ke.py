@@ -273,7 +273,10 @@ def khop_tu_khoa(tu_khoa, dong):
 	tk = str(tu_khoa or "").strip().lower()
 	if not tk:
 		return True
-	if tk in ("%s %s" % (dong.get("name") or "", dong.get("mo_ta") or "")).lower():
+	# v583: chu thi tim theo tung tu, bo dau, bo dau cau (tim_kiem.py).
+	from vagabond import tim_kiem
+
+	if tim_kiem.khop([dong.get("name"), dong.get("mo_ta")], tk):
 		return True
 	so = re.sub(r"[\s.,đd]", "", tk)
 	return len(so) >= 4 and so.isdigit() and int(so) == int(round(_so(dong.get("tien"))))
