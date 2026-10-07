@@ -55961,6 +55961,7 @@ async function cdlLuu() {
  * trên Chi tiết đơn. Mọi con số do máy chủ đếm (QT-19); màn chỉ hiện.
  */
 var DSVN = { nhom: 'Tiền bán', tt: '', vendor: '', tim: '', ky: '', tu: '', den: '', cur: '', loc: '', xt: null, tep: null,
+  ct: '', ctNhan: null, xtCt: '',
   trang: { nguon: { dau: '', so: 0 }, dong: { dau: '', so: 0 } } };
 
 /* Codex #450: một nguồn đủ quyền có tới 20.000 dòng, danh sách có thể quá
@@ -56027,6 +56028,8 @@ async function scrDsvn() {
     var locDs = { nhom: DSVN.nhom, trang_thai: DSVN.tt, vendor: DSVN.vendor, tim: DSVN.tim, ky: DSVN.ky, tu: DSVN.tu, den: DSVN.den };
     locDs.trang = dsvnTrang('nguon', JSON.stringify(locDs));
     kq = await api('vagabond.doi_soat_vendor.ds', locDs);
+    /* Codex #450 vòng 16: các pháp nhân được nhận tệp, màn Tải file dùng. */
+    DSVN.ctNhan = kq.cong_ty_nhan || [];
     sk = await api('vagabond.doi_soat_vendor.suc_khoe', {});
   } catch (e) {
     frame('Đối soát nhà cung cấp', '<div class="emp"><div class="e1">🔒</div><div>' + h((e && e.message) || 'Không mở được đối soát. Thử lại sau ít phút.') + '</div></div>');
@@ -56149,7 +56152,20 @@ function dsvnSucKhoe(sk) {
 
 /* ---------- Màn 04: nhận file ---------- */
 async function scrDsvnTai() {
-  var html = '<div class="card" style="padding:16px;text-align:center">' +
+  /* Codex #450 vòng 16: tệp nhận vào pháp nhân nào phải rõ ràng. Một pháp
+     nhân thì ghi ra cho biết; từ hai trở lên thì chọn trước, không tự lấy
+     pháp nhân mặc định. Đổi pháp nhân khi đã có tệp thì xem trước lại. */
+  var ctNhan = DSVN.ctNhan || [];
+  if (ctNhan.length === 1) DSVN.ct = ctNhan[0];
+  else if (ctNhan.indexOf(DSVN.ct) < 0) DSVN.ct = '';
+  var canChon = ctNhan.length > 1;
+  var html = canChon ? '<div class="card" style="padding:12px 14px"><b>Nhận vào pháp nhân</b>' +
+    '<div style="font-size:13px;color:#667085;margin:2px 0 8px">Tệp được lưu và đối chiếu với hoá đơn, tiền về của pháp nhân này. Chọn trước khi chọn file.</div>' +
+    '<div class="chips" style="padding:0">' + ctNhan.map(function (c) {
+      return '<div class="chip' + (DSVN.ct === c ? ' on' : '') + '" data-dsvnphap="' + h(c) + '" style="min-height:44px">' + h(c) + '</div>';
+    }).join('') + '</div></div>' :
+    (ctNhan.length === 1 ? '<div style="font-size:13px;color:#667085;text-align:center;margin:4px 0 8px">Nhận vào pháp nhân <b>' + h(ctNhan[0]) + '</b></div>' : '');
+  html += '<div class="card" style="padding:16px;text-align:center">' +
     '<div style="font-size:28px">↑</div><b>Thêm file vendor gửi</b>' +
     '<div style="font-size:13px;color:#667085;margin:4px 0 10px">Excel, CSV, PDF hoặc ZIP. Máy tự nhận ra nguồn và loại báo cáo, không cần chọn.</div>' +
     '<input type="file" id="dsvnFile" accept=".csv,.xlsx,.xlsm,.xls,.pdf,.zip" hidden>' +
@@ -56158,9 +56174,9 @@ async function scrDsvnTai() {
   var foot = '';
   if (DSVN.xt) {
     var tong_moi = 0;
-    DSVN.xt.forEach(function (x) { if (!x.da_co && x.mau) tong_moi += x.so.moi; });
+    DSVN.xt.forEach(function (x) { if (!x.da_co && !x.phap_nhan_khac && x.mau) tong_moi += x.so.moi; });
     html += DSVN.xt.map(dsvnTheXemTruoc).join('');
-    var co_nhan = DSVN.xt.some(function (x) { return !x.da_co && (x.mau || x.loi.length); });
+    var co_nhan = DSVN.xt.some(function (x) { return !x.da_co && !x.phap_nhan_khac && (x.mau || x.loi.length); });
     if (co_nhan) {
       foot = '<button class="btn" id="dsvnNhan">' + (tong_moi ? 'Nhận ' + money(tong_moi) + ' dòng hợp lệ' : 'Lưu nguồn để xử lý') + '</button>' +
         '<div style="text-align:center;font-size:12.5px;color:#667085;margin-top:6px">Chưa ghi sổ hoặc thanh toán. Dòng lỗi giữ lại để xem.</div>';
@@ -56170,22 +56186,47 @@ async function scrDsvnTai() {
   }
   var b = frame('Nhận file đối soát', html, foot ? { footer: foot } : {});
   var inp = document.getElementById('dsvnFile');
-  document.getElementById('dsvnChon').onclick = function () { inp.click(); };
+  document.getElementById('dsvnChon').onclick = function () {
+    if (canChon && !DSVN.ct) { baoTin('Chọn pháp nhân nhận tệp trước, rồi mới chọn file.'); return; }
+    inp.click();
+  };
   inp.onchange = function () { if (inp.files && inp.files[0]) dsvnTaiLen(inp.files[0]); };
   var nb = document.getElementById('dsvnNhan');
   if (nb) nb.onclick = dsvnNhanTep;
   b.onclick = function (e) {
+    var p = e.target.closest('[data-dsvnphap]');
+    if (p) return dsvnDoiPhap(p.getAttribute('data-dsvnphap'));
     var t = e.target.closest('[data-dsvnct]');
     if (t) { DSVN.cur = t.getAttribute('data-dsvnct'); DSVN.loc = ''; return go(scrDsvnCt); }
   };
 }
 
+async function dsvnXem() {
+  DSVN.xt = await api('vagabond.doi_soat_vendor.xem_truoc', { file_url: DSVN.tep.file_url, cong_ty: DSVN.ct });
+  DSVN.xtCt = DSVN.ct;
+}
+
+async function dsvnDoiPhap(c) {
+  if (c === DSVN.ct) return;
+  DSVN.ct = c;
+  if (!DSVN.tep) return go(scrDsvnTai, true);
+  DSVN.xt = null;
+  busy(true);
+  try { await dsvnXem(); }
+  catch (e) { baoTin((e && e.message) || 'Chưa đọc được tệp. Kiểm tra lại tệp vendor gửi.'); }
+  finally { busy(false); }
+  go(scrDsvnTai, true);
+}
+
 function dsvnTheXemTruoc(x) {
   var s = '<div class="card" style="padding:12px 14px">' +
     '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>' + h(x.ten_mau || 'Chưa nhận ra') + '</b>' +
-    (x.da_co ? dsvnChip('Đã nhận trước') : dsvnChip(x.trang_thai)) + '</div>' +
+    (x.da_co || x.phap_nhan_khac ? dsvnChip('Đã nhận trước') : dsvnChip(x.trang_thai)) + '</div>' +
     '<div style="font-size:13px;color:#667085;margin-top:2px">' + h(x.ten_tep || '') + '</div>' +
     (x.doc_lai ? '<div style="font-size:12.5px;color:#175cd3;margin-top:4px">Tệp này đã nhận trước nhưng còn lỗi. Bấm Nhận để đọc lại vào đúng nguồn cũ.</div>' : '');
+  if (x.phap_nhan_khac) {
+    return s + '<div style="font-size:13px;margin-top:8px">Tệp này đã nhận vào một pháp nhân khác. Mỗi tệp chỉ nhận vào một pháp nhân, nên không nhận lại ở đây.</div></div>';
+  }
   if (x.da_co) {
     s += '<div style="font-size:13px;margin-top:8px">Tệp này đã nhận rồi, không nhận lần hai.</div>' +
       '<button class="btn gh" data-dsvnct="' + h(x.da_co) + '" style="margin:8px 0 0">Mở nguồn đã nhận →</button></div>';
@@ -56220,7 +56261,7 @@ function dsvnTaiLen(file) {
     try {
       var up = await api('vagabond.doi_soat_vendor.tai_len', { ten: file.name, noi_dung: r.result });
       DSVN.tep = up;
-      DSVN.xt = await api('vagabond.doi_soat_vendor.xem_truoc', { file_url: up.file_url });
+      await dsvnXem();
       go(scrDsvnTai, true);
     } catch (e) { baoTin((e && e.message) || 'Chưa đọc được tệp. Kiểm tra lại tệp vendor gửi.'); }
     finally { busy(false); }
@@ -56232,7 +56273,9 @@ async function dsvnNhanTep() {
   if (!DSVN.tep) return;
   busy(true);
   try {
-    var ra = await api('vagabond.doi_soat_vendor.nhan', { file_url: DSVN.tep.file_url });
+    /* Nhận đúng pháp nhân đã xem trước, không lấy chip đang chọn nếu khác. */
+    var ra = await api('vagabond.doi_soat_vendor.nhan', { file_url: DSVN.tep.file_url, cong_ty: DSVN.xtCt });
+    ra = ra.filter(function (r) { return r.name; });
     toast('Đã lưu ' + ra.length + ' nguồn. Máy đang đối chiếu hoá đơn và tiền về.');
     DSVN.xt = null; DSVN.tep = null;
     if (ra.length === 1) { DSVN.cur = ra[0].name; DSVN.loc = ''; return go(scrDsvnCt, true); }
