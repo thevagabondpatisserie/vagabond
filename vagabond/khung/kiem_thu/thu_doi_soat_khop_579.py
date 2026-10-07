@@ -391,7 +391,7 @@ def _():
 _CT_DA_DOC = []  # pháp nhân mà _doc_va_xem được gọi với, trong _chay_thu
 
 
-def _chay_thu(tep, tieu_de, da_co=None, hop_thu_loi=False, hop_thu_ct=None, demo=""):
+def _chay_thu(tep, tieu_de, da_co=None, hop_thu_loi=False, hop_thu_ct=None, demo="", thu_ct=None):
 	"""Chạy xu_ly_thu THẬT (cả _nhan_byte thật) với tầng chạm hệ được thay:
 	tep = {tên đính kèm: [(tên tệp con, có mẫu?)]}. Trả (ket, các nguồn đã ghi)."""
 	from contextlib import nullcontext
@@ -412,6 +412,9 @@ def _chay_thu(tep, tieu_de, da_co=None, hop_thu_loi=False, hop_thu_ct=None, demo
 	def get_value(dt, loc, truong=None, as_dict=False):
 		if dt == "Communication" and truong == "email_account":
 			return "HOP-1"
+		if dt == "Communication" and isinstance(truong, (list, tuple)) and "company" in truong:
+			# Communication.company: ERPNext ghi pháp nhân của hộp thư LÚC NHẬN thư.
+			return dict(company=thu_ct, email_account="HOP-1")  # frappe._dict thật có .get
 		if dt == "Email Account":
 			if hop_thu_loi:
 				raise RuntimeError("mất kết nối CSDL khi đọc hộp thư")
@@ -1539,3 +1542,19 @@ def _():
 	with patch.object(V.frappe.db, "exists", lambda *a, **k: True, create=True):
 		ket, ghi = _chay_thu({"bao-cao.csv": [("bao-cao.csv", True)]}, "Thong bao", hop_thu_ct="DEMO", demo="DEMO")
 	la("đọc được: hộp thư khai demo thì về mặc định", (len(ghi), _CT_DA_DOC[-1]), (1, "CT"))
+
+
+@ca("v585 Codex #452: thư vào pháp nhân ghi trên thư lúc nhận, không theo pháp nhân hiện tại của hộp thư")
+def _():
+	# Thư nhận khi hộp thư thuộc A (Communication.company = A), sau đó quản trị
+	# đổi hộp thư sang B rồi lượt quét lại chạy. Bản cũ đọc hộp thư hiện tại nên
+	# ghi báo cáo cũ vào B.
+	from unittest.mock import patch
+	from vagabond import doi_soat_vendor as V
+	with patch.object(V.frappe.db, "exists", lambda *a, **k: True, create=True):
+		ket, ghi = _chay_thu({"bao-cao.csv": [("bao-cao.csv", True)]}, "Thong bao", thu_ct="A", hop_thu_ct="B")
+		la("theo pháp nhân trên thư", _CT_DA_DOC[-1], "A")
+		ket, ghi = _chay_thu({"bao-cao.csv": [("bao-cao.csv", True)]}, "Thong bao", thu_ct=None, hop_thu_ct="B")
+		la("thư cũ chưa có pháp nhân: theo hộp thư", _CT_DA_DOC[-1], "B")
+		ket, ghi = _chay_thu({"bao-cao.csv": [("bao-cao.csv", True)]}, "Thong bao", thu_ct="DEMO", hop_thu_ct="B", demo="DEMO")
+		la("thư ghi pháp nhân demo: về mặc định, không lấy hộp thư hiện tại", _CT_DA_DOC[-1], "CT")
