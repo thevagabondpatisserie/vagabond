@@ -185,13 +185,36 @@ def nhan_ngan_cong_ty(ds):
 	for ten, viet_tat in ds:
 		gon = _TIEN_TO_CONG_TY.sub("", ten or "").strip()
 		ra[ten] = gon if gon and len(gon) <= TOI_DA_NHAN_CHIP else cat(viet_tat or gon or ten)
-	dem = {}
-	for v in ra.values():
-		dem[v] = dem.get(v, 0) + 1
 	vt = dict(ds)
-	for ten in ra:
-		if dem[ra[ten]] > 1 and vt.get(ten):
-			ra[ten] = cat(vt[ten])
+	# Vòng 18: đổi sang viết tắt có thể đụng nhãn của pháp nhân khác, nên đếm
+	# lại sau mỗi lượt đổi cho tới khi không còn gì đổi được.
+	for _ in range(len(ra)):
+		dem = {}
+		for v in ra.values():
+			dem[v] = dem.get(v, 0) + 1
+		doi = False
+		for ten in ra:
+			if dem[ra[ten]] > 1 and vt.get(ten) and cat(vt[ten]) != ra[ten]:
+				ra[ten] = cat(vt[ten])
+				doi = True
+		if not doi:
+			break
+	# Còn trùng (viết tắt cũng trùng hoặc không có): thêm số thứ tự theo thứ tự
+	# danh sách, vẫn trong 16 ký tự, không đụng nhãn nào khác.
+	da = set()
+	for ten, _vt in ds:
+		nhan = ra[ten]
+		if nhan in da:
+			khac = set(ra.values())
+			k = 2
+			while True:
+				duoi = " " + str(k)
+				thu = nhan[:TOI_DA_NHAN_CHIP - len(duoi)].rstrip("… ") + duoi
+				if thu not in da and thu not in khac:
+					break
+				k += 1
+			nhan = ra[ten] = thu
+		da.add(nhan)
 	return ra
 
 
