@@ -60,6 +60,66 @@ function hoiChon(tuaDe, moTa, luaChon, kDangChon) {
   });
 }
 
+/* v582: chon NHIEU muc, bam de bat tat tung muc, bam nut chot moi tra ve.
+   Dung cho goi chuc vu: mot nguoi giu duoc nhieu goi, quyen cong don (anh
+   Viet 06/10/2026). Tra ve mang k theo thu tu danh sach, hoac null neu thoi.
+   Chua chon muc nao thi nut chot mo nhat va bam khong an. */
+function hoiChonNhieu(tuaDe, moTa, luaChon, dsDangChon, nhanNut) {
+  return new Promise(function (xong) {
+    var dang = {};
+    (dsDangChon || []).forEach(function (k) { dang[String(k)] = 1; });
+    var than = (moTa ? '<div style="font-size:13.5px;line-height:1.6;color:#4b5563;margin-bottom:12px">' + moTa + '</div>' : '');
+    /* Codex #449 P2: hon 8 muc thi phai co o tim (AGENTS.md "Chon la tim"),
+       giong hoiChon. Loc theo ten lan mo ta. */
+    than += vgbOTim('hcnTim', (luaChon || []).length, '🔎 Gõ để tìm nhanh');
+    (luaChon || []).forEach(function (x) {
+      than += '<div data-hcn="' + h(String(x.k)) + '" style="display:flex;align-items:flex-start;gap:11px;padding:13px 14px;border-radius:14px;margin-bottom:9px;cursor:pointer;min-height:44px;box-sizing:border-box">'
+        + '<div data-hcn-o style="flex:0 0 auto;width:22px;height:22px;border-radius:7px;border:2px solid #0f766e;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px"></div>'
+        + (x.icon ? '<div style="font-size:20px;line-height:1.2;flex:0 0 auto">' + x.icon + '</div>' : '')
+        + '<div style="flex:1;min-width:0">'
+        + '<div style="font-size:15px;font-weight:700">' + h(x.nhan) + '</div>'
+        + (x.mo_ta ? '<div data-hcn-m style="font-size:12.5px;line-height:1.5;margin-top:3px">' + h(x.mo_ta) + '</div>' : '')
+        + '</div></div>';
+    });
+    var k = hopKhung(tuaDe, than,
+      '<button class="btn gh" data-hcx style="flex:1;margin:0">Thôi</button>' +
+      '<button class="btn" data-hcn-xong style="flex:2;margin:0">' + h(nhanNut || 'Lưu') + '</button>');
+    var ve = function () {
+      var so = 0;
+      Array.prototype.forEach.call(k.box.querySelectorAll('[data-hcn]'), function (el) {
+        var co = !!dang[el.getAttribute('data-hcn')];
+        if (co) so++;
+        el.style.background = co ? '#0f766e' : '#f4f6f9';
+        el.style.color = co ? '#fff' : '#20242e';
+        var o = el.querySelector('[data-hcn-o]');
+        if (o) { o.textContent = co ? '✓' : ''; o.style.background = co ? '#fff' : 'transparent'; o.style.color = '#0f766e'; }
+        var m = el.querySelector('[data-hcn-m]');
+        if (m) m.style.color = co ? '#d6f5f0' : '#6b7280';
+      });
+      var nut = k.box.querySelector('[data-hcn-xong]');
+      if (nut) { nut.style.opacity = so ? '1' : '.45'; nut.textContent = (nhanNut || 'Lưu') + (so ? ' (' + so + ')' : ''); }
+      return so;
+    };
+    ve();
+    vgbNoiOTim(k.box, 'hcnTim', '[data-hcn]');
+    var tra = function (v) { k.dong(); xong(v); };
+    k.box.onclick = function (e) {
+      if (e.target.closest('.x') || e.target.closest('[data-hcx]')) return tra(null);
+      if (e.target.closest('[data-hcn-xong]')) {
+        var ra = (luaChon || []).map(function (x) { return String(x.k); }).filter(function (x) { return dang[x]; });
+        if (!ra.length) return;
+        return tra(ra);
+      }
+      var el = e.target.closest('[data-hcn]');
+      if (!el) return;
+      var kk = el.getAttribute('data-hcn');
+      if (dang[kk]) delete dang[kk]; else dang[kk] = 1;
+      ve();
+    };
+    k.ov.onclick = function (e) { if (e.target === k.ov) tra(null); };
+  });
+}
+
 /* Nhap mot dong chu. tuyChon: {kieu: 'text'|'number'|'email', goi_y, nhieu_dong,
    bat_buoc, don_vi} */
 function hoiChu(tuaDe, nhan, macDinh, tuyChon) {

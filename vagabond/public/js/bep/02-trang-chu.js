@@ -154,7 +154,8 @@ async function scrHome() {
       card('💝', 'CRM - chăm sóc khách hàng', 'Tặng quà khách VIP: lên danh sách, chia việc, theo dõi đã tặng và đã liên hệ', 0, 'TQV') +
         card('🔐', 'Mã OTP quản lý', 'Cấp mã cho nhân viên sửa hoặc xoá hoá đơn', 0, 'OTP') +
       card('🎫', 'Chương trình khuyến mãi - combo', 'Bảy cách thức khuyến mãi, combo rã món, mã voucher, báo cáo tiền đã giảm', 0, 'KM') +
-      card('📒', 'Công nợ phải thu', 'Khách sỉ gom hoá đơn trả sau: gom phiếu, sinh QR, đối soát', 0, 'CN') +
+      /* v582: chi Sales that, QLCH, ke toan, giam doc (coQuyenCongNo). */
+      (coQuyenCongNo() ? card('📒', 'Công nợ phải thu', 'Khách sỉ gom hoá đơn trả sau: gom phiếu, sinh QR, đối soát', 0, 'CN') : '') +
       /* Sổ hàng tặng cho Sales và quản lý cửa hàng (anh Việt 28/09/2026,
          issue #380): cùng màn Duyệt đơn hàng tặng bên Kế toán, mở sẵn chip
          Hoàn tất để tra lại bill đã tặng. Nút Duyệt vẫn chỉ hiện với giám
