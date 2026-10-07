@@ -12,15 +12,32 @@ from vagabond import nguoi_dung as nd
 from vagabond.khung.kiem_that.nen import ca, la, dung, _DA_TAO
 
 
-@ca("v583 site: doi bo phan mot nguoi ghi thang User, giu nguyen vai, ho so doc lai dung")
-def _():
-	dung("User co o custom_phong_ban", frappe.get_meta("User").has_field("custom_phong_ban"))
-	cac = nd._bo_phan_co_that()
-	dung("site co it nhat hai bo phan chon duoc", len(cac) >= 2)
+def _nguoi():
 	u = frappe.get_doc({"doctype": "User", "email": "kt583-bp-%s@example.invalid" % frappe.generate_hash(length=8),
 		"first_name": "Kiểm Bộ phận 583", "enabled": 1, "send_welcome_email": 0,
 		"roles": [{"role": "Sales User"}]}).insert(ignore_permissions=True)
 	_DA_TAO.append((u.doctype, u.name))
+	return u
+
+
+@ca("v583 site: doi bo phan mot nguoi ghi thang User, giu nguyen vai, ho so doc lai dung")
+def _():
+	# O `custom_phong_ban` la Custom Field tao tren Desk cua site that (Link
+	# Department), khong nam trong ma nguon. Bench GitHub dung moi KHONG co o
+	# do: ca kiem lan nhanh "thieu o" (chan ro rang, khong no co so du lieu).
+	# Site that co o nen di nhanh day du; kiem them tren site sau khi deploy.
+	u = _nguoi()
+	if not nd._co_o_bo_phan():
+		try:
+			nd.dat_bo_phan(u.name, "Bếp Pastry - TV")
+			chan = False
+		except frappe.ValidationError as e:
+			chan = "chưa có ô Bộ phận" in str(e)
+		la("thieu o: chan ro rang", chan, True)
+		la("thieu o: ho so khong moi doi", nd.chi_tiet(u.name)["bo_phan_chon_duoc"], [])
+		return
+	cac = nd._bo_phan_co_that()
+	dung("site co it nhat hai bo phan chon duoc", len(cac) >= 2)
 	vai_truoc = sorted(frappe.get_roles(u.name))
 	dich = cac[0] if cac[0] != nd._bo_phan_cua(u.name) else cac[1]
 	kq = nd.dat_bo_phan(u.name, dich)
