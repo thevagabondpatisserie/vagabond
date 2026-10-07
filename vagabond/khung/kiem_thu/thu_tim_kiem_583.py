@@ -133,26 +133,13 @@ class _Bang(object):
 		return [{f: r.get(f) for f in (fields or ["name"])} for r in ra]
 
 	def sql(self, q, p, as_dict=False):
-		"""Chay THAT cau `sql_ung_vien` sinh ra: doc cot, tung ve `like`, bo
-		dung cac dau ngan cach trong tham so, `name in`, `limit`."""
+		"""Chay THAT cau `sql_ung_vien` sinh ra: doc cot, dieu kien AND/OR tung
+		ve `like` (bo dung cac dau ngan cach trong tham so), cat `limit` SAU
+		khi loc het dieu kien, giong co so du lieu."""
 		self.hoi.append(("SQL", q, p))
-		m = re.match(r"select (.*?) from `tab(.+?)` where (.*) limit (\d+)$", q, re.S)
+		m = re.match(r"select (.*?) from `tab(.+?)` where (.*) order by `modified` desc limit (\d+)$", q, re.S)
 		cot = [c.strip(" `") for c in m.group(1).split(",")]
-		dk, trong = m.group(3), None
-		if " and `name` in " in dk:
-			dk, k = dk.split(" and `name` in ")
-			trong = p[re.match(r"%\((\w+)\)s$", k).group(1)]
-		ve = []
-		for v in dk.strip()[1:-1].split(" or "):
-			bt, k = re.match(r"(.*) like %\((\w+)\)s$", v, re.S).groups()
-			ve.append((re.search(r"`(\w+)`", bt).group(1),
-				[p[x] for x in re.findall(r"%\((\w+_n\d+)\)s", bt)], p[k]))
-		ra = []
-		for r in self.dong:
-			if trong is not None and r["name"] not in trong:
-				continue
-			if any(_like(_bo(r.get(c), ngan), mau) for c, ngan, mau in ve):
-				ra.append({c: r.get(c) for c in cot})
+		ra = [{c: r.get(c) for c in cot} for r in self.dong if _sql_dung(m.group(3), p, r)]
 		return ra[: int(m.group(4))]
 
 
@@ -170,7 +157,7 @@ def _sql_dung(d, t, r):
 		ok = False
 		for v in nhom.split(" or "):
 			bt, k = re.match(r"(.*) like %\((\w+)\)s$", v, re.S).groups()
-			c = re.sub(r"^(replace\()+", "", bt).split(",")[0].strip()
+			c = re.sub(r"^(replace\()+", "", bt).split(",")[0].strip(" `")
 			ngan = [t[x] for x in re.findall(r"%\((\w+_n\d+)\)s", bt)]
 			ok = ok or _like(_bo(r.get(c), ngan), t[k])
 		if not ok:
@@ -215,14 +202,15 @@ def _ten_khop():
 	la("go rong", _tim("  ")[0], None)
 
 
-@ca("v583: ten_khop hoi tu dai truoc, luot sau chi hoi trong tap da khop")
+@ca("v583 #450 vong 2: ten_khop hoi MOT cau gom moi tu")
 def _ten_khop_hoi():
 	ra, b = _tim("chocolatine mini")
-	b.hoi = [h for h in b.hoi if h[0] == "SQL"]
-	la("hai luot", len(b.hoi), 2)
-	dung("luot dau khong khoanh tap", "_trong" not in str(b.hoi[0][2]))
-	la("luot hai trong tap da khop", b.hoi[1][2].get("tg_trong"), ("BANU00008", "BANU00050"))
-	dung("luot dau la tu dai nhat", "%chocolatine%" in b.hoi[0][2].values())
+	la("ket qua", ra, ["BANU00050"])
+	sql = [h for h in b.hoi if h[0] == "SQL"]
+	la("MOT luot SQL cho ca cum go", len(sql), 1)
+	la("khong con luot get_all Item nao", [h for h in b.hoi if h[0] == "Item"], [])
+	dung("ca hai tu trong cung mot cau", {"%chocolatine%", "%mini%"} <= set(sql[0][2].values()))
+	dung("AND giua hai tu", ") and (" in sql[0][1])
 
 
 @ca("v583 #450 vong 1: go DINH LIEN qua may chu van ra mon (Codex: chocolatinemini ra rong)")
@@ -261,13 +249,13 @@ def _sql_dinh_lien():
 
 @ca("v583 #450 vong 1: moi luot hoi ung vien co tran, cau SQL soat ten cot va doctype")
 def _tran():
-	_, b = _tim("o")
-	la("tu ngan qua get_all co tran", b.gioi_han, [tk.GIOI_HAN_DOC])
-	_, b = _tim("chocolatine")
-	dung("tu dai qua SQL co limit", b.hoi[0][1].endswith(" limit %d" % tk.GIOI_HAN_DOC))
+	for q in ("o", "chocolatine", "banh o"):
+		_, b = _tim(q)
+		sql = [h for h in b.hoi if h[0] == "SQL"]
+		dung("%s: mot cau SQL co tran" % q, len(sql) == 1 and sql[0][1].endswith(" limit %d" % tk.GIOI_HAN_DOC))
 	for dt, cot in [("Item`; drop", ["name"]), ("Item", ["name; drop"]), ("Item", ["`x`"])]:
 		try:
-			tk.sql_ung_vien(dt, ["name"] + cot, cot, ["%a%"])
+			tk.sql_ung_vien(dt, ["name"] + cot, cot, "abc")
 			dung("phai tu choi %r %r" % (dt, cot), False)
 		except ValueError:
 			pass
@@ -328,6 +316,24 @@ def _cua_tim():
 	la("doc qua get_list co soat quyen", dt, "Item")
 	la("giu bo loc va them ten khop", k["filters"], [["disabled", "=", 0], ["name", "in", ["BANU00050"]]])
 	la("so dong", k["limit_page_length"], 50)
+
+
+@ca("v583 #450 vong 2: tran dong cat SAU khi giao moi tu (Codex: tu chung an het cho)")
+def _tran_sau_giao():
+	# Truoc khi sua (SHA 1ab98344b): bang 6001 dong, "banh" khop ca 6001 nen
+	# luot dau cat con 5000 dong, dong duy nhat co "Xyz" nam ngoai -> "banh xyz"
+	# ra [] trong khi go rieng "xyz" van ra SI99999.
+	import unittest.mock as um
+
+	dong = [{"name": "SI%05d" % i, "item_name": "Bánh thường số %d" % i} for i in range(6000)]
+	dong.append({"name": "SI99999", "item_name": "Bánh đặc biệt, Xyz"})
+	b = _Bang(dong)
+	db = type("Db", (), {"sql": staticmethod(b.sql)})()
+	with um.patch.object(tk.frappe, "get_all", b.get_all, create=True), \
+			um.patch.object(tk.frappe, "db", db, create=True):
+		la("banh xyz", tk.ten_khop("Item", "banh xyz", ["name", "item_name"]), ["SI99999"])
+		la("xyz banh dao thu tu", tk.ten_khop("Item", "xyz banh", ["name", "item_name"]), ["SI99999"])
+		la("banhdacbiet dinh lien", tk.ten_khop("Item", "banhdacbiet", ["name", "item_name"]), ["SI99999"])
 
 
 @ca("v583 #450 vong 1: khong duoc doc doctype thi dung TRUOC buoc hoi ung vien")

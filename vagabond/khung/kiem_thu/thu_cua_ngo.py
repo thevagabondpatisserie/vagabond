@@ -390,6 +390,11 @@ CUA_NGO = {
 	# `nap_dan` cho man dan danh sach tu bang tinh.
 	# v583: mot cua tim cho moi o tim tren app (tach tung tu, bo dau).
 	"tim_kiem.py": ["tim"],
+	# v583: dat_bo_phan sua bo phan tung nguoi tren app; chot ca mo dun.
+	"nguoi_dung.py": [
+		"danh_sach", "danh_sach_goi", "chi_tiet", "dat_goi", "sua_quyen_le",
+		"bat_tat", "dat_bo_phan", "moi", "gui_lai_thu",
+	],
 	"tang_qua.py": ["chi_tiet", "danh_muc", "danh_muc_dot", "danh_sach",
 		"doi_trang_thai", "ds_dot", "khach_co_hang", "luu", "luu_dot",
 		"nap_dan", "nhan_ban_dot", "them_hang_loat", "thu_boc_sdt",
