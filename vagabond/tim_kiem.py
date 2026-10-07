@@ -48,6 +48,16 @@ TU_NGAN = 3
 # Ky tu co the dung ngay truoc mot tieng trong ten goc chua chuan hoa.
 _TRUOC_TIENG = (" ", "(", "-", ",", "/", ".", "+")
 _TEN_COT = re.compile(r"^[a-z_][a-z0-9_]*$")
+_TEN_DT = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 _\-]*$")
+# Dau ngan cach bo di khi so ban "dinh lien" o may chu (Codex #450, vong 1):
+# go "chocolatinemini" phai ra "Bánh Chocolatine, Mini size" giong may khach.
+# Ky tu nao khong co trong danh sach van la ky tu that o buoc hoi co so du lieu
+# (it gap trong ten mon); buoc so lai bang `khop` van coi no la dau ngan cach.
+_NGAN_CACH = (" ", ",", ".", "-", "/", "(", ")", "_", "+", "&", ":", ";", "'", "\"",
+	"\t", "\n", "–", "—")
+# Moi luot hoi ung vien doc toi da chung nay dong (Codex #450, vong 1): khong
+# quet ca bang chi vi mot chu ngan.
+GIOI_HAN_DOC = 5000
 # Kieu o duoc phep lam cot tim tu man hinh (xem `tim`).
 KIEU_O_TIM = {"Data", "Link", "Dynamic Link", "Select", "Small Text", "Text", "Read Only", "Phone"}
 
@@ -147,13 +157,57 @@ def sql(q, cot, ten="tk"):
 	nhom = []
 	for i, t in enumerate(tu):
 		hoac = []
+		dai = len(t) >= TU_NGAN
 		for j, m in enumerate(cac_mau(t)):
 			k = "%s%d_%d" % (ten, i, j)
 			tham[k] = m
 			for c in cot:
-				hoac.append("%s like %%(%s)s" % (c, k))
+				# Tu dai so tren ban da bo dau ngan cach, nen go dinh lien
+				# "chocolatinemini" van ra "Chocolatine, Mini". Tu ngan giu
+				# nguyen cot de con biet dau tieng.
+				hoac.append("%s like %%(%s)s" % (_gon(c, ten) if dai else c, k))
+		if dai:
+			tham.update(_tham_ngan(ten))
 		nhom.append("(" + " or ".join(hoac) + ")")
 	return "(" + " and ".join(nhom) + ")", tham
+
+
+def _gon(bieu_thuc, ten):
+	"""Bieu thuc SQL bo moi dau ngan cach khoi mot cot (tham so co ten)."""
+	e = bieu_thuc
+	for i in range(len(_NGAN_CACH)):
+		e = "replace(%s, %%(%s_n%d)s, '')" % (e, ten, i)
+	return e
+
+
+def _tham_ngan(ten):
+	return {"%s_n%d" % (ten, i): s for i, s in enumerate(_NGAN_CACH)}
+
+
+def sql_ung_vien(doctype, truong, cot, mau, trong=None, gioi_han=GIOI_HAN_DOC, ten="tg"):
+	"""Cau doc ung vien cho MOT tu dai: cot da bo dau ngan cach `like` mau.
+
+	`doctype`, `truong`, `cot` phai la ten that (soat dang o day, khong bao gio
+	noi chuoi go vao cau lenh). Tra ve (chuoi, tham_so).
+	"""
+	if not _TEN_DT.match(str(doctype or "")):
+		raise ValueError("doctype khong hop le: %r" % (doctype,))
+	for c in list(truong) + list(cot):
+		if not _TEN_COT.match(str(c or "")):
+			raise ValueError("cot khong hop le: %r" % (c,))
+	tham = _tham_ngan(ten)
+	hoac = []
+	for j, m in enumerate(mau):
+		k = "%s_m%d" % (ten, j)
+		tham[k] = m
+		for c in cot:
+			hoac.append("%s like %%(%s)s" % (_gon("`%s`" % c, ten), k))
+	dk = "(" + " or ".join(hoac) + ")"
+	if trong is not None:
+		tham[ten + "_trong"] = tuple(trong)
+		dk += " and `name` in %%(%s_trong)s" % ten
+	return ("select %s from `tab%s` where %s limit %d" % (
+		", ".join("`%s`" % c for c in truong), doctype, dk, int(gioi_han)), tham)
 
 
 def cot_hop_le(cot, co_that):
@@ -191,12 +245,19 @@ def ten_khop(doctype, q, cot, gioi_han=2000):
 	con, gia_tri = None, {}
 	truong = ["name"] + [c for c in cot if c != "name"]
 	for t in sorted(tu, key=len, reverse=True):
-		hoac = [[c, "like", m] for m in cac_mau(t) for c in cot]
 		# Tap da khop con nho thi hoi trong tap do cho nhe; lon qua thi hoi ca
 		# bang roi giao trong Python, tranh cau "in" dai vai chuc nghin ma.
-		loc = {"name": ["in", sorted(con)]} if con is not None and len(con) <= 3000 else None
-		ds = frappe.get_all(doctype, filters=loc, or_filters=hoac, fields=truong,
-			limit_page_length=0)
+		trong = sorted(con) if con is not None and len(con) <= 3000 else None
+		if len(t) >= TU_NGAN:
+			# Tu dai: so tren cot da bo dau ngan cach (go dinh lien van ra).
+			# get_all khong nhan bieu thuc tren cot nen di cau SQL soat dang.
+			cau, tham = sql_ung_vien(doctype, truong, cot, cac_mau(t), trong)
+			ds = frappe.db.sql(cau, tham, as_dict=True)
+		else:
+			hoac = [[c, "like", m] for m in cac_mau(t) for c in cot]
+			loc = {"name": ["in", trong]} if trong is not None else None
+			ds = frappe.get_all(doctype, filters=loc, or_filters=hoac, fields=truong,
+				limit_page_length=GIOI_HAN_DOC)
 		for r in ds:
 			gia_tri.setdefault(r["name"], [r.get(c) for c in truong])
 		ten = {r["name"] for r in ds}
@@ -272,6 +333,10 @@ def tim(doctype, tu_khoa="", cot=None, fields=None, filters=None, gioi_han=100, 
 	  - quyen doc do frappe.get_list soat (giong getList cu);
 	  - cot tim chi nhan ten cot CO THAT tren doctype, khong lot SQL vao duoc.
 	"""
+	# Soat quyen doc TRUOC buoc hoi ung vien (Codex #450, vong 1): buoc do
+	# khong soat quyen, nguoi khong duoc doc doctype thi dung o day.
+	if not frappe.has_permission(doctype, "read"):
+		frappe.throw("Bạn không có quyền xem %s." % doctype, frappe.PermissionError)
 	meta = frappe.get_meta(doctype)
 	# Chi cho tim tren o CHU thuong, quyen cap 0. Khong cho do tren o mat khau
 	# hay o quyen cao: buoc doc ten khop khong soat quyen, do tren o do la mo
