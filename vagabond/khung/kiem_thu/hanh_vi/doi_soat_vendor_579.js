@@ -78,7 +78,7 @@ function mayChu(canh) {
         if (a.loc === 'chua_noi') dong = dong.filter(function (d) { return d.trang_thai_khop !== 'Đã nối' && d.trang_thai_khop !== 'Không áp dụng'; });
         return { nguon: nguon(a.name, 'GrabFood', 'Đã nhận', { trang_thai_tien: 'Đã thấy tiền về', giao_dich_ngan_hang: 'BT-1', tong_tep: 668915,
           so_chua_noi: 1, so_da_noi: 1 }), them: { tien_ve: '', ban_sua: canh.banSua && !canh.daDungSua ? [{ khoa: 'K-GF-101', vi_tri: 1,
-            ma: 'GF-101', ngay: '2026-07-17', moi: { mo_ta: 'GrabFood tiền mặt', thuc_nhan: 210641 },
+            ma: 'GF-101', ngay: '2026-07-17', dau_cu: 'dau-A', moi: { mo_ta: 'GrabFood tiền mặt', thuc_nhan: 210641 },
             cu: { nguon: 'DSN-0', mo_ta: 'GrabFood thẻ/ví', thuc_nhan: 210641 } }] : [] },
           dong: dong, con: canh.nhieu && (a.trang || 0) < 2 ? 1 : 0 };
       }
@@ -129,10 +129,12 @@ function appMoi(canh) {
     'function posChipNut(thuoc, nhan, bat) { return "<button class=\\"chip\\" data-bat=\\"" + (bat ? 1 : 0) + "\\" " + thuoc + ">" + nhan + "</button>"; }',
     'function kmHangChip(noiDung) { return "<div>" + noiDung + "</div>"; }',
     'function errMsg(e) { return String((e && e.message) || e); }',
+    /* Hop xac nhan gia: ghi lai noi dung hoi va tra loi theo canh (dongY). */
+    'var __hoi = []; function confirmSheet(t, m, ok, nguy) { __hoi.push(t + "|" + m); return Promise.resolve(__canh.dongY !== false); }',
     'function api(m, a) { return __mc.api(m, a); }',
     'var __xemDon = []; function scrDsView(si) { __xemDon.push(si); frame("Đơn " + si, "<div>don</div>"); }',
     'async function scrHome() { frame(APPNAME, "<div></div>"); }',
-  ].join('\n'), Object.assign(g, { __tin: tin, __mc: mc }));
+  ].join('\n'), Object.assign(g, { __tin: tin, __mc: mc, __canh: canh }));
   vm.runInContext(doc('01-khung-app.js'), g);
   vm.runInContext(doc('15-khuon-danh-sach.js'), g);
   vm.runInContext(doc('52-doi-soat-vendor.js'), g);
@@ -338,9 +340,21 @@ async function moTrungTam(canh) {
     dung('không lộ khoá máy ra chữ', c.replace(/data-dsvnbs="[^"]*"/g, '').indexOf('K-GF-101') < 0);
     var truoc = app.mc.dem('vagabond.doi_soat_vendor.chi_tiet');
     await app.bam(app.mot('[data-dsvnbs]'));
-    bang('gửi đúng nguồn và khoá', app.mc.cuoi('vagabond.doi_soat_vendor.dung_ban_sua').a, { name: 'DSN-1', khoa: 'K-GF-101' });
+    var hoi = app.g.__hoi[app.g.__hoi.length - 1] || '';
+    dung('hỏi lại, cho thấy cả hai bản', hoi.indexOf('Đang tính: GrabFood thẻ/ví · 210641 đ') >= 0 && hoi.indexOf('Bản sửa: GrabFood tiền mặt · 210641 đ') >= 0);
+    bang('gửi đúng nguồn, khoá và dấu bản đang tính đã cho xem', app.mc.cuoi('vagabond.doi_soat_vendor.dung_ban_sua').a,
+      { name: 'DSN-1', khoa: 'K-GF-101', dau_cu: 'dau-A' });
     bang('vẽ lại từ máy chủ', app.mc.dem('vagabond.doi_soat_vendor.chi_tiet'), truoc + 1);
     bang('hết khối bản sửa', app.tim('[data-dsvnbs]').length, 0);
+  });
+
+  await ca('Codex #450 vòng 15: bấm Dùng bản sửa rồi Huỷ thì không gửi gì', async function () {
+    var app = await moTrungTam({ banSua: true, dongY: false });
+    await app.bam(app.tim('[data-dsvnct="DSN-1"]')[0]);
+    await app.bam(app.mot('[data-dsvnbs]'));
+    bang('có hỏi', app.g.__hoi.length, 1);
+    bang('không gọi máy chủ', app.mc.dem('vagabond.doi_soat_vendor.dung_ban_sua'), 0);
+    bang('khối bản sửa còn nguyên', app.tim('[data-dsvnbs]').length, 1);
   });
 
   console.log('Doi soat vendor 579: ' + ket.dat + ' dat, ' + ket.hong + ' hong');
