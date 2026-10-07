@@ -52,7 +52,8 @@ function mayChu(canh) {
           dem: { tat_ca: 2, 'Cần xử lý': 1, 'Chưa thấy tiền về': 1, 'Lệch tiền về': 2, 'Cần chọn tiền về': 3, 'Chờ tiền về': 6,
             'nhom:Tiền bán': 2, 'nhom:Thẻ tín dụng': 1 },
           dem_vendor: { tat_ca: 2, GrabFood: 1, Payoo: 1 }, vendor: ['GrabFood', 'Payoo'], con: canh.nhieuNguon && (a.trang || 0) < 1 ? 1 : 0,
-          tong: a.trang_thai ? { tat_ca: 1023532, theo_loc: 668915 } : { tat_ca: 1023532 } };
+          tong: a.trang_thai ? { tat_ca: 1023532, theo_loc: 668915 } : { tat_ca: 1023532 },
+          cong_ty_nhan: canh.ctNhan || ['Vagabond'] };
       }
       if (m === 'vagabond.doi_soat_vendor.suc_khoe') {
         return [{ vendor: 'GrabFood', so_nguon: 1, ky_moi: '2026-07-17' }, { vendor: 'Be', so_nguon: 0 }];
@@ -60,6 +61,8 @@ function mayChu(canh) {
       if (m === 'vagabond.doi_soat_vendor.tai_len') return { file_url: '/private/files/x.pdf', ten: a.ten };
       if (m === 'vagabond.doi_soat_vendor.xem_truoc') {
         if (canh.daCo) return [{ ten_tep: 'x.pdf', ten_mau: 'GrabFood: báo cáo ngày', da_co: 'DSN-1', mau: 'grabfood', loi: [], so: {} }];
+        if (canh.khacPhap) return [{ ten_tep: 'x.pdf', ten_mau: 'GrabFood: báo cáo ngày', da_co: '', doc_lai: '', phap_nhan_khac: 1,
+          mau: 'grabfood', loi: [], so: { moi: 4 } }];
         return [{ ten_tep: 'x.pdf', ten_mau: 'GrabFood: báo cáo ngày', mau: 'grabfood', nhom: 'Tiền bán', trang_thai: 'Cần xử lý',
           tu_ngay: '2026-07-17', den_ngay: '2026-07-17', ngay_tien_ve: '2026-07-18', so: { moi: 4, trung: 0, loi: 1 },
           tong: { thuc_nhan: 668915 }, tong_tep: { thuc_nhan: 668915 }, loi: [], canh_bao: [],
@@ -355,6 +358,58 @@ async function moTrungTam(canh) {
     bang('có hỏi', app.g.__hoi.length, 1);
     bang('không gọi máy chủ', app.mc.dem('vagabond.doi_soat_vendor.dung_ban_sua'), 0);
     bang('khối bản sửa còn nguyên', app.tim('[data-dsvnbs]').length, 1);
+  });
+
+  async function chonTep(app) {
+    var inp = app.mot('#dsvnFile');
+    inp.files = [{ name: 'GrabFood-20260717.pdf' }];
+    inp.onchange(); await nghi(); await nghi(); await nghi();
+  }
+
+  await ca('Codex #450 vòng 16: hai pháp nhân thì phải chọn trước; xem trước và nhận gửi đúng pháp nhân đã chọn', async function () {
+    var app = await moTrungTam({ ctNhan: ['Vagabond', 'Vagabond Bakery'] });
+    await app.bam(app.mot('#dsvnTai'));
+    function bat() { return app.tim('[data-dsvnphap]').filter(function (x) { return / on/.test(x.className || ''); }).map(function (x) { return x.getAttribute('data-dsvnphap'); }); }
+    bang('hai chip pháp nhân, chưa chip nào bật', [app.tim('[data-dsvnphap]').length, bat()], [2, []]);
+    var mo = 0;
+    app.mot('#dsvnFile').click = function () { mo++; };
+    await app.bam(app.mot('#dsvnChon'));
+    bang('chưa chọn pháp nhân: không mở hộp chọn file', mo, 0);
+    dung('nhắc chọn pháp nhân', app.tin.some(function (t) { return t.indexOf('Chọn pháp nhân nhận tệp trước') >= 0; }));
+    await app.bam(app.mot('[data-dsvnphap="Vagabond Bakery"]'));
+    bang('chip đã bật', bat(), ['Vagabond Bakery']);
+    app.mot('#dsvnFile').click = function () { mo++; };
+    await app.bam(app.mot('#dsvnChon'));
+    bang('đã chọn thì mở hộp chọn file', mo, 1);
+    await chonTep(app);
+    bang('xem trước theo pháp nhân đã chọn', app.mc.cuoi('vagabond.doi_soat_vendor.xem_truoc').a.cong_ty, 'Vagabond Bakery');
+    /* Đổi ý sau khi đã xem trước: xem trước lại theo pháp nhân mới. */
+    await app.bam(app.mot('[data-dsvnphap="Vagabond"]')); await nghi();
+    bang('xem trước lại', [app.mc.dem('vagabond.doi_soat_vendor.xem_truoc'), app.mc.cuoi('vagabond.doi_soat_vendor.xem_truoc').a.cong_ty],
+      [2, 'Vagabond']);
+    await app.bam(app.mot('#dsvnNhan')); await nghi();
+    bang('nhận đúng pháp nhân đã xem trước', app.mc.cuoi('vagabond.doi_soat_vendor.nhan').a, { file_url: '/private/files/x.pdf', cong_ty: 'Vagabond' });
+    bang('không tải lại tệp', app.mc.dem('vagabond.doi_soat_vendor.tai_len'), 1);
+    bang('busy cân bằng', app.g.__ban, 0);
+  });
+
+  await ca('Codex #450 vòng 16: một pháp nhân thì không bắt chọn, ghi rõ tên và gửi đúng pháp nhân đó', async function () {
+    var app = await moTrungTam({ ctNhan: ['Vagabond Bakery'] });
+    await app.bam(app.mot('#dsvnTai'));
+    bang('không có chip', app.tim('[data-dsvnphap]').length, 0);
+    dung('ghi rõ nhận vào đâu', app.chu().indexOf('Nhận vào pháp nhân <b>Vagabond Bakery</b>') >= 0);
+    await chonTep(app);
+    bang('xem trước', app.mc.cuoi('vagabond.doi_soat_vendor.xem_truoc').a.cong_ty, 'Vagabond Bakery');
+    await app.bam(app.mot('#dsvnNhan')); await nghi();
+    bang('nhận', app.mc.cuoi('vagabond.doi_soat_vendor.nhan').a.cong_ty, 'Vagabond Bakery');
+  });
+
+  await ca('Codex #450 vòng 16: tệp đã nhận vào pháp nhân khác thì không có nút Nhận, không có nút mở nguồn', async function () {
+    var app = await moTrungTam({ khacPhap: true });
+    await app.bam(app.mot('#dsvnTai'));
+    await chonTep(app);
+    bang('không nút Nhận, không nút mở', [app.tim('#dsvnNhan').length, app.tim('[data-dsvnct]').length], [0, 0]);
+    dung('nói rõ lý do', app.chu().indexOf('đã nhận vào một pháp nhân khác') >= 0);
   });
 
   console.log('Doi soat vendor 579: ' + ket.dat + ' dat, ' + ket.hong + ' hong');
