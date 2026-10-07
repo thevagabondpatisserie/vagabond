@@ -76,6 +76,89 @@ def _():
 	la("lỗi mạng: không ném ra, ghi log", (so, goi), (0, [("LOG",)]))
 
 
+@ca("v585 Zalo phát hành: không đọc được số bản trên site thì ghi Error Log, không im lặng (Codex #452)")
+def _():
+	# Chạy _ban_site THẬT; chỉ thay chỗ lấy đường dẫn tệp. Bản cũ trả 0 rồi
+	# quet() thoát êm: 0 tin, 0 log, kênh tắt mãi mà không ai biết.
+	import os
+	import tempfile
+	from unittest.mock import patch
+	from vagabond import kenh_zalo
+
+	def quet_voi(lay_duong):
+		log = []
+		with patch.object(kenh_zalo, "_bat", lambda: 1), \
+				patch.object(Z.frappe, "get_app_path", lay_duong, create=True), \
+				patch.object(Z.frappe, "log_error", lambda *a, **k: log.append(a), create=True), \
+				patch.object(Z, "_doc_comment", lambda: [_cmt()]), \
+				patch.object(kenh_zalo, "bao", lambda *a, **k: log.append(("BAO",))):
+			return Z.quet(), log
+
+	def mat(*a):
+		raise IOError("không có patches.txt")
+	so, log = quet_voi(mat)
+	la("mất tệp: không gửi", so, 0)
+	la("mất tệp: một dòng Error Log", len(log), 1)
+	dung("tiêu đề log nói rõ số bản", "so ban" in log[0][1])
+	with tempfile.TemporaryDirectory() as d:
+		f = os.path.join(d, "patches.txt")
+		open(f, "w").write("a.b\nc.d\n")
+		so, log = quet_voi(lambda *a: f)
+		la("tệp không có dấu #v: không gửi, có log", (so, len(log)), (0, 1))
+		open(f, "w").write("a.b #v585\n")
+		so, log = quet_voi(lambda *a: f)
+		la("tệp đúng: gửi và không log", (so, log), (1, [("BAO",)]))
+
+
+def _github(trang, goi):
+	import types
+
+	class R:
+		def __init__(s, d):
+			s.d = d
+
+		def raise_for_status(s):
+			pass
+
+		def json(s):
+			return s.d
+	m = types.ModuleType("requests")
+
+	def get(url, params=None, **k):
+		goi.append(params.get("page"))
+		return R(trang.get(params.get("page"), []))
+	m.get = get
+	return m
+
+
+@ca("v585 Zalo phát hành: đọc đủ mọi trang comment, biên nhận ở trang 2 vẫn được báo (Codex #452)")
+def _():
+	# Chạy _doc_comment THẬT với GitHub giả theo trang. Bản cũ chỉ gọi trang 1
+	# (100 dòng), biên nhận bị 100 comment mới hơn đẩy xuống là mất hẳn.
+	import sys
+	from unittest.mock import patch
+	rac = {"user": {"login": "x"}, "author_association": "NONE", "updated_at": "2026-10-07T14:00:00Z", "body": "ok"}
+	goi = []
+	with patch.dict(sys.modules, {"requests": _github({1: [rac] * 100, 2: [_cmt()]}, goi)}), \
+			patch.object(Z, "_moc", lambda: "2026-10-04T00:00:00Z"):
+		ds = Z._doc_comment()
+	la("gọi trang 1 rồi trang 2", goi, [1, 2])
+	la("đủ 101 comment", len(ds), 101)
+	la("chọn được bản v585", [x["version"] for x in Z.chon_ban(ds, 585)], ["v585"])
+	goi = []
+	with patch.dict(sys.modules, {"requests": _github({1: [_cmt()]}, goi)}), \
+			patch.object(Z, "_moc", lambda: "2026-10-04T00:00:00Z"):
+		la("trang thiếu thì dừng, không gọi thừa", (len(Z._doc_comment()), goi), (1, [1]))
+	# Quá 10 trang đầy mà vẫn còn: ném lỗi (quet ghi log), không lặng lẽ cắt.
+	day = {so: [rac] * 100 for so in range(1, 12)}
+	try:
+		Z.gom_trang(lambda so: day.get(so, []))
+		dung("quá 1000 dòng phải ném lỗi", False)
+	except ValueError:
+		dung("quá 1000 dòng phải ném lỗi", True)
+	la("đúng 10 trang đầy, trang 11 rỗng: nhận đủ", len(Z.gom_trang(lambda so: [rac] * 100 if so <= 10 else [])), 1000)
+
+
 @ca("v585 Zalo phát hành: luật đọc khối khớp với bộ gửi Telegram (không lệch hai kênh)")
 def _():
 	# Dò chuỗi vì không chạy được thong_bao.py ở đây (cần GitHub): chốt các điều
