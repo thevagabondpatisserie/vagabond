@@ -77,9 +77,13 @@ function mayChu(canh) {
           trang_thai_khop: canh.daXacNhan ? 'Đã nối' : 'Nối theo tiền', sales_invoice: 'HDB-4', ghi_chu_khop: 'Chỉ khớp số tiền.' });
         if (a.loc === 'chua_noi') dong = dong.filter(function (d) { return d.trang_thai_khop !== 'Đã nối' && d.trang_thai_khop !== 'Không áp dụng'; });
         return { nguon: nguon(a.name, 'GrabFood', 'Đã nhận', { trang_thai_tien: 'Đã thấy tiền về', giao_dich_ngan_hang: 'BT-1', tong_tep: 668915,
-          so_chua_noi: 1, so_da_noi: 1 }), them: { tien_ve: '' }, dong: dong, con: canh.nhieu && (a.trang || 0) < 2 ? 1 : 0 };
+          so_chua_noi: 1, so_da_noi: 1 }), them: { tien_ve: '', ban_sua: canh.banSua && !canh.daDungSua ? [{ khoa: 'K-GF-101', vi_tri: 1,
+            ma: 'GF-101', ngay: '2026-07-17', moi: { mo_ta: 'GrabFood tiền mặt', thuc_nhan: 210641 },
+            cu: { nguon: 'DSN-0', mo_ta: 'GrabFood thẻ/ví', thuc_nhan: 210641 } }] : [] },
+          dong: dong, con: canh.nhieu && (a.trang || 0) < 2 ? 1 : 0 };
       }
       if (m === 'vagabond.doi_soat_vendor.doi_chieu_lai') return { ok: 1 };
+      if (m === 'vagabond.doi_soat_vendor.dung_ban_sua') { canh.daDungSua = true; return { ok: 1, nguon: a.name }; }
       if (m === 'vagabond.doi_soat_vendor.xac_nhan_noi') { canh.daXacNhan = true; return { ok: 1, nguon: 'DSN-1' }; }
       if (m === 'vagabond.doi_soat_vendor.quet_email') return { so_tep: 2 };
       if (m === 'vagabond.doi_soat_vendor.cua_hoa_don') {
@@ -323,6 +327,20 @@ async function moTrungTam(canh) {
     await app.bam(app.mot('[data-dsvntt="Cần xử lý"]'));
     c = app.chu();
     dung('đang lọc: thanh Tổng theo bộ lọc lấy số máy chủ', c.indexOf('Tổng theo bộ lọc') >= 0 && c.indexOf('668915 đ') >= 0);
+  });
+
+  await ca('Codex #450 vòng 14: bản sửa của vendor hiện hai bản để so; bấm Dùng bản sửa gửi đúng nguồn và khoá rồi vẽ lại', async function () {
+    var app = await moTrungTam({ banSua: true });
+    await app.bam(app.tim('[data-dsvnct="DSN-1"]')[0]);
+    var c = app.chu();
+    dung('có khối bản sửa', c.indexOf('1 bản sửa của vendor chờ chọn') >= 0);
+    dung('thấy bản đang tính và bản sửa', c.indexOf('Đang tính: GrabFood thẻ/ví') >= 0 && c.indexOf('Bản sửa: GrabFood tiền mặt') >= 0);
+    dung('không lộ khoá máy ra chữ', c.replace(/data-dsvnbs="[^"]*"/g, '').indexOf('K-GF-101') < 0);
+    var truoc = app.mc.dem('vagabond.doi_soat_vendor.chi_tiet');
+    await app.bam(app.mot('[data-dsvnbs]'));
+    bang('gửi đúng nguồn và khoá', app.mc.cuoi('vagabond.doi_soat_vendor.dung_ban_sua').a, { name: 'DSN-1', khoa: 'K-GF-101' });
+    bang('vẽ lại từ máy chủ', app.mc.dem('vagabond.doi_soat_vendor.chi_tiet'), truoc + 1);
+    bang('hết khối bản sửa', app.tim('[data-dsvnbs]').length, 0);
   });
 
   console.log('Doi soat vendor 579: ' + ket.dat + ' dat, ' + ket.hong + ' hong');
