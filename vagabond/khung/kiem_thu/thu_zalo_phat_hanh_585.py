@@ -159,6 +159,30 @@ def _():
 	la("đúng 10 trang đầy, trang 11 rỗng: nhận đủ", len(Z.gom_trang(lambda so: [rac] * 100 if so <= 10 else [])), 1000)
 
 
+@ca("v585 Zalo phát hành: mốc since gửi GitHub là giờ UTC thật, không phải giờ site gắn Z (Codex #452)")
+def _():
+	# Site chạy Asia/Ho_Chi_Minh: 19:00 giờ VN là 12:00Z. Bản cũ lấy
+	# now_datetime() (giờ site, không múi) rồi gắn Z nên ra 19:00Z, hụt 7 giờ.
+	from datetime import datetime, timedelta, timezone
+	from unittest.mock import patch
+	vn = timezone(timedelta(hours=7))
+	la("19:00 giờ VN lùi 3 ngày", Z.moc_utc(datetime(2026, 10, 7, 19, 0, tzinfo=vn)), "2026-10-04T12:00:00Z")
+	la("qua nửa đêm UTC", Z.moc_utc(datetime(2026, 10, 7, 3, 0, tzinfo=vn)), "2026-10-03T20:00:00Z")
+	try:
+		Z.moc_utc(datetime(2026, 10, 7, 19, 0))
+		dung("giờ không múi phải bị từ chối", False)
+	except ValueError:
+		dung("giờ không múi phải bị từ chối", True)
+	# _moc THẬT không được dựa vào giờ site: đổi now_datetime của Frappe sang
+	# giờ VN không múi thì kết quả vẫn phải khớp giờ UTC thật.
+	import frappe.utils as fu
+	that = datetime.now(timezone.utc)
+	with patch.object(fu, "now_datetime", lambda: that.astimezone(vn).replace(tzinfo=None), create=True):
+		ra = datetime.strptime(Z._moc(), "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+	lech = abs((that - timedelta(days=Z.LUI_NGAY) - ra).total_seconds())
+	dung("_moc lệch giờ UTC thật dưới 1 phút (được %d giây)" % lech, lech < 60)
+
+
 @ca("v585 Zalo phát hành: luật đọc khối khớp với bộ gửi Telegram (không lệch hai kênh)")
 def _():
 	# Dò chuỗi vì không chạy được thong_bao.py ở đây (cần GitHub): chốt các điều
