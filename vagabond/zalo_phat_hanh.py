@@ -75,26 +75,55 @@ def chon_ban(cac_comment, ban_site):
 	return list(ra.values())
 
 
+def gom_trang(lay, co=100, toi_da=10):
+	"""THUẦN: gom mọi trang comment, cùng cách GitHub.trang() của bộ gửi
+	Telegram. lay(so_trang) trả một danh sách. Dừng khi trang thiếu; quá
+	toi_da trang mà vẫn còn thì ném lỗi chứ không lặng lẽ bỏ phần sau.
+	Codex #452: chỉ đọc một trang 100 dòng thì biên nhận bị đẩy sang trang 2
+	sẽ mất hẳn dù GitHub trả thành công."""
+	ket = []
+	for so in range(1, toi_da + 1):
+		nhom = lay(so)
+		if not isinstance(nhom, list):
+			raise ValueError("GitHub trả dữ liệu không phải danh sách ở trang %d" % so)
+		ket.extend(nhom)
+		if len(nhom) < co:
+			return ket
+	if lay(toi_da + 1):
+		raise ValueError("Quá %d comment mới trong %d ngày, chưa đọc hết được." % (co * toi_da, LUI_NGAY))
+	return ket
+
+
 # --------------------------------------------------------------- CHẠM HỆ
 
 def _ban_site():
-	try:
-		with open(frappe.get_app_path("vagabond", "patches.txt"), encoding="utf-8") as f:
-			return so_ban(f.read())
-	except Exception:
-		return 0
+	"""Số bản đang chạy. Không đọc được thì NÉM LỖI để quet() ghi Error Log
+	(Codex #452: trả 0 lặng lẽ thì kênh tắt mãi mà không ai biết)."""
+	with open(frappe.get_app_path("vagabond", "patches.txt"), encoding="utf-8") as f:
+		so = so_ban(f.read())
+	if not so:
+		raise ValueError("patches.txt không có dấu #vNNN nào")
+	return so
+
+
+def _moc():
+	from frappe.utils import add_days, now_datetime
+
+	return add_days(now_datetime(), -LUI_NGAY).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _doc_comment():
-	from frappe.utils import add_days, now_datetime
 	import requests
 
-	tu = add_days(now_datetime(), -LUI_NGAY).strftime("%Y-%m-%dT%H:%M:%SZ")
-	r = requests.get(API, params={"since": tu, "sort": "updated", "direction": "desc", "per_page": 100},
-		headers={"Accept": "application/vnd.github+json"}, timeout=TIMEOUT)
-	r.raise_for_status()
-	ds = r.json()
-	return ds if isinstance(ds, list) else []
+	tu = _moc()
+
+	def lay(so):
+		r = requests.get(API, params={"since": tu, "sort": "updated", "direction": "desc",
+			"per_page": 100, "page": so}, headers={"Accept": "application/vnd.github+json"}, timeout=TIMEOUT)
+		r.raise_for_status()
+		return r.json()
+
+	return gom_trang(lay)
 
 
 def quet():
@@ -104,13 +133,15 @@ def quet():
 
 	if getattr(frappe.flags, "vagabond_kiem_that", False) or not kenh_zalo._bat():
 		return 0
-	ban = _ban_site()
-	if not ban:
+	try:
+		ban = _ban_site()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "zalo_phat_hanh: khong doc duoc so ban tren site")
 		return 0
 	try:
 		cac = _doc_comment()
 	except Exception:
-		frappe.log_error("Chưa đọc được bản tin phát hành trên GitHub.", "zalo_phat_hanh: doc loi")
+		frappe.log_error(frappe.get_traceback(), "zalo_phat_hanh: khong doc duoc ban tin tren GitHub")
 		return 0
 	gui = 0
 	for x in chon_ban(cac, ban):
