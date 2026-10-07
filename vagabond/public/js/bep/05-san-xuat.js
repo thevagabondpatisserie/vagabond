@@ -576,9 +576,9 @@ function mfgPickItem(title, groups, onPick) {
     if (groups && groups.length) f.item_group = ['in', groups];
     var res = [];
     try {
-      res = await getList('Item', {
+      /* v583: tim theo tung tu, bo dau, bo dau cau o may chu (timList). */
+      res = await timList('Item', q, ['name', 'item_name'], {
         fields: ['name', 'item_name', 'stock_uom', 'image'], filters: f,
-        or_filters: { item_name: ['like', '%' + q + '%'], name: ['like', '%' + q + '%'] },
         limit_page_length: 60, order_by: 'item_name'
       });
     } catch (e) { }
@@ -891,12 +891,8 @@ function mfgKhongDau(s) {
    phân biệt hoa thường. Từ khoá nhiều chữ thì phải khớp ĐỦ các chữ, để gõ
    "su kem" ra đúng món chứ không ra mọi món có chữ "kem". */
 function mfgKhopMon(mon, tuKhoa) {
-  var q = mfgKhongDau(tuKhoa).trim();
-  if (!q) return true;
-  var kho = mfgKhongDau((mon && mon.name) || '') + ' ' + mfgKhongDau((mon && mon.code) || '');
-  var tu = q.split(/\s+/);
-  for (var i = 0; i < tu.length; i++) if (kho.indexOf(tu[i]) < 0) return false;
-  return true;
+  /* v583: tim theo tung tu, bo dau, bo dau cau (vgbKhop). */ 
+  return vgbKhop([mon && mon.name, mon && mon.code], tuKhoa);
 }
 
 /* Lọc nguồn gợi ý. CHỈ trả về những món CHƯA được thêm, vì món đã thêm thì
@@ -1251,10 +1247,10 @@ async function scrMfgNew() {
     var my = ++mfgN.seq;
     var res = [], loi = '';
     try {
-      res = await getList('Item', {
+      /* v583: tim theo tung tu, bo dau, bo dau cau o may chu (timList). */
+      res = await timList('Item', q, ['name', 'item_name'], {
         fields: ['name', 'item_name', 'stock_uom', 'image'],
         filters: { disabled: 0, has_variants: 0, item_group: ['in', leavesUnder(['Bán ra', 'Sản xuất'])] },
-        or_filters: { item_name: ['like', '%' + q + '%'], name: ['like', '%' + q + '%'] },
         limit_page_length: 20, order_by: 'item_name'
       });
     } catch (e) { loi = errMsg(e); }

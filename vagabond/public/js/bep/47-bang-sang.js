@@ -158,7 +158,7 @@ function bsLocDong(b, ds, chu) {
     if (i == null) i = el.getAttribute('data-bsthe');
     if (i == null) i = el.getAttribute('data-bsi');
     var d = ds[+i] || {};
-    var ok = !q || bsKhongDau([d.tieu_de, d.cau, (d.doi || {}).ten, (d.nguoi || []).join(' '), d.ly_do, d.ket_qua].join(' ')).indexOf(q) >= 0;
+    var ok = !q || vgbKhop([d.tieu_de, d.cau, (d.doi || {}).ten, (d.nguoi || []).join(' '), d.ly_do, d.ket_qua], q); /* v583: tim theo tung tu, bo dau, bo dau cau (vgbKhop). */
     el.style.display = ok ? '' : 'none';
     if (ok) con++;
   });

@@ -1241,7 +1241,7 @@ function posSheetMon(items, onPick, onDong, demSo) {
     q = (q || '').toLowerCase();
     var f = items.filter(function (it) {
       if (posNhomChon && it.nhom !== posNhomChon) return false;
-      return !q || ((it.label || '') + ' ' + (it.tim || '') + ' ' + (it.value || '')).toLowerCase().indexOf(q) >= 0;
+      return vgbKhop([it.label, it.tim, it.value], q); /* v583: tim theo tung tu, bo dau, bo dau cau (vgbKhop). */
     });
     lst.innerHTML = f.length ? f.map(function (it) {
       var dc = demSo ? (demSo(it.value) || 0) : 0;
@@ -1374,7 +1374,7 @@ async function posSheetKhachNo() {
   function ve(q) {
     q = (q || '').toLowerCase();
     var f = ds.filter(function (x) {
-      return !q || ((x.customer_name || '') + ' ' + (x.name || '') + ' ' + (x.tax_id || '')).toLowerCase().indexOf(q) >= 0;
+      return vgbKhop([x.customer_name, x.name, x.tax_id, x.mobile_no], q); /* v583: tim theo tung tu, bo dau, bo dau cau (vgbKhop). */
     });
     lst.innerHTML = f.length ? f.map(function (x) {
       return '<div class="shi" data-kh="' + h(x.name) + '"><span>🏢</span>' +

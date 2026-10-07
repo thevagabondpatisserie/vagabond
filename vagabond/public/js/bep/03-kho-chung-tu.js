@@ -834,7 +834,7 @@ async function scrMRList(T) {
     var rows = docs.filter(function (d) {
       if (mrFilter.status !== 'Tất cả' && stKey(d) !== mrFilter.status) return false;
       if (T.key === 'Manufacture' && mrFilter.bep && mrFilter.bep !== 'Tất cả' && (d.custom_bep_nhan || 'Chưa rõ bếp') !== mrFilter.bep) return false;
-      if (q && (d.name + ' ' + (d.title || '')).toLowerCase().indexOf(q) < 0) return false;
+      if (q && !vgbKhop([d.name, d.title], q)) return false; /* v583: tim theo tung tu, bo dau, bo dau cau (vgbKhop). */
       return true;
     });
     var chips = STATS.map(function (s) {
