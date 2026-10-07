@@ -473,11 +473,15 @@ def xac_nhan_noi(name=None):
 
 
 @frappe.whitelist()
-def dung_ban_sua(name=None, khoa=None):
+def dung_ban_sua(name=None, khoa=None, dau_cu=None):
 	"""Codex #450 vòng 14: vendor gửi lại một sự kiện đã nhận với nội dung khác
 	(Grab đổi thẻ/ví thành tiền mặt). Kế toán bấm "Dùng bản sửa": dòng cũ thôi
 	hiệu lực (Đã thay, giữ nguyên để tra), bản sửa thành dòng hiệu lực của nguồn
-	này, rồi đối chiếu lại cả hai nguồn. Không tạo chứng từ."""
+	này, rồi đối chiếu lại cả hai nguồn. Không tạo chứng từ.
+
+	dau_cu: dấu nội dung của bản đang tính mà màn hình đã cho kế toán so
+	(Codex #450 vòng 15). Trong lúc đó phiên khác có thể đã dùng một bản sửa
+	khác cho cùng sự kiện; dấu không còn khớp thì chặn, bắt tải lại để so."""
 	_chan(True)
 	n0 = frappe.db.get_value(DT_NGUON, name, ["name", "company"], as_dict=True)
 	if not n0 or not khoa:
@@ -493,6 +497,8 @@ def dung_ban_sua(name=None, khoa=None):
 		cu = frappe.db.get_value(DT_DONG, {"khoa": khoa}, ["name", "nguon", "dau_noi_dung", "thuc_nhan"], as_dict=True)
 		if cu and cu.dau_noi_dung == d["dau_noi_dung"]:
 			frappe.throw("Sự kiện này đã mang đúng nội dung bản sửa. Tải lại màn hình.")
+		if (cu.dau_noi_dung if cu else "") != (dau_cu or ""):
+			frappe.throw("Bản đang tính của sự kiện này vừa đổi (có thể đã dùng một bản sửa khác). Tải lại màn hình để so lại.")
 		luc = frappe.utils.now()
 		if cu:
 			frappe.db.sql("""update `tab%s` set khoa_cu=khoa, khoa=concat('thay:', name), nguon_cu=nguon, nguon=NULL,
@@ -984,9 +990,11 @@ def _ban_sua_cho(du_lieu):
 	"""Bản sửa còn chờ kế toán chọn, kèm nội dung đang hiệu lực để so."""
 	ra = []
 	for e in [x for x in du_lieu.get("ban_sua") or [] if not x.get("da_dung")][:50]:
-		cu = frappe.db.get_value(DT_DONG, {"khoa": e["khoa"]}, ["nguon", "mo_ta", "thuc_nhan", "ngay"], as_dict=True) or {}
+		cu = frappe.db.get_value(DT_DONG, {"khoa": e["khoa"]}, ["nguon", "mo_ta", "thuc_nhan", "ngay", "dau_noi_dung"],
+			as_dict=True) or {}
 		d = e["dong"]
 		ra.append(dict(khoa=e["khoa"], vi_tri=e["vi_tri"], ma=d.get("ma_don") or d.get("ma_su_kien"), ngay=d.get("ngay"),
+			dau_cu=cu.get("dau_noi_dung") or "",
 			moi=dict(mo_ta=d.get("mo_ta") or "", thuc_nhan=d.get("thuc_nhan")),
 			cu=dict(nguon=cu.get("nguon") or "", mo_ta=cu.get("mo_ta") or "", thuc_nhan=cu.get("thuc_nhan")) if cu else None))
 	return ra
