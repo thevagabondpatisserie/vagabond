@@ -26,9 +26,10 @@ Nguyen tac an toan:
 """
 
 import json
-import re
 
 import frappe
+
+from vagabond import bo_phan_nguoi as bpn
 
 from vagabond.quyen_phan_he import ROLE_GIAM_DOC, ROLE_THU_MUA
 
@@ -686,73 +687,24 @@ def chi_tiet(email):
 
 # ------------------------------------------------------------ bo phan
 #
-# Anh Viet 07/10/2026: chi Le Thi Linh la bep truong Pastry ma he thong ghi
-# bo phan Bep Baker, nen app chi cho chi thay phieu cua Baker, va tren app
-# khong co cho nao sua bo phan. Bo phan cua mot nguoi nam o o
-# `custom_phong_ban` (lien ket Department) tren User; app doc o do de biet
-# nguoi nay thuoc bep nao (myKitchen) va de giao viec theo bo phan.
+# Cac phep thuan nam o vagabond/bo_phan_nguoi.py (khong cham Frappe, Codex #450
+# vong 2). O day chi ghep cay bo phan that vao va doc/ghi User.
 
-# Bep nao thi thay phieu yeu cau san xuat cua bep do. Khop voi BEPS va
-# myKitchen trong 01-khung-app.js.
-_BEP_THAY_PHIEU = (
-	("Bếp Pastry", "Bếp Pastry"),
-	("Bếp Baker", "Bếp Baker"),
-	("Bếp Lab", "Bếp Lab"),
-	("Sonneto Lab", "Bếp Lab"),
-	("Lab", "Bếp Lab"),
-)
-
-
-def ten_ngan_bo_phan(ten):
-	"""Bo duoi viet tat cong ty: "Bếp Pastry - TV" thanh "Bếp Pastry". THUAN."""
-	ten = str(ten or "").strip()
-	i = ten.rfind(" - ")
-	# Duoi viet tat cong ty chi gom chu in hoa va so ("TV"). "Bếp Lab - R&D"
-	# la ten that cua bo phan cu, khong duoc cat.
-	if i > 0 and re.fullmatch(r"[A-Z0-9]{1,10}", ten[i + 3:]):
-		return ten[:i]
-	return ten
-
-
-def bep_cua_bo_phan(ten):
-	"""Bo phan nay thay phieu san xuat cua bep nao. "" la khong phai bep. THUAN."""
-	ngan = ten_ngan_bo_phan(ten)
-	for dau, bep in _BEP_THAY_PHIEU:
-		if ngan.startswith(dau):
-			return bep
-	return ""
+_BEP_THAY_PHIEU = bpn.BEP_THAY_PHIEU
+ten_ngan_bo_phan = bpn.ten_ngan_bo_phan
+bep_cua_bo_phan = bpn.bep_cua_bo_phan
 
 
 def mo_ta_bo_phan(ten):
-	"""Mot dong giai thich chon bo phan nay thi sao. THUAN."""
 	from vagabond.bo_phan import nhom_cua
 
-	ngan = ten_ngan_bo_phan(ten)
-	bep = bep_cua_bo_phan(ten)
-	if bep:
-		return "Thấy và nhận phiếu yêu cầu sản xuất gửi %s." % bep
-	nhom = nhom_cua(ngan)
-	return nhom + "." if nhom else "Phiếu do người này tạo sẽ ghi bộ phận này."
+	return bpn.mo_ta_bo_phan(ten, nhom_cua)
 
 
 def cac_bo_phan_chon(ds):
-	"""Lua chon cho hop doi bo phan, xep theo thu tu cay bo phan. THUAN.
+	from vagabond.bo_phan import cac_la, nhom_cua
 
-	ds: danh sach ten Department (da loc nhom va da tat). Tra ve
-	[{k, nhan, mo_ta}], k la ten day du dung de luu.
-	"""
-	from vagabond.bo_phan import cac_la
-
-	thu_tu = cac_la()
-
-	def hang(ten):
-		ngan = ten_ngan_bo_phan(ten)
-		return (thu_tu.index(ngan) if ngan in thu_tu else len(thu_tu), ngan)
-
-	ra = []
-	for ten in sorted({str(x) for x in ds or [] if x}, key=hang):
-		ra.append({"k": ten, "nhan": ten_ngan_bo_phan(ten), "mo_ta": mo_ta_bo_phan(ten)})
-	return ra
+	return bpn.cac_bo_phan_chon(ds, cac_la(), nhom_cua)
 
 
 def _bo_phan_cua(email):
