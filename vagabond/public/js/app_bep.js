@@ -38921,7 +38921,12 @@ async function scrNguoiDungXem(email) {
     '<span class="vxtag ' + (d.bat ? 'd' : 'c2') + '">' + (d.bat ? 'Đang làm' : 'Đã tắt') + '</span> ' +
     '<span class="vxtag c2">' + h(d.goi_ten) + '</span></div></div>';
 
+  /* v583 (anh Viet 07/10/2026): bo phan quyet dinh bep nao thay phieu san
+     xuat cua nguoi nay. Truoc day app khong co cho nao doi, phai vao Desk. */
+  var coDoiBp = (d.bo_phan_chon_duoc || []).length > 0;
   html += '<div class="card" style="padding:4px 14px 10px">' +
+    o('Bộ phận', d.bo_phan_ten || 'Chưa gắn bộ phận') +
+    (d.bo_phan_bep ? '<div style="font-size:12.5px;color:#6b7280;padding:2px 0 8px">Thấy phiếu sản xuất của ' + h(d.bo_phan_bep) + '.</div>' : '') +
     o('Số điện thoại', d.sdt) +
     o('Vào app lần cuối', d.lan_cuoi ? hsNgayVn(String(d.lan_cuoi).slice(0, 10)) : 'Chưa đăng nhập lần nào') +
     o('Tạo tài khoản', d.tao_luc ? hsNgayVn(String(d.tao_luc).slice(0, 10)) : '') +
@@ -38952,6 +38957,7 @@ async function scrNguoiDungXem(email) {
     '</div>';
 
   html += '<button class="btn" id="qndDoiGoi">🗝 Đổi gói chức vụ</button>' +
+    (coDoiBp ? '<button class="btn gh" id="qndDoiBp">🏷 Đổi bộ phận</button>' : '') +
     '<button class="btn gh" id="qndThu">✉️ Gửi lại thư mời đặt mật khẩu</button>' +
     '<button class="btn gh" id="qndChiTiet">🔧 Chỉnh từng quyền một</button>' +
     (d.la_toi ? '' : '<button class="btn ' + (d.bat ? 'dg' : 'gh') + '" id="qndBatTat">' + (d.bat ? '🚫 Tắt tài khoản này' : '✅ Bật lại tài khoản') + '</button>');
@@ -38972,6 +38978,23 @@ async function scrNguoiDungXem(email) {
       var kq = await api('vagabond.nguoi_dung.dat_goi', { email: d.email, goi: chon.join(',') });
       busy(false); toast(kq.loi_nhan, 4500);
     } catch (er) { busy(false); return baoTin((er && er.message) || 'Đổi gói lỗi'); }
+    go(function () { scrNguoiDungXem(d.email); }, true);
+  };
+
+  var nutBp = document.getElementById('qndDoiBp');
+  if (nutBp) nutBp.onclick = async function () {
+    var chon = await hoiChon('Bộ phận của ' + d.ten,
+      'Bộ phận quyết định người này thấy phiếu yêu cầu sản xuất của bếp nào, và phiếu họ tạo ghi bộ phận nào. Gói chức vụ và quyền giữ nguyên.',
+      d.bo_phan_chon_duoc, d.bo_phan || null);
+    if (!chon || chon === d.bo_phan) return;
+    var moi = (d.bo_phan_chon_duoc || []).filter(function (x) { return x.k === chon; })[0] || { nhan: chon };
+    if (!await hoiCo('Đổi bộ phận', d.ten + ': ' + (d.bo_phan_ten || 'chưa gắn bộ phận') + ' sang ' + moi.nhan + '.' +
+      (moi.mo_ta ? ' ' + moi.mo_ta : ''), 'Đổi')) return;
+    busy(true);
+    try {
+      var kq = await api('vagabond.nguoi_dung.dat_bo_phan', { email: d.email, bo_phan: chon });
+      busy(false); toast(kq.loi_nhan, 4500);
+    } catch (er) { busy(false); return baoTin((er && er.message) || 'Đổi bộ phận lỗi'); }
     go(function () { scrNguoiDungXem(d.email); }, true);
   };
 
