@@ -1894,3 +1894,17 @@ Ca dò mã nguồn đầu tiên viết cho lỗi này xanh mà không dò gì: �
 `.../kiem_thu/../..` tự chứa chữ `kiem_thu`, nên phép bỏ thư mục kiểm bỏ qua
 cả app. Dùng `abspath` và so từng phần của đường dẫn tương đối, và chốt số tệp
 đã dò phải lớn hơn 0.
+
+## 07/10/2026 - #452: cài nhóm Zalo nhận tin Phát hành mà không có tin nào
+
+Anh Việt bật bot Zalo, thêm nhóm và tích loại tin Phát hành, nhưng sổ tin
+kênh không có dòng nào. Nguyên nhân: bản tin phát hành chỉ có đường Telegram
+(bot GitHub đọc comment `[ĐÃ DEPLOY]`), còn trong app không chỗ nào gọi
+`kenh_zalo.bao("phat_hanh")`. Màn cài đặt vẫn cho chọn loại tin đó nên trông
+như đã chạy. Phòng: mỗi loại tin hiện cho người dùng chọn phải có ít nhất một
+nơi phát thật và một ca kiểm chốt nơi phát đó; thêm kênh mới cho một loại tin
+thì đọc từ ĐÚNG nguồn của kênh cũ (ở đây là khối `telegram-release`) để hai
+kênh không lệch nội dung. Ở #452 còn gặp pháp nhân demo của ERPNext
+(`Global Defaults.demo_company`) lọt vào hộp chọn pháp nhân: danh sách pháp
+nhân cho người dùng chọn phải bỏ công ty demo, trừ khi nó là mặc định hoặc
+là công ty duy nhất.
