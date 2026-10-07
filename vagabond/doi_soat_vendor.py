@@ -1180,7 +1180,14 @@ def _byte_tep(ten_file):
 
 def xu_ly_thu(comm):
 	ket = []
-	cong_ty = _cong_ty_cua_thu(comm)
+	try:
+		cong_ty = _cong_ty_cua_thu(comm)
+	except Exception:
+		# Codex #452: đọc hộp thư lỗi thì KHÔNG đoán pháp nhân mặc định (ghi
+		# sai pháp nhân không ai biết). Ghi log và bỏ lượt này; lượt quét mỗi
+		# giờ đọc lại thư trong 2 ngày nên thư sẽ được thử lại.
+		frappe.log_error(title="Đối soát vendor: không đọc được pháp nhân của hộp thư nhận %s" % comm)
+		return ket
 	sot = []  # đính kèm có tệp chưa nhận ra mẫu hoặc đọc lỗi
 	for f in frappe.get_all("File", filters={"attached_to_doctype": "Communication", "attached_to_name": comm},
 			fields=["name", "file_name", "file_url"]):
@@ -1229,11 +1236,10 @@ def cong_ty_thu(cua_hop_thu, mac_dinh, demo):
 
 
 def _cong_ty_cua_thu(comm):
-	try:
-		hop = frappe.db.get_value("Communication", comm, "email_account")
-		ct = frappe.db.get_value("Email Account", hop, "company") if hop else None
-	except Exception:
-		ct = None
+	"""Lỗi đọc thì NÉM RA cho xu_ly_thu ghi log; chỉ hộp thư đọc được mà chưa
+	khai hoặc khai demo mới về pháp nhân mặc định."""
+	hop = frappe.db.get_value("Communication", comm, "email_account")
+	ct = frappe.db.get_value("Email Account", hop, "company") if hop else None
 	if ct and not frappe.db.exists("Company", ct):
 		ct = None
 	return cong_ty_thu(ct, _cong_ty(), _cong_ty_demo())
