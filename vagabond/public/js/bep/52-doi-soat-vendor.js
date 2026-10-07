@@ -332,6 +332,7 @@ async function scrDsvnCt() {
       ' điều cần xem</b> · ' + h(String(nhac[0]).slice(0, 80)) + '</summary><div style="font-size:13px;margin-top:6px;line-height:1.5">' +
       nhac.slice(0, 60).map(h).join('<br>') + '</div></details>';
   }
+  if ((t.ban_sua || []).length) html += dsvnBanSua(t.ban_sua);
   html += '<div class="chips" style="padding:0 2px">' + [['', 'Tất cả dòng'], ['chua_noi', 'Cần xem'], ['da_noi', 'Đã nối']].map(function (c) {
     return '<div class="chip' + (DSVN.loc === c[0] ? ' on' : '') + '" data-dsvnloc="' + c[0] + '">' + c[1] + '</div>';
   }).join('') + '</div>';
@@ -346,6 +347,17 @@ async function scrDsvnCt() {
   var b = frame('Nguồn đối soát', html, { footer: foot });
   b.onclick = async function (e) {
     if (dsvnBamTrang(e, scrDsvnCt)) return;
+    var bs = e.target.closest('[data-dsvnbs]');
+    if (bs) {
+      busy(true);
+      try {
+        await api('vagabond.doi_soat_vendor.dung_ban_sua', { name: n.name, khoa: bs.getAttribute('data-dsvnbs') });
+        toast('Đã dùng bản sửa. Máy đã đối chiếu lại hai báo cáo.'); go(scrDsvnCt, true);
+      }
+      catch (er) { toast(errMsg(er)); }
+      finally { busy(false); }
+      return;
+    }
     var xn = e.target.closest('[data-dsvnxn]');
     if (xn) {
       busy(true);
@@ -365,6 +377,22 @@ async function scrDsvnCt() {
     catch (e) { baoTin((e && e.message) || 'Chưa đối chiếu được. Thử lại.'); }
     finally { busy(false); }
   };
+}
+
+// Codex #450 vòng 14: vendor gửi lại sự kiện đã nhận với nội dung khác (ví dụ
+// Grab đổi thẻ/ví thành tiền mặt). Kế toán so hai bản rồi bấm dùng bản sửa.
+function dsvnBanSua(ds) {
+  return '<div class="card" style="padding:12px 14px"><b>' + ds.length + ' bản sửa của vendor chờ chọn</b>' +
+    '<div style="font-size:12.5px;color:#475467;margin-top:4px">Báo cáo này ghi khác với lần nhận trước. ' +
+    'Bấm "Dùng bản sửa" thì bản cũ thôi tính (vẫn giữ để tra) và máy đối chiếu lại tiền về của cả hai báo cáo.</div>' +
+    ds.map(function (x) {
+      var cu = x.cu ? h(x.cu.mo_ta || 'Không ghi') + ' · ' + money(x.cu.thuc_nhan) + ' đ' : 'Không còn bản đang tính';
+      return '<div style="border-top:1px solid #eaecf0;margin-top:8px;padding-top:8px;font-size:13px;line-height:1.5">' +
+        '<b>' + h(x.ma || '') + '</b>' + (x.ngay ? ' · ' + h(x.ngay) : '') +
+        '<div>Đang tính: ' + cu + '</div>' +
+        '<div>Bản sửa: ' + h(x.moi.mo_ta || 'Không ghi') + ' · ' + money(x.moi.thuc_nhan) + ' đ</div>' +
+        '<button class="btn gh" style="margin:6px 0 0;min-height:44px" data-dsvnbs="' + h(x.khoa) + '">Dùng bản sửa</button></div>';
+    }).join('') + '</div>';
 }
 
 function dsvnBuoc(ten, xong, mo_ta) {
