@@ -388,6 +388,8 @@ CUA_NGO = {
 	# Bon cua nua them 26/08/2026, cung lan dua viec lap dot len app:
 	# `danh_muc_dot` va `luu_dot` cho man lap dot, `xem_truoc_dan` va
 	# `nap_dan` cho man dan danh sach tu bang tinh.
+	# v583: mot cua tim cho moi o tim tren app (tach tung tu, bo dau).
+	"tim_kiem.py": ["tim"],
 	"tang_qua.py": ["chi_tiet", "danh_muc", "danh_muc_dot", "danh_sach",
 		"doi_trang_thai", "ds_dot", "khach_co_hang", "luu", "luu_dot",
 		"nap_dan", "nhan_ban_dot", "them_hang_loat", "thu_boc_sdt",
