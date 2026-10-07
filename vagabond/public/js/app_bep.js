@@ -820,6 +820,18 @@ async function api(method, args) {
   }
 }
 function getList(dt, o) { o = o || {}; o.doctype = dt; if (o.limit_page_length === undefined || o.limit_page_length === null) o.limit_page_length = 100; return api('frappe.client.get_list', o); }
+/* v583 (anh Viet 07/10/2026): o tim hoi may chu thi di qua DAY, khong tu
+   viet or_filters like '%cum chu%' nua. May chu tach tung tu, bo dau, bo dau
+   cau, coi đ nhu d (vagabond/tim_kiem.py), van soat quyen doc nhu getList.
+   cot: cac cot de tim (mac dinh: ma va o tieu de cua doctype). */
+function timList(dt, q, cot, o) {
+  o = o || {};
+  return api('vagabond.tim_kiem.tim', {
+    doctype: dt, tu_khoa: q || '', cot: JSON.stringify(cot || []),
+    fields: JSON.stringify(o.fields || ['name']), filters: JSON.stringify(o.filters || {}),
+    gioi_han: o.limit_page_length || 100, order_by: o.order_by || ''
+  });
+}
 
 /* Bo dau tieng Viet, bo moi ky tu khong phai chu hoac so. Dung cho MOI o
    tim trong app: go "banh nuong" ra "Bánh nướng", go thua mot dau cach hay
@@ -833,13 +845,35 @@ function vgbChuan(s) {
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
 }
-/* Tim theo TU: moi tu go ra deu phai co mat, khong cần dung thu tu. */
+/* Tim theo TU: moi tu go ra deu phai co mat, khong can dung thu tu.
+
+   v583 (anh Viet 07/10/2026): DAY LA PHEP DUY NHAT cho moi o tim loc tren
+   may khach, cung luat voi vagabond/tim_kiem.py o may chu:
+   - bo dau, đ thanh d, bo dau cau: "chocolatine mini" ra "Bánh Chocolatine,
+     Mini size", "duong" ra "Đường đen";
+   - tu ngan (mot hai ky tu) phai dung dau mot tieng, khong thi "banh o" ra
+     ca "Croissant";
+   - tu dai khop o bat ky dau, ca ban dinh lien: "chocolatinemini" van ra.
+   `kho` la chuoi hoac mang chuoi (ten, ma, ma vach...). */
 function vgbKhop(kho, tim) {
   var t = vgbChuan(tim);
   if (!t) return true;
-  var k = vgbChuan(kho);
+  if (Object.prototype.toString.call(kho) === '[object Array]') {
+    kho = kho.filter(function (x) { return x !== null && x !== undefined; }).join(' ');
+  }
+  var k = vgbChuan(kho), k2 = k.replace(/ /g, '');
   var tu = t.split(' ');
-  for (var i = 0; i < tu.length; i++) if (k.indexOf(tu[i]) < 0) return false;
+  var motTu = tu.length === 1;
+  for (var i = 0; i < tu.length; i++) {
+    var w = tu[i];
+    if (w.length < 3) {
+      /* Go mot tu ngan (dang go do): dau mot tieng la du. Go nhieu tu: tu ngan
+         co chu cai phai la NGUYEN mot tieng ("water bt" khong ra moi ma
+         ACC-BTN), tu ngan toan so van khop dau tieng ("12" ra "12cm"). */
+      var duoi = (motTu || /^[0-9]+$/.test(w)) ? '' : '(?![a-z0-9])';
+      if (!new RegExp('(^|[^a-z0-9])' + w + duoi).test(k)) return false;
+    } else if (k.indexOf(w) < 0 && k2.indexOf(w) < 0) return false;
+  }
   return true;
 }
 
@@ -973,7 +1007,7 @@ function sheet(title, items, cur, onPick, searchable) {
   var lst = box.querySelector('.shl');
   function draw(q) {
     q = (q || '').toLowerCase();
-    var f = items.filter(function (it) { return !q || ((it.label || '') + ' ' + (it.tim || '') + ' ' + (it.value || '')).toLowerCase().indexOf(q) >= 0; });
+    var f = items.filter(function (it) { return vgbKhop([it.label, it.tim, it.value], q); }); /* v583: tim theo tung tu, bo dau, bo dau cau (vgbKhop). */
     lst.innerHTML = f.length ? f.map(function (it, i) {
       return '<div class="shi' + (it.value === cur ? ' on' : '') + '" data-i="' + items.indexOf(it) + '">' +
         (it.img ? '<img src="' + it.img + '" style="width:36px;height:36px;object-fit:cover;border-radius:8px;flex:none;border:1px solid #e5e7eb" loading="lazy">' : (it.icon ? '<span>' + it.icon + '</span>' : '')) + '<span style="flex:1;min-width:0">' + h(it.label) + (it.phu ? '<div style="color:#a0a6b4;font-size:12px;margin-top:2px">' + h(it.phu) + '</div>' : '') + '</span>' +
@@ -4518,7 +4552,7 @@ async function scrMRList(T) {
     var rows = docs.filter(function (d) {
       if (mrFilter.status !== 'Tất cả' && stKey(d) !== mrFilter.status) return false;
       if (T.key === 'Manufacture' && mrFilter.bep && mrFilter.bep !== 'Tất cả' && (d.custom_bep_nhan || 'Chưa rõ bếp') !== mrFilter.bep) return false;
-      if (q && (d.name + ' ' + (d.title || '')).toLowerCase().indexOf(q) < 0) return false;
+      if (q && !vgbKhop([d.name, d.title], q)) return false; /* v583: tim theo tung tu, bo dau, bo dau cau (vgbKhop). */
       return true;
     });
     var chips = STATS.map(function (s) {
@@ -5207,7 +5241,7 @@ async function loadTemplate() {
   var lst = box.querySelector('.shl');
   var q0 = '';
   function veDs() {
-    var f = tpls.filter(function (t) { return !q0 || (t.template_name + ' ' + (t.bo_phan || '')).toLowerCase().indexOf(q0) >= 0; });
+    var f = tpls.filter(function (t) { return vgbKhop([t.template_name, t.bo_phan], q0); }); /* v583: tim theo tung tu, bo dau, bo dau cau (vgbKhop). */
     lst.innerHTML = f.length ? f.map(function (t) {
       var i = tpls.indexOf(t);
       return '<div class="shi" data-i="' + i + '"><span>📋</span>' +
@@ -5294,9 +5328,11 @@ async function drawPick(fetch) {
     else if (pick.allow && pick.allow.length) f.item_group = ['in', pick.allow];
     if (d.type === 'Purchase') f.is_purchase_item = 1;
     var ar = { fields: ['name', 'item_name', 'item_group', 'stock_uom', 'image'], filters: f, limit_page_length: 500, order_by: 'item_name' };
-    if (qk) { ar.or_filters = { item_name: ['like', '%' + qs + '%'], name: ['like', '%' + qs + '%'] }; ar.limit_page_length = 300; }
+    if (qk) ar.limit_page_length = 300;
     var res = [];
-    try { res = await getList('Item', ar); } catch (e) { toast(errMsg(e)); }
+    /* v583: tim theo tung tu, bo dau, bo dau cau o may chu (timList). Ca that
+       De 06/10/2026: go "chocolatine mini" khong ra "Bánh Chocolatine, Mini size". */
+    try { res = qk ? await timList('Item', qs, ['name', 'item_name'], ar) : await getList('Item', ar); } catch (e) { toast(errMsg(e)); }
     if (myq !== pick.seq) return;
     pick.cache[ck] = res;
   }
@@ -5304,7 +5340,7 @@ async function drawPick(fetch) {
   all.forEach(function (it) { if (!pick.nm[it.name]) pick.nm[it.name] = it.item_name; });
   var q = qs.toLowerCase();
   var rows = qk ? all.slice(0, 300)
-    : all.filter(function (it) { return !q || (it.item_name + ' ' + it.name).toLowerCase().indexOf(q) >= 0; }).slice(0, 300);
+    : all.filter(function (it) { return vgbKhop([it.item_name, it.name], q); }).slice(0, 300); /* v583: tim theo tung tu, bo dau, bo dau cau (vgbKhop). */
   var nsel = Object.keys(pick.sel).filter(function (k) { return pick.sel[k]; }).length;
   var selHtml = '<div class="selw" id="selw"' + (nsel ? '' : ' style="display:none"') + '>' + selInner() + '</div>';
   var html = '<div class="card"><div class="fld" data-g><div class="fi">🏷️</div><div class="ft">' +
@@ -6723,9 +6759,9 @@ function mfgPickItem(title, groups, onPick) {
     if (groups && groups.length) f.item_group = ['in', groups];
     var res = [];
     try {
-      res = await getList('Item', {
+      /* v583: tim theo tung tu, bo dau, bo dau cau o may chu (timList). */
+      res = await timList('Item', q, ['name', 'item_name'], {
         fields: ['name', 'item_name', 'stock_uom', 'image'], filters: f,
-        or_filters: { item_name: ['like', '%' + q + '%'], name: ['like', '%' + q + '%'] },
         limit_page_length: 60, order_by: 'item_name'
       });
     } catch (e) { }
@@ -7038,12 +7074,8 @@ function mfgKhongDau(s) {
    phân biệt hoa thường. Từ khoá nhiều chữ thì phải khớp ĐỦ các chữ, để gõ
    "su kem" ra đúng món chứ không ra mọi món có chữ "kem". */
 function mfgKhopMon(mon, tuKhoa) {
-  var q = mfgKhongDau(tuKhoa).trim();
-  if (!q) return true;
-  var kho = mfgKhongDau((mon && mon.name) || '') + ' ' + mfgKhongDau((mon && mon.code) || '');
-  var tu = q.split(/\s+/);
-  for (var i = 0; i < tu.length; i++) if (kho.indexOf(tu[i]) < 0) return false;
-  return true;
+  /* v583: tim theo tung tu, bo dau, bo dau cau (vgbKhop). */ 
+  return vgbKhop([mon && mon.name, mon && mon.code], tuKhoa);
 }
 
 /* Lọc nguồn gợi ý. CHỈ trả về những món CHƯA được thêm, vì món đã thêm thì
@@ -7398,10 +7430,10 @@ async function scrMfgNew() {
     var my = ++mfgN.seq;
     var res = [], loi = '';
     try {
-      res = await getList('Item', {
+      /* v583: tim theo tung tu, bo dau, bo dau cau o may chu (timList). */
+      res = await timList('Item', q, ['name', 'item_name'], {
         fields: ['name', 'item_name', 'stock_uom', 'image'],
         filters: { disabled: 0, has_variants: 0, item_group: ['in', leavesUnder(['Bán ra', 'Sản xuất'])] },
-        or_filters: { item_name: ['like', '%' + q + '%'], name: ['like', '%' + q + '%'] },
         limit_page_length: 20, order_by: 'item_name'
       });
     } catch (e) { loi = errMsg(e); }
@@ -8581,7 +8613,7 @@ async function scrRecvList() {
     var q = (rcv.q || '').toLowerCase().trim();
     var ls = poDs.filter(function (x) {
       if (!q) return true;
-      return (x.name + ' ' + (x.ncc || '')).toLowerCase().indexOf(q) >= 0;
+      return vgbKhop([x.name, x.ncc], q); /* v583: tim theo tung tu, bo dau, bo dau cau (vgbKhop). */
     });
     if (!ls.length) {
       return '<div class="emp"><div class="e1">✅</div><div class="e2">' +
@@ -8607,7 +8639,7 @@ async function scrRecvList() {
     var q = (rcv.q || '').toLowerCase().trim();
     var ls = (D[rcv.tab] || []).filter(function (x) {
       if (!q) return true;
-      return (x.name + ' ' + (x.supplier_name || x.supplier || '')).toLowerCase().indexOf(q) >= 0;
+      return vgbKhop([x.name, x.supplier_name, x.supplier], q); /* v583: tim theo tung tu, bo dau, bo dau cau (vgbKhop). */
     });
     if (!ls.length) {
       var rong = rcv.tab === 'cho' ?
@@ -9772,7 +9804,7 @@ function kkDraw(keepScroll) {
 
   var listHtml = '';
   if (kk.tab === 'chua') {
-    var ms = missing.filter(function (i) { return !q || (i.item_name + ' ' + i.name).toLowerCase().indexOf(q) >= 0; });
+    var ms = missing.filter(function (i) { return vgbKhop([i.item_name, i.name], q); }); /* v583: tim theo tung tu, bo dau, bo dau cau (vgbKhop). */
     listHtml = ms.length
       ? '<div class="lst">' + ms.slice(0, 300).map(function (i) {
         return '<div class="li" data-add="' + h(i.name) + '"><div class="lt">' +
@@ -9784,10 +9816,10 @@ function kkDraw(keepScroll) {
   } else {
     var rs = kk.rows.map(function (r, i) { return { r: r, i: i }; });
     if (kk.tab === 'lech') rs = rs.filter(function (x) { return kkHasLech(x.r); });
-    if (q) rs = rs.filter(function (x) { return (x.r.item_name + ' ' + x.r.item_code).toLowerCase().indexOf(q) >= 0; });
+    if (q) rs = rs.filter(function (x) { return vgbKhop([x.r.item_name, x.r.item_code], q); });
     listHtml = rs.length ? rs.map(function (x) { return kkRowHtml(x.r, x.i, live); }).join('') : '';
     if (q && live) {
-      var mq = missing.filter(function (i) { return (i.item_name + ' ' + i.name).toLowerCase().indexOf(q) >= 0; });
+      var mq = missing.filter(function (i) { return vgbKhop([i.item_name, i.name], q); });
       if (mq.length) {
         listHtml += '<div class="kkq" style="padding-top:10px">' +
           (rs.length ? 'Món khớp nhưng <b>chưa có trong phiếu</b>, bấm + để thêm và đếm:'
@@ -11289,7 +11321,7 @@ function vgbNoiOTim(goc, idO, mucSel, layChu) {
   var muc = [].slice.call(goc.querySelectorAll(mucSel));
   if (!muc.length) return;
   var chu = muc.map(function (el) {
-    return mvKhongDau(layChu ? layChu(el) : (el.textContent || ''));
+    return layChu ? layChu(el) : (el.textContent || '');
   });
   /* v530 (anh Viet 25/09/2026, anh o chon hoa don den sau): hien lai muc bang
      display '' la XOA LUON display:flex ghi thang tren the, muc thanh khoi
@@ -11298,10 +11330,11 @@ function vgbNoiOTim(goc, idO, mucSel, layChu) {
      tung muc, hien lai dung gia tri do. */
   var goc = muc.map(function (el) { return el.style.display === 'none' ? '' : el.style.display; });
   var chay = function () {
-    var q = mvKhongDau(o.value).trim();
+    var q = vgbChuan(o.value);
     var thay = 0;
     for (var i = 0; i < muc.length; i++) {
-      var hop = !q || chu[i].indexOf(q) >= 0;
+      /* v583: tim theo tung tu, bo dau, bo dau cau (vgbKhop). */
+      var hop = !q || vgbKhop(chu[i], q);
       muc[i].style.display = hop ? goc[i] : 'none';
       if (hop) thay++;
     }
@@ -14552,7 +14585,7 @@ function posSheetMon(items, onPick, onDong, demSo) {
     q = (q || '').toLowerCase();
     var f = items.filter(function (it) {
       if (posNhomChon && it.nhom !== posNhomChon) return false;
-      return !q || ((it.label || '') + ' ' + (it.tim || '') + ' ' + (it.value || '')).toLowerCase().indexOf(q) >= 0;
+      return vgbKhop([it.label, it.tim, it.value], q); /* v583: tim theo tung tu, bo dau, bo dau cau (vgbKhop). */
     });
     lst.innerHTML = f.length ? f.map(function (it) {
       var dc = demSo ? (demSo(it.value) || 0) : 0;
@@ -14685,7 +14718,7 @@ async function posSheetKhachNo() {
   function ve(q) {
     q = (q || '').toLowerCase();
     var f = ds.filter(function (x) {
-      return !q || ((x.customer_name || '') + ' ' + (x.name || '') + ' ' + (x.tax_id || '')).toLowerCase().indexOf(q) >= 0;
+      return vgbKhop([x.customer_name, x.name, x.tax_id, x.mobile_no], q); /* v583: tim theo tung tu, bo dau, bo dau cau (vgbKhop). */
     });
     lst.innerHTML = f.length ? f.map(function (x) {
       return '<div class="shi" data-kh="' + h(x.name) + '"><span>🏢</span>' +
@@ -20535,11 +20568,8 @@ function mvKhongDau(s) {
 }
 
 function mvKhop(x, q) {
-  if (!q) return true;
-  q = mvKhongDau(q).trim();
-  if (!q) return true;
-  return mvKhongDau((x.ten_banh || '') + ' ' + (x.ma_hang || '') + ' ' + (x.nhan_ngan || ''))
-    .indexOf(q) >= 0;
+  /* v583: tim theo tung tu, bo dau, bo dau cau (vgbKhop). */ 
+  return vgbKhop([x.ten_banh, x.ma_hang, x.nhan_ngan], q);
 }
 
 function mvLocDs(ds) {
@@ -34329,7 +34359,7 @@ function dcmChonDonVi(ds, loiNhan) {
     var o = box.querySelector('#dcmdvq'), khung = box.querySelector('#dcmdvds');
     function ve() {
       var q = (o.value || '').trim().toLowerCase();
-      var loc = ds.filter(function (x) { return !q || String(x).toLowerCase().indexOf(q) >= 0; }).slice(0, 60);
+      var loc = ds.filter(function (x) { return vgbKhop(String(x), q); }).slice(0, 60); /* v583: tim theo tung tu, bo dau, bo dau cau (vgbKhop). */
       khung.innerHTML = loc.length
         ? loc.map(function (x) { return '<button class="btn gh" data-dv="' + h(x) + '" style="margin-top:8px;width:100%">' + h(x) + '</button>'; }).join('')
         : '<div style="font-size:13px;color:#8a8f9c;padding:8px 0">Không có đơn vị nào khớp. Nhờ kế toán thêm vào danh mục Đơn vị tính.</div>';
@@ -35004,7 +35034,7 @@ function hsMoChonBenNhan(o) {
     var ds = nguon();
     if (!k) return ds;
     return ds.filter(function (x) {
-      return (mvKhongDau(x.ten || '') + ' ' + mvKhongDau(x.ncc || '')).indexOf(k) >= 0;
+      return vgbKhop([x.ten, x.ncc], k); /* v583: tim theo tung tu, bo dau, bo dau cau (vgbKhop). */
     });
   }
 
@@ -38348,7 +38378,9 @@ function hsChonHdSau(hs, uv) {
       var q = mvKhongDau(oTim.value || '').replace(/[.\s]/g, '');
       var ds = dangHien.filter(function (x) {
         if (!q) return true;
-        return mvKhongDau((x.so_hd || '') + ' ' + x.name + ' ' + Math.round(x.tien) + ' ' + (x.ncc_ten || '')).replace(/[.\s]/g, '').indexOf(q) >= 0;
+        /* v583: tim theo tung tu, bo dau, bo dau cau (vgbKhop). */
+        return vgbKhop([x.so_hd, x.name, Math.round(x.tien), x.ncc_ten], oTim.value)
+          || mvKhongDau((x.so_hd || '') + ' ' + x.name + ' ' + Math.round(x.tien) + ' ' + (x.ncc_ten || '')).replace(/[.\s]/g, '').indexOf(q) >= 0;
       });
       oDs.innerHTML = ds.length ? ds.map(the).join('')
         : '<div style="font-size:13px;line-height:1.6;color:#b45309;padding:6px 2px 10px">Chưa thấy hoá đơn nào còn mở' + (q ? ' khớp chữ đã gõ' : ' của nhà cung cấp này') + '. Gõ số hoá đơn rồi bấm Tìm mọi NCC.</div>';
@@ -48733,7 +48765,7 @@ async function scrKeHoachSX() {
     var ds = goc.filter(function (x) {
       if (khsx.bep && x.bep !== khsx.bep) return false;
       if (khsx.muc && x.muc !== khsx.muc) return false;
-      if (q && (x.ten + ' ' + x.ma).toLowerCase().indexOf(q) < 0) return false;
+      if (q && !vgbKhop([x.ten, x.ma], q)) return false; /* v583: tim theo tung tu, bo dau, bo dau cau (vgbKhop). */
       return true;
     });
 
@@ -51866,7 +51898,7 @@ function xktLoc(ds, st, khoa, nhomCua, timCua) {
     if (st.tab && xktLoaiTT(x) !== st.tab) return false;
     if (st.nhom && nhomCua(x) !== st.nhom) return false;
     if (x.posting_date && String(x.posting_date) < moc) return false;
-    if (q && (timCua(x) || '').toLowerCase().indexOf(q) < 0) return false;
+    if (q && !vgbKhop(timCua(x) || '', q)) return false; /* v583: tim theo tung tu, bo dau, bo dau cau (vgbKhop). */
     return true;
   });
 }
@@ -53045,7 +53077,7 @@ async function scrXkPvNew() {
     return ds.filter(function (d) {
       if (st.nhan && d.nhan !== st.nhan) return false;
       if (!q) return true;
-      return (d.ten + ' ' + d.ma + ' ' + d.nhom).toLowerCase().indexOf(q) >= 0;
+      return vgbKhop([d.ten, d.ma, d.nhom], q); /* v583: tim theo tung tu, bo dau, bo dau cau (vgbKhop). */
     });
   }
 
@@ -53573,7 +53605,7 @@ function bsLocDong(b, ds, chu) {
     if (i == null) i = el.getAttribute('data-bsthe');
     if (i == null) i = el.getAttribute('data-bsi');
     var d = ds[+i] || {};
-    var ok = !q || bsKhongDau([d.tieu_de, d.cau, (d.doi || {}).ten, (d.nguoi || []).join(' '), d.ly_do, d.ket_qua].join(' ')).indexOf(q) >= 0;
+    var ok = !q || vgbKhop([d.tieu_de, d.cau, (d.doi || {}).ten, (d.nguoi || []).join(' '), d.ly_do, d.ket_qua], q); /* v583: tim theo tung tu, bo dau, bo dau cau (vgbKhop). */
     el.style.display = ok ? '' : 'none';
     if (ok) con++;
   });
