@@ -53,7 +53,7 @@ function mayChu(canh) {
             'nhom:Tiền bán': 2, 'nhom:Thẻ tín dụng': 1 },
           dem_vendor: { tat_ca: 2, GrabFood: 1, Payoo: 1 }, vendor: ['GrabFood', 'Payoo'], con: canh.nhieuNguon && (a.trang || 0) < 1 ? 1 : 0,
           tong: a.trang_thai ? { tat_ca: 1023532, theo_loc: 668915 } : { tat_ca: 1023532 },
-          cong_ty_nhan: canh.ctNhan || ['Vagabond'] };
+          cong_ty_nhan: canh.ctNhan || ['Vagabond'], nhan_cong_ty: canh.ctTen || {} };
       }
       if (m === 'vagabond.doi_soat_vendor.suc_khoe') {
         return [{ vendor: 'GrabFood', so_nguon: 1, ky_moi: '2026-07-17' }, { vendor: 'Be', so_nguon: 0 }];
@@ -391,6 +391,21 @@ async function moTrungTam(canh) {
     bang('nhận đúng pháp nhân đã xem trước', app.mc.cuoi('vagabond.doi_soat_vendor.nhan').a, { file_url: '/private/files/x.pdf', cong_ty: 'Vagabond' });
     bang('không tải lại tệp', app.mc.dem('vagabond.doi_soat_vendor.tai_len'), 1);
     bang('busy cân bằng', app.g.__ban, 0);
+  });
+
+  await ca('Codex #450 vòng 17: chip pháp nhân mang nhãn ngắn, tên đầy đủ trong title và dưới hàng chip, gửi lên tên đầy đủ', async function () {
+    var DAI = 'CÔNG TY TNHH PATISSERIE VAGABOND', DAI2 = 'CÔNG TY TNHH VAGABOND BAKERY';
+    var ten = {}; ten[DAI] = 'TPV'; ten[DAI2] = 'VAGABOND BAKERY';
+    var app = await moTrungTam({ ctNhan: [DAI, DAI2], ctTen: ten });
+    await app.bam(app.mot('#dsvnTai'));
+    var chip = app.tim('[data-dsvnphap]');
+    bang('nhãn ngắn trên chip', chip.map(function (x) { return x.textContent; }), ['TPV', 'VAGABOND BAKERY']);
+    bang('tên đầy đủ trong title', chip.map(function (x) { return x.getAttribute('title'); }), [DAI, DAI2]);
+    dung('hàng chip chừa lề hai bên', app.chu().indexOf('class="chips" style="padding:0 2px"') >= 0);
+    await app.bam(app.mot('[data-dsvnphap="' + DAI + '"]'));
+    dung('đã chọn thì hiện tên đầy đủ', app.chu().indexOf('>' + DAI + '</div>') >= 0);
+    await chonTep(app);
+    bang('gửi lên tên đầy đủ', app.mc.cuoi('vagabond.doi_soat_vendor.xem_truoc').a.cong_ty, DAI);
   });
 
   await ca('Codex #450 vòng 16: một pháp nhân thì không bắt chọn, ghi rõ tên và gửi đúng pháp nhân đó', async function () {
