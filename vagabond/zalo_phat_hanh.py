@@ -17,6 +17,7 @@ bản trước không bao giờ bị bắn lại, kể cả lần đầu bật. 
 
 import json
 import re
+from datetime import datetime, timedelta, timezone
 
 import frappe
 
@@ -106,10 +107,19 @@ def _ban_site():
 	return so
 
 
-def _moc():
-	from frappe.utils import add_days, now_datetime
+def moc_utc(bay_gio=None, lui_ngay=LUI_NGAY):
+	"""THUẦN: mốc `since` gửi GitHub, theo giờ UTC thật (đuôi Z). Codex #452:
+	now_datetime() của Frappe là giờ site (Asia/Ho_Chi_Minh, không kèm múi),
+	gắn Z vào thì mốc lệch 7 giờ về sau và cửa sổ 3 ngày hụt mất 7 giờ.
+	bay_gio phải có múi giờ; bỏ trống thì lấy giờ UTC hiện tại."""
+	bay_gio = bay_gio or datetime.now(timezone.utc)
+	if bay_gio.tzinfo is None:
+		raise ValueError("moc_utc cần thời điểm có múi giờ")
+	return (bay_gio.astimezone(timezone.utc) - timedelta(days=lui_ngay)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-	return add_days(now_datetime(), -LUI_NGAY).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+def _moc():
+	return moc_utc()
 
 
 def _doc_comment():
