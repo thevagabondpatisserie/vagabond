@@ -1037,7 +1037,8 @@ la("loc rong thi noi ro phai lam gi (QT-24)",
 # trong khi mua co ca Dua Buoi lan Dua Sap. Tren dien thoai, giua luc dang
 # noi chuyen voi khach, gan nhu khong ai go du dau.
 la("co phep bo dau tieng Viet", "function mvKhongDau" in _mv_man, True)
-la("o tim di qua phep bo dau", "mvKhongDau(q)" in _mv_man, True)
+# v583: mvKhop di qua phep chung vgbKhop (bo dau, bo dau cau, tung tu).
+la("o tim di qua phep bo dau", "return vgbKhop([x.ten_banh, x.ma_hang, x.nhan_ngan], q);" in _mv_man, True)
 
 def _kd(x):
 	import unicodedata
@@ -1340,9 +1341,10 @@ for _t in ("ly_do_tu_choi", "nguoi_tu_choi", "ngay_tu_choi"):
 _than_ds2 = _ht_src.split("def ds(")[1].split("\ndef ")[0]
 la("ham ds nhan o tim", "tim=\"\"" in _ht_src.split("def ds(")[1][:60], True)
 la("o tim chay o may chu chu khong loc mang", "or_filters=hoac" in _than_ds2, True)
-la("tim duoc theo ten khach", '"customer_name": ["like"' in _than_ds2, True)
-la("tim duoc theo ma phieu", '["name", "like"' in _than_ds2, True)
-la("tim duoc theo ma hoa don", '["hoa_don", "like"' in _than_ds2, True)
+# v583: tim qua tim_kiem (tach tung tu, bo dau, bo dau cau), mot nguon.
+la("tim duoc theo ten khach", 'tim_kiem.ten_khop("Customer", tim, ["name", "customer_name"]' in _than_ds2, True)
+la("tim duoc theo ma phieu", '["name", "hoa_don", "ma_don_pancake", "ten_tk", "so_tk"]' in _than_ds2, True)
+la("tim duoc theo ma hoa don", '"hoa_don"' in _than_ds2, True)
 # Con so tren chip phai dem theo dung o tim dang go, neu khong thi go mot
 # tu ra 3 dong ma chip van bao 40.
 la("chip dem theo ca o tim dang go", "or_filters=hoac" in _than_ds2.split("dem = {}")[1], True)

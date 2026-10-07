@@ -165,6 +165,8 @@ node vagabond/khung/kiem_thu/hanh_vi/khop_tay_577.js
 node vagabond/khung/kiem_thu/hanh_vi/doi_soat_vendor_579.js
 # v582: goi chuc vu theo phan he, mot nguoi giu nhieu goi (anh Viet 06/10/2026).
 node vagabond/khung/kiem_thu/hanh_vi/goi_nhieu_582.js
+# v583: mot phep tim cho moi o tim (anh Viet 07/10/2026, ca De chocolatine mini).
+node vagabond/khung/kiem_thu/hanh_vi/tim_583.js
 # APP-26-09-799: dinh uy nhiem chi o buoc xac nhan da chuyen tien gui dung duong dan.
 node vagabond/khung/kiem_thu/hanh_vi/unc_app_518.js
 node vagabond/khung/kiem_thu/hanh_vi/sinh_lai_523.js
