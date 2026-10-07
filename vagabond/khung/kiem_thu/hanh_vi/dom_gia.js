@@ -153,6 +153,27 @@ ElementGia.prototype.insertBefore = function (con, truoc) {
 };
 ElementGia.prototype.removeChild = function (con) { con.remove(); return con; };
 
+/* Them 07/10/2026 (v586) cho trinh bien tap web theo the va trang khach:
+   ma nguon do dung append()/replaceChildren() cua trinh duyet. Chi nhan phan
+   tu, gap chuoi thi NEM LOI chu khong lang le bo qua, de ca kiem khong xanh
+   oan tren mot cay thieu nut. Them moi, khong doi hanh vi cu. */
+ElementGia.prototype.append = function () {
+  for (var i = 0; i < arguments.length; i++) {
+    var con = arguments[i];
+    if (con == null || con === '') continue;
+    if (typeof con !== 'object') throw new Error('DOM gia: append() chi nhan phan tu, khong nhan chuoi: ' + con);
+    this._html = null;
+    this.appendChild(con);
+  }
+};
+ElementGia.prototype.replaceChildren = function () {
+  this.children.slice().forEach(function (c) { c.parentNode = null; });
+  this.children = [];
+  this._chu = '';
+  this._html = null;
+  this.append.apply(this, arguments);
+};
+
 ElementGia.prototype.remove = function () {
   if (!this.parentNode) return;
   var i = this.parentNode.children.indexOf(this);
