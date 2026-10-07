@@ -149,6 +149,46 @@ def _chan_cong_ty(cong_ty):
 		frappe.throw("Nguồn đối soát này thuộc pháp nhân anh/chị chưa được xem.", frappe.PermissionError)
 
 
+def cong_ty_nhan(gui, duoc):
+	"""THUẦN. Codex #450 vòng 16: pháp nhân nhận tệp tải tay phải rõ ràng,
+	không lặng lẽ lấy pháp nhân mặc định của site. duoc là các pháp nhân người
+	dùng được xem. Có gửi thì phải nằm trong đó; không gửi thì chỉ tự chọn khi
+	người dùng có đúng một pháp nhân. Trả (pháp nhân, lời báo, lỗi quyền?)."""
+	duoc = [c for c in duoc if c]
+	gui = (gui or "").strip()
+	if not duoc:
+		return "", "Tài khoản chưa được cấp pháp nhân nào. Báo anh Việt cấp quyền pháp nhân.", True
+	if gui:
+		if gui in duoc:
+			return gui, "", False
+		return "", "Pháp nhân này anh/chị chưa được xem. Chọn lại pháp nhân nhận tệp.", True
+	if len(duoc) == 1:
+		return duoc[0], "", False
+	return "", "Chọn pháp nhân nhận tệp trước khi xem trước hay nhận.", False
+
+
+def _cong_ty_nhan(gui):
+	ct, loi, quyen = cong_ty_nhan(gui, _cong_ty_xem())
+	if loi:
+		frappe.throw(loi, frappe.PermissionError if quyen else frappe.ValidationError)
+	return ct
+
+
+def tep_da_co(da, cong_ty, doc_lai=True):
+	"""THUẦN. da: nguồn cùng mã băm (có name, trang_thai, company) hoặc None.
+	Mã băm là duy nhất trên cả site, nên tệp đã nhận vào pháp nhân KHÁC thì
+	không nhận lại, cũng không đọc lại vào nguồn của pháp nhân kia (Codex #450
+	vòng 16). Trả "moi", "doc_lai", "da_co" hoặc "phap_nhan_khac"."""
+	if not da:
+		return "moi"
+	lay = da.get if isinstance(da, dict) else (lambda k: getattr(da, k, None))
+	if lay("company") != cong_ty:
+		return "phap_nhan_khac"
+	if doc_lai and khop.doc_lai_duoc(lay("trang_thai")):
+		return "doc_lai"
+	return "da_co"
+
+
 # ------------------------------------------------------------ tải tay
 
 @frappe.whitelist()
@@ -185,7 +225,11 @@ def tai_len(ten=None, noi_dung=None):
 
 
 def _doc_file(file_url):
-	ten = frappe.db.get_value("File", {"file_url": file_url}, "name")
+	"""Codex #450 vòng 16: chỉ đọc tệp do CHÍNH người đang dùng tải lên (lối
+	tai_len cất tệp riêng tư, chủ là người tải). Không nhận đường dẫn tệp riêng
+	tư của người khác dù biết đường dẫn. Tệp trùng nội dung dùng chung đường
+	dẫn nhưng mỗi người tải có bản ghi File của mình, nên lọc chủ vẫn tìm ra."""
+	ten = frappe.db.get_value("File", {"file_url": file_url, "owner": frappe.session.user}, "name") if file_url else None
 	if not ten:
 		frappe.throw("Không thấy tệp vừa tải. Tải lại tệp rồi thử lại.")
 	f = frappe.get_doc("File", ten)
@@ -225,31 +269,33 @@ def _da_nhan(cong_ty, kq):
 
 
 @frappe.whitelist()
-def xem_truoc(file_url=None):
-	"""Đọc tệp và nói sẽ nhận gì; không ghi gì."""
+def xem_truoc(file_url=None, cong_ty=None):
+	"""Đọc tệp và nói sẽ nhận gì vào pháp nhân đã chọn; không ghi gì."""
 	_chan()
+	cong_ty = _cong_ty_nhan(cong_ty)
 	ten, byte = _doc_file(file_url)
-	cong_ty = _cong_ty()
-	_chan_cong_ty(cong_ty)
 	ra = []
 	for t, kq, xt in _doc_va_xem(ten, byte, cong_ty):
 		tt = tom_tat(kq, xt)
 		tt["ten_tep"] = t["ten"]
-		da = frappe.db.get_value(DT_NGUON, {"sha256": t["sha256"]}, ["name", "trang_thai"], as_dict=True)
-		lai = bool(da) and khop.doc_lai_duoc(da.trang_thai)
-		tt["da_co"] = da.name if da and not lai else ""
-		tt["doc_lai"] = da.name if lai else ""
+		da = frappe.db.get_value(DT_NGUON, {"sha256": t["sha256"]}, ["name", "trang_thai", "company"], as_dict=True)
+		kieu = tep_da_co(da, cong_ty)
+		tt["da_co"] = da.name if kieu == "da_co" else ""
+		tt["doc_lai"] = da.name if kieu == "doc_lai" else ""
+		tt["phap_nhan_khac"] = 1 if kieu == "phap_nhan_khac" else 0
+		tt["cong_ty"] = cong_ty
 		ra.append(tt)
 	return ra
 
 
 @frappe.whitelist()
-def nhan(file_url=None):
-	"""Nhận tệp đã xem trước: đọc lại ở máy chủ (không tin số máy khách gửi)."""
+def nhan(file_url=None, cong_ty=None):
+	"""Nhận tệp đã xem trước vào pháp nhân đã chọn: đọc lại ở máy chủ (không
+	tin số máy khách gửi)."""
 	_chan(True)
-	_chan_cong_ty(_cong_ty())
+	cong_ty = _cong_ty_nhan(cong_ty)
 	ten, byte = _doc_file(file_url)
-	return _nhan_byte(ten, byte, "Tải tay", file_url=file_url)
+	return _nhan_byte(ten, byte, "Tải tay", file_url=file_url, cong_ty=cong_ty)
 
 
 KHOA_DOI_CHIEU = "vgb_doi_soat_vendor"
@@ -277,21 +323,29 @@ def khoa_doi_chieu(db=None, cho=60):
 		db.sql("select release_lock(%s)", (KHOA_DOI_CHIEU,))
 
 
-def _nhan_byte(ten, byte, kenh, file_url=None, communication=None, chi_mau_quen=False, bo_qua=None, doc_lai=True):
+def _nhan_byte(ten, byte, kenh, file_url=None, communication=None, chi_mau_quen=False, bo_qua=None, doc_lai=True,
+		cong_ty=None):
 	"""bo_qua: nếu là list, ghi tên tệp con bị bỏ qua vì chưa nhận ra mẫu
 	hay đọc lỗi (chỉ khi chi_mau_quen), để xu_ly_thu quyết có ghi lại không.
 	doc_lai=False: nguồn đã có thì dừng ở mã băm kể cả khi đang lỗi (lượt
-	quét thư mỗi giờ không ghi lại mãi một tệp chưa có mẫu)."""
+	quét thư mỗi giờ không ghi lại mãi một tệp chưa có mẫu).
+	cong_ty: tải tay luôn gửi pháp nhân đã kiểm quyền; thư tự đến (không có
+	người dùng) mới lấy pháp nhân mặc định của site."""
 	with khoa_doi_chieu():
-		cong_ty = _cong_ty()
+		cong_ty = cong_ty or _cong_ty()
 		ket = []
 		for t, kq, xt in _doc_va_xem(ten, byte, cong_ty):
 			if chi_mau_quen and not kq["mau"]:
 				if bo_qua is not None:
 					bo_qua.append(t["ten"])
 				continue
-			da = frappe.db.get_value(DT_NGUON, {"sha256": t["sha256"]}, ["name", "trang_thai"], as_dict=True)
-			if da and not (doc_lai and khop.doc_lai_duoc(da.trang_thai)):
+			da = frappe.db.get_value(DT_NGUON, {"sha256": t["sha256"]}, ["name", "trang_thai", "company"], as_dict=True)
+			kieu = tep_da_co(da, cong_ty, doc_lai)
+			if kieu == "phap_nhan_khac":
+				# Không lộ tên nguồn của pháp nhân kia, không ghi gì.
+				ket.append(dict(name="", trang_thai="", da_co=1, phap_nhan_khac=1, ten_tep=t["ten"]))
+				continue
+			if kieu == "da_co":
 				ket.append(dict(name=da.name, trang_thai=da.trang_thai, da_co=1, ten_tep=t["ten"]))
 				continue
 			ket.append(_ghi_nguon(cong_ty, t, kq, xt, kenh, file_url, communication, co_san=da.name if da else None))
@@ -866,8 +920,11 @@ def ds(nhom=None, trang_thai=None, vendor=None, tim=None, ky=None, tu=None, den=
 	tat_ca = frappe.get_all(DT_NGUON, filters=loc_chung, or_filters=or_loc,
 		fields=["name", "nhom", "vendor", "trang_thai", "trang_thai_tien", "so_chua_noi", "thuc_nhan"], limit_page_length=0)
 	dem, dem_vendor = dem_nguon(tat_ca, nhom, vendor)
+	# Codex #450 vòng 16: các pháp nhân được nhận tệp tải tay (màn Tải file
+	# hiện chip chọn khi có từ hai pháp nhân trở lên).
 	return dict(hang=hang[:50], con=len(hang) > 50, dem=dem, vendor=sorted(dem_vendor.keys() - {"tat_ca"}),
-		dem_vendor=dem_vendor, tong=tong_tien(tat_ca, nhom, vendor, trang_thai, _tong_duy_nhat))
+		dem_vendor=dem_vendor, tong=tong_tien(tat_ca, nhom, vendor, trang_thai, _tong_duy_nhat),
+		cong_ty_nhan=[c for c in ct if c])
 
 
 def loc_trang_thai(trang_thai):
