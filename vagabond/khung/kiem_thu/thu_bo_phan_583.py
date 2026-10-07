@@ -120,26 +120,54 @@ def _chay(site, ham):
 
 @ca("v583 bo phan: ten ngan bo duoi viet tat, bep nao thay phieu bep nao")
 def _thuan():
-	la("pastry", nd.ten_ngan_bo_phan("Bếp Pastry - TV"), "Bếp Pastry")
-	la("khong duoi", nd.ten_ngan_bo_phan("Bếp Pastry"), "Bếp Pastry")
-	la("gach trong ten giu nguyen", nd.ten_ngan_bo_phan("Bếp Lab - R&D"), "Bếp Lab - R&D")
-	la("bep pastry", nd.bep_cua_bo_phan("Bếp Pastry - TV"), "Bếp Pastry")
-	la("bep baker", nd.bep_cua_bo_phan("Bếp Baker - TV"), "Bếp Baker")
-	la("lab cu", nd.bep_cua_bo_phan("Bếp Lab - R&D"), "Bếp Lab")
-	la("sonneto", nd.bep_cua_bo_phan("Sonneto Lab - TV"), "Bếp Lab")
-	la("ke toan khong phai bep", nd.bep_cua_bo_phan("Kế toán - TV"), "")
-	dung("mo ta bep noi ro thay phieu", "Bếp Pastry" in nd.mo_ta_bo_phan("Bếp Pastry - TV"))
-	la("mo ta khoi", nd.mo_ta_bo_phan("Marketing - TV"), "Khối kinh doanh.")
+	# Codex #450 vong 2: goi THANG tep thuan, khong qua lop Frappe gia.
+	from vagabond import bo_phan_nguoi as bp
+	la("pastry", bp.ten_ngan_bo_phan("Bếp Pastry - TV"), "Bếp Pastry")
+	la("khong duoi", bp.ten_ngan_bo_phan("Bếp Pastry"), "Bếp Pastry")
+	la("gach trong ten giu nguyen", bp.ten_ngan_bo_phan("Bếp Lab - R&D"), "Bếp Lab - R&D")
+	la("bep pastry", bp.bep_cua_bo_phan("Bếp Pastry - TV"), "Bếp Pastry")
+	la("bep baker", bp.bep_cua_bo_phan("Bếp Baker - TV"), "Bếp Baker")
+	la("lab cu", bp.bep_cua_bo_phan("Bếp Lab - R&D"), "Bếp Lab")
+	la("sonneto", bp.bep_cua_bo_phan("Sonneto Lab - TV"), "Bếp Lab")
+	la("ke toan khong phai bep", bp.bep_cua_bo_phan("Kế toán - TV"), "")
+	dung("mo ta bep noi ro thay phieu", "Bếp Pastry" in bp.mo_ta_bo_phan("Bếp Pastry - TV"))
+	la("mo ta khoi", bp.mo_ta_bo_phan("Marketing - TV", {"Marketing": "Khối kinh doanh"}.get), "Khối kinh doanh.")
+	la("khong biet khoi", bp.mo_ta_bo_phan("Pha chế - TV"), "Phiếu do người này tạo sẽ ghi bộ phận này.")
+	# Ben nguoi_dung ghep cay bo phan that vao cung phep do.
+	la("nguoi_dung dung cung phep thuan", nd.ten_ngan_bo_phan, bp.ten_ngan_bo_phan)
+	la("mo ta khoi qua cay that", nd.mo_ta_bo_phan("Marketing - TV"), "Khối kinh doanh.")
 
 
 @ca("v583 bo phan: lua chon co ten co dau va dong giai thich, xep theo cay bo phan")
 def _lua_chon():
-	ds = nd.cac_bo_phan_chon(["Marketing - TV", "Bếp Pastry - TV", "Pha chế - TV", "Bếp Baker - TV"])
+	from vagabond import bo_phan_nguoi as bp
+	ds = bp.cac_bo_phan_chon(["Marketing - TV", "Bếp Pastry - TV", "Pha chế - TV", "Bếp Baker - TV"],
+		["Bếp Baker", "Bếp Pastry", "Marketing"])
 	la("thu tu theo cay, la ngoai cay xep cuoi", [x["nhan"] for x in ds],
 		["Bếp Baker", "Bếp Pastry", "Marketing", "Pha chế"])
 	la("khoa la ten day du de luu", ds[1]["k"], "Bếp Pastry - TV")
 	dung("moi lua chon co dong giai thich", all(x["mo_ta"] for x in ds))
 	dung("khong hien duoi viet tat ra man", not any(" - TV" in x["nhan"] for x in ds))
+	la("qua nguoi_dung theo cay that", [x["nhan"] for x in nd.cac_bo_phan_chon(["Marketing - TV", "Bếp Pastry - TV",
+		"Pha chế - TV", "Bếp Baker - TV"])], ["Bếp Baker", "Bếp Pastry", "Marketing", "Pha chế"])
+
+
+@ca("Codex #450 vong 2: phep thuan bo phan nam o tep khong import Frappe")
+def _tach_thuan():
+	import ast
+	with io.open(os.path.join(GOI_TEP, "bo_phan_nguoi.py"), encoding="utf-8") as f:
+		cay = ast.parse(f.read())
+	nhap = set()
+	for n in ast.walk(cay):
+		if isinstance(n, ast.Import):
+			nhap.update(a.name.split(".")[0] for a in n.names)
+		elif isinstance(n, ast.ImportFrom):
+			nhap.add((n.module or "").split(".")[0])
+	la("chi import thu vien chuan", sorted(nhap), ["re"])
+	with io.open(os.path.join(GOI_TEP, "nguoi_dung.py"), encoding="utf-8") as f:
+		src = f.read()
+	for ten in ("def ten_ngan_bo_phan", "def bep_cua_bo_phan", "_BEP_THAY_PHIEU = ("):
+		dung("nguoi_dung khong con ban rieng: " + ten, ten not in src)
 
 
 # ------------------------------------------------------- ham that, site gia
