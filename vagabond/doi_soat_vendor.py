@@ -129,11 +129,10 @@ def _cong_ty():
 
 def _cong_ty_demo():
 	"""Pháp nhân demo ERPNext tự dựng lúc cài (Global Defaults). Site thật
-	07/10/2026 có "The Vagabond (Demo)" nằm cạnh pháp nhân thật."""
-	try:
-		return frappe.db.get_single_value("Global Defaults", "demo_company") or ""
-	except Exception:
-		return ""
+	07/10/2026 có "The Vagabond (Demo)" nằm cạnh pháp nhân thật.
+	Lỗi đọc thì NÉM RA (Codex #452): nuốt thành "" thì hộp thư khai pháp nhân
+	demo bị coi là pháp nhân thật và thư vendor ghi nhầm vào đó."""
+	return frappe.db.get_single_value("Global Defaults", "demo_company") or ""
 
 
 def bo_demo(tat_ca, demo, mac_dinh):
