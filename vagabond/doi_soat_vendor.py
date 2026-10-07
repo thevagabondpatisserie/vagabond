@@ -127,13 +127,31 @@ def _cong_ty():
 	return frappe.defaults.get_global_default("company") or frappe.get_all("Company", pluck="name", limit=1)[0]
 
 
+def _cong_ty_demo():
+	"""Pháp nhân demo ERPNext tự dựng lúc cài (Global Defaults). Site thật
+	07/10/2026 có "The Vagabond (Demo)" nằm cạnh pháp nhân thật."""
+	try:
+		return frappe.db.get_single_value("Global Defaults", "demo_company") or ""
+	except Exception:
+		return ""
+
+
+def bo_demo(tat_ca, demo, mac_dinh):
+	"""THUẦN. v585: bỏ pháp nhân demo khỏi danh sách được xem và được nhận tệp,
+	trừ khi nó là pháp nhân mặc định hoặc là pháp nhân duy nhất."""
+	if not demo or demo == mac_dinh or not (set(tat_ca) - {demo}):
+		return list(tat_ca)
+	return [c for c in tat_ca if c != demo]
+
+
 def _cong_ty_xem():
 	"""Codex #446 H1: các pháp nhân người đang dùng được xem (theo User
 	Permission của Company). Mọi danh sách, đếm và chi tiết đối soát lọc theo
 	đây; không có pháp nhân nào thì trả [""] để truy vấn ra rỗng."""
 	from frappe.permissions import get_user_permissions
 
-	tat_ca = frappe.get_all("Company", pluck="name")
+	tat_ca = bo_demo(frappe.get_all("Company", pluck="name"), _cong_ty_demo(),
+		frappe.defaults.get_global_default("company"))
 	duoc = {x.get("doc") for x in (get_user_permissions(frappe.session.user).get("Company") or [])}
 	return chon_cong_ty(tat_ca, duoc)
 
@@ -1162,6 +1180,7 @@ def _byte_tep(ten_file):
 
 def xu_ly_thu(comm):
 	ket = []
+	cong_ty = _cong_ty_cua_thu(comm)
 	sot = []  # đính kèm có tệp chưa nhận ra mẫu hoặc đọc lỗi
 	for f in frappe.get_all("File", filters={"attached_to_doctype": "Communication", "attached_to_name": comm},
 			fields=["name", "file_name", "file_url"]):
@@ -1170,7 +1189,7 @@ def xu_ly_thu(comm):
 		try:
 			bo_qua = []
 			ket.extend(_nhan_byte(f.file_name, _byte_tep(f.name), "Email", file_url=f.file_url,
-				communication=comm, chi_mau_quen=True, bo_qua=bo_qua))
+				communication=comm, chi_mau_quen=True, bo_qua=bo_qua, cong_ty=cong_ty))
 			if bo_qua:
 				sot.append((f, set(bo_qua)))
 		except Exception:
@@ -1191,20 +1210,40 @@ def xu_ly_thu(comm):
 				# lặp lại). Tệp con lỗi đã ghi từ lượt quét trước trả da_co, vẫn
 				# tính vào ket để không sinh thêm nguồn "thân thư" thừa.
 				ket.extend(r for r in _nhan_byte(f.file_name, _byte_tep(f.name), "Email", file_url=f.file_url,
-					communication=comm, doc_lai=False) if r.get("ten_tep") in ten_bo_qua)
+					communication=comm, doc_lai=False, cong_ty=cong_ty) if r.get("ten_tep") in ten_bo_qua)
 			except Exception:
 				frappe.db.rollback()
 				frappe.log_error(title="Đối soát vendor: ghi đính kèm chưa có mẫu %s" % f.file_name)
 	if not ket and c and thu_co_bao_cao(c.subject, c.content):
-		ket.extend(_ghi_thu_khong_tep(comm, c))
+		ket.extend(_ghi_thu_khong_tep(comm, c, cong_ty))
 	return ket
 
 
-def _ghi_thu_khong_tep(comm, c):
+def cong_ty_thu(cua_hop_thu, mac_dinh, demo):
+	"""THUẦN. v585: thư vendor vào pháp nhân của hộp thư nhận (ô Công ty trên
+	Email Account); hộp thư chưa khai hoặc khai pháp nhân demo thì về pháp
+	nhân mặc định của site như trước."""
+	if cua_hop_thu and cua_hop_thu != demo:
+		return cua_hop_thu
+	return mac_dinh
+
+
+def _cong_ty_cua_thu(comm):
+	try:
+		hop = frappe.db.get_value("Communication", comm, "email_account")
+		ct = frappe.db.get_value("Email Account", hop, "company") if hop else None
+	except Exception:
+		ct = None
+	if ct and not frappe.db.exists("Company", ct):
+		ct = None
+	return cong_ty_thu(ct, _cong_ty(), _cong_ty_demo())
+
+
+def _ghi_thu_khong_tep(comm, c, cong_ty=None):
 	"""Thư báo cáo không có tệp đọc được (báo cáo nằm trong thân thư hoặc tệp
 	chưa có mẫu): lưu một nguồn "Lỗi tệp" có lý do, để hiện ở Cần xử lý."""
 	with khoa_doi_chieu():
-		cong_ty = _cong_ty()
+		cong_ty = cong_ty or _cong_ty()
 		sha = tep_doc.bam(("than-thu:" + comm).encode("utf-8"))
 		if frappe.db.exists(DT_NGUON, {"sha256": sha}):
 			return []
