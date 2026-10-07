@@ -1424,3 +1424,32 @@ def _():
 	la("số thêm vào không đụng nhãn sẵn có", (ra["A 2"], ra["CÔNG TY TNHH A"], ra["CÔNG TY CP A"]), ("A 2", "A", "A 3"))
 	la("mọi nhãn khác nhau", len(set(ra.values())), len(ds))
 	dung("không nhãn nào quá 16 ký tự", all(len(v) <= TOI_DA_NHAN_CHIP for v in ra.values()))
+
+
+@ca("v584: order_by của get_all/get_list chỉ là tên trường, không có hàm (Frappe v16 trả 417 trên site thật)")
+def _():
+	# Không chạy được get_all thật ở tầng khung, nên chốt bằng dò mã nguồn mọi
+	# tệp .py của app (quy tắc 16: dò chuỗi chỉ dùng cho thứ không chạy được).
+	# Ca bench "kế toán mở danh sách đối soát" chạy ds() thật trên MariaDB.
+	import os
+	import re
+	# abspath: đường dẫn thô ".../kiem_thu/../.." tự chứa chữ kiem_thu, nên
+	# phép bỏ thư mục kiểm bên dưới từng bỏ qua cả app (ca xanh mà không dò gì).
+	goc = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+	sai = []
+	so_tep = 0
+	for thu_muc, _con, tep in os.walk(goc):
+		phan = os.path.relpath(thu_muc, goc).split(os.sep)
+		if {"kiem_thu", "kiem_that", "node_modules"} & set(phan):
+			continue
+		for t in tep:
+			if not t.endswith(".py"):
+				continue
+			duong = os.path.join(thu_muc, t)
+			so_tep += 1
+			for so, dong in enumerate(open(duong, encoding="utf-8"), 1):
+				for m in re.finditer(r"order_by\s*=\s*([\"'])(.*?)\1", dong):
+					if "(" in m.group(2):
+						sai.append("%s:%s" % (os.path.relpath(duong, goc), so))
+	dung("đã dò đủ các tệp của app (có doi_soat_vendor.py)", so_tep > 50)
+	la("không còn order_by có hàm", sai, [])

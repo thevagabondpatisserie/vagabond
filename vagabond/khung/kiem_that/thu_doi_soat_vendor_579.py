@@ -295,6 +295,19 @@ def _():
 	la("không ghi nguồn nào", frappe.db.count(dv.DT_NGUON, {"sha256": sha}), 0)
 
 
+@ca("v584 bench: kế toán mở danh sách đối soát (ds) chạy thật trên MariaDB, không lỗi sắp xếp")
+def _():
+	# Site thật 07/10/2026: order_by có coalesce bị Frappe v16 từ chối (417).
+	# Ca thu ngân bên dưới bị chặn quyền TRƯỚC truy vấn nên không bắt được.
+	cty, tk, _mau = _nen()
+	ai = _ke_toan()
+	for tt in ("", "Cần xử lý"):
+		kq = _goi(ai, lambda: dv.ds(nhom="Tiền bán", trang_thai=tt))
+		dung("ds chạy được (%s)" % (tt or "tất cả"), isinstance(kq.get("hang"), list))
+	dung("có danh sách pháp nhân nhận tệp", cty in kq.get("cong_ty_nhan", []))
+	dung("có nhãn ngắn cho pháp nhân", bool(kq.get("nhan_cong_ty", {}).get(cty)))
+
+
 @ca("v579 site: thu ngân không mở được đối soát nhà cung cấp, máy chủ chặn thật")
 def _():
 	ai = _thu_ngan()

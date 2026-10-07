@@ -1878,3 +1878,19 @@ Ca kiểm trên bench tải PDF giả (`%PDF-1.4` + chữ) chết ở `File.chec
 của Frappe (mở thử PDF để dò mã chạy ngầm) trước khi tới phần cần kiểm. Ca
 kiểm site dùng PDF đúng cấu trúc; cửa tải lên phải đổi lỗi thư viện đọc PDF
 thành lời người dùng. Tầng khung không thấy được lỗi này vì không có Frappe.
+
+## 07/10/2026 - v583: màn Đối soát lỗi 417 ngay sau deploy
+
+`ds()` gọi `frappe.get_all(..., order_by="coalesce(den_ngay, creation) desc")`.
+Frappe v16 chỉ nhận tên trường trong `order_by` của `get_all`/`get_list`, có
+hàm là trả ValidationError 417, nên danh sách đối soát không mở được trên site
+thật. Tầng khung giả lập `get_all` nên không thấy; ca bench duy nhất gọi `ds()`
+là ca thu ngân, bị chặn quyền TRƯỚC truy vấn nên cũng không chạm tới. Phòng:
+mỗi cửa danh sách mới phải có một ca bench gọi thật bằng người CÓ quyền; tầng
+khung có ca dò cấm `order_by` có dấu ngoặc trong mọi tệp .py của app. Cần sắp
+xếp theo biểu thức thì dùng `frappe.qb`, không nhét vào `order_by`.
+
+Ca dò mã nguồn đầu tiên viết cho lỗi này xanh mà không dò gì: đường dẫn gốc
+`.../kiem_thu/../..` tự chứa chữ `kiem_thu`, nên phép bỏ thư mục kiểm bỏ qua
+cả app. Dùng `abspath` và so từng phần của đường dẫn tương đối, và chốt số tệp
+đã dò phải lớn hơn 0.
