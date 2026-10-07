@@ -282,6 +282,7 @@ scheduler_events = {
 # duong tao hoa don, khong rieng man Doanh thu Sales.
 doc_events = {
 	"Vagabond Dat Ban": {"after_insert": "vagabond.dat_ban.bao_dat_ban_moi"},
+	"Vagabond Dang Ky Tiec": {"after_insert": "vagabond.tiec_web.bao_moi"},
 	"MInvoice NCC Map": {"validate": "vagabond.quy_cach_ncc.kiem"},
 	# #351: Task sinh tu man Viec hom nay khong duoc danh dau xong ma thieu
 	# ket qua, ke ca khi bam tren Desk. Ham tu bo qua Task khong phai cua minh.
