@@ -36,7 +36,10 @@ def khoa(cong_ty, vendor, tai_khoan, ma_su_kien):
 # ngày tiền về, thuế) đều nằm trong dấu nội dung; vendor sửa một trong số đó thì
 # là "nội dung khác", không bị coi là trùng rồi bỏ qua.
 _TRUONG_NOI_DUNG = ("ma_su_kien", "loai", "ngay", "ma_don", "ma_can_cu", "tien_hang", "giam_gia", "phi",
-	"dieu_chinh", "thuc_nhan", "hoa_don", "giao_hang", "ngay_tien_ve", "thue")
+	"dieu_chinh", "thuc_nhan", "hoa_don", "giao_hang", "ngay_tien_ve", "thue", "mo_ta")
+# Codex #450 vòng 13: mo_ta mang phân loại thanh toán (Grab "tiền mặt" hay
+# "thẻ/ví"), _tien_ve đọc nó để chặn tự nhận tiền về. Vendor sửa phân loại mà
+# dấu không đổi thì bản sửa bị coi là trùng, giữ dòng cũ sai.
 
 
 def doc_lai_duoc(trang_thai):

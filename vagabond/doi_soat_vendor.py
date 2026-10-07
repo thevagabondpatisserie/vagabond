@@ -770,8 +770,9 @@ def ds(nhom=None, trang_thai=None, vendor=None, tim=None, ky=None, tu=None, den=
 		"so_trung", "so_loi", "so_da_noi", "so_chua_noi", "kenh_nhan", "ten_tep", "creation"],
 		order_by="coalesce(den_ngay, creation) desc, creation desc", start=trang * 50, page_length=51)
 	tat_ca = frappe.get_all(DT_NGUON, filters=loc_chung, or_filters=or_loc,
-		fields=["nhom", "vendor", "trang_thai", "trang_thai_tien", "so_chua_noi", "thuc_nhan"], limit_page_length=0)
+		fields=["name", "nhom", "vendor", "trang_thai", "trang_thai_tien", "so_chua_noi", "thuc_nhan"], limit_page_length=0)
 	dem, dem_vendor = dem_nguon(tat_ca, nhom, vendor)
+	gan_tien_rieng(tat_ca, _tien_rieng([r["name"] for r in tat_ca]))
 	return dict(hang=hang[:50], con=len(hang) > 50, dem=dem, vendor=sorted(dem_vendor.keys() - {"tat_ca"}),
 		dem_vendor=dem_vendor, tong=tong_tien(tat_ca, nhom, vendor, trang_thai))
 
@@ -805,19 +806,42 @@ def khop_loc(r, loc):
 	return True
 
 
+def _tien_rieng(ten_nguon):
+	"""{nguồn: tổng thực nhận các dòng nguồn đó GHI RIÊNG}. Dòng trùng với nguồn
+	nhận trước không được ghi lại, dòng Đã thay không còn nguồn, nên mỗi sự
+	kiện chỉ góp vào đúng một nguồn."""
+	if not ten_nguon:
+		return {}
+	return {n: float(t or 0) for n, t in frappe.db.sql(
+		"select nguon, sum(thuc_nhan) from `tab%s` where nguon in %%(n)s group by nguon" % DT_DONG,
+		{"n": tuple(ten_nguon)})}
+
+
+def gan_tien_rieng(rows, tien):
+	"""Gắn thuc_nhan_rieng cho từng nguồn. THUẦN. Nguồn không có dòng riêng
+	(lỗi tệp, hay mọi dòng đều đã có ở nguồn khác) góp 0."""
+	for r in rows:
+		r["thuc_nhan_rieng"] = float(tien.get(r.get("name")) or 0)
+	return rows
+
+
 def tong_tien(rows, nhom=None, vendor=None, trang_thai=None):
 	"""Codex #450: thẻ tóm tắt có tổng thực nhận theo nhóm/nguồn đang chọn, và
-	"Tổng theo bộ lọc" khi đang lọc trạng thái. THUẦN, cùng bộ lọc với danh sách."""
+	"Tổng theo bộ lọc" khi đang lọc trạng thái. THUẦN, cùng bộ lọc với danh sách.
+
+	Vòng 13: cộng thuc_nhan_rieng (gan_tien_rieng), không cộng thuc_nhan của
+	từng báo cáo, vì báo cáo ngày và tháng chồng nhau sẽ đếm một khoản hai lần.
+	Thiếu khoá thì nổ chứ không lặng lẽ cộng sai."""
 	loc = {}
 	if nhom:
 		loc["nhom"] = nhom
 	if vendor:
 		loc["vendor"] = vendor
 	chung = [r for r in rows if khop_loc(r, loc)]
-	ra = dict(tat_ca=sum(float(r.get("thuc_nhan") or 0) for r in chung))
+	ra = dict(tat_ca=sum(r["thuc_nhan_rieng"] for r in chung))
 	loc_tt = loc_trang_thai(trang_thai)
 	if loc_tt:
-		ra["theo_loc"] = sum(float(r.get("thuc_nhan") or 0) for r in chung if khop_loc(r, loc_tt))
+		ra["theo_loc"] = sum(r["thuc_nhan_rieng"] for r in chung if khop_loc(r, loc_tt))
 	return ra
 
 
