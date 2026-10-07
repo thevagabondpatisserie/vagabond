@@ -103,6 +103,14 @@ function dungMan(canh) {
       if (canh.getList) return canh.getList(dt, ts);
       return Promise.resolve(canh.danhMuc || []);
     },
+    /* v583: o tim hoi may chu qua timList (vagabond.tim_kiem.tim). Cac ca o
+       day kiem THU TU luot hoi va cach ve, khong kiem phep tim (phep tim co
+       ca rieng o thu_tim_kiem_583.py), nen chuyen ve getList gia voi dung tu
+       khoa da go de cac canh cu doc duoc. */
+    timList: function (dt, q, cot, o) {
+      var ts = Object.assign({}, o || {}, { or_filters: { item_name: ['like', '%' + q + '%'], name: ['like', '%' + q + '%'] }, tim: q, cot: cot });
+      return that.getList(dt, ts);
+    },
     mfgLoadItem: function (ma) {
       return Promise.resolve((canh.item && canh.item[ma]) || { item_name: 'Món ' + ma, stock_uom: 'Cái', image: '' });
     },
@@ -168,7 +176,7 @@ function dungMan(canh) {
     layHam(sx, 'scrMfgNew'),
   ].join('\n;\n');
 
-  vm.runInNewContext(ma, bay, { filename: '05-san-xuat.js' });
+  vm.runInNewContext(require('./tim_chung.js') + ma, bay, { filename: '05-san-xuat.js' });
   return { g: that, tai: tai, khung: khung, goiWO: goiWO, goiList: goiList };
 }
 

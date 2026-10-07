@@ -85,7 +85,7 @@ function dungMan(canh) {
     layHam(HOP, 'hopKhung'), layHam(HOP, 'hoiCo'), layHam(HOP, 'baoTin'), layHam(HOP, 'hoiChon'),
     'var VGB_NGUONG_TIM = 7;', layHam(HOP, 'vgbCanOTim'), layHam(HOP, 'vgbOTim'), layHam(HOP, 'vgbNoiOTim'),
     layHam(HS, 'hsKhoiHdSau'), layHam(HS, 'hsNoiHdSau'), layHam(HS, 'hsChonHdSau')].join('\n');
-  vm.runInNewContext(ma, that, { filename: 'v530.js' });
+  vm.runInNewContext(require('./tim_chung.js') + ma, that, { filename: 'v530.js' });
   return { g: that, tai: tai, goi: goi };
 }
 

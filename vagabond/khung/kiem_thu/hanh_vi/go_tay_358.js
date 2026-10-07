@@ -555,6 +555,7 @@ async function chayHet() {
       baoTin: function (s) { g.__bao = s; },
     };
     vm.createContext(g);
+    vm.runInContext(require('./tim_chung.js'), g);
     vm.runInContext(layHam(APP, 'dcmChonDonVi'), g);
 
     var cho = g.dcmChonDonVi(['Kg', 'Thùng', 'Túi'], 'Tờ này không đi được cửa nguồn.');

@@ -90,6 +90,7 @@ function appMoi(chiTiet, dsGoi) {
     /* Ban that o 11-khach-ca-hop-dong.js, o tim cua hop chon dung no. */
     'function mvKhongDau(s) { s = String(s || "").toLowerCase(); try { s = s.normalize("NFD").replace(/[\\u0300-\\u036f]/g, ""); } catch (e) {} return s.replace(/đ/g, "d"); }',
   ].join('\n'), Object.assign(g, { __tin: tin, __mc: mc, __hoi: hoi }));
+  vm.runInContext(require('./tim_chung.js'), g);
   vm.runInContext(doc('01-khung-app.js'), g);
   vm.runInContext(doc('07-hop-thoai.js'), g);
   vm.runInContext(doc('15-khuon-danh-sach.js'), g);
