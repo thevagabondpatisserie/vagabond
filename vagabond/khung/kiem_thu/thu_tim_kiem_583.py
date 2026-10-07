@@ -76,10 +76,12 @@ def _mau():
 @ca("v583: dieu kien SQL: AND giua tu, OR giua cot, tham so co ten")
 def _sql():
 	d, t = tk.sql("chocolatine mini", ["i.item_name", "i.name"])
-	dung("hai nhom AND", d.count(" and ") == 1)
-	dung("cot item_name", "i.item_name like %(tk0_0)s" in d)
-	dung("cot name", "i.name like %(tk0_0)s" in d)
-	la("tham so", sorted(t.values()), ["%chocolatine%", "%mini%"])
+	dung("hai nhom AND", d.count(") and (") == 1)
+	# Tu dai so tren cot da bo dau ngan cach (#450 vong 1), tham so co ten.
+	dung("cot item_name", "replace(i.item_name, %(tk_n0)s, '')" in d and "like %(tk0_0)s" in d)
+	dung("cot name", "replace(i.name, %(tk_n0)s, '')" in d)
+	la("mau tu", sorted(v for k, v in t.items() if "_n" not in k), ["%chocolatine%", "%mini%"])
+	la("dau ngan cach la tham so", sorted(v for k, v in t.items() if "_n" in k), sorted(tk._NGAN_CACH))
 	la("go rong", tk.sql("  ,. ", ["x"]), ("", {}))
 	dung("khong noi chuoi go vao cau lenh", "chocolatine" not in d)
 
@@ -110,6 +112,7 @@ class _Bang(object):
 		self.dong = dong
 		self.ma_vach = ma_vach or []
 		self.hoi = []
+		self.gioi_han = []
 
 	def get_all(self, dt, filters=None, or_filters=None, fields=None, pluck=None, limit_page_length=0, **k):
 		self.hoi.append((dt, filters, or_filters))
@@ -125,7 +128,54 @@ class _Bang(object):
 			ra.append(r)
 		if pluck:
 			return [r[pluck] for r in ra]
+		self.gioi_han.append(limit_page_length)
+		ra = ra[:limit_page_length] if limit_page_length else ra
 		return [{f: r.get(f) for f in (fields or ["name"])} for r in ra]
+
+	def sql(self, q, p, as_dict=False):
+		"""Chay THAT cau `sql_ung_vien` sinh ra: doc cot, tung ve `like`, bo
+		dung cac dau ngan cach trong tham so, `name in`, `limit`."""
+		self.hoi.append(("SQL", q, p))
+		m = re.match(r"select (.*?) from `tab(.+?)` where (.*) limit (\d+)$", q, re.S)
+		cot = [c.strip(" `") for c in m.group(1).split(",")]
+		dk, trong = m.group(3), None
+		if " and `name` in " in dk:
+			dk, k = dk.split(" and `name` in ")
+			trong = p[re.match(r"%\((\w+)\)s$", k).group(1)]
+		ve = []
+		for v in dk.strip()[1:-1].split(" or "):
+			bt, k = re.match(r"(.*) like %\((\w+)\)s$", v, re.S).groups()
+			ve.append((re.search(r"`(\w+)`", bt).group(1),
+				[p[x] for x in re.findall(r"%\((\w+_n\d+)\)s", bt)], p[k]))
+		ra = []
+		for r in self.dong:
+			if trong is not None and r["name"] not in trong:
+				continue
+			if any(_like(_bo(r.get(c), ngan), mau) for c, ngan, mau in ve):
+				ra.append({c: r.get(c) for c in cot})
+		return ra[: int(m.group(4))]
+
+
+def _bo(v, ngan):
+	v = str(v or "")
+	for s in ngan:
+		v = v.replace(s, "")
+	return v
+
+
+def _sql_dung(d, t, r):
+	"""Danh gia dieu kien `tk.sql` tren mot dong (cot ten tron, khong bi danh)."""
+	for nhom in d[1:-1].split(") and ("):
+		nhom = nhom.strip("()")
+		ok = False
+		for v in nhom.split(" or "):
+			bt, k = re.match(r"(.*) like %\((\w+)\)s$", v, re.S).groups()
+			c = re.sub(r"^(replace\()+", "", bt).split(",")[0].strip()
+			ngan = [t[x] for x in re.findall(r"%\((\w+_n\d+)\)s", bt)]
+			ok = ok or _like(_bo(r.get(c), ngan), t[k])
+		if not ok:
+			return False
+	return True
 
 
 MON = [
@@ -143,7 +193,9 @@ def _tim(q, cot=("name", "item_name"), ma_vach=None):
 	import unittest.mock as um
 
 	b = _Bang(MON, ma_vach)
-	with um.patch.object(tk.frappe, "get_all", b.get_all, create=True):
+	db = type("Db", (), {"sql": staticmethod(b.sql)})()
+	with um.patch.object(tk.frappe, "get_all", b.get_all, create=True), \
+			um.patch.object(tk.frappe, "db", db, create=True):
 		return tk.ten_khop("Item", q, list(cot)), b
 
 
@@ -166,11 +218,59 @@ def _ten_khop():
 @ca("v583: ten_khop hoi tu dai truoc, luot sau chi hoi trong tap da khop")
 def _ten_khop_hoi():
 	ra, b = _tim("chocolatine mini")
-	b.hoi = [h for h in b.hoi if h[0] == "Item"]
+	b.hoi = [h for h in b.hoi if h[0] == "SQL"]
 	la("hai luot", len(b.hoi), 2)
-	la("luot dau khong gioi han", b.hoi[0][1], None)
-	dung("luot hai trong tap da khop", b.hoi[1][1] == {"name": ["in", ["BANU00008", "BANU00050"]]})
-	dung("luot dau la tu dai nhat", any("chocolatine" in str(m) for _, _, m in b.hoi[0][2]))
+	dung("luot dau khong khoanh tap", "_trong" not in str(b.hoi[0][2]))
+	la("luot hai trong tap da khop", b.hoi[1][2].get("tg_trong"), ("BANU00008", "BANU00050"))
+	dung("luot dau la tu dai nhat", "%chocolatine%" in b.hoi[0][2].values())
+
+
+@ca("v583 #450 vong 1: go DINH LIEN qua may chu van ra mon (Codex: chocolatinemini ra rong)")
+def _dinh_lien():
+	# Truoc khi sua (SHA 8c8ff9271): ca bon dong duoi deu ra [] vi buoc hoi
+	# ung vien chi `like '%chocolatinemini%'` tren ten con dau phay, dau cach.
+	la("chocolatinemini", _tim("chocolatinemini")[0], ["BANU00050"])
+	la("Mini,Chocolatine dao thu tu van ra", _tim("minisize chocolatine")[0], ["BANU00050"])
+	la("banhoroman", _tim("banhoroman")[0], ["BAWC00001"])
+	la("duongden (dinh lien + d/đ)", _tim("duongden")[0], ["BANU00064"])
+	# Dinh lien khong duoc lam tu ngan mat luat dau tieng.
+	la("banh o van khong ra croissant", _tim("banh o")[0], ["BAWC00001"])
+	# Cung bang mau voi may khach: dong nao vgbKhop/khop ra True cho mot mon
+	# trong MON thi ten_khop cung phai ra mon do.
+	sai = []
+	for chu, q, mong, _ in MAU:
+		ma = [r["name"] for r in MON if r["item_name"] == chu]
+		if mong and ma and ma[0] not in (_tim(q)[0] or []):
+			sai.append(q)
+	la("bang mau chung qua may chu", sai, [])
+
+
+@ca("v583 #450 vong 1: dieu kien tk.sql cung ra mon khi go dinh lien")
+def _sql_dinh_lien():
+	cot = ["item_name", "name"]
+	for q, mong in [("chocolatinemini", ["BANU00050"]), ("chocolatine mini", ["BANU00050"]),
+			("banhoroman", ["BAWC00001"]), ("duongden", ["BANU00064"]),
+			# tk.sql khong co buoc so lai: tu ngan chi can DAU tieng nen ra ca
+			# "Ống" (o dau tieng), nhung khong bao gio ra "Croissant".
+			("banh o", ["BAWC00001", "BAWC00003"])]:
+		d, t = tk.sql(q, cot)
+		la(q, [r["name"] for r in MON if _sql_dung(d, t, r)], mong)
+	d, t = tk.sql("o", cot)
+	dung("tu ngan khong bo dau ngan cach (con biet dau tieng)", "replace(" not in d)
+
+
+@ca("v583 #450 vong 1: moi luot hoi ung vien co tran, cau SQL soat ten cot va doctype")
+def _tran():
+	_, b = _tim("o")
+	la("tu ngan qua get_all co tran", b.gioi_han, [tk.GIOI_HAN_DOC])
+	_, b = _tim("chocolatine")
+	dung("tu dai qua SQL co limit", b.hoi[0][1].endswith(" limit %d" % tk.GIOI_HAN_DOC))
+	for dt, cot in [("Item`; drop", ["name"]), ("Item", ["name; drop"]), ("Item", ["`x`"])]:
+		try:
+			tk.sql_ung_vien(dt, ["name"] + cot, cot, ["%a%"])
+			dung("phai tu choi %r %r" % (dt, cot), False)
+		except ValueError:
+			pass
 
 
 @ca("v583: go ma vach cung ra mon")
@@ -218,6 +318,7 @@ def _cua_tim():
 
 	with um.patch.object(tk.frappe, "get_meta", lambda dt: meta, create=True), \
 			um.patch.object(tk.frappe, "get_list", _get_list, create=True), \
+			um.patch.object(tk.frappe, "has_permission", lambda dt, p="read", **k: True, create=True), \
 			um.patch.object(tk, "ten_khop", _ten_khop):
 		ra = tk.tim("Item", "chocolatine mini", '["item_name", "mat_khau", "gia_von", "x;drop"]',
 			'["name"]', '{"disabled": 0}', 50, "item_name")
@@ -227,6 +328,35 @@ def _cua_tim():
 	la("doc qua get_list co soat quyen", dt, "Item")
 	la("giu bo loc va them ten khop", k["filters"], [["disabled", "=", 0], ["name", "in", ["BANU00050"]]])
 	la("so dong", k["limit_page_length"], 50)
+
+
+@ca("v583 #450 vong 1: khong duoc doc doctype thi dung TRUOC buoc hoi ung vien")
+def _cua_tim_quyen():
+	import unittest.mock as um
+
+	# Truoc khi sua (SHA 8c8ff9271): nguoi khong co quyen van chay 1 luot
+	# get_all khong soat quyen, khong tran dong, roi moi bi get_list chan.
+	class Cam(Exception):
+		pass
+
+	b = _Bang(MON)
+	db = type("Db", (), {"sql": staticmethod(b.sql)})()
+	meta = type("M", (), {"fields": [_Df("item_name")], "title_field": "item_name", "search_fields": ""})()
+	bi_chan = []
+	with um.patch.object(tk.frappe, "get_all", b.get_all, create=True), \
+			um.patch.object(tk.frappe, "db", db, create=True), \
+			um.patch.object(tk.frappe, "get_meta", lambda dt: meta, create=True), \
+			um.patch.object(tk.frappe, "get_list", lambda dt, **k: [], create=True), \
+			um.patch.object(tk.frappe, "PermissionError", Cam, create=True), \
+			um.patch.object(tk.frappe, "throw", lambda m, e=None: (_ for _ in ()).throw((e or Exception)(m))), \
+			um.patch.object(tk.frappe, "has_permission", lambda dt, p="read", **k: False, create=True):
+		for q in ("b", "chocolatine mini"):
+			try:
+				tk.tim("Item", q)
+			except Cam:
+				bi_chan.append(q)
+	la("ca hai lan go deu bi chan", bi_chan, ["b", "chocolatine mini"])
+	la("khong mot luot doc ung vien nao", b.hoi, [])
 
 
 # ------------------------------------------------------ chot: mot nguon
