@@ -1391,3 +1391,18 @@ def _():
 	chung = cua_nguoi_khac + [dict(name="F-KT", file_url=url, owner="kt@x", file_name="luong.xlsx")]
 	ra, nk = _goi_tai_tay("xem_truoc", dict(file_url=url, cong_ty="A"), tep=chung)
 	la("tệp trùng nội dung: đọc đúng bản ghi của người tải", nk["tep"], ["F-KT"])
+
+
+@ca("Codex #450 vòng 17: nhãn chip pháp nhân tối đa 16 ký tự, bỏ tiền tố CÔNG TY TNHH, không trùng nhau")
+def _():
+	from vagabond.doi_soat_vendor import TOI_DA_NHAN_CHIP, nhan_ngan_cong_ty
+	ra = nhan_ngan_cong_ty([("CÔNG TY TNHH PATISSERIE VAGABOND", "TPV"), ("CÔNG TY TNHH VAGABOND BAKERY", "VB"),
+		("Vagabond", "V")])
+	la("tên dài dùng viết tắt, tên vừa thì bỏ tiền tố, tên ngắn giữ nguyên", ra,
+		{"CÔNG TY TNHH PATISSERIE VAGABOND": "TPV", "CÔNG TY TNHH VAGABOND BAKERY": "VAGABOND BAKERY", "Vagabond": "Vagabond"})
+	ra = nhan_ngan_cong_ty([("CÔNG TY TNHH ABC", "A1"), ("Công ty cổ phần ABC", "A2"),
+		("CHI NHÁNH CÔNG TY TNHH MỘT THÀNH VIÊN XYZ", ""), ("X" * 30, "")])
+	la("trùng sau khi bỏ tiền tố thì đổi sang viết tắt", (ra["CÔNG TY TNHH ABC"], ra["Công ty cổ phần ABC"]), ("A1", "A2"))
+	la("bỏ tiền tố chi nhánh, một thành viên", ra["CHI NHÁNH CÔNG TY TNHH MỘT THÀNH VIÊN XYZ"], "XYZ")
+	dung("không nhãn nào quá 16 ký tự", all(len(v) <= TOI_DA_NHAN_CHIP for v in ra.values()))
+	la("không nhãn nào trùng", len(set(ra.values())), len(ra))
