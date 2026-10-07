@@ -54,6 +54,7 @@ function mayChu(chiTiet, dsGoi) {
       if (m === 'vagabond.nguoi_dung.danh_sach_goi') return { goi: dsGoi || GOI };
       if (m === 'vagabond.nguoi_dung.dat_goi') return { ok: 1, loi_nhan: 'Đã xếp' };
       if (m === 'vagabond.nguoi_dung.moi') return { ok: 1, loi_nhan: 'Đã tạo' };
+      if (m === 'vagabond.nguoi_dung.dat_bo_phan') return { ok: 1, bo_phan: a.bo_phan, loi_nhan: 'Đã chuyển' };
       throw new Error('may chu gia khong biet ' + m);
     },
   };
@@ -206,6 +207,67 @@ var CT = {
     await app.g.scrNguoiDungXem('de@vgb'); await nghi();
     await app.bam(app.mot('#qndDoiGoi'));
     bang('khong co o tim', app.tim('#hcnTim').length, 0);
+  });
+
+  /* v583 (Codex #450 vong 2): man Nguoi dung phai co cho doi bo phan, goi
+     dung cua dat_bo_phan. Truoc ban sua khong co nut nao goi cua do. */
+  var BP = [
+    { k: 'Bếp Baker - TV', nhan: 'Bếp Baker', mo_ta: 'Thấy và nhận phiếu yêu cầu sản xuất gửi Bếp Baker.' },
+    { k: 'Bếp Pastry - TV', nhan: 'Bếp Pastry', mo_ta: 'Thấy và nhận phiếu yêu cầu sản xuất gửi Bếp Pastry.' },
+    { k: 'Kế toán - TV', nhan: 'Kế toán', mo_ta: 'Khối hỗ trợ.' },
+  ];
+  var CTL = Object.assign({}, CT, { email: 'linh@vgb', ten: 'Lê Thị Linh', bo_phan: 'Bếp Baker - TV', bo_phan_ten: 'Bếp Baker',
+    bo_phan_bep: 'Bếp Baker', bo_phan_chon_duoc: BP });
+
+  await ca('Doi bo phan: ho so hien bo phan dang ghi, bep nao thay phieu, khong lo duoi viet tat', async function () {
+    var app = appMoi(CTL);
+    await app.g.scrNguoiDungXem('linh@vgb'); await nghi();
+    var c = app.tl.body.outerHTML;
+    dung('co dong Bo phan', c.indexOf('Bộ phận') >= 0 && c.indexOf('Thấy phiếu sản xuất của Bếp Baker') >= 0);
+    dung('khong hien " - TV"', c.indexOf(' - TV<') < 0);
+    bang('co nut doi bo phan', app.tim('#qndDoiBp').length, 1);
+  });
+
+  await ca('Doi bo phan: hop chon co dong giai thich, chon san bo phan cu; chon Pastry, xac nhan, gui dung cua dat_bo_phan', async function () {
+    var app = appMoi(CTL);
+    await app.g.scrNguoiDungXem('linh@vgb'); await nghi();
+    await app.bam(app.mot('#qndDoiBp'));
+    bang('ba lua chon', app.tim('[data-hc]').length, 3);
+    dung('co dong giai thich', app.tl.body.outerHTML.indexOf('Thấy và nhận phiếu yêu cầu sản xuất gửi Bếp Pastry.') >= 0);
+    var dang = app.mot('[data-hc="Bếp Baker - TV"]');
+    dung('to dam bo phan dang ghi', String(dang.getAttribute('style')).indexOf('#0f766e') >= 0);
+    await app.bam(app.mot('[data-hc="Bếp Pastry - TV"]'));
+    dung('hoi xac nhan noi ro cu va moi: ' + app.hoi[0], app.hoi.length === 1 && app.hoi[0].indexOf('Bếp Baker sang Bếp Pastry') >= 0);
+    bang('goi dat_bo_phan dung tham so', app.mc.cuoi('vagabond.nguoi_dung.dat_bo_phan').a, { email: 'linh@vgb', bo_phan: 'Bếp Pastry - TV' });
+    dung('bao ket qua', app.tin.indexOf('toast:Đã chuyển') >= 0);
+  });
+
+  await ca('Doi bo phan: chon lai dung bo phan cu hoac bam Thoi thi khong goi may chu', async function () {
+    var app = appMoi(CTL);
+    await app.g.scrNguoiDungXem('linh@vgb'); await nghi();
+    await app.bam(app.mot('#qndDoiBp'));
+    await app.bam(app.mot('[data-hc="Bếp Baker - TV"]'));
+    await app.bam(app.mot('#qndDoiBp'));
+    await app.bam(app.mot('[data-hcx]'));
+    bang('khong goi dat_bo_phan', app.mc.dem('vagabond.nguoi_dung.dat_bo_phan'), 0);
+    bang('khong hoi xac nhan', app.hoi.length, 0);
+  });
+
+  await ca('Doi bo phan: hop xac nhan bam Thoi thi khong goi may chu', async function () {
+    var app = appMoi(CTL);
+    vm.runInContext('hoiCo = function (t, m) { __hoi.push(t + "\\n" + m); return Promise.resolve(false); };', app.g);
+    await app.g.scrNguoiDungXem('linh@vgb'); await nghi();
+    await app.bam(app.mot('#qndDoiBp'));
+    await app.bam(app.mot('[data-hc="Bếp Pastry - TV"]'));
+    bang('co hoi', app.hoi.length, 1);
+    bang('khong goi dat_bo_phan', app.mc.dem('vagabond.nguoi_dung.dat_bo_phan'), 0);
+  });
+
+  await ca('Doi bo phan: may chu khong tra danh sach bo phan thi khong ve nut', async function () {
+    var app = appMoi(CT);
+    await app.g.scrNguoiDungXem('de@vgb'); await nghi();
+    bang('khong co nut', app.tim('#qndDoiBp').length, 0);
+    dung('van noi chua gan bo phan', app.tl.body.outerHTML.indexOf('Chưa gắn bộ phận') >= 0);
   });
 
   console.log('Bo ca kiem HANH VI v582: chon nhieu goi chuc vu');
