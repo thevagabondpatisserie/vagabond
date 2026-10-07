@@ -352,7 +352,8 @@ def _():
 			("_tien_ve", '{"company": nguon.company}'), ("_noi_chuyen", '"company": nguon.company'),
 			("_ky_the", '"company": nguon.company'), ("_tong_hop", "company=%%s"), ("ds", '"company": ["in", ct]'),
 			("chi_tiet", "_chan_cong_ty(n.company)"), ("suc_khoe", "company in %%(ct)s"), ("cua_hoa_don", '"company": ["in", _cong_ty_xem()]'),
-			("doi_chieu_lai", "_chan_cong_ty("), ("nhan", "_chan_cong_ty(_cong_ty())")):
+			("doi_chieu_lai", "_chan_cong_ty("), ("nhan", "cong_ty = _cong_ty_nhan(cong_ty)"),
+			("xem_truoc", "cong_ty = _cong_ty_nhan(cong_ty)")):
 		than = inspect.getsource(getattr(V, ham))
 		dung("%s lọc pháp nhân (%s)" % (ham, can), can in than)
 
@@ -373,7 +374,10 @@ def _():
 	import inspect
 	from vagabond import doi_soat_vendor as V
 	than = inspect.getsource(V._nhan_byte)
-	dung("cửa nhận dùng đúng luật đọc lại", "khop.doc_lai_duoc(da.trang_thai)" in than and "co_san=da.name" in than)
+	dung("cửa nhận dùng đúng luật đọc lại", "tep_da_co(da, cong_ty, doc_lai)" in than and "co_san=da.name" in than)
+	from vagabond.doi_soat_vendor import tep_da_co
+	la("luật đọc lại qua hàm thuần", [tep_da_co({"company": "C", "trang_thai": t}, "C") for t in ("Lỗi tệp", "Cần xử lý", "Đã nhận")],
+		["doc_lai", "doc_lai", "da_co"])
 
 
 @ca("Codex #446 H5: đối chiếu lại chuyến xoá liên kết cũ trước khi gán liên kết mới")
@@ -405,7 +409,7 @@ def _chay_thu(tep, tieu_de, da_co=None):
 		if dt == "Communication":
 			return NS(subject=tieu_de, content="", sender="noreply@payoo.com.vn")
 		sha = loc.get("sha256") if isinstance(loc, dict) else None
-		return NS(name=da_co[sha][0], trang_thai=da_co[sha][1]) if sha in da_co else None
+		return NS(name=da_co[sha][0], trang_thai=da_co[sha][1], company="CT") if sha in da_co else None
 
 	def ghi_nguon(cong_ty, t, kq, xt, kenh, file_url, comm, co_san=None):
 		ghi.append((t["ten"], co_san))
@@ -1262,3 +1266,128 @@ def _():
 	appver = int(re.search(r"var APPVER = '(\d+)';", js).group(1))
 	la("dấu cuối bằng APPVER", so[-1], appver)
 	la("dấu cuối là số lớn nhất", so[-1], max(so))
+
+
+# ------------------------------------------------------------ Codex #450 vòng 16 (fef73a4fd)
+
+class _LoiQuyen(Exception):
+	pass
+
+
+class _LoiNhap(Exception):
+	pass
+
+
+def _goi_tai_tay(ham, tham, duoc=("A", "B"), tep=None, nguon_cu=None, user="kt@x"):
+	"""Chạy xem_truoc / nhan THẬT với tầng chạm hệ thay bằng bảng nhỏ: bảng
+	File (name, file_url, owner), nguồn cũ theo mã băm. Trả (kết quả hoặc lỗi,
+	nhật ký: pháp nhân đọc tệp, pháp nhân ghi nguồn, tệp đã đọc)."""
+	from contextlib import nullcontext
+	from types import SimpleNamespace as NS
+	from unittest.mock import patch
+	from vagabond import doi_soat_vendor as V
+	tep = tep if tep is not None else [dict(name="F1", file_url="/private/files/bc.csv", owner="kt@x", file_name="bc.csv")]
+	nguon_cu = nguon_cu or {}
+	nk = {"doc": [], "ghi": [], "tep": []}
+
+	def get_value(dt, loc, truong=None, as_dict=False):
+		if dt == "File":
+			for f in tep:
+				if all(f.get(k) == v for k, v in loc.items()):
+					return f["name"]
+			return None
+		if dt == V.DT_NGUON:
+			return nguon_cu.get(loc.get("sha256"))
+		return None
+
+	def get_doc(dt, ten):
+		f = next(x for x in tep if x["name"] == ten)
+		nk["tep"].append(ten)
+		return NS(file_name=f["file_name"], get_content=lambda: b"x")
+
+	def doc_va_xem(ten, byte, cong_ty):
+		nk["doc"].append(cong_ty)
+		kq = dict(mau="grabfood", loi=[])
+		return [(dict(ten=ten, sha256="sha-1", loai="csv"), kq, dict(trang_thai="Đã nhận"))]
+
+	def ghi_nguon(cong_ty, t, kq, xt, kenh, file_url, comm, co_san=None):
+		nk["ghi"].append((cong_ty, co_san))
+		return dict(name="N-MOI", trang_thai="Đã nhận", da_co=0, ten_tep=t["ten"])
+
+	def throw(m, exc=None, *a, **k):
+		raise (exc or _LoiNhap)(m)
+
+	with patch.object(V, "_chan", lambda *a: None), patch.object(V, "_cong_ty_xem", lambda: list(duoc)), \
+			patch.object(V, "_cong_ty", lambda: "A"), \
+			patch.object(V, "khoa_doi_chieu", lambda *a, **k: nullcontext()), \
+			patch.object(V, "_doc_va_xem", doc_va_xem), patch.object(V, "_ghi_nguon", ghi_nguon), \
+			patch.object(V, "tom_tat", lambda kq, xt: dict(mau=kq["mau"], loi=list(kq["loi"]))), \
+			patch.object(V.frappe, "PermissionError", _LoiQuyen, create=True), \
+			patch.object(V.frappe, "ValidationError", _LoiNhap, create=True), \
+			patch.object(V.frappe, "throw", throw), \
+			patch.object(V.frappe, "session", NS(user=user)), \
+			patch.object(V.frappe, "get_doc", get_doc), \
+			patch.object(V.frappe.db, "get_value", get_value, create=True):
+		try:
+			return getattr(V, ham)(**tham), nk
+		except (_LoiQuyen, _LoiNhap) as e:
+			return e, nk
+
+
+@ca("Codex #450 vòng 16 F1: pháp nhân nhận tệp: gửi phải được xem; không gửi chỉ tự chọn khi có đúng một")
+def _():
+	from vagabond.doi_soat_vendor import cong_ty_nhan
+	la("gửi đúng pháp nhân được xem", cong_ty_nhan("B", ["A", "B"]), ("B", "", False))
+	la("gửi pháp nhân chưa được xem", cong_ty_nhan("C", ["A", "B"])[0::2], ("", True))
+	la("hai pháp nhân không gửi thì bắt chọn", cong_ty_nhan("", ["A", "B"])[0::2], ("", False))
+	la("một pháp nhân thì tự chọn", cong_ty_nhan(None, ["B"]), ("B", "", False))
+	la("chưa cấp pháp nhân nào", cong_ty_nhan("A", [""])[0::2], ("", True))
+
+
+@ca("Codex #450 vòng 16 F1: xem trước và nhận đọc, ghi đúng pháp nhân đã chọn, không lấy mặc định của site")
+def _():
+	url = "/private/files/bc.csv"
+	for ham in ("xem_truoc", "nhan"):
+		ra, nk = _goi_tai_tay(ham, dict(file_url=url))
+		dung("%s: hai pháp nhân, không chọn thì dừng trước khi đọc tệp" % ham, isinstance(ra, _LoiNhap) and nk["tep"] == [])
+		ra, nk = _goi_tai_tay(ham, dict(file_url=url, cong_ty="C"))
+		dung("%s: pháp nhân chưa được xem thì chặn quyền" % ham, isinstance(ra, _LoiQuyen) and nk["doc"] == [])
+		ra, nk = _goi_tai_tay(ham, dict(file_url=url, cong_ty="B"))
+		la("%s: đọc theo B (mặc định site là A)" % ham, nk["doc"], ["B"])
+		ra, nk = _goi_tai_tay(ham, dict(file_url=url), duoc=("B",))
+		la("%s: chỉ một pháp nhân B thì tự dùng B" % ham, nk["doc"], ["B"])
+	ra, nk = _goi_tai_tay("nhan", dict(file_url=url, cong_ty="B"))
+	la("nhận ghi nguồn vào B", nk["ghi"], [("B", None)])
+
+
+@ca("Codex #450 vòng 16 F1: tệp đã nhận vào pháp nhân khác: không nhận lại, không đọc lại vào nguồn kia, không lộ tên")
+def _():
+	from types import SimpleNamespace as NS
+	url = "/private/files/bc.csv"
+	cu = {"sha-1": NS(name="DSN-A", trang_thai="Lỗi tệp", company="A")}
+	ra, nk = _goi_tai_tay("xem_truoc", dict(file_url=url, cong_ty="B"), nguon_cu=cu)
+	la("xem trước báo pháp nhân khác", (ra[0]["phap_nhan_khac"], ra[0]["da_co"], ra[0]["doc_lai"]), (1, "", ""))
+	ra, nk = _goi_tai_tay("nhan", dict(file_url=url, cong_ty="B"), nguon_cu=cu)
+	la("nhận: không ghi gì", nk["ghi"], [])
+	la("nhận: không lộ tên nguồn pháp nhân kia", (ra[0]["name"], ra[0]["phap_nhan_khac"]), ("", 1))
+	ra, nk = _goi_tai_tay("nhan", dict(file_url=url, cong_ty="A"), nguon_cu=cu)
+	la("cùng pháp nhân thì vẫn đọc lại vào nguồn cũ", nk["ghi"], [("A", "DSN-A")])
+	from vagabond.doi_soat_vendor import tep_da_co
+	la("thư tự đến không đọc lại", tep_da_co(cu["sha-1"], "A", doc_lai=False), "da_co")
+	la("chưa có", tep_da_co(None, "A"), "moi")
+
+
+@ca("Codex #450 vòng 16 F2: chỉ đọc tệp do chính người đang dùng tải lên, không đọc tệp riêng tư của người khác")
+def _():
+	url = "/private/files/luong.xlsx"
+	cua_nguoi_khac = [dict(name="F-GD", file_url=url, owner="giamdoc@x", file_name="luong.xlsx")]
+	for ham in ("xem_truoc", "nhan"):
+		ra, nk = _goi_tai_tay(ham, dict(file_url=url, cong_ty="A"), tep=cua_nguoi_khac)
+		dung("%s: biết đường dẫn tệp người khác vẫn không đọc được" % ham,
+			isinstance(ra, _LoiNhap) and nk["tep"] == [] and nk["doc"] == [])
+		ra, nk = _goi_tai_tay(ham, dict(file_url=None, cong_ty="A"))
+		dung("%s: không gửi đường dẫn thì dừng" % ham, isinstance(ra, _LoiNhap) and nk["tep"] == [])
+	# Cùng nội dung: Frappe dùng chung đường dẫn, mỗi người có bản ghi File riêng.
+	chung = cua_nguoi_khac + [dict(name="F-KT", file_url=url, owner="kt@x", file_name="luong.xlsx")]
+	ra, nk = _goi_tai_tay("xem_truoc", dict(file_url=url, cong_ty="A"), tep=chung)
+	la("tệp trùng nội dung: đọc đúng bản ghi của người tải", nk["tep"], ["F-KT"])
