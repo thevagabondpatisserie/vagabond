@@ -184,29 +184,27 @@ def _tham_ngan(ten):
 	return {"%s_n%d" % (ten, i): s for i, s in enumerate(_NGAN_CACH)}
 
 
-def sql_ung_vien(doctype, truong, cot, mau, trong=None, gioi_han=GIOI_HAN_DOC, ten="tg"):
-	"""Cau doc ung vien cho MOT tu dai: cot da bo dau ngan cach `like` mau.
+def sql_ung_vien(doctype, truong, cot, q, gioi_han=GIOI_HAN_DOC, ten="tg"):
+	"""Cau doc ung vien cho ca cum go: MOI tu cung trong mot cau (dieu kien
+	`sql` o tren), roi moi cat `limit`.
+
+	Gom het tu vao mot cau la de tran dong cat SAU khi da giao cac tu (Codex
+	#450 vong 2): cat theo tung tu thi mot tu chung ("banh") an het 5000 cho,
+	dong khop tu thu hai nam ngoai 5000 dong do bi bo sot.
 
 	`doctype`, `truong`, `cot` phai la ten that (soat dang o day, khong bao gio
-	noi chuoi go vao cau lenh). Tra ve (chuoi, tham_so).
+	noi chuoi go vao cau lenh). Tra ve (chuoi, tham_so), hoac ("", {}) khi go
+	rong.
 	"""
 	if not _TEN_DT.match(str(doctype or "")):
 		raise ValueError("doctype khong hop le: %r" % (doctype,))
 	for c in list(truong) + list(cot):
 		if not _TEN_COT.match(str(c or "")):
 			raise ValueError("cot khong hop le: %r" % (c,))
-	tham = _tham_ngan(ten)
-	hoac = []
-	for j, m in enumerate(mau):
-		k = "%s_m%d" % (ten, j)
-		tham[k] = m
-		for c in cot:
-			hoac.append("%s like %%(%s)s" % (_gon("`%s`" % c, ten), k))
-	dk = "(" + " or ".join(hoac) + ")"
-	if trong is not None:
-		tham[ten + "_trong"] = tuple(trong)
-		dk += " and `name` in %%(%s_trong)s" % ten
-	return ("select %s from `tab%s` where %s limit %d" % (
+	dk, tham = sql(q, ["`%s`" % c for c in cot], ten)
+	if not dk:
+		return "", {}
+	return ("select %s from `tab%s` where %s order by `modified` desc limit %d" % (
 		", ".join("`%s`" % c for c in truong), doctype, dk, int(gioi_han)), tham)
 
 
@@ -227,10 +225,9 @@ def ten_khop(doctype, q, cot, gioi_han=2000):
 	"""Ten cac ban ghi khop o tim. None neu khong go gi (de ben goi bo loc).
 
 	Hai buoc:
-	  1. Moi TU mot luot frappe.get_all voi or_filters tren cac cot (va moi
-	     bien the d/đ), lay GIAO cac luot. Tu dai nhat hoi truoc, cac luot sau
-	     chi hoi trong tap da khop. Buoc nay rong tay (tu ngan chi can dung
-	     dau mot tieng).
+	  1. MOT cau SQL (`sql_ung_vien`): moi tu deu phai co mat (AND), cot nao
+	     cung duoc (OR), tu dai so tren cot da bo dau ngan cach, tu ngan chi can
+	     dung dau mot tieng, roi moi cat tran dong. Buoc nay rong tay.
 	  2. So lai tung dong bang `khop` (cung luat voi may khach) tren chinh cac
 	     cot da doc, de ket qua dung y het ban JS: tu ngan phai nguyen tieng khi
 	     go nhieu tu, va moi tu deu phai co mat.
@@ -242,29 +239,11 @@ def ten_khop(doctype, q, cot, gioi_han=2000):
 	tu = cac_tu(q)
 	if not tu or not cot:
 		return None
-	con, gia_tri = None, {}
 	truong = ["name"] + [c for c in cot if c != "name"]
-	for t in sorted(tu, key=len, reverse=True):
-		# Tap da khop con nho thi hoi trong tap do cho nhe; lon qua thi hoi ca
-		# bang roi giao trong Python, tranh cau "in" dai vai chuc nghin ma.
-		trong = sorted(con) if con is not None and len(con) <= 3000 else None
-		if len(t) >= TU_NGAN:
-			# Tu dai: so tren cot da bo dau ngan cach (go dinh lien van ra).
-			# get_all khong nhan bieu thuc tren cot nen di cau SQL soat dang.
-			cau, tham = sql_ung_vien(doctype, truong, cot, cac_mau(t), trong)
-			ds = frappe.db.sql(cau, tham, as_dict=True)
-		else:
-			hoac = [[c, "like", m] for m in cac_mau(t) for c in cot]
-			loc = {"name": ["in", trong]} if trong is not None else None
-			ds = frappe.get_all(doctype, filters=loc, or_filters=hoac, fields=truong,
-				limit_page_length=GIOI_HAN_DOC)
-		for r in ds:
-			gia_tri.setdefault(r["name"], [r.get(c) for c in truong])
-		ten = {r["name"] for r in ds}
-		con = ten if con is None else con & ten
-		if not con:
-			break
-	ra = sorted(m for m in (con or []) if khop(gia_tri.get(m) or [m], q))
+	cau, tham = sql_ung_vien(doctype, truong, cot, q)
+	ds = frappe.db.sql(cau, tham, as_dict=True) if cau else []
+	ra = [r["name"] for r in ds if khop([r.get(c) for c in truong], q)]
+	ra.sort()
 	if doctype == "Item":
 		# Go ma vach (in tren tem, quet khong duoc thi go tay) cung phai ra mon.
 		gon = "".join(tu)
