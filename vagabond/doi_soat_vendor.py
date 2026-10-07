@@ -1236,9 +1236,15 @@ def cong_ty_thu(cua_hop_thu, mac_dinh, demo):
 
 def _cong_ty_cua_thu(comm):
 	"""Lỗi đọc thì NÉM RA cho xu_ly_thu ghi log; chỉ hộp thư đọc được mà chưa
-	khai hoặc khai demo mới về pháp nhân mặc định."""
-	hop = frappe.db.get_value("Communication", comm, "email_account")
-	ct = frappe.db.get_value("Email Account", hop, "company") if hop else None
+	khai hoặc khai demo mới về pháp nhân mặc định.
+	Codex #452: lấy Communication.company TRƯỚC (ERPNext ghi pháp nhân của hộp
+	thư lúc NHẬN thư, chỉ đọc), để quản trị đổi pháp nhân của hộp thư sau đó
+	thì báo cáo cũ quét lại vẫn vào đúng pháp nhân cũ. Thư cũ chưa có ô này
+	mới đọc pháp nhân hiện tại của hộp thư."""
+	thu = frappe.db.get_value("Communication", comm, ["company", "email_account"], as_dict=True) or {}
+	ct = thu.get("company")
+	if not ct and thu.get("email_account"):
+		ct = frappe.db.get_value("Email Account", thu.get("email_account"), "company")
 	if ct and not frappe.db.exists("Company", ct):
 		ct = None
 	return cong_ty_thu(ct, _cong_ty(), _cong_ty_demo())
