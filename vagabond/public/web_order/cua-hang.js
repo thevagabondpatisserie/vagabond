@@ -23,6 +23,9 @@
       const chu = typeof nhan[k] === 'string' && nhan[k].trim() ? nhan[k] : nhanGoc[k];
       if (g.textContent !== chu) g.textContent = chu;
     });
+    /* v586: liên hệ và cửa hàng trước, để câu chữ vẽ sau đã có số gọi mới. */
+    if (typeof window.vgbApLienHe === 'function') window.vgbApLienHe(nd.lien_he);
+    veCuaHang(nd.thong_tin || {}, nd.lien_he || {});
     if (window.vgbVeKenhNoi) window.vgbVeKenhNoi(nd);
     if (window.vgbVeChuyenMuc) window.vgbVeChuyenMuc(nd);
     window.vgbSanPham = nd.san_pham || {};
@@ -31,6 +34,32 @@
     document.dispatchEvent(new CustomEvent('vgb-nhan'));
   }
   const nhanGoc = {};
+  /* v586: mục "Ghé cửa hàng" và điểm nhận bánh, từ thẻ Cửa hàng của trình
+     biên tập. Chữ của người soạn đi qua textContent. */
+  function veCuaHang(tt, lh) {
+    const ds = Array.isArray(tt.cua_hang) ? tt.cua_hang : null;
+    if (!ds) return;
+    if (typeof window.capNhatDiemNhan === 'function') window.capNhatDiemNhan(ds.filter(c => c.nhan_banh && c.dia_chi).map(c => ({n: c.ten, a: c.dia_chi})));
+    const khung = document.getElementById('cuaHangWeb'), g = document.getElementById('cuaHangDs');
+    if (!khung || !g) return;
+    const tao = (t, c, s) => { const e = document.createElement(t); if (c) e.className = c; if (s) e.textContent = s; return e; };
+    const chu = (k, s) => (typeof window.chuWeb === 'function' ? window.chuWeb(k, s) : s);
+    const hien = ds.filter(c => c.hien && c.dia_chi);
+    g.replaceChildren();
+    hien.forEach(c => {
+      const the = tao('article', 'cw-the');
+      the.append(tao('h3', '', c.ten), tao('p', 'cw-dia-chi', c.dia_chi));
+      if (c.gio_mo_cua) the.append(tao('p', 'cw-gio', c.gio_mo_cua));
+      const hang = tao('div', 'cw-nut');
+      const dt = c.hotline || lh.dien_thoai || '';
+      const so = String(dt).replace(/[^0-9+]/g, '');
+      if (so) { const a = tao('a', '', chu('cua_hang_goi', 'Gọi') + ' ' + dt); a.href = 'tel:' + so; hang.append(a); }
+      if (/^https:\/\/[^\s/@\\]+(\/|$)/.test(c.chi_duong || '') && !/\s/.test(c.chi_duong)) { const a = tao('a', '', chu('cua_hang_chi_duong', 'Chỉ đường') + ' ↗'); a.href = c.chi_duong; a.target = '_blank'; a.rel = 'noopener'; hang.append(a); }
+      the.append(hang);
+      g.append(the);
+    });
+    khung.hidden = !hien.length;
+  }
   if (window.vgbXemThu) {
     window.addEventListener('message', e => {
       if (e.origin !== location.origin || e.source !== parent || e.data?.loai !== 'vgb-noi-dung') return;

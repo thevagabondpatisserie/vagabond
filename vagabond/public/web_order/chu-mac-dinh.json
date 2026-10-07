@@ -2736,5 +2736,135 @@
     "nhom": "Kênh đặt hàng",
     "ten": "Đặt qua app",
     "mac_dinh": "Đặt qua app"
+  },
+  "tab_tiec": {
+    "ten": "Tab Tiệc và tiêu đề trang Tiệc",
+    "mac_dinh": "Tiệc",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "tiec_rong": {
+    "ten": "Tiệc: câu khi chưa có tiệc",
+    "mac_dinh": "Chưa có tiệc nào đang mở. Quý khách vui lòng quay lại sau.",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_don_tu": {
+    "ten": "Ưu đãi: chữ trước số tiền đơn tối thiểu",
+    "mac_dinh": "Đơn từ",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_khung_gio": {
+    "ten": "Ưu đãi: chữ trước khung giờ áp dụng",
+    "mac_dinh": "Khung giờ",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_con_ve": {
+    "ten": "Tiệc: số vé còn ({so} là số vé)",
+    "mac_dinh": "Còn {so} vé",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_het_ve": {
+    "ten": "Tiệc: khi đã hết vé",
+    "mac_dinh": "Đã hết vé",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_ve": {
+    "ten": "Tiệc: chữ sau giá vé",
+    "mac_dinh": "vé",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_mien_phi": {
+    "ten": "Tiệc: khi không thu tiền vé",
+    "mac_dinh": "Miễn phí",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_bao_gom": {
+    "ten": "Tiệc: tiêu đề danh sách bao gồm",
+    "mac_dinh": "Bao gồm",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_yeu_cau": {
+    "ten": "Tuyển dụng: tiêu đề danh sách yêu cầu",
+    "mac_dinh": "Yêu cầu và quyền lợi",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_han_dk": {
+    "ten": "Tiệc: chữ trước hạn đăng ký",
+    "mac_dinh": "Đăng ký trước",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_het_han_dk": {
+    "ten": "Tiệc: khi đã hết hạn đăng ký",
+    "mac_dinh": "Đã hết hạn đăng ký",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_dang_ky": {
+    "ten": "Tiệc: nút mở form đăng ký",
+    "mac_dinh": "Đăng ký tham gia",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_dk_ten": {
+    "ten": "Đăng ký tiệc: ô họ tên",
+    "mac_dinh": "Họ tên",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_dk_sdt": {
+    "ten": "Đăng ký tiệc: ô số điện thoại",
+    "mac_dinh": "Số điện thoại",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_dk_so_ve": {
+    "ten": "Đăng ký tiệc: ô số vé",
+    "mac_dinh": "Số vé",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_dk_ghi_chu": {
+    "ten": "Đăng ký tiệc: ô ghi chú",
+    "mac_dinh": "Ghi chú (không bắt buộc)",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_dk_gui": {
+    "ten": "Đăng ký tiệc: nút gửi",
+    "mac_dinh": "Gửi đăng ký",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_dk_luu_y": {
+    "ten": "Đăng ký tiệc: câu lưu ý trên nút gửi",
+    "mac_dinh": "Gửi đăng ký chưa phải đã có vé. Chúng tôi sẽ gọi xác nhận và hướng dẫn thanh toán.",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_dk_dang_gui": {
+    "ten": "Đăng ký tiệc: lúc đang gửi",
+    "mac_dinh": "Đang gửi...",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_dk_loi": {
+    "ten": "Đăng ký tiệc: khi mạng lỗi",
+    "mac_dinh": "Chưa gửi được. Kiểm tra mạng rồi bấm Gửi lại.",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_dk_nhieu": {
+    "ten": "Đăng ký tiệc: khi gửi quá nhiều lần",
+    "mac_dinh": "Quý khách gửi nhiều lần quá. Vui lòng thử lại sau ít phút.",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_dk_xong": {
+    "ten": "Đăng ký tiệc: câu sau khi gửi xong ({ma} là mã đăng ký)",
+    "mac_dinh": "Đã nhận đăng ký, mã {ma}. Chúng tôi sẽ gọi xác nhận và hướng dẫn thanh toán.",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cua_hang_tieu_de": {
+    "ten": "Cửa hàng: tiêu đề mục cuối trang",
+    "mac_dinh": "Ghé cửa hàng",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cua_hang_goi": {
+    "ten": "Cửa hàng: chữ trên nút gọi",
+    "mac_dinh": "Gọi",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cua_hang_chi_duong": {
+    "ten": "Cửa hàng: chữ trên nút chỉ đường",
+    "mac_dinh": "Chỉ đường",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
   }
 }
