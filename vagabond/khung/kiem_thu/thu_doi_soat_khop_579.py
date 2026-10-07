@@ -573,20 +573,22 @@ def _():
 	from unittest.mock import patch
 	from vagabond import doi_soat_vendor as V
 	goi = []
-	nguon = [dict(nhom="Tiền bán", vendor="GrabFood", trang_thai="Đã nhận", trang_thai_tien=t, so_chua_noi=0)
-		for t in ("Chưa thấy tiền về", "Lệch tiền về", "Lệch tiền về", "Cần chọn tiền về", "Cần chọn tiền về",
-			"Cần chọn tiền về", "Đã thấy tiền về")]
+	nguon = [dict(name="N%d" % i, nhom="Tiền bán", vendor="GrabFood", trang_thai="Đã nhận", trang_thai_tien=t, so_chua_noi=0)
+		for i, t in enumerate(("Chưa thấy tiền về", "Lệch tiền về", "Lệch tiền về", "Cần chọn tiền về", "Cần chọn tiền về",
+			"Cần chọn tiền về", "Đã thấy tiền về"))]
 
 	def get_all(dt, filters=None, **k):
 		goi.append(dict(filters))
 		return nguon if k.get("limit_page_length") == 0 else []
 	with patch.object(V, "_chan", lambda *a, **k: None), patch.object(V, "_cong_ty_xem", lambda: ["CT"]), \
 			patch.object(V.frappe, "get_all", get_all, create=True), \
+			patch.object(V, "_tien_rieng", lambda ten: {"N0": 10}), \
 			patch.object(V.frappe.utils, "nowdate", lambda: "2026-10-07", create=True):
 		kq = V.ds(nhom="Tiền bán", trang_thai="Chờ tiền về")
 	la("số gộp bằng tổng ba trạng thái chờ", kq["dem"]["Chờ tiền về"], 6)
 	la("danh sách lọc đúng ba trạng thái đó", sorted(goi[0]["trang_thai_tien"][1]), sorted(K.CHO_TIEN_VE))
 	la("lượt đếm dùng phạm vi chung, không kèm nhóm/nguồn/trạng thái", sorted(goi[1]), ["company"])
+	la("tổng lấy từ dòng ghi riêng của nguồn", kq["tong"], {"tat_ca": 10.0, "theo_loc": 10.0})
 
 
 def _khop_loc(r, loc):
@@ -1024,6 +1026,38 @@ def _():
 	rows = [dict(nhom="Tiền bán", vendor="GrabFood", trang_thai="Đã nhận", trang_thai_tien="Lệch tiền về", so_chua_noi=0, thuc_nhan=100),
 		dict(nhom="Tiền bán", vendor="Payoo", trang_thai="Cần xử lý", trang_thai_tien="Chưa đối chiếu", so_chua_noi=0, thuc_nhan=50),
 		dict(nhom="Chuyến đi", vendor="Be", trang_thai="Đã nhận", trang_thai_tien="Không áp dụng", so_chua_noi=1, thuc_nhan=7)]
+	for r in rows:
+		r["thuc_nhan_rieng"] = float(r["thuc_nhan"])
 	la("tổng nhóm, không lọc trạng thái", V.tong_tien(rows, "Tiền bán"), {"tat_ca": 150.0})
 	la("lọc Chờ tiền về", V.tong_tien(rows, "Tiền bán", "", "Chờ tiền về"), {"tat_ca": 150.0, "theo_loc": 100.0})
 	la("lọc nguồn và Cần xử lý", V.tong_tien(rows, "Tiền bán", "Payoo", "Cần xử lý"), {"tat_ca": 50.0, "theo_loc": 50.0})
+
+
+@ca("Codex #450 vòng 13: Grab đổi phân loại thẻ/ví sang tiền mặt thì dấu đổi, không bị coi là trùng")
+def _():
+	goc = dict(ma_su_kien="GF-9", loai="ban", ngay="2026-09-01", ma_don="GF-9", ma_can_cu="", tien_hang=100, giam_gia=0,
+		phi=-20, dieu_chinh=0, thuc_nhan=80, hoa_don="", giao_hang=False, ngay_tien_ve="", thue=0, mo_ta="GrabFood thẻ/ví")
+	moi = dict(goc, mo_ta="GrabFood tiền mặt")
+	dung("đổi phân loại thanh toán thì dấu đổi", K.dau_noi_dung(moi) != K.dau_noi_dung(goc))
+	kq = dict(vendor="GrabFood", tai_khoan="TK1", tu_ngay="2026-09-01", den_ngay="2026-09-01", nhom="khac",
+		dong=[moi], dong_loi=[], loi=[], mau="grab", canh_bao=[])
+	k = K.khoa("CT", "GrabFood", "TK1", "GF-9")
+	ra = K.xem_truoc(kq, "CT", {k: K.dau_noi_dung(goc)})
+	la("bản sửa phân loại không bị nhận là đã có", ra["dong"][0]["trang_thai"], "loi")
+
+
+@ca("Codex #450 vòng 13: tổng thực nhận không cộng hai lần sự kiện có trong cả báo cáo ngày và tháng")
+def _():
+	from vagabond import doi_soat_vendor as V
+	# OnePay ngày (3 sự kiện, 300) nhận trước; OnePay tháng (cùng 3 sự kiện +
+	# 1 mới, 400) chỉ ghi được dòng mới. Tổng thật là 400, không phải 700.
+	rows = [dict(name="N-NGAY", nhom="Tiền bán", vendor="OnePay", trang_thai="Đã nhận", trang_thai_tien="Lệch tiền về",
+			so_chua_noi=0, thuc_nhan=300),
+		dict(name="N-THANG", nhom="Tiền bán", vendor="OnePay", trang_thai="Đã nhận", trang_thai_tien="Chưa thấy tiền về",
+			so_chua_noi=0, thuc_nhan=400)]
+	V.gan_tien_rieng(rows, {"N-NGAY": 300, "N-THANG": 100})
+	la("tổng chung tính mỗi sự kiện một lần", V.tong_tien(rows, "Tiền bán"), {"tat_ca": 400.0})
+	la("tổng theo bộ lọc cũng vậy", V.tong_tien(rows, "Tiền bán", "", "Chờ tiền về"), {"tat_ca": 400.0, "theo_loc": 400.0})
+	V.gan_tien_rieng(rows, {"N-NGAY": 300})
+	la("nguồn không còn dòng riêng nào thì góp 0", V.tong_tien(rows, "Tiền bán", "", "Chưa thấy tiền về"),
+		{"tat_ca": 300.0, "theo_loc": 0.0})
