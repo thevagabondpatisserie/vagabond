@@ -333,3 +333,51 @@ def _():
 		chan = True
 	la("lưu tay bị chặn", chan, True)
 	la("số tiền không đổi", int(frappe.db.get_value(dv.DT_NGUON, n.name, "thuc_nhan")), 1000)
+
+
+@ca("Codex #450 vòng 14 bench: tổng mỗi sự kiện một lần trên đúng tập nguồn; Grab sửa thẻ thành tiền mặt dùng được bản sửa")
+def _():
+	cty, tk, _mau = _nen()
+	ngay = nowdate()
+	so = int(frappe.generate_hash(length=6), 16) % 9000000 + 1000000
+	ai = _ke_toan()
+	nguon = []
+	for nhan_, dong in (("ngay", _bao_cao_grab(ngay, so)), ("thang", _bao_cao_grab(ngay, so)),
+			("sua", [x.replace("Trả thẻ / Ví", "Tiền mặt   ") for x in _bao_cao_grab(ngay, so)])):
+		sha = "kt450-v14-%s-%s" % (nhan_, frappe.generate_hash(length=12))
+		url = _tai(ai, "grab-v14-%s.pdf" % nhan_)
+		with patch.object(tep_doc, "doc_tep", lambda ten, byte, dong=dong, sha=sha: _tep(ten, dong, sha)), \
+				patch.object(dv, "_cong_ty", return_value=cty):
+			ra = _goi(ai, lambda: dv.nhan(file_url=url))
+		_DA_TAO.append((dv.DT_NGUON, ra[0]["name"]))
+		nguon.append(ra[0]["name"])
+	n1, n2, n3 = nguon
+	la("báo cáo trùng: không ghi dòng, giữ quan hệ có trong báo cáo",
+		(frappe.db.count(dv.DT_DONG, {"nguon": n2}), frappe.db.count(dv.DT_TRUNG, {"nguon": n2})), (0, 2))
+	la("tổng SQL: cả hai, chỉ báo cáo sau, chỉ báo cáo đầu đều 355.617, không 711.234 hay 0",
+		[int(dv._tong_duy_nhat(t)) for t in ([n1, n2], [n2], [n1])], [355617, 355617, 355617])
+	n3d = frappe.get_doc(dv.DT_NGUON, n3)
+	bs = json.loads(n3d.du_lieu or "{}").get("ban_sua") or []
+	la("bản sửa: một dòng xung đột, nguồn cần xử lý", (len(bs), n3d.trang_thai, n3d.so_loi), (1, "Cần xử lý", 1))
+	ct = _goi(ai, lambda: dv.chi_tiet(name=n3))
+	la("màn chi tiết thấy bản sửa với bản đang tính", [(x["moi"]["mo_ta"], x["cu"]["mo_ta"], x["cu"]["nguon"]) for x in ct["them"]["ban_sua"]],
+		[("GrabFood tiền mặt", "GrabFood thẻ/ví", n1)])
+	cu = frappe.db.get_value(dv.DT_DONG, {"khoa": bs[0]["khoa"]}, "name")
+	_goi(ai, lambda: dv.dung_ban_sua(name=n3, khoa=bs[0]["khoa"]))
+	moi = frappe.db.get_value(dv.DT_DONG, {"khoa": bs[0]["khoa"]}, ["name", "nguon", "mo_ta"], as_dict=True)
+	la("bản sửa thành dòng hiệu lực của nguồn sửa", (moi.nguon, moi.mo_ta), (n3, "GrabFood tiền mặt"))
+	c = frappe.db.get_value(dv.DT_DONG, cu, ["trang_thai_khop", "nguon", "nguon_cu", "thay_bang"], as_dict=True)
+	la("dòng cũ thôi tính, còn để tra", (c.trang_thai_khop, c.nguon, c.nguon_cu, c.thay_bang), ("Đã thay", None, n1, moi.name))
+	n3d = frappe.get_doc(dv.DT_NGUON, n3)
+	la("nguồn sửa hết lỗi", (n3d.trang_thai, n3d.so_loi, n3d.so_moi), ("Đã nhận", 0, 1))
+	la("bản sửa không còn chờ", _goi(ai, lambda: dv.chi_tiet(name=n3))["them"]["ban_sua"], [])
+	la("báo cáo đầu: đối chiếu lại, không giữ giao dịch nào", (frappe.db.get_value(dv.DT_NGUON, n1, "trang_thai_tien") != "Đã thấy tiền về",
+		frappe.db.get_value(dv.DT_NGUON, n1, "giao_dich_ngan_hang") or ""), (True, ""))
+	la("tổng sau khi dùng bản sửa: báo cáo đầu vẫn đủ, ba báo cáo vẫn một lần",
+		[int(dv._tong_duy_nhat(t)) for t in ([n1], [n1, n2, n3], [n3])], [355617, 355617, 355617])
+	try:
+		_goi(ai, lambda: dv.dung_ban_sua(name=n3, khoa=bs[0]["khoa"]))
+		lap = True
+	except frappe.ValidationError:
+		lap = False
+	la("bấm lại lần hai bị chặn", lap, False)
