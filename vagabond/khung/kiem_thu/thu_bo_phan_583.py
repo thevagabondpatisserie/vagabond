@@ -222,6 +222,25 @@ def _chi_tiet():
 		["Bếp Baker - TV", "Bếp Pastry - TV", "Marketing - TV", "Kế toán - TV", "Pha chế - TV"])
 
 
+@ca("v583 bo phan: site chua co o Bo phan tren User thi chan ro rang, ho so khong moi doi")
+def _thieu_o():
+	# Bench GitHub dung moi chua co Custom Field `custom_phong_ban` (site that
+	# co, tao tren Desk). Truoc khi sua: dat_bo_phan no loi co so du lieu.
+	site = _Site()
+	with um.patch.object(nd, "_co_o_bo_phan", lambda: False):
+		try:
+			_chay(site, lambda: nd.dat_bo_phan("lethilinh051996@gmail.com", "Bếp Pastry - TV"))
+			dung("phai bi chan", False)
+		except Exception as e:
+			dung("cau bao noi ro thieu o", "chưa có ô Bộ phận" in str(e))
+		la("khong ghi gi", site.ghi, [])
+		with um.patch.object(nd, "_vai_cua", lambda e: {"Bếp phó"}), \
+				um.patch.object(nd, "_vai_co_that", lambda: {"Bếp phó"}), \
+				um.patch.object(nd, "_goi_da_luu", lambda e: None):
+			d = _chay(site, lambda: nd.chi_tiet("lethilinh051996@gmail.com"))
+	la("ho so khong moi doi", d["bo_phan_chon_duoc"], [])
+
+
 @ca("v583 bo phan: bo vai cua chi Linh sau khi sua la goi Quan ly san xuat")
 def _goi_linh():
 	vai = {"Bếp phó", "Bộ phận đặt hàng", "Kiểm kê viên", "Manufacturing User",
