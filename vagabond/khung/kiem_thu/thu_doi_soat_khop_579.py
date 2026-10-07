@@ -391,7 +391,7 @@ def _():
 _CT_DA_DOC = []  # pháp nhân mà _doc_va_xem được gọi với, trong _chay_thu
 
 
-def _chay_thu(tep, tieu_de, da_co=None, hop_thu_loi=False):
+def _chay_thu(tep, tieu_de, da_co=None, hop_thu_loi=False, hop_thu_ct=None, demo=""):
 	"""Chạy xu_ly_thu THẬT (cả _nhan_byte thật) với tầng chạm hệ được thay:
 	tep = {tên đính kèm: [(tên tệp con, có mẫu?)]}. Trả (ket, các nguồn đã ghi)."""
 	from contextlib import nullcontext
@@ -415,7 +415,7 @@ def _chay_thu(tep, tieu_de, da_co=None, hop_thu_loi=False):
 		if dt == "Email Account":
 			if hop_thu_loi:
 				raise RuntimeError("mất kết nối CSDL khi đọc hộp thư")
-			return None
+			return hop_thu_ct
 		if dt == "Communication":
 			return NS(subject=tieu_de, content="", sender="noreply@payoo.com.vn")
 		sha = loc.get("sha256") if isinstance(loc, dict) else None
@@ -427,7 +427,14 @@ def _chay_thu(tep, tieu_de, da_co=None, hop_thu_loi=False):
 		return dict(name="N-" + t["ten"], trang_thai=xt["trang_thai"], da_co=0, ten_tep=t["ten"])
 
 	tep_dinh = [NS(name="F-" + k, file_name=k, file_url="/private/files/" + k) for k in tep]
+
+	def get_single_value(dt, truong):
+		# demo là Exception thì giả lập đọc Global Defaults lỗi.
+		if isinstance(demo, Exception):
+			raise demo
+		return demo
 	with patch.object(V, "khoa_doi_chieu", lambda *a, **k: nullcontext()), \
+			patch.object(V.frappe.db, "get_single_value", get_single_value, create=True), \
 			patch.object(V, "_cong_ty", lambda: "CT"), \
 			patch.object(V, "_doc_va_xem", doc_va_xem), \
 			patch.object(V, "_ghi_nguon", ghi_nguon), \
@@ -1512,3 +1519,23 @@ def _():
 	with patch.object(V, "_cong_ty_demo", lambda: ""), patch.object(V.frappe.db, "exists", lambda *a, **k: True, create=True):
 		ket, ghi = _chay_thu({"bao-cao.csv": [("bao-cao.csv", True)]}, "Thong bao")
 	la("hộp thư đọc được mà chưa khai: về mặc định như cũ", (len(ghi), _CT_DA_DOC[-1]), (1, "CT"))
+
+
+@ca("v585 Codex #452: đọc pháp nhân demo lỗi thì không ghi nguồn vào pháp nhân của hộp thư chưa kiểm, ghi Error Log")
+def _():
+	# Hộp thư khai đúng pháp nhân demo; lần đọc Global Defaults ném lỗi. Bản cũ
+	# nuốt thành "" nên coi demo là pháp nhân thật và ghi nguồn vào đó.
+	from unittest.mock import patch
+	from vagabond import doi_soat_vendor as V
+	log = []
+	truoc = len(_CT_DA_DOC)
+	with patch.object(V.frappe, "log_error", lambda *a, **k: log.append(k.get("title") or a), create=True), \
+			patch.object(V.frappe.db, "exists", lambda *a, **k: True, create=True):
+		ket, ghi = _chay_thu({"bao-cao.csv": [("bao-cao.csv", True)]}, "Thong bao", hop_thu_ct="DEMO",
+			demo=RuntimeError("mất kết nối CSDL khi đọc Global Defaults"))
+	la("không ghi nguồn nào", ghi, [])
+	la("không đọc tệp theo pháp nhân nào", _CT_DA_DOC[truoc:], [])
+	la("một dòng Error Log", len(log), 1)
+	with patch.object(V.frappe.db, "exists", lambda *a, **k: True, create=True):
+		ket, ghi = _chay_thu({"bao-cao.csv": [("bao-cao.csv", True)]}, "Thong bao", hop_thu_ct="DEMO", demo="DEMO")
+	la("đọc được: hộp thư khai demo thì về mặc định", (len(ghi), _CT_DA_DOC[-1]), (1, "CT"))
