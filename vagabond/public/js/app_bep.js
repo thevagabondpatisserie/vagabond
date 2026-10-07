@@ -55961,7 +55961,7 @@ async function cdlLuu() {
  * trên Chi tiết đơn. Mọi con số do máy chủ đếm (QT-19); màn chỉ hiện.
  */
 var DSVN = { nhom: 'Tiền bán', tt: '', vendor: '', tim: '', ky: '', tu: '', den: '', cur: '', loc: '', xt: null, tep: null,
-  ct: '', ctNhan: null, xtCt: '',
+  ct: '', ctNhan: null, ctNhanTen: {}, xtCt: '',
   trang: { nguon: { dau: '', so: 0 }, dong: { dau: '', so: 0 } } };
 
 /* Codex #450: một nguồn đủ quyền có tới 20.000 dòng, danh sách có thể quá
@@ -56030,6 +56030,7 @@ async function scrDsvn() {
     kq = await api('vagabond.doi_soat_vendor.ds', locDs);
     /* Codex #450 vòng 16: các pháp nhân được nhận tệp, màn Tải file dùng. */
     DSVN.ctNhan = kq.cong_ty_nhan || [];
+    DSVN.ctNhanTen = kq.nhan_cong_ty || {};
     sk = await api('vagabond.doi_soat_vendor.suc_khoe', {});
   } catch (e) {
     frame('Đối soát nhà cung cấp', '<div class="emp"><div class="e1">🔒</div><div>' + h((e && e.message) || 'Không mở được đối soát. Thử lại sau ít phút.') + '</div></div>');
@@ -56161,9 +56162,14 @@ async function scrDsvnTai() {
   var canChon = ctNhan.length > 1;
   var html = canChon ? '<div class="card" style="padding:12px 14px"><b>Nhận vào pháp nhân</b>' +
     '<div style="font-size:13px;color:#667085;margin:2px 0 8px">Tệp được lưu và đối chiếu với hoá đơn, tiền về của pháp nhân này. Chọn trước khi chọn file.</div>' +
-    '<div class="chips" style="padding:0">' + ctNhan.map(function (c) {
-      return '<div class="chip' + (DSVN.ct === c ? ' on' : '') + '" data-dsvnphap="' + h(c) + '" style="min-height:44px">' + h(c) + '</div>';
-    }).join('') + '</div></div>' :
+    /* Codex #450 vòng 17: chip mang nhãn ngắn máy chủ rút (tối đa 16 ký tự,
+       không trùng), tên đầy đủ trong title và hiện dưới hàng chip khi đã chọn;
+       giá trị gửi lên vẫn là tên đầy đủ. Hàng chip chừa lề hai bên. */
+    '<div class="chips" style="padding:0 2px">' + ctNhan.map(function (c) {
+      return '<div class="chip' + (DSVN.ct === c ? ' on' : '') + '" data-dsvnphap="' + h(c) + '" title="' + h(c) +
+        '" style="min-height:44px">' + h(DSVN.ctNhanTen[c] || c) + '</div>';
+    }).join('') + '</div>' +
+    (DSVN.ct ? '<div style="font-size:12.5px;color:#475467;margin-top:6px">' + h(DSVN.ct) + '</div>' : '') + '</div>' :
     (ctNhan.length === 1 ? '<div style="font-size:13px;color:#667085;text-align:center;margin:4px 0 8px">Nhận vào pháp nhân <b>' + h(ctNhan[0]) + '</b></div>' : '');
   html += '<div class="card" style="padding:16px;text-align:center">' +
     '<div style="font-size:28px">↑</div><b>Thêm file vendor gửi</b>' +
