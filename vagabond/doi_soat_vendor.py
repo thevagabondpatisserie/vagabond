@@ -32,6 +32,10 @@ from vagabond import doi_soat_mau as mau_bc
 
 DT_NGUON = "Vagabond Doi Soat Nguon"
 DT_DONG = "Vagabond Doi Soat Dong"
+# Codex #450 vòng 14: sự kiện một nguồn có trong báo cáo nhưng đã nhận ở nguồn
+# khác (không ghi lại thành dòng). Giữ để tổng của bất kỳ tập nguồn nào cũng
+# đúng phần các báo cáo đó thể hiện, mỗi sự kiện một lần.
+DT_TRUNG = "Vagabond Doi Soat Trung"
 DUOI = (".csv", ".txt", ".xlsx", ".xlsm", ".xls", ".pdf", ".zip")
 
 # Tên miền người gửi báo cáo, theo sheet Doi_Soat_Tong_Hop của tiệm.
@@ -310,6 +314,9 @@ def _bo_dong_cu(name):
 	so = frappe.db.count(DT_DONG, {"nguon": name})
 	frappe.db.sql("""update `tab%s` set khoa_cu=khoa, khoa=concat('thay:', name), nguon_cu=nguon, nguon=NULL,
 		trang_thai_khop=%%s, thay_luc=%%s where nguon=%%s""" % DT_DONG, (khop.DA_THAY, luc, name))
+	# Quan hệ "có trong báo cáo" của bản đọc cũ là dữ liệu dẫn xuất, dựng lại
+	# ngay từ bản đọc mới.
+	frappe.db.delete(DT_TRUNG, {"nguon": name})
 	lich_su.append(dict(luc=str(luc), so_dong=so, thuc_nhan=cu.get("thuc_nhan")))
 	return lich_su[-50:]
 
@@ -338,7 +345,8 @@ def _ghi_nguon(cong_ty, t, kq, xt, kenh, file_url, communication, co_san=None):
 		trang_thai_tien="Chưa đối chiếu",
 		du_lieu=json.dumps(dict(loi=xt["loi"], canh_bao=xt["canh_bao"], tong=kq.get("tong"), them=kq.get("them"),
 			ghi_chu_don_vi=kq.get("ghi_chu_don_vi"), dong_loi=[dict(vi_tri=x["vi_tri"], ly_do=x.get("ly_do", ""))
-				for x in xt["dong"] if x["trang_thai"] == "loi"][:300], lan_doc_truoc=lich_su or None),
+				for x in xt["dong"] if x["trang_thai"] == "loi"][:300], lan_doc_truoc=lich_su or None,
+			ban_sua=khop.ban_sua(xt, kq["nhom"], kq["vendor"], kq["tai_khoan"]) or None),
 			ensure_ascii=False, default=str),
 	)
 	if co_san:
@@ -361,31 +369,68 @@ def _ghi_nguon(cong_ty, t, kq, xt, kenh, file_url, communication, co_san=None):
 		ten = frappe.db.get_value(DT_NGUON, {"sha256": t["sha256"]}, "name")
 		return dict(name=ten, trang_thai="", da_co=1, ten_tep=t["ten"])
 	trung_ve_sau = 0
+	trung = [x["dong"] for x in xt["dong"] if x["trang_thai"] == "trung"]
 	for x in xt["dong"]:
 		if x["trang_thai"] != "moi":
 			continue
 		d = x["dong"]
-		dong = frappe.get_doc(dict(
-			doctype=DT_DONG, nguon=nguon.name, company=cong_ty, nhom=kq["nhom"], vendor=kq["vendor"],
-			tai_khoan=kq["tai_khoan"], khoa=d["khoa"], dau_noi_dung=d["dau_noi_dung"],
-			ma_su_kien=d["ma_su_kien"][:140], ngay=d["ngay"] or None, gio=d["gio"],
-			ngay_tien_ve=d["ngay_tien_ve"] or None, loai=d["loai"], merchant=d["merchant"][:140],
-			diem_ban=d["diem_ban"], ma_don=(d["ma_don"] or "")[:140], ma_tham_chieu=(d["ma_tham_chieu"] or "")[:140],
-			ma_can_cu=(d.get("ma_can_cu") or "")[:140], hoa_don_nguon=(d.get("hoa_don") or "")[:140],
-			mo_ta=(d["mo_ta"] or "")[:140], nguoi=(d.get("nguoi") or "")[:140], giao_hang=1 if d.get("giao_hang") else 0,
-			tien_hang=d["tien_hang"], giam_gia=d["giam_gia"], phi=d["phi"], dieu_chinh=d["dieu_chinh"],
-			thue=d["thue"], thuc_nhan=d["thuc_nhan"], trang_thai_khop="Chưa nối"))
 		frappe.db.savepoint("ds_dong")
 		try:
-			dong.insert(ignore_permissions=True, ignore_links=True)
+			_chen_dong(nguon.name, cong_ty, kq["nhom"], kq["vendor"], kq["tai_khoan"], d)
 		except frappe.DuplicateEntryError:
 			# Nguồn khác vừa nhận cùng sự kiện giữa lúc xem trước và lúc ghi.
 			frappe.db.rollback(save_point="ds_dong")
 			trung_ve_sau += 1
+			trung.append(d)
+	_ghi_trung(nguon.name, cong_ty, [(d["khoa"], d["thuc_nhan"]) for d in trung])
 	if trung_ve_sau:
 		nguon.db_set({"so_moi": so["moi"] - trung_ve_sau, "so_trung": so["trung"] + trung_ve_sau})
 	_doi_chieu(nguon.name)
 	return dict(name=nguon.name, trang_thai=nguon.trang_thai, da_co=0, ten_tep=t["ten"])
+
+
+def _chen_dong(ten_nguon, cong_ty, nhom, vendor, tai_khoan, d):
+	"""Ghi một dòng sự kiện đang hiệu lực. Dùng chung cho lượt nhận tệp và
+	"Dùng bản sửa", để hai lối ghi cùng một bộ trường."""
+	dong = frappe.get_doc(dict(
+		doctype=DT_DONG, nguon=ten_nguon, company=cong_ty, nhom=nhom, vendor=vendor,
+		tai_khoan=tai_khoan, khoa=d["khoa"], dau_noi_dung=d["dau_noi_dung"],
+		ma_su_kien=(d["ma_su_kien"] or "")[:140], ngay=d["ngay"] or None, gio=d.get("gio"),
+		ngay_tien_ve=d.get("ngay_tien_ve") or None, loai=d["loai"], merchant=(d.get("merchant") or "")[:140],
+		diem_ban=d.get("diem_ban"), ma_don=(d.get("ma_don") or "")[:140], ma_tham_chieu=(d.get("ma_tham_chieu") or "")[:140],
+		ma_can_cu=(d.get("ma_can_cu") or "")[:140], hoa_don_nguon=(d.get("hoa_don") or "")[:140],
+		mo_ta=(d.get("mo_ta") or "")[:140], nguoi=(d.get("nguoi") or "")[:140], giao_hang=1 if d.get("giao_hang") else 0,
+		tien_hang=d["tien_hang"], giam_gia=d.get("giam_gia") or 0, phi=d.get("phi") or 0, dieu_chinh=d.get("dieu_chinh") or 0,
+		thue=d.get("thue") or 0, thuc_nhan=d["thuc_nhan"], trang_thai_khop="Chưa nối"))
+	dong.insert(ignore_permissions=True, ignore_links=True)
+	return dong
+
+
+def _ghi_trung(ten_nguon, cong_ty, cap):
+	"""Ghi quan hệ nguồn có sự kiện đã nhận ở nguồn khác: cap là [(khoá, tiền)]."""
+	if not cap:
+		return
+	luc, ai = frappe.utils.now(), frappe.session.user
+	frappe.db.bulk_insert(DT_TRUNG, ["name", "creation", "modified", "owner", "modified_by", "docstatus",
+		"nguon", "company", "khoa", "thuc_nhan"],
+		[(frappe.generate_hash(length=12), luc, luc, ai, ai, 0, ten_nguon, cong_ty, k, t) for k, t in cap])
+
+
+def nguon_sau_ban_sua(nguon, du_lieu, khoa_dung, tien):
+	"""Số đếm, tiền và trạng thái của nguồn sau khi một dòng xung đột được
+	dùng. THUẦN. tien là {tien_hang, phi, thuc_nhan} của dòng đó."""
+	e = next(x for x in du_lieu.get("ban_sua") or [] if x["khoa"] == khoa_dung)
+	dong_loi = [x for x in du_lieu.get("dong_loi") or [] if x.get("vi_tri") != e["vi_tri"]]
+	so_loi = max(int(nguon.get("so_loi") or 0) - 1, 0)
+	ra = dict(so_loi=so_loi, so_moi=int(nguon.get("so_moi") or 0) + 1,
+		tien_hang=float(nguon.get("tien_hang") or 0) + float(tien.get("tien_hang") or 0),
+		phi=float(nguon.get("phi") or 0) + float(tien.get("phi") or 0),
+		thuc_nhan=float(nguon.get("thuc_nhan") or 0) + float(tien.get("thuc_nhan") or 0))
+	if nguon.get("trang_thai") == "Cần xử lý" and not so_loi and not (du_lieu.get("loi") or []):
+		ra.update(trang_thai="Đã nhận", ly_do="")
+	elif so_loi:
+		ra["ly_do"] = (("%s dòng lỗi. " % so_loi) + "; ".join((du_lieu.get("loi") or [])[:5]))[:1000]
+	return ra, dong_loi
 
 
 # ------------------------------------------------------------ đối chiếu
@@ -425,6 +470,48 @@ def xac_nhan_noi(name=None):
 			update_modified=False)
 		_dem_noi(frappe.get_doc(DT_NGUON, d.nguon))
 	return dict(ok=1, nguon=d.nguon)
+
+
+@frappe.whitelist()
+def dung_ban_sua(name=None, khoa=None):
+	"""Codex #450 vòng 14: vendor gửi lại một sự kiện đã nhận với nội dung khác
+	(Grab đổi thẻ/ví thành tiền mặt). Kế toán bấm "Dùng bản sửa": dòng cũ thôi
+	hiệu lực (Đã thay, giữ nguyên để tra), bản sửa thành dòng hiệu lực của nguồn
+	này, rồi đối chiếu lại cả hai nguồn. Không tạo chứng từ."""
+	_chan(True)
+	n0 = frappe.db.get_value(DT_NGUON, name, ["name", "company"], as_dict=True)
+	if not n0 or not khoa:
+		frappe.throw("Không thấy nguồn đối soát này. Tải lại màn hình.")
+	_chan_cong_ty(n0.company)
+	with khoa_doi_chieu():
+		nguon = frappe.get_doc(DT_NGUON, name)
+		du_lieu = json.loads(nguon.du_lieu or "{}")
+		e = next((x for x in du_lieu.get("ban_sua") or [] if x["khoa"] == khoa and not x.get("da_dung")), None)
+		if not e:
+			frappe.throw("Bản sửa này không còn chờ xác nhận. Tải lại màn hình.")
+		d = e["dong"]
+		cu = frappe.db.get_value(DT_DONG, {"khoa": khoa}, ["name", "nguon", "dau_noi_dung", "thuc_nhan"], as_dict=True)
+		if cu and cu.dau_noi_dung == d["dau_noi_dung"]:
+			frappe.throw("Sự kiện này đã mang đúng nội dung bản sửa. Tải lại màn hình.")
+		luc = frappe.utils.now()
+		if cu:
+			frappe.db.sql("""update `tab%s` set khoa_cu=khoa, khoa=concat('thay:', name), nguon_cu=nguon, nguon=NULL,
+				trang_thai_khop=%%s, thay_luc=%%s where name=%%s""" % DT_DONG, (khop.DA_THAY, luc, cu.name))
+			if cu.nguon and cu.nguon != name:
+				# Báo cáo cũ vẫn có sự kiện này (bản trước khi sửa) trong tổng của nó.
+				_ghi_trung(cu.nguon, nguon.company, [(khoa, cu.thuc_nhan)])
+		moi = _chen_dong(name, nguon.company, e["nhom"], e["vendor"], e["tai_khoan"], d)
+		if cu:
+			frappe.db.set_value(DT_DONG, cu.name, {"thay_bang": moi.name, "ghi_chu_khop": "Thay bằng bản sửa ở nguồn %s." % name},
+				update_modified=False)
+		so, dong_loi = nguon_sau_ban_sua(nguon.as_dict(), du_lieu, khoa, d)
+		e.update(da_dung=1, luc=str(luc), boi=frappe.session.user, thay=cu.name if cu else "")
+		du_lieu["dong_loi"] = dong_loi
+		nguon.db_set(dict(so, du_lieu=json.dumps(du_lieu, ensure_ascii=False, default=str)))
+		_doi_chieu(name)
+		if cu and cu.nguon and cu.nguon != name:
+			_doi_chieu(cu.nguon)
+	return dict(ok=1, nguon=name)
 
 
 def _goi_y_con_dung(name):
@@ -619,8 +706,9 @@ def _tien_ve(nguon):
 			pluck="giao_dich_ngan_hang"):
 		da_dung.update(x for x in (r or "").split("\n") if x)
 	co_tien_mat = bool(frappe.db.count(DT_DONG, {"nguon": nguon.name, "mo_ta": ["like", "%tiền mặt"]}))
+	bi_thay = bool(frappe.db.count(DT_DONG, {"nguon_cu": nguon.name, "thay_bang": ["is", "set"]}))
 	tt, ds, ghi = khop.khop_ngan_hang(nguon.mau, int(round(nguon.thuc_nhan)), str(tu), str(den), gd, da_dung,
-		ly_do_tay=khop.ly_do_khong_tu_nhan(nguon.mau, co_tien_mat))
+		ly_do_tay=khop.ly_do_khong_tu_nhan(nguon.mau, co_tien_mat, bi_thay))
 	# Codex #450: chỉ khi khớp đúng một giao dịch mới ghi vào giao_dich_ngan_hang
 	# (trường này là danh sách giao dịch đã dùng cho mọi nguồn khác). Gợi ý của
 	# "Lệch tiền về" nằm trong ghi chú.
@@ -772,9 +860,8 @@ def ds(nhom=None, trang_thai=None, vendor=None, tim=None, ky=None, tu=None, den=
 	tat_ca = frappe.get_all(DT_NGUON, filters=loc_chung, or_filters=or_loc,
 		fields=["name", "nhom", "vendor", "trang_thai", "trang_thai_tien", "so_chua_noi", "thuc_nhan"], limit_page_length=0)
 	dem, dem_vendor = dem_nguon(tat_ca, nhom, vendor)
-	gan_tien_rieng(tat_ca, _tien_rieng([r["name"] for r in tat_ca]))
 	return dict(hang=hang[:50], con=len(hang) > 50, dem=dem, vendor=sorted(dem_vendor.keys() - {"tat_ca"}),
-		dem_vendor=dem_vendor, tong=tong_tien(tat_ca, nhom, vendor, trang_thai))
+		dem_vendor=dem_vendor, tong=tong_tien(tat_ca, nhom, vendor, trang_thai, _tong_duy_nhat))
 
 
 def loc_trang_thai(trang_thai):
@@ -806,42 +893,39 @@ def khop_loc(r, loc):
 	return True
 
 
-def _tien_rieng(ten_nguon):
-	"""{nguồn: tổng thực nhận các dòng nguồn đó GHI RIÊNG}. Dòng trùng với nguồn
-	nhận trước không được ghi lại, dòng Đã thay không còn nguồn, nên mỗi sự
-	kiện chỉ góp vào đúng một nguồn."""
-	if not ten_nguon:
-		return {}
-	return {n: float(t or 0) for n, t in frappe.db.sql(
-		"select nguon, sum(thuc_nhan) from `tab%s` where nguon in %%(n)s group by nguon" % DT_DONG,
-		{"n": tuple(ten_nguon)})}
+def _tong_duy_nhat(ten):
+	"""Tổng thực nhận của tập nguồn ten, mỗi sự kiện một lần (Codex #450 vòng
+	14). Cùng nghĩa với khop.tong_duy_nhat: dòng hiệu lực của các nguồn trong
+	tập, cộng sự kiện các nguồn đó có trong báo cáo nhưng dòng hiệu lực nằm
+	ở nguồn ngoài tập (hoặc đã thôi hiệu lực)."""
+	if not ten:
+		return 0.0
+	t = frappe.db.sql("""select coalesce(sum(x.t), 0) from (
+			select d.thuc_nhan t from `tab%(dong)s` d where d.nguon in %%(n)s
+			union all
+			select max(m.thuc_nhan) t from `tab%(trung)s` m where m.nguon in %%(n)s
+				and not exists (select 1 from `tab%(dong)s` d2 where d2.khoa = m.khoa and d2.nguon in %%(n)s)
+			group by m.khoa) x""" % dict(dong=DT_DONG, trung=DT_TRUNG), {"n": tuple(ten)})
+	return float(t[0][0] or 0)
 
 
-def gan_tien_rieng(rows, tien):
-	"""Gắn thuc_nhan_rieng cho từng nguồn. THUẦN. Nguồn không có dòng riêng
-	(lỗi tệp, hay mọi dòng đều đã có ở nguồn khác) góp 0."""
-	for r in rows:
-		r["thuc_nhan_rieng"] = float(tien.get(r.get("name")) or 0)
-	return rows
-
-
-def tong_tien(rows, nhom=None, vendor=None, trang_thai=None):
+def tong_tien(rows, nhom=None, vendor=None, trang_thai=None, tinh=None):
 	"""Codex #450: thẻ tóm tắt có tổng thực nhận theo nhóm/nguồn đang chọn, và
 	"Tổng theo bộ lọc" khi đang lọc trạng thái. THUẦN, cùng bộ lọc với danh sách.
 
-	Vòng 13: cộng thuc_nhan_rieng (gan_tien_rieng), không cộng thuc_nhan của
-	từng báo cáo, vì báo cáo ngày và tháng chồng nhau sẽ đếm một khoản hai lần.
-	Thiếu khoá thì nổ chứ không lặng lẽ cộng sai."""
+	Vòng 14: tinh(tên các nguồn) trả tổng mỗi sự kiện một lần trên ĐÚNG tập
+	nguồn đang thấy (báo cáo ngày và tháng chồng nhau không cộng hai lần, chỉ
+	thấy báo cáo tháng thì vẫn ra đủ tổng báo cáo tháng)."""
 	loc = {}
 	if nhom:
 		loc["nhom"] = nhom
 	if vendor:
 		loc["vendor"] = vendor
 	chung = [r for r in rows if khop_loc(r, loc)]
-	ra = dict(tat_ca=sum(r["thuc_nhan_rieng"] for r in chung))
+	ra = dict(tat_ca=float(tinh([r["name"] for r in chung])))
 	loc_tt = loc_trang_thai(trang_thai)
 	if loc_tt:
-		ra["theo_loc"] = sum(r["thuc_nhan_rieng"] for r in chung if khop_loc(r, loc_tt))
+		ra["theo_loc"] = float(tinh([r["name"] for r in chung if khop_loc(r, loc_tt)]))
 	return ra
 
 
@@ -891,8 +975,21 @@ def chi_tiet(name=None, loc=None, trang=0):
 		"so_da_noi", "so_chua_noi", "creation", "communication")),
 		them=dict(loi=d.get("loi") or [], canh_bao=d.get("canh_bao") or [], dong_loi=(d.get("dong_loi") or [])[:100],
 			tien_ve=d.get("tien_ve") or "", ky_the=d.get("ky_the"), doi_bien_ban=d.get("doi_bien_ban"),
-			hoa_don_ky=d.get("hoa_don_ky_ghi_chu") or "", ghi_chu_don_vi=d.get("ghi_chu_don_vi") or ""),
+			hoa_don_ky=d.get("hoa_don_ky_ghi_chu") or "", ghi_chu_don_vi=d.get("ghi_chu_don_vi") or "",
+			ban_sua=_ban_sua_cho(d)),
 		dong=dong[:100], con=len(dong) > 100)
+
+
+def _ban_sua_cho(du_lieu):
+	"""Bản sửa còn chờ kế toán chọn, kèm nội dung đang hiệu lực để so."""
+	ra = []
+	for e in [x for x in du_lieu.get("ban_sua") or [] if not x.get("da_dung")][:50]:
+		cu = frappe.db.get_value(DT_DONG, {"khoa": e["khoa"]}, ["nguon", "mo_ta", "thuc_nhan", "ngay"], as_dict=True) or {}
+		d = e["dong"]
+		ra.append(dict(khoa=e["khoa"], vi_tri=e["vi_tri"], ma=d.get("ma_don") or d.get("ma_su_kien"), ngay=d.get("ngay"),
+			moi=dict(mo_ta=d.get("mo_ta") or "", thuc_nhan=d.get("thuc_nhan")),
+			cu=dict(nguon=cu.get("nguon") or "", mo_ta=cu.get("mo_ta") or "", thuc_nhan=cu.get("thuc_nhan")) if cu else None))
+	return ra
 
 
 @frappe.whitelist()

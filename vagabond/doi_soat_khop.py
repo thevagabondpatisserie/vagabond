@@ -93,7 +93,12 @@ def xem_truoc(kq, cong_ty, da_nhan=None):
 				raise LoiNguon("Dòng %s thiếu căn cứ; giữ để kế toán xem." % d["loai"])
 			if d["khoa"] in da_nhan:
 				if da_nhan[d["khoa"]] != d["dau_noi_dung"]:
-					raise LoiNguon("Sự kiện đã nhận trước đó nhưng nội dung khác; cần đối chiếu bản điều chỉnh.")
+					# Codex #450 vòng 14: vendor sửa sự kiện đã nhận (ví dụ Grab đổi
+					# thẻ/ví thành tiền mặt). Giữ là dòng lỗi, đánh dấu xung_dot để
+					# lưu bản sửa cho kế toán chọn dùng (dung_ban_sua).
+					ra.append(dict(vi_tri=vi_tri, trang_thai="loi", dong=d, xung_dot=1,
+						ly_do="Sự kiện đã nhận trước đó nhưng nội dung khác; xem bản sửa để chọn dùng."))
+					continue
 				ra.append(dict(vi_tri=vi_tri, trang_thai="trung", dong=d))
 			else:
 				ra.append(dict(vi_tri=vi_tri, trang_thai="moi", dong=d))
@@ -329,7 +334,7 @@ def xac_nhan_con_dung(kieu, dong, ung_vien):
 GIU_GIAO_DICH = "Đã thấy tiền về"
 
 
-def ly_do_khong_tu_nhan(mau, co_tien_mat=False):
+def ly_do_khong_tu_nhan(mau, co_tien_mat=False, bi_thay=False):
 	"""Vì sao KHÔNG được tự nhận một giao dịch cùng số tiền. THUẦN. Rỗng là được.
 
 	Codex #450: nguồn không có mẫu nội dung chuyển khoản (Shinhan) thì mọi
@@ -339,7 +344,41 @@ def ly_do_khong_tu_nhan(mau, co_tien_mat=False):
 		return "nguồn này không có nội dung chuyển khoản để nhận diện"
 	if co_tien_mat and mau.startswith("grab"):
 		return "báo cáo có đơn tiền mặt, chưa rõ Grab có trừ khỏi tiền chuyển"
+	if bi_thay:
+		# Codex #450 vòng 14: kế toán đã dùng bản sửa của vendor cho một dòng
+		# của báo cáo này, tổng thực nhận cũ không còn là căn cứ chắc.
+		return "có dòng đã được thay bằng bản sửa của vendor"
 	return ""
+
+
+TRUONG_BAN_SUA = ("ma_su_kien", "ngay", "gio", "ngay_tien_ve", "loai", "merchant", "diem_ban", "ma_don",
+	"ma_tham_chieu", "ma_can_cu", "hoa_don", "mo_ta", "nguoi", "giao_hang", "tien_hang", "giam_gia", "phi",
+	"dieu_chinh", "thue", "thuc_nhan", "khoa", "dau_noi_dung")
+TOI_DA_BAN_SUA = 300
+
+
+def ban_sua(xt, nhom, vendor, tai_khoan):
+	"""Codex #450 vòng 14: các dòng vendor sửa sự kiện đã nhận, lưu đủ để kế
+	toán bấm "Dùng bản sửa" về sau. THUẦN."""
+	return [dict(khoa=x["dong"]["khoa"], vi_tri=x["vi_tri"], nhom=nhom, vendor=vendor, tai_khoan=tai_khoan,
+		dong={k: x["dong"].get(k) for k in TRUONG_BAN_SUA}) for x in xt["dong"] if x.get("xung_dot")][:TOI_DA_BAN_SUA]
+
+
+def tong_duy_nhat(dong, trung, ten):
+	"""Tổng thực nhận của một tập nguồn, mỗi sự kiện một lần. THUẦN, cùng nghĩa
+	với câu SQL doi_soat_vendor._tong_duy_nhat (ca kiểm khung dùng làm chuẩn).
+
+	dong: [(nguon, khoa, tien)] dòng đang hiệu lực (mỗi khoá đúng một dòng).
+	trung: [(nguon, khoa, tien)] sự kiện một nguồn có trong báo cáo nhưng đã
+	nhận ở nguồn khác (Codex #450 vòng 14: giữ quan hệ nguồn với sự kiện).
+	Sự kiện có dòng thuộc tập thì lấy tiền của dòng; không thì lấy theo trung."""
+	ten = set(ten)
+	co = {k: t for n, k, t in dong if n in ten}
+	them = {}
+	for n, k, t in trung:
+		if n in ten and k not in co:
+			them[k] = max(them.get(k, t), t)
+	return float(sum(co.values()) + sum(them.values()))
 
 
 def khop_ngan_hang(mau, can_ve, ngay_tu, ngay_den, giao_dich, da_dung=(), ly_do_tay=""):
