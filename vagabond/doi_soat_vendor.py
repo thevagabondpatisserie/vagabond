@@ -967,7 +967,10 @@ def ds(nhom=None, trang_thai=None, vendor=None, tim=None, ky=None, tu=None, den=
 	hang = frappe.get_all(DT_NGUON, filters=loc, or_filters=or_loc, fields=["name", "nhom", "vendor", "ten_mau",
 		"tu_ngay", "den_ngay", "ngay_tien_ve", "trang_thai", "trang_thai_tien", "thuc_nhan", "so_dong", "so_moi",
 		"so_trung", "so_loi", "so_da_noi", "so_chua_noi", "kenh_nhan", "ten_tep", "creation"],
-		order_by="coalesce(den_ngay, creation) desc, creation desc", start=trang * 50, page_length=51)
+		# v584: Frappe v16 chỉ nhận tên trường trong order_by của get_all, không
+		# nhận hàm (coalesce làm màn Đối soát lỗi 417 trên site thật). Nguồn
+		# chưa đọc ra kỳ (den_ngay trống) xếp cuối; chip Cần xử lý vẫn lọc ra.
+		order_by="den_ngay desc, creation desc", start=trang * 50, page_length=51)
 	tat_ca = frappe.get_all(DT_NGUON, filters=loc_chung, or_filters=or_loc,
 		fields=["name", "nhom", "vendor", "trang_thai", "trang_thai_tien", "so_chua_noi", "thuc_nhan"], limit_page_length=0)
 	dem, dem_vendor = dem_nguon(tat_ca, nhom, vendor)
