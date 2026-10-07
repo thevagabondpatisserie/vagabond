@@ -62,6 +62,11 @@ chuẩn hóa -> kiểm dòng và tổng -> xem trước -> nhận phần hợp l
    Hash byte phát hiện tải lại đúng tệp; ID kinh tế bắt trùng giữa Excel,
    Sheets, báo cáo ngày và tháng. Không lấy tên tệp, dòng số hoặc số tiền
    làm ID. File sửa lại phải giữ hai phiên bản và yêu cầu chọn căn cứ.
+   (v583) Sự kiện đã nhận mà báo cáo sau ghi khác nội dung được giữ làm
+   "bản sửa"; kế toán bấm "Dùng bản sửa" thì dòng cũ thành Đã thay (giữ để
+   tra, trỏ tới dòng mới) và cả hai nguồn đối chiếu lại. Sự kiện một báo cáo
+   có nhưng đã nhận ở nguồn khác được ghi quan hệ riêng, để tổng thực nhận
+   của bất kỳ tập nguồn nào cũng tính mỗi sự kiện đúng một lần.
 3. Merchant lấy từ nội dung nguồn và cấu hình máy chủ; tên thư mục/tệp chỉ
    là gợi ý. File nhiều merchant phải chia phạm vi rõ. Hàng thiếu ánh xạ
    xuất hiện trong hàng đợi, không biến mất khi dựng chứng từ thất bại.
