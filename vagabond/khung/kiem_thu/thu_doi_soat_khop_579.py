@@ -270,7 +270,7 @@ def _():
 	import json
 	import os
 	goc = os.path.join(os.path.dirname(__file__), "..", "..", "vagabond", "doctype")
-	for ten in ("vagabond_doi_soat_nguon", "vagabond_doi_soat_dong"):
+	for ten in ("vagabond_doi_soat_nguon", "vagabond_doi_soat_dong", "vagabond_doi_soat_trung"):
 		d = json.load(open(os.path.join(goc, ten, ten + ".json"), encoding="utf-8"))
 		la(ten + ": không vai nào được tạo hay sửa",
 			[p["role"] for p in d["permissions"] if p.get("write") or p.get("create") or p.get("delete")], [])
@@ -328,9 +328,11 @@ def _():
 	def co_khoa(f):
 		return any(isinstance(n, ast.With) and any(getattr(getattr(i.context_expr, "func", None), "id", None) == "khoa_doi_chieu"
 			for i in n.items) for n in ast.walk(f))
-	la("ai gọi _doi_chieu", sorted(k for k, f in ham.items() if goi(f, "_doi_chieu")), ["_ghi_nguon", "doi_chieu_lai"])
+	la("ai gọi _doi_chieu", sorted(k for k, f in ham.items() if goi(f, "_doi_chieu")), ["_ghi_nguon", "doi_chieu_lai", "dung_ban_sua"])
 	la("ai gọi _ghi_nguon", sorted(k for k, f in ham.items() if goi(f, "_ghi_nguon")), ["_ghi_thu_khong_tep", "_nhan_byte"])
-	la("mọi cửa đều giữ khoá", [co_khoa(ham[k]) for k in ("_nhan_byte", "doi_chieu_lai", "_ghi_thu_khong_tep")], [True, True, True])
+	la("mọi cửa đều giữ khoá", [co_khoa(ham[k]) for k in ("_nhan_byte", "doi_chieu_lai", "_ghi_thu_khong_tep", "dung_ban_sua")],
+		[True, True, True, True])
+	la("ai ghi dòng sự kiện", sorted(k for k, f in ham.items() if goi(f, "_chen_dong")), ["_ghi_nguon", "dung_ban_sua"])
 
 
 @ca("Codex #446 H1: phạm vi pháp nhân: không cấp quyền là xem tất cả, có cấp là chỉ pháp nhân đó")
@@ -513,8 +515,10 @@ def _():
 			viec.append(("sql", " ".join(cau.split()), tham)); kho.clear()
 		return []
 
-	def xoa(*a, **k):
-		viec.append(("xoa",))
+	def xoa(dt, *a, **k):
+		# Vòng 14: quan hệ "có trong báo cáo" (DT_TRUNG) là dữ liệu dẫn xuất,
+		# dựng lại từ bản đọc mới; dòng sự kiện thì không bao giờ xoá.
+		viec.append(("xoa_trung",) if dt == V.DT_TRUNG else ("xoa",))
 
 	def da_nhan(ct, kq):
 		viec.append(("da_nhan", dict(kho))); return dict(kho)
@@ -536,8 +540,10 @@ def _():
 			patch.object(V, "_doi_chieu", lambda n: viec.append(("doi_chieu", n))):
 		V._ghi_nguon("CT", dict(ten="t.csv", sha256="s"), kq, dict(so=dict(moi=0, trung=2, loi=0)), "Tải tay", None, None, co_san="N1")
 	thu_tu = [v[0] for v in viec]
-	la("chuyển dòng cũ trước khi đọc ảnh dữ liệu và xem trước", thu_tu[:3], ["sql", "da_nhan", "xem_truoc"])
+	la("chuyển dòng cũ trước khi đọc ảnh dữ liệu và xem trước", [v for v in thu_tu if v != "xoa_trung"][:3],
+		["sql", "da_nhan", "xem_truoc"])
 	dung("không xoá dòng nào", "xoa" not in thu_tu)
+	dung("bỏ quan hệ trùng của bản cũ trước khi xem trước", thu_tu.index("xoa_trung") < thu_tu.index("xem_truoc"))
 	cau, tham = viec[0][1], viec[0][2]
 	dung("giữ khoá gốc, đổi khoá, giữ nguồn gốc, tách khỏi nguồn",
 		all(x in cau for x in ("khoa_cu=khoa", "khoa=concat('thay:', name)", "nguon_cu=nguon", "nguon=NULL")))
@@ -582,13 +588,13 @@ def _():
 		return nguon if k.get("limit_page_length") == 0 else []
 	with patch.object(V, "_chan", lambda *a, **k: None), patch.object(V, "_cong_ty_xem", lambda: ["CT"]), \
 			patch.object(V.frappe, "get_all", get_all, create=True), \
-			patch.object(V, "_tien_rieng", lambda ten: {"N0": 10}), \
+			patch.object(V, "_tong_duy_nhat", lambda ten: float(len(ten))), \
 			patch.object(V.frappe.utils, "nowdate", lambda: "2026-10-07", create=True):
 		kq = V.ds(nhom="Tiền bán", trang_thai="Chờ tiền về")
 	la("số gộp bằng tổng ba trạng thái chờ", kq["dem"]["Chờ tiền về"], 6)
 	la("danh sách lọc đúng ba trạng thái đó", sorted(goi[0]["trang_thai_tien"][1]), sorted(K.CHO_TIEN_VE))
 	la("lượt đếm dùng phạm vi chung, không kèm nhóm/nguồn/trạng thái", sorted(goi[1]), ["company"])
-	la("tổng lấy từ dòng ghi riêng của nguồn", kq["tong"], {"tat_ca": 10.0, "theo_loc": 10.0})
+	la("tổng tính trên đúng tập nguồn: 7 nguồn nhóm, 6 nguồn chờ", kq["tong"], {"tat_ca": 7.0, "theo_loc": 6.0})
 
 
 def _khop_loc(r, loc):
@@ -1026,11 +1032,15 @@ def _():
 	rows = [dict(nhom="Tiền bán", vendor="GrabFood", trang_thai="Đã nhận", trang_thai_tien="Lệch tiền về", so_chua_noi=0, thuc_nhan=100),
 		dict(nhom="Tiền bán", vendor="Payoo", trang_thai="Cần xử lý", trang_thai_tien="Chưa đối chiếu", so_chua_noi=0, thuc_nhan=50),
 		dict(nhom="Chuyến đi", vendor="Be", trang_thai="Đã nhận", trang_thai_tien="Không áp dụng", so_chua_noi=1, thuc_nhan=7)]
-	for r in rows:
-		r["thuc_nhan_rieng"] = float(r["thuc_nhan"])
-	la("tổng nhóm, không lọc trạng thái", V.tong_tien(rows, "Tiền bán"), {"tat_ca": 150.0})
-	la("lọc Chờ tiền về", V.tong_tien(rows, "Tiền bán", "", "Chờ tiền về"), {"tat_ca": 150.0, "theo_loc": 100.0})
-	la("lọc nguồn và Cần xử lý", V.tong_tien(rows, "Tiền bán", "Payoo", "Cần xử lý"), {"tat_ca": 50.0, "theo_loc": 50.0})
+	for i, r in enumerate(rows):
+		r["name"] = "N%d" % i
+	tien = {r["name"]: r["thuc_nhan"] for r in rows}
+
+	def tinh(ten):
+		return float(sum(tien[n] for n in ten))
+	la("tổng nhóm, không lọc trạng thái", V.tong_tien(rows, "Tiền bán", tinh=tinh), {"tat_ca": 150.0})
+	la("lọc Chờ tiền về", V.tong_tien(rows, "Tiền bán", "", "Chờ tiền về", tinh), {"tat_ca": 150.0, "theo_loc": 100.0})
+	la("lọc nguồn và Cần xử lý", V.tong_tien(rows, "Tiền bán", "Payoo", "Cần xử lý", tinh), {"tat_ca": 50.0, "theo_loc": 50.0})
 
 
 @ca("Codex #450 vòng 13: Grab đổi phân loại thẻ/ví sang tiền mặt thì dấu đổi, không bị coi là trùng")
@@ -1046,18 +1056,193 @@ def _():
 	la("bản sửa phân loại không bị nhận là đã có", ra["dong"][0]["trang_thai"], "loi")
 
 
-@ca("Codex #450 vòng 13: tổng thực nhận không cộng hai lần sự kiện có trong cả báo cáo ngày và tháng")
+@ca("Codex #450 vòng 13-14: tổng mỗi sự kiện một lần, trên ĐÚNG tập nguồn đang thấy (ngày, tháng, hay chỉ tháng)")
 def _():
 	from vagabond import doi_soat_vendor as V
-	# OnePay ngày (3 sự kiện, 300) nhận trước; OnePay tháng (cùng 3 sự kiện +
-	# 1 mới, 400) chỉ ghi được dòng mới. Tổng thật là 400, không phải 700.
+	# OnePay ngày (E1..E3, 300) nhận trước; OnePay tháng có E1..E3 + E4 (400)
+	# chỉ ghi được dòng E4, ba sự kiện kia là quan hệ "có trong báo cáo".
+	dong = [("N-NGAY", "E1", 100), ("N-NGAY", "E2", 100), ("N-NGAY", "E3", 100), ("N-THANG", "E4", 100)]
+	trung = [("N-THANG", "E1", 100), ("N-THANG", "E2", 100), ("N-THANG", "E3", 100)]
+	la("cả hai báo cáo: 400, không phải 700", K.tong_duy_nhat(dong, trung, ["N-NGAY", "N-THANG"]), 400.0)
+	la("chỉ thấy báo cáo tháng: đủ 400, không phải 100", K.tong_duy_nhat(dong, trung, ["N-THANG"]), 400.0)
+	la("chỉ thấy báo cáo ngày: 300", K.tong_duy_nhat(dong, trung, ["N-NGAY"]), 300.0)
+	la("tập rỗng", K.tong_duy_nhat(dong, trung, []), 0.0)
 	rows = [dict(name="N-NGAY", nhom="Tiền bán", vendor="OnePay", trang_thai="Đã nhận", trang_thai_tien="Lệch tiền về",
 			so_chua_noi=0, thuc_nhan=300),
 		dict(name="N-THANG", nhom="Tiền bán", vendor="OnePay", trang_thai="Đã nhận", trang_thai_tien="Chưa thấy tiền về",
 			so_chua_noi=0, thuc_nhan=400)]
-	V.gan_tien_rieng(rows, {"N-NGAY": 300, "N-THANG": 100})
-	la("tổng chung tính mỗi sự kiện một lần", V.tong_tien(rows, "Tiền bán"), {"tat_ca": 400.0})
-	la("tổng theo bộ lọc cũng vậy", V.tong_tien(rows, "Tiền bán", "", "Chờ tiền về"), {"tat_ca": 400.0, "theo_loc": 400.0})
-	V.gan_tien_rieng(rows, {"N-NGAY": 300})
-	la("nguồn không còn dòng riêng nào thì góp 0", V.tong_tien(rows, "Tiền bán", "", "Chưa thấy tiền về"),
-		{"tat_ca": 300.0, "theo_loc": 0.0})
+
+	def tinh(ten):
+		return K.tong_duy_nhat(dong, trung, ten)
+	la("thẻ tóm tắt", V.tong_tien(rows, "Tiền bán", tinh=tinh), {"tat_ca": 400.0})
+	la("lọc chỉ còn báo cáo tháng (Chưa thấy tiền về)", V.tong_tien(rows, "Tiền bán", "", "Chưa thấy tiền về", tinh),
+		{"tat_ca": 400.0, "theo_loc": 400.0})
+	la("lọc chỉ còn báo cáo ngày (Lệch tiền về)", V.tong_tien(rows, "Tiền bán", "", "Lệch tiền về", tinh),
+		{"tat_ca": 400.0, "theo_loc": 300.0})
+	# Dòng đã thôi hiệu lực (Đã thay) không nằm trong dong; báo cáo cũ vẫn tính
+	# sự kiện đó qua quan hệ trung với số tiền của bản nó ghi.
+	la("dòng hiệu lực ở nguồn ngoài tập thì lấy tiền theo báo cáo trong tập",
+		K.tong_duy_nhat([("N-SUA", "E1", 90)], [("N-NGAY", "E1", 100)], ["N-NGAY"]), 100.0)
+	la("cả nguồn sửa trong tập thì lấy bản đang hiệu lực",
+		K.tong_duy_nhat([("N-SUA", "E1", 90)], [("N-NGAY", "E1", 100)], ["N-NGAY", "N-SUA"]), 90.0)
+
+
+# ------------------------------------------------------------ vòng 14: bản sửa của vendor
+
+def _cong_ngay(d, n):
+	import datetime
+	return (datetime.date.fromisoformat(str(d)) + datetime.timedelta(days=n)).isoformat()
+
+
+def _xt_sua():
+	"""Một tệp Grab: GF-1 đã nhận dạng thẻ/ví, nay ghi tiền mặt; GF-2 trùng y nguyên."""
+	kq = _kq(dong=[_ban("GF-1", mo_ta="GrabFood tiền mặt"), _ban("GF-2", mo_ta="GrabFood thẻ/ví")])
+	kq["tu_ngay"] = kq["den_ngay"] = "2026-07-17"
+	cu = K.xem_truoc(_kq(dong=[_ban("GF-1", mo_ta="GrabFood thẻ/ví"), _ban("GF-2", mo_ta="GrabFood thẻ/ví")]), "C")
+	da_nhan = {x["dong"]["khoa"]: x["dong"]["dau_noi_dung"] for x in cu["dong"]}
+	return kq, K.xem_truoc(kq, "C", da_nhan)
+
+
+@ca("Codex #450 vòng 14: dòng vendor sửa sự kiện đã nhận được giữ làm bản sửa, đủ trường để dùng về sau")
+def _():
+	kq, xt = _xt_sua()
+	la("trạng thái từng dòng", [(x["dong"]["ma_don"], x["trang_thai"], bool(x.get("xung_dot"))) for x in xt["dong"]],
+		[("GF-1", "loi", True), ("GF-2", "trung", False)])
+	bs = K.ban_sua(xt, kq["nhom"], kq["vendor"], kq["tai_khoan"])
+	la("một bản sửa, đúng khoá và nguồn gốc", [(b["khoa"], b["vi_tri"], b["nhom"], b["vendor"]) for b in bs],
+		[(xt["dong"][0]["dong"]["khoa"], 1, "ban", "GrabFood")])
+	la("đủ trường để ghi dòng", sorted(bs[0]["dong"]), sorted(K.TRUONG_BAN_SUA))
+	la("nội dung bản sửa", (bs[0]["dong"]["mo_ta"], bs[0]["dong"]["thuc_nhan"]), ("GrabFood tiền mặt", 80000))
+	la("tổng nguồn chưa tính dòng xung đột", xt["tong"]["thuc_nhan"], 80000)
+
+
+@ca("Codex #450 vòng 14: số đếm, tiền và trạng thái nguồn sau khi dùng bản sửa (thuần)")
+def _():
+	from vagabond import doi_soat_vendor as V
+	dl = dict(ban_sua=[dict(khoa="K1", vi_tri=1), dict(khoa="K2", vi_tri=3)], loi=[],
+		dong_loi=[dict(vi_tri=1, ly_do="a"), dict(vi_tri=3, ly_do="b")])
+	n = dict(trang_thai="Cần xử lý", so_loi=2, so_moi=0, tien_hang=100, phi=-20, thuc_nhan=80)
+	so, dl2 = V.nguon_sau_ban_sua(n, dl, "K1", dict(tien_hang=50, phi=-10, thuc_nhan=40))
+	la("còn một lỗi: vẫn Cần xử lý, tiền cộng thêm", (so.get("trang_thai"), so["so_loi"], so["so_moi"], so["thuc_nhan"], so["phi"]),
+		(None, 1, 1, 120.0, -30.0))
+	la("bỏ đúng dòng lỗi đã dùng", dl2, [dict(vi_tri=3, ly_do="b")])
+	so, _ = V.nguon_sau_ban_sua(dict(n, so_loi=1), dl, "K2", dict(tien_hang=0, phi=0, thuc_nhan=0))
+	la("hết lỗi và không lỗi cấp tệp: Đã nhận", (so["trang_thai"], so["ly_do"], so["so_loi"]), ("Đã nhận", "", 0))
+	so, _ = V.nguon_sau_ban_sua(dict(n, so_loi=1), dict(dl, loi=["Tổng tệp lệch"]), "K2", {})
+	dung("còn lỗi cấp tệp thì không đổi sang Đã nhận", "trang_thai" not in so)
+
+
+@ca("Codex #450 vòng 14: báo cáo có dòng bị thay bằng bản sửa thì không tự nhận tiền về, bỏ giao dịch đang giữ")
+def _():
+	from types import SimpleNamespace as NS
+	from unittest.mock import patch
+	from vagabond import doi_soat_vendor as V
+	la("lý do", bool(K.ly_do_khong_tu_nhan("payoo_the", False, True)), True)
+	tt, ds, ghi = K.khop_ngan_hang("payoo_the", 500, "2026-07-16", "2026-07-23",
+		[dict(name="BT1", ngay="2026-07-18", tien=500, mo_ta="PAYOO TT")], ly_do_tay=K.ly_do_khong_tu_nhan("payoo_the", False, True))
+	la("một giao dịch khớp vẫn chờ kế toán", (tt, ds), ("Cần chọn tiền về", []))
+	ghi_ = {}
+	nguon = NS(name="N1", thuc_nhan=500, mau="payoo_the", trang_thai="Đã nhận", ngay_tien_ve="2026-07-17", den_ngay="2026-07-17",
+		company="CT", db_set=lambda d: ghi_.update(d))
+
+	def count(dt, f=None):
+		return 1 if f.get("thay_bang") else 0
+	with patch.object(V.frappe, "get_all", lambda dt, **k: [NS(name="BT1", date="2026-07-18", deposit=500, description="PAYOO TT",
+				reference_number="")] if dt == "Bank Transaction" else [], create=True), \
+			patch.object(V.frappe, "get_meta", lambda dt: NS(has_field=lambda f: False), create=True), \
+			patch.object(V.frappe.db, "count", count, create=True), \
+			patch.object(V.frappe.utils, "add_days", _cong_ngay, create=True), \
+			patch.object(V, "_ghi_them", lambda *a, **k: None):
+		V._tien_ve(nguon)
+	la("đối chiếu lại: chờ kế toán, không giữ giao dịch", (ghi_["trang_thai_tien"], ghi_["giao_dich_ngan_hang"]), ("Cần chọn tiền về", ""))
+
+
+@ca("Codex #450 vòng 14: nhận tệp ghi quan hệ 'có trong báo cáo' cho dòng trùng và lưu bản sửa")
+def _():
+	from types import SimpleNamespace as NS
+	from unittest.mock import patch
+	from vagabond import doi_soat_vendor as V
+	kq, xt = _xt_sua()
+	chen, trung, ghi = [], [], {}
+	nguon = NS(name="N3", trang_thai=xt["trang_thai"], insert=lambda **k: None)
+
+	def get_doc(d, *a, **k):
+		ghi.update(d)
+		return nguon
+	with patch.object(V.frappe, "get_doc", get_doc, create=True), \
+			patch.object(V.frappe.db, "savepoint", lambda n: None, create=True), \
+			patch.object(V.frappe.db, "bulk_insert", lambda dt, f, v, **k: trung.extend((dt, r[6:]) for r in v), create=True), \
+			patch.object(V.frappe.utils, "now", lambda: "2026-10-07 09:00:00", create=True), \
+			patch.object(V.frappe, "generate_hash", lambda **k: "h", create=True), \
+			patch.object(V, "_chen_dong", lambda *a: chen.append(a[5]["ma_don"])), \
+			patch.object(V, "_doi_chieu", lambda n: None):
+		V._ghi_nguon("C", dict(ten="t.pdf", sha256="s"), kq, xt, "Tải tay", None, None)
+	la("không ghi dòng mới nào (một trùng, một xung đột)", chen, [])
+	la("quan hệ trùng: GF-2 của nguồn này", trung, [(V.DT_TRUNG, ("N3", "C", xt["dong"][1]["dong"]["khoa"], 80000))])
+	import json
+	bs = json.loads(ghi["du_lieu"])["ban_sua"]
+	la("bản sửa lưu trong nguồn", [(b["khoa"], b["dong"]["mo_ta"]) for b in bs], [(xt["dong"][0]["dong"]["khoa"], "GrabFood tiền mặt")])
+
+
+@ca("Codex #450 vòng 14: Dùng bản sửa: dòng cũ thôi tính (giữ để tra), bản sửa thành dòng hiệu lực, đối chiếu lại cả hai nguồn")
+def _():
+	import json
+	from contextlib import nullcontext
+	from types import SimpleNamespace as NS
+	from unittest.mock import patch
+	from vagabond import doi_soat_vendor as V
+	kq, xt = _xt_sua()
+	bs = K.ban_sua(xt, kq["nhom"], kq["vendor"], kq["tai_khoan"])
+	k = bs[0]["khoa"]
+	viec = []
+	du_lieu = dict(ban_sua=bs, loi=[], dong_loi=[dict(vi_tri=1, ly_do="x")])
+	nguon = NS(name="N3", company="C", du_lieu=json.dumps(du_lieu), as_dict=lambda: dict(trang_thai="Cần xử lý", so_loi=1, so_moi=0,
+		tien_hang=100000, phi=20000, thuc_nhan=80000), db_set=lambda d: viec.append(("db_set", d)))
+	cu = NS(name="R-CU", nguon="N1", dau_noi_dung="dau-cu", thuc_nhan=80000)
+
+	def get_value(dt, f, *a, **kw):
+		if dt == V.DT_NGUON:
+			return NS(name="N3", company="C")
+		return cu
+
+	def sql(cau, tham=None, *a, **kw):
+		viec.append(("thoi_tinh", tham[2]))
+	with patch.object(V, "_chan", lambda *a: None), patch.object(V, "_chan_cong_ty", lambda c: None), \
+			patch.object(V, "khoa_doi_chieu", lambda *a, **kw: nullcontext()), \
+			patch.object(V.frappe.db, "get_value", get_value, create=True), \
+			patch.object(V.frappe, "get_doc", lambda *a: nguon, create=True), \
+			patch.object(V.frappe.db, "sql", sql, create=True), \
+			patch.object(V.frappe.db, "set_value", lambda dt, n, v, **kw: viec.append(("set", n, v["thay_bang"])), create=True), \
+			patch.object(V.frappe.utils, "now", lambda: "2026-10-07 10:00:00", create=True), \
+			patch.object(V.frappe, "session", NS(user="kt@x"), create=True), \
+			patch.object(V, "_ghi_trung", lambda n, c, cap: viec.append(("trung", n, cap))), \
+			patch.object(V, "_chen_dong", lambda n, c, nh, vd, tk, d: viec.append(("chen", n, nh, d["mo_ta"])) or NS(name="R-MOI")), \
+			patch.object(V, "_doi_chieu", lambda n: viec.append(("doi_chieu", n))):
+		V.dung_ban_sua(name="N3", khoa=k)
+	la("thứ tự", [v[0] for v in viec], ["thoi_tinh", "trung", "chen", "set", "db_set", "doi_chieu", "doi_chieu"])
+	la("thôi tính đúng dòng cũ", viec[0][1], "R-CU")
+	la("báo cáo cũ vẫn có sự kiện với tiền cũ", viec[1][1:], ("N1", [(k, 80000)]))
+	la("bản sửa ghi vào nguồn này", viec[2][1:], ("N3", "ban", "GrabFood tiền mặt"))
+	la("dòng cũ trỏ tới dòng mới", viec[3][1:], ("R-CU", "R-MOI"))
+	so = viec[4][1]
+	la("nguồn hết lỗi", (so["trang_thai"], so["so_loi"], so["so_moi"]), ("Đã nhận", 0, 1))
+	dung("bản sửa đánh dấu đã dùng", json.loads(so["du_lieu"])["ban_sua"][0]["da_dung"] == 1)
+	la("đối chiếu lại cả hai nguồn", [v[1] for v in viec[5:]], ["N3", "N1"])
+	# Bấm lại khi bản sửa đã dùng, hay dòng hiệu lực đã mang đúng nội dung: chặn.
+	for ten, dl, cu_ in (("đã dùng", dict(du_lieu, ban_sua=[dict(bs[0], da_dung=1)]), cu),
+			("đã đúng nội dung", du_lieu, NS(name="R", nguon="N1", dau_noi_dung=bs[0]["dong"]["dau_noi_dung"], thuc_nhan=1))):
+		nguon.du_lieu = json.dumps(dl)
+		cu = cu_
+		viec.clear()
+		with patch.object(V, "_chan", lambda *a: None), patch.object(V, "_chan_cong_ty", lambda c: None), \
+				patch.object(V, "khoa_doi_chieu", lambda *a, **kw: nullcontext()), \
+				patch.object(V.frappe.db, "get_value", get_value, create=True), \
+				patch.object(V.frappe, "get_doc", lambda *a: nguon, create=True), \
+				patch.object(V.frappe, "throw", lambda m: (_ for _ in ()).throw(ValueError(m)), create=True), \
+				patch.object(V, "_chen_dong", lambda *a: viec.append("chen")):
+			try:
+				V.dung_ban_sua(name="N3", khoa=k)
+				chan = False
+			except ValueError:
+				chan = True
+		la("chặn khi " + ten, (chan, viec), (True, []))
