@@ -681,7 +681,8 @@ def chi_tiet(email):
 		"bo_phan": bo_phan,
 		"bo_phan_ten": ten_ngan_bo_phan(bo_phan),
 		"bo_phan_bep": bep_cua_bo_phan(bo_phan),
-		"bo_phan_chon_duoc": cac_bo_phan_chon(_bo_phan_co_that()),
+		# Site chua co o Bo phan tren User thi khong moi doi (khong ve nut).
+		"bo_phan_chon_duoc": cac_bo_phan_chon(_bo_phan_co_that()) if _co_o_bo_phan() else [],
 	}
 
 
@@ -716,6 +717,15 @@ def _bo_phan_cua(email):
 	except Exception:
 		return ""
 	return (u.get("custom_phong_ban") or u.get("custom_bo_phan") or "").strip()
+
+
+def _co_o_bo_phan():
+	"""User co o `custom_phong_ban` khong. O nay la Custom Field tao tren site
+	(Link Department), khong nam trong ma nguon, nen bench dung moi chua co."""
+	try:
+		return bool(frappe.get_meta("User").has_field("custom_phong_ban"))
+	except Exception:
+		return False
 
 
 def _bo_phan_co_that():
@@ -920,6 +930,8 @@ def dat_bo_phan(email, bo_phan):
 	u = frappe.db.get_value("User", email, ["name", "full_name"], as_dict=True)
 	if not u:
 		frappe.throw("Không thấy tài khoản %s." % email)
+	if not _co_o_bo_phan():
+		frappe.throw("Tài khoản người dùng trên site này chưa có ô Bộ phận. Báo quản trị hệ thống thêm ô đó rồi đổi lại.")
 	bo_phan = str(bo_phan or "").strip()
 	if bo_phan not in set(_bo_phan_co_that()):
 		frappe.throw("Không có bộ phận %s. Chọn một bộ phận trong danh sách." % (bo_phan or "trống"))
