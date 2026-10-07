@@ -388,6 +388,9 @@ def _():
 		'cap = {"van_don": None, "purchase_invoice": None}' in inspect.getsource(V._noi_chuyen))
 
 
+_CT_DA_DOC = []  # pháp nhân mà _doc_va_xem được gọi với, trong _chay_thu
+
+
 def _chay_thu(tep, tieu_de, da_co=None):
 	"""Chạy xu_ly_thu THẬT (cả _nhan_byte thật) với tầng chạm hệ được thay:
 	tep = {tên đính kèm: [(tên tệp con, có mẫu?)]}. Trả (ket, các nguồn đã ghi)."""
@@ -399,6 +402,7 @@ def _chay_thu(tep, tieu_de, da_co=None):
 	ghi = []
 
 	def doc_va_xem(ten, byte, cong_ty):
+		_CT_DA_DOC.append(cong_ty)
 		ra = []
 		for con, co_mau in tep[ten]:
 			kq = dict(mau="payoo_the" if co_mau else "", loi=[] if co_mau else ["Chưa nhận ra mẫu"])
@@ -425,7 +429,7 @@ def _chay_thu(tep, tieu_de, da_co=None):
 			patch.object(V.frappe, "get_doc", lambda *a, **k: NS(get_content=lambda: b"x"), create=True), \
 			patch.object(V.frappe, "get_all", lambda *a, **k: tep_dinh, create=True), \
 			patch.object(V.frappe.db, "get_value", get_value, create=True), \
-			patch.object(V, "_ghi_thu_khong_tep", lambda comm, c: ghi.append(("THAN_THU", None)) or [dict(name="N-than")]):
+			patch.object(V, "_ghi_thu_khong_tep", lambda comm, c, ct=None: ghi.append(("THAN_THU", None)) or [dict(name="N-than")]):
 		ket = V.xu_ly_thu("COMM-1")
 	return ket, ghi
 
@@ -1453,3 +1457,30 @@ def _():
 						sai.append("%s:%s" % (os.path.relpath(duong, goc), so))
 	dung("đã dò đủ các tệp của app (có doi_soat_vendor.py)", so_tep > 50)
 	la("không còn order_by có hàm", sai, [])
+
+
+@ca("v585: pháp nhân demo ERPNext không hiện để chọn nhận tệp; thư vendor vào pháp nhân của hộp thư")
+def _():
+	# Site thật 07/10/2026: hai pháp nhân là "CÔNG TY TNHH PATISSERIE VAGABOND" và
+	# "The Vagabond (Demo)" (Global Defaults.demo_company), màn Tải file bắt chọn TV/TVD.
+	from vagabond.doi_soat_vendor import bo_demo, cong_ty_nhan, cong_ty_thu
+	that, demo = "CÔNG TY TNHH PATISSERIE VAGABOND", "The Vagabond (Demo)"
+	con = bo_demo([that, demo], demo, that)
+	la("bỏ demo", con, [that])
+	la("còn một pháp nhân thì tự chọn, không bắt bấm chip", cong_ty_nhan("", con), (that, "", False))
+	la("demo là mặc định thì giữ", bo_demo([that, demo], demo, demo), [that, demo])
+	la("demo là pháp nhân duy nhất thì giữ", bo_demo([demo], demo, ""), [demo])
+	la("không có demo thì giữ nguyên", bo_demo([that, "B"], "", that), [that, "B"])
+	la("hộp thư khai pháp nhân thì theo hộp thư", cong_ty_thu("B", that, demo), "B")
+	la("hộp thư chưa khai thì về mặc định", cong_ty_thu(None, that, demo), that)
+	la("hộp thư khai demo thì về mặc định", cong_ty_thu(demo, that, demo), that)
+
+
+@ca("v585: thư vendor ghi nguồn vào pháp nhân của hộp thư nhận, không phải mặc định site")
+def _():
+	from unittest.mock import patch
+	from vagabond import doi_soat_vendor as V
+	with patch.object(V, "_cong_ty_cua_thu", lambda comm: "B"):
+		ket, ghi = _chay_thu({"bao-cao.csv": [("bao-cao.csv", True)]}, "Thong bao")
+	la("ghi nguồn", [g[0] for g in ghi], ["bao-cao.csv"])
+	la("đọc theo pháp nhân B (mặc định site là CT)", _CT_DA_DOC[-1:], ["B"])
