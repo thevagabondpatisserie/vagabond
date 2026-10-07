@@ -167,6 +167,34 @@ def cong_ty_nhan(gui, duoc):
 	return "", "Chọn pháp nhân nhận tệp trước khi xem trước hay nhận.", False
 
 
+_TIEN_TO_CONG_TY = re.compile(r"^\s*(chi nhánh\s+)?(công ty|cty)\s+(tnhh|cổ phần|cp)?\s*(một thành viên|mtv)?\s*", re.I)
+TOI_DA_NHAN_CHIP = 16
+
+
+def nhan_ngan_cong_ty(ds):
+	"""THUẦN. Codex #450 vòng 17: nhãn chip pháp nhân tối đa 16 ký tự, không
+	trùng nhau (AGENTS.md mục 18). ds: [(tên đầy đủ, viết tắt)]. Bỏ tiền tố
+	chung "CÔNG TY TNHH ..."; phần còn lại vừa 16 ký tự thì dùng, không thì
+	dùng viết tắt của Company. Nhãn trùng nhau thì đổi sang viết tắt. Tên đầy
+	đủ vẫn là giá trị gửi lên và nằm trong title của chip."""
+	def cat(x):
+		x = (x or "").strip()
+		return x if len(x) <= TOI_DA_NHAN_CHIP else x[:TOI_DA_NHAN_CHIP - 1] + "…"
+
+	ra = {}
+	for ten, viet_tat in ds:
+		gon = _TIEN_TO_CONG_TY.sub("", ten or "").strip()
+		ra[ten] = gon if gon and len(gon) <= TOI_DA_NHAN_CHIP else cat(viet_tat or gon or ten)
+	dem = {}
+	for v in ra.values():
+		dem[v] = dem.get(v, 0) + 1
+	vt = dict(ds)
+	for ten in ra:
+		if dem[ra[ten]] > 1 and vt.get(ten):
+			ra[ten] = cat(vt[ten])
+	return ra
+
+
 def _cong_ty_nhan(gui):
 	ct, loi, quyen = cong_ty_nhan(gui, _cong_ty_xem())
 	if loi:
@@ -924,7 +952,9 @@ def ds(nhom=None, trang_thai=None, vendor=None, tim=None, ky=None, tu=None, den=
 	# hiện chip chọn khi có từ hai pháp nhân trở lên).
 	return dict(hang=hang[:50], con=len(hang) > 50, dem=dem, vendor=sorted(dem_vendor.keys() - {"tat_ca"}),
 		dem_vendor=dem_vendor, tong=tong_tien(tat_ca, nhom, vendor, trang_thai, _tong_duy_nhat),
-		cong_ty_nhan=[c for c in ct if c])
+		cong_ty_nhan=[c for c in ct if c],
+		nhan_cong_ty=nhan_ngan_cong_ty([(c.name, c.abbr) for c in frappe.get_all("Company",
+			filters={"name": ["in", [c for c in ct if c] or [""]]}, fields=["name", "abbr"])]))
 
 
 def loc_trang_thai(trang_thai):
