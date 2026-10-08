@@ -263,6 +263,20 @@ Object.defineProperty(ElementGia.prototype, 'childElementCount', {
   get: function () { return this.children.length; },
 });
 
+/* v587: classList toi thieu, dung chung cho moi ca (truoc day chi ca Nang cao tu bu). */
+Object.defineProperty(ElementGia.prototype, 'classList', {
+  get: function () {
+    var el = this;
+    function ds() { return (el.getAttribute('class') || '').split(/\s+/).filter(Boolean); }
+    return {
+      add: function (c) { var d = ds(); if (d.indexOf(c) < 0) d.push(c); el.setAttribute('class', d.join(' ')); },
+      remove: function (c) { el.setAttribute('class', ds().filter(function (x) { return x !== c; }).join(' ')); },
+      toggle: function (c, f) { var d = ds(), co = d.indexOf(c) >= 0; if (f === undefined) f = !co; d = d.filter(function (x) { return x !== c; }); if (f) d.push(c); el.setAttribute('class', d.join(' ')); return f; },
+      contains: function (c) { return ds().indexOf(c) >= 0; },
+    };
+  },
+  configurable: true,  /* vai ca cu tu dinh nghia lai classList cua rieng ho */
+});
 Object.defineProperty(ElementGia.prototype, 'className', {
   get: function () { return this.getAttribute('class') || ''; },
   set: function (v) { this.setAttribute('class', v); },

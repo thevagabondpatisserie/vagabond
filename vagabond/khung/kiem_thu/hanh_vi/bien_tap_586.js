@@ -288,7 +288,7 @@ function appMoi(tuy) {
   });
 
   /* ---------------- trang khach: the Tiec (chuyen-muc.js) ---------------- */
-  function trangKhach(ve, them) {
+  function trangKhach(ve, them, khoiThem) {
     var tl = dg.taiLieuGia();
     dg.doc('<button data-tab="tiec" hidden></button><div id="noi-uu_dai"></div><div id="noi-tuyen_dung"></div><div id="noi-tiec"></div>', tl.body);
     var guiDi = [];
@@ -310,7 +310,7 @@ function appMoi(tuy) {
       { id: 't2', loai: 'tiec', hien: true, tieu_de: 'Hết vé', bat_dau: mai, so_ve: '10' },
       { id: 't3', loai: 'tiec', hien: true, tieu_de: 'Đã qua', bat_dau: hom_qua },
       { id: 't4', loai: 'tiec', hien: false, tieu_de: 'Ẩn', bat_dau: mai },
-    ], ve: ve || { t1: 38, t2: 10 } });
+    ].concat(khoiThem || []), ve: ve || { t1: 38, t2: 10 } });
     return { tl: tl, g: g, guiDi: guiDi, mot: function (c) { return tl.body.querySelector(c); } };
   }
 
@@ -359,6 +359,64 @@ function appMoi(tuy) {
     bang('hoac window.csrf_token', g2.headers['X-Frappe-CSRF-Token'], 'tk-win');
     var g3 = await guiDangKy(trangKhach(null, { csrf_token: 'None' }));
     dung('khach vang lai: khong gui token gia', !('X-Frappe-CSRF-Token' in g3.headers));
+  });
+
+  /* ---------------- v587 phuong an B: chu dai gap, thuc don nhan, ten muc (Minh Vu 08/10) ---------------- */
+  var CHU_DAI = new Array(60).join('Mùa xuân năm 1934, báo Phong Hóa mở chuyên mục. ');
+  var MON_12 = ['Bánh dẻo trứng muối', 'Bánh bò thốt nốt', 'Bánh đậu xanh', 'Bánh lọt', 'Kem dừa sáp', 'Gỏi bưởi', 'Bánh ram ít', 'Bánh ít khổ qua', 'Bánh da lợn', 'Chè trôi nước', 'Bánh cam', 'Bánh tiêu'].join('\n');
+
+  await ca('v587 tiec: chu dai gap 5 dong co nut Doc tiep, bam thi mo roi Thu gon; chu ngan khong co nut', async function () {
+    var t = trangKhach(null, null, [
+      { id: 'td', loai: 'tiec', hien: true, tieu_de: 'Dài', bat_dau: '2099-01-01', noi_dung: CHU_DAI, yeu_cau: MON_12, so_ve: '40', gia_ve: '550000' },
+      { id: 'tn', loai: 'tiec', hien: true, tieu_de: 'Ngắn', bat_dau: '2099-01-01', noi_dung: 'Một câu.', so_ve: '40' },
+    ]);
+    var dai = t.tl.body.querySelector('[data-khoi="td"]'), ngan = t.tl.body.querySelector('[data-khoi="tn"]');
+    var doan = dai.querySelector('.cm-doan'), nut = dai.querySelector('.cm-doc-tiep');
+    dung('chu dai co lop gap va nut Doc tiep', doan.className.indexOf('cm-gap') >= 0 && nut && String(nut.textContent) === 'Đọc tiếp');
+    nut.onclick();
+    dung('bam thi bo gap, nut thanh Thu gon', doan.className.indexOf('cm-gap') < 0 && String(nut.textContent) === 'Thu gọn' && nut.getAttribute('aria-expanded') === 'true');
+    nut.onclick();
+    dung('bam lan nua thi gap lai', doan.className.indexOf('cm-gap') >= 0);
+    dung('chu ngan khong co nut', !ngan.querySelector('.cm-doc-tiep') && ngan.querySelector('.cm-doan').className.indexOf('cm-gap') < 0);
+  });
+
+  await ca('v587 tiec: thuc don 12 mon hien 8 nhan va "+ 4 mon nua", bam thi hien du 12', async function () {
+    var t = trangKhach(null, null, [{ id: 'td', loai: 'tiec', hien: true, tieu_de: 'Dài', bat_dau: '2099-01-01', noi_dung: 'x', yeu_cau: MON_12, so_ve: '40' }]);
+    var dai = t.tl.body.querySelector('[data-khoi="td"]');
+    var nhan = function () { return dai.querySelectorAll('.cm-mon-nhan').filter(function (x) { return x.className.indexOf('cm-mon-them') < 0; }); };
+    var them = dai.querySelector('.cm-mon-them');
+    bang('8 nhan dau', nhan().length, 8);
+    bang('nut mo phan con lai', String(them.textContent), '+ 4 món nữa');
+    bang('dem mon o tieu de', String(dai.querySelector('.cm-dem').textContent), '12 món');
+    them.onclick();
+    bang('du 12 nhan', nhan().length, 12);
+    dung('nut bien mat', !dai.querySelector('.cm-mon-them'));
+    dung('khong con danh sach cham cu', !dai.querySelector('.cm-ds'));
+  });
+
+  await ca('v587 tiec: hop thong tin tren anh co nhan gop, gia, vach ve con, nut Dang ky; form mo duoi than', async function () {
+    var t = trangKhach();
+    var the = t.tl.body.querySelector('[data-khoi="t1"]');
+    var hop = the.querySelector('.cm-hop');
+    dung('hop nam trong hero', hop && hop.parentNode.className.indexOf('cm-hero') >= 0);
+    dung('nhan gop trang thai va ve con', String(hop.querySelector('.cm-nhan').textContent).indexOf('Còn 2 vé') >= 0);
+    dung('vach ve con 95%', hop.querySelector('.cm-vach-thanh').querySelector('i').style.width === '95%');
+    var nut = hop.querySelector('.cm-nut');
+    dung('nut Dang ky trong hop', nut && String(nut.textContent) === 'Đăng ký tham gia');
+    nut.dispatchEvent(dg.suKien('click', {}, nut)); await nghi();
+    dung('form mo trong than, khong trong hop', the.querySelector('.cm-than').querySelector('.cm-dk') && !hop.querySelector('.cm-dk'));
+    var het = t.tl.body.querySelector('[data-khoi="t2"]');
+    dung('het ve: khong co nut, nhan bao het', !het.querySelector('.cm-nut') && String(het.querySelector('.cm-nhan').textContent).indexOf('Đã hết vé') >= 0);
+  });
+
+  await ca('v587 uu dai: nhan va Sap dien ra mot dong, ngay trung ghi mot lan, ma uu dai co o rieng', async function () {
+    var mai = new Date(Date.now() + 86400000 * 10).toISOString().slice(0, 10);
+    var t = trangKhach(null, null, [{ id: 'u9', loai: 'uu_dai', hien: true, nhom: 'Sinh nhật', tieu_de: 'Freeship 15k', bat_dau: mai, ket_thuc: mai, ma_uu_dai: 'SINHNHAT10', noi_dung: 'x' }]);
+    var u = t.tl.body.querySelector('[data-khoi="u9"]');
+    bang('nhan gop', String(u.querySelector('.cm-nhan').textContent), 'Sinh nhật · Sắp diễn ra');
+    bang('ngay mot lan', String(u.querySelector('.cm-ngay').textContent), mai.split('-').reverse().join('/'));
+    bang('ma trong o rieng', String(u.querySelector('.cm-ma').querySelector('b').textContent), 'SINHNHAT10');
+    bang('khong con dong trang thai rieng', u.querySelectorAll('.cm-trang-thai').length, 0);
   });
 
   /* ---------------- Nang cao (bien-tap.js): tran so khoi do may chu quyet (Codex #454) ---------------- */

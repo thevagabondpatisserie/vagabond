@@ -24,3 +24,45 @@
 .cm-dk-xong{color:var(--cyan);margin:0}
 .cm-dk .cm-nut{align-self:flex-start;background:var(--cyan);color:#00201D;cursor:pointer}
 .cm-dk .cm-nut:disabled{opacity:.5;cursor:wait}
+
+/* v587 (Minh Vũ báo 08/10, anh Việt chọn phương án B): tên mục chữ trắng
+   cho đủ tương phản; chữ dài gấp 5 dòng; thẻ tiệc ảnh ngang tràn thẻ, hộp
+   thông tin nổi, thân hai cột, thực đơn dạng nhãn. */
+.cm-noi-dung h2,.cm-hop h2{color:var(--paper);font-size:40px;line-height:1.15;text-shadow:0 0 1px rgba(255,255,255,.35)}
+.cm-ma{display:inline-flex;gap:10px;align-items:center;border:1px dashed var(--cyan);color:var(--cyan);padding:6px 14px;margin:8px 0;letter-spacing:.06em}
+.cm-ma b{font-weight:400;color:var(--paper)}
+.cm-gap-khung{margin:0}
+.cm-doan.cm-gap{display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden;white-space:normal}
+.cm-doc-tiep{display:inline-flex;align-items:center;min-height:36px;color:var(--cyan);border-bottom:1px solid var(--cyan-dim);margin-top:6px;cursor:pointer}
+.cm-doc-tiep:after{content:" ↓";margin-left:4px}
+.cm-doc-tiep[aria-expanded=true]:after{content:" ↑"}
+.cm-the.cm-tiec,.cm-the.cm-tiec:only-child{grid-column:1/-1;display:block}
+.cm-hero{position:relative;display:grid;justify-items:end;min-height:380px;padding:28px;overflow:hidden;background:#06201e}
+.cm-the.cm-tiec .cm-hero .cm-anh{position:absolute;inset:0;width:100%;height:100%;max-height:none;min-height:0;object-fit:cover;object-position:50% 40%;z-index:0}
+.cm-the.cm-tiec .cm-hero .cm-anh-nen{aspect-ratio:auto;border-bottom:0}
+.cm-hero:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(2,16,15,0) 50%,rgba(2,16,15,.9) 100%);pointer-events:none;z-index:1}
+.cm-hop{position:relative;width:min(340px,46%);z-index:2;background:rgba(2,16,15,.74);border:1px solid var(--line);padding:22px;backdrop-filter:blur(6px)}
+.cm-hop h2{font-size:30px;margin:4px 0 10px}
+.cm-hop .cm-ngay,.cm-hop .cm-thong-tin{margin:2px 0;font-size:14.5px}
+.cm-hop .cm-gia{font-size:24px;margin:12px 0 4px}
+.cm-vach{display:flex;align-items:center;gap:10px;color:var(--fog);font-size:13.5px;margin:4px 0 8px}
+.cm-vach-thanh{display:block;flex:1;height:4px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden}
+.cm-vach-thanh i{display:block;height:100%;background:var(--cyan);border-radius:2px}
+.cm-hop .cm-han{color:var(--fog);font-size:13px}
+.cm-hop .cm-nut{width:100%;justify-content:center;background:var(--cyan);color:#00201D;margin-top:12px;cursor:pointer}
+.cm-than{display:grid;grid-template-columns:1.35fr 1fr;gap:40px;padding:26px 30px 28px}
+.cm-than .cm-nhan{margin-bottom:8px}
+.cm-thuc-don .cm-nhan{display:flex;justify-content:space-between}
+.cm-thuc-don .cm-dem{color:var(--fog)}
+.cm-mon{display:flex;flex-wrap:wrap;gap:8px}
+.cm-mon-nhan{border:1px solid var(--line);border-radius:18px;padding:5px 12px;font-size:13.5px;color:rgba(255,255,255,.85);min-height:32px;display:inline-flex;align-items:center}
+.cm-mon-them{border-style:dashed;color:var(--cyan);cursor:pointer;min-height:44px}
+.cm-tiec .cm-dk{grid-column:1/-1}
+@media(max-width:760px){
+  .cm-noi-dung h2{font-size:30px}
+  .cm-hero{display:block;min-height:0;padding:0}
+  .cm-the.cm-tiec .cm-hero .cm-anh{position:static;height:230px}.cm-the.cm-tiec .cm-hero .cm-anh-nen{height:auto;aspect-ratio:16/9}
+  .cm-hero:after{display:none}
+  .cm-hop{width:auto;border:0;border-top:1px solid var(--line);backdrop-filter:none;padding:20px}
+  .cm-than{grid-template-columns:1fr;gap:24px;padding:0 20px 22px}
+}
