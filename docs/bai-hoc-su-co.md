@@ -1960,3 +1960,15 @@ cách đúng là giữ phép chặn sớm (đọc thường) và thêm phép QUY
 khoá ngay trước khi ghi, trong khoá ghi, rồi commit. Cùng vòng: máy chủ nâng
 trần khối 30 lên 80 nhưng bảng Nâng cao vẫn chép cứng 30, nên chặn sớm. Trần
 nay đi kèm `doc_bang`; JS không tự đặt số.
+
+## 08/10/2026 - v587: thẻ tiệc chữ dài kéo tuột, tên ưu đãi chìm
+
+Minh Vũ thử thẻ Tiệc với bài giới thiệu dài và thực đơn 12 món: thẻ hai cột
+kéo dài theo chữ, nút Đăng ký rơi xuống đáy, ảnh bị kéo giãn. Tên ưu đãi dùng
+màu xanh thương hiệu bằng chữ viết tay nét mảnh trên nền xanh đen, tương phản
+khoảng 4:1, nhìn như chữ chìm. Bài học: khi marketing được tự nhập chữ thì
+mọi khung phải chịu được chữ dài gấp mười lần mẫu; thiết kế xong phải thử
+với bài thật của marketing chứ không chỉ dữ liệu mẫu ngắn. Sửa: chữ gấp 5
+dòng có Đọc tiếp, thực đơn thành nhãn, hộp thông tin nổi trên ảnh ngang,
+tên mục chữ trắng. Ngưỡng gấp tính theo số ký tự để trang khách và khung
+"Khách sẽ thấy" vẽ giống nhau và kiểm được bằng node.
