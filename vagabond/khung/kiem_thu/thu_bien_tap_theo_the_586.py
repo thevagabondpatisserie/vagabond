@@ -248,6 +248,7 @@ class _Site(object):
         self.sql = []
         self.ghi_settings = []
         self.hang = {}
+        self.doc_gv = []
 
     def vao(self):
         fr = sys.modules["frappe"]
@@ -263,7 +264,8 @@ class _Site(object):
 
         db = types.SimpleNamespace(
             sql=_sql, exists=lambda *a, **k: True,
-            get_value=lambda dt, ten, *a, **k: site.hang.get(ten),
+            get_value=lambda dt, ten, *a, **k: (site.doc_gv.append((ten, bool(k.get("for_update")), len(site.sql))), site.hang.get(ten))[1],
+            savepoint=lambda *a: None, rollback=lambda *a, **k: None,
             set_single_value=lambda dt, k, v: (site.ghi_settings.append((k, v)), site.settings.__setitem__(k, v)),
         )
         return [
@@ -398,7 +400,8 @@ def _dk_ham_that():
     ps = site.vao()
     fr = sys.modules["frappe"]
     ps += [um.patch.object(fr, "get_doc", lambda d, *a, **k: _Phieu(d) if isinstance(d, dict) else site.doc),
-           um.patch.object(tw, "dem_ve", lambda ids: (site.sql.append("DEM"), {})[1]),
+           um.patch.object(fr, "generate_hash", lambda length=10: "h" * length, create=True),
+           um.patch.object(fr.local, "message_log", [], create=True),
            um.patch.object(nw, "_ban_cong_khai", lambda: json.loads(site.doc.ban_cong_khai))]
     for p in ps:
         p.start()
@@ -412,9 +415,62 @@ def _dk_ham_that():
             p.stop()
     la("một đăng ký", len(them), 1)
     la("gửi lại trả cùng mã", kq["ma"], kq2["ma"])
-    i_khoa = next(i for i, q in enumerate(site.sql) if "for update" in q)
-    dung("khoá hàng trước khi đếm vé", i_khoa < site.sql.index("DEM"))
+    # GHI CHÚ (Codex #453 vòng 1): bản trước của ca này thay hẳn dem_ve bằng
+    # hàm giả, nên không bao giờ thấy câu đếm vé là đọc thường. Giữ dem_ve
+    # thật, soi đúng câu SQL nó chạy.
+    i_khoa = next(i for i, q in enumerate(site.sql) if "tabVagabond Noi Dung Web" in q and "for update" in q)
+    dem = [(i, q) for i, q in enumerate(site.sql) if "sum(so_ve)" in q]
+    la("đếm vé một lần", len(dem), 1)
+    dung("khoá hàng trước khi đếm vé", i_khoa < dem[0][0])
+    dung("đếm vé sau khoá là đọc hiện tại (for update)", "for update" in dem[0][1])
+    sau_khoa = [g for g in site.doc_gv if i_khoa < g[2] <= dem[0][0]]
+    dung("đọc lại mã lần gửi sau khoá là đọc hiện tại", bool(sau_khoa) and all(g[1] for g in sau_khoa))
     la("trạng thái đầu", them[0]["trang_thai"], "Chờ xác nhận")
+
+
+@ca("v586 (Codex #453): hai lần gửi CÙNG mã chen nhau, lần sau đâm khoá chính thì trả lại đăng ký trước")
+def _dk_trung_dong_thoi():
+    site = _Site(_nd(TIEC), _nd(TIEC))
+    du = {"tiec_id": "tiec-1", "ten": "Lan", "sdt": "0909123456", "so_ve": "2"}
+    dau = __import__("hashlib").sha256(json.dumps(du, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+    ma = "0f0e0d0c-0b0a-4908-8706-050403020100"
+    ten = __import__("hashlib").sha256(("tiec:" + ma).encode()).hexdigest()
+    vet = []
+
+    class _Trung(Exception):
+        pass
+
+    class _Phieu(dict):
+        def __init__(self, d):
+            super().__init__(d); self.flags = types.SimpleNamespace(); self.name = d["name"]
+
+        def insert(self, **k):
+            # Lần gửi kia đã ghi xong đúng lúc này: mọi lần đọc trước đều trống.
+            fr.local.message_log.append("Duplicate Name")
+            site.hang[ten] = types.SimpleNamespace(name=ten, bam_noi_dung=dau)
+            raise _Trung()
+
+    ps = site.vao()
+    fr = sys.modules["frappe"]
+    ps += [um.patch.object(fr, "get_doc", lambda d, *a, **k: _Phieu(d) if isinstance(d, dict) else site.doc),
+           um.patch.object(fr, "DuplicateEntryError", _Trung, create=True),
+           um.patch.object(fr, "generate_hash", lambda length=10: "h" * length, create=True),
+           um.patch.object(fr.local, "message_log", ["truoc"], create=True),
+           um.patch.object(nw, "_ban_cong_khai", lambda: json.loads(site.doc.ban_cong_khai))]
+    for p in ps:
+        p.start()
+    fr.db.savepoint = lambda m: vet.append(("moc", m))
+    fr.db.rollback = lambda save_point=None: vet.append(("lui", save_point))
+    try:
+        kq = tw.dang_ky(json.dumps(du), ma)
+        log = list(fr.local.message_log)
+    finally:
+        for p in reversed(ps):
+            p.stop()
+    la("trả lại đăng ký trước, không báo lỗi", kq, {"ok": 1, "ma": ten[:8].upper()})
+    la("lùi đúng điểm lưu vừa đặt", [v[0] for v in vet], ["moc", "lui"])
+    la("bỏ thông báo Duplicate Name của lần chèn hỏng", log, ["truoc"])
+    dung("đọc lại sau lùi là đọc hiện tại", site.doc_gv[-1][1])
 
 
 @ca("v586: sales chỉ đổi trạng thái theo chiều tới, không sửa chữ khách gửi")
@@ -462,21 +518,87 @@ def _trang(kich):
     return json.loads(r.stdout)
 
 
-@ca("v586: điểm nhận bánh lấy từ thẻ Cửa hàng, hiện ở bước Tự lấy, xoá hết thì về hai điểm cũ")
+@ca("v586: điểm nhận bánh lấy từ thẻ Cửa hàng; tắt hết thì ẩn Tự đến lấy, KHÔNG về điểm cũ (Codex #453)")
 def _diem_nhan_trang():
     d = _trang(r'''
 const goc=PICKUPS.map(x=>x.n);
+capNhatDiemNhan(undefined);
+const chuaTai=PICKUPS.map(x=>x.n);
 capNhatDiemNhan([{n:'Bếp A',a:'1 Đường A'},{n:'Quầy B',a:'2 Đường B'},{n:'Quầy C',a:'3 Đường C'}]);
-CO.mode='pick';setPickup(2);
-const html=EL('#pickList').innerHTML, chon=CO.pickup;
+setMode('pick');setPickup(2);
+const html=EL('#pickList').innerHTML, chon=CO.pickup, anTruoc=EL('#m-pick').hidden;
 capNhatDiemNhan([]);
-RA({goc,html,chon,ve:PICKUPS.map(x=>x.n),sau:CO.pickup});
+RA({goc,chuaTai,html,chon,anTruoc,ve:PICKUPS.map(x=>x.n),an:EL('#m-pick').hidden,mode:CO.mode});
 ''')
     la("trước khi tải nội dung: hai điểm cũ", d["goc"], ["Bếp Tân Sơn Hoà", "Cửa hàng Sài Gòn"])
+    la("chưa có dữ liệu thì giữ nguyên", d["chuaTai"], ["Bếp Tân Sơn Hoà", "Cửa hàng Sài Gòn"])
     dung("bước Tự lấy có điểm mới", "Quầy C" in d["html"] and "3 Đường C" in d["html"])
     la("chọn được điểm thứ ba", d["chon"], 2)
-    la("danh sách trống thì về hai điểm cũ", d["ve"], ["Bếp Tân Sơn Hoà", "Cửa hàng Sài Gòn"])
-    la("điểm đang chọn không còn thì về điểm đầu", d["sau"], 0)
+    la("còn điểm thì nút Tự đến lấy hiện", d["anTruoc"], False)
+    la("đã tải mà rỗng: không còn điểm nào", d["ve"], [])
+    la("nút Tự đến lấy ẩn", d["an"], True)
+    la("đang chọn tự lấy thì chuyển về giao tận nơi", d["mode"], "ship")
+
+
+@ca("v586: luật điểm nhận một nguồn ở máy chủ, mặc định trùng hai điểm cũ của trang")
+def _diem_nhan_thuan():
+    la("mặc định", [x["n"] for x in nw.diem_nhan({})], ["Bếp Tân Sơn Hoà", "Cửa hàng Sài Gòn"])
+    tat = copy.deepcopy(nw.THONG_TIN_MAC_DINH)
+    for c in tat["cua_hang"]:
+        c["nhan_banh"] = False
+    la("tắt hết là rỗng", nw.diem_nhan({"thong_tin": tat}), [])
+    la("xoá hết là rỗng", nw.diem_nhan({"thong_tin": {"cua_hang": []}}), [])
+    thieu = {"thong_tin": {"cua_hang": [{"ten": "A", "dia_chi": " ", "nhan_banh": True}, {"ten": "B", "dia_chi": "2 Đường B", "nhan_banh": True}]}}
+    la("thiếu địa chỉ thì không nhận", nw.diem_nhan(thieu), [{"n": "B", "a": "2 Đường B"}])
+
+
+@ca("v586 (Codex #453): trang khách nhận điểm nhận do máy chủ tính, không tự lọc lại danh sách cửa hàng")
+def _cua_hang_dung_diem_may_chu():
+    import subprocess
+    js = r'''
+const fs=require('fs'),vm=require('vm');const nhan=[];
+const g={console,setTimeout,CustomEvent:function(){},location:{search:'',hash:'',origin:'x'}};
+g.window=g;g.parent=g;g.self=g;
+g.document={querySelectorAll:()=>[],getElementById:()=>null,dispatchEvent(){},createElement:()=>({})};
+g.capNhatDiemNhan=ds=>nhan.push(ds);g.VgbKhoi={ve(){}};
+const ND=JSON.parse(process.argv[2]);
+g.fetch=async()=>({ok:true,json:async()=>({message:ND})});
+vm.runInNewContext(fs.readFileSync(process.argv[1],'utf8'),g);
+setTimeout(()=>console.log(JSON.stringify(nhan)),50);
+'''
+    tep = os.path.join(GOC, "public", "web_order", "cua-hang.js")
+    def chay(nd):
+        r = subprocess.run(["node", "-e", js, tep, json.dumps(nd, ensure_ascii=False)], capture_output=True, text=True, timeout=30)
+        if r.returncode:
+            raise AssertionError(r.stderr[:800])
+        return json.loads(r.stdout)
+    ch = [{"ten": "Quầy cũ", "dia_chi": "1 A", "nhan_banh": True}]
+    la("đúng danh sách máy chủ gửi", chay({"khoi": [], "thong_tin": {"cua_hang": ch}, "diem_nhan": [{"n": "Quầy mới", "a": "2 B"}], "lien_he": {}}),
+       [[{"n": "Quầy mới", "a": "2 B"}]])
+    la("máy chủ nói rỗng thì rỗng, dù cửa hàng còn bật", chay({"khoi": [], "thong_tin": {"cua_hang": ch}, "diem_nhan": [], "lien_he": {}}), [[]])
+    la("máy chủ cũ chưa gửi điểm nhận thì không đụng tới", chay({"khoi": [], "thong_tin": {"cua_hang": ch}, "lien_he": {}}), [])
+
+
+@ca("v586 (Codex #453): đổi Messenger ở thẻ Liên hệ thì MỌI chỗ trên trang theo, kể cả câu báo đơn lỗi")
+def _messenger_mot_nguon():
+    d = _trang(r'''
+const truoc=linkMessenger();
+vgbApLienHe({messenger:'https://m.me/tai-khoan-moi'});
+const sau=linkMessenger();
+vgbApLienHe({messenger:''});
+RA({truoc,sau,trong:linkMessenger()});
+''')
+    dung("chưa tải: link mặc định", "https://m.me/thevagabond.saigon" in d["truoc"])
+    dung("câu báo đơn lỗi trỏ link mới", "https://m.me/tai-khoan-moi" in d["sau"] and "thevagabond.saigon" not in d["sau"])
+    dung("để trống thì chỉ còn chữ, không link cũ", "href" not in d["trong"] and "Messenger" in d["trong"])
+    # DOM giả của node không dựng thẻ a đầy đủ, nên phần "mọi thẻ a theo" kiểm
+    # bằng trình duyệt thật (ảnh và số đo trên PR #453). Ở đây chỉ chốt điều
+    # không chạy được: không còn thẻ a mạng xã hội nào thiếu dấu một nguồn, và
+    # CONFIG.messenger chỉ còn được đọc trong linkMessenger.
+    trang = io.open(os.path.join(GOC, "trang", "banh.html"), encoding="utf-8").read()
+    the_a = re.findall(r"<a\b[^>]*href=\"https://(?:m\.me|instagram\.com|www\.tiktok\.com)/[^>]*>", trang)
+    la("thẻ a mạng xã hội thiếu data-vgb-mxh", [a for a in the_a if "data-vgb-mxh" not in a], [])
+    la("chỗ đọc CONFIG.messenger", len(re.findall(r"CONFIG\.messenger", trang)), 2)
 
 
 @ca("v586: đổi số ở thẻ Liên hệ thì mọi câu có số cũ đổi theo, kể cả câu marketing đã sửa")
