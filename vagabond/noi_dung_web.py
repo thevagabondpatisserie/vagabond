@@ -347,6 +347,16 @@ def thong_tin_day_du(du_lieu):
     return {"cua_hang": copy.deepcopy(ch)}
 
 
+def diem_nhan(du_lieu):
+    """Điểm nhận bánh khách được chọn ở bước Tự lấy: cửa hàng bật "Nhận bánh
+    tại đây" và có địa chỉ. THUẦN, máy chủ và trang khách cùng theo một luật.
+    Danh sách rỗng là marketing đã tắt hết, KHÔNG quay về điểm cũ (Codex #453)."""
+    return [{"n": str(c.get("ten") or "").strip(), "a": str(c.get("dia_chi") or "").strip()}
+            for c in thong_tin_day_du(du_lieu)["cua_hang"]
+            if isinstance(c, dict) and c.get("nhan_banh") and str(c.get("dia_chi") or "").strip()
+            and str(c.get("ten") or "").strip()]
+
+
 def chuan_hoa(du_lieu):
     """Giới hạn kích thước và cấu trúc trước khi lưu, dùng cả ở Document.save."""
     if isinstance(du_lieu, str):
@@ -607,6 +617,7 @@ def cong_khai():
     # Liên hệ đọc từ nguồn #367 (Settings) để mọi trang thay đúng số gọi.
     from vagabond.don_web import lien_he
     ra["thong_tin"] = thong_tin_day_du(ra)
+    ra["diem_nhan"] = diem_nhan(ra)
     ra["lien_he"] = lien_he()
     ra["ve"] = _dem_ve(ra)
     return ra

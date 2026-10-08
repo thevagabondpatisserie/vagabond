@@ -105,13 +105,19 @@ from frappe.rate_limiter import rate_limit
 DOCTYPE = "Vagabond Dang Ky Tiec"
 
 
-def dem_ve(ids):
-    """Tổng vé đã đăng ký chưa huỷ theo từng tiệc: {id: số}."""
+def dem_ve(ids, khoa=False):
+    """Tổng vé đã đăng ký chưa huỷ theo từng tiệc: {id: số}.
+
+    khoa=True là phép đọc HIỆN TẠI có khoá (for update), dùng ngay sau khi
+    đã xếp hàng ở cửa đăng ký. MariaDB REPEATABLE READ cho phép đọc thường
+    tiếp tục thấy ảnh chụp cũ từ trước lúc chờ khoá, nên hai khách cùng bấm
+    sẽ cùng thấy một tổng vé và vượt số vé (Codex #453)."""
     if not ids:
         return {}
     ds = frappe.db.sql(
         """select tiec_id, sum(so_ve) from `tabVagabond Dang Ky Tiec`
-        where tiec_id in %(ids)s and trang_thai != 'Đã hủy' group by tiec_id""",
+        where tiec_id in %(ids)s and trang_thai != 'Đã hủy' group by tiec_id"""
+        + (" for update" if khoa else ""),
         {"ids": tuple(ids)},
     )
     return {r[0]: int(r[1] or 0) for r in ds}
@@ -137,24 +143,50 @@ def dang_ky(du_lieu, ma_lan_gui):
         frappe.throw(str(e))
     dau = hashlib.sha256(chuoi.encode()).hexdigest()
     ten = hashlib.sha256(("tiec:" + ma_lan_gui).encode()).hexdigest()
-    cu = frappe.db.get_value(DOCTYPE, ten, ["name", "bam_noi_dung"], as_dict=True)
+    cu = _da_nhan(ten, dau)
     if cu:
-        if cu.bam_noi_dung != dau:
-            frappe.throw("Đăng ký trước đã được nhận. Tải lại trang để đăng ký thêm.")
-        return {"ok": 1, "ma": cu.name[:8].upper()}
-    # Khoá hàng nội dung web: mọi đăng ký tiệc xếp hàng qua đây, nên đếm vé
-    # rồi ghi không bị hai khách chen nhau vượt số vé.
+        return cu
+    # Khoá hàng nội dung web: mọi đăng ký tiệc xếp hàng qua đây. Sau khoá,
+    # MỌI phép đọc phải là đọc hiện tại (for update), không dùng lại ảnh chụp
+    # REPEATABLE READ có từ trước lúc chờ (Codex #453).
     frappe.db.sql("select name from `tabVagabond Noi Dung Web` where name='order' for update")
+    cu = _da_nhan(ten, dau, khoa=True)
+    if cu:
+        return cu
     tiec = _tiec_cong_khai(str(raw.get("tiec_id") or ""))
     try:
-        nd = chuan_hoa(raw, tiec, dem_ve([tiec["id"]]).get(tiec["id"], 0) if tiec else 0,
+        nd = chuan_hoa(raw, tiec, dem_ve([tiec["id"]], khoa=True).get(tiec["id"], 0) if tiec else 0,
                        str(frappe.utils.nowdate()))
     except (TypeError, ValueError) as e:
         frappe.throw(str(e))
     d = frappe.get_doc(dict(nd, doctype=DOCTYPE, name=ten, bam_noi_dung=dau, trang_thai="Chờ xác nhận"))
     d.flags.dang_ky_web = True
-    d.insert(ignore_permissions=True)
+    # Như dat_ban.dat: chưa có hàng nội dung web để khoá thì hai lần gửi cùng
+    # mã vẫn có thể cùng tới đây; lần sau đâm khoá chính thì trả lại lần trước.
+    moc = "dang_ky_tiec_" + frappe.generate_hash(length=12)
+    frappe.db.savepoint(moc)
+    so_thong_bao = len(frappe.local.message_log or [])
+    try:
+        d.insert(ignore_permissions=True)
+    except frappe.DuplicateEntryError:
+        frappe.db.rollback(save_point=moc)
+        cu = _da_nhan(ten, dau, khoa=True)
+        if not cu:
+            raise
+        # db_insert đã thêm thông báo Duplicate Name trước khi ném lỗi.
+        del frappe.local.message_log[so_thong_bao:]
+        return cu
     return {"ok": 1, "ma": d.name[:8].upper()}
+
+
+def _da_nhan(ten, dau, khoa=False):
+    """Đăng ký cùng mã lần gửi đã có thì trả kết quả cũ, khác nội dung thì chặn."""
+    cu = frappe.db.get_value(DOCTYPE, ten, ["name", "bam_noi_dung"], as_dict=True, for_update=khoa)
+    if not cu:
+        return None
+    if cu.bam_noi_dung != dau:
+        frappe.throw("Đăng ký trước đã được nhận. Tải lại trang để đăng ký thêm.")
+    return {"ok": 1, "ma": cu.name[:8].upper()}
 
 
 def kiem_phieu(doc):
