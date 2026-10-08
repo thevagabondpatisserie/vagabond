@@ -126,6 +126,14 @@ def doc_xlsx(noi_dung):
 		raise LoiTep("Không mở được tệp Excel; tệp có thể có mật khẩu hoặc bị hỏng.") from None
 	trang = []
 	for ws in sach.worksheets:
+		# #457 (chị Dung 08/10): tệp Xanh SM và Excel gõ tay từ công cụ ngoài
+		# Excel ghi <dimension ref="A1"/> sai, read_only tin vào đó nên mỗi
+		# trang chỉ còn một ô, máy báo "chưa nhận ra mẫu" dù tiêu đề đúng.
+		# Bỏ kích thước khai báo, đếm lại theo dữ liệu thật.
+		try:
+			ws.reset_dimensions()
+		except Exception:
+			pass
 		o = []
 		for hang in ws.iter_rows(values_only=True):
 			o.append(list(hang))

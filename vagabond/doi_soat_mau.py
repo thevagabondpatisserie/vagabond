@@ -1526,6 +1526,122 @@ def doc_the_shinhan(tep, mau):
 	return kq
 
 
+_THE_BANG = dict(ngay_gd=["ngay giao dich"], ngay_bt=["ngay but toan"], dv=["don vi chap nhan the"],
+	goc=["so tien goc"], vnd=["so tien(vnd)", "so tien (vnd)", "so tien vnd"])
+
+
+def nhan_the_shinhan_bang(tep):
+	"""Sao kê thẻ Shinhan gõ tay sang Excel (#457, chị Dung 08/10/2026): ngân
+	hàng gửi sao kê dạng ảnh, kế toán gõ lại theo đúng sáu cột của bảng Chi
+	tiết sao kê. Nhận bằng tiêu đề cột, không cần dòng Chu kỳ sao kê."""
+	for t in _trang_luoi(tep):
+		if tim_tieu_de(t["o"], _THE_BANG, 5)[0] is not None:
+			return "the_shinhan_bang"
+	return None
+
+
+def _vnd_bang(v):
+	"""Ô tiền VND gõ tay: "1,018,559 ", "38,384,995", 1018559, "-500,000", "500,000 CR"."""
+	if isinstance(v, (int, float)) and not isinstance(v, bool):
+		return lam_tron(Decimal(str(v)))
+	s = chu(v).strip()
+	am = s.upper().endswith("CR") or s.startswith("-")
+	s = re.sub(r"[^0-9.]", "", s)
+	if not s:
+		raise LoiDong("Số tiền VND trống.")
+	try:
+		t = lam_tron(Decimal(s))
+	except InvalidOperation:
+		raise LoiDong("Số tiền VND sai dạng (%s)." % chu(v)) from None
+	return -t if am else t
+
+
+def doc_the_shinhan_bang(tep, mau):
+	"""Đọc bảng gõ tay. Cùng khuôn kết quả với doc_the_shinhan (PDF) để phần
+	đối soát thẻ dùng chung: dòng phát sinh, phí, tổng spend, fees, billing.
+
+	Khác PDF: tệp không có chu kỳ sao kê, ngày đến hạn, tài khoản thanh toán,
+	bốn ô số đầu sao kê. Kỳ lấy theo THÁNG của ngày bút toán lớn nhất, tài
+	khoản ghi theo bốn số cuối thẻ; cả hai ghi vào cảnh báo để kế toán biết
+	là máy suy ra chứ không đọc từ ngân hàng.
+	"""
+	luoi = _trang_luoi(tep)
+	o = next(t["o"] for t in luoi if tim_tieu_de(t["o"], _THE_BANG, 5)[0] is not None)
+	r0, cot = tim_tieu_de(o, _THE_BANG, 5)
+	kq = ket_qua(mau, "the", "Thẻ tín dụng Shinhan", "")
+	the4 = ""
+	spend = fees = billing = None
+	sau_spend = False
+	dem = {}
+	for r in range(r0 + 1, len(o)):
+		h = o[r]
+		if dong_trong(h):
+			continue
+		dv = re.sub(r"\s+", " ", chu(o_tai(h, cot["dv"]))).strip()
+		ngd, nbt = chu(o_tai(h, cot["ngay_gd"])).strip(), chu(o_tai(h, cot["ngay_bt"])).strip()
+		vnd_o = o_tai(h, cot["vnd"])
+		if chuan(ngd) == "card" and chuan(nbt) == "number":
+			the4 = re.sub(r"[^0-9X]", "", dv.upper())[-4:]
+			continue
+		dvc = chuan(dv)
+		if dvc.startswith("your spend for this month"):
+			spend = _vnd_bang(vnd_o)
+			sau_spend = True
+			continue
+		if dvc == "fees":
+			fees = _vnd_bang(vnd_o)
+			continue
+		if dvc.startswith("billing amount of the current month"):
+			billing = _vnd_bang(vnd_o)
+			continue
+		if not ngd and not nbt:
+			continue
+		try:
+			if not dv:
+				raise LoiDong("Thiếu Đơn vị chấp nhận thẻ.")
+			ngay_bt = ngay(nbt, "Ngày bút toán")
+			tien = _vnd_bang(vnd_o)
+			goc_chu = chu(o_tai(h, cot["goc"])).strip()
+			mg = re.match(r"^([A-Z]{3})\s*(-?[\d,]+(?:\.\d+)?)$", goc_chu)
+			tien_te, goc = (mg.group(1), mg.group(2)) if mg else ("VND", goc_chu)
+			qg = chu(o_tai(h, cot.get("qg"))).strip() if "qg" in cot else ""
+			loai = "phi" if sau_spend else ("hoan" if tien < 0 else "phat_sinh")
+			if "interest" in dv.lower() or "lãi" in dv.lower():
+				loai = "lai"
+			goc_ = "%s:%s:%s:%s:%s" % (the4, ngay(ngd, "Ngày giao dịch") if ngd else ngay_bt, ngay_bt, dv, tien)
+			dem[goc_] = dem.get(goc_, 0) + 1
+			kq["dong"].append(dong_moi(
+				ma_su_kien="%s:%s" % (goc_, dem[goc_]), merchant=the4, ngay=ngay_bt, loai=loai,
+				ma_don=dv[:60], ma_tham_chieu=dv[:60], ma_can_cu=dv[:60] if loai in ("phi", "lai") else "",
+				tien_hang=tien, thuc_nhan=tien, mo_ta=("%s %s" % (dv, qg)).strip()[:120],
+				them=dict(ngay_gd=ngay(ngd) if ngd else "", tien_goc=goc, tien_te=tien_te, go_tay=1)))
+		except LoiDong as e:
+			them_loi(kq, r + 1, e, [chu(x) for x in h])
+	if not the4:
+		kq["loi"].append("Không thấy dòng Card Number (bốn số cuối thẻ) trong bảng; gõ thêm dòng đó dưới tiêu đề.")
+	if spend is None or billing is None:
+		kq["loi"].append("Không thấy dòng Your Spend For This Month hoặc Billing Amount of the Current Month; gõ đủ hai dòng tổng.")
+	elif not kq["dong_loi"]:
+		ps = sum(d["thuc_nhan"] for d in kq["dong"] if d["loai"] in ("phat_sinh", "hoan"))
+		ph = sum(d["thuc_nhan"] for d in kq["dong"] if d["loai"] in ("phi", "lai"))
+		if ps != spend:
+			kq["loi"].append("Cộng giao dịch %s khác Your Spend %s; kiểm lại số gõ tay." % (_so_vn(ps), _so_vn(spend)))
+		if ph != (fees or 0):
+			kq["loi"].append("Cộng phí %s khác dòng Fees %s." % (_so_vn(ph), _so_vn(fees or 0)))
+		if spend + (fees or 0) != billing:
+			kq["loi"].append("Your Spend cộng Fees khác Billing Amount.")
+	if kq["dong"]:
+		cuoi = max(d["ngay"] for d in kq["dong"])
+		y, mo = int(cuoi[:4]), int(cuoi[5:7])
+		kq["tu_ngay"] = "%04d-%02d-01" % (y, mo)
+		kq["den_ngay"] = ((date(y + (mo == 12), mo % 12 + 1, 1)) - timedelta(days=1)).isoformat()
+		kq["canh_bao"].append("Bảng gõ tay không có chu kỳ sao kê; máy lấy kỳ là tháng %02d/%04d theo ngày bút toán. Ngày đến hạn và tài khoản thanh toán cũng không có, đối chiếu tay với sao kê ảnh." % (mo, y))
+	kq["tai_khoan"] = "SHB-THE:%s" % the4 if the4 else ""
+	kq["tong"] = dict(spend=spend, fees=fees or 0, billing=billing, thuc_nhan=billing)
+	kq["them"].update(ngay_sao_ke="", ngay_den_han="", the=sorted({d["merchant"] for d in kq["dong"]}), go_tay=1)
+	return kq
+
+
 # ============================================================ BẢNG MẪU
 
 MAU = [
@@ -1540,6 +1656,7 @@ MAU = [
 	("grab_business", nhan_grab_business, doc_grab_business, "Grab for Business", "chuyen"),
 	("xanh_taxi", nhan_xanh_taxi, doc_xanh_taxi, "Xanh SM doanh nghiệp", "chuyen"),
 	("the_shinhan", nhan_the_shinhan, doc_the_shinhan, "Thẻ tín dụng Shinhan", "the"),
+	("the_shinhan_bang", nhan_the_shinhan_bang, doc_the_shinhan_bang, "Thẻ tín dụng Shinhan (bảng gõ tay)", "the"),
 ]
 
 TEN_MAU = {
@@ -1548,8 +1665,24 @@ TEN_MAU = {
 	"shinhan_ngay": "Shinhan POS ngày", "shinhan_thang": "Shinhan POS tháng", "shopeefood": "ShopeeFood",
 	"greensm_ngon": "Xanh SM Ngon", "grabfood": "GrabFood", "be": "Be for Business",
 	"grab_business": "Grab for Business", "grab_business_cu": "Grab for Business (kiểu cũ)",
-	"xanh_taxi": "Xanh SM doanh nghiệp", "the_shinhan": "Thẻ tín dụng Shinhan",
+	"xanh_taxi": "Xanh SM doanh nghiệp", "the_shinhan": "Thẻ tín dụng Shinhan", "the_shinhan_bang": "Thẻ tín dụng Shinhan (bảng gõ tay)",
 }
+
+
+def dau_tep(tep, so_dong=3, rong_toi_da=160):
+	"""THUẦN (#457 mục 3). Ba dòng đầu có chữ của tệp để người dùng và kỹ thuật
+	biết máy đã đọc được gì khi chưa nhận ra mẫu. Mỗi dòng ghép ô bằng " | ",
+	cắt ngắn, không lộ quá rong_toi_da ký tự."""
+	ra = []
+	for tr in tep.get("trang") or []:
+		for h in tr.get("o") or []:
+			if not h or all(rong(v) for v in h):
+				continue
+			chu = " | ".join(str(v).strip() for v in h if not rong(v))
+			ra.append(chu[:rong_toi_da] + ("..." if len(chu) > rong_toi_da else ""))
+			if len(ra) >= so_dong:
+				return ra
+	return ra
 
 
 def nhan_dien(tep):
@@ -1570,16 +1703,20 @@ def doc(tep, mau=None):
 	mau = mau or nhan_dien(tep)
 	if not mau:
 		kq = ket_qua("", "", "", "")
-		kq["loi"].append("Chưa nhận ra mẫu báo cáo của tệp này. Các mẫu đang đọc được: %s." % ", ".join(
-			sorted(set(TEN_MAU.values()))))
+		kq["loi"].append("Chưa nhận ra mẫu báo cáo của tệp này. Bấm Lưu nguồn để máy giữ tệp trong mục "
+			"Mẫu chưa nhận, rồi gửi tệp này cho kỹ thuật thêm mẫu. Không cần làm gì thêm.")
+		kq["them"]["dau_tep"] = dau_tep(tep)
+		kq["them"]["mau_chua_nhan"] = 1
 		return kq
 	if mau.startswith("onepay"):
 		ham = doc_onepay_bbds if mau == "onepay_bbds" else doc_onepay
 	else:
-		ham = next(d for k, n, d, t, _n in MAU if mau.startswith(k) or k == mau)
+		# Khớp đúng khoá trước, rồi mới khớp tiền tố (#457: "the_shinhan_bang"
+		# không được rơi vào "the_shinhan").
+		ham = next((d for k, n, d, t, _n in MAU if k == mau), None) or next(d for k, n, d, t, _n in MAU if mau.startswith(k))
 	try:
 		return ham(tep, mau)
 	except LoiMau as e:
-		kq = ket_qua(mau, next((n for k, _x, _d, _t, n in MAU if mau.startswith(k)), ""), TEN_MAU.get(mau, mau), "")
+		kq = ket_qua(mau, next((n for k, _x, _d, _t, n in MAU if k == mau), next((n for k, _x, _d, _t, n in MAU if mau.startswith(k)), "")), TEN_MAU.get(mau, mau), "")
 		kq["loi"].append(str(e))
 		return kq
