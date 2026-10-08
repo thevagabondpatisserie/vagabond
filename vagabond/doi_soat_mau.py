@@ -1656,7 +1656,9 @@ MAU = [
 	("grab_business", nhan_grab_business, doc_grab_business, "Grab for Business", "chuyen"),
 	("xanh_taxi", nhan_xanh_taxi, doc_xanh_taxi, "Xanh SM doanh nghiệp", "chuyen"),
 	("the_shinhan", nhan_the_shinhan, doc_the_shinhan, "Thẻ tín dụng Shinhan", "the"),
-	("the_shinhan_bang", nhan_the_shinhan_bang, doc_the_shinhan_bang, "Thẻ tín dụng Shinhan (bảng gõ tay)", "the"),
+	# Codex #458: cột thứ tư là TÊN NGUỒN (vendor) dùng cho sức khoẻ nguồn, không
+	# phải tên mẫu; bảng gõ tay là định dạng khác của cùng một nguồn thẻ Shinhan.
+	("the_shinhan_bang", nhan_the_shinhan_bang, doc_the_shinhan_bang, "Thẻ tín dụng Shinhan", "the"),
 ]
 
 TEN_MAU = {
@@ -1669,13 +1671,26 @@ TEN_MAU = {
 }
 
 
+def nguon_suc_khoe():
+	"""THUẦN. Danh sách (tên nguồn, nhóm) duy nhất theo thứ tự MAU, cho màn sức
+	khoẻ nguồn. Một nguồn có nhiều mẫu (Shinhan PDF và bảng gõ tay) chỉ một
+	dòng (Codex #458)."""
+	ra = []
+	for _k, _a, _b, t, n in MAU:
+		if (t, n) not in ra:
+			ra.append((t, n))
+	return ra
+
+
 def dau_tep(tep, so_dong=3, rong_toi_da=160):
 	"""THUẦN (#457 mục 3). Ba dòng đầu có chữ của tệp để người dùng và kỹ thuật
 	biết máy đã đọc được gì khi chưa nhận ra mẫu. Mỗi dòng ghép ô bằng " | ",
 	cắt ngắn, không lộ quá rong_toi_da ký tự."""
 	ra = []
 	for tr in tep.get("trang") or []:
-		for h in tr.get("o") or []:
+		# Trang Excel/CSV là lưới ô "o"; trang PDF là dòng chữ "dong" (Codex #458).
+		hang = [[v] for v in tr.get("dong") or []] if tr.get("dong") is not None and not tr.get("o") else tr.get("o") or []
+		for h in hang:
 			if not h or all(rong(v) for v in h):
 				continue
 			chu = " | ".join(str(v).strip() for v in h if not rong(v))

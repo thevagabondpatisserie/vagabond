@@ -1147,7 +1147,7 @@ def suc_khoe():
 	_chan()
 	ra = []
 	ct = _cong_ty_xem()
-	for vendor, nhom in [(t, n) for _k, _a, _b, t, n in mau_bc.MAU]:
+	for vendor, nhom in mau_bc.nguon_suc_khoe():
 		r = frappe.db.sql("""select max(den_ngay), max(creation), sum(trang_thai in ('Cần xử lý','Lỗi tệp')),
 			sum(trang_thai_tien in %%(cho)s), count(*) from `tab%s`
 			where vendor=%%(v)s and company in %%(ct)s""" % DT_NGUON, dict(v=vendor, ct=ct, cho=khop.CHO_TIEN_VE))[0]
