@@ -422,6 +422,12 @@ def ky_the(hien_tai, truoc):
 	tháng trước". Thiếu sao kê kỳ trước thì nói rõ, không đặt đầu kỳ bằng 0.
 	"""
 	t = hien_tai or {}
+	if t and "den_han" not in t:
+		# #457: sao kê gõ tay từ ảnh chỉ có Spend, Fees, Billing; không có ô
+		# Đến hạn và Chưa thanh toán nên không dựng được phương trình số dư.
+		return dict(du=None, ghi_chu="Sao kê gõ tay không có ô Đến hạn thanh toán và Chưa thanh toán tháng trước; "
+			"chỉ kiểm được tổng phát sinh, chưa dựng được số dư thẻ. Cần PDF gốc để khớp số dư.",
+			cuoi_ky=t.get("billing"), phat_sinh=t.get("spend") or 0, phi=t.get("fees") or 0)
 	if not truoc:
 		return dict(du=False, ghi_chu="Chưa có sao kê kỳ trước; tải sao kê kỳ trước để dựng đầu kỳ.",
 			cuoi_ky=t.get("den_han"))

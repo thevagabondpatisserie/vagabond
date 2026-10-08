@@ -97,11 +97,12 @@ def tom_tat(kq, xt):
 	"""Bản tóm tắt gửi về màn hình (không kèm dữ liệu cá nhân). THUẦN."""
 	moi = [x["dong"] for x in xt["dong"] if x["trang_thai"] == "moi"]
 	return dict(
-		mau=kq["mau"], ten_mau=mau_bc.TEN_MAU.get(kq["mau"], kq["mau"] or "Chưa nhận ra"),
+		mau=kq["mau"], ten_mau=mau_bc.TEN_MAU.get(kq["mau"], kq["mau"] or "Mẫu chưa nhận"),
 		vendor=kq["vendor"], nhom=khop.NHOM_TEN.get(kq["nhom"], ""), tu_ngay=kq["tu_ngay"],
 		den_ngay=kq["den_ngay"], ngay_tien_ve=kq["ngay_tien_ve"], trang_thai=xt["trang_thai"],
 		so=xt["so"], tong=xt["tong"], tong_tep=kq.get("tong") or {}, loi=xt["loi"][:20],
 		canh_bao=xt["canh_bao"][:10], ghi_chu_don_vi=kq.get("ghi_chu_don_vi") or "",
+		dau_tep=(kq.get("them") or {}).get("dau_tep") or [],
 		dong_loi=[dict(vi_tri=x["vi_tri"], ly_do=x.get("ly_do", "")) for x in xt["dong"] if x["trang_thai"] == "loi"][:50],
 		mau_dong=[dict(ngay=d["ngay"], loai=d["loai"], ma=d["ma_don"] or d["ma_su_kien"][:30],
 			tien=d["tien_hang"], phi=d["phi"], nhan=d["thuc_nhan"], mo_ta=d["mo_ta"]) for d in moi[:30]])
@@ -457,7 +458,7 @@ def _ghi_nguon(cong_ty, t, kq, xt, kenh, file_url, communication, co_san=None):
 		ly_do = ("%s dòng lỗi. " % so["loi"]) + ly_do
 	truong = dict(
 		company=cong_ty, nhom=khop.NHOM_TEN.get(kq["nhom"]) or "Tiền bán",
-		vendor=kq["vendor"] or "Chưa nhận ra", mau=kq["mau"], ten_mau=mau_bc.TEN_MAU.get(kq["mau"], ""),
+		vendor=kq["vendor"] or "Mẫu chưa nhận", mau=kq["mau"], ten_mau=mau_bc.TEN_MAU.get(kq["mau"], ""),
 		tai_khoan=kq["tai_khoan"], tu_ngay=kq["tu_ngay"] or None, den_ngay=kq["den_ngay"] or None,
 		ngay_tien_ve=kq["ngay_tien_ve"] or None, trang_thai=xt["trang_thai"], ly_do=ly_do[:1000],
 		kenh_nhan=kenh, ten_tep=(t["ten"] or "")[:140], tep=file_url, sha256=t["sha256"],
@@ -1112,7 +1113,7 @@ def chi_tiet(name=None, loc=None, trang=0):
 		them=dict(loi=d.get("loi") or [], canh_bao=d.get("canh_bao") or [], dong_loi=(d.get("dong_loi") or [])[:100],
 			tien_ve=d.get("tien_ve") or "", ky_the=d.get("ky_the"), doi_bien_ban=d.get("doi_bien_ban"),
 			hoa_don_ky=d.get("hoa_don_ky_ghi_chu") or "", ghi_chu_don_vi=d.get("ghi_chu_don_vi") or "",
-			ban_sua=_ban_sua_cho(d)),
+			dau_tep=(d.get("them") or {}).get("dau_tep") or [], ban_sua=_ban_sua_cho(d)),
 		dong=dong[:100], con=len(dong) > 100)
 
 
@@ -1146,7 +1147,7 @@ def suc_khoe():
 	_chan()
 	ra = []
 	ct = _cong_ty_xem()
-	for vendor, nhom in [(t, n) for _k, _a, _b, t, n in mau_bc.MAU]:
+	for vendor, nhom in mau_bc.nguon_suc_khoe():
 		r = frappe.db.sql("""select max(den_ngay), max(creation), sum(trang_thai in ('Cần xử lý','Lỗi tệp')),
 			sum(trang_thai_tien in %%(cho)s), count(*) from `tab%s`
 			where vendor=%%(v)s and company in %%(ct)s""" % DT_NGUON, dict(v=vendor, ct=ct, cho=khop.CHO_TIEN_VE))[0]

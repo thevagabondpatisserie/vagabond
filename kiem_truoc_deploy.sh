@@ -169,6 +169,8 @@ node vagabond/khung/kiem_thu/hanh_vi/goi_nhieu_582.js
 node vagabond/khung/kiem_thu/hanh_vi/tim_583.js
 # v586: trinh bien tap website theo the (Minh Vu de xuat), the Tiec co dang ky.
 node vagabond/khung/kiem_thu/hanh_vi/bien_tap_586.js
+# #456: khoi nguoi mua khong co ma so thue Viet Nam tren man Chi tiet don Sales
+node vagabond/khung/kiem_thu/hanh_vi/xhd_khong_mst_456.js
 # APP-26-09-799: dinh uy nhiem chi o buoc xac nhan da chuyen tien gui dung duong dan.
 node vagabond/khung/kiem_thu/hanh_vi/unc_app_518.js
 node vagabond/khung/kiem_thu/hanh_vi/sinh_lai_523.js

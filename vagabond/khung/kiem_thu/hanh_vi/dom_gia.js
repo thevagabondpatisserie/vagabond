@@ -282,6 +282,12 @@ Object.defineProperty(ElementGia.prototype, 'className', {
   set: function (v) { this.setAttribute('class', v); },
 });
 
+/* `el.parentElement`: màn Chi tiết đơn Sales ẩn hiện khung ô mã tham chiếu
+   qua parentElement (#456, 08/10/2026). Thêm mới, cùng nghĩa với parentNode. */
+Object.defineProperty(ElementGia.prototype, 'parentElement', {
+  get: function () { return this.parentNode || null; },
+});
+
 Object.defineProperty(ElementGia.prototype, 'id', {
   get: function () { return this.getAttribute('id') || ''; },
   set: function (v) { this.setAttribute('id', v); },
@@ -349,6 +355,12 @@ function doc(html, cha) {
     i = m.index + m[0].length;
     var ten = m[1].toLowerCase();
     if (m[0].charAt(1) === '/') {
+      /* <textarea>chữ</textarea>: chữ bên trong là value ban đầu, như trình
+         duyệt (#456, 08/10/2026). Thêm mới, không đổi hành vi thẻ khác. */
+      var dong = ngan[ngan.length - 1];
+      if (ngan.length > 1 && dong.tagName === 'TEXTAREA') {
+        dong.value = String(dong._chu || '').replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+      }
       if (ngan.length > 1) ngan.pop();
       continue;
     }

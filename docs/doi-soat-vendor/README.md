@@ -175,6 +175,36 @@ Việc còn chờ anh Việt: MID Shinhan nào thuộc cửa hàng nào; khai Em
 cho các hộp thư nhận báo cáo (anh tự gõ mật khẩu); xác nhận định dạng CSV
 Payoo gửi qua email; bảng kê Grab for Business kiểu cũ (4 tab) chưa đọc.
 
+## v588: hai tệp kế toán gửi mà máy chưa nhận (#457, 08/10/2026)
+
+Chị Dung gửi hai tệp, máy đều báo "Chưa nhận ra mẫu". Cả hai đều là tệp thật,
+không phải mẫu mới hoàn toàn:
+
+- Xanh SM Ngon `Revenue_Report...xlsx` tải từ cổng Xanh SM: tệp CÓ đủ tab Detail
+  Transactions và Summary, nhưng khai kích thước sheet là `A1` nên openpyxl đọc
+  mỗi sheet đúng một ô. `doi_soat_doc.doc_xlsx` nay gọi `ws.reset_dimensions()`
+  trước khi đọc, để máy dò lại từ ô thật. Tệp 06/10 đọc ra 4 đơn, thực nhận
+  752.550 đúng bằng Summary.
+- Thẻ tín dụng Shinhan: ngân hàng gửi sao kê dạng ảnh, chị Dung gõ tay sang
+  Excel. Mẫu mới `the_shinhan_bang` nhận bằng bộ tiêu đề cột (Ngày giao dịch,
+  Ngày bút toán, Đơn vị chấp nhận thẻ, Số tiền gốc, Số tiền (VND)), lấy bốn số
+  cuối thẻ từ dòng `Card Number`, coi dòng sau `Your Spend For This Month` là
+  phí, giữ nguyên tiền gốc ngoại tệ (ví dụ `USD 8.42`) trong `them`, kiểm tổng
+  bằng Spend + Fees = Billing, và suy kỳ là tháng của ngày bút toán lớn nhất
+  (có cảnh báo vì bảng gõ tay không có ô kỳ sao kê). Phương trình số dư thẻ
+  không chạy được vì thiếu Đến hạn, `ky_the` ghi rõ lý do thay vì tính sai.
+  Dòng thẻ gõ tay đánh dấu `go_tay=1` để sau này phân biệt với PDF gốc.
+
+Mục 3 của issue: khi chưa nhận ra mẫu, màn không liệt kê tên các mẫu nữa (người
+dùng không làm gì được với danh sách đó) mà nói việc cần làm: bấm Lưu nguồn để
+máy giữ tệp với tên nguồn "Mẫu chưa nhận", gửi tệp cho kỹ thuật, không cần làm
+gì thêm. Kèm ba dòng đầu máy đọc được (`doi_soat_mau.dau_tep`) ở cả màn xem
+trước và chi tiết nguồn, để kỹ thuật biết lấy tệp nào làm mẫu.
+
+Tệp thật của chị Dung có số thẻ và tên chủ thẻ nên không đưa vào repo; ca kiểm
+dựng tệp xlsx nhỏ cùng cấu trúc (kể cả khai kích thước sai) ngay trong
+`thu_doi_soat_mau_579.py`.
+
 ## Các cổng còn phải làm trước phát hành
 
 - [x] Anh Việt duyệt maquette, ghi phạm vi và issue, tạo nền kiểm nguồn.
