@@ -25,7 +25,7 @@
     });
     /* v586: liên hệ và cửa hàng trước, để câu chữ vẽ sau đã có số gọi mới. */
     if (typeof window.vgbApLienHe === 'function') window.vgbApLienHe(nd.lien_he);
-    veCuaHang(nd.thong_tin || {}, nd.lien_he || {});
+    veCuaHang(nd.thong_tin || {}, nd.lien_he || {}, nd.diem_nhan);
     if (window.vgbVeKenhNoi) window.vgbVeKenhNoi(nd);
     if (window.vgbVeChuyenMuc) window.vgbVeChuyenMuc(nd);
     window.vgbSanPham = nd.san_pham || {};
@@ -36,10 +36,12 @@
   const nhanGoc = {};
   /* v586: mục "Ghé cửa hàng" và điểm nhận bánh, từ thẻ Cửa hàng của trình
      biên tập. Chữ của người soạn đi qua textContent. */
-  function veCuaHang(tt, lh) {
+  function veCuaHang(tt, lh, diem) {
+    /* Điểm nhận do máy chủ tính (noi_dung_web.diem_nhan), cùng luật máy chủ
+       dùng để chặn đơn lúc gửi; trang không tự lọc lại (Codex #453). */
+    if (Array.isArray(diem) && typeof window.capNhatDiemNhan === 'function') window.capNhatDiemNhan(diem);
     const ds = Array.isArray(tt.cua_hang) ? tt.cua_hang : null;
     if (!ds) return;
-    if (typeof window.capNhatDiemNhan === 'function') window.capNhatDiemNhan(ds.filter(c => c.nhan_banh && c.dia_chi).map(c => ({n: c.ten, a: c.dia_chi})));
     const khung = document.getElementById('cuaHangWeb'), g = document.getElementById('cuaHangDs');
     if (!khung || !g) return;
     const tao = (t, c, s) => { const e = document.createElement(t); if (c) e.className = c; if (s) e.textContent = s; return e; };

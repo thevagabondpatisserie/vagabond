@@ -2866,5 +2866,17 @@
     "ten": "Cửa hàng: chữ trên nút chỉ đường",
     "mac_dinh": "Chỉ đường",
     "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "dat_banh_khong_con_diem_nhan": {
+    "ten": "Hiện chưa nhận tự đến lấy. Quý khách chọn giao tận nơi.",
+    "nhom": "gio_hang",
+    "mac_dinh": "Hiện chưa nhận tự đến lấy. Quý khách chọn giao tận nơi.",
+    "nhieu_dong": true
+  },
+  "dat_banh_diem_nhan_khong_con": {
+    "ten": "Điểm nhận bánh vừa thay đổi. Quý khách tải lại trang rồi chọn lại điểm nhận.",
+    "nhom": "gio_hang",
+    "mac_dinh": "Điểm nhận bánh vừa thay đổi. Quý khách tải lại trang rồi chọn lại điểm nhận.",
+    "nhieu_dong": true
   }
 }

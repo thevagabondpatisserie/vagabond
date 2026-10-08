@@ -139,4 +139,5 @@ body.bt-che-do-moi header a{color:#fff}
 .bt-ve-moi-thanh button{min-height:44px}
 @media(max-width:1180px){#bt-the{grid-template-columns:repeat(4,minmax(0,1fr))}#bt-moi .bt-o-the{border-bottom:1px solid var(--bt-vien-2)}.bt-luoi-form{grid-template-columns:1fr}.bt-xem{position:static}}
 @media(max-width:700px){#bt-moi{padding:18px 16px 120px}#bt-the{grid-template-columns:repeat(2,minmax(0,1fr))}#bt-moi .bt-o-the{padding:14px}#bt-moi .bt-mo-the{display:none}.bt-dong{flex-direction:column;align-items:stretch;padding:16px}.bt-dong-phai{align-items:flex-start}.bt-hai-cot{grid-template-columns:1fr}}
-@media(max-width:700px){body.bt-che-do-moi header{flex-wrap:wrap;gap:10px;padding:14px 16px}body.bt-che-do-moi header .phien{display:flex;gap:10px;align-items:center;flex-wrap:wrap}}
+@media(max-width:700px){body.bt-che-do-moi header{flex-wrap:nowrap;gap:10px;padding:14px 16px}body.bt-che-do-moi header .phien{display:flex;gap:12px;align-items:center;flex-wrap:nowrap}body.bt-che-do-moi header .phien .nguoi{display:none}body.bt-che-do-moi header .phien>a:first-child{font-size:13px;white-space:nowrap}body.bt-che-do-moi header .dang-xuat{min-height:40px;padding:0 12px;font-size:13px}}
+@media(max-width:360px){body.bt-che-do-moi header .thuong-hieu{font-size:18px}body.bt-che-do-moi header .phien>a:first-child{display:none}}

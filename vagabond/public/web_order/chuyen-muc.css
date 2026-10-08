@@ -9,10 +9,11 @@
 
 /* v586: ưu đãi có điều kiện, tiệc có giá vé và đăng ký, nền thương hiệu khi chưa có ảnh. */
 .cm-anh-nen{display:flex;align-items:flex-end;aspect-ratio:16/9;height:auto;padding:22px;background:radial-gradient(circle at 80% 20%,rgba(63,216,205,.28),transparent 55%),linear-gradient(135deg,#06201e,#000 70%);border-bottom:1px solid var(--line)}
+@media(min-width:601px){.cm-the:only-child .cm-anh-nen{max-height:none;aspect-ratio:auto;border-bottom:0;border-right:1px solid var(--line)}}
 .cm-anh-nen span{font-family:'Vagabond Sans',var(--sans);font-size:clamp(22px,3vw,34px);line-height:1.05;text-transform:uppercase;color:var(--cyan);overflow-wrap:anywhere;max-width:100%}
 .cm-dieu-kien{margin:12px 0;padding-left:14px;border-left:2px solid var(--cyan);color:var(--paper)}
 .cm-gia{font-size:20px;color:var(--paper);margin:10px 0}
-.cm-ds{margin:12px 0;padding-left:20px;color:var(--fog);line-height:1.7}
+.cm-doan+.cm-nhan{margin-top:18px}.cm-ds{margin:12px 0;padding-left:20px;color:var(--fog);line-height:1.7}
 .cm-dk{display:flex;flex-direction:column;gap:14px;margin-top:18px;padding-top:18px;border-top:1px solid var(--line)}
 .cm-dk label{display:flex;flex-direction:column;gap:6px;font-size:14px;color:var(--fog)}
 .cm-dk input,.cm-dk textarea{min-height:48px;padding:12px;background:var(--bg);color:var(--paper);border:1px solid var(--line);font:inherit}

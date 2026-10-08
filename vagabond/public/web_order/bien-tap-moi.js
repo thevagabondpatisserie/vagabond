@@ -456,6 +456,8 @@
     const hang = tao('div', 'bt-hang');
     const ds = B.thong_tin.cua_hang || [];
     if (!ds.length) hang.append(tao('p', 'bt-rong', 'Chưa có cửa hàng nào.'));
+    /* Cùng luật với noi_dung_web.diem_nhan: tắt hết thì trang khách ẩn Tự đến lấy. */
+    if (!ds.some(c => c.nhan_banh && String(c.dia_chi || '').trim() && String(c.ten || '').trim())) g.append(tao('p', 'bt-loi bt-canh-diem', 'Chưa nơi nào bật "Nhận bánh tại đây": khách sẽ không chọn được Tự đến lấy, chỉ còn giao tận nơi.'));
     ds.forEach((c, i) => {
       const d = tao('article', 'bt-dong'); d.dataset.muc = c.id;
       const trai = tao('div', 'bt-dong-trai'), nhan = tao('div', 'bt-nhan-hang');

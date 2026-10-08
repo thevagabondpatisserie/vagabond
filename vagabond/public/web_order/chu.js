@@ -17,8 +17,17 @@ function chuWeb(khoa, macDinh, thay) {
 }
 /* Áp thẻ Liên hệ lên trang: đường gọi tel:, chữ số trong đường gọi và các
    biểu tượng mạng xã hội ở chân trang (để trống là ẩn). Chỉ đổi khi có số. */
+/* v586 (Codex #453): MỘT nguồn cho link mạng xã hội. Chưa tải được thẻ Liên hệ
+   thì dùng link mặc định của trang; đã tải thì đúng link marketing khai, để
+   trống là '' (ẩn), không quay về tài khoản cũ. */
+function vgbLinkHopLe(u) { u = String(u || ''); return (/^https:\/\/[^\s/@\\]+(\/|$)/.test(u) && !/\s/.test(u)) ? u : ''; }
+function vgbMxh(k, macDinh) {
+  var lh = typeof window !== 'undefined' && window.vgbLienHeDaTai;
+  return lh ? vgbLinkHopLe(lh[k]) : (macDinh || '');
+}
 function vgbApLienHe(lh) {
   if (typeof document === 'undefined' || !lh) return;
+  window.vgbLienHeDaTai = lh;
   var so = String(lh.dien_thoai_so || lh.dien_thoai || '').replace(/[^0-9+]/g, '');
   if (lh.dien_thoai && so) {
     var cu = window.vgbDienThoai || VGB_DT_GOC;
@@ -32,8 +41,8 @@ function vgbApLienHe(lh) {
     });
   }
   document.querySelectorAll('[data-vgb-mxh]').forEach(function (a) {
-    var u = String(lh[a.getAttribute('data-vgb-mxh')] || '');
-    if (/^https:\/\/[^\s/@\\]+(\/|$)/.test(u) && !/\s/.test(u)) { a.setAttribute('href', u); a.hidden = false; }
+    var u = vgbLinkHopLe(lh[a.getAttribute('data-vgb-mxh')]);
+    if (u) { a.setAttribute('href', u); a.hidden = false; }
     else a.hidden = true;
   });
 }
