@@ -246,6 +246,13 @@ và nhiều dòng, phép đo ở 390x844 và ảnh chụp site thật. Codex d�
   có ai dựng lại một ô nhập tự do cho ngân hàng.
 - **Không dùng AI hay công cụ tự động đọc tệp của khách để ghi đè số liệu
   xuống cơ sở dữ liệu.** Đọc để trình ra cho người xác nhận thì được.
+- **Người mua không có mã số thuế Việt Nam (anh Việt chốt 08/10/2026, #456).**
+  Công đoàn, trường, hội và khách nước ngoài xuất hoá đơn được mà không cần
+  MST: màn Chi tiết đơn Sales có nút "Không có MST Việt Nam", bắt buộc tên và
+  địa chỉ ghi đúng như khách đưa. Mã số thuế nước ngoài (nếu có) ghi kèm sau
+  tên dạng `TÊN (MST nước ngoài: X)`, không ghi vào ô MST. Máy chủ `luu_xhd`
+  vốn đã nhận tên không MST; tờ m-invoice đi vào `inv_buyerDisplayName`, ô
+  mã số thuế để trống. Nút "Công ty / HKD" vẫn bắt buộc MST 10/12/13 số.
 - **Hoá đơn điện tử đã gửi cơ quan thuế là vùng cấm.** Không tự động sửa,
   không tự động huỷ, không tự động gửi lại. Rất khó sửa chữa.
 - **Trang Vagabond Settings: Desk và app luôn đủ cả hai (anh Việt 04/10/2026).**
