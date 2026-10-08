@@ -313,6 +313,38 @@ def _():
 	la("vẫn thu phí giao", vet.body["shipping_fee"], 36000)
 
 
+
+@ca("v586 (Codex #453): đơn tự lấy chỉ nhận điểm đang bật ở thẻ Cửa hàng; tắt hết thì chặn, địa chỉ lấy từ máy chủ")
+def _():
+	import unittest.mock as um
+	nw = noi_dung_web
+
+	def gui(cua_hang, ma_diem, dia_chi="địa chỉ trình duyệt gửi", ten="tên trình duyệt gửi"):
+		nd = {"khoi": []} if cua_hang is None else {"khoi": [], "thong_tin": {"cua_hang": cua_hang}}
+		vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}))
+		with um.patch.object(nw, "_ban_cong_khai", lambda: nd):
+			kq = tao_don(_don(tu_lay=True, diem_lay_id=ma_diem, diem_lay_ten=ten, dia_chi=dia_chi))
+		return kq, vet
+
+	kq, vet = gui(None, "cua-hang-sai-gon")
+	la("mặc định: nhận điểm cũ", kq.get("ok"), 1)
+	snap = json.loads(vet.truong["snapshot"])
+	la("địa chỉ điểm nhận lấy từ máy chủ", snap["dia_chi"], "9 Trần Cao Vân, P. Sài Gòn")
+	tat = [dict(c, nhan_banh=False) for c in nw.THONG_TIN_MAC_DINH["cua_hang"]]
+	la("tên điểm lấy từ máy chủ", snap["diem_lay_ten"], "Cửa hàng Sài Gòn")
+	kq, vet = gui(tat, "cua-hang-sai-gon")
+	la("tắt hết: chặn", kq, {"ok": 0, "ly_do": "khong_con_diem_nhan"})
+	dung("không ghi bản ghi, không gọi Pancake", "ghi" not in vet.su and "post" not in vet.su)
+	mot = [dict(c, nhan_banh=(c["id"] == "cua-hang-sai-gon")) for c in nw.THONG_TIN_MAC_DINH["cua_hang"]]
+	kq, vet = gui(mot, "Bếp Tân Sơn Hoà")
+	la("điểm đã tắt: chặn", kq, {"ok": 0, "ly_do": "diem_nhan_khong_con"})
+	dung("không ghi bản ghi", "ghi" not in vet.su)
+	kq, vet = gui(None, "", ten="Cửa hàng Sài Gòn")
+	la("trang cũ chỉ gửi tên: chặn, không đoán", kq, {"ok": 0, "ly_do": "diem_nhan_khong_con"})
+	trung = [dict(id="x", ten="Trùng tên", dia_chi="1 Đường X", nhan_banh=True), dict(id="y", ten="Trùng tên", dia_chi="2 Đường Y", nhan_banh=True)]
+	kq, vet = gui(trung, "x")
+	la("trùng tên: địa chỉ đúng theo mã", json.loads(vet.truong["snapshot"])["dia_chi"], "1 Đường X")
+
 # ------------------------------------------------------- F. trang biên nhận
 
 SNAP = {
