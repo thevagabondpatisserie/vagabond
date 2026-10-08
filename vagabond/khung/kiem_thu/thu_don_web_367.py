@@ -25,6 +25,7 @@ gia_lap_trang.js (bài học #205: dò chuỗi không phải kiểm thử).
 
 import ast
 import contextlib
+import copy
 import io
 import json
 import os
@@ -214,7 +215,7 @@ def _moi_truong_tao_don(pancake, trung=None):
 		_gia_va_ten=lambda ds: ({m: 450000 for m in ds}, {m: "Bánh " + m for m in ds}),
 		_ip_va_trinh_duyet=lambda: ("203.0.113.9", "Trinh duyet thu"),
 	)
-	for ten in ("_so", "_lam_sach_hang", "_lam_sach_the", "_ngay_iso", "_hoa_don_pancake"):
+	for ten in ("_so", "_lam_sach_hang", "_lam_sach_the", "_ngay_iso", "_hoa_don_pancake", "_diem_lay"):
 		nap("don_hang.py", ten, g)
 	g["MAX_DONG"], g["MAX_SL"] = 30, 20
 	g["_UUID"] = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
@@ -322,7 +323,7 @@ def _():
 	def gui(cua_hang, ma_diem, dia_chi="địa chỉ trình duyệt gửi", ten="tên trình duyệt gửi"):
 		nd = {"khoi": []} if cua_hang is None else {"khoi": [], "thong_tin": {"cua_hang": cua_hang}}
 		vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}))
-		with um.patch.object(nw, "_ban_cong_khai", lambda: nd):
+		with um.patch.object(nw, "_ban_cong_khai", lambda khoa=False: nd):
 			kq = tao_don(_don(tu_lay=True, diem_lay_id=ma_diem, diem_lay_ten=ten, dia_chi=dia_chi))
 		return kq, vet
 
@@ -344,6 +345,39 @@ def _():
 	trung = [dict(id="x", ten="Trùng tên", dia_chi="1 Đường X", nhan_banh=True), dict(id="y", ten="Trùng tên", dia_chi="2 Đường Y", nhan_banh=True)]
 	kq, vet = gui(trung, "x")
 	la("trùng tên: địa chỉ đúng theo mã", json.loads(vet.truong["snapshot"])["dia_chi"], "1 Đường X")
+
+@ca("v586b (Codex #454): Marketing tắt hoặc đổi điểm nhận lúc đơn đang xử lý; phép quyết định là đọc có khoá ngay trước khi ghi")
+def _():
+	import unittest.mock as um
+	nw = noi_dung_web
+	goc = copy.deepcopy(nw.THONG_TIN_MAC_DINH["cua_hang"])
+
+	def gui(hien_tai):
+		vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}))
+		cu = {"khoi": [], "thong_tin": {"cua_hang": goc}}
+		moi = {"khoi": [], "thong_tin": {"cua_hang": hien_tai}}
+
+		# Giả REPEATABLE READ: đọc thường thấy bản lúc đơn bắt đầu, đọc có
+		# khoá thấy bản Marketing vừa lưu. Ghi lại thứ tự vào vết.
+		def ban(khoa=False):
+			vet.su.append("doc_khoa" if khoa else "doc")
+			return copy.deepcopy(moi if khoa else cu)
+		with um.patch.object(nw, "_ban_cong_khai", ban):
+			kq = tao_don(_don(tu_lay=True, diem_lay_id="cua-hang-sai-gon", diem_lay_ten="x", dia_chi="x"))
+		return kq, vet
+
+	tat = [dict(c, nhan_banh=(c["id"] != "cua-hang-sai-gon")) for c in goc]
+	kq, vet = gui(tat)
+	la("vừa tắt điểm: chặn", kq, {"ok": 0, "ly_do": "diem_nhan_khong_con"})
+	dung("không ghi, không gọi Pancake", "ghi" not in vet.su and "post" not in vet.su)
+	doi = [dict(c, dia_chi=("10 Đường Mới" if c["id"] == "cua-hang-sai-gon" else c["dia_chi"])) for c in goc]
+	kq, vet = gui(doi)
+	la("vừa đổi địa chỉ: chặn để khách chọn lại", kq, {"ok": 0, "ly_do": "diem_nhan_khong_con"})
+	dung("không ghi địa chỉ cũ", "ghi" not in vet.su)
+	kq, vet = gui(goc)
+	la("không đổi: nhận", kq.get("ok"), 1)
+	dung("đọc có khoá nằm trong khoá ghi, ngay trước khi ghi rồi commit",
+		vet.su.index("khoa") < vet.su.index("doc_khoa") < vet.su.index("ghi") < vet.su.index("commit") < vet.su.index("post"))
 
 # ------------------------------------------------------- F. trang biên nhận
 

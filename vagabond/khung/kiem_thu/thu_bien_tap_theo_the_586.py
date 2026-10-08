@@ -522,6 +522,28 @@ def _dk_cau_hinh_sau_khoa():
         dung(ten_ca + ": có câu báo cho khách", bool(loi))
 
 
+@ca("v586b (Codex #454): bảng Nâng cao nhận trần số khối từ máy chủ, không còn số chép tay trong bien-tap.js")
+def _tran_khoi_mot_nguon():
+    site = _Site(_nd(), _nd())
+    site.doc.ban_nhap = site.doc.ban_cong_khai
+    site.doc.modified_by, site.doc.modified = "x", "y"
+    la("có bản ghi: mang trần", _chay(site, nw.doc_bang)["so_khoi_toi_da"], nw.SO_KHOI_TOI_DA)
+    fr = sys.modules["frappe"]
+    ps = site.vao() + [um.patch.object(fr.db, "exists", lambda *a, **k: False, create=True)]
+    for p in ps:
+        p.start()
+    try:
+        moi = nw.doc_bang()
+    finally:
+        for p in reversed(ps):
+            p.stop()
+    la("chưa có bản ghi: mang trần", moi["so_khoi_toi_da"], nw.SO_KHOI_TOI_DA)
+    with io.open(os.path.join(GOC, "public", "web_order", "bien-tap.js"), encoding="utf-8") as f:
+        js = f.read()
+    # Dò chuỗi chỉ để chốt "không còn chỗ tự đặt trần"; hành vi đã có ca node.
+    la("không còn so độ dài khối với số cứng", re.findall(r"khoi\.length\s*>=?\s*\d+", js), [])
+
+
 @ca("v586: sales chỉ đổi trạng thái theo chiều tới, không sửa chữ khách gửi")
 def _dk_phieu():
     class _P(dict):
