@@ -684,3 +684,19 @@ def _():
 	from vagabond.doi_soat_vendor import tom_tat
 	tt = tom_tat(kq, xt)
 	la("tóm tắt về màn mang ba dòng đầu và tên Mẫu chưa nhận", (tt["dau_tep"], tt["ten_mau"], tt["trang_thai"]), (kq["them"]["dau_tep"], "Mẫu chưa nhận", "Lỗi tệp"))
+
+
+@ca("Codex #458: tệp PDF lạ cũng ra ba dòng đầu; nguồn sức khoẻ không đếm bảng gõ tay thành nguồn thứ mười một")
+def _():
+	t = dict(ten="la.pdf", loai="pdf", sha256="x", trang=[dict(ten="Trang 1", dong=["", "SAO KE THE", "Ky: 09/2026", "Ngay | Noi dung", "x"])])
+	la("PDF: ba dòng đầu có chữ", M.dau_tep(t), ["SAO KE THE", "Ky: 09/2026", "Ngay | Noi dung"])
+	la("qua doc() cũng mang ba dòng", M.doc(t)["them"]["dau_tep"], ["SAO KE THE", "Ky: 09/2026", "Ngay | Noi dung"])
+	ds = M.nguon_suc_khoe()
+	la("mười nguồn, Shinhan thẻ một dòng", (len(ds), ds.count(("Thẻ tín dụng Shinhan", "the"))), (10, 1))
+	la("bảng gõ tay ghi cùng tên nguồn với PDF", next(t for k, _a, _b, t, _n in M.MAU if k == "the_shinhan_bang"), "Thẻ tín dụng Shinhan")
+	kq = M.doc(_luoi("SHB_x.xlsx", ("sheet", THE_BANG)))
+	la("vendor lưu vào nguồn là tên nguồn chung", kq["vendor"], "Thẻ tín dụng Shinhan")
+	import io as _io
+	import os as _os
+	dv = _io.open(_os.path.join(_os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))), "doi_soat_vendor.py"), encoding="utf-8").read()
+	dung("suc_khoe lấy danh sách từ nguon_suc_khoe, không duyệt MAU nữa", "mau_bc.nguon_suc_khoe()" in dv.split("def suc_khoe(")[1].split("\ndef ")[0])
