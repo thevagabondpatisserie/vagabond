@@ -1952,3 +1952,11 @@ vé, ẩn hiện) vẫn đọc thường sau khoá. Marketing giảm 40 xuống 
 (`_ban_cong_khai(khoa=True)`), không khoá một câu rồi đọc ở câu khác. Ca kiểm
 cũ thay `_ban_cong_khai` bằng hàm giả nên lại che đúng chỗ này; trang giả nay
 phân biệt đọc thường (ảnh chụp) với đọc `for update` (bản hiện tại).
+
+Vòng 4 (Codex #454, cùng ngày): đơn tự lấy kiểm điểm nhận bằng phép đọc
+thường, không xếp hàng với Marketing, nên điểm vừa tắt vẫn có thể vào sổ.
+Không thể khoá từ đầu `tao_don` vì giữa đó còn gọi Pancake tra mã hàng;
+cách đúng là giữ phép chặn sớm (đọc thường) và thêm phép QUYẾT ĐỊNH đọc có
+khoá ngay trước khi ghi, trong khoá ghi, rồi commit. Cùng vòng: máy chủ nâng
+trần khối 30 lên 80 nhưng bảng Nâng cao vẫn chép cứng 30, nên chặn sớm. Trần
+nay đi kèm `doc_bang`; JS không tự đặt số.
