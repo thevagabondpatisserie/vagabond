@@ -39,7 +39,10 @@ CUA_NGO = {
 	# vang lai; cac ham con lai cua don_web la noi bo (hook, nhip, hang doi).
 	"don_hang.py": ["tao_don"],
 	"don_web.py": ["cau_hinh_web"],
-	"noi_dung_web.py": ["cong_khai", "doc_bang", "tai_anh", "luu", "san_pham_bien_tap"],
+	# v586: trình biên tập theo thẻ (lưu từng mục, khách thấy ngay) và đăng ký tiệc.
+	"noi_dung_web.py": ["cong_khai", "doc_bang", "tai_anh", "luu", "san_pham_bien_tap",
+		"bang_moi", "luu_muc", "xoa_muc_web", "luu_thong_tin", "luu_lien_he", "luu_nhan"],
+	"tiec_web.py": ["dang_ky"],
 	# #296: chốt cả danh sách để cửa Lưu đơn không mất whitelist.
 	"ban_hang.py": [
 		"otp_hien_tai", "pos_anh_quay_luu", "cau_hinh_ban_hang", "dong_bo_doanh_so",

@@ -4,7 +4,9 @@
 <meta name="robots" content="noindex,nofollow"><meta name="csrf-token" content="{{ csrf_token }}">
 <title>Biên tập website | Vagabond</title>
 <link rel="stylesheet" href="/assets/vagabond/web_order/bien-tap.css?v=d917db6724a5">
-</head><body data-nguoi="{{ nguoi | e }}">
+<link rel="stylesheet" href="/assets/vagabond/web_order/chuyen-muc.css?v=95f1fc3822a9">
+<link rel="stylesheet" href="/assets/vagabond/web_order/bien-tap-moi.css?v=1d9a422a3888">
+</head><body data-nguoi="{{ nguoi | e }}" class="bt-che-do-moi">
 <header><a href="/bien-tap-web" class="thuong-hieu">VAGABOND <small>MARKETING STUDIO</small></a><div class="phien"><a href="https://order.thevagabondpatisserie.com" target="_blank" rel="noopener">Mở website ↗</a><span class="nguoi">{{ ten_nguoi }}</span><a class="dang-xuat" href="/logout">Đăng xuất</a></div></header>
 {% if khong_quyen %}
 <main class="khong-quyen"><p class="nhan">MARKETING STUDIO</p><h1>Tài khoản của bạn chưa có quyền soạn nội dung.</h1>
@@ -12,6 +14,15 @@
 <p><a class="nut-dx" href="/logout">Đăng xuất để vào bằng tài khoản khác</a></p></main>
 </body></html>
 {% else %}
+<!-- v586: trình biên tập theo việc (Minh Vũ đề xuất, anh Việt duyệt 07/10/2026). Bảng theo khối cũ nằm ở thẻ Nâng cao. -->
+<main id="bt-moi" aria-busy="true">
+<div class="bt-dau-trang"><div><p class="nhan">NỘI DUNG WEBSITE</p><h1>Biên tập website</h1><p>Mỗi lần lưu là khách thấy ngay. Ảnh bìa, câu hỏi thường gặp, nội dung bánh và chính sách ở thẻ Nâng cao.</p></div></div>
+<p id="bt-trang-thai" class="bt-trang-thai" role="status" aria-live="polite">Đang tải nội dung...</p>
+<nav id="bt-the" role="tablist" aria-label="Loại nội dung"></nav>
+<div id="bt-noi"></div>
+</main>
+<div id="bt-cu" hidden>
+<div class="bt-ve-moi-thanh"><span>Bảng nâng cao: sửa theo khối, có Lưu nháp và Xuất bản riêng.</span><button id="bt-ve-moi" type="button">← Về trình biên tập theo thẻ</button></div>
 <main>
 <div class="dau"><div><p class="nhan">NỘI DUNG WEBSITE</p><h1>Chỉnh trang đặt bánh.</h1><p>Chỉnh nội dung, xem trước rồi xuất bản cho khách.</p></div><div class="hanh-dong"><button id="hoan-tac" disabled>Hoàn tác</button><button id="lam-lai" disabled>Làm lại</button><button id="tai-ban">Tải bản đang sửa</button><button id="tai-lai">Tải lại</button><button id="luu-nhap">Lưu nháp</button><button id="xuat-ban" class="chinh">Xuất bản</button></div></div>
 <p id="trang-thai" role="status" aria-live="polite">Đang tải nội dung...</p>
@@ -20,5 +31,6 @@
 <section class="studio"><aside><h2>Các khối nội dung</h2><p class="goi-y">Kéo để sắp xếp hoặc dùng nút lên / xuống.</p><div id="danh-sach"></div><h3>Thêm khối</h3><div id="them-khoi" class="them-khoi"></div><h3>Nhãn và câu chữ</h3><p class="goi-y">Tìm và sửa chữ của từng màn: chọn bánh, giỏ hàng, checkout, đặt bàn, thành viên và biên nhận. Để trống là dùng chữ mặc định.</p><div id="nhan-web" class="them-khoi"></div><h3>Nội dung bánh</h3><button id="sua-san-pham">Tên, mô tả, tầng hương và khẩu phần</button><h3>Trang chính sách</h3><p class="goi-y">Bảo mật, điều khoản, giao hàng và đổi trả. Điền các chỗ trong ngoặc vuông, bật hiện rồi Xuất bản.</p><div id="chinh-sach" class="them-khoi"></div><details><summary>Lịch sử xuất bản</summary><p>Khôi phục vào bản nháp để xem lại trước khi xuất bản.</p><div id="lich-su"></div></details></aside>
 <section class="chinh-sua"><h2>Chỉnh sửa khối</h2><div id="thuoc-tinh"><p>Chọn một khối bên trái để bắt đầu.</p></div></section>
 <section class="xem-truoc"><div class="thanh-preview"><h2>Xem trang order</h2><div><button id="desktop" aria-pressed="true">Desktop</button><button id="mobile" aria-pressed="false">Mobile</button></div></div><div class="khung-preview"><iframe id="preview" title="Xem trang order website" sandbox="allow-scripts allow-same-origin"></iframe></div><p class="goi-y">Desktop: 1.440 px. Mobile: 375 px. Bản xem thu nhỏ theo khung. Chạm vào khối trên trang để sửa. Danh mục dùng dữ liệu cửa hàng; bản xem trước không gửi đơn.</p></section></section>
-</main><script src="/assets/vagabond/web_order/khoi.js?v=3f9e2ef32ff5"></script><script src="/assets/vagabond/web_order/bien-tap.js?v=cc4ffe8ea7ad"></script></body></html>
+</main></div><script src="/assets/vagabond/web_order/khoi.js?v=3f9e2ef32ff5"></script><script src="/assets/vagabond/web_order/bien-tap.js?v=3311031b3936"></script>
+<script src="/assets/vagabond/web_order/chuyen-muc.js?v=67794496942c"></script><script src="/assets/vagabond/web_order/bien-tap-moi.js?v=1a085fa8d62c"></script></body></html>
 {% endif %}

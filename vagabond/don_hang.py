@@ -165,6 +165,21 @@ def _ip_va_trinh_duyet():
 		return None, ""
 
 
+def _diem_lay(ma_diem, khoa=False):
+	"""Điểm nhận theo MÃ cửa hàng: (điểm, None) hoặc (None, lý do chặn).
+
+	Nhận diện bằng mã (Codex #453 vòng 2): tên có thể trùng, đơn chỉ có tên
+	(trang cũ) thì chặn, không đoán. Tên và địa chỉ lấy từ máy chủ. khoa=True
+	đọc hiện tại và giữ khoá hàng nội dung web tới lúc commit (Codex #454)."""
+	from vagabond import noi_dung_web
+	diem = {d["id"]: d for d in noi_dung_web.diem_nhan(noi_dung_web._ban_cong_khai(khoa=khoa))}
+	if not diem:
+		return None, "khong_con_diem_nhan"
+	if ma_diem not in diem:
+		return None, "diem_nhan_khong_con"
+	return diem[ma_diem], None
+
+
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 @rate_limit(limit=10, seconds=60)
 def tao_don(don=None):
@@ -204,6 +219,16 @@ def tao_don(don=None):
 	dia_chi = (don.get("dia_chi") or "").strip()
 	if not tu_lay and len(dia_chi) < 8:
 		return {"ok": 0, "ly_do": "thieu_dia_chi_giao"}
+	ma_diem = str(don.get("diem_lay_id") or "").strip()
+	if tu_lay:
+		# v586 (Codex #453): điểm nhận phải còn bật ở thẻ Cửa hàng ngay lúc
+		# gửi. Trang khách có thể còn giữ danh sách cũ trong máy khách. Đây là
+		# phép chặn sớm (đọc thường); phép quyết định nằm ngay trước lúc ghi.
+		diem, ly_do = _diem_lay(ma_diem)
+		if ly_do:
+			return {"ok": 0, "ly_do": ly_do}
+		dia_chi = diem["a"]
+		don["diem_lay_ten"] = diem["n"]
 
 	ngay = _ngay_iso(don.get("ngay_nhan"))
 
@@ -359,6 +384,14 @@ def tao_don(don=None):
 		trung = don_web.tim_trung(khoa)
 		if trung:
 			return don_web.phan_hoi(trung, nonce, trung=True)
+		if tu_lay:
+			# Codex #454: xếp hàng với Marketing. Đọc lại điểm nhận bằng phép
+			# khoá hàng nội dung web, giữ khoá tới commit ngay dưới, để điểm vừa
+			# tắt hay đổi địa chỉ trong lúc đơn đang xử lý không lọt vào sổ.
+			# Không khoá từ đầu hàm vì giữa đó còn gọi Pancake tra mã hàng.
+			diem, ly_do = _diem_lay(ma_diem, khoa=True)
+			if ly_do or (diem["a"], diem["n"]) != (dia_chi, don["diem_lay_ten"]):
+				return {"ok": 0, "ly_do": ly_do or "diem_nhan_khong_con"}
 		ban_ghi = don_web.tao_ban_ghi(nonce, {
 			"ho_ten": ten,
 			"dien_thoai": dien_thoai,

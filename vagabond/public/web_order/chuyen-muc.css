@@ -6,3 +6,21 @@
 
 /* Một chương trình/vị trí vẫn tận dụng chiều ngang; nhiều thẻ giữ lưới. */
 @media(min-width:601px){.cm-the:only-child{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr}.cm-the:only-child .cm-anh{height:100%;min-height:340px;max-height:450px}.cm-the:only-child:not(:has(.cm-anh)){display:block}}
+
+/* v586: ưu đãi có điều kiện, tiệc có giá vé và đăng ký, nền thương hiệu khi chưa có ảnh. */
+.cm-anh-nen{display:flex;align-items:flex-end;aspect-ratio:16/9;height:auto;padding:22px;background:radial-gradient(circle at 80% 20%,rgba(63,216,205,.28),transparent 55%),linear-gradient(135deg,#06201e,#000 70%);border-bottom:1px solid var(--line)}
+@media(min-width:601px){.cm-the:only-child .cm-anh-nen{max-height:none;aspect-ratio:auto;border-bottom:0;border-right:1px solid var(--line)}}
+.cm-anh-nen span{font-family:'Vagabond Sans',var(--sans);font-size:clamp(22px,3vw,34px);line-height:1.05;text-transform:uppercase;color:var(--cyan);overflow-wrap:anywhere;max-width:100%}
+.cm-dieu-kien{margin:12px 0;padding-left:14px;border-left:2px solid var(--cyan);color:var(--paper)}
+.cm-gia{font-size:20px;color:var(--paper);margin:10px 0}
+.cm-doan+.cm-nhan{margin-top:18px}.cm-ds{margin:12px 0;padding-left:20px;color:var(--fog);line-height:1.7}
+.cm-dk{display:flex;flex-direction:column;gap:14px;margin-top:18px;padding-top:18px;border-top:1px solid var(--line)}
+.cm-dk label{display:flex;flex-direction:column;gap:6px;font-size:14px;color:var(--fog)}
+.cm-dk input,.cm-dk textarea{min-height:48px;padding:12px;background:var(--bg);color:var(--paper);border:1px solid var(--line);font:inherit}
+.cm-dk textarea{min-height:80px}
+.cm-dk-luu-y{color:var(--fog);font-size:13.5px;margin:0}
+.cm-dk-bao{color:var(--amber);margin:0}
+.cm-dk-bao:empty{display:none}
+.cm-dk-xong{color:var(--cyan);margin:0}
+.cm-dk .cm-nut{align-self:flex-start;background:var(--cyan);color:#00201D;cursor:pointer}
+.cm-dk .cm-nut:disabled{opacity:.5;cursor:wait}

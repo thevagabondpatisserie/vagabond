@@ -11,6 +11,8 @@
     if (cacBuoc[buoc] !== chu) { cacBuoc = cacBuoc.slice(0, buoc + 1); cacBuoc.push(chu); if (cacBuoc.length > 60) cacBuoc.shift(); buoc = cacBuoc.length - 1; }
     nutHoanTac();
   }
+  // Codex #454: trần số khối do máy chủ quyết (noi_dung_web.SO_KHOI_TOI_DA), không chép số vào đây.
+  const toiDaKhoi = () => bang.so_khoi_toi_da;
   function nutHoanTac() { tim('hoan-tac').disabled = ban || buoc <= 0; tim('lam-lai').disabled = ban || buoc >= cacBuoc.length - 1; }
   function giuBanTrenMay() {
     try { sessionStorage.setItem(khoaPhucHoi, JSON.stringify({phien_ban:bang.phien_ban, noi_dung:nhap})); }
@@ -228,7 +230,7 @@
     }
     const sao = tao('button', 'Nhân bản khối'); sao.onclick = () => {
       if(k.loai==='nut_kenh'){bao('Chỉ có một nút mở kênh. Sửa logo của nút này.',true);return;}
-      if (ban || nhap.khoi.length >= 30) { bao('Tối đa 30 khối. Tái sử dụng một khối đang ẩn.', true); return; }
+      if (ban || nhap.khoi.length >= toiDaKhoi()) { bao('Tối đa ' + toiDaKhoi() + ' khối. Tái sử dụng một khối đang ẩn.', true); return; }
       const moi = structuredClone(k); moi.id = 'k-' + crypto.randomUUID(); moi.hien = false;
       nhap.khoi.splice(nhap.khoi.indexOf(k) + 1, 0, moi); chon = moi.id; daDoi(); veTatCa();
     }; g.append(sao);
@@ -301,7 +303,7 @@
     } catch (e) { bao(e.message, true); } finally { khoa(false); }
   }
   Object.entries(tenLoai).filter(([ma]) => ma !== 'tieu_de_muc').forEach(([ma, ten]) => { const b = tao('button', '+ ' + ten); b.onclick = () => {
-    if (!nhap || ban) return; if(ma==='nut_kenh'&&nhap.khoi.some(k=>k.loai===ma)){chon=nhap.khoi.find(k=>k.loai===ma).id;thuocTinh();bao('Đã chọn nút mở kênh hiện có.');return;} if (nhap.khoi.length >= 30) { bao('Đã có 30 khối. Chọn khối cũ, đổi loại và nội dung để tái sử dụng.', true); return; }
+    if (!nhap || ban) return; if(ma==='nut_kenh'&&nhap.khoi.some(k=>k.loai===ma)){chon=nhap.khoi.find(k=>k.loai===ma).id;thuocTinh();bao('Đã chọn nút mở kênh hiện có.');return;} if (nhap.khoi.length >= toiDaKhoi()) { bao('Đã có ' + toiDaKhoi() + ' khối. Chọn khối cũ, đổi loại và nội dung để tái sử dụng.', true); return; }
     const k = {id: 'k-' + crypto.randomUUID(), loai: ma, hien: !['uu_dai','tuyen_dung','kenh_dat_hang','zalo_oa','nut_kenh'].includes(ma), vi_tri: ['uu_dai','tuyen_dung'].includes(ma)?ma:'cuoi_trang', nhan: '', tieu_de: ten, noi_dung: '', anh: ma==='tuyen_dung'?'/assets/vagabond/web_order/tay-lam-banh-minh-hoa.jpg':'', mo_ta_anh: ma==='tuyen_dung'?'Ảnh minh hoạ tay làm bánh':'', nut: '', lien_ket: ''};
     nhap.khoi.push(k); chon = k.id; daDoi(); danhSach(); thuocTinh();
   }; tim('them-khoi').append(b); });

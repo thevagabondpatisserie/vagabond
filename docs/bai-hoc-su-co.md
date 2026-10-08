@@ -1921,3 +1921,42 @@ thấy lớp quyền này. Phòng: ô Link do app thêm mà chỉ để cấu h�
 kho mặc định) phải có `ignore_user_permissions: 1`; tầng khung có ca dò mọi
 khai báo Link Warehouse trong mã nguồn. Ca bench cho ô tìm hay danh sách phải
 có một lượt chạy bằng tài khoản thường có User Permission, không chỉ Administrator.
+## 08/10/2026 - v586: đăng ký tiệc vượt số vé dù đã khoá hàng
+
+Cửa đăng ký tiệc khoá hàng nội dung web rồi mới đếm vé, nhưng câu đếm là đọc
+thường. MariaDB REPEATABLE READ giữ ảnh chụp từ lần đọc đầu (tra mã lần gửi),
+nên khách thứ hai chờ khoá xong vẫn thấy tổng cũ. Tái hiện hai kết nối thật:
+tiệc 40 vé, đã có 38, hai khách mỗi người 2 vé, ghi được 42/40. Khoá thôi
+chưa đủ: MỌI phép đọc sau khoá phải là đọc hiện tại (`for update`), kể cả đọc
+lại mã lần gửi. Bài học trùng #368 và đặt bàn, ghi lại vì lặp lại lần ba.
+
+Ca kiểm cũ của cửa này thay hẳn `dem_ve` bằng hàm giả để đếm thứ tự, nên
+không bao giờ nhìn thấy câu SQL đếm vé. Ca kiểm thứ tự khoá phải giữ hàm thật
+và soi đúng câu nó chạy, không thay chính chỗ đang kiểm.
+
+Cũng PR đó: điểm nhận bánh "danh sách rỗng thì về điểm cũ" là sai, vì rỗng là
+marketing đã tắt hết. Phân biệt "chưa tải" với "đã tải mà rỗng", và máy chủ
+chặn lại lúc gửi đơn theo đúng một luật (`noi_dung_web.diem_nhan`).
+
+Vòng 2 cùng PR (Codex #453): giỏ trong trình duyệt nhớ điểm nhận theo SỐ THỨ
+TỰ, nên khi marketing xoá một điểm thì khách bị chuyển lặng lẽ sang điểm đứng
+sau; máy chủ tra điểm theo TÊN nên hai cửa hàng trùng tên lấy nhầm địa chỉ.
+Thứ gì người dùng chọn từ một danh sách người khác sửa được thì phải giữ bằng
+mã ổn định; mã mất thì bắt chọn lại, không tự chọn hộ. Ca bench web #245 cũng
+phải sửa khi API công khai thêm phần dẫn xuất, vì nó so nguyên tập khoá.
+
+Vòng 3 (Codex #454): đã sửa đếm vé là đọc hiện tại nhưng cấu hình tiệc (số
+vé, ẩn hiện) vẫn đọc thường sau khoá. Marketing giảm 40 xuống 20 vé lúc khách
+đang chờ khoá thì khách vẫn thấy trần 40 trong ảnh chụp: tái hiện ghi được
+21/20. Cách sửa gọn: cho phép khoá đọc luôn dữ liệu cần dùng
+(`_ban_cong_khai(khoa=True)`), không khoá một câu rồi đọc ở câu khác. Ca kiểm
+cũ thay `_ban_cong_khai` bằng hàm giả nên lại che đúng chỗ này; trang giả nay
+phân biệt đọc thường (ảnh chụp) với đọc `for update` (bản hiện tại).
+
+Vòng 4 (Codex #454, cùng ngày): đơn tự lấy kiểm điểm nhận bằng phép đọc
+thường, không xếp hàng với Marketing, nên điểm vừa tắt vẫn có thể vào sổ.
+Không thể khoá từ đầu `tao_don` vì giữa đó còn gọi Pancake tra mã hàng;
+cách đúng là giữ phép chặn sớm (đọc thường) và thêm phép QUYẾT ĐỊNH đọc có
+khoá ngay trước khi ghi, trong khoá ghi, rồi commit. Cùng vòng: máy chủ nâng
+trần khối 30 lên 80 nhưng bảng Nâng cao vẫn chép cứng 30, nên chặn sớm. Trần
+nay đi kèm `doc_bang`; JS không tự đặt số.
