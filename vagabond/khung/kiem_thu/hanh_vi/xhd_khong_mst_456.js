@@ -191,6 +191,14 @@ function hien(el) { return el.style.display !== 'none'; }
     bang('ghép lại y cũ', app.mc.cuoi('vagabond.ban_hang.luu_xhd').a.ten, 'ACME PTE. LTD. (MST nước ngoài: 201912345K)');
   });
 
+  await ca('Codex #458: ba nút loại người mua cao tối thiểu 44 điểm (AGENTS 2b.13)', async function () {
+    var app = await moDon();
+    ['ca_nhan', 'cong_ty', 'khong_mst'].forEach(function (k) {
+      var st = app.mot('[data-loai="' + k + '"]').getAttribute('style') || '';
+      dung('nút ' + k + ' có min-height:44px', /min-height:\s*44px/.test(st));
+    });
+  });
+
   await ca('Mở lại đơn công ty có MST: vẫn vào nút Công ty / HKD như cũ', async function () {
     var app = await moDon({ vgb_xhd_ten: 'Công ty TNHH ABC', vgb_xhd_mst: '0311638525' });
     dung('ô MST VN hiện', hien(app.tl.getElementById('xhdMst')));
