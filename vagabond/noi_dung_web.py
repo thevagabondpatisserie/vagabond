@@ -11,9 +11,20 @@ import re
 from pathlib import Path
 from urllib.parse import urlsplit
 
-LOAI = {"tieu_de_muc", "anh_bia", "cau_chuyen", "anh_chu", "thong_bao", "hoi_dap", "uu_dai", "tuyen_dung", "kenh_dat_hang", "zalo_oa", "nut_kenh"}
-TRUONG = {"id", "loai", "hien", "nhan", "tieu_de", "noi_dung", "anh", "mo_ta_anh", "nut", "lien_ket", "vi_tri", "bat_dau", "ket_thuc", "nhom", "ma_uu_dai", "noi_lam", "hinh_thuc", "email"}
-VI_TRI = {"dau_trang", "today", "order", "store", "season", "cuoi_trang", "uu_dai", "tuyen_dung"}
+LOAI = {"tieu_de_muc", "anh_bia", "cau_chuyen", "anh_chu", "thong_bao", "hoi_dap", "uu_dai", "tuyen_dung", "tiec", "kenh_dat_hang", "zalo_oa", "nut_kenh"}
+# v586 (Minh Vũ đề xuất, anh Việt duyệt 07/10/2026): ưu đãi có điều kiện đơn
+# tối thiểu và khung giờ, tuyển dụng có yêu cầu và quyền lợi, thêm loại Tiệc
+# có giá vé, số vé, hạn đăng ký. Mọi trường vẫn là CHUỖI để giữ một phép kiểm
+# chung cho chữ; con số được kiểm riêng là chuỗi chữ số.
+TRUONG_MOI_586 = {"don_toi_thieu", "gio_bat_dau", "gio_ket_thuc", "dieu_kien", "yeu_cau",
+                  "gia_ve", "so_ve", "han_ban", "dia_diem"}
+TRUONG = {"id", "loai", "hien", "nhan", "tieu_de", "noi_dung", "anh", "mo_ta_anh", "nut", "lien_ket", "vi_tri", "bat_dau", "ket_thuc", "nhom", "ma_uu_dai", "noi_lam", "hinh_thuc", "email"} | TRUONG_MOI_586
+VI_TRI = {"dau_trang", "today", "order", "store", "season", "cuoi_trang", "uu_dai", "tuyen_dung", "tiec"}
+# Ba loại có thẻ riêng trong trình biên tập mới, mỗi mục một thẻ trên web.
+LOAI_MUC = ("uu_dai", "tuyen_dung", "tiec")
+# Trước v586 tối đa 30 khối; nay ưu đãi, tuyển dụng, tiệc cũng là khối nên
+# nâng trần. Giới hạn 250 KB của cả bản vẫn giữ.
+SO_KHOI_TOI_DA = 80
 MAC_DINH = {"khoi": [
     {"id":"tieu-de-hom-nay", "loai":"tieu_de_muc", "hien":True, "vi_tri":"today", "tieu_de":"Bánh\nhôm nay"},
     {"id":"tieu-de-dat-truoc", "loai":"tieu_de_muc", "hien":True, "vi_tri":"order", "tieu_de":"Đặt\nbánh trước"},
@@ -203,14 +214,161 @@ def quyet_vao_bang(nguoi, vai):
     return "vao"
 
 
+RE_GIO = re.compile(r"(?:[01][0-9]|2[0-3]):[0-5][0-9]")
+RE_EMAIL = re.compile(r"[A-Za-z0-9_.+%-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+
+
+def _so(v, ten, toi_da=12):
+    """Ô số lưu dạng chuỗi chữ số. Trống là không đặt."""
+    if v and not re.fullmatch(r"[0-9]{1,%d}" % toi_da, v):
+        raise ValueError("%s chỉ gõ chữ số, không dấu chấm hay chữ đ." % ten)
+
+
+def _kiem_truong_586(k):
+    """Kiểm các trường thêm ở v586. THUẦN."""
+    from datetime import date
+    _so(k.get("don_toi_thieu", ""), "Đơn tối thiểu")
+    _so(k.get("gia_ve", ""), "Giá vé")
+    _so(k.get("so_ve", ""), "Số vé", 5)
+    if k.get("so_ve") and int(k["so_ve"]) < 1:
+        raise ValueError("Số vé phải từ 1 trở lên, để trống là không giới hạn.")
+    g1, g2 = k.get("gio_bat_dau", ""), k.get("gio_ket_thuc", "")
+    for g in (g1, g2):
+        if g and not RE_GIO.fullmatch(g):
+            raise ValueError("Giờ gõ dạng 07:00 hoặc 21:30.")
+    if bool(g1) != bool(g2):
+        raise ValueError("Điền cả hai ô giờ, hoặc bỏ trống cả hai để áp dụng cả ngày.")
+    if g1 and g2 and g1 >= g2:
+        raise ValueError("Giờ kết thúc phải sau giờ bắt đầu.")
+    if k.get("han_ban"):
+        try:
+            date.fromisoformat(k["han_ban"])
+        except ValueError:
+            raise ValueError("Hạn đăng ký không hợp lệ.")
+        if k.get("bat_dau") and k["han_ban"] > k["bat_dau"]:
+            raise ValueError("Hạn đăng ký không được sau ngày diễn ra tiệc.")
+
+
+# v586: cửa hàng và điểm nhận bánh, MỘT nguồn cho mọi chỗ trên web (anh Việt
+# chốt 07/10/2026). Mặc định PHẢI trùng chữ đang gõ cứng trong trang, để
+# deploy xong khách thấy y nguyên cho tới khi marketing sửa.
+# Hai điểm nhận bánh giữ ĐÚNG thứ tự cũ (Bếp trước, Cửa hàng sau): giỏ hàng
+# khách lưu trong trình duyệt nhớ điểm nhận theo số thứ tự.
+# Liên hệ (điện thoại, email, mạng xã hội) KHÔNG nằm ở đây: nguồn của nó đã
+# có từ #367 là các ô web_* của Vagabond Settings (don_web.lien_he), chân
+# trang và biên nhận đang đọc ở đó. Thẻ Liên hệ ghi thẳng vào các ô đó.
+TRUONG_CUA_HANG = {"id", "ten", "dia_chi", "gio_mo_cua", "hotline", "chi_duong", "loai", "nhan_banh", "hien"}
+THONG_TIN_MAC_DINH = {
+    "cua_hang": [
+        {"id": "bep-tan-son-hoa", "ten": "Bếp Tân Sơn Hoà", "dia_chi": "307/1 Nguyễn Văn Trỗi, P. Tân Sơn Hoà",
+         "gio_mo_cua": "", "hotline": "", "chi_duong": "", "loai": "bep", "nhan_banh": True, "hien": False},
+        {"id": "cua-hang-sai-gon", "ten": "Cửa hàng Sài Gòn", "dia_chi": "9 Trần Cao Vân, P. Sài Gòn",
+         "gio_mo_cua": "", "hotline": "", "chi_duong": "", "loai": "cua_hang", "nhan_banh": True, "hien": True},
+        {"id": "nha-van-hoa-thanh-nien", "ten": "Nhà Văn Hóa Thanh Niên", "dia_chi": "21 Phạm Ngọc Thạch, Quận 3",
+         "gio_mo_cua": "", "hotline": "", "chi_duong": "", "loai": "cua_hang", "nhan_banh": False, "hien": False},
+    ],
+}
+TRUONG_LIEN_HE = ("dien_thoai", "email", "zalo", "messenger", "facebook", "instagram", "tiktok")
+# Ô Settings tương ứng, viết đủ tên để bộ kiểm ô cài đặt đọc được.
+O_LIEN_HE = {"dien_thoai": "web_dien_thoai", "email": "web_email", "zalo": "web_zalo", "messenger": "web_messenger",
+             "facebook": "web_facebook", "instagram": "web_instagram", "tiktok": "web_tiktok"}
+TEN_LIEN_HE = {"dien_thoai": "Số điện thoại", "email": "Email", "zalo": "Zalo", "messenger": "Messenger",
+               "facebook": "Facebook", "instagram": "Instagram", "tiktok": "TikTok"}
+
+
+def chu_so_dien_thoai(sdt):
+    """Số điện thoại chỉ còn chữ số, để làm đường dẫn tel:. THUẦN."""
+    return re.sub(r"[^0-9+]", "", str(sdt or ""))
+
+
+def _https(v, ten):
+    if not v:
+        return
+    u = urlsplit(v)
+    if any(ord(c) < 33 for c in v) or "\\" in v or u.scheme != "https" or not u.hostname or u.username or u.password:
+        raise ValueError("%s phải là liên kết bắt đầu bằng https://." % ten)
+
+
+def kiem_lien_he(lh):
+    """Kiểm thẻ Liên hệ trước khi ghi vào Settings. THUẦN. Trả bản đã gọt."""
+    if not isinstance(lh, dict) or set(lh) - set(TRUONG_LIEN_HE):
+        raise ValueError("Thẻ Liên hệ có ô không được hỗ trợ. Tải lại trang.")
+    ra = {}
+    for k in TRUONG_LIEN_HE:
+        v = lh.get(k, "")
+        if not isinstance(v, str) or len(v) > 300:
+            raise ValueError("%s quá dài hoặc không hợp lệ." % TEN_LIEN_HE[k])
+        ra[k] = v.strip()
+    if ra["dien_thoai"] and not re.fullmatch(r"\+?[0-9]{8,12}", chu_so_dien_thoai(ra["dien_thoai"])):
+        raise ValueError("Số điện thoại chỉ gồm 8 đến 12 chữ số, ví dụ 0931 224 334 hoặc 1900 1234.")
+    if ra["email"] and not RE_EMAIL.fullmatch(ra["email"]):
+        raise ValueError("Email không hợp lệ, ví dụ hello@thevagabondpatisserie.com.")
+    for k in ("zalo", "messenger", "facebook", "instagram", "tiktok"):
+        _https(ra[k], TEN_LIEN_HE[k])
+    return ra
+
+
+def _chuan_hoa_thong_tin(tt):
+    if not isinstance(tt, dict) or set(tt) - {"cua_hang"}:
+        raise ValueError("Thông tin website chỉ gồm danh sách cửa hàng.")
+    ch = tt.get("cua_hang", [])
+    if not isinstance(ch, list) or len(ch) > 12:
+        raise ValueError("Tối đa 12 cửa hàng và điểm nhận bánh.")
+    da_co = set()
+    for c in ch:
+        if not isinstance(c, dict) or set(c) - TRUONG_CUA_HANG:
+            raise ValueError("Cửa hàng có ô không được hỗ trợ.")
+        if not re.fullmatch(r"[a-z0-9-]{1,60}", str(c.get("id", ""))) or c["id"] in da_co:
+            raise ValueError("Mã cửa hàng bị trùng hoặc không hợp lệ. Tải lại trang.")
+        da_co.add(c["id"])
+        for k in ("hien", "nhan_banh"):
+            if type(c.get(k, False)) is not bool:
+                raise ValueError("Chọn bật hoặc tắt cho từng cửa hàng.")
+        for k in TRUONG_CUA_HANG - {"hien", "nhan_banh"}:
+            v = c.get(k, "")
+            if not isinstance(v, str) or len(v) > 300:
+                raise ValueError("Chữ của cửa hàng quá dài hoặc không hợp lệ.")
+        if c.get("loai", "cua_hang") not in ("cua_hang", "bep"):
+            raise ValueError("Chọn loại: cửa hàng hay bếp.")
+        if not c.get("ten", "").strip():
+            raise ValueError("Cửa hàng cần có tên.")
+        if (c.get("hien") or c.get("nhan_banh")) and not c.get("dia_chi", "").strip():
+            raise ValueError("%s cần địa chỉ trước khi hiện trên web hoặc nhận bánh." % c["ten"])
+        if c.get("hotline") and not re.fullmatch(r"\+?[0-9]{8,12}", chu_so_dien_thoai(c["hotline"])):
+            raise ValueError("Hotline của %s chỉ gồm 8 đến 12 chữ số." % c["ten"])
+        _https(c.get("chi_duong", ""), "Chỉ đường của " + c["ten"])
+
+
+def thong_tin_day_du(du_lieu):
+    """Danh sách cửa hàng để trang dùng: bản đã sửa, chưa từng sửa thì lấy
+    mặc định. THUẦN, là NGUỒN DUY NHẤT ghép với mặc định."""
+    tt = (du_lieu or {}).get("thong_tin") or {}
+    ch = tt["cua_hang"] if isinstance(tt.get("cua_hang"), list) else THONG_TIN_MAC_DINH["cua_hang"]
+    return {"cua_hang": copy.deepcopy(ch)}
+
+
+def diem_nhan(du_lieu):
+    """Điểm nhận bánh khách được chọn ở bước Tự lấy: cửa hàng bật "Nhận bánh
+    tại đây" và có địa chỉ. THUẦN, máy chủ và trang khách cùng theo một luật.
+    Danh sách rỗng là marketing đã tắt hết, KHÔNG quay về điểm cũ (Codex #453).
+    Mỗi điểm mang mã cửa hàng (duy nhất, kiểm ở _chuan_hoa_thong_tin): trang và
+    máy chủ nhận diện điểm bằng mã, không bằng tên hay vị trí."""
+    return [{"id": str(c.get("id") or ""), "n": str(c.get("ten") or "").strip(), "a": str(c.get("dia_chi") or "").strip()}
+            for c in thong_tin_day_du(du_lieu)["cua_hang"]
+            if isinstance(c, dict) and c.get("nhan_banh") and str(c.get("dia_chi") or "").strip()
+            and str(c.get("ten") or "").strip() and str(c.get("id") or "")]
+
+
 def chuan_hoa(du_lieu):
     """Giới hạn kích thước và cấu trúc trước khi lưu, dùng cả ở Document.save."""
     if isinstance(du_lieu, str):
         if len(du_lieu) > 250000:
             raise ValueError("Nội dung quá dài. Giảm số khối hoặc độ dài bài viết.")
         du_lieu = json.loads(du_lieu)
-    if not isinstance(du_lieu, dict) or "khoi" not in du_lieu or set(du_lieu) - {"khoi", "chinh_sach", "nhan", "san_pham"}:
+    if not isinstance(du_lieu, dict) or "khoi" not in du_lieu or set(du_lieu) - {"khoi", "chinh_sach", "nhan", "san_pham", "thong_tin"}:
         raise ValueError("Nội dung phải có danh sách khối.")
+    if "thong_tin" in du_lieu:
+        _chuan_hoa_thong_tin(du_lieu["thong_tin"])
     if "chinh_sach" in du_lieu:
         _chuan_hoa_chinh_sach(du_lieu["chinh_sach"])
     if "nhan" in du_lieu:
@@ -224,8 +382,8 @@ def chuan_hoa(du_lieu):
         if any(not isinstance(v, str) or len(v) > 4000 for v in chu.values()):
             raise ValueError("Mỗi ô nội dung sản phẩm tối đa 4.000 ký tự.")
     ds = du_lieu["khoi"]
-    if not isinstance(ds, list) or len(ds) > 30:
-        raise ValueError("Mỗi trang có tối đa 30 khối.")
+    if not isinstance(ds, list) or len(ds) > SO_KHOI_TOI_DA:
+        raise ValueError("Mỗi trang có tối đa %d mục và khối. Xoá bớt ưu đãi hay vị trí đã hết hạn." % SO_KHOI_TOI_DA)
     da_co = set()
     tieu_de_da_co = set()
     zalo_da_co = False
@@ -240,7 +398,7 @@ def chuan_hoa(du_lieu):
         da_co.add(k["id"])
         if k.get("vi_tri", "cuoi_trang") not in VI_TRI:
             raise ValueError("Chọn vị trí khối trên trang đặt bánh.")
-        if k['loai'] not in ('uu_dai', 'tuyen_dung') and k.get('vi_tri') in ('uu_dai', 'tuyen_dung'):
+        if k['loai'] not in LOAI_MUC and k.get('vi_tri') in LOAI_MUC:
             raise ValueError('Khối nội dung thường cần chọn vị trí trên trang bán hàng.')
         if k['loai'] == 'tieu_de_muc':
             vi_tri = k.get('vi_tri')
@@ -253,8 +411,9 @@ def chuan_hoa(du_lieu):
             raise ValueError("Chọn hiện hoặc ẩn cho từng khối.")
         for ten in TRUONG - {"hien"}:
             v = k.get(ten, "")
-            if not isinstance(v, str) or len(v) > (4000 if ten == "noi_dung" else 1000):
+            if not isinstance(v, str) or len(v) > (4000 if ten in ("noi_dung", "yeu_cau") else 1000):
                 raise ValueError("Chữ trong khối quá dài hoặc không hợp lệ: " + ten)
+        _kiem_truong_586(k)
         if k['loai'] == 'nut_kenh':
             if nut_kenh_da_co:
                 raise ValueError('Chỉ dùng một nút mở kênh đặt hàng. Sửa nút đã có.')
@@ -271,9 +430,9 @@ def chuan_hoa(du_lieu):
                 raise ValueError('Nút nổi cần tên và liên kết HTTPS trước khi bật.')
             if k['loai'] == 'zalo_oa' and k.get('lien_ket') and (u.hostname != 'zalo.me' or not re.fullmatch(r'/(?:[0-9]{15,25}|[A-Za-z][A-Za-z0-9._-]{2,59})/?', u.path)):
                 raise ValueError('Dùng đường dẫn Zalo OA dạng https://zalo.me/tên-OA hoặc mã OA, không dùng số điện thoại cá nhân.')
-        if k['loai'] in ('uu_dai', 'tuyen_dung'):
+        if k['loai'] in LOAI_MUC:
             if not k.get('tieu_de', '').strip():
-                raise ValueError('Ưu đãi và vị trí tuyển dụng cần có tiêu đề.')
+                raise ValueError('Ưu đãi, tiệc và vị trí tuyển dụng cần có tên.')
             from datetime import date
             for ten in ('bat_dau', 'ket_thuc'):
                 if k.get(ten):
@@ -285,6 +444,8 @@ def chuan_hoa(du_lieu):
                 raise ValueError('Email nhận hồ sơ không hợp lệ.')
             if k['loai'] == 'tuyen_dung' and k['hien'] and not (k.get('email') or k.get('lien_ket')):
                 raise ValueError('Điền email hoặc liên kết ứng tuyển trước khi bật vị trí.')
+            if k['loai'] == 'tiec' and k['hien'] and not k.get('bat_dau'):
+                raise ValueError('Chọn ngày diễn ra tiệc trước khi bật hiện trên web.')
         for ten in ("anh", "lien_ket"):
             v = k.get(ten, "")
             if not v:
@@ -299,6 +460,127 @@ def chuan_hoa(du_lieu):
             if ten == "anh" and (v.startswith("/private/") or v.lower().split("?")[0].endswith(".svg")):
                 raise ValueError("Chọn ảnh công khai PNG, JPG hoặc WebP.")
     return copy.deepcopy(du_lieu)
+
+
+class XungDot(ValueError):
+    """Người khác vừa sửa đúng mục này sau lúc mình mở ra."""
+
+
+def dau_van_tay(x):
+    """Dấu ngắn của một mục để biết mục có bị ai sửa trong lúc mình đang sửa
+    không. THUẦN. None (mục chưa có) cho dấu rỗng."""
+    import hashlib
+    if x is None:
+        return ""
+    return hashlib.sha1(json.dumps(x, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:16]
+
+
+def _vi_tri_muc(nd, id_muc):
+    for i, k in enumerate(nd.get("khoi") or []):
+        if k.get("id") == id_muc:
+            return i
+    return -1
+
+
+def ap_muc(nd, muc, dau_cu=None):
+    """Đặt MỘT mục ưu đãi, tuyển dụng hoặc tiệc vào bản nội dung. THUẦN.
+
+    Trình biên tập mới lưu từng mục và khách thấy ngay (v586). Không lưu cả
+    bản như trình cũ nên không cuốn theo phần nháp người khác chưa xuất bản.
+    dau_cu: dấu của mục lúc mình mở ra ("" là mục mới). None là không soát,
+    dùng cho bản nháp vì nháp có thể đang khác bản công khai.
+    Mục mới chèn lên ĐẦU nhóm cùng loại: ưu đãi vừa tạo phải đứng trên cùng.
+    """
+    if not isinstance(muc, dict) or muc.get("loai") not in LOAI_MUC:
+        raise ValueError("Chỉ lưu được ưu đãi, tiệc và vị trí tuyển dụng ở đây.")
+    nd = copy.deepcopy(nd)
+    ds = nd.setdefault("khoi", [])
+    muc = dict(muc, vi_tri=muc["loai"])
+    i = _vi_tri_muc(nd, muc.get("id"))
+    cu = ds[i] if i >= 0 else None
+    if dau_cu is not None and dau_van_tay(cu) != dau_cu:
+        raise XungDot("Có người vừa sửa hoặc xoá mục này. Tải lại để xem bản mới rồi sửa tiếp.")
+    if cu is not None:
+        if cu.get("loai") != muc["loai"]:
+            raise ValueError("Mã mục đã dùng cho loại khác. Tải lại trang.")
+        ds[i] = muc
+    else:
+        dau = next((j for j, k in enumerate(ds) if k.get("loai") == muc["loai"]), len(ds))
+        ds.insert(dau, muc)
+    return nd
+
+
+def xoa_muc(nd, id_muc, dau_cu=None):
+    """Bỏ một mục ra khỏi bản nội dung. THUẦN. Mục đã không còn thì thôi."""
+    nd = copy.deepcopy(nd)
+    i = _vi_tri_muc(nd, id_muc)
+    cu = nd["khoi"][i] if i >= 0 else None
+    if dau_cu is not None and dau_van_tay(cu) != dau_cu:
+        raise XungDot("Có người vừa sửa mục này. Tải lại để xem bản mới trước khi xoá.")
+    if cu is not None:
+        if cu.get("loai") not in LOAI_MUC:
+            raise ValueError("Khối này chỉ xoá ở mục Nâng cao.")
+        del nd["khoi"][i]
+    return nd
+
+
+def ap_thong_tin(nd, phan, gia_tri, dau_cu=None):
+    """Thay một phần (lien_he hoặc cua_hang) của thông tin website. THUẦN."""
+    if phan != "cua_hang":
+        raise ValueError("Chỉ sửa được danh sách cửa hàng ở đây.")
+    nd = copy.deepcopy(nd)
+    hien_tai = thong_tin_day_du(nd)
+    if dau_cu is not None and dau_van_tay(hien_tai[phan]) != dau_cu:
+        raise XungDot("Có người vừa sửa phần này. Tải lại để xem bản mới rồi sửa tiếp.")
+    hien_tai[phan] = gia_tri
+    nd["thong_tin"] = hien_tai
+    return nd
+
+
+def ap_nhan(nd, thay, soat=True):
+    """Đổi một số nhãn chữ. thay = {khoá: [chữ lúc mở, chữ mới]}. THUẦN.
+
+    Chữ mới để trống là quay về chữ mặc định. Soát từng khoá: ai vừa đổi
+    đúng khoá đó thì báo, khoá khác không ảnh hưởng.
+    """
+    if not isinstance(thay, dict) or not thay or set(thay) - set(NHAN):
+        raise ValueError("Nhãn không có trong danh sách cho phép. Tải lại trang biên tập.")
+    nd = copy.deepcopy(nd)
+    nhan = dict(nd.get("nhan") or {})
+    for khoa, cap in thay.items():
+        if not isinstance(cap, (list, tuple)) or len(cap) != 2 or not all(isinstance(x, str) for x in cap):
+            raise ValueError("Dữ liệu nhãn không hợp lệ. Tải lại trang biên tập.")
+        cu, moi = cap
+        if soat and (nhan.get(khoa) or "") != cu:
+            raise XungDot("Có người vừa sửa câu \"%s\". Tải lại để xem bản mới." % NHAN[khoa]["ten"])
+        if moi.strip():
+            nhan[khoa] = moi
+        else:
+            nhan.pop(khoa, None)
+    nd["nhan"] = nhan
+    return nd
+
+
+def trang_thai_muc(muc, hom_nay):
+    """Nhãn trạng thái của một mục trên danh sách biên tập. THUẦN.
+
+    hom_nay: chuỗi YYYY-MM-DD theo giờ Việt Nam. Trả (mã, chữ) để màn tô màu.
+    Trang khách cũng ẩn mục đã hết hạn theo đúng mốc này (chuyen-muc.js).
+    """
+    loai = muc.get("loai")
+    bd, kt = muc.get("bat_dau") or "", muc.get("ket_thuc") or ""
+    if loai == "tiec":
+        if bd and bd < hom_nay:
+            return ("het", "Đã diễn ra")
+        han = muc.get("han_ban") or bd
+        if han and han < hom_nay:
+            return ("het", "Hết hạn đăng ký")
+        return ("dang", "Đang mở đăng ký")
+    if kt and kt < hom_nay:
+        return ("het", "Đã kết thúc" if loai == "uu_dai" else "Hết hạn nhận hồ sơ")
+    if loai == "uu_dai" and bd and bd > hom_nay:
+        return ("sap", "Sắp diễn ra")
+    return ("dang", "Đang diễn ra" if loai == "uu_dai" else "Đang tuyển")
 
 
 import frappe
@@ -333,6 +615,13 @@ def cong_khai():
     ra.pop("chinh_sach", None)
     # v532: trang luôn nhận bộ nhãn đầy đủ, không tự ghép mặc định ở phía khách.
     ra["nhan"] = nhan_day_du(ra)
+    # v586: cửa hàng, liên hệ và số vé tiệc đã đăng ký, cùng một lượt tải.
+    # Liên hệ đọc từ nguồn #367 (Settings) để mọi trang thay đúng số gọi.
+    from vagabond.don_web import lien_he
+    ra["thong_tin"] = thong_tin_day_du(ra)
+    ra["diem_nhan"] = diem_nhan(ra)
+    ra["lien_he"] = lien_he()
+    ra["ve"] = _dem_ve(ra)
     return ra
 
 
@@ -570,6 +859,174 @@ def luu(noi_dung, phien_ban, hanh_dong="nhap"):
     else:
         d.insert()
     return doc_bang()
+
+
+# ------------------------------------------------ trình biên tập theo thẻ (v586)
+#
+# Minh Vũ đề xuất 07/10/2026: bảng theo khối khó dùng, người soạn phải hiểu
+# "loại khối", "vị trí". Trình mới chia theo VIỆC (Ưu đãi, Tiệc, Tuyển dụng,
+# Cửa hàng, Trang và chữ, Liên hệ). Mỗi lần Lưu là khách thấy ngay, đúng câu
+# trên màn hình "Lưu xong khách thấy ngay": ghi CÙNG LÚC vào bản công khai
+# và bản nháp, chỉ phần vừa sửa, không cuốn theo nháp chưa xuất bản của
+# trình cũ (mục Nâng cao).
+
+
+def _nhom_nhan():
+    """Tên dễ đọc cho từng nhóm nhãn, theo trang khách nhìn thấy."""
+    return {
+        "": "Thanh chọn và đầu trang", "dat_banh": "Trang đặt bánh", "gio_hang": "Giỏ hàng và thanh toán",
+        "san_pham": "Trang từng bánh", "dat_ban": "Trang đặt bàn", "thanh_vien": "Trang thành viên",
+        "bien_nhan": "Biên nhận sau khi đặt", "chinh_sach": "Chân trang và chính sách",
+        "Ưu đãi, tuyển dụng và đặt bánh": "Ưu đãi, tiệc và tuyển dụng", "Kênh đặt hàng": "Kênh đặt hàng",
+        "uu_dai": "Ưu đãi, tiệc và tuyển dụng",
+    }
+
+
+def _dem_ve(cong):
+    ids = [k["id"] for k in cong.get("khoi") or [] if k.get("loai") == "tiec"]
+    if not ids:
+        return {}
+    try:
+        from vagabond.tiec_web import dem_ve
+        return dem_ve(ids)
+    except Exception:
+        frappe.log_error(frappe.get_traceback(), "Biên tập web: không đếm được vé tiệc")
+        return {}
+
+
+@frappe.whitelist()
+def bang_moi():
+    """Dữ liệu cho trình biên tập theo thẻ: bản KHÁCH ĐANG THẤY."""
+    kiem_quyen()
+    from vagabond.don_web import PHAP_NHAN
+    if frappe.db.exists(DOCTYPE, TEN):
+        d = _doc()
+        cong, nhap, pb = json.loads(d.ban_cong_khai), json.loads(d.ban_nhap), d.phien_ban
+    else:
+        cong, nhap, pb = copy.deepcopy(MAC_DINH), copy.deepcopy(MAC_DINH), 0
+    return {
+        "khoi": [k for k in cong.get("khoi") or [] if k.get("loai") in LOAI_MUC],
+        "dau": {k["id"]: dau_van_tay(k) for k in cong.get("khoi") or [] if k.get("loai") in LOAI_MUC},
+        "thong_tin": thong_tin_day_du(cong),
+        "dau_thong_tin": {p: dau_van_tay(v) for p, v in thong_tin_day_du(cong).items()},
+        "lien_he": _lien_he_tho(),
+        "dau_lien_he": dau_van_tay(_lien_he_tho()),
+        "nhan": cong.get("nhan") or {},
+        "nhan_mau": copy.deepcopy(NHAN),
+        "nhom_nhan": _nhom_nhan(),
+        "ve": _dem_ve(cong),
+        "hom_nay": str(frappe.utils.nowdate()),
+        "phap_nhan": PHAP_NHAN,
+        "nhap_chua_xuat_ban": 1 if nhap != cong else 0,
+        "phien_ban": pb,
+    }
+
+
+def _ghi_ca_hai(ham, ham_nhap=None):
+    """Áp một thay đổi vào bản công khai (có soát) và bản nháp (không soát).
+
+    Khoá hàng như `luu`, giữ bản công khai cũ vào lịch sử để còn khôi phục.
+    """
+    hang = frappe.db.sql("select name from `tabVagabond Noi Dung Web` where name=%s for update", (TEN,))
+    if hang:
+        d = _doc()
+        cong, nhap = json.loads(d.ban_cong_khai), json.loads(d.ban_nhap)
+    else:
+        d = frappe.new_doc(DOCTYPE)
+        d.name = TEN
+        d.lich_su = "[]"
+        cong, nhap = copy.deepcopy(MAC_DINH), copy.deepcopy(MAC_DINH)
+    try:
+        cong_moi = chuan_hoa(ham(cong))
+        nhap_moi = chuan_hoa((ham_nhap or ham)(nhap))
+    except XungDot as e:
+        frappe.throw(str(e), title="Có người vừa sửa")
+    except (ValueError, TypeError) as e:
+        frappe.throw(str(e))
+    if hang:
+        ls = json.loads(d.lich_su or "[]")
+        ls.insert(0, {"phien_ban": int(d.phien_ban or 0), "luc": str(frappe.utils.now()),
+                      "nguoi": frappe.session.user, "noi_dung": cong})
+        d.lich_su = json.dumps(ls[:20], ensure_ascii=False)
+    d.ban_cong_khai = json.dumps(cong_moi, ensure_ascii=False)
+    d.ban_nhap = json.dumps(nhap_moi, ensure_ascii=False)
+    d.flags.luu_noi_dung_web = True
+    if hang:
+        d.save(ignore_permissions=True)
+    else:
+        d.insert(ignore_permissions=True)
+    return bang_moi()
+
+
+def _doc_json(v, mac_dinh=None):
+    if isinstance(v, str):
+        try:
+            return json.loads(v)
+        except ValueError:
+            frappe.throw("Dữ liệu gửi lên không đọc được. Tải lại trang.")
+    return mac_dinh if v is None else v
+
+
+@frappe.whitelist(methods=["POST"])
+def luu_muc(muc, dau_cu=""):
+    """Lưu một ưu đãi, tiệc hoặc vị trí tuyển dụng. Khách thấy ngay."""
+    kiem_quyen()
+    muc = _doc_json(muc)
+    return _ghi_ca_hai(lambda nd: ap_muc(nd, muc, dau_cu or ""), lambda nd: ap_muc(nd, muc, None))
+
+
+@frappe.whitelist(methods=["POST"])
+def xoa_muc_web(id_muc, dau_cu=""):
+    """Xoá một ưu đãi, tiệc hoặc vị trí. Bản cũ vẫn nằm trong lịch sử."""
+    kiem_quyen()
+    return _ghi_ca_hai(lambda nd: xoa_muc(nd, id_muc, dau_cu or ""), lambda nd: xoa_muc(nd, id_muc, None))
+
+
+@frappe.whitelist(methods=["POST"])
+def luu_thong_tin(phan, gia_tri, dau_cu=""):
+    """Lưu thẻ Liên hệ hoặc Cửa hàng. Khách thấy ngay."""
+    kiem_quyen()
+    gia_tri = _doc_json(gia_tri)
+    return _ghi_ca_hai(lambda nd: ap_thong_tin(nd, phan, gia_tri, dau_cu or ""),
+                       lambda nd: ap_thong_tin(nd, phan, gia_tri, None))
+
+
+def _lien_he_tho():
+    """Đúng chữ đang lưu ở các ô web_* của Settings, không suy thêm gì (bản
+    công khai don_web.lien_he tự suy Zalo từ số điện thoại; ở màn sửa phải
+    thấy ô trống là trống)."""
+    from vagabond.lib import cfg_o
+    return {k: str(cfg_o(O_LIEN_HE[k]) or "").strip() for k in TRUONG_LIEN_HE}
+
+
+@frappe.whitelist(methods=["POST"])
+def luu_lien_he(gia_tri, dau_cu=""):
+    """Lưu thẻ Liên hệ vào các ô web_* của Vagabond Settings. Khách thấy ngay.
+
+    Đây là nguồn #367 đã dùng cho chân trang và biên nhận, nên sửa ở đây là
+    đổi ở mọi trang khách. Chỉ đúng bảy ô này, không đụng ô Settings khác.
+    """
+    kiem_quyen()
+    try:
+        lh = kiem_lien_he(_doc_json(gia_tri))
+    except (ValueError, TypeError) as e:
+        frappe.throw(str(e))
+    # Cùng khoá hàng với nội dung web để hai người lưu liên hệ không chen nhau.
+    frappe.db.sql("select name from `tabVagabond Noi Dung Web` where name=%s for update", (TEN,))
+    if dau_van_tay(_lien_he_tho()) != (dau_cu or ""):
+        frappe.throw("Có người vừa sửa thẻ Liên hệ. Tải lại để xem bản mới rồi sửa tiếp.", title="Có người vừa sửa")
+    for k, v in lh.items():
+        frappe.db.set_single_value("Vagabond Settings", O_LIEN_HE[k], v)
+    frappe.clear_document_cache("Vagabond Settings", "Vagabond Settings")
+    return bang_moi()
+
+
+@frappe.whitelist(methods=["POST"])
+def luu_nhan(thay):
+    """Lưu các câu chữ vừa sửa ở thẻ Trang và chữ. Khách thấy ngay."""
+    kiem_quyen()
+    thay = _doc_json(thay)
+    return _ghi_ca_hai(lambda nd: ap_nhan(nd, thay), lambda nd: ap_nhan(nd, thay, soat=False))
 
 
 @frappe.whitelist()

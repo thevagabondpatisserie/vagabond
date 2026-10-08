@@ -204,6 +204,20 @@ def tao_don(don=None):
 	dia_chi = (don.get("dia_chi") or "").strip()
 	if not tu_lay and len(dia_chi) < 8:
 		return {"ok": 0, "ly_do": "thieu_dia_chi_giao"}
+	if tu_lay:
+		# v586 (Codex #453): điểm nhận phải còn bật ở thẻ Cửa hàng ngay lúc
+		# gửi. Trang khách có thể còn giữ danh sách cũ trong máy khách.
+		from vagabond import noi_dung_web
+		# Nhận diện bằng MÃ cửa hàng (Codex #453 vòng 2): tên có thể trùng, đơn
+		# chỉ có tên (trang cũ) thì chặn, không đoán. Tên và địa chỉ lấy từ máy chủ.
+		diem = {d["id"]: d for d in noi_dung_web.diem_nhan(noi_dung_web._ban_cong_khai())}
+		if not diem:
+			return {"ok": 0, "ly_do": "khong_con_diem_nhan"}
+		ma_diem = str(don.get("diem_lay_id") or "").strip()
+		if ma_diem not in diem:
+			return {"ok": 0, "ly_do": "diem_nhan_khong_con"}
+		dia_chi = diem[ma_diem]["a"]
+		don["diem_lay_ten"] = diem[ma_diem]["n"]
 
 	ngay = _ngay_iso(don.get("ngay_nhan"))
 
