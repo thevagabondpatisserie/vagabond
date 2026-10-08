@@ -419,7 +419,7 @@ html body .h1 em#bigDate{display:none}
 @media(prefers-reduced-motion:reduce){.bar.nhich .cnt b{animation:none}.c-them:active{transform:none}}
 </style>
 <link rel="stylesheet" href="/assets/vagabond/web_order/cua-hang.css?v=39d9d61486e9">
-<script src="/assets/vagabond/web_order/chu.js?v=b7acb303f099"></script><link rel="stylesheet" href="/assets/vagabond/web_order/kenh-noi.css?v=86dc663f411f"><link rel="stylesheet" href="/assets/vagabond/web_order/chuyen-muc.css?v=70694483c636">
+<script src="/assets/vagabond/web_order/chu.js?v=f83c481e0a52"></script><link rel="stylesheet" href="/assets/vagabond/web_order/kenh-noi.css?v=86dc663f411f"><link rel="stylesheet" href="/assets/vagabond/web_order/chuyen-muc.css?v=95f1fc3822a9">
 </head>
 <body>
 <div class="sky" aria-hidden="true">
@@ -494,7 +494,7 @@ html body .h1 em#bigDate{display:none}
 <script src="/assets/vagabond/web_order/kenh-noi.js?v=2856c55f0040" defer></script>
 <script src="/assets/vagabond/web_order/chuyen-muc.js?v=4ff721ef0b39"></script>
 <script src="/assets/vagabond/web_order/khoi.js?v=3f9e2ef32ff5"></script>
-<script src="/assets/vagabond/web_order/cua-hang.js?v=9ffbd906909d" defer></script>
+<script src="/assets/vagabond/web_order/cua-hang.js?v=c8d89131d6cd" defer></script>
 <main id="season" hidden>
   <div class="noi-dung-theo-tab" data-vgb-vi-tri="season"></div>
   <section class="wrap">
@@ -517,7 +517,7 @@ html body .h1 em#bigDate{display:none}
     </div>
     <div id="storeBody"></div>
     <div class="store-note"><span data-vgb-chu="dat_banh_3e8df5af5">Số bánh cập nhật theo từng hoá đơn tại quầy. Muốn giữ bánh thì nhắn</span>
-      <a href="https://m.me/thevagabond.saigon" target="_blank"><span data-vgb-chu="dat_banh_68074b808">Messenger</span></a> <span data-vgb-chu="dat_banh_bd0762c0f">hoặc gọi</span>
+      <a href="https://m.me/thevagabond.saigon" target="_blank" data-vgb-mxh="messenger"><span data-vgb-chu="dat_banh_68074b808">Messenger</span></a> <span data-vgb-chu="dat_banh_bd0762c0f">hoặc gọi</span>
       <a href="tel:0931224334">0931 224 334</a><span data-vgb-chu="dat_banh_499d32a3f">, chúng tôi để riêng cho quý khách tới lấy.</span></div>
   </section>
 </main>
@@ -1683,12 +1683,17 @@ document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeSheet(); });
 const BEP = {n:"Bếp Tân Sơn Hoà", a:"307/1 Nguyễn Văn Trỗi, P. Tân Sơn Hoà"};
 const PICKUPS_GOC = [ BEP, {n:"Cửa hàng Sài Gòn", a:"9 Trần Cao Vân, P. Sài Gòn"} ];
 /* v586: điểm nhận bánh lấy từ thẻ Cửa hàng của trình biên tập (bật "Nhận
-   bánh tại đây"). Chưa tải được thì giữ hai điểm cũ, đúng thứ tự cũ. */
+   bánh tại đây"). CHƯA TẢI được nội dung thì giữ hai điểm cũ, đúng thứ tự cũ.
+   Đã tải mà danh sách rỗng là marketing đã tắt hết: ẩn hẳn lựa chọn Tự đến
+   lấy, không quay về điểm cũ (Codex #453). Máy chủ cũng chặn lại lúc gửi. */
 let PICKUPS = PICKUPS_GOC.slice();
 function capNhatDiemNhan(ds){
-  PICKUPS = (ds && ds.length) ? ds.map(x=>({n:String(x.n||''), a:String(x.a||'')})) : PICKUPS_GOC.slice();
+  if(!Array.isArray(ds)) return;
+  PICKUPS = ds.map(x=>({n:String(x.n||''), a:String(x.a||'')})).filter(x=>x.n && x.a);
   if(!(CO.pickup>=0 && CO.pickup<PICKUPS.length)) CO.pickup=0;
-  if($('#pickList') && $('#checkout') && $('#checkout').classList.contains('open')) drawCo();
+  const nut=$('#m-pick'); if(nut) nut.hidden = !PICKUPS.length;
+  if(!PICKUPS.length && CO.mode==='pick'){ if($('#m-ship')) setMode('ship'); else CO.mode='ship'; }
+  else if($('#pickList') && $('#checkout') && $('#checkout').classList.contains('open')) drawCo();
 }
 window.capNhatDiemNhan = capNhatDiemNhan;
 const PAYS = [
@@ -2041,7 +2046,16 @@ function drawCo(){
 }
 /* Ly do may chu tra ve -> cau noi cho khach. Cai nao khong biet thi noi that
    la khong gui duoc, chu khong hien ma loi tho ra cho khach doc. */
+/* v586 (Codex #453): link Messenger lấy từ thẻ Liên hệ qua vgbMxh, cùng nguồn
+   với chân trang; marketing để trống thì chỉ hiện chữ, không trỏ tài khoản cũ. */
+function linkMessenger(){
+  const u=(typeof vgbMxh==='function') ? vgbMxh('messenger', CONFIG.messenger) : CONFIG.messenger;
+  const chu=htmlChuWeb("dat_banh_68074b808", "Messenger");
+  return u ? "<a href=\"" + String(u).replace(/"/g,'%22') + "\" target=\"_blank\" style=\"color:var(--cyan)\">" + chu + "</a>" : chu;
+}
 const LY_DO = {
+  get khong_con_diem_nhan() { return chuWeb("dat_banh_khong_con_diem_nhan", "Hiện chưa nhận tự đến lấy. Quý khách chọn giao tận nơi."); },
+  get diem_nhan_khong_con() { return chuWeb("dat_banh_diem_nhan_khong_con", "Điểm nhận bánh vừa thay đổi. Quý khách tải lại trang rồi chọn lại điểm nhận."); },
   get chua_dien_khoa_pancake() { return chuWeb("dat_banh_dda0df2c0", "Hệ thống của chúng tôi đang trục trặc."); },
   get gio_hang_rong() { return chuWeb("dat_banh_d3470ca1b", "Giỏ hàng trống hoặc món đã hết mã."); },
   get thieu_ten_hoac_so_dien_thoai() { return chuWeb("dat_banh_3261b803a", "Thiếu tên hoặc số điện thoại."); },
@@ -2093,6 +2107,7 @@ async function submitOrder(){
   if(!ten){ toast((chuWeb("dat_banh_bff348432", "Quý khách điền tên"))); $('#f-name').focus(); return; }
   if(sdt.length<9){ toast((chuWeb("dat_banh_971b60e8f", "Số điện thoại chưa đúng"))); $('#f-phone').focus(); return; }
   const tuLay = CO.mode==='pick';
+  if(tuLay && !PICKUPS[CO.pickup]){ toast(LY_DO.khong_con_diem_nhan); setMode('ship'); return; }
   const diaChi = tuLay ? PICKUPS[CO.pickup].a : ($('#f-addr').value||'').trim();
   if(!tuLay && diaChi.length<8){ toast((chuWeb("dat_banh_147c2c4a9", "Quý khách điền địa chỉ giao"))); $('#f-addr').focus(); return; }
   /* Ngoai vung giao thi chan ngay o day. May chu chan lai lan nua, nhung chan
@@ -2202,7 +2217,7 @@ async function submitOrder(){
   if(!m || !m.ok){
     /* Khong nuot loi. Khach can biet don CHUA duoc nhan, kem duong khac de dat. */
     const vi = (m && LY_DO[m.ly_do]) || (chuWeb("dat_banh_5db00ac93", "Không gửi được đơn lúc này."));
-    sendBusy(false, ("<b style=\"color:#FF7A6B\">" + htmlChuWeb("dat_banh_a9adfd6de", "Chưa gửi được đơn.") + "</b>" + " " + htmlChuWeb("dat_banh_ecb3ec835", "{gia_tri_a}\n Quý khách nhắn qua", {gia_tri_a:(vi)}) + " " + "<a href=\"" + (CONFIG.messenger) + "\" target=\"_blank\" style=\"color:var(--cyan)\">" + htmlChuWeb("dat_banh_68074b808", "Messenger") + "</a>" + htmlChuWeb("dat_banh_a1018afe8", ",\n hoặc bấm gửi lại sau ít phút.")));
+    sendBusy(false, ("<b style=\"color:#FF7A6B\">" + htmlChuWeb("dat_banh_a9adfd6de", "Chưa gửi được đơn.") + "</b>" + " " + htmlChuWeb("dat_banh_ecb3ec835", "{gia_tri_a}\n Quý khách nhắn qua", {gia_tri_a:(vi)}) + " " + linkMessenger() + htmlChuWeb("dat_banh_a1018afe8", ",\n hoặc bấm gửi lại sau ít phút.")));
     return;
   }
 
@@ -2619,7 +2634,7 @@ function phucHoiGioTuKho(){
     if(/^\d{4}-\d{2}-\d{2}$/.test(d.ngay||'')){ngayChon=d.ngay;dongBoNgay();}
     if(Number.isInteger(d.slot)&&SLOTS[d.slot])pickedSlot=d.slot;
     daChonNgay=d.daChonNgay===true&&picked>=0;daChonGio=d.daChonGio===true&&slotOk(picked,SLOTS[pickedSlot]);
-    const c=d.co||{};CO.mode=c.mode==='pick'?'pick':'ship';CO.pay=c.pay==='card'?'card':'bank';CO.pickup=(Number.isInteger(c.pickup)&&c.pickup>=0&&c.pickup<PICKUPS.length)?c.pickup:0;
+    const c=d.co||{};CO.mode=c.mode==='pick'?'pick':'ship';CO.pay=c.pay==='card'?'card':'bank';CO.pickup=(Number.isInteger(c.pickup)&&c.pickup>=0&&c.pickup<PICKUPS.length)?c.pickup:0;if(!PICKUPS.length)CO.mode='ship';
     ['other','gift','vat'].forEach(k=>CO[k]=c[k]===true);CO.quan=typeof c.quan==='string'?c.quan:'';CO.nonce=/^[A-Za-z0-9_-]{32}$/.test(c.nonce||'')?c.nonce:'';
     Object.entries(d.truong||{}).forEach(([k,v])=>{const e=document.getElementById(k);if(e&&e.closest('#checkout')&&e.type!=='checkbox'&&typeof v==='string')e.value=v.slice(0,4000);});
     $('#f-quan').value=CO.quan;
