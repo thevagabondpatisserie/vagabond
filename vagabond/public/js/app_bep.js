@@ -11417,6 +11417,18 @@ function vgbLuot() {
     con: function (l) { return l === so; }
   };
 }
+/* #456: mã số thuế nước ngoài ghi kèm sau tên người mua, dạng
+   "TÊN (MST nước ngoài: X)". Hai hàm thuần, tách để kiểm thử. */
+function xhdGhepMstNN(ten, mstNN) {
+  ten = String(ten || '').trim(); mstNN = String(mstNN || '').trim().replace(/\s+/g, ' ');
+  if (!mstNN) return ten;
+  return ten + ' (MST nước ngoài: ' + mstNN + ')';
+}
+function xhdTachMstNN(ten) {
+  var m = /^(.*?)\s*\(MST nước ngoài:\s*([^)]+)\)\s*$/.exec(String(ten || ''));
+  return m ? { ten: m[1].trim(), mst: m[2].trim() } : { ten: String(ten || '').trim(), mst: '' };
+}
+
 /* #296: cùng phạm vi quyền với máy chủ; không bày nút ghi sổ cho quầy. */
 function dsDuocGhiSo() {
   return ['Accounts User', 'Accounts Manager', 'System Manager'].some(hasRole);
@@ -12019,17 +12031,25 @@ async function scrDsView(name, can) {
   var XHD_MD = 'Bán cho người tiêu dùng';
   function xesc(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
   var xhdCty = (d.vgb_xhd_ten && d.vgb_xhd_ten !== XHD_MD) ? d.vgb_xhd_ten : '';
-  var xhdLoai = (d.vgb_xhd_mst || xhdCty) ? 'cong_ty' : 'ca_nhan';
+  /* #456: ba loại người mua. 'khong_mst' là tổ chức không có mã số thuế Việt
+     Nam (công đoàn, trường, hội) hoặc khách nước ngoài: có tên, có địa chỉ
+     như khách đưa, không có MST; mã số thuế nước ngoài (nếu có) ghi kèm sau
+     tên theo anh Việt chốt 08/10/2026. */
+  var xhdLoai = d.vgb_xhd_mst ? 'cong_ty' : (xhdCty ? 'khong_mst' : 'ca_nhan');
+  var xhdNN = xhdTachMstNN(xhdCty);
   var xin = 'width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;font-family:inherit';
   html += '<div style="border:1.5px solid #e5e7eb;border-radius:10px;padding:10px;margin-top:10px">'
     + '<div style="font-size:12px;color:#6b7280;margin-bottom:8px"><b>Tên khách xuất hoá đơn</b></div>'
     + '<div id="xhdChon" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">'
     + '<button class="xhdc" data-loai="ca_nhan" style="padding:6px 10px;border-radius:8px;font-size:13px">Bán cho người tiêu dùng</button>'
     + '<button class="xhdc" data-loai="cong_ty" style="padding:6px 10px;border-radius:8px;font-size:13px">Xuất cho công ty / HKD</button>'
+    + '<button class="xhdc" data-loai="khong_mst" style="padding:6px 10px;border-radius:8px;font-size:13px">Không có MST Việt Nam</button>'
     + '</div>'
+    + '<div id="xhdGhiNN" style="display:none;font-size:12px;color:#6b7280;margin-bottom:6px;line-height:1.5">Công đoàn, trường, hội, khách nước ngoài: cần tên và địa chỉ đúng như khách đưa, không cần mã số thuế. Mã số thuế nước ngoài (nếu có) máy ghi kèm sau tên.</div>'
     + '<div id="xhdForm" style="display:none;flex-direction:column;gap:6px">'
     + '<input id="xhdMst" placeholder="Mã số thuế: 10 số công ty, 12 số hộ kinh doanh, chi nhánh gõ cả dấu gạch vd 0311638525-027" value="' + xesc(d.vgb_xhd_mst) + '" style="' + xin + '">'
-    + '<input id="xhdTen" placeholder="Tên pháp nhân trên hoá đơn" value="' + xesc(xhdCty) + '" style="' + xin + '">'
+    + '<input id="xhdTen" placeholder="Tên pháp nhân trên hoá đơn" value="' + xesc(xhdNN.ten) + '" style="' + xin + '">'
+    + '<input id="xhdMstNN" placeholder="Mã số thuế nước ngoài (nếu có), ví dụ 201912345K" value="' + xesc(xhdNN.mst) + '" style="' + xin + ';display:none">'
     + '<textarea id="xhdDc" rows="2" placeholder="Địa chỉ trên hoá đơn" style="' + xin + '">' + xesc(d.vgb_xhd_dia_chi) + '</textarea>'
     + '<input id="xhdEmail" placeholder="Email nhận hoá đơn" value="' + xesc(d.vgb_xhd_email) + '" style="' + xin + '">'
     + '<div id="xhdBao" style="font-size:12px;color:#6b7280"></div>'
@@ -12630,7 +12650,11 @@ async function scrDsView(name, can) {
       b.style.fontWeight = on ? 'bold' : 'normal';
     });
     var f = document.getElementById('xhdForm');
-    if (f) f.style.display = xhdLoai === 'cong_ty' ? 'flex' : 'none';
+    if (f) f.style.display = xhdLoai === 'ca_nhan' ? 'none' : 'flex';
+    var m = document.getElementById('xhdMst'), nn = document.getElementById('xhdMstNN'), g = document.getElementById('xhdGhiNN');
+    if (m) m.style.display = xhdLoai === 'cong_ty' ? '' : 'none';
+    if (nn) nn.style.display = xhdLoai === 'khong_mst' ? '' : 'none';
+    if (g) g.style.display = xhdLoai === 'khong_mst' ? '' : 'none';
   }
   var xhdCh = document.getElementById('xhdChon');
   if (xhdCh) {
@@ -12680,11 +12704,18 @@ async function scrDsView(name, can) {
   };
   async function luuXhd(ten_si) {
     if (d.custom_hddt_so) return;
-    if (xhdLoai !== 'cong_ty') { await api('vagabond.ban_hang.luu_xhd', { si_name: ten_si, ten: XHD_MD }); return; }
-    var mst = ((document.getElementById('xhdMst') || {}).value || '').replace(/[^0-9]/g, '');
+    if (xhdLoai === 'ca_nhan') { await api('vagabond.ban_hang.luu_xhd', { si_name: ten_si, ten: XHD_MD }); return; }
     var ten = ((document.getElementById('xhdTen') || {}).value || '').trim();
-    if (!mst || !ten) throw new Error('Xuất hoá đơn cho công ty hoặc hộ kinh doanh thì phải có mã số thuế và tên pháp nhân.');
-    await api('vagabond.ban_hang.luu_xhd', { si_name: ten_si, ten: ten, mst: mst, dia_chi: ((document.getElementById('xhdDc') || {}).value || ''), email: ((document.getElementById('xhdEmail') || {}).value || '') });
+    var dia_chi = ((document.getElementById('xhdDc') || {}).value || '').trim();
+    var mst = '';
+    if (xhdLoai === 'cong_ty') {
+      mst = ((document.getElementById('xhdMst') || {}).value || '').replace(/[^0-9]/g, '');
+      if (!mst || !ten) throw new Error('Xuất hoá đơn cho công ty hoặc hộ kinh doanh thì phải có mã số thuế và tên pháp nhân. Tổ chức không có mã số thuế Việt Nam thì chọn "Không có MST Việt Nam".');
+    } else {
+      if (!ten || !dia_chi) throw new Error('Không có mã số thuế Việt Nam thì phải có tên và địa chỉ người mua đúng như khách đưa.');
+      ten = xhdGhepMstNN(ten, ((document.getElementById('xhdMstNN') || {}).value || ''));
+    }
+    await api('vagabond.ban_hang.luu_xhd', { si_name: ten_si, ten: ten, mst: mst, dia_chi: dia_chi, email: ((document.getElementById('xhdEmail') || {}).value || '') });
   }
   var xlu = document.getElementById('xhdLuu');
   if (xlu) xlu.onclick = async function () {
@@ -23395,7 +23426,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '587';
+var APPVER = '588';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -56224,9 +56255,16 @@ async function dsvnDoiPhap(c) {
   go(scrDsvnTai, true);
 }
 
+/* #457 mục 3: tệp chưa nhận ra mẫu thì cho xem ba dòng đầu máy đọc được, để
+   người dùng biết máy không mù, và kỹ thuật biết lấy tệp nào làm mẫu. */
+function dsvnDauTep(dau) {
+  return '<div style="font-size:12.5px;color:#475467;margin-top:8px;line-height:1.5"><b>Ba dòng đầu máy đọc được</b><br>' +
+    dau.slice(0, 3).map(function (d) { return '<code style="font-size:12px;word-break:break-all">' + h(d) + '</code>'; }).join('<br>') + '</div>';
+}
+
 function dsvnTheXemTruoc(x) {
   var s = '<div class="card" style="padding:12px 14px">' +
-    '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>' + h(x.ten_mau || 'Chưa nhận ra') + '</b>' +
+    '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>' + h(x.ten_mau || 'Mẫu chưa nhận') + '</b>' +
     (x.da_co || x.phap_nhan_khac ? dsvnChip('Đã nhận trước') : dsvnChip(x.trang_thai)) + '</div>' +
     '<div style="font-size:13px;color:#667085;margin-top:2px">' + h(x.ten_tep || '') + '</div>' +
     (x.doc_lai ? '<div style="font-size:12.5px;color:#175cd3;margin-top:4px">Tệp này đã nhận trước nhưng còn lỗi. Bấm Nhận để đọc lại vào đúng nguồn cũ.</div>' : '');
@@ -56247,6 +56285,7 @@ function dsvnTheXemTruoc(x) {
       (x.tong_tep && x.tong_tep.thuc_nhan != null ? ' · in trên tệp ' + money(x.tong_tep.thuc_nhan) + ' đ' : '') + '</div>';
     if (x.ghi_chu_don_vi) s += '<div style="font-size:12.5px;color:#475467;margin-top:4px">' + h(x.ghi_chu_don_vi) + '</div>';
   }
+  if (!x.mau && (x.dau_tep || []).length) s += dsvnDauTep(x.dau_tep);
   var nhac = (x.loi || []).concat((x.dong_loi || []).map(function (d) { return 'Dòng ' + d.vi_tri + ': ' + d.ly_do; }));
   if (nhac.length) {
     s += '<div style="background:#fffaeb;border-radius:10px;padding:8px 10px;margin-top:8px;font-size:13px;color:#7a2e0e">' +
@@ -56324,6 +56363,7 @@ async function scrDsvnCt() {
         'Lệch: tiền ' + money(bb.lech.tien_hang) + ' đ, phí ' + money(bb.lech.phi) + ' đ, thực nhận ' + money(bb.lech.thuc_nhan) +
         ' đ. Tải đủ thông báo tạm ứng ngày còn thiếu.') + '</div></div>';
   }
+  if (n.trang_thai === 'Lỗi tệp' && (t.dau_tep || []).length) html += '<div class="card" style="padding:12px 14px">' + dsvnDauTep(t.dau_tep) + '</div>';
   var nhac = (t.loi || []).concat((t.dong_loi || []).map(function (d) { return 'Dòng ' + d.vi_tri + ': ' + d.ly_do; }));
   if (nhac.length) {
     html += '<details class="card" style="padding:12px 14px"><summary style="cursor:pointer;min-height:24px"><b>' + nhac.length +
