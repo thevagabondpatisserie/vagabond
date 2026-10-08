@@ -1972,3 +1972,14 @@ với bài thật của marketing chứ không chỉ dữ liệu mẫu ngắn. S
 dòng có Đọc tiếp, thực đơn thành nhãn, hộp thông tin nổi trên ảnh ngang,
 tên mục chữ trắng. Ngưỡng gấp tính theo số ký tự để trang khách và khung
 "Khách sẽ thấy" vẽ giống nhau và kiểm được bằng node.
+
+## 08/10/2026 - #457: Excel vendor khai kích thước sheet sai, openpyxl đọc một ô
+
+Tệp doanh thu Xanh SM tải từ cổng là xlsx hợp lệ, mở Excel thấy đủ bảng, nhưng
+phần `<dimension ref="A1"/>` trong sheet khai sai. openpyxl tin lời khai nên
+`iter_rows` trả đúng một ô trống, máy kết luận "Chưa nhận ra mẫu" trong khi mẫu
+đã có từ v579. Mất gần một ngày vì kế toán và kỹ thuật đều nhìn Excel thấy
+đúng. Cách phòng: `doc_xlsx` gọi `ws.reset_dimensions()` trước khi đọc mọi
+tệp; ca kiểm dựng xlsx thật có dimension sai. Bài học rộng hơn: khi người dùng
+gửi tệp "máy không nhận" thì in ba dòng đầu máy đọc được ra màn, lỗi này lộ
+ngay từ dòng đầu là trống.
