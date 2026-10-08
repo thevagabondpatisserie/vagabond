@@ -288,7 +288,7 @@ function appMoi(tuy) {
   });
 
   /* ---------------- trang khach: the Tiec (chuyen-muc.js) ---------------- */
-  function trangKhach(ve) {
+  function trangKhach(ve, them) {
     var tl = dg.taiLieuGia();
     dg.doc('<button data-tab="tiec" hidden></button><div id="noi-uu_dai"></div><div id="noi-tuyen_dung"></div><div id="noi-tiec"></div>', tl.body);
     var guiDi = [];
@@ -297,8 +297,9 @@ function appMoi(tuy) {
       crypto: { randomUUID: function () { return '0f0e0d0c-0b0a-4908-8706-050403020100'; } },
       document: { body: tl.body, createElement: tl.createElement, getElementById: tl.getElementById, addEventListener: function () {},
         querySelector: function (c) { return tl.querySelector(c); }, querySelectorAll: function (c) { return tl.querySelectorAll(c); } },
-      fetch: function (url, cau) { guiDi.push({ url: url, body: JSON.parse(cau.body) }); return Promise.resolve({ ok: true, status: 200, json: function () { return Promise.resolve({ message: { ok: 1, ma: 'AB12CD34' } }); } }); } };
+      fetch: function (url, cau) { guiDi.push({ url: url, body: JSON.parse(cau.body), headers: cau.headers, credentials: cau.credentials }); return Promise.resolve({ ok: true, status: 200, json: function () { return Promise.resolve({ message: { ok: 1, ma: 'AB12CD34' } }); } }); } };
     g.window = g;
+    Object.assign(g, them || {});
     vm.createContext(g);
     vm.runInContext(doc('chuyen-muc.js'), g);
     var homNay = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
@@ -339,6 +340,25 @@ function appMoi(tuy) {
     dung('dung cua', t.guiDi[0].url.indexOf('vagabond.tiec_web.dang_ky') >= 0);
     bang('du lieu', t.guiDi[0].body.du_lieu, { tiec_id: 't1', ten: 'Lan', sdt: '0909123456', so_ve: '2', ghi_chu: '' });
     dung('bao ma', String(the.textContent).indexOf('mã AB12CD34') >= 0);
+  });
+
+  async function guiDangKy(t) {
+    var the = t.tl.body.querySelector('[data-khoi="t1"]');
+    the.querySelector('button').dispatchEvent(dg.suKien('click', {}, the.querySelector('button'))); await nghi();
+    var f = the.querySelector('form');
+    f.querySelector('[name="ten"]').value = 'Lan'; f.querySelector('[name="sdt"]').value = '0909123456'; f.querySelector('[name="so_ve"]').value = '1';
+    f.onsubmit({ preventDefault: function () {} }); await nghi();
+    return t.guiDi[0];
+  }
+
+  await ca('Trang khach (Codex #454): nhan vien dang dang nhap gui dang ky tiec co kem CSRF', async function () {
+    var g1 = await guiDangKy(trangKhach(null, { frappe: { csrf_token: 'tk-frappe' } }));
+    bang('lay tu frappe.csrf_token', g1.headers['X-Frappe-CSRF-Token'], 'tk-frappe');
+    bang('gui kem cookie cung nguon', g1.credentials, 'same-origin');
+    var g2 = await guiDangKy(trangKhach(null, { csrf_token: 'tk-win' }));
+    bang('hoac window.csrf_token', g2.headers['X-Frappe-CSRF-Token'], 'tk-win');
+    var g3 = await guiDangKy(trangKhach(null, { csrf_token: 'None' }));
+    dung('khach vang lai: khong gui token gia', !('X-Frappe-CSRF-Token' in g3.headers));
   });
 
   /* ---------------- Nang cao (bien-tap.js): tran so khoi do may chu quyet (Codex #454) ---------------- */
