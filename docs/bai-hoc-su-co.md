@@ -1944,3 +1944,11 @@ sau; máy chủ tra điểm theo TÊN nên hai cửa hàng trùng tên lấy nh�
 Thứ gì người dùng chọn từ một danh sách người khác sửa được thì phải giữ bằng
 mã ổn định; mã mất thì bắt chọn lại, không tự chọn hộ. Ca bench web #245 cũng
 phải sửa khi API công khai thêm phần dẫn xuất, vì nó so nguyên tập khoá.
+
+Vòng 3 (Codex #454): đã sửa đếm vé là đọc hiện tại nhưng cấu hình tiệc (số
+vé, ẩn hiện) vẫn đọc thường sau khoá. Marketing giảm 40 xuống 20 vé lúc khách
+đang chờ khoá thì khách vẫn thấy trần 40 trong ảnh chụp: tái hiện ghi được
+21/20. Cách sửa gọn: cho phép khoá đọc luôn dữ liệu cần dùng
+(`_ban_cong_khai(khoa=True)`), không khoá một câu rồi đọc ở câu khác. Ca kiểm
+cũ thay `_ban_cong_khai` bằng hàm giả nên lại che đúng chỗ này; trang giả nay
+phân biệt đọc thường (ảnh chụp) với đọc `for update` (bản hiện tại).
