@@ -413,13 +413,107 @@ def _():
 	dung("lệch Spend", any("Your Spend" in l for l in kq["loi"]))
 
 
+# ------------------------------------------------------------ #457 chị Dung 08/10/2026
+
+def _xlsx_sai_kich_thuoc(*trang):
+	"""Dựng xlsx thật có <dimension ref="A1"/> SAI như tệp Xanh SM xuất và Excel
+	gõ tay từ công cụ ngoài; openpyxl read_only tin vào đó và chỉ trả một ô."""
+	import io
+	import zipfile
+	from xml.sax.saxutils import escape
+
+	def _o(c, v):
+		if isinstance(v, (int, float)) and not isinstance(v, bool):
+			return '<c r="%s"><v>%s</v></c>' % (c, v)
+		return '<c r="%s" t="inlineStr"><is><t xml:space="preserve">%s</t></is></c>' % (c, escape(str(v)))
+
+	def _cot(i):
+		s = ""
+		i += 1
+		while i:
+			i, d = divmod(i - 1, 26)
+			s = chr(65 + d) + s
+		return s
+
+	b = io.BytesIO()
+	with zipfile.ZipFile(b, "w") as z:
+		z.writestr("[Content_Types].xml", '<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+			+ "".join('<Override PartName="/xl/worksheets/sheet%d.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' % (i + 1) for i in range(len(trang))) + "</Types>")
+		z.writestr("_rels/.rels", '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>')
+		z.writestr("xl/workbook.xml", '<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>'
+			+ "".join('<sheet name="%s" sheetId="%d" r:id="rId%d"/>' % (escape(t), i + 1, i + 1) for i, (t, _) in enumerate(trang)) + "</sheets></workbook>")
+		z.writestr("xl/_rels/workbook.xml.rels", '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+			+ "".join('<Relationship Id="rId%d" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet%d.xml"/>' % (i + 1, i + 1) for i in range(len(trang))) + "</Relationships>")
+		for i, (_, o) in enumerate(trang):
+			hang = "".join('<row r="%d">%s</row>' % (r + 1, "".join(_o("%s%d" % (_cot(c), r + 1), v) for c, v in enumerate(h) if v is not None)) for r, h in enumerate(o))
+			z.writestr("xl/worksheets/sheet%d.xml" % (i + 1), '<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><dimension ref="A1"/><sheetData>%s</sheetData></worksheet>' % hang)
+	return b.getvalue()
+
+
+THE_BANG = [
+	["Ngày giao \ndịch", "Ngày bút toán", "Đơn vị chấp nhận thẻ", "Quốc gia/ Thành phố", "Số tiền gốc", "Số tiền(VND)"],
+	["Card", "Number", "5248-62XX-XXXX-9999", " CHU THE", None, " "],
+	["05-06-2026", "08-06-2026", "NHA HANG A", " VN/HC", "VND 1,018,559.00", "1,018,559 "],
+	["31-05-2026", "03-06-2026", "FRAPPE CLOUD", " IN/MUMBA", "USD 8.42", "227,503 "],
+	["25-06-2026", "29-06-2026", "FACEBK *XM79", " IE/DUBLI", "VND 16,500,000.00", "16,500,000 "],
+	[None, None, "Your Spend For This Month", " ", None, "17,746,062 "],
+	["15-05-2026", "30-06-2026", "Annual Fee", " ", "VND 200,000.00", "220,000 "],
+	[None, None, "Fees", " ", None, "220,000 "],
+	[None, None, "Billing Amount of the Current Month", " ", None, "17,966,062 "],
+]
+
+
+@ca("#457 Excel khai kích thước sai (dimension A1): đọc đủ ô, Xanh SM Ngon nhận ra mẫu, tổng khớp Summary")
+def _():
+	import json
+	import os
+	cot = json.load(open(os.path.join(os.path.dirname(__file__), "mau_doi_soat", "greensm.json"), encoding="utf-8"))["cot"]
+	dong = [1, "01M4826QN6YCRW5Z2FMJT03M15", "1782", "01K23Y", "Quán A", "06-10-2026 14:53:22", "Completed",
+		620000, None, 69000, 54000, 0, 54000, "2026XANH90:54000", 497000, 64610, 0, 0, 432390]
+	b = _xlsx_sai_kich_thuoc(("Detail Transactions", [cot, dong]), ("Summary", [["Tổng số đơn hàng", 1], ["Tổng giá trị đơn hàng", 620000],
+		["Khuyến mại từ quán", 69000], ["Khuyến mại món", 54000], ["Doanh thu ròng", 497000], ["Tổng chiết khấu", 64610], ["Tổng thực thu", 432390]]))
+	t = D.doc_tep("Revenue_Report_x.xlsx", b)[0]
+	la("đọc đủ cột dù khai sai", len(t["trang"][0]["o"][0]), 19)
+	la("nhận mẫu", M.nhan_dien(t), "greensm_ngon")
+	kq = M.doc(t)
+	la("một đơn, thực thu đúng", (len(kq["dong"]), kq["tong"]["thuc_nhan"], kq["loi"]), (1, 432390, []))
+
+
+@ca("#457 thẻ Shinhan gõ tay: nhận bằng tiêu đề cột, phí sau dòng Spend, ngoại tệ giữ gốc, kỳ suy từ tháng bút toán có cảnh báo")
+def _():
+	t = D.doc_tep("SHB_20261008.xlsx", _xlsx_sai_kich_thuoc(("sheet", THE_BANG)))[0]
+	la("nhận mẫu bảng, không nhầm PDF", M.nhan_dien(t), "the_shinhan_bang")
+	kq = M.doc(t)
+	la("không lỗi", (kq["dong_loi"], kq["loi"]), ([], []))
+	la("loại theo thứ tự", [d["loai"] for d in kq["dong"]], ["phat_sinh", "phat_sinh", "phat_sinh", "phi"])
+	la("ngày theo bút toán, thẻ bốn số cuối", (kq["dong"][0]["ngay"], kq["dong"][0]["merchant"], kq["tai_khoan"]), ("2026-06-08", "9999", "SHB-THE:9999"))
+	la("ngoại tệ giữ gốc", (kq["dong"][1]["them"]["tien_te"], kq["dong"][1]["them"]["tien_goc"], kq["dong"][1]["thuc_nhan"]), ("USD", "8.42", 227503))
+	la("tổng ba dòng", (kq["tong"]["spend"], kq["tong"]["fees"], kq["tong"]["billing"]), (17746062, 220000, 17966062))
+	la("kỳ suy ra", (kq["tu_ngay"], kq["den_ngay"]), ("2026-06-01", "2026-06-30"))
+	dung("có cảnh báo máy suy kỳ", any("gõ tay" in c and "06/2026" in c for c in kq["canh_bao"]))
+	dung("đánh dấu gõ tay", kq["them"]["go_tay"] == 1)
+	sai = [list(h) for h in THE_BANG]
+	sai[5][5] = "17,000,000 "
+	kq = M.doc(D.doc_tep("x.xlsx", _xlsx_sai_kich_thuoc(("sheet", sai)))[0])
+	dung("lệch Spend là lỗi tệp", any("Your Spend" in l for l in kq["loi"]))
+	thieu = [h for h in THE_BANG if h[1] != "Number"]
+	kq = M.doc(D.doc_tep("x.xlsx", _xlsx_sai_kich_thuoc(("sheet", thieu)))[0])
+	dung("thiếu dòng Card Number thì báo", any("Card Number" in l for l in kq["loi"]))
+	from vagabond import doi_soat_khop as K
+	ky = K.ky_the(kq["tong"], dict(den_han=1))
+	dung("không dựng phương trình số dư từ bảng gõ tay", ky["du"] is None and "gõ tay" in ky["ghi_chu"])
+
+
 # ------------------------------------------------------------ chung
 
 @ca("v579 tệp lạ không được đoán là mẫu nào; zip có mật khẩu và tệp rỗng báo việc làm tiếp")
 def _():
 	kq = M.doc(_csv("la.csv", "A,B,C\n1,2,3\n"))
 	la("chưa nhận ra", kq["mau"], "")
-	dung("nói các mẫu đang đọc được", "Payoo thẻ" in kq["loi"][0])
+	# #457 mục 3: thay danh sách tên mẫu (người dùng không làm gì được với nó)
+	# bằng việc cần làm, kèm ba dòng đầu máy đọc được.
+	dung("nói việc cần làm thay vì liệt kê mẫu", "gửi tệp này cho kỹ thuật" in kq["loi"][0] and "Payoo" not in kq["loi"][0])
+	la("ba dòng đầu", kq["them"]["dau_tep"], ["A | B | C", "1 | 2 | 3"])
 	nem("tệp rỗng", lambda: D.doc_tep("x.csv", b""), D.LoiTep)
 	import io
 	import zipfile
@@ -561,3 +655,18 @@ def _():
 		nem("quá số dòng chữ", lambda: D.doc_pdf(b"%PDF"), D.LoiTep)
 	with patch.dict(sys.modules, {"pymupdf": gia(2, 5)}):
 		la("PDF nhỏ vẫn đọc", [len(t["dong"]) for t in D.doc_pdf(b"%PDF")], [5, 5])
+
+
+@ca("#457 mục 3: tệp chưa nhận ra mẫu thì nói rõ gửi kỹ thuật, kèm ba dòng đầu máy đọc được, bỏ qua dòng trống")
+def _():
+	t = D.doc_tep("la.xlsx", _xlsx_sai_kich_thuoc(("Sheet1", [[None, None], ["Bao cao la", "Ky 10/2026"], [], ["Ngay", "So tien", "Ghi chu"], ["01/10", 1000, "x" * 300], ["02/10", 2000]])))[0]
+	la("không nhận", M.nhan_dien(t), None)
+	kq = M.doc(t)
+	la("lời rõ việc cần làm", ("Mẫu chưa nhận" in kq["loi"][0], "gửi tệp này cho kỹ thuật" in kq["loi"][0]), (True, True))
+	la("ba dòng đầu, dòng dài bị cắt", (len(kq["them"]["dau_tep"]), kq["them"]["dau_tep"][0], kq["them"]["dau_tep"][1], kq["them"]["dau_tep"][2].endswith("...")),
+		(3, "Bao cao la | Ky 10/2026", "Ngay | So tien | Ghi chu", True))
+	from vagabond import doi_soat_khop as K
+	xt = K.xem_truoc(kq, "C", set())
+	from vagabond.doi_soat_vendor import tom_tat
+	tt = tom_tat(kq, xt)
+	la("tóm tắt về màn mang ba dòng đầu và tên Mẫu chưa nhận", (tt["dau_tep"], tt["ten_mau"], tt["trang_thai"]), (kq["them"]["dau_tep"], "Mẫu chưa nhận", "Lỗi tệp"))
