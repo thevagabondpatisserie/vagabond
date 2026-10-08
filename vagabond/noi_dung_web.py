@@ -598,7 +598,16 @@ def _doc():
     return frappe.get_doc(DOCTYPE, TEN)
 
 
-def _ban_cong_khai():
+def _ban_cong_khai(khoa=False):
+    """Bản công khai. khoa=True vừa khoá hàng nội dung web vừa đọc HIỆN TẠI
+    (for update): bên ghi cần xếp hàng với Marketing phải đọc đúng bản sau
+    khoá, đọc thường trong REPEATABLE READ có thể trả ảnh chụp từ trước lúc
+    chờ (Codex #454)."""
+    if khoa:
+        hang = frappe.db.sql("select ban_cong_khai from `tabVagabond Noi Dung Web` where name=%s for update", (TEN,))
+        if not hang:
+            return copy.deepcopy(MAC_DINH)
+        return json.loads(hang[0][0] or json.dumps(MAC_DINH))
     if not frappe.db.exists(DOCTYPE, TEN):
         return copy.deepcopy(MAC_DINH)
     return json.loads(frappe.db.get_value(DOCTYPE, TEN, "ban_cong_khai") or json.dumps(MAC_DINH))

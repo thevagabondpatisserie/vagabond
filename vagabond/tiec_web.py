@@ -123,9 +123,8 @@ def dem_ve(ids, khoa=False):
     return {r[0]: int(r[1] or 0) for r in ds}
 
 
-def _tiec_cong_khai(id_tiec):
-    from vagabond.noi_dung_web import _ban_cong_khai
-    return next((k for k in _ban_cong_khai().get("khoi") or [] if k.get("id") == id_tiec and k.get("loai") == "tiec"), None)
+def _tiec_trong(ban, id_tiec):
+    return next((k for k in ban.get("khoi") or [] if k.get("id") == id_tiec and k.get("loai") == "tiec"), None)
 
 
 @frappe.whitelist(methods=["POST"], allow_guest=True)
@@ -148,12 +147,15 @@ def dang_ky(du_lieu, ma_lan_gui):
         return cu
     # Khoá hàng nội dung web: mọi đăng ký tiệc xếp hàng qua đây. Sau khoá,
     # MỌI phép đọc phải là đọc hiện tại (for update), không dùng lại ảnh chụp
-    # REPEATABLE READ có từ trước lúc chờ (Codex #453).
-    frappe.db.sql("select name from `tabVagabond Noi Dung Web` where name='order' for update")
+    # REPEATABLE READ có từ trước lúc chờ (Codex #453). Phép khoá đọc luôn bản
+    # công khai, nên cấu hình tiệc (số vé, ẩn hiện, hạn bán) là bản Marketing
+    # vừa lưu chứ không phải bản lúc khách bắt đầu gửi (Codex #454).
+    from vagabond.noi_dung_web import _ban_cong_khai
+    ban = _ban_cong_khai(khoa=True)
     cu = _da_nhan(ten, dau, khoa=True)
     if cu:
         return cu
-    tiec = _tiec_cong_khai(str(raw.get("tiec_id") or ""))
+    tiec = _tiec_trong(ban, str(raw.get("tiec_id") or ""))
     try:
         nd = chuan_hoa(raw, tiec, dem_ve([tiec["id"]], khoa=True).get(tiec["id"], 0) if tiec else 0,
                        str(frappe.utils.nowdate()))
