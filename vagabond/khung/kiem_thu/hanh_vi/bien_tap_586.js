@@ -341,6 +341,58 @@ function appMoi(tuy) {
     dung('bao ma', String(the.textContent).indexOf('mã AB12CD34') >= 0);
   });
 
+  /* ---------------- Nang cao (bien-tap.js): tran so khoi do may chu quyet (Codex #454) ---------------- */
+  function nangCao(soKhoi, toiDa) {
+    // DOM gia thieu vai API ma bien-tap.js dung luc dung bang; bu toi thieu.
+    var EP = dg.ElementGia.prototype;
+    if (!EP.before) EP.before = function () { var p = this.parentNode, me = this; [].slice.call(arguments).forEach(function (n) { p.insertBefore(n, me); }); };
+    if (!Object.getOwnPropertyDescriptor(EP, 'classList')) Object.defineProperty(EP, 'classList', { get: function () {
+      var el = this; function ds() { return (el.getAttribute('class') || '').split(/\s+/).filter(Boolean); }
+      return { add: function (c) { var d = ds(); if (d.indexOf(c) < 0) d.push(c); el.setAttribute('class', d.join(' ')); },
+        remove: function (c) { el.setAttribute('class', ds().filter(function (x) { return x !== c; }).join(' ')); },
+        toggle: function (c, f) { var d = ds(), co = d.indexOf(c) >= 0; if (f === undefined) f = !co; d = d.filter(function (x) { return x !== c; }); if (f) d.push(c); el.setAttribute('class', d.join(' ')); return f; },
+        contains: function (c) { return ds().indexOf(c) >= 0; } }; } });
+    var ht = fs.readFileSync(path.join(GOC, 'vagabond', 'www', 'bien-tap-web.html'), 'utf8');
+    var than = ht.slice(ht.indexOf('<div id="bt-cu"'), ht.indexOf('<script src="/assets/vagabond/web_order/khoi.js'));
+    var tl = dg.taiLieuGia(); dg.doc(than, tl.body); tl.body.dataset.nguoi = 'mv';
+    tl.getElementById('preview').contentWindow = { postMessage: function () {} };
+    var khoi = [];
+    for (var i = 0; i < soKhoi; i++) khoi.push({ id: 'k' + i, loai: 'thong_bao', hien: true, vi_tri: 'cuoi_trang', tieu_de: 'K' + i, noi_dung: '', nhan: '', anh: '', mo_ta_anh: '', nut: '', lien_ket: '' });
+    var nd = { khoi: khoi, nhan: {}, chinh_sach: {} };
+    var B = { nhap: nd, cong_khai: nd, phien_ban: 1, lich_su: [], nhan_mau: {}, so_khoi_toi_da: toiDa };
+    var g = { console: console, JSON: JSON, Math: Math, Number: Number, String: String, Object: Object, Array: Array, Promise: Promise, Error: Error,
+      RegExp: RegExp, Date: Date, Intl: Intl, Set: Set, Map: Map, parseInt: parseInt, encodeURIComponent: encodeURIComponent, setTimeout: setTimeout,
+      structuredClone: function (x) { return JSON.parse(JSON.stringify(x)); }, crypto: { randomUUID: function () { return 'u' + Math.random(); } },
+      sessionStorage: { getItem: function () { return null; }, setItem: function () {}, removeItem: function () {} }, location: { origin: 'x' },
+      ResizeObserver: function () { this.observe = function () {}; },
+      document: { body: tl.body, createElement: tl.createElement, getElementById: tl.getElementById, addEventListener: function () {},
+        createTextNode: function (x) { var e = tl.createElement('span'); e.textContent = x; return e; },
+        querySelector: function (c) { return c.indexOf('meta') === 0 ? { content: 'csrf' } : (tl.querySelector(c) || {}); },
+        querySelectorAll: function (c) { return tl.querySelectorAll(c); } },
+      fetch: function () { return Promise.resolve({ ok: true, status: 200, json: function () { return Promise.resolve({ message: JSON.parse(JSON.stringify(B)) }); } }); } };
+    g.window = g; g.addEventListener = function () {}; g.confirm = function () { return true; };
+    vm.createContext(g);
+    vm.runInContext(doc('khoi.js'), g, { filename: 'khoi.js' });
+    vm.runInContext(doc('bien-tap.js'), g, { filename: 'bien-tap.js' });
+    return { tl: tl,
+      them: async function (ten) { await nghi(); var b = [].slice.call(tl.getElementById('them-khoi').children).filter(function (x) { return String(x.textContent).indexOf(ten) >= 0; })[0]; b.onclick(); await nghi(); },
+      so: function () { return String(tl.getElementById('so-khoi').textContent); },
+      bao: function () { return String(tl.getElementById('trang-thai').textContent); } };
+  }
+
+  await ca('Nang cao: may chu cho 80 khoi thi da co 30 van them duoc (truoc v586b bi chan o 30)', async function () {
+    var n = nangCao(30, 80);
+    await n.them('Thông báo');
+    bang('them duoc khoi thu 31', n.so(), '31');
+  });
+
+  await ca('Nang cao: cham tran may chu dat thi chan, cau bao noi dung so may chu', async function () {
+    var n = nangCao(12, 12);
+    await n.them('Thông báo');
+    bang('khong them', n.so(), '12');
+    dung('cau bao dung tran', n.bao().indexOf('Đã có 12 khối') >= 0);
+  });
+
   console.log('Bo ca kiem HANH VI v586: trinh bien tap theo the va the Tiec');
   ket.loi.forEach(function (d) { console.log('  HONG  ' + d); });
   console.log(ket.dat + ' ca dat, ' + ket.hong + ' ca hong, tong ' + (ket.dat + ket.hong) + ' ca.');
