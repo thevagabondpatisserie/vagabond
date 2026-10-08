@@ -275,9 +275,16 @@ async function dsvnDoiPhap(c) {
   go(scrDsvnTai, true);
 }
 
+/* #457 mục 3: tệp chưa nhận ra mẫu thì cho xem ba dòng đầu máy đọc được, để
+   người dùng biết máy không mù, và kỹ thuật biết lấy tệp nào làm mẫu. */
+function dsvnDauTep(dau) {
+  return '<div style="font-size:12.5px;color:#475467;margin-top:8px;line-height:1.5"><b>Ba dòng đầu máy đọc được</b><br>' +
+    dau.slice(0, 3).map(function (d) { return '<code style="font-size:12px;word-break:break-all">' + h(d) + '</code>'; }).join('<br>') + '</div>';
+}
+
 function dsvnTheXemTruoc(x) {
   var s = '<div class="card" style="padding:12px 14px">' +
-    '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>' + h(x.ten_mau || 'Chưa nhận ra') + '</b>' +
+    '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>' + h(x.ten_mau || 'Mẫu chưa nhận') + '</b>' +
     (x.da_co || x.phap_nhan_khac ? dsvnChip('Đã nhận trước') : dsvnChip(x.trang_thai)) + '</div>' +
     '<div style="font-size:13px;color:#667085;margin-top:2px">' + h(x.ten_tep || '') + '</div>' +
     (x.doc_lai ? '<div style="font-size:12.5px;color:#175cd3;margin-top:4px">Tệp này đã nhận trước nhưng còn lỗi. Bấm Nhận để đọc lại vào đúng nguồn cũ.</div>' : '');
@@ -298,6 +305,7 @@ function dsvnTheXemTruoc(x) {
       (x.tong_tep && x.tong_tep.thuc_nhan != null ? ' · in trên tệp ' + money(x.tong_tep.thuc_nhan) + ' đ' : '') + '</div>';
     if (x.ghi_chu_don_vi) s += '<div style="font-size:12.5px;color:#475467;margin-top:4px">' + h(x.ghi_chu_don_vi) + '</div>';
   }
+  if (!x.mau && (x.dau_tep || []).length) s += dsvnDauTep(x.dau_tep);
   var nhac = (x.loi || []).concat((x.dong_loi || []).map(function (d) { return 'Dòng ' + d.vi_tri + ': ' + d.ly_do; }));
   if (nhac.length) {
     s += '<div style="background:#fffaeb;border-radius:10px;padding:8px 10px;margin-top:8px;font-size:13px;color:#7a2e0e">' +
@@ -375,6 +383,7 @@ async function scrDsvnCt() {
         'Lệch: tiền ' + money(bb.lech.tien_hang) + ' đ, phí ' + money(bb.lech.phi) + ' đ, thực nhận ' + money(bb.lech.thuc_nhan) +
         ' đ. Tải đủ thông báo tạm ứng ngày còn thiếu.') + '</div></div>';
   }
+  if (n.trang_thai === 'Lỗi tệp' && (t.dau_tep || []).length) html += '<div class="card" style="padding:12px 14px">' + dsvnDauTep(t.dau_tep) + '</div>';
   var nhac = (t.loi || []).concat((t.dong_loi || []).map(function (d) { return 'Dòng ' + d.vi_tri + ': ' + d.ly_do; }));
   if (nhac.length) {
     html += '<details class="card" style="padding:12px 14px"><summary style="cursor:pointer;min-height:24px"><b>' + nhac.length +
