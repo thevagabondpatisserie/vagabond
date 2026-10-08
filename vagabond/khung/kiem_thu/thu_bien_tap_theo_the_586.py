@@ -249,6 +249,10 @@ class _Site(object):
         self.ghi_settings = []
         self.hang = {}
         self.doc_gv = []
+        # Giả REPEATABLE READ: đọc thường thấy ảnh chụp (self.doc), đọc có
+        # for update thấy bản hiện tại (hien_tai, mặc định trùng ảnh chụp).
+        self.hien_tai = None
+        self.da_giu = {}
 
     def vao(self):
         fr = sys.modules["frappe"]
@@ -257,14 +261,21 @@ class _Site(object):
         def _sql(q, *a, **k):
             site.sql.append(q)
             if "tabVagabond Noi Dung Web" in q and "for update" in q:
+                if "ban_cong_khai" in q:
+                    return [(site.hien_tai if site.hien_tai is not None else site.doc.ban_cong_khai,)]
                 return [("order",)]
-            if "tabVagabond Dang Ky Tiec" in q:
-                return []
+            if "sum(so_ve)" in q:
+                return list(site.da_giu.items())
             return []
 
+        def _gv(dt, ten, *a, **k):
+            site.doc_gv.append((ten, bool(k.get("for_update")), len(site.sql)))
+            if dt == "Vagabond Noi Dung Web" and a and a[0] == "ban_cong_khai":
+                return site.doc.ban_cong_khai
+            return site.hang.get(ten)
+
         db = types.SimpleNamespace(
-            sql=_sql, exists=lambda *a, **k: True,
-            get_value=lambda dt, ten, *a, **k: (site.doc_gv.append((ten, bool(k.get("for_update")), len(site.sql))), site.hang.get(ten))[1],
+            sql=_sql, exists=lambda *a, **k: True, get_value=_gv,
             savepoint=lambda *a: None, rollback=lambda *a, **k: None,
             set_single_value=lambda dt, k, v: (site.ghi_settings.append((k, v)), site.settings.__setitem__(k, v)),
         )
@@ -402,7 +413,8 @@ def _dk_ham_that():
     ps += [um.patch.object(fr, "get_doc", lambda d, *a, **k: _Phieu(d) if isinstance(d, dict) else site.doc),
            um.patch.object(fr, "generate_hash", lambda length=10: "h" * length, create=True),
            um.patch.object(fr.local, "message_log", [], create=True),
-           um.patch.object(nw, "_ban_cong_khai", lambda: json.loads(site.doc.ban_cong_khai))]
+           ]  # GHI CHÚ (Codex #454): không thay _ban_cong_khai bằng hàm giả nữa, nó che
+    # mất việc cấu hình tiệc được đọc bằng phép thường sau khoá.
     for p in ps:
         p.start()
     try:
@@ -456,7 +468,7 @@ def _dk_trung_dong_thoi():
            um.patch.object(fr, "DuplicateEntryError", _Trung, create=True),
            um.patch.object(fr, "generate_hash", lambda length=10: "h" * length, create=True),
            um.patch.object(fr.local, "message_log", ["truoc"], create=True),
-           um.patch.object(nw, "_ban_cong_khai", lambda: json.loads(site.doc.ban_cong_khai))]
+           ]
     for p in ps:
         p.start()
     fr.db.savepoint = lambda m: vet.append(("moc", m))
@@ -471,6 +483,43 @@ def _dk_trung_dong_thoi():
     la("lùi đúng điểm lưu vừa đặt", [v[0] for v in vet], ["moc", "lui"])
     la("bỏ thông báo Duplicate Name của lần chèn hỏng", log, ["truoc"])
     dung("đọc lại sau lùi là đọc hiện tại", site.doc_gv[-1][1])
+
+
+@ca("v586b (Codex #454): Marketing đổi tiệc trong lúc khách chờ khoá, cửa đăng ký đọc cấu hình HIỆN TẠI")
+def _dk_cau_hinh_sau_khoa():
+    du = {"tiec_id": "tiec-1", "ten": "Lan", "sdt": "0909123456", "so_ve": "3"}
+    ma = "0f0e0d0c-0b0a-4908-8706-050403020100"
+    fr = sys.modules["frappe"]
+    for ten_ca, moi in (("giảm vé 40 xuống 20", dict(TIEC, so_ve="20")), ("vừa ẩn tiệc", dict(TIEC, hien=False))):
+        # Ảnh chụp lúc khách bắt đầu: 40 vé. Marketing lưu xong lúc khách đang chờ khoá.
+        site = _Site(_nd(TIEC), _nd(TIEC))
+        site.hien_tai = json.dumps(_nd(moi), ensure_ascii=False)
+        site.da_giu = {"tiec-1": 18}
+        them = []
+
+        class _Phieu(dict):
+            def __init__(self, d):
+                super().__init__(d); self.flags = types.SimpleNamespace(); self.name = d["name"]
+
+            def insert(self, **k):
+                them.append(dict(self))
+
+        ps = site.vao()
+        ps += [um.patch.object(fr, "get_doc", lambda d, *a, **k: _Phieu(d) if isinstance(d, dict) else site.doc),
+               um.patch.object(fr, "generate_hash", lambda length=10: "h" * length, create=True),
+               um.patch.object(fr.local, "message_log", [], create=True)]
+        for p in ps:
+            p.start()
+        loi = ""
+        try:
+            tw.dang_ky(json.dumps(du), ma)
+        except Exception as e:
+            loi = str(e)
+        finally:
+            for p in reversed(ps):
+                p.stop()
+        la(ten_ca + ": không ghi đăng ký", len(them), 0)
+        dung(ten_ca + ": có câu báo cho khách", bool(loi))
 
 
 @ca("v586: sales chỉ đổi trạng thái theo chiều tới, không sửa chữ khách gửi")
