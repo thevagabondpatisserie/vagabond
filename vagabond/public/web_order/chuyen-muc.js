@@ -63,7 +63,12 @@
       ma = ma || (window.crypto && crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-8xxx-xxxxxxxxxxxx'.replace(/x/g, () => (Math.random() * 16 | 0).toString(16)));
       gui.disabled = true; bao.textContent = chu('cm_dk_dang_gui', 'Đang gửi...');
       try {
-        const r = await fetch('/api/method/vagabond.tiec_web.dang_ky', {method: 'POST', headers: {'Content-Type': 'application/json', Accept: 'application/json'},
+        // Codex #454: khách vãng lai là Guest, Frappe miễn token; nhân viên đang
+        // đăng nhập xem trang thì phải kèm token như trang đặt bánh, không là 400.
+        const dau = {'Content-Type': 'application/json', Accept: 'application/json'};
+        const tk = window.csrf_token || (window.frappe && window.frappe.csrf_token);
+        if (tk && tk !== 'None') dau['X-Frappe-CSRF-Token'] = tk;
+        const r = await fetch('/api/method/vagabond.tiec_web.dang_ky', {method: 'POST', headers: dau, credentials: 'same-origin',
           body: JSON.stringify({du_lieu: {tiec_id: k.id, ten: ten.value, sdt: sdt.value, so_ve: so.value, ghi_chu: ghi.value}, ma_lan_gui: ma})});
         const d = await r.json();
         if (!r.ok || d.exc) {
