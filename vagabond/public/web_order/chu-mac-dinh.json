@@ -2782,6 +2782,31 @@
     "mac_dinh": "Bao gồm",
     "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
   },
+  "cm_doc_tiep": {
+    "ten": "Chữ dài: nút mở phần còn lại",
+    "mac_dinh": "Đọc tiếp",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_thu_gon": {
+    "ten": "Chữ dài: nút gấp lại",
+    "mac_dinh": "Thu gọn",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_cau_chuyen": {
+    "ten": "Tiệc: tiêu đề phần giới thiệu",
+    "mac_dinh": "Câu chuyện",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_mon": {
+    "ten": "Tiệc: chữ sau số món trong thực đơn",
+    "mac_dinh": "món",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_mon_nua": {
+    "ten": "Tiệc: nút mở các món còn lại ({so} là số món)",
+    "mac_dinh": "+ {so} món nữa",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
   "cm_yeu_cau": {
     "ten": "Tuyển dụng: tiêu đề danh sách yêu cầu",
     "mac_dinh": "Yêu cầu và quyền lợi",
