@@ -470,10 +470,23 @@ def _():
 	cot = json.load(open(os.path.join(os.path.dirname(__file__), "mau_doi_soat", "greensm.json"), encoding="utf-8"))["cot"]
 	dong = [1, "01M4826QN6YCRW5Z2FMJT03M15", "1782", "01K23Y", "Quán A", "06-10-2026 14:53:22", "Completed",
 		620000, None, 69000, 54000, 0, 54000, "2026XANH90:54000", 497000, 64610, 0, 0, 432390]
-	b = _xlsx_sai_kich_thuoc(("Detail Transactions", [cot, dong]), ("Summary", [["Tổng số đơn hàng", 1], ["Tổng giá trị đơn hàng", 620000],
-		["Khuyến mại từ quán", 69000], ["Khuyến mại món", 54000], ["Doanh thu ròng", 497000], ["Tổng chiết khấu", 64610], ["Tổng thực thu", 432390]]))
-	t = D.doc_tep("Revenue_Report_x.xlsx", b)[0]
-	la("đọc đủ cột dù khai sai", len(t["trang"][0]["o"][0]), 19)
+	summary = [["Tổng số đơn hàng", 1], ["Tổng giá trị đơn hàng", 620000], ["Khuyến mại từ quán", 69000], ["Khuyến mại món", 54000],
+		["Doanh thu ròng", 497000], ["Tổng chiết khấu", 64610], ["Tổng thực thu", 432390]]
+	try:
+		import openpyxl  # noqa: F401
+	except ImportError:
+		# Máy CI tay không, không có openpyxl: phần byte thật chỉ chạy được ở
+		# máy làm việc. Ở đây chốt bằng lưới dựng sẵn và dò chuỗi reset_dimensions
+		# (dò chuỗi chỉ để chốt "còn gọi", không thay ca byte thật).
+		import io as _io
+		import os as _os
+		dd = _io.open(_os.path.join(_os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))), "doi_soat_doc.py"), encoding="utf-8").read()
+		dung("doc_xlsx còn gọi reset_dimensions (CI không có openpyxl)", "ws.reset_dimensions()" in dd.split("def doc_xlsx(")[1].split("\ndef ")[0])
+		t = _luoi("Revenue_Report_x.xlsx", ("Detail Transactions", [cot, dong]), ("Summary", summary))
+	else:
+		b = _xlsx_sai_kich_thuoc(("Detail Transactions", [cot, dong]), ("Summary", summary))
+		t = D.doc_tep("Revenue_Report_x.xlsx", b)[0]
+		la("đọc đủ cột dù khai sai", len(t["trang"][0]["o"][0]), 19)
 	la("nhận mẫu", M.nhan_dien(t), "greensm_ngon")
 	kq = M.doc(t)
 	la("một đơn, thực thu đúng", (len(kq["dong"]), kq["tong"]["thuc_nhan"], kq["loi"]), (1, 432390, []))
@@ -481,7 +494,8 @@ def _():
 
 @ca("#457 thẻ Shinhan gõ tay: nhận bằng tiêu đề cột, phí sau dòng Spend, ngoại tệ giữ gốc, kỳ suy từ tháng bút toán có cảnh báo")
 def _():
-	t = D.doc_tep("SHB_20261008.xlsx", _xlsx_sai_kich_thuoc(("sheet", THE_BANG)))[0]
+	# Lưới dựng sẵn (CI không có openpyxl); byte xlsx thật đã kiểm ở ca dimension.
+	t = _luoi("SHB_20261008.xlsx", ("sheet", THE_BANG))
 	la("nhận mẫu bảng, không nhầm PDF", M.nhan_dien(t), "the_shinhan_bang")
 	kq = M.doc(t)
 	la("không lỗi", (kq["dong_loi"], kq["loi"]), ([], []))
@@ -494,10 +508,10 @@ def _():
 	dung("đánh dấu gõ tay", kq["them"]["go_tay"] == 1)
 	sai = [list(h) for h in THE_BANG]
 	sai[5][5] = "17,000,000 "
-	kq = M.doc(D.doc_tep("x.xlsx", _xlsx_sai_kich_thuoc(("sheet", sai)))[0])
+	kq = M.doc(_luoi("x.xlsx", ("sheet", sai)))
 	dung("lệch Spend là lỗi tệp", any("Your Spend" in l for l in kq["loi"]))
 	thieu = [h for h in THE_BANG if h[1] != "Number"]
-	kq = M.doc(D.doc_tep("x.xlsx", _xlsx_sai_kich_thuoc(("sheet", thieu)))[0])
+	kq = M.doc(_luoi("x.xlsx", ("sheet", thieu)))
 	dung("thiếu dòng Card Number thì báo", any("Card Number" in l for l in kq["loi"]))
 	from vagabond import doi_soat_khop as K
 	ky = K.ky_the(kq["tong"], dict(den_han=1))
@@ -659,7 +673,7 @@ def _():
 
 @ca("#457 mục 3: tệp chưa nhận ra mẫu thì nói rõ gửi kỹ thuật, kèm ba dòng đầu máy đọc được, bỏ qua dòng trống")
 def _():
-	t = D.doc_tep("la.xlsx", _xlsx_sai_kich_thuoc(("Sheet1", [[None, None], ["Bao cao la", "Ky 10/2026"], [], ["Ngay", "So tien", "Ghi chu"], ["01/10", 1000, "x" * 300], ["02/10", 2000]])))[0]
+	t = _luoi("la.xlsx", ("Sheet1", [[None, None], ["Bao cao la", "Ky 10/2026"], [], ["Ngay", "So tien", "Ghi chu"], ["01/10", 1000, "x" * 300], ["02/10", 2000]]))
 	la("không nhận", M.nhan_dien(t), None)
 	kq = M.doc(t)
 	la("lời rõ việc cần làm", ("Mẫu chưa nhận" in kq["loi"][0], "gửi tệp này cho kỹ thuật" in kq["loi"][0]), (True, True))
