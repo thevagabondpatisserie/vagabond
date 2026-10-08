@@ -1894,3 +1894,20 @@ Ca dò mã nguồn đầu tiên viết cho lỗi này xanh mà không dò gì: �
 `.../kiem_thu/../..` tự chứa chữ `kiem_thu`, nên phép bỏ thư mục kiểm bỏ qua
 cả app. Dùng `abspath` và so từng phần của đường dẫn tương đối, và chốt số tệp
 đã dò phải lớn hơn 0.
+
+## 08/10/2026 - v586: đăng ký tiệc vượt số vé dù đã khoá hàng
+
+Cửa đăng ký tiệc khoá hàng nội dung web rồi mới đếm vé, nhưng câu đếm là đọc
+thường. MariaDB REPEATABLE READ giữ ảnh chụp từ lần đọc đầu (tra mã lần gửi),
+nên khách thứ hai chờ khoá xong vẫn thấy tổng cũ. Tái hiện hai kết nối thật:
+tiệc 40 vé, đã có 38, hai khách mỗi người 2 vé, ghi được 42/40. Khoá thôi
+chưa đủ: MỌI phép đọc sau khoá phải là đọc hiện tại (`for update`), kể cả đọc
+lại mã lần gửi. Bài học trùng #368 và đặt bàn, ghi lại vì lặp lại lần ba.
+
+Ca kiểm cũ của cửa này thay hẳn `dem_ve` bằng hàm giả để đếm thứ tự, nên
+không bao giờ nhìn thấy câu SQL đếm vé. Ca kiểm thứ tự khoá phải giữ hàm thật
+và soi đúng câu nó chạy, không thay chính chỗ đang kiểm.
+
+Cũng PR đó: điểm nhận bánh "danh sách rỗng thì về điểm cũ" là sai, vì rỗng là
+marketing đã tắt hết. Phân biệt "chưa tải" với "đã tải mà rỗng", và máy chủ
+chặn lại lúc gửi đơn theo đúng một luật (`noi_dung_web.diem_nhan`).
