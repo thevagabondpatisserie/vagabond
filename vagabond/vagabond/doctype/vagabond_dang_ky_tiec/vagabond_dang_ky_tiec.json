@@ -1,0 +1,140 @@
+{
+ "doctype": "DocType",
+ "name": "Vagabond Dang Ky Tiec",
+ "module": "Vagabond",
+ "engine": "InnoDB",
+ "field_order": [
+  "tiec_id",
+  "ten_tiec",
+  "ngay_tiec",
+  "ten",
+  "sdt",
+  "email",
+  "so_ve",
+  "gia_ve",
+  "tong_tien",
+  "ghi_chu",
+  "trang_thai",
+  "xu_ly",
+  "bam_noi_dung"
+ ],
+ "fields": [
+  {
+   "fieldname": "tiec_id",
+   "fieldtype": "Data",
+   "label": "Mã tiệc",
+   "read_only": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "ten_tiec",
+   "fieldtype": "Data",
+   "label": "Tiệc",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "ngay_tiec",
+   "fieldtype": "Date",
+   "label": "Ngày diễn ra",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "ten",
+   "fieldtype": "Data",
+   "label": "Họ tên",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "sdt",
+   "fieldtype": "Data",
+   "label": "Điện thoại",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "label": "Email"
+  },
+  {
+   "fieldname": "so_ve",
+   "fieldtype": "Int",
+   "label": "Số vé",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "gia_ve",
+   "fieldtype": "Currency",
+   "label": "Giá vé lúc đăng ký",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tong_tien",
+   "fieldtype": "Currency",
+   "label": "Tạm tính",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ghi_chu",
+   "fieldtype": "Small Text",
+   "label": "Khách ghi chú"
+  },
+  {
+   "fieldname": "trang_thai",
+   "fieldtype": "Select",
+   "label": "Trạng thái",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "options": "Chờ xác nhận\nĐã xác nhận\nĐã thanh toán\nĐã hủy",
+   "default": "Chờ xác nhận"
+  },
+  {
+   "fieldname": "xu_ly",
+   "fieldtype": "Small Text",
+   "label": "Ghi chú xử lý"
+  },
+  {
+   "fieldname": "bam_noi_dung",
+   "fieldtype": "Data",
+   "label": "Dấu vết yêu cầu",
+   "read_only": 1,
+   "hidden": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "Sales User",
+   "read": 1,
+   "write": 1,
+   "report": 1
+  },
+  {
+   "role": "Sales Manager",
+   "read": 1,
+   "write": 1,
+   "report": 1
+  },
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "report": 1
+  },
+  {
+   "role": "Marketing",
+   "read": 1,
+   "report": 1
+  }
+ ],
+ "track_changes": 1,
+ "autoname": "prompt",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "title_field": "ten",
+ "description": "Khách đăng ký tiệc trên trang đặt bánh (v586). Sales gọi xác nhận và thu tiền."
+}
