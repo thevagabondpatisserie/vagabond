@@ -388,7 +388,10 @@ def _():
 		'cap = {"van_don": None, "purchase_invoice": None}' in inspect.getsource(V._noi_chuyen))
 
 
-def _chay_thu(tep, tieu_de, da_co=None):
+_CT_DA_DOC = []  # pháp nhân mà _doc_va_xem được gọi với, trong _chay_thu
+
+
+def _chay_thu(tep, tieu_de, da_co=None, hop_thu_loi=False, hop_thu_ct=None, demo="", thu_ct=None):
 	"""Chạy xu_ly_thu THẬT (cả _nhan_byte thật) với tầng chạm hệ được thay:
 	tep = {tên đính kèm: [(tên tệp con, có mẫu?)]}. Trả (ket, các nguồn đã ghi)."""
 	from contextlib import nullcontext
@@ -399,6 +402,7 @@ def _chay_thu(tep, tieu_de, da_co=None):
 	ghi = []
 
 	def doc_va_xem(ten, byte, cong_ty):
+		_CT_DA_DOC.append(cong_ty)
 		ra = []
 		for con, co_mau in tep[ten]:
 			kq = dict(mau="payoo_the" if co_mau else "", loi=[] if co_mau else ["Chưa nhận ra mẫu"])
@@ -406,6 +410,15 @@ def _chay_thu(tep, tieu_de, da_co=None):
 		return ra
 
 	def get_value(dt, loc, truong=None, as_dict=False):
+		if dt == "Communication" and truong == "email_account":
+			return "HOP-1"
+		if dt == "Communication" and isinstance(truong, (list, tuple)) and "company" in truong:
+			# Communication.company: ERPNext ghi pháp nhân của hộp thư LÚC NHẬN thư.
+			return dict(company=thu_ct, email_account="HOP-1")  # frappe._dict thật có .get
+		if dt == "Email Account":
+			if hop_thu_loi:
+				raise RuntimeError("mất kết nối CSDL khi đọc hộp thư")
+			return hop_thu_ct
 		if dt == "Communication":
 			return NS(subject=tieu_de, content="", sender="noreply@payoo.com.vn")
 		sha = loc.get("sha256") if isinstance(loc, dict) else None
@@ -417,7 +430,14 @@ def _chay_thu(tep, tieu_de, da_co=None):
 		return dict(name="N-" + t["ten"], trang_thai=xt["trang_thai"], da_co=0, ten_tep=t["ten"])
 
 	tep_dinh = [NS(name="F-" + k, file_name=k, file_url="/private/files/" + k) for k in tep]
+
+	def get_single_value(dt, truong):
+		# demo là Exception thì giả lập đọc Global Defaults lỗi.
+		if isinstance(demo, Exception):
+			raise demo
+		return demo
 	with patch.object(V, "khoa_doi_chieu", lambda *a, **k: nullcontext()), \
+			patch.object(V.frappe.db, "get_single_value", get_single_value, create=True), \
 			patch.object(V, "_cong_ty", lambda: "CT"), \
 			patch.object(V, "_doc_va_xem", doc_va_xem), \
 			patch.object(V, "_ghi_nguon", ghi_nguon), \
@@ -425,7 +445,7 @@ def _chay_thu(tep, tieu_de, da_co=None):
 			patch.object(V.frappe, "get_doc", lambda *a, **k: NS(get_content=lambda: b"x"), create=True), \
 			patch.object(V.frappe, "get_all", lambda *a, **k: tep_dinh, create=True), \
 			patch.object(V.frappe.db, "get_value", get_value, create=True), \
-			patch.object(V, "_ghi_thu_khong_tep", lambda comm, c: ghi.append(("THAN_THU", None)) or [dict(name="N-than")]):
+			patch.object(V, "_ghi_thu_khong_tep", lambda comm, c, ct=None: ghi.append(("THAN_THU", None)) or [dict(name="N-than")]):
 		ket = V.xu_ly_thu("COMM-1")
 	return ket, ghi
 
@@ -1453,3 +1473,88 @@ def _():
 						sai.append("%s:%s" % (os.path.relpath(duong, goc), so))
 	dung("đã dò đủ các tệp của app (có doi_soat_vendor.py)", so_tep > 50)
 	la("không còn order_by có hàm", sai, [])
+
+
+@ca("v585: pháp nhân demo ERPNext không hiện để chọn nhận tệp; thư vendor vào pháp nhân của hộp thư")
+def _():
+	# Site thật 07/10/2026: hai pháp nhân là "CÔNG TY TNHH PATISSERIE VAGABOND" và
+	# "The Vagabond (Demo)" (Global Defaults.demo_company), màn Tải file bắt chọn TV/TVD.
+	from vagabond.doi_soat_vendor import bo_demo, cong_ty_nhan, cong_ty_thu
+	that, demo = "CÔNG TY TNHH PATISSERIE VAGABOND", "The Vagabond (Demo)"
+	con = bo_demo([that, demo], demo, that)
+	la("bỏ demo", con, [that])
+	la("còn một pháp nhân thì tự chọn, không bắt bấm chip", cong_ty_nhan("", con), (that, "", False))
+	la("demo là mặc định thì giữ", bo_demo([that, demo], demo, demo), [that, demo])
+	la("demo là pháp nhân duy nhất thì giữ", bo_demo([demo], demo, ""), [demo])
+	la("không có demo thì giữ nguyên", bo_demo([that, "B"], "", that), [that, "B"])
+	la("hộp thư khai pháp nhân thì theo hộp thư", cong_ty_thu("B", that, demo), "B")
+	la("hộp thư chưa khai thì về mặc định", cong_ty_thu(None, that, demo), that)
+	la("hộp thư khai demo thì về mặc định", cong_ty_thu(demo, that, demo), that)
+
+
+@ca("v585: thư vendor ghi nguồn vào pháp nhân của hộp thư nhận, không phải mặc định site")
+def _():
+	from unittest.mock import patch
+	from vagabond import doi_soat_vendor as V
+	with patch.object(V, "_cong_ty_cua_thu", lambda comm: "B"):
+		ket, ghi = _chay_thu({"bao-cao.csv": [("bao-cao.csv", True)]}, "Thong bao")
+	la("ghi nguồn", [g[0] for g in ghi], ["bao-cao.csv"])
+	la("đọc theo pháp nhân B (mặc định site là CT)", _CT_DA_DOC[-1:], ["B"])
+
+
+@ca("v585 Codex #452: đọc pháp nhân của hộp thư lỗi thì không ghi nguồn vào pháp nhân mặc định, ghi Error Log để lượt quét sau thử lại")
+def _():
+	# Chạy xu_ly_thu và _cong_ty_cua_thu THẬT; chỉ cho lần đọc Email Account
+	# ném lỗi. Bản cũ nuốt lỗi thành "chưa khai" rồi ghi nguồn vào pháp nhân
+	# mặc định của site: sai pháp nhân mà không ai biết.
+	from unittest.mock import patch
+	from vagabond import doi_soat_vendor as V
+	log = []
+	truoc = len(_CT_DA_DOC)
+	with patch.object(V.frappe, "log_error", lambda *a, **k: log.append(k.get("title") or a), create=True), \
+			patch.object(V, "_cong_ty_demo", lambda: ""):
+		ket, ghi = _chay_thu({"bao-cao.csv": [("bao-cao.csv", True)]}, "Thong bao", hop_thu_loi=True)
+	la("không ghi nguồn nào", ghi, [])
+	la("không đọc tệp theo pháp nhân nào", _CT_DA_DOC[truoc:], [])
+	la("không trả kết quả", ket, [])
+	la("một dòng Error Log", len(log), 1)
+	dung("log nói rõ pháp nhân hộp thư", "pháp nhân" in str(log[0]))
+	with patch.object(V, "_cong_ty_demo", lambda: ""), patch.object(V.frappe.db, "exists", lambda *a, **k: True, create=True):
+		ket, ghi = _chay_thu({"bao-cao.csv": [("bao-cao.csv", True)]}, "Thong bao")
+	la("hộp thư đọc được mà chưa khai: về mặc định như cũ", (len(ghi), _CT_DA_DOC[-1]), (1, "CT"))
+
+
+@ca("v585 Codex #452: đọc pháp nhân demo lỗi thì không ghi nguồn vào pháp nhân của hộp thư chưa kiểm, ghi Error Log")
+def _():
+	# Hộp thư khai đúng pháp nhân demo; lần đọc Global Defaults ném lỗi. Bản cũ
+	# nuốt thành "" nên coi demo là pháp nhân thật và ghi nguồn vào đó.
+	from unittest.mock import patch
+	from vagabond import doi_soat_vendor as V
+	log = []
+	truoc = len(_CT_DA_DOC)
+	with patch.object(V.frappe, "log_error", lambda *a, **k: log.append(k.get("title") or a), create=True), \
+			patch.object(V.frappe.db, "exists", lambda *a, **k: True, create=True):
+		ket, ghi = _chay_thu({"bao-cao.csv": [("bao-cao.csv", True)]}, "Thong bao", hop_thu_ct="DEMO",
+			demo=RuntimeError("mất kết nối CSDL khi đọc Global Defaults"))
+	la("không ghi nguồn nào", ghi, [])
+	la("không đọc tệp theo pháp nhân nào", _CT_DA_DOC[truoc:], [])
+	la("một dòng Error Log", len(log), 1)
+	with patch.object(V.frappe.db, "exists", lambda *a, **k: True, create=True):
+		ket, ghi = _chay_thu({"bao-cao.csv": [("bao-cao.csv", True)]}, "Thong bao", hop_thu_ct="DEMO", demo="DEMO")
+	la("đọc được: hộp thư khai demo thì về mặc định", (len(ghi), _CT_DA_DOC[-1]), (1, "CT"))
+
+
+@ca("v585 Codex #452: thư vào pháp nhân ghi trên thư lúc nhận, không theo pháp nhân hiện tại của hộp thư")
+def _():
+	# Thư nhận khi hộp thư thuộc A (Communication.company = A), sau đó quản trị
+	# đổi hộp thư sang B rồi lượt quét lại chạy. Bản cũ đọc hộp thư hiện tại nên
+	# ghi báo cáo cũ vào B.
+	from unittest.mock import patch
+	from vagabond import doi_soat_vendor as V
+	with patch.object(V.frappe.db, "exists", lambda *a, **k: True, create=True):
+		ket, ghi = _chay_thu({"bao-cao.csv": [("bao-cao.csv", True)]}, "Thong bao", thu_ct="A", hop_thu_ct="B")
+		la("theo pháp nhân trên thư", _CT_DA_DOC[-1], "A")
+		ket, ghi = _chay_thu({"bao-cao.csv": [("bao-cao.csv", True)]}, "Thong bao", thu_ct=None, hop_thu_ct="B")
+		la("thư cũ chưa có pháp nhân: theo hộp thư", _CT_DA_DOC[-1], "B")
+		ket, ghi = _chay_thu({"bao-cao.csv": [("bao-cao.csv", True)]}, "Thong bao", thu_ct="DEMO", hop_thu_ct="B", demo="DEMO")
+		la("thư ghi pháp nhân demo: về mặc định, không lấy hộp thư hiện tại", _CT_DA_DOC[-1], "CT")

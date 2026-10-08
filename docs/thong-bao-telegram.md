@@ -219,3 +219,13 @@ không sao chép phần log/comment bên ngoài. Nội dung này chỉ tới kê
 của anh. Kèm link nguồn và nhắc trả lời trong Codex: bot Telegram hiện chưa
 nhận lệnh duyệt. Codex tự ghi quyết định của anh lên PR, không hỏi lại.
 Khối sai định dạng hoặc sai người đăng nhận metadata kèm cảnh báo chưa gửi nội dung cần duyệt; không tự đoán.
+
+## Nhóm Zalo nhận cùng bản tin phát hành (v585)
+
+Từ v585, site đọc comment `[ĐÃ DEPLOY]` mới trên GitHub mỗi 15 phút, cùng luật
+với bộ gửi Telegram (chủ repo, đúng một khối `telegram-release`, đã kiểm site
+thật), và gửi các dòng `features` vào mọi nhóm Zalo có bật loại tin Phát hành
+(Cài đặt lõi và API, bảng Nhóm nhận tin Zalo). Chỉ báo bản đang chạy trên site
+(số cuối của `patches.txt`), nên đăng `[ĐÃ DEPLOY]` SAU khi deploy là đủ; comment
+của bản cũ không bao giờ bị gửi lại. Mỗi sha chỉ gửi một lần mỗi nhóm; sửa
+`features` sau khi đã gửi không tạo tin đính chính bên Zalo.

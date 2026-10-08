@@ -12,6 +12,11 @@ TRUONG_MOI = {"Item": [{
 	"label": "Kho nguyên liệu mặc định khi sản xuất",
 	"fieldtype": "Link", "options": "Warehouse",
 	"insert_after": "default_bom", "in_standard_filter": 1,
+	# v585: ô cấu hình, KHÔNG phải ô phân quyền. Thiếu cờ này thì người có
+	# User Permission theo kho (thu ngân, cửa hàng) bị Frappe ẩn mọi món khai
+	# kho sản xuất ngoài danh sách của họ: ca thật 08/10/2026, tìm "Chocolatine"
+	# không ra "Bánh Chocolatine, Mini size" vì món khai "Baker - Nguyên liệu".
+	"ignore_user_permissions": 1,
 	"description": "Kho lấy nguyên liệu khi sản xuất MÓN NÀY. Khai một lần cho lệnh mới; "
 		"vẫn đổi kho riêng trên lệnh. Không thay đổi lệnh cũ hoặc kho nhập thành phẩm.",
 }]}

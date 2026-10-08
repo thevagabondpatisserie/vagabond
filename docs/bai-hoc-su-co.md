@@ -1894,3 +1894,30 @@ Ca dò mã nguồn đầu tiên viết cho lỗi này xanh mà không dò gì: �
 `.../kiem_thu/../..` tự chứa chữ `kiem_thu`, nên phép bỏ thư mục kiểm bỏ qua
 cả app. Dùng `abspath` và so từng phần của đường dẫn tương đối, và chốt số tệp
 đã dò phải lớn hơn 0.
+
+## 07/10/2026 - #452: cài nhóm Zalo nhận tin Phát hành mà không có tin nào
+
+Anh Việt bật bot Zalo, thêm nhóm và tích loại tin Phát hành, nhưng sổ tin
+kênh không có dòng nào. Nguyên nhân: bản tin phát hành chỉ có đường Telegram
+(bot GitHub đọc comment `[ĐÃ DEPLOY]`), còn trong app không chỗ nào gọi
+`kenh_zalo.bao("phat_hanh")`. Màn cài đặt vẫn cho chọn loại tin đó nên trông
+như đã chạy. Phòng: mỗi loại tin hiện cho người dùng chọn phải có ít nhất một
+nơi phát thật và một ca kiểm chốt nơi phát đó; thêm kênh mới cho một loại tin
+thì đọc từ ĐÚNG nguồn của kênh cũ (ở đây là khối `telegram-release`) để hai
+kênh không lệch nội dung. Ở #452 còn gặp pháp nhân demo của ERPNext
+(`Global Defaults.demo_company`) lọt vào hộp chọn pháp nhân: danh sách pháp
+nhân cho người dùng chọn phải bỏ công ty demo, trừ khi nó là mặc định hoặc
+là công ty duy nhất.
+
+## 08/10/2026 - #452: ô kho cấu hình làm món biến mất khỏi ô tìm
+
+Người có User Permission theo kho tìm "Chocolatine" không ra "Bánh
+Chocolatine, Mini size", dù món có thật và cùng nhóm với bản Full size.
+Nguyên nhân: món vừa được khai "Kho nguyên liệu mặc định khi sản xuất"
+(Link Warehouse), và Frappe áp User Permission lên MỌI ô Link tới doctype bị
+giới hạn, kể cả ô chỉ để cấu hình, nên món khai kho ngoài danh sách của họ bị
+ẩn khỏi `get_list`. Ca bench của ô tìm v583 chạy bằng Administrator nên không
+thấy lớp quyền này. Phòng: ô Link do app thêm mà chỉ để cấu hình (kho nguồn,
+kho mặc định) phải có `ignore_user_permissions: 1`; tầng khung có ca dò mọi
+khai báo Link Warehouse trong mã nguồn. Ca bench cho ô tìm hay danh sách phải
+có một lượt chạy bằng tài khoản thường có User Permission, không chỉ Administrator.
