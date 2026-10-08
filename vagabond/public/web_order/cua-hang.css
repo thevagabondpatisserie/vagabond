@@ -12,3 +12,13 @@ body .sky{opacity:.3}#danh-muc-banh{scroll-margin-top:130px}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}body *,body *::before,body *::after{animation:none!important;transition:none!important}}
 
 [data-vgb-tieu-de]{white-space:pre-line}.vgb-xem-thu [data-vgb-tieu-de]{cursor:pointer}
+
+/* v586: mục Ghé cửa hàng, từ thẻ Cửa hàng của trình biên tập. */
+.cw-khung{padding-top:40px;padding-bottom:20px}
+.cw-tieu-de{margin:0 0 22px;font-family:'Vagabond Sans',var(--sans);font-size:clamp(32px,7vw,56px);line-height:1;text-transform:uppercase;font-weight:400;color:var(--cyan)}
+.cw-ds{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:18px}
+.cw-the{padding:22px;border:1px solid var(--line);background:rgba(8,22,21,.6)}
+.cw-the h3{margin:0 0 8px;font-size:21px;font-weight:400}
+.cw-dia-chi,.cw-gio{margin:4px 0;color:var(--fog);white-space:pre-line}
+.cw-nut{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.cw-nut a{display:inline-flex;align-items:center;min-height:44px;padding:8px 16px;border:1px solid var(--cyan);color:var(--cyan)}
