@@ -800,11 +800,12 @@ def doc_bang():
     # chép cứng trong JS, để thêm nhãn chỉ sửa một chỗ.
     if not frappe.db.exists(DOCTYPE, TEN):
         return {"nhap": copy.deepcopy(MAC_DINH), "cong_khai": copy.deepcopy(MAC_DINH), "phien_ban": 0, "lich_su": [],
-                "nhan_mau": copy.deepcopy(NHAN)}
+                "nhan_mau": copy.deepcopy(NHAN), "so_khoi_toi_da": SO_KHOI_TOI_DA}
     d = _doc()
+    # Codex #454: bảng Nâng cao nhận trần số khối từ đây, không tự chép số.
     return {"nhap": json.loads(d.ban_nhap), "cong_khai": json.loads(d.ban_cong_khai),
             "phien_ban": d.phien_ban, "lich_su": json.loads(d.lich_su or "[]"), "nguoi_sua": d.modified_by, "luc_sua": d.modified,
-            "nhan_mau": copy.deepcopy(NHAN)}
+            "nhan_mau": copy.deepcopy(NHAN), "so_khoi_toi_da": SO_KHOI_TOI_DA}
 
 
 @frappe.whitelist(methods=["POST"])
