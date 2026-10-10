@@ -291,14 +291,18 @@ def tom_tat_bien_nhan(ban_ghi, snapshot):
 	tt = ban_ghi.get("trang_thai") or "Dang gui"
 	phi = snap.get("phi") or {}
 	tien_banh = int(ban_ghi.get("tien_banh") or 0)
+	# v589: ưu đãi từ ERP đã trừ khi tạo đơn (khuyen_mai.ap_web).
+	uu = snap.get("uu_dai") or {}
+	giam = min(int(uu.get("giam") or 0), tien_banh)
+	sau_giam = tien_banh - giam
 	trang_thai_phi = phi.get("trang_thai") or ban_ghi.get("trang_thai_phi") or ""
 	phi_khach = phi.get("phi_khach")
 	if trang_thai_phi == "tu_lay":
-		nhan_phi, tong = "Tự lấy, không tính phí", tien_banh
+		nhan_phi, tong = "Tự lấy, không tính phí", sau_giam
 	elif trang_thai_phi == "mien_phi":
-		nhan_phi, tong = "Miễn phí giao", tien_banh
+		nhan_phi, tong = "Miễn phí giao", sau_giam
 	elif trang_thai_phi == "chinh_xac" and phi_khach:
-		nhan_phi, tong = dinh_tien(phi_khach), tien_banh + int(phi_khach)
+		nhan_phi, tong = dinh_tien(phi_khach), sau_giam + int(phi_khach)
 	else:
 		nhan_phi, tong = "Sales báo phí khi xác nhận", None
 	ngay, gio = khung_gio(snap.get("ngay_nhan"))
@@ -327,6 +331,8 @@ def tom_tat_bien_nhan(ban_ghi, snapshot):
 			for m in (snap.get("mon") or [])
 		],
 		"tien_banh": dinh_tien(tien_banh),
+		"giam": ("- " + dinh_tien(giam)) if giam else "",
+		"uu_dai": ", ".join(str(a.get("ten") or "") for a in (uu.get("ap") or []) if a.get("ten"))[:120] if giam else "",
 		"phi_giao": nhan_phi,
 		"tong": dinh_tien(tong) if tong is not None else "Chờ Sales báo phí giao",
 		"ngay_nhan": ngay,
