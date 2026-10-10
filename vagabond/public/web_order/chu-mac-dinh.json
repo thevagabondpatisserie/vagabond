@@ -2915,5 +2915,59 @@
     "nhom": "gio_hang",
     "mac_dinh": "Quý khách chọn điểm nhận bánh trước khi gửi.",
     "nhieu_dong": false
+  },
+  "bien_nhan_uu_dai": {
+    "ten": "Biên nhận: dòng ưu đãi",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Ưu đãi",
+    "nhieu_dong": false
+  },
+  "dat_banh_ma_uu_dai": {
+    "ten": "Giỏ hàng: nhãn ô mã ưu đãi",
+    "nhom": "gio_hang",
+    "mac_dinh": "Mã ưu đãi",
+    "nhieu_dong": false
+  },
+  "dat_banh_ma_uu_dai_goi": {
+    "ten": "Giỏ hàng: chữ gợi ý ô mã ưu đãi",
+    "nhom": "gio_hang",
+    "mac_dinh": "Ví dụ SINHNHAT10",
+    "nhieu_dong": false
+  },
+  "dat_banh_ap_ma": {
+    "ten": "Giỏ hàng: nút áp mã",
+    "nhom": "gio_hang",
+    "mac_dinh": "Áp dụng",
+    "nhieu_dong": false
+  },
+  "dat_banh_ma_chua_kiem": {
+    "ten": "Giỏ hàng: chưa kiểm được mã",
+    "nhom": "gio_hang",
+    "mac_dinh": "Chưa kiểm được mã lúc này, quý khách thử lại sau ít phút.",
+    "nhieu_dong": false
+  },
+  "dat_banh_dang_kiem_ma": {
+    "ten": "Giỏ hàng: đang kiểm mã",
+    "nhom": "gio_hang",
+    "mac_dinh": "Đang kiểm mã...",
+    "nhieu_dong": false
+  },
+  "dat_banh_da_giam": {
+    "ten": "Giỏ hàng: đã giảm (giữ {tien})",
+    "nhom": "gio_hang",
+    "mac_dinh": "Đã giảm {tien}",
+    "nhieu_dong": false
+  },
+  "dat_banh_ma_chua_giam": {
+    "ten": "Giỏ hàng: mã hợp lệ nhưng chưa đủ điều kiện",
+    "nhom": "gio_hang",
+    "mac_dinh": "Mã hợp lệ nhưng đơn chưa đủ điều kiện giảm.",
+    "nhieu_dong": false
+  },
+  "dat_banh_dong_uu_dai": {
+    "ten": "Giỏ hàng: dòng ưu đãi trong tóm tắt",
+    "nhom": "gio_hang",
+    "mac_dinh": "Ưu đãi",
+    "nhieu_dong": false
   }
 }
