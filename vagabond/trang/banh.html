@@ -681,6 +681,13 @@ html body .h1 em#bigDate{display:none}
     <div class="sec"><span class="n">09</span><h3><span data-vgb-chu="dat_banh_9d5a6614c">Thanh toán</span></h3><i class="rule"></i></div>
     <div id="payList"></div>
 
+    <!-- v589: mã ưu đãi lấy từ ERP (chương trình khuyến mãi bật Hiện trên website). -->
+    <div class="fld"><label><span data-vgb-chu="dat_banh_ma_uu_dai">Mã ưu đãi</span></label>
+      <div class="two"><input id="f-ma" autocomplete="off" autocapitalize="characters" maxlength="40" placeholder="Ví dụ SINHNHAT10" data-vgb-placeholder="dat_banh_ma_uu_dai_goi" onkeydown="if(event.key==='Enter'){event.preventDefault();apMaUuDai();}">
+      <button class="pick" id="btnMa" type="button" onclick="apMaUuDai()" style="min-height:44px"><b><span data-vgb-chu="dat_banh_ap_ma">Áp dụng</span></b></button></div>
+      <div class="hint" id="maHint"></div>
+    </div>
+
     <div class="sum" id="sum"></div>
     <div class="warn" id="warn"></div>
 
@@ -797,6 +804,8 @@ const CONFIG = {
   goiYApi      : "/api/method/vagabond.dia_chi.goi_y_dia_chi",
   chiTietApi   : "/api/method/vagabond.dia_chi.chi_tiet_dia_chi",
   taoDonApi    : "/api/method/vagabond.don_hang.tao_don",
+  /* v589: hoi may chu gio nay duoc giam bao nhieu (chi de hien). */
+  uuDaiApi     : "/api/method/vagabond.don_hang.xem_uu_dai",
   /* #367: cau hinh cong khai (Pixel ID, nguong mien phi giao, lien he, trang
      chinh sach da xuat ban, tam khu vuc). KHONG bao gio co token CAPI. */
   cauHinhApi   : "/api/method/vagabond.don_web.cau_hinh_web"
@@ -2030,8 +2039,56 @@ function chonQuan(){
 function coTotals(){
   /* Chi de HIEN THI. Tien that may chu tinh lai o tao_don (QT-19). */
   const items=cartTotal();
+  const giam=giamDangAp();
   const tt=trangThaiPhi(CO.mode==='pick', mienPhi(), CO.ship, CO.shipTrangThai);
-  return {items, ship:tt.phi||0, total:items+(tt.phi||0), tt};
+  return {items, giam, ship:tt.phi||0, total:items-giam+(tt.phi||0), tt};
+}
+
+/* v589: MOT nguon cho danh sach mon gui may chu, dung chung cho luc gui don
+   va luc hoi uu dai. Gop dong trung ma lai voi nhau truoc khi gui, vi hai
+   banh khac nhau van co the cung mot phu kien. */
+function hangGui(){
+  const qty={};
+  CART.forEach(o=>{
+    qty[o.id]=(qty[o.id]||0)+o.qty;
+    o.adds.forEach(a=>{ qty[a.id]=(qty[a.id]||0)+o.qty; });
+  });
+  return Object.keys(qty).map(id=>({variation_id:id, quantity:qty[id]}));
+}
+/* Uu dai tu ERP. So giam chi tinh khi dung voi gio va ma hien tai: gio doi ma
+   chua hoi lai thi coi nhu 0, khong hien so cu. */
+function khoaUuDai(){ return JSON.stringify([hangGui(), CO.uuMa||'']); }
+function giamDangAp(){ return (CO.uu && CO.uu.khoa===khoaUuDai()) ? (Number(CO.uu.giam)||0) : 0; }
+async function xemUuDai(){
+  const khoa=khoaUuDai();
+  CO.uuDangHoi=khoa;
+  if(!CART.length) return;
+  let m=null;
+  try{
+    const head={'Content-Type':'application/json','Accept':'application/json'};
+    const tk = window.csrf_token || (window.frappe && frappe.csrf_token);
+    if(tk && tk!=='None') head['X-Frappe-CSRF-Token']=tk;
+    const r=await fetch(CONFIG.uuDaiApi,{method:'POST',headers:head,credentials:'same-origin',
+      body:JSON.stringify({don:JSON.stringify({items:hangGui(), ma_uu_dai:CO.uuMa||'', dien_thoai:($('#f-phone')&&$('#f-phone').value)||'', ngay_nhan:mocGioNhan()})})});
+    const j=await r.json(); m=j.message||j;
+  }catch(e){ m=null; }
+  if(CO.uuDangHoi!==khoa) return;  /* da co lan hoi moi hon */
+  CO.uu={khoa:khoa, giam:(m&&m.ok)?(Number(m.giam)||0):0, ap:(m&&m.ok&&m.ap)||[],
+    loi:(m&&!m.ok&&m.ly_do==='ma_uu_dai')?String(m.chi_tiet||''):((!m&&CO.uuMa)?chuWeb('dat_banh_ma_chua_kiem','Chưa kiểm được mã lúc này, quý khách thử lại sau ít phút.'):'')};
+  drawCo();
+}
+function apMaUuDai(){
+  CO.uuMa=String(($('#f-ma')||{}).value||'').trim().toUpperCase();
+  if($('#f-ma')) $('#f-ma').value=CO.uuMa;
+  CO.uu=null; drawCo();
+}
+function veMaUuDai(){
+  const g=$('#maHint'); if(!g) return;
+  const u=CO.uu&&CO.uu.khoa===khoaUuDai()?CO.uu:null;
+  if(!u){ g.innerHTML=CO.uuMa?esc(chuWeb('dat_banh_dang_kiem_ma','Đang kiểm mã...')):''; return; }
+  if(u.loi){ g.innerHTML='<b style="color:#FF7A6B">'+esc(u.loi)+'</b>'; return; }
+  if(u.giam>0){ g.innerHTML='<b style="color:var(--cyan)">'+esc(chuWeb('dat_banh_da_giam','Đã giảm {tien}',{tien:tienVN(u.giam)}))+'</b> · '+esc(u.ap.map(a=>a.ten).join(', ')); return; }
+  g.innerHTML=CO.uuMa?esc(chuWeb('dat_banh_ma_chua_giam','Mã hợp lệ nhưng đơn chưa đủ điều kiện giảm.')):'';
 }
 function drawCo(){
   /* setPay, setPickup, setMode và callback phí gọi THẲNG vào đây, không đi
@@ -2042,6 +2099,12 @@ function drawCo(){
   $('#payList').innerHTML = PAYS.map(x=>`<button class="pick ${CO.pay===x.k?'on':''}" onclick="setPay('${x.k}')">
     <b>${esc(x.n)}</b><span>${esc(x.d)}</span></button>`).join('');
   const d=ngayDangChon();
+  /* v589: gio hoac ma doi thi hoi lai may chu so giam (mot lan cho moi khoa). */
+  /* Hen 300ms: khach bam tang giam so luong lien tuc thi chi hoi mot lan. */
+  if(CART.length && (!CO.uu || CO.uu.khoa!==khoaUuDai()) && CO.uuDangHoi!==khoaUuDai()){
+    clearTimeout(CO.uuHen); CO.uuDangHoi=khoaUuDai(); CO.uuHen=setTimeout(xemUuDai,300);
+  }
+  veMaUuDai();
   const S=coTotals();
   $('#sum').innerHTML=`
     ${CART.map(o=>`<div class="row"><span>${esc(chuMonWeb(o.id,'ten',o.k))} · Ø ${o.cm}cm${o.qty>1?(" " + htmlChuWeb("dat_banh_67fba2f35", "×") + " ")+o.qty:''}</span><b>${vnd(o.price*o.qty)}</b></div>`
@@ -2049,6 +2112,7 @@ function drawCo(){
     <div class="row"><span>${htmlChuWeb('gio_hang_nhan_ngay', 'Nhận ngày')}</span><b>${dmy(d)} · ${slotOk(picked,SLOTS[pickedSlot])&&daChonGio?SLOTS[pickedSlot].t:htmlChuWeb("chon_lai_gio","Vui lòng chọn khung giờ còn nhận")}</b></div>
     ${CO.mode==='pick'?("<div class=\"row\">" + "<span>" + htmlChuWeb("dat_banh_f738100e0", "Tự lấy tại") + "</span>" + "<b>" + "" + esc(PICKUPS[CO.pickup] ? PICKUPS[CO.pickup].n : chuWeb("dat_banh_chua_chon_diem", "Chưa chọn điểm nhận")) + "</b>" + "</div>"):''}
     <div class="row"><span>${htmlChuWeb('gio_hang_tien_banh', 'Tiền bánh')}</span><b>${vnd(S.items)}</b></div>
+    ${S.giam>0?`<div class="row"><span>${htmlChuWeb('dat_banh_dong_uu_dai', 'Ưu đãi')}</span><b>- ${vnd(S.giam)}</b></div>`:''}
     <div class="row"><span>${esc(S.tt.nhan)}</span><b>${esc(S.tt.gia_tri)}</b></div>
     <div class="row tot"><span>${esc(S.tt.tong_nhan)}</span><b>${vnd(S.total)}</b></div>`;
   $('#warn').innerHTML = CO.pay==='card'
@@ -2172,14 +2236,7 @@ async function submitOrder(){
   const dungCu=CART.filter(o=>chuDungCu(o)).map(o=>`${tenMonGio(o)} x${o.qty}: ${chuDungCu(o)}`).join('; ');
   const note = [ ($('#f-note').value||'').trim(), dungCu, vatLine ].filter(Boolean).join('\n');
 
-  /* Gop dong trung ma lai voi nhau truoc khi gui, vi hai banh khac nhau
-     van co the cung mot phu kien. */
-  const qty={};
-  CART.forEach(o=>{
-    qty[o.id]=(qty[o.id]||0)+o.qty;
-    o.adds.forEach(a=>{ qty[a.id]=(qty[a.id]||0)+o.qty; });
-  });
-  const items=Object.keys(qty).map(id=>({variation_id:id, quantity:qty[id]}));
+  const items=hangGui();
 
   /* THE: mang SO, khong phai mang object - da thu that, gui object thi khong gan duoc.
      Khung gio + hai the thao tac de sales khoi phai doc het ghi chu. */
@@ -2205,6 +2262,8 @@ async function submitOrder(){
     nonce:CO.nonce, dong_y:true, thanh_toan:CO.pay,
     diem_lay_ten: tuLay ? PICKUPS[CO.pickup].n : '',
     diem_lay_id: tuLay ? PICKUPS[CO.pickup].id : '',
+    /* v589: may chu tinh lai uu dai tu ma nay, khong tin so giam o day. */
+    ma_uu_dai: CO.uuMa||'',
     fbp:fb.fbp, fbc:fb.fbc
   };
 
@@ -2229,7 +2288,8 @@ async function submitOrder(){
 
   if(!m || !m.ok){
     /* Khong nuot loi. Khach can biet don CHUA duoc nhan, kem duong khac de dat. */
-    const vi = (m && LY_DO[m.ly_do]) || (chuWeb("dat_banh_5db00ac93", "Không gửi được đơn lúc này."));
+    const vi = (m && m.ly_do==='ma_uu_dai' && m.chi_tiet) ? String(m.chi_tiet) : ((m && LY_DO[m.ly_do]) || (chuWeb("dat_banh_5db00ac93", "Không gửi được đơn lúc này.")));
+    if(m && m.ly_do==='ma_uu_dai'){ CO.uu=null; drawCo(); }
     sendBusy(false, ("<b style=\"color:#FF7A6B\">" + htmlChuWeb("dat_banh_a9adfd6de", "Chưa gửi được đơn.") + "</b>" + " " + htmlChuWeb("dat_banh_ecb3ec835", "{gia_tri_a}\n Quý khách nhắn qua", {gia_tri_a:(vi)}) + " " + linkMessenger() + htmlChuWeb("dat_banh_a1018afe8", ",\n hoặc bấm gửi lại sau ít phút.")));
     return;
   }
@@ -2237,7 +2297,7 @@ async function submitOrder(){
   /* #367: gui duoc thi sang TRANG BIEN NHAN co duong dan rieng. Nut gui
      van khoa trong luc chuyen trang, khong de bam hai lan thanh hai don. */
   $('#btnSend').style.display='none';
-  CART=[]; CO.nonce=''; drawBar(); drawCart();
+  CART=[]; CO.nonce=''; CO.uuMa=''; CO.uu=null; drawBar(); drawCart();
   if(m.duong_dan && /^\/banh\/xong\/[A-Za-z0-9_-]+$/.test(m.duong_dan)){
     $('#sendHint').innerHTML=("<b style=\"color:var(--cyan)\">" + htmlChuWeb("dat_banh_01d9e68a4", "Chúng tôi đã nhận yêu cầu.") + "</b>" + " " + htmlChuWeb("dat_banh_f977b08ed", "Đang mở biên nhận..."));
     location.assign(m.duong_dan);
@@ -2430,7 +2490,7 @@ function anhHong(img){
   if(img.dataset) img.dataset.hong='1';
   img.src=ANH_NEN;
 }
-function mienPhi(){ return laMienPhi(cartTotal(), MIEN_PHI_TU); }
+function mienPhi(){ return laMienPhi(cartTotal()-giamDangAp(), MIEN_PHI_TU); }
 function timQuan(ma){
   if(!ma) return null;
   return ((CAU_HINH&&CAU_HINH.quan)||[]).find(function(q){return q.ma===ma;})||null;
