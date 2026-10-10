@@ -1983,3 +1983,10 @@ phần `<dimension ref="A1"/>` trong sheet khai sai. openpyxl tin lời khai nê
 tệp; ca kiểm dựng xlsx thật có dimension sai. Bài học rộng hơn: khi người dùng
 gửi tệp "máy không nhận" thì in ba dòng đầu máy đọc được ra màn, lỗi này lộ
 ngay từ dòng đầu là trống.
+
+## 10/10/2026 - social footer dựng từ hai nguồn (Issue367)
+
+Footer banh.html có .f-row tĩnh và apDungCauHinh thêm social vào fLienHe.
+Bỏ một nguồn chưa đáp ứng yêu cầu bỏ lặp. Sửa cả hai renderer, giữ cấu hình
+social dùng ở nơi khác. Kiểm đủ5social cùng điện thoại/email và chính sách
+để đảm bảo social không quay lại khi API cấu hình về.
