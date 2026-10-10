@@ -1,3 +1,20 @@
+# 10/10/2026 - tham khảo Rocca và bỏ social lặp ở footer
+
+Owner Codex, branch codex/web-rocca-footer, nền main46f651ac5. Theo yêu cầu
+trực tiếp anh Việt: thiết kế mới có JPEG duyệt; footer bỏ social lặp.
+
+Code chỉ bỏ .f-row tĩnh (điện thoại vẫn ở fLienHe) và vòng thêm social trong
+apDungCauHinh. Giữ điện thoại/email theo cấu hình, pháp nhân/chính sách và
+marker chữ Editor. Không xoá dữ liệu social, không đổi nút nổi/chỗ dùng khác.
+Ca kiểm footer hiện có bổ sung đủ5social, không chèn lại; điện thoại/email/
+chính sách vẫn còn. 141ca web đạt; gate/review và SHA cuối theo PR.
+
+Bản đề xuất local output/rocca-review-20261010:3JPEG và huong-ap-dung.html.
+SVG20px/nét1.5, vùng bấm44px; dấu đóng khác bỏ khỏi giỏ. Bộ nút, bố cục và
+thu gọn headline footer CHƯA áp vào sản phẩm, chờ anh duyệt. Demo có giá
+USD/ảnh placeholder và số đơn sinh trên browser, không lấy nghiệp vụ mẫu.
+Chưa merge/deploy, không gửi đơn thật.
+
 # Bổ sung 06/10/2026 - logo các kênh theo yêu cầu anh Việt
 
 Owner Codex, tiếp PR436. Nút mở app chỉ hiện logo Grab; popup có logo từng

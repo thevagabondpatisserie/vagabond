@@ -1413,15 +1413,19 @@ RA({fbp:d.fbp, fbc:d.fbc});
 def _():
 	w = _doc("vagabond/trang/banh.html")
 	chan = w[w.index("<footer>"):w.index("</footer>")]
+	dung("footer không lặp social tĩnh", "data-vgb-mxh" not in chan and "@thevagabond" not in chan)
 	for chu in ("Công ty TNHH Patisserie Vagabond", "Mã số thuế 0318561568", "9 Trần Cao Vân", "307/1 Nguyễn Văn Trỗi"):
 		dung("HTML tĩnh có " + chu, chu in chan)
 	r = _chay("2026-09-24T08:00:00", CAU_HINH + r"""
+apDungCauHinh(Object.assign({},CAU_HINH,{lien_he:{dien_thoai:'0931 224 334',dien_thoai_so:'0931224334',email:'hello@thevagabondpatisserie.com',zalo:'https://zalo.me/thevagabondsaigon',instagram:'https://instagram.com/thevagabond.patisserie',facebook:'https://facebook.com/thevagabond.saigon',messenger:'https://m.me/thevagabond.saigon',tiktok:'https://www.tiktok.com/@thevagabond.patisserie'}}));
 RA({cs:EL('#fChinhSach').innerHTML, doc:EL('#docChinhSach').innerHTML, lh:EL('#fLienHe').innerHTML, phi:EL('#fNotePhi').textContent});
 """)
 	dung("có đường dẫn chính sách bảo mật", 'href="/chinh-sach-bao-mat"' in r["cs"])
 	dung("bỏ đường dẫn javascript:", "javascript" not in r["cs"])
 	dung("dưới ô đồng ý có link đọc chính sách", "/chinh-sach-bao-mat" in r["doc"])
 	dung("liên hệ từ cấu hình", "tel:0931224334" in r["lh"])
+	dung("giữ email liên hệ", "mailto:hello@thevagabondpatisserie.com" in r["lh"])
+	dung("cấu hình không thêm lại social vào footer", all(x not in r["lh"] for x in ("zalo.me", "instagram.com", "facebook.com", "m.me", "tiktok.com")))
 	dung("dòng giá nói ngưỡng miễn phí", "1.000.000 đ" in r["phi"])
 
 

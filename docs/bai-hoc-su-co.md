@@ -2016,3 +2016,10 @@ commit (`tinh_co_khoa`). "Lấy bộ có lợi nhất" phải thử cả bộ ch
 cộng dồn được, không chỉ tất cả hoặc từng cái lẻ.
 Vòng 4: "trả lượt" là huỷ mềm (ô `da_tra`), không xoá dòng (QT-20); mọi chỗ
 đếm hạn mức, báo cáo và việc dọn định kỳ phải bỏ dòng đã trả.
+
+## 10/10/2026 - social footer dựng từ hai nguồn (Issue367)
+
+Footer banh.html có .f-row tĩnh và apDungCauHinh thêm social vào fLienHe.
+Bỏ một nguồn chưa đáp ứng yêu cầu bỏ lặp. Sửa cả hai renderer, giữ cấu hình
+social dùng ở nơi khác. Kiểm đủ5social cùng điện thoại/email và chính sách
+để đảm bảo social không quay lại khi API cấu hình về.
