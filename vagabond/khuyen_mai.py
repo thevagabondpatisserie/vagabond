@@ -676,6 +676,7 @@ def ds_ctkm(quay=None, nguon=None, khach=None, sdt=None, ngay=None, tat_ca=0):
 			"tu_ngay", "den_ngay", "gio_tu", "gio_den", "kenh", "quay",
 			"doi_tuong", "hang_khach", "nhom_khach", "nhom_mon", "da_dung",
 			"lan_moi_ngay", "lan_moi_ca", "lan_moi_khach", "so_lan_toi_da",
+			"hien_web", "web_anh", "web_mo_ta",
 		] + THU_TRONG_TUAN,
 		order_by="uu_tien asc, ten asc",
 		limit_page_length=0,
@@ -703,6 +704,8 @@ def ds_ctkm(quay=None, nguon=None, khach=None, sdt=None, ngay=None, tat_ca=0):
 			ok, ly_do = _hop_han_muc(km, sdt=sdt, ngay=ngay)
 		o["dung_duoc"] = 1 if ok else 0
 		o["ly_do"] = ly_do
+		# v589: man cau hinh noi luon chuong trinh co dung duoc tren web khong.
+		o["ly_do_web"] = ly_do_khong_web(km)
 		ra.append(o)
 	return {"km": ra}
 
@@ -851,6 +854,12 @@ def tra_ma(ma, quay=None, nguon=None):
 	"""Cashier go mot ma vao o voucher. Ma co the la ma co dinh cua chuong
 	trinh, hoac ma dung mot lan xuat theo lo."""
 	_kiem_quyen()
+	return _tra_ma(ma, quay=quay, nguon=nguon)
+
+
+def _tra_ma(ma, quay=None, nguon=None):
+	"""Than cua tra_ma, khong soi quyen nhan vien: trang dat banh (khach vang
+	lai) cung tra ma qua day, qua cua ap_web ben duoi (v589)."""
 	ma = str(ma or "").strip().upper()
 	if not ma:
 		frappe.throw("Chưa nhập mã.")
@@ -983,7 +992,7 @@ def tinh(items, ctkm=None, ma=None, combo=None, quay=None, nguon=None,
 	# --- ma voucher: keo theo chuong trinh cua no ---
 	ma_ctkm_tu_voucher = ""
 	if ma:
-		tt = tra_ma(ma, quay=quay, nguon=nguon)
+		tt = _tra_ma(ma, quay=quay, nguon=nguon)
 		if not tt.get("dung_duoc"):
 			frappe.throw("Mã %s: %s." % (ma, tt.get("ly_do") or "không dùng được lúc này"))
 		ma_ctkm_tu_voucher = tt["ctkm"]
@@ -1072,7 +1081,7 @@ def xem_truoc(items, ctkm=None, ma=None, combo=None, quay=None, nguon=None,
 # --------------------------------------------------------------- ghi vet dung
 
 def ghi_su_dung(kq, si_name=None, quay=None, nguon=None, khach=None, sdt=None,
-                ngay=None, cach_duyet=""):
+                ngay=None, cach_duyet="", ghi_chu=""):
 	"""Ghi vet moi chuong trinh da ap len mot hoa don, va tieu ma voucher.
 
 	Goi tu ban_hang.tao_don_tay SAU khi hoa don da luu thanh cong. Neu ghi vet
@@ -1099,6 +1108,7 @@ def ghi_su_dung(kq, si_name=None, quay=None, nguon=None, khach=None, sdt=None,
 				"khach": (khach or "").strip(),
 				"sdt": so,
 				"cach_duyet": cach_duyet or "",
+				"ghi_chu": ghi_chu or "",
 			}).insert(ignore_permissions=True)
 		except Exception:
 			frappe.log_error(title="Vagabond: ghi vet khuyen mai", message=frappe.get_traceback())
@@ -1127,6 +1137,8 @@ def ghi_su_dung(kq, si_name=None, quay=None, nguon=None, khach=None, sdt=None,
 			v.quay = (quay or "").strip()
 			v.khach = (khach or "").strip()
 			v.sdt = so
+			if ghi_chu:
+				v.ghi_chu = ghi_chu
 			v.flags.ignore_permissions = True
 			v.save()
 			if v.lo:
@@ -1441,7 +1453,7 @@ TRUONG_CTKM = [
 	"nhom_mon", "tu_ngay", "den_ngay", "gio_tu", "gio_den", "kenh", "quay",
 	"doi_tuong", "hang_khach", "nhom_khach", "cach_ma", "ma_co_dinh",
 	"han_ma", "can_otp", "lan_moi_ngay", "lan_moi_ca", "lan_moi_khach",
-	"so_lan_toi_da", "ghi_chu",
+	"so_lan_toi_da", "ghi_chu", "hien_web", "web_anh", "web_mo_ta",
 ] + THU_TRONG_TUAN
 
 
@@ -1566,3 +1578,255 @@ def bat_tat_combo(ma, bat):
 	d.save()
 	frappe.db.commit()
 	return {"bat": cint(d.bat)}
+
+
+
+# ------------------------------------------------------------------ website
+#
+# v589 (anh Viet 09/10/2026): ERP la NGUON DUY NHAT cua uu dai. Nhan vien tao
+# chuong trinh tren app (Ban hang > Chuong trinh khuyen mai), tich "Hien tren
+# website" la trang khach tu hien, tat chuong trinh la tu an. Trang dat banh
+# dung CHUNG bo tinh `tinh` voi quay, khong co cong thuc thu hai.
+#
+# Web chi nhan nhung chuong trinh chac chan khong lach duoc khi khach tu khai:
+# khong can OTP, doi tuong "Moi khach" (hang, nhom, nhan vien deu dua tren thu
+# khach tu go nen khong kiem duoc tren web), va chi giam tien (tang mon thi
+# phai co nguoi bo mon vao hop, de tai quay).
+
+NGUON_WEB = "Website"
+CACH_THUC_WEB = ("Giam tong hoa don", "Giam gia mon", "Mua A giam B", "Dong gia", "Giam luy ke")
+TRUONG_WEB = [
+	"name", "ten", "cach_thuc", "kieu_giam", "gia_tri", "gia_dong", "giam_toi_da",
+	"bat", "cach_ma", "ma_co_dinh", "can_otp", "doi_tuong", "kenh", "quay",
+	"hd_toi_thieu", "sl_toi_thieu", "tu_ngay", "den_ngay", "gio_tu", "gio_den",
+	"hien_web", "web_mo_ta", "web_anh", "uu_tien",
+] + THU_TRONG_TUAN
+TEN_THU = {"thu_2": "T2", "thu_3": "T3", "thu_4": "T4", "thu_5": "T5", "thu_6": "T6", "thu_7": "T7", "thu_cn": "CN"}
+
+
+def ly_do_khong_web(km):
+	"""THUAN. Rong la chuong trinh dung duoc khi dat banh tren web; khac rong
+	la cau noi vi sao chi dung tai quay (hien ca o man ERP lan tren web)."""
+	if km.get("cach_thuc") not in CACH_THUC_WEB:
+		return "Chương trình tặng món chỉ dùng tại cửa hàng."
+	if cint(km.get("can_otp")):
+		return "Chương trình cần mã OTP quản lý nên chỉ dùng tại cửa hàng."
+	if (km.get("doi_tuong") or "Moi khach") != "Moi khach":
+		return "Chương trình theo hạng hoặc nhóm khách chỉ dùng tại cửa hàng."
+	kenh = _dong(km.get("kenh"))
+	if kenh and NGUON_WEB not in kenh:
+		return "Chương trình không mở cho kênh Website."
+	quay = [q.upper() for q in _dong(km.get("quay"))]
+	if quay and "SALES" not in quay:
+		return "Chương trình chỉ áp dụng tại quầy."
+	return ""
+
+
+def _gio_phut(v):
+	v = str(v or "")
+	return v[:5] if v else ""
+
+
+def mo_ta_muc_giam(km):
+	"""THUAN. Mot cau ngan noi muc giam, dung cho the uu dai tren web."""
+	ct = km.get("cach_thuc")
+	if ct == "Dong gia":
+		return "Đồng giá %s" % _tien_chu(km.get("gia_dong"))
+	if ct == "Giam luy ke":
+		return "Giảm luỹ kế theo giá trị đơn"
+	if km.get("kieu_giam") == "So tien":
+		cau = "Giảm %s" % _tien_chu(km.get("gia_tri"))
+	else:
+		cau = "Giảm %s%%" % (("%g" % flt(km.get("gia_tri"))).replace(".", ","))
+	if flt(km.get("giam_toi_da")) > 0:
+		cau += ", tối đa %s" % _tien_chu(km.get("giam_toi_da"))
+	if ct == "Giam gia mon":
+		cau += " cho món áp dụng"
+	elif ct == "Mua A giam B":
+		cau += " khi mua kèm món chỉ định"
+	return cau
+
+
+def the_web(km, hom_nay=None):
+	"""THUAN. Mot chuong trinh ERP -> mot the uu dai dung dinh dang cua trang
+	khach (chuyen-muc.js). None khi khong duoc hien: chua bat, chua tich hien
+	web, hoac da qua ngay ket thuc."""
+	if not cint(km.get("bat")) or not cint(km.get("hien_web")):
+		return None
+	hn = str(hom_nay or nowdate())
+	den = str(km.get("den_ngay") or "")
+	if den and den < hn:
+		return None
+	ma = ""
+	dk = [mo_ta_muc_giam(km)]
+	if km.get("cach_ma") == "Ma co dinh" and km.get("ma_co_dinh"):
+		ma = str(km["ma_co_dinh"]).strip().upper()
+	elif km.get("cach_ma") == "Ma dung mot lan":
+		dk.append("Mã dùng một lần, tiệm gửi riêng cho từng khách.")
+	if cint(km.get("sl_toi_thieu")) > 0:
+		dk.append("Đơn từ %d món." % cint(km["sl_toi_thieu"]))
+	thu = [TEN_THU[t] for t in THU_TRONG_TUAN if cint(km.get(t))]
+	if thu:
+		dk.append("Áp dụng " + ", ".join(thu) + ".")
+	ly_do = ly_do_khong_web(km)
+	if ly_do:
+		dk.append(ly_do)
+	elif ma:
+		dk.append("Đặt bánh trên web: nhập mã ở bước thanh toán.")
+	else:
+		dk.append("Đặt bánh trên web: tự áp khi đơn đủ điều kiện.")
+	return {
+		"id": "erp-" + str(km.get("name")),
+		"loai": "uu_dai",
+		"vi_tri": "uu_dai",
+		"hien": True,
+		"nguon": "erp",
+		"tieu_de": km.get("ten") or km.get("name"),
+		"noi_dung": (km.get("web_mo_ta") or "").strip(),
+		"anh": km.get("web_anh") or "",
+		"mo_ta_anh": km.get("ten") or "",
+		"nhom": "Mã giảm giá" if (ma or km.get("cach_ma") == "Ma dung mot lan") else "Ưu đãi",
+		"ma_uu_dai": ma,
+		"don_toi_thieu": int(flt(km.get("hd_toi_thieu"))) or "",
+		"bat_dau": str(km.get("tu_ngay") or ""),
+		"ket_thuc": den,
+		"gio_bat_dau": _gio_phut(km.get("gio_tu")),
+		"gio_ket_thuc": _gio_phut(km.get("gio_den")),
+		"dieu_kien": "\n".join(dk),
+		"dung_web": 0 if ly_do else 1,
+	}
+
+
+def _ds_web_tho(chi_bat=True):
+	loc = {"hien_web": 1}
+	if chi_bat:
+		loc["bat"] = 1
+	try:
+		return frappe.get_all("Vagabond CTKM", filters=loc, fields=TRUONG_WEB,
+			order_by="uu_tien asc, ten asc", limit_page_length=100)
+	except Exception:
+		# Site chua migrate (chua co o hien_web): trang khach van phai len.
+		frappe.log_error(title="Vagabond: doc uu dai web", message=frappe.get_traceback())
+		return []
+
+
+def the_web_dang_hien(hom_nay=None):
+	"""Cac the uu dai trang khach dang hien, theo thu tu uu tien."""
+	ra = []
+	for km in _ds_web_tho():
+		t = the_web(km, hom_nay)
+		if t:
+			ra.append(t)
+	return ra
+
+
+def ds_web_bien_tap(hom_nay=None):
+	"""Cho trinh bien tap web: moi chuong trinh tich hien web, ke ca dang tat
+	hay het han, kem trang thai, de Marketing biet vi sao khach chua thay."""
+	hn = str(hom_nay or nowdate())
+	ra = []
+	for km in _ds_web_tho(chi_bat=False):
+		the = the_web(dict(km, bat=1, den_ngay=""), hn)
+		the["ket_thuc"] = str(km.get("den_ngay") or "")
+		thay = the_web(km, hn) is not None
+		if not cint(km.get("bat")):
+			tt = "Đang tắt trên ERP, khách không thấy"
+		elif not thay:
+			tt = "Đã hết hạn, khách không thấy"
+		else:
+			tt = "Khách đang thấy"
+		ra.append(dict(the, ma_ctkm=km.get("name"), khach_thay=1 if thay else 0, trang_thai_erp=tt))
+	return ra
+
+
+def _tu_ap_web():
+	"""Chuong trinh hien web, khong can ma, dung duoc tren web: tu ap."""
+	return [km["name"] for km in _ds_web_tho()
+		if (km.get("cach_ma") or "Khong can ma") == "Khong can ma" and not ly_do_khong_web(km)]
+
+
+def ap_web(gio_co_gia, ma=None, sdt=None, ngay=None):
+	"""Tinh giam cho mot don web. gio_co_gia: [{item_code, qty, rate}] voi gia
+	do MAY CHU doc (QT-19). Tra {tong_giam, ap, ma, ly_do}. Ma sai thi ly_do
+	khac rong va tong_giam = 0, KHONG nem: trang khach can cau de hien.
+
+	Thu tu: ma khach go truoc (khach chu dong chon), roi cac chuong trinh tu
+	ap cong don duoc voi no. Khong co ma thi lay cach co loi nhat cho khach
+	trong cac chuong trinh tu ap."""
+	ma = str(ma or "").strip().upper()
+	tu_ap = _tu_ap_web()
+	rong = {"tong_giam": 0, "ap": [], "ma": ma, "ly_do": "", "kq": None}
+
+	def _thu(ctkm, ma_go):
+		try:
+			kq = tinh(gio_co_gia, ctkm=list(ctkm), ma=ma_go or None, quay="", nguon=NGUON_WEB,
+				sdt=sdt, ngay=ngay)
+		except Exception as e:
+			return None, str(getattr(e, "message", "") or e).strip() or "không dùng được lúc này"
+		# Chot lan cuoi: moi chuong trinh da ap phai dung duoc tren web.
+		for a in kq.get("ap") or []:
+			if a.get("loai") != "ctkm":
+				return None, "không dùng được khi đặt trên web"
+			km = _doc_ctkm(a["ma"])
+			lydo = ly_do_khong_web(km)
+			if lydo:
+				return None, lydo
+		if kq.get("them_mon") or cint(kq.get("can_otp")):
+			return None, "chỉ dùng tại cửa hàng"
+		return kq, ""
+
+	if ma:
+		kq, loi = _thu([], ma)
+		if not kq:
+			return dict(rong, ly_do=loi)
+		if not kq.get("ap"):
+			ly = "; ".join(b.get("ly_do") or "" for b in kq.get("bo") or []) or "đơn chưa đủ điều kiện"
+			return dict(rong, ly_do="Mã %s: %s." % (ma, ly.rstrip(".")))
+		kq2, _ = _thu([c for c in tu_ap if c != kq["ap"][0]["ma"]], ma) if tu_ap else (None, "")
+		kq = kq2 if kq2 and flt(kq2["tong_giam"]) >= flt(kq["tong_giam"]) else kq
+	else:
+		kq = None
+		if tu_ap:
+			kq, _ = _thu(tu_ap, None)
+			if not kq:
+				# Khong cong don duoc voi nhau: chon mot cai loi nhat.
+				for c in tu_ap:
+					k1, _ = _thu([c], None)
+					if k1 and (not kq or flt(k1["tong_giam"]) > flt(kq["tong_giam"])):
+						kq = k1
+		if not kq or not kq.get("ap"):
+			return rong
+	return {
+		"tong_giam": _vnd(kq["tong_giam"]),
+		"ap": [{"ma": a["ma"], "ten": a.get("ten"), "giam": a.get("giam"), "dien_giai": a.get("dien_giai") or ""}
+			for a in kq.get("ap") or []],
+		"ma": ma,
+		"ly_do": "",
+		"kq": kq,
+	}
+
+
+def ma_dung_mot_lan(ma):
+	"""Ma nay co phai ma dung mot lan (bang Vagabond Voucher) khong."""
+	ma = str(ma or "").strip().upper()
+	return bool(ma) and bool(frappe.db.exists("Vagabond Voucher", ma))
+
+
+def giu_ma_mot_lan(ma, ghi_chu):
+	"""Khoa hang ma voucher dung mot lan va danh dau Da dung TRUOC khi goi
+	Pancake: hai don web cung go mot ma cung luc thi don sau bi chan. Tra
+	True neu giu duoc."""
+	ma = str(ma or "").strip().upper()
+	hang = frappe.db.sql("select trang_thai from `tabVagabond Voucher` where name=%s for update", (ma,))
+	if not hang or hang[0][0] != "Chua dung":
+		return False
+	frappe.db.sql("update `tabVagabond Voucher` set trang_thai='Da dung', ngay_dung=%s, ghi_chu=%s where name=%s",
+		(now_datetime(), ghi_chu, ma))
+	return True
+
+
+def tra_ma_mot_lan(ma, ghi_chu):
+	"""Pancake tu choi don: tra ma ve Chua dung de khach gui lai duoc."""
+	ma = str(ma or "").strip().upper()
+	frappe.db.sql("update `tabVagabond Voucher` set trang_thai='Chua dung', ngay_dung=NULL, ghi_chu=%s "
+		"where name=%s and trang_thai='Da dung' and hoa_don is null", (ghi_chu, ma))
