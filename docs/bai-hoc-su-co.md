@@ -1983,3 +1983,15 @@ phần `<dimension ref="A1"/>` trong sheet khai sai. openpyxl tin lời khai nê
 tệp; ca kiểm dựng xlsx thật có dimension sai. Bài học rộng hơn: khi người dùng
 gửi tệp "máy không nhận" thì in ba dòng đầu máy đọc được ra màn, lỗi này lộ
 ngay từ dòng đầu là trống.
+
+## 10/10/2026 - v589: bộ giả lập trang chỉ chờ setTimeout, ca xem trước ưu đãi treo
+
+Trang đặt bánh hỏi máy chủ mức giảm mỗi lần vẽ lại giỏ. Gọi thẳng `fetch` thì
+ca kiểm node đọc tóm tắt trước khi câu trả lời về, vì `CHO_XONG` trong
+`gia_lap_trang.js` chỉ chờ các việc đặt qua `setTimeout`. Không phải lỗi của
+trang mà là giới hạn của bộ giả lập, nhưng nó che được lỗi thật nếu ca kiểm
+"cho chắc" gọi thêm hàm. Cách làm: lời gọi mạng từ sự kiện vẽ lại đi qua
+`setTimeout` (cũng là debounce, bớt gọi máy chủ khi khách bấm liên tục), và
+mức giảm chỉ hiện khi khoá giỏ của câu trả lời trùng giỏ hiện tại. Đột biến
+bỏ kiểm khoá giỏ lúc đầu KHÔNG làm đổ ca nào; đã thêm ca đổi giỏ rồi đọc tóm
+tắt NGAY, trước khi máy chủ trả lời.
