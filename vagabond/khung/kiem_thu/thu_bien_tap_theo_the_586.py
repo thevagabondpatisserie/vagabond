@@ -53,6 +53,15 @@ def _uu(**k):
     return m
 
 
+def _td(**k):
+    # v589: ưu đãi nay tạo trên ERP, luu_muc chặn loại uu_dai. Hai ca kiểm cơ
+    # chế lưu (không cuốn nháp, không ghi đè) chuyển sang mục tuyển dụng, cơ
+    # chế lưu y hệt.
+    m = {"id": "td-1", "loai": "tuyen_dung", "vi_tri": "tuyen_dung", "hien": True, "tieu_de": "Phụ bếp", "email": "tuyendung@vagabond.vn"}
+    m.update(k)
+    return m
+
+
 def _nd(*khoi):
     nd = copy.deepcopy(nw.MAC_DINH)
     nd["khoi"].extend(copy.deepcopy(list(khoi)))
@@ -304,12 +313,12 @@ def _chay(site, ham):
 
 @ca("v586: lưu một mục ghi cả bản khách thấy lẫn bản nháp, KHÔNG cuốn nháp chưa xuất bản")
 def _khong_cuon_nhap():
-    cong = _nd(_uu(id="u1", tieu_de="Cũ"))
+    cong = _nd(_td(id="u1", tieu_de="Cũ"))
     nhap = copy.deepcopy(cong)
     # Ai đó đang sửa dở câu chuyện ở Nâng cao, chưa xuất bản.
     nhap["khoi"][4]["tieu_de"] = "Nháp chưa xuất bản"
     site = _Site(nhap, cong)
-    kq = _chay(site, lambda: nw.luu_muc(_uu(id="u1", tieu_de="Mới"), nw.dau_van_tay(cong["khoi"][-1])))
+    kq = _chay(site, lambda: nw.luu_muc(_td(id="u1", tieu_de="Mới"), nw.dau_van_tay(cong["khoi"][-1])))
     c, n = json.loads(site.doc.ban_cong_khai), json.loads(site.doc.ban_nhap)
     la("khách thấy mục mới", [k["tieu_de"] for k in c["khoi"] if k["id"] == "u1"], ["Mới"])
     la("nháp cũng có mục mới", [k["tieu_de"] for k in n["khoi"] if k["id"] == "u1"], ["Mới"])
@@ -322,10 +331,10 @@ def _khong_cuon_nhap():
 
 @ca("v586: lưu đè lên bản người khác vừa lưu thì báo, không ghi gì")
 def _khong_ghi_de():
-    cong = _nd(_uu(id="u1", tieu_de="Người kia vừa sửa"))
+    cong = _nd(_td(id="u1", tieu_de="Người kia vừa sửa"))
     site = _Site(copy.deepcopy(cong), cong)
     try:
-        _chay(site, lambda: nw.luu_muc(_uu(id="u1", tieu_de="Của tôi"), nw.dau_van_tay(_uu(id="u1", tieu_de="Cũ"))))
+        _chay(site, lambda: nw.luu_muc(_td(id="u1", tieu_de="Của tôi"), nw.dau_van_tay(_td(id="u1", tieu_de="Cũ"))))
         dung("phải báo", False)
     except Exception as e:
         dung("câu báo", "vừa sửa" in str(e))

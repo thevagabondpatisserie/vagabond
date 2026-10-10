@@ -155,7 +155,29 @@ class _Vet:
 		self.su = []
 
 
-def _moi_truong_tao_don(pancake, trung=None):
+def _km_gia(giam=0, ly_do="", mot_lan=False, giu_duoc=True):
+	"""khuyen_mai giả cho tao_don: ap_web trả số giảm định sẵn, ghi vết giữ,
+	trả mã và ghi lượt dùng (v589)."""
+	vet = types.SimpleNamespace(ap=[], giu=[], tra=[], ghi=[])
+
+	def ap_web(gio, ma=None, sdt=None, ngay=None):
+		vet.ap.append((gio, ma, sdt, ngay))
+		if ly_do:
+			return {"tong_giam": 0, "ap": [], "ly_do": ly_do}
+		return {"tong_giam": giam, "ap": [{"ma": "SN10", "ten": "Giảm sinh nhật", "giam": giam}] if giam else [],
+			"ly_do": "", "kq": {"ap": [{"loai": "ctkm", "ma": "SN10"}], "voucher": ma or ""}}
+
+	km = types.SimpleNamespace(
+		NGUON_WEB="Website", ap_web=ap_web, vet=vet,
+		ma_dung_mot_lan=lambda ma: mot_lan,
+		giu_ma_mot_lan=lambda ma, gc: (vet.giu.append(ma), giu_duoc)[1],
+		tra_ma_mot_lan=lambda ma, gc: vet.tra.append(ma),
+		ghi_su_dung=lambda kq, **k: vet.ghi.append(k),
+	)
+	return km
+
+
+def _moi_truong_tao_don(pancake, trung=None, km=None):
 	"""Dựng môi trường gọi tao_don THẬT, chặn mọi đường ra ngoài.
 
 	`pancake(vet)` là hàm thay requests.post: ghi 'post' vào vết rồi trả về
@@ -195,7 +217,7 @@ def _moi_truong_tao_don(pancake, trung=None):
 		xep_capi=lambda *a, **k: vet.su.append("capi"),
 	)
 	fr = types.SimpleNamespace(
-		db=types.SimpleNamespace(commit=lambda: vet.su.append("commit")),
+		db=types.SimpleNamespace(commit=lambda: vet.su.append("commit"), rollback=lambda: vet.su.append("rollback")),
 		log_error=lambda *a, **k: None, get_traceback=lambda: "",
 		get_all=lambda *a, **k: [],
 	)
@@ -214,8 +236,11 @@ def _moi_truong_tao_don(pancake, trung=None):
 		_uuid_tu_ma=lambda c, k, ma: "uuid-" + ma,
 		_gia_va_ten=lambda ds: ({m: 450000 for m in ds}, {m: "Bánh " + m for m in ds}),
 		_ip_va_trinh_duyet=lambda: ("203.0.113.9", "Trinh duyet thu"),
+		khuyen_mai=km or _km_gia(),
 	)
-	for ten in ("_so", "_lam_sach_hang", "_lam_sach_the", "_ngay_iso", "_hoa_don_pancake", "_diem_lay"):
+	vet.km = g["khuyen_mai"]
+	for ten in ("_so", "_lam_sach_hang", "_lam_sach_the", "_ngay_iso", "_hoa_don_pancake", "_diem_lay",
+			"_uu_dai_don", "_ghi_uu_dai_sau_pancake"):
 		nap("don_hang.py", ten, g)
 	g["MAX_DONG"], g["MAX_SL"] = 30, 20
 	g["_UUID"] = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
@@ -1555,3 +1580,89 @@ def _():
 	gv["trang_thai"] = "Da nhan"
 	ham(D(name="SINV-3", custom_pancake_display_id="91500", grand_total=650000))
 	dung("lần đầu thì ghi và xếp Purchase", "set" in vet and "capi" in vet)
+
+
+# ---------------------------------------------------------------- v589 ưu đãi ERP
+
+@ca("v589 đơn web có ưu đãi ERP: máy chủ tự tính theo giá ERP, gửi total_discount, xét miễn phí giao trên tiền SAU giảm, ghi lượt sau Pancake")
+def _():
+	km = _km_gia(giam=90000)
+	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "91500"}}), km=km)
+	# Hai bánh 450.000 = 900.000 dưới ngưỡng 1.000.000; ba bánh 1.350.000 - 90.000 = 1.260.000 vẫn trên ngưỡng.
+	kq = tao_don(_don(ma_uu_dai=" sn10 ", items=[{"variation_id": "BAWC00139", "quantity": 3}]))
+	la("nhận", kq.get("ok"), 1)
+	gio, ma, sdt, ngay = km.vet.ap[0]
+	la("giá do máy chủ đọc, mã chuẩn hoá", (gio, ma, sdt, ngay),
+		([{"item_code": "BAWC00139", "qty": 3, "rate": 450000.0}], "SN10", "0931224334", "2026-09-26"))
+	la("Pancake nhận giảm", vet.body.get("total_discount"), 90000)
+	la("miễn phí giao vì sau giảm vẫn trên ngưỡng", vet.body.get("shipping_fee"), 0)
+	snap = json.loads(vet.truong["snapshot"])
+	la("snapshot giữ ưu đãi", (snap["uu_dai"]["ma"], snap["uu_dai"]["giam"]), ("SN10", 90000))
+	la("ghi lượt dùng một lần, kênh Website, ghi chú đơn web", (len(km.vet.ghi), km.vet.ghi[0]["nguon"], km.vet.ghi[0]["ghi_chu"]),
+		(1, "Website", "Đơn web DW-2609-00001"))
+	dung("ghi lượt SAU khi gửi Pancake", vet.su.index("post") < len(vet.su))
+
+
+@ca("v589 ưu đãi kéo đơn xuống dưới ngưỡng miễn phí giao thì khách trả phí giao")
+def _():
+	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}), km=_km_gia(giam=400000))
+	tao_don(_don(items=[{"variation_id": "BAWC00139", "quantity": 3}]))  # 1.350.000 - 400.000 = 950.000
+	la("tính phí giao", vet.body.get("shipping_fee"), 36000)
+	la("vẫn gửi giảm", vet.body.get("total_discount"), 400000)
+
+
+@ca("v589 không có ưu đãi thì đơn y như cũ: không có total_discount, snapshot uu_dai rỗng, không ghi lượt")
+def _():
+	km = _km_gia(giam=0)
+	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}), km=km)
+	tao_don(_don())
+	dung("không gửi total_discount", "total_discount" not in vet.body)
+	la("snapshot", json.loads(vet.truong["snapshot"]).get("uu_dai"), None)
+	la("không ghi lượt", km.vet.ghi, [])
+
+
+@ca("v589 mã sai thì dừng TRƯỚC khi ghi bản ghi và gọi Pancake, trả câu lý do cho khách")
+def _():
+	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}), km=_km_gia(ly_do="Mã ABC: chương trình đã hết hạn."))
+	kq = tao_don(_don(ma_uu_dai="ABC"))
+	la("chặn", (kq["ok"], kq["ly_do"], kq["chi_tiet"]), (0, "ma_uu_dai", "Mã ABC: chương trình đã hết hạn."))
+	la("không ghi, không gọi", [x for x in vet.su if x in ("ghi", "post")], [])
+
+
+@ca("v589 mã dùng một lần: giữ mã trong khoá trước khi gọi Pancake; Pancake từ chối thì trả mã, không ghi lượt")
+def _():
+	km = _km_gia(giam=50000, mot_lan=True)
+	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(422, {"message": "sai"}), km=km)
+	kq = tao_don(_don(ma_uu_dai="AB12CD"))
+	la("đơn bị từ chối", kq["ok"], 0)
+	la("đã giữ rồi trả đúng mã", (km.vet.giu, km.vet.tra), (["AB12CD"], ["AB12CD"]))
+	la("không ghi lượt", km.vet.ghi, [])
+
+
+@ca("v589 mã dùng một lần đang bị đơn khác giữ: dừng trong khoá, rollback, không ghi bản ghi, không gọi Pancake")
+def _():
+	km = _km_gia(giam=50000, mot_lan=True, giu_duoc=False)
+	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}), km=km)
+	kq = tao_don(_don(ma_uu_dai="AB12CD"))
+	la("chặn", (kq["ok"], kq["ly_do"]), (0, "ma_uu_dai"))
+	dung("có rollback", "rollback" in vet.su)
+	la("không ghi, không gọi", [x for x in vet.su if x in ("ghi", "post")], [])
+
+
+@ca("v589 mất phản hồi Pancake: vẫn ghi lượt (đơn có thể đã có), không trả mã")
+def _():
+	km = _km_gia(giam=50000, mot_lan=True)
+
+	def mat_mang(v):
+		raise OSError("mất mạng")
+	vet, tao_don = _moi_truong_tao_don(mat_mang, km=km)
+	tao_don(_don(ma_uu_dai="AB12CD"))
+	la("ghi lượt, không trả", (len(km.vet.ghi), km.vet.tra), (1, []))
+
+
+@ca("v589 biên nhận trừ ưu đãi vào tổng và ghi tên ưu đãi")
+def _():
+	snap = dict(SNAP, uu_dai={"ma": "SN10", "giam": 65000, "ap": [{"ten": "Giảm sinh nhật", "giam": 65000}]})
+	tt = don_web.tom_tat_bien_nhan({"name": "DW-1", "trang_thai": "Da nhan", "tien_banh": 650000}, snap)
+	la("dòng giảm", (tt["giam"], tt["uu_dai"]), ("- 65.000 đ", "Giảm sinh nhật"))
+	la("tổng = 650.000 - 65.000 + phí giao 36.000", tt["tong"], "621.000 đ")
