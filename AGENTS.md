@@ -269,6 +269,15 @@ và nhiều dòng, phép đo ở 390x844 và ảnh chụp site thật. Codex d�
      `GHI_QUA_HOP_CHON` / `GHI_QUA_HOP_CHON_TRANG`, đừng bỏ read_only.
   Khoá bí mật không bao giờ gửi xuống máy. Ca chốt: `thu_cai_dat_loi_570.py`
   (app phủ đủ mọi ô Desk, đúng tab, đúng mục) và `hanh_vi/cai_dat_loi_570.js`.
+- **Ưu đãi trên website: ERP là nguồn duy nhất (anh Việt 09/10/2026).**
+  *"Anh muốn erp là nguồn duy nhất, các nơi khác chỉ việc đồng bộ theo thôi."*
+  Ưu đãi tạo, sửa, bật tắt trong Chương trình khuyến mãi (mục Website). Trang
+  khách đọc thẳng từ đó; màn biên tập web chỉ XEM, máy chủ chặn ghi khối
+  ưu đãi gõ tay. Đặt bánh trên web dùng CHUNG `khuyen_mai.tinh` của quầy, không
+  viết bộ tính riêng. Luật "dùng được trên web" có hai bản (`ly_do_khong_web`
+  ở Python và `kmLyDoWeb` ở app) và ca chốt đối chiếu hai bản trên cùng bảng
+  ca; sửa một bên phải sửa bên kia. Mã dùng một lần phải giữ (khoá hàng, đặt
+  Đã dùng) TRƯỚC khi gửi Pancake. Ca chốt: `thu_uu_dai_web_589.py`.
 
 ---
 
