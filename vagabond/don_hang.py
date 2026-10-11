@@ -313,6 +313,20 @@ def tao_don(don=None):
 	if not tu_lay and len(dia_chi) < 8:
 		return {"ok": 0, "ly_do": "thieu_dia_chi_giao"}
 	ma_diem = str(don.get("diem_lay_id") or "").strip()
+	ngay = _ngay_iso(don.get("ngay_nhan"))
+
+	# Codex #461: lần gửi lại cùng nonce (Pancake đã nhận lần đầu nhưng phản
+	# hồi bị mất) phải nhận lại ĐÚNG biên nhận cũ, TRƯỚC mọi phép từ chối
+	# nghiệp vụ. Chính đơn đầu có thể đã làm mã dùng một lần thành Đã dùng,
+	# lấy lượt cuối của chương trình, hết hạn mức hàng mùa vụ, hay điểm nhận
+	# vừa tắt; từ chối ở đó thì khách tưởng đơn chưa gửi, tải lại và đặt trùng.
+	# Một chỗ tìm trùng duy nhất cho mọi lối từ chối; phép tìm lại trong khoá
+	# ghi bên dưới vẫn giữ để chặn hai lần bấm cùng lúc.
+	khoa = don_web.khoa_chong_trung(dien_thoai, hang, ngay, nonce)
+	trung = don_web.tim_trung(khoa)
+	if trung:
+		return don_web.phan_hoi(trung, nonce, trung=True)
+
 	if tu_lay:
 		# v586 (Codex #453): điểm nhận phải còn bật ở thẻ Cửa hàng ngay lúc
 		# gửi. Trang khách có thể còn giữ danh sách cũ trong máy khách. Đây là
@@ -322,8 +336,6 @@ def tao_don(don=None):
 			return {"ok": 0, "ly_do": ly_do}
 		dia_chi = diem["a"]
 		don["diem_lay_ten"] = diem["n"]
-
-	ngay = _ngay_iso(don.get("ngay_nhan"))
 
 	# CHOT CHAN HAN MUC MUA VU (them 21/08/2026 cung dot dua hang mua vu len web).
 	#
@@ -483,7 +495,6 @@ def tao_don(don=None):
 	}
 
 	ip, ua = _ip_va_trinh_duyet()
-	khoa = don_web.khoa_chong_trung(dien_thoai, hang_goc, ngay, nonce)
 
 	# GHI BAN GHI TRUOC, COMMIT, roi moi goi Pancake. Khoa tep bao quanh phep
 	# tim trung va phep ghi, de hai lan bam cung luc khong cung lot qua.
