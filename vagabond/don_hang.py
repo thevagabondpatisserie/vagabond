@@ -216,7 +216,7 @@ def _tra_uu_dai_khi_tu_choi(kq, ma, giu_ma, ten_ban_ghi):
 	if kq.get("ket_qua") != "tu_choi":
 		return
 	try:
-		khuyen_mai.tra_luot_web("Đơn web %s" % ten_ban_ghi)
+		khuyen_mai.tra_luot_web(don_web.GHI_CHU_DON_WEB % ten_ban_ghi)
 		frappe.db.commit()
 	except Exception:
 		frappe.db.rollback()
@@ -294,11 +294,6 @@ def tao_don(don=None):
 	if don.get("dong_y") is not True:
 		return {"ok": 0, "ly_do": "chua_dong_y_chinh_sach"}
 
-	c = cfg()
-	k = key(c, "pancake_api_key")
-	if not k or not c.pancake_shop_id:
-		return {"ok": 0, "ly_do": "chua_dien_khoa_pancake"}
-
 	hang = _lam_sach_hang(don.get("items"))
 	if not hang:
 		return {"ok": 0, "ly_do": "gio_hang_rong"}
@@ -321,11 +316,19 @@ def tao_don(don=None):
 	# lấy lượt cuối của chương trình, hết hạn mức hàng mùa vụ, hay điểm nhận
 	# vừa tắt; từ chối ở đó thì khách tưởng đơn chưa gửi, tải lại và đặt trùng.
 	# Một chỗ tìm trùng duy nhất cho mọi lối từ chối; phép tìm lại trong khoá
-	# ghi bên dưới vẫn giữ để chặn hai lần bấm cùng lúc.
+	# ghi bên dưới vẫn giữ để chặn hai lần bấm cùng lúc. Phía trên chỉ còn
+	# phép kiểm dữ liệu khách gửi (lần gửi lại mang đúng dữ liệu đó); mọi phép
+	# kiểm theo trạng thái máy chủ có thể đổi, kể cả cấu hình Pancake, phải ở
+	# dưới đây (Codex #461 vòng 2).
 	khoa = don_web.khoa_chong_trung(dien_thoai, hang, ngay, nonce)
 	trung = don_web.tim_trung(khoa)
 	if trung:
 		return don_web.phan_hoi(trung, nonce, trung=True)
+
+	c = cfg()
+	k = key(c, "pancake_api_key")
+	if not k or not c.pancake_shop_id:
+		return {"ok": 0, "ly_do": "chua_dien_khoa_pancake"}
 
 	if tu_lay:
 		# v586 (Codex #453): điểm nhận phải còn bật ở thẻ Cửa hàng ngay lúc
@@ -547,7 +550,7 @@ def tao_don(don=None):
 			# Giữ lượt TRONG khoá, theo ngày nhận (đúng ngày đã soát hạn mức), cùng
 			# giao dịch với bản ghi. Ghi chú "Đơn web <mã>" là sợi dây để trả lại
 			# khi Pancake từ chối hoặc việc định kỳ dọn đơn đã huỷ.
-			gc = "Đơn web %s" % ban_ghi.name
+			gc = don_web.GHI_CHU_DON_WEB % ban_ghi.name
 			try:
 				if giu_ma and not khuyen_mai.giu_ma_mot_lan(ma_uu_dai, gc):
 					# Hai đơn cùng gõ một mã dùng một lần: đơn sau dừng ở đây.

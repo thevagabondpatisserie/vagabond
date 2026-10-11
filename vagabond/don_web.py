@@ -790,6 +790,19 @@ def gui_capi(ten, loai, ip=None, ua=None):
 	frappe.db.commit()
 
 
+GHI_CHU_DON_WEB = "Đơn web %s"
+
+
+def _noi_uu_dai_hoa_don(ten, si_name):
+	"""Codex #461 vòng 2: nối lượt ưu đãi và mã đã giữ cho đơn web với hoá đơn.
+	Nuốt lỗi riêng: không được chặn ghi sổ, cũng không được chặn Purchase."""
+	try:
+		from vagabond import khuyen_mai
+		khuyen_mai.gan_hoa_don_web(GHI_CHU_DON_WEB % ten, si_name)
+	except Exception:
+		frappe.log_error(title="Don web: noi uu dai voi hoa don", message=frappe.get_traceback())
+
+
 def khi_ghi_so_hoa_don(doc, method=None):
 	"""Hook Sales Invoice on_submit: đơn web về tới hoá đơn thật thì báo Meta Purchase.
 
@@ -816,6 +829,7 @@ def khi_ghi_so_hoa_don(doc, method=None):
 			"ghi_so_luc": now_datetime(),
 			"gia_tri_ghi_so": int(round(float(doc.get("grand_total") or 0))),
 		}, update_modified=False)
+		_noi_uu_dai_hoa_don(ten, doc.name)
 		xep_capi(ten, "Purchase", sau_commit=True)
 	except Exception:
 		frappe.log_error(title="Don web: hook ghi so hoa don", message=frappe.get_traceback())

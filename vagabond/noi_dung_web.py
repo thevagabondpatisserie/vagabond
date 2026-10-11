@@ -520,6 +520,11 @@ def xoa_muc(nd, id_muc, dau_cu=None):
     if cu is not None:
         if cu.get("loai") not in LOAI_MUC:
             raise ValueError("Khối này chỉ xoá ở mục Nâng cao.")
+        if cu.get("loai") == "uu_dai":
+            # Codex #461 vòng 2: ưu đãi chỉ đọc từ ERP, cả lối xoá cũng chặn
+            # (luu_muc đã chặn tạo và sửa). Chặn ở hàm thuần này để bản công
+            # khai và bản nháp cùng qua một cửa.
+            raise ValueError("Ưu đãi nay tạo, sửa và bật tắt trên app ERP: Bán hàng, Chương trình khuyến mãi, mục Website.")
         del nd["khoi"][i]
     return nd
 
