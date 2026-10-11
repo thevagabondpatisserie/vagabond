@@ -2003,3 +2003,10 @@ lọt. Cách phòng: trong khoá ghi, commit trước rồi khoá hàng chương
 thì trả lượt. Commit trước khoá là bắt buộc: trong REPEATABLE READ, lần đọc sau
 khoá vẫn thấy ảnh chụp cũ từ đầu yêu cầu nếu giao dịch đã đọc gì trước đó.
 Lượt ghi theo đúng ngày đã dùng để soát (ngày nhận bánh), không theo hôm nay.
+Vòng 2 cùng PR: (1) so lần tính lại bằng CẢ số tiền lẫn bộ chương trình đã
+khoá, vì hai chương trình bằng giá có thể đổi chỗ cho nhau; (2) phép giữ
+lượt trước dịch vụ ngoài phải là phép CHẶT (lỗi là ném, rollback, không gửi),
+không dùng lại hàm ghi vết kiểu "lỗi chỉ log"; (3) phép trả lại khi bị từ
+chối có thể lỗi, nên cần việc định kỳ dọn theo trạng thái đơn chứ không chỉ
+một lần thử. Và: chạy đột biến ở tiền cảnh mà bị cắt giữa chừng thì tệp có
+thể kẹt ở bản đột biến; luôn chạy đột biến ở nền và soát `git diff` sau đó.
