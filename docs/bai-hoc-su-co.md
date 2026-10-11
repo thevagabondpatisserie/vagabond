@@ -1995,3 +1995,11 @@ trang mà là giới hạn của bộ giả lập, nhưng nó che được lỗi
 mức giảm chỉ hiện khi khoá giỏ của câu trả lời trùng giỏ hiện tại. Đột biến
 bỏ kiểm khoá giỏ lúc đầu KHÔNG làm đổ ca nào; đã thêm ca đổi giỏ rồi đọc tóm
 tắt NGAY, trước khi máy chủ trả lời.
+
+Thêm (Codex #460): hạn mức chương trình (tổng lượt, lượt mỗi ngày) soát ở
+bước tính nhưng ghi lượt SAU khi gọi Pancake, nên hai đơn tranh lượt cuối cùng
+lọt. Cách phòng: trong khoá ghi, commit trước rồi khoá hàng chương trình
+(FOR UPDATE), tính lại, ghi lượt, commit, rồi mới gọi dịch vụ ngoài; bị từ chối
+thì trả lượt. Commit trước khoá là bắt buộc: trong REPEATABLE READ, lần đọc sau
+khoá vẫn thấy ảnh chụp cũ từ đầu yêu cầu nếu giao dịch đã đọc gì trước đó.
+Lượt ghi theo đúng ngày đã dùng để soát (ngày nhận bánh), không theo hôm nay.
