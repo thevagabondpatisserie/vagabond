@@ -88,6 +88,14 @@ def _trang_www():
 		dung(html.name + ' có thẻ csrf', '<meta name="csrf-token" content="{{ csrf_token }}">' in html.read_text())
 
 
+@ca('Codex #462: link #/banh/<bánh> chưa thấy bánh thì CHỈ về trang chủ khi đã hỏi tồn xong (dò chuỗi vì app.js cần DOM; hành vi đã kiểm bằng Chromium, xem PR #462)')
+def _link_banh_cho_ton():
+	s = (VUE / 'banh/app.js').read_text()
+	la('lối về trang chủ khi không thấy bánh có điều kiện tonDaThu', s.count("if (!c) { if (S.tonDaThu) nav('#/', true); return; }"), 1)
+	dung('không còn lối về trang chủ vô điều kiện', "if (!c) { nav('#/', true); return; }" not in s)
+	dung('nạp tồn xong thì mở lại đường dẫn bánh', 'kho.napTon().then(apDuongDanNeuBanh)' in s)
+
+
 @ca('Web Vue: node CI tay không chạy được mô đun ES (package.json type module)')
 def _kieu_mo_dun():
 	d = json.loads((VUE / 'package.json').read_text())
