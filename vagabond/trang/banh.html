@@ -1835,6 +1835,9 @@ function lookupPhone(){
   clearTimeout(phTimer);
   const v=($('#f-phone').value||'').replace(/\D/g,'');
   CO.addrList=[]; CO.addrSel=-1; drawSaved();
+  /* Codex #460: so doi thi uu dai co the doi (luot moi khach): ve lai tom tat,
+     drawCo tu hoi lai may chu khi khoa uu dai doi. */
+  if(CART.length && $('#checkout') && $('#checkout').classList.contains('open') && CO.uu && CO.uu.khoa!==khoaUuDai()) drawCo();
   if(v.length<9) return;
   phTimer=setTimeout(async ()=>{
     /* Tra dia chi cu phai di qua may chu, vi goi thang Pancake tu trinh duyet
@@ -2057,7 +2060,11 @@ function hangGui(){
 }
 /* Uu dai tu ERP. So giam chi tinh khi dung voi gio va ma hien tai: gio doi ma
    chua hoi lai thi coi nhu 0, khong hien so cu. */
-function khoaUuDai(){ return JSON.stringify([hangGui(), CO.uuMa||'']); }
+/* Codex #460: so giam con tuy so dien thoai (luot moi khach) va ngay nhan (luot
+   moi ngay), nen hai thu nay cung nam trong khoa: doi la hoi lai. */
+function sdtUuDai(){ const v=(($('#f-phone')&&$('#f-phone').value)||'').replace(/\D/g,''); return v.length>=9?v:''; }
+function ngayUuDai(){ try{ return mocGioNhan(); }catch(e){ return ''; } }
+function khoaUuDai(){ return JSON.stringify([hangGui(), CO.uuMa||'', sdtUuDai(), ngayUuDai()]); }
 function giamDangAp(){ return (CO.uu && CO.uu.khoa===khoaUuDai()) ? (Number(CO.uu.giam)||0) : 0; }
 async function xemUuDai(){
   const khoa=khoaUuDai();
@@ -2069,7 +2076,7 @@ async function xemUuDai(){
     const tk = window.csrf_token || (window.frappe && frappe.csrf_token);
     if(tk && tk!=='None') head['X-Frappe-CSRF-Token']=tk;
     const r=await fetch(CONFIG.uuDaiApi,{method:'POST',headers:head,credentials:'same-origin',
-      body:JSON.stringify({don:JSON.stringify({items:hangGui(), ma_uu_dai:CO.uuMa||'', dien_thoai:($('#f-phone')&&$('#f-phone').value)||'', ngay_nhan:mocGioNhan()})})});
+      body:JSON.stringify({don:JSON.stringify({items:hangGui(), ma_uu_dai:CO.uuMa||'', dien_thoai:sdtUuDai(), ngay_nhan:ngayUuDai()})})});
     const j=await r.json(); m=j.message||j;
   }catch(e){ m=null; }
   if(CO.uuDangHoi!==khoa) return;  /* da co lan hoi moi hon */
@@ -2235,6 +2242,21 @@ async function submitOrder(){
   const vatLine = vat ? `[HOÁ ĐƠN] MST ${vat.tax_code} · ${vat.name} · ${vat.address} · mail ${vat.email}` : '';
   const dungCu=CART.filter(o=>chuDungCu(o)).map(o=>`${tenMonGio(o)} x${o.qty}: ${chuDungCu(o)}`).join('; ');
   const note = [ ($('#f-note').value||'').trim(), dungCu, vatLine ].filter(Boolean).join('\n');
+
+  /* Codex #460: uu dai dang hien chua tinh cho dung gio, ma, so, ngay hien tai
+     (khach vua doi roi bam gui ngay) thi hoi lai truoc. So giam doi thi dung
+     de khach xem tong moi roi bam gui lai, khong gui mot tong khach chua thay.
+     Chi hoi khi co ma hoac dang hien muc giam: khong ma, khong giam thi may chu
+     tu ap them uu dai tu dong (neu co) chi lam khach tra it hon, khong can chan. */
+  if((CO.uuMa || (CO.uu && Number(CO.uu.giam)>0)) && (!CO.uu || CO.uu.khoa!==khoaUuDai())){
+    const cu = CO.uu ? (Number(CO.uu.giam)||0) : 0;
+    clearTimeout(CO.uuHen);
+    await xemUuDai();
+    if(giamDangAp()!==cu){
+      toast(chuWeb('dat_banh_uu_dai_cap_nhat','Tổng tiền vừa cập nhật theo ưu đãi. Quý khách xem lại rồi bấm gửi.'));
+      return;
+    }
+  }
 
   const items=hangGui();
 
