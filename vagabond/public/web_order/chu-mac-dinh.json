@@ -2969,5 +2969,11 @@
     "nhom": "gio_hang",
     "mac_dinh": "Ưu đãi",
     "nhieu_dong": false
+  },
+  "dat_banh_uu_dai_cap_nhat": {
+    "ten": "Giỏ hàng: tổng tiền vừa cập nhật theo ưu đãi",
+    "nhom": "gio_hang",
+    "mac_dinh": "Tổng tiền vừa cập nhật theo ưu đãi. Quý khách xem lại rồi bấm gửi.",
+    "nhieu_dong": false
   }
 }
