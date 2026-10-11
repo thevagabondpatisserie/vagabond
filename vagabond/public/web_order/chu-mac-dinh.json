@@ -485,6 +485,12 @@
     "mac_dinh": "Mã số thuế phải là 10 số, hoặc 13 số nếu là chi nhánh.",
     "nhieu_dong": true
   },
+  "mst_sai_do_dai": {
+    "ten": "Mã số thuế sai độ dài (có hộ kinh doanh 12 số)",
+    "nhom": "gio_hang",
+    "mac_dinh": "Mã số thuế phải là 10 số, 12 số nếu là hộ kinh doanh, hoặc 13 số nếu là chi nhánh.",
+    "nhieu_dong": true
+  },
   "dat_banh_6566710b9": {
     "ten": "Đang tra mã số thuế...",
     "nhom": "gio_hang",
