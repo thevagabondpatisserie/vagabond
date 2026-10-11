@@ -2016,3 +2016,15 @@ commit (`tinh_co_khoa`). "Lấy bộ có lợi nhất" phải thử cả bộ ch
 cộng dồn được, không chỉ tất cả hoặc từng cái lẻ.
 Vòng 4: "trả lượt" là huỷ mềm (ô `da_tra`), không xoá dòng (QT-20); mọi chỗ
 đếm hạn mức, báo cáo và việc dọn định kỳ phải bỏ dòng đã trả.
+
+## 11/10/2026 - Web Vue: mô đun ES né mất ?v= nên phải có import map
+
+Site trả `/assets` với cache immutable (#310), trang cũ ghi tay `?v=<băm>`
+trên từng thẻ link/script. Mô đun ES nạp nhau bằng `import './x.js'`, đường
+đó không gắn được `?v=`: deploy xong khách cũ vẫn chạy mô đun cũ mãi mãi, và
+trộn mô đun cũ với mới là lỗi khó đoán. Cách phòng: trang khai import map ánh
+xạ từng URL mô đun sang URL có `?v=<băm>`, do `cong_cu/ma_bam_web_vue.py` sinh;
+ca `thu_web_vue.py` gọi `--kiem` để quên chạy là CI đỏ. Và: node trên máy CI
+(bản 20) không tự nhận mô đun ES trong tệp `.js`, cần `web_vue/package.json`
+khai `"type": "module"`, thiếu là ca kiểm chết ngay ở dòng `import`.
+
