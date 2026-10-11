@@ -230,7 +230,8 @@ def tra_uu_dai_don_huy():
 	hang = frappe.db.sql(
 		"select gc from ("
 		" select sd.ghi_chu as gc from `tabVagabond CTKM Su Dung` sd"
-		" where sd.kenh='Website' and ifnull(sd.hoa_don, '')='' and sd.ghi_chu like 'Đơn web %%'"
+		" where sd.kenh='Website' and ifnull(sd.hoa_don, '')='' and ifnull(sd.da_tra, 0)=0"
+		" and sd.ghi_chu like 'Đơn web %%'"
 		" union"
 		" select v.ghi_chu as gc from `tabVagabond Voucher` v"
 		" where v.trang_thai='Da dung' and v.hoa_don is null and v.ghi_chu like 'Đơn web %%'"

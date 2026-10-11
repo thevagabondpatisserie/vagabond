@@ -226,7 +226,9 @@ def _la_sdt_nhan_vien(sdt):
 
 def _dem_da_dung(ma_ctkm, ngay=None, thu_ngan=None, sdt=None):
 	"""Dem so lan mot chuong trinh da duoc ap - de chan vuot han muc."""
-	loc = {"ctkm": ma_ctkm}
+	# Codex #460 (QT-20): lượt đã trả (đơn web bị từ chối hoặc huỷ) giữ lại để
+	# tra, nhưng không còn tính vào hạn mức.
+	loc = {"ctkm": ma_ctkm, "da_tra": 0}
 	if ngay:
 		loc["ngay"] = str(getdate(ngay))
 	if thu_ngan:
@@ -1410,6 +1412,7 @@ def bao_cao(tu=None, den=None, quay=None):
 	loc = {"ngay": ["between", [tu, den]]}
 	if quay:
 		loc["quay"] = quay
+	loc["da_tra"] = 0  # lượt đã trả của đơn web bị huỷ không tính (QT-20)
 	ds = frappe.get_all(
 		"Vagabond CTKM Su Dung",
 		filters=loc,
@@ -1857,18 +1860,22 @@ def khoa_ctkm(ds_ma):
 
 
 def tra_luot_web(ghi_chu):
-	"""Pancake từ chối đơn web: xoá các lượt đã giữ cho đơn đó (nhận theo ghi
+	"""Pancake từ chối đơn web: đánh dấu đã trả các lượt đã giữ cho đơn đó (nhận theo ghi
 	chú "Đơn web <mã>", kênh Website, chưa gắn hoá đơn) và trừ lại số đã dùng.
 	Khoá dòng (FOR UPDATE) trước: lần trả ngay và việc định kỳ chạy chồng thì
-	lần sau chờ, rồi thấy dòng đã xoá, không trừ hai lần (Codex #460 vòng 3)."""
+	lần sau chờ, rồi thấy dòng đã trả, không trừ hai lần (Codex #460 vòng 3).
+	Không xoá dòng (QT-20, Codex #460 vòng 4)."""
 	hang = frappe.db.sql(
 		"select name, ctkm, combo from `tabVagabond CTKM Su Dung` "
-		"where ghi_chu=%s and kenh=%s and ifnull(hoa_don, '')='' for update", (ghi_chu, NGUON_WEB), as_dict=True)
+		"where ghi_chu=%s and kenh=%s and ifnull(hoa_don, '')='' and ifnull(da_tra, 0)=0 for update",
+		(ghi_chu, NGUON_WEB), as_dict=True)
 	for h in hang:
 		dt, ma = ("Vagabond Combo", h.get("combo")) if h.get("combo") else ("Vagabond CTKM", h.get("ctkm"))
 		if ma:
 			frappe.db.sql("update `tab%s` set da_dung=greatest(ifnull(da_dung, 0) - 1, 0) where name=%%s" % dt, (ma,))
-		frappe.db.sql("delete from `tabVagabond CTKM Su Dung` where name=%s", (h["name"],))
+		# QT-20: không xoá, chỉ đánh dấu đã trả (vẫn tra được đơn, chương trình,
+		# số giảm, khách).
+		frappe.db.sql("update `tabVagabond CTKM Su Dung` set da_tra=1 where name=%s", (h["name"],))
 	# Mã dùng một lần đã giữ cho đúng đơn này (giu_ma_mot_lan ghi cùng ghi chú).
 	frappe.db.sql("update `tabVagabond Voucher` set trang_thai='Chua dung', ngay_dung=NULL "
 		"where ghi_chu=%s and trang_thai='Da dung' and hoa_don is null", (ghi_chu,))
