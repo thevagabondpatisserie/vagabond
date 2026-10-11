@@ -119,6 +119,23 @@ hàm `scr...` gọi `frame(tiêu_đề, html, tuỳ_chọn)` và điều hướn
 `go(hàm)`. **Đừng đề nghị viết lại bằng React.** Đó không phải là cải
 tiến, đó là bỏ đi hai năm.
 
+**Ngoại lệ đã duyệt: web KHÁCH dựng lại bằng Vue (anh Việt chốt 11/10/2026).**
+Luật "không framework" ở trên là cho app nội bộ `/bep`, giữ nguyên. Riêng web
+khách (đặt bánh, biên nhận, thành viên, đặt bàn, chính sách, màn hình khách,
+trình biên tập web) chuyển sang Vue 3, mã ở `vagabond/public/web_vue/`:
+- Vue để thẳng trong repo (`web_vue/lib/`), KHÔNG thêm bước build vào Frappe
+  Cloud. Mô đun ES nạp qua import map; chạy `python3 cong_cu/ma_bam_web_vue.py`
+  sau mỗi lần sửa để đóng dấu `?v=` (ca `thu_web_vue.py` chặn nếu quên).
+- Giao diện giữ ĐÚNG Rocca đã duyệt: dùng lại nguyên CSS, cùng thẻ và lớp. Đổi
+  giao diện thì so ảnh với bản cũ (`cong_cu/xem_thu_web_vue.py`) trước khi bàn giao.
+- Mọi con số trên màn là computed từ MỘT nguồn trong kho (`banh/kho-banh.js`),
+  không viết hàm "vẽ lại". Phép thuần ở `kho/thuan.js`, ca hành vi node ở
+  `hanh_vi/web_vue_banh.mjs` chạy kho thật với Vue thật.
+- Chữ marketing qua `t(khoá, mặc định)`, khoá phải có trong sổ nhãn và mặc định
+  trùng sổ nhãn. Không `v-html`, không `innerHTML`.
+- Bản Vue chạy song song ở `/web_moi/...` tới đêm tráo; trang cũ vẫn là trang
+  khách dùng cho tới khi anh Việt duyệt tráo.
+
 ---
 
 ## 2b. Nguyên tắc thiết kế màn hình app, bắt buộc (anh Việt duyệt 03/09/2026)
