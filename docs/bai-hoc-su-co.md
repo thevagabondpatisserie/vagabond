@@ -2014,3 +2014,5 @@ Vòng 3: khoá chỉ có tác dụng khi MỌI đường ghi lượt cùng xin k
 và web dùng chung chương trình nên quầy cũng phải khoá rồi ghi lượt trước
 commit (`tinh_co_khoa`). "Lấy bộ có lợi nhất" phải thử cả bộ chương trình
 cộng dồn được, không chỉ tất cả hoặc từng cái lẻ.
+Vòng 4: "trả lượt" là huỷ mềm (ô `da_tra`), không xoá dòng (QT-20); mọi chỗ
+đếm hạn mức, báo cáo và việc dọn định kỳ phải bỏ dòng đã trả.
