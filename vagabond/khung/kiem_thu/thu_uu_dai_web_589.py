@@ -376,3 +376,65 @@ def _():
     v = [g for g in goi if "tabVagabond Voucher" in g[0]]
     dung("trả mã theo ghi chú đơn, chỉ mã Đã dùng chưa có hoá đơn",
          len(v) == 1 and v[0][1] == ("Đơn web DW-1",) and "trang_thai='Da dung'" in v[0][0] and "hoa_don is null" in v[0][0])
+
+
+@ca("Codex #460 vòng 3: không mã, hai chương trình cộng dồn được (50.000 + 50.000) và một không cộng dồn (60.000) thì lấy bộ cộng dồn 100.000, không lấy lẻ 60.000")
+def _():
+    a = _ct(name="A", ma_co_dinh="", cach_ma="Khong can ma", kieu_giam="So tien", gia_tri=50000, hd_toi_thieu=0, cong_don=1, uu_tien=1)
+    b = _ct(name="B", ma_co_dinh="", cach_ma="Khong can ma", kieu_giam="So tien", gia_tri=50000, hd_toi_thieu=0, cong_don=1, uu_tien=2)
+    c = _ct(name="C", ma_co_dinh="", cach_ma="Khong can ma", kieu_giam="So tien", gia_tri=60000, hd_toi_thieu=0, cong_don=0, uu_tien=3)
+    with patch.object(km, "nowdate", lambda: "2026-10-09"), patch.object(km, "now_datetime", lambda: datetime.datetime(2026, 10, 9, 10, 0)):
+        kq = _chay([a, b, c], lambda: km.ap_web(GIO))
+    la("bộ có lợi nhất", (kq["tong_giam"], sorted(x["ma"] for x in kq["ap"])), (100000, ["A", "B"]))
+
+
+@ca("Codex #460 vòng 3: có mã thì vẫn cộng thêm được các chương trình tự áp cộng dồn, kể cả khi có một chương trình tự áp không cộng dồn")
+def _():
+    ma = _ct(name="M", cach_ma="Ma co dinh", ma_co_dinh="M10", kieu_giam="So tien", gia_tri=40000, hd_toi_thieu=0, cong_don=1, uu_tien=1)
+    a = _ct(name="A", ma_co_dinh="", cach_ma="Khong can ma", kieu_giam="So tien", gia_tri=50000, hd_toi_thieu=0, cong_don=1, uu_tien=2)
+    c = _ct(name="C", ma_co_dinh="", cach_ma="Khong can ma", kieu_giam="So tien", gia_tri=60000, hd_toi_thieu=0, cong_don=0, uu_tien=3)
+    with patch.object(km, "nowdate", lambda: "2026-10-09"), patch.object(km, "now_datetime", lambda: datetime.datetime(2026, 10, 9, 10, 0)):
+        kq = _chay([ma, a, c], lambda: km.ap_web(GIO, ma="m10"))
+    la("mã cộng chương trình cộng dồn", (kq["tong_giam"], sorted(x["ma"] for x in kq["ap"])), (90000, ["A", "M"]))
+
+
+@ca("Codex #460 vòng 3: tra_luot_web khoá dòng lượt dùng (FOR UPDATE) trước khi trừ số đã dùng, để hai lần trả cùng lúc không trừ hai lần")
+def _():
+    goi = []
+
+    def sql(q, v=None, as_dict=False):
+        goi.append(" ".join(q.split()))
+        return []
+    with patch.object(km.frappe.db, "sql", sql, create=True):
+        km.tra_luot_web("Đơn web DW-1")
+    dung("câu chọn dòng có for update", goi[0].startswith("select name, ctkm") and goi[0].endswith("for update"))
+
+
+@ca("Codex #460 vòng 3: tinh_co_khoa (quầy dùng chung giao thức với web): tính, commit, khoá đúng chương trình đã áp, tính lại và dùng kết quả lần sau")
+def _():
+    vet, lan = [], []
+
+    def tinh(items, **k):
+        lan.append(k)
+        vet.append("tinh")
+        return {"tong_giam": 10 * len(lan), "ap": [{"loai": "ctkm", "ma": "SN10"}, {"loai": "combo", "ma": "CB"}]}
+    with patch.object(km, "tinh", tinh), \
+            patch.object(km.frappe.db, "commit", lambda: vet.append("commit"), create=True), \
+            patch.object(km, "khoa_ctkm", lambda ds: vet.append(("khoa", list(ds)))):
+        kq = km.tinh_co_khoa([{"item_code": "X"}], ctkm=["SN10"], quay="TCV")
+    la("thứ tự", vet, ["tinh", "commit", ("khoa", ["SN10"]), "tinh"])
+    la("dùng kết quả tính sau khi khoá", kq["tong_giam"], 20)
+    la("truyền nguyên tham số", lan[1], {"ctkm": ["SN10"], "quay": "TCV"})
+
+
+@ca("Codex #460 vòng 3: màn tính tiền quầy dùng tinh_co_khoa và giữ lượt TRƯỚC commit hoá đơn (cùng giao dịch với khoá), không ghi lượt sau khi đã nhả khoá")
+def _():
+    src = open(os.path.join(GOC, "ban_hang.py"), encoding="utf-8").read()
+    than = src[src.index("def tao_don_tay("):]
+    than = than[:than.index("\ndef ", 10)]
+    dung("không còn gọi tinh trần", "_km.tinh(" not in than and "_km.tinh_co_khoa(" in than)
+    i_save = than.index("si.save()")
+    i_ghi = than.index("_km.ghi_su_dung(")
+    i_commit = than.index("frappe.db.commit()", i_save)
+    dung("ghi lượt nằm giữa lưu hoá đơn và commit đầu tiên sau đó", i_save < i_ghi < i_commit)
+    la("chỉ ghi lượt một lần", than.count("ghi_su_dung("), 1)
