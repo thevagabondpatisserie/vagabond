@@ -241,6 +241,8 @@ class _Doc(object):
         self.phien_ban = 3
         self.flags = types.SimpleNamespace()
         self.luu = 0
+        self.modified_by = "minhvu@vgb"
+        self.modified = "2026-10-07 10:00:00"
 
     def save(self, **k):
         # Đúng như controller thật: chuẩn hoá cả hai bản, tăng phiên bản.
@@ -732,3 +734,32 @@ RA({mac_dinh:chuWeb('x_khong_co','Gọi 0931 224 334 để được hỗ trợ')
 ''')
     la("câu mặc định", d["mac_dinh"], "Gọi 0909 000 111 để được hỗ trợ")
     la("câu đã sửa", d["da_sua"], "Còn 2 bánh, cần thêm gọi 0909 000 111 nhé")
+
+
+@ca("Codex #460 P2: mục Nâng cao (luu cả bản) không thêm, sửa hay xoá được ưu đãi gõ tay; ưu đãi đã lưu giữ nguyên ở cả nháp và bản khách")
+def _nang_cao_khong_sua_uu_dai():
+    cu = _nd(_uu(id="u1", tieu_de="Cũ"))
+    site = _Site(copy.deepcopy(cu), copy.deepcopy(cu))
+    gui = copy.deepcopy(cu)
+    for k in gui["khoi"]:
+        if k["id"] == "u1":
+            k["tieu_de"] = "Sửa lén ở Nâng cao"
+    gui["khoi"].append(_uu(id="u2", tieu_de="Thêm mới ở Nâng cao"))
+    _chay(site, lambda: nw.luu(json.dumps(gui, ensure_ascii=False), 3, "xuat_ban"))
+    for ten, ban in (("nháp", site.doc.ban_nhap), ("bản khách", site.doc.ban_cong_khai)):
+        uu = [(k["id"], k["tieu_de"]) for k in json.loads(ban)["khoi"] if k.get("loai") == "uu_dai"]
+        la("ưu đãi ở " + ten, uu, [("u1", "Cũ")])
+    # Xoá ưu đãi ở Nâng cao cũng không mất: dữ liệu cũ giữ để khôi phục được.
+    site2 = _Site(copy.deepcopy(cu), copy.deepcopy(cu))
+    bo = copy.deepcopy(cu); bo["khoi"] = [k for k in bo["khoi"] if k.get("loai") != "uu_dai"]
+    _chay(site2, lambda: nw.luu(json.dumps(bo, ensure_ascii=False), 3, "nhap"))
+    la("xoá ở Nâng cao không mất", [k["id"] for k in json.loads(site2.doc.ban_nhap)["khoi"] if k.get("loai") == "uu_dai"], ["u1"])
+
+
+@ca("Codex #460 P2: phép giữ ưu đãi đã lưu là THUẦN: bỏ ưu đãi gửi lên, đặt lại ưu đãi cũ đúng chỗ")
+def _giu_uu_dai_thuan():
+    moi = [{"id": "a", "loai": "anh_bia"}, {"id": "x", "loai": "uu_dai"}, {"id": "t", "loai": "tiec"}]
+    cu = [{"id": "a", "loai": "anh_bia"}, {"id": "u1", "loai": "uu_dai"}, {"id": "t", "loai": "tiec"}, {"id": "u2", "loai": "uu_dai"}]
+    la("thay đúng chỗ", [k["id"] for k in nw.giu_uu_dai_da_luu(moi, cu)], ["a", "u1", "u2", "t"])
+    la("gửi lên không có ưu đãi thì đặt lại theo chỗ cũ", [k["id"] for k in nw.giu_uu_dai_da_luu([{"id": "a"}, {"id": "t"}], cu)], ["a", "u1", "u2", "t"])
+    la("cũ không có ưu đãi thì bỏ hết ưu đãi gửi lên", [k["id"] for k in nw.giu_uu_dai_da_luu(moi, [{"id": "a"}])], ["a", "t"])

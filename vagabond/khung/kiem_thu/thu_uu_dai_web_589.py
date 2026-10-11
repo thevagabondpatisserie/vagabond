@@ -278,3 +278,60 @@ RA({co:co, ngay:ngay, sau:EL('#sum').innerHTML});
     dung("trước khi đổi có giảm", "- 90.000" in r["co"])
     dung("vừa đổi giỏ: chưa trừ mức giảm của giỏ cũ", "- 90.000" not in r["ngay"])
     dung("máy chủ trả lời xong thì hiện lại", "- 90.000" in r["sau"])
+
+
+@ca("Codex #460 P1: khách đổi số điện thoại hoặc ngày nhận thì trang hỏi lại máy chủ, bỏ mức giảm cũ cho tới khi có câu trả lời mới")
+def _():
+    r = _trang(r"""
+EL('#f-ma').value='SN10'; apMaUuDai(); await CHO_XONG();
+var truoc=goi('xem_uu_dai').length;
+EL('#f-phone').value='0987654321'; lookupPhone();
+var ngay_doi_so=EL('#sum').innerHTML;
+await CHO_XONG();
+var sau_so=goi('xem_uu_dai');
+pick(3); await CHO_XONG();
+var sau_ngay=goi('xem_uu_dai');
+RA({hoi_so:sau_so.length-truoc, so:sau_so[sau_so.length-1].dien_thoai, ngay_doi_so:ngay_doi_so,
+    hoi_ngay:sau_ngay.length-sau_so.length, ngay:sau_ngay[sau_ngay.length-1].ngay_nhan, ngay_cu:sau_so[sau_so.length-1].ngay_nhan});
+""")
+    la("đổi số: hỏi lại một lần, gửi số mới", (r["hoi_so"], r["so"]), (1, "0987654321"))
+    dung("vừa đổi số: chưa trừ mức giảm tính cho số cũ", "- 90.000" not in r["ngay_doi_so"])
+    la("đổi ngày: hỏi lại một lần", r["hoi_ngay"], 1)
+    dung("gửi ngày mới", r["ngay"] != r["ngay_cu"] and r["ngay"][:10] != r["ngay_cu"][:10])
+
+
+@ca("Codex #460 P1: khách gõ mã rồi bấm gửi ngay, chưa kịp thấy mức giảm: trang hỏi máy chủ, dừng cho khách xem tổng mới, lần bấm sau mới gửi")
+def _():
+    r = _trang(r"""
+tgl('dongy');
+EL('#f-ma').value='SN10'; apMaUuDai();
+await submitOrder(); await CHO_XONG();
+var lan1=goi('tao_don').length, sum=EL('#sum').innerHTML;
+await submitOrder(); await CHO_XONG();
+RA({lan1:lan1, lan2:goi('tao_don').length, sum:sum});
+""")
+    la("lần đầu không gửi", r["lan1"], 0)
+    dung("tóm tắt đã có mức giảm", "- 90.000" in r["sum"])
+    la("lần sau gửi", r["lan2"], 1)
+
+
+@ca("Codex #460 P1: khoa_ctkm khoá đúng các chương trình (FOR UPDATE, không trùng); tra_luot_web chỉ xoá lượt kênh Website chưa gắn hoá đơn của đúng đơn và trừ số đã dùng")
+def _():
+    goi = []
+
+    def sql(q, v=None, as_dict=False):
+        goi.append((" ".join(q.split()), v))
+        if q.strip().startswith("select name, ctkm"):
+            return [{"name": "SD-1", "ctkm": "SN10", "combo": None}, {"name": "SD-2", "ctkm": None, "combo": "CB1"}]
+        return []
+    with patch.object(km.frappe.db, "sql", sql, create=True):
+        km.khoa_ctkm(["SN10", "B", "SN10", ""])
+        km.khoa_ctkm([])
+        n = km.tra_luot_web("Đơn web DW-1")
+    la("một câu khoá, đủ hai chương trình, có FOR UPDATE", (goi[0][1], goi[0][0].endswith("for update")), (("B", "SN10"), True))
+    sel = goi[1]
+    dung("lọc đúng đơn, kênh Website, chưa có hoá đơn", sel[1] == ("Đơn web DW-1", "Website") and "ifnull(hoa_don, '')=''" in sel[0])
+    la("trả hai lượt", n, 2)
+    la("trừ số đã dùng đúng bảng", [g[1] for g in goi if g[0].startswith("update")], [("SN10",), ("CB1",)])
+    dung("CTKM rồi Combo", "tabVagabond CTKM`" in [g[0] for g in goi if g[0].startswith("update")][0] and "tabVagabond Combo`" in [g[0] for g in goi if g[0].startswith("update")][1])
+    la("xoá đúng hai dòng", [g[1] for g in goi if g[0].startswith("delete")], [("SD-1",), ("SD-2",)])
