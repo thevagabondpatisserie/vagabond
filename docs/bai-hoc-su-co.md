@@ -2010,3 +2010,7 @@ không dùng lại hàm ghi vết kiểu "lỗi chỉ log"; (3) phép trả lạ
 chối có thể lỗi, nên cần việc định kỳ dọn theo trạng thái đơn chứ không chỉ
 một lần thử. Và: chạy đột biến ở tiền cảnh mà bị cắt giữa chừng thì tệp có
 thể kẹt ở bản đột biến; luôn chạy đột biến ở nền và soát `git diff` sau đó.
+Vòng 3: khoá chỉ có tác dụng khi MỌI đường ghi lượt cùng xin khoá đó; quầy
+và web dùng chung chương trình nên quầy cũng phải khoá rồi ghi lượt trước
+commit (`tinh_co_khoa`). "Lấy bộ có lợi nhất" phải thử cả bộ chương trình
+cộng dồn được, không chỉ tất cả hoặc từng cái lẻ.
