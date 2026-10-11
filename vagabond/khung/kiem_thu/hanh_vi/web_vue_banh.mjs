@@ -249,6 +249,33 @@ await ca('hangGui gộp dòng trùng mã và phụ kiện theo số bánh', asyn
     [{variation_id: 'A', quantity: 3}, {variation_id: 'P', quantity: 3}]);
 });
 
+await ca('Codex #462: MST 12 số của hộ kinh doanh được tra tên; 11 số bị báo đúng câu mới', async () => {
+  const goi = [];
+  const {mt, chayHen} = moiTruong('2026-10-11T08:00:00', {'vagabond.api.tra_mst': p => { goi.push(p.mst); return {ok: true, ten: 'HKD NGUYEN VAN A', dia_chi: '1 Lê Lợi'}; }});
+  const k = taoKho(mt);
+  k.S.f.mst = '079123456789'; k.lookupMst(); await chayHen();
+  la('gọi tra mã số thuế với 12 số', goi, ['079123456789']);
+  la('hiện tên tra về', k.S.goi.mst[1].chu, 'HKD NGUYEN VAN A');
+  k.S.f.mst = '07912345678'; k.lookupMst(); await chayHen();
+  la('11 số không gọi máy chủ', goi.length, 1);
+  la('câu báo độ dài nói cả 12 số', k.S.goi.mst[0].chu, 'Mã số thuế phải là 10 số, 12 số nếu là hộ kinh doanh, hoặc 13 số nếu là chi nhánh.');
+});
+
+await ca('Codex #462: tonDaThu chỉ bật sau lần hỏi tồn đầu, kể cả khi máy chủ lỗi (link chia sẻ chờ tới lúc này mới bị coi là hỏng)', async () => {
+  const {mt} = moiTruong('2026-10-11T08:00:00', {'vagabond.kiem_banh.co_the_ban_hom_nay': () => ({banh: {BAWC09999: 3}, nhom: [{ten: 'Banh Moi Thu', sizes: [{cm: 14, ma: 'BAWC09999', gia: 700000, con: 3}]}]})});
+  const k = taoKho(mt);
+  la('trước khi nạp', k.S.tonDaThu, false);
+  dung('bánh bếp thêm chưa có', !k.S.CAKES.some(c => c.k === 'Banh Moi Thu'));
+  await k.napTon();
+  la('sau khi nạp', k.S.tonDaThu, true);
+  dung('bánh bếp thêm đã có', k.S.CAKES.some(c => c.k === 'Banh Moi Thu'));
+  const loiMang = moiTruong('2026-10-11T08:00:00', {'vagabond.kiem_banh.co_the_ban_hom_nay': () => { throw new Error('mat mang'); }});
+  const k2 = taoKho(loiMang.mt);
+  await k2.napTon();
+  la('máy chủ lỗi vẫn bật', k2.S.tonDaThu, true);
+  la('lỗi thì chưa coi là nạp xong', k2.S.tonNapXong, false);
+});
+
 console.log('Bo ca kiem HANH VI trang dat banh ban Vue');
 loi.forEach(d => console.log('  HONG  ' + d));
 console.log(dat + ' ca dat, ' + hong + ' ca hong, tong ' + (dat + hong) + ' ca.');
