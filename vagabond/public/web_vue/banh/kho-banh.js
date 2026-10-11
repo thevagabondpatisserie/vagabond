@@ -26,7 +26,7 @@ export function taoKho(moiTruong) {
        giờ HIỆN TẠI (bài học #205: không dùng bản chụp giờ lúc tải trang). */
     nhip: 0,
     CAKES: cakesGoc(),
-    TODAY: {}, TRUOC: {}, tonNapXong: false, gioTon: null,
+    TODAY: {}, TRUOC: {}, tonNapXong: false, tonDaThu: false, gioTon: null,
     MUA: {co: 0, mon: []},
     STORE: {quay: []}, storeLoi: false, storeDaTai: false, quayChon: '', nhomQuay: '',
     tab: 'today',
@@ -480,7 +480,8 @@ export function taoKho(moiTruong) {
     const raw = (S.f.mst || '').replace(/[^0-9]/g, '');
     if (raw !== S.f.mst) S.f.mst = raw;
     huyHen(mstHen);
-    if (raw.length !== 10 && raw.length !== 13) { S.goi.mst = [thuong(t('dat_banh_ca5c7ce1a', 'Mã số thuế phải là 10 số, hoặc 13 số nếu là chi nhánh.'))]; return; }
+    /* Codex #462: 12 số là định danh cá nhân của chủ hộ kinh doanh, vagabond.api.tra_mst nhận 10, 12, 13. */
+    if (raw.length !== 10 && raw.length !== 12 && raw.length !== 13) { S.goi.mst = [thuong(t('mst_sai_do_dai', 'Mã số thuế phải là 10 số, 12 số nếu là hộ kinh doanh, hoặc 13 số nếu là chi nhánh.'))]; return; }
     S.goi.mst = [mau(t('dat_banh_6566710b9', 'Đang tra mã số thuế...'), 'cyan')];
     mstHen = hen(async () => {
       try {
@@ -620,6 +621,9 @@ export function taoKho(moiTruong) {
       S.gioTon = String(b.getHours()).padStart(2, '0') + ':' + String(b.getMinutes()).padStart(2, '0');
       ganGioCho(); lamTuoiGiaGio();
     } catch (e) { /* giữ số cũ, không đoán */ }
+    /* Codex #462: đã hỏi máy chủ ít nhất một lần (được hay lỗi), link chia sẻ
+       tới bánh không có mới được coi là link hỏng. */
+    S.tonDaThu = true;
   }
   async function napMua() {
     try {

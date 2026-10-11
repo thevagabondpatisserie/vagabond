@@ -126,7 +126,9 @@ export function khoiDong(goc = '#app') {
     if (h === '/uu-dai' || h === '/tuyen-dung' || h === '/tiec') { dongHet(); S.tab = h.slice(1).replace('-', '_'); return; }
     if (mBanh) {
       const c = S.CAKES.find(x => kho.T.slug(x.k) === mBanh[1]);
-      if (!c) { nav('#/', true); return; }
+      /* Codex #462: bánh bếp thêm tay chỉ có sau lần nạp tồn đầu. Chưa nạp
+         xong thì GIỮ đường dẫn, napTon().then(apDuongDanNeuBanh) mở lại sau. */
+      if (!c) { if (S.tonDaThu) nav('#/', true); return; }
       /* Link chia sẻ mở mới: bánh không còn hôm nay vẫn cho chọn cỡ đặt trước. */
       if (S.tab === 'today' && !c.sizes.some(s => S.TODAY[s.id] > 0)) S.tab = 'order';
       if (!(S.dongDangSua >= 0 && S.cur === c)) { S.dongDangSua = -1; kho.moBanh(c); }
