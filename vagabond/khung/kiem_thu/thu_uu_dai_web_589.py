@@ -332,6 +332,47 @@ def _():
     sel = goi[1]
     dung("lọc đúng đơn, kênh Website, chưa có hoá đơn", sel[1] == ("Đơn web DW-1", "Website") and "ifnull(hoa_don, '')=''" in sel[0])
     la("trả hai lượt", n, 2)
-    la("trừ số đã dùng đúng bảng", [g[1] for g in goi if g[0].startswith("update")], [("SN10",), ("CB1",)])
-    dung("CTKM rồi Combo", "tabVagabond CTKM`" in [g[0] for g in goi if g[0].startswith("update")][0] and "tabVagabond Combo`" in [g[0] for g in goi if g[0].startswith("update")][1])
+    upd = [g for g in goi if g[0].startswith("update") and "da_dung" in g[0]]
+    la("trừ số đã dùng đúng bảng", [g[1] for g in upd], [("SN10",), ("CB1",)])
+    dung("CTKM rồi Combo", "tabVagabond CTKM`" in upd[0][0] and "tabVagabond Combo`" in upd[1][0])
     la("xoá đúng hai dòng", [g[1] for g in goi if g[0].startswith("delete")], [("SD-1",), ("SD-2",)])
+
+
+@ca("Codex #460 vòng 2: giu_luot_web là phép giữ CHẶT: chèn dòng lỗi thì ném lỗi, không nuốt, không tự commit")
+def _():
+    chen, sql, commit = [], [], []
+
+    class _D(dict):
+        def insert(self, **k):
+            if len(chen) == 1:
+                raise RuntimeError("chèn hỏng")
+            chen.append(dict(self))
+    with patch.object(km.frappe, "get_doc", lambda d: _D(d)), \
+            patch.object(km.frappe.db, "sql", lambda q, v=None, **k: sql.append((" ".join(q.split()), v)), create=True), \
+            patch.object(km.frappe.db, "commit", lambda: commit.append(1), create=True), \
+            patch.object(km, "now_datetime", lambda: datetime.datetime(2026, 10, 9, 10, 0)):
+        km.giu_luot_web({"ap": [{"loai": "ctkm", "ma": "SN10", "ten": "SN", "giam": 90000}]},
+                        khach="An", sdt="0931 224 334", ngay="2026-10-12", ghi_chu="Đơn web DW-1")
+        la("một dòng, đúng ngày, kênh Website, ghi chú đơn", (chen[0]["ngay"], chen[0]["kenh"], chen[0]["ghi_chu"], chen[0]["sdt"]),
+           ("2026-10-12", "Website", "Đơn web DW-1", "0931224334"))
+        dung("tăng số đã dùng bằng một câu cộng tại chỗ", sql and "da_dung=ifnull(da_dung, 0)+1" in sql[0][0])
+        try:
+            km.giu_luot_web({"ap": [{"loai": "ctkm", "ma": "SN10", "giam": 1}]}, ghi_chu="Đơn web DW-2")
+            dung("phải ném lỗi khi chèn hỏng", False)
+        except RuntimeError:
+            pass
+    la("không tự commit", commit, [])
+
+
+@ca("Codex #460 vòng 2: tra_luot_web trả cả mã dùng một lần đã giữ cho đúng đơn")
+def _():
+    goi = []
+
+    def sql(q, v=None, as_dict=False):
+        goi.append((" ".join(q.split()), v))
+        return []
+    with patch.object(km.frappe.db, "sql", sql, create=True):
+        km.tra_luot_web("Đơn web DW-1")
+    v = [g for g in goi if "tabVagabond Voucher" in g[0]]
+    dung("trả mã theo ghi chú đơn, chỉ mã Đã dùng chưa có hoá đơn",
+         len(v) == 1 and v[0][1] == ("Đơn web DW-1",) and "trang_thai='Da dung'" in v[0][0] and "hoa_don is null" in v[0][0])
