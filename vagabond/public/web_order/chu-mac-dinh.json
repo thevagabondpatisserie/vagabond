@@ -1574,7 +1574,7 @@
   "dat_banh_7ddb8bc3b": {
     "ten": "+ Chọn thêm bánh",
     "nhom": "dat_banh",
-    "mac_dinh": "+ Chọn thêm bánh",
+    "mac_dinh": "Chọn thêm bánh",
     "nhieu_dong": true
   },
   "dat_banh_73b0921c0": {
@@ -2914,6 +2914,126 @@
     "ten": "Quý khách chọn điểm nhận bánh trước khi gửi.",
     "nhom": "gio_hang",
     "mac_dinh": "Quý khách chọn điểm nhận bánh trước khi gửi.",
+    "nhieu_dong": false
+  },
+  "bien_nhan_uu_dai": {
+    "ten": "Biên nhận: dòng ưu đãi",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Ưu đãi",
+    "nhieu_dong": false
+  },
+  "dat_banh_ma_uu_dai": {
+    "ten": "Giỏ hàng: nhãn ô mã ưu đãi",
+    "nhom": "gio_hang",
+    "mac_dinh": "Mã ưu đãi",
+    "nhieu_dong": false
+  },
+  "dat_banh_ma_uu_dai_goi": {
+    "ten": "Giỏ hàng: chữ gợi ý ô mã ưu đãi",
+    "nhom": "gio_hang",
+    "mac_dinh": "Ví dụ SINHNHAT10",
+    "nhieu_dong": false
+  },
+  "dat_banh_ap_ma": {
+    "ten": "Giỏ hàng: nút áp mã",
+    "nhom": "gio_hang",
+    "mac_dinh": "Áp dụng",
+    "nhieu_dong": false
+  },
+  "dat_banh_ma_chua_kiem": {
+    "ten": "Giỏ hàng: chưa kiểm được mã",
+    "nhom": "gio_hang",
+    "mac_dinh": "Chưa kiểm được mã lúc này, quý khách thử lại sau ít phút.",
+    "nhieu_dong": false
+  },
+  "dat_banh_dang_kiem_ma": {
+    "ten": "Giỏ hàng: đang kiểm mã",
+    "nhom": "gio_hang",
+    "mac_dinh": "Đang kiểm mã...",
+    "nhieu_dong": false
+  },
+  "dat_banh_da_giam": {
+    "ten": "Giỏ hàng: đã giảm (giữ {tien})",
+    "nhom": "gio_hang",
+    "mac_dinh": "Đã giảm {tien}",
+    "nhieu_dong": false
+  },
+  "dat_banh_ma_chua_giam": {
+    "ten": "Giỏ hàng: mã hợp lệ nhưng chưa đủ điều kiện",
+    "nhom": "gio_hang",
+    "mac_dinh": "Mã hợp lệ nhưng đơn chưa đủ điều kiện giảm.",
+    "nhieu_dong": false
+  },
+  "dat_banh_dong_uu_dai": {
+    "ten": "Giỏ hàng: dòng ưu đãi trong tóm tắt",
+    "nhom": "gio_hang",
+    "mac_dinh": "Ưu đãi",
+    "nhieu_dong": false
+  },
+  "dat_banh_uu_dai_cap_nhat": {
+    "ten": "Giỏ hàng: tổng tiền vừa cập nhật theo ưu đãi",
+    "nhom": "gio_hang",
+    "mac_dinh": "Tổng tiền vừa cập nhật theo ưu đãi. Quý khách xem lại rồi bấm gửi.",
+    "nhieu_dong": false
+  },
+  "dong_chi_tiet_banh": {
+    "ten": "Đóng chi tiết bánh",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đóng chi tiết bánh",
+    "nhieu_dong": false
+  },
+  "chi_tiet_huong_vi": {
+    "ten": "Mô tả và hương vị",
+    "nhom": "dat_banh",
+    "mac_dinh": "Mô tả và hương vị",
+    "nhieu_dong": false
+  },
+  "so_luong_banh": {
+    "ten": "Số lượng bánh",
+    "nhom": "dat_banh",
+    "mac_dinh": "Số lượng bánh",
+    "nhieu_dong": false
+  },
+  "giam_so_luong": {
+    "ten": "Giảm số lượng",
+    "nhom": "dat_banh",
+    "mac_dinh": "Giảm số lượng",
+    "nhieu_dong": false
+  },
+  "tang_so_luong": {
+    "ten": "Tăng số lượng",
+    "nhom": "dat_banh",
+    "mac_dinh": "Tăng số lượng",
+    "nhieu_dong": false
+  },
+  "phu_kien_cho_banh": {
+    "ten": "Phụ kiện cho bánh",
+    "nhom": "dat_banh",
+    "mac_dinh": "Phụ kiện cho bánh",
+    "nhieu_dong": false
+  },
+  "bo_khoi_gio": {
+    "ten": "Bỏ khỏi giỏ",
+    "nhom": "dat_banh",
+    "mac_dinh": "Bỏ khỏi giỏ",
+    "nhieu_dong": false
+  },
+  "them_so_luong_banh": {
+    "ten": "Đã thêm {so} bánh, giỏ có {tong} bánh",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đã thêm {so} bánh, giỏ có {tong} bánh",
+    "nhieu_dong": false
+  },
+  "quay_lai_chon_banh": {
+    "ten": "Quay lại chọn bánh",
+    "nhom": "dat_banh",
+    "mac_dinh": "Quay lại chọn bánh",
+    "nhieu_dong": false
+  },
+  "goi_ho_tro_dat_banh": {
+    "ten": "Gọi hỗ trợ đặt bánh",
+    "nhom": "dat_banh",
+    "mac_dinh": "Gọi hỗ trợ đặt bánh",
     "nhieu_dong": false
   }
 }

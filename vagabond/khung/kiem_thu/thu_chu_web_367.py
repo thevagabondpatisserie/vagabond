@@ -483,3 +483,45 @@ console.log(JSON.stringify({nutImg,hiddenApp,oaHref:oa.href,oaTarget:oa.target,f
     dung('chặn trước handler điều hướng',d['first']['capture'] and d['first']['stopped'] and d['first']['focus'])
     la('đổi link trong preview',d['href'],'https://example.com/new')
     la('đổi nhãn trong preview',d['button'],'Đặt món')
+
+
+@ca('#460 số lượng: thêm nhiều bánh tính cả phụ kiện, sửa và gộp không mất số lượng')
+def _so_luong_chi_tiet():
+    from vagabond.khung.kiem_thu.thu_trang_dat_banh import _chay
+    r = _chay('2026-10-11T08:00:00', r'''
+const c=CAKES[0],z=c.sizes[0];z.p=650000;TRUOC={[z.id]:10};TODAY={[z.id]:10};tabNow='today';
+renderSheet(c);doiSoLuongBanh(-1);const san=soLuongBanh;
+doiSoLuongBanh(1);toggleNum(2);toggleNum(3);EL('#s-wish').value='Mừng';EL('#s-nia').value='4';
+const cta=EL('#s-cta').textContent;addToCart();
+const them=JSON.parse(JSON.stringify(CART[0]));const tong=cartTotal();
+suaDongGio(0);const sua={qty:soLuongBanh,wish:EL('#s-wish').value,nia:EL('#s-nia').value,nums:picked_nums.slice()};
+doiSoLuongBanh(1);addToCart();const sauSua={qty:CART[0].qty,tong:cartTotal(),dong:CART.length};
+renderSheet(c);doiSoLuongBanh(1);toggleNum(2);toggleNum(3);EL('#s-wish').value='Mừng';EL('#s-nia').value='4';addToCart();
+RA({san,cta,them,tong,sua,sauSua,gop:{qty:CART[0].qty,dong:CART.length,tong:cartTotal()}});
+''')
+    la('không xuống dưới 1',r['san'],1)
+    dung('CTA tính đủ 2 bánh cùng nến', '1.368.000' in r['cta'])
+    la('đúng 2 bánh',r['them']['qty'],2)
+    la('tổng cả phụ kiện',r['tong'],1368000)
+    la('sửa khôi phục cấu hình',r['sua'],{'qty':2,'wish':'Mừng','nia':4,'nums':[2,3]})
+    la('sửa thay dòng cũ',r['sauSua'],{'qty':3,'tong':2052000,'dong':1})
+    la('gộp cộng đúng số đã chọn',r['gop'],{'qty':5,'dong':1,'tong':3420000})
+
+
+@ca('#460 số lượng: chặn vượt hạn mức kể cả sửa dòng, nhãn Editor được escape')
+def _so_luong_gioi_han():
+    from vagabond.khung.kiem_thu.thu_trang_dat_banh import _chay
+    r = _chay('2026-10-11T08:00:00', r'''
+const c=CAKES[0],z=c.sizes[0];TRUOC={[z.id]:3};TODAY={[z.id]:3};tabNow='today';
+renderSheet(c);doiSoLuongBanh(3);addToCart();const chanThem=CART.length;
+doiSoLuongBanh(-2);addToCart();suaDongGio(0);doiSoLuongBanh(2);addToCart();
+const chanSua=CART[0].qty;doiSoLuongBanh(-1);addToCart();
+window.vgbNhan={...(window.vgbNhan||{}),bo_khoi_gio:'<img src=x>',tang_so_luong:'" onfocus="bad'};
+drawCart();RA({chanThem,chanSua,sau:CART[0].qty,html:EL('#cartList').innerHTML});
+''')
+    la('thêm quá mức không tạo dòng',r['chanThem'],0)
+    la('sửa quá mức giữ dòng cũ',r['chanSua'],2)
+    la('sửa trong mức trừ chính dòng đang sửa',r['sau'],3)
+    dung('SVG dùng chung cho giỏ', '<svg aria-hidden="true"' in r['html'])
+    dung('nhãn chữ được escape', '&lt;img src=x&gt;' in r['html'] and '<img src=x>' not in r['html'])
+    dung('nhãn aria không tạo thuộc tính', '&quot; onfocus=&quot;bad' in r['html'] and ' onfocus="bad' not in r['html'])

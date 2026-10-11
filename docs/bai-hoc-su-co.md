@@ -1983,3 +1983,50 @@ phần `<dimension ref="A1"/>` trong sheet khai sai. openpyxl tin lời khai nê
 tệp; ca kiểm dựng xlsx thật có dimension sai. Bài học rộng hơn: khi người dùng
 gửi tệp "máy không nhận" thì in ba dòng đầu máy đọc được ra màn, lỗi này lộ
 ngay từ dòng đầu là trống.
+
+## 10/10/2026 - v589: bộ giả lập trang chỉ chờ setTimeout, ca xem trước ưu đãi treo
+
+Trang đặt bánh hỏi máy chủ mức giảm mỗi lần vẽ lại giỏ. Gọi thẳng `fetch` thì
+ca kiểm node đọc tóm tắt trước khi câu trả lời về, vì `CHO_XONG` trong
+`gia_lap_trang.js` chỉ chờ các việc đặt qua `setTimeout`. Không phải lỗi của
+trang mà là giới hạn của bộ giả lập, nhưng nó che được lỗi thật nếu ca kiểm
+"cho chắc" gọi thêm hàm. Cách làm: lời gọi mạng từ sự kiện vẽ lại đi qua
+`setTimeout` (cũng là debounce, bớt gọi máy chủ khi khách bấm liên tục), và
+mức giảm chỉ hiện khi khoá giỏ của câu trả lời trùng giỏ hiện tại. Đột biến
+bỏ kiểm khoá giỏ lúc đầu KHÔNG làm đổ ca nào; đã thêm ca đổi giỏ rồi đọc tóm
+tắt NGAY, trước khi máy chủ trả lời.
+
+Thêm (Codex #460): hạn mức chương trình (tổng lượt, lượt mỗi ngày) soát ở
+bước tính nhưng ghi lượt SAU khi gọi Pancake, nên hai đơn tranh lượt cuối cùng
+lọt. Cách phòng: trong khoá ghi, commit trước rồi khoá hàng chương trình
+(FOR UPDATE), tính lại, ghi lượt, commit, rồi mới gọi dịch vụ ngoài; bị từ chối
+thì trả lượt. Commit trước khoá là bắt buộc: trong REPEATABLE READ, lần đọc sau
+khoá vẫn thấy ảnh chụp cũ từ đầu yêu cầu nếu giao dịch đã đọc gì trước đó.
+Lượt ghi theo đúng ngày đã dùng để soát (ngày nhận bánh), không theo hôm nay.
+Vòng 2 cùng PR: (1) so lần tính lại bằng CẢ số tiền lẫn bộ chương trình đã
+khoá, vì hai chương trình bằng giá có thể đổi chỗ cho nhau; (2) phép giữ
+lượt trước dịch vụ ngoài phải là phép CHẶT (lỗi là ném, rollback, không gửi),
+không dùng lại hàm ghi vết kiểu "lỗi chỉ log"; (3) phép trả lại khi bị từ
+chối có thể lỗi, nên cần việc định kỳ dọn theo trạng thái đơn chứ không chỉ
+một lần thử. Và: chạy đột biến ở tiền cảnh mà bị cắt giữa chừng thì tệp có
+thể kẹt ở bản đột biến; luôn chạy đột biến ở nền và soát `git diff` sau đó.
+Vòng 3: khoá chỉ có tác dụng khi MỌI đường ghi lượt cùng xin khoá đó; quầy
+và web dùng chung chương trình nên quầy cũng phải khoá rồi ghi lượt trước
+commit (`tinh_co_khoa`). "Lấy bộ có lợi nhất" phải thử cả bộ chương trình
+cộng dồn được, không chỉ tất cả hoặc từng cái lẻ.
+Vòng 4: "trả lượt" là huỷ mềm (ô `da_tra`), không xoá dòng (QT-20); mọi chỗ
+đếm hạn mức, báo cáo và việc dọn định kỳ phải bỏ dòng đã trả.
+
+## 10/10/2026 - social footer dựng từ hai nguồn (Issue367)
+
+Footer banh.html có .f-row tĩnh và apDungCauHinh thêm social vào fLienHe.
+Bỏ một nguồn chưa đáp ứng yêu cầu bỏ lặp. Sửa cả hai renderer, giữ cấu hình
+social dùng ở nơi khác. Kiểm đủ5social cùng điện thoại/email và chính sách
+để đảm bảo social không quay lại khi API cấu hình về.
+
+## 11/10/2026 - giao diện duyệt phải có hành vi thật (PR460)
+
+Thêm bộ đếm trước nút mua phải cập nhật cả CTA, gộp dòng, sửa dòng, giới hạn
+số nhận và analytics; chỉ vẽ +/- dễ làm khách chọn 2 nhưng giỏ nhận 1. Kiểm
+chuỗi thêm-sửa-gộp với nến tính theo mỗi bánh. CSS kiểm ở 320/390/1440 và đo
+vùng bấm: lớp `.cart .qty` thắng `.qty` dù stylesheet mới nạp sau.

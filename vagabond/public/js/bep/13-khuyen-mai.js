@@ -529,6 +529,7 @@ function kmHtmlCt(ds) {
       (x.can_otp ? kmChipNho('🔐 cần OTP', '#fef2f2', '#b3261e') : '') +
       (x.bat && !x.dung_duoc ? kmChipNho(h(x.ly_do), '#fff7ed', '#9a3412') : '') +
       (x.da_dung ? kmChipNho('đã dùng ' + x.da_dung, '#f6f7f9', '#6b7280') : '') +
+      (x.hien_web ? kmChipNho(x.ly_do_web ? '🌐 hiện web, chỉ dùng tại quầy' : '🌐 hiện web', '#e0f2fe', '#075985') : '') +
       '</div>' +
       '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px">' + kmChipPhamVi(x) + '</div>' +
       '</div>' +
@@ -864,6 +865,9 @@ async function kmSheetCtkm(ma) {
       kmO('TỔNG SỐ LƯỢT CẢ CHƯƠNG TRÌNH', 'kmTongLan', k.so_lan_toi_da, '0', 'number') +
       kmOta('GHI CHÚ', 'kmGhiChu', k.ghi_chu, '');
 
+    /* --- website (v589): ERP la nguon duy nhat cua uu dai tren web --- */
+    html += kmHtmlWeb(k);
+
     html += '<div style="display:flex;gap:7px;margin:8px 0 4px">' +
       posChipNut('data-kmbatct="1"', k.bat ? '● Chương trình đang bật' : '○ Chương trình đang tắt', !!k.bat) + '</div>';
 
@@ -897,6 +901,7 @@ async function kmSheetCtkm(ma) {
     if (document.getElementById('kmLanKhach')) k.lan_moi_khach = kmN('kmLanKhach');
     if (document.getElementById('kmTongLan')) k.so_lan_toi_da = kmN('kmTongLan');
     if (document.getElementById('kmGhiChu')) k.ghi_chu = kmV('kmGhiChu');
+    if (document.getElementById('kmWebMoTa')) k.web_mo_ta = kmV('kmWebMoTa');
     box.querySelectorAll('[data-bac]').forEach(function (o) {
       var i = parseInt(o.getAttribute('data-bac'), 10);
       if (kmSua.dong_bac[i]) kmSua.dong_bac[i][o.getAttribute('data-f')] = parseFloat(o.value) || 0;
@@ -920,6 +925,10 @@ async function kmSheetCtkm(ma) {
     bat('[data-kmotp]', function () { kmSua.can_otp = kmSua.can_otp ? 0 : 1; });
     bat('[data-kmcd]', function () { kmSua.cong_don = kmSua.cong_don ? 0 : 1; });
     bat('[data-kmbatct]', function () { kmSua.bat = kmSua.bat ? 0 : 1; });
+    bat('[data-kmweb]', function () { kmSua.hien_web = kmSua.hien_web ? 0 : 1; });
+    bat('[data-kmwebbo]', function () { kmSua.web_anh = ''; });
+    var wa = box.querySelector('[data-kmwebanh]');
+    if (wa) wa.onclick = function () { thu(); kmChonAnhWeb(function (url) { kmSua.web_anh = url; ve(); }); };
     bat('[data-kmkenh]', function (o) {
       var n = o.getAttribute('data-kmkenh');
       var ds = (kmSua.kenh || '').split('\n').filter(function (x) { return x.trim(); });
@@ -984,6 +993,76 @@ async function kmSheetCtkm(ma) {
   document.body.appendChild(ov);
 }
 
+/* v589 (anh Viet 09/10/2026): uu dai tren website lay tu ERP. Tich "Hien tren
+   website" la trang dat banh tu hien khi chuong trinh bat va con han; tat
+   chuong trinh la web tu an. Chuong trinh nao chi dung duoc tai quay (tang
+   mon, can OTP, theo hang khach, khong mo kenh Website) thi web van hien de
+   khach biet, kem cau "chi dung tai cua hang", va trang dat banh khong ap. */
+var KM_WEB_CACH = ['Giam tong hoa don', 'Giam gia mon', 'Mua A giam B', 'Dong gia', 'Giam luy ke'];
+function kmLyDoWeb(k) {
+  if (KM_WEB_CACH.indexOf(k.cach_thuc) < 0) return 'Chương trình tặng món chỉ dùng tại cửa hàng.';
+  if (k.can_otp) return 'Chương trình cần mã OTP quản lý nên chỉ dùng tại cửa hàng.';
+  if ((k.doi_tuong || 'Moi khach') !== 'Moi khach') return 'Chương trình theo hạng hoặc nhóm khách chỉ dùng tại cửa hàng.';
+  var kenh = (k.kenh || '').split('\n').map(function (x) { return x.trim(); }).filter(Boolean);
+  if (kenh.length && kenh.indexOf('Website') < 0) return 'Chương trình không mở cho kênh Website.';
+  var quay = (k.quay || '').split('\n').map(function (x) { return x.trim().toUpperCase(); }).filter(Boolean);
+  if (quay.length && quay.indexOf('SALES') < 0) return 'Chương trình chỉ áp dụng tại quầy.';
+  return '';
+}
+function kmHtmlWeb(k) {
+  var ly = kmLyDoWeb(k);
+  var html = '<div style="font-size:12.5px;color:#6b7280;font-weight:700;margin:14px 0 6px">WEBSITE</div>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:8px">' +
+    posChipNut('data-kmweb="1"', k.hien_web ? '🌐 Đang hiện trên website' : '🌐 Không hiện trên website', !!k.hien_web) + '</div>';
+  if (!k.hien_web) {
+    return html + '<div style="font-size:11.5px;color:#98a2b3;margin-bottom:10px;line-height:1.5">Bật để trang đặt bánh tự hiện ưu đãi này. Không cần nhập lại bên trình biên tập web.</div>';
+  }
+  html += '<div style="font-size:12px;line-height:1.55;margin-bottom:10px;padding:9px 11px;border-radius:9px;' +
+    (ly ? 'background:#fff7ed;color:#9a3412">Khách thấy ưu đãi trên web nhưng đặt bánh trên web KHÔNG áp được. ' + h(ly)
+        : 'background:#ecfdf3;color:#067647">Khách đặt bánh trên web ' +
+          (k.cach_ma === 'Ma co dinh' ? 'gõ mã ' + h(k.ma_co_dinh || '...') + ' ở bước thanh toán là được giảm.'
+            : k.cach_ma === 'Ma dung mot lan' ? 'gõ mã riêng tiệm gửi là được giảm.' : 'được tự giảm khi đơn đủ điều kiện.')) +
+    ' Web hiện khi chương trình đang bật và còn hạn, tắt chương trình là web tự ẩn.</div>' +
+    kmOta('MÔ TẢ TRÊN WEBSITE', 'kmWebMoTa', k.web_mo_ta, 'Câu giới thiệu ngắn cho khách. Mức giảm, hạn và điều kiện máy tự ghi.') +
+    '<div style="font-size:12.5px;color:#6b7280;font-weight:700;margin:8px 0 6px">ẢNH TRÊN WEBSITE</div>' +
+    '<div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">' +
+    (k.web_anh ? '<img src="' + h(k.web_anh) + '" alt="" style="width:88px;height:56px;object-fit:cover;border-radius:8px">' : '') +
+    '<button class="btn gh" data-kmwebanh="1" style="margin:0;min-height:44px">' + (k.web_anh ? 'Đổi ảnh' : 'Chọn ảnh') + '</button>' +
+    (k.web_anh ? '<button class="btn gh" data-kmwebbo="1" style="margin:0;min-height:44px">Bỏ ảnh</button>' : '') + '</div>';
+  return html;
+}
+function kmChonAnhWeb(xong) {
+  var inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = 'image/png,image/jpeg,image/webp';
+  inp.onchange = async function () {
+    var f = inp.files && inp.files[0];
+    inp.remove();
+    if (!f) return;
+    busy(true);
+    try {
+      var fd = new FormData();
+      fd.append('file', f, f.name);
+      /* Anh uu dai la tai nguyen cong khai cua trang khach. */
+      fd.append('is_private', '0');
+      fd.append('folder', 'Home');
+      var hd = {};
+      hd['X-Frappe-' + 'CSRF-' + 'Token'] = frappe.csrf_token;
+      var r = await fetch('/api/method/upload_file', { method: 'POST', headers: hd, body: fd });
+      var j = await r.json();
+      if (!r.ok || !j.message || !j.message.file_url) throw new Error('Không tải được ảnh lên');
+      busy(false);
+      xong(j.message.file_url);
+      toast('Đã chọn ảnh, bấm Lưu chương trình để áp dụng');
+    } catch (e) {
+      busy(false);
+      baoTin((e && e.message) || 'Không tải được ảnh lên');
+    }
+  };
+  inp.style.display = 'none';
+  document.body.appendChild(inp);
+  inp.click();
+}
+
 function kmHtmlDongMon(k) {
   var canDk = (k.cach_thuc === 'Mua A giam B' || k.cach_thuc === 'Mua X tang Y');
   var html = '<div style="font-size:12.5px;color:#6b7280;font-weight:700;margin:14px 0 6px">MÓN' +
@@ -1038,6 +1117,8 @@ async function kmChonMon(onPick, onDong) {
 function kmDsKenh() {
   var ds = ((CFGBH || {}).nguon || []).map(function (n) { return n.v; });
   if (ds.indexOf('Pancake') < 0) ds.unshift('Pancake');
+  /* v589: don dat banh tren web mang nguon Website (khuyen_mai.NGUON_WEB). */
+  if (ds.indexOf('Website') < 0) ds.push('Website');
   return ds;
 }
 

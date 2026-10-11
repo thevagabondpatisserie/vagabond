@@ -335,10 +335,6 @@ body.has-bar .sheet,body.has-bar main{padding-bottom:86px}
 footer{border-top:1px solid var(--line-2);padding:52px 0 40px;margin-top:20px}
 .f-big{font-family:'Vagabond Sans',var(--sans);font-size:clamp(36px,9vw,78px);line-height:1;text-transform:uppercase;color:var(--cyan)}
 .f-big em{font-family:var(--serif);font-style:italic;text-transform:none;color:var(--paper);opacity:.9}
-.f-row{display:grid;gap:12px;margin-top:30px;font-size:13px;color:var(--fog)}
-.f-row a{display:flex;align-items:center;gap:11px}
-.f-row a:hover{color:var(--paper)}
-.f-row svg{width:14px;height:14px;stroke:var(--cyan);fill:none;stroke-width:1.5;flex:0 0 auto}
 .f-note{margin-top:32px;padding-top:20px;border-top:1px solid var(--line-2);font-size:10.5px;letter-spacing:.1em;color:var(--fog-2);line-height:1.9;text-transform:uppercase}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 
@@ -420,6 +416,8 @@ html body .h1 em#bigDate{display:none}
 </style>
 <link rel="stylesheet" href="/assets/vagabond/web_order/cua-hang.css?v=39d9d61486e9">
 <script src="/assets/vagabond/web_order/chu.js?v=f83c481e0a52"></script><link rel="stylesheet" href="/assets/vagabond/web_order/kenh-noi.css?v=86dc663f411f"><link rel="stylesheet" href="/assets/vagabond/web_order/chuyen-muc.css?v=92ea2d87302d">
+<link rel="stylesheet" href="/assets/vagabond/web_order/thao-tac.css?v=c752d8710a26">
+<script src="/assets/vagabond/web_order/thao-tac.js?v=5ff2f2d59d4e" defer></script>
 </head>
 <body>
 <div class="sky" aria-hidden="true">
@@ -567,13 +565,6 @@ html body .h1 em#bigDate{display:none}
 <section class="wrap cw-khung" id="cuaHangWeb" hidden aria-labelledby="cwTieuDe"><h2 class="cw-tieu-de" id="cwTieuDe"><span data-vgb-chu="cua_hang_tieu_de">Ghé cửa hàng</span></h2><div class="cw-ds" id="cuaHangDs"></div></section>
 <div data-vgb-vi-tri="cuoi_trang" aria-label="Câu chuyện Vagabond" data-vgb-aria-label="dat_banh_b69802262"></div>
 <footer><div class="wrap">
-  <div class="f-big"><span data-vgb-chu="dat_banh_f98cd5e01">Chúng tôi mong được phục vụ cho quý khách</span></div>
-  <div class="f-row">
-    <a href="https://m.me/thevagabond.saigon" target="_blank" data-vgb-mxh="messenger"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9.6 9.6 0 0 1-2.8-.4L4 21l1.4-4a8.2 8.2 0 0 1-1.4-4.6C4 7.3 7.9 3.5 12.5 3.5S21 7 21 11.5Z"/></svg><span data-vgb-chu="dat_banh_913466c0d">The Vagabond Pâtisserie</span> &amp; <span data-vgb-chu="dat_banh_7d6408613">Café</span></a>
-    <a href="https://instagram.com/thevagabond.patisserie" target="_blank" data-vgb-mxh="instagram"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/></svg><span data-vgb-chu="dat_banh_823758edf">@thevagabond.patisserie</span></a>
-    <a href="https://www.tiktok.com/@thevagabond.patisserie" target="_blank" data-vgb-mxh="tiktok"><svg viewBox="0 0 24 24"><path d="M10 3v11.3a3.2 3.2 0 1 1-2.5-3.1"/><path d="M10 3c.5 2.7 2.4 4.5 5.2 4.7"/></svg><span data-vgb-chu="dat_banh_823758edf">@thevagabond.patisserie</span></a>
-    <a href="tel:0931224334"><svg viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.2a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2Z"/></svg>0931 224 334</a>
-  </div>
   <div class="f-note"><span id="fNotePhi"><span data-vgb-chu="dat_banh_8b550092a">Giá đã gồm thuế GTGT, chưa gồm phí vận chuyển</span></span><br><span data-vgb-chu="dat_banh_4c203e5ec">Giá và tồn kho thay đổi theo mùa và nguyên liệu nhập khẩu</span></div>
   <!-- #367: phap nhan viet thang trong HTML de bo kiem cua Meta doc duoc ca
        khi khong chay JavaScript. Lien he va chinh sach nap tu may chu. -->
@@ -594,16 +585,16 @@ html body .h1 em#bigDate{display:none}
 <div class="toast" id="toast"></div>
 
 <!-- ============ NHAP THONG TIN DON ============ -->
-<section class="co" id="checkout">
+<section class="co" id="checkout" role="dialog" aria-modal="true" aria-labelledby="co-title">
   <div class="co-top"><div class="wrap in">
-    <button class="bk" onclick="closeCo()"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
-    <b><span data-vgb-chu="dat_banh_74ed5c7f8">Thông tin đơn hàng</span></b>
+    <button class="bk" type="button" aria-label="Quay lại chọn bánh" data-vgb-aria-label="quay_lai_chon_banh" onclick="closeCo()"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <b id="co-title"><span data-vgb-chu="dat_banh_74ed5c7f8">Thông tin đơn hàng</span></b>
   </div></div>
   <div class="wrap" style="padding-bottom:40px">
 
     <div class="sec"><span class="n">01</span><h3><span data-vgb-chu="dat_banh_f257f0ff4">Giỏ bánh</span></h3><i class="rule"></i></div>
     <ul class="cart" id="cartList"></ul>
-    <button class="cart-add" onclick="closeCo()"><span data-vgb-chu="dat_banh_7ddb8bc3b">+ Chọn thêm bánh</span></button>
+    <button class="cart-add" onclick="closeCo()"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg><span data-vgb-chu="dat_banh_7ddb8bc3b">Chọn thêm bánh</span></button>
 
     <div class="sec"><span class="n">02</span><h3><span data-vgb-chu="dat_banh_73b0921c0">Ngày và giờ nhận</span></h3><i class="rule"></i></div>
     <!-- Khach da chon lich o ngoai roi thi cho nay chi tom tat lai, bam Thay
@@ -681,6 +672,13 @@ html body .h1 em#bigDate{display:none}
     <div class="sec"><span class="n">09</span><h3><span data-vgb-chu="dat_banh_9d5a6614c">Thanh toán</span></h3><i class="rule"></i></div>
     <div id="payList"></div>
 
+    <!-- v589: mã ưu đãi lấy từ ERP (chương trình khuyến mãi bật Hiện trên website). -->
+    <div class="fld"><label><span data-vgb-chu="dat_banh_ma_uu_dai">Mã ưu đãi</span></label>
+      <div class="two"><input id="f-ma" autocomplete="off" autocapitalize="characters" maxlength="40" placeholder="Ví dụ SINHNHAT10" data-vgb-placeholder="dat_banh_ma_uu_dai_goi" onkeydown="if(event.key==='Enter'){event.preventDefault();apMaUuDai();}">
+      <button class="pick" id="btnMa" type="button" onclick="apMaUuDai()" style="min-height:44px"><b><span data-vgb-chu="dat_banh_ap_ma">Áp dụng</span></b></button></div>
+      <div class="hint" id="maHint"></div>
+    </div>
+
     <div class="sum" id="sum"></div>
     <div class="warn" id="warn"></div>
 
@@ -704,9 +702,9 @@ html body .h1 em#bigDate{display:none}
      ba muc do khong lien quan gi toi mot hop trung thu. Nen hang mua vu co
      bang rieng, nhung dung lai y nguyen khung .sheet va cac lop .s-head,
      .sec, .cta de giu dung mot ngon ngu thiet ke. -->
-<section class="sheet mua" id="sheetMua">
+<section class="sheet mua" id="sheetMua" role="dialog" aria-modal="true" aria-labelledby="sm-name">
   <div class="wrap"><div class="hero-img">
-    <button class="close" onclick="dongSheetMua()"><svg viewBox="0 0 24 24"><path d="M5 5l14 14M19 5L5 19"/></svg></button>
+    <button class="close" type="button" aria-label="Đóng chi tiết bánh" data-vgb-aria-label="dong_chi_tiet_banh" onclick="dongSheetMua()"><svg viewBox="0 0 24 24"><path d="M5 5l14 14M19 5L5 19"/></svg></button>
     <img id="sm-img" alt="">
   </div></div>
   <div class="wrap">
@@ -723,46 +721,52 @@ html body .h1 em#bigDate{display:none}
 
     <div class="cta">
       <button class="btn" id="sm-cta" onclick="themTuSheetMua()"><span data-vgb-chu="dat_banh_b742ca205">Thêm vào giỏ</span></button>
-      <a class="tel" href="tel:0931224334"><svg viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.2a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2Z"/></svg></a>
+      <a class="tel" aria-label="Gọi hỗ trợ đặt bánh" data-vgb-aria-label="goi_ho_tro_dat_banh" href="tel:0931224334"><svg viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.2a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2Z"/></svg></a>
     </div>
   </div>
 </section>
 
-<section class="sheet" id="sheet">
+<section class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="s-name">
   <div class="wrap"><div class="hero-img">
-    <button class="close" onclick="closeSheet()"><svg viewBox="0 0 24 24"><path d="M5 5l14 14M19 5L5 19"/></svg></button>
+    <button class="close" type="button" aria-label="Đóng chi tiết bánh" data-vgb-aria-label="dong_chi_tiet_banh" onclick="closeSheet()"><svg viewBox="0 0 24 24"><path d="M5 5l14 14M19 5L5 19"/></svg></button>
     <img id="s-img" alt="">
   </div></div>
   <div class="wrap">
     <div class="thumbs" id="s-thumbs"></div>
     <div class="s-head"><h2 id="s-name"></h2><div id="s-avail"></div></div>
-    <div class="desc" id="s-desc"></div>
-    <div id="s-layers"></div>
+    <details class="tuy-chon" id="s-thong-tin">
+      <summary><span data-vgb-chu="chi_tiet_huong_vi">Mô tả và hương vị</span><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg></summary>
+      <div class="desc" id="s-desc"></div><div id="s-layers"></div>
+    </details>
 
     <div class="sec"><span class="n">01</span><h3><span data-vgb-chu="dat_banh_0e619c4c4">Giá bánh</span></h3><i class="rule"></i></div>
     <div class="sizes" id="s-sizes"></div>
     <div class="fine"><span data-vgb-chu="dat_banh_c02f89b47">Giá đã gồm thuế GTGT. Chưa gồm phí vận chuyển nếu có.</span></div>
 
-    <div class="sec"><span class="n">02</span><h3><span data-vgb-chu="dat_banh_970e693a8">Lời chúc in trên cờ</span></h3><i class="rule"></i></div>
-    <div class="fld"><input id="s-wish" maxlength="60" placeholder="Happy Birthday..." oninput="wishCount()" data-vgb-placeholder="dat_banh_ed04b0946">
+    <div class="chon-so-luong"><span id="s-qty-label" data-vgb-chu="so_luong_banh">Số lượng bánh</span><div class="qty"><button type="button" id="s-minus" onclick="doiSoLuongBanh(-1)" aria-label="Giảm số lượng" data-vgb-aria-label="giam_so_luong"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button><output id="s-qty" aria-labelledby="s-qty-label" aria-live="polite">1</output><button type="button" onclick="doiSoLuongBanh(1)" aria-label="Tăng số lượng" data-vgb-aria-label="tang_so_luong"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg></button></div></div>
+    <div class="sec"><span class="n">02</span><h3 id="s-wish-label"><span data-vgb-chu="dat_banh_970e693a8">Lời chúc in trên cờ</span></h3><i class="rule"></i></div>
+    <div class="fld"><input id="s-wish" aria-labelledby="s-wish-label" maxlength="60" placeholder="Happy Birthday..." oninput="wishCount()" data-vgb-placeholder="dat_banh_ed04b0946">
       <div class="hint"><span id="s-wishN">0</span><span data-vgb-chu="dat_banh_05faf7b4b">/60 ký tự. Nội dung sẽ được in thành cờ, khi vào tiệc thì cắm lên bánh.</span></div>
     </div>
 
+    <details class="tuy-chon" id="s-phu-kien">
+      <summary><span data-vgb-chu="phu_kien_cho_banh">Phụ kiện cho bánh</span><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg></summary>
     <div class="sec"><span class="n">03</span><h3><span data-vgb-chu="dat_banh_2320148b6">Phụ kiện tặng kèm</span></h3><i class="rule"></i></div>
     <ul class="acc" id="s-acc"></ul>
 <h4 data-vgb-chu="yeu_cau_dung_cu">Dụng cụ tặng kèm theo yêu cầu</h4><div class="dung-cu"><label><span data-vgb-chu="so_nia">Số nĩa gỗ</span><input id="s-nia" type="number" min="0" max="30" value="0"></label><label><span data-vgb-chu="so_dia">Số dĩa giấy</span><input id="s-dia" type="number" min="0" max="30" value="0"></label></div>
 
     <div class="sec"><span class="n">04</span><h3><span data-vgb-chu="dat_banh_b009ad199">Phụ kiện mua thêm</span></h3><i class="rule"></i></div>
-    <div class="addon-lead"><span data-vgb-chu="dat_banh_16c989c4d">Chọn thêm nếu quý khách cần, em ghi luôn vào đơn.</span></div>
+    <div class="addon-lead"><span data-vgb-chu="dat_banh_16c989c4d">Quý khách chọn thêm phụ kiện cần dùng. Chúng tôi sẽ ghi nhận cùng đơn bánh.</span></div>
     <div class="numlab"><span data-vgb-chu="dat_banh_909dfa9ae">Nến số</span> <b><span data-vgb-chu="dat_banh_87aff9ee8">17.000 đ / số</span></b></div>
     <div class="nums" id="s-nums"></div>
     <div class="numpick" id="s-numpick"></div>
     <ul class="addons" id="s-addons"></ul>
-    <div class="addsum" id="s-addsum"></div>
+    </details>
+    <div class="addsum" id="s-addsum" aria-live="polite"></div>
 
     <div class="cta">
       <button class="btn" id="s-cta" onclick="addToCart()"><span data-vgb-chu="dat_banh_b742ca205">Thêm vào giỏ</span></button>
-      <a class="tel" href="tel:0931224334"><svg viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.2a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2Z"/></svg></a>
+      <a class="tel" aria-label="Gọi hỗ trợ đặt bánh" data-vgb-aria-label="goi_ho_tro_dat_banh" href="tel:0931224334"><svg viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.2a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2Z"/></svg></a>
     </div>
   </div>
 </section>
@@ -797,6 +801,8 @@ const CONFIG = {
   goiYApi      : "/api/method/vagabond.dia_chi.goi_y_dia_chi",
   chiTietApi   : "/api/method/vagabond.dia_chi.chi_tiet_dia_chi",
   taoDonApi    : "/api/method/vagabond.don_hang.tao_don",
+  /* v589: hoi may chu gio nay duoc giam bao nhieu (chi de hien). */
+  uuDaiApi     : "/api/method/vagabond.don_hang.xem_uu_dai",
   /* #367: cau hinh cong khai (Pixel ID, nguong mien phi giao, lien he, trang
      chinh sach da xuat ban, tam khu vuc). KHONG bao gio co token CAPI. */
   cauHinhApi   : "/api/method/vagabond.don_web.cau_hinh_web"
@@ -1438,7 +1444,13 @@ function renderCakes(){
 }
 
 /* ---------- chi tiet ---------- */
-let cur=null,curSize=null;
+// #460: cùng một lưới 24, nét 1.5 cho thêm/giảm/sửa/bỏ; nhãn đi qua Editor.
+function bieuTuongNut(loai){
+  const duong={cong:'M5 12h14M12 5v14',tru:'M5 12h14',sua:'m15 5 4 4M4 20l4-1L20 7l-4-4L4 15v5Z',bo:'M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 10v7M14 10v7',chon:'m5 12 4 4 10-10'};
+  return '<svg aria-hidden="true" viewBox="0 0 24 24"><path d="'+duong[loai]+'"/></svg>';
+}
+let cur=null,curSize=null,soLuongBanh=1;
+function doiSoLuongBanh(d){soLuongBanh=Math.max(1,soLuongBanh+d);updateCta();}
 let dongDangSua=-1;
 function kichThuocDangBan(c){const bang=tabNow==='today'?TODAY:TRUOC;return Object.keys(bang).length?c.sizes.filter(s=>bang[s.id]>0):c.sizes;}
 function openSheet(k){
@@ -1467,7 +1479,8 @@ function vgbChonAnh(i) {
 }
 
 function renderSheet(c){
-  cur=c;
+  cur=c;soLuongBanh=1;
+  $('#s-thong-tin').open=false;$('#s-phu-kien').open=false;
   const avail=kichThuocDangBan(c);
   curSize=avail[0]||c.sizes[0];
   $('#s-nia').value=0;$('#s-dia').value=0;
@@ -1519,10 +1532,10 @@ function drawAddons(){
   }).join('');
   const np=$('#s-numpick');
   np.innerHTML = picked_nums.length
-    ? ("<span>" + htmlChuWeb("dat_banh_21e08aca8", "Số trên bánh") + "</span>" + "<span class=\"big\">" + "" + (picked_nums.join('')) + "</span>" + "\n       " + "<button class=\"x\" onclick=\"clearNums()\">" + htmlChuWeb("dat_banh_82339c0a8", "Xoá") + "</button>")
+    ? ("<span>" + htmlChuWeb("dat_banh_21e08aca8", "Số trên bánh") + "</span>" + "<span class=\"big\">" + "" + (picked_nums.join('')) + "</span>" + "\n       " + "<button class=\"x\" onclick=\"clearNums()\">" + bieuTuongNut("bo") + htmlChuWeb("dat_banh_82339c0a8", "Xoá") + "</button>")
     : ("<span style=\"color:var(--fog-2)\">" + htmlChuWeb("dat_banh_16dd7180d", "Bấm lần lượt từng số, ví dụ bấm 2 rồi 6 được số 26.") + "</span>");
   $('#s-addons').innerHTML = ADDONS.map(a=>`<li><button class="${picked_add.has(a.id)?'on':''}" onclick="toggleAdd('${a.id}')">
-      <span class="bx">${picked_add.has(a.id)?'✓':''}</span>
+      <span class="bx">${picked_add.has(a.id)?bieuTuongNut('chon'):''}</span>
       <span class="ph"><img src="${a.img}" alt=""></span>
       <span class="nm">${esc(a.n)}</span><span class="pr">${vnd(a.p)}</span></button></li>`).join('');
   const c=chosenAddons(); const box=$('#s-addsum');
@@ -1556,20 +1569,20 @@ function addToCart(){
   if(!cur||!curSize) return;
   if(!kichThuocDangBan(cur).some(s=>s.id===curSize.id)){toast(chuWeb('het_size','Kích thước này hiện chưa nhận đặt. Quý khách chọn kích thước khác.'));return;}
   const gh=gioiHanNhan(curSize.id);
-  if(gh&&daCoTrongGio(curSize.id)-(dongDangSua>=0&&CART[dongDangSua]?.id===curSize.id?CART[dongDangSua].qty:0)+(dongDangSua>=0?CART[dongDangSua].qty:1)>gh){
+  if(gh&&daCoTrongGio(curSize.id)-(dongDangSua>=0&&CART[dongDangSua]?.id===curSize.id?CART[dongDangSua].qty:0)+soLuongBanh>gh){
     toast((chuWeb("dat_banh_04267831d", "Size này chỉ còn nhận {gia_tri_a} bánh trong 3 ngày tới. Cần nhiều hơn quý khách gọi 0931 224 334", {gia_tri_a:(gh)})));
     return;
   }
   const o={ k:cur.k, img:cur.img, id:curSize.id, cm:curSize.cm, price:curSize.p, nguon:tabNow==='today'?'today':'order',
-            wish:($('#s-wish').value||'').trim(), adds:chosenAddons(), qty:dongDangSua>=0?CART[dongDangSua].qty:1,
+            wish:($('#s-wish').value||'').trim(), adds:chosenAddons(), qty:soLuongBanh,
             dung_cu:{nia:Math.min(30,Math.max(0,parseInt($('#s-nia').value)||0)),dia:Math.min(30,Math.max(0,parseInt($('#s-dia').value)||0))} };
   if(dongDangSua>=0){CART[dongDangSua]=o;dongDangSua=-1;drawBar();drawCart();nav('#/gio-hang',true);toast(chuWeb('gio_da_sua','Đã cập nhật bánh trong giỏ'));return;}
   const key=cartKey(o);
   const hit=CART.find(x=>cartKey(x)===key);
-  if(hit) hit.qty++; else CART.push(o);
+  if(hit) hit.qty+=o.qty; else CART.push(o);
   drawBar(true); drawCart();
-  suKien('AddToCart', {content_ids:[o.id], content_type:'product', value:lineUnit(o), currency:'VND'});
-  toast(hit?(chuWeb("dat_banh_9bebfe783", "Thêm 1 bánh nữa, giỏ có {gia_tri_a} bánh", {gia_tri_a:(cartCount())})):(chuWeb("dat_banh_01548bfbc", "Đã thêm {gia_tri_a} vào giỏ", {gia_tri_a:(tenMonGio(o))})));
+  suKien('AddToCart', {content_ids:[o.id], content_type:'product', value:lineUnit(o)*o.qty, currency:'VND'});
+  toast(hit?(chuWeb("them_so_luong_banh", "Đã thêm {so} bánh, giỏ có {tong} bánh", {so:o.qty,tong:cartCount()})):(chuWeb("dat_banh_01548bfbc", "Đã thêm {gia_tri_a} vào giỏ", {gia_tri_a:(tenMonGio(o))})));
   closeSheet();
 }
 function cartQty(i,d){
@@ -1602,7 +1615,14 @@ function drawCart(){
   el.innerHTML=CART.map((o,i)=>{
     const ex=[ o.dung_cu&&(o.dung_cu.nia||o.dung_cu.dia)?htmlChuWeb("dung_cu_gio","{nia} nĩa gỗ, {dia} dĩa giấy",{nia:o.dung_cu.nia,dia:o.dung_cu.dia}):'', o.wish?(htmlChuWeb("dat_banh_1970655ae", "Lời chúc:") + " " + "<em>" + "" + (esc(o.wish)) + "</em>"):'',
                o.adds.length?(htmlChuWeb("dat_banh_2c04193c6", "Thêm: {gia_tri_a}", {gia_tri_a:(o.adds.map(a=>a.n).join(', '))})):'' ].filter(Boolean).join('<br>');
-    return ("<li>" + "\n      " + "<div class=\"im\">" + "<img src=\"" + (o.img) + "\" alt=\"\">" + "</div>" + "\n      " + "<div class=\"bd\">" + "\n        " + "<div class=\"t\">" + "" + (esc(chuMonWeb(o.id,'ten',o.k))) + "</div>" + "\n        " + "<div class=\"s\">" + htmlChuWeb("dat_banh_7498bc8a8", "Ø {gia_tri_a}cm · mã {gia_tri_b}", {gia_tri_a:(o.cm), gia_tri_b:(o.id)}) + "</div>" + "\n        " + (ex?`<div class="ex">${ex}</div>`:'') + "\n      " + "</div>" + "\n      " + "<div class=\"rt\">" + (o.cm?`<button class="sua-gio" onclick="suaDongGio(${i})">${htmlChuWeb("sua_banh","Sửa bánh")}</button>`:'') + "\n        " + "<div class=\"p\">" + "" + (vnd(lineUnit(o)*o.qty)) + "</div>" + "\n        " + "<div class=\"qty\">" + "<button onclick=\"cartQty(" + (i) + ",-1)\">" + "−" + "</button>" + "<span>" + "" + (o.qty) + "</span>" + "<button onclick=\"cartQty(" + (i) + ",1)\">" + "+" + "</button>" + "</div>" + "\n        " + "<button class=\"rm\" onclick=\"cartRemove(" + (i) + ")\">" + htmlChuWeb("dat_banh_15ec2c1bb", "Bỏ") + "</button>" + "\n      " + "</div>" + "</li>");
+    return `<li><div class="im"><img src="${esc(o.img)}" alt=""></div>
+      <div class="bd"><div class="t">${esc(chuMonWeb(o.id,'ten',o.k))}</div>
+        <div class="s">${htmlChuWeb('dat_banh_7498bc8a8','Ø {gia_tri_a}cm · mã {gia_tri_b}',{gia_tri_a:o.cm,gia_tri_b:o.id})}</div>${ex?`<div class="ex">${ex}</div>`:''}</div>
+      <div class="rt">${o.cm?`<button class="sua-gio" onclick="suaDongGio(${i})">${bieuTuongNut('sua')}${htmlChuWeb('sua_banh','Sửa bánh')}</button>`:''}
+        <div class="p">${vnd(lineUnit(o)*o.qty)}</div><div class="qty">
+          <button ${o.qty<=1?'disabled':''} aria-label="${htmlChuWeb('giam_so_luong','Giảm số lượng')}" onclick="cartQty(${i},-1)">${bieuTuongNut('tru')}</button>
+          <span>${o.qty}</span><button aria-label="${htmlChuWeb('tang_so_luong','Tăng số lượng')}" onclick="cartQty(${i},1)">${bieuTuongNut('cong')}</button></div>
+        <button class="rm" onclick="cartRemove(${i})">${bieuTuongNut('bo')}${htmlChuWeb('bo_khoi_gio','Bỏ khỏi giỏ')}</button></div></li>`;
   }).join('');
 }
 function esc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
@@ -1671,11 +1691,12 @@ function drawCoDate(){
 }
 function updateCta(){
   if(!curSize) return;
-  const tot=curSize.p+chosenAddons().reduce((a,x)=>a+x.p,0);
+  const tot=(curSize.p+chosenAddons().reduce((a,x)=>a+x.p,0))*soLuongBanh;
+  $('#s-qty').textContent=soLuongBanh;$('#s-minus').disabled=soLuongBanh<=1;
   $('#s-cta').textContent=dongDangSua>=0?chuWeb('luu_banh','Lưu thay đổi'):chuWeb("dat_banh_34d469c70", "Thêm vào giỏ · {gia_tri_a}", {gia_tri_a:vnd(tot)});
 }
 function closeSheet(){ navBack(); }
-document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeSheet(); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&($('#sheet').classList.contains('open')||$('#sheetMua').classList.contains('open')||$('#checkout').classList.contains('open'))) closeSheet(); });
 
 /* =======================================================
    TRANG NHAP DON - anh xa thang sang truong cua Pancake
@@ -1826,6 +1847,9 @@ function lookupPhone(){
   clearTimeout(phTimer);
   const v=($('#f-phone').value||'').replace(/\D/g,'');
   CO.addrList=[]; CO.addrSel=-1; drawSaved();
+  /* Codex #460: so doi thi uu dai co the doi (luot moi khach): ve lai tom tat,
+     drawCo tu hoi lai may chu khi khoa uu dai doi. */
+  if(CART.length && $('#checkout') && $('#checkout').classList.contains('open') && CO.uu && CO.uu.khoa!==khoaUuDai()) drawCo();
   if(v.length<9) return;
   phTimer=setTimeout(async ()=>{
     /* Tra dia chi cu phai di qua may chu, vi goi thang Pancake tu trinh duyet
@@ -2030,8 +2054,60 @@ function chonQuan(){
 function coTotals(){
   /* Chi de HIEN THI. Tien that may chu tinh lai o tao_don (QT-19). */
   const items=cartTotal();
+  const giam=giamDangAp();
   const tt=trangThaiPhi(CO.mode==='pick', mienPhi(), CO.ship, CO.shipTrangThai);
-  return {items, ship:tt.phi||0, total:items+(tt.phi||0), tt};
+  return {items, giam, ship:tt.phi||0, total:items-giam+(tt.phi||0), tt};
+}
+
+/* v589: MOT nguon cho danh sach mon gui may chu, dung chung cho luc gui don
+   va luc hoi uu dai. Gop dong trung ma lai voi nhau truoc khi gui, vi hai
+   banh khac nhau van co the cung mot phu kien. */
+function hangGui(){
+  const qty={};
+  CART.forEach(o=>{
+    qty[o.id]=(qty[o.id]||0)+o.qty;
+    o.adds.forEach(a=>{ qty[a.id]=(qty[a.id]||0)+o.qty; });
+  });
+  return Object.keys(qty).map(id=>({variation_id:id, quantity:qty[id]}));
+}
+/* Uu dai tu ERP. So giam chi tinh khi dung voi gio va ma hien tai: gio doi ma
+   chua hoi lai thi coi nhu 0, khong hien so cu. */
+/* Codex #460: so giam con tuy so dien thoai (luot moi khach) va ngay nhan (luot
+   moi ngay), nen hai thu nay cung nam trong khoa: doi la hoi lai. */
+function sdtUuDai(){ const v=(($('#f-phone')&&$('#f-phone').value)||'').replace(/\D/g,''); return v.length>=9?v:''; }
+function ngayUuDai(){ try{ return mocGioNhan(); }catch(e){ return ''; } }
+function khoaUuDai(){ return JSON.stringify([hangGui(), CO.uuMa||'', sdtUuDai(), ngayUuDai()]); }
+function giamDangAp(){ return (CO.uu && CO.uu.khoa===khoaUuDai()) ? (Number(CO.uu.giam)||0) : 0; }
+async function xemUuDai(){
+  const khoa=khoaUuDai();
+  CO.uuDangHoi=khoa;
+  if(!CART.length) return;
+  let m=null;
+  try{
+    const head={'Content-Type':'application/json','Accept':'application/json'};
+    const tk = window.csrf_token || (window.frappe && frappe.csrf_token);
+    if(tk && tk!=='None') head['X-Frappe-CSRF-Token']=tk;
+    const r=await fetch(CONFIG.uuDaiApi,{method:'POST',headers:head,credentials:'same-origin',
+      body:JSON.stringify({don:JSON.stringify({items:hangGui(), ma_uu_dai:CO.uuMa||'', dien_thoai:sdtUuDai(), ngay_nhan:ngayUuDai()})})});
+    const j=await r.json(); m=j.message||j;
+  }catch(e){ m=null; }
+  if(CO.uuDangHoi!==khoa) return;  /* da co lan hoi moi hon */
+  CO.uu={khoa:khoa, giam:(m&&m.ok)?(Number(m.giam)||0):0, ap:(m&&m.ok&&m.ap)||[],
+    loi:(m&&!m.ok&&m.ly_do==='ma_uu_dai')?String(m.chi_tiet||''):((!m&&CO.uuMa)?chuWeb('dat_banh_ma_chua_kiem','Chưa kiểm được mã lúc này, quý khách thử lại sau ít phút.'):'')};
+  drawCo();
+}
+function apMaUuDai(){
+  CO.uuMa=String(($('#f-ma')||{}).value||'').trim().toUpperCase();
+  if($('#f-ma')) $('#f-ma').value=CO.uuMa;
+  CO.uu=null; drawCo();
+}
+function veMaUuDai(){
+  const g=$('#maHint'); if(!g) return;
+  const u=CO.uu&&CO.uu.khoa===khoaUuDai()?CO.uu:null;
+  if(!u){ g.innerHTML=CO.uuMa?esc(chuWeb('dat_banh_dang_kiem_ma','Đang kiểm mã...')):''; return; }
+  if(u.loi){ g.innerHTML='<b style="color:#FF7A6B">'+esc(u.loi)+'</b>'; return; }
+  if(u.giam>0){ g.innerHTML='<b style="color:var(--cyan)">'+esc(chuWeb('dat_banh_da_giam','Đã giảm {tien}',{tien:tienVN(u.giam)}))+'</b> · '+esc(u.ap.map(a=>a.ten).join(', ')); return; }
+  g.innerHTML=CO.uuMa?esc(chuWeb('dat_banh_ma_chua_giam','Mã hợp lệ nhưng đơn chưa đủ điều kiện giảm.')):'';
 }
 function drawCo(){
   /* setPay, setPickup, setMode và callback phí gọi THẲNG vào đây, không đi
@@ -2042,6 +2118,12 @@ function drawCo(){
   $('#payList').innerHTML = PAYS.map(x=>`<button class="pick ${CO.pay===x.k?'on':''}" onclick="setPay('${x.k}')">
     <b>${esc(x.n)}</b><span>${esc(x.d)}</span></button>`).join('');
   const d=ngayDangChon();
+  /* v589: gio hoac ma doi thi hoi lai may chu so giam (mot lan cho moi khoa). */
+  /* Hen 300ms: khach bam tang giam so luong lien tuc thi chi hoi mot lan. */
+  if(CART.length && (!CO.uu || CO.uu.khoa!==khoaUuDai()) && CO.uuDangHoi!==khoaUuDai()){
+    clearTimeout(CO.uuHen); CO.uuDangHoi=khoaUuDai(); CO.uuHen=setTimeout(xemUuDai,300);
+  }
+  veMaUuDai();
   const S=coTotals();
   $('#sum').innerHTML=`
     ${CART.map(o=>`<div class="row"><span>${esc(chuMonWeb(o.id,'ten',o.k))} · Ø ${o.cm}cm${o.qty>1?(" " + htmlChuWeb("dat_banh_67fba2f35", "×") + " ")+o.qty:''}</span><b>${vnd(o.price*o.qty)}</b></div>`
@@ -2049,6 +2131,7 @@ function drawCo(){
     <div class="row"><span>${htmlChuWeb('gio_hang_nhan_ngay', 'Nhận ngày')}</span><b>${dmy(d)} · ${slotOk(picked,SLOTS[pickedSlot])&&daChonGio?SLOTS[pickedSlot].t:htmlChuWeb("chon_lai_gio","Vui lòng chọn khung giờ còn nhận")}</b></div>
     ${CO.mode==='pick'?("<div class=\"row\">" + "<span>" + htmlChuWeb("dat_banh_f738100e0", "Tự lấy tại") + "</span>" + "<b>" + "" + esc(PICKUPS[CO.pickup] ? PICKUPS[CO.pickup].n : chuWeb("dat_banh_chua_chon_diem", "Chưa chọn điểm nhận")) + "</b>" + "</div>"):''}
     <div class="row"><span>${htmlChuWeb('gio_hang_tien_banh', 'Tiền bánh')}</span><b>${vnd(S.items)}</b></div>
+    ${S.giam>0?`<div class="row"><span>${htmlChuWeb('dat_banh_dong_uu_dai', 'Ưu đãi')}</span><b>- ${vnd(S.giam)}</b></div>`:''}
     <div class="row"><span>${esc(S.tt.nhan)}</span><b>${esc(S.tt.gia_tri)}</b></div>
     <div class="row tot"><span>${esc(S.tt.tong_nhan)}</span><b>${vnd(S.total)}</b></div>`;
   $('#warn').innerHTML = CO.pay==='card'
@@ -2172,14 +2255,22 @@ async function submitOrder(){
   const dungCu=CART.filter(o=>chuDungCu(o)).map(o=>`${tenMonGio(o)} x${o.qty}: ${chuDungCu(o)}`).join('; ');
   const note = [ ($('#f-note').value||'').trim(), dungCu, vatLine ].filter(Boolean).join('\n');
 
-  /* Gop dong trung ma lai voi nhau truoc khi gui, vi hai banh khac nhau
-     van co the cung mot phu kien. */
-  const qty={};
-  CART.forEach(o=>{
-    qty[o.id]=(qty[o.id]||0)+o.qty;
-    o.adds.forEach(a=>{ qty[a.id]=(qty[a.id]||0)+o.qty; });
-  });
-  const items=Object.keys(qty).map(id=>({variation_id:id, quantity:qty[id]}));
+  /* Codex #460: uu dai dang hien chua tinh cho dung gio, ma, so, ngay hien tai
+     (khach vua doi roi bam gui ngay) thi hoi lai truoc. So giam doi thi dung
+     de khach xem tong moi roi bam gui lai, khong gui mot tong khach chua thay.
+     Chi hoi khi co ma hoac dang hien muc giam: khong ma, khong giam thi may chu
+     tu ap them uu dai tu dong (neu co) chi lam khach tra it hon, khong can chan. */
+  if((CO.uuMa || (CO.uu && Number(CO.uu.giam)>0)) && (!CO.uu || CO.uu.khoa!==khoaUuDai())){
+    const cu = CO.uu ? (Number(CO.uu.giam)||0) : 0;
+    clearTimeout(CO.uuHen);
+    await xemUuDai();
+    if(giamDangAp()!==cu){
+      toast(chuWeb('dat_banh_uu_dai_cap_nhat','Tổng tiền vừa cập nhật theo ưu đãi. Quý khách xem lại rồi bấm gửi.'));
+      return;
+    }
+  }
+
+  const items=hangGui();
 
   /* THE: mang SO, khong phai mang object - da thu that, gui object thi khong gan duoc.
      Khung gio + hai the thao tac de sales khoi phai doc het ghi chu. */
@@ -2205,6 +2296,8 @@ async function submitOrder(){
     nonce:CO.nonce, dong_y:true, thanh_toan:CO.pay,
     diem_lay_ten: tuLay ? PICKUPS[CO.pickup].n : '',
     diem_lay_id: tuLay ? PICKUPS[CO.pickup].id : '',
+    /* v589: may chu tinh lai uu dai tu ma nay, khong tin so giam o day. */
+    ma_uu_dai: CO.uuMa||'',
     fbp:fb.fbp, fbc:fb.fbc
   };
 
@@ -2229,7 +2322,8 @@ async function submitOrder(){
 
   if(!m || !m.ok){
     /* Khong nuot loi. Khach can biet don CHUA duoc nhan, kem duong khac de dat. */
-    const vi = (m && LY_DO[m.ly_do]) || (chuWeb("dat_banh_5db00ac93", "Không gửi được đơn lúc này."));
+    const vi = (m && m.ly_do==='ma_uu_dai' && m.chi_tiet) ? String(m.chi_tiet) : ((m && LY_DO[m.ly_do]) || (chuWeb("dat_banh_5db00ac93", "Không gửi được đơn lúc này.")));
+    if(m && m.ly_do==='ma_uu_dai'){ CO.uu=null; drawCo(); }
     sendBusy(false, ("<b style=\"color:#FF7A6B\">" + htmlChuWeb("dat_banh_a9adfd6de", "Chưa gửi được đơn.") + "</b>" + " " + htmlChuWeb("dat_banh_ecb3ec835", "{gia_tri_a}\n Quý khách nhắn qua", {gia_tri_a:(vi)}) + " " + linkMessenger() + htmlChuWeb("dat_banh_a1018afe8", ",\n hoặc bấm gửi lại sau ít phút.")));
     return;
   }
@@ -2237,7 +2331,7 @@ async function submitOrder(){
   /* #367: gui duoc thi sang TRANG BIEN NHAN co duong dan rieng. Nut gui
      van khoa trong luc chuyen trang, khong de bam hai lan thanh hai don. */
   $('#btnSend').style.display='none';
-  CART=[]; CO.nonce=''; drawBar(); drawCart();
+  CART=[]; CO.nonce=''; CO.uuMa=''; CO.uu=null; drawBar(); drawCart();
   if(m.duong_dan && /^\/banh\/xong\/[A-Za-z0-9_-]+$/.test(m.duong_dan)){
     $('#sendHint').innerHTML=("<b style=\"color:var(--cyan)\">" + htmlChuWeb("dat_banh_01d9e68a4", "Chúng tôi đã nhận yêu cầu.") + "</b>" + " " + htmlChuWeb("dat_banh_f977b08ed", "Đang mở biên nhận..."));
     location.assign(m.duong_dan);
@@ -2399,7 +2493,7 @@ function themHangMua(ma){
   var o={ k:m.ten, img:m.anh||'', id:m.ma, cm:0, price:m.gia||0, wish:'', adds:[], qty:1 };
   var key=cartKey(o);
   var hit=CART.find(function(x){return cartKey(x)===key;});
-  if(hit) hit.qty++; else CART.push(o);
+  if(hit) hit.qty+=o.qty; else CART.push(o);
   drawBar(true); drawCart();
   suKien('AddToCart', {content_ids:[o.id], content_type:'product', value:o.price, currency:'VND'});
   toast(hit?((chuWeb("dat_banh_cf8a493c0", "Thêm 1 phần nữa, giỏ có") + " ")+cartCount()+(" " + chuWeb("dat_banh_9900d8257", "món"))):((chuWeb("dat_banh_1998bbe74", "Đã thêm") + " ")+chuMonWeb(m.ma,'ten',m.ten)+(" " + chuWeb("dat_banh_478beb847", "vào giỏ"))));
@@ -2430,7 +2524,7 @@ function anhHong(img){
   if(img.dataset) img.dataset.hong='1';
   img.src=ANH_NEN;
 }
-function mienPhi(){ return laMienPhi(cartTotal(), MIEN_PHI_TU); }
+function mienPhi(){ return laMienPhi(cartTotal()-giamDangAp(), MIEN_PHI_TU); }
 function timQuan(ma){
   if(!ma) return null;
   return ((CAU_HINH&&CAU_HINH.quan)||[]).find(function(q){return q.ma===ma;})||null;
@@ -2467,10 +2561,7 @@ function apDungCauHinh(ch){
   var lk=[];
   if(lh.dien_thoai) lk.push(htmlChuWeb('dien_thoai','Điện thoại')+' <a href="tel:'+esc(String(lh.dien_thoai_so||''))+'">'+esc(lh.dien_thoai)+'</a>');
   if(lh.email) lk.push('Email <a href="mailto:'+esc(lh.email)+'">'+esc(lh.email)+'</a>');
-  [['zalo',(chuWeb("dat_banh_53b71aecf", "Zalo"))],['messenger',(chuWeb("dat_banh_68074b808", "Messenger"))],['facebook',(chuWeb("dat_banh_82da67b21", "Facebook"))],['instagram',(chuWeb("dat_banh_5721bbef4", "Instagram"))],['tiktok',(chuWeb("dat_banh_fc49f156a", "TikTok"))]].forEach(function(x){
-    var u=lienKetAnToan(lh[x[0]]);
-    if(u) lk.push('<a href="'+esc(u)+'" target="_blank" rel="noopener">'+esc(x[1])+'</a>');
-  });
+  /* Mạng xã hội đã có ở đầu trang/nút nổi; footer chỉ giữ điện thoại và email. */
   var fl=$('#fLienHe'); if(fl && lk.length) fl.innerHTML=lk.join(' · ');
   var cs=(ch.chinh_sach||[]).filter(function(c){ return /^\/[a-z-]+$/.test(String(c.duong||'')); });
   var fc=$('#fChinhSach'); if(fc) fc.innerHTML=cs.map(function(c){ return '<a href="'+c.duong+'">'+esc(c.ten)+'</a>'; }).join('');
@@ -2512,9 +2603,9 @@ function themNhanh(k, cheDo){
   const o={ k:c.k, img:c.img, id:sz.id, cm:sz.cm, price:sz.p, nguon:cheDo?'today':'order', wish:'', adds:[], qty:1 };
   const key=cartKey(o);
   const hit=CART.find(x=>cartKey(x)===key);
-  if(hit) hit.qty++; else CART.push(o);
+  if(hit) hit.qty+=o.qty; else CART.push(o);
   drawBar(true); drawCart();
-  suKien('AddToCart', {content_ids:[o.id], content_type:'product', value:lineUnit(o), currency:'VND'});
+  suKien('AddToCart', {content_ids:[o.id], content_type:'product', value:lineUnit(o)*o.qty, currency:'VND'});
   toast((chuWeb("dat_banh_7e42d2e7b", "Đã thêm {gia_tri_a}{gia_tri_b}. Vào giỏ, chọn Sửa bánh để thêm lời chúc, phụ kiện.", {gia_tri_a:(tenMonGio(o)), gia_tri_b:(sz.cm?' '+sz.cm+'cm':'')})));
 }
 
@@ -2592,7 +2683,7 @@ function veTonQuay(){
 
 function suaDongGio(i){
   const o=CART[i];if(!o)return;const c=CAKES.find(c=>c.sizes.some(s=>s.id===o.id));if(!c)return;
-  setTab(o.nguon||(TODAY[o.id]>0?'today':'order'));nav('#/banh/'+slug(c.k));dongDangSua=i;curSize=c.sizes.find(s=>s.id===o.id);
+  setTab(o.nguon||(TODAY[o.id]>0?'today':'order'));nav('#/banh/'+slug(c.k));dongDangSua=i;soLuongBanh=o.qty;curSize=c.sizes.find(s=>s.id===o.id);
   $('#s-wish').value=o.wish||'';$('#s-nia').value=o.dung_cu?.nia||0;$('#s-dia').value=o.dung_cu?.dia||0;
   picked_nums=o.adds.map(a=>NUMS.find(n=>n.id===a.id)?.n).filter(n=>n!==undefined);
   picked_add=new Set(o.adds.filter(a=>!NUMS.some(n=>n.id===a.id)).map(a=>a.id));wishCount();drawSizes();drawAddons();

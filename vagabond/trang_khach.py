@@ -119,6 +119,8 @@ def bien_nhan_html(tt, lien_he):
 		'<ul class="bn-mon">%s</ul>' % mon,
 		'<dl class="bn-tien">',
 		'<div><dt><span data-vgb-chu="bien_nhan_ea3b9f8b1">Tiền bánh</span></dt><dd>%s</dd></div>' % _e(tt.get("tien_banh")),
+		('<div><dt><span data-vgb-chu="bien_nhan_uu_dai">Ưu đãi</span>%s</dt><dd>%s</dd></div>' % (
+			(" (%s)" % _e(tt.get("uu_dai"))) if tt.get("uu_dai") else "", _e(tt.get("giam")))) if tt.get("giam") else "",
 		'<div><dt><span data-vgb-chu="bien_nhan_06a446f5c">Phí giao</span></dt><dd>%s</dd></div>' % _chu_bien_nhan(tt.get("phi_giao")),
 		'<div class="tong"><dt><span data-vgb-chu="bien_nhan_de995d836">Tổng</span></dt><dd>%s</dd></div>' % _chu_bien_nhan(tt.get("tong")),
 		'</dl>',
