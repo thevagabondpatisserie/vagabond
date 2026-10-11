@@ -42,6 +42,8 @@ Quy tắc mới: [tiết kiệm token và mẫu tag](tiet-kiem-token.md). Tái d
 
 ## Mục lục
 
+- [PR460: ưu đãi ERP và giao diện Rocca đã duyệt](cong-viec/pr-460.md)
+
 - [PR389: mã kế toán và liên kết sổ HĐĐT](cong-viec/pr-389.md)
 
 - [Issue287: Telegram](cong-viec/issue-287.md)

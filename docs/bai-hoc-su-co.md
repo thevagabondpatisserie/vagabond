@@ -2023,3 +2023,10 @@ Footer banh.html có .f-row tĩnh và apDungCauHinh thêm social vào fLienHe.
 Bỏ một nguồn chưa đáp ứng yêu cầu bỏ lặp. Sửa cả hai renderer, giữ cấu hình
 social dùng ở nơi khác. Kiểm đủ5social cùng điện thoại/email và chính sách
 để đảm bảo social không quay lại khi API cấu hình về.
+
+## 11/10/2026 - giao diện duyệt phải có hành vi thật (PR460)
+
+Thêm bộ đếm trước nút mua phải cập nhật cả CTA, gộp dòng, sửa dòng, giới hạn
+số nhận và analytics; chỉ vẽ +/- dễ làm khách chọn 2 nhưng giỏ nhận 1. Kiểm
+chuỗi thêm-sửa-gộp với nến tính theo mỗi bánh. CSS kiểm ở 320/390/1440 và đo
+vùng bấm: lớp `.cart .qty` thắng `.qty` dù stylesheet mới nạp sau.

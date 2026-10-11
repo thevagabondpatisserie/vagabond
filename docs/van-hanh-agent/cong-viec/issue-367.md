@@ -1,3 +1,9 @@
+# 11/10/2026 - giao diện đã duyệt gộp vào PR460
+
+Anh Việt đã duyệt bộ Rocca. Footer từ PR459 và bộ nút/bố cục mới đã tích
+hợp vào nhánh PR460. Xem [bàn giao hiện tại](pr-460.md); các mốc dưới là lịch
+sử trước khi duyệt, không dùng để kết luận giao diện còn chờ duyệt.
+
 # 10/10/2026 - tham khảo Rocca và bỏ social lặp ở footer
 
 Owner Codex, branch codex/web-rocca-footer, nền main46f651ac5. Theo yêu cầu
