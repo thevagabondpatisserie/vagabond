@@ -196,7 +196,7 @@ def _km_gia(giam=0, ly_do="", mot_lan=False, giu_duoc=True, chuoi=None, loi_giu=
 	return km
 
 
-def _moi_truong_tao_don(pancake, trung=None, km=None):
+def _moi_truong_tao_don(pancake, trung=None, km=None, phi=None):
 	"""Dựng môi trường gọi tao_don THẬT, chặn mọi đường ra ngoài.
 
 	`pancake(vet)` là hàm thay requests.post: ghi 'post' vào vết rồi trả về
@@ -251,7 +251,7 @@ def _moi_truong_tao_don(pancake, trung=None, km=None):
 		don_web=dw, PANCAKE="https://pancake.invalid", TIMEOUT=1,
 		cfg=lambda: D(pancake_shop_id="67355", pancake_order_source_id=""),
 		key=lambda c, f: "khoa-thu",
-		phi_giao=lambda **k: {"ok": 1, "total_fee": 36000},
+		phi_giao=phi or (lambda **k: {"ok": 1, "total_fee": 36000}),
 		_uuid_tu_ma=lambda c, k, ma: "uuid-" + ma,
 		_gia_va_ten=lambda ds: ({m: 450000 for m in ds}, {m: "Bánh " + m for m in ds}),
 		_ip_va_trinh_duyet=lambda: ("203.0.113.9", "Trinh duyet thu"),
@@ -1794,3 +1794,58 @@ def _():
 	kq = tao_don(_don())
 	la("chặn", (kq.get("ok"), kq.get("ly_do")), (0, "ma_uu_dai"))
 	la("không gửi", vet.su.count("post"), 0)
+
+
+# ------------------------------------------- Codex #461 (review 60eee635b)
+
+def _cu_461():
+	return D(name="DW-2609-00001", muoi="m" * 64)
+
+
+@ca("Codex #461: gửi lại cùng nonce sau khi mất phản hồi, mã dùng một lần đã thành Đã dùng: trả ĐÚNG biên nhận cũ, không báo lỗi mã")
+def _():
+	km = _km_gia(ly_do="Mã TET26: mã đã được dùng.", mot_lan=True)
+	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}), trung=_cu_461(), km=km)
+	kq = tao_don(_don(ma_uu_dai="TET26"))
+	la("biên nhận cũ", (kq.get("ok"), kq.get("trung"), kq.get("ma_yeu_cau")), (1, 1, "DW-2609-00001"))
+	la("không tính lại ưu đãi, không ghi, không gọi Pancake", vet.su, [])
+
+
+@ca("Codex #461: gửi lại cùng nonce khi chính đơn đầu đã lấy lượt cuối của chương trình tự áp: vẫn trả biên nhận cũ")
+def _():
+	km = _km_gia(ly_do="Chương trình đã hết lượt.")
+	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}), trung=_cu_461(), km=km)
+	kq = tao_don(_don(ma_uu_dai="SN10"))
+	la("biên nhận cũ", (kq.get("ok"), kq.get("trung")), (1, 1))
+
+
+@ca("Codex #461: gửi lại cùng nonce khi địa chỉ vừa thành ngoài vùng giao: vẫn trả biên nhận cũ, không gọi báo phí")
+def _():
+	goi = []
+	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}), trung=_cu_461(),
+		phi=lambda **k: (goi.append(k), {"ly_do": "ngoai_vung_giao", "khoang_cach": 30, "ban_kinh": 15})[1])
+	kq = tao_don(_don())
+	la("biên nhận cũ", (kq.get("ok"), kq.get("trung")), (1, 1))
+	la("không gọi báo phí", goi, [])
+
+
+@ca("Codex #461: không có đơn cũ thì mã đã dùng vẫn bị chặn như trước (sửa không mở cửa cho mã đã dùng)")
+def _():
+	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}), km=_km_gia(ly_do="Mã TET26: mã đã được dùng.", mot_lan=True))
+	kq = tao_don(_don(ma_uu_dai="TET26"))
+	la("chặn", (kq.get("ok"), kq.get("ly_do")), (0, "ma_uu_dai"))
+	la("không ghi, không gọi", [x for x in vet.su if x in ("ghi", "post")], [])
+
+
+@ca("Codex #461: một chỗ tìm trùng duy nhất đứng TRƯỚC mọi lối từ chối nghiệp vụ trong tao_don (thêm lối từ chối mới phía trên là ca này đổ)")
+def _():
+	src = open(os.path.join(str(GOC), "vagabond", "don_hang.py"), encoding="utf-8").read()
+	than = src[src.index("def tao_don("):]
+	sau = than.find("\ndef ", 1)
+	than = than[:sau] if sau > 0 else than  # tao_don có thể là hàm cuối tệp
+	tim = than.index("don_web.tim_trung(")
+	for loi in ("_uu_dai_don(", "kiem_han_muc(", "_diem_lay(", "phi_giao(", "_uuid_tu_ma("):
+		dung("tìm trùng đứng trước " + loi, tim < than.index(loi))
+	la("khoá chống trùng chỉ tính một lần", than.count("khoa_chong_trung("), 1)
+	dung("vẫn giữ phép tìm lại trong khoá ghi", than.count("don_web.tim_trung(") == 2)
+
