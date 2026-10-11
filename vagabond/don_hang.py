@@ -194,20 +194,29 @@ def _uu_dai_don(hang_goc, gia, ma, sdt, ngay):
 		return {"tong_giam": 0, "ap": [], "ly_do": ""}
 
 
-def _ghi_uu_dai_sau_pancake(kq, uu, ma, giu_ma, ten_ban_ghi, sdt, ten):
-	"""Pancake từ chối thì trả mã dùng một lần để khách gửi lại được, không
-	ghi lượt dùng. Còn lại (nhận hoặc mất phản hồi) thì ghi lượt dùng: đơn có
-	thể đã nằm bên Pancake, tính hạn mức dư còn hơn để lọt."""
+def _giu_luot_uu_dai(uu, hang_goc, gia, ma, sdt, ngay):
+	"""Codex #460: giữ lượt TRƯỚC khi gửi Pancake. Khoá hàng các chương trình
+	sắp áp (FOR UPDATE) rồi tính lại: hai đơn tranh lượt cuối thì đơn sau phải
+	chờ đơn trước ghi lượt và commit, lần tính lại của nó mới thấy lượt đã hết.
+	Bên gọi đã commit ngay trước đó, nên ảnh chụp đọc của lần tính lại được dựng
+	SAU khi có khoá, không phải ảnh chụp cũ từ đầu yêu cầu."""
+	khuyen_mai.khoa_ctkm([a["ma"] for a in uu.get("ap") or [] if a.get("ma")])
+	return _uu_dai_don(hang_goc, gia, ma, sdt, ngay)
+
+
+def _tra_uu_dai_khi_tu_choi(kq, ma, giu_ma, ten_ban_ghi):
+	"""Pancake từ chối: trả lượt đã giữ, trả mã dùng một lần, để khách gửi lại
+	được. Mất phản hồi thì GIỮ lượt: đơn có thể đã nằm bên Pancake, tính dư còn
+	hơn để lọt hạn mức."""
+	if kq.get("ket_qua") != "tu_choi":
+		return
 	try:
-		if kq.get("ket_qua") == "tu_choi":
-			if giu_ma:
-				khuyen_mai.tra_ma_mot_lan(ma, "Đơn web %s bị Pancake từ chối, đã trả mã" % ten_ban_ghi)
-				frappe.db.commit()
-			return
-		khuyen_mai.ghi_su_dung(uu.get("kq") or {}, si_name=None, quay="", nguon=khuyen_mai.NGUON_WEB,
-			khach=ten, sdt=sdt, cach_duyet="Web", ghi_chu="Đơn web %s" % ten_ban_ghi)
+		khuyen_mai.tra_luot_web("Đơn web %s" % ten_ban_ghi)
+		if giu_ma:
+			khuyen_mai.tra_ma_mot_lan(ma, "Đơn web %s bị Pancake từ chối, đã trả mã" % ten_ban_ghi)
+		frappe.db.commit()
 	except Exception:
-		frappe.log_error(title="Vagabond: ghi ưu đãi đơn web", message=frappe.get_traceback())
+		frappe.log_error(title="Vagabond: trả ưu đãi đơn web", message=frappe.get_traceback())
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
@@ -452,6 +461,18 @@ def tao_don(don=None):
 		trung = don_web.tim_trung(khoa)
 		if trung:
 			return don_web.phan_hoi(trung, nonce, trung=True)
+		if giam:
+			# Kết thúc giao dịch đọc từ đầu yêu cầu, để lần tính lại dưới khoá đọc
+			# ảnh chụp MỚI. Làm trước mọi khoá hàng khác (khoá điểm nhận #454
+			# phải giữ tới commit ghi bản ghi).
+			frappe.db.commit()
+			uu2 = _giu_luot_uu_dai(uu, hang_goc, gia, ma_uu_dai, dien_thoai, ngay)
+			if int(uu2.get("tong_giam") or 0) != giam or uu2.get("ly_do"):
+				# Đơn khác vừa lấy lượt cuối, hoặc chương trình vừa tắt.
+				frappe.db.rollback()
+				return {"ok": 0, "ly_do": "ma_uu_dai", "chi_tiet": uu2.get("ly_do") or
+					"Ưu đãi vừa thay đổi (chương trình đã hết lượt hoặc vừa tắt). Quý khách xem lại tổng tiền rồi gửi lại."}
+			uu = uu2
 		if tu_lay:
 			# Codex #454: xếp hàng với Marketing. Đọc lại điểm nhận bằng phép
 			# khoá hàng nội dung web, giữ khoá tới commit ngay dưới, để điểm vừa
@@ -483,6 +504,11 @@ def tao_don(don=None):
 			"trinh_duyet": ua,
 			"snapshot": json.dumps(snapshot, ensure_ascii=False),
 		})
+		if giam:
+			# Ghi lượt TRONG khoá, theo ngày nhận (đúng ngày đã soát hạn mức).
+			khuyen_mai.ghi_su_dung(uu.get("kq") or {}, si_name=None, quay="", nguon=khuyen_mai.NGUON_WEB,
+				khach=ten, sdt=dien_thoai, ngay=(ngay or "")[:10] or None, cach_duyet="Web",
+				ghi_chu="Đơn web %s" % ban_ghi.name)
 		frappe.db.commit()
 
 	# KHONG tu gui lai: Pancake khong co co che chong trung cong khai nao de
@@ -511,7 +537,7 @@ def tao_don(don=None):
 	frappe.db.commit()
 
 	if giam:
-		_ghi_uu_dai_sau_pancake(kq, uu, ma_uu_dai, giu_ma, ban_ghi.name, dien_thoai, ten)
+		_tra_uu_dai_khi_tu_choi(kq, ma_uu_dai, giu_ma, ban_ghi.name)
 
 	if kq["ket_qua"] == "tu_choi":
 		return {"ok": 0, "ly_do": kq["ly_do"]}

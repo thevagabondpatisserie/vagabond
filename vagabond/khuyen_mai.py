@@ -1830,3 +1830,27 @@ def tra_ma_mot_lan(ma, ghi_chu):
 	ma = str(ma or "").strip().upper()
 	frappe.db.sql("update `tabVagabond Voucher` set trang_thai='Chua dung', ngay_dung=NULL, ghi_chu=%s "
 		"where name=%s and trang_thai='Da dung' and hoa_don is null", (ghi_chu, ma))
+
+
+def khoa_ctkm(ds_ma):
+	"""Codex #460: khoá hàng các chương trình sắp áp cho một đơn web, giữ tới
+	commit. Hai đơn cùng tranh lượt cuối thì đơn sau chờ ở đây."""
+	ds = sorted({str(m) for m in (ds_ma or []) if m})
+	if not ds:
+		return
+	frappe.db.sql("select name from `tabVagabond CTKM` where name in (%s) for update"
+		% ", ".join(["%s"] * len(ds)), tuple(ds))
+
+
+def tra_luot_web(ghi_chu):
+	"""Pancake từ chối đơn web: xoá các lượt đã giữ cho đơn đó (nhận theo ghi
+	chú "Đơn web <mã>", kênh Website, chưa gắn hoá đơn) và trừ lại số đã dùng."""
+	hang = frappe.db.sql(
+		"select name, ctkm, combo from `tabVagabond CTKM Su Dung` "
+		"where ghi_chu=%s and kenh=%s and ifnull(hoa_don, '')=''", (ghi_chu, NGUON_WEB), as_dict=True)
+	for h in hang:
+		dt, ma = ("Vagabond Combo", h.get("combo")) if h.get("combo") else ("Vagabond CTKM", h.get("ctkm"))
+		if ma:
+			frappe.db.sql("update `tab%s` set da_dung=greatest(ifnull(da_dung, 0) - 1, 0) where name=%%s" % dt, (ma,))
+		frappe.db.sql("delete from `tabVagabond CTKM Su Dung` where name=%s", (h["name"],))
+	return len(hang)

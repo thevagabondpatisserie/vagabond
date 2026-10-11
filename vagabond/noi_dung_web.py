@@ -648,6 +648,21 @@ def thay_uu_dai_erp(khoi, the_erp):
     return con[:truoc] + list(the_erp) + con[truoc:]
 
 
+def giu_uu_dai_da_luu(khoi_moi, khoi_cu):
+    """THUẦN. Codex #460: ưu đãi nay chỉ đọc từ ERP, nên khi lưu cả bản (mục
+    Nâng cao) bỏ mọi khối ưu đãi gửi lên và đặt lại đúng các khối ưu đãi đã
+    lưu. Chỗ đặt: chỗ khối ưu đãi đầu tiên trong bản gửi lên, không có thì
+    theo chỗ cũ (tính bằng số khối khác đứng trước)."""
+    cu_uu = [k for k in khoi_cu if k.get("loai") == "uu_dai"]
+    con = [k for k in khoi_moi if k.get("loai") != "uu_dai"]
+    if not cu_uu:
+        return con
+    nguon = khoi_moi if any(k.get("loai") == "uu_dai" for k in khoi_moi) else khoi_cu
+    vi_tri = next(i for i, k in enumerate(nguon) if k.get("loai") == "uu_dai")
+    truoc = sum(1 for k in nguon[:vi_tri] if k.get("loai") != "uu_dai")
+    return con[:truoc] + copy.deepcopy(cu_uu) + con[truoc:]
+
+
 def _the_uu_dai_erp():
     try:
         from vagabond import khuyen_mai
@@ -892,6 +907,9 @@ def luu(noi_dung, phien_ban, hanh_dong="nhap"):
                              "ban_cong_khai": json.dumps(MAC_DINH), "phien_ban": 0, "lich_su": "[]"})
     if pb != int(d.phien_ban or 0):
         frappe.throw("Có người vừa sửa trang. Sao chép phần đang viết rồi tải lại trước khi lưu.")
+    # Codex #460: ưu đãi chỉ tạo, sửa, bật tắt trên ERP. Lưu cả bản cũng không
+    # thêm, sửa, xoá được khối ưu đãi gõ tay; giữ nguyên khối đã lưu.
+    nd["khoi"] = giu_uu_dai_da_luu(nd.get("khoi") or [], json.loads(d.ban_nhap or "{}").get("khoi") or [])
     if hanh_dong == "xuat_ban" and loi_xuat_ban(nd):
         frappe.throw(loi_xuat_ban(nd))
     d.ban_nhap = json.dumps(nd, ensure_ascii=False)
