@@ -315,7 +315,7 @@ RA({lan1:lan1, lan2:goi('tao_don').length, sum:sum});
     la("lần sau gửi", r["lan2"], 1)
 
 
-@ca("Codex #460 P1: khoa_ctkm khoá đúng các chương trình (FOR UPDATE, không trùng); tra_luot_web chỉ xoá lượt kênh Website chưa gắn hoá đơn của đúng đơn và trừ số đã dùng")
+@ca("Codex #460 P1: khoa_ctkm khoá đúng các chương trình (FOR UPDATE, không trùng); tra_luot_web chỉ trả lượt kênh Website chưa gắn hoá đơn của đúng đơn và trừ số đã dùng")
 def _():
     goi = []
 
@@ -335,7 +335,7 @@ def _():
     upd = [g for g in goi if g[0].startswith("update") and "da_dung" in g[0]]
     la("trừ số đã dùng đúng bảng", [g[1] for g in upd], [("SN10",), ("CB1",)])
     dung("CTKM rồi Combo", "tabVagabond CTKM`" in upd[0][0] and "tabVagabond Combo`" in upd[1][0])
-    la("xoá đúng hai dòng", [g[1] for g in goi if g[0].startswith("delete")], [("SD-1",), ("SD-2",)])
+    la("đánh dấu đã trả đúng hai dòng (không xoá, QT-20)", [g[1] for g in goi if "set da_tra=1" in g[0]], [("SD-1",), ("SD-2",)])
 
 
 @ca("Codex #460 vòng 2: giu_luot_web là phép giữ CHẶT: chèn dòng lỗi thì ném lỗi, không nuốt, không tự commit")
@@ -438,3 +438,30 @@ def _():
     i_commit = than.index("frappe.db.commit()", i_save)
     dung("ghi lượt nằm giữa lưu hoá đơn và commit đầu tiên sau đó", i_save < i_ghi < i_commit)
     la("chỉ ghi lượt một lần", than.count("ghi_su_dung("), 1)
+
+
+@ca("Codex #460 vòng 4 (QT-20): trả lượt KHÔNG xoá dòng lượt dùng, chỉ đánh dấu đã trả; đếm hạn mức và báo cáo bỏ dòng đã trả")
+def _():
+    goi, dem = [], []
+
+    def sql(q, v=None, as_dict=False):
+        goi.append((" ".join(q.split()), v))
+        if q.strip().startswith("select name, ctkm"):
+            return [{"name": "SD-1", "ctkm": "SN10", "combo": None}]
+        return []
+    with patch.object(km.frappe.db, "sql", sql, create=True), \
+            patch.object(km.frappe.db, "count", lambda dt, loc=None: dem.append(dict(loc or {})) or 0, create=True):
+        km.tra_luot_web("Đơn web DW-1")
+        km._dem_da_dung("SN10", ngay="2026-10-12")
+    dung("không có câu xoá", not [g for g in goi if g[0].startswith("delete")])
+    dung("đánh dấu đã trả đúng dòng", any("set da_tra=1" in g[0] and g[1] == ("SD-1",) for g in goi))
+    dung("câu chọn dòng bỏ dòng đã trả", "ifnull(da_tra, 0)=0" in goi[0][0])
+    la("đếm hạn mức bỏ dòng đã trả", dem[0].get("da_tra"), 0)
+    dj = json.load(open(os.path.join(GOC, "vagabond", "doctype", "vagabond_ctkm_su_dung", "vagabond_ctkm_su_dung.json"), encoding="utf-8"))
+    dung("doctype có ô da_tra", any(f["fieldname"] == "da_tra" and f["fieldtype"] == "Check" for f in dj["fields"]) and "da_tra" in dj["field_order"])
+    bc = open(os.path.join(GOC, "bao_cao.py"), encoding="utf-8").read()
+    i = bc.index("def _bc_khuyen_mai(")
+    dung("BC06 bỏ dòng đã trả", '"da_tra": 0' in bc[i:i + 600])
+    src = open(os.path.join(GOC, "khuyen_mai.py"), encoding="utf-8").read()
+    j = src.index('"Vagabond CTKM Su Dung",\n\t\tfilters=loc,')
+    dung("báo cáo khuyến mãi theo người bỏ dòng đã trả", 'loc["da_tra"] = 0' in src[j - 300:j])

@@ -1782,6 +1782,7 @@ def _():
 	la("lần sau trả nốt", (n, tra), (2, ["x", "Đơn web DW-1", "Đơn web DW-2"]))
 	q = goi[0][0]
 	dung("chỉ đơn Đã huỷ, kênh Website, chưa có hoá đơn, gồm cả lượt lẫn mã", "Da huy" in q and "Website" in q and "tabVagabond Voucher" in q and "tabVagabond CTKM Su Dung" in q)
+	dung("bỏ lượt đã trả (không quét lại mãi)", "ifnull(sd.da_tra, 0)=0" in q)
 	hooks = open(os.path.join(str(GOC), "vagabond", "hooks.py"), encoding="utf-8").read()
 	dung("có lịch chạy", "vagabond.don_hang.tra_uu_dai_don_huy" in hooks)
 
