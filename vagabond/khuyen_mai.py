@@ -1599,7 +1599,7 @@ TRUONG_WEB = [
 	"name", "ten", "cach_thuc", "kieu_giam", "gia_tri", "gia_dong", "giam_toi_da",
 	"bat", "cach_ma", "ma_co_dinh", "can_otp", "doi_tuong", "kenh", "quay",
 	"hd_toi_thieu", "sl_toi_thieu", "tu_ngay", "den_ngay", "gio_tu", "gio_den",
-	"hien_web", "web_mo_ta", "web_anh", "uu_tien",
+	"hien_web", "web_mo_ta", "web_anh", "uu_tien", "cong_don",
 ] + THU_TRONG_TUAN
 TEN_THU = {"thu_2": "T2", "thu_3": "T3", "thu_4": "T4", "thu_5": "T5", "thu_6": "T6", "thu_7": "T7", "thu_cn": "CN"}
 
@@ -1741,8 +1741,22 @@ def ds_web_bien_tap(hom_nay=None):
 
 def _tu_ap_web():
 	"""Chuong trinh hien web, khong can ma, dung duoc tren web: tu ap."""
-	return [km["name"] for km in _ds_web_tho()
+	return [km for km in _ds_web_tho()
 		if (km.get("cach_ma") or "Khong can ma") == "Khong can ma" and not ly_do_khong_web(km)]
+
+
+def bo_thu_web(tu_ap, bo_ra=None):
+	"""THUAN. Cac bo chuong trinh tu ap can thu, theo thu tu: tat ca, roi bo
+	cac chuong trinh cong don duoc voi nhau (Codex #460 vong 3: mot chuong
+	trinh khong cong don lam ca bo "tat ca" bi tu choi, nhung bo cong don van
+	hop le va co the loi hon tung cai le), roi tung cai mot."""
+	ten = [k["name"] for k in tu_ap if k["name"] != bo_ra]
+	cong = [k["name"] for k in tu_ap if k["name"] != bo_ra and cint(k.get("cong_don"))]
+	ra = []
+	for ds in [ten, cong] + [[t] for t in ten]:
+		if ds and ds not in ra:
+			ra.append(ds)
+	return ra
 
 
 def ap_web(gio_co_gia, ma=None, sdt=None, ngay=None):
@@ -1782,18 +1796,18 @@ def ap_web(gio_co_gia, ma=None, sdt=None, ngay=None):
 		if not kq.get("ap"):
 			ly = "; ".join(b.get("ly_do") or "" for b in kq.get("bo") or []) or "đơn chưa đủ điều kiện"
 			return dict(rong, ly_do="Mã %s: %s." % (ma, ly.rstrip(".")))
-		kq2, _ = _thu([c for c in tu_ap if c != kq["ap"][0]["ma"]], ma) if tu_ap else (None, "")
-		kq = kq2 if kq2 and flt(kq2["tong_giam"]) >= flt(kq["tong_giam"]) else kq
+		# Ma cong them chuong trinh tu ap: thu ca bo, bo cong don, tung cai.
+		for ds in bo_thu_web(tu_ap, bo_ra=kq["ap"][0]["ma"]):
+			k2, _ = _thu(ds, ma)
+			if k2 and flt(k2["tong_giam"]) > flt(kq["tong_giam"]):
+				kq = k2
 	else:
 		kq = None
-		if tu_ap:
-			kq, _ = _thu(tu_ap, None)
-			if not kq:
-				# Khong cong don duoc voi nhau: chon mot cai loi nhat.
-				for c in tu_ap:
-					k1, _ = _thu([c], None)
-					if k1 and (not kq or flt(k1["tong_giam"]) > flt(kq["tong_giam"])):
-						kq = k1
+		# Khong ma: lay bo co loi nhat cho khach (ca bo, bo cong don, tung cai).
+		for ds in bo_thu_web(tu_ap):
+			k1, _ = _thu(ds, None)
+			if k1 and k1.get("ap") and (not kq or flt(k1["tong_giam"]) > flt(kq["tong_giam"])):
+				kq = k1
 		if not kq or not kq.get("ap"):
 			return rong
 	return {
@@ -1844,10 +1858,12 @@ def khoa_ctkm(ds_ma):
 
 def tra_luot_web(ghi_chu):
 	"""Pancake từ chối đơn web: xoá các lượt đã giữ cho đơn đó (nhận theo ghi
-	chú "Đơn web <mã>", kênh Website, chưa gắn hoá đơn) và trừ lại số đã dùng."""
+	chú "Đơn web <mã>", kênh Website, chưa gắn hoá đơn) và trừ lại số đã dùng.
+	Khoá dòng (FOR UPDATE) trước: lần trả ngay và việc định kỳ chạy chồng thì
+	lần sau chờ, rồi thấy dòng đã xoá, không trừ hai lần (Codex #460 vòng 3)."""
 	hang = frappe.db.sql(
 		"select name, ctkm, combo from `tabVagabond CTKM Su Dung` "
-		"where ghi_chu=%s and kenh=%s and ifnull(hoa_don, '')=''", (ghi_chu, NGUON_WEB), as_dict=True)
+		"where ghi_chu=%s and kenh=%s and ifnull(hoa_don, '')='' for update", (ghi_chu, NGUON_WEB), as_dict=True)
 	for h in hang:
 		dt, ma = ("Vagabond Combo", h.get("combo")) if h.get("combo") else ("Vagabond CTKM", h.get("ctkm"))
 		if ma:
@@ -1889,3 +1905,17 @@ def giu_luot_web(kq, khach=None, sdt=None, ngay=None, ghi_chu=""):
 			"ghi_chu": ghi_chu or "",
 		}).insert(ignore_permissions=True)
 		frappe.db.sql("update `tabVagabond CTKM` set da_dung=ifnull(da_dung, 0)+1 where name=%s", (a["ma"],))
+
+
+def tinh_co_khoa(items, **kw):
+	"""Codex #460 vòng 3: quầy dùng CHUNG giao thức giữ lượt với đơn web. Tính
+	một lần để biết chương trình nào áp, commit để kết thúc giao dịch đọc cũ,
+	khoá hàng các chương trình đó, rồi tính lại trên ảnh chụp mới. Bên gọi giữ
+	khoá tới khi ghi lượt xong (ghi_su_dung tự commit)."""
+	kq = tinh(items, **kw)
+	ds = [a["ma"] for a in (kq or {}).get("ap") or [] if a.get("loai") == "ctkm" and a.get("ma")]
+	if not ds:
+		return kq
+	frappe.db.commit()
+	khoa_ctkm(ds)
+	return tinh(items, **kw)
