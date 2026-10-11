@@ -204,19 +204,48 @@ def _giu_luot_uu_dai(uu, hang_goc, gia, ma, sdt, ngay):
 	return _uu_dai_don(hang_goc, gia, ma, sdt, ngay)
 
 
+def _bo_ctkm(uu):
+	return sorted(str(a.get("ma")) for a in uu.get("ap") or [])
+
+
 def _tra_uu_dai_khi_tu_choi(kq, ma, giu_ma, ten_ban_ghi):
-	"""Pancake từ chối: trả lượt đã giữ, trả mã dùng một lần, để khách gửi lại
-	được. Mất phản hồi thì GIỮ lượt: đơn có thể đã nằm bên Pancake, tính dư còn
-	hơn để lọt hạn mức."""
+	"""Pancake từ chối: trả lượt và mã dùng một lần đã giữ cho đơn, để khách
+	gửi lại được. Mất phản hồi thì GIỮ: đơn có thể đã nằm bên Pancake. Trả lỗi
+	thì không mất: đơn đã ở trạng thái Đã huỷ, `tra_uu_dai_don_huy` chạy định
+	kỳ sẽ trả lại (Codex #460 vòng 2)."""
 	if kq.get("ket_qua") != "tu_choi":
 		return
 	try:
 		khuyen_mai.tra_luot_web("Đơn web %s" % ten_ban_ghi)
-		if giu_ma:
-			khuyen_mai.tra_ma_mot_lan(ma, "Đơn web %s bị Pancake từ chối, đã trả mã" % ten_ban_ghi)
 		frappe.db.commit()
 	except Exception:
-		frappe.log_error(title="Vagabond: trả ưu đãi đơn web", message=frappe.get_traceback())
+		frappe.db.rollback()
+		frappe.log_error(title="Vagabond: trả ưu đãi đơn web (việc định kỳ sẽ trả lại)", message=frappe.get_traceback())
+
+
+def tra_uu_dai_don_huy():
+	"""Việc định kỳ: đơn web đã huỷ mà còn giữ lượt chương trình hoặc mã dùng
+	một lần (chưa gắn hoá đơn) thì trả lại. Lưới an toàn cho lần trả ngay lúc
+	Pancake từ chối bị lỗi, và cho đơn chờ đối soát về sau mới thành Đã huỷ."""
+	hang = frappe.db.sql(
+		"select gc from ("
+		" select sd.ghi_chu as gc from `tabVagabond CTKM Su Dung` sd"
+		" where sd.kenh='Website' and ifnull(sd.hoa_don, '')='' and sd.ghi_chu like 'Đơn web %%'"
+		" union"
+		" select v.ghi_chu as gc from `tabVagabond Voucher` v"
+		" where v.trang_thai='Da dung' and v.hoa_don is null and v.ghi_chu like 'Đơn web %%'"
+		") x join `tabVagabond Don Web` d on x.gc = concat('Đơn web ', d.name)"
+		" where d.trang_thai='Da huy' limit 200")
+	n = 0
+	for (gc,) in hang:
+		try:
+			khuyen_mai.tra_luot_web(gc)
+			frappe.db.commit()
+			n += 1
+		except Exception:
+			frappe.db.rollback()
+			frappe.log_error(title="Vagabond: trả ưu đãi đơn huỷ", message=frappe.get_traceback())
+	return n
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
@@ -467,8 +496,10 @@ def tao_don(don=None):
 			# phải giữ tới commit ghi bản ghi).
 			frappe.db.commit()
 			uu2 = _giu_luot_uu_dai(uu, hang_goc, gia, ma_uu_dai, dien_thoai, ngay)
-			if int(uu2.get("tong_giam") or 0) != giam or uu2.get("ly_do"):
-				# Đơn khác vừa lấy lượt cuối, hoặc chương trình vừa tắt.
+			if (int(uu2.get("tong_giam") or 0) != giam or uu2.get("ly_do")
+					or _bo_ctkm(uu2) != _bo_ctkm(uu)):
+				# Đơn khác vừa lấy lượt cuối, chương trình vừa tắt, hoặc lần tính
+				# lại chọn chương trình KHÁC cái đã khoá (Codex #460 vòng 2).
 				frappe.db.rollback()
 				return {"ok": 0, "ly_do": "ma_uu_dai", "chi_tiet": uu2.get("ly_do") or
 					"Ưu đãi vừa thay đổi (chương trình đã hết lượt hoặc vừa tắt). Quý khách xem lại tổng tiền rồi gửi lại."}
@@ -481,11 +512,6 @@ def tao_don(don=None):
 			diem, ly_do = _diem_lay(ma_diem, khoa=True)
 			if ly_do or (diem["a"], diem["n"]) != (dia_chi, don["diem_lay_ten"]):
 				return {"ok": 0, "ly_do": ly_do or "diem_nhan_khong_con"}
-		giu_ma = bool(giam and ma_uu_dai and khuyen_mai.ma_dung_mot_lan(ma_uu_dai))
-		if giu_ma and not khuyen_mai.giu_ma_mot_lan(ma_uu_dai, "Đơn web (đang gửi Pancake)"):
-			# Hai đơn cùng gõ một mã dùng một lần: đơn sau dừng ở đây.
-			frappe.db.rollback()
-			return {"ok": 0, "ly_do": "ma_uu_dai", "chi_tiet": "Mã %s vừa được dùng cho một đơn khác." % ma_uu_dai}
 		ban_ghi = don_web.tao_ban_ghi(nonce, {
 			"ho_ten": ten,
 			"dien_thoai": dien_thoai,
@@ -504,11 +530,25 @@ def tao_don(don=None):
 			"trinh_duyet": ua,
 			"snapshot": json.dumps(snapshot, ensure_ascii=False),
 		})
+		giu_ma = bool(giam and ma_uu_dai and khuyen_mai.ma_dung_mot_lan(ma_uu_dai))
 		if giam:
-			# Ghi lượt TRONG khoá, theo ngày nhận (đúng ngày đã soát hạn mức).
-			khuyen_mai.ghi_su_dung(uu.get("kq") or {}, si_name=None, quay="", nguon=khuyen_mai.NGUON_WEB,
-				khach=ten, sdt=dien_thoai, ngay=(ngay or "")[:10] or None, cach_duyet="Web",
-				ghi_chu="Đơn web %s" % ban_ghi.name)
+			# Giữ lượt TRONG khoá, theo ngày nhận (đúng ngày đã soát hạn mức), cùng
+			# giao dịch với bản ghi. Ghi chú "Đơn web <mã>" là sợi dây để trả lại
+			# khi Pancake từ chối hoặc việc định kỳ dọn đơn đã huỷ.
+			gc = "Đơn web %s" % ban_ghi.name
+			try:
+				if giu_ma and not khuyen_mai.giu_ma_mot_lan(ma_uu_dai, gc):
+					# Hai đơn cùng gõ một mã dùng một lần: đơn sau dừng ở đây.
+					frappe.db.rollback()
+					return {"ok": 0, "ly_do": "ma_uu_dai", "chi_tiet": "Mã %s vừa được dùng cho một đơn khác." % ma_uu_dai}
+				# Phép giữ CHẶT (Codex #460 vòng 2): lỗi là ném, không nuốt.
+				khuyen_mai.giu_luot_web(uu.get("kq") or {}, khach=ten, sdt=dien_thoai,
+					ngay=(ngay or "")[:10] or None, ghi_chu=gc)
+			except Exception:
+				frappe.db.rollback()
+				frappe.log_error(title="Vagabond: giữ ưu đãi đơn web", message=frappe.get_traceback())
+				return {"ok": 0, "ly_do": "ma_uu_dai",
+					"chi_tiet": "Chưa giữ được ưu đãi lúc này. Quý khách thử gửi lại sau ít phút."}
 		frappe.db.commit()
 
 	# KHONG tu gui lai: Pancake khong co co che chong trung cong khai nao de

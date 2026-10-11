@@ -1853,4 +1853,39 @@ def tra_luot_web(ghi_chu):
 		if ma:
 			frappe.db.sql("update `tab%s` set da_dung=greatest(ifnull(da_dung, 0) - 1, 0) where name=%%s" % dt, (ma,))
 		frappe.db.sql("delete from `tabVagabond CTKM Su Dung` where name=%s", (h["name"],))
+	# Mã dùng một lần đã giữ cho đúng đơn này (giu_ma_mot_lan ghi cùng ghi chú).
+	frappe.db.sql("update `tabVagabond Voucher` set trang_thai='Chua dung', ngay_dung=NULL "
+		"where ghi_chu=%s and trang_thai='Da dung' and hoa_don is null", (ghi_chu,))
 	return len(hang)
+
+
+def giu_luot_web(kq, khach=None, sdt=None, ngay=None, ghi_chu=""):
+	"""Codex #460 vòng 2: giữ lượt cho đơn web TRƯỚC khi gửi Pancake. Khác
+	ghi_su_dung (ghi vết sau khi đã thu tiền, lỗi chỉ log): đây là phép CHẶT,
+	lỗi nào cũng ném ra để bên gọi rollback và không gửi đơn, và không tự
+	commit (bên gọi commit cùng bản ghi đơn). Mã dùng một lần do
+	giu_ma_mot_lan giữ riêng."""
+	ngay = str(getdate(ngay or nowdate()))
+	so = re.sub(r"\D", "", str(sdt or ""))
+	for a in (kq or {}).get("ap") or []:
+		if a.get("loai") != "ctkm" or not a.get("ma"):
+			raise ValueError("đơn web chỉ giữ lượt chương trình khuyến mãi")
+		frappe.get_doc({
+			"doctype": "Vagabond CTKM Su Dung",
+			"ngay": ngay,
+			"luc": now_datetime(),
+			"loai": "CTKM",
+			"ctkm": a["ma"],
+			"ten_ctkm": a.get("ten"),
+			"voucher": a.get("voucher") or "",
+			"hoa_don": None,
+			"tien_giam": flt(a.get("giam")),
+			"thu_ngan": frappe.session.user,
+			"quay": "",
+			"kenh": NGUON_WEB,
+			"khach": (khach or "").strip(),
+			"sdt": so,
+			"cach_duyet": "Web",
+			"ghi_chu": ghi_chu or "",
+		}).insert(ignore_permissions=True)
+		frappe.db.sql("update `tabVagabond CTKM` set da_dung=ifnull(da_dung, 0)+1 where name=%s", (a["ma"],))
