@@ -582,6 +582,64 @@ def _bc_mon_ban_chay(hd, **kw):
 	}
 
 
+
+def _bc_mon_thuan(hd):
+	"""BC08 mới, chưa nối màn cũ trước khi nghiệm thu toàn PR #351.
+
+	Core accounts/report/item_wise_sales_register dùng base_net_amount và
+	stock_qty/stock_uom của Sales Invoice Item: đây là tiền đã phân bổ giảm
+	giá và quy đổi do core tính. Không lấy amount, không tự chia giảm giá
+	lần hai. Ngày trả theo chính phiếu trả trong tập hd đã lọc kỳ.
+	Hàm chỉ đọc; nguồn hd phải qua kiểm quyền và lọc phạm vi ở cửa báo cáo.
+	"""
+	hop_le = [r for r in hd if int(r.get("docstatus") or 0) in (0, 1)
+		and not r.get("vgb_tam_tinh") and not r.get("vgb_huy")]
+	ghi = {r["name"]: r for r in hop_le if int(r.get("docstatus") or 0) == 1}
+	nhap = [r for r in hop_le if int(r.get("docstatus") or 0) == 0]
+	gom = {}
+	ten = list(ghi)
+	for i in range(0, len(ten), 400):
+		cac_dong = frappe.get_all(
+			"Sales Invoice Item",
+			filters={"parent": ["in", ten[i:i + 400]], "parenttype": "Sales Invoice"},
+			fields=["parent", "item_code", "item_name", "item_group",
+				"stock_qty", "stock_uom", "base_net_amount"],
+			limit_page_length=0,
+		)
+		for r in cac_dong:
+			# Cùng mã nhưng đơn vị tồn khác không cộng lượng thành một số.
+			khoa = (r.get("item_code"), r.get("stock_uom"))
+			o = gom.setdefault(khoa, {
+				"ma_mon": khoa[0], "mon": r.get("item_name") or khoa[0],
+				"nhom": r.get("item_group") or "", "don_vi": khoa[1],
+				"sl_ban": 0.0, "sl_tra": 0.0, "sl": 0.0,
+				"tien_ban": 0.0, "tien_tra": 0.0, "tien": 0.0,
+			})
+			tra = bool(ghi[r["parent"]].get("is_return"))
+			sl, tien = flt(r.get("stock_qty")), flt(r.get("base_net_amount"))
+			# Giữ dấu core, không abs rồi trừ lại (phiếu trả đã mang số âm).
+			o["sl_tra" if tra else "sl_ban"] += sl
+			o["tien_tra" if tra else "tien_ban"] += tien
+			o["sl"] += sl
+			o["tien"] += tien
+	dong = sorted(gom.values(), key=lambda r: (-r["tien"], r["ma_mon"] or "", r["don_vi"] or ""))
+	return {
+		"cot": _cot(("ma_mon", "Mã món", "chu"), ("mon", "Món", "chu"),
+			("don_vi", "Đơn vị tồn", "chu"), ("sl_ban", "Lượng bán", "so", True),
+			("sl_tra", "Lượng trả (âm)", "so", True), ("sl", "Lượng thuần", "so", True),
+			("tien_ban", "Giá trị bán chưa thuế", "tien"),
+			("tien_tra", "Giá trị trả chưa thuế (âm)", "tien"),
+			("tien", "Doanh thu thuần", "tien")),
+		"dong": dong,
+		"doanh_thu_thuan": sum(r["tien"] for r in dong),
+		"so_hoa_don_ban": sum(not r.get("is_return") for r in ghi.values()),
+		"so_phieu_tra": sum(bool(r.get("is_return")) for r in ghi.values()),
+		"so_nhap": len(nhap),
+		"gia_tri_hoa_don_nhap": sum(flt(r.get("base_grand_total")) for r in nhap),
+		"co_so_ngay": "Ngày ghi sổ của từng chứng từ, kể cả phiếu trả",
+		"bieu_do": {"nhan": "mon", "gia_tri": "tien", "so_dong": 12},
+	}
+
 def _bc_nhom_mon(hd, **kw):
 	"""BC09 - nhom hang ban chay, de biet dong san pham nao keo doanh thu."""
 	gom = {}
