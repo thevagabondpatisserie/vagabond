@@ -1455,6 +1455,16 @@ Cách phòng:
   mới gắn qua ô. Cổng "tệp phải nằm ở ô X" phải xét cả các dòng khác cùng
   đường dẫn (`thu_tien.url_unc_that`). Ca thuần giả lập không thấy được hành
   vi này; chỉ bench mới bắt (#382 vòng 8).
+# 30/09/2026 - So công nợ phải giữ cùng phạm vi
+
+PI outstanding dương, AP/AR có credit chưa phân bổ và Sổ đối tác từ GL
+không phải ba cách gọi cùng một chỉ tiêu. Purchase Receipt có Party trên
+tài khoản chờ hóa đơn có thể vào Sổ NCC mà không có PLE/AP. Truy đến
+voucher/account trước khi nhận là thiếu thanh toán; không tạo PE hay đổi
+outstanding để ép số bằng nhau. Purchase Register có bill_date không có
+nghĩa đã có payment_date. Incoming/Outgoing trong Payment Period là chiều
+tiền, không phải chiều hóa đơn. Nguồn và ca nghiệm thu:
+[hồ sơ đối chiếu](van-hanh-agent/cong-viec/doi-chieu-cong-no-20260930.md).
 
 ## 29/09/2026 (v540): phiếu ghi lùi ngày mà máy chọn lô theo tồn hôm nay
 
@@ -2140,3 +2150,10 @@ Ca bench phải tạo File riêng gắn phiếu thật, đổi sang Sales và g�
 frappe.utils.response.download_private_file; kế toán phải nhận 200, Sales
 thiếu quyền phải bị từ chối. Danh sách 12 UNC chỉ hiện hai liên kết và mục
 mở thêm để không đẩy nút Ghi sổ ra xa. Không thay quyền File của core.
+
+## 12/10/2026 - #392: thiết kế cũ phải đối chiếu với chức năng đã phát hành
+
+#402/#403/#407 đã có lọc/Excel và JE xử lý khoản trả trước ERP từng hóa đơn,
+nhưng chưa có snapshot AP/AR/PLE/GL lịch sử. Không suy một đầu đã làm là cả
+thiết kế đã xong; ngược lại không dựng công cụ ghi trùng vì tài liệu cũ nói
+chưa triển khai. Ghi riêng bằng chứng code, số site và phạm vi còn thiếu.
