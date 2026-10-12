@@ -6,6 +6,15 @@ sửa những chỗ có liên quan, vì phần lớn các lỗi đó KHÔNG có 
 
 Tệp này chỉ giữ bài học rút gọn. Nhật ký đầy đủ từng ngày nằm ngoài repo.
 
+## 12/10/2026 - HTTP lỗi vẫn phải đi qua cùng cửa cảnh báo dịch vụ ngoài (#465)
+
+Ahamove trả 401, 429 hoặc 5xx không ném exception, nên nhánh chỉ ghi Error Log
+đã bỏ qua cảnh báo cho Sales dù phí giao đang hỏng. Cách phòng: mọi kết quả
+HTTP khác thành công phải đi qua cùng helper cảnh báo chống trùng như lỗi mạng;
+cảnh báo có mã trạng thái và thân phản hồi rút gọn, đồng thời che khoá API và
+token. Ca hồi quy phải gọi hai lần cho cả 401 và 500 rồi chốt chỉ có một cảnh
+báo trong ngày. Nguồn: finding review PR #465 trên SHA ef756a4.
+
 ## 12/10/2026 - Chuỗi giờ không múi giờ bị hệ nhận đơn hiểu là UTC (#462 follow-up)
 
 Biên nhận web hiện đúng 19 giờ nhưng Pancake hiện 2 giờ sáng hôm sau. Nguyên

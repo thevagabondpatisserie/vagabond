@@ -2026,3 +2026,42 @@ def _():
 	la("ERP giữ 19 giờ", ham("2026-10-12T19:00:00"), "2026-10-12T19:00:00")
 	src = _doc("vagabond/don_hang.py")
 	dung("chỉ payload ngoài đổi UTC", 'body["estimate_delivery_date"] = _ngay_pancake(ngay)' in src)
+
+
+@ca("v590: Ahamove trả 401 hay 500 đều cảnh báo đúng một lần trong ngày, không lộ khoá API")
+def _():
+	import sys
+	cu_kenh = sys.modules.get("vagabond.kenh_zalo")
+	try:
+		for ma in (401, 500):
+			bo_nho, canh_bao, log = {}, [], []
+			kenh = types.ModuleType("vagabond.kenh_zalo")
+			kenh.bao = lambda *a, **k: canh_bao.append((a, k))
+			sys.modules["vagabond.kenh_zalo"] = kenh
+			fr = types.SimpleNamespace(log_error=lambda **k: log.append(k), get_traceback=lambda: "")
+			goi = types.SimpleNamespace(post=lambda *a, **k: types.SimpleNamespace(
+				status_code=ma, text='{"api_key":"KHOA-BI-MAT","message":"dịch vụ lỗi"}')
+			)
+			loi_http = nap("giao_hang.py", "_loi_http_ahamove", {"re": re})
+			bao = nap("giao_hang.py", "_bao_ahamove_mot_lan", {
+				"datetime": __import__("datetime").datetime, "cache_get": lambda k: bo_nho.get(k),
+				"cache_set": lambda k, v, ttl: bo_nho.__setitem__(k, v), "frappe": fr})
+			hoi = nap("giao_hang.py", "_hoi_ahamove", {"requests": goi, "TIMEOUT": 10,
+				"_token": lambda c: "TOKEN-KHONG-DUOC-GHI", "_bao_ahamove_mot_lan": bao,
+				"_loi_http_ahamove": loi_http, "frappe": fr})
+			c = D(ahamove_base="https://api.ahamove.test", ahamove_mobile="0900000000",
+				ma_dich_vu="SGN-BIKE", dung_dich_vu_de_vo=0)
+			for _lan in range(2):
+				la("mã %s vẫn trả lỗi phí" % ma,
+					hoi(c, {"lat": 1, "lng": 2, "dia_chi": "Bếp", "ten": "Bếp"},
+						{"lat": 3, "lng": 4, "dia_chi": "Khách"}, 0), (None, "ahamove_loi"))
+			la("mã %s chỉ tạo một cảnh báo" % ma, len(canh_bao), 1)
+			la("mã %s chỉ ghi một Error Log" % ma, len(log), 1)
+			noi_dung = str(log[0]) + str(canh_bao[0])
+			dung("cảnh báo có mã và thân phản hồi", str(ma) in noi_dung and "dịch vụ lỗi" in noi_dung)
+			dung("cảnh báo không lộ khoá", "KHOA-BI-MAT" not in noi_dung and "TOKEN-KHONG-DUOC-GHI" not in noi_dung)
+	finally:
+		if cu_kenh is None:
+			sys.modules.pop("vagabond.kenh_zalo", None)
+		else:
+			sys.modules["vagabond.kenh_zalo"] = cu_kenh

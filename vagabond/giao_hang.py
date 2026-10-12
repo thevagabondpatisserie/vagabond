@@ -16,6 +16,7 @@ Hai dieu quan trong da hoc duoc bang cach do that:
 
 import json
 import math
+import re
 import time
 from datetime import datetime, timedelta
 
@@ -67,6 +68,17 @@ def _bao_ahamove_mot_lan(c, loi):
 	except Exception:
 		# Cảnh báo không được làm hỏng lượt báo phí cho khách.
 		pass
+
+
+def _loi_http_ahamove(r):
+	"""Rút gọn phản hồi Ahamove để cảnh báo có ích mà không lộ khoá."""
+	than = str(getattr(r, "text", "") or "")[:500]
+	# Phản hồi lỗi của dịch vụ ngoài đôi lúc nhắc lại credential đã gửi lên.
+	# Che cả dạng JSON, query string và Bearer trước khi đưa vào Error Log/tin.
+	than = re.sub(r'(?i)(api[_-]?key|token|authorization)(["\']?\s*[:=]\s*["\']?)[^\s,"\'}&]+',
+		r'\1\2[ĐÃ CHE]', than)
+	than = re.sub(r'(?i)bearer\s+[^\s,"\'}]+', 'Bearer [ĐÃ CHE]', than)
+	return "Ahamove trả mã HTTP %s: %s" % (getattr(r, "status_code", "?"), than or "không có nội dung")
 
 
 def _chim_bay(lat1, lng1, lat2, lng2):
@@ -172,7 +184,7 @@ def _hoi_ahamove(c, diem_lay, diem_khach, luc_giao):
 		return None, "ahamove_loi"
 
 	if r.status_code != 200:
-		frappe.log_error(title="Vagabond: Ahamove tu choi", message=r.text[:500])
+		_bao_ahamove_mot_lan(c, _loi_http_ahamove(r))
 		return None, "ahamove_loi"
 
 	arr = r.json() or []
