@@ -37,7 +37,7 @@ GOI = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))
 CUA_NGO = {
 	# #367: don dat banh tu website. tao_don va cau_hinh_web mo cho khach
 	# vang lai; cac ham con lai cua don_web la noi bo (hook, nhip, hang doi).
-	"don_hang.py": ["tao_don"],
+	"don_hang.py": ["tao_don", "xem_uu_dai"],
 	"don_web.py": ["cau_hinh_web"],
 	# v586: trình biên tập theo thẻ (lưu từng mục, khách thấy ngay) và đăng ký tiệc.
 	"noi_dung_web.py": ["cong_khai", "doc_bang", "tai_anh", "luu", "san_pham_bien_tap",

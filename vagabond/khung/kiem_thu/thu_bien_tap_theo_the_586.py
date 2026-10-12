@@ -53,6 +53,15 @@ def _uu(**k):
     return m
 
 
+def _td(**k):
+    # v589: ưu đãi nay tạo trên ERP, luu_muc chặn loại uu_dai. Hai ca kiểm cơ
+    # chế lưu (không cuốn nháp, không ghi đè) chuyển sang mục tuyển dụng, cơ
+    # chế lưu y hệt.
+    m = {"id": "td-1", "loai": "tuyen_dung", "vi_tri": "tuyen_dung", "hien": True, "tieu_de": "Phụ bếp", "email": "tuyendung@vagabond.vn"}
+    m.update(k)
+    return m
+
+
 def _nd(*khoi):
     nd = copy.deepcopy(nw.MAC_DINH)
     nd["khoi"].extend(copy.deepcopy(list(khoi)))
@@ -196,6 +205,21 @@ def _loai():
             dung("câu báo: " + chu, chu in str(e))
 
 
+@ca("Codex #461 vòng 2: lối xoá cũng chặn ưu đãi gõ tay (cả bản công khai có soát lẫn bản nháp không soát); tiệc vẫn xoá được")
+def _xoa_uu_dai_chan():
+    nd = _nd(_uu(id="u1"))
+    for dau in (nw.dau_van_tay(_uu(id="u1")), None):
+        try:
+            nw.xoa_muc(nd, "u1", dau)
+            dung("phải chặn xoá ưu đãi", False)
+        except ValueError as e:
+            dung("câu báo chỉ về ERP", "app ERP" in str(e))
+    la("bản gốc còn ưu đãi", [k["id"] for k in nd["khoi"] if k["loai"] == "uu_dai"], ["u1"])
+    tiec = {"id": "t1", "loai": "tiec", "tieu_de": "Tiệc"}
+    nd2 = copy.deepcopy(nd); nd2["khoi"].append(tiec)
+    la("tiệc vẫn xoá được", [k["id"] for k in nw.xoa_muc(nd2, "t1", None)["khoi"] if k["loai"] == "tiec"], [])
+
+
 @ca("v586: nhãn chữ đổi từng khoá, để trống là về mặc định, soát người khác vừa sửa")
 def _ap_nhan():
     nd = _nd(); nd["nhan"] = {"tab_today": "Bánh vừa ra lò"}
@@ -232,6 +256,8 @@ class _Doc(object):
         self.phien_ban = 3
         self.flags = types.SimpleNamespace()
         self.luu = 0
+        self.modified_by = "minhvu@vgb"
+        self.modified = "2026-10-07 10:00:00"
 
     def save(self, **k):
         # Đúng như controller thật: chuẩn hoá cả hai bản, tăng phiên bản.
@@ -304,12 +330,12 @@ def _chay(site, ham):
 
 @ca("v586: lưu một mục ghi cả bản khách thấy lẫn bản nháp, KHÔNG cuốn nháp chưa xuất bản")
 def _khong_cuon_nhap():
-    cong = _nd(_uu(id="u1", tieu_de="Cũ"))
+    cong = _nd(_td(id="u1", tieu_de="Cũ"))
     nhap = copy.deepcopy(cong)
     # Ai đó đang sửa dở câu chuyện ở Nâng cao, chưa xuất bản.
     nhap["khoi"][4]["tieu_de"] = "Nháp chưa xuất bản"
     site = _Site(nhap, cong)
-    kq = _chay(site, lambda: nw.luu_muc(_uu(id="u1", tieu_de="Mới"), nw.dau_van_tay(cong["khoi"][-1])))
+    kq = _chay(site, lambda: nw.luu_muc(_td(id="u1", tieu_de="Mới"), nw.dau_van_tay(cong["khoi"][-1])))
     c, n = json.loads(site.doc.ban_cong_khai), json.loads(site.doc.ban_nhap)
     la("khách thấy mục mới", [k["tieu_de"] for k in c["khoi"] if k["id"] == "u1"], ["Mới"])
     la("nháp cũng có mục mới", [k["tieu_de"] for k in n["khoi"] if k["id"] == "u1"], ["Mới"])
@@ -322,10 +348,10 @@ def _khong_cuon_nhap():
 
 @ca("v586: lưu đè lên bản người khác vừa lưu thì báo, không ghi gì")
 def _khong_ghi_de():
-    cong = _nd(_uu(id="u1", tieu_de="Người kia vừa sửa"))
+    cong = _nd(_td(id="u1", tieu_de="Người kia vừa sửa"))
     site = _Site(copy.deepcopy(cong), cong)
     try:
-        _chay(site, lambda: nw.luu_muc(_uu(id="u1", tieu_de="Của tôi"), nw.dau_van_tay(_uu(id="u1", tieu_de="Cũ"))))
+        _chay(site, lambda: nw.luu_muc(_td(id="u1", tieu_de="Của tôi"), nw.dau_van_tay(_td(id="u1", tieu_de="Cũ"))))
         dung("phải báo", False)
     except Exception as e:
         dung("câu báo", "vừa sửa" in str(e))
@@ -334,11 +360,16 @@ def _khong_ghi_de():
 
 @ca("v586: xoá một mục khỏi cả hai bản, mục khác giữ nguyên")
 def _xoa():
-    cong = _nd(_uu(id="u1"), _uu(id="u2"))
+    # Codex #461 vòng 2: từ v589 ưu đãi không xoá được qua đây (chỉ đọc từ ERP),
+    # nên ca dùng mục tiệc để giữ đúng ý: xoá khỏi cả hai bản, mục khác còn.
+    t1 = {"id": "t1", "loai": "tiec", "vi_tri": "tiec", "hien": True, "tieu_de": "Tiệc 1", "bat_dau": "2026-10-20"}
+    t2 = {"id": "t2", "loai": "tiec", "vi_tri": "tiec", "hien": True, "tieu_de": "Tiệc 2", "bat_dau": "2026-10-21"}
+    cong = _nd(copy.deepcopy(t1), copy.deepcopy(t2))
     site = _Site(copy.deepcopy(cong), cong)
-    _chay(site, lambda: nw.xoa_muc_web("u1", nw.dau_van_tay(_uu(id="u1"))))
+    dau = nw.dau_van_tay([k for k in json.loads(site.doc.ban_cong_khai)["khoi"] if k["id"] == "t1"][0])
+    _chay(site, lambda: nw.xoa_muc_web("t1", dau))
     for ban in (site.doc.ban_cong_khai, site.doc.ban_nhap):
-        la("còn u2", [k["id"] for k in json.loads(ban)["khoi"] if k["loai"] == "uu_dai"], ["u2"])
+        la("còn t2", [k["id"] for k in json.loads(ban)["khoi"] if k["loai"] == "tiec"], ["t2"])
 
 
 @ca("v586: thẻ Liên hệ ghi đúng bảy ô web_* của Settings, soát người khác vừa sửa")
@@ -723,3 +754,32 @@ RA({mac_dinh:chuWeb('x_khong_co','Gọi 0931 224 334 để được hỗ trợ')
 ''')
     la("câu mặc định", d["mac_dinh"], "Gọi 0909 000 111 để được hỗ trợ")
     la("câu đã sửa", d["da_sua"], "Còn 2 bánh, cần thêm gọi 0909 000 111 nhé")
+
+
+@ca("Codex #460 P2: mục Nâng cao (luu cả bản) không thêm, sửa hay xoá được ưu đãi gõ tay; ưu đãi đã lưu giữ nguyên ở cả nháp và bản khách")
+def _nang_cao_khong_sua_uu_dai():
+    cu = _nd(_uu(id="u1", tieu_de="Cũ"))
+    site = _Site(copy.deepcopy(cu), copy.deepcopy(cu))
+    gui = copy.deepcopy(cu)
+    for k in gui["khoi"]:
+        if k["id"] == "u1":
+            k["tieu_de"] = "Sửa lén ở Nâng cao"
+    gui["khoi"].append(_uu(id="u2", tieu_de="Thêm mới ở Nâng cao"))
+    _chay(site, lambda: nw.luu(json.dumps(gui, ensure_ascii=False), 3, "xuat_ban"))
+    for ten, ban in (("nháp", site.doc.ban_nhap), ("bản khách", site.doc.ban_cong_khai)):
+        uu = [(k["id"], k["tieu_de"]) for k in json.loads(ban)["khoi"] if k.get("loai") == "uu_dai"]
+        la("ưu đãi ở " + ten, uu, [("u1", "Cũ")])
+    # Xoá ưu đãi ở Nâng cao cũng không mất: dữ liệu cũ giữ để khôi phục được.
+    site2 = _Site(copy.deepcopy(cu), copy.deepcopy(cu))
+    bo = copy.deepcopy(cu); bo["khoi"] = [k for k in bo["khoi"] if k.get("loai") != "uu_dai"]
+    _chay(site2, lambda: nw.luu(json.dumps(bo, ensure_ascii=False), 3, "nhap"))
+    la("xoá ở Nâng cao không mất", [k["id"] for k in json.loads(site2.doc.ban_nhap)["khoi"] if k.get("loai") == "uu_dai"], ["u1"])
+
+
+@ca("Codex #460 P2: phép giữ ưu đãi đã lưu là THUẦN: bỏ ưu đãi gửi lên, đặt lại ưu đãi cũ đúng chỗ")
+def _giu_uu_dai_thuan():
+    moi = [{"id": "a", "loai": "anh_bia"}, {"id": "x", "loai": "uu_dai"}, {"id": "t", "loai": "tiec"}]
+    cu = [{"id": "a", "loai": "anh_bia"}, {"id": "u1", "loai": "uu_dai"}, {"id": "t", "loai": "tiec"}, {"id": "u2", "loai": "uu_dai"}]
+    la("thay đúng chỗ", [k["id"] for k in nw.giu_uu_dai_da_luu(moi, cu)], ["a", "u1", "u2", "t"])
+    la("gửi lên không có ưu đãi thì đặt lại theo chỗ cũ", [k["id"] for k in nw.giu_uu_dai_da_luu([{"id": "a"}, {"id": "t"}], cu)], ["a", "u1", "u2", "t"])
+    la("cũ không có ưu đãi thì bỏ hết ưu đãi gửi lên", [k["id"] for k in nw.giu_uu_dai_da_luu(moi, [{"id": "a"}])], ["a", "t"])

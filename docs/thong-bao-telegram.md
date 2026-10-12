@@ -47,19 +47,40 @@ PR này không tự đổi cài đặt email cá nhân của anh.
 
 ## Codex và Claude báo cần duyệt, bị chặn, phát hành
 
-Đăng comment trên đúng Issue/PR, dòng đầu chọn đúng một trong bốn nhãn:
+Đăng comment trên đúng Issue/PR, dòng đầu chọn đúng một trong năm nhãn:
 
 ```
 [CẦN DUYỆT]
 [BỊ CHẶN]
+[ĐÃ SỬA XONG]
 [SẴN SÀNG DEPLOY]
 [ĐÃ DEPLOY]
 ```
 
+`[ĐÃ SỬA XONG]` tạo tin riêng thuộc nhóm "Đã sửa xong, chờ review".
 Dưới dòng đầu viết việc cụ thể, bằng chứng, SHA/link và nơi anh cần duyệt.
 Bot phân loại theo dòng đầu, chỉ gửi người viết và link; nhãn là báo cáo của
 người viết, không phải máy xác minh nghiệp vụ. `[ĐÃ DEPLOY]` chỉ dùng sau khi
 phiên phát hành đã kiểm site thật. Chỉ xanh CI thì chưa dùng nhãn này.
+
+Mọi comment bàn giao sửa xong, review đạt hoặc không đạt, bị chặn hay cần duyệt
+phải có nhãn ở dòng đầu và đúng một khối dưới đây. Hai giá trị viết tiếng Việt
+theo nghiệp vụ, không dùng tên hàm hoặc tên tệp, tổng cộng tối đa hai câu; mỗi
+giá trị từ 1 đến 220 ký tự và không có ký tự điều khiển. Comment không cần anh
+đọc thì không gắn nhãn.
+
+```text
+<!-- telegram-tomtat {"tom_tat":"Việc đã làm hoặc kết luận review.","tiep_theo":"Việc cần làm tiếp."} -->
+```
+
+Khối hợp lệ thêm đúng hai dòng `Tóm tắt:` và `Tiếp theo:` vào tin. Khối sai,
+thiếu, thừa khóa hoặc xuất hiện hai lần chỉ báo `Khối tóm tắt chưa hợp lệ`,
+không chép thân comment. Chỉ đọc khối của đúng tài khoản chủ repo có
+`author_association=OWNER`, cùng điều kiện với phương án cần duyệt.
+
+Riêng comment của `chatgpt-codex-connector[bot]`, sender lấy gạch đầu dòng đầu
+tiên dưới mục `Summary`, bỏ link và Markdown rồi cắt ở 200 ký tự thành dòng
+`Codex:`. Sender không lấy mục Testing hoặc log.
 
 Không có bằng chứng về hook đọc mọi popup native của Codex/Claude. Vì vậy
 phiên gặp chặn phải đăng comment có link nếu còn quyền làm việc; nếu app đã

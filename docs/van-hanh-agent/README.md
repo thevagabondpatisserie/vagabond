@@ -98,3 +98,7 @@ Quy tắc hiện hành: [sáu thay đổi](van-hanh-chung.md).
 - [Công nợ NCC: màn lọc và khoản đã trả trước ERP](cong-viec/cong-no-ncc-20261001.md) (#391, Codex code, chờ review).
 
 - [Issue420: đối soát vendor, email và tải tay](cong-viec/issue-420.md)
+- [PR461: ưu đãi website từ ERP](cong-viec/pr-461.md)
+
+- [PR462: gom web Vue, ưu đãi và ca kiểm tồn](cong-viec/pr-462.md)
+- [Issue463: kiểm tồn, còn thiếu ca nghiệm thu](cong-viec/issue-463-kiem-dong-bo-ton-banh.md)

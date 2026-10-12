@@ -6,6 +6,25 @@ sửa những chỗ có liên quan, vì phần lớn các lỗi đó KHÔNG có 
 
 Tệp này chỉ giữ bài học rút gọn. Nhật ký đầy đủ từng ngày nằm ngoài repo.
 
+## 12/10/2026 - Không coi ảnh máy chép vào Item là ảnh ERP người chọn (#462)
+
+Hannari trên web hiện bộ ảnh cũ dù Pancake đã có bộ ảnh mới. Nguyên
+nhân là các tệp `sp-<mã>*` do `doi_soat.keo_anh` chép từ Pancake vào
+`Item.image` được xếp như ảnh hồ sơ ERP người chọn, nên luôn đè ảnh
+Pancake sống. Cách phòng: nhận diện bản chép bằng tên tệp tại một
+nguồn chọn ảnh chung; có ảnh Pancake thì xếp bản chép ra sau, không có
+thì vẫn giữ nó làm dự phòng. Ảnh Item không theo mẫu `sp-` vẫn đứng
+đầu. Ca hồi quy phải có cả nhóm nhiều size dùng chung một tệp.
+
+## 12/10/2026 - Lý do mã hỏng phải ưu tiên hơn phép so số giảm (#462)
+
+Khách đã thấy giảm, nhưng mã vừa hết lượt hoặc đã dùng thì lần gửi
+đầu chỉ nhận `uu_dai_doi`, không biết mã đã hỏng. Nguyên nhân là so
+`giam_da_xem` trước khi trả `uu.ly_do`. Cách phòng: vẫn tìm đơn trùng
+trước mọi từ chối, nhưng sau khi tính lại thì lý do của mã phải ưu tiên;
+cả hai trang hiện nguyên câu và bỏ mã hỏng khỏi ô. Ca kiểm phải chốt
+ngay lần gửi đầu không ghi đơn, không gọi Pancake.
+
 ## 11/09/2026 - Kiểm map mới không được khóa bảo trì SePay (#273)
 
 Review phát hiện validate toàn bộ account_map mỗi lần save sẽ chặn cả enabled/token/mốc đồng bộ khi một Bank Account cũ bị ngưng dùng. Chỉ kiểm tuyến mới hoặc thay đổi; JSON/xung đột mới vẫn chặn. Cửa cấu hình tài chính phải dùng quyền tài chính trực tiếp, không đòi thêm vai bán hàng. Ca bench giữ map cũ rồi vô hiệu hóa Bank Account, lưu công tắc, từ chối tuyến mới sai và cho Accounts Manager độc lập khai map.
@@ -1993,3 +2012,86 @@ Nguyên nhân là ca giả lập dữ liệu sau cửa đọc, vì vậy tự ch
 giữa truy vấn và hàm tính. Phòng: ca hồi quy phải đi qua chính cửa đọc, cho
 `get_all` giả chỉ trả đúng các trường caller xin, đồng thời chốt bộ lọc công
 ty để dữ liệu pháp nhân demo không lọt vào báo cáo.
+
+## 10/10/2026 - v589: bộ giả lập trang chỉ chờ setTimeout, ca xem trước ưu đãi treo
+
+Trang đặt bánh hỏi máy chủ mức giảm mỗi lần vẽ lại giỏ. Gọi thẳng `fetch` thì
+ca kiểm node đọc tóm tắt trước khi câu trả lời về, vì `CHO_XONG` trong
+`gia_lap_trang.js` chỉ chờ các việc đặt qua `setTimeout`. Không phải lỗi của
+trang mà là giới hạn của bộ giả lập, nhưng nó che được lỗi thật nếu ca kiểm
+"cho chắc" gọi thêm hàm. Cách làm: lời gọi mạng từ sự kiện vẽ lại đi qua
+`setTimeout` (cũng là debounce, bớt gọi máy chủ khi khách bấm liên tục), và
+mức giảm chỉ hiện khi khoá giỏ của câu trả lời trùng giỏ hiện tại. Đột biến
+bỏ kiểm khoá giỏ lúc đầu KHÔNG làm đổ ca nào; đã thêm ca đổi giỏ rồi đọc tóm
+tắt NGAY, trước khi máy chủ trả lời.
+
+Thêm (Codex #460): hạn mức chương trình (tổng lượt, lượt mỗi ngày) soát ở
+bước tính nhưng ghi lượt SAU khi gọi Pancake, nên hai đơn tranh lượt cuối cùng
+lọt. Cách phòng: trong khoá ghi, commit trước rồi khoá hàng chương trình
+(FOR UPDATE), tính lại, ghi lượt, commit, rồi mới gọi dịch vụ ngoài; bị từ chối
+thì trả lượt. Commit trước khoá là bắt buộc: trong REPEATABLE READ, lần đọc sau
+khoá vẫn thấy ảnh chụp cũ từ đầu yêu cầu nếu giao dịch đã đọc gì trước đó.
+Lượt ghi theo đúng ngày đã dùng để soát (ngày nhận bánh), không theo hôm nay.
+Vòng 2 cùng PR: (1) so lần tính lại bằng CẢ số tiền lẫn bộ chương trình đã
+khoá, vì hai chương trình bằng giá có thể đổi chỗ cho nhau; (2) phép giữ
+lượt trước dịch vụ ngoài phải là phép CHẶT (lỗi là ném, rollback, không gửi),
+không dùng lại hàm ghi vết kiểu "lỗi chỉ log"; (3) phép trả lại khi bị từ
+chối có thể lỗi, nên cần việc định kỳ dọn theo trạng thái đơn chứ không chỉ
+một lần thử. Và: chạy đột biến ở tiền cảnh mà bị cắt giữa chừng thì tệp có
+thể kẹt ở bản đột biến; luôn chạy đột biến ở nền và soát `git diff` sau đó.
+Vòng 3: khoá chỉ có tác dụng khi MỌI đường ghi lượt cùng xin khoá đó; quầy
+và web dùng chung chương trình nên quầy cũng phải khoá rồi ghi lượt trước
+commit (`tinh_co_khoa`). "Lấy bộ có lợi nhất" phải thử cả bộ chương trình
+cộng dồn được, không chỉ tất cả hoặc từng cái lẻ.
+Vòng 4: "trả lượt" là huỷ mềm (ô `da_tra`), không xoá dòng (QT-20); mọi chỗ
+đếm hạn mức, báo cáo và việc dọn định kỳ phải bỏ dòng đã trả.
+
+## 11/10/2026 - Web Vue: mô đun ES né mất ?v= nên phải có import map
+
+Site trả `/assets` với cache immutable (#310), trang cũ ghi tay `?v=<băm>`
+trên từng thẻ link/script. Mô đun ES nạp nhau bằng `import './x.js'`, đường
+đó không gắn được `?v=`: deploy xong khách cũ vẫn chạy mô đun cũ mãi mãi, và
+trộn mô đun cũ với mới là lỗi khó đoán. Cách phòng: trang khai import map ánh
+xạ từng URL mô đun sang URL có `?v=<băm>`, do `cong_cu/ma_bam_web_vue.py` sinh;
+ca `thu_web_vue.py` gọi `--kiem` để quên chạy là CI đỏ. Và: node trên máy CI
+(bản 20) không tự nhận mô đun ES trong tệp `.js`, cần `web_vue/package.json`
+khai `"type": "module"`, thiếu là ca kiểm chết ngay ở dòng `import`.
+
+
+
+Vòng 5 (PR #461): khoá xem trước ở trình duyệt chỉ cho biết giỏ có đổi, không
+chứng minh hạn mức ưu đãi trên máy chủ còn nguyên. Triệu chứng là khách thấy
+giảm 50.000 nhưng đơn có thể được ghi với mức khác nếu lượt cuối vừa hết.
+Cách phòng: trình duyệt gửi `giam_da_xem`, máy chủ vẫn tự tính lại rồi từ chối
+cả trường hợp giảm tăng lẫn giảm xuống khi hai số khác nhau; trả bảng mới để
+khách xem và tự bấm lại. Phép so phải sau tìm trùng để lần gửi lại cùng nonce
+luôn nhận biên nhận cũ. Liên kết lượt dùng với hoá đơn cũng không được chỉ thử
+một lần trong hook: lỗi tạm thời cần việc đối soát idempotent theo lịch, giới
+hạn bằng dấu dữ liệu v589 để không chạm bản ghi cũ.
+
+## 12/10/2026 - PR #462: đổi giao diện nhưng dùng chung kho nháp phải giữ hai chiều
+
+Trang `/banh` cũ ghi các ô trong `vgb-gio-v1.truong` bằng id DOM như
+`f-phone`, còn bản Vue ban đầu chỉ đọc tên trạng thái như `phone`. Giỏ vẫn
+về nhưng thông tin liên hệ, giao hàng, hoá đơn và mã ưu đãi biến mất; nếu
+Vue ghi kiểu mới thì quay lại trang cũ cũng mất các ô đó. Cách phòng: tầng
+đọc nhận cả hai lược đồ, tầng ghi tiếp tục dùng lược đồ cũ trong thời gian
+hai trang chạy song song, và ca hành vi phải dựng nháp cũ rồi kiểm đủ mọi ô.
+
+## 12/10/2026 - Ba chữ "tồn bánh" không phải một nguồn (#463)
+
+Sales online đọc `Kiem Banh Ngay` để biết bếp còn nhận được bao nhiêu bánh cho
+đơn online. Tab In store đọc hai bảng kiểm kho quầy riêng để biết D1 và NVHTN
+đang còn bao nhiêu bánh trong tủ. Trang Vue phải giữ nguyên ranh giới đó:
+`napTon` chỉ nạp nguồn Sales online, còn `napQuay` nạp tồn từng quầy. Gộp ba số
+vì cùng mã hàng sẽ làm khách thấy sai nơi có bánh. Ca hồi quy phải dùng cùng một
+mã với ba số khác nhau và chốt cả tên API lẫn cặp mã-số, không chỉ dò chuỗi.
+
+## 12/10/2026 - PR #462: thông báo giống nhau làm mất trạng thái bàn giao
+
+Tin Telegram của comment chỉ có người viết và link nên một loạt tin trông giống
+nhau; anh Việt không biết việc nào đã sửa xong nếu không mở từng link. Nguyên
+nhân là sender chỉ phân loại bốn nhãn và cố ý không đọc thân comment, nhưng chưa
+có khối tóm tắt an toàn. Cách phòng: comment bàn giao có nhãn trạng thái cùng
+khối `telegram-tomtat` giới hạn hai trường ngắn; sender chỉ đọc khối của chủ repo,
+còn comment Codex chỉ lấy ý đầu của Summary và tuyệt đối không lấy Testing/log.

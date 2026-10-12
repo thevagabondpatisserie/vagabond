@@ -1,0 +1,403 @@
+/* Giao dien Rocca da duyet (PR #460, a20e85054), chep nguyen tu banh.html. KHONG sua tay o day neu chua so anh. */
+/* hoa tiet quy dao, lay theo web chinh cua tiem */
+.sky{position:fixed;inset:-10% -10% -10% -10%;z-index:0;pointer-events:none;opacity:1}
+.sky svg{width:100%;height:100%}
+.sky .spin{transform-origin:50% 45%;animation:orbit 240s linear infinite}
+@keyframes orbit{to{transform:rotate(360deg)}}
+.glow{position:fixed;inset:0;z-index:0;pointer-events:none;
+ background:radial-gradient(56% 46% at 70% 26%,rgba(41,189,179,.11),transparent 66%),
+            radial-gradient(72% 62% at 14% 86%,rgba(41,189,179,.055),transparent 70%)}
+@media(max-width:700px){.sky{opacity:.78}}
+main,header,footer,.sheet,.co{position:relative;z-index:2}
+
+/* ---------- thanh tren ---------- */
+.hd-left{display:flex;align-items:center;gap:12px}
+.logo{height:26px;opacity:.95}
+.tagbox{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--fog-2);border:1px solid var(--line);padding:4px 7px}
+.hd-phone{font-size:12px;letter-spacing:.06em;color:var(--fog);display:flex;align-items:center;gap:7px}
+.hd-phone svg{width:13px;height:13px;stroke:var(--cyan);fill:none;stroke-width:1.7}
+
+/* ===== NHOM IN SEASON =====
+   Hang mua vu (Trung thu, Tet) KHONG co bo the rieng nua. Tu 22/08/2026 no
+   dung lai dung bo .card .ph .c-name .c-price .c-sizes .c-go cua the banh
+   hom nay, chi doi mau nhan sang ho phach #DB7E2A.
+
+   Vi sao doi: bo the rieng .mua-* truoc day sai ba cho cung mot luc, va ca
+   ba deu do khong dung lai the co san (anh Viet bao 22/08/2026).
+     - Ten mon ra MAU DEN: the h3 khong dat color nen an mau chu mac dinh
+       cua bo CSS Frappe boc ngoai trang. The ben kia dung div.c-name nen
+       khong dinh.
+     - Anh bi keo meo: khung 4:3 trong khi anh san pham cua tiem la anh doc
+       va the ben kia dung khung 3:4.
+     - Khong bam xem chi tiet duoc: the chi co nut Them vao gio. */
+.tab.mua{color:var(--amber-2)}
+.tab.mua.on{color:var(--amber)}
+.tab.mua.on::after{background:var(--amber);box-shadow:0 0 16px rgba(219,126,42,.7)}
+/* Bon tab thi man dien thoai khong du cho: cho thanh tab cuon ngang, moi tab
+   rong theo chu cua no, khong bop chu xuong hai dong (anh Viet 03/09/2026). */
+.tabs{overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex:1 0 auto;padding-left:14px;padding-right:14px;white-space:nowrap}
+/* ===== NHOM IN STORE =====
+   Banh con tren tu cua tung quay, doc tu bang kiem kho theo diem ban. Dung
+   lai bo the .card cua banh hom nay, chi doi nhan sang mau luc. */
+.tab.store{color:var(--cyan)}
+.store-hd{padding:4px 0 6px}
+.store-hd .num{color:var(--cyan)}
+.quay{margin:26px 0 6px;padding:0 0 12px;border-bottom:1px solid var(--line-2)}
+.quay .q-ten{font-family:var(--serif,inherit);font-size:24px;color:var(--paper);letter-spacing:.02em}
+.quay .q-dc{font-family:var(--sans);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--fog-2);margin-top:6px}
+.quay .q-con{font-family:var(--sans);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--cyan);margin-top:6px}
+.store-note{font-family:var(--sans);font-size:12.5px;color:var(--fog-2);line-height:1.7;padding:14px 0 4px}
+.store-note a{color:var(--cyan);text-decoration:none;border-bottom:1px solid rgba(41,189,179,.5)}
+.store-empty{padding:26px 0 10px;color:var(--fog-2);font-family:var(--sans);font-size:13px;line-height:1.7}
+.mua-hd{padding:4px 0 18px}
+.mua-hd .num{color:var(--amber)}
+.mua-han{font-family:var(--sans);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--amber-2);margin-top:10px}
+/* Chi la lop son ho phach de len the chuan, khong dung lai hinh khoi. */
+.card.mua:hover .c-name{color:var(--amber)}
+.card.mua .tagline{color:#140b03;background:var(--amber)}
+.card.mua .sz.has{border-color:rgba(219,126,42,.55);color:var(--amber)}
+.card.mua .c-go{color:var(--amber)}
+.card.mua .ruot{font-size:11.5px;color:var(--fog-2);margin-top:6px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.card.mua.het .ph img{filter:grayscale(1) brightness(.55)}
+/* Bang chi tiet cua hang mua vu: dung lai khung .sheet, doi mau nhan. */
+.sheet.mua .s-head h2{color:var(--amber)}
+.sheet.mua .avail{color:var(--amber);border-color:rgba(219,126,42,.45)}
+.sheet.mua .sec .n{color:var(--amber)}
+.sheet.mua .btn{background:var(--amber);color:#140b03}
+.sheet.mua .btn:hover{background:#E8913F}
+.sheet.mua .btn[disabled]{background:transparent;border:1px solid var(--line);color:var(--fog-2);cursor:not-allowed}
+.sheet.mua .cta .tel{border-color:rgba(219,126,42,.45)}
+.sheet.mua .cta .tel svg{stroke:var(--amber)}
+.mua-ruot{margin-top:14px;display:grid;gap:9px}
+.mua-ruot div{display:flex;gap:12px;font-size:13.5px;color:var(--fog);line-height:1.5}
+.mua-ruot b{color:var(--paper);font-weight:400;min-width:34px}
+
+/* ---------- hero ---------- */
+.hero{padding-top:40px;padding-bottom:26px;border-bottom:1px solid var(--line-2)}
+.meta{display:flex;justify-content:space-between;align-items:baseline;font-family:var(--sans);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--fog-2)}
+.meta span{white-space:nowrap}
+.meta .num{color:var(--cyan)}
+.h1 em{display:block;font-family:var(--serif);font-style:italic;text-transform:none;letter-spacing:-.01em;color:var(--paper);opacity:.9}
+.hero-foot{margin-top:26px;display:flex;flex-wrap:wrap;gap:18px 34px;align-items:flex-end;justify-content:space-between}
+.stat{font-family:var(--sans);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--fog-2)}
+.stat b{display:block;font-family:'Vagabond Sans',var(--sans);font-size:30px;letter-spacing:.02em;color:var(--paper);margin-top:6px;font-weight:400}
+.live{display:inline-flex;align-items:center;gap:8px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--fog)}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--cyan);box-shadow:0 0 10px rgba(41,189,179,.8);animation:pulse 2.2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.22}}
+
+/* ---------- muc ---------- */
+.h-sec{font-family:'Vagabond Sans',var(--sans);font-size:clamp(32px,7vw,56px);line-height:1;text-transform:uppercase;margin:44px 0 6px;color:var(--cyan)}
+.h-sec em{font-family:var(--serif);font-style:italic;text-transform:none;color:var(--paper);opacity:.9;margin-left:.3em}
+.note{font-size:12.5px;color:var(--fog);margin-top:14px;padding-left:14px;border-left:1px solid var(--cyan);line-height:1.65}
+/* The tom tat ngay gio o muc 02 cua gio hang (#205). Dung lai bien mau san
+   cua trang, khong dat mau moi. */
+.tomtat{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-top:4px}
+.tt-doc span{display:block;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--fog);margin-bottom:5px}
+.tt-doc b{font-weight:400;font-size:14.5px;color:var(--paper)}
+/* AGENTS.md dieu 13: nut cao it nhat 44 diem, chu it nhat 13 diem. */
+.tt-doi{background:none;border:1px solid var(--cyan);color:var(--cyan);border-radius:24px;
+  min-height:44px;padding:11px 20px;font:inherit;font-size:13.5px;cursor:pointer;letter-spacing:.04em}
+.tt-doi:hover{background:var(--cyan);color:var(--bg)}
+.tt-doi:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.note b{color:var(--paper);font-weight:500}
+
+/* Trang ban hang tu lo dieu huong; thanh HOME/LOGIN va chan trang
+   "Powered by ERPNext" cua Frappe khong dinh dang gi den khach. */
+.navbar,.web-footer,footer.web-footer,.footer-logo-extension{display:none!important}
+body{padding-top:0!important}
+
+/* ---------- luoi mon ---------- */
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:20px 16px;margin:26px 0 52px}
+@media(min-width:760px){.grid{grid-template-columns:repeat(3,1fr);gap:48px 26px}}
+@media(min-width:1080px){.grid{grid-template-columns:repeat(4,1fr)}}
+.card{text-align:left;display:flex;flex-direction:column;position:relative}
+
+.ph{position:relative;aspect-ratio:3/4;overflow:hidden;background:var(--bg-2)}
+.ph img{width:100%;height:100%;object-fit:cover;font-size:0;color:transparent;transition:transform .9s cubic-bezier(.2,.8,.2,1)}
+.card:hover .ph img{transform:scale(1.06)}
+.tagline{position:absolute;left:0;top:0;padding:8px 10px;font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--cyan);background:rgba(0,0,0,.72);backdrop-filter:blur(6px)}
+.c-body{padding:12px 0 0;display:flex;flex-direction:column;flex:1}
+.c-name{font-family:'Vagabond Sans',var(--sans);font-size:19.5px;line-height:1.2;letter-spacing:.035em;text-transform:uppercase;transition:color .3s}
+@media(min-width:760px){.c-name{font-size:27px}}
+.card:hover .c-name{color:var(--cyan)}
+.c-price{margin-top:4px;font-size:12px;line-height:1.18;letter-spacing:.035em;color:var(--fog)}
+.c-price b{color:var(--paper);font-weight:400}
+.c-sizes{display:flex;flex-wrap:wrap;gap:8px;margin-top:auto;padding-top:10px}
+.sz{font-size:9px;letter-spacing:.05em;border:1px solid var(--line);border-radius:20px;padding:3.5px 9px;color:var(--fog)}
+.sz.has{border-color:var(--cyan-dim);color:var(--cyan)}
+/* Ti le chu tren the mon: mobile bam theo ban Figma cua Son (the rong 173px),
+   man to giu nguyen ti le do khi the no ra. */
+@media(min-width:760px){.c-price{font-size:13px;margin-top:6px}.sz{font-size:10.5px;padding:4px 10px}.c-go{font-size:10px;margin-top:12px}}
+.c-go{margin-top:9px;font-size:8.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--cyan);display:flex;align-items:center;gap:8px}
+.card:hover .c-go{color:var(--cyan)}
+
+.empty{padding:70px 20px 80px;text-align:center;border:1px solid var(--line-2);margin:22px 0 40px}
+.empty .big{font-family:'Vagabond Sans',var(--sans);font-size:32px;text-transform:uppercase}
+.empty p{color:var(--fog);margin-top:10px;font-size:14px}
+/* Frappe nhet .btn:not(.btn-md):not(.btn-lg):not(.btn-xs){padding:4px 8px} vao sau,
+   do uu tien 0-4-0 nen de nhu cu thi moi nut deu bi bop con 25px. Doi bang
+   chuoi :not() tuong duong de gianh lai. */
+
+/* ---------- ngay & gio ---------- */
+.rail{display:flex;gap:8px;overflow-x:auto;padding:16px 20px 6px;margin:0 -20px;scrollbar-width:none}
+@media(min-width:900px){.rail{padding:16px 40px 6px;margin:0 -40px}}
+.rail::-webkit-scrollbar{display:none}
+.day{flex:0 0 auto;width:70px;padding:11px 0 12px;text-align:center;border:1px solid var(--line);transition:.25s}
+.day span{display:block;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--fog-2)}
+.day b{display:block;font-family:'Vagabond Sans',var(--sans);font-size:21px;font-weight:400;margin-top:3px}
+.day small{display:block;font-size:9px;color:var(--fog-2);margin-top:2px}
+.day.on{border-color:var(--cyan);background:rgba(41,189,179,.10)}
+.day.on b{color:var(--cyan)}
+.day.best{position:relative}
+.day.best::after{content:'';position:absolute;top:-1px;right:-1px;width:6px;height:6px;background:var(--cyan)}
+.slot{flex:0 0 auto;border:1px solid var(--line);padding:10px 15px;font-size:12.5px;letter-spacing:.04em;white-space:nowrap;color:var(--fog);transition:.25s}
+.slot.on{border-color:var(--cyan);color:var(--cyan);background:rgba(41,189,179,.10)}
+.slot.off{color:var(--fog-2);opacity:.4;pointer-events:none;
+  background:repeating-linear-gradient(135deg,transparent,transparent 5px,rgba(255,255,255,.07) 5px,rgba(255,255,255,.07) 6px)}
+
+/* ---------- trang chi tiet ---------- */
+.sheet{position:fixed;inset:0;z-index:60;background:var(--bg);overflow-y:auto;transform:translateY(100%);transition:transform .5s cubic-bezier(.22,.9,.24,1);visibility:hidden}
+.sheet.open{transform:none;visibility:visible}
+.hero-img{position:relative;background:var(--bg-2);aspect-ratio:1/1;max-height:56vh;overflow:hidden}
+@media(max-width:899px){.hero-img{margin:0 -20px}}
+@media(min-width:760px){.hero-img{aspect-ratio:16/9;max-height:70vh}}
+.hero-img img{width:100%;height:100%;object-fit:cover}
+.hero-img::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,9,10,.55),rgba(8,9,10,0) 38%,rgba(8,9,10,.9))}
+.close{position:absolute;top:16px;left:16px;z-index:3;width:40px;height:40px;border:1px solid var(--line);background:rgba(0,0,0,.5);backdrop-filter:blur(8px);display:grid;place-items:center}
+.close svg{width:14px;height:14px;stroke:var(--paper);stroke-width:1.6}
+.thumbs{display:flex;gap:8px;overflow-x:auto;padding:18px 20px;margin:0 -20px;scrollbar-width:none}
+@media(min-width:900px){.thumbs{padding:14px 40px;margin:0 -40px}}
+.thumbs::-webkit-scrollbar{display:none}
+.th{flex:0 0 auto;width:78px;height:78px;border:1px solid var(--line);overflow:hidden;background:var(--bg-2);position:relative}
+.th img{width:100%;height:100%;object-fit:cover}
+.th.on{border-color:var(--cyan)}
+
+.th .lbl{position:absolute;inset:0;display:grid;place-items:center;text-align:center;font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--fog-2);padding:5px;line-height:1.4}
+.avail{margin-top:16px;display:inline-flex;align-items:center;gap:9px;font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--cyan);border:1px solid var(--cyan-dim);padding:7px 13px}
+.desc{margin-top:20px;font-size:15px;line-height:1.8;color:var(--fog);max-width:62ch}
+.layers{margin-top:16px;border-top:1px solid var(--line-2)}
+.layer{padding:15px 0;border-bottom:1px solid var(--line-2);display:flex;gap:16px}
+.layer .i{font-size:10px;letter-spacing:.1em;color:var(--cyan);padding-top:4px;min-width:24px}
+.layer b{display:block;font-weight:400;font-size:16px;letter-spacing:.01em}
+.layer i{display:block;font-family:var(--serif);font-style:italic;font-size:14px;color:var(--fog);margin-top:3px}
+.sizes{display:flex;flex-wrap:wrap;gap:9px;margin-top:18px}
+.size{border:1px solid var(--line);padding:13px 16px;min-width:120px;text-align:left;transition:.25s}
+.size.on{border-color:var(--cyan);background:rgba(41,189,179,.10)}
+.size b{display:block;font-family:'Vagabond Sans',var(--sans);font-size:17px;font-weight:400}
+.size.on b{color:var(--cyan)}
+.size span{display:block;font-size:11px;color:var(--fog-2);margin-top:4px;letter-spacing:.05em}
+.size em{display:block;font-size:10.5px;color:var(--cyan);font-style:normal;margin-top:5px;letter-spacing:.05em}
+.fine{font-size:11.5px;color:var(--fog-2);line-height:1.8;margin-top:16px}
+.acc{list-style:none;margin-top:14px;border-top:1px solid var(--line-2)}
+.acc li{padding:12px 0;border-bottom:1px solid var(--line-2);display:flex;align-items:center;gap:14px;font-size:14.5px}
+/* Anh phu kien la PNG tach nen, KHONG dat nen trang, khong object-fit:cover */
+.acc img{width:62px;height:62px;object-fit:contain;flex:0 0 auto}
+.acc .nm{flex:1}
+.acc .nm small{display:block;color:var(--fog-2);font-size:11.5px;font-family:var(--serif);font-style:italic}
+.addon-lead{font-size:13px;color:var(--fog);margin-top:12px}
+.numlab{margin-top:22px;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--fog-2)}
+.numlab b{color:var(--paper);letter-spacing:.08em;margin-left:.6em;font-weight:400}
+
+/* nen so: dung anh that cua tung so */
+.nums{display:grid;grid-template-columns:repeat(10,1fr);gap:3px;margin-top:12px}
+.numbtn{width:100%;height:74px;overflow:hidden;border:1px solid transparent;
+ display:grid;place-items:center;transition:.2s;border-radius:3px;padding:5px 2px}
+.numbtn img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;transition:.2s;
+ filter:brightness(.72) saturate(.85)}
+.numbtn:hover img{filter:none}
+.numbtn.on{border-color:transparent;background:none}
+.numbtn.on img{filter:brightness(1.25) drop-shadow(0 0 9px rgba(41,189,179,.8))}
+.numpick{margin-top:12px;display:flex;align-items:center;gap:12px;font-size:13.5px;color:var(--fog);min-height:26px}
+.numpick .big{font-family:'Vagabond Sans',var(--sans);font-size:26px;color:var(--paper);letter-spacing:.06em;line-height:1}
+.numpick .x{border:1px solid var(--line);padding:3px 10px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--fog-2)}
+.numpick .x:hover{color:var(--paper);border-color:var(--line)}
+.addons{list-style:none;margin-top:20px;border-top:1px solid var(--line-2)}
+.addons li{border-bottom:1px solid var(--line-2)}
+.addons button{width:100%;display:flex;align-items:center;gap:14px;padding:11px 0;text-align:left;font-size:14.5px}
+.addons .bx{width:19px;height:19px;border:1px solid var(--line);flex:0 0 auto;display:grid;place-items:center;font-size:12px;color:var(--bg)}
+.addons .on .bx{background:var(--cyan);border-color:var(--cyan)}
+.addons .ph{width:68px;height:68px;flex:0 0 auto;display:grid;place-items:center;overflow:hidden;padding:3px}
+.addons .ph img{max-width:100%;max-height:100%;object-fit:contain;filter:brightness(.85);transition:.2s}
+.addons .on .ph img{filter:none}
+.addons .nm{flex:1}
+.addons .pr{color:var(--paper);font-size:13px;letter-spacing:.04em}
+.addsum{margin-top:16px;padding:14px 16px;border:1px solid var(--cyan-dim);background:rgba(41,189,179,.08);font-size:13.5px;display:none}
+.addsum b{color:var(--cyan);font-weight:400}
+/* ---------- gio hang ---------- */
+.bar{position:fixed;left:0;right:0;bottom:0;z-index:50;transform:translateY(110%);
+ transition:transform .35s cubic-bezier(.22,.9,.24,1);
+ background:rgba(6,6,6,.94);backdrop-filter:blur(18px);border-top:1px solid var(--cyan-dim)}
+.bar.on{transform:none}
+.bar .in{display:flex;align-items:center;gap:14px;padding:13px 0 max(13px,env(safe-area-inset-bottom))}
+.bar .cnt{flex:1;font-size:13px;color:var(--fog);line-height:1.45}
+.bar .cnt b{display:block;color:var(--paper);font-size:15px;letter-spacing:.02em}
+.bar .go{background:var(--cyan);color:#000;padding:13px 24px;font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;white-space:nowrap}
+.bar .go:hover{background:var(--cyan-bright)}
+body.has-bar .sheet,body.has-bar main{padding-bottom:86px}
+
+.cart{list-style:none;margin-top:14px;border-top:1px solid var(--line-2)}
+.cart li{display:flex;gap:14px;padding:16px 0;border-bottom:1px solid var(--line-2);align-items:flex-start}
+.cart .im{width:66px;height:66px;flex:0 0 auto;overflow:hidden;background:var(--card)}
+.cart .im img{width:100%;height:100%;object-fit:cover}
+.cart .bd{flex:1;min-width:0}
+.cart .t{font-size:15px;letter-spacing:.01em}
+.cart .s{font-size:12px;color:var(--fog-2);margin-top:3px}
+.cart .ex{font-size:12px;color:var(--fog);margin-top:6px;line-height:1.65}
+.cart .ex em{font-style:normal;color:var(--cyan)}
+.cart .rt{text-align:right;flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-end;gap:9px}
+.cart .p{font-size:14px;white-space:nowrap}
+.cart .qty{display:flex;align-items:center;border:1px solid var(--line)}
+.cart .qty button{width:28px;height:28px;display:grid;place-items:center;font-size:15px;color:var(--fog)}
+.cart .qty button:hover{color:var(--paper)}
+.cart .qty span{min-width:26px;text-align:center;font-size:13px}
+.cart .rm{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--fog-2)}
+.cart .rm:hover{color:#E8705F}
+.cart-add{margin-top:16px;width:100%;border:1px dashed var(--line);padding:14px;font-size:12px;
+ letter-spacing:.14em;text-transform:uppercase;color:var(--fog)}
+.cart-add:hover{border-color:var(--cyan-dim);color:var(--cyan)}
+.cart-empty{padding:30px 0;color:var(--fog-2);font-size:14px}
+
+.toast{position:fixed;left:50%;bottom:104px;transform:translate(-50%,16px);z-index:90;
+ background:var(--cyan);color:#000;padding:12px 22px;font-size:13px;letter-spacing:.03em;
+ opacity:0;pointer-events:none;transition:.28s}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+
+.cta{position:sticky;bottom:0;background:linear-gradient(180deg,rgba(0,0,0,0),var(--bg) 30%);padding:24px 0 max(20px,env(safe-area-inset-bottom));display:flex;gap:10px;margin-top:14px}
+.cta .btn:not(.btn-md):not(.btn-lg):not(.btn-xs){flex:1;text-align:center;margin:0;padding:19px 10px;min-height:58px;font-size:12px;display:flex;align-items:center;justify-content:center;gap:6px}
+.cta .tel{width:64px;min-height:58px;display:grid;place-items:center;border:1px solid var(--cyan-dim)}
+.cta .tel svg{width:21px;height:21px;stroke:var(--cyan);fill:none;stroke-width:1.6}
+
+/* ---------- trang nhap don ---------- */
+.co{position:fixed;inset:0;z-index:70;background:var(--bg);overflow-y:auto;transform:translateY(100%);transition:transform .45s cubic-bezier(.22,.9,.24,1);visibility:hidden}
+.co.open{transform:none;visibility:visible}
+.co-top{position:sticky;top:0;z-index:5;background:rgba(0,0,0,.92);backdrop-filter:blur(14px);border-bottom:1px solid var(--line-2)}
+.co-top .in{display:flex;align-items:center;gap:14px;height:60px}
+.co-top .bk{width:36px;height:36px;border:1px solid var(--line);display:grid;place-items:center}
+.co-top .bk svg{width:14px;height:14px;stroke:var(--paper);stroke-width:1.7;fill:none}
+.co-top b{font-size:11px;letter-spacing:.2em;text-transform:uppercase;font-weight:400;color:var(--fog)}
+.fld{margin-top:16px}
+.fld label{display:block;font-family:var(--sans);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--fog-2);margin-bottom:8px}
+.fld input,.fld textarea{width:100%;background:var(--bg-2);border:1px solid var(--line);color:var(--paper);
+  padding:14px 15px;font-family:var(--sans);font-size:15px;outline:none;transition:border-color .2s}
+.fld input:focus,.fld textarea:focus{border-color:var(--cyan)}
+.fld textarea{resize:vertical;min-height:78px}
+.hint{font-size:11.5px;color:var(--fog-2);margin-top:7px}
+.two{display:grid;gap:12px}
+@media(min-width:640px){.two{grid-template-columns:1fr 1fr}}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.seg button{border:1px solid var(--line);padding:16px 12px;text-align:left;transition:.2s}
+.seg button.on{border-color:var(--cyan);background:rgba(41,189,179,.10)}
+.seg b{display:block;font-size:15px;font-weight:400}
+.seg span{display:block;font-size:11.5px;color:var(--fog-2);margin-top:4px}
+.seg .on b{color:var(--cyan)}
+.pick{border:1px solid var(--line);padding:14px;margin-top:10px;text-align:left;width:100%;transition:.2s;display:block}
+.pick.on{border-color:var(--cyan);background:rgba(41,189,179,.10)}
+.pick b{display:block;font-size:14.5px;font-weight:400}
+.pick span{display:block;font-size:12px;color:var(--fog-2);margin-top:4px;line-height:1.5}
+/* Goi y dia chi Goong. Khong dung position:absolute vi tren dien thoai
+   ban phim che mat, day xuong duoi cho khach cuon toi la chac an hon. */
+.goiy{border:1px solid var(--line);border-top:0;margin-top:-1px}
+.goiy button{display:block;width:100%;text-align:left;padding:11px 13px;font-size:13.5px;
+ line-height:1.45;border-bottom:1px solid var(--line-2);transition:.15s}
+.goiy button:last-child{border-bottom:0}
+.goiy button:hover,.goiy button:focus{background:rgba(41,189,179,.10)}
+.goiy .lbl{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--fog-2);
+ padding:9px 13px;border-bottom:1px solid var(--line-2)}
+.chk{display:flex;align-items:flex-start;gap:12px;padding:14px 0;border-bottom:1px solid var(--line-2);width:100%;text-align:left}
+.chk .bx{width:19px;height:19px;border:1px solid var(--line);flex:0 0 auto;display:grid;place-items:center;font-size:12px;color:var(--bg);margin-top:2px}
+.chk.on .bx{background:var(--cyan);border-color:var(--cyan)}
+.chk .tx{font-size:14.5px}
+.chk .tx small{display:block;color:var(--fog-2);font-size:11.5px;margin-top:3px}
+.sum{border:1px solid var(--line);margin-top:22px}
+.sum .row{display:flex;justify-content:space-between;gap:16px;padding:12px 16px;font-size:14px;border-bottom:1px solid var(--line-2)}
+.sum .row:last-child{border-bottom:0}
+.sum .row span{color:var(--fog)}
+.sum .row.tot{background:rgba(41,189,179,.09)}
+.sum .row.tot b{color:var(--cyan);font-size:17px;font-family:'Vagabond Sans',var(--sans);font-weight:400}
+.warn{margin-top:14px;font-size:12px;color:var(--fog-2);line-height:1.7}
+
+/* ---------- chan trang ---------- */
+footer{border-top:1px solid var(--line-2);padding:52px 0 40px;margin-top:20px}
+.f-big{font-family:'Vagabond Sans',var(--sans);font-size:clamp(36px,9vw,78px);line-height:1;text-transform:uppercase;color:var(--cyan)}
+.f-big em{font-family:var(--serif);font-style:italic;text-transform:none;color:var(--paper);opacity:.9}
+.f-note{margin-top:32px;padding-top:20px;border-top:1px solid var(--line-2);font-size:10.5px;letter-spacing:.1em;color:var(--fog-2);line-height:1.9;text-transform:uppercase}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* TRANG NAY CHAY TRONG WEB PAGE CUA FRAPPE, va Frappe keo san bootstrap vao.
+   Bootstrap cung co .card .row .btn .toast - de len minh: card trang xoa,
+   chu trang tren nen trang, toast mat tich. Khong doi ten class (JS sinh HTML
+   dung ten cu khap noi), chi tra lai tung thuoc tinh bootstrap dong vao.
+   Khoi nay phai nam CUOI style de thang het. */
+.card{background:transparent;border:0;border-radius:0;min-width:0;word-wrap:normal}
+.row{margin:0;flex-wrap:nowrap}
+.row>*{padding-left:0;padding-right:0;width:auto;max-width:none;flex-shrink:1}
+.btn{border:0;border-radius:0;vertical-align:baseline}
+.btn:focus{box-shadow:none;outline:none}
+.toast{max-width:none;border:0;border-radius:0;box-shadow:none;backdrop-filter:none;overflow:visible;flex-basis:auto}
+
+/* Thanh dieu huong cua Frappe (Trang chu / Dang nhap) von nen trang, lac long
+   tren trang toi. Nhuom lai cho thanh mot phan cua trang: nen den, chu suong
+   mo, hover xanh. Khong giau di - khach quen va nhan vien van can nut dang nhap. */
+nav.navbar{background:#050807!important;border-bottom:1px solid rgba(255,255,255,.08);padding:8px 16px}
+nav.navbar .navbar-brand span,nav.navbar .nav-link{color:#8FA6A1!important;font-family:var(--sans);font-size:11px;letter-spacing:.18em;text-transform:uppercase}
+nav.navbar .nav-link:hover,nav.navbar .navbar-brand:hover span{color:var(--cyan)!important}
+nav.navbar .navbar-toggler{border:0;color:#8FA6A1}
+nav.navbar .navbar-toggler .icon{stroke:#8FA6A1}
+nav.navbar .dropdown-menu{background:#0B100F;border:1px solid rgba(255,255,255,.1)}
+nav.navbar .dropdown-item{color:#8FA6A1}
+nav.navbar .dropdown-item:hover{background:rgba(41,189,179,.12);color:#fff}
+
+/* ===== #367: chu tieng Viet va con so dung phong he thong =====
+   Phong thuong hieu (Vagabond Sans) dung sai dau tieng Viet: "Bánh hôm nay"
+   ra dau lech, so ngay khong deu. Chi giu phong do cho TEN BANH TIENG ANH va
+   logo. Ten banh co dau tieng Viet thi ham laChuViet() gan lop .vi.
+   Tang do uu tien bang "html body" vi cua-hang.css nap SAU khoi nay. */
+/* v532 (anh Viet 27/09/2026): tieu de muc TRO LAI phong thuong hieu Vagabond
+   Sans, cung phong voi ten banh va logo. Phong nay co du glyph tieng Viet
+   (da kiem tung ky tu bang fontTools, xem thu_nhan_web_532), dau in hoa dat
+   dung. Van giu "html body" de de cua-hang.css. */
+html body .h1{font-family:'Vagabond Sans',var(--sans);font-weight:400;letter-spacing:.01em;font-size:clamp(36px,4vw,48px);line-height:1.12;text-transform:uppercase;margin-top:0}
+html body .h1 em#bigDate{display:none}
+/* v532 (anh Viet 27/09/2026): CHI con so (ngay, gia, so luong) dung phong he
+   thong cho deu net. Moi tieu de (Tang huong, Dat banh nhan em nhe, o trong)
+   giu phong thuong hieu Vagabond Sans nhu truoc v529. */
+.stat b,.day b,.size b,.numpick .big,.sum .row.tot b{font-family:var(--sans);font-weight:600;letter-spacing:0}
+.c-name.vi,.s-head h2.vi{font-family:var(--sans);font-weight:600;letter-spacing:0}
+.ngay-ban{font-family:var(--sans);font-size:13px;color:var(--fog);padding:8px 16px 0;max-width:var(--shell);margin:0 auto}
+.dong-tt{font-family:var(--sans);font-size:14px;color:var(--fog);margin-top:14px;line-height:1.5}
+.dong-tt b{color:var(--paper);font-weight:600}
+.dong-tt .live{display:inline-flex;font-size:inherit;letter-spacing:0;text-transform:none;vertical-align:baseline}
+.ph{aspect-ratio:4/5}
+.card-o{position:relative;min-width:0}
+.card-o>.card{width:100%}
+/* v532: nut them nhanh nhe tay hon (anh Viet 27/09/2026): vong kinh mo tren
+   anh, vien mong, dau cong ve bang net SVG 1.6px thay cho chu "+" dam.
+   v532b (Codex #376): vung bam 44x44 theo AGENTS.md dieu 13; vong kinh 40px
+   ve bang ::before (inset 2px) nen nhin van nhu cu, tam vong khong doi. */
+.c-them{position:absolute;top:8px;right:8px;z-index:3;width:44px;height:44px;min-width:44px;min-height:44px;border-radius:50%;background:none;border:0;color:var(--paper);display:grid;place-items:center;padding:0;transition:color .25s}
+.c-them::before{content:"";position:absolute;inset:2px;border-radius:50%;background:rgba(0,0,0,.42);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.32);transition:border-color .25s,background .25s}
+.c-them svg{position:relative;width:16px;height:16px;display:block}
+.c-them:hover,.c-them:focus-visible{color:var(--cyan)}
+.c-them:hover::before,.c-them:focus-visible::before{border-color:var(--cyan);background:rgba(0,0,0,.6)}
+.c-them:active{transform:scale(.94)}
+.bar .cnt small{display:block;font-size:12px;color:var(--fog);margin-top:1px}
+.bar.nhich .cnt b{animation:vgbNhich .15s ease-out}
+@keyframes vgbNhich{50%{transform:translateY(-3px)}}
+.fld select{width:100%;min-height:48px;background:var(--bg-2);color:var(--paper);border:1px solid var(--line);padding:0 12px;font:15px var(--sans)}
+.chk.dongy .tx a{color:var(--cyan);text-decoration:underline}
+.doc-cs{font-size:13px;margin:6px 0 0 31px;color:var(--fog)}
+.doc-cs a{color:var(--cyan);text-decoration:underline;display:inline-flex;min-height:44px;align-items:center}
+.f-phap-nhan{margin-top:26px;font-family:var(--sans);font-size:13px;line-height:1.75;color:var(--fog)}
+.f-phap-nhan b{color:var(--paper);font-weight:600}
+.f-phap-nhan a{color:var(--paper);text-decoration:underline;text-underline-offset:3px}
+/* Chu hoa tieng Viet co dau chong (Ạ, Ắ) bi cat mat dau khi line-height 1. */
+.f-big{line-height:1.14}
+/* .bar .in dat padding "13px 0" nen de mat le trai cua .wrap: chu sat mep. */
+.bar .in{padding-left:16px}
+.f-cs{display:flex;flex-wrap:wrap;gap:4px 18px;margin-top:10px;font-family:var(--sans);font-size:13px}
+.f-cs a{display:inline-flex;align-items:center;min-height:44px;color:var(--paper);text-decoration:underline;text-underline-offset:3px}
+.sum .row.phu span,.sum .row.phu b{color:var(--fog);font-size:13px}
+@media(prefers-reduced-motion:reduce){.bar.nhich .cnt b{animation:none}.c-them:active{transform:none}}

@@ -4289,7 +4289,10 @@ def tao_don_tay(
 	if ctkm_ap or combo_ap or (ma_voucher or "").strip():
 		from vagabond import khuyen_mai as _km
 
-		km_kq = _km.tinh(
+		# Codex #460: cùng giao thức giữ lượt với đơn web (khoá chương trình,
+		# tính lại trên ảnh chụp mới). Khoá giữ tới lúc ghi lượt và commit
+		# ngay sau khi lưu hoá đơn bên dưới.
+		km_kq = _km.tinh_co_khoa(
 			items,
 			ctkm=ctkm_ap,
 			ma=ma_voucher,
@@ -4429,26 +4432,9 @@ def tao_don_tay(
 			pass
 	si.flags.ignore_permissions = True
 	si.save()
-	frappe.db.commit()
-
-	# Tru diem cua khach, neu thu ngan da xin ma va khach da xac nhan ngay
-	# tren man tinh tien (anh Viet chot luong nay 19/08/2026).
-	#
-	# Dat SAU si.save() chu khong truoc: so diem duoc kiem lai lan cuoi tren
-	# grand_total THAT cua to hoa don vua luu, chu khong tren con so may
-	# khach gui len - QT-19. Xem diem_otp.dung_ve.
-	#
-	# KHONG boc trong try. Tru diem hong ma van tra ve "da chot bill" thi
-	# khach ra ve tuong da duoc giam, con bill thi thu du tien. Loi phai noi
-	# ra tai quay, luc con sua duoc.
-	diem_da_tru = None
-	if (ve_diem or "").strip():
-		from vagabond import diem_otp as _diem
-
-		diem_da_tru = _diem.dung_ve(ve_diem.strip(), si.name)
-		frappe.db.commit()
-		si.reload()
-
+	# Codex #460: ghi lượt khuyến mãi TRƯỚC commit hoá đơn, trong cùng giao
+	# dịch còn giữ khoá chương trình (tinh_co_khoa), để đơn web hay quầy khác
+	# đang chờ khoá thấy đúng số lượt khi được chạy.
 	if km_kq and km_kq.get("ap"):
 		try:
 			from vagabond import khuyen_mai as _km
@@ -4468,6 +4454,25 @@ def tao_don_tay(
 				title="Vagabond: ghi vet khuyen mai sau don tay",
 				message=frappe.get_traceback(),
 			)
+	frappe.db.commit()
+
+	# Tru diem cua khach, neu thu ngan da xin ma va khach da xac nhan ngay
+	# tren man tinh tien (anh Viet chot luong nay 19/08/2026).
+	#
+	# Dat SAU si.save() chu khong truoc: so diem duoc kiem lai lan cuoi tren
+	# grand_total THAT cua to hoa don vua luu, chu khong tren con so may
+	# khach gui len - QT-19. Xem diem_otp.dung_ve.
+	#
+	# KHONG boc trong try. Tru diem hong ma van tra ve "da chot bill" thi
+	# khach ra ve tuong da duoc giam, con bill thi thu du tien. Loi phai noi
+	# ra tai quay, luc con sua duoc.
+	diem_da_tru = None
+	if (ve_diem or "").strip():
+		from vagabond import diem_otp as _diem
+
+		diem_da_tru = _diem.dung_ve(ve_diem.strip(), si.name)
+		frappe.db.commit()
+		si.reload()
 
 	# Don kenh khac co banh o thi tru ngay tren bang kiem banh, khong doi
 	# lich 5 phut (y Loan Anh 08/08/2026 - truoc day phai tao them mot don

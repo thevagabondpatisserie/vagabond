@@ -1,0 +1,84 @@
+/* #460: giao diện Rocca đã duyệt, giữ font và màu Vagabond. */
+html body :is(.close,.bk,.c-them,.qty button,.thao-tac-icon){
+  width:44px;height:44px;min-width:44px;min-height:44px;padding:0;
+  border:1px solid var(--line);border-radius:50%;display:inline-grid;
+  place-items:center;flex:0 0 44px;color:var(--paper);background:var(--bg-2);
+}
+html body :is(.close,.bk,.c-them,.qty,.sua-gio,.rm,.numpick .x,.cart-add,.tuy-chon summary,.addons .bx) svg{
+  display:block;width:20px;height:20px;flex:0 0 20px;fill:none;
+  stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;
+}
+html body :is(button,a,summary,input,select,textarea):focus-visible{
+  outline:2px solid var(--cyan);outline-offset:4px;
+}
+html body button:disabled{cursor:not-allowed;opacity:.4}
+html body .qty,html body .cart .qty{display:inline-flex;align-items:center;gap:10px;border:0}
+html body .qty :is(span,output){min-width:26px;text-align:center;font-size:15px;color:var(--paper)}
+html body :is(.sua-gio,.cart .rm,.numpick .x){
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  min-height:44px;padding:6px 10px;font-size:13px;line-height:1.5;
+  letter-spacing:0;text-transform:none;color:var(--fog);border-radius:4px;
+}
+html body .cart-add{display:inline-flex;align-items:center;gap:8px;min-height:44px}
+html body .sua-gio{color:var(--cyan);text-decoration:none}
+html body :is(.btn,.cta .btn:not(.btn-md):not(.btn-lg):not(.btn-xs)){
+  border-radius:4px;min-height:52px;letter-spacing:.03em;
+}
+html body .cta .btn:not(.btn-md):not(.btn-lg):not(.btn-xs){padding:14px 12px;font-size:13px}
+html body .cta .tel{width:52px;min-height:52px;border-radius:4px;flex:0 0 52px}
+html body .sheet .s-head{margin-top:20px;padding-top:0}
+html body .sheet .s-head h2{font-family:'Vagabond Sans',var(--sans);font-size:clamp(34px,4vw,54px);line-height:1.15;margin:0}
+html body .sheet .avail{margin-top:12px;letter-spacing:.06em;line-height:1.6}
+html body .sheet .sec{margin-top:24px;padding:0 0 6px}
+html body .sheet .sec h3{font-family:var(--sans);font-size:13px;letter-spacing:.08em;line-height:1.6}
+html body .sheet .fine{font-size:12px;line-height:1.7;margin-top:12px}
+html body .sheet .sizes{margin-top:12px;gap:8px}
+html body .sheet .size{flex:1;min-width:132px;border-radius:4px;padding:12px}
+html body .sheet .size b{font-family:var(--sans);font-size:16px}
+html body .sheet .size span{font-size:12px;line-height:1.6;color:var(--fog)}
+html body .chon-so-luong{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:20px 0;font-size:14px}
+html body .tuy-chon{border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin:24px 0 0}
+html body .tuy-chon summary{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:56px;padding:12px 0;cursor:pointer;list-style:none;font-size:14px;line-height:1.6}
+html body .tuy-chon summary::-webkit-details-marker{display:none}
+html body .tuy-chon[open]>summary svg{transform:rotate(45deg)}
+html body .tuy-chon>.desc{margin-top:4px;font-size:14px}
+html body .tuy-chon> :last-child:not(summary){margin-bottom:20px}
+html body .tuy-chon .h-sec{font-size:28px;margin:24px 0 0}
+html body .tuy-chon .layer{padding:12px 0}
+html body .tuy-chon .layer b{font-size:14px}
+html body .sheet .nums{grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+html body .sheet .numbtn{height:88px;min-width:0;display:flex;align-items:center;justify-content:center;padding:6px}
+html body .sheet .numbtn img{width:100%;height:100%;max-width:100%;max-height:100%;object-fit:contain}
+html body .sheet .numbtn.on{border-color:var(--cyan);background:rgba(41,189,179,.06)}
+html body .sheet .numpick{flex-wrap:wrap}
+html body .sheet .addons .ph{width:52px;height:62px;flex-basis:52px}
+html body .sheet .addons button{gap:10px;font-size:13px}
+html body .sheet .addons .pr{white-space:nowrap;font-size:12px}
+html body .sheet .addons .bx svg{width:16px;height:16px;flex-basis:16px}
+html body .sheet .cta{z-index:4;background:var(--bg);border-top:1px solid var(--line);padding:14px 0 max(14px,env(safe-area-inset-bottom))}
+html body footer{padding:28px 0 32px}
+html body footer .f-note{margin:0 0 16px;font-size:12px;line-height:1.8}
+html body footer .f-phap-nhan{margin-top:16px;line-height:1.9}
+@media(min-width:960px){
+  html body .sheet{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:40px;padding:32px max(32px,calc((100vw - 1200px)/2))!important;align-items:start}
+  html body .sheet>.wrap{width:100%;max-width:none;padding:0;margin:0;min-width:0}
+  html body .sheet>.wrap:first-child{position:sticky;top:0}
+  html body .sheet .hero-img{width:100%;aspect-ratio:4/5;max-height:calc(100vh - 64px)}
+  html body .sheet .hero-img::after{display:none}
+  html body .sheet .s-head{margin-top:0}
+  html body .sheet .thumbs{margin:0 0 16px}
+}
+@media(max-width:959px){
+  html body .sheet{padding-bottom:0!important}
+  html body .sheet>.wrap{width:100%;padding-left:20px;padding-right:20px}
+  html body .sheet>.wrap:first-child{padding:0}
+  html body .sheet .hero-img{max-height:42vh;width:100%;aspect-ratio:4/3}
+  html body .sheet .hero-img::after{display:none}
+  html body .sheet .close{position:fixed;left:auto;right:12px;top:max(12px,env(safe-area-inset-top));z-index:5}
+  html body .cart li:not(.cart-empty){display:grid;grid-template-columns:66px minmax(0,1fr);gap:12px}
+  html body .cart .rt{grid-column:1/-1;display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px;width:100%}
+  html body .cart .sua-gio{justify-self:start;padding-left:0}
+  html body .cart .qty{justify-self:start}
+  html body .cart .rm{justify-self:end;padding-right:0}
+}
+@media(prefers-reduced-motion:reduce){html body .sheet{transition:none}}

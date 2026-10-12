@@ -20,7 +20,7 @@
   function tao(the, lop, chu) { const e = document.createElement(the); if (lop) e.className = lop; if (chu != null && chu !== '') e.textContent = chu; return e; }
 
   const THE = [
-    {k: 'uu_dai', ten: 'Ưu đãi', mo: 'Thêm, sửa, ẩn chương trình khuyến mãi', them: '+ Thêm ưu đãi', luu: 'Lưu ưu đãi', ten_muc: 'ưu đãi', dau: 'Danh sách ưu đãi'},
+    {k: 'uu_dai', ten: 'Ưu đãi', mo: 'Lấy từ ERP, chỉ xem ở đây', them: '+ Thêm ưu đãi', luu: 'Lưu ưu đãi', ten_muc: 'ưu đãi', dau: 'Danh sách ưu đãi'},
     {k: 'tiec', ten: 'Tiệc', mo: 'Tạo tiệc, đặt giá vé, số vé, hạn đăng ký', them: '+ Thêm tiệc', luu: 'Lưu tiệc', ten_muc: 'tiệc', dau: 'Danh sách tiệc'},
     {k: 'tuyen_dung', ten: 'Tuyển dụng', mo: 'Vị trí đang tuyển, hạn nhận hồ sơ', them: '+ Thêm vị trí', luu: 'Lưu vị trí', ten_muc: 'vị trí', dau: 'Danh sách tuyển dụng'},
     {k: 'cua_hang', ten: 'Cửa hàng', mo: 'Địa chỉ, giờ mở cửa, hotline, chỉ đường', them: '+ Thêm cửa hàng', luu: 'Lưu cửa hàng', ten_muc: 'cửa hàng', dau: 'Danh sách cửa hàng'},
@@ -144,6 +144,7 @@
   /* ------------------------------------------------------------ khung */
   function demThe(k) {
     if (!B) return '';
+    if (k === 'uu_dai') return String((B.uu_dai_erp || []).length);
     if (LOAI_MUC.includes(k)) return String(B.khoi.filter(x => x.loai === k).length);
     if (k === 'cua_hang') return String((B.thong_tin.cua_hang || []).length);
     return '';
@@ -255,7 +256,36 @@
   }
 
   /* ------------------------------------------------------------ danh sách */
+  /* v589 (anh Việt 09/10/2026): ưu đãi lấy từ ERP, nguồn duy nhất. Thẻ này
+     chỉ xem: tạo, sửa, bật tắt ở app ERP, chương trình khuyến mãi tích "Hiện
+     trên website". Ưu đãi gõ tay trước đây vẫn nằm trong dữ liệu nhưng không
+     còn ra trang khách. */
+  function dsUuDaiErp() {
+    const g = tao('section', 'bt-ds'); g.setAttribute('aria-label', 'Danh sách ưu đãi');
+    const dau = tao('div', 'bt-dau-ds');
+    const mo = tao('a', 'bt-nut chinh', 'Mở Chương trình khuyến mãi trên ERP'); mo.setAttribute('href', '/khuyen-mai'); mo.setAttribute('target', '_blank'); mo.setAttribute('rel', 'noopener');
+    dau.append(mo);
+    g.append(dau);
+    g.append(tao('p', 'bt-rong', 'Ưu đãi trên web lấy thẳng từ ERP. Tạo hoặc sửa chương trình ở app: Bán hàng, Chương trình khuyến mãi, bật mục Website. Bật, tắt hay hết hạn trên ERP là web đổi theo ngay, không nhập lại ở đây.'));
+    const hang = tao('div', 'bt-hang');
+    const ds = B.uu_dai_erp || [];
+    if (!ds.length) hang.append(tao('p', 'bt-rong', 'Chưa có chương trình nào bật Hiện trên website.'));
+    ds.forEach(k => {
+      const d = tao('article', 'bt-dong'); d.dataset.mucErp = k.ma_ctkm || k.id;
+      const trai = tao('div', 'bt-dong-trai');
+      const nhan = tao('div', 'bt-nhan-hang');
+      nhan.append(tao('span', 'bt-tt ' + (k.khach_thay ? 'dang' : 'het'), k.trang_thai_erp || ''));
+      if (!k.dung_web) nhan.append(tao('span', 'bt-tt an', 'Chỉ dùng tại cửa hàng'));
+      trai.append(nhan, tao('h3', 'bt-ten', k.tieu_de || '(chưa đặt tên)'), tao('p', 'bt-meta', moTa(k)));
+      d.append(trai);
+      hang.append(d);
+    });
+    g.append(hang);
+    return g;
+  }
+
   function dsMuc(loai) {
+    if (loai === 'uu_dai') return dsUuDaiErp();
     const t = THE.find(x => x.k === loai);
     const g = tao('section', 'bt-ds'); g.setAttribute('aria-label', t.dau);
     const dau = tao('div', 'bt-dau-ds');
