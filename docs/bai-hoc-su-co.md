@@ -1983,3 +1983,13 @@ phần `<dimension ref="A1"/>` trong sheet khai sai. openpyxl tin lời khai nê
 tệp; ca kiểm dựng xlsx thật có dimension sai. Bài học rộng hơn: khi người dùng
 gửi tệp "máy không nhận" thì in ba dòng đầu máy đọc được ra màn, lỗi này lộ
 ngay từ dòng đầu là trống.
+
+## 12/10/2026 - #351/#464: ca giả tự cấp trường mà cửa đọc không xin
+
+Hàm tính BC08 mới đếm đúng bán, trả và Nháp khi ca kiểm đưa thẳng dictionary
+đủ trường, nhưng đường thật qua `_hoa_don` mất `is_return` và
+`base_grand_total`, nên đếm phiếu trả thành bán và giá trị Nháp thành 0.
+Nguyên nhân là ca giả lập dữ liệu sau cửa đọc, vì vậy tự che hợp đồng trường
+giữa truy vấn và hàm tính. Phòng: ca hồi quy phải đi qua chính cửa đọc, cho
+`get_all` giả chỉ trả đúng các trường caller xin, đồng thời chốt bộ lọc công
+ty để dữ liệu pháp nhân demo không lọt vào báo cáo.

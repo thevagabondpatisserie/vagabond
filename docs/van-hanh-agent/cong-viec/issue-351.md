@@ -1,4 +1,4 @@
-# Issue 351 — một PR cho toàn bộ phân hệ báo cáo
+# Issue 351 - một PR cho toàn bộ phân hệ báo cáo
 
 ## Quyết định ngày 12/10/2026
 
@@ -30,7 +30,7 @@ bản/patch trên main mới nhất và dựng lại bundle.
 
 ## Checklist toàn bộ PR
 
-### Mốc 1a — nền và mẫu (chưa nghiệm thu)
+### Mốc 1a - nền và mẫu (chưa nghiệm thu)
 
 - [x] Claim issue, đồng bộ nền, lập checklist duy nhất.
 - [x] Hàm nội bộ mẫu BC08 đọc `base_net_amount`, `stock_qty`, `stock_uom`
@@ -42,21 +42,21 @@ bản/patch trên main mới nhất và dựng lại bundle.
 - [ ] Đối chiếu chứng từ core trên bench, cùng bộ lọc cho mọi cách xem.
 - [ ] Ảnh mẫu và nghiệm thu mốc 1a trước khi nhân rộng giao diện.
 
-### Mốc 1b — hoàn tất đợt 1
+### Mốc 1b - hoàn tất đợt 1
 
-- [ ] Chuyển 16 báo cáo còn lại: BC01–07, BC09–17; rà nhãn/nguồn từng báo
+- [ ] Chuyển 16 báo cáo còn lại: BC01-07, BC09-17; rà nhãn/nguồn từng báo
   cáo, đặc biệt BC04/15/16 không biến giá trị hóa đơn thành tiền thực thu.
 - [ ] Top món doanh thu/lãi gộp; giá vốn thật, độ bao phủ và phần còn thiếu.
 - [ ] Tỷ lệ NVL tháng, phân loại chuyển kho/trả/hủy/kiểm kê khỏi tiêu hao.
 - [ ] Biến động giá mua, phân biệt đơn giá/% biến động/tác động thành tiền.
 
-### Đợt 2 — phân tích vận hành
+### Đợt 2 - phân tích vận hành
 
 - [ ] Thực tế so định mức (AvT); ghi mốc BOM/giá và phạm vi đủ dữ liệu.
 - [ ] Ma trận món; lãi theo kênh sau phí, tránh đếm phí hai lần.
 - [ ] Kế hoạch sản xuất so thực tế; hao hụt theo lý do; tồn kho chuyên sâu.
 
-### Đợt 3 — tài chính và sử dụng hằng ngày
+### Đợt 3 - tài chính và sử dụng hằng ngày
 
 - [ ] Tuổi nợ phải thu/phải trả theo ngày chốt, tái dùng báo cáo lõi.
 - [ ] Bản đồ giờ cao điểm, khách quay lại, lương/doanh thu từ sổ.
@@ -77,7 +77,7 @@ bản/patch trên main mới nhất và dựng lại bundle.
 - [ ] Lương: xác minh tài khoản và trung tâm chi phí. Chứng từ có Có 334
   chưa chứng minh mọi chân Nợ là lương; không cộng lại lương đã vào giá vốn.
 - [ ] Local gate, CI/bench SHA cuối, review, mẫu mobile, phiên bản/patch,
-  merge, deploy, migrate và kiểm live — ghi bằng chứng riêng từng bước.
+  merge, deploy, migrate và kiểm live - ghi bằng chứng riêng từng bước.
 
 ## Code hiện tại và giới hạn
 

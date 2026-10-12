@@ -176,7 +176,7 @@ def _diem(si):
 	return (si.get("vgb_quay") or "").strip().upper() or "SALES"
 
 
-def _hoa_don(tu, den, diem=None, nguon=None, pt=None):
+def _hoa_don(tu, den, diem=None, nguon=None, pt=None, cong_ty=None):
 	"""Doc hoa don trong khoang ngay, da loc theo diem ban - nguon - phuong
 	thuc. Loc diem ban lam bang Python vi "SALES" trong app la vgb_quay
 	de TRONG duoi CSDL, khong viet duoc thanh bo loc SQL goi gon.
@@ -190,6 +190,10 @@ def _hoa_don(tu, den, diem=None, nguon=None, pt=None):
 		"docstatus": ["in", [0, 1]],
 		"posting_date": ["between", [str(tu), str(den)]],
 	}
+	if cong_ty is None:
+		cong_ty = frappe.db.get_value("Global Defaults", None, "default_company")
+	if cong_ty:
+		loc["company"] = cong_ty
 	if nguon:
 		loc["custom_nguon"] = nguon
 	if pt:
@@ -199,7 +203,8 @@ def _hoa_don(tu, den, diem=None, nguon=None, pt=None):
 		filters=loc,
 		fields=[
 			"name", "posting_date", "posting_time", "customer", "customer_name",
-			"grand_total", "net_total", "total_taxes_and_charges", "discount_amount",
+			"company", "is_return", "return_against", "grand_total", "base_grand_total",
+			"net_total", "total_taxes_and_charges", "discount_amount",
 			"vgb_quay", "custom_nguon", "vgb_pt_thanh_toan", "custom_hddt_so",
 			"custom_hddt_trang_thai", "custom_pancake_display_id", "vgb_khach_no",
 			"outstanding_amount", "owner", "vgb_tam_tinh", "vgb_huy",
@@ -583,7 +588,7 @@ def _bc_mon_ban_chay(hd, **kw):
 
 
 
-def _bc_mon_thuan(hd):
+def _bc_mon_thuan(hd, **kw):
 	"""BC08 mới, chưa nối màn cũ trước khi nghiệm thu toàn PR #351.
 
 	Core accounts/report/item_wise_sales_register dùng base_net_amount và
