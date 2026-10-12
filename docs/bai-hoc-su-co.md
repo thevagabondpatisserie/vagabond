@@ -2085,3 +2085,17 @@ nhân là sender chỉ phân loại bốn nhãn và cố ý không đọc thân 
 có khối tóm tắt an toàn. Cách phòng: comment bàn giao có nhãn trạng thái cùng
 khối `telegram-tomtat` giới hạn hai trường ngắn; sender chỉ đọc khối của chủ repo,
 còn comment Codex chỉ lấy ý đầu của Summary và tuyệt đối không lấy Testing/log.
+
+## 12/10/2026 - v591: Zalo không gửi tên nhóm, hộp chọn đọc bản cũ
+
+Anh Việt thêm bot vào nhóm thứ hai, @nhắc bot, nhưng hộp "Chọn nhóm đã nhắn
+bot" chỉ có một dòng "Viet Nguyen". Nhóm mới thật ra đã vào danh sách, nhưng:
+cập nhật của Zalo Bot không có tên nhóm (chỉ có tên người nhắc), nên mọi nhóm
+mang tên người nhắc; hộp chọn đọc bản Cài đặt tải lúc mở màn; chọn xong máy
+lấy tên người nhắc làm tên nhóm. Ca kiểm cũ dựng dữ liệu có sẵn `title` nên
+không thấy lỗi.
+
+Cách phòng: gọi nhóm bằng mã nhóm (4 ký tự cuối mã chat) và cho bot trả lời
+mã đó ngay trong nhóm; danh sách chọn hỏi máy chủ mỗi lần bấm; dữ liệu mẫu
+trong ca kiểm lấy đúng hình dạng đọc trên site, không tự thêm trường mà nguồn
+thật không gửi.
