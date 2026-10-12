@@ -119,6 +119,23 @@ hàm `scr...` gọi `frame(tiêu_đề, html, tuỳ_chọn)` và điều hướn
 `go(hàm)`. **Đừng đề nghị viết lại bằng React.** Đó không phải là cải
 tiến, đó là bỏ đi hai năm.
 
+**Ngoại lệ đã duyệt: web KHÁCH dựng lại bằng Vue (anh Việt chốt 11/10/2026).**
+Luật "không framework" ở trên là cho app nội bộ `/bep`, giữ nguyên. Riêng web
+khách (đặt bánh, biên nhận, thành viên, đặt bàn, chính sách, màn hình khách,
+trình biên tập web) chuyển sang Vue 3, mã ở `vagabond/public/web_vue/`:
+- Vue để thẳng trong repo (`web_vue/lib/`), KHÔNG thêm bước build vào Frappe
+  Cloud. Mô đun ES nạp qua import map; chạy `python3 cong_cu/ma_bam_web_vue.py`
+  sau mỗi lần sửa để đóng dấu `?v=` (ca `thu_web_vue.py` chặn nếu quên).
+- Giao diện giữ ĐÚNG Rocca đã duyệt: dùng lại nguyên CSS, cùng thẻ và lớp. Đổi
+  giao diện thì so ảnh với bản cũ (`cong_cu/xem_thu_web_vue.py`) trước khi bàn giao.
+- Mọi con số trên màn là computed từ MỘT nguồn trong kho (`banh/kho-banh.js`),
+  không viết hàm "vẽ lại". Phép thuần ở `kho/thuan.js`, ca hành vi node ở
+  `hanh_vi/web_vue_banh.mjs` chạy kho thật với Vue thật.
+- Chữ marketing qua `t(khoá, mặc định)`, khoá phải có trong sổ nhãn và mặc định
+  trùng sổ nhãn. Không `v-html`, không `innerHTML`.
+- Bản Vue chạy song song ở `/web_moi/...` tới đêm tráo; trang cũ vẫn là trang
+  khách dùng cho tới khi anh Việt duyệt tráo.
+
 ---
 
 ## 2b. Nguyên tắc thiết kế màn hình app, bắt buộc (anh Việt duyệt 03/09/2026)
@@ -269,6 +286,15 @@ và nhiều dòng, phép đo ở 390x844 và ảnh chụp site thật. Codex d�
      `GHI_QUA_HOP_CHON` / `GHI_QUA_HOP_CHON_TRANG`, đừng bỏ read_only.
   Khoá bí mật không bao giờ gửi xuống máy. Ca chốt: `thu_cai_dat_loi_570.py`
   (app phủ đủ mọi ô Desk, đúng tab, đúng mục) và `hanh_vi/cai_dat_loi_570.js`.
+- **Ưu đãi trên website: ERP là nguồn duy nhất (anh Việt 09/10/2026).**
+  *"Anh muốn erp là nguồn duy nhất, các nơi khác chỉ việc đồng bộ theo thôi."*
+  Ưu đãi tạo, sửa, bật tắt trong Chương trình khuyến mãi (mục Website). Trang
+  khách đọc thẳng từ đó; màn biên tập web chỉ XEM, máy chủ chặn ghi khối
+  ưu đãi gõ tay. Đặt bánh trên web dùng CHUNG `khuyen_mai.tinh` của quầy, không
+  viết bộ tính riêng. Luật "dùng được trên web" có hai bản (`ly_do_khong_web`
+  ở Python và `kmLyDoWeb` ở app) và ca chốt đối chiếu hai bản trên cùng bảng
+  ca; sửa một bên phải sửa bên kia. Mã dùng một lần phải giữ (khoá hàng, đặt
+  Đã dùng) TRƯỚC khi gửi Pancake. Ca chốt: `thu_uu_dai_web_589.py`.
 
 ---
 
@@ -531,11 +557,16 @@ không tràn ngang và desktop; không nhận browser preview là kiểm Outlook
 Theo Issue #287 và [hướng dẫn Telegram](docs/thong-bao-telegram.md), khi cần
 anh duyệt, bị chặn, sẵn sàng phát hành hoặc đã kiểm deploy thật, đăng comment
 ngắn trên đúng Issue/PR với dòng đầu tương ứng `[CẦN DUYỆT]`, `[BỊ CHẶN]`,
-`[SẴN SÀNG DEPLOY]`, `[ĐÃ DEPLOY]`. Kèm việc cụ thể, bằng chứng/SHA và link
+`[ĐÃ SỬA XONG]`, `[SẴN SÀNG DEPLOY]`, `[ĐÃ DEPLOY]`. Kèm việc cụ thể, bằng chứng/SHA và link
 nơi duyệt. Không tag agent chỉ để báo tin. Không coi Telegram là native
 approval; nếu không đăng được comment thì báo trực tiếp và ghi rõ giới hạn.
 Chỉ báo kênh đang hoạt động sau khi đã xác minh bật và gửi thật; lời dặn này
 không tự bật hệ thống hoặc chứng minh anh đã nhận tin.
+
+Mọi comment bàn giao sửa xong, review đạt hoặc không đạt, bị chặn hay cần duyệt
+phải có nhãn ở dòng đầu và đúng một khối `telegram-tomtat` theo
+`docs/thong-bao-telegram.md`. Viết tóm tắt tiếng Việt theo nghiệp vụ, không tên
+hàm hoặc tệp, tối đa hai câu. Comment không cần anh đọc thì không gắn nhãn.
 
 
 Sau mỗi đợt deploy đã kiểm site thật, tự soạn 1-5 ý tính năng bằng tiếng Việt

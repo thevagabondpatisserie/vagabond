@@ -1,0 +1,5 @@
+{
+  "//": "Ma web Vue la mo dun ES. Khai type module de node tren CI (ban 20, khong tu nhan dien) chay duoc ca kiem.",
+  "type": "module",
+  "private": true
+}

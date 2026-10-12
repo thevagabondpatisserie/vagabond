@@ -3180,9 +3180,13 @@ except Exception as _e32:
 # tao_don_tay phai nhan ve va goi dung_ve SAU khi hoa don da luu.
 la("tao_don_tay nhan ve_diem", "\tve_diem=\"\"," in _bh2_src, True)
 la("tao_don_tay goi dung_ve", "_diem.dung_ve(ve_diem.strip(), si.name)" in _bh2_src, True)
-_i_save = _bh2_src.find("\tsi.flags.ignore_permissions = True\n\tsi.save()\n\tfrappe.db.commit()")
+# Codex #460 (v589): giữa si.save() và commit nay có bước ghi lượt khuyến
+# mãi (giữ khoá chương trình tới commit). Điều cần chốt vẫn y nguyên: trừ
+# điểm SAU khi hoá đơn đã lưu VÀ đã commit.
+_i_save = _bh2_src.find("\tsi.flags.ignore_permissions = True\n\tsi.save()\n")
 _i_ve = _bh2_src.find("_diem.dung_ve(")
-la("goi dung_ve SAU khi luu hoa don", _i_save > 0 and _i_ve > _i_save, True)
+_i_cm = _bh2_src.find("\tfrappe.db.commit()\n", _i_save)
+la("goi dung_ve SAU khi luu hoa don", _i_save > 0 and _i_save < _i_cm < _i_ve, True)
 # Khong duoc boc try quanh dung_ve: nuot loi thi thu ngan tuong da giam
 # tien cho khach trong khi bill thu du.
 _khoi_ve = _bh2_src[_i_ve - 400:_i_ve] if _i_ve > 400 else ""

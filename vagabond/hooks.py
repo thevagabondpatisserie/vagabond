@@ -990,6 +990,7 @@ _cu_nb.insert(max(len(_cu_nb) - 1, 0), "vagabond.ngay_ban.chan_ghi_tay")
 doc_events["Sales Invoice"]["validate"] = _cu_nb
 del _cu_nb
 scheduler_events.setdefault("hourly", []).append("vagabond.tru_kho_bu.quet_moi_gio")
+scheduler_events.setdefault("hourly", []).append("vagabond.don_web.doi_soat_uu_dai_hoa_don")
 
 # v562 (#410): bắn tin Zalo. Mỗi giờ gửi bản gộp tin hoãn trong giờ im.
 scheduler_events.setdefault("hourly", []).append("vagabond.kenh_zalo.xa_gio_im")
@@ -1010,3 +1011,5 @@ doc_events["Communication"]["after_insert"] = ([_cu_ds] if isinstance(_cu_ds, st
     "vagabond.doi_soat_vendor.khi_co_thu"]
 del _cu_ds
 scheduler_events.setdefault("hourly", []).append("vagabond.doi_soat_vendor.quet_moi_gio")
+# Codex #460: đơn web đã huỷ mà còn giữ lượt ưu đãi hoặc mã dùng một lần thì trả lại.
+scheduler_events.setdefault("cron", {}).setdefault("*/15 * * * *", []).append("vagabond.don_hang.tra_uu_dai_don_huy")

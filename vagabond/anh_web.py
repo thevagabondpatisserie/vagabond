@@ -20,8 +20,17 @@ trong dòng kiểm bánh (cũng là ảnh Pancake chụp lại lúc kéo đơn),
 thương hiệu. Không nhánh nào được tự viết lại thứ tự này; ca kiểm
 `thu_don_web_367.py` quét chặn.
 
+Ngày 12/10/2026, Hannari lại hiện bộ ảnh Pancake cũ vì tệp
+`sp-<mã>*` do máy chép vào Item bị nhầm là ảnh ERP người chọn. Tệp
+chép vẫn là dự phòng khi Pancake không trả ảnh, nhưng không được đè
+bộ ảnh Pancake đang sống. Ảnh Item không theo mẫu này vẫn đứng đầu.
+
 Hàm THUẦN, không chạm Frappe.
 """
+
+import os
+import re
+from urllib.parse import urlsplit
 
 ANH_NEN = "/assets/vagabond/web_order/anh-bia.png"
 SO_ANH_TOI_DA = 5
@@ -35,7 +44,19 @@ def anh_cong_khai(u):
 	return u
 
 
-def chon_anh(anh_erp=None, anhs_pancake=(), anh_dong=None, nen=ANH_NEN):
+def la_anh_pancake_da_chep(u, ma_hang=None):
+	"""Nhận tệp `sp-<mã>*` do đối soát chép vào Item.
+
+	Nhóm nhiều size truyền toàn bộ mã, vì dữ liệu cũ có thể dùng
+	chung tệp của một size khác trong cùng nhóm.
+	"""
+	ten = os.path.basename(urlsplit(str(u or "").strip()).path).lower()
+	ma = ma_hang if isinstance(ma_hang, (list, tuple, set)) else [ma_hang]
+	return any(m and re.match(r"^sp-%s(?:[^a-z0-9]|[a-f0-9]{6,})" % re.escape(str(m).lower()), ten)
+		for m in ma)
+
+
+def chon_anh(anh_erp=None, anhs_pancake=(), anh_dong=None, nen=ANH_NEN, ma_hang=None):
 	"""Trả (ảnh chính, danh sách ảnh tối đa 5) theo đúng thứ tự đã chốt.
 
 	`anh_erp` có thể là một chuỗi hoặc một danh sách (một nhóm bánh gom nhiều
@@ -44,7 +65,11 @@ def chon_anh(anh_erp=None, anhs_pancake=(), anh_dong=None, nen=ANH_NEN):
 	"""
 	ds = []
 	erp = anh_erp if isinstance(anh_erp, (list, tuple)) else [anh_erp]
-	for u in list(erp) + list(anhs_pancake or ()) + [anh_dong]:
+	erp_tay = [u for u in erp if not la_anh_pancake_da_chep(u, ma_hang)]
+	erp_chep = [u for u in erp if la_anh_pancake_da_chep(u, ma_hang)]
+	# Có ảnh Pancake sống thì bản chép cũ lùi sau nó. Không có thì
+	# bản chép vẫn đứng trước ảnh dòng và ảnh nền để không rơi ảnh.
+	for u in erp_tay + list(anhs_pancake or ()) + erp_chep + [anh_dong]:
 		u = anh_cong_khai(u)
 		if u and u not in ds:
 			ds.append(u)

@@ -225,11 +225,16 @@ ERPNext.
 Theo Issue #287 và [hướng dẫn Telegram](docs/thong-bao-telegram.md), khi cần
 anh duyệt, bị chặn, sẵn sàng phát hành hoặc đã kiểm deploy thật, đăng comment
 ngắn trên đúng Issue/PR với dòng đầu tương ứng `[CẦN DUYỆT]`, `[BỊ CHẶN]`,
-`[SẴN SÀNG DEPLOY]`, `[ĐÃ DEPLOY]`. Kèm việc cụ thể, bằng chứng/SHA và link
+`[ĐÃ SỬA XONG]`, `[SẴN SÀNG DEPLOY]`, `[ĐÃ DEPLOY]`. Kèm việc cụ thể, bằng chứng/SHA và link
 nơi duyệt. Không tag agent chỉ để báo tin. Không coi Telegram là native
 approval; nếu không đăng được comment thì báo trực tiếp và ghi rõ giới hạn.
 Chỉ báo kênh đang hoạt động sau khi đã xác minh bật và gửi thật; lời dặn này
 không tự bật hệ thống hoặc chứng minh anh đã nhận tin.
+
+Mọi comment bàn giao sửa xong, review đạt hoặc không đạt, bị chặn hay cần duyệt
+phải có nhãn ở dòng đầu và đúng một khối `telegram-tomtat` theo
+`docs/thong-bao-telegram.md`. Viết tóm tắt tiếng Việt theo nghiệp vụ, không tên
+hàm hoặc tệp, tối đa hai câu. Comment không cần anh đọc thì không gắn nhãn.
 
 
 Sau mỗi đợt deploy đã kiểm site thật, tự soạn 1-5 ý tính năng bằng tiếng Việt
