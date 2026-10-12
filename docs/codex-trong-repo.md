@@ -35,7 +35,7 @@ Codex hiện hỗ trợ tự nạp `.codex/config.toml` trong repo đã tin cậ
 ở checkout này rồi dùng `/status` để kiểm model/effort. Có thể chọn tường minh:
 
 ```sh
-codex --model gpt-6-astra -c 'model_reasoning_effort="low"'
+codex --model gpt-6-astra -c 'model_reasoning_effort="medium"'
 ```
 
 Không đổi `CODEX_HOME` sang repo: biến này đổi cả nơi lưu trạng thái của Codex,
