@@ -6,12 +6,13 @@ trả trên phần mềm cũ, thêm mã đối tác và số hóa đơn, tham v�
 khi triển khai. Codex triển khai từng đợt và mở PR code; Claude rà logic, rà từng vòng
 và tái hiện finding, không viết vào nhánh Codex.
 
-Nền: `c0ec18e264a4babeba865cda7af9b392fe83b296`.
+Nền rà cập nhật 12/10: `47d436e82fe2ef64b3aff9f1bdb381e125b0e920`.
+Nền của lần khảo sát 30/09 là `c0ec18e264a4babeba865cda7af9b392fe83b296`.
 Nhánh: `codex/doi-chieu-cong-no`. Đây là thiết kế và ca nghiệm thu,
 chưa sửa runtime, không tăng APPVER/patch, không đủ điều kiện deploy.
 Dữ liệu và chứng từ thật giữ local, không đưa lên repo công khai.
 
-## Những gì đã xác minh
+## Bằng chứng lịch sử 30/09 (không coi là số dư hiện tại)
 - Ba file cùng đợt: outstanding từng Purchase Invoice trong Accounts
   Payable (AP) khớp Purchase Register. Tổng AP còn chứa các Payment Entry
   âm chưa phân bổ. Không coi số đã trả trong tập hóa đơn còn nợ là tổng
@@ -39,6 +40,48 @@ Dữ liệu và chứng từ thật giữ local, không đưa lên repo công kh
 - `accounts/report/customer_ledger_summary/customer_ledger_summary.py`
   dùng GL, Supplier Ledger Summary gọi cùng lớp; paid_amount có thể gồm
   điều chỉnh/cấn trừ, không mặc nhiên là tiền ngân hàng thực trả.
+
+## Đối chiếu code main ngày 12/10
+
+Đã merge main vào nhánh tài liệu, không rebase/force-push. Bảng dưới là
+kiểm mã nguồn tại SHA nền nêu trên, không phải nghiệm thu số liệu site.
+
+| Phần | Hiện trạng main và bằng chứng | Việc còn thiếu |
+|---|---|---|
+| Công nợ NCC theo công ty, mã NCC/số HĐ, chip và Excel | Đã làm #402; `cong_no_ncc.py:68` lọc company bằng get_list và xin bill_no, custom_ma_ncc; `:99` dùng chung kết quả cho màn và `xuat_ds` tại :158; màn `bep/16-mua-hang.js` đã gọi cửa mới | Đây là dư PI hiện tại, loại return và dư âm; chưa snapshot PLE quá khứ, chưa AP thuần |
+| Khoản đã trả trước ERP và UNC | Đã có #403 và #407; `cong_no_ncc.py:403` lập JE chuẩn từng hóa đơn, khóa PI trước dò ma_lan; :477 kế toán duyệt, :513 bỏ nháp; :111 trả bằng chứng chờ duyệt | Cần kế toán chốt từng chứng từ nguồn và ngày chuyển sổ; không tự chạy hàng loạt theo file |
+| Phiếu trả trước NCC | #406 bổ sung nghiệp vụ trên main, không thay bản đối chiếu sổ | Chưa chứng minh tất cả tiền trả trước đã phân bổ vào AP đúng ngày chốt |
+| Nguồn/ngày của số dư NCC và Excel | `cong_no_ncc.py:99` ghi rõ dư hóa đơn hiện tại chưa bù tiền trả trước/bút toán khác, có ngay_doc; :158 xuất cùng nhãn nguồn | Chưa có các thẻ riêng PLE/AP/GL theo cùng snapshot |
+| Đường API cũ | `mua_hang.py:294` vẫn cộng outstanding PI dương và chưa lọc company/ngày chốt | Phải hợp nhất hoặc ngừng cửa cũ sau kiểm caller; không nhận đã thay hết nguồn chỉ vì màn mới đổi |
+| Phải thu: Đang nợ/Tiền đã về | `cong_no.py:277`, :416, :481, :528, :540 giữ riêng số chờ ghi sổ; :1239 đọc số/ký hiệu HĐĐT. Main có chuỗi sửa #444 v577 | Chưa phải snapshot AR/core as-of; cần kiểm đủ mã KH và số hóa đơn trên từng màn/export |
+| Payment Period theo ngày hóa đơn | Chưa tìm thấy override runtime Incoming/Outgoing hoặc báo cáo mới thu/chi trong main | Còn nguyên việc phân loại đúng dòng PLE và tách tiền thực/cấn trừ, độc lập nhãn dịch |
+| AP/AR/GL và số dư nguồn cũ | Chưa có hàm snapshot dùng chung theo hợp đồng dưới đây | Toàn bộ đối chiếu đa tiền tệ, JE đầu kỳ, credit, ngày chốt và lịch sử thanh toán vẫn cần triển khai/bench |
+
+### Sửa cách hiểu của thiết kế cũ
+
+- Không còn ghi "chưa có công cụ xử lý trước ERP": đường JE từng hóa đơn đã
+  được anh duyệt và triển khai qua #403/#407. Giữ đường lõi này, không tạo
+  một đường ghi trùng trong công cụ đối chiếu. Với tiền đã nằm trên sổ,
+  dùng Payment Reconciliation chuẩn để phân bổ, không lập thêm chi/JE.
+- Bảng phân loại từ file nguồn cũ vẫn chỉ đọc. Quyền xử lý từng dòng bằng
+  công cụ đã được duyệt không cho phép batch/migrate hoặc nút sửa lịch sử.
+- Chưa gọi tổng dương PI là công nợ thuần, chưa gọi giá trị hóa đơn là tiền
+  đã thu/chi. Màn NCC mới đã ghi đúng giới hạn; giữ nhãn đó tới khi snapshot
+  lõi được triển khai và chứng minh.
+- Không tái làm chip/Excel/mã NCC vốn đã có. Phần còn lại phải mở rộng nguồn
+  chuẩn và quyền của màn hiện có, kiểm UI/API/export cùng kết quả.
+
+### Danh sách còn phải làm
+
+1. Chốt snapshot core AP/AR/PLE/GL theo company, currency và ngày chốt;
+   hợp nhất cả cửa mua_hang cũ, bảng/thẻ/Excel/drilldown.
+2. Đối chiếu Payment Period, tiền thực trong kỳ, ngày từng lần thanh toán;
+   giữ bảy nhánh phân loại ở phần sau, kiểm chứng từ thật trước code.
+3. Hoàn tất mã KH/HĐĐT trên các đầu ra phải thu và kiểm đối tác nhiều mã.
+4. Đối chiếu nguồn cũ chỉ đọc; nhận bảng/ngày chuyển sổ kế toán đã chốt,
+   xác định dòng đã hạch toán rồi để tránh lập chi hoặc nhập kho lần nữa.
+5. Chạy fixture quyền, đa công ty/tiền tệ, trả khác kỳ, sau ngày chốt,
+   đối chiếu tổng core và ảnh mobile/desktop. Chưa có bằng chứng các cổng này.
 
 ## Hợp đồng báo cáo đề nghị
 Tái dùng báo cáo lõi và chứng từ chuẩn. Không tạo DocType công nợ mới,
@@ -151,12 +194,12 @@ Phải kiểm ảnh site thật trước/sau, tiếng Việt/Anh; Node không th
   Payable dư Có là phải trả, dư Nợ là trả trước; Receivable dư Nợ là phải
   thu, dư Có là thu trước. Hiển thị `is_opening` riêng cho JE. Các loại
   khác chưa phân loại phải hiện ra để đối chiếu, không âm thầm bỏ.
-- Đợt B: mã và số HĐĐT đã có giao diện trên main, có thể gộp A nếu phạm vi
-  vừa đủ; chưa tự nhận A/B đã triển khai. Phải giữ hợp đồng tab Đang nợ /
+- Đợt B: mã NCC/số HĐ/Excel đã có qua #402; phía phải thu đã có một phần
+  HĐĐT nhưng còn phải kiểm toàn bộ đầu ra. Không nhận trọn A/B đã triển khai. Phải giữ hợp đồng tab Đang nợ /
   Tiền đã về của #380/#382, không tự trừ tiền chờ ghi sổ vào GL.
 - Đợt C chờ kế toán xác nhận ngày chuyển sổ và bảng nguồn; chỉ đề xuất.
 - PR code riêng đọc APPVER từ main ngay trước khi đặt, tăng số và thêm
-  `dong_bo_cau_truc #vNNN`; không đặt cứng 542 vì main đã tiến tới v543.
+  `dong_bo_cau_truc #vNNN`; không đặt cứng số phiên bản của thiết kế lịch sử.
 
 ## Phân loại kỳ thu/chi: một dòng PLE, đúng một nhóm
 Bộ lọc: `delinked=0`, company đã chọn, ngày hạch toán trong kỳ, quyền xem;

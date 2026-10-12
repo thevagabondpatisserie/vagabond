@@ -2095,3 +2095,10 @@ nhân là sender chỉ phân loại bốn nhãn và cố ý không đọc thân 
 có khối tóm tắt an toàn. Cách phòng: comment bàn giao có nhãn trạng thái cùng
 khối `telegram-tomtat` giới hạn hai trường ngắn; sender chỉ đọc khối của chủ repo,
 còn comment Codex chỉ lấy ý đầu của Summary và tuyệt đối không lấy Testing/log.
+
+## 12/10/2026 - #392: thiết kế cũ phải đối chiếu với chức năng đã phát hành
+
+#402/#403/#407 đã có lọc/Excel và JE xử lý khoản trả trước ERP từng hóa đơn,
+nhưng chưa có snapshot AP/AR/PLE/GL lịch sử. Không suy một đầu đã làm là cả
+thiết kế đã xong; ngược lại không dựng công cụ ghi trùng vì tài liệu cũ nói
+chưa triển khai. Ghi riêng bằng chứng code, số site và phạm vi còn thiếu.
