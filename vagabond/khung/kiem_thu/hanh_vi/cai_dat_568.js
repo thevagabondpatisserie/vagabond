@@ -39,6 +39,13 @@ function tim(ds, ten) { return ds.filter(function (x) { return x.ten === ten; })
 
 var BAY_GIO = Date.parse('2026-10-04T10:00:00');
 
+ca('v591: app và Desk dùng chung mã và nhãn nhóm Zalo', function () {
+  var x = { chat_id: 'zgr-50abae45f4271d794436' };
+  la('bỏ tiền tố zgr và lấy bốn ký tự cuối', V.maNhomZalo(x.chat_id), '4436');
+  la('nhãn chung', V.nhanNhomZalo(x), 'Nhóm Zalo mã 4436');
+  la('nhãn chung báo đang dùng', V.nhanNhomZalo({ chat_id: x.chat_id, dang_gan: ['Kế toán'] }), 'Nhóm Zalo mã 4436 (đang dùng)');
+});
+
 ca('tình trạng: chưa khai gì thì mọi kết nối xám, không ô nào xanh', function () {
   var tt = V.tinhTrang({}, BAY_GIO);
   la('số chip', tt.length, V.KET_NOI.length + 1);
@@ -595,7 +602,8 @@ ca('v579: hộp Thêm nhóm hiện tên và dòng giải thích từng loại ti
   la('mở một hộp', g.hop.length, 1);
   var o = g.hop[0].o, fs = o.fields;
   var nz = fs.filter(function (x) { return x.fieldname === 'nhom_zalo'; })[0];
-  la('chỉ gợi ý nhóm đã nhắn bot', nz.options, ['Kế toán Vagabond (zgr-ke-toan)']);
+  // v591: Zalo không gửi tên nhóm ("ten" thật là tên người nhắc), nên gợi ý gọi nhóm bằng mã nhóm.
+  la('chỉ gợi ý nhóm đã nhắn bot, gọi bằng mã nhóm', nz.options, ['Nhóm Zalo mã TOAN']);
   V.ZALO_DANH_MUC.loai_tin.forEach(function (ma) {
     var x = fs.filter(function (y) { return y.fieldname === 'loai_tin__' + ma; })[0];
     dung('có ô ' + ma, x && x.fieldtype === 'Check');
@@ -604,7 +612,7 @@ ca('v579: hộp Thêm nhóm hiện tên và dòng giải thích từng loại ti
   });
   la('đủ ô chủ đề', fs.filter(function (y) { return /^chu_de__/.test(y.fieldname || ''); }).length, V.ZALO_DANH_MUC.chu_de.length);
   dung('nói rõ nghĩa để trống', fs.some(function (y) { return /Không tích ô nào là nhóm nhận tất cả loại tin/.test(y.description || ''); }));
-  o.primary_action({ nhom_zalo: 'Kế toán Vagabond (zgr-ke-toan)', ten_nhom: ' Kế toán ', bat: 1, loai_tin__canh_bao: 1, loai_tin__viec: 1,
+  o.primary_action({ nhom_zalo: 'Nhóm Zalo mã TOAN', ten_nhom: ' Kế toán ', bat: 1, loai_tin__canh_bao: 1, loai_tin__viec: 1,
     chu_de__cong_no: 1, im_tu: '22:00', im_den: '07:00' });
   la('thêm một dòng', z.frm.con.length, 1);
   var r = z.frm.con[0];
@@ -619,7 +627,7 @@ ca('v579: nhóm đã lưu nhưng không còn trong 20 chat gần nhất vẫn s�
   var z = frmZalo(ROWS()), g = giaFrappe(z.frm);
   var d = V._desk.suaNhomZalo(z.frm, 0);
   var nz = d.o.fields.filter(function (x) { return x.fieldname === 'nhom_zalo'; })[0];
-  la('nhóm đang lưu đứng đầu gợi ý và là mặc định', [nz.options[0], nz.default], ['ERP Vagabond (zgr-dau)', 'ERP Vagabond (zgr-dau)']);
+  la('nhóm đang lưu đứng đầu gợi ý và là mặc định', [nz.options[0], nz.default], ['Nhóm Zalo mã DAU (đang lưu: ERP Vagabond)', 'Nhóm Zalo mã DAU (đang lưu: ERP Vagabond)']);
   la('ô loại tin tích sẵn đúng như đang lưu', d.o.fields.filter(function (x) { return /^loai_tin__/.test(x.fieldname || '') && x.default; }).map(function (x) { return x.fieldname; }),
     ['loai_tin__thong_bao', 'loai_tin__canh_bao']);
   d.o.primary_action({ nhom_zalo: nz.default, ten_nhom: 'ERP Vagabond', bat: 0, loai_tin__thong_bao: 1 });

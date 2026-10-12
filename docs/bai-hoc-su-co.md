@@ -2119,3 +2119,17 @@ việc chụp phụ thuộc máy của từng phiên thay vì là cổng của P
 đủ hai bề rộng và các trạng thái chính, so pixel với main rồi lưu artifact.
 Comment phải nói rõ đây chưa phải site thật; ảnh fixture không thay phép kiểm
 site thật sau deploy. Nguồn: yêu cầu v590 của anh Việt ngày 12/10/2026.
+
+## 12/10/2026 - v591: Zalo không gửi tên nhóm, hộp chọn đọc bản cũ
+
+Anh Việt thêm bot vào nhóm thứ hai, @nhắc bot, nhưng hộp "Chọn nhóm đã nhắn
+bot" chỉ có một dòng "Viet Nguyen". Nhóm mới thật ra đã vào danh sách, nhưng:
+cập nhật của Zalo Bot không có tên nhóm (chỉ có tên người nhắc), nên mọi nhóm
+mang tên người nhắc; hộp chọn đọc bản Cài đặt tải lúc mở màn; chọn xong máy
+lấy tên người nhắc làm tên nhóm. Ca kiểm cũ dựng dữ liệu có sẵn `title` nên
+không thấy lỗi.
+
+Cách phòng: gọi nhóm bằng mã nhóm (4 ký tự cuối mã chat) và cho bot trả lời
+mã đó ngay trong nhóm; danh sách chọn hỏi máy chủ mỗi lần bấm; dữ liệu mẫu
+trong ca kiểm lấy đúng hình dạng đọc trên site, không tự thêm trường mà nguồn
+thật không gửi.

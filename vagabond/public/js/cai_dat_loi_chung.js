@@ -95,6 +95,21 @@ var VGB_CD = (function () {
 		}).slice(0, 8);
 	}
 
+	// v591: Zalo không gửi tên nhóm. App và Desk phải gọi cùng một chat_id bằng
+	// cùng mã ngắn, nếu không quản trị viên không thể đối chiếu mã bot vừa trả lời.
+	function maNhomZalo(chatId) {
+		var ma = String(chatId || '').trim();
+		if (/^zgr-/i.test(ma)) ma = ma.slice(4);
+		return ma.slice(-4).toUpperCase();
+	}
+	function nhanNhomZalo(x) {
+		x = x || {};
+		var nhan = 'Nhóm Zalo mã ' + maNhomZalo(x.chat_id);
+		if (x.dang_luu) nhan += ' (đang lưu' + (x.ten ? ': ' + x.ten : '') + ')';
+		else if ((x.dang_gan || []).length) nhan += ' (đang dùng)';
+		return nhan;
+	}
+
 	// Mỗi kết nối: đủ các ô "can" (hoặc đủ một nhóm trong "canMot") là đã khai;
 	// có ô "bat" mà đang tắt thì vàng. "toi" là ô để nhảy tới khi bấm chip.
 	var KET_NOI = [
@@ -344,7 +359,8 @@ var VGB_CD = (function () {
 
 	return { boDau: boDau, tinhTrang: tinhTrang, tinhTrangMuc: tinhTrangMuc, tomTat: tomTat, timTruong: timTruong,
 		NHAN_CHON: NHAN_CHON, KET_NOI: KET_NOI, docJson: docJson, nganHangTheoBin: nganHangTheoBin, timNganHang: timNganHang, moToi: moToi, xepTinhTrang: xepTinhTrang, kiemCapNganHang: kiemCapNganHang,
-		ZALO_NHAN: ZALO_NHAN, ZALO_DANH_MUC: ZALO_DANH_MUC, theNhomZalo: theNhomZalo, tachMa: tachMa };
+		ZALO_NHAN: ZALO_NHAN, ZALO_DANH_MUC: ZALO_DANH_MUC, theNhomZalo: theNhomZalo, tachMa: tachMa,
+		maNhomZalo: maNhomZalo, nhanNhomZalo: nhanNhomZalo };
 })();
 
 if (typeof window !== 'undefined') window.VGB_CD = VGB_CD;
