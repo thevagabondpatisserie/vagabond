@@ -6,6 +6,21 @@ sửa những chỗ có liên quan, vì phần lớn các lỗi đó KHÔNG có 
 
 Tệp này chỉ giữ bài học rút gọn. Nhật ký đầy đủ từng ngày nằm ngoài repo.
 
+## 12/10/2026 - Chuỗi giờ không múi giờ bị hệ nhận đơn hiểu là UTC (#462 follow-up)
+
+Biên nhận web hiện đúng 19 giờ nhưng Pancake hiện 2 giờ sáng hôm sau. Nguyên
+nhân là trình duyệt gửi giờ Việt Nam không kèm múi giờ và máy chủ chuyển nguyên
+chuỗi sang Pancake, nơi đọc chuỗi đó như UTC. Cách phòng: chuẩn hoá tại một cửa
+máy chủ sang UTC trước khi gửi hệ ngoài; ca kiểm phải chốt cả giờ tối và 7 giờ
+sáng để bắt lỗi đổi ngày. Không sửa từng trang và không sửa ngược đơn đã tạo.
+
+## 12/10/2026 - Lỗi dịch vụ ngoài lặp theo từng khách phải có cảnh báo chống trùng (#462 follow-up)
+
+Phí giao hỏng từ 27/09 nhưng 1.158 Error Log giống nhau không đưa ra việc cần
+làm. Cấu hình chạy thật vẫn trỏ máy chủ Ahamove chạy thử. Cách phòng: màn Cài
+đặt phải tô đỏ địa chỉ `apistg`; lỗi gọi dịch vụ chỉ ghi và gửi kênh cảnh báo
+một lần mỗi ngày, kèm đúng ô cần kiểm. Không tự đổi cấu hình vận hành trong code.
+
 ## 12/10/2026 - Không coi ảnh máy chép vào Item là ảnh ERP người chọn (#462)
 
 Hannari trên web hiện bộ ảnh cũ dù Pancake đã có bộ ảnh mới. Nguyên
@@ -2085,3 +2100,13 @@ nhân là sender chỉ phân loại bốn nhãn và cố ý không đọc thân 
 có khối tóm tắt an toàn. Cách phòng: comment bàn giao có nhãn trạng thái cùng
 khối `telegram-tomtat` giới hạn hai trường ngắn; sender chỉ đọc khối của chủ repo,
 còn comment Codex chỉ lấy ý đầu của Summary và tuyệt đối không lấy Testing/log.
+
+## 12/10/2026 - Ảnh fixture phải là bằng chứng tự động của từng PR web
+
+Sau v590, ảnh giao diện ở cloud không đến được PR vì môi trường thiếu Chromium,
+nên người duyệt chỉ còn mô tả chữ và lỗi nút dính đáy có thể lọt. Nguyên nhân là
+việc chụp phụ thuộc máy của từng phiên thay vì là cổng của PR. Cách phòng: PR
+đổi trang đặt bánh hoặc sổ nhãn tự dựng fixture không chứa dữ liệu khách, chụp
+đủ hai bề rộng và các trạng thái chính, so pixel với main rồi lưu artifact.
+Comment phải nói rõ đây chưa phải site thật; ảnh fixture không thay phép kiểm
+site thật sau deploy. Nguồn: yêu cầu v590 của anh Việt ngày 12/10/2026.

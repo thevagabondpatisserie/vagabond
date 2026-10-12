@@ -52,6 +52,23 @@ def _token(c):
 	return tok
 
 
+def _bao_ahamove_mot_lan(c, loi):
+	"""Báo một lần mỗi ngày, thay vì ghi cùng lỗi cho từng lượt khách hỏi phí."""
+	khoa = "vgb:aha:canh-bao:" + datetime.now().strftime("%Y-%m-%d")
+	if cache_get(khoa):
+		return
+	cache_set(khoa, "1", 86400)
+	frappe.log_error(title="Vagabond: Ahamove không gọi được", message=str(loi)[:2000])
+	try:
+		from vagabond.kenh_zalo import bao
+		bao("canh_bao", "don_web", "Không lấy được phí giao Ahamove", [
+			"Kiểm tra Địa chỉ API Ahamove trong Cài đặt; máy chủ chạy thật không được chứa apistg."
+		], link="/bep", khoa=khoa)
+	except Exception:
+		# Cảnh báo không được làm hỏng lượt báo phí cho khách.
+		pass
+
+
 def _chim_bay(lat1, lng1, lat2, lng2):
 	"""Khoang cach duong chim bay, km. Dung de chan don xa truoc khi goi Ahamove."""
 	R = 6371.0
@@ -151,7 +168,7 @@ def _hoi_ahamove(c, diem_lay, diem_khach, luc_giao):
 			timeout=TIMEOUT,
 		)
 	except Exception:
-		frappe.log_error(title="Vagabond: Ahamove khong goi duoc", message=frappe.get_traceback())
+		_bao_ahamove_mot_lan(c, frappe.get_traceback())
 		return None, "ahamove_loi"
 
 	if r.status_code != 200:

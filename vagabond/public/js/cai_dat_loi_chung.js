@@ -144,6 +144,9 @@ var VGB_CD = (function () {
 		var ra = KET_NOI.map(function (k) {
 			var tr = !duKhai(doc, k) ? 'no' : (k.bat && !bat(doc[k.bat]) ? 'off' : 'ok');
 			var ghi = tr === 'no' ? 'chưa khai' : (tr === 'off' ? 'đã khai, đang tắt' : 'đã khai');
+			if (k.ten === 'Ahamove' && /apistg/i.test(String(doc.ahamove_base || ''))) {
+				tr = 'err'; ghi = 'đang trỏ máy chủ chạy thử, phí giao thật sẽ lỗi';
+			}
 			return { ten: k.ten, trang: tr, ghi: ghi, toi: k.toi, muc: k.muc };
 		});
 		// Còi báo động: hú trong 24 giờ qua là đỏ, kể cả khi đã khai đủ.

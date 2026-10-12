@@ -20,6 +20,15 @@ Quy tắc mới: [tiết kiệm token và mẫu tag](tiet-kiem-token.md). Tái d
    khóa trong docs và docs/bai-hoc-su-co.md. Chỉ mở nguồn liên quan, không
    nạp mọi nhật ký. Nếu đã đọc trước fetch, đọc lại sau khi chuyển nhánh.
 
+## Đẩy code và bàn giao
+
+Anh Việt chốt 12/10/2026: bản sửa làm xong phải được tự đẩy ngay lên nhánh
+GitHub của PR, không chờ nhắc. Bàn giao chỉ có hiệu lực khi SHA đã hiện trên
+GitHub. Codex cloud không có quyền đẩy phải đăng comment dòng đầu `[BỊ CHẶN]`
+kèm `telegram-tomtat` ghi rõ "bản sửa nằm ở cloud, chưa lên GitHub", tuyệt đối
+không báo đã xong. Codex local thấy bản cloud chưa đẩy phải tự lấy nguyên diff,
+kiểm và đẩy lên nhánh PR mà không chờ anh Việt chuyển việc lần nữa.
+
 ## Ghi trước khi kết thúc lượt có thay đổi thực chất
 
 - Bản `cong-viec/issue-N.md` thay mẫu `vgb-control-tower/templates/handoff.md`
@@ -99,4 +108,6 @@ Quy tắc hiện hành: [sáu thay đổi](van-hanh-chung.md).
 - [PR461: ưu đãi website từ ERP](cong-viec/pr-461.md)
 
 - [PR462: gom web Vue, ưu đãi và ca kiểm tồn](cong-viec/pr-462.md)
+- [PR590: ảnh fixture tự động và luật đẩy code](cong-viec/pr-590.md)
 - [Issue463: kiểm tồn, còn thiếu ca nghiệm thu](cong-viec/issue-463-kiem-dong-bo-ton-banh.md)
+- [PR v590: ba lỗi sau deploy v589](cong-viec/pr-590.md)

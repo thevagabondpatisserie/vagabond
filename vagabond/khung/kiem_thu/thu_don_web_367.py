@@ -259,7 +259,7 @@ def _moi_truong_tao_don(pancake, trung=None, km=None, phi=None, cauhinh=None):
 	)
 	vet.km = g["khuyen_mai"]
 	vet.km.vet.su = vet.su
-	for ten in ("_so", "_lam_sach_hang", "_lam_sach_the", "_ngay_iso", "_hoa_don_pancake", "_diem_lay",
+	for ten in ("_so", "_lam_sach_hang", "_lam_sach_the", "_ngay_iso", "_ngay_pancake", "_hoa_don_pancake", "_diem_lay",
 			"_uu_dai_don", "_giu_luot_uu_dai", "_tra_uu_dai_khi_tu_choi", "_bo_ctkm"):
 		nap("don_hang.py", ten, g)
 	g["MAX_DONG"], g["MAX_SL"] = 30, 20
@@ -2009,3 +2009,20 @@ def _():
 	src = _doc("vagabond/don_web.py")
 	dung("chỉ chọn đơn v589 có dấu snapshot và chỉ khi liên kết còn thiếu", 'snapshot like %s' in src and '%\\"uu_dai\\"%' in src and "ifnull(sd.hoa_don, '')=''" in src)
 	dung("lịch chạy mỗi giờ", "vagabond.don_web.doi_soat_uu_dai_hoa_don" in _doc("vagabond/hooks.py"))
+
+
+@ca("v590: giờ nhận Việt Nam được đổi sang UTC cho Pancake, ngày cũ vẫn tương thích")
+def _():
+	ham = nap("don_hang.py", "_ngay_pancake", {"re": __import__("re"), "datetime": __import__("datetime").datetime,
+		"ZoneInfo": __import__("zoneinfo").ZoneInfo})
+	la("19 giờ không sang ngày hôm sau", ham("2026-10-12T19:00:00"), "2026-10-12T12:00:00Z")
+	la("7 giờ sáng không lùi ngày", ham("2026-10-12T07:00:00"), "2026-10-12T00:00:00Z")
+	la("ngày kiểu portal cũ", ham("12/10/2026"), "2026-10-12T00:00:00")
+
+
+@ca("v590: giữ giờ Việt Nam trong ERP, chỉ đổi ở cửa gửi Pancake")
+def _():
+	ham = nap("don_hang.py", "_ngay_iso", {"re": __import__("re")})
+	la("ERP giữ 19 giờ", ham("2026-10-12T19:00:00"), "2026-10-12T19:00:00")
+	src = _doc("vagabond/don_hang.py")
+	dung("chỉ payload ngoài đổi UTC", 'body["estimate_delivery_date"] = _ngay_pancake(ngay)' in src)

@@ -261,3 +261,12 @@ issue, không lập kho nhật ký Claude riêng. Reviewer không sửa chồng 
 Codex đang claim: ghi bổ sung trên PR để owner cập nhật bản bàn giao chung.
 Không chép toàn bộ hội thoại/log vào git; xác minh trạng thái hiện tại từ
 GitHub, không nhận ghi chú cũ là bằng chứng đã deploy.
+
+## Đẩy code là một phần của hoàn thành
+
+Anh Việt chốt 12/10/2026: làm xong bản sửa phải tự đẩy ngay lên nhánh GitHub
+của PR, không chờ nhắc. Chỉ tính bàn giao khi SHA đã có trên GitHub. Codex
+cloud thiếu quyền đẩy không được báo "đã xong"; comment dòng đầu `[BỊ CHẶN]`
+và khối `telegram-tomtat` phải ghi đúng "bản sửa nằm ở cloud, chưa lên
+GitHub". Codex local thấy bản cloud chưa đẩy thì tự gom nguyên diff, kiểm và
+đẩy lên nhánh PR, không chờ anh Việt.

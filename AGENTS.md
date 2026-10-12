@@ -537,6 +537,13 @@ Quyền deploy không bỏ cổng kiểm hoặc cho phép sửa chứng từ cũ
 Xung đột phiên bản/patch đơn thuần: giữ đủ hai bên, tăng số và dựng bundle;
 xung đột logic chưa rõ thì mô tả phương án, không âm thầm bỏ code.
 
+**Đẩy code là một phần của hoàn thành (anh Việt chốt 12/10/2026).** Làm xong
+bản sửa phải tự đẩy ngay lên nhánh GitHub của PR, không chờ ai nhắc; bàn giao
+chỉ được tính khi SHA đã có trên GitHub. Codex cloud không có quyền đẩy không
+được báo "đã xong": comment phải có dòng đầu `[BỊ CHẶN]` và khối
+`telegram-tomtat` nói rõ "bản sửa nằm ở cloud, chưa lên GitHub". Codex local
+thấy bản cloud chưa đẩy phải tự gom nguyên diff, kiểm và đẩy, không chờ anh Việt.
+
 Trước phản hồi cuối mỗi phiên thực chất, cập nhật Markdown tại workspace
 `/Users/jin/Documents/ChatGPT/ERP/nhat-ky-du-an/`, gồm mục lục, nhật ký phiên
 và bài học. Đọc mẫu trong instruction. Không thêm database cho nhật ký.

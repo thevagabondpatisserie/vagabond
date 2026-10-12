@@ -336,7 +336,7 @@ export function taoKho(moiTruong) {
     const u = uuHienTai.value;
     if (!u) return S.CO.uuMa ? [thuong(t('dat_banh_dang_kiem_ma', 'Đang kiểm mã...'))] : [];
     if (u.loi) return [dam(u.loi, 'do')];
-    if (u.giam > 0) return [dam(t('dat_banh_da_giam', 'Đã giảm {tien}', {tien: T.tienVN(u.giam)}), 'cyan'), thuong(' · ' + u.ap.map(a => a.ten).join(', '))];
+    if (u.giam > 0) return [dam(t('dat_banh_da_giam_con', 'Đã giảm {tien}, còn {tong}', {tien: T.tienVN(u.giam), tong: T.tienVN(tong.value.total)}), 'cyan'), thuong(' · ' + u.ap.map(a => a.ten).join(', '))];
     return S.CO.uuMa ? [thuong(t('dat_banh_ma_chua_giam', 'Mã hợp lệ nhưng đơn chưa đủ điều kiện giảm.'))] : [];
   });
 

@@ -599,7 +599,7 @@ html body .h1 em#bigDate{display:none}
     <button class="bk" onclick="closeCo()"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
     <b><span data-vgb-chu="dat_banh_74ed5c7f8">Thông tin đơn hàng</span></b>
   </div></div>
-  <div class="wrap" style="padding-bottom:40px">
+  <div class="wrap" style="padding-bottom:140px">
 
     <div class="sec"><span class="n">01</span><h3><span data-vgb-chu="dat_banh_f257f0ff4">Giỏ bánh</span></h3><i class="rule"></i></div>
     <ul class="cart" id="cartList"></ul>
@@ -684,7 +684,7 @@ html body .h1 em#bigDate{display:none}
     <!-- v589: mã ưu đãi lấy từ ERP (chương trình khuyến mãi bật Hiện trên website). -->
     <div class="fld"><label><span data-vgb-chu="dat_banh_ma_uu_dai">Mã ưu đãi</span></label>
       <div class="two"><input id="f-ma" autocomplete="off" autocapitalize="characters" maxlength="40" placeholder="Ví dụ SINHNHAT10" data-vgb-placeholder="dat_banh_ma_uu_dai_goi" onkeydown="if(event.key==='Enter'){event.preventDefault();apMaUuDai();}">
-      <button class="pick" id="btnMa" type="button" onclick="apMaUuDai()" style="min-height:44px"><b><span data-vgb-chu="dat_banh_ap_ma">Áp dụng</span></b></button></div>
+      <button class="btn btn-xs" id="btnMa" type="button" onclick="apMaUuDai()" style="min-height:44px"><span data-vgb-chu="dat_banh_ap_ma">Áp dụng</span></button></div>
       <div class="hint" id="maHint"></div>
     </div>
 
@@ -2094,7 +2094,7 @@ function veMaUuDai(){
   const u=CO.uu&&CO.uu.khoa===khoaUuDai()?CO.uu:null;
   if(!u){ g.innerHTML=CO.uuMa?esc(chuWeb('dat_banh_dang_kiem_ma','Đang kiểm mã...')):''; return; }
   if(u.loi){ g.innerHTML='<b style="color:#FF7A6B">'+esc(u.loi)+'</b>'; return; }
-  if(u.giam>0){ g.innerHTML='<b style="color:var(--cyan)">'+esc(chuWeb('dat_banh_da_giam','Đã giảm {tien}',{tien:tienVN(u.giam)}))+'</b> · '+esc(u.ap.map(a=>a.ten).join(', ')); return; }
+  if(u.giam>0){ const con=coTotals().total; g.innerHTML='<b style="color:var(--cyan)">'+esc(chuWeb('dat_banh_da_giam_con','Đã giảm {tien}, còn {tong}',{tien:tienVN(u.giam),tong:tienVN(con)}))+'</b> · '+esc(u.ap.map(a=>a.ten).join(', ')); return; }
   g.innerHTML=CO.uuMa?esc(chuWeb('dat_banh_ma_chua_giam','Mã hợp lệ nhưng đơn chưa đủ điều kiện giảm.')):'';
 }
 function drawCo(){

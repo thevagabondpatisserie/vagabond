@@ -178,7 +178,7 @@ export const MAU = `
     <button class="bk" type="button" :aria-label="t('quay_lai_chon_banh','Quay lại chọn bánh')" @click="navBack()"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
     <b id="co-title"><span>{{ t('dat_banh_74ed5c7f8','Thông tin đơn hàng') }}</span></b>
   </div></div>
-  <div class="wrap" style="padding-bottom:40px" v-if="gioMo || S.guiXong">
+  <div class="wrap" style="padding-bottom:140px" v-if="gioMo || S.guiXong">
 
     <div class="sec"><span class="n">01</span><h3><span>{{ t('dat_banh_f257f0ff4','Giỏ bánh') }}</span></h3><i class="rule"></i></div>
     <ul class="cart" id="cartList">
@@ -269,7 +269,7 @@ export const MAU = `
 
     <div class="fld"><label><span>{{ t('dat_banh_ma_uu_dai','Mã ưu đãi') }}</span></label>
       <div class="two"><input id="f-ma" autocomplete="off" autocapitalize="characters" maxlength="40" :placeholder="t('dat_banh_ma_uu_dai_goi','Ví dụ SINHNHAT10')" v-model="S.f.ma" @keydown.enter.prevent="kho.apMaUuDai()">
-      <button class="pick" id="btnMa" type="button" @click="kho.apMaUuDai()" style="min-height:44px"><b><span>{{ t('dat_banh_ap_ma','Áp dụng') }}</span></b></button></div>
+      <button class="btn btn-xs" id="btnMa" type="button" @click="kho.apMaUuDai()" style="min-height:44px"><span>{{ t('dat_banh_ap_ma','Áp dụng') }}</span></button></div>
       <div class="hint" id="maHint"><dong-chu :phan="kho.goiYMa.value"/></div>
     </div>
 

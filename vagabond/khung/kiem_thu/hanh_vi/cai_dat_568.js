@@ -78,6 +78,9 @@ ca('Codex #433 vòng 3 G2: GreenSM thiếu token_url, Zalo ZNS thiếu App Secre
   la('Ahamove thiếu base', tim(V.tinhTrang(h, BAY_GIO), 'Ahamove').trang, 'no');
   h.ahamove_base = 'https://api.ahamove.com';
   la('Ahamove đủ', tim(V.tinhTrang(h, BAY_GIO), 'Ahamove').trang, 'ok');
+  h.ahamove_base = 'https://partner-apistg.ahamove.com';
+  var ahaThu = tim(V.tinhTrang(h, BAY_GIO), 'Ahamove');
+  la('Ahamove máy chạy thử báo đỏ', [ahaThu.trang, ahaThu.ghi], ['err', 'đang trỏ máy chủ chạy thử, phí giao thật sẽ lỗi']);
   la('Thông báo đẩy chỉ có khoá công khai', tim(V.tinhTrang({ push_khoa_cong_khai: 'B' }, BAY_GIO), 'Thông báo đẩy').trang, 'no');
   la('Thông báo đẩy đủ hai khoá', tim(V.tinhTrang({ push_khoa_cong_khai: 'B', push_khoa_rieng: '*' }, BAY_GIO), 'Thông báo đẩy').trang, 'ok');
 });

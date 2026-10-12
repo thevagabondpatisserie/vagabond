@@ -119,6 +119,36 @@ def _ngay_iso(v):
 		return "%s-%02d-%02dT00:00:00" % (nam, int(thg), int(d))
 	return v
 
+def _ngay_pancake(v):
+	"""Doi ngay nhan ve moc Pancake hieu dung theo UTC.
+
+	Trang web gui gio Viet Nam khong kem mui gio. Pancake doc chuoi do nhu UTC,
+	nen 19 gio bi thanh 2 gio sang hom sau. Chuoi ngay cua portal cu khong co
+	gio van giu cach doi cu de tranh doi nghia cua don cu.
+	"""
+	v = str(v or "").strip()
+	if not v:
+		return None
+	m = re.match(r"^(\d{1,2})/(\d{1,2})/(\d{4})$", v)
+	if m:
+		d, thg, nam = m.groups()
+		return "%s-%02d-%02dT00:00:00" % (nam, int(thg), int(d))
+	m = re.match(r"^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$", v)
+	if not m:
+		return v
+	nam, thg, ngay, gio, phut, giay = [int(x or 0) for x in m.groups()]
+	gio -= 7
+	if gio < 0:
+		gio += 24
+		ngay -= 1
+		if ngay == 0:
+			thg -= 1
+			if thg == 0:
+				thg, nam = 12, nam - 1
+			ngay = [31, 29 if nam % 4 == 0 and (nam % 100 != 0 or nam % 400 == 0) else 28,
+				31, 30, 31, 30, 31, 31, 30, 31, 30, 31][thg - 1]
+	return "%04d-%02d-%02dT%02d:%02d:%02dZ" % (nam, thg, ngay, gio, phut, giay)
+
 
 def _hoa_don_pancake(hd):
 	"""Goi thong tin hoa don theo dung dinh dang invoice_info_list cua Pancake."""
@@ -473,7 +503,7 @@ def tao_don(don=None):
 			body["account_name"] = nguon
 
 	if ngay:
-		body["estimate_delivery_date"] = ngay
+		body["estimate_delivery_date"] = _ngay_pancake(ngay)
 
 	the = _lam_sach_the(don.get("tags"))
 	if the:
