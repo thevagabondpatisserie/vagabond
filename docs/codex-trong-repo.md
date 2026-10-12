@@ -10,11 +10,12 @@ Mặc định trong `.codex/config.toml`:
 
 ```toml
 model = "gpt-6-astra"
-model_reasoning_effort = "low"
+model_reasoning_effort = "medium"
 ```
 
-Anh Việt gọi mức này là Light. Giá trị kỹ thuật dùng ở đây là `low`.
-Không tự đổi sang model khác, tăng effort hoặc bật Fast Mode để chữa lỗi.
+Anh Việt đổi mặc định thành Astra medium ngày 12/10/2026.
+Giữ model được chọn, không bật Fast Mode. Profile high đã duyệt chỉ dùng
+cho phạm vi tiền/kho/rollback theo quy tắc chung, không đổi mặc định medium.
 Nếu model không khả dụng, báo lỗi truy cập và phạm vi bị chặn.
 
 Cấu hình dự án chỉ được nạp khi runtime hỗ trợ và repo được tin cậy. Tham số

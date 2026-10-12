@@ -1,3 +1,5 @@
+> Quy trình nhận việc, push cloud/desktop và Astra medium: [Instruction chung](../INSTRUCTION_VAGABOND.md), hiệu lực 12/10/2026.
+
 # Instruction dự án Vagabond
 
 Hiệu lực từ 09/09/2026, theo phân công của anh Việt. Bản này thay phân công

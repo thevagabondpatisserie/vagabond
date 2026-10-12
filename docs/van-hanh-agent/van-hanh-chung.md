@@ -67,7 +67,7 @@ Cloud cần bản hồ sơ gọn trong repo; nhật ký chi tiết ở máy, kh�
 đường dẫn Mac. Không lưu secret/transcript/dump/log lớn vào Git, không thêm VPS.
 
 ## 5. Astra theo độ khó
-Giữ Astra gpt-6-astra mặc định low, không bật Fast Mode. Anh đã duyệt chọn
+Từ 12/10/2026, giữ Astra gpt-6-astra mặc định medium, không bật Fast Mode. Anh đã duyệt chọn
 medium cho luồng nhiều bước, high cho tiền/kho/rollback/concurrency/core;
 xhigh/max chỉ khi có bế tắc đã ghi dữ liệu và lý do. Chọn effort tường minh
 ở bộ khởi chạy hỗ trợ; ghi model/effort thực từ metadata, không nhận lời dặn

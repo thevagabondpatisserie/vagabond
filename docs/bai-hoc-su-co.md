@@ -2085,3 +2085,10 @@ nhân là sender chỉ phân loại bốn nhãn và cố ý không đọc thân 
 có khối tóm tắt an toàn. Cách phòng: comment bàn giao có nhãn trạng thái cùng
 khối `telegram-tomtat` giới hạn hai trường ngắn; sender chỉ đọc khối của chủ repo,
 còn comment Codex chỉ lấy ý đầu của Summary và tuyệt đối không lấy Testing/log.
+
+## 12/10/2026 - Commit cloud chưa phải bàn giao GitHub
+
+Các vòng #462/#465 có code và ca kiểm trong cloud nhưng head PR không đổi.
+Instruction phải chốt SHA remote, gói task/diff khi thiếu quyền và đường tiếp
+nhận desktop. Model trong TOML cũng là yêu cầu cấu hình, phải kiểm metadata
+trước khi nhận bot thực sự dùng model đó. Không chữa thiếu quyền bằng PR trùng.

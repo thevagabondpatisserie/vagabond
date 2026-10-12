@@ -1,3 +1,5 @@
+> Quy trình nhận việc, push cloud/desktop và Astra medium: [Instruction chung](../../INSTRUCTION_VAGABOND.md), hiệu lực 12/10/2026.
+
 # Tra cứu công việc cho Codex và Claude
 
 Áp dụng cloud và local, theo Issue #294. Đây là quy trình lưu bàn giao, không
