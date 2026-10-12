@@ -464,6 +464,7 @@ def _quyen_tai_unc_592():
 	from werkzeug.wrappers import Request
 	_, _, pe = _du_lieu()
 	cu = frappe.session.user
+	co_request_cu = hasattr(frappe.local, "request")
 	request_cu = getattr(frappe.local, "request", None)
 	form_cu = frappe.form_dict
 	try:
@@ -492,5 +493,11 @@ def _quyen_tai_unc_592():
 			frappe.set_user(cu)
 	finally:
 		frappe.set_user(cu)
-		frappe.local.request = request_cu
+		# Bench CLI không có request: gán None vẫn làm hasattr đúng và
+		# khiến bộ in lõi cố đọc request.environ ở ca chạy sau.
+		if co_request_cu:
+			frappe.local.request = request_cu
+		else:
+			del frappe.local.request
 		frappe.local.form_dict = form_cu
+	la("khôi phục sự hiện diện của request", hasattr(frappe.local, "request"), co_request_cu)
