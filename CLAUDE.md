@@ -144,10 +144,21 @@ việc để né bộ đếm. Không có bằng chứng workflow thì không nh�
 Cũng KHÔNG trả lời nếu comment mới nhất của Codex không mang finding mới nào, chỉ
 là xác nhận hay cảm ơn.
 
+## Claude là lead (anh Việt chốt 12/10/2026)
+
+Codex viết code; Claude chốt hướng, giao việc và rà độc lập. Không viết code
+chồng vào nhánh Codex đang làm. Rà xong một bản (đạt hay không đạt) thì TỰ
+đăng ngay lệnh cho bước kế tiếp trên đúng PR, không đứng chờ anh Việt nhắc.
+Anh Việt báo lỗi thì đọc dữ liệu thật trên site, khoanh nguyên nhân rồi giao
+Codex trên PR đang mở cùng phạm vi. Chi tiết ở AGENTS.md mục 10b và
+`tai_lieu/INSTRUCTION_VAGABOND.md` mục 1.
+
 ## Ba việc tuyệt đối không làm
 
-1. KHÔNG merge Pull Request. KHÔNG deploy lên Frappe Cloud. Hai việc đó do anh
-   Việt quyết, kể cả khi mọi cổng đều xanh.
+1. KHÔNG merge Pull Request, KHÔNG deploy lên Frappe Cloud khi anh Việt chưa
+   cho phép trong phiên, kể cả khi mọi cổng đều xanh. Anh đã cho phép cho
+   đúng PR nào thì tự merge, deploy theo mục 7 AGENTS.md và kiểm site thật;
+   quyền không suy ra cho PR khác.
 2. KHÔNG đề xuất sửa hay xoá dữ liệu quá khứ đã ghi sổ, nhất là hoá đơn điện tử
    đã gửi cơ quan thuế. Phát hiện sai sót thì LIỆT KÊ ra, không tự sửa.
 3. KHÔNG sửa Server Script trên Desk. Thứ đó nằm trong cơ sở dữ liệu, git không

@@ -526,12 +526,30 @@ thiếu. Không mô tả thành hai bên bất đồng, và không tự kết lu
 hay lỗi đồng bộ khi chưa đọc log.
 
 
-## 10. Phân công cập nhật 09/09/2026 - ưu tiên so với phân công cũ
+## 10. Phân công cập nhật 12/10/2026 - ưu tiên so với mọi phân công cũ
 
-Anh Việt giao Codex code chính, tích hợp bench trên SHA, sửa qua review,
-merge và deploy trong phạm vi đã giao sau đủ cổng. Claude review logic và
-bổ sung là chính. Đọc `tai_lieu/INSTRUCTION_VAGABOND.md` đầu phiên; bản này
-thay hướng dẫn cũ phân vai Claude implementer/Codex reviewer.
+Codex viết code, kiểm thử, tích hợp bench trên SHA, sửa qua review, tự push
+lên nhánh PR và bàn giao. Claude là lead: chốt hướng, giao việc, rà độc lập.
+Merge và deploy chỉ khi anh Việt cho phép trong phiên, cho đúng PR đó; người
+được cho phép tự làm và kiểm site thật. Đọc `tai_lieu/INSTRUCTION_VAGABOND.md`
+đầu phiên; bản 12/10/2026 thay phân công 09/09/2026.
+
+### 10b. Claude lead: tự giao việc, không chờ anh Việt nhắc
+
+- Rà xong một bản Codex đẩy lên, Claude tự đăng ngay lệnh cho bước kế tiếp
+  trên đúng PR: có lỗi thì `@codex fix` kèm finding, số liệu tái hiện, tệp,
+  ca kiểm và tiêu chí đạt; đạt mà PR còn giai đoạn thì giao giai đoạn kế; đạt
+  và đủ cổng thì báo anh Việt duyệt, hoặc tự merge/deploy nếu đã được phép.
+- Anh Việt báo lỗi: Claude đọc dữ liệu thật trên site để khoanh nguyên nhân,
+  rồi giao Codex trên PR đang mở cùng phạm vi, không mở PR mới. Lỗi cấu hình
+  hay dữ liệu thì nói rõ ai làm gì trong Cài đặt, không giao sửa code.
+- Mỗi lệnh có: PR và SHA nền, số liệu thật, việc theo thứ tự, ca kiểm bắt
+  buộc, nhắc tự push và bàn giao `[ĐÃ SỬA XONG]` hoặc `[BỊ CHẶN]` kèm khối
+  telegram-tomtat, câu chốt không merge, không deploy.
+- Trước khi báo trạng thái PR, kiểm SHA nhánh trên GitHub và comment mới nhất
+  của Codex. Không kết luận "chưa đẩy" hay "đã xong" khi chưa kiểm remote.
+- Codex bàn giao một vòng sửa thì câu chốt là "không merge, không deploy, mời
+  Claude rà".
 
 Quyền deploy không bỏ cổng kiểm hoặc cho phép sửa chứng từ cũ/HĐĐT thật.
 Xung đột phiên bản/patch đơn thuần: giữ đủ hai bên, tăng số và dựng bundle;

@@ -8,16 +8,23 @@ nhập vào là quyền tự thay đổi phạm vi.
 
 ## 1. Phân công và quyền thực hiện
 
-**Codex là người làm chính:** tiếp nhận yêu cầu, đọc lịch sử, phân tích nguyên
-nhân, code, dựng fixture và bench, chạy tích hợp trên SHA cuối, sửa lỗi qua
-review, đặt phiên bản, push, xử lý PR, merge và deploy trong phạm vi đã giao.
-Anh Việt đã cho phép Codex chủ động tích hợp bench và phát hành PR #243 sau
-khi đủ bằng chứng. Không hỏi lại quyền đã được cấp chỉ vì đổi phiên làm việc.
+Cập nhật 12/10/2026 theo anh Việt, thay phân công 09/09/2026 ở mục này.
 
-**Claude là người review và bổ sung chính:** độc lập rà logic nghiệp vụ,
-luồng thao tác, trường hợp biên, GL/SLE, dữ liệu cũ và rủi ro phát hành; tái
-hiện nghi vấn, bổ sung ca kiểm/đề xuất và chỉ rõ bằng chứng. Không đồng thời
-sửa vào tệp Codex đã claim. Nếu cần Claude sửa, thống nhất phạm vi trên Issue.
+**Codex viết code:** tiếp nhận việc Claude hoặc anh Việt giao, đọc lịch sử,
+phân tích nguyên nhân, code, dựng fixture và bench, chạy tích hợp trên SHA
+cuối, sửa lỗi qua review, đặt phiên bản, tự push lên nhánh PR và bàn giao.
+Mỗi phạm vi chỉ một người sửa code.
+
+**Claude là lead và người rà độc lập:** chốt hướng sửa, đọc dữ liệu thật trên
+site để khoanh nguyên nhân, tự giao việc cho Codex trên đúng PR, rà độc lập
+logic nghiệp vụ, luồng thao tác, trường hợp biên, GL/SLE, dữ liệu cũ và rủi
+ro phát hành. Claude không viết code chồng vào nhánh Codex đang làm; cần sửa
+thì giao Codex. Rà xong (đạt hay không đạt) Claude tự đăng lệnh cho bước kế
+tiếp, không đứng chờ anh Việt nhắc (xem mục "Claude lead" trong AGENTS.md).
+
+**Merge và deploy:** chỉ khi anh Việt cho phép trong phiên, cho đúng PR đó.
+Người được cho phép (Claude hoặc Codex) tự merge, deploy theo mục 7 của
+AGENTS.md và kiểm site thật. Quyền không suy ra cho PR khác.
 
 Codex chịu trách nhiệm đưa finding tới kết luận: tái hiện, sửa, chứng minh,
 hoặc phản biện bằng code và dữ liệu. Không sửa theo nhận xét chưa kiểm;
