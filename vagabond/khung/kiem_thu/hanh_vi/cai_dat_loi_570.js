@@ -44,6 +44,11 @@ function layThat() {
     'ra = {"bo_cuc": c.bo_cuc(tr), "gia_tri": c.gia_tri(tr, doc), "modified": "2026-10-04 09:00:00.000001",',
     '  "bang": {"zalo_nhom": {"cot": c.tom_bang(cot), "dong": [dict(c.gia_tri(cot, r), name=r["name"]) for r in dong],',
     '    "ghi_qua_hop_chon": list(c.GHI_QUA_HOP_CHON["zalo_nhom"])}}}',
+    '# v591: danh sách nhóm của hộp chọn dựng bằng chính phép máy chủ trên cùng dữ liệu.',
+    'u = sys.modules["frappe"].utils',
+    'u.get_url = getattr(u, "get_url", None) or (lambda *a, **k: "https://vagabond.test")',
+    'from vagabond import kenh_zalo as kz',
+    'ra["nhom_bot"] = kz.ds_nhom_chon(json.loads(doc["zalo_chat_moi"]), dong)',
     'sys.stdout.write(json.dumps(ra, ensure_ascii=False, default=str))',
   ].join('\n');
   return JSON.parse(cp.execFileSync('python3', ['-c', py, GOC], { encoding: 'utf8', maxBuffer: 1 << 26 }));
@@ -77,6 +82,7 @@ function dungMan() {
       if (duong === 'vagabond.cai_dat_loi.lay') return Promise.resolve(JSON.parse(JSON.stringify(LAY)));
       if (duong === 'vagabond.tai_khoan.danh_sach') return Promise.resolve({ ngan_hang: NGAN_HANG });
       if (duong === 'vagabond.cai_dat_loi.tim_lien_ket') return Promise.resolve(['Kho A', 'Kho B']);
+      if (duong === 'vagabond.kenh_zalo.nhom_da_nhan_bot') return Promise.resolve(JSON.parse(JSON.stringify(that._nhomBot || LAY.nhom_bot)));
       if (duong === 'vagabond.cai_dat_loi.luu') {
         var d = JSON.parse(JSON.stringify(LAY));
         d.modified = '2026-10-04 09:05:00';
@@ -245,8 +251,16 @@ function moTab(m, fn) { bam(m, mot(m, '[data-cdltab="' + fn + '"]')); }
     bam(m, mot(m, '[data-cdlbangthem="zalo_nhom"]'));
     bang('màn thêm nhóm', m.g._t, 'Thêm nhóm nhận tin');
     bam(m, mot(m, '[data-cdldnhom]'));
+    await tick();
     bang('hộp chọn chỉ có nhóm GROUP', m.sheet[0].items.map(function (x) { return x.value; }), ['g-777']);
+    bang('gọi nhóm bằng mã nhóm máy chủ tính, không bằng tên người nhắc', m.sheet[0].items[0].label, 'Nhóm Zalo mã ' + LAY.nhom_bot[0].ma);
+    dung('không hiện tên "Nhóm Bếp" của bản tin cũ làm tên nhóm', m.sheet[0].items[0].label.indexOf('Nhóm Bếp') < 0);
     m.sheet[0].onPick(m.sheet[0].items[0]);
+    // v591: chọn nhóm không còn tự lấy tên người nhắc bot làm tên nhóm; quản trị tự đặt.
+    var oTen = m.khung.querySelectorAll('[data-cdld]').filter(function (e) { return e.getAttribute('data-cdld') === 'ten_nhom'; })[0];
+    bang('tên nhóm vẫn trống sau khi chọn', oTen.value || '', '');
+    oTen.value = 'Nhóm Bếp';
+    m.khung.oninput({ target: oTen });
     var r = m.khung.querySelectorAll('[data-cdldchon]').filter(function (e) { return e.getAttribute('data-cdldchon') === 'loai_tin'; })[0];
     bam(m, r);
     var ov = m.tai.body.children[m.tai.body.children.length - 1];
@@ -280,6 +294,49 @@ function moTab(m, fn) { bam(m, mot(m, '[data-cdltab="' + fn + '"]')); }
     var g = m.goi.filter(function (x) { return x.duong === 'vagabond.kenh_zalo.gui_thu'; });
     bang('gọi gửi thử đúng mã nhóm', g.map(function (x) { return x.ts.chat_id; }), ['g-1']);
     dung('không mở màn sửa nhóm', m.g._t !== 'Sửa nhóm nhận tin');
+  });
+
+  // v591: anh Việt 12/10/2026 thêm nhóm Bán hàng nhưng hộp chọn chỉ có một dòng "Viet Nguyen".
+  await ca('Zalo v591: nhóm vừa nhắc bot SAU khi mở màn vẫn hiện, vì hộp chọn hỏi máy chủ mỗi lần bấm', async function () {
+    var m = await moMan();
+    moTab(m, 'tab_tin_nhan');
+    m.g._nhomBot = [
+      { chat_id: 'zgr-50abae45f4271d794436', ma: '4436', luc: '2026-10-12 18:56', nguoi: 'Viet Nguyen', dang_gan: [] },
+      { chat_id: 'g-777', ma: 'G-777', luc: '2026-10-04 12:23', nguoi: 'Viet Nguyen', dang_gan: [] },
+    ];
+    bam(m, mot(m, '[data-cdlbangthem="zalo_nhom"]'));
+    bam(m, mot(m, '[data-cdldnhom]'));
+    await tick();
+    bang('có hỏi máy chủ', m.goi.filter(function (x) { return x.duong === 'vagabond.kenh_zalo.nhom_da_nhan_bot'; }).length, 1);
+    bang('đủ hai nhóm, nhóm mới đứng đầu', m.sheet[0].items.map(function (x) { return x.label; }), ['Nhóm Zalo mã 4436', 'Nhóm Zalo mã G-777']);
+    dung('dòng phụ có giờ nhắc bot', m.sheet[0].items[0].phu.indexOf('18:56 ngày 12/10') >= 0);
+    m.sheet[0].onPick(m.sheet[0].items[0]);
+    dung('màn sửa hiện mã nhóm đã chọn', chu(m.khung).indexOf('Nhóm Zalo mã 4436') >= 0);
+  });
+
+  await ca('Zalo v591: nhóm đã gán cho dòng khác hiện "đang dùng" và không chọn được lần nữa', async function () {
+    var m = await moMan();
+    moTab(m, 'tab_tin_nhan');
+    m.g._nhomBot = [{ chat_id: 'g-1', ma: 'G-1', luc: '2026-10-04 12:23', nguoi: 'Viet Nguyen', dang_gan: [] }];
+    bam(m, mot(m, '[data-cdlbangthem="zalo_nhom"]'));
+    bam(m, mot(m, '[data-cdldnhom]'));
+    await tick();
+    var it = m.sheet[0].items[0];
+    bang('nhãn báo đang dùng', it.label, 'Nhóm Zalo mã G-1 (đang dùng)');
+    dung('dòng phụ nói gán cho dòng nào', it.phu.indexOf('Đang gán cho: Vận hành') >= 0);
+    m.sheet[0].onPick(it);
+    dung('báo không chọn được', m.toast.some(function (t) { return t.indexOf('đang gán cho Vận hành') >= 0; }));
+    dung('màn thêm vẫn chưa có nhóm', chu(m.khung).indexOf('Chưa chọn') >= 0);
+  });
+
+  await ca('Zalo v591: mở lại chính dòng đang dùng nhóm thì nhóm đó không bị coi là "đang dùng"', async function () {
+    var m = await moMan();
+    moTab(m, 'tab_tin_nhan');
+    m.g._nhomBot = [{ chat_id: 'g-1', ma: 'G-1', luc: '2026-10-04 12:23', nguoi: 'Viet Nguyen', dang_gan: [] }];
+    bam(m, mot(m, '[data-cdldong]'));
+    bam(m, mot(m, '[data-cdldnhom]'));
+    await tick();
+    bang('không gắn nhãn đang dùng', m.sheet[0].items[0].label, 'Nhóm Zalo mã G-1');
   });
 
   await ca('Zalo: thêm nhóm mà chưa đặt tên thì không cho Xong', async function () {
