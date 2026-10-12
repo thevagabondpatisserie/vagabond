@@ -128,3 +128,30 @@ def _qua_cua_doc():
 	la("giữ lượng trả âm", kq["dong"][0]["sl_tra"], -1)
 	la("tách giá trị hóa đơn Nháp", kq["gia_tri_hoa_don_nhap"], 110)
 	la("doanh thu thuần", kq["doanh_thu_thuan"], 45)
+
+
+@ca("BC08M: tổng quan, bảng và chứng từ cùng một kết quả máy chủ")
+def _mot_nguon_trinh_bay():
+	tra = _dong("TRA"); tra.update(stock_qty=-1, base_net_amount=-45)
+	nhap = _hd("NHAP", base_grand_total=110); nhap["docstatus"] = 0
+	with patch.object(bc.frappe, "get_all", return_value=[_dong("HD"), tra]):
+		kq = bc._bc_mon_thuan([_hd("HD", base_grand_total=108),
+			_hd("TRA", is_return=1, base_grand_total=-54), nhap])
+	la("thẻ lấy đúng tổng bảng", kq["tong_quan"]["doanh_thu_thuan"],
+		sum(r["tien"] for r in kq["dong"]))
+	la("thẻ và danh sách cùng số chứng từ bán", kq["tong_quan"]["so_hoa_don_ban"],
+		sum(not r["is_return"] and r["docstatus"] == 1 for r in kq["chung_tu"]))
+	la("Nháp chỉ hiện riêng", kq["tong_quan"]["gia_tri_hoa_don_nhap"], 110)
+
+
+@ca("Báo cáo: người thiếu quyền bị chặn trước khi đọc số")
+def _chan_quyen_may_chu():
+	with patch.object(bc.frappe, "get_roles", return_value=["Employee"]), \
+			patch.object(bc.frappe, "get_all") as doc:
+		try:
+			bc.chay("BC08M", ky="thang", moc="2026-10-01")
+		except Exception:
+			pass
+		else:
+			raise AssertionError("API phải từ chối người thiếu quyền")
+	la("không đọc dữ liệu trước khi chặn", doc.call_count, 0)

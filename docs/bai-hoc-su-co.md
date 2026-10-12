@@ -1,5 +1,13 @@
 # Bài học từ sự cố thật
 
+## 12/10/2026 - Một báo cáo không được có nhiều nguồn cộng số (#351)
+
+Mẫu doanh thu theo món cần cùng số ở thẻ tổng quan, bảng, danh sách chứng từ
+và Excel. Nếu trình duyệt tự cộng lại những dòng đang hiện, giới hạn số dòng
+hoặc một thay đổi bộ lọc sẽ làm các khối lệch nhau dù từng khối nhìn hợp lý.
+Cách phòng: máy chủ trả các khối trình bày từ cùng một kết quả đã lọc; màn
+hình chỉ định dạng số. Ca hồi quy phải đối chiếu các khối và đường xuất file.
+
 Mỗi mục dưới đây là một lần repo này hỏng thật, trên hệ thống đang chạy cho cửa
 hàng. Ghi lại triệu chứng, nguyên nhân gốc, và cách tránh. Đọc tệp này trước khi
 sửa những chỗ có liên quan, vì phần lớn các lỗi đó KHÔNG có lớp nào tự bắt được.

@@ -643,6 +643,25 @@ def _bc_mon_thuan(hd, **kw):
 		"gia_tri_hoa_don_nhap": sum(flt(r.get("base_grand_total")) for r in nhap),
 		"co_so_ngay": "Ngày ghi sổ của từng chứng từ, kể cả phiếu trả",
 		"bieu_do": {"nhan": "mon", "gia_tri": "tien", "so_dong": 12},
+		# Một nguồn máy chủ cho thẻ, bảng, danh sách chứng từ và Excel. Màn
+		# hình chỉ trình bày, tuyệt đối không cộng lại số tài chính.
+		"tong_quan": {
+			"doanh_thu_thuan": sum(r["tien"] for r in dong),
+			"so_hoa_don_ban": sum(not r.get("is_return") for r in ghi.values()),
+			"so_phieu_tra": sum(bool(r.get("is_return")) for r in ghi.values()),
+			"so_nhap": len(nhap),
+			"gia_tri_hoa_don_nhap": sum(flt(r.get("base_grand_total")) for r in nhap),
+		},
+		"can_theo_doi": [
+			{"ma": "TRA_HANG", "nhan": "Phiếu trả trong kỳ", "so": sum(bool(r.get("is_return")) for r in ghi.values())},
+			{"ma": "HOA_DON_NHAP", "nhan": "Hoá đơn Nháp", "so": len(nhap)},
+		],
+		"chung_tu": [{
+			"name": r.get("name"), "posting_date": str(r.get("posting_date") or ""),
+			"is_return": 1 if r.get("is_return") else 0,
+			"docstatus": int(r.get("docstatus") or 0),
+			"base_grand_total": flt(r.get("base_grand_total")),
+		} for r in hop_le],
 	}
 
 def _bc_nhom_mon(hd, **kw):
@@ -968,6 +987,7 @@ DANH_SACH = [
 	{"ma": "BC06", "ten": "Chương trình khuyến mãi", "ic": "🎫", "mo": "Số lượt dùng và tiền đã giảm từng chương trình", "ham": _bc_khuyen_mai, "nhom": "Kiểm soát", "ss": "khoa"},
 	{"ma": "BC07", "ten": "Sửa và huỷ hoá đơn", "ic": "✂️", "mo": "Ai sửa, ai huỷ, làm gì trên hoá đơn nào", "ham": _bc_sua_huy, "nhom": "Kiểm soát", "ss": None},
 	{"ma": "BC08", "ten": "Món bán chạy", "ic": "🍰", "mo": "Xếp hạng theo số lượng bán ra", "ham": _bc_mon_ban_chay, "nhom": "Hàng hoá", "ss": "khoa"},
+	{"ma": "BC08M", "ten": "Doanh thu theo món", "ic": "📊", "mo": "Doanh thu thuần, lượng bán và lượng trả theo món", "ham": _bc_mon_thuan, "nhom": "Hàng hoá", "ss": "khoa"},
 	{"ma": "BC09", "ten": "Nhóm món bán chạy", "ic": "🗂️", "mo": "Dòng sản phẩm nào kéo doanh thu", "ham": _bc_nhom_mon, "nhom": "Hàng hoá", "ss": "khoa"},
 	{"ma": "BC10", "ten": "Giờ cao điểm", "ic": "⏰", "mo": "Doanh thu theo khung giờ, dùng để xếp ca", "ham": _bc_gio_cao_diem, "nhom": "Vận hành", "ss": "khoa"},
 	{"ma": "BC11", "ten": "Khách hàng chi tiêu nhiều", "ic": "👑", "mo": "Xếp hạng khách và số còn nợ", "ham": _bc_khach_hang, "nhom": "Khách hàng", "ss": "khoa"},
@@ -1202,6 +1222,9 @@ def chay(ma, ky="ngay", moc=None, tu=None, den=None, diem=None, nguon=None, pt=N
 		"bieu_do": kq.get("bieu_do"),
 		"phu": phu,
 		"nhan_dinh": nhan_dinh,
+		"tong_quan": kq.get("tong_quan"),
+		"can_theo_doi": kq.get("can_theo_doi"),
+		"chung_tu": kq.get("chung_tu"),
 		"khong_loc": khong_loc,
 		# Chip loc doc tu TAT CA don trong ky, ke ca don chua ghi so: tat
 		# cong tac di ma chip cung bien mat thi nguoi dung tuong app hong.

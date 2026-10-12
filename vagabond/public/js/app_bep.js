@@ -26892,6 +26892,25 @@ async function scrBaoCaoXem() {
   if ((kq.diem_ban || []).length) bcDsDiem = kq.diem_ban;
 
   var html = bcThanhKy(!!kq.khong_loc) + (kq.khong_loc ? '' : bcDaiNhap(kq));
+
+  /* BC08M nhận trọn các con số từ một kết quả máy chủ. Các thẻ này không
+     tự cộng bảng, nhờ vậy bảng bị cắt để xem trên điện thoại vẫn cùng số
+     với Excel và danh sách chứng từ. */
+  if (kq.ma === 'BC08M' && kq.tong_quan) {
+    var tq = kq.tong_quan;
+    html += '<div class="sec">Tổng quan</div><div class="card" style="padding:12px 14px">' +
+      '<div style="font-size:12px;color:#98a2b3">Doanh thu thuần</div>' +
+      '<div style="font-size:24px;font-weight:800;color:#0f766e">' + money(tq.doanh_thu_thuan) + ' đ</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px">' +
+      '<div><b>' + money(tq.so_hoa_don_ban) + '</b><small style="display:block;color:#6b7280">Hoá đơn bán</small></div>' +
+      '<div><b>' + money(tq.so_phieu_tra) + '</b><small style="display:block;color:#6b7280">Phiếu trả</small></div>' +
+      '<div><b>' + money(tq.so_nhap) + '</b><small style="display:block;color:#6b7280">Hoá đơn Nháp</small></div></div>' +
+      '<div style="margin-top:10px;padding-top:9px;border-top:1px solid #eef0f3;font-size:13px">Giá trị hoá đơn Nháp: <b>' + money(tq.gia_tri_hoa_don_nhap) + ' đ</b></div></div>';
+    html += '<div class="sec">Cần theo dõi</div><div class="card">' +
+      (kq.can_theo_doi || []).map(function (x) {
+        return '<div class="li" style="min-height:44px"><div class="lt"><div class="l1">' + h(x.nhan) + '</div></div><span class="st ' + (x.so ? 'y' : 'g') + '">' + money(x.so) + '</span></div>';
+      }).join('') + '</div><div class="sec">Doanh thu theo món</div>';
+  }
   if (kq.khong_loc) {
     html += '<div class="card" style="padding:11px 13px;border:1.5px solid #c7d2fe;background:#eef2ff">' +
       '<div style="font-size:12.5px;color:#3730a3;line-height:1.65">' +
@@ -27008,7 +27027,6 @@ function bcTaiVe(ten, b64, kieu) {
   document.body.appendChild(a); a.click();
   setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 1500);
 }
-
 
 /* ========== DON MUA HANG, CONG NO PHAI TRA, HAI MAN HOA DON ==========
    (anh Viet 12/08/2026)
