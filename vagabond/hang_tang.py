@@ -324,18 +324,6 @@ def cho_bao_lau(tt, lap_luc, hom_nay=None, nguong=CHO_NGAY):
 	return (so, so >= int(nguong or CHO_NGAY))
 
 
-def dieu_kien_tim(tim, truong):
-	"""Điều kiện tìm chạy Ở MÁY CHỦ (QT-19). THUẦN.
-
-	Lọc bằng `or_filters` ở tầng cơ sở dữ liệu, không đọc N dòng về rồi lọc
-	bằng Python - cách sau chỉ tìm được trong phần đã đọc về.
-	"""
-	q = chuoi(tim)
-	if not q:
-		return None
-	return [[c, "like", "%" + q + "%"] for c in truong]
-
-
 # ------------------------------------------------------------ phần chạm hệ
 
 import frappe  # noqa: E402
@@ -889,11 +877,12 @@ def _tap(diem="", chang="", loai="", tim="", ky="", tu="", den="", trang_thai=""
 		loc["posting_date"] = [">=", tu_ngay]
 	elif den_ngay:
 		loc["posting_date"] = ["<=", den_ngay]
-	hoac = dieu_kien_tim(tim, TRUONG_TIM)
+	# v583: tìm theo từng từ, bỏ dấu, bỏ dấu câu, một nguồn ở tim_kiem.py.
+	from vagabond import tim_kiem
 
 	dong = frappe.get_all(
 		SI,
-		filters=loc, or_filters=hoac,
+		filters=tim_kiem.them_loc(loc, SI, tim, TRUONG_TIM),
 		fields=[
 			"name", "creation", "owner", "docstatus", "posting_date",
 			"grand_total", "total_qty", "customer", "customer_name",

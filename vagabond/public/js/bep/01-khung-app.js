@@ -390,6 +390,16 @@ function coQuyenKeToan() {
     || hasRole('Thu mua') || hasRole('Purchase Manager') || hasRole('Purchase User');
 }
 
+/* v582 (Codex #449 vong 4): ai thay o Cong no phai thu trong khoi Ban hang.
+   Cung tap voi cong_no.QUYEN_CONG_NO_THU (ca kiem chot hai ben khop). Thu
+   ngan goi Quay chi co Sales User nen khong thay, dung bang quyen anh Viet
+   chot 06/10/2026. Day chi de AN O, chan that o may chu. */
+var QUYEN_CONG_NO_THU = ['System Manager', 'Giám đốc', 'Sales Manager', 'VGB - Quản lý cửa hàng',
+  'Accounts User', 'Accounts Manager'];
+function coQuyenCongNo() {
+  return QUYEN_CONG_NO_THU.some(function (v) { return hasRole(v); });
+}
+
 /* Ai duoc vao PHAN HE HRM (KPI va hoa hong).
 
    Anh Viet chot 01/09/2026: nut KPI "chi cho quan ly, ke toan, giam doc

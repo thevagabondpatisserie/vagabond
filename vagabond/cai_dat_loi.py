@@ -375,5 +375,8 @@ def tim_lien_ket(o, tu=""):
 	if loc is None:
 		frappe.throw("Ô này chưa khai phạm vi chọn trên app, sửa ở Desk.")
 	tu = MAU_TIM.sub("", str(tu or ""))[:60]
-	dk = dict(loc, **({"name": ["like", "%%%s%%" % tu]} if tu else {}))
+	# v583: tim theo tung tu, bo dau, bo dau cau (tim_kiem.py).
+	from vagabond import tim_kiem
+
+	dk = tim_kiem.them_loc(dict(loc), df.options, tu, ["name"])
 	return [r.name for r in frappe.get_list(df.options, filters=dk, fields=["name"], limit_page_length=20 if tu else 200, order_by="name asc")]

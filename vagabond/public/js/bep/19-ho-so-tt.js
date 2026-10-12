@@ -580,7 +580,7 @@ function hsMoChonBenNhan(o) {
     var ds = nguon();
     if (!k) return ds;
     return ds.filter(function (x) {
-      return (mvKhongDau(x.ten || '') + ' ' + mvKhongDau(x.ncc || '')).indexOf(k) >= 0;
+      return vgbKhop([x.ten, x.ncc], k); /* v583: tim theo tung tu, bo dau, bo dau cau (vgbKhop). */
     });
   }
 
@@ -3924,7 +3924,9 @@ function hsChonHdSau(hs, uv) {
       var q = mvKhongDau(oTim.value || '').replace(/[.\s]/g, '');
       var ds = dangHien.filter(function (x) {
         if (!q) return true;
-        return mvKhongDau((x.so_hd || '') + ' ' + x.name + ' ' + Math.round(x.tien) + ' ' + (x.ncc_ten || '')).replace(/[.\s]/g, '').indexOf(q) >= 0;
+        /* v583: tim theo tung tu, bo dau, bo dau cau (vgbKhop). */
+        return vgbKhop([x.so_hd, x.name, Math.round(x.tien), x.ncc_ten], oTim.value)
+          || mvKhongDau((x.so_hd || '') + ' ' + x.name + ' ' + Math.round(x.tien) + ' ' + (x.ncc_ten || '')).replace(/[.\s]/g, '').indexOf(q) >= 0;
       });
       oDs.innerHTML = ds.length ? ds.map(the).join('')
         : '<div style="font-size:13px;line-height:1.6;color:#b45309;padding:6px 2px 10px">Chưa thấy hoá đơn nào còn mở' + (q ? ' khớp chữ đã gõ' : ' của nhà cung cấp này') + '. Gõ số hoá đơn rồi bấm Tìm mọi NCC.</div>';

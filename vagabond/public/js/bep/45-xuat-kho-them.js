@@ -264,7 +264,7 @@ function xktLoc(ds, st, khoa, nhomCua, timCua) {
     if (st.tab && xktLoaiTT(x) !== st.tab) return false;
     if (st.nhom && nhomCua(x) !== st.nhom) return false;
     if (x.posting_date && String(x.posting_date) < moc) return false;
-    if (q && (timCua(x) || '').toLowerCase().indexOf(q) < 0) return false;
+    if (q && !vgbKhop(timCua(x) || '', q)) return false; /* v583: tim theo tung tu, bo dau, bo dau cau (vgbKhop). */
     return true;
   });
 }

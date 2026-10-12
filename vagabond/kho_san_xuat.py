@@ -210,13 +210,13 @@ TRUONG_MOI = {"Item": [
 	{
 		"fieldname": "custom_kho_nguon", "label": "Kho nguồn chính",
 		"fieldtype": "Link", "options": "Warehouse",
-		"insert_after": "custom_chang",
+		"insert_after": "custom_chang", "ignore_user_permissions": 1,
 		"description": "Khi làm món ở kho này, máy lấy nguyên liệu từ kho này trước.",
 	},
 	{
 		"fieldname": "custom_kho_nguon_phu", "label": "Kho nguồn phụ",
 		"fieldtype": "Link", "options": "Warehouse",
-		"insert_after": "custom_kho_nguon",
+		"insert_after": "custom_kho_nguon", "ignore_user_permissions": 1,
 		"description": "Thiếu ở kho nguồn chính thì tìm tiếp ở đây.",
 	},
 ]}

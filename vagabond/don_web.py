@@ -291,14 +291,18 @@ def tom_tat_bien_nhan(ban_ghi, snapshot):
 	tt = ban_ghi.get("trang_thai") or "Dang gui"
 	phi = snap.get("phi") or {}
 	tien_banh = int(ban_ghi.get("tien_banh") or 0)
+	# v589: ưu đãi từ ERP đã trừ khi tạo đơn (khuyen_mai.ap_web).
+	uu = snap.get("uu_dai") or {}
+	giam = min(int(uu.get("giam") or 0), tien_banh)
+	sau_giam = tien_banh - giam
 	trang_thai_phi = phi.get("trang_thai") or ban_ghi.get("trang_thai_phi") or ""
 	phi_khach = phi.get("phi_khach")
 	if trang_thai_phi == "tu_lay":
-		nhan_phi, tong = "Tự lấy, không tính phí", tien_banh
+		nhan_phi, tong = "Tự lấy, không tính phí", sau_giam
 	elif trang_thai_phi == "mien_phi":
-		nhan_phi, tong = "Miễn phí giao", tien_banh
+		nhan_phi, tong = "Miễn phí giao", sau_giam
 	elif trang_thai_phi == "chinh_xac" and phi_khach:
-		nhan_phi, tong = dinh_tien(phi_khach), tien_banh + int(phi_khach)
+		nhan_phi, tong = dinh_tien(phi_khach), sau_giam + int(phi_khach)
 	else:
 		nhan_phi, tong = "Sales báo phí khi xác nhận", None
 	ngay, gio = khung_gio(snap.get("ngay_nhan"))
@@ -327,6 +331,8 @@ def tom_tat_bien_nhan(ban_ghi, snapshot):
 			for m in (snap.get("mon") or [])
 		],
 		"tien_banh": dinh_tien(tien_banh),
+		"giam": ("- " + dinh_tien(giam)) if giam else "",
+		"uu_dai": ", ".join(str(a.get("ten") or "") for a in (uu.get("ap") or []) if a.get("ten"))[:120] if giam else "",
 		"phi_giao": nhan_phi,
 		"tong": dinh_tien(tong) if tong is not None else "Chờ Sales báo phí giao",
 		"ngay_nhan": ngay,
@@ -784,6 +790,45 @@ def gui_capi(ten, loai, ip=None, ua=None):
 	frappe.db.commit()
 
 
+GHI_CHU_DON_WEB = "Đơn web %s"
+
+
+def _noi_uu_dai_hoa_don(ten, si_name):
+	"""Codex #461 vòng 2: nối lượt ưu đãi và mã đã giữ cho đơn web với hoá đơn.
+	Nuốt lỗi riêng: không được chặn ghi sổ, cũng không được chặn Purchase."""
+	try:
+		from vagabond import khuyen_mai
+		khuyen_mai.gan_hoa_don_web(GHI_CHU_DON_WEB % ten, si_name)
+	except Exception:
+		frappe.log_error(title="Don web: noi uu dai voi hoa don", message=frappe.get_traceback())
+
+
+def doi_soat_uu_dai_hoa_don():
+	"""Nối lại ưu đãi v589 nếu hook hoá đơn từng gặp lỗi tạm thời.
+
+	Chạy mỗi giờ để báo cáo không thiếu liên kết quá lâu nhưng không chen vào
+	nhịp đồng bộ đơn năm phút. Dấu ``uu_dai`` trong snapshot giới hạn đúng các
+	đơn sinh từ giao thức v589, nên tuyệt đối không quét ngược dữ liệu cũ.
+	"""
+	from vagabond import khuyen_mai
+	ds = frappe.db.sql(
+		"select name, sales_invoice from `tabVagabond Don Web` "
+		"where trang_thai='Da ghi so' and ifnull(sales_invoice, '')<>'' "
+		"and snapshot like %s and (exists (select 1 from `tabVagabond CTKM Su Dung` sd "
+		"where sd.ghi_chu=concat('Đơn web ', `tabVagabond Don Web`.name) and sd.kenh='Website' "
+		"and ifnull(sd.da_tra, 0)=0 and ifnull(sd.hoa_don, '')='') or exists ("
+		"select 1 from `tabVagabond Voucher` v where v.ghi_chu=concat('Đơn web ', `tabVagabond Don Web`.name) "
+		"and v.trang_thai='Da dung' and v.hoa_don is null))",
+		('%\"uu_dai\"%',), as_dict=True)
+	for d in ds:
+		try:
+			khuyen_mai.gan_hoa_don_web(GHI_CHU_DON_WEB % d["name"], d["sales_invoice"])
+			frappe.db.commit()
+		except Exception:
+			frappe.db.rollback()
+			frappe.log_error(title="Don web: doi soat uu dai voi hoa don", message=frappe.get_traceback())
+
+
 def khi_ghi_so_hoa_don(doc, method=None):
 	"""Hook Sales Invoice on_submit: đơn web về tới hoá đơn thật thì báo Meta Purchase.
 
@@ -810,6 +855,7 @@ def khi_ghi_so_hoa_don(doc, method=None):
 			"ghi_so_luc": now_datetime(),
 			"gia_tri_ghi_so": int(round(float(doc.get("grand_total") or 0))),
 		}, update_modified=False)
+		_noi_uu_dai_hoa_don(ten, doc.name)
 		xep_capi(ten, "Purchase", sau_commit=True)
 	except Exception:
 		frappe.log_error(title="Don web: hook ghi so hoa don", message=frappe.get_traceback())

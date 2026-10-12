@@ -269,6 +269,19 @@ function moTab(m, fn) { bam(m, mot(m, '[data-cdltab="' + fn + '"]')); }
     bang('dòng mới', { ten: b[1].ten_nhom, chat: b[1].chat_id, lt: b[1].loai_tin, bat: b[1].bat }, { ten: 'Nhóm Bếp', chat: 'g-777', lt: 'canh_bao', bat: 1 });
   });
 
+  // v579: anh Việt 06/10/2026 hỏi có nút gửi thử vào nhóm Zalo không. Desk và app cùng có.
+  await ca('Zalo v579: thẻ nhóm có nút Gửi thử, bấm thì gửi đúng mã nhóm đó và không mở màn sửa', async function () {
+    var m = await moMan();
+    moTab(m, 'tab_tin_nhan');
+    var b = tim(m, '[data-cdlguithu]');
+    bang('một nút Gửi thử cho nhóm có mã chat', b.length, 1);
+    bam(m, b[0]);
+    await new Promise(function (ok) { setTimeout(ok, 0); });
+    var g = m.goi.filter(function (x) { return x.duong === 'vagabond.kenh_zalo.gui_thu'; });
+    bang('gọi gửi thử đúng mã nhóm', g.map(function (x) { return x.ts.chat_id; }), ['g-1']);
+    dung('không mở màn sửa nhóm', m.g._t !== 'Sửa nhóm nhận tin');
+  });
+
   await ca('Zalo: thêm nhóm mà chưa đặt tên thì không cho Xong', async function () {
     var m = await moMan();
     moTab(m, 'tab_tin_nhan');

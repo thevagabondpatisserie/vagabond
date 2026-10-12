@@ -245,7 +245,8 @@ def _():
 	}
 	la("ô cũ còn đủ", sorted(can_co - ten), [])
 	moi = {f["fieldname"] for f in d["fields"] if f["fieldtype"] not in ("Tab Break", "Section Break", "Column Break")}
-	la("ô có giá trị mới thêm", sorted(moi - can_co - _o_cu()), ["html_du_lieu_app"])
+	# v579: hai ô HTML vẽ hàng nút Zalo và thẻ nhóm nhận tin; ô HTML không lưu giá trị.
+	la("ô có giá trị mới thêm", sorted(moi - can_co - _o_cu()), ["html_du_lieu_app", "zalo_nhom_the", "zalo_tac_vu"])
 
 
 def _o_cu():

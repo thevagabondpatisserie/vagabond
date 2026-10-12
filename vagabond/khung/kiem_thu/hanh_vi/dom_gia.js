@@ -153,6 +153,27 @@ ElementGia.prototype.insertBefore = function (con, truoc) {
 };
 ElementGia.prototype.removeChild = function (con) { con.remove(); return con; };
 
+/* Them 07/10/2026 (v586) cho trinh bien tap web theo the va trang khach:
+   ma nguon do dung append()/replaceChildren() cua trinh duyet. Chi nhan phan
+   tu, gap chuoi thi NEM LOI chu khong lang le bo qua, de ca kiem khong xanh
+   oan tren mot cay thieu nut. Them moi, khong doi hanh vi cu. */
+ElementGia.prototype.append = function () {
+  for (var i = 0; i < arguments.length; i++) {
+    var con = arguments[i];
+    if (con == null || con === '') continue;
+    if (typeof con !== 'object') throw new Error('DOM gia: append() chi nhan phan tu, khong nhan chuoi: ' + con);
+    this._html = null;
+    this.appendChild(con);
+  }
+};
+ElementGia.prototype.replaceChildren = function () {
+  this.children.slice().forEach(function (c) { c.parentNode = null; });
+  this.children = [];
+  this._chu = '';
+  this._html = null;
+  this.append.apply(this, arguments);
+};
+
 ElementGia.prototype.remove = function () {
   if (!this.parentNode) return;
   var i = this.parentNode.children.indexOf(this);
@@ -242,9 +263,29 @@ Object.defineProperty(ElementGia.prototype, 'childElementCount', {
   get: function () { return this.children.length; },
 });
 
+/* v587: classList toi thieu, dung chung cho moi ca (truoc day chi ca Nang cao tu bu). */
+Object.defineProperty(ElementGia.prototype, 'classList', {
+  get: function () {
+    var el = this;
+    function ds() { return (el.getAttribute('class') || '').split(/\s+/).filter(Boolean); }
+    return {
+      add: function (c) { var d = ds(); if (d.indexOf(c) < 0) d.push(c); el.setAttribute('class', d.join(' ')); },
+      remove: function (c) { el.setAttribute('class', ds().filter(function (x) { return x !== c; }).join(' ')); },
+      toggle: function (c, f) { var d = ds(), co = d.indexOf(c) >= 0; if (f === undefined) f = !co; d = d.filter(function (x) { return x !== c; }); if (f) d.push(c); el.setAttribute('class', d.join(' ')); return f; },
+      contains: function (c) { return ds().indexOf(c) >= 0; },
+    };
+  },
+  configurable: true,  /* vai ca cu tu dinh nghia lai classList cua rieng ho */
+});
 Object.defineProperty(ElementGia.prototype, 'className', {
   get: function () { return this.getAttribute('class') || ''; },
   set: function (v) { this.setAttribute('class', v); },
+});
+
+/* `el.parentElement`: màn Chi tiết đơn Sales ẩn hiện khung ô mã tham chiếu
+   qua parentElement (#456, 08/10/2026). Thêm mới, cùng nghĩa với parentNode. */
+Object.defineProperty(ElementGia.prototype, 'parentElement', {
+  get: function () { return this.parentNode || null; },
 });
 
 Object.defineProperty(ElementGia.prototype, 'id', {
@@ -314,6 +355,12 @@ function doc(html, cha) {
     i = m.index + m[0].length;
     var ten = m[1].toLowerCase();
     if (m[0].charAt(1) === '/') {
+      /* <textarea>chữ</textarea>: chữ bên trong là value ban đầu, như trình
+         duyệt (#456, 08/10/2026). Thêm mới, không đổi hành vi thẻ khác. */
+      var dong = ngan[ngan.length - 1];
+      if (ngan.length > 1 && dong.tagName === 'TEXTAREA') {
+        dong.value = String(dong._chu || '').replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+      }
       if (ngan.length > 1) ngan.pop();
       continue;
     }

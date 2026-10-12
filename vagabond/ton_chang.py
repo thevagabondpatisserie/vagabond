@@ -373,7 +373,10 @@ def ton_theo_chang(bep=None, chang=None, tim=None, gioi_han=300):
 	if chang == SAI_KHO:
 		ds = [d for d in tat_ca if d.get("sai_kho")]
 	if tim:
-		ds = [d for d in ds if tim in (d["ten"] + " " + d["ma"]).lower()]
+		# v583: tim theo tung tu, bo dau, bo dau cau (tim_kiem.py).
+		from vagabond import tim_kiem
+
+		ds = [d for d in ds if tim_kiem.khop([d["ten"], d["ma"]], tim)]
 	tom_tat = cau_tom_tat(bang)
 	if so_sai:
 		tom_tat += " · ⚠ %d mã nằm sai kho" % so_sai

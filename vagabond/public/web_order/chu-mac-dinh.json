@@ -485,6 +485,12 @@
     "mac_dinh": "Mã số thuế phải là 10 số, hoặc 13 số nếu là chi nhánh.",
     "nhieu_dong": true
   },
+  "mst_sai_do_dai": {
+    "ten": "Mã số thuế sai độ dài (có hộ kinh doanh 12 số)",
+    "nhom": "gio_hang",
+    "mac_dinh": "Mã số thuế phải là 10 số, 12 số nếu là hộ kinh doanh, hoặc 13 số nếu là chi nhánh.",
+    "nhieu_dong": true
+  },
   "dat_banh_6566710b9": {
     "ten": "Đang tra mã số thuế...",
     "nhom": "gio_hang",
@@ -1070,7 +1076,7 @@
   "dat_banh_7e42d2e7b": {
     "ten": "Đã thêm {gia_tri_a}{gia_tri_b}. Bấm vào bánh để thêm lời chúc, phụ kiện.",
     "nhom": "dat_banh",
-    "mac_dinh": "Đã thêm {gia_tri_a}{gia_tri_b}. Bấm vào bánh để thêm lời chúc, phụ kiện.",
+    "mac_dinh": "Đã thêm {gia_tri_a}{gia_tri_b}. Vào giỏ, chọn Sửa bánh để thêm lời chúc, phụ kiện.",
     "nhieu_dong": true
   },
   "dat_banh_8f92d9663": {
@@ -1574,7 +1580,7 @@
   "dat_banh_7ddb8bc3b": {
     "ten": "+ Chọn thêm bánh",
     "nhom": "dat_banh",
-    "mac_dinh": "+ Chọn thêm bánh",
+    "mac_dinh": "Chọn thêm bánh",
     "nhieu_dong": true
   },
   "dat_banh_73b0921c0": {
@@ -2542,5 +2548,498 @@
     "mac_dinh": "Tự lấy tại",
     "nhom": "bien_nhan",
     "nhieu_dong": true
+  },
+  "dat_banh_15f2c7f29": {
+    "ten": "Công ty TNHH Patisserie Vagabond",
+    "nhom": "dat_banh",
+    "mac_dinh": "Công ty TNHH Patisserie Vagabond",
+    "nhieu_dong": true
+  },
+  "dat_banh_2085c9658": {
+    "ten": "Mã số thuế 0318561568",
+    "nhom": "dat_banh",
+    "mac_dinh": "Mã số thuế 0318561568",
+    "nhieu_dong": true
+  },
+  "dat_banh_2f7b911ea": {
+    "ten": "Cửa hàng Sài Gòn: 9 Trần Cao Vân, Phường Sài Gòn (Quận 1 cũ), TP. Hồ Chí Minh",
+    "nhom": "dat_banh",
+    "mac_dinh": "Cửa hàng Sài Gòn: 9 Trần Cao Vân, Phường Sài Gòn (Quận 1 cũ), TP. Hồ Chí Minh",
+    "nhieu_dong": true
+  },
+  "dat_banh_cc4a76159": {
+    "ten": "Bếp Tân Sơn Hoà: 307/1 Nguyễn Văn Trỗi, Phường Tân Sơn Hoà (Tân Bình cũ), TP. Hồ Chí Minh",
+    "nhom": "dat_banh",
+    "mac_dinh": "Bếp Tân Sơn Hoà: 307/1 Nguyễn Văn Trỗi, Phường Tân Sơn Hoà (Tân Bình cũ), TP. Hồ Chí Minh",
+    "nhieu_dong": true
+  },
+  "tab_uu_dai": {
+    "ten": "Ưu đãi",
+    "mac_dinh": "Ưu đãi",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "tab_tuyen_dung": {
+    "ten": "Tuyển dụng",
+    "mac_dinh": "Tuyển dụng",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "uu_dai_rong": {
+    "ten": "Chưa có ưu đãi trong nhóm này. Quý khách có thể xem các nhóm khác.",
+    "mac_dinh": "Chưa có ưu đãi trong nhóm này. Quý khách có thể xem các nhóm khác.",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "tuyen_dung_rong": {
+    "ten": "Chưa có vị trí phù hợp trong nhóm này. Quý khách vui lòng quay lại sau.",
+    "mac_dinh": "Chưa có vị trí phù hợp trong nhóm này. Quý khách vui lòng quay lại sau.",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "tat_ca_muc": {
+    "ten": "Tất cả",
+    "mac_dinh": "Tất cả",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "dang_dien_ra": {
+    "ten": "Đang diễn ra",
+    "mac_dinh": "Đang diễn ra",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "sap_dien_ra": {
+    "ten": "Sắp diễn ra",
+    "mac_dinh": "Sắp diễn ra",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "ung_tuyen": {
+    "ten": "Ứng tuyển vị trí này",
+    "mac_dinh": "Ứng tuyển vị trí này",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "chua_han": {
+    "ten": "Đến khi đủ người",
+    "mac_dinh": "Đến khi đủ người",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "ma_uu_dai": {
+    "ten": "Mã ưu đãi",
+    "mac_dinh": "Mã ưu đãi",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "sua_banh": {
+    "ten": "Sửa bánh",
+    "mac_dinh": "Sửa bánh",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "luu_banh": {
+    "ten": "Lưu thay đổi",
+    "mac_dinh": "Lưu thay đổi",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "gio_da_sua": {
+    "ten": "Đã cập nhật bánh trong giỏ",
+    "mac_dinh": "Đã cập nhật bánh trong giỏ",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "chon_lai_gio": {
+    "ten": "Vui lòng chọn khung giờ còn nhận",
+    "mac_dinh": "Vui lòng chọn khung giờ còn nhận",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "het_size": {
+    "ten": "Kích thước này hiện chưa nhận đặt. Quý khách chọn kích thước khác.",
+    "mac_dinh": "Kích thước này hiện chưa nhận đặt. Quý khách chọn kích thước khác.",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "thu_phi": {
+    "ten": "Thử lại phí giao",
+    "mac_dinh": "Thử lại phí giao",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "yeu_cau_dung_cu": {
+    "ten": "Dụng cụ tặng kèm theo yêu cầu",
+    "mac_dinh": "Dụng cụ tặng kèm theo yêu cầu",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "so_nia": {
+    "ten": "Số nĩa gỗ",
+    "mac_dinh": "Số nĩa gỗ",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "so_dia": {
+    "ten": "Số dĩa giấy",
+    "mac_dinh": "Số dĩa giấy",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "chinh_sach_ho_tro": {
+    "ten": "Quý khách liên hệ chúng tôi để được cung cấp thông tin bảo mật trước khi gửi.",
+    "mac_dinh": "Quý khách liên hệ chúng tôi để được cung cấp thông tin bảo mật trước khi gửi.",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "tim_muc": {
+    "ten": "Tìm theo tên, nhóm hoặc nơi làm",
+    "mac_dinh": "Tìm theo tên, nhóm hoặc nơi làm",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "chon_quay": {
+    "ten": "Chọn điểm bán",
+    "mac_dinh": "Chọn điểm bán",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "quay_rong": {
+    "ten": "Chưa có dữ liệu tại điểm bán. Quý khách thử tải lại hoặc liên hệ chúng tôi.",
+    "mac_dinh": "Chưa có dữ liệu tại điểm bán. Quý khách thử tải lại hoặc liên hệ chúng tôi.",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "tai_lai_quay": {
+    "ten": "Tải lại danh sách",
+    "mac_dinh": "Tải lại danh sách",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "uu_dai_chu_y": {
+    "ten": "Điều kiện áp dụng theo từng chương trình. Vui lòng xem chi tiết trước khi đặt bánh.",
+    "mac_dinh": "Điều kiện áp dụng theo từng chương trình. Vui lòng xem chi tiết trước khi đặt bánh.",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "so_loai": {
+    "ten": "Đơn vị đếm loại bánh",
+    "mac_dinh": "loại",
+    "nhom": "dat_banh"
+  },
+  "xem_chi_tiet_muc": {
+    "ten": "Ưu đãi: nút mặc định",
+    "mac_dinh": "Xem chi tiết",
+    "nhom": "uu_dai"
+  },
+  "dung_cu_gio": {
+    "ten": "Giỏ: số dụng cụ tặng",
+    "mac_dinh": "{nia} nĩa gỗ, {dia} dĩa giấy",
+    "nhom": "gio_hang"
+  },
+  "kenh_noi_nhan": {
+    "nhom": "Kênh đặt hàng",
+    "ten": "Kênh đặt hàng và hỗ trợ",
+    "mac_dinh": "Kênh đặt hàng và hỗ trợ"
+  },
+  "kenh_noi_tieu_de": {
+    "nhom": "Kênh đặt hàng",
+    "ten": "Đặt qua ứng dụng",
+    "mac_dinh": "Đặt qua ứng dụng"
+  },
+  "kenh_noi_dong": {
+    "nhom": "Kênh đặt hàng",
+    "ten": "Đóng kênh đặt hàng",
+    "mac_dinh": "Đóng kênh đặt hàng"
+  },
+  "kenh_noi_mo_ta": {
+    "nhom": "Kênh đặt hàng",
+    "ten": "Quý khách chọn ứng dụng để xem thực đơn và đặt món.",
+    "mac_dinh": "Quý khách chọn ứng dụng để xem thực đơn và đặt món."
+  },
+  "kenh_noi_tab_moi": {
+    "nhom": "Kênh đặt hàng",
+    "ten": "Liên kết mở trong tab mới.",
+    "mac_dinh": "Liên kết mở trong tab mới."
+  },
+  "kenh_noi_nut": {
+    "nhom": "Kênh đặt hàng",
+    "ten": "Đặt qua app",
+    "mac_dinh": "Đặt qua app"
+  },
+  "tab_tiec": {
+    "ten": "Tab Tiệc và tiêu đề trang Tiệc",
+    "mac_dinh": "Tiệc",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "tiec_rong": {
+    "ten": "Tiệc: câu khi chưa có tiệc",
+    "mac_dinh": "Chưa có tiệc nào đang mở. Quý khách vui lòng quay lại sau.",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_don_tu": {
+    "ten": "Ưu đãi: chữ trước số tiền đơn tối thiểu",
+    "mac_dinh": "Đơn từ",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_khung_gio": {
+    "ten": "Ưu đãi: chữ trước khung giờ áp dụng",
+    "mac_dinh": "Khung giờ",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_con_ve": {
+    "ten": "Tiệc: số vé còn ({so} là số vé)",
+    "mac_dinh": "Còn {so} vé",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_het_ve": {
+    "ten": "Tiệc: khi đã hết vé",
+    "mac_dinh": "Đã hết vé",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_ve": {
+    "ten": "Tiệc: chữ sau giá vé",
+    "mac_dinh": "vé",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_mien_phi": {
+    "ten": "Tiệc: khi không thu tiền vé",
+    "mac_dinh": "Miễn phí",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_bao_gom": {
+    "ten": "Tiệc: tiêu đề danh sách bao gồm",
+    "mac_dinh": "Bao gồm",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_doc_tiep": {
+    "ten": "Chữ dài: nút mở phần còn lại",
+    "mac_dinh": "Đọc tiếp",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_thu_gon": {
+    "ten": "Chữ dài: nút gấp lại",
+    "mac_dinh": "Thu gọn",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_cau_chuyen": {
+    "ten": "Tiệc: tiêu đề phần giới thiệu",
+    "mac_dinh": "Câu chuyện",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_mon": {
+    "ten": "Tiệc: chữ sau số món trong thực đơn",
+    "mac_dinh": "món",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_mon_nua": {
+    "ten": "Tiệc: nút mở các món còn lại ({so} là số món)",
+    "mac_dinh": "+ {so} món nữa",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_yeu_cau": {
+    "ten": "Tuyển dụng: tiêu đề danh sách yêu cầu",
+    "mac_dinh": "Yêu cầu và quyền lợi",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_han_dk": {
+    "ten": "Tiệc: chữ trước hạn đăng ký",
+    "mac_dinh": "Đăng ký trước",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_het_han_dk": {
+    "ten": "Tiệc: khi đã hết hạn đăng ký",
+    "mac_dinh": "Đã hết hạn đăng ký",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_dang_ky": {
+    "ten": "Tiệc: nút mở form đăng ký",
+    "mac_dinh": "Đăng ký tham gia",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_dk_ten": {
+    "ten": "Đăng ký tiệc: ô họ tên",
+    "mac_dinh": "Họ tên",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_dk_sdt": {
+    "ten": "Đăng ký tiệc: ô số điện thoại",
+    "mac_dinh": "Số điện thoại",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_dk_so_ve": {
+    "ten": "Đăng ký tiệc: ô số vé",
+    "mac_dinh": "Số vé",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_dk_ghi_chu": {
+    "ten": "Đăng ký tiệc: ô ghi chú",
+    "mac_dinh": "Ghi chú (không bắt buộc)",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_dk_gui": {
+    "ten": "Đăng ký tiệc: nút gửi",
+    "mac_dinh": "Gửi đăng ký",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_dk_luu_y": {
+    "ten": "Đăng ký tiệc: câu lưu ý trên nút gửi",
+    "mac_dinh": "Gửi đăng ký chưa phải đã có vé. Chúng tôi sẽ gọi xác nhận và hướng dẫn thanh toán.",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_dk_dang_gui": {
+    "ten": "Đăng ký tiệc: lúc đang gửi",
+    "mac_dinh": "Đang gửi...",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_dk_loi": {
+    "ten": "Đăng ký tiệc: khi mạng lỗi",
+    "mac_dinh": "Chưa gửi được. Kiểm tra mạng rồi bấm Gửi lại.",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_dk_nhieu": {
+    "ten": "Đăng ký tiệc: khi gửi quá nhiều lần",
+    "mac_dinh": "Quý khách gửi nhiều lần quá. Vui lòng thử lại sau ít phút.",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cm_dk_xong": {
+    "ten": "Đăng ký tiệc: câu sau khi gửi xong ({ma} là mã đăng ký)",
+    "mac_dinh": "Đã nhận đăng ký, mã {ma}. Chúng tôi sẽ gọi xác nhận và hướng dẫn thanh toán.",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cua_hang_tieu_de": {
+    "ten": "Cửa hàng: tiêu đề mục cuối trang",
+    "mac_dinh": "Ghé cửa hàng",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cua_hang_goi": {
+    "ten": "Cửa hàng: chữ trên nút gọi",
+    "mac_dinh": "Gọi",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "cua_hang_chi_duong": {
+    "ten": "Cửa hàng: chữ trên nút chỉ đường",
+    "mac_dinh": "Chỉ đường",
+    "nhom": "Ưu đãi, tuyển dụng và đặt bánh"
+  },
+  "dat_banh_khong_con_diem_nhan": {
+    "ten": "Hiện chưa nhận tự đến lấy. Quý khách chọn giao tận nơi.",
+    "nhom": "gio_hang",
+    "mac_dinh": "Hiện chưa nhận tự đến lấy. Quý khách chọn giao tận nơi.",
+    "nhieu_dong": true
+  },
+  "dat_banh_diem_nhan_khong_con": {
+    "ten": "Điểm nhận bánh vừa thay đổi. Quý khách tải lại trang rồi chọn lại điểm nhận.",
+    "nhom": "gio_hang",
+    "mac_dinh": "Điểm nhận bánh vừa thay đổi. Quý khách tải lại trang rồi chọn lại điểm nhận.",
+    "nhieu_dong": true
+  },
+  "dat_banh_chua_chon_diem": {
+    "ten": "Chưa chọn điểm nhận",
+    "nhom": "gio_hang",
+    "mac_dinh": "Chưa chọn điểm nhận",
+    "nhieu_dong": false
+  },
+  "dat_banh_chua_chon_diem_gui": {
+    "ten": "Quý khách chọn điểm nhận bánh trước khi gửi.",
+    "nhom": "gio_hang",
+    "mac_dinh": "Quý khách chọn điểm nhận bánh trước khi gửi.",
+    "nhieu_dong": false
+  },
+  "bien_nhan_uu_dai": {
+    "ten": "Biên nhận: dòng ưu đãi",
+    "nhom": "bien_nhan",
+    "mac_dinh": "Ưu đãi",
+    "nhieu_dong": false
+  },
+  "dat_banh_ma_uu_dai": {
+    "ten": "Giỏ hàng: nhãn ô mã ưu đãi",
+    "nhom": "gio_hang",
+    "mac_dinh": "Mã ưu đãi",
+    "nhieu_dong": false
+  },
+  "dat_banh_ma_uu_dai_goi": {
+    "ten": "Giỏ hàng: chữ gợi ý ô mã ưu đãi",
+    "nhom": "gio_hang",
+    "mac_dinh": "Ví dụ SINHNHAT10",
+    "nhieu_dong": false
+  },
+  "dat_banh_ap_ma": {
+    "ten": "Giỏ hàng: nút áp mã",
+    "nhom": "gio_hang",
+    "mac_dinh": "Áp dụng",
+    "nhieu_dong": false
+  },
+  "dat_banh_ma_chua_kiem": {
+    "ten": "Giỏ hàng: chưa kiểm được mã",
+    "nhom": "gio_hang",
+    "mac_dinh": "Chưa kiểm được mã lúc này, quý khách thử lại sau ít phút.",
+    "nhieu_dong": false
+  },
+  "dat_banh_dang_kiem_ma": {
+    "ten": "Giỏ hàng: đang kiểm mã",
+    "nhom": "gio_hang",
+    "mac_dinh": "Đang kiểm mã...",
+    "nhieu_dong": false
+  },
+  "dat_banh_da_giam": {
+    "ten": "Giỏ hàng: đã giảm (giữ {tien})",
+    "nhom": "gio_hang",
+    "mac_dinh": "Đã giảm {tien}",
+    "nhieu_dong": false
+  },
+  "dat_banh_ma_chua_giam": {
+    "ten": "Giỏ hàng: mã hợp lệ nhưng chưa đủ điều kiện",
+    "nhom": "gio_hang",
+    "mac_dinh": "Mã hợp lệ nhưng đơn chưa đủ điều kiện giảm.",
+    "nhieu_dong": false
+  },
+  "dat_banh_dong_uu_dai": {
+    "ten": "Giỏ hàng: dòng ưu đãi trong tóm tắt",
+    "nhom": "gio_hang",
+    "mac_dinh": "Ưu đãi",
+    "nhieu_dong": false
+  },
+  "dat_banh_uu_dai_cap_nhat": {
+    "ten": "Giỏ hàng: tổng tiền vừa cập nhật theo ưu đãi",
+    "nhom": "gio_hang",
+    "mac_dinh": "Tổng tiền vừa cập nhật theo ưu đãi. Quý khách xem lại rồi bấm gửi.",
+    "nhieu_dong": false
+  },
+  "dong_chi_tiet_banh": {
+    "ten": "Đóng chi tiết bánh",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đóng chi tiết bánh",
+    "nhieu_dong": false
+  },
+  "chi_tiet_huong_vi": {
+    "ten": "Mô tả và hương vị",
+    "nhom": "dat_banh",
+    "mac_dinh": "Mô tả và hương vị",
+    "nhieu_dong": false
+  },
+  "so_luong_banh": {
+    "ten": "Số lượng bánh",
+    "nhom": "dat_banh",
+    "mac_dinh": "Số lượng bánh",
+    "nhieu_dong": false
+  },
+  "giam_so_luong": {
+    "ten": "Giảm số lượng",
+    "nhom": "dat_banh",
+    "mac_dinh": "Giảm số lượng",
+    "nhieu_dong": false
+  },
+  "tang_so_luong": {
+    "ten": "Tăng số lượng",
+    "nhom": "dat_banh",
+    "mac_dinh": "Tăng số lượng",
+    "nhieu_dong": false
+  },
+  "phu_kien_cho_banh": {
+    "ten": "Phụ kiện cho bánh",
+    "nhom": "dat_banh",
+    "mac_dinh": "Phụ kiện cho bánh",
+    "nhieu_dong": false
+  },
+  "bo_khoi_gio": {
+    "ten": "Bỏ khỏi giỏ",
+    "nhom": "dat_banh",
+    "mac_dinh": "Bỏ khỏi giỏ",
+    "nhieu_dong": false
+  },
+  "them_so_luong_banh": {
+    "ten": "Đã thêm {so} bánh, giỏ có {tong} bánh",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đã thêm {so} bánh, giỏ có {tong} bánh",
+    "nhieu_dong": false
+  },
+  "quay_lai_chon_banh": {
+    "ten": "Quay lại chọn bánh",
+    "nhom": "dat_banh",
+    "mac_dinh": "Quay lại chọn bánh",
+    "nhieu_dong": false
+  },
+  "goi_ho_tro_dat_banh": {
+    "ten": "Gọi hỗ trợ đặt bánh",
+    "nhom": "dat_banh",
+    "mac_dinh": "Gọi hỗ trợ đặt bánh",
+    "nhieu_dong": false
   }
 }

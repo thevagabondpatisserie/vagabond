@@ -193,10 +193,10 @@ def danh_sach(tu_khoa=None, trang_thai=None, gioi_han=60):
 	loc = {}
 	if trang_thai:
 		loc["trang_thai"] = trang_thai
-	if tu_khoa:
-		loc["ten_mon"] = ["like", "%" + str(tu_khoa).strip() + "%"]
+	from vagabond import tim_kiem
+
 	ds = frappe.get_all(
-		DT, filters=loc,
+		DT, filters=tim_kiem.them_loc(loc, DT, tu_khoa, ["name", "ma_mon", "ten_mon"]),
 		fields=["name", "ma_mon", "ten_mon", "nhom_mon", "trang_thai",
 				"anh_dat_chinh", "cong_thuc_da_doi", "modified"],
 		order_by="modified desc", limit_page_length=int(gioi_han or 60),

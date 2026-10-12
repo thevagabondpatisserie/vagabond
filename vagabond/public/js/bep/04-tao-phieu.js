@@ -149,7 +149,7 @@ async function loadTemplate() {
   var lst = box.querySelector('.shl');
   var q0 = '';
   function veDs() {
-    var f = tpls.filter(function (t) { return !q0 || (t.template_name + ' ' + (t.bo_phan || '')).toLowerCase().indexOf(q0) >= 0; });
+    var f = tpls.filter(function (t) { return vgbKhop([t.template_name, t.bo_phan], q0); }); /* v583: tim theo tung tu, bo dau, bo dau cau (vgbKhop). */
     lst.innerHTML = f.length ? f.map(function (t) {
       var i = tpls.indexOf(t);
       return '<div class="shi" data-i="' + i + '"><span>📋</span>' +
@@ -236,9 +236,11 @@ async function drawPick(fetch) {
     else if (pick.allow && pick.allow.length) f.item_group = ['in', pick.allow];
     if (d.type === 'Purchase') f.is_purchase_item = 1;
     var ar = { fields: ['name', 'item_name', 'item_group', 'stock_uom', 'image'], filters: f, limit_page_length: 500, order_by: 'item_name' };
-    if (qk) { ar.or_filters = { item_name: ['like', '%' + qs + '%'], name: ['like', '%' + qs + '%'] }; ar.limit_page_length = 300; }
+    if (qk) ar.limit_page_length = 300;
     var res = [];
-    try { res = await getList('Item', ar); } catch (e) { toast(errMsg(e)); }
+    /* v583: tim theo tung tu, bo dau, bo dau cau o may chu (timList). Ca that
+       De 06/10/2026: go "chocolatine mini" khong ra "Bánh Chocolatine, Mini size". */
+    try { res = qk ? await timList('Item', qs, ['name', 'item_name'], ar) : await getList('Item', ar); } catch (e) { toast(errMsg(e)); }
     if (myq !== pick.seq) return;
     pick.cache[ck] = res;
   }
@@ -246,7 +248,7 @@ async function drawPick(fetch) {
   all.forEach(function (it) { if (!pick.nm[it.name]) pick.nm[it.name] = it.item_name; });
   var q = qs.toLowerCase();
   var rows = qk ? all.slice(0, 300)
-    : all.filter(function (it) { return !q || (it.item_name + ' ' + it.name).toLowerCase().indexOf(q) >= 0; }).slice(0, 300);
+    : all.filter(function (it) { return vgbKhop([it.item_name, it.name], q); }).slice(0, 300); /* v583: tim theo tung tu, bo dau, bo dau cau (vgbKhop). */
   var nsel = Object.keys(pick.sel).filter(function (k) { return pick.sel[k]; }).length;
   var selHtml = '<div class="selw" id="selw"' + (nsel ? '' : ' style="display:none"') + '>' + selInner() + '</div>';
   var html = '<div class="card"><div class="fld" data-g><div class="fi">🏷️</div><div class="ft">' +

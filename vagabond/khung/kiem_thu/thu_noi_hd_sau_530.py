@@ -241,8 +241,10 @@ def _chay(ho_so, to, ham, giu_cu=None, giu_moi=None, no_ho_so=None, bu_truoc=Non
 			if x.docstatus >= 2:
 				continue
 			if or_filters:
-				q = or_filters["bill_no"][1].strip("%")
-				if q not in x.name and q not in (x.bill_no or ""):
+				# v583: o tim di qua tim_kiem (tach tung tu, bo dau): may chu
+				# hoi ten khop truoc roi loc "name in" trong get_list.
+				ten_khop = [c for c in or_filters if c and c[0] == "name" and c[1] == "in"]
+				if ten_khop and x.name not in ten_khop[0][2]:
 					continue
 			ra.append(_C(x, supplier_name=x.supplier, bill_date=x.posting_date))
 		# get_list kèm luật quyền trả trùng một tờ (ảnh chị Dung 25/09).
@@ -266,8 +268,17 @@ def _chay(ho_so, to, ham, giu_cu=None, giu_moi=None, no_ho_so=None, bu_truoc=Non
 	kiem = []
 	cu = bo.frappe
 	bo.frappe = fr
+	from vagabond import tim_kiem as _tk
+
+	def _ten_khop(dt, q, cot, gioi_han=2000):
+		# Gia lap buoc doc ten khop cua tim_kiem tren chinh bo to cua ca kiem,
+		# dung phep khop that (tach tung tu, bo dau).
+		if not _tk.cac_tu(q):
+			return None
+		return [x.name for x in to.values() if _tk.khop([getattr(x, c, None) for c in cot], q)]
 	try:
 		with patch.object(hs, "_kiem", side_effect=lambda nhom, viec: kiem.append(nhom)), \
+			patch.object(_tk, "ten_khop", _ten_khop), \
 			patch.object(hs, "_cong_ty_chung_tu", return_value=CTY):
 			try:
 				kq = ham(bo)

@@ -166,6 +166,51 @@ def ban_can_duyet(c):
         ('Việc cần quyết', 'Em đề xuất', 'Ảnh hưởng', 'Anh duyệt giúp')))
 
 
+def tom_tat_comment(c):
+    """Chỉ đọc khối ngắn do chủ repo soạn, không suy tóm tắt từ log."""
+    if (c.get('user', {}).get('login') != REPO.split('/')[0]
+            or c.get('author_association') != 'OWNER'):
+        return None, False
+    body = c.get('body') or ''
+    blocks = re.findall(r'<!-- telegram-tomtat\s*([\s\S]*?)-->', body)
+    if len(blocks) != 1 or len(blocks[0]) > 1000:
+        return None, True
+    try:
+        x = json.loads(blocks[0])
+    except (ValueError, TypeError):
+        return None, True
+    keys = ('tom_tat', 'tiep_theo')
+    if (not isinstance(x, dict) or set(x) != set(keys)
+            or any(not isinstance(x[k], str) or not x[k].strip()
+                   or len(x[k]) > 220 or any(not ch.isprintable() for ch in x[k])
+                   for k in keys)):
+        return None, True
+    return 'Tóm tắt: ' + x['tom_tat'].strip() + '\nTiếp theo: ' + x['tiep_theo'].strip(), True
+
+
+def tom_tat_codex(c):
+    """Lấy đúng ý đầu của Summary, không để link hoặc định dạng lọt vào tin."""
+    if c.get('user', {}).get('login') != 'chatgpt-codex-connector[bot]':
+        return None
+    trong_summary = False
+    for line in (c.get('body') or '').splitlines():
+        if re.match(r'^\s{0,3}#{1,6}\s+Summary\s*$', line, re.IGNORECASE):
+            trong_summary = True
+            continue
+        if trong_summary and re.match(r'^\s{0,3}#{1,6}\s+', line):
+            break
+        if trong_summary and re.match(r'^\s*[-*+]\s+', line):
+            chu = re.sub(r'^\s*[-*+]\s+', '', line)
+            chu = re.sub(r'!\[([^]]*)\]\([^)]*\)', r'\1', chu)
+            chu = re.sub(r'\[([^]]+)\]\([^)]*\)', r'\1', chu)
+            chu = re.sub(r'<https?://[^>]+>', '', chu)
+            chu = re.sub(r'https?://\S+', '', chu)
+            chu = re.sub(r'<[^>]+>', '', chu)
+            chu = re.sub(r'[`*_~>#]', '', chu)
+            return rut(chu, 200) or None
+    return None
+
+
 def ban_phat_hanh(c):
     """Chỉ chuyển bản tin được chủ repo soạn riêng cho Telegram sau kiểm live.
 
@@ -227,6 +272,8 @@ def thu_thap(gh, state):
                         + '\nĐã deploy và kiểm site thật (theo xác nhận phát hành).\n'
                         + '\n'.join('- ' + f.strip() for f in release['features'])
                         + '\nChi tiết: ' + link)
+                tom_tat, _ = tom_tat_comment(c)
+                text += '\n' + (tom_tat or 'Khối tóm tắt chưa hợp lệ')
                 text_nhom = ('Vagabond | Cập nhật ' + release['version'] + ' | ' + c['updated_at'][:10]
                              + '\n' + '\n'.join('- ' + f.strip() for f in release['features']))
                 them(entity + ':' + c['updated_at'] + ':' + signature, c['updated_at'], text, entity, signature, text_nhom)
@@ -234,6 +281,7 @@ def thu_thap(gh, state):
             nhan = ' (đã sửa)' if c['updated_at'] != c['created_at'] else ''
             dau = (c.get('body') or '').splitlines()[:1]
             muc = {'[CẦN DUYỆT]': 'Cần anh duyệt', '[BỊ CHẶN]': 'Tác vụ bị chặn',
+                   '[ĐÃ SỬA XONG]': 'Đã sửa xong, chờ review',
                    '[SẴN SÀNG DEPLOY]': 'Đề nghị phát hành', '[ĐÃ DEPLOY]': 'Báo cáo phát hành'}
             nhom = muc.get(dau[0].strip() if dau else '', loai)
             text = f"Vagabond | {nhom}{nhan}\nTừ: {rut(c['user']['login'], 60)}\n{link}"
@@ -242,6 +290,14 @@ def thu_thap(gh, state):
                 text += '\n' + tom_tat + '\nTrả lời trong Codex; bot Telegram chưa nhận lệnh duyệt.'
             elif dau and dau[0].strip() == '[CẦN DUYỆT]' and 'telegram-approval' in (c.get('body') or ''):
                 text += '\nKhối phương án chưa hợp lệ hoặc chưa đúng người đăng; chưa gửi nội dung cần duyệt.'
+            tom_tat, la_chu_repo = tom_tat_comment(c)
+            if tom_tat:
+                text += '\n' + tom_tat
+            elif la_chu_repo:
+                text += '\nKhối tóm tắt chưa hợp lệ'
+            codex = tom_tat_codex(c)
+            if codex:
+                text += '\nCodex: ' + codex
             if (dau and dau[0].strip() == '[ĐÃ DEPLOY]'
                     and '<!-- telegram-release' in (c.get('body') or '')):
                 text += '\nKhối bản tin chưa hợp lệ hoặc chưa đúng người đăng; chưa gửi tóm tắt tính năng.'

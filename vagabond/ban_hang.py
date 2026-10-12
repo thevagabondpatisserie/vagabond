@@ -4289,7 +4289,10 @@ def tao_don_tay(
 	if ctkm_ap or combo_ap or (ma_voucher or "").strip():
 		from vagabond import khuyen_mai as _km
 
-		km_kq = _km.tinh(
+		# Codex #460: cùng giao thức giữ lượt với đơn web (khoá chương trình,
+		# tính lại trên ảnh chụp mới). Khoá giữ tới lúc ghi lượt và commit
+		# ngay sau khi lưu hoá đơn bên dưới.
+		km_kq = _km.tinh_co_khoa(
 			items,
 			ctkm=ctkm_ap,
 			ma=ma_voucher,
@@ -4429,26 +4432,9 @@ def tao_don_tay(
 			pass
 	si.flags.ignore_permissions = True
 	si.save()
-	frappe.db.commit()
-
-	# Tru diem cua khach, neu thu ngan da xin ma va khach da xac nhan ngay
-	# tren man tinh tien (anh Viet chot luong nay 19/08/2026).
-	#
-	# Dat SAU si.save() chu khong truoc: so diem duoc kiem lai lan cuoi tren
-	# grand_total THAT cua to hoa don vua luu, chu khong tren con so may
-	# khach gui len - QT-19. Xem diem_otp.dung_ve.
-	#
-	# KHONG boc trong try. Tru diem hong ma van tra ve "da chot bill" thi
-	# khach ra ve tuong da duoc giam, con bill thi thu du tien. Loi phai noi
-	# ra tai quay, luc con sua duoc.
-	diem_da_tru = None
-	if (ve_diem or "").strip():
-		from vagabond import diem_otp as _diem
-
-		diem_da_tru = _diem.dung_ve(ve_diem.strip(), si.name)
-		frappe.db.commit()
-		si.reload()
-
+	# Codex #460: ghi lượt khuyến mãi TRƯỚC commit hoá đơn, trong cùng giao
+	# dịch còn giữ khoá chương trình (tinh_co_khoa), để đơn web hay quầy khác
+	# đang chờ khoá thấy đúng số lượt khi được chạy.
 	if km_kq and km_kq.get("ap"):
 		try:
 			from vagabond import khuyen_mai as _km
@@ -4468,6 +4454,25 @@ def tao_don_tay(
 				title="Vagabond: ghi vet khuyen mai sau don tay",
 				message=frappe.get_traceback(),
 			)
+	frappe.db.commit()
+
+	# Tru diem cua khach, neu thu ngan da xin ma va khach da xac nhan ngay
+	# tren man tinh tien (anh Viet chot luong nay 19/08/2026).
+	#
+	# Dat SAU si.save() chu khong truoc: so diem duoc kiem lai lan cuoi tren
+	# grand_total THAT cua to hoa don vua luu, chu khong tren con so may
+	# khach gui len - QT-19. Xem diem_otp.dung_ve.
+	#
+	# KHONG boc trong try. Tru diem hong ma van tra ve "da chot bill" thi
+	# khach ra ve tuong da duoc giam, con bill thi thu du tien. Loi phai noi
+	# ra tai quay, luc con sua duoc.
+	diem_da_tru = None
+	if (ve_diem or "").strip():
+		from vagabond import diem_otp as _diem
+
+		diem_da_tru = _diem.dung_ve(ve_diem.strip(), si.name)
+		frappe.db.commit()
+		si.reload()
 
 	# Don kenh khac co banh o thi tru ngay tren bang kiem banh, khong doi
 	# lich 5 phut (y Loan Anh 08/08/2026 - truoc day phai tao them mot don
@@ -7086,9 +7091,10 @@ def tim_don(tu_khoa="", so_dong=40):
 	if len(tu) < 3:
 		return {"ds": [], "vi_sao": "Vui lòng gõ ít nhất 3 ký tự rồi tìm."}
 
-	mau = ["%%%s%%" % tu]
-	# So dien thoai: do them ban bo so 0 o dau va ban chi con chu so, vi
-	# nguoi ta hay go thieu so 0 hoac go kem dau cach.
+	# v583: cum go chinh di qua tim_kiem ben duoi. O day chi con cac ban so
+	# dien thoai: do them ban bo so 0 o dau va ban chi con chu so, vi nguoi
+	# ta hay go thieu so 0 hoac go kem dau cach.
+	mau = []
 	if la_so_dien_thoai(tu):
 		chi_so = re.sub(r"[^0-9]", "", tu)
 		mau.append("%%%s%%" % chi_so)
@@ -7103,11 +7109,18 @@ def tim_don(tu_khoa="", so_dong=40):
 		"vgb_ma_tham_chieu", "custom_hddt_so", "customer_name", "remarks",
 		"vgb_xhd_ten", "vgb_xhd_mst", "vgb_xhd_dia_chi",
 	)
-	dieu, gia_tri = [], []
-	for m in mau:
+	# v583: cum go chinh tim theo tung tu, bo dau, bo dau cau (tim_kiem.py);
+	# cac ban so dien thoai do them giu kieu cu (khop nguyen chuoi so).
+	from vagabond import tim_kiem
+
+	d_tim, gia_tri = tim_kiem.sql(tu, ["`tabSales Invoice`.`%s`" % o for o in o_tim])
+	dieu = [d_tim] if d_tim else []
+	for i, m in enumerate(mau):
+		gia_tri["sdt%d" % i] = m
 		for o in o_tim:
-			dieu.append("`tabSales Invoice`.`%s` like %%s" % o)
-			gia_tri.append(m)
+			dieu.append("`tabSales Invoice`.`%s` like %%(sdt%d)s" % (o, i))
+	if not dieu:
+		return {"ds": [], "tu_khoa": tu, "vi_sao": "Vui lòng gõ chữ hoặc số để tìm."}
 
 	ds = frappe.db.sql(
 		"""select name, posting_date, docstatus, grand_total, customer_name,
@@ -7117,7 +7130,7 @@ def tim_don(tu_khoa="", so_dong=40):
 		where (%s)
 		order by posting_date desc, creation desc
 		limit %d""" % (" or ".join(dieu), max(1, min(200, cint(so_dong) or 40))),
-		tuple(gia_tri),
+		gia_tri,
 		as_dict=True,
 	)
 	gan_khach_vao_dong(ds)

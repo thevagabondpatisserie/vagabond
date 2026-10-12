@@ -37,6 +37,17 @@ def _doc(t):
 	return open(os.path.join(GOC, t), encoding="utf-8").read()
 
 
+def _tap_cong_no():
+	"""Đọc ĐÚNG tập QUYEN_CONG_NO_THU trong cong_no.py (v582, Codex #449 vòng 4)."""
+	import ast
+	cay = ast.parse(_doc("cong_no.py"))
+	g = {}
+	for n in cay.body:
+		if isinstance(n, ast.Assign) and any(getattr(t, "id", "") == "QUYEN_CONG_NO_THU" for t in n.targets):
+			exec(compile(ast.Module(body=[n], type_ignores=[]), "cong_no.py", "exec"), g)
+	return {"QUYEN_CONG_NO_THU": g["QUYEN_CONG_NO_THU"]}
+
+
 def _tap_that():
 	"""Đọc ĐÚNG ba tập quyền đang có trong ban_hang.py, không tự gõ lại trong ca kiểm.
 
@@ -217,7 +228,10 @@ def _chay_that_khop_tay():
 	def nem(cau, **kw):
 		raise PermissionError(cau)
 
-	for vai, mong in ((VAI, False), ("Manufacturing User", False), ("Sales User", True), ("Accounts User", True)):
+	# v582 (Codex #449 vòng 4): Công nợ phải thu chỉ cho Sales thật, QLCH, kế
+	# toán, giám đốc. Thu ngân gói Quầy chỉ có Sales User nên bị chặn.
+	for vai, mong in ((VAI, False), ("Manufacturing User", False), ("Sales User", False),
+			("Sales Manager", True), ("VGB - Quản lý cửa hàng", True), ("Accounts User", True)):
 		vet = []
 
 		def doc(*a, **k):
@@ -227,6 +241,8 @@ def _chay_that_khop_tay():
 		g = dict(frappe=NS(get_roles=lambda v=vai: [v], throw=nem, get_doc=doc),
 			flt=lambda x: float(x or 0), **_tap_that())
 		g["_kiem_quyen_ban"] = nap("ban_hang.py", "_kiem_quyen_ban", g)
+		g.update(_tap_cong_no())
+		g["_kiem_quyen_cong_no"] = nap("cong_no.py", "_kiem_quyen_cong_no", g)
 		try:
 			nap("cong_no.py", "khop_tay", g)("CN1", 100000)
 		except (PermissionError, LookupError):
@@ -264,7 +280,7 @@ def _sepay_kiem_theo_luong():
 		for doc in ("frappe.get_doc(", "frappe.get_all("):
 			if doc in than:
 				dung("%s kiểm quyền trước %s" % (ham, doc), k < than.index(doc))
-	for t, doc_q, ghi_q in (("cong_no.py", "quyen_doc=_kiem_quyen_ban", "quyen_ghi=_kiem_quyen_ban"),
+	for t, doc_q, ghi_q in (("cong_no.py", "quyen_doc=_kiem_quyen_cong_no", "quyen_ghi=_kiem_quyen_cong_no"),
 			("hoan_tien.py", "quyen_doc=_quyen_xem_doi_soat", "quyen_ghi=_quyen_khop_doi_soat")):
 		x = _doc(t)
 		dung("%s khai quyền xem theo luồng" % t, doc_q in x)
@@ -287,7 +303,8 @@ def _sepay_chay_that():
 				if vai in (VAI, "Manufacturing User"):
 					mong = False
 				elif loai == "cong_no":
-					mong = vai in ("Sales User", "Accounts User")
+					# v582: cổng riêng công nợ, Sales User (thu ngân) bị chặn.
+					mong = vai in ("Accounts User", "Giám đốc")
 				elif ham == "ung_vien":
 					mong = True
 				else:
@@ -305,12 +322,14 @@ def _sepay_chay_that():
 		g = dict(frappe=f, flt=lambda x: float(x or 0), **_tap_that())
 		g["_kiem_quyen_ban"] = nap("ban_hang.py", "_kiem_quyen_ban", g)
 		g["_kiem_quyen"] = nap("ban_hang.py", "_kiem_quyen", g)
+		g.update(_tap_cong_no())
+		g["_kiem_quyen_cong_no"] = nap("cong_no.py", "_kiem_quyen_cong_no", g)
 		nap("hoan_tien.py", "_duoc_tu_choi", g)
 		xem = nap("hoan_tien.py", "_quyen_xem_doi_soat", g)
 		khop = nap("hoan_tien.py", "_quyen_khop_doi_soat", g)
 		g.update(nap_so=lambda: None, _SO={
-			"cong_no": {"doctype": "Vagabond Cong No", "dang_cho": {}, "quyen_doc": g["_kiem_quyen_ban"],
-				"quyen_ghi": g["_kiem_quyen_ban"]},
+			"cong_no": {"doctype": "Vagabond Cong No", "dang_cho": {}, "quyen_doc": g["_kiem_quyen_cong_no"],
+				"quyen_ghi": g["_kiem_quyen_cong_no"]},
 			"hoan_tien": {"doctype": "Vagabond Hoan Tien", "dang_cho": {}, "quyen_doc": xem, "quyen_ghi": khop},
 		})
 		nap("doi_soat_sepay.py", "_ban", g)

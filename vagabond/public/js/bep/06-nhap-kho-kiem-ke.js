@@ -68,7 +68,7 @@ async function scrRecvList() {
     var q = (rcv.q || '').toLowerCase().trim();
     var ls = poDs.filter(function (x) {
       if (!q) return true;
-      return (x.name + ' ' + (x.ncc || '')).toLowerCase().indexOf(q) >= 0;
+      return vgbKhop([x.name, x.ncc], q); /* v583: tim theo tung tu, bo dau, bo dau cau (vgbKhop). */
     });
     if (!ls.length) {
       return '<div class="emp"><div class="e1">✅</div><div class="e2">' +
@@ -94,7 +94,7 @@ async function scrRecvList() {
     var q = (rcv.q || '').toLowerCase().trim();
     var ls = (D[rcv.tab] || []).filter(function (x) {
       if (!q) return true;
-      return (x.name + ' ' + (x.supplier_name || x.supplier || '')).toLowerCase().indexOf(q) >= 0;
+      return vgbKhop([x.name, x.supplier_name, x.supplier], q); /* v583: tim theo tung tu, bo dau, bo dau cau (vgbKhop). */
     });
     if (!ls.length) {
       var rong = rcv.tab === 'cho' ?
@@ -1259,7 +1259,7 @@ function kkDraw(keepScroll) {
 
   var listHtml = '';
   if (kk.tab === 'chua') {
-    var ms = missing.filter(function (i) { return !q || (i.item_name + ' ' + i.name).toLowerCase().indexOf(q) >= 0; });
+    var ms = missing.filter(function (i) { return vgbKhop([i.item_name, i.name], q); }); /* v583: tim theo tung tu, bo dau, bo dau cau (vgbKhop). */
     listHtml = ms.length
       ? '<div class="lst">' + ms.slice(0, 300).map(function (i) {
         return '<div class="li" data-add="' + h(i.name) + '"><div class="lt">' +
@@ -1271,10 +1271,10 @@ function kkDraw(keepScroll) {
   } else {
     var rs = kk.rows.map(function (r, i) { return { r: r, i: i }; });
     if (kk.tab === 'lech') rs = rs.filter(function (x) { return kkHasLech(x.r); });
-    if (q) rs = rs.filter(function (x) { return (x.r.item_name + ' ' + x.r.item_code).toLowerCase().indexOf(q) >= 0; });
+    if (q) rs = rs.filter(function (x) { return vgbKhop([x.r.item_name, x.r.item_code], q); });
     listHtml = rs.length ? rs.map(function (x) { return kkRowHtml(x.r, x.i, live); }).join('') : '';
     if (q && live) {
-      var mq = missing.filter(function (i) { return (i.item_name + ' ' + i.name).toLowerCase().indexOf(q) >= 0; });
+      var mq = missing.filter(function (i) { return vgbKhop([i.item_name, i.name], q); });
       if (mq.length) {
         listHtml += '<div class="kkq" style="padding-top:10px">' +
           (rs.length ? 'Món khớp nhưng <b>chưa có trong phiếu</b>, bấm + để thêm và đếm:'

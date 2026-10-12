@@ -182,6 +182,9 @@ function dungMan(canh) {
     layHam(nen, 'soTien'),
     layHam(nen, 'tienChuoi'),
     layHam(nen, 'tienGo'),
+    /* v583: phep tim chung (vgbChuan, vgbKhop) cho moi o tim. */
+    layHam(nen, 'vgbChuan'),
+    layHam(nen, 'vgbKhop'),
     layHam(docTep('09-tinh-tien-quay.js'), 'posChipNut'),
     layHam(docTep('09-tinh-tien-quay.js'), 'locTim'),
     layHam(docTep('09-tinh-tien-quay.js'), 'locHang'),

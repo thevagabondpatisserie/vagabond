@@ -291,6 +291,28 @@ var VGB_CD = (function () {
 		return { the: the, dong: dong };
 	}
 
+	// v579: anh Việt 06/10/2026, kèm ảnh bảng Nhóm nhận tin trên Desk chật nửa
+	// cột, chỉ thấy "ERP ...", "zgr-d...", "thong...": *"Lỗi hiển thị, quá khó để
+	// nhập liệu"*. Mỗi nhóm thành một thẻ đọc được, không hiện mã. Một nguồn cho
+	// cả Desk và app.
+	function tachMa(s) { return String(s || '').split(/[,;]/).map(function (x) { return x.trim(); }).filter(Boolean); }
+	function tenMaZalo(cot, ma) { return ((ZALO_NHAN[cot] || {})[ma] || ['', ma])[1]; }
+	function theNhomZalo(r) {
+		r = r || {};
+		var lt = tachMa(r.loai_tin).map(function (x) { return tenMaZalo('loai_tin', x); });
+		var cd = tachMa(r.chu_de).map(function (x) { return tenMaZalo('chu_de', x); });
+		var coNhom = co(r.chat_id), bat = parseInt(r.bat, 10) === 1;
+		return {
+			ten: co(r.ten_nhom) ? String(r.ten_nhom).trim() : 'Nhóm chưa đặt tên',
+			loai: lt.length ? lt.join(', ') : 'Mọi loại tin',
+			chu_de: cd.length ? cd.join(', ') : 'Mọi chủ đề',
+			im: co(r.im_tu) && co(r.im_den) ? 'Từ ' + r.im_tu + ' đến ' + r.im_den + ' chỉ gửi Cảnh báo, tin khác gom gửi sau' : 'Không đặt giờ im',
+			trang: !coNhom ? 'no' : (bat ? 'ok' : 'off'),
+			ghi: !coNhom ? 'Chưa chọn nhóm Zalo' : (bat ? 'Đang nhận tin' : 'Đang tắt'),
+			guiThu: coNhom,
+		};
+	}
+
 	// Nhảy tới một ô: mở đúng tab chứa ô, mở mục đang thu gọn, rồi mới cuộn.
 	// Codex #433 vòng 3. Frappe 16.36 tự làm hai bước đầu trong scroll_to_field,
 	// nhưng tự làm ở đây thì không phụ thuộc phiên bản Frappe, và có ca kiểm chạy được.
@@ -319,7 +341,7 @@ var VGB_CD = (function () {
 
 	return { boDau: boDau, tinhTrang: tinhTrang, tinhTrangMuc: tinhTrangMuc, tomTat: tomTat, timTruong: timTruong,
 		NHAN_CHON: NHAN_CHON, KET_NOI: KET_NOI, docJson: docJson, nganHangTheoBin: nganHangTheoBin, timNganHang: timNganHang, moToi: moToi, xepTinhTrang: xepTinhTrang, kiemCapNganHang: kiemCapNganHang,
-		ZALO_NHAN: ZALO_NHAN, ZALO_DANH_MUC: ZALO_DANH_MUC };
+		ZALO_NHAN: ZALO_NHAN, ZALO_DANH_MUC: ZALO_DANH_MUC, theNhomZalo: theNhomZalo, tachMa: tachMa };
 })();
 
 if (typeof window !== 'undefined') window.VGB_CD = VGB_CD;

@@ -116,6 +116,7 @@ function appMoi() {
     'function tdkNoi() {}',
     'function tdkDs(id) { return __tep[id] || []; }',
   ].join('\n'), Object.assign(g, { __tin: tin, __mc: mc, __hoi: hoi, __tep: tep }));
+  vm.runInContext(require('./tim_chung.js'), g);
   vm.runInContext(doc('01-khung-app.js'), g);
   vm.runInContext(doc('07-hop-thoai.js'), g);
   var kh = doc('11-khach-ca-hop-dong.js');

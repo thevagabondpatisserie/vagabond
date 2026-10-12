@@ -1450,7 +1450,7 @@ def co_the_ban_hom_nay():
 		goc, cm = _tach_ten_size(ten_day)
 		# #367: anh ho so mon ERP truoc, anh luu trong dong (chup tu don
 		# Pancake) sau. Mot ham chon cho moi nhanh, xem vagabond/anh_web.py.
-		anh = chon_anh(x.get("image"), (), d.hinh)[0]
+		anh = chon_anh(x.get("image"), (), d.hinh, ma_hang=d.ma_hang)[0]
 		mon.append(
 			{
 				"ma": d.ma_hang,
@@ -1525,7 +1525,8 @@ def _bo_anh_mo_ta(ds_nhom):
 				if len(anhs) >= 5 and mo_ta:
 					break
 		dong_luu = next((u for u in anh_dong if u), "") or g.get("anh") or ""
-		g["anh"], g["anhs"] = chon_anh(anh_erp, anhs, dong_luu)
+		g["anh"], g["anhs"] = chon_anh(anh_erp, anhs, dong_luu,
+			ma_hang=[s.get("ma") for s in sizes])
 		dong_mo_ta = [d for d in (mo_ta or "").split("\n") if d.strip()]
 		g["mo_ta"] = dong_mo_ta[0] if dong_mo_ta else ""
 		g["tang"] = [d.strip() for d in dong_mo_ta[1:]][:12]
@@ -1626,15 +1627,21 @@ def tim_mon(tu_khoa="", ngay=None):
 	# bang chuoi thi ro rang va di dung mot luot hoi.
 	#
 	# Moi gia tri deu di qua tham so %s, khong noi chuoi vao cau lenh.
-	dieu = " OR ".join(["item_code LIKE %s"] * len(TIEN_TO_THEM_TAY))
-	tham = ["%s%%" % t for t in TIEN_TO_THEM_TAY]
+	#
+	# v583: tham so doi sang dang CO TEN de ghep chung dieu kien tim theo tung
+	# tu, bo dau, bo dau cau (tim_kiem.py).
+	from vagabond import tim_kiem
+
+	ten_tham = {"tt%d" % i: "%s%%" % t for i, t in enumerate(TIEN_TO_THEM_TAY)}
+	dieu = " OR ".join("item_code LIKE %%(tt%d)s" % i for i in range(len(TIEN_TO_THEM_TAY)))
 	cau = """select item_code, item_name, image from `tabItem`
 		where ifnull(disabled, 0) = 0 and (%s)""" % dieu
-	if q:
-		cau += " and (item_code like %s or item_name like %s)"
-		tham += ["%" + q + "%", "%" + q + "%"]
+	d_tim, t_tim = tim_kiem.sql(q, ["item_code", "item_name"])
+	if d_tim:
+		cau += " and " + d_tim
+		ten_tham.update(t_tim)
 	cau += " order by item_code limit 80"
-	ds = frappe.db.sql(cau, tuple(tham), as_dict=True)
+	ds = frappe.db.sql(cau, ten_tham, as_dict=True)
 	da_co = set()
 	if ngay:
 		ten_bang = "KB-%s" % getdate(ngay)

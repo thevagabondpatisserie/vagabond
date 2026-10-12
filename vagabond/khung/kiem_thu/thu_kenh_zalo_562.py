@@ -719,7 +719,8 @@ def _huong_dan_nut():
 	p = os.path.join(os.path.dirname(os.path.dirname(kz.__file__)), "docs", "huong-dan", "ban-tin-zalo.md")
 	s = open(p, encoding="utf-8").read()
 	# Dò chuỗi ở đây chỉ để chốt tài liệu khớp giao diện (điều 16).
-	dung("có hai nút chọn", "Chọn loại tin" in s and "Chọn chủ đề" in s)
+	# v579: chọn loại tin, chủ đề trong hộp Thêm/Sửa nhóm (ô tích có giải thích), không còn hai nút riêng.
+	dung("dẫn qua hộp Thêm nhóm, tích loại tin và chủ đề", "Thêm\n   nhóm nhận tin" in s and "loại tin" in s and "chủ đề" in s)
 	dung("không còn bảo ghi mã vào ô", "hoặc ghi `viec" not in s)
 
 
@@ -780,7 +781,8 @@ def _ma_chat_chi_doc():
 	d = json.load(open(p, encoding="utf-8"))
 	la("chat_id read_only", [x.get("read_only") for x in d["fields"] if x["fieldname"] == "chat_id"], [1])
 	h = open(os.path.join(os.path.dirname(os.path.dirname(kz.__file__)), "docs", "huong-dan", "ban-tin-zalo.md"), encoding="utf-8").read()
-	dung("hướng dẫn có nút chọn nhóm, bỏ lối thử chat riêng", "Chọn nhóm đã nhắn bot" in h and "thử với chat riêng" not in h)
+	dung("hướng dẫn chọn nhóm từ danh sách nhóm đã nhắn bot, bỏ lối thử chat riêng",
+		"Chỉ hiện các nhóm" in h and "không có chat riêng" in h and "thử với chat riêng" not in h)
 
 
 # ===================================================================
@@ -1180,8 +1182,10 @@ def _o_chon_tim():
 	# Dò chuỗi chỉ để chốt khai báo ô trên Desk (điều 16): bộ giả lập trang của repo
 	# chỉ dựng app /bep, không dựng form Desk của Frappe.
 	o = re.findall(r"fieldname: 'nhom', fieldtype: '(\w+)'", s)
-	la("hai ô chọn nhóm đều là Autocomplete", o, ["Autocomplete", "Autocomplete"])
-	dung("chọn sai thì báo, không lặng lẽ bỏ", s.count("Chọn đúng một nhóm trong danh sách gợi ý.") == 2)
+	# v579 thêm hộp Gửi thử ngay trong mục Zalo, nên có thể hơn hai ô; ô nào cũng phải gõ tìm được.
+	dung("có ít nhất hai ô chọn nhóm", len(o) >= 2)
+	la("mọi ô chọn nhóm đều là Autocomplete", sorted(set(o)), ["Autocomplete"])
+	dung("chọn sai thì báo, không lặng lẽ bỏ", s.count("Chọn đúng một nhóm trong danh sách gợi ý.") == len(o))
 
 
 # ===================================================================

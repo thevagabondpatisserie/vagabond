@@ -9,12 +9,17 @@ import frappe
 from vagabond import noi_dung_web as web
 
 
+# Phần cong_khai() tự ghép thêm, không nằm trong nội dung đã lưu: "nhan" từ
+# v532; thông tin cửa hàng, điểm nhận, liên hệ và số vé tiệc từ v586.
+DAN_XUAT = ("nhan", "thong_tin", "diem_nhan", "lien_he", "ve")
+
+
 def _bo_nhan(x):
-    """Nội dung công khai bỏ bộ nhãn. Từ v532 cong_khai() luôn kèm "nhan" đầy
-    đủ (chữ marketing đã xuất bản, chỗ trống lấy mặc định), nên so khối phải
-    bỏ nhãn ra; bộ nhãn kiểm riêng."""
+    """Nội dung công khai bỏ các phần dẫn xuất, chỉ còn phần đã lưu để so.
+    Các phần dẫn xuất kiểm riêng (bộ nhãn ở đây, phần v586 ở web_v586)."""
     ra = dict(x or {})
-    ra.pop("nhan", None)
+    for k in DAN_XUAT:
+        ra.pop(k, None)
     return ra
 
 
@@ -77,7 +82,8 @@ def chay():
         dong_bo()
         dat("Đồng bộ Web Page không đè nội dung marketing", _bo_nhan(web.cong_khai()) == nd)
         frappe.set_user("Guest")
-        dat("Public API chỉ có khối và bộ nhãn", set(web.cong_khai()) == {"khoi", "nhan"})
+        dat("Public API chỉ có khối và các phần dẫn xuất", set(web.cong_khai()) == {"khoi", *DAN_XUAT})
+        dat("Guest không thấy nháp qua thông tin cửa hàng", web.cong_khai()["thong_tin"] == web.thong_tin_day_du(nd))
     finally:
         frappe.set_user(nguoi_cu)
         frappe.db.rollback(save_point="web_editor_245")

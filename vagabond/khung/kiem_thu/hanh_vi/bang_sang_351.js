@@ -129,7 +129,7 @@ function dungMan(canh) {
     scrBangSang: null,
   };
   that.globalThis = that;
-  vm.runInNewContext(SRC + '\n' + layHam(HOP, 'hopKhung') + '\n' + layHam(BC, 'bcTheNhanDinh') + '\n' + layHam(NEN, 'kl'), that, { filename: '47-bang-sang.js' });
+  vm.runInNewContext(require('./tim_chung.js') + SRC + '\n' + layHam(HOP, 'hopKhung') + '\n' + layHam(BC, 'bcTheNhanDinh') + '\n' + layHam(NEN, 'kl'), that, { filename: '47-bang-sang.js' });
   return { g: that, tai: tai, khung: khung, goi: goi };
 }
 

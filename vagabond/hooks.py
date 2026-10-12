@@ -282,6 +282,7 @@ scheduler_events = {
 # duong tao hoa don, khong rieng man Doanh thu Sales.
 doc_events = {
 	"Vagabond Dat Ban": {"after_insert": "vagabond.dat_ban.bao_dat_ban_moi"},
+	"Vagabond Dang Ky Tiec": {"after_insert": "vagabond.tiec_web.bao_moi"},
 	"MInvoice NCC Map": {"validate": "vagabond.quy_cach_ncc.kiem"},
 	# #351: Task sinh tu man Viec hom nay khong duoc danh dau xong ma thieu
 	# ket qua, ke ca khi bam tren Desk. Ham tu bo qua Task khong phai cua minh.
@@ -989,12 +990,26 @@ _cu_nb.insert(max(len(_cu_nb) - 1, 0), "vagabond.ngay_ban.chan_ghi_tay")
 doc_events["Sales Invoice"]["validate"] = _cu_nb
 del _cu_nb
 scheduler_events.setdefault("hourly", []).append("vagabond.tru_kho_bu.quet_moi_gio")
+scheduler_events.setdefault("hourly", []).append("vagabond.don_web.doi_soat_uu_dai_hoa_don")
 
 # v562 (#410): bắn tin Zalo. Mỗi giờ gửi bản gộp tin hoãn trong giờ im.
 scheduler_events.setdefault("hourly", []).append("vagabond.kenh_zalo.xa_gio_im")
 # Codex #425: gửi bù tin Zalo còn Chờ gửi (hàng đợi hỏng lúc xếp).
 scheduler_events.setdefault("cron", {}).setdefault("*/5 * * * *", []).append("vagabond.kenh_zalo.quet_cho_gui")
+# v585: bản tin phát hành (cùng nguồn [ĐÃ DEPLOY] với Telegram) vào nhóm Zalo.
+scheduler_events.setdefault("cron", {}).setdefault("*/15 * * * *", []).append("vagabond.zalo_phat_hanh.quet")
 
 # v577 (Codex #444 vong 7): luoi an toan cho thu bao nhan tien khi viec nen
 # xep sau commit bi mat (Redis loi). Doc cong_no.quet_thu_bao_bo_lo.
 scheduler_events.setdefault("hourly", []).append("vagabond.cong_no.quet_thu_bao_bo_lo")
+
+# v579 (#420 doi soat vendor): thu tu ten mien vendor thi xep viec doc dinh
+# kem sau commit; luoi quet moi gio doc lai 2 ngay (trung ma bam thi bo qua).
+# Noi vao chuoi san co cua Communication (gac_thu_ncc), KHONG dat tren "*".
+_cu_ds = doc_events.setdefault("Communication", {}).get("after_insert", [])
+doc_events["Communication"]["after_insert"] = ([_cu_ds] if isinstance(_cu_ds, str) else list(_cu_ds)) + [
+    "vagabond.doi_soat_vendor.khi_co_thu"]
+del _cu_ds
+scheduler_events.setdefault("hourly", []).append("vagabond.doi_soat_vendor.quet_moi_gio")
+# Codex #460: đơn web đã huỷ mà còn giữ lượt ưu đãi hoặc mã dùng một lần thì trả lại.
+scheduler_events.setdefault("cron", {}).setdefault("*/15 * * * *", []).append("vagabond.don_hang.tra_uu_dai_don_huy")

@@ -214,15 +214,21 @@ RA({t1,t2,t3:EL('#toast').textContent,cu:c.k});
     dung('hàng mùa: tên mới (%s)' % d['t3'], 'Hộp mới' in d['t3'] and 'Hộp cũ' not in d['t3'])
 
 
-@ca("#431 F1: tên công ty, mã số thuế, địa chỉ pháp lý không nằm trong chữ Marketing sửa được")
+@ca("#367 duyệt 04/10: sửa chữ pháp lý chân trang trong Editor, giữ nguồn mặc định")
 def _phap_ly():
-    mau = json.loads((GOC / 'public/web_order/chu-mac-dinh.json').read_text())
-    chu = json.dumps(mau, ensure_ascii=False)
-    for x in ('0318561568', 'Công ty TNHH Patisserie Vagabond', '9 Trần Cao Vân', '307/1 Nguyễn Văn Trỗi'):
-        dung('không có khóa sửa được chứa %s' % x, x not in chu)
+    # Chỉ đổi chữ hiển thị website; không ghi Company/Tax ID của ERP.
+    keys = ('dat_banh_15f2c7f29','dat_banh_2085c9658','dat_banh_2f7b911ea','dat_banh_cc4a76159')
+    sua = {k:'Chữ mới <vgb-canary>' for k in keys}
+    nd = copy.deepcopy(noi_dung_web.MAC_DINH)
+    nd['nhan'] = sua
+    da_luu = noi_dung_web.chuan_hoa(nd)
+    la('máy chủ chấp nhận cả bốn nhãn', da_luu['nhan'], sua)
+    la('bản công khai nhận chữ đã soạn', {k:noi_dung_web.nhan_day_du(da_luu)[k] for k in keys}, sua)
     trang = (GOC / 'trang/banh.html').read_text()
-    dung('chân trang vẫn in mã số thuế cố định', 'Mã số thuế 0318561568' in trang)
-    dung('mã số thuế không gắn data-vgb-chu', re.search(r'data-vgb-chu="[^"]+">Mã số thuế 0318561568', trang) is None)
+    for k in keys:
+        dung(k+' dùng marker text an toàn', 'data-vgb-chu="'+k+'"' in trang)
+        dung(k+' vẫn có chữ mặc định', noi_dung_web.NHAN[k]['mac_dinh'] in trang)
+    la('để trống về mặc định',noi_dung_web.nhan_day_du({'nhan':{keys[0]:''}})[keys[0]],noi_dung_web.NHAN[keys[0]]['mac_dinh'])
 
 
 @ca("#432 P1: dòng Đã chọn thêm không diễn giải nhãn phụ kiện, nến số thành HTML")
@@ -242,3 +248,238 @@ RA({a,b});
     d=json.loads(r.stdout)
     dung('phụ kiện: không tạo thẻ (%s)' % d['a'][:120], '<vgb-canary' not in d['a'] and '&lt;vgb-canary&gt;' in d['a'])
     dung('nến số: không tạo thẻ (%s)' % d['b'][:120], '<vgb-canary' not in d['b'] and '&lt;vgb-canary&gt;' in d['b'])
+
+
+@ca('#367 mở rộng: CMS giữ ảnh thay được, hạn và email; từ chối cấu hình sai')
+def _marketing_moi():
+    for loai in ('uu_dai', 'tuyen_dung'):
+        k={'id':'marketing-test','loai':loai,'hien':True,'vi_tri':loai,'tieu_de':'Bản kiểm',
+           'anh':'/files/anh-moi.jpg','bat_dau':'2026-10-01','ket_thuc':'2026-10-31','email':'hr@example.com'}
+        la('giữ dữ liệu '+loai,noi_dung_web.chuan_hoa({'khoi':[k]})['khoi'][0],k)
+        for sua in ({'ket_thuc':'2026-09-30'},{'bat_dau':'2026-02-30'},{'anh':'javascript:alert(1)'},{'email':'bad@example.com\nBcc:x@y.com'},{'tieu_de':''}):
+            try:noi_dung_web.chuan_hoa({'khoi':[dict(k,**sua)]})
+            except ValueError:pass
+            else:dung('chặn dữ liệu sai '+str(sua),False)
+    k.update(email='',lien_ket='')
+    try:noi_dung_web.chuan_hoa({'khoi':[k]})
+    except ValueError:pass
+    else:dung('vị trí bật phải có nơi nhận hồ sơ',False)
+    k['hien']=False
+    la('bản nháp chưa có email vẫn lưu được',noi_dung_web.chuan_hoa({'khoi':[k]})['khoi'][0]['hien'],False)
+
+
+@ca('#367 mở rộng: chi tiết chọn đúng cỡ đặt trước, sửa không cộng thêm và reload giữ giỏ')
+def _gio_moi():
+    from vagabond.khung.kiem_thu.thu_trang_dat_banh import _chay
+    r=_chay('2026-10-05T08:00:00',r'''
+const c=CAKES.find(c=>c.sizes.length>1), z=c.sizes[c.sizes.length-1];
+tabNow='order';TRUOC={[z.id]:5};TODAY={};renderSheet(c);
+const selected=curSize.id;
+EL('#s-wish').value='Lời chúc trước';EL('#s-nia').value='2';addToCart();
+suaDongGio(0);EL('#s-wish').value='Lời chúc sau';addToCart();
+const edited={count:CART.length,qty:CART[0].qty,wish:CART[0].wish,nia:CART[0].dung_cu.nia};
+luuGioDangSoan();CART=[];phucHoiGio();
+RA({selected,expected:z.id,edited,restored:CART.map(o=>({id:o.id,wish:o.wish,qty:o.qty,price:o.price,nia:o.dung_cu.nia}))});
+''')
+    la('mở chi tiết đúng cỡ thẻ',r['selected'],r['expected'])
+    la('sửa đúng một dòng',r['edited'],{'count':1,'qty':1,'wish':'Lời chúc sau','nia':2})
+    la('tải lại giữ một dòng',len(r['restored']),1)
+    la('giữ lời chúc',r['restored'][0]['wish'],'Lời chúc sau')
+    la('giữ dụng cụ',r['restored'][0]['nia'],2)
+
+
+@ca('#367 mở rộng: khung giờ hết hạn không chọn và không hiện như đã xác nhận')
+def _gio_het():
+    from vagabond.khung.kiem_thu.thu_trang_dat_banh import _chay
+    r=_chay('2026-10-05T23:00:00',r'''
+picked=0;daChonGio=false;pickSlot(0);renderRail();
+RA({chon:daChonGio,note:EL('#orderNote').innerHTML});
+''')
+    la('không chọn giờ hết hạn',r['chon'],False)
+    dung('mời chọn giờ còn nhận', 'Vui lòng chọn khung giờ còn nhận' in r['note'])
+
+
+@ca('#367 mở rộng: trang chiến dịch lọc ẩn/hết hạn, giữ chữ nguyên văn và thay ảnh')
+def _render_chien_dich():
+    script=r'''
+const fs=require('fs'),vm=require('vm');
+class El{constructor(t){this.tagName=t;this.children=[];this.dataset={};this.attrs={};this.textContent='';}append(...a){this.children.push(...a);}replaceChildren(...a){this.children=[...a];}setAttribute(k,v){this.attrs[k]=v;}}
+const roots={'noi-uu_dai':new El('div'),'noi-tuyen_dung':new El('div')};
+const document={createElement:t=>new El(t),getElementById:k=>roots[k],addEventListener(){}};
+const window={};vm.runInNewContext(fs.readFileSync(process.argv[1],'utf8'),{window,document,Date,Intl,Set,encodeURIComponent});
+const base={id:'a',loai:'uu_dai',hien:true,tieu_de:'<img onerror=alert(1)>',anh:'/files/one.jpg',nhom:'Web'};
+const data={khoi:[base,{...base,id:'hidden',hien:false},{...base,id:'expired',ket_thuc:'2000-01-01'},{...base,id:'future',bat_dau:'2099-01-01'},{id:'job',loai:'tuyen_dung',hien:true,tieu_de:'Thợ bánh',email:'hr@example.com'}]};
+const walk=e=>[e,...e.children.flatMap(walk)];
+window.vgbVeChuyenMuc(data);let all=walk(roots['noi-uu_dai']);
+const first={count:all.filter(e=>e.tagName==='article').length,text:all.find(e=>e.tagName==='h2').textContent,src:all.find(e=>e.tagName==='img').src,href:walk(roots['noi-tuyen_dung']).find(e=>e.tagName==='a').href};
+base.anh='/files/two.jpg';window.vgbVeChuyenMuc(data);all=walk(roots['noi-uu_dai']);
+console.log(JSON.stringify({first,newSrc:all.find(e=>e.tagName==='img').src}));
+'''
+    r=subprocess.run(['node','-e',script,str(GOC/'public/web_order/chuyen-muc.js')],capture_output=True,text=True,timeout=30)
+    la('renderer chạy',r.returncode,0)
+    if r.returncode:raise AssertionError(r.stderr)
+    d=json.loads(r.stdout)
+    la('ẩn/hết hạn không hiện',d['first']['count'],2)
+    la('tiêu đề là chữ',d['first']['text'],'<img onerror=alert(1)>')
+    la('ảnh đã thay',d['newSrc'],'/files/two.jpg')
+    dung('ứng tuyển đúng vị trí',d['first']['href'].startswith('mailto:hr@example.com?subject='))
+
+
+@ca('#367 mở rộng: link bánh đặt trước mở mới vẫn chọn đúng cỡ có bán')
+def _link_moi():
+    from vagabond.khung.kiem_thu.thu_trang_dat_banh import _chay
+    r=_chay('2026-10-05T08:00:00',r'''
+const c=CAKES.find(c=>c.sizes.length>1),z=c.sizes[c.sizes.length-1];
+TODAY={OTHER:2};TRUOC={[z.id]:3};tabNow='today';location.hash='#/banh/'+slug(c.k);applyRoute();
+RA({tab:tabNow,selected:curSize.id,expected:z.id});
+''')
+    la('link mở mới sang đặt trước khi không có bánh hôm nay',r['tab'],'order')
+    la('đúng cỡ còn nhận',r['selected'],r['expected'])
+
+
+@ca('#436 giỏ phục hồi: phản hồi danh mục đến trễ cập nhật giá và tổng, kể cả giá 0')
+def _gia_sau_nap():
+    from vagabond.khung.kiem_thu.thu_trang_dat_banh import _chay
+    r = _chay('2026-10-06T08:00:00', r'''
+await napTonHomNay();
+const c=CAKES[0],z=c.sizes[0];TODAY={[z.id]:5};tabNow='today';z.p=100000;
+renderSheet(c);addToCart();luuGioDangSoan();CART=[];phucHoiGio();
+const truoc=cartTotal();let tra;
+fetch=()=>new Promise(r=>{tra=r;});
+const cho=napTonHomNay();const dangCho=cartTotal();
+tra({json:async()=>({message:{banh:{[z.id]:5},nhom:[{ten:c.k,sizes:[{ma:z.id,cm:z.cm,gia:200000}]}]}})});
+await cho;
+const sau=cartTotal(),daLuu=JSON.parse(sessionStorage.getItem('vgb-gio-v1')).gio[0].price;
+fetch=async()=>({json:async()=>({message:{banh:{[z.id]:5},nhom:[{ten:c.k,sizes:[{ma:z.id,cm:z.cm,gia:0}]}]}})});
+await napTonHomNay();RA({truoc,dangCho,sau,daLuu,gia0:cartTotal(),qty:CART[0].qty});
+''')
+    la('giá trước khi phản hồi',r['truoc'],100000)
+    la('phản hồi thực sự đang chờ',r['dangCho'],100000)
+    la('tổng dùng danh mục mới',r['sau'],200000)
+    la('lưu giá đã làm mới',r['daLuu'],200000)
+    la('giá 0 không giữ giá cũ',r['gia0'],0)
+    la('không đổi số lượng',r['qty'],1)
+
+
+@ca('Codex #446: bánh chỉ có trong danh mục sống không mất khi tải lại trước lúc danh mục về')
+def _gio_mon_dong():
+    # LƯU Ý (Codex #450): ca này đặt sessionStorage SAU khi trang đã chạy rồi
+    # tự gọi lại phucHoiGio(), nên KHÔNG thấy lỗi lần vẽ đầu xoá giỏ trước khi
+    # khôi phục. Giữ để kiểm phần ganGioCho; đường tải lại thật nằm ở ca
+    # "tải lại trang thật" ngay dưới. Đừng dùng ca này làm bằng chứng tải lại.
+    from vagabond.khung.kiem_thu.thu_trang_dat_banh import _chay
+    r = _chay('2026-10-06T08:00:00', r'''
+sessionStorage.setItem('vgb-gio-v1',JSON.stringify({luc:Date.now(),gio:[{id:'KT446-MOI-20',cm:20,qty:2,price:1,wish:'Chúc',adds:[],nguon:'order'}]}));
+CART=[];phucHoiGio();
+const truoc={dong:CART.length,cho:gioBanhCho.length,luu:JSON.parse(sessionStorage.getItem('vgb-gio-v1')||'{"gio":[]}').gio.length};
+luuGioDangSoan();
+const giuKhiLuu=JSON.parse(sessionStorage.getItem('vgb-gio-v1')).gio.length;
+fetch=async()=>({json:async()=>({message:{banh:{},nhom:[{ten:'Bánh kiểm 446',sizes:[{ma:'KT446-MOI-20',cm:20,gia:450000}]}]}})});
+await napTonHomNay();
+RA({truoc,giuKhiLuu,sau:CART.map(o=>({id:o.id,qty:o.qty,price:o.price,wish:o.wish})),cho:gioBanhCho.length});
+''')
+    la('chưa có món: chưa vào giỏ, nằm chờ', (r['truoc']['dong'], r['truoc']['cho']), (0, 1))
+    la('lưu lại lúc đang chờ không mất dòng', r['giuKhiLuu'], 1)
+    la('danh mục về: dựng lại đúng dòng, giá theo danh mục', r['sau'], [{'id':'KT446-MOI-20','qty':2,'price':450000,'wish':'Chúc'}])
+    la('không còn dòng chờ', r['cho'], 0)
+
+
+@ca('Codex #450: tải lại trang thật, giỏ đã cất được khôi phục chứ không bị lần vẽ đầu xoá')
+def _gio_tai_lai_that():
+    # Nạp sẵn sessionStorage TRƯỚC khi mã trang chạy, đúng như trình duyệt
+    # tải lại. Kịch bản KHÔNG gọi phucHoiGio() hay luuGioDangSoan(): chỉ đọc
+    # trạng thái trang tự dựng, rồi cho danh mục về.
+    from vagabond.khung.kiem_thu.thu_trang_dat_banh import _chay
+    kho = {'vgb-gio-v1': json.dumps({'luc': 1791246600000, 'gio': [{'id': 'KT450-MOI-20', 'cm': 20, 'qty': 3,
+        'price': 1, 'wish': 'Mừng', 'adds': [], 'nguon': 'order'}], 'truong': {'f-note': 'Giao trước 10 giờ'}},
+        ensure_ascii=False)}
+    r = _chay('2026-10-06T08:00:00', r'''
+const luu=JSON.parse(sessionStorage.getItem('vgb-gio-v1')||'{"gio":[]}');
+const luc_dau={dong:CART.length,cho:gioBanhCho.length,luu:luu.gio.length,ghi_chu:(document.getElementById('f-note')||{}).value||''};
+fetch=async()=>({json:async()=>({message:{banh:{},nhom:[{ten:'Bánh kiểm 450',sizes:[{ma:'KT450-MOI-20',cm:20,gia:520000}]}]}})});
+await napTonHomNay();
+RA({luc_dau,sau:CART.map(o=>({id:o.id,qty:o.qty,price:o.price,wish:o.wish})),
+  luu_sau:JSON.parse(sessionStorage.getItem('vgb-gio-v1')||'{"gio":[]}').gio.length});
+''', kho_phien=kho)
+    la('sau tải lại: bản cất vẫn còn, dòng nằm chờ danh mục', (r['luc_dau']['luu'], r['luc_dau']['cho']), (1, 1))
+    # Ô nháp thanh toán không kiểm ở đây: DOM giả không có closest('#checkout').
+    la('danh mục về: dòng vào giỏ đúng giá danh mục', r['sau'], [{'id': 'KT450-MOI-20', 'qty': 3, 'price': 520000, 'wish': 'Mừng'}])
+    la('giỏ vẫn được cất sau khi khôi phục', r['luu_sau'], 1)
+
+
+@ca('#436 CMS: chặn vị trí mất khối, link lạ và Zalo cá nhân; nâng cấp không mất chữ')
+def _kenh_noi_va_vi_tri():
+    nd = copy.deepcopy(noi_dung_web.MAC_DINH)
+    for k in nd['khoi']:
+        if k['id'] in ('loi-chao','ho-tro'):k['hien']=True;k['noi_dung']='Bản sửa riêng'
+    nd['nhan']={'them_nhanh_mon':'Chọn {ten}'}
+    moi=noi_dung_web.rut_gon_va_kenh_436(nd)
+    la('lặp lại không đổi',noi_dung_web.rut_gon_va_kenh_436(moi),moi)
+    for k in moi['khoi']:
+        if k['id'] in ('loi-chao','ho-tro'):
+            la('ẩn đúng khối',k['hien'],False);la('không xoá chữ',k['noi_dung'],'Bản sửa riêng')
+    la('không đụng bản đầu',next(k for k in nd['khoi'] if k['id']=='ho-tro')['hien'],True)
+    for loai,vi_tri,link in [('thong_bao','uu_dai',''),('anh_chu','tuyen_dung',''),('kenh_dat_hang','cuoi_trang','javascript:alert(1)'),('zalo_oa','cuoi_trang','https://zalo.me/0931224334'),('zalo_oa','cuoi_trang','https://example.com/1234567890123456789')]:
+        try:noi_dung_web.chuan_hoa({'khoi':[{'id':'test','loai':loai,'vi_tri':vi_tri,'hien':True,'tieu_de':'Test','lien_ket':link}]})
+        except ValueError:pass
+        else:dung('chặn sai '+loai+' '+vi_tri+' '+link,False)
+    k={'id':'test','loai':'zalo_oa','hien':True,'tieu_de':'Zalo','lien_ket':'https://zalo.me/1234567890123456789'}
+    la('OA đúng cấu trúc lưu được',noi_dung_web.chuan_hoa({'khoi':[k]})['khoi'][0],k)
+    k['lien_ket']='https://zalo.me/thevagabondsaigon'
+    la('OA tên công khai lưu được',noi_dung_web.chuan_hoa({'khoi':[k]})['khoi'][0],k)
+    for url in ['https://zalo.me.evil.test/thevagabondsaigon','https://user:pass@zalo.me/thevagabondsaigon','http://zalo.me/thevagabondsaigon','https://zalo.me/thevagabondsaigon/extra']:
+        try:noi_dung_web.chuan_hoa({'khoi':[dict(k,lien_ket=url)]})
+        except ValueError:pass
+        else:dung('chặn OA sai '+url,False)
+    oa=next(k for k in moi['khoi'] if k['id']=='kenh-zalo')
+    la('OA mặc định được bật',oa['hien'],True)
+    la('OA anh Việt cung cấp',oa['lien_ket'],'https://zalo.me/thevagabondsaigon')
+    cau_hinh={'id':'nut','loai':'nut_kenh','hien':True,'tieu_de':'Mở kênh','anh':'/files/custom.png'}
+    la('lưu logo nút riêng',noi_dung_web.chuan_hoa({'khoi':[cau_hinh]})['khoi'][0]['anh'],'/files/custom.png')
+    for anh in ['javascript:alert(1)','https://user:pass@example.com/logo.png','//example.com/logo.png','/private/files/logo.png','/files/logo.svg']:
+        try:noi_dung_web.chuan_hoa({'khoi':[dict(cau_hinh,anh=anh)]})
+        except ValueError:pass
+        else:dung('chặn ảnh logo sai '+anh,False)
+    try:noi_dung_web.chuan_hoa({'khoi':[cau_hinh,dict(cau_hinh,id='nut2')]})
+    except ValueError:pass
+    else:dung('chặn hai nút cấu hình',False)
+
+
+
+
+@ca('#436 nút nổi: bỏ link nguy hiểm, sửa nhãn nguyên văn, Escape không chạy điều hướng khác')
+def _render_kenh_noi():
+    script=r'''
+const fs=require('fs'),vm=require('vm'),suKien={};
+class El{constructor(t){this.tagName=t;this.children=[];this.dataset={};this.attrs={};this.style={};this.textContent='';}append(...a){this.children.push(...a);}replaceChildren(...a){this.children=[...a];}setAttribute(k,v){this.attrs[k]=v;}focus(){this.focused=true;}contains(x){return walk(this).includes(x);}querySelector(){return walk(this).find(e=>e.className==='kenh-bang'&&!e.hidden);}}
+const walk=e=>[e,...e.children.flatMap(walk)],body=new El('body');
+const document={body,createElement:t=>new El(t),getElementById:()=>null,addEventListener:(k,f,capture)=>{suKien[k]={f,capture};}};
+const window={addEventListener(){}};vm.runInNewContext(fs.readFileSync(process.argv[1],'utf8'),{window,document,URL});
+const k={id:'app',loai:'kenh_dat_hang',hien:true,tieu_de:'<img onerror=x>',anh:'/files/logo-app.png',lien_ket:'https://example.com/menu'};
+window.vgbVeKenhNoi({khoi:[k,{...k,id:'bad',lien_ket:'javascript:alert(1)'},{...k,id:'hidden',hien:false},{id:'z',loai:'zalo_oa',hien:true,tieu_de:'Zalo',lien_ket:'https://zalo.me/0931224334'}]});
+let all=walk(body),links=all.filter(e=>e.tagName==='a'),b=all.find(e=>e.className==='kenh-bong kenh-app');b.onclick();
+const logo=walk(links[0]).find(e=>e.tagName==='img'),logoSrc=logo.src;logo.onerror();const fallbackVisible=logo.hidden&&!links[0].children[0].children[1].hidden;
+let stopped=false;suKien.keydown.f({key:'Escape',preventDefault(){},stopImmediatePropagation(){stopped=true;}});
+const first={logoSrc,fallbackVisible,links:links.length,label:links[0].children[1].textContent,expanded:b.attrs['aria-expanded'],focus:b.focused,capture:suKien.keydown.capture,stopped};
+window.vgbVeKenhNoi({nhan:{kenh_noi_nut:'Đặt món'},khoi:[{...k,tieu_de:'App mới',lien_ket:'https://example.com/new'}]});all=walk(body);links=all.filter(e=>e.tagName==='a');
+const appButton=all.find(e=>e.className==='kenh-bong kenh-app').attrs['aria-label'];
+window.vgbVeKenhNoi({khoi:[{id:'oa',loai:'zalo_oa',hien:true,tieu_de:'Nhắn Zalo',lien_ket:'https://zalo.me/thevagabondsaigon'}]});const oa=walk(body).find(e=>e.className==='kenh-bong kenh-zalo');
+window.vgbVeKenhNoi({khoi:[{id:'nut',loai:'nut_kenh',hien:true,tieu_de:'Mở app',anh:'/files/nut-moi.png'},k]});const nutMoi=walk(body).find(e=>e.className==='kenh-bong kenh-app');const nutImg=walk(nutMoi).find(e=>e.tagName==='img').src;
+window.vgbVeKenhNoi({khoi:[{id:'nut',loai:'nut_kenh',hien:false},k]});const hiddenApp=!walk(body).some(e=>e.className==='kenh-bong kenh-app');
+console.log(JSON.stringify({nutImg,hiddenApp,oaHref:oa.href,oaTarget:oa.target,first,href:links[0].href,title:links[0].children[1].textContent,button:appButton}));
+'''
+    r=subprocess.run(['node','-e',script,str(GOC/'public/web_order/kenh-noi.js')],capture_output=True,text=True,timeout=30)
+    if r.returncode:raise AssertionError(r.stderr)
+    d=json.loads(r.stdout)
+    la('logo kênh từ CMS',d['first']['logoSrc'],'/files/logo-app.png')
+    dung('ảnh lỗi vẫn có chữ dự phòng',d['first']['fallbackVisible'])
+    la('thay logo nút độc lập',d['nutImg'],'/files/nut-moi.png')
+    dung('ẩn nút trong CMS',d['hiddenApp'])
+    la('OA tên hiển thị đúng',d['oaHref'],'https://zalo.me/thevagabondsaigon')
+    la('OA mở tab mới',d['oaTarget'],'_blank')
+    la('chỉ một link hợp lệ',d['first']['links'],1)
+    la('nhãn không trở thành HTML',d['first']['label'],'<img onerror=x>')
+    la('Escape đóng và giữ focus',d['first']['expanded'],'false')
+    dung('chặn trước handler điều hướng',d['first']['capture'] and d['first']['stopped'] and d['first']['focus'])
+    la('đổi link trong preview',d['href'],'https://example.com/new')
+    la('đổi nhãn trong preview',d['button'],'Đặt món')

@@ -652,8 +652,11 @@ def danh_sach_hoa_don(name, tu_khoa=""):
 		"docstatus": 0 if (getattr(d, "loai", None) or "") == LOAI_TKCT else ["<", 2]}
 	if _co_dau_huy():
 		loc["vgb_huy"] = 0   # tờ nháp đã đánh dấu huỷ không làm chứng từ được
-	ds = frappe.get_list("Purchase Invoice", filters=loc,
-		or_filters={"name": ["like", "%" + tu_khoa + "%"], "bill_no": ["like", "%" + tu_khoa + "%"]},
+	# v583: tim theo tung tu, bo dau, bo dau cau (tim_kiem.py).
+	from vagabond import tim_kiem
+
+	ds = frappe.get_list("Purchase Invoice",
+		filters=tim_kiem.them_loc(loc, "Purchase Invoice", tu_khoa, ["name", "bill_no"]),
 		fields=["name", "bill_no", "bill_date", "grand_total", "docstatus"],
 		order_by="posting_date desc", limit_page_length=0)
 	# v530: get_list kèm luật quyền có thể trả một tờ hai lần (ảnh chị Dung
@@ -874,7 +877,10 @@ def ung_vien_hoa_don(name, tu_khoa="", moi_ncc=0):
 		loc["supplier"] = ["in", nhom]
 	or_loc = None
 	if tu_khoa:
-		or_loc = {"name": ["like", "%" + tu_khoa + "%"], "bill_no": ["like", "%" + tu_khoa + "%"]}
+		# v583: tim theo tung tu, bo dau, bo dau cau (tim_kiem.py).
+		from vagabond import tim_kiem
+
+		or_loc = [tim_kiem.loc_ten("Purchase Invoice", tu_khoa, ["name", "bill_no", "supplier_name"])]
 	ds = _bo_trung(frappe.get_list("Purchase Invoice", filters=loc, or_filters=or_loc,
 		fields=["name", "bill_no", "bill_date", "posting_date", "supplier", "supplier_name",
 			"grand_total", "outstanding_amount", "docstatus"],

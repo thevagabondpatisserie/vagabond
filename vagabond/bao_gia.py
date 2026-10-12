@@ -951,20 +951,15 @@ def danh_sach(trang_thai=None, loc=None, tim=None, ban_cu=None):
 	# cho nay doc 400 to moi sua nhat roi moi loc bang Python, nen mot to
 	# bao gia cu hon 400 to do la go ma vao o tim khong bao gio ra, va con
 	# so tren chip cung chi dem trong cua so 400 to ay.
-	hoac = None
+	from vagabond import tim_kiem
+
 	q = str(tim or "").strip()
-	if q:
-		hoac = [
-			["name", "like", "%" + q + "%"],
-			["ten", "like", "%" + q + "%"],
-			["ten_khach", "like", "%" + q + "%"],
-		]
 	tat_ca = frappe.get_all(
 		DT,
 		# Mau bao gia khong phai to that nen khong nam trong danh sach.
 		# Mau xem va quan ly rieng o man "Mau bao gia".
-		filters={"la_mau": 0},
-		or_filters=hoac,
+		# v583: tim theo tung tu, bo dau, bo dau cau (tim_kiem.py).
+		filters=tim_kiem.them_loc({"la_mau": 0}, DT, q, ["name", "ten", "ten_khach"]),
 		fields=[
 			"name", "ten", "trang_thai", "khach_hang", "ten_khach",
 			"ngay_bao_gia", "hieu_luc_den", "tong_cong", "hop_dong",
@@ -1579,15 +1574,12 @@ def tim_khach(tim=None, so_dong=60):
 		)
 	# Loan Anh nhieu khi chi cam moi cai ma so thue, hoac chi nho so dien
 	# thoai. Tim mot cot ten thoi la bat ho phai nho dung ten dang ky.
+	from vagabond import tim_kiem
+
 	return frappe.get_all(
 		"Customer",
-		filters={"disabled": 0},
-		or_filters={
-			"name": ["like", "%%%s%%" % q],
-			"customer_name": ["like", "%%%s%%" % q],
-			"tax_id": ["like", "%%%s%%" % q],
-			"mobile_no": ["like", "%%%s%%" % q],
-		},
+		filters=tim_kiem.them_loc({"disabled": 0}, "Customer", q,
+			["name", "customer_name", "tax_id", "mobile_no"]),
 		fields=truong,
 		order_by="customer_name asc",
 		limit_page_length=n,

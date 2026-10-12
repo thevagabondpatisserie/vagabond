@@ -2801,10 +2801,10 @@ def thong_tin_chuyen_khoan(ho_so=None):
 @frappe.whitelist()
 def ds_ngan_hang(tim=""):
 	"""Danh sach ngan hang cho o chon tren app."""
-	loc = {}
-	if (tim or "").strip():
-		loc = {"name": ["like", "%%%s%%" % tim.strip()]}
-	return frappe.get_all("Bank", filters=loc, fields=["name"], limit_page_length=60, order_by="name")
+	from vagabond import tim_kiem
+
+	return frappe.get_all("Bank", filters=tim_kiem.them_loc({}, "Bank", tim, ["name"]),
+		fields=["name"], limit_page_length=60, order_by="name")
 
 
 @frappe.whitelist()
@@ -3006,32 +3006,19 @@ def ds(trang_thai="", so_dong=100, tim=""):
 	if tt and tt != "tat_ca":
 		loc["trang_thai"] = tt
 	tim = (tim or "").strip()
+	hoac = None
 	if tim:
 		# Ba cho nguoi ta go vao o tim: ten khach, ma phieu, ma hoa don.
-		# frappe.get_all khong co "hoac" giua nhieu truong nen phai dung
-		# or_filters.
-		ma_kh_tim = [
-			c["name"]
-			for c in frappe.get_all(
-				"Customer",
-				filters={"customer_name": ["like", "%%%s%%" % tim]},
-				fields=["name"],
-				limit_page_length=200,
-			)
-		]
-		hoac = [
-			["name", "like", "%%%s%%" % tim],
-			["hoa_don", "like", "%%%s%%" % tim],
-			# Phiếu của đơn Pancake đã huỷ không có mã hoá đơn nào, thứ kế
-			# toán gõ vào ô tìm sẽ là mã đơn.
-			["ma_don_pancake", "like", "%%%s%%" % tim],
-			["ten_tk", "like", "%%%s%%" % tim],
-			["so_tk", "like", "%%%s%%" % tim],
-		]
+		# v583: tim theo tung tu, bo dau, bo dau cau qua tim_kiem.py.
+		from vagabond import tim_kiem
+
+		ma_kh_tim = tim_kiem.ten_khop("Customer", tim, ["name", "customer_name"], 200) or []
+		# Phiếu của đơn Pancake đã huỷ không có mã hoá đơn nào, thứ kế
+		# toán gõ vào ô tìm sẽ là mã đơn.
+		ten = tim_kiem.ten_khop(DT, tim, ["name", "hoa_don", "ma_don_pancake", "ten_tk", "so_tk"]) or []
+		hoac = [["name", "in", ten or ["\x00khong-co"]]]
 		if ma_kh_tim:
 			hoac.append(["khach", "in", ma_kh_tim])
-	else:
-		hoac = None
 
 	ds_ = frappe.get_all(
 		DT,

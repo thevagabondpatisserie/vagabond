@@ -428,7 +428,7 @@ def _bc_khuyen_mai(hd, tu=None, den=None, **kw):
 	"""BC06 - chuong trinh khuyen mai: bao nhieu luot, giam bao nhieu tien."""
 	ds = frappe.get_all(
 		"Vagabond CTKM Su Dung",
-		filters={"ngay": ["between", [str(tu), str(den)]]},
+		filters={"ngay": ["between", [str(tu), str(den)]], "da_tra": 0},
 		fields=["ten_ctkm", "loai", "tien_giam", "thu_ngan", "quay", "hoa_don", "voucher"],
 		limit_page_length=0,
 	)

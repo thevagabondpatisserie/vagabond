@@ -222,7 +222,7 @@ async function scrKeHoachSX() {
     var ds = goc.filter(function (x) {
       if (khsx.bep && x.bep !== khsx.bep) return false;
       if (khsx.muc && x.muc !== khsx.muc) return false;
-      if (q && (x.ten + ' ' + x.ma).toLowerCase().indexOf(q) < 0) return false;
+      if (q && !vgbKhop([x.ten, x.ma], q)) return false; /* v583: tim theo tung tu, bo dau, bo dau cau (vgbKhop). */
       return true;
     });
 

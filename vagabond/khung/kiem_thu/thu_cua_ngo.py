@@ -37,9 +37,12 @@ GOI = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))
 CUA_NGO = {
 	# #367: don dat banh tu website. tao_don va cau_hinh_web mo cho khach
 	# vang lai; cac ham con lai cua don_web la noi bo (hook, nhip, hang doi).
-	"don_hang.py": ["tao_don"],
+	"don_hang.py": ["tao_don", "xem_uu_dai"],
 	"don_web.py": ["cau_hinh_web"],
-	"noi_dung_web.py": ["cong_khai", "doc_bang", "tai_anh", "luu", "san_pham_bien_tap"],
+	# v586: trình biên tập theo thẻ (lưu từng mục, khách thấy ngay) và đăng ký tiệc.
+	"noi_dung_web.py": ["cong_khai", "doc_bang", "tai_anh", "luu", "san_pham_bien_tap",
+		"bang_moi", "luu_muc", "xoa_muc_web", "luu_thong_tin", "luu_lien_he", "luu_nhan"],
+	"tiec_web.py": ["dang_ky"],
 	# #296: chốt cả danh sách để cửa Lưu đơn không mất whitelist.
 	"ban_hang.py": [
 		"otp_hien_tai", "pos_anh_quay_luu", "cau_hinh_ban_hang", "dong_bo_doanh_so",
@@ -61,6 +64,7 @@ CUA_NGO = {
 	"ghim.py": ["lay", "luu"],
 	# v570: trang Cài đặt lõi và API trên app. Phép thuần (bo_cuc, gia_tri,
 	# ep_kieu, kiem_thay_doi, kiem_dong_bang) KHÔNG mở ra ngoài.
+	"doi_soat_vendor.py": ["chi_tiet", "cua_hoa_don", "doi_chieu_lai", "ds", "dung_ban_sua", "nhan", "quet_email", "suc_khoe", "tai_len", "xac_nhan_noi", "xem_truoc"],
 	"cai_dat_loi.py": ["lay", "luu", "tim_lien_ket"],
 	# v550: trừ kho từng món và trừ bù. tru_bu, tru_bu_kho, xuat_ds là nội bộ
 	# (hook, việc nền, adapter Excel), không mở ra ngoài.
@@ -387,6 +391,13 @@ CUA_NGO = {
 	# Bon cua nua them 26/08/2026, cung lan dua viec lap dot len app:
 	# `danh_muc_dot` va `luu_dot` cho man lap dot, `xem_truoc_dan` va
 	# `nap_dan` cho man dan danh sach tu bang tinh.
+	# v583: mot cua tim cho moi o tim tren app (tach tung tu, bo dau).
+	"tim_kiem.py": ["tim"],
+	# v583: dat_bo_phan sua bo phan tung nguoi tren app; chot ca mo dun.
+	"nguoi_dung.py": [
+		"danh_sach", "danh_sach_goi", "chi_tiet", "dat_goi", "sua_quyen_le",
+		"bat_tat", "dat_bo_phan", "moi", "gui_lai_thu",
+	],
 	"tang_qua.py": ["chi_tiet", "danh_muc", "danh_muc_dot", "danh_sach",
 		"doi_trang_thai", "ds_dot", "khach_co_hang", "luu", "luu_dot",
 		"nap_dan", "nhan_ban_dot", "them_hang_loat", "thu_boc_sdt",

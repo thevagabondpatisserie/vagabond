@@ -421,8 +421,10 @@ def tim_nguoi_nhan(tu_khoa=""):
 	q = str(tu_khoa or "").strip()
 	hoac = None
 	if q:
-		hoac = [["full_name", "like", "%" + q + "%"],
-			["name", "like", "%" + q + "%"]]
+		# v583: tim theo tung tu, bo dau, bo dau cau (tim_kiem.py).
+		from vagabond import tim_kiem
+
+		hoac = [tim_kiem.loc_ten("User", q, ["full_name", "name"])]
 	ds = frappe.get_all(
 		"User", filters=loc, or_filters=hoac,
 		fields=["name", "full_name"], order_by="full_name asc",

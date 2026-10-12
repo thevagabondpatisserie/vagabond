@@ -820,6 +820,18 @@ async function api(method, args) {
   }
 }
 function getList(dt, o) { o = o || {}; o.doctype = dt; if (o.limit_page_length === undefined || o.limit_page_length === null) o.limit_page_length = 100; return api('frappe.client.get_list', o); }
+/* v583 (anh Viet 07/10/2026): o tim hoi may chu thi di qua DAY, khong tu
+   viet or_filters like '%cum chu%' nua. May chu tach tung tu, bo dau, bo dau
+   cau, coi đ nhu d (vagabond/tim_kiem.py), van soat quyen doc nhu getList.
+   cot: cac cot de tim (mac dinh: ma va o tieu de cua doctype). */
+function timList(dt, q, cot, o) {
+  o = o || {};
+  return api('vagabond.tim_kiem.tim', {
+    doctype: dt, tu_khoa: q || '', cot: JSON.stringify(cot || []),
+    fields: JSON.stringify(o.fields || ['name']), filters: JSON.stringify(o.filters || {}),
+    gioi_han: o.limit_page_length || 100, order_by: o.order_by || ''
+  });
+}
 
 /* Bo dau tieng Viet, bo moi ky tu khong phai chu hoac so. Dung cho MOI o
    tim trong app: go "banh nuong" ra "Bánh nướng", go thua mot dau cach hay
@@ -833,13 +845,35 @@ function vgbChuan(s) {
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
 }
-/* Tim theo TU: moi tu go ra deu phai co mat, khong cần dung thu tu. */
+/* Tim theo TU: moi tu go ra deu phai co mat, khong can dung thu tu.
+
+   v583 (anh Viet 07/10/2026): DAY LA PHEP DUY NHAT cho moi o tim loc tren
+   may khach, cung luat voi vagabond/tim_kiem.py o may chu:
+   - bo dau, đ thanh d, bo dau cau: "chocolatine mini" ra "Bánh Chocolatine,
+     Mini size", "duong" ra "Đường đen";
+   - tu ngan (mot hai ky tu) phai dung dau mot tieng, khong thi "banh o" ra
+     ca "Croissant";
+   - tu dai khop o bat ky dau, ca ban dinh lien: "chocolatinemini" van ra.
+   `kho` la chuoi hoac mang chuoi (ten, ma, ma vach...). */
 function vgbKhop(kho, tim) {
   var t = vgbChuan(tim);
   if (!t) return true;
-  var k = vgbChuan(kho);
+  if (Object.prototype.toString.call(kho) === '[object Array]') {
+    kho = kho.filter(function (x) { return x !== null && x !== undefined; }).join(' ');
+  }
+  var k = vgbChuan(kho), k2 = k.replace(/ /g, '');
   var tu = t.split(' ');
-  for (var i = 0; i < tu.length; i++) if (k.indexOf(tu[i]) < 0) return false;
+  var motTu = tu.length === 1;
+  for (var i = 0; i < tu.length; i++) {
+    var w = tu[i];
+    if (w.length < 3) {
+      /* Go mot tu ngan (dang go do): dau mot tieng la du. Go nhieu tu: tu ngan
+         co chu cai phai la NGUYEN mot tieng ("water bt" khong ra moi ma
+         ACC-BTN), tu ngan toan so van khop dau tieng ("12" ra "12cm"). */
+      var duoi = (motTu || /^[0-9]+$/.test(w)) ? '' : '(?![a-z0-9])';
+      if (!new RegExp('(^|[^a-z0-9])' + w + duoi).test(k)) return false;
+    } else if (k.indexOf(w) < 0 && k2.indexOf(w) < 0) return false;
+  }
   return true;
 }
 
@@ -973,7 +1007,7 @@ function sheet(title, items, cur, onPick, searchable) {
   var lst = box.querySelector('.shl');
   function draw(q) {
     q = (q || '').toLowerCase();
-    var f = items.filter(function (it) { return !q || ((it.label || '') + ' ' + (it.tim || '') + ' ' + (it.value || '')).toLowerCase().indexOf(q) >= 0; });
+    var f = items.filter(function (it) { return vgbKhop([it.label, it.tim, it.value], q); }); /* v583: tim theo tung tu, bo dau, bo dau cau (vgbKhop). */
     lst.innerHTML = f.length ? f.map(function (it, i) {
       return '<div class="shi' + (it.value === cur ? ' on' : '') + '" data-i="' + items.indexOf(it) + '">' +
         (it.img ? '<img src="' + it.img + '" style="width:36px;height:36px;object-fit:cover;border-radius:8px;flex:none;border:1px solid #e5e7eb" loading="lazy">' : (it.icon ? '<span>' + it.icon + '</span>' : '')) + '<span style="flex:1;min-width:0">' + h(it.label) + (it.phu ? '<div style="color:#a0a6b4;font-size:12px;margin-top:2px">' + h(it.phu) + '</div>' : '') + '</span>' +

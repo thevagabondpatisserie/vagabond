@@ -211,7 +211,7 @@ async function scrXkPvNew() {
     return ds.filter(function (d) {
       if (st.nhan && d.nhan !== st.nhan) return false;
       if (!q) return true;
-      return (d.ten + ' ' + d.ma + ' ' + d.nhom).toLowerCase().indexOf(q) >= 0;
+      return vgbKhop([d.ten, d.ma, d.nhom], q); /* v583: tim theo tung tu, bo dau, bo dau cau (vgbKhop). */
     });
   }
 

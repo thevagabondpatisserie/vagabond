@@ -7,7 +7,7 @@
  "field_order": [
   "ngay", "luc", "loai", "ctkm", "ten_ctkm", "cb0", "voucher", "combo",
   "hoa_don", "tien_giam", "sb1", "thu_ngan", "quay", "kenh", "cb1",
-  "khach", "sdt", "cach_duyet", "ghi_chu"
+  "khach", "sdt", "cach_duyet", "ghi_chu", "da_tra"
  ],
  "fields": [
   {"fieldname": "ngay", "fieldtype": "Date", "label": "Ngay", "reqd": 1, "in_list_view": 1, "in_standard_filter": 1},
@@ -29,10 +29,11 @@
   {"fieldname": "khach", "fieldtype": "Data", "label": "Khach"},
   {"fieldname": "sdt", "fieldtype": "Data", "label": "Dien thoai"},
   {"fieldname": "cach_duyet", "fieldtype": "Data", "label": "Cach duyet"},
-  {"fieldname": "ghi_chu", "fieldtype": "Small Text", "label": "Ghi chu"}
+  {"fieldname": "ghi_chu", "fieldtype": "Small Text", "label": "Ghi chu"},
+  {"fieldname": "da_tra", "fieldtype": "Check", "label": "Da tra luot (don web bi huy)", "default": "0", "read_only": 1, "description": "Don web bi Pancake tu choi hoac huy: luot da tra lai, khong tinh vao han muc. Dong giu nguyen de tra (QT-20)."}
  ],
  "links": [],
- "modified": "2026-08-11 06:00:00.000000",
+ "modified": "2026-10-11 09:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond CTKM Su Dung",

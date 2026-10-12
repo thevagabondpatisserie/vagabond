@@ -460,10 +460,12 @@ def ly_do_thieu_hd(ncc=None, so_ngay=365, tu_khoa=""):
 	# loc tren DOM thi to thu 501 khong bao gio tra ra duoc, du du lieu co
 	# that. Loc theo tu khoa TRUOC khi cat thi go so hoa don nao cung ra,
 	# ke ca to nam ngoai 500 to dau.
-	q = (tu_khoa or "").strip().lower()
+	q = (tu_khoa or "").strip()
 	if q:
-		hd = [x for x in hd
-			if q in ((x["name"] or "") + " " + (x["so_hd_ncc"] or "")).lower()]
+		# v583: tim theo tung tu, bo dau, bo dau cau (tim_kiem.py).
+		from vagabond import tim_kiem
+
+		hd = [x for x in hd if tim_kiem.khop([x["name"], x["so_hd_ncc"]], q)]
 	nhom, chon_duoc = chon_ncc.gom_ly_do(hd, str(moc), ho_so_giu)
 	ra = []
 	for ma in chon_ncc.THU_TU_LY_DO:
@@ -1301,12 +1303,14 @@ def ds_nguoi_ung(tu_khoa=""):
 			quen[r.nha_cung_cap] = r.ten_ncc or r.nha_cung_cap
 			thu_tu.append(r.nha_cung_cap)
 
-	loc = {"disabled": 0}
+	from vagabond import tim_kiem
+
 	q = (tu_khoa or "").strip()
-	if q:
-		loc["supplier_name"] = ["like", "%" + q + "%"]
 	ds = frappe.get_all(
-		"Supplier", filters=loc, fields=["name", "supplier_name"],
+		"Supplier",
+		# v583: tim theo tung tu, bo dau, bo dau cau (tim_kiem.py).
+		filters=tim_kiem.them_loc({"disabled": 0}, "Supplier", q, ["name", "supplier_name", "tax_id"]),
+		fields=["name", "supplier_name"],
 		order_by="supplier_name asc", limit_page_length=300,
 	)
 	ten = {r.name: (r.supplier_name or r.name) for r in ds}
@@ -1416,9 +1420,12 @@ def ds_tai_khoan(tu_khoa="", gioi_han=40):
 		)
 	ds = []
 	if q:
+		from vagabond import tim_kiem
+
 		ds = frappe.get_all(
-			"Account", filters=loc,
-			or_filters={"name": ["like", "%" + q + "%"], "account_name": ["like", "%" + q + "%"]},
+			"Account",
+			# v583: tim theo tung tu, bo dau, bo dau cau (tim_kiem.py).
+			filters=tim_kiem.them_loc(loc, "Account", q, ["name", "account_name", "account_number"]),
 			fields=["name", "account_name", "account_type", "root_type"],
 			order_by="name asc", limit_page_length=han,
 		)
@@ -4335,20 +4342,13 @@ def ds_phieu_noi_bo(tu_khoa="", so_ngay=180, gioi_han=60, so_tien=0, noi_dung=""
 	if cint(so_ngay) > 0:
 		loc["creation"] = [">=", add_days(nowdate(), -cint(so_ngay))]
 	q = (tu_khoa or "").strip()
+	from vagabond import tim_kiem
+
 	try:
 		ds = frappe.get_all(
 			DNC,
-			filters=loc,
-			or_filters=(
-				{
-					"name": ["like", "%" + q + "%"],
-					"ten_khoan_chi": ["like", "%" + q + "%"],
-					"nguoi_tao": ["like", "%" + q + "%"],
-					"dien_giai": ["like", "%" + q + "%"],
-				}
-				if q
-				else None
-			),
+			# v583: tim theo tung tu, bo dau, bo dau cau (tim_kiem.py).
+			filters=tim_kiem.them_loc(loc, DNC, q, ["name", "ten_khoan_chi", "nguoi_tao", "dien_giai"]),
 			fields=[
 				"name", "ten_khoan_chi", "so_tien", "tong_tien", "trang_thai",
 				"nguoi_tao", "ngay_can_tt", "dien_giai", "loai_nghiep_vu",

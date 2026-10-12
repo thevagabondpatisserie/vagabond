@@ -19,20 +19,23 @@ duyệt" gửi nhóm Kế toán. Các tin khác thêm dần sau khi chạy ổn.
 
 1. Thêm bot vào nhóm Zalo (ví dụ nhóm Kế toán).
 2. Trong nhóm, một người @nhắc bot một lần (gõ @tên bot và một chữ bất kỳ).
-3. Tải lại Vagabond Settings: ô **Chat vừa nhắn bot** hiện mã chat và tên
-   nhóm. Máy không lưu nội dung tin nhắn.
-4. Bảng **Nhóm nhận tin**: thêm dòng, bấm vào dòng để mở khung dòng, rồi:
-   - bấm **Chọn nhóm đã nhắn bot**, gõ vài chữ tên nhóm để tìm rồi chọn (máy điền mã chat, và tên
-     nhóm nếu còn trống; sửa Tên nhóm cho dễ nhận, ví dụ "Kế toán"). Mã chat
-     không gõ tay được và chỉ nhận nhóm, không nhận chat riêng;
-   - bấm **Chọn loại tin**, tích các loại nhóm này nhận (ví dụ Việc cần làm
-     `viec` và Cảnh báo `canh_bao`), bấm Xong;
-   - bấm **Chọn chủ đề**, tích chủ đề (ví dụ `cong_no`), bấm Xong.
-   Hai ô này không gõ tay được. Không tích gì là nhóm nhận TẤT CẢ tin.
-   Giờ im (nếu muốn) gõ đủ hai đầu dạng HH:MM, ví dụ 22:00 và 07:00. Lưu;
-   gõ sai mã hay giờ thì máy báo lỗi và không lưu.
-5. Bấm **Zalo > Gửi thử tới một nhóm**, chọn nhóm. Nhóm thấy tin thử là xong.
-   **Zalo > Xem trước tin mẫu** chỉ hiện nội dung, không gửi.
+3. Tải lại Vagabond Settings. Máy ghi lại nhóm vừa nhắn bot (không lưu nội
+   dung tin nhắn).
+4. Mục **Nhóm nhận tin** (tab Tin nhắn & cảnh báo): mỗi nhóm là một thẻ ghi
+   rõ nhận loại tin nào, chủ đề nào, giờ im, đang bật hay tắt. Bấm **+ Thêm
+   nhóm nhận tin** (hoặc **Sửa** trên thẻ), trong hộp hiện ra:
+   - ô **Nhóm Zalo**: gõ vài chữ tên nhóm để tìm rồi chọn. Chỉ hiện các nhóm
+     đã thêm bot và @nhắc bot, không có chat riêng;
+   - **Tên gọi trong ERP**: ví dụ Kế toán;
+   - tích các **loại tin** và **chủ đề** nhóm cần nhận, mỗi ô có dòng giải
+     thích. Không tích ô nào là nhận tất cả;
+   - **Giờ im** nếu muốn: đủ hai đầu dạng giờ:phút, ví dụ 22:00 và 07:00.
+   Bấm Xong, rồi bấm **Lưu** trang Cài đặt. Giờ gõ sai thì máy báo lỗi, không
+   lưu. Muốn bỏ nhóm thì bấm Sửa, chọn **Xoá nhóm này**, rồi Lưu.
+5. Bấm **Gửi thử** trên thẻ nhóm (hoặc nút **Gửi thử tới một nhóm** ngay trong
+   mục Bắn tin vào nhóm Zalo). Nhóm thấy tin thử là xong. **Xem trước tin
+   mẫu** chỉ hiện nội dung, không gửi. Trên app, màn Cài đặt lõi và API cũng
+   có nút **Gửi thử vào nhóm này** trên từng nhóm.
 
 ## 3. Năm loại tin
 

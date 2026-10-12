@@ -171,10 +171,11 @@ def tim_khach(tu_khoa=None, gioi_han=30):
 	tu = (tu_khoa or "").strip()
 	dieu_kien = {"disabled": 0}
 	if tu:
+		from vagabond import tim_kiem
+
 		return frappe.get_all(
 			"Customer",
-			filters=dieu_kien,
-			or_filters={"name": ["like", "%" + tu + "%"], "customer_name": ["like", "%" + tu + "%"]},
+			filters=tim_kiem.them_loc(dieu_kien, "Customer", tu, ["name", "customer_name"]),
 			fields=["name", "customer_name"],
 			order_by="customer_name",
 			limit_page_length=int(gioi_han or 30),
