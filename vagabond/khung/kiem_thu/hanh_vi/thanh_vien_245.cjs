@@ -10,8 +10,8 @@ function phanTu(the = 'div') {
   const cacO = {};
   const tim = id => cacO[id] ||= phanTu();
   let duLieu = {ok:1,ten:'Khách',diem:25000,don:[],don_loi:true,co_ho_so:true};
-  const nguon = fs.readFileSync('vagabond/public/web_order/thanh-vien.js','utf8');
-  await vm.runInNewContext(nguon, {document:{getElementById:tim,createElement:phanTu},
+  const nguon = (fs.readFileSync('vagabond/public/web_order/chu.js','utf8').split('(function ()')[0] + '\n' + fs.readFileSync('vagabond/public/web_order/thanh-vien.js','utf8'));
+  await vm.runInNewContext(nguon, {window:{},document:{getElementById:tim,createElement:phanTu},
     fetch:async()=>({ok:true,json:async()=>({message:duLieu})})});
   assert.match(tim('don').children[0].textContent,/Chưa tải được/);
   assert.ok(!tim('don').children.some(x=>x.textContent.includes('Chưa có đơn')));

@@ -17,6 +17,7 @@ no_cache = 1
 def get_context(context):
     frappe.local.no_cache = 1
     context.no_cache = 1
+    context.nguoi = frappe.session.user
     frappe.local.response_headers.update({"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"})
     nguoi = frappe.session.user
     ket_qua = quyet_vao_bang(nguoi, frappe.get_roles(nguoi) if nguoi != "Guest" else [])

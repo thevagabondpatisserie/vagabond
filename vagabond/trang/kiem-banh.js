@@ -2,8 +2,156 @@
    de bep gom san xuat truoc; banh HSD 3 ngay, lam truoc ra dong roi do glaze).
    Chay trong truong `javascript` cua Web Page /kiem-banh.
    Boot trong window load - bai hoc CSRF tu app /bep. */
+/* ---------------- O tim, chip nhom banh, chip trang thai (v571) ----------------
+   Anh Viet 04/10/2026: "man kiem banh thieu chip loc, chip trang thai, phan
+   loai theo nhom banh (Banh nuong, banh lanh, banh kho), o tim kiem san pham
+   theo ten theo ma".
+
+   Dung chung cho HAI khoi ben duoi (Kiem banh ngay va Kiem banh theo diem
+   ban), nen dat o day mot lan. Phan THUAN (nhom, bo dau, loc, dem) tach rieng
+   khoi phan ve de ca kiem chay duoc tren node.
+
+   Nhom lay theo TIEN TO MA, dung bang kiem_banh.TIEN_TO_THEM_TAY dang dung:
+   ca hai bang deu khong tra item_group, va tien to ma la cach chinh may chu
+   dang chia loai banh. */
+var KB_LOC = (function () {
+	var NHOM = [
+		{ k: "nuong", ten: "Bánh nướng", tien_to: ["BANU"] },
+		{ k: "lanh", ten: "Bánh lạnh", tien_to: ["BAEN"] },
+		{ k: "kho", ten: "Bánh khô", tien_to: ["BACF"] },
+		{ k: "sn", ten: "Bánh sinh nhật", tien_to: ["BAWC"] },
+		{ k: "mua", ten: "Hộp theo mùa", tien_to: ["BASS"] },
+		{ k: "si", ten: "Bánh sỉ", tien_to: ["BAWS"] },
+		{ k: "btp", ten: "Bán thành phẩm", tien_to: ["BTPB", "BTPN"] },
+		{ k: "khac", ten: "Khác", tien_to: [] }
+	];
+
+	function nhomCua(ma) {
+		var m = String(ma || "").toUpperCase();
+		for (var i = 0; i < NHOM.length; i++) {
+			for (var j = 0; j < NHOM[i].tien_to.length; j++) {
+				if (m.indexOf(NHOM[i].tien_to[j]) === 0) return NHOM[i].k;
+			}
+		}
+		return "khac";
+	}
+
+	function boDau(s) {
+		return String(s == null ? "" : s).toLowerCase()
+			.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+			.replace(/\u0111/g, "d").replace(/\s+/g, " ").trim();
+	}
+
+	/* Go "banh tra xanh" hay "baen 12" deu ra: moi tu go phai co trong ten
+	   HOAC ma, khong can dung thu tu, khong can dau. */
+	function khop(d, tim) {
+		var tu = boDau(tim).split(" ").filter(Boolean);
+		if (!tu.length) return true;
+		var kho = boDau((d.ma_hang || "") + " " + (d.ten_banh || ""));
+		for (var i = 0; i < tu.length; i++) if (kho.indexOf(tu[i]) < 0) return false;
+		return true;
+	}
+
+	/* st = {tim, nhom, tt}; cacTT = [{k, ten, loc(d)}]. Tra ve:
+	   ds   dong khop CA BA dieu kien, giu thu tu goc
+	   demN so dong moi nhom, tinh SAU tim va trang thai (bam chip la thay dung so do)
+	   demT so dong moi trang thai, tinh SAU tim va nhom */
+	function loc(dsGoc, st, cacTT) {
+		st = st || {};
+		var ttLoc = null;
+		(cacTT || []).forEach(function (t) { if (t.k === st.tt) ttLoc = t.loc; });
+		var demN = {}, demT = {}, ds = [];
+		(dsGoc || []).forEach(function (d) {
+			if (!khop(d, st.tim)) return;
+			var n = nhomCua(d.ma_hang);
+			var hopTT = !ttLoc || ttLoc(d);
+			var hopN = !st.nhom || st.nhom === n;
+			if (hopTT) demN[n] = (demN[n] || 0) + 1;
+			if (hopN) (cacTT || []).forEach(function (t) { if (t.loc(d)) demT[t.k] = (demT[t.k] || 0) + 1; });
+			if (hopTT && hopN) ds.push(d);
+		});
+		return { ds: ds, demN: demN, demT: demT };
+	}
+
+	/* Chia dong theo nhom, dung thu tu NHOM, bo nhom rong. */
+	function chiaNhom(ds) {
+		var theo = {};
+		ds.forEach(function (d) { var n = nhomCua(d.ma_hang); (theo[n] = theo[n] || []).push(d); });
+		return NHOM.filter(function (n) { return theo[n.k]; })
+			.map(function (n) { return { k: n.k, ten: n.ten, ds: theo[n.k] }; });
+	}
+
+	function chip(attr, k, chu, so, on) {
+		return '<button class="kb-chip kb-lc' + (on ? " on" : "") + '" ' + attr + '="' + k + '">'
+			+ chu + (so == null ? "" : ' <span class="kb-dem">' + so + "</span>") + "</button>";
+	}
+
+	/* Ve thanh loc vao hop `id`. O tim chi dung MOT lan roi giu nguyen, de
+	   dang go ma bang ve lai thi khong mat con tro. Hop khong co tren trang
+	   (trang cu) thi bo qua, loc khong co tac dung. */
+	function veThanh(id, st, kq, tong, cacTT, doi) {
+		var hop = document.getElementById(id);
+		if (!hop) return;
+		var oTim = document.getElementById(id + "-tim");
+		if (!oTim) {
+			hop.innerHTML = '<input id="' + id + '-tim" class="kb-tim" type="search" autocomplete="off" '
+				+ 'placeholder="🔎 Tìm bánh theo tên hoặc mã, gõ không dấu cũng được">'
+				+ '<div id="' + id + '-chip"></div>';
+			oTim = document.getElementById(id + "-tim");
+			oTim.value = st.tim || "";
+			oTim.oninput = function () { doi("tim", oTim.value); };
+		}
+		var x = '<div class="kb-hang">' + chip("data-lcn", "", "Tất cả nhóm", null, !st.nhom);
+		NHOM.forEach(function (n) {
+			var so = kq.demN[n.k] || 0;
+			if (so || st.nhom === n.k) x += chip("data-lcn", n.k, n.ten, so, st.nhom === n.k);
+		});
+		x += '</div><div class="kb-hang">' + chip("data-lct", "", "Mọi trạng thái", null, !st.tt);
+		(cacTT || []).forEach(function (t) {
+			x += chip("data-lct", t.k, t.ten, kq.demT[t.k] || 0, st.tt === t.k);
+		});
+		x += "</div>";
+		var chipHop = document.getElementById(id + "-chip");
+		chipHop.innerHTML = x;
+		chipHop.onclick = function (ev) {
+			var el = ev.target.closest("[data-lcn],[data-lct]");
+			if (!el) return;
+			if (el.hasAttribute("data-lcn")) doi("nhom", el.getAttribute("data-lcn"));
+			else doi("tt", el.getAttribute("data-lct"));
+		};
+	}
+
+	/* Dong bao khi loc ra rong: noi ro dang loc gi, kem nut bo loc. */
+	function rong(tong) {
+		return '<div class="kb-trong">Không có bánh nào khớp bộ lọc (bảng có ' + tong + ' dòng).<br>'
+			+ '<button class="kb-chip kb-bo-loc" data-boloc="1">Bỏ lọc</button></div>';
+	}
+
+	function tieuDe(ten, so) {
+		return '<div class="kb-nhom-td">' + ten + ' <span>' + so + "</span></div>";
+	}
+
+	return { NHOM: NHOM, nhomCua: nhomCua, boDau: boDau, khop: khop, loc: loc,
+		chiaNhom: chiaNhom, veThanh: veThanh, rong: rong, tieuDe: tieuDe };
+}());
+
 (function () {
 	var DL = null, DANG_SUA = null, VE_TRUOC = null, NGAY_CHON = null;
+	/* v571: bo loc cua bang (o tim, chip nhom, chip trang thai). Giu khi doi
+	   ngay: nguoi ta dang soi banh lanh thi qua ngay mai van muon soi banh lanh. */
+	var LOC = { tim: "", nhom: "", tt: "" };
+	var TT_NGAY = [
+		{ k: "con", ten: "Còn bán", loc: function (d) { return d.co_the_ban > 0; } },
+		{ k: "het", ten: "Hết", loc: function (d) { return !d.co_the_ban; } },
+		{ k: "am", ten: "Nhận lố", loc: function (d) { return d.co_the_ban < 0; } },
+		{ k: "cho", ten: "Khách chờ chốt", loc: function (d) { return d.cho_chot > 0; } },
+		{ k: "huy", ten: "Có huỷ", loc: function (d) { return d.huy > 0; } },
+		{ k: "web", ten: "Tắt web", loc: function (d) { return !!d.tat_web; } }
+	];
+	function doiLoc(k, v) {
+		LOC[k] = v || "";
+		ve();
+	}
 	var NGHI_DEN = 0;   // moc thoi gian duoc phep goi dong bo lai
 	var BTP = {}; // ma -> {so_btp, con_nhan} tu bang BTP cua bep
 	var BTP_SUA = false; // chi bep duoc sua (server quyet qua quyen_btp)
@@ -140,7 +288,7 @@
 		/* Dang go do trong o thi khong ve lai, ve lai la mat so dang go. */
 		var dangGo = document.getElementById("kb-inp");
 		if (DANG_SUA !== null && dangGo && document.activeElement === dangGo) return;
-		var khoa = JSON.stringify([NGAY_CHON, DL && DL.dong, DANG_SUA, BTP, BTP_SUA]);
+		var khoa = JSON.stringify([NGAY_CHON, DL && DL.dong, DANG_SUA, BTP, BTP_SUA, LOC]);
 		if (khoa === VE_TRUOC && g.childElementCount) return;
 		VE_TRUOC = khoa;
 		if (!DL || !DL.dong.length) {
@@ -148,8 +296,17 @@
 			return;
 		}
 		var h = "";
-		DL.dong.slice().sort(function (a, b) { return a.ma_hang < b.ma_hang ? -1 : 1; })
-			.forEach(function (d) {
+		var xep = DL.dong.slice().sort(function (a, b) { return a.ma_hang < b.ma_hang ? -1 : 1; });
+		var kq = KB_LOC.loc(xep, LOC, TT_NGAY);
+		KB_LOC.veThanh("kb-loc", LOC, kq, xep.length, TT_NGAY, doiLoc);
+		if (!kq.ds.length) {
+			g.innerHTML = KB_LOC.rong(xep.length);
+			return;
+		}
+		/* Chia theo nhom banh, moi nhom mot dong tieu de kem so dong. */
+		KB_LOC.chiaNhom(kq.ds).forEach(function (nh) {
+			h += KB_LOC.tieuDe(nh.ten, nh.ds.length);
+			nh.ds.forEach(function (d) {
 				var ban = d.co_the_ban;
 				h += '<div class="kb-the">'
 					+ '<div class="kb-ten">'
@@ -180,6 +337,7 @@
 					+ oNhan2(d.ma_hang)
 					+ "</div></div>";
 			});
+		});
 		g.innerHTML = h;
 		ganInput();
 		ganXoa(g);
@@ -403,6 +561,13 @@
 		});
 		document.getElementById("kb-luoi").addEventListener("click", function (ev) {
 			if (ev.target.closest("#kb-ok")) { luuO(); return; }
+			if (ev.target.closest("[data-boloc]")) {
+				LOC = { tim: "", nhom: "", tt: "" };
+				var oT = document.getElementById("kb-loc-tim");
+				if (oT) oT.value = "";
+				ve();
+				return;
+			}
 			var oEl = ev.target.closest(".kb-o.sua");
 			if (!oEl) return;
 			if (DL && DL.tinh_trang === "Da chot") { bao("Ngày này đã chốt sổ, không sửa nữa", true); return; }
@@ -887,6 +1052,20 @@
 			+ "<label>" + h(nhan) + "</label>" + trong + "</div>";
 	}
 
+	/* v571: bo loc rieng cho tab diem ban (o tim, nhom, trang thai). */
+	var LOC_KK = { tim: "", nhom: "", tt: "" };
+	var TT_KK = [
+		{ k: "con", ten: "Còn hàng", loc: function (d) { return d.co_the_ban > 0; } },
+		{ k: "het", ten: "Hết", loc: function (d) { return d.co_the_ban <= 0; } },
+		{ k: "lech", ten: "Lệch", loc: function (d) { return !!d.da_kiem && !!d.lech; } },
+		{ k: "chua_kiem", ten: "Chưa kiểm tay", loc: function (d) { return !d.da_kiem; } },
+		{ k: "chua_khai", ten: "Chưa khai tồn", loc: function (d) { return !d.theo_doi; } }
+	];
+	function doiLocKK(k, v) {
+		LOC_KK[k] = v || "";
+		ve();
+	}
+
 	function ve() {
 		var g = document.getElementById("kk-luoi");
 		if (!DL) { g.innerHTML = ""; return; }
@@ -904,7 +1083,13 @@
 			return;
 		}
 		var sua = !!DL.sua_duoc, x = "";
-		DL.dong.forEach(function (d) {
+		var kq = KB_LOC.loc(DL.dong, LOC_KK, TT_KK);
+		KB_LOC.veThanh("kk-loc", LOC_KK, kq, DL.dong.length, TT_KK, doiLocKK);
+		if (!kq.ds.length) { g.innerHTML = KB_LOC.rong(DL.dong.length); return; }
+		/* Gom theo nhom banh, trong nhom giu dung thu tu may chu tra ve. */
+		KB_LOC.chiaNhom(kq.ds).forEach(function (nh) {
+		x += KB_LOC.tieuDe(nh.ten, nh.ds.length);
+		nh.ds.forEach(function (d) {
 			x += '<div class="kb-the"><div class="kb-ten">'
 				+ anhMon(d.hinh)
 				+ "<b>" + h(d.ma_hang) + "</b><span>" + h(d.ten_banh) + "</span>"
@@ -926,6 +1111,7 @@
 			x += o(d, "kiem_tay", "Kiểm tay", d.da_kiem ? d.kiem_tay : "", sua, d.da_kiem ? "" : "chuakiem");
 			x += o(d, "lech", "Lệch", d.da_kiem ? d.lech : "", false, "lech" + (d.da_kiem && d.lech ? " co" : ""));
 			x += "</div></div>";
+		});
 		});
 		g.innerHTML = x;
 		ganInput();
@@ -1002,6 +1188,13 @@
 			NGAY = n.getAttribute("data-ngay"); DANG_SUA = null; veChips(); tai();
 		});
 		document.getElementById("kk-luoi").addEventListener("click", function (ev) {
+			if (ev.target.closest("[data-boloc]")) {
+				LOC_KK = { tim: "", nhom: "", tt: "" };
+				var oT = document.getElementById("kk-loc-tim");
+				if (oT) oT.value = "";
+				ve();
+				return;
+			}
 			var xo = ev.target.closest("button[data-xoa]");
 			if (xo) {
 				var ma = xo.getAttribute("data-xoa");

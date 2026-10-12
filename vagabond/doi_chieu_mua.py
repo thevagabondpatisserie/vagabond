@@ -370,13 +370,10 @@ def danh_sach(so_ngay=60, nhom=None, tu_khoa=""):
 		order_by="posting_date desc, name desc",
 		limit_page_length=0,
 	)
-	q = (tu_khoa or "").strip().lower()
-	ds = [
-		r
-		for r in ds
-		if not q
-		or q in ((r.name or "") + " " + (r.supplier_name or "") + " " + (r.bill_no or "")).lower()
-	]
+	# v583: tim theo tung tu, bo dau, bo dau cau (tim_kiem.py).
+	from vagabond import tim_kiem
+
+	ds = [r for r in ds if tim_kiem.khop([r.name, r.supplier_name, r.bill_no], tu_khoa)]
 	nhap = [r["name"] for r in ds if r.get("docstatus") == 0]
 	ncc = sorted({r["supplier"] for r in ds if r.get("docstatus") == 0 and r.get("supplier")})
 

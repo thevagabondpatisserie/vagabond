@@ -1037,7 +1037,8 @@ la("loc rong thi noi ro phai lam gi (QT-24)",
 # trong khi mua co ca Dua Buoi lan Dua Sap. Tren dien thoai, giua luc dang
 # noi chuyen voi khach, gan nhu khong ai go du dau.
 la("co phep bo dau tieng Viet", "function mvKhongDau" in _mv_man, True)
-la("o tim di qua phep bo dau", "mvKhongDau(q)" in _mv_man, True)
+# v583: mvKhop di qua phep chung vgbKhop (bo dau, bo dau cau, tung tu).
+la("o tim di qua phep bo dau", "return vgbKhop([x.ten_banh, x.ma_hang, x.nhan_ngan], q);" in _mv_man, True)
 
 def _kd(x):
 	import unicodedata
@@ -1340,9 +1341,10 @@ for _t in ("ly_do_tu_choi", "nguoi_tu_choi", "ngay_tu_choi"):
 _than_ds2 = _ht_src.split("def ds(")[1].split("\ndef ")[0]
 la("ham ds nhan o tim", "tim=\"\"" in _ht_src.split("def ds(")[1][:60], True)
 la("o tim chay o may chu chu khong loc mang", "or_filters=hoac" in _than_ds2, True)
-la("tim duoc theo ten khach", '"customer_name": ["like"' in _than_ds2, True)
-la("tim duoc theo ma phieu", '["name", "like"' in _than_ds2, True)
-la("tim duoc theo ma hoa don", '["hoa_don", "like"' in _than_ds2, True)
+# v583: tim qua tim_kiem (tach tung tu, bo dau, bo dau cau), mot nguon.
+la("tim duoc theo ten khach", 'tim_kiem.ten_khop("Customer", tim, ["name", "customer_name"]' in _than_ds2, True)
+la("tim duoc theo ma phieu", '["name", "hoa_don", "ma_don_pancake", "ten_tk", "so_tk"]' in _than_ds2, True)
+la("tim duoc theo ma hoa don", '"hoa_don"' in _than_ds2, True)
 # Con so tren chip phai dem theo dung o tim dang go, neu khong thi go mot
 # tu ra 3 dong ma chip van bao 40.
 la("chip dem theo ca o tim dang go", "or_filters=hoac" in _than_ds2.split("dem = {}")[1], True)
@@ -3178,9 +3180,13 @@ except Exception as _e32:
 # tao_don_tay phai nhan ve va goi dung_ve SAU khi hoa don da luu.
 la("tao_don_tay nhan ve_diem", "\tve_diem=\"\"," in _bh2_src, True)
 la("tao_don_tay goi dung_ve", "_diem.dung_ve(ve_diem.strip(), si.name)" in _bh2_src, True)
-_i_save = _bh2_src.find("\tsi.flags.ignore_permissions = True\n\tsi.save()\n\tfrappe.db.commit()")
+# Codex #460 (v589): giữa si.save() và commit nay có bước ghi lượt khuyến
+# mãi (giữ khoá chương trình tới commit). Điều cần chốt vẫn y nguyên: trừ
+# điểm SAU khi hoá đơn đã lưu VÀ đã commit.
+_i_save = _bh2_src.find("\tsi.flags.ignore_permissions = True\n\tsi.save()\n")
 _i_ve = _bh2_src.find("_diem.dung_ve(")
-la("goi dung_ve SAU khi luu hoa don", _i_save > 0 and _i_ve > _i_save, True)
+_i_cm = _bh2_src.find("\tfrappe.db.commit()\n", _i_save)
+la("goi dung_ve SAU khi luu hoa don", _i_save > 0 and _i_save < _i_cm < _i_ve, True)
 # Khong duoc boc try quanh dung_ve: nuot loi thi thu ngan tuong da giam
 # tien cho khach trong khi bill thu du.
 _khoi_ve = _bh2_src[_i_ve - 400:_i_ve] if _i_ve > 400 else ""
@@ -4841,7 +4847,8 @@ la("doi chip loai thi bo chip trang thai cu",
    "vclLoc.trang_thai = '';" in _tc43, True)
 
 # --- PWA ---
-la("manifest co ten thuong hieu", _mf43.get("short_name"), "Vagabond")
+# 03/10/2026 anh Viet chot ten bieu tuong tren man hinh chinh: ERP The Vagabond.
+la("manifest co ten thuong hieu", _mf43.get("short_name"), "ERP The Vagabond")
 la("manifest mo thang vao app", _mf43.get("start_url"), "/bep")
 _ic43 = {str(i.get("sizes")): i for i in _mf43.get("icons") or []}
 la("co bieu tuong 192", "192x192" in _ic43, True)
@@ -5849,7 +5856,7 @@ la("so tai khoan chua khai duoc dien san vao o", "(d.chua_map || [])[0]" in _js1
 _tai46 = _ht46.split("def tai_unc(")[1].split("\n@frappe.whitelist()")[0]
 la("tai_unc doi tep phai dinh dung phieu chi cua ho so",
    '"attached_to_name": ma_pe' in _tai46, True)
-la("tai_unc co cong chan quyen", "_kiem_quyen()" in _tai46, True)
+la("tai_unc co cong chan quyen", "_kiem_quyen_ban()" in _tai46, True)
 la("hinh thu nho co gioi han kich thuoc", "thumbnail((360, 360))" in _tai46, True)
 la("khong nen duoc thi tra nguyen ban chu khong vo", "pass" in _tai46.split("except Exception:")[-1], True)
 _dsu46 = _ht46.split("def _ds_unc(")[1].split("\n@frappe.whitelist()")[0]

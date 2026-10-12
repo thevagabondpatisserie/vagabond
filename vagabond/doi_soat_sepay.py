@@ -153,7 +153,8 @@ def cau_loi_sau_khop(e, vet=""):
 
 def khai(loai, doctype, chieu, ma_do, so_tien, dang_cho, khi_khop=None,
 		ten_man="", truong_gd="ma_gd", loc_chiem=None,
-		truong_nguoi="", truong_luc="", loi_giao_dich=None, loi_phieu=None):
+		truong_nguoi="", truong_luc="", loi_giao_dich=None, loi_phieu=None,
+		quyen_doc=None, quyen_ghi=None):
 	"""Khai một luồng đối soát vào sổ chung.
 
 	  loai       khoa ngan, man hinh goi cua ngo bang khoa nay
@@ -165,6 +166,13 @@ def khai(loai, doctype, chieu, ma_do, so_tien, dang_cho, khi_khop=None,
 	  khi_khop   ham nhan (doc, ma_gd) chay khi khop duoc. Bo trong thi tang
 	             nay chi danh dau `truong_gd` chu khong lam gi them.
 	  truong_gd  truong luu ma giao dich ngan hang tren phieu
+	  quyen_doc  ham kiem quyen xem ung vien (khong ghi gi), bo trong la cong chung
+	  quyen_ghi  ham kiem quyen khop tay, tu dong khop; bo trong la cong chung
+
+	Codex #400 v5: cua ngo chung nhan `loai` tu nguoi goi, nen quyen PHAI di
+	theo luong da khai. Kiem bang cong chung thi vai "Bo phan dat hang" goi
+	thang khop_tay("hoan_tien") hay ("cong_no") duoc, vuot qua cua rieng cua
+	luong do.
 	"""
 	_SO[loai] = {
 		"doctype": doctype, "chieu": chieu, "ma_do": ma_do, "so_tien": so_tien,
@@ -172,7 +180,26 @@ def khai(loai, doctype, chieu, ma_do, so_tien, dang_cho, khi_khop=None,
 		"truong_gd": truong_gd, "loc_chiem": loc_chiem or {},
 		"truong_nguoi": truong_nguoi, "truong_luc": truong_luc,
 		"loi_giao_dich": loi_giao_dich, "loi_phieu": loi_phieu,
+		"quyen_doc": quyen_doc, "quyen_ghi": quyen_ghi,
 	}
+
+
+def _cong_chung():
+	from vagabond.ban_hang import _kiem_quyen
+
+	_kiem_quyen()
+
+
+def kiem_quyen_luong(loai, ghi):
+	"""Kiem quyen THEO LUONG da khai. Goi truoc moi lan doc phieu.
+
+	Luong khong khai quyen rieng (ttnb) giu nguyen cong chung nhu truoc.
+	"""
+	nap_so()
+	b = _ban(loai)
+	ham = b.get("quyen_ghi" if ghi else "quyen_doc") or _cong_chung
+	ham()
+	return b
 
 
 def _loi_giao_dich(b, g):
@@ -414,11 +441,7 @@ def tu_dong(loai, ma_phieu=None, so_ngay=45):
 	dấu vừa ghi, và phiếu nằm mãi ở "Chờ chi" dù tiền đã rời tài khoản. Hai
 	sự thật khác hẳn nhau, không được gộp làm một.
 	"""
-	from vagabond.ban_hang import _kiem_quyen
-
-	_kiem_quyen()
-	nap_so()
-	b = _ban(loai)
+	b = kiem_quyen_luong(loai, ghi=True)
 
 	loc = dict(b["dang_cho"])
 	if ma_phieu:
@@ -532,10 +555,7 @@ def ung_vien(loai, ma_phieu, so_ngay=45, tu_khoa="", tai_khoan="", thu_tu="goi_y
 	if loai == "app":
 		from vagabond.doi_chieu_app import ung_vien_chung
 		return ung_vien_chung(ma_phieu, so_ngay, tu_khoa, tai_khoan, thu_tu, bat_dau)
-	from vagabond.ban_hang import _kiem_quyen
-	_kiem_quyen()
-	nap_so()
-	b = _ban(loai)
+	b = kiem_quyen_luong(loai, ghi=False)
 	doc = frappe.get_doc(b["doctype"], ma_phieu)
 	ma = str(b["ma_do"](doc) or "").strip()
 	tien = flt(b["so_tien"](doc))
@@ -557,11 +577,7 @@ def khop_tay(loai, ma_phieu, ma_gd):
 	Lệch tiền thì CẢNH BÁO chứ không chặn: ngân hàng có thể trừ phí, kế toán
 	có thể chuyển làm hai lần. Nhưng con số phải được nói ra thành lời.
 	"""
-	from vagabond.ban_hang import _kiem_quyen
-
-	_kiem_quyen()
-	nap_so()
-	b = _ban(loai)
+	b = kiem_quyen_luong(loai, ghi=True)
 	doc = frappe.get_doc(b["doctype"], ma_phieu)
 	loi_phieu = b["loi_phieu"](doc) if b.get("loi_phieu") else None
 	if loi_phieu:

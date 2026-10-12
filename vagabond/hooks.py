@@ -282,6 +282,7 @@ scheduler_events = {
 # duong tao hoa don, khong rieng man Doanh thu Sales.
 doc_events = {
 	"Vagabond Dat Ban": {"after_insert": "vagabond.dat_ban.bao_dat_ban_moi"},
+	"Vagabond Dang Ky Tiec": {"after_insert": "vagabond.tiec_web.bao_moi"},
 	"MInvoice NCC Map": {"validate": "vagabond.quy_cach_ncc.kiem"},
 	# #351: Task sinh tu man Viec hom nay khong duoc danh dau xong ma thieu
 	# ket qua, ke ca khi bam tren Desk. Ham tu bo qua Task khong phai cua minh.
@@ -390,6 +391,9 @@ doc_events = {
 	# HAI PHIEN CUNG THEM VAO DAY trong ngay 03/09/2026, giu CA HAI theo quy
 	# tac 8: cung them vao mot cho thi khong ai duoc chon bo ai.
 	"Stock Reconciliation": {
+		# v547: gia von trong hoac 0 thi dien theo so kho, go o lo cu sau v545.
+		# Mot luat chung cho Desk va app, doc dau tep gia_von_kiem_ke.py.
+		"before_validate": ["vagabond.gia_von_kiem_ke.dien_gia"],
 		"validate": ["vagabond.kho_san_xuat.canh_bao_kiem_ke_sai_kho"],
 	},
 	"Stock Entry": {
@@ -397,6 +401,9 @@ doc_events = {
 		"before_validate": [
 			"vagabond.tai_khoan_chi_phi.kiem",
 			"vagabond.lo_het_han.mo_chot",
+			# v552: mã KHÔNG theo lô thiếu thì lấy mã thay thế đã khai, trước
+			# gan_lo (gan_lo chỉ xét dòng theo lô). Đọc lo_hang.thay_ma_khong_lo.
+			"vagabond.lo_hang.thay_ma_khong_lo",
 			"vagabond.lo_hang.gan_lo",
 			"vagabond.kho_san_xuat.gan_kho_thanh_pham",
 		],
@@ -616,7 +623,12 @@ doc_events = {
 		# Chi nghe HOA DON luc ghi so, va chi nhan dong co don vi sach. Doc
 		# dau tep bang_gia_nhap.py de biet vi sao khong bat thang o cua
 		# ERPNext.
-		"on_submit": "vagabond.bang_gia_nhap.cap_nhat_tu_hoa_don",
+		"on_submit": [
+			"vagabond.bang_gia_nhap.cap_nhat_tu_hoa_don",
+			# v551: tờ nối làm hoá đơn đến sau của hồ sơ đã chi trả trước NCC
+			# thì máy tự phân bổ phiếu chi trả trước vào tờ ngay lúc ghi sổ.
+			"vagabond.tra_truoc_ncc.khi_ghi_so_hd",
+		],
 	},
 	# De nghi chi noi bo: dien ho tai khoan hach toan va tai khoan nhan tien,
 	# chan thang phan loai tai san co dinh. Luat nam o de_nghi_chi.py.
@@ -655,6 +667,13 @@ doc_events = {
 			# nao noi ra (anh Viet 05/09/2026). Doc dau tep
 			# vagabond/nghiep_vu_tien.py.
 			"vagabond.nghiep_vu_tien.dat_nghiep_vu",
+			# v576 (Codex #443): o nhom chia giao dich chi may ghi. Doc
+			# thu_tien.chan_ghi_tay_nhom.
+			"vagabond.thu_tien.chan_ghi_tay_nhom",
+			# v577 (Codex #444 vong 3): phieu thu nhap hong da GO khi huy phieu
+			# doi no (khoa GO:THU:) khong ghi so duoc, khong doi khoa lai duoc.
+			# Doc thu_tien.chan_nhap_da_go.
+			"vagabond.thu_tien.chan_nhap_da_go",
 		],
 		"before_submit": [
 			# Chung tu qua NGAN HANG phai co Uy nhiem chi dinh kem. Chi Dung
@@ -678,7 +697,13 @@ doc_events = {
 			# ma. Codex bat o PR #197.
 			"vagabond.dat_banh.chan_phieu_dat_banh",
 		],
-		"on_submit": "vagabond.hoan_tien.khi_ghi_so_phieu_chi",
+		"on_submit": [
+			"vagabond.hoan_tien.khi_ghi_so_phieu_chi",
+			# v577 (Codex #444 vong 4): phieu thu vao so tren Desk hay app deu
+			# xep thu bao "da nhan thanh toan" khi phieu doi no sach so. Doc
+			# thu_tien.gui_thu_khi_ghi_so.
+			"vagabond.thu_tien.gui_thu_khi_ghi_so",
+		],
 	},
 	# Phieu dat banh o cua khach (anh Viet chot 05/09/2026, issue #195).
 	#
@@ -923,3 +948,68 @@ for _dt_mk, _sk_mk, _ham_mk in (
 	_cu_mk = doc_events.setdefault(_dt_mk, {}).get(_sk_mk, [])
 	doc_events[_dt_mk][_sk_mk] = ([_cu_mk] if isinstance(_cu_mk, str) else list(_cu_mk)) + [_ham_mk]
 del _dt_mk, _sk_mk, _ham_mk, _cu_mk
+
+# v542: hạch toán kho theo sơ đồ Khải (anh Việt chốt 30/09/2026), từ 01/10.
+#  - Hoá đơn bán trừ kho điểm bán, giá vốn 632. Thiếu hàng thì ghi sổ không
+#    trừ kho và đánh dấu "Chưa trừ kho", không bao giờ chặn bán. Chạy TRƯỚC
+#    hang_tang_so_cai để đơn vừa đổi sang Hàng tặng trả về luồng tặng.
+#  - Phiếu Sản xuất: dòng nguyên liệu 621, dòng thành phẩm 154, trung tâm chi
+#    phí theo bếp. Đặt ở validate, chạy sau validate của lõi.
+_ds_bs = doc_events["Sales Invoice"]["before_submit"]
+_ds_bs = [_ds_bs] if isinstance(_ds_bs, str) else list(_ds_bs)
+_ds_bs.insert(_ds_bs.index("vagabond.hang_tang_so_cai.truoc_khi_ghi_so"), "vagabond.hach_toan_kho.ban_truoc_ghi_so")
+doc_events["Sales Invoice"]["before_submit"] = _ds_bs
+_ds_se = doc_events["Stock Entry"]["validate"]
+doc_events["Stock Entry"]["validate"] = ([_ds_se] if isinstance(_ds_se, str) else list(_ds_se)) + [
+	"vagabond.hach_toan_kho.sx_gan_tai_khoan"]
+del _ds_bs, _ds_se
+
+# v550: trừ kho từng món và trừ bù khi hàng về (anh Việt chốt 01/10/2026).
+# Nối vào chuỗi sẵn có, không thay hook cũ. Xem đầu tệp vagabond/tru_kho_bu.py.
+#  - Hoá đơn bán ghi sổ thiếu hàng: trừ ngay những món đang có (CUỐI dãy
+#    on_submit, sau khi lõi đã ghi sổ cái). Không bao giờ chặn ghi sổ.
+#  - Huỷ hoá đơn: huỷ theo phiếu bù. Huỷ tay phiếu bù: hoá đơn về Chưa trừ kho.
+#  - Phiếu nhập vào kho điểm bán: xếp việc trừ bù sau khi phiếu commit.
+for _dt_tb, _sk_tb, _ham_tb in (
+	("Sales Invoice", "on_submit", "vagabond.tru_kho_bu.khi_ghi_so_hd"),
+	("Sales Invoice", "on_cancel", "vagabond.tru_kho_bu.khi_huy_hd"),
+	("Stock Entry", "on_cancel", "vagabond.tru_kho_bu.khi_huy_phieu"),
+	("Stock Entry", "on_submit", "vagabond.tru_kho_bu.khi_nhap_kho"),
+	("Stock Reconciliation", "on_submit", "vagabond.tru_kho_bu.khi_nhap_kho"),
+	("Purchase Receipt", "on_submit", "vagabond.tru_kho_bu.khi_nhap_kho"),
+):
+	_cu_tb = doc_events.setdefault(_dt_tb, {}).get(_sk_tb, [])
+	doc_events[_dt_tb][_sk_tb] = ([_cu_tb] if isinstance(_cu_tb, str) else list(_cu_tb)) + [_ham_tb]
+del _dt_tb, _sk_tb, _ham_tb, _cu_tb
+
+# v573 (Codex #438): ô Ngày bán tại quầy chỉ máy được ghi, Desk/API gửi vào bị bỏ.
+# Chèn TRƯỚC hàm cuối (v536 chốt dien_ma_khach_hoa_don phải đứng cuối chuỗi).
+_cu_nb = doc_events.setdefault("Sales Invoice", {}).get("validate", [])
+_cu_nb = [_cu_nb] if isinstance(_cu_nb, str) else list(_cu_nb)
+_cu_nb.insert(max(len(_cu_nb) - 1, 0), "vagabond.ngay_ban.chan_ghi_tay")
+doc_events["Sales Invoice"]["validate"] = _cu_nb
+del _cu_nb
+scheduler_events.setdefault("hourly", []).append("vagabond.tru_kho_bu.quet_moi_gio")
+scheduler_events.setdefault("hourly", []).append("vagabond.don_web.doi_soat_uu_dai_hoa_don")
+
+# v562 (#410): bắn tin Zalo. Mỗi giờ gửi bản gộp tin hoãn trong giờ im.
+scheduler_events.setdefault("hourly", []).append("vagabond.kenh_zalo.xa_gio_im")
+# Codex #425: gửi bù tin Zalo còn Chờ gửi (hàng đợi hỏng lúc xếp).
+scheduler_events.setdefault("cron", {}).setdefault("*/5 * * * *", []).append("vagabond.kenh_zalo.quet_cho_gui")
+# v585: bản tin phát hành (cùng nguồn [ĐÃ DEPLOY] với Telegram) vào nhóm Zalo.
+scheduler_events.setdefault("cron", {}).setdefault("*/15 * * * *", []).append("vagabond.zalo_phat_hanh.quet")
+
+# v577 (Codex #444 vong 7): luoi an toan cho thu bao nhan tien khi viec nen
+# xep sau commit bi mat (Redis loi). Doc cong_no.quet_thu_bao_bo_lo.
+scheduler_events.setdefault("hourly", []).append("vagabond.cong_no.quet_thu_bao_bo_lo")
+
+# v579 (#420 doi soat vendor): thu tu ten mien vendor thi xep viec doc dinh
+# kem sau commit; luoi quet moi gio doc lai 2 ngay (trung ma bam thi bo qua).
+# Noi vao chuoi san co cua Communication (gac_thu_ncc), KHONG dat tren "*".
+_cu_ds = doc_events.setdefault("Communication", {}).get("after_insert", [])
+doc_events["Communication"]["after_insert"] = ([_cu_ds] if isinstance(_cu_ds, str) else list(_cu_ds)) + [
+    "vagabond.doi_soat_vendor.khi_co_thu"]
+del _cu_ds
+scheduler_events.setdefault("hourly", []).append("vagabond.doi_soat_vendor.quet_moi_gio")
+# Codex #460: đơn web đã huỷ mà còn giữ lượt ưu đãi hoặc mã dùng một lần thì trả lại.
+scheduler_events.setdefault("cron", {}).setdefault("*/15 * * * *", []).append("vagabond.don_hang.tra_uu_dai_don_huy")

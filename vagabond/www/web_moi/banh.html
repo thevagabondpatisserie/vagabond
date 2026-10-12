@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<!-- Trang đặt bánh bản Vue (anh Việt chốt 11/10/2026: dựng lại toàn bộ web bằng
+     Vue, giữ đúng giao diện Rocca đã duyệt). Chạy song song ở /web_moi/banh
+     cho tới đêm tráo; /banh cũ vẫn là trang khách dùng.
+     Mã băm ?v= và bảng import map do cong_cu/ma_bam_web_vue.py ghi, đừng sửa tay. -->
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#08090A">
+<meta name="csrf-token" content="{{ csrf_token }}">
+<meta name="robots" content="noindex,nofollow">
+<title>Đặt bánh · The Vagabond Pâtisserie</title>
+<link rel="stylesheet" href="/assets/vagabond/web_order/khoi.css?v=b91cd8ec17ed">
+<link rel="stylesheet" href="/assets/vagabond/web_order/nen.css?v=35b24d4964ff">
+<link rel="stylesheet" href="/assets/vagabond/web_vue/banh/banh.css?v=eeaacc8389e1">
+<link rel="stylesheet" href="/assets/vagabond/web_order/cua-hang.css?v=39d9d61486e9">
+<link rel="stylesheet" href="/assets/vagabond/web_order/kenh-noi.css?v=86dc663f411f">
+<link rel="stylesheet" href="/assets/vagabond/web_order/chuyen-muc.css?v=92ea2d87302d">
+<link rel="stylesheet" href="/assets/vagabond/web_vue/banh/thao-tac.css?v=c752d8710a26">
+<!-- vue-map:dau -->
+<script type="importmap">
+{
+ "imports": {
+  "/assets/vagabond/web_vue/banh/anh.js": "/assets/vagabond/web_vue/banh/anh.js?v=a26dbe10b7f4",
+  "/assets/vagabond/web_vue/banh/app.js": "/assets/vagabond/web_vue/banh/app.js?v=ac1b151bfab5",
+  "/assets/vagabond/web_vue/banh/chu-giau.js": "/assets/vagabond/web_vue/banh/chu-giau.js?v=074a307ac954",
+  "/assets/vagabond/web_vue/banh/du-lieu.js": "/assets/vagabond/web_vue/banh/du-lieu.js?v=8023914b5368",
+  "/assets/vagabond/web_vue/banh/kho-banh.js": "/assets/vagabond/web_vue/banh/kho-banh.js?v=5dd67f518e41",
+  "/assets/vagabond/web_vue/banh/mau.js": "/assets/vagabond/web_vue/banh/mau.js?v=63a1f600edbd",
+  "/assets/vagabond/web_vue/banh/noi-dung.js": "/assets/vagabond/web_vue/banh/noi-dung.js?v=7a452eedc13c",
+  "/assets/vagabond/web_vue/banh/thanh-phan.js": "/assets/vagabond/web_vue/banh/thanh-phan.js?v=64194b6b4edf",
+  "/assets/vagabond/web_vue/kho/api.js": "/assets/vagabond/web_vue/kho/api.js?v=648504e84b1d",
+  "/assets/vagabond/web_vue/kho/chu.js": "/assets/vagabond/web_vue/kho/chu.js?v=e531c0063239",
+  "/assets/vagabond/web_vue/kho/thuan.js": "/assets/vagabond/web_vue/kho/thuan.js?v=b4f09645199e",
+  "/assets/vagabond/web_vue/lib/vue.esm-browser.prod.js": "/assets/vagabond/web_vue/lib/vue.esm-browser.prod.js?v=c6cae9e17888"
+ }
+}
+</script>
+<!-- vue-map:cuoi -->
+</head>
+<body>
+<div class="sky" aria-hidden="true">
+<svg viewBox="0 0 1200 1200" preserveAspectRatio="xMidYMid slice">
+ <defs>
+  <radialGradient id="fade" cx="52%" cy="42%" r="82%">
+    <stop offset="0%" stop-color="#fff" stop-opacity="1"/>
+    <stop offset="62%" stop-color="#fff" stop-opacity=".85"/>
+    <stop offset="100%" stop-color="#fff" stop-opacity=".12"/>
+  </radialGradient>
+  <mask id="m"><rect width="1200" height="1200" fill="url(#fade)"/></mask>
+ </defs>
+ <g mask="url(#m)" fill="none" stroke="#EDE7DC">
+  <g class="spin">
+   <circle cx="600" cy="540" r="300" stroke-opacity=".30"/>
+   <circle cx="600" cy="540" r="430" stroke="#3FD8CD" stroke-opacity=".46" stroke-dasharray="2 12" stroke-linecap="round"/>
+   <circle cx="600" cy="540" r="560" stroke-opacity=".22"/>
+   <circle cx="600" cy="540" r="700" stroke-opacity=".34" stroke-dasharray="2 16" stroke-linecap="round"/>
+   <ellipse cx="600" cy="540" rx="690" ry="300" stroke-opacity=".26" transform="rotate(-18 600 540)"/>
+   <ellipse cx="600" cy="540" rx="520" ry="740" stroke="#29BDB3" stroke-opacity=".22" transform="rotate(26 600 540)"/>
+  </g>
+  <path d="M905 -80 V1280" stroke-opacity=".14"/>
+  <path d="M-80 328 H1280" stroke-opacity=".10"/>
+  <path d="M120 1120 L980 240" stroke-opacity=".13"/>
+  <g stroke="#3FD8CD" stroke-opacity=".8">
+   <path d="M905 300 v-52 M905 356 v52 M877 328 h-52 M933 328 h52 M885 308 l-30-30 M925 348 l30 30 M885 348 l-30 30 M925 308 l30-30"/>
+  </g>
+ </g>
+ <g fill="#F3EEE4" mask="url(#m)">
+  <circle cx="905" cy="328" r="4" fill="#5FEDE2" opacity="1"/>
+  <circle cx="250" cy="210" r="2.6" opacity=".85"/><circle cx="1015" cy="690" r="3" opacity=".8"/>
+  <circle cx="430" cy="880" r="2" opacity=".7"/><circle cx="760" cy="150" r="1.8" opacity=".9"/>
+  <circle cx="160" cy="620" r="1.8" opacity=".6"/><circle cx="1080" cy="410" r="1.6" opacity=".7"/>
+  <circle cx="330" cy="470" r="1.4" opacity=".75"/><circle cx="680" cy="960" r="2.4" opacity=".6"/>
+  <circle cx="880" cy="880" r="1.6" opacity=".6"/><circle cx="520" cy="290" r="1.3" opacity=".7"/>
+  <circle cx="1120" cy="880" r="2" opacity=".55"/><circle cx="90" cy="960" r="1.5" opacity=".55"/>
+  <circle cx="620" cy="700" r="1.3" opacity=".6"/><circle cx="410" cy="120" r="1.4" opacity=".6"/>
+ </g>
+</svg></div>
+<div class="glow" aria-hidden="true"></div>
+<div id="app"></div>
+<noscript><p class="wrap" style="padding:40px 0">Trang đặt bánh cần bật JavaScript. Quý khách gọi 0931 224 334 để đặt bánh.</p></noscript>
+<script type="module">
+import {khoiDong} from '/assets/vagabond/web_vue/banh/app.js';
+khoiDong('#app');
+</script>
+</body>
+</html>

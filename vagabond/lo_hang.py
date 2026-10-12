@@ -139,6 +139,30 @@ def rut_tu_kho(muc, can, chi_tot=False):
 	return phan, thieu
 
 
+def chia_khong_lo(can, con_goc, cac_thay):
+	"""Chia số cần trừ của một dòng KHÔNG theo lô giữa mã gốc và mã thay. THUẦN.
+
+	`can`: số cần (đơn vị gốc). `con_goc`: tồn còn dùng được của mã gốc tại
+	kho. `cac_thay`: [(mã thay, tồn còn dùng được)] theo thứ tự ưu tiên.
+	Trả (lấy từ mã gốc, [(mã thay, lấy)], còn thiếu).
+
+	Mã gốc dùng trước, hết mới sang mã thay: hàng của công thức là hàng
+	chuẩn, mã thay chỉ để bếp khỏi đứng chờ.
+	"""
+	can = max(flt_thuan(can), 0.0)
+	lay = min(max(flt_thuan(con_goc), 0.0), can)
+	thieu = round(can - lay, 6)
+	ra = []
+	for ma, con in cac_thay or []:
+		if thieu <= LI_TI:
+			break
+		l = min(max(flt_thuan(con), 0.0), thieu)
+		if l > LI_TI:
+			ra.append((ma, round(l, 6)))
+			thieu = round(thieu - l, 6)
+	return round(lay, 6), ra, (thieu if thieu > LI_TI else 0.0)
+
+
 def cau_thieu_lo(ten_hang, ma, kho, thieu, don_vi, kho_khac, thay_khac=None):
 	"""Câu báo thiếu hàng theo lô. Phải nói việc làm tiếp, không chỉ nói không.
 
@@ -512,9 +536,16 @@ def _cac_ma_thay_the(ma):
 	Đọc bảng Item Alternative theo CẢ HAI chiều (bản ghi khai a-b với cờ
 	hai chiều thì b cũng thay được cho a). Chỉ nhận mã cùng stock_uom:
 	gram thay gram, không để cái thay gram rồi số lượng thành vô nghĩa.
+
+	v552: món GỐC phải bật "cho phép dùng hàng thay thế" (đúng nghĩa của ô
+	đó trong ERPNext). Màn Mặt hàng thay thế đã báo cặp như vậy là "Không
+	thay được" (nvl_thay_the, goc_khong_cho_thay); máy phải làm đúng điều
+	màn đã nói, không để màn nói một đằng máy làm một nẻo.
 	"""
 	try:
-		dvt = frappe.get_cached_value("Item", ma, "stock_uom")
+		dvt, cho = frappe.get_cached_value("Item", ma, ["stock_uom", "allow_alternative_item"])
+		if not cint(cho):
+			return []
 		ra = []
 		for x in frappe.get_all("Item Alternative",
 				filters={"item_code": ma}, pluck="alternative_item_code",
@@ -539,6 +570,133 @@ def _cac_ma_thay_the(ma):
 		return loc
 	except Exception:
 		return []
+
+
+def _ton_khong_lo(ma, kho, luc=None):
+	"""Tồn dùng được của một mã KHÔNG theo lô tại một kho, cho phiếu này.
+
+	Phiếu ghi theo giờ hiện tại: tồn trong Bin. Phiếu ghi lùi ngày: số dư
+	thấp nhất từ thời điểm ghi tới nay (cùng luật `ton_kha_dung_theo_so`
+	của đường theo lô), chặn trên bằng tồn hiện tại.
+	"""
+	hien = flt(frappe.db.get_value("Bin", {"item_code": ma, "warehouse": kho}, "actual_qty"))
+	if not luc:
+		return max(hien, 0.0)
+	from erpnext.stock.utils import get_stock_balance
+
+	tai = flt(get_stock_balance(ma, kho, luc["posting_date"], luc["posting_time"]))
+	moc = "%s %s" % (luc["posting_date"], luc["posting_time"])
+	sau = [flt(x) for x in frappe.get_all("Stock Ledger Entry",
+		filters={"item_code": ma, "warehouse": kho, "is_cancelled": 0, "posting_datetime": [">", moc]},
+		pluck="actual_qty", order_by="posting_datetime asc, creation asc", limit_page_length=0)]
+	kha = ton_kha_dung_theo_so({"_": tai}, {"_": sau}).get("_", 0.0)
+	return max(min(kha, hien), 0.0)
+
+
+def _dong_khong_lo_can_xet(d):
+	"""Dòng bị trừ, mã KHÔNG theo lô, chưa phải dòng thay thế."""
+	if not (d.get("s_warehouse") or "").strip():
+		return False
+	if cint(d.get("is_finished_item")) or cint(d.get("is_scrap_item")):
+		return False
+	if (d.get("original_item") or "").strip():
+		return False
+	if (d.get("batch_no") or "").strip() or (d.get("serial_and_batch_bundle") or "").strip():
+		return False
+	if flt(d.get("qty")) <= LI_TI:
+		return False
+	return not _theo_lo(d.get("item_code"))
+
+
+def thay_ma_khong_lo(doc, method=None):
+	"""Hook before_validate của Stock Entry, chạy NGAY TRƯỚC `gan_lo`.
+
+	Ca thật 02/10/2026: lệnh sản xuất ở kho Baker cần 1.248 ml whipping
+	Lescure (NVLT00002), tồn 0, trong khi whipping Pauls (NVLT00329) còn
+	87.915 ml cùng kho và Khải đã khai cặp thay thế. Bấm Hoàn tất vẫn bị
+	ERPNext chặn "Cần 1248.113 đơn vị". Lý do: đường lấy mã thay thế chỉ
+	nằm trong `gan_lo`, mà `gan_lo` chỉ xét dòng THEO LÔ. Cả 15 cặp thay
+	thế đang khai trên site đều là mã không theo lô, nên chưa cặp nào từng
+	được dùng thật.
+
+	Luật giống hệt đường theo lô: chỉ luồng sản xuất (`duoc_thay_ma`), mã
+	thay đã khai, cùng đơn vị gốc, món gốc bật cho phép thay
+	(`_cac_ma_thay_the`); mã gốc dùng trước, thiếu bao nhiêu mới lấy mã
+	thay bấy nhiêu, cùng kho. Dòng thay mang `original_item` để lệnh sản
+	xuất vẫn tính là đã dùng nguyên liệu gốc (WorkOrder cộng theo
+	item_code HOẶC original_item). Một túi tồn cho cả phiếu, như `rut_tu_kho`.
+	"""
+	if not con_sua_lo(getattr(doc, "docstatus", 0), getattr(doc, "_action", None)):
+		return
+	if not duoc_thay_ma(getattr(doc, "purpose", None)):
+		return
+	dong = list(getattr(doc, "items", None) or [])
+	if not any(_dong_khong_lo_can_xet(d) for d in dong):
+		return
+	luc = luc_cua_phieu(doc)
+	tui = {}
+
+	def con(ma, kho):
+		k = (ma, kho)
+		if k not in tui:
+			tui[k] = _ton_khong_lo(ma, kho, luc)
+		return tui[k]
+
+	moi, co_doi = [], False
+	for d in dong:
+		if not _dong_khong_lo_can_xet(d):
+			x = d.as_dict()
+			x.pop("idx", None)
+			moi.append(x)
+			continue
+		ma, kho = d.item_code, d.s_warehouse
+		he_so = flt(d.get("conversion_factor")) or 1
+		can = flt(d.qty) * he_so
+		cac_ma = []
+		if con(ma, kho) + LI_TI < can:
+			cac_ma = [m for m in _cac_ma_thay_the(ma) if not _theo_lo(m)]
+		lay, thay, thieu = chia_khong_lo(can, con(ma, kho), [(m, con(m, kho)) for m in cac_ma])
+		tui[(ma, kho)] = con(ma, kho) - lay
+		for m, l in thay:
+			tui[(m, kho)] = con(m, kho) - l
+		if thieu > LI_TI and cac_ma and not cint(
+				frappe.db.get_single_value("Stock Settings", "allow_negative_stock")):
+			frappe.throw(
+				cau_thieu_lo(
+					_ten_hang(d, ma), ma, kho, thieu,
+					d.get("stock_uom") or d.get("uom") or "",
+					_kho_khac_con(ma, kho),
+					[(m, k, t) for m in cac_ma for k, t in _kho_khac_con(m, kho)],
+				),
+				title="Thiếu hàng trong kho",
+			)
+		if not thay:
+			x = d.as_dict()
+			x.pop("idx", None)
+			moi.append(x)
+			continue
+		co_doi = True
+		giu_goc = lay + thieu
+		if giu_goc > LI_TI:
+			x = _boc(d, giu_ten=True)
+			x["qty"] = round(giu_goc / he_so, 6)
+			moi.append(x)
+		for j, (ma_thay, so) in enumerate(thay):
+			x = _boc(d, giu_ten=(giu_goc <= LI_TI and j == 0))
+			x["item_code"] = ma_thay
+			x["original_item"] = ma
+			x["qty"] = so
+			x["uom"] = frappe.get_cached_value("Item", ma_thay, "stock_uom")
+			x["stock_uom"] = x["uom"]
+			x["conversion_factor"] = 1
+			x.pop("item_name", None)
+			x["description"] = "Dùng thay %s đang thiếu tại kho (mã thay thế đã khai)." % ma
+			moi.append(x)
+	if not co_doi:
+		return
+	doc.set("items", [])
+	for x in moi:
+		doc.append("items", x)
 
 
 def phan_da_chon_tay(cac_dong, lo_trong_goi=None):

@@ -423,7 +423,7 @@ def nen_hop_le(khoan, lien_ket, lech_cu=(), nguong=NGUONG, to_gia=()):
 # bốn ô, sửa tay tong_hd làm yếu luật chặn đổi tổng tờ, sửa da_ghi_so làm
 # lệch phần chi phí đã dùng của lần bù trừ sau. Ô nào đã lưu đều không sửa tay.
 TRUONG_HD_SAU = ("hoa_don", "so_hd_ncc", "ncc", "tong_hd", "tien_khop", "da_ghi_so", "bu_tru",
-	"but_toan", "ngoai_ncc", "noi_boi", "noi_luc")
+	"but_toan", "phieu_chi", "ngoai_ncc", "noi_boi", "noi_luc")
 _SO = ("tong_hd", "tien_khop", "bu_tru")
 _CO = ("da_ghi_so", "ngoai_ncc")
 
@@ -460,7 +460,8 @@ def loi_bo_thanh_toan(tt_cu, tt_moi, lien_ket, tt_da_tra="Da thanh toan"):
 	bị huỷ mà bù trừ còn thì công nợ tờ về 0 mà không ai trả. THUẦN."""
 	if tt_cu != tt_da_tra or tt_moi == tt_da_tra:
 		return ""
-	co = [r for r in (lien_ket or []) if (r.get("but_toan") or "").strip()]
+	# v551: tờ đã phân bổ phiếu chi trả trước (ô phieu_chi) cũng giữ như bù trừ.
+	co = [r for r in (lien_ket or []) if (r.get("but_toan") or r.get("phieu_chi") or "").strip()]
 	if not co:
 		return ""
 	return ("Hồ sơ đang có bút toán bù trừ hoá đơn đến sau (%s). Gỡ nối các tờ đó trước rồi mới bỏ "

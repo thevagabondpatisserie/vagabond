@@ -349,7 +349,7 @@ def _quyen_chan_doan_323():
 	# nữa nên hai vai cho cùng một kết quả, lặp chỉ làm ca kiểm trông như có
 	# kiểm quyền trong khi nó không kiểm gì. Quyền của màn này do _kiem_quyen lo.
 	for roles in [['Sales User'], ['Accounts User']]:
-		with patch.dict(sys.modules, {'vagabond.ban_hang': SimpleNamespace(_kiem_quyen=lambda: None)}), patch.object(dss, 'nap_so'), patch.object(dss, '_ban', return_value=ban), patch.object(dss.frappe, 'get_doc', return_value={}), patch.object(dss.frappe, 'get_roles', return_value=roles), patch.object(dss, 'da_chiem', return_value={}), patch.object(dss, 'nhan_tai_khoan', return_value=({'TK': 'Nhãn'}, [{'ma':'TK','nhan':'Nhãn'}], ['Chưa nối'])) as nhan, patch.object(dss, 'dong_sao_ke', return_value=[]) as dong:
+		with patch.dict(sys.modules, {'vagabond.ban_hang': SimpleNamespace(_kiem_quyen=lambda: None, _kiem_quyen_ban=lambda: None)}), patch.object(dss, 'nap_so'), patch.object(dss, '_ban', return_value=ban), patch.object(dss.frappe, 'get_doc', return_value={}), patch.object(dss.frappe, 'get_roles', return_value=roles), patch.object(dss, 'da_chiem', return_value={}), patch.object(dss, 'nhan_tai_khoan', return_value=({'TK': 'Nhãn'}, [{'ma':'TK','nhan':'Nhãn'}], ['Chưa nối'])) as nhan, patch.object(dss, 'dong_sao_ke', return_value=[]) as dong:
 			kq = dss.ung_vien('ttnb', 'TEST', tai_khoan='TK')
 			la('không còn phát danh sách chưa nối', kq['chua_noi_sepay'], [])
 			la('không giấu tài khoản chưa nối ở cửa đọc', dong.call_args.kwargs.get('tai_khoan_cho_phep'), None)
@@ -412,7 +412,7 @@ def _ghi_mapping_327():
 		pass
 	for chip, duoc in [([], False), ([{'ma':'KHAC'}], False), ([{'ma':'CT'}], True)]:
 		db = SimpleNamespace(get_value=Mock(return_value=g), set_value=Mock(), commit=Mock())
-		with patch.dict(sys.modules, {'vagabond.ban_hang': SimpleNamespace(_kiem_quyen=lambda:None)}), patch.object(dss,'nap_so'), patch.object(dss,'_ban',return_value=ban), patch.object(dss.frappe,'get_doc',return_value={}), patch.object(dss.frappe,'db',db), patch.object(dss.frappe,'session',SimpleNamespace(user='ke-toan')), patch.object(dss.frappe,'throw',side_effect=Chan), patch.object(dss,'_loi_giao_dich',return_value=None), patch.object(dss,'da_chiem',return_value={}), patch.object(dss,'nhan_tai_khoan',return_value=({},chip,[])) as nap:
+		with patch.dict(sys.modules, {'vagabond.ban_hang': SimpleNamespace(_kiem_quyen=lambda:None,_kiem_quyen_ban=lambda:None)}), patch.object(dss,'nap_so'), patch.object(dss,'_ban',return_value=ban), patch.object(dss.frappe,'get_doc',return_value={}), patch.object(dss.frappe,'db',db), patch.object(dss.frappe,'session',SimpleNamespace(user='ke-toan')), patch.object(dss.frappe,'throw',side_effect=Chan), patch.object(dss,'_loi_giao_dich',return_value=None), patch.object(dss,'da_chiem',return_value={}), patch.object(dss,'nhan_tai_khoan',return_value=({},chip,[])) as nap:
 			bi_chan=False
 			try:
 				dss.khop_tay('ttnb','PHIEU','GD')
@@ -432,7 +432,7 @@ def _tu_dong_mapping_327():
 	ban = dict(doctype='TEST', dang_cho={}, ma_do=lambda d:'TEST', so_tien=lambda d:100, chieu=dss.RA, truong_gd='gd', khi_khop=None)
 	for chip, duoc in [([],False), ([{'ma':'CT'}],True)]:
 		db=SimpleNamespace(set_value=Mock(),commit=Mock())
-		with patch.dict(sys.modules, {'vagabond.ban_hang':SimpleNamespace(_kiem_quyen=lambda:None)}), patch.object(dss,'nap_so'), patch.object(dss,'_ban',return_value=ban), patch.object(dss.frappe,'get_all',return_value=[{'name':'P'}]), patch.object(dss.frappe,'get_doc',return_value=SimpleNamespace(name='P')), patch.object(dss.frappe,'db',db), patch.object(dss,'dong_sao_ke',return_value=[dict(name='GD',mo_ta='TEST',tien=100,bank_account='CT')]), patch.object(dss,'da_chiem',return_value={}), patch.object(dss,'xet',return_value=(dss.KHOP,'')), patch.object(dss,'nhan_tai_khoan',return_value=({},chip,[])):
+		with patch.dict(sys.modules, {'vagabond.ban_hang':SimpleNamespace(_kiem_quyen=lambda:None,_kiem_quyen_ban=lambda:None)}), patch.object(dss,'nap_so'), patch.object(dss,'_ban',return_value=ban), patch.object(dss.frappe,'get_all',return_value=[{'name':'P'}]), patch.object(dss.frappe,'get_doc',return_value=SimpleNamespace(name='P')), patch.object(dss.frappe,'db',db), patch.object(dss,'dong_sao_ke',return_value=[dict(name='GD',mo_ta='TEST',tien=100,bank_account='CT')]), patch.object(dss,'da_chiem',return_value={}), patch.object(dss,'xet',return_value=(dss.KHOP,'')), patch.object(dss,'nhan_tai_khoan',return_value=({},chip,[])):
 			kq=dss.tu_dong('ttnb')
 			la('chỉ ghi khi mapped',db.set_value.call_count,int(duoc))
 			la('đếm khớp đúng',kq['da_khop'],int(duoc))
@@ -482,7 +482,7 @@ def _ba_duong_ghi_tu_dong_327():
 		# 1. Quet theo gio cua lenh chi noi bo.
 		db = _db()
 		with ExitStack() as g:
-			g.enter_context(patch.dict(sys.modules, {'vagabond.ban_hang': SimpleNamespace(_kiem_quyen=lambda: None)}))
+			g.enter_context(patch.dict(sys.modules, {'vagabond.ban_hang': SimpleNamespace(_kiem_quyen=lambda: None, _kiem_quyen_ban=lambda: None)}))
 			g.enter_context(patch.object(dnc, '_phieu_cho_chi', return_value=[dict(phieu)]))
 			g.enter_context(patch.object(dnc.frappe, 'db', db))
 			g.enter_context(patch.object(dnc, '_gd_da_chiem_ttnb', return_value={}))
@@ -513,7 +513,7 @@ def _ba_duong_ghi_tu_dong_327():
 		# 3. Quet theo gio cua phieu hoan tien.
 		db = _db()
 		with ExitStack() as g:
-			g.enter_context(patch.dict(sys.modules, {'vagabond.ban_hang': SimpleNamespace(_kiem_quyen=lambda: None)}))
+			g.enter_context(patch.dict(sys.modules, {'vagabond.ban_hang': SimpleNamespace(_kiem_quyen=lambda: None, _kiem_quyen_ban=lambda: None)}))
 			g.enter_context(patch.object(ht.frappe, 'db', db))
 			g.enter_context(patch.object(ht.frappe, 'get_all', return_value=[dict(name='HT-1', hoa_don='HD-1', so_tien=100.0)]))
 			g.enter_context(patch.object(ht, 'ma_do_soat', return_value='HD-1'))
@@ -554,7 +554,7 @@ def _hoan_truc_tiep_327():
 		# _sinh_chung_tu nữa. Ca này vẫn chốt đúng ý #327: chỉ khớp thật mới sinh.
 		sinh=Mock(return_value={'phieu_chi':'APP-1'})
 		with ExitStack() as g:
-			g.enter_context(patch.dict(sys.modules, {'vagabond.ban_hang':SimpleNamespace(_kiem_quyen=lambda:None)}))
+			g.enter_context(patch.dict(sys.modules, {'vagabond.ban_hang':SimpleNamespace(_kiem_quyen=lambda:None,_kiem_quyen_ban=lambda:None)}))
 			g.enter_context(patch.object(ht.frappe,'db',db))
 			g.enter_context(patch.object(ht.frappe,'get_all',return_value=[dict(name='HT-1',so_tien=100)]))
 			g.enter_context(patch.object(ht.frappe,'get_doc',Mock()))
@@ -598,7 +598,7 @@ def _ung_vien_328():
 		n=kw['limit_page_length']
 		return [dict(r) for r in (ra[:n] if n else ra)]
 	with ExitStack() as st:
-		st.enter_context(patch.dict(sys.modules, {'vagabond.ban_hang':SimpleNamespace(_kiem_quyen=lambda:None)}))
+		st.enter_context(patch.dict(sys.modules, {'vagabond.ban_hang':SimpleNamespace(_kiem_quyen=lambda:None,_kiem_quyen_ban=lambda:None)}))
 		for ten, value in [('nap_so',None),('_ban',ban),('da_chiem',{'GD0001':'PHIEU-KHAC'}),('nhan_tai_khoan',({'CN':'MB · 0615'},[{'ma':'CT'},{'ma':'CN'}],[]))]:
 			st.enter_context(patch.object(dss,ten,return_value=value))
 		st.enter_context(patch.object(dss.frappe,'get_doc',return_value={}))
@@ -626,7 +626,7 @@ def _tu_dong_328():
 		dang_cho={},truong_gd='gd',khi_khop=None,loi_giao_dich=lambda g:'Nguồn cá nhân')
 	db=Mock()
 	with ExitStack() as st:
-		st.enter_context(patch.dict(sys.modules,{'vagabond.ban_hang':SimpleNamespace(_kiem_quyen=lambda:None)}))
+		st.enter_context(patch.dict(sys.modules,{'vagabond.ban_hang':SimpleNamespace(_kiem_quyen=lambda:None,_kiem_quyen_ban=lambda:None)}))
 		for ten,val in [('nap_so',None),('_ban',ban),('da_chiem',{}),('dong_sao_ke',[dict(name='GD',mo_ta='TEST',tien=100)])]:st.enter_context(patch.object(dss,ten,return_value=val))
 		st.enter_context(patch.object(dss.frappe,'db',db))
 		st.enter_context(patch.object(dss.frappe,'get_all',return_value=[{'name':'P'}]))

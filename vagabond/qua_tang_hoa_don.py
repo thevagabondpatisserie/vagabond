@@ -297,7 +297,8 @@ TRUONG_MOI = {
 			"fieldname": "sec_qua_tang",
 			"label": "Hàng biếu tặng khách VIP",
 			"fieldtype": "Section Break",
-			"insert_after": "minvoice_mau_lien_ket",
+			# v568: cuối mục Hoàn tiền, cùng tab Hoá đơn & kế toán.
+			"insert_after": "tk_hoan_tien",
 		},
 		{
 			"fieldname": "tk_chi_phi_qua_tang",

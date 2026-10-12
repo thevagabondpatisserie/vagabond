@@ -31,8 +31,8 @@ def get_context(context):
 	context.tieu_de = trang_khach._e(trang["ten"])
 	context.than = trang["html"]
 	context.doi_ngon_ngu = (
-		'<a href="%s">Tiếng Việt</a>' % duong if trang["ngon_ngu"] == "en"
-		else ('<a href="%s?ngon_ngu=en">English</a>' % duong if trang["co_en"] else "")
+		'<a href="%s">%s</a>' % (duong, trang_khach._chu('ngon_ngu_vn','Tiếng Việt')) if trang["ngon_ngu"] == "en"
+		else ('<a href="%s?ngon_ngu=en">%s</a>' % (duong, trang_khach._chu('ngon_ngu_en','English')) if trang["co_en"] else "")
 	)
 	context.chan_trang = trang_khach.chan_trang_html(
 		don_web.PHAP_NHAN, don_web.lien_he(), noi_dung_web.chinh_sach_dang_hien())

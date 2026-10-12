@@ -74,7 +74,10 @@ function tlCss() {
     '.tlBao{border:0;background:transparent;color:#b45309;font-size:11.5px;' +
     'cursor:pointer;padding:2px 0;text-decoration:underline}' +
     '.tlBao[disabled]{color:#98a2b3;text-decoration:none;cursor:default}' +
-    '.tlGoi{font-size:13px;color:#6b7280;line-height:1.6;margin-bottom:12px}';
+    '.tlGoi{font-size:13px;color:#6b7280;line-height:1.6;margin-bottom:12px}' +
+    '.tlT.tlMd{white-space:normal}' +
+    '#tlSoTay{flex:0 0 auto;height:34px;padding:0 12px;border:0;border-radius:10px;' +
+    'background:#e8f7fb;color:#05323C;font-size:13.5px;font-weight:700;cursor:pointer}';
   document.head.appendChild(s);
 }
 
@@ -90,8 +93,11 @@ function tlThemHoi(t) {
 function tlThemTra(t, maNhatKy, nguon) {
   var than = document.getElementById('tlThan');
   var d = document.createElement('div');
-  d.className = 'tlT';
-  d.textContent = t;
+  d.className = 'tlT tlMd';
+  /* v554: ve cau tra loi bang CUNG bo ve voi man So tay (50-so-tay.js), de
+     nut [[...]] hien nhu nut that, bang hien thanh bang. stMd thoat ky tu
+     TRUOC roi moi chen the, nen chu cua mo hinh khong chen duoc HTML. */
+  try { stCss(); d.innerHTML = stMd(t); } catch (e) { d.textContent = t; }
   than.appendChild(d);
   var c = document.createElement('div');
   c.className = 'tlN';
@@ -279,6 +285,7 @@ function tlGan() {
   k.id = 'tlKhung';
   k.innerHTML =
     '<div id="tlDau"><b>Trợ lý hướng dẫn</b>' +
+    '<button id="tlSoTay">Sổ tay</button>' +
     '<button id="tlDong" aria-label="Dong">&#10005;</button></div>' +
     '<div id="tlThan"><div class="tlGoi">Hệ thống trả lời dựa trên tài liệu ' +
     'của chính phần mềm này, về cách dùng từng màn hình và ý nghĩa các câu ' +
@@ -290,6 +297,9 @@ function tlGan() {
   document.body.appendChild(k);
 
   document.getElementById('tlDong').onclick = tlDong;
+  /* Nut So tay trong khung tro ly (v554): dong khung roi mo man So tay. Di
+     qua vgbGo vi do la cua duy nhat dat dia chi /so-tay. */
+  document.getElementById('tlSoTay').onclick = function () { tlDong(); vgbGo('SOTAY'); };
   document.getElementById('tlGui').onclick = tlGui;
   document.getElementById('tlO').addEventListener('keydown', function (e) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); tlGui(); }

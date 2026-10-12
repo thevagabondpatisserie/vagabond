@@ -225,7 +225,11 @@ def da_ban(diem, ngay):
 	docstatus < 2 - bill con NHAP van tinh, xem dieu 2 dau tep.
 	vgb_huy = 0   - bill da huy tra hang ve tu.
 	vgb_tam_tinh  - phieu tam tinh chua phai ban, khong tru.
+	Ngay: theo ngay ban tai quay (ngay_ban.dk_sql), khong theo ngay ghi so,
+	de bill doi ngay khi duyet hang tang khong bi dem hai lan (v573).
 	"""
+	from vagabond import ngay_ban
+
 	try:
 		r = frappe.db.sql(
 			"""select sii.item_code as ma, sum(sii.qty) as sl
@@ -234,10 +238,10 @@ def da_ban(diem, ngay):
 			where si.docstatus < 2
 			  and ifnull(si.vgb_huy, 0) = 0
 			  and ifnull(si.vgb_tam_tinh, 0) = 0
-			  and ifnull(si.vgb_quay, '') = %s
-			  and si.posting_date = %s
+			  and ifnull(si.vgb_quay, '') = %(quay)s
+			  and """ + ngay_ban.dk_sql("si") + """
 			group by sii.item_code""",
-			(str(diem or "").strip().upper(), getdate(ngay)),
+			{"quay": str(diem or "").strip().upper(), "ngay": getdate(ngay)},
 			as_dict=True,
 		)
 	except Exception:
@@ -514,10 +518,12 @@ def tim_mon(diem=None, tu_khoa="", ngay=None):
 	except Exception:
 		da_co = set()
 	try:
+		from vagabond import tim_kiem
+
 		r = frappe.get_all(
 			"Item",
-			or_filters=[["name", "like", "%" + tu + "%"], ["item_name", "like", "%" + tu + "%"]],
-			filters={"disabled": 0},
+			# v583: tim theo tung tu, bo dau, bo dau cau (tim_kiem.py).
+			filters=tim_kiem.them_loc({"disabled": 0}, "Item", tu, ["name", "item_name"]),
 			fields=["name", "item_name", "image"], limit_page_length=30, ignore_permissions=True,
 		)
 	except Exception:
@@ -701,7 +707,7 @@ def con_tren_quay_web():
 	ghi chu noi bo cua quay.
 	"""
 	from vagabond import kiem_banh, tat_ban_web
-	from vagabond.anh_web import anh_cong_khai, chon_anh
+	from vagabond.anh_web import anh_cong_khai, chon_anh, la_anh_pancake_da_chep
 	from vagabond.lib import cfg as _cfg, key as _key
 
 	ngay = getdate()
@@ -740,7 +746,7 @@ def con_tren_quay_web():
 			continue
 		ds = frappe.get_all(
 			"Item", filters={"item_code": ["in", list(con_theo_ma)]},
-			fields=["item_code", "item_name", "image", "standard_rate", "disabled", "is_sales_item"],
+			fields=["item_code", "item_name", "image", "standard_rate", "disabled", "is_sales_item", "item_group"],
 			limit_page_length=0, ignore_permissions=True,
 		)
 		for x in sorted(ds, key=lambda x: str(x.get("item_name") or x["item_code"])):
@@ -749,17 +755,19 @@ def con_tren_quay_web():
 			# #367: anh ho so mon ERP truoc, Pancake sau, anh nen cuoi cung.
 			# Mot thu tu cho moi tab, xem vagabond/anh_web.py.
 			anhs = []
-			if co_pancake and not anh_cong_khai(x.get("image")):
+			if co_pancake and (not anh_cong_khai(x.get("image"))
+					or la_anh_pancake_da_chep(x.get("image"), x["item_code"])):
 				try:
 					anhs = kiem_banh._anh_pancake(c, k, x["item_code"]) or []
 				except Exception:
 					anhs = []
-			anh = chon_anh(x.get("image"), anhs)[0]
+			anh = chon_anh(x.get("image"), anhs, ma_hang=x["item_code"])[0]
 			q["mon"].append({
 				"ma": x["item_code"],
 				"ten": x.get("item_name") or x["item_code"],
 				"gia": int(x.get("standard_rate") or 0),
 				"anh": anh,
 				"con": int(con_theo_ma[x["item_code"]]),
+				"nhom": x.get("item_group") or "",
 			})
 	return ra

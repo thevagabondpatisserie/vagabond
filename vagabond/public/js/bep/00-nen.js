@@ -30,6 +30,11 @@ body{-webkit-text-size-adjust:100%;font-family:-apple-system,BlinkMacSystemFont,
 .page_content,.container,main,section,article,#page-index{padding:0!important;margin:0!important;max-width:none!important;width:auto!important}
 #vgb *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 #vgb{position:fixed;inset:0;display:flex;flex-direction:column;background:#eef0f5;overflow:hidden;z-index:9}
+/* Công nợ NCC: hai hàng trạng thái/ngày cuộn ngang, không đẩy nút xử lý
+   xuống dưới màn đầu khi có đủ năm trạng thái. */
+[data-dscongcu="cnt"]>div:nth-child(-n+2){flex-wrap:nowrap!important;overflow-x:auto;padding:2px;min-width:0}
+[data-dscongcu="cnt"] [data-dscc]{flex:0 0 auto;min-height:44px}
+[data-dscongcu="cnt"] input{font-size:15px!important}
 .vh{flex:0 0 auto;background:#50DBF2;color:#05323C;padding:calc(env(safe-area-inset-top,0px) + 10px) 8px 12px;display:flex;align-items:center;gap:4px;box-shadow:0 2px 8px rgba(0,0,0,.12)}
 .vh b{flex:1;font-size:17px;font-weight:600;text-align:center;line-height:1.25;padding:0 4px}
 .vh .ic{width:40px;height:40px;flex:0 0 40px;display:flex;align-items:center;justify-content:center;font-size:22px;border-radius:12px;cursor:pointer;background:transparent;border:0;color:#05323C}
@@ -108,7 +113,7 @@ body{-webkit-text-size-adjust:100%;font-family:-apple-system,BlinkMacSystemFont,
 .hub .hi,.li .hi{width:44px;height:44px;flex:0 0 44px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:23px;background:#E4F9FD}
 .hub .ht{flex:1;min-width:0}
 .hub .h1{font-size:16px;font-weight:600;margin-bottom:2px}
-.hub .h2{font-size:12.5px;color:#8a8f9c;line-height:1.35}
+.hub .h2{font-size:13px;color:#8a8f9c;line-height:1.35}
 .hub.chon{background:#E4F9FD}
 .hub.chon:active{background:#DBF6FB}
 /* O nhap tien nam trong mot dong danh sach. .tin la o toan man cao 52px,
@@ -758,6 +763,44 @@ async function rawCall(method, args) {
   try { j = JSON.parse(txt); } catch (x) { }
   return j.message;
 }
+/* v574: phiên mất giữa chừng thì Frappe KHÔNG trả 401 (Loan Anh báo 05/10/2026).
+
+   Ca thật: Loan Anh đang ở màn Công nợ, đính ảnh UNC thì hiện "UNC.jpg: You
+   are not permitted to access this resource. Login to accessFunction
+   vagabond.tep_dinh_kem.nap_tam is not whitelisted". Hàm đó có quyền gọi đủ.
+   Đọc nhật ký đăng nhập: tài khoản chỉ cho 2 phiên cùng lúc, hôm đó đăng nhập
+   3 lần (14:49, 15:59, 16:04), lần thứ ba đẩy văng phiên cũ của máy đang mở
+   màn Công nợ. Lời gọi kế tiếp chạy dưới danh nghĩa khách, và Frappe trả 403
+   PermissionError "chưa whitelist" chứ không phải 401, nên app tưởng là thiếu
+   quyền và đưa nguyên câu tiếng Anh khó hiểu ra màn.
+
+   Câu báo đổi theo ngôn ngữ site nên không dò chữ. Gặp 403 PermissionError
+   thì hỏi máy chủ "tôi là ai": còn đăng nhập thì đúng là thiếu quyền, giữ lỗi
+   cũ; đã thành khách thì đưa về màn đăng nhập với câu dễ hiểu. */
+var PHIEN_MAT_CAU = 'Phiên đăng nhập đã hết (thường do tài khoản vừa đăng nhập ở máy khác). Vui lòng đăng nhập lại rồi làm lại bước vừa rồi.';
+/* Codex #441: lời hỏi "tôi là ai" cũng phải có hạn giờ. Mạng treo giữa
+   chừng mà không hạn thì màn đứng im mãi, đúng cái lỗi rawCall đã chữa. Hết
+   giờ thì coi như chưa biết, giữ nguyên lỗi cũ (cùng đường với mất mạng). */
+var PHIEN_HOI_HAN = 10000;
+function phienHetGio(ms) {
+  return new Promise(function (_ok, hong) { setTimeout(function () { hong(new Error('het gio')); }, ms); });
+}
+async function phienDaMat() {
+  var ctl = window.AbortController ? new AbortController() : null;
+  var han = phienHetGio(PHIEN_HOI_HAN);
+  han.catch(function () { try { if (ctl) ctl.abort(); } catch (x) { } });
+  try {
+    var r = await Promise.race([fetch('/api/method/frappe.auth.get_logged_user', {
+      method: 'GET', credentials: 'same-origin', cache: 'no-store', headers: { 'Accept': 'application/json' },
+      signal: ctl ? ctl.signal : undefined
+    }), han]);
+    if (r.status === 401 || r.status === 403) return true;
+    if (!r.ok) return false;
+    var j = {};
+    try { j = JSON.parse(await Promise.race([r.text(), han])); } catch (x) { return false; }
+    return !j.message || j.message === 'Guest';
+  } catch (e) { return false; }
+}
 async function api(method, args) {
   try { return await rawCall(method, args); }
   catch (e) {
@@ -767,10 +810,28 @@ async function api(method, args) {
       throw new Error('Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại');
     }
     if (e && (e.status === 401 || (e.exc_type || '').indexOf('AuthenticationError') >= 0)) sessionGone();
+    if (e && e.status === 403 && (e.exc_type || '').indexOf('PermissionError') >= 0 && await phienDaMat()) {
+      sessionGone();
+      var m = new Error(PHIEN_MAT_CAU);
+      m.status = 401; m.exc_type = 'AuthenticationError';
+      throw m;
+    }
     throw e;
   }
 }
 function getList(dt, o) { o = o || {}; o.doctype = dt; if (o.limit_page_length === undefined || o.limit_page_length === null) o.limit_page_length = 100; return api('frappe.client.get_list', o); }
+/* v583 (anh Viet 07/10/2026): o tim hoi may chu thi di qua DAY, khong tu
+   viet or_filters like '%cum chu%' nua. May chu tach tung tu, bo dau, bo dau
+   cau, coi đ nhu d (vagabond/tim_kiem.py), van soat quyen doc nhu getList.
+   cot: cac cot de tim (mac dinh: ma va o tieu de cua doctype). */
+function timList(dt, q, cot, o) {
+  o = o || {};
+  return api('vagabond.tim_kiem.tim', {
+    doctype: dt, tu_khoa: q || '', cot: JSON.stringify(cot || []),
+    fields: JSON.stringify(o.fields || ['name']), filters: JSON.stringify(o.filters || {}),
+    gioi_han: o.limit_page_length || 100, order_by: o.order_by || ''
+  });
+}
 
 /* Bo dau tieng Viet, bo moi ky tu khong phai chu hoac so. Dung cho MOI o
    tim trong app: go "banh nuong" ra "Bánh nướng", go thua mot dau cach hay
@@ -784,13 +845,35 @@ function vgbChuan(s) {
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
 }
-/* Tim theo TU: moi tu go ra deu phai co mat, khong cần dung thu tu. */
+/* Tim theo TU: moi tu go ra deu phai co mat, khong can dung thu tu.
+
+   v583 (anh Viet 07/10/2026): DAY LA PHEP DUY NHAT cho moi o tim loc tren
+   may khach, cung luat voi vagabond/tim_kiem.py o may chu:
+   - bo dau, đ thanh d, bo dau cau: "chocolatine mini" ra "Bánh Chocolatine,
+     Mini size", "duong" ra "Đường đen";
+   - tu ngan (mot hai ky tu) phai dung dau mot tieng, khong thi "banh o" ra
+     ca "Croissant";
+   - tu dai khop o bat ky dau, ca ban dinh lien: "chocolatinemini" van ra.
+   `kho` la chuoi hoac mang chuoi (ten, ma, ma vach...). */
 function vgbKhop(kho, tim) {
   var t = vgbChuan(tim);
   if (!t) return true;
-  var k = vgbChuan(kho);
+  if (Object.prototype.toString.call(kho) === '[object Array]') {
+    kho = kho.filter(function (x) { return x !== null && x !== undefined; }).join(' ');
+  }
+  var k = vgbChuan(kho), k2 = k.replace(/ /g, '');
   var tu = t.split(' ');
-  for (var i = 0; i < tu.length; i++) if (k.indexOf(tu[i]) < 0) return false;
+  var motTu = tu.length === 1;
+  for (var i = 0; i < tu.length; i++) {
+    var w = tu[i];
+    if (w.length < 3) {
+      /* Go mot tu ngan (dang go do): dau mot tieng la du. Go nhieu tu: tu ngan
+         co chu cai phai la NGUYEN mot tieng ("water bt" khong ra moi ma
+         ACC-BTN), tu ngan toan so van khop dau tieng ("12" ra "12cm"). */
+      var duoi = (motTu || /^[0-9]+$/.test(w)) ? '' : '(?![a-z0-9])';
+      if (!new RegExp('(^|[^a-z0-9])' + w + duoi).test(k)) return false;
+    } else if (k.indexOf(w) < 0 && k2.indexOf(w) < 0) return false;
+  }
   return true;
 }
 
@@ -924,7 +1007,7 @@ function sheet(title, items, cur, onPick, searchable) {
   var lst = box.querySelector('.shl');
   function draw(q) {
     q = (q || '').toLowerCase();
-    var f = items.filter(function (it) { return !q || ((it.label || '') + ' ' + (it.tim || '') + ' ' + (it.value || '')).toLowerCase().indexOf(q) >= 0; });
+    var f = items.filter(function (it) { return vgbKhop([it.label, it.tim, it.value], q); }); /* v583: tim theo tung tu, bo dau, bo dau cau (vgbKhop). */
     lst.innerHTML = f.length ? f.map(function (it, i) {
       return '<div class="shi' + (it.value === cur ? ' on' : '') + '" data-i="' + items.indexOf(it) + '">' +
         (it.img ? '<img src="' + it.img + '" style="width:36px;height:36px;object-fit:cover;border-radius:8px;flex:none;border:1px solid #e5e7eb" loading="lazy">' : (it.icon ? '<span>' + it.icon + '</span>' : '')) + '<span style="flex:1;min-width:0">' + h(it.label) + (it.phu ? '<div style="color:#a0a6b4;font-size:12px;margin-top:2px">' + h(it.phu) + '</div>' : '') + '</span>' +
@@ -1034,7 +1117,7 @@ function pwaGan() {
       document.head.appendChild(c);
       var t = document.createElement('meta');
       t.name = 'apple-mobile-web-app-title';
-      t.content = 'Vagabond';
+      t.content = 'ERP The Vagabond';
       document.head.appendChild(t);
     }
     if (navigator.serviceWorker) {

@@ -33,7 +33,7 @@ MAN_LAP_PHIEU = [
 	"scrBtLap", "scrNopQuyTao", "scrNopQuySua", "scrCongThucSua", "scrTraTruocTao",
 	"scrTiecXuat", "scrTqSua", "scrTqLapDot", "scrBntTao", "scrKPITuKhai",
 	"scrXkNbNew", "scrXkTraNew", "scrXkSiNew", "scrXkPvNew", "scrRecvDoc",
-	"scrNhpDon", "scrMfgDeclare",
+	"scrNhpDon", "scrMfgDeclare", "scrCntTruocErp",
 	"hoanMoForm", "hoanMoFormDu", "hoanMoFormHuy", "dhMo", "kmSheetCtkm",
 ]
 # Man ten giong man lap phieu nhung CO Y khong boc, kem ly do.
@@ -143,7 +143,24 @@ def _moc_ghep():
 def _thu_tu():
 	ten = sorted(p.name for p in BEP.glob("*.js"))
 	i = ten.index("48-ban-soan-do.js")
-	la("48 đứng ngay trước 99", ten[i + 1:], ["99-dong-vo.js"])
+	# v550: phần 49-tru-kho-bu.js đứng sau 48 vì số 00-48 đã hết chỗ. Được
+	# phép vì nó không có màn lập phiếu nào (không định nghĩa hàm nào trong
+	# MAN_LAP_PHIEU, không có móc sdGhep) và không gán lại frame/api, tức là
+	# không có gì 48 cần bọc hay bị nó đè. Phần mới đứng sau 48 phải qua đủ
+	# ba điều kiện dưới, không thì đỏ.
+	sau = ten[i + 1:]
+	la("99 đứng cuối, sau 48", sau[-1:], ["99-dong-vo.js"])
+	for f in sau[:-1]:
+		m = CAC_PHAN[f]
+		dinh = set(re.findall(r"^(?:async )?function (\w+)\(", m, re.M))
+		la("%s sau 48 không có màn lập phiếu" % f, sorted(dinh & set(MAN_LAP_PHIEU)), [])
+		dung("%s sau 48 không có móc ghép bản nháp" % f, "sdGhep(" not in m)
+		dung("%s sau 48 không gán lại frame/api" % f,
+			not re.search(r"^\s*(frame|api)\s*=", m, re.M))
+	# v554: 50-so-tay.js (màn Sổ tay, chỉ đọc) qua đủ ba điều kiện trên.
+	# v570: 51-cai-dat-loi.js (màn Cài đặt lõi và API, không lập phiếu) qua đủ ba điều kiện trên.
+	# v579: 52-doi-soat-vendor.js (màn Đối soát nhà cung cấp, chỉ đọc và nhận tệp, không lập phiếu) qua đủ ba điều kiện trên.
+	la("chỉ phần được duyệt đứng giữa 48 và 99", sau[:-1], ["49-tru-kho-bu.js", "50-so-tay.js", "51-cai-dat-loi.js", "52-doi-soat-vendor.js"])
 	for t in _boc():
 		tep = [n for n, ma in CAC_PHAN.items() if re.search(r"^(?:async )?function %s\(" % t, ma, re.M)]
 		dung("%s nằm ở phần trước 48" % t, bool(tep) and tep[0] < "48-ban-soan-do.js")

@@ -153,7 +153,8 @@ def _():
 	m = _doc("vagabond/mua_vu.py")
 	web = _than(m, "def hang_theo_mua(", None)
 	dung("anh qua ham chung, ERP truoc Pancake",
-		'chon_anh(x.get("image"), [anh_pancake.get(d.ma_hang)], d.hinh)' in web)
+		'chon_anh(x.get("image"), [anh_pancake.get(d.ma_hang)], d.hinh,' in web
+		and 'ma_hang=d.ma_hang)' in web)
 	dung("khong con thu tu cu Pancake truoc", 'anh_pancake.get(d.ma_hang) or d.hinh or x.get("image")' not in web)
 	dung("qua bo dem cua kiem_banh", "kiem_banh._anh_pancake(" in _than(m, "def _anh_danh_muc_pancake(", "def hang_theo_mua("))
 	dung("van la cua khach vang lai", "@frappe.whitelist(allow_guest=True)\ndef hang_theo_mua(" in m)
@@ -174,7 +175,12 @@ def _():
 	tc = _doc("vagabond/public/js/bep/02-trang-chu.js")
 	dung("co the tren man Cai dat", "'CDWEB')" in tc)
 	dung("co nhanh dieu huong", "if (k === 'CDWEB') return go(scrCaiDatWeb);" in tc)
-	dung("nam trong nhom KHAC", "'CDWEB'" in _than(tc, "{ k: 'KHAC'", "\n"))
+	# v565: bang VGB_NHOM da tach nhieu dong de them truong `nhom`, nen khong
+	# doc duoc bang cach cat mot DONG nua. Doc ca khoi keys cua phan he do.
+	import re as _re
+	_kh = _re.search(r"k: 'KHAC',.*?keys: \[(.*?)\]", tc, _re.S)
+	dung("co nhom KHAC", bool(_kh))
+	dung("nam trong nhom KHAC", bool(_kh) and "'CDWEB'" in _kh.group(1))
 	cd = _doc("vagabond/public/js/bep/17-cai-dat.js")
 	dung("co man", "async function scrCaiDatWeb()" in cd)
 	man = _than(cd, "async function scrCaiDatWeb()", None)
@@ -226,6 +232,26 @@ def _():
 	la("None cung rong", kiem_kho.dong_len_web(None, None), [])
 
 
+@ca("#463: D1 va NVHTN tinh ton rieng tu dung bang kiem cua tung quay")
+def _():
+	"""Giữ chuỗi a-f của #463 ở tầng thuần, không cần đọc dữ liệu site thật.
+
+	Cùng một mã bánh có thể còn khác nhau tại hai quầy. Nếu vô tình gộp hai
+	bảng hoặc dùng số Sales online, ca này phải đỏ thay vì cho web báo một số
+	chung cho cả D1 và NVHTN.
+	"""
+	d1 = [_dong("BAWC00463", ton_dau=8, nhap_1=2, hong=1, dieu_chinh=-1)]
+	nvhtn = [_dong("BAWC00463", ton_dau=3, nhap_1=4, dieu_chinh=1)]
+	la("D1: 8 + 2 - 3 - 1 - 1", dict(kiem_kho.dong_len_web(d1, {"BAWC00463": 3})),
+		{"BAWC00463": 5})
+	la("NVHTN: 3 + 4 - 2 + 1", dict(kiem_kho.dong_len_web(nvhtn, {"BAWC00463": 2})),
+		{"BAWC00463": 6})
+	la("hai nguồn không bị cộng chung", [
+		dict(kiem_kho.dong_len_web(d1, {"BAWC00463": 3}))["BAWC00463"],
+		dict(kiem_kho.dong_len_web(nvhtn, {"BAWC00463": 2}))["BAWC00463"],
+	], [5, 6])
+
+
 # ------------------------------------------------- 2. in store: cham he
 
 @ca("in store: cua khach vang lai chi DOC, chi tra ten-anh-gia-so con")
@@ -257,8 +283,8 @@ def _():
 	dung("goi dung cua", '"/api/method/vagabond.kiem_kho.con_tren_quay_web"' in w)
 	dung("co duong #/in-store", "'#/in-store'" in w and "isStore=/^\\/in-store/" in w)
 	dung("setTab biet tab store", "mQ.hidden=t!=='store'" in w)
-	khoi = _than(w, "var STORE={quay:[]};", "napTonQuay();\n/* Nhip")
-	for cam in ("themHangMua", "CART.push", "onclick=", "moSheetMua", "Thêm vào giỏ"):
+	khoi = _than(w, "var STORE={quay:[]};", "function suaDongGio(")
+	for cam in ("themHangMua", "CART.push", "moSheetMua", "Thêm vào giỏ"):
 		dung("khong co %s" % cam, cam not in khoi)
 	dung("het banh thi noi ro, khong an tab", "đã bán hết bánh trong tủ" in khoi)
 	dung("co cach giu banh", "m.me/thevagabond.saigon" in _than(w, '<main id="store" hidden>', "</main>"))

@@ -241,8 +241,10 @@ def _chay(ho_so, to, ham, giu_cu=None, giu_moi=None, no_ho_so=None, bu_truoc=Non
 			if x.docstatus >= 2:
 				continue
 			if or_filters:
-				q = or_filters["bill_no"][1].strip("%")
-				if q not in x.name and q not in (x.bill_no or ""):
+				# v583: o tim di qua tim_kiem (tach tung tu, bo dau): may chu
+				# hoi ten khop truoc roi loc "name in" trong get_list.
+				ten_khop = [c for c in or_filters if c and c[0] == "name" and c[1] == "in"]
+				if ten_khop and x.name not in ten_khop[0][2]:
 					continue
 			ra.append(_C(x, supplier_name=x.supplier, bill_date=x.posting_date))
 		# get_list kèm luật quyền trả trùng một tờ (ảnh chị Dung 25/09).
@@ -266,8 +268,17 @@ def _chay(ho_so, to, ham, giu_cu=None, giu_moi=None, no_ho_so=None, bu_truoc=Non
 	kiem = []
 	cu = bo.frappe
 	bo.frappe = fr
+	from vagabond import tim_kiem as _tk
+
+	def _ten_khop(dt, q, cot, gioi_han=2000):
+		# Gia lap buoc doc ten khop cua tim_kiem tren chinh bo to cua ca kiem,
+		# dung phep khop that (tach tung tu, bo dau).
+		if not _tk.cac_tu(q):
+			return None
+		return [x.name for x in to.values() if _tk.khop([getattr(x, c, None) for c in cot], q)]
 	try:
 		with patch.object(hs, "_kiem", side_effect=lambda nhom, viec: kiem.append(nhom)), \
+			patch.object(_tk, "ten_khop", _ten_khop), \
 			patch.object(hs, "_cong_ty_chung_tu", return_value=CTY):
 			try:
 				kq = ham(bo)
@@ -638,9 +649,9 @@ def _cong():
 def _sua_moi_o():
 	from vagabond.hoa_don_sau import loi_sua_hd_sau, TRUONG_HD_SAU
 	goc = dict(hoa_don="HDM-1", so_hd_ncc="5802", ncc="ADECCO", tong_hd=686810159, tien_khop=686810159,
-		da_ghi_so=1, bu_tru=686810159, but_toan="PKT-1", ngoai_ncc=0, noi_boi="dung@vgb", noi_luc="2026-09-25 22:00:00")
+		da_ghi_so=1, bu_tru=686810159, but_toan="PKT-1", phieu_chi="", ngoai_ncc=0, noi_boi="dung@vgb", noi_luc="2026-09-25 22:00:00")
 	doi = {"so_hd_ncc": "9999", "ncc": "KHAC", "tong_hd": 1, "tien_khop": 1, "da_ghi_so": 0, "bu_tru": 1,
-		"but_toan": "PKT-2", "ngoai_ncc": 1, "noi_boi": "ai@vgb", "noi_luc": "2026-01-01 00:00:00", "hoa_don": "HDM-2"}
+		"but_toan": "PKT-2", "phieu_chi": "ACC-PAY-1", "ngoai_ncc": 1, "noi_boi": "ai@vgb", "noi_luc": "2026-01-01 00:00:00", "hoa_don": "HDM-2"}
 	la("đủ mọi ô", sorted(doi), sorted(TRUONG_HD_SAU))
 	lot = [k for k, v in doi.items() if not loi_sua_hd_sau([goc], [dict(goc, **{k: v})])]
 	la("không ô nào sửa tay lọt", lot, [])

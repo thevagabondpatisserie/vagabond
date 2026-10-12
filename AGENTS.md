@@ -119,6 +119,23 @@ hàm `scr...` gọi `frame(tiêu_đề, html, tuỳ_chọn)` và điều hướn
 `go(hàm)`. **Đừng đề nghị viết lại bằng React.** Đó không phải là cải
 tiến, đó là bỏ đi hai năm.
 
+**Ngoại lệ đã duyệt: web KHÁCH dựng lại bằng Vue (anh Việt chốt 11/10/2026).**
+Luật "không framework" ở trên là cho app nội bộ `/bep`, giữ nguyên. Riêng web
+khách (đặt bánh, biên nhận, thành viên, đặt bàn, chính sách, màn hình khách,
+trình biên tập web) chuyển sang Vue 3, mã ở `vagabond/public/web_vue/`:
+- Vue để thẳng trong repo (`web_vue/lib/`), KHÔNG thêm bước build vào Frappe
+  Cloud. Mô đun ES nạp qua import map; chạy `python3 cong_cu/ma_bam_web_vue.py`
+  sau mỗi lần sửa để đóng dấu `?v=` (ca `thu_web_vue.py` chặn nếu quên).
+- Giao diện giữ ĐÚNG Rocca đã duyệt: dùng lại nguyên CSS, cùng thẻ và lớp. Đổi
+  giao diện thì so ảnh với bản cũ (`cong_cu/xem_thu_web_vue.py`) trước khi bàn giao.
+- Mọi con số trên màn là computed từ MỘT nguồn trong kho (`banh/kho-banh.js`),
+  không viết hàm "vẽ lại". Phép thuần ở `kho/thuan.js`, ca hành vi node ở
+  `hanh_vi/web_vue_banh.mjs` chạy kho thật với Vue thật.
+- Chữ marketing qua `t(khoá, mặc định)`, khoá phải có trong sổ nhãn và mặc định
+  trùng sổ nhãn. Không `v-html`, không `innerHTML`.
+- Bản Vue chạy song song ở `/web_moi/...` tới đêm tráo; trang cũ vẫn là trang
+  khách dùng cho tới khi anh Việt duyệt tráo.
+
 ---
 
 ## 2b. Nguyên tắc thiết kế màn hình app, bắt buộc (anh Việt duyệt 03/09/2026)
@@ -246,8 +263,38 @@ và nhiều dòng, phép đo ở 390x844 và ảnh chụp site thật. Codex d�
   có ai dựng lại một ô nhập tự do cho ngân hàng.
 - **Không dùng AI hay công cụ tự động đọc tệp của khách để ghi đè số liệu
   xuống cơ sở dữ liệu.** Đọc để trình ra cho người xác nhận thì được.
+- **Người mua không có mã số thuế Việt Nam (anh Việt chốt 08/10/2026, #456).**
+  Công đoàn, trường, hội và khách nước ngoài xuất hoá đơn được mà không cần
+  MST: màn Chi tiết đơn Sales có nút "Không có MST Việt Nam", bắt buộc tên và
+  địa chỉ ghi đúng như khách đưa. Mã số thuế nước ngoài (nếu có) ghi kèm sau
+  tên dạng `TÊN (MST nước ngoài: X)`, không ghi vào ô MST. Máy chủ `luu_xhd`
+  vốn đã nhận tên không MST; tờ m-invoice đi vào `inv_buyerDisplayName`, ô
+  mã số thuế để trống. Nút "Công ty / HKD" vẫn bắt buộc MST 10/12/13 số.
 - **Hoá đơn điện tử đã gửi cơ quan thuế là vùng cấm.** Không tự động sửa,
   không tự động huỷ, không tự động gửi lại. Rất khó sửa chữa.
+- **Trang Vagabond Settings: Desk và app luôn đủ cả hai (anh Việt 04/10/2026).**
+  *"Mỗi lần em thêm gì trong trang này thì phải thêm cả trên bản desk và bản
+  app."* Màn app "Cài đặt lõi và API" (`bep/51-cai-dat-loi.js`) KHÔNG giữ danh
+  sách ô: máy chủ (`vagabond/cai_dat_loi.py`) đọc cấu trúc doctype, gồm cả
+  Custom Field, rồi gửi xuống. Thêm ô vào trang (JSON hoặc TRUONG_MOI) là app
+  tự có, nhưng phải tự kiểm ba việc:
+  1. Ô kiểu mới mà `ep_kieu` chưa biết thì app không sửa được: thêm nhánh và ca kiểm.
+  2. Ô cần hộp chọn riêng (như ngân hàng, nhóm Zalo) thì làm cả hai bên; phần
+     dùng chung (nhãn, giải thích, chip tình trạng, tóm tắt, tìm) đặt trong
+     `public/js/cai_dat_loi_chung.js`, không chép sang từng bên.
+  3. Ô chỉ đọc trên Desk mà app phải ghi được thì khai trong
+     `GHI_QUA_HOP_CHON` / `GHI_QUA_HOP_CHON_TRANG`, đừng bỏ read_only.
+  Khoá bí mật không bao giờ gửi xuống máy. Ca chốt: `thu_cai_dat_loi_570.py`
+  (app phủ đủ mọi ô Desk, đúng tab, đúng mục) và `hanh_vi/cai_dat_loi_570.js`.
+- **Ưu đãi trên website: ERP là nguồn duy nhất (anh Việt 09/10/2026).**
+  *"Anh muốn erp là nguồn duy nhất, các nơi khác chỉ việc đồng bộ theo thôi."*
+  Ưu đãi tạo, sửa, bật tắt trong Chương trình khuyến mãi (mục Website). Trang
+  khách đọc thẳng từ đó; màn biên tập web chỉ XEM, máy chủ chặn ghi khối
+  ưu đãi gõ tay. Đặt bánh trên web dùng CHUNG `khuyen_mai.tinh` của quầy, không
+  viết bộ tính riêng. Luật "dùng được trên web" có hai bản (`ly_do_khong_web`
+  ở Python và `kmLyDoWeb` ở app) và ca chốt đối chiếu hai bản trên cùng bảng
+  ca; sửa một bên phải sửa bên kia. Mã dùng một lần phải giữ (khoá hàng, đặt
+  Đã dùng) TRƯỚC khi gửi Pancake. Ca chốt: `thu_uu_dai_web_589.py`.
 
 ---
 
@@ -479,12 +526,30 @@ thiếu. Không mô tả thành hai bên bất đồng, và không tự kết lu
 hay lỗi đồng bộ khi chưa đọc log.
 
 
-## 10. Phân công cập nhật 09/09/2026 - ưu tiên so với phân công cũ
+## 10. Phân công cập nhật 12/10/2026 - ưu tiên so với mọi phân công cũ
 
-Anh Việt giao Codex code chính, tích hợp bench trên SHA, sửa qua review,
-merge và deploy trong phạm vi đã giao sau đủ cổng. Claude review logic và
-bổ sung là chính. Đọc `tai_lieu/INSTRUCTION_VAGABOND.md` đầu phiên; bản này
-thay hướng dẫn cũ phân vai Claude implementer/Codex reviewer.
+Codex viết code, kiểm thử, tích hợp bench trên SHA, sửa qua review, tự push
+lên nhánh PR và bàn giao. Claude là lead: chốt hướng, giao việc, rà độc lập.
+Merge và deploy chỉ khi anh Việt cho phép trong phiên, cho đúng PR đó; người
+được cho phép tự làm và kiểm site thật. Đọc `tai_lieu/INSTRUCTION_VAGABOND.md`
+đầu phiên; bản 12/10/2026 thay phân công 09/09/2026.
+
+### 10b. Claude lead: tự giao việc, không chờ anh Việt nhắc
+
+- Rà xong một bản Codex đẩy lên, Claude tự đăng ngay lệnh cho bước kế tiếp
+  trên đúng PR: có lỗi thì `@codex fix` kèm finding, số liệu tái hiện, tệp,
+  ca kiểm và tiêu chí đạt; đạt mà PR còn giai đoạn thì giao giai đoạn kế; đạt
+  và đủ cổng thì báo anh Việt duyệt, hoặc tự merge/deploy nếu đã được phép.
+- Anh Việt báo lỗi: Claude đọc dữ liệu thật trên site để khoanh nguyên nhân,
+  rồi giao Codex trên PR đang mở cùng phạm vi, không mở PR mới. Lỗi cấu hình
+  hay dữ liệu thì nói rõ ai làm gì trong Cài đặt, không giao sửa code.
+- Mỗi lệnh có: PR và SHA nền, số liệu thật, việc theo thứ tự, ca kiểm bắt
+  buộc, nhắc tự push và bàn giao `[ĐÃ SỬA XONG]` hoặc `[BỊ CHẶN]` kèm khối
+  telegram-tomtat, câu chốt không merge, không deploy.
+- Trước khi báo trạng thái PR, kiểm SHA nhánh trên GitHub và comment mới nhất
+  của Codex. Không kết luận "chưa đẩy" hay "đã xong" khi chưa kiểm remote.
+- Codex bàn giao một vòng sửa thì câu chốt là "không merge, không deploy, mời
+  Claude rà".
 
 Quyền deploy không bỏ cổng kiểm hoặc cho phép sửa chứng từ cũ/HĐĐT thật.
 Xung đột phiên bản/patch đơn thuần: giữ đủ hai bên, tăng số và dựng bundle;
@@ -510,11 +575,16 @@ không tràn ngang và desktop; không nhận browser preview là kiểm Outlook
 Theo Issue #287 và [hướng dẫn Telegram](docs/thong-bao-telegram.md), khi cần
 anh duyệt, bị chặn, sẵn sàng phát hành hoặc đã kiểm deploy thật, đăng comment
 ngắn trên đúng Issue/PR với dòng đầu tương ứng `[CẦN DUYỆT]`, `[BỊ CHẶN]`,
-`[SẴN SÀNG DEPLOY]`, `[ĐÃ DEPLOY]`. Kèm việc cụ thể, bằng chứng/SHA và link
+`[ĐÃ SỬA XONG]`, `[SẴN SÀNG DEPLOY]`, `[ĐÃ DEPLOY]`. Kèm việc cụ thể, bằng chứng/SHA và link
 nơi duyệt. Không tag agent chỉ để báo tin. Không coi Telegram là native
 approval; nếu không đăng được comment thì báo trực tiếp và ghi rõ giới hạn.
 Chỉ báo kênh đang hoạt động sau khi đã xác minh bật và gửi thật; lời dặn này
 không tự bật hệ thống hoặc chứng minh anh đã nhận tin.
+
+Mọi comment bàn giao sửa xong, review đạt hoặc không đạt, bị chặn hay cần duyệt
+phải có nhãn ở dòng đầu và đúng một khối `telegram-tomtat` theo
+`docs/thong-bao-telegram.md`. Viết tóm tắt tiếng Việt theo nghiệp vụ, không tên
+hàm hoặc tệp, tối đa hai câu. Comment không cần anh đọc thì không gắn nhãn.
 
 
 Sau mỗi đợt deploy đã kiểm site thật, tự soạn 1-5 ý tính năng bằng tiếng Việt

@@ -98,7 +98,7 @@ def _mac_dinh_trung():
 		la("mặc định %s trùng máy chủ" % khoa, chu, NHAN[khoa]["mac_dinh"])
 	la("trang có đủ câu có số", set(js), {k for k in NHAN if k.startswith("cau_")})
 	dat_ban_js = _doc("vagabond", "public", "web_order", "dat-ban.js")
-	dung("câu đóng dự phòng trong dat-ban.js trùng máy chủ", "'" + NHAN["dat_ban_dong"]["mac_dinh"] + "'" in dat_ban_js)
+	dung("câu đóng dự phòng trong dat-ban.js trùng máy chủ", NHAN["dat_ban_dong"]["mac_dinh"] in dat_ban_js)
 
 
 @ca("v532 nhãn: trang order không còn tự ghép câu, mọi câu có số đi qua cauNhan")
@@ -185,12 +185,20 @@ def _phong_thuong_hieu():
 		     re.search(r"[^\n]*%s[^\n{]*\{font-family:var\(--sans\)" % re.escape(lop), trang) is None)
 	for lop, mo in ((".h-sec{", "Tầng hương"), (".f-big{", "Đặt bánh nhắn em nhé"), (".empty .big{", "ô trống")):
 		dung("%s (%s) khai phông thương hiệu" % (lop, mo), lop + "font-family:'Vagabond Sans'" in trang)
+	# Anh Viet 03/10 (PR424): giu dung bo phong da chot luc dau. Ten/tieu de co
+	# dau tieng Viet dung phong he thong dam, khong ep Vagabond Sans len moi h1-h3.
+	dung("ten bánh tiếng Việt giữ phông hệ thống",
+	     ".c-name.vi,.s-head h2.vi{font-family:var(--sans);font-weight:600" in trang)
+	nen = _doc("vagabond", "public", "web_order", "nen.css")
+	dung("nen.css không ép Vagabond Sans lên mọi h1-h3", "html body h1,html body h2" not in nen)
 	try:
 		from fontTools.ttLib import TTFont
 	except ImportError:
 		return  # CI tay không không có fontTools; phần glyph đã kiểm tại máy làm việc 27/09/2026
 	cmap = TTFont(os.path.join(GOC, "vagabond", "public", "mau_in", "VagabondSans-Regular.otf")).getBestCmap()
-	chu = "".join(v["mac_dinh"] for v in NHAN.values()) + "".join(k.get("tieu_de", "") for k in MAC_DINH["khoi"])
+	# #367 (PR424) mo them hon 400 nhan chu than (khoa sinh tu dong, duoi _<9 hex>),
+	# dung phong than Qualy/he thong chu khong dung Vagabond Sans, nen khong kiem o day.
+	chu = "".join(v["mac_dinh"] for k, v in NHAN.items() if not re.search(r"_[0-9a-f]{9}$", k)) + "".join(k.get("tieu_de", "") for k in MAC_DINH["khoi"])
 	chu += "ăâđêôơưẠẢÃẤẦẨẪẬẮẰẲẴẶẸẺẼẾỀỂỄỆỈĨỊỌỎÕỐỒỔỖỘỚỜỞỠỢỤỦŨỨỪỬỮỰỲỴỶỸ"
 	thieu = sorted({c for c in chu if not c.isspace() and ord(c) not in cmap})
 	la("phông có đủ ký tự cho mọi nhãn và dấu tiếng Việt", thieu, [])
@@ -200,6 +208,6 @@ def _phong_thuong_hieu():
 def _nut_them():
 	trang = _doc("vagabond", "trang", "banh.html")
 	dung("nút thêm nhanh không còn là chữ +", 'vào giỏ">+</button>' not in trang)
-	la("hai chỗ dựng nút (bánh và hàng mùa) cùng một biểu tượng", trang.count('class="c-them"'), 2)
-	la("biểu tượng SVG nét 1.6", trang.count('stroke-width="1.6" stroke-linecap="round"/></svg></button>'), 2)
+	la("hai chỗ dựng nút (bánh và hàng mùa) cùng một biểu tượng", trang.replace('\\"', '"').count('class="c-them"'), 2)
+	la("biểu tượng SVG nét 1.6", trang.replace('\\"', '"').replace('" + "', '').count('stroke-width="1.6" stroke-linecap="round"/></svg></button>'), 2)
 	dung("nút là vòng kính mờ có viền, không còn nền cyan đặc", "background:rgba(0,0,0,.42)" in trang and ".c-them{" in trang and "background:var(--cyan);color:#00201d" not in trang.split(".c-them{")[1].split("}")[0])

@@ -92,8 +92,10 @@ def _dang_ke():
 
 @ca("bang gia: chi nghe hoa don luc ghi so, khong nghe don mua hay phieu nhap")
 def _chi_nghe_hoa_don():
+	# v551: on_submit cua Hoa don mua thanh danh sach (them tra_truoc_ncc).
+	import re as _re
 	dung("moc on_submit cua Hoa don mua",
-		'"on_submit": "vagabond.bang_gia_nhap.cap_nhat_tu_hoa_don"' in MA_HOOKS)
+		bool(_re.search(r'"on_submit": \[\s*"vagabond\.bang_gia_nhap\.cap_nhat_tu_hoa_don"', MA_HOOKS)))
 	# Don mua va phieu nhap lay gia TU bang gia, nghe chung la vong tron.
 	dung("khong moc vao Purchase Order",
 		"bang_gia_nhap" not in MA_HOOKS.split('"Purchase Order"')[-1].split("},")[0]

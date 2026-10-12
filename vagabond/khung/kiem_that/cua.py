@@ -16,6 +16,7 @@ from vagabond.khung.kiem_that import nen
 
 # Nạp các mô đun ca kiểm. Thêm bộ ca mới thì thêm tên vào đây, giống cách
 # `khung/kiem_thu/chay.py` làm.
+from vagabond.khung.kiem_that import thu_cong_no_ncc
 from vagabond.khung.kiem_that import thu_luu_duyet_296
 from vagabond.khung.kiem_that import thu_thu_ncc
 from vagabond.khung.kiem_that import thu_su_co_290
@@ -35,8 +36,19 @@ from vagabond.khung.kiem_that import thu_ccdc_dung_ngay_524  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_hach_toan_526  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_noi_hd_sau_530  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_so_hd_that_531  # noqa: F401,E402
+from vagabond.khung.kiem_that import thu_tra_truoc_ncc_551  # noqa: F401,E402
+from vagabond.khung.kiem_that import thu_thay_the_khong_lo_552  # noqa: F401,E402
+from vagabond.khung.kiem_that import thu_kenh_zalo_562  # noqa: F401,E402
+from vagabond.khung.kiem_that import thu_ghim_565  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_ma_ke_toan_389  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_phieu_thu_unc_534  # noqa: F401,E402
+from vagabond.khung.kiem_that import thu_khop_tay_gop_571  # noqa: F401,E402
+from vagabond.khung.kiem_that import thu_gom_phap_nhan_576  # noqa: F401,E402
+from vagabond.khung.kiem_that import thu_khop_tay_577  # noqa: F401,E402
+from vagabond.khung.kiem_that import thu_doi_soat_vendor_579  # noqa: F401,E402
+from vagabond.khung.kiem_that import thu_tim_kiem_583  # noqa: F401,E402
+from vagabond.khung.kiem_that import thu_bo_phan_583  # noqa: F401,E402
+from vagabond.khung.kiem_that import thu_kho_quyen_585  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_bao_ve_hddt_225  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_link_thue_227  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_mua_hddt_227  # noqa: F401,E402
@@ -58,6 +70,11 @@ from vagabond.khung.kiem_that import thu_kiem_banh_document  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_nhap_kho  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_lo_theo_ngay_540  # noqa: F401,E402
 from vagabond.khung.kiem_that import gsm_lam_tron_543  # noqa: F401,E402
+from vagabond.khung.kiem_that import tat_lo_545  # noqa: F401,E402
+from vagabond.khung.kiem_that import gia_von_kiem_ke_547  # noqa: F401,E402
+from vagabond.khung.kiem_that import thu_ngay_ban_573  # noqa: F401,E402
+from vagabond.khung.kiem_that import thu_hach_toan_kho_542  # noqa: F401,E402
+from vagabond.khung.kiem_that import thu_tru_kho_bu_550  # noqa: F401,E402
 
 QUYEN = ("System Manager", "Giám đốc", "AP Giám đốc")
 
@@ -99,4 +116,5 @@ from vagabond.khung.kiem_that import thu_kho_dich_512  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_bang_sang_351  # noqa: F401,E402
 
 from vagabond.khung.kiem_that import thu_tra_lai_app_339
+from vagabond.khung.kiem_that import thu_chu_web_367  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_don_web_367  # noqa: F401,E402

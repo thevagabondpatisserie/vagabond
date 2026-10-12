@@ -25,6 +25,7 @@ gia_lap_trang.js (bài học #205: dò chuỗi không phải kiểm thử).
 
 import ast
 import contextlib
+import copy
 import io
 import json
 import os
@@ -154,7 +155,48 @@ class _Vet:
 		self.su = []
 
 
-def _moi_truong_tao_don(pancake, trung=None):
+def _km_gia(giam=0, ly_do="", mot_lan=False, giu_duoc=True, chuoi=None, loi_giu=False):
+	"""khuyen_mai giả cho tao_don: ap_web trả số giảm định sẵn, ghi vết giữ,
+	trả mã và ghi lượt dùng (v589). `chuoi`: số giảm cho từng lần gọi ap_web
+	liên tiếp (Codex #460: lần tính lại trong khoá thấy đơn khác vừa lấy lượt
+	cuối). Mọi thao tác chạm sổ đều ghi thêm vào vet.su của tao_don (nếu đã
+	nối) để kiểm thứ tự so với lúc gọi Pancake."""
+	vet = types.SimpleNamespace(ap=[], giu=[], giu_gc=[], tra=[], ghi=[], khoa=[], tra_luot=[], su=None)
+
+	def _danh(chu):
+		if vet.su is not None:
+			vet.su.append(chu)
+
+	def ap_web(gio, ma=None, sdt=None, ngay=None):
+		vet.ap.append((gio, ma, sdt, ngay))
+		_danh("km:tinh")
+		if ly_do:
+			return {"tong_giam": 0, "ap": [], "ly_do": ly_do}
+		g = chuoi[min(len(vet.ap), len(chuoi)) - 1] if chuoi else giam
+		g, ct = g if isinstance(g, tuple) else (g, "SN10")
+		return {"tong_giam": g, "ap": [{"ma": ct, "ten": "Giảm " + ct, "giam": g}] if g else [],
+			"ly_do": "", "kq": {"ap": [{"loai": "ctkm", "ma": ct}] if g else [], "voucher": ma or ""}}
+
+	def giu_luot_web(kq, **k):
+		if loi_giu:
+			raise RuntimeError("không chèn được dòng lượt dùng")
+		vet.ghi.append(dict(k, kq=kq))
+		_danh("km:ghi_luot")
+
+	km = types.SimpleNamespace(
+		NGUON_WEB="Website", ap_web=ap_web, vet=vet,
+		ma_dung_mot_lan=lambda ma: mot_lan,
+		giu_ma_mot_lan=lambda ma, gc: (vet.giu.append(ma), vet.giu_gc.append(gc), _danh("km:giu_ma"), giu_duoc)[3],
+		tra_ma_mot_lan=lambda ma, gc: (vet.tra.append(ma), _danh("km:tra_ma")),
+		ghi_su_dung=lambda kq, **k: (vet.ghi.append(dict(k, kq=kq)), _danh("km:ghi_luot")),
+		khoa_ctkm=lambda ds: (vet.khoa.append(list(ds)), _danh("km:khoa")),
+		giu_luot_web=giu_luot_web,
+		tra_luot_web=lambda gc: (vet.tra_luot.append(gc), _danh("km:tra_luot")),
+	)
+	return km
+
+
+def _moi_truong_tao_don(pancake, trung=None, km=None, phi=None, cauhinh=None):
 	"""Dựng môi trường gọi tao_don THẬT, chặn mọi đường ra ngoài.
 
 	`pancake(vet)` là hàm thay requests.post: ghi 'post' vào vết rồi trả về
@@ -191,10 +233,10 @@ def _moi_truong_tao_don(pancake, trung=None):
 		phan_loai_pancake=don_web.phan_loai_pancake, fb_hop_le=don_web.fb_hop_le,
 		nguong_mien_phi=lambda: 1000000, khoa_ghi=khoa_ghi, tim_trung=lambda k: trung,
 		tao_ban_ghi=tao_ban_ghi, cap_nhat_sau_pancake=cap_nhat, phan_hoi=phan_hoi,
-		xep_capi=lambda *a, **k: vet.su.append("capi"),
+		xep_capi=lambda *a, **k: vet.su.append("capi"), GHI_CHU_DON_WEB=don_web.GHI_CHU_DON_WEB,
 	)
 	fr = types.SimpleNamespace(
-		db=types.SimpleNamespace(commit=lambda: vet.su.append("commit")),
+		db=types.SimpleNamespace(commit=lambda: vet.su.append("commit"), rollback=lambda: vet.su.append("rollback")),
 		log_error=lambda *a, **k: None, get_traceback=lambda: "",
 		get_all=lambda *a, **k: [],
 	)
@@ -207,14 +249,18 @@ def _moi_truong_tao_don(pancake, trung=None):
 	g = dict(
 		json=json, re=re, frappe=fr, requests=types.SimpleNamespace(post=post),
 		don_web=dw, PANCAKE="https://pancake.invalid", TIMEOUT=1,
-		cfg=lambda: D(pancake_shop_id="67355", pancake_order_source_id=""),
+		cfg=cauhinh or (lambda: D(pancake_shop_id="67355", pancake_order_source_id="")),
 		key=lambda c, f: "khoa-thu",
-		phi_giao=lambda **k: {"ok": 1, "total_fee": 36000},
+		phi_giao=phi or (lambda **k: {"ok": 1, "total_fee": 36000}),
 		_uuid_tu_ma=lambda c, k, ma: "uuid-" + ma,
 		_gia_va_ten=lambda ds: ({m: 450000 for m in ds}, {m: "Bánh " + m for m in ds}),
 		_ip_va_trinh_duyet=lambda: ("203.0.113.9", "Trinh duyet thu"),
+		khuyen_mai=km or _km_gia(),
 	)
-	for ten in ("_so", "_lam_sach_hang", "_lam_sach_the", "_ngay_iso", "_hoa_don_pancake"):
+	vet.km = g["khuyen_mai"]
+	vet.km.vet.su = vet.su
+	for ten in ("_so", "_lam_sach_hang", "_lam_sach_the", "_ngay_iso", "_hoa_don_pancake", "_diem_lay",
+			"_uu_dai_don", "_giu_luot_uu_dai", "_tra_uu_dai_khi_tu_choi", "_bo_ctkm"):
 		nap("don_hang.py", ten, g)
 	g["MAX_DONG"], g["MAX_SL"] = 30, 20
 	g["_UUID"] = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
@@ -225,7 +271,7 @@ def _don(**them):
 	d = {"ho_ten": "Nguyễn Văn An", "dien_thoai": "0931224334", "tu_lay": False,
 		"dia_chi": "9 Trần Cao Vân, Quận 1", "ngay_nhan": "2026-09-26T13:00:00",
 		"items": [{"variation_id": "BAWC00139", "quantity": 1}, {"variation_id": "BAWC00140", "quantity": 1}],
-		"nonce": "N" * 24, "dong_y": True, "thanh_toan": "bank"}
+		"nonce": "N" * 24, "dong_y": True, "thanh_toan": "bank", "giam_da_xem": 0}
 	d.update(them)
 	return d
 
@@ -312,6 +358,71 @@ def _():
 	la("tiền bánh do máy chủ tính", vet.truong["tien_banh"], 900000)
 	la("vẫn thu phí giao", vet.body["shipping_fee"], 36000)
 
+
+
+@ca("v586 (Codex #453): đơn tự lấy chỉ nhận điểm đang bật ở thẻ Cửa hàng; tắt hết thì chặn, địa chỉ lấy từ máy chủ")
+def _():
+	import unittest.mock as um
+	nw = noi_dung_web
+
+	def gui(cua_hang, ma_diem, dia_chi="địa chỉ trình duyệt gửi", ten="tên trình duyệt gửi"):
+		nd = {"khoi": []} if cua_hang is None else {"khoi": [], "thong_tin": {"cua_hang": cua_hang}}
+		vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}))
+		with um.patch.object(nw, "_ban_cong_khai", lambda khoa=False: nd):
+			kq = tao_don(_don(tu_lay=True, diem_lay_id=ma_diem, diem_lay_ten=ten, dia_chi=dia_chi))
+		return kq, vet
+
+	kq, vet = gui(None, "cua-hang-sai-gon")
+	la("mặc định: nhận điểm cũ", kq.get("ok"), 1)
+	snap = json.loads(vet.truong["snapshot"])
+	la("địa chỉ điểm nhận lấy từ máy chủ", snap["dia_chi"], "9 Trần Cao Vân, P. Sài Gòn")
+	tat = [dict(c, nhan_banh=False) for c in nw.THONG_TIN_MAC_DINH["cua_hang"]]
+	la("tên điểm lấy từ máy chủ", snap["diem_lay_ten"], "Cửa hàng Sài Gòn")
+	kq, vet = gui(tat, "cua-hang-sai-gon")
+	la("tắt hết: chặn", kq, {"ok": 0, "ly_do": "khong_con_diem_nhan"})
+	dung("không ghi bản ghi, không gọi Pancake", "ghi" not in vet.su and "post" not in vet.su)
+	mot = [dict(c, nhan_banh=(c["id"] == "cua-hang-sai-gon")) for c in nw.THONG_TIN_MAC_DINH["cua_hang"]]
+	kq, vet = gui(mot, "Bếp Tân Sơn Hoà")
+	la("điểm đã tắt: chặn", kq, {"ok": 0, "ly_do": "diem_nhan_khong_con"})
+	dung("không ghi bản ghi", "ghi" not in vet.su)
+	kq, vet = gui(None, "", ten="Cửa hàng Sài Gòn")
+	la("trang cũ chỉ gửi tên: chặn, không đoán", kq, {"ok": 0, "ly_do": "diem_nhan_khong_con"})
+	trung = [dict(id="x", ten="Trùng tên", dia_chi="1 Đường X", nhan_banh=True), dict(id="y", ten="Trùng tên", dia_chi="2 Đường Y", nhan_banh=True)]
+	kq, vet = gui(trung, "x")
+	la("trùng tên: địa chỉ đúng theo mã", json.loads(vet.truong["snapshot"])["dia_chi"], "1 Đường X")
+
+@ca("v586b (Codex #454): Marketing tắt hoặc đổi điểm nhận lúc đơn đang xử lý; phép quyết định là đọc có khoá ngay trước khi ghi")
+def _():
+	import unittest.mock as um
+	nw = noi_dung_web
+	goc = copy.deepcopy(nw.THONG_TIN_MAC_DINH["cua_hang"])
+
+	def gui(hien_tai):
+		vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}))
+		cu = {"khoi": [], "thong_tin": {"cua_hang": goc}}
+		moi = {"khoi": [], "thong_tin": {"cua_hang": hien_tai}}
+
+		# Giả REPEATABLE READ: đọc thường thấy bản lúc đơn bắt đầu, đọc có
+		# khoá thấy bản Marketing vừa lưu. Ghi lại thứ tự vào vết.
+		def ban(khoa=False):
+			vet.su.append("doc_khoa" if khoa else "doc")
+			return copy.deepcopy(moi if khoa else cu)
+		with um.patch.object(nw, "_ban_cong_khai", ban):
+			kq = tao_don(_don(tu_lay=True, diem_lay_id="cua-hang-sai-gon", diem_lay_ten="x", dia_chi="x"))
+		return kq, vet
+
+	tat = [dict(c, nhan_banh=(c["id"] != "cua-hang-sai-gon")) for c in goc]
+	kq, vet = gui(tat)
+	la("vừa tắt điểm: chặn", kq, {"ok": 0, "ly_do": "diem_nhan_khong_con"})
+	dung("không ghi, không gọi Pancake", "ghi" not in vet.su and "post" not in vet.su)
+	doi = [dict(c, dia_chi=("10 Đường Mới" if c["id"] == "cua-hang-sai-gon" else c["dia_chi"])) for c in goc]
+	kq, vet = gui(doi)
+	la("vừa đổi địa chỉ: chặn để khách chọn lại", kq, {"ok": 0, "ly_do": "diem_nhan_khong_con"})
+	dung("không ghi địa chỉ cũ", "ghi" not in vet.su)
+	kq, vet = gui(goc)
+	la("không đổi: nhận", kq.get("ok"), 1)
+	dung("đọc có khoá nằm trong khoá ghi, ngay trước khi ghi rồi commit",
+		vet.su.index("khoa") < vet.su.index("doc_khoa") < vet.su.index("ghi") < vet.su.index("commit") < vet.su.index("post"))
 
 # ------------------------------------------------------- F. trang biên nhận
 
@@ -863,6 +974,23 @@ def _():
 	la("tối đa 5", len(c(["/files/%d.jpg" % i for i in range(9)])[1]), 5)
 
 
+@ca("12/10 #462 Hannari: ảnh sp do máy chép lùi sau Pancake sống, nhưng vẫn là dự phòng")
+def _():
+	c = anh_web.chon_anh
+	ma = ["BAWC00023", "BAWC00098", "BAWC00024"]
+	erp = ["/files/sp-bawc00023a1227d.jpg", "/files/sp-bawc00098565623.jpg",
+		"/files/sp-bawc00098565623.jpg"]
+	la("ba mã Hannari, gồm size 24 dùng chung tệp size 98: Pancake sống đứng đầu",
+		c(erp, ["https://pancake.live/hannari-bo-rua.jpg"], ma_hang=ma)[0],
+		"https://pancake.live/hannari-bo-rua.jpg")
+	la("ảnh Item người chọn vẫn đứng trước Pancake",
+		c("/files/hannari-chon-tay.jpg", ["https://pancake.live/hannari.jpg"], ma_hang="BAWC00023")[0],
+		"/files/hannari-chon-tay.jpg")
+	la("Pancake rỗng thì tệp sp vẫn dự phòng, không rơi về ảnh nền",
+		c("/files/sp-bawc00023a1227d.jpg", [], ma_hang="BAWC00023")[0],
+		"/files/sp-bawc00023a1227d.jpg")
+
+
 @ca("#367 I nhánh Hôm nay và Đặt trước: ảnh ERP thắng ảnh Pancake, kể cả khi chưa có khoá Pancake")
 def _():
 	for co_khoa in (True, False):
@@ -966,7 +1094,8 @@ def _():
 	than = x[x.index("def cong_khai("):x.index("def chinh_sach_dang_hien(")]
 	dung("bỏ chinh_sach khỏi dữ liệu trang đặt bánh", 'ra.pop("chinh_sach", None)' in than)
 	cs = {"chinh_sach_bao_mat": {"hien": True, "vn": "# A", "en": ""}, "dieu_khoan": {"hien": False, "vn": "# B", "en": ""}}
-	g = dict(_ban_cong_khai=lambda: {"khoi": [], "chinh_sach": cs}, CHINH_SACH=noi_dung_web.CHINH_SACH)
+	g = dict(_ban_cong_khai=lambda: {"khoi": [], "chinh_sach": cs}, CHINH_SACH=noi_dung_web.CHINH_SACH,
+		nhan_day_du=noi_dung_web.nhan_day_du, nhan_cong_khai=lambda:noi_dung_web.nhan_day_du({}))
 	la("chân trang chỉ trang đang hiện", [c["khoa"] for c in nap("noi_dung_web.py", "chinh_sach_dang_hien", g)()],
 		["chinh_sach_bao_mat"])
 	goi = []
@@ -1129,6 +1258,18 @@ RA({a:a, dong_y:d.dong_y, nonce:d.nonce, tt:d.thanh_toan, aria:EL('#c-dongy').ge
 	la("ô đồng ý báo trạng thái cho trình đọc màn hình", r["aria"], "true")
 
 
+@ca("Codex #446: dụng cụ từng bánh có trong note_print (bếp in) và note, cùng một chữ")
+def _():
+	r = _chay("2026-09-24T08:00:00", GIO_CHUA_DONG_Y + DON + r"""
+CART[0].qty=2;CART[0].dung_cu={nia:2,dia:1};tgl('dongy');
+GHI.goiMang.length=0; submitOrder(); await CHO_XONG();
+var d=cacDon()[0]||{};
+RA({in_bep:d.note_print||'', note:d.note||''});
+""")
+	dung("phiếu bếp có dụng cụ nhân số lượng", "dụng cụ: 4 nĩa gỗ, 2 dĩa giấy" in r["in_bep"])
+	dung("ghi chú đơn vẫn có", "4 nĩa gỗ, 2 dĩa giấy" in r["note"])
+
+
 @ca("#367 L gửi lỗi rồi gửi lại: CÙNG nonce để máy chủ nhận ra cùng một đơn; thành công thì sang biên nhận")
 def _():
 	r = _chay("2026-09-24T08:00:00", GIO_CHUA_DONG_Y + DON + r"""
@@ -1162,7 +1303,7 @@ await submitOrder();
 RA({chuyen:GHI.chuyenTrang, hint:EL('#sendHint').innerHTML});
 """)
 	la("không chuyển", r["chuyen"], [])
-	dung("vẫn báo đã nhận", "Tiệm đã nhận đơn" in r["hint"])
+	dung("vẫn báo đã nhận", "Chúng tôi đã tiếp nhận yêu cầu" in r["hint"])
 
 
 @ca("#367 L thanh giỏ: 999.999 nhắc ngưỡng, đúng 1.000.000 báo miễn phí; bảng tóm tắt không cộng phí")
@@ -1229,7 +1370,7 @@ GHI.traLoi=function(url){ return url.indexOf('phi_giao')>=0 ? {message:{ok:0, ly
 EL('#f-addr').value='9 Tran Cao Van, Quan 1, TP HCM'; setMode('ship'); await CHO_XONG();
 RA({sum:EL('#sum').innerHTML, hint:EL('#shipHint').innerHTML, tong:coTotals().total});
 """)
-	dung("dòng phí nói Sales báo", "Sales báo phí khi xác nhận" in r["sum"])
+	dung("dòng phí nói sẽ xác nhận", "Chúng tôi báo phí khi xác nhận" in r["sum"])
 	dung("nhãn tổng nói chưa gồm phí", "Tạm tính, chưa gồm phí giao" in r["sum"])
 	dung("không nói miễn phí", "iễn phí" not in r["sum"] and "iễn phí" not in r["hint"])
 	la("tổng chỉ tiền bánh", r["tong"], 500000)
@@ -1467,7 +1608,8 @@ def _():
 		db=types.SimpleNamespace(get_value=get_value, set_value=lambda *a, **k: vet.append("set")),
 		log_error=lambda **k: vet.append("log"), get_traceback=lambda: "")
 	g = dict(frappe=fr, DOCTYPE="Vagabond Don Web", xep_capi=lambda *a, **k: vet.append("capi"),
-		now_datetime=lambda: "2026-09-26 10:00:00")
+		now_datetime=lambda: "2026-09-26 10:00:00",
+		_noi_uu_dai_hoa_don=lambda ten, si: vet.append(("noi", ten, si)))
 	ham = nap("don_web.py", "khi_ghi_so_hoa_don", g)
 	ham(D(name="SINV-RET", is_return=1, custom_pancake_display_id="91500", grand_total=-650000))
 	la("trả hàng: không đọc gì", vet, [])
@@ -1476,3 +1618,394 @@ def _():
 	gv["trang_thai"] = "Da nhan"
 	ham(D(name="SINV-3", custom_pancake_display_id="91500", grand_total=650000))
 	dung("lần đầu thì ghi và xếp Purchase", "set" in vet and "capi" in vet)
+	# Codex #461 vòng 2: nối ưu đãi với đúng hoá đơn, chỉ ở lần ghi sổ đầu, trước Purchase.
+	la("nối ưu đãi đúng một lần với đúng đơn và hoá đơn", [x for x in vet if isinstance(x, tuple) and x[0] == "noi"], [("noi", "DW-1", "SINV-3")])
+	dung("nối trước khi xếp Purchase", vet.index(("noi", "DW-1", "SINV-3")) < vet.index("capi"))
+
+
+# ---------------------------------------------------------------- v589 ưu đãi ERP
+
+@ca("v589 đơn web có ưu đãi ERP: máy chủ tự tính theo giá ERP, gửi total_discount, xét miễn phí giao trên tiền SAU giảm, giữ lượt trước Pancake (Codex #460)")
+def _():
+	km = _km_gia(giam=90000)
+	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "91500"}}), km=km)
+	# Hai bánh 450.000 = 900.000 dưới ngưỡng 1.000.000; ba bánh 1.350.000 - 90.000 = 1.260.000 vẫn trên ngưỡng.
+	kq = tao_don(_don(giam_da_xem=90000, ma_uu_dai=" sn10 ", items=[{"variation_id": "BAWC00139", "quantity": 3}]))
+	la("nhận", kq.get("ok"), 1)
+	gio, ma, sdt, ngay = km.vet.ap[0]
+	la("giá do máy chủ đọc, mã chuẩn hoá", (gio, ma, sdt, ngay),
+		([{"item_code": "BAWC00139", "qty": 3, "rate": 450000.0}], "SN10", "0931224334", "2026-09-26"))
+	la("Pancake nhận giảm", vet.body.get("total_discount"), 90000)
+	la("miễn phí giao vì sau giảm vẫn trên ngưỡng", vet.body.get("shipping_fee"), 0)
+	snap = json.loads(vet.truong["snapshot"])
+	la("snapshot giữ ưu đãi", (snap["uu_dai"]["ma"], snap["uu_dai"]["giam"]), ("SN10", 90000))
+	la("giữ lượt một lần, ghi chú đơn web", (len(km.vet.ghi), km.vet.ghi[0]["ghi_chu"]), (1, "Đơn web DW-2609-00001"))
+	dung("ghi lượt TRƯỚC khi gửi Pancake", vet.su.index("km:ghi_luot") < vet.su.index("post"))
+
+
+@ca("v589 ưu đãi kéo đơn xuống dưới ngưỡng miễn phí giao thì khách trả phí giao")
+def _():
+	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}), km=_km_gia(giam=400000))
+	tao_don(_don(giam_da_xem=400000, items=[{"variation_id": "BAWC00139", "quantity": 3}]))  # 1.350.000 - 400.000 = 950.000
+	la("tính phí giao", vet.body.get("shipping_fee"), 36000)
+	la("vẫn gửi giảm", vet.body.get("total_discount"), 400000)
+
+
+@ca("v589 không có ưu đãi thì đơn y như cũ: không có total_discount, snapshot uu_dai rỗng, không ghi lượt")
+def _():
+	km = _km_gia(giam=0)
+	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}), km=km)
+	tao_don(_don())
+	dung("không gửi total_discount", "total_discount" not in vet.body)
+	la("snapshot", json.loads(vet.truong["snapshot"]).get("uu_dai"), None)
+	la("không ghi lượt", km.vet.ghi, [])
+
+
+@ca("v589 mã sai thì dừng TRƯỚC khi ghi bản ghi và gọi Pancake, trả câu lý do cho khách")
+def _():
+	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}), km=_km_gia(ly_do="Mã ABC: chương trình đã hết hạn."))
+	kq = tao_don(_don(ma_uu_dai="ABC"))
+	la("chặn", (kq["ok"], kq["ly_do"], kq["chi_tiet"]), (0, "ma_uu_dai", "Mã ABC: chương trình đã hết hạn."))
+	la("không ghi, không gọi", [x for x in vet.su if x in ("ghi", "post")], [])
+
+
+@ca("v589 mã dùng một lần: giữ mã trong khoá trước khi gọi Pancake; Pancake từ chối thì trả mã và trả lượt đã giữ (Codex #460)")
+def _():
+	km = _km_gia(giam=50000, mot_lan=True)
+	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(422, {"message": "sai"}), km=km)
+	kq = tao_don(_don(giam_da_xem=50000, ma_uu_dai="AB12CD"))
+	la("đơn bị từ chối", kq["ok"], 0)
+	la("đã giữ mã, ghi chú đúng đơn (để việc định kỳ tìm ra mà trả)", (km.vet.giu, km.vet.giu_gc), (["AB12CD"], ["Đơn web DW-2609-00001"]))
+	la("lượt và mã đã giữ được trả lại theo đúng đơn", km.vet.tra_luot, ["Đơn web DW-2609-00001"])
+
+
+@ca("v589 mã dùng một lần đang bị đơn khác giữ: dừng trong khoá, rollback cả bản ghi vừa ghi, không gọi Pancake (vòng 2: giữ mã sau khi có mã đơn)")
+def _():
+	km = _km_gia(giam=50000, mot_lan=True, giu_duoc=False)
+	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}), km=km)
+	kq = tao_don(_don(giam_da_xem=50000, ma_uu_dai="AB12CD"))
+	la("chặn", (kq["ok"], kq["ly_do"]), (0, "ma_uu_dai"))
+	dung("có rollback", "rollback" in vet.su)
+	dung("rollback SAU khi ghi (bản ghi bị huỷ theo)", vet.su.index("rollback") > vet.su.index("ghi"))
+	la("không gọi Pancake, không commit sau khi ghi", [x for x in vet.su[vet.su.index("ghi"):] if x in ("post", "commit")], [])
+
+
+@ca("v589 mất phản hồi Pancake: vẫn ghi lượt (đơn có thể đã có), không trả mã")
+def _():
+	km = _km_gia(giam=50000, mot_lan=True)
+
+	def mat_mang(v):
+		raise OSError("mất mạng")
+	vet, tao_don = _moi_truong_tao_don(mat_mang, km=km)
+	tao_don(_don(giam_da_xem=50000, ma_uu_dai="AB12CD"))
+	la("ghi lượt, không trả", (len(km.vet.ghi), km.vet.tra), (1, []))
+
+
+@ca("v589 biên nhận trừ ưu đãi vào tổng và ghi tên ưu đãi")
+def _():
+	snap = dict(SNAP, uu_dai={"ma": "SN10", "giam": 65000, "ap": [{"ten": "Giảm sinh nhật", "giam": 65000}]})
+	tt = don_web.tom_tat_bien_nhan({"name": "DW-1", "trang_thai": "Da nhan", "tien_banh": 650000}, snap)
+	la("dòng giảm", (tt["giam"], tt["uu_dai"]), ("- 65.000 đ", "Giảm sinh nhật"))
+	la("tổng = 650.000 - 65.000 + phí giao 36.000", tt["tong"], "621.000 đ")
+
+
+# ------------------------------------------------- Codex #460 (review 7d8fa2c)
+
+@ca("Codex #460 P1: lượt dùng ghi theo NGÀY NHẬN của đơn, đúng ngày ap_web đã dùng để soát hạn mức mỗi ngày")
+def _():
+	km = _km_gia(giam=90000)
+	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}), km=km)
+	tao_don(_don(giam_da_xem=90000, ma_uu_dai="SN10", ngay_nhan="2026-09-26T13:00:00"))
+	la("ngày soát hạn mức", km.vet.ap[0][3], "2026-09-26")
+	la("ngày ghi lượt", km.vet.ghi[0].get("ngay"), "2026-09-26")
+
+
+@ca("Codex #460 P1: giữ lượt TRONG khoá trước khi gửi Pancake: khoá chương trình, tính lại, ghi lượt, rồi mới gửi")
+def _():
+	km = _km_gia(giam=90000)
+	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}), km=km)
+	kq = tao_don(_don(giam_da_xem=90000, ma_uu_dai="SN10"))
+	la("nhận", kq.get("ok"), 1)
+	la("khoá đúng chương trình", km.vet.khoa, [["SN10"]])
+	su = [x for x in vet.su if x.startswith("km:khoa") or x.startswith("km:ghi") or x in ("khoa", "post")]
+	la("thứ tự", su, ["khoa", "km:khoa", "km:ghi_luot", "post"])
+	i_khoa = vet.su.index("km:khoa")
+	dung("tính lại SAU khi khoá chương trình", "km:tinh" in vet.su[i_khoa:])
+	# Commit TRƯỚC khoá để lần tính lại đọc ảnh chụp mới (REPEATABLE READ):
+	# đọc cũ từ đầu yêu cầu sẽ không thấy lượt đơn kia vừa ghi.
+	dung("commit giữa khoá tệp và khoá chương trình", "commit" in vet.su[vet.su.index("khoa"):i_khoa])
+	la("không trả lượt khi Pancake nhận", km.vet.tra_luot, [])
+
+
+@ca("Codex #460 P1: đơn khác vừa lấy lượt cuối (tính lại trong khoá ra số khác) thì dừng, rollback, không ghi, không gửi Pancake")
+def _():
+	km = _km_gia(chuoi=[90000, 0])
+	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}), km=km)
+	kq = tao_don(_don(giam_da_xem=90000))
+	la("chặn và báo khách xem lại", (kq.get("ok"), kq.get("ly_do")), (0, "ma_uu_dai"))
+	dung("có câu cho khách", "vừa thay đổi" in (kq.get("chi_tiet") or ""))
+	dung("rollback", "rollback" in vet.su)
+	la("không ghi bản ghi, không ghi lượt, không gửi", [x for x in vet.su if x in ("ghi", "post", "km:ghi_luot")], [])
+
+
+@ca("Codex #460 P1: Pancake từ chối thì trả lại lượt đã giữ (và trả mã dùng một lần)")
+def _():
+	km = _km_gia(giam=50000, mot_lan=True)
+	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(422, {"message": "sai"}), km=km)
+	tao_don(_don(giam_da_xem=50000, ma_uu_dai="AB12CD"))
+	la("trả lượt và mã theo đúng đơn", km.vet.tra_luot, ["Đơn web DW-2609-00001"])
+	dung("trả SAU khi Pancake trả lời", vet.su.index("km:tra_luot") > vet.su.index("post"))
+
+
+# ------------------------------------------- Codex #460 vòng 2 (review e944042)
+
+@ca("Codex #460 vòng 2: lần tính lại đổi sang chương trình KHÁC cùng số tiền thì vẫn dừng (chỉ chương trình đã khoá mới được dùng)")
+def _():
+	km = _km_gia(chuoi=[(50000, "A"), (50000, "B")])
+	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}), km=km)
+	kq = tao_don(_don(giam_da_xem=50000))
+	la("chặn", (kq.get("ok"), kq.get("ly_do")), (0, "ma_uu_dai"))
+	la("chỉ khoá A", km.vet.khoa, [["A"]])
+	la("không ghi lượt, không gửi", [x for x in vet.su if x in ("post", "km:ghi_luot")], [])
+
+
+@ca("Codex #460 vòng 2: giữ lượt hỏng (không chèn được dòng lượt dùng) thì rollback, KHÔNG gửi Pancake, báo khách thử lại")
+def _():
+	km = _km_gia(giam=90000, loi_giu=True)
+	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}), km=km)
+	kq = tao_don(_don(giam_da_xem=90000, ma_uu_dai="SN10"))
+	la("chặn", (kq.get("ok"), kq.get("ly_do")), (0, "ma_uu_dai"))
+	dung("rollback", "rollback" in vet.su)
+	la("không gửi Pancake", vet.su.count("post"), 0)
+
+
+@ca("Codex #460 vòng 2: trả ưu đãi lỗi lúc Pancake từ chối thì việc định kỳ trả lại sau: đơn Đã huỷ còn giữ lượt hay mã đều được trả")
+def _():
+	goi, tra = [], []
+
+	def sql(q, v=None, **k):
+		goi.append((" ".join(q.split()), v))
+		return [("Đơn web DW-1",), ("Đơn web DW-2",)]
+
+	def tra_luot(gc):
+		if gc == "Đơn web DW-1" and not tra:
+			tra.append("loi")
+			raise RuntimeError("khoá chết")
+		tra.append(gc)
+	g = dict(frappe=types.SimpleNamespace(db=types.SimpleNamespace(sql=sql, commit=lambda: None, rollback=lambda: None),
+			log_error=lambda *a, **k: None, get_traceback=lambda: ""),
+		khuyen_mai=types.SimpleNamespace(tra_luot_web=tra_luot))
+	ham = nap("don_hang.py", "tra_uu_dai_don_huy", g)
+	n = ham()
+	la("một đơn lỗi không chặn đơn sau", (n, tra), (1, ["loi", "Đơn web DW-2"]))
+	tra.clear(); tra.append("x")
+	n = ham()
+	la("lần sau trả nốt", (n, tra), (2, ["x", "Đơn web DW-1", "Đơn web DW-2"]))
+	q = goi[0][0]
+	dung("chỉ đơn Đã huỷ, kênh Website, chưa có hoá đơn, gồm cả lượt lẫn mã", "Da huy" in q and "Website" in q and "tabVagabond Voucher" in q and "tabVagabond CTKM Su Dung" in q)
+	dung("bỏ lượt đã trả (không quét lại mãi)", "ifnull(sd.da_tra, 0)=0" in q)
+	hooks = open(os.path.join(str(GOC), "vagabond", "hooks.py"), encoding="utf-8").read()
+	dung("có lịch chạy", "vagabond.don_hang.tra_uu_dai_don_huy" in hooks)
+
+
+@ca("Codex #460 vòng 2: cùng chương trình nhưng tính lại ra số tiền khác (đơn vừa đổi điều kiện) thì vẫn dừng")
+def _():
+	km = _km_gia(chuoi=[(90000, "SN10"), (50000, "SN10")])
+	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}), km=km)
+	kq = tao_don(_don(giam_da_xem=90000))
+	la("chặn", (kq.get("ok"), kq.get("ly_do")), (0, "ma_uu_dai"))
+	la("không gửi", vet.su.count("post"), 0)
+
+
+# ------------------------------------------- Codex #461 (review 60eee635b)
+
+def _cu_461():
+	return D(name="DW-2609-00001", muoi="m" * 64)
+
+
+@ca("Codex #461: gửi lại cùng nonce sau khi mất phản hồi, mã dùng một lần đã thành Đã dùng: trả ĐÚNG biên nhận cũ, không báo lỗi mã")
+def _():
+	km = _km_gia(ly_do="Mã TET26: mã đã được dùng.", mot_lan=True)
+	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}), trung=_cu_461(), km=km)
+	kq = tao_don(_don(ma_uu_dai="TET26"))
+	la("biên nhận cũ", (kq.get("ok"), kq.get("trung"), kq.get("ma_yeu_cau")), (1, 1, "DW-2609-00001"))
+	la("không tính lại ưu đãi, không ghi, không gọi Pancake", vet.su, [])
+
+
+@ca("Codex #461: gửi lại cùng nonce khi chính đơn đầu đã lấy lượt cuối của chương trình tự áp: vẫn trả biên nhận cũ")
+def _():
+	km = _km_gia(ly_do="Chương trình đã hết lượt.")
+	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}), trung=_cu_461(), km=km)
+	kq = tao_don(_don(giam_da_xem=90000, ma_uu_dai="SN10"))
+	la("biên nhận cũ", (kq.get("ok"), kq.get("trung")), (1, 1))
+
+
+@ca("Codex #461: gửi lại cùng nonce khi địa chỉ vừa thành ngoài vùng giao: vẫn trả biên nhận cũ, không gọi báo phí")
+def _():
+	goi = []
+	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}), trung=_cu_461(),
+		phi=lambda **k: (goi.append(k), {"ly_do": "ngoai_vung_giao", "khoang_cach": 30, "ban_kinh": 15})[1])
+	kq = tao_don(_don())
+	la("biên nhận cũ", (kq.get("ok"), kq.get("trung")), (1, 1))
+	la("không gọi báo phí", goi, [])
+
+
+@ca("Codex #461: không có đơn cũ thì mã đã dùng vẫn bị chặn như trước (sửa không mở cửa cho mã đã dùng)")
+def _():
+	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}), km=_km_gia(ly_do="Mã TET26: mã đã được dùng.", mot_lan=True))
+	kq = tao_don(_don(ma_uu_dai="TET26"))
+	la("chặn", (kq.get("ok"), kq.get("ly_do")), (0, "ma_uu_dai"))
+	la("không ghi, không gọi", [x for x in vet.su if x in ("ghi", "post")], [])
+
+
+@ca("Codex #461: một chỗ tìm trùng duy nhất đứng TRƯỚC mọi lối từ chối nghiệp vụ trong tao_don (thêm lối từ chối mới phía trên là ca này đổ)")
+def _():
+	src = open(os.path.join(str(GOC), "vagabond", "don_hang.py"), encoding="utf-8").read()
+	than = src[src.index("def tao_don("):]
+	sau = than.find("\ndef ", 1)
+	than = than[:sau] if sau > 0 else than  # tao_don có thể là hàm cuối tệp
+	tim = than.index("don_web.tim_trung(")
+	for loi in ("cfg(", "_uu_dai_don(", "kiem_han_muc(", "_diem_lay(", "phi_giao(", "_uuid_tu_ma("):
+		dung("tìm trùng đứng trước " + loi, tim < than.index(loi))
+	la("khoá chống trùng chỉ tính một lần", than.count("khoa_chong_trung("), 1)
+	dung("vẫn giữ phép tìm lại trong khoá ghi", than.count("don_web.tim_trung(") == 2)
+
+
+@ca("Codex #461 vòng 2: gửi lại cùng nonce lúc cấu hình Pancake tạm thiếu khoá: vẫn trả biên nhận cũ, không báo chua_dien_khoa_pancake")
+def _():
+	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}), trung=_cu_461(),
+		cauhinh=lambda: D(pancake_shop_id="", pancake_order_source_id=""))
+	kq = tao_don(_don())
+	la("biên nhận cũ", (kq.get("ok"), kq.get("trung")), (1, 1))
+
+
+@ca("Codex #461 vòng 2: không có đơn cũ thì thiếu cấu hình Pancake vẫn dừng như trước, không ghi gì")
+def _():
+	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}),
+		cauhinh=lambda: D(pancake_shop_id="", pancake_order_source_id=""))
+	kq = tao_don(_don())
+	la("chặn", (kq.get("ok"), kq.get("ly_do")), (0, "chua_dien_khoa_pancake"))
+	la("không ghi, không gọi", [x for x in vet.su if x in ("ghi", "post")], [])
+
+
+@ca("Codex #461 vòng 2: gan_hoa_don_web nối lượt dùng kênh Website và mã dùng một lần đã giữ của ĐÚNG đơn với hoá đơn, bỏ dòng đã trả và dòng đã có hoá đơn")
+def _():
+	from vagabond import khuyen_mai as km
+	cau = []
+	fr = types.SimpleNamespace(db=types.SimpleNamespace(sql=lambda q, p=(): cau.append((" ".join(q.split()), p))))
+	g = dict(frappe=fr, NGUON_WEB=km.NGUON_WEB)
+	ham = nap("khuyen_mai.py", "gan_hoa_don_web", g)
+	ham("Đơn web DW-1", "SINV-3")
+	la("hai câu: lượt dùng rồi mã", len(cau), 2)
+	q1, p1 = cau[0]
+	dung("lượt dùng: gắn hoá đơn", q1.startswith("update `tabVagabond CTKM Su Dung` set hoa_don=%s"))
+	dung("lượt dùng: chỉ dòng chưa có hoá đơn, chưa trả", "ifnull(hoa_don, '')=''" in q1 and "ifnull(da_tra, 0)=0" in q1)
+	la("lượt dùng: tham số", p1, ("SINV-3", "Đơn web DW-1", "Website"))
+	q2, p2 = cau[1]
+	dung("mã: gắn hoá đơn và số giảm cộng từ các dòng mang mã đó", "v.hoa_don=%s, v.tien_giam=(" in q2 and "s.voucher=v.name" in q2)
+	dung("mã: chỉ mã đã giữ cho đơn này, chưa có hoá đơn", "v.ghi_chu=%s and v.trang_thai='Da dung' and v.hoa_don is null" in q2)
+	la("mã: tham số", p2, ("SINV-3", "Đơn web DW-1", "Website", "Đơn web DW-1"))
+	cau.clear()
+	ham("", "SINV-3"); ham("Đơn web DW-1", "")
+	la("thiếu đơn hay hoá đơn thì không chạm gì", cau, [])
+
+
+@ca("Codex #461 vòng 2: nối ưu đãi lỗi thì chỉ ghi log, hook vẫn xếp Purchase và không chặn ghi sổ")
+def _():
+	vet = []
+	fr = types.SimpleNamespace(log_error=lambda **k: vet.append("log"), get_traceback=lambda: "")
+	km_loi = types.SimpleNamespace(gan_hoa_don_web=lambda gc, si: (_ for _ in ()).throw(RuntimeError("khoá chết")))
+	import sys as _sys
+	cu = _sys.modules.get("vagabond.khuyen_mai")
+	import vagabond as _vg
+	cu_attr = getattr(_vg, "khuyen_mai", None)
+	_sys.modules["vagabond.khuyen_mai"] = km_loi; _vg.khuyen_mai = km_loi
+	try:
+		g = dict(frappe=fr, GHI_CHU_DON_WEB=don_web.GHI_CHU_DON_WEB)
+		nap("don_web.py", "_noi_uu_dai_hoa_don", g)("DW-1", "SINV-3")
+	finally:
+		if cu is not None:
+			_sys.modules["vagabond.khuyen_mai"] = cu
+		if cu_attr is not None:
+			_vg.khuyen_mai = cu_attr
+	la("lỗi bị nuốt và ghi log", vet, ["log"])
+
+
+@ca("Codex #461 vòng 2: một mẫu ghi chú 'Đơn web <mã>' dùng chung cho giữ lượt, trả lượt và nối hoá đơn")
+def _():
+	la("mẫu", don_web.GHI_CHU_DON_WEB % "DW-1", "Đơn web DW-1")
+	src = _doc("vagabond/don_hang.py")
+	la("đơn hàng không tự ghép chữ 'Đơn web %s'", src.count('"Đơn web %s"'), 0)
+	la("đơn hàng dùng mẫu chung ở giữ và trả", src.count("don_web.GHI_CHU_DON_WEB %"), 2)
+
+
+@ca("Codex #461 vòng 3: giảm khách đã thấy khác số máy chủ tính lại thì trả bảng mới, không ghi đơn hay gọi Pancake")
+def _():
+	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}), km=_km_gia(giam=0))
+	kq = tao_don(_don(giam_da_xem=50000))
+	la("bắt xác nhận lại", (kq.get("ok"), kq.get("ly_do"), kq.get("uu")),
+		(0, "uu_dai_doi", {"giam": 0, "ap": []}))
+	la("chưa ghi và chưa gọi Pancake", [x for x in vet.su if x in ("ghi", "post")], [])
+
+
+@ca("12/10 #462: mã đã dùng ưu tiên hơn uu_dai_doi ngay lần gửi đầu")
+def _():
+	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}),
+		km=_km_gia(ly_do="Mã TET26: mã đã được dùng.", mot_lan=True))
+	kq = tao_don(_don(giam_da_xem=50000, ma_uu_dai="TET26"))
+	la("lần đầu nói đúng lý do", (kq.get("ok"), kq.get("ly_do"), kq.get("chi_tiet")),
+		(0, "ma_uu_dai", "Mã TET26: mã đã được dùng."))
+	la("không ghi đơn, không gọi Pancake", [x for x in vet.su if x in ("ghi", "post")], [])
+
+
+@ca("Codex #461 vòng 3: giảm khách đã thấy khớp số máy chủ thì tạo đơn như cũ")
+def _():
+	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}), km=_km_gia(giam=50000))
+	kq = tao_don(_don(giam_da_xem=50000))
+	la("tạo đơn", (kq.get("ok"), vet.body.get("total_discount")), (1, 50000))
+
+
+@ca("Codex #461 vòng 3: gửi lại cùng nonce trả biên nhận cũ trước khi so số giảm khách đã thấy")
+def _():
+	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}),
+		trung=_cu_461(), km=_km_gia(giam=0))
+	kq = tao_don(_don(giam_da_xem=50000))
+	la("biên nhận cũ", (kq.get("ok"), kq.get("trung")), (1, 1))
+	la("không tính lại hay ghi", vet.su, [])
+
+
+@ca("Codex #461 vòng 3: đối soát ưu đãi lỗi từng đơn rồi chạy lại được, chạy lần ba không còn ứng viên và không chạm đơn trước v589")
+def _():
+	import sys as _sys
+	goi, loi, lan = [], [], [0]
+
+	def sql(q, p=(), **kw):
+		if q.lstrip().startswith("select"):
+			lan[0] += 1
+			return ([{"name": "DW-589", "sales_invoice": "SINV-589"}] if lan[0] < 3 else [])
+		return []
+
+	fr = types.SimpleNamespace(db=types.SimpleNamespace(sql=sql,
+		commit=lambda: goi.append("commit"), rollback=lambda: goi.append("rollback")),
+		log_error=lambda **k: loi.append(k.get("title")), get_traceback=lambda: "khoá chết")
+	def gan(gc, si):
+		goi.append((gc, si))
+		if lan[0] == 1:
+			raise RuntimeError("khoá chết")
+	km = types.SimpleNamespace(gan_hoa_don_web=gan)
+	cu = _sys.modules.get("vagabond.khuyen_mai")
+	import vagabond as _vg
+	cu_attr = getattr(_vg, "khuyen_mai", None)
+	_sys.modules["vagabond.khuyen_mai"] = km; _vg.khuyen_mai = km
+	try:
+		ham = nap("don_web.py", "doi_soat_uu_dai_hoa_don", {"frappe": fr, "GHI_CHU_DON_WEB": don_web.GHI_CHU_DON_WEB})
+		ham(); ham(); ham()
+	finally:
+		if cu is not None: _sys.modules["vagabond.khuyen_mai"] = cu
+		if cu_attr is not None: _vg.khuyen_mai = cu_attr
+	la("lỗi lượt đầu không cản lượt sau", goi,
+		[("Đơn web DW-589", "SINV-589"), "rollback", ("Đơn web DW-589", "SINV-589"), "commit"])
+	la("ghi log đúng một lỗi", loi, ["Don web: doi soat uu dai voi hoa don"])
+	src = _doc("vagabond/don_web.py")
+	dung("chỉ chọn đơn v589 có dấu snapshot và chỉ khi liên kết còn thiếu", 'snapshot like %s' in src and '%\\"uu_dai\\"%' in src and "ifnull(sd.hoa_don, '')=''" in src)
+	dung("lịch chạy mỗi giờ", "vagabond.don_web.doi_soat_uu_dai_hoa_don" in _doc("vagabond/hooks.py"))

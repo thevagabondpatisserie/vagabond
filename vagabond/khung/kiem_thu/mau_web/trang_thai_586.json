@@ -1,0 +1,18 @@
+{
+  "ghi_chu": "v586: bảng mẫu trạng thái mục ưu đãi, tuyển dụng, tiệc. Python (noi_dung_web.trang_thai_muc) và JS (bien-tap-moi.js trangThai) chạy CÙNG bảng này để danh sách biên tập không lệch máy chủ.",
+  "hom_nay": "2026-10-07",
+  "ca": [
+    [{"loai": "uu_dai"}, "dang", "Đang diễn ra"],
+    [{"loai": "uu_dai", "bat_dau": "2026-10-08"}, "sap", "Sắp diễn ra"],
+    [{"loai": "uu_dai", "bat_dau": "2026-10-07", "ket_thuc": "2026-10-07"}, "dang", "Đang diễn ra"],
+    [{"loai": "uu_dai", "ket_thuc": "2026-10-06"}, "het", "Đã kết thúc"],
+    [{"loai": "tuyen_dung"}, "dang", "Đang tuyển"],
+    [{"loai": "tuyen_dung", "ket_thuc": "2026-10-06"}, "het", "Hết hạn nhận hồ sơ"],
+    [{"loai": "tuyen_dung", "bat_dau": "2026-12-01"}, "dang", "Đang tuyển"],
+    [{"loai": "tiec", "bat_dau": "2026-10-20"}, "dang", "Đang mở đăng ký"],
+    [{"loai": "tiec", "bat_dau": "2026-10-20", "han_ban": "2026-10-06"}, "het", "Hết hạn đăng ký"],
+    [{"loai": "tiec", "bat_dau": "2026-10-07"}, "dang", "Đang mở đăng ký"],
+    [{"loai": "tiec", "bat_dau": "2026-10-06"}, "het", "Đã diễn ra"],
+    [{"loai": "tiec"}, "dang", "Đang mở đăng ký"]
+  ]
+}

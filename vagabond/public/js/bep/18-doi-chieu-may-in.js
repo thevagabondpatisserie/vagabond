@@ -1787,7 +1787,7 @@ function dcmChonDonVi(ds, loiNhan) {
     var o = box.querySelector('#dcmdvq'), khung = box.querySelector('#dcmdvds');
     function ve() {
       var q = (o.value || '').trim().toLowerCase();
-      var loc = ds.filter(function (x) { return !q || String(x).toLowerCase().indexOf(q) >= 0; }).slice(0, 60);
+      var loc = ds.filter(function (x) { return vgbKhop(String(x), q); }).slice(0, 60); /* v583: tim theo tung tu, bo dau, bo dau cau (vgbKhop). */
       khung.innerHTML = loc.length
         ? loc.map(function (x) { return '<button class="btn gh" data-dv="' + h(x) + '" style="margin-top:8px;width:100%">' + h(x) + '</button>'; }).join('')
         : '<div style="font-size:13px;color:#8a8f9c;padding:8px 0">Không có đơn vị nào khớp. Nhờ kế toán thêm vào danh mục Đơn vị tính.</div>';

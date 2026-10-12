@@ -6,6 +6,25 @@ sửa những chỗ có liên quan, vì phần lớn các lỗi đó KHÔNG có 
 
 Tệp này chỉ giữ bài học rút gọn. Nhật ký đầy đủ từng ngày nằm ngoài repo.
 
+## 12/10/2026 - Không coi ảnh máy chép vào Item là ảnh ERP người chọn (#462)
+
+Hannari trên web hiện bộ ảnh cũ dù Pancake đã có bộ ảnh mới. Nguyên
+nhân là các tệp `sp-<mã>*` do `doi_soat.keo_anh` chép từ Pancake vào
+`Item.image` được xếp như ảnh hồ sơ ERP người chọn, nên luôn đè ảnh
+Pancake sống. Cách phòng: nhận diện bản chép bằng tên tệp tại một
+nguồn chọn ảnh chung; có ảnh Pancake thì xếp bản chép ra sau, không có
+thì vẫn giữ nó làm dự phòng. Ảnh Item không theo mẫu `sp-` vẫn đứng
+đầu. Ca hồi quy phải có cả nhóm nhiều size dùng chung một tệp.
+
+## 12/10/2026 - Lý do mã hỏng phải ưu tiên hơn phép so số giảm (#462)
+
+Khách đã thấy giảm, nhưng mã vừa hết lượt hoặc đã dùng thì lần gửi
+đầu chỉ nhận `uu_dai_doi`, không biết mã đã hỏng. Nguyên nhân là so
+`giam_da_xem` trước khi trả `uu.ly_do`. Cách phòng: vẫn tìm đơn trùng
+trước mọi từ chối, nhưng sau khi tính lại thì lý do của mã phải ưu tiên;
+cả hai trang hiện nguyên câu và bỏ mã hỏng khỏi ô. Ca kiểm phải chốt
+ngay lần gửi đầu không ghi đơn, không gọi Pancake.
+
 ## 11/09/2026 - Kiểm map mới không được khóa bảo trì SePay (#273)
 
 Review phát hiện validate toàn bộ account_map mỗi lần save sẽ chặn cả enabled/token/mốc đồng bộ khi một Bank Account cũ bị ngưng dùng. Chỉ kiểm tuyến mới hoặc thay đổi; JSON/xung đột mới vẫn chặn. Cửa cấu hình tài chính phải dùng quyền tài chính trực tiếp, không đòi thêm vai bán hàng. Ca bench giữ map cũ rồi vô hiệu hóa Bank Account, lưu công tắc, từ chối tuyến mới sai và cho Accounts Manager độc lập khai map.
@@ -1499,3 +1518,580 @@ bản ghi cùng MST, kể cả bản đầu trống. Ca hồi quy phải đảo 
 - Luật: độ lẻ tiền sau giảm của dòng không được thấp hơn độ lẻ tổng của tờ.
   Muốn đổi độ lẻ một trường thì soát mọi phép tính ERPNext trộn trường đó với
   trường khác độ lẻ.
+
+## 30/09/2026 (v544, #395/#397): hạch toán kho bật theo ngày thì mọi lối không áp dụng phải trả về luồng cũ
+
+- Triệu chứng (review Codex và bench): tờ nháp lưu khi ngày bật chưa tới, ghi
+  sổ sau khi bật mà lõi báo lỗi kho thì bị reload mất cờ và chặn bán (F5); nháp
+  Sản xuất lưu lúc đang bật mang sẵn 621/154 trong dòng, kế toán xoá ngày để
+  tắt khẩn thì hook chỉ return sớm nên lần ghi sổ sau vẫn đi 621/154; bench đặt
+  ngày về trống mà không dọn cache Settings nên ngày cũ vẫn được đọc.
+- Nguyên nhân: giá trị tính lúc lưu nháp được lưu xuống dòng, còn điều kiện
+  bật/tắt đổi được giữa lúc lưu và lúc ghi sổ. Return sớm không gỡ những gì lần
+  lưu trước đã ghi. Quyết định lùi dựa trên cờ trong bộ nhớ thì phải chốt trước
+  khi rollback/reload.
+- Cách phòng: công tắc theo ngày phải có đường TẮT tường minh, trả dòng về giá
+  trị lõi tự điền; ca bench phải dựng chuỗi lưu lúc bật, tắt, rồi ghi sổ và
+  đọc GL. Đổi Single Settings trong ca kiểm thì luôn dọn cache sau khi đặt,
+  cả lúc tắt lẫn lúc bật. Nguồn: PR #395, PR #397.
+
+## 01/10/2026 (v546, #398/#400): gỡ một vai khỏi quyền bán hàng phải rà cổng chung, mô đun thu tiền và cửa ngõ nhận `loai`
+
+- Triệu chứng (Codex bốn vòng liên tiếp): gỡ "Bộ phận đặt hàng" khỏi
+  `QUYEN_BAN_HANG` thì khoá bếp, kho, thu mua khỏi Việc cần làm (cổng này là
+  cổng chung của hơn 150 hàm). Giữ vai trong cổng chung thì các hàm ghi hoá đơn
+  bán, công nợ, hoàn tiền vẫn gọi thẳng API được. Cửa ngõ SePay chung nhận
+  `loai` từ người gọi và chỉ kiểm cổng chung, nên đi vòng được cửa riêng của
+  luồng hoàn tiền. Hai kế toán chỉ vào được màn bán hàng nhờ chính vai đó.
+- Nguyên nhân: một tập quyền làm hai việc (cổng chung vận hành và cổng bán
+  hàng), và quyền đi theo tên hàm chứ không theo luồng nghiệp vụ.
+- Cách phòng: tách một cổng bán hàng riêng (`_kiem_quyen_ban`, tập
+  `QUYEN_BAN_VA_KE_TOAN`) cho mọi mô đun bán hàng, công nợ, dòng tiền quầy, hoàn
+  tiền; cửa ngõ dùng chung nhận `loai` phải kiểm quyền do luồng đó khai. Trước
+  khi gỡ vai, đọc trên site ai đang giữ vai đó mà không có vai thay thế (đã bắt
+  được hai kế toán). Ca kiểm quyền đọc đúng tập quyền trong tệp, không tự gõ lại.
+  Nguồn: PR #398, PR #400.
+
+## 01/10/2026 - Dư hóa đơn và nhãn Đã chi ngoài ERP (#391)
+
+Màn công nợ cộng PI còn nợ dễ bị hiểu là tổng phải chuyển thêm, dù còn tiền
+trả trước/JE chưa phân bổ. File dò chỉ bằng MST và số hóa đơn có thể gộp khác
+ký hiệu/năm hoặc dòng chưa chi. Phòng tái diễn: ghi rõ nguồn/phạm vi của tổng,
+giữ tiền tệ riêng, đối chiếu chứng từ trước cấn; không tạo DMH/PNK để sửa nợ.
+Màn và Excel dùng một bộ lọc và không cắt tổng theo trang. Giảm dư không đồng
+nghĩa đã chuyển tiền; dùng “Giảm một phần” thay cho suy đoán “Đã trả”.
+
+### 01/10/2026 - PR402: kiểm đúng đơn vị của dư nợ, cập nhật bằng chứng ngay
+
+Review cho rằng PI ngoại tệ lưu dư theo tiền hóa đơn. Mã core pinned
+`accounts/utils.py:update_voucher_outstanding` và ca insert-submit-reload
+PI USD100/TK VND xác nhận dư theo tiền tài khoản. Không đổi logic chỉ dựa
+nhãn field; ca bench kiểm số 2.500.000 VND và trạng thái chưa giảm một phần.
+Đính UNC là tác vụ riêng với cấn tiền: lỗi lưu phải dừng trước phân bổ,
+Chỉ lưu UNC không gọi phân bổ. Cập nhật số/link UNC ngay sau lưu để không
+hiện nhãn 0 cũ khiến người dùng tải trùng. Có ca Node giữ ba hành vi này.
+
+## 01/10/2026 - v550: lọc "khác giá trị" trên ô Select để trống
+
+Ô Select mới thêm (`vgb_tru_bu`) để trống là NULL trên các hoá đơn cũ. Lọc
+`["!=", "Gỡ tay"]` bằng SQL sẽ loại luôn mọi dòng NULL, tức là loại đúng những
+tờ chưa trừ bù lần nào, và nhịp trừ bù tự động lặng lẽ không làm gì. Cách
+phòng: lọc "khác" trên ô có thể NULL bằng Python sau khi đọc, hoặc dùng
+`ifnull`. Bộ chạy đột biến tự viết phải đọc kết quả qua `nen.chay_het` (các
+hàm `la`/`dung` ghi lỗi vào danh sách chứ không ném), không đếm ngoại lệ:
+lần đầu đếm ngoại lệ ra 0 trên 14 đột biến, tưởng bộ kiểm yếu. Nguồn: v550.
+## 02/10/2026 (v551): chi trước hoá đơn về sau thì ghi trả trước NCC, không ghi chi phí rồi đảo bằng bút toán tay
+
+- Ca thật: Adecco hoá đơn 5802 (686.810.159 đ). Hồ sơ APP.26.09.009 chi từ
+  TK công ty ghi Nợ 621/6411/6421 / Có 1121 lúc chi (gồm cả VAT), hoá đơn về
+  ghi Nợ 6271/6417/6427 + 1331 / Có 331, rồi máy lập bút toán tay
+  PKT-2026-00043 Nợ 331 / Có lại chi phí. Số dư cuối đúng nhưng chị Dung bác:
+  phiếu kế toán chỉ cho trích lương, khấu hao, phân bổ, trích trước, kết
+  chuyển, điều chỉnh; trả tiền NCC phải là phiếu chi Nợ 331 / Có 1121.
+- Hệ quả của đường cũ: sổ chi tiết chi phí phát sinh hai chiều, VAT nằm trong
+  chi phí trong lúc chờ, hồ sơ chi tháng này mà hoá đơn về tháng sau thì báo
+  cáo tháng chi dư chi phí.
+- Từ v551: khoản chờ hoá đơn của hồ sơ TK công ty có NCC ghi MỘT phiếu chi
+  trả trước (Payment Entry chưa phân bổ). Nối tờ đã ghi sổ thì phân bổ phiếu
+  vào tờ qua bộ đối chiếu thanh toán lõi; tờ nháp thì ghi sổ tờ là máy tự
+  phân bổ. Khoản mang dấu `tra_truoc` đặt lúc chi: đã chi rồi thì KHÔNG suy
+  lại từ cờ chờ hoá đơn, vì cờ đó còn đổi được sau và hồ sơ cũ không có
+  phiếu trả trước nào (suy lại là bộ chứng từ hồ sơ cũ bỗng "thiếu phiếu").
+- 8 bút toán bù trừ cũ (PKT-2026-00043..00050, 724.316.246 đ) giữ nguyên,
+  chỉ liệt kê cho kế toán, không tự sửa.
+- Bẫy bench vòng 2: dòng tờ nối có ô `but_toan` là Link tới Journal Entry.
+  Ghi tên phiếu chi (Payment Entry) vào đó thì lưu hồ sơ ném "Could not find
+  Row #1". Ca tờ nháp vẫn xanh vì đường đó ghi bằng `frappe.db.set_value`,
+  vốn BỎ QUA kiểm link. Chứng từ khác loại phải có ô Link riêng (`phieu_chi`),
+  và ca kiểm phải đi qua `save()` thật ít nhất một đường, đừng chỉ set_value.
+
+## 02/10/2026 (v552): khai mặt hàng thay thế xong vẫn bị chặn thiếu hàng
+
+- Ca thật: lệnh sản xuất ở kho Baker - Nguyên liệu cần 1.248 ml whipping
+  Lescure (NVLT00002), tồn 0. Whipping Pauls (NVLT00329) còn 87.915 ml cùng
+  kho, Khải đã khai cặp thay thế hai chiều. Bấm Hoàn tất vẫn bị ERPNext chặn
+  "Cần 1248.113 đơn vị".
+- Gốc: đường lấy mã thay thế chỉ nằm trong `lo_hang.gan_lo`, mà hàm đó chỉ
+  xét dòng THEO LÔ. Cả 15 cặp thay thế đang khai trên site đều là mã không
+  theo lô, tức chức năng thay thế chưa từng chạy cho cặp nào. Ca kiểm cũ của
+  #206 đều dựng mã theo lô nên không lộ.
+- Từ v552: `lo_hang.thay_ma_khong_lo` chạy ngay trước `gan_lo`, cùng luật
+  (chỉ luồng sản xuất, mã thay đã khai, cùng đơn vị, món gốc bật cho phép
+  thay, mã gốc dùng trước, cùng kho, một túi tồn cho cả phiếu), dòng thay
+  mang `original_item` để lệnh vẫn tính đã dùng nguyên liệu gốc.
+- Bài học: một tính năng có hai nhánh (theo lô, không theo lô) thì ca kiểm
+  phải dựng cả hai nhánh. Trước khi viết ca, đếm dữ liệu thật đang rơi vào
+  nhánh nào; ở đây 15 trên 15 rơi vào đúng nhánh chưa có code.
+
+## 03/10/2026 (v565, Zalo #410/#413/#417/#423/#425): gửi tin ra ngoài từ hook chứng từ
+
+- Ca thật: bản tin Zalo cho nhóm bộ phận qua tám vòng Codex review. Mỗi vòng
+  lộ một đường làm mất tin hoặc gửi trùng mà ca kiểm cũ không thấy.
+- Gốc 1, mất tin: hook xếp việc nền (`frappe.enqueue`) rồi mới ghi sổ. Hàng
+  đợi hỏng lúc xếp thì chứng từ vẫn lưu mà không còn dấu vết tin nào.
+  Phòng: ghi hộp thư "Chờ gửi" TRONG giao dịch của chứng từ (mỗi dòng một
+  savepoint để trùng khoá không làm hỏng giao dịch chính), xếp việc nền sau
+  commit, và có lịch 5 phút gửi bù dòng Chờ gửi quá hạn. Worker chết giữa
+  chừng thì phải biết đã gọi ra ngoài chưa: đổi sang "Chưa rõ" và commit NGAY
+  TRƯỚC lời gọi, nhờ vậy dòng kẹt ở trạng thái trước đó được gửi bù an toàn,
+  dòng "Chưa rõ" thì để người xem. Mọi đường gửi đều phải có mốc này (vòng 10
+  lộ đường gửi gộp sau giờ im còn thiếu). Lỗi mạng cũng phải chia hai: chưa mở
+  được kết nối (DNS, từ chối kết nối) là chắc chắn chưa gửi, trả về chờ gửi
+  lại; đứt giữa chừng, hết giờ chờ trả lời, phản hồi 5xx hay không đọc được là
+  Chưa rõ (vòng 11 đến 13). Tắt hay gỡ người nhận thì dọn cả tin đang hoãn của họ.
+- Gốc 7, nuốt lỗi chết giao dịch (#428): bao() bọc try rộng để Zalo không chặn
+  lưu chứng từ, nhưng deadlock khi ghi hộp thư thì MariaDB đã rollback cả giao
+  dịch, kể cả savepoint; nuốt lỗi đó là chứng từ báo thành công mà không còn gì
+  trong sổ. Phòng: mọi try rộng quanh lệnh ghi cơ sở dữ liệu phải để lỗi chết
+  giao dịch (deadlock, chờ khoá quá hạn, mất kết nối) đi lên.
+- Gốc 2, gửi trùng: hai tiến trình cùng nhận một dòng. Phòng: nhận bằng
+  UPDATE có điều kiện trạng thái kèm mã lô, commit, đọc lại mã lô mới gửi.
+- Gốc 3, cài đặt bị đè: webhook ghi mã chat mới vào Vagabond Settings đọc
+  qua cache rồi ghi lại cả chuỗi, hai tin tới cùng lúc thì mất một. Phòng:
+  khoá dòng Singles (select for update) và đọc thẳng bảng, không qua cache.
+- Gốc 4, nối bot "thành công" giả: setWebhook lưu URL dù xác minh hỏng, và
+  bot chưa bật quyền vào nhóm thì không nhận tin nhóm. Phòng: đọc kết quả
+  xác minh, gọi getMe kiểm can_join_groups, báo rõ cho người cài.
+- Gốc 5, ô gõ tay: mã chat, loại tin, chủ đề, giờ im gõ sai thì nhóm bị bỏ
+  lặng lẽ. Phòng: chỉ chọn từ danh mục hoặc từ nhóm đã nhắn bot, kiểm lại
+  lúc lưu.
+- Gốc 6, ca kiểm bắn tin thật: bench kiểm thật gọi tới Zalo. Phòng: cờ chế
+  độ kiểm chặn mọi lời gọi ra ngoài.
+- Bài học chung: tác dụng phụ ra ngoài hệ (Zalo, email, Telegram) phải đi qua
+  hộp thư ghi cùng giao dịch, có người nhận độc quyền và có đường gửi bù.
+  Nguồn: PR #413, #417, #423, #425.
+
+
+## 03/10/2026 - Chữ web, font gốc và tra địa chỉ (#367)
+
+- Headline tiếng Việt từng bị rẽ sang font hệ thống. Kiểm cmap font gốc và
+  computed style trên 390 px trước khi quyết định fallback; Vagabond Sans
+  hiện có đủ dấu của câu đã duyệt.
+- Chỉ thay chữ tĩnh không làm mọi câu sửa được: các renderer giỏ/chi tiết,
+  lỗi OTP và biên nhận còn tự tạo chuỗi. Dùng khóa chung, giữ biến số và
+  escape đúng sink; kiểm nhãn chứa thẻ qua renderer thật, không chỉ grep.
+- Không chốt nhãn động vào object trước khi tải CMS. Dùng getter hoặc đợi
+  nhãn có giới hạn thời gian; thử sửa tên bánh trong Editor và Undo thật.
+- Che địa chỉ ở UI không bảo vệ response API. tra_khach phải kiểm số trong
+  phiên OTP trước HTTP Pancake, no-store và bỏ response nếu người dùng đã
+  chuyển sang số khác. Ca Guest/sai số/đúng số gọi thân hàm thật với HTTP stub.
+- Khi phát hành chữ được duyệt, chuyển nháp và công khai riêng, giữ snapshot
+  lịch sử; không lấy nguyên bản nháp để đẩy công khai trong migration.
+- Nhãn CMS phải escape cả nhánh lỗi/không có dữ liệu; chỉ thử happy path
+  không đủ. Ca canary dùng đúng renderer lỗi thuế, phí giao, địa chỉ và quầy.
+- Preview cần làm mới hộp đang mở mà giữ lựa chọn và scroll. Đối chiếu
+  finding với sự kiện thật trước khi sửa: cards/cart đã cập nhật, phần còn
+  thiếu là phụ kiện/tình trạng và chi tiết hàng mùa.
+
+
+## 01/10/2026 (#401 vòng 4): giá kiểm kê phải có mốc và lỗi tra giá cần đường thử lại
+
+- Item.last_purchase_rate và valuation_rate là giá hiện tại, không chứng minh
+  được giá tại ngày giờ kiểm kê, kể cả phiếu ghi sớm hơn trong cùng ngày.
+  Chỉ tự gợi ý từ SLE đúng kho hoặc kho khác cùng công ty tới mốc phiếu.
+  Không có thì kế toán nhập giá đã xác minh, không tự lấy giá Item.
+- Core ERPNext tại SHA bench de591661, StockReconciliation.validate_data,
+  còn lấy Item Price/Item khi giá trống. Hook phải báo thiếu giá trước đường
+  đó; chỉ bỏ fallback trong helper vẫn chưa đủ bảo vệ Desk.
+- Lỗi API khác với đọc thành công nhưng chưa có giá: khi API lỗi, ẩn ô nhập
+  tay và nút ghi sổ, hiện lỗi cùng nút Thử lại. Giữ chặn trong submit để
+  không thể gọi vòng. Ca DOM chạy lỗi, thử lại thành công rồi ghi sổ.
+- Hai ca hồi quy mới đỏ trên 70741d06. Cổng local đạt sau khi dùng đúng
+  Python/Node runtime; lượt đầu thiếu Node trong PATH không phải lỗi code.
+- Bench nền 70741d06 đỏ 3/325 ca ở mỗi lượt: một ca nhập tồn mới dùng tài
+  khoản chi phí; hai ca qty không đổi + giá 0 bị core de591661 loại là không
+  thay đổi. Fixture mới dùng Opening Stock/tài khoản Temporary cho tồn mới,
+  và đếm 9 từ tồn 10 cho hai ca giữ giá 0. Không khẳng định core bench hỗ trợ
+  định giá về 0 khi số lượng không đổi.
+
+
+## 04/10/2026 - Phạm vi soạn chữ pháp lý website (#367)
+
+Anh Việt trực tiếp yêu cầu mở sửa toàn bộ chữ, gồm pháp nhân/MST/địa chỉ.
+Đây là override quyết định khóa ở #431, không là thay dữ liệu công ty ERP.
+Giữ kiểm HTML injection, revision và quyền Marketing; đổi ca kiểm cấm sửa
+thành kiểm nội dung được lưu/xuất đúng và fallback, không giữ luật cũ trái duyệt.
+## 04/10/2026 (v573): đếm "đã bán trong ngày" theo posting_date bị đếm hai lần khi bill đổi ngày
+
+- Dễ báo: hàng tặng out bill tối ngày 1, bảng Kiểm kho ngày 1 trừ 1 cái; anh
+  Việt duyệt sáng ngày 2 thì ngày 2 trừ thêm 1 cái. Nút duyệt (và OTP kế toán)
+  đi qua `_doi_ngay_ban_nhap`, đổi `posting_date` sang ngày ghi sổ cho đúng
+  ngày HĐĐT. Ngày 1 thường đã chốt nên không đo lại, ngày 2 đếm thêm.
+- Ngày ghi sổ và ngày bánh rời quầy là hai việc khác nhau. Bill đổi ngày lần
+  đầu thì giữ ngày bán gốc ở `vgb_ngay_ban`; mọi chỗ đếm số bán dùng một nguồn
+  `ngay_ban.dk_sql`. Thêm chỗ đếm mới thì gọi hàm đó, không lọc thẳng
+  `posting_date`.
+- Ca kiểm chạy SQL thật của hai hàm đếm trên sqlite (chỉ đổi cú pháp tham số),
+  không dò chuỗi. Ca dò chuỗi "không còn chỗ lọc thẳng" lúc đầu khớp cả
+  docstring nên đột biến không đổ; phải dò đúng lời gọi.
+- Codex #438: ô `read_only` chỉ khoá giao diện, Desk/API vẫn ghi được. Ô
+  quyết định số liệu (ở đây là ngày trừ bánh) phải có hook validate chỉ cho
+  máy ghi (cờ trên doc), giá trị ngoài gửi vào trả về giá trị đang lưu; hàm
+  máy ghi cũng phải đọc giá trị đang lưu trong cơ sở dữ liệu, không đọc giá
+  trị trên đối tượng.
+
+
+## 05/10/2026 (v574): "chưa được whitelist" có thể chỉ là phiên đăng nhập đã mất
+
+- Loan Anh đính UNC ở màn Công nợ thì nhận "You are not permitted to access
+  this resource. Login to access ... nap_tam is not whitelisted". Hàm có
+  `@frappe.whitelist()` và có trong danh sách cửa ngõ. Gốc: tài khoản để 2 phiên
+  cùng lúc, đăng nhập lần thứ ba đẩy văng phiên của máy đang mở màn.
+- Frappe trả 403 PermissionError (không phải 401) cho lời gọi của khách, nên app
+  coi là thiếu quyền. Câu báo đổi theo ngôn ngữ site, đừng dò chữ. App hỏi lại
+  `frappe.auth.get_logged_user` khi gặp 403 PermissionError để phân biệt.
+- Gặp báo "chưa whitelist" thì kiểm Activity Log đăng nhập và số phiên cùng lúc
+  của tài khoản TRƯỚC khi đi tìm lỗi quyền hay cấp thêm vai trò.
+
+
+## 05/10/2026 (v576): ca kiểm node có lời hứa treo mãi thì thoát mã 0, cổng tưởng là đạt
+
+- Codex #441: lời hỏi "tôi là ai" không có hạn giờ. Dựng lại bằng mạng giả treo
+  mãi thì bộ kiểm hành vi KHÔNG báo hỏng: node hết việc trong hàng đợi là tự
+  thoát với mã 0, không in dòng tổng nào. kiem_truoc_deploy.sh chỉ nhìn mã thoát.
+- Bộ kiểm hành vi có chờ lời hứa thì đặt cờ "đã chạy tới cuối" và bắt sự kiện
+  exit: chưa tới cuối thì in HONG và đặt mã 1 (xem hanh_vi/phien_mat_574.js).
+- Codex #442: thêm kiểu phiếu mới (gom nhiều pháp nhân) phải rà MỌI đường xử lý
+  phiếu đó, kể cả đường khớp tay theo giao dịch. Phiếu thu ERPNext chỉ một khách.
+  Lần đầu cho đi đường từng hoá đơn như SePay tự khớp thì sai: đường đó ghi sổ
+  thẳng, bị hook UNC chặn, lỗi bị nuốt mà phiếu đòi nợ vẫn báo đã thu. Cách đúng:
+  mỗi khách một phiếu thu NHÁP cùng giao dịch, chung mã nhóm `vgb_nhom_gd`; luật
+  "một giao dịch một phiếu" chỉ nới cho phiếu cùng nhóm (`cung_nhom_da_noi`).
+- Đường SePay tự khớp và khớp tay KHÔNG chọn giao dịch (`ghi_thu_cho_phieu`) lập
+  phiếu thu ghi sổ thẳng, sẽ bị `chan_thieu_dinh_kem` chặn với phiếu lập sau
+  16/08. Tồn đọng có sẵn từ trước, chưa sửa trong v576.
+
+## 05/10/2026 - Web order: xem giỏ như một khách thật (#367/436)
+
+- Thẻ đúng giá không đảm bảo hộp chi tiết đúng cỡ: cả hai phải theo cùng
+  nguồn today/order; giữ nguồn đó khi sửa giỏ sau reload.
+- Nến 60x240 bị crop bởi nút thấp có overflow:hidden; đo cả bounding box
+  ảnh và nút tại390px. object-fit không đủ nếu chiều cao ảnh vẫn cố định lớn.
+- Thêm nhanh cần đường sửa chính dòng giỏ, không hướng dẫn mở bánh để thêm
+  lần nữa. Khóa gộp phải chuẩn hóa dụng cụ 0 để không tách dòng giống nhau.
+- Promotion/recruitment CMS là nội dung; coupon tài chính và hồ sơ ứng viên
+  không được suy ra từ số mẫu/biểu mẫu prototype. Dùng nháp ẩn, ảnh thay được,
+  ngày Việt Nam, chống URL/thẻ HTML, và giữ luồng revision sẵn có.
+- GET phí giao ok0/ahamove_loi cần log server; không tuyên bố sửa bằng nút
+  thử lại và không biến lỗi báo giá thành phí0.
+
+## 05/10/2026 (v577): thêm luật chặn ở hook mà không rà lối "nuốt lỗi" thì lối đó chết im lặng
+
+- Hook `chan_thieu_dinh_kem` (16/08) bắt phiếu thu ngân hàng có UNC mới ghi sổ.
+  `ghi_thu_cho_phieu` (04/09) lập và ghi sổ thẳng, lại cố tình NUỐT lỗi từng hoá
+  đơn "để không làm rớt việc đánh dấu". Ghép hai thứ: phiếu đòi nợ DNTT-26-10-00004
+  thành "Đã thu đủ", 17 phiếu thu hỏng hết, 17 nháp hỏng ở lại giữ phần nợ, bill
+  vẫn ở Đang nợ. Thêm luật chặn mới thì grep mọi lối gọi `submit()` của doctype đó
+  và mọi `except` nuốt lỗi quanh nó.
+- Lối có `try/except` nuốt lỗi quanh `insert()` rồi `submit()` mà không có điểm
+  lưu thì để lại bản nháp. Bản nháp đó vẫn được tính là "đã phủ nợ" ở nơi khác.
+  Dùng `frappe.db.savepoint` và lùi đúng lần làm hỏng, hoặc ném hẳn ra.
+- Hộp chọn lọc ĐÚNG số tiền thì giấu mất giao dịch thật khi khách trả gộp (Kiệt
+  Tác chuyển 9.550.000 cho phiếu 8.450.000), người dùng bị đẩy sang lối thoát
+  hiểm. Hộp chọn để đưa ra mọi ứng viên, xếp khoản khớp lên đầu, có ô tìm.
+- DOM giả (`hanh_vi/dom_gia.js`): chữ sau thẻ đóng dồn vào chữ của thẻ cha, nên
+  textContent đổi thứ tự quanh `<b>`. Dò câu thì chọn đoạn KHÔNG vắt qua thẻ.
+  Đừng viết điều kiện "hoặc" cho dễ đạt: ca v577 đã xanh oan vì vế hoặc khớp nhãn nút.
+- Chạy đột biến Python nhiều lần liên tiếp: đột biến GIỮ NGUYÊN độ dài dòng
+  (đổi `dung + khac` thành `khac + dung`) có thể chạy trên bytecode cũ trong
+  `__pycache__` và báo LỌT oan (v577, M10). Chạy đột biến với
+  `PYTHONDONTWRITEBYTECODE=1` và xoá `__pycache__` trước mỗi đột biến.
+- QT-20 áp cả cho phiếu NHÁP máy tự lập hỏng (Codex #444 vòng 2): không
+  `delete_doc`, gỡ khỏi hoá đơn, đổi khoá, ghi vết lên chính phiếu.
+- Thư "đã nhận thanh toán" gửi từ giữa request chưa commit (ghi sổ phiếu thu)
+  phải xếp hàng (`delayed=True`) trong cùng giao dịch, không gửi ngay.
+- Việc phải xảy ra "sau khi ghi sổ" (gửi thư báo khách) mà chỉ gọi từ NÚT của
+  app thì kế toán ghi sổ thẳng trên Desk là việc đó không bao giờ chạy (Codex
+  #444 vòng 4). Đặt ở hook `on_submit` của doctype, nút app không gọi riêng.
+- Luật "chỉ gửi khi sổ sạch" đặt ở hàm gọi tự động thì nút gửi tay vẫn lách
+  qua. Đặt điều kiện trong CỬA gửi chung mà mọi lối đều đi qua.
+- "Lập hỏng thì vẫn ghi nhận tiền, ghi lý do" chỉ đúng khi còn đường làm lại.
+  SePay gạch giao dịch LỚN hơn phiếu: khớp lại hỏng y như cũ, huỷ thì bị cấm vì
+  đã có `ma_gd`, phiếu kẹt vĩnh viễn (Codex #444 vòng 5). Luật cấm huỷ phải
+  hỏi giao dịch đã sinh chứng từ chưa, không chỉ "đã gạch hay chưa".
+- Hook chạy trong `on_submit` mà nuốt mọi lỗi thì deadlock, chờ khoá, mất kết
+  nối cũng bị nuốt: bút toán đã lùi mà màn báo ghi sổ xong. Dùng
+  `vagabond.loi_csdl.chet_giao_dich` để ném lại các lỗi đó.
+- Việc phụ sau ghi sổ (thư báo) mà chạy NGAY trong `on_submit` thì phải soát
+  mọi `except` của cả chuỗi hàm dựng thư dùng chung, sót một chỗ là deadlock
+  bị nuốt (Codex #444 vòng 6 bắt ở `db_set` dấu đã gửi). Cách gọn: `on_submit`
+  chỉ `frappe.db.after_commit.add(...)`, việc nền tự đọc lại sổ rồi mới làm,
+  như `can_tru_san`, `tru_kho_bu`, `thu_tien.gui_thu_khi_ghi_so`.
+- Dời việc phụ ra sau commit thì phải có lưới gửi bù: lời xếp việc nền nằm
+  trong Redis, Redis lỗi đúng lúc đó là mất hẳn (Codex #444 vòng 7). Thêm nhịp
+  quét theo chứng từ GẦN ĐÂY (không quét cả lịch sử kẻo gửi cho phiếu cũ).
+
+
+## 06/10/2026 (v581, Zalo #410, PR #447): bảng con chật trên Desk và nút trùng lối vào
+
+- Triệu chứng: anh Việt gửi ảnh mục "Nhóm nhận tin" trên Cài đặt. Bảng con
+  (Table) nằm trong nửa cột nên mỗi ô chỉ còn vài chữ ("ERP ...", "zgr-d...",
+  "thong..."), lộ mã nội bộ, rất khó nhập và thêm dòng. Nút Gửi thử có sẵn từ
+  v565 nhưng giấu trong menu Zalo trên thanh công cụ nên anh không thấy.
+- Nguyên nhân: bảng con của Frappe chỉ hiện vài cột hẹp, ô Select/Data hiện
+  nguyên giá trị lưu là mã. Đặt bảng có ô mã nhiều lựa chọn vào mục hai cột là
+  chắc chắn chật. Nút quan trọng chỉ để trong menu thanh công cụ thì người dùng
+  không tìm ra.
+- Cách phòng: bảng con có mã lựa chọn hoặc mã máy thì ẨN lưới trên Desk, vẽ mỗi
+  dòng thành thẻ đọc được (tên tiếng Việt, trạng thái, nút Sửa) trong một trường
+  HTML, và sửa qua hộp thoại có ô tích kèm dòng giải thích. Bảng gốc vẫn là nơi
+  lưu, giá trị lưu giữ đúng định dạng cũ. Nút hay dùng đặt ngay trong mục.
+- Codex #447 vòng 1: thêm hàng nút mới có chặn "chưa lưu" mà để menu cũ trên
+  thanh công cụ gọi cùng máy chủ KHÔNG chặn thì menu cũ chạy trên cấu hình cũ
+  rồi reload_doc xoá bản nháp. Hai lối vào cho một việc phải đi qua MỘT hàm
+  (`zaloTacVu`), và ca kiểm phải chạy thật mọi hàm refresh đã đăng ký rồi bấm
+  từng nút trên thanh công cụ, đếm số nút cùng tên để lộ khối đăng ký cũ còn sót.
+
+## 06/10/2026 - PR436: dữ liệu đến trễ và nút nổi
+
+- Giá giỏ lấy từ catalog nhúng lúc reload vẫn có thể cũ: phải đồng bộ dòng
+  giỏ khi API catalog trả về, kiểm phản hồi trễ và giá 0 bằng hành vi.
+- Danh sách vị trí Editor phải khớp renderer. Đổi loại chiến dịch về loại
+  thường cần trả vị trí hợp lệ, backend cũng chặn vị trí làm mất khối.
+- CSS clamp mới không có tác dụng nếu rule cũ html body .h1 thắng; đo
+  computed font trên390 và sửa tại rule gốc, đừng cộng thêm override.
+- Escape ở popup phụ phải dừng handler đóng sheet/điều hướng của trang.
+  Chỉ nhìn popup đóng chưa đủ: kiểm URL và focus sau phím Escape.
+- Ẩn khối mặc định trong code không đổi CMS đã xuất bản. Patch cần xử lý
+  nháp/công khai riêng, giữ lịch sử, không xuất bản nháp để sửa phần lặp.
+- Link Zalo số điện thoại không phải bằng chứng OA. Thiếu mã thì giữ nút
+  ẩn, cho nhập link OA trong Editor; không gán nhầm tài khoản.
+
+### 06/10/2026 - PR436: OA có đường dẫn theo tên
+
+Ảnh OA anh Việt cung cấp có zalo.me/thevagabondsaigon; mở browser xác nhận
+đúng The Vagabond Pâtisserie. Bộ kiểm chỉ nhận ID số sẽ loại oan OA hợp lệ.
+Nhận cả tên công khai và ID dài, giữ HTTPS/đúng host/không credentials;
+kiểm renderer và mobile390. Cấu trúc URL không chứng minh tài khoản đã xác
+thực: danh tính OA lấy từ nguồn chủ sở hữu và trang công khai.
+
+### 06/10/2026 - PR436: logo kênh bán phải biên tập được
+
+Dùng chữ viết tắt thay logo làm popup kênh thiếu nhận diện. Logo cần là ảnh
+CMS, tách logo nút mở khỏi logo từng kênh; tên trợ năng vẫn có khi bỏ chữ
+trên nút. Kiểm cả đổi ảnh trong iframe, ảnh hỏng và mobile; ảnh tải thành
+công chưa chứng minh đọc được (logo trắng trên nền trắng đã gặp khi thử).
+
+## 03/10/2026 - #420: đủ tổng nguồn chưa phải đủ tiền về (Codex, mang sang v579)
+
+Báo cáo vendor ngày/tháng có thể chứa cùng sự kiện; tên file và hash byte
+không đủ chống trùng kinh tế. Khóa cần phạm vi công ty/vendor/merchant/tiền
+tệ và ID ổn định; nội dung thay đổi phải giữ lỗi để kiểm bản điều chỉnh.
+Phép xem trước dùng snapshot chỉ bắt trùng đã biết, không thay khóa DB ở cửa
+ghi. Nhận phần hợp lệ phải chặn cả nhóm ID lặp, không để bản đầu còn Mới.
+
+## 05/10/2026 - Mẫu Drive không tự có trong filesystem của cloud (#422)
+
+Trước kết luận người dùng chưa gửi mẫu, tra hồ sơ issue và nguồn Drive đã
+được cấp. Sheet chuyển đổi có thể đọc được nhưng không chứng minh byte CSV/XLS
+gốc hay đơn vị tiền. Không nhân/chia 1.000 chỉ để làm tổng khớp. Khóa sự kiện
+không chứa loại có thể thay đổi: cùng ID đổi loại phải vào luồng xung đột.
+
+## 05/10/2026 - Nhóm ID và cột nguồn (#422 v577 của Codex)
+
+Gom căn cước sự kiện trước kiểm nội dung: nếu đợi tiền hợp lệ mới đăng ký
+ID thì bản lỗi không giữ được bản trùng, nút nhận phần hợp lệ vẫn lọt.
+Reader thô giữ mảng cột theo vị trí; header trống/trùng không đồng nghĩa
+nguồn hỏng. Kiểm mọi schema fixture, không chỉ hai mẫu đơn giản.
+
+## 06/10/2026 - #450: bộ giả lập trang cắt mất bước khôi phục giỏ
+
+`gia_lap_trang.js` cắt cả đuôi khởi động của `banh.html` (để bỏ gọi mạng),
+nên cắt luôn `phucHoiGio()`. Mọi ca "tải lại giữ giỏ" vì thế đặt
+sessionStorage SAU khi trang chạy rồi tự gọi lại `phucHoiGio()`, tức là không
+bao giờ đi đúng thứ tự tải trang thật. Nay bộ giả lập giữ riêng bước đó và
+nhận tham số nạp sẵn sessionStorage trước khi mã trang chạy. Ca tải lại phải
+dùng tham số đó, không tự gọi hàm khôi phục.
+
+Ca kiểm trên bench tải PDF giả (`%PDF-1.4` + chữ) chết ở `File.check_content`
+của Frappe (mở thử PDF để dò mã chạy ngầm) trước khi tới phần cần kiểm. Ca
+kiểm site dùng PDF đúng cấu trúc; cửa tải lên phải đổi lỗi thư viện đọc PDF
+thành lời người dùng. Tầng khung không thấy được lỗi này vì không có Frappe.
+
+## 07/10/2026 - v583: màn Đối soát lỗi 417 ngay sau deploy
+
+`ds()` gọi `frappe.get_all(..., order_by="coalesce(den_ngay, creation) desc")`.
+Frappe v16 chỉ nhận tên trường trong `order_by` của `get_all`/`get_list`, có
+hàm là trả ValidationError 417, nên danh sách đối soát không mở được trên site
+thật. Tầng khung giả lập `get_all` nên không thấy; ca bench duy nhất gọi `ds()`
+là ca thu ngân, bị chặn quyền TRƯỚC truy vấn nên cũng không chạm tới. Phòng:
+mỗi cửa danh sách mới phải có một ca bench gọi thật bằng người CÓ quyền; tầng
+khung có ca dò cấm `order_by` có dấu ngoặc trong mọi tệp .py của app. Cần sắp
+xếp theo biểu thức thì dùng `frappe.qb`, không nhét vào `order_by`.
+
+Ca dò mã nguồn đầu tiên viết cho lỗi này xanh mà không dò gì: đường dẫn gốc
+`.../kiem_thu/../..` tự chứa chữ `kiem_thu`, nên phép bỏ thư mục kiểm bỏ qua
+cả app. Dùng `abspath` và so từng phần của đường dẫn tương đối, và chốt số tệp
+đã dò phải lớn hơn 0.
+
+## 07/10/2026 - #452: cài nhóm Zalo nhận tin Phát hành mà không có tin nào
+
+Anh Việt bật bot Zalo, thêm nhóm và tích loại tin Phát hành, nhưng sổ tin
+kênh không có dòng nào. Nguyên nhân: bản tin phát hành chỉ có đường Telegram
+(bot GitHub đọc comment `[ĐÃ DEPLOY]`), còn trong app không chỗ nào gọi
+`kenh_zalo.bao("phat_hanh")`. Màn cài đặt vẫn cho chọn loại tin đó nên trông
+như đã chạy. Phòng: mỗi loại tin hiện cho người dùng chọn phải có ít nhất một
+nơi phát thật và một ca kiểm chốt nơi phát đó; thêm kênh mới cho một loại tin
+thì đọc từ ĐÚNG nguồn của kênh cũ (ở đây là khối `telegram-release`) để hai
+kênh không lệch nội dung. Ở #452 còn gặp pháp nhân demo của ERPNext
+(`Global Defaults.demo_company`) lọt vào hộp chọn pháp nhân: danh sách pháp
+nhân cho người dùng chọn phải bỏ công ty demo, trừ khi nó là mặc định hoặc
+là công ty duy nhất.
+
+## 08/10/2026 - #452: ô kho cấu hình làm món biến mất khỏi ô tìm
+
+Người có User Permission theo kho tìm "Chocolatine" không ra "Bánh
+Chocolatine, Mini size", dù món có thật và cùng nhóm với bản Full size.
+Nguyên nhân: món vừa được khai "Kho nguyên liệu mặc định khi sản xuất"
+(Link Warehouse), và Frappe áp User Permission lên MỌI ô Link tới doctype bị
+giới hạn, kể cả ô chỉ để cấu hình, nên món khai kho ngoài danh sách của họ bị
+ẩn khỏi `get_list`. Ca bench của ô tìm v583 chạy bằng Administrator nên không
+thấy lớp quyền này. Phòng: ô Link do app thêm mà chỉ để cấu hình (kho nguồn,
+kho mặc định) phải có `ignore_user_permissions: 1`; tầng khung có ca dò mọi
+khai báo Link Warehouse trong mã nguồn. Ca bench cho ô tìm hay danh sách phải
+có một lượt chạy bằng tài khoản thường có User Permission, không chỉ Administrator.
+## 08/10/2026 - v586: đăng ký tiệc vượt số vé dù đã khoá hàng
+
+Cửa đăng ký tiệc khoá hàng nội dung web rồi mới đếm vé, nhưng câu đếm là đọc
+thường. MariaDB REPEATABLE READ giữ ảnh chụp từ lần đọc đầu (tra mã lần gửi),
+nên khách thứ hai chờ khoá xong vẫn thấy tổng cũ. Tái hiện hai kết nối thật:
+tiệc 40 vé, đã có 38, hai khách mỗi người 2 vé, ghi được 42/40. Khoá thôi
+chưa đủ: MỌI phép đọc sau khoá phải là đọc hiện tại (`for update`), kể cả đọc
+lại mã lần gửi. Bài học trùng #368 và đặt bàn, ghi lại vì lặp lại lần ba.
+
+Ca kiểm cũ của cửa này thay hẳn `dem_ve` bằng hàm giả để đếm thứ tự, nên
+không bao giờ nhìn thấy câu SQL đếm vé. Ca kiểm thứ tự khoá phải giữ hàm thật
+và soi đúng câu nó chạy, không thay chính chỗ đang kiểm.
+
+Cũng PR đó: điểm nhận bánh "danh sách rỗng thì về điểm cũ" là sai, vì rỗng là
+marketing đã tắt hết. Phân biệt "chưa tải" với "đã tải mà rỗng", và máy chủ
+chặn lại lúc gửi đơn theo đúng một luật (`noi_dung_web.diem_nhan`).
+
+Vòng 2 cùng PR (Codex #453): giỏ trong trình duyệt nhớ điểm nhận theo SỐ THỨ
+TỰ, nên khi marketing xoá một điểm thì khách bị chuyển lặng lẽ sang điểm đứng
+sau; máy chủ tra điểm theo TÊN nên hai cửa hàng trùng tên lấy nhầm địa chỉ.
+Thứ gì người dùng chọn từ một danh sách người khác sửa được thì phải giữ bằng
+mã ổn định; mã mất thì bắt chọn lại, không tự chọn hộ. Ca bench web #245 cũng
+phải sửa khi API công khai thêm phần dẫn xuất, vì nó so nguyên tập khoá.
+
+Vòng 3 (Codex #454): đã sửa đếm vé là đọc hiện tại nhưng cấu hình tiệc (số
+vé, ẩn hiện) vẫn đọc thường sau khoá. Marketing giảm 40 xuống 20 vé lúc khách
+đang chờ khoá thì khách vẫn thấy trần 40 trong ảnh chụp: tái hiện ghi được
+21/20. Cách sửa gọn: cho phép khoá đọc luôn dữ liệu cần dùng
+(`_ban_cong_khai(khoa=True)`), không khoá một câu rồi đọc ở câu khác. Ca kiểm
+cũ thay `_ban_cong_khai` bằng hàm giả nên lại che đúng chỗ này; trang giả nay
+phân biệt đọc thường (ảnh chụp) với đọc `for update` (bản hiện tại).
+
+Vòng 4 (Codex #454, cùng ngày): đơn tự lấy kiểm điểm nhận bằng phép đọc
+thường, không xếp hàng với Marketing, nên điểm vừa tắt vẫn có thể vào sổ.
+Không thể khoá từ đầu `tao_don` vì giữa đó còn gọi Pancake tra mã hàng;
+cách đúng là giữ phép chặn sớm (đọc thường) và thêm phép QUYẾT ĐỊNH đọc có
+khoá ngay trước khi ghi, trong khoá ghi, rồi commit. Cùng vòng: máy chủ nâng
+trần khối 30 lên 80 nhưng bảng Nâng cao vẫn chép cứng 30, nên chặn sớm. Trần
+nay đi kèm `doc_bang`; JS không tự đặt số.
+
+## 08/10/2026 - v587: thẻ tiệc chữ dài kéo tuột, tên ưu đãi chìm
+
+Minh Vũ thử thẻ Tiệc với bài giới thiệu dài và thực đơn 12 món: thẻ hai cột
+kéo dài theo chữ, nút Đăng ký rơi xuống đáy, ảnh bị kéo giãn. Tên ưu đãi dùng
+màu xanh thương hiệu bằng chữ viết tay nét mảnh trên nền xanh đen, tương phản
+khoảng 4:1, nhìn như chữ chìm. Bài học: khi marketing được tự nhập chữ thì
+mọi khung phải chịu được chữ dài gấp mười lần mẫu; thiết kế xong phải thử
+với bài thật của marketing chứ không chỉ dữ liệu mẫu ngắn. Sửa: chữ gấp 5
+dòng có Đọc tiếp, thực đơn thành nhãn, hộp thông tin nổi trên ảnh ngang,
+tên mục chữ trắng. Ngưỡng gấp tính theo số ký tự để trang khách và khung
+"Khách sẽ thấy" vẽ giống nhau và kiểm được bằng node.
+
+## 08/10/2026 - #457: Excel vendor khai kích thước sheet sai, openpyxl đọc một ô
+
+Tệp doanh thu Xanh SM tải từ cổng là xlsx hợp lệ, mở Excel thấy đủ bảng, nhưng
+phần `<dimension ref="A1"/>` trong sheet khai sai. openpyxl tin lời khai nên
+`iter_rows` trả đúng một ô trống, máy kết luận "Chưa nhận ra mẫu" trong khi mẫu
+đã có từ v579. Mất gần một ngày vì kế toán và kỹ thuật đều nhìn Excel thấy
+đúng. Cách phòng: `doc_xlsx` gọi `ws.reset_dimensions()` trước khi đọc mọi
+tệp; ca kiểm dựng xlsx thật có dimension sai. Bài học rộng hơn: khi người dùng
+gửi tệp "máy không nhận" thì in ba dòng đầu máy đọc được ra màn, lỗi này lộ
+ngay từ dòng đầu là trống.
+
+## 10/10/2026 - v589: bộ giả lập trang chỉ chờ setTimeout, ca xem trước ưu đãi treo
+
+Trang đặt bánh hỏi máy chủ mức giảm mỗi lần vẽ lại giỏ. Gọi thẳng `fetch` thì
+ca kiểm node đọc tóm tắt trước khi câu trả lời về, vì `CHO_XONG` trong
+`gia_lap_trang.js` chỉ chờ các việc đặt qua `setTimeout`. Không phải lỗi của
+trang mà là giới hạn của bộ giả lập, nhưng nó che được lỗi thật nếu ca kiểm
+"cho chắc" gọi thêm hàm. Cách làm: lời gọi mạng từ sự kiện vẽ lại đi qua
+`setTimeout` (cũng là debounce, bớt gọi máy chủ khi khách bấm liên tục), và
+mức giảm chỉ hiện khi khoá giỏ của câu trả lời trùng giỏ hiện tại. Đột biến
+bỏ kiểm khoá giỏ lúc đầu KHÔNG làm đổ ca nào; đã thêm ca đổi giỏ rồi đọc tóm
+tắt NGAY, trước khi máy chủ trả lời.
+
+Thêm (Codex #460): hạn mức chương trình (tổng lượt, lượt mỗi ngày) soát ở
+bước tính nhưng ghi lượt SAU khi gọi Pancake, nên hai đơn tranh lượt cuối cùng
+lọt. Cách phòng: trong khoá ghi, commit trước rồi khoá hàng chương trình
+(FOR UPDATE), tính lại, ghi lượt, commit, rồi mới gọi dịch vụ ngoài; bị từ chối
+thì trả lượt. Commit trước khoá là bắt buộc: trong REPEATABLE READ, lần đọc sau
+khoá vẫn thấy ảnh chụp cũ từ đầu yêu cầu nếu giao dịch đã đọc gì trước đó.
+Lượt ghi theo đúng ngày đã dùng để soát (ngày nhận bánh), không theo hôm nay.
+Vòng 2 cùng PR: (1) so lần tính lại bằng CẢ số tiền lẫn bộ chương trình đã
+khoá, vì hai chương trình bằng giá có thể đổi chỗ cho nhau; (2) phép giữ
+lượt trước dịch vụ ngoài phải là phép CHẶT (lỗi là ném, rollback, không gửi),
+không dùng lại hàm ghi vết kiểu "lỗi chỉ log"; (3) phép trả lại khi bị từ
+chối có thể lỗi, nên cần việc định kỳ dọn theo trạng thái đơn chứ không chỉ
+một lần thử. Và: chạy đột biến ở tiền cảnh mà bị cắt giữa chừng thì tệp có
+thể kẹt ở bản đột biến; luôn chạy đột biến ở nền và soát `git diff` sau đó.
+Vòng 3: khoá chỉ có tác dụng khi MỌI đường ghi lượt cùng xin khoá đó; quầy
+và web dùng chung chương trình nên quầy cũng phải khoá rồi ghi lượt trước
+commit (`tinh_co_khoa`). "Lấy bộ có lợi nhất" phải thử cả bộ chương trình
+cộng dồn được, không chỉ tất cả hoặc từng cái lẻ.
+Vòng 4: "trả lượt" là huỷ mềm (ô `da_tra`), không xoá dòng (QT-20); mọi chỗ
+đếm hạn mức, báo cáo và việc dọn định kỳ phải bỏ dòng đã trả.
+
+## 11/10/2026 - Web Vue: mô đun ES né mất ?v= nên phải có import map
+
+Site trả `/assets` với cache immutable (#310), trang cũ ghi tay `?v=<băm>`
+trên từng thẻ link/script. Mô đun ES nạp nhau bằng `import './x.js'`, đường
+đó không gắn được `?v=`: deploy xong khách cũ vẫn chạy mô đun cũ mãi mãi, và
+trộn mô đun cũ với mới là lỗi khó đoán. Cách phòng: trang khai import map ánh
+xạ từng URL mô đun sang URL có `?v=<băm>`, do `cong_cu/ma_bam_web_vue.py` sinh;
+ca `thu_web_vue.py` gọi `--kiem` để quên chạy là CI đỏ. Và: node trên máy CI
+(bản 20) không tự nhận mô đun ES trong tệp `.js`, cần `web_vue/package.json`
+khai `"type": "module"`, thiếu là ca kiểm chết ngay ở dòng `import`.
+
+
+
+Vòng 5 (PR #461): khoá xem trước ở trình duyệt chỉ cho biết giỏ có đổi, không
+chứng minh hạn mức ưu đãi trên máy chủ còn nguyên. Triệu chứng là khách thấy
+giảm 50.000 nhưng đơn có thể được ghi với mức khác nếu lượt cuối vừa hết.
+Cách phòng: trình duyệt gửi `giam_da_xem`, máy chủ vẫn tự tính lại rồi từ chối
+cả trường hợp giảm tăng lẫn giảm xuống khi hai số khác nhau; trả bảng mới để
+khách xem và tự bấm lại. Phép so phải sau tìm trùng để lần gửi lại cùng nonce
+luôn nhận biên nhận cũ. Liên kết lượt dùng với hoá đơn cũng không được chỉ thử
+một lần trong hook: lỗi tạm thời cần việc đối soát idempotent theo lịch, giới
+hạn bằng dấu dữ liệu v589 để không chạm bản ghi cũ.
+
+## 12/10/2026 - PR #462: đổi giao diện nhưng dùng chung kho nháp phải giữ hai chiều
+
+Trang `/banh` cũ ghi các ô trong `vgb-gio-v1.truong` bằng id DOM như
+`f-phone`, còn bản Vue ban đầu chỉ đọc tên trạng thái như `phone`. Giỏ vẫn
+về nhưng thông tin liên hệ, giao hàng, hoá đơn và mã ưu đãi biến mất; nếu
+Vue ghi kiểu mới thì quay lại trang cũ cũng mất các ô đó. Cách phòng: tầng
+đọc nhận cả hai lược đồ, tầng ghi tiếp tục dùng lược đồ cũ trong thời gian
+hai trang chạy song song, và ca hành vi phải dựng nháp cũ rồi kiểm đủ mọi ô.
+
+## 12/10/2026 - Ba chữ "tồn bánh" không phải một nguồn (#463)
+
+Sales online đọc `Kiem Banh Ngay` để biết bếp còn nhận được bao nhiêu bánh cho
+đơn online. Tab In store đọc hai bảng kiểm kho quầy riêng để biết D1 và NVHTN
+đang còn bao nhiêu bánh trong tủ. Trang Vue phải giữ nguyên ranh giới đó:
+`napTon` chỉ nạp nguồn Sales online, còn `napQuay` nạp tồn từng quầy. Gộp ba số
+vì cùng mã hàng sẽ làm khách thấy sai nơi có bánh. Ca hồi quy phải dùng cùng một
+mã với ba số khác nhau và chốt cả tên API lẫn cặp mã-số, không chỉ dò chuỗi.
+
+## 12/10/2026 - PR #462: thông báo giống nhau làm mất trạng thái bàn giao
+
+Tin Telegram của comment chỉ có người viết và link nên một loạt tin trông giống
+nhau; anh Việt không biết việc nào đã sửa xong nếu không mở từng link. Nguyên
+nhân là sender chỉ phân loại bốn nhãn và cố ý không đọc thân comment, nhưng chưa
+có khối tóm tắt an toàn. Cách phòng: comment bàn giao có nhãn trạng thái cùng
+khối `telegram-tomtat` giới hạn hai trường ngắn; sender chỉ đọc khối của chủ repo,
+còn comment Codex chỉ lấy ý đầu của Summary và tuyệt đối không lấy Testing/log.

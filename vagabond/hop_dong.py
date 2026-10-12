@@ -11,6 +11,8 @@ from frappe.utils import cint, flt, getdate, nowdate
 # Anh Viet 14/08/2026: *"cấp quyền truy cập cho Loan Anh, thu mua và kế toán"*.
 # Loan Anh dang co vai Sales User nen vao duoc ngay. Them thu mua va ke toan
 # truong vao day cho du bo.
+# 01/10/2026 (#400 v7): gỡ vai đặt hàng lên thu mua; thu mua vào bằng Purchase
+# User/Manager. Màn hợp đồng trên app vốn chỉ hiện cho Sales, thu mua, kế toán.
 QUYEN = {
 	"System Manager",
 	"Sales User",
@@ -19,7 +21,6 @@ QUYEN = {
 	"Accounts Manager",
 	"Purchase User",
 	"Purchase Manager",
-	"Bộ phận đặt hàng",
 }
 
 
@@ -399,23 +400,14 @@ def hoa_don_chua_gan(khach_hang=None, tu_khoa="", ma_so_thue="", so_ngay=180):
 	GIOI_HAN = 80
 
 	if tu_khoa:
-		# Moi o mot cau truy van roi gom lai: OR nhieu cot khong di qua duoc
-		# bo loc dang dict cua Frappe, ma viet SQL tay thi mat luon hang rao
-		# quyen cua get_all.
-		gom, thay = [], set()
-		for cot in ("name", "customer_name", "vgb_xhd_ten", "vgb_xhd_mst", "vgb_ma_tham_chieu"):
-			l = dict(loc)
-			l[cot] = ["like", "%" + tu_khoa + "%"]
-			try:
-				ds = frappe.get_all("Sales Invoice", filters=l, fields=TRUONG,
-					order_by="posting_date desc", limit_page_length=GIOI_HAN)
-			except Exception:
-				continue
-			for r in ds:
-				if r["name"] not in thay:
-					thay.add(r["name"])
-					gom.append(r)
-		rows = gom
+		# v583: tim theo tung tu, bo dau, bo dau cau, mot nguon o tim_kiem.py.
+		# Ten khop tim bang SQL, roi van di qua get_all de giu hang rao quyen.
+		from vagabond import tim_kiem
+
+		rows = frappe.get_all("Sales Invoice",
+			filters=tim_kiem.them_loc(loc, "Sales Invoice", tu_khoa,
+				["name", "customer_name", "vgb_xhd_ten", "vgb_xhd_mst", "vgb_ma_tham_chieu"]),
+			fields=TRUONG, order_by="posting_date desc", limit_page_length=GIOI_HAN)
 	else:
 		rows = frappe.get_all("Sales Invoice", filters=loc, fields=TRUONG,
 			order_by="posting_date desc", limit_page_length=400)

@@ -169,6 +169,20 @@ def truoc_ghi_so(doc):
         if not math.isfinite(sl) or sl <= 0 or flt(ton) + 0.000001 < sl:
             frappe.throw('Món %s tại %s còn %s, cần %s. Nhập hoặc chuyển hàng thật vào đúng kho rồi ghi sổ; '
                 'không xuất âm hàng tặng.' % (ma, kho, ton, sl))
+    chia_lo_xuat(doc, nhom)
+
+
+def chia_lo_xuat(doc, nhom):
+    """Chia lô theo hạn dùng cho các cặp (mã, kho) trong nhom, tạo gói lô xuất.
+
+    Tách ra từ truoc_ghi_so (#243) để hoá đơn bán trừ kho v542 dùng lại
+    đúng một đường chia lô, không viết bản thứ hai.
+
+    Codex #397: thành phần có lô của bộ sản phẩm (packed_items) cũng được
+    chia lô, nếu cặp (mã, kho) của nó nằm trong nhom. Lõi ghép dòng thành
+    phần vào SLE với voucher_detail_no là dòng hàng cha và lượng p.qty
+    (selling_controller.get_item_list), nên gói lô dựng đúng như vậy.
+    """
     from erpnext.stock.serial_batch_bundle import SerialBatchCreation
     from erpnext.stock.doctype.batch.batch import get_available_batches
     lo_con = {}
@@ -177,29 +191,38 @@ def truoc_ghi_so(doc):
             lo_con[(ma, kho)] = dict(get_available_batches(frappe._dict(item_code=ma,
                 warehouse=kho, qty=0, based_on='Expiry', posting_date=doc.posting_date,
                 posting_time=doc.posting_time)))
+    # (dòng, lượng kho, dòng hàng làm voucher_detail_no, nhãn báo lỗi)
+    dong_ds = [(d, flt(d.stock_qty), d.name, 'Dòng %s' % d.idx) for d in doc.items]
+    for p in doc.get('packed_items') or []:
+        dong_ds.append((p, flt(p.qty), p.get('parent_detail_docname'),
+            'Thành phần %s của bộ %s' % (p.item_code, p.get('parent_item'))))
     # Trừ phần đã chọn tay trước, rồi chia phần tự chọn cho cả hoá đơn.
     # Hai dòng cùng mã không được cùng lấy nguyên một lượng của lô đầu.
-    for d in doc.items:
+    for d, sl_can, _, nhan in dong_ds:
         con = lo_con.get((d.item_code, d.warehouse))
         if con is None:
             continue
         da_chon = []
         if d.get('batch_no'):
-            da_chon = [(d.batch_no, flt(d.stock_qty))]
+            da_chon = [(d.batch_no, sl_can)]
         elif d.get('serial_and_batch_bundle'):
             goi_cu = frappe.get_doc('Serial and Batch Bundle', d.serial_and_batch_bundle)
             da_chon = [(r.batch_no, abs(flt(r.qty))) for r in goi_cu.entries if r.batch_no]
         for lo, sl in da_chon:
             con[lo] = flt(con.get(lo)) - sl
             if con[lo] < -0.000001:
-                frappe.throw('Dòng %s: lô %s tại %s không đủ lượng đã chọn hoặc hết hạn. Chọn lại lô đúng.' % (d.idx, lo, d.warehouse))
-    for d in doc.items:
+                frappe.throw('%s: lô %s tại %s không đủ lượng đã chọn hoặc hết hạn. Chọn lại lô đúng.' % (nhan, lo, d.warehouse))
+    for d, sl_can, chi_tiet, nhan in dong_ds:
         if not frappe.get_cached_value('Item', d.item_code, 'has_batch_no'):
             continue
         if d.get('batch_no') or d.get('serial_and_batch_bundle'):
             continue  # lõi kiểm lô đã chọn, không âm thầm đổi sang lô khác
-        con = lo_con[(d.item_code, d.warehouse)]
-        chon, can = {}, flt(d.stock_qty)
+        con = lo_con.get((d.item_code, d.warehouse))
+        if con is None:
+            if d.doctype == 'Packed Item':
+                continue  # thành phần ngoài nhom: giữ như cũ
+            con = lo_con[(d.item_code, d.warehouse)]
+        chon, can = {}, sl_can
         for lo, sl in con.items():
             lay = min(max(0, flt(sl)), can)
             if lay:
@@ -209,12 +232,12 @@ def truoc_ghi_so(doc):
             if can < 0.000001:
                 break
         if can > 0.000001:
-            frappe.throw('Dòng %s, món %s tại %s thiếu %s theo lô còn dùng. Kiểm lô trước khi ghi sổ.' % (d.idx, d.item_code, d.warehouse, can))
+            frappe.throw('%s, món %s tại %s thiếu %s theo lô còn dùng. Kiểm lô trước khi ghi sổ.' % (nhan, d.item_code, d.warehouse, can))
         goi = SerialBatchCreation(dict(item_code=d.item_code, warehouse=d.warehouse,
             company=doc.company, voucher_type=doc.doctype, voucher_no=doc.name,
-            voucher_detail_no=d.name, posting_date=doc.posting_date, posting_time=doc.posting_time,
+            voucher_detail_no=chi_tiet, posting_date=doc.posting_date, posting_time=doc.posting_time,
             posting_datetime='%s %s' % (doc.posting_date, doc.posting_time),
-            actual_qty=-flt(d.stock_qty), qty=flt(d.stock_qty), batches=chon, type_of_transaction='Outward',
+            actual_qty=-sl_can, qty=sl_can, batches=chon, type_of_transaction='Outward',
             do_not_submit=True)).make_serial_and_batch_bundle()
         if not goi.get('name'):
             frappe.throw('Món %s tại %s chưa đủ lô còn dùng. Kiểm lô và hạn dùng trước khi ghi sổ.' % (d.item_code, d.warehouse))

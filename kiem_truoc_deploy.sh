@@ -116,6 +116,7 @@ node vagabond/khung/kiem_thu/hanh_vi/tai_khoan_dich_vu_252.js
 node vagabond/khung/kiem_thu/hanh_vi/sua_pkt_tang.js
 node vagabond/khung/kiem_thu/hanh_vi/doi_chieu_app_247.js
 node vagabond/khung/kiem_thu/hanh_vi/combo_261.js
+node vagabond/khung/kiem_thu/hanh_vi/kiem_ke_gia_von_547.js
 node vagabond/khung/kiem_thu/hanh_vi/coc_app_247.js
 node vagabond/khung/kiem_thu/hanh_vi/tham_chieu_tien_267.js
 node vagabond/khung/kiem_thu/hanh_vi/chay.js
@@ -128,12 +129,48 @@ node vagabond/khung/kiem_thu/hanh_vi/stk_tai_cho_515.js
 node vagabond/khung/kiem_thu/hanh_vi/bang_sang_351.js
 # #352: ma QR xuat hoa don tren bill ve tai may, khong phu thuoc mang ngoai.
 node vagabond/khung/kiem_thu/hanh_vi/qr_xhd_bill_352.js
+# v565: o tim nghiep vu, o ghim va viec gom nhom trong man phan he - chay
+# that chuoi go va bam tren DOM gia (anh Viet 03/10/2026).
+node vagabond/khung/kiem_thu/hanh_vi/trang_chu_565.js
+# v568: trang Cai dat Vagabond - chip tinh trang ket noi, the tom tat du lieu
+# app tu ghi, o tim cai dat (anh Viet 04/10/2026).
+node vagabond/khung/kiem_thu/hanh_vi/cai_dat_568.js
+# v571: o tim, chip nhom banh, chip trang thai tren trang /kiem-banh
+# (anh Viet 04/10/2026).
+node vagabond/khung/kiem_thu/hanh_vi/kiem_banh_loc_571.js
+# v571 Codex #437 F2: phieu doi no da thu du khong hien lai QR doi tien.
+node vagabond/khung/kiem_thu/hanh_vi/phieu_doi_no_571.js
+# v571 Codex #437 vong 11: bam lai sau khi mat phan hoi gui dung ma lan cu.
+node vagabond/khung/kiem_thu/hanh_vi/khop_tay_lan_571.js
+# v570: man Cai dat loi va API tren app - mo man, bat tat, go, doi khoa,
+# nhom Zalo, luu chi gui o da doi; khoa bi mat khong xuong may.
+node vagabond/khung/kiem_thu/hanh_vi/cai_dat_loi_570.js
 # v530: hop chon hoa don den sau muc ho so, o tim giu display:flex.
 node vagabond/khung/kiem_thu/hanh_vi/hoa_don_sau_530.js
 # #352: thanh bao hoa don dau vao chua thanh phieu mua tren Desk.
 node vagabond/khung/kiem_thu/hanh_vi/cho_dung_352.js
 # #358: may goi y Mon, nguoi chot Mon va he so; he so ghi vao Mon.
 node vagabond/khung/kiem_thu/hanh_vi/go_tay_358.js
+# v574: phien dang nhap bi day vang giua chung thi ve man dang nhap, khong bao
+# "chua whitelist" (Loan Anh, man Cong no 05/10/2026).
+node vagabond/khung/kiem_thu/hanh_vi/phien_mat_574.js
+# v575: gom hoa don cua nhieu phap nhan vao mot phieu de nghi thanh toan
+# (Loan Anh, Oshima's va anh Vu Oshima 05/10/2026).
+node vagabond/khung/kiem_thu/hanh_vi/gom_chung_575.js
+# v577: hop Khop tay dua moi giao dich chua noi; loi khong giao dich chi ke
+# toan, bat dinh UNC (Loan Anh, Ms.Dung DNTT-26-10-00004 05/10/2026).
+node vagabond/khung/kiem_thu/hanh_vi/khop_tay_577.js
+# v579 (#420): man Doi soat nha cung cap - loc, tai file xem truoc roi nhan,
+# chi tiet ba lop, khoi doi soat tren Chi tiet don (anh Viet 06/10/2026).
+node vagabond/khung/kiem_thu/hanh_vi/doi_soat_vendor_579.js
+# v582: goi chuc vu theo phan he, mot nguoi giu nhieu goi (anh Viet 06/10/2026).
+node vagabond/khung/kiem_thu/hanh_vi/goi_nhieu_582.js
+# v583: mot phep tim cho moi o tim (anh Viet 07/10/2026, ca De chocolatine mini).
+node vagabond/khung/kiem_thu/hanh_vi/tim_583.js
+# v586: trinh bien tap website theo the (Minh Vu de xuat), the Tiec co dang ky.
+node vagabond/khung/kiem_thu/hanh_vi/bien_tap_586.js
+# #456: khoi nguoi mua khong co ma so thue Viet Nam tren man Chi tiet don Sales
+node vagabond/khung/kiem_thu/hanh_vi/xhd_khong_mst_456.js
 # APP-26-09-799: dinh uy nhiem chi o buoc xac nhan da chuyen tien gui dung duong dan.
 node vagabond/khung/kiem_thu/hanh_vi/unc_app_518.js
 node vagabond/khung/kiem_thu/hanh_vi/sinh_lai_523.js
@@ -145,6 +182,12 @@ node vagabond/khung/kiem_thu/hanh_vi/noi_desk_526.js
 node vagabond/khung/kiem_thu/hanh_vi/ban_soan_do_533.js
 # v534 (#380): thanh cong cu danh sach chung, so hang tang, tab Tien da ve (man that).
 node vagabond/khung/kiem_thu/hanh_vi/cong_cu_ds_534.js
+node vagabond/khung/kiem_thu/hanh_vi/cong_no_ncc.js
+node vagabond/khung/kiem_thu/hanh_vi/cong_no_tra_truoc_erp_549.js
+node vagabond/khung/kiem_thu/hanh_vi/cong_no_tra_truoc_erp_ban_nhap_549.js
+node vagabond/khung/kiem_thu/hanh_vi/but_toan_doi_tk_552.js
+# v550: tru kho tung mon va tru bu (chip, chip loc, man Hoa don chua tru kho, khoi Kho).
+node vagabond/khung/kiem_thu/hanh_vi/tru_kho_bu_550.js
 # Trang /kiem-banh: chuoi go o Huy. Codex doi tren PR #218 mot ca chay that
 # chuoi bam - go - cho phan hoi - kiem so, chu khong do chuoi. Dat o day chu
 # khong de chay tay: mot ca kiem khong nam trong cong la mot ca kiem se quen.
@@ -183,3 +226,13 @@ echo " do. Doc AGENTS.md muc 6."
 node vagabond/khung/kiem_thu/hanh_vi/van_don_237.js
 
 node vagabond/khung/kiem_thu/hanh_vi/thanh_vien_245.cjs
+# v554: man So tay va bo ve nut/bang dung chung voi tro ly (so tay that tu thu muc so_tay).
+node vagabond/khung/kiem_thu/hanh_vi/so_tay_554.js
+# v558: nut mo khoa / dong khoa mot to tren man Khoa so (17-cai-dat.js that).
+node vagabond/khung/kiem_thu/hanh_vi/mo_khoa_558.cjs
+# v560: tem HACCP khong can lo (05-san-xuat.js that).
+node vagabond/khung/kiem_thu/hanh_vi/tem_khong_lo_560.js
+# v561: goi y va nho tai khoan chenh lech kiem ke (06-nhap-kho-kiem-ke.js that).
+node vagabond/khung/kiem_thu/hanh_vi/goi_y_tk_561.js
+# v564: man Bo ao mot ma (24-phantom.js that).
+node vagabond/khung/kiem_thu/hanh_vi/bo_ao_564.js

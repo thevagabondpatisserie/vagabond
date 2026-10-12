@@ -111,7 +111,7 @@ def _chay_ht(bang, sinh_duoc=True, khop=None, goi="doi_soat", ho_so=None):
 	# Không nạp mô đun ban_hang thật: tệp đó kéo requests ở đầu, máy CI
 	# không có (điều 5). sinh_lai/doi_soat chỉ lấy _kiem_quyen từ đó, nên
 	# đặt tạm một mô đun giả vào sys.modules rồi trả lại.
-	B = SimpleNamespace(_kiem_quyen=lambda *a, **k: None)
+	B = SimpleNamespace(_kiem_quyen=lambda *a, **k: None, _kiem_quyen_ban=lambda *a, **k: None)
 	cu_mod = sys.modules.get("vagabond.ban_hang")
 
 	loi_log, da_goi = [], []
@@ -475,7 +475,7 @@ def _chay_xen(bang, khi_khoa=None, khi_lui=None, sinh_duoc=True, goi="sinh", ho_
 		bang[DT][ho.name].update(hoa_don_tra="HDB-TRA-1", phieu_chi="APP-1")
 		return {"bo_qua": 0, "hoa_don_tra": "HDB-TRA-1", "phieu_chi": "APP-1"}
 
-	B = SimpleNamespace(_kiem_quyen=lambda *a, **k: None)
+	B = SimpleNamespace(_kiem_quyen=lambda *a, **k: None, _kiem_quyen_ban=lambda *a, **k: None)
 	cu_mod = sys.modules.get("vagabond.ban_hang")
 	cu = {k: getattr(H, k) for k in ("frappe", "_sinh_chung_tu", "_duoc_tu_choi")}
 	try:

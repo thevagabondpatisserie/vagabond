@@ -262,7 +262,8 @@ def _():
 def _():
 	m = _doc("vagabond/nguoi_ban.py")
 	than = m[m.find("def gan("):]
-	dung("co kiem quyen", "_kiem_quyen()" in than)
+	# #398 vong 4: cong ban hang rieng thay cong chung.
+	dung("co kiem quyen", "_kiem_quyen_ban()" in than)
 	dung("tai khoan may khong phai nguoi ban", "Tài khoản máy không phải người bán" in than)
 	dung("van cho go ra khi gan nham", "if nguoi and nguoi in MAY" in than)
 	dung("co ghi vet", '"doctype": "Comment"' in than)

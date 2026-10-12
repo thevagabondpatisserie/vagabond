@@ -1,0 +1,33 @@
+{
+  "nguon": "Tên cột kiểm từ mẫu riêng tư trên Drive ngày 05/10/2026; không phải byte file gốc.",
+  "cot": [
+    "No.",
+    "",
+    "Ngày thanh toán\nPaymen date",
+    "Mã Đại lý\nMID",
+    "Mã Thiết bị\nTID",
+    "",
+    "",
+    "",
+    "Tên Kinh Doanh\nMerchant Name",
+    "Tài khoản báo có\nAccount No.",
+    "Số thẻ\nCard No.",
+    "",
+    "Thời gian giao dịch\nTrxn date",
+    "Mã yêu cầu\nRequest ID",
+    "Mã tham chiếu giao dịch\nPurchase ID",
+    "Số tiền giao dịch\nTrxn amount (VND)",
+    "Mức phí dịch vụ (%)\nMDR (%)",
+    "Phí dịch vụ (Bao gồm VAT)\nMDF (include VAT)",
+    "Phí xử lý giao dịch \n(Bao gồm VAT)\nProcessing fee\n(include VAT)",
+    "",
+    "Thuế \nVAT",
+    "Số tiền báo có/ báo nơ\nPayment amount",
+    "Mã chuẩn chi\nApproval code",
+    "Hoàn/Hủy\nReversal/Refund \n(Y/N)",
+    "Loại thẻ\nBrand Card",
+    "Kênh giao dịch\nChannel",
+    "Thẻ trong nước/ nước ngoài\nDomestic/ International Card",
+    "Chi nhánh quản lý\nBranch Name"
+  ]
+}

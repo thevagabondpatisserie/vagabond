@@ -63,6 +63,8 @@ function ham(src, ten) {
       chipNgay:()=>'',locNguonPt:()=>[],locHddt:()=>[],locTim:()=>({k:'tat_ca',loc:()=>true}),
       locHang:()=>'',locKhoiTong:()=>'',khachTrenDon:()=>({}),
       frame:(ten,html,opt)=>{doc.body.innerHTML=html+(opt?.footer||'');return doc.body;}});
+    // v550: chip va chip loc trang thai kho nam o 49-tru-kho-bu.js.
+    vm.runInContext(fs.readFileSync(path.join(bep,'49-tru-kho-bu.js'),'utf8'),c);
     vm.runInContext(fs.readFileSync(path.join(bep,'08-doanh-so-sales.js'),'utf8'),c);
     c.veODate=()=>{};c.timDonGan=()=>{};c.chipNgay=()=>'';c.dsChips=()=>'';
     await c.scrDoanhSo();

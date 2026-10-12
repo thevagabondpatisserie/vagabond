@@ -57,6 +57,8 @@ NHOM_BAN = [
 	{"k": "cqt", "ten": "CQT chấp nhận", "ic": "🏛️"},
 	{"k": "con_thu", "ten": "Còn phải thu", "ic": "📒"},
 	{"k": "da_sua", "ten": "Đã sửa", "ic": "✏️"},
+	# v550: cờ phụ như Đã sửa, không phải nhóm loại trừ.
+	{"k": "chua_tru_kho", "ten": "Chưa trừ kho", "ic": "📦"},
 	{"k": "huy", "ten": "Đã huỷ", "ic": "✖️"},
 ]
 
@@ -102,6 +104,15 @@ def _nhom_ban(r):
 	return "cho_ky"
 
 
+def _tt_kho(r):
+	from vagabond.tru_kho_bu import trang_thai_kho
+	return trang_thai_kho(r)
+
+
+# Chip lọc "Chưa trừ kho" gồm cả tờ đã trừ một phần: vẫn còn món chờ hàng.
+_TT_CHUA_TRU = ("chua_tru", "mot_phan")
+
+
 @frappe.whitelist()
 def ds_hoa_don_ban(so_ngay=30, tu=None, den=None, quay=None, tu_khoa="", nhom=None):
 	_kiem_quyen()
@@ -123,6 +134,8 @@ def ds_hoa_don_ban(so_ngay=30, tu=None, den=None, quay=None, tu_khoa="", nhom=No
 			# Ten that cua khach le nam trong ghi chu chu khong o customer_name
 			# (anh Viet 01/09/2026: moi man phai thay duoc khach tren don).
 			"remarks",
+			# v550: chip trạng thái kho và nhóm lọc "Chưa trừ kho".
+			"update_stock", "vgb_tru_kho_ban", "vgb_chua_tru_kho", "vgb_tru_bu",
 		],
 		order_by="posting_date desc, name desc",
 		limit_page_length=0,
@@ -150,6 +163,7 @@ def ds_hoa_don_ban(so_ngay=30, tu=None, den=None, quay=None, tu_khoa="", nhom=No
 		o["diem"] = diem
 		o["nhom"] = _nhom_ban(r)
 		o["da_sua"] = _da_sua(r, thay_the)
+		o["tt_kho"] = _tt_kho(r)
 		# Thu tu tin cay: khach cong no da gan tay, roi ten that doc tu ghi
 		# chu, roi moi den customer_name. Dat customer_name truoc thi moi don
 		# ban le deu ra chu "Khach le Online", dung mot chu ma vo nghia.
@@ -166,6 +180,7 @@ def ds_hoa_don_ban(so_ngay=30, tu=None, den=None, quay=None, tu_khoa="", nhom=No
 		dem[o["nhom"]] = dem.get(o["nhom"], 0) + 1
 	dem[""] = len(ra)
 	dem["da_sua"] = len([o for o in ra if o["da_sua"]])
+	dem["chua_tru_kho"] = len([o for o in ra if o["tt_kho"] in _TT_CHUA_TRU])
 	dem["con_thu"] = len(
 		[
 			o
@@ -196,6 +211,8 @@ def ds_hoa_don_ban(so_ngay=30, tu=None, den=None, quay=None, tu_khoa="", nhom=No
 	chon = (nhom or "").strip()
 	if chon == "da_sua":
 		loc_ra = [o for o in ra if o["da_sua"]]
+	elif chon == "chua_tru_kho":
+		loc_ra = [o for o in ra if o["tt_kho"] in _TT_CHUA_TRU]
 	elif chon == "con_thu":
 		loc_ra = [
 			o

@@ -323,10 +323,12 @@ def tim_lien_ket(ma, o, tu_khoa="", so_dong=20):
 		frappe.throw("Ô %s không phải ô liên kết." % o)
 	dk = dict(c.get("loc") or {})
 	q = str(tu_khoa or "").strip()
+	# v583: tim theo tung tu, bo dau, bo dau cau (tim_kiem.py).
+	from vagabond import tim_kiem
+
 	ds = frappe.get_all(
 		c["doctype"],
-		filters=dk,
-		or_filters=([["name", "like", "%" + q + "%"]] if q else None),
+		filters=tim_kiem.them_loc(dk, c["doctype"], q, ["name"]),
 		fields=["name"],
 		order_by="modified desc",
 		limit_page_length=int(so_dong or 20),

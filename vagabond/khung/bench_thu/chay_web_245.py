@@ -14,13 +14,14 @@ try:
     frappe.set_user('Administrator')
     from vagabond.khung.bench_thu.web_editor_245 import chay as editor
     from vagabond.khung.bench_thu.web_khach_245 import chay as khach
+    from vagabond.khung.bench_thu.web_v586 import chay as v586
     noi = socket.socket.connect
     def noi_bo(sock,dia_chi):
         if isinstance(dia_chi,tuple) and dia_chi[0] not in ('127.0.0.1','localhost','::1'):
             raise RuntimeError('Bộ kiểm web không kết nối ra ngoài.')
         return noi(sock,dia_chi)
     with patch.object(socket.socket,'connect',noi_bo):
-        ket={'editor':editor(),'khach':khach()}
+        ket={'editor':editor(),'khach':khach(),'v586':v586()}
     Path(os.environ['VGB_ARTIFACTS'],'web-245.json').write_text(json.dumps(ket,ensure_ascii=False,indent=2,default=str))
     print(json.dumps(ket,ensure_ascii=False,default=str))
 finally:

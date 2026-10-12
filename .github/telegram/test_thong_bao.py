@@ -199,6 +199,55 @@ class Ghep(unittest.TestCase):
 
 
 class ThuThap(unittest.TestCase):
+    def comment(self, body, login='thevagabondpatisserie', association='OWNER'):
+        return {'id': 88, 'created_at': '2026-09-12T00:01:00Z',
+                'updated_at': '2026-09-12T00:01:00Z',
+                'html_url': 'https://github.com/thevagabondpatisserie/vagabond/pull/462#issuecomment-88',
+                'user': {'login': login, 'type': 'User'},
+                'author_association': association, 'body': body}
+
+    def text_comment(self, comment):
+        gh = unittest.mock.Mock()
+        gh.trang.side_effect = lambda path, *args: [comment] if path.startswith('/issues/comments') else []
+        return next(iter(thu_thap(gh, Kho().state).values()))['text']
+
+    def test_tom_tat_owner_hop_le_ra_dung_hai_dong(self):
+        body = ('[ĐÃ SỬA XONG]\nNội dung kỹ thuật không được chép.\n'
+                '<!-- telegram-tomtat {"tom_tat":"Đã sửa ảnh bánh.",'
+                '"tiep_theo":"Chờ kiểm lại."} -->')
+        text = self.text_comment(self.comment(body))
+        self.assertIn('Vagabond | Đã sửa xong, chờ review', text)
+        self.assertIn('Tóm tắt: Đã sửa ảnh bánh.\nTiếp theo: Chờ kiểm lại.', text)
+        self.assertNotIn('Nội dung kỹ thuật', text)
+
+    def test_tom_tat_khong_chep_tu_nguoi_khong_phai_owner(self):
+        body = ('[ĐÃ SỬA XONG]\n<!-- telegram-tomtat '
+                '{"tom_tat":"Không được chép.","tiep_theo":"Không được chép."} -->')
+        text = self.text_comment(self.comment(body, 'nguoi-khac', 'MEMBER'))
+        self.assertNotIn('Không được chép', text)
+        self.assertNotIn('Khối tóm tắt chưa hợp lệ', text)
+
+    def test_tom_tat_sai_khoa_qua_dai_hoac_hai_khoi_deu_bi_chan(self):
+        cac_body = [
+            '<!-- telegram-tomtat {"tom_tat":"Đủ","sai_khoa":"Chờ"} -->',
+            '<!-- telegram-tomtat ' + json.dumps({'tom_tat': 'a' * 221, 'tiep_theo': 'Chờ'}) + ' -->',
+            '<!-- telegram-tomtat {"tom_tat":"Có\\u007fẩn","tiep_theo":"Chờ"} -->',
+            ('<!-- telegram-tomtat {"tom_tat":"Một","tiep_theo":"Chờ"} -->'
+             '<!-- telegram-tomtat {"tom_tat":"Hai","tiep_theo":"Chờ"} -->')]
+        for body in cac_body:
+            with self.subTest(body=body[:40]):
+                text = self.text_comment(self.comment('[CẦN DUYỆT]\n' + body))
+                self.assertIn('Khối tóm tắt chưa hợp lệ', text)
+                self.assertNotIn('Tóm tắt:', text)
+
+    def test_codex_chi_lay_gach_dau_dong_dau_cua_summary(self):
+        body = ('### Summary\n\n* Đã sửa **ảnh bánh** theo [nghiệp vụ](https://example.com/a).\n'
+                '* Không lấy ý thứ hai.\n\n**Testing**\n* SECRET log')
+        text = self.text_comment(self.comment(body, 'chatgpt-codex-connector[bot]', 'NONE'))
+        self.assertIn('Codex: Đã sửa ảnh bánh theo nghiệp vụ.', text)
+        self.assertNotIn('Không lấy ý thứ hai', text)
+        self.assertNotIn('SECRET', text)
+
     def test_comment_khong_nhan_tin_item_nhung_reopen_van_bao(self):
         kho = Kho(); bot = Bot(kho)
         i = {'id': 1, 'number': 287, 'title': 'Tên issue', 'state': 'open', 'labels': [], 'updated_at': '2026-09-12T00:01:00Z'}

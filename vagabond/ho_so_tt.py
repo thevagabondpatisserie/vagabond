@@ -460,10 +460,12 @@ def ly_do_thieu_hd(ncc=None, so_ngay=365, tu_khoa=""):
 	# loc tren DOM thi to thu 501 khong bao gio tra ra duoc, du du lieu co
 	# that. Loc theo tu khoa TRUOC khi cat thi go so hoa don nao cung ra,
 	# ke ca to nam ngoai 500 to dau.
-	q = (tu_khoa or "").strip().lower()
+	q = (tu_khoa or "").strip()
 	if q:
-		hd = [x for x in hd
-			if q in ((x["name"] or "") + " " + (x["so_hd_ncc"] or "")).lower()]
+		# v583: tim theo tung tu, bo dau, bo dau cau (tim_kiem.py).
+		from vagabond import tim_kiem
+
+		hd = [x for x in hd if tim_kiem.khop([x["name"], x["so_hd_ncc"]], q)]
 	nhom, chon_duoc = chon_ncc.gom_ly_do(hd, str(moc), ho_so_giu)
 	ra = []
 	for ma in chon_ncc.THU_TU_LY_DO:
@@ -984,9 +986,12 @@ def tao_chi_cong_ty(ncc=None, tk_chi=None, loai_cp_thue=None, dong=None, ghi_chu
 		if not noi_dung:
 			frappe.throw("Có khoản %s đ chưa ghi nội dung chi." % _tien(tien))
 		tk_no = (x.get("tk_no") or "").strip()
-		if not tk_no:
+		# v551: khoản hoá đơn đến sau ghi phiếu chi trả trước NCC (Nợ 331), tài
+		# khoản chi phí đi theo tờ hoá đơn khi về. Không bắt chọn tài khoản Nợ.
+		if not tk_no and not (cint(x.get("cho_hoa_don")) and ma_ncc):
 			frappe.throw("Khoản \"%s\" chưa chọn tài khoản Nợ." % noi_dung)
-		_kiem_tk_ghi_so_duoc(tk_no, "Nợ")
+		if tk_no:
+			_kiem_tk_ghi_so_duoc(tk_no, "Nợ")
 		# Kiem tai khoan Co THUC SU DUOC GHI, tuc la sau khi da roi ve tai
 		# khoan so cai cua ngan hang. Kiem moi `tk_co` do nguoi dung gui len la
 		# bo lot ca duong mac dinh: Bank Account tro toi mot tai khoan nhom hay
@@ -1091,10 +1096,25 @@ def _tao_but_toan_tkct(doc, ngay, phuong_thuc):
 	Mỗi dòng một bút toán Nợ; các dòng cùng TK Có thì gộp lại cho sổ gọn.
 	"""
 	from vagabond.tra_tien_app import chep_unc
+	from vagabond import tra_truoc_ncc as ttn
 
-	dong = [d for d in doc.dong if flt(d.so_tien) > 0]
-	if not dong:
+	if not [d for d in doc.dong if flt(d.so_tien) > 0]:
 		frappe.throw("Hồ sơ %s không có khoản chi nào." % doc.name)
+	# v551 (chị Dung 01/10/2026): khoản chờ hoá đơn là TRẢ TRƯỚC nhà cung cấp,
+	# ghi phiếu chi Nợ 331 / Có ngân hàng, không ghi chi phí. Hoá đơn về thì
+	# máy phân bổ phiếu chi vào tờ. Khoản còn lại (không hoá đơn) giữ bút
+	# toán theo định khoản như trước.
+	tien_tt, i_tt, _i_khac = ttn.tach(doc)
+	ra = []
+	if tien_tt > 0:
+		# Dấu trên khoản, đặt TRƯỚC khi lập phiếu: từ đây kế hoạch đối chiếu
+		# đọc dấu này, không suy lại từ cờ chờ hoá đơn (còn đổi được sau).
+		for i in i_tt:
+			doc.dong[i].tra_truoc = 1
+		ra.append(ttn.tao_phieu(doc, tien_tt, ngay, phuong_thuc))
+	dong = [d for i, d in enumerate(doc.dong) if flt(d.so_tien) > 0 and i not in set(i_tt)]
+	if not dong:
+		return ", ".join(ra)
 
 	tk_ngan_hang = frappe.db.get_value("Bank Account", doc.tk_chi, "account") if doc.tk_chi else None
 	cong_ty = frappe.db.get_single_value("Global Defaults", "default_company")
@@ -1155,7 +1175,8 @@ def _tao_but_toan_tkct(doc, ngay, phuong_thuc):
 	# KHONG commit o day. Ham ngoai (`danh_dau_da_tra`) giu MOT giao dich cho
 	# ca but toan lan trang thai ho so; commit som o day la nha khoa ho so
 	# trong khi ho so van "Da duyet" (Codex #225 R1).
-	return je.name
+	ra.append(je.name)
+	return ", ".join(ra)
 
 
 def _bank_account_quy():
@@ -1282,12 +1303,14 @@ def ds_nguoi_ung(tu_khoa=""):
 			quen[r.nha_cung_cap] = r.ten_ncc or r.nha_cung_cap
 			thu_tu.append(r.nha_cung_cap)
 
-	loc = {"disabled": 0}
+	from vagabond import tim_kiem
+
 	q = (tu_khoa or "").strip()
-	if q:
-		loc["supplier_name"] = ["like", "%" + q + "%"]
 	ds = frappe.get_all(
-		"Supplier", filters=loc, fields=["name", "supplier_name"],
+		"Supplier",
+		# v583: tim theo tung tu, bo dau, bo dau cau (tim_kiem.py).
+		filters=tim_kiem.them_loc({"disabled": 0}, "Supplier", q, ["name", "supplier_name", "tax_id"]),
+		fields=["name", "supplier_name"],
 		order_by="supplier_name asc", limit_page_length=300,
 	)
 	ten = {r.name: (r.supplier_name or r.name) for r in ds}
@@ -1397,9 +1420,12 @@ def ds_tai_khoan(tu_khoa="", gioi_han=40):
 		)
 	ds = []
 	if q:
+		from vagabond import tim_kiem
+
 		ds = frappe.get_all(
-			"Account", filters=loc,
-			or_filters={"name": ["like", "%" + q + "%"], "account_name": ["like", "%" + q + "%"]},
+			"Account",
+			# v583: tim theo tung tu, bo dau, bo dau cau (tim_kiem.py).
+			filters=tim_kiem.them_loc(loc, "Account", q, ["name", "account_name", "account_number"]),
 			fields=["name", "account_name", "account_type", "root_type"],
 			order_by="name asc", limit_page_length=han,
 		)
@@ -1832,7 +1858,7 @@ def _hd_sau_cho_man(doc):
 		ra.append({
 			"hoa_don": r.hoa_don, "so_hd_ncc": r.so_hd_ncc or "", "ncc_ten": hd.get("supplier_name") or r.ncc or "",
 			"ngay_hd": str(hd.get("bill_date") or ""), "tong_hd": flt(r.tong_hd), "tien_khop": flt(r.tien_khop),
-			"da_ghi_so": cint(r.da_ghi_so), "bu_tru": flt(r.bu_tru), "but_toan": r.but_toan or "",
+			"da_ghi_so": cint(r.da_ghi_so), "bu_tru": flt(r.bu_tru), "but_toan": r.but_toan or "", "phieu_chi": r.get("phieu_chi") or "",
 			"ngoai_ncc": cint(r.ngoai_ncc), "nhan": nhan_to(hd) if hd else "Không còn tờ này",
 			"scan": ct["scan"],
 		})
@@ -2696,8 +2722,18 @@ def _dung_ke_hoach_chi(doc, phuong_thuc=None):
 	ke["company_currency"] = frappe.db.get_value("Company", cty, "default_currency") if cty else None
 	tk_nh = frappe.db.get_value("Bank Account", doc.get("tk_chi"), "account") if doc.get("tk_chi") else None
 	no, co, doi_tac = {}, {}, {}
-	for d in (doc.get("dong") or []):
-		if flt(d.get("so_tien")) <= 0:
+	# v551: khoản chờ hoá đơn là phiếu chi trả trước NCC, một nguồn với
+	# _tao_but_toan_tkct (tra_truoc_ncc.tach), không tự tính lại ở đây.
+	i_tt = set()
+	if (doc.get("loai") or "") == LOAI_TKCT:
+		from vagabond import tra_truoc_ncc as ttn
+		tien_tt, ds_tt, _k = ttn.tach(doc)
+		i_tt = set(ds_tt)
+		if tien_tt > 0:
+			tk_tt, _ba = tk_tien_chi(cty, phuong_thuc, doc.get("tk_chi")) if cty else (None, None)
+			ke["tra_truoc"] = {"tien": tien_tt, "supplier": doc.get("nha_cung_cap"), "nguon_chi": tk_tt or None}
+	for i, d in enumerate(doc.get("dong") or []):
+		if flt(d.get("so_tien")) <= 0 or i in i_tt:
 			continue
 		tk_no = d.get("tk_no")
 		tk_co = d.get("tk_co") or tk_nh
@@ -2733,8 +2769,13 @@ def _loi_ke_hoach_chi(ke):
 			if any(k.get(t) != "VND" for t in ("currency", "company_currency", "account_currency")) or flt(k.get("conversion_rate")) != 1:
 				return hd + ": chỉ hỗ trợ hoá đơn, tài khoản và sổ công ty bằng VND, tỷ giá 1"
 	else:
-		if not ke.get("company") or not ke.get("no") or not ke.get("co"):
+		if not ke.get("company"):
+			return "thiếu công ty của hồ sơ"
+		if not ke.get("tra_truoc") and (not ke.get("no") or not ke.get("co")):
 			return "thiếu công ty hoặc tài khoản Nợ/Có của hồ sơ"
+		tt = ke.get("tra_truoc")
+		if tt and not all(tt.get(t) for t in ("supplier", "nguon_chi")):
+			return "phần trả trước thiếu nhà cung cấp hoặc tài khoản chi"
 		if ke.get("company_currency") != "VND":
 			return "sổ công ty chưa xác minh là VND"
 		for tk in set(ke["no"]) | set(ke["co"]):
@@ -2873,12 +2914,25 @@ def _kiem_bo_chung_tu(ke, bo, do=2):
 			if hd not in ke["hoa_don"]:
 				thua.append("%s: %s đ (không có trong hồ sơ)" % (hd, _tien(da[hd])))
 	else:
-		tong = flt(ke.get("tong"), do)
+		tt = ke.get("tra_truoc") or None
+		tong = flt(flt(ke.get("tong")) - (flt(tt["tien"]) if tt else 0), do)
 		je = [b for b in bo if b["doctype"] == "Journal Entry"]
 		pe = [b for b in bo if b["doctype"] == "Payment Entry"]
-		thua.extend("%s (không thuộc luồng không hoá đơn)" % b["name"] for b in pe)
-		if not je:
+		# v551: phần chờ hoá đơn là MỘT phiếu chi trả trước NCC.
+		if tt:
+			from vagabond.tra_truoc_ncc import loi_bo_tra_truoc
+			if not pe:
+				thieu.append("phiếu chi trả trước %s đ cho nhà cung cấp" % _tien(tt["tien"]))
+			else:
+				lech.extend(loi_bo_tra_truoc(tt, pe[0], do))
+				thua.extend("%s (phiếu chi thứ %d)" % (b["name"], i + 2) for i, b in enumerate(pe[1:]))
+		else:
+			thua.extend("%s (không thuộc luồng không hoá đơn)" % b["name"] for b in pe)
+		if not je and tong > 0:
 			thieu.append("bút toán %s đ cho hồ sơ không hoá đơn" % _tien(tong))
+		elif je and tong <= 0:
+			thua.extend("%s (hồ sơ chỉ có phần trả trước)" % b["name"] for b in je)
+			je = []
 		elif len(je) > 1:
 			thua.extend("%s (bút toán thứ %d)" % (b["name"], i + 2) for i, b in enumerate(je[1:]))
 		if je:
@@ -4288,20 +4342,13 @@ def ds_phieu_noi_bo(tu_khoa="", so_ngay=180, gioi_han=60, so_tien=0, noi_dung=""
 	if cint(so_ngay) > 0:
 		loc["creation"] = [">=", add_days(nowdate(), -cint(so_ngay))]
 	q = (tu_khoa or "").strip()
+	from vagabond import tim_kiem
+
 	try:
 		ds = frappe.get_all(
 			DNC,
-			filters=loc,
-			or_filters=(
-				{
-					"name": ["like", "%" + q + "%"],
-					"ten_khoan_chi": ["like", "%" + q + "%"],
-					"nguoi_tao": ["like", "%" + q + "%"],
-					"dien_giai": ["like", "%" + q + "%"],
-				}
-				if q
-				else None
-			),
+			# v583: tim theo tung tu, bo dau, bo dau cau (tim_kiem.py).
+			filters=tim_kiem.them_loc(loc, DNC, q, ["name", "ten_khoan_chi", "nguoi_tao", "dien_giai"]),
 			fields=[
 				"name", "ten_khoan_chi", "so_tien", "tong_tien", "trang_thai",
 				"nguoi_tao", "ngay_can_tt", "dien_giai", "loai_nghiep_vu",

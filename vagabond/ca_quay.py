@@ -230,7 +230,7 @@ def ghep_chi_tien_mat(pt_may, tien_mat_dem, tien_le_dau_ca=0.0, so_bill=None):
 
 
 def _kiem_quyen():
-	from vagabond.ban_hang import _kiem_quyen as kq
+	from vagabond.ban_hang import _kiem_quyen_ban as kq
 
 	kq()
 

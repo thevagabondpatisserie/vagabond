@@ -18,7 +18,7 @@ ElementGia.prototype.querySelectorAll=function(sel){
   bodies.push(opts.body);if(++thu===1)throw Error('Failed to fetch');
   return {ok:true,json:async()=>({message:{ok:1,ma:'TEST'}})};
  };
- await vm.runInNewContext(fs.readFileSync('vagabond/public/web_order/dat-ban.js','utf8'),{document,fetch,crypto:{randomUUID:()=> '11111111-1111-1111-1111-111111111111'}});
+ await vm.runInNewContext((fs.readFileSync('vagabond/public/web_order/chu.js','utf8').split('(function ()')[0] + '\n' + fs.readFileSync('vagabond/public/web_order/dat-ban.js','utf8')),{window:{},document,fetch,crypto:{randomUUID:()=> '11111111-1111-1111-1111-111111111111'}});
  assert.equal(tim('dat-ban').hidden,false);
  tim('gio').querySelector('button').onclick();tim('dip').querySelector('button').onclick();tim('khu-vuc').querySelector('button').onclick();
  tim('ten').value='Khách thử';tim('sdt').value='0912345678';tim('tre-em').value='1';tim('email').value='a@example.com';tim('banh-kem-theo').value='Bánh';

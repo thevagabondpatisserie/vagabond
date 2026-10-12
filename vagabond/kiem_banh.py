@@ -686,13 +686,19 @@ def _dem_don_khac(ngay, dang_theo_doi=None):
 	"GrabFood #GF-441" de sales biet so do tu don nao ra.
 	"""
 	ngay = getdate(ngay)
-	sis = frappe.get_all(
-		"Sales Invoice",
-		# vgb_huy 0: bill da huy khong con la hang ban ra nen khong duoc tru
-		# so tren bang kiem banh, khong thi sales dem thieu banh trong kho.
-		filters={"posting_date": str(ngay), "docstatus": ["<", 2], "vgb_huy": 0},
-		fields=["name", "custom_nguon", "custom_pancake_display_id"],
-		limit_page_length=0,
+	from vagabond import ngay_ban
+
+	# vgb_huy 0: bill da huy khong con la hang ban ra nen khong duoc tru
+	# so tren bang kiem banh, khong thi sales dem thieu banh trong kho.
+	# Ngay: theo ngay ban tai quay, khong theo ngay ghi so (v573, Dễ báo
+	# hàng tặng duyệt hôm sau bị trừ hai lần).
+	sis = frappe.db.sql(
+		"""select si.name, si.custom_nguon, si.custom_pancake_display_id
+		from `tabSales Invoice` si
+		where si.docstatus < 2 and ifnull(si.vgb_huy, 0) = 0
+		  and """ + ngay_ban.dk_sql("si"),
+		{"ngay": ngay},
+		as_dict=True,
 	)
 	theo_ten = {}
 	for si in sis:
@@ -909,11 +915,12 @@ def khi_doi_hoa_don(doc, method=None):
 			str(r.item_code or "").upper().startswith(TIEN_TO_MA) for r in (doc.get("items") or [])
 		):
 			return
-		from vagabond.dat_banh import hai_ngay_phai_do
+		from vagabond.ngay_ban import cac_ngay_phai_do
 
 		cu = (doc.get_doc_before_save() or {}) if hasattr(doc, "get_doc_before_save") else {}
-		for ngay in hai_ngay_phai_do(
-			(cu or {}).get("posting_date") if cu else None, doc.posting_date
+		for ngay in cac_ngay_phai_do(
+			(cu or {}).get("posting_date") if cu else None, doc.posting_date,
+			doc.get("vgb_ngay_ban"),
 		):
 			cap_nhat_don_khac(ngay)
 	except Exception:
@@ -1443,7 +1450,7 @@ def co_the_ban_hom_nay():
 		goc, cm = _tach_ten_size(ten_day)
 		# #367: anh ho so mon ERP truoc, anh luu trong dong (chup tu don
 		# Pancake) sau. Mot ham chon cho moi nhanh, xem vagabond/anh_web.py.
-		anh = chon_anh(x.get("image"), (), d.hinh)[0]
+		anh = chon_anh(x.get("image"), (), d.hinh, ma_hang=d.ma_hang)[0]
 		mon.append(
 			{
 				"ma": d.ma_hang,
@@ -1518,7 +1525,8 @@ def _bo_anh_mo_ta(ds_nhom):
 				if len(anhs) >= 5 and mo_ta:
 					break
 		dong_luu = next((u for u in anh_dong if u), "") or g.get("anh") or ""
-		g["anh"], g["anhs"] = chon_anh(anh_erp, anhs, dong_luu)
+		g["anh"], g["anhs"] = chon_anh(anh_erp, anhs, dong_luu,
+			ma_hang=[s.get("ma") for s in sizes])
 		dong_mo_ta = [d for d in (mo_ta or "").split("\n") if d.strip()]
 		g["mo_ta"] = dong_mo_ta[0] if dong_mo_ta else ""
 		g["tang"] = [d.strip() for d in dong_mo_ta[1:]][:12]
@@ -1619,15 +1627,21 @@ def tim_mon(tu_khoa="", ngay=None):
 	# bang chuoi thi ro rang va di dung mot luot hoi.
 	#
 	# Moi gia tri deu di qua tham so %s, khong noi chuoi vao cau lenh.
-	dieu = " OR ".join(["item_code LIKE %s"] * len(TIEN_TO_THEM_TAY))
-	tham = ["%s%%" % t for t in TIEN_TO_THEM_TAY]
+	#
+	# v583: tham so doi sang dang CO TEN de ghep chung dieu kien tim theo tung
+	# tu, bo dau, bo dau cau (tim_kiem.py).
+	from vagabond import tim_kiem
+
+	ten_tham = {"tt%d" % i: "%s%%" % t for i, t in enumerate(TIEN_TO_THEM_TAY)}
+	dieu = " OR ".join("item_code LIKE %%(tt%d)s" % i for i in range(len(TIEN_TO_THEM_TAY)))
 	cau = """select item_code, item_name, image from `tabItem`
 		where ifnull(disabled, 0) = 0 and (%s)""" % dieu
-	if q:
-		cau += " and (item_code like %s or item_name like %s)"
-		tham += ["%" + q + "%", "%" + q + "%"]
+	d_tim, t_tim = tim_kiem.sql(q, ["item_code", "item_name"])
+	if d_tim:
+		cau += " and " + d_tim
+		ten_tham.update(t_tim)
 	cau += " order by item_code limit 80"
-	ds = frappe.db.sql(cau, tuple(tham), as_dict=True)
+	ds = frappe.db.sql(cau, ten_tham, as_dict=True)
 	da_co = set()
 	if ngay:
 		ten_bang = "KB-%s" % getdate(ngay)

@@ -184,6 +184,86 @@ def tao_phieu_hom_nay(kho=None, gioi_han=None):
 	return {"ok": 1, "name": doc.name, "so_mon": doc.so_mon}
 
 
+# ---------------------------------------------------- goi y tai khoan (v561)
+#
+# Anh Viet chot 03/10/2026 (bang duyet so tay, viec so 3): tai khoan chenh
+# lech kiem ke DE CHO KE TOAN CHON, may chi goi y. Ke toan chon roi thi may
+# nho, lan sau goi y luon, ke toan chi viec xac nhan. Truoc v561 may luon dien
+# tai khoan mac dinh cua cong ty, man lai ghi "mac dinh 811" trong khi cong
+# ty dang de 632 - ba nguon noi ba so.
+
+KHOA_NHO_TK = "vgb_kiem_ke_tk_da_chon"
+
+
+def goi_y_tk(nho, kho, dau_ky, mac_dinh, tam_dau_ky):
+	"""THUAN. Tra (tai khoan, nguon) de goi y cho mot phieu.
+
+	Thu tu: lan truoc ke toan chon cho DUNG kho nay; roi lan gan nhat chon o
+	bat ky kho nao; cuoi cung moi toi mac dinh cua cong ty. Ton dau ky la
+	luong rieng, chi nho rieng cho no, khong lan voi kiem ke dinh ky.
+	"""
+	nho = nho or {}
+	if dau_ky:
+		if nho.get("dau_ky"):
+			return nho["dau_ky"], "lan_truoc"
+		return (tam_dau_ky or mac_dinh or ""), "mac_dinh"
+	if kho and nho.get("kho:" + kho):
+		return nho["kho:" + kho], "lan_truoc_kho"
+	if nho.get("chung"):
+		return nho["chung"], "lan_truoc"
+	return (mac_dinh or tam_dau_ky or ""), "mac_dinh"
+
+
+def ghi_nho_tk(nho, kho, dau_ky, tk):
+	"""THUAN. Tra ban nho moi sau khi ke toan ghi so voi tai khoan tk."""
+	ra = dict(nho or {})
+	if not tk:
+		return ra
+	if dau_ky:
+		ra["dau_ky"] = tk
+		return ra
+	ra["chung"] = tk
+	if kho:
+		ra["kho:" + kho] = tk
+	return ra
+
+
+def _doc_nho():
+	import json
+
+	try:
+		return json.loads(frappe.db.get_default(KHOA_NHO_TK) or "{}") or {}
+	except Exception:
+		return {}
+
+
+@frappe.whitelist()
+def tk_goi_y(kho=None, dau_ky=0):
+	"""Man ghi so phieu kiem ke hoi tai khoan goi y."""
+	_duoc_dem()
+	cong_ty = frappe.db.get_single_value("Global Defaults", "default_company")
+	mac_dinh = frappe.db.get_value("Company", cong_ty, "stock_adjustment_account") or ""
+	tam = frappe.db.get_value("Account", {"company": cong_ty, "account_type": "Temporary", "is_group": 0}, "name") or ""
+	tk, nguon = goi_y_tk(_doc_nho(), kho, cint(dau_ky), mac_dinh, tam)
+	if tk and not frappe.db.exists("Account", {"name": tk, "is_group": 0, "disabled": 0}):
+		tk, nguon = goi_y_tk({}, kho, cint(dau_ky), mac_dinh, tam)
+	return {"tk": tk, "nguon": nguon}
+
+
+@frappe.whitelist()
+def nho_tk(kho=None, tk=None, dau_ky=0):
+	"""Ghi so xong thi nho tai khoan ke toan vua chon."""
+	import json
+
+	if not duoc_duyet():
+		frappe.throw("Chỉ quản lý kho hoặc kế toán mới ghi sổ phiếu kiểm kê.")
+	if not tk or not frappe.db.exists("Account", {"name": tk, "is_group": 0}):
+		frappe.throw("Tài khoản %s không có trong hệ thống tài khoản." % (tk or ""))
+	moi = ghi_nho_tk(_doc_nho(), kho, cint(dau_ky), tk)
+	frappe.db.set_default(KHOA_NHO_TK, json.dumps(moi, ensure_ascii=False))
+	return {"ok": 1}
+
+
 @frappe.whitelist()
 def phieu_cho_duyet():
 	"""Danh sach phieu dang cho quan ly duyet."""

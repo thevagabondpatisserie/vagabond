@@ -1,0 +1,74 @@
+{
+ "doctype": "DocType",
+ "name": "Vagabond Doi Soat Trung",
+ "module": "Vagabond",
+ "engine": "InnoDB",
+ "autoname": "hash",
+ "track_changes": 0,
+ "field_order": [
+  "nguon",
+  "company",
+  "khoa",
+  "thuc_nhan"
+ ],
+ "fields": [
+  {
+   "fieldname": "nguon",
+   "fieldtype": "Link",
+   "label": "Nguồn có sự kiện",
+   "options": "Vagabond Doi Soat Nguon",
+   "read_only": 1,
+   "search_index": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Pháp nhân",
+   "options": "Company",
+   "read_only": 1
+  },
+  {
+   "fieldname": "khoa",
+   "fieldtype": "Data",
+   "label": "Khoá sự kiện",
+   "read_only": 1,
+   "search_index": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "thuc_nhan",
+   "fieldtype": "Currency",
+   "label": "Thực nhận theo báo cáo này",
+   "read_only": 1,
+   "in_list_view": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "Accounts Manager",
+   "read": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1
+  },
+  {
+   "role": "System Manager",
+   "read": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1
+  },
+  {
+   "role": "Accounts User",
+   "read": 1,
+   "report": 1,
+   "print": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "description": "#420 v583 đối soát vendor: sự kiện một báo cáo có nhưng đã nhận ở nguồn khác (báo cáo ngày và tháng chồng nhau). Máy ghi, dùng để cộng tổng mỗi sự kiện một lần.",
+ "creation": "2026-10-07 14:00:00.000000",
+ "modified": "2026-10-07 14:00:00.000000"
+}

@@ -109,6 +109,7 @@ MAN = (
 	("DHUY", "Đơn đã huỷ", None),
 	("PHHUY", "Danh sách phiếu hoàn tiền", "phieu-hoan-tien"),
 	("DUYETTANG", "Duyệt đơn hàng tặng", None),
+	("TRUKHO", "Hoá đơn chưa trừ kho", None),
 	# --- Nhan su (HRM). Anh Viet chot 01/09/2026, lam trong app Vagabond
 	# chu chua cai phan he HR cua Frappe.
 	("KPI", "KPI và hoa hồng", "kpi"),
@@ -117,6 +118,7 @@ MAN = (
 	("VD", "Vận đơn", None),
 	("CPX", "Chi phí vận đơn", None),
 	("DSCOD", "Đối soát COD", None),
+	("PHIAPP", "Phí giao hàng book app", "phi-book-app"),
 	("DS", "Doanh số", None),
 	("POS", "Bán tại quầy", None),
 	("KH", "Khách hàng", None),
@@ -210,6 +212,8 @@ MAN = (
 	("CDSE", "SePay", None),
 	("CDTB", "Thông báo", None),
 	("CDWEB", "Trang đặt bánh web", None),
+	("DSVN", "Đối soát nhà cung cấp", None),
+	("CDLOI", "Cài đặt lõi và API", None),
 	("QLND", "Người dùng", None),
 	("QLQ", "Phân quyền", None),
 	("ACC", "Tài khoản của tôi", None),
@@ -218,6 +222,8 @@ MAN = (
 
 	# --- Man chung
 	("VCL", "Việc cần làm", None),
+	# v554: so tay viet tay, ai dang nhap cung xem (anh Viet 02/10/2026).
+	("SOTAY", "Sổ tay", None),
 )
 
 # Muoi sau man Danh muc di chung mot nhanh `DM:` trong vgbGo. Ten lay dung

@@ -60,7 +60,7 @@ import requests
 from frappe.utils import cint, nowdate
 
 from vagabond import tro_ly_so_tay, tro_ly_loi
-from vagabond.lib import TIMEOUT, cfg, key
+from vagabond.lib import cfg, key
 from vagabond.vai_cua_hang import VAI_QLCH
 
 NHAT_KY = "Vagabond Nhat Ky Tro Ly"
@@ -83,6 +83,12 @@ NHIET_DO = 0
 # Tran do dai. Cau hoi dai qua thuong la ai do dan nguyen mot man hinh vao.
 DAI_CAU_HOI = 600
 DAI_TRA_LOI = 900
+# Cho mo hinh lau hon TIMEOUT chung (12 giay, danh cho API ngan cua
+# Pancake, SePay...). Cau tra loi 900 token tren tu lieu 9000 ky tu that su
+# mat 10 toi 25 giay. Duoi tran 120 giay cua may chu web.
+CHO_MO_HINH = 50
+CAU_QUA_LAU = ("Trợ lý trả lời quá lâu nên đã dừng. Bạn bấm Gửi lại, hoặc "
+	"mở nút Sổ tay để tra thẳng.")
 
 # Han muc mac dinh, doi duoc o man Cai dat.
 LUOT_NGAY_MAC_DINH = 30
@@ -97,7 +103,14 @@ XƯNG HÔ VÀ GIỌNG VĂN
   ít tuổi hơn. Gọi người hỏi là "anh chị" hoặc không gọi.
 - Ngắn gọn, khách quan, chuyên nghiệp. Không chào hỏi, không khách sáo.
 - Trả lời thẳng vào việc, tối đa khoảng tám câu.
-- Có các bước thao tác thì đánh số từng bước.
+- Có các bước thao tác thì đánh số từng bước, mỗi bước một dòng.
+- Nhắc tới nút, thẻ hay mục chọn thì viết đúng dạng trong tư liệu: [[Tên nút]]
+  cho nút trên app, [[desk:Tên nút]] cho nút trên Desk, chữ bên trong giữ
+  nguyên từng chữ. Màn hình hiện dạng đó thành nút thật có mũi tên chỉ vào.
+- Cần so sánh hay ghi hạch toán Nợ/Có thì dùng bảng markdown (dòng bắt đầu
+  bằng dấu |). Không dùng tiêu đề #, không dùng emoji.
+- Dùng đúng thuật ngữ tiếng Việt như trong tư liệu, không dịch ngược sang
+  tiếng Anh.
 - Viết tiếng Việt có dấu. Không dùng dấu gạch ngang dài, chỉ dùng dấu gạch
   ngang thường.
 
@@ -108,6 +121,11 @@ CHỈ ĐƯỢC DỰA VÀO TƯ LIỆU
   không bịa tên màn hình, không bịa tên nút.
 - Tuyệt đối không bịa số liệu, không bịa số tiền, không bịa tồn kho. Hệ thống
   hiện chưa được đọc dữ liệu thật của tiệm.
+- Chỗ nào trong tư liệu có dấu [CHƯA XÁC MINH: ...] thì phần đó CHƯA được
+  kiểm trên phần mềm thật. Không hướng dẫn phần đó như điều chắc chắn: nói
+  rõ điểm đó chưa được xác minh và đề nghị hỏi kế toán trưởng hoặc bộ phận
+  kỹ thuật trước khi làm. Các bước khác không mang dấu đó thì hướng dẫn bình
+  thường.
 
 KHÔNG QUYẾT THAY CHỦ TIỆM
 - Câu hỏi về chính sách, giá, giảm giá, thưởng phạt, có được làm hay không
@@ -188,13 +206,20 @@ def _goi_mo_hinh(c, cau_hoi, tu_lieu, man):
 		"system": LUAT + tu_lieu,
 		"messages": [{"role": "user", "content": nguoi}],
 	}
-	r = requests.post(
-		API,
-		headers={"x-api-key": khoa, "anthropic-version": BAN_API,
-			"content-type": "application/json"},
-		data=json.dumps(than),
-		timeout=TIMEOUT,
-	)
+	try:
+		r = requests.post(
+			API,
+			headers={"x-api-key": khoa, "anthropic-version": BAN_API,
+				"content-type": "application/json"},
+			data=json.dumps(than),
+			timeout=CHO_MO_HINH,
+		)
+	except (requests.Timeout, requests.ConnectionError) as e:
+		# 03/10/2026 v556: truoc day dung TIMEOUT chung 12 giay cua lib. Tu
+		# khi co so tay (v554) tu lieu dai hon nen cau tra loi hay qua 12 giay,
+		# requests nem ReadTimeout lot ra thanh "Loi may chu (ma 500)".
+		frappe.log_error(str(e)[:2000], "tro_ly: mo hinh tra loi qua lau")
+		frappe.throw(CAU_QUA_LAU, title="Trợ lý trả lời quá lâu")
 	if r.status_code >= 400:
 		frappe.log_error(r.text[:2000], "tro_ly: goi mo hinh hong")
 		# Noi ro BENH, dung noi chung chung. Ngay 26/08/2026 tro ly im tieng
@@ -233,7 +258,10 @@ def hoi(cau_hoi=None, man=None):
 		ma = _ghi_nhat_ky(cau_hoi, KHONG_BIET, man, [], "")
 		return {"tra_loi": KHONG_BIET, "nhat_ky": ma, "nguon": []}
 
-	tu_lieu = tro_ly_so_tay.gon_tu_lieu(cac_muc)
+	# Nguon ghi nhat ky la muc THAT SU dong goi gui mo hinh, khong phai muc
+	# da chon (Codex #412: tran 9000 ky tu co the cat bot muc cuoi).
+	tu_lieu, da_goi = tro_ly_so_tay.dong_goi_tu_lieu(cac_muc)
+	nguon = [str(m.get("ten") or "") for m in da_goi]
 	tra_loi, mo_hinh = _goi_mo_hinh(c, cau_hoi, tu_lieu, man)
 	ma = _ghi_nhat_ky(cau_hoi, tra_loi, man, nguon, mo_hinh)
 	return {"tra_loi": tra_loi, "nhat_ky": ma, "nguon": nguon}

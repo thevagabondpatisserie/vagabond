@@ -55,6 +55,7 @@ TRANG = _trang()
 
 def _node(ma):
 	"""Chạy một đoạn JavaScript bằng node, trả về stdout đã cắt khoảng trắng."""
+	ma = io.open(os.path.join(_goc(), "vagabond", "public", "web_order", "chu.js"), encoding="utf-8").read().split("(function ()")[0] + "\n" + ma
 	r = subprocess.run(["node", "-e", ma], capture_output=True, text=True, timeout=20)
 	if r.returncode != 0:
 		raise AssertionError("node lỗi: " + (r.stderr or "").strip()[:400])
@@ -79,7 +80,7 @@ DAYS_JS = (
 )
 
 
-def _chay(gio, kich_ban):
+def _chay(gio, kich_ban, kho_phien=None):
 	"""Nạp TOÀN BỘ mã của trang vào node với đồng hồ đặt ở `gio`, chạy kịch
 	bản, rồi đọc lại JSON mà kịch bản in ra.
 
@@ -90,7 +91,7 @@ def _chay(gio, kich_ban):
 	js = os.path.join(_goc(), "vagabond", "khung", "kiem_thu", "gia_lap_trang.js")
 	trang = os.path.join(_goc(), "vagabond", "trang", "banh.html")
 	r = subprocess.run(
-		["node", js, trang, gio, kich_ban],
+		["node", js, trang, gio, kich_ban] + ([json.dumps(kho_phien, ensure_ascii=False)] if kho_phien else []),
 		capture_output=True, text=True, timeout=60,
 	)
 	if r.returncode != 0:
@@ -180,7 +181,7 @@ def _ton_dung_chung():
 	# Ba cho: the banh thuong, luoi hang theo mua, va sheet chi tiet hang mua.
 	dung("the banh thuong goi nhanTon", "nhanTon(TODAY[s.id]" in TRANG)
 	dung("the banh dat truoc goi nhanTon", "nhanTon(TRUOC[s.id]" in TRANG)
-	dung("luoi hang theo mua goi nhanTon", "nhanTon(m.con,'phần')" in TRANG)
+	dung("luoi hang theo mua goi nhanTon", "nhanTon(m.con," in TRANG)
 	# Khong con cho nao ghep so tho vao nhan hien ra man hinh.
 	dung("khong con ghep 'Con '+m.con o luoi mua",
 		"(het?'Hết hàng':'Còn '+m.con)" not in TRANG)
@@ -196,6 +197,7 @@ var mon=CAKES[0], s0=mon.sizes[0];
 var ra=[];
 [[0,0],[1,0],[10,0],[11,0],[1393,0],[null,0],[0,5],[0,1393]].forEach(function(c){
   TODAY[s0.id]=c[0]; TRUOC[s0.id]=c[1];
+  tabNow=c[1]>0?'order':'today';
   renderSheet(mon);
   /* Chi doc PHAN NHAN TON: dong tren dau sheet, va cac the <em> trong tung
      co. Khong doc gia tien hay so do, hai thu do von la so that. */
@@ -387,7 +389,7 @@ def _cung_mien_ngay():
 
 @ca("#205 bam Thay doi thi bung lai bo chon, va dua con tro vao do")
 def _nut_thay_doi():
-	dung("co nut Thay doi", 'onclick="doiLich()"' in TRANG)
+	dung("co nut Thay doi", 'onclick="doiLich()"' in TRANG.replace('\\"', '"'))
 	than = _than("doiLich")
 	dung("mo lai bo chon", "moLich=true" in than)
 	dung("ve lai muc 02", "drawCoDate()" in than)

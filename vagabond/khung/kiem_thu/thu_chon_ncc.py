@@ -249,9 +249,8 @@ def _tim_khong_dau():
 	j = _js("19-ho-so-tt.js")
 	than = j[j.index("function hsMoChonBenNhan("):j.index("function hsMoChonNcc(")]
 	dung("bỏ dấu phía người gõ", "var k = mvKhongDau(q).trim();" in than)
-	dung("bỏ dấu phía dữ liệu",
-		"return (mvKhongDau(x.ten || '') + ' ' + mvKhongDau(x.ncc || '')).indexOf(k) >= 0;"
-		in than)
+	# v583: phía dữ liệu đi qua phép chung vgbKhop (bỏ dấu, bỏ dấu câu, từng từ).
+	dung("bỏ dấu phía dữ liệu", "return vgbKhop([x.ten, x.ncc], k);" in than)
 
 
 @ca("#198 màn Vì sao thiếu tra được TỪNG tờ, không cắt ở tờ thứ 7")
@@ -349,8 +348,9 @@ def _tra_duoc_to_ngoai_gioi_han():
 	than = s[i:s.index("\ndef _hd_ho_so_giu(", i)]
 	dung("cửa nhận từ khoá",
 		'def ly_do_thieu_hd(ncc=None, so_ngay=365, tu_khoa="")' in s)
+	# v583: khớp qua phép chung tim_kiem.khop (bỏ dấu, bỏ dấu câu, từng từ).
 	dung("khớp cả mã hoá đơn lẫn số hoá đơn của nhà cung cấp",
-		'(x["name"] or "") + " " + (x["so_hd_ncc"] or "")' in than)
+		'tim_kiem.khop([x["name"], x["so_hd_ncc"]], q)' in than)
 	# Điều quan trọng nhất: lọc phải chạy TRƯỚC lúc cắt. Lọc sau thì tờ 501
 	# đã bị vứt đi rồi, gõ đúng số của nó cũng không ra.
 	a = than.index('if q:')

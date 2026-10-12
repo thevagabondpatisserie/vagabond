@@ -71,7 +71,11 @@ def _():
 	src = _js("27-in-ngam.js")
 	dung("chiều cao 0 nghĩa là để trống",
 		"height: (Number(caoMm) > 0) ? inMmSangInch(caoMm) : null" in src)
-	dung("bản in của máy chủ không khai chiều cao", "inCauHinh(may, rongMm, 0, dpi)" in src)
+	# v561 (Codex #421): ban in do may chu dung cung cat tem nhu to app tu
+	# dung - tem thi khai chieu cao tung con, giay cuon van de trong. Ca hai
+	# duong dung chung mot bieu thuc, chot o day de khong lech lai.
+	la("ca hai duong khai chieu cao theo cung luat",
+		src.count("inCauHinh(may, rongMm, catTheo ? caoMm : 0, dpi)"), 2)
 
 
 @ca("in ngầm: mỗi con tem một trang, không in cả xấp thành một dải")

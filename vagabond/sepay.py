@@ -1007,10 +1007,12 @@ def tim_gd_vao(so_tien=0, ngay="", tu_khoa="", so_ngay=30, ma_do=""):
 	"""
 	from frappe.utils import add_days, nowdate
 
-	from vagabond.ban_hang import _kiem_quyen
+	# Codex #400 v6: sao kê tiền vào là dữ liệu ngân hàng, chỉ Sales thật và kế
+	# toán được đọc. Cổng chung cho cả bếp, kho, thu mua đọc được.
+	from vagabond.ban_hang import _kiem_quyen_ban
 	from vagabond.khop_sao_ke import xep_ung_vien
 
-	_kiem_quyen()
+	_kiem_quyen_ban()
 	tien = flt(so_tien)
 	moc = str(ngay or "")[:10] or nowdate()
 	n = max(1, min(cint(so_ngay) or 30, 180))

@@ -303,9 +303,10 @@ def mon_thay_the(tim=None, gioi_han=40):
 	tim = (tim or "").strip()
 	loc = [["Item", k, "=", v] for k, v in dk.items()]
 	loc.append(["Item", "item_group", "not in", list(NHOM_HOP)])
-	if tim:
-		loc.append(["Item", "item_name", "like", "%" + tim + "%"])
-	ds = frappe.get_all("Item", filters=loc,
+	from vagabond import tim_kiem
+
+	# v583: tim theo tung tu, bo dau, bo dau cau (tim_kiem.py).
+	ds = frappe.get_all("Item", filters=tim_kiem.them_loc(loc, "Item", tim, ["name", "item_name"]),
 		fields=["name", "item_name", "item_group", "stock_uom"],
 		limit=cint(gioi_han) or 40, order_by="item_name asc")
 	return {"ds": [{"ma": x.name, "ten": x.item_name, "nhom": x.item_group,

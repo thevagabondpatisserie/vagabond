@@ -145,7 +145,7 @@ TRUONG_MOI = {
 	"Vagabond Settings": [
 		{
 			"fieldname": "sec_minvoice_pdf", "label": "M-Invoice - bản thể hiện PDF",
-			"fieldtype": "Section Break", "insert_after": "sepay_chua_map",
+			"fieldtype": "Section Break", "insert_after": "sec_minvoice",  # v568: ngay sau mục m-invoice
 		},
 		{
 			"fieldname": "minvoice_pdf_bat", "label": "Tự kéo PDF bản thể hiện",
