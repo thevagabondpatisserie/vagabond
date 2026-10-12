@@ -205,6 +205,21 @@ def _loai():
             dung("câu báo: " + chu, chu in str(e))
 
 
+@ca("Codex #461 vòng 2: lối xoá cũng chặn ưu đãi gõ tay (cả bản công khai có soát lẫn bản nháp không soát); tiệc vẫn xoá được")
+def _xoa_uu_dai_chan():
+    nd = _nd(_uu(id="u1"))
+    for dau in (nw.dau_van_tay(_uu(id="u1")), None):
+        try:
+            nw.xoa_muc(nd, "u1", dau)
+            dung("phải chặn xoá ưu đãi", False)
+        except ValueError as e:
+            dung("câu báo chỉ về ERP", "app ERP" in str(e))
+    la("bản gốc còn ưu đãi", [k["id"] for k in nd["khoi"] if k["loai"] == "uu_dai"], ["u1"])
+    tiec = {"id": "t1", "loai": "tiec", "tieu_de": "Tiệc"}
+    nd2 = copy.deepcopy(nd); nd2["khoi"].append(tiec)
+    la("tiệc vẫn xoá được", [k["id"] for k in nw.xoa_muc(nd2, "t1", None)["khoi"] if k["loai"] == "tiec"], [])
+
+
 @ca("v586: nhãn chữ đổi từng khoá, để trống là về mặc định, soát người khác vừa sửa")
 def _ap_nhan():
     nd = _nd(); nd["nhan"] = {"tab_today": "Bánh vừa ra lò"}
@@ -345,11 +360,16 @@ def _khong_ghi_de():
 
 @ca("v586: xoá một mục khỏi cả hai bản, mục khác giữ nguyên")
 def _xoa():
-    cong = _nd(_uu(id="u1"), _uu(id="u2"))
+    # Codex #461 vòng 2: từ v589 ưu đãi không xoá được qua đây (chỉ đọc từ ERP),
+    # nên ca dùng mục tiệc để giữ đúng ý: xoá khỏi cả hai bản, mục khác còn.
+    t1 = {"id": "t1", "loai": "tiec", "vi_tri": "tiec", "hien": True, "tieu_de": "Tiệc 1", "bat_dau": "2026-10-20"}
+    t2 = {"id": "t2", "loai": "tiec", "vi_tri": "tiec", "hien": True, "tieu_de": "Tiệc 2", "bat_dau": "2026-10-21"}
+    cong = _nd(copy.deepcopy(t1), copy.deepcopy(t2))
     site = _Site(copy.deepcopy(cong), cong)
-    _chay(site, lambda: nw.xoa_muc_web("u1", nw.dau_van_tay(_uu(id="u1"))))
+    dau = nw.dau_van_tay([k for k in json.loads(site.doc.ban_cong_khai)["khoi"] if k["id"] == "t1"][0])
+    _chay(site, lambda: nw.xoa_muc_web("t1", dau))
     for ban in (site.doc.ban_cong_khai, site.doc.ban_nhap):
-        la("còn u2", [k["id"] for k in json.loads(ban)["khoi"] if k["loai"] == "uu_dai"], ["u2"])
+        la("còn t2", [k["id"] for k in json.loads(ban)["khoi"] if k["loai"] == "tiec"], ["t2"])
 
 
 @ca("v586: thẻ Liên hệ ghi đúng bảy ô web_* của Settings, soát người khác vừa sửa")

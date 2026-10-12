@@ -1882,6 +1882,29 @@ def tra_luot_web(ghi_chu):
 	return len(hang)
 
 
+def gan_hoa_don_web(ghi_chu, si_name):
+	"""Codex #461 vòng 2: đơn web về tới hoá đơn ghi sổ thì nối lượt dùng
+	chương trình và mã dùng một lần đã giữ cho đơn đó với hoá đơn, để báo cáo
+	khuyến mãi truy được hoá đơn và màn mã không còn báo "hoá đơn ?".
+
+	Chỉ chạm dòng kênh Website, đúng ghi chú "Đơn web <mã>", chưa trả, chưa
+	gắn hoá đơn: chạy lại lần hai không đổi gì, hoá đơn khác không giành được.
+	Không tự commit (hook ghi sổ nằm trong giao dịch của hoá đơn). Số giảm của
+	mã lấy đúng như ghi_su_dung ở quầy: cộng các dòng mang mã đó."""
+	if not ghi_chu or not si_name:
+		return
+	frappe.db.sql(
+		"update `tabVagabond CTKM Su Dung` set hoa_don=%s "
+		"where ghi_chu=%s and kenh=%s and ifnull(hoa_don, '')='' and ifnull(da_tra, 0)=0",
+		(si_name, ghi_chu, NGUON_WEB))
+	frappe.db.sql(
+		"update `tabVagabond Voucher` v set v.hoa_don=%s, v.tien_giam=("
+		"select ifnull(sum(s.tien_giam), 0) from `tabVagabond CTKM Su Dung` s "
+		"where s.ghi_chu=%s and s.kenh=%s and s.voucher=v.name and ifnull(s.da_tra, 0)=0) "
+		"where v.ghi_chu=%s and v.trang_thai='Da dung' and v.hoa_don is null",
+		(si_name, ghi_chu, NGUON_WEB, ghi_chu))
+
+
 def giu_luot_web(kq, khach=None, sdt=None, ngay=None, ghi_chu=""):
 	"""Codex #460 vòng 2: giữ lượt cho đơn web TRƯỚC khi gửi Pancake. Khác
 	ghi_su_dung (ghi vết sau khi đã thu tiền, lỗi chỉ log): đây là phép CHẶT,
