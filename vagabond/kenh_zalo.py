@@ -509,6 +509,7 @@ def bao(loai, chu_de, tieu_de, dong=None, link=None, khoa=None, nguoi=None, han=
 		ten = _ghi_hop_thu(tin)
 		if ten:
 			frappe.db.after_commit.add(lambda: _xep(ten))
+		return ten
 	except Exception as e:
 		if chet_giao_dich(e):
 			raise

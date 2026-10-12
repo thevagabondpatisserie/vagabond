@@ -196,7 +196,7 @@ def _km_gia(giam=0, ly_do="", mot_lan=False, giu_duoc=True, chuoi=None, loi_giu=
 	return km
 
 
-def _moi_truong_tao_don(pancake, trung=None, km=None, phi=None, cauhinh=None):
+def _moi_truong_tao_don(pancake, trung=None, km=None, phi=None, cauhinh=None, tong_pancake=None):
 	"""Dựng môi trường gọi tao_don THẬT, chặn mọi đường ra ngoài.
 
 	`pancake(vet)` là hàm thay requests.post: ghi 'post' vào vết rồi trả về
@@ -246,8 +246,17 @@ def _moi_truong_tao_don(pancake, trung=None, km=None, phi=None, cauhinh=None):
 		vet.body = k.get("json")
 		return pancake(vet)
 
+	def get(*a, **k):
+		vet.su.append("get")
+		tong = tong_pancake
+		if tong is None:
+			tong = sum(450000 * x["quantity"] - x.get("discount_each_product", 0) * x["quantity"]
+				for x in vet.body["items"])
+		return _Tra(200, {"data": {"id": "91500", "total_price": tong,
+			"shipping_fee": vet.body.get("shipping_fee") or 0}})
+
 	g = dict(
-		json=json, re=re, frappe=fr, requests=types.SimpleNamespace(post=post),
+		json=json, re=re, frappe=fr, requests=types.SimpleNamespace(post=post, get=get),
 		don_web=dw, PANCAKE="https://pancake.invalid", TIMEOUT=1,
 		cfg=cauhinh or (lambda: D(pancake_shop_id="67355", pancake_order_source_id="")),
 		key=lambda c, f: "khoa-thu",
@@ -260,8 +269,10 @@ def _moi_truong_tao_don(pancake, trung=None, km=None, phi=None, cauhinh=None):
 	vet.km = g["khuyen_mai"]
 	vet.km.vet.su = vet.su
 	for ten in ("_so", "_lam_sach_hang", "_lam_sach_the", "_ngay_iso", "_ngay_pancake", "_hoa_don_pancake", "_diem_lay",
-			"_uu_dai_don", "_giu_luot_uu_dai", "_tra_uu_dai_khi_tu_choi", "_bo_ctkm"):
+			"_uu_dai_don", "_giu_luot_uu_dai", "_tra_uu_dai_khi_tu_choi", "_bo_ctkm",
+			"_gan_giam_pancake", "_doc_lai_don_pancake", "_tong_pancake"):
 		nap("don_hang.py", ten, g)
+	g["_bao_lech_tong_pancake"] = lambda *a: vet.su.append(("bao_lech", a))
 	g["MAX_DONG"], g["MAX_SL"] = 30, 20
 	g["_UUID"] = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 	return vet, nap("don_hang.py", "tao_don", g)
@@ -1625,7 +1636,7 @@ def _():
 
 # ---------------------------------------------------------------- v589 ưu đãi ERP
 
-@ca("v589 đơn web có ưu đãi ERP: máy chủ tự tính theo giá ERP, gửi total_discount, xét miễn phí giao trên tiền SAU giảm, giữ lượt trước Pancake (Codex #460)")
+@ca("v592 đơn web gửi giảm ở từng dòng Pancake, xét miễn phí giao trên tiền sau giảm, giữ lượt trước Pancake")
 def _():
 	km = _km_gia(giam=90000)
 	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "91500"}}), km=km)
@@ -1635,7 +1646,8 @@ def _():
 	gio, ma, sdt, ngay = km.vet.ap[0]
 	la("giá do máy chủ đọc, mã chuẩn hoá", (gio, ma, sdt, ngay),
 		([{"item_code": "BAWC00139", "qty": 3, "rate": 450000.0}], "SN10", "0931224334", "2026-09-26"))
-	la("Pancake nhận giảm", vet.body.get("total_discount"), 90000)
+	la("Pancake nhận giảm cấp dòng", sum(x["discount_each_product"] * x["quantity"] for x in vet.body["items"]), 90000)
+	dung("không gửi trường kết quả total_discount", "total_discount" not in vet.body)
 	la("miễn phí giao vì sau giảm vẫn trên ngưỡng", vet.body.get("shipping_fee"), 0)
 	snap = json.loads(vet.truong["snapshot"])
 	la("snapshot giữ ưu đãi", (snap["uu_dai"]["ma"], snap["uu_dai"]["giam"]), ("SN10", 90000))
@@ -1648,15 +1660,15 @@ def _():
 	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}), km=_km_gia(giam=400000))
 	tao_don(_don(giam_da_xem=400000, items=[{"variation_id": "BAWC00139", "quantity": 3}]))  # 1.350.000 - 400.000 = 950.000
 	la("tính phí giao", vet.body.get("shipping_fee"), 36000)
-	la("vẫn gửi giảm", vet.body.get("total_discount"), 400000)
+	la("vẫn gửi giảm", sum(x["discount_each_product"] * x["quantity"] for x in vet.body["items"]), 400000)
 
 
-@ca("v589 không có ưu đãi thì đơn y như cũ: không có total_discount, snapshot uu_dai rỗng, không ghi lượt")
+@ca("v589 không có ưu đãi thì đơn y như cũ: không có giảm cấp dòng, snapshot uu_dai rỗng, không ghi lượt")
 def _():
 	km = _km_gia(giam=0)
 	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}), km=km)
 	tao_don(_don())
-	dung("không gửi total_discount", "total_discount" not in vet.body)
+	dung("không gửi giảm cấp dòng", all("discount_each_product" not in x for x in vet.body["items"]))
 	la("snapshot", json.loads(vet.truong["snapshot"]).get("uu_dai"), None)
 	la("không ghi lượt", km.vet.ghi, [])
 
@@ -1962,7 +1974,29 @@ def _():
 def _():
 	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}), km=_km_gia(giam=50000))
 	kq = tao_don(_don(giam_da_xem=50000))
-	la("tạo đơn", (kq.get("ok"), vet.body.get("total_discount")), (1, 50000))
+	la("tạo đơn", (kq.get("ok"), sum(x["discount_each_product"] * x["quantity"] for x in vet.body["items"])), (1, 50000))
+
+
+@ca("v592 giảm cấp dòng giữ đúng từng đồng cho giao hàng và tự lấy; tổng Pancake lệch thì báo Sales")
+def _():
+	for tu_lay, phi_khach in ((False, 36000), (True, 0)):
+		km = _km_gia(giam=50001)
+		vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "95599"}}), km=km)
+		kq = tao_don(_don(tu_lay=tu_lay, diem_lay_id="cua-hang-sai-gon", giam_da_xem=50001,
+			items=[{"variation_id": "BAWC00139", "quantity": 2 if not tu_lay else 3}]))
+		la("tạo đơn %s" % ("tự lấy" if tu_lay else "giao"), kq.get("ok"), 1)
+		la("tổng giảm lẻ vẫn chính xác", sum(x["discount_each_product"] * x["quantity"]
+			for x in vet.body["items"]), 50001)
+		la("phí khách", vet.body["shipping_fee"], phi_khach)
+		dung("mọi dòng dùng trường Pancake công bố", all(x.get("is_discount_percent") is False
+			and "discount_each_product" in x for x in vet.body["items"]))
+
+	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "95599"}}),
+		km=_km_gia(giam=50000), tong_pancake=900000)
+	tao_don(_don(giam_da_xem=50000))
+	bao = [x for x in vet.su if isinstance(x, tuple) and x[0] == "bao_lech"]
+	la("Pancake trả tổng chưa trừ giảm thì báo đúng đơn", len(bao), 1)
+	la("đối chiếu tổng máy chủ", bao[0][1][1:3], (886000, 936000))
 
 
 @ca("Codex #461 vòng 3: gửi lại cùng nonce trả biên nhận cũ trước khi so số giảm khách đã thấy")
@@ -2036,16 +2070,22 @@ def _():
 		for ma in (401, 500):
 			bo_nho, canh_bao, log = {}, [], []
 			kenh = types.ModuleType("vagabond.kenh_zalo")
-			kenh.bao = lambda *a, **k: canh_bao.append((a, k))
+			kenh.bao = lambda *a, **k: (canh_bao.append((a, k)), ["TIN-THU"])[1]
 			sys.modules["vagabond.kenh_zalo"] = kenh
-			fr = types.SimpleNamespace(log_error=lambda **k: log.append(k), get_traceback=lambda: "")
+			viec = []
+			fr = types.SimpleNamespace(log_error=lambda **k: log.append(k), get_traceback=lambda: "",
+				db=types.SimpleNamespace(commit=lambda: viec.append("commit")),
+				enqueue=lambda ham, **k: viec.append((ham, k)))
 			goi = types.SimpleNamespace(post=lambda *a, **k: types.SimpleNamespace(
 				status_code=ma, text='{"api_key":"KHOA-BI-MAT","message":"dịch vụ lỗi"}')
 			)
 			loi_http = nap("giao_hang.py", "_loi_http_ahamove", {"re": re})
 			bao = nap("giao_hang.py", "_bao_ahamove_mot_lan", {
 				"datetime": __import__("datetime").datetime, "cache_get": lambda k: bo_nho.get(k),
-				"cache_set": lambda k, v, ttl: bo_nho.__setitem__(k, v), "frappe": fr})
+				"frappe": fr})
+			ghi = nap("giao_hang.py", "_ghi_canh_bao_ahamove", {
+				"cache_get": lambda k: bo_nho.get(k),
+				"cache_set": lambda k, v, ttl: (viec.append("khoa"), bo_nho.__setitem__(k, v))[1], "frappe": fr})
 			hoi = nap("giao_hang.py", "_hoi_ahamove", {"requests": goi, "TIMEOUT": 10,
 				"_token": lambda c: "TOKEN-KHONG-DUOC-GHI", "_bao_ahamove_mot_lan": bao,
 				"_loi_http_ahamove": loi_http, "frappe": fr})
@@ -2055,8 +2095,12 @@ def _():
 				la("mã %s vẫn trả lỗi phí" % ma,
 					hoi(c, {"lat": 1, "lng": 2, "dia_chi": "Bếp", "ten": "Bếp"},
 						{"lat": 3, "lng": 4, "dia_chi": "Khách"}, 0), (None, "ahamove_loi"))
+			la("GET chỉ xếp worker, chưa đặt khoá" , (len(viec), bo_nho), (2, {}))
+			for _ham, tham_so in list(viec):
+				ghi(tham_so["khoa"], tham_so["loi"])
 			la("mã %s chỉ tạo một cảnh báo" % ma, len(canh_bao), 1)
 			la("mã %s chỉ ghi một Error Log" % ma, len(log), 1)
+			la("commit trước khi đặt khoá", viec[-2:], ["commit", "khoa"])
 			noi_dung = str(log[0]) + str(canh_bao[0])
 			dung("cảnh báo có mã và thân phản hồi", str(ma) in noi_dung and "dịch vụ lỗi" in noi_dung)
 			dung("cảnh báo không lộ khoá", "KHOA-BI-MAT" not in noi_dung and "TOKEN-KHONG-DUOC-GHI" not in noi_dung)
@@ -2065,3 +2109,46 @@ def _():
 			sys.modules.pop("vagabond.kenh_zalo", None)
 		else:
 			sys.modules["vagabond.kenh_zalo"] = cu_kenh
+
+
+@ca("v592 phản hồi Ahamove che trọn Bearer được phản chiếu")
+def _():
+	ham = nap("giao_hang.py", "_loi_http_ahamove", {"re": re})
+	loi = ham(types.SimpleNamespace(status_code=401,
+		text='{"authorization":"Bearer TOPSECRET","message":"sai khoá"}'))
+	dung("không sót credential sau chữ Bearer", "TOPSECRET" not in loi and "[ĐÃ CHE]" in loi)
+
+
+@ca("v592 đọc lại Pancake hỏng không làm mất biên nhận đơn đã tạo")
+def _():
+	class LoiMang(Exception):
+		pass
+	for loi in (LoiMang("timeout"), ValueError("JSON hỏng")):
+		def hong(*a, **k):
+			raise loi
+		ham = nap("don_hang.py", "_doc_lai_don_pancake", {
+			"requests": types.SimpleNamespace(get=hong, RequestException=LoiMang),
+			"PANCAKE": "https://example.invalid", "TIMEOUT": 1})
+		la("lỗi đọc thành chưa đọc được", ham("SHOP", "KEY-THU", "DON"), None)
+
+
+@ca("v592 không khoá cảnh báo Ahamove khi chưa ghi được tin")
+def _():
+	import sys
+	cu = sys.modules.get("vagabond.kenh_zalo")
+	kenh = types.ModuleType("vagabond.kenh_zalo")
+	kenh.bao = lambda *a, **k: None
+	sys.modules["vagabond.kenh_zalo"] = kenh
+	try:
+		vet = []
+		ham = nap("giao_hang.py", "_ghi_canh_bao_ahamove", {
+			"cache_get": lambda k: None, "cache_set": lambda *a: vet.append("khoa"),
+			"frappe": types.SimpleNamespace(log_error=lambda **k: None,
+				db=types.SimpleNamespace(commit=lambda: vet.append("commit")))})
+		ham("KHOA-THU", "loi")
+		la("chưa có tin thì còn thử lại", vet, ["commit"])
+	finally:
+		if cu is None:
+			sys.modules.pop("vagabond.kenh_zalo", None)
+		else:
+			sys.modules["vagabond.kenh_zalo"] = cu

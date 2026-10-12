@@ -54,20 +54,31 @@ def _token(c):
 
 
 def _bao_ahamove_mot_lan(c, loi):
-	"""Báo một lần mỗi ngày, thay vì ghi cùng lỗi cho từng lượt khách hỏi phí."""
+	"""Xếp cảnh báo sang worker vì cửa hỏi phí chạy bằng GET, không tự commit."""
 	khoa = "vgb:aha:canh-bao:" + datetime.now().strftime("%Y-%m-%d")
 	if cache_get(khoa):
 		return
-	cache_set(khoa, "1", 86400)
-	frappe.log_error(title="Vagabond: Ahamove không gọi được", message=str(loi)[:2000])
 	try:
-		from vagabond.kenh_zalo import bao
-		bao("canh_bao", "don_web", "Không lấy được phí giao Ahamove", [
-			"Kiểm tra Địa chỉ API Ahamove trong Cài đặt; máy chủ chạy thật không được chứa apistg."
-		], link="/bep", khoa=khoa)
+		frappe.enqueue("vagabond.giao_hang._ghi_canh_bao_ahamove", queue="short",
+			khoa=khoa, loi=str(loi)[:2000])
 	except Exception:
-		# Cảnh báo không được làm hỏng lượt báo phí cho khách.
-		pass
+		# Lỗi hàng đợi vẫn cần Error Log trong request để quản trị còn thấy dấu.
+		frappe.log_error(title="Vagabond: chưa xếp được cảnh báo Ahamove", message=str(loi)[:2000])
+
+
+def _ghi_canh_bao_ahamove(khoa, loi):
+	"""Worker ghi và commit cảnh báo trước khi khoá chống trùng trong Redis."""
+	if cache_get(khoa):
+		return
+	frappe.log_error(title="Vagabond: Ahamove không gọi được", message=str(loi)[:2000])
+	from vagabond.kenh_zalo import bao
+	ten = bao("canh_bao", "don_web", "Không lấy được phí giao Ahamove", [
+		"Kiểm tra Địa chỉ API Ahamove trong Cài đặt; máy chủ chạy thật không được chứa apistg."
+	], link="/bep", khoa=khoa)
+	frappe.db.commit()
+	# bao() có thể nuốt lỗi ghi hoặc không có nhóm nhận; không khoá mất lượt thử sau.
+	if ten:
+		cache_set(khoa, "1", 86400)
 
 
 def _loi_http_ahamove(r):
@@ -75,9 +86,9 @@ def _loi_http_ahamove(r):
 	than = str(getattr(r, "text", "") or "")[:500]
 	# Phản hồi lỗi của dịch vụ ngoài đôi lúc nhắc lại credential đã gửi lên.
 	# Che cả dạng JSON, query string và Bearer trước khi đưa vào Error Log/tin.
-	than = re.sub(r'(?i)(api[_-]?key|token|authorization)(["\']?\s*[:=]\s*["\']?)[^\s,"\'}&]+',
-		r'\1\2[ĐÃ CHE]', than)
 	than = re.sub(r'(?i)bearer\s+[^\s,"\'}]+', 'Bearer [ĐÃ CHE]', than)
+	than = re.sub(r'(?i)(api[_-]?key|token|authorization)(["\']?\s*[:=]\s*["\']?)[^,"\'}&]+',
+		r'\1\2[ĐÃ CHE]', than)
 	return "Ahamove trả mã HTTP %s: %s" % (getattr(r, "status_code", "?"), than or "không có nội dung")
 
 

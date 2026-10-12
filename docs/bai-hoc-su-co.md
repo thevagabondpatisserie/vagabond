@@ -6,6 +6,14 @@ sửa những chỗ có liên quan, vì phần lớn các lỗi đó KHÔNG có 
 
 Tệp này chỉ giữ bài học rút gọn. Nhật ký đầy đủ từng ngày nằm ngoài repo.
 
+## 12/10/2026 - Kiểm lại tổng sau tạo đơn và biên nhận cảnh báo (#465)
+
+Giảm giá gửi đúng trường vẫn cần đọc lại số phải thu của hệ nhận đơn. Lỗi
+đọc lại sau khi đã tạo không được biến thành lỗi tạo đơn, khiến khách thử lại.
+Cảnh báo GET cần worker riêng; bao() nuốt lỗi ghi thì commit thành công chưa
+chứng minh đã có tin. Chỉ đặt khoá ngày khi có tên tin đã ghi. Ca hồi quy phải
+thử timeout, JSON hỏng và nhánh không ghi được tin, không chỉ HTTP 200.
+
 ## 12/10/2026 - HTTP lỗi vẫn phải đi qua cùng cửa cảnh báo dịch vụ ngoài (#465)
 
 Ahamove trả 401, 429 hoặc 5xx không ném exception, nên nhánh chỉ ghi Error Log
