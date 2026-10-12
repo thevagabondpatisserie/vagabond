@@ -98,3 +98,14 @@ hóa đơn không cắt tổng. Chưa có bench, UI hoặc kết luận đủ ph
 
 Owner tiếp: Codex nối mốc 1a theo checklist; Claude review phần đã có trên
 SHA được đăng ở PR. Mọi bổ sung tiếp tục đúng PR này.
+
+## Bổ sung desktop 12/10: đưa sửa cloud lên GitHub
+
+Đã lấy nguyên diff task_e_6accc73e59b0832e83221128c68e37a6
+(commit cloud 4a97c37), tích hợp trên main 8161a4021 chứa #462.
+Cửa đọc xin đủ trường trả hàng/Nháp và lọc công ty mặc định;
+hàm mẫu nhận tham số chuẩn của báo cáo. Bảy ca BC08 đạt.
+Đột biến bỏ trường trả/Nháp bị bắt 4 assertion; bỏ bộ lọc công ty
+làm ca cửa đọc đỏ KeyError company. Chỉ đột biến trong tiến trình tạm.
+Kết quả cổng tổng và SHA cuối ghi trên comment PR. Toàn phân hệ vẫn Draft,
+chưa nối mẫu vào API/UI, chưa kiểm bench chứng từ thật; không merge/deploy.
