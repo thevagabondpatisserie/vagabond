@@ -359,6 +359,18 @@ async function moKhop(app, them) {
     dung('Sales: van thay Co UNC', chu(d2).indexOf('Có UNC') >= 0);
   });
 
+  await ca('v592: 12 UNC thu gon, nut ghi so van o the, mo du tung tep', async function () {
+    var app = appMoi(), urls = Array.from({length: 12}, function (_, i) { return '/private/files/unc-' + i + '.pdf'; });
+    var html = app.g.cnVeDs({ke_toan: 1, dong: [{pe:'PE12', so_tep:12, tep_unc:urls, tien:10}]});
+    var d = app.tl.createElement('div'); d.innerHTML = html; app.tl.body.appendChild(d);
+    var them = app.mot('[data-cnuncthem]');
+    dung('co danh sach thu gon', !!them);
+    dung('mac dinh dong', !them.hasAttribute('open'));
+    bang('chi 2 link ngoai danh sach thu gon', app.tim('[data-cnxemunc]').filter(function (a) { return !a.closest('details'); }).length, 2);
+    bang('du 12 URL', app.tim('[data-cnxemunc]').map(function (a) { return a.getAttribute('href'); }), urls);
+    dung('nut ghi so khong nam trong danh sach an', !app.mot('[data-cngs]').closest('details'));
+  });
+
   console.log('Bo ca kiem HANH VI v577: hop Khop tay va Huy phieu ket (Loan Anh, Ms.Dung)');
   ket.loi.forEach(function (d) { console.log('  HONG  ' + d); });
   console.log(ket.dat + ' ca dat, ' + ket.hong + ' ca hong, tong ' + (ket.dat + ket.hong) + ' ca.');

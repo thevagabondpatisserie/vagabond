@@ -322,6 +322,15 @@ function cnCongCuVe(kv) {
   };
 }
 
+function cnLinkUnc(ds) {
+  function link(u, i) {
+    return '<a data-cnxemunc="1" target="_blank" rel="noopener" href="' + h(u) + '" style="display:inline-flex;align-items:center;min-height:44px;padding:0 10px;font-size:13px;font-weight:600;color:#0e7490">👁 Xem UNC' + (ds.length > 1 ? ' ' + (i + 1) : '') + '</a>';
+  }
+  return ds.slice(0, 2).map(link).join('') + (ds.length > 2
+    ? '<details data-cnuncthem="1"><summary style="min-height:44px;display:flex;align-items:center;cursor:pointer">Và ' + (ds.length - 2) + ' tệp nữa</summary>' +
+      ds.slice(2).map(function (u, i) { return link(u, i + 2); }).join('') + '</details>' : '');
+}
+
 function cnVeDs(kv) {
   kv = kv || {};
   var dong = kv.dong || [];
@@ -346,9 +355,7 @@ function cnVeDs(kv) {
           /* Codex #445: tệp UNC là tệp riêng tư, chỉ người đọc được Phiếu thu
              (kế toán) mới mở được; Sales thấy nút mà bấm ra 403. Nên chỉ hiện
              nút cho kế toán, đúng người cần xem trước khi Ghi sổ. */
-          (kv.ke_toan ? (p.tep_unc || []) : []).map(function (u, i) {
-            return '<a data-cnxemunc="1" target="_blank" rel="noopener" href="' + h(u) + '" style="display:inline-flex;align-items:center;min-height:44px;padding:0 10px;font-size:13px;font-weight:600;color:#0e7490">👁 Xem UNC' + ((p.tep_unc || []).length > 1 ? ' ' + (i + 1) : '') + '</a>';
-          }).join('')
+          (kv.ke_toan ? cnLinkUnc(p.tep_unc || []) : '')
         : '<span style="background:#fef2f2;border:1px solid #fecaca;color:#b3261e;border-radius:20px;padding:2px 9px;font-size:11.5px;white-space:nowrap">Chưa có UNC</span>') +
       '</div></div>' +
       '<b style="font-size:15.5px;white-space:nowrap">' + money(p.tien) + ' đ</b></div>' +

@@ -2085,3 +2085,11 @@ nhân là sender chỉ phân loại bốn nhãn và cố ý không đọc thân 
 có khối tóm tắt an toàn. Cách phòng: comment bàn giao có nhãn trạng thái cùng
 khối `telegram-tomtat` giới hạn hai trường ngắn; sender chỉ đọc khối của chủ repo,
 còn comment Codex chỉ lấy ý đầu của Summary và tuyệt đối không lấy Testing/log.
+
+## 12/10/2026 - #445: ẩn nút không chứng minh quyền tải tệp
+
+Ca DOM chỉ chốt Sales không thấy liên kết UNC không bắt được lỗi quyền máy chủ.
+Ca bench phải tạo File riêng gắn phiếu thật, đổi sang Sales và gọi chính
+frappe.utils.response.download_private_file; kế toán phải nhận 200, Sales
+thiếu quyền phải bị từ chối. Danh sách 12 UNC chỉ hiện hai liên kết và mục
+mở thêm để không đẩy nút Ghi sổ ra xa. Không thay quyền File của core.
