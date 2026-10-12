@@ -974,6 +974,23 @@ def _():
 	la("tối đa 5", len(c(["/files/%d.jpg" % i for i in range(9)])[1]), 5)
 
 
+@ca("12/10 #462 Hannari: ảnh sp do máy chép lùi sau Pancake sống, nhưng vẫn là dự phòng")
+def _():
+	c = anh_web.chon_anh
+	ma = ["BAWC00023", "BAWC00098", "BAWC00024"]
+	erp = ["/files/sp-bawc00023a1227d.jpg", "/files/sp-bawc00098565623.jpg",
+		"/files/sp-bawc00098565623.jpg"]
+	la("ba mã Hannari, gồm size 24 dùng chung tệp size 98: Pancake sống đứng đầu",
+		c(erp, ["https://pancake.live/hannari-bo-rua.jpg"], ma_hang=ma)[0],
+		"https://pancake.live/hannari-bo-rua.jpg")
+	la("ảnh Item người chọn vẫn đứng trước Pancake",
+		c("/files/hannari-chon-tay.jpg", ["https://pancake.live/hannari.jpg"], ma_hang="BAWC00023")[0],
+		"/files/hannari-chon-tay.jpg")
+	la("Pancake rỗng thì tệp sp vẫn dự phòng, không rơi về ảnh nền",
+		c("/files/sp-bawc00023a1227d.jpg", [], ma_hang="BAWC00023")[0],
+		"/files/sp-bawc00023a1227d.jpg")
+
+
 @ca("#367 I nhánh Hôm nay và Đặt trước: ảnh ERP thắng ảnh Pancake, kể cả khi chưa có khoá Pancake")
 def _():
 	for co_khoa in (True, False):
@@ -1929,6 +1946,16 @@ def _():
 	la("bắt xác nhận lại", (kq.get("ok"), kq.get("ly_do"), kq.get("uu")),
 		(0, "uu_dai_doi", {"giam": 0, "ap": []}))
 	la("chưa ghi và chưa gọi Pancake", [x for x in vet.su if x in ("ghi", "post")], [])
+
+
+@ca("12/10 #462: mã đã dùng ưu tiên hơn uu_dai_doi ngay lần gửi đầu")
+def _():
+	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}),
+		km=_km_gia(ly_do="Mã TET26: mã đã được dùng.", mot_lan=True))
+	kq = tao_don(_don(giam_da_xem=50000, ma_uu_dai="TET26"))
+	la("lần đầu nói đúng lý do", (kq.get("ok"), kq.get("ly_do"), kq.get("chi_tiet")),
+		(0, "ma_uu_dai", "Mã TET26: mã đã được dùng."))
+	la("không ghi đơn, không gọi Pancake", [x for x in vet.su if x in ("ghi", "post")], [])
 
 
 @ca("Codex #461 vòng 3: giảm khách đã thấy khớp số máy chủ thì tạo đơn như cũ")

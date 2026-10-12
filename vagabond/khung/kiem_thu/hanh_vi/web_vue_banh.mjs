@@ -362,6 +362,27 @@ for (const moi of [0, 80000]) await ca('Máy chủ đổi giảm sang ' + moi + 
   la('giữ nonce', gui[1].nonce, gui[0].nonce);
 });
 
+await ca('Mã đã dùng: lần gửi đầu hiện lý do, bỏ mã, không tự gửi lại', async () => {
+  const gui = [];
+  const {mt} = moiTruong('2026-10-11T08:00:00', {
+    'vagabond.don_hang.xem_uu_dai': () => ({ok: true, giam: 50000, ap: []}),
+    'vagabond.don_hang.tao_don': p => {
+      gui.push(JSON.parse(p.don));
+      return {ok: 0, ly_do: 'ma_uu_dai', chi_tiet: 'Mã TET26: mã đã được dùng.'};
+    }
+  });
+  const k = taoKho(mt);
+  coThem(k); k.pick(3); k.pickSlot(6);
+  Object.assign(k.S.f, {name: 'A', phone: '0901234567', addr: '12 Nguyễn Huệ Q1', ma: 'TET26'});
+  k.S.CO.dongy = true; k.S.CO.uuMa = 'TET26';
+  k.S.CO.uu = {khoa: k.khoaUuDai.value, giam: 50000, ap: [], loi: ''};
+  la('dừng ngay lần đầu', (await k.submitOrder()).buoc, 'loi');
+  la('chỉ gửi một lần', gui.length, 1);
+  dung('hiện đúng lý do', k.S.goi.gui.some(x => JSON.stringify(x).includes('mã đã được dùng')));
+  la('bỏ mã khỏi ô và trạng thái', [k.S.f.ma, k.S.CO.uuMa], ['', '']);
+  la('giữ giỏ để khách sửa', k.S.CART.length, 1);
+});
+
 console.log('Bo ca kiem HANH VI trang dat banh ban Vue');
 loi.forEach(d => console.log('  HONG  ' + d));
 console.log(dat + ' ca dat, ' + hong + ' ca hong, tong ' + (dat + hong) + ' ca.');

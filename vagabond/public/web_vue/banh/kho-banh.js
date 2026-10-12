@@ -599,7 +599,9 @@ export function taoKho(moiTruong) {
         return {buoc: 'uu_dai', don};
       }
       const vi = (m && m.ly_do === 'ma_uu_dai' && m.chi_tiet) ? String(m.chi_tiet) : ((m && lyDo(m.ly_do)) || t('dat_banh_5db00ac93', 'Không gửi được đơn lúc này.'));
-      if (m && m.ly_do === 'ma_uu_dai') { S.CO.uu = null; S.CO.uuDangHoi = null; hoiUuDaiNeuCan(); }
+      if (m && m.ly_do === 'ma_uu_dai') {
+        S.CO.uuMa = ''; S.f.ma = ''; S.CO.uu = null; S.CO.uuDangHoi = null;
+      }
       S.dangGui = false;
       S.goi.gui = loiGui(vi, mxh('messenger', CONFIG.messenger));
       return {buoc: 'loi', don};

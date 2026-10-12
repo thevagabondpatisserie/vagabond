@@ -1450,7 +1450,7 @@ def co_the_ban_hom_nay():
 		goc, cm = _tach_ten_size(ten_day)
 		# #367: anh ho so mon ERP truoc, anh luu trong dong (chup tu don
 		# Pancake) sau. Mot ham chon cho moi nhanh, xem vagabond/anh_web.py.
-		anh = chon_anh(x.get("image"), (), d.hinh)[0]
+		anh = chon_anh(x.get("image"), (), d.hinh, ma_hang=d.ma_hang)[0]
 		mon.append(
 			{
 				"ma": d.ma_hang,
@@ -1525,7 +1525,8 @@ def _bo_anh_mo_ta(ds_nhom):
 				if len(anhs) >= 5 and mo_ta:
 					break
 		dong_luu = next((u for u in anh_dong if u), "") or g.get("anh") or ""
-		g["anh"], g["anhs"] = chon_anh(anh_erp, anhs, dong_luu)
+		g["anh"], g["anhs"] = chon_anh(anh_erp, anhs, dong_luu,
+			ma_hang=[s.get("ma") for s in sizes])
 		dong_mo_ta = [d for d in (mo_ta or "").split("\n") if d.strip()]
 		g["mo_ta"] = dong_mo_ta[0] if dong_mo_ta else ""
 		g["tang"] = [d.strip() for d in dong_mo_ta[1:]][:12]

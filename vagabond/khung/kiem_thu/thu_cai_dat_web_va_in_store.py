@@ -153,7 +153,8 @@ def _():
 	m = _doc("vagabond/mua_vu.py")
 	web = _than(m, "def hang_theo_mua(", None)
 	dung("anh qua ham chung, ERP truoc Pancake",
-		'chon_anh(x.get("image"), [anh_pancake.get(d.ma_hang)], d.hinh)' in web)
+		'chon_anh(x.get("image"), [anh_pancake.get(d.ma_hang)], d.hinh,' in web
+		and 'ma_hang=d.ma_hang)' in web)
 	dung("khong con thu tu cu Pancake truoc", 'anh_pancake.get(d.ma_hang) or d.hinh or x.get("image")' not in web)
 	dung("qua bo dem cua kiem_banh", "kiem_banh._anh_pancake(" in _than(m, "def _anh_danh_muc_pancake(", "def hang_theo_mua("))
 	dung("van la cua khach vang lai", "@frappe.whitelist(allow_guest=True)\ndef hang_theo_mua(" in m)

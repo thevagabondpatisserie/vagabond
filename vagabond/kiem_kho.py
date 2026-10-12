@@ -707,7 +707,7 @@ def con_tren_quay_web():
 	ghi chu noi bo cua quay.
 	"""
 	from vagabond import kiem_banh, tat_ban_web
-	from vagabond.anh_web import anh_cong_khai, chon_anh
+	from vagabond.anh_web import anh_cong_khai, chon_anh, la_anh_pancake_da_chep
 	from vagabond.lib import cfg as _cfg, key as _key
 
 	ngay = getdate()
@@ -755,12 +755,13 @@ def con_tren_quay_web():
 			# #367: anh ho so mon ERP truoc, Pancake sau, anh nen cuoi cung.
 			# Mot thu tu cho moi tab, xem vagabond/anh_web.py.
 			anhs = []
-			if co_pancake and not anh_cong_khai(x.get("image")):
+			if co_pancake and (not anh_cong_khai(x.get("image"))
+					or la_anh_pancake_da_chep(x.get("image"), x["item_code"])):
 				try:
 					anhs = kiem_banh._anh_pancake(c, k, x["item_code"]) or []
 				except Exception:
 					anhs = []
-			anh = chon_anh(x.get("image"), anhs)[0]
+			anh = chon_anh(x.get("image"), anhs, ma_hang=x["item_code"])[0]
 			q["mon"].append({
 				"ma": x["item_code"],
 				"ten": x.get("item_name") or x["item_code"],

@@ -247,10 +247,11 @@ EL('#f-ma').value='SN10'; apMaUuDai(); await CHO_XONG();
 tgl('dongy');
 await submitOrder(); await CHO_XONG();
 var don=goi('tao_don');
-RA({so:don.length, ma:don[0]&&don[0].ma_uu_dai, hint:EL('#sendHint').innerHTML});
+RA({so:don.length, ma:don[0]&&don[0].ma_uu_dai, hint:EL('#sendHint').innerHTML, o:EL('#f-ma').value});
 """)
     la("gửi một đơn kèm mã", (r["so"], r["ma"]), (1, "SN10"))
     dung("câu từ máy chủ", "vừa được dùng cho một đơn khác" in r["hint"])
+    la("bỏ mã khỏi ô để khách không gửi lại mã hỏng", r["o"], "")
 
 
 @ca("Codex #461 vòng 3: trang gửi số giảm khách đã thấy; máy chủ báo đổi thì cập nhật tổng và bắt bấm lại")

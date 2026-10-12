@@ -378,6 +378,11 @@ def tao_don(don=None):
 	# ưu đãi đổi trong lúc khách đọc giỏ, phải cho họ xem tổng mới rồi tự bấm
 	# lại, kể cả khi thay đổi đó có lợi hơn cho khách.
 	giam = int(uu.get("tong_giam") or 0)
+	# Mã đã dùng/hết lượt phải nói đúng lý do ngay lần gửi đầu.
+	# Nếu so số giảm trước, khách chỉ nhận `uu_dai_doi` không có
+	# lý do, dù máy chủ đã biết mã không còn hợp lệ.
+	if ma_uu_dai and uu.get("ly_do"):
+		return {"ok": 0, "ly_do": "ma_uu_dai", "chi_tiet": uu["ly_do"]}
 	try:
 		giam_da_xem = int(float(don.get("giam_da_xem") or 0))
 	except (TypeError, ValueError):
@@ -387,9 +392,6 @@ def tao_don(don=None):
 			"giam": giam,
 			"ap": [{"ten": a.get("ten"), "giam": a.get("giam")} for a in uu.get("ap") or []],
 		}}
-	if ma_uu_dai and uu.get("ly_do"):
-		return {"ok": 0, "ly_do": "ma_uu_dai", "chi_tiet": uu["ly_do"]}
-
 	# Phi giao TINH LAI o day. Con so tu trinh duyet gui len chi de hien
 	# cho khach xem, khong duoc dung lam so tien that.
 	# Truyen luon moc gio khach chon, vi gia Ahamove doi theo gio.

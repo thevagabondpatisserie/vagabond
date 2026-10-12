@@ -2896,7 +2896,8 @@ def hang_theo_mua():
 		# 03/09/2026 tab nay chi doc anh trong dong, ma dong chi duoc ghi luc
 		# keo DON ve, nen Minh Vu doi anh ben Pancake ma web dung im. Thu tu
 		# nam o MOT noi cho moi tab, xem vagabond/anh_web.py.
-		anh = chon_anh(x.get("image"), [anh_pancake.get(d.ma_hang)], d.hinh)[0]
+		anh = chon_anh(x.get("image"), [anh_pancake.get(d.ma_hang)], d.hinh,
+			ma_hang=d.ma_hang)[0]
 		con = cint(d.con_thuc_te)
 		mon.append(
 			{

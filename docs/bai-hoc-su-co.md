@@ -6,6 +6,25 @@ sửa những chỗ có liên quan, vì phần lớn các lỗi đó KHÔNG có 
 
 Tệp này chỉ giữ bài học rút gọn. Nhật ký đầy đủ từng ngày nằm ngoài repo.
 
+## 12/10/2026 - Không coi ảnh máy chép vào Item là ảnh ERP người chọn (#462)
+
+Hannari trên web hiện bộ ảnh cũ dù Pancake đã có bộ ảnh mới. Nguyên
+nhân là các tệp `sp-<mã>*` do `doi_soat.keo_anh` chép từ Pancake vào
+`Item.image` được xếp như ảnh hồ sơ ERP người chọn, nên luôn đè ảnh
+Pancake sống. Cách phòng: nhận diện bản chép bằng tên tệp tại một
+nguồn chọn ảnh chung; có ảnh Pancake thì xếp bản chép ra sau, không có
+thì vẫn giữ nó làm dự phòng. Ảnh Item không theo mẫu `sp-` vẫn đứng
+đầu. Ca hồi quy phải có cả nhóm nhiều size dùng chung một tệp.
+
+## 12/10/2026 - Lý do mã hỏng phải ưu tiên hơn phép so số giảm (#462)
+
+Khách đã thấy giảm, nhưng mã vừa hết lượt hoặc đã dùng thì lần gửi
+đầu chỉ nhận `uu_dai_doi`, không biết mã đã hỏng. Nguyên nhân là so
+`giam_da_xem` trước khi trả `uu.ly_do`. Cách phòng: vẫn tìm đơn trùng
+trước mọi từ chối, nhưng sau khi tính lại thì lý do của mã phải ưu tiên;
+cả hai trang hiện nguyên câu và bỏ mã hỏng khỏi ô. Ca kiểm phải chốt
+ngay lần gửi đầu không ghi đơn, không gọi Pancake.
+
 ## 11/09/2026 - Kiểm map mới không được khóa bảo trì SePay (#273)
 
 Review phát hiện validate toàn bộ account_map mỗi lần save sẽ chặn cả enabled/token/mốc đồng bộ khi một Bank Account cũ bị ngưng dùng. Chỉ kiểm tuyến mới hoặc thay đổi; JSON/xung đột mới vẫn chặn. Cửa cấu hình tài chính phải dùng quyền tài chính trực tiếp, không đòi thêm vai bán hàng. Ca bench giữ map cũ rồi vô hiệu hóa Bank Account, lưu công tắc, từ chối tuyến mới sai và cho Accounts Manager độc lập khai map.
@@ -2058,3 +2077,11 @@ Sales online đọc `Kiem Banh Ngay` để biết bếp còn nhận được bao
 vì cùng mã hàng sẽ làm khách thấy sai nơi có bánh. Ca hồi quy phải dùng cùng một
 mã với ba số khác nhau và chốt cả tên API lẫn cặp mã-số, không chỉ dò chuỗi.
 
+## 12/10/2026 - PR #462: thông báo giống nhau làm mất trạng thái bàn giao
+
+Tin Telegram của comment chỉ có người viết và link nên một loạt tin trông giống
+nhau; anh Việt không biết việc nào đã sửa xong nếu không mở từng link. Nguyên
+nhân là sender chỉ phân loại bốn nhãn và cố ý không đọc thân comment, nhưng chưa
+có khối tóm tắt an toàn. Cách phòng: comment bàn giao có nhãn trạng thái cùng
+khối `telegram-tomtat` giới hạn hai trường ngắn; sender chỉ đọc khối của chủ repo,
+còn comment Codex chỉ lấy ý đầu của Summary và tuyệt đối không lấy Testing/log.
