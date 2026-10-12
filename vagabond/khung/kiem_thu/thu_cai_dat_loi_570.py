@@ -220,7 +220,13 @@ def _():
 	go_tay = sorted(fn for fn in truong if fn not in cho_phep and re.search(r"['\"]%s['\"]" % re.escape(fn), app))
 	la("không ô nào gõ tay trong màn app", go_tay, [])
 	dung("app nạp tệp chung", "/assets/vagabond/js/cai_dat_loi_chung.js" in app)
-	dung("Desk nạp tệp chung", "/assets/vagabond/js/cai_dat_loi_chung.js" in _doc(t568.JS_DESK))
+	desk = _doc(t568.JS_DESK)
+	dung("Desk nạp tệp chung", "/assets/vagabond/js/cai_dat_loi_chung.js" in desk)
+	# Mã nhóm và nhãn phải có đúng một nguồn. Dò chuỗi phù hợp để chốt điều
+	# KHÔNG còn phép cắt 4 ký tự riêng ở hai bề mặt; hành vi hàm chung chạy bằng node.
+	dung("module chung có phép mã và nhãn nhóm", "function maNhomZalo" in _doc(t568.JS_CD) and "function nhanNhomZalo" in _doc(t568.JS_CD))
+	la("app không còn tự cắt mã nhóm", re.findall(r"function cdlMaZalo|slice\(-4\)", app), [])
+	la("Desk không còn tự cắt mã hoặc ghép nhãn nhóm", re.findall(r"function vgb_nhan_zalo|slice\(-4\)|Nhóm Zalo mã", desk), [])
 	dung("app lưu qua cửa máy chủ", "vagabond.cai_dat_loi.luu" in app and "vagabond.cai_dat_loi.lay" in app)
 
 

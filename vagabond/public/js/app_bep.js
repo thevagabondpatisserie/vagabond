@@ -55900,7 +55900,7 @@ function cdlTomDongZalo(r) {
   var cd = tach(r.chu_de).map(function (x) { return (N.chu_de[x] || ['', x])[1]; });
   return [lt.length ? lt.join(' · ') : 'Mọi loại tin', cd.length ? 'chủ đề ' + cd.join(', ') : '',
     (r.im_tu && r.im_den) ? 'im ' + r.im_tu + ' đến ' + r.im_den : '', parseInt(r.bat, 10) === 1 ? '' : 'Đang tắt',
-    r.chat_id ? 'nhóm Zalo mã ' + cdlMaZalo(r.chat_id) : 'Chưa chọn nhóm Zalo'].filter(Boolean).join(' · ');
+    r.chat_id ? cdlNhanNhomZalo({ chat_id: r.chat_id }) : 'Chưa chọn nhóm Zalo'].filter(Boolean).join(' · ');
 }
 
 async function cdlGuiThuZalo(r) {
@@ -55947,7 +55947,7 @@ function cdlVeDong(fnBang, i, nhap) {
         '<span style="margin-left:auto"></span><button class="cdl-lnk" data-cdldchon="' + h(c.fn) + '">Chọn</button></div></div>';
     }
     if (fnBang === 'zalo_nhom' && c.fn === 'chat_id') {
-      return '<div class="cdl-f">' + nhan + '<div class="cdl-val">' + (v ? '<span><b>Nhóm Zalo mã ' + h(cdlMaZalo(v)) + '</b><div class="cdl-mo">' + h(v) + '</div></span>' : '<span style="color:#9aa1a8">Chưa chọn</span>') +
+      return '<div class="cdl-f">' + nhan + '<div class="cdl-val">' + (v ? '<span><b>' + h(cdlNhanNhomZalo({ chat_id: v })) + '</b><div class="cdl-mo">' + h(v) + '</div></span>' : '<span style="color:#9aa1a8">Chưa chọn</span>') +
         '<span style="margin-left:auto"></span><button class="cdl-lnk" data-cdldnhom="1">Chọn nhóm đã nhắn bot</button></div>' + mo + '</div>';
     }
     if (c.chi_doc && choGhi.indexOf(c.fn) < 0) {
@@ -56028,10 +56028,10 @@ function cdlChonZalo(cot, nhap, xong) {
  * bản tải lúc mở màn nên nhóm vừa nhắc bot không hiện. Từ nay: đọc danh sách mới
  * từ máy chủ mỗi lần bấm, gọi nhóm bằng MÃ NHÓM (bot cũng trả lời mã này trong
  * nhóm), báo nhóm nào đang gán cho dòng nào, và không tự lấy tên người làm tên nhóm. */
-function cdlMaZalo(c) {
-  c = String(c || '').trim();
-  if (/^zgr-/i.test(c)) c = c.slice(4);
-  return c.slice(-4).toUpperCase();
+function cdlNhanNhomZalo(x) {
+  // Dùng ngoặc vuông để bộ tách hàm của ca DOM không hiểu nhầm phương thức
+  // module chung là một hàm toàn cục nằm trong app_bep.js.
+  return VGB_CD['nhanNhomZalo'](x);
 }
 function cdlGioZalo(luc) {
   var m = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}:\d{2})/.exec(String(luc || ''));
@@ -56042,21 +56042,19 @@ async function cdlChonNhomZalo(nhap, xong, iDong) {
   try { ds = await api('vagabond.kenh_zalo.nhom_da_nhan_bot', {}); } catch (e) { ds = null; }
   if (!Array.isArray(ds)) return toast('Chưa tải được danh sách nhóm Zalo. Thử lại sau ít giây.');
   if (!ds.length) return toast('Chưa có nhóm Zalo nào nhắc bot. Thêm bot vào nhóm, gõ @ chọn bot rồi gửi; bot sẽ trả lời mã nhóm, sau đó bấm lại nút này.');
-  var gan = {};
-  (CDL.bang.zalo_nhom || []).forEach(function (r, j) {
-    if (j === iDong || !r || !r.chat_id) return;
-    (gan[r.chat_id] = gan[r.chat_id] || []).push(String(r.ten_nhom || '').trim() || ('dòng ' + (j + 1)));
-  });
   sheet('Chọn nhóm Zalo theo mã nhóm', ds.map(function (x) {
-    var dung = gan[x.chat_id];
+    // Danh sách này vừa đọc từ máy chủ, nên không dùng CDL.bang đã tải lúc mở
+    // màn. Khi sửa, chỉ bỏ chính dòng hiện tại khỏi các tên máy chủ trả về.
+    var tenDangSua = iDong >= 0 && CDL.bang.zalo_nhom[iDong] ? String(CDL.bang.zalo_nhom[iDong].ten_nhom || '').trim() : '';
+    var dung = (x.dang_gan || []).filter(function (ten) { return !tenDangSua || ten !== tenDangSua; });
     return {
-      label: 'Nhóm Zalo mã ' + x.ma + (dung ? ' (đang dùng)' : ''), value: x.chat_id,
+      label: cdlNhanNhomZalo({ chat_id: x.chat_id, dang_gan: dung }), value: x.chat_id,
       phu: 'Nhắc bot lúc ' + cdlGioZalo(x.luc) + (x.nguoi ? ', người nhắc: ' + x.nguoi : '') +
-        (dung ? '. Đang gán cho: ' + dung.join(', ') : ''),
+        (dung.length ? '. Đang gán cho: ' + dung.join(', ') : ''),
       tim: x.ma + ' ' + (x.nguoi || ''), dung: dung,
     };
   }), nhap.chat_id, function (it) {
-    if (it.dung) return toast('Nhóm Zalo mã ' + cdlMaZalo(it.value) + ' đang gán cho ' + it.dung.join(', ') + '. Mỗi nhóm Zalo chỉ gán cho một dòng.');
+    if (it.dung.length) return toast(cdlNhanNhomZalo({ chat_id: it.value }) + ' đang gán cho ' + it.dung.join(', ') + '. Mỗi nhóm Zalo chỉ gán cho một dòng.');
     nhap.chat_id = it.value;
     xong();
   }, true);

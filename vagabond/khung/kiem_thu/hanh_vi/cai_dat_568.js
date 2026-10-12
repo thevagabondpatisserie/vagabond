@@ -39,6 +39,13 @@ function tim(ds, ten) { return ds.filter(function (x) { return x.ten === ten; })
 
 var BAY_GIO = Date.parse('2026-10-04T10:00:00');
 
+ca('v591: app và Desk dùng chung mã và nhãn nhóm Zalo', function () {
+  var x = { chat_id: 'zgr-50abae45f4271d794436' };
+  la('bỏ tiền tố zgr và lấy bốn ký tự cuối', V.maNhomZalo(x.chat_id), '4436');
+  la('nhãn chung', V.nhanNhomZalo(x), 'Nhóm Zalo mã 4436');
+  la('nhãn chung báo đang dùng', V.nhanNhomZalo({ chat_id: x.chat_id, dang_gan: ['Kế toán'] }), 'Nhóm Zalo mã 4436 (đang dùng)');
+});
+
 ca('tình trạng: chưa khai gì thì mọi kết nối xám, không ô nào xanh', function () {
   var tt = V.tinhTrang({}, BAY_GIO);
   la('số chip', tt.length, V.KET_NOI.length + 1);

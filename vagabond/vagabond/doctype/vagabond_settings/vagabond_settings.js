@@ -45,15 +45,6 @@ function zalo_chon(frm, cdt, cdn, truong) {
 	});
 	d.show();
 }
-// v591: Zalo không gửi tên nhóm, nên gọi nhóm bằng MÃ NHÓM (4 ký tự cuối mã chat).
-// Bot trả lời đúng mã này trong nhóm ngay khi được @nhắc, để đối chiếu.
-function vgb_nhan_zalo(x) {
-	let c = String((x && x.chat_id) || '').trim();
-	if (/^zgr-/i.test(c)) c = c.slice(4);
-	const luc = String((x && x.luc) || '');
-	const gio = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/.test(luc) ? ' (nhắc bot ' + luc.slice(11, 16) + ' ngày ' + luc.slice(8, 10) + '/' + luc.slice(5, 7) + ')' : '';
-	return 'Nhóm Zalo mã ' + c.slice(-4).toUpperCase() + gio + (x && x.dang_luu ? ' (đang lưu' + (x.ten ? ': ' + x.ten : '') + ')' : '');
-}
 function zalo_chon_nhom(frm, cdt, cdn) {
 	let ds = [];
 	try { ds = JSON.parse(frm.doc.zalo_chat_moi || '[]'); } catch (e) { ds = []; }
@@ -62,7 +53,7 @@ function zalo_chon_nhom(frm, cdt, cdn) {
 		frappe.msgprint('Chưa có nhóm nào nhắn bot. Thêm bot vào nhóm Zalo, @nhắc bot một lần, rồi tải lại trang.');
 		return;
 	}
-	const nhan = vgb_nhan_zalo;
+	const nhan = VGB_CD.nhanNhomZalo;
 	// Codex #425 vòng 11: tới 20 nhóm, ô chọn phải gõ tìm được (Autocomplete), không xổ danh sách kéo.
 	frappe.prompt({ fieldname: 'nhom', fieldtype: 'Autocomplete', label: 'Gõ mã nhóm để tìm (bot trả lời mã này trong nhóm Zalo)', reqd: 1, options: ds.map(nhan) }, (v) => {
 		const x = ds.find(y => nhan(y) === v.nhom);
@@ -447,7 +438,7 @@ frappe.ui.form.on('Vagabond Kenh Zalo', {
 			bat: r ? parseInt(r.bat, 10) === 1 : true };
 		var dsChat = VGB_CD.docJson(frm.doc.zalo_chat_moi) || [];
 		var nhomBot = (Array.isArray(dsChat) ? dsChat : []).filter(function (x) { return String(x.loai || '').toUpperCase() === 'GROUP'; });
-		var nhan = vgb_nhan_zalo;
+		var nhan = VGB_CD.nhanNhomZalo;
 		var dang = nhomBot.filter(function (x) { return x.chat_id === nhap.chat_id; })[0];
 		// Danh sách chat chỉ giữ 20 cuộc gần nhất; nhóm đã lưu từ trước mà không còn
 		// trong đó vẫn phải sửa được mà không bị bắt chọn lại.

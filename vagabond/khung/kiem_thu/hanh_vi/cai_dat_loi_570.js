@@ -308,7 +308,7 @@ function moTab(m, fn) { bam(m, mot(m, '[data-cdltab="' + fn + '"]')); }
     bam(m, mot(m, '[data-cdldnhom]'));
     await tick();
     bang('có hỏi máy chủ', m.goi.filter(function (x) { return x.duong === 'vagabond.kenh_zalo.nhom_da_nhan_bot'; }).length, 1);
-    bang('đủ hai nhóm, nhóm mới đứng đầu', m.sheet[0].items.map(function (x) { return x.label; }), ['Nhóm Zalo mã 4436', 'Nhóm Zalo mã G-777']);
+    bang('đủ hai nhóm, nhóm mới đứng đầu', m.sheet[0].items.map(function (x) { return x.label; }), ['Nhóm Zalo mã 4436', 'Nhóm Zalo mã -777']);
     dung('dòng phụ có giờ nhắc bot', m.sheet[0].items[0].phu.indexOf('18:56 ngày 12/10') >= 0);
     m.sheet[0].onPick(m.sheet[0].items[0]);
     dung('màn sửa hiện mã nhóm đã chọn', chu(m.khung).indexOf('Nhóm Zalo mã 4436') >= 0);
@@ -317,22 +317,24 @@ function moTab(m, fn) { bam(m, mot(m, '[data-cdltab="' + fn + '"]')); }
   await ca('Zalo v591: nhóm đã gán cho dòng khác hiện "đang dùng" và không chọn được lần nữa', async function () {
     var m = await moMan();
     moTab(m, 'tab_tin_nhan');
-    m.g._nhomBot = [{ chat_id: 'g-1', ma: 'G-1', luc: '2026-10-04 12:23', nguoi: 'Viet Nguyen', dang_gan: [] }];
+    // Bản CDL mở từ trước chưa có dòng này; chỉ phản hồi mới của máy chủ biết
+    // một phiên khác vừa gán nhóm cho "Kế toán mới".
+    m.g._nhomBot = [{ chat_id: 'g-1', ma: 'G-1', luc: '2026-10-04 12:23', nguoi: 'Viet Nguyen', dang_gan: ['Kế toán mới'] }];
     bam(m, mot(m, '[data-cdlbangthem="zalo_nhom"]'));
     bam(m, mot(m, '[data-cdldnhom]'));
     await tick();
     var it = m.sheet[0].items[0];
     bang('nhãn báo đang dùng', it.label, 'Nhóm Zalo mã G-1 (đang dùng)');
-    dung('dòng phụ nói gán cho dòng nào', it.phu.indexOf('Đang gán cho: Vận hành') >= 0);
+    dung('dòng phụ nói đúng dòng máy chủ vừa báo', it.phu.indexOf('Đang gán cho: Kế toán mới') >= 0);
     m.sheet[0].onPick(it);
-    dung('báo không chọn được', m.toast.some(function (t) { return t.indexOf('đang gán cho Vận hành') >= 0; }));
+    dung('báo không chọn được', m.toast.some(function (t) { return t.indexOf('đang gán cho Kế toán mới') >= 0; }));
     dung('màn thêm vẫn chưa có nhóm', chu(m.khung).indexOf('Chưa chọn') >= 0);
   });
 
   await ca('Zalo v591: mở lại chính dòng đang dùng nhóm thì nhóm đó không bị coi là "đang dùng"', async function () {
     var m = await moMan();
     moTab(m, 'tab_tin_nhan');
-    m.g._nhomBot = [{ chat_id: 'g-1', ma: 'G-1', luc: '2026-10-04 12:23', nguoi: 'Viet Nguyen', dang_gan: [] }];
+    m.g._nhomBot = [{ chat_id: 'g-1', ma: 'G-1', luc: '2026-10-04 12:23', nguoi: 'Viet Nguyen', dang_gan: ['Vận hành'] }];
     bam(m, mot(m, '[data-cdldong]'));
     bam(m, mot(m, '[data-cdldnhom]'));
     await tick();
