@@ -253,6 +253,24 @@ RA({so:don.length, ma:don[0]&&don[0].ma_uu_dai, hint:EL('#sendHint').innerHTML})
     dung("câu từ máy chủ", "vừa được dùng cho một đơn khác" in r["hint"])
 
 
+@ca("Codex #461 vòng 3: trang gửi số giảm khách đã thấy; máy chủ báo đổi thì cập nhật tổng và bắt bấm lại")
+def _():
+    r = _trang(r"""
+tgl('dongy');
+EL('#f-ma').value='SN10'; apMaUuDai(); await CHO_XONG();
+GHI.traLoi=function(url,opt){
+  if(url.indexOf('tao_don')>=0) return {message:{ok:0,ly_do:'uu_dai_doi',uu:{giam:0,ap:[]}}};
+  return {message:{ok:1,giam:90000,ap:[{ten:'Giảm sinh nhật',giam:90000}]}};
+};
+await submitOrder(); await CHO_XONG();
+var don=goi('tao_don');
+RA({da_xem:don[0]&&don[0].giam_da_xem, sum:EL('#sum').innerHTML, hint:EL('#sendHint').innerHTML, nut:EL('#btnSend').disabled});
+""")
+    la("gửi đúng số khách đã thấy", r["da_xem"], 90000)
+    dung("bỏ mức giảm cũ và hiện tổng mới", "- 90.000" not in r["sum"] and "900.000" in r["sum"])
+    dung("câu báo qua sổ nhãn và mở lại nút để khách tự bấm", "Tổng tiền vừa cập nhật" in r["hint"] and not r["nut"])
+
+
 @ca("v589 cong_khai: trang khách chỉ nhận ưu đãi từ ERP, ưu đãi gõ tay cũ không ra ngoài (đột biến bỏ lời gọi thay_uu_dai_erp phải đổ ca này)")
 def _():
     import copy

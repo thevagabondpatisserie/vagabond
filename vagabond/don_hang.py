@@ -374,9 +374,21 @@ def tao_don(don=None):
 	# (khuyen_mai.ap_web). Số giảm trình duyệt hiện chỉ để khách xem.
 	ma_uu_dai = str(don.get("ma_uu_dai") or "").strip().upper()[:40]
 	uu = _uu_dai_don(hang_goc, gia, ma_uu_dai, dien_thoai, ngay)
+	# Số máy chủ vẫn là số chốt. Số khách đã thấy chỉ là mốc xác nhận: nếu
+	# ưu đãi đổi trong lúc khách đọc giỏ, phải cho họ xem tổng mới rồi tự bấm
+	# lại, kể cả khi thay đổi đó có lợi hơn cho khách.
+	giam = int(uu.get("tong_giam") or 0)
+	try:
+		giam_da_xem = int(float(don.get("giam_da_xem") or 0))
+	except (TypeError, ValueError):
+		giam_da_xem = 0
+	if giam != giam_da_xem:
+		return {"ok": 0, "ly_do": "uu_dai_doi", "uu": {
+			"giam": giam,
+			"ap": [{"ten": a.get("ten"), "giam": a.get("giam")} for a in uu.get("ap") or []],
+		}}
 	if ma_uu_dai and uu.get("ly_do"):
 		return {"ok": 0, "ly_do": "ma_uu_dai", "chi_tiet": uu["ly_do"]}
-	giam = int(uu.get("tong_giam") or 0)
 
 	# Phi giao TINH LAI o day. Con so tu trinh duyet gui len chi de hien
 	# cho khach xem, khong duoc dung lam so tien that.

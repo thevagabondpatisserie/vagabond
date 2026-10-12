@@ -271,7 +271,7 @@ def _don(**them):
 	d = {"ho_ten": "Nguyễn Văn An", "dien_thoai": "0931224334", "tu_lay": False,
 		"dia_chi": "9 Trần Cao Vân, Quận 1", "ngay_nhan": "2026-09-26T13:00:00",
 		"items": [{"variation_id": "BAWC00139", "quantity": 1}, {"variation_id": "BAWC00140", "quantity": 1}],
-		"nonce": "N" * 24, "dong_y": True, "thanh_toan": "bank"}
+		"nonce": "N" * 24, "dong_y": True, "thanh_toan": "bank", "giam_da_xem": 0}
 	d.update(them)
 	return d
 
@@ -1613,7 +1613,7 @@ def _():
 	km = _km_gia(giam=90000)
 	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "91500"}}), km=km)
 	# Hai bánh 450.000 = 900.000 dưới ngưỡng 1.000.000; ba bánh 1.350.000 - 90.000 = 1.260.000 vẫn trên ngưỡng.
-	kq = tao_don(_don(ma_uu_dai=" sn10 ", items=[{"variation_id": "BAWC00139", "quantity": 3}]))
+	kq = tao_don(_don(giam_da_xem=90000, ma_uu_dai=" sn10 ", items=[{"variation_id": "BAWC00139", "quantity": 3}]))
 	la("nhận", kq.get("ok"), 1)
 	gio, ma, sdt, ngay = km.vet.ap[0]
 	la("giá do máy chủ đọc, mã chuẩn hoá", (gio, ma, sdt, ngay),
@@ -1629,7 +1629,7 @@ def _():
 @ca("v589 ưu đãi kéo đơn xuống dưới ngưỡng miễn phí giao thì khách trả phí giao")
 def _():
 	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}), km=_km_gia(giam=400000))
-	tao_don(_don(items=[{"variation_id": "BAWC00139", "quantity": 3}]))  # 1.350.000 - 400.000 = 950.000
+	tao_don(_don(giam_da_xem=400000, items=[{"variation_id": "BAWC00139", "quantity": 3}]))  # 1.350.000 - 400.000 = 950.000
 	la("tính phí giao", vet.body.get("shipping_fee"), 36000)
 	la("vẫn gửi giảm", vet.body.get("total_discount"), 400000)
 
@@ -1656,7 +1656,7 @@ def _():
 def _():
 	km = _km_gia(giam=50000, mot_lan=True)
 	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(422, {"message": "sai"}), km=km)
-	kq = tao_don(_don(ma_uu_dai="AB12CD"))
+	kq = tao_don(_don(giam_da_xem=50000, ma_uu_dai="AB12CD"))
 	la("đơn bị từ chối", kq["ok"], 0)
 	la("đã giữ mã, ghi chú đúng đơn (để việc định kỳ tìm ra mà trả)", (km.vet.giu, km.vet.giu_gc), (["AB12CD"], ["Đơn web DW-2609-00001"]))
 	la("lượt và mã đã giữ được trả lại theo đúng đơn", km.vet.tra_luot, ["Đơn web DW-2609-00001"])
@@ -1666,7 +1666,7 @@ def _():
 def _():
 	km = _km_gia(giam=50000, mot_lan=True, giu_duoc=False)
 	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}), km=km)
-	kq = tao_don(_don(ma_uu_dai="AB12CD"))
+	kq = tao_don(_don(giam_da_xem=50000, ma_uu_dai="AB12CD"))
 	la("chặn", (kq["ok"], kq["ly_do"]), (0, "ma_uu_dai"))
 	dung("có rollback", "rollback" in vet.su)
 	dung("rollback SAU khi ghi (bản ghi bị huỷ theo)", vet.su.index("rollback") > vet.su.index("ghi"))
@@ -1680,7 +1680,7 @@ def _():
 	def mat_mang(v):
 		raise OSError("mất mạng")
 	vet, tao_don = _moi_truong_tao_don(mat_mang, km=km)
-	tao_don(_don(ma_uu_dai="AB12CD"))
+	tao_don(_don(giam_da_xem=50000, ma_uu_dai="AB12CD"))
 	la("ghi lượt, không trả", (len(km.vet.ghi), km.vet.tra), (1, []))
 
 
@@ -1698,7 +1698,7 @@ def _():
 def _():
 	km = _km_gia(giam=90000)
 	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}), km=km)
-	tao_don(_don(ma_uu_dai="SN10", ngay_nhan="2026-09-26T13:00:00"))
+	tao_don(_don(giam_da_xem=90000, ma_uu_dai="SN10", ngay_nhan="2026-09-26T13:00:00"))
 	la("ngày soát hạn mức", km.vet.ap[0][3], "2026-09-26")
 	la("ngày ghi lượt", km.vet.ghi[0].get("ngay"), "2026-09-26")
 
@@ -1707,7 +1707,7 @@ def _():
 def _():
 	km = _km_gia(giam=90000)
 	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}), km=km)
-	kq = tao_don(_don(ma_uu_dai="SN10"))
+	kq = tao_don(_don(giam_da_xem=90000, ma_uu_dai="SN10"))
 	la("nhận", kq.get("ok"), 1)
 	la("khoá đúng chương trình", km.vet.khoa, [["SN10"]])
 	su = [x for x in vet.su if x.startswith("km:khoa") or x.startswith("km:ghi") or x in ("khoa", "post")]
@@ -1724,7 +1724,7 @@ def _():
 def _():
 	km = _km_gia(chuoi=[90000, 0])
 	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}), km=km)
-	kq = tao_don(_don())
+	kq = tao_don(_don(giam_da_xem=90000))
 	la("chặn và báo khách xem lại", (kq.get("ok"), kq.get("ly_do")), (0, "ma_uu_dai"))
 	dung("có câu cho khách", "vừa thay đổi" in (kq.get("chi_tiet") or ""))
 	dung("rollback", "rollback" in vet.su)
@@ -1735,7 +1735,7 @@ def _():
 def _():
 	km = _km_gia(giam=50000, mot_lan=True)
 	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(422, {"message": "sai"}), km=km)
-	tao_don(_don(ma_uu_dai="AB12CD"))
+	tao_don(_don(giam_da_xem=50000, ma_uu_dai="AB12CD"))
 	la("trả lượt và mã theo đúng đơn", km.vet.tra_luot, ["Đơn web DW-2609-00001"])
 	dung("trả SAU khi Pancake trả lời", vet.su.index("km:tra_luot") > vet.su.index("post"))
 
@@ -1746,7 +1746,7 @@ def _():
 def _():
 	km = _km_gia(chuoi=[(50000, "A"), (50000, "B")])
 	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}), km=km)
-	kq = tao_don(_don())
+	kq = tao_don(_don(giam_da_xem=50000))
 	la("chặn", (kq.get("ok"), kq.get("ly_do")), (0, "ma_uu_dai"))
 	la("chỉ khoá A", km.vet.khoa, [["A"]])
 	la("không ghi lượt, không gửi", [x for x in vet.su if x in ("post", "km:ghi_luot")], [])
@@ -1756,7 +1756,7 @@ def _():
 def _():
 	km = _km_gia(giam=90000, loi_giu=True)
 	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}), km=km)
-	kq = tao_don(_don(ma_uu_dai="SN10"))
+	kq = tao_don(_don(giam_da_xem=90000, ma_uu_dai="SN10"))
 	la("chặn", (kq.get("ok"), kq.get("ly_do")), (0, "ma_uu_dai"))
 	dung("rollback", "rollback" in vet.su)
 	la("không gửi Pancake", vet.su.count("post"), 0)
@@ -1795,7 +1795,7 @@ def _():
 def _():
 	km = _km_gia(chuoi=[(90000, "SN10"), (50000, "SN10")])
 	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}), km=km)
-	kq = tao_don(_don())
+	kq = tao_don(_don(giam_da_xem=90000))
 	la("chặn", (kq.get("ok"), kq.get("ly_do")), (0, "ma_uu_dai"))
 	la("không gửi", vet.su.count("post"), 0)
 
@@ -1819,7 +1819,7 @@ def _():
 def _():
 	km = _km_gia(ly_do="Chương trình đã hết lượt.")
 	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}), trung=_cu_461(), km=km)
-	kq = tao_don(_don(ma_uu_dai="SN10"))
+	kq = tao_don(_don(giam_da_xem=90000, ma_uu_dai="SN10"))
 	la("biên nhận cũ", (kq.get("ok"), kq.get("trung")), (1, 1))
 
 
@@ -1921,3 +1921,64 @@ def _():
 	la("đơn hàng không tự ghép chữ 'Đơn web %s'", src.count('"Đơn web %s"'), 0)
 	la("đơn hàng dùng mẫu chung ở giữ và trả", src.count("don_web.GHI_CHU_DON_WEB %"), 2)
 
+
+@ca("Codex #461 vòng 3: giảm khách đã thấy khác số máy chủ tính lại thì trả bảng mới, không ghi đơn hay gọi Pancake")
+def _():
+	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}), km=_km_gia(giam=0))
+	kq = tao_don(_don(giam_da_xem=50000))
+	la("bắt xác nhận lại", (kq.get("ok"), kq.get("ly_do"), kq.get("uu")),
+		(0, "uu_dai_doi", {"giam": 0, "ap": []}))
+	la("chưa ghi và chưa gọi Pancake", [x for x in vet.su if x in ("ghi", "post")], [])
+
+
+@ca("Codex #461 vòng 3: giảm khách đã thấy khớp số máy chủ thì tạo đơn như cũ")
+def _():
+	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}), km=_km_gia(giam=50000))
+	kq = tao_don(_don(giam_da_xem=50000))
+	la("tạo đơn", (kq.get("ok"), vet.body.get("total_discount")), (1, 50000))
+
+
+@ca("Codex #461 vòng 3: gửi lại cùng nonce trả biên nhận cũ trước khi so số giảm khách đã thấy")
+def _():
+	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "1"}}),
+		trung=_cu_461(), km=_km_gia(giam=0))
+	kq = tao_don(_don(giam_da_xem=50000))
+	la("biên nhận cũ", (kq.get("ok"), kq.get("trung")), (1, 1))
+	la("không tính lại hay ghi", vet.su, [])
+
+
+@ca("Codex #461 vòng 3: đối soát ưu đãi lỗi từng đơn rồi chạy lại được, chạy lần ba không còn ứng viên và không chạm đơn trước v589")
+def _():
+	import sys as _sys
+	goi, loi, lan = [], [], [0]
+
+	def sql(q, p=(), **kw):
+		if q.lstrip().startswith("select"):
+			lan[0] += 1
+			return ([{"name": "DW-589", "sales_invoice": "SINV-589"}] if lan[0] < 3 else [])
+		return []
+
+	fr = types.SimpleNamespace(db=types.SimpleNamespace(sql=sql,
+		commit=lambda: goi.append("commit"), rollback=lambda: goi.append("rollback")),
+		log_error=lambda **k: loi.append(k.get("title")), get_traceback=lambda: "khoá chết")
+	def gan(gc, si):
+		goi.append((gc, si))
+		if lan[0] == 1:
+			raise RuntimeError("khoá chết")
+	km = types.SimpleNamespace(gan_hoa_don_web=gan)
+	cu = _sys.modules.get("vagabond.khuyen_mai")
+	import vagabond as _vg
+	cu_attr = getattr(_vg, "khuyen_mai", None)
+	_sys.modules["vagabond.khuyen_mai"] = km; _vg.khuyen_mai = km
+	try:
+		ham = nap("don_web.py", "doi_soat_uu_dai_hoa_don", {"frappe": fr, "GHI_CHU_DON_WEB": don_web.GHI_CHU_DON_WEB})
+		ham(); ham(); ham()
+	finally:
+		if cu is not None: _sys.modules["vagabond.khuyen_mai"] = cu
+		if cu_attr is not None: _vg.khuyen_mai = cu_attr
+	la("lỗi lượt đầu không cản lượt sau", goi,
+		[("Đơn web DW-589", "SINV-589"), "rollback", ("Đơn web DW-589", "SINV-589"), "commit"])
+	la("ghi log đúng một lỗi", loi, ["Don web: doi soat uu dai voi hoa don"])
+	src = _doc("vagabond/don_web.py")
+	dung("chỉ chọn đơn v589 có dấu snapshot và chỉ khi liên kết còn thiếu", 'snapshot like %s' in src and '%\\"uu_dai\\"%' in src and "ifnull(sd.hoa_don, '')=''" in src)
+	dung("lịch chạy mỗi giờ", "vagabond.don_web.doi_soat_uu_dai_hoa_don" in _doc("vagabond/hooks.py"))

@@ -2028,3 +2028,33 @@ ca `thu_web_vue.py` gọi `--kiem` để quên chạy là CI đỏ. Và: node tr
 (bản 20) không tự nhận mô đun ES trong tệp `.js`, cần `web_vue/package.json`
 khai `"type": "module"`, thiếu là ca kiểm chết ngay ở dòng `import`.
 
+
+
+Vòng 5 (PR #461): khoá xem trước ở trình duyệt chỉ cho biết giỏ có đổi, không
+chứng minh hạn mức ưu đãi trên máy chủ còn nguyên. Triệu chứng là khách thấy
+giảm 50.000 nhưng đơn có thể được ghi với mức khác nếu lượt cuối vừa hết.
+Cách phòng: trình duyệt gửi `giam_da_xem`, máy chủ vẫn tự tính lại rồi từ chối
+cả trường hợp giảm tăng lẫn giảm xuống khi hai số khác nhau; trả bảng mới để
+khách xem và tự bấm lại. Phép so phải sau tìm trùng để lần gửi lại cùng nonce
+luôn nhận biên nhận cũ. Liên kết lượt dùng với hoá đơn cũng không được chỉ thử
+một lần trong hook: lỗi tạm thời cần việc đối soát idempotent theo lịch, giới
+hạn bằng dấu dữ liệu v589 để không chạm bản ghi cũ.
+
+## 12/10/2026 - PR #462: đổi giao diện nhưng dùng chung kho nháp phải giữ hai chiều
+
+Trang `/banh` cũ ghi các ô trong `vgb-gio-v1.truong` bằng id DOM như
+`f-phone`, còn bản Vue ban đầu chỉ đọc tên trạng thái như `phone`. Giỏ vẫn
+về nhưng thông tin liên hệ, giao hàng, hoá đơn và mã ưu đãi biến mất; nếu
+Vue ghi kiểu mới thì quay lại trang cũ cũng mất các ô đó. Cách phòng: tầng
+đọc nhận cả hai lược đồ, tầng ghi tiếp tục dùng lược đồ cũ trong thời gian
+hai trang chạy song song, và ca hành vi phải dựng nháp cũ rồi kiểm đủ mọi ô.
+
+## 12/10/2026 - Ba chữ "tồn bánh" không phải một nguồn (#463)
+
+Sales online đọc `Kiem Banh Ngay` để biết bếp còn nhận được bao nhiêu bánh cho
+đơn online. Tab In store đọc hai bảng kiểm kho quầy riêng để biết D1 và NVHTN
+đang còn bao nhiêu bánh trong tủ. Trang Vue phải giữ nguyên ranh giới đó:
+`napTon` chỉ nạp nguồn Sales online, còn `napQuay` nạp tồn từng quầy. Gộp ba số
+vì cùng mã hàng sẽ làm khách thấy sai nơi có bánh. Ca hồi quy phải dùng cùng một
+mã với ba số khác nhau và chốt cả tên API lẫn cặp mã-số, không chỉ dò chuỗi.
+

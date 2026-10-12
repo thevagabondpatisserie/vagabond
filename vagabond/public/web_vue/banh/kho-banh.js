@@ -581,12 +581,23 @@ export function taoKho(moiTruong) {
       note_print: lines.join('\n'), note, hoa_don: vat,
       nonce: S.CO.nonce, dong_y: true, thanh_toan: S.CO.pay,
       diem_lay_ten: tuLay ? diemNhanChon.value.n : '', diem_lay_id: tuLay ? diemNhanChon.value.id : '',
-      ma_uu_dai: S.CO.uuMa || '', fbp: fb.fbp, fbc: fb.fbc
+      ma_uu_dai: S.CO.uuMa || '', giam_da_xem: giam.value, fbp: fb.fbp, fbc: fb.fbc
     };
+    const khoaLucGui = khoaUuDai.value;
     S.dangGui = true; S.goi.gui = null;
     let m = null;
     try { m = await ghi('vagabond.don_hang.tao_don', {don: JSON.stringify(don)}); } catch (e) { m = null; }
     if (!m || !m.ok) {
+      /* Cùng giao thức máy chủ với /banh: khách phải bấm lại sau đổi giá. */
+      if (m && m.ly_do === 'uu_dai_doi') {
+        const moi = m.uu || {};
+        S.CO.uuDangHoi = null;
+        S.CO.uu = {khoa: khoaLucGui, giam: Number(moi.giam) || 0,
+          ap: Array.isArray(moi.ap) ? moi.ap : [], loi: ''};
+        S.dangGui = false;
+        S.goi.gui = [thuong(t('dat_banh_uu_dai_cap_nhat', 'Tổng tiền vừa cập nhật theo ưu đãi. Quý khách xem lại rồi bấm gửi.'))];
+        return {buoc: 'uu_dai', don};
+      }
       const vi = (m && m.ly_do === 'ma_uu_dai' && m.chi_tiet) ? String(m.chi_tiet) : ((m && lyDo(m.ly_do)) || t('dat_banh_5db00ac93', 'Không gửi được đơn lúc này.'));
       if (m && m.ly_do === 'ma_uu_dai') { S.CO.uu = null; S.CO.uuDangHoi = null; hoiUuDaiNeuCan(); }
       S.dangGui = false;
@@ -706,7 +717,9 @@ export function taoKho(moiTruong) {
     try {
       if (!S.CART.length && !S.gioCho.mua.length && !S.gioCho.banh.length) { luuTru.removeItem(KHOA_LUU); return; }
       const truong = {};
-      Object.keys(S.f).forEach(k => { truong[k] = S.f[k]; });
+      /* Trang /banh cũ đọc id DOM. Tiếp tục ghi dạng đó để nếu phải quay lại
+         trang cũ thì thông tin khách vừa nhập ở Vue vẫn còn nguyên. */
+      Object.keys(S.f).forEach(k => { truong['f-' + k] = S.f[k]; });
       luuTru.setItem(KHOA_LUU, JSON.stringify({luc: bayGio().getTime(), gio: S.CART.concat(S.gioCho.mua, S.gioCho.banh),
         ngay: S.ngayChon, slot: S.pickedSlot, daChonNgay: S.daChonNgay, daChonGio: S.daChonGio, truong,
         co: {mode: S.CO.mode, pickupId: S.CO.pickupId, pay: S.CO.pay, other: S.CO.other, gift: S.CO.gift, vat: S.CO.vat, quan: S.CO.quan, nonce: S.CO.nonce}}));
@@ -736,7 +749,12 @@ export function taoKho(moiTruong) {
       ['other', 'gift', 'vat'].forEach(k => { S.CO[k] = c[k] === true; });
       S.CO.quan = typeof c.quan === 'string' ? c.quan : '';
       S.CO.nonce = /^[A-Za-z0-9_-]{32}$/.test(c.nonce || '') ? c.nonce : '';
-      Object.entries(d.truong || {}).forEach(([k, v]) => { if (k in S.f && typeof v === 'string') S.f[k] = v.slice(0, 4000); });
+      /* Nháp Vue đời đầu dùng tên kho, còn trang cũ dùng id DOM f-*. Ưu tiên
+         tên mới nếu một bản nháp hiếm gặp chứa cả hai kiểu. */
+      Object.keys(S.f).forEach(k => {
+        const v = typeof d.truong?.[k] === 'string' ? d.truong[k] : d.truong?.['f-' + k];
+        if (typeof v === 'string') S.f[k] = v.slice(0, 4000);
+      });
     } catch (e) { S.CART.splice(0); }
     finally { S.daPhucHoi = true; }
   }

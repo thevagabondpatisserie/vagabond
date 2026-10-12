@@ -990,6 +990,7 @@ _cu_nb.insert(max(len(_cu_nb) - 1, 0), "vagabond.ngay_ban.chan_ghi_tay")
 doc_events["Sales Invoice"]["validate"] = _cu_nb
 del _cu_nb
 scheduler_events.setdefault("hourly", []).append("vagabond.tru_kho_bu.quet_moi_gio")
+scheduler_events.setdefault("hourly", []).append("vagabond.don_web.doi_soat_uu_dai_hoa_don")
 
 # v562 (#410): bắn tin Zalo. Mỗi giờ gửi bản gộp tin hoãn trong giờ im.
 scheduler_events.setdefault("hourly", []).append("vagabond.kenh_zalo.xa_gio_im")

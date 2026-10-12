@@ -231,6 +231,26 @@ def _():
 	la("None cung rong", kiem_kho.dong_len_web(None, None), [])
 
 
+@ca("#463: D1 va NVHTN tinh ton rieng tu dung bang kiem cua tung quay")
+def _():
+	"""Giữ chuỗi a-f của #463 ở tầng thuần, không cần đọc dữ liệu site thật.
+
+	Cùng một mã bánh có thể còn khác nhau tại hai quầy. Nếu vô tình gộp hai
+	bảng hoặc dùng số Sales online, ca này phải đỏ thay vì cho web báo một số
+	chung cho cả D1 và NVHTN.
+	"""
+	d1 = [_dong("BAWC00463", ton_dau=8, nhap_1=2, hong=1, dieu_chinh=-1)]
+	nvhtn = [_dong("BAWC00463", ton_dau=3, nhap_1=4, dieu_chinh=1)]
+	la("D1: 8 + 2 - 3 - 1 - 1", dict(kiem_kho.dong_len_web(d1, {"BAWC00463": 3})),
+		{"BAWC00463": 5})
+	la("NVHTN: 3 + 4 - 2 + 1", dict(kiem_kho.dong_len_web(nvhtn, {"BAWC00463": 2})),
+		{"BAWC00463": 6})
+	la("hai nguồn không bị cộng chung", [
+		dict(kiem_kho.dong_len_web(d1, {"BAWC00463": 3}))["BAWC00463"],
+		dict(kiem_kho.dong_len_web(nvhtn, {"BAWC00463": 2}))["BAWC00463"],
+	], [5, 6])
+
+
 # ------------------------------------------------- 2. in store: cham he
 
 @ca("in store: cua khach vang lai chi DOC, chi tra ten-anh-gia-so con")

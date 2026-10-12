@@ -2284,8 +2284,10 @@ async function submitOrder(){
     nonce:CO.nonce, dong_y:true, thanh_toan:CO.pay,
     diem_lay_ten: tuLay ? PICKUPS[CO.pickup].n : '',
     diem_lay_id: tuLay ? PICKUPS[CO.pickup].id : '',
-    /* v589: may chu tinh lai uu dai tu ma nay, khong tin so giam o day. */
+    /* v589: máy chủ không dùng số này để tính tiền. Đây chỉ là số khách đã
+       nhìn thấy, để máy chủ bắt xác nhận lại nếu ưu đãi vừa đổi. */
     ma_uu_dai: CO.uuMa||'',
+    giam_da_xem: giamDangAp(),
     fbp:fb.fbp, fbc:fb.fbc
   };
 
@@ -2309,6 +2311,13 @@ async function submitOrder(){
   }catch(e){ m=null; }
 
   if(!m || !m.ok){
+	if(m && m.ly_do==='uu_dai_doi'){
+	  const moi=m.uu||{};
+	  CO.uu={giam:Number(moi.giam)||0,ap:Array.isArray(moi.ap)?moi.ap:[],loi:'',khoa:khoaUuDai()};
+	  drawCo();
+	  sendBusy(false, '<b style="color:#FF7A6B">'+htmlChuWeb('dat_banh_uu_dai_cap_nhat','Tổng tiền vừa cập nhật theo ưu đãi. Quý khách xem lại rồi bấm gửi.')+'</b>');
+	  return;
+	}
     /* Khong nuot loi. Khach can biet don CHUA duoc nhan, kem duong khac de dat. */
     const vi = (m && m.ly_do==='ma_uu_dai' && m.chi_tiet) ? String(m.chi_tiet) : ((m && LY_DO[m.ly_do]) || (chuWeb("dat_banh_5db00ac93", "Không gửi được đơn lúc này.")));
     if(m && m.ly_do==='ma_uu_dai'){ CO.uu=null; drawCo(); }

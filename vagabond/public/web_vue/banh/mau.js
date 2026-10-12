@@ -15,7 +15,7 @@ export const MAU = `
 <p class="ngay-ban" id="ngayBan">{{ ngayBan }}</p>
 <nav class="tabs">
   <button class="tab mua" :class="{on: tab==='season'}" data-tab="season" id="tabMua" :hidden="!kho.coMua.value" @click="go('season')">{{ t('tab_season','In season') }}</button>
-  <button class="tab store" :class="{on: tab==='store'}" data-tab="store" id="tabStore" :hidden="!S.storeDaTai" @click="go('store')">{{ t('tab_store','In store') }}</button>
+  <button class="tab store" :class="{on: tab==='store'}" data-tab="store" id="tabStore" :hidden="!S.storeDaTai && !S.storeLoi" @click="go('store')">{{ t('tab_store','In store') }}</button>
   <button class="tab" :class="{on: tab==='uu_dai'}" data-tab="uu_dai" @click="go('uu_dai')">{{ t('tab_uu_dai','Ưu đãi') }}</button>
   <button class="tab" :class="{on: tab==='tiec'}" data-tab="tiec" :hidden="!coTiec" @click="go('tiec')">{{ t('tab_tiec','Tiệc') }}</button>
   <button class="tab" :class="{on: tab==='tuyen_dung'}" data-tab="tuyen_dung" @click="go('tuyen_dung')">{{ t('tab_tuyen_dung','Tuyển dụng') }}</button>

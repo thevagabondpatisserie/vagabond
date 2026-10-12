@@ -6,6 +6,7 @@
 
    Chạy: node vagabond/khung/kiem_thu/hanh_vi/web_vue_banh.mjs */
 import {taoKho} from '../../../public/web_vue/banh/kho-banh.js';
+import {MAU} from '../../../public/web_vue/banh/mau.js';
 import {t0, tienVN, hangGui} from '../../../public/web_vue/kho/thuan.js';
 import {nextTick} from '../../../public/web_vue/lib/vue.esm-browser.prod.js';
 
@@ -207,6 +208,40 @@ await ca('Lưu giỏ trong phiên rồi tải lại trang: giỏ, lịch, ô nh�
   la('cách nhận', k2.S.CO.mode, 'pick');
 });
 
+await ca('PR #462: nháp trang cũ khôi phục đủ ô và Vue vẫn ghi kiểu cũ để quay lại an toàn', async () => {
+  const a = moiTruong('2026-10-11T08:00:00');
+  const giaTri = {phone: '0901234567', name: 'Lan', mail: 'lan@example.com', addr: '12 Nguyễn Huệ', rname: 'Minh',
+    rphone: '0912345678', note: 'Giao trước 10 giờ', mst: '0318561568', cname: 'Công ty ABC',
+    cmail: 'ketoan@example.com', caddr: '1 Lê Lợi', ma: 'SINHNHAT10'};
+  const truongCu = {};
+  Object.entries(giaTri).forEach(([k, v]) => { truongCu['f-' + k] = v; });
+  a.kho.set('vgb-gio-v1', JSON.stringify({luc: new Date('2026-10-11T07:00:00').getTime(),
+    gio: [{id: 'BAWC00139', qty: 1, cm: 12}], truong: truongCu}));
+  const k = taoKho(a.mt);
+  k.phucHoiGio();
+  la('mọi ô từ nháp cũ', k.S.f, giaTri);
+  k.S.f.note = 'Giữ lạnh';
+  const luu = JSON.parse(a.kho.get('vgb-gio-v1'));
+  dung('ghi id DOM cho trang cũ đọc lại', luu.truong['f-note'] === 'Giữ lạnh' && !('note' in luu.truong));
+});
+
+await ca('PR #462: quầy trả lỗi vẫn hiện tab In store và nút thử lại gọi lại máy chủ', async () => {
+  let soLan = 0;
+  const {mt, vet} = moiTruong('2026-10-11T08:00:00', {'vagabond.kiem_kho.con_tren_quay_web': () => {
+    soLan++;
+    if (soLan === 1) throw new Error('HTTP 500');
+    return {quay: [{ma: 'D1', ten: 'D1', mon: []}]};
+  }});
+  const k = taoKho(mt);
+  await k.napQuay();
+  la('ghi nhận lỗi lần đầu', [k.S.storeLoi, k.S.storeDaTai], [true, false]);
+  dung('tab hiện khi lỗi', MAU.includes(':hidden="!S.storeDaTai && !S.storeLoi"'));
+  dung('nút thử lại gọi đúng cửa', MAU.includes('@click="kho.napQuay()"'));
+  await k.napQuay();
+  la('bấm thử gọi lại API', vet.filter(x => x[1] === 'vagabond.kiem_kho.con_tren_quay_web').length, 2);
+  la('lần sau tải được', [k.S.storeLoi, k.S.storeDaTai], [false, true]);
+});
+
 await ca('Trước khi khôi phục xong thì không ghi đè giỏ đã cất (Codex #450)', async () => {
   const a = moiTruong('2026-10-11T08:00:00');
   a.kho.set('vgb-gio-v1', JSON.stringify({luc: new Date('2026-10-11T07:00:00').getTime(), gio: [{id: 'BAWC00139', qty: 2, cm: 12}]}));
@@ -244,6 +279,32 @@ await ca('Danh mục máy chủ trộn vào bánh có sẵn, giá trong giỏ l�
   la('bánh có sẵn', k.banhHomNay.value.map(c => c.k), ['CANDLE']);
 });
 
+await ca('#463: napTon giữ đúng mã và số Sales online từ co_the_ban_hom_nay', async () => {
+  const tra = {
+    banh: {BAWC00463: 4, BAWC00464: 2},
+    nhom: [
+      {ten: 'Bánh kiểm đồng bộ', sizes: [
+        {cm: 12, ma: 'BAWC00463', gia: 463000, con: 4},
+        {cm: 16, ma: 'BAWC00464', gia: 664000, con: 2}
+      ]}
+    ]
+  };
+  const {mt, vet} = moiTruong('2026-10-12T08:00:00', {
+    'vagabond.kiem_banh.co_the_ban_hom_nay': () => tra
+  });
+  const k = taoKho(mt);
+  await k.napTon();
+  la('chỉ gọi đúng cửa Sales online', vet.map(x => x[1]), ['vagabond.kiem_banh.co_the_ban_hom_nay']);
+  la('kho TODAY giữ nguyên cặp mã-số', k.S.TODAY, tra.banh);
+  const nhom = k.S.CAKES.find(x => x.k === 'Bánh kiểm đồng bộ');
+  dung('nhóm máy chủ lên danh mục', nhom);
+  la('hai cỡ giữ đúng mã để tra số ở một nguồn TODAY', nhom.sizes.map(x => x.id),
+    ['BAWC00463', 'BAWC00464']);
+  la('computed Có sẵn hôm nay đọc cùng nguồn', k.banhHomNay.value.map(x => x.k),
+    ['Bánh kiểm đồng bộ']);
+  la('tổng tồn computed từ cùng bản đồ', k.tongTon.value, 6);
+});
+
 await ca('hangGui gộp dòng trùng mã và phụ kiện theo số bánh', async () => {
   la('gộp', hangGui([{id: 'A', qty: 2, adds: [{id: 'P'}]}, {id: 'A', qty: 1, adds: [{id: 'P'}]}]),
     [{variation_id: 'A', quantity: 3}, {variation_id: 'P', quantity: 3}]);
@@ -274,6 +335,31 @@ await ca('Codex #462: tonDaThu chỉ bật sau lần hỏi tồn đầu, kể c�
   await k2.napTon();
   la('máy chủ lỗi vẫn bật', k2.S.tonDaThu, true);
   la('lỗi thì chưa coi là nạp xong', k2.S.tonNapXong, false);
+});
+
+for (const moi of [0, 80000]) await ca('Máy chủ đổi giảm sang ' + moi + ': xem lại rồi bấm gửi, giữ nonce', async () => {
+  const gui = [];
+  const {mt} = moiTruong('2026-10-11T08:00:00', {
+    'vagabond.don_hang.xem_uu_dai': () => ({ok: true, giam: 50000, ap: []}),
+    'vagabond.don_hang.tao_don': p => {
+      gui.push(JSON.parse(p.don));
+      return gui.length === 1 ? {ok: 0, ly_do: 'uu_dai_doi', uu: {giam: moi, ap: []}} : {ok: 1};
+    }
+  });
+  const k = taoKho(mt);
+  coThem(k); k.pick(3); k.pickSlot(6);
+  Object.assign(k.S.f, {name: 'A', phone: '0901234567', addr: '12 Nguyễn Huệ Q1'});
+  k.S.CO.dongy = true;
+  await k.xemUuDai();
+  la('dừng', (await k.submitOrder()).buoc, 'uu_dai');
+  la('gửi số khách thấy', gui[0].giam_da_xem, 50000);
+  la('tổng mới', k.tong.value.total, 650000 - moi);
+  la('chưa gửi lại tự động', gui.length, 1);
+  la('giữ giỏ', k.S.CART.length, 1);
+  la('mở nút', k.S.dangGui, false);
+  la('bấm lần hai thành công', (await k.submitOrder()).buoc, 'xong');
+  la('gửi số đã xác nhận', gui[1].giam_da_xem, moi);
+  la('giữ nonce', gui[1].nonce, gui[0].nonce);
 });
 
 console.log('Bo ca kiem HANH VI trang dat banh ban Vue');
