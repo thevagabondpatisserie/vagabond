@@ -442,3 +442,62 @@ def _chan_doan():
 	la('phiếu còn nháp', pe.docstatus, 0)
 	la('không GL', _gl(pe), [])
 	dung('trả về có khoá qua hoặc loi', 'qua' in kq and 'loi' in kq)
+
+
+@ca('v580 (chị Dung 06/10/2026): màn Tiền đã về trả đúng đường dẫn tệp UNC Sales đã đính để kế toán mở xem')
+def _xem_unc_579():
+	si, g, pe = _du_lieu()
+	with _Tep(gan_vao=pe.name, vao_o=True) as t:
+		ds = [p for p in tt.phieu_thu_nhap(cac_si=[si.name]) if p['pe'] == pe.name]
+		la('một tệp', ds[0]['so_tep'], 1)
+		la('đúng đường dẫn tệp để mở', ds[0]['tep_unc'], [t.file_url])
+	with _Tep(gan_vao=pe.name) as t2:
+		ds = [p for p in tt.phieu_thu_nhap(cac_si=[si.name]) if p['pe'] == pe.name]
+		la('tệp ở mục khác không hiện để xem', ds[0]['tep_unc'], [])
+
+
+@ca("v592: tải UNC riêng qua cửa Frappe, kế toán được xem, Sales không có quyền bị từ chối")
+def _quyen_tai_unc_592():
+	from frappe.utils.response import download_private_file
+	from werkzeug.exceptions import Forbidden
+	from werkzeug.test import EnvironBuilder
+	from werkzeug.wrappers import Request
+	_, _, pe = _du_lieu()
+	cu = frappe.session.user
+	co_request_cu = hasattr(frappe.local, "request")
+	request_cu = getattr(frappe.local, "request", None)
+	form_cu = frappe.form_dict
+	try:
+		users = {}
+		for role in ("Accounts User", "Sales User"):
+			u = frappe.get_doc(dict(doctype="User", email="kt592-" + frappe.generate_hash(length=10) + "@vagabond.test",
+				first_name="Kiểm UNC", send_welcome_email=0, user_type="System User", roles=[{"role": role}]))
+			u.insert(ignore_permissions=True); _DA_TAO.append(("User", u.name)); users[role] = u.name
+		with _Tep(pe.name, vao_o=True) as t:
+			frappe.local.request = Request(EnvironBuilder(path=t.file_url, method="GET").get_environ())
+			frappe.local.form_dict = frappe._dict()
+			frappe.set_user(users["Sales User"])
+			dung("Sales không có quyền đọc phiếu thử", not frappe.has_permission("Payment Entry", "read", doc=pe.name))
+			try:
+				r = download_private_file(t.file_url)
+			except (Forbidden, frappe.PermissionError):
+				pass
+			else:
+				r.close(); dung("cửa tải phải từ chối Sales", False)
+			frappe.set_user(users["Accounts User"])
+			r = download_private_file(t.file_url)
+			try:
+				la("kế toán tải thành công", r.status_code, 200)
+			finally:
+				r.close()
+			frappe.set_user(cu)
+	finally:
+		frappe.set_user(cu)
+		# Bench CLI không có request: gán None vẫn làm hasattr đúng và
+		# khiến bộ in lõi cố đọc request.environ ở ca chạy sau.
+		if co_request_cu:
+			frappe.local.request = request_cu
+		else:
+			del frappe.local.request
+		frappe.local.form_dict = form_cu
+	la("khôi phục sự hiện diện của request", hasattr(frappe.local, "request"), co_request_cu)

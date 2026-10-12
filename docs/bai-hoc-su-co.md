@@ -2133,3 +2133,10 @@ Cách phòng: gọi nhóm bằng mã nhóm (4 ký tự cuối mã chat) và cho 
 mã đó ngay trong nhóm; danh sách chọn hỏi máy chủ mỗi lần bấm; dữ liệu mẫu
 trong ca kiểm lấy đúng hình dạng đọc trên site, không tự thêm trường mà nguồn
 thật không gửi.
+## 12/10/2026 - #445: ẩn nút không chứng minh quyền tải tệp
+
+Ca DOM chỉ chốt Sales không thấy liên kết UNC không bắt được lỗi quyền máy chủ.
+Ca bench phải tạo File riêng gắn phiếu thật, đổi sang Sales và gọi chính
+frappe.utils.response.download_private_file; kế toán phải nhận 200, Sales
+thiếu quyền phải bị từ chối. Danh sách 12 UNC chỉ hiện hai liên kết và mục
+mở thêm để không đẩy nút Ghi sổ ra xa. Không thay quyền File của core.
