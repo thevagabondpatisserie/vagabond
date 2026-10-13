@@ -31,12 +31,12 @@ Còn một số nhánh DOM (gallery/sửa dòng/storage lỗi/qua nửa đêm/ph
 Claude review delta code mới; Codex tiếp tục bổ sung kiểm theo bảng, giữ một PR.
 
 
-## F21 cách B — 13/10/2026
+## F21 cách B - 13/10/2026
 
 Owner Codex; delta từ `f820a19dce0a61123dbb9bf8ba12af9dcad59507`.
 Đã đọc API site thật và ghi phạm vi **trước khi sửa** tại
 https://github.com/thevagabondpatisserie/vagabond/pull/471#issuecomment-6144541606.
-Ngày đọc 13/10: CANDLE/Epi12 mỗi món1, Roman16 còn2; Dư decor cho14–16/10.
+Ngày đọc 13/10: CANDLE/Epi12 mỗi món1, Roman16 còn2; Dư decor cho14-16/10.
 Món không có dòng nguồn hoặc ngày từ17/10 trở đi không bị chặn bằng tồn này.
 
 - `tao_don`: nonce trước tồn; đọc KB đúng hôm nay hoặc Dư decor trừ đã đặt
@@ -55,3 +55,7 @@ Món không có dòng nguồn hoặc ngày từ17/10 trở đi không bị chặ
 Giới hạn: kiểm theo nguồn vận hành tại thời điểm gửi, không thêm cơ chế giữ
 chỗ nguyên tử giữa nhiều khách; chưa nghiệm thu production. F21 không đồng nghĩa
 đóng toàn bộ GĐ2/GĐ3/GĐ4 của PR471.
+
+## Vòng review F21 13/10
+
+Chỉ sửa F21 trên nền3f2ad0b70. Loại dòng decor0 khỏi nguồn; giữ kiểm hết/thiếu của decor dương. Thêm ca cửa tạo đơn decor0, decor2 đã đặt2, decor2 đã đặt1 xin2, mỗi ca cả ba ngày. Đồng hồ23:30/00:30 Sài Gòn dùng hom_nay thật; thiếu ngày nhận không báo Sales. Bỏ dấu gạch dài trong nội dung F21. Không đổi phiên bản/patch hoặc phần Vue khác. Cổng và SHA xem biên nhận PR.

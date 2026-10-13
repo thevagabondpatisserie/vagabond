@@ -15,6 +15,8 @@ def hom_nay():
 
 
 def kiem(hang, ngay):
+    if not ngay or not str(ngay).strip():
+        return []
     ng = datetime.fromisoformat(str(ngay)).date()
     nay = hom_nay()
     if ng != nay and not nay < ng <= nay + timedelta(days=3):
@@ -37,7 +39,8 @@ def kiem(hang, ngay):
                 for d in frappe.get_doc("Kiem Banh Ngay", ten).dong:
                     da_dat[d.ma_hang] = da_dat.get(d.ma_hang, 0) + int(d.da_dat or 0)
         for d in kho.dong or []:
-            if d.ma_hang in ma:
+            # Dòng giữ chỗ decor0 chưa phải nguồn tồn hữu hạn.
+            if d.ma_hang in ma and int(d.so_decor or 0) > 0:
                 ton[d.ma_hang] = (max(0, int(d.so_decor or 0) - da_dat.get(d.ma_hang, 0)), d.ten_banh or d.ma_hang)
     nhac = []
     for h in hang:
@@ -65,7 +68,7 @@ def bao_loi(ngay):
         from vagabond.lib import cfg_o
         from vagabond.gui_thu import ban_webhook
         url = str(cfg_o("webhook_don_web") or "").strip()
-        cau = ("Sales kiểm lại tồn đơn web — ngày nhận %s. Phép kiểm tồn bị lỗi; "
+        cau = ("Sales kiểm lại tồn đơn web - ngày nhận %s. Phép kiểm tồn bị lỗi; "
                "web vẫn tiếp nhận yêu cầu. Sales kiểm lại tồn trước khi xác nhận với khách." % ngay)
         if not url or not ban_webhook(cau, url=url):
             _ghi_loi("Kiểm tra webhook_don_web và kênh nhận đơn của Sales.",

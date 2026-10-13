@@ -2210,7 +2210,7 @@ không có nghĩa đã có biên nhận Vue. Nguồn: docs/web-vue/470-doi-chieu
 - Nguồn PR #471; thay từng hàng rào trong bản sao làm đỏ đúng1ca/lượt.
 
 
-### 13/10/2026 — F21 nguồn tồn khi gửi đơn
+### 13/10/2026 - F21 nguồn tồn khi gửi đơn
 
 Danh mục công khai bỏ dòng0 nên không dùng việc vắng món để suy ra hết. Đọc
 KB đúng ngày hoặc dòng Dư decor gốc cho cửa sổ ba ngày, giữ nguyên đặt xa.
@@ -2220,3 +2220,7 @@ Zalo chung là Sales. DOM phải kiểm cả trang cũ và Vue giữ giỏ/tải
 Đột biến phải đối chiếu nền xanh và mã thực sự đổi; chuỗi thay không khớp
 không phải một lần kiểm đột biến. Ca Document thật nằm ở cổng bench, không
 gọi fixture trên production.
+
+### F21 review 13/10: decor0 là dòng giữ chỗ
+
+Chỉ decor gốc lớn hơn0 mới là nguồn tồn hữu hạn cho ba ngày tới. Decor gốc dương bị đơn dùng hết vẫn phải trả tồn0 để chặn. Ca đi qua cửa tạo đơn cho cả ba ngày; đồng hồ giả chỉ thay thời điểm, giữ hàm hom_nay thật để bắt lệch ngày UTC/Sài Gòn. Ngày nhận trống trả về trước khi đọc nguồn, không tạo cảnh báo Sales giả.

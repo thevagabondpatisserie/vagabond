@@ -101,3 +101,44 @@ def _():
         da_bao=[]
         la('không chặn',mua_vu.kiem_han_muc([{'item_code':'X','qty':1}], ngay='2026-10-13', khi_loi=lambda:da_bao.append(1)),[])
         la('cảnh báo',da_bao,[1])
+
+
+@ca('F21 review: decor0 nhận đơn; decor thật đã đặt hết/thiếu vẫn chặn')
+def _decor_goc():
+    for decor, da_dat, xin, con in [(0,0,2,None),(2,2,1,0),(2,1,2,1)]:
+        fr=nguon(decor=decor,da_dat=da_dat)
+        # Chỉ một ngày có đơn; không nhân số đơn thành ba lần trong fixture.
+        fr.db.exists=lambda dt,ten:ten=='KB-2026-10-14'
+        for ngay in ['2026-10-14','2026-10-15','2026-10-16']:
+            vet,ham,d=gui(xin,ngay+'T13:00:00')
+            with patch.object(ton,'hom_nay',lambda:date(2026,10,13)),patch.object(ton,'frappe',fr):
+                r=ham(d)
+            if con is None:
+                la('decor0 nhận đơn',r['ok'],1)
+                dung('đã gửi Pancake','post' in vet.su)
+            else:
+                la('chặn hết/thiếu',r['ly_do'],'het_hang')
+                dung('đúng số còn','còn %s cái'%con in r['nhac'][0])
+                dung('không gửi','post' not in vet.su)
+
+
+@ca('F21 review: hom_nay thật dùng ngày Sài Gòn lúc 23:30 và 00:30')
+def _moc_sai_gon():
+    from datetime import datetime,timezone
+    for utc,mong in [('2026-10-13T16:30:00+00:00',date(2026,10,13)),('2026-10-13T17:30:00+00:00',date(2026,10,14))]:
+        moc=datetime.fromisoformat(utc)
+        class DongHo(datetime):
+            @classmethod
+            def now(cls,tz=None):
+                return moc.astimezone(tz) if tz else moc.replace(tzinfo=None)
+        with patch.object(ton,'datetime',DongHo):
+            la('ngày địa phương',ton.hom_nay(),mong)
+
+
+@ca('F21 review: thiếu ngày nhận không đọc tồn và không báo Sales giả')
+def _khong_ngay():
+    for ngay in [None,'','   ']:
+        vet,ham,d=gui(1,ngay)
+        with patch.object(ton,'frappe',D()),patch.object(ton,'bao_loi') as bao:
+            la('giữ nhận đơn',ham(d)['ok'],1)
+            la('không cảnh báo giả',bao.call_count,0)
