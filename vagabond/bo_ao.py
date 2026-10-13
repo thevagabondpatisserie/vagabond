@@ -28,6 +28,7 @@ xem kế hoạch, phải gọi chay_that=1 mới ghi.
 import json
 
 import frappe
+from vagabond.lich_su_bom import dat_bom
 from frappe.utils import cint
 
 KHOA_GIU_TON = "vgb_phantom_giu_ton"
@@ -218,7 +219,7 @@ def chay(ma=None, ly_do=None, chay_that=0):
 	frappe.db.set_default(KHOA_GIU_TON, json.dumps(them_giu_ton(danh_sach_giu_ton(), ma)))
 	frappe.db.set_value("Item", ma, "is_stock_item", 1, update_modified=False)
 	for b in ke["bom_rieng"]:
-		frappe.db.set_value("BOM", b, "is_phantom_bom", 0, update_modified=False)
+		dat_bom("BOM", b, "is_phantom_bom", 0, update_modified=False, nguon='Bỏ ảo, giữ tồn')
 	for d in ke["dong"]:
 		frappe.db.set_value("BOM Item", d["dong"], d["gt"], update_modified=False)
 	from vagabond.patches.no_phantom_chuan import thu_tu_dung_lai

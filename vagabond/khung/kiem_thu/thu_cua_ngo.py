@@ -296,7 +296,7 @@ CUA_NGO = {
 		"ma_thay_the", "nap_bom_thu_vien", "nuoc_het_ton"],
 	# Danh muc cong thuc BOM cho bep truong, them 21/08/2026.
 	"cong_thuc.py": ["bo_nhap", "chi_tiet", "danh_sach", "dieu_chinh",
-		"ghi_so", "sua_nhap", "tao_moi"],
+		"ghi_so", "lich_su", "nhat_ky", "ban_da_xoa", "sua_nhap", "tao_moi", "xuat_excel"],
 	# Loi ke toan mua hang, them 21/08/2026. `giu_tk_theo_phieu_nhap` la hook
 	# nen KHONG whitelist, chi hai cua nay mo cho ke toan truong.
 	"ke_toan_mua.py": ["dat_tk_hang_chua_hoa_don", "kiem_tra", "so_chi_tiet_ncc"],

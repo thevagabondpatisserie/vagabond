@@ -2188,3 +2188,11 @@ Các vòng #462/#465 có code và ca kiểm trong cloud nhưng head PR không đ
 Instruction phải chốt SHA remote, gói task/diff khi thiếu quyền và đường tiếp
 nhận desktop. Model trong TOML cũng là yêu cầu cấu hình, phải kiểm metadata
 trước khi nhận bot thực sự dùng model đó. Không chữa thiếu quyền bằng PR trùng.
+# 13/10/2026 - Lịch sử BOM phải lọc bảng khai triển và bù đường ghi thẳng
+
+- Triệu chứng: Version của BOM có nhiều dòng `exploded_items`, còn các lần đổi cờ bằng `db.set_value` không tạo Version nên người xem không biết ai chốt bản nào.
+- Nguyên nhân: ERPNext dựng lại bảng khai triển khi lưu, trong khi cập nhật thẳng cơ sở dữ liệu không đi qua cơ chế theo dõi thay đổi của Document.
+- Cách phòng: dịch Version theo danh sách trường nghiệp vụ được phép hiện, bỏ toàn bộ `exploded_items`; đường ghi sổ bằng `db.set_value` phải thêm Comment trên cả bản mới và bản cũ. Ca hồi quy dùng Version có đồng thời nhiễu bảng khai triển và thay đổi số lượng.
+- Nguồn: PR #469.
+
+- Bổ sung kiểm core: `row_changed` dùng index trước child.name. Chỉ đổi qty thì diff không chứa tên/UOM; phải đọc metadata dòng, không dùng fixture tự thêm tên để che lỗi. Slug màn mới phải khai tại `duong_app.py` để lần dựng không xoá mất.

@@ -80,6 +80,8 @@ def _frappe_gia_chay(hong_o=None, dong_cha=None):
 		def get_value(self, dt, ten, truong=None, as_dict=False):
 			if dt == "Item":
 				return Dict(name=ten, item_name=ten, is_stock_item=0, has_batch_no=0, has_serial_no=0)
+			if dt == "BOM" and as_dict:
+				return {k: 1 for k in truong}
 			return 1
 
 		def exists(self, *a, **k):

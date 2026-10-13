@@ -176,6 +176,7 @@ def nghi_ghi_nham(me, tong_dong_khac, qty_trung, gram_moi_qua=None):
 # ------------------------------------------------------- phan can Frappe
 
 import frappe
+from vagabond.lich_su_bom import dat_bom
 from frappe.utils import flt
 
 DVT_KHOI_LUONG = ("Gram", "ML")
@@ -450,9 +451,9 @@ def _cong_lai_gia_von(bom, them):
 	cu = frappe.db.get_value("BOM", bom,
 		["raw_material_cost", "total_cost", "base_raw_material_cost",
 		 "base_total_cost"], as_dict=True) or {}
-	frappe.db.set_value("BOM", bom, {
+	dat_bom("BOM", bom, {
 		"raw_material_cost": flt(cu.get("raw_material_cost")) + them,
 		"total_cost": flt(cu.get("total_cost")) + them,
 		"base_raw_material_cost": flt(cu.get("base_raw_material_cost")) + them,
 		"base_total_cost": flt(cu.get("base_total_cost")) + them,
-	}, update_modified=False)
+	}, update_modified=False, nguon='Sửa đơn vị công thức')
