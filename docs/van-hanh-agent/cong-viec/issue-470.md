@@ -25,7 +25,33 @@ Chưa chốt GĐ2. Xem từng ô còn thiếu trong
 [35 tính năng](../../web-vue/470-doi-chieu-tinh-nang.md), không suy9nhóm DOM
 là mọi nhánh đã nghiệm thu. F21 đã đo cửa tạo đơn trong code và đăng PR:
 nhận yêu cầu bánh thường, hết hạn mức mùa vụ chặn, lỗi kiểm mùa vụ vẫn nhận.
-Đã hỏi anh Việt về đổi chính sách; chưa có câu trả lời, chưa đổi backend tồn.
+Anh Việt đã chốt cách B ngày 13/10; phần F21 bên dưới thay trạng thái chờ này.
 Còn một số nhánh DOM (gallery/sửa dòng/storage lỗi/qua nửa đêm/phản hồi muộn),
 đối chiếu production/bench và ảnh. GĐ3/GĐ4 chưa làm.
 Claude review delta code mới; Codex tiếp tục bổ sung kiểm theo bảng, giữ một PR.
+
+
+## F21 cách B — 13/10/2026
+
+Owner Codex; delta từ `f820a19dce0a61123dbb9bf8ba12af9dcad59507`.
+Đã đọc API site thật và ghi phạm vi **trước khi sửa** tại
+https://github.com/thevagabondpatisserie/vagabond/pull/471#issuecomment-6144541606.
+Ngày đọc 13/10: CANDLE/Epi12 mỗi món1, Roman16 còn2; Dư decor cho14–16/10.
+Món không có dòng nguồn hoặc ngày từ17/10 trở đi không bị chặn bằng tồn này.
+
+- `tao_don`: nonce trước tồn; đọc KB đúng hôm nay hoặc Dư decor trừ đã đặt
+  trong ba ngày kế tiếp. Dòng0 có kiểm, thiếu dòng không suy thành0.
+- Lỗi đọc vẫn nhận; ghi Error Log và gửi đúng webhook_don_web của Sales.
+  Lỗi gửi cảnh báo cũng không chặn đơn. Mùa vụ lỗi bên trong có callback cảnh báo.
+- Trang cũ/Vue giữ giỏ, nonce; hiện tên/số còn; nạp tồn và gợi ý giảm/đổi ngày/Sales.
+- 8 ca backend tập trung đạt; kho Vue29/29; DOM10 nhóm đạt (gồm hai trang F21).
+  Fullgate exit0, framework4459/0, bundle khớp. CI giả thiếu requests cũng4459/0.
+- `python3 cong_cu/kiem_f21_dot_bien.py`: nền backend8/0, Vue29/0;
+  bốn biến thể đều đỏ: bỏ tồn, hỏi tồn trước nonce, xóa giỏ, bỏ tải lại tồn.
+- Đã nối hai ca Document thật vào cổng bench; kết quả SHA cuối cập nhật trên PR.
+  Local không được nhận là bench thật hoặc thử đơn trên production.
+- APPVER593, một patch593. Giữ Draft, không merge/deploy. Claude review delta.
+
+Giới hạn: kiểm theo nguồn vận hành tại thời điểm gửi, không thêm cơ chế giữ
+chỗ nguyên tử giữa nhiều khách; chưa nghiệm thu production. F21 không đồng nghĩa
+đóng toàn bộ GĐ2/GĐ3/GĐ4 của PR471.

@@ -461,6 +461,20 @@ await ca('#471 phản hồi địa chỉ cũ không ghi đè chữ và tọa đ�
   la('giữ chữ mới',k.S.f.addr,'Mới'); la('không tọa độ cũ',k.S.CO.pickedLoc,null);
 });
 
+await ca('F21 máy chủ hết hàng giữ giỏ, nonce, tải lại tồn và chỉ dẫn Sales', async () => {
+  let nap=0;
+  const {mt}=moiTruong('2026-10-13T08:00:00', {
+    'vagabond.don_hang.tao_don':()=>({ok:0,ly_do:'het_hang',nhac:['CANDLE chỉ còn 0 cái.']}),
+    'vagabond.kiem_banh.co_the_ban_hom_nay':()=>{nap++;return {banh:{},dat_truoc:{nhom:[]}};}
+  });
+  const k=taoKho(mt);coThem(k);k.pick(3);k.pickSlot(6);
+  Object.assign(k.S.f,{name:'A',phone:'0901234567',addr:'12 Nguyễn Huệ Q1'});k.S.CO.dongy=true;
+  const gio=JSON.stringify(k.S.CART);
+  la('chặn',(await k.submitOrder()).buoc,'het_hang');await nextTick();
+  la('giỏ giữ nguyên',JSON.stringify(k.S.CART),gio);dung('giữ nonce',!!k.S.CO.nonce);
+  dung('tải lại',nap>0);dung('nói số và cách xử lý',JSON.stringify(k.S.goi.gui).includes('còn 0 cái')&&JSON.stringify(k.S.goi.gui).includes('đổi ngày'));
+});
+
 console.log('Bo ca kiem HANH VI trang dat banh ban Vue');
 loi.forEach(d => console.log('  HONG  ' + d));
 console.log(dat + ' ca dat, ' + hong + ' ca hong, tong ' + (dat + hong) + ' ca.');

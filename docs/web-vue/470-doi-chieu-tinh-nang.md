@@ -40,7 +40,7 @@ cam kết bộ kiểm đã phủ toàn bộ thao tác ở hàng đó.
 
 | ID | Tính năng ở Cũ | Vue hiện có, tệp/hàm | Ca kiểm chứng minh hiện có | Việc còn lại trước nghiệm thu |
 |---|---|---|---|---|
-| F01 | Có sẵn hôm nay, tồn Sales online | Có: Kho `napTon`, `banhHomNay`, `gioiHanNhan`; Mẫu tab today | K tồn; D lỗi tải -> hiện thông báo -> bấm tải lại -> có bánh | F21 vẫn chờ chính sách; chưa kiểm cạnh tranh tồn thật |
+| F01 | Có sẵn hôm nay, tồn Sales online | Có: Kho `napTon`, `banhHomNay`, `gioiHanNhan`; Mẫu tab today | K tồn; D lỗi tải -> hiện thông báo -> bấm tải lại -> có bánh | F21 đã chốt cách B; xem dòng F21 và nhật ký issue470 |
 | F02 | In store D1 | Một phần: Kho `napQuay`, App `quayHien`, Mẫu danh sách quầy | D F02/F03: click quầy D1, đúng món riêng, còn12 | Chưa nghiệm thu dữ liệu site và ảnh Rocca ở GĐ4 |
 | F03 | In store NVHTN | Một phần: cùng nguồn mảng `STORE.quay`, chọn `quayChon` | D F02/F03: NVHTN còn3, qua lại D1 không lẫn món | Chưa nghiệm thu dữ liệu site và ảnh Rocca ở GĐ4 |
 | F04 | Đặt trước, size còn nhận | Có: Kho `banhDatTruoc`, `kichThuocDangBan`, `pick`, `pickSlot` | K `Giới hạn số còn nhận`, `Chưa tự chọn đủ ngày và giờ` | DOM chọn size/ngày; so giới hạn máy chủ, không chỉ computed |
@@ -60,7 +60,7 @@ cam kết bộ kiểm đã phủ toàn bộ thao tác ở hàng đó.
 | F18 | Hóa đơn công ty, MST10/12/13, điền tay | Có: Kho `lookupMst`, `submitOrder` tạo hoa_don, Mẫu vatBlock | D MST10/12/13, sửa tay, reload, kiểm MST13/tên trong payload; K loại11 | Còn DOM tra lỗi/thiếu tên công ty |
 | F19 | Gửi chống trùng nonce | Một phần: Kho `moGio`, `submitOrder`; Mẫu khóa nút bằng trạng thái; Đơn chống trùng | K nhấp kép1POST; D mạng lỗi rồi gửi lại cùng nonce/biên nhận; B chống trùng | D hai click khi HTTP đang chờ chỉ1POST; còn reload giữa lúc gửi và cạnh tranh DB thật |
 | F20 | Lỗi mạng khi gửi, giữ giỏ, thử lại | Có: Kho `submitOrder` catch và giữ dữ liệu; Đơn ghi trước HTTP | K giả máy chủ đã tạo rồi mất phản hồi, retry trả cũ; D giữ giỏ/nonce khi mạng lỗi | Chưa có thử crash HTTP/DB thật, không suy Map giả là kiểm cạnh tranh |
-| F21 | Hết hàng/đổi tồn khi khách đang mua | Một phần: Kho giới hạn từ tồn đã tải; gửi qua Đơn | B gọi tao_don thật với DB/HTTP giả: thường nhận, mùa vụ hết chặn, kiểm lỗi vẫn nhận; PR comment6142583803 | BỊ CHẶN quyết định đổi chính sách. Chưa đổi backend tồn, chưa nhận mock là tồn site |
+| F21 | Hết hàng/đổi tồn khi khách đang mua | Cách B: nonce trước tồn KB hôm nay/Dư decor ba ngày; nguồn lỗi nhận và báo Sales | Backend8/0, Vue29/0, DOM cả hai trang giữ giỏ/tải tồn; bốn đột biến bắt được; site đọc trước sửa comment6144541606 | Đã code; hai ca Document nối cổng bench, chờ CI SHA cuối và Claude. Không merge/deploy |
 | F22 | Biên nhận /banh/xong/token | Có bản Vue song song GĐ2; xem bằng chứng cạnh bên | Có Vue: web_moi/xong + web_vue/trang/app.js. B404/no-token/privacy; D receipt/reload; K Pixel | Chạy song song /web_moi/banh/xong; chưa tráo route cũ. Còn ảnh/trạng thái hủy/chờ trên DOM |
 | F23 | Pixel phía trình duyệt | Một phần: App `napPixel`, Kho `suKien` khi chọn/giỏ; Thuần `docFb` | D Pixel spy receipt gỡ token và1GuiDon; K không gỡ token thì không Pixel | D kiểm queue PageView/ViewContent/AddToCart/InitiateCheckout; không gọi Meta thật |
 | F24 | CAPI máy chủ | Có đường dùng chung: Kho gửi fbp/fbc; Đơn -> don_web | B gọi bien_nhan_theo_token và goi_su_kien thật, chạy Pixel Vue trong Node, cùng id/value/currency/ids; không Purchase | Chưa kiểm worker/network Meta thật; không gửi conversion thử |
@@ -102,7 +102,7 @@ comment bàn giao PR. CI, bench, review, ảnh, merge và deploy là các mốc 
 biên nhận và ba chính sách Vue, SEO/OG. Không đổi chính sách tạo đơn/hạn mức,
 không tạo đơn thật, không ghi production. Bản cũ và Editor vẫn nguyên.
 Các ô còn lại ở bảng trên là việc thật còn thiếu, không đánh dấu GĐ2 hoàn tất.
-F21 đang chờ anh Việt chọn giữ nhận yêu cầu hay chặn khi máy chủ xác nhận hết.
+F21 anh Việt đã chốt cách B ngày13/10; xem nhật ký issue470 và bằng chứng trên PR.
 
 Lệnh DOM: cài Playwright theo môi trường kiểm, chạy
 `node cong_cu/kiem_web_vue_dom.cjs`; có thể đặt

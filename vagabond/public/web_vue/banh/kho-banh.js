@@ -614,6 +614,14 @@ export function taoKho(moiTruong) {
         S.goi.gui = [thuong(t('dat_banh_uu_dai_cap_nhat', 'Tổng tiền vừa cập nhật theo ưu đãi. Quý khách xem lại rồi bấm gửi.'))];
         return {buoc: 'uu_dai', don};
       }
+      if (m && ['het_hang', 'het_hang_mua_vu'].includes(m.ly_do)) {
+        const vi = (m.nhac || []).join(' ') + ' Quý khách giảm số lượng, đổi ngày nhận hoặc nhắn Sales.';
+        S.dangGui = false;
+        S.goi.gui = loiGui(vi, mxh('messenger', CONFIG.messenger));
+        // Chỉ nạp số mới; không cắt lượng hay xoá giỏ khách đã soạn.
+        void napTon(); void napMua();
+        return {buoc: 'het_hang', don};
+      }
       const vi = (m && m.ly_do === 'ma_uu_dai' && m.chi_tiet) ? String(m.chi_tiet) : ((m && lyDo(m.ly_do)) || t('dat_banh_5db00ac93', 'Không gửi được đơn lúc này.'));
       if (m && m.ly_do === 'ma_uu_dai') {
         S.CO.uuMa = ''; S.f.ma = ''; S.CO.uu = null; S.CO.uuDangHoi = null;

@@ -2208,3 +2208,15 @@ không có nghĩa đã có biên nhận Vue. Nguồn: docs/web-vue/470-doi-chieu
 - Ca kho Vue và Chromium fixture kiểm hai tầng khác nhau. Không nhận nonce
   Map giả hoặc lời gọi AST là bằng chứng cạnh tranh DB hay tồn production.
 - Nguồn PR #471; thay từng hàng rào trong bản sao làm đỏ đúng1ca/lượt.
+
+
+### 13/10/2026 — F21 nguồn tồn khi gửi đơn
+
+Danh mục công khai bỏ dòng0 nên không dùng việc vắng món để suy ra hết. Đọc
+KB đúng ngày hoặc dòng Dư decor gốc cho cửa sổ ba ngày, giữ nguyên đặt xa.
+Tìm nonce đã nhận trước mọi kiểm tồn có thể thay đổi. Lỗi đọc chỉ cảnh báo,
+không biến thành hết hàng. Báo đúng webhook_don_web của Sales, không suy kênh
+Zalo chung là Sales. DOM phải kiểm cả trang cũ và Vue giữ giỏ/tải lại tồn.
+Đột biến phải đối chiếu nền xanh và mã thực sự đổi; chuỗi thay không khớp
+không phải một lần kiểm đột biến. Ca Document thật nằm ở cổng bench, không
+gọi fixture trên production.
