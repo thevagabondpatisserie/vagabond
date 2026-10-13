@@ -29,13 +29,13 @@ function moiTruong(goiY, hongGoiY) {
     api: async function (m, p) {
       ghi.api.push([m, p]);
       if (m === 'vagabond.kiem_ke.tk_goi_y') { if (hongGoiY) throw new Error('mat mang'); return goiY; }
-      if (m === 'frappe.client.insert') return { name: 'MAT-RECO-1' };
+      if (m === 'vagabond.kiem_ke.ghi_so') return { name: 'MAT-RECO-1' };
       return {};
     }
   };
   vm.createContext(ctx);
   vm.runInContext(layHam('kkNum') + '\n' + layHam('kkpGoiYTk') + '\n' + layHam('kkpSubmit'), ctx);
-  vm.runInContext("var kkp = { doc: { name: 'PKK-1', kho: 'Kho Bếp - TVD', pham_vi: 'NVL' }, rows: [{ item_code: 'NVL1', so_luong: 5, ton_he_thong: 5 }], rates: { NVL1: 1000 }, opening: 0, info: {}, cc: '', acc: '632 - TVD' };", ctx);
+  vm.runInContext("var kkp = { doc: { name: 'PKK-1', kho: 'Kho Bếp - TVD', pham_vi: 'NVL' }, rows: [{ item_code: 'NVL1', da_dem: 1, so_luong: 5, ton_he_thong: 5 }], rates: { NVL1: 1000 }, opening: 0, info: {}, cc: '', acc: '632 - TVD' };", ctx);
   return { ctx: ctx, ghi: ghi };
 }
 (async function () {
@@ -50,7 +50,7 @@ function moiTruong(goiY, hongGoiY) {
   vm.runInContext("kkp.acc = '6328 - TVD';", m.ctx);
   await m.ctx.kkpSubmit();
   var ten = m.ghi.api.map(function (c) { return c[0]; });
-  var iNop = ten.indexOf('frappe.client.submit'), iNho = ten.indexOf('vagabond.kiem_ke.nho_tk');
+  var iNop = ten.indexOf('vagabond.kiem_ke.ghi_so'), iNho = ten.indexOf('vagabond.kiem_ke.nho_tk');
   assert(iNop >= 0 && iNho > iNop, 'nho sau khi nop: ' + ten.join(','));
   assert.strictEqual(JSON.stringify(m.ghi.api[iNho][1]), JSON.stringify({ kho: 'Kho Bếp - TVD', tk: '6328 - TVD', dau_ky: 0 }));
   // 3. May chu khong tra loi thi giu mac dinh da dien

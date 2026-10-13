@@ -72,6 +72,19 @@ def dung():
 	frappe.db.set_single_value("Stock Settings", "allow_negative_stock", 0)
 	frappe.db.set_single_value("Stock Settings", "enable_serial_and_batch_no_for_item", 1)
 	frappe.db.set_single_value("Stock Settings", "use_serial_batch_fields", 1)
+	# #472: ca sổ kho đi qua phiếu kiểm kê site-only trước bước staging.
+	# Dùng nguyên metadata đã đọc từ site, không dựng DocType giả rỗng.
+	import json
+	from pathlib import Path
+	mau_kk = json.loads((Path(__file__).parents[1] / "staging" / "cau_truc_cu.json").read_text())
+	for row in mau_kk["doctypes"]:
+		if row["name"] not in ("Chi Tiet Kiem Ke", "Phieu Kiem Ke"):
+			continue
+		if not frappe.db.exists("DocType", row["name"]):
+			for perm in row["permissions"]:
+				if not frappe.db.exists("Role", perm["role"]):
+					frappe.get_doc({"doctype": "Role", "role_name": perm["role"]}).insert()
+			frappe.get_doc(dict(row, doctype="DocType")).insert()
 	# Năm tài chính.
 	if not frappe.db.exists("Fiscal Year", {"year_start_date": ["<=", today()], "year_end_date": [">=", today()]}):
 		nam = today()[:4]

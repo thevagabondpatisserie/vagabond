@@ -506,3 +506,94 @@ def phieu_dang_khoa():
 	"""Cac phieu kiem dang khoa ma, cho man Cai dat va man kiem ke soi."""
 	_duoc_dem()
 	return _phieu_dang_khoa()
+
+
+# #472: ô tồn bị che khi đếm mù không phải là số 0 để lưu ngược vào sổ.
+def giu_anh_chup_ton(doc, method=None):
+	"""Một nguồn ảnh chụp ở máy chủ cho cả app, Desk và import.
+
+	Dòng cũ giữ ảnh chụp đã lưu; dòng mới đọc Bin tại lúc thêm vào phiếu.
+	Không sửa hồi tố các phiếu cũ đã bị lưu 0. Ghi sổ đọc tồn thật bằng core.
+	"""
+	cu = doc.get_doc_before_save()
+	bang = {r.name: r for r in (cu.get("items") or [])} if cu else {}
+	for r in doc.get("items") or []:
+		truoc = bang.get(r.name)
+		if truoc and truoc.item_code == r.item_code and cu.kho == doc.kho:
+			r.ton_he_thong = flt(truoc.ton_he_thong)
+		else:
+			r.ton_he_thong = flt(frappe.db.get_value(
+				"Bin", {"item_code": r.item_code, "warehouse": doc.kho}, "actual_qty"))
+		r.lech = flt(r.so_luong) - flt(r.ton_he_thong)
+
+
+@frappe.whitelist()
+def ghi_so(name, phieu):
+	"""Ghi sổ + đóng phiếu trong MỘT giao dịch, retry không sinh PKK thứ hai.
+
+	ERPNext de591661, stock_reconciliation.py: remove_items_with_no_change
+	đọc get_stock_balance_for tại posting_date/time rồi mới bỏ dòng không đổi;
+	không còn dòng thì ném EmptyStockReconciliationItemsError. Chỉ bắt đúng
+	lỗi đó ở insert, không bắt lỗi submit thành thành công.
+	"""
+	from erpnext.stock.doctype.stock_reconciliation.stock_reconciliation import (
+		EmptyStockReconciliationItemsError,
+	)
+
+	if not duoc_duyet():
+		frappe.throw("Chỉ quản lý kho mới ghi sổ phiếu kiểm kê.")
+	# Đọc bản mới nhất ngay trong phép khoá, không SELECT thường trên snapshot
+	# REPEATABLE READ sau khi đã đợi phiên khác ghi sổ xong.
+	doc = frappe.get_doc("Phieu Kiem Ke", name, for_update=True)
+	doc.check_permission("write")
+	if doc.trang_thai == "Đã ghi sổ":
+		return {"name": doc.stock_reconciliation, "khong_doi": not bool(doc.stock_reconciliation)}
+	if doc.trang_thai not in ("Chờ duyệt", "Đã chốt"):
+		frappe.throw("Chốt phiếu đếm trước rồi mở lại màn ghi sổ.")
+	frappe.db.savepoint("kiem_ke_ghi_so")
+	try:
+		vao = frappe.parse_json(phieu)
+		dong = [r for r in doc.get("items") or [] if cint(r.da_dem)]
+		if not dong:
+			frappe.throw("Phiếu chưa có món đã đếm. Mở lại phiếu và nhập số đếm trước.")
+		# Chỉ nhận giá/tài khoản do quản lý xác nhận. Kho, mã và số đếm lấy từ DB;
+		# trình duyệt cũ bỏ dòng 0 cũng không làm mất dòng tại cửa ghi sổ này.
+		gia = {r.get("item_code"): r for r in vao.get("items") or []}
+		sr = frappe.new_doc("Stock Reconciliation")
+		sr.company = frappe.db.get_value("Warehouse", doc.kho, "company")
+		sr.purpose = vao.get("purpose")
+		if sr.purpose not in ("Opening Stock", "Stock Reconciliation"):
+			frappe.throw("Chọn điều chỉnh tồn hoặc tồn đầu kỳ rồi thử lại.")
+		sr.posting_date = doc.ngay_kiem
+		sr.posting_time = vao.get("posting_time")
+		sr.set_posting_time = 1
+		sr.set_warehouse = doc.kho
+		sr.expense_account = vao.get("expense_account")
+		sr.cost_center = vao.get("cost_center")
+		for r in dong:
+			g = gia.get(r.item_code) or {}
+			sr.append("items", {
+				"item_code": r.item_code, "warehouse": doc.kho,
+				"qty": flt(r.so_luong), "valuation_rate": g.get("valuation_rate"),
+				"cost_center": sr.cost_center,
+				"batch_no": g.get("batch_no"),
+				"use_serial_batch_fields": cint(g.get("use_serial_batch_fields")),
+			})
+		frappe.db.savepoint("kiem_ke_khong_doi")
+		so_tin = len(frappe.message_log)
+		try:
+			sr.insert()
+		except EmptyStockReconciliationItemsError:
+			frappe.db.rollback(save_point="kiem_ke_khong_doi")
+			del frappe.message_log[so_tin:]
+			ma = None
+		else:
+			sr.submit()
+			ma = sr.name
+		doc.trang_thai = "Đã ghi sổ"
+		doc.stock_reconciliation = ma
+		doc.save()
+		return {"name": ma, "khong_doi": not bool(ma)}
+	except Exception:
+		frappe.db.rollback(save_point="kiem_ke_ghi_so")
+		raise

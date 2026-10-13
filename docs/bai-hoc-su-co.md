@@ -2200,3 +2200,18 @@ trước khi nhận bot thực sự dùng model đó. Không chữa thiếu quy�
 ### PR #474, vòng sửa 13/10: kiểm hợp đồng dữ liệu và nhánh QR lỗi
 
 Không chỉ kiểm helper BIN: gọi `tk_cho` cho cả tài khoản riêng và mặc định rồi đưa payload thật vào JS. Màn khách cũ chỉ hiểu ảnh, nên sender chỉ phát khối QR sau khi dựng được ảnh. Tiền rỗng bị từ chối ở cả JS/Python; số 0 tường minh dùng 01=11. Các đường in bill, phiếu công nợ, bảng QR và Sales phải kiểm cả thư viện hỏng, vẫn giữ thông tin chuyển tay. Chín đột biến riêng của vòng này bị bắt 9/9; ca PDF kiểm khung của nhánh lỗi bằng HTML thật.
+
+## 13/10/2026 (#472): ô bị che không phải số 0
+
+Đếm mù trả `ton_he_thong=None`; màn lưu ép số thành 0 và gửi nguyên document
+về server, làm mất ảnh chụp. Bộ lọc ghi sổ dựa vào ảnh chụp đó lại loại dòng
+đếm 0. Giữ ảnh chụp bằng hook server và chỉ quyết định điều chỉnh bằng tồn
+core tại posting_date/time. Không dùng dữ liệu trình bày đã che làm nguồn ghi.
+Ca phải đi từ lưu/chốt số 0 tới payload ghi sổ; khôi phục bộ lọc cũ phải đỏ.
+Tạo SR, submit và đóng phiếu nguồn cần cùng giao dịch, có khoá nguồn để retry
+không sinh phiếu trùng. Chỉ coi core EmptyStockReconciliationItemsError ở insert
+là no-op, không gom lỗi submit vào nhánh thành công. Bench xác minh SLE/GL riêng.
+
+### PR #473: xoá ô đếm phải gỡ cờ đã đếm
+
+Ô trống sau gõ số không phải số0: cả input và change phải gỡ da_dem. Ca DOM gọi handler thật gõ5/xoá/gõ0; ca tầng khung gọi ghi_so với hai dòng cạnh nhau, chỉ dòng đếm0 được đưa vào Stock Reconciliation. Không chỉ có fixture một dòng. Ba đột biến (hai handler và bộ lọc server) bị bắt3/3.
