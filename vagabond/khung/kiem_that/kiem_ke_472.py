@@ -49,10 +49,15 @@ def _ve_khong():
 	sr = frappe.get_doc('Stock Reconciliation', kq['name'])
 	la('không tin qty giả từ trình duyệt', sr.items[0].qty, 0)
 	la('core đọc tồn thật', sr.items[0].current_qty, 11)
-	dung('sổ kho có xuất 11', any(r.actual_qty == -11 for r in _sle(sr.name, ma)))
+	# Core de591661 get_sle_for_items: actual_qty=0, qty_after_transaction=row.qty.
+	# Kiểm kê đặt số tồn, không phải phiếu xuất có actual_qty=-11.
+	sle = _sle(sr.name, ma)
+	dung('có sổ kho đặt tồn và giá trị về 0', bool(sle) and all(
+		r.qty_after_transaction == 0 and r.stock_value == 0 for r in sle))
 	gl = frappe.get_all('GL Entry', filters={'voucher_no': sr.name, 'is_cancelled': 0}, fields=['debit', 'credit'])
 	dung('có sổ cái điều chỉnh', bool(gl))
 	la('sổ cái cân', round(sum(r.debit-r.credit for r in gl), 4), 0)
+	la('sổ cái ghi đủ giá trị 11 x 400', round(sum(r.debit for r in gl), 4), 4400)
 	la('retry trả đúng phiếu cũ', kiem_ke.ghi_so(doc.name, vao)['name'], sr.name)
 	sr.cancel()
 	la('huỷ core khôi phục tồn', _ton(ma, kho), 11)

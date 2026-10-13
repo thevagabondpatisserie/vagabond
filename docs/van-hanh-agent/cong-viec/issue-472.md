@@ -49,3 +49,13 @@ chưa tới logic ghi sổ. Bench nền chưa dựng hai DocType site-only; stag
 trước đây chỉ dựng chúng sau bộ tích hợp. Đưa nguyên hai cấu trúc trong
 `staging/cau_truc_cu.json` vào nen_bench trước migrate, giữ kiểm từng trường/
 quyền khi staging tái dùng. Không đổi schema production, không bỏ ca đỏ.
+
+## Bench vòng 2
+
+Run38395053412, SHA47b2c7484e9bf0778d21e8bab279d59e981883ff:
+401/402 đạt cả hai lượt, no-op và rollback/retry đạt, hoàn nguyên sạch.
+Ca về0 chỉ sai kỳ vọng `SLE.actual_qty == -11`: core de591661
+`get_sle_for_items` dùng actual_qty=0, qty_after_transaction=row.qty cho
+kiểm kê không lô. Đã sửa ca để kiểm SLE có qty_after_transaction=0 và
+stock_value=0, cộng Nợ GL=4400 (11x400) và cân Nợ/Có. Giữ kiểm Bin0,
+SR.current_qty11, retry cùng phiếu và huỷ trả tồn11. Không sửa code runtime.
