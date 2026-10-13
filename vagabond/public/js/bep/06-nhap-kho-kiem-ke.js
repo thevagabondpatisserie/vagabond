@@ -1866,7 +1866,7 @@ async function kkpGoiYTk() {
 
 async function kkpSubmit() {
   var d = kkp.doc;
-  var rows = kkp.rows.filter(function (r) { return kkNum(r.so_luong) > 0 || kkNum(r.ton_he_thong) > 0; });
+  var rows = kkp.rows.filter(function (r) { return r.da_dem; });
   if (!rows.length) return toast('Phiếu không có món nào để ghi sổ');
   if (kkp.loiGia) return toast('Chưa tra được giá vốn từ sổ kho (' + kkp.loiGia + '). Mở lại màn này rồi ghi sổ.', 5000);
   var bad = rows.filter(function (r) { return kkNum(r.so_luong) > 0 && !kkp.rates[r.item_code]; });
@@ -1878,7 +1878,7 @@ async function kkpSubmit() {
   if (thieuLy.length) return toast('Còn ' + thieuLy.length + ' món lệch chưa chọn lý do, chọn đủ rồi ghi sổ');
 
   var ok = await confirmSheet('Ghi sổ ' + rows.length + ' món?',
-    'Kho ' + shortWh(d.kho) + ' · ' + d.pham_vi + '\n\nMáy sẽ tạo phiếu điều chỉnh tồn kho và NỘP luôn. Sau đó tồn kho đổi theo số đã đếm và không sửa lại bằng app được, phải huỷ phiếu trên máy tính.',
+    'Kho ' + shortWh(d.kho) + ' · ' + d.pham_vi + '\n\nCó ' + rows.filter(function (r) { return kkNum(r.so_luong) === 0; }).length + ' món đếm bằng 0, sẽ đưa tồn về 0 tại thời điểm kiểm kê.\nMáy sẽ tạo phiếu điều chỉnh tồn kho và NỘP luôn. Sau đó tồn kho đổi theo số đã đếm và không sửa lại bằng app được, phải huỷ phiếu trên máy tính.',
     'Ghi sổ ngay');
   if (!ok) return;
 
@@ -1919,21 +1919,16 @@ async function kkpSubmit() {
         return it;
       })
     };
-    var doc = await api('frappe.client.insert', { doc: sr });
-    if (!doc || !doc.name) throw new Error('Không tạo được phiếu điều chỉnh');
-    await api('frappe.client.submit', { doc: doc });
+    var doc = await api('vagabond.kiem_ke.ghi_so', { name: d.name, phieu: JSON.stringify(sr) });
+    if (!doc || (!doc.name && !doc.khong_doi)) throw new Error('Chưa nhận được kết quả ghi sổ, mở lại phiếu để kiểm tra');
 
     /* 2b. nho tai khoan vua chon de lan sau goi y (v561). Hong thi thoi,
        phieu da ghi so roi. */
     try { await api('vagabond.kiem_ke.nho_tk', { kho: d.kho, tk: kkp.acc, dau_ky: kkp.opening ? 1 : 0 }); } catch (en) { }
 
-    /* 3. dong phieu kiem ke */
-    d.trang_thai = 'Đã ghi sổ';
-    d.stock_reconciliation = doc.name;
-    await api('frappe.client.save', { doc: d });
-
+    /* Máy chủ đã đóng phiếu cùng giao dịch với ghi sổ, không save lần hai. */
     busy(0);
-    toast('Đã ghi sổ bằng phiếu ' + doc.name, 4200);
+    toast(doc.khong_doi ? 'Đã kiểm xong: số lượng và giá trị không đổi, không cần phiếu điều chỉnh.' : 'Đã ghi sổ bằng phiếu ' + doc.name, 4200);
     kk.doc = null; kk.cat = null; kk.catKey = '';
     reset(scrHome); go(scrKkList);
   } catch (e) { busy(0); toast(errMsg(e), 5000); }

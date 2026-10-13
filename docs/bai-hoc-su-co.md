@@ -2188,3 +2188,14 @@ Các vòng #462/#465 có code và ca kiểm trong cloud nhưng head PR không đ
 Instruction phải chốt SHA remote, gói task/diff khi thiếu quyền và đường tiếp
 nhận desktop. Model trong TOML cũng là yêu cầu cấu hình, phải kiểm metadata
 trước khi nhận bot thực sự dùng model đó. Không chữa thiếu quyền bằng PR trùng.
+
+## 13/10/2026 (#472): ô bị che không phải số 0
+
+Đếm mù trả `ton_he_thong=None`; màn lưu ép số thành 0 và gửi nguyên document
+về server, làm mất ảnh chụp. Bộ lọc ghi sổ dựa vào ảnh chụp đó lại loại dòng
+đếm 0. Giữ ảnh chụp bằng hook server và chỉ quyết định điều chỉnh bằng tồn
+core tại posting_date/time. Không dùng dữ liệu trình bày đã che làm nguồn ghi.
+Ca phải đi từ lưu/chốt số 0 tới payload ghi sổ; khôi phục bộ lọc cũ phải đỏ.
+Tạo SR, submit và đóng phiếu nguồn cần cùng giao dịch, có khoá nguồn để retry
+không sinh phiếu trùng. Chỉ coi core EmptyStockReconciliationItemsError ở insert
+là no-op, không gom lỗi submit vào nhánh thành công. Bench xác minh SLE/GL riêng.

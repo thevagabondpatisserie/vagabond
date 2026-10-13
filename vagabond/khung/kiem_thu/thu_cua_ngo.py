@@ -608,7 +608,7 @@ CUA_NGO = {
 	# `chan_khi_dang_kiem`, `soat_truoc_khi_chot` va `chup_ton_so` la HOOK,
 	# phai nam NGOAI danh sach: mo ra ngoai la cho phep goi thang tu trinh
 	# duyet vao dung cho dang khoa so kho.
-	"kiem_ke.py": [
+	"kiem_ke.py": ["ghi_so",
 		"ghi_ly_do", "lich_hom_nay", "ly_do_ds", "mo_phieu",
 		"phieu_cho_duyet", "phieu_dang_khoa", "tao_phieu_hom_nay",
 		# v561: goi y va nho tai khoan chenh lech ke toan da chon.
