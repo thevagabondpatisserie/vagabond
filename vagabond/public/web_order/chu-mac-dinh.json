@@ -2964,6 +2964,12 @@
     "mac_dinh": "Đã giảm {tien}",
     "nhieu_dong": false
   },
+  "dat_banh_da_giam_con": {
+    "ten": "Giỏ hàng: đã giảm và tổng còn lại (giữ {tien}, {tong})",
+    "nhom": "gio_hang",
+    "mac_dinh": "Đã giảm {tien}, còn {tong}",
+    "nhieu_dong": false
+  },
   "dat_banh_ma_chua_giam": {
     "ten": "Giỏ hàng: mã hợp lệ nhưng chưa đủ điều kiện",
     "nhom": "gio_hang",

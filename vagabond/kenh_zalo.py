@@ -312,7 +312,10 @@ def con_can_lam(kiem, nguon, ham):
 
 
 def ghi_chat_moi(ds, cap_nhat, luc):
-	"""THUẦN: thêm cuộc chat vừa nhắn bot vào đầu danh sách, bỏ trùng, giữ 20."""
+	"""THUẦN: thêm cuộc chat vừa nhắn bot vào đầu danh sách, bỏ trùng, giữ 20.
+
+	v591: giữ mốc "chao" (lần cuối bot trả lời mã nhóm) của dòng cũ, để không
+	trả lời nhóm mỗi lần có người @nhắc bot."""
 	msg = (cap_nhat or {}).get("message") or (cap_nhat or {}).get("result", {}).get("message") or {}
 	chat = msg.get("chat") or {}
 	cid = str(chat.get("id") or "").strip()
@@ -321,8 +324,72 @@ def ghi_chat_moi(ds, cap_nhat, luc):
 	nguoi = (msg.get("from") or {}).get("display_name") or ""
 	moi = {"chat_id": cid, "loai": chat.get("chat_type") or chat.get("type") or "",
 		"ten": chat.get("title") or chat.get("display_name") or nguoi, "nguoi": nguoi, "luc": str(luc)[:16]}
+	cu = [x for x in (ds or []) if x.get("chat_id") == cid]
+	if cu and cu[0].get("chao"):
+		moi["chao"] = cu[0]["chao"]
 	con = [x for x in (ds or []) if x.get("chat_id") != cid]
 	return ([moi] + con)[:GIU_CHAT_MOI], moi
+
+
+# v591: anh Việt 12/10/2026 nối nhóm thứ hai không được. Zalo không gửi tên nhóm
+# trong cập nhật (chỉ có tên người nhắn), nên hai nhóm cùng hiện "Viet Nguyen" và
+# không phân biệt được. Cách gỡ: mỗi nhóm có một MÃ NGẮN (4 ký tự cuối mã chat);
+# bot trả lời mã đó ngay trong nhóm, và hộp chọn trong ERP hiện đúng mã đó.
+CHAO_PHUT = 60
+
+
+def ma_ngan(chat_id):
+	"""THUẦN: 4 ký tự cuối của mã chat, viết hoa, để đối chiếu giữa nhóm Zalo và ERP."""
+	c = str(chat_id or "").strip()
+	if c.lower().startswith("zgr-"):
+		c = c[4:]
+	return c[-4:].upper()
+
+
+def can_chao(ds_cu, chat_id, luc, phut=CHAO_PHUT):
+	"""THUẦN: bot có nên trả lời mã nhóm không. Lần đầu nhóm nhắc bot thì có; đã trả
+	lời trong `phut` phút gần đây thì không (tránh trả lời mỗi lần có người @nhắc)."""
+	from datetime import datetime
+	cid = str(chat_id or "").strip()
+	cu = [x for x in (ds_cu or []) if isinstance(x, dict) and str(x.get("chat_id") or "").strip() == cid]
+	moc = (cu[0].get("chao") if cu else "") or ""
+	if not moc:
+		return True
+	try:
+		a = datetime.strptime(str(moc)[:16], "%Y-%m-%d %H:%M")
+		b = datetime.strptime(str(luc)[:16], "%Y-%m-%d %H:%M")
+	except Exception:
+		return True
+	return (b - a).total_seconds() >= phut * 60
+
+
+def soan_chao(ma):
+	"""THUẦN: tin bot trả lời trong nhóm vừa @nhắc bot."""
+	return ("✅ ERP Vagabond đã nhận nhóm Zalo này. Mã nhóm: %s\n"
+		"Để nhóm nhận tin từ ERP: vào app ERP > Cài đặt > Zalo bắn tin nhóm, mở hoặc thêm dòng của nhóm, "
+		"bấm \"Chọn nhóm đã nhắn bot\" rồi chọn dòng \"Nhóm Zalo mã %s\".\n"
+		"Không cần trả lời tin này." % (ma, ma))
+
+
+def ds_nhom_chon(chat_moi, bang):
+	"""THUẦN: danh sách NHÓM đã @nhắc bot cho hộp chọn, mới nhất trước, kèm mã ngắn và
+	dòng nào trong bảng đang dùng nhóm đó. Chat riêng không bao giờ vào danh sách."""
+	gan = {}
+	for r in bang or []:
+		c = str(r.get("chat_id") or "").strip()
+		if c:
+			gan.setdefault(c, []).append(str(r.get("ten_nhom") or "").strip() or "dòng chưa đặt tên")
+	ra = []
+	for x in chat_moi or []:
+		if not isinstance(x, dict) or str(x.get("loai") or "").upper() != "GROUP":
+			continue
+		c = str(x.get("chat_id") or "").strip()
+		if not c:
+			continue
+		ra.append({"chat_id": c, "ma": ma_ngan(c), "luc": str(x.get("luc") or ""), "nguoi": x.get("nguoi") or "",
+			"dang_gan": gan.get(c, [])})
+	ra.sort(key=lambda r: r["luc"], reverse=True)
+	return ra
 
 
 # --------------------------------------------------------------- CHẠM HỆ
@@ -442,6 +509,7 @@ def bao(loai, chu_de, tieu_de, dong=None, link=None, khoa=None, nguoi=None, han=
 		ten = _ghi_hop_thu(tin)
 		if ten:
 			frappe.db.after_commit.add(lambda: _xep(ten))
+		return ten
 	except Exception as e:
 		if chet_giao_dich(e):
 			raise
@@ -705,10 +773,43 @@ def nhan():
 	except Exception:
 		cu = []
 	ds, moi = ghi_chat_moi(cu, goi, now_datetime())
+	chao = False
 	if moi:
+		# v591: nhóm nhắc bot lần đầu (hoặc lâu rồi chưa được trả lời) thì bot trả lời
+		# mã nhóm ngay trong nhóm. Ghi mốc trước khi commit để hai lần nhắc liền nhau
+		# không cùng trả lời (đã khoá dòng Cài đặt ở trên).
+		if str(moi.get("loai") or "").upper() == "GROUP" and can_chao(cu, moi["chat_id"], moi["luc"]):
+			moi["chao"] = moi["luc"]
+			chao = True
 		frappe.db.set_single_value("Vagabond Settings", "zalo_chat_moi", json.dumps(ds, ensure_ascii=False))
 		frappe.db.commit()
+	if chao:
+		try:
+			frappe.enqueue("vagabond.kenh_zalo.chao_nhom", queue="short", chat_id=moi["chat_id"])
+		except Exception:
+			frappe.log_error("Chưa xếp được tin trả lời mã nhóm Zalo %s." % ma_ngan(moi["chat_id"]), "kenh_zalo: chao loi")
 	return {"ok": True}
+
+
+def chao_nhom(chat_id):
+	"""Worker (v591): trả lời nhóm vừa @nhắc bot bằng mã nhóm. Lỗi chỉ ghi mã ngắn,
+	không ghi mã chat đầy đủ hay token."""
+	tt, loi = _gui_zalo(chat_id, soan_chao(ma_ngan(chat_id)))
+	if tt != "Đã gửi":
+		frappe.log_error("Chưa gửi được tin trả lời mã nhóm Zalo %s: %s" % (ma_ngan(chat_id), loi), "kenh_zalo: chao loi")
+
+
+@frappe.whitelist()
+def nhom_da_nhan_bot():
+	"""v591: hộp chọn nhóm trong Cài đặt đọc danh sách MỚI từ máy chủ mỗi lần mở,
+	không dùng bản tải lúc mở màn (nhóm vừa nhắc bot sau đó sẽ không hiện)."""
+	_chi_quan_tri()
+	v = frappe.db.sql("select value from `tabSingles` where doctype='Vagabond Settings' and field='zalo_chat_moi'")
+	try:
+		cm = json.loads((v[0][0] if v else None) or "[]")
+	except Exception:
+		cm = []
+	return ds_nhom_chon(cm, _cac_nhom())
 
 
 def _ghi_noi(tt, goi_y):

@@ -18,14 +18,17 @@ duyệt" gửi nhóm Kế toán. Các tin khác thêm dần sau khi chạy ổn.
 ## 2. Gắn từng nhóm
 
 1. Thêm bot vào nhóm Zalo (ví dụ nhóm Kế toán).
-2. Trong nhóm, một người @nhắc bot một lần (gõ @tên bot và một chữ bất kỳ).
-3. Tải lại Vagabond Settings. Máy ghi lại nhóm vừa nhắn bot (không lưu nội
-   dung tin nhắn).
+2. Trong nhóm, gõ **@**, chọn bot rồi gửi một tin bất kỳ. Bot trả lời **mã
+   nhóm** gồm 4 ký tự; ghi nhớ mã này để chọn đúng nhóm trong ERP.
+3. Máy ghi lại nhóm vừa nhắc bot và tên người nhắc (không lưu nội dung tin
+   nhắn). Trên app không cần tải lại màn; trên Desk hãy tải lại Vagabond
+   Settings nếu hộp chọn đang mở từ trước.
 4. Mục **Nhóm nhận tin** (tab Tin nhắn & cảnh báo): mỗi nhóm là một thẻ ghi
    rõ nhận loại tin nào, chủ đề nào, giờ im, đang bật hay tắt. Bấm **+ Thêm
    nhóm nhận tin** (hoặc **Sửa** trên thẻ), trong hộp hiện ra:
-   - ô **Nhóm Zalo**: gõ vài chữ tên nhóm để tìm rồi chọn. Chỉ hiện các nhóm
-     đã thêm bot và @nhắc bot, không có chat riêng;
+   - ô **Nhóm Zalo**: tìm bằng mã 4 ký tự bot vừa trả lời hoặc tên người đã
+     nhắc bot, rồi chọn. Chỉ hiện các nhóm đã thêm bot và @nhắc bot;
+     không có chat riêng;
    - **Tên gọi trong ERP**: ví dụ Kế toán;
    - tích các **loại tin** và **chủ đề** nhóm cần nhận, mỗi ô có dòng giải
      thích. Không tích ô nào là nhận tất cả;

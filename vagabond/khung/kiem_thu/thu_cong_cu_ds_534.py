@@ -562,7 +562,11 @@ def _dem_tep_unc():
 	i = s.find("def phieu_thu_nhap(")
 	than = s[i:s.find("\ndef ", i + 10)]
 	dung("màn Tiền đã về đọc đúng ô UNC", 'o_unc = {p.name: tep_dinh_kem.doc_ds(p.get("vgb_thu_unc"))' in than)
-	dung("màn Tiền đã về đếm cùng phép", "dem_tep_unc(o_unc[p.name]" in than)
+	# v580: màn lấy DANH SÁCH tệp (để mở xem) qua ds_tep_unc, số đếm là độ dài của nó.
+	dung("màn Tiền đã về đếm cùng phép", "ds_tep_unc(o_unc[p.name]" in than)
+	from vagabond.thu_tien import ds_tep_unc
+	la("v580 danh sách tệp UNC thật, giữ thứ tự ô, bỏ trùng, bỏ tệp đã gỡ",
+		ds_tep_unc(["/b", "/a", "/b", "/go"], {"/a", "/b", "/khac"}), ["/b", "/a"])
 
 
 @ca("v534 UNC khách gửi: chỉ tệp gắn vào phiếu QUA ô UNC mới tính, ảnh ở mục khác không đổi nhãn được (Codex #382 vòng 7)")
@@ -595,7 +599,7 @@ def _o_unc_muc_khac():
 	dung("đọc MỌI dòng File mang đường dẫn, không lọc theo phiếu", 'filters={"file_url": ["in", ds]}' in than)
 	i = s.find("def phieu_thu_nhap(")
 	than = s[i:s.find("\ndef ", i + 10)]
-	dung("màn Tiền đã về đếm cùng phép", "tep = {p.name: dem_tep_unc(o_unc[p.name], url_unc_that(" in than)
+	dung("màn Tiền đã về đếm cùng phép (v580: ds_tep_unc, cùng phép với dem_tep_unc)", "tep = {p.name: ds_tep_unc(o_unc[p.name], url_unc_that(" in than)
 	dung("màn Tiền đã về đọc mọi dòng File theo đường dẫn", 'filters={"file_url": ["in", lo]}' in than)
 	i = s.find("def ghi_so_phieu_thu(")
 	than = s[i:s.find("\n@frappe.whitelist", i + 10)]

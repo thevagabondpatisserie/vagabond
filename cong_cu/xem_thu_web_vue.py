@@ -22,7 +22,7 @@ import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-GOC = Path(__file__).resolve().parents[1]
+GOC = Path(os.environ.get('VGB_GOC') or Path(__file__).resolve().parents[1]).resolve()
 CONG = int(sys.argv[1]) if len(sys.argv) > 1 else 8790
 BAN_CU = Path(os.environ.get('VGB_BAN_CU') or GOC / 'vagabond/trang/banh.html')
 TAI_SAN_CU = Path(os.environ.get('VGB_TAI_SAN_CU') or GOC / 'vagabond/public/web_order')

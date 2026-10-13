@@ -17459,6 +17459,15 @@ function cnCongCuVe(kv) {
   };
 }
 
+function cnLinkUnc(ds) {
+  function link(u, i) {
+    return '<a data-cnxemunc="1" target="_blank" rel="noopener" href="' + h(u) + '" style="display:inline-flex;align-items:center;min-height:44px;padding:0 10px;font-size:13px;font-weight:600;color:#0e7490">👁 Xem UNC' + (ds.length > 1 ? ' ' + (i + 1) : '') + '</a>';
+  }
+  return ds.slice(0, 2).map(link).join('') + (ds.length > 2
+    ? '<details data-cnuncthem="1"><summary style="min-height:44px;display:flex;align-items:center;cursor:pointer">Và ' + (ds.length - 2) + ' tệp nữa</summary>' +
+      ds.slice(2).map(function (u, i) { return link(u, i + 2); }).join('') + '</details>' : '');
+}
+
 function cnVeDs(kv) {
   kv = kv || {};
   var dong = kv.dong || [];
@@ -17476,8 +17485,14 @@ function cnVeDs(kv) {
       '<div style="font-size:12.5px;color:#667085;margin-top:2px">' + h(p.hd_dau || '') +
       (p.so_hd > 1 ? ' và ' + (p.so_hd - 1) + ' hoá đơn nữa' : '') +
       ' · về ' + posNgayVn(p.ngay_ve) + ' · GD …' + h(p.duoi_gd || '') + '</div>' +
-      '<div style="margin-top:6px">' + (coUnc
-        ? '<span style="background:#ecfdf3;border:1px solid #a6f4c5;color:#05603a;border-radius:20px;padding:2px 9px;font-size:11.5px;white-space:nowrap">Có UNC · ' + p.so_tep + ' tệp</span>'
+      /* v580 (chị Dung 06/10/2026): kế toán phải XEM được UNC Sales đã đính
+         trước khi bấm Ghi sổ; chip "Có UNC" thành từng nút mở tệp. */
+      '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">' + (coUnc
+        ? '<span style="background:#ecfdf3;border:1px solid #a6f4c5;color:#05603a;border-radius:20px;padding:2px 9px;font-size:11.5px;white-space:nowrap">Có UNC · ' + p.so_tep + ' tệp</span>' +
+          /* Codex #445: tệp UNC là tệp riêng tư, chỉ người đọc được Phiếu thu
+             (kế toán) mới mở được; Sales thấy nút mà bấm ra 403. Nên chỉ hiện
+             nút cho kế toán, đúng người cần xem trước khi Ghi sổ. */
+          (kv.ke_toan ? cnLinkUnc(p.tep_unc || []) : '')
         : '<span style="background:#fef2f2;border:1px solid #fecaca;color:#b3261e;border-radius:20px;padding:2px 9px;font-size:11.5px;white-space:nowrap">Chưa có UNC</span>') +
       '</div></div>' +
       '<b style="font-size:15.5px;white-space:nowrap">' + money(p.tien) + ' đ</b></div>' +
@@ -23426,7 +23441,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '589';
+var APPVER = '592';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -55900,7 +55915,7 @@ function cdlTomDongZalo(r) {
   var cd = tach(r.chu_de).map(function (x) { return (N.chu_de[x] || ['', x])[1]; });
   return [lt.length ? lt.join(' · ') : 'Mọi loại tin', cd.length ? 'chủ đề ' + cd.join(', ') : '',
     (r.im_tu && r.im_den) ? 'im ' + r.im_tu + ' đến ' + r.im_den : '', parseInt(r.bat, 10) === 1 ? '' : 'Đang tắt',
-    r.chat_id ? '' : 'Chưa chọn nhóm Zalo'].filter(Boolean).join(' · ');
+    r.chat_id ? cdlNhanNhomZalo({ chat_id: r.chat_id }) : 'Chưa chọn nhóm Zalo'].filter(Boolean).join(' · ');
 }
 
 async function cdlGuiThuZalo(r) {
@@ -55947,7 +55962,7 @@ function cdlVeDong(fnBang, i, nhap) {
         '<span style="margin-left:auto"></span><button class="cdl-lnk" data-cdldchon="' + h(c.fn) + '">Chọn</button></div></div>';
     }
     if (fnBang === 'zalo_nhom' && c.fn === 'chat_id') {
-      return '<div class="cdl-f">' + nhan + '<div class="cdl-val">' + (v ? h(v) : '<span style="color:#9aa1a8">Chưa chọn</span>') +
+      return '<div class="cdl-f">' + nhan + '<div class="cdl-val">' + (v ? '<span><b>' + h(cdlNhanNhomZalo({ chat_id: v })) + '</b><div class="cdl-mo">' + h(v) + '</div></span>' : '<span style="color:#9aa1a8">Chưa chọn</span>') +
         '<span style="margin-left:auto"></span><button class="cdl-lnk" data-cdldnhom="1">Chọn nhóm đã nhắn bot</button></div>' + mo + '</div>';
     }
     if (c.chi_doc && choGhi.indexOf(c.fn) < 0) {
@@ -55969,7 +55984,7 @@ function cdlVeDong(fnBang, i, nhap) {
       var f = el.getAttribute('data-cdldbat'); nhap[f] = parseInt(nhap[f], 10) === 1 ? 0 : 1; return cdlVeDong(fnBang, i, nhap);
     }
     if ((el = e.target.closest('[data-cdldchon]'))) return cdlChonZalo(el.getAttribute('data-cdldchon'), nhap, function () { cdlVeDong(fnBang, i, nhap); });
-    if ((el = e.target.closest('[data-cdldnhom]'))) return cdlChonNhomZalo(nhap, function () { cdlVeDong(fnBang, i, nhap); });
+    if ((el = e.target.closest('[data-cdldnhom]'))) return cdlChonNhomZalo(nhap, function () { cdlVeDong(fnBang, i, nhap); }, i);
     if (e.target.closest('#cdlDongXong')) {
       if (!String(nhap.ten_nhom || '').trim() && fnBang === 'zalo_nhom') return toast('Đặt tên nhóm trước, ví dụ Kế toán.');
       var rows = CDL.bang[fnBang] = (CDL.bang[fnBang] || []).slice();
@@ -56023,16 +56038,39 @@ function cdlChonZalo(cot, nhap, xong) {
   return { ov: ov, box: box };
 }
 
-function cdlChonNhomZalo(nhap, xong) {
-  var ds = [];
-  try { ds = JSON.parse(cdlDoc().zalo_chat_moi || '[]'); } catch (e) { ds = []; }
-  ds = (ds || []).filter(function (x) { return String(x.loai || '').toUpperCase() === 'GROUP'; });
-  if (!ds.length) return toast('Chưa có nhóm nào nhắn bot. Thêm bot vào nhóm Zalo, @nhắc bot một lần rồi mở lại màn này.');
-  sheet('Chọn nhóm đã nhắn bot', ds.map(function (x) {
-    return { label: x.ten || 'Nhóm không tên', value: x.chat_id, phu: x.chat_id };
+/* v591: anh Việt 12/10/2026 nối nhóm thứ hai không được. Zalo không gửi tên nhóm,
+ * nên hai nhóm cùng hiện tên người nhắc bot ("Viet Nguyen"), và danh sách lấy từ
+ * bản tải lúc mở màn nên nhóm vừa nhắc bot không hiện. Từ nay: đọc danh sách mới
+ * từ máy chủ mỗi lần bấm, gọi nhóm bằng MÃ NHÓM (bot cũng trả lời mã này trong
+ * nhóm), báo nhóm nào đang gán cho dòng nào, và không tự lấy tên người làm tên nhóm. */
+function cdlNhanNhomZalo(x) {
+  // Dùng ngoặc vuông để bộ tách hàm của ca DOM không hiểu nhầm phương thức
+  // module chung là một hàm toàn cục nằm trong app_bep.js.
+  return VGB_CD['nhanNhomZalo'](x);
+}
+function cdlGioZalo(luc) {
+  var m = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}:\d{2})/.exec(String(luc || ''));
+  return m ? m[4] + ' ngày ' + m[3] + '/' + m[2] : String(luc || '');
+}
+async function cdlChonNhomZalo(nhap, xong, iDong) {
+  var ds;
+  try { ds = await api('vagabond.kenh_zalo.nhom_da_nhan_bot', {}); } catch (e) { ds = null; }
+  if (!Array.isArray(ds)) return toast('Chưa tải được danh sách nhóm Zalo. Thử lại sau ít giây.');
+  if (!ds.length) return toast('Chưa có nhóm Zalo nào nhắc bot. Thêm bot vào nhóm, gõ @ chọn bot rồi gửi; bot sẽ trả lời mã nhóm, sau đó bấm lại nút này.');
+  sheet('Chọn nhóm Zalo theo mã nhóm', ds.map(function (x) {
+    // Danh sách này vừa đọc từ máy chủ, nên không dùng CDL.bang đã tải lúc mở
+    // màn. Khi sửa, chỉ bỏ chính dòng hiện tại khỏi các tên máy chủ trả về.
+    var tenDangSua = iDong >= 0 && CDL.bang.zalo_nhom[iDong] ? String(CDL.bang.zalo_nhom[iDong].ten_nhom || '').trim() : '';
+    var dung = (x.dang_gan || []).filter(function (ten) { return !tenDangSua || ten !== tenDangSua; });
+    return {
+      label: cdlNhanNhomZalo({ chat_id: x.chat_id, dang_gan: dung }), value: x.chat_id,
+      phu: 'Nhắc bot lúc ' + cdlGioZalo(x.luc) + (x.nguoi ? ', người nhắc: ' + x.nguoi : '') +
+        (dung.length ? '. Đang gán cho: ' + dung.join(', ') : ''),
+      tim: x.ma + ' ' + (x.nguoi || ''), dung: dung,
+    };
   }), nhap.chat_id, function (it) {
+    if (it.dung.length) return toast(cdlNhanNhomZalo({ chat_id: it.value }) + ' đang gán cho ' + it.dung.join(', ') + '. Mỗi nhóm Zalo chỉ gán cho một dòng.');
     nhap.chat_id = it.value;
-    if (!nhap.ten_nhom) nhap.ten_nhom = it.label;
     xong();
   }, true);
 }

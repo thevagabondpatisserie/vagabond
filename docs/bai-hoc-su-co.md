@@ -6,6 +6,38 @@ sửa những chỗ có liên quan, vì phần lớn các lỗi đó KHÔNG có 
 
 Tệp này chỉ giữ bài học rút gọn. Nhật ký đầy đủ từng ngày nằm ngoài repo.
 
+## 12/10/2026 - Kiểm lại tổng sau tạo đơn và biên nhận cảnh báo (#465)
+
+Giảm giá gửi đúng trường vẫn cần đọc lại số phải thu của hệ nhận đơn. Lỗi
+đọc lại sau khi đã tạo không được biến thành lỗi tạo đơn, khiến khách thử lại.
+Cảnh báo GET cần worker riêng; bao() nuốt lỗi ghi thì commit thành công chưa
+chứng minh đã có tin. Chỉ đặt khoá ngày khi có tên tin đã ghi. Ca hồi quy phải
+thử timeout, JSON hỏng và nhánh không ghi được tin, không chỉ HTTP 200.
+
+## 12/10/2026 - HTTP lỗi vẫn phải đi qua cùng cửa cảnh báo dịch vụ ngoài (#465)
+
+Ahamove trả 401, 429 hoặc 5xx không ném exception, nên nhánh chỉ ghi Error Log
+đã bỏ qua cảnh báo cho Sales dù phí giao đang hỏng. Cách phòng: mọi kết quả
+HTTP khác thành công phải đi qua cùng helper cảnh báo chống trùng như lỗi mạng;
+cảnh báo có mã trạng thái và thân phản hồi rút gọn, đồng thời che khoá API và
+token. Ca hồi quy phải gọi hai lần cho cả 401 và 500 rồi chốt chỉ có một cảnh
+báo trong ngày. Nguồn: finding review PR #465 trên SHA ef756a4.
+
+## 12/10/2026 - Chuỗi giờ không múi giờ bị hệ nhận đơn hiểu là UTC (#462 follow-up)
+
+Biên nhận web hiện đúng 19 giờ nhưng Pancake hiện 2 giờ sáng hôm sau. Nguyên
+nhân là trình duyệt gửi giờ Việt Nam không kèm múi giờ và máy chủ chuyển nguyên
+chuỗi sang Pancake, nơi đọc chuỗi đó như UTC. Cách phòng: chuẩn hoá tại một cửa
+máy chủ sang UTC trước khi gửi hệ ngoài; ca kiểm phải chốt cả giờ tối và 7 giờ
+sáng để bắt lỗi đổi ngày. Không sửa từng trang và không sửa ngược đơn đã tạo.
+
+## 12/10/2026 - Lỗi dịch vụ ngoài lặp theo từng khách phải có cảnh báo chống trùng (#462 follow-up)
+
+Phí giao hỏng từ 27/09 nhưng 1.158 Error Log giống nhau không đưa ra việc cần
+làm. Cấu hình chạy thật vẫn trỏ máy chủ Ahamove chạy thử. Cách phòng: màn Cài
+đặt phải tô đỏ địa chỉ `apistg`; lỗi gọi dịch vụ chỉ ghi và gửi kênh cảnh báo
+một lần mỗi ngày, kèm đúng ô cần kiểm. Không tự đổi cấu hình vận hành trong code.
+
 ## 12/10/2026 - Không coi ảnh máy chép vào Item là ảnh ERP người chọn (#462)
 
 Hannari trên web hiện bộ ảnh cũ dù Pancake đã có bộ ảnh mới. Nguyên
@@ -1431,6 +1463,16 @@ Cách phòng:
   mới gắn qua ô. Cổng "tệp phải nằm ở ô X" phải xét cả các dòng khác cùng
   đường dẫn (`thu_tien.url_unc_that`). Ca thuần giả lập không thấy được hành
   vi này; chỉ bench mới bắt (#382 vòng 8).
+# 30/09/2026 - So công nợ phải giữ cùng phạm vi
+
+PI outstanding dương, AP/AR có credit chưa phân bổ và Sổ đối tác từ GL
+không phải ba cách gọi cùng một chỉ tiêu. Purchase Receipt có Party trên
+tài khoản chờ hóa đơn có thể vào Sổ NCC mà không có PLE/AP. Truy đến
+voucher/account trước khi nhận là thiếu thanh toán; không tạo PE hay đổi
+outstanding để ép số bằng nhau. Purchase Register có bill_date không có
+nghĩa đã có payment_date. Incoming/Outgoing trong Payment Period là chiều
+tiền, không phải chiều hóa đơn. Nguồn và ca nghiệm thu:
+[hồ sơ đối chiếu](van-hanh-agent/cong-viec/doi-chieu-cong-no-20260930.md).
 
 ## 29/09/2026 (v540): phiếu ghi lùi ngày mà máy chọn lô theo tồn hôm nay
 
@@ -2085,6 +2127,60 @@ nhân là sender chỉ phân loại bốn nhãn và cố ý không đọc thân 
 có khối tóm tắt an toàn. Cách phòng: comment bàn giao có nhãn trạng thái cùng
 khối `telegram-tomtat` giới hạn hai trường ngắn; sender chỉ đọc khối của chủ repo,
 còn comment Codex chỉ lấy ý đầu của Summary và tuyệt đối không lấy Testing/log.
+
+## 12/10/2026 - Ảnh fixture phải là bằng chứng tự động của từng PR web
+
+Sau v590, ảnh giao diện ở cloud không đến được PR vì môi trường thiếu Chromium,
+nên người duyệt chỉ còn mô tả chữ và lỗi nút dính đáy có thể lọt. Nguyên nhân là
+việc chụp phụ thuộc máy của từng phiên thay vì là cổng của PR. Cách phòng: PR
+đổi trang đặt bánh hoặc sổ nhãn tự dựng fixture không chứa dữ liệu khách, chụp
+đủ hai bề rộng và các trạng thái chính, so pixel với main rồi lưu artifact.
+Comment phải nói rõ đây chưa phải site thật; ảnh fixture không thay phép kiểm
+site thật sau deploy. Nguồn: yêu cầu v590 của anh Việt ngày 12/10/2026.
+
+## 12/10/2026 - v591: Zalo không gửi tên nhóm, hộp chọn đọc bản cũ
+
+Anh Việt thêm bot vào nhóm thứ hai, @nhắc bot, nhưng hộp "Chọn nhóm đã nhắn
+bot" chỉ có một dòng "Viet Nguyen". Nhóm mới thật ra đã vào danh sách, nhưng:
+cập nhật của Zalo Bot không có tên nhóm (chỉ có tên người nhắc), nên mọi nhóm
+mang tên người nhắc; hộp chọn đọc bản Cài đặt tải lúc mở màn; chọn xong máy
+lấy tên người nhắc làm tên nhóm. Ca kiểm cũ dựng dữ liệu có sẵn `title` nên
+không thấy lỗi.
+
+Cách phòng: gọi nhóm bằng mã nhóm (4 ký tự cuối mã chat) và cho bot trả lời
+mã đó ngay trong nhóm; danh sách chọn hỏi máy chủ mỗi lần bấm; dữ liệu mẫu
+trong ca kiểm lấy đúng hình dạng đọc trên site, không tự thêm trường mà nguồn
+thật không gửi.
+## 12/10/2026 - #445: ẩn nút không chứng minh quyền tải tệp
+
+Ca DOM chỉ chốt Sales không thấy liên kết UNC không bắt được lỗi quyền máy chủ.
+Ca bench phải tạo File riêng gắn phiếu thật, đổi sang Sales và gọi chính
+frappe.utils.response.download_private_file; kế toán phải nhận 200, Sales
+thiếu quyền phải bị từ chối. Danh sách 12 UNC chỉ hiện hai liên kết và mục
+mở thêm để không đẩy nút Ghi sổ ra xa. Không thay quyền File của core.
+
+## 12/10/2026 - #392: thiết kế cũ phải đối chiếu với chức năng đã phát hành
+
+#402/#403/#407 đã có lọc/Excel và JE xử lý khoản trả trước ERP từng hóa đơn,
+nhưng chưa có snapshot AP/AR/PLE/GL lịch sử. Không suy một đầu đã làm là cả
+thiết kế đã xong; ngược lại không dựng công cụ ghi trùng vì tài liệu cũ nói
+chưa triển khai. Ghi riêng bằng chứng code, số site và phạm vi còn thiếu.
+
+### #465: mock GET Pancake không được trả tổng đã trừ giảm
+
+Đọc chỉ đọc GET `/shops/{shop_id}/orders/{id}` trên pos.pages.fm ngày
+13/10/2026: 91853 trả total_price 8.230.000, total_discount cấp đơn 0,
+shipping_fee 0; ba dòng có lượng 2/4/1, discount_each_product 5/5/0,
+cờ phần trăm true/true/false và total_discount dòng 220.000/190.000/0.
+91391 trả total_price 3.850.000, total_discount cấp đơn 50.000, phí 0,
+cả hai dòng không giảm. Tổng thanh toán lần lượt 7.820.000 và 3.800.000.
+
+Mock cũ tự trừ giảm vào total_price rồi bỏ items, khiến công thức sai vẫn
+xanh và đơn web đúng bị cảnh báo Sales. Dùng giảm tiền total_discount từng
+dòng (đã nhân lượng), trừ thêm giảm cấp đơn, cộng phí khách. Không coi
+con số discount_each_product luôn là đồng và không nhân lượng lần hai.
+Ca kiểm giữ cả fixture thật, không cảnh báo khi đủ giảm, cảnh báo khi thiếu
+giảm. Khôi phục công thức cũ phải làm hỏng 2 ca với 5 khẳng định.
 
 ## 12/10/2026 - Commit cloud chưa phải bàn giao GitHub
 

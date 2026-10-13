@@ -383,6 +383,19 @@ await ca('Mã đã dùng: lần gửi đầu hiện lý do, bỏ mã, không t�
   la('giữ giỏ để khách sửa', k.S.CART.length, 1);
 });
 
+await ca('v590: gợi ý mã hiện tổng sau giảm và nút Áp dụng không giả ô nhập', async () => {
+  const {mt} = moiTruong('2026-10-11T08:00:00', {
+    'vagabond.don_hang.xem_uu_dai': () => ({ok: true, giam: 50000, ap: [{ten: 'Giảm sinh nhật'}]})
+  });
+  const k = taoKho(mt);
+  coThem(k); k.S.CO.ship = 10000; k.S.CO.shipTrangThai = 'chinh_xac';
+  k.S.f.ma = 'SN50'; k.S.CO.uuMa = 'SN50'; await k.xemUuDai();
+  la('tổng = bánh - giảm + phí', k.tong.value.total, 610000);
+  dung('gợi ý có số giảm và tổng mới', JSON.stringify(k.goiYMa.value).includes('50.000') && JSON.stringify(k.goiYMa.value).includes('610.000'));
+  dung('nút là nút chính, không phải thẻ chọn giả ô nhập', MAU.includes('class="btn btn-xs" id="btnMa"'));
+  dung('đáy chừa đủ nút dính', MAU.includes('padding-bottom:140px'));
+});
+
 console.log('Bo ca kiem HANH VI trang dat banh ban Vue');
 loi.forEach(d => console.log('  HONG  ' + d));
 console.log(dat + ' ca dat, ' + hong + ' ca hong, tong ' + (dat + hong) + ' ca.');

@@ -1,0 +1,69 @@
+name: Anh giao dien web
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'vagabond/trang/banh.html'
+      - 'vagabond/public/web_vue/**'
+      - 'vagabond/www/web_moi/**'
+      - 'vagabond/public/web_order/chu-mac-dinh.json'
+      - 'vagabond/noi_dung_web.py'
+      - 'cong_cu/xem_thu_web_vue.py'
+      - 'cong_cu/chup_web_vue.py'
+      - 'cong_cu/so_anh_web_vue.py'
+      - '.github/workflows/anh-web.yml'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  chup-anh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Cai Chromium va cong cu so anh
+        run: |
+          python3 -m pip install playwright==1.55.0 pillow==11.3.0
+          python3 -m playwright install --with-deps chromium
+      - name: Lay cay main lam moc
+        run: git worktree add /tmp/vagabond-main '${{ github.event.pull_request.base.sha }}'
+      - name: Chup 28 anh cua main va PR
+        run: |
+          python3 cong_cu/chup_web_vue.py --goc /tmp/vagabond-main --dich /tmp/anh-main --cong 8790
+          python3 cong_cu/chup_web_vue.py --goc "$GITHUB_WORKSPACE" --dich /tmp/anh-pr --cong 8791
+          python3 cong_cu/so_anh_web_vue.py /tmp/anh-main /tmp/anh-pr --dich /tmp/bang-anh.md
+          mkdir -p anh-giao-dien/main anh-giao-dien/pr
+          cp /tmp/anh-main/*.png anh-giao-dien/main/
+          cp /tmp/anh-pr/*.png anh-giao-dien/pr/
+          cp /tmp/bang-anh.md anh-giao-dien/
+      - name: Dinh kem anh fixture
+        uses: actions/upload-artifact@v4
+        with:
+          name: anh-giao-dien-web-${{ github.event.pull_request.number }}
+          path: anh-giao-dien
+          retention-days: 14
+      - name: Dang mot comment can duyet
+        uses: actions/github-script@v7
+        env:
+          BANG_ANH: /tmp/bang-anh.md
+        with:
+          script: |
+            const fs = require('fs');
+            const marker = '<!-- anh-giao-dien-web -->';
+            const bang = fs.readFileSync(process.env.BANG_ANH, 'utf8');
+            const link = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}#artifacts`;
+            const body = `[CẦN DUYỆT]\n${marker}\nẢnh này được chụp từ fixture, chưa phải site thật và không dùng dữ liệu khách thật. [Mở artifact ảnh 390 px và 1440 px](${link}).\n\n${bang}\n<!-- telegram-tomtat {"tom_tat":"Đã có ảnh fixture của trang đặt bánh ở điện thoại và máy tính để anh duyệt.","tiep_theo":"Mở artifact, xem các cảnh được đánh dấu đổi; đây chưa phải ảnh site thật."} -->`;
+            const comments = await github.paginate(github.rest.issues.listComments, {...context.repo, issue_number: context.issue.number, per_page: 100});
+            const old = comments.find(c => c.user.type === 'Bot' && c.body.includes(marker));
+            if (old) await github.rest.issues.updateComment({...context.repo, comment_id: old.id, body});
+            else await github.rest.issues.createComment({...context.repo, issue_number: context.issue.number, body});

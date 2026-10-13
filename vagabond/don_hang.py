@@ -119,6 +119,36 @@ def _ngay_iso(v):
 		return "%s-%02d-%02dT00:00:00" % (nam, int(thg), int(d))
 	return v
 
+def _ngay_pancake(v):
+	"""Doi ngay nhan ve moc Pancake hieu dung theo UTC.
+
+	Trang web gui gio Viet Nam khong kem mui gio. Pancake doc chuoi do nhu UTC,
+	nen 19 gio bi thanh 2 gio sang hom sau. Chuoi ngay cua portal cu khong co
+	gio van giu cach doi cu de tranh doi nghia cua don cu.
+	"""
+	v = str(v or "").strip()
+	if not v:
+		return None
+	m = re.match(r"^(\d{1,2})/(\d{1,2})/(\d{4})$", v)
+	if m:
+		d, thg, nam = m.groups()
+		return "%s-%02d-%02dT00:00:00" % (nam, int(thg), int(d))
+	m = re.match(r"^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$", v)
+	if not m:
+		return v
+	nam, thg, ngay, gio, phut, giay = [int(x or 0) for x in m.groups()]
+	gio -= 7
+	if gio < 0:
+		gio += 24
+		ngay -= 1
+		if ngay == 0:
+			thg -= 1
+			if thg == 0:
+				thg, nam = 12, nam - 1
+			ngay = [31, 29 if nam % 4 == 0 and (nam % 100 != 0 or nam % 400 == 0) else 28,
+				31, 30, 31, 30, 31, 31, 30, 31, 30, 31][thg - 1]
+	return "%04d-%02d-%02dT%02d:%02d:%02dZ" % (nam, thg, ngay, gio, phut, giay)
+
 
 def _hoa_don_pancake(hd):
 	"""Goi thong tin hoa don theo dung dinh dang invoice_info_list cua Pancake."""
@@ -271,6 +301,70 @@ def xem_uu_dai(don=None):
 		return {"ok": 0, "ly_do": "ma_uu_dai", "chi_tiet": uu["ly_do"], "giam": 0, "ap": []}
 	return {"ok": 1, "giam": int(uu.get("tong_giam") or 0),
 		"ap": [{"ten": a.get("ten"), "giam": a.get("giam")} for a in uu.get("ap") or []]}
+
+
+def _gan_giam_pancake(hang, hang_goc, gia, giam):
+	"""Đưa giảm giá vào trường cấp dòng mà cửa tạo đơn Pancake thực sự nhận.
+
+	Pancake công bố `discount_each_product` trên OrderItem. Chia theo tỷ lệ
+	thành tiền; khi số giảm không chia hết số lượng thì tách dòng để tổng vẫn
+	đúng từng đồng, thay vì gửi `total_discount` chỉ là trường kết quả đọc ra.
+	"""
+	tong = sum(int(float(gia.get(goc["variation_id"]) or 0)) * int(goc["quantity"])
+		for goc in hang_goc)
+	con_giam, con_tien, ra = int(giam or 0), tong, []
+	for i, (dong, goc) in enumerate(zip(hang, hang_goc)):
+		sl = int(dong["quantity"])
+		thanh_tien = int(float(gia.get(goc["variation_id"]) or 0)) * sl
+		phan = con_giam if i == len(hang) - 1 else round(con_giam * thanh_tien / con_tien)
+		phan = max(0, min(phan, thanh_tien))
+		moi_don_vi, du = divmod(phan, sl)
+		for so_luong, muc in ((sl - du, moi_don_vi), (du, moi_don_vi + 1)):
+			if so_luong:
+				moi = dict(dong, quantity=so_luong, discount_each_product=muc,
+					is_discount_percent=False)
+				ra.append(moi)
+		con_giam -= phan
+		con_tien -= thanh_tien
+	return ra
+
+
+def _doc_lai_don_pancake(shop_id, khoa, ma_don):
+	try:
+		r = requests.get("%s/shops/%s/orders/%s" % (PANCAKE, shop_id, ma_don),
+			params={"api_key": khoa}, timeout=TIMEOUT)
+		if r.status_code != 200:
+			return None
+		return (r.json() or {}).get("data") or None
+	except (requests.RequestException, ValueError, TypeError, AttributeError):
+		# Đơn đã tạo thật: lỗi đọc lại phải thành cảnh báo, không báo tạo đơn hỏng.
+		return None
+
+
+def _tong_pancake(don):
+	"""GET pos.pages.fm trả tổng trước giảm; total_discount dòng đã nhân lượng.
+
+	Đọc thật 13/10/2026: 91853 = 8.230.000 - 220.000 - 190.000;
+	91391 = 3.850.000 - 50.000 cấp đơn. Không trừ discount_each_product
+	trực tiếp: đó có thể là phần trăm, còn total_discount dòng là số tiền.
+	"""
+	if not isinstance(don, dict):
+		return None
+	try:
+		giam_dong = sum(float(x.get("total_discount") or 0) for x in (don.get("items") or []))
+		return int(round(float(don.get("total_price")) - giam_dong
+			- float(don.get("total_discount") or 0) + float(don.get("shipping_fee") or 0)))
+	except (TypeError, ValueError):
+		return None
+
+
+def _bao_lech_tong_pancake(ma_don, mong_doi, thuc_te, ten_don):
+	from vagabond.kenh_zalo import bao
+	bao("canh_bao", "don_web", "Đơn web lệch tổng tiền trên Pancake", [
+		"Đơn Pancake %s đang là %s đ, máy chủ chốt %s đ. Sales kiểm tra trước khi gửi mã QR."
+		% (ma_don, thuc_te if thuc_te is not None else "chưa đọc được", mong_doi)
+	], link="/app/vagabond-don-web/%s" % ten_don, khoa="don-web-lech-tong:%s" % ma_don)
+	frappe.db.commit()
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
@@ -461,9 +555,7 @@ def tao_don(don=None):
 		"status": 0,
 	}
 	if giam:
-		# Pancake nhận total_discount ở đơn tạo mới (tài liệu POS, đã kiểm
-		# 31/07/2026); đồng bộ về ERP đọc lại đúng ô này làm giảm giá hoá đơn.
-		body["total_discount"] = giam
+		body["items"] = _gan_giam_pancake(hang, hang_goc, gia, giam)
 
 	nguon = str(c.pancake_order_source_id or "").strip()
 	if nguon:
@@ -473,7 +565,7 @@ def tao_don(don=None):
 			body["account_name"] = nguon
 
 	if ngay:
-		body["estimate_delivery_date"] = ngay
+		body["estimate_delivery_date"] = _ngay_pancake(ngay)
 
 	the = _lam_sach_the(don.get("tags"))
 	if the:
@@ -604,6 +696,14 @@ def tao_don(don=None):
 	kq = don_web.phan_loai_pancake(ma_http, du_lieu, loi_mang)
 	don_web.cap_nhat_sau_pancake(ban_ghi, kq)
 	frappe.db.commit()
+
+	if giam and kq["ket_qua"] == "da_nhan":
+		ma_don = kq.get("pancake_id")
+		doc_lai = _doc_lai_don_pancake(shop_id, k, ma_don)
+		mong_doi = int(tien_banh - giam + (phi.get("phi_khach") or 0))
+		thuc_te = _tong_pancake(doc_lai)
+		if thuc_te != mong_doi:
+			_bao_lech_tong_pancake(ma_don, mong_doi, thuc_te, ban_ghi.name)
 
 	if giam:
 		_tra_uu_dai_khi_tu_choi(kq, ma_uu_dai, giu_ma, ban_ghi.name)
