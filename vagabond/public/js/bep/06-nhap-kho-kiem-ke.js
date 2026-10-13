@@ -1352,13 +1352,13 @@ function kkDraw(keepScroll) {
   };
   b.addEventListener('change', function (e) {
     var qi = e.target.closest('[data-q]');
-    if (qi) { var i = +qi.dataset.q; kk.rows[i].so_luong = kkNum(qi.value); kk.rows[i].cach_dem = ''; kk.rows[i].da_dem = 1; kkTouch(); kkRowSync(i); return; }
+    if (qi) { var i = +qi.dataset.q; kk.rows[i].so_luong = kkNum(qi.value); kk.rows[i].cach_dem = ''; kk.rows[i].da_dem = String(qi.value).trim() === '' ? 0 : 1; kkTouch(); kkRowSync(i); return; }
     var hi = e.target.closest('[data-h]');
     if (hi) { kk.rows[+hi.dataset.h].han_su_dung = hi.value || ''; kkTouch(); }
   });
   b.addEventListener('input', function (e) {
     var qi = e.target.closest('[data-q]');
-    if (qi) { var i = +qi.dataset.q; kk.rows[i].so_luong = kkNum(qi.value); kk.rows[i].cach_dem = ''; kk.rows[i].da_dem = 1; kkTouch(); kkRowSync(i); }
+    if (qi) { var i = +qi.dataset.q; kk.rows[i].so_luong = kkNum(qi.value); kk.rows[i].cach_dem = ''; kk.rows[i].da_dem = String(qi.value).trim() === '' ? 0 : 1; kkTouch(); kkRowSync(i); }
   });
 }
 

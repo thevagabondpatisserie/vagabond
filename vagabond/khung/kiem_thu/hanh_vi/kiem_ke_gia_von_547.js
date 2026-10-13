@@ -22,7 +22,7 @@ async function canh(loiGia, demKhong=false, khongDoi=false){
   api:async(url,args)=>{
    goi.push({url,args});
    if(url==='vagabond.kiem_ke.mo_phieu')return {name:'KK-1',kho:'Kho D1',pham_vi:'Tất cả',ngay_kiem:'2026-09-30',trang_thai:'Chờ duyệt',ly_do_lech:[],
-     items:[{name:'R1',item_code:'M',item_name:'Món',dvt:'Gram',da_dem:1,so_luong:demKhong?0:5,ton_he_thong:demKhong?0:5}]};
+     items:[{name:'R1',item_code:'M',item_name:'Món',dvt:'Gram',da_dem:1,so_luong:demKhong?0:5,ton_he_thong:demKhong?0:5},{name:'R2',item_code:'CHUA',item_name:'Chưa đếm',dvt:'Gram',da_dem:0,so_luong:0,ton_he_thong:11}]};
    if(url==='frappe.client.get_value')return {stock_adjustment_account:'632',cost_center:'CC'};
    if(url==='vagabond.gia_von_kiem_ke.goi_y_gia'){if(loiGia)throw Error('hết giờ');return {M:{gia:400,nguon:'so_kho'}};}
    if(url==='vagabond.kiem_ke.ghi_so')return khongDoi?{name:null,khong_doi:true}:{name:'PKK-1'};
@@ -34,7 +34,19 @@ async function canh(loiGia, demKhong=false, khongDoi=false){
  if(demKhong){
   const d=await c.api('vagabond.kiem_ke.mo_phieu',{});
   d.trang_thai='Đang kiểm';c.kk.doc=d;c.kk.rows=d.items;c.kk.cat=d.items;c.kk.dirty=1;
-  c.kkLive=()=>true;c.kkDraw=()=>{};
+  c.kkLive=()=>true;
+  Object.assign(c,{srchBox:()=>'',shortDep:()=>'',hasRole:()=>true,r3:x=>x,kl:String,anhMon:()=>'',vgbKhop:()=>true});
+  c.kk.tab='da';c.kk.q='';c.kkTouch=()=>{c.kk.dirty=1;};
+  c.kkDraw();
+  const body=document.getElementById('vgbBody');
+  const input=body.querySelector('[data-q="0"]');assert(input,'ô đếm thật đã dựng');
+  for(const event of ['input','change']){
+   input.value='5';body.dispatchEvent({type:event,target:input});assert.strictEqual(c.kk.rows[0].da_dem,1);
+   input.value='';body.dispatchEvent({type:event,target:input});assert.strictEqual(c.kk.rows[0].da_dem,0,'gõ 5 rồi xoá phải chưa đếm');
+   assert(!c.kk.rows.filter(r=>r.da_dem).length,'dòng trống không vào bộ ghi sổ');
+   input.value='0';body.dispatchEvent({type:event,target:input});assert.strictEqual(c.kk.rows[0].da_dem,1,'gõ rõ 0 là đã đếm');
+  }
+  c.kkDraw=()=>{};
   await c.kkFinish();
   assert.strictEqual(c.kk.doc.trang_thai,'Chờ duyệt','chốt số 0 sang chờ duyệt');
   assert.strictEqual(c.kk.doc.items[0].so_luong,0,'lưu số đếm 0');
@@ -62,6 +74,7 @@ async function canh(loiGia, demKhong=false, khongDoi=false){
  if(khongDoi)assert(toast.some(x=>x.includes('không cần phiếu điều chỉnh')),'no-op nói rõ đã kiểm xong');
  {
   assert(ins,'đã tạo phiếu điều chỉnh');
+  assert.strictEqual(ins.args.doc.items.length,1,'không gửi dòng bên cạnh chưa đếm');
   assert.strictEqual(ins.args.doc.purpose,'Stock Reconciliation','kiểu Điều chỉnh tồn');
   assert.strictEqual(ins.args.doc.items[0].valuation_rate,400,'giá sổ kho 400, không phải Item.valuation_rate 0');
   assert.strictEqual(gy.args.ngay,ins.args.doc.posting_date,'tra giá đúng ngày ghi sổ');

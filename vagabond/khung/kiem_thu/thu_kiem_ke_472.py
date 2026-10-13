@@ -44,3 +44,26 @@ def _doc_co_khoa():
 		kq = kiem_ke.ghi_so('KK', {})
 	la('giữ liên kết phiếu phiên trước', kq['name'], 'PKK-XONG')
 	la('không đổi thành no-op mất liên kết', kq['khong_doi'], False)
+
+@ca('#473: ghi sổ chỉ lấy dòng đã đếm 0, bỏ dòng chưa đếm còn tồn 11')
+def _bo_chua_dem():
+	import sys
+	import types
+	core = types.ModuleType('erpnext.stock.doctype.stock_reconciliation.stock_reconciliation')
+	core.EmptyStockReconciliationItemsError = type('KhongDoi', (Exception,), {})
+	doc = Phieu(trang_thai='Chờ duyệt', kho='K', ngay_kiem='2026-10-13',
+		check_permission=lambda *a:None, save=lambda:None,
+		items=[Phieu(item_code='DEM',da_dem=1,so_luong=0,ton_he_thong=11),
+			Phieu(item_code='CHUA',da_dem=0,so_luong=0,ton_he_thong=11)])
+	dong=[]
+	sr=Phieu(name='PKK',append=lambda key,row:dong.append(row),insert=lambda:None,submit=lambda:None)
+	with patch.dict(sys.modules,{core.__name__:core}), \
+		patch.object(kiem_ke,'duoc_duyet',return_value=True), \
+		patch.object(kiem_ke.frappe,'get_doc',return_value=doc), \
+		patch.object(kiem_ke.frappe,'new_doc',return_value=sr,create=True), \
+		patch.object(kiem_ke.frappe,'parse_json',side_effect=lambda x:x,create=True), \
+		patch.object(kiem_ke.frappe.db,'savepoint',create=True), \
+		patch.object(kiem_ke.frappe.db,'get_value',return_value='CTY'), \
+		patch.object(kiem_ke.frappe,'message_log',[],create=True):
+		kiem_ke.ghi_so('KK',{'purpose':'Stock Reconciliation','items':[{'item_code':'CHUA','qty':0}]})
+	la('chỉ dòng đếm rõ ràng',[(r['item_code'],r['qty']) for r in dong],[('DEM',0)])

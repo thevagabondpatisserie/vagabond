@@ -2199,3 +2199,7 @@ Ca phải đi từ lưu/chốt số 0 tới payload ghi sổ; khôi phục bộ 
 Tạo SR, submit và đóng phiếu nguồn cần cùng giao dịch, có khoá nguồn để retry
 không sinh phiếu trùng. Chỉ coi core EmptyStockReconciliationItemsError ở insert
 là no-op, không gom lỗi submit vào nhánh thành công. Bench xác minh SLE/GL riêng.
+
+### PR #473: xoá ô đếm phải gỡ cờ đã đếm
+
+Ô trống sau gõ số không phải số0: cả input và change phải gỡ da_dem. Ca DOM gọi handler thật gõ5/xoá/gõ0; ca tầng khung gọi ghi_so với hai dòng cạnh nhau, chỉ dòng đếm0 được đưa vào Stock Reconciliation. Không chỉ có fixture một dòng. Ba đột biến (hai handler và bộ lọc server) bị bắt3/3.

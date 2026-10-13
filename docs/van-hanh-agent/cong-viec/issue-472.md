@@ -65,3 +65,7 @@ khoá vừa đọc bản mới nhất. Không khoá bằng SELECT rồi đọc D
 vì REPEATABLE READ có thể còn snapshot trước phiên vừa ghi sổ. Ca adapter mô phỏng bản đọc cũ/mới canh
 cửa retry giữ liên kết PKK; bench retry vẫn chạy API thật. Chưa đo hai kết nối cùng lúc,
 không nhận ca retry tuần tự là phép thử cạnh tranh.
+
+## Review #473 vòng tiếp 13/10
+
+Sửa cả input/change: xoá trắng gỡ da_dem, gõ0 giữ đã đếm. DOM thực hiện chuỗi gõ5, xoá, gõ0 trên ô thật; tầng khung gọi ghi_so với dòng chưa đếm tồn11 nằm cạnh dòng đã đếm0. Ba đột biến bị bắt3/3. Không đổi phiên bản593/patch, không sửa dữ liệu cũ. Cổng và SHA cuối xem biên nhận PR.
