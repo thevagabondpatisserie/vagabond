@@ -2188,3 +2188,64 @@ Các vòng #462/#465 có code và ca kiểm trong cloud nhưng head PR không đ
 Instruction phải chốt SHA remote, gói task/diff khi thiếu quyền và đường tiếp
 nhận desktop. Model trong TOML cũng là yêu cầu cấu hình, phải kiểm metadata
 trước khi nhận bot thực sự dùng model đó. Không chữa thiếu quyền bằng PR trùng.
+
+### 13/10/2026, PR #474: khép phần QR chuyển khoản còn phụ thuộc mạng ở #352
+
+- Ảnh QR tại quầy tải từ dịch vụ ngoài mất 7,8 giây dù tài khoản và nội dung đúng. Cùng phụ thuộc đó còn ở Sales, công nợ, màn khách, trang thanh toán web và PDF.
+- Dựng VietQR bằng hàm thuần JS/Python, tra BIN từ bảng hiện có trong `tai_khoan.py`. Bộ dựng và thư viện QR có sẵn được ghép trước app để lần vẽ đầu không đợi tải script. Hai trang độc lập nạp cùng asset nội bộ. PDF dùng PyQRCode có sẵn trong Frappe, không tải ảnh ngoài.
+- QR Pancake là chuỗi nguyên bản; không lấy các trường ra rồi dựng lại. Phiếu công nợ chỉ mã hoá phần còn thiếu. Thư viện hỏng hoặc thiếu tài khoản phải hiện chuyển tay, không bỏ ô trống.
+- Ca TCV 160000/TCVG8FRJ khớp từng byte với PNG tham chiếu giải mã độc lập. DOM mô phỏng chạy chuỗi thêm món, chọn chuyển khoản, tăng số lượng; ba đột biến CRC/số tiền/URL ngoài đều bị bắt.
+- Quét bằng công cụ, kiểm DOM và bench PDF không thay thế quét app ngân hàng. Ba ca ngân hàng thật vẫn là cổng riêng trước merge; xem biên nhận PR để biết trạng thái, không suy ra đã deploy từ mục này.
+
+### PR #474, vòng sửa 13/10: kiểm hợp đồng dữ liệu và nhánh QR lỗi
+
+Không chỉ kiểm helper BIN: gọi `tk_cho` cho cả tài khoản riêng và mặc định rồi đưa payload thật vào JS. Màn khách cũ chỉ hiểu ảnh, nên sender chỉ phát khối QR sau khi dựng được ảnh. Tiền rỗng bị từ chối ở cả JS/Python; số 0 tường minh dùng 01=11. Các đường in bill, phiếu công nợ, bảng QR và Sales phải kiểm cả thư viện hỏng, vẫn giữ thông tin chuyển tay. Chín đột biến riêng của vòng này bị bắt 9/9; ca PDF kiểm khung của nhánh lỗi bằng HTML thật.
+
+## 13/10/2026 (#472): ô bị che không phải số 0
+
+Đếm mù trả `ton_he_thong=None`; màn lưu ép số thành 0 và gửi nguyên document
+về server, làm mất ảnh chụp. Bộ lọc ghi sổ dựa vào ảnh chụp đó lại loại dòng
+đếm 0. Giữ ảnh chụp bằng hook server và chỉ quyết định điều chỉnh bằng tồn
+core tại posting_date/time. Không dùng dữ liệu trình bày đã che làm nguồn ghi.
+Ca phải đi từ lưu/chốt số 0 tới payload ghi sổ; khôi phục bộ lọc cũ phải đỏ.
+Tạo SR, submit và đóng phiếu nguồn cần cùng giao dịch, có khoá nguồn để retry
+không sinh phiếu trùng. Chỉ coi core EmptyStockReconciliationItemsError ở insert
+là no-op, không gom lỗi submit vào nhánh thành công. Bench xác minh SLE/GL riêng.
+
+### PR #473: xoá ô đếm phải gỡ cờ đã đếm
+
+Ô trống sau gõ số không phải số0: cả input và change phải gỡ da_dem. Ca DOM gọi handler thật gõ5/xoá/gõ0; ca tầng khung gọi ghi_so với hai dòng cạnh nhau, chỉ dòng đếm0 được đưa vào Stock Reconciliation. Không chỉ có fixture một dòng. Ba đột biến (hai handler và bộ lọc server) bị bắt3/3.
+
+# 13/10/2026 - Lịch sử BOM phải lọc bảng khai triển và bù đường ghi thẳng
+
+- Triệu chứng: Version của BOM có nhiều dòng `exploded_items`, còn các lần đổi cờ bằng `db.set_value` không tạo Version nên người xem không biết ai chốt bản nào.
+- Nguyên nhân: ERPNext dựng lại bảng khai triển khi lưu, trong khi cập nhật thẳng cơ sở dữ liệu không đi qua cơ chế theo dõi thay đổi của Document.
+- Cách phòng: dịch Version theo danh sách trường nghiệp vụ được phép hiện, bỏ toàn bộ `exploded_items`; đường ghi sổ bằng `db.set_value` phải thêm Comment trên cả bản mới và bản cũ. Ca hồi quy dùng Version có đồng thời nhiễu bảng khai triển và thay đổi số lượng.
+- Nguồn: PR #469.
+
+- Bổ sung kiểm core: `row_changed` dùng index trước child.name. Chỉ đổi qty thì diff không chứa tên/UOM; phải đọc metadata dòng, không dùng fixture tự thêm tên để che lỗi. Slug màn mới phải khai tại `duong_app.py` để lần dựng không xoá mất.
+
+### 13/10/2026 - F21 nguồn tồn khi gửi đơn
+
+Danh mục công khai bỏ dòng0 nên không dùng việc vắng món để suy ra hết. Đọc
+KB đúng ngày hoặc dòng Dư decor gốc cho cửa sổ ba ngày, giữ nguyên đặt xa.
+Tìm nonce đã nhận trước mọi kiểm tồn có thể thay đổi. Lỗi đọc chỉ cảnh báo,
+không biến thành hết hàng. Báo đúng webhook_don_web của Sales, không suy kênh
+Zalo chung là Sales. DOM phải kiểm cả trang cũ và Vue giữ giỏ/tải lại tồn.
+Đột biến phải đối chiếu nền xanh và mã thực sự đổi; chuỗi thay không khớp
+không phải một lần kiểm đột biến. Ca Document thật nằm ở cổng bench, không
+gọi fixture trên production.
+
+### F21 review 13/10: decor0 là dòng giữ chỗ
+
+Chỉ decor gốc lớn hơn0 mới là nguồn tồn hữu hạn cho ba ngày tới. Decor gốc dương bị đơn dùng hết vẫn phải trả tồn0 để chặn. Ca đi qua cửa tạo đơn cho cả ba ngày; đồng hồ giả chỉ thay thời điểm, giữ hàm hom_nay thật để bắt lệch ngày UTC/Sài Gòn. Ngày nhận trống trả về trước khi đọc nguồn, không tạo cảnh báo Sales giả.
+
+### v594: gom nhánh và sửa bốn điểm BOM sau review
+
+Chip Tất cả gửi null phải giữ nguyên tới nguồn danh sách và dòng bộ lọc Excel;
+không dùng giá trị mặc định của màn để thay bộ lọc người vừa chọn. Ca quyền phải
+gọi cửa API thật, không chỉ helper. Nhật ký lấy ngày Sài Gòn kể cả máy ở múi giờ
+khác. Comment lưu HTML an toàn, khi trả câu thuần thì bỏ thẻ rồi giải mã entity
+một lần, để màn escape khi vẽ. Chỉ ghi trường nghiệp vụ bằng nhãn tiếng Việt,
+bỏ giá vốn tính lại. Tám đột biến của các nhánh này đều bị bắt trong bản gom.
+Nguồn: comment giao gom v594 trên PR #474; không kéo phần Vue của #471 vào.

@@ -1617,18 +1617,24 @@ function posTaiKhoan(nguon, maDiem) {
   }
   return c.qr_quay || {};
 }
+function posQrTao(q, noiDung, tien) {
+  q = q || {};
+  if (typeof VgbQr === 'undefined') return {anh:'',loi:'Chưa tải được thư viện mã QR. Vui lòng tải lại trang hoặc chuyển tay.'};
+  return VgbQr.tao({bin:q.bin || q.bank,stk:q.stk,tien:tien,noi_dung:noiDung,qr_text:q.qr_text});
+}
 function posQrUrl(noiDung, tien, nguon, maDiem) {
-  var q = posTaiKhoan(nguon, maDiem);
-  if (!q.stk) return '';
-  return 'https://img.vietqr.io/image/' + (q.bank || 'MB') + '-' + q.stk + '-qr_only.png' +
-    '?amount=' + Math.round(tien || 0) +
-    '&addInfo=' + encodeURIComponent(noiDung || '') +
-    '&accountName=' + encodeURIComponent(q.ten || '');
+  return posQrTao(posTaiKhoan(nguon, maDiem),noiDung,tien).anh;
+}
+function posQrLoi(q, noiDung, tien) {
+  var r=posQrTao(q,noiDung,tien);
+  return '<div role="alert" style="color:#b3261e;font-size:13px">'+h(r.loi || 'Không vẽ được mã QR. Vui lòng chuyển tay.')+
+    '<br>Ngân hàng: '+h(q.bank || 'chưa khai')+' · Số tài khoản: '+h(q.stk || 'chưa khai')+
+    '<br>Số tiền: '+money(tien)+' đ · Nội dung: '+h(noiDung || '')+'</div>';
 }
 function posKhoiQr(noiDung, tien, nguon, maDiem) {
   var q = posTaiKhoan(nguon, maDiem);
   var url = posQrUrl(noiDung, tien, nguon, maDiem);
-  if (!url) return '<div style="font-size:13px;color:#b3261e">Chưa khai số tài khoản nhận chuyển khoản nên chưa sinh được mã QR.</div>';
+  if (!url) return posQrLoi(q,noiDung,tien);
   if (!tien) return '<div style="font-size:13px;color:#6b7280">Thêm món vào hoá đơn rồi mã QR chuyển khoản sẽ hiện ra đây.</div>';
   /* Tien ve du la khoi nay tu doi mau xanh - poll SePay 5 giay mot lan. */
   if (posSepayNhan >= tien - 1) {
@@ -1757,7 +1763,7 @@ function posQrSheet(soPhieu, tien, siName, nguon, maDiem) {
   ov.innerHTML = '<div class="shb" style="padding:20px 16px calc(env(safe-area-inset-bottom,0px) + 16px);text-align:center">' +
     '<div style="font-size:21px;font-weight:800">Chuyển khoản ' + money(tien) + ' đ</div>' +
     '<div style="font-size:12.5px;color:#6b7280;margin-top:2px">' + h(q.ten || '') + ' · ' + h((q.bank || '') + ' ' + (q.stk || '')) + '</div>' +
-    '<img src="' + url + '" alt="VietQR" style="width:min(300px,72vw);aspect-ratio:1;margin:12px auto 4px;display:block;border:1px solid #e5e7eb;border-radius:14px;background:#fff">' +
+    (url ? '<img src="' + url + '" alt="VietQR" style="width:min(300px,72vw);aspect-ratio:1;margin:12px auto 4px;display:block;border:1px solid #e5e7eb;border-radius:14px;background:#fff">' : posQrLoi(q,soPhieu,tien)) +
     '<div style="font-size:13px;color:#374151">Nội dung chuyển khoản: <b>' + h(soPhieu) + '</b></div>' +
     '<div id="qrsBao" style="font-size:12.5px;color:#b45309;margin-top:8px">⏳ Đang chờ tiền về... màn hình tự báo khi SePay nhận đủ.</div>' +
     '<div style="display:flex;gap:8px;margin-top:14px">' +

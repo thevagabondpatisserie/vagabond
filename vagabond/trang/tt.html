@@ -56,6 +56,8 @@
   <div class="toast" id="toast"></div>
 </div>
 
+<script src="/assets/vagabond/js/vendor/qrcode.js"></script>
+<script src="/assets/vagabond/js/qr_chuyen_khoan.js"></script>
 <script>
 (function () {
   var $ = function (s) { return document.querySelector(s); };
@@ -114,7 +116,8 @@
       h += '<div class="don">Đơn #' + esc(d.ma_don) + '</div>';
       h += '<div class="tien">' + (Number(d.so_tien) || 0).toLocaleString('vi-VN') + ' <small>đ</small></div>';
       h += '<div class="nho">Số tiền còn phải thanh toán</div>';
-      if (d.qr) h += '<img class="qr" src="' + esc(d.qr) + '" alt="Mã QR chuyển khoản">';
+      var qr = typeof VgbQr !== 'undefined' && d.qr_text ? VgbQr.tao({qr_text:d.qr_text}) : {loi:'Chưa tạo được mã QR. Vui lòng tải lại trang hoặc chuyển tay.'};
+      h += qr.anh ? '<img class="qr" src="' + esc(qr.anh) + '" alt="Mã QR chuyển khoản">' : '<div role="alert">' + esc(qr.loi) + '</div>';
       h += '<div class="hd">';
       if (d.ngan_hang && d.ngan_hang.ten) h += '<div class="r"><span>Ngân hàng</span><b>' + esc(d.ngan_hang.ten) + '</b></div>';
       if (d.ngan_hang && d.ngan_hang.stk) h += '<div class="r"><span>Số tài khoản</span><b>' + esc(d.ngan_hang.stk) + '</b></div>';

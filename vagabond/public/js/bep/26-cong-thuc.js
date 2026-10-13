@@ -9,7 +9,7 @@
 
    Tien to ct = cong thuc. Da kiem va cham ten truoc khi dat (QT-28). */
 
-var ctD = { tab: 'pastry', tt: '', hd: '', cg: '', tim: '', ds: null, tong: 0 };
+var ctD = { tab: 'pastry', tt: 'dang_dung', hd: '', cg: '', tim: '', ds: null, tong: 0 };
 var ctE = null;
 
 var CT_TAB = [['pastry', '🎂 Pastry'], ['baker', '🥐 Baker'], ['bar', '🍵 Quầy Bar'], ['khac', '❓ Chưa phân']];
@@ -73,6 +73,19 @@ function ctSoanDuoc() {
 }
 function ctXemDuoc() {
   return ctSoanDuoc() || hasRole('Manufacturing User');
+}
+
+async function ctXuatExcel(bom) {
+  busy(1);
+  try {
+    var f = await api('vagabond.cong_thuc.xuat_excel', bom ? { bom: bom } : {
+      tab: ctD.tab, trang_thai: ctD.tt || null, tim: ctD.tim || null,
+      huong_dan: ctD.hd || null, chang: ctD.cg || null
+    });
+    bcTaiVe(f.ten_file, f.b64);
+    toast('Đã tải ' + f.ten_file + ' với ' + f.so_dong + ' dòng nguyên liệu.');
+  } catch (e) { toast(errMsg(e) || 'Chưa xuất được Excel, vui lòng thử lại.', 6000); }
+  finally { busy(0); }
 }
 
 /* Nut mo Huong dan che bien tren mot the cong thuc.
@@ -155,8 +168,10 @@ async function scrCongThuc() {
       (ctD.tong > ctD.ds.length ? '<div style="text-align:center;font-size:12px;color:#98a2b3;padding:10px">Đang hiện ' + ctD.ds.length + ' trên ' + ctD.tong + ', gõ ô tìm để thu hẹp</div>' : '')
         : '<div class="emp"><div class="e1">📖</div><div class="e2">Không có công thức nào khớp bộ lọc</div></div>');
 
+    var chan = '<div class="row2"><button class="btn gh" id="ctNhatKy">Nhật ký sửa</button>' +
+      (ctGhiSoDuoc() ? '<button class="btn" id="ctExcel">Xuất Excel</button>' : '') + '</div>';
     var b = frame('Danh mục công thức', body,
-      ctSoanDuoc() ? { fab: true, onFab: ctTaoMoi } : {});
+      { fab: ctSoanDuoc(), onFab: ctSoanDuoc() ? ctTaoMoi : null, footer: chan });
     b.onclick = function (e) {
       var t = e.target.closest('[data-tab]');
       if (t) { ctD.tab = t.dataset.tab; ctD.ds = null; return scrCongThuc(); }
@@ -177,6 +192,10 @@ async function scrCongThuc() {
       var r = e.target.closest('[data-n]');
       if (r) { var nm = r.dataset.n; return go(function () { scrCongThucXem(nm); }); }
     };
+    var nx = document.getElementById('ctExcel');
+    if (nx) nx.onclick = function () { ctXuatExcel(); };
+    var nk = document.getElementById('ctNhatKy');
+    if (nk) nk.onclick = function () { go(scrCongThucNhatKy); };
     var ti = document.getElementById('ctTim');
     if (ti) {
       var cho = null;
@@ -246,10 +265,20 @@ async function scrCongThucXem(name) {
       '</div>';
   }
 
+  html += '<div class="sec">Lịch sử chỉnh sửa</div>' +
+    ((d.lich_su || []).length ? '<div class="lst">' + d.lich_su.map(function (x) {
+      return '<div class="li"><div class="lt"><div class="l1">' + h(x.nguoi) + '</div>' +
+        '<div class="l2">' + h((x.luc || '').slice(0, 16)) + '</div>' +
+        '<div style="font-size:13px;line-height:1.55;margin-top:5px">' +
+        x.cau.slice(0, 3).map(h).join('<br>') + (x.cau.length > 3 ? '<br>và ' + (x.cau.length - 3) + ' thay đổi nữa' : '') +
+        '</div></div></div>'; }).join('') + '</div>' :
+      '<div class="emp" style="padding:24px"><div class="e2">Chưa có lần sửa nào được ghi nhận.</div></div>');
+
   var nut = '';
   if (d.trang_thai !== 'da_huy') {
     nut = '<button class="btn gh" id="ctHd" style="margin-bottom:9px">📖 Hướng dẫn chế biến</button>';
   }
+  if (ctGhiSoDuoc()) nut += '<button class="btn gh" id="ctExcelMot" style="margin-bottom:9px">Xuất Excel</button>';
   if (ctSoanDuoc()) {
     if (d.trang_thai === 'nhap') {
       /* Nguoi soan thay Sua nhap va Bo nhap. Nut Ghi so CHI hien cho nguoi
@@ -272,6 +301,8 @@ async function scrCongThucXem(name) {
   };
   var nhd = document.getElementById('ctHd');
   if (nhd) nhd.onclick = function () { go(function () { scrHuongDanSoan(d.ma, d.ten); }); };
+  var nxm = document.getElementById('ctExcelMot');
+  if (nxm) nxm.onclick = function () { ctXuatExcel(d.bom); };
   var sua = document.getElementById('ctSua');
   if (sua) sua.onclick = function () { ctNapSua(d); };
   var gs = document.getElementById('ctGhiSo');
@@ -308,6 +339,43 @@ async function scrCongThucXem(name) {
     busy(0);
     ctNapSua(d2);
   };
+}
+
+var ctNk = { nguoi: '', mon: '', ngay: 7 };
+async function scrCongThucNhatKy() {
+  frame('Nhật ký sửa công thức', '<div class="emp"><div class="e1">⏳</div><div class="e2">Đang tải lịch sử</div></div>');
+  // Đổi sang ngày Sài Gòn trước khi lùi ngày; không phụ thuộc múi giờ máy khách.
+  var den = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  var tu = new Date(den + 'T00:00:00Z'); tu.setUTCDate(tu.getUTCDate() - ctNk.ngay + 1);
+  tu = [tu.getUTCFullYear(), String(tu.getUTCMonth() + 1).padStart(2, '0'), String(tu.getUTCDate()).padStart(2, '0')].join('-');
+  var kq;
+  try { kq = await api('vagabond.cong_thuc.nhat_ky', { nguoi: ctNk.nguoi || null, mon: ctNk.mon || null, tu_ngay: tu, den_ngay: den }); }
+  catch (e) { frame('Nhật ký sửa công thức', '<div class="emp"><div class="e1">⚠️</div><div class="e2">' + h(errMsg(e)) + '<br>Vui lòng tải lại màn hình.</div></div>'); return; }
+  var ngay = [[7, '7 ngày'], [30, '30 ngày'], [90, '90 ngày']].map(function (x) {
+    return '<div class="chip' + (ctNk.ngay === x[0] ? ' on' : '') + '" data-ctngay="' + x[0] + '">' + x[1] + '</div>'; }).join('');
+  var tenNguoi = ctNk.nguoi, tenMon = ctNk.mon;
+  (kq.nguoi || []).forEach(function (x) { if (x[0] === ctNk.nguoi) tenNguoi = x[1]; });
+  (kq.mon || []).forEach(function (x) { if (x[0] === ctNk.mon) tenMon = x[1]; });
+  var html = '<div class="chips">' + ngay + '</div><div class="card">' +
+    '<div class="fld" id="ctNkNguoi"><div class="fi">👤</div><div class="ft"><div class="fl">Người sửa</div><div class="fv">' + h(tenNguoi || 'Tất cả') + '</div></div><div class="fc">›</div></div>' +
+    '<div class="fld" id="ctNkMon"><div class="fi">🍰</div><div class="ft"><div class="fl">Món</div><div class="fv">' + h(tenMon || 'Tất cả') + '</div></div><div class="fc">›</div></div></div>' +
+    '<div class="sec">' + kq.tong + ' lần sửa</div>' +
+    ((kq.ds || []).length ? '<div class="lst">' + kq.ds.map(function (x) { return '<div class="li" data-ctxoa="' + h(x.da_xoa || '') + '" data-ctnkbom="' + h(x.bom) + '"><div class="lt"><div class="l1">' + h(x.bom) + '</div><div class="l2">' + h(x.nguoi) + ' · ' + h((x.luc || '').slice(0, 16)) + '</div><div style="font-size:13px;margin-top:5px;line-height:1.5">' + x.cau.slice(0, 2).map(h).join('<br>') + (x.cau.length > 2 ? '<br>và ' + (x.cau.length - 2) + ' thay đổi nữa' : '') + '</div></div><div class="fc">›</div></div>'; }).join('') + '</div>' : '<div class="emp"><div class="e1">📖</div><div class="e2">Không có lần sửa nào trong bộ lọc này. Chọn khoảng ngày dài hơn để xem lại.</div></div>');
+  var b = frame('Nhật ký sửa công thức', html);
+  b.onclick = function (e) { var n = e.target.closest('[data-ctngay]'), d = e.target.closest('[data-ctnkbom]'); if (n) { ctNk.ngay = +n.dataset.ctngay; return scrCongThucNhatKy(); } if (d) return go(function () { return d.dataset.ctxoa ? scrCongThucDaXoa(d.dataset.ctxoa) : scrCongThucXem(d.dataset.ctnkbom); }); };
+  document.getElementById('ctNkNguoi').onclick = function () { sheet('Chọn người sửa', [{ value: '', label: 'Tất cả' }].concat((kq.nguoi || []).map(function (x) { return { value: x[0], label: x[1] }; })), ctNk.nguoi, function (x) { ctNk.nguoi = x.value; scrCongThucNhatKy(); }, true); };
+  document.getElementById('ctNkMon').onclick = function () { sheet('Chọn món', [{ value: '', label: 'Tất cả' }].concat((kq.mon || []).map(function (x) { return { value: x[0], label: x[1] }; })), ctNk.mon, function (x) { ctNk.mon = x.value; scrCongThucNhatKy(); }, true); };
+}
+
+async function scrCongThucDaXoa(name) {
+  frame('Công thức đã xoá', '<div class="emp">Đang tải bản lưu</div>');
+  try {
+    var d = await api('vagabond.cong_thuc.ban_da_xoa', { name: name });
+    frame('Công thức đã xoá', '<div class="card" style="padding:16px"><b>' + h(d.ten || d.ma) +
+      '</b><div>' + h(d.bom) + '</div><div class="chip">Chỉ đọc</div><p>Mẻ ra: ' + num(d.so_luong) + ' ' + h(d.dvt || '') +
+      '</p></div><div class="lst">' + d.dong.map(function (x) { return '<div class="li"><div class="lt"><div class="l1">' +
+        h(x.ten || x.ma) + '</div><div class="l2">' + h(x.ma) + '</div></div><div>' + num(x.sl) + ' ' + h(x.dvt || '') + '</div></div>'; }).join('') + '</div>');
+  } catch (e) { frame('Công thức đã xoá', '<div class="emp">' + h(errMsg(e)) + '</div>'); }
 }
 
 function ctNapSua(d) {

@@ -1821,6 +1821,7 @@ var VGB_DUONG = {
   'nha-cung-cap': 'NCC',
   'nhap-kho': 'RCV',
   'nhap-sao-ke': 'NHAPSK',
+  'nhat-ky-sua-cong-thuc': 'CTNHATKY',
   'nop-quy': 'NQ',
   'phan-he-ban-hang': 'PH:BH',
   'phan-he-bao-cao': 'PH:BC',
@@ -1971,6 +1972,7 @@ function vgbGo(k) {
   if (k === 'KIT') return go(scrKitchen);
   if (k === 'MFG') return go(scrMfgList);
   if (k === 'CTBOM') return go(scrCongThuc);
+  if (k === 'CTNHATKY') return go(scrCongThucNhatKy);
   if (k === 'KHSX') return go(scrKeHoachSX);
   if (k === 'TIEC') return go(scrDonTiec);
   if (k === 'HDCB') return go(scrHuongDan);
@@ -2069,4 +2071,3 @@ function vgbGo(k) {
     VGB_KHOA_MO = '';
   }
 }
-

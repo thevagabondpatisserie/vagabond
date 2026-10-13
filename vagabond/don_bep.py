@@ -84,6 +84,7 @@ def gop_dong_trung(cac_dong):
 # ------------------------------------------------------- phan can Frappe
 
 import frappe
+from vagabond.lich_su_bom import dat_bom
 from frappe.utils import cint, flt
 
 MA_TRUNG_HET = tuple(MA_LONG_DO) + tuple(MA_LONG_TRANG)
@@ -195,9 +196,9 @@ def so_che_thuc_hien():
 	_chan()
 	da_ngung = []
 	for b in _bom_chang(CHANG_SO_CHE):
-		frappe.db.set_value("BOM", b.name, {
+		dat_bom("BOM", b.name, {
 			"is_active": 0, "is_default": 0, "custom_chang": "",
-		})
+		}, nguon='Dọn bếp')
 		da_ngung.append(b.name)
 	# Xoa lua chon khoi truong phan chang (Custom Field khai tren site).
 	sua_truong = 0
@@ -315,10 +316,10 @@ def _thay_mot_bom(ten_bom):
 	moi.insert(ignore_permissions=True)
 	moi.submit()
 	# Ban moi ke thua vi tri cua ban cu.
-	frappe.db.set_value("BOM", moi.name, {
+	dat_bom("BOM", moi.name, {
 		"is_active": 1, "is_default": cint(cu.is_default),
-	})
-	frappe.db.set_value("BOM", ten_bom, {"is_active": 0, "is_default": 0})
+	}, nguon='Dọn bếp')
+	dat_bom("BOM", ten_bom, {"is_active": 0, "is_default": 0}, nguon='Dọn bếp')
 	if cint(cu.is_default):
 		frappe.db.set_value("Item", cu.item, "default_bom", moi.name)
 	return {"bom": ten_bom, "bom_moi": moi.name, "gram_trung": tong_gram}

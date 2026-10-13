@@ -181,6 +181,7 @@ MAN = (
 	("KIT", "Bảng bếp hôm nay", None),
 	("MFG", "Sản xuất", None),
 	("CTBOM", "Công thức", None),
+	("CTNHATKY", "Nhật ký sửa công thức", None),
 	# Ke hoach san xuat trong ngay (anh Viet giao 28/08/2026). Dung Production
 	# Plan co san cua ERPNext, khong de them doctype.
 	("KHSX", "Lập kế hoạch sản xuất", None),

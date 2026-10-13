@@ -41,7 +41,7 @@ function ham(src, ten) {
     const doc=require('./dom_gia.js').taiLieuGia(),goi=[],bao=[],di=[];
     doc.body.contains=e=>e.parentNode===doc.body;
     let nhip;
-    const c=vm.createContext({document:doc,posTaiKhoan:()=>({}),posQrUrl:()=>'',h:x=>String(x),money:x=>String(x),
+    const c=vm.createContext({document:doc,posQrLoi:()=>'<div>Chưa khai tài khoản</div>',posTaiKhoan:()=>({}),posQrUrl:()=>'',h:x=>String(x),money:x=>String(x),
       posBillVua:null,setInterval:fn=>{nhip=fn;return 1;},clearInterval:()=>{},busy:()=>{},
       toast:m=>bao.push(m),go:()=>di.push(1),scrPosDs:()=>{},scrPosQuay:()=>{},
       api:async m=>{goi.push(m);if(m.endsWith('pos_kiem_sepay'))return {du:1,nhan:100000};

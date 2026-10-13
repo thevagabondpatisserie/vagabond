@@ -114,8 +114,14 @@ def tab_dang_loc(tab, tim):
 
 # ------------------------------------------------------- phần cần Frappe
 
+import base64
+from html import unescape
+import io
+import json
+import re
+
 import frappe
-from frappe.utils import cint, flt
+from frappe.utils import add_days, cint, flt, get_datetime, now_datetime, nowdate
 
 # Ô mới trên BOM: trỏ về bản trước trong chuỗi phiên bản.
 #
@@ -240,7 +246,8 @@ def ten_chang_gom(nhan):
 
 
 @frappe.whitelist()
-def danh_sach(tab=None, trang_thai=None, tim=None, huong_dan=None, chang=None):
+def danh_sach(tab=None, trang_thai=None, tim=None, huong_dan=None, chang=None,
+		_tat_ca=False):
 	"""Toàn bộ công thức, gắn tab và trạng thái, lọc tại máy chủ.
 
 	`chang` lọc theo chặng ĐÃ GOM, không phải nhãn cũ. Bấm chip "BTP sơ
@@ -253,7 +260,7 @@ def danh_sach(tab=None, trang_thai=None, tim=None, huong_dan=None, chang=None):
 		fields=["name", "item", "item_name", "docstatus", "is_active",
 			"is_default", "quantity", "uom", "custom_chang",
 			"custom_ban_truoc", "modified"],
-		order_by="modified desc", limit_page_length=1200)
+		order_by="modified desc", limit_page_length=0 if _tat_ca else 1200)
 	cac_ma = sorted({b.item for b in boms})
 	meta = {}
 	for i in range(0, len(cac_ma), 300):
@@ -305,8 +312,248 @@ def danh_sach(tab=None, trang_thai=None, tim=None, huong_dan=None, chang=None):
 		theo_tab = {}
 		for x in ra:
 			theo_tab[x["tab"]] = theo_tab.get(x["tab"], 0) + 1
-	return {"ds": ra[:400], "tong": len(ra), "theo_tab": theo_tab,
+	return {"ds": ra if _tat_ca else ra[:400], "tong": len(ra), "theo_tab": theo_tab,
 		"bo_loc_tab": 1 if (tab and not tab_loc) else 0}
+
+
+def _so_dep(x):
+	"""Số trong câu lịch sử, không để đuôi .0 vô ích. THUẦN."""
+	try:
+		n = float(x)
+		return str(int(n)) if n.is_integer() else ("%.6f" % n).rstrip("0").rstrip(".")
+	except (TypeError, ValueError):
+		return str(x or "")
+
+
+def _cau_dong(loai, dong, cu=None):
+	"""Dịch một dòng BOM Item thành câu người trong bếp đọc được. THUẦN."""
+	dong = dong or {}
+	ten = dong.get("item_name") or dong.get("item_code") or "nguyên liệu"
+	sl = dong.get("qty")
+	dvt = dong.get("uom") or dong.get("stock_uom") or ""
+	if loai == "them":
+		return "Thêm %s %s %s" % (ten, _so_dep(sl), dvt)
+	if loai == "bo":
+		return "Bỏ %s %s %s" % (ten, _so_dep(sl), dvt)
+	return "Đổi %s %s thành %s %s" % (ten, _so_dep(cu), _so_dep(sl), dvt)
+
+
+def dich_version(du_lieu, dong_theo=None):
+	"""Dịch `Version.data` của BOM, bỏ bảng khai triển và trường máy tính. THUẦN."""
+	if isinstance(du_lieu, str):
+		try:
+			du_lieu = json.loads(du_lieu or "{}")
+		except (TypeError, ValueError):
+			return []
+	du_lieu = du_lieu or {}
+	ra = []
+	bo_qua = {"exploded_items", "modified", "modified_by", "total_cost",
+		"raw_material_cost", "operating_cost", "base_total_cost"}
+	nhan = {"quantity": "số lượng ra", "is_active": "hoạt động",
+		"is_default": "mặc định", "docstatus": "trạng thái"}
+	for d in du_lieu.get("changed") or []:
+		if len(d) < 3 or d[0] in bo_qua:
+			continue
+		if d[0] in nhan:
+			ra.append("Đổi %s %s thành %s" % (nhan[d[0]], _so_dep(d[1]), _so_dep(d[2])))
+	for loai, cau in (("added", "them"), ("removed", "bo")):
+		for d in du_lieu.get(loai) or []:
+			if len(d) >= 2 and d[0] == "items":
+				ra.append(_cau_dong(cau, d[1]))
+	for d in du_lieu.get("row_changed") or []:
+		if len(d) < 4 or d[0] != "items":
+			continue
+		thay = d[3] or []
+		meta = (dong_theo or {}).get(str(d[2]), {})
+		ten = meta.get("item_name") or meta.get("item_code") or "dòng %s" % d[2]
+		dvt = meta.get("uom") or ""
+		for x in thay:
+			if len(x) >= 3 and x[0] in ("item_name", "item_code"):
+				ten = x[2] or x[1] or ten
+			if len(x) >= 3 and x[0] == "uom":
+				dvt = x[2] or x[1] or ""
+		for x in thay:
+			if len(x) >= 3 and x[0] == "qty":
+				ra.append("Đổi %s %s thành %s %s" % (ten, _so_dep(x[1]), _so_dep(x[2]), dvt))
+	return ra
+
+
+def _kiem_xuat():
+	if not _vai_ghi_so() & set(frappe.get_roles()):
+		frappe.throw("Chỉ bếp trưởng, quản lý công thức hoặc giám đốc được xuất Excel công thức.")
+
+
+@frappe.whitelist()
+def xuat_excel(tab=None, trang_thai=None, tim=None, huong_dan=None, chang=None,
+		bom=None):
+	"""Xuất đúng tập đang lọc, mỗi dòng nguyên liệu là một dòng Excel."""
+	_kiem_xuat()
+	if bom:
+		cac_bom = [bom]
+	else:
+		kq = danh_sach(tab, trang_thai, tim, huong_dan, chang, _tat_ca=True)
+		cac_bom = [x["bom"] for x in kq["ds"]]
+	bang = [["Bộ lọc: khu=%s; trạng thái=%s; tìm=%s; hướng dẫn=%s; chặng=%s; giờ xuất=%s; người xuất=%s" % (
+		tab or "tất cả", trang_thai or "tất cả", tim or "", huong_dan or "",
+		chang or "", now_datetime(), frappe.session.user)], []]
+	bang.append(["Mã món", "Tên món", "Mã BOM", "Trạng thái", "Số lượng ra", "Đơn vị",
+		"Mã NVL", "Tên NVL", "Số lượng", "Đơn vị NVL", "Đơn giá", "Thành tiền",
+		"Tổng giá vốn", "Giá vốn một đơn vị", "Người tạo", "Người sửa cuối", "Ngày sửa cuối"])
+	for ten in cac_bom:
+		b = frappe.get_doc("BOM", ten)
+		trang = trang_thai_bom(b.docstatus, b.is_active, b.is_default)
+		for d in b.items or []:
+			bang.append([str(b.item), b.item_name or "", str(b.name),
+				{"nhap": "Nháp", "dang_dung": "Đang dùng", "ban_cu": "Bản cũ", "da_huy": "Đã huỷ"}.get(trang, trang),
+				flt(b.quantity), b.uom or "", str(d.item_code), d.item_name or "", flt(d.qty),
+				d.uom or "", flt(d.rate), flt(d.amount), flt(b.total_cost),
+				flt(b.total_cost) / flt(b.quantity) if flt(b.quantity) else 0,
+				b.owner or "", b.modified_by or "", b.modified])
+	from frappe.utils.xlsxutils import make_xlsx
+	tep = make_xlsx(bang, "Cong thuc BOM")
+	noi = tep.getvalue() if isinstance(tep, io.BytesIO) else tep
+	return {"ten_file": "cong-thuc-bom-%s.xlsx" % nowdate(),
+		"b64": base64.b64encode(noi).decode(), "so_dong": max(0, len(bang) - 3)}
+
+
+def _chuoi_bom(name):
+	"""Tên bản hiện tại và các bản trước, không để vòng liên kết làm treo."""
+	ra, x = [], name
+	for _ in range(30):
+		if not x or x in ra:
+			break
+		ra.append(x)
+		x = frappe.db.get_value("BOM", x, "custom_ban_truoc")
+	return ra
+
+
+def _ten_nguoi(cac_email):
+	ra = {}
+	for e in cac_email:
+		ra[e] = frappe.db.get_value("User", e, "full_name") or e
+	return ra
+
+
+def _lich_su_cua(cac_bom, tu_ngay=None, den_ngay=None, nguoi=None):
+	loc_v = {"ref_doctype": "BOM", "docname": ["in", cac_bom]}
+	loc_c = {"reference_doctype": "BOM", "reference_name": ["in", cac_bom],
+		"comment_type": ["in", ["Comment", "Info"]]}
+	if tu_ngay:
+		loc_v["creation"] = [">=", tu_ngay]
+		loc_c["creation"] = [">=", tu_ngay]
+	if den_ngay:
+		loc_v["creation"] = ["between", [tu_ngay or "2000-01-01", "%s 23:59:59" % den_ngay]]
+		loc_c["creation"] = ["between", [tu_ngay or "2000-01-01", "%s 23:59:59" % den_ngay]]
+	if nguoi:
+		loc_v["owner"] = nguoi
+		loc_c["owner"] = nguoi
+	versions = frappe.get_all("Version", filters=loc_v,
+		fields=["name", "docname", "owner", "creation", "data"], limit_page_length=0)
+	comments = frappe.get_all("Comment", filters=loc_c,
+		fields=["name", "reference_name", "owner", "creation", "content"], limit_page_length=0)
+	emails = {x.owner for x in versions + comments}
+	ten = _ten_nguoi(emails)
+	ra = []
+	dong_theo = {x.name: x for x in frappe.get_all("BOM Item", filters={"parent": ["in", cac_bom]},
+		fields=["name", "item_name", "item_code", "uom"], limit_page_length=0)}
+	for x in versions:
+		cau = dich_version(x.data, dong_theo)
+		if cau:
+			ra.append({"bom": x.docname, "luc": str(x.creation), "nguoi": ten.get(x.owner, x.owner), "email": x.owner, "cau": cau})
+	for x in comments:
+		noi = unescape(re.sub(r"<[^>]+>", "", x.content or "")).strip()
+		if noi:
+			ra.append({"bom": x.reference_name, "luc": str(x.creation), "nguoi": ten.get(x.owner, x.owner), "email": x.owner, "cau": [noi]})
+	return sorted(ra, key=lambda x: x["luc"], reverse=True)
+
+
+@frappe.whitelist()
+def lich_su(name):
+	_kiem_xem()
+	return _lich_su_cua(_chuoi_bom(name))
+
+
+def _ban_da_xoa(data):
+	# Frappe delete_doc.add_to_deleted_document lưu doc.as_json(), không phải Version.
+	try:
+		d = json.loads(data or "{}")
+	except (TypeError, ValueError):
+		return None
+	if not isinstance(d, dict) or d.get("doctype") != "BOM":
+		return None
+	return {"bom": d.get("name"), "ma": d.get("item"), "ten": d.get("item_name"),
+		"so_luong": d.get("quantity"), "dvt": d.get("uom"),
+		"dong": [{"ma": x.get("item_code"), "ten": x.get("item_name"),
+			"sl": x.get("qty"), "dvt": x.get("uom")} for x in d.get("items") or []]}
+
+
+@frappe.whitelist()
+def ban_da_xoa(name):
+	"""Chỉ đọc bản lưu của BOM đã xoá, không nạp hay phục hồi BOM."""
+	_kiem_xem()
+	d = frappe.db.get_value("Deleted Document", {"name": name, "deleted_doctype": "BOM"},
+		["data", "deleted_name"], as_dict=True)
+	ra = _ban_da_xoa(d.data) if d else None
+	if not ra:
+		frappe.throw("Không còn bản lưu công thức này. Nhờ quản lý kiểm tra lịch sử.")
+	return ra
+
+
+@frappe.whitelist()
+def nhat_ky(nguoi=None, mon=None, tu_ngay=None, den_ngay=None):
+	"""Nhật ký tập trung, mặc định bảy ngày và trả lựa chọn cho bộ lọc."""
+	_kiem_xem()
+	tu_ngay = tu_ngay or str(add_days(nowdate(), -6))
+	den_ngay = den_ngay or nowdate()
+	loc = {"item": mon} if mon else {}
+	boms = frappe.get_all("BOM", filters=loc,
+		fields=["name", "item", "item_name"], limit_page_length=0)
+	cac = [x.name for x in boms]
+	ds = _lich_su_cua(cac, tu_ngay, den_ngay, nguoi) if cac else []
+	mon_theo = {x.item: x.item_name or x.item for x in boms}
+	loc_xoa = {"deleted_doctype": "BOM", "creation": ["between", [tu_ngay, "%s 23:59:59" % den_ngay]]}
+	if nguoi:
+		loc_xoa["owner"] = nguoi
+	for x in frappe.get_all("Deleted Document", filters=loc_xoa,
+			fields=["name", "deleted_name", "owner", "creation", "data"], limit_page_length=0):
+		ban = _ban_da_xoa(x.data)
+		if not ban or (mon and ban["ma"] != mon):
+			continue
+		mon_theo[ban["ma"]] = ban["ten"] or ban["ma"]
+		ds.append({"bom": x.deleted_name, "da_xoa": x.name, "luc": str(x.creation),
+			"nguoi": _ten_nguoi([x.owner])[x.owner], "email": x.owner,
+			"cau": ["Đã xoá công thức. Bấm để xem bản lưu chỉ đọc."]})
+	ds.sort(key=lambda x: x["luc"], reverse=True)
+	return {"ds": ds[:500], "tong": len(ds), "tu_ngay": tu_ngay, "den_ngay": den_ngay,
+		"nguoi": sorted({(x["email"], x["nguoi"]) for x in ds}, key=lambda x: x[1]),
+		"mon": sorted(mon_theo.items(), key=lambda x: x[1])}
+
+
+SIDEBAR_DESK = "Manufacturing"
+
+
+def muc_sidebar():
+	"""Lối vào nhật ký trên sidebar Desk, khai thuần để ca kiểm chốt."""
+	return {"type": "Link", "label": "Nhật ký sửa công thức", "link_type": "URL",
+		"url": "/nhat-ky-sua-cong-thuc", "child": 0}
+
+
+def dung_sidebar():
+	"""Dựng lối vào Desk lặp lại được, không thay các mục sẵn có."""
+	try:
+		if not frappe.db.exists("Workspace Sidebar", SIDEBAR_DESK):
+			return 0
+		doc = frappe.get_doc("Workspace Sidebar", SIDEBAR_DESK)
+		m = muc_sidebar()
+		if any(x.get("type") == m["type"] and x.get("label") == m["label"] for x in doc.get("items") or []):
+			return 0
+		doc.append("items", m)
+		doc.flags.ignore_permissions = True
+		doc.save()
+		return 1
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "cong_thuc: dung sidebar")
+		return 0
 
 
 def _gan_huong_dan(ra):
@@ -364,6 +611,7 @@ def chi_tiet(name):
 		"chang": ten_chang_gom(b.get("custom_chang")),
 		"dong": dong, "ban_truoc": chuoi, "ban_sau": ban_sau,
 		"phien_ban": duoi_phien_ban(b.name),
+		"lich_su": _lich_su_cua(_chuoi_bom(b.name))[:20],
 	}
 
 
@@ -461,6 +709,9 @@ def ghi_so(bom_nhap):
 	if cu and frappe.db.exists("BOM", cu):
 		frappe.db.set_value("BOM", cu, {"is_default": 0, "is_active": 0})
 	frappe.db.set_value("BOM", doc.name, {"is_default": 1, "is_active": 1})
+	doc.add_comment("Comment", "Ghi sổ%s." % (", thay bản %s" % cu if cu else ""))
+	if cu and frappe.db.exists("BOM", cu):
+		frappe.get_doc("BOM", cu).add_comment("Comment", "Bản %s đã ghi sổ thay công thức này." % doc.name)
 	frappe.db.commit()
 	loi = "Đã ghi sổ %s thành bản đang dùng." % doc.name
 	if cu:

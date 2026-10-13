@@ -296,7 +296,7 @@ CUA_NGO = {
 		"ma_thay_the", "nap_bom_thu_vien", "nuoc_het_ton"],
 	# Danh muc cong thuc BOM cho bep truong, them 21/08/2026.
 	"cong_thuc.py": ["bo_nhap", "chi_tiet", "danh_sach", "dieu_chinh",
-		"ghi_so", "sua_nhap", "tao_moi"],
+		"ghi_so", "lich_su", "nhat_ky", "ban_da_xoa", "sua_nhap", "tao_moi", "xuat_excel"],
 	# Loi ke toan mua hang, them 21/08/2026. `giu_tk_theo_phieu_nhap` la hook
 	# nen KHONG whitelist, chi hai cua nay mo cho ke toan truong.
 	"ke_toan_mua.py": ["dat_tk_hang_chua_hoa_don", "kiem_tra", "so_chi_tiet_ncc"],
@@ -608,7 +608,7 @@ CUA_NGO = {
 	# `chan_khi_dang_kiem`, `soat_truoc_khi_chot` va `chup_ton_so` la HOOK,
 	# phai nam NGOAI danh sach: mo ra ngoai la cho phep goi thang tu trinh
 	# duyet vao dung cho dang khoa so kho.
-	"kiem_ke.py": [
+	"kiem_ke.py": ["ghi_so",
 		"ghi_ly_do", "lich_hom_nay", "ly_do_ds", "mo_phieu",
 		"phieu_cho_duyet", "phieu_dang_khoa", "tao_phieu_hom_nay",
 		# v561: goi y va nho tai khoan chenh lech ke toan da chon.

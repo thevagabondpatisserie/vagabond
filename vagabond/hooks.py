@@ -492,6 +492,7 @@ doc_events = {
 		"on_cancel": "vagabond.giao_viec.khi_xong",
 	},
 	"Phieu Kiem Ke": {
+		"before_validate": "vagabond.kiem_ke.giu_anh_chup_ton",
 		"after_insert": [
 			"vagabond.giao_viec.khi_sinh_phieu",
 			# Ghi lai thoi diem chup ton so: chenh lech dem ra la chenh lech so

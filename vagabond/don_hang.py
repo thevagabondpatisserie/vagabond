@@ -434,6 +434,17 @@ def tao_don(don=None):
 		dia_chi = diem["a"]
 		don["diem_lay_ten"] = diem["n"]
 
+	# F21 cách B: tìm nonce ở trên, rồi mới đọc tồn tại lúc gửi. Nguồn
+	# không đọc được thì nhận như cũ, nhưng phải báo Sales đối chiếu.
+	from vagabond import ton_don_web
+	try:
+		nhac_ton = ton_don_web.kiem(hang, ngay)
+	except Exception:
+		ton_don_web.bao_loi(ngay)
+		nhac_ton = []
+	if nhac_ton:
+		return {"ok": 0, "ly_do": "het_hang", "nhac": nhac_ton}
+
 	# CHOT CHAN HAN MUC MUA VU (them 21/08/2026 cung dot dua hang mua vu len web).
 	#
 	# Trinh duyet da khoa nut o nhung mon het hang, nhung ai cung goi thang
@@ -448,7 +459,7 @@ def tao_don(don=None):
 
 		nhac = mua_vu.kiem_han_muc(
 			[{"item_code": h["variation_id"], "qty": h.get("quantity") or 0} for h in hang],
-			ngay=ngay,
+			ngay=ngay, khi_loi=lambda: ton_don_web.bao_loi(ngay),
 		)
 		if nhac:
 			return {"ok": 0, "ly_do": "het_hang_mua_vu", "nhac": nhac}
@@ -456,7 +467,7 @@ def tao_don(don=None):
 		# Hong phep kiem KHONG duoc chan don thuong. Ghi log roi di tiep: chan
 		# nham ca tiem vi mot loi phu la cai gia dat hon nhieu so voi mot don
 		# mua vu lot qua, ma don do van con chot chan o before_submit ben trong.
-		frappe.log_error(frappe.get_traceback(), "don_hang: kiem han muc mua vu")
+		ton_don_web.bao_loi(ngay)
 
 	# Tien banh TINH LAI o day theo gia ho so mon (QT-19). Con so trinh duyet
 	# hien cho khach khong duoc dung de quyet mien phi giao.

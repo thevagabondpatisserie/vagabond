@@ -327,6 +327,9 @@ def dung():
 	_dung_nhom(phan_tich.TRUONG_MOI, "phan_tich")
 	# Loi vao tren Desk cho man Viec hom nay: sidebar Ban hang. Tu nuot loi.
 	phan_tich.dung_sidebar()
+	# Nhật ký BOM dùng Version sẵn có, chỉ cần dựng một lối vào trên Desk.
+	from vagabond import cong_thuc
+	cong_thuc.dung_sidebar()
 
 	# Phieu chi: o ghi vet nguoi xac nhan da chuyen tien va to uy nhiem chi
 	# cua rieng phieu. Doc dau tep duyet_chi.py.
