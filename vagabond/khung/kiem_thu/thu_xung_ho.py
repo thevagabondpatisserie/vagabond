@@ -102,6 +102,11 @@ def _soi_python():
 					continue
 				if any(a <= nut.lineno <= b for a, b in chua):
 					continue
+				# HTML emphasis tag trong allowlist, không phải câu xưng hô.
+				if (os.path.relpath(p, GOI) == 'web_vue.py' and nut.value == 'em'
+					and any(isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id == 'THE' for t in n.targets)
+						and nut in list(ast.walk(n.value)) for n in ast.walk(cay))):
+					continue
 				if nut.value in CAU_SALES_GUI_KHACH:
 					continue
 				if _xung_em(nut.value):

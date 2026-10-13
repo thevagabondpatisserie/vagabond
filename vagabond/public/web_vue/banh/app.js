@@ -49,7 +49,7 @@ export function khoiDong(goc = '#app') {
         return {quay, chon, mon, tong: mon.reduce((a, m) => a + (m.con || 0), 0),
           nhom: ['', ...new Set(ds.map(m => m.nhom).filter(Boolean))].map(n => ({n, so: ds.filter(m => !n || m.nhom === n).length}))};
       });
-      const chinhSach = computed(() => ((S.cauHinh && S.cauHinh.chinh_sach) || []).filter(c => /^\/[a-z-]+$/.test(String(c.duong || ''))));
+      const chinhSach = computed(() => ((S.cauHinh && S.cauHinh.chinh_sach) || []).filter(c => /^\/[a-z-]+$/.test(String(c.duong || ''))).map(c => ({...c, duong: location.pathname.startsWith('/web_moi/') ? '/web_moi' + c.duong : c.duong})));
       const baoMat = computed(() => chinhSach.value.find(c => c.khoa === 'chinh_sach_bao_mat') || null);
       const lienHe = computed(() => (S.cauHinh && S.cauHinh.lien_he) || {});
       const ngayBan = computed(() => { void S.nhip; const b = new Date(); return DAYS[b.getDay()] + ', ' + kho.T.dmy(b); });
@@ -176,7 +176,7 @@ export function khoiDong(goc = '#app') {
   const CHO = {lich: '#c-days', ten: '#f-name', sdt: '#f-phone', diem_nhan: '#pickList', dia_chi: '#f-addr', cach_nhan: '#m-pick', dong_y: '#c-dongy', uu_dai: '#sum'};
   async function guiDon() {
     const kq = await kho.submitOrder();
-    if (kq.buoc === 'xong' && kq.duong_dan) { location.assign(kq.duong_dan); return; }
+    if (kq.buoc === 'xong' && kq.duong_dan) { location.assign(location.pathname.startsWith('/web_moi/') ? '/web_moi' + kq.duong_dan : kq.duong_dan); return; }
     const sel = CHO[kq.buoc]; if (!sel) return;
     await nextTick();
     const o = document.querySelector(sel); if (!o) return;

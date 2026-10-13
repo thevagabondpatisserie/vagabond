@@ -1013,3 +1013,10 @@ del _cu_ds
 scheduler_events.setdefault("hourly", []).append("vagabond.doi_soat_vendor.quet_moi_gio")
 # Codex #460: đơn web đã huỷ mà còn giữ lượt ưu đãi hoặc mã dùng một lần thì trả lại.
 scheduler_events.setdefault("cron", {}).setdefault("*/15 * * * *", []).append("vagabond.don_hang.tra_uu_dai_don_huy")
+
+# #470: chỉ thêm route thử song song, chưa tráo /banh công khai.
+website_route_rules = list(website_route_rules) + [
+    {"from_route": "/web_moi/banh/xong/<token>", "to_route": "web_moi/xong"},
+    {"from_route": "/web_moi/banh/xong", "to_route": "web_moi/xong"},
+] + [{"from_route": "/web_moi/" + duong, "to_route": "web_moi/chinh-sach"}
+     for duong in ("chinh-sach-bao-mat", "dieu-khoan", "giao-hang-doi-tra")]

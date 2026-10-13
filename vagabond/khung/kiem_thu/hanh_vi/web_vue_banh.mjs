@@ -6,6 +6,7 @@
 
    Chạy: node vagabond/khung/kiem_thu/hanh_vi/web_vue_banh.mjs */
 import {taoKho} from '../../../public/web_vue/banh/kho-banh.js';
+import {bienNhan} from '../../../public/web_vue/trang/app.js';
 import {MAU} from '../../../public/web_vue/banh/mau.js';
 import {t0, tienVN, hangGui} from '../../../public/web_vue/kho/thuan.js';
 import {nextTick} from '../../../public/web_vue/lib/vue.esm-browser.prod.js';
@@ -48,6 +49,56 @@ function moiTruong(gio, mang = {}) {
   return {mt, dong, hen, vet, kho, chayHen};
 }
 const coThem = (k, ten = 'CANDLE') => { k.moBanh(k.S.CAKES.find(c => c.k === ten)); return k.addToCart(); };
+
+await ca('#471 Pixel biên nhận gỡ token trước PageView, GuiDon khớp event_id CAPI, reload không bắn lại', async () => {
+  const events = [], storage = new Map();
+  const win = {location: {pathname: '/web_moi/banh/xong/SECRET'},
+    history: {replaceState(a,b,path) { win.location.pathname = path; }},
+    sessionStorage: {getItem:k=>storage.get(k), setItem:(k,v)=>storage.set(k,v)},
+    fbq: (...args) => events.push([win.location.pathname, args])};
+  const D = {bien_nhan:{ma:'DW-THU', mon:[], tong:'100.000 đ'}, pixel_id:'123',
+    su_kien:{event_id:'uuid-capi-gui-don', ban:true, gia_tri:100000, ma_mon:['BANH']}};
+  bienNhan(D, win);
+  dung('mọi sự kiện đã gỡ token', events.every(x => !x[0].includes('SECRET')));
+  const gui = events.filter(x => x[1][0] === 'trackCustom');
+  la('cùng event_id do máy chủ cấp', gui[0][1][3], {eventID:'uuid-capi-gui-don'});
+  bienNhan(D, win);
+  la('gửi lại không lặp GuiDon', events.filter(x => x[1][0] === 'trackCustom').length, 1);
+  const n = events.length;
+  la('reload không token đọc đúng biên nhận', bienNhan({khong_token:1}, win), D.bien_nhan);
+  la('reload không bắn Meta', events.length, n);
+  win.history.replaceState = () => { throw new Error('history chặn'); };
+  win.location.pathname = '/web_moi/banh/xong/SECRET';
+  bienNhan(D, win); la('không gỡ được token thì không Meta', events.length, n);
+});
+
+await ca('#471 nhấp kép và mất phản hồi: giữ nonce, một đơn, trả biên nhận cũ', async () => {
+  const don = new Map(), gui = []; let tha;
+  const {mt} = moiTruong('2026-10-11T08:00:00', {
+    'vagabond.don_hang.tao_don': async p => {
+      const d = JSON.parse(p.don); gui.push(d);
+      if (!don.has(d.nonce)) {
+        don.set(d.nonce, '/banh/xong/token-cu');
+        await new Promise(r => { tha = r; });
+        throw new Error('Máy chủ nhận, mạng mất phản hồi');
+      }
+      return {ok: 1, duong_dan: don.get(d.nonce)};
+    }
+  });
+  const k = taoKho(mt); coThem(k); k.pick(3); k.pickSlot(6);
+  Object.assign(k.S.f, {name: 'Khách', phone: '0901234567', addr: '12 Nguyễn Huệ'});
+  k.S.CO.dongy = true;
+  const a = k.submitOrder(), b = k.submitOrder();
+  la('hai lần bấm chỉ một POST', gui.length, 1);
+  tha(); la('báo lỗi mạng', (await a).buoc, 'loi'); await b;
+  la('giữ giỏ', k.S.CART.length, 1);
+  const kq = await k.submitOrder();
+  la('biên nhận cũ', kq.duong_dan, '/banh/xong/token-cu');
+  la('nonce không đổi', gui[1].nonce, gui[0].nonce);
+  la('chỉ một đơn bên máy chủ giả', don.size, 1);
+  la('bấm lại sau thành công vẫn biên nhận cũ', (await k.submitOrder()).duong_dan, kq.duong_dan);
+  la('không POST sau thành công', gui.length, 2);
+});
 
 await ca('Bấm + trong giỏ: tiền bánh và tổng đổi NGAY, không cần vẽ lại (lỗi PR #460)', async () => {
   const {mt} = moiTruong('2026-10-11T08:00:00');
@@ -394,6 +445,20 @@ await ca('v590: gợi ý mã hiện tổng sau giảm và nút Áp dụng không
   dung('gợi ý có số giảm và tổng mới', JSON.stringify(k.goiYMa.value).includes('50.000') && JSON.stringify(k.goiYMa.value).includes('610.000'));
   dung('nút là nút chính, không phải thẻ chọn giả ô nhập', MAU.includes('class="btn btn-xs" id="btnMa"'));
   dung('đáy chừa đủ nút dính', MAU.includes('padding-bottom:140px'));
+});
+
+await ca('#471 phản hồi địa chỉ cũ không ghi đè chữ và tọa độ mới', async () => {
+  let traGoiY, traChiTiet;
+  const {mt,chayHen} = moiTruong('2026-10-11T08:00:00', {
+    'vagabond.dia_chi.goi_y_dia_chi': () => new Promise(r=>{traGoiY=r;}),
+    'vagabond.dia_chi.chi_tiet_dia_chi': () => new Promise(r=>{traChiTiet=r;})
+  });
+  const k = taoKho(mt); k.S.f.addr='Địa chỉ cũ'; k.goiYDiaChi(); await chayHen();
+  k.S.f.addr='Mới'; k.goiYDiaChi(); traGoiY({suggestions:[{mo_ta:'Cũ',place_id:'cu'}]}); await nextTick();
+  la('gợi ý cũ bị bỏ',k.S.goiY,[]);
+  k.S.goiY=[{mo_ta:'Địa chỉ cũ',place_id:'cu'}]; const doi=k.chonGoiY(0);
+  k.S.f.addr='Mới'; k.goiYDiaChi(); traChiTiet({lat:10,lng:106,dia_chi:'Địa chỉ cũ'}); await doi;
+  la('giữ chữ mới',k.S.f.addr,'Mới'); la('không tọa độ cũ',k.S.CO.pickedLoc,null);
 });
 
 console.log('Bo ca kiem HANH VI trang dat banh ban Vue');

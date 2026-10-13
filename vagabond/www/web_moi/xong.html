@@ -1,0 +1,32 @@
+<!doctype html><html lang="vi"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="csrf-token" content="{{ csrf_token }}"><meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer"><title>Biên nhận yêu cầu đặt bánh</title>
+<link rel="stylesheet" href="/assets/vagabond/web_order/nen.css?v=35b24d4964ff">
+<link rel="stylesheet" href="/assets/vagabond/web_order/trang-khach.css?v=8251bbe6b8e0">
+<!-- vue-map:dau -->
+<script type="importmap">
+{
+ "imports": {
+  "/assets/vagabond/web_vue/banh/anh.js": "/assets/vagabond/web_vue/banh/anh.js?v=a26dbe10b7f4",
+  "/assets/vagabond/web_vue/banh/app.js": "/assets/vagabond/web_vue/banh/app.js?v=22ee8b3196ee",
+  "/assets/vagabond/web_vue/banh/chu-giau.js": "/assets/vagabond/web_vue/banh/chu-giau.js?v=074a307ac954",
+  "/assets/vagabond/web_vue/banh/du-lieu.js": "/assets/vagabond/web_vue/banh/du-lieu.js?v=8023914b5368",
+  "/assets/vagabond/web_vue/banh/kho-banh.js": "/assets/vagabond/web_vue/banh/kho-banh.js?v=30b285aa1794",
+  "/assets/vagabond/web_vue/banh/mau.js": "/assets/vagabond/web_vue/banh/mau.js?v=4cd0a9904112",
+  "/assets/vagabond/web_vue/banh/noi-dung.js": "/assets/vagabond/web_vue/banh/noi-dung.js?v=7a452eedc13c",
+  "/assets/vagabond/web_vue/banh/thanh-phan.js": "/assets/vagabond/web_vue/banh/thanh-phan.js?v=64194b6b4edf",
+  "/assets/vagabond/web_vue/kho/api.js": "/assets/vagabond/web_vue/kho/api.js?v=648504e84b1d",
+  "/assets/vagabond/web_vue/kho/chu.js": "/assets/vagabond/web_vue/kho/chu.js?v=e531c0063239",
+  "/assets/vagabond/web_vue/kho/thuan.js": "/assets/vagabond/web_vue/kho/thuan.js?v=b4f09645199e",
+  "/assets/vagabond/web_vue/lib/vue.esm-browser.prod.js": "/assets/vagabond/web_vue/lib/vue.esm-browser.prod.js?v=c6cae9e17888",
+  "/assets/vagabond/web_vue/trang/app.js": "/assets/vagabond/web_vue/trang/app.js?v=d70544cbe403"
+ }
+}
+</script>
+<!-- vue-map:cuoi -->
+</head><body class="trang-khach"><header class="tk-dau"><a href="/web_moi/banh">THE VAGABOND PÂTISSERIE</a></header>
+<div id="app"></div>{{ chan_trang }}
+<script type="application/json" id="du-lieu">{{ du_lieu }}</script>
+<script type="module">import {khoiDongTrang} from '/assets/vagabond/web_vue/trang/app.js';
+khoiDongTrang(JSON.parse(document.getElementById('du-lieu').textContent));</script></body></html>

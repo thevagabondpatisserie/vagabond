@@ -98,6 +98,7 @@ export const MAU = `
     <p class="dong-tt" id="dongTrangThai"><template v-for="(p,i) in kho.dongTrangThai.value.phan" :key="i"><dong-chu :phan="p"/> · </template><span class="live"><i class="dot"></i><span id="synced">{{ t('dat_banh_9c4a42cb2','cập nhật') }} {{ kho.dongTrangThai.value.gio }}</span></span></p>
   </section>
   <div class="wrap">
+    <div v-if="S.tonLoi" class="note" id="tonLoi" role="status">{{ t('ton_tai_loi','Chưa cập nhật được số bánh. Quý khách tải lại hoặc liên hệ chúng tôi để xác nhận.') }} <button class="cm-nut" @click="kho.napTon()">{{ t('tai_lai_quay','Tải lại danh sách') }}</button></div>
     <div class="note" id="prepNote"><dong-chu :phan="kho.ghiChuHomNay.value"/></div>
     <div class="grid" id="grid-today" v-show="theHomNay.length">
       <div class="card-o" v-for="x in theHomNay" :key="x.c.k">

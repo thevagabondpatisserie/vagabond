@@ -26,7 +26,7 @@ export function taoKho(moiTruong) {
        giờ HIỆN TẠI (bài học #205: không dùng bản chụp giờ lúc tải trang). */
     nhip: 0,
     CAKES: cakesGoc(),
-    TODAY: {}, TRUOC: {}, tonNapXong: false, tonDaThu: false, gioTon: null,
+    TODAY: {}, TRUOC: {}, tonNapXong: false, tonLoi: false, tonDaThu: false, gioTon: null,
     MUA: {co: 0, mon: []},
     STORE: {quay: []}, storeLoi: false, storeDaTai: false, quayChon: '', nhomQuay: '',
     tab: 'today',
@@ -454,25 +454,29 @@ export function taoKho(moiTruong) {
     return {i, on, dau: a.full_name + ' · ' + (on ? a.phone_number : T.maskPhone(a.phone_number)), duoi: on ? a.full_address : T.maskAddr(a.full_address)};
   }));
   function selAddr(i) { S.CO.addrSel = i; S.CO.pickedLoc = null; S.goiY = []; S.f.addr = S.CO.addrList[i].full_address; quoteShip(); }
+  let lanDiaChi = 0;
   function goiYDiaChi() {
+    const lan = ++lanDiaChi;
     S.CO.pickedLoc = null;
     const q = (S.f.addr || '').trim();
     huyHen(gyHen);
     if (q.length < 5) { S.goiY = []; quoteShip(); return; }
     gyHen = hen(async () => {
-      try { const m = await doc('vagabond.dia_chi.goi_y_dia_chi', {q}); S.goiY = ((m || {}).suggestions || []).slice(0, 6); }
-      catch (e) { S.goiY = []; }
+      try { const m = await doc('vagabond.dia_chi.goi_y_dia_chi', {q}); if (lan !== lanDiaChi) return; S.goiY = ((m || {}).suggestions || []).slice(0, 6); }
+      catch (e) { if (lan !== lanDiaChi) return; S.goiY = []; }
       quoteShip();
     }, 450);
   }
   async function chonGoiY(i) {
     const g = S.goiY[i]; if (!g) return;
+    const lan = ++lanDiaChi;
     S.f.addr = g.mo_ta; S.goiY = [];
     S.goi.ship = [mau(t('dat_banh_ddbf6a5fc', 'Đang lấy toạ độ...'), 'cyan')];
     try {
       const m = await doc('vagabond.dia_chi.chi_tiet_dia_chi', {place_id: g.place_id}) || {};
+      if (lan !== lanDiaChi) return;
       if (m.lat && m.lng) { S.CO.pickedLoc = {lat: m.lat, lng: m.lng}; if (m.dia_chi) S.f.addr = m.dia_chi; }
-    } catch (e) { S.CO.pickedLoc = null; }
+    } catch (e) { if (lan !== lanDiaChi) return; S.CO.pickedLoc = null; }
     S.CO.addrSel = null;
     quoteShip();
   }
@@ -523,7 +527,19 @@ export function taoKho(moiTruong) {
     linkMsg ? lienKet(t('dat_banh_68074b808', 'Messenger'), linkMsg, true) : thuong(t('dat_banh_68074b808', 'Messenger')),
     thuong(t('dat_banh_a1018afe8', ',\n hoặc bấm gửi lại sau ít phút.')));
 
-  async function submitOrder() {
+  // Khóa cả lượt kiểm ưu đãi bất đồng bộ, không chỉ lúc POST. Hai lần
+  // bấm khi lời hứa chưa xong cùng nhận một biên nhận, không gửi lần hai.
+  let luotGui = null, bienNhanVuaGui = null;
+  function submitOrder() {
+    if (luotGui) return luotGui;
+    if (S.guiXong && bienNhanVuaGui) return Promise.resolve(bienNhanVuaGui);
+    luotGui = guiDonMotLan().then(kq => {
+      if (kq.buoc === 'xong') bienNhanVuaGui = kq;
+      return kq;
+    }).finally(() => { luotGui = null; });
+    return luotGui;
+  }
+  async function guiDonMotLan() {
     /* Trả về {buoc} cho lớp giao diện cuộn tới ô cần sửa. */
     dongHoNhich();
     if (!S.CART.length) { toast(t('dat_banh_28c1cf2d1', 'Giỏ chưa có bánh nào')); return {buoc: 'gio'}; }
@@ -629,11 +645,11 @@ export function taoKho(moiTruong) {
       const truoc = {};
       dt.forEach(g => (g.sizes || []).forEach(y => { if (y.con > 0) truoc[y.ma] = y.con; }));
       S.TRUOC = truoc;
-      S.tonNapXong = true;
+      S.tonNapXong = true; S.tonLoi = false;
       const b = bayGio();
       S.gioTon = String(b.getHours()).padStart(2, '0') + ':' + String(b.getMinutes()).padStart(2, '0');
       ganGioCho(); lamTuoiGiaGio();
-    } catch (e) { /* giữ số cũ, không đoán */ }
+    } catch (e) { S.tonLoi = true; /* Giữ số cũ và báo chưa cập nhật được. */ }
     /* Codex #462: đã hỏi máy chủ ít nhất một lần (được hay lỗi), link chia sẻ
        tới bánh không có mới được coi là link hỏng. */
     S.tonDaThu = true;
