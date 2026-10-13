@@ -37,7 +37,6 @@ from frappe.utils import now_datetime
 from vagabond import whatsapp, zalo
 from vagabond.lib import PANCAKE, TIMEOUT, cfg, key, sdt84 as lib_sdt84
 
-VIETQR_ANH = "https://img.vietqr.io/image"
 
 
 def _so(s):
@@ -286,20 +285,7 @@ def xem(m=None):
 	d = ds[0]
 	c = cfg()
 	q = _doc_qr(d.get("qr_text") or "")
-	from urllib.parse import quote
-
-	anh = ""
 	stk = d.get("stk_ao") or q.get("stk") or ""
-	binh = q.get("bin") or (c.get("ngan_hang_bin") or "").strip()
-	if stk and binh:
-		anh = "%s/%s-%s-compact2.png?amount=%s&addInfo=%s&accountName=%s" % (
-			VIETQR_ANH,
-			binh,
-			stk,
-			int(d.get("so_tien") or 0),
-			quote(d.get("noi_dung_ck") or ""),
-			quote((c.get("ngan_hang_ten") or "").strip()),
-		)
 	return {
 		"ok": 1,
 		"ma_don": d["ma_don"],
@@ -315,7 +301,7 @@ def xem(m=None):
 			"stk": stk,
 			"chu_tk": (c.get("ngan_hang_ten") or "").strip(),
 		},
-		"qr": anh,
+		"qr_text": d.get("qr_text") or "",
 	}
 
 

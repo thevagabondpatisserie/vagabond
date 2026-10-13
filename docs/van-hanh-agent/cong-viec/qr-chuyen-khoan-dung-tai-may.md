@@ -80,3 +80,12 @@ Nền: main `42cb9fb9a`, APPVER 592.
   - tự đẩy lên nhánh, đọc lại SHA remote;
   - dòng đầu `[ĐÃ SỬA XONG]` hoặc `[BỊ CHẶN]`, kèm khối telegram-tomtat và `@claude review <SHA>`.
 - Không merge, không deploy.
+
+## Bàn giao Codex 13/10/2026
+
+- Phạm vi sáu nhóm màn và in bill đã chuyển sang dựng QR tại máy. `tai_khoan.py` cấp BIN từ bảng duy nhất; `qr_text` Pancake giữ nguyên. Bộ dựng JS/Python kiểm chéo, có fallback chuyển tay.
+- APPVER 594, một patch594. Thời điểm chọn: main592; PR474592, PR473593, PR471593, PR469592, PR464589, PR422577, PR401547. PR473 và PR471 đang trùng593 là việc của hai PR đó, bản này không sửa.
+- Kiểm chuyên biệt: `thu_qr_chuyen_khoan_474.py`, các harness `qr_*474.js`, `phieu_doi_no_571.js`; bench bổ sung `qr_474.py` dựng SVG và PDF thật, chặn mạng ngoài.
+- Tham chiếu TCV giải mã từ ảnh thật: `00020101021238570010A000000727012700069704220113VQRQALEAF29990208QRIBFTTA530370454061600005802VN62120808TCVG8FRJ630450D4`.
+- Còn cổng quét app ngân hàng thật TCV/NVHTN/tài khoản thường. Đã hỏi anh Việt xác nhận NVHTN và tài khoản thường để gửi QR thử; chỉ kiểm màn nhận diện, không chuyển tiền. Không merge/deploy.
+- Kết quả cổng, SHA remote và bench chính thức nằm trong comment bàn giao trên PR #474; không coi tài liệu này là bằng chứng các cổng chưa chạy đã đạt.

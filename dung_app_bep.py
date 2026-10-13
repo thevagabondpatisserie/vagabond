@@ -71,8 +71,12 @@ def cac_phan():
 
 
 def ghep():
-	"""Noi cac phan lai thanh byte. Khong them gi vao giua."""
+	"""Nạp QR dùng chung, rồi nối nguyên byte các phần bep theo thứ tự."""
+	# QR phải sẵn sàng trước lần vẽ quầy đầu tiên, không tải chậm rồi vẽ lại.
 	ra = b""
+	for ten in ("vendor/qrcode.js", "qr_chuyen_khoan.js"):
+		with open(os.path.join(GOC, "vagabond", "public", "js", ten), "rb") as f:
+			ra += f.read() + b";\n"
 	for d in cac_phan():
 		with open(d, "rb") as f:
 			ra += f.read()

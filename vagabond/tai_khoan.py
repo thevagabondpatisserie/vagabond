@@ -172,6 +172,17 @@ def kiem_cap_ngan_hang(bin_, ten):
 	return None
 
 
+def bin_cho(ma):
+	"""Một bảng ngân hàng duy nhất; mã lạ không mặc định sang MB."""
+	ma = str(ma or "").strip()
+	if len(ma) == 6 and ma.isascii() and ma.isdigit():
+		return ma
+	for nh in NGAN_HANG:
+		if ma.upper() == nh["ma"].upper():
+			return nh["bin"]
+	return ""
+
+
 def _ten_ngan_hang(ma):
 	m = str(ma or "").strip()
 	for nh in NGAN_HANG:
@@ -248,6 +259,7 @@ def tk_cho(nguon=None, diem=None):
 		if tk:
 			return {
 				"bank": tk["bank"],
+				"bin": bin_cho(tk["bank"]),
 				"stk": tk["stk"],
 				"ten": tk["ten"] or c["mac_dinh"]["ten"],
 				"nguon": n or khoa,
@@ -255,6 +267,7 @@ def tk_cho(nguon=None, diem=None):
 				"rieng": 1,
 			}
 	md = dict(c["mac_dinh"])
+	md["bin"] = bin_cho(md.get("bank"))
 	md["nguon"] = n
 	md["diem"] = d
 	md["rieng"] = 0

@@ -2188,3 +2188,11 @@ Các vòng #462/#465 có code và ca kiểm trong cloud nhưng head PR không đ
 Instruction phải chốt SHA remote, gói task/diff khi thiếu quyền và đường tiếp
 nhận desktop. Model trong TOML cũng là yêu cầu cấu hình, phải kiểm metadata
 trước khi nhận bot thực sự dùng model đó. Không chữa thiếu quyền bằng PR trùng.
+
+### 13/10/2026, PR #474: khép phần QR chuyển khoản còn phụ thuộc mạng ở #352
+
+- Ảnh QR tại quầy tải từ dịch vụ ngoài mất 7,8 giây dù tài khoản và nội dung đúng. Cùng phụ thuộc đó còn ở Sales, công nợ, màn khách, trang thanh toán web và PDF.
+- Dựng VietQR bằng hàm thuần JS/Python, tra BIN từ bảng hiện có trong `tai_khoan.py`. Bộ dựng và thư viện QR có sẵn được ghép trước app để lần vẽ đầu không đợi tải script. Hai trang độc lập nạp cùng asset nội bộ. PDF dùng PyQRCode có sẵn trong Frappe, không tải ảnh ngoài.
+- QR Pancake là chuỗi nguyên bản; không lấy các trường ra rồi dựng lại. Phiếu công nợ chỉ mã hoá phần còn thiếu. Thư viện hỏng hoặc thiếu tài khoản phải hiện chuyển tay, không bỏ ô trống.
+- Ca TCV 160000/TCVG8FRJ khớp từng byte với PNG tham chiếu giải mã độc lập. DOM mô phỏng chạy chuỗi thêm món, chọn chuyển khoản, tăng số lượng; ba đột biến CRC/số tiền/URL ngoài đều bị bắt.
+- Quét bằng công cụ, kiểm DOM và bench PDF không thay thế quét app ngân hàng. Ba ca ngân hàng thật vẫn là cổng riêng trước merge; xem biên nhận PR để biết trạng thái, không suy ra đã deploy từ mục này.

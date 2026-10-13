@@ -1273,35 +1273,15 @@ TEN_NGAN_HANG_DAY_DU = {
 
 
 def _qr_data_uri(qr, so_tien, noi_dung):
-	"""Tai anh QR VietQR ve roi nhung thang vao HTML dang data URI.
-
-	Khong tro thang src toi img.vietqr.io: wkhtmltopdf tren may chu dung
-	tien trinh rieng, no tai anh ngoai rat cham va co luc bo qua han - to
-	PDF gui khach ma thieu ma QR thi hong mat mot nua cong dung.
-	"""
-	import base64 as _b64
-
-	if not (qr or {}).get("stk"):
-		return ""
-	url = (
-		"https://img.vietqr.io/image/%s-%s-qr_only.png?amount=%d&addInfo=%s&accountName=%s"
-		% (
-			qr.get("bank") or "MB",
-			qr["stk"],
-			int(round(flt(so_tien))),
-			frappe.utils.quoted(noi_dung or ""),
-			frappe.utils.quoted(qr.get("ten") or ""),
-		)
-	)
+	"""Dựng ảnh tại máy chủ, không gọi dịch vụ QR bên ngoài."""
+	from vagabond.qr_chuyen_khoan import chuoi, anh
+	from vagabond.tai_khoan import bin_cho
+	qr = qr or {}
 	try:
-		import requests
-
-		r = requests.get(url, timeout=8)
-		if r.status_code == 200 and r.content:
-			return "data:image/png;base64," + _b64.b64encode(r.content).decode()
+		return anh(chuoi(qr.get("bin") or bin_cho(qr.get("bank")), qr.get("stk"), so_tien, noi_dung, qr.get("qr_text")))
 	except Exception:
-		frappe.log_error(frappe.get_traceback(), "cong_no: tai anh QR loi")
-	return ""
+		frappe.log_error(frappe.get_traceback(), "cong_no: ve QR tai may loi")
+		return ""
 
 
 def _ngay_vn(v):
@@ -1455,7 +1435,7 @@ def _phieu_html(name):
 		'style="width:150px !important;height:150px !important">'
 		'<div style="font-size:9.5px;color:#555;margin-top:4px">Quét mã để chuyển khoản</div>'
 		"</td>" % anh_qr
-	) if anh_qr else ""
+	) if anh_qr else '<td>Không tạo được mã QR. Vui lòng chuyển tay theo thông tin tài khoản, số tiền và nội dung bên cạnh.</td>'
 
 	khoi_ck = (
 		'<div style="border:2px solid #1c1a17;padding:12px 14px;margin-top:14px">'

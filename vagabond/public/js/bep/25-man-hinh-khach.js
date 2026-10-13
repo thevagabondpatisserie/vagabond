@@ -129,9 +129,10 @@ function cfdDungGoi(don, quay, phaiThu, qr, tab, luc, giamVi) {
     pt: String(don.pt || ''),
     qr: null
   };
-  if (qr && qr.url) {
+  if (qr) {
     g.qr = {
-      url: String(qr.url),
+      bin: String(qr.bin || ''),
+      tien: Number(qr.tien) || 0,
       nd: String(qr.nd || ''),
       ten: String(qr.ten || ''),
       bank: String(qr.bank || ''),
@@ -197,13 +198,10 @@ function cfdDay(don, quay, phaiThu, nguon, laApp, giamVi) {
     var maDiem = (quay && quay.ma) || '';
     var nd = posNoiDungCk(don.bill, maDiem, nguon);
     var tk = posTaiKhoan(nguon, maDiem) || {};
-    var url = posQrUrl(nd, phaiThu, nguon, maDiem);
-    if (url) {
-      qr = {
-        url: url, nd: nd, ten: tk.ten || '', bank: tk.bank || '', stk: tk.stk || '',
+    qr = {
+        bin: tk.bin || '', tien: phaiThu, nd: nd, ten: tk.ten || '', bank: tk.bank || '', stk: tk.stk || '',
         nhan: posSepayNhan || 0, du: (posSepayNhan || 0) >= phaiThu - 1
-      };
-    }
+    };
   }
   cfdGoiCuoi = cfdDungGoi(don, quay, phaiThu, qr, cfdMaTab(), Date.now(), giamVi);
   cfdPhat(cfdGoiCuoi);

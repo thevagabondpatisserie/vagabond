@@ -485,10 +485,7 @@ async function scrCnPhieu(name) {
      chuyen khoan doi PHAN CON LAI do may chu tinh, khong doi lai ca to. */
   var conPhaiChuyen = daNhan > 0 ? (d.con_thieu || 0) : d.tong_tien;
   var qr = d.qr || {};
-  var url = qr.stk
-    ? 'https://img.vietqr.io/image/' + (qr.bank || 'MB') + '-' + qr.stk + '-qr_only.png?amount=' + Math.round(conPhaiChuyen) +
-      '&addInfo=' + encodeURIComponent(d.ma_phieu) + '&accountName=' + encodeURIComponent(qr.ten || '')
-    : '';
+  var url = posQrTao(qr, d.ma_phieu, conPhaiChuyen).anh;
 
   var html = '<div class="card" style="padding:14px">' +
     '<div style="display:flex;align-items:center;gap:10px">' +
@@ -534,7 +531,7 @@ async function scrCnPhieu(name) {
       (d.het_han
         ? '<div style="background:#fef2f2;border:1.5px solid #fecaca;color:#b91c1c;border-radius:9px;padding:9px;font-size:13px;font-weight:700;margin-bottom:10px">Mã QR đã quá hạn ' + posNgayVn(d.han_qr) + '. Huỷ phiếu này rồi gom lại phiếu mới.</div>'
         : '<div style="font-size:12.5px;color:#6b7280;margin-bottom:8px">Mã QR sống tới hết ngày <b>' + posNgayVn(d.han_qr) + '</b></div>') +
-      (url ? '<img src="' + url + '" style="width:230px;height:230px;display:block;margin:0 auto;border:1px solid #eef0f4;border-radius:10px">' : '<div style="color:#b3261e;font-size:13px">Chưa khai số tài khoản nhận nên chưa sinh được QR.</div>') +
+      (url ? '<img src="' + url + '" style="width:230px;height:230px;display:block;margin:0 auto;border:1px solid #eef0f4;border-radius:10px">' : posQrLoi(qr, d.ma_phieu, conPhaiChuyen)) +
       (daNhan ? '<div style="margin-top:8px;color:#b45309;font-weight:700">' + (d.sepay >= daNhan ? 'SePay đã' : 'Đã') + ' nhận ' + money(daNhan) + ' đ, còn thiếu ' + money(d.con_thieu) + ' đ</div>' : '') +
       '</div>';
 
