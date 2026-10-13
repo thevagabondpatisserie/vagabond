@@ -69,6 +69,7 @@ function dung_man(d, traVe) {
   };
   GIA.forEach(function (t) { g[t] = function () { return ''; }; });
   vm.createContext(g);
+  require('./qr_474_chung').nap(g);
   vm.runInContext(THAT.map(function (t) { return layHam(SRC, t); }).join('\n'), g);
   return { g: g, goi: goi, mo: mo, nut: nut, ve: ve };
 }

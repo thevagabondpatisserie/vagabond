@@ -89,6 +89,7 @@ function appMoi() {
   };
   g.window = g;
   vm.createContext(g);
+  require('./qr_474_chung').nap(g);
   vm.runInContext([
     'var root = document.getElementById("vgb");',
     'function h(s) { return String(s == null ? "" : s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;"); }',

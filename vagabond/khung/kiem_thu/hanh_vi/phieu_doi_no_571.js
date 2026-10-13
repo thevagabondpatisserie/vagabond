@@ -17,7 +17,7 @@ var vm = require('vm');
 var GOC = path.resolve(__dirname, '..', '..', '..', '..');
 var SRC = fs.readFileSync(path.join(GOC, 'vagabond', 'public', 'js', 'bep', '11-khach-ca-hop-dong.js'), 'utf8');
 
-function moPhieu(d) {
+function moPhieu(d, hongQr) {
   var ve = { html: '', foot: '' };
   var that = {
     console: console, Math: Math, JSON: JSON, String: String, Array: Array, Object: Object,
@@ -35,6 +35,10 @@ function moPhieu(d) {
     },
   };
   that.window = that;
+  require('./qr_474_chung').nap(that);
+  if(hongQr) that.qrcode=undefined;
+  const veQr = that.posQrTao;
+  that.posQrTao = function(q, nd, tien) { ve.tienQr=tien; return veQr(q,nd,tien); };
   vm.runInNewContext(SRC, that, { filename: '11-khach-ca-hop-dong.js' });
   return that.scrCnPhieu('X').then(function () { return ve; });
 }
@@ -43,7 +47,7 @@ var PHIEU = {
   name: 'DNTT-26-10-00002', ma_phieu: 'DNTT-26-10-00002', khach: 'KH', ten_khach: 'Chị Hồng',
   ngay_tao: '2026-10-04', han_qr: '2026-10-11', het_han: false, tong_tien: 7600000,
   da_thu: 7600000, sepay: 0, con_thieu: 0, trang_thai: 'Da thu du', ghi_chu: '',
-  qr: { bank: 'MB', stk: '123', ten: 'TV' }, dong: [{ hoa_don: 'HDB-1', so_tien: 4750000 }, { hoa_don: 'HDB-2', so_tien: 2850000 }],
+  qr: { bin: '970422', bank: 'MB', stk: '123', ten: 'TV' }, dong: [{ hoa_don: 'HDB-1', so_tien: 4750000 }, { hoa_don: 'HDB-2', so_tien: 2850000 }],
   thieu_phieu_thu: 2,
 };
 
@@ -60,12 +64,12 @@ function dung(mo, dk) { if (!dk) throw new Error(mo); }
     var v = await moPhieu(Object.assign({}, PHIEU));
     dung('co canh bao chua co phieu thu', v.html.indexOf('chưa có phiếu thu') >= 0);
     dung('co nut Khop tay', v.foot.indexOf('cnKhop') >= 0);
-    dung('KHONG co QR', v.html.indexOf('img.vietqr.io') < 0);
+    dung('KHONG co QR', v.html.indexOf('data:image/svg+xml') < 0);
     dung('KHONG co khoi chuyen khoan thu cong', v.html.indexOf('CHUYỂN KHOẢN THỦ CÔNG') < 0);
   });
   await ca('phieu con thieu tien that thi van hien QR va khoi chuyen khoan nhu cu', async function () {
     var v = await moPhieu(Object.assign({}, PHIEU, { trang_thai: 'Thu thieu', da_thu: 2000000, con_thieu: 5600000, thieu_phieu_thu: 0 }));
-    dung('co QR', v.html.indexOf('img.vietqr.io') >= 0);
+    dung('co QR', v.html.indexOf('data:image/svg+xml') >= 0);
     dung('co khoi chuyen khoan', v.html.indexOf('CHUYỂN KHOẢN THỦ CÔNG') >= 0);
   });
   await ca('da thu du va du phieu thu: bao da nhan du, khong nut Khop tay', async function () {
@@ -77,10 +81,17 @@ function dung(mo, dk) { if (!dk) throw new Error(mo); }
     // Tren 193b578: da_thu 2tr, sepay 0 thi QR van ma hoa 7,6tr va khoi
     // chuyen khoan van ghi 7,6tr, moi khach tra lai ca to.
     var v = await moPhieu(Object.assign({}, PHIEU, { trang_thai: 'Thu thieu', da_thu: 2000000, sepay: 0, con_thieu: 5600000, thieu_phieu_thu: 0 }));
-    dung('QR ma hoa 5600000', v.html.indexOf('amount=5600000') >= 0);
+    dung('QR ma hoa 5600000', v.tienQr === 5600000);
     dung('QR KHONG ma hoa ca to', v.html.indexOf('amount=7600000') < 0);
     dung('khoi chuyen khoan ghi 5600000', v.html.indexOf('data-cnv="5600000 đ"') >= 0);
     dung('noi da nhan 2000000', v.html.indexOf('nhận 2000000') >= 0);
+  });
+  await ca('PR474: thư viện QR hỏng vẫn có lời báo và thông tin chuyển tay', async function () {
+    var v = await moPhieu(Object.assign({}, PHIEU, {trang_thai:'Thu thieu',da_thu:2000000,con_thieu:5600000,thieu_phieu_thu:0}),true);
+    dung('không ảnh vỡ',!v.html.includes('<img'));
+    dung('lời báo',v.html.includes('thư viện'));
+    dung('số tiền còn thiếu',v.html.includes('5600000'));
+    dung('nội dung',v.html.includes(PHIEU.ma_phieu));
   });
   console.log('\n' + ket.dat + ' ca dat, ' + ket.hong + ' ca hong.');
   process.exit(ket.hong ? 1 : 0);

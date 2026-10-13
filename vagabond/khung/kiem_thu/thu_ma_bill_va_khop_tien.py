@@ -398,7 +398,7 @@ def _qr_dung_tk():
 	j = _js("25-man-hinh-khach.js")
 	dung("nội dung chuyển khoản theo điểm", "posNoiDungCk(don.bill, maDiem, nguon)" in j)
 	dung("tài khoản theo điểm", "posTaiKhoan(nguon, maDiem)" in j)
-	dung("đường dẫn QR theo điểm", "posQrUrl(nd, phaiThu, nguon, maDiem)" in j)
+	dung("đường dẫn QR theo điểm", "tien: phaiThu" in j and "bin: tk.bin" in j)
 
 
 @ca("màn hình khách KHÔNG bày thông tin khách, dù ở bất kỳ màn nào")

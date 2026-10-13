@@ -808,8 +808,7 @@ async function scrDsView(name, can) {
     var tien = d.grand_total || 0;
     var url = posQrUrl(dsvNoiDung, tien, d.custom_nguon || '', dsvDiem);
     if (!url) {
-      o.innerHTML = '<div style="border:1.5px solid #fecaca;background:#fef2f2;border-radius:10px;padding:12px;font-size:13px;color:#b3261e;line-height:1.6">' +
-        'Chưa khai số tài khoản nhận chuyển khoản nên chưa sinh được mã QR. Vào Cài đặt · Tài khoản nhận tiền để khai.</div>';
+      o.innerHTML = posQrLoi(posTaiKhoan(d.custom_nguon || '', dsvDiem), dsvNoiDung, tien);
       return;
     }
     var tk = posTaiKhoan(d.custom_nguon || '', dsvDiem);
@@ -1552,8 +1551,7 @@ async function scrDsNhapTay() {
     var nd = posNoiDungCk(dsTay.bill, diem, dsTay.nguon);
     var url = posQrUrl(nd, thu, dsTay.nguon, diem);
     if (!url) {
-      o.innerHTML = '<div style="border:1.5px solid #fecaca;background:#fef2f2;border-radius:10px;padding:12px;font-size:13px;color:#b3261e;line-height:1.6">' +
-        'Chưa khai số tài khoản nhận chuyển khoản nên chưa sinh được mã QR. Vào Cài đặt · Tài khoản nhận tiền để khai.</div>';
+      o.innerHTML = posQrLoi(posTaiKhoan(dsTay.nguon, diem), nd, thu);
       return;
     }
     var tk = posTaiKhoan(dsTay.nguon, diem);

@@ -128,6 +128,8 @@ body {
 <body>
 <div id="man"></div>
 <button id="nutTo" type="button">Toàn màn hình</button>
+<script src="/assets/vagabond/js/vendor/qrcode.js"></script>
+<script src="/assets/vagabond/js/qr_chuyen_khoan.js"></script>
 <script>
 (function () {
   'use strict';
@@ -231,9 +233,10 @@ body {
         '<div class="qrTien xanh">Đã nhận ' + so(g.qr.nhan) + ' đ</div>' +
         '<div class="qrNd">Cảm ơn quý khách, thu ngân đang hoàn tất hoá đơn</div></div>';
     } else if (g.qr) {
+      var qrVe = typeof VgbQr !== 'undefined' ? VgbQr.tao({bin:g.qr.bin,stk:g.qr.stk,tien:g.qr.tien,noi_dung:g.qr.nd}) : {loi:'Chưa tải được thư viện mã QR. Vui lòng chuyển tay.'};
       phai = '<div class="qrDau">Quét mã để chuyển khoản<b>' + so(g.tra) + ' đ</b></div>' +
-        '<img id="qrAnh" src="' + ch(g.qr.url) + '" alt="Mã QR chuyển khoản">' +
-        '<div class="qrNd">Nội dung <b>' + ch(g.qr.nd) + '</b> đã điền sẵn trong mã</div>' +
+        (qrVe.anh ? '<img id="qrAnh" src="' + ch(qrVe.anh) + '" alt="Mã QR chuyển khoản">' : '<div role="alert">' + ch(qrVe.loi) + '</div>') +
+        '<div class="qrNd">Nội dung <b>' + ch(g.qr.nd) + '</b>' + (qrVe.anh ? ' đã điền sẵn trong mã' : ' khi chuyển tay') + '</div>' +
         '<div class="qrTk">' + ch(g.qr.ten) + '<br>' + ch(g.qr.bank + ' ' + g.qr.stk) + '</div>';
     } else {
       phai = '<div style="text-align:center">' +
@@ -327,7 +330,7 @@ body {
       ],
       tong: 665000, giam: 50000, giam_vi: 'thành viên', tra: 615000, pt: 'Chuyển khoản',
       qr: {
-        url: 'https://img.vietqr.io/image/MB-VQRQALEAF2999-qr_only.png?amount=615000&addInfo=TCVAVQW5',
+        bin: '970422', tien: 615000,
         nd: 'TCVAVQW5', ten: 'PATISSERIE VAGABOND COMPANY LIMITED',
         bank: 'MB', stk: 'VQRQALEAF2999', nhan: 0, du: false
       }

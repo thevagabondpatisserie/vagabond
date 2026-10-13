@@ -123,6 +123,7 @@ async function posInBill(d) {
        chuyen luon cung duoc, SePay khop theo ma bill. */
     var ndq = posNoiDungCk(d.bill, d.quay, d.nguon || '');
     var uq = posQrUrl(ndq, d.thu, d.nguon || '', d.quay);
+    if (!uq) qrKhoi = posQrLoi(posTaiKhoan(d.nguon || '', d.quay), ndq, d.thu);
     if (uq) qrKhoi = '<div class="qr"><img src="' + uq + '"><div>Quét để chuyển khoản ' + money(d.thu) + ' đ<br>Nội dung: <b>' + h(ndq) + '</b></div></div>';
   } else if (d.xhd_url && M.qr_xhd) {
     /* Bill that in kem QR XUAT HOA DON: khach can hoa don cong ty thi quet,
