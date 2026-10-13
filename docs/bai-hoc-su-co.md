@@ -2196,3 +2196,15 @@ trước khi nhận bot thực sự dùng model đó. Không chữa thiếu quy�
 xem trước Vue hay metadata cho crawler. Bảng đối chiếu phải ghi nguồn hàm,
 ca kiểm hiện có và phần chưa chứng minh. Biên nhận chuyển sang trang cũ
 không có nghĩa đã có biên nhận Vue. Nguồn: docs/web-vue/470-doi-chieu-tinh-nang.md.
+
+
+### 13/10/2026 - #471: lời hứa gửi đơn và phản hồi địa chỉ
+
+- Nhấp kép có thể lọt trong lúc kiểm ưu đãi trước POST: khóa cả lời hứa gửi,
+  trả cùng kết quả cho hai lượt, giữ nonce khi mất phản hồi.
+- Gợi ý/tọa độ cũ trả muộn có thể ghi đè địa chỉ vừa sửa: đánh số lượt địa chỉ,
+  bỏ kết quả cũ ở cả thành công và lỗi; không chỉ chống muộn ở phép tính phí.
+- Tải tồn lỗi lần đầu cần câu báo lỗi và nút thử lại, không để màn trống.
+- Ca kho Vue và Chromium fixture kiểm hai tầng khác nhau. Không nhận nonce
+  Map giả hoặc lời gọi AST là bằng chứng cạnh tranh DB hay tồn production.
+- Nguồn PR #471; thay từng hàng rào trong bản sao làm đỏ đúng1ca/lượt.
