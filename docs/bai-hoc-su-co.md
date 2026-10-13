@@ -2181,3 +2181,10 @@ dòng (đã nhân lượng), trừ thêm giảm cấp đơn, cộng phí khách.
 con số discount_each_product luôn là đồng và không nhân lượng lần hai.
 Ca kiểm giữ cả fixture thật, không cảnh báo khi đủ giảm, cảnh báo khi thiếu
 giảm. Khôi phục công thức cũ phải làm hỏng 2 ca với 5 khẳng định.
+
+## 12/10/2026 - Commit cloud chưa phải bàn giao GitHub
+
+Các vòng #462/#465 có code và ca kiểm trong cloud nhưng head PR không đổi.
+Instruction phải chốt SHA remote, gói task/diff khi thiếu quyền và đường tiếp
+nhận desktop. Model trong TOML cũng là yêu cầu cấu hình, phải kiểm metadata
+trước khi nhận bot thực sự dùng model đó. Không chữa thiếu quyền bằng PR trùng.

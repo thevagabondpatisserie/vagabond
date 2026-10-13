@@ -1,3 +1,9 @@
+## Cửa vào chung từ 12/10/2026
+
+Đọc [Instruction chung](INSTRUCTION_VAGABOND.md) trước. Quy trình nhận việc,
+commit, push, bàn giao cloud và model ở tài liệu đó là nguồn chuẩn; mục cũ
+mâu thuẫn bên dưới không được dùng để bỏ bước push hoặc quay về Astra low.
+
 ## Quy tắc hiệu lực 16/09/2026
 
 Đọc [quy tắc chung](docs/van-hanh-agent/van-hanh-chung.md). Sáu thay đổi đã
@@ -37,11 +43,11 @@ không tạo database hoặc giả nhận đã ghi trên máy.
 
 ## Model mặc định dành cho Codex
 
-Cấu hình mặc định dự án: **Astra, mức Light/low** theo yêu cầu anh Việt
-11/09/2026. Giá trị cấu hình là `gpt-6-astra` và `model_reasoning_effort = "low"`
-trong `.codex/config.toml`. Không tự nâng effort hoặc bật Fast Mode. Đọc
-`docs/codex-trong-repo.md` để biết phạm vi áp dụng và cách xác minh model thật.
-Chỉ báo đã chạy đúng model khi có metadata của phiên; lời dặn không đổi model.
+Cấu hình mặc định dự án từ 12/10/2026: **Astra medium**,
+`model = "gpt-6-astra"`, `model_reasoning_effort = "medium"`.
+Đọc `docs/codex-trong-repo.md` để phân biệt cấu hình yêu cầu với runtime thật.
+Không tự nhận bot GitHub đã đổi model chỉ vì sửa tệp cấu hình.
+
 
 
 ---
@@ -64,7 +70,8 @@ thì không bao giờ được tin bản trong đầu, vì đó là tệp máy g
 
 **Điều 2. Đồng bộ khắt khe ngay trước khi đẩy.** Ngay trước lúc push, chạy
 lại `git fetch origin` và `git log origin/main -n 3`. Có commit mới thì
-`git pull --rebase origin main`. Không `push --force`, không ghi đè.
+merge main vào nhánh PR đã công bố, theo lệnh trên PR. Không rebase nhánh chung,
+không `push --force`, không ghi đè.
 
 **Điều 3. Kiểm chéo trước khi deploy.** Hai phép kiểm bắt buộc:
 

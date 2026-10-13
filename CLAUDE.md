@@ -1,3 +1,9 @@
+## Cửa vào chung từ 12/10/2026
+
+Đọc [Instruction chung](INSTRUCTION_VAGABOND.md) trước khi giao việc hoặc review.
+Dùng cùng quy trình cloud/desktop, cùng SHA remote và mặc định Astra medium
+cho Codex; không suy việc bot đã nhận là bản sửa đã lên GitHub.
+
 ## Quy tắc hiệu lực 16/09/2026
 
 Đọc [quy tắc chung](docs/van-hanh-agent/van-hanh-chung.md). Sáu thay đổi đã
