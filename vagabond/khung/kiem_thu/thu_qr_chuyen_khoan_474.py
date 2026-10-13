@@ -57,3 +57,39 @@ def _pdf():
   la('PDF dựng đúng payload',env['_qr_data_uri']({'bank':'MB','stk':'VQRQALEAF2999'},160000,'TCVG8FRJ'),'data:image/svg+xml;base64,'+GOLDEN)
  with patch.object(q,'anh',side_effect=RuntimeError('thư viện hỏng')):
   la('trả về để hiện chuyển tay',env['_qr_data_uri']({'bank':'MB','stk':'1'},1,''),'')
+
+@ca('QR474: tiền rỗng lỗi ở hai phía, số 0 tường minh dùng QR tĩnh')
+def _tien_rong():
+ from vagabond.khung.kiem_thu.nen import nem
+ for t in [None, '', '   ']:
+  nem('Python từ chối tiền rỗng',lambda:chuoi('970422','123',t),ValueError)
+ la('QR tĩnh',chuoi('970422','123',0)[6:12],'010211')
+ node("const assert=require('assert'),{nap}=require('./vagabond/khung/kiem_thu/hanh_vi/qr_474_chung');const c=nap({});for(const tien of [null,undefined,'','   '])assert.throws(()=>c.VgbQr.chuoi({bin:'970422',stk:'123',tien}));assert.equal(c.VgbQr.chuoi({bin:'970422',stk:'123',tien:0}).slice(6,12),'010211');")
+
+@ca('QR474: tk_cho thực sự gửi BIN cho tài khoản riêng và mặc định')
+def _bin_may_chu():
+ from vagabond import tai_khoan as tk
+ md=dict(bank='MB',stk='123',ten='Mặc định')
+ rieng=dict(nguon='Sales',dung=1,bank='VCB',stk='456',ten='Riêng')
+ with patch.object(tk,'cai',return_value=dict(mac_dinh=md,theo_nguon=[rieng])):
+  for nguon,bin_ in [('Sales','970436'),('Khác','970422')]:
+   ra=tk.tk_cho(nguon)
+   la('BIN từ máy chủ',ra.get('bin'),bin_)
+   dung('Máy khách vẽ được từ payload thật',bool(json.loads(node("const {nap}=require('./vagabond/khung/kiem_thu/hanh_vi/qr_474_chung');const c=nap({});console.log(JSON.stringify(c.VgbQr.tao("+json.dumps(dict(ra,tien=1000))+")));"))['anh']))
+
+@ca('QR474: PDF lỗi QR giữ cùng khung và thông tin chuyển tay')
+def _khung_pdf():
+ import html,re,types
+ tree=ast.parse((GOC/'vagabond/cong_no.py').read_text())
+ f=next(n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='_phieu_html')
+ d=dict(qr=dict(bank='MB',stk='123',ten='Vagabond'),tong_tien=1000,ma_phieu='THUQR')
+ env=dict(xem_phieu=lambda name:d,frappe=types.SimpleNamespace(utils=types.SimpleNamespace(escape_html=html.escape),db=types.SimpleNamespace(get_value=lambda *a:""),session=types.SimpleNamespace(user="test")),flt=lambda v:float(v or 0),_ngay_vn=lambda v:'',_tien_vn=lambda v:str(v),_chu_so_tien=lambda v:'Một nghìn',TEN_NGAN_HANG_DAY_DU={})
+ exec(compile(ast.Module(body=[f],type_ignores=[]),'cong_no.py','exec'),env)
+ env['_qr_data_uri']=lambda *a:'data:image/svg+xml;base64,QR'
+ co=env['_phieu_html']('THUQR')
+ env['_qr_data_uri']=lambda *a:''
+ loi=env['_phieu_html']('THUQR')
+ khung=lambda s:re.search(r'<td style="([^"]*width:170px[^"]*)">',s).group(1)
+ la('khung như nhau',khung(loi),khung(co))
+ dung('chuyển tay rõ', 'Vui lòng chuyển tay' in loi and 'THUQR' in loi)
+ dung('không ảnh QR rỗng', 'src=""' not in loi)

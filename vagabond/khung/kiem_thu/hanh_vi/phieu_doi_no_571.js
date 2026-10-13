@@ -17,7 +17,7 @@ var vm = require('vm');
 var GOC = path.resolve(__dirname, '..', '..', '..', '..');
 var SRC = fs.readFileSync(path.join(GOC, 'vagabond', 'public', 'js', 'bep', '11-khach-ca-hop-dong.js'), 'utf8');
 
-function moPhieu(d) {
+function moPhieu(d, hongQr) {
   var ve = { html: '', foot: '' };
   var that = {
     console: console, Math: Math, JSON: JSON, String: String, Array: Array, Object: Object,
@@ -36,6 +36,7 @@ function moPhieu(d) {
   };
   that.window = that;
   require('./qr_474_chung').nap(that);
+  if(hongQr) that.qrcode=undefined;
   const veQr = that.posQrTao;
   that.posQrTao = function(q, nd, tien) { ve.tienQr=tien; return veQr(q,nd,tien); };
   vm.runInNewContext(SRC, that, { filename: '11-khach-ca-hop-dong.js' });
@@ -84,6 +85,13 @@ function dung(mo, dk) { if (!dk) throw new Error(mo); }
     dung('QR KHONG ma hoa ca to', v.html.indexOf('amount=7600000') < 0);
     dung('khoi chuyen khoan ghi 5600000', v.html.indexOf('data-cnv="5600000 đ"') >= 0);
     dung('noi da nhan 2000000', v.html.indexOf('nhận 2000000') >= 0);
+  });
+  await ca('PR474: thư viện QR hỏng vẫn có lời báo và thông tin chuyển tay', async function () {
+    var v = await moPhieu(Object.assign({}, PHIEU, {trang_thai:'Thu thieu',da_thu:2000000,con_thieu:5600000,thieu_phieu_thu:0}),true);
+    dung('không ảnh vỡ',!v.html.includes('<img'));
+    dung('lời báo',v.html.includes('thư viện'));
+    dung('số tiền còn thiếu',v.html.includes('5600000'));
+    dung('nội dung',v.html.includes(PHIEU.ma_phieu));
   });
   console.log('\n' + ket.dat + ' ca dat, ' + ket.hong + ' ca hong.');
   process.exit(ket.hong ? 1 : 0);

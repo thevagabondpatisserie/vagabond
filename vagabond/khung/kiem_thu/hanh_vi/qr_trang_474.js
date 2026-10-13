@@ -27,6 +27,10 @@ function trang(file,ids){
  d.cfdDay({mon:[],bill:'TCVG8FRJ',pt:'Chuyển khoản'},{ma:'TCV'},160000,'Tại chỗ',false,'');
  assert.equal(d.gui.qr.url,local,'Sender thật phát ảnh tại máy cho tab cũ');
 
+ d.qrcode=undefined;
+ d.cfdDay({mon:[],bill:'TCVG8FRJ',pt:'Chuyển khoản'},{ma:'TCV'},160000,'Tại chỗ',false,'');
+ assert.equal(d.gui.qr,null,'Không phát QR hỏng sang tab khách cũ');
+
  g.qr.stk='';d.kenh.onmessage({data:g});h=d.document.getElementById('man').innerHTML;assert(h.includes('tài khoản'));assert(!h.includes('id="qrAnh"'));
  console.log('QR474: trang thanh toán raw Pancake, CFD sender/receiver, lỗi thư viện/tài khoản đạt');
 })().catch(e=>{console.error(e);process.exit(1);});

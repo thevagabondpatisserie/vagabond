@@ -90,3 +90,7 @@ Nền: main `42cb9fb9a`, APPVER 592.
 - Còn cổng quét app ngân hàng thật TCV/NVHTN/tài khoản thường. Đã hỏi anh Việt xác nhận NVHTN và tài khoản thường để gửi QR thử; chỉ kiểm màn nhận diện, không chuyển tiền. Không merge/deploy.
 - Kết quả cổng, SHA remote và bench chính thức nằm trong comment bàn giao trên PR #474; không coi tài liệu này là bằng chứng các cổng chưa chạy đã đạt.
 - Tương thích màn khách đang mở trước nâng bản: sender vẫn gửi `url`, nhưng chỉ là data URI tại máy; receiver mới bỏ qua URL và dựng từ trường cấu trúc. Ca sender thật và ca từ chối URL ngoài cùng được kiểm để không đổi giao thức làm tab cũ mất QR.
+
+## Vòng sửa review ngày 13/10/2026
+
+Codex sửa trên nền 5d3be0568: sender không gửi QR khi không dựng được ảnh; kiểm payload BIN từ `tk_cho` ở hai nhánh; tiền rỗng bị từ chối đồng nhất, tiền 0 dùng QR tĩnh 01=11; ô lỗi PDF cùng khung. Bổ sung ca hành vi lỗi bill/công nợ/bảng QR/dsvVeQr, ca PDF HTML thật. Đột biến 9/9 bị bắt. Giữ APPVER594 và patch hiện có. Bằng chứng cổng cuối/SHA remote nằm trong biên nhận PR, không suy là đã merge/deploy. Theo xác nhận quét trên PR, TCV đã đạt; NVHTN và tài khoản thường chưa có bằng chứng quét mới trong vòng này.

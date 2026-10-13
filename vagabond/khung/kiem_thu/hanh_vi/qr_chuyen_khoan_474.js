@@ -16,7 +16,12 @@ function qr(html){const m=html.match(/<img[^>]+src="([^"]+)"/);assert(m,'Phải 
   const o=c.document.createElement('div');o.setAttribute('id',id);c.document.body.appendChild(o);
   Object.assign(c,{DSV_PT:'Chuyển khoản',d:{grand_total:160000,custom_nguon:'Tại chỗ'},dsvNoiDung:'TCVG8FRJ',dsvDiem:'TCV',dsvTuPancake:()=>false,dsTay:{pt:'Chuyển khoản',mon:[{qty:2,rate:80000}],nguon:'Tại chỗ',quay:'TCV',bill:'G8FRJ'},nguonBH:()=>({}),posNoiDungCk:()=> 'TCVG8FRJ'});
   vm.runInContext(ham(doc('vagabond/public/js/bep/08-doanh-so-sales.js'),ten),c);c[ten]();qr(o.innerHTML);
+  c.qrcode=undefined;c[ten]();assert(!o.innerHTML.includes('<img'));assert(o.innerHTML.includes('thư viện'));assert(o.innerHTML.includes(tk.stk));c.qrcode=vendor;
  }
+ // Bảng QR dùng đúng hàm mở bảng, thư viện hỏng vẫn có chuyển tay.
+ vm.runInContext(ham(doc('vagabond/public/js/bep/09-tinh-tien-quay.js'),'posQrSheet'),c);
+ c.posBillVua=null;c.qrcode=undefined;c.posQrSheet('TCVG8FRJ',160000,'','','TCV');
+ const bang=c.document.body.children[c.document.body.children.length-1];assert(bang.innerHTML.includes('thư viện'));assert(bang.innerHTML.includes(tk.stk));assert(!bang.innerHTML.includes('<img'));c.qrcode=vendor;
  // Raw Pancake là opaque, kể cả Unicode: bộ dựng không viết lại.
  const raw='000201 Páncake nguyên chuỗi';assert.equal(c.VgbQr.chuoi({qr_text:raw}),raw);assert(c.VgbQr.tao({qr_text:raw}).anh);
  console.log('QR474: golden, đổi tiền, thiếu tài khoản/thư viện, Sales x2, Pancake đạt');

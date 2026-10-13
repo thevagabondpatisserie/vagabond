@@ -200,8 +200,10 @@ function cfdDay(don, quay, phaiThu, nguon, laApp, giamVi) {
     var maDiem = (quay && quay.ma) || '';
     var nd = posNoiDungCk(don.bill, maDiem, nguon);
     var tk = posTaiKhoan(nguon, maDiem) || {};
-    qr = {
-        url: posQrUrl(nd, phaiThu, nguon, maDiem),
+    var anhQr = posQrUrl(nd, phaiThu, nguon, maDiem);
+    // Tab khách cũ chỉ hiểu ảnh; không gửi khối QR nếu dựng ảnh thất bại.
+    if (anhQr) qr = {
+        url: anhQr,
         bin: tk.bin || '', tien: phaiThu, nd: nd, ten: tk.ten || '', bank: tk.bank || '', stk: tk.stk || '',
         nhan: posSepayNhan || 0, du: (posSepayNhan || 0) >= phaiThu - 1
     };

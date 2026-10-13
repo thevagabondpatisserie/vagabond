@@ -2196,3 +2196,7 @@ trước khi nhận bot thực sự dùng model đó. Không chữa thiếu quy�
 - QR Pancake là chuỗi nguyên bản; không lấy các trường ra rồi dựng lại. Phiếu công nợ chỉ mã hoá phần còn thiếu. Thư viện hỏng hoặc thiếu tài khoản phải hiện chuyển tay, không bỏ ô trống.
 - Ca TCV 160000/TCVG8FRJ khớp từng byte với PNG tham chiếu giải mã độc lập. DOM mô phỏng chạy chuỗi thêm món, chọn chuyển khoản, tăng số lượng; ba đột biến CRC/số tiền/URL ngoài đều bị bắt.
 - Quét bằng công cụ, kiểm DOM và bench PDF không thay thế quét app ngân hàng. Ba ca ngân hàng thật vẫn là cổng riêng trước merge; xem biên nhận PR để biết trạng thái, không suy ra đã deploy từ mục này.
+
+### PR #474, vòng sửa 13/10: kiểm hợp đồng dữ liệu và nhánh QR lỗi
+
+Không chỉ kiểm helper BIN: gọi `tk_cho` cho cả tài khoản riêng và mặc định rồi đưa payload thật vào JS. Màn khách cũ chỉ hiểu ảnh, nên sender chỉ phát khối QR sau khi dựng được ảnh. Tiền rỗng bị từ chối ở cả JS/Python; số 0 tường minh dùng 01=11. Các đường in bill, phiếu công nợ, bảng QR và Sales phải kiểm cả thư viện hỏng, vẫn giữ thông tin chuyển tay. Chín đột biến riêng của vòng này bị bắt 9/9; ca PDF kiểm khung của nhánh lỗi bằng HTML thật.

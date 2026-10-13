@@ -47,7 +47,7 @@ def chuoi(bin_, stk, tien=0, noi_dung='', qr_text=''):
     if any(ord(c) < 32 or ord(c) > 126 for c in nd):
         raise ValueError('Nội dung có ký tự chưa hỗ trợ trong mã QR. Vui lòng chuyển tay.')
     tk = _truong('00', bin_) + _truong('01', stk)
-    ra = '000201010212' + _truong('38', '0010A000000727' + _truong('01', tk) + '0208QRIBFTTA') + '5303704'
+    ra = '0002010102' + ('12' if so else '11') + _truong('38', '0010A000000727' + _truong('01', tk) + '0208QRIBFTTA') + '5303704'
     if so:
         ra += _truong('54', str(int(so)))
     ra += '5802VN'

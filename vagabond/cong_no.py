@@ -1443,7 +1443,7 @@ def _phieu_html(name):
 		'style="width:150px !important;height:150px !important">'
 		'<div style="font-size:9.5px;color:#555;margin-top:4px">Quét mã để chuyển khoản</div>'
 		"</td>" % anh_qr
-	) if anh_qr else '<td>%s Vui lòng chuyển tay theo thông tin bên cạnh.</td>' % esc(loi_qr)
+	) if anh_qr else '<td style="border:none;width:170px;text-align:center;vertical-align:top;padding-left:12px">%s Vui lòng chuyển tay theo thông tin bên cạnh.</td>' % esc(loi_qr)
 
 	khoi_ck = (
 		'<div style="border:2px solid #1c1a17;padding:12px 14px;margin-top:14px">'

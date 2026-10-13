@@ -106,6 +106,13 @@ function anhNgoai(html) {
 }
 
 async function chayHet() {
+  await ca('PR474: bill tạm tính QR hỏng có chuyển tay, không ảnh rỗng', async function () {
+    var m=dung();require('./qr_474_chung').nap(m.ctx);m.ctx.posNoiDungCk=()=> 'TCVTHU';m.ctx.CFGBH={qr_quay:{bin:'970422',bank:'MB',stk:'123',ten:'Vagabond'}};m.ctx.qrcode=undefined;
+    await m.ctx.posInBill(Object.assign(bill(),{tam_tinh:1}));
+    dungDk('lời báo thư viện',m.ket.html.includes('thư viện'));
+    dungDk('nội dung chuyển tay',m.ket.html.includes('TCVTHU'));
+    dungDk('không ảnh rỗng',!m.ket.html.includes('src=""'));
+  });
   await ca('bill that: ma QR ve tai may thanh anh nhung, khong tro ra mang ngoai, ma dung link xuat hoa don', async function () {
     var m = dung();
     await m.ctx.posInBill(bill());
