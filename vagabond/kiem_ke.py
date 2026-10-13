@@ -542,8 +542,9 @@ def ghi_so(name, phieu):
 
 	if not duoc_duyet():
 		frappe.throw("Chỉ quản lý kho mới ghi sổ phiếu kiểm kê.")
-	frappe.db.sql("select name from `tabPhieu Kiem Ke` where name=%s for update", (name,))
-	doc = frappe.get_doc("Phieu Kiem Ke", name)
+	# Đọc bản mới nhất ngay trong phép khoá, không SELECT thường trên snapshot
+	# REPEATABLE READ sau khi đã đợi phiên khác ghi sổ xong.
+	doc = frappe.get_doc("Phieu Kiem Ke", name, for_update=True)
 	doc.check_permission("write")
 	if doc.trang_thai == "Đã ghi sổ":
 		return {"name": doc.stock_reconciliation, "khong_doi": not bool(doc.stock_reconciliation)}

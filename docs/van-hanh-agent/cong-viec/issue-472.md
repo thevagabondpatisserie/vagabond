@@ -59,3 +59,9 @@ Ca về0 chỉ sai kỳ vọng `SLE.actual_qty == -11`: core de591661
 kiểm kê không lô. Đã sửa ca để kiểm SLE có qty_after_transaction=0 và
 stock_value=0, cộng Nợ GL=4400 (11x400) và cân Nợ/Có. Giữ kiểm Bin0,
 SR.current_qty11, retry cùng phiếu và huỷ trả tồn11. Không sửa code runtime.
+
+Tự rà thêm cửa retry: dùng `frappe.get_doc(..., for_update=True)` để vừa
+khoá vừa đọc bản mới nhất. Không khoá bằng SELECT rồi đọc Document thường
+vì REPEATABLE READ có thể còn snapshot trước phiên vừa ghi sổ. Ca adapter mô phỏng bản đọc cũ/mới canh
+cửa retry giữ liên kết PKK; bench retry vẫn chạy API thật. Chưa đo hai kết nối cùng lúc,
+không nhận ca retry tuần tự là phép thử cạnh tranh.

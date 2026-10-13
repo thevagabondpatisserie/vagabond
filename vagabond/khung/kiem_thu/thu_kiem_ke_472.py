@@ -25,3 +25,22 @@ def _giu_ton():
 		la('chênh lệch từ server', r.lech, -11)
 		la('dòng mới lấy Bin', moi.ton_he_thong, 5)
 		la('dòng mới lệch đúng', moi.lech, -3)
+
+
+@ca('#472: retry sau phiên khác đóng phiếu giữ liên kết PKK, không rơi lại vào no-op')
+def _doc_co_khoa():
+	import sys
+	import types
+	core = types.ModuleType('erpnext.stock.doctype.stock_reconciliation.stock_reconciliation')
+	core.EmptyStockReconciliationItemsError = type('KhongDoi', (Exception,), {})
+	moi = Phieu(trang_thai='Đã ghi sổ', stock_reconciliation='PKK-XONG',
+		check_permission=lambda *a: None)
+	# Mô hình hai bản đọc: snapshot cũ và current read sau khi phiên trước commit.
+	# Đây là hồi quy hành vi adapter, không thay phép đo hai kết nối MariaDB.
+	cu = Phieu(trang_thai='Chờ duyệt', check_permission=lambda *a: None)
+	with patch.dict(sys.modules, {core.__name__: core}), \
+		patch.object(kiem_ke, 'duoc_duyet', return_value=True), \
+		patch.object(kiem_ke.frappe, 'get_doc', side_effect=lambda *a, **k: moi if k.get('for_update') else cu):
+		kq = kiem_ke.ghi_so('KK', {})
+	la('giữ liên kết phiếu phiên trước', kq['name'], 'PKK-XONG')
+	la('không đổi thành no-op mất liên kết', kq['khong_doi'], False)
