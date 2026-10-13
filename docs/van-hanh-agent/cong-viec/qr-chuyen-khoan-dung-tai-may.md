@@ -89,3 +89,4 @@ Nền: main `42cb9fb9a`, APPVER 592.
 - Tham chiếu TCV giải mã từ ảnh thật: `00020101021238570010A000000727012700069704220113VQRQALEAF29990208QRIBFTTA530370454061600005802VN62120808TCVG8FRJ630450D4`.
 - Còn cổng quét app ngân hàng thật TCV/NVHTN/tài khoản thường. Đã hỏi anh Việt xác nhận NVHTN và tài khoản thường để gửi QR thử; chỉ kiểm màn nhận diện, không chuyển tiền. Không merge/deploy.
 - Kết quả cổng, SHA remote và bench chính thức nằm trong comment bàn giao trên PR #474; không coi tài liệu này là bằng chứng các cổng chưa chạy đã đạt.
+- Tương thích màn khách đang mở trước nâng bản: sender vẫn gửi `url`, nhưng chỉ là data URI tại máy; receiver mới bỏ qua URL và dựng từ trường cấu trúc. Ca sender thật và ca từ chối URL ngoài cùng được kiểm để không đổi giao thức làm tab cũ mất QR.

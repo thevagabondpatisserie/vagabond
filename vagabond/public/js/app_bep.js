@@ -45861,6 +45861,8 @@ function cfdDungGoi(don, quay, phaiThu, qr, tab, luc, giamVi) {
   };
   if (qr) {
     g.qr = {
+      /* Tab màn khách mở trước nâng bản vẫn đọc url; chỉ gửi ảnh tại máy. */
+      url: /^data:image\//.test(qr.url || '') ? String(qr.url) : '',
       bin: String(qr.bin || ''),
       tien: Number(qr.tien) || 0,
       nd: String(qr.nd || ''),
@@ -45929,6 +45931,7 @@ function cfdDay(don, quay, phaiThu, nguon, laApp, giamVi) {
     var nd = posNoiDungCk(don.bill, maDiem, nguon);
     var tk = posTaiKhoan(nguon, maDiem) || {};
     qr = {
+        url: posQrUrl(nd, phaiThu, nguon, maDiem),
         bin: tk.bin || '', tien: phaiThu, nd: nd, ten: tk.ten || '', bank: tk.bank || '', stk: tk.stk || '',
         nhan: posSepayNhan || 0, du: (posSepayNhan || 0) >= phaiThu - 1
     };
