@@ -314,3 +314,59 @@ def xep_goi_y(ds, ngay_lap):
 		d = ngay(r.get("date"))
 		return abs((d - goc).days) if (d and goc) else 10 ** 6
 	return sorted(ds, key=lambda r: (-int(r.get("da_nho") or 0), xa(r), str(r.get("name") or "")))
+
+
+def xet_bo(dong, can, tai_khoan=None, chieu=None, dung_sai=DUNG_SAI):
+	"""Xét bộ phân bổ, không đoán chia tiền hay tự chọn thêm dòng. THUẦN.
+
+	Mỗi dòng có name, tien, bank_account, chieu; tuỳ chọn phan_bo (phần
+	người chọn), con_lai (sau chỗ giữ của người khác), chu_cu (chủ độc quyền
+	của dữ liệu cũ). Cửa DB phải khoá và đọc lại trước khi gọi phép này.
+	Không dùng float/NaN làm bộ phân bổ vượt kiểm tra.
+	"""
+	from decimal import Decimal, InvalidOperation
+
+	def so(v):
+		try:
+			x = Decimal(str(v))
+			if not x.is_finite():
+				raise ValueError("Số tiền không hữu hạn")
+			return x
+		except (InvalidOperation, TypeError):
+			raise ValueError("Số tiền không hợp lệ")
+
+	can, sai = so(can), so(dung_sai)
+	if can <= 0 or sai < 0:
+		raise ValueError("Số cần khớp phải dương, dung sai không âm")
+	tong, loi, da_thay = Decimal(0), [], set()
+	for d in dong or []:
+		ma = str(d.get("name") or "").strip()
+		ly_do = ""
+		if not ma or ma in da_thay:
+			ly_do = "Dòng sao kê bị trùng hoặc thiếu mã."
+		elif tai_khoan and d.get("bank_account") != tai_khoan:
+			ly_do = "Dòng sao kê sai tài khoản."
+		elif chieu and d.get("chieu") != chieu:
+			ly_do = "Dòng sao kê sai chiều tiền."
+		elif d.get("chu_cu"):
+			ly_do = "Dòng sao kê đã có chủ: %s." % d["chu_cu"]
+		da_thay.add(ma)
+		try:
+			tien = so(d.get("tien"))
+			con = so(d.get("con_lai", tien))
+			phan = so(d.get("phan_bo", tien))
+			if tien <= 0 or con < 0 or con > tien or phan <= 0:
+				ly_do = ly_do or "Số tiền phân bổ không hợp lệ."
+			elif phan > con:
+				# Không cho dung sai tích luỹ ở từng dòng chiếm dụng.
+				ly_do = ly_do or "Dòng sao kê không còn đủ tiền để phân bổ."
+			if not ly_do:
+				tong += phan
+		except ValueError:
+			ly_do = ly_do or "Số tiền phân bổ không hợp lệ."
+		if ly_do:
+			loi.append({"name": ma, "ly_do": ly_do})
+	lech = tong - can
+	trang = "loi" if loi else ("du" if abs(lech) <= sai else "thieu" if lech < 0 else "thua")
+	return {"ket_qua": trang, "tong": float(tong), "can": float(can),
+		"thieu": float(max(-lech, 0)), "thua": float(max(lech, 0)), "loi": loi}

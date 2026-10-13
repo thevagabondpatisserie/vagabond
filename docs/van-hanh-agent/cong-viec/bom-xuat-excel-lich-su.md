@@ -117,3 +117,19 @@ Thêm hai mục vào `vagabond/so_tay/san-xuat.md`, viết theo `_quy-uoc.md`:
 - Thêm dòng patch cuối `patches.txt`, giữ các dòng cũ. Dựng lại `app_bep.js` từ `bep/`.
 - Theo INSTRUCTION_VAGABOND: tự đẩy lên nhánh này, đọc lại SHA remote, bàn giao bằng `[ĐÃ SỬA XONG]` hoặc `[BỊ CHẶN]` kèm khối telegram-tomtat và `@claude review <SHA>`.
 - Không merge, không deploy.
+
+
+## Bàn giao desktop 13/10/2026, chưa hoàn tất việc 4
+
+- Owner Codex, nhánh `codex/bom-xuat-excel-lich-su`, nền `bf7d2716c` trên main `42cb9fb9a`.
+- Đã lấy lại nguyên diff cloud từ task `task_e_6acddc9cdb68832e8c7a333b10a212b8` bằng `codex cloud diff`. Không tuyên bố có object commit cloud trong lịch sử nhánh. Bỏ riêng thay đổi phiên bản/patch theo lệnh mới nhất của anh Việt; bundle dựng lại.
+- BOM: Excel có cả lọc hướng dẫn và không cắt 1200 công thức khi xuất; bù Comment qua `lich_su_bom.dat_bom` cho bốn mô đun ghi trực tiếp; đọc Deleted Document của BOM bằng snapshot, không gọi lại BOM đã xoá. Đường màn hình đăng ký ở `duong_app.py`, không sửa bảng JS sinh tay.
+- Core Frappe `f33ac3f00ab818e21b25ddbec93efb653fd9aa1b`: `version.get_diff` ghi row_changed bằng `(fieldname, index, child.name, changed)`; `delete_doc.add_to_deleted_document` lưu `doc.as_json()`. Mock đã sửa đúng hình dạng; qty đổi vẫn lấy được tên/UOM của dòng còn tồn tại. Dòng không còn metadata hiện mã dòng, không đoán tên.
+- 15 nhóm kiểm BOM, DOM 0/1/nhiều/tải/lỗi/bản xoá. Fixture Chrome dùng CSS thật ở 390x844: 10 trạng thái không tràn ngang. Đây là fixture, không phải UAT site thật. Năm đột biến BOM đều bị bắt, mỗi lần một nhóm đỏ.
+- Việc 4 mới có `khop_sao_ke.xet_bo` thuần và 4 nhóm kiểm: số thật Adecco do Claude cung cấp, lỗi từng dòng, phân bổ theo phần còn, số không hữu hạn. Ba đột biến bộ tiền bị bắt, mỗi lần một nhóm đỏ. CHƯA gắn vào bất kỳ cửa ghi thật nào; không nhận các ca này là đủ 10 ca yêu cầu.
+- Core ERPNext `de591661b9ba0bd3f62ac25b99b5c85c723515f6`, `BankTransaction.allocate_payment_entries`: phần phân bổ lấy `min(allocable_amount, remaining_amount)`. Chưa có bench chứng minh PE phân bổ qua hai BT ở SHA này.
+- Chưa làm xong việc 4: lưu bộ chọn và chỗ giữ theo số tiền; khoá đồng thời ở mọi luồng; các callback APP/TTNB/hoàn tiền/công nợ; UI chọn nhiều; đường Accounts Manager ghi kèm lý do; bỏ cả bộ; sổ tay và 10 nhóm kiểm/bench. Không ghép JSON vào Data 140 ký tự rồi coi là đã lưu đủ. Không nới `_chu_khac` trước khi cửa giữ chỗ chung đã hoàn chỉnh.
+- Ca cũ APP.26.09.009 chỉ là thông tin Claude cung cấp, chưa sửa dữ liệu.
+- Lệnh mới nhất của anh Việt ưu tiên: KHÔNG đặt số phiên bản, KHÔNG thêm patch, giữ APPVER592 trên riêng nhánh này; chưa gom v594, không merge/deploy.
+
+- Cổng local trên cây code cuối: tầng khung 4463/4463; CI chặn requests 4463/4463; `dung_app_bep.py --kiem` khớp; `kiem_truoc_deploy.sh` exit 0 với Node24 và PYTHONPYCACHEPREFIX tạm. Hai ca nén PDF #247 không chạy do máy thiếu pypdf, không tính vào số đạt. Lượt shell đầu thiếu cache prefix dừng ở compileall, đã chạy lại đủ cổng. Chưa có bench/CI GitHub của SHA #469 mới lúc ghi bàn giao.
