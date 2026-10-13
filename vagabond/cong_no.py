@@ -1428,6 +1428,14 @@ def _phieu_html(name):
 
 	tien_ck = con_thieu if da_thu > 0 else tong
 	anh_qr = _qr_data_uri(qr, tien_ck, d.get("ma_phieu") or "")
+	loi_qr = "Không vẽ được mã QR. Vui lòng nhờ nhân viên kiểm tra thư viện tạo ảnh."
+	if not anh_qr:
+		from vagabond.qr_chuyen_khoan import chuoi
+		from vagabond.tai_khoan import bin_cho
+		try:
+			chuoi(qr.get("bin") or bin_cho(qr.get("bank")), qr.get("stk"), tien_ck, d.get("ma_phieu") or "")
+		except ValueError as e:
+			loi_qr = str(e)
 	o_qr = (
 		'<td style="border:none;width:170px;text-align:center;vertical-align:top;'
 		'padding-left:12px">'
@@ -1435,7 +1443,7 @@ def _phieu_html(name):
 		'style="width:150px !important;height:150px !important">'
 		'<div style="font-size:9.5px;color:#555;margin-top:4px">Quét mã để chuyển khoản</div>'
 		"</td>" % anh_qr
-	) if anh_qr else '<td>Không tạo được mã QR. Vui lòng chuyển tay theo thông tin tài khoản, số tiền và nội dung bên cạnh.</td>'
+	) if anh_qr else '<td>%s Vui lòng chuyển tay theo thông tin bên cạnh.</td>' % esc(loi_qr)
 
 	khoi_ck = (
 		'<div style="border:2px solid #1c1a17;padding:12px 14px;margin-top:14px">'
