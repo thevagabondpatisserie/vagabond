@@ -2165,3 +2165,19 @@ mở thêm để không đẩy nút Ghi sổ ra xa. Không thay quyền File c�
 nhưng chưa có snapshot AP/AR/PLE/GL lịch sử. Không suy một đầu đã làm là cả
 thiết kế đã xong; ngược lại không dựng công cụ ghi trùng vì tài liệu cũ nói
 chưa triển khai. Ghi riêng bằng chứng code, số site và phạm vi còn thiếu.
+
+### #465: mock GET Pancake không được trả tổng đã trừ giảm
+
+Đọc chỉ đọc GET `/shops/{shop_id}/orders/{id}` trên pos.pages.fm ngày
+13/10/2026: 91853 trả total_price 8.230.000, total_discount cấp đơn 0,
+shipping_fee 0; ba dòng có lượng 2/4/1, discount_each_product 5/5/0,
+cờ phần trăm true/true/false và total_discount dòng 220.000/190.000/0.
+91391 trả total_price 3.850.000, total_discount cấp đơn 50.000, phí 0,
+cả hai dòng không giảm. Tổng thanh toán lần lượt 7.820.000 và 3.800.000.
+
+Mock cũ tự trừ giảm vào total_price rồi bỏ items, khiến công thức sai vẫn
+xanh và đơn web đúng bị cảnh báo Sales. Dùng giảm tiền total_discount từng
+dòng (đã nhân lượng), trừ thêm giảm cấp đơn, cộng phí khách. Không coi
+con số discount_each_product luôn là đồng và không nhân lượng lần hai.
+Ca kiểm giữ cả fixture thật, không cảnh báo khi đủ giảm, cảnh báo khi thiếu
+giảm. Khôi phục công thức cũ phải làm hỏng 2 ca với 5 khẳng định.

@@ -342,11 +342,18 @@ def _doc_lai_don_pancake(shop_id, khoa, ma_don):
 
 
 def _tong_pancake(don):
-	"""Pancake dùng total_price đã trừ giảm, rồi cộng phí khách phải trả."""
+	"""GET pos.pages.fm trả tổng trước giảm; total_discount dòng đã nhân lượng.
+
+	Đọc thật 13/10/2026: 91853 = 8.230.000 - 220.000 - 190.000;
+	91391 = 3.850.000 - 50.000 cấp đơn. Không trừ discount_each_product
+	trực tiếp: đó có thể là phần trăm, còn total_discount dòng là số tiền.
+	"""
 	if not isinstance(don, dict):
 		return None
 	try:
-		return int(float(don.get("total_price"))) + int(float(don.get("shipping_fee") or 0))
+		giam_dong = sum(float(x.get("total_discount") or 0) for x in (don.get("items") or []))
+		return int(round(float(don.get("total_price")) - giam_dong
+			- float(don.get("total_discount") or 0) + float(don.get("shipping_fee") or 0)))
 	except (TypeError, ValueError):
 		return None
 

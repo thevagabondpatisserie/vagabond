@@ -196,7 +196,7 @@ def _km_gia(giam=0, ly_do="", mot_lan=False, giu_duoc=True, chuoi=None, loi_giu=
 	return km
 
 
-def _moi_truong_tao_don(pancake, trung=None, km=None, phi=None, cauhinh=None, tong_pancake=None):
+def _moi_truong_tao_don(pancake, trung=None, km=None, phi=None, cauhinh=None, tong_pancake=None, thieu_giam_pancake=False):
 	"""Dựng môi trường gọi tao_don THẬT, chặn mọi đường ra ngoài.
 
 	`pancake(vet)` là hàm thay requests.post: ghi 'post' vào vết rồi trả về
@@ -248,11 +248,16 @@ def _moi_truong_tao_don(pancake, trung=None, km=None, phi=None, cauhinh=None, to
 
 	def get(*a, **k):
 		vet.su.append("get")
+		# GET thật 91853 ngày 13/10: total_price TRƯỚC giảm; total_discount
+		# từng dòng là tiền giảm cả lượng (kể cả giảm %). Mock cũ trừ giảm
+		# ngay vào total_price và bỏ items nên che lỗi cảnh báo nhầm Sales.
 		tong = tong_pancake
 		if tong is None:
-			tong = sum(450000 * x["quantity"] - x.get("discount_each_product", 0) * x["quantity"]
-				for x in vet.body["items"])
+			tong = sum(450000 * x["quantity"] for x in vet.body["items"])
+		dong = [dict(x, total_discount=0 if thieu_giam_pancake else
+			x.get("discount_each_product", 0) * x["quantity"]) for x in vet.body["items"]]
 		return _Tra(200, {"data": {"id": "91500", "total_price": tong,
+			"total_discount": 0, "items": dong,
 			"shipping_fee": vet.body.get("shipping_fee") or 0}})
 
 	g = dict(
@@ -1977,6 +1982,22 @@ def _():
 	la("tạo đơn", (kq.get("ok"), sum(x["discount_each_product"] * x["quantity"] for x in vet.body["items"])), (1, 50000))
 
 
+@ca("v592 tổng Pancake đúng dữ liệu GET thật 91853 và 91391")
+def _():
+	tong = nap("don_hang.py", "_tong_pancake", {})
+	la("91853 giảm 5% hai dòng, không nhân lượng lần hai", tong({
+		"total_price": 8230000, "total_discount": 0, "shipping_fee": 0,
+		"items": [{"quantity": 2, "discount_each_product": 5, "is_discount_percent": True, "total_discount": 220000},
+			{"quantity": 4, "discount_each_product": 5, "is_discount_percent": True, "total_discount": 190000},
+			{"quantity": 1, "discount_each_product": 0, "is_discount_percent": False, "total_discount": 0}]}), 7820000)
+	la("91391 giảm cấp đơn", tong({"total_price": 3850000, "total_discount": 50000,
+		"shipping_fee": 0, "items": [{"quantity": 4, "total_discount": 0},
+			{"quantity": 50, "total_discount": 0}]}), 3800000)
+	la("giảm dòng và cấp đơn cùng phí khách", tong({"total_price": 900000,
+		"total_discount": 10000, "shipping_fee": 36000,
+		"items": [{"quantity": 2, "total_discount": 50001}]}), 875999)
+
+
 @ca("v592 giảm cấp dòng giữ đúng từng đồng cho giao hàng và tự lấy; tổng Pancake lệch thì báo Sales")
 def _():
 	for tu_lay, phi_khach in ((False, 36000), (True, 0)):
@@ -1988,14 +2009,15 @@ def _():
 		la("tổng giảm lẻ vẫn chính xác", sum(x["discount_each_product"] * x["quantity"]
 			for x in vet.body["items"]), 50001)
 		la("phí khách", vet.body["shipping_fee"], phi_khach)
+		la("Pancake đủ giảm không cảnh báo Sales", [x for x in vet.su if isinstance(x, tuple) and x[0] == "bao_lech"], [])
 		dung("mọi dòng dùng trường Pancake công bố", all(x.get("is_discount_percent") is False
 			and "discount_each_product" in x for x in vet.body["items"]))
 
 	vet, tao_don = _moi_truong_tao_don(lambda v: _Tra(200, {"data": {"id": "95599"}}),
-		km=_km_gia(giam=50000), tong_pancake=900000)
+		km=_km_gia(giam=50000), thieu_giam_pancake=True)
 	tao_don(_don(giam_da_xem=50000))
 	bao = [x for x in vet.su if isinstance(x, tuple) and x[0] == "bao_lech"]
-	la("Pancake trả tổng chưa trừ giảm thì báo đúng đơn", len(bao), 1)
+	la("Pancake bỏ mất giảm dòng thì báo đúng đơn", len(bao), 1)
 	la("đối chiếu tổng máy chủ", bao[0][1][1:3], (886000, 936000))
 
 
