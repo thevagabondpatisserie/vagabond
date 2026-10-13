@@ -2188,3 +2188,11 @@ Các vòng #462/#465 có code và ca kiểm trong cloud nhưng head PR không đ
 Instruction phải chốt SHA remote, gói task/diff khi thiếu quyền và đường tiếp
 nhận desktop. Model trong TOML cũng là yêu cầu cấu hình, phải kiểm metadata
 trước khi nhận bot thực sự dùng model đó. Không chữa thiếu quyền bằng PR trùng.
+
+### #470: kiểm kê Vue phải tách code, kiểm kho và kiểm trang
+
+`web_vue_banh.mjs` chạy kho Vue thật nhưng không mount DOM; môi trường
+`suKien` là no-op. 25 ca xanh không chứng minh các nút, Pixel, Editor
+xem trước Vue hay metadata cho crawler. Bảng đối chiếu phải ghi nguồn hàm,
+ca kiểm hiện có và phần chưa chứng minh. Biên nhận chuyển sang trang cũ
+không có nghĩa đã có biên nhận Vue. Nguồn: docs/web-vue/470-doi-chieu-tinh-nang.md.
