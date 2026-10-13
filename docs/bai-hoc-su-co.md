@@ -2224,3 +2224,28 @@ là no-op, không gom lỗi submit vào nhánh thành công. Bench xác minh SLE
 - Nguồn: PR #469.
 
 - Bổ sung kiểm core: `row_changed` dùng index trước child.name. Chỉ đổi qty thì diff không chứa tên/UOM; phải đọc metadata dòng, không dùng fixture tự thêm tên để che lỗi. Slug màn mới phải khai tại `duong_app.py` để lần dựng không xoá mất.
+
+### 13/10/2026 - F21 nguồn tồn khi gửi đơn
+
+Danh mục công khai bỏ dòng0 nên không dùng việc vắng món để suy ra hết. Đọc
+KB đúng ngày hoặc dòng Dư decor gốc cho cửa sổ ba ngày, giữ nguyên đặt xa.
+Tìm nonce đã nhận trước mọi kiểm tồn có thể thay đổi. Lỗi đọc chỉ cảnh báo,
+không biến thành hết hàng. Báo đúng webhook_don_web của Sales, không suy kênh
+Zalo chung là Sales. DOM phải kiểm cả trang cũ và Vue giữ giỏ/tải lại tồn.
+Đột biến phải đối chiếu nền xanh và mã thực sự đổi; chuỗi thay không khớp
+không phải một lần kiểm đột biến. Ca Document thật nằm ở cổng bench, không
+gọi fixture trên production.
+
+### F21 review 13/10: decor0 là dòng giữ chỗ
+
+Chỉ decor gốc lớn hơn0 mới là nguồn tồn hữu hạn cho ba ngày tới. Decor gốc dương bị đơn dùng hết vẫn phải trả tồn0 để chặn. Ca đi qua cửa tạo đơn cho cả ba ngày; đồng hồ giả chỉ thay thời điểm, giữ hàm hom_nay thật để bắt lệch ngày UTC/Sài Gòn. Ngày nhận trống trả về trước khi đọc nguồn, không tạo cảnh báo Sales giả.
+
+### v594: gom nhánh và sửa bốn điểm BOM sau review
+
+Chip Tất cả gửi null phải giữ nguyên tới nguồn danh sách và dòng bộ lọc Excel;
+không dùng giá trị mặc định của màn để thay bộ lọc người vừa chọn. Ca quyền phải
+gọi cửa API thật, không chỉ helper. Nhật ký lấy ngày Sài Gòn kể cả máy ở múi giờ
+khác. Comment lưu HTML an toàn, khi trả câu thuần thì bỏ thẻ rồi giải mã entity
+một lần, để màn escape khi vẽ. Chỉ ghi trường nghiệp vụ bằng nhãn tiếng Việt,
+bỏ giá vốn tính lại. Tám đột biến của các nhánh này đều bị bắt trong bản gom.
+Nguồn: comment giao gom v594 trên PR #474; không kéo phần Vue của #471 vào.

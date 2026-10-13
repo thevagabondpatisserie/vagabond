@@ -2168,7 +2168,7 @@ def _ban_ghi_mua(ma_mua):
 	return frappe.get_doc(DT, ma)
 
 
-def kiem_han_muc(cac_dong_ban, ngay=None, bo_qua_hoa_don=None):
+def kiem_han_muc(cac_dong_ban, ngay=None, bo_qua_hoa_don=None, khi_loi=None):
 	"""Cac dong hang nay co vuot han muc mua vu nao khong.
 
 	cac_dong_ban: list dict co item_code va qty.
@@ -2197,6 +2197,8 @@ def kiem_han_muc(cac_dong_ban, ngay=None, bo_qua_hoa_don=None):
 			doi_ruot = [x.as_dict() for x in _doc.get("doi_ruot") or []]
 		except Exception:
 			frappe.log_error(frappe.get_traceback(), "mua_vu: doc mua %s loi" % ma_mua)
+			if khi_loi:
+				khi_loi()
 			continue
 		ma_trong_mua = {str(d.get("ma_hang") or "") for d in dong}
 		# Don nay da nam trong so dem cua bang chua? Neu roi thi khong tru

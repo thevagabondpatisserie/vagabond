@@ -344,10 +344,12 @@ async function scrCongThucXem(name) {
 var ctNk = { nguoi: '', mon: '', ngay: 7 };
 async function scrCongThucNhatKy() {
   frame('Nhật ký sửa công thức', '<div class="emp"><div class="e1">⏳</div><div class="e2">Đang tải lịch sử</div></div>');
-  var den = new Date(), tu = new Date(); tu.setDate(tu.getDate() - ctNk.ngay + 1);
-  function ymd(d) { return d.toISOString().slice(0, 10); }
+  // Đổi sang ngày Sài Gòn trước khi lùi ngày; không phụ thuộc múi giờ máy khách.
+  var den = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  var tu = new Date(den + 'T00:00:00Z'); tu.setUTCDate(tu.getUTCDate() - ctNk.ngay + 1);
+  tu = [tu.getUTCFullYear(), String(tu.getUTCMonth() + 1).padStart(2, '0'), String(tu.getUTCDate()).padStart(2, '0')].join('-');
   var kq;
-  try { kq = await api('vagabond.cong_thuc.nhat_ky', { nguoi: ctNk.nguoi || null, mon: ctNk.mon || null, tu_ngay: ymd(tu), den_ngay: ymd(den) }); }
+  try { kq = await api('vagabond.cong_thuc.nhat_ky', { nguoi: ctNk.nguoi || null, mon: ctNk.mon || null, tu_ngay: tu, den_ngay: den }); }
   catch (e) { frame('Nhật ký sửa công thức', '<div class="emp"><div class="e1">⚠️</div><div class="e2">' + h(errMsg(e)) + '<br>Vui lòng tải lại màn hình.</div></div>'); return; }
   var ngay = [[7, '7 ngày'], [30, '30 ngày'], [90, '90 ngày']].map(function (x) {
     return '<div class="chip' + (ctNk.ngay === x[0] ? ' on' : '') + '" data-ctngay="' + x[0] + '">' + x[1] + '</div>'; }).join('');

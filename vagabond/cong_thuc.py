@@ -115,6 +115,7 @@ def tab_dang_loc(tab, tim):
 # ------------------------------------------------------- phần cần Frappe
 
 import base64
+from html import unescape
 import io
 import json
 import re
@@ -390,11 +391,10 @@ def xuat_excel(tab=None, trang_thai=None, tim=None, huong_dan=None, chang=None,
 	if bom:
 		cac_bom = [bom]
 	else:
-		trang_thai = trang_thai or "dang_dung"
 		kq = danh_sach(tab, trang_thai, tim, huong_dan, chang, _tat_ca=True)
 		cac_bom = [x["bom"] for x in kq["ds"]]
 	bang = [["Bộ lọc: khu=%s; trạng thái=%s; tìm=%s; hướng dẫn=%s; chặng=%s; giờ xuất=%s; người xuất=%s" % (
-		tab or "tất cả", trang_thai or "đang dùng", tim or "", huong_dan or "",
+		tab or "tất cả", trang_thai or "tất cả", tim or "", huong_dan or "",
 		chang or "", now_datetime(), frappe.session.user)], []]
 	bang.append(["Mã món", "Tên món", "Mã BOM", "Trạng thái", "Số lượng ra", "Đơn vị",
 		"Mã NVL", "Tên NVL", "Số lượng", "Đơn vị NVL", "Đơn giá", "Thành tiền",
@@ -461,7 +461,7 @@ def _lich_su_cua(cac_bom, tu_ngay=None, den_ngay=None, nguoi=None):
 		if cau:
 			ra.append({"bom": x.docname, "luc": str(x.creation), "nguoi": ten.get(x.owner, x.owner), "email": x.owner, "cau": cau})
 	for x in comments:
-		noi = re.sub(r"<[^>]+>", "", x.content or "").strip()
+		noi = unescape(re.sub(r"<[^>]+>", "", x.content or "")).strip()
 		if noi:
 			ra.append({"bom": x.reference_name, "luc": str(x.creation), "nguoi": ten.get(x.owner, x.owner), "email": x.owner, "cau": [noi]})
 	return sorted(ra, key=lambda x: x["luc"], reverse=True)

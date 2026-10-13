@@ -211,3 +211,50 @@ def _():
 		sql, args = db.sql.call_args[0]
 		dung("có NOT IN loại doctype", "`ref_doctype` not in %s" in sql)
 		dung("tham số thực giữ BOM", "BOM" in args[1] and "BOM Item" in args[1])
+
+
+@ca("#594: quyền chặn ngay API Excel và nhật ký trước khi đọc dữ liệu")
+def _():
+	import frappe.utils.xlsxutils as xl
+	for api in (ct.xuat_excel, ct.nhat_ky):
+		with _vai(["Sales User"]), patch.object(ct.frappe, "get_all", return_value=[]), \
+				patch.object(ct, "danh_sach", return_value={"ds": []}), \
+				patch.object(xl, "make_xlsx", return_value=b"xlsx"):
+			# Không mock helper quyền: bỏ lời gọi helper ở API phải làm ca này đỏ.
+			nem(api.__name__, api, Exception)
+
+
+@ca("#594: Excel Tất cả giữ null và ghi đúng bộ lọc")
+def _():
+	import frappe.utils.xlsxutils as xl
+	bang = []
+	with _vai(["Manufacturing Manager"]), patch.object(ct, "danh_sach", return_value={"ds": []}) as ds, \
+			patch.object(xl, "make_xlsx", side_effect=lambda b, _: bang.append(b) or b"xlsx"):
+		ct.xuat_excel(trang_thai=None)
+		ds.assert_called_once_with(None, None, None, None, None, _tat_ca=True)
+		dung("đầu tệp Tất cả", "trạng thái=tất cả;" in bang[0][0][0])
+
+
+@ca("#594: Comment ghi thẳng dịch nhãn, bỏ giá vốn, đọc lại không escape hai lần")
+def _():
+	from vagabond import lich_su_bom as ls
+	from unittest.mock import Mock
+	from types import SimpleNamespace as NS
+	doc = Mock()
+	with patch.object(ls.frappe.db, "get_value", return_value={"custom_chang": "Bánh & kem", "total_cost": 10}), \
+			patch.object(ls.frappe.db, "set_value"), patch.object(ls.frappe, "get_doc", return_value=doc):
+		ls.dat_bom("BOM", "B", {"custom_chang": "BTP <mới>", "total_cost": 20}, nguon="Đổi & kiểm")
+		noi = doc.add_comment.call_args[0][1]
+		dung("nhãn Việt", "Chặng sản xuất:" in noi and "custom_chang" not in noi)
+		dung("bỏ giá vốn", "total_cost" not in noi and "10 thành 20" not in noi)
+		dung("lưu HTML an toàn", "&lt;mới&gt;" in noi)
+		doc.reset_mock()
+		ls.dat_bom("BOM", "B", {"total_cost": 20, "raw_material_cost": 20,
+			"base_total_cost": 20, "base_raw_material_cost": 20}, nguon="Máy tính lại")
+		doc.add_comment.assert_not_called()
+	def rows(dt, **kw):
+		return [NS(reference_name="B", owner="u", creation="2026-10-13", content=noi)] if dt == "Comment" else []
+	with patch.object(ct.frappe, "get_all", rows), patch.object(ct, "_ten_nguoi", return_value={"u": "U"}):
+		cau = ct._lich_su_cua(["B"])[0]["cau"][0]
+		dung("chỉ giải mã một lần để UI tự escape", "Đổi & kiểm" in cau and "Bánh & kem" in cau and "BTP <mới>" in cau)
+		dung("không còn entity", "&amp;" not in cau)

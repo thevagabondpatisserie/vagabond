@@ -10,6 +10,14 @@ vm.createContext(box);vm.runInContext(fs.readFileSync('vagabond/public/js/bep/26
 const html=()=>document.getElementById('vgbBody').innerHTML;
 const row={bom:'BOM-X',nguoi:'Linh',luc:'2026-10-13',cau:['Đổi lượng 1 thành 2']};
 (async()=>{
+ // Máy ở UTC vẫn phải lọc ngày theo Sài Gòn, kể cả sát giao ngày và đầu tháng.
+ reply={ds:[],tong:0};
+ for(const [luc,tu,den] of [['2026-10-13T16:30:00Z','2026-10-07','2026-10-13'],['2026-10-13T17:30:00Z','2026-10-08','2026-10-14'],['2026-09-30T18:00:00Z','2026-09-25','2026-10-01']]){
+  box.Date=class extends Date{constructor(...a){super(...(a.length?a:[luc]));}};
+  await box.scrCongThucNhatKy();assert.strictEqual(calls.at(-1).args.den_ngay,den);assert.strictEqual(calls.at(-1).args.tu_ngay,tu);
+ }
+ box.Date=Date;
+ assert.strictEqual(box.ctD.tt,'dang_dung');
  for(const n of [0,1,5]){
   reply={ds:Array(n).fill(row),tong:n,nguoi:[],mon:[]};await box.scrCongThucNhatKy();
   assert.strictEqual(document.querySelectorAll('[data-ctnkbom]').length,n);if(!n)assert(html().includes('Không có lần sửa'));
