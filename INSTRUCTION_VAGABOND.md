@@ -26,8 +26,11 @@ Quyền push không thay quyền merge/deploy, cổng kiểm hay quyền sửa d
 3. `git fetch origin`, đọc origin/main và head nhánh PR. Nếu origin thiếu,
    chỉ thêm URL khi đã xác minh repo đích từ PR; không suy fetch được là push được.
 4. Khi nhánh chung cần cập nhật nền, merge main/nhánh được giao; không rebase
-   lịch sử đã công bố, không force push. Xung đột logic cần đọc và giải quyết
-   theo phạm vi được giao. Patch giữ lịch sử; app_bep.js luôn dựng lại từ bep/.
+   lịch sử đã công bố, không force push. Nếu hai phiên sửa cùng hàm hoặc có
+   xung đột logic, dừng phần xung đột, báo rõ hai thay đổi và thống nhất với
+   owner trước khi giải quyết; không tự chọn một bên. Chỉ tự gộp xung đột
+   phiên bản/patch hoặc tệp sinh tự động không đổi logic: giữ lịch sử patch,
+   lấy phiên bản hợp lệ cao hơn, dựng lại app_bep.js từ bep/.
 
 Không tự đổi sandbox, chính sách mạng, scope token hay nhét credential vào repo.
 Instruction không cấp thêm quyền GitHub và không tự khởi chạy desktop.
