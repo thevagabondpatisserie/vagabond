@@ -39,3 +39,13 @@ Không sửa phiếu/tồn lịch sử; không merge hoặc deploy trong lượt
 APPVER 593, đúng một dòng patch #v593 sau main 592. Vì #472 được ưu tiên
 trước, PR #471 đang dùng 593 cần đồng bộ và đặt số mới trước tích hợp sau này.
 Không gộp #471 vào PR này. SHA/check cuối ghi ở comment bàn giao trên PR.
+
+## Bench vòng 1
+
+Run 38392937139, SHA 703c7d3a6fce3298f356309cfee9ed10ff647e48:
+399/402 đạt cả hai lượt, không chứng từ sót, không lệch tồn. Ba ca #472
+đều lỗi dựng fixture `No module named frappe.core.doctype.phieu_kiem_ke`,
+chưa tới logic ghi sổ. Bench nền chưa dựng hai DocType site-only; staging
+trước đây chỉ dựng chúng sau bộ tích hợp. Đưa nguyên hai cấu trúc trong
+`staging/cau_truc_cu.json` vào nen_bench trước migrate, giữ kiểm từng trường/
+quyền khi staging tái dùng. Không đổi schema production, không bỏ ca đỏ.

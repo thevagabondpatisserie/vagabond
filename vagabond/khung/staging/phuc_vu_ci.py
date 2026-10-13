@@ -25,12 +25,15 @@ def tao_cau_truc_cu():
     # Bảng con trước bảng cha; không dựng bảng rỗng chỉ để hết lỗi get_list.
     # Không ghi đè DocType đã tồn tại trên một nền không rõ nguồn.
     for row in mau['doctypes']:
-        if frappe.db.exists('DocType', row['name']):
+        if frappe.db.exists('DocType', row['name']) and row['name'] not in ('Chi Tiet Kiem Ke', 'Phieu Kiem Ke'):
             raise RuntimeError('DocType cũ đã tồn tại, cần kiểm nền CI: ' + row['name'])
         for perm in row['permissions']:
             if not frappe.db.exists('Role', perm['role']):
                 frappe.get_doc({'doctype': 'Role', 'role_name': perm['role']}).insert()
-        doc = frappe.get_doc(dict(row, doctype='DocType')).insert()
+        # #472: hai bảng kiểm kê đã dựng từ cùng metadata trước ca sổ kho.
+        # Không ghi đè; vẫn so từng trường/quyền bên dưới.
+        doc = (frappe.get_doc('DocType', row['name']) if frappe.db.exists('DocType', row['name'])
+               else frappe.get_doc(dict(row, doctype='DocType')).insert())
         doc.reload()
         for key in ('custom', 'istable', 'is_submittable', 'autoname', 'title_field'):
             if (doc.get(key) or '') != (row[key] or ''):
