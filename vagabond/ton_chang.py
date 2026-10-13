@@ -234,6 +234,7 @@ def cau_tom_tat(bang):
 # ------------------------------------------------------- phần cần Frappe
 
 import frappe
+from vagabond.lich_su_bom import dat_bom
 from frappe.utils import cint, flt
 
 from vagabond import kho_san_xuat as ksx
@@ -535,8 +536,8 @@ def gom_chang(chay_that=0):
 			mat_dau += 1
 		se_doi.append({"bom": b.name, "ma": b.item, "cu": cu, "moi": moi})
 		if chay_that:
-			frappe.db.set_value("BOM", b.name, "custom_chang", moi,
-				update_modified=False)
+			dat_bom("BOM", b.name, "custom_chang", moi,
+				update_modified=False, nguon='Gom chặng công thức')
 	if chay_that:
 		frappe.db.commit()
 	return {

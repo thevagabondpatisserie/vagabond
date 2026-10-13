@@ -416,6 +416,46 @@ Công thức đã ghi sổ không sửa thẳng được. Ghi sổ bản mới x
 **Lưu ý**
 - Đổi công thức thì soát lại hướng dẫn chế biến (nút chuyển sang [[Soát lại HD]]).
 
+## Xuất công thức (BOM) ra Excel
+Từ khoá: xuất BOM, xuất excel công thức, tải BOM, export BOM, định mức ra excel, file BOM, hướng dẫn tôi xuất file BOM ra excel
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Bếp trưởng, quản lý công thức, giám đốc | Danh mục công thức (/cong-thuc) | [[Xuất Excel]] |
+
+Tệp tải về có một dòng cho từng nguyên liệu và giữ đúng bộ lọc đang xem.
+
+**Các bước**
+1. Mở Danh mục công thức, chọn khu, trạng thái, chặng và gõ ô tìm nếu cần.
+2. Bấm [[Xuất Excel]] ở đáy màn để tải toàn bộ kết quả đang lọc.
+3. Muốn xuất một công thức, mở chi tiết công thức rồi bấm [[Xuất Excel]].
+
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Chỉ bếp trưởng, quản lý công thức hoặc giám đốc được xuất Excel công thức | Nhờ người có quyền xuất tệp |
+
+**Lưu ý**
+- Mặc định màn chỉ xuất các bản Đang dùng. Chọn trạng thái khác trước khi xuất nếu cần bản nháp hoặc bản cũ.
+
+## Xem ai đã sửa công thức
+Từ khoá: lịch sử BOM, ai sửa BOM, nhật ký công thức, truy vết, sửa công thức lúc nào
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Bếp, quầy bar, quản lý công thức | Danh mục công thức (/cong-thuc) | [[Nhật ký sửa]] |
+
+Nhật ký cho biết người sửa, lúc sửa và nội dung đã đổi, gồm cả các bản trước.
+
+**Các bước**
+1. Mở một công thức và kéo tới mục Lịch sử chỉnh sửa để xem riêng món đó.
+2. Hoặc bấm [[Nhật ký sửa]] ở Danh mục công thức để xem toàn bộ.
+3. Chọn người sửa, món và khoảng 7, 30 hoặc 90 ngày.
+4. Bấm một dòng nhật ký để mở đúng công thức.
+
+**Lưu ý**
+- Nhật ký mới nhất nằm trên cùng. Các dòng máy tự dựng lại để tính giá vốn không hiện ra.
+
 ## Đầu mã món NVLT, BTPB, BTPN, BAWC nghĩa là gì
 Từ khoá: đầu mã, tiền tố mã, mã hàng, mã món, NVLT, BTPB, BTPN, NBTP, BAWC, BAWS, BANU, BAEN, BACF, BASS, BPKG, CCDC, VVPP, nguyên liệu, bán thành phẩm, thành phẩm, prefix
 

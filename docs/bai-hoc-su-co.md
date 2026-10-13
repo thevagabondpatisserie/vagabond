@@ -2215,3 +2215,12 @@ là no-op, không gom lỗi submit vào nhánh thành công. Bench xác minh SLE
 ### PR #473: xoá ô đếm phải gỡ cờ đã đếm
 
 Ô trống sau gõ số không phải số0: cả input và change phải gỡ da_dem. Ca DOM gọi handler thật gõ5/xoá/gõ0; ca tầng khung gọi ghi_so với hai dòng cạnh nhau, chỉ dòng đếm0 được đưa vào Stock Reconciliation. Không chỉ có fixture một dòng. Ba đột biến (hai handler và bộ lọc server) bị bắt3/3.
+
+# 13/10/2026 - Lịch sử BOM phải lọc bảng khai triển và bù đường ghi thẳng
+
+- Triệu chứng: Version của BOM có nhiều dòng `exploded_items`, còn các lần đổi cờ bằng `db.set_value` không tạo Version nên người xem không biết ai chốt bản nào.
+- Nguyên nhân: ERPNext dựng lại bảng khai triển khi lưu, trong khi cập nhật thẳng cơ sở dữ liệu không đi qua cơ chế theo dõi thay đổi của Document.
+- Cách phòng: dịch Version theo danh sách trường nghiệp vụ được phép hiện, bỏ toàn bộ `exploded_items`; đường ghi sổ bằng `db.set_value` phải thêm Comment trên cả bản mới và bản cũ. Ca hồi quy dùng Version có đồng thời nhiễu bảng khai triển và thay đổi số lượng.
+- Nguồn: PR #469.
+
+- Bổ sung kiểm core: `row_changed` dùng index trước child.name. Chỉ đổi qty thì diff không chứa tên/UOM; phải đọc metadata dòng, không dùng fixture tự thêm tên để che lỗi. Slug màn mới phải khai tại `duong_app.py` để lần dựng không xoá mất.

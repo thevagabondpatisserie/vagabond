@@ -81,16 +81,17 @@ def _quy_uoc():
 	la("muc sai quy uoc", sai, [])
 
 
-# Ba cau hoi THAT trong nhat ky tro ly tren site, ca ba tung nhan "chua co
-# tai lieu", va muc phai dung DAU danh sach.
+# Các câu hỏi THẬT trong nhật ký trợ lý trên site từng nhận "chưa có tài
+# liệu", và mục phải đứng ĐẦU danh sách.
 CAU_THAT = (
 	("Cách hạch toán cho bút toán cấn trừ công nợ?", "cấn trừ công nợ"),
 	("Cách tạo phiếu nhập kho?", "Tạo phiếu nhập kho"),
 	("Đặt lại mật khẩu và xoá lịch sử đăng nhập các thiết bị", "thiết bị"),
+	("hướng dẫn tôi xuất file BOM ra excel", "Xuất công thức (BOM) ra Excel"),
 )
 
 
-@ca("so tay v554: ba cau hoi that trong nhat ky ra dung muc so tay o dau")
+@ca("so tay v554: cac cau hoi that trong nhat ky ra dung muc so tay o dau")
 def _cau_that():
 	st = _so_tay_that()
 	for cau, chu in CAU_THAT:
