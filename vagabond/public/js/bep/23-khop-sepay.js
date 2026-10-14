@@ -110,3 +110,15 @@ async function scrKhopSepay(o, loc, giuTim) {
     };
   });
 }
+
+async function boBoSepay(loai, ma, ve) {
+  var ok = await confirmSheet('Bỏ bộ đối chiếu', 'Bỏ toàn bộ các dòng sao kê đã chọn của phiếu này. Máy không huỷ bút toán; nếu còn chứng từ hiệu lực, kế toán cần xử lý trước. Không chuyển tiền thêm.', 'Bỏ bộ đã chọn', true);
+  if (!ok) return;
+  busy(true);
+  try {
+    var kq = await api('vagabond.bo_sao_ke_luong.bo', {loai:loai, ma:ma});
+    toast(kq.loi_nhan || 'Đã bỏ bộ đối chiếu.', 6500);
+    return ve();
+  } catch (e) { return baoTin((e && e.message) || 'Chưa bỏ được bộ đối chiếu.'); }
+  finally { busy(false); }
+}

@@ -1641,6 +1641,8 @@ def chi_tiet(ma_phieu=None):
 		frappe.throw("Phiếu này của người khác nên anh chị không mở được.")
 
 	ra = doc.as_dict()
+	from vagabond.bo_sao_ke_luong import duoc_bo
+	ra["bo_sao_ke_duoc"] = 1 if duoc_bo("ttnb",doc) else 0
 	for k in list(ra.keys()):
 		if k.startswith("_"):
 			ra.pop(k, None)

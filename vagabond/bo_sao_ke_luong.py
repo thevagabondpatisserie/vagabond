@@ -154,3 +154,63 @@ def nguon_hoan_tien(pe, method=None):
         frappe.throw("Tài khoản chi và hồ sơ hoàn tiền khác công ty.")
     pe.bank_account=g.flags.bo_sao_ke[0].bank_account
     pe.paid_from=ba.account
+
+
+def duoc_bo(loai, doc):
+    if not doc.get(bs.O_BO):
+        return False
+    if loai=='ttnb':
+        from vagabond.de_nghi_chi import VAI_KE_TOAN, VAI_GIAM_DOC
+        return bool(set(frappe.get_roles()) & (VAI_KE_TOAN | VAI_GIAM_DOC))
+    if loai=='hoan_tien':
+        from vagabond.hoan_tien import _duoc_tu_choi
+        return _duoc_tu_choi()
+    return False
+
+
+@frappe.whitelist(methods=["POST"])
+def bo(loai, ma):
+    """Bỏ toàn bộ chỗ giữ của phiếu, không huỷ hoặc tháo bút toán thay kế toán."""
+    from vagabond import doi_soat_sepay as dss
+    b=dss.kiem_quyen_luong(loai,ghi=True)
+    if loai not in LUONG:
+        frappe.throw("Luồng này chưa có cửa bỏ bộ sao kê.")
+    doc=frappe.get_doc(b['doctype'],ma,for_update=True)
+    cu=bs.doc_hien_tai(doc)
+    if not cu['dong']:
+        return dict(ok=1,da_lam_roi=1)
+    if not duoc_bo(loai,doc):
+        frappe.throw("Chỉ kế toán hoặc giám đốc được bỏ bộ đối chiếu.")
+    hop_le=('Hoan tat','Da chi') if loai=='ttnb' else ('Cho chi','Da doi soat')
+    if doc.trang_thai not in hop_le:
+        frappe.throw("Phiếu đã đổi trạng thái. Tải lại trước khi bỏ đối chiếu.")
+    if loai=='ttnb' and doc.get('ho_so_tt'):
+        frappe.throw("Phiếu đã nối hồ sơ %s. Gỡ liên kết ở hồ sơ trước khi bỏ bộ sao kê." % doc.ho_so_tt)
+    ct={(c['doctype'],c['name']) for c in cu['chung_tu']}
+    if loai=='hoan_tien':
+        # Kể cả phiếu chi nháp chưa vào metadata cũng không bỏ quên nó.
+        for r in frappe.db.sql("""select name,docstatus from `tabPayment Entry`
+            where vgb_hoan_tien=%s and docstatus<2 for update""",(ma,),as_dict=True):
+            frappe.throw("Phiếu chi %s còn %s. Kế toán xử lý phiếu chi trong ERPNext trước khi bỏ bộ sao kê." %
+                (r.name,'bản nháp' if r.docstatus==0 else 'đã ghi sổ'))
+        if doc.get('phieu_chi') and frappe.db.get_value('Payment Entry',doc.phieu_chi,'docstatus',for_update=True) in (0,1):
+            frappe.throw("Phiếu chi còn hiệu lực. Kế toán xử lý trước khi bỏ bộ sao kê.")
+    for dt,ten in sorted(ct):
+        if frappe.db.get_value(dt,ten,'docstatus',for_update=True) in (0,1):
+            frappe.throw("Chứng từ %s còn hiệu lực. Kế toán xử lý trước khi bỏ bộ sao kê." % ten)
+    for d in sorted(cu['dong'],key=lambda d:d['name']):
+        frappe.db.get_value('Bank Transaction',d['name'],'name',for_update=True)
+        if any((r.doctype,r.name) in ct for r in bs._loi(d['name'])):
+            frappe.throw("Bộ sao kê còn liên kết bút toán; chưa bỏ được.")
+    bs.luu(doc,[])
+    ghi={b['truong_gd']:None}
+    for o in ('truong_nguoi','truong_luc'):
+        if b.get(o):ghi[b[o]]=None
+    if loai=='ttnb':
+        ghi.update(trang_thai='Hoan tat',ngay_da_chi=None)
+    else:
+        ghi.update(trang_thai='Cho chi',da_doi_soat=0,ngay_doi_soat=None,phieu_chi=None,loi_sinh_ct='')
+    frappe.db.set_value(doc.doctype,doc.name,ghi)
+    doc.add_comment('Comment','Bỏ toàn bộ bộ sao kê: %s. Người làm: %s. Không chuyển tiền thêm chỉ vì đã bỏ đối chiếu.' %
+        (', '.join(d['name'] for d in cu['dong']),frappe.session.user))
+    return dict(ok=1,loi_nhan='Đã bỏ cả bộ, phiếu về Chờ chi để chọn lại đúng sao kê. Không chuyển tiền thêm.')

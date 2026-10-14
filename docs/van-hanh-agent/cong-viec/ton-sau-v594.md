@@ -87,3 +87,10 @@ B: PR471 web Vue giữ Draft và công tắc tắt. Merge main không rebase, gi
 - Màn sao kê hiển thị phần được gán và phần còn lại của từng dòng. Sổ tay kiểm câu thật chị Dung qua bộ tìm kiếm thật.
 - Bench21e001542 đã qua bước tích hợp máy chủ; staging đỏ do ca kiểm chuỗi cũ Sao kê/Bộ sao kê. Sửa ca giữ phần lý do chung và vẫn kiểm ValidationError/HTTP thất bại.
 - A1 còn công nợ tiền vào, bỏ bộ ngoài APP, rà tạm ứng/hoàn ứng; A2 còn nghiệm thu và rà concurrency với đồng bộ. Giữ Draft, không phát hành.
+
+### Đợt gỡ bộ và hoàn ứng nối TTNB
+
+- Bench SHA 8e9882d100537ee84583f310bd3237eff927ffcc đã đạt tích hợp máy chủ, gồm hai tiến trình tranh chiếc bánh cuối: chỉ một đơn và một POST Pancake; từ chối nhả giữ, timeout giữ. Bench tổng vẫn đỏ vì bước staging chọn lại sao kê chưa bấm Gán. Đã sửa lần chọn thứ hai, chờ chạy lại.
+- Bổ sung bỏ cả bộ TTNB/hoàn tiền, xác nhận trên màn, kiểm quyền và khóa hiện hành. Còn APP hoàn ứng hoặc PE/JE nháp/đã ghi sổ thì chỉ dẫn xử lý chứng từ liên quan trước; không tự hủy. Ca DOM kiểm hủy, lỗi, thành công và nút theo quyền.
+- Hoàn ứng từ TTNB đọc tổng cả bộ, giữ đúng người ứng. Hai TTNB được giữ hai phần của một BT và nối hai APP riêng; không cho lấy nguyên BT đã giữ để hoàn thêm. Bổ sung bench thực đi qua tao_hoan_ung, chờ CI xác nhận.
+- Local 4.520 ca đạt. Chưa hoàn thành A1: còn cửa công nợ tiền vào và kiểm trọn các đường còn lại. Chưa chuyển B/C, chưa đặt phiên bản, chưa merge/deploy.

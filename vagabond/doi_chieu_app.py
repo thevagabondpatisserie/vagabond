@@ -81,10 +81,18 @@ def _chu_khac(g, doc, bo=False):
 		and (%s=0 or ifnull(vgb_bo_sao_ke, '') = '')
 		limit 1""" + (" for update" if g.flags.get("for_update") else ""), (doc.name, tuple(ma), int(bo))):
 		return r[0]
-	for r in frappe.db.sql("""select d.parent from `tabVagabond Ho So TT Dong` d
+	for r in frappe.db.sql("""select d.parent,d.de_nghi_chi,n.vgb_bo_sao_ke,n.ho_so_tt
+		from `tabVagabond Ho So TT Dong` d
 		join `tabVagabond Ho So TT` p on p.name=d.parent
+		left join `tabVagabond De Nghi Chi` n on n.name=d.de_nghi_chi
 		where d.ma_giao_dich in %s and d.parent != %s and p.trang_thai != 'Tu choi'
-		limit 1""" + (" for update" if g.flags.get("for_update") else ""), (tuple(ma), doc.name)):
+		""" + (" for update" if g.flags.get("for_update") else ""), (tuple(ma), doc.name)):
+		if bo and len(r)>3 and r[1] and r[3]==r[0] and r[2]:
+			from vagabond.bo_sao_ke import doc_bo
+			if any(x['name']==g.name for x in doc_bo(r[2])['dong']):
+				# APP chỉ dẫn lại chứng cứ của TTNB; phần giữ của TTNB đã
+				# được con_lai trừ. Không chiếm toàn BT lần thứ hai.
+				continue
 		return r[0]
 	from vagabond import doi_soat_sepay as dss
 	# Nhập trực tiếp để lỗi nạp luồng không bị nap_so nuốt mất.

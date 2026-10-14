@@ -257,3 +257,28 @@ def _():
             patch.object(dss,"ly_do_tai_khoan_sepay",return_value=""),patch.object(bl,"_khop") as khop:
         la("còn đúng một dòng thì dùng cửa một dòng",bl.tu_dong_mot("ttnb","TTNB",rows),None)
         la("không ghép sai bộ 200",khop.call_count,0)
+
+
+@ca('#476 bỏ bộ: quyền, APP liên quan và bút toán sống đều chặn trước khi nhả')
+def _():
+    from unittest.mock import patch
+    import frappe
+    from vagabond import bo_sao_ke_luong as bl, doi_soat_sepay as dss
+    import json
+    d=frappe._dict(doctype='Vagabond De Nghi Chi',name='T',trang_thai='Da chi',ho_so_tt='',
+        vgb_bo_sao_ke=json.dumps({'dong':[{'name':'A','phan_bo':60},{'name':'B','phan_bo':40}],
+            'chung_tu':[{'doctype':'Payment Entry','name':'PE'}]}),add_comment=lambda *a:None)
+    b={'doctype':d.doctype,'truong_gd':'ma_gd'}
+    with patch.object(dss,'kiem_quyen_luong',return_value=b),patch.object(frappe,'get_doc',return_value=d), \
+         patch.object(bl,'duoc_bo',return_value=False) as quyen,patch.object(frappe.db,'get_value',return_value=1) as status, \
+         patch.object(bl.bs,'luu') as luu,patch.object(bl.bs,'_loi',return_value=[]) as noi,patch.object(frappe.db,'set_value') as ghi:
+        nem('chặn quyền',lambda:bl.bo('ttnb','T'),frappe.ValidationError)
+        quyen.return_value=True;d.ho_so_tt='APP'
+        nem('chặn APP',lambda:bl.bo('ttnb','T'),frappe.ValidationError)
+        d.ho_so_tt='';nem('chặn bút toán',lambda:bl.bo('ttnb','T'),frappe.ValidationError)
+        status.return_value=2;noi.return_value=[frappe._dict(doctype='Payment Entry',name='PE')]
+        nem('chặn liên kết chưa gỡ',lambda:bl.bo('ttnb','T'),frappe.ValidationError)
+        la('chưa nhả',luu.call_count,0);la('chưa đổi phiếu',ghi.call_count,0)
+        noi.return_value=[];bl.bo('ttnb','T')
+        la('bỏ cả bộ',luu.call_args.args[1],[])
+        la('về đúng bước',ghi.call_args.args[2]['trang_thai'],'Hoan tat')

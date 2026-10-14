@@ -3263,6 +3263,8 @@ def chi_tiet(ho_so):
 		)
 	d = frappe.get_doc(DT, ho_so)
 	ra = d.as_dict()
+	from vagabond.bo_sao_ke_luong import duoc_bo
+	ra["bo_sao_ke_duoc"] = 1 if duoc_bo("hoan_tien",d) else 0
 	for k in list(ra.keys()):
 		if k.startswith("_"):
 			ra.pop(k, None)

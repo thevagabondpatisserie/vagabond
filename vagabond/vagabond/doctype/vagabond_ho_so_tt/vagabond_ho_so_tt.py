@@ -129,7 +129,7 @@ class VagabondHoSoTT(Document):
 			# tu sao ke.
 			ma_gd = (d.ma_giao_dich or "").strip()
 			if ma_gd:
-				cac_ma = khoa_ma_giao_dich(ma_gd)
+				cac_ma = khoa_ma_giao_dich(ma_gd, d.get("de_nghi_chi"), self.name)
 				if da_gap_gd.intersection(cac_ma):
 					frappe.throw("Một giao dịch đang nằm ở hai khoản. Gỡ khoản trùng trước khi lưu.")
 				da_gap_gd.update(cac_ma)

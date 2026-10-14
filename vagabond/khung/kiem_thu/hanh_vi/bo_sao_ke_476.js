@@ -73,5 +73,27 @@ async function man(rows, can=714138056, save) {
     const m=await man([dong('A',100)],100);m.response.chon_bo=0;await m.render();m.chon('A');
     assert.equal(m.calls[0][0],'A');assert.equal(m.nut('ksGan'),null);
   });
+  await ca('bỏ bộ cần xác nhận; lỗi máy chủ không báo thành công',async()=>{
+    const m=await man([],100),vet=[];
+    m.g.confirmSheet=async()=>false;m.g.busy=()=>{};m.g.toast=()=>vet.push('toast');
+    m.g.api=async()=>{vet.push('api');throw Error('Còn bút toán');};
+    await m.g.boBoSepay('ttnb','T',()=>vet.push('ve'));assert.deepEqual(vet,[]);
+    m.g.confirmSheet=async()=>true;
+    await m.g.boBoSepay('ttnb','T',()=>vet.push('ve'));assert.deepEqual(vet,['api']);assert(m.tin.includes('Còn bút toán'));
+    m.g.api=async(ham,p)=>{assert.equal(ham,'vagabond.bo_sao_ke_luong.bo');assert.equal(p.ma,'T');return {ok:1};};
+    await m.g.boBoSepay('ttnb','T',()=>vet.push('ve'));assert.deepEqual(vet,['api','toast','ve']);
+  });
+  await ca('nút bỏ bộ TTNB và hoàn tiền theo cờ quyền máy chủ',async()=>{
+    const m=await man([],100);
+    for(const [tep,ham,sau,id,d] of [
+      ['16-mua-hang.js','ttnbKhopSepay','async function ttnbKhopAuto','ttnbBoBo',{ma_gd:'BT',khop_duoc:0}],
+      ['11-khach-ca-hop-dong.js','htCtKhopSepay','async function htSinhLai','htBoBo',{duoc_doi_chieu:1,da_doi_soat:1}]
+    ]) {
+      const s=fs.readFileSync(path.resolve(__dirname,'../../../public/js/bep/'+tep),'utf8');
+      vm.runInContext(s.slice(s.indexOf('function '+ham+'('),s.indexOf(sau)),m.g);
+      m.document.body.innerHTML=m.g[ham](d);assert.equal(m.nut(id),null);
+      d.bo_sao_ke_duoc=1;m.document.body.innerHTML=m.g[ham](d);assert(m.nut(id));
+    }
+  });
   console.log('#476 DOM:',dat,'đạt,',hong,'hỏng');if(hong)process.exitCode=1;
 })().catch(e=>{console.error(e);process.exitCode=1;});

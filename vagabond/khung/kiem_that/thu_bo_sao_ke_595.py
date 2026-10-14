@@ -172,6 +172,21 @@ def _():
     la("hai phần giữ",len(bs.doc_hien_tai(h)["dong"]),2)
     la("không lỗi bước sau",k["loi"],"")
     la("retry",dc.khop_tay(h.name,ds)["da_lam_roi"],1)
+    from vagabond import bo_sao_ke_luong as luong
+    from unittest.mock import patch
+    with patch.object(frappe,'get_roles',return_value=['Sales User']):
+        try:luong.bo('ttnb',h.name)
+        except frappe.ValidationError:pass
+        else:dung('Sales không được bỏ bộ',False)
+    h.reload();la('chặn giữ nguyên bộ',len(bs.doc_hien_tai(h)['dong']),2)
+    luong.bo('ttnb',h.name);h.reload()
+    la('về chờ chi',h.trang_thai,dc.TT_HOAN_TAT)
+    la('bỏ cả hai phần',bs.doc_hien_tai(h)['dong'],[])
+    la('bỏ lần nữa không lỗi',luong.bo('ttnb',h.name)['da_lam_roi'],1)
+    for g in (a,b):
+        g.reload();la('lõi không bị giả ghi sổ',len(g.payment_entries),0)
+        la('không còn giữ',bs.con_lai(g,h),float(g.withdrawal))
+
 
 
 @ca("#476 TTNB tự dò bộ thay vì đòi từng dòng bằng tổng phiếu")
@@ -216,10 +231,23 @@ def _():
     la("vẫn là nháp",pe.docstatus,0)
     la("đúng ngân hàng đã chọn",pe.bank_account,ba.name)
     la("đúng nguồn sổ cái",pe.paid_from,ba.account)
+    from vagabond import bo_sao_ke_luong as luong, bo_sao_ke_db as bs
+    try:luong.bo('hoan_tien',h.name)
+    except frappe.ValidationError:pass
+    else:dung('nháp còn sống phải chặn bỏ',False)
     with _Tep(pe.name):pe.submit()
     for g in (a,b):
         g.reload();la("đã phân bổ khi ghi sổ",float(g.unallocated_amount),0)
         la("liên kết đúng PE",g.payment_entries[0].payment_entry,pe.name)
+    try:luong.bo('hoan_tien',h.name)
+    except frappe.ValidationError:pass
+    else:dung('đã ghi sổ phải chặn bỏ',False)
+    pe.cancel()
+    luong.bo('hoan_tien',h.name);h.reload()
+    la('bỏ cả bộ sau huỷ lõi',bs.doc_hien_tai(h)['dong'],[])
+    la('về chờ chi',h.trang_thai,'Cho chi')
+    la('không giả đã khớp',int(h.da_doi_soat),0)
+
 
 
 @ca("#476 ngoại lệ: FIN không được bỏ SePay; Manager ghi kèm lý do rồi đối chiếu đủ mới hết chờ")
@@ -276,3 +304,40 @@ def _():
     for g in (a,b):
         g.reload();la("hai phiếu dùng đúng 100.000",float(g.allocated_amount),100000)
         la("hai liên kết",len(g.payment_entries),2)
+
+
+@ca('#476 hoàn ứng: TTNB hai lệnh giữ cùng chủ; một BT hai TTNB hoàn qua hai APP không nhân tiền')
+def _():
+    import json
+    from vagabond import sepay, de_nghi_chi as dc, ho_so_tt as hs, bo_sao_ke_luong as bl
+    from vagabond.khung.kiem_that.nen import mot_nha_cung_cap
+    from vagabond.khung.kiem_that.thu_sepay_mb_247 import _tai_khoan_ca_nhan, _so_thu, _phieu_cho_chi
+    ba=_tai_khoan_ca_nhan(_so_thu(),mot_nha_cung_cap())
+    sepay.them_tai_khoan(ba.bank_account_no,ba.name)
+    def app(p,tien,gd):
+        r=hs.tao_hoan_ung(tk_hoan=ba.name,dong=[dict(ngay_hd=today(),noi_dung='Kiểm bộ hoàn ứng',
+            so_tien=tien,ma_giao_dich=gd,de_nghi_chi=p.name)],gui_luon=0)
+        h=frappe.get_doc('Vagabond Ho So TT',r['ma']);_DA_TAO.append((h.doctype,h.name));return h
+    p=_phieu_cho_chi(100000)
+    a=_giao_dich(ba.name,60000,p.name);b=_giao_dich(ba.name,40000,p.name)
+    dc.khop_tay(p.name,json.dumps([dict(name=a.name,phan_bo=60000),dict(name=b.name,phan_bo=40000)]))
+    h=app(p,100000,a.name)
+    la('tổng khoản theo bộ',float(h.dong[0].so_tien),100000)
+    la('không giả công ty đã chi',h.ma_giao_dich or '', '')
+    try:bl.bo('ttnb',p.name)
+    except frappe.ValidationError as e:dung('chỉ APP phải gỡ trước',h.name in str(e))
+    else:dung('không bỏ chứng cứ đang dùng',False)
+    g=_giao_dich(ba.name,100000,'KT476-CHIA-HOAN')
+    hs_moi=[]
+    for tien in (60000,40000):
+        p=_phieu_cho_chi(tien)
+        dc.khop_tay(p.name,json.dumps([dict(name=g.name,phan_bo=tien)]))
+        hs_moi.append(app(p,tien,g.name))
+    la('hai hồ sơ đúng 100.000',sum(float(h.dong[0].so_tien) for h in hs_moi),100000)
+    g.reload();la('chưa sinh bút toán công ty từ chứng cứ nhân viên',len(g.payment_entries),0)
+    frappe.db.savepoint('cam_hoan_trung476')
+    try:
+        hs.tao_hoan_ung(tk_hoan=ba.name,dong=[dict(ngay_hd=today(),noi_dung='Không được hoàn lại',so_tien=100000,ma_giao_dich=g.name)],gui_luon=0)
+    except frappe.ValidationError:pass
+    else:dung('không đi vòng bỏ TTNB để hoàn lần nữa',False)
+    finally:frappe.db.rollback(save_point='cam_hoan_trung476')

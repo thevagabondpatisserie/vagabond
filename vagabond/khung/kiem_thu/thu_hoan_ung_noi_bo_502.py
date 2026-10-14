@@ -46,7 +46,7 @@ def _khoa():
     g = frappe._dict(name='BT1',reference_number='FT1')
     with patch.object(hu,'giao_dich',return_value=g), patch.object(frappe.db,'sql') as sql:
         la('hai mã', hu.khoa_ma_giao_dich('FT1'), {'BT1','FT1'})
-        dung('khóa đúng BT', 'for update' in sql.call_args[0][0] and sql.call_args[0][1] == ('BT1',))
+        dung('khóa đúng BT', any('for update' in c.args[0] and c.args[1] == ('BT1',) for c in sql.call_args_list))
 
 
 @ca('502 gợi ý: phiếu đúng ngoài 60 dòng vẫn đứng đầu')
@@ -120,3 +120,31 @@ def _huy_gui_lai():
         else:
             dung('không bỏ qua vì dòng không đổi',False)
         dung('không ghi đè',not luu.called)
+
+
+@ca('#476 hoàn ứng lấy tổng bộ TTNB, không lấy số tiền BT đầu')
+def _():
+    from vagabond import bo_sao_ke_db as bs, doi_soat_sepay as dss
+    p=frappe._dict(name='TTNB',vgb_bo_sao_ke='co')
+    d=frappe._dict(name='TTNB',tong_tien=100,so_tien=100)
+    g=frappe._dict(withdrawal=100,flags=frappe._dict(bo_sao_ke=[frappe._dict(bank_account='MB')]))
+    with patch.object(frappe,'get_doc',return_value=d),patch.object(bs,'doc_hien_tai',return_value={'dong':[{'name':'A','phan_bo':60},{'name':'B','phan_bo':40}]}), \
+         patch.object(bs,'chon',return_value=g) as chon,patch.object(dss,'nap_so'),patch.object(dss,'_ban',return_value={}):
+        r=hu.giao_dich_phieu(p)
+        la('tổng bộ',r.withdrawal,100);la('đúng nguồn',r.bank_account,'MB')
+        la('kiểm theo tiền phiếu',chon.call_args.args[2],100)
+        la('kiểm và giữ dưới khóa',chon.call_args.kwargs['ghi'],True)
+
+
+@ca('#476 hoàn ứng chỉ chia cùng BT khi có TTNB giữ phần cho đúng APP; gán thô bị chặn')
+def _():
+    from vagabond import bo_sao_ke_db as bs
+    from vagabond.khung.kiem_thu.nen import nem
+    p=frappe._dict(name='TTNB',ho_so_tt='APP')
+    with patch.object(frappe,'get_doc',return_value=p),patch.object(bs,'doc_hien_tai',return_value={'dong':[{'name':'A','phan_bo':60}]}):
+        la('khóa theo phần có chủ',hu.khoa_ma_giao_dich('A','TTNB','APP'),{'TTNB/TTNB'})
+        nem('khác chủ',lambda:hu.khoa_ma_giao_dich('A','TTNB','KHAC'),frappe.ValidationError)
+        nem('khác sao kê',lambda:hu.khoa_ma_giao_dich('B','TTNB','APP'),frappe.ValidationError)
+    with patch.object(hu,'giao_dich',return_value=frappe._dict(name='A',reference_number='FT')), \
+         patch.object(frappe.db,'sql'),patch.object(bs,'_cac_bo',return_value=[{'chu':'TTNB'}]):
+        nem('không gán lại cả sao kê',lambda:hu.khoa_ma_giao_dich('A'),frappe.ValidationError)

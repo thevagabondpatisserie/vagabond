@@ -162,6 +162,7 @@ const {chromium} = require('playwright');
     // Dùng lại đúng sao kê, ghi nhận kế toán lại; không chuyển tiền mới.
     await p.locator('[data-hsv="khoptay"]').click();
     await p.locator('.ksDong[data-gd="' + f.giao_dich + '"]').click();
+    await p.locator('#ksGan').click();
     await xacNhan('vagabond.doi_chieu_app.gan');
     await mo();
     await p.locator('[data-hsv="datra"]').click();

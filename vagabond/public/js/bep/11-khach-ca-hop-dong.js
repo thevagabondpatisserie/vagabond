@@ -2326,6 +2326,8 @@ function htCtVe() {
   if (nGd) nGd.onclick = function () { htFormGdVao(d); };
   var nKs = document.getElementById('htCtKsAuto');
   if (nKs) nKs.onclick = function () { htKhopSepayTuDong(d); };
+  var nBoBo = document.getElementById('htBoBo');
+  if (nBoBo) nBoBo.onclick = function () { return boBoSepay('hoan_tien', d.name, function () { return htChiTiet(d.name); }); };
   var nKt2 = document.getElementById('htCtKsTay');
   if (nKt2) nKt2.onclick = function () { htFormGdRa(d); };
   var nSl = document.getElementById('htCtSinhLai');
@@ -2412,6 +2414,7 @@ nó phụ thuộc đúng vào bước này, và một cái nút biến mất kh�
 là thứ khiến người dùng đi hỏi vòng quanh. */
 function htCtKhopSepay(d) {
   if (!d.duoc_doi_chieu || d.trang_thai === 'Da huy') return '';
+  var boBo = d.bo_sao_ke_duoc ? '<button class="btn gh" id="htBoBo">Bỏ bộ đối chiếu</button>' : '';
   if (d.da_doi_soat && d.sinh_lai_duoc) {
     /* v523, HT-2026-02900: tiền đã ra mà chứng từ hỏng thì CHƯA có phiếu chi,
        nên nút Đính uỷ nhiệm chi không thể hiện. Câu "bước còn lại là đính uỷ
@@ -2421,14 +2424,14 @@ function htCtKhopSepay(d) {
       '<div style="font-size:12.5px;color:#7f1d1d;line-height:1.6;margin-bottom:8px">' +
       'Tiền đã ra nhưng máy chưa lập được phiếu chi, nên chưa có chỗ đính uỷ nhiệm chi. ' +
       'Bấm nút <b>Sinh lại chứng từ</b> ở cuối màn để máy lập lại; xong là nút Đính uỷ nhiệm chi tự hiện.</div>' +
-      '</div>';
+      boBo + '</div>';
   }
   if (d.da_doi_soat) {
     return '<div style="font-size:12px;color:#065f46;background:#f0fdf4;' +
       'border:1px solid #a7f3d0;border-radius:9px;padding:9px 11px;margin-top:9px;' +
       'line-height:1.6">Lệnh chi đã khớp sao kê' +
       (d.nguoi_khop_tay ? ' (do <b>' + h(d.nguoi_khop_tay) + '</b> chọn tay)' : ' tự động') +
-      '. Bước còn lại là đính uỷ nhiệm chi rồi ghi sổ.</div>';
+      '. Bước còn lại là đính uỷ nhiệm chi rồi ghi sổ.</div>' + boBo;
   }
   return '<div style="margin-top:10px">' +
     '<div style="font-size:12.5px;color:#374151;line-height:1.6;margin-bottom:8px">' +
