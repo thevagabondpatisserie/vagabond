@@ -6,6 +6,7 @@ Phép thuần dùng chung cho mọi loại hồ sơ trong danh sách.
 """
 
 NHAN = {
+	"cho_doi_chieu_sau": "Chờ đối chiếu sau",
 	"kiem_lai": "Cần kiểm tra đối chiếu",
 	"qua_han": "Quá hạn trả",
 	"thieu_unc": "Chưa có UNC",
@@ -22,6 +23,8 @@ def chip_cua_dong(d):
 	if d.get("trang_thai") in ("Huy", "Tu choi"):
 		return []
 	ra = []
+	if d.get("cho_doi_chieu_sau"):
+		ra.append("cho_doi_chieu_sau")
 	if d.get("canh_bao_doi_chieu"):
 		ra.append("kiem_lai")
 	if (d.get("tre_ngay") or 0) > 0:

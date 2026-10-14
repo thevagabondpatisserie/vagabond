@@ -94,6 +94,8 @@ def _chu_khac(g, doc, bo=False):
 	dss.nap_so()
 	for b in dss._SO.values():
 		loc = dict(b.get("loc_chiem") or {})
+		if b["doctype"] == doc.doctype:
+			loc["name"] = ["!=",doc.name]
 		loc[b["truong_gd"]] = ["in", ma]
 		if bo:
 			loc["vgb_bo_sao_ke"] = ["is", "not set"]
@@ -158,6 +160,17 @@ def chon(doc, ma=None, khoa=False):
 		bas = frappe.get_all("Bank Account", filters={"company": cty, "account": tk}, pluck="name")
 		ds, hang = [], []
 		if bas:
+			# Đọc tất cả dòng cùng mã trước khi thử một dòng đúng tổng.
+			# Nếu có một dòng đúng tổng và thêm lệnh cùng mã thì chưa được
+			# tự chọn dòng đầu, vì có thể đã chi thừa hoặc chi nhầm.
+			hang_bo = frappe.get_all(BT, filters={"bank_account":["in",bas],"docstatus":1,"deposit":0,"withdrawal":[">",0]},
+				fields=["name","description","reference_number","withdrawal"],limit_page_length=0)
+			dong = [{"name":r.name,"phan_bo":flt(r.withdrawal)} for r in hang_bo
+				if co_ma(r.description,doc.name) or co_ma(r.reference_number,doc.name)]
+			if len(dong)>1:
+				if abs(sum(d["phan_bo"] for d in dong)-tien)<0.001:
+					return bs.chon(doc,dong,tien,"ra",lambda g:_kiem(g,doc,nguon,bo=True),ghi=khoa)
+				return None
 			hang = frappe.get_all(BT, filters={"bank_account": ["in", bas], "docstatus": 1,
 				"withdrawal": tien, "deposit": 0}, fields=["name", "date", "description", "reference_number"], limit_page_length=0)
 			for r in hang:
@@ -168,16 +181,6 @@ def chon(doc, ma=None, khoa=False):
 		if not ds:
 			ds = _theo_mau(doc, nguon, hang)
 			theo_mau = bool(ds)
-	if not ds and not ma:
-		# Không lọc đúng tiền từng dòng: ngân hàng có thể tách một lệnh.
-		cty, tk, tien = nguon
-		bas = frappe.get_all("Bank Account", filters={"company":cty,"account":tk}, pluck="name")
-		hang_bo = frappe.get_all(BT, filters={"bank_account":["in",bas],"docstatus":1,"deposit":0,"withdrawal":[">",0]},
-			fields=["name","description","reference_number","withdrawal"],limit_page_length=0) if bas else []
-		dong = [{"name":r.name,"phan_bo":flt(r.withdrawal)} for r in hang_bo
-			if co_ma(r.description,doc.name) or co_ma(r.reference_number,doc.name)]
-		if dong and abs(sum(d["phan_bo"] for d in dong)-tien)<0.001:
-			return bs.chon(doc,dong,tien,"ra",lambda g:_kiem(g,doc,nguon,bo=True),ghi=khoa)
 	if not ds:
 		return None
 	if khoa:

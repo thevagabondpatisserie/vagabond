@@ -601,7 +601,10 @@ def _ung_vien_328():
 		st.enter_context(patch.dict(sys.modules, {'vagabond.ban_hang':SimpleNamespace(_kiem_quyen=lambda:None,_kiem_quyen_ban=lambda:None)}))
 		for ten, value in [('nap_so',None),('_ban',ban),('da_chiem',{'GD0001':'PHIEU-KHAC'}),('nhan_tai_khoan',({'CN':'MB · 0615'},[{'ma':'CT'},{'ma':'CN'}],[]))]:
 			st.enter_context(patch.object(dss,ten,return_value=value))
-		st.enter_context(patch.object(dss.frappe,'get_doc',return_value={}))
+		st.enter_context(patch.object(dss.frappe,'get_doc',side_effect=lambda dt,ma,**k: dss.frappe._dict(next(r for r in ds if r['name']==ma)) if dt=='Bank Transaction' else dss.frappe._dict(doctype='TEST',name='P')))
+		from vagabond import bo_sao_ke_db as bs, doi_chieu_app as dc
+		st.enter_context(patch.object(bs,'con_lai',return_value=100))
+		st.enter_context(patch.object(dc,'_chu_khac',side_effect=lambda g,d,**k: 'PHIEU-KHAC' if g.name=='GD0001' else ''))
 		st.enter_context(patch.object(dss.frappe,'get_all',side_effect=lay))
 		kq=dss.ung_vien('ttnb','P',tai_khoan='CN')
 		la('MB có dòng, không rỗng giả',len(kq['rows']),1)

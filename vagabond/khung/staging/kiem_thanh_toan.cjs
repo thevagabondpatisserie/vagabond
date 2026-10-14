@@ -59,6 +59,8 @@ const {chromium} = require('playwright');
     await mo();
     await p.locator('[data-hsv="khoptay"]').click();
     await p.locator('.ksDong[data-gd="' + f.giao_dich + '"]').click();
+    // Chọn dòng chỉ thêm vào bộ; Gán mới mở xác nhận ghi.
+    await p.locator('#ksGan').click();
     await xacNhan('vagabond.doi_chieu_app.gan');
     // Tải lại để đọc trạng thái đã lưu, tránh bấm vào DOM cũ trong lúc go().
     await mo();

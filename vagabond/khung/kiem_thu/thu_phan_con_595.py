@@ -163,3 +163,59 @@ def _():
         bs.luu(d,[])
         la("NULL",ghi.call_args.args[-1],None)
         la("đọc lại không còn giữ",bs.doc_hien_tai(d),dict(dong=[],chung_tu=[]))
+
+
+@ca("#476 lỗi ghi bằng chứng sau giữ tiền phải hoàn lại phần giữ trước khi tự dò tiếp")
+def _():
+    from unittest.mock import patch, Mock
+    import frappe
+    from vagabond import bo_sao_ke_luong as bl, doi_soat_sepay as dss
+    d=frappe._dict(doctype="Vagabond De Nghi Chi",name="TTNB",trang_thai="Cho chi",vgb_bo_sao_ke=None)
+    d.add_comment=Mock(side_effect=frappe.ValidationError("Lỗi ghi bằng chứng"))
+    b=dict(doctype=d.doctype,truong_gd="ma_giao_dich",chieu="ra",so_tien=lambda d:100)
+    g=frappe._dict(name="BT",withdrawal=100)
+    state={"giu":False}
+    def chon(*a,**kw):state["giu"]=True;return g
+    def rollback(**kw):state["giu"]=False
+    with patch.object(dss,"kiem_quyen_luong",return_value=b),patch.object(frappe,"get_doc",return_value=d), \
+            patch.object(frappe,"generate_hash",return_value="test476",create=True), \
+            patch.object(frappe.db,"savepoint",create=True),patch.object(frappe.db,"rollback",side_effect=rollback,create=True) as lui, \
+            patch.object(frappe.db,"commit",create=True) as commit,patch.object(frappe.db,"set_value"), \
+            patch.object(bl.bs,"chon",side_effect=chon):
+        nem("vẫn trả lỗi",lambda:bl.khop("ttnb","TTNB",[dict(name="BT",phan_bo=100)]),frappe.ValidationError)
+        la("không giữ mồ côi",state["giu"],False)
+        la("rollback đúng phạm vi",lui.call_args.kwargs,{"save_point":"bo_sao_ke_test476"})
+        la("không commit lỗi",commit.call_count,0)
+
+
+@ca("#476 chờ đối chiếu sau dựa trên phân bổ lõi, không dựa trên mã gõ hoặc lý do đã lưu")
+def _():
+    from unittest.mock import patch
+    import frappe
+    from vagabond import ho_so_tt as hs
+    from vagabond.chip_ho_so_tt import chip_cua_dong
+    d=frappe._dict(name="APP",trang_thai=hs.TT_DA_TRA,vgb_tt_ly_do_som="SePay chậm",dong=[dict(so_tien=100)],da_tam_ung=0,con_lai=100,ma_giao_dich="MA-KHONG-DU")
+    with patch.object(hs,"_do_chinh_xac",return_value=2),patch.object(hs,"_but_toan_cua_ho_so",return_value=[dict(doctype="Payment Entry",name="PE")]), \
+            patch.object(frappe,"get_all",return_value=[frappe._dict(allocated_amount=60)]) as rows:
+        la("mã có nhưng còn thiếu",hs._cho_doi_chieu_sau(d),True)
+        rows.return_value=[frappe._dict(allocated_amount=60),frappe._dict(allocated_amount=40)]
+        la("đủ lõi mới hết chờ",hs._cho_doi_chieu_sau(d),False)
+        d.vgb_tt_ly_do_som=""
+        la("không tự nhận là ngoại lệ",hs._cho_doi_chieu_sau(d),False)
+    la("chip độc lập với trạng thái duyệt","cho_doi_chieu_sau" in chip_cua_dong(dict(trang_thai=hs.TT_DA_TRA,cho_doi_chieu_sau=True)),True)
+    la("hủy không giục đối chiếu",chip_cua_dong(dict(trang_thai="Huy",cho_doi_chieu_sau=True)),[])
+
+
+@ca("#476 APP có dòng đúng tổng cộng lệnh cùng mã thì không tự bỏ qua phần dư")
+def _():
+    from unittest.mock import patch
+    import frappe
+    from vagabond import doi_chieu_app as dc
+    d=frappe._dict(name="APP.26.10.019",vgb_bo_sao_ke=None,ma_giao_dich=None)
+    ds=[frappe._dict(name="A",withdrawal=100,description=d.name,reference_number=""),
+        frappe._dict(name="B",withdrawal=20,description=d.name,reference_number="")]
+    def rows(dt,**kw):return ["MB"] if dt=="Bank Account" else ds
+    with patch.object(dc,"_nguon",return_value=("CTY","112",100)),patch.object(frappe,"get_all",side_effect=rows), \
+            patch.object(frappe,"get_doc") as doc:
+        la("không tự chọn dòng A rồi coi đủ",dc.chon(d),None)
+        la("không đi tiếp cửa ghi một dòng",doc.call_count,0)

@@ -1972,6 +1972,8 @@ def khop_tay(phieu=None, gd=None):
 	"""
 	from vagabond.doi_soat_sepay import khop_tay as chung
 
+	if isinstance(gd,list) or (isinstance(gd,str) and gd.lstrip().startswith("[")):
+		return chung("ttnb",phieu,gd)
 	if not frappe.db.exists(DT, phieu):
 		frappe.throw("Không tìm thấy phiếu %s. Vui lòng tải lại danh sách." % phieu)
 	d = frappe.get_doc(DT, phieu)
@@ -2023,6 +2025,15 @@ def doi_soat(so_ngay=30):
 	cho_phep_tk = tai_khoan_duoc_khop()
 	da, xem, da_khop_rows = 0, [], []
 	for d in ds:
+		from vagabond.bo_sao_ke_luong import tu_dong_mot
+		bo = tu_dong_mot("ttnb",d["name"],gds)
+		if bo is not None:
+			if bo.get("ok"):
+				da += 1
+				da_khop_rows.append({"phieu":d["name"],"giao_dich":bo.get("gd")})
+			else:
+				xem.append(bo)
+			continue
 		tien = flt(d.get("tong_tien")) or flt(d.get("so_tien"))
 		for g in gds:
 			mo_ta = "%s %s" % (g.get("description") or "", g.get("reference_number") or "")
@@ -2119,6 +2130,11 @@ def khi_co_giao_dich(ma_bt):
 		for d in _phieu_cho_chi():
 			if not khop_noi_dung(mo_ta, d["name"]):
 				continue
+			from vagabond import doi_soat_sepay as dss
+			from vagabond.bo_sao_ke_luong import tu_dong_mot
+			bo = tu_dong_mot("ttnb",d["name"],dss.dong_sao_ke(dss.RA,45))
+			if bo is not None:
+				return
 			tien = flt(d.get("tong_tien")) or flt(d.get("so_tien"))
 			if abs(flt(g["withdrawal"]) - tien) > 1:
 				return

@@ -1023,3 +1023,9 @@ for _dt_bo_sk in ("Vagabond Ho So TT", "Vagabond De Nghi Chi", "Vagabond Hoan Ti
 for _su_kien_bo_sk in ("before_update_after_submit", "before_submit"):
     _cu_bo_sk = doc_events.setdefault("Bank Transaction", {}).get(_su_kien_bo_sk, [])
     doc_events["Bank Transaction"][_su_kien_bo_sk] = ([_cu_bo_sk] if isinstance(_cu_bo_sk, str) else list(_cu_bo_sk)) + ["vagabond.bo_sao_ke_db.bao_ve_bt"]
+
+_cu_bo_sk = doc_events.setdefault("Payment Entry", {}).get("on_submit", [])
+doc_events["Payment Entry"]["on_submit"] = ([_cu_bo_sk] if isinstance(_cu_bo_sk, str) else list(_cu_bo_sk)) + ["vagabond.bo_sao_ke_luong.noi_hoan_tien"]
+
+_cu_bo_sk = doc_events.setdefault("Payment Entry", {}).get("before_validate", [])
+doc_events["Payment Entry"]["before_validate"] = ([_cu_bo_sk] if isinstance(_cu_bo_sk, str) else list(_cu_bo_sk)) + ["vagabond.bo_sao_ke_luong.nguon_hoan_tien"]

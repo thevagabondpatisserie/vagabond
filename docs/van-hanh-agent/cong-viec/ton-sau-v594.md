@@ -60,3 +60,13 @@ Luồng đích: mở hồ sơ, chọn cả hai dòng trong Khớp SePay, tổng 
 ## Các phần làm sau A
 
 B: PR471 web Vue giữ Draft và công tắc tắt. Merge main không rebase, giữ F21 main; làm B0-B7 theo chỉ dẫn anh Việt. C: PR464 báo cáo nếu còn thời gian. Không trộn B/C vào PR này.
+
+### Đợt TTNB, hoàn tiền và ngoại lệ APP
+
+- Đã nối chọn bộ cho TTNB/hoàn tiền vào màn chung, cửa tự dò và callback webhook. Hoàn tiền vẫn sinh phiếu nháp; khi ghi sổ mới dùng phân bổ lõi, lấy đúng tài khoản trong bộ.
+- Lỗi ghi bằng chứng trước commit phải rollback phần giữ. Cửa webhook đã xác thực dùng hàm nội bộ, không đòi Guest có vai kế toán; cửa chọn tay vẫn kiểm quyền riêng.
+- APP có nút Ghi nhận kèm lý do theo quyền Accounts Manager/System Manager đã có. Chip Chờ đối chiếu sau dựa vào tổng phân bổ lõi, không biến mã giao dịch hoặc lý do thành bằng chứng đã khớp.
+- APP tự dò đọc hết dòng cùng mã trước, không chọn riêng một dòng vừa tổng khi vẫn còn lệnh khác cùng mã.
+- Thêm bench TTNB/hoàn tiền/ngoại lệ, hai tiến trình tranh phần 60.000 của BT 100.000, rồi kiểm phần 40.000 còn lại. Các ca mới phải đợi CI chạy thật.
+- Bench SHA 22c5b038170d12cf9cb8dbfe10192dd2c2381556 đạt bước tích hợp máy chủ hai lượt, đỏ bước staging: ca cũ chọn dòng rồi chờ hộp xác nhận mà thiếu bấm Gán. Đã sửa thao tác kiểm, chưa coi bench tổng là xanh.
+- A1 vẫn còn cửa công nợ tiền vào, bỏ bộ ngoài APP, rà phân bổ nhiều phần đang giữ và các đường tạm ứng/hoàn ứng; A2 chưa làm. Không dùng đợt này làm biên nhận hoàn thành A1.

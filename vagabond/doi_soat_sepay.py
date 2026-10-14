@@ -474,6 +474,16 @@ def tu_dong(loai, ma_phieu=None, so_ngay=45):
 
 	da, xem, da_khop_rows = 0, [], []
 	for c in cho:
+		if loai in ("ttnb","hoan_tien"):
+			from vagabond.bo_sao_ke_luong import tu_dong_mot
+			bo = tu_dong_mot(loai,c["doc"].name,gds)
+			if bo is not None:
+				if bo.get("ok"):
+					da += 1
+					da_khop_rows.append({"phieu":c["doc"].name,"giao_dich":bo.get("gd")})
+				else:
+					xem.append(bo)
+				continue
 		for g in gds:
 			kq, vi_sao = xet(g["mo_ta"], g["tien"], c["ma"], c["tien"],
 				chu_cu=chiem.get(g["name"]))
@@ -570,7 +580,10 @@ def ung_vien(loai, ma_phieu, so_ngay=45, tu_khoa="", tai_khoan="", thu_tu="goi_y
 	ma = str(b["ma_do"](doc) or "").strip()
 	tien = flt(b["so_tien"](doc))
 	kq = danh_sach_chon(b["chieu"], ma, tien, so_ngay, tu_khoa, tai_khoan, thu_tu, bat_dau,
-		ly_do=lambda g: _loi_giao_dich(b, g), chiem=da_chiem(loai, tru_phieu=ma_phieu))
+		ly_do=lambda g: _loi_giao_dich(b, g), chiem={} if loai in ("ttnb","hoan_tien") else da_chiem(loai, tru_phieu=ma_phieu))
+	if loai in ("ttnb","hoan_tien"):
+		from vagabond.bo_sao_ke_luong import ung_vien as ung_vien_bo
+		kq = ung_vien_bo(loai,doc,kq)
 	kq.update(ten_man=b["ten_man"], ma_gd_dang_gan=doc.get(b["truong_gd"]) or "",
 		nhac="" if ma else "Phiếu chưa có mã để dò. Đọc nội dung rồi chọn giao dịch.")
 	return kq
@@ -587,6 +600,9 @@ def khop_tay(loai, ma_phieu, ma_gd):
 	Lệch tiền thì CẢNH BÁO chứ không chặn: ngân hàng có thể trừ phí, kế toán
 	có thể chuyển làm hai lần. Nhưng con số phải được nói ra thành lời.
 	"""
+	if isinstance(ma_gd,list) or (isinstance(ma_gd,str) and ma_gd.lstrip().startswith("[")):
+		from vagabond.bo_sao_ke_luong import khop
+		return khop(loai,ma_phieu,ma_gd)
 	b = kiem_quyen_luong(loai, ghi=True)
 	doc = frappe.get_doc(b["doctype"], ma_phieu)
 	loi_phieu = b["loi_phieu"](doc) if b.get("loi_phieu") else None

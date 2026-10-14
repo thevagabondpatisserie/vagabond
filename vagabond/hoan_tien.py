@@ -2241,6 +2241,16 @@ def _doi_soat_khop(ho_so=None, so_ngay=30):
 
 	da, xem, sinh, da_thu = 0, [], [], []
 	for d in ds:
+		from vagabond.bo_sao_ke_luong import tu_dong_mot
+		bo = tu_dong_mot("hoan_tien",d["name"],gds)
+		if bo is not None:
+			if bo.get("ok"):
+				da += 1
+				da_thu.append(d["name"])
+				if bo.get("loi"):xem.append({"ho_so":d["name"],"vi_sao":bo["loi"]})
+			else:
+				xem.append(dict(bo,ho_so=d["name"]))
+			continue
 		for g in gds:
 			mo_ta = "%s %s" % (g.get("description") or "", g.get("reference_number") or "")
 			if not khop_giao_dich(mo_ta, d["ma_do"]):
@@ -2552,6 +2562,11 @@ def sepay_tien_ra(mo_ta="", so_tien=0, ma_gd=""):
 	d = next((c for c in cho if str(c["ma_do"]).upper() == ma.upper()), None)
 	if not d:
 		return {"khop": 0, "ma": ma, "vi_sao": "Không có phiếu hoàn tiền nào đang chờ cho đơn %s." % ma}
+	from vagabond import doi_soat_sepay as dss
+	from vagabond.bo_sao_ke_luong import tu_dong_mot
+	bo = tu_dong_mot("hoan_tien",d["name"],dss.dong_sao_ke(dss.RA,45))
+	if bo is not None:
+		return dict(khop=int(bool(bo.get("ok"))),ma=ma,ho_so=d["name"],vi_sao=bo.get("vi_sao") or bo.get("loi") or "")
 	if flt(so_tien) and abs(flt(so_tien) - flt(d["so_tien"])) > 1:
 		return {
 			"khop": 0,
@@ -3566,6 +3581,9 @@ def khop_tay(ho_so=None, gd=None):
 	"""
 	from vagabond.doi_soat_sepay import khop_tay as chung
 
+	if isinstance(gd,list) or (isinstance(gd,str) and gd.lstrip().startswith("[")):
+		kq=chung("hoan_tien",ho_so,gd)
+		return dict(kq,so_tien_chuyen=kq.get("so_tien_dong"))
 	if not frappe.db.exists(DT, ho_so):
 		frappe.throw("Không tìm thấy phiếu hoàn tiền %s. Vui lòng tải lại danh sách." % ho_so)
 	d = frappe.get_doc(DT, ho_so)

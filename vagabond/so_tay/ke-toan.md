@@ -770,3 +770,30 @@ Mở riêng một tờ thuộc kỳ đã khoá để sửa. Các tờ khác vẫ
 - Không thấy nút: tờ đó chưa tới kỳ khoá, sửa được như thường; hoặc bạn không phải kế toán trưởng.
 - Hoá đơn điện tử đã phát hành thì mở khoá cũng không sửa nội dung đã gửi cơ quan thuế. Liên hệ kế toán trưởng.
 - Sửa xong phải đóng lại. Thẻ đỏ trên màn Khoá sổ liệt kê các tờ còn đang mở.
+
+## Ngân hàng tách lệnh hoặc một giao dịch trả nhiều phiếu
+Từ khoá: tách lệnh, nhiều giao dịch, gộp sao kê, chia sao kê, bộ sao kê, lương, 714.138.056, 450.000.000, 264.138.056, chờ đối chiếu sau
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Kế toán | Hồ sơ thanh toán, Thanh toán nội bộ, Hoàn tiền | [[Đối chiếu tay]], [[Gán]] |
+
+Câu hỏi của chị Dung: “thanh toán lương 714.138.056 mà ngân hàng tách làm 2 lệnh 450.000.000 + 264.138.056 nên không ghi nhận thanh toán được”.
+
+1. Mở đúng hồ sơ, chọn [[Đối chiếu tay]].
+2. Chọn hai dòng cùng tài khoản. Thanh tổng hiện số đã chọn và phần còn thiếu. Ví dụ trên phải chọn cả 450.000.000 và 264.138.056.
+3. Khi đủ đúng tiền hồ sơ, nút [[Gán]] sáng. Máy kiểm lại phần tiền còn lại trên máy chủ trước khi nhận.
+4. Với APP, đính UNC và [[Ghi nhận đã thanh toán]]. Với hoàn tiền, chọn sao kê và ghi sổ chứng từ là hai bước riêng; phiếu chi còn nháp chưa phải là đã ghi sổ.
+
+Một giao dịch trả nhiều hồ sơ: chọn cùng dòng ở mỗi hồ sơ, máy chỉ giữ phần cần của hồ sơ đó. Nếu người khác vừa dùng hết phần còn lại, tải lại danh sách rồi chọn lại. Không nhập thêm giao dịch ngân hàng để bù.
+
+APP đã chọn nhầm bộ nhưng chưa ghi sổ: [[Bỏ đối chiếu]] bỏ cả bộ đang giữ của hồ sơ. Nếu đã có bút toán ghi sổ, kế toán xử lý chứng từ theo lõi trước; máy không tự hủy bút toán.
+
+## Ghi nhận thanh toán khi sao kê chưa về đủ
+Từ khoá: ngoại lệ, ghi nhận kèm lý do, chờ đối chiếu sau, SePay chậm, kế toán trưởng
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Kế toán trưởng | Hồ sơ thanh toán | [[Ghi nhận kèm lý do]] |
+
+Kế toán trưởng có vai Accounts Manager được dùng [[Ghi nhận kèm lý do]] khi sao kê chưa về đủ. Vẫn cần UNC và các bước duyệt. Hồ sơ vào chip [[Chờ đối chiếu sau]]; chỉ hết chờ khi phân bổ sao kê lõi đã đủ. Người có vai Accounts User hoặc AP Kiểm soát (FIN) không có quyền ngoại lệ này.

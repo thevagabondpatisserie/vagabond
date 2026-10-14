@@ -262,6 +262,29 @@ var HAI_TK = {
 };
 
 async function chayHet() {
+  await caAsync('476 ngoại lệ SePay chỉ hiện cho vai được máy chủ cấp', async function () {
+    for (var duoc of [0,1]) {
+      var m=dungMan();
+      m.g.api=async function(){return {ho_so:{ma:'APP-THU',loai:'NCC',trang_thai:'Da duyet',
+        nhan:'Đã duyệt',tong_tien:100,da_tam_ung:0,con_lai:100,
+        ten_ncc:'Người thử',ngay:'2026-10-14'},quyen:{fin:true,ngoai_le_sepay:duoc},dong:[]};};
+      await m.g.scrHoSoTTView('APP-THU');
+      bang('nút theo quyền',m.khung.innerHTML.includes('data-hsv="datra_lydo"'),!!duoc);
+    }
+  });
+  await caAsync('476 ghi nhận kèm lý do gửi lý do thật, trống và hủy không ghi', async function () {
+    var m=dungMan(), calls=[];
+    m.g.xacNhan=async()=>true;m.g.busy=()=>{};m.g.toast=()=>{};m.g.baoTin=()=>{};
+    m.g.go=()=>{};
+    m.g.api=async function(method,args){calls.push({method:method,args:args});return {};};
+    for (var reason of [null,'   ','Sao kê về chậm, đã đính UNC']) {
+      m.g.hoiNhap=async()=>reason;
+      await m.g.hsHanh('datra_lydo',{ma:'APP-THU',tong_tien:100,con_lai:100,da_tam_ung:0});
+    }
+    bang('chỉ lần có lý do ghi',calls.length,1);
+    bang('đúng cửa ghi',calls[0].method,'vagabond.ho_so_tt.danh_dau_da_tra');
+    bang('không mất lý do',calls[0].args.ly_do_som,'Sao kê về chậm, đã đính UNC');
+  });
   await caAsync('342 màn cấn đủ: không đòi UNC, không tạo lệnh chuyển thêm', async function () {
     var m=dungMan();
     m.g.api=async function(){return {ho_so:{ma:'APP-THU',loai:'Hoan ung HD',trang_thai:'Da duyet',

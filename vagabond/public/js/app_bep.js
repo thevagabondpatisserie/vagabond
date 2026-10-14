@@ -21976,7 +21976,7 @@ async function htFormGdRa(d) {
 
 async function htKhopTay(d, gd, tien) {
   var lech = Math.abs(Number(tien || 0) - Number(d.so_tien || 0));
-  var cau = 'Gắn giao dịch ' + gd + ' (' + money(tien) + ' đ) vào phiếu ' + d.name + '.' +
+  var cau = 'Gắn ' + (gd.charAt(0) === '[' ? JSON.parse(gd).length + ' dòng sao kê' : 'giao dịch ' + gd) + ' (' + money(tien) + ' đ) vào phiếu ' + d.name + '.' +
     (lech > 1 ? ' Số tiền LỆCH ' + money(lech) + ' đ so với phiếu.' : '') +
     ' Máy sẽ đánh dấu đã đối soát và sinh chứng từ.';
   var ok = await confirmSheet('Khớp lệnh chi thủ công', cau, 'Đúng, khớp phiếu này', lech > 1);
@@ -31922,7 +31922,7 @@ async function ttnbFormGdRa(d, taiKhoan) {
 
 async function ttnbKhopTay(d, gd, tien) {
   var lech = Math.abs(Number(tien || 0) - Number(d.tien || 0));
-  var cau = 'Gắn giao dịch ' + gd + ' (' + money(tien) + ' đ) vào phiếu ' + d.name + '.' +
+  var cau = 'Gắn ' + (gd.charAt(0) === '[' ? JSON.parse(gd).length + ' dòng sao kê' : 'giao dịch ' + gd) + ' (' + money(tien) + ' đ) vào phiếu ' + d.name + '.' +
     (lech > 1 ? ' Số tiền LỆCH ' + money(lech) + ' đ so với phiếu.' : '') +
     ' Máy sẽ chuyển phiếu sang Đã chi.';
   var ok = await confirmSheet('Khớp lệnh chi thủ công', cau, 'Đúng, khớp phiếu này', lech > 1);
@@ -39400,6 +39400,7 @@ async function scrHoSoTTView(name) {
     if (!canDu) nut.push('<button class="btn gh" data-hsv="sepay" style="flex:1">🏦 Dò SePay</button>');
     nut.push('<button class="btn" data-hsv="datra" style="flex:2">' + (canDu ? '✅ Hoàn tất quyết toán' : '💸 Ghi nhận đã thanh toán') + '</button>');
   }
+  if (!canDu && Q.fin && Q.ngoai_le_sepay && hs.trang_thai === 'Da duyet') nut.push('<button class="btn gh" data-hsv="datra_lydo" style="flex:2">Ghi nhận kèm lý do</button>');
   if (!canDu && Q.fin && ['Da duyet', 'Da thanh toan'].indexOf(hs.trang_thai) >= 0) nut.push('<button class="btn gh" data-hsv="khoptay" style="flex:2">🔎 Đối chiếu tay</button>');
   if (!canDu && Q.fin && (hs.ma_giao_dich || hs.trang_thai === 'Da thanh toan') && ['Da duyet', 'Da thanh toan'].indexOf(hs.trang_thai) >= 0) nut.push('<button class="btn gh" data-hsv="bodoichieu" style="flex:2">Bỏ đối chiếu</button>');
   if ((Q.fin || Q.gd) && ['Cho ke toan', 'Cho giam doc', 'Da duyet'].indexOf(hs.trang_thai) >= 0) nut.push('<button class="btn gh" data-hsv="tu_choi" style="flex:1">⛔ Từ chối</button>');
@@ -39645,7 +39646,14 @@ async function hsHanh(k, hs) {
       (x.du ? '\n\n✅ Đã đủ tiền, bấm Ghi nhận đã thanh toán được rồi.' : '\n\n⏳ Chưa đủ. Khi chuyển khoản nhớ ghi mã ' + hs.ma + ' vào nội dung để máy tự khớp.' +
         ' Trả qua tính năng thanh toán hoá đơn (điện, nước, internet) của app ngân hàng thì không ghi được mã: bấm Đối chiếu tay, tìm theo số tiền.'));
   }
-  if (k === 'datra') {
+  if (k === 'datra' || k === 'datra_lydo') {
+    var lyDoSom = '';
+    if (k === 'datra_lydo') {
+      lyDoSom = await hoiNhap('Lý do ghi nhận khi sao kê chưa đủ (vẫn cần UNC). Hồ sơ sẽ vào Chờ đối chiếu sau:', '');
+      if (lyDoSom === null) return;
+      lyDoSom = String(lyDoSom || '').trim();
+      if (!lyDoSom) return baoTin('Cần ghi lý do để kế toán theo dõi đối chiếu sau.');
+    }
     if (!await xacNhan('Hoàn tất hồ sơ ' + money(hs.tong_tien) + ' đ cho ' + (hs.ten_ncc || hs.ncc) + '?\n\n' +
       'Máy kiểm các bút toán đã cấn và ghi phần tiền chuyển thêm nếu có. Không chuyển tiền thêm khi đã cấn đủ.')) return;
     if (Number(hs.da_tam_ung) > 0 && !await xacNhan(
@@ -39653,7 +39661,7 @@ async function hsHanh(k, hs) {
     var mgd = hs.ma_giao_dich || ''; /* Mã lấy từ danh mục sao kê, không gõ tự do. */
     busy(true);
     try {
-      var kq2 = await api('vagabond.ho_so_tt.danh_dau_da_tra', { name: hs.ma, ma_giao_dich: mgd });
+      var kq2 = await api('vagabond.ho_so_tt.danh_dau_da_tra', { name: hs.ma, ma_giao_dich: mgd, ly_do_som: lyDoSom });
       busy(false);
       toast('Đã ghi nhận thanh toán' + (kq2.but_toan ? ' · bút toán ' + kq2.but_toan : ''), 4000);
       /* Thu bao di tu dong. Gui duoc thi bao mot dong, gui khong duoc thi

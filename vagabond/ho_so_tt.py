@@ -1559,6 +1559,25 @@ def _email_ncc(ma):
 # ------------------------------------------------------------------ danh sách
 
 
+def _cho_doi_chieu_sau(doc):
+	"""Lý do được giữ làm lịch sử; chỉ hết chờ khi phân bổ lõi đã đủ."""
+	if doc.get("trang_thai") != TT_DA_TRA or not doc.get("vgb_tt_ly_do_som"):
+		return False
+	if not doc.get("dong"):
+		doc = frappe.get_doc("Vagabond Ho So TT", doc.get("name") or doc.get("ma"))
+	can = _so_phai_chuyen(doc, _do_chinh_xac())["con"]
+	if can <= 0:
+		return False
+	bo = _but_toan_cua_ho_so(doc.name)
+	da = 0.0
+	for ct in bo:
+		for r in frappe.get_all("Bank Transaction Payments", filters={
+			"payment_document": ct["doctype"], "payment_entry": ct["name"]},
+			fields=["allocated_amount"], limit_page_length=0):
+			da += flt(r.allocated_amount)
+	return da + 0.001 < can
+
+
 @frappe.whitelist()
 def danh_sach(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=90, loai=None,
 		loai_cp_thue=None, tk_chi=None):
@@ -1589,7 +1608,7 @@ def danh_sach(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=
 			"han_tra_som_nhat", "nguoi_tao",
 			"fin_boi", "gd_boi", "ngay_thanh_toan", "ma_giao_dich",
 			"email_da_gui", "ly_do_tu_choi", "ghi_chu",
-			"loai_cp_thue", "tk_chi", "unc_tep",
+			"loai_cp_thue", "tk_chi", "unc_tep", "vgb_tt_ly_do_som",
 		],
 		order_by="ngay desc, creation desc",
 		limit_page_length=0,
@@ -1688,6 +1707,7 @@ def danh_sach(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=
 
 	from vagabond.chip_ho_so_tt import chip_cua_dong, NHAN as NHAN_CHIP
 	for o in ra:
+		o["cho_doi_chieu_sau"] = _cho_doi_chieu_sau(o)
 		o["chip_nghiep_vu"] = chip_cua_dong(o)
 	dem, tien = {}, {}
 	for o in ra:
@@ -1720,6 +1740,7 @@ def danh_sach(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=
 			"lap": 1 if (VAI_LAP & _vai()) else 0,
 			"fin": 1 if (VAI_FIN & _vai()) else 0,
 			"gd": 1 if (VAI_GD & _vai()) else 0,
+			"ngoai_le_sepay": 1 if ({"Accounts Manager", "System Manager"} & _vai()) else 0,
 		},
 	}
 
@@ -1976,6 +1997,8 @@ def chi_tiet(name):
 			"gd_luc": str(doc.gd_luc or ""), "ly_do_tu_choi": doc.ly_do_tu_choi or "",
 			"ngay_thanh_toan": str(doc.ngay_thanh_toan or ""),
 			"ma_giao_dich": doc.ma_giao_dich or "", "phuong_thuc": doc.phuong_thuc or "",
+			"ly_do_som": doc.get("vgb_tt_ly_do_som") or "",
+			"cho_doi_chieu_sau": _cho_doi_chieu_sau(doc),
 			"ten_nhan": doc.ten_nhan or "", "stk_nhan": doc.stk_nhan or "",
 			"ngan_hang_nhan": doc.ngan_hang_nhan or "",
 			# Chua ai bam nut sinh noi dung thi TU SINH tai cho, dung de ban
@@ -2004,6 +2027,7 @@ def chi_tiet(name):
 			"lap": 1 if (VAI_LAP & _vai()) else 0,
 			"fin": 1 if (VAI_FIN & _vai()) else 0,
 			"gd": 1 if (VAI_GD & _vai()) else 0,
+			"ngoai_le_sepay": 1 if ({"Accounts Manager", "System Manager"} & _vai()) else 0,
 		},
 		"nhan": NHAN,
 	}

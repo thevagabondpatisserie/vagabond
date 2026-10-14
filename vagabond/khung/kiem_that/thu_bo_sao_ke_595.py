@@ -154,3 +154,97 @@ def _():
         dung("bộ thiếu phải bị từ chối",False)
     frappe.db.rollback(save_point="thu_bo_hong_476")
     h.reload();la("rollback còn nguyên bộ mới",bs.doc_hien_tai(h)["dong"],ds)
+
+
+@ca("#476 TTNB nhận hai lệnh từ MB cá nhân, retry không ghi hai lần")
+def _():
+    import json
+    from vagabond import sepay, de_nghi_chi as dc, bo_sao_ke_db as bs
+    from vagabond.khung.kiem_that.nen import mot_nha_cung_cap
+    from vagabond.khung.kiem_that.thu_sepay_mb_247 import _tai_khoan_ca_nhan, _so_thu, _phieu_cho_chi
+    ba=_tai_khoan_ca_nhan(_so_thu(),mot_nha_cung_cap())
+    sepay.them_tai_khoan(ba.bank_account_no,ba.name)
+    h=_phieu_cho_chi(100000)
+    a=_giao_dich(ba.name,60000,h.name);b=_giao_dich(ba.name,40000,h.name)
+    ds=json.dumps([dict(name=a.name,phan_bo=60000),dict(name=b.name,phan_bo=40000)])
+    k=dc.khop_tay(h.name,ds);h.reload()
+    la("đã chi",h.trang_thai,dc.TT_DA_CHI)
+    la("hai phần giữ",len(bs.doc_hien_tai(h)["dong"]),2)
+    la("không lỗi bước sau",k["loi"],"")
+    la("retry",dc.khop_tay(h.name,ds)["da_lam_roi"],1)
+
+
+@ca("#476 TTNB tự dò bộ thay vì đòi từng dòng bằng tổng phiếu")
+def _():
+    from vagabond import sepay, de_nghi_chi as dc, bo_sao_ke_db as bs
+    from vagabond.khung.kiem_that.nen import mot_nha_cung_cap
+    from vagabond.khung.kiem_that.thu_sepay_mb_247 import _tai_khoan_ca_nhan, _so_thu, _phieu_cho_chi
+    ba=_tai_khoan_ca_nhan(_so_thu(),mot_nha_cung_cap())
+    sepay.them_tai_khoan(ba.bank_account_no,ba.name)
+    h=_phieu_cho_chi(100000)
+    _giao_dich(ba.name,60000,h.name);g=_giao_dich(ba.name,40000,h.name)
+    nguoi=frappe.session.user
+    try:
+        frappe.set_user("Guest")
+        dc.khi_co_giao_dich(g.name)
+    finally:
+        frappe.set_user(nguoi)
+    h.reload()
+    la("webhook ghép hai dòng",h.trang_thai,dc.TT_DA_CHI)
+    la("giữ cả bộ",len(bs.doc_hien_tai(h)["dong"]),2)
+
+
+@ca("#476 hoàn tiền: chọn bộ sinh nháp đúng ngân hàng, submit mới phân bổ hai BT")
+def _():
+    import json
+    from vagabond import sepay, hoan_tien as ht, don_huy
+    from vagabond.khung.kiem_that.nen import cong_ty
+    from vagabond.khung.kiem_that.thu_don_huy import _ho_so_thu
+    ba=_tai_khoan_cong_ty_moi(_tk_ngan_hang(cong_ty()))
+    sepay.them_tai_khoan(ba.bank_account_no,ba.name)
+    h=_ho_so_thu(don_huy._khach_le_online());_DA_TAO.append((h.doctype,h.name))
+    h.loai_hoan=ht.LOAI_HUY_PANCAKE;h.save(ignore_permissions=True)
+    a=_giao_dich(ba.name,450000,h.noi_dung_ck);b=_giao_dich(ba.name,255000,h.noi_dung_ck)
+    k=ht.khop_tay(h.name,json.dumps([dict(name=a.name,phan_bo=450000),dict(name=b.name,phan_bo=255000)]))
+    h.reload()
+    for ten in (h.phieu_chi,h.get("phieu_thu")):
+        if ten:_DA_TAO.append(("Payment Entry",ten))
+    la("không lỗi lập",k["loi"],"")
+    dung("đã sinh phiếu chi",bool(h.phieu_chi))
+    if not h.phieu_chi:return
+    pe=frappe.get_doc("Payment Entry",h.phieu_chi)
+    la("vẫn là nháp",pe.docstatus,0)
+    la("đúng ngân hàng đã chọn",pe.bank_account,ba.name)
+    la("đúng nguồn sổ cái",pe.paid_from,ba.account)
+    with _Tep(pe.name):pe.submit()
+    for g in (a,b):
+        g.reload();la("đã phân bổ khi ghi sổ",float(g.unallocated_amount),0)
+        la("liên kết đúng PE",g.payment_entries[0].payment_entry,pe.name)
+
+
+@ca("#476 ngoại lệ: FIN không được bỏ SePay; Manager ghi kèm lý do rồi đối chiếu đủ mới hết chờ")
+def _():
+    from unittest.mock import patch
+    from vagabond import ho_so_tt as hs, doi_chieu_app as dc
+    from vagabond.khung.kiem_that.thu_ho_so_tt_v445 import _ho_so_ncc, _unc_gia, _giao_dich_ngan_hang
+    hd=_hoa_don_mua(100000);h=_ho_so_ncc([hd]);_unc_gia(h)
+    for vai in ("Accounts User","AP Kiểm soát (FIN)"):
+        frappe.db.savepoint("ngoai_le476")
+        try:
+            with patch.object(frappe,"get_roles",return_value=[vai]):
+                hs.danh_dau_da_tra(h.name,gui_thu=0,ly_do_som="Sao kê về chậm")
+        except frappe.ValidationError:
+            pass
+        else:
+            dung("vai không có ngoại lệ phải bị từ chối",False)
+        frappe.db.rollback(save_point="ngoai_le476")
+        h.reload();la("chưa trả",h.trang_thai,hs.TT_DA_DUYET)
+    with patch.object(frappe,"get_roles",return_value=["Accounts Manager"]):
+        hs.danh_dau_da_tra(h.name,gui_thu=0,ly_do_som="Sao kê về chậm, có UNC")
+    _DA_TAO.extend((p["doctype"],p["name"]) for p in hs._but_toan_cua_ho_so(h.name))
+    h.reload();la("đã ghi có vết",h.vgb_tt_ly_do_som,"Sao kê về chậm, có UNC")
+    la("đang chờ đối chiếu sau",hs._cho_doi_chieu_sau(h),True)
+    g=_giao_dich_ngan_hang(h.name,100000,hd.company)
+    dc.gan(h.name,g.name);h.reload()
+    la("đủ phân bổ mới hết chờ",hs._cho_doi_chieu_sau(h),False)
+    la("lịch sử lý do còn nguyên",h.vgb_tt_ly_do_som,"Sao kê về chậm, có UNC")

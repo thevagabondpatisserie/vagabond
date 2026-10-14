@@ -2492,7 +2492,7 @@ async function htFormGdRa(d) {
 
 async function htKhopTay(d, gd, tien) {
   var lech = Math.abs(Number(tien || 0) - Number(d.so_tien || 0));
-  var cau = 'Gắn giao dịch ' + gd + ' (' + money(tien) + ' đ) vào phiếu ' + d.name + '.' +
+  var cau = 'Gắn ' + (gd.charAt(0) === '[' ? JSON.parse(gd).length + ' dòng sao kê' : 'giao dịch ' + gd) + ' (' + money(tien) + ' đ) vào phiếu ' + d.name + '.' +
     (lech > 1 ? ' Số tiền LỆCH ' + money(lech) + ' đ so với phiếu.' : '') +
     ' Máy sẽ đánh dấu đã đối soát và sinh chứng từ.';
   var ok = await confirmSheet('Khớp lệnh chi thủ công', cau, 'Đúng, khớp phiếu này', lech > 1);

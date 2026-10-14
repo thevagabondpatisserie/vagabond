@@ -2256,3 +2256,10 @@ Nguồn: comment giao gom v594 trên PR #474; không kéo phần Vue của #471 
 Khi một hồ sơ dùng nhiều dòng sao kê, trường mã giao dịch cũ chỉ còn giữ dòng đầu để tương thích. Chỉ kiểm trường đó sẽ bỏ sót dòng thứ hai ở các cửa webhook và khớp tay cũ. Phải đọc bộ đang giữ trong cùng giao dịch khóa, kiểm phần tiền còn lại tại máy chủ, và bảo vệ cả lúc core lưu Bank Transaction. Không lấy tổng trên màn hình làm quyền ghi tiền.
 
 Đổi bộ cũng không được ghi trường giữ mới trước khi controller gỡ bộ cũ: controller có thể xóa nhầm phần vừa chọn. Gỡ và kiểm bộ cũ trước, chọn mới trong cùng transaction; chọn mới hỏng thì rollback giữ nguyên dữ liệu trước lượt. Ca bench phải kiểm tình huống đổi bộ này riêng với ca gán lần đầu. PR #476 bổ sung ca tầng khung và DOM; bằng chứng bench cập nhật theo SHA trên PR.
+
+### PR476: bộ sao kê và cửa webhook
+
+- Khi đổi chọn một dòng thành chọn bộ, bài kiểm trình duyệt phải bấm Gán trước xác nhận; giữ cả bước đọc lại chứng từ sau ghi. Timeout ở hộp xác nhận chưa đủ để kết luận lỗi backend.
+- Callback webhook hợp lệ có thể vẫn chạy dưới Guest. Dùng cửa nội bộ kiểm nguồn và số tiền cho tác vụ đã xác thực, còn API chọn tay phải kiểm quyền. Không đổi người dùng toàn request để vượt lỗi quyền.
+- Tự dò bắt lỗi rồi đi phiếu kế tiếp thì phần ghi trước lỗi phải có savepoint; nếu không sẽ giữ tiền mồ côi khi phiếu sau commit.
+- Sau đột biến Python sửa và phục hồi nhanh, dùng thư mục pycache mới để tránh timestamp cache khiến bản đúng chạy bytecode của bản hỏng.
