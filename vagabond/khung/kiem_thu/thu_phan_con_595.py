@@ -396,3 +396,48 @@ def _():
             patch.object(mod,'khoa_phieu',side_effect=lambda dt,ma:vet.append((dt,ma))):
         D().load_from_db();D()._save()
     la('khóa trước cả hai cửa',vet,[('Vagabond Hoan Tien','HT-THAT'),'doc-loi',('Vagabond Hoan Tien','HT-THAT'),'luu-loi'])
+
+
+@ca('#476 ghi từng PE tiền vào: chia qua hai BT, giữ PE nháp và retry không nhân đôi')
+def _():
+    from unittest.mock import patch
+    import json
+    import frappe
+    from vagabond import bo_sao_ke_db as bs
+    doc=frappe._dict(doctype='Vagabond Cong No',name='CN',vgb_bo_sao_ke='payload không được tin')
+    b={'dong':[dict(name='A',phan_bo=40),dict(name='B',phan_bo=60)],
+       'chung_tu':[dict(doctype='Payment Entry',name=n) for n in ('PE1','PE2')]}
+    ps={n:frappe._dict(name=n,docstatus=1 if n=='PE1' else 0,payment_type='Receive',
+        party_type='Customer',company='CTY',paid_to='112',paid_to_account_currency='VND',received_amount=t)
+        for n,t in [('PE1',60),('PE2',40)]}
+    links={'A':[],'B':[]};calls=[]
+    gs={}
+    for ma,t in [('A',40),('B',60)]:
+        g=frappe._dict(name=ma,bank_account='BA',docstatus=1,currency='VND',deposit=t+30,withdrawal=0,
+            unallocated_amount=t+30,flags=frappe._dict())
+        def add(rows,g=g):g.moi=rows[0]['payment_name'];calls.append((g.name,g.moi))
+        def allocate(g=g):
+            used=sum(r.tien for rows in links.values() for r in rows if r.name==g.moi)
+            lay=min(g.unallocated_amount,ps[g.moi].received_amount-used)
+            if lay>0:links[g.name].append(frappe._dict(doctype='Payment Entry',name=g.moi,tien=lay))
+            g.unallocated_amount=g.deposit-sum(r.tien for r in links[g.name])
+        g.add_payment_entries=add;g.allocate_payment_entries=allocate;g.save=lambda **kw:None
+        gs[ma]=g
+    def value(dt,name,field,**kw):
+        if dt=='Bank Account':return dict(account='112',company='CTY',is_company_account=1,disabled=0)
+        return json.dumps(b)
+    with patch.object(bs,'khoa_phieu'),patch.object(frappe.db,'get_value',side_effect=value), \
+            patch.object(frappe,'get_doc',side_effect=lambda dt,ma,**kw:ps[ma] if dt=='Payment Entry' else gs[ma]), \
+            patch.object(bs,'_loi',side_effect=lambda ma:links[ma]):
+        la('PE1 đủ60',bs.noi_tung_phieu_thu(doc,'PE1')['tien'],60)
+        la('A40 B20',[[r.tien for r in links[ma]] for ma in ('A','B')],[[40],[20]])
+        la('PE2 còn nháp',ps['PE2'].docstatus,0)
+        la('PE1 retry',bs.noi_tung_phieu_thu(doc,'PE1')['tien'],60)
+        la('retry không thêm lõi',len(calls),2)
+        nem('nháp không được nối',lambda:bs.noi_tung_phieu_thu(doc,'PE2'),frappe.ValidationError)
+        ps['PE2'].docstatus=1
+        la('PE2 đủ40',bs.noi_tung_phieu_thu(doc,'PE2')['tien'],40)
+        la('B đủ60',sum(r.tien for r in links['B']),60)
+        nem('PE ngoài bộ bị chặn',lambda:bs.noi_tung_phieu_thu(doc,'PE-OUT'),frappe.ValidationError)
+        ps['PE2'].paid_to='KHAC'
+        nem('không đổi tài khoản',lambda:bs.noi_tung_phieu_thu(doc,'PE2'),frappe.ValidationError)

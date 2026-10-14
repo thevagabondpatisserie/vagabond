@@ -2263,3 +2263,22 @@ Khi một hồ sơ dùng nhiều dòng sao kê, trường mã giao dịch cũ ch
 - Callback webhook hợp lệ có thể vẫn chạy dưới Guest. Dùng cửa nội bộ kiểm nguồn và số tiền cho tác vụ đã xác thực, còn API chọn tay phải kiểm quyền. Không đổi người dùng toàn request để vượt lỗi quyền.
 - Tự dò bắt lỗi rồi đi phiếu kế tiếp thì phần ghi trước lỗi phải có savepoint; nếu không sẽ giữ tiền mồ côi khi phiếu sau commit.
 - Sau đột biến Python sửa và phục hồi nhanh, dùng thư mục pycache mới để tránh timestamp cache khiến bản đúng chạy bytecode của bản hỏng.
+
+### PR476: khóa chủ sao kê và giữ tồn web phải có phạm vi chỉ mục
+
+Triệu chứng: đối chiếu BT không liên quan và tạo APP mới đều chờ khoảng2giây
+trong probe giữ2giây; đảo thứ tự có deadlock1213. Nguyên nhân: tìm chủ bằng
+LIKE FOR UPDATE trên bảng phiếu khóa cả các hàng không liên quan. Khắc phục:
+chủ giữ nằm trên BT hiện có, tra khóa chính; mọi cửa ghi khóa BT theo tên
+trước phiếu, kể cả khóa ngầm check_if_latest của Frappe. Probe sau sửa tại
+1c59da60f còn0,03-0,06giây, không deadlock. Bench tổng vẫn phải kiểm riêng.
+
+Giữ tồn web cũng có truy vấn OR/JSON/LIKE FOR UPDATE làm hook cập nhật đơn
+khác chờ2,066giây. Tách ngày nguồn có chỉ mục và ID Pancake có chỉ mục thành
+hai truy vấn. Không xem unit kiểm câu SQL là bằng chứng hết chờ: phải đo lại
+hai kết nối và chạy ca tranh chiếc bánh cuối trên bench đúng SHA.
+
+Hồ sơ hoàn tiền có thể có PE Receive và PE Pay độc lập. Cửa bỏ bộ tiền ra
+chỉ kiểm PE Pay còn sống, không chặn vì PE Receive nháp. Hủy PE chi không tự
+đổi trạng thái hồ sơ từ Da chi; kiểm chứng từ/liên kết lõi thật trước nhả bộ.
+Nguồn: review PR476 và bench38549666430/38617438497.

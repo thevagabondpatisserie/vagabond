@@ -234,3 +234,65 @@ def kiem_cua_cu(dt, ten, ma):
     cac_bo=_cac_bo(ma,khoa=True)
     if any(b["chu"] != dt+"/"+ten for b in cac_bo):
         frappe.throw("Giao dịch %s có phần tiền đang được phiếu khác giữ. Mở Khớp SePay để chọn phần còn lại." % ma)
+
+
+def noi_tung_phieu_thu(doc, ten_pe):
+    """Nối một PE đã ghi sổ, giữ nguyên phần của các PE nháp trong cùng bộ.
+
+    Cửa nội bộ: danh sách chứng từ và hạn mức chỉ đọc từ chủ trong DB.
+    Caller phải kiểm quyền/UNC và khóa bộ trước khi ghi sổ PE. Không nhận
+    chứng từ hay hạn mức từ payload để vượt phần đã giữ.
+    """
+    if doc.doctype != 'Vagabond Cong No':
+        frappe.throw('Cửa ghi từng phiếu thu chỉ dùng cho công nợ tiền vào.')
+    khoa_phieu(doc.doctype, doc.name)
+    b = doc_bo(frappe.db.get_value(doc.doctype, doc.name, O_BO, for_update=True))
+    ct = {(c['doctype'], c['name']) for c in b['chung_tu']}
+    if ('Payment Entry', ten_pe) not in ct or any(dt != 'Payment Entry' for dt, _ in ct):
+        frappe.throw('Phiếu thu không thuộc bộ sao kê của phiếu công nợ này.')
+    if not b['dong']:
+        frappe.throw('Phiếu công nợ chưa giữ bộ sao kê.')
+    cac_pe = {ma: frappe.get_doc(dt, ma, for_update=True) for dt, ma in sorted(ct)}
+    pe = cac_pe[ten_pe]
+    if pe.docstatus != 1:
+        frappe.throw('Phiếu thu chưa ghi sổ, chưa phân bổ vào sao kê.')
+    gs = [frappe.get_doc('Bank Transaction', d['name'], for_update=True)
+          for d in sorted(b['dong'], key=lambda d: d['name'])]
+    banks = {g.bank_account for g in gs}
+    if len(banks) != 1:
+        frappe.throw('Bộ tiền vào phải thuộc cùng một tài khoản ngân hàng.')
+    ba = frappe.db.get_value('Bank Account', gs[0].bank_account,
+        ['account', 'company', 'is_company_account', 'disabled'], as_dict=True) or {}
+    if not ba.get('is_company_account') or ba.get('disabled') or not ba.get('account'):
+        frappe.throw('Bộ tiền vào phải thuộc tài khoản công ty đang hoạt động.')
+    tong_pe = 0
+    for p in cac_pe.values():
+        if p.docstatus == 2:
+            continue
+        if (p.payment_type != 'Receive' or p.party_type != 'Customer' or
+                p.company != ba.get('company') or p.paid_to != ba.get('account') or
+                p.paid_to_account_currency != 'VND' or flt(p.received_amount) <= 0):
+            frappe.throw('Phiếu thu %s không khớp nguồn tiền của bộ.' % p.name)
+        tong_pe += flt(p.received_amount)
+    han_muc = {d['name']: flt(d['phan_bo']) for d in b['dong']}
+    if tong_pe > sum(han_muc.values()) + 0.001:
+        frappe.throw('Các phiếu thu vượt tổng tiền đã giữ trong bộ.')
+    for g in gs:
+        if g.docstatus != 1 or g.currency != 'VND' or flt(g.deposit) <= 0 or flt(g.withdrawal):
+            frappe.throw('Bộ có sao kê không phải tiền vào đã xác nhận.')
+        loi = _loi(g.name)
+        da = sum(flt(p.tien) for p in loi if (p.doctype, p.name) in ct)
+        if da > han_muc[g.name] + 0.001:
+            frappe.throw('Phân bổ lõi đã vượt hạn mức của bộ; tải lại để kiểm.')
+        da_noi = any(p.doctype == 'Payment Entry' and p.name == ten_pe for p in loi)
+        if not da_noi and han_muc[g.name] - da > 0.001:
+            g.flags.ignore_permissions = True
+            g.add_payment_entries([{'payment_doctype': 'Payment Entry', 'payment_name': ten_pe}])
+            g.unallocated_amount = min(flt(g.unallocated_amount), han_muc[g.name] - da)
+            g.allocate_payment_entries()
+            g.save(ignore_permissions=True)
+    that = sum(flt(p.tien) for g in gs for p in _loi(g.name)
+               if p.doctype == 'Payment Entry' and p.name == ten_pe)
+    if abs(that - flt(pe.received_amount)) > 0.001:
+        frappe.throw('Lõi chưa phân bổ đủ phiếu thu %s; đã dừng cả lượt ghi sổ.' % ten_pe)
+    return {'pe': ten_pe, 'tien': that, 'giao_dich': [g.name for g in gs]}

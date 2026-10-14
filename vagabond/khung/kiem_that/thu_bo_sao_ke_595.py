@@ -365,3 +365,42 @@ def _():
         h2=_ho_so_ncc([_hoa_don_mua(100000)])
         dc.gan(h2.name,json.dumps(ds));h2.reload()
         la('phiếu sau giữ được cả hai dòng',len(bs.doc_hien_tai(h2)['dong']),2)
+
+
+@ca('#476 lõi ghi từng PE công nợ qua hai BT: PE nháp giữ phần, retry và hủy')
+def _():
+    from vagabond.khung.kiem_that.thu_gom_phap_nhan_576 import _du_lieu
+    from vagabond.khung.kiem_that.thu_khop_tay_gop_571 import _gd
+    from vagabond import bo_sao_ke_db as bs
+    from frappe.utils import flt
+    a,b,g,p,cac=_du_lieu()
+    tong=sum(flt(pe.received_amount) for pe in cac)
+    so_a=flt(cac[0].received_amount)-1
+    ga,gb=_gd(g.bank_account,so_a),_gd(g.bank_account,tong-so_a)
+    ds=[dict(name=ga.name,phan_bo=so_a),dict(name=gb.name,phan_bo=tong-so_a)]
+    bs.luu(p,ds,[dict(doctype=pe.doctype,name=pe.name) for pe in cac])
+    # Đo riêng phép nối lõi. Cửa app/factory cũ chưa dùng helper này;
+    # ca này không thay nghiệm thu ghi_so_phieu_thu và UNC của màn công nợ.
+    for i,pe in enumerate(cac):
+        with _Tep(pe.name,vao_o=True):
+            pe.reload();pe.submit()
+        k=bs.noi_tung_phieu_thu(p,pe.name)
+        la('đủ tiền PE',k['tien'],flt(pe.received_amount))
+        la('retry cùng tiền',bs.noi_tung_phieu_thu(p,pe.name)['tien'],flt(pe.received_amount))
+        if i==0:
+            cac[1].reload()
+            la('PE sau vẫn nháp',cac[1].docstatus,0)
+            for gd in (ga,gb):
+                gd.reload()
+                dung('không nối PE nháp',all(x.payment_entry!=cac[1].name for x in gd.payment_entries))
+    for gd in (ga,gb):
+        gd.reload();la('đủ cả bộ',flt(gd.unallocated_amount),0)
+    cac[0].reload();cac[0].cancel()
+    for gd in (ga,gb):
+        gd.reload()
+        dung('hủy PE đầu gỡ khỏi cả bộ',all(x.payment_entry!=cac[0].name for x in gd.payment_entries))
+    la('PE thứ hai vẫn đủ',bs.noi_tung_phieu_thu(p,cac[1].name)['tien'],flt(cac[1].received_amount))
+    huy_hd={r.reference_name for r in cac[0].references}
+    for hd in (a,b):
+        hd.reload()
+        la('hủy trả nợ đúng khách',flt(hd.outstanding_amount),flt(hd.grand_total) if hd.name in huy_hd else 0)

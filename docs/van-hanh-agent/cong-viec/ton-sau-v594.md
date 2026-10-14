@@ -136,3 +136,20 @@ B: PR471 web Vue giữ Draft và công tắc tắt. Merge main không rebase, gi
 - Bench tổng chưa xanh:414/417 mỗi lượt. Ca247 đòi mọi dòng danh sách bằng tổng tiền không còn đúng màn chọn bộ; ca giả deadlock cần ném từ cửa khóa mới trước _ho_so. Ca hoàn tiền còn bị phiếu THU nháp của cùng hồ sơ chặn bỏ bộ tiền RA: thu/chi là hai chứng từ khác nhau. Đang sửa, không bỏ kiểm PE chi còn sống.
 - P3 sửa bằng cột ngày nguồn giữ tồn có chỉ mục trên DocType đơn web hiện có, cập nhật cùng snapshot. Đọc riêng khoảng4ngày và ID Pancake có chỉ mục; không OR/JSON/LIKE làm quét cả bảng. Không hồi tố dữ liệu cũ. Ca giữ tồn dời ngày vẫn phải đạt.
 - Rà thêm: chỉ mục mã giao dịch cho chủ APP cũ; hoàn ứng chỉ đọc chứng cứ TTNB đã khóa, không ghi lại bộ; PE hoàn tiền khóa bộ trước _save/load_from_db. Tất cả còn cần bench SHA mới, không lấy số đo1c59 thay cho kết quả bản sau.
+
+### Cửa ghi từng phiếu thu A1 đang triển khai
+
+- Thêm helper nội bộ noi_tung_phieu_thu: đọc chủ/CT/hạn mức từ DB, chỉ nối
+  PE Receive đã ghi sổ bằng phép phân bổ lõi, giữ PE nháp và hạn mức từng BT.
+  Retry không thêm liên kết. Chưa nối helper này vào app/factory/hook PE.
+- Unit một bộ hai BT, hai PE, phần BT còn dành phiếu khác; bỏ hạn mức BT
+  làm PE đầu ăn60 thay vì40 và bị1ca bắt. Thêm bỏ kiểm PE nháp và bỏ kiểm chủ DB: mỗi đột biến bị1ca bắt, tổng3/3. Khôi phục ca đạt.
+- Bổ sung bench riêng helper: ghi từng PE thật qua hai BT, retry, hủy PE đầu
+  trả lại nợ đúng khách trong khi PE sau còn nguyên. Chưa có kết quả SHA mới.
+- Còn bắt buộc: chủ PE từ DB có chỉ mục, khóa trước PE cho mọi cửa;
+  khop_tay/factory/UNC/ghi_so_phieu_thu/DS nháp/callback chung đường bộ;
+  UI nhiều dòng, trả góp, bỏ cả bộ, tạm ứng, đủ10nhóm và DOM. A1 chưa xong.
+- Hai ca PDF local trước thiếu pypdf đã chạy lại bằng Python bundled có
+  pypdf6.10.0:13/13ca module đạt; toàn bộ fakeCI bundled4530/4530 tại d6ff.
+
+- Local lượt helper:4529/4529 bằng Python hệ thống; fakeCI bundled có pypdf4531/4531; cổng đầy đủ mã0. Chưa có bench helper, không gọi A1 đạt.
