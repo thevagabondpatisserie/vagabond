@@ -789,6 +789,17 @@ Một giao dịch trả nhiều hồ sơ: chọn cùng dòng ở mỗi hồ sơ,
 
 APP đã chọn nhầm bộ nhưng chưa ghi sổ: [[Bỏ đối chiếu]] bỏ cả bộ đang giữ của hồ sơ. Nếu đã có bút toán ghi sổ, kế toán xử lý chứng từ theo lõi trước; máy không tự hủy bút toán.
 
+## Bỏ bộ và hoàn ứng từ phiếu nội bộ
+Từ khoá: bỏ bộ, nối nhầm, hoàn ứng, TTNB, chủ quỹ, chia giao dịch
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Kế toán và người lập hoàn ứng | Thanh toán nội bộ, Hoàn tiền, Hồ sơ thanh toán | [[Bỏ bộ đối chiếu]], [[Nối phiếu]] |
+
+TTNB và hoàn tiền có [[Bỏ bộ đối chiếu]] cho người được phân quyền. TTNB đã nối hồ sơ hoàn ứng thì mở hồ sơ đó gỡ liên kết trước. Hoàn tiền còn phiếu chi nháp hoặc đã ghi sổ thì kế toán xử lý phiếu chi trong ERPNext trước. Bỏ đối chiếu chỉ để chọn lại đúng bằng chứng, không có nghĩa phải chuyển tiền thêm.
+
+Hoàn ứng từ TTNB: chọn phiếu nội bộ đã chi, số tiền lấy theo tổng bộ của phiếu và tài khoản nhận phải thuộc đúng người ứng. Một BT có thể chứng minh hai phần chi của hai TTNB; mỗi TTNB chỉ được nối một hồ sơ hoàn ứng. Không lấy lại nguyên BT làm một khoản hoàn ứng nữa.
+
 ## Ghi nhận thanh toán khi sao kê chưa về đủ
 Từ khoá: ngoại lệ, ghi nhận kèm lý do, chờ đối chiếu sau, SePay chậm, kế toán trưởng
 

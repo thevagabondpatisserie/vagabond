@@ -94,3 +94,21 @@ B: PR471 web Vue giữ Draft và công tắc tắt. Merge main không rebase, gi
 - Bổ sung bỏ cả bộ TTNB/hoàn tiền, xác nhận trên màn, kiểm quyền và khóa hiện hành. Còn APP hoàn ứng hoặc PE/JE nháp/đã ghi sổ thì chỉ dẫn xử lý chứng từ liên quan trước; không tự hủy. Ca DOM kiểm hủy, lỗi, thành công và nút theo quyền.
 - Hoàn ứng từ TTNB đọc tổng cả bộ, giữ đúng người ứng. Hai TTNB được giữ hai phần của một BT và nối hai APP riêng; không cho lấy nguyên BT đã giữ để hoàn thêm. Bổ sung bench thực đi qua tao_hoan_ung, chờ CI xác nhận.
 - Local 4.520 ca đạt. Chưa hoàn thành A1: còn cửa công nợ tiền vào và kiểm trọn các đường còn lại. Chưa chuyển B/C, chưa đặt phiên bản, chưa merge/deploy.
+
+### Điểm nối công nợ tiền vào còn thiếu (đã rà cửa thật)
+
+- `cong_no.khop_tay` hiện đi `_giu_gd` và `_lap_theo_gd`; `thu_tien.lap_phieu_thu_theo_gd` vẫn độc quyền nguyên một BT và từ chối khi BT lớn hơn nợ. Không chỉ thay danh sách chọn trên màn.
+- Phải giữ phân bổ trên phiếu công nợ, lập PE nháp bằng lõi theo từng Customer, lưu liên kết các PE vào cùng bộ. Phiếu nháp không phải đã ghi sổ.
+- `thu_tien.ghi_so_phieu_thu`, `_thuoc_tap_unc`, `phieu_thu_nhap` và hook trước/ sau submit phải cùng đọc chủ bộ từ DB, kiểm UNC thật, nguồn công ty và phân bổ lõi. Không dùng mã tham chiếu giả hoặc flags từ máy khách làm quyền bỏ kiểm.
+- Một phiếu công nợ có nhiều Customer tạo nhiều PE: ghi sổ PE đầu chỉ phân bổ đúng phần PE đó và giữ phần còn lại cho các PE nháp. `bo_sao_ke_db.noi` hiện yêu cầu cả bộ đã ghi sổ, nên chưa dùng nguyên hàm này cho ghi từng PE.
+- Giữ đường không thấy sao kê cho kế toán đính UNC; sửa đường tự dò/callback để không vượt cửa bộ. Kiểm thêm trả góp, hủy PE, bỏ cả bộ và retry. Chưa triển khai các điểm này, không coi A1 đã hoàn thành.
+
+Đột biến hoàn ứng đọc riêng BT đầu: ca thấy 60 thay vì tổng 100 và bắt 1/1 đột biến; khôi phục đúng thì 2/2 ca mới đạt. Bổ sung ca chủ APP/TTNB đúng, sai chủ, sai BT, metadata trống và cửa cũ chưa kiểm phần.
+
+### Review trên 2e89ab30d và bench tiếp
+
+- Bench38520517474: 415/416 ca tích hợp đạt trong cả hai lượt. Ca hoàn ứng chia TTNB đạt; ca hoàn tiền chỉ hỏng lúc hủy PE do đối tượng trong ca kiểm chưa reload sau khi lõi cập nhật clearance_date. Đã bổ sung reload, không bỏ kiểm hủy và nhả cả bộ.
+- P1 review: APP chuyển Từ chối/Hủy vẫn giữ bộ vì mã không đổi. Sửa controller nhả qua cửa kiểm bút toán, xóa mã cùng transaction; thêm ca thật gọi duyet rồi phiếu sau giữ lại cả hai dòng. APP hoàn ứng đã từ chối không còn phải kiểm giữ TTNB như hồ sơ đang yêu cầu hoàn.
+- P2 review: Pancake dời ngày nhận thì đồng bộ theo ID và ghi ngày nguồn vào metadata chỗ giữ; không sửa ngày trên biên nhận cũ. Đồng bộ ngày cũ không xóa dấu của ngày mới. Truy vấn đọc thêm ID đang đồng bộ và ngày nguồn để không bỏ sót đơn dời ngày. Thêm ca tầng khung và bench thật.
+- Hai đột biến review: bỏ nhả bộ bị1ca bắt; quay lại lọc ngày cũ bị1ca bắt. Khôi phục đúng2/2ca đạt. Sổ tay đã bổ sung đúng tên nút và chia mục theo giới hạn1600ký tự.
+- Chưa hoàn thành A1 công nợ tiền vào; bench bản sửa mới phải chạy lại, không dùng kết quả cũ thay thế.

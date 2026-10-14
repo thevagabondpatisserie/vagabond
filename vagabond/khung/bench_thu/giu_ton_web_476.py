@@ -74,6 +74,12 @@ def chay():
             from vagabond.khung.kiem_that.thu_don_web_367 import _goi, _don, _Tra
             # Huỷ đúng đơn thử vừa tạo, rồi kiểm từ chối và timeout qua cửa thật.
             d=frappe.get_doc('Vagabond Don Web',ds[0].name)
+            with patch.object(g,'hom_nay',lambda:date.fromisoformat(NGAY)):
+                g.khoa()
+                g.da_dem('2037-10-15',[d.pancake_id])
+                g.da_dem(NGAY,[])
+                d.reload();giu=json.loads(d.snapshot)['giu_ton_web']
+                _dung(giu['da_dem'] and giu['ngay_nguon']=='2037-10-15','Dời ngày theo ID, đồng bộ ngày cũ không trừ hai lần')
             d.trang_thai='Da huy';d.save(ignore_permissions=True);frappe.db.commit()
             def goi(tra):
                 don=_don(ma);don.update(nonce=frappe.generate_hash(length=24),ngay_nhan=NGAY+'T13:00:00')
@@ -86,7 +92,7 @@ def chay():
                 _dung(r.get('ok') and len(vet)==1,'Đã nhả phần của đơn bị từ chối; timeout vẫn nhận chờ')
                 r,vet=goi(lambda:_Tra(200,{'success':True,'data':{'id':'khong-duoc-goi'}}))
                 _dung(r.get('ly_do')=='het_hang' and not vet,'Timeout phải giữ chỗ tới khi rõ kết quả')
-            kq={'dat':True,'ket':ket,'don':ds[0].name,'tu_choi_nha':True,'timeout_giu':True}
+            kq={'dat':True,'ket':ket,'don':ds[0].name,'tu_choi_nha':True,'timeout_giu':True,'doi_ngay_theo_id':True}
         finally:_dong()
     except Exception:
         kq['loi']=traceback.format_exc();raise

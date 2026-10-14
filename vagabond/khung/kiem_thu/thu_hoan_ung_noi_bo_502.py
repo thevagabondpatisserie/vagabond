@@ -125,13 +125,16 @@ def _huy_gui_lai():
 @ca('#476 hoàn ứng lấy tổng bộ TTNB, không lấy số tiền BT đầu')
 def _():
     from vagabond import bo_sao_ke_db as bs, doi_soat_sepay as dss
-    p=frappe._dict(name='TTNB',vgb_bo_sao_ke='co')
+    p=frappe._dict(name='TTNB',ma_gd='A',vgb_bo_sao_ke='co')
     d=frappe._dict(name='TTNB',tong_tien=100,so_tien=100)
     g=frappe._dict(withdrawal=100,flags=frappe._dict(bo_sao_ke=[frappe._dict(bank_account='MB')]))
     with patch.object(frappe,'get_doc',return_value=d),patch.object(bs,'doc_hien_tai',return_value={'dong':[{'name':'A','phan_bo':60},{'name':'B','phan_bo':40}]}), \
-         patch.object(bs,'chon',return_value=g) as chon,patch.object(dss,'nap_so'),patch.object(dss,'_ban',return_value={}):
+         patch.object(bs,'chon',return_value=g) as chon,patch.object(dss,'nap_so'),patch.object(dss,'_ban',return_value={}), \
+         patch.object(hu,'giao_dich',return_value=frappe._dict(name='A',withdrawal=60,bank_account='MB')):
         r=hu.giao_dich_phieu(p)
         la('tổng bộ',r.withdrawal,100);la('đúng nguồn',r.bank_account,'MB')
+        dung('đã kiểm cả bộ',chon.called)
+        if not chon.called:return
         la('kiểm theo tiền phiếu',chon.call_args.args[2],100)
         la('kiểm và giữ dưới khóa',chon.call_args.kwargs['ghi'],True)
 

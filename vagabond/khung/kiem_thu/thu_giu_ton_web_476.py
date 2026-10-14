@@ -109,3 +109,23 @@ def _():
     with patch.object(g,'kiem_va_giu',side_effect=RuntimeError('DB đọc lỗi')),patch.object(ton,'kiem',lambda *a:[]),patch.object(ton,'bao_loi') as bao:
         la('vẫn nhận',ham(d)['ok'],1);la('báo Sales',bao.call_count,1)
     dung('đã gửi','post' in vet.su)
+
+
+@ca('#476 dời ngày Pancake: nhận ID ngày mới, đồng bộ ngày cũ không trừ decor hai lần')
+def _():
+    d=doc(dem=True,ngay='2026-10-15');f,_=moi([d],decor=2)
+    def luu(dt,name,field,value,**kw):d.snapshot=value
+    f.db.set_value=luu
+    with patch.object(g,'frappe',f),patch.object(g,'hom_nay',lambda:date(2026,10,14)):
+        g.da_dem('2026-10-16',['123'])
+        la('nguồn mới',json.loads(d.snapshot)[g.O].get('ngay_nguon'),'2026-10-16')
+        g.da_dem('2026-10-15',[])
+        dung('ngày cũ không xóa dấu',json.loads(d.snapshot)[g.O]['da_dem'])
+        # KB của ngày mới đã trừ một decor, chỉ còn một. Không trừ giữ nữa.
+        f.db.sql=lambda q,*a,**kw: [('pancake_shop_id',)] if 'tabSingles' in q else (
+            [D(ma_hang='A',ten_banh='A',so_decor=1)] if 'tabBTP Banh O Dong' in q else (
+            [d] if 'tabVagabond Don Web' in q else []))
+        nhac,_giu=g.kiem_va_giu([{'variation_id':'A','quantity':1}],'2026-10-17')
+        la('vẫn bán được phần còn lại',nhac,[])
+        g.da_dem('2026-10-16',[])
+        dung('chỉ ngày nguồn mất ID mới nhả dấu',not json.loads(d.snapshot)[g.O]['da_dem'])

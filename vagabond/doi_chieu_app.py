@@ -476,6 +476,17 @@ def kiem_luu(doc):
 	cu = doc.get_doc_before_save()
 	ma = str(doc.get("ma_giao_dich") or "").strip()
 	ma_cu = str(cu.get("ma_giao_dich") or "").strip() if cu else ""
+	# Từ chối/hủy không đổi mã sao kê nên từng lọt qua cửa return dưới.
+	# Chỉ xử lý lần chuyển trạng thái mới, không dọn dữ liệu lịch sử.
+	if cu and doc.trang_thai in ("Tu choi", "Huy") and cu.trang_thai != doc.trang_thai:
+		from vagabond import bo_sao_ke_db as bs, ho_so_tt as hs
+		if bs.doc_hien_tai(doc)["dong"]:
+			hs._kiem(hs.VAI_LAP if doc.trang_thai == "Huy" else hs.VAI_FIN | hs.VAI_GD,
+				"hủy hoặc từ chối hồ sơ đang giữ bộ sao kê")
+			_kiem_bo(doc, ma_cu)
+			doc.ma_giao_dich = ""
+			doc.add_comment("Comment", "Nhả cả bộ sao kê khi hồ sơ chuyển sang %s. Không chuyển tiền thêm." % doc.trang_thai)
+			return
 	da_tra = bool(cu and cu.trang_thai == "Da thanh toan")
 	mo_lai = da_tra and (doc.trang_thai != "Da thanh toan" or (ma_cu and not ma))
 	if ma == ma_cu and not mo_lai:

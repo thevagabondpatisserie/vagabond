@@ -242,6 +242,7 @@ def _():
     try:luong.bo('hoan_tien',h.name)
     except frappe.ValidationError:pass
     else:dung('đã ghi sổ phải chặn bỏ',False)
+    pe.reload()  # Lõi cập nhật clearance_date sau submit, lấy bản mới trước hủy.
     pe.cancel()
     luong.bo('hoan_tien',h.name);h.reload()
     la('bỏ cả bộ sau huỷ lõi',bs.doc_hien_tai(h)['dong'],[])
@@ -341,3 +342,24 @@ def _():
     except frappe.ValidationError:pass
     else:dung('không đi vòng bỏ TTNB để hoàn lần nữa',False)
     finally:frappe.db.rollback(save_point='cam_hoan_trung476')
+    hs.duyet(hs_moi[0].name,'tu_choi',ly_do='Ca kiểm hủy đề nghị hoàn, vẫn giữ chứng cứ TTNB đã chi')
+    hs_moi[0].reload();la('APP hoàn ứng từ chối được',hs_moi[0].trang_thai,'Tu choi')
+
+
+@ca('#476 APP từ chối và hủy nhả toàn bộ qua cửa duyệt thật, phiếu sau dùng được')
+def _():
+    import json
+    from vagabond import doi_chieu_app as dc, bo_sao_ke_db as bs, ho_so_tt as hs
+    from vagabond.khung.kiem_that.thu_ho_so_tt_v445 import _ho_so_ncc, _giao_dich_ngan_hang
+    for buoc in ('tu_choi','huy'):
+        hd=_hoa_don_mua(100000);h=_ho_so_ncc([hd])
+        a=_giao_dich_ngan_hang('KT476-NHA',60000,hd.company)
+        b=_giao_dich_ngan_hang('KT476-NHA',40000,hd.company)
+        ds=[dict(name=a.name,phan_bo=60000),dict(name=b.name,phan_bo=40000)]
+        dc.gan(h.name,json.dumps(ds))
+        hs.duyet(h.name,buoc,ly_do='Ca kiểm nhả bộ sau từ chối/hủy')
+        h.reload();la('nhả cả bộ',bs.doc_hien_tai(h)['dong'],[])
+        la('bỏ mã cùng transaction',h.ma_giao_dich or '','')
+        h2=_ho_so_ncc([_hoa_don_mua(100000)])
+        dc.gan(h2.name,json.dumps(ds));h2.reload()
+        la('phiếu sau giữ được cả hai dòng',len(bs.doc_hien_tai(h2)['dong']),2)

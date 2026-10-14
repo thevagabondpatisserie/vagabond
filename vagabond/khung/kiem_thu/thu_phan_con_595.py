@@ -282,3 +282,45 @@ def _():
         noi.return_value=[];bl.bo('ttnb','T')
         la('bỏ cả bộ',luu.call_args.args[1],[])
         la('về đúng bước',ghi.call_args.args[2]['trang_thai'],'Hoan tat')
+
+
+@ca('#476 APP dẫn chứng TTNB chỉ bỏ chiếm toàn BT khi đúng chủ và đúng dòng')
+def _():
+    import json
+    import frappe
+    from unittest.mock import patch
+    from vagabond import doi_chieu_app as dc, doi_soat_sepay as dss
+    g=frappe._dict(name='BT',reference_number='FT',flags=frappe._dict(for_update=True))
+    d=frappe._dict(name='TTNB-MOI',doctype='Vagabond De Nghi Chi')
+    def chu(owner='APP-CU',bank='BT',co_bo=True,bo_moi=True):
+        meta=json.dumps({'dong':[dict(name=bank,phan_bo=60)],'chung_tu':[]}) if co_bo else ''
+        with patch.object(frappe.db,'sql',side_effect=[[],[('APP-CU','TTNB-CU',meta,owner)]]), \
+             patch.object(dss,'nap_so'),patch.object(dss,'MO_DUN_KHAI',()),patch.object(dss,'_SO',{}):
+            return dc._chu_khac(g,d,bo=bo_moi)
+    la('APP chỉ dẫn chứng phần đã giữ',chu(),'')
+    la('sai chủ không bỏ qua',chu(owner='APP-KHAC'),'APP-CU')
+    la('sai giao dịch không bỏ qua',chu(bank='BT-KHAC'),'APP-CU')
+    la('liên kết cũ không bộ vẫn độc quyền',chu(co_bo=False),'APP-CU')
+    la('cửa cũ không kiểm phần vẫn chặn',chu(bo_moi=False),'APP-CU')
+
+
+@ca('#476 APP từ chối hoặc hủy nhả bộ dù mã giao dịch không đổi')
+def _():
+    import frappe
+    from unittest.mock import patch
+    from vagabond import doi_chieu_app as dc, bo_sao_ke_db as bs, ho_so_tt as hs
+    class Doc(frappe._dict):
+        def get_doc_before_save(self):return frappe._dict(trang_thai='Da duyet',ma_giao_dich='BT')
+        def add_comment(self,*a):pass
+    for state in ('Tu choi','Huy'):
+        d=Doc(name='APP',trang_thai=state,ma_giao_dich='BT')
+        with patch.object(bs,'doc_hien_tai',return_value={'dong':[dict(name='BT',phan_bo=100)]}), \
+             patch.object(dc,'_kiem_bo') as bo,patch.object(hs,'_kiem') as quyen:
+            dc.kiem_luu(d)
+            la('nhả đúng bộ',bo.call_args.args if bo.called else None,(d,'BT'));la('xóa mã cùng lượt',d.ma_giao_dich,'')
+            la('qua quyền tương ứng',quyen.call_count,1)
+        d.ma_giao_dich='BT'
+        with patch.object(bs,'doc_hien_tai',return_value={'dong':[dict(name='BT',phan_bo=100)]}), \
+             patch.object(dc,'_kiem_bo',side_effect=frappe.ValidationError('bút toán sống')),patch.object(hs,'_kiem'):
+            nem('chưa nhả khi còn bút toán',lambda:dc.kiem_luu(d),frappe.ValidationError)
+            la('mã còn nguyên',d.ma_giao_dich,'BT')

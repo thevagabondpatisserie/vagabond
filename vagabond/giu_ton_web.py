@@ -26,13 +26,19 @@ def _dong(ngay):
         ("KB-%s" % ngay,), as_dict=True)
 
 
-def _don():
-    # Chỉ đọc đơn mới đã có metadata. Không đổi lịch sử đơn cũ.
+def _don(cac_id=()):
+    # Ngày nhận trên biên nhận web có thể cũ sau khi Sales dời trên Pancake.
+    # Đọc thêm ID đang đồng bộ và ngày nguồn đã biết, không đổi biên nhận cũ.
+    ids=tuple(str(x) for x in cac_id if x is not None) or ("",)
     return frappe.db.sql("""select name,ngay_nhan,pancake_id,snapshot from `tabVagabond Don Web`
         where trang_thai in ('Dang gui','Da nhan','Cho doi soat','Da ghi so')
-        and ngay_nhan >= %s and ngay_nhan < %s
-        and snapshot like %s for update""",
-        (str(hom_nay()),str(hom_nay()+timedelta(days=4)),'%"giu_ton_web"%'), as_dict=True)
+        and snapshot like %s
+        and ((ngay_nhan >= %s and ngay_nhan < %s)
+          or (json_unquote(json_extract(snapshot,'$.giu_ton_web.ngay_nguon')) >= %s
+            and json_unquote(json_extract(snapshot,'$.giu_ton_web.ngay_nguon')) < %s)
+          or pancake_id in %s) for update""",
+        ('%"giu_ton_web"%',str(hom_nay()),str(hom_nay()+timedelta(days=4)),
+         str(hom_nay()),str(hom_nay()+timedelta(days=4)),ids), as_dict=True)
 
 
 def tinh(hang, ton, giu):
@@ -80,7 +86,7 @@ def kiem_va_giu(hang, ngay):
         b = snap.get(O) or {}
         if not b or b.get('da_dem'):
             continue
-        ngay_don = datetime.fromisoformat(str(d.ngay_nhan)).date()
+        ngay_don = datetime.fromisoformat(str(b.get('ngay_nguon') or d.ngay_nhan)).date()
         cung_nguon = ngay_don == nay if ng == nay else nay < ngay_don <= nay + timedelta(days=3)
         if cung_nguon:
             for ma, so in (b.get('dong') or {}).items():
@@ -98,16 +104,22 @@ def da_dem(ngay, cac_id):
     Bên gọi phải truyền đúng danh sách thực sự dùng để tính cột tương ứng.
     """
     ids = {str(x) for x in cac_id if x is not None}
-    for d in _don():
-        if str(d.ngay_nhan or '')[:10] != str(ngay)[:10]:
-            continue
+    ngay=str(ngay)[:10]
+    for d in _don(ids):
         snap = json.loads(d.snapshot or '{}')
         b = snap.get(O)
         if not b:
             continue
         moi = bool(d.pancake_id) and str(d.pancake_id) in ids
-        if bool(b.get('da_dem')) != moi:
+        nguon=str(b.get('ngay_nguon') or d.ngay_nhan or '')[:10]
+        # ID thật ở ngày mới thắng ngày cũ trên đơn web. Đồng bộ ngày cũ
+        # sau đó không được xóa dấu của ngày mới và trừ decor lần hai.
+        if not moi and nguon != ngay:
+            continue
+        doi=bool(b.get('da_dem')) != moi or (moi and nguon != ngay)
+        if doi:
             b['da_dem'] = moi
+            if moi:b['ngay_nguon'] = ngay
             frappe.db.set_value(DT,d.name,'snapshot',json.dumps(snap,ensure_ascii=False),update_modified=False)
 
 
