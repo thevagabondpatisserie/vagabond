@@ -120,3 +120,19 @@ B: PR471 web Vue giữ Draft và công tắc tắt. Merge main không rebase, gi
 - Ba đột biến local: khôi phục quét LIKE FOR UPDATE; bỏ khóa/kiểm bộ thay đổi; bỏ bảo vệ trường chủ BT. Mỗi đột biến bị 1 trong 3 ca P2 bắt, tổng 3/3 đột biến. Đây chưa thay số liệu bench sau sửa.
 - Hoàn tiền: hook on_submit PE đặt hồ sơ thành `Da chi`; hủy PE không tự đổi lại. Bỏ bộ nhận trạng thái này và `Hoan thanh`, nhưng vẫn từ chối PE nháp/đã ghi sổ hoặc BT còn liên kết. Khi bỏ hợp lệ, xóa dấu hoàn thành để không hiển thị kết quả cũ.
 - Đã bổ sung `bo_sao_ke_luong.bo` vào cửa ngõ. Còn đo khóa đơn web P3, rà toàn bộ thứ tự khóa cửa ghi/hoàn ứng, công nợ tiền vào và tạm ứng, bench tổng/staging đúng SHA. Chưa hoàn thành A1/A2, chưa merge/deploy.
+
+### Số đo sau P2 tại 1c59da60f và P3 trước sửa
+
+[Bench38617438497](https://github.com/thevagabondpatisserie/vagabond/actions/runs/38617438497), đúng `1c59da60fa6d1216925682183b06e029d8df7b51`:
+
+| Ca | Trước | Sau |
+| --- | --- | --- |
+| BT không liên quan | 2,072067 giây | 0,037852 giây |
+| Đảo thời điểm | Deadlock1213 | Hai lượt đạt, B0,061670 giây |
+| Tạo APP trong lúc B giữ | 2,043181 giây | 0,031920 giây |
+
+- Cả ba ca giữ hàng rào2giây, phân bổ lõi thật. JSON `do-khoa-476.json` trong artifact.
+- P3 tái hiện: hook cập nhật trạng thái đơn web khác chờ2,066342giây khi tao_don giữ _don. Hook cập nhật DB thật; tắt riêng hàng đợi quảng cáo và nối ưu đãi; không giả phép UPDATE. JSON `do-khoa-web-476.json`.
+- Bench tổng chưa xanh:414/417 mỗi lượt. Ca247 đòi mọi dòng danh sách bằng tổng tiền không còn đúng màn chọn bộ; ca giả deadlock cần ném từ cửa khóa mới trước _ho_so. Ca hoàn tiền còn bị phiếu THU nháp của cùng hồ sơ chặn bỏ bộ tiền RA: thu/chi là hai chứng từ khác nhau. Đang sửa, không bỏ kiểm PE chi còn sống.
+- P3 sửa bằng cột ngày nguồn giữ tồn có chỉ mục trên DocType đơn web hiện có, cập nhật cùng snapshot. Đọc riêng khoảng4ngày và ID Pancake có chỉ mục; không OR/JSON/LIKE làm quét cả bảng. Không hồi tố dữ liệu cũ. Ca giữ tồn dời ngày vẫn phải đạt.
+- Rà thêm: chỉ mục mã giao dịch cho chủ APP cũ; hoàn ứng chỉ đọc chứng cứ TTNB đã khóa, không ghi lại bộ; PE hoàn tiền khóa bộ trước _save/load_from_db. Tất cả còn cần bench SHA mới, không lấy số đo1c59 thay cho kết quả bản sau.

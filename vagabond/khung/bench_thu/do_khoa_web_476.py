@@ -73,7 +73,7 @@ def chay():
         for p in ps:p.wait(timeout=60)
         ket={v:json.loads((folder/(v+'.json')).read_text()) for v in ('A','B')}
         _dung(all(r['dat'] for r in ket.values()),str(ket))
-        # Lượt đầu chỉ đo trước sửa, không giả định thời gian đạt.
+        _dung(ket['B']['thao_tac_giay']<1.5,'Đơn khác không phải chờ giữ tồn')
         print('DO KHOA WEB: '+json.dumps(ket,ensure_ascii=False),flush=True)
     finally:
         for p in ps:

@@ -72,7 +72,7 @@ def _():
     f,_=moi([d]);f.db.set_value=lambda *a,**kw:luu.append(a)
     with patch.object(g,'frappe',f):
         g.da_dem('2026-10-14',['123'])
-    la('một cập nhật',len(luu),1);la('đã tính',json.loads(luu[0][3])[g.O]['da_dem'],True)
+    la('một cập nhật',len(luu),1);la('đã tính',json.loads(luu[0][2]['snapshot'])[g.O]['da_dem'],True)
 
 
 @ca('#476 giữ tồn: lưu đơn đọc cũ không ghi đè dấu KB vừa tính')
@@ -114,7 +114,7 @@ def _():
 @ca('#476 dời ngày Pancake: nhận ID ngày mới, đồng bộ ngày cũ không trừ decor hai lần')
 def _():
     d=doc(dem=True,ngay='2026-10-15');f,_=moi([d],decor=2)
-    def luu(dt,name,field,value,**kw):d.snapshot=value
+    def luu(dt,name,fields,**kw):d.snapshot=fields['snapshot']
     f.db.set_value=luu
     with patch.object(g,'frappe',f),patch.object(g,'hom_nay',lambda:date(2026,10,14)):
         g.da_dem('2026-10-16',['123'])
@@ -129,3 +129,22 @@ def _():
         la('vẫn bán được phần còn lại',nhac,[])
         g.da_dem('2026-10-16',[])
         dung('chỉ ngày nguồn mất ID mới nhả dấu',not json.loads(d.snapshot)[g.O]['da_dem'])
+
+
+@ca('#476 P3 ngày nguồn có chỉ mục, dời ngày đọc thêm đúng ID và gộp không trùng')
+def _():
+    d=doc();vet=[]
+    def sql(q,args,**kw):
+        vet.append((q,args));return [d]
+    with patch.object(g,'frappe',D(db=D(sql=sql))),patch.object(g,'hom_nay',lambda:date(2026,10,14)):
+        la('gộp cùng bản ghi',g._don(['123']),[d])
+    la('chỉ hai phạm vi',len(vet),2)
+    if len(vet)!=2:return
+    dung('ngày dùng chỉ mục','force index (vgb_ngay_nguon_ton)' in vet[0][0])
+    dung('ID dùng chỉ mục','force index (pancake_id)' in vet[1][0])
+    dung('không LIKE/JSON quét cả bảng',all('like' not in q.lower() and 'json_' not in q.lower() for q,_ in vet))
+    la('bốn ngày',vet[0][1],('2026-10-14','2026-10-18'))
+    la('ID đúng',vet[1][1],(('123',),))
+    la('không có giữ không có ngày',g.ngay_nguon({},'2026-10-14'),None)
+    la('ngày giữ ban đầu',g.ngay_nguon({g.O:{'dong':{'A':1}}},'2026-10-14T13:00'),'2026-10-14')
+    la('ngày dời thắng ngày gốc',g.ngay_nguon({g.O:{'dong':{'A':1},'ngay_nguon':'2026-10-16'}},'2026-10-14'),'2026-10-16')

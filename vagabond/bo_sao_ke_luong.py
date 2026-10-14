@@ -191,7 +191,7 @@ def bo(loai, ma):
     if loai=='hoan_tien':
         # Kể cả phiếu chi nháp chưa vào metadata cũng không bỏ quên nó.
         for r in frappe.db.sql("""select name,docstatus from `tabPayment Entry`
-            where vgb_hoan_tien=%s and docstatus<2 for update""",(ma,),as_dict=True):
+            where vgb_hoan_tien=%s and payment_type='Pay' and docstatus<2 for update""",(ma,),as_dict=True):
             frappe.throw("Phiếu chi %s còn %s. Kế toán xử lý phiếu chi trong ERPNext trước khi bỏ bộ sao kê." %
                 (r.name,'bản nháp' if r.docstatus==0 else 'đã ghi sổ'))
         if doc.get('phieu_chi') and frappe.db.get_value('Payment Entry',doc.phieu_chi,'docstatus',for_update=True) in (0,1):

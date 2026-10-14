@@ -47,11 +47,20 @@
   "trinh_duyet",
   "sec_ky_thuat",
   "snapshot",
+  "vgb_ngay_nguon_ton",
   "khoa_chong_trung",
   "token_hash",
   "muoi"
  ],
  "fields": [
+  {
+   "fieldname": "vgb_ngay_nguon_ton",
+   "fieldtype": "Date",
+   "label": "Ngày nguồn giữ tồn web",
+   "hidden": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
   {
    "fieldname": "sec_chinh",
    "fieldtype": "Section Break",

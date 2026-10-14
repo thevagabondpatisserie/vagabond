@@ -16,3 +16,23 @@ class KhoaBoSaoKe:
         if not self.is_new():
             khoa_phieu(self.doctype, self.name)
         return super()._save(*args, **kwargs)
+
+
+class KhoaBoHoanTien:
+    """PE ghi sổ/cancel khóa bộ trước khóa PE và hook cập nhật hồ sơ hoàn."""
+    def _khoa_bo_hoan(self):
+        import frappe
+        ma = self.get('vgb_hoan_tien')
+        if self.name and not self.is_new():
+            ma = frappe.db.get_value('Payment Entry', self.name, 'vgb_hoan_tien') or ma
+        if ma:
+            khoa_phieu('Vagabond Hoan Tien', ma)
+
+    def load_from_db(self):
+        if self.flags.get('for_update'):
+            self._khoa_bo_hoan()
+        return super().load_from_db()
+
+    def _save(self, *args, **kwargs):
+        self._khoa_bo_hoan()
+        return super()._save(*args, **kwargs)

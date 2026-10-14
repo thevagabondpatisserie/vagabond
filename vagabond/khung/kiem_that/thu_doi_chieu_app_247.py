@@ -204,16 +204,22 @@ def _go_loi():
 @ca("#247 lọc đúng khoản phải chuyển ở máy chủ dù client gửi số cũ")
 def _loc_tien():
 	h, g = _nen()
+	sai = _giao_dich_ngan_hang("SAI-TIEN", 1000, cong_ty())
 	for tien_cu in (1, 0, -1, None):
 		r = dc.danh_sach(h.name, so_tien=tien_cu)
 		dung("vẫn thấy dòng đúng", any(x["ma"] == g.name for x in r["rows"]))
 		la("UI nhận khoản phải chuyển từ máy chủ", r["so_tien_chuyen"], 12345)
-		dung("mọi dòng đều đúng khoản phải chuyển", all(float(x["tien"]) == 12345 for x in r["rows"]))
+		# Bộ nhiều dòng cho phép tiền khác tổng. Chốt tổng máy chủ ở trên;
+		# gán một dòng thiếu/thừa vẫn phải bị cửa ghi từ chối.
+		la("mở chọn bộ", r["chon_bo"], 1)
+	_bi_chan(lambda: dc.gan(h.name, sai.name), "không khớp khoản phải chuyển")
+	la("phiếu chưa bị gán dòng sai", frappe.db.get_value(h.doctype,h.name,"ma_giao_dich") or "", "")
 
 
 @ca("#247 tranh chấp trả câu tiếng Việt và vẫn ném lỗi để POST rollback")
 def _loi_khoa():
-	with patch.object(dc, "_ho_so", side_effect=frappe.QueryDeadlockError("Deadlock found")):
+	with patch.object(dc, "khoa_truoc", side_effect=frappe.QueryDeadlockError("Deadlock found")), \
+			patch.object(dc, "_ho_so", side_effect=frappe.QueryDeadlockError("Deadlock found")):
 		_bi_chan(lambda: dc.gan("APP-THU", "BT-THU"), "Tải lại hồ sơ")
 		_bi_chan(lambda: dc.bo("APP-THU"), "Tải lại hồ sơ")
 

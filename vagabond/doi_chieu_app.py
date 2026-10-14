@@ -91,13 +91,13 @@ def _chu_khac(g, doc, bo=False):
 	ma = sorted({g.name, g.reference_number} - {None, ""})
 	# Current reads sau khóa BT: snapshot cũ không được che mất APP vừa
 	# chọn ở request cạnh tranh. Deadlock thì DB hủy một lượt, không ghi đôi.
-	for r in frappe.db.sql("""select name from `tabVagabond Ho So TT`
+	for r in frappe.db.sql("""select name from `tabVagabond Ho So TT` force index (ma_giao_dich)
 		where name != %s and ma_giao_dich in %s and trang_thai != 'Tu choi'
 		and (%s=0 or ifnull(vgb_bo_sao_ke, '') = '')
 		limit 1""" + (" for update" if g.flags.get("for_update") else ""), (doc.name, tuple(ma), int(bo))):
 		return r[0]
 	for r in frappe.db.sql("""select d.parent,d.de_nghi_chi,n.vgb_bo_sao_ke,n.ho_so_tt
-		from `tabVagabond Ho So TT Dong` d
+		from `tabVagabond Ho So TT Dong` d force index (ma_giao_dich)
 		join `tabVagabond Ho So TT` p on p.name=d.parent
 		left join `tabVagabond De Nghi Chi` n on n.name=d.de_nghi_chi
 		where d.ma_giao_dich in %s and d.parent != %s and p.trang_thai != 'Tu choi'

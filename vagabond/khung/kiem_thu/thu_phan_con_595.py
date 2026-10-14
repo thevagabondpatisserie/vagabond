@@ -376,3 +376,23 @@ def _():
         with patch.object(frappe.db,"get_value",return_value="chủ thật"):
             bs.bao_ve_chu_bt(doc)
         la("nguồn máy chủ",doc[bs.O_CHU],None if moi else "chủ thật")
+
+
+@ca("#476 P2 ghi sổ và hủy PE hoàn tiền khóa bộ trước khóa Document")
+def _():
+    import frappe
+    from unittest.mock import patch
+    from vagabond import bo_sao_ke_document as mod
+    vet=[]
+    class Goc:
+        name='PE'
+        flags={'for_update':True}
+        def get(self,k):return 'HT-GIA'
+        def is_new(self):return False
+        def _save(self,*a,**kw):vet.append('luu-loi')
+        def load_from_db(self):vet.append('doc-loi')
+    class D(mod.KhoaBoHoanTien,Goc):pass
+    with patch.object(frappe.db,'get_value',return_value='HT-THAT'), \
+            patch.object(mod,'khoa_phieu',side_effect=lambda dt,ma:vet.append((dt,ma))):
+        D().load_from_db();D()._save()
+    la('khóa trước cả hai cửa',vet,[('Vagabond Hoan Tien','HT-THAT'),'doc-loi',('Vagabond Hoan Tien','HT-THAT'),'luu-loi'])

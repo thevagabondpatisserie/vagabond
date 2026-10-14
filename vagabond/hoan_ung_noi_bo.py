@@ -124,7 +124,7 @@ def khoa_ma_giao_dich(ma, phieu_noi_bo="", ho_so=""):
     """Khóa dòng tiền trước khi đọc APP giữ nó, gộp tên BT và tham chiếu cũ."""
     from vagabond import bo_sao_ke_db as bs
     if phieu_noi_bo:
-        p=frappe.get_doc('Vagabond De Nghi Chi',phieu_noi_bo,for_update=True)
+        p=frappe.get_doc('Vagabond De Nghi Chi',phieu_noi_bo)
         bo=bs.doc_hien_tai(p)
         if bo['dong']:
             if not ho_so or p.get('ho_so_tt')!=ho_so or str(ma)!=bo['dong'][0]['name']:
@@ -147,9 +147,11 @@ def giao_dich_phieu(p):
         return giao_dich(p.ma_gd)
     from vagabond import bo_sao_ke_db as bs, doi_soat_sepay as dss
     dss.nap_so()
-    doc=frappe.get_doc('Vagabond De Nghi Chi',p.name,for_update=True)
+    # kiem_ho_so đã current-read và khóa TTNB theo tên. Đây chỉ đọc bằng
+    # chứng chi, không ghi lại chỗ giữ hoặc xin khóa BT sau khóa APP/TTNB.
+    doc=frappe._dict(p,doctype='Vagabond De Nghi Chi')
     bo=bs.doc_hien_tai(doc);b=dss._ban('ttnb')
-    g=bs.chon(doc,bo['dong'],flt(doc.tong_tien) or flt(doc.so_tien),'ra',lambda g:dss._loi_giao_dich(b,g) or dss.ly_do_tai_khoan_sepay(g.bank_account),ghi=True)
+    g=bs.chon(doc,bo['dong'],flt(doc.tong_tien) or flt(doc.so_tien),'ra',lambda g:dss._loi_giao_dich(b,g) or dss.ly_do_tai_khoan_sepay(g.bank_account),ghi=False)
     g.bank_account=g.flags.bo_sao_ke[0].bank_account
     g.docstatus=1
     return g

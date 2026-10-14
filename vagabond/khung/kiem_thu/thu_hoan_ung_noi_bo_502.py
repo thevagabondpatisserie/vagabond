@@ -125,7 +125,7 @@ def _huy_gui_lai():
 @ca('#476 hoàn ứng lấy tổng bộ TTNB, không lấy số tiền BT đầu')
 def _():
     from vagabond import bo_sao_ke_db as bs, doi_soat_sepay as dss
-    p=frappe._dict(name='TTNB',ma_gd='A',vgb_bo_sao_ke='co')
+    p=frappe._dict(name='TTNB',ma_gd='A',vgb_bo_sao_ke='co',tong_tien=100,so_tien=100)
     d=frappe._dict(name='TTNB',tong_tien=100,so_tien=100)
     g=frappe._dict(withdrawal=100,flags=frappe._dict(bo_sao_ke=[frappe._dict(bank_account='MB')]))
     with patch.object(frappe,'get_doc',return_value=d),patch.object(bs,'doc_hien_tai',return_value={'dong':[{'name':'A','phan_bo':60},{'name':'B','phan_bo':40}]}), \
@@ -136,7 +136,7 @@ def _():
         dung('đã kiểm cả bộ',chon.called)
         if not chon.called:return
         la('kiểm theo tiền phiếu',chon.call_args.args[2],100)
-        la('kiểm và giữ dưới khóa',chon.call_args.kwargs['ghi'],True)
+        la('chỉ đọc chứng cứ, không ghi lại bộ sau khóa APP',chon.call_args.kwargs['ghi'],False)
 
 
 @ca('#476 hoàn ứng chỉ chia cùng BT khi có TTNB giữ phần cho đúng APP; gán thô bị chặn')

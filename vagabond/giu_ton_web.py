@@ -11,6 +11,7 @@ from vagabond.ton_don_web import hom_nay
 
 O = "giu_ton_web"
 DT = "Vagabond Don Web"
+O_NGAY = "vgb_ngay_nguon_ton"
 
 
 def khoa():
@@ -27,18 +28,20 @@ def _dong(ngay):
 
 
 def _don(cac_id=()):
-    # Ngày nhận trên biên nhận web có thể cũ sau khi Sales dời trên Pancake.
-    # Đọc thêm ID đang đồng bộ và ngày nguồn đã biết, không đổi biên nhận cũ.
-    ids=tuple(str(x) for x in cac_id if x is not None) or ("",)
-    return frappe.db.sql("""select name,ngay_nhan,pancake_id,snapshot from `tabVagabond Don Web`
-        where trang_thai in ('Dang gui','Da nhan','Cho doi soat','Da ghi so')
-        and snapshot like %s
-        and ((ngay_nhan >= %s and ngay_nhan < %s)
-          or (json_unquote(json_extract(snapshot,'$.giu_ton_web.ngay_nguon')) >= %s
-            and json_unquote(json_extract(snapshot,'$.giu_ton_web.ngay_nguon')) < %s)
-          or pancake_id in %s) for update""",
-        ('%"giu_ton_web"%',str(hom_nay()),str(hom_nay()+timedelta(days=4)),
-         str(hom_nay()),str(hom_nay()+timedelta(days=4)),ids), as_dict=True)
+    # Hai truy vấn có chỉ mục riêng, không OR/JSON/LIKE khiến MariaDB
+    # quét và khóa cả bảng. Hàng cấu hình đã tuần tự hóa mọi lượt giữ tồn.
+    cot = "name,ngay_nhan,pancake_id,snapshot"
+    trang_thai = "trang_thai in ('Dang gui','Da nhan','Cho doi soat','Da ghi so')"
+    rows = frappe.db.sql("select " + cot + " from `tabVagabond Don Web` "
+        "force index (vgb_ngay_nguon_ton) where " + trang_thai +
+        " and vgb_ngay_nguon_ton >= %s and vgb_ngay_nguon_ton < %s for update",
+        (str(hom_nay()), str(hom_nay()+timedelta(days=4))), as_dict=True)
+    ids = tuple(sorted({str(x) for x in cac_id if x is not None}))
+    if ids:
+        rows += frappe.db.sql("select " + cot + " from `tabVagabond Don Web` "
+            "force index (pancake_id) where " + trang_thai +
+            " and pancake_id in %s for update", (ids,), as_dict=True)
+    return list({r.name:r for r in rows}.values())
 
 
 def tinh(hang, ton, giu):
@@ -120,15 +123,23 @@ def da_dem(ngay, cac_id):
         if doi:
             b['da_dem'] = moi
             if moi:b['ngay_nguon'] = ngay
-            frappe.db.set_value(DT,d.name,'snapshot',json.dumps(snap,ensure_ascii=False),update_modified=False)
+            frappe.db.set_value(DT,d.name,{'snapshot':json.dumps(snap,ensure_ascii=False),
+                O_NGAY:ngay_nguon(snap,d.ngay_nhan)},update_modified=False)
+
+
+def ngay_nguon(snap, ngay):
+    b = snap.get(O) or {}
+    return str(b.get('ngay_nguon') or ngay)[:10] if b.get('dong') and (b.get('ngay_nguon') or ngay) else None
 
 
 def bao_ve(doc):
     """Không để save bản đơn đọc trước nhịp KB ghi đè dấu đã tính tồn."""
     if doc.is_new():
+        setattr(doc,O_NGAY,ngay_nguon(json.loads(doc.snapshot or '{}'),doc.ngay_nhan))
         return
     cu = frappe.db.get_value(DT,doc.name,'snapshot',for_update=True)
     that = json.loads(cu or '{}')
+    setattr(doc,O_NGAY,ngay_nguon(that,doc.ngay_nhan))
     moi = json.loads(doc.snapshot or '{}')
     if moi.get(O) == that.get(O) and (O in moi) == (O in that):
         return
