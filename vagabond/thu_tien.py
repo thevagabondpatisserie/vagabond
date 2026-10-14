@@ -1242,7 +1242,7 @@ def phieu_thu_nhap(cac_si=None, chi_ma_gd=True):
 				ten_pe.add(r.parent)
 		if not ten_pe:
 			return []
-	loc = {"docstatus": 0, "payment_type": "Receive", "party_type": "Customer"}
+	loc = {"docstatus": 0, "payment_type": "Receive", "party_type": "Customer", "vgb_huy": 0}
 	if chi_ma_gd:
 		loc["reference_no"] = ["is", "set"]
 	cac_pe = []
@@ -1859,7 +1859,9 @@ def phan_bo_nhap_theo_hd(cac_si):
 	for lo in _chia(set(x for x in (cac_si or []) if x)):
 		for r in frappe.get_all("Payment Entry Reference", filters={"reference_doctype": SI,
 				"reference_name": ["in", lo], "docstatus": 0, "parenttype": PE},
-				fields=["reference_name", "allocated_amount"], limit_page_length=0):
+				fields=["reference_name", "allocated_amount", "parent"], limit_page_length=0):
+			if frappe.db.get_value(PE,r.parent,"vgb_huy"):
+				continue
 			ra[r.reference_name] = ra.get(r.reference_name, 0.0) + flt(r.allocated_amount)
 	return ra
 
@@ -1874,6 +1876,8 @@ def phieu_nhap_cua_hd(cac_si):
 		for r in frappe.get_all("Payment Entry Reference", filters={"reference_doctype": SI,
 				"reference_name": ["in", lo], "docstatus": 0, "parenttype": PE},
 				fields=["reference_name", "parent"], limit_page_length=0):
+			if frappe.db.get_value(PE,r.parent,"vgb_huy"):
+				continue
 			ds = ra.setdefault(r.reference_name, [])
 			if r.parent not in ds:
 				ds.append(r.parent)

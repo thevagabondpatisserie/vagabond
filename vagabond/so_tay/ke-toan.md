@@ -821,6 +821,6 @@ Từ khoá: công nợ tiền vào, trả góp, thu một phần, nhiều khách
 3. Máy lập phiếu thu nháp riêng cho từng mã khách. Kế toán vào [[Tiền đã về]], đính UNC và ghi sổ từng phiếu. Phiếu nháp chưa làm giảm dư nợ sổ cái.
 4. Khách chuyển đợt sau thì mở lại phiếu, chọn khoản còn phải thu. Không chọn lại phần đã gán ở đợt trước.
 
-Mất mạng sau khi bấm Gán: bấm lại để kiểm đúng lần đang gửi, không lập phiếu mới. Nếu chọn nhầm, kế toán xử lý các phiếu thu nháp/đã ghi sổ trước, rồi [[Bỏ bộ sao kê]] để chọn lại cả bộ. Không yêu cầu khách chuyển tiền thêm chỉ vì đã bỏ đối chiếu.
+Mất mạng sau khi bấm Gán: bấm lại để kiểm đúng lần đang gửi, không lập phiếu mới. Nếu chọn nhầm, kế toán dùng [[Huỷ phiếu]] cho nháp hoặc huỷ chứng từ đã ghi sổ đúng nghiệp vụ, rồi [[Bỏ bộ sao kê]] để chọn lại cả bộ. Không xoá chứng từ, không gỡ huỷ phiếu cũ để dùng lại bộ đã nhả. Không yêu cầu khách chuyển tiền thêm chỉ vì đã bỏ đối chiếu.
 
 Không thấy sao kê vẫn có lối [[Không thấy giao dịch nào khớp]] dành cho kế toán đính UNC theo luồng hiện có.

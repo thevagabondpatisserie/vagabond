@@ -579,3 +579,45 @@ def _():
         b.bank_account='BA';kiem.return_value='Còn chủ cũ'
         la('chủ cũ không gán',m.tu_dong(d,['A','B'])['ok'],0)
         la('không viết trạng thái giả',ghi.call_count,0)
+
+
+@ca('#476 PE nháp hủy của bộ không phục hồi qua Desk hoặc nút Gỡ hủy')
+def _():
+    import frappe
+    from unittest.mock import patch
+    from vagabond import bo_sao_ke_thu as m,chung_tu as ct
+    class D(frappe._dict):
+        def is_new(self):return False
+        def set(self,k,v):self[k]=v
+        def get_doc_before_save(self):return cu
+    cu=D(name='PE',vgb_huy=1,vgb_bo_cong_no='CN',references=[])
+    d=D(cu);d['vgb_huy']=0
+    with patch.object(m,'chu',return_value='CN'):
+        nem('Desk không phục hồi chủ cũ',lambda:m.bao_ve(d),frappe.ValidationError)
+    with patch.object(frappe,'get_doc',return_value=cu),patch.object(ct,'_kiem_quyen_huy'),patch.object(frappe.db,'set_value') as ghi:
+        nem('nút Gỡ hủy không phục hồi chủ cũ',lambda:ct.bo_danh_dau_huy('Payment Entry','PE'),frappe.ValidationError)
+        la('không ghi khi bị từ chối',ghi.call_count,0)
+
+
+@ca('#476 bỏ bộ CN: nháp sống không nhả, nháp hủy nhả nhưng giữ chủ lịch sử')
+def _():
+    import frappe
+    from unittest.mock import patch
+    from vagabond import bo_sao_ke_thu as m,thu_tien as tt
+    b={'dong':[dict(name='BT',phan_bo=100)],'chung_tu':[dict(doctype='Payment Entry',name='PE')]}
+    d=frappe._dict(doctype='Vagabond Cong No',name='CN',da_thu=100,ma_gd='BT\nREF',
+        trang_thai='Da thu du',save=lambda **k:None,add_comment=lambda *a:None)
+    pe=frappe._dict(docstatus=0,vgb_huy=0)
+    def value(dt,ma,f,**kw):return pe if dt=='Payment Entry' else 'REF'
+    with patch.object(tt,'la_ke_toan',return_value=True),patch.object(m.bs,'khoa_phieu'), \
+         patch.object(frappe,'get_doc',return_value=d),patch.object(m.bs,'doc_hien_tai',return_value=b), \
+         patch.object(frappe.db,'get_value',side_effect=value),patch.object(m.bs,'_loi',return_value=[]), \
+         patch.object(m.bs,'luu') as luu,patch.object(frappe.db,'set_value') as ghi:
+        nem('nháp sống',lambda:m.bo('CN'),frappe.ValidationError)
+        pe['docstatus']=1;pe['vgb_huy']=1
+        nem('ghi sổ dù có cờ hủy vẫn sống',lambda:m.bo('CN'),frappe.ValidationError)
+        la('chưa nhả',luu.call_count,0)
+        pe['docstatus']=0;m.bo('CN')
+        la('nhả cả bộ',luu.call_args.args[1],[])
+        la('không xóa chủ của nháp hủy',ghi.call_count,0)
+        la('trả khoản thu trên phiếu',d.da_thu,0)

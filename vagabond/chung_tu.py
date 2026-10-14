@@ -212,7 +212,7 @@ def huy_phieu_nhap(doctype, name, ly_do=None):
 		frappe.throw("Loại chứng từ này không dùng nút huỷ ở đây.")
 	if not (ly_do or "").strip():
 		frappe.throw("Phải ghi lý do huỷ thì sau này còn biết vì sao.")
-	doc = frappe.get_doc(doctype, name)
+	doc = frappe.get_doc(doctype, name, for_update=(doctype == "Payment Entry"))
 	_kiem_quyen_huy(doc)
 	if cint(doc.get("vgb_huy") or 0):
 		return {"ok": 1, "da_huy_tu_truoc": 1}
@@ -225,7 +225,7 @@ def bo_danh_dau_huy(doctype, name):
 	"""Danh dau nham thi go ra duoc - nhung van ghi vet lai."""
 	if doctype not in KHOA_XOA:
 		frappe.throw("Loại chứng từ này không dùng nút huỷ ở đây.")
-	doc = frappe.get_doc(doctype, name)
+	doc = frappe.get_doc(doctype, name, for_update=(doctype == "Payment Entry"))
 	# Go dau huy la lam song lai mot chung tu, nang hon huy - chi ke toan.
 	_kiem_quyen_huy(doc, cho_chu_phieu=False)
 	if not cint(doc.get("vgb_huy") or 0):
@@ -236,6 +236,8 @@ def bo_danh_dau_huy(doctype, name):
 		from vagabond.ban_hang import _chiem_gd_bill
 		from vagabond.chiem_sao_ke import tach_gd
 		_chiem_gd_bill(doc, tach_gd(doc.vgb_gd_sepay))
+	if doctype == 'Payment Entry' and doc.get('vgb_bo_cong_no'):
+		frappe.throw('Phiếu thu của bộ đã hủy. Bỏ bộ trên phiếu công nợ rồi khớp lại để lập phiếu mới, giữ nguyên lịch sử.')
 	gt = {"vgb_huy": 0, "vgb_huy_ly_do": "", "vgb_huy_luc": None, "vgb_huy_boi": ""}
 	them = ""
 	ma_cu = (doc.get("vgb_ma_pancake_huy") or "").strip()

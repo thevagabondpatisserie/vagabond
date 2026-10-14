@@ -2,6 +2,14 @@
 
 Codex chịu trách nhiệm triển khai. PR duy nhất trên `codex/ton-sau-594`, từ main `df22c3dcd`. Đích phát hành v595, chưa đặt phiên bản khi các cửa ghi chưa hoàn thiện. Không sửa chứng từ cũ.
 
+## Điểm tiếp nối hiện tại, 15/10
+
+- Remote mốc gần nhất: `182daeaf597ebf83c924500c05da49845edb5096`. CI/bench phải đọc lại trên GitHub; các đoạn phía dưới là nhật ký tích lũy, không phải mọi việc còn trắng.
+- P2/P3 đã sửa và có bench d6ff21bd8 xanh gồm staging, số đo trước/sau ghi bên dưới. Không làm lại từ đầu, kiểm hồi quy trên SHA cuối.
+- APP/TTNB/hoàn tiền/hoàn ứng đã có adapter và ca bench. Công nợ đã nối UI nhiều dòng, từng kỳ, PE từng Customer, ghi từng PE/UNC, tự dò nhiều dòng. Hủy mềm nháp đang bổ sung trong lượt này.
+- Còn A1: thống nhất một dòng/callback công nợ, tranh chấp SI/PE sau chờ khóa, tạm ứng và rà đủ mười nhóm trên SHA cuối. A2 đã có ca tranh chiếc bánh cuối, còn bench tổng cuối.
+- Không chuyển #471/#464, không đặt phiên bản/patch, không merge/deploy. APP.26.09.009 chỉ liệt kê, không sửa.
+
 ## A1. Tách và gộp tiền ngân hàng
 
 Nguồn: [giao việc 4 trên PR469](https://github.com/thevagabondpatisserie/vagabond/pull/469#discussion_r4257062044).
@@ -21,7 +29,7 @@ Nguồn: [giao việc 4 trên PR469](https://github.com/thevagabondpatisserie/va
 - Kiểm đột biến local: bỏ kiểm tổng bị 2 ca bắt; bỏ kiểm số dư bị 2 ca bắt; bật Gán sớm bị 5 ca DOM bắt; cho cộng khác tài khoản bị 1 ca DOM bắt. Đã khôi phục code đúng.
 - A1 còn các adapter nghiệp vụ và các ca cạnh tranh; A2 chưa triển khai. Chưa bàn giao hoàn thành, chưa sẵn sàng merge/deploy.
 
-### Còn phải làm trước khi phát hành
+### Cổng nghiệm thu cuối (chưa đánh dấu bằng SHA mới)
 
 - [ ] APP tự nhận cả bộ cùng mã, cùng tài khoản, tổng đủ. Chuyển sang PE/JE và nối đủ BT trong cùng transaction.
 - [ ] TTNB, hoàn tiền, công nợ tiền vào, tạm ứng, hoàn ứng dùng cùng bộ; rà cả callback cũ ngoài registry.
@@ -217,3 +225,11 @@ B: PR471 web Vue giữ Draft và công tắc tắt. Merge main không rebase, gi
   thiếu trường làm bằng chứng. Local cổng đầy đủ đạt trên lượt tự dò hẹp.
 
 - Bench fd473a20a: 418/419 cả hai lượt, sạch rollback. Ca nhóm6 gọi xóa PE nháp trái luật giữ chứng từ, bị on_trash chặn; sửa ca đi ghi sổ/huỷ lõi rồi bỏ bộ, không gỡ chốt xóa. Đường huỷ mềm PE nháp và phục hồi sau bỏ bộ vẫn phải làm riêng, chưa nhận là đủ nhóm6.
+
+### Hủy nháp giữ lịch sử (đang kiểm)
+
+- Bỏ bộ CN nhận PE đã hủy mềm, giữ link chủ lịch sử trên PE đó. Không xóa PE; nháp hủy không phủ nợ và không hiện ở Tiền đã về.
+- Cửa Gỡ hủy và Desk save không phục hồi PE của bộ; kế toán bỏ bộ rồi khớp lại để tạo PE mới. Hủy/gỡ hủy PE khóa trước đọc để không chạy trên bản nháp đã bị phiên khác ghi sổ.
+- Thêm bench hủy mềm, bỏ bộ, khớp lại, giữ nguyên lịch sử và từ chối phục hồi; chưa có kết quả bench SHA chứa thay đổi này. Đột biến bỏ hai chốt phục hồi: bắt2/2, khôi phục1/1đạt.
+
+- Local hủy mềm:35/35 ca module đạt;3/3 đột biến bị bắt (hai chốt phục hồi, một chốt nhận nháp hủy), khôi phục2ca đạt. Cổng toàn bộ phải theo log cuối, không lấy số4539 của lượt trước ca mới làm số cuối.

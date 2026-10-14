@@ -38,6 +38,8 @@ def bao_ve(pe, method=None):
         cu=pe.get_doc_before_save()
         if not cu:
             frappe.throw('Chưa đọc được bản phiếu thu trước sửa; tải lại để kiểm.')
+        if cu.get('vgb_huy') and not pe.get('vgb_huy'):
+            frappe.throw('Phiếu thu của bộ đã hủy. Bỏ bộ trên phiếu công nợ rồi khớp lại để lập phiếu mới, giữ nguyên lịch sử.')
         cot=('payment_type','party_type','party','company','paid_to',
              'paid_to_account_currency','paid_amount','received_amount','reference_no','bank_account')
         refs=lambda p: sorted((r.reference_doctype,r.reference_name,float(r.allocated_amount or 0))
@@ -74,7 +76,7 @@ def kiem_nguon(doc,g):
     if not g.reference_number:
         return 'Sao kê chưa có tham chiếu ngân hàng.'
     cu=frappe.get_all('Payment Entry',filters={'reference_no':g.reference_number,
-        'payment_type':'Receive','docstatus':['<',2]},pluck='name',limit_page_length=0)
+        'payment_type':'Receive','docstatus':['<',2],'vgb_huy':0},pluck='name',limit_page_length=0)
     da_giu={c['name'] for bo in bs._cac_bo(g.name,khoa=bool(g.flags.get('for_update')))
             for c in bo['chung_tu'] if c['doctype']=='Payment Entry'}
     if any(ma not in da_giu for ma in cu):
@@ -226,7 +228,8 @@ def bo(name):
     ct={(c['doctype'],c['name']) for c in b['chung_tu']}
     for dt,ma in sorted(ct):
         if dt!='Payment Entry':frappe.throw('Bộ thu chứa chứng từ không phải phiếu thu.')
-        if frappe.db.get_value(dt,ma,'docstatus',for_update=True) in (0,1):
+        pe=frappe.db.get_value(dt,ma,['docstatus','vgb_huy'],as_dict=True,for_update=True)
+        if pe and (pe.docstatus==1 or (pe.docstatus==0 and not pe.get('vgb_huy'))):
             frappe.throw('Phiếu thu '+ma+' còn hiệu lực. Kế toán xử lý phiếu thu trước khi bỏ bộ.')
     refs=set()
     for d in b['dong']:
@@ -234,7 +237,9 @@ def bo(name):
             frappe.throw('Sao kê còn liên kết phiếu thu; chưa bỏ được bộ.')
         refs.update((d['name'],frappe.db.get_value('Bank Transaction',d['name'],'reference_number')))
     for dt,ma in sorted(ct):
-        if frappe.db.exists(dt,ma):
+        pe=frappe.db.get_value(dt,ma,['docstatus','vgb_huy'],as_dict=True,for_update=True)
+        # Nháp hủy giữ chủ lịch sử để không thể gỡ hủy rồi ghi sổ bộ đã nhả.
+        if pe and pe.docstatus==2:
             frappe.db.set_value(dt,ma,O_CHU,None,update_modified=False)
     bs.luu(doc,[])
     doc.da_thu=max(0,flt(doc.da_thu)-sum(flt(d['phan_bo']) for d in b['dong']))

@@ -479,3 +479,32 @@ def _():
     cn.kiem_sepay(p.name);p.reload()
     la('bấm lại vẫn cùng PE',bs.doc_hien_tai(p)['chung_tu'],ct)
     hd.reload();la('nháp chưa giảm nợ sổ cái',flt(hd.outstanding_amount),flt(hd.grand_total))
+
+
+@ca('#476 hủy mềm PE nháp rồi bỏ bộ: giữ lịch sử, khớp lại được, không phục hồi chủ cũ')
+def _():
+    from vagabond.khung.kiem_that.thu_gom_phap_nhan_576 import _nen,_hd,_khach,_phieu
+    from vagabond.khung.kiem_that.thu_khop_tay_gop_571 import _gd
+    from vagabond import cong_no as cn,bo_sao_ke_luong as bl,thu_tien as tt,sepay,chung_tu
+    from frappe.utils import flt
+    import json
+    cty,tk,_mau=_nen();hd=_hd(tk,cty,100000,_khach('476HUYNHAP'))
+    p=_phieu([hd],hd.customer)
+    ba=_tai_khoan_cong_ty_moi(_tk_ngan_hang(cty));sepay.them_tai_khoan(ba.bank_account_no,ba.name)
+    g=_gd(ba.name,flt(hd.grand_total));dong=json.dumps([dict(name=g.name,phan_bo=flt(hd.grand_total))])
+    cu=cn.khop_tay(p.name,hd.grand_total,dong=dong,ma_lan='KT476-huy-nhap')['pe']
+    _DA_TAO.append(('Payment Entry',cu))
+    chung_tu.huy_phieu_nhap('Payment Entry',cu,'Kiểm hủy mềm trong bench')
+    bl.bo('cong_no',p.name)
+    la('nháp gốc còn nguyên',frappe.db.get_value('Payment Entry',cu,'vgb_huy'),1)
+    la('nháp hủy không phủ nợ',tt.phan_bo_nhap_theo_hd([hd.name]).get(hd.name,0),0)
+    moi=cn.khop_tay(p.name,hd.grand_total,dong=dong,ma_lan='KT476-sau-huy-nhap')['pe']
+    _DA_TAO.append(('Payment Entry',moi));dung('phiếu mới khác lịch sử',moi!=cu)
+    la('tab chỉ phiếu sống',[r['pe'] for r in tt.phieu_thu_nhap([hd.name])],[moi])
+    try:chung_tu.bo_danh_dau_huy('Payment Entry',cu)
+    except frappe.ValidationError:pass
+    else:dung('không phục hồi phiếu đã nhả bộ',False)
+    la('không gỡ dấu hủy',frappe.db.get_value('Payment Entry',cu,'vgb_huy'),1)
+    hd.reload();g.reload()
+    la('không giảm nợ khi còn nháp',flt(hd.outstanding_amount),flt(hd.grand_total))
+    la('không ghi phân bổ lõi khi còn nháp',flt(g.allocated_amount),0)
