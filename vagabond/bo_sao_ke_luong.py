@@ -174,6 +174,9 @@ def bo(loai, ma):
     """Bỏ toàn bộ chỗ giữ của phiếu, không huỷ hoặc tháo bút toán thay kế toán."""
     from vagabond import doi_soat_sepay as dss
     b=dss.kiem_quyen_luong(loai,ghi=True)
+    if loai=='cong_no':
+        from vagabond.bo_sao_ke_thu import bo as bo_thu
+        return bo_thu(ma)
     if loai not in LUONG:
         frappe.throw("Luồng này chưa có cửa bỏ bộ sao kê.")
     doc=frappe.get_doc(b['doctype'],ma,for_update=True)

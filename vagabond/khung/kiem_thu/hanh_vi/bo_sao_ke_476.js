@@ -69,6 +69,26 @@ async function man(rows, can=714138056, save) {
     const m=await man([a,dong('B',NaN)],100);m.chon('A');m.chon('B');
     assert.equal(m.nut('ksGan').disabled,true);assert.equal(Object.keys(m.o._boSepay).length,0);
   });
+  await ca('công nợ thu kỳ40 chỉ lấy40, số còn phải thu đổi không cho Gán',async()=>{
+    const m=await man([dong('A',100)],100);
+    m.o.loai='cong_no';m.o.tien_ky=40;await m.render();m.chon('A');
+    await m.nut('ksGan').onclick();assert.equal(m.calls[0][1],40);
+    m.response.so_tien=20;await m.render();assert.equal(m.nut('ksGan'),null);
+    assert(m.document.body.textContent.includes('đã đổi'));
+  });
+  await ca('công nợ bộ mất phản hồi thử lại đúng payload và mã lần',async()=>{
+    const m=await man([],100),vet=[];
+    const s=fs.readFileSync(path.resolve(__dirname,'../../../public/js/bep/21-ke-toan-khac.js'),'utf8');
+    vm.runInContext(s,m.g);
+    m.g.hoiSo=async()=>40;m.g.hoiChu=async()=> 'Khách trả góp';m.g.hoiCo=async()=>true;
+    m.g.go=()=>{};m.g.scrKhopSepay=async o=>{m.o=o;};
+    m.g.api=async(h,p)=>{vet.push(JSON.parse(JSON.stringify(p)));if(vet.length===1)throw Error('Mất mạng');return {ok:1};};
+    const d={name:'CN',con_thieu:100};
+    await m.g.cnKhopBo(d,'LAN1');await m.o.chon('[{"name":"BT","phan_bo":40}]',40);
+    assert(m.g.CN_BO_CHO.CN);await m.g.cnKhopBo(d,'LAN-KHAC');
+    assert.deepEqual(vet[0],vet[1]);assert.equal(m.g.CN_BO_CHO.CN,undefined);
+    assert.equal(vet[1].ma_lan,'LAN1');
+  });
   await ca('màn cũ không có cờ bộ vẫn gọi cửa cũ',async()=>{
     const m=await man([dong('A',100)],100);m.response.chon_bo=0;await m.render();m.chon('A');
     assert.equal(m.calls[0][0],'A');assert.equal(m.nut('ksGan'),null);

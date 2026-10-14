@@ -117,7 +117,7 @@ def bao_ve(doc, method=None):
         doc.set(O_BO, frappe.db.get_value(doc.doctype,doc.name,O_BO) if not doc.is_new() else None)
 
 
-def chon(doc, dong, can, chieu, kiem, ghi=False):
+def chon(doc, dong, can, chieu, kiem, ghi=False, them_dot=False):
     """kiểm nguồn/legacy qua callback; không dùng tiền client làm tổng phiếu."""
     cua(doc)
     if isinstance(dong,str):
@@ -147,7 +147,10 @@ def chon(doc, dong, can, chieu, kiem, ghi=False):
     if ghi:
         cu=doc_hien_tai(doc)
         if cu["chung_tu"] and cu["dong"] != dong:
-            frappe.throw("Bộ cũ đã nối bút toán. Bỏ đối chiếu trước khi đổi bộ.")
+            moi={d['name']:flt(d['phan_bo']) for d in dong}
+            chi_them=them_dot and all(moi.get(d['name'],0)>=flt(d['phan_bo']) for d in cu['dong'])
+            if not chi_them:
+                frappe.throw("Bộ cũ đã nối bút toán. Bỏ đối chiếu trước khi đổi bộ.")
         luu(doc,dong,cu["chung_tu"])
     return frappe._dict(name=gs[0].name, date=max(str(g.date) for g in gs),
         reference_number="; ".join(g.reference_number or g.name for g in gs),

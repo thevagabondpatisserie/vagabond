@@ -369,21 +369,34 @@ def _():
 
 @ca('#476 lõi ghi từng PE công nợ qua hai BT: PE nháp giữ phần, retry và hủy')
 def _():
-    from vagabond.khung.kiem_that.thu_gom_phap_nhan_576 import _du_lieu
+    from vagabond.khung.kiem_that.thu_gom_phap_nhan_576 import _nen,_hd,_khach,_phieu
     from vagabond.khung.kiem_that.thu_khop_tay_gop_571 import _gd
-    from vagabond import bo_sao_ke_db as bs
+    from vagabond import bo_sao_ke_db as bs, thu_tien as tt
     from frappe.utils import flt
-    a,b,g,p,cac=_du_lieu()
-    tong=sum(flt(pe.received_amount) for pe in cac)
-    so_a=flt(cac[0].received_amount)-1
-    ga,gb=_gd(g.bank_account,so_a),_gd(g.bank_account,tong-so_a)
+    cty,tk,_mau=_nen()
+    a,b=_hd(tk,cty,60000,_khach('476A')),_hd(tk,cty,40000,_khach('476B'))
+    p=_phieu([a,b],a.customer)
+    ba=_tai_khoan_cong_ty_moi(_tk_ngan_hang(cty))
+    from vagabond import sepay
+    sepay.them_tai_khoan(ba.bank_account_no,ba.name)
+    tong=flt(a.grand_total)+flt(b.grand_total)
+    so_a=1  # PE đầu chắc chắn cần phần ở BT thứ hai, không phụ thuộc thứ tự khách.
+    ga,gb=_gd(ba.name,so_a),_gd(ba.name,tong-so_a)
     ds=[dict(name=ga.name,phan_bo=so_a),dict(name=gb.name,phan_bo=tong-so_a)]
-    bs.luu(p,ds,[dict(doctype=pe.doctype,name=pe.name) for pe in cac])
-    # Đo riêng phép nối lõi. Cửa app/factory cũ chưa dùng helper này;
-    # ca này không thay nghiệm thu ghi_so_phieu_thu và UNC của màn công nợ.
+    from vagabond import cong_no as cn
+    import json
+    lap=cn.khop_tay(p.name,999999999,dong=json.dumps(ds),ma_lan='KT476-thu-bo')
+    cac=[frappe.get_doc('Payment Entry',ma) for ma in lap['pe'].split(', ')]
+    la('retry cùng lần không lập PE mới',cn.khop_tay(p.name,999999999,dong=json.dumps(ds),ma_lan='KT476-thu-bo')['da_lam_roi'],1)
+    _DA_TAO.extend((pe.doctype,pe.name) for pe in cac)
+    la('không lấy số caller',lap['tien'],tong)
+    la('hai PE đúng hai khách',len(cac),2)
+    la('tab nháp xác minh cả bộ',sum(r['da_xac_minh'] for r in tt.phieu_thu_nhap([a.name,b.name])),2)
     for i,pe in enumerate(cac):
-        with _Tep(pe.name,vao_o=True):
-            pe.reload();pe.submit()
+        with _Tep() as tep:
+            r=tt.ghi_so_phieu_thu(pe.name,unc=[tep.file_url])
+            la('app ghi sổ qua hook bộ',r.get('ok'),1)
+        pe.reload()
         k=bs.noi_tung_phieu_thu(p,pe.name)
         la('đủ tiền PE',k['tien'],flt(pe.received_amount))
         la('retry cùng tiền',bs.noi_tung_phieu_thu(p,pe.name)['tien'],flt(pe.received_amount))
@@ -404,3 +417,36 @@ def _():
     for hd in (a,b):
         hd.reload()
         la('hủy trả nợ đúng khách',flt(hd.outstanding_amount),flt(hd.grand_total) if hd.name in huy_hd else 0)
+
+
+@ca('#476 nhóm6: công nợ trả hai kỳ từ cùng BT, phần dư cho phiếu khác, bỏ bộ giữ phiếu kia')
+def _():
+    from vagabond.khung.kiem_that.thu_gom_phap_nhan_576 import _nen,_hd,_khach,_phieu
+    from vagabond.khung.kiem_that.thu_khop_tay_gop_571 import _gd
+    from vagabond import cong_no as cn,bo_sao_ke_luong as bl,bo_sao_ke_db as bs,sepay
+    from frappe.utils import flt
+    import json
+    cty,tk,_mau=_nen()
+    a,b=_hd(tk,cty,100000,_khach('476KY1')),_hd(tk,cty,100000,_khach('476KY2'))
+    p,q=_phieu([a],a.customer),_phieu([b],b.customer)
+    ba=_tai_khoan_cong_ty_moi(_tk_ngan_hang(cty));sepay.them_tai_khoan(ba.bank_account_no,ba.name)
+    g=_gd(ba.name,flt(a.grand_total)+flt(b.grand_total))
+    cac=[]
+    for so,ky in [(40000,'lan1'),(flt(a.grand_total)-40000,'lan2')]:
+        r=cn.khop_tay(p.name,so,dong=json.dumps([dict(name=g.name,phan_bo=so)]),ma_lan='KT476-'+ky)
+        cac+=r['pe'].split(', ')
+        _DA_TAO.extend(('Payment Entry',ma) for ma in r['pe'].split(', '))
+    p.reload();la('hai kỳ phủ đúng một phiếu',flt(p.da_thu),flt(a.grand_total))
+    r=cn.khop_tay(q.name,flt(b.grand_total),dong=json.dumps([dict(name=g.name,phan_bo=flt(b.grand_total))]),ma_lan='KT476-khac')
+    _DA_TAO.extend(('Payment Entry',ma) for ma in r['pe'].split(', '))
+    dung('khách khác PE riêng',r['pe'] not in cac)
+    try:bl.bo('cong_no',p.name)
+    except frappe.ValidationError:pass
+    else:dung('nháp còn sống không bỏ giữ',False)
+    # Kế toán xóa nháp qua lõi, không chạm chứng từ cũ hoặc ghi tay docstatus.
+    for ma in cac:frappe.delete_doc('Payment Entry',ma,ignore_permissions=True)
+    bl.bo('cong_no',p.name);p.reload();q.reload();g.reload()
+    la('phiếu1 về chờ thu',flt(p.da_thu),0)
+    la('phiếu2 vẫn giữ đủ',sum(flt(d['phan_bo']) for d in bs.doc_hien_tai(q)['dong']),flt(b.grand_total))
+    la('retry bỏ cả bộ',bl.bo('cong_no',p.name)['da_lam_roi'],1)
+    la('không tự sinh bút toán',flt(g.allocated_amount),0)

@@ -153,3 +153,50 @@ B: PR471 web Vue giữ Draft và công tắc tắt. Merge main không rebase, gi
   pypdf6.10.0:13/13ca module đạt; toàn bộ fakeCI bundled4530/4530 tại d6ff.
 
 - Local lượt helper:4529/4529 bằng Python hệ thống; fakeCI bundled có pypdf4531/4531; cổng đầy đủ mã0. Chưa có bench helper, không gọi A1 đạt.
+
+### P2/P3 chốt bằng chứng d6ff và A1 nối chủ phiếu thu
+
+- SHA d6ff21bd821fe7451950f890a19bb15eb8e6ca07: CI38620297433 và
+  bench38620297359 đều SUCCESS, gồm staging.417/417 mỗi lượt, sạch rollback.
+  P2 lần lượt0,044130136giây; đảo thứ tự B0,041298030giây không deadlock;
+  tạo APP0,037878483giây. P3 từ2,066341873giây xuống0,192433728giây.
+- ad001975d đã đẩy helper ghi từng PE. Lượt tiếp thêm Link chủ CN trên PE
+  hiện có, bảo vệ bằng DB, khóa trước Document và kiểm không sửa khách,
+  hóa đơn, tiền của PE đang thuộc bộ qua payload. Không thêm DocType.
+- Factory thu_tien có nhánh bộ nội bộ: đọc lại nguồn/hạn mức từ DB, mỗi
+  Customer một PE, bind sau khi lưu danh sách CT. Tab nháp và ghi sổ app
+  đọc cùng chủ DB; hook submit phân bổ qua lõi. UNC vẫn bắt buộc như cũ.
+- Bench mới đổi ca helper sang tạo hai Customer/PE bằng factory, tab nháp,
+  ghi_so_phieu_thu với tệp thật, hai BT, retry và cancel. Chưa có kết quả
+  trên SHA lượt nối này; không lấy bench d6ff thay.
+- Cửa cong_no.khop_tay chưa nhận bộ; UI, callback tự động, trả góp và bỏ
+  bộ CN, tạm ứng vẫn còn. Chưa có bàn giao ĐÃ SỬA XONG, chưa chuyển B/C.
+
+- Cửa cong_no.khop_tay đã thêm nhánh dong nội bộ có mã lần thao tác, khóa
+  BT trước CN, cộng kỳ thu nhưng không giảm phần cũ đã gắn PE. Factory bỏ
+  tổng client, đọc lại hạn mức DB. Ca bench mới gọi cửa này thật và retry.
+  Chưa nối UI/callback, chưa kiểm đủ trả góp/bỏ bộ CN, nên chưa mở phát hành.
+- Chủ cũ không có bộ vẫn phải giữ: đọc danh sách mã CN nhiều dòng; chủ bộ
+  mới không chiếm nguyên BT khi kiểm đường chia phần. Lỗi đọc registry/chủ
+  trong đường ghi mới nổi lỗi, không nuốt để nhận nhầm tiền.
+
+### Nối lại phiên: công nợ bộ và trả góp đang kiểm
+
+- Bench ad001975d đã SUCCESS cả staging (run38622885452); không thay cho
+  bench bản nối cửa nghiệp vụ mới dưới đây.
+- Cửa khớp tay nhận bộ sao kê, factory lập PE riêng mỗi Customer, từng PE
+  ghi sổ qua lõi và giữ phần của PE còn nháp. Chủ bộ trên PE lấy từ DB.
+- Màn Khớp tay thêm chọn nhiều giao dịch/thu một phần, dùng chung màn SePay.
+  Kỳ mới chỉ thấy phần chưa giữ của kỳ trước. Mất phản hồi gửi lại đúng
+  payload/mã lần; không dùng số tiền client để thay số máy chủ.
+- Bỏ cả bộ CN chỉ cho kế toán, từ chối nếu PE nháp/đã ghi sổ còn hiệu lực.
+  Không tự hủy chứng từ. Khi hợp lệ, giữ nguyên bộ của phiếu khác dùng cùng BT.
+- Thêm bench nhóm6: hai kỳ thu cùng BT, phần dư cho phiếu khác, bỏ bộ/retry;
+  thêm ca hai Customer, hai BT, UNC thật, ghi từng PE, hủy trả nợ đúng khách.
+  Chưa chạy bench trên commit của lượt này.
+- DOM mới14/14. Hai đột biến mới: tin chủ PE từ payload và quên trừ phần kỳ
+  trước, mỗi đột biến bị1ca bắt (2/2); khôi phục2/2đạt. Probe đầu đọc nhầm
+  harness tích lũy lỗi thành exception nên ghi0/2, đã sửa bộ chạy và đo lại.
+- VIỆC CHƯA LÀM: tự dò/callback CN và đường một dòng cũ chưa chuyển cùng
+  cửa bộ; còn rà cạnh tranh SI/PE, tạm ứng, đủ10nhóm và bench tổng SHA cuối.
+  Không báo A1 xong, không chuyển B/C, không merge/deploy hoặc sửa dữ liệu cũ.

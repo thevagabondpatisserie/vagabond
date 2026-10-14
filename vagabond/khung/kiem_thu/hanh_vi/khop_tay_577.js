@@ -160,11 +160,12 @@ async function moKhop(app, them) {
     var t = app.mc.cuoi('vagabond.cong_no.tim_giao_dich_thu');
     bang('hoi may chu moi giao dich chua noi', [t.a.chua_noi, t.a.so_tien], [1, 8450000]);
     var muc = app.tim('[data-hc]');
-    bang('muc Tim, du 10 giao dich va muc khong thay', muc.length, 12);
-    bang('muc dau la Tim tren may chu', muc[0].getAttribute('data-hc'), '@tim');
-    bang('khoan dung so dau tien', muc[1].getAttribute('data-hc'), 'FT-DUNGSO');
-    dung('nhan dung so tien', chu(muc[1]).indexOf('đúng số tiền') >= 0);
-    dung('giao dich Kiet Tac co trong hop', chu(muc[2]).indexOf('Kiet Tac doi soat') >= 0);
+    bang('muc bo, Tim, du 10 giao dich va muc khong thay', muc.length, 13);
+    bang('loi chon bo va tra gop', muc[0].getAttribute('data-hc'), '@bo');
+    bang('muc dau la Tim tren may chu', muc[1].getAttribute('data-hc'), '@tim');
+    bang('khoan dung so dau tien', muc[2].getAttribute('data-hc'), 'FT-DUNGSO');
+    dung('nhan dung so tien', chu(muc[2]).indexOf('đúng số tiền') >= 0);
+    dung('giao dich Kiet Tac co trong hop', chu(muc[3]).indexOf('Kiet Tac doi soat') >= 0);
     dung('co o tim', app.tim('#hcTim').length === 1);
   });
 

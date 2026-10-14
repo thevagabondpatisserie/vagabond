@@ -20060,6 +20060,7 @@ async function scrCnPhieu(name) {
     '<button class="btn gh" id="cnKiem" style="flex:1;margin:0">🔄 Đối chiếu SePay</button>' +
     (du ? '<button class="btn gh" id="cnThu" style="flex:1;margin:0">✉️ Thư báo</button>'
         : '<button class="btn gh" id="cnKhop" style="flex:1;margin:0">🔎 Khớp tay</button>') +
+    (d.bo_sao_ke_duoc ? '<button class="btn gh" id="cnBoBo">Bỏ bộ sao kê</button>' : '') +
     (du || d.trang_thai === 'Huy' || d.huy_duoc === 0 ? '' : '<button class="btn gh" id="cnHuy" style="flex:0 0 34%;margin:0;color:#b3261e">Huỷ phiếu</button>') +
     '</div>';
   var b = frame('Phiếu ' + h(d.ma_phieu), html, { footer: foot });
@@ -20071,6 +20072,8 @@ async function scrCnPhieu(name) {
   });
   var nkhop = document.getElementById('cnKhop');
   if (nkhop) nkhop.onclick = function () { cnKhopTay(d); };
+  var nbo = document.getElementById('cnBoBo');
+  if (nbo) nbo.onclick = function () { return boBoSepay('cong_no', name, function () { return scrCnPhieu(name); }); };
   var nthu = document.getElementById('cnThu');
   if (nthu) nthu.onclick = async function () {
     var xt;
@@ -42442,6 +42445,8 @@ async function cnKhopTay(d) {
     rows = ds.rows || [];
     var lc = [{ k: '@tim', nhan: tuKhoa ? 'Tìm lại (đang tìm "' + tuKhoa + '")' : 'Tìm trong mọi giao dịch chưa nối',
       mo_ta: 'Gõ tên khách, nội dung chuyển khoản, mã giao dịch hoặc số tiền; máy tìm trên toàn bộ 4 tháng.', icon: '🔎' }];
+    lc.unshift({k:'@bo', nhan:'Chọn nhiều giao dịch hoặc thu một phần',
+      mo_ta:'Dùng một phần sao kê cho phiếu này; phần còn lại dùng cho phiếu khác.', icon:'🏦'});
     rows.forEach(function (r) {
       var tien = r.con != null ? r.con : r.tien;
       lc.push({
@@ -42467,6 +42472,8 @@ async function cnKhopTay(d) {
     if (q === null) return;
     tuKhoa = String(q || '').trim();
   }
+
+  if (chon === '@bo') return cnKhopBo(d, maLan);
 
   var soTien = con, maGd = '', unc = null, lonHon = 0;
   if (chon === '@go_tay') {
@@ -43222,6 +43229,39 @@ async function scrNopQuySua() {
       go(scrNopQuyXem, true);
     } catch (e) { busy(false); baoTin((e && e.message) || 'Không sửa được', 'Sửa phiếu'); }
   };
+}
+
+
+/* Một kỳ thu giữ nguyên payload khi mất phản hồi; không đổi lựa chọn rồi
+   gửi lại cùng mã lần. Máy chủ vẫn đọc lại số dư và khóa toàn bộ sao kê. */
+var CN_BO_CHO = {};
+async function cnKhopBo(d, maLan) {
+  var dangCho = CN_BO_CHO[d.name], con = Number(d.con_thieu != null ? d.con_thieu : d.tong_tien);
+  var ky = dangCho ? dangCho.tien : await hoiSo('Khoản thu lần này',
+    'Nhập khoản cần gán lần này, tối đa ' + money(con) + ' đ. Có thể thu nhiều lần.', String(con));
+  if (ky === null || ky === undefined) return;
+  ky = Number(ky);
+  if (!Number.isFinite(ky) || ky <= 0 || ky > con) return baoTin('Nhập số tiền lớn hơn 0 và không vượt khoản còn phải thu.');
+  async function gui(dong, tien) {
+    var p = CN_BO_CHO[d.name];
+    if (!p) {
+      var gc = await hoiChu('Khớp bộ sao kê', 'Ghi chú cho lần thu này.', '', {nhieu_dong:1});
+      if (gc === null) return;
+      if (!await hoiCo('Xác nhận khớp bộ', 'Lập phiếu thu nháp ' + money(tien) +
+          ' đ. Kế toán đính UNC và ghi sổ từng phiếu ở Tiền đã về. Chưa ghi sổ thì chưa giảm công nợ trên sổ cái.', 'Lập phiếu thu')) return;
+      p = CN_BO_CHO[d.name] = {dong:dong,tien:tien,gc:gc,ma_lan:maLan};
+    }
+    try {
+      var kq = await api('vagabond.cong_no.khop_tay', {name:d.name,dong:p.dong,
+        so_tien:p.tien,ghi_chu:p.gc,ma_lan:p.ma_lan});
+      delete CN_BO_CHO[d.name]; delete CN_LAN_CHO[d.name];
+      await baoTin(kq.loi_nhan || 'Đã lập phiếu thu nháp.');
+      go(function () { scrCnPhieu(d.name); }, true);
+    } catch(e) { await baoTin(((e && e.message) || 'Chưa nhận được kết quả.') +
+      '\nBấm lại để kiểm đúng lần thu đang gửi, không tạo thêm phiếu.'); }
+  }
+  if (dangCho) return gui(dangCho.dong,dangCho.tien);
+  return scrKhopSepay({loai:'cong_no',ma:d.name,tien_ky:ky,chon:gui});
 }
 /* ========== QUAN LY HOP DONG MUA BAN: BAO GIA + HOP DONG ==========
    (anh Viet 14/08/2026, lam lai theo gop y buoi chieu)
@@ -45399,6 +45439,14 @@ async function scrKhopSepay(o, loc, giuTim) {
     return;
   }
   if (luot !== scrKhopSepay.luot) return;
+  if (o.loai === 'cong_no' && o.tien_ky != null) {
+    var ky = Number(o.tien_ky);
+    if (!Number.isFinite(ky) || ky <= 0 || ky > Number(kq.so_tien)) {
+      frame('Khớp SePay thủ công', '<div class="emp">Khoản còn phải thu đã đổi. Quay lại phiếu để chọn khoản thu mới.</div>');
+      return;
+    }
+    kq.so_tien = ky;
+  }
   var rows = kq.rows || [], cd = kq.chan_doan || {};
   var nhieu = kq.chon_bo === 1, chon = o._boSepay || (o._boSepay = {}), dangGan = false;
   function tongChon() { return Object.keys(chon).reduce(function (t, ma) { return t + chon[ma].phan_bo; }, 0); }

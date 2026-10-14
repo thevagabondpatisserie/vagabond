@@ -288,7 +288,7 @@ def da_chiem(loai, tru_phieu=None):
 HD_BAN = {"doctype": "Sales Invoice", "truong": "vgb_gd_sepay", "ten_man": "hoá đơn bán"}
 
 
-def chu_cua_giao_dich(ds_gd, bo_qua_loai=None, bo_qua_phieu=None, bo_qua_hoa_don=None):
+def chu_cua_giao_dich(ds_gd, bo_qua_loai=None, bo_qua_phieu=None, bo_qua_hoa_don=None, cho_bo=False):
 	"""Mỗi mã giao dịch trong `ds_gd` hiện đang thuộc về chứng từ nào.
 
 	Trả về {mã giao dịch: "tên màn PHIEU-XXX"}. Không có chủ thì không có
@@ -308,7 +308,7 @@ def chu_cua_giao_dich(ds_gd, bo_qua_loai=None, bo_qua_phieu=None, bo_qua_hoa_don
 	# Các cửa một dòng cũ phải thấy cả BT thứ hai/thứ ba trong bộ đang
 	# giữ. Không suy quyền dùng từ mã đầu tiên còn lưu để tương thích.
 	from vagabond import bo_sao_ke_db as bs
-	for ma in sorted(muon):
+	for ma in ([] if cho_bo else sorted(muon)):
 		for bo in bs._cac_bo(ma):
 			dt, ten = bo["chu"].split("/", 1)
 			if ten != bo_qua_phieu:
@@ -317,20 +317,28 @@ def chu_cua_giao_dich(ds_gd, bo_qua_loai=None, bo_qua_phieu=None, bo_qua_hoa_don
 		nap_so()
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "doi_soat_sepay: nap so de hoi chu")
+		if cho_bo:raise
 	for loai, b in _SO.items():
 		if bo_qua_loai and loai == bo_qua_loai:
 			continue
-		loc = {b["truong_gd"]: ["in", sorted(muon)]}
+		loc = {b["truong_gd"]: (["is", "set"] if cho_bo and loai=="cong_no" else ["in", sorted(muon)])}
 		loc.update(b.get("loc_chiem") or {})
 		if bo_qua_phieu:
 			loc["name"] = ["!=", bo_qua_phieu]
 		try:
 			ds = frappe.get_all(b["doctype"], filters=loc,
-				fields=["name", b["truong_gd"]], limit_page_length=0)
+				fields=["name", b["truong_gd"]] + ([bs.O_BO] if cho_bo and b["doctype"] in bs.PHIEU else []), limit_page_length=0)
 		except Exception:
 			frappe.log_error(frappe.get_traceback(), "doi_soat_sepay: hoi chu luong %s" % loai)
+			if cho_bo:raise
 			continue
 		for r in ds:
+			if cho_bo and r.get(bs.O_BO):continue
+			if cho_bo and loai=="cong_no":
+				from vagabond.chiem_sao_ke import tach_gd
+				for ma in tach_gd(r.get(b['truong_gd'])):
+					if ma in muon:ra.setdefault(ma,b['ten_man']+' '+r['name'])
+				continue
 			ma = str(r.get(b["truong_gd"]) or "").strip()
 			if ma and ma not in ra:
 				ra[ma] = "%s %s" % (b["ten_man"], r["name"])
@@ -352,6 +360,7 @@ def chu_cua_giao_dich(ds_gd, bo_qua_loai=None, bo_qua_phieu=None, bo_qua_hoa_don
 					ra[ma] = "%s %s" % (HD_BAN["ten_man"], r["name"])
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "doi_soat_sepay: hoi chu hoa don ban")
+		if cho_bo:raise
 	return ra
 
 
@@ -580,10 +589,13 @@ def ung_vien(loai, ma_phieu, so_ngay=45, tu_khoa="", tai_khoan="", thu_tu="goi_y
 	ma = str(b["ma_do"](doc) or "").strip()
 	tien = flt(b["so_tien"](doc))
 	kq = danh_sach_chon(b["chieu"], ma, tien, so_ngay, tu_khoa, tai_khoan, thu_tu, bat_dau,
-		ly_do=lambda g: _loi_giao_dich(b, g), chiem={} if loai in ("ttnb","hoan_tien") else da_chiem(loai, tru_phieu=ma_phieu))
+		ly_do=lambda g: _loi_giao_dich(b, g), chiem={} if loai in ("ttnb","hoan_tien","cong_no") else da_chiem(loai, tru_phieu=ma_phieu))
 	if loai in ("ttnb","hoan_tien"):
 		from vagabond.bo_sao_ke_luong import ung_vien as ung_vien_bo
 		kq = ung_vien_bo(loai,doc,kq)
+	if loai == "cong_no":
+		from vagabond.bo_sao_ke_thu import ung_vien as ung_vien_thu
+		kq = ung_vien_thu(doc,kq)
 	kq.update(ten_man=b["ten_man"], ma_gd_dang_gan=doc.get(b["truong_gd"]) or "",
 		nhac="" if ma else "Phiếu chưa có mã để dò. Đọc nội dung rồi chọn giao dịch.")
 	return kq

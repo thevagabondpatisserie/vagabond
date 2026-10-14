@@ -576,6 +576,7 @@ async function scrCnPhieu(name) {
     '<button class="btn gh" id="cnKiem" style="flex:1;margin:0">🔄 Đối chiếu SePay</button>' +
     (du ? '<button class="btn gh" id="cnThu" style="flex:1;margin:0">✉️ Thư báo</button>'
         : '<button class="btn gh" id="cnKhop" style="flex:1;margin:0">🔎 Khớp tay</button>') +
+    (d.bo_sao_ke_duoc ? '<button class="btn gh" id="cnBoBo">Bỏ bộ sao kê</button>' : '') +
     (du || d.trang_thai === 'Huy' || d.huy_duoc === 0 ? '' : '<button class="btn gh" id="cnHuy" style="flex:0 0 34%;margin:0;color:#b3261e">Huỷ phiếu</button>') +
     '</div>';
   var b = frame('Phiếu ' + h(d.ma_phieu), html, { footer: foot });
@@ -587,6 +588,8 @@ async function scrCnPhieu(name) {
   });
   var nkhop = document.getElementById('cnKhop');
   if (nkhop) nkhop.onclick = function () { cnKhopTay(d); };
+  var nbo = document.getElementById('cnBoBo');
+  if (nbo) nbo.onclick = function () { return boBoSepay('cong_no', name, function () { return scrCnPhieu(name); }); };
   var nthu = document.getElementById('cnThu');
   if (nthu) nthu.onclick = async function () {
     var xt;

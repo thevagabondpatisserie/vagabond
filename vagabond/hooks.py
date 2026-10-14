@@ -1036,4 +1036,6 @@ extend_doctype_class = {dt: ["vagabond.bo_sao_ke_document.KhoaBoSaoKe"] for dt i
 
 _cu_chu_bt = doc_events.setdefault("Bank Transaction", {}).get("before_validate", [])
 doc_events["Bank Transaction"]["before_validate"] = ([_cu_chu_bt] if isinstance(_cu_chu_bt, str) else list(_cu_chu_bt)) + ["vagabond.bo_sao_ke_db.bao_ve_chu_bt"]
-extend_doctype_class['Payment Entry'] = ['vagabond.bo_sao_ke_document.KhoaBoHoanTien']
+extend_doctype_class['Payment Entry'] = ['vagabond.bo_sao_ke_document.KhoaBoHoanTien', 'vagabond.bo_sao_ke_document.KhoaBoThu']
+doc_events['Payment Entry']['before_validate'].append('vagabond.bo_sao_ke_thu.bao_ve')
+doc_events['Payment Entry']['on_submit'].append('vagabond.bo_sao_ke_thu.khi_ghi_so')

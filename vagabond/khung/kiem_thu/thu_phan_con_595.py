@@ -441,3 +441,103 @@ def _():
         nem('PE ngoài bộ bị chặn',lambda:bs.noi_tung_phieu_thu(doc,'PE-OUT'),frappe.ValidationError)
         ps['PE2'].paid_to='KHAC'
         nem('không đổi tài khoản',lambda:bs.noi_tung_phieu_thu(doc,'PE2'),frappe.ValidationError)
+
+
+@ca('#476 chủ PE từ DB: không tin payload, bộ thiếu PE phải lỗi, khóa trước đọc bộ')
+def _():
+    import frappe,json
+    from unittest.mock import patch
+    from vagabond import bo_sao_ke_thu as m
+    b={'dong':[dict(name='BT',phan_bo=100)],'chung_tu':[dict(doctype='Payment Entry',name='PE')]}
+    vet=[]
+    def value(dt,ma,f,**kw):
+        vet.append((dt,kw.get('for_update',False)))
+        return 'CN' if dt=='Payment Entry' else json.dumps(b)
+    with patch.object(frappe.db,'get_value',side_effect=value),patch.object(m.bs,'khoa_phieu',side_effect=lambda *a:vet.append('khoa')):
+        la('chủ DB',m.chu('PE',khoa=True),'CN')
+        la('khóa trước đọc metadata',vet,[('Payment Entry',False),'khoa',('Vagabond Cong No',True)])
+        nem('PE ngoài CT không tin link riêng',lambda:m.chu('PE-GIA'),frappe.ValidationError)
+    class D(dict):
+        name='PE'
+        def is_new(self):return True
+        def set(self,k,v):self[k]=v
+    d=D(vgb_bo_cong_no='CN-GIA')
+    with patch.object(m,'chu',side_effect=AssertionError('phiếu mới không lấy chủ payload')):
+        m.bao_ve(d)
+    la('bỏ chủ giả',d[m.O_CHU],None)
+
+
+@ca('#476 bộ thu khóa trước cả load PE và save, không dựa cờ máy khách')
+def _():
+    from unittest.mock import patch
+    from vagabond.bo_sao_ke_document import KhoaBoThu
+    from vagabond import bo_sao_ke_thu as m
+    vet=[]
+    class Goc:
+        name='PE';flags={'for_update':True}
+        def is_new(self):return False
+        def load_from_db(self):vet.append('core-load')
+        def _save(self,*a,**k):vet.append('core-save')
+    class D(KhoaBoThu,Goc):pass
+    with patch.object(m,'chu',side_effect=lambda ma,khoa=False:vet.append((ma,khoa))):
+        D().load_from_db();D()._save()
+    la('đủ hai cửa',vet,[('PE',True),'core-load',('PE',True),'core-save'])
+
+
+@ca('#476 PE thuộc bộ không sửa khách, hóa đơn, tiền bằng payload trực tiếp')
+def _():
+    import frappe
+    from unittest.mock import patch
+    from vagabond import bo_sao_ke_thu as m
+    class D(frappe._dict):
+        def is_new(self):return False
+        def set(self,k,v):self[k]=v
+        def get_doc_before_save(self):return cu
+    cu=D(name='PE',party='KH1',received_amount=100,
+        references=[frappe._dict(reference_doctype='Sales Invoice',reference_name='SI1',allocated_amount=100)])
+    with patch.object(m,'chu',return_value='CN-THAT'):
+        d=D(cu);d[m.O_CHU]='CN-GIA';m.bao_ve(d)
+        la('chỉ chủ DB',d[m.O_CHU],'CN-THAT')
+        for k,v in [('party','KH2'),('received_amount',200),('references',[
+                frappe._dict(reference_doctype='Sales Invoice',reference_name='SI2',allocated_amount=100)])]:
+            d=D(cu);d[k]=v
+            nem('không đổi '+k,lambda:m.bao_ve(d),frappe.ValidationError)
+
+
+@ca('#476 cửa bộ vẫn thấy chủ công nợ cũ nhiều mã, không chiếm lại cả bộ mới')
+def _():
+    import frappe
+    from unittest.mock import patch
+    from vagabond import doi_soat_sepay as dss, bo_sao_ke_db as bs
+    so={'cong_no':{'doctype':'Vagabond Cong No','truong_gd':'ma_gd','ten_man':'công nợ','loc_chiem':{}}}
+    def ds(dt,**kw):
+        if dt=='Vagabond Cong No':
+            return [frappe._dict(name='CU',ma_gd='BT1\nREF1',vgb_bo_sao_ke=None),
+                    frappe._dict(name='MOI',ma_gd='BT2',vgb_bo_sao_ke='đã có giữ ở BT')]
+        return []
+    with patch.object(dss,'_SO',so),patch.object(dss,'nap_so'),patch.object(frappe,'get_all',side_effect=ds), \
+            patch.object(bs,'_cac_bo',side_effect=AssertionError('phần giữ được kiểm riêng bằng con_lai')):
+        r=dss.chu_cua_giao_dich(['BT1','BT2'],cho_bo=True)
+        la('cũ nhiều mã vẫn giữ BT1',r,{'BT1':'công nợ CU'})
+    with patch.object(dss,'nap_so',side_effect=RuntimeError('registry lỗi')):
+        nem('cửa ghi không nuốt lỗi đọc chủ',lambda:dss.chu_cua_giao_dich(['BT'],cho_bo=True),RuntimeError)
+
+
+@ca('#476 công nợ kỳ mới không chọn lại phần giữ của kỳ trước')
+def _():
+    import frappe
+    from unittest.mock import patch
+    from vagabond import bo_sao_ke_thu as m
+    d=frappe._dict(name='CN',tong_tien=100,da_thu=60)
+    k={'rows':[{'name':'A'},{'name':'B','dung_duoc':0,'vi_sao_khong':'Sai chiều tiền'}]}
+    with patch.object(m.bs,'doc_hien_tai',return_value={'dong':[{'name':'A','phan_bo':60}]}), \
+            patch.object(frappe,'get_doc',side_effect=lambda dt,ma:frappe._dict(name=ma)), \
+            patch.object(m,'kiem_nguon',return_value=''),patch.object(m.bs,'con_lai',return_value=100):
+        r=m.ung_vien(d,k)
+    la('chỉ còn thu40',r['so_tien'],40)
+    la('A giữ60 không được lấy lại',r['rows'][0]['con_lai'],40)
+    la('B chưa dùng còn100',r['rows'][1]['con_lai'],100)
+    la('màn nhiều dòng',r['chon_bo'],1)
+
+    la('không xóa lỗi nguồn cũ',r['rows'][1]['vi_sao_khong'],'Sai chiều tiền')
+    la('dòng sai vẫn bị chặn',r['rows'][1]['dung_duoc'],0)

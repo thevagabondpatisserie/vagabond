@@ -780,6 +780,7 @@ def xem_phieu(name):
 		# v577: hộp Khớp tay chỉ mời lối "không gắn giao dịch" khi là kế toán;
 		# Huỷ phiếu "đã thu đủ" bị kẹt hỏi máy chủ huỷ được không.
 		"ke_toan": 1 if _la_ke_toan() else 0,
+		"bo_sao_ke_duoc": int(bool(doc.get('vgb_bo_sao_ke')) and _la_ke_toan()),
 		"huy_duoc": 1 if doc.trang_thai != "Da thu du" or huy_duoc_phieu_da_thu(
 			doc.get("ma_gd"), _phieu_thu_cua_phieu(doc.name, 1), _gd_da_dung(doc.get("ma_gd")))[0] else 0,
 		"so_nhap_hong": len(_phieu_thu_cua_phieu(doc.name, 0)),
@@ -1895,7 +1896,7 @@ def tim_giao_dich_thu(tu_khoa="", so_ngay=120, so_tien=None, chua_noi=0):
 
 
 @frappe.whitelist()
-def khop_tay(name, so_tien, ma_giao_dich="", ghi_chu="", ma_lan="", unc=None):
+def khop_tay(name, so_tien, ma_giao_dich="", ghi_chu="", ma_lan="", unc=None, dong=None):
 	"""Ghi nhan tay so tien da nhan cho mot phieu.
 
 	Dung khi SePay khong tu khop duoc. Ghi len phieu va de lai dau vet ai
@@ -1919,6 +1920,9 @@ def khop_tay(name, so_tien, ma_giao_dich="", ghi_chu="", ma_lan="", unc=None):
 	  * mot phieu thu hong la NEM, ca luot lui lai, phieu doi no khong doi.
 	"""
 	_kiem_quyen_cong_no()
+	if dong is not None:
+		from vagabond.bo_sao_ke_thu import khop
+		return khop(name,dong,ghi_chu,ma_lan)
 	from vagabond import thu_tien as tt
 
 	so_tien = flt(so_tien)

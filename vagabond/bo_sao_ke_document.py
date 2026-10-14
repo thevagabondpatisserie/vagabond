@@ -36,3 +36,20 @@ class KhoaBoHoanTien:
     def _save(self, *args, **kwargs):
         self._khoa_bo_hoan()
         return super()._save(*args, **kwargs)
+
+
+class KhoaBoThu:
+    """Khóa chủ bộ từ DB trước khóa PE, cả load for_update và Desk save."""
+    def _khoa_bo_thu(self):
+        if self.name and not self.is_new():
+            from vagabond.bo_sao_ke_thu import chu
+            chu(self.name, khoa=True)
+
+    def load_from_db(self):
+        if self.flags.get('for_update'):
+            self._khoa_bo_thu()
+        return super().load_from_db()
+
+    def _save(self, *args, **kwargs):
+        self._khoa_bo_thu()
+        return super()._save(*args, **kwargs)

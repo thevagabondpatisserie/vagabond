@@ -13,6 +13,14 @@ async function scrKhopSepay(o, loc, giuTim) {
     return;
   }
   if (luot !== scrKhopSepay.luot) return;
+  if (o.loai === 'cong_no' && o.tien_ky != null) {
+    var ky = Number(o.tien_ky);
+    if (!Number.isFinite(ky) || ky <= 0 || ky > Number(kq.so_tien)) {
+      frame('Khớp SePay thủ công', '<div class="emp">Khoản còn phải thu đã đổi. Quay lại phiếu để chọn khoản thu mới.</div>');
+      return;
+    }
+    kq.so_tien = ky;
+  }
   var rows = kq.rows || [], cd = kq.chan_doan || {};
   var nhieu = kq.chon_bo === 1, chon = o._boSepay || (o._boSepay = {}), dangGan = false;
   function tongChon() { return Object.keys(chon).reduce(function (t, ma) { return t + chon[ma].phan_bo; }, 0); }
