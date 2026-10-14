@@ -158,7 +158,7 @@ def _():
 		ls.dat_bom("BOM", "BOM-X", "is_active", 0, nguon="Dọn bếp", update_modified=False)
 		ghi.assert_called_once_with("BOM", "BOM-X", "is_active", 0, update_modified=False)
 		cau = doc.add_comment.call_args[0][1]
-		dung("nguồn và giá trị cũ mới", "Dọn bếp" in cau and "1 thành 0" in cau and ls.frappe.session.user in cau)
+		dung("nguồn và giá trị cũ mới", "Dọn bếp" in cau and "Bật thành Tắt" in cau and ls.frappe.session.user in cau)
 		doc.add_comment.side_effect = RuntimeError("hỏng comment")
 		nem("không nuốt lỗi", lambda: ls.dat_bom("BOM", "BOM-X", "is_active", 0, nguon="Dọn bếp"), RuntimeError)
 
@@ -258,3 +258,19 @@ def _():
 		cau = ct._lich_su_cua(["B"])[0]["cau"][0]
 		dung("chỉ giải mã một lần để UI tự escape", "Đổi & kiểm" in cau and "Bánh & kem" in cau and "BTP <mới>" in cau)
 		dung("không còn entity", "&amp;" not in cau)
+
+
+@ca("#595 lịch sử BOM dùng chữ cho mọi ô Check, chuỗi 0 không thành Có")
+def _():
+	from vagabond import lich_su_bom as ls
+	from unittest.mock import Mock
+	doc = Mock()
+	with patch.object(ls.frappe.db, "get_value", return_value={"is_active": "0", "is_default": 1, "is_phantom_bom": 0}), \
+			patch.object(ls.frappe.db, "set_value"), patch.object(ls.frappe, "get_doc", return_value=doc):
+		ls.dat_bom("BOM", "B", {"is_active": 1, "is_default": "0", "is_phantom_bom": "1"}, nguon="Máy cập nhật")
+		cau = doc.add_comment.call_args[0][1]
+		for chu in ("Đang dùng: Tắt thành Bật", "Mặc định: Có thành Không", "Công thức ảo: Không thành Có"):
+			dung(chu, chu in cau)
+		doc.reset_mock()
+		ls.dat_bom("BOM", "B", {"is_active": 0, "is_default": "1", "is_phantom_bom": "0"}, nguon="Máy cập nhật")
+		doc.add_comment.assert_not_called()
