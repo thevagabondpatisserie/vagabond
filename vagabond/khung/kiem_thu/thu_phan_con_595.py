@@ -89,3 +89,77 @@ def _():
     for doi in ({"bank_account":"ACB"},{"chieu":"vao"},{"chu_cu":"APP-CU"},{"con_lai":0}):
         kq=de_xuat_bo([a,dict(b,**doi)],"TTNB-26-10-00001",1000,"MB","ra")
         la("lỗi cả bộ",kq["ket_qua"],"loi")
+
+
+@ca("#476 cửa chọn bộ dùng tổng máy chủ, khóa BT theo tên rồi mới đọc phần còn")
+def _():
+    from unittest.mock import patch
+    import frappe
+    from vagabond import bo_sao_ke_db as bs
+    doc=frappe._dict(doctype="Vagabond Ho So TT",name="APP",vgb_bo_sao_ke=None)
+    ds=[dict(name="B",phan_bo=40),dict(name="A",phan_bo=60)]
+    def giao(dt,ma,**kw):
+        return frappe._dict(name=ma,docstatus=1,currency="VND",withdrawal=60 if ma=="A" else 40,
+            deposit=0,bank_account="MB",date="2026-10-14",reference_number=ma)
+    def phan(g,d,khoa=False):
+        la("current read",khoa,True)
+        return g.withdrawal
+    with patch.object(frappe.db,"get_value",return_value="TEN") as lock, patch.object(frappe,"get_doc",side_effect=giao), \
+            patch.object(bs,"con_lai",side_effect=phan), patch.object(bs,"luu") as luu:
+        g=bs.chon(doc,ds,100,"ra",lambda g:"",ghi=True)
+        la("khóa phiếu rồi A B",[x.args[:2] for x in lock.call_args_list],[(doc.doctype,"APP"),("Bank Transaction","A"),("Bank Transaction","B")])
+        la("tổng đúng",g.withdrawal,100)
+        la("lưu một bộ",luu.call_count,1)
+        luu.reset_mock()
+        nem("không tin payload đủ nhưng tổng phiếu khác",lambda:bs.chon(doc,ds,101,"ra",lambda g:"",ghi=True))
+        la("không ghi bộ thiếu",luu.call_count,0)
+
+
+@ca("#476 cửa bộ kiểm nguồn, chiều, tài khoản, khả dụng trước lưu")
+def _():
+    from unittest.mock import patch
+    import frappe
+    from vagabond import bo_sao_ke_db as bs
+    doc=frappe._dict(doctype="Vagabond Ho So TT",name="APP",vgb_bo_sao_ke=None)
+    a=frappe._dict(name="A",docstatus=1,currency="VND",withdrawal=60,deposit=0,bank_account="MB",date="2026-10-14",reference_number="A")
+    b=frappe._dict(a,name="B",withdrawal=40)
+    ds=[dict(name="A",phan_bo=60),dict(name="B",phan_bo=40)]
+    with patch.object(frappe.db,"get_value",return_value="TEN"), patch.object(frappe,"get_doc",side_effect=lambda dt,ma,**kw:a if ma=="A" else b), \
+            patch.object(bs,"con_lai",return_value=100) as con, patch.object(bs,"luu") as luu:
+        for cot,v in (("docstatus",0),("currency","USD"),("bank_account","ACB"),("deposit",40)):
+            cu=b[cot];b[cot]=v
+            nem(cot,lambda:bs.chon(doc,ds,100,"ra",lambda g:"",ghi=True));b[cot]=cu
+        nem("nguồn bị từ chối",lambda:bs.chon(doc,ds,100,"ra",lambda g:"Nguồn sai",ghi=True))
+        con.return_value=20
+        nem("mới bị giữ bởi người khác",lambda:bs.chon(doc,ds,100,"ra",lambda g:"",ghi=True))
+        la("không lượt sai nào ghi",luu.call_count,0)
+
+
+@ca("#476 ghi Desk không được giả phần giữ dù ô read_only bị đưa vào payload")
+def _():
+    from unittest.mock import patch
+    import frappe
+    from vagabond import bo_sao_ke_db as bs
+    class D(dict):
+        doctype="Vagabond Ho So TT";name="APP"
+        def is_new(self):return False
+        def set(self,k,v):self[k]=v
+    doc=D(vgb_bo_sao_ke='giả')
+    with patch.object(frappe.db,"get_value",return_value='bộ đã kiểm'):
+        bs.bao_ve(doc)
+    la("giữ bản máy chủ",doc[bs.O_BO],'bộ đã kiểm')
+
+
+@ca("#476 bỏ giữ lưu NULL để cửa một dòng cũ vẫn nhận đúng chủ")
+def _():
+    from unittest.mock import patch
+    import frappe
+    from vagabond import bo_sao_ke_db as bs
+    class D(dict):
+        doctype="Vagabond Ho So TT";name="APP"
+        def set(self,k,v):self[k]=v
+    d=D()
+    with patch.object(frappe.db,"set_value") as ghi:
+        bs.luu(d,[])
+        la("NULL",ghi.call_args.args[-1],None)
+        la("đọc lại không còn giữ",bs.doc_hien_tai(d),dict(dong=[],chung_tu=[]))

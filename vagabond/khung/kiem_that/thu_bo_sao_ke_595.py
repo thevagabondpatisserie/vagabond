@@ -71,3 +71,86 @@ def _():
     la("hai liên kết",len(g.payment_entries),2)
     la("tổng không vượt giao dịch",sum(float(d.allocated_amount) for d in g.payment_entries),100000)
     la("không còn phần cho phiếu ba",float(g.unallocated_amount),0)
+
+
+@ca("#476 APP tự dò hai dòng cùng mã, một PE và hai phân bổ lõi qua cửa thanh toán")
+def _():
+    from vagabond import ho_so_tt as hs, doi_chieu_app as dc
+    from vagabond.khung.kiem_that.thu_ho_so_tt_v445 import _ho_so_ncc, _unc_gia, _giao_dich_ngan_hang
+    hd=_hoa_don_mua(714138056)
+    h=_ho_so_ncc([hd]); _unc_gia(h)
+    a=_giao_dich_ngan_hang(h.name,450000000,hd.company)
+    b=_giao_dich_ngan_hang(h.name,264138056,hd.company)
+    hs.danh_dau_da_tra(h.name,gui_thu=0)
+    bo=hs._but_toan_cua_ho_so(h.name)
+    _DA_TAO.extend((p["doctype"],p["name"]) for p in bo)
+    la("một PE",len(bo),1)
+    for g,tien in ((a,450000000),(b,264138056)):
+        g.reload()
+        la("BT hết phần",float(g.unallocated_amount),0)
+        la("phân bổ đúng dòng",float(g.payment_entries[0].allocated_amount),tien)
+        la("cùng PE",g.payment_entries[0].payment_entry,bo[0]["name"])
+    la("retry không thêm phiếu",hs.danh_dau_da_tra(h.name,gui_thu=0)["da_lam_roi"],1)
+
+
+@ca("#476 APP chọn bộ bằng payload màn hình, bỏ nối nhả đủ các dòng đang giữ")
+def _():
+    import json
+    from vagabond import doi_chieu_app as dc, bo_sao_ke_db as bs
+    from vagabond.khung.kiem_that.thu_ho_so_tt_v445 import _ho_so_ncc, _giao_dich_ngan_hang
+    hd=_hoa_don_mua(100000);h=_ho_so_ncc([hd])
+    a=_giao_dich_ngan_hang("KT476-KHONGMA",60000,hd.company)
+    b=_giao_dich_ngan_hang("KT476-KHONGMA",40000,hd.company)
+    ds=[dict(name=a.name,phan_bo=60000),dict(name=b.name,phan_bo=40000)]
+    dc.gan(h.name,json.dumps(ds));h.reload()
+    la("giữ hai dòng",len(bs.doc_hien_tai(h)["dong"]),2)
+    dc.bo(h.name);h.reload()
+    la("bỏ đủ bộ",bs.doc_hien_tai(h)["dong"],[])
+    for g in (a,b):
+        g.reload()
+        la("không ghi tiền ngân hàng",float(g.allocated_amount),0)
+
+
+@ca("#476 APP một BT trả hai phiếu, phần giữ và phần lõi không bị trừ hai lần")
+def _():
+    import json
+    from vagabond import doi_chieu_app as dc, bo_sao_ke_db as bs, ho_so_tt as hs
+    from vagabond.khung.kiem_that.thu_ho_so_tt_v445 import _ho_so_ncc, _giao_dich_ngan_hang, _unc_gia
+    a=_hoa_don_mua(60000);b=_hoa_don_mua(40000)
+    h1=_ho_so_ncc([a]);h2=_ho_so_ncc([b]);_unc_gia(h1);_unc_gia(h2)
+    g=_giao_dich_ngan_hang("KT476-CHIA",100000,a.company)
+    for h,t in ((h1,60000),(h2,40000)):
+        dc.gan(h.name,json.dumps([dict(name=g.name,phan_bo=t)]))
+    for h in (h1,h2):
+        hs.danh_dau_da_tra(h.name,gui_thu=0)
+        _DA_TAO.extend((p["doctype"],p["name"]) for p in hs._but_toan_cua_ho_so(h.name))
+    g.reload()
+    la("hai PE thật",len(g.payment_entries),2)
+    la("BT hết tiền",float(g.unallocated_amount),0)
+    la("đúng hai phần",sorted(float(p.allocated_amount) for p in g.payment_entries),[40000,60000])
+
+
+@ca("#476 đổi bộ APP chưa trả giữ bộ mới; chọn lỗi không làm mất bộ cũ")
+def _():
+    import json
+    from vagabond import doi_chieu_app as dc, bo_sao_ke_db as bs
+    from vagabond.khung.kiem_that.thu_ho_so_tt_v445 import _ho_so_ncc, _giao_dich_ngan_hang
+    hd=_hoa_don_mua(100000);h=_ho_so_ncc([hd])
+    a=_giao_dich_ngan_hang("KT476-CU",100000,hd.company)
+    b=_giao_dich_ngan_hang("KT476-MOI",60000,hd.company)
+    c=_giao_dich_ngan_hang("KT476-MOI",40000,hd.company)
+    dc.gan(h.name,json.dumps([dict(name=a.name,phan_bo=100000)]))
+    ds=[dict(name=b.name,phan_bo=60000),dict(name=c.name,phan_bo=40000)]
+    dc.gan(h.name,json.dumps(ds));h.reload()
+    la("đổi giữ bộ mới",bs.doc_hien_tai(h)["dong"],ds)
+    la("mã tương thích",h.ma_giao_dich,b.name)
+    la("dòng cũ rảnh",bs.con_lai(a,h),100000)
+    frappe.db.savepoint("thu_bo_hong_476")
+    try:
+        dc.gan(h.name,json.dumps([dict(name=a.name,phan_bo=50000)]))
+    except frappe.ValidationError:
+        pass
+    else:
+        dung("bộ thiếu phải bị từ chối",False)
+    frappe.db.rollback(save_point="thu_bo_hong_476")
+    h.reload();la("rollback còn nguyên bộ mới",bs.doc_hien_tai(h)["dong"],ds)

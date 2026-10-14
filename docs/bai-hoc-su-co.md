@@ -2249,3 +2249,10 @@ khác. Comment lưu HTML an toàn, khi trả câu thuần thì bỏ thẻ rồi 
 một lần, để màn escape khi vẽ. Chỉ ghi trường nghiệp vụ bằng nhãn tiếng Việt,
 bỏ giá vốn tính lại. Tám đột biến của các nhánh này đều bị bắt trong bản gom.
 Nguồn: comment giao gom v594 trên PR #474; không kéo phần Vue của #471 vào.
+
+
+### #476: bộ sao kê phải giữ phần tiền ở cả cửa mới lẫn cửa một dòng cũ
+
+Khi một hồ sơ dùng nhiều dòng sao kê, trường mã giao dịch cũ chỉ còn giữ dòng đầu để tương thích. Chỉ kiểm trường đó sẽ bỏ sót dòng thứ hai ở các cửa webhook và khớp tay cũ. Phải đọc bộ đang giữ trong cùng giao dịch khóa, kiểm phần tiền còn lại tại máy chủ, và bảo vệ cả lúc core lưu Bank Transaction. Không lấy tổng trên màn hình làm quyền ghi tiền.
+
+Đổi bộ cũng không được ghi trường giữ mới trước khi controller gỡ bộ cũ: controller có thể xóa nhầm phần vừa chọn. Gỡ và kiểm bộ cũ trước, chọn mới trong cùng transaction; chọn mới hỏng thì rollback giữ nguyên dữ liệu trước lượt. Ca bench phải kiểm tình huống đổi bộ này riêng với ca gán lần đầu. PR #476 bổ sung ca tầng khung và DOM; bằng chứng bench cập nhật theo SHA trên PR.

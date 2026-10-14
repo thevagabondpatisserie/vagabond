@@ -14,6 +14,13 @@ async function scrKhopSepay(o, loc, giuTim) {
   }
   if (luot !== scrKhopSepay.luot) return;
   var rows = kq.rows || [], cd = kq.chan_doan || {};
+  var nhieu = kq.chon_bo === 1, chon = o._boSepay || (o._boSepay = {}), dangGan = false;
+  function tongChon() { return Object.keys(chon).reduce(function (t, ma) { return t + chon[ma].phan_bo; }, 0); }
+  function duBo() { return Object.keys(chon).length > 0 && Number.isFinite(tongChon()) && Math.abs(tongChon() - Number(kq.so_tien)) < 0.001; }
+  // Làm mới phần còn lại của những dòng vừa đọc, không giữ số dư cũ sau lọc.
+  if (nhieu) rows.forEach(function (r) {
+    if (chon[r.name] && (r.dung_duoc === 0 || Number(r.con_lai) < chon[r.name].phan_bo || r.bank_account !== chon[r.name].bank_account)) delete chon[r.name];
+  });
   var html = '<div class="card" style="padding:12px 14px"><b>' + h(o.ma) + ' · ' + money(kq.so_tien) + ' đ</b></div>';
   html += '<div style="padding:0 12px"><input class="tin" id="ksTim" aria-label="Tìm sao kê" placeholder="Tìm nội dung, mã giao dịch hoặc số tiền" value="' + h(loc.tu_khoa) + '"></div>';
   function chip(thuoc, ds, daChon) {
@@ -29,6 +36,7 @@ async function scrKhopSepay(o, loc, giuTim) {
   rows.forEach(function (r) {
     var chan = r.dung_duoc === 0, nen = chan ? '#f3f4f6' : (r.khop_ma ? '#f0fdf4' : (r.dung_tien ? '#eff6ff' : '#fff'));
     html += '<div class="ksDong ' + h(o.lop || '') + '" data-gd="' + h(r.name) + '" data-chan="' + h(chan ? r.vi_sao_khong : '') + '" data-tien="' + Number(r.tien || 0) + '" style="min-height:44px;padding:12px;margin:8px 12px;border:1px solid #d1d5db;border-radius:12px;background:' + nen + '">' +
+      (nhieu ? '<button type="button" class="chip ksChon" aria-pressed="' + (chon[r.name] ? 'true' : 'false') + '">' + (chon[r.name] ? '✓ Đã chọn' : '+ Chọn') + '</button>' : '') +
       '<div style="display:flex;justify-content:space-between;gap:8px"><b>' + money(r.tien) + ' đ</b><span>' + h(hsNgayVn(String(r.date || '').slice(0,10))) + '</span></div>' +
       '<div style="font-size:13px;font-weight:700;margin-top:4px">' + h(r.nhan_ngan_hang || 'Chưa xác định tài khoản') + '</div>' +
       '<div style="font-size:13px;overflow-wrap:anywhere;margin-top:4px">' + h(r.mo_ta || '(không có nội dung)') + (r.reference_number ? '<br>Tham chiếu: ' + h(r.reference_number) : '') + '</div>' +
@@ -39,7 +47,29 @@ async function scrKhopSepay(o, loc, giuTim) {
     'Đã đọc ' + Number(cd.so_dong_quet || 0) + ' dòng; ' + Number(kq.tong || rows.length) + ' dòng khớp bộ lọc; ' + Number(cd.so_dong_chua_dung || 0) + ' dòng chưa dùng được.' +
     (cd.moi_nhat ? '<br>Mới nhất trong khoảng tìm: ' + h(hsNgayVn(cd.moi_nhat)) : '') +
     '<br>Gợi ý: dòng dùng được, khớp mã, đúng tiền; trong mỗi nhóm ngày mới nhất trước. Mới nhất: tất cả theo ngày giảm dần.</details>';
+  if (nhieu) html += '<div style="position:sticky;bottom:0;background:#fff;padding:12px;border-top:1px solid #ddd;z-index:4"><div id="ksTong" role="status" aria-live="polite"></div><button class="btn" id="ksGan" disabled>Gán các dòng đã chọn</button><button class="btn gh" id="ksXoa">Bỏ chọn tất cả</button></div>';
   var b = frame('Khớp SePay thủ công', html);
+  function capNhatTong() {
+    if (!nhieu) return;
+    var t = tongChon(), lech = Number(kq.so_tien) - t, el = document.getElementById('ksTong'), gan = document.getElementById('ksGan');
+    if (el) el.textContent = 'Đã chọn ' + Object.keys(chon).length + ' dòng: ' + money(t) + ' / ' + money(kq.so_tien) + ' đ. ' + (duBo() ? 'Đủ tiền.' : (lech >= 0 ? 'Còn thiếu ' : 'Đang thừa ') + money(Math.abs(lech)) + ' đ.');
+    if (gan) gan.disabled = !duBo() || dangGan;
+    b.querySelectorAll('.ksDong').forEach(function (n) {
+      var bt = n.querySelector && n.querySelector('.ksChon'), da = !!chon[n.getAttribute('data-gd')];
+      if (bt) { bt.textContent = da ? '✓ Đã chọn' : '+ Chọn'; bt.setAttribute('aria-pressed', String(da)); }
+    });
+  }
+  if (nhieu) {
+    document.getElementById('ksGan').onclick = async function () {
+      if (dangTim || dangGan || !duBo() || luot !== scrKhopSepay.luot) return;
+      dangGan = true; capNhatTong();
+      try {
+        await o.chon(JSON.stringify(Object.keys(chon).map(function (ma) { return {name:ma, phan_bo:chon[ma].phan_bo}; })), tongChon());
+      } finally { dangGan = false; capNhatTong(); }
+    };
+    document.getElementById('ksXoa').onclick = function () { if (dangGan) return; Object.keys(chon).forEach(function (ma) { delete chon[ma]; }); capNhatTong(); };
+    capNhatTong();
+  }
   var henTim = null, dangTim = false;
   function doi(cot, giaTri, giuO) { if (henTim) clearTimeout(henTim); var moi = Object.assign({}, loc, {bat_dau:0}); moi[cot] = giaTri; return scrKhopSepay(o, moi, giuO); }
   [['data-sepaytk','tai_khoan'],['data-ksngay','so_ngay'],['data-ksxep','thu_tu']].forEach(function (c) {
@@ -63,7 +93,17 @@ async function scrKhopSepay(o, loc, giuTim) {
       if (dangTim || luot !== scrKhopSepay.luot) return baoTin('Đang lọc sao kê, chờ kết quả mới rồi chọn.');
       var lyDo = n.getAttribute('data-chan');
       if (lyDo) return baoTin(lyDo);
-      return o.chon(n.getAttribute('data-gd'), Number(n.getAttribute('data-tien') || 0));
+      if (!nhieu) return o.chon(n.getAttribute('data-gd'), Number(n.getAttribute('data-tien') || 0));
+      if (dangGan) return;
+      var ma = n.getAttribute('data-gd'), r = rows.find(function (x) { return x.name === ma; });
+      if (chon[ma]) { delete chon[ma]; capNhatTong(); return; }
+      if (!r || !r.bank_account || !Number.isFinite(Number(r.con_lai)) || Number(r.con_lai) <= 0) return baoTin('Dòng này chưa có phần tiền khả dụng. Tải lại sao kê.');
+      var cacMa = Object.keys(chon);
+      if (cacMa.length && chon[cacMa[0]].bank_account !== r.bank_account) return baoTin('Chọn các dòng cùng một tài khoản ngân hàng.');
+      var thieu = Number(kq.so_tien) - tongChon();
+      if (thieu <= 0) return baoTin('Đã đủ tiền. Bỏ một dòng trước nếu muốn đổi lựa chọn.');
+      chon[ma] = {phan_bo:Math.min(Number(r.con_lai), thieu), bank_account:r.bank_account};
+      capNhatTong();
     };
   });
 }

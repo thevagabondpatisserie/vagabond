@@ -1014,3 +1014,12 @@ del _cu_ds
 scheduler_events.setdefault("hourly", []).append("vagabond.doi_soat_vendor.quet_moi_gio")
 # Codex #460: đơn web đã huỷ mà còn giữ lượt ưu đãi hoặc mã dùng một lần thì trả lại.
 scheduler_events.setdefault("cron", {}).setdefault("*/15 * * * *", []).append("vagabond.don_hang.tra_uu_dai_don_huy")
+
+# Bộ sao kê chỉ được ghi qua cửa có khóa và kiểm quyền, không từ payload Desk.
+for _dt_bo_sk in ("Vagabond Ho So TT", "Vagabond De Nghi Chi", "Vagabond Hoan Tien", "Vagabond Cong No"):
+    _cu_bo_sk = doc_events.setdefault(_dt_bo_sk, {}).get("before_validate", [])
+    doc_events[_dt_bo_sk]["before_validate"] = ([_cu_bo_sk] if isinstance(_cu_bo_sk, str) else list(_cu_bo_sk)) + ["vagabond.bo_sao_ke_db.bao_ve"]
+
+for _su_kien_bo_sk in ("before_update_after_submit", "before_submit"):
+    _cu_bo_sk = doc_events.setdefault("Bank Transaction", {}).get(_su_kien_bo_sk, [])
+    doc_events["Bank Transaction"][_su_kien_bo_sk] = ([_cu_bo_sk] if isinstance(_cu_bo_sk, str) else list(_cu_bo_sk)) + ["vagabond.bo_sao_ke_db.bao_ve_bt"]

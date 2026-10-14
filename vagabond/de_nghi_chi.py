@@ -2059,6 +2059,8 @@ def doi_soat(so_ngay=30):
 				})
 				continue
 			da_chiem[g["name"]] = d["name"]
+			from vagabond.bo_sao_ke_db import kiem_cua_cu
+			kiem_cua_cu(DT,d["name"],g["name"])
 			frappe.db.set_value(DT, d["name"], {
 				"trang_thai": TT_DA_CHI,
 				"ma_gd": g["name"],
@@ -2120,6 +2122,8 @@ def khi_co_giao_dich(ma_bt):
 			tien = flt(d.get("tong_tien")) or flt(d.get("so_tien"))
 			if abs(flt(g["withdrawal"]) - tien) > 1:
 				return
+			from vagabond.bo_sao_ke_db import kiem_cua_cu
+			kiem_cua_cu(DT,d["name"],g["name"])
 			frappe.db.set_value(DT, d["name"], {
 				"trang_thai": TT_DA_CHI,
 				"ma_gd": g["name"],

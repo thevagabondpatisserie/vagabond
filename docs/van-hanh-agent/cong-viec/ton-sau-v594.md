@@ -12,6 +12,15 @@ Nguồn: [giao việc 4 trên PR469](https://github.com/thevagabondpatisserie/va
 - Hai ca bench dùng chứng từ thật: một PE chia hai BT (450.000.000 và 264.138.056); một BT trả hai PE. Đây là ca chứng minh khả năng lõi, CHƯA chứng minh cửa app đã gỡ kẹt.
 - Chưa dựng trường giữ tiền, chưa gắn phép thuần vào thao tác đang chạy. Không có API ghi mới trong bản đầu.
 
+### Đợt nối cửa APP và màn chung, đang kiểm
+
+- Màn Khớp SePay nhận cờ chọn bộ từ máy chủ: nhiều dòng, thanh tổng, cùng tài khoản, chỉ Gán khi đủ; giữ lựa chọn qua trang và không gửi hai lần khi đang ghi. Mười ca DOM chạy đạt trên bản local.
+- APP nhận bộ chọn tay và tự dò các dòng cùng mã có tổng đủ; vẫn giữ cửa kiểm nguồn chi. Phần giữ nằm trong trường ẩn trên chứng từ sẵn có, không thêm DocType. Bỏ bộ chưa ghi sổ và đổi bộ đi qua controller.
+- Bank Transaction kiểm phần giữ trước lưu phân bổ; các cửa khớp một dòng cũ phải đọc lại phần đang giữ. Chưa coi đây là bằng chứng tranh chấp song song trên bench.
+- Bổ sung bốn ca bench cửa APP: tự dò lệnh tách, chọn/bỏ bộ, một BT trả hai hồ sơ, đổi bộ/rollback. Chờ bench của SHA đẩy mới, không dùng kết quả xanh của bản nền thay thế.
+- Kiểm đột biến local: bỏ kiểm tổng bị 2 ca bắt; bỏ kiểm số dư bị 2 ca bắt; bật Gán sớm bị 5 ca DOM bắt; cho cộng khác tài khoản bị 1 ca DOM bắt. Đã khôi phục code đúng.
+- A1 còn các adapter nghiệp vụ và các ca cạnh tranh; A2 chưa triển khai. Chưa bàn giao hoàn thành, chưa sẵn sàng merge/deploy.
+
 ### Còn phải làm trước khi phát hành
 
 - [ ] APP tự nhận cả bộ cùng mã, cùng tài khoản, tổng đủ. Chuyển sang PE/JE và nối đủ BT trong cùng transaction.

@@ -305,6 +305,14 @@ def chu_cua_giao_dich(ds_gd, bo_qua_loai=None, bo_qua_phieu=None, bo_qua_hoa_don
 	if not muon:
 		return {}
 	ra = {}
+	# Các cửa một dòng cũ phải thấy cả BT thứ hai/thứ ba trong bộ đang
+	# giữ. Không suy quyền dùng từ mã đầu tiên còn lưu để tương thích.
+	from vagabond import bo_sao_ke_db as bs
+	for ma in sorted(muon):
+		for bo in bs._cac_bo(ma):
+			dt, ten = bo["chu"].split("/", 1)
+			if ten != bo_qua_phieu:
+				ra.setdefault(ma, "bộ sao kê " + ten)
 	try:
 		nap_so()
 	except Exception:
@@ -489,6 +497,8 @@ def tu_dong(loai, ma_phieu=None, so_ngay=45):
 					"tien_phieu": c["tien"], "tien_dong": g["tien"],
 					"nhan_ngan_hang": g.get("nhan_ngan_hang")})
 				continue
+			from vagabond.bo_sao_ke_db import kiem_cua_cu
+			kiem_cua_cu(b["doctype"],c["doc"].name,g["name"])
 			frappe.db.set_value(b["doctype"], c["doc"].name, b["truong_gd"], g["name"])
 			frappe.db.commit()
 			chiem[g["name"]] = c["doc"].name
@@ -625,6 +635,8 @@ def khop_tay(loai, ma_phieu, ma_gd):
 	loi_tai_khoan = ly_do_tai_khoan_sepay(g.get("bank_account"))
 	if loi_tai_khoan:
 		frappe.throw(loi_tai_khoan)
+	from vagabond.bo_sao_ke_db import kiem_cua_cu
+	kiem_cua_cu(b["doctype"],ma_phieu,gd)
 	frappe.db.set_value(b["doctype"], ma_phieu, ghi)
 	frappe.db.commit()
 	if not b.get("truong_nguoi"):

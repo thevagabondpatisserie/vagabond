@@ -1,0 +1,74 @@
+/* #476: bấm DOM thật của màn chung, không chép lại phép chọn vào ca kiểm. */
+'use strict';
+const fs = require('fs'), path = require('path'), vm = require('vm'), assert = require('assert');
+const {taiLieuGia} = require('./dom_gia');
+const source = fs.readFileSync(path.resolve(__dirname, '../../../public/js/bep/23-khop-sepay.js'), 'utf8');
+let dat = 0, hong = 0;
+async function ca(ten, fn) { try { await fn(); dat++; } catch(e) { hong++; console.error('HỎNG', ten, e.stack); } }
+function dong(name, con, bank='MB') { return {name, con_lai:con, tien:con, bank_account:bank, date:'2026-10-14', dung_duoc:1}; }
+async function man(rows, can=714138056, save) {
+  const document = taiLieuGia(), calls=[], tin=[];
+  let response={rows, so_tien:can, chon_bo:1, tai_khoan_sepay:[{ma:'MB',nhan:'MB'}]};
+  const g={document, console, Number, Math, JSON, Object, String, Array, Promise, setTimeout, clearTimeout,
+    h:s=>String(s ?? ''), money:s=>String(s), hsNgayVn:s=>s, baoTin:s=>tin.push(s),
+    api:async()=>response, frame:(title, html)=>{document.body.innerHTML=html; return document.body;}};
+  vm.createContext(g); vm.runInContext(source,g);
+  const o={loai:'app',ma:'APP-476',chon:async (...args)=>{calls.push(args); if(save) return save(...args);}};
+  const render=async()=>g.scrKhopSepay(o);
+  await render();
+  return {document,g,o,calls,tin,render,response,
+    nut:id=>document.getElementById(id),
+    chon:ma=>document.body.querySelector('[data-gd="'+ma+'"]').click()};
+}
+(async()=>{
+  await ca('450M thiếu, đủ hai dòng mới Gán; payload không nhân tổng',async()=>{
+    const m=await man([dong('A',450000000),dong('B',264138056)]);
+    assert.equal(m.nut('ksGan').disabled,true); m.chon('A');
+    assert.equal(m.nut('ksGan').disabled,true); assert(m.nut('ksTong').textContent.includes('264138056'));
+    m.chon('B'); assert.equal(m.nut('ksGan').disabled,false);
+    await m.nut('ksGan').onclick();
+    assert.deepEqual(JSON.parse(m.calls[0][0]),[{name:'A',phan_bo:450000000},{name:'B',phan_bo:264138056}]);
+    assert.equal(m.calls[0][1],714138056);
+  });
+  await ca('một dòng chia phần đúng tiền phiếu, không lấy nguyên BT',async()=>{
+    const m=await man([dong('A',100000)],60000); m.chon('A'); await m.nut('ksGan').onclick();
+    assert.equal(JSON.parse(m.calls[0][0])[0].phan_bo,60000);
+  });
+  await ca('khác tài khoản không cộng lẫn',async()=>{
+    const m=await man([dong('A',60),dong('B',40,'ACB')],100);m.chon('A');m.chon('B');
+    assert.equal(m.nut('ksGan').disabled,true);assert.equal(Object.keys(m.o._boSepay).length,1);assert(m.tin[0].includes('cùng một'));
+  });
+  await ca('bỏ một dòng hoặc cả bộ làm Gán tắt',async()=>{
+    const m=await man([dong('A',60),dong('B',40)],100);m.chon('A');m.chon('B');m.chon('A');
+    assert.equal(m.nut('ksGan').disabled,true);m.nut('ksXoa').click();assert.equal(Object.keys(m.o._boSepay).length,0);
+  });
+  await ca('giữ lựa chọn qua trang rồi chọn phần còn thiếu',async()=>{
+    const m=await man([dong('A',60)],100);m.response.con_nua=1;await m.render();m.chon('A');
+    m.response.rows=[dong('B',40)];await m.nut('ksTiep').onclick();m.chon('B');
+    assert.equal(m.nut('ksGan').disabled,false);await m.nut('ksGan').onclick();assert.equal(JSON.parse(m.calls[0][0]).length,2);
+  });
+  await ca('BT vừa bị người khác giữ phải bỏ lựa chọn cũ khi tải lại',async()=>{
+    const m=await man([dong('A',100)],100);m.chon('A');m.response.rows=[dong('A',20)];await m.render();
+    assert.equal(m.nut('ksGan').disabled,true);assert.equal(Object.keys(m.o._boSepay).length,0);
+  });
+  await ca('nhấp Gán hai lần trong khi đang gửi chỉ gửi một lần',async()=>{
+    let xong;const m=await man([dong('A',100)],100,()=>new Promise(r=>{xong=r;}));m.chon('A');
+    const p=m.nut('ksGan').onclick();await m.nut('ksGan').onclick();m.chon('A');
+    assert.equal(m.calls.length,1);assert.equal(Object.keys(m.o._boSepay).length,1);xong();await p;
+  });
+  await ca('ghi lỗi còn lựa chọn để thử lại, không giả báo thành công',async()=>{
+    const m=await man([dong('A',100)],100,()=>{throw Error('Máy chủ từ chối');});m.chon('A');
+    await assert.rejects(m.nut('ksGan').onclick(),/Máy chủ/);
+    assert.equal(m.nut('ksGan').disabled,false);assert.equal(Object.keys(m.o._boSepay).length,1);
+  });
+  await ca('dòng bị chặn và số không hữu hạn không thành lựa chọn',async()=>{
+    const a=dong('A',100);a.dung_duoc=0;a.vi_sao_khong='Sai nguồn';
+    const m=await man([a,dong('B',NaN)],100);m.chon('A');m.chon('B');
+    assert.equal(m.nut('ksGan').disabled,true);assert.equal(Object.keys(m.o._boSepay).length,0);
+  });
+  await ca('màn cũ không có cờ bộ vẫn gọi cửa cũ',async()=>{
+    const m=await man([dong('A',100)],100);m.response.chon_bo=0;await m.render();m.chon('A');
+    assert.equal(m.calls[0][0],'A');assert.equal(m.nut('ksGan'),null);
+  });
+  console.log('#476 DOM:',dat,'đạt,',hong,'hỏng');if(hong)process.exitCode=1;
+})().catch(e=>{console.error(e);process.exitCode=1;});

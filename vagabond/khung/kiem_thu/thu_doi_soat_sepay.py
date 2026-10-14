@@ -411,7 +411,7 @@ def _ghi_mapping_327():
 	class Chan(Exception):
 		pass
 	for chip, duoc in [([], False), ([{'ma':'KHAC'}], False), ([{'ma':'CT'}], True)]:
-		db = SimpleNamespace(get_value=Mock(return_value=g), set_value=Mock(), commit=Mock())
+		db = SimpleNamespace(get_value=Mock(return_value=g), sql=Mock(return_value=[]), set_value=Mock(), commit=Mock())
 		with patch.dict(sys.modules, {'vagabond.ban_hang': SimpleNamespace(_kiem_quyen=lambda:None,_kiem_quyen_ban=lambda:None)}), patch.object(dss,'nap_so'), patch.object(dss,'_ban',return_value=ban), patch.object(dss.frappe,'get_doc',return_value={}), patch.object(dss.frappe,'db',db), patch.object(dss.frappe,'session',SimpleNamespace(user='ke-toan')), patch.object(dss.frappe,'throw',side_effect=Chan), patch.object(dss,'_loi_giao_dich',return_value=None), patch.object(dss,'da_chiem',return_value={}), patch.object(dss,'nhan_tai_khoan',return_value=({},chip,[])) as nap:
 			bi_chan=False
 			try:
@@ -431,7 +431,7 @@ def _tu_dong_mapping_327():
 	import sys
 	ban = dict(doctype='TEST', dang_cho={}, ma_do=lambda d:'TEST', so_tien=lambda d:100, chieu=dss.RA, truong_gd='gd', khi_khop=None)
 	for chip, duoc in [([],False), ([{'ma':'CT'}],True)]:
-		db=SimpleNamespace(set_value=Mock(),commit=Mock())
+		db=SimpleNamespace(get_value=Mock(),sql=Mock(return_value=[]),set_value=Mock(),commit=Mock())
 		with patch.dict(sys.modules, {'vagabond.ban_hang':SimpleNamespace(_kiem_quyen=lambda:None,_kiem_quyen_ban=lambda:None)}), patch.object(dss,'nap_so'), patch.object(dss,'_ban',return_value=ban), patch.object(dss.frappe,'get_all',return_value=[{'name':'P'}]), patch.object(dss.frappe,'get_doc',return_value=SimpleNamespace(name='P')), patch.object(dss.frappe,'db',db), patch.object(dss,'dong_sao_ke',return_value=[dict(name='GD',mo_ta='TEST',tien=100,bank_account='CT')]), patch.object(dss,'da_chiem',return_value={}), patch.object(dss,'xet',return_value=(dss.KHOP,'')), patch.object(dss,'nhan_tai_khoan',return_value=({},chip,[])):
 			kq=dss.tu_dong('ttnb')
 			la('chỉ ghi khi mapped',db.set_value.call_count,int(duoc))
@@ -473,7 +473,7 @@ def _ba_duong_ghi_tu_dong_327():
 	phieu = dict(name='TTNB-1', tong_tien=100.0, so_tien=100.0)
 
 	def _db():
-		return SimpleNamespace(sql=Mock(return_value=[dict(gd)]), set_value=Mock(),
+		return SimpleNamespace(sql=Mock(side_effect=lambda q,*a,**k: [] if "vgb_bo_sao_ke" in q else [dict(gd)]), set_value=Mock(),
 			commit=Mock(), get_value=Mock(return_value=dict(gd)))
 
 	for chip, ghi_duoc in [([], False), ([{'ma': 'CT'}], True)]:
@@ -548,7 +548,7 @@ def _hoan_truc_tiep_327():
 		('đã nối', gd, [{'ma':'CT'}], 'GD', True),
 		('payload giả không sửa được tiền', dict(gd, withdrawal=200), [{'ma':'CT'}], 'GD', False),
 	]:
-		db=SimpleNamespace(get_value=Mock(return_value=dong), set_value=Mock(), commit=Mock())
+		db=SimpleNamespace(get_value=Mock(return_value=dong),sql=Mock(return_value=[]), set_value=Mock(), commit=Mock())
 		# v523 (Codex #363 vòng 5): sepay_tien_ra sinh chứng từ qua MỘT cửa có
 		# khoá và chặn thiếu phiếu chi (_sinh_va_ghi_loi), không gọi thẳng
 		# _sinh_chung_tu nữa. Ca này vẫn chốt đúng ý #327: chỉ khớp thật mới sinh.

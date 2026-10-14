@@ -586,7 +586,7 @@ async function scrTimGiaoDich(maHoSo, soTien) {
   if (tgdHoSo) {
     var maApp = tgdHoSo;
     return scrKhopSepay({loai:'app', ma:maApp, chon:async function (gd,tien) {
-      if (!await confirmSheet('Khớp tay giao dịch', 'Gán giao dịch ' + gd + ' (' + money(tien) + ' đ) vào ' + maApp + '? Hồ sơ chờ thanh toán chỉ lưu lựa chọn; hồ sơ đã trả đối chiếu với bút toán hiện có.', 'Gán')) return;
+      if (!await confirmSheet('Khớp tay giao dịch', 'Gán ' + (gd.charAt(0) === '[' ? JSON.parse(gd).length + ' dòng sao kê' : 'giao dịch ' + gd) + ' (' + money(tien) + ' đ) vào ' + maApp + '? Hồ sơ chờ thanh toán chỉ lưu lựa chọn; hồ sơ đã trả đối chiếu với bút toán hiện có.', 'Gán')) return;
       busy(true);
       try {
         var kq = await api('vagabond.doi_chieu_app.gan', {name:maApp, ma_giao_dich:gd});

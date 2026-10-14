@@ -138,7 +138,8 @@ class _San:
 			if "bank_account" in filters:
 				ra = [b for b in ra if b.bank_account in filters["bank_account"][1]]
 			if "withdrawal" in filters:
-				ra = [b for b in ra if abs(b.withdrawal - filters["withdrawal"]) < 0.001]
+				v = filters["withdrawal"]
+				ra = [b for b in ra if b.withdrawal > v[1]] if isinstance(v,list) and v[0] == ">" else [b for b in ra if abs(b.withdrawal-v)<0.001]
 			if "date" in filters:
 				ra = [b for b in ra if b.date >= filters["date"][1]]
 			if "reference_number" in filters:

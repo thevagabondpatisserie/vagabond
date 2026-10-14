@@ -71,14 +71,15 @@ def _nguon(doc):
 	return cty, tk, hs._so_phai_chuyen(doc, hs._do_chinh_xac())["con"]
 
 
-def _chu_khac(g, doc):
+def _chu_khac(g, doc, bo=False):
 	"""Kiểm cả mã bản ghi và tham chiếu cũ, không nuốt lỗi đọc chủ."""
 	ma = sorted({g.name, g.reference_number} - {None, ""})
 	# Current reads sau khóa BT: snapshot cũ không được che mất APP vừa
 	# chọn ở request cạnh tranh. Deadlock thì DB hủy một lượt, không ghi đôi.
 	for r in frappe.db.sql("""select name from `tabVagabond Ho So TT`
 		where name != %s and ma_giao_dich in %s and trang_thai != 'Tu choi'
-		limit 1""" + (" for update" if g.flags.get("for_update") else ""), (doc.name, tuple(ma))):
+		and (%s=0 or ifnull(vgb_bo_sao_ke, '') = '')
+		limit 1""" + (" for update" if g.flags.get("for_update") else ""), (doc.name, tuple(ma), int(bo))):
 		return r[0]
 	for r in frappe.db.sql("""select d.parent from `tabVagabond Ho So TT Dong` d
 		join `tabVagabond Ho So TT` p on p.name=d.parent
@@ -94,13 +95,15 @@ def _chu_khac(g, doc):
 	for b in dss._SO.values():
 		loc = dict(b.get("loc_chiem") or {})
 		loc[b["truong_gd"]] = ["in", ma]
+		if bo:
+			loc["vgb_bo_sao_ke"] = ["is", "not set"]
 		chu = frappe.db.get_value(b["doctype"], loc, "name")
 		if chu:
 			return chu
 	return ""
 
 
-def _kiem(g, doc, nguon):
+def _kiem(g, doc, nguon, bo=False):
 	cty, tk, tien = nguon
 	if cint(g.docstatus) != 1 or flt(g.deposit) != 0 or flt(g.withdrawal) <= 0:
 		return "Chọn giao dịch tiền ra đã xác nhận trên sao kê."
@@ -108,14 +111,18 @@ def _kiem(g, doc, nguon):
 		["company", "account", "is_company_account", "disabled"], as_dict=True) or {}
 	if ba.get("company") != cty or ba.get("account") != tk or not ba.get("is_company_account") or ba.get("disabled"):
 		return "Tài khoản ngân hàng không khớp nguồn chi của hồ sơ."
-	if g.currency != "VND" or tien <= 0 or abs(flt(g.withdrawal) - tien) > 0.001:
+	if g.currency != "VND" or tien <= 0 or (not bo and abs(flt(g.withdrawal) - tien) > 0.001):
 		return "Số tiền hoặc tiền tệ không khớp khoản phải chuyển. Kế toán kiểm khoản chi tách lần/phí trong Đối chiếu ngân hàng."
-	chu = _chu_khac(g, doc)
+	chu = _chu_khac(g, doc, bo=bo)
 	if chu:
 		return "Giao dịch đã được %s sử dụng. Chọn giao dịch khác." % chu
+	if not bo:
+		from vagabond import bo_sao_ke_db as bs
+		if any(b["chu"] != bs.cua(doc) for b in bs._cac_bo(g.name, bool(g.flags.get("for_update")))):
+			return "Giao dịch thuộc bộ sao kê khác. Dùng màn chọn nhiều dòng để kiểm phần tiền còn lại."
 	# Lõi có thể nối nhiều PE/JE cho một APP, nhưng không được lấy phần đã
 	# phân bổ cho chứng từ ngoài hồ sơ. Không coi unallocated > 0 là đủ.
-	for r in g.payment_entries or []:
+	for r in ([] if bo else g.payment_entries or []):
 		if r.payment_document not in ("Payment Entry", "Journal Entry"):
 			return "Giao dịch đã đối chiếu với chứng từ khác."
 		if frappe.db.get_value(r.payment_document, r.payment_entry, "vgb_ho_so_tt") != doc.name:
@@ -126,6 +133,13 @@ def _kiem(g, doc, nguon):
 def chon(doc, ma=None, khoa=False):
 	"""Dò tự động chỉ khi có đúng một giao dịch; chọn tay cũng kiểm y hệt."""
 	nguon = _nguon(doc)
+	from vagabond import bo_sao_ke_db as bs
+	# JSON là payload chọn nhiều; ô Data cũ chỉ giữ dòng đầu để tương thích.
+	if isinstance(ma, list) or (isinstance(ma, str) and ma.lstrip().startswith("[")):
+		return bs.chon(doc, ma, nguon[2], "ra", lambda g: _kiem(g,doc,nguon,bo=True), ghi=khoa)
+	bo_cu = bs.doc_hien_tai(doc)
+	if bo_cu["dong"] and (not ma or ma == bo_cu["dong"][0]["name"]):
+		return bs.chon(doc, bo_cu["dong"], nguon[2], "ra", lambda g: _kiem(g,doc,nguon,bo=True), ghi=khoa)
 	ma = str(ma or doc.get("ma_giao_dich") or "").strip()
 	theo_mau = False
 	if ma:
@@ -154,6 +168,16 @@ def chon(doc, ma=None, khoa=False):
 		if not ds:
 			ds = _theo_mau(doc, nguon, hang)
 			theo_mau = bool(ds)
+	if not ds and not ma:
+		# Không lọc đúng tiền từng dòng: ngân hàng có thể tách một lệnh.
+		cty, tk, tien = nguon
+		bas = frappe.get_all("Bank Account", filters={"company":cty,"account":tk}, pluck="name")
+		hang_bo = frappe.get_all(BT, filters={"bank_account":["in",bas],"docstatus":1,"deposit":0,"withdrawal":[">",0]},
+			fields=["name","description","reference_number","withdrawal"],limit_page_length=0) if bas else []
+		dong = [{"name":r.name,"phan_bo":flt(r.withdrawal)} for r in hang_bo
+			if co_ma(r.description,doc.name) or co_ma(r.reference_number,doc.name)]
+		if dong and abs(sum(d["phan_bo"] for d in dong)-tien)<0.001:
+			return bs.chon(doc,dong,tien,"ra",lambda g:_kiem(g,doc,nguon,bo=True),ghi=khoa)
 	if not ds:
 		return None
 	if khoa:
@@ -258,6 +282,9 @@ def noi_but_toan(doc, g):
 		frappe.throw("Bộ bút toán hồ sơ %s chưa khớp. Kế toán kiểm lại trước khi đối chiếu." % doc.name)
 	# Sao kê hoàn tiền chỉ nối PE phần trả thêm, JE cấn không có tiền ra112.
 	bo = [b for b in bo if b["name"] != doc.get("vgb_can_ung")]
+	if g.flags.get("bo_sao_ke"):
+		from vagabond import bo_sao_ke_db as bs
+		return bs.noi(doc,g,bo)
 	da = {(r.payment_document, r.payment_entry) for r in g.payment_entries or []}
 	moi = [{"payment_doctype": b["doctype"], "payment_name": b["name"]} for b in bo
 		if (b["doctype"], b["name"]) not in da]
@@ -287,11 +314,16 @@ def ung_vien_chung(name, so_ngay=120, tu_khoa="", tai_khoan="", thu_tu="goi_y", 
 		# Kiểm rẻ trước, tránh nạp Document/đọc chủ từng dòng không liên quan.
 		if g.get("bank_account") not in bas:
 			return "Tài khoản ngân hàng không khớp nguồn chi của hồ sơ."
-		if abs(flt(g.get("withdrawal")) - tien) > 0.001:
-			return "Số tiền không khớp khoản phải chuyển. Kế toán dùng Đối chiếu ngân hàng cho khoản tách lần hoặc phí."
-		return _kiem(frappe.get_doc(BT, g["name"]), doc, nguon)
+		return _kiem(frappe.get_doc(BT, g["name"]), doc, nguon, bo=True)
 	kq = dss.danh_sach_chon(dss.RA, doc.name, tien, so_ngay, tu_khoa, tai_khoan,
 		thu_tu, bat_dau, ly_do=ly_do, chi_dung=chi_dung)
+	from vagabond import bo_sao_ke_db as bs
+	for r in kq["rows"]:
+		g = frappe.get_doc(BT,r["name"])
+		r["con_lai"] = bs.con_lai(g,doc)
+		if r["con_lai"] <= 0:
+			r.update(dung_duoc=0,vi_sao_khong="Giao dịch đã được phân bổ hết.")
+	kq["chon_bo"] = 1
 	kq.update(ten_man="Hồ sơ thanh toán", ma_gd_dang_gan=doc.get("ma_giao_dich") or "")
 	return kq
 
@@ -325,7 +357,13 @@ def _kiem_bo(doc, ma):
 	Chỉ giải phóng chỗ giữ APP sau khi lõi đã gỡ và không còn PE/JE ghi sổ.
 	Không tự huỷ hoặc sửa GL, không coi sao kê hết liên kết là đã huỷ tiền chi.
 	"""
-	if ma:
+	from vagabond import bo_sao_ke_db as bs
+	bo = bs.doc_hien_tai(doc)
+	for d in bo["dong"]:
+		g = frappe.get_doc(BT,d["name"],for_update=True)
+		if any(r.payment_entry in {c["name"] for c in bo["chung_tu"]} for r in g.payment_entries or []):
+			frappe.throw("Bộ sao kê còn liên kết bút toán. Kế toán xử lý bút toán trước khi bỏ đối chiếu.")
+	if ma and not bo["dong"]:
 		ten = ma if frappe.db.exists(BT, ma) else None
 		if not ten:
 			ds = frappe.get_all(BT, filters={"reference_number": ma}, pluck="name", limit_page_length=2)
@@ -340,6 +378,8 @@ def _kiem_bo(doc, ma):
 		if frappe.db.sql("select name from `tab%s` where vgb_ho_so_tt=%%s and docstatus=1 limit 1 for update" % dt, (doc.name,)):
 			frappe.throw("Hồ sơ còn bút toán đã ghi sổ. Đối chiếu lại với bút toán đó, hoặc huỷ bút toán sai trong ERPNext rồi bỏ đối chiếu.")
 
+	if bo["dong"]:
+		bs.luu(doc, [])
 
 @frappe.whitelist(methods=["POST"])
 @_bao_tranh_chap
@@ -360,6 +400,16 @@ def bo(name):
 @_bao_tranh_chap
 def gan(name, ma_giao_dich):
 	doc = _ho_so(name, khoa=True)
+	from vagabond import bo_sao_ke_db as bs
+	import json
+	cu = bs.doc_hien_tai(doc)
+	moi = json.loads(ma_giao_dich) if isinstance(ma_giao_dich, str) and ma_giao_dich.lstrip().startswith("[") else ma_giao_dich
+	doi_bo = cu["dong"] != moi if isinstance(moi, list) else bool(cu["dong"] and moi != cu["dong"][0]["name"])
+	if doc.get("ma_giao_dich") and (doi_bo or (not cu["dong"] and ma_giao_dich != doc.ma_giao_dich)):
+		# save chạy cửa bỏ đối chiếu với bộ CŨ. Nếu chọn mới lỗi thì rollback
+		# cả lượt, không mất bộ cũ. Không db_set bộ mới trước cửa này.
+		doc.ma_giao_dich = ""
+		doc.save(ignore_permissions=True)
 	g = chon(doc, ma_giao_dich, khoa=True)
 	if not g:
 		frappe.throw("Chưa chọn giao dịch. Bấm vào một dòng sao kê để đối chiếu.")
@@ -369,7 +419,7 @@ def gan(name, ma_giao_dich):
 	doc.save(ignore_permissions=True)
 	doc.add_comment("Comment", "Đối chiếu tay với giao dịch %s, tham chiếu %s." % (g.name, g.reference_number or ""))
 	return {"ok": 1, "loi_nhan": "Đã chọn giao dịch. " + ("Đã đối chiếu bút toán." if doc.trang_thai == "Da thanh toan" else "Đính UNC và bấm Ghi nhận đã thanh toán để hoàn tất."),
-		"nho_mau": de_nghi_nho_mau(doc, g)}
+		"nho_mau": None if g.flags.get("bo_sao_ke") else de_nghi_nho_mau(doc, g)}
 
 
 @frappe.whitelist(methods=["POST"])

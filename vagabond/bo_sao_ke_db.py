@@ -1,0 +1,180 @@
+"""Giữ phần tiền trên phiếu hiện có; Bank Transaction Payments là phần đã ghi sổ.
+
+Không commit. Cửa nghiệp vụ kiểm quyền, nguồn và trạng thái rồi mới gọi.
+Khóa phiếu và các BT theo tên; tranh chấp/deadlock phải rollback cả request.
+"""
+import json
+import frappe
+from frappe.utils import flt
+from vagabond.bo_sao_ke import doc_bo, phan_con
+from vagabond.khop_sao_ke import xet_bo
+
+O_BO = "vgb_bo_sao_ke"
+PHIEU = ("Vagabond Ho So TT", "Vagabond De Nghi Chi", "Vagabond Hoan Tien", "Vagabond Cong No")
+TRUONG_MOI = {dt: [{"fieldname": O_BO, "label": "Phân bổ bộ sao kê", "fieldtype": "Long Text",
+    "read_only": 1, "hidden": 1, "no_copy": 1, "allow_on_submit": 1}] for dt in PHIEU}
+
+
+def cua(doc):
+    if doc.doctype not in PHIEU or not doc.name:
+        frappe.throw("Loại phiếu chưa được khai phân bổ sao kê.")
+    return doc.doctype + "/" + doc.name
+
+
+def doc_hien_tai(doc):
+    return doc_bo(doc.get(O_BO))
+
+
+def _loi(ma):
+    return frappe.db.sql("""select payment_document as doctype, payment_entry as name,
+        allocated_amount as tien from `tabBank Transaction Payments`
+        where parent=%s and parenttype='Bank Transaction' for update""", (ma,), as_dict=True)
+
+
+def _cac_bo(ma, khoa=False):
+    ra = []
+    for dt in PHIEU:
+        # Lượt cài/migrate đầu chạy patch trước after_migrate dựng cột.
+        # Chỉ lúc này được bỏ qua cột chưa tồn tại; vận hành thì lỗi đọc
+        # phải nổi lên, không giả coi mọi phần tiền đang trống.
+        if (frappe.flags.get("in_migrate") or frappe.flags.get("in_install")) and not frappe.db.has_column(dt,O_BO):
+            continue
+        rows = frappe.db.sql("select name, `{o}` as bo from `tab{dt}` where `{o}` like %s{lock}".format(
+            o=O_BO, dt=dt, lock=" for update" if khoa else ""), ("%"+ma+"%",), as_dict=True)
+        for r in rows:
+            b = doc_bo(r.bo)
+            # LIKE chỉ là tiền lọc; mã có thể là tiền tố của một mã khác.
+            if any(d["name"] == ma for d in b["dong"]):
+                ra.append(dict(b, chu=dt+"/"+r.name))
+    return ra
+
+
+def con_lai(g, doc, khoa=False):
+    loi = _loi(g.name) if khoa else [dict(doctype=r.payment_document, name=r.payment_entry,
+        tien=r.allocated_amount) for r in g.payment_entries or []]
+    return phan_con(flt(g.withdrawal) or flt(g.deposit), loi, _cac_bo(g.name,khoa), g.name, cua(doc))
+
+
+def luu(doc, dong, chung_tu=None):
+    b = doc_bo({"dong": dong, "chung_tu": chung_tu or []})
+    chuoi = json.dumps(b, ensure_ascii=False, separators=(",", ":")) if b["dong"] else None
+    frappe.db.set_value(doc.doctype, doc.name, O_BO, chuoi, update_modified=False)
+    doc.set(O_BO, chuoi)
+    return b
+
+
+def bao_ve(doc, method=None):
+    """Không tin ô read_only: payload Desk/API không được tự ghi chỗ giữ."""
+    if doc.doctype in PHIEU:
+        if (frappe.flags.get("in_migrate") or frappe.flags.get("in_install")) and not frappe.db.has_column(doc.doctype,O_BO):
+            return
+        doc.set(O_BO, frappe.db.get_value(doc.doctype,doc.name,O_BO) if not doc.is_new() else None)
+
+
+def chon(doc, dong, can, chieu, kiem, ghi=False):
+    """kiểm nguồn/legacy qua callback; không dùng tiền client làm tổng phiếu."""
+    cua(doc)
+    if isinstance(dong,str):
+        dong=json.loads(dong)
+    b=doc_bo({"dong":dong,"chung_tu":[]})
+    if not b["dong"]:
+        frappe.throw("Chọn ít nhất một dòng sao kê.")
+    if ghi:
+        frappe.db.get_value(doc.doctype,doc.name,"name",for_update=True)
+        for d in sorted(b["dong"],key=lambda d:d["name"]):
+            if not frappe.db.get_value("Bank Transaction",d["name"],"name",for_update=True):
+                frappe.throw("Không còn giao dịch %s. Tải lại sao kê." % d["name"])
+    gs=[]; rows=[]
+    for d in b["dong"]:
+        g=frappe.get_doc("Bank Transaction",d["name"],for_update=ghi)
+        if g.docstatus != 1 or g.currency != "VND":
+            frappe.throw("Sao kê %s chưa ghi sổ hoặc không phải tiền đồng." % g.name)
+        loi=kiem(g)
+        if loi:
+            frappe.throw("Giao dịch %s: %s" % (g.name,loi))
+        ra,vao=flt(g.withdrawal),flt(g.deposit)
+        rows.append(dict(name=g.name,tien=ra or vao,bank_account=g.bank_account,
+            chieu="ra" if ra>0 and vao==0 else "vao" if vao>0 and ra==0 else "loi",
+            con_lai=con_lai(g,doc,khoa=ghi),phan_bo=d["phan_bo"]))
+        gs.append(g)
+    k=xet_bo(rows,can,gs[0].bank_account,chieu,dung_sai=0)
+    if k["ket_qua"]!="du":
+        frappe.throw("; ".join(d["ly_do"] for d in k["loi"]) or
+            "Bộ sao kê đang có {:,.0f} / {:,.0f} đ; còn thiếu {:,.0f}, thừa {:,.0f} đ.".format(k["tong"],k["can"],k["thieu"],k["thua"]))
+    if ghi:
+        cu=doc_hien_tai(doc)
+        if cu["chung_tu"] and cu["dong"] != dong:
+            frappe.throw("Bộ cũ đã nối bút toán. Bỏ đối chiếu trước khi đổi bộ.")
+        luu(doc,dong,cu["chung_tu"])
+    return frappe._dict(name=gs[0].name, date=max(str(g.date) for g in gs),
+        reference_number="; ".join(g.reference_number or g.name for g in gs),
+        withdrawal=k["tong"] if chieu=="ra" else 0, deposit=k["tong"] if chieu=="vao" else 0,
+        flags=frappe._dict(bo_sao_ke=gs,dong=dong,theo_mau=False))
+
+
+def noi(doc, bo, chung_tu):
+    """Lõi tự tính allocated_amount; chênh kế hoạch thì rollback cả request."""
+    chung_tu=[dict(doctype=c["doctype"],name=c["name"]) for c in chung_tu]
+    ct={(c["doctype"],c["name"]) for c in chung_tu}
+    if not ct:
+        frappe.throw("Chưa có chứng từ đã ghi sổ để đối chiếu.")
+    for dt,ma in sorted(ct):
+        if dt not in ("Payment Entry","Journal Entry") or frappe.db.get_value(dt,ma,"docstatus",for_update=True)!=1:
+            frappe.throw("Chứng từ %s chưa ghi sổ." % ma)
+    # Ghi chủ chứng từ trước bước lõi trong cùng transaction, để cửa bảo vệ
+    # BT không tính phần giữ và phân bổ thật của chính bộ này hai lần.
+    luu(doc,bo.flags.dong,chung_tu)
+    du_kien={d["name"]:flt(d["phan_bo"]) for d in bo.flags.dong}
+    # Dòng sử dụng hết phần lõi trước; phần cuối có thể nhỏ hơn BT.
+    gs=sorted(bo.flags.bo_sao_ke,key=lambda g:(du_kien[g.name]<flt(g.unallocated_amount),g.name))
+    for g in gs:
+        da={(p.doctype,p.name) for p in _loi(g.name)}
+        moi=[{"payment_doctype":dt,"payment_name":ma} for dt,ma in sorted(ct-da)]
+        if moi and flt(g.unallocated_amount)>0:
+            g.flags.ignore_permissions=True
+            g.add_payment_entries(moi)
+            g.save(ignore_permissions=True)
+        phan=sum(flt(p.tien) for p in _loi(g.name) if (p.doctype,p.name) in ct)
+        if abs(phan-du_kien[g.name])>0.001:
+            frappe.throw("Lõi chưa phân bổ đúng phần đã chọn trên %s. Đã dừng cả lượt; chọn lại phần tiền hoặc đối chiếu trong ERPNext." % g.name)
+    luu(doc,bo.flags.dong,chung_tu)
+
+
+def bao_ve_bt(doc, method=None):
+    """Đối chiếu trực tiếp trong Desk cũng không được lấy phần đang giữ.
+
+    Chạy sau phép phân bổ của lõi, trước ghi child table. Không sửa số tiền
+    của lõi; dữ liệu vượt phần tiền thì rollback cả lượt.
+    """
+    if doc.is_new():
+        return
+    frappe.db.get_value("Bank Transaction",doc.name,"name",for_update=True)
+    cac_bo=_cac_bo(doc.name,khoa=True)
+    if not cac_bo:
+        return
+    truoc=doc.get_doc_before_save()
+    cu=[dict(doctype=r.payment_document,name=r.payment_entry,tien=flt(r.allocated_amount))
+        for r in (truoc.payment_entries if truoc else []) or []]
+    that=[dict(doctype=r.doctype,name=r.name,tien=flt(r.tien)) for r in _loi(doc.name)]
+    khoa=lambda p:(p["doctype"],p["name"])
+    if sorted(cu,key=khoa)!=sorted(that,key=khoa):
+        frappe.throw("Sao kê vừa được người khác đối chiếu. Tải lại trước khi chọn phần tiền còn lại.")
+    moi=[dict(doctype=r.payment_document,name=r.payment_entry,tien=r.allocated_amount)
+        for r in doc.payment_entries or []]
+    try:
+        phan_con(flt(doc.withdrawal) or flt(doc.deposit),moi,cac_bo,doc.name)
+    except ValueError as e:
+        frappe.throw("Sao kê đang có phần tiền của bộ đã chọn: %s" % str(e))
+
+
+def kiem_cua_cu(dt, ten, ma):
+    """Cửa một dòng cũ không được lấy BT thứ hai của một bộ đang giữ.
+
+    Caller gọi trước ghi và giữ khóa đến commit. Không ghi lại dữ liệu cũ.
+    """
+    if not ma:
+        return
+    frappe.db.get_value("Bank Transaction",ma,"name",for_update=True)
+    cac_bo=_cac_bo(ma,khoa=True)
+    if any(b["chu"] != dt+"/"+ten for b in cac_bo):
+        frappe.throw("Giao dịch %s có phần tiền đang được phiếu khác giữ. Mở Khớp SePay để chọn phần còn lại." % ma)

@@ -2336,7 +2336,7 @@ def kiem_sepay(name=None):
 		hs_doc = frappe.get_doc("Vagabond Ho So TT", d["name"])
 		gd = doi_chieu_app.chon(hs_doc)
 		if gd:
-			g[d["name"]] = {"chi": gd.withdrawal, "so_gd": 1, "ma_gd": gd.name, "ngay": str(gd.date),
+			g[d["name"]] = {"chi": gd.withdrawal, "so_gd": len(gd.flags.get("bo_sao_ke") or [gd]), "ma_gd": gd.name, "ngay": str(gd.date),
 				"theo_mau": 1 if gd.flags.get("theo_mau") else 0}
 		elif name and d.get("trang_thai") == TT_DA_DUYET:
 			# v528: khoản trả tiện ích qua app ngân hàng không mang mã APP.

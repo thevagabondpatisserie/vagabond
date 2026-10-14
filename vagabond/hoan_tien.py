@@ -2285,6 +2285,8 @@ def _doi_soat_khop(ho_so=None, so_ngay=30):
 					"vi_sao": loi_tk,
 				})
 				continue
+			from vagabond.bo_sao_ke_db import kiem_cua_cu
+			kiem_cua_cu(DT,d["name"],g["name"])
 			frappe.db.set_value(
 				DT,
 				d["name"],
@@ -2579,6 +2581,8 @@ def sepay_tien_ra(mo_ta="", so_tien=0, ma_gd=""):
 				"nhau thì sao kê còn thiếu một dòng, báo anh Việt nạp bù giúp."
 				% (ma_gd_sach, chu_cu),
 			}
+	from vagabond.bo_sao_ke_db import kiem_cua_cu
+	kiem_cua_cu(DT,d["name"],ma_gd_sach)
 	frappe.db.set_value(
 		DT,
 		d["name"],
