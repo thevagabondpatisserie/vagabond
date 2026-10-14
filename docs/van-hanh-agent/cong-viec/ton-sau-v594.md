@@ -200,3 +200,20 @@ B: PR471 web Vue giữ Draft và công tắc tắt. Merge main không rebase, gi
 - VIỆC CHƯA LÀM: tự dò/callback CN và đường một dòng cũ chưa chuyển cùng
   cửa bộ; còn rà cạnh tranh SI/PE, tạm ứng, đủ10nhóm và bench tổng SHA cuối.
   Không báo A1 xong, không chuyển B/C, không merge/deploy hoặc sửa dữ liệu cũ.
+
+### Tiếp cửa tự dò công nợ
+
+- Nút Đối chiếu SePay nhận bộ nhiều dòng cho phiếu chưa có mã hoặc đã dùng
+  bộ, kiểm cùng mã/cùng nguồn/đủ tiền rồi đi cùng khop. Không đánh dấu đã
+  thu nếu chưa lập được PE. Cửa một dòng và registry cũ vẫn còn phải chuyển.
+- Hai ca thuần mới kiểm đủ bộ/retry, thiếu tiền, khác tài khoản và chủ cũ;
+  một bench mới đi nút kiem_sepay với mã DNTT thật và hai dòng thật.
+- Lượt thử chuyển ngay cả cửa một dòng làm5ca hồi quy577 đỏ, gồm hành vi
+  ghi nhận tiền dù lập PE lỗi. Chưa bỏ ca đó; thu hẹp delta nhiều dòng để
+  giữ lối lịch sử, phần thống nhất một dòng còn trong việc chưa làm.
+- Sổ tay thêm thao tác thu từng phần, ghi từng PE/UNC và bỏ bộ CN.
+- Đột biến bỏ kiểm tổng/nguồn trước tự gán:1/1ca bắt, gồm thiếu và khác
+  tài khoản đã gọi nhầm cửa ghi2lần; khôi phục ca đạt. Không lấy mock lỗi
+  thiếu trường làm bằng chứng. Local cổng đầy đủ đạt trên lượt tự dò hẹp.
+
+- Bench fd473a20a: 418/419 cả hai lượt, sạch rollback. Ca nhóm6 gọi xóa PE nháp trái luật giữ chứng từ, bị on_trash chặn; sửa ca đi ghi sổ/huỷ lõi rồi bỏ bộ, không gỡ chốt xóa. Đường huỷ mềm PE nháp và phục hồi sau bỏ bộ vẫn phải làm riêng, chưa nhận là đủ nhóm6.

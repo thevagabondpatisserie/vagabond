@@ -443,10 +443,39 @@ def _():
     try:bl.bo('cong_no',p.name)
     except frappe.ValidationError:pass
     else:dung('nháp còn sống không bỏ giữ',False)
-    # Kế toán xóa nháp qua lõi, không chạm chứng từ cũ hoặc ghi tay docstatus.
-    for ma in cac:frappe.delete_doc('Payment Entry',ma,ignore_permissions=True)
+    # Không xóa nháp: dự án giữ mọi chứng từ. Kiểm đường đã ghi sổ rồi
+    # hủy qua lõi, từng PE trả phân bổ nhưng bộ giữ tới lúc kế toán bỏ.
+    from vagabond import thu_tien as tt
+    for ma in cac:
+        with _Tep() as tep:
+            la('ghi sổ kỳ thu',tt.ghi_so_phieu_thu(ma,unc=[tep.file_url]).get('ok'),1)
+        pe=frappe.get_doc('Payment Entry',ma);pe.cancel()
+        la('giữ chứng từ đã hủy',frappe.db.get_value('Payment Entry',ma,'docstatus'),2)
     bl.bo('cong_no',p.name);p.reload();q.reload();g.reload()
     la('phiếu1 về chờ thu',flt(p.da_thu),0)
     la('phiếu2 vẫn giữ đủ',sum(flt(d['phan_bo']) for d in bs.doc_hien_tai(q)['dong']),flt(b.grand_total))
     la('retry bỏ cả bộ',bl.bo('cong_no',p.name)['da_lam_roi'],1)
     la('không tự sinh bút toán',flt(g.allocated_amount),0)
+
+
+@ca('#476 nút Đối chiếu SePay công nợ tự nhận hai lệnh, bấm lại không nhân phiếu thu')
+def _():
+    from vagabond.khung.kiem_that.thu_gom_phap_nhan_576 import _nen,_hd,_khach,_phieu
+    from vagabond.khung.kiem_that.thu_khop_tay_gop_571 import _gd
+    from vagabond import cong_no as cn,bo_sao_ke_db as bs,sepay
+    from frappe.utils import flt
+    cty,tk,_mau=_nen();hd=_hd(tk,cty,100000,_khach('476AUTO'))
+    p=_phieu([hd],hd.customer);p.ma_phieu=cn._sinh_ma_cn();p.save(ignore_permissions=True)
+    ba=_tai_khoan_cong_ty_moi(_tk_ngan_hang(cty));sepay.them_tai_khoan(ba.bank_account_no,ba.name)
+    a,b=_gd(ba.name,40000),_gd(ba.name,flt(hd.grand_total)-40000)
+    for g in (a,b):
+        g.description=p.ma_phieu;g.save(ignore_permissions=True)
+    r=cn.kiem_sepay(p.name);p.reload()
+    la('không lỗi lập phiếu',r.get('loi_lap'),[])
+    ct=bs.doc_hien_tai(p)['chung_tu'];_DA_TAO.extend((x['doctype'],x['name']) for x in ct)
+    la('một Customer một PE',len(ct),1)
+    la('đủ cả hai lệnh',len(bs.doc_hien_tai(p)['dong']),2)
+    la('đúng tiền',flt(p.da_thu),flt(hd.grand_total))
+    cn.kiem_sepay(p.name);p.reload()
+    la('bấm lại vẫn cùng PE',bs.doc_hien_tai(p)['chung_tu'],ct)
+    hd.reload();la('nháp chưa giảm nợ sổ cái',flt(hd.outstanding_amount),flt(hd.grand_total))

@@ -541,3 +541,41 @@ def _():
 
     la('không xóa lỗi nguồn cũ',r['rows'][1]['vi_sao_khong'],'Sai chiều tiền')
     la('dòng sai vẫn bị chặn',r['rows'][1]['dung_duoc'],0)
+
+
+@ca('#476 tự dò công nợ: cùng mã đủ hai lệnh qua cửa bộ, thử lại bỏ tiền cũ')
+def _():
+    import frappe
+    from unittest.mock import patch
+    from vagabond import bo_sao_ke_thu as m
+    d=frappe._dict(name='CN',ma_phieu='DNTT-26-10-00001',tong_tien=100,da_thu=0,ma_gd='',trang_thai='Cho thu')
+    def gd(dt,ma):return frappe._dict(name=ma,bank_account='BA',description=d.ma_phieu,reference_number=ma,
+        deposit=60 if ma=='A' else 40,withdrawal=0,docstatus=1,currency='VND')
+    with patch.object(m.bs,'doc_hien_tai',return_value={'dong':[]}),patch.object(frappe,'get_doc',side_effect=gd), \
+            patch.object(m,'kiem_nguon',return_value=''),patch.object(m.bs,'con_lai',side_effect=lambda g,doc:g.deposit), \
+            patch.object(m,'khop',return_value={'ok':1}) as ghi:
+        la('đủ thì ghi',m.tu_dong(d,['B','A'])['ok'],1)
+        la('cả hai BT',ghi.call_args.args[1],[dict(name='A',phan_bo=60),dict(name='B',phan_bo=40)])
+        ma_lan=ghi.call_args.args[3];m.tu_dong(d,['A','B'])
+        la('cùng bộ cùng mã retry',ghi.call_args.args[3],ma_lan)
+        ghi.reset_mock();d.ma_gd='A\nB';d.da_thu=100
+        la('không nhận lại',m.tu_dong(d,['A','B'])['da_lam_roi'],1)
+        la('không ghi lại',ghi.call_count,0)
+
+
+@ca('#476 tự dò công nợ không tự lấy một phần, không cộng khác tài khoản hoặc chủ cũ')
+def _():
+    import frappe
+    from unittest.mock import patch
+    from vagabond import bo_sao_ke_thu as m
+    d=frappe._dict(name='CN',ma_phieu='DNTT-26-10-00001',tong_tien=100,da_thu=0,ma_gd='',trang_thai='Cho thu')
+    a=frappe._dict(name='A',bank_account='BA',description=d.ma_phieu,reference_number='A',deposit=60,withdrawal=0,docstatus=1,currency='VND')
+    b=frappe._dict(a);b.update(name='B',deposit=40,bank_account='KHAC')
+    with patch.object(m.bs,'doc_hien_tai',return_value={'dong':[]}),patch.object(frappe,'get_doc',side_effect=lambda dt,ma:a if ma=='A' else b), \
+            patch.object(m,'kiem_nguon',return_value='') as kiem,patch.object(m.bs,'con_lai',side_effect=lambda g,doc:g.deposit), \
+            patch.object(m,'khop',return_value={'ok':1}) as ghi:
+        la('thiếu không gán',m.tu_dong(d,['A'])['ok'],0)
+        la('khác tài khoản không gán',m.tu_dong(d,['A','B'])['ok'],0)
+        b.bank_account='BA';kiem.return_value='Còn chủ cũ'
+        la('chủ cũ không gán',m.tu_dong(d,['A','B'])['ok'],0)
+        la('không viết trạng thái giả',ghi.call_count,0)

@@ -244,3 +244,35 @@ def bo(name):
     doc.add_comment('Comment',escape_html('Bỏ cả bộ thu sau khi xử lý phiếu thu: '+
         ', '.join(d['name'] for d in b['dong'])+'. Không yêu cầu khách chuyển tiền thêm.'))
     return dict(ok=1,loi_nhan='Đã bỏ cả bộ để chọn lại. Không yêu cầu khách chuyển tiền thêm.')
+
+
+def tu_dong(doc, cac_ma):
+    """Chỉ tự nhận cả bộ cùng mã/cùng tài khoản và đúng khoản còn phải thu.
+
+    Không sửa một lần khớp cũ thiếu PE. Dòng đã có trong kế hoạch không phải
+    tiền mới. Khi cần chọn một phần, kế toán dùng màn Khớp tay.
+    """
+    from frappe.utils import flt
+    from vagabond import chiem_sao_ke
+    from vagabond.bo_sao_ke import de_xuat_bo
+    import hashlib,json
+    da=set(chiem_sao_ke.tach_gd(doc.ma_gd))
+    cu={d['name'] for d in bs.doc_hien_tai(doc)['dong']}
+    rows=[]
+    can=max(0,flt(doc.tong_tien)-flt(doc.da_thu))
+    if not can or doc.trang_thai=='Huy':return dict(ok=1,da_lam_roi=1,loi=[])
+    for ma in sorted(set(cac_ma or [])-da-cu):
+        g=frappe.get_doc('Bank Transaction',ma)
+        if g.reference_number in da:continue
+        loi=kiem_nguon(doc,g)
+        if g.docstatus!=1 or g.currency!='VND' or flt(g.deposit)<=0 or flt(g.withdrawal):
+            loi='Sao kê không phải tiền vào VND đã ghi sổ.'
+        if loi:return dict(ok=0,loi=[g.name+': '+loi])
+        rows.append(dict(name=g.name,bank_account=g.bank_account,description=g.description,
+            reference_number=g.reference_number,tien=flt(g.deposit),chieu='vao',con_lai=bs.con_lai(g,doc)))
+    if not rows:return dict(ok=1,da_lam_roi=1,loi=[])
+    k=de_xuat_bo(rows,doc.ma_phieu,can,rows[0]['bank_account'],'vao')
+    if k['ket_qua']!='du':
+        return dict(ok=0,loi=['Các lệnh cùng mã chưa thành một bộ đúng tiền và tài khoản. Mở Khớp tay để chọn phần thu thực tế.'])
+    ma_lan='auto'+hashlib.sha256(json.dumps(k['dong'],sort_keys=True).encode()).hexdigest()[:32]
+    return khop(doc.name,k['dong'],'Máy dò bộ cùng mã công nợ.',ma_lan)

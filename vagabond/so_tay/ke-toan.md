@@ -808,3 +808,19 @@ Từ khoá: ngoại lệ, ghi nhận kèm lý do, chờ đối chiếu sau, SePa
 | Kế toán trưởng | Hồ sơ thanh toán | [[Ghi nhận kèm lý do]] |
 
 Kế toán trưởng có vai Accounts Manager được dùng [[Ghi nhận kèm lý do]] khi sao kê chưa về đủ. Vẫn cần UNC và các bước duyệt. Hồ sơ vào chip [[Chờ đối chiếu sau]]; chỉ hết chờ khi phân bổ sao kê lõi đã đủ. Người có vai Accounts User hoặc AP Kiểm soát (FIN) không có quyền ngoại lệ này.
+
+## Thu công nợ bằng nhiều giao dịch, hoặc thu từng phần
+Từ khoá: công nợ tiền vào, trả góp, thu một phần, nhiều khách, nhiều phiếu thu, bỏ bộ sao kê
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Sales, kế toán | Phiếu công nợ, Tiền đã về | [[Khớp tay]], [[Chọn nhiều giao dịch hoặc thu một phần]], [[Bỏ bộ sao kê]] |
+
+1. Mở phiếu công nợ, bấm [[Khớp tay]], chọn [[Chọn nhiều giao dịch hoặc thu một phần]]. Nhập khoản thu của lần này, không vượt khoản còn phải thu.
+2. Chọn các dòng cùng tài khoản công ty. Khi thanh tổng đủ khoản thu của lần này, bấm [[Gán các dòng đã chọn]]. Một dòng lớn hơn khoản thu chỉ dùng phần cần; phần dư còn dành cho phiếu khác.
+3. Máy lập phiếu thu nháp riêng cho từng mã khách. Kế toán vào [[Tiền đã về]], đính UNC và ghi sổ từng phiếu. Phiếu nháp chưa làm giảm dư nợ sổ cái.
+4. Khách chuyển đợt sau thì mở lại phiếu, chọn khoản còn phải thu. Không chọn lại phần đã gán ở đợt trước.
+
+Mất mạng sau khi bấm Gán: bấm lại để kiểm đúng lần đang gửi, không lập phiếu mới. Nếu chọn nhầm, kế toán xử lý các phiếu thu nháp/đã ghi sổ trước, rồi [[Bỏ bộ sao kê]] để chọn lại cả bộ. Không yêu cầu khách chuyển tiền thêm chỉ vì đã bỏ đối chiếu.
+
+Không thấy sao kê vẫn có lối [[Không thấy giao dịch nào khớp]] dành cho kế toán đính UNC theo luồng hiện có.

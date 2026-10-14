@@ -917,6 +917,14 @@ def kiem_sepay(name):
 	doc = frappe.get_doc("Vagabond Cong No", name)
 	truoc = doc.trang_thai
 	sepay = _sepay_cn(doc.ma_phieu)
+	# Bộ nhiều lệnh và phiếu đã dùng bộ không đi cửa ghi mã đơn lẻ.
+	# Cửa một dòng cũ còn phải chuyển riêng và kiểm hồi quy lịch sử.
+	if doc.get('vgb_bo_sao_ke') or (not doc.get('ma_gd') and len(sepay.get('gd') or [])>1):
+		from vagabond.bo_sao_ke_thu import tu_dong
+		ra=tu_dong(doc,sepay.get('gd') or [])
+		kq=xem_phieu(name)
+		kq['loi_lap']=ra.get('loi') or []
+		return kq
 	# MOT DONG SAO KE CHI DUOC GACH CHO MOT CHUNG TU.
 	#
 	# Truoc day phieu cong no khong ghi lai dong sao ke nao da tinh cho no,
