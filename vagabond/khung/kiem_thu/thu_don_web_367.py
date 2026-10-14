@@ -236,7 +236,7 @@ def _moi_truong_tao_don(pancake, trung=None, km=None, phi=None, cauhinh=None, to
 		xep_capi=lambda *a, **k: vet.su.append("capi"), GHI_CHU_DON_WEB=don_web.GHI_CHU_DON_WEB,
 	)
 	fr = types.SimpleNamespace(
-		db=types.SimpleNamespace(commit=lambda: vet.su.append("commit"), rollback=lambda: vet.su.append("rollback")),
+		db=types.SimpleNamespace(commit=lambda: vet.su.append("commit"), rollback=lambda **kw: vet.su.append("rollback"), savepoint=lambda *a: None),
 		log_error=lambda *a, **k: None, get_traceback=lambda: "",
 		get_all=lambda *a, **k: [],
 	)

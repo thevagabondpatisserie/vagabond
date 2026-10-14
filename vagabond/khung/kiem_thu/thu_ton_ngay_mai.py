@@ -503,6 +503,7 @@ def _():
 			}.items():
 				cua.enter_context(patch.object(kiem_banh, ten, gia))
 			cua.enter_context(patch.object(kiem_banh.pancake_nhip, "ghi_ok", lambda: None))
+			cua.enter_context(patch.object(frappe.db, "sql", lambda q, *a, **kw: [("pancake_shop_id",)] if "tabSingles" in q else []))
 			cua.enter_context(patch.object(frappe.db, "exists", lambda *a: False))
 			cua.enter_context(patch.object(frappe.db, "commit", lambda: None))
 			cua.enter_context(patch.object(frappe, "cache", lambda: Mock(get_value=lambda *a: True), create=True))

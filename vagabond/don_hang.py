@@ -644,6 +644,21 @@ def tao_don(don=None):
 			diem, ly_do = _diem_lay(ma_diem, khoa=True)
 			if ly_do or (diem["a"], diem["n"]) != (dia_chi, don["diem_lay_ten"]):
 				return {"ok": 0, "ly_do": ly_do or "diem_nhan_khong_con"}
+		# Kiểm lần cuối và giữ trong cùng transaction tạo đơn. Lỗi hạ tầng
+		# vẫn nhận theo cách B, nhưng thiếu hàng thật thì không tạo đơn.
+		from vagabond import giu_ton_web
+		frappe.db.savepoint("giu_ton_web")
+		try:
+			nhac_ton, giu_ton = giu_ton_web.kiem_va_giu(hang_goc, ngay)
+		except Exception:
+			frappe.db.rollback(save_point="giu_ton_web")
+			ton_don_web.bao_loi(ngay)
+			nhac_ton, giu_ton = [], None
+		if nhac_ton:
+			frappe.db.rollback()
+			return {"ok": 0, "ly_do": "het_hang", "nhac": nhac_ton}
+		if giu_ton:
+			snapshot[giu_ton_web.O] = giu_ton
 		ban_ghi = don_web.tao_ban_ghi(nonce, {
 			"ho_ten": ten,
 			"dien_thoai": dien_thoai,

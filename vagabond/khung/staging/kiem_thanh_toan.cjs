@@ -95,7 +95,7 @@ const {chromium} = require('playwright');
     if (await p.locator('[data-hsv="datra"]').count()) throw new Error('Hồ sơ đã trả vẫn có nút ghi nhận');
     // Không được tháo sao kê khi bút toán vẫn đang ghi sổ.
     await p.locator('[data-hsv="bodoichieu"]').click();
-    await xacNhan('vagabond.doi_chieu_app.bo', 'Sao kê còn liên kết bút toán');
+    await xacNhan('vagabond.doi_chieu_app.bo', 'còn liên kết bút toán');
     await p.locator('[data-hbok]').waitFor();
     await p.locator('[data-hbok]').click();
     await mo();

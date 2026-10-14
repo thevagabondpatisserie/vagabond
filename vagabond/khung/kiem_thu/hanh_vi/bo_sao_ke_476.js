@@ -33,6 +33,9 @@ async function man(rows, can=714138056, save) {
   await ca('một dòng chia phần đúng tiền phiếu, không lấy nguyên BT',async()=>{
     const m=await man([dong('A',100000)],60000); m.chon('A'); await m.nut('ksGan').onclick();
     assert.equal(JSON.parse(m.calls[0][0])[0].phan_bo,60000);
+    const text=m.document.body.querySelector('[data-gd="A"]').querySelector('.ksPhan').textContent;
+    assert(text.includes('Gán cho phiếu này 60000 đ'));assert(text.includes('còn lại 40000 đ'));
+    m.chon('A');assert(!m.document.body.querySelector('[data-gd="A"]').querySelector('.ksPhan').textContent.includes('Gán cho'));
   });
   await ca('khác tài khoản không cộng lẫn',async()=>{
     const m=await man([dong('A',60),dong('B',40,'ACB')],100);m.chon('A');m.chon('B');

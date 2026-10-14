@@ -38,6 +38,7 @@ async function scrKhopSepay(o, loc, giuTim) {
     html += '<div class="ksDong ' + h(o.lop || '') + '" data-gd="' + h(r.name) + '" data-chan="' + h(chan ? r.vi_sao_khong : '') + '" data-tien="' + Number(r.tien || 0) + '" style="min-height:44px;padding:12px;margin:8px 12px;border:1px solid #d1d5db;border-radius:12px;background:' + nen + '">' +
       (nhieu ? '<button type="button" class="chip ksChon" aria-pressed="' + (chon[r.name] ? 'true' : 'false') + '">' + (chon[r.name] ? '✓ Đã chọn' : '+ Chọn') + '</button>' : '') +
       '<div style="display:flex;justify-content:space-between;gap:8px"><b>' + money(r.tien) + ' đ</b><span>' + h(hsNgayVn(String(r.date || '').slice(0,10))) + '</span></div>' +
+      (nhieu ? '<div class="ksPhan" style="font-size:13px;margin-top:4px"></div>' : '') +
       '<div style="font-size:13px;font-weight:700;margin-top:4px">' + h(r.nhan_ngan_hang || 'Chưa xác định tài khoản') + '</div>' +
       '<div style="font-size:13px;overflow-wrap:anywhere;margin-top:4px">' + h(r.mo_ta || '(không có nội dung)') + (r.reference_number ? '<br>Tham chiếu: ' + h(r.reference_number) : '') + '</div>' +
       '<div style="font-size:13px;color:#6b7280;margin-top:4px">' + h(chan ? r.vi_sao_khong : ((r.khop_ma ? 'Khớp mã · ' : '') + (r.dung_tien ? 'Đúng số tiền' : 'Lệch ' + money(r.lech) + ' đ'))) + '</div></div>';
@@ -57,6 +58,8 @@ async function scrKhopSepay(o, loc, giuTim) {
     b.querySelectorAll('.ksDong').forEach(function (n) {
       var bt = n.querySelector && n.querySelector('.ksChon'), da = !!chon[n.getAttribute('data-gd')];
       if (bt) { bt.textContent = da ? '✓ Đã chọn' : '+ Chọn'; bt.setAttribute('aria-pressed', String(da)); }
+      var ma = n.getAttribute('data-gd'), r = rows.find(function (x) { return x.name === ma; }), phan = n.querySelector('.ksPhan');
+      if (phan && r) phan.textContent = 'Còn dùng được ' + money(r.con_lai) + ' đ.' + (da ? ' Gán cho phiếu này ' + money(chon[ma].phan_bo) + ' đ; còn lại ' + money(Number(r.con_lai) - chon[ma].phan_bo) + ' đ.' : '');
     });
   }
   if (nhieu) {

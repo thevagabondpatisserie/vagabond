@@ -77,3 +77,13 @@ B: PR471 web Vue giữ Draft và công tắc tắt. Merge main không rebase, gi
 - Bench bắt lỗi tự dò gom nguồn cá nhân thiếu chủ quỹ vào nguồn công ty hợp lệ cùng mã. Đã lọc nguồn trước khi dựng bộ; giữ thông báo nguồn chi cụ thể. Chờ bench của commit mới xác nhận sửa.
 - Khi phiếu chỉ giữ một phần của BT, truyền hạn mức đó vào phép phân bổ lõi trước lưu. Bổ sung ca một PE 80.000 dùng 40.000 từ mỗi BT 100.000, trong khi mỗi BT có phiếu khác giữ 60.000. Không tự ghi allocated_amount.
 - Local và giả lập CI không requests: 4.508/4.508. Cổng trước deploy mã 0. Đột biến bỏ hạn mức phân bổ bị 1/1 ca bắt. A1/A2 chưa hoàn thành.
+
+### Đợt giữ tồn web, chưa nghiệm thu bench
+
+- Kiểm cuối dùng mã hàng gốc, khóa hàng cấu hình và current read tồn/chỗ giữ; snapshot của đơn mới giữ số lượng trong cùng transaction. Gộp dòng trùng mã trước kiểm. Không thêm DocType.
+- Đơn bị Pancake từ chối không còn giữ; timeout vẫn giữ. Đồng bộ Kiểm bánh đánh dấu đơn thực sự đã tính vào cột nguồn, tránh trừ hai lần. Hôm nay tính cả Cho chốt; nguồn decor ngày sau tính Đã đặt. Không chỉnh dữ liệu đơn cũ.
+- 9 ca tầng khung mới kiểm giữ, tổng dòng, không trừ hai lần, decor0/cùng nguồn ba ngày, không ngày, đồng bộ, snapshot cũ, cửa tạo đơn và cách B. Hai đột biến: bỏ trừ giữ bị3ca bắt; trừ lần hai bị1ca bắt.
+- Đã thêm bench hai tiến trình gọi cửa tạo đơn cùng chiếc cuối, chỉ một POST Pancake; sau đó từ chối nhả và timeout giữ. Chưa có kết quả bench SHA mới, chưa xác nhận A2 hoàn thành.
+- Màn sao kê hiển thị phần được gán và phần còn lại của từng dòng. Sổ tay kiểm câu thật chị Dung qua bộ tìm kiếm thật.
+- Bench21e001542 đã qua bước tích hợp máy chủ; staging đỏ do ca kiểm chuỗi cũ Sao kê/Bộ sao kê. Sửa ca giữ phần lý do chung và vẫn kiểm ValidationError/HTTP thất bại.
+- A1 còn công nợ tiền vào, bỏ bộ ngoài APP, rà tạm ứng/hoàn ứng; A2 còn nghiệm thu và rà concurrency với đồng bộ. Giữ Draft, không phát hành.
