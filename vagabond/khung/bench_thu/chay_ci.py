@@ -96,6 +96,9 @@ if __name__ == "__main__":
 	web = subprocess.run([sys.executable, "-m", "vagabond.khung.bench_thu.chay_web_245"], check=False)
 	if web.returncode:
 		raise RuntimeError("Cửa editor/đặt bàn/thành viên chưa đạt.")
+	do_khoa = subprocess.run([sys.executable, "-m", "vagabond.khung.bench_thu.do_khoa_476"], check=False)
+	if do_khoa.returncode:
+		raise RuntimeError("Không hoàn tất đo khóa P2 #476.")
 	dat = chay()
 	# Kịch bản này cố ý commit và mở nhiều kết nối. Chỉ chạy sau khi bộ
 	# điểm lưu đã kết thúc sạch, trên site dùng một lần của GitHub.
