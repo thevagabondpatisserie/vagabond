@@ -248,3 +248,31 @@ def _():
     dc.gan(h.name,g.name);h.reload()
     la("đủ phân bổ mới hết chờ",hs._cho_doi_chieu_sau(h),False)
     la("lịch sử lý do còn nguyên",h.vgb_tt_ly_do_som,"Sao kê về chậm, có UNC")
+
+
+@ca("#476 một PE dùng hai phần lẻ của hai BT đang có phiếu khác giữ, không chiếm phần giữ")
+def _():
+    import json
+    from vagabond import doi_chieu_app as dc, ho_so_tt as hs, bo_sao_ke_db as bs
+    from vagabond.khung.kiem_that.thu_ho_so_tt_v445 import _ho_so_ncc, _unc_gia, _giao_dich_ngan_hang
+    hd1=_hoa_don_mua(60000);hd2=_hoa_don_mua(60000);hd3=_hoa_don_mua(80000)
+    h1=_ho_so_ncc([hd1]);h2=_ho_so_ncc([hd2]);h3=_ho_so_ncc([hd3])
+    for h in (h1,h2,h3):_unc_gia(h)
+    a=_giao_dich_ngan_hang("KT476-CHIA-A",100000,hd1.company)
+    b=_giao_dich_ngan_hang("KT476-CHIA-B",100000,hd1.company)
+    dc.gan(h1.name,json.dumps([dict(name=a.name,phan_bo=60000)]))
+    dc.gan(h2.name,json.dumps([dict(name=b.name,phan_bo=60000)]))
+    dc.gan(h3.name,json.dumps([dict(name=a.name,phan_bo=40000),dict(name=b.name,phan_bo=40000)]))
+    hs.danh_dau_da_tra(h3.name,gui_thu=0)
+    bo=hs._but_toan_cua_ho_so(h3.name)
+    _DA_TAO.extend((p["doctype"],p["name"]) for p in bo)
+    la("một PE cho hai phần lẻ",len(bo),1)
+    for g in (a,b):
+        g.reload();la("lõi chỉ dùng phần của hồ sơ ba",float(g.allocated_amount),40000)
+        la("lõi còn đủ 60.000",float(g.unallocated_amount),60000)
+    for h in (h1,h2):
+        hs.danh_dau_da_tra(h.name,gui_thu=0)
+        _DA_TAO.extend((p["doctype"],p["name"]) for p in hs._but_toan_cua_ho_so(h.name))
+    for g in (a,b):
+        g.reload();la("hai phiếu dùng đúng 100.000",float(g.allocated_amount),100000)
+        la("hai liên kết",len(g.payment_entries),2)

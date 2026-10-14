@@ -219,3 +219,41 @@ def _():
             patch.object(frappe,"get_doc") as doc:
         la("không tự chọn dòng A rồi coi đủ",dc.chon(d),None)
         la("không đi tiếp cửa ghi một dòng",doc.call_count,0)
+
+
+@ca("#476 gọi phân bổ lõi theo phần giữ, không đưa toàn bộ số dư vào lượt của một phiếu")
+def _():
+    from unittest.mock import patch
+    import frappe
+    from vagabond import bo_sao_ke_db as bs
+    d=frappe._dict(doctype="Vagabond Ho So TT",name="APP",vgb_bo_sao_ke=None)
+    caps=[];links={}
+    class G:
+        def __init__(self,name):self.name=name;self.unallocated_amount=100;self.flags=frappe._dict()
+        def add_payment_entries(self,rows):pass
+        def allocate_payment_entries(self):
+            # Hợp đồng của lõi: số dư tại đầu hàm là hạn mức lượt này.
+            caps.append(self.unallocated_amount)
+            links[self.name]=[frappe._dict(doctype="Payment Entry",name="PE",tien=self.unallocated_amount)]
+        def save(self,**kw):pass
+    gs=[G("A"),G("B")]
+    bo=frappe._dict(flags=frappe._dict(bo_sao_ke=gs,dong=[dict(name="A",phan_bo=40),dict(name="B",phan_bo=40)]))
+    with patch.object(frappe.db,"get_value",return_value=1),patch.object(bs,"luu"), \
+            patch.object(bs,"_loi",side_effect=lambda name:links.get(name,[])):
+        bs.noi(d,bo,[dict(doctype="Payment Entry",name="PE")])
+    la("chỉ cấp 40 mỗi lần dù BT còn 100",caps,[40,40])
+
+
+@ca("#476 tự dò không ghép nguồn 141 thiếu chủ vào lệnh công ty cùng mã")
+def _():
+    from unittest.mock import patch
+    import frappe
+    from vagabond import bo_sao_ke_luong as bl, doi_soat_sepay as dss
+    b=dict(doctype="Vagabond De Nghi Chi",ma_do=lambda d:"TTNB-26-10-00001",chieu="ra")
+    rows=[dict(name="A",bank_account="MB-THIEU-CHU",description="TTNB-26-10-00001",withdrawal=100),
+        dict(name="B",bank_account="MB-CTY",description="TTNB-26-10-00001",withdrawal=100)]
+    with patch.object(dss,"_ban",return_value=b),patch.object(frappe,"get_doc",return_value={}), \
+            patch.object(dss,"_loi_giao_dich",side_effect=lambda b,r:"Sai nguồn chi" if r["bank_account"]=="MB-THIEU-CHU" else ""), \
+            patch.object(dss,"ly_do_tai_khoan_sepay",return_value=""),patch.object(bl,"_khop") as khop:
+        la("còn đúng một dòng thì dùng cửa một dòng",bl.tu_dong_mot("ttnb","TTNB",rows),None)
+        la("không ghép sai bộ 200",khop.call_count,0)

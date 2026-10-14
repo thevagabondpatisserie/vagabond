@@ -9,7 +9,7 @@ LUONG = {"ttnb", "hoan_tien"}
 
 def kiem(loai, b, doc, g):
     from vagabond import doi_soat_sepay as dss, doi_chieu_app as dc
-    ly_do = dss.ly_do_tai_khoan_sepay(g.bank_account) or dss._loi_giao_dich(b,g)
+    ly_do = dss._loi_giao_dich(b,g) or dss.ly_do_tai_khoan_sepay(g.bank_account)
     if ly_do:
         return ly_do
     if loai == "hoan_tien":
@@ -125,6 +125,9 @@ def tu_dong_mot(loai, ma, cac_gd):
     doc=frappe.get_doc(b["doctype"],ma)
     code=b["ma_do"](doc)
     ds=[r for r in cac_gd if co_ma(r.get("description") or r.get("mo_ta"),code) or co_ma(r.get("reference_number"),code)]
+    # Cùng mã nhưng nguồn không hợp lệ không thuộc bộ tự nhận. Cửa cũ
+    # vẫn trình lý do của dòng đó; không để nó che dòng công ty hợp lệ.
+    ds=[r for r in ds if not dss._loi_giao_dich(b,r) and not dss.ly_do_tai_khoan_sepay(r.get("bank_account"))]
     if len(ds)<2:
         return None
     dong=[dict(name=r["name"],phan_bo=flt(r.get("withdrawal") if b["chieu"]=="ra" else r.get("deposit")) or flt(r.get("tien"))) for r in ds]

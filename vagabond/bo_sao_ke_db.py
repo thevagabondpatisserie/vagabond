@@ -133,6 +133,14 @@ def noi(doc, bo, chung_tu):
         if moi and flt(g.unallocated_amount)>0:
             g.flags.ignore_permissions=True
             g.add_payment_entries(moi)
+            # Hạn mức của lượt này là phần đã kiểm/giữ, không phải toàn
+            # số dư BT: phần khác có thể đang được phiếu chưa ghi sổ giữ.
+            # Gọi phép lõi với hạn mức trong bộ nhớ. Chính lõi tính các
+            # allocated_amount và clearance từ GL; cuối hàm lõi tự tính
+            # lại unallocated_amount thật. Không ghi tay child allocation.
+            da_cua_bo=sum(flt(p.tien) for p in _loi(g.name) if (p.doctype,p.name) in ct)
+            g.unallocated_amount=min(flt(g.unallocated_amount),du_kien[g.name]-da_cua_bo)
+            g.allocate_payment_entries()
             g.save(ignore_permissions=True)
         phan=sum(flt(p.tien) for p in _loi(g.name) if (p.doctype,p.name) in ct)
         if abs(phan-du_kien[g.name])>0.001:

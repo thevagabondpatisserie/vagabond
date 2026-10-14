@@ -70,3 +70,10 @@ B: PR471 web Vue giữ Draft và công tắc tắt. Merge main không rebase, gi
 - Thêm bench TTNB/hoàn tiền/ngoại lệ, hai tiến trình tranh phần 60.000 của BT 100.000, rồi kiểm phần 40.000 còn lại. Các ca mới phải đợi CI chạy thật.
 - Bench SHA 22c5b038170d12cf9cb8dbfe10192dd2c2381556 đạt bước tích hợp máy chủ hai lượt, đỏ bước staging: ca cũ chọn dòng rồi chờ hộp xác nhận mà thiếu bấm Gán. Đã sửa thao tác kiểm, chưa coi bench tổng là xanh.
 - A1 vẫn còn cửa công nợ tiền vào, bỏ bộ ngoài APP, rà phân bổ nhiều phần đang giữ và các đường tạm ứng/hoàn ứng; A2 chưa làm. Không dùng đợt này làm biên nhận hoàn thành A1.
+
+### Kiểm bench và sửa phân bổ phần tiền
+
+- Bench SHA 06225d89e2ab0cffee0b789509146286f8ddb48c đạt ca hai tiến trình tranh cùng số dư; một tiến trình giữ được 60.000, tiến trình kia bị từ chối, phần 40.000 còn lại vẫn dùng được.
+- Bench bắt lỗi tự dò gom nguồn cá nhân thiếu chủ quỹ vào nguồn công ty hợp lệ cùng mã. Đã lọc nguồn trước khi dựng bộ; giữ thông báo nguồn chi cụ thể. Chờ bench của commit mới xác nhận sửa.
+- Khi phiếu chỉ giữ một phần của BT, truyền hạn mức đó vào phép phân bổ lõi trước lưu. Bổ sung ca một PE 80.000 dùng 40.000 từ mỗi BT 100.000, trong khi mỗi BT có phiếu khác giữ 60.000. Không tự ghi allocated_amount.
+- Local và giả lập CI không requests: 4.508/4.508. Cổng trước deploy mã 0. Đột biến bỏ hạn mức phân bổ bị 1/1 ca bắt. A1/A2 chưa hoàn thành.
