@@ -25,7 +25,7 @@ def _chan():
 	g = SimpleNamespace(name="BT", docstatus=1, deposit=0, withdrawal=100, bank_account="BA", currency="VND", payment_entries=[], flags={})
 	d = SimpleNamespace(name="APP", doctype="Vagabond Ho So TT")
 	ba = {"company": "CT", "account": "112", "is_company_account": 1, "disabled": 0}
-	with patch.object(frappe.db, "get_value", return_value=ba), patch.object(dc, "_chu_khac", return_value=""):
+	with patch.object(frappe.db, "get_value", side_effect=lambda dt, name, field, **kw: None if field=="vgb_chu_bo_sao_ke" else ba), patch.object(dc, "_chu_khac", return_value=""):
 		la("đủ điều kiện", dc._kiem(g, d, ("CT", "112", 100)), "")
 		for truong, gia_tri in (("docstatus", 0), ("deposit", 100), ("withdrawal", 99), ("currency", "USD")):
 			cu = getattr(g, truong)
@@ -34,7 +34,7 @@ def _chan():
 			setattr(g, truong, cu)
 		dung("khác công ty", bool(dc._kiem(g, d, ("CT-KHAC", "112", 100))))
 		dung("khác nguồn chi", bool(dc._kiem(g, d, ("CT", "112-KHAC", 100))))
-	with patch.object(frappe.db, "get_value", return_value=ba), patch.object(dc, "_chu_khac", return_value="APP-KHAC"):
+	with patch.object(frappe.db, "get_value", side_effect=lambda dt, name, field, **kw: None if field=="vgb_chu_bo_sao_ke" else ba), patch.object(dc, "_chu_khac", return_value="APP-KHAC"):
 		dung("đã có chủ", "APP-KHAC" in dc._kiem(g, d, ("CT", "112", 100)))
 
 

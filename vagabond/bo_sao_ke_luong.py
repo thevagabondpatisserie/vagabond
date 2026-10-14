@@ -51,8 +51,9 @@ def _khop(loai, ma, dong, b):
     savepoint="bo_sao_ke_"+frappe.generate_hash(length=10)
     frappe.db.savepoint(savepoint)
     try:
-        doc=frappe.get_doc(b["doctype"],ma,for_update=True)
         moi=json.loads(dong) if isinstance(dong,str) else dong
+        bs.khoa_phieu(b["doctype"], ma, bs.doc_bo({"dong": moi, "chung_tu": []})["dong"])
+        doc=frappe.get_doc(b["doctype"],ma,for_update=True)
         cu=bs.doc_hien_tai(doc)
         # Retry không đánh dấu/sinh chứng từ thêm lần nữa. Việc sinh lỗi của
         # hoàn tiền có cửa Sinh lại chứng từ riêng và giữ nguyên bằng chứng.
@@ -181,7 +182,7 @@ def bo(loai, ma):
         return dict(ok=1,da_lam_roi=1)
     if not duoc_bo(loai,doc):
         frappe.throw("Chỉ kế toán hoặc giám đốc được bỏ bộ đối chiếu.")
-    hop_le=('Hoan tat','Da chi') if loai=='ttnb' else ('Cho chi','Da doi soat')
+    hop_le=('Hoan tat','Da chi') if loai=='ttnb' else ('Cho chi','Da doi soat','Da chi','Hoan thanh')
     if doc.trang_thai not in hop_le:
         frappe.throw("Phiếu đã đổi trạng thái. Tải lại trước khi bỏ đối chiếu.")
     if loai=='ttnb' and doc.get('ho_so_tt'):
@@ -209,7 +210,8 @@ def bo(loai, ma):
     if loai=='ttnb':
         ghi.update(trang_thai='Hoan tat',ngay_da_chi=None)
     else:
-        ghi.update(trang_thai='Cho chi',da_doi_soat=0,ngay_doi_soat=None,phieu_chi=None,loi_sinh_ct='')
+        ghi.update(trang_thai='Cho chi',da_doi_soat=0,ngay_doi_soat=None,phieu_chi=None,loi_sinh_ct='',
+            nguoi_hoan_thanh=None,ngay_hoan_thanh=None)
     frappe.db.set_value(doc.doctype,doc.name,ghi)
     doc.add_comment('Comment','Bỏ toàn bộ bộ sao kê: %s. Người làm: %s. Không chuyển tiền thêm chỉ vì đã bỏ đối chiếu.' %
         (', '.join(d['name'] for d in cu['dong']),frappe.session.user))

@@ -2442,6 +2442,8 @@ def danh_dau_da_tra(name, ngay=None, ma_giao_dich=None, phuong_thuc="Chuyển kh
 	# chet"). Codex #225 R1 chi ra: chay tiep khong khoa la mo lai dung cai
 	# dua tranh ma khoa sinh ra de chan. Nay khong giu duoc khoa thi dung.
 	try:
+		from vagabond.doi_chieu_app import khoa_truoc
+		khoa_truoc(name)
 		frappe.db.get_value("Vagabond Ho So TT", name, "trang_thai", for_update=True)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "ho_so_tt: khong khoa duoc ho so khi ghi nhan")

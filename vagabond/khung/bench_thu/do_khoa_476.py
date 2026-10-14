@@ -43,7 +43,7 @@ def con(vai, thu_muc):
             with patch.object(dc, '_ho_so', dung_sau_khoa):
                 dc.gan(cfg['app'], json.dumps([{'name': cfg['x'], 'phan_bo': 60000}]))
         elif vai == 'B':
-            ham = bs._cac_bo
+            ham = bs.bao_ve_bt
             def do_quet(*a, **kw):
                 (folder / 'B.scan').touch()
                 return ham(*a, **kw)
@@ -52,7 +52,7 @@ def con(vai, thu_muc):
             pe = frappe.get_doc('Payment Entry', cfg['pe'])
             (folder / 'B.start').touch()
             t = time.monotonic()
-            with patch.object(bs, '_cac_bo', do_quet):
+            with patch.object(bs, 'bao_ve_bt', do_quet):
                 _noi(g, pe)
             ket['thao_tac_giay'] = time.monotonic() - t
             _dung(len(g.payment_entries) == 1 and not g.unallocated_amount, 'Lõi đã phân bổ BT Y')
@@ -127,6 +127,10 @@ def chay():
     try:
         for ten in ('khong_lien_quan', 'dao_thoi_diem', 'tao_moi'):
             ket[ten] = mot_ca(ten)
+            for vai, r in ket[ten].items():
+                _dung(r['dat'], 'Thao tác lỗi: ' + str(r))
+                if vai in ('B', 'C'):
+                    _dung(r['thao_tac_giay'] < 1.5, 'Không được chờ khóa phiếu không liên quan: ' + str(r))
             print('DO KHOA ' + ten + ': ' + json.dumps(ket[ten], ensure_ascii=False), flush=True)
     finally:
         (Path(os.environ['VGB_ARTIFACTS']) / 'do-khoa-476.json').write_text(json.dumps(ket, ensure_ascii=False, indent=2))

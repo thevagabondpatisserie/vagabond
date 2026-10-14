@@ -35,6 +35,7 @@ GOI = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))
 
 # Danh sach cua ngo tung mo dun. Chot ngay 19/08/2026.
 CUA_NGO = {
+	"bo_sao_ke_luong.py": ["bo"],
 	# #367: don dat banh tu website. tao_don va cau_hinh_web mo cho khach
 	# vang lai; cac ham con lai cua don_web la noi bo (hook, nhip, hang doi).
 	"don_hang.py": ["tao_don", "xem_uu_dai"],

@@ -1,7 +1,7 @@
 """Giữ phần tiền trên phiếu hiện có; Bank Transaction Payments là phần đã ghi sổ.
 
 Không commit. Cửa nghiệp vụ kiểm quyền, nguồn và trạng thái rồi mới gọi.
-Khóa phiếu và các BT theo tên; tranh chấp/deadlock phải rollback cả request.
+Khóa các BT theo tên trước phiếu; tranh chấp/deadlock phải rollback cả request.
 """
 import json
 import frappe
@@ -10,9 +10,46 @@ from vagabond.bo_sao_ke import doc_bo, phan_con
 from vagabond.khop_sao_ke import xet_bo
 
 O_BO = "vgb_bo_sao_ke"
+O_CHU = "vgb_chu_bo_sao_ke"
 PHIEU = ("Vagabond Ho So TT", "Vagabond De Nghi Chi", "Vagabond Hoan Tien", "Vagabond Cong No")
 TRUONG_MOI = {dt: [{"fieldname": O_BO, "label": "Phân bổ bộ sao kê", "fieldtype": "Long Text",
     "read_only": 1, "hidden": 1, "no_copy": 1, "allow_on_submit": 1}] for dt in PHIEU}
+TRUONG_MOI["Bank Transaction"] = [{"fieldname": O_CHU, "label": "Chủ phần sao kê",
+    "fieldtype": "Long Text", "read_only": 1, "hidden": 1, "no_copy": 1, "allow_on_submit": 1}]
+
+
+def khoa_phieu(dt, ten, dong=()):
+    """Đọc dự kiến, khóa BT theo tên, rồi current read phiếu và so phiên bản.
+
+    Không xin thêm BT sau khóa phiếu nếu người khác vừa đổi bộ. Caller phải
+    rollback và thử lại, thay vì đảo thứ tự hoặc dùng snapshot cũ.
+    """
+    if dt not in PHIEU or not ten:
+        return
+    if (frappe.flags.get("in_migrate") or frappe.flags.get("in_install")) and not frappe.db.has_column(dt, O_BO):
+        return
+    cu = frappe.db.get_value(dt, ten, O_BO)
+    ds = {d["name"] for d in doc_bo(cu)["dong"]} | {d["name"] for d in dong}
+    for ma in sorted(ds):
+        if not frappe.db.get_value("Bank Transaction", ma, "name", for_update=True):
+            frappe.throw("Không còn giao dịch %s. Tải lại sao kê." % ma)
+    that = frappe.db.get_value(dt, ten, O_BO, for_update=True)
+    if doc_bo(cu) != doc_bo(that):
+        frappe.throw("Bộ sao kê vừa đổi. Tải lại phiếu rồi chọn lại để giữ đúng phần tiền.")
+
+
+def _doc_chu(raw):
+    if not raw:
+        return {}
+    ds = json.loads(raw)
+    if not isinstance(ds, dict):
+        raise ValueError("Danh sách chủ sao kê không hợp lệ")
+    for chu, b in ds.items():
+        if not isinstance(chu, str) or chu.split("/", 1)[0] not in PHIEU:
+            raise ValueError("Chủ sao kê không hợp lệ")
+        doc_bo(b)
+    return ds
+
 
 
 def cua(doc):
@@ -32,21 +69,12 @@ def _loi(ma):
 
 
 def _cac_bo(ma, khoa=False):
-    ra = []
-    for dt in PHIEU:
-        # Lượt cài/migrate đầu chạy patch trước after_migrate dựng cột.
-        # Chỉ lúc này được bỏ qua cột chưa tồn tại; vận hành thì lỗi đọc
-        # phải nổi lên, không giả coi mọi phần tiền đang trống.
-        if (frappe.flags.get("in_migrate") or frappe.flags.get("in_install")) and not frappe.db.has_column(dt,O_BO):
-            continue
-        rows = frappe.db.sql("select name, `{o}` as bo from `tab{dt}` where `{o}` like %s{lock}".format(
-            o=O_BO, dt=dt, lock=" for update" if khoa else ""), ("%"+ma+"%",), as_dict=True)
-        for r in rows:
-            b = doc_bo(r.bo)
-            # LIKE chỉ là tiền lọc; mã có thể là tiền tố của một mã khác.
-            if any(d["name"] == ma for d in b["dong"]):
-                ra.append(dict(b, chu=dt+"/"+r.name))
-    return ra
+    # Khóa chính name trên BT là chỉ mục chung cho mọi đường ghi. Lưu cả
+    # kế hoạch ở đây để đọc phần giữ không phải khóa thêm phiếu của người khác.
+    if (frappe.flags.get("in_migrate") or frappe.flags.get("in_install")) and not frappe.db.has_column("Bank Transaction", O_CHU):
+        return []
+    raw = frappe.db.get_value("Bank Transaction", ma, O_CHU, for_update=khoa)
+    return [dict(b, chu=chu) for chu, b in _doc_chu(raw).items()]
 
 
 def con_lai(g, doc, khoa=False):
@@ -57,10 +85,28 @@ def con_lai(g, doc, khoa=False):
 
 def luu(doc, dong, chung_tu=None):
     b = doc_bo({"dong": dong, "chung_tu": chung_tu or []})
+    khoa_phieu(doc.doctype, doc.name, b["dong"])
+    cu = doc_bo(frappe.db.get_value(doc.doctype, doc.name, O_BO, for_update=True))
+    ma_moi = {d["name"] for d in b["dong"]}
+    for ma in sorted(ma_moi | {d["name"] for d in cu["dong"]}):
+        cac = _doc_chu(frappe.db.get_value("Bank Transaction", ma, O_CHU, for_update=True))
+        cac.pop(cua(doc), None)
+        if ma in ma_moi:
+            cac[cua(doc)] = b
+        frappe.db.set_value("Bank Transaction", ma, O_CHU,
+            json.dumps(cac, ensure_ascii=False, separators=(",", ":")) if cac else None, update_modified=False)
     chuoi = json.dumps(b, ensure_ascii=False, separators=(",", ":")) if b["dong"] else None
     frappe.db.set_value(doc.doctype, doc.name, O_BO, chuoi, update_modified=False)
     doc.set(O_BO, chuoi)
     return b
+
+
+def bao_ve_chu_bt(doc, method=None):
+    """Ô chủ giữ do luu quản lý, không nhận từ payload của BT nháp hay đã ghi sổ."""
+    if (frappe.flags.get("in_migrate") or frappe.flags.get("in_install")) and not frappe.db.has_column("Bank Transaction", O_CHU):
+        return
+    doc.set(O_CHU, None if doc.is_new() else frappe.db.get_value(
+        "Bank Transaction", doc.name, O_CHU, for_update=True))
 
 
 def bao_ve(doc, method=None):
@@ -80,10 +126,7 @@ def chon(doc, dong, can, chieu, kiem, ghi=False):
     if not b["dong"]:
         frappe.throw("Chọn ít nhất một dòng sao kê.")
     if ghi:
-        frappe.db.get_value(doc.doctype,doc.name,"name",for_update=True)
-        for d in sorted(b["dong"],key=lambda d:d["name"]):
-            if not frappe.db.get_value("Bank Transaction",d["name"],"name",for_update=True):
-                frappe.throw("Không còn giao dịch %s. Tải lại sao kê." % d["name"])
+        khoa_phieu(doc.doctype, doc.name, b["dong"])
     gs=[]; rows=[]
     for d in b["dong"]:
         g=frappe.get_doc("Bank Transaction",d["name"],for_update=ghi)
@@ -155,9 +198,14 @@ def bao_ve_bt(doc, method=None):
     của lõi; dữ liệu vượt phần tiền thì rollback cả lượt.
     """
     if doc.is_new():
+        doc.set(O_CHU, None)
         return
     frappe.db.get_value("Bank Transaction",doc.name,"name",for_update=True)
-    cac_bo=_cac_bo(doc.name,khoa=True)
+    raw = frappe.db.get_value("Bank Transaction", doc.name, O_CHU, for_update=True)
+    doc.set(O_CHU, raw)
+    if not raw:
+        return
+    cac_bo=[dict(b, chu=chu) for chu, b in _doc_chu(raw).items()]
     if not cac_bo:
         return
     truoc=doc.get_doc_before_save()

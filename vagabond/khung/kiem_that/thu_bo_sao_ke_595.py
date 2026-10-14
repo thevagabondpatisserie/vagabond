@@ -244,6 +244,8 @@ def _():
     else:dung('đã ghi sổ phải chặn bỏ',False)
     pe.reload()  # Lõi cập nhật clearance_date sau submit, lấy bản mới trước hủy.
     pe.cancel()
+    h.reload()
+    la("PE hủy không tự đổi trạng thái hồ sơ",h.trang_thai,"Da chi")
     luong.bo('hoan_tien',h.name);h.reload()
     la('bỏ cả bộ sau huỷ lõi',bs.doc_hien_tai(h)['dong'],[])
     la('về chờ chi',h.trang_thai,'Cho chi')

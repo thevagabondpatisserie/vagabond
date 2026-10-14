@@ -41,12 +41,27 @@ def _ho_so(name, khoa=False):
 
 	hs._kiem(hs.VAI_FIN, "đối chiếu giao dịch ngân hàng")
 	if khoa:
-		frappe.db.get_value(DT, name, "name", for_update=True)
+		from vagabond.bo_sao_ke_db import khoa_phieu
+		khoa_phieu(DT, name)
 	doc = frappe.get_doc(DT, name, for_update=khoa)
 	doc.check_permission("read")
 	if doc.trang_thai not in (hs.TT_DA_DUYET, hs.TT_DA_TRA):
 		frappe.throw("Hồ sơ %s chưa duyệt xong. Duyệt đủ hai cấp rồi đối chiếu ngân hàng." % name)
 	return doc
+
+
+def khoa_truoc(name, ma=None):
+	"""Khóa cả BT sẽ chọn trước khi caller khóa APP."""
+	from vagabond import bo_sao_ke_db as bs
+	import json
+	doc = frappe.get_doc(DT, name)
+	moi = json.loads(ma) if isinstance(ma, str) and ma.lstrip().startswith("[") else ma
+	if isinstance(moi, list):
+		dong = bs.doc_bo({"dong": moi, "chung_tu": []})["dong"]
+	else:
+		g = chon(doc, ma, khoa=False)
+		dong = (g.flags.get("dong") or [{"name": g.name, "phan_bo": 1}]) if g else []
+	bs.khoa_phieu(DT, name, dong)
 
 
 def _nguon(doc):
@@ -410,6 +425,9 @@ def bo(name):
 @frappe.whitelist(methods=["POST"])
 @_bao_tranh_chap
 def gan(name, ma_giao_dich):
+	from vagabond import ho_so_tt as hs
+	hs._kiem(hs.VAI_FIN, "đối chiếu giao dịch ngân hàng")
+	khoa_truoc(name, ma_giao_dich)
 	doc = _ho_so(name, khoa=True)
 	from vagabond import bo_sao_ke_db as bs
 	import json

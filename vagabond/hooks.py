@@ -1029,3 +1029,10 @@ doc_events["Payment Entry"]["on_submit"] = ([_cu_bo_sk] if isinstance(_cu_bo_sk,
 
 _cu_bo_sk = doc_events.setdefault("Payment Entry", {}).get("before_validate", [])
 doc_events["Payment Entry"]["before_validate"] = ([_cu_bo_sk] if isinstance(_cu_bo_sk, str) else list(_cu_bo_sk)) + ["vagabond.bo_sao_ke_luong.nguon_hoan_tien"]
+
+# Frappe khóa phiếu trước validate, nên phải xin khóa BT ở biên Document.
+extend_doctype_class = {dt: ["vagabond.bo_sao_ke_document.KhoaBoSaoKe"] for dt in (
+    "Vagabond Ho So TT", "Vagabond De Nghi Chi", "Vagabond Hoan Tien", "Vagabond Cong No")}
+
+_cu_chu_bt = doc_events.setdefault("Bank Transaction", {}).get("before_validate", [])
+doc_events["Bank Transaction"]["before_validate"] = ([_cu_chu_bt] if isinstance(_cu_chu_bt, str) else list(_cu_chu_bt)) + ["vagabond.bo_sao_ke_db.bao_ve_chu_bt"]

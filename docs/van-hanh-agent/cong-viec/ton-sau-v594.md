@@ -112,3 +112,11 @@ B: PR471 web Vue giữ Draft và công tắc tắt. Merge main không rebase, gi
 - P2 review: Pancake dời ngày nhận thì đồng bộ theo ID và ghi ngày nguồn vào metadata chỗ giữ; không sửa ngày trên biên nhận cũ. Đồng bộ ngày cũ không xóa dấu của ngày mới. Truy vấn đọc thêm ID đang đồng bộ và ngày nguồn để không bỏ sót đơn dời ngày. Thêm ca tầng khung và bench thật.
 - Hai đột biến review: bỏ nhả bộ bị1ca bắt; quay lại lọc ngày cũ bị1ca bắt. Khôi phục đúng2/2ca đạt. Sổ tay đã bổ sung đúng tên nút và chia mục theo giới hạn1600ký tự.
 - Chưa hoàn thành A1 công nợ tiền vào; bench bản sửa mới phải chạy lại, không dùng kết quả cũ thay thế.
+
+### 15/10: tái hiện P2 và bản sửa đang kiểm
+
+- Baseline runtime `035e35e6c`, commit chỉ thêm probe `e3bbb5d5f75865f2cb3c7a2517b2723962c5d933`, [bench 38549666430](https://github.com/thevagabondpatisserie/vagabond/actions/runs/38549666430), MariaDB REPEATABLE-READ. BT không liên quan chờ 2,072067 giây; đảo thời điểm có QueryDeadlockError 1213; tạo APP mới chờ 2,043181 giây. Mỗi ca dùng hàng rào giữ 2 giây, thao tác và phân bổ lõi thật trên bench dùng một lần.
+- Bản sửa dùng trường ẩn trên BT hiện có, đọc chủ giữ theo khóa chính. Không quét LIKE FOR UPDATE bốn bảng phiếu. Khóa BT theo tên trước phiếu; current read phát hiện bộ đổi trong lúc chờ thì yêu cầu thử lại. Mixin Document chạy trước khóa ngầm của Frappe `_save/check_if_latest`, không đợi đến validate.
+- Ba đột biến local: khôi phục quét LIKE FOR UPDATE; bỏ khóa/kiểm bộ thay đổi; bỏ bảo vệ trường chủ BT. Mỗi đột biến bị 1 trong 3 ca P2 bắt, tổng 3/3 đột biến. Đây chưa thay số liệu bench sau sửa.
+- Hoàn tiền: hook on_submit PE đặt hồ sơ thành `Da chi`; hủy PE không tự đổi lại. Bỏ bộ nhận trạng thái này và `Hoan thanh`, nhưng vẫn từ chối PE nháp/đã ghi sổ hoặc BT còn liên kết. Khi bỏ hợp lệ, xóa dấu hoàn thành để không hiển thị kết quả cũ.
+- Đã bổ sung `bo_sao_ke_luong.bo` vào cửa ngõ. Còn đo khóa đơn web P3, rà toàn bộ thứ tự khóa cửa ghi/hoàn ứng, công nợ tiền vào và tạm ứng, bench tổng/staging đúng SHA. Chưa hoàn thành A1/A2, chưa merge/deploy.

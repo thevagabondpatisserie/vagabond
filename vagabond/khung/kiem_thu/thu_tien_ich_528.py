@@ -157,6 +157,8 @@ class _San:
 	def get_doc(self, dt, ten=None, for_update=False):
 		if dt == "Bank Transaction":
 			return self.bts[ten]
+		if dt == "Vagabond Ho So TT":
+			return self.doc
 		if dt == "Supplier":
 			return NS(add_comment=lambda loai, noi: self.nhat_ky.append((ten, noi)))
 		raise AssertionError("get_doc lạ: " + dt)
@@ -165,7 +167,9 @@ class _San:
 		if dt == "Supplier":
 			return ten if o == "name" else self.mau.get(ten)
 		if dt == "Bank Transaction":
-			return ten
+			return None if o == "vgb_chu_bo_sao_ke" else ten
+		if dt == "Vagabond Ho So TT" and o == "vgb_bo_sao_ke":
+			return None
 		raise AssertionError("get_value lạ: " + dt)
 
 	def set_value(self, dt, ten, o, gt, **k):
@@ -176,6 +180,8 @@ class _San:
 		dca = self.dca
 		kiem = lambda g, doc, nguon: ("Giao dịch đã được APP.26.09.050 sử dụng." if g.name in self.dung_roi else "")
 		with unittest.mock.patch.object(dca, "frappe", self.f), \
+				unittest.mock.patch("vagabond.ho_so_tt._kiem", return_value=None), \
+				unittest.mock.patch("frappe.db.get_value", self.get_value), \
 				unittest.mock.patch.object(dca, "_nguon", lambda doc: ("VGB", "1121 - MB", TIEN)), \
 				unittest.mock.patch.object(dca, "_kiem", kiem), \
 				unittest.mock.patch.object(dca, "_ho_so", lambda name, khoa=False: self.doc), \

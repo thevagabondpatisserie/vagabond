@@ -104,10 +104,10 @@ def _():
     def phan(g,d,khoa=False):
         la("current read",khoa,True)
         return g.withdrawal
-    with patch.object(frappe.db,"get_value",return_value="TEN") as lock, patch.object(frappe,"get_doc",side_effect=giao), \
+    with patch.object(frappe.db,"get_value",side_effect=lambda dt,n,f,**kw: None if f==bs.O_BO else n) as lock, patch.object(frappe,"get_doc",side_effect=giao), \
             patch.object(bs,"con_lai",side_effect=phan), patch.object(bs,"luu") as luu:
         g=bs.chon(doc,ds,100,"ra",lambda g:"",ghi=True)
-        la("khóa phiếu rồi A B",[x.args[:2] for x in lock.call_args_list],[(doc.doctype,"APP"),("Bank Transaction","A"),("Bank Transaction","B")])
+        la("khóa A B trước phiếu",[x.args[:2] for x in lock.call_args_list if x.kwargs.get("for_update")],[("Bank Transaction","A"),("Bank Transaction","B"),(doc.doctype,"APP")])
         la("tổng đúng",g.withdrawal,100)
         la("lưu một bộ",luu.call_count,1)
         luu.reset_mock()
@@ -124,7 +124,7 @@ def _():
     a=frappe._dict(name="A",docstatus=1,currency="VND",withdrawal=60,deposit=0,bank_account="MB",date="2026-10-14",reference_number="A")
     b=frappe._dict(a,name="B",withdrawal=40)
     ds=[dict(name="A",phan_bo=60),dict(name="B",phan_bo=40)]
-    with patch.object(frappe.db,"get_value",return_value="TEN"), patch.object(frappe,"get_doc",side_effect=lambda dt,ma,**kw:a if ma=="A" else b), \
+    with patch.object(frappe.db,"get_value",side_effect=lambda dt,n,f,**kw: None if f==bs.O_BO else n), patch.object(frappe,"get_doc",side_effect=lambda dt,ma,**kw:a if ma=="A" else b), \
             patch.object(bs,"con_lai",return_value=100) as con, patch.object(bs,"luu") as luu:
         for cot,v in (("docstatus",0),("currency","USD"),("bank_account","ACB"),("deposit",40)):
             cu=b[cot];b[cot]=v
@@ -324,3 +324,55 @@ def _():
              patch.object(dc,'_kiem_bo',side_effect=frappe.ValidationError('bút toán sống')),patch.object(hs,'_kiem'):
             nem('chưa nhả khi còn bút toán',lambda:dc.kiem_luu(d),frappe.ValidationError)
             la('mã còn nguyên',d.ma_giao_dich,'BT')
+
+
+@ca("#476 P2 chủ giữ đọc bằng khóa chính BT, không quét bảng phiếu")
+def _():
+    import json
+    from unittest.mock import patch
+    import frappe
+    from vagabond import bo_sao_ke_db as bs
+    plan=bo("Vagabond Ho So TT/APP",600)
+    chu=plan.pop("chu")
+    with patch.object(frappe.db,"get_value",return_value=json.dumps({chu:plan})) as doc, \
+            patch.object(frappe.db,"sql",side_effect=AssertionError("Không được quét bảng phiếu")):
+        la("chủ đúng",bs._cac_bo("BT",khoa=True),[dict(plan,chu=chu)])
+        la("đúng khóa chính",doc.call_args.args,("Bank Transaction","BT",bs.O_CHU))
+        la("current read",doc.call_args.kwargs,{"for_update":True})
+
+
+@ca("#476 P2 bộ đổi trong khi đợi khóa phải thử lại, không xin BT mới sau phiếu")
+def _():
+    import json
+    from unittest.mock import patch
+    import frappe
+    from vagabond import bo_sao_ke_db as bs
+    cu=json.dumps(dict(dong=[dict(name="B",phan_bo=10)],chung_tu=[]))
+    moi=json.dumps(dict(dong=[dict(name="A",phan_bo=10)],chung_tu=[]))
+    def doc(dt,n,f,**kw):
+        return n if dt=="Bank Transaction" else moi if kw.get("for_update") else cu
+    with patch.object(frappe.db,"get_value",side_effect=doc) as lay:
+        nem("bộ thay đổi",lambda:bs.khoa_phieu("Vagabond Ho So TT","APP"))
+        la("chỉ khóa B trước phiếu",[(c.args[0],c.args[1]) for c in lay.call_args_list if c.kwargs.get("for_update")],
+            [("Bank Transaction","B"),("Vagabond Ho So TT","APP")])
+
+
+@ca("#476 P2 sao kê không có chủ giữ thoát sớm, payload nháp không giả chủ")
+def _():
+    from unittest.mock import patch
+    import frappe
+    from vagabond import bo_sao_ke_db as bs
+    class D(dict):
+        name="BT"
+        def set(self,k,v):self[k]=v
+        def is_new(self):return self.get("moi",False)
+    doc=D()
+    with patch.object(frappe.db,"get_value",return_value=None), \
+            patch.object(bs,"_loi",side_effect=AssertionError("BT trống không đọc phân bổ")):
+        bs.bao_ve_bt(doc)
+        la("trống",doc[bs.O_CHU],None)
+    for moi in (True,False):
+        doc=D(moi=moi,vgb_chu_bo_sao_ke="giả")
+        with patch.object(frappe.db,"get_value",return_value="chủ thật"):
+            bs.bao_ve_chu_bt(doc)
+        la("nguồn máy chủ",doc[bs.O_CHU],None if moi else "chủ thật")

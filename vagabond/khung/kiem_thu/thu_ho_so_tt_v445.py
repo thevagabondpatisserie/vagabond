@@ -166,6 +166,8 @@ class _San(object):
 		# Các ca này kiểm giao dịch ghi nhận, bộ kiểm #247 kiểm đối chiếu thật.
 		self.doi_chieu = patch.object(doi_chieu_app, "chon", return_value=types.SimpleNamespace(name="BT-GIA", withdrawal=san.chi))
 		self.noi = patch.object(doi_chieu_app, "noi_but_toan", return_value=None)
+		self.khoa_bo = patch.object(doi_chieu_app, "khoa_truoc", return_value=None)
+		self.khoa_bo.start()
 		self.doi_chieu.start()
 		self.noi.start()
 		return self
@@ -174,6 +176,7 @@ class _San(object):
 		import frappe
 		from vagabond import tra_tien_app
 
+		self.khoa_bo.stop()
 		self.doi_chieu.stop()
 		self.noi.stop()
 		self.va.__exit__(*a)
