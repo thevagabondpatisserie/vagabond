@@ -243,6 +243,47 @@ def ban_phat_hanh(c):
     return x
 
 
+CODEX = 'chatgpt-codex-connector[bot]'
+CHECK_DAT = ('success', 'neutral', 'skipped')
+
+
+def xet_san_sang_merge(pr, checks, chi_tiet, comments):
+    """PR đủ điều kiện merge chưa. Hàm THUẦN, không gọi mạng.
+
+    Đủ khi: không phải bản nháp, GitHub báo merge được (không xung đột), có
+    check `bench` xanh và MỌI check trên đúng SHA đầu PR đã xong và đạt.
+    Codex chỉ ghi kèm trạng thái, không phải điều kiện: anh Việt cần biết bench
+    xanh để vào lệnh, còn Codex đạt hay chưa thì tin ghi rõ.
+    Trả None hoặc dict(at, text, signature).
+    """
+    sha = (pr.get('head') or {}).get('sha') or ''
+    if not re.fullmatch(r'[0-9a-f]{40}', sha) or pr.get('draft') or chi_tiet.get('draft'):
+        return None
+    if chi_tiet.get('mergeable') is not True or (chi_tiet.get('head') or {}).get('sha') != sha:
+        return None
+    if not checks or any(c.get('head_sha', sha) != sha for c in checks):
+        return None
+    if any(c.get('status') != 'completed' or c.get('conclusion') not in CHECK_DAT for c in checks):
+        return None
+    if not any(c.get('name') == 'bench' and c.get('conclusion') == 'success' for c in checks):
+        return None
+    at = max(c.get('completed_at') or '' for c in checks)
+    codex = None
+    for c in comments:
+        body = c.get('body') or ''
+        if (c.get('user', {}).get('login') == CODEX and sha[:10] in body
+                and "Didn't find any major issues" in body):
+            codex = c.get('created_at') or ''
+    if codex:
+        at = max(at, codex)
+    so = pr['number']
+    text = (f"Vagabond | PR #{so} đủ điều kiện merge\n{rut(pr.get('title', ''))}"
+            f"\nBench xanh, mọi kiểm tra đạt, không xung đột. SHA {sha[:9]}."
+            + ('\nCodex: đã rà đạt đúng SHA này.' if codex else '\nCodex: chưa báo rà đạt cho SHA này.')
+            + f"\nVào Cowork nhắn: merge #{so}\n{WEB}/pull/{so}")
+    return {'at': at, 'text': text, 'signature': ma([sha, bool(codex)])}
+
+
 def thu_thap(gh, state):
     """Metadata hoặc bản tin phát hành được soạn riêng; không chuyển log/artifact."""
     since = urllib.parse.quote(lui(state['cursor'], 120), safe='')
@@ -333,6 +374,21 @@ def thu_thap(gh, state):
             them('review:' + str(r['id']) + ':' + r['state'], r.get('submitted_at'),
                  f"Vagabond | Review PR #{number}\nTừ: {rut(r['user']['login'], 60)}"
                  f"\nKết quả GitHub: {r['state']}\n{WEB}/pull/{number}#pullrequestreview-{r['id']}")
+    # Báo PR đủ điều kiện merge (anh Việt 15/10/2026): một tin cho mỗi SHA đầu PR,
+    # thêm một tin khi Codex rà đạt sau. Chỉ kênh riêng, nhóm bộ phận không nhận.
+    for number, pr in prs.items():
+        sha = (pr.get('head') or {}).get('sha')
+        if not sha or pr.get('draft'):
+            continue
+        checks = gh.trang('/commits/' + sha + '/check-runs', 'check_runs')
+        if not checks or any(c.get('status') != 'completed' or c.get('conclusion') not in CHECK_DAT
+                             for c in checks):
+            continue
+        chi_tiet = gh.goi('/pulls/' + str(number))
+        kq = xet_san_sang_merge(pr, checks, chi_tiet, gh.trang('/issues/' + str(number) + '/comments'))
+        if kq:
+            entity = 'san-sang-merge:' + str(number)
+            them(entity + ':' + kq['signature'], kq['at'], kq['text'], entity, kq['signature'])
     # Quét cả lượt cũ chạy lại trong 7 ngày; thời gian gián đoạn dài lấy theo cursor.
     cua_run = min(lui(gio(), 7 * 86400), lui(state['cursor'], 120))
     moc = cua_run[:10]
@@ -493,6 +549,8 @@ class KenhNhom:
         return self.gh.luu(self.goc, sha)
     def trang(self, *args):
         return self.gh.trang(*args)
+    def goi(self, *args, **kw):
+        return self.gh.goi(*args, **kw)
 
 
 def chay(gh, tg, chat, gom=False, chat_nhom=''):
