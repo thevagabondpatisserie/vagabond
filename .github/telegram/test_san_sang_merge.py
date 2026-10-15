@@ -114,6 +114,19 @@ class XetThuan(unittest.TestCase):
         self.assertIn('Vào Cowork nhắn: merge #477', kq['text'])
         self.assertNotIn('deploy #477', kq['text'])
 
+    def test_codex_8050470_tep_trien_khai_o_goc_van_can_deploy(self):
+        # Codex 8050470: PR chỉ đổi pyproject.toml hay requirements.txt (không chạm
+        # vagabond/) vẫn đổi môi trường cài trên Frappe Cloud. Chỉ PR mà MỌI tệp nằm
+        # trong .github/ hoặc docs/ mới được báo "không cần deploy app".
+        ok = {'mergeable': True, 'state': 'open', 'head': {'sha': SHA}}
+        for tep in (['pyproject.toml'], ['requirements.txt'], ['.github/x.yml', 'package.json'], ['README.md'], []):
+            with self.subTest(tep):
+                kq = xet_san_sang_merge(pr(), du(), ok, [codex()], ss(), tep)
+                self.assertIn('đủ điều kiện merge và deploy', kq['text'])
+                self.assertIn('merge và deploy #477', kq['text'])
+        kq = xet_san_sang_merge(pr(), du(), ok, [codex()], ss(), ['.github/workflows/a.yml', 'docs/b.md'])
+        self.assertIn('không cần deploy app', kq['text'])
+
     def test_chua_du_thi_khong_bao(self):
         ok = {'mergeable': True, 'state': 'open', 'head': {'sha': SHA}}
         ca = {

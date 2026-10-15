@@ -247,6 +247,10 @@ CODEX = 'chatgpt-codex-connector[bot]'
 CHECK_DAT = ('success', 'neutral', 'skipped')
 
 
+# Thư mục mà đổi trong đó KHÔNG cần deploy app lên Frappe Cloud (Codex 8050470).
+KHONG_DEPLOY = ('.github/', 'docs/')
+
+
 def xet_san_sang_merge(pr, checks, chi_tiet, comments, so_sanh, tep):
     """PR đủ điều kiện merge (và deploy) chưa. Hàm THUẦN, không gọi mạng.
 
@@ -257,8 +261,9 @@ def xet_san_sang_merge(pr, checks, chi_tiet, comments, so_sanh, tep):
     main thì bench xanh là bench của bản chưa hợp nhất, chưa được báo.
     Anh Việt 15/10/2026 (lần 2): chỉ báo khi ĐỦ để vào lệnh, nên Codex phải rà đạt
     ĐÚNG SHA đầu PR ("Didn't find any major issues" kèm SHA). `tep` là danh sách
-    tên tệp PR đổi: có tệp trong vagabond/ thì cần deploy app, tin ghi "merge và
-    deploy"; chỉ đổi .github/, docs/... thì merge là xong, tin nói không cần deploy.
+    tên tệp PR đổi: mọi tệp đều trong .github/ hoặc docs/ thì merge là xong, tin nói
+    không cần deploy; còn lại (app, pyproject.toml, requirements.txt...) ghi "merge và
+    deploy".
     Trả None hoặc dict(at, text, signature).
     """
     sha = (pr.get('head') or {}).get('sha') or ''
@@ -288,7 +293,10 @@ def xet_san_sang_merge(pr, checks, chi_tiet, comments, so_sanh, tep):
         return None
     at = max(at, codex)
     so = pr['number']
-    can_deploy = any(str(f or '').startswith('vagabond/') for f in (tep or []))
+    # Codex 8050470: chỉ PR mà MỌI tệp nằm trong vùng an toàn mới không cần deploy.
+    # Tệp gốc như pyproject.toml, requirements.txt đổi môi trường cài trên Frappe Cloud;
+    # danh sách rỗng (không đọc được) cũng coi là cần deploy.
+    can_deploy = not tep or not all(str(f or '').startswith(KHONG_DEPLOY) for f in tep)
     text = (f"Vagabond | PR #{so} đủ điều kiện merge" + (' và deploy' if can_deploy else ' (không cần deploy app)')
             + f"\n{rut(pr.get('title', ''))}"
             f"\nBench và CI xanh, Codex rà đạt, không xung đột, đã gồm main {nen[:9]}. SHA {sha[:9]}."
