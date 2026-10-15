@@ -259,7 +259,8 @@ def xet_san_sang_merge(pr, checks, chi_tiet, comments):
     sha = (pr.get('head') or {}).get('sha') or ''
     if not re.fullmatch(r'[0-9a-f]{40}', sha) or pr.get('draft') or chi_tiet.get('draft'):
         return None
-    if chi_tiet.get('mergeable') is not True or (chi_tiet.get('head') or {}).get('sha') != sha:
+    if (chi_tiet.get('state') != 'open' or chi_tiet.get('mergeable') is not True
+            or (chi_tiet.get('head') or {}).get('sha') != sha):
         return None
     if not checks or any(c.get('head_sha', sha) != sha for c in checks):
         return None
@@ -388,7 +389,11 @@ def thu_thap(gh, state):
         kq = xet_san_sang_merge(pr, checks, chi_tiet, gh.trang('/issues/' + str(number) + '/comments'))
         if kq:
             entity = 'san-sang-merge:' + str(number)
-            them(entity + ':' + kq['signature'], kq['at'], kq['text'], entity, kq['signature'])
+            # Mốc là lúc đối soát và khoá có mốc đó, để mỗi lượt đều đi qua nhánh im
+            # lặng của entity và làm mới hạn giữ. PR đứng im quá 30 ngày cùng SHA vẫn
+            # chỉ một tin, không bị tỉa rồi gửi lại mỗi 15 phút (Codex 6f45f8f).
+            luc = max(kq['at'], gio())
+            them(entity + ':' + kq['signature'] + ':' + luc, luc, kq['text'], entity, kq['signature'])
     # Quét cả lượt cũ chạy lại trong 7 ngày; thời gian gián đoạn dài lấy theo cursor.
     cua_run = min(lui(gio(), 7 * 86400), lui(state['cursor'], 120))
     moc = cua_run[:10]

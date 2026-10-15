@@ -34,7 +34,7 @@ class Kho:
         self.sha = 0
         self.pr = pr()
         self.checks = du()
-        self.chi_tiet = {'mergeable': True, 'draft': False, 'head': {'sha': SHA}}
+        self.chi_tiet = {'mergeable': True, 'state': 'open', 'draft': False, 'head': {'sha': SHA}}
         self.comments = []
         self.goi_den = []
 
@@ -76,31 +76,33 @@ class Bot:
 
 class XetThuan(unittest.TestCase):
     def test_du_dieu_kien_va_codex_dat(self):
-        kq = xet_san_sang_merge(pr(), du(), {'mergeable': True, 'head': {'sha': SHA}}, [codex()])
+        kq = xet_san_sang_merge(pr(), du(), {'mergeable': True, 'state': 'open', 'head': {'sha': SHA}}, [codex()])
         self.assertIn('PR #477 đủ điều kiện merge', kq['text'])
         self.assertIn('Codex: đã rà đạt đúng SHA này.', kq['text'])
         self.assertIn('merge #477', kq['text'])
         self.assertEqual(kq['at'], '2026-09-12T00:01:30Z')
 
     def test_chua_du_thi_khong_bao(self):
-        ok = {'mergeable': True, 'head': {'sha': SHA}}
+        ok = {'mergeable': True, 'state': 'open', 'head': {'sha': SHA}}
         ca = {
             'bench đang chạy': (pr(), du()[:2] + [check('bench', None, 'in_progress')], ok),
             'bench đỏ': (pr(), du()[:2] + [check('bench', 'failure')], ok),
             'không có bench': (pr(), du()[:2], ok),
             'một check khác đỏ': (pr(), [check('kiem-thu', 'failure')] + du()[1:], ok),
-            'xung đột': (pr(), du(), {'mergeable': False, 'head': {'sha': SHA}}),
-            'GitHub chưa tính xong': (pr(), du(), {'mergeable': None, 'head': {'sha': SHA}}),
+            'xung đột': (pr(), du(), {'mergeable': False, 'state': 'open', 'head': {'sha': SHA}}),
+            'GitHub chưa tính xong': (pr(), du(), {'mergeable': None, 'state': 'open', 'head': {'sha': SHA}}),
             'bản nháp': (pr(draft=True), du(), ok),
             'check của SHA cũ': (pr(), du(SHA2), ok),
-            'PR đã đổi đầu giữa chừng': (pr(), du(), {'mergeable': True, 'head': {'sha': SHA2}}),
+            'PR đã đổi đầu giữa chừng': (pr(), du(), {'mergeable': True, 'state': 'open', 'head': {'sha': SHA2}}),
+            # Codex 6f45f8f: PR đóng giữa lúc liệt kê và lúc đọc chi tiết.
+            'PR vừa đóng': (pr(), du(), {'mergeable': True, 'state': 'closed', 'head': {'sha': SHA}}),
         }
         for ten, (p, c, ct) in ca.items():
             with self.subTest(ten):
                 self.assertIsNone(xet_san_sang_merge(p, c, ct, []))
 
     def test_codex_dat_sha_khac_hoac_co_gop_y_khong_tinh(self):
-        ok = {'mergeable': True, 'head': {'sha': SHA}}
+        ok = {'mergeable': True, 'state': 'open', 'head': {'sha': SHA}}
         for cm in ([codex(SHA2)], [codex(dat=False)]):
             with self.subTest(cm[0]['body'][:20]):
                 kq = xet_san_sang_merge(pr(), du(), ok, cm)
@@ -129,10 +131,19 @@ class ThuThapVaGui(unittest.TestCase):
         # Đẩy SHA mới, bench xanh lại: tin mới cho SHA mới.
         kho.pr = pr(SHA2)
         kho.checks = du(SHA2)
-        kho.chi_tiet = {'mergeable': True, 'head': {'sha': SHA2}}
+        kho.chi_tiet = {'mergeable': True, 'state': 'open', 'head': {'sha': SHA2}}
         kho.comments = []
         self.assertEqual(chay(kho, bot, '1'), 1)
         self.assertIn(SHA2[:9], bot.sent[-1][1])
+
+    def test_codex_p1_pr_dung_im_qua_30_ngay_khong_gui_lap(self):
+        # Codex 6f45f8f: entity bị tỉa sau 30 ngày theo mốc at cũ thì mỗi lượt 15 phút gửi lại.
+        kho, bot = Kho(), Bot()
+        self.assertEqual(chay(kho, bot, '1'), 1)
+        for ngay in ('2026-10-20', '2026-10-21', '2026-11-12', '2026-11-13', '2026-12-30'):
+            with patch('thong_bao.gio', return_value=ngay + 'T00:02:00Z'):
+                self.assertEqual(chay(kho, bot, '1'), 0, ngay)
+        self.assertEqual(len(bot.sent), 1)
 
     def test_bench_chua_xong_khong_goi_chi_tiet_pr(self):
         kho = Kho()
