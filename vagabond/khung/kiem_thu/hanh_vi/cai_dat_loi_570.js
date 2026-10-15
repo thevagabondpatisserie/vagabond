@@ -410,6 +410,140 @@ function moTab(m, fn) { bam(m, mot(m, '[data-cdltab="' + fn + '"]')); }
     bang('lưu gửi chuỗi rỗng', JSON.parse(g.ts.thay), { tk_hoan_tien: '' });
   });
 
+  /* ---------- v596: anh Việt duyệt mockup 15/10/2026 ---------- */
+  // Dữ liệu thật của site ngày 15/10: Ahamove khai đủ nhưng trỏ máy chủ chạy thử.
+  async function voiAhamoveThu(ham) {
+    var cu = JSON.parse(JSON.stringify(LAY.gia_tri));
+    LAY.gia_tri.ahamove_api_key = { da_khai: true };
+    LAY.gia_tri.ahamove_mobile = '0900000000';
+    LAY.gia_tri.ahamove_base = 'https://apistg.ahamove.com';
+    try { await ham(); } finally { LAY.gia_tri = cu; }
+  }
+  function tomTatMay(m) { return m.g.VGB_CD.tongHop(m.g.VGB_CD.tinhTrang(m.g.cdlDoc())); }
+
+  await ca('v596 tổng quan: câu tóm tắt đúng số máy tính, thanh màu, không còn "mục · ô"', async function () {
+    var m = await moMan();
+    var th = tomTatMay(m);
+    dung('câu tóm tắt có trên màn', chu(mot(m, '#cdlTomTat')).indexOf(th.cau) >= 0);
+    var khuc = mot(m, '#cdlTomTat').querySelectorAll('[data-mau]');
+    bang('một khúc mỗi màu khác 0', khuc.map(function (e) { return e.getAttribute('data-mau'); }),
+      ['ok', 'no', 'off', 'err'].filter(function (k) { return th.dem[k]; }));
+    dung('không còn dòng phụ kiểu "3 mục · 18 ô"', !/\d+ mục · \d+ ô/.test(chu(m.khung)));
+  });
+
+  await ca('v596 tổng quan: dòng nhóm không dùng lớp .card (lớp này làm vỡ thành ô to căn giữa)', async function () {
+    var m = await moMan();
+    var dong = tim(m, '[data-cdltab]');
+    bang('8 dòng nhóm', dong.length, 8);
+    dong.forEach(function (d) {
+      var lop = String(d.getAttribute('class') || '').split(' ');
+      dung(d.getAttribute('data-cdltab') + ' không mang lớp card', lop.indexOf('card') < 0 && lop.indexOf('cdl-nhom') >= 0);
+      dung(d.getAttribute('data-cdltab') + ' có dòng nói nhóm chứa gì', chu(d.querySelectorAll('small')[0] || {}).length > 8);
+    });
+    dung('khối danh sách không phải .card', String(mot(m, '#cdlNhom').getAttribute('class')).split(' ').indexOf('card') < 0);
+  });
+
+  await ca('v596 cần xử lý: Ahamove chạy thử là thẻ đỏ nói hậu quả; bấm Sửa mở Giao hàng, tô và nói cách sửa đúng ô API', async function () {
+    await voiAhamoveThu(async function () {
+      var m = await moMan();
+      var the = tim(m, '.cdl-viec.err');
+      bang('một thẻ đỏ', the.length, 1);
+      dung('nói Ahamove và hậu quả', chu(the[0]).indexOf('Ahamove: đang trỏ máy chủ chạy thử') >= 0 && chu(the[0]).indexOf('phí giao') >= 0);
+      bang('nhãn nhóm Giao hàng báo lỗi', chu(mot(m, '[data-cdltab="tab_giao_hang"]').querySelectorAll('.cdl-nhan')[0]), '1 lỗi');
+      bam(m, the[0]);
+      bang('mở nhóm Giao hàng', m.g._t, 'Giao hàng');
+      var o = mot(m, '#cdl-o-ahamove_base');
+      dung('ô API được tô sáng', String(o.getAttribute('class')).indexOf('cdl-sang') >= 0);
+      dung('ô API mang dấu lỗi', o.getAttribute('data-cdlloi') === '1');
+      dung('câu sửa ngay dưới ô', chu(o.querySelectorAll('.cdl-loi')[0] || {}).indexOf('https://api.ahamove.com') >= 0);
+      var muc = tim(m, '[data-cdlmuc]').filter(function (x) { return x.querySelectorAll('#cdl-o-ahamove_base').length; })[0];
+      bang('mục Ahamove gắn nhãn Lỗi', chu(muc.querySelectorAll('.cdl-nhan')[0]), 'Lỗi');
+      var inp = mot(m, '[data-cdlo="ahamove_base"]');
+      inp.value = 'https://api.ahamove.com';
+      m.khung.oninput({ target: inp });
+      bang('gõ đúng máy chủ thật thì câu đỏ dưới ô mất ngay', o.querySelectorAll('.cdl-loi').length, 0);
+      dung('và bỏ dấu lỗi của ô', !o.hasAttribute('data-cdlloi'));
+      inp.value = 'https://apistg.ahamove.com';
+      m.khung.oninput({ target: inp });
+      bang('gõ lại máy chạy thử thì câu đỏ hiện lại đúng một câu', o.querySelectorAll('.cdl-loi').length, 1);
+      inp.value = 'https://api.ahamove.com';
+      m.khung.oninput({ target: inp });
+      m.g.back();
+      bang('sửa xong về tổng quan thì hết thẻ đỏ', tim(m, '.cdl-viec.err').length, 0);
+    });
+  });
+
+  await ca('v596 mục có ô lỗi luôn mở sẵn, kể cả mục thu gọn, khi mở nhóm từ danh sách', async function () {
+    await voiAhamoveThu(async function () {
+      var cu = JSON.parse(JSON.stringify(LAY.bo_cuc));
+      LAY.bo_cuc.forEach(function (t) { t.muc.forEach(function (mu) { if (mu.o.some(function (o) { return o.fn === 'ahamove_base'; })) mu.gon = 1; }); });
+      try {
+        var m = await moMan();
+        moTab(m, 'tab_giao_hang');
+        bang('ô API hiện ngay, không phải bấm mở mục', tim(m, '#cdl-o-ahamove_base').length, 1);
+      } finally { LAY.bo_cuc = cu; }
+    });
+  });
+
+  await ca('v596 cần xử lý: khai rồi mà đang tắt là thẻ vàng, bấm tới đúng công tắc', async function () {
+    var m = await moMan();
+    var the = tim(m, '.cdl-viec.off').filter(function (e) { return chu(e).indexOf('SePay') >= 0; });
+    bang('một thẻ vàng SePay (đã khai khoá, công tắc tắt)', the.length, 1);
+    bam(m, the[0]);
+    dung('tô sáng công tắc SePay', String(mot(m, '#cdl-o-sepay_bat').getAttribute('class')).indexOf('cdl-sang') >= 0);
+  });
+
+  await ca('v596 cần xử lý: chưa khai gom một thẻ; bấm tên WhatsApp tới đúng ô còn thiếu đầu tiên', async function () {
+    var m = await moMan();
+    var th = tomTatMay(m);
+    var chua = th.can.filter(function (t) { return t.trang === 'no'; });
+    var theChua = tim(m, '.cdl-viec').filter(function (e) { return chu(e).indexOf('kết nối chưa khai') >= 0; });
+    bang('một thẻ gom chưa khai', theChua.length, 1);
+    var c = theChua[0].querySelectorAll('.cdl-chip');
+    bang('mỗi kết nối chưa khai một chip', c.length, chua.length);
+    var wa = c.filter(function (e) { return chu(e) === 'WhatsApp'; })[0];
+    bam(m, wa);
+    dung('tô sáng ô Mã số điện thoại WhatsApp', String(mot(m, '#cdl-o-wa_phone_id').getAttribute('class')).indexOf('cdl-sang') >= 0);
+  });
+
+  await ca('v596 nhãn nhóm: nhóm không có kết nối nào thì không tự nhận "Ổn"', async function () {
+    var m = await moMan();
+    bang('Khách hàng & điểm không có nhãn', mot(m, '[data-cdltab="tab_khach_hang"]').querySelectorAll('.cdl-nhan').length, 0);
+  });
+
+  await ca('v596 thanh Lưu: ẩn khi chưa sửa, hiện khi sửa, ẩn lại khi trả về như cũ', async function () {
+    var m = await moMan();
+    bang('tổng quan chưa sửa: ẩn', mot(m, '#cdlChan').style.display, 'none');
+    moTab(m, 'tab_ke_toan');
+    bang('vào nhóm chưa sửa: ẩn', mot(m, '#cdlChan').style.display, 'none');
+    bam(m, mot(m, '[data-cdlbat="sepay_bat"]'));
+    bang('bật công tắc: hiện', mot(m, '#cdlChan').style.display, '');
+    var inp = tim(m, '[data-cdlo]')[0];
+    var cu = inp.value;
+    inp.value = cu + 'x'; m.khung.oninput({ target: inp });
+    bang('gõ thêm: 2 thay đổi', chu(nut(m)), 'Lưu 2 thay đổi');
+    inp.value = cu; m.khung.oninput({ target: inp });
+    bam(m, mot(m, '[data-cdlbat="sepay_bat"]'));
+    bang('trả hết về như cũ: ẩn lại', mot(m, '#cdlChan').style.display, 'none');
+  });
+
+  await ca('v596 rời màn: còn thay đổi thì tổng quan đặt câu hỏi lại, đi giữa các nhóm thì không hỏi', async function () {
+    var m = await moMan();
+    bang('chưa sửa: không hỏi', m.S.chuaLuu, '');
+    moTab(m, 'tab_ke_toan');
+    bam(m, mot(m, '[data-cdlbat="sepay_bat"]'));
+    bang('đang trong nhóm: không đặt câu hỏi (lùi về tổng quan không mất gì)', m.S.chuaLuu, '');
+    m.g.back();
+    dung('về tổng quan: đặt câu hỏi kèm số thay đổi', String(m.S.chuaLuu).indexOf('Còn 1 thay đổi') === 0);
+    moTab(m, 'tab_giao_hang');
+    bang('mở nhóm khác khi còn thay đổi: vẫn không hỏi khi lùi về tổng quan', m.S.chuaLuu, '');
+    m.g.back();
+    dung('tổng quan nhắc còn thay đổi chưa lưu', chu(m.khung).indexOf('Còn 1 thay đổi chưa lưu') >= 0);
+    await m.g.cdlLuu();
+    m.g.back(); m.g.go(m.g.scrCaiDatLoi); await tick();
+    bang('lưu xong: không hỏi nữa', m.S.chuaLuu, '');
+  });
+
   console.log('\n' + ket.dat + ' ca dat, ' + ket.hong + ' ca hong.');
   if (ket.hong) process.exit(1);
 })();

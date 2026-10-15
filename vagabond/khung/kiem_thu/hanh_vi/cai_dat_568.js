@@ -696,5 +696,68 @@ ca('v581: menu Gửi thử khi chưa có nhóm nào có mã chat thì nói rõ c
   });
 });
 
+/* ---------- v596: tóm tắt, cần xử lý, ô lỗi (anh Việt duyệt mockup 15/10/2026) ---------- */
+
+ca('v596: tongHop đếm theo màu, câu chỉ nêu phần khác 0, cần xử lý xếp đỏ vàng xám', function () {
+  var ds = [{ ten: 'a', trang: 'ok' }, { ten: 'b', trang: 'no' }, { ten: 'c', trang: 'err' }, { ten: 'd', trang: 'ok' }, { ten: 'e', trang: 'off' }];
+  var th = V.tongHop(ds);
+  la('đếm', th.dem, { ok: 2, no: 1, off: 1, err: 1 });
+  la('câu', th.cau, '5 kết nối: 2 ổn, 1 chưa khai, 1 đang tắt, 1 đang lỗi');
+  la('cần xử lý', th.can.map(function (t) { return t.ten; }), ['c', 'e', 'b']);
+  la('không có gì cần xử lý thì câu không có phần lẻ', V.tongHop([{ trang: 'ok' }]).cau, '1 kết nối: 1 ổn');
+});
+
+ca('v596: bấm Khai tới đúng ô còn thiếu, đang tắt tới công tắc, Ahamove chạy thử tới ô địa chỉ API', function () {
+  var tt = V.tinhTrang({ wa_phone_id: '1', ahamove_api_key: '*', ahamove_mobile: '09', ahamove_base: 'https://apistg.ahamove.com',
+    sepay_khoa: '*', sepay_bat: 0, minvoice_host: 'h', minvoice_username: 'u' }, BAY_GIO);
+  la('WhatsApp thiếu token thì tới ô token', tim(tt, 'WhatsApp').toi, 'wa_token');
+  la('m-invoice thiếu mật khẩu', tim(tt, 'Hoá đơn điện tử m-invoice').toi, 'minvoice_password');
+  la('SePay đang tắt tới công tắc', tim(tt, 'SePay ngân hàng').toi, 'sepay_bat');
+  la('Ahamove lỗi tới ô địa chỉ API', [tim(tt, 'Ahamove').trang, tim(tt, 'Ahamove').toi], ['err', 'ahamove_base']);
+  la('Zalo đủ token mà chưa có nhóm thì tới bảng nhóm', tim(V.tinhTrang({ zalo_bot_token: '*' }, BAY_GIO), 'Zalo bắn tin nhóm').toi, 'zalo_nhom');
+  dung('mọi kết nối có câu hậu quả', tt.every(function (t) { return String(t.hau || '').length > 10; }));
+});
+
+ca('v596: loiTruong là nguồn duy nhất của ô đỏ; máy chủ thật thì không lỗi', function () {
+  la('chạy thử', Object.keys(V.loiTruong({ ahamove_base: 'https://partner-apistg.ahamove.com' })), ['ahamove_base']);
+  la('thật', V.loiTruong({ ahamove_base: 'https://api.ahamove.com' }), {});
+  la('trống', V.loiTruong({}), {});
+});
+
+ca('v596 Desk: đầu trang có câu tóm tắt, thanh màu, và việc đỏ kèm hậu quả bấm tới đúng ô', function () {
+  global.$ = $;
+  var goc = new dg.ElementGia('div');
+  goc.innerHTML = '<div class="form-tabs-list"></div>';
+  var frm = { doc: { ahamove_api_key: '*', ahamove_mobile: '09', ahamove_base: 'https://apistg.ahamove.com', goong_api_key: '*' },
+    layout: { wrapper: goc }, fields_dict: {}, meta: { fields: [] } };
+  V._desk.veThanh(frm);
+  var th = V.tongHop(V.tinhTrang(frm.doc));
+  la('câu tóm tắt', chuEl(goc.querySelectorAll('.vgbc-cau')[0]), th.cau);
+  la('thanh có một khúc mỗi màu khác 0', goc.querySelectorAll('.vgbc-thanh')[0].querySelectorAll('i').length,
+    ['ok', 'no', 'off', 'err'].filter(function (k) { return th.dem[k]; }).length);
+  var v = goc.querySelectorAll('.vgbc-viec');
+  la('một việc đỏ (chưa khai không lặp lại ở đây)', v.length, 1);
+  dung('việc nói Ahamove và hậu quả', chuEl(v[0]).indexOf('Ahamove: đang trỏ máy chủ chạy thử') >= 0 && chuEl(v[0]).indexOf('phí giao') >= 0);
+  la('bấm tới ô địa chỉ API', v[0].getAttribute('data-toi'), 'ahamove_base');
+  V._desk.veThanh(frm);
+  la('vẽ lại không nhân đôi việc', goc.querySelectorAll('.vgbc-viec').length, 1);
+});
+
+ca('v596 Desk: ô Ahamove chạy thử có câu đỏ dưới ô, sửa thành máy chủ thật thì câu mất', function () {
+  global.$ = $;
+  var o = new dg.ElementGia('div');
+  var frm = { doc: { ahamove_base: 'https://apistg.ahamove.com' }, meta: { fields: [{ fieldname: 'ahamove_base' }, { fieldname: 'goong_api_key' }] },
+    fields_dict: { ahamove_base: { $wrapper: W([o]) }, goong_api_key: { $wrapper: W([new dg.ElementGia('div')]) } } };
+  V._desk.veLoiO(frm);
+  var l = o.querySelectorAll('.vgbc-loi-o');
+  la('một câu đỏ', l.length, 1);
+  dung('nói cách sửa', chuEl(l[0]).indexOf('api.ahamove.com') >= 0);
+  V._desk.veLoiO(frm);
+  la('vẽ lại không nhân đôi', o.querySelectorAll('.vgbc-loi-o').length, 1);
+  frm.doc.ahamove_base = 'https://api.ahamove.com';
+  V._desk.veLoiO(frm);
+  la('sửa xong thì hết câu đỏ', o.querySelectorAll('.vgbc-loi-o').length, 0);
+});
+
 console.log('\n' + dat + ' ca dat, ' + hong + ' ca hong.');
 process.exit(hong ? 1 : 0);
