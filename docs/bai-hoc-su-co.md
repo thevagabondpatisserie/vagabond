@@ -2316,3 +2316,14 @@ Bài học: sửa một lỗi người mua phải chạy MỌI đường ghi và
 (màn Sales, bill quầy, nhịp đồng bộ, cuối ngày), không chỉ đường người dùng
 nhìn thấy. Lưu tay dùng `ignore_version` nên Version không có dòng của sales;
 thấy Administrator đổi ô người mua lúc :00 hoặc :30 là nhịp đồng bộ.
+
+### v596: màn Cài đặt lõi vỡ thành ô to vì dòng flex mang lớp .card
+
+Triệu chứng: anh Việt chụp màn Cài đặt lõi ngày 15/10, mỗi nhóm là một ô to,
+biểu tượng nằm trên, chữ căn giữa, 8 nhóm phải cuộn hai màn. Nguyên nhân: dòng
+nhóm khai `class="card cdl-tab"` với `.cdl-tab{display:flex}`, nhưng 00-nen.js
+ép `.card{display:block}` để chống Bootstrap của Frappe, và luật đó thắng tuỳ thứ
+tự nạp CSS. Ca DOM không tính CSS nên không bắt được. Khắc phục: dòng và khối
+của màn dùng lớp riêng (`cdl-nhom`, `cdl-khoi`), không dùng `.card` cho phần tử
+cần flex; ca kiểm chốt "dòng nhóm không mang lớp card". Bài học: thấy một màn
+dùng `.card` làm hàng ngang thì kiểm ngay bằng ảnh chụp, đừng tin ca DOM.
