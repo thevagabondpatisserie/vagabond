@@ -479,9 +479,26 @@ function cdlVeTomTat(doc) {
   }).join('');
 }
 
+/* v596 Codex 91e8e8b: màn riêng (Máy in, Mẫu in, Điểm bán...) dùng chung ô S.chuaLuu
+   và tự xoá nó khi nạp, nên mở màn riêng khi còn thay đổi Cài đặt lõi thì nút nhà hay
+   Back sau đó bỏ thay đổi im lặng. Còn thay đổi thì hỏi: ở lại (để bấm Lưu), hoặc bỏ
+   hết thay đổi rồi mới mở màn riêng. */
+function cdlMoManRieng(k) {
+  var n = cdlSoThay();
+  if (!n) return vgbGo(k);
+  return confirmSheet('Còn thay đổi chưa lưu',
+    'Còn ' + n + ' thay đổi Cài đặt lõi chưa lưu. Màn riêng không giữ được các thay đổi này. Bấm Lưu trước, hoặc bỏ thay đổi rồi mở.',
+    'Bỏ thay đổi và mở', true).then(function (ok) {
+    if (!ok) return;
+    cdlNhan(CDL.d);
+    cdlDatHoi(0);
+    vgbGo(k);
+  });
+}
+
 function cdlBam(e, fnTab) {
   var el;
-  if ((el = e.target.closest('[data-cdlman]'))) return vgbGo(el.getAttribute('data-cdlman'));
+  if ((el = e.target.closest('[data-cdlman]'))) return cdlMoManRieng(el.getAttribute('data-cdlman'));
   if ((el = e.target.closest('[data-cdlgon]'))) {
     var k = 'mo_' + el.getAttribute('data-cdlgon'); CDL[k] = !CDL[k]; return cdlVeTab(fnTab);
   }
