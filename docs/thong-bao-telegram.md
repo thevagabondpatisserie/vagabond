@@ -31,15 +31,16 @@ lại giữ mốc để lượt sau gửi. Nếu đọc nguồn quá5phút mà c
 được tin nào, workflow báo lỗi thay vì xanh giả. Chùm comment liên tiếp có
 thể chờ tới lượt bù15phút, và có thể chậm thêm nếu GitHub trì hoãn lịch. Không phát lại toàn bộ lịch sử trước lúc bật.
 
-PR đủ điều kiện merge (anh Việt 15/10/2026): khi PR mở, không phải bản nháp,
-GitHub báo không xung đột, có check `bench` xanh, mọi check trên đúng SHA
-đầu PR đều đạt, và SHA đó đã gồm đầu nhánh nền hiện tại (so sánh
-`main...<sha>` không chậm commit nào), bot gửi một tin "PR #N đủ điều kiện
-merge" kèm SHA main đã gồm, trạng thái Codex trên SHA đó và câu "Vào Cowork
-nhắn: merge #N". PR chậm hơn main thì chưa báo, vì bench xanh khi đó là bench
-của bản chưa hợp nhất main mới. Mỗi cặp SHA đầu và SHA main một tin; Codex
-rà đạt sau thì thêm đúng một tin. Chỉ kênh riêng, nhóm bộ phận không nhận.
-Tin này không phải lệnh merge; merge vẫn do anh cho phép trong phiên làm việc.
+PR đủ điều kiện merge và deploy (anh Việt 15/10/2026): khi PR mở, không phải
+bản nháp, GitHub báo không xung đột, có check `bench` xanh, mọi check trên đúng
+SHA đầu PR đều đạt, SHA đó đã gồm đầu nhánh nền hiện tại (so sánh
+`main...<sha>` không chậm commit nào), VÀ Codex đã rà đạt đúng SHA đó, bot gửi
+một tin. PR có đổi app (thư mục `vagabond/`) thì tin ghi "đủ điều kiện merge và
+deploy" kèm câu "Vào Cowork nhắn: merge và deploy #N"; PR chỉ đổi `.github/`,
+`docs/`... thì tin ghi "không cần deploy app" và "Vào Cowork nhắn: merge #N".
+Chưa đủ một điều kiện nào thì im lặng; mỗi SHA đầu một tin. Chỉ kênh riêng,
+nhóm bộ phận không nhận. Tin này không phải lệnh merge; merge và deploy vẫn do
+anh cho phép trong phiên làm việc.
 
 Comment bot chỉ đổi checkbox tiến độ thì im lặng; đổi nội dung thực hoặc
 nhãn vẫn báo, kể cả thêm finding dưới cùng tiêu đề. Trạng thái Issue/PR chỉ
