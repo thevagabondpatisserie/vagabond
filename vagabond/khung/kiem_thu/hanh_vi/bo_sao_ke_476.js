@@ -21,6 +21,22 @@ async function man(rows, can=714138056, save) {
     chon:ma=>document.body.querySelector('[data-gd="'+ma+'"]').click()};
 }
 (async()=>{
+  for (const loai of ['app','cong_no','ttnb','hoan_tien','tam_ung']) {
+    await ca(loai+': nhiều dòng, tổng, tìm và trang giữ lựa chọn',async()=>{
+      const m=await man([dong('A',60)],100);m.o.loai=loai;
+      if(loai==='tam_ung') {m.o.api_doc='vagabond.bo_sao_ke_cap.ung_vien';m.o.tham_so_doc={quy:'MB',so_tien:100};}
+      m.response.con_nua=1;await m.render();m.chon('A');
+      assert(m.nut('ksGan').disabled);assert(m.nut('ksTong').textContent.includes('60'));
+      m.response.rows=[dong('B',40)];
+      m.nut('ksTim').value='B';m.nut('ksTim').oninput();
+      await new Promise(r=>setTimeout(r,300));
+      assert.equal(Object.keys(m.o._boSepay).length,1);
+      await m.nut('ksTiep').onclick();m.chon('B');
+      assert.equal(m.nut('ksGan').disabled,false);
+      await m.nut('ksGan').onclick();
+      assert.deepEqual(JSON.parse(m.calls[0][0]),[{name:'A',phan_bo:60},{name:'B',phan_bo:40}]);
+    });
+  }
   await ca('450M thiếu, đủ hai dòng mới Gán; payload không nhân tổng',async()=>{
     const m=await man([dong('A',450000000),dong('B',264138056)]);
     assert.equal(m.nut('ksGan').disabled,true); m.chon('A');

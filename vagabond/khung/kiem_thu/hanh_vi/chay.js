@@ -300,8 +300,10 @@ async function chayHet() {
 
   await caAsync('342 cấp quỹ: nút thật gửi đúng BT,111 và NQ tùy chọn; hủy không ghi', async function () {
     for (var huy of [false,true]) {
-      var calls=[], messages=[], picks=['BANK','BT','111','-'];
-      var g={money:String, hsNgayVn:String, hoiChon:async function(){return huy?null:picks.shift();},
+      var calls=[], messages=[], picks=['BANK','111','-'];
+      var g={money:String, hsNgayVn:String, hoiNhap:async()=> '100', go:fn=>fn(),
+        scrKhopSepay:async o=>{await o.chon('[{"name":"BT","phan_bo":100}]');},
+        hoiChon:async function(){return huy?null:picks.shift();},
         xacNhan:async function(){return true;}, baoTin:async function(s){messages.push(s);},
         api:async function(m,p){calls.push([m,p]);
           if(m.endsWith('ds_tk_hoan_ung')) return {tk:[{ma:'BANK',nhan:'Quỹ thử'}]};
@@ -312,7 +314,11 @@ async function chayHet() {
       await g.hsCapQuyTienMat();
       var writes=calls.filter(function(x){return x[0].endsWith('ghi_nhan_cap');});
       bang('ghi đúng số lần',writes.length,huy?0:1);
-      if(!huy) bang('payload không gán NQ',JSON.stringify(writes[0][1]),JSON.stringify({giao_dich:'BT',tai_khoan_nguon:'111',nop_quy:''}));
+      if(!huy) {
+        bang('bộ đúng BT',writes[0][1].giao_dich,'[{"name":"BT","phan_bo":100}]');
+        bang('tổng100',writes[0][1].so_tien,100);bang('nguồn111',writes[0][1].tai_khoan_nguon,'111');
+        bang('NQ tùy chọn',writes[0][1].nop_quy,'');dung('mã retry',!!writes[0][1].ma_lan);
+      }
     }
   });
 

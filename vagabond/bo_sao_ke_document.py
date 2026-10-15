@@ -64,3 +64,31 @@ class KhoaBoThu:
     def _save(self, *args, **kwargs):
         self._khoa_bo_thu()
         return super()._save(*args, **kwargs)
+
+
+class KhoaBoCapQuy:
+    """Cấp/cấn/cancel giữ cùng thứ tự BT -> quỹ -> JE, dùng metadata DB."""
+    def _khoa_cap(self):
+        import frappe
+        if not self.name or self.is_new():return
+        # Metadata chỉ có sau migrate, không cản core trong khi cài mới.
+        if (frappe.flags.get('in_migrate') or frappe.flags.get('in_install')) and (not frappe.db.has_column('Journal Entry','vgb_quy_ung') or not frappe.db.has_column('Journal Entry','vgb_bo_sao_ke')):
+            return
+        bank=frappe.db.get_value('Journal Entry',self.name,'vgb_quy_ung')
+        if not bank:return
+        from vagabond.bo_sao_ke_db import doc_bo,O_BO
+        raw=frappe.db.get_value('Journal Entry',self.name,O_BO)
+        for ten in sorted(d['name'] for d in doc_bo(raw)['dong']):
+            frappe.db.get_value('Bank Transaction',ten,'name',for_update=True)
+        frappe.db.get_value('Bank Account',bank,'name',for_update=True)
+        that=frappe.db.get_value('Journal Entry',self.name,O_BO,for_update=True)
+        if doc_bo(raw)!=doc_bo(that):
+            frappe.throw('Bộ sao kê vừa đổi. Tải lại bút toán cấp quỹ rồi thử lại.')
+
+    def load_from_db(self):
+        if self.flags.get('for_update'):self._khoa_cap()
+        return super().load_from_db()
+
+    def _save(self,*args,**kwargs):
+        self._khoa_cap()
+        return super()._save(*args,**kwargs)

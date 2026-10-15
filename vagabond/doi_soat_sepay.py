@@ -572,6 +572,9 @@ def khop_tay(loai, ma_phieu, ma_gd):
 	if isinstance(ma_gd,list) or (isinstance(ma_gd,str) and ma_gd.lstrip().startswith("[")):
 		return khop(loai,ma_phieu,ma_gd)
 	doc=frappe.get_doc(b['doctype'],ma_phieu)
+	if b.get('loi_phieu'):
+		loi=b['loi_phieu'](doc)
+		if loi:frappe.throw(loi)
 	gd=str(ma_gd or '').strip()
 	if not gd:frappe.throw('Chưa chọn dòng sao kê nào.')
 	return khop(loai,ma_phieu,[dict(name=gd,phan_bo=flt(b['so_tien'](doc)))])

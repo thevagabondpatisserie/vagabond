@@ -119,7 +119,7 @@ def _sepay_theo_ma_cn(ds_ma):
 	# Loc so bo o tang SQL cho nhe, roi loc lai chac chan o Python tren ban
 	# da chuan hoa. Loc SQL dung tien to vi dau gach co the bi ngan hang bo.
 	mau = "(%s)" % "|".join(
-		sorted(set(k[:6] for k in theo_chuan))
+		sorted(set("DNTT" if k.startswith("DNTT") else "CN" for k in theo_chuan))
 	)
 	try:
 		gds = frappe.db.sql(

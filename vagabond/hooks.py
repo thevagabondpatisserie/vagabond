@@ -1016,7 +1016,7 @@ scheduler_events.setdefault("hourly", []).append("vagabond.doi_soat_vendor.quet_
 scheduler_events.setdefault("cron", {}).setdefault("*/15 * * * *", []).append("vagabond.don_hang.tra_uu_dai_don_huy")
 
 # Bộ sao kê chỉ được ghi qua cửa có khóa và kiểm quyền, không từ payload Desk.
-for _dt_bo_sk in ("Vagabond Ho So TT", "Vagabond De Nghi Chi", "Vagabond Hoan Tien", "Vagabond Cong No"):
+for _dt_bo_sk in ("Vagabond Ho So TT", "Vagabond De Nghi Chi", "Vagabond Hoan Tien", "Vagabond Cong No", "Journal Entry"):
     _cu_bo_sk = doc_events.setdefault(_dt_bo_sk, {}).get("before_validate", [])
     doc_events[_dt_bo_sk]["before_validate"] = ([_cu_bo_sk] if isinstance(_cu_bo_sk, str) else list(_cu_bo_sk)) + ["vagabond.bo_sao_ke_db.bao_ve"]
 
@@ -1039,3 +1039,8 @@ doc_events["Bank Transaction"]["before_validate"] = ([_cu_chu_bt] if isinstance(
 extend_doctype_class['Payment Entry'] = ['vagabond.bo_sao_ke_document.KhoaBoHoanTien', 'vagabond.bo_sao_ke_document.KhoaBoThu']
 doc_events['Payment Entry']['before_validate'].append('vagabond.bo_sao_ke_thu.bao_ve')
 doc_events['Payment Entry']['on_submit'].append('vagabond.bo_sao_ke_thu.khi_ghi_so')
+
+extend_doctype_class["Journal Entry"] = ["vagabond.bo_sao_ke_document.KhoaBoCapQuy"]
+
+_old_cap_cancel = doc_events.setdefault("Journal Entry", {}).get("on_cancel", [])
+doc_events["Journal Entry"]["on_cancel"] = ([_old_cap_cancel] if isinstance(_old_cap_cancel, str) else list(_old_cap_cancel)) + ["vagabond.bo_sao_ke_cap.sau_huy"]

@@ -40683,18 +40683,24 @@ async function hsCapQuyTienMat() {
       (ds.tk || ds.rows || []).map(function (x) { return {k:x.ma, nhan:x.nhan}; }));
     if (!tk) return;
     var kq = await api('vagabond.tam_ung_app.ung_vien_cap', {tai_khoan:tk});
-    var gd = await hoiChon('Chọn khoản tiền mặt đã nộp', 'Mới nhất ở trên. Chỉ chọn tiền công ty cấp, không chọn tiền riêng của cá nhân.',
-      kq.giao_dich.map(function (x) { return {k:x.name, nhan:money(x.deposit)+' đ · '+hsNgayVn(x.date), mo_ta:x.description+' · '+x.reference_number}; }));
-    if (!gd) return;
     var nguon = await hoiChon('Tiền mặt lấy từ quỹ nào?', 'Kế toán chọn sổ quỹ thực tế đã xuất tiền.',
       kq.tai_khoan_nguon.map(function (x) { return {k:x.name, nhan:x.name}; }));
     if (!nguon) return;
     var nq = await hoiChon('Phiếu NQ tham chiếu', 'Không bắt buộc. Số đã nộp ngân hàng có thể ít hơn số trên phiếu NQ.',
       [{k:'-', nhan:'Không gắn NQ'}].concat(kq.nop_quy.map(function (x) { return {k:x.name, nhan:x.name}; })));
     if (!nq) return;
-    if (!await xacNhan('Ghi nhận khoản đã nộp thành tiền cấp quỹ để cấn vào các APP sau này? Không chuyển tiền thêm.')) return;
-    var ra = await api('vagabond.tam_ung_app.ghi_nhan_cap', {giao_dich:gd, tai_khoan_nguon:nguon, nop_quy:nq==='-'?'':nq});
-    await baoTin('Đã ghi nhận khoản cấp quỹ: '+ra.name+'. Mở APP đã duyệt và bấm Cấn tiền đã cấp trước.');
+    var nhap = await hoiNhap('Số tiền mặt thực tế đã cấp vào tài khoản này (đồng):', '');
+    if (nhap == null) return;
+    var tien = Number(String(nhap).replace(/[.,\s]/g, ''));
+    if (!Number.isSafeInteger(tien) || tien <= 0) return baoTin('Nhập số tiền nguyên đồng lớn hơn 0.');
+    var lan = Date.now().toString(36) + Math.random().toString(36).slice(2);
+    return go(function () { return scrKhopSepay({loai:'tam_ung', ma:'Cấp quỹ tạm ứng',
+      api_doc:'vagabond.bo_sao_ke_cap.ung_vien', tham_so_doc:{quy:tk,so_tien:tien},
+      chon:async function (dong) {
+        if (!await xacNhan('Ghi nhận tiền đã nộp thành khoản cấp quỹ để cấn APP? Không chuyển tiền thêm.')) return;
+        var ra = await api('vagabond.tam_ung_app.ghi_nhan_cap', {giao_dich:dong,so_tien:tien,ma_lan:lan,tai_khoan_nguon:nguon,nop_quy:nq==='-'?'':nq});
+        await baoTin('Đã ghi nhận khoản cấp quỹ: '+ra.name+'. Mở APP đã duyệt và bấm Cấn tiền đã cấp trước.');
+      }}); });
   } catch(e) { baoTin(e.message || 'Chưa ghi nhận được. Tải lại để kiểm trước khi bấm lại.'); }
 }
 
@@ -45432,7 +45438,7 @@ async function scrKhopSepay(o, loc, giuTim) {
   frame('Khớp SePay thủ công', '<div class="emp">Đang đọc sao kê...</div>');
   var kq;
   try {
-    kq = await api('vagabond.doi_soat_sepay.ung_vien', Object.assign({loai:o.loai, ma_phieu:o.ma}, loc));
+    kq = await api(o.api_doc || 'vagabond.doi_soat_sepay.ung_vien', Object.assign(o.api_doc ? {} : {loai:o.loai, ma_phieu:o.ma}, loc, o.tham_so_doc || {}));
   } catch (e) {
     if (luot !== scrKhopSepay.luot) return;
     frame('Khớp SePay thủ công', '<div class="emp">' + h((e && e.message) || 'Chưa đọc được sao kê. Tải lại để thử tiếp.') + '</div>');

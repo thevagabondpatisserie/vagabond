@@ -6,7 +6,7 @@ async function scrKhopSepay(o, loc, giuTim) {
   frame('Khớp SePay thủ công', '<div class="emp">Đang đọc sao kê...</div>');
   var kq;
   try {
-    kq = await api('vagabond.doi_soat_sepay.ung_vien', Object.assign({loai:o.loai, ma_phieu:o.ma}, loc));
+    kq = await api(o.api_doc || 'vagabond.doi_soat_sepay.ung_vien', Object.assign(o.api_doc ? {} : {loai:o.loai, ma_phieu:o.ma}, loc, o.tham_so_doc || {}));
   } catch (e) {
     if (luot !== scrKhopSepay.luot) return;
     frame('Khớp SePay thủ công', '<div class="emp">' + h((e && e.message) || 'Chưa đọc được sao kê. Tải lại để thử tiếp.') + '</div>');

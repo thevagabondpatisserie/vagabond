@@ -123,26 +123,27 @@ def tu_dong_mot(loai, ma, cac_gd):
     """Một hay nhiều dòng đều qua chọn bộ; không có cửa khớp riêng một dòng."""
     from vagabond import doi_soat_sepay as dss
     from vagabond.khop_sao_ke import co_ma
-    from vagabond.bo_sao_ke import de_xuat_bo
+    from vagabond.bo_sao_ke import de_xuat_bo, nhan_ket_qua
     b=dss._ban(loai)
     doc=frappe.get_doc(b["doctype"],ma)
     code=b["ma_do"](doc)
     ds=[r for r in cac_gd if co_ma(r.get("description") or r.get("mo_ta"),code) or co_ma(r.get("reference_number"),code)]
     if not ds:
         return None
-    rows=[]
+    rows=[];loi_bo=[]
     for r in ds:
         g=frappe.get_doc("Bank Transaction",r["name"])
         loi=kiem(loai,b,doc,g)
         if loi:
-            return dict(ok=0,phieu=ma,vi_sao=loi,giao_dich=g.name)
+            loi_bo.append(loi);continue
         rows.append(dict(name=g.name,description=g.description,reference_number=g.reference_number,
             tien=flt(g.withdrawal) or flt(g.deposit),bank_account=g.bank_account,
             chieu="ra" if flt(g.withdrawal)>0 and not flt(g.deposit) else "vao",
             con_lai=bs.con_lai(g,doc)))
+    if not rows:return dict(ok=0,phieu=ma,vi_sao="; ".join(dict.fromkeys(loi_bo)),giao_dich="")
     k=de_xuat_bo(rows,code,flt(b["so_tien"](doc)),rows[0]["bank_account"],b["chieu"])
     if k['ket_qua']!='du':
-        return dict(ok=0,phieu=ma,vi_sao="Các dòng cùng mã chưa đủ bộ đúng tiền và tài khoản. Mở Khớp SePay để chọn phần thực tế.",giao_dich=", ".join(r["name"] for r in ds))
+        return dict(ok=0,phieu=ma,vi_sao=nhan_ket_qua(k),giao_dich=", ".join(r["name"] for r in ds))
     try:
         return _khop(loai,ma,k['dong'],b)
     except frappe.ValidationError as e:

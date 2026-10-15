@@ -11,7 +11,7 @@ from vagabond.khop_sao_ke import xet_bo
 
 O_BO = "vgb_bo_sao_ke"
 O_CHU = "vgb_chu_bo_sao_ke"
-PHIEU = ("Vagabond Ho So TT", "Vagabond De Nghi Chi", "Vagabond Hoan Tien", "Vagabond Cong No")
+PHIEU = ("Vagabond Ho So TT", "Vagabond De Nghi Chi", "Vagabond Hoan Tien", "Vagabond Cong No", "Journal Entry")
 TRUONG_MOI = {dt: [{"fieldname": O_BO, "label": "Phân bổ bộ sao kê", "fieldtype": "Long Text",
     "read_only": 1, "hidden": 1, "no_copy": 1, "allow_on_submit": 1}] for dt in PHIEU}
 TRUONG_MOI["Bank Transaction"] = [{"fieldname": O_CHU, "label": "Chủ phần sao kê",
@@ -142,8 +142,11 @@ def chon(doc, dong, can, chieu, kiem, ghi=False, them_dot=False):
         gs.append(g)
     k=xet_bo(rows,can,gs[0].bank_account,chieu,dung_sai=0)
     if k["ket_qua"]!="du":
-        frappe.throw("; ".join(d["ly_do"] for d in k["loi"]) or
+        chu=sorted({b["chu"] for g in gs for b in _cac_bo(g.name,khoa=ghi) if b["chu"]!=cua(doc)})
+        thong_bao=("Phần tiền đã được " + ", ".join(chu) + " giữ. " if chu else "")
+        thong_bao += ("; ".join(d["ly_do"] for d in k["loi"]) or
             "Bộ sao kê đang có {:,.0f} / {:,.0f} đ; còn thiếu {:,.0f}, thừa {:,.0f} đ.".format(k["tong"],k["can"],k["thieu"],k["thua"]))
+        frappe.throw("Bộ sao kê không khớp khoản phải chuyển/thu. "+thong_bao)
     if ghi:
         cu=doc_hien_tai(doc)
         if cu["chung_tu"] and cu["dong"] != dong:

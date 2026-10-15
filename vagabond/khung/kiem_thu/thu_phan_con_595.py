@@ -648,3 +648,61 @@ def _():
          patch.object(frappe.db,'get_value',side_effect=lambda dt,ten,*a,**kw:vet.append((ten,kw.get('for_update')))):
         D()._save()
     la('không đảo PE trước SI',vet,['BT-chu',('SI-A',True),('SI-B',True),'PE'])
+
+
+@ca('#476 cấp quỹ đọc phần còn lại chung, không giấu BT mới dùng một phần')
+def _():
+    import frappe
+    from unittest.mock import patch
+    from vagabond import bo_sao_ke_cap as cap, bo_sao_ke_db as bs, tam_ung_app as tu, doi_soat_sepay as dss
+    gs={n:frappe._dict(name=n,deposit=100,withdrawal=0,payment_entries=[]) for n in ('A','B')}
+    kq={'rows':[{'name':n,'dung_duoc':1} for n in gs], 'tai_khoan_sepay':[dict(ma='MB'),dict(ma='KHAC')]}
+    with patch.object(tu,'_quyen') as quyen,patch.object(tu,'_quy'), \
+            patch.object(dss,'danh_sach_chon',return_value=kq) as doc, \
+            patch.object(frappe,'get_doc',side_effect=lambda dt,n:gs[n]), \
+            patch.object(bs,'_cac_bo',side_effect=lambda n,k=False:[bo('Journal Entry/CU',60 if n=='A' else 100)]):
+        # Kế hoạch giữ phải chỉ đúng tên BT đang xét.
+        with patch.object(bs,'_cac_bo',side_effect=lambda n,k=False:[{'chu':'Journal Entry/CU','dong':[dict(name=n,phan_bo=60 if n=='A' else 100)],'chung_tu':[]}]):
+            r=cap.ung_vien('MB',40,tai_khoan='KHAC')
+        la('A còn40',r['rows'][0]['con_lai'],40)
+        la('B hết không cho chọn',r['rows'][1]['dung_duoc'],0)
+        la('chọn bộ',r['chon_bo'],1)
+        la('không đổi tài khoản quỹ từ chip',doc.call_args.args[5],'MB')
+        la('đúng một chip',r['tai_khoan_sepay'],[dict(ma='MB')])
+        la('kiểm quyền',quyen.call_count,1)
+
+
+@ca('#476 cửa cấp quỹ cũ và bộ đều vào cùng hàm, giữ mã retry')
+def _():
+    from unittest.mock import patch
+    from vagabond import bo_sao_ke_cap as cap,tam_ung_app as tu
+    with patch.object(cap,'ghi',return_value={'name':'JE'}) as ghi:
+        r=tu.ghi_nhan_cap('[{"name":"A","phan_bo":40}]','111','NQ',40,'LAN')
+        la('ra JE',r['name'],'JE')
+        la('chuyển đủ tham số',ghi.call_args.args,('[{"name":"A","phan_bo":40}]','111','NQ',40,'LAN'))
+
+
+@ca('#476 cấp quỹ hủy chỉ giải phóng bộ của khoản cấp, không bỏ nguồn cấn')
+def _():
+    import frappe
+    from unittest.mock import patch
+    from vagabond import bo_sao_ke_cap as cap,bo_sao_ke_db as bs
+    d=frappe._dict(vgb_cap_ung_bt='BT',vgb_bo_sao_ke='{"dong":[{"name":"BT","phan_bo":40}],"chung_tu":[]}')
+    with patch.object(bs,'luu') as luu:
+        cap.sau_huy(d);la('gọi đường chung',luu.call_count,1);la('xóa bộ',luu.call_args.args[1],[])
+        d['vgb_cap_ung_bt']=None;cap.sau_huy(d);la('không chạm cấn',luu.call_count,1)
+
+
+@ca('#476 công nợ tự dò SQL vẫn lấy mã DNTT có dấu gạch')
+def _():
+    import frappe,re
+    from unittest.mock import patch
+    from vagabond.khung.kiem_thu.thu_cong_no_571 import _nap_cong_no
+    cn=_nap_cong_no()
+    def sql(query,args,**kw):
+        # SQL regexp phải nhận cả nguyên dạng và mã ngân hàng bỏ dấu.
+        mau=args[0]
+        return [frappe._dict(name='BT',description='TT DNTT-26-10-00001',reference_number='FT',deposit=100,withdrawal=0)] if re.search(mau,'TT DNTT-26-10-00001') else []
+    with patch.object(frappe.db,'sql',side_effect=sql):
+        r=cn._sepay_cn('DNTT-26-10-00001')
+        la('tìm đúng sao kê',r.get('gd'),['BT']);la('tiền nguồn',r.get('nhan'),100)

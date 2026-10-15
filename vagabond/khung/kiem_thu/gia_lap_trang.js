@@ -19,6 +19,14 @@
    KHONG dung file nay lam bang chung ve giao dien: no khong tinh CSS, khong
    do duoc kich thuoc. Phan do kiem bang trinh duyet that, ghi trong PR. */
 
+// Màn nghiệp vụ dùng cây DOM của bộ hành vi, cùng điểm vào chạy Node.
+// Nhánh này kiểm thao tác; ảnh và CSS vẫn phải kiểm bằng trình duyệt.
+if (process.argv[2] === '--bo-sao-ke') {
+  const r = require('child_process').spawnSync(process.execPath,
+    [require('path').join(__dirname, 'hanh_vi/bo_sao_ke_476.js')], {stdio:'inherit'});
+  process.exit(r.status == null ? 1 : r.status);
+}
+
 const fs = require('fs');
 const vm = require('vm');
 

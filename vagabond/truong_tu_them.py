@@ -28,6 +28,8 @@ def dung():
 	vai_cua_hang.dung()
 	from vagabond import bo_sao_ke_db
 	_dung_nhom(bo_sao_ke_db.TRUONG_MOI, "bo_sao_ke_db")
+	from vagabond import bo_sao_ke_cap
+	_dung_nhom(bo_sao_ke_cap.TRUONG_MOI, "bo_sao_ke_cap")
 	from vagabond import bo_sao_ke_thu
 	_dung_nhom(bo_sao_ke_thu.TRUONG_MOI, "bo_sao_ke_thu")
 	from vagabond import combo_mon

@@ -175,7 +175,7 @@ def khop(name,dong,ghi_chu,ma_lan):
             frappe.db.get_value('Bank Transaction',d['name'],'reference_number') in da for d in moi))
         con=flt(doc.tong_tien) if sua_cu else flt(doc.tong_tien)-flt(doc.da_thu)
         if them>con+0.001:
-            frappe.throw('Phần chọn vượt khoản còn phải thu của phiếu; chọn lại số phân bổ.')
+            frappe.throw('Phần chọn dư '+format(them-con,',.0f').replace(',','.')+' đ so với khoản còn phải thu; chọn lại số phân bổ.')
         gop={d['name']:flt(d['phan_bo']) for d in cu['dong']}
         for d in moi:gop[d['name']]=gop.get(d['name'],0)+flt(d['phan_bo'])
         ds=[dict(name=ma,phan_bo=gop[ma]) for ma in sorted(gop)]
@@ -267,7 +267,7 @@ def tu_dong(doc, cac_ma):
     """
     from frappe.utils import flt
     from vagabond import chiem_sao_ke
-    from vagabond.bo_sao_ke import de_xuat_bo
+    from vagabond.bo_sao_ke import de_xuat_bo, nhan_ket_qua
     import hashlib,json
     da=set(chiem_sao_ke.tach_gd(doc.ma_gd))
     cu={d['name'] for d in bs.doc_hien_tai(doc)['dong']}
@@ -286,7 +286,7 @@ def tu_dong(doc, cac_ma):
     if not rows:return dict(ok=1,da_lam_roi=1,loi=[])
     k=de_xuat_bo(rows,doc.ma_phieu,can,rows[0]['bank_account'],'vao')
     if k['ket_qua']!='du':
-        return dict(ok=0,loi=['Các lệnh cùng mã chưa thành một bộ đúng tiền và tài khoản. Mở Khớp tay để chọn phần thu thực tế.'])
+        return dict(ok=0,loi=[nhan_ket_qua(k)])
     ma_lan='auto'+hashlib.sha256(json.dumps(k['dong'],sort_keys=True).encode()).hexdigest()[:32]
     try:
         return khop(doc.name,k['dong'],'Máy dò bộ cùng mã công nợ.',ma_lan)

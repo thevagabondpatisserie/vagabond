@@ -121,3 +121,10 @@ def de_xuat_bo(dong, ma_phieu, can, tai_khoan, chieu):
     kq = xet_bo(ds, can, tai_khoan, chieu, dung_sai=0)
     kq["dong"] = [{"name": d["name"], "phan_bo": d["phan_bo"]} for d in ds]
     return kq
+
+
+def nhan_ket_qua(k):
+    """Thông báo tổng thực tế từ cùng phép xét, không tự tính lại ở adapter."""
+    tien=lambda n: format(n,',.0f').replace(',','.')
+    return 'Ngân hàng có %s / %s đ; còn thiếu %s đ, dư %s đ. Mở Khớp tay để chọn phần thực tế.' % tuple(
+        tien(k[x]) for x in ('tong','can','thieu','thua'))

@@ -506,3 +506,28 @@ def _():
     hd.reload();g.reload()
     la('không giảm nợ khi còn nháp',flt(hd.outstanding_amount),flt(hd.grand_total))
     la('không ghi phân bổ lõi khi còn nháp',flt(g.allocated_amount),0)
+
+
+@ca('#476 tạm ứng: tự dò hai lệnh, một dòng cấp hai phiếu và chặn phiếu thứ ba')
+def _():
+    import json
+    from vagabond import sepay,de_nghi_chi as dc,bo_sao_ke_db as bs
+    from vagabond.khung.kiem_that.nen import mot_nha_cung_cap
+    from vagabond.khung.kiem_that.thu_sepay_mb_247 import _tai_khoan_ca_nhan,_so_thu,_phieu_cho_chi
+    ba=_tai_khoan_ca_nhan(_so_thu(),mot_nha_cung_cap())
+    sepay.them_tai_khoan(ba.bank_account_no,ba.name)
+    h=_phieu_cho_chi(100000,dc.NV_TAM_UNG)
+    _giao_dich(ba.name,60000,h.name);g=_giao_dich(ba.name,40000,h.name)
+    dc.khi_co_giao_dich(g.name);h.reload()
+    la('tạm ứng đã chi',h.trang_thai,dc.TT_DA_CHI)
+    la('hai dòng',len(bs.doc_hien_tai(h)['dong']),2)
+    g=_giao_dich(ba.name,100000,'Cấp gộp hai lần tạm ứng')
+    for tien in (60000,40000):
+        p=_phieu_cho_chi(tien,dc.NV_TAM_UNG)
+        dc.khop_tay(p.name,json.dumps([dict(name=g.name,phan_bo=tien)]));p.reload()
+        la('mỗi phiếu đã chi',p.trang_thai,dc.TT_DA_CHI)
+    p=_phieu_cho_chi(1,dc.NV_TAM_UNG)
+    try:dc.khop_tay(p.name,json.dumps([dict(name=g.name,phan_bo=1)]))
+    except frappe.ValidationError:pass
+    else:dung('phiếu thứ ba không chiếm phần đã hết',False)
+    p.reload();la('phiếu ba chưa chi',p.trang_thai,dc.TT_HOAN_TAT)

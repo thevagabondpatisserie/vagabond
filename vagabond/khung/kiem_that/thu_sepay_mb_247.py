@@ -96,7 +96,7 @@ def _giao_dich(ba, tien, noi_dung):
 	return g
 
 
-def _phieu_cho_chi(tien):
+def _phieu_cho_chi(tien, nghiep_vu=None):
 	# #317 yêu cầu biên nhận ngay khi tạo. Dựng File thử thật trước phiếu,
 	# cùng cách app tải tệp rồi gửi URL trong dòng; không tắt validator.
 	f = frappe.get_doc({"doctype": "File", "file_name": "bien-nhan-kiem-317.txt",
@@ -106,7 +106,7 @@ def _phieu_cho_chi(tien):
 	d = frappe.get_doc({
 		"doctype": de_nghi_chi.DT,
 		"ten_khoan_chi": "Kiểm nguồn chi SePay #247",
-		"loai_nghiep_vu": de_nghi_chi.NV_CHI_PHI,
+		"loai_nghiep_vu": nghiep_vu or de_nghi_chi.NV_CHI_PHI,
 		"ngay_can_tt": today(), "trang_thai": de_nghi_chi.TT_HOAN_TAT,
 		"nguoi_tao": "Administrator", "company": cong_ty(),
 		"hinh_thuc": de_nghi_chi.HT_NHAN_VIEN,
@@ -426,7 +426,7 @@ def _ttnb_hoan_ung_502():
 			trung.dong[0].ma_giao_dich=g.reference_number
 			trung.insert(ignore_permissions=True)
 		except frappe.ValidationError as e:
-			dung('FT gặp hồ sơ giữ BT', 'không hoàn ứng hai lần' in str(e))
+			dung('FT gặp hồ sơ giữ BT: '+str(e), ('không hoàn ứng hai lần' in str(e) or 'Nối đúng phiếu thanh toán nội bộ' in str(e)))
 		else:
 			dung('không được tạo hồ sơ thứ hai',False)
 		finally:
@@ -437,7 +437,7 @@ def _ttnb_hoan_ung_502():
 			h.append('dong',{'noi_dung':'Trùng mã khác','so_tien':247502,'ma_giao_dich':g.reference_number})
 			h.save(ignore_permissions=True)
 		except frappe.ValidationError as e:
-			dung('bắt trùng trong hồ sơ', 'hai khoản' in str(e))
+			dung('bắt trùng trong hồ sơ: '+str(e), ('hai khoản' in str(e) or 'Nối đúng phiếu thanh toán nội bộ' in str(e)))
 		else:
 			dung('không được tăng gấp đôi hồ sơ',False)
 		finally:
@@ -512,6 +512,7 @@ def _nen_quy_342(tien=100000):
 	quy.account_type = 'Bank'
 	quy.insert(ignore_permissions=True);_DA_TAO.append((quy.doctype,quy.name))
 	b.account=quy.name;b.save(ignore_permissions=True)
+	sepay.them_tai_khoan(b.bank_account_no,b.name)
 	cha = _mot('Account', {'company':cong_ty(),'root_type':'Asset','is_group':1}, 'lft asc')
 	tk = frappe.get_doc({'doctype':'Account','company':cong_ty(),'parent_account':cha,
 		'account_name':'Tiền mặt thử quỹ '+frappe.generate_hash(length=6),
@@ -638,3 +639,41 @@ def _quy_loi_342():
 		la('APP hai không có JE',frappe.db.count('Journal Entry',{'vgb_ho_so_tt':h2.name}),0)
 	finally:
 		frappe.set_user(cu)
+
+
+@ca('476 Cấp quỹ bộ: hai giao dịch một JE, một giao dịch hai JE, retry và vượt phần')
+def _cap_bo_476():
+    import json
+    from vagabond import tam_ung_app as tu
+    from vagabond import bo_sao_ke_db as bs
+    cu=frappe.session.user;frappe.set_user('Administrator')
+    try:
+        b,tk,_,_= _nen_quy_342(1)
+        def gd(tien):
+            g=frappe.get_doc(dict(doctype='Bank Transaction',date=today(),bank_account=b.name,
+                deposit=tien,withdrawal=0,currency='VND',description='Tiền mặt cấp quỹ thử bộ'))
+            g.insert(ignore_permissions=True);_DA_TAO.append((g.doctype,g.name));g.submit()
+            return g
+        def cap(ds,tien,lan):
+            r=tu.ghi_nhan_cap(json.dumps(ds),tk.name,so_tien=tien,ma_lan=lan)
+            if not r.get('da_lam_roi'):_DA_TAO.append(('Journal Entry',r['name']))
+            return r
+        a,c=gd(40000),gd(60000)
+        ds=[dict(name=a.name,phan_bo=40000),dict(name=c.name,phan_bo=60000)]
+        r=cap(ds,100000,'tach')
+        for g in (a,c):
+            g.reload();la('BT nối cùng JE',g.payment_entries[0].payment_entry,r['name'])
+            la('lõi dùng hết',float(g.unallocated_amount),0.0)
+        la('retry bộ',cap(ds,100000,'tach')['da_lam_roi'],1)
+        g=gd(100000)
+        r1=cap([dict(name=g.name,phan_bo=60000)],60000,'phan1')
+        r2=cap([dict(name=g.name,phan_bo=40000)],40000,'phan2')
+        g.reload();la('một BT hai JE',len(g.payment_entries),2)
+        la('hai JE không trùng',r1['name']!=r2['name'],True)
+        try:cap([dict(name=g.name,phan_bo=1)],1,'qua')
+        except frappe.ValidationError:pass
+        else:dung('không vượt tiền còn',False)
+        j=frappe.get_doc('Journal Entry',r2['name']);j.flags.vgb_tam_ung=True;j.cancel()
+        la('hủy trả chỗ giữ',bs.doc_hien_tai(j)['dong'],[])
+        g.reload();la('lõi hoàn phần hủy',float(g.unallocated_amount),40000.0)
+    finally:frappe.set_user(cu)

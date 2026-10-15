@@ -365,7 +365,7 @@ def _kiem_bo(doc, ma):
 	for d in bo["dong"]:
 		g = frappe.get_doc(BT,d["name"],for_update=True)
 		if any(r.payment_entry in {c["name"] for c in bo["chung_tu"]} for r in g.payment_entries or []):
-			frappe.throw("Bộ sao kê còn liên kết bút toán. Kế toán xử lý bút toán trước khi bỏ đối chiếu.")
+			frappe.throw("Sao kê còn liên kết bút toán trong bộ. Kế toán xử lý bút toán trước khi bỏ đối chiếu.")
 	if ma and not bo["dong"]:
 		ten = ma if frappe.db.exists(BT, ma) else None
 		if not ten:

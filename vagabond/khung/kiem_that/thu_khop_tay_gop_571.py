@@ -48,6 +48,8 @@ def _hd_no(tk_thue, cty, tien):
 
 
 def _gd(ba, tien, noi_dung="KT571 chuyen gop"):
+	from vagabond import sepay
+	sepay.them_tai_khoan(frappe.db.get_value("Bank Account",ba,"bank_account_no"),ba)
 	ref = "FTKT571" + frappe.generate_hash(length=10)
 	g = frappe.get_doc({"doctype": "Bank Transaction", "date": nowdate(), "bank_account": ba,
 		"deposit": tien, "withdrawal": 0, "currency": "VND", "description": noi_dung,
