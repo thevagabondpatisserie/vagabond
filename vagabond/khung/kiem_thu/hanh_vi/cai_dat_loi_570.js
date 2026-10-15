@@ -455,18 +455,18 @@ function moTab(m, fn) { bam(m, mot(m, '[data-cdltab="' + fn + '"]')); }
       var o = mot(m, '#cdl-o-ahamove_base');
       dung('ô API được tô sáng', String(o.getAttribute('class')).indexOf('cdl-sang') >= 0);
       dung('ô API mang dấu lỗi', o.getAttribute('data-cdlloi') === '1');
-      dung('câu sửa ngay dưới ô', chu(o.querySelectorAll('.cdl-loi')[0] || {}).indexOf('https://api.ahamove.com') >= 0);
+      dung('câu sửa ngay dưới ô', chu(o.querySelectorAll('.cdl-loi')[0] || {}).indexOf('https://partner-api.ahamove.com') >= 0);
       var muc = tim(m, '[data-cdlmuc]').filter(function (x) { return x.querySelectorAll('#cdl-o-ahamove_base').length; })[0];
       bang('mục Ahamove gắn nhãn Lỗi', chu(muc.querySelectorAll('.cdl-nhan')[0]), 'Lỗi');
       var inp = mot(m, '[data-cdlo="ahamove_base"]');
-      inp.value = 'https://api.ahamove.com';
+      inp.value = 'https://partner-api.ahamove.com';
       m.khung.oninput({ target: inp });
       bang('gõ đúng máy chủ thật thì câu đỏ dưới ô mất ngay', o.querySelectorAll('.cdl-loi').length, 0);
       dung('và bỏ dấu lỗi của ô', !o.hasAttribute('data-cdlloi'));
       inp.value = 'https://apistg.ahamove.com';
       m.khung.oninput({ target: inp });
       bang('gõ lại máy chạy thử thì câu đỏ hiện lại đúng một câu', o.querySelectorAll('.cdl-loi').length, 1);
-      inp.value = 'https://api.ahamove.com';
+      inp.value = 'https://partner-api.ahamove.com';
       m.khung.oninput({ target: inp });
       m.g.back();
       bang('sửa xong về tổng quan thì hết thẻ đỏ', tim(m, '.cdl-viec.err').length, 0);
@@ -527,16 +527,20 @@ function moTab(m, fn) { bam(m, mot(m, '[data-cdltab="' + fn + '"]')); }
     bang('trả hết về như cũ: ẩn lại', mot(m, '#cdlChan').style.display, 'none');
   });
 
-  await ca('v596 rời màn: còn thay đổi thì tổng quan đặt câu hỏi lại, đi giữa các nhóm thì không hỏi', async function () {
+  await ca('v596 rời màn: còn thay đổi thì có câu hỏi gắn với nấc tổng quan, lưu xong thì xoá', async function () {
     var m = await moMan();
     bang('chưa sửa: không hỏi', m.S.chuaLuu, '');
     moTab(m, 'tab_ke_toan');
     bam(m, mot(m, '[data-cdlbat="sepay_bat"]'));
-    bang('đang trong nhóm: không đặt câu hỏi (lùi về tổng quan không mất gì)', m.S.chuaLuu, '');
+    // v596 Codex 3d0b446: câu hỏi gắn với nấc TỔNG QUAN, nên lùi từ nhóm về tổng quan
+    // không hỏi mà nút nhà hay Back trình duyệt cắt mất tổng quan thì hỏi. Hành vi
+    // của khung app kiểm thật ở cai_dat_roi_chua_luu_596.js.
+    dung('đang trong nhóm: có câu hỏi kèm số thay đổi', String(m.S.chuaLuu).indexOf('Còn 1 thay đổi') === 0);
+    bang('câu hỏi gắn với nấc tổng quan', m.S.chuaLuuNac, 0);
     m.g.back();
     dung('về tổng quan: đặt câu hỏi kèm số thay đổi', String(m.S.chuaLuu).indexOf('Còn 1 thay đổi') === 0);
     moTab(m, 'tab_giao_hang');
-    bang('mở nhóm khác khi còn thay đổi: vẫn không hỏi khi lùi về tổng quan', m.S.chuaLuu, '');
+    bang('mở nhóm khác khi còn thay đổi: câu hỏi vẫn gắn với tổng quan', m.S.chuaLuuNac, 0);
     m.g.back();
     dung('tổng quan nhắc còn thay đổi chưa lưu', chu(m.khung).indexOf('Còn 1 thay đổi chưa lưu') >= 0);
     await m.g.cdlLuu();

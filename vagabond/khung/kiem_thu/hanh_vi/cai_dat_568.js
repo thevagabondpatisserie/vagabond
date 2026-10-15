@@ -83,8 +83,13 @@ ca('Codex #433 vòng 3 G2: GreenSM thiếu token_url, Zalo ZNS thiếu App Secre
   la('ZNS đủ', tim(V.tinhTrang(z, BAY_GIO), 'Zalo ZNS gửi khách').trang, 'ok');
   var h = { ahamove_api_key: '*', ahamove_mobile: '09' };
   la('Ahamove thiếu base', tim(V.tinhTrang(h, BAY_GIO), 'Ahamove').trang, 'no');
-  h.ahamove_base = 'https://api.ahamove.com';
+  h.ahamove_base = 'https://partner-api.ahamove.com';
   la('Ahamove đủ', tim(V.tinhTrang(h, BAY_GIO), 'Ahamove').trang, 'ok');
+  // Codex 3d0b446: api.ahamove.com KHÔNG phải máy chủ đối tác; tài liệu Ahamove ghi
+  // chạy thật là partner-api.ahamove.com (code nối thêm /v3/...). Không được xanh.
+  h.ahamove_base = 'https://api.ahamove.com';
+  var ahaSai = tim(V.tinhTrang(h, BAY_GIO), 'Ahamove');
+  la('api.ahamove.com báo đỏ địa chỉ sai', [ahaSai.trang, ahaSai.ghi], ['err', 'địa chỉ API chưa đúng, phí giao sẽ lỗi']);
   h.ahamove_base = 'https://partner-apistg.ahamove.com';
   var ahaThu = tim(V.tinhTrang(h, BAY_GIO), 'Ahamove');
   la('Ahamove máy chạy thử báo đỏ', [ahaThu.trang, ahaThu.ghi], ['err', 'đang trỏ máy chủ chạy thử, phí giao thật sẽ lỗi']);
@@ -720,7 +725,14 @@ ca('v596: bấm Khai tới đúng ô còn thiếu, đang tắt tới công tắc
 
 ca('v596: loiTruong là nguồn duy nhất của ô đỏ; máy chủ thật thì không lỗi', function () {
   la('chạy thử', Object.keys(V.loiTruong({ ahamove_base: 'https://partner-apistg.ahamove.com' })), ['ahamove_base']);
-  la('thật', V.loiTruong({ ahamove_base: 'https://api.ahamove.com' }), {});
+  la('thật', V.loiTruong({ ahamove_base: 'https://partner-api.ahamove.com' }), {});
+  la('thật, có gạch chéo cuối', V.loiTruong({ ahamove_base: 'https://partner-api.ahamove.com/ ' }), {});
+  dung('câu sửa chạy thử chỉ đúng máy chủ đối tác thật',
+    V.loiTruong({ ahamove_base: 'https://apistg.ahamove.com' }).ahamove_base.indexOf('https://partner-api.ahamove.com') >= 0);
+  // Codex 3d0b446: theo câu sửa cũ gõ api.ahamove.com thì hết đỏ mà gọi sai máy chủ.
+  dung('api.ahamove.com vẫn là lỗi, câu sửa chỉ partner-api',
+    String(V.loiTruong({ ahamove_base: 'https://api.ahamove.com' }).ahamove_base || '').indexOf('https://partner-api.ahamove.com') >= 0);
+  dung('thêm /v3 cũng là lỗi (code tự nối /v3)', !!V.loiTruong({ ahamove_base: 'https://partner-api.ahamove.com/v3' }).ahamove_base);
   la('trống', V.loiTruong({}), {});
 });
 
@@ -751,12 +763,46 @@ ca('v596 Desk: ô Ahamove chạy thử có câu đỏ dưới ô, sửa thành m
   V._desk.veLoiO(frm);
   var l = o.querySelectorAll('.vgbc-loi-o');
   la('một câu đỏ', l.length, 1);
-  dung('nói cách sửa', chuEl(l[0]).indexOf('api.ahamove.com') >= 0);
+  dung('nói cách sửa', chuEl(l[0]).indexOf('https://partner-api.ahamove.com') >= 0);
   V._desk.veLoiO(frm);
   la('vẽ lại không nhân đôi', o.querySelectorAll('.vgbc-loi-o').length, 1);
-  frm.doc.ahamove_base = 'https://api.ahamove.com';
+  frm.doc.ahamove_base = 'https://partner-api.ahamove.com';
   V._desk.veLoiO(frm);
   la('sửa xong thì hết câu đỏ', o.querySelectorAll('.vgbc-loi-o').length, 0);
+});
+
+ca('Codex 3d0b446: Desk đang giữ bản chung CŨ (thiếu tongHop) thì vgb_nap_cd_chung phải nạp lại, không trả lời hứa cũ', function () {
+  // Phiên Desk mở từ trước khi deploy v596: window.VGB_CD là bản cũ, window.__vgb_cd_nap
+  // là lời hứa đã xong trỏ tới bản cũ. Trên 3d0b446 hàm trả luôn lời hứa đó, refresh
+  // gọi VGB_CD.tongHop (undefined) và trang Cài đặt hỏng tới khi tải lại hẳn trình duyệt.
+  var vm = require('vm');
+  var fs = require('fs');
+  var src = fs.readFileSync(path.join(GOC, 'vagabond', 'vagabond', 'doctype', 'vagabond_settings', 'vagabond_settings.js'), 'utf8');
+  var cu = { tinhTrang: function () { return []; } };
+  var gan = [];
+  var g = {
+    frappe: { ui: { form: { on: function () {} } } },
+    Promise: Promise, Date: Date, Error: Error, String: String, Object: Object, Array: Array, JSON: JSON,
+    document: { createElement: function () { return {}; }, head: { appendChild: function (s) { gan.push(s); } } },
+  };
+  g.window = g;
+  g.VGB_CD = cu;
+  var huaCu = Promise.resolve(cu);
+  g.__vgb_cd_nap = huaCu;
+  vm.createContext(g);
+  vm.runInContext(src, g);
+  var hua = g.vgb_nap_cd_chung();
+  la('nạp lại đúng một lần tệp chung', gan.length, 1);
+  dung('nạp đúng tệp chung, có chống bộ đệm', /\/assets\/vagabond\/js\/cai_dat_loi_chung\.js\?/.test(String(gan[0].src)));
+  dung('không trả lời hứa cũ', hua !== huaCu);
+  var hua2 = g.vgb_nap_cd_chung();
+  la('đang nạp dở thì gọi lần hai không gắn thêm thẻ script', gan.length, 1);
+  dung('gọi lần hai nhận cùng lời hứa', hua2 === hua);
+  // Tệp mới nạp xong (có tongHop): gọi tiếp trả ngay bản mới, không gắn thêm script.
+  g.VGB_CD = { tinhTrang: function () { return []; }, tongHop: function () { return {}; } };
+  gan[0].onload();
+  g.vgb_nap_cd_chung();
+  la('đã có bản mới thì không nạp nữa', gan.length, 1);
 });
 
 console.log('\n' + dat + ' ca dat, ' + hong + ' ca hong.');
