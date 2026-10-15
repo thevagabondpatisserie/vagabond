@@ -406,6 +406,28 @@ Từ khoá: sổ tay, hướng dẫn, cẩm nang, tài liệu, manual, handbook,
 - Chỗ ghi chưa xác minh là điểm chưa ai kiểm thật, làm theo thì hỏi lại quản lý.
 - Không tìm ra: thử từ đồng nghĩa hoặc tên tiếng Anh. Vẫn không có thì báo quản lý để bổ sung sổ tay.
 
+## Xem tình trạng kết nối và sửa Cài đặt lõi
+Từ khoá: cài đặt lõi, cài đặt API, khoá API, kết nối, Ahamove, Pancake, m-invoice, SePay, Zalo, WhatsApp, Goong, Meta Pixel, máy in QZ, chưa khai, đang lỗi, cần xử lý, API settings
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Giám đốc, quản lý hệ thống | Cài đặt lõi và API (/cai-dat-loi-va-api) | [[Sửa ›]] |
+
+Màn này gom mọi khoá kết nối và cấu hình lõi của app. Đầu màn có một câu cho biết bao nhiêu kết nối ổn, chưa khai, đang tắt, đang lỗi.
+
+**Các bước**
+1. Trang chủ, ô [[Cài đặt]], bấm [[Cài đặt lõi và API]].
+2. Xem khối CẦN XỬ LÝ: thẻ đỏ là đang lỗi, thẻ vàng là đã khai nhưng đang tắt. Mỗi thẻ nói hậu quả nếu để nguyên.
+3. Bấm [[Sửa ›]] trên thẻ: máy mở đúng nhóm và tô sáng đúng ô cần sửa, câu đỏ dưới ô nói cách sửa.
+4. Kết nối chưa khai nằm chung một thẻ. Bấm tên kết nối để tới ô còn thiếu đầu tiên. Chỉ cần khai cái tiệm có dùng.
+5. Sửa xong bấm nút Lưu ở cuối màn. Nút chỉ hiện khi đã có thay đổi, ghi rõ số thay đổi.
+
+**Lưu ý**
+- Đi qua lại giữa các nhóm không mất thay đổi. Rời hẳn màn khi chưa lưu thì máy hỏi lại.
+- Khoá bí mật chỉ hiện Đã khai hoặc Chưa khai, không ai xem lại được. Muốn đổi thì bấm Đổi khoá rồi dán khoá mới.
+- Nhãn bên phải mỗi nhóm: Ổn, số chưa khai, số đang tắt, hoặc số lỗi. Nhóm không có kết nối nào thì không có nhãn.
+- Trang Cài đặt trên máy tính có cùng câu tóm tắt và cùng thẻ việc đỏ, vàng.
+
 ## Cài đặt trợ lý (khoá, hạn mức lượt hỏi)
 Từ khoá: cài đặt trợ lý, khoá API, API key, Anthropic, hạn mức, lượt hỏi mỗi ngày, lượt mỗi tháng, bật tắt trợ lý, mô hình, model
 
