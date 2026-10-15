@@ -45488,7 +45488,7 @@ async function scrKhopSepay(o, loc, giuTim) {
     if (r.dung_tien) return ma + 'Đúng số tiền';
     if (!nhieu) return ma + 'Lệch ' + money(r.lech) + ' đ';
     return ma + (Number(r.con_lai) < Number(kq.so_tien)
-      ? 'Một phần của khoản cần gán, chọn thêm dòng khác cho đủ'
+      ? 'Một phần của khoản cần gán'
       : 'Lớn hơn khoản cần gán, chỉ dùng phần còn thiếu');
   }
   var html = '<div class="card" style="padding:12px 14px"><b>' + h(o.ma) + ' · ' + money(kq.so_tien) + ' đ</b>' +
