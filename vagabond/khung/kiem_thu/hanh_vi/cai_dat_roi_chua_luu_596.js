@@ -213,6 +213,33 @@ async function suaMotO(a) {
     bang('ở lại tổng quan', a.sau(), 2);
   });
 
+  await ca('Codex fbf05ff: Back trình duyệt rồi chọn ở lại thì ĐỊA CHỈ trở lại đúng màn Cài đặt (F5 không mở nhầm trang chủ)', async function () {
+    // Trình duyệt đã nhảy sang mốc trang chủ (địa chỉ /bep) trước khi bắn popstate. Chọn
+    // ở lại mà chỉ đẩy lại mốc với location.href cũ thì màn Cài đặt nằm dưới địa chỉ
+    // trang chủ; F5 mở trang chủ và mất thay đổi. Sau khi đẩy lại mốc phải áp lại địa
+    // chỉ của nấc đang đứng.
+    var a = appMoi(false);
+    a.g.window.vgbApDiaChi = function (slug) { a.lichSu.push(['ap', slug]); a.g.location.pathname = slug ? '/' + slug : '/bep'; };
+    var sap = '';
+    a.g.window.vgbSlugSapMo = function () { var s = sap; sap = ''; return s; };
+    await a.g.reset(a.g.scrHome); await a.cho();
+    sap = 'cai-dat-loi-va-api';
+    a.g.go(a.g.scrCaiDatLoi); await a.cho();
+    var tab = a.g.document.querySelectorAll('[data-cdltab="tab_ke_toan"]');
+    await a.bamTrongMan(tab[0]);
+    await a.bamTrongMan(a.g.document.querySelectorAll('[data-cdlbat="sepay_bat"]')[0]);
+    a.lichSu.length = 0;
+    a.g.location.pathname = '/bep'; a.g.location.href = 'https://app.x/bep';  // trình duyệt đã lùi
+    await a.backTrinhDuyet(0);
+    bang('hỏi một lần', a.hoi.length, 1);
+    var iPush = -1;
+    a.lichSu.forEach(function (x, i) { if (x[0] === 'push' && x[1] === 2) iPush = i; });
+    dung('đẩy lại mốc của màn nhóm', iPush >= 0);
+    var sau = a.lichSu.slice(iPush + 1).filter(function (x) { return x[0] === 'ap'; });
+    bang('sau khi đẩy lại mốc thì áp lại địa chỉ Cài đặt', sau.map(function (x) { return x[1]; }), ['cai-dat-loi-va-api']);
+    bang('thanh địa chỉ là Cài đặt', a.g.location.pathname, '/cai-dat-loi-va-api');
+  });
+
   await ca('Khung app: lùi về đúng nấc giữ thay đổi thì GIỮ câu hỏi, kể cả khi màn đó không tự đặt lại lúc vẽ', async function () {
     // Đột biến "vgbSauCat luôn xoá" không đổ ca nào ở trên vì màn tổng quan Cài đặt lõi
     // tự đặt lại câu hỏi mỗi lần vẽ (dư một lớp, điều 17c). Ca này dùng màn giả không
