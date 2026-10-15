@@ -130,17 +130,23 @@ def tu_dong_mot(loai, ma, cac_gd):
     ds=[r for r in cac_gd if co_ma(r.get("description") or r.get("mo_ta"),code) or co_ma(r.get("reference_number"),code)]
     if not ds:
         return None
-    rows=[];loi_bo=[]
+    rows=[];loi_bo=[];chi_tiet=[]
     for r in ds:
         g=frappe.get_doc("Bank Transaction",r["name"])
         loi=kiem(loai,b,doc,g)
         if loi:
-            loi_bo.append(loi);continue
+            # #477 (Codex): một dòng cùng mã không dùng được thì cả bộ mập mờ.
+            # Không bỏ dòng đó rồi tự khớp phần còn lại; trả về để kế toán xem.
+            loi_bo.append(loi);chi_tiet.append(g.name+": "+loi);continue
         rows.append(dict(name=g.name,description=g.description,reference_number=g.reference_number,
             tien=flt(g.withdrawal) or flt(g.deposit),bank_account=g.bank_account,
             chieu="ra" if flt(g.withdrawal)>0 and not flt(g.deposit) else "vao",
             con_lai=bs.con_lai(g,doc)))
     if not rows:return dict(ok=0,phieu=ma,vi_sao="; ".join(dict.fromkeys(loi_bo)),giao_dich="")
+    if loi_bo:
+        return dict(ok=0,phieu=ma,giao_dich=", ".join(r["name"] for r in ds),
+            vi_sao="Có dòng sao kê cùng mã chưa dùng được: "+"; ".join(dict.fromkeys(chi_tiet))+
+                ". Máy không tự khớp các dòng còn lại; kế toán kiểm rồi chọn tay.")
     k=de_xuat_bo(rows,code,flt(b["so_tien"](doc)),rows[0]["bank_account"],b["chieu"])
     if k['ket_qua']!='du':
         return dict(ok=0,phieu=ma,vi_sao=nhan_ket_qua(k),giao_dich=", ".join(r["name"] for r in ds))

@@ -1568,7 +1568,9 @@ def _cho_doi_chieu_sau(doc):
 	can = _so_phai_chuyen(doc, _do_chinh_xac())["con"]
 	if can <= 0:
 		return False
-	bo = _but_toan_cua_ho_so(doc.name)
+	# #477 (Codex): JE cấn tạm ứng không phải tiền ra ngân hàng, không tính
+	# vào phần sao kê đã đối chiếu (cùng cách doi_chieu_app.noi_but_toan lọc).
+	bo = [b for b in _but_toan_cua_ho_so(doc.name) if b["name"] != doc.get("vgb_can_ung")]
 	da = 0.0
 	for ct in bo:
 		for r in frappe.get_all("Bank Transaction Payments", filters={
