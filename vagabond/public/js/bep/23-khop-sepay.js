@@ -29,8 +29,20 @@ async function scrKhopSepay(o, loc, giuTim) {
   if (nhieu) rows.forEach(function (r) {
     if (chon[r.name] && (r.dung_duoc === 0 || Number(r.con_lai) < chon[r.name].phan_bo || r.bank_account !== chon[r.name].bank_account)) delete chon[r.name];
   });
-  var html = '<div class="card" style="padding:12px 14px"><b>' + h(o.ma) + ' · ' + money(kq.so_tien) + ' đ</b></div>';
-  html += '<div style="padding:0 12px"><input class="tin" id="ksTim" aria-label="Tìm sao kê" placeholder="Tìm nội dung, mã giao dịch hoặc số tiền" value="' + h(loc.tu_khoa) + '"></div>';
+  /* #476: chế độ chọn nhiều dòng thì một dòng nhỏ hơn số cần gán là bình
+     thường (ngân hàng tách lệnh), không gọi là "Lệch" kẻo kế toán tưởng sai. */
+  function nhanDong(r) {
+    if (r.dung_duoc === 0) return r.vi_sao_khong;
+    var ma = r.khop_ma ? 'Khớp mã · ' : '';
+    if (r.dung_tien) return ma + 'Đúng số tiền';
+    if (!nhieu) return ma + 'Lệch ' + money(r.lech) + ' đ';
+    return ma + (Number(r.con_lai) < Number(kq.so_tien)
+      ? 'Một phần của khoản cần gán, chọn thêm dòng khác cho đủ'
+      : 'Lớn hơn khoản cần gán, chỉ dùng phần còn thiếu');
+  }
+  var html = '<div class="card" style="padding:12px 14px"><b>' + h(o.ma) + ' · ' + money(kq.so_tien) + ' đ</b>' +
+    (nhieu ? '<div style="font-size:13px;color:#4b5563;margin-top:4px">Bấm từng dòng sao kê để chọn. Ngân hàng tách một khoản thành nhiều lệnh thì chọn đủ các lệnh, tổng đủ tiền mới Gán được.</div>' : '') + '</div>';
+  html += '<div style="padding:0 12px"><input class="tin" id="ksTim" aria-label="Tìm sao kê" placeholder="Tìm nội dung, mã hoặc số tiền" value="' + h(loc.tu_khoa) + '"></div>';
   function chip(thuoc, ds, daChon) {
     return '<div class="chips" style="padding:2px 12px 8px">' + ds.map(function (t) {
       return '<button class="chip' + (String(daChon) === String(t.ma) ? ' on' : '') + '" ' + thuoc + '="' + h(t.ma) + '" title="' + h(t.ten_day_du || t.nhan) + '" style="min-height:44px">' + h(t.nhan) + '</button>';
@@ -49,23 +61,39 @@ async function scrKhopSepay(o, loc, giuTim) {
       (nhieu ? '<div class="ksPhan" style="font-size:13px;margin-top:4px"></div>' : '') +
       '<div style="font-size:13px;font-weight:700;margin-top:4px">' + h(r.nhan_ngan_hang || 'Chưa xác định tài khoản') + '</div>' +
       '<div style="font-size:13px;overflow-wrap:anywhere;margin-top:4px">' + h(r.mo_ta || '(không có nội dung)') + (r.reference_number ? '<br>Tham chiếu: ' + h(r.reference_number) : '') + '</div>' +
-      '<div style="font-size:13px;color:#6b7280;margin-top:4px">' + h(chan ? r.vi_sao_khong : ((r.khop_ma ? 'Khớp mã · ' : '') + (r.dung_tien ? 'Đúng số tiền' : 'Lệch ' + money(r.lech) + ' đ'))) + '</div></div>';
+      '<div style="font-size:13px;color:#6b7280;margin-top:4px">' + h(nhanDong(r)) + '</div></div>';
   });
   if (loc.bat_dau || kq.con_nua) html += '<div style="display:flex;gap:8px;padding:12px">' + (loc.bat_dau ? '<button class="btn gh" id="ksTruoc">Trang trước</button>' : '') + (kq.con_nua ? '<button class="btn gh" id="ksTiep">Xem tiếp (' + Number(kq.con_nua) + ')</button>' : '') + '</div>';
   html += '<details style="padding:12px;font-size:13px"><summary>Thông tin tìm sao kê</summary>' +
     'Đã đọc ' + Number(cd.so_dong_quet || 0) + ' dòng; ' + Number(kq.tong || rows.length) + ' dòng khớp bộ lọc; ' + Number(cd.so_dong_chua_dung || 0) + ' dòng chưa dùng được.' +
     (cd.moi_nhat ? '<br>Mới nhất trong khoảng tìm: ' + h(hsNgayVn(cd.moi_nhat)) : '') +
     '<br>Gợi ý: dòng dùng được, khớp mã, đúng tiền; trong mỗi nhóm ngày mới nhất trước. Mới nhất: tất cả theo ngày giảm dần.</details>';
-  if (nhieu) html += '<div style="position:sticky;bottom:0;background:#fff;padding:12px;border-top:1px solid #ddd;z-index:4"><div id="ksTong" role="status" aria-live="polite"></div><button class="btn" id="ksGan" disabled>Gán các dòng đã chọn</button><button class="btn gh" id="ksXoa">Bỏ chọn tất cả</button></div>';
+  if (nhieu) html += '<div style="position:sticky;bottom:0;background:#fff;padding:12px;border-top:1px solid #ddd;z-index:4">' +
+    '<div id="ksTong" role="status" aria-live="polite" style="font-size:14px;font-weight:700;line-height:1.5;border-radius:9px;padding:8px 10px"></div>' +
+    '<div style="display:flex;gap:8px;margin-top:8px"><button class="btn" id="ksGan" style="flex:2;margin:0;min-height:44px" disabled>Gán các dòng đã chọn</button>' +
+    '<button class="btn gh" id="ksXoa" style="flex:1;margin:0;min-height:44px;white-space:nowrap" disabled>Bỏ chọn</button></div></div>';
   var b = frame('Khớp SePay thủ công', html);
   function capNhatTong() {
     if (!nhieu) return;
-    var t = tongChon(), lech = Number(kq.so_tien) - t, el = document.getElementById('ksTong'), gan = document.getElementById('ksGan');
-    if (el) el.textContent = 'Đã chọn ' + Object.keys(chon).length + ' dòng: ' + money(t) + ' / ' + money(kq.so_tien) + ' đ. ' + (duBo() ? 'Đủ tiền.' : (lech >= 0 ? 'Còn thiếu ' : 'Đang thừa ') + money(Math.abs(lech)) + ' đ.');
+    var t = tongChon(), lech = Number(kq.so_tien) - t, el = document.getElementById('ksTong'), gan = document.getElementById('ksGan'), xoa = document.getElementById('ksXoa');
+    var n = Object.keys(chon).length, trang = !n ? 'trong' : (duBo() ? 'du' : (lech > 0 ? 'thieu' : 'thua'));
+    /* Màu trạng thái thống nhất: xám chưa chọn, xanh đủ, vàng còn thiếu, đỏ thừa. */
+    var mau = {trong:['#f8fafc','#475569'], du:['#f0fdf4','#065f46'], thieu:['#fffbeb','#92400e'], thua:['#fef2f2','#991b1b']}[trang];
+    if (el) {
+      el.textContent = !n ? 'Chưa chọn dòng nào. Chọn các dòng sao kê cho tới khi đủ ' + money(kq.so_tien) + ' đ.'
+        : 'Đã chọn ' + n + ' dòng: ' + money(t) + ' / ' + money(kq.so_tien) + ' đ. ' + (trang === 'du' ? '✓ Đủ tiền, bấm Gán.' : (trang === 'thieu' ? 'Còn thiếu ' : 'Đang thừa ') + money(Math.abs(lech)) + ' đ.');
+      el.style.background = mau[0]; el.style.color = mau[1]; el.setAttribute('data-trang', trang);
+    }
     if (gan) gan.disabled = !duBo() || dangGan;
+    if (xoa) xoa.disabled = !n || dangGan;
     b.querySelectorAll('.ksDong').forEach(function (n) {
       var bt = n.querySelector && n.querySelector('.ksChon'), da = !!chon[n.getAttribute('data-gd')];
-      if (bt) { bt.textContent = da ? '✓ Đã chọn' : '+ Chọn'; bt.setAttribute('aria-pressed', String(da)); }
+      if (bt) {
+        bt.textContent = da ? '✓ Đã chọn' : '+ Chọn'; bt.setAttribute('aria-pressed', String(da));
+        bt.style.background = da ? '#0e7490' : ''; bt.style.color = da ? '#fff' : ''; bt.style.borderColor = da ? '#0e7490' : '';
+      }
+      /* Dòng đã chọn phải nhìn ra ngay khi lướt, không chỉ đổi chữ trong nút. */
+      if (n.style) { n.style.border = da ? '2px solid #0e7490' : '1px solid #d1d5db'; }
       var ma = n.getAttribute('data-gd'), r = rows.find(function (x) { return x.name === ma; }), phan = n.querySelector('.ksPhan');
       if (phan && r) phan.textContent = 'Còn dùng được ' + money(r.con_lai) + ' đ.' + (da ? ' Gán cho phiếu này ' + money(chon[ma].phan_bo) + ' đ; còn lại ' + money(Number(r.con_lai) - chon[ma].phan_bo) + ' đ.' : '');
     });
@@ -78,7 +106,7 @@ async function scrKhopSepay(o, loc, giuTim) {
         await o.chon(JSON.stringify(Object.keys(chon).map(function (ma) { return {name:ma, phan_bo:chon[ma].phan_bo}; })), tongChon());
       } finally { dangGan = false; capNhatTong(); }
     };
-    document.getElementById('ksXoa').onclick = function () { if (dangGan) return; Object.keys(chon).forEach(function (ma) { delete chon[ma]; }); capNhatTong(); };
+    document.getElementById('ksXoa').onclick = function () { if (dangGan || !Object.keys(chon).length) return; Object.keys(chon).forEach(function (ma) { delete chon[ma]; }); capNhatTong(); };
     capNhatTong();
   }
   var henTim = null, dangTim = false;
@@ -120,7 +148,7 @@ async function scrKhopSepay(o, loc, giuTim) {
 }
 
 async function boBoSepay(loai, ma, ve) {
-  var ok = await confirmSheet('Bỏ bộ đối chiếu', 'Bỏ toàn bộ các dòng sao kê đã chọn của phiếu này. Máy không huỷ bút toán; nếu còn chứng từ hiệu lực, kế toán cần xử lý trước. Không chuyển tiền thêm.', 'Bỏ bộ đã chọn', true);
+  var ok = await confirmSheet('Bỏ đối chiếu', 'Gỡ toàn bộ các dòng sao kê đang gán cho phiếu này để chọn lại cho đúng. Máy không huỷ bút toán; nếu còn chứng từ hiệu lực, kế toán xử lý trước. Không chuyển tiền thêm.', 'Bỏ đối chiếu', true);
   if (!ok) return;
   busy(true);
   try {

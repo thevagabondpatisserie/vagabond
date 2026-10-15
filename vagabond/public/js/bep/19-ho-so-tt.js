@@ -195,7 +195,10 @@ function hsVeDanhSach(kq) {
     var n = theoTT.filter(x.loc).length;
     return !n && x.k && x.k !== hsViec ? '' : posChipNut('data-hsviec="' + h(x.k) + '"', h(x.nhan) + ' (' + n + ')', x.k === hsViec);
   }).join('')) +
-    '<div style="font-size:13px;color:#6b7280;margin-top:8px">Một hồ sơ có thể thuộc nhiều nhóm. Đã chi không có nghĩa là đã đủ chứng từ; nối hóa đơn bổ sung chưa xác nhận đã cấn nợ.</div></div>';
+    (hsViec && (kq.mo_ta_chip || {})[hsViec]
+      ? '<div id="hsViecMoTa" style="font-size:13px;color:#92400e;background:#fffbeb;border-radius:9px;padding:8px 10px;margin-top:8px;line-height:1.55"><b>' + h(nhanChip[hsViec]) + ':</b> ' + h(kq.mo_ta_chip[hsViec]) + '</div>'
+      : '') +
+    '<div style="font-size:13px;color:#6b7280;margin-top:8px">Một hồ sơ có thể thuộc nhiều nhóm. Đã chi không có nghĩa là đã đủ chứng từ; nối hóa đơn bổ sung chưa xác nhận đã cấn nợ. Bấm một nhóm để xem giải thích và lọc danh sách.</div></div>';
   var loc = theoTT.filter(function (r) { return !hsViec || hsCoChip(r, hsViec); });
   var tong = loc.reduce(function (a, r) { return a + Number(r.tong_tien || 0); }, 0);
   var treN = loc.filter(function (r) { return r.tre_ngay > 0; });
@@ -2227,6 +2230,19 @@ async function hsCopy(chu, nhan) {
   chepTay();
 }
 
+/* #476: hồ sơ ghi nhận kèm lý do phải nói rõ ngay trên đầu màn là còn chờ
+   đối chiếu, lý do là gì và bước tiếp theo, không để chip ở danh sách là
+   nơi duy nhất biết chuyện này. */
+function hsKhoiChoDoiChieu(hs) {
+  if (!hs.ly_do_som) return '';
+  if (hs.cho_doi_chieu_sau) {
+    return '<div id="hsChoDoiChieu" style="margin-top:10px;font-size:13px;line-height:1.6;color:#92400e;background:#fffbeb;border:1px solid #fde68a;border-radius:9px;padding:9px 11px">' +
+      '<b>⏳ Chờ đối chiếu sau.</b> Đã ghi nhận thanh toán khi sao kê chưa đủ.<br>Lý do: ' + h(hs.ly_do_som) +
+      '<br>Bước tiếp: kế toán bấm <b>Đối chiếu tay</b> để chọn các dòng sao kê, hoặc đối chiếu trong ERPNext. Không chuyển tiền thêm.</div>';
+  }
+  return '<div id="hsChoDoiChieu" style="margin-top:8px;font-size:12.5px;color:#4b5563">Đã ghi nhận kèm lý do: ' + h(hs.ly_do_som) + '. Sao kê nay đã đối chiếu đủ.</div>';
+}
+
 async function scrHoSoTTView(name) {
   frame('Hồ sơ ' + name, '<div class="emp"><div class="e1">⏳</div><div>Đang mở hồ sơ...</div></div>');
   var d;
@@ -2269,6 +2285,7 @@ async function scrHoSoTTView(name) {
         ((hs.tep_dinh_kem || []).length ? ' · ' + hs.tep_dinh_kem.length + ' tệp' : ' · <b style="color:#b91c1c">chưa có tệp</b>') : '') +
       '</div>' : '') +
     (hs.ly_do_tu_choi ? '<div style="margin-top:8px;font-size:13px;color:#991b1b">Lý do: ' + h(hs.ly_do_tu_choi) + '</div>' : '') +
+    hsKhoiChoDoiChieu(hs) +
     (hs.ghi_chu ? '<div style="margin-top:6px;font-size:12.5px;color:#4b5563">Ghi chú: ' + h(hs.ghi_chu) + '</div>' : '') +
     '</div>';
 
@@ -2475,7 +2492,7 @@ async function scrHoSoTTView(name) {
     if (!canDu) nut.push('<button class="btn gh" data-hsv="sepay" style="flex:1">🏦 Dò SePay</button>');
     nut.push('<button class="btn" data-hsv="datra" style="flex:2">' + (canDu ? '✅ Hoàn tất quyết toán' : '💸 Ghi nhận đã thanh toán') + '</button>');
   }
-  if (!canDu && Q.fin && Q.ngoai_le_sepay && hs.trang_thai === 'Da duyet') nut.push('<button class="btn gh" data-hsv="datra_lydo" style="flex:2">Ghi nhận kèm lý do</button>');
+  if (!canDu && Q.fin && Q.ngoai_le_sepay && hs.trang_thai === 'Da duyet') nut.push('<button class="btn gh" data-hsv="datra_lydo" style="flex:2">📝 Ghi nhận kèm lý do</button>');
   if (!canDu && Q.fin && ['Da duyet', 'Da thanh toan'].indexOf(hs.trang_thai) >= 0) nut.push('<button class="btn gh" data-hsv="khoptay" style="flex:2">🔎 Đối chiếu tay</button>');
   if (!canDu && Q.fin && (hs.ma_giao_dich || hs.trang_thai === 'Da thanh toan') && ['Da duyet', 'Da thanh toan'].indexOf(hs.trang_thai) >= 0) nut.push('<button class="btn gh" data-hsv="bodoichieu" style="flex:2">Bỏ đối chiếu</button>');
   if ((Q.fin || Q.gd) && ['Cho ke toan', 'Cho giam doc', 'Da duyet'].indexOf(hs.trang_thai) >= 0) nut.push('<button class="btn gh" data-hsv="tu_choi" style="flex:1">⛔ Từ chối</button>');
@@ -2724,7 +2741,7 @@ async function hsHanh(k, hs) {
   if (k === 'datra' || k === 'datra_lydo') {
     var lyDoSom = '';
     if (k === 'datra_lydo') {
-      lyDoSom = await hoiNhap('Lý do ghi nhận khi sao kê chưa đủ (vẫn cần UNC). Hồ sơ sẽ vào Chờ đối chiếu sau:', '');
+      lyDoSom = await hoiNhap('Vì sao ghi nhận khi sao kê chưa khớp đủ? Ví dụ: ngân hàng trừ phí, lệnh chưa về sao kê. Hồ sơ vẫn cần UNC và sẽ nằm ở nhóm Chờ đối chiếu sau tới khi đối chiếu đủ.', '');
       if (lyDoSom === null) return;
       lyDoSom = String(lyDoSom || '').trim();
       if (!lyDoSom) return baoTin('Cần ghi lý do để kế toán theo dõi đối chiếu sau.');

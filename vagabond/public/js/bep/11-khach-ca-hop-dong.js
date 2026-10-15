@@ -576,7 +576,7 @@ async function scrCnPhieu(name) {
     '<button class="btn gh" id="cnKiem" style="flex:1;margin:0">🔄 Đối chiếu SePay</button>' +
     (du ? '<button class="btn gh" id="cnThu" style="flex:1;margin:0">✉️ Thư báo</button>'
         : '<button class="btn gh" id="cnKhop" style="flex:1;margin:0">🔎 Khớp tay</button>') +
-    (d.bo_sao_ke_duoc ? '<button class="btn gh" id="cnBoBo">Bỏ bộ sao kê</button>' : '') +
+    (d.bo_sao_ke_duoc ? '<button class="btn gh" id="cnBoBo" style="flex:1;margin:0">↩️ Bỏ đối chiếu</button>' : '') +
     (du || d.trang_thai === 'Huy' || d.huy_duoc === 0 ? '' : '<button class="btn gh" id="cnHuy" style="flex:0 0 34%;margin:0;color:#b3261e">Huỷ phiếu</button>') +
     '</div>';
   var b = frame('Phiếu ' + h(d.ma_phieu), html, { footer: foot });
@@ -2417,7 +2417,7 @@ nó phụ thuộc đúng vào bước này, và một cái nút biến mất kh�
 là thứ khiến người dùng đi hỏi vòng quanh. */
 function htCtKhopSepay(d) {
   if (!d.duoc_doi_chieu || d.trang_thai === 'Da huy') return '';
-  var boBo = d.bo_sao_ke_duoc ? '<button class="btn gh" id="htBoBo">Bỏ bộ đối chiếu</button>' : '';
+  var boBo = d.bo_sao_ke_duoc ? '<button class="btn gh" id="htBoBo" style="width:100%;margin:8px 0 0">↩️ Bỏ đối chiếu</button>' : '';
   if (d.da_doi_soat && d.sinh_lai_duoc) {
     /* v523, HT-2026-02900: tiền đã ra mà chứng từ hỏng thì CHƯA có phiếu chi,
        nên nút Đính uỷ nhiệm chi không thể hiện. Câu "bước còn lại là đính uỷ
