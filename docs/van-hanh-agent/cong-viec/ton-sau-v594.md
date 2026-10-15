@@ -4,11 +4,12 @@ Codex chịu trách nhiệm triển khai. PR duy nhất trên `codex/ton-sau-594
 
 ## Điểm tiếp nối hiện tại, 15/10
 
-- Remote mốc gần nhất: `182daeaf597ebf83c924500c05da49845edb5096`. CI/bench phải đọc lại trên GitHub; các đoạn phía dưới là nhật ký tích lũy, không phải mọi việc còn trắng.
-- P2/P3 đã sửa và có bench d6ff21bd8 xanh gồm staging, số đo trước/sau ghi bên dưới. Không làm lại từ đầu, kiểm hồi quy trên SHA cuối.
-- APP/TTNB/hoàn tiền/hoàn ứng đã có adapter và ca bench. Công nợ đã nối UI nhiều dòng, từng kỳ, PE từng Customer, ghi từng PE/UNC, tự dò nhiều dòng. Hủy mềm nháp đang bổ sung trong lượt này.
-- Còn A1: thống nhất một dòng/callback công nợ, tranh chấp SI/PE sau chờ khóa, tạm ứng và rà đủ mười nhóm trên SHA cuối. A2 đã có ca tranh chiếc bánh cuối, còn bench tổng cuối.
-- Không chuyển #471/#464, không đặt phiên bản/patch, không merge/deploy. APP.26.09.009 chỉ liệt kê, không sửa.
+- Nền `df22c3dcd45593df7e73844232ced079c49b45bc`. Phần A1/A2/A3 đã có code và ca kiểm. Không đặt phiên bản, không thêm patch, không sửa dữ liệu cũ.
+- Bảng bên dưới đánh dấu phần triển khai và ca chứng minh, không thay biên nhận CI/bench. Bản chốt chỉ được bàn giao khi CI và bench gồm staging của đúng SHA đều xanh. Link và SHA cuối nằm trong comment bàn giao PR476.
+- Bench `dc239eac0e02be9ceeca4a467ecef967ccdf6a34`: 422/423 ở cả hai lượt. Ca tự dò công nợ dùng mã tạm rồi đổi sau insert, bị core `_sync_autoname_field` trả về mã tạm. Đã sửa fixture tạo mã thật ngay từ insert và bắt SQL phải trả đủ hai dòng. Chờ run bản chốt xác nhận, không dùng 422/423 làm kết quả hoàn thành.
+- Ảnh, bảng mười nhóm và giới hạn bằng chứng: [pr476](../bang-chung/pr476/README.md). DOM19/19, tầng khung4548/4548, fakeCI4548/4548 và cổng local mã0 trên bản sửa. Bản cuối phải kiểm lại sau push.
+- Chưa có Claude duyệt bản chốt. Chỉ sau review đạt mới mở nhánh phát hành; không merge/deploy. Không chuyển #471/#464.
+- Các mục ghi theo đợt phía dưới là lịch sử kiểm, không phải danh sách còn tồn hiện tại.
 
 ## A1. Tách và gộp tiền ngân hàng
 
@@ -29,17 +30,18 @@ Nguồn: [giao việc 4 trên PR469](https://github.com/thevagabondpatisserie/va
 - Kiểm đột biến local: bỏ kiểm tổng bị 2 ca bắt; bỏ kiểm số dư bị 2 ca bắt; bật Gán sớm bị 5 ca DOM bắt; cho cộng khác tài khoản bị 1 ca DOM bắt. Đã khôi phục code đúng.
 - A1 còn các adapter nghiệp vụ và các ca cạnh tranh; A2 chưa triển khai. Chưa bàn giao hoàn thành, chưa sẵn sàng merge/deploy.
 
-### Cổng nghiệm thu cuối (chưa đánh dấu bằng SHA mới)
+### Checklist triển khai A1 và ca chứng minh
 
-- [ ] APP tự nhận cả bộ cùng mã, cùng tài khoản, tổng đủ. Chuyển sang PE/JE và nối đủ BT trong cùng transaction.
-- [ ] TTNB, hoàn tiền, công nợ tiền vào, tạm ứng, hoàn ứng dùng cùng bộ; rà cả callback cũ ngoài registry.
-- [ ] Giữ theo số tiền trên chứng từ hiện có; không tạo DocType. Mọi cửa kể cả Desk/API phải kiểm cùng chỗ giữ.
-- [ ] Khóa BT/phiếu và current read; hai người cùng chọn chỉ một người dùng phần tiền còn lại. Không lấy snapshot trước khóa làm căn cứ.
-- [ ] Một BT chia nhiều phiếu, phiếu thứ ba không được vượt phần còn lại.
-- [ ] UI nhiều dòng, thanh tổng, nút Gán chỉ sáng khi đủ, giữ lựa chọn qua tìm kiếm/phân trang.
-- [ ] Bỏ nối cả bộ; không gỡ phần của phiếu khác. Nếu còn bút toán sống phải xử lý qua lõi, không tự huỷ.
-- [ ] Accounts Manager: Ghi nhận kèm lý do; Accounts User/AP FIN không có quyền này; hồ sơ vào Chờ đối chiếu sau.
-- [ ] Sổ tay và tìm kiếm câu hỏi thật; đủ mười nhóm ca của Claude, DOM và đột biến.
+- [x] APP tự nhận cả bộ, PE/JE và phân bổ lõi: `thu_bo_sao_ke_595` ca APP tự dò hai dòng cùng mã.
+- [x] TTNB, hoàn tiền, công nợ, tạm ứng, hoàn ứng cùng đường bộ: `thu_phan_con_595` hợp đồng một cửa; `thu_bo_sao_ke_595` đủ luồng; ca công nợ tự dò sửa fixture đang chờ bench cuối.
+- [x] Giữ trên chứng từ hiện có, không thêm DocType: `thu_phan_con_595` hợp đồng không ghi ngoài DB chung; `thu_bo_sao_ke_595` Desk/API và phân bổ phần.
+- [x] Khóa/current read: `bench_thu/bo_sao_ke_476`, `thu_dong_thoi_476` PE nháp/đã ghi sổ, `do_khoa_476` ba ca độc lập.
+- [x] Một BT nhiều phiếu và chặn vượt: `thu_bo_sao_ke_595` một BT hai APP, tạm ứng; `thu_sepay_mb_247` cấp quỹ hai JE.
+- [x] UI nhiều dòng, tổng và giữ lựa chọn: `gia_lap_trang.js --bo-sao-ke`, 19 ca cho năm luồng.
+- [x] Bỏ cả bộ giữ chứng từ khác: `thu_bo_sao_ke_595` APP/TTNB/hoàn tiền/công nợ bỏ bộ, hủy mềm PE; `thu_sepay_mb_247` hủy cấp quỹ nhả phần.
+- [x] Ghi nhận kèm lý do đúng quyền và Chờ đối chiếu sau: `thu_bo_sao_ke_595` FIN/Manager; `hanh_vi/chay.js` nút theo vai.
+- [x] Câu chị Dung qua tìm kiếm thật: `thu_so_tay_554._cau_that`; bảng mười nhóm trong README bằng chứng.
+
 
 Core đã đọc: `erpnext/accounts/doctype/bank_transaction/bank_transaction.py` tại `de591661b9ba0bd3f62ac25b99b5c85c723515f6`, `allocate_payment_entries` phân bổ min(phần chứng từ còn lại, phần BT còn lại). Không ghi tay `allocated_amount` để giả vờ đã đối chiếu. Cần kiểm trường hợp người chọn phần tiền nhỏ hơn mức core tự phân bổ và đọc lại GL/BT sau submit.
 
@@ -51,15 +53,15 @@ Luồng đích: mở hồ sơ, chọn cả hai dòng trong Khớp SePay, tổng 
 
 ## A2. Giữ tồn đơn web
 
-- [ ] Kiểm và giữ trong giao dịch tạo đơn. Nhả khi Pancake từ chối; không nhả chỉ vì timeout chưa biết kết quả.
-- [ ] Giữ cách B: lỗi kiểm tồn vẫn nhận và báo Sales; bánh làm theo đơn ngày sau không chặn.
-- [ ] Chống trừ hai lần khi đơn Pancake đã được đồng bộ vào tồn; hai kết nối song song tranh chiếc bánh cuối trên bench.
+- [x] Kiểm và giữ trong giao dịch, từ chối nhả/timeout giữ: `bench_thu/giu_ton_web_476`, `thu_giu_ton_web_595`.
+- [x] Giữ cách B và bánh làm theo đơn ngày sau: `thu_giu_ton_web_595` cửa tạo đơn/lỗi kiểm tồn và decor0.
+- [x] Không trừ hai lần và hai tiến trình tranh bánh cuối: `thu_giu_ton_web_595` đồng bộ/dời ngày; `bench_thu/giu_ton_web_476`. Webhook đơn khác: `do_khoa_web_476`, số đo ở README bằng chứng.
 
 ## A3. Lịch sử công thức
 
 - [x] Ô Đang dùng ghi Bật/Tắt; Mặc định và Công thức ảo ghi Có/Không. Chặng sản xuất giữ chữ thật.
 - [x] Không ghi lịch sử giả khi DB trả chuỗi 0/1 nhưng API gửi số 0/1.
-- [ ] Cổng cuối và review cùng bản phát hành.
+- [x] Ca `thu_bom_excel_lich_su_593`: chữ cho mọi ô Check, chuỗi0 không thành Có; 2/2 đột biến bị bắt. Cổng cuối và review vẫn phải xác minh trên PR trước phát hành.
 
 ## A4. Dữ liệu chỉ bàn giao
 

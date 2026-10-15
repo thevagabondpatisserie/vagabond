@@ -26,3 +26,22 @@ Ca thao tác chạy bằng `node vagabond/khung/kiem_thu/gia_lap_trang.js --bo-s
 | 10. Đột biến | Nhật ký kiểm và bảng đột biến trong bàn giao cuối | Bỏ kiểm tổng/nguồn/giữ, stale SI/PE, giữ tồn và DOM phải bị bắt |
 
 Bảng là ánh xạ ca kiểm, không tự khẳng định bench SHA cuối đã xanh. Kết quả cuối phải đọc run CI/bench của đúng SHA trong bàn giao PR.
+
+## Đột biến lượt chốt
+
+| Phần | Bắt được / đã chạy | Số ca đỏ theo từng đột biến |
+|---|---|---|
+| Đường chung: bỏ nguồn, bỏ tổng APP, bỏ factory PE | 3/3 | 3, 1, 1 |
+| SI/PE: snapshot cũ, nháp cũ, bỏ khóa SI | 3/3 | 1, 1, 1 |
+| Cấp quỹ: bỏ giữ, cho dòng hết tiền, bỏ nhả khi hủy | 3/3 | 1, 1, 1 |
+| Giữ tồn/DOM: bỏ trừ giữ, trừ hai lần, bật Gán thiếu | 3/3 | 3, 2, 10 |
+| Hợp đồng một cửa: ghi ngoài DB chung, so tiền lẻ | 2/2 | 1, 1 |
+| BOM: trả mã số, coi chuỗi0 là bật | 2/2 | 1, 1 |
+
+Tổng16/16 đột biến bị bắt; không có đột biến sống. Sau từng nhóm đã khôi phục mã và chạy ca đúng. Số ca đỏ không phải số đột biến. Đây là đột biến local, không thay ca tranh chấp hai tiến trình thật.
+
+## Số đo khóa trước và sau
+
+Baseline035e35e6c qua probee3bbb5d5f, run38549666430: BT không liên quan2,072067giây; đảo thời điểm deadlock1213; tạo APP2,043181giây. Baseline webhook run38617438497:2,066342giây.
+
+Bản dc239eac0, run38670172688: BT không liên quan0,055586giây; đảo thời điểm0,052036giây, không deadlock; tạo APP0,046697giây; webhook đơn web khác0,236219giây. SI/PE người thứ hai chờ2,082500giây (PE nháp) và2,060914giây (PE đã ghi sổ), đọc lại rồi bị từ chối bằng câu tiếng Việt đúng trạng thái. Không giữ BT mồ côi. Bench này còn một lỗi fixture công nợ, không phải biên nhận tổng xanh; kết quả đúng SHA cuối phải lấy từ run trong bàn giao.
