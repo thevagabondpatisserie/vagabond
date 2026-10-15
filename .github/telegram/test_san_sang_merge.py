@@ -7,6 +7,13 @@ from thong_bao import Loi, chay, thu_thap, xet_san_sang_merge
 
 SHA = 'a' * 40
 SHA2 = 'b' * 40
+MAIN = 'c' * 40
+MAIN2 = 'd' * 40
+
+
+def ss(base=MAIN, behind=0, status='ahead'):
+    """Phản hồi /compare/main...<sha> rút gọn: chỉ các trường máy đọc."""
+    return {'status': status, 'behind_by': behind, 'ahead_by': 3, 'base_commit': {'sha': base}}
 
 
 def pr(sha=SHA, draft=False):
@@ -34,7 +41,9 @@ class Kho:
         self.sha = 0
         self.pr = pr()
         self.checks = du()
-        self.chi_tiet = {'mergeable': True, 'state': 'open', 'draft': False, 'head': {'sha': SHA}}
+        self.chi_tiet = {'mergeable': True, 'state': 'open', 'draft': False, 'head': {'sha': SHA},
+                         'base': {'ref': 'main'}}
+        self.so_sanh = ss()
         self.comments = []
         self.goi_den = []
 
@@ -59,6 +68,8 @@ class Kho:
 
     def goi(self, path, *args, **kw):
         self.goi_den.append(path)
+        if path.startswith('/compare/'):
+            return self.so_sanh
         return self.chi_tiet
 
 
@@ -76,7 +87,7 @@ class Bot:
 
 class XetThuan(unittest.TestCase):
     def test_du_dieu_kien_va_codex_dat(self):
-        kq = xet_san_sang_merge(pr(), du(), {'mergeable': True, 'state': 'open', 'head': {'sha': SHA}}, [codex()])
+        kq = xet_san_sang_merge(pr(), du(), {'mergeable': True, 'state': 'open', 'head': {'sha': SHA}}, [codex()], ss())
         self.assertIn('PR #477 đủ điều kiện merge', kq['text'])
         self.assertIn('Codex: đã rà đạt đúng SHA này.', kq['text'])
         self.assertIn('merge #477', kq['text'])
@@ -99,13 +110,33 @@ class XetThuan(unittest.TestCase):
         }
         for ten, (p, c, ct) in ca.items():
             with self.subTest(ten):
-                self.assertIsNone(xet_san_sang_merge(p, c, ct, []))
+                self.assertIsNone(xet_san_sang_merge(p, c, ct, [], ss()))
+
+    def test_codex_f5b07bb_chua_gom_main_moi_thi_khong_bao(self):
+        ok = {'mergeable': True, 'state': 'open', 'head': {'sha': SHA}}
+        ca = {
+            'chậm hơn main': ss(MAIN2, behind=1, status='diverged'),
+            'chỉ chậm, không có gì mới': ss(MAIN2, behind=1, status='behind'),
+            'không đọc được so sánh': None,
+            'so sánh thiếu SHA nền': {'status': 'ahead', 'behind_by': 0, 'base_commit': {}},
+            'behind_by không rõ': {'status': 'ahead', 'base_commit': {'sha': MAIN}},
+            'status lạ': ss(status='diverged'),
+        }
+        for ten, so in ca.items():
+            with self.subTest(ten):
+                self.assertIsNone(xet_san_sang_merge(pr(), du(), ok, [], so))
+        for st in ('ahead', 'identical'):
+            with self.subTest(st):
+                self.assertIn('đã gồm main ' + MAIN[:9], xet_san_sang_merge(pr(), du(), ok, [], ss(status=st))['text'])
+        # Biên nhận gồm SHA nền: cùng SHA đầu, nền khác thì chữ ký khác.
+        self.assertNotEqual(xet_san_sang_merge(pr(), du(), ok, [], ss(MAIN))['signature'],
+                            xet_san_sang_merge(pr(), du(), ok, [], ss(MAIN2))['signature'])
 
     def test_codex_dat_sha_khac_hoac_co_gop_y_khong_tinh(self):
         ok = {'mergeable': True, 'state': 'open', 'head': {'sha': SHA}}
         for cm in ([codex(SHA2)], [codex(dat=False)]):
             with self.subTest(cm[0]['body'][:20]):
-                kq = xet_san_sang_merge(pr(), du(), ok, cm)
+                kq = xet_san_sang_merge(pr(), du(), ok, cm, ss())
                 self.assertIn('Codex: chưa báo rà đạt cho SHA này.', kq['text'])
 
 
@@ -131,7 +162,7 @@ class ThuThapVaGui(unittest.TestCase):
         # Đẩy SHA mới, bench xanh lại: tin mới cho SHA mới.
         kho.pr = pr(SHA2)
         kho.checks = du(SHA2)
-        kho.chi_tiet = {'mergeable': True, 'state': 'open', 'head': {'sha': SHA2}}
+        kho.chi_tiet = {'mergeable': True, 'state': 'open', 'head': {'sha': SHA2}, 'base': {'ref': 'main'}}
         kho.comments = []
         self.assertEqual(chay(kho, bot, '1'), 1)
         self.assertIn(SHA2[:9], bot.sent[-1][1])
@@ -169,6 +200,24 @@ class ThuThapVaGui(unittest.TestCase):
         self.assertIn('(gửi lại)', bot.sent[1][1])
         self.assertIn('PR #477 đủ điều kiện merge', bot.sent[1][1])
         self.assertNotIn('mất phản hồi', bot.sent[1][1])
+
+    def test_codex_f5b07bb_pr_cham_hon_main_khong_bao(self):
+        # Codex f5b07bb: main tiến lên sau lượt bench của SHA đầu PR. GitHub vẫn báo
+        # mergeable (không xung đột) và bench cũ vẫn xanh, nhưng PR CHƯA gồm main mới,
+        # chưa được kiểm lại sau khi hợp nhất (AGENTS.md điều 2). Không được báo.
+        kho, bot = Kho(), Bot()
+        kho.so_sanh = ss(MAIN2, behind=2, status='diverged')
+        self.assertEqual(chay(kho, bot, '1'), 0)
+        self.assertEqual(bot.sent, [])
+        # Merge main vào nhánh, bench chạy lại xanh trên SHA mới: lúc đó mới báo,
+        # và tin ghi rõ main nào đã được gồm.
+        kho.pr = pr(SHA2)
+        kho.checks = du(SHA2)
+        kho.chi_tiet = dict(kho.chi_tiet, head={'sha': SHA2})
+        kho.so_sanh = ss(MAIN2)
+        self.assertEqual(chay(kho, bot, '1'), 1)
+        self.assertIn('đã gồm main ' + MAIN2[:9], bot.sent[-1][1])
+        self.assertIn('/compare/main...' + SHA2 + '?per_page=1', kho.goi_den)
 
     def test_bench_chua_xong_khong_goi_chi_tiet_pr(self):
         kho = Kho()

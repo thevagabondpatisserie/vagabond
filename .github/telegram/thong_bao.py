@@ -247,11 +247,14 @@ CODEX = 'chatgpt-codex-connector[bot]'
 CHECK_DAT = ('success', 'neutral', 'skipped')
 
 
-def xet_san_sang_merge(pr, checks, chi_tiet, comments):
+def xet_san_sang_merge(pr, checks, chi_tiet, comments, so_sanh):
     """PR đủ điều kiện merge chưa. Hàm THUẦN, không gọi mạng.
 
     Đủ khi: không phải bản nháp, GitHub báo merge được (không xung đột), có
-    check `bench` xanh và MỌI check trên đúng SHA đầu PR đã xong và đạt.
+    check `bench` xanh và MỌI check trên đúng SHA đầu PR đã xong và đạt, VÀ SHA
+    đầu PR đã gồm đầu nhánh nền hiện tại (`so_sanh` là /compare/<nền>...<sha>,
+    behind_by == 0). Codex f5b07bb: mergeable chỉ nói không xung đột; PR chậm hơn
+    main thì bench xanh là bench của bản chưa hợp nhất, chưa được báo.
     Codex chỉ ghi kèm trạng thái, không phải điều kiện: anh Việt cần biết bench
     xanh để vào lệnh, còn Codex đạt hay chưa thì tin ghi rõ.
     Trả None hoặc dict(at, text, signature).
@@ -268,6 +271,10 @@ def xet_san_sang_merge(pr, checks, chi_tiet, comments):
         return None
     if not any(c.get('name') == 'bench' and c.get('conclusion') == 'success' for c in checks):
         return None
+    nen = ((so_sanh or {}).get('base_commit') or {}).get('sha') or ''
+    if (not re.fullmatch(r'[0-9a-f]{40}', nen) or (so_sanh or {}).get('behind_by') != 0
+            or so_sanh.get('status') not in ('ahead', 'identical')):
+        return None
     at = max(c.get('completed_at') or '' for c in checks)
     codex = None
     for c in comments:
@@ -279,10 +286,10 @@ def xet_san_sang_merge(pr, checks, chi_tiet, comments):
         at = max(at, codex)
     so = pr['number']
     text = (f"Vagabond | PR #{so} đủ điều kiện merge\n{rut(pr.get('title', ''))}"
-            f"\nBench xanh, mọi kiểm tra đạt, không xung đột. SHA {sha[:9]}."
+            f"\nBench xanh, mọi kiểm tra đạt, không xung đột. SHA {sha[:9]}, đã gồm main {nen[:9]}."
             + ('\nCodex: đã rà đạt đúng SHA này.' if codex else '\nCodex: chưa báo rà đạt cho SHA này.')
             + f"\nVào Cowork nhắn: merge #{so}\n{WEB}/pull/{so}")
-    return {'at': at, 'text': text, 'signature': ma([sha, bool(codex)])}
+    return {'at': at, 'text': text, 'signature': ma([sha, nen, bool(codex)])}
 
 
 def thu_thap(gh, state):
@@ -386,7 +393,12 @@ def thu_thap(gh, state):
                              for c in checks):
             continue
         chi_tiet = gh.goi('/pulls/' + str(number))
-        kq = xet_san_sang_merge(pr, checks, chi_tiet, gh.trang('/issues/' + str(number) + '/comments'))
+        nen = (chi_tiet.get('base') or {}).get('ref') or ''
+        if chi_tiet.get('mergeable') is not True or not re.fullmatch(r'[A-Za-z0-9._/-]+', nen):
+            continue
+        # So đầu nhánh nền HIỆN TẠI với đúng SHA đã chạy bench (Codex f5b07bb).
+        so_sanh = gh.goi('/compare/' + urllib.parse.quote(nen, safe='/') + '...' + sha + '?per_page=1')
+        kq = xet_san_sang_merge(pr, checks, chi_tiet, gh.trang('/issues/' + str(number) + '/comments'), so_sanh)
         if kq:
             entity = 'san-sang-merge:' + str(number)
             # Khoá ỔN ĐỊNH theo PR và chữ ký (SHA, Codex), để lượt gửi lại sau khi mất
