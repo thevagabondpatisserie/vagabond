@@ -166,12 +166,28 @@ var VGB_CD = (function () {
 
 	// v596: lỗi cụ thể của TỪNG Ô, để màn tô đỏ đúng ô và nói cách sửa. Nguồn duy
 	// nhất: chip đỏ của kết nối cũng đọc từ đây (không tự dò lại chỗ khác).
+	// Codex 3d0b446: máy chủ thật của Ahamove cho đối tác là partner-api.ahamove.com
+	// (tài liệu môi trường của Ahamove, khớp mô tả ô trên doctype); code tự nối /v3/...
+	// nên địa chỉ phải đúng gốc đó. api.ahamove.com hay thêm /v3 đều gọi sai chỗ.
+	var AHAMOVE_THAT = 'https://partner-api.ahamove.com';
+	function loiAhamove(base) {
+		var b = String(base || '').trim().replace(/\/+$/, '').toLowerCase();
+		if (!b) return null;
+		if (/apistg/.test(b)) {
+			return { ghi: 'đang trỏ máy chủ chạy thử, phí giao thật sẽ lỗi',
+				cau: 'Đây là máy chủ chạy thử. Đổi thành ' + AHAMOVE_THAT + ' để báo phí giao thật.' };
+		}
+		if (b !== AHAMOVE_THAT) {
+			return { ghi: 'địa chỉ API chưa đúng, phí giao sẽ lỗi',
+				cau: 'Không phải máy chủ thật của Ahamove. Chạy thật dùng ' + AHAMOVE_THAT + ' (không thêm /v3).' };
+		}
+		return null;
+	}
 	function loiTruong(doc) {
 		doc = doc || {};
 		var ra = {};
-		if (/apistg/i.test(String(doc.ahamove_base || ''))) {
-			ra.ahamove_base = 'Đây là máy chủ chạy thử. Đổi thành https://api.ahamove.com để báo phí giao thật.';
-		}
+		var aha = loiAhamove(doc.ahamove_base);
+		if (aha) ra.ahamove_base = aha.cau;
 		return ra;
 	}
 
@@ -183,10 +199,8 @@ var VGB_CD = (function () {
 			var ghi = tr === 'no' ? 'chưa khai' : (tr === 'off' ? 'đã khai, đang tắt' : 'đã khai');
 			// v596: bấm "Khai" phải tới đúng ô còn thiếu, không phải ô đầu của mục.
 			var toi = tr === 'no' ? (oThieu(doc, k) || k.toi) : (tr === 'off' ? k.bat : k.toi);
-			var loi = loiTruong(doc);
-			if (k.ten === 'Ahamove' && loi.ahamove_base) {
-				tr = 'err'; ghi = 'đang trỏ máy chủ chạy thử, phí giao thật sẽ lỗi'; toi = 'ahamove_base';
-			}
+			var aha = k.ten === 'Ahamove' ? loiAhamove(doc.ahamove_base) : null;
+			if (aha) { tr = 'err'; ghi = aha.ghi; toi = 'ahamove_base'; }
 			return { ten: k.ten, trang: tr, ghi: ghi, toi: toi, muc: k.muc, hau: k.hau || '' };
 		});
 		// Còi báo động: hú trong 24 giờ qua là đỏ, kể cả khi đã khai đủ.
