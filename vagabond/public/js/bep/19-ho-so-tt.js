@@ -3757,7 +3757,9 @@ async function hsCapQuyTienMat() {
     if (!nq) return;
     var nhap = await hoiNhap('Số tiền mặt thực tế đã cấp vào tài khoản này (đồng):', '');
     if (nhap == null) return;
-    var tien = Number(String(nhap).replace(/[.,\s]/g, ''));
+    var chuTien = String(nhap).trim();
+    if (!/^(?:\d+|\d{1,3}(?:\.\d{3})+|\d{1,3}(?:,\d{3})+)$/.test(chuTien)) return baoTin('Nhập số tiền nguyên đồng, ví dụ 100000 hoặc 100.000.');
+    var tien = Number(chuTien.replace(/[.,]/g, ''));
     if (!Number.isSafeInteger(tien) || tien <= 0) return baoTin('Nhập số tiền nguyên đồng lớn hơn 0.');
     var lan = Date.now().toString(36) + Math.random().toString(36).slice(2);
     return go(function () { return scrKhopSepay({loai:'tam_ung', ma:'Cấp quỹ tạm ứng',

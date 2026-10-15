@@ -706,3 +706,35 @@ def _():
     with patch.object(frappe.db,'sql',side_effect=sql):
         r=cn._sepay_cn('DNTT-26-10-00001')
         la('tìm đúng sao kê',r.get('gd'),['BT']);la('tiền nguồn',r.get('nhan'),100)
+
+
+@ca('#476 hợp đồng một cửa: không ghi chỗ giữ ngoài DB chung, không so tiền từng dòng ở adapter')
+def _():
+    import ast,re
+    from pathlib import Path
+    root=Path(__file__).resolve().parents[2]
+    sai=[]
+    for p in root.glob('*.py'):
+        if p.name=='bo_sao_ke_db.py':continue
+        for n in ast.walk(ast.parse(p.read_text())):
+            if not isinstance(n,ast.Call) or not isinstance(n.func,ast.Attribute) or n.func.attr not in ('set_value','db_set','set'):continue
+            args=n.args+(list(k.value for k in n.keywords))
+            # Trường ẩn phải được ghi cùng chỉ mục chủ BT trong một transaction.
+            for a in args:
+                if any((isinstance(x,ast.Constant) and x.value in ('vgb_bo_sao_ke','vgb_chu_bo_sao_ke')) or
+                       (isinstance(x,ast.Attribute) and x.attr in ('O_BO','O_CHU') and isinstance(x.value,ast.Name) and x.value.id=='bs')
+                       for x in ast.walk(a)):
+                    sai.append(p.name+':'+str(n.lineno))
+    la('một cửa ghi giữ',sai,[])
+    for file in ('doi_chieu_app.py','doi_soat_sepay.py','de_nghi_chi.py','hoan_tien.py','cong_no.py','tam_ung_app.py'):
+        tree=ast.parse((root/file).read_text())
+        bad=[]
+        for n in ast.walk(tree):
+            if not isinstance(n,(ast.Compare,ast.BinOp)):continue
+            text=ast.unparse(n)
+            if "xet_bo(" in text:continue
+            if re.search(r'\b(withdrawal|deposit)\b',text) and re.search(r'\b(tien|can)\b',text) and (
+                    isinstance(n,ast.BinOp) and isinstance(n.op,ast.Sub) or
+                    isinstance(n,ast.Compare) and any(isinstance(op,ast.Eq) for op in n.ops)):
+                bad.append(text)
+        la('không so lẻ '+file,bad,[])

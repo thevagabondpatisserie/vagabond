@@ -465,9 +465,13 @@ def _():
     from vagabond import cong_no as cn,bo_sao_ke_db as bs,sepay
     from frappe.utils import flt
     cty,tk,_mau=_nen();hd=_hd(tk,cty,100000,_khach('476AUTO'))
-    p=_phieu([hd],hd.customer);p.ma_phieu=cn._sinh_ma_cn();p.save(ignore_permissions=True)
+    # Core _sync_autoname_field trả ma_phieu về name khi save. Tạo đúng mã
+    # ngay từ insert, không đổi field sau insert rồi tưởng fixture là mã thật.
+    p=_phieu([hd],hd.customer,ma_phieu=cn._sinh_ma_cn())
+    dung('mã thật trước khi đọc SQL',bool(cn.RE_MA_DNTT.fullmatch(cn._chuan_ma(p.ma_phieu))))
     ba=_tai_khoan_cong_ty_moi(_tk_ngan_hang(cty));sepay.them_tai_khoan(ba.bank_account_no,ba.name)
     a,b=_gd(ba.name,40000,p.ma_phieu),_gd(ba.name,flt(hd.grand_total)-40000,p.ma_phieu)
+    la('SQL thật tìm đủ hai dòng',sorted(cn._sepay_cn(p.ma_phieu).get('gd') or []),sorted([a.name,b.name]))
     r=cn.kiem_sepay(p.name);p.reload()
     la('không lỗi lập phiếu',r.get('loi_lap'),[])
     ct=bs.doc_hien_tai(p)['chung_tu'];_DA_TAO.extend((x['doctype'],x['name']) for x in ct)

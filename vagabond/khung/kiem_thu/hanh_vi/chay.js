@@ -322,6 +322,21 @@ async function chayHet() {
     }
   });
 
+  await caAsync('476 cấp quỹ: không biến số lẻ hoặc chữ thành số tiền khác', async function () {
+    for (var input of ['', '0', '-1', '1.5', '1,5', '1e3', 'NaN', '12abc', '9007199254740992', '100.000', '100000']) {
+      var picks=['BANK','111','-'], opened=[],messages=[];
+      var g={money:String, hsNgayVn:String, hoiNhap:async()=>input, go:fn=>fn(),
+        hoiChon:async()=>picks.shift(), baoTin:async s=>messages.push(s),scrKhopSepay:async o=>opened.push(o),
+        api:async m=>m.endsWith('ds_tk_hoan_ung')?{tk:[{ma:'BANK'}]}:{tai_khoan_nguon:[{name:'111'}],nop_quy:[]}};
+      vm.createContext(g);vm.runInContext(layHam(docTep('19-ho-so-tt.js'),'hsCapQuyTienMat'),g);
+      await g.hsCapQuyTienMat();
+      var good=input==='100.000'||input==='100000';
+      bang('chỉ mở chọn khi tiền hợp lệ '+input,opened.length,good?1:0);
+      if(good)bang('đúng tiền nguyên',opened[0].tham_so_doc.so_tien,100000);
+      else dung('có lý do nhập lại',messages.length>0);
+    }
+  });
+
   await caAsync('342 cấn quỹ: hủy xác nhận không ghi, lỗi API không báo hoàn tất', async function () {
     for (var huy of [false,true]) {
       var calls=[],messages=[],moved=0;

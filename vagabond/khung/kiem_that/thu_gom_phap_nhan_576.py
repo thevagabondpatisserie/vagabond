@@ -55,9 +55,9 @@ def _hd(tk, cty, tien, kh):
 	return si
 
 
-def _phieu(ds_si, khach_dung_ten):
+def _phieu(ds_si, khach_dung_ten, ma_phieu=None):
 	d = frappe.new_doc("Vagabond Cong No")
-	d.ma_phieu = "DNTT-KT576-" + frappe.generate_hash(length=6)
+	d.ma_phieu = ma_phieu or "DNTT-KT576-" + frappe.generate_hash(length=6)
 	d.khach = khach_dung_ten
 	d.ten_khach = khach_dung_ten
 	d.ngay_tao = frappe.utils.nowdate()
