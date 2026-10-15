@@ -140,10 +140,35 @@ class ThuThapVaGui(unittest.TestCase):
         # Codex 6f45f8f: entity bị tỉa sau 30 ngày theo mốc at cũ thì mỗi lượt 15 phút gửi lại.
         kho, bot = Kho(), Bot()
         self.assertEqual(chay(kho, bot, '1'), 1)
-        for ngay in ('2026-10-20', '2026-10-21', '2026-11-12', '2026-11-13', '2026-12-30'):
+        # Lượt đối soát chạy liên tục (cách nhau dưới 30 ngày) suốt hơn hai tháng.
+        for ngay in ('2026-09-30', '2026-10-15', '2026-10-21', '2026-11-08', '2026-11-27', '2026-12-20'):
             with patch('thong_bao.gio', return_value=ngay + 'T00:02:00Z'):
                 self.assertEqual(chay(kho, bot, '1'), 0, ngay)
         self.assertEqual(len(bot.sent), 1)
+
+    def test_codex_p2_mat_phan_hoi_gui_lai_dung_tin_san_sang_merge(self):
+        # Codex 8292a1d: Telegram đã nhận nhưng mất phản hồi; 10 phút sau phải gửi
+        # lại đúng tin "đủ điều kiện merge", không phải câu "mất phản hồi" chung.
+        class BotRot(Bot):
+            def __init__(self):
+                super().__init__()
+                self.lan = 0
+            def gui(self, chat, text, nhom=False):
+                self.lan += 1
+                self.sent.append((chat, text))
+                if self.lan == 1:
+                    raise Loi('Chưa rõ')
+                return self.lan
+        kho, bot = Kho(), BotRot()
+        with self.assertRaises(Loi):
+            chay(kho, bot, '1')
+        self.assertTrue(kho.state['pending'])
+        with patch('thong_bao.gio', return_value='2026-09-12T00:13:00Z'):
+            chay(kho, bot, '1')
+        self.assertEqual(len(bot.sent), 2)
+        self.assertIn('(gửi lại)', bot.sent[1][1])
+        self.assertIn('PR #477 đủ điều kiện merge', bot.sent[1][1])
+        self.assertNotIn('mất phản hồi', bot.sent[1][1])
 
     def test_bench_chua_xong_khong_goi_chi_tiet_pr(self):
         kho = Kho()

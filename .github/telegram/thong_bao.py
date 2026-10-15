@@ -389,11 +389,11 @@ def thu_thap(gh, state):
         kq = xet_san_sang_merge(pr, checks, chi_tiet, gh.trang('/issues/' + str(number) + '/comments'))
         if kq:
             entity = 'san-sang-merge:' + str(number)
-            # Mốc là lúc đối soát và khoá có mốc đó, để mỗi lượt đều đi qua nhánh im
-            # lặng của entity và làm mới hạn giữ. PR đứng im quá 30 ngày cùng SHA vẫn
-            # chỉ một tin, không bị tỉa rồi gửi lại mỗi 15 phút (Codex 6f45f8f).
-            luc = max(kq['at'], gio())
-            them(entity + ':' + kq['signature'] + ':' + luc, luc, kq['text'], entity, kq['signature'])
+            # Khoá ỔN ĐỊNH theo PR và chữ ký (SHA, Codex), để lượt gửi lại sau khi mất
+            # phản hồi tìm lại đúng tin (Codex 8292a1d). Mốc là lúc đối soát: khi khoá đã
+            # bị tỉa khỏi seen (sau 120 giây), lượt kế đi nhánh im lặng và làm mới hạn giữ
+            # entity, nên PR đứng im nhiều tháng cùng SHA vẫn chỉ một tin (Codex 6f45f8f).
+            them(entity + ':' + kq['signature'], max(kq['at'], gio()), kq['text'], entity, kq['signature'])
     # Quét cả lượt cũ chạy lại trong 7 ngày; thời gian gián đoạn dài lấy theo cursor.
     cua_run = min(lui(gio(), 7 * 86400), lui(state['cursor'], 120))
     moc = cua_run[:10]
