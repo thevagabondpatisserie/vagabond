@@ -815,20 +815,28 @@ def _():
     import frappe
     from vagabond import bo_sao_ke_luong as bl, bo_sao_ke_db as bs, doi_soat_sepay as dss
     from vagabond.khung.kiem_thu.nen import dung
-    # Chuỗi Codex nêu: cùng mã TTNB có dòng A sai nguồn và dòng B hợp lệ đúng bằng số phiếu.
+    # Chuỗi Codex nêu: cùng mã TTNB, cùng tài khoản MB-CTY có dòng A đã thuộc
+    # phiếu khác và dòng B hợp lệ đúng bằng số phiếu.
     b=dict(doctype="Vagabond De Nghi Chi",ma_do=lambda d:"TTNB-26-10-00001",chieu="ra",so_tien=lambda d:100)
-    rows=[dict(name="A",bank_account="MB-THIEU-CHU",description="TTNB-26-10-00001",withdrawal=100,deposit=0),
-        dict(name="B",bank_account="MB-CTY",description="TTNB-26-10-00001",withdrawal=100,deposit=0)]
+    rows=[dict(name="A",bank_account="MB-CTY",description="TTNB-26-10-00001",withdrawal=100,deposit=0),
+        dict(name="B",bank_account="MB-CTY",description="TTNB-26-10-00001",withdrawal=100,deposit=0),
+        dict(name="C",bank_account="MB-THIEU-CHU",description="TTNB-26-10-00001",withdrawal=100,deposit=0)]
     theo_ten={r["name"]:frappe._dict(r,reference_number="") for r in rows}
+    loi={"A":"Giao dịch đã được TTNB khác sử dụng.","C":"Sai nguồn chi"}
     with patch.object(dss,"_ban",return_value=b), \
             patch.object(frappe,"get_doc",side_effect=lambda dt,ma:theo_ten[ma] if dt=='Bank Transaction' else frappe._dict(name=ma)), \
-            patch.object(bl,"kiem",side_effect=lambda loai,b,doc,g:"Sai nguồn chi" if g.bank_account=="MB-THIEU-CHU" else ""), \
-            patch.object(bs,"con_lai",return_value=100),patch.object(bl,"_khop") as khop:
+            patch.object(bl,"kiem",side_effect=lambda loai,b,doc,g:loi.get(g.name,"")), \
+            patch.object(bs,"con_lai",return_value=100),patch.object(bl,"_khop",return_value=dict(ok=1)) as khop:
         k=bl.tu_dong_mot("ttnb","TTNB",rows)
         la("không tự khớp bộ rút gọn",khop.call_count,0)
         la("trả về để kế toán xem",k['ok'],0)
-        dung("nêu đúng dòng và lý do","A: Sai nguồn chi" in k['vi_sao'])
-        dung("liệt kê cả hai dòng cùng mã","A" in k['giao_dich'] and "B" in k['giao_dich'])
+        dung("nêu đúng dòng và lý do","A: Giao dịch đã được TTNB khác sử dụng." in k['vi_sao'])
+        dung("liệt kê đủ các dòng cùng mã","A" in k['giao_dich'] and "B" in k['giao_dich'])
+        # #502 giữ nguyên: dòng ở tài khoản khác (MB cá nhân thiếu chủ quỹ)
+        # không bao giờ ghép chung bộ, nên không chặn khớp dòng công ty.
+        loi.pop("A")
+        k=bl.tu_dong_mot("ttnb","TTNB",[rows[1],rows[2]])
+        la("#502 vẫn tự khớp dòng công ty",khop.call_count,1)
 
 
 @ca("#477 Codex: chờ đối chiếu sau không tính JE cấn tạm ứng vào phần đã đối chiếu")
