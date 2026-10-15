@@ -2240,6 +2240,9 @@ function hsKhoiChoDoiChieu(hs) {
       '<b>⏳ Chờ đối chiếu sau.</b> Đã ghi nhận thanh toán khi sao kê chưa đủ.<br>Lý do: ' + h(hs.ly_do_som) +
       '<br>Bước tiếp: kế toán bấm <b>Đối chiếu tay</b> để chọn các dòng sao kê, hoặc đối chiếu trong ERPNext. Không chuyển tiền thêm.</div>';
   }
+  /* Chỉ hồ sơ đã thanh toán mới được nói là đã đối chiếu đủ; hồ sơ hủy hay
+     bị từ chối thì chỉ giữ lý do làm lịch sử. */
+  if (hs.trang_thai !== 'Da thanh toan') return '<div id="hsChoDoiChieu" style="margin-top:8px;font-size:12.5px;color:#4b5563">Lý do ghi nhận trước đây: ' + h(hs.ly_do_som) + '.</div>';
   return '<div id="hsChoDoiChieu" style="margin-top:8px;font-size:12.5px;color:#4b5563">Đã ghi nhận kèm lý do: ' + h(hs.ly_do_som) + '. Sao kê nay đã đối chiếu đủ.</div>';
 }
 
