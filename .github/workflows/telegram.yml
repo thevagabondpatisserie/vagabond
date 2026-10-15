@@ -34,6 +34,7 @@ jobs:
       issues: read
       pull-requests: read
       actions: read
+      checks: read
     steps:
       # Tuyệt đối không chạy code/checkout/cache/artifact của PR hoặc run kích hoạt.
       - uses: actions/checkout@v4
