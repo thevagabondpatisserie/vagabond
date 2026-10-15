@@ -5,17 +5,26 @@
 // v570: phép thuần (VGB_CD, danh mục và nhãn loại tin Zalo) nằm ở tệp dùng chung
 // /assets/vagabond/js/cai_dat_loi_chung.js, cùng tệp màn "Cài đặt lõi và API" của
 // app nạp. Hai nơi không giữ hai bản.
+// v596 Codex 3d0b446: lời hứa nạp được giữ theo KHOÁ CÓ PHIÊN BẢN. Phiên Desk mở từ
+// trước khi deploy còn giữ window.__vgb_cd_nap (đã xong) trỏ tới bản chung cũ thiếu
+// tongHop; dùng lại khoá cũ thì trang Cài đặt hỏng tới khi tải lại hẳn trình duyệt.
+// Đổi khoá khi bản mới cần hàm mới mà bản cũ không có.
+var VGB_CD_KHOA_NAP = '__vgb_cd_nap_596';
 function vgb_nap_cd_chung() {
 	if (window.VGB_CD && window.VGB_CD.tongHop) return Promise.resolve(window.VGB_CD);
-	if (window.__vgb_cd_nap) return window.__vgb_cd_nap;
-	window.__vgb_cd_nap = new Promise(function (ok, hong) {
+	if (window[VGB_CD_KHOA_NAP]) return window[VGB_CD_KHOA_NAP];
+	window[VGB_CD_KHOA_NAP] = new Promise(function (ok, hong) {
 		var s = document.createElement('script');
 		s.src = '/assets/vagabond/js/cai_dat_loi_chung.js?t=' + Date.now();
-		s.onload = function () { ok(window.VGB_CD); };
-		s.onerror = function () { window.__vgb_cd_nap = null; hong(new Error('Không nạp được tệp cài đặt dùng chung.')); };
+		s.onload = function () {
+			if (window.VGB_CD && window.VGB_CD.tongHop) return ok(window.VGB_CD);
+			window[VGB_CD_KHOA_NAP] = null;
+			hong(new Error('Tệp cài đặt dùng chung còn bản cũ. Tải lại trang (Ctrl+Shift+R).'));
+		};
+		s.onerror = function () { window[VGB_CD_KHOA_NAP] = null; hong(new Error('Không nạp được tệp cài đặt dùng chung.')); };
 		document.head.appendChild(s);
 	});
-	return window.__vgb_cd_nap;
+	return window[VGB_CD_KHOA_NAP];
 }
 function zalo_chon(frm, cdt, cdn, truong) {
 	const row = locals[cdt][cdn];
