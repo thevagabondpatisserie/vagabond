@@ -184,7 +184,11 @@ function vgbXuLyPopstate(ev) {
   var d = (st && typeof st.vgbD === 'number') ? st.vgbD : 0;
   if (d + 1 < S.stack.length) {
     var giu = S.stack.length - 1;
-    var oLai = function () { try { history.pushState({ vgbD: giu }, '', location.href); } catch (e) { } };
+    /* Chon o lai: trinh duyet DA nhay sang moc dich (location.href la dia chi dich),
+       nen day lai moc cua nac dang dung roi ap lai dia chi cua nac do. Thieu
+       buoc ap lai dia chi thi man Cai dat nam duoi dia chi trang chu, F5 mo nham man va mat
+       thay doi (Codex fbf05ff). */
+    var oLai = function () { try { history.pushState({ vgbD: giu }, '', location.href); } catch (e) { } vgbApNac(); };
     /* Lui bang nut Back cua trinh duyet: cat chong man hinh VA cat luon
        chong dia chi, roi ap lai dia chi cua nac con lai. Thieu hai viec sau
        thi man da lui ma thanh dia chi van mang duoi cua man vua roi.
