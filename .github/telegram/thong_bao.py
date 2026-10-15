@@ -243,6 +243,67 @@ def ban_phat_hanh(c):
     return x
 
 
+CODEX = 'chatgpt-codex-connector[bot]'
+CHECK_DAT = ('success', 'neutral', 'skipped')
+
+
+# Thư mục mà đổi trong đó KHÔNG cần deploy app lên Frappe Cloud (Codex 8050470).
+KHONG_DEPLOY = ('.github/', 'docs/')
+
+
+def xet_san_sang_merge(pr, checks, chi_tiet, comments, so_sanh, tep):
+    """PR đủ điều kiện merge (và deploy) chưa. Hàm THUẦN, không gọi mạng.
+
+    Đủ khi: không phải bản nháp, GitHub báo merge được (không xung đột), có
+    check `bench` xanh và MỌI check trên đúng SHA đầu PR đã xong và đạt, VÀ SHA
+    đầu PR đã gồm đầu nhánh nền hiện tại (`so_sanh` là /compare/<nền>...<sha>,
+    behind_by == 0). Codex f5b07bb: mergeable chỉ nói không xung đột; PR chậm hơn
+    main thì bench xanh là bench của bản chưa hợp nhất, chưa được báo.
+    Anh Việt 15/10/2026 (lần 2): chỉ báo khi ĐỦ để vào lệnh, nên Codex phải rà đạt
+    ĐÚNG SHA đầu PR ("Didn't find any major issues" kèm SHA). `tep` là danh sách
+    tên tệp PR đổi: mọi tệp đều trong .github/ hoặc docs/ thì merge là xong, tin nói
+    không cần deploy; còn lại (app, pyproject.toml, requirements.txt...) ghi "merge và
+    deploy".
+    Trả None hoặc dict(at, text, signature).
+    """
+    sha = (pr.get('head') or {}).get('sha') or ''
+    if not re.fullmatch(r'[0-9a-f]{40}', sha) or pr.get('draft') or chi_tiet.get('draft'):
+        return None
+    if (chi_tiet.get('state') != 'open' or chi_tiet.get('mergeable') is not True
+            or (chi_tiet.get('head') or {}).get('sha') != sha):
+        return None
+    if not checks or any(c.get('head_sha', sha) != sha for c in checks):
+        return None
+    if any(c.get('status') != 'completed' or c.get('conclusion') not in CHECK_DAT for c in checks):
+        return None
+    if not any(c.get('name') == 'bench' and c.get('conclusion') == 'success' for c in checks):
+        return None
+    nen = ((so_sanh or {}).get('base_commit') or {}).get('sha') or ''
+    if (not re.fullmatch(r'[0-9a-f]{40}', nen) or (so_sanh or {}).get('behind_by') != 0
+            or so_sanh.get('status') not in ('ahead', 'identical')):
+        return None
+    at = max(c.get('completed_at') or '' for c in checks)
+    codex = None
+    for c in comments:
+        body = c.get('body') or ''
+        if (c.get('user', {}).get('login') == CODEX and sha[:10] in body
+                and "Didn't find any major issues" in body):
+            codex = c.get('created_at') or ''
+    if not codex:
+        return None
+    at = max(at, codex)
+    so = pr['number']
+    # Codex 8050470: chỉ PR mà MỌI tệp nằm trong vùng an toàn mới không cần deploy.
+    # Tệp gốc như pyproject.toml, requirements.txt đổi môi trường cài trên Frappe Cloud;
+    # danh sách rỗng (không đọc được) cũng coi là cần deploy.
+    can_deploy = not tep or not all(str(f or '').startswith(KHONG_DEPLOY) for f in tep)
+    text = (f"Vagabond | PR #{so} đủ điều kiện merge" + (' và deploy' if can_deploy else ' (không cần deploy app)')
+            + f"\n{rut(pr.get('title', ''))}"
+            f"\nBench và CI xanh, Codex rà đạt, không xung đột, đã gồm main {nen[:9]}. SHA {sha[:9]}."
+            + f"\nVào Cowork nhắn: merge{' và deploy' if can_deploy else ''} #{so}\n{WEB}/pull/{so}")
+    return {'at': at, 'text': text, 'signature': ma([sha, nen, can_deploy])}
+
+
 def thu_thap(gh, state):
     """Metadata hoặc bản tin phát hành được soạn riêng; không chuyển log/artifact."""
     since = urllib.parse.quote(lui(state['cursor'], 120), safe='')
@@ -333,6 +394,31 @@ def thu_thap(gh, state):
             them('review:' + str(r['id']) + ':' + r['state'], r.get('submitted_at'),
                  f"Vagabond | Review PR #{number}\nTừ: {rut(r['user']['login'], 60)}"
                  f"\nKết quả GitHub: {r['state']}\n{WEB}/pull/{number}#pullrequestreview-{r['id']}")
+    # Báo PR đủ điều kiện merge và deploy (anh Việt 15/10/2026): một tin cho mỗi SHA
+    # đầu PR, chỉ khi Codex đã rà đạt đúng SHA đó. Chỉ kênh riêng, nhóm bộ phận không nhận.
+    for number, pr in prs.items():
+        sha = (pr.get('head') or {}).get('sha')
+        if not sha or pr.get('draft'):
+            continue
+        checks = gh.trang('/commits/' + sha + '/check-runs', 'check_runs')
+        if not checks or any(c.get('status') != 'completed' or c.get('conclusion') not in CHECK_DAT
+                             for c in checks):
+            continue
+        chi_tiet = gh.goi('/pulls/' + str(number))
+        nen = (chi_tiet.get('base') or {}).get('ref') or ''
+        if chi_tiet.get('mergeable') is not True or not re.fullmatch(r'[A-Za-z0-9._/-]+', nen):
+            continue
+        # So đầu nhánh nền HIỆN TẠI với đúng SHA đã chạy bench (Codex f5b07bb).
+        so_sanh = gh.goi('/compare/' + urllib.parse.quote(nen, safe='/') + '...' + sha + '?per_page=1')
+        tep = [f.get('filename') for f in gh.trang('/pulls/' + str(number) + '/files')]
+        kq = xet_san_sang_merge(pr, checks, chi_tiet, gh.trang('/issues/' + str(number) + '/comments'), so_sanh, tep)
+        if kq:
+            entity = 'san-sang-merge:' + str(number)
+            # Khoá ỔN ĐỊNH theo PR và chữ ký (SHA, Codex), để lượt gửi lại sau khi mất
+            # phản hồi tìm lại đúng tin (Codex 8292a1d). Mốc là lúc đối soát: khi khoá đã
+            # bị tỉa khỏi seen (sau 120 giây), lượt kế đi nhánh im lặng và làm mới hạn giữ
+            # entity, nên PR đứng im nhiều tháng cùng SHA vẫn chỉ một tin (Codex 6f45f8f).
+            them(entity + ':' + kq['signature'], max(kq['at'], gio()), kq['text'], entity, kq['signature'])
     # Quét cả lượt cũ chạy lại trong 7 ngày; thời gian gián đoạn dài lấy theo cursor.
     cua_run = min(lui(gio(), 7 * 86400), lui(state['cursor'], 120))
     moc = cua_run[:10]
@@ -493,6 +579,8 @@ class KenhNhom:
         return self.gh.luu(self.goc, sha)
     def trang(self, *args):
         return self.gh.trang(*args)
+    def goi(self, *args, **kw):
+        return self.gh.goi(*args, **kw)
 
 
 def chay(gh, tg, chat, gom=False, chat_nhom=''):

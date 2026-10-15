@@ -31,6 +31,18 @@ lại giữ mốc để lượt sau gửi. Nếu đọc nguồn quá5phút mà c
 được tin nào, workflow báo lỗi thay vì xanh giả. Chùm comment liên tiếp có
 thể chờ tới lượt bù15phút, và có thể chậm thêm nếu GitHub trì hoãn lịch. Không phát lại toàn bộ lịch sử trước lúc bật.
 
+PR đủ điều kiện merge và deploy (anh Việt 15/10/2026): khi PR mở, không phải
+bản nháp, GitHub báo không xung đột, có check `bench` xanh, mọi check trên đúng
+SHA đầu PR đều đạt, SHA đó đã gồm đầu nhánh nền hiện tại (so sánh
+`main...<sha>` không chậm commit nào), VÀ Codex đã rà đạt đúng SHA đó, bot gửi
+một tin. PR mà MỌI tệp đều nằm trong `.github/` hoặc `docs/` thì tin ghi "không
+cần deploy app" và "Vào Cowork nhắn: merge #N". Mọi PR khác, kể cả PR chỉ đổi tệp
+gốc như `pyproject.toml` hay `requirements.txt`, tin ghi "đủ điều kiện merge và
+deploy" kèm câu "Vào Cowork nhắn: merge và deploy #N".
+Chưa đủ một điều kiện nào thì im lặng; mỗi SHA đầu một tin. Chỉ kênh riêng,
+nhóm bộ phận không nhận. Tin này không phải lệnh merge; merge và deploy vẫn do
+anh cho phép trong phiên làm việc.
+
 Comment bot chỉ đổi checkbox tiến độ thì im lặng; đổi nội dung thực hoặc
 nhãn vẫn báo, kể cả thêm finding dưới cùng tiêu đề. Trạng thái Issue/PR chỉ
 báo khi state, nhãn, draft, merged hoặc tiêu đề đổi; mở lại vẫn báo dù từng mở.
