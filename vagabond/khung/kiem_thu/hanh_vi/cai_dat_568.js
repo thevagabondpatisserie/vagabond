@@ -83,8 +83,13 @@ ca('Codex #433 vòng 3 G2: GreenSM thiếu token_url, Zalo ZNS thiếu App Secre
   la('ZNS đủ', tim(V.tinhTrang(z, BAY_GIO), 'Zalo ZNS gửi khách').trang, 'ok');
   var h = { ahamove_api_key: '*', ahamove_mobile: '09' };
   la('Ahamove thiếu base', tim(V.tinhTrang(h, BAY_GIO), 'Ahamove').trang, 'no');
-  h.ahamove_base = 'https://api.ahamove.com';
+  h.ahamove_base = 'https://partner-api.ahamove.com';
   la('Ahamove đủ', tim(V.tinhTrang(h, BAY_GIO), 'Ahamove').trang, 'ok');
+  // Codex 3d0b446: api.ahamove.com KHÔNG phải máy chủ đối tác; tài liệu Ahamove ghi
+  // chạy thật là partner-api.ahamove.com (code nối thêm /v3/...). Không được xanh.
+  h.ahamove_base = 'https://api.ahamove.com';
+  var ahaSai = tim(V.tinhTrang(h, BAY_GIO), 'Ahamove');
+  la('api.ahamove.com báo đỏ địa chỉ sai', [ahaSai.trang, ahaSai.ghi], ['err', 'địa chỉ API chưa đúng, phí giao sẽ lỗi']);
   h.ahamove_base = 'https://partner-apistg.ahamove.com';
   var ahaThu = tim(V.tinhTrang(h, BAY_GIO), 'Ahamove');
   la('Ahamove máy chạy thử báo đỏ', [ahaThu.trang, ahaThu.ghi], ['err', 'đang trỏ máy chủ chạy thử, phí giao thật sẽ lỗi']);
@@ -694,6 +699,110 @@ ca('v581: menu Gửi thử khi chưa có nhóm nào có mã chat thì nói rõ c
     la(rows.length + ' dòng: không gửi gì', g.goi.length, 0);
     dung(rows.length + ' dòng: chỉ đường Thêm nhóm nhận tin', g.bao.some(function (m) { return String(m).indexOf('Thêm nhóm nhận tin') >= 0; }));
   });
+});
+
+/* ---------- v596: tóm tắt, cần xử lý, ô lỗi (anh Việt duyệt mockup 15/10/2026) ---------- */
+
+ca('v596: tongHop đếm theo màu, câu chỉ nêu phần khác 0, cần xử lý xếp đỏ vàng xám', function () {
+  var ds = [{ ten: 'a', trang: 'ok' }, { ten: 'b', trang: 'no' }, { ten: 'c', trang: 'err' }, { ten: 'd', trang: 'ok' }, { ten: 'e', trang: 'off' }];
+  var th = V.tongHop(ds);
+  la('đếm', th.dem, { ok: 2, no: 1, off: 1, err: 1 });
+  la('câu', th.cau, '5 kết nối: 2 ổn, 1 chưa khai, 1 đang tắt, 1 đang lỗi');
+  la('cần xử lý', th.can.map(function (t) { return t.ten; }), ['c', 'e', 'b']);
+  la('không có gì cần xử lý thì câu không có phần lẻ', V.tongHop([{ trang: 'ok' }]).cau, '1 kết nối: 1 ổn');
+});
+
+ca('v596: bấm Khai tới đúng ô còn thiếu, đang tắt tới công tắc, Ahamove chạy thử tới ô địa chỉ API', function () {
+  var tt = V.tinhTrang({ wa_phone_id: '1', ahamove_api_key: '*', ahamove_mobile: '09', ahamove_base: 'https://apistg.ahamove.com',
+    sepay_khoa: '*', sepay_bat: 0, minvoice_host: 'h', minvoice_username: 'u' }, BAY_GIO);
+  la('WhatsApp thiếu token thì tới ô token', tim(tt, 'WhatsApp').toi, 'wa_token');
+  la('m-invoice thiếu mật khẩu', tim(tt, 'Hoá đơn điện tử m-invoice').toi, 'minvoice_password');
+  la('SePay đang tắt tới công tắc', tim(tt, 'SePay ngân hàng').toi, 'sepay_bat');
+  la('Ahamove lỗi tới ô địa chỉ API', [tim(tt, 'Ahamove').trang, tim(tt, 'Ahamove').toi], ['err', 'ahamove_base']);
+  la('Zalo đủ token mà chưa có nhóm thì tới bảng nhóm', tim(V.tinhTrang({ zalo_bot_token: '*' }, BAY_GIO), 'Zalo bắn tin nhóm').toi, 'zalo_nhom');
+  dung('mọi kết nối có câu hậu quả', tt.every(function (t) { return String(t.hau || '').length > 10; }));
+});
+
+ca('v596: loiTruong là nguồn duy nhất của ô đỏ; máy chủ thật thì không lỗi', function () {
+  la('chạy thử', Object.keys(V.loiTruong({ ahamove_base: 'https://partner-apistg.ahamove.com' })), ['ahamove_base']);
+  la('thật', V.loiTruong({ ahamove_base: 'https://partner-api.ahamove.com' }), {});
+  la('thật, có gạch chéo cuối', V.loiTruong({ ahamove_base: 'https://partner-api.ahamove.com/ ' }), {});
+  dung('câu sửa chạy thử chỉ đúng máy chủ đối tác thật',
+    V.loiTruong({ ahamove_base: 'https://apistg.ahamove.com' }).ahamove_base.indexOf('https://partner-api.ahamove.com') >= 0);
+  // Codex 3d0b446: theo câu sửa cũ gõ api.ahamove.com thì hết đỏ mà gọi sai máy chủ.
+  dung('api.ahamove.com vẫn là lỗi, câu sửa chỉ partner-api',
+    String(V.loiTruong({ ahamove_base: 'https://api.ahamove.com' }).ahamove_base || '').indexOf('https://partner-api.ahamove.com') >= 0);
+  dung('thêm /v3 cũng là lỗi (code tự nối /v3)', !!V.loiTruong({ ahamove_base: 'https://partner-api.ahamove.com/v3' }).ahamove_base);
+  la('trống', V.loiTruong({}), {});
+});
+
+ca('v596 Desk: đầu trang có câu tóm tắt, thanh màu, và việc đỏ kèm hậu quả bấm tới đúng ô', function () {
+  global.$ = $;
+  var goc = new dg.ElementGia('div');
+  goc.innerHTML = '<div class="form-tabs-list"></div>';
+  var frm = { doc: { ahamove_api_key: '*', ahamove_mobile: '09', ahamove_base: 'https://apistg.ahamove.com', goong_api_key: '*' },
+    layout: { wrapper: goc }, fields_dict: {}, meta: { fields: [] } };
+  V._desk.veThanh(frm);
+  var th = V.tongHop(V.tinhTrang(frm.doc));
+  la('câu tóm tắt', chuEl(goc.querySelectorAll('.vgbc-cau')[0]), th.cau);
+  la('thanh có một khúc mỗi màu khác 0', goc.querySelectorAll('.vgbc-thanh')[0].querySelectorAll('i').length,
+    ['ok', 'no', 'off', 'err'].filter(function (k) { return th.dem[k]; }).length);
+  var v = goc.querySelectorAll('.vgbc-viec');
+  la('một việc đỏ (chưa khai không lặp lại ở đây)', v.length, 1);
+  dung('việc nói Ahamove và hậu quả', chuEl(v[0]).indexOf('Ahamove: đang trỏ máy chủ chạy thử') >= 0 && chuEl(v[0]).indexOf('phí giao') >= 0);
+  la('bấm tới ô địa chỉ API', v[0].getAttribute('data-toi'), 'ahamove_base');
+  V._desk.veThanh(frm);
+  la('vẽ lại không nhân đôi việc', goc.querySelectorAll('.vgbc-viec').length, 1);
+});
+
+ca('v596 Desk: ô Ahamove chạy thử có câu đỏ dưới ô, sửa thành máy chủ thật thì câu mất', function () {
+  global.$ = $;
+  var o = new dg.ElementGia('div');
+  var frm = { doc: { ahamove_base: 'https://apistg.ahamove.com' }, meta: { fields: [{ fieldname: 'ahamove_base' }, { fieldname: 'goong_api_key' }] },
+    fields_dict: { ahamove_base: { $wrapper: W([o]) }, goong_api_key: { $wrapper: W([new dg.ElementGia('div')]) } } };
+  V._desk.veLoiO(frm);
+  var l = o.querySelectorAll('.vgbc-loi-o');
+  la('một câu đỏ', l.length, 1);
+  dung('nói cách sửa', chuEl(l[0]).indexOf('https://partner-api.ahamove.com') >= 0);
+  V._desk.veLoiO(frm);
+  la('vẽ lại không nhân đôi', o.querySelectorAll('.vgbc-loi-o').length, 1);
+  frm.doc.ahamove_base = 'https://partner-api.ahamove.com';
+  V._desk.veLoiO(frm);
+  la('sửa xong thì hết câu đỏ', o.querySelectorAll('.vgbc-loi-o').length, 0);
+});
+
+ca('Codex 3d0b446: Desk đang giữ bản chung CŨ (thiếu tongHop) thì vgb_nap_cd_chung phải nạp lại, không trả lời hứa cũ', function () {
+  // Phiên Desk mở từ trước khi deploy v596: window.VGB_CD là bản cũ, window.__vgb_cd_nap
+  // là lời hứa đã xong trỏ tới bản cũ. Trên 3d0b446 hàm trả luôn lời hứa đó, refresh
+  // gọi VGB_CD.tongHop (undefined) và trang Cài đặt hỏng tới khi tải lại hẳn trình duyệt.
+  var vm = require('vm');
+  var fs = require('fs');
+  var src = fs.readFileSync(path.join(GOC, 'vagabond', 'vagabond', 'doctype', 'vagabond_settings', 'vagabond_settings.js'), 'utf8');
+  var cu = { tinhTrang: function () { return []; } };
+  var gan = [];
+  var g = {
+    frappe: { ui: { form: { on: function () {} } } },
+    Promise: Promise, Date: Date, Error: Error, String: String, Object: Object, Array: Array, JSON: JSON,
+    document: { createElement: function () { return {}; }, head: { appendChild: function (s) { gan.push(s); } } },
+  };
+  g.window = g;
+  g.VGB_CD = cu;
+  var huaCu = Promise.resolve(cu);
+  g.__vgb_cd_nap = huaCu;
+  vm.createContext(g);
+  vm.runInContext(src, g);
+  var hua = g.vgb_nap_cd_chung();
+  la('nạp lại đúng một lần tệp chung', gan.length, 1);
+  dung('nạp đúng tệp chung, có chống bộ đệm', /\/assets\/vagabond\/js\/cai_dat_loi_chung\.js\?/.test(String(gan[0].src)));
+  dung('không trả lời hứa cũ', hua !== huaCu);
+  var hua2 = g.vgb_nap_cd_chung();
+  la('đang nạp dở thì gọi lần hai không gắn thêm thẻ script', gan.length, 1);
+  dung('gọi lần hai nhận cùng lời hứa', hua2 === hua);
+  // Tệp mới nạp xong (có tongHop): gọi tiếp trả ngay bản mới, không gắn thêm script.
+  g.VGB_CD = { tinhTrang: function () { return []; }, tongHop: function () { return {}; } };
+  gan[0].onload();
+  g.vgb_nap_cd_chung();
+  la('đã có bản mới thì không nạp nữa', gan.length, 1);
 });
 
 console.log('\n' + dat + ' ca dat, ' + hong + ' ca hong.');

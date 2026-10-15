@@ -21,6 +21,20 @@ var CDL_IC = {
   tab_ban_hang: '🛒', tab_ke_toan: '🧾', tab_giao_hang: '🛵', tab_khach_hang: '⭐',
   tab_tin_nhan: '💬', tab_web: '🌐', tab_thiet_bi: '🖨️', tab_du_lieu_app: '📋'
 };
+/* v596 (anh Việt duyệt mockup 15/10/2026): mỗi nhóm có một dòng nói nhóm chứa gì,
+   bằng lời của người dùng, thay cho "3 mục · 18 ô". Nhóm máy chủ gửi mà chưa có
+   dòng ở đây thì ghép tên các mục, không bao giờ để trống. */
+var CDL_MO = {
+  tab_ban_hang: 'Pancake, mã QR chuyển khoản, tự xuất hoá đơn',
+  tab_ke_toan: 'Hoá đơn điện tử, SePay, hoàn tiền, tài khoản tồn kho',
+  tab_giao_hang: 'Ahamove, bản đồ Goong, GreenSM, xếp tuyến',
+  tab_khach_hang: 'Quy đổi điểm, trừ điểm tại quầy, hạn điểm',
+  tab_tin_nhan: 'Zalo nhóm, tin Zalo cho khách, WhatsApp, thư cảnh báo',
+  tab_web: 'Trang đặt bánh, Meta Pixel',
+  tab_thiet_bi: 'Máy in ở quầy, trợ lý trong app, dịch tự động',
+  tab_du_lieu_app: 'Chỉ xem: tài khoản nhận tiền, điểm bán, phương thức, máy in'
+};
+
 /* Thẻ tóm tắt dữ liệu app tự ghi -> màn sửa riêng trên app (vgbGo). Đường Desk
    trong tệp chung là đường web; trên app thì mở thẳng màn bằng mã. */
 var CDL_MAN = {
@@ -30,7 +44,7 @@ var CDL_MAN = {
 };
 
 function cdlNapChung() {
-  if (typeof VGB_CD !== 'undefined' && VGB_CD && VGB_CD.tinhTrang) return Promise.resolve();
+  if (typeof VGB_CD !== 'undefined' && VGB_CD && VGB_CD.tongHop) return Promise.resolve();
   return inNapJs('/assets/vagabond/js/cai_dat_loi_chung.js?v=' + APPVER);
 }
 
@@ -84,8 +98,6 @@ function cdlCss() {
     '.cdl-off{background:#fff6e5;color:#8a5a00;border-color:#f6dfaa}.cdl-off i{background:#e0a100}' +
     '.cdl-err{background:#fdecec;color:#a42424;border-color:#f6caca}.cdl-err i{background:#d93636}' +
     '.cdl-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}' +
-    '.cdl-tab{display:flex;align-items:center;gap:12px;min-height:60px;padding:8px 14px;cursor:pointer}' +
-    '.cdl-tab b{display:block;font-size:15px}.cdl-tab small{display:block;font-size:13px;color:#6b737b}' +
     '.cdl-row{display:flex;align-items:center;gap:12px;min-height:56px;padding:8px 0;border-top:1px dashed #eceef0}' +
     '.cdl-row:first-child{border-top:0}' +
     '.cdl-x{flex:1;min-width:0}.cdl-x b{display:block;font-size:14px;font-weight:500}' +
@@ -108,7 +120,38 @@ function cdlCss() {
     '.cdl-grp{border:1px solid #e2e6e9;border-radius:12px;padding:10px 12px;margin-top:8px;cursor:pointer;min-height:56px}' +
     '.cdl-kq{display:flex;flex-direction:column;align-items:flex-start;min-height:52px;padding:8px 4px;border-top:1px solid #eef0f2;cursor:pointer}' +
     '.cdl-kq b{font-size:14px}.cdl-kq small{font-size:13px;color:#6b737b}' +
-    '.cdl-sang{box-shadow:0 0 0 2px #0FB5CE;border-radius:10px}';
+    '.cdl-sang{box-shadow:0 0 0 2px #0FB5CE;border-radius:10px}' +
+    /* v596: KHÔNG dùng lớp .card cho dòng nhóm và khối mục. 00-nen.js ép .card về
+       display:block (chống Bootstrap của Frappe), nên dòng flex .cdl-tab cũ trên .card
+       vỡ thành ô to căn giữa: đúng ảnh anh Việt chụp 15/10/2026. Khối riêng dưới đây. */
+    '.cdl-khoi{background:#fff;border-radius:14px;margin-bottom:12px;overflow:hidden;box-shadow:0 1px 3px rgba(20,25,40,.07)}' +
+    '.cdl-tom{padding:12px 14px}.cdl-tom b{display:block;font-size:15px}' +
+    '.cdl-thanh{display:flex;height:8px;border-radius:4px;overflow:hidden;background:#eceef0;margin:10px 0 8px}' +
+    '.cdl-thanh i{display:block;height:100%}' +
+    '.cdl-chu{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:13px;color:#4b545c}' +
+    '.cdl-chu span{display:inline-flex;align-items:center;gap:5px}.cdl-chu i{width:8px;height:8px;border-radius:50%}' +
+    '.cdl-tieu{font-size:12px;font-weight:700;color:#6b737b;letter-spacing:.04em;margin:4px 2px 6px}' +
+    '.cdl-viec{display:flex;align-items:center;gap:10px;background:#fff;border-radius:12px;padding:10px 12px;margin-bottom:6px;border-left:4px solid #a3abb2;min-height:56px;cursor:pointer;box-shadow:0 1px 3px rgba(20,25,40,.07)}' +
+    '.cdl-viec.err{border-left-color:#d93636}.cdl-viec.off{border-left-color:#e0a100}' +
+    '.cdl-viec .cdl-x b{font-weight:600}' +
+    '.cdl-di{font-size:14px;font-weight:600;color:#0a7ea4;white-space:nowrap}' +
+    /* Chip bấm được trong thẻ "chưa khai" đủ 44px cho ngón tay (AGENTS.md điều 13). */
+    '.cdl-viec .cdl-chip{min-height:44px}' +
+    '.cdl-nhom{display:flex;align-items:center;gap:12px;min-height:64px;padding:10px 14px;border-top:1px solid #eef0f2;cursor:pointer}' +
+    '.cdl-nhom:first-child{border-top:0}' +
+    '.cdl-nhom .cdl-x b{font-size:15px;font-weight:600}' +
+    '.cdl-nhom .cdl-x small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
+    '.cdl-ic{width:36px;height:36px;border-radius:10px;background:#f1f3f5;display:flex;align-items:center;justify-content:center;font-size:19px;flex:none}' +
+    '.cdl-nhan{font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;white-space:nowrap;flex:none}' +
+    '.cdl-nhan.ok{background:#e9f7ef;color:#1e6b3c}.cdl-nhan.no{background:#f1f3f5;color:#5b636b}' +
+    '.cdl-nhan.off{background:#fff6e5;color:#8a5a00}.cdl-nhan.err{background:#fdecec;color:#a42424}' +
+    '.cdl-mui{color:#a3abb2;font-size:20px;flex:none}' +
+    '.cdl-mhd{display:flex;align-items:center;gap:10px;min-height:52px;padding:8px 14px;font-size:15px;font-weight:600}' +
+    '.cdl-mhd .cdl-x{font-weight:600}' +
+    '.cdl-mth{padding:0 14px 6px}' +
+    '.cdl-f[data-cdlloi] .tin,.cdl-f[data-cdlloi] textarea{border-color:#e06b6b;background:#fff7f7}' +
+    '.cdl-loi{font-size:13px;color:#a42424;line-height:1.4;margin-top:5px}' +
+    '.cdl-chua{background:#fff7e6;border-radius:12px;padding:10px 12px;margin-bottom:12px;font-size:13px;color:#8a5a00}';
   document.head.appendChild(s);
 }
 
@@ -149,10 +192,35 @@ function cdlChiMuc() {
   return ds;
 }
 
+/* v596: chưa sửa gì thì KHÔNG hiện thanh Lưu (trước đây là nút xám "Chưa có thay
+   đổi" chiếm đáy màn). Thanh vẫn có trong DOM để hiện ngay khi gõ, không vẽ lại. */
 function cdlFooter() {
   var n = cdlSoThay();
-  return '<button class="btn" id="cdlLuu" style="margin:0;width:100%"' + (n ? '' : ' disabled') + '>' +
-    (n ? 'Lưu ' + n + ' thay đổi' : 'Chưa có thay đổi') + '</button>';
+  return '<div id="cdlChan"' + (n ? '' : ' style="display:none"') + '>' +
+    '<button class="btn" id="cdlLuu" style="margin:0;width:100%"' + (n ? '' : ' disabled') + '>' +
+    (n ? 'Lưu ' + n + ' thay đổi' : 'Chưa có thay đổi') + '</button></div>';
+}
+/* v596 Codex 3d0b446: MỘT chỗ đặt câu hỏi rời màn, gọi mỗi khi số thay đổi đổi.
+   Câu hỏi gắn với NẤC tổng quan (S.chuaLuuNac): lùi từ nhóm về tổng quan không mất
+   gì nên không hỏi; mọi lối cắt mất nấc tổng quan (nút ‹, nút nhà, Back của trình
+   duyệt hay Android) thì khung app hỏi lại, xem vgbCauRoi trong 01-khung-app.js. */
+function cdlDatHoi(n) {
+  if (typeof S === 'undefined' || !S) return;
+  if (n) {
+    S.chuaLuu = 'Còn ' + n + ' thay đổi Cài đặt lõi chưa lưu. Rời đi thì không ghi lên máy chủ.';
+    S.chuaLuuNac = typeof CDL.nacTong === 'number' ? CDL.nacTong : (S.stack ? S.stack.length - 1 : 0);
+  } else {
+    S.chuaLuu = '';
+    S.chuaLuuNac = null;
+  }
+}
+function cdlAnThanh(n) {
+  cdlDatHoi(n);
+  var c = document.getElementById('cdlChan');
+  if (!c) return;
+  c.style.display = n ? '' : 'none';
+  var vf = c.closest ? c.closest('.vf') : null;
+  if (vf) vf.style.display = n ? '' : 'none';
 }
 
 function cdlGanLuu() {
@@ -160,23 +228,63 @@ function cdlGanLuu() {
   if (b) b.onclick = cdlLuu;
 }
 
+/* Trạng thái gộp của một nhóm: đếm kết nối thuộc các mục trong nhóm. Nhóm không
+   có kết nối nào thì không gắn nhãn, không tự nhận là "Ổn". */
+function cdlNhanNhom(t, ds) {
+  var mucs = {};
+  t.muc.forEach(function (m) { mucs[m.fn] = 1; });
+  var cua = ds.filter(function (x) { return mucs[x.muc]; });
+  if (!cua.length) return null;
+  var dem = function (tr) { return cua.filter(function (x) { return x.trang === tr; }).length; };
+  if (dem('err')) return { trang: 'err', chu: dem('err') + ' lỗi' };
+  if (dem('off')) return { trang: 'off', chu: dem('off') + ' đang tắt' };
+  if (dem('no')) return { trang: 'no', chu: dem('no') + ' chưa khai' };
+  return { trang: 'ok', chu: 'Ổn' };
+}
+
 function cdlVeTong() {
   var doc = cdlDoc();
-  var tt = VGB_CD.tinhTrang(doc);
-  var html = '<input class="tin" id="cdlTim" placeholder="Tìm cài đặt: mã QR, Ahamove, máy in..." style="width:100%;min-height:46px;margin-bottom:6px">' +
+  var ds = VGB_CD.tinhTrang(doc);
+  var th = VGB_CD.tongHop(ds);
+  var n = cdlSoThay();
+  /* Nấc của màn tổng quan: thay đổi thuộc về nấc này (xem cdlDatHoi). */
+  if (typeof S !== 'undefined' && S && S.stack) CDL.nacTong = S.stack.length - 1;
+  var mau = { ok: '#22a05a', no: '#c3c9cf', off: '#e0a100', err: '#d93636' };
+  var html = '<input class="tin" id="cdlTim" placeholder="Tìm: mã QR, Ahamove, Zalo..." style="width:100%;min-height:46px;margin-bottom:6px;font-size:15px">' +
     '<div id="cdlKq"></div>' +
-    '<div class="card" style="padding:12px 14px"><div style="font-weight:600;font-size:15px">Tình trạng kết nối</div>' +
-    '<div class="cdl-mo">Xanh là đã khai đủ, xám là chưa khai, vàng là đã khai nhưng đang tắt, đỏ là vừa có sự cố. Bấm một ô để mở đúng phần đó.</div>' +
-    '<div class="cdl-chips">' + tt.map(function (t) {
-      return cdlChip(t.trang, t.ten + (t.trang === 'err' ? ': ' + t.ghi : ''), ' data-cdltoi="' + h(t.toi) + '" role="button"');
+    (n ? '<div class="cdl-chua">Còn ' + n + ' thay đổi chưa lưu. Bấm Lưu ở cuối màn để ghi.</div>' : '') +
+    '<div class="cdl-khoi cdl-tom" id="cdlTomTat"><b>' + h(th.cau) + '</b>' +
+    '<div class="cdl-thanh">' + ['ok', 'no', 'off', 'err'].filter(function (k) { return th.dem[k]; }).map(function (k) {
+      return '<i data-mau="' + k + '" style="width:' + (100 * th.dem[k] / th.tong).toFixed(2) + '%;background:' + mau[k] + '"></i>';
+    }).join('') + '</div>' +
+    '<div class="cdl-chu">' + [['ok', 'Ổn'], ['no', 'Chưa khai'], ['off', 'Đang tắt'], ['err', 'Lỗi']].map(function (p) {
+      return '<span><i style="background:' + mau[p[0]] + '"></i>' + p[1] + '</span>';
     }).join('') + '</div></div>';
-  html += (CDL.d.bo_cuc || []).map(function (t) {
-    var so = 0; t.muc.forEach(function (m) { so += m.o.length; });
-    var phu = t.fn === 'tab_du_lieu_app' ? 'Chỉ xem, mở màn sửa riêng' : t.muc.length + ' mục · ' + so + ' ô';
-    return '<div class="card cdl-tab" data-cdltab="' + h(t.fn) + '" style="padding:8px 14px"><span style="font-size:20px">' + (CDL_IC[t.fn] || '⚙️') +
-      '</span><span class="cdl-x"><b>' + h(t.nhan) + '</b><small>' + h(phu) + '</small></span><span style="color:#9aa1a8">&#8250;</span></div>';
-  }).join('');
+  /* Cần xử lý: lỗi và đang tắt mỗi việc một thẻ (nói hậu quả và nút sửa); chưa
+     khai gom một thẻ, mỗi kết nối một chip bấm được, vì tiệm không dùng hết mọi
+     kết nối và không nên để chúng lấn việc đỏ. */
+  var nang = th.can.filter(function (t) { return t.trang !== 'no'; });
+  var chua = th.can.filter(function (t) { return t.trang === 'no'; });
+  if (th.can.length) {
+    html += '<div class="cdl-tieu">CẦN XỬ LÝ</div>' + nang.map(function (t) {
+      return '<div class="cdl-viec ' + t.trang + '" data-cdltoi="' + h(t.toi) + '" role="button"><div class="cdl-x"><b>' + h(t.ten) + ': ' + h(t.ghi) + '</b>' +
+        (t.hau ? '<small>' + h(t.hau) + '</small>' : '') + '</div><span class="cdl-di">Sửa ›</span></div>';
+    }).join('') +
+    (chua.length ? '<div class="cdl-viec"><div class="cdl-x"><b>' + chua.length + ' kết nối chưa khai</b>' +
+      '<small>Chỉ cần khai cái tiệm có dùng. Bấm một tên để tới đúng ô.</small>' +
+      '<div class="cdl-chips">' + chua.map(function (t) {
+        return cdlChip('no', t.ten, ' data-cdltoi="' + h(t.toi) + '" role="button" title="' + h(t.hau) + '"');
+      }).join('') + '</div></div></div>' : '');
+  }
+  html += '<div class="cdl-khoi" id="cdlNhom">' + (CDL.d.bo_cuc || []).map(function (t) {
+    var nh = cdlNhanNhom(t, ds);
+    var mo = CDL_MO[t.fn] || t.muc.map(function (m) { return m.nhan; }).filter(Boolean).join(', ');
+    return '<div class="cdl-nhom" data-cdltab="' + h(t.fn) + '" role="button"><span class="cdl-ic">' + (CDL_IC[t.fn] || '⚙️') +
+      '</span><span class="cdl-x"><b>' + h(t.nhan) + '</b><small>' + h(mo) + '</small></span>' +
+      (nh ? '<span class="cdl-nhan ' + nh.trang + '">' + h(nh.chu) + '</span>' : '') + '<span class="cdl-mui">&#8250;</span></div>';
+  }).join('') + '</div>';
   var b = frame('Cài đặt lõi và API', html, { footer: cdlFooter() });
+  cdlAnThanh(n);
   cdlGanLuu();
   var index = cdlChiMuc();
   b.onclick = function (e) {
@@ -192,7 +300,7 @@ function cdlVeTong() {
     var q = e.target.value || '';
     var kq = VGB_CD.timTruong(q, index);
     document.getElementById('cdlKq').innerHTML = kq.length
-      ? '<div class="card" style="padding:4px 12px">' + kq.map(function (x) {
+      ? '<div class="cdl-khoi" style="padding:4px 12px">' + kq.map(function (x) {
           return '<div class="cdl-kq" data-cdlkq="' + h(x.fn) + '"><b>' + h(x.nhan) + '</b><small>' + h(x.tab) + ' › ' + h(x.muc) + '</small></div>';
         }).join('') + '</div>'
       : (q.trim() ? '<div class="cdl-mo" style="padding:4px 4px 10px">Không thấy cài đặt nào khớp.</div>' : '');
@@ -221,16 +329,22 @@ function cdlVeTab(fnTab, oToi) {
   if (!t) return cdlVeTong();
   var doc = cdlDoc();
   var ttMuc = VGB_CD.tinhTrangMuc(doc);
+  var loi = VGB_CD.loiTruong(doc);
   var html = t.muc.map(function (m) {
-    var mo = (oToi && m.o.some(function (o) { return o.fn === oToi; })) || !m.gon || CDL['mo_' + m.fn];
-    var dau = '<div class="cdl-muc"' + (m.gon ? ' data-cdlgon="' + h(m.fn) + '" role="button" style="cursor:pointer"' : '') + '>' +
-      (m.gon ? (mo ? '▾ ' : '▸ ') : '') + h(m.nhan || '') +
-      (ttMuc[m.fn] ? ' ' + cdlChip(ttMuc[m.fn].trang, ttMuc[m.fn].ghi) : '') + '</div>';
-    return '<div class="card" style="padding:10px 14px">' + dau +
-      (m.mo && mo ? '<div class="cdl-mo" style="margin-bottom:6px">' + h(m.mo) + '</div>' : '') +
-      (mo ? m.o.map(function (o) { return cdlVeO(o, doc); }).join('') : '') + '</div>';
+    var tt = ttMuc[m.fn];
+    var coLoi = m.o.some(function (o) { return loi[o.fn]; });
+    /* Mục có ô lỗi luôn mở sẵn: người mở nhóm này thường là để sửa đúng lỗi đó. */
+    var mo = coLoi || (oToi && m.o.some(function (o) { return o.fn === oToi; })) || !m.gon || CDL['mo_' + m.fn];
+    var dau = '<div class="cdl-mhd"' + (m.gon ? ' data-cdlgon="' + h(m.fn) + '" role="button" style="cursor:pointer"' : '') + '>' +
+      '<span class="cdl-x">' + h(m.nhan || '') + '</span>' +
+      (tt ? '<span class="cdl-nhan ' + tt.trang + '">' + h(cdlChuTT(tt)) + '</span>' : '') +
+      (m.gon ? '<span class="cdl-mui">' + (mo ? '▾' : '▸') + '</span>' : '') + '</div>';
+    return '<div class="cdl-khoi" data-cdlmuc="' + h(m.fn) + '">' + dau +
+      (mo ? '<div class="cdl-mth">' + (m.mo ? '<div class="cdl-mo" style="margin-bottom:6px">' + h(m.mo) + '</div>' : '') +
+        m.o.map(function (o) { return cdlVeO(o, doc, loi[o.fn]); }).join('') + '</div>' : '') + '</div>';
   }).join('');
   var b = frame(t.nhan, html, { footer: cdlFooter() });
+  cdlAnThanh(cdlSoThay());
   cdlGanLuu();
   if (oToi) {
     var el = document.getElementById('cdl-o-' + oToi);
@@ -242,7 +356,32 @@ function cdlVeTab(fnTab, oToi) {
     if (!fn) return;
     cdlDatThay(fn, el.value);
     cdlCapNhatNut();
+    cdlCapNhatLoi(fn);
   };
+}
+
+/* Gõ sửa đúng ô đang lỗi thì câu đỏ dưới ô đổi theo ngay, không chờ vẽ lại màn. */
+function cdlCapNhatLoi(fn) {
+  var el = document.getElementById('cdl-o-' + fn);
+  if (!el) return;
+  var loi = VGB_CD.loiTruong(cdlDoc())[fn];
+  var d = el.querySelectorAll('.cdl-loi')[0];
+  if (loi) {
+    el.setAttribute('data-cdlloi', '1');
+    if (d) d.innerHTML = h(loi);
+    else { var x = document.createElement('div'); x.className = 'cdl-loi'; x.innerHTML = h(loi); el.appendChild(x); }
+  } else {
+    el.removeAttribute('data-cdlloi');
+    if (d) d.remove();
+  }
+}
+
+/* Chữ trên nhãn mục: viết hoa đầu câu, "đã khai" thành "Ổn" cho gọn. */
+function cdlChuTT(tt) {
+  if (tt.trang === 'ok' && tt.ghi === 'đã khai') return 'Ổn';
+  if (tt.trang === 'err') return 'Lỗi';
+  var g = String(tt.ghi || '');
+  return g.charAt(0).toUpperCase() + g.slice(1);
 }
 
 function cdlCapNhatNut() {
@@ -251,12 +390,14 @@ function cdlCapNhatNut() {
   var n = cdlSoThay();
   b.disabled = !n;
   b.textContent = n ? 'Lưu ' + n + ' thay đổi' : 'Chưa có thay đổi';
+  cdlAnThanh(n);
 }
 
-function cdlVeO(o, doc) {
+function cdlVeO(o, doc, loi) {
   var v = doc[o.fn];
-  var mo = o.mo ? '<div class="cdl-mo">' + h(o.mo) + '</div>' : '';
-  var id = ' id="cdl-o-' + h(o.fn) + '"';
+  /* v596: ô đang lỗi tô đỏ và nói cách sửa ngay dưới ô (nguồn VGB_CD.loiTruong). */
+  var mo = (o.mo ? '<div class="cdl-mo">' + h(o.mo) + '</div>' : '') + (loi ? '<div class="cdl-loi">' + h(loi) + '</div>' : '');
+  var id = ' id="cdl-o-' + h(o.fn) + '"' + (loi ? ' data-cdlloi="1"' : '');
   if (o.fn === 'html_du_lieu_app') return cdlVeTomTat(doc);
   if (o.kieu === 'HTML') return '';
   if (o.kieu === 'Table') return '<div class="cdl-f"' + id + '>' + cdlVeBang(o) + '</div>';
@@ -338,9 +479,26 @@ function cdlVeTomTat(doc) {
   }).join('');
 }
 
+/* v596 Codex 91e8e8b: màn riêng (Máy in, Mẫu in, Điểm bán...) dùng chung ô S.chuaLuu
+   và tự xoá nó khi nạp, nên mở màn riêng khi còn thay đổi Cài đặt lõi thì nút nhà hay
+   Back sau đó bỏ thay đổi im lặng. Còn thay đổi thì hỏi: ở lại (để bấm Lưu), hoặc bỏ
+   hết thay đổi rồi mới mở màn riêng. */
+function cdlMoManRieng(k) {
+  var n = cdlSoThay();
+  if (!n) return vgbGo(k);
+  return confirmSheet('Còn thay đổi chưa lưu',
+    'Còn ' + n + ' thay đổi Cài đặt lõi chưa lưu. Màn riêng không giữ được các thay đổi này. Bấm Lưu trước, hoặc bỏ thay đổi rồi mở.',
+    'Bỏ thay đổi và mở', true).then(function (ok) {
+    if (!ok) return;
+    cdlNhan(CDL.d);
+    cdlDatHoi(0);
+    vgbGo(k);
+  });
+}
+
 function cdlBam(e, fnTab) {
   var el;
-  if ((el = e.target.closest('[data-cdlman]'))) return vgbGo(el.getAttribute('data-cdlman'));
+  if ((el = e.target.closest('[data-cdlman]'))) return cdlMoManRieng(el.getAttribute('data-cdlman'));
   if ((el = e.target.closest('[data-cdlgon]'))) {
     var k = 'mo_' + el.getAttribute('data-cdlgon'); CDL[k] = !CDL[k]; return cdlVeTab(fnTab);
   }
@@ -438,7 +596,7 @@ function cdlMoDong(fnBang, i) {
 function cdlVeDong(fnBang, i, nhap) {
   var meta = CDL.d.bang[fnBang] || { cot: [] };
   var choGhi = meta.ghi_qua_hop_chon || [];
-  var html = '<div class="card" style="padding:10px 14px">' + meta.cot.map(function (c) {
+  var html = '<div class="cdl-khoi" style="padding:10px 14px">' + meta.cot.map(function (c) {
     var v = nhap[c.fn];
     var mo = c.mo ? '<div class="cdl-mo">' + h(c.mo) + '</div>' : '';
     var nhan = '<label>' + h(c.nhan) + (c.bat_buoc ? ' *' : '') + '</label>';

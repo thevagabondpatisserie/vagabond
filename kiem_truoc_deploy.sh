@@ -145,6 +145,9 @@ node vagabond/khung/kiem_thu/hanh_vi/khop_tay_lan_571.js
 # v570: man Cai dat loi va API tren app - mo man, bat tat, go, doi khoa,
 # nhom Zalo, luu chi gui o da doi; khoa bi mat khong xuong may.
 node vagabond/khung/kiem_thu/hanh_vi/cai_dat_loi_570.js
+# v596 Codex #480: roi man Cai dat loi khi con thay doi chua luu - nut nha va
+# nut Back cua trinh duyet/Android cung hoi nhu nut ‹ (khung app that).
+node vagabond/khung/kiem_thu/hanh_vi/cai_dat_roi_chua_luu_596.js
 # v530: hop chon hoa don den sau muc ho so, o tim giu display:flex.
 node vagabond/khung/kiem_thu/hanh_vi/hoa_don_sau_530.js
 # #352: thanh bao hoa don dau vao chua thanh phieu mua tren Desk.

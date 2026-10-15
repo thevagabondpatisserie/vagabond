@@ -315,14 +315,20 @@ def _():
 	dung("reset() dựng lại chồng địa chỉ", "S.duong = [slug]" in k)
 	dung("go/back/reset đều áp lại địa chỉ", k.count("vgbApNac()") >= 3)
 
-	# popstate co HAI duong lui: duong thang, va duong hoi lai khi dang soan
-	# phieu do. Ca hai deu phai cat chong dia chi, nen dem chu khong chi hoi
-	# "co xuat hien khong" - thieu mot duong thi chuoi van con o duong kia va
-	# ca kiem xanh gia. Da thu lai bang tay: bo mot duong ma ca kiem khong do.
+	# popstate co BA duong lui: duong thang, duong hoi "Chua luu" va duong hoi
+	# phieu dang soan do. Truoc v596 moi duong tu cat chong nen phai dem so cho
+	# cat. Tu v596 (Codex #480) ca ba goi CHUNG mot ham cat() (dieu 18): dung mot
+	# cho cat chong dia chi va ap lai dia chi, va ca ba duong deu goi cat().
+	# Hanh vi tung duong chay that o hanh_vi/cai_dat_roi_chua_luu_596.js.
 	vd = io.open(TEP_VD, encoding="utf-8").read()
-	la("popstate cắt chồng địa chỉ ở CẢ HAI đường lui",
-		vd.count("S.duong.length = d + 1"), 2)
-	la("cả hai đường lui đều áp lại địa chỉ", vd.count("vgbApNac()"), 2)
+	dung("12-van-don.js chỉ đăng ký bộ nghe của khung",
+		"window.addEventListener('popstate', vgbXuLyPopstate);" in vd)
+	ps = k.split("function vgbXuLyPopstate(")[1].split("\nfunction reset(")[0]
+	la("popstate cắt chồng địa chỉ ở đúng một chỗ", ps.count("S.duong.length = d + 1"), 1)
+	# Hai cho ap lai dia chi: cho cat chung, va oLai khi chon o lai (Codex fbf05ff: trinh
+	# duyet da nhay sang dia chi dich nen phai ap lai dia chi cua nac dang dung).
+	la("chỗ cắt chung và chỗ ở lại đều áp lại địa chỉ", ps.count("vgbApNac()"), 2)
+	la("cả ba đường lui đều đi qua chỗ cắt chung", ps.count("cat()"), 3)
 
 
 @ca("địa chỉ: HÀNG RÀO thứ tự pushState có cắn không")

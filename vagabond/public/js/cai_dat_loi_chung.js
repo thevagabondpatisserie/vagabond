@@ -11,7 +11,9 @@
  * Tệp được nạp bằng thẻ script có thể hai lần trong một trang, nên chỉ dùng var
  * và không ghi đè khi đã có.
  */
-if (typeof VGB_CD === 'undefined' || !VGB_CD || !VGB_CD.tinhTrang) {
+// v596: điều kiện nạp lại dựa trên tongHop, hàm mới nhất; trang còn giữ bản cũ
+// trong bộ nhớ (chưa tải lại sau deploy) vẫn nạp được bản mới.
+if (typeof VGB_CD === 'undefined' || !VGB_CD || !VGB_CD.tongHop) {
 // v562 Codex #417, #423: Loại tin và Chủ đề chỉ chọn từ danh mục (hai ô này
 // read_only, không gõ tay được); máy chủ vẫn kiểm lại lúc lưu.
 var VGB_ZALO_DANH_MUC = {
@@ -113,36 +115,36 @@ var VGB_CD = (function () {
 	// Mỗi kết nối: đủ các ô "can" (hoặc đủ một nhóm trong "canMot") là đã khai;
 	// có ô "bat" mà đang tắt thì vàng. "toi" là ô để nhảy tới khi bấm chip.
 	var KET_NOI = [
-		{ ten: 'Hoá đơn điện tử m-invoice', can: ['minvoice_host', 'minvoice_username', 'minvoice_password'], toi: 'minvoice_host', muc: 'sec_minvoice' },
+		{ hau: 'Không xuất được hoá đơn điện tử.', ten: 'Hoá đơn điện tử m-invoice', can: ['minvoice_host', 'minvoice_username', 'minvoice_password'], toi: 'minvoice_host', muc: 'sec_minvoice' },
 		// Codex #433: đủ mọi khe khoá mà sepay._cac_khoa() chấp nhận; webhook chạy được
 		// chỉ với khe thứ hai hay thứ ba thì vẫn là đã khai.
-		{ ten: 'SePay ngân hàng', canMot: [['sepay_khoa'], ['sepay_khoa_2'], ['sepay_hmac'], ['sepay_hmac_2'], ['sepay_hmac_3']], bat: 'sepay_bat', toi: 'sepay_bat', muc: 'sec_sepay' },
-		{ ten: 'Pancake', can: ['pancake_api_key', 'pancake_shop_id'], toi: 'pancake_api_key', muc: 'sec_pancake' },
+		{ hau: 'Tiền chuyển khoản không tự về app, phải đối chiếu tay.', ten: 'SePay ngân hàng', canMot: [['sepay_khoa'], ['sepay_khoa_2'], ['sepay_hmac'], ['sepay_hmac_2'], ['sepay_hmac_3']], bat: 'sepay_bat', toi: 'sepay_bat', muc: 'sec_sepay' },
+		{ hau: 'Không kéo được đơn Pancake về doanh số.', ten: 'Pancake', can: ['pancake_api_key', 'pancake_shop_id'], toi: 'pancake_api_key', muc: 'sec_pancake' },
 		// Codex #433 vòng 3: "đã khai" phải đủ MỌI ô máy chủ đòi, không thì chip xanh
 		// cho một cấu hình chắc chắn hỏng. Mỗi dòng ghi chỗ máy chủ kiểm.
 		// van_don.py: key(ahamove_api_key) and ahamove_base and ahamove_mobile
-		{ ten: 'Ahamove', can: ['ahamove_api_key', 'ahamove_mobile', 'ahamove_base'], toi: 'ahamove_api_key', muc: 'sec_aha' },
-		{ ten: 'Goong bản đồ', can: ['goong_api_key'], toi: 'goong_api_key', muc: 'sec_goong' },
+		{ hau: 'Không báo phí giao và không đặt xe Ahamove từ app được.', ten: 'Ahamove', can: ['ahamove_api_key', 'ahamove_mobile', 'ahamove_base'], toi: 'ahamove_api_key', muc: 'sec_aha' },
+		{ hau: 'Không gợi ý địa chỉ và không tính được khoảng cách giao.', ten: 'Goong bản đồ', can: ['goong_api_key'], toi: 'goong_api_key', muc: 'sec_goong' },
 		// van_don._greensm_dat_don: client_id, client_secret và token_url. be_token
 		// không có dòng Python nào đọc, nên không làm chip xanh được.
-		{ ten: 'GreenSM', can: ['greensm_client_id', 'greensm_client_secret', 'greensm_token_url'], toi: 'greensm_client_id', muc: 'sec_gsm' },
+		{ hau: 'Không đặt xe GreenSM từ app được.', ten: 'GreenSM', can: ['greensm_client_id', 'greensm_client_secret', 'greensm_token_url'], toi: 'greensm_client_id', muc: 'sec_gsm' },
 		// Codex #435 vòng 7: kenh_zalo.chon_nhom bỏ dòng tắt hoặc thiếu mã chat; không
 		// còn nhóm nào nhận thì mọi tin tự động bị bỏ âm thầm, nên phải có ít nhất
 		// một nhóm đang bật và có mã chat mới là đã khai.
-		{ ten: 'Zalo bắn tin nhóm', can: ['zalo_bot_token'], canNhom: 'zalo_nhom', bat: 'zalo_bot_bat', toi: 'zalo_bot_bat', muc: 'sec_zalo_bot' },
+		{ hau: 'Các nhóm Zalo không nhận tin tự động.', ten: 'Zalo bắn tin nhóm', can: ['zalo_bot_token'], canNhom: 'zalo_nhom', bat: 'zalo_bot_bat', toi: 'zalo_bot_bat', muc: 'sec_zalo_bot' },
 		// zalo.py: làm mới token cần App ID, App Secret và Refresh Token.
 		// Codex #435: zalo.gui_tin từ chối khi không có mã mẫu ZNS, nên phải có ít
 		// nhất một mẫu (OTP đăng nhập, đòi tiền, trừ điểm) mới là đã khai.
-		{ ten: 'Zalo ZNS gửi khách', can: ['zalo_app_id', 'zalo_app_secret', 'zalo_refresh_token'],
+		{ hau: 'Không gửi được mã OTP, tin đòi tiền, tin trừ điểm cho khách.', ten: 'Zalo ZNS gửi khách', can: ['zalo_app_id', 'zalo_app_secret', 'zalo_refresh_token'],
 			canMot: [['zns_template_otp'], ['zns_template_thanh_toan'], ['zns_template_diem']], toi: 'zalo_app_id', muc: 'sec_zalo' },
 		// whatsapp.gui_mau từ chối khi không có tên mẫu; nơi gọi duy nhất dùng mẫu thanh toán.
-		{ ten: 'WhatsApp', can: ['wa_phone_id', 'wa_token', 'wa_template_thanh_toan'], toi: 'wa_phone_id', muc: 'sec_wa' },
+		{ hau: 'Không gửi được yêu cầu thanh toán qua WhatsApp.', ten: 'WhatsApp', can: ['wa_phone_id', 'wa_token', 'wa_template_thanh_toan'], toi: 'wa_phone_id', muc: 'sec_wa' },
 		// thong_bao.py gửi bằng khoá riêng VAPID; thiếu là "chua co khoa VAPID".
-		{ ten: 'Thông báo đẩy', can: ['push_khoa_cong_khai', 'push_khoa_rieng'], toi: 'push_khoa_cong_khai', muc: 'sec_push' },
-		{ ten: 'Meta Pixel', can: ['meta_pixel_id'], toi: 'meta_pixel_id', muc: 'sec_meta_pixel' },
-		{ ten: 'Máy in QZ Tray', can: ['qz_chung_thu', 'qz_khoa_rieng'], toi: 'qz_chung_thu', muc: 'sec_qz' },
-		{ ten: 'Trợ lý hướng dẫn', can: ['tro_ly_khoa'], bat: 'tro_ly_bat', toi: 'tro_ly_bat', muc: 'sec_tro_ly' },
-		{ ten: 'Dịch Gemini', can: ['gemini_api_key'], toi: 'gemini_api_key', muc: 'sec_ai' },
+		{ hau: 'Điện thoại nhân viên không nhận thông báo đẩy.', ten: 'Thông báo đẩy', can: ['push_khoa_cong_khai', 'push_khoa_rieng'], toi: 'push_khoa_cong_khai', muc: 'sec_push' },
+		{ hau: 'Quảng cáo Meta không đo được đơn từ web.', ten: 'Meta Pixel', can: ['meta_pixel_id'], toi: 'meta_pixel_id', muc: 'sec_meta_pixel' },
+		{ hau: 'Quầy không in ngầm được, mỗi lần in phải bấm hộp in.', ten: 'Máy in QZ Tray', can: ['qz_chung_thu', 'qz_khoa_rieng'], toi: 'qz_chung_thu', muc: 'sec_qz' },
+		{ hau: 'Nút trợ lý trong app không trả lời được.', ten: 'Trợ lý hướng dẫn', can: ['tro_ly_khoa'], bat: 'tro_ly_bat', toi: 'tro_ly_bat', muc: 'sec_tro_ly' },
+		{ hau: 'Không tự dịch nội dung web sang tiếng Anh được.', ten: 'Dịch Gemini', can: ['gemini_api_key'], toi: 'gemini_api_key', muc: 'sec_ai' },
 	];
 
 	function duKhai(doc, k) {
@@ -153,22 +155,59 @@ var VGB_CD = (function () {
 		return true;
 	}
 
+	// v596: ô đầu tiên còn thiếu của một kết nối, theo đúng thứ tự máy chủ đòi.
+	function oThieu(doc, k) {
+		var i;
+		for (i = 0; k.can && i < k.can.length; i++) if (!co(doc[k.can[i]])) return k.can[i];
+		if (k.canMot && !k.canMot.some(function (nh) { return nh.every(function (f) { return co(doc[f]); }); })) return k.canMot[0][0];
+		if (k.canNhom) return k.canNhom;
+		return '';
+	}
+
+	// v596: lỗi cụ thể của TỪNG Ô, để màn tô đỏ đúng ô và nói cách sửa. Nguồn duy
+	// nhất: chip đỏ của kết nối cũng đọc từ đây (không tự dò lại chỗ khác).
+	// Codex 3d0b446: máy chủ thật của Ahamove cho đối tác là partner-api.ahamove.com
+	// (tài liệu môi trường của Ahamove, khớp mô tả ô trên doctype); code tự nối /v3/...
+	// nên địa chỉ phải đúng gốc đó. api.ahamove.com hay thêm /v3 đều gọi sai chỗ.
+	var AHAMOVE_THAT = 'https://partner-api.ahamove.com';
+	function loiAhamove(base) {
+		var b = String(base || '').trim().replace(/\/+$/, '').toLowerCase();
+		if (!b) return null;
+		if (/apistg/.test(b)) {
+			return { ghi: 'đang trỏ máy chủ chạy thử, phí giao thật sẽ lỗi',
+				cau: 'Đây là máy chủ chạy thử. Đổi thành ' + AHAMOVE_THAT + ' để báo phí giao thật.' };
+		}
+		if (b !== AHAMOVE_THAT) {
+			return { ghi: 'địa chỉ API chưa đúng, phí giao sẽ lỗi',
+				cau: 'Không phải máy chủ thật của Ahamove. Chạy thật dùng ' + AHAMOVE_THAT + ' (không thêm /v3).' };
+		}
+		return null;
+	}
+	function loiTruong(doc) {
+		doc = doc || {};
+		var ra = {};
+		var aha = loiAhamove(doc.ahamove_base);
+		if (aha) ra.ahamove_base = aha.cau;
+		return ra;
+	}
+
 	// Trạng thái: ok xanh, no xám (chưa khai), off vàng (khai rồi nhưng tắt), err đỏ.
 	function tinhTrang(doc, bayGio) {
 		doc = doc || {};
 		var ra = KET_NOI.map(function (k) {
 			var tr = !duKhai(doc, k) ? 'no' : (k.bat && !bat(doc[k.bat]) ? 'off' : 'ok');
 			var ghi = tr === 'no' ? 'chưa khai' : (tr === 'off' ? 'đã khai, đang tắt' : 'đã khai');
-			if (k.ten === 'Ahamove' && /apistg/i.test(String(doc.ahamove_base || ''))) {
-				tr = 'err'; ghi = 'đang trỏ máy chủ chạy thử, phí giao thật sẽ lỗi';
-			}
-			return { ten: k.ten, trang: tr, ghi: ghi, toi: k.toi, muc: k.muc };
+			// v596: bấm "Khai" phải tới đúng ô còn thiếu, không phải ô đầu của mục.
+			var toi = tr === 'no' ? (oThieu(doc, k) || k.toi) : (tr === 'off' ? k.bat : k.toi);
+			var aha = k.ten === 'Ahamove' ? loiAhamove(doc.ahamove_base) : null;
+			if (aha) { tr = 'err'; ghi = aha.ghi; toi = 'ahamove_base'; }
+			return { ten: k.ten, trang: tr, ghi: ghi, toi: toi, muc: k.muc, hau: k.hau || '' };
 		});
 		// Còi báo động: hú trong 24 giờ qua là đỏ, kể cả khi đã khai đủ.
 		var luc = co(doc.email_bao_dong_lan_cuoi) ? Date.parse(String(doc.email_bao_dong_lan_cuoi).replace(' ', 'T')) : NaN;
 		var gio = isNaN(luc) ? null : Math.floor(((bayGio || Date.now()) - luc) / 3600000);
 		var coDuong = co(doc.email_canh_bao) || co(doc.webhook_bao_dong);
-		var thu = { ten: 'Thư cảnh báo', toi: 'email_canh_bao', muc: 'sec_gui_thu' };
+		var thu = { ten: 'Thư cảnh báo', toi: 'email_canh_bao', muc: 'sec_gui_thu', hau: 'Sự cố lớn không có ai được báo.' };
 		if (gio !== null && gio >= 0 && gio < 24) {
 			thu.trang = 'err'; thu.ghi = 'hú còi ' + (gio === 0 ? 'chưa tới 1 giờ' : gio + ' giờ') + ' trước';
 		} else if (coDuong) {
@@ -188,6 +227,23 @@ var VGB_CD = (function () {
 		return (ds || []).map(function (t, i) { return { t: t, i: i }; }).sort(function (a, b) {
 			return (THU_TU_MAU[a.t.trang] - THU_TU_MAU[b.t.trang]) || (a.i - b.i);
 		}).map(function (x) { return x.t; });
+	}
+
+	// v596: tóm tắt cho đầu màn Cài đặt (app và Desk dùng chung). Trả số theo màu,
+	// một câu tiếng Việt chỉ nêu phần khác 0, và danh sách việc cần xử lý xếp đỏ,
+	// vàng, xám. Chỉ đếm kết nối thật, không đoán "ổn" cho phần không có kết nối.
+	var CHU_MAU = { ok: 'ổn', no: 'chưa khai', off: 'đang tắt', err: 'đang lỗi' };
+	function tongHop(ds) {
+		ds = ds || [];
+		var dem = { ok: 0, no: 0, off: 0, err: 0 };
+		ds.forEach(function (t) { if (dem[t.trang] !== undefined) dem[t.trang]++; });
+		var phan = ['ok', 'no', 'off', 'err'].filter(function (k) { return dem[k]; })
+			.map(function (k) { return dem[k] + ' ' + CHU_MAU[k]; });
+		return {
+			dem: dem, tong: ds.length,
+			cau: ds.length + ' kết nối' + (phan.length ? ': ' + phan.join(', ') : ''),
+			can: xepTinhTrang(ds).filter(function (t) { return t.trang !== 'ok'; }),
+		};
 	}
 
 	// Chip trên đầu từng mục: kết nối của mục đó, hoặc số công tắc đang bật.
@@ -358,6 +414,7 @@ var VGB_CD = (function () {
 	}
 
 	return { boDau: boDau, tinhTrang: tinhTrang, tinhTrangMuc: tinhTrangMuc, tomTat: tomTat, timTruong: timTruong,
+		tongHop: tongHop, loiTruong: loiTruong, oThieu: oThieu,
 		NHAN_CHON: NHAN_CHON, KET_NOI: KET_NOI, docJson: docJson, nganHangTheoBin: nganHangTheoBin, timNganHang: timNganHang, moToi: moToi, xepTinhTrang: xepTinhTrang, kiemCapNganHang: kiemCapNganHang,
 		ZALO_NHAN: ZALO_NHAN, ZALO_DANH_MUC: ZALO_DANH_MUC, theNhomZalo: theNhomZalo, tachMa: tachMa,
 		maNhomZalo: maNhomZalo, nhanNhomZalo: nhanNhomZalo };

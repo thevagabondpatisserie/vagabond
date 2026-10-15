@@ -5,17 +5,26 @@
 // v570: phép thuần (VGB_CD, danh mục và nhãn loại tin Zalo) nằm ở tệp dùng chung
 // /assets/vagabond/js/cai_dat_loi_chung.js, cùng tệp màn "Cài đặt lõi và API" của
 // app nạp. Hai nơi không giữ hai bản.
+// v596 Codex 3d0b446: lời hứa nạp được giữ theo KHOÁ CÓ PHIÊN BẢN. Phiên Desk mở từ
+// trước khi deploy còn giữ window.__vgb_cd_nap (đã xong) trỏ tới bản chung cũ thiếu
+// tongHop; dùng lại khoá cũ thì trang Cài đặt hỏng tới khi tải lại hẳn trình duyệt.
+// Đổi khoá khi bản mới cần hàm mới mà bản cũ không có.
+var VGB_CD_KHOA_NAP = '__vgb_cd_nap_596';
 function vgb_nap_cd_chung() {
-	if (window.VGB_CD && window.VGB_CD.tinhTrang) return Promise.resolve(window.VGB_CD);
-	if (window.__vgb_cd_nap) return window.__vgb_cd_nap;
-	window.__vgb_cd_nap = new Promise(function (ok, hong) {
+	if (window.VGB_CD && window.VGB_CD.tongHop) return Promise.resolve(window.VGB_CD);
+	if (window[VGB_CD_KHOA_NAP]) return window[VGB_CD_KHOA_NAP];
+	window[VGB_CD_KHOA_NAP] = new Promise(function (ok, hong) {
 		var s = document.createElement('script');
 		s.src = '/assets/vagabond/js/cai_dat_loi_chung.js?t=' + Date.now();
-		s.onload = function () { ok(window.VGB_CD); };
-		s.onerror = function () { window.__vgb_cd_nap = null; hong(new Error('Không nạp được tệp cài đặt dùng chung.')); };
+		s.onload = function () {
+			if (window.VGB_CD && window.VGB_CD.tongHop) return ok(window.VGB_CD);
+			window[VGB_CD_KHOA_NAP] = null;
+			hong(new Error('Tệp cài đặt dùng chung còn bản cũ. Tải lại trang (Ctrl+Shift+R).'));
+		};
+		s.onerror = function () { window[VGB_CD_KHOA_NAP] = null; hong(new Error('Không nạp được tệp cài đặt dùng chung.')); };
 		document.head.appendChild(s);
 	});
-	return window.__vgb_cd_nap;
+	return window[VGB_CD_KHOA_NAP];
 }
 function zalo_chon(frm, cdt, cdn, truong) {
 	const row = locals[cdt][cdn];
@@ -146,6 +155,15 @@ frappe.ui.form.on('Vagabond Kenh Zalo', {
 		'.vgb-cd .vgbc-zl-the .vgbc-card .d{font-size:13px;line-height:1.5;margin:2px 0}',
 		'.vgb-cd .vgbc-zl-the .vgbc-card .d small{color:var(--text-muted,#6b737b)}',
 		'.vgb-cd .vgbc-zl-the .vgbc-card .n{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}',
+		// v596: tóm tắt một câu, thanh màu và danh sách cần xử lý, cùng nguồn VGB_CD.tongHop với app.
+		'.vgb-cd .vgbc-cau{font-weight:600;font-size:15px;margin:14px 0 0}',
+		'.vgb-cd .vgbc-thanh{display:flex;height:8px;border-radius:4px;overflow:hidden;background:#eceef0;margin:8px 0 10px;max-width:520px}',
+		'.vgb-cd .vgbc-thanh i{display:block;height:100%}',
+		'.vgb-cd .vgbc-viec{display:flex;align-items:center;gap:12px;border-left:4px solid #a3abb2;background:var(--fg-hover-color,#f8f9fa);border-radius:8px;padding:8px 12px;margin:0 0 6px;min-height:52px;cursor:pointer}',
+		'.vgb-cd .vgbc-viec.err{border-left-color:#d93636}.vgb-cd .vgbc-viec.off{border-left-color:#e0a100}',
+		'.vgb-cd .vgbc-viec div{flex:1}.vgb-cd .vgbc-viec b{display:block;font-size:14px}.vgb-cd .vgbc-viec small{color:var(--text-muted,#6b737b);font-size:13px}',
+		'.vgb-cd .vgbc-viec .di{font-weight:600;font-size:13px;color:#0a7ea4;white-space:nowrap}',
+		'.vgb-cd .vgbc-loi-o{font-size:13px;color:#a42424;margin-top:4px}',
 		'.vgb-cd .vgbc-xem{min-height:44px;margin-top:4px;padding:0 4px;background:none;border:0;color:var(--text-color,#1f272e);font-weight:600;font-size:13px;cursor:pointer;text-decoration:underline}',
 	].join('');
 
@@ -174,6 +192,7 @@ frappe.ui.form.on('Vagabond Kenh Zalo', {
 			$bar = $('<div class="vgbc-bar">' +
 				'<input class="vgbc-tim" type="search" placeholder="Tìm cài đặt: mã QR, Ahamove, máy in, điểm thành viên...">' +
 				'<div class="vgbc-kq"></div>' +
+				'<div class="vgbc-cau"></div><div class="vgbc-thanh"></div><div class="vgbc-viec-ds"></div>' +
 				'<div class="vgbc-h">Tình trạng kết nối</div>' +
 				'<div class="vgbc-mo">Bấm một ô để nhảy tới phần cài đặt đó. Xanh là đã khai đủ, xám là chưa khai, vàng là đã khai nhưng đang tắt, đỏ là vừa có sự cố.</div>' +
 				'<div class="vgbc-chips vgbc-tt gon"></div><button type="button" class="vgbc-xem"></button></div>');
@@ -193,7 +212,19 @@ frappe.ui.form.on('Vagabond Kenh Zalo', {
 				veThanh(frm);
 			});
 		}
-		var ds = VGB_CD.xepTinhTrang(VGB_CD.tinhTrang(frm.doc));
+		var goc = VGB_CD.tinhTrang(frm.doc);
+		var ds = VGB_CD.xepTinhTrang(goc);
+		var th = VGB_CD.tongHop(goc);
+		var mau = { ok: '#22a05a', no: '#c3c9cf', off: '#e0a100', err: '#d93636' };
+		$bar.find('.vgbc-cau').text(th.cau);
+		$bar.find('.vgbc-thanh').html(['ok', 'no', 'off', 'err'].filter(function (k) { return th.dem[k]; }).map(function (k) {
+			return '<i style="width:' + (100 * th.dem[k] / th.tong).toFixed(2) + '%;background:' + mau[k] + '"></i>';
+		}).join(''));
+		// Việc đỏ và vàng mỗi việc một dòng kèm hậu quả; chưa khai đã có trong chip bên dưới.
+		$bar.find('.vgbc-viec-ds').html(th.can.filter(function (t) { return t.trang !== 'no'; }).map(function (t) {
+			return '<div class="vgbc-viec ' + t.trang + '" data-toi="' + esc(t.toi) + '" role="button"><div><b>' + esc(t.ten) + ': ' + esc(t.ghi) + '</b>' +
+				(t.hau ? '<small>' + esc(t.hau) + '</small>' : '') + '</div><span class="di">Sửa ›</span></div>';
+		}).join(''));
 		var $tt = $bar.find('.vgbc-tt');
 		$tt.html(ds.map(function (t) {
 			return chip(t.trang, t.ten + (t.trang === 'err' ? ': ' + t.ghi : ''), 0, t.toi);
@@ -202,6 +233,17 @@ frappe.ui.form.on('Vagabond Kenh Zalo', {
 		var can = ds.filter(function (t) { return t.trang !== 'ok'; }).length;
 		$bar.find('.vgbc-xem').text(frm.__vgb_mo_tt ? 'Thu gọn'
 			: 'Xem đủ ' + ds.length + ' kết nối' + (can ? ' (' + can + ' cần để ý, đã xếp lên đầu)' : ''));
+	}
+
+	// v596: ô đang lỗi có câu đỏ ngay dưới ô (cùng nguồn VGB_CD.loiTruong với app).
+	function veLoiO(frm) {
+		var loi = VGB_CD.loiTruong(frm.doc);
+		(frm.meta.fields || []).forEach(function (df) {
+			var f = frm.fields_dict && frm.fields_dict[df.fieldname];
+			if (!f || !f.$wrapper) return;
+			f.$wrapper.find('.vgbc-loi-o').remove();
+			if (loi[df.fieldname]) f.$wrapper.append('<div class="vgbc-loi-o">' + esc(loi[df.fieldname]) + '</div>');
+		});
 	}
 
 	function veChipMuc(frm) {
@@ -507,6 +549,7 @@ frappe.ui.form.on('Vagabond Kenh Zalo', {
 			vgb_nap_cd_chung().then(function () {
 				veThanh(frm);
 				veChipMuc(frm);
+				veLoiO(frm);
 				veMatKhau(frm);
 				veChipChon(frm);
 				veDuLieuApp(frm);
@@ -515,8 +558,10 @@ frappe.ui.form.on('Vagabond Kenh Zalo', {
 		},
 		diem_chu_ky(frm) { vgb_nap_cd_chung().then(function () { veChipChon(frm); }); },
 		ngan_hang_bin(frm) { vgb_nap_cd_chung().then(function () { veChipChon(frm); }); },
+		// v596: sửa địa chỉ Ahamove thì câu đỏ dưới ô và tóm tắt đầu trang đổi ngay, không chờ Lưu.
+		ahamove_base(frm) { vgb_nap_cd_chung().then(function () { veLoiO(frm); veThanh(frm); veChipMuc(frm); }); },
 	});
 	// Chỉ cho ca kiểm node (hanh_vi/cai_dat_568.js); trên trình duyệt không có module.
-	if (typeof module !== 'undefined' && module.exports) module.exports._desk = { veNganHang: veNganHang, veChipMuc: veChipMuc, veThanh: veThanh,
+	if (typeof module !== 'undefined' && module.exports) module.exports._desk = { veNganHang: veNganHang, veChipMuc: veChipMuc, veThanh: veThanh, veLoiO: veLoiO,
 		veZalo: veZalo, suaNhomZalo: suaNhomZalo };
 })();

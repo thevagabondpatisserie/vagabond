@@ -940,7 +940,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '595';
+var APPVER = '596';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -1002,36 +1002,9 @@ async function __boot(){
   } catch(e) { var el=document.getElementById('vgb'); if(el) el.textContent = 'Loi khoi dong: '+String(e.message||e); }
 }
 if (document.readyState === 'complete') { __boot(); } else { window.addEventListener('load', __boot); }
-window.addEventListener('popstate', function (ev) {
-  /* Nut ‹ trong app da tu lui va goi history.back(), popstate nay chi la dong bo, bo qua */
-  if (VGB_LUI_TAY > 0) { VGB_LUI_TAY--; return; }
-  var st = ev.state;
-  var d = (st && typeof st.vgbD === 'number') ? st.vgbD : 0;
-  if (d + 1 < S.stack.length) {
-    if (roiPhieuDo(S.stack[d])) {
-      var giu = S.stack.length - 1;
-      confirmSheet('Phiếu đang soạn dở', 'Rời màn này thì danh sách món đang chọn sẽ mất.', 'Rời đi, bỏ phiếu nháp', true)
-        .then(function (ok) {
-          if (ok) { S.draft = null; S.stack.length = d + 1; S.duong.length = d + 1; S.cuon.length = d + 1; vgbHenTraCuon(); vgbApNac(); render(); }
-          else { try { history.pushState({ vgbD: giu }, '', location.href); } catch (e) { } }
-        });
-      return;
-    }
-    /* Lui bang nut Back cua trinh duyet: cat chong man hinh VA cat luon
-       chong dia chi, roi ap lai dia chi cua nac con lai. Thieu hai viec sau
-       thi man da lui ma thanh dia chi van mang duoi cua man vua roi. */
-    /* Cat luon chong vi tri cuon roi hen tra lai vi tri cua nac con lai.
-       Day chinh la duong anh Viet di khi bam nut Back cua trinh duyet
-       (28/08/2026): thieu hai lenh nay thi danh sach ve dau trang. */
-    S.stack.length = d + 1; S.duong.length = d + 1; S.cuon.length = d + 1;
-    vgbHenTraCuon();
-    vgbApNac(); render(); return;
-  }
-  if (d + 1 > S.stack.length) {
-    /* Nut Tien hoac moc cu con sot lai: khong dung lai man hinh nao duoc, chi dong bo lai moc */
-    try { history.replaceState({ vgbD: S.stack.length - 1 }, '', location.href); } catch (e) { }
-  }
-});
+/* v596: than bo nghe nam o 01-khung-app.js (vgbXuLyPopstate), canh back() va nut
+   nha, de MOI loi roi man qua cung mot cua hoi "chua luu". */
+window.addEventListener('popstate', vgbXuLyPopstate);
 try { history.replaceState({ vgbD: 0 }, '', location.href); } catch (e) { }
 
 

@@ -73,6 +73,10 @@ S.cuon = [0];
 /* Cau hoi phai hoi truoc khi roi man dang giu thay doi chua luu. Rong la
    khong co gi de mat. Xem chu thich o `roiChuaLuu` ben duoi. */
 S.chuaLuu = '';
+/* Nac giu thay doi do (v596). Rong la nac tren cung tai luc hoi. Man nao giu thay
+   doi qua nhieu nac con (vi du Cai dat loi: tong quan va cac nhom) thi dat bang
+   chi so nac cha, de lui giua cac nac con khong hoi, chi hoi khi nac cha bi cat. */
+S.chuaLuuNac = null;
 
 /* Slug cua nac dang dung. */
 function vgbNacDuong() { return S.duong[S.duong.length - 1] || ''; }
@@ -99,6 +103,23 @@ function manSoan(f) {
    do, vi con vai man nua cung nep "sua roi moi luu". */
 function roiChuaLuu() {
   return String(S.chuaLuu || '');
+}
+
+/* v596 Codex #480: MOT cua hoi "roi khi chua luu" cho MOI loi ra: nut ‹ (back),
+   nut nha, va nut Back cua trinh duyet hay Android (vgbXuLyPopstate). Truoc v596
+   chi back() doc roiChuaLuu(), nut nha goi thang reset(scrHome) va popstate cat
+   chong ma khong hoi, nen thay doi dang sua mat im lang.
+   conLai: chi so nac tren cung CON LAI sau khi roi (-1 la thay ca chong). */
+function vgbCauRoi(conLai) {
+  var cau = roiChuaLuu();
+  if (!cau) return '';
+  var chu = (typeof S.chuaLuuNac === 'number') ? S.chuaLuuNac : S.stack.length - 1;
+  return chu > conLai ? cau : '';
+}
+function vgbBoChuaLuu() { S.chuaLuu = ''; S.chuaLuuNac = null; }
+/* Goi SAU khi cat chong: nac giu thay doi da bi cat thi xoa cau hoi theo. */
+function vgbSauCat() {
+  if (!(typeof S.chuaLuuNac === 'number' && S.chuaLuuNac < S.stack.length)) vgbBoChuaLuu();
 }
 
 function roiPhieuDo(dich) {
@@ -133,14 +154,14 @@ function go(fn, replace) {
 function back() {
   if (S.stack.length <= 1) return;
   var buoc = function () {
-    S.chuaLuu = '';
     S.stack.pop(); S.duong.pop(); S.cuon.pop();
+    vgbSauCat();
     vgbHenTraCuon();
     vgbApNac(); render();
     VGB_LUI_TAY++;
     try { history.back(); } catch (e) { VGB_LUI_TAY--; }
   };
-  var cau = roiChuaLuu();
+  var cau = vgbCauRoi(S.stack.length - 2);
   if (cau) {
     confirmSheet('Chưa lưu', cau, 'Rời đi, bỏ thay đổi', true)
       .then(function (ok) { if (ok) buoc(); });
@@ -153,10 +174,55 @@ function back() {
   }
   buoc();
 }
+/* Nut Back / vuot lui cua trinh duyet hay Android (dang ky o 12-van-don.js).
+   v596 Codex #480: dời từ 12-van-don.js sang đây và hỏi "Chưa lưu" qua vgbCauRoi
+   như nút ‹ và nút nhà; chọn ở lại thì đẩy lại mốc của nấc đang đứng. */
+function vgbXuLyPopstate(ev) {
+  /* Nut ‹ trong app da tu lui va goi history.back(), popstate nay chi la dong bo, bo qua */
+  if (VGB_LUI_TAY > 0) { VGB_LUI_TAY--; return; }
+  var st = ev && ev.state;
+  var d = (st && typeof st.vgbD === 'number') ? st.vgbD : 0;
+  if (d + 1 < S.stack.length) {
+    var giu = S.stack.length - 1;
+    /* Chon o lai: trinh duyet DA nhay sang moc dich (location.href la dia chi dich),
+       nen day lai moc cua nac dang dung roi ap lai dia chi cua nac do. Thieu
+       buoc ap lai dia chi thi man Cai dat nam duoi dia chi trang chu, F5 mo nham man va mat
+       thay doi (Codex fbf05ff). */
+    var oLai = function () { try { history.pushState({ vgbD: giu }, '', location.href); } catch (e) { } vgbApNac(); };
+    /* Lui bang nut Back cua trinh duyet: cat chong man hinh VA cat luon
+       chong dia chi, roi ap lai dia chi cua nac con lai. Thieu hai viec sau
+       thi man da lui ma thanh dia chi van mang duoi cua man vua roi.
+       Cat luon chong vi tri cuon roi hen tra lai vi tri cua nac con lai.
+       Day chinh la duong anh Viet di khi bam nut Back cua trinh duyet
+       (28/08/2026): thieu hai lenh nay thi danh sach ve dau trang. */
+    var cat = function () {
+      S.stack.length = d + 1; S.duong.length = d + 1; S.cuon.length = d + 1;
+      vgbSauCat();
+      vgbHenTraCuon();
+      vgbApNac(); render();
+    };
+    var cau = vgbCauRoi(d);
+    if (cau) {
+      confirmSheet('Chưa lưu', cau, 'Rời đi, bỏ thay đổi', true)
+        .then(function (ok) { if (ok) cat(); else oLai(); });
+      return;
+    }
+    if (roiPhieuDo(S.stack[d])) {
+      confirmSheet('Phiếu đang soạn dở', 'Rời màn này thì danh sách món đang chọn sẽ mất.', 'Rời đi, bỏ phiếu nháp', true)
+        .then(function (ok) { if (ok) { S.draft = null; cat(); } else oLai(); });
+      return;
+    }
+    cat(); return;
+  }
+  if (d + 1 > S.stack.length) {
+    /* Nut Tien hoac moc cu con sot lai: khong dung lai man hinh nao duoc, chi dong bo lai moc */
+    try { history.replaceState({ vgbD: S.stack.length - 1 }, '', location.href); } catch (e) { }
+  }
+}
 function reset(fn) {
   var slug = '';
   try { if (window.vgbSlugSapMo) slug = window.vgbSlugSapMo(); } catch (e) { }
-  S.chuaLuu = '';
+  vgbBoChuaLuu();
   S.stack = [fn];
   S.duong = [slug];
   S.cuon = [0];
@@ -274,6 +340,13 @@ function frame(title, bodyHtml, opt) {
     (opt.fab ? '<button class="fab" id="vgbFab">+</button>' : '');
   var b = document.getElementById('vgbBack'); if (b) b.onclick = back;
   var hb = document.getElementById('vgbHome'); if (hb) hb.onclick = function () {
+    /* v596 Codex #480: nut nha cat ca chong, nen cung qua cua hoi chung. */
+    var cau = vgbCauRoi(-1);
+    if (cau) {
+      confirmSheet('Chưa lưu', cau, 'Rời đi, bỏ thay đổi', true)
+        .then(function (ok) { if (ok) reset(scrHome); });
+      return;
+    }
     if (roiPhieuDo(scrHome)) {
       confirmSheet('Phiếu đang soạn dở', 'Máy đã tự lưu nháp phiếu này, mở lại ở mục Phiếu đang soạn dở trên trang chủ.', 'Về trang chủ', true)
         .then(function (ok) { if (ok) { S.draft = null; reset(scrHome); } });
