@@ -146,7 +146,7 @@ def chon(doc, dong, can, chieu, kiem, ghi=False, them_dot=False):
         thong_bao=("Phần tiền đã được " + ", ".join(chu) + " giữ. " if chu else "")
         thong_bao += ("; ".join(d["ly_do"] for d in k["loi"]) or
             "Bộ sao kê đang có {:,.0f} / {:,.0f} đ; còn thiếu {:,.0f}, thừa {:,.0f} đ.".format(k["tong"],k["can"],k["thieu"],k["thua"]))
-        frappe.throw("Bộ sao kê không khớp khoản phải chuyển/thu. "+thong_bao)
+        frappe.throw("Bộ sao kê không khớp khoản phải chuyển/thu. "+thong_bao+" Tải lại hồ sơ và chọn phần tiền còn dùng được.")
     if ghi:
         cu=doc_hien_tai(doc)
         if cu["chung_tu"] and cu["dong"] != dong:

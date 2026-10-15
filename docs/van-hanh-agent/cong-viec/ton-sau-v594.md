@@ -6,7 +6,7 @@ Codex chịu trách nhiệm triển khai. PR duy nhất trên `codex/ton-sau-594
 
 - Nền `df22c3dcd45593df7e73844232ced079c49b45bc`. Phần A1/A2/A3 đã có code và ca kiểm. Không đặt phiên bản, không thêm patch, không sửa dữ liệu cũ.
 - Bảng bên dưới đánh dấu phần triển khai và ca chứng minh, không thay biên nhận CI/bench. Bản chốt chỉ được bàn giao khi CI và bench gồm staging của đúng SHA đều xanh. Link và SHA cuối nằm trong comment bàn giao PR476.
-- Bench `dc239eac0e02be9ceeca4a467ecef967ccdf6a34`: 422/423 ở cả hai lượt. Ca tự dò công nợ dùng mã tạm rồi đổi sau insert, bị core `_sync_autoname_field` trả về mã tạm. Đã sửa fixture tạo mã thật ngay từ insert và bắt SQL phải trả đủ hai dòng. Chờ run bản chốt xác nhận, không dùng 422/423 làm kết quả hoàn thành.
+- Bench `1e8a45346daef1f366d0a6b6e94a5c36ad8ad3ba`: 423/423 ở cả hai lượt, sạch rollback; ca SQL công nợ đã đạt sau khi tạo mã thật từ insert. Probe tranh chấp247 còn yêu cầu câu hướng dẫn tải lại; đã thêm câu vào lỗi dùng chung. Staging chưa chạy, phải đợi run bản chốt.
 - Ảnh, bảng mười nhóm và giới hạn bằng chứng: [pr476](../bang-chung/pr476/README.md). DOM19/19, tầng khung4548/4548, fakeCI4548/4548 và cổng local mã0 trên bản sửa. Bản cuối phải kiểm lại sau push.
 - Chưa có Claude duyệt bản chốt. Chỉ sau review đạt mới mở nhánh phát hành; không merge/deploy. Không chuyển #471/#464.
 - Các mục ghi theo đợt phía dưới là lịch sử kiểm, không phải danh sách còn tồn hiện tại.
@@ -33,7 +33,7 @@ Nguồn: [giao việc 4 trên PR469](https://github.com/thevagabondpatisserie/va
 ### Checklist triển khai A1 và ca chứng minh
 
 - [x] APP tự nhận cả bộ, PE/JE và phân bổ lõi: `thu_bo_sao_ke_595` ca APP tự dò hai dòng cùng mã.
-- [x] TTNB, hoàn tiền, công nợ, tạm ứng, hoàn ứng cùng đường bộ: `thu_phan_con_595` hợp đồng một cửa; `thu_bo_sao_ke_595` đủ luồng; ca công nợ tự dò sửa fixture đang chờ bench cuối.
+- [x] TTNB, hoàn tiền, công nợ, tạm ứng, hoàn ứng cùng đường bộ: `thu_phan_con_595` hợp đồng một cửa; `thu_bo_sao_ke_595` đủ luồng; ca công nợ tự dò đã đạt trên bench1e8a, vẫn cần tổng bench cuối.
 - [x] Giữ trên chứng từ hiện có, không thêm DocType: `thu_phan_con_595` hợp đồng không ghi ngoài DB chung; `thu_bo_sao_ke_595` Desk/API và phân bổ phần.
 - [x] Khóa/current read: `bench_thu/bo_sao_ke_476`, `thu_dong_thoi_476` PE nháp/đã ghi sổ, `do_khoa_476` ba ca độc lập.
 - [x] Một BT nhiều phiếu và chặn vượt: `thu_bo_sao_ke_595` một BT hai APP, tạm ứng; `thu_sepay_mb_247` cấp quỹ hai JE.
