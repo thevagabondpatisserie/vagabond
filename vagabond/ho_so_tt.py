@@ -1705,7 +1705,7 @@ def danh_sach(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=
 			frappe.log_error(frappe.get_traceback(), "ho_so_tt: ghep phieu tra truoc loi")
 		ra.sort(key=lambda o: str(o.get("ngay") or ""), reverse=True)
 
-	from vagabond.chip_ho_so_tt import chip_cua_dong, NHAN as NHAN_CHIP
+	from vagabond.chip_ho_so_tt import chip_cua_dong, NHAN as NHAN_CHIP, MO_TA as MO_TA_CHIP
 	for o in ra:
 		o["cho_doi_chieu_sau"] = _cho_doi_chieu_sau(o)
 		o["chip_nghiep_vu"] = chip_cua_dong(o)
@@ -1736,6 +1736,7 @@ def danh_sach(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=
 		"tk_chi_co": tk_co,
 		"nhan": NHAN,
 		"nhan_chip": NHAN_CHIP,
+		"mo_ta_chip": MO_TA_CHIP,
 		"quyen": {
 			"lap": 1 if (VAI_LAP & _vai()) else 0,
 			"fin": 1 if (VAI_FIN & _vai()) else 0,
