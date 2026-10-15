@@ -361,6 +361,38 @@ function moTab(m, fn) { bam(m, mot(m, '[data-cdltab="' + fn + '"]')); }
     bang('mở màn CDDB', m.diToi, ['CDDB']);
   });
 
+  await ca('Codex 91e8e8b: còn thay đổi Cài đặt lõi thì bấm "Sửa ở màn riêng" phải HỎI; ở lại thì giữ nguyên, không mở màn', async function () {
+    // Màn riêng (Máy in, Mẫu in...) dùng chung ô S.chuaLuu và xoá nó khi nạp xong, nên
+    // mở màn riêng khi còn thay đổi thì nút nhà hay Back sau đó bỏ thay đổi im lặng.
+    var m = await moMan();
+    var hoi = [];
+    m.g.confirmSheet = function (t, c) { hoi.push(t + ': ' + c); return Promise.resolve(false); };
+    moTab(m, 'tab_ke_toan');
+    bam(m, mot(m, '[data-cdlbat="sepay_bat"]'));
+    m.g.back();
+    moTab(m, 'tab_du_lieu_app');
+    bam(m, tim(m, '[data-cdlman="CDDB"]')[0]);
+    await tick();
+    bang('hỏi một lần', hoi.length, 1);
+    dung('câu hỏi nói còn thay đổi chưa lưu', hoi[0].indexOf('Còn 1 thay đổi') >= 0);
+    bang('không mở màn riêng', m.diToi, []);
+    bang('thay đổi còn nguyên', m.g.cdlSoThay(), 1);
+  });
+
+  await ca('Còn thay đổi, chọn bỏ thay đổi rồi mở: thay đổi bỏ hết, câu hỏi xoá, mới mở màn riêng', async function () {
+    var m = await moMan();
+    m.g.confirmSheet = function () { return Promise.resolve(true); };
+    moTab(m, 'tab_ke_toan');
+    bam(m, mot(m, '[data-cdlbat="sepay_bat"]'));
+    m.g.back();
+    moTab(m, 'tab_du_lieu_app');
+    bam(m, tim(m, '[data-cdlman="CDDB"]')[0]);
+    await tick();
+    bang('bỏ hết thay đổi', m.g.cdlSoThay(), 0);
+    bang('không còn câu hỏi của Cài đặt lõi', m.S.chuaLuu, '');
+    bang('mở màn CDDB', m.diToi, ['CDDB']);
+  });
+
   await ca('ô tìm: gõ "ngan hang" không dấu ra ô ngân hàng, bấm kết quả mở đúng tab và tô sáng ô', async function () {
     var m = await moMan();
     var inp = mot(m, '#cdlTim');
