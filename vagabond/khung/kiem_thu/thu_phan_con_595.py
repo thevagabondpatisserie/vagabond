@@ -738,3 +738,72 @@ def _():
                     isinstance(n,ast.Compare) and any(isinstance(op,ast.Eq) for op in n.ops)):
                 bad.append(text)
         la('không so lẻ '+file,bad,[])
+
+
+def _cap_cu_mo_phong(je_theo_lan):
+    """Dựng đúng chuỗi cửa cấp quỹ cũ một BT: tra JE theo mã lần rồi lập JE mới.
+
+    je_theo_lan: {lan: (tên JE, docstatus)}. Trả (lỗi, mã lần dùng cho JE mới).
+    """
+    import frappe, hashlib
+    from unittest.mock import patch
+    from vagabond import bo_sao_ke_cap as cap, tam_ung_app as tu
+    class Dung(Exception): pass
+    moi = {}
+    class JE(dict):
+        __getattr__ = dict.get
+        def __init__(self): super().__init__(flags=frappe._dict())
+        def set(self, k, v): self[k] = v
+        def append(self, *a, **k): pass
+        def insert(self, **k): moi['lan'] = self.get(cap.O_LAN); raise Dung()
+        def __setattr__(self, k, v): self[k] = v
+    bt = frappe._dict(name='BT', deposit=100, bank_account='MB', date='2026-10-14')
+    def get_value(dt, flt_, field=None, *a, **k):
+        if dt == 'Bank Transaction':
+            return {'name': 'BT', 'bank_account': 'MB', 'date': '2026-10-14'}.get(field, 'BT')
+        if dt == 'Journal Entry' and isinstance(flt_, dict) and cap.O_LAN in flt_:
+            r = je_theo_lan.get(flt_[cap.O_LAN])
+            if not r: return None
+            return frappe._dict(name=r[0], docstatus=r[1]) if isinstance(field, (list, tuple)) else r[0]
+        return None
+    def get_doc(dt, n=None, **k):
+        if dt == 'Bank Transaction': return bt
+        if dt == 'Account': return frappe._dict(company='C', is_group=0, disabled=0, account_currency='VND', account_number='1111', name='1111')
+        if dt == 'Journal Entry':
+            ten = n
+            st = next(v[1] for v in je_theo_lan.values() if v[0] == ten)
+            return frappe._dict(name=ten, docstatus=st, vgb_bo_sao_ke=None, vgb_nq_tham_chieu='', total_debit=100,
+                accounts=[frappe._dict(account='1111', credit_in_account_currency=100)])
+        raise AssertionError(dt)
+    loi = None
+    with patch.object(tu, '_quyen'), patch.object(tu, '_quy', return_value=(None, frappe._dict(company='C', name='141'))), \
+            patch.object(frappe.db, 'get_value', side_effect=get_value), patch.object(frappe.db, 'savepoint'), \
+            patch.object(frappe.db, 'rollback'), patch.object(frappe.db, 'exists', return_value=True), \
+            patch.object(frappe, 'get_doc', side_effect=get_doc), patch.object(frappe, 'new_doc', side_effect=lambda dt: JE()), \
+            patch.object(frappe, 'generate_hash', create=True, return_value='abcd1234'):
+        try:
+            cap.ghi('BT', '1111')
+        except Dung:
+            pass
+        except Exception as e:
+            loi = str(e)
+    return loi, moi.get('lan'), hashlib.sha256(('MB|cu:BT').encode()).hexdigest()
+
+
+@ca('#477 Codex P2: cửa cấp quỹ cũ ghi lại được sau khi JE cũ đã hủy, không đụng mã unique của JE hủy')
+def _():
+    import hashlib
+    from vagabond.khung.kiem_thu.nen import dung
+    lan0 = hashlib.sha256(('MB|cu:BT').encode()).hexdigest()
+    # Chuỗi khách: ghi một lần (JE-1), kế toán hủy JE-1, bấm ghi lại đúng dòng sao kê đó.
+    loi, lan, _ = _cap_cu_mo_phong({lan0: ('JE-1', 2)})
+    la('không còn bị chặn vì JE đã hủy', loi, None)
+    dung('JE mới dùng mã lần khác JE đã hủy (trường unique)', bool(lan) and lan != lan0)
+    # Hủy lần hai: chuỗi mã tiếp tục, vẫn ghi được và không trùng hai mã cũ.
+    lan1 = hashlib.sha256((lan0 + '|JE-1').encode()).hexdigest()
+    loi2, lan2, _ = _cap_cu_mo_phong({lan0: ('JE-1', 2), lan1: ('JE-2', 2)})
+    la('hủy hai lần vẫn ghi được', loi2, None)
+    dung('mã lần thứ ba khác hai mã cũ', lan2 not in (lan0, lan1))
+    # Mất phản hồi sau khi đã ghi JE-2 còn hiệu lực: bấm lại không lập JE thứ hai.
+    loi3, lan3, _ = _cap_cu_mo_phong({lan0: ('JE-1', 2), lan1: ('JE-2', 1)})
+    la('retry gặp JE còn hiệu lực thì không lập mới', (loi3, lan3), (None, None))
