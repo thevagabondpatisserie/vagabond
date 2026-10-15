@@ -807,3 +807,41 @@ def _():
     # Mất phản hồi sau khi đã ghi JE-2 còn hiệu lực: bấm lại không lập JE thứ hai.
     loi3, lan3, _ = _cap_cu_mo_phong({lan0: ('JE-1', 2), lan1: ('JE-2', 1)})
     la('retry gặp JE còn hiệu lực thì không lập mới', (loi3, lan3), (None, None))
+
+
+@ca("#477 Codex: tự dò gặp một dòng cùng mã không dùng được thì không tự khớp phần còn lại")
+def _():
+    from unittest.mock import patch
+    import frappe
+    from vagabond import bo_sao_ke_luong as bl, bo_sao_ke_db as bs, doi_soat_sepay as dss
+    from vagabond.khung.kiem_thu.nen import dung
+    # Chuỗi Codex nêu: cùng mã TTNB có dòng A sai nguồn và dòng B hợp lệ đúng bằng số phiếu.
+    b=dict(doctype="Vagabond De Nghi Chi",ma_do=lambda d:"TTNB-26-10-00001",chieu="ra",so_tien=lambda d:100)
+    rows=[dict(name="A",bank_account="MB-THIEU-CHU",description="TTNB-26-10-00001",withdrawal=100,deposit=0),
+        dict(name="B",bank_account="MB-CTY",description="TTNB-26-10-00001",withdrawal=100,deposit=0)]
+    theo_ten={r["name"]:frappe._dict(r,reference_number="") for r in rows}
+    with patch.object(dss,"_ban",return_value=b), \
+            patch.object(frappe,"get_doc",side_effect=lambda dt,ma:theo_ten[ma] if dt=='Bank Transaction' else frappe._dict(name=ma)), \
+            patch.object(bl,"kiem",side_effect=lambda loai,b,doc,g:"Sai nguồn chi" if g.bank_account=="MB-THIEU-CHU" else ""), \
+            patch.object(bs,"con_lai",return_value=100),patch.object(bl,"_khop") as khop:
+        k=bl.tu_dong_mot("ttnb","TTNB",rows)
+        la("không tự khớp bộ rút gọn",khop.call_count,0)
+        la("trả về để kế toán xem",k['ok'],0)
+        dung("nêu đúng dòng và lý do","A: Sai nguồn chi" in k['vi_sao'])
+        dung("liệt kê cả hai dòng cùng mã","A" in k['giao_dich'] and "B" in k['giao_dich'])
+
+
+@ca("#477 Codex: chờ đối chiếu sau không tính JE cấn tạm ứng vào phần đã đối chiếu")
+def _():
+    from unittest.mock import patch
+    import frappe
+    from vagabond import ho_so_tt as hs
+    d=frappe._dict(name="APP",trang_thai=hs.TT_DA_TRA,vgb_tt_ly_do_som="Lệnh 2 chưa về",dong=[dict(so_tien=600)],
+        da_tam_ung=0,con_lai=600,vgb_can_ung="JE-CU")
+    bo=[dict(doctype="Journal Entry",name="JE-CU"),dict(doctype="Payment Entry",name="PE")]
+    phan={"JE-CU":400,"PE":200}
+    with patch.object(hs,"_do_chinh_xac",return_value=2),patch.object(hs,"_but_toan_cua_ho_so",return_value=bo), \
+            patch.object(frappe,"get_all",side_effect=lambda dt,filters=None,**k:[frappe._dict(allocated_amount=phan[filters["payment_entry"]])]):
+        la("400 cấn tạm ứng + 200 sao kê của 600 vẫn chờ",hs._cho_doi_chieu_sau(d),True)
+        phan["PE"]=600
+        la("đủ 600 sao kê thật mới hết chờ",hs._cho_doi_chieu_sau(d),False)
