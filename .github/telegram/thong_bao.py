@@ -247,16 +247,18 @@ CODEX = 'chatgpt-codex-connector[bot]'
 CHECK_DAT = ('success', 'neutral', 'skipped')
 
 
-def xet_san_sang_merge(pr, checks, chi_tiet, comments, so_sanh):
-    """PR đủ điều kiện merge chưa. Hàm THUẦN, không gọi mạng.
+def xet_san_sang_merge(pr, checks, chi_tiet, comments, so_sanh, tep):
+    """PR đủ điều kiện merge (và deploy) chưa. Hàm THUẦN, không gọi mạng.
 
     Đủ khi: không phải bản nháp, GitHub báo merge được (không xung đột), có
     check `bench` xanh và MỌI check trên đúng SHA đầu PR đã xong và đạt, VÀ SHA
     đầu PR đã gồm đầu nhánh nền hiện tại (`so_sanh` là /compare/<nền>...<sha>,
     behind_by == 0). Codex f5b07bb: mergeable chỉ nói không xung đột; PR chậm hơn
     main thì bench xanh là bench của bản chưa hợp nhất, chưa được báo.
-    Codex chỉ ghi kèm trạng thái, không phải điều kiện: anh Việt cần biết bench
-    xanh để vào lệnh, còn Codex đạt hay chưa thì tin ghi rõ.
+    Anh Việt 15/10/2026 (lần 2): chỉ báo khi ĐỦ để vào lệnh, nên Codex phải rà đạt
+    ĐÚNG SHA đầu PR ("Didn't find any major issues" kèm SHA). `tep` là danh sách
+    tên tệp PR đổi: có tệp trong vagabond/ thì cần deploy app, tin ghi "merge và
+    deploy"; chỉ đổi .github/, docs/... thì merge là xong, tin nói không cần deploy.
     Trả None hoặc dict(at, text, signature).
     """
     sha = (pr.get('head') or {}).get('sha') or ''
@@ -282,14 +284,16 @@ def xet_san_sang_merge(pr, checks, chi_tiet, comments, so_sanh):
         if (c.get('user', {}).get('login') == CODEX and sha[:10] in body
                 and "Didn't find any major issues" in body):
             codex = c.get('created_at') or ''
-    if codex:
-        at = max(at, codex)
+    if not codex:
+        return None
+    at = max(at, codex)
     so = pr['number']
-    text = (f"Vagabond | PR #{so} đủ điều kiện merge\n{rut(pr.get('title', ''))}"
-            f"\nBench xanh, mọi kiểm tra đạt, không xung đột. SHA {sha[:9]}, đã gồm main {nen[:9]}."
-            + ('\nCodex: đã rà đạt đúng SHA này.' if codex else '\nCodex: chưa báo rà đạt cho SHA này.')
-            + f"\nVào Cowork nhắn: merge #{so}\n{WEB}/pull/{so}")
-    return {'at': at, 'text': text, 'signature': ma([sha, nen, bool(codex)])}
+    can_deploy = any(str(f or '').startswith('vagabond/') for f in (tep or []))
+    text = (f"Vagabond | PR #{so} đủ điều kiện merge" + (' và deploy' if can_deploy else ' (không cần deploy app)')
+            + f"\n{rut(pr.get('title', ''))}"
+            f"\nBench và CI xanh, Codex rà đạt, không xung đột, đã gồm main {nen[:9]}. SHA {sha[:9]}."
+            + f"\nVào Cowork nhắn: merge{' và deploy' if can_deploy else ''} #{so}\n{WEB}/pull/{so}")
+    return {'at': at, 'text': text, 'signature': ma([sha, nen, can_deploy])}
 
 
 def thu_thap(gh, state):
@@ -382,8 +386,8 @@ def thu_thap(gh, state):
             them('review:' + str(r['id']) + ':' + r['state'], r.get('submitted_at'),
                  f"Vagabond | Review PR #{number}\nTừ: {rut(r['user']['login'], 60)}"
                  f"\nKết quả GitHub: {r['state']}\n{WEB}/pull/{number}#pullrequestreview-{r['id']}")
-    # Báo PR đủ điều kiện merge (anh Việt 15/10/2026): một tin cho mỗi SHA đầu PR,
-    # thêm một tin khi Codex rà đạt sau. Chỉ kênh riêng, nhóm bộ phận không nhận.
+    # Báo PR đủ điều kiện merge và deploy (anh Việt 15/10/2026): một tin cho mỗi SHA
+    # đầu PR, chỉ khi Codex đã rà đạt đúng SHA đó. Chỉ kênh riêng, nhóm bộ phận không nhận.
     for number, pr in prs.items():
         sha = (pr.get('head') or {}).get('sha')
         if not sha or pr.get('draft'):
@@ -398,7 +402,8 @@ def thu_thap(gh, state):
             continue
         # So đầu nhánh nền HIỆN TẠI với đúng SHA đã chạy bench (Codex f5b07bb).
         so_sanh = gh.goi('/compare/' + urllib.parse.quote(nen, safe='/') + '...' + sha + '?per_page=1')
-        kq = xet_san_sang_merge(pr, checks, chi_tiet, gh.trang('/issues/' + str(number) + '/comments'), so_sanh)
+        tep = [f.get('filename') for f in gh.trang('/pulls/' + str(number) + '/files')]
+        kq = xet_san_sang_merge(pr, checks, chi_tiet, gh.trang('/issues/' + str(number) + '/comments'), so_sanh, tep)
         if kq:
             entity = 'san-sang-merge:' + str(number)
             # Khoá ỔN ĐỊNH theo PR và chữ ký (SHA, Codex), để lượt gửi lại sau khi mất

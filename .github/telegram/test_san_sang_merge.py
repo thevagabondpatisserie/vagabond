@@ -1,4 +1,9 @@
-"""Anh Việt 15/10/2026: báo Telegram khi bench xanh, PR đủ điều kiện merge."""
+"""Anh Việt 15/10/2026: báo Telegram khi PR đủ điều kiện merge và deploy.
+
+Lần 2 trong ngày anh chốt: chỉ báo khi ĐỦ để vào lệnh (bench, CI xanh, gồm main mới,
+Codex rà đạt đúng SHA). PR có đổi app (thư mục vagabond/) thì tin ghi "merge và
+deploy"; PR chỉ đổi .github/ hay docs/ thì ghi rõ không cần deploy app.
+"""
 import copy
 import unittest
 from unittest.mock import patch
@@ -24,6 +29,10 @@ def check(name, conclusion='success', status='completed', sha=SHA, at='2026-09-1
     return {'name': name, 'status': status, 'conclusion': conclusion, 'head_sha': sha, 'completed_at': at}
 
 
+APP = ['vagabond/public/js/bep/51-cai-dat-loi.js', 'vagabond/patches.txt']
+KHONG_APP = ['.github/telegram/thong_bao.py', 'docs/thong-bao-telegram.md']
+
+
 def du(sha=SHA):
     return [check('kiem-thu', sha=sha), check('claude-review', sha=sha), check('bench', sha=sha)]
 
@@ -44,7 +53,8 @@ class Kho:
         self.chi_tiet = {'mergeable': True, 'state': 'open', 'draft': False, 'head': {'sha': SHA},
                          'base': {'ref': 'main'}}
         self.so_sanh = ss()
-        self.comments = []
+        self.comments = [codex()]
+        self.tep = [{'filename': f} for f in APP]
         self.goi_den = []
 
     def doc(self):
@@ -64,6 +74,8 @@ class Kho:
             return [c for c in self.checks if path == '/commits/' + c['head_sha'] + '/check-runs']
         if path == '/issues/477/comments':
             return self.comments
+        if path == '/pulls/477/files':
+            return self.tep
         return []
 
     def goi(self, path, *args, **kw):
@@ -87,11 +99,20 @@ class Bot:
 
 class XetThuan(unittest.TestCase):
     def test_du_dieu_kien_va_codex_dat(self):
-        kq = xet_san_sang_merge(pr(), du(), {'mergeable': True, 'state': 'open', 'head': {'sha': SHA}}, [codex()], ss())
-        self.assertIn('PR #477 đủ điều kiện merge', kq['text'])
-        self.assertIn('Codex: đã rà đạt đúng SHA này.', kq['text'])
-        self.assertIn('merge #477', kq['text'])
+        kq = xet_san_sang_merge(pr(), du(), {'mergeable': True, 'state': 'open', 'head': {'sha': SHA}}, [codex()], ss(), APP)
+        self.assertIn('PR #477 đủ điều kiện merge và deploy', kq['text'])
+        self.assertIn('Codex rà đạt', kq['text'])
+        self.assertIn('Vào Cowork nhắn: merge và deploy #477', kq['text'])
         self.assertEqual(kq['at'], '2026-09-12T00:01:30Z')
+
+    def test_chi_doi_github_va_docs_thi_khong_can_deploy(self):
+        # Anh Việt 15/10: PR như #479 (chỉ .github/ và docs/) merge xong là xong, không
+        # có gì để deploy lên Frappe Cloud. Tin phải nói rõ, không bảo nhắn deploy.
+        kq = xet_san_sang_merge(pr(), du(), {'mergeable': True, 'state': 'open', 'head': {'sha': SHA}}, [codex()], ss(), KHONG_APP)
+        self.assertIn('PR #477 đủ điều kiện merge', kq['text'])
+        self.assertIn('không cần deploy app', kq['text'])
+        self.assertIn('Vào Cowork nhắn: merge #477', kq['text'])
+        self.assertNotIn('deploy #477', kq['text'])
 
     def test_chua_du_thi_khong_bao(self):
         ok = {'mergeable': True, 'state': 'open', 'head': {'sha': SHA}}
@@ -110,7 +131,7 @@ class XetThuan(unittest.TestCase):
         }
         for ten, (p, c, ct) in ca.items():
             with self.subTest(ten):
-                self.assertIsNone(xet_san_sang_merge(p, c, ct, [], ss()))
+                self.assertIsNone(xet_san_sang_merge(p, c, ct, [codex()], ss(), APP))
 
     def test_codex_f5b07bb_chua_gom_main_moi_thi_khong_bao(self):
         ok = {'mergeable': True, 'state': 'open', 'head': {'sha': SHA}}
@@ -124,20 +145,21 @@ class XetThuan(unittest.TestCase):
         }
         for ten, so in ca.items():
             with self.subTest(ten):
-                self.assertIsNone(xet_san_sang_merge(pr(), du(), ok, [], so))
+                self.assertIsNone(xet_san_sang_merge(pr(), du(), ok, [codex()], so, APP))
         for st in ('ahead', 'identical'):
             with self.subTest(st):
-                self.assertIn('đã gồm main ' + MAIN[:9], xet_san_sang_merge(pr(), du(), ok, [], ss(status=st))['text'])
+                self.assertIn('đã gồm main ' + MAIN[:9], xet_san_sang_merge(pr(), du(), ok, [codex()], ss(status=st), APP)['text'])
         # Biên nhận gồm SHA nền: cùng SHA đầu, nền khác thì chữ ký khác.
-        self.assertNotEqual(xet_san_sang_merge(pr(), du(), ok, [], ss(MAIN))['signature'],
-                            xet_san_sang_merge(pr(), du(), ok, [], ss(MAIN2))['signature'])
+        self.assertNotEqual(xet_san_sang_merge(pr(), du(), ok, [codex()], ss(MAIN), APP)['signature'],
+                            xet_san_sang_merge(pr(), du(), ok, [codex()], ss(MAIN2), APP)['signature'])
 
-    def test_codex_dat_sha_khac_hoac_co_gop_y_khong_tinh(self):
+    def test_codex_chua_dat_dung_sha_thi_chua_bao(self):
+        # Anh Việt 15/10 lần 2: tin là lúc anh vào lệnh được, nên Codex chưa rà đạt ĐÚNG
+        # SHA đầu PR thì chưa báo (đạt SHA cũ, đang có góp ý, hay chưa rà).
         ok = {'mergeable': True, 'state': 'open', 'head': {'sha': SHA}}
-        for cm in ([codex(SHA2)], [codex(dat=False)]):
-            with self.subTest(cm[0]['body'][:20]):
-                kq = xet_san_sang_merge(pr(), du(), ok, cm, ss())
-                self.assertIn('Codex: chưa báo rà đạt cho SHA này.', kq['text'])
+        for ten, cm in (('đạt SHA khác', [codex(SHA2)]), ('có góp ý', [codex(dat=False)]), ('chưa rà', [])):
+            with self.subTest(ten):
+                self.assertIsNone(xet_san_sang_merge(pr(), du(), ok, cm, ss(), APP))
 
 
 class ThuThapVaGui(unittest.TestCase):
@@ -146,24 +168,25 @@ class ThuThapVaGui(unittest.TestCase):
         p.start()
         self.addCleanup(p.stop)
 
-    def test_mot_tin_moi_sha_them_tin_khi_codex_dat(self):
+    def test_chi_bao_mot_tin_khi_du_ca_codex_moi_sha_mot_tin(self):
         kho, bot = Kho(), Bot()
+        kho.comments = []
+        # Bench, CI xanh mà Codex chưa rà đạt: im lặng.
+        self.assertEqual(chay(kho, bot, '1'), 0)
+        # Codex rà đạt đúng SHA: đúng một tin, ghi merge và deploy.
+        kho.comments = [codex()]
         self.assertEqual(chay(kho, bot, '1'), 1)
-        self.assertIn('đủ điều kiện merge', bot.sent[-1][1])
-        self.assertIn('chưa báo rà đạt', bot.sent[-1][1])
+        self.assertIn('đủ điều kiện merge và deploy', bot.sent[-1][1])
         # Lượt sau không có gì mới: im lặng, kể cả khi seen đã bị tỉa.
         self.assertEqual(chay(kho, bot, '1'), 0)
         kho.state['seen'] = {}
         self.assertEqual(chay(kho, bot, '1'), 0)
-        # Codex rà đạt sau: thêm đúng một tin.
-        kho.comments = [codex()]
-        self.assertEqual(chay(kho, bot, '1'), 1)
-        self.assertIn('Codex: đã rà đạt', bot.sent[-1][1])
-        # Đẩy SHA mới, bench xanh lại: tin mới cho SHA mới.
+        # Đẩy SHA mới, bench xanh lại: chưa báo cho tới khi Codex đạt SHA mới.
         kho.pr = pr(SHA2)
         kho.checks = du(SHA2)
         kho.chi_tiet = {'mergeable': True, 'state': 'open', 'head': {'sha': SHA2}, 'base': {'ref': 'main'}}
-        kho.comments = []
+        self.assertEqual(chay(kho, bot, '1'), 0)
+        kho.comments = [codex(), codex(SHA2, at='2026-09-12T00:01:40Z')]
         self.assertEqual(chay(kho, bot, '1'), 1)
         self.assertIn(SHA2[:9], bot.sent[-1][1])
 
@@ -215,6 +238,7 @@ class ThuThapVaGui(unittest.TestCase):
         kho.checks = du(SHA2)
         kho.chi_tiet = dict(kho.chi_tiet, head={'sha': SHA2})
         kho.so_sanh = ss(MAIN2)
+        kho.comments = [codex(SHA2)]
         self.assertEqual(chay(kho, bot, '1'), 1)
         self.assertIn('đã gồm main ' + MAIN2[:9], bot.sent[-1][1])
         self.assertIn('/compare/main...' + SHA2 + '?per_page=1', kho.goi_den)
