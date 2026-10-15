@@ -1592,8 +1592,19 @@ async function cnKhopBo(d, maLan) {
       delete CN_BO_CHO[d.name]; delete CN_LAN_CHO[d.name];
       await baoTin(kq.loi_nhan || 'Đã lập phiếu thu nháp.');
       go(function () { scrCnPhieu(d.name); }, true);
-    } catch(e) { await baoTin(((e && e.message) || 'Chưa nhận được kết quả.') +
-      '\nBấm lại để kiểm đúng lần thu đang gửi, không tạo thêm phiếu.'); }
+    } catch(e) {
+      /* #477 (Codex): máy chủ đã trả lời từ chối (4xx) là kết quả chắc chắn,
+         giữ payload cũ thì bấm lại mãi vẫn hỏng. Chỉ giữ khi không rõ kết quả
+         (mất mạng, hết giờ, máy chủ bận 5xx). */
+      var chac = e && e.status >= 400 && e.status < 500;
+      if (chac) {
+        delete CN_BO_CHO[d.name];
+        return baoTin(((e && e.message) || 'Máy chủ từ chối lần thu này.') +
+          '\nMáy chưa lập phiếu thu nào. Bấm Khớp tay để chọn lại sao kê.');
+      }
+      await baoTin(((e && e.message) || 'Chưa nhận được kết quả.') +
+        '\nBấm lại để kiểm đúng lần thu đang gửi, không tạo thêm phiếu.');
+    }
   }
   if (dangCho) return gui(dangCho.dong,dangCho.tien);
   return scrKhopSepay({loai:'cong_no',ma:d.name,tien_ky:ky,chon:gui});
