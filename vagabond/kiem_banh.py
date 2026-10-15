@@ -581,6 +581,8 @@ def dong_bo(ngay=None):
 	dd_don = [o for o in chot_don if o.get("id") not in ma_tao_hom_nay]
 	# Mo so TRUOC khi dem: phep dem can biet bang dang theo doi nhung ma nao,
 	# de dem ca don cua dong bep them tay (Patechaud, banh le, BTP).
+	from vagabond import giu_ton_web
+	giu_ton_web.khoa()
 	doc = _lay_hoac_tao(ngay)
 	dang_theo_doi = {str(d.ma_hang or "").upper() for d in doc.dong if d.ma_hang}
 
@@ -660,6 +662,8 @@ def dong_bo(ngay=None):
 
 	doc.dong_bo_luc = now_datetime()
 	doc.save(ignore_permissions=True)
+	giu_ton_web.da_dem(ngay, [o.get("id") for o in
+		(giao_hom_nay if str(ngay)[:10] == str(giu_ton_web.hom_nay()) else dd_don)])
 	frappe.db.commit()
 	return bang(ngay)
 

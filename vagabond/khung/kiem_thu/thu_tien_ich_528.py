@@ -89,7 +89,7 @@ def _xep():
 
 def _bt(name, date, mo_ta, tien=TIEN, tk="MB-CTY", ref="FT26265054275377"):
 	return _D(name=name, date=date, description=mo_ta, reference_number=ref, withdrawal=tien,
-		deposit=0, bank_account=tk, docstatus=1, flags=_D())
+		deposit=0, bank_account=tk, docstatus=1, currency="VND", flags=_D())
 
 
 class _San:
@@ -102,7 +102,7 @@ class _San:
 		self.mau = dict(mau or {})
 		self.dung_roi = set(dung_roi)
 		self.nhat_ky = []
-		self.doc = _D(name=APP, ngay="2026-09-22", nha_cung_cap=ncc, ten_ncc="Cấp nước Bến Thành",
+		self.doc = _D(doctype="Vagabond Ho So TT", name=APP, ngay="2026-09-22", nha_cung_cap=ncc, ten_ncc="Cấp nước Bến Thành",
 			ma_giao_dich=ma_gd, trang_thai="Da duyet")
 		self.doc.save = lambda **k: None
 		self.doc.add_comment = lambda loai, noi: self.nhat_ky.append((APP, noi))
@@ -138,7 +138,8 @@ class _San:
 			if "bank_account" in filters:
 				ra = [b for b in ra if b.bank_account in filters["bank_account"][1]]
 			if "withdrawal" in filters:
-				ra = [b for b in ra if abs(b.withdrawal - filters["withdrawal"]) < 0.001]
+				v = filters["withdrawal"]
+				ra = [b for b in ra if b.withdrawal > v[1]] if isinstance(v,list) and v[0] == ">" else [b for b in ra if abs(b.withdrawal-v)<0.001]
 			if "date" in filters:
 				ra = [b for b in ra if b.date >= filters["date"][1]]
 			if "reference_number" in filters:
@@ -156,6 +157,8 @@ class _San:
 	def get_doc(self, dt, ten=None, for_update=False):
 		if dt == "Bank Transaction":
 			return self.bts[ten]
+		if dt == "Vagabond Ho So TT":
+			return self.doc
 		if dt == "Supplier":
 			return NS(add_comment=lambda loai, noi: self.nhat_ky.append((ten, noi)))
 		raise AssertionError("get_doc lạ: " + dt)
@@ -164,7 +167,9 @@ class _San:
 		if dt == "Supplier":
 			return ten if o == "name" else self.mau.get(ten)
 		if dt == "Bank Transaction":
-			return ten
+			return None if o == "vgb_chu_bo_sao_ke" else ten
+		if dt == "Vagabond Ho So TT" and o == "vgb_bo_sao_ke":
+			return None
 		raise AssertionError("get_value lạ: " + dt)
 
 	def set_value(self, dt, ten, o, gt, **k):
@@ -173,8 +178,15 @@ class _San:
 
 	def chay(self, ham):
 		dca = self.dca
-		kiem = lambda g, doc, nguon: ("Giao dịch đã được APP.26.09.050 sử dụng." if g.name in self.dung_roi else "")
-		with unittest.mock.patch.object(dca, "frappe", self.f), \
+		kiem = lambda g, doc, nguon, **kw: ("Giao dịch đã được APP.26.09.050 sử dụng." if g.name in self.dung_roi else "")
+		from vagabond import bo_sao_ke_db as bs
+		with unittest.mock.patch.object(bs,"khoa_phieu"), \
+				unittest.mock.patch.object(bs,"luu"), \
+				unittest.mock.patch.object(bs,"con_lai",side_effect=lambda g,*a,**k:g.withdrawal), \
+				unittest.mock.patch("frappe.get_doc",self.get_doc), \
+				unittest.mock.patch.object(dca, "frappe", self.f), \
+				unittest.mock.patch("vagabond.ho_so_tt._kiem", return_value=None), \
+				unittest.mock.patch("frappe.db.get_value", self.get_value), \
 				unittest.mock.patch.object(dca, "_nguon", lambda doc: ("VGB", "1121 - MB", TIEN)), \
 				unittest.mock.patch.object(dca, "_kiem", kiem), \
 				unittest.mock.patch.object(dca, "_ho_so", lambda name, khoa=False: self.doc), \

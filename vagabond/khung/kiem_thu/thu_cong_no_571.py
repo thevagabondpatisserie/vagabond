@@ -115,7 +115,7 @@ def _dung_he(hd=None, pe_cu=None, nhap=None, bank=None, bt=None):
 	moc = {
 		"get_all": fr.get_all, "new_doc": getattr(fr, "new_doc", None),
 		"set_user": getattr(fr, "set_user", None), "user": fr.session.user,
-		"get_value": fr.db.get_value, "exists": fr.db.exists,
+		"get_value": fr.db.get_value, "exists": fr.db.exists, "sql": fr.db.sql,
 	}
 	hd = HD if hd is None else hd
 
@@ -161,8 +161,16 @@ def _dung_he(hd=None, pe_cu=None, nhap=None, bank=None, bt=None):
 			nk.append(("khoa", dt, ten))
 		if dt == "Bank Account":
 			return Doi(bank or {"account": "1121 - MB - TV", "company": "TV", "is_company_account": 1})
+		if dt == "Sales Invoice":
+			return next((Doi(h, docstatus=1) for h in hd if h.name == ten), None)
 		return None
 	fr.db.get_value = get_value
+	def sql(q, values=None, **kw):
+		if 'tabPayment Entry Reference' in q and 'for update' in q:
+			nk.append(("doc_nhap",))
+			return [Doi(r) for r in nhap or [] if r.reference_name in values['ten']]
+		return moc['sql'](q, values, **kw)
+	fr.db.sql = sql
 	fr.db.exists = lambda *a, **k: True
 	fr.session.user = "ntla.3008@gmail.com"
 	fr.generate_hash = lambda length=8, **k: "x" * length
@@ -192,6 +200,7 @@ def _dung_he(hd=None, pe_cu=None, nhap=None, bank=None, bt=None):
 		fr.set_user = moc["set_user"]
 		fr.session.user = moc["user"]
 		fr.db.get_value = moc["get_value"]
+		fr.db.sql = moc["sql"]
 		fr.db.exists = moc["exists"]
 		tt.phieu_thu_nhap = moc["ptn"]
 		tt.soat_tep_unc_moi = moc["soat"]
@@ -293,11 +302,58 @@ def _():
 
 
 class PhieuNo(Doi):
+	doctype = "Vagabond Cong No"
+	def reload(self):return self
+	def set(self,k,v):self[k]=v
 	def save(self, **k):
 		self["_nk"].append(("luu_phieu", self.trang_thai))
 
 	def add_comment(self, *a, **k):
 		self["_nk"].append(("binh_luan", a[1] if len(a) > 1 else ""))
+
+
+from contextlib import contextmanager
+
+@contextmanager
+def _cua_bo_gia(doc,g):
+	"""Thay lưu/khóa DB; chon/xet_bo và luồng công nợ vẫn chạy thật."""
+	from contextlib import ExitStack
+	from unittest.mock import patch
+	from vagabond import bo_sao_ke_db as bs, bo_sao_ke_thu as bst
+	import json
+	if g:g=Doi(g,withdrawal=0,flags=Doi())
+	old_value=fr.db.get_value
+	before=doc.get(bs.O_BO)
+	def value(dt,n,field=None,**kw):
+		if dt=="Bank Transaction" and g:return g.get(field)
+		return old_value(dt,n,field,**kw)
+	def luu(d,ds,ct=None):
+		b=dict(dong=ds,chung_tu=ct or [])
+		d.set(bs.O_BO,json.dumps(b))
+		return b
+	with ExitStack() as st:
+		st.enter_context(patch.object(fr,"get_doc",side_effect=lambda dt,*a,**k:g if dt=="Bank Transaction" else doc))
+		st.enter_context(patch.object(fr.db,"get_value",side_effect=value))
+		st.enter_context(patch.object(fr.db,"exists",side_effect=lambda dt,*a,**k:False if dt=="Comment" else True))
+		st.enter_context(patch.object(fr.db,"after_commit",Doi(add=lambda f:None),create=True))
+		st.enter_context(patch.object(bs,"khoa_phieu"))
+		st.enter_context(patch.object(bs,"con_lai",side_effect=lambda b,*a,**k:b.deposit))
+		st.enter_context(patch.object(bs,"luu",side_effect=luu))
+		# Các ca này đo trạng thái/ghi tiền. Nguồn và chủ có bộ ca riêng.
+		st.enter_context(patch.object(bst,"kiem_nguon",return_value=""))
+		st.enter_context(patch.object(bst,"nguon_lap",side_effect=lambda d:(g,d,bs.doc_hien_tai(d))))
+		st.enter_context(patch.object(bst,"gan_chu"))
+		try:yield
+		except Exception:
+			doc.set(bs.O_BO,before)
+			raise
+
+
+def _khop_tay(name,so_tien,ma_giao_dich="",*args,**kwargs):
+	if not ma_giao_dich:return cn.khop_tay(name,so_tien,ma_giao_dich,*args,**kwargs)
+	doc=fr.get_doc("Vagabond Cong No",name)
+	with _cua_bo_gia(doc,tt.tim_giao_dich(ma_giao_dich)):
+		return cn.khop_tay(name,so_tien,ma_giao_dich,*args,**kwargs)
 
 
 @ca("v571: khop_tay lập phiếu thu TRƯỚC, hỏng thì phiếu đòi nợ KHÔNG bị đánh dấu đã thu")
@@ -313,7 +369,7 @@ def _():
 	fr.get_doc = lambda *a, **k: doc
 	cn._kiem_quyen_ban = lambda: None
 	cn._giu_gd = lambda d, ds: "FT26277123"
-	tt.tim_giao_dich = lambda ma: GD
+	tt.tim_giao_dich = lambda ma, **kw: GD
 	cn._gui_thu_da_nhan = lambda d: None
 	cn.ghi_thu_cho_phieu = lambda *a, **k: nk.append(("ghi_thu_cu",))
 
@@ -322,17 +378,17 @@ def _():
 		raise fr.ValidationError("Giao dịch FT26277123 đã nối với chứng từ khác.")
 	tt.lap_phieu_thu_theo_gd = lap_hong
 	try:
-		nem("lỗi lập phiếu được báo ra", lambda: cn.khop_tay(doc.name, 7600000, "FT26277123"), fr.ValidationError)
+		nem("lỗi lập phiếu được báo ra", lambda: _khop_tay(doc.name, 7600000, "FT26277123"), fr.ValidationError)
 		la("phiếu đòi nợ KHÔNG lưu", [x for x in nk if x[0] == "luu_phieu"], [])
 		la("vẫn Chờ thu", doc.trang_thai, "Cho thu")
 
-		def lap_ok(cac_si, g, so, gc=""):
+		def lap_ok(cac_si, g, so, gc="", **kw):
 			nk.append(("lap", tuple(cac_si)))
 			# Phiếu nháp thật phủ đủ hai tờ: da_thu được tính lại từ đây.
 			nhap.extend(Doi(reference_name=h.name, allocated_amount=h.outstanding_amount) for h in HD)
 			return {"pe": "APP-1", "hd": [(s, 1) for s in cac_si], "ma_gd": "FT26277123", "tien": 7600000.0}
 		tt.lap_phieu_thu_theo_gd = lap_ok
-		kq = cn.khop_tay(doc.name, 7600000, "FT26277123")
+		kq = _khop_tay(doc.name, 7600000, "FT26277123")
 		buoc = [x[0] for x in nk]
 		dung("lập trước khi lưu phiếu", buoc.index("lap", 1) < buoc.index("luu_phieu"))
 		la("lập cho CẢ HAI hoá đơn", [x for x in nk if x[0] == "lap" and len(x) > 1][0][1],
@@ -362,12 +418,12 @@ def _():
 	fr.get_doc = lambda *a, **k: doc
 	cn._kiem_quyen_ban = lambda: None
 	cn._giu_gd = lambda d, ds: "FT26277123"
-	tt.tim_giao_dich = lambda ma: GD
+	tt.tim_giao_dich = lambda ma, **kw: GD
 	cn._gui_thu_da_nhan = lambda d: nk.append(("gui_thu",))
-	tt.lap_phieu_thu_theo_gd = lambda cac_si, g, so, gc="": (
-		nk.append(("lap", tuple(cac_si))) or {"pe": "APP-1", "hd": [], "ma_gd": "FT"})
+	tt.lap_phieu_thu_theo_gd = lambda cac_si, g, so, gc="", **kw: (
+		nk.append(("lap", tuple(cac_si))) or {"pe": "APP-1", "hd": [], "ma_gd": "FT", "tien":7600000})
 	try:
-		kq = cn.khop_tay(doc.name, 7600000, "FT26277123")
+		kq = _khop_tay(doc.name, 7600000, "FT26277123")
 		la("đã lập phiếu thu", kq["pe"], "APP-1")
 		la("không gửi lại thư báo nhận tiền lần hai", [x for x in nk if x[0] == "gui_thu"], [])
 	finally:
@@ -394,10 +450,10 @@ def _():
 	fr.get_doc = lambda *a, **k: doc
 	cn._kiem_quyen_ban = lambda: None
 	cn._giu_gd = lambda d, ds: "FT-SAI"
-	tt.tim_giao_dich = lambda ma: None
+	tt.tim_giao_dich = lambda ma, **kw: None
 	cn.ghi_thu_cho_phieu = lambda *a, **k: nk.append(("ghi_thu_cu",))
 	try:
-		nem("báo lỗi", lambda: cn.khop_tay(doc.name, 7600000, "FT-SAI"), fr.ValidationError)
+		nem("báo lỗi", lambda: _khop_tay(doc.name, 7600000, "FT-SAI"), fr.ValidationError)
 		la("không lưu phiếu", [x for x in nk if x[0] == "luu_phieu"], [])
 		la("không đi lối cũ", [x for x in nk if x[0] == "ghi_thu_cu"], [])
 		la("vẫn Chờ thu", doc.trang_thai, "Cho thu")
@@ -444,12 +500,12 @@ def _():
 	fr.get_doc = lambda *a, **k: doc
 	cn._kiem_quyen_ban = lambda: None
 	cn._giu_gd = lambda d, ds: "FT2"
-	tt.tim_giao_dich = lambda ma: GD
+	tt.tim_giao_dich = lambda ma, **kw: Doi(GD,deposit=5600000.0,unallocated_amount=5600000.0)
 	cn._gui_thu_da_nhan = lambda d: None
-	tt.lap_phieu_thu_theo_gd = lambda cac_si, g, so, gc="": (
-		nk.append(("lap", tuple(sorted(cac_si)))) or {"pe": "APP-2", "hd": [], "ma_gd": "FT2"})
+	tt.lap_phieu_thu_theo_gd = lambda cac_si, g, so, gc="", **kw: (
+		nk.append(("lap", tuple(sorted(cac_si)))) or {"pe": "APP-2", "hd": [], "ma_gd": "FT2", "tien":5600000})
 	try:
-		cn.khop_tay(doc.name, 5600000, "FT2")
+		_khop_tay(doc.name, 5600000, "FT2")
 		la("đưa cả hai tờ", [x[1] for x in nk if x[0] == "lap"], [("HDB-26-09-01679", "HDB-26-09-02477")])
 	finally:
 		fr.get_doc = moc["get_doc"]
@@ -489,17 +545,17 @@ def _():
 	fr.get_doc = lambda *a, **k: doc
 	cn._kiem_quyen_ban = lambda: None
 	cn._giu_gd = lambda d, ds: "FT2"
-	tt.tim_giao_dich = lambda ma: Doi(GD, name="BT-2", deposit=5600000.0, unallocated_amount=5600000.0)
+	tt.tim_giao_dich = lambda ma, **kw: Doi(GD, name="BT-2", deposit=5600000.0, unallocated_amount=5600000.0)
 	cn._gui_thu_da_nhan = lambda d: None
 
-	def lap(cac_si, g, so, gc=""):
+	def lap(cac_si, g, so, gc="", **kw):
 		# Phiếu nháp mới đi vào sổ như thật: thêm phân bổ cho phần còn lại.
 		nhap.append(Doi(reference_name="HDB-26-09-01679", allocated_amount=2750000.0))
 		nhap.append(Doi(reference_name="HDB-26-09-02477", allocated_amount=2850000.0))
 		return {"pe": "APP-2", "hd": [], "ma_gd": "FT2", "tien": 5600000.0}
 	tt.lap_phieu_thu_theo_gd = lap
 	try:
-		cn.khop_tay(doc.name, 5600000, "FT2")
+		_khop_tay(doc.name, 5600000, "FT2")
 		la("đã thu cộng dồn", doc.da_thu, 7600000.0)
 		la("đã thu đủ", doc.trang_thai, "Da thu du")
 	finally:
@@ -547,16 +603,16 @@ def _():
 	fr.get_doc = lambda *a, **k: doc
 	cn._kiem_quyen_ban = lambda: None
 	cn._giu_gd = lambda d, ds: "FT2"
-	tt.tim_giao_dich = lambda ma: Doi(GD, name="BT-2", deposit=5600000.0, unallocated_amount=5600000.0)
+	tt.tim_giao_dich = lambda ma, **kw: Doi(GD, name="BT-2", deposit=5600000.0, unallocated_amount=5600000.0)
 	cn._gui_thu_da_nhan = lambda d: nk.append(("gui_thu",))
 
-	def lap(cac_si, g, so, gc=""):
+	def lap(cac_si, g, so, gc="", **kw):
 		nhap.append(Doi(reference_name="HDB-26-09-01679", allocated_amount=2750000.0, pe="APP-2"))
 		nhap.append(Doi(reference_name="HDB-26-09-02477", allocated_amount=2850000.0, pe="APP-2"))
 		return {"pe": "APP-2", "hd": [], "ma_gd": "FT2", "tien": 5600000.0}
 	tt.lap_phieu_thu_theo_gd = lap
 	try:
-		cn.khop_tay(doc.name, 5600000, "FT2")
+		_khop_tay(doc.name, 5600000, "FT2")
 		la("chỉ tính phần đã xác minh", doc.da_thu, 5600000.0)
 		la("vẫn Thu thiếu", doc.trang_thai, "Thu thieu")
 		la("không gửi thư đã nhận đủ", [x for x in nk if x[0] == "gui_thu"], [])
@@ -606,15 +662,15 @@ def _():
 	fr.get_doc = lambda *a, **k: doc
 	cn._kiem_quyen_ban = lambda: None
 	cn._giu_gd = lambda d, ds: "FT1"
-	tt.tim_giao_dich = lambda ma: GD
+	tt.tim_giao_dich = lambda ma, **kw: GD
 	cn._gui_thu_da_nhan = lambda d: None
 
-	def lap(cac_si, g, so, gc=""):
+	def lap(cac_si, g, so, gc="", **kw):
 		nhap.extend(Doi(reference_name=h.name, allocated_amount=h.outstanding_amount, pe="APP-1") for h in HD)
 		return {"pe": "APP-1", "hd": [(h.name, h.outstanding_amount) for h in HD], "ma_gd": "FT1", "tien": 7600000.0}
 	tt.lap_phieu_thu_theo_gd = lap
 	try:
-		kq = cn.khop_tay(doc.name, 1000000, "FT1")
+		kq = _khop_tay(doc.name, 1000000, "FT1")
 		bl = [x[1] for x in nk if x[0] == "binh_luan"]
 		dung("bình luận ghi 7.600.000, được " + str(bl), bl and "7.600.000" in bl[0])
 		dung("câu báo ghi 7.600.000", "7.600.000" in kq["loi_nhan"])
@@ -644,15 +700,16 @@ def _():
 	fr.get_doc = lambda dt, *a, **k: Doi(name=a[0] if a else "", reference_number="FT-S") if dt == "Bank Transaction" else doc
 	cn._kiem_quyen_ban = lambda: None
 	cn._giu_gd = lambda d, ds: "\n".join(ds)
-	cn._sepay_cn = lambda ma: {"nhan": 5600000.0, "so_gd": 1, "gd": ["BT-S"]}
+	cn._sepay_cn = lambda ma, **kw: {"nhan": 5600000.0, "so_gd": 1, "gd": ["BT-S"]}
 	cn._gui_thu_da_nhan = lambda d: None
-	tt.lap_phieu_thu_theo_gd = lambda cac_si, g, so, gc="", **k: nk.append(("lap_nhap", g.name, so)) or {"pe": "APP-S"}
+	tt.lap_phieu_thu_theo_gd = lambda cac_si, g, so, gc="", **k: nk.append(("lap_nhap", k['chu_bo'].name, 5600000)) or {"pe": "APP-S", "tien":5600000}
 	cn.xem_phieu = lambda name: {}
 	try:
-		cn.kiem_sepay("P")
+		with _cua_bo_gia(doc,Doi(GD,name="BT-S",deposit=5600000,description=doc.ma_phieu)):
+			cn.kiem_sepay("P")
 		la("cộng dồn 7,6tr", doc.da_thu, 7600000.0)
 		la("phiếu thu nháp chỉ cho giao dịch MỚI về",
-			[x[1:] for x in nk if x[0] == "lap_nhap"], [("BT-S", 5600000.0)])
+			[x[1:] for x in nk if x[0] == "lap_nhap"], [("P", 5600000.0)])
 		la("đã thu đủ", doc.trang_thai, "Da thu du")
 		dung("giữ mã giao dịch SePay", "BT-S" in (doc.ma_gd or ""))
 	finally:
@@ -753,8 +810,8 @@ def _():
 	fr.db.exists = lambda dt, f=None, **k: dt == "Comment" and any(
 		f["content"][1].strip("%") in x[1] for x in nk if x[0] == "binh_luan")
 	try:
-		cn.khop_tay("P", 2000000, "", "khach dua tien mat", ma_lan="lan1", unc=UNC)
-		kq2 = cn.khop_tay("P", 2000000, "", "khach dua tien mat", ma_lan="lan1", unc=UNC)
+		_khop_tay("P", 2000000, "", "khach dua tien mat", ma_lan="lan1", unc=UNC)
+		kq2 = _khop_tay("P", 2000000, "", "khach dua tien mat", ma_lan="lan1", unc=UNC)
 		la("đã thu chỉ cộng một lần", doc.da_thu, 2000000.0)
 		la("chỉ một lần lập phiếu thu, khoá ổn định", [x[1:] for x in nk if x[0] == "ghi_thu"],
 			[(2000000.0, "tay:lan1")])
@@ -791,7 +848,7 @@ def _():
 	cn._gui_thu_da_nhan = lambda d: nk.append(("gui_thu",))
 	cn.ghi_thu_cho_phieu = lambda *a, **k: nk.append(("ghi_thu", k.get("so_tien"), k.get("khoa"))) or []
 	try:
-		cn.khop_tay("P2", 7600000, "", "chuyen khoan khong ve sao ke", ma_lan="sua1", unc=UNC)
+		_khop_tay("P2", 7600000, "", "chuyen khoan khong ve sao ke", ma_lan="sua1", unc=UNC)
 		la("đã lập phiếu thu cho phần sửa", [x[1:] for x in nk if x[0] == "ghi_thu"],
 			[(7600000.0, "tay:sua1")])
 		la("đã thu không cộng quá tổng", doc.da_thu, 7600000.0)
@@ -836,7 +893,7 @@ def _():
 	fr.db.exists = lambda dt, f=None, **k: dt == "Comment" and any(
 		f["content"][1].strip("%") in x[1] for x in nk if x[0] == "binh_luan")
 	try:
-		e = _bat(lambda: cn.khop_tay("P3", 7600000, "", "chuyen khoan", ma_lan="sua2", unc=UNC))
+		e = _bat(lambda: _khop_tay("P3", 7600000, "", "chuyen khoan", ma_lan="sua2", unc=UNC))
 		dung("phải báo lỗi", e is not None)
 		dung("báo lỗi có tên phiếu nháp đang chặn", "APP-NHAP-1" in str(e))
 		dung("chỉ đường cho người bấm", "Tiền đã về" in str(e))
@@ -871,7 +928,7 @@ def _():
 	fr.db.exists = lambda dt, f=None, **k: dt == "Comment" and any(
 		f["content"][1].strip("%") in x[1] for x in nk if x[0] == "binh_luan")
 	try:
-		cn.khop_tay("P4", 7600000, "", "chuyen khoan", ma_lan="sua3", unc=UNC)
+		_khop_tay("P4", 7600000, "", "chuyen khoan", ma_lan="sua3", unc=UNC)
 		la("lập phiếu thu phần chưa phủ, tờ cũ trước",
 			[x[1:] for x in nk if x[0] == "lap_phieu_thu"],
 			[("HDB-26-09-01679", 2750000.0), ("HDB-26-09-02477", 2850000.0)])
@@ -933,10 +990,10 @@ def _():
 	fr.db.exists = lambda dt, f=None, **k: dt == "Comment" and any(
 		f["content"][1].strip("%") in x for x in da_commit["binh_luan"])
 	try:
-		dung("lần đầu phải báo lỗi", _bat(lambda: cn.khop_tay("P5", 2000000, "", "khach dua", ma_lan="lanU2", unc=UNC)) is not None)
+		dung("lần đầu phải báo lỗi", _bat(lambda: _khop_tay("P5", 2000000, "", "khach dua", ma_lan="lanU2", unc=UNC)) is not None)
 		la("lỗi lần đầu: dấu lần khớp chưa được ghi bền", da_commit["binh_luan"], [])
 		la("lỗi lần đầu: phiếu chưa đổi", da_commit["phieu"]["da_thu"], 0.0)
-		kq = cn.khop_tay("P5", 2000000, "", "khach dua", ma_lan="lanU2", unc=UNC)
+		kq = _khop_tay("P5", 2000000, "", "khach dua", ma_lan="lanU2", unc=UNC)
 		dung("bấm lại cùng mã lần KHÔNG bị coi là đã làm", not kq.get("da_lam_roi"))
 		la("lần lại lập được phiếu thu", [x[1:] for x in nk if x[0] == "ghi_thu"], [(2000000.0, "tay:lanU2")])
 		la("đã thu cộng đúng một lần", da_commit["phieu"]["da_thu"], 2000000.0)
@@ -949,4 +1006,37 @@ def _():
 		cn._gui_thu_da_nhan = moc["gui"]
 		cn.ghi_thu_cho_phieu = moc["ghi"]
 		fr.db.exists = moc["ex"]
+		tra()
+
+
+@ca('#476 SI vừa hết nợ sau chờ khóa: không lập PE từ snapshot cũ')
+def _():
+	from unittest.mock import patch
+	nk, tra = _dung_he()
+	gv = fr.db.get_value
+	def moi(dt, ten, *a, **kw):
+		if dt == 'Sales Invoice' and kw.get('for_update'):
+			return Doi(next(h for h in HD if h.name == ten), docstatus=1, outstanding_amount=0)
+		return gv(dt, ten, *a, **kw)
+	try:
+		with patch.object(fr.db, 'get_value', moi):
+			nem('phải từ chối dư cũ', lambda: tt.lap_phieu_thu_theo_gd([h.name for h in HD], GD, 7600000), fr.ValidationError)
+		la('không lập PE', [r for r in nk if r[0]=='insert'], [])
+	finally:
+		tra()
+
+
+@ca('#476 PE nháp vừa commit sau chờ SI: locking read thấy đủ phần đã phủ')
+def _():
+	from unittest.mock import patch
+	nk, tra = _dung_he()  # Snapshot get_all không thấy PE của người trước.
+	def hien_tai(q, values=None, **kw):
+		if 'for update' in q and 'tabPayment Entry Reference' in q:
+			return [Doi(reference_name=h.name,allocated_amount=h.outstanding_amount) for h in HD]
+		return []
+	try:
+		with patch.object(fr.db, 'sql', hien_tai):
+			nem('không phủ lần hai', lambda: tt.lap_phieu_thu_theo_gd([h.name for h in HD], GD, 7600000), fr.ValidationError)
+		la('không lập PE', [r for r in nk if r[0]=='insert'], [])
+	finally:
 		tra()

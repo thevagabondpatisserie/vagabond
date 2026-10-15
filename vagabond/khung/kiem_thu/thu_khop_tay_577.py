@@ -542,6 +542,9 @@ def _he_sepay(lap):
 	th = Thay()
 
 	class PhieuNo(Doi):
+		doctype="Vagabond Cong No"
+		def reload(self):return self
+		def set(self,k,v):self[k]=v
 		def save(self, **k):
 			nk.append(("luu", self.trang_thai))
 
@@ -577,48 +580,49 @@ def _he_sepay(lap):
 	th.dat(cn, "xem_phieu", lambda name: {})
 	th.dat(tt, "xep_gui_thu", lambda ds: nk.append(("xep_thu", tuple(ds))))
 	th.dat(tt, "lap_phieu_thu_theo_gd", lambda cac_si, g, so, gc="", **k: lap(nk, cac_si, g, so, k))
+	from vagabond.khung.kiem_thu.thu_cong_no_571 import _cua_bo_gia, GD
+	ctx=_cua_bo_gia(doc,Doi(GD,name="BT-S",reference_number="FT-BT-S",deposit=13000000,
+		description=doc.ma_phieu))
+	ctx.__enter__()
+	tra=th.tra
+	th.tra=lambda:(ctx.__exit__(None,None,None),tra())
+	sau=[]
+	fr.db.after_commit=Doi(add=lambda f:sau.append(f))
+	th.sau=sau
 	return doc, nk, th
 
 
-@ca("v577 SePay tự khớp: lập phiếu thu NHÁP theo đúng giao dịch mới về, gom pháp nhân thì tách khách")
+@ca("#476 SePay công nợ: bộ đúng tiền lập nháp nhiều khách, thư chỉ xếp sau commit")
 def _():
-	def lap(nk, cac_si, g, so, k):
-		nk.append(("lap", tuple(cac_si), g.name, so, k.get("tach_khach")))
-		return {"pe": "APP-1, APP-2"}
-	doc, nk, th = _he_sepay(lap)
+	def lap(nk,cac_si,g,so,k):
+		nk.append(("lap",tuple(cac_si),g,so,k.get("tach_khach"),k["chu_bo"].name))
+		return {"pe":"APP-1, APP-2","tien":13000000}
+	doc,nk,th=_he_sepay(lap)
 	try:
 		cn.kiem_sepay("P")
-		la("lập theo giao dịch đã khoá, tách hai pháp nhân", [x for x in nk if x[0] in ("nap_gd", "lap")],
-			[("nap_gd", "BT-S", True), ("lap", ("HD-OSH", "HD-VU"), "BT-S", 13000000.0, True)])
-		la("đã thu đủ", doc.trang_thai, "Da thu du")
-		la("không ghi bình luận lỗi", [x for x in nk if x[0] == "binh_luan"], [])
-		dung("lập trước khi lưu phiếu", [x[0] for x in nk].index("lap") < [x[0] for x in nk].index("luu"))
-		# Codex #444 F1: phiếu thu còn NHÁP, sổ cái vẫn nợ: chưa gửi thư "đã tất toán".
-		la("chưa gửi thư khi sổ cái còn nợ", [x for x in nk if x[0] == "gui_thu"], [])
-		# Codex #444 vòng 6: chỉ xếp việc nền (tự soát sổ sạch), sau commit.
-		la("xếp một việc nền theo hoá đơn của phiếu", [x for x in nk if x[0] == "xep_thu"],
-			[("xep_thu", ("HD-OSH", "HD-VU"))])
-		dung("xếp sau commit", [x[0] for x in nk].index("xep_thu") > [x[0] for x in nk].index("commit"))
-	finally:
-		th.tra()
+		la("factory đọc tiền từ bộ, không dùng tiền client",[x for x in nk if x[0]=="lap"],
+			[("lap",("HD-OSH","HD-VU"),None,0,True,"P")])
+		la("đã thu đủ",doc.trang_thai,"Da thu du")
+		dung("lập trước lưu",[x[0] for x in nk].index("lap")<[x[0] for x in nk].index("luu"))
+		la("chưa gửi thư khi chưa commit",[x for x in nk if x[0]=="xep_thu"],[])
+		la("một callback sau commit",len(th.sau),1)
+		th.sau[0]()
+		la("xếp đúng các hóa đơn",[x for x in nk if x[0]=="xep_thu"],[("xep_thu",("HD-OSH","HD-VU"))])
+	finally:th.tra()
 
 
-@ca("v577 SePay tự khớp mà lập phiếu thu hỏng: lùi ĐÚNG lần lập đó, vẫn ghi nhận tiền, ghi rõ lý do lên phiếu")
+@ca("#476 SePay công nợ: factory hỏng thì rollback bộ, không báo đã thu đủ")
 def _():
-	def lap(nk, cac_si, g, so, k):
-		raise fr.ValidationError(tt.cau_gd_lon_hon("FT-BT-S", 13000000, 9550000))
-	doc, nk, th = _he_sepay(lap)
+	def lap(*a):raise fr.ValidationError(tt.cau_gd_lon_hon("FT-BT-S",13000000,9550000))
+	doc,nk,th=_he_sepay(lap)
 	try:
-		cn.kiem_sepay("P")
-		la("mở và lùi đúng điểm lưu", [x for x in nk if x[0] in ("diem_luu", "lui")],
-			[("diem_luu", "vgb_sepay_lap"), ("lui", "vgb_sepay_lap")])
-		la("tiền vẫn ghi nhận", doc.da_thu, 13000000.0)
-		bl = [x[1] for x in nk if x[0] == "binh_luan"]
-		la("một bình luận", len(bl), 1)
-		dung("có lý do và chỉ đường: " + (bl[0] if bl else "")[:120], "dư 3.450.000 đ" in bl[0] and "Khớp tay" in bl[0])
-		dung("bình luận trước commit", [x[0] for x in nk].index("binh_luan") < [x[0] for x in nk].index("commit"))
-	finally:
-		th.tra()
+		kq=cn.kiem_sepay("P")
+		la("chưa nhận thay cho chứng từ lỗi",(doc.da_thu,doc.trang_thai),(0,"Cho thu"))
+		la("không lưu phiếu đã thu",[x for x in nk if x[0]=="luu"],[])
+		dung("rollback đúng savepoint",[x[1] for x in nk if x[0]=="diem_luu"]==[x[1] for x in nk if x[0]=="lui"])
+		dung("nói rõ thiếu phân bổ",len(kq['loi_lap'])==1 and "dư 3.450.000 đ" in kq['loi_lap'][0])
+		la("không xếp thư thành công",th.sau,[])
+	finally:th.tra()
 
 
 # ------------------------------------------------------------ thư báo
@@ -929,13 +933,9 @@ def _():
 		raise fr.ValidationError(tt.cau_gd_lon_hon("FT-BT-S", 13000000, 9550000))
 	doc, nk, th = _he_sepay(lap)
 	try:
-		kq = cn.kiem_sepay("P")
-		la("phiếu đã thu đủ, giữ giao dịch", (doc.trang_thai, doc.ma_gd), ("Da thu du", "BT-S"))
-		dung("màn nhận lý do lập hỏng: %s" % kq.get("loi_lap"), len(kq.get("loi_lap") or []) == 1
-			and "dư 3.450.000 đ" in kq["loi_lap"][0])
-		bl = [x[1] for x in nk if x[0] == "binh_luan"]
-		dung("bình luận chỉ đường Huỷ phiếu", "Huỷ phiếu" in bl[0])
-		la("giao dịch chưa có phiếu thu nào", cn._gd_da_dung(doc.ma_gd), [])
+		# Dữ liệu lịch sử đã gạch trước đường bộ, không có PE.
+		doc.trang_thai="Da thu du";doc.da_thu=13000000;doc.ma_gd="BT-S"
+		la("giao dịch chưa có phiếu thu nào",cn._gd_da_dung(doc.ma_gd),[])
 		nk[:] = []
 		th.dat(fr, "set_user", lambda u: setattr(fr.session, "user", u))
 		r = cn.huy_phieu("P", "Kiet Tac tra gop")
@@ -964,7 +964,8 @@ def _():
 			return goc(dt, filters, **k)
 		th.dat(fr, "get_all", get_all)
 		try:
-			cn.kiem_sepay("P")
+			# Chứng từ cũ đã ghi nhận, kiểm đường hủy độc lập.
+			doc.trang_thai="Da thu du";doc.da_thu=13000000;doc.ma_gd="BT-S"
 			la("%s: đã thu đủ" % kieu, doc.trang_thai, "Da thu du")
 			dung("%s: giao dịch tính là đã dùng" % kieu, cn._gd_da_dung(doc.ma_gd) == ["BT-S"])
 			th.dat(fr, "set_user", lambda u: setattr(fr.session, "user", u))

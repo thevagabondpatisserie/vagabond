@@ -88,6 +88,7 @@ CAU_THAT = (
 	("Cách tạo phiếu nhập kho?", "Tạo phiếu nhập kho"),
 	("Đặt lại mật khẩu và xoá lịch sử đăng nhập các thiết bị", "thiết bị"),
 	("hướng dẫn tôi xuất file BOM ra excel", "Xuất công thức (BOM) ra Excel"),
+	("thanh toán lương 714.138.056 mà ngân hàng tách làm 2 lệnh 450.000.000 + 264.138.056 nên không ghi nhận thanh toán được", "Ngân hàng tách lệnh"),
 )
 
 

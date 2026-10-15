@@ -770,3 +770,57 @@ Mở riêng một tờ thuộc kỳ đã khoá để sửa. Các tờ khác vẫ
 - Không thấy nút: tờ đó chưa tới kỳ khoá, sửa được như thường; hoặc bạn không phải kế toán trưởng.
 - Hoá đơn điện tử đã phát hành thì mở khoá cũng không sửa nội dung đã gửi cơ quan thuế. Liên hệ kế toán trưởng.
 - Sửa xong phải đóng lại. Thẻ đỏ trên màn Khoá sổ liệt kê các tờ còn đang mở.
+
+## Ngân hàng tách lệnh hoặc một giao dịch trả nhiều phiếu
+Từ khoá: tách lệnh, nhiều giao dịch, gộp sao kê, chia sao kê, bộ sao kê, lương, 714.138.056, 450.000.000, 264.138.056, chờ đối chiếu sau
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Kế toán | Hồ sơ thanh toán, Thanh toán nội bộ, Hoàn tiền | [[Đối chiếu tay]], [[Gán]] |
+
+Câu hỏi của chị Dung: “thanh toán lương 714.138.056 mà ngân hàng tách làm 2 lệnh 450.000.000 + 264.138.056 nên không ghi nhận thanh toán được”.
+
+1. Mở đúng hồ sơ, chọn [[Đối chiếu tay]].
+2. Chọn hai dòng cùng tài khoản. Thanh tổng hiện số đã chọn và phần còn thiếu. Ví dụ trên phải chọn cả 450.000.000 và 264.138.056.
+3. Khi đủ đúng tiền hồ sơ, nút [[Gán]] sáng. Máy kiểm lại phần tiền còn lại trên máy chủ trước khi nhận.
+4. Với APP, đính UNC và [[Ghi nhận đã thanh toán]]. Với hoàn tiền, chọn sao kê và ghi sổ chứng từ là hai bước riêng; phiếu chi còn nháp chưa phải là đã ghi sổ.
+
+Một giao dịch trả nhiều hồ sơ: chọn cùng dòng ở mỗi hồ sơ, máy chỉ giữ phần cần của hồ sơ đó. Nếu người khác vừa dùng hết phần còn lại, tải lại danh sách rồi chọn lại. Không nhập thêm giao dịch ngân hàng để bù.
+
+APP đã chọn nhầm bộ nhưng chưa ghi sổ: [[Bỏ đối chiếu]] bỏ cả bộ đang giữ của hồ sơ. Nếu đã có bút toán ghi sổ, kế toán xử lý chứng từ theo lõi trước; máy không tự hủy bút toán.
+
+## Bỏ bộ và hoàn ứng từ phiếu nội bộ
+Từ khoá: bỏ bộ, nối nhầm, hoàn ứng, TTNB, chủ quỹ, chia giao dịch
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Kế toán và người lập hoàn ứng | Thanh toán nội bộ, Hoàn tiền, Hồ sơ thanh toán | [[Bỏ đối chiếu]], [[Nối phiếu]] |
+
+TTNB và hoàn tiền có [[Bỏ đối chiếu]] cho người được phân quyền. TTNB đã nối hồ sơ hoàn ứng thì mở hồ sơ đó gỡ liên kết trước. Hoàn tiền còn phiếu chi nháp hoặc đã ghi sổ thì kế toán xử lý phiếu chi trong ERPNext trước. Bỏ đối chiếu chỉ để chọn lại đúng bằng chứng, không có nghĩa phải chuyển tiền thêm.
+
+Hoàn ứng từ TTNB: chọn phiếu nội bộ đã chi, số tiền lấy theo tổng bộ của phiếu và tài khoản nhận phải thuộc đúng người ứng. Một BT có thể chứng minh hai phần chi của hai TTNB; mỗi TTNB chỉ được nối một hồ sơ hoàn ứng. Không lấy lại nguyên BT làm một khoản hoàn ứng nữa.
+
+## Ghi nhận thanh toán khi sao kê chưa về đủ
+Từ khoá: ngoại lệ, ghi nhận kèm lý do, chờ đối chiếu sau, SePay chậm, kế toán trưởng
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Kế toán trưởng | Hồ sơ thanh toán | [[Ghi nhận kèm lý do]] |
+
+Kế toán trưởng có vai Accounts Manager được dùng [[Ghi nhận kèm lý do]] khi sao kê chưa về đủ. Vẫn cần UNC và các bước duyệt. Hồ sơ vào chip [[Chờ đối chiếu sau]]; chỉ hết chờ khi phân bổ sao kê lõi đã đủ. Người có vai Accounts User hoặc AP Kiểm soát (FIN) không có quyền ngoại lệ này.
+
+## Thu công nợ bằng nhiều giao dịch, hoặc thu từng phần
+Từ khoá: công nợ tiền vào, trả góp, thu một phần, nhiều khách, nhiều phiếu thu, bỏ bộ sao kê
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Sales, kế toán | Phiếu công nợ, Tiền đã về | [[Khớp tay]], [[Chọn nhiều giao dịch hoặc thu một phần]], [[Bỏ đối chiếu]] |
+
+1. Mở phiếu công nợ, bấm [[Khớp tay]], chọn [[Chọn nhiều giao dịch hoặc thu một phần]]. Nhập khoản thu của lần này, không vượt khoản còn phải thu.
+2. Chọn các dòng cùng tài khoản công ty. Khi thanh tổng đủ khoản thu của lần này, bấm [[Gán các dòng đã chọn]]. Một dòng lớn hơn khoản thu chỉ dùng phần cần; phần dư còn dành cho phiếu khác.
+3. Máy lập phiếu thu nháp riêng cho từng mã khách. Kế toán vào [[Tiền đã về]], đính UNC và ghi sổ từng phiếu. Phiếu nháp chưa làm giảm dư nợ sổ cái.
+4. Khách chuyển đợt sau thì mở lại phiếu, chọn khoản còn phải thu. Không chọn lại phần đã gán ở đợt trước.
+
+Mất mạng sau khi bấm Gán: bấm lại để kiểm đúng lần đang gửi, không lập phiếu mới. Nếu chọn nhầm, kế toán dùng [[Huỷ phiếu]] cho nháp hoặc huỷ chứng từ đã ghi sổ đúng nghiệp vụ, rồi [[Bỏ đối chiếu]] để chọn lại cả bộ. Không xoá chứng từ, không gỡ huỷ phiếu cũ để dùng lại bộ đã nhả. Không yêu cầu khách chuyển tiền thêm chỉ vì đã bỏ đối chiếu.
+
+Không thấy sao kê vẫn có lối [[Không thấy giao dịch nào khớp]] dành cho kế toán đính UNC theo luồng hiện có.

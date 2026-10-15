@@ -88,7 +88,7 @@ def kiem_ho_so(doc):
             and cu.get('tk_nhan') == doc.get('tk_nhan')
             and cu.get('nha_cung_cap') == doc.get('nha_cung_cap') and all(
                 truoc.get(k) == d.get(k) for k in ('de_nghi_chi', 'ma_giao_dich', 'so_tien')))
-        rows = frappe.db.sql('''select name, trang_thai, ma_gd, ho_so_tt, tong_tien, so_tien
+        rows = frappe.db.sql('''select name, trang_thai, ma_gd, ho_so_tt, tong_tien, so_tien, vgb_bo_sao_ke
             from `tabVagabond De Nghi Chi` where name=%s for update''', (ma,), as_dict=True)
         if not rows:
             frappe.throw('Không thấy phiếu %s. Chọn lại phiếu nội bộ.' % ma)
@@ -101,7 +101,7 @@ def kiem_ho_so(doc):
         if not giu_nguyen and abs(flt(d.so_tien) - (flt(p.tong_tien) or flt(p.so_tien))) > 1:
             frappe.throw('Số tiền khoản nối %s phải bằng số tiền phiếu. Kiểm lại khoản đã chọn.' % ma)
         if p.ma_gd and not giu_nguyen:
-            g = giao_dich(p.ma_gd)
+            g = giao_dich_phieu(p)
             if not g or cint(g.docstatus) >= 2 or flt(g.withdrawal) <= 0:
                 frappe.throw('Sao kê của %s không còn hợp lệ. Kiểm lại giao dịch đã khớp.' % ma)
             b = nguon_chi(g.bank_account)
@@ -120,10 +120,38 @@ def kiem_ho_so(doc):
         frappe.db.set_value('Vagabond De Nghi Chi', ma, 'ho_so_tt', doc.name, update_modified=False)
 
 
-def khoa_ma_giao_dich(ma):
+def khoa_ma_giao_dich(ma, phieu_noi_bo="", ho_so=""):
     """Khóa dòng tiền trước khi đọc APP giữ nó, gộp tên BT và tham chiếu cũ."""
+    from vagabond import bo_sao_ke_db as bs
+    if phieu_noi_bo:
+        p=frappe.get_doc('Vagabond De Nghi Chi',phieu_noi_bo)
+        bo=bs.doc_hien_tai(p)
+        if bo['dong']:
+            if not ho_so or p.get('ho_so_tt')!=ho_so or str(ma)!=bo['dong'][0]['name']:
+                frappe.throw('Phần sao kê chưa được phiếu nội bộ giữ cho hồ sơ này. Nối đúng phiếu trước.')
+            # kiem_ho_so đã khóa và soát toàn bộ nguồn, số tiền, người ứng.
+            # Hai TTNB giữ hai phần của cùng BT không phải hai lần hoàn một khoản.
+            return {'TTNB/'+p.name}
     g = giao_dich(ma)
     if not g:
         return {ma}
     frappe.db.sql('select name from `tabBank Transaction` where name=%s for update', (g.name,))
+    if bs._cac_bo(g.name,khoa=True):
+        frappe.throw('Giao dịch có phần đã giữ trong bộ sao kê. Nối đúng phiếu thanh toán nội bộ, không gán lại nguyên giao dịch vào khoản hoàn ứng.')
     return {m for m in (g.name, g.reference_number, ma) if m}
+
+
+def giao_dich_phieu(p):
+    """Nguồn của TTNB có thể là cả bộ, không lấy riêng số tiền dòng đầu."""
+    if not p.get('vgb_bo_sao_ke'):
+        return giao_dich(p.ma_gd)
+    from vagabond import bo_sao_ke_db as bs, doi_soat_sepay as dss
+    dss.nap_so()
+    # kiem_ho_so đã current-read và khóa TTNB theo tên. Đây chỉ đọc bằng
+    # chứng chi, không ghi lại chỗ giữ hoặc xin khóa BT sau khóa APP/TTNB.
+    doc=frappe._dict(p,doctype='Vagabond De Nghi Chi')
+    bo=bs.doc_hien_tai(doc);b=dss._ban('ttnb')
+    g=bs.chon(doc,bo['dong'],flt(doc.tong_tien) or flt(doc.so_tien),'ra',lambda g:dss._loi_giao_dich(b,g) or dss.ly_do_tai_khoan_sepay(g.bank_account),ghi=False)
+    g.bank_account=g.flags.bo_sao_ke[0].bank_account
+    g.docstatus=1
+    return g

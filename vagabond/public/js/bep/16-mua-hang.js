@@ -1868,7 +1868,8 @@ function ttnbKhopSepay(d) {
     if (d.ma_gd) {
       return '<div style="font-size:12px;color:#065f46;background:#f0fdf4;border:1px solid #a7f3d0;' +
         'border-radius:9px;padding:9px 11px;margin-top:9px;line-height:1.6">' +
-        'Lệnh chi đã khớp sao kê, giao dịch <b>' + h(d.ma_gd) + '</b>.</div>';
+        'Lệnh chi đã khớp sao kê, giao dịch <b>' + h(d.ma_gd) + '</b>.</div>' +
+        (d.bo_sao_ke_duoc ? '<button class="btn gh" id="ttnbBoBo" style="width:100%;margin:8px 0 0">↩️ Bỏ đối chiếu</button>' : '');
     }
     if (d.trang_thai === 'Cho ke toan') return '<div style="padding:9px 0;font-size:13px">Duyệt phiếu trước, sau đó mới khớp sao kê.</div>';
     return '';
@@ -1903,7 +1904,7 @@ async function ttnbFormGdRa(d, taiKhoan) {
 
 async function ttnbKhopTay(d, gd, tien) {
   var lech = Math.abs(Number(tien || 0) - Number(d.tien || 0));
-  var cau = 'Gắn giao dịch ' + gd + ' (' + money(tien) + ' đ) vào phiếu ' + d.name + '.' +
+  var cau = 'Gắn ' + (gd.charAt(0) === '[' ? JSON.parse(gd).length + ' dòng sao kê' : 'giao dịch ' + gd) + ' (' + money(tien) + ' đ) vào phiếu ' + d.name + '.' +
     (lech > 1 ? ' Số tiền LỆCH ' + money(lech) + ' đ so với phiếu.' : '') +
     ' Máy sẽ chuyển phiếu sang Đã chi.';
   var ok = await confirmSheet('Khớp lệnh chi thủ công', cau, 'Đúng, khớp phiếu này', lech > 1);
@@ -2056,6 +2057,8 @@ async function ttnbCt(ma) {
 
   var nKa = document.getElementById('ttnbKsAuto');
   if (nKa) nKa.onclick = function () { ttnbKhopAuto(d); };
+  var nBoBo = document.getElementById('ttnbBoBo');
+  if (nBoBo) nBoBo.onclick = function () { return boBoSepay('ttnb', d.name, function () { return ttnbCt(d.name); }); };
   var nKt = document.getElementById('ttnbKsTay');
   if (nKt) nKt.onclick = function () { ttnbFormGdRa(d); };
 

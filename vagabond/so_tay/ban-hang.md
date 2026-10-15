@@ -341,6 +341,26 @@ Từ khoá: hoá đơn đỏ, hoá đơn VAT, xuất hoá đơn, HĐĐT, hoá đ
 - Mỗi đơn một hoá đơn VAT riêng, không gộp đơn.
 - Hoá đơn đã phát hành mà sai thông tin: không tự sửa, liên hệ kế toán trưởng.
 
+## Xuất hoá đơn cho công đoàn, trường, hội hoặc công ty nước ngoài (không có MST Việt Nam)
+Từ khoá: không có mã số thuế, không MST, công đoàn, trường học, hội, đoàn thể, công ty nước ngoài, khách nước ngoài, Singapore, MST nước ngoài, foreign company, no tax code, bị xuất sang người tiêu dùng, bán cho người tiêu dùng
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Sales | Doanh số (/doanh-so) | [[Không có MST Việt Nam]] |
+
+Tổ chức không có mã số thuế Việt Nam vẫn xuất hoá đơn mang tên của họ, chỉ để trống mã số thuế.
+
+**Các bước**
+1. Mở đơn ở Doanh số, ở ô tên khách xuất hoá đơn bấm [[Không có MST Việt Nam]].
+2. Gõ tên đúng như khách đưa. Có mã số thuế nước ngoài thì gõ vào ô riêng, máy ghi kèm sau tên.
+3. Gõ địa chỉ đúng như khách đưa và email nhận hoá đơn.
+4. Bấm [[Lưu thông tin đơn]]. Mở lại đơn: nút [[Không có MST Việt Nam]] phải đang được chọn, tên còn nguyên.
+
+**Lưu ý**
+- Đã lưu tên rồi thì nhịp đồng bộ Pancake không đổi tên, địa chỉ hay mã số thuế nữa, kể cả khi ghi chú đơn có một mã số thuế khác. Muốn đổi thì sales sửa tay.
+- Đơn mở ra thấy tên đã bị đổi thành "Bán cho người tiêu dùng" trước khi xuất: gõ lại thông tin, lưu, rồi báo anh Việt kèm mã đơn.
+- Hoá đơn đã phát hành cho người tiêu dùng mà đúng ra phải mang tên tổ chức: không tự sửa, liên hệ kế toán trưởng.
+
 ## Bán hàng tặng và duyệt đơn hàng tặng
 Từ khoá: hàng tặng, biếu tặng, tặng khách, quà tặng, đền bù, KOL, marketing, đơn tặng, duyệt tặng, giám đốc duyệt, gift, comp, complimentary
 

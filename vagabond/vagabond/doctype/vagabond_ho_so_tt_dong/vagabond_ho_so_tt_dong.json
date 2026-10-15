@@ -101,6 +101,7 @@
   },
   {
    "fieldname": "ma_giao_dich",
+   "search_index": 1,
    "fieldtype": "Data",
    "label": "Ma giao dich ngan hang (SePay)"
   },

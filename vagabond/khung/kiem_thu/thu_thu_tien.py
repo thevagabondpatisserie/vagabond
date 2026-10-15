@@ -189,7 +189,7 @@ def _phieu_sinh_chung_tu():
 	# riêng từng lần nhận; hành vi chạy thật ở thu_cong_no_571.py.
 	# v577: SePay lập phiếu thu NHÁP theo đúng giao dịch (một nguồn với khớp
 	# tay), không ghi sổ thẳng; hành vi chạy thật ở thu_khop_tay_577.py.
-	dung("duong SePay co goi", '_lap_theo_gd(cac_hd, g, cho[ten_gd]' in CN)
+	dung("duong SePay co goi", "ra=tu_dong(doc,sepay.get('gd') or [])" in CN)
 	dung("duong khop tay co goi", 'ghi_thu_cho_phieu(doc, "Chuyển khoản", "Kế toán khớp tay.", so_tien=moi' in CN)
 	dung("phan bo to cu truoc", 'order_by="posting_date asc"' in CN)
 	# Loi sinh chung tu khong duoc lam rot viec danh dau phieu: tien da ve

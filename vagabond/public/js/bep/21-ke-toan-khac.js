@@ -586,7 +586,7 @@ async function scrTimGiaoDich(maHoSo, soTien) {
   if (tgdHoSo) {
     var maApp = tgdHoSo;
     return scrKhopSepay({loai:'app', ma:maApp, chon:async function (gd,tien) {
-      if (!await confirmSheet('Khớp tay giao dịch', 'Gán giao dịch ' + gd + ' (' + money(tien) + ' đ) vào ' + maApp + '? Hồ sơ chờ thanh toán chỉ lưu lựa chọn; hồ sơ đã trả đối chiếu với bút toán hiện có.', 'Gán')) return;
+      if (!await confirmSheet('Khớp tay giao dịch', 'Gán ' + (gd.charAt(0) === '[' ? JSON.parse(gd).length + ' dòng sao kê' : 'giao dịch ' + gd) + ' (' + money(tien) + ' đ) vào ' + maApp + '? Hồ sơ chờ thanh toán chỉ lưu lựa chọn; hồ sơ đã trả đối chiếu với bút toán hiện có.', 'Gán')) return;
       busy(true);
       try {
         var kq = await api('vagabond.doi_chieu_app.gan', {name:maApp, ma_giao_dich:gd});
@@ -780,6 +780,8 @@ async function cnKhopTay(d) {
     rows = ds.rows || [];
     var lc = [{ k: '@tim', nhan: tuKhoa ? 'Tìm lại (đang tìm "' + tuKhoa + '")' : 'Tìm trong mọi giao dịch chưa nối',
       mo_ta: 'Gõ tên khách, nội dung chuyển khoản, mã giao dịch hoặc số tiền; máy tìm trên toàn bộ 4 tháng.', icon: '🔎' }];
+    lc.unshift({k:'@bo', nhan:'Chọn nhiều giao dịch hoặc thu một phần',
+      mo_ta:'Dùng một phần sao kê cho phiếu này; phần còn lại dùng cho phiếu khác.', icon:'🏦'});
     rows.forEach(function (r) {
       var tien = r.con != null ? r.con : r.tien;
       lc.push({
@@ -805,6 +807,8 @@ async function cnKhopTay(d) {
     if (q === null) return;
     tuKhoa = String(q || '').trim();
   }
+
+  if (chon === '@bo') return cnKhopBo(d, maLan);
 
   var soTien = con, maGd = '', unc = null, lonHon = 0;
   if (chon === '@go_tay') {
@@ -1560,4 +1564,48 @@ async function scrNopQuySua() {
       go(scrNopQuyXem, true);
     } catch (e) { busy(false); baoTin((e && e.message) || 'Không sửa được', 'Sửa phiếu'); }
   };
+}
+
+
+/* Một kỳ thu giữ nguyên payload khi mất phản hồi; không đổi lựa chọn rồi
+   gửi lại cùng mã lần. Máy chủ vẫn đọc lại số dư và khóa toàn bộ sao kê. */
+var CN_BO_CHO = {};
+async function cnKhopBo(d, maLan) {
+  var dangCho = CN_BO_CHO[d.name], con = Number(d.con_thieu != null ? d.con_thieu : d.tong_tien);
+  var ky = dangCho ? dangCho.tien : await hoiSo('Khoản thu lần này',
+    'Nhập khoản cần gán lần này, tối đa ' + money(con) + ' đ. Có thể thu nhiều lần.', String(con));
+  if (ky === null || ky === undefined) return;
+  ky = Number(ky);
+  if (!Number.isFinite(ky) || ky <= 0 || ky > con) return baoTin('Nhập số tiền lớn hơn 0 và không vượt khoản còn phải thu.');
+  async function gui(dong, tien) {
+    var p = CN_BO_CHO[d.name];
+    if (!p) {
+      var gc = await hoiChu('Khớp bộ sao kê', 'Ghi chú cho lần thu này.', '', {nhieu_dong:1});
+      if (gc === null) return;
+      if (!await hoiCo('Xác nhận khớp bộ', 'Lập phiếu thu nháp ' + money(tien) +
+          ' đ. Kế toán đính UNC và ghi sổ từng phiếu ở Tiền đã về. Chưa ghi sổ thì chưa giảm công nợ trên sổ cái.', 'Lập phiếu thu')) return;
+      p = CN_BO_CHO[d.name] = {dong:dong,tien:tien,gc:gc,ma_lan:maLan};
+    }
+    try {
+      var kq = await api('vagabond.cong_no.khop_tay', {name:d.name,dong:p.dong,
+        so_tien:p.tien,ghi_chu:p.gc,ma_lan:p.ma_lan});
+      delete CN_BO_CHO[d.name]; delete CN_LAN_CHO[d.name];
+      await baoTin(kq.loi_nhan || 'Đã lập phiếu thu nháp.');
+      go(function () { scrCnPhieu(d.name); }, true);
+    } catch(e) {
+      /* #477 (Codex): máy chủ đã trả lời từ chối (4xx) là kết quả chắc chắn,
+         giữ payload cũ thì bấm lại mãi vẫn hỏng. Chỉ giữ khi không rõ kết quả
+         (mất mạng, hết giờ, máy chủ bận 5xx). */
+      var chac = e && e.status >= 400 && e.status < 500;
+      if (chac) {
+        delete CN_BO_CHO[d.name];
+        return baoTin(((e && e.message) || 'Máy chủ từ chối lần thu này.') +
+          '\nMáy chưa lập phiếu thu nào. Bấm Khớp tay để chọn lại sao kê.');
+      }
+      await baoTin(((e && e.message) || 'Chưa nhận được kết quả.') +
+        '\nBấm lại để kiểm đúng lần thu đang gửi, không tạo thêm phiếu.');
+    }
+  }
+  if (dangCho) return gui(dangCho.dong,dangCho.tien);
+  return scrKhopSepay({loai:'cong_no',ma:d.name,tien_ky:ky,chon:gui});
 }

@@ -262,6 +262,29 @@ var HAI_TK = {
 };
 
 async function chayHet() {
+  await caAsync('476 ngoại lệ SePay chỉ hiện cho vai được máy chủ cấp', async function () {
+    for (var duoc of [0,1]) {
+      var m=dungMan();
+      m.g.api=async function(){return {ho_so:{ma:'APP-THU',loai:'NCC',trang_thai:'Da duyet',
+        nhan:'Đã duyệt',tong_tien:100,da_tam_ung:0,con_lai:100,
+        ten_ncc:'Người thử',ngay:'2026-10-14'},quyen:{fin:true,ngoai_le_sepay:duoc},dong:[]};};
+      await m.g.scrHoSoTTView('APP-THU');
+      bang('nút theo quyền',m.khung.innerHTML.includes('data-hsv="datra_lydo"'),!!duoc);
+    }
+  });
+  await caAsync('476 ghi nhận kèm lý do gửi lý do thật, trống và hủy không ghi', async function () {
+    var m=dungMan(), calls=[];
+    m.g.xacNhan=async()=>true;m.g.busy=()=>{};m.g.toast=()=>{};m.g.baoTin=()=>{};
+    m.g.go=()=>{};
+    m.g.api=async function(method,args){calls.push({method:method,args:args});return {};};
+    for (var reason of [null,'   ','Sao kê về chậm, đã đính UNC']) {
+      m.g.hoiNhap=async()=>reason;
+      await m.g.hsHanh('datra_lydo',{ma:'APP-THU',tong_tien:100,con_lai:100,da_tam_ung:0});
+    }
+    bang('chỉ lần có lý do ghi',calls.length,1);
+    bang('đúng cửa ghi',calls[0].method,'vagabond.ho_so_tt.danh_dau_da_tra');
+    bang('không mất lý do',calls[0].args.ly_do_som,'Sao kê về chậm, đã đính UNC');
+  });
   await caAsync('342 màn cấn đủ: không đòi UNC, không tạo lệnh chuyển thêm', async function () {
     var m=dungMan();
     m.g.api=async function(){return {ho_so:{ma:'APP-THU',loai:'Hoan ung HD',trang_thai:'Da duyet',
@@ -277,8 +300,10 @@ async function chayHet() {
 
   await caAsync('342 cấp quỹ: nút thật gửi đúng BT,111 và NQ tùy chọn; hủy không ghi', async function () {
     for (var huy of [false,true]) {
-      var calls=[], messages=[], picks=['BANK','BT','111','-'];
-      var g={money:String, hsNgayVn:String, hoiChon:async function(){return huy?null:picks.shift();},
+      var calls=[], messages=[], picks=['BANK','111','-'];
+      var g={money:String, hsNgayVn:String, hoiNhap:async()=> '100', go:fn=>fn(),
+        scrKhopSepay:async o=>{await o.chon('[{"name":"BT","phan_bo":100}]');},
+        hoiChon:async function(){return huy?null:picks.shift();},
         xacNhan:async function(){return true;}, baoTin:async function(s){messages.push(s);},
         api:async function(m,p){calls.push([m,p]);
           if(m.endsWith('ds_tk_hoan_ung')) return {tk:[{ma:'BANK',nhan:'Quỹ thử'}]};
@@ -289,7 +314,26 @@ async function chayHet() {
       await g.hsCapQuyTienMat();
       var writes=calls.filter(function(x){return x[0].endsWith('ghi_nhan_cap');});
       bang('ghi đúng số lần',writes.length,huy?0:1);
-      if(!huy) bang('payload không gán NQ',JSON.stringify(writes[0][1]),JSON.stringify({giao_dich:'BT',tai_khoan_nguon:'111',nop_quy:''}));
+      if(!huy) {
+        bang('bộ đúng BT',writes[0][1].giao_dich,'[{"name":"BT","phan_bo":100}]');
+        bang('tổng100',writes[0][1].so_tien,100);bang('nguồn111',writes[0][1].tai_khoan_nguon,'111');
+        bang('NQ tùy chọn',writes[0][1].nop_quy,'');dung('mã retry',!!writes[0][1].ma_lan);
+      }
+    }
+  });
+
+  await caAsync('476 cấp quỹ: không biến số lẻ hoặc chữ thành số tiền khác', async function () {
+    for (var input of ['', '0', '-1', '1.5', '1,5', '1e3', 'NaN', '12abc', '9007199254740992', '100.000', '100000']) {
+      var picks=['BANK','111','-'], opened=[],messages=[];
+      var g={money:String, hsNgayVn:String, hoiNhap:async()=>input, go:fn=>fn(),
+        hoiChon:async()=>picks.shift(), baoTin:async s=>messages.push(s),scrKhopSepay:async o=>opened.push(o),
+        api:async m=>m.endsWith('ds_tk_hoan_ung')?{tk:[{ma:'BANK'}]}:{tai_khoan_nguon:[{name:'111'}],nop_quy:[]}};
+      vm.createContext(g);vm.runInContext(layHam(docTep('19-ho-so-tt.js'),'hsCapQuyTienMat'),g);
+      await g.hsCapQuyTienMat();
+      var good=input==='100.000'||input==='100000';
+      bang('chỉ mở chọn khi tiền hợp lệ '+input,opened.length,good?1:0);
+      if(good)bang('đúng tiền nguyên',opened[0].tham_so_doc.so_tien,100000);
+      else dung('có lý do nhập lại',messages.length>0);
     }
   });
 

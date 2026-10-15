@@ -1559,6 +1559,27 @@ def _email_ncc(ma):
 # ------------------------------------------------------------------ danh sách
 
 
+def _cho_doi_chieu_sau(doc):
+	"""Lý do được giữ làm lịch sử; chỉ hết chờ khi phân bổ lõi đã đủ."""
+	if doc.get("trang_thai") != TT_DA_TRA or not doc.get("vgb_tt_ly_do_som"):
+		return False
+	if not doc.get("dong"):
+		doc = frappe.get_doc("Vagabond Ho So TT", doc.get("name") or doc.get("ma"))
+	can = _so_phai_chuyen(doc, _do_chinh_xac())["con"]
+	if can <= 0:
+		return False
+	# #477 (Codex): JE cấn tạm ứng không phải tiền ra ngân hàng, không tính
+	# vào phần sao kê đã đối chiếu (cùng cách doi_chieu_app.noi_but_toan lọc).
+	bo = [b for b in _but_toan_cua_ho_so(doc.name) if b["name"] != doc.get("vgb_can_ung")]
+	da = 0.0
+	for ct in bo:
+		for r in frappe.get_all("Bank Transaction Payments", filters={
+			"payment_document": ct["doctype"], "payment_entry": ct["name"]},
+			fields=["allocated_amount"], limit_page_length=0):
+			da += flt(r.allocated_amount)
+	return da + 0.001 < can
+
+
 @frappe.whitelist()
 def danh_sach(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=90, loai=None,
 		loai_cp_thue=None, tk_chi=None):
@@ -1589,7 +1610,7 @@ def danh_sach(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=
 			"han_tra_som_nhat", "nguoi_tao",
 			"fin_boi", "gd_boi", "ngay_thanh_toan", "ma_giao_dich",
 			"email_da_gui", "ly_do_tu_choi", "ghi_chu",
-			"loai_cp_thue", "tk_chi", "unc_tep",
+			"loai_cp_thue", "tk_chi", "unc_tep", "vgb_tt_ly_do_som",
 		],
 		order_by="ngay desc, creation desc",
 		limit_page_length=0,
@@ -1686,8 +1707,9 @@ def danh_sach(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=
 			frappe.log_error(frappe.get_traceback(), "ho_so_tt: ghep phieu tra truoc loi")
 		ra.sort(key=lambda o: str(o.get("ngay") or ""), reverse=True)
 
-	from vagabond.chip_ho_so_tt import chip_cua_dong, NHAN as NHAN_CHIP
+	from vagabond.chip_ho_so_tt import chip_cua_dong, NHAN as NHAN_CHIP, MO_TA as MO_TA_CHIP
 	for o in ra:
+		o["cho_doi_chieu_sau"] = _cho_doi_chieu_sau(o)
 		o["chip_nghiep_vu"] = chip_cua_dong(o)
 	dem, tien = {}, {}
 	for o in ra:
@@ -1716,10 +1738,12 @@ def danh_sach(trang_thai=None, ncc=None, tu=None, den=None, tu_khoa="", so_ngay=
 		"tk_chi_co": tk_co,
 		"nhan": NHAN,
 		"nhan_chip": NHAN_CHIP,
+		"mo_ta_chip": MO_TA_CHIP,
 		"quyen": {
 			"lap": 1 if (VAI_LAP & _vai()) else 0,
 			"fin": 1 if (VAI_FIN & _vai()) else 0,
 			"gd": 1 if (VAI_GD & _vai()) else 0,
+			"ngoai_le_sepay": 1 if ({"Accounts Manager", "System Manager"} & _vai()) else 0,
 		},
 	}
 
@@ -1976,6 +2000,8 @@ def chi_tiet(name):
 			"gd_luc": str(doc.gd_luc or ""), "ly_do_tu_choi": doc.ly_do_tu_choi or "",
 			"ngay_thanh_toan": str(doc.ngay_thanh_toan or ""),
 			"ma_giao_dich": doc.ma_giao_dich or "", "phuong_thuc": doc.phuong_thuc or "",
+			"ly_do_som": doc.get("vgb_tt_ly_do_som") or "",
+			"cho_doi_chieu_sau": _cho_doi_chieu_sau(doc),
 			"ten_nhan": doc.ten_nhan or "", "stk_nhan": doc.stk_nhan or "",
 			"ngan_hang_nhan": doc.ngan_hang_nhan or "",
 			# Chua ai bam nut sinh noi dung thi TU SINH tai cho, dung de ban
@@ -2004,6 +2030,7 @@ def chi_tiet(name):
 			"lap": 1 if (VAI_LAP & _vai()) else 0,
 			"fin": 1 if (VAI_FIN & _vai()) else 0,
 			"gd": 1 if (VAI_GD & _vai()) else 0,
+			"ngoai_le_sepay": 1 if ({"Accounts Manager", "System Manager"} & _vai()) else 0,
 		},
 		"nhan": NHAN,
 	}
@@ -2336,7 +2363,7 @@ def kiem_sepay(name=None):
 		hs_doc = frappe.get_doc("Vagabond Ho So TT", d["name"])
 		gd = doi_chieu_app.chon(hs_doc)
 		if gd:
-			g[d["name"]] = {"chi": gd.withdrawal, "so_gd": 1, "ma_gd": gd.name, "ngay": str(gd.date),
+			g[d["name"]] = {"chi": gd.withdrawal, "so_gd": len(gd.flags.get("bo_sao_ke") or [gd]), "ma_gd": gd.name, "ngay": str(gd.date),
 				"theo_mau": 1 if gd.flags.get("theo_mau") else 0}
 		elif name and d.get("trang_thai") == TT_DA_DUYET:
 			# v528: khoản trả tiện ích qua app ngân hàng không mang mã APP.
@@ -2418,6 +2445,8 @@ def danh_dau_da_tra(name, ngay=None, ma_giao_dich=None, phuong_thuc="Chuyển kh
 	# chet"). Codex #225 R1 chi ra: chay tiep khong khoa la mo lai dung cai
 	# dua tranh ma khoa sinh ra de chan. Nay khong giu duoc khoa thi dung.
 	try:
+		from vagabond.doi_chieu_app import khoa_truoc
+		khoa_truoc(name)
 		frappe.db.get_value("Vagabond Ho So TT", name, "trang_thai", for_update=True)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "ho_so_tt: khong khoa duoc ho so khi ghi nhan")

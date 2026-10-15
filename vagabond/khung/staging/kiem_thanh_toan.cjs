@@ -59,6 +59,8 @@ const {chromium} = require('playwright');
     await mo();
     await p.locator('[data-hsv="khoptay"]').click();
     await p.locator('.ksDong[data-gd="' + f.giao_dich + '"]').click();
+    // Chọn dòng chỉ thêm vào bộ; Gán mới mở xác nhận ghi.
+    await p.locator('#ksGan').click();
     await xacNhan('vagabond.doi_chieu_app.gan');
     // Tải lại để đọc trạng thái đã lưu, tránh bấm vào DOM cũ trong lúc go().
     await mo();
@@ -93,7 +95,7 @@ const {chromium} = require('playwright');
     if (await p.locator('[data-hsv="datra"]').count()) throw new Error('Hồ sơ đã trả vẫn có nút ghi nhận');
     // Không được tháo sao kê khi bút toán vẫn đang ghi sổ.
     await p.locator('[data-hsv="bodoichieu"]').click();
-    await xacNhan('vagabond.doi_chieu_app.bo', 'Sao kê còn liên kết bút toán');
+    await xacNhan('vagabond.doi_chieu_app.bo', 'còn liên kết bút toán');
     await p.locator('[data-hbok]').waitFor();
     await p.locator('[data-hbok]').click();
     await mo();
@@ -160,6 +162,7 @@ const {chromium} = require('playwright');
     // Dùng lại đúng sao kê, ghi nhận kế toán lại; không chuyển tiền mới.
     await p.locator('[data-hsv="khoptay"]').click();
     await p.locator('.ksDong[data-gd="' + f.giao_dich + '"]').click();
+    await p.locator('#ksGan').click();
     await xacNhan('vagabond.doi_chieu_app.gan');
     await mo();
     await p.locator('[data-hsv="datra"]').click();

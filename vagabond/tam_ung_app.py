@@ -92,51 +92,15 @@ def danh_sach(tai_khoan):
 
 
 @frappe.whitelist(methods=["POST"])
-def ghi_nhan_cap(giao_dich, tai_khoan_nguon, nop_quy=""):
-    """Tiền ĐÃ nộp: ghi Nợ141/Có111, không tạo yêu cầu chuyển tiền mới."""
-    _quyen()
-    bank = frappe.db.get_value("Bank Transaction", giao_dich, "bank_account")
-    b, a = _quy(bank)
-    g = frappe.get_doc("Bank Transaction", giao_dich, for_update=True)
-    if g.docstatus != 1 or g.bank_account != b.name or g.currency != "VND" or flt(g.deposit) <= 0 or flt(g.withdrawal):
-        frappe.throw("Chọn dòng tiền vào đã xác nhận của đúng quỹ tạm ứng.")
-    cu = frappe.db.get_value(JE, {"vgb_cap_ung_bt": g.name, "docstatus": 1}, "name")
-    if cu:
-        j = frappe.get_doc(JE, cu)
-        if (j.get("vgb_nq_tham_chieu") or "") != (nop_quy or "") or not any(
-                d.account == tai_khoan_nguon and flt(d.credit_in_account_currency) == flt(g.deposit) for d in j.accounts):
-            frappe.throw("Giao dịch đã được ghi nhận với nguồn khác. Mở bút toán %s để kiểm, không ghi lần hai." % cu)
-        return {"name": cu, "da_lam_roi": 1}
-    if g.payment_entries or flt(g.allocated_amount):
-        frappe.throw("Dòng sao kê đã nối chứng từ khác. Mở Đối chiếu ngân hàng để kiểm trước khi ghi nhận cấp quỹ.")
-    src = frappe.get_doc("Account", tai_khoan_nguon)
-    if src.company != a.company or src.is_group or src.disabled or src.account_currency != "VND" or not str(src.account_number or src.name).startswith("111"):
-        frappe.throw("Nộp tiền mặt phải chọn tài khoản quỹ tiền mặt 111 cùng công ty. Khoản chuyển từ ngân hàng dùng chứng từ chuyển tiền của kế toán.")
-    if nop_quy and not frappe.db.exists("Vagabond Nop Quy", nop_quy):
-        frappe.throw("Không tìm thấy phiếu NQ tham chiếu. Chọn lại hoặc để trống.")
-    j = frappe.new_doc(JE)
-    j.company, j.posting_date, j.voucher_type = a.company, g.date, "Journal Entry"
-    j.vgb_quy_ung, j.vgb_cap_ung_bt, j.vgb_nq_tham_chieu = b.name, g.name, nop_quy or ""
-    j.user_remark = "Ghi nhận tiền mặt đã cấp vào quỹ tạm ứng. NQ chỉ tham chiếu, không khẳng định đã nộp hết quỹ."
-    j.append("accounts", {"account": a.name, "debit_in_account_currency": g.deposit})
-    j.append("accounts", {"account": src.name, "credit_in_account_currency": g.deposit})
-    j.flags.vgb_tam_ung = True
-    j.insert(ignore_permissions=True)
-    j.submit()
-    j.reload()
-    if flt(j.total_debit) != flt(g.deposit) or len(j.accounts) != 2:
-        frappe.throw("Bút toán cấp quỹ không còn khớp số tiền đã nộp. Đã lùi lượt ghi nhận.")
-    g.add_payment_entries([{"payment_doctype": JE, "payment_name": j.name}])
-    g.save(ignore_permissions=True)
-    g.reload()
-    if flt(g.unallocated_amount) != 0 or len(g.payment_entries) != 1 or g.payment_entries[0].payment_entry != j.name:
-        frappe.throw("Đối chiếu khoản cấp quỹ chưa khớp. Toàn bộ lượt ghi nhận được lùi lại.")
-    return {"name": j.name, "so_tien": flt(g.deposit)}
+def ghi_nhan_cap(giao_dich, tai_khoan_nguon, nop_quy="", so_tien=None, ma_lan=""):
+    """Cửa cũ và chọn nhiều dòng cùng dùng bộ phân bổ, không chuyển tiền mới."""
+    from vagabond.bo_sao_ke_cap import ghi
+    return ghi(giao_dich,tai_khoan_nguon,nop_quy,so_tien,ma_lan)
 
 
 def kiem_je(doc, method=None):
     """Metadata nghiệp vụ không được giả bằng Desk/import, kể cả sửa sau submit."""
-    keys = ("vgb_quy_ung", "vgb_cap_ung_bt", "vgb_nq_tham_chieu", "vgb_nguon_ung")
+    keys = ("vgb_quy_ung", "vgb_cap_ung_bt", "vgb_nq_tham_chieu", "vgb_nguon_ung", "vgb_cap_ung_lan")
     cu = doc.get_doc_before_save()
     if not any(doc.get(k) or (cu and cu.get(k)) for k in keys):
         return

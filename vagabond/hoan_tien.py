@@ -2241,88 +2241,17 @@ def _doi_soat_khop(ho_so=None, so_ngay=30):
 
 	da, xem, sinh, da_thu = 0, [], [], []
 	for d in ds:
-		for g in gds:
-			mo_ta = "%s %s" % (g.get("description") or "", g.get("reference_number") or "")
-			if not khop_giao_dich(mo_ta, d["ma_do"]):
-				continue
-			chu_cu = da_chiem.get(g["name"])
-			if chu_cu and chu_cu != d["name"]:
-				# Bay len cho NGUOI xem chu khong im lang bo qua: day co the
-				# la hai phieu that cho hai lan hoan that, va luc do sao ke
-				# con thieu mot dong chu khong phai phieu sai.
-				xem.append({
-					"ho_so": d["name"],
-					"hoa_don": d["hoa_don"],
-					"tien_phieu": flt(d["so_tien"]),
-					"tien_chuyen": flt(g["withdrawal"]),
-					"giao_dich": g["name"],
-					"trung_voi": chu_cu,
-				})
-				continue
-			# Khop noi dung roi van phai so TIEN. Noi dung dung ma so tien
-			# lech nghia la ke toan chuyen thieu hoac thua, va do la viec
-			# nguoi phai xem chu khong phai may tu dong danh dau xong.
-			if abs(flt(g["withdrawal"]) - flt(d["so_tien"])) > 1:
-				xem.append(
-					{
-						"ho_so": d["name"],
-						"hoa_don": d["hoa_don"],
-						"tien_phieu": flt(d["so_tien"]),
-						"tien_chuyen": flt(g["withdrawal"]),
-						"giao_dich": g["name"],
-					}
-				)
-				continue
-			loi_tk = ly_do_tai_khoan_sepay(g.get("bank_account"), cho_phep_tk)
-			if loi_tk:
-				# Bay len cho NGUOI xem kem ly do, khong im lang bo qua.
-				xem.append({
-					"ho_so": d["name"],
-					"hoa_don": d["hoa_don"],
-					"tien_phieu": flt(d["so_tien"]),
-					"tien_chuyen": flt(g["withdrawal"]),
-					"giao_dich": g["name"],
-					"vi_sao": loi_tk,
-				})
-				continue
-			frappe.db.set_value(
-				DT,
-				d["name"],
-				{
-					"da_doi_soat": 1,
-					"ma_gd": g["name"],
-					"ngay_doi_soat": now_datetime(),
-					"trang_thai": "Da doi soat",
-					"loi_sinh_ct": "",
-				},
-			)
-			da_chiem[g["name"]] = d["name"]
-			# GHI XUONG NGAY, TRUOC khi sinh chung tu.
-			#
-			# Truoc 19/08/2026 hai viec nay nam chung mot giao dich co so du
-			# lieu: danh dau da doi soat, roi sinh chung tu, hong thi
-			# rollback. Ma rollback do xoa luon cai dau da doi soat vua ghi.
-			#
-			# Ket qua thay tren phieu HT-2026-00899: tien 185.000 d DA RA
-			# khoi tai khoan MB luc 18:00, sao ke co dung dong do voi dung
-			# noi dung "THE VAGABOND HOAN TIEN HDB-26-08-00581", may khop
-			# dung phieu - nhung mot loi NameError trong buoc sinh chung tu
-			# lam rollback xoa het, nen phieu van nam o "Cho chi". Nhip cham
-			# 35 phut moi gio lai chay lai, lai hong, lai xoa dau. Ca chuoi
-			# lap vo tan va khong ai nhin thay gi ngoai mot phieu mai khong
-			# nhuc nhich.
-			#
-			# Hai su that khac han nhau, khong duoc gop lam mot:
-			#   tien da ra va da khop  -> la SU THAT, ghi xuong ngay.
-			#   chung tu sinh duoc chua -> la viec sau, hong thi ghi ro loi.
-			frappe.db.commit()
-			da += 1
-			# TIEN DA RA THAT. Day la moc duy nhat sinh chung tu.
-			kq = _sinh_va_ghi_loi(d["name"])
-			da_thu.append(d["name"])
-			if kq:
-				sinh.append(kq)
-			break
+		from vagabond.bo_sao_ke_luong import tu_dong_mot
+		bo = tu_dong_mot("hoan_tien",d["name"],gds)
+		if bo is not None:
+			if bo.get("ok"):
+				da += 1
+				da_thu.append(d["name"])
+				if bo.get("loi"):xem.append({"ho_so":d["name"],"vi_sao":bo["loi"]})
+			else:
+				xem.append(dict(bo,ho_so=d["name"]))
+			continue
+
 	frappe.db.commit()
 	return {"da_khop": da, "xem_xet": xem[:50], "so_phieu_quet": len(ds), "da_sinh": sinh,
 		"_da_thu": da_thu}
@@ -2550,55 +2479,12 @@ def sepay_tien_ra(mo_ta="", so_tien=0, ma_gd=""):
 	d = next((c for c in cho if str(c["ma_do"]).upper() == ma.upper()), None)
 	if not d:
 		return {"khop": 0, "ma": ma, "vi_sao": "Không có phiếu hoàn tiền nào đang chờ cho đơn %s." % ma}
-	if flt(so_tien) and abs(flt(so_tien) - flt(d["so_tien"])) > 1:
-		return {
-			"khop": 0,
-			"ma": ma,
-			"ho_so": d["name"],
-			"vi_sao": "Số tiền chuyển %s đ lệch với số trên phiếu %s đ. Kế toán mở phiếu ra "
-			"xem lại rồi khớp tay." % (
-				"{:,.0f}".format(flt(so_tien)).replace(",", "."),
-				"{:,.0f}".format(flt(d["so_tien"])).replace(",", "."),
-			),
-		}
-	# Khoa trung giao dich, giong het duong chay theo gio. SePay co the goi
-	# lai cung mot giao dich (co che thu lai cua ho), va hai phieu hoan cua
-	# cung mot hoa don goc thi deu khop noi dung nhu nhau. Thieu khoa nay la
-	# mot lan tien ra sinh ra hai phieu chi.
-	ma_gd_sach = (ma_gd or "").strip()
-	if ma_gd_sach:
-		chu_cu = _gd_da_chiem(tru_ho_so=d["name"]).get(ma_gd_sach)
-		if chu_cu:
-			return {
-				"khop": 0,
-				"ma": ma,
-				"ho_so": d["name"],
-				"trung_voi": chu_cu,
-				"vi_sao": "Giao dịch %s đã được gắn cho phiếu %s rồi. Một lần tiền ra "
-				"chỉ khớp cho một phiếu hoàn. Nếu đây thật sự là hai lần hoàn khác "
-				"nhau thì sao kê còn thiếu một dòng, báo anh Việt nạp bù giúp."
-				% (ma_gd_sach, chu_cu),
-			}
-	frappe.db.set_value(
-		DT,
-		d["name"],
-		{
-			"da_doi_soat": 1,
-			"ma_gd": ma_gd_sach,
-			"ngay_doi_soat": now_datetime(),
-			"trang_thai": "Da doi soat",
-		},
-	)
-	# Ghi dấu đã khớp TRƯỚC (bài học HT-2026-00899), rồi sinh qua đúng một
-	# cửa có khoá và chặn thiếu phiếu chi (Codex #363 vòng 5).
-	frappe.db.commit()
-	kq = _sinh_va_ghi_loi(d["name"])
-	if not kq:
-		kq = {"loi": frappe.db.get_value(DT, d["name"], "loi_sinh_ct") or ""}
-	kq["khop"] = 1
-	kq["ho_so"] = d["name"]
-	kq["ma"] = ma
-	return kq
+	from vagabond import doi_soat_sepay as dss
+	from vagabond.bo_sao_ke_luong import tu_dong_mot
+	bo = tu_dong_mot("hoan_tien",d["name"],dss.dong_sao_ke(dss.RA,45))
+	bo = bo or {}
+	return dict(khop=int(bool(bo.get("ok"))),ma=ma,ho_so=d["name"],
+		vi_sao=bo.get("vi_sao") or bo.get("loi") or "Chưa có bộ sao kê cùng mã hợp lệ.")
 
 
 def doi_soat_tu_dong():
@@ -3244,6 +3130,8 @@ def chi_tiet(ho_so):
 		)
 	d = frappe.get_doc(DT, ho_so)
 	ra = d.as_dict()
+	from vagabond.bo_sao_ke_luong import duoc_bo
+	ra["bo_sao_ke_duoc"] = 1 if duoc_bo("hoan_tien",d) else 0
 	for k in list(ra.keys()):
 		if k.startswith("_"):
 			ra.pop(k, None)
@@ -3562,6 +3450,9 @@ def khop_tay(ho_so=None, gd=None):
 	"""
 	from vagabond.doi_soat_sepay import khop_tay as chung
 
+	if isinstance(gd,list) or (isinstance(gd,str) and gd.lstrip().startswith("[")):
+		kq=chung("hoan_tien",ho_so,gd)
+		return dict(kq,so_tien_chuyen=kq.get("so_tien_dong"))
 	if not frappe.db.exists(DT, ho_so):
 		frappe.throw("Không tìm thấy phiếu hoàn tiền %s. Vui lòng tải lại danh sách." % ho_so)
 	d = frappe.get_doc(DT, ho_so)

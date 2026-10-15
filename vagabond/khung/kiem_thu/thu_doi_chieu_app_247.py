@@ -22,10 +22,10 @@ def _ma():
 
 @ca("#247 một sao kê không đúng chiều, tiền, tài khoản hoặc chủ phải bị từ chối")
 def _chan():
-	g = SimpleNamespace(name="BT", docstatus=1, deposit=0, withdrawal=100, bank_account="BA", currency="VND", payment_entries=[])
-	d = SimpleNamespace(name="APP")
+	g = SimpleNamespace(name="BT", docstatus=1, deposit=0, withdrawal=100, bank_account="BA", currency="VND", payment_entries=[], flags={})
+	d = SimpleNamespace(name="APP", doctype="Vagabond Ho So TT")
 	ba = {"company": "CT", "account": "112", "is_company_account": 1, "disabled": 0}
-	with patch.object(frappe.db, "get_value", return_value=ba), patch.object(dc, "_chu_khac", return_value=""):
+	with patch.object(frappe.db, "get_value", side_effect=lambda dt, name, field, **kw: None if field=="vgb_chu_bo_sao_ke" else ba), patch.object(dc, "_chu_khac", return_value=""):
 		la("đủ điều kiện", dc._kiem(g, d, ("CT", "112", 100)), "")
 		for truong, gia_tri in (("docstatus", 0), ("deposit", 100), ("withdrawal", 99), ("currency", "USD")):
 			cu = getattr(g, truong)
@@ -34,7 +34,7 @@ def _chan():
 			setattr(g, truong, cu)
 		dung("khác công ty", bool(dc._kiem(g, d, ("CT-KHAC", "112", 100))))
 		dung("khác nguồn chi", bool(dc._kiem(g, d, ("CT", "112-KHAC", 100))))
-	with patch.object(frappe.db, "get_value", return_value=ba), patch.object(dc, "_chu_khac", return_value="APP-KHAC"):
+	with patch.object(frappe.db, "get_value", side_effect=lambda dt, name, field, **kw: None if field=="vgb_chu_bo_sao_ke" else ba), patch.object(dc, "_chu_khac", return_value="APP-KHAC"):
 		dung("đã có chủ", "APP-KHAC" in dc._kiem(g, d, ("CT", "112", 100)))
 
 
@@ -59,7 +59,7 @@ def _doi_chieu_coc_khong_cat_50():
 	la("đọc đúng tiền cọc", tien[0]["amount"], 3000000)
 
 
-@ca("#328 APP whitelist chung vẫn dùng kiểm nguồn và số tiền của APP")
+@ca("#476 APP whitelist kiểm nguồn, cho chọn phần tiền của nhiều dòng")
 def _app_danh_sach_chung():
 	from vagabond import doi_soat_sepay as dss
 	from contextlib import ExitStack
@@ -68,6 +68,8 @@ def _app_danh_sach_chung():
 		dict(name='SAI-NGUON',bank_account='CN',withdrawal=100,tien=100,date='2026-09-16',description=''),
 		dict(name='SAI-TIEN',bank_account='BA',withdrawal=90,tien=90,date='2026-09-16',description='')]
 	with ExitStack() as st:
+		from vagabond import bo_sao_ke_db as bs
+		st.enter_context(patch.object(bs,'con_lai',return_value=90))
 		st.enter_context(patch.object(dc,'_ho_so',return_value=doc))
 		st.enter_context(patch.object(dc,'_nguon',return_value=('CT','112',100)))
 		st.enter_context(patch.object(frappe,'get_all',return_value=['BA']))
@@ -77,6 +79,8 @@ def _app_danh_sach_chung():
 		st.enter_context(patch.object(dss,'dong_sao_ke',return_value=ds))
 		kq=dss.ung_vien('app',doc.name)
 		la('không giấu nguồn/tiền sai',len(kq['rows']),3)
-		la('duy nhất dòng hợp lệ',[r['name'] for r in kq['rows'] if r['dung_duoc']],['DUNG'])
-		la('kiểm đầy đủ dòng hợp lệ',kiem.call_count,1)
+		la('hai dòng cùng nguồn được chọn',[r['name'] for r in kq['rows'] if r['dung_duoc']],['DUNG','SAI-TIEN'])
+		la('bật chọn bộ',kq['chon_bo'],1)
+		la('kiểm đầy đủ dòng hợp lệ',kiem.call_count,2)
 		la('Document thật truyền vào kiểm',kiem.call_args.args,('DOC-GD',doc,('CT','112',100)))
+		la('kiểm bộ không ép riêng từng dòng bằng tổng',kiem.call_args.kwargs,{'bo':True})

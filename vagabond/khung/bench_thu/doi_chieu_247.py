@@ -19,19 +19,18 @@ def _con(ho_so, giao_dich, thu_muc):
     _mo()
     from vagabond import doi_chieu_app as dc
     thu_muc = Path(thu_muc)
-    goc = dc._ho_so
+    goc = dc.khoa_truoc
     def doi(*args, **kwargs):
-        doc = goc(*args, **kwargs)
         (thu_muc / (ho_so + '.ready')).touch()
         han = time.monotonic() + 30
         while not (thu_muc / 'go').exists():
             if time.monotonic() > han:
                 raise TimeoutError('Hết hạn hàng rào #247')
             time.sleep(0.02)
-        return doc
+        return goc(*args, **kwargs)
     try:
         try:
-            with patch.object(dc, '_ho_so', doi):
+            with patch.object(dc, 'khoa_truoc', doi):
                 dc.gan(ho_so, giao_dich)
             frappe.db.commit()
             kq = {'ho_so': ho_so, 'dat': True, 'pid': os.getpid()}

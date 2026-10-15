@@ -1242,7 +1242,7 @@ def phieu_thu_nhap(cac_si=None, chi_ma_gd=True):
 				ten_pe.add(r.parent)
 		if not ten_pe:
 			return []
-	loc = {"docstatus": 0, "payment_type": "Receive", "party_type": "Customer"}
+	loc = {"docstatus": 0, "payment_type": "Receive", "party_type": "Customer", "vgb_huy": 0}
 	if chi_ma_gd:
 		loc["reference_no"] = ["is", "set"]
 	cac_pe = []
@@ -1296,6 +1296,10 @@ def phieu_thu_nhap(cac_si=None, chi_ma_gd=True):
 	for p in cac_pe:
 		g = gd.get((p.reference_no or "").strip())
 		ok, ly_do = xac_minh_tien_ve(dict(p), g, (g or {}).get("tk", ""), (g or {}).get("cty", ""))
+		from vagabond import bo_sao_ke_thu as bst
+		bo_thu = bst.thong_tin(p.name)
+		if bo_thu:
+			ok, ly_do, g = bool(bo_thu['ok']), bo_thu['ly_do'], bo_thu['g']
 		ra.append({
 			"pe": p.name, "tien": flt(p.paid_amount), "khach": p.party, "ten_khach": p.party_name or p.party,
 			"ma_gd": p.reference_no or "", "duoi_gd": duoi_ma(p.reference_no),
@@ -1303,6 +1307,7 @@ def phieu_thu_nhap(cac_si=None, chi_ma_gd=True):
 			"gd": (g or {}).get("name") or "", "hd": ref.get(p.name, []),
 			"so_tep": len(tep.get(p.name, [])), "tep_unc": tep.get(p.name, []), "da_xac_minh": 1 if ok else 0, "ly_do": ly_do,
 			"nhom": p.get("vgb_nhom_gd") or "",
+			"chu_bo": bo_thu["chu"] if bo_thu else "",
 		})
 	# Codex #382 vòng 2: một giao dịch chỉ một phiếu được tính. Đọc MỌI phiếu
 	# thu nháp cùng mã giao dịch, kể cả phiếu của hoá đơn ngoài tập đang xem,
@@ -1328,7 +1333,9 @@ def phieu_thu_nhap(cac_si=None, chi_ma_gd=True):
 				"parenttype": PE, "reference_doctype": SI}, fields=["parent"], limit_page_length=0):
 			co_hd.add(r.parent)
 	ung_vien = {k: [m for m in cac if m[0] in co_hd] for k, cac in ung_vien.items()}
-	return mot_phieu_moi_giao_dich(ra, ung_vien)
+	bo_da_xac_minh = [r for r in ra if r.get('chu_bo')]
+	ra = [r for r in ra if not r.get('chu_bo')]
+	return mot_phieu_moi_giao_dich(ra, ung_vien) + bo_da_xac_minh
 
 
 def _so_tep_unc(ten_pe, o_unc):
@@ -1419,6 +1426,26 @@ def ghi_so_phieu_thu(name=None, unc=None):
 			doc.reload()
 	so_tep = _so_tep_unc(doc.name, doc.get("vgb_thu_unc"))
 
+	from vagabond import bo_sao_ke_thu as bst
+	bo_thu = bst.thong_tin(doc.name)
+	if bo_thu:
+		duoc, vi_sao = soat_ghi_so_thu(bool(bo_thu['ok']), bo_thu['ly_do'], so_tep, la_ke_toan())
+		if not duoc:
+			if unc and so_tep:
+				return {'ok':0,'da_dinh':1,'so_tep':so_tep,'name':doc.name,'vi_sao':vi_sao}
+			frappe.throw(vi_sao)
+		frappe.db.savepoint('vgb_ghi_so_thu_bo')
+		try:
+			doc.flags.ignore_permissions=True
+			doc.submit()  # hook đọc chủ DB, phân bổ từng PE qua lõi
+			doc.reload()
+			if doc.docstatus!=1:frappe.throw('Phiếu thu chưa vào sổ.')
+			return {'ok':1,'name':doc.name,'gd':bo_thu['g']['name']}
+		except Exception as e:
+			frappe.db.rollback(save_point='vgb_ghi_so_thu_bo')
+			if unc and so_tep:
+				return {'ok':0,'da_dinh':1,'so_tep':so_tep,'name':doc.name,'vi_sao':str(e)}
+			raise
 	g = _gd_theo_so([doc.reference_no]).get((doc.reference_no or "").strip())
 	ok, ly_do = xac_minh_tien_ve(doc.as_dict(), g, (g or {}).get("tk", ""), (g or {}).get("cty", ""))
 	duoc, vi_sao = soat_ghi_so_thu(ok, ly_do, so_tep, la_ke_toan())
@@ -1554,7 +1581,8 @@ def _thuoc_tap_unc(doc):
 	ghi sổ và nút đính UNC trên app (Codex #382 vòng 4)."""
 	co_hd = any((r.get("reference_doctype") == SI) for r in (doc.get("references") or []))
 	ref = (doc.get("reference_no") or "").strip()
-	khop = bool(ref) and bool(frappe.db.exists(BT, {"reference_number": ref, "docstatus": 1}))
+	from vagabond import bo_sao_ke_thu as bst
+	khop = bool(bst.chu(doc.name)) or (bool(ref) and bool(frappe.db.exists(BT, {"reference_number": ref, "docstatus": 1})))
 	return can_unc_khach(doc.as_dict(), co_hd, khop)
 
 
@@ -1825,13 +1853,26 @@ def con_chua_phu(du_no, da_nhap):
 	return max(0.0, _so(du_no) - _so(da_nhap))
 
 
-def phan_bo_nhap_theo_hd(cac_si):
+def phan_bo_nhap_theo_hd(cac_si, khoa=False):
 	"""Tổng phân bổ của phiếu thu NHÁP vào từng hoá đơn bán."""
 	ra = {}
 	for lo in _chia(set(x for x in (cac_si or []) if x)):
+		if khoa:
+			# Caller đã khóa SI theo tên. Locking read nhìn được nháp vừa
+			# commit trong lúc chờ, thay vì snapshot REPEATABLE READ cũ.
+			dong = frappe.db.sql("""select r.reference_name, r.allocated_amount
+				from `tabPayment Entry Reference` r join `tabPayment Entry` p on p.name=r.parent
+				where r.reference_doctype='Sales Invoice' and r.reference_name in %(ten)s
+				and r.parenttype='Payment Entry' and p.docstatus=0 and ifnull(p.vgb_huy,0)=0
+				for update""", {"ten": tuple(lo)}, as_dict=True)
+			for r in dong:
+				ra[r.reference_name] = ra.get(r.reference_name, 0.0) + flt(r.allocated_amount)
+			continue
 		for r in frappe.get_all("Payment Entry Reference", filters={"reference_doctype": SI,
 				"reference_name": ["in", lo], "docstatus": 0, "parenttype": PE},
-				fields=["reference_name", "allocated_amount"], limit_page_length=0):
+				fields=["reference_name", "allocated_amount", "parent"], limit_page_length=0):
+			if frappe.db.get_value(PE,r.parent,"vgb_huy"):
+				continue
 			ra[r.reference_name] = ra.get(r.reference_name, 0.0) + flt(r.allocated_amount)
 	return ra
 
@@ -1846,13 +1887,15 @@ def phieu_nhap_cua_hd(cac_si):
 		for r in frappe.get_all("Payment Entry Reference", filters={"reference_doctype": SI,
 				"reference_name": ["in", lo], "docstatus": 0, "parenttype": PE},
 				fields=["reference_name", "parent"], limit_page_length=0):
+			if frappe.db.get_value(PE,r.parent,"vgb_huy"):
+				continue
 			ds = ra.setdefault(r.reference_name, [])
 			if r.parent not in ds:
 				ds.append(r.parent)
 	return ra
 
 
-def tim_giao_dich(ma):
+def tim_giao_dich(ma, khoa=True):
 	"""Bank Transaction theo mã người dùng chọn: số tham chiếu, hoặc tên."""
 	ma = str(ma or "").strip()
 	if not ma:
@@ -1863,7 +1906,7 @@ def tim_giao_dich(ma):
 		frappe.throw("Có nhiều giao dịch ngân hàng cùng số %s, cần kế toán chọn tay." % ma)
 	if not ten and frappe.db.exists(BT, ma):
 		ten = [ma]
-	return frappe.get_doc(BT, ten[0], for_update=True) if ten else None
+	return frappe.get_doc(BT, ten[0], for_update=khoa) if ten else None
 
 
 def soat_tep_unc_moi(unc):
@@ -1977,7 +2020,7 @@ def ham_dinh_unc(tep):
 	return dinh
 
 
-def lap_phieu_thu_theo_gd(cac_si, g, so_tien, ghi_chu="", tach_khach=False):
+def lap_phieu_thu_theo_gd(cac_si, g, so_tien, ghi_chu="", tach_khach=False, chu_bo=None):
 	"""Lập MỘT phiếu thu nháp cho nhiều hoá đơn theo một giao dịch ngân hàng.
 
 	Ném lỗi kèm lý do bằng lời khi không lập được, TRƯỚC khi đổi bất cứ thứ
@@ -2012,16 +2055,20 @@ def lap_phieu_thu_theo_gd(cac_si, g, so_tien, ghi_chu="", tach_khach=False):
 	  * insert() giữ docstatus 0; ghi sổ đi đường ghi_so_phieu_thu, nơi luật
 	    UNC (chung_tu_tien.chan_thieu_dinh_kem) chạy ở before_submit.
 	"""
+	bo_cu = None
+	if chu_bo is not None:
+		from vagabond import bo_sao_ke_thu as bst
+		g, chu_bo, bo_cu = bst.nguon_lap(chu_bo)
 	ref = (g.reference_number or "").strip()
 	if not ref:
 		frappe.throw("Giao dịch %s không có số tham chiếu ngân hàng." % g.name)
 	if int(g.docstatus) != 1 or flt(g.deposit) <= 0 or (g.currency or "VND") != "VND":
 		frappe.throw("Giao dịch %s không phải tiền vào đã xác nhận." % ref)
-	if g.payment_entries or flt(g.unallocated_amount) <= LECH:
+	if (chu_bo is None and g.payment_entries) or flt(g.unallocated_amount) <= LECH:
 		frappe.throw("Giao dịch %s đã nối với chứng từ khác." % ref)
 	cu = frappe.get_all(PE, filters={"docstatus": ["<", 2], "reference_no": ref, "payment_type": "Receive"},
 		pluck="name", limit_page_length=1)
-	if cu:
+	if cu and chu_bo is None:
 		frappe.throw("Giao dịch %s đã có phiếu thu %s. Mở tab Tiền đã về." % (ref, cu[0]))
 	hd = frappe.get_all(SI, filters={"name": ["in", list(cac_si or []) or [""]], "docstatus": 1},
 		fields=["name", "customer", "company", "outstanding_amount", "posting_date", "grand_total", "due_date"],
@@ -2030,19 +2077,21 @@ def lap_phieu_thu_theo_gd(cac_si, g, so_tien, ghi_chu="", tach_khach=False):
 	# chéo) trước khi đọc dư nợ và phân bổ nháp. Hai người khớp hai giao
 	# dịch trả góp cùng lúc thì người sau phải chờ người trước lập xong,
 	# rồi mới thấy phần nháp người trước đã phủ.
+	moi = []
 	for ten in sorted(h.name for h in hd):
-		frappe.db.get_value(SI, ten, "name", for_update=True)
-	moi = {r.name: r for r in frappe.get_all(SI, filters={"name": ["in", [h.name for h in hd] or [""]]},
-		fields=["name", "outstanding_amount"], limit_page_length=0)}
-	for h in hd:
-		if h.name in moi:
-			h.outstanding_amount = moi[h.name].outstanding_amount
+		h = frappe.db.get_value(SI, ten,
+			["name", "docstatus", "customer", "company", "outstanding_amount", "posting_date", "grand_total", "due_date"],
+			as_dict=True, for_update=True)
+		if not h or h.docstatus != 1:
+			frappe.throw("Hoá đơn vừa đổi trạng thái trong lúc chờ. Tải lại phiếu công nợ trước khi khớp.")
+		moi.append(h)
+	hd = moi
 	hd = [h for h in hd if flt(h.outstanding_amount) > LECH]
 	if not hd:
 		frappe.throw("Các hoá đơn trong phiếu không còn nợ trên sổ.")
 	# Phần đã có phiếu thu NHÁP phủ thì không chia vào lần nữa, nhưng phần
 	# còn lại của cùng hoá đơn thì vẫn chia (Codex #437 vòng 3: trả góp).
-	nhap = phan_bo_nhap_theo_hd([h.name for h in hd])
+	nhap = phan_bo_nhap_theo_hd([h.name for h in hd], khoa=True)
 	for h in hd:
 		h.con_phu = con_chua_phu(h.outstanding_amount, nhap.get(h.name))
 	hd = [h for h in hd if h.con_phu > LECH]
@@ -2118,6 +2167,11 @@ def lap_phieu_thu_theo_gd(cac_si, g, so_tien, ghi_chu="", tach_khach=False):
 			pe.insert(ignore_permissions=True)
 			_giu_chu(pe, goc)
 			cac_pe.append(pe.name)
+	if chu_bo is not None:
+		from vagabond import bo_sao_ke_db as bs
+		bs.luu(chu_bo,bo_cu['dong'],bo_cu['chung_tu']+[
+			{'doctype':PE,'name':ma} for ma in cac_pe])
+		bst.gan_chu(chu_bo,cac_pe)
 	for ten_pe in cac_pe:
 		_ghi_vet_thu(ten_pe, "Lập phiếu thu nháp gộp %d hoá đơn theo giao dịch %s khi khớp tay%s"
 			% (len(chia), ref, (", nhóm %s" % nhom) if nhom else ""))

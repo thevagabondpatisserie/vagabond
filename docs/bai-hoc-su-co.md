@@ -2249,3 +2249,70 @@ khác. Comment lưu HTML an toàn, khi trả câu thuần thì bỏ thẻ rồi 
 một lần, để màn escape khi vẽ. Chỉ ghi trường nghiệp vụ bằng nhãn tiếng Việt,
 bỏ giá vốn tính lại. Tám đột biến của các nhánh này đều bị bắt trong bản gom.
 Nguồn: comment giao gom v594 trên PR #474; không kéo phần Vue của #471 vào.
+
+
+### #476: bộ sao kê phải giữ phần tiền ở cả cửa mới lẫn cửa một dòng cũ
+
+Khi một hồ sơ dùng nhiều dòng sao kê, trường mã giao dịch cũ chỉ còn giữ dòng đầu để tương thích. Chỉ kiểm trường đó sẽ bỏ sót dòng thứ hai ở các cửa webhook và khớp tay cũ. Phải đọc bộ đang giữ trong cùng giao dịch khóa, kiểm phần tiền còn lại tại máy chủ, và bảo vệ cả lúc core lưu Bank Transaction. Không lấy tổng trên màn hình làm quyền ghi tiền.
+
+Đổi bộ cũng không được ghi trường giữ mới trước khi controller gỡ bộ cũ: controller có thể xóa nhầm phần vừa chọn. Gỡ và kiểm bộ cũ trước, chọn mới trong cùng transaction; chọn mới hỏng thì rollback giữ nguyên dữ liệu trước lượt. Ca bench phải kiểm tình huống đổi bộ này riêng với ca gán lần đầu. PR #476 bổ sung ca tầng khung và DOM; bằng chứng bench cập nhật theo SHA trên PR.
+
+### PR476: bộ sao kê và cửa webhook
+
+- Khi đổi chọn một dòng thành chọn bộ, bài kiểm trình duyệt phải bấm Gán trước xác nhận; giữ cả bước đọc lại chứng từ sau ghi. Timeout ở hộp xác nhận chưa đủ để kết luận lỗi backend.
+- Callback webhook hợp lệ có thể vẫn chạy dưới Guest. Dùng cửa nội bộ kiểm nguồn và số tiền cho tác vụ đã xác thực, còn API chọn tay phải kiểm quyền. Không đổi người dùng toàn request để vượt lỗi quyền.
+- Tự dò bắt lỗi rồi đi phiếu kế tiếp thì phần ghi trước lỗi phải có savepoint; nếu không sẽ giữ tiền mồ côi khi phiếu sau commit.
+- Sau đột biến Python sửa và phục hồi nhanh, dùng thư mục pycache mới để tránh timestamp cache khiến bản đúng chạy bytecode của bản hỏng.
+
+### PR476: khóa chủ sao kê và giữ tồn web phải có phạm vi chỉ mục
+
+Triệu chứng: đối chiếu BT không liên quan và tạo APP mới đều chờ khoảng2giây
+trong probe giữ2giây; đảo thứ tự có deadlock1213. Nguyên nhân: tìm chủ bằng
+LIKE FOR UPDATE trên bảng phiếu khóa cả các hàng không liên quan. Khắc phục:
+chủ giữ nằm trên BT hiện có, tra khóa chính; mọi cửa ghi khóa BT theo tên
+trước phiếu, kể cả khóa ngầm check_if_latest của Frappe. Probe sau sửa tại
+1c59da60f còn0,03-0,06giây, không deadlock. Bench tổng vẫn phải kiểm riêng.
+
+Giữ tồn web cũng có truy vấn OR/JSON/LIKE FOR UPDATE làm hook cập nhật đơn
+khác chờ2,066giây. Tách ngày nguồn có chỉ mục và ID Pancake có chỉ mục thành
+hai truy vấn. Không xem unit kiểm câu SQL là bằng chứng hết chờ: phải đo lại
+hai kết nối và chạy ca tranh chiếc bánh cuối trên bench đúng SHA.
+
+Hồ sơ hoàn tiền có thể có PE Receive và PE Pay độc lập. Cửa bỏ bộ tiền ra
+chỉ kiểm PE Pay còn sống, không chặn vì PE Receive nháp. Hủy PE chi không tự
+đổi trạng thái hồ sơ từ Da chi; kiểm chứng từ/liên kết lõi thật trước nhả bộ.
+Nguồn: review PR476 và bench38549666430/38617438497.
+
+### PR476: đọc lại sau khóa phải là current read
+
+Một SELECT thường sau SELECT FOR UPDATE vẫn có thể đọc snapshot cũ ở
+REPEATABLE READ. Đường lập phiếu thu phải lấy cả trạng thái/dư nợ ngay trong
+locking read, và đọc phần nháp vừa commit dưới khóa hóa đơn. Các cửa save
+PE cùng thứ tự BT/chủ bộ, SI theo tên, rồi PE để tránh đảo khóa với factory.
+Ba ca tầng khung bắt3/3đột biến; bằng chứng hai tiến trình theo run PR476,
+không dùng bộ giả để khẳng định thời gian chờ thực tế.
+
+### v595: nhịp đồng bộ Pancake đè người mua "Không có MST Việt Nam"
+
+Triệu chứng: Loan Anh lưu đơn #95605 (HDB-26-10-02615) với tên COCO
+INVESTMENTS PTE. LTD, địa chỉ Singapore, email, không mã số thuế. Hoá đơn
+19621 vẫn ra "Bán cho người tiêu dùng". Version trên site: 22:32 nhịp đồng bộ
+đổi tên thành câu mặc định; 23:00 tên đã mặc định nên nhịp sau xoá địa chỉ và
+email; 23:07 xuất hoá đơn.
+
+Nguyên nhân: `_upsert_hoa_don` đọc lại người mua "chừng nào còn thiếu mã số
+thuế" (bài học 91476). Người mua không MST thì thiếu mãi, và `_thong_tin_xhd`
+không ra gì thì trả câu mặc định, một chuỗi KHÔNG rỗng nên lọt qua lớp "đọc
+lại rỗng thì giữ nguyên". Bản sửa #456 (v588) chỉ chốt màn Sales và tờ gửi
+m-invoice, kết luận "máy chủ đã đúng" mà không chạy nhịp đồng bộ trên một tờ
+có tên không MST. Từ 01/08 có 35 lần đè; ba tờ đã xuất cho người tiêu dùng.
+
+Khắc phục: gom luật vào hàm thuần `gop_nguoi_mua_dong_bo`. Tên thật đã có thì
+máy không đụng tên, MST, địa chỉ, chỉ bù email trống; chỉ khi tên trống hoặc
+mặc định mới ghi kết quả đọc lại. Ca kiểm chạy đúng `_upsert_hoa_don` thật hai
+nhịp liền.
+
+Bài học: sửa một lỗi người mua phải chạy MỌI đường ghi vào bốn ô `vgb_xhd_*`
+(màn Sales, bill quầy, nhịp đồng bộ, cuối ngày), không chỉ đường người dùng
+nhìn thấy. Lưu tay dùng `ignore_version` nên Version không có dòng của sales;
+thấy Administrator đổi ô người mua lúc :00 hoặc :30 là nhịp đồng bộ.

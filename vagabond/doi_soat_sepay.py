@@ -288,7 +288,7 @@ def da_chiem(loai, tru_phieu=None):
 HD_BAN = {"doctype": "Sales Invoice", "truong": "vgb_gd_sepay", "ten_man": "hoá đơn bán"}
 
 
-def chu_cua_giao_dich(ds_gd, bo_qua_loai=None, bo_qua_phieu=None, bo_qua_hoa_don=None):
+def chu_cua_giao_dich(ds_gd, bo_qua_loai=None, bo_qua_phieu=None, bo_qua_hoa_don=None, cho_bo=False):
 	"""Mỗi mã giao dịch trong `ds_gd` hiện đang thuộc về chứng từ nào.
 
 	Trả về {mã giao dịch: "tên màn PHIEU-XXX"}. Không có chủ thì không có
@@ -305,24 +305,40 @@ def chu_cua_giao_dich(ds_gd, bo_qua_loai=None, bo_qua_phieu=None, bo_qua_hoa_don
 	if not muon:
 		return {}
 	ra = {}
+	# Các cửa một dòng cũ phải thấy cả BT thứ hai/thứ ba trong bộ đang
+	# giữ. Không suy quyền dùng từ mã đầu tiên còn lưu để tương thích.
+	from vagabond import bo_sao_ke_db as bs
+	for ma in ([] if cho_bo else sorted(muon)):
+		for bo in bs._cac_bo(ma):
+			dt, ten = bo["chu"].split("/", 1)
+			if ten != bo_qua_phieu:
+				ra.setdefault(ma, "bộ sao kê " + ten)
 	try:
 		nap_so()
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "doi_soat_sepay: nap so de hoi chu")
+		if cho_bo:raise
 	for loai, b in _SO.items():
 		if bo_qua_loai and loai == bo_qua_loai:
 			continue
-		loc = {b["truong_gd"]: ["in", sorted(muon)]}
+		loc = {b["truong_gd"]: (["is", "set"] if cho_bo and loai=="cong_no" else ["in", sorted(muon)])}
 		loc.update(b.get("loc_chiem") or {})
 		if bo_qua_phieu:
 			loc["name"] = ["!=", bo_qua_phieu]
 		try:
 			ds = frappe.get_all(b["doctype"], filters=loc,
-				fields=["name", b["truong_gd"]], limit_page_length=0)
+				fields=["name", b["truong_gd"]] + ([bs.O_BO] if cho_bo and b["doctype"] in bs.PHIEU else []), limit_page_length=0)
 		except Exception:
 			frappe.log_error(frappe.get_traceback(), "doi_soat_sepay: hoi chu luong %s" % loai)
+			if cho_bo:raise
 			continue
 		for r in ds:
+			if cho_bo and r.get(bs.O_BO):continue
+			if cho_bo and loai=="cong_no":
+				from vagabond.chiem_sao_ke import tach_gd
+				for ma in tach_gd(r.get(b['truong_gd'])):
+					if ma in muon:ra.setdefault(ma,b['ten_man']+' '+r['name'])
+				continue
 			ma = str(r.get(b["truong_gd"]) or "").strip()
 			if ma and ma not in ra:
 				ra[ma] = "%s %s" % (b["ten_man"], r["name"])
@@ -344,6 +360,7 @@ def chu_cua_giao_dich(ds_gd, bo_qua_loai=None, bo_qua_phieu=None, bo_qua_hoa_don
 					ra[ma] = "%s %s" % (HD_BAN["ten_man"], r["name"])
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "doi_soat_sepay: hoi chu hoa don ban")
+		if cho_bo:raise
 	return ra
 
 
@@ -466,45 +483,20 @@ def tu_dong(loai, ma_phieu=None, so_ngay=45):
 
 	da, xem, da_khop_rows = 0, [], []
 	for c in cho:
-		for g in gds:
-			kq, vi_sao = xet(g["mo_ta"], g["tien"], c["ma"], c["tien"],
-				chu_cu=chiem.get(g["name"]))
-			if kq == KHONG:
-				continue
-			loi_nguon = _loi_giao_dich(b, g)
-			if loi_nguon:
-				kq, vi_sao = XEM_LAI, loi_nguon
-			if kq == XEM_LAI:
-				xem.append({
-					"phieu": c["doc"].name, "ma_do": c["ma"],
-					"giao_dich": g["name"], "ngay": str(g.get("date") or ""),
-					"tien_phieu": c["tien"], "tien_dong": g["tien"],
-					"vi_sao": vi_sao, "nhan_ngan_hang": g.get("nhan_ngan_hang"),
-				})
-				continue
-			loi_tai_khoan = ly_do_tai_khoan_sepay(g.get("bank_account"))
-			if loi_tai_khoan:
-				xem.append({"phieu": c["doc"].name, "ma_do": c["ma"],
-					"giao_dich": g["name"], "vi_sao": loi_tai_khoan,
-					"tien_phieu": c["tien"], "tien_dong": g["tien"],
-					"nhan_ngan_hang": g.get("nhan_ngan_hang")})
-				continue
-			frappe.db.set_value(b["doctype"], c["doc"].name, b["truong_gd"], g["name"])
-			frappe.db.commit()
-			chiem[g["name"]] = c["doc"].name
+		if loai == 'cong_no':
+			from vagabond.bo_sao_ke_thu import tu_dong as tu_dong_thu
+			bo = tu_dong_thu(c['doc'], [g['name'] for g in gds if co_ma(g.get('mo_ta'),c['ma'])])
+		else:
+			from vagabond.bo_sao_ke_luong import tu_dong_mot
+			bo = tu_dong_mot(loai,c['doc'].name,gds)
+		if not bo or bo.get('da_lam_roi'):
+			continue
+		if bo.get('ok'):
 			da += 1
-			da_khop_rows.append({"phieu": c["doc"].name, "giao_dich": g["name"], "nhan_ngan_hang": g.get("nhan_ngan_hang")})
-			if b["khi_khop"]:
-				# Boc rieng tung phieu: mot phieu hong khong duoc keo theo ca
-				# me dang quet, vi cac phieu kia da duoc danh dau roi.
-				try:
-					b["khi_khop"](frappe.get_doc(b["doctype"], c["doc"].name), g["name"])
-					frappe.db.commit()
-				except Exception:
-					frappe.db.rollback()
-					frappe.log_error(frappe.get_traceback(),
-						"doi_soat_sepay: khi_khop loi %s %s" % (loai, c["doc"].name))
-			break
+			da_khop_rows.append({'phieu':c['doc'].name,'giao_dich':bo.get('gd')})
+		else:
+			xem.append(bo)
+
 	frappe.db.commit()
 	return {"da_khop": da, "da_khop_rows": da_khop_rows[:5], "xem_lai": xem[:50], "so_phieu_quet": len(cho)}
 
@@ -560,7 +552,13 @@ def ung_vien(loai, ma_phieu, so_ngay=45, tu_khoa="", tai_khoan="", thu_tu="goi_y
 	ma = str(b["ma_do"](doc) or "").strip()
 	tien = flt(b["so_tien"](doc))
 	kq = danh_sach_chon(b["chieu"], ma, tien, so_ngay, tu_khoa, tai_khoan, thu_tu, bat_dau,
-		ly_do=lambda g: _loi_giao_dich(b, g), chiem=da_chiem(loai, tru_phieu=ma_phieu))
+		ly_do=lambda g: _loi_giao_dich(b, g), chiem={} if loai in ("ttnb","hoan_tien","cong_no") else da_chiem(loai, tru_phieu=ma_phieu))
+	if loai in ("ttnb","hoan_tien"):
+		from vagabond.bo_sao_ke_luong import ung_vien as ung_vien_bo
+		kq = ung_vien_bo(loai,doc,kq)
+	if loai == "cong_no":
+		from vagabond.bo_sao_ke_thu import ung_vien as ung_vien_thu
+		kq = ung_vien_thu(doc,kq)
 	kq.update(ten_man=b["ten_man"], ma_gd_dang_gan=doc.get(b["truong_gd"]) or "",
 		nhac="" if ma else "Phiếu chưa có mã để dò. Đọc nội dung rồi chọn giao dịch.")
 	return kq
@@ -568,94 +566,15 @@ def ung_vien(loai, ma_phieu, so_ngay=45, tu_khoa="", tai_khoan="", thu_tu="goi_y
 
 @frappe.whitelist()
 def khop_tay(loai, ma_phieu, ma_gd):
-	"""Gắn TAY một dòng sao kê vào phiếu, rồi chạy nốt việc sau khớp.
-
-	Đi đến ĐÚNG cái đích của đường tự động, chỉ khác chỗ chọn dòng: ở kia máy
-	đọc nội dung, ở đây người nhìn sao kê và chỉ. Nên nó phải làm ĐỦ những
-	việc kia làm, không được làm thiếu.
-
-	Lệch tiền thì CẢNH BÁO chứ không chặn: ngân hàng có thể trừ phí, kế toán
-	có thể chuyển làm hai lần. Nhưng con số phải được nói ra thành lời.
-	"""
+	"""Cửa cũ một dòng chuẩn hóa thành bộ, cùng kiểm quyền/khóa/phân bổ."""
 	b = kiem_quyen_luong(loai, ghi=True)
-	doc = frappe.get_doc(b["doctype"], ma_phieu)
-	loi_phieu = b["loi_phieu"](doc) if b.get("loi_phieu") else None
-	if loi_phieu:
-		frappe.throw(loi_phieu)
-	gd = str(ma_gd or "").strip()
-	if not gd:
-		frappe.throw("Chưa chọn dòng sao kê nào.")
-
-	cot = "withdrawal" if b["chieu"] == RA else "deposit"
-	g = frappe.db.get_value(BT, gd,
-		["name", "date", "deposit", "withdrawal", "docstatus", "description",
-		 "reference_number", "bank_account"], as_dict=True)
-	if not g:
-		frappe.throw("Không có giao dịch ngân hàng %s. Vui lòng tìm lại." % gd)
-	if cint(g["docstatus"]) >= 2:
-		frappe.throw("Giao dịch %s đã bị huỷ nên không dùng làm căn cứ được." % gd)
-	if flt(g[cot]) <= 0:
-		frappe.throw(
-			"Giao dịch %s không phải dòng tiền %s. Vui lòng chọn lại."
-			% (gd, "ra" if b["chieu"] == RA else "vào")
-		)
-	loi_nguon = _loi_giao_dich(b, g)
-	if loi_nguon:
-		frappe.throw(loi_nguon)
-	chu_cu = da_chiem(loai, tru_phieu=ma_phieu).get(gd)
-	if chu_cu:
-		frappe.throw(
-			"Giao dịch %s đã được phiếu %s dùng rồi. Một lần tiền chỉ ứng với "
-			"một phiếu." % (gd, chu_cu)
-		)
-
-	tien_phieu = flt(b["so_tien"](doc))
-	lech = flt(g[cot]) - tien_phieu
-
-	# Ghi ten NGUOI bam. Day la mot chu ky cua nguoi chu khong phai mot phep
-	# may, va ba thang sau ke toan phai tra loi duoc "ai bao dong nay la cua
-	# phieu nay". Doctype nao chua co hai o rieng thi ghi vao nhat ky tai
-	# lieu, van tra loi duoc cau hoi do.
-	ghi = {b["truong_gd"]: gd}
-	if b.get("truong_nguoi"):
-		ghi[b["truong_nguoi"]] = frappe.session.user
-	if b.get("truong_luc"):
-		ghi[b["truong_luc"]] = frappe.utils.now_datetime()
-	# Đọc lại mapping ở cửa ghi: màn đã mở có thể giữ ứng viên cũ.
-	loi_tai_khoan = ly_do_tai_khoan_sepay(g.get("bank_account"))
-	if loi_tai_khoan:
-		frappe.throw(loi_tai_khoan)
-	frappe.db.set_value(b["doctype"], ma_phieu, ghi)
-	frappe.db.commit()
-	if not b.get("truong_nguoi"):
-		try:
-			frappe.get_doc(b["doctype"], ma_phieu).add_comment(
-				"Comment",
-				"Khớp SePay thủ công: gắn giao dịch %s, người làm %s."
-				% (gd, frappe.session.user),
-			)
-			frappe.db.commit()
-		except Exception:
-			pass
-
-	loi = ""
-	if b["khi_khop"]:
-		try:
-			b["khi_khop"](frappe.get_doc(b["doctype"], ma_phieu), gd)
-			frappe.db.commit()
-		except Exception as e:
-			vet = str(frappe.get_traceback())
-			frappe.db.rollback()
-			frappe.log_error(vet,
-				"doi_soat_sepay: khop_tay khi_khop loi %s %s" % (loai, ma_phieu))
-			loi = cau_loi_sau_khop(e, vet)
-
-	return {
-		"ok": 1, "gd": gd, "lech": lech, "loi": loi,
-		"so_tien_dong": flt(g[cot]), "so_tien_phieu": tien_phieu,
-		"nhac": (
-			("Đã khớp. Số tiền trên sao kê lệch %s đ so với phiếu, vui lòng xem "
-			 "lại." % tien_vn(abs(lech)))
-			if abs(lech) > DUNG_SAI else "Đã khớp dòng sao kê vào phiếu."
-		),
-	}
+	from vagabond.bo_sao_ke_luong import khop
+	if isinstance(ma_gd,list) or (isinstance(ma_gd,str) and ma_gd.lstrip().startswith("[")):
+		return khop(loai,ma_phieu,ma_gd)
+	doc=frappe.get_doc(b['doctype'],ma_phieu)
+	if b.get('loi_phieu'):
+		loi=b['loi_phieu'](doc)
+		if loi:frappe.throw(loi)
+	gd=str(ma_gd or '').strip()
+	if not gd:frappe.throw('Chưa chọn dòng sao kê nào.')
+	return khop(loai,ma_phieu,[dict(name=gd,phan_bo=flt(b['so_tien'](doc)))])
