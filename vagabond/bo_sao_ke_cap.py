@@ -38,7 +38,20 @@ def ghi(giao_dich,tai_khoan_nguon,nop_quy='',so_tien=None,ma_lan=''):
         bank=frappe.db.get_value('Bank Transaction',ds[0]['name'],'bank_account',for_update=True)
         b,a=tu._quy(bank)
         lan=hashlib.sha256((bank+'|'+ma_lan).encode()).hexdigest()
-        cu=frappe.db.get_value('Journal Entry',{O_LAN:lan},'name',for_update=True)
+        cu=None
+        for _ in range(100):
+            r=frappe.db.get_value('Journal Entry',{O_LAN:lan},['name','docstatus'],as_dict=True,for_update=True)
+            if not r:
+                break
+            if nhieu or r.docstatus!=2:
+                cu=r.name
+                break
+            # #477 (Codex): cửa cũ một BT có mã lần cố định theo BT. JE đã hủy
+            # vẫn giữ mã đó (trường unique) nên nối sang mã kế tiếp thay vì
+            # sửa chứng từ đã hủy. Retry khi mất phản hồi vẫn ra đúng mã mới.
+            lan=hashlib.sha256((lan+'|'+r.name).encode()).hexdigest()
+        else:
+            frappe.throw('Dòng sao kê này đã ghi rồi hủy quá nhiều lần. Kế toán kiểm các bút toán cấp quỹ đã hủy.')
         if not cu and not nhieu:
             cu=frappe.db.get_value('Journal Entry',{'vgb_cap_ung_bt':ds[0]['name'],'docstatus':1},'name')
         if cu:
