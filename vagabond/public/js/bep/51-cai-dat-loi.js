@@ -200,7 +200,22 @@ function cdlFooter() {
     '<button class="btn" id="cdlLuu" style="margin:0;width:100%"' + (n ? '' : ' disabled') + '>' +
     (n ? 'Lưu ' + n + ' thay đổi' : 'Chưa có thay đổi') + '</button></div>';
 }
+/* v596 Codex 3d0b446: MỘT chỗ đặt câu hỏi rời màn, gọi mỗi khi số thay đổi đổi.
+   Câu hỏi gắn với NẤC tổng quan (S.chuaLuuNac): lùi từ nhóm về tổng quan không mất
+   gì nên không hỏi; mọi lối cắt mất nấc tổng quan (nút ‹, nút nhà, Back của trình
+   duyệt hay Android) thì khung app hỏi lại, xem vgbCauRoi trong 01-khung-app.js. */
+function cdlDatHoi(n) {
+  if (typeof S === 'undefined' || !S) return;
+  if (n) {
+    S.chuaLuu = 'Còn ' + n + ' thay đổi Cài đặt lõi chưa lưu. Rời đi thì không ghi lên máy chủ.';
+    S.chuaLuuNac = typeof CDL.nacTong === 'number' ? CDL.nacTong : (S.stack ? S.stack.length - 1 : 0);
+  } else {
+    S.chuaLuu = '';
+    S.chuaLuuNac = null;
+  }
+}
 function cdlAnThanh(n) {
+  cdlDatHoi(n);
   var c = document.getElementById('cdlChan');
   if (!c) return;
   c.style.display = n ? '' : 'none';
@@ -232,9 +247,8 @@ function cdlVeTong() {
   var ds = VGB_CD.tinhTrang(doc);
   var th = VGB_CD.tongHop(ds);
   var n = cdlSoThay();
-  /* Rời hẳn màn Cài đặt khi còn thay đổi thì app hỏi lại (back() đọc S.chuaLuu).
-     Đi lại giữa các nhóm thì không hỏi: thay đổi vẫn giữ trong bộ nhớ. */
-  if (typeof S !== 'undefined' && S) S.chuaLuu = n ? 'Còn ' + n + ' thay đổi Cài đặt lõi chưa lưu. Rời đi thì không ghi lên máy chủ.' : '';
+  /* Nấc của màn tổng quan: thay đổi thuộc về nấc này (xem cdlDatHoi). */
+  if (typeof S !== 'undefined' && S && S.stack) CDL.nacTong = S.stack.length - 1;
   var mau = { ok: '#22a05a', no: '#c3c9cf', off: '#e0a100', err: '#d93636' };
   var html = '<input class="tin" id="cdlTim" placeholder="Tìm: mã QR, Ahamove, Zalo..." style="width:100%;min-height:46px;margin-bottom:6px;font-size:15px">' +
     '<div id="cdlKq"></div>' +
@@ -313,7 +327,6 @@ function cdlVeTab(fnTab, oToi) {
   var t = null;
   (CDL.d.bo_cuc || []).forEach(function (x) { if (x.fn === fnTab) t = x; });
   if (!t) return cdlVeTong();
-  if (typeof S !== 'undefined' && S) S.chuaLuu = '';
   var doc = cdlDoc();
   var ttMuc = VGB_CD.tinhTrangMuc(doc);
   var loi = VGB_CD.loiTruong(doc);
