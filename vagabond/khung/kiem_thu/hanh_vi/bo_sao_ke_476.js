@@ -131,5 +131,41 @@ async function man(rows, can=714138056, save) {
       d.bo_sao_ke_duoc=1;m.document.body.innerHTML=m.g[ham](d);assert(m.nut(id));
     }
   });
+  await ca('UX: thanh tổng đổi màu theo trạng thái, Bỏ chọn hết tắt khi chưa chọn',async()=>{
+    const m=await man([dong('A',450000000),dong('B',264138056)]);
+    const tong=()=>m.nut('ksTong');
+    assert.equal(tong().getAttribute('data-trang'),'trong');assert(tong().textContent.includes('Chưa chọn'));
+    assert.equal(m.nut('ksXoa').disabled,true);
+    m.chon('A');assert.equal(tong().getAttribute('data-trang'),'thieu');assert.equal(tong().style.color,'#92400e');
+    assert.equal(m.nut('ksXoa').disabled,false);
+    assert.equal(m.document.body.querySelector('[data-gd="A"]').style.border,'2px solid #0e7490');
+    assert.equal(m.document.body.querySelector('[data-gd="B"]').style.border,'1px solid #d1d5db');
+    m.chon('B');assert.equal(tong().getAttribute('data-trang'),'du');assert.equal(tong().style.color,'#065f46');
+    assert(tong().textContent.includes('Đủ tiền'));
+    m.nut('ksXoa').onclick();assert.equal(tong().getAttribute('data-trang'),'trong');assert.equal(m.nut('ksXoa').disabled,true);
+  });
+  await ca('UX: chế độ nhiều dòng không gọi lệnh tách là Lệch, màn một dòng vẫn báo Lệch',async()=>{
+    const a=dong('A',450000000);a.lech=264138056;
+    const m=await man([a]);
+    const chu=()=>m.document.body.querySelector('[data-gd="A"]').textContent;
+    assert(chu().includes('Một phần của khoản cần gán'));assert(!chu().includes('Lệch'));
+    m.response.chon_bo=0;await m.render();assert(chu().includes('Lệch 264138056'));
+  });
+  await ca('UX: hồ sơ Chờ đối chiếu sau hiện lý do và bước tiếp ngay đầu màn',async()=>{
+    const m=await man([],100);
+    const s=fs.readFileSync(path.resolve(__dirname,'../../../public/js/bep/19-ho-so-tt.js'),'utf8');
+    vm.runInContext(s.slice(s.indexOf('function hsKhoiChoDoiChieu('),s.indexOf('async function scrHoSoTTView(')),m.g);
+    assert.equal(m.g.hsKhoiChoDoiChieu({}),'');
+    const cho=m.g.hsKhoiChoDoiChieu({ly_do_som:'Ngân hàng trừ phí',cho_doi_chieu_sau:true});
+    assert(cho.includes('Chờ đối chiếu sau'));assert(cho.includes('Ngân hàng trừ phí'));assert(cho.includes('Đối chiếu tay'));
+    const xong=m.g.hsKhoiChoDoiChieu({ly_do_som:'Ngân hàng trừ phí',cho_doi_chieu_sau:false});
+    assert(xong.includes('đã đối chiếu đủ'));assert(!xong.includes('Chờ đối chiếu sau'));
+  });
+  await ca('UX: ba luồng dùng cùng một tên nút Bỏ đối chiếu',async()=>{
+    for(const tep of ['11-khach-ca-hop-dong.js','16-mua-hang.js','23-khop-sepay.js']){
+      const s=fs.readFileSync(path.resolve(__dirname,'../../../public/js/bep/'+tep),'utf8');
+      assert(!/Bỏ bộ (sao kê|đối chiếu|đã chọn)/.test(s),tep);
+    }
+  });
   console.log('#476 DOM:',dat,'đạt,',hong,'hỏng');if(hong)process.exitCode=1;
 })().catch(e=>{console.error(e);process.exitCode=1;});
