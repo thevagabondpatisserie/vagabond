@@ -4,6 +4,7 @@ const fs = require('fs'), path = require('path'), vm = require('vm'), assert = r
 const {taiLieuGia} = require('./dom_gia');
 const source = fs.readFileSync(path.resolve(__dirname, '../../../public/js/bep/23-khop-sepay.js'), 'utf8');
 let dat = 0, hong = 0;
+function la_(a,b,m){assert.equal(a,b,m);}
 async function ca(ten, fn) { try { await fn(); dat++; } catch(e) { hong++; console.error('HỎNG', ten, e.stack); } }
 function dong(name, con, bank='MB') { return {name, con_lai:con, tien:con, bank_account:bank, date:'2026-10-14', dung_duoc:1}; }
 async function man(rows, can=714138056, save) {
@@ -104,6 +105,24 @@ async function man(rows, can=714138056, save) {
     assert(m.g.CN_BO_CHO.CN);await m.g.cnKhopBo(d,'LAN-KHAC');
     assert.deepEqual(vet[0],vet[1]);assert.equal(m.g.CN_BO_CHO.CN,undefined);
     assert.equal(vet[1].ma_lan,'LAN1');
+  });
+  await ca('#477 Codex: công nợ bộ bị máy chủ từ chối hẳn thì bỏ lượt chờ, cho chọn lại',async()=>{
+    const m=await man([],100);
+    const s=fs.readFileSync(path.resolve(__dirname,'../../../public/js/bep/21-ke-toan-khac.js'),'utf8');
+    vm.runInContext(s,m.g);
+    let hoi=0,mo=0;
+    m.g.hoiSo=async()=>{hoi++;return 40;};m.g.hoiChu=async()=>'Khách trả góp';m.g.hoiCo=async()=>true;
+    m.g.go=()=>{};m.g.scrKhopSepay=async o=>{mo++;m.o=o;};
+    m.g.api=async()=>{const e=Error('Giao dịch BT vừa được phiếu khác giữ');e.status=417;e.exc_type='ValidationError';throw e;};
+    const d={name:'CN2',con_thieu:100};
+    await m.g.cnKhopBo(d,'LAN1');await m.o.chon('[{"name":"BT","phan_bo":40}]',40);
+    la_(m.g.CN_BO_CHO.CN2,undefined,'từ chối hẳn thì không giữ payload cũ');
+    await m.g.cnKhopBo(d,'LAN2');
+    assert.equal(hoi,2,'hỏi lại khoản thu');assert.equal(mo,2,'mở lại màn chọn sao kê');
+    // Mất mạng (không có mã trạng thái) vẫn giữ đúng payload để thử lại.
+    m.g.api=async()=>{throw Error('Mất mạng');};
+    await m.o.chon('[{"name":"BT","phan_bo":40}]',40);
+    assert(m.g.CN_BO_CHO.CN2,'mất mạng vẫn giữ lượt chờ');
   });
   await ca('màn cũ không có cờ bộ vẫn gọi cửa cũ',async()=>{
     const m=await man([dong('A',100)],100);m.response.chon_bo=0;await m.render();m.chon('A');
