@@ -211,6 +211,14 @@ def dung():
 		{"fieldname": "vgb_huy_luc", "fieldtype": "Datetime", "label": "Huỷ lúc", "read_only": 1, "insert_after": "vgb_huy"},
 		{"fieldname": "vgb_huy_boi", "fieldtype": "Data", "label": "Người huỷ", "read_only": 1, "insert_after": "vgb_huy"},
 	])
+	# #476: phần huỷ mềm PE đã có trên site (bản schema đọc-only), nhưng
+	# bench tích hợp chạy trước staging nên phải có cùng các ô này từ đầu.
+	# Dùng nguồn schema chung, không sửa bộ lọc nghiệp vụ để che thiếu cột.
+	import json
+	from pathlib import Path
+	cu = json.loads((Path(__file__).resolve().parents[1] / "staging" / "cau_truc_cu.json").read_text())
+	_truong("Payment Entry", [{k: v for k, v in f.items() if k != "dt"}
+		for f in cu["fields"] if f["dt"] == "Payment Entry" and f["fieldname"].startswith("vgb_huy")])
 	_truong("Purchase Invoice Item", [
 		{"fieldname": "ten_hang_ncc", "fieldtype": "Data", "label": "Ten hang NCC", "insert_after": "item_name"},
 		# v518: đơn vị nhà cung cấp ghi và Món máy đoán có ô riêng. Khai luôn
