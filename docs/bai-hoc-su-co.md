@@ -2291,3 +2291,28 @@ locking read, và đọc phần nháp vừa commit dưới khóa hóa đơn. Cá
 PE cùng thứ tự BT/chủ bộ, SI theo tên, rồi PE để tránh đảo khóa với factory.
 Ba ca tầng khung bắt3/3đột biến; bằng chứng hai tiến trình theo run PR476,
 không dùng bộ giả để khẳng định thời gian chờ thực tế.
+
+### v595: nhịp đồng bộ Pancake đè người mua "Không có MST Việt Nam"
+
+Triệu chứng: Loan Anh lưu đơn #95605 (HDB-26-10-02615) với tên COCO
+INVESTMENTS PTE. LTD, địa chỉ Singapore, email, không mã số thuế. Hoá đơn
+19621 vẫn ra "Bán cho người tiêu dùng". Version trên site: 22:32 nhịp đồng bộ
+đổi tên thành câu mặc định; 23:00 tên đã mặc định nên nhịp sau xoá địa chỉ và
+email; 23:07 xuất hoá đơn.
+
+Nguyên nhân: `_upsert_hoa_don` đọc lại người mua "chừng nào còn thiếu mã số
+thuế" (bài học 91476). Người mua không MST thì thiếu mãi, và `_thong_tin_xhd`
+không ra gì thì trả câu mặc định, một chuỗi KHÔNG rỗng nên lọt qua lớp "đọc
+lại rỗng thì giữ nguyên". Bản sửa #456 (v588) chỉ chốt màn Sales và tờ gửi
+m-invoice, kết luận "máy chủ đã đúng" mà không chạy nhịp đồng bộ trên một tờ
+có tên không MST. Từ 01/08 có 35 lần đè; ba tờ đã xuất cho người tiêu dùng.
+
+Khắc phục: gom luật vào hàm thuần `gop_nguoi_mua_dong_bo`. Tên thật đã có thì
+máy không đụng tên, MST, địa chỉ, chỉ bù email trống; chỉ khi tên trống hoặc
+mặc định mới ghi kết quả đọc lại. Ca kiểm chạy đúng `_upsert_hoa_don` thật hai
+nhịp liền.
+
+Bài học: sửa một lỗi người mua phải chạy MỌI đường ghi vào bốn ô `vgb_xhd_*`
+(màn Sales, bill quầy, nhịp đồng bộ, cuối ngày), không chỉ đường người dùng
+nhìn thấy. Lưu tay dùng `ignore_version` nên Version không có dòng của sales;
+thấy Administrator đổi ô người mua lúc :00 hoặc :30 là nhịp đồng bộ.
