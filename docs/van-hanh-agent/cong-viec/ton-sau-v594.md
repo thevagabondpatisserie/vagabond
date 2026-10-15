@@ -244,3 +244,23 @@ B: PR471 web Vue giữ Draft và công tắc tắt. Merge main không rebase, gi
   với factory. Có ba ca hồi quy, ba đột biến bị bắt3/3, khôi phục3/3đạt.
 - Bench mới thu_dong_thoi_476 dựng hai tiến trình, giữ snapshot B trước A,
   đo cả A lập nháp và A ghi sổ. Chưa nhận đạt trước khi có run đúng SHA.
+
+### Tiếp nối đường chung, 15/10
+
+- Tự dò và webhook TTNB/hoàn tiền bỏ nhánh ghi riêng một dòng. Registry,
+  APP và công nợ đều gọi bộ chọn chung, nguồn và phần còn được kiểm lại.
+- Cửa công nợ cũ chọn nguyên giao dịch lấy số tiền từ máy chủ; cửa `dong`
+  cho chọn phần tiền. Factory hỏng rollback phần giữ, không báo Đã thu đủ.
+  Ca lịch sử hủy phiếu đã gạch trước đây vẫn được kiểm riêng.
+- Bộ khung 4.543/4.543 và giả lập CI chặn requests 4.543/4.543 đạt.
+- Bench 60ee8d078: tích hợp 420/421 cả hai lượt. Ca lỗi sửa description BT
+  đã submit; đã sửa fixture đặt nội dung trước submit. Ca SI/PE chưa chạy vì
+  fixture tạo hai phiếu công nợ trùng SI bị controller chặn; đã đổi thành
+  một người lập PE trực tiếp, một người đi cửa công nợ, cùng SI. Chưa nhận
+  hai sửa fixture này là bằng chứng bench đã đạt.
+- Chưa xong tạm ứng, ảnh/matrix/đột biến đầy đủ và bench/staging SHA cuối.
+  Không phát hành, không đổi APPVER hoặc patches.txt.
+- Cổng `kiem_truoc_deploy.sh` mã 0 sau cập nhật các ca dò cấu trúc cũ sang
+  đường adapter mới; `dung_app_bep.py --kiem` khớp. Đột biến đường chung:
+  bỏ kiểm mapping bị 3 ca bắt; bỏ kiểm tổng APP bị 1 ca bắt; bỏ factory PE
+  bị 1 ca bắt. 3/3 đột biến bị bắt, khôi phục đạt 8/8 ca chọn lọc.

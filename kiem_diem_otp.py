@@ -4010,8 +4010,9 @@ _vt_dau = _than37.find('"trang_thai": "Da doi soat",')
 _vt_commit = _than37.find("frappe.db.commit()", _vt_dau)
 _vt_sinh = _than37.find("_sinh_chung_tu(ho)")
 _vt_rollback = _than37.find("frappe.db.rollback()")
-la("co commit ngay sau khi danh dau da doi soat", _vt_dau < _vt_commit < _vt_sinh, True)
-la("rollback nam SAU commit nen khong xoa duoc dau da khop", _vt_commit < _vt_rollback, True)
+_bo38 = open("vagabond/bo_sao_ke_luong.py",encoding="utf-8").read()
+la("co commit ngay sau khi danh dau da doi soat", _bo38.index("frappe.db.set_value(doc.doctype") < _bo38.index("frappe.db.commit()") < _bo38.index('b["khi_khop"]('), True)
+la("rollback callback nam SAU commit bang chung", _bo38.index("frappe.db.commit()") < _bo38.index("frappe.db.rollback()"), True)
 la("hong sinh chung tu thi ghi loi len chinh phieu",
    'DT, ten, "loi_sinh_ct",' in _ht37, True)
 la("cau bao loi noi ro phai lam gi (QT-24)",
@@ -4321,25 +4322,14 @@ la("phieu da huy khong giu giao dich", '"trang_thai": ["!=", "Da huy"]' in _gdc4
 la("cho phep mot phieu giu lai giao dich cua chinh no", "tru_ho_so" in _gdc40, True)
 
 _ds40 = _ht40.split("def doi_soat(ho_so=None")[1].split("\ndef doi_soat_tu_dong")[0]
-la("doi_soat doc danh sach giao dich da chiem", "_gd_da_chiem(tru_ho_so=ho_so)" in _ds40, True)
-la("doi_soat bo qua giao dich cua phieu khac",
-   'chu_cu and chu_cu != d["name"]' in _ds40, True)
-# Boi them NGAY trong vong quet: hai ho so cung khop trong CUNG mot lan chay
-# thi ho so thu hai phai thay dau ho so thu nhat vua dat.
-la("doi_soat boi them dau ngay trong vong quet",
-   'da_chiem[g["name"]] = d["name"]' in _ds40, True)
-la("va boi truoc luc sinh chung tu",
-   _ds40.index('da_chiem[g["name"]] = d["name"]') < _ds40.index("_sinh_chung_tu(ho)"), True)
-# Khong duoc im lang bo qua: co the la hai lan hoan that, va luc do sao ke
-# con thieu mot dong chu khong phai phieu sai.
-la("truong hop trung duoc bay len cho nguoi xem", '"trung_voi": chu_cu' in _ds40, True)
-
-# Duong SePay goi thang phai co CUNG mot khoa. Mot hang rao chi dung o mot
-# duong thi duong con lai la cua sau.
+# #476: tự dò và webhook cùng qua adapter bộ. Các ca hành vi thực sự
+# giữ/chặn nguồn nằm ở thu_doi_soat_sepay và thu_phan_con_595.
+la("doi soat di qua cua bo", 'tu_dong_mot("hoan_tien"' in _ds40, True)
 _st40 = _ht40.split("def sepay_tien_ra(")[1].split("\ndef doi_soat_tu_dong")[0]
-la("duong SePay goi thang cung khoa trung", "_gd_da_chiem(" in _st40, True)
-la("duong SePay noi ro trung voi phieu nao", '"trung_voi": chu_cu' in _st40, True)
-la("duong SePay chi duong xu ly tiep", "sao kê còn thiếu một dòng" in _st40, True)
+la("webhook di qua cung cua bo", 'tu_dong_mot("hoan_tien"' in _st40, True)
+_bo40 = open("vagabond/bo_sao_ke_luong.py",encoding="utf-8").read()
+la("cua bo kiem chu cu", "dc._chu_khac(g,doc,bo=True)" in _bo40, True)
+la("giu bo truoc callback sinh chung tu", _bo40.index("g=bs.chon(") < _bo40.index('b["khi_khop"]('), True)
 
 # Man hinh phai tach HAI loai can xem lai, vi cach xu ly khac han nhau.
 la("man hinh tach rieng truong hop trung giao dich",
@@ -4720,10 +4710,10 @@ la("phieu cho chi la phieu da qua duyet",
    'filters={"trang_thai": TT_HOAN_TAT}' in _pcc42, True)
 # Bai hoc v238: mot dong tien ra chi khop cho MOT phieu.
 la("khoa trung giao dich", "_gd_da_chiem_ttnb(" in _ds42, True)
-la("noi dung khop roi van phai so tien", 'abs(flt(g["withdrawal"]) - tien) > 1' in _ds42, True)
+la("noi dung khop roi van phai so tien", 'tu_dong_mot("ttnb"' in _ds42 and "k=de_xuat_bo(" in _bo40, True)
 # Tien da ra la SU THAT: ghi xuong ngay, khong gop chung giao dich co so du
 # lieu voi viec khac (bai hoc v234, phieu HT-2026-00899).
-la("ghi xuong ngay sau khi khop", "frappe.db.commit()" in _ds42, True)
+la("ghi xuong ngay sau khi khop", "frappe.db.commit()" in _bo40, True)
 
 # Noi dung chuyen khoan phai mang nguyen ma phieu va khong dau tieng Viet:
 # nhieu ngan hang bo dau hoac cat bot noi dung.
@@ -5257,7 +5247,7 @@ la("khong dung luat chung de go viec",
 _dnc44 = open("vagabond/de_nghi_chi.py", encoding="utf-8").read()
 la("de nghi chi giao viec qua mo dun chung", "giao_viec.giao_vai(" in _dnc44, True)
 la("phieu tra lai giao NGUOC ve nguoi lap", "[doc.nguoi_tao]," in _dnc44, True)
-la("phieu da chi thi go viec", "_het_viec(d[\"name\"])" in _dnc44, True)
+la("phieu da chi thi go viec", "_het_viec(doc.name)" in _dnc44, True)
 # Mot buoc chi duoc rung MOT lan: giao_vai da ban chuong, goi them
 # thong_bao o day nua la moi buoc rung hai lan.
 _bbkt44 = _dnc44.split("def _bao_buoc_ke_tiep(")[1].split("\n@frappe.whitelist()")[0]

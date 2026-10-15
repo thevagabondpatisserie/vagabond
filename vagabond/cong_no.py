@@ -917,70 +917,10 @@ def kiem_sepay(name):
 	doc = frappe.get_doc("Vagabond Cong No", name)
 	truoc = doc.trang_thai
 	sepay = _sepay_cn(doc.ma_phieu)
-	# Bộ nhiều lệnh và phiếu đã dùng bộ không đi cửa ghi mã đơn lẻ.
-	# Cửa một dòng cũ còn phải chuyển riêng và kiểm hồi quy lịch sử.
-	if doc.get('vgb_bo_sao_ke') or (not doc.get('ma_gd') and len(sepay.get('gd') or [])>1):
-		from vagabond.bo_sao_ke_thu import tu_dong
-		ra=tu_dong(doc,sepay.get('gd') or [])
-		kq=xem_phieu(name)
-		kq['loi_lap']=ra.get('loi') or []
-		return kq
-	# MOT DONG SAO KE CHI DUOC GACH CHO MOT CHUNG TU.
-	#
-	# Truoc day phieu cong no khong ghi lai dong sao ke nao da tinh cho no,
-	# nen khong the co phep chan nao ca: mot lan khach chuyen tien co the
-	# vua lam sach mot phieu cong no vua duoc tinh la tien cua mot bill quay.
-	# Nay ghi ro, va hoi ca cac luong khac truoc khi nhan.
-	# v571 (Codex #437 vong 9, 10): chi tinh giao dich CHUA ghi nhan, CONG
-	# vao so da co (khop tay truoc do van giu), va phieu thu chi lap cho
-	# DUNG phan moi ve, khoa theo giao dich (khong lap lai phan cu).
-	cho = _gd_chua_ghi(doc.get("ma_gd"), sepay.get("gd") or [])
-	gd = _giu_gd(doc, list(cho))
-	moi = sum(cho.values())
-	nhan = min(flt(doc.tong_tien), flt(doc.da_thu) + moi)
-	doc.da_thu = nhan
-	# Lech duoi 1 dong coi nhu du - ngan hang lam tron.
-	if nhan >= flt(doc.tong_tien) - 1:
-		doc.trang_thai = "Da thu du"
-	elif nhan > 0:
-		doc.trang_thai = "Thu thieu"
-	doc.ma_gd = chiem_sao_ke.gom_gd(chiem_sao_ke.tach_gd(doc.get("ma_gd")) + chiem_sao_ke.tach_gd(gd))
-	da_du_truoc = truoc == "Da thu du"
-	# TIEN VE THI SO CAI PHAI BIET.
-	# v577: moi giao dich moi ve lap phieu thu NHAP theo dung giao dich do
-	# (_lap_theo_gd, mot nguon voi khop tay), hoa don sang tab Tien da ve cho
-	# ke toan dinh UNC roi ghi so. Truoc day di ghi_thu_cho_phieu: ghi so thang
-	# khong UNC nen hong tung hoa don, de lai phieu nhap hong.
-	# Lap hong (giao dich lon hon phan no, da noi cho khac...) thi lui DUNG lan
-	# lap do va ghi ro ly do len phieu: tien da ve that, phieu van ghi nhan;
-	# man hien canh bao "chua co phieu thu" kem nut Khop tay de lam lai.
-	loi_lap = []
-	if moi > 0:
-		cac_hd = [d.hoa_don for d in doc.dong if d.hoa_don]
-		for ten_gd in sorted(cho):
-			frappe.db.savepoint("vgb_sepay_lap")
-			try:
-				g = frappe.get_doc("Bank Transaction", ten_gd, for_update=True)
-				_lap_theo_gd(cac_hd, g, cho[ten_gd], "Theo phiếu đòi nợ %s. Đối chiếu SePay." % (doc.ma_phieu or doc.name))
-			except Exception as e:
-				frappe.db.rollback(save_point="vgb_sepay_lap")
-				frappe.log_error(frappe.get_traceback(), "cong_no: SePay lap phieu thu nhap")
-				loi_lap.append("%s: %s" % (ten_gd, frappe.utils.strip_html(str(e) or type(e).__name__)[:300]))
-	doc.save(ignore_permissions=True)
-	if loi_lap:
-		doc.add_comment("Comment", "SePay nhận tiền nhưng chưa lập được phiếu thu nháp: %s. Bấm Khớp tay để làm lại; "
-			"giao dịch lớn hơn phiếu (khách trả gộp) thì bấm Huỷ phiếu rồi gom lại đủ hoá đơn khách đã trả."
-			% "; ".join(loi_lap))
-	frappe.db.commit()
-	# Thu bao vua nhan tien: chi gui MOT lan, dung luc phieu chuyen sang du.
-	# Codex #444 vong 6: qua viec nen chung (thu_tien.xep_gui_thu), da commit.
-	if doc.trang_thai == "Da thu du" and not da_du_truoc:
-		from vagabond import thu_tien as tt
-
-		tt.xep_gui_thu([d.hoa_don for d in doc.dong if d.hoa_don])
-	kq = xem_phieu(name)
-	# Codex #444 vòng 5: màn nói đúng lý do lập hỏng, không chỉ "Bấm Khớp tay".
-	kq["loi_lap"] = loi_lap
+	from vagabond.bo_sao_ke_thu import tu_dong
+	ra=tu_dong(doc,sepay.get('gd') or [])
+	kq=xem_phieu(name)
+	kq['loi_lap']=ra.get('loi') or []
 	return kq
 
 
@@ -1933,6 +1873,18 @@ def khop_tay(name, so_tien, ma_giao_dich="", ghi_chu="", ma_lan="", unc=None, do
 		return khop(name,dong,ghi_chu,ma_lan)
 	from vagabond import thu_tien as tt
 
+	if str(ma_giao_dich or '').strip():
+		# Chỉ tra tên trước, chưa khóa PE/phiếu. Cửa bộ khóa BT rồi phiếu.
+		import hashlib,json
+		ma=str(ma_giao_dich).strip()
+		g=tt.tim_giao_dich(ma,khoa=False)
+		if not g:frappe.throw('Không tìm thấy giao dịch ngân hàng. Mở lại Khớp SePay để chọn.')
+		# Cửa cũ chọn nguyên giao dịch, không tin tổng do client gửi.
+		# Chọn một phần dùng dong; cả hai cùng qua cửa bộ dưới khóa.
+		ds=[dict(name=g.name,phan_bo=flt(g.deposit))]
+		lan=ma_lan or 'cu'+hashlib.sha256(json.dumps(ds,sort_keys=True).encode()).hexdigest()[:32]
+		from vagabond.bo_sao_ke_thu import khop
+		return khop(name,ds,ghi_chu,lan)
 	so_tien = flt(so_tien)
 	if so_tien <= 0:
 		frappe.throw("Số tiền khớp tay phải lớn hơn 0.")

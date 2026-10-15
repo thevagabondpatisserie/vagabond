@@ -1895,7 +1895,7 @@ def phieu_nhap_cua_hd(cac_si):
 	return ra
 
 
-def tim_giao_dich(ma):
+def tim_giao_dich(ma, khoa=True):
 	"""Bank Transaction theo mã người dùng chọn: số tham chiếu, hoặc tên."""
 	ma = str(ma or "").strip()
 	if not ma:
@@ -1906,7 +1906,7 @@ def tim_giao_dich(ma):
 		frappe.throw("Có nhiều giao dịch ngân hàng cùng số %s, cần kế toán chọn tay." % ma)
 	if not ten and frappe.db.exists(BT, ma):
 		ten = [ma]
-	return frappe.get_doc(BT, ten[0], for_update=True) if ten else None
+	return frappe.get_doc(BT, ten[0], for_update=khoa) if ten else None
 
 
 def soat_tep_unc_moi(unc):

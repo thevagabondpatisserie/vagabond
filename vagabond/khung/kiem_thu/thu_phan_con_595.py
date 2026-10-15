@@ -212,13 +212,15 @@ def _():
     import frappe
     from vagabond import doi_chieu_app as dc
     d=frappe._dict(name="APP.26.10.019",vgb_bo_sao_ke=None,ma_giao_dich=None)
-    ds=[frappe._dict(name="A",withdrawal=100,description=d.name,reference_number=""),
-        frappe._dict(name="B",withdrawal=20,description=d.name,reference_number="")]
+    ds=[frappe._dict(name="A",bank_account="MB",withdrawal=100,description=d.name,reference_number=""),
+        frappe._dict(name="B",bank_account="MB",withdrawal=20,description=d.name,reference_number="")]
     def rows(dt,**kw):return ["MB"] if dt=="Bank Account" else ds
     with patch.object(dc,"_nguon",return_value=("CTY","112",100)),patch.object(frappe,"get_all",side_effect=rows), \
-            patch.object(frappe,"get_doc") as doc:
+            patch.object(frappe,"get_doc",side_effect=lambda dt,n:next(r for r in ds if r.name==n)), \
+            patch("vagabond.bo_sao_ke_db.con_lai",side_effect=lambda g,*a,**k:g.withdrawal), \
+            patch("vagabond.bo_sao_ke_db.chon") as chon:
         la("không tự chọn dòng A rồi coi đủ",dc.chon(d),None)
-        la("không đi tiếp cửa ghi một dòng",doc.call_count,0)
+        la("không đi tiếp cửa ghi một dòng",chon.call_count,0)
 
 
 @ca("#476 gọi phân bổ lõi theo phần giữ, không đưa toàn bộ số dư vào lượt của một phiếu")
@@ -252,10 +254,12 @@ def _():
     b=dict(doctype="Vagabond De Nghi Chi",ma_do=lambda d:"TTNB-26-10-00001",chieu="ra")
     rows=[dict(name="A",bank_account="MB-THIEU-CHU",description="TTNB-26-10-00001",withdrawal=100),
         dict(name="B",bank_account="MB-CTY",description="TTNB-26-10-00001",withdrawal=100)]
-    with patch.object(dss,"_ban",return_value=b),patch.object(frappe,"get_doc",return_value={}), \
+    with patch.object(dss,"_ban",return_value=b),patch.object(frappe,"get_doc",side_effect=lambda dt,ma:frappe._dict(rows[0]) if dt=='Bank Transaction' else {}), \
             patch.object(dss,"_loi_giao_dich",side_effect=lambda b,r:"Sai nguồn chi" if r["bank_account"]=="MB-THIEU-CHU" else ""), \
             patch.object(dss,"ly_do_tai_khoan_sepay",return_value=""),patch.object(bl,"_khop") as khop:
-        la("còn đúng một dòng thì dùng cửa một dòng",bl.tu_dong_mot("ttnb","TTNB",rows),None)
+        k=bl.tu_dong_mot("ttnb","TTNB",rows)
+        la("không nhận bộ nguồn sai",k['ok'],0)
+        la("nêu nguồn sai để người kiểm",k['vi_sao'],'Sai nguồn chi')
         la("không ghép sai bộ 200",khop.call_count,0)
 
 

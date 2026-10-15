@@ -467,9 +467,7 @@ def _():
     cty,tk,_mau=_nen();hd=_hd(tk,cty,100000,_khach('476AUTO'))
     p=_phieu([hd],hd.customer);p.ma_phieu=cn._sinh_ma_cn();p.save(ignore_permissions=True)
     ba=_tai_khoan_cong_ty_moi(_tk_ngan_hang(cty));sepay.them_tai_khoan(ba.bank_account_no,ba.name)
-    a,b=_gd(ba.name,40000),_gd(ba.name,flt(hd.grand_total)-40000)
-    for g in (a,b):
-        g.description=p.ma_phieu;g.save(ignore_permissions=True)
+    a,b=_gd(ba.name,40000,p.ma_phieu),_gd(ba.name,flt(hd.grand_total)-40000,p.ma_phieu)
     r=cn.kiem_sepay(p.name);p.reload()
     la('không lỗi lập phiếu',r.get('loi_lap'),[])
     ct=bs.doc_hien_tai(p)['chung_tu'];_DA_TAO.extend((x['doctype'],x['name']) for x in ct)

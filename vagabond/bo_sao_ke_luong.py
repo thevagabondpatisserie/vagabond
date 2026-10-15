@@ -36,7 +36,14 @@ def ung_vien(loai, doc, kq):
 
 def khop(loai, ma, dong):
     from vagabond import doi_soat_sepay as dss
-    return _khop(loai, ma, dong, dss.kiem_quyen_luong(loai,ghi=True))
+    b=dss.kiem_quyen_luong(loai,ghi=True)
+    if loai=='cong_no':
+        from vagabond.bo_sao_ke_thu import khop as khop_thu
+        import hashlib
+        raw=json.loads(dong) if isinstance(dong,str) else dong
+        khoa='cu'+hashlib.sha256(json.dumps(raw,sort_keys=True).encode()).hexdigest()[:32]
+        return khop_thu(ma,raw,'Khớp SePay từ cửa một dòng cũ.',khoa)
+    return _khop(loai, ma, dong, b)
 
 
 def _khop(loai, ma, dong, b):
@@ -113,27 +120,31 @@ def noi_hoan_tien(pe, method=None):
 
 
 def tu_dong_mot(loai, ma, cac_gd):
-    """Chỉ nhận trọn các dòng cùng mã. Không tìm tổ hợp cho vừa tổng.
-
-    None: không phải bộ, cửa cũ tiếp tục. Có kết quả: cửa cũ phải bỏ qua
-    phiếu này dù bộ đang thiếu/thừa, không chọn một dòng riêng rồi báo đủ.
-    """
+    """Một hay nhiều dòng đều qua chọn bộ; không có cửa khớp riêng một dòng."""
     from vagabond import doi_soat_sepay as dss
     from vagabond.khop_sao_ke import co_ma
-    if len(cac_gd)<2:
-        return None
+    from vagabond.bo_sao_ke import de_xuat_bo
     b=dss._ban(loai)
     doc=frappe.get_doc(b["doctype"],ma)
     code=b["ma_do"](doc)
     ds=[r for r in cac_gd if co_ma(r.get("description") or r.get("mo_ta"),code) or co_ma(r.get("reference_number"),code)]
-    # Cùng mã nhưng nguồn không hợp lệ không thuộc bộ tự nhận. Cửa cũ
-    # vẫn trình lý do của dòng đó; không để nó che dòng công ty hợp lệ.
-    ds=[r for r in ds if not dss._loi_giao_dich(b,r) and not dss.ly_do_tai_khoan_sepay(r.get("bank_account"))]
-    if len(ds)<2:
+    if not ds:
         return None
-    dong=[dict(name=r["name"],phan_bo=flt(r.get("withdrawal") if b["chieu"]=="ra" else r.get("deposit")) or flt(r.get("tien"))) for r in ds]
+    rows=[]
+    for r in ds:
+        g=frappe.get_doc("Bank Transaction",r["name"])
+        loi=kiem(loai,b,doc,g)
+        if loi:
+            return dict(ok=0,phieu=ma,vi_sao=loi,giao_dich=g.name)
+        rows.append(dict(name=g.name,description=g.description,reference_number=g.reference_number,
+            tien=flt(g.withdrawal) or flt(g.deposit),bank_account=g.bank_account,
+            chieu="ra" if flt(g.withdrawal)>0 and not flt(g.deposit) else "vao",
+            con_lai=bs.con_lai(g,doc)))
+    k=de_xuat_bo(rows,code,flt(b["so_tien"](doc)),rows[0]["bank_account"],b["chieu"])
+    if k['ket_qua']!='du':
+        return dict(ok=0,phieu=ma,vi_sao="Các dòng cùng mã chưa đủ bộ đúng tiền và tài khoản. Mở Khớp SePay để chọn phần thực tế.",giao_dich=", ".join(r["name"] for r in ds))
     try:
-        return _khop(loai,ma,dong,b)
+        return _khop(loai,ma,k['dong'],b)
     except frappe.ValidationError as e:
         return dict(ok=0,phieu=ma,vi_sao=str(e),giao_dich=", ".join(r["name"] for r in ds))
 

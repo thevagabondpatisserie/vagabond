@@ -47,10 +47,10 @@ def _hd_no(tk_thue, cty, tien):
 	return si
 
 
-def _gd(ba, tien):
+def _gd(ba, tien, noi_dung="KT571 chuyen gop"):
 	ref = "FTKT571" + frappe.generate_hash(length=10)
 	g = frappe.get_doc({"doctype": "Bank Transaction", "date": nowdate(), "bank_account": ba,
-		"deposit": tien, "withdrawal": 0, "currency": "VND", "description": "KT571 chuyen gop",
+		"deposit": tien, "withdrawal": 0, "currency": "VND", "description": noi_dung,
 		"reference_number": ref, "transaction_id": ref})
 	g.insert(ignore_permissions=True); _DA_TAO.append((g.doctype, g.name))
 	g.submit()

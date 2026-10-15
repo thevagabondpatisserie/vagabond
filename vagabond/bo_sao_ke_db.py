@@ -153,6 +153,7 @@ def chon(doc, dong, can, chieu, kiem, ghi=False, them_dot=False):
                 frappe.throw("Bộ cũ đã nối bút toán. Bỏ đối chiếu trước khi đổi bộ.")
         luu(doc,dong,cu["chung_tu"])
     return frappe._dict(name=gs[0].name, date=max(str(g.date) for g in gs),
+        description=getattr(gs[0],"description","") if len(gs)==1 else "", bank_account=gs[0].bank_account, currency="VND",
         reference_number="; ".join(g.reference_number or g.name for g in gs),
         withdrawal=k["tong"] if chieu=="ra" else 0, deposit=k["tong"] if chieu=="vao" else 0,
         flags=frappe._dict(bo_sao_ke=gs,dong=dong,theo_mau=False))

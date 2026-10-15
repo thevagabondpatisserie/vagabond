@@ -170,7 +170,11 @@ def khop(name,dong,ghi_chu,ma_lan):
         if doc.trang_thai=='Huy':frappe.throw('Phiếu đã hủy, không nhận thêm sao kê.')
         cu=bs.doc_hien_tai(doc)
         them=sum(flt(d['phan_bo']) for d in moi)
-        if them>flt(doc.tong_tien)-flt(doc.da_thu)+0.001:
+        da=set(chiem_sao_ke.tach_gd(doc.ma_gd))
+        sua_cu=not cu['dong'] and (doc.trang_thai=='Da thu du' or all(d['name'] in da or
+            frappe.db.get_value('Bank Transaction',d['name'],'reference_number') in da for d in moi))
+        con=flt(doc.tong_tien) if sua_cu else flt(doc.tong_tien)-flt(doc.da_thu)
+        if them>con+0.001:
             frappe.throw('Phần chọn vượt khoản còn phải thu của phiếu; chọn lại số phân bổ.')
         gop={d['name']:flt(d['phan_bo']) for d in cu['dong']}
         for d in moi:gop[d['name']]=gop.get(d['name'],0)+flt(d['phan_bo'])
@@ -182,7 +186,7 @@ def khop(name,dong,ghi_chu,ma_lan):
         if abs(flt(lap['tien'])-them)>0.001:
             frappe.throw('Bộ cũ còn phần chưa có phiếu thu sống; xử lý phần cũ trước khi nhận kỳ mới.')
         doc.reload()
-        doc.da_thu=flt(doc.da_thu)+flt(lap['tien'])
+        doc.da_thu=flt(doc.da_thu)+(0 if sua_cu else flt(lap['tien']))
         doc.trang_thai='Da thu du' if doc.da_thu>=flt(doc.tong_tien)-0.001 else 'Thu thieu'
         refs=[]
         for d in moi:
@@ -191,10 +195,14 @@ def khop(name,dong,ghi_chu,ma_lan):
         doc.nguoi_khop_tay=frappe.session.user
         doc.ngay_khop_tay=now_datetime()
         doc.save(ignore_permissions=True)
-        doc.add_comment('Comment',escape_html('Khớp bộ sao kê, lập phiếu thu nháp '+lap['pe']+
+        tien_chu=format(flt(lap['tien']),',.0f').replace(',','.')+' đ'
+        doc.add_comment('Comment',escape_html('Khớp bộ sao kê '+tien_chu+', lập phiếu thu nháp '+lap['pe']+
             '. '+str(ghi_chu or '')+' [lần khớp '+ma_lan+']'))
+        if doc.trang_thai=='Da thu du' and not sua_cu:
+            cac_hd=[d.hoa_don for d in doc.dong if d.hoa_don]
+            frappe.db.after_commit.add(lambda:tt.xep_gui_thu(cac_hd))
         return {'ok':1,'pe':lap['pe'],'tien':lap['tien'],'loi':[],
-                'loi_nhan':'Đã lập phiếu thu nháp '+lap['pe']+'. Kế toán đính UNC và ghi sổ ở Tiền đã về.'}
+                'loi_nhan':'Đã lập phiếu thu nháp '+lap['pe']+' cho '+tien_chu+'. Kế toán đính UNC và ghi sổ ở Tiền đã về.'}
     except Exception:
         frappe.db.rollback(save_point=sp)
         raise
@@ -280,4 +288,7 @@ def tu_dong(doc, cac_ma):
     if k['ket_qua']!='du':
         return dict(ok=0,loi=['Các lệnh cùng mã chưa thành một bộ đúng tiền và tài khoản. Mở Khớp tay để chọn phần thu thực tế.'])
     ma_lan='auto'+hashlib.sha256(json.dumps(k['dong'],sort_keys=True).encode()).hexdigest()[:32]
-    return khop(doc.name,k['dong'],'Máy dò bộ cùng mã công nợ.',ma_lan)
+    try:
+        return khop(doc.name,k['dong'],'Máy dò bộ cùng mã công nợ.',ma_lan)
+    except frappe.ValidationError as e:
+        return dict(ok=0,loi=[str(e)])

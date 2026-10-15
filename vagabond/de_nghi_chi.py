@@ -2036,56 +2036,7 @@ def doi_soat(so_ngay=30):
 			else:
 				xem.append(bo)
 			continue
-		tien = flt(d.get("tong_tien")) or flt(d.get("so_tien"))
-		for g in gds:
-			mo_ta = "%s %s" % (g.get("description") or "", g.get("reference_number") or "")
-			if not khop_noi_dung(mo_ta, d["name"]):
-				continue
-			chu_cu = da_chiem.get(g["name"])
-			if chu_cu and chu_cu != d["name"]:
-				xem.append({
-					"phieu": d["name"], "giao_dich": g["name"],
-					"nhan_ngan_hang": nhan.get(g.get("bank_account"), "Chưa xác định tài khoản"),
-					"trung_voi": chu_cu, "tien_phieu": tien,
-					"tien_chuyen": flt(g["withdrawal"]),
-				})
-				continue
-			# Khớp nội dung rồi vẫn phải so TIỀN. Nội dung đúng mà số tiền
-			# lệch nghĩa là kế toán chuyển thiếu hoặc thừa, và đó là việc
-			# người phải xem chứ không phải máy tự đánh dấu xong.
-			if abs(flt(g["withdrawal"]) - tien) > 1:
-				xem.append({
-					"phieu": d["name"], "giao_dich": g["name"],
-					"nhan_ngan_hang": nhan.get(g.get("bank_account"), "Chưa xác định tài khoản"),
-					"tien_phieu": tien, "tien_chuyen": flt(g["withdrawal"]),
-				})
-				continue
-			loi_tk = ly_do_tai_khoan_sepay(g.get("bank_account"), cho_phep_tk)
-			if loi_tk:
-				# Không im lặng bỏ qua: đưa lên cho người xem kèm lý do, đúng
-				# như cách `tu_dong` xử. Giấu một dòng có thật là lỗi 14/09.
-				xem.append({
-					"phieu": d["name"], "giao_dich": g["name"],
-					"nhan_ngan_hang": nhan.get(g.get("bank_account"), "Chưa xác định tài khoản"),
-					"tien_phieu": tien, "tien_chuyen": flt(g["withdrawal"]),
-					"vi_sao": loi_tk,
-				})
-				continue
-			da_chiem[g["name"]] = d["name"]
-			from vagabond.bo_sao_ke_db import kiem_cua_cu
-			kiem_cua_cu(DT,d["name"],g["name"])
-			frappe.db.set_value(DT, d["name"], {
-				"trang_thai": TT_DA_CHI,
-				"ma_gd": g["name"],
-				"ngay_da_chi": now_datetime(),
-			})
-			# Ghi xuống NGAY. Tiền đã ra là sự thật, không được để chung một
-			# giao dịch cơ sở dữ liệu với bất kỳ việc nào có thể hỏng.
-			frappe.db.commit()
-			_het_viec(d["name"])
-			da += 1
-			da_khop_rows.append({"phieu": d["name"], "nhan_ngan_hang": nhan.get(g.get("bank_account"), "Chưa xác định tài khoản")})
-			break
+
 	return {
 		"da_khop": da, "da_khop_rows": da_khop_rows[:5], "xem_xet": xem, "so_phieu_quet": len(ds),
 		"ghi_chu": "" if da or xem else "Chưa có dòng tiền ra nào khớp phiếu đang chờ chi.",
@@ -2135,21 +2086,8 @@ def khi_co_giao_dich(ma_bt):
 			from vagabond import doi_soat_sepay as dss
 			from vagabond.bo_sao_ke_luong import tu_dong_mot
 			bo = tu_dong_mot("ttnb",d["name"],dss.dong_sao_ke(dss.RA,45))
-			if bo is not None:
-				return
-			tien = flt(d.get("tong_tien")) or flt(d.get("so_tien"))
-			if abs(flt(g["withdrawal"]) - tien) > 1:
-				return
-			from vagabond.bo_sao_ke_db import kiem_cua_cu
-			kiem_cua_cu(DT,d["name"],g["name"])
-			frappe.db.set_value(DT, d["name"], {
-				"trang_thai": TT_DA_CHI,
-				"ma_gd": g["name"],
-				"ngay_da_chi": now_datetime(),
-			})
-			frappe.db.commit()
-			_het_viec(d["name"])
 			return
+
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "de_nghi_chi: khop ngay sau webhook loi")
 

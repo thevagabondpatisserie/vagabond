@@ -256,7 +256,7 @@ def _():
 @ca("v576 thật (Codex #442): khớp tay giao dịch cho phiếu nhiều pháp nhân lập phiếu thu NHÁP, không đi đường ghi sổ thẳng")
 def _():
 	from vagabond import thu_tien as tt
-	from vagabond.khung.kiem_thu.thu_cong_no_571 import HD as HD571, GD, PhieuNo
+	from vagabond.khung.kiem_thu.thu_cong_no_571 import HD as HD571, GD, PhieuNo, _khop_tay
 
 	hai = [Doi(HD571[0], customer="CUS-VU"), Doi(HD571[1], customer="CUS-OSHIMA")]
 	nk, tra, lap = _he_phieu(hai)
@@ -267,12 +267,12 @@ def _():
 	fr.get_doc = lambda *a, **k: doc
 	cn._kiem_quyen_ban = lambda: None
 	cn._giu_gd = lambda d, ds: "FT26277123"
-	tt.tim_giao_dich = lambda ma: GD
+	tt.tim_giao_dich = lambda ma, **kw: GD
 	cn._gui_thu_da_nhan = lambda d: None
 	ghi = []
 	cn.ghi_thu_cho_phieu = lambda *a, **k: ghi.append(k)
 	try:
-		kq = cn.khop_tay(doc.name, 7600000, "FT26277123")
+		kq = _khop_tay(doc.name, 7600000, "FT26277123")
 	finally:
 		fr.get_doc = moc["get_doc"]
 		cn._kiem_quyen_ban = moc["kq"]

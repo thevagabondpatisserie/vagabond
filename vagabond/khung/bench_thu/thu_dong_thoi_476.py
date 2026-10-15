@@ -38,8 +38,15 @@ def con(vai, folder):
             return ham(dt, ten, *a, **kw)
         t = time.monotonic()
         with patch.object(frappe.db, 'get_value', get_value):
-            r = cn.khop_tay(cfg['phieu'][vai], cfg['tien'], dong=json.dumps([
-                {'name': cfg['bt'][vai], 'phan_bo': cfg['tien']}]), ma_lan='race476'+vai)
+            if vai == 'A':
+                # Một kế toán lập PE trực tiếp cho SI, người kia khớp qua
+                # phiếu công nợ. Không dựng hai phiếu CN trùng SI trái luật.
+                from vagabond import thu_tien as tt
+                g=frappe.get_doc('Bank Transaction',cfg['bt'][vai],for_update=True)
+                r=tt.lap_phieu_thu_theo_gd([cfg['si']],g,cfg['tien'])
+            else:
+                r = cn.khop_tay(cfg['phieu'][vai], cfg['tien'], dong=json.dumps([
+                    {'name': cfg['bt'][vai], 'phan_bo': cfg['tien']}]), ma_lan='race476'+vai)
         if vai == 'A':
             if cfg['buoc'] == 'ghi_so':
                 from vagabond.khung.kiem_that.thu_phieu_thu_unc_534 import _Tep
@@ -76,7 +83,7 @@ def mot_ca(buoc):
         sepay.them_tai_khoan(ba.bank_account_no,ba.name)
         cfg={'buoc':buoc,'si':si.name,'tien':float(si.outstanding_amount),'phieu':{},'bt':{}}
         for v in ('A','B'):
-            cfg['phieu'][v]=_phieu([si],si.customer).name
+            if v=='B':cfg['phieu'][v]=_phieu([si],si.customer).name
             cfg['bt'][v]=_gd(ba.name,cfg['tien']).name
         frappe.db.commit()
     finally:
