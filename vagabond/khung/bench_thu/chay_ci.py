@@ -106,6 +106,7 @@ if __name__ == "__main__":
 	kho = subprocess.run([sys.executable, "-m", "vagabond.khung.bench_thu.kho_tang_243"], check=False)
 	app = subprocess.run([sys.executable, "-m", "vagabond.khung.bench_thu.doi_chieu_247"], check=False)
 	bo476 = subprocess.run([sys.executable, "-m", "vagabond.khung.bench_thu.bo_sao_ke_476"], check=False)
+	thu476 = subprocess.run([sys.executable, "-m", "vagabond.khung.bench_thu.thu_dong_thoi_476"], check=False)
 	ton476 = subprocess.run([sys.executable, "-m", "vagabond.khung.bench_thu.giu_ton_web_476"], check=False)
 	# Render và HTTP upload chạy sau bộ hoàn nguyên, trên site dùng một lần.
 	qr474 = subprocess.run([sys.executable, "-m", "vagabond.khung.bench_thu.qr_474"], check=False)
@@ -115,5 +116,5 @@ if __name__ == "__main__":
 	don_dep = subprocess.run([sys.executable, "-m", "vagabond.khung.bench_thu.don_dep_284"], check=False)
 	tra_truoc = subprocess.run([sys.executable, "-m", "vagabond.khung.bench_thu.tra_truoc_336"], check=False)
 	cong_thuc = subprocess.run([sys.executable, "-m", "vagabond.khung.bench_thu.cong_thuc_334"], check=False)
-	if ton476.returncode or bo476.returncode or qr474.returncode or cong_thuc.returncode or tra_truoc.returncode or not dat or kho.returncode or app.returncode or in_app.returncode or phan_bo.returncode or can_tru.returncode or don_dep.returncode:
+	if thu476.returncode or ton476.returncode or bo476.returncode or qr474.returncode or cong_thuc.returncode or tra_truoc.returncode or not dat or kho.returncode or app.returncode or in_app.returncode or phan_bo.returncode or can_tru.returncode or don_dep.returncode:
 		raise RuntimeError("Có cửa tích hợp đỏ. Đọc JSON từng lượt, M-Invoice và kho; không phát hành.")

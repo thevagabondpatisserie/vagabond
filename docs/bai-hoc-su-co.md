@@ -2282,3 +2282,12 @@ Hồ sơ hoàn tiền có thể có PE Receive và PE Pay độc lập. Cửa b�
 chỉ kiểm PE Pay còn sống, không chặn vì PE Receive nháp. Hủy PE chi không tự
 đổi trạng thái hồ sơ từ Da chi; kiểm chứng từ/liên kết lõi thật trước nhả bộ.
 Nguồn: review PR476 và bench38549666430/38617438497.
+
+### PR476: đọc lại sau khóa phải là current read
+
+Một SELECT thường sau SELECT FOR UPDATE vẫn có thể đọc snapshot cũ ở
+REPEATABLE READ. Đường lập phiếu thu phải lấy cả trạng thái/dư nợ ngay trong
+locking read, và đọc phần nháp vừa commit dưới khóa hóa đơn. Các cửa save
+PE cùng thứ tự BT/chủ bộ, SI theo tên, rồi PE để tránh đảo khóa với factory.
+Ba ca tầng khung bắt3/3đột biến; bằng chứng hai tiến trình theo run PR476,
+không dùng bộ giả để khẳng định thời gian chờ thực tế.

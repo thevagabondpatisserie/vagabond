@@ -1853,10 +1853,21 @@ def con_chua_phu(du_no, da_nhap):
 	return max(0.0, _so(du_no) - _so(da_nhap))
 
 
-def phan_bo_nhap_theo_hd(cac_si):
+def phan_bo_nhap_theo_hd(cac_si, khoa=False):
 	"""Tổng phân bổ của phiếu thu NHÁP vào từng hoá đơn bán."""
 	ra = {}
 	for lo in _chia(set(x for x in (cac_si or []) if x)):
+		if khoa:
+			# Caller đã khóa SI theo tên. Locking read nhìn được nháp vừa
+			# commit trong lúc chờ, thay vì snapshot REPEATABLE READ cũ.
+			dong = frappe.db.sql("""select r.reference_name, r.allocated_amount
+				from `tabPayment Entry Reference` r join `tabPayment Entry` p on p.name=r.parent
+				where r.reference_doctype='Sales Invoice' and r.reference_name in %(ten)s
+				and r.parenttype='Payment Entry' and p.docstatus=0 and ifnull(p.vgb_huy,0)=0
+				for update""", {"ten": tuple(lo)}, as_dict=True)
+			for r in dong:
+				ra[r.reference_name] = ra.get(r.reference_name, 0.0) + flt(r.allocated_amount)
+			continue
 		for r in frappe.get_all("Payment Entry Reference", filters={"reference_doctype": SI,
 				"reference_name": ["in", lo], "docstatus": 0, "parenttype": PE},
 				fields=["reference_name", "allocated_amount", "parent"], limit_page_length=0):
@@ -2066,19 +2077,21 @@ def lap_phieu_thu_theo_gd(cac_si, g, so_tien, ghi_chu="", tach_khach=False, chu_
 	# chéo) trước khi đọc dư nợ và phân bổ nháp. Hai người khớp hai giao
 	# dịch trả góp cùng lúc thì người sau phải chờ người trước lập xong,
 	# rồi mới thấy phần nháp người trước đã phủ.
+	moi = []
 	for ten in sorted(h.name for h in hd):
-		frappe.db.get_value(SI, ten, "name", for_update=True)
-	moi = {r.name: r for r in frappe.get_all(SI, filters={"name": ["in", [h.name for h in hd] or [""]]},
-		fields=["name", "outstanding_amount"], limit_page_length=0)}
-	for h in hd:
-		if h.name in moi:
-			h.outstanding_amount = moi[h.name].outstanding_amount
+		h = frappe.db.get_value(SI, ten,
+			["name", "docstatus", "customer", "company", "outstanding_amount", "posting_date", "grand_total", "due_date"],
+			as_dict=True, for_update=True)
+		if not h or h.docstatus != 1:
+			frappe.throw("Hoá đơn vừa đổi trạng thái trong lúc chờ. Tải lại phiếu công nợ trước khi khớp.")
+		moi.append(h)
+	hd = moi
 	hd = [h for h in hd if flt(h.outstanding_amount) > LECH]
 	if not hd:
 		frappe.throw("Các hoá đơn trong phiếu không còn nợ trên sổ.")
 	# Phần đã có phiếu thu NHÁP phủ thì không chia vào lần nữa, nhưng phần
 	# còn lại của cùng hoá đơn thì vẫn chia (Codex #437 vòng 3: trả góp).
-	nhap = phan_bo_nhap_theo_hd([h.name for h in hd])
+	nhap = phan_bo_nhap_theo_hd([h.name for h in hd], khoa=True)
 	for h in hd:
 		h.con_phu = con_chua_phu(h.outstanding_amount, nhap.get(h.name))
 	hd = [h for h in hd if h.con_phu > LECH]

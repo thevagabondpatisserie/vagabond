@@ -472,14 +472,16 @@ def _():
     from unittest.mock import patch
     from vagabond.bo_sao_ke_document import KhoaBoThu
     from vagabond import bo_sao_ke_thu as m
+    import frappe
     vet=[]
     class Goc:
         name='PE';flags={'for_update':True}
+        def get(self,k):return None
         def is_new(self):return False
         def load_from_db(self):vet.append('core-load')
         def _save(self,*a,**k):vet.append('core-save')
     class D(KhoaBoThu,Goc):pass
-    with patch.object(m,'chu',side_effect=lambda ma,khoa=False:vet.append((ma,khoa))):
+    with patch.object(m,'chu',side_effect=lambda ma,khoa=False:vet.append((ma,khoa))), patch.object(frappe,'get_all',return_value=[]):
         D().load_from_db();D()._save()
     la('đủ hai cửa',vet,[('PE',True),'core-load',('PE',True),'core-save'])
 
@@ -621,3 +623,24 @@ def _():
         la('nhả cả bộ',luu.call_args.args[1],[])
         la('không xóa chủ của nháp hủy',ghi.call_count,0)
         la('trả khoản thu trên phiếu',d.da_thu,0)
+
+
+@ca('#476 PE khóa cả SI cũ và mới theo tên trước khóa Document')
+def _():
+    from unittest.mock import patch
+    import frappe
+    from vagabond.bo_sao_ke_document import KhoaBoThu
+    from vagabond import bo_sao_ke_thu as m
+    from types import SimpleNamespace as S
+    vet=[]
+    class Goc:
+        name='PE';flags={'for_update':True}
+        def is_new(self):return False
+        def get(self,k):return [S(reference_doctype='Sales Invoice',reference_name='SI-B')]
+        def _save(self,*a,**k):vet.append('PE')
+    class D(KhoaBoThu,Goc):pass
+    with patch.object(m,'chu',side_effect=lambda *a,**k:vet.append('BT-chu')), \
+         patch.object(frappe,'get_all',return_value=['SI-A']), \
+         patch.object(frappe.db,'get_value',side_effect=lambda dt,ten,*a,**kw:vet.append((ten,kw.get('for_update')))):
+        D()._save()
+    la('không đảo PE trước SI',vet,['BT-chu',('SI-A',True),('SI-B',True),'PE'])

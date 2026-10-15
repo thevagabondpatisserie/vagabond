@@ -41,9 +41,20 @@ class KhoaBoHoanTien:
 class KhoaBoThu:
     """Khóa chủ bộ từ DB trước khóa PE, cả load for_update và Desk save."""
     def _khoa_bo_thu(self):
+        import frappe
         if self.name and not self.is_new():
             from vagabond.bo_sao_ke_thu import chu
             chu(self.name, khoa=True)
+        # BT/chủ bộ -> SI theo tên -> PE. Factory lập nháp cũng khóa SI
+        # trước đọc phần nợ đã phủ, nên Desk submit không đảo PE -> SI.
+        ds = {r.reference_name for r in self.get('references') or []
+              if r.reference_doctype == 'Sales Invoice' and r.reference_name}
+        if self.name and not self.is_new():
+            ds.update(frappe.get_all('Payment Entry Reference', filters={
+                'parent': self.name, 'parenttype': 'Payment Entry',
+                'reference_doctype': 'Sales Invoice'}, pluck='reference_name', limit_page_length=0))
+        for ten in sorted(x for x in ds if x):
+            frappe.db.get_value('Sales Invoice', ten, 'name', for_update=True)
 
     def load_from_db(self):
         if self.flags.get('for_update'):

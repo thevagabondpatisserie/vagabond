@@ -233,3 +233,14 @@ B: PR471 web Vue giữ Draft và công tắc tắt. Merge main không rebase, gi
 - Thêm bench hủy mềm, bỏ bộ, khớp lại, giữ nguyên lịch sử và từ chối phục hồi; chưa có kết quả bench SHA chứa thay đổi này. Đột biến bỏ hai chốt phục hồi: bắt2/2, khôi phục1/1đạt.
 
 - Local hủy mềm:35/35 ca module đạt;3/3 đột biến bị bắt (hai chốt phục hồi, một chốt nhận nháp hủy), khôi phục2ca đạt. Cổng toàn bộ phải theo log cuối, không lấy số4539 của lượt trước ca mới làm số cuối.
+
+### Tiếp kiểm tranh chấp SI/PE (15/10)
+
+- Bench4ddb đỏ do schema thử chưa có bốn ô hủy mềm Payment Entry trước
+  staging; lấy đúng các ô từ schema đọc-only có sẵn. Sửa ở78ec64be6.
+- Factory đọc SI bằng current read dưới khóa, kể cả docstatus, thay snapshot
+  trước chờ. Đọc phần PE nháp đang phủ bằng locking read dưới cùng khóa SI.
+- PE load/save khóa BT/chủ bộ rồi SI theo tên trước PE, để không đảo khóa
+  với factory. Có ba ca hồi quy, ba đột biến bị bắt3/3, khôi phục3/3đạt.
+- Bench mới thu_dong_thoi_476 dựng hai tiến trình, giữ snapshot B trước A,
+  đo cả A lập nháp và A ghi sổ. Chưa nhận đạt trước khi có run đúng SHA.

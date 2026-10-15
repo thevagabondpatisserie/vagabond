@@ -115,7 +115,7 @@ def _dung_he(hd=None, pe_cu=None, nhap=None, bank=None, bt=None):
 	moc = {
 		"get_all": fr.get_all, "new_doc": getattr(fr, "new_doc", None),
 		"set_user": getattr(fr, "set_user", None), "user": fr.session.user,
-		"get_value": fr.db.get_value, "exists": fr.db.exists,
+		"get_value": fr.db.get_value, "exists": fr.db.exists, "sql": fr.db.sql,
 	}
 	hd = HD if hd is None else hd
 
@@ -161,8 +161,16 @@ def _dung_he(hd=None, pe_cu=None, nhap=None, bank=None, bt=None):
 			nk.append(("khoa", dt, ten))
 		if dt == "Bank Account":
 			return Doi(bank or {"account": "1121 - MB - TV", "company": "TV", "is_company_account": 1})
+		if dt == "Sales Invoice":
+			return next((Doi(h, docstatus=1) for h in hd if h.name == ten), None)
 		return None
 	fr.db.get_value = get_value
+	def sql(q, values=None, **kw):
+		if 'tabPayment Entry Reference' in q and 'for update' in q:
+			nk.append(("doc_nhap",))
+			return [Doi(r) for r in nhap or [] if r.reference_name in values['ten']]
+		return moc['sql'](q, values, **kw)
+	fr.db.sql = sql
 	fr.db.exists = lambda *a, **k: True
 	fr.session.user = "ntla.3008@gmail.com"
 	fr.generate_hash = lambda length=8, **k: "x" * length
@@ -192,6 +200,7 @@ def _dung_he(hd=None, pe_cu=None, nhap=None, bank=None, bt=None):
 		fr.set_user = moc["set_user"]
 		fr.session.user = moc["user"]
 		fr.db.get_value = moc["get_value"]
+		fr.db.sql = moc["sql"]
 		fr.db.exists = moc["exists"]
 		tt.phieu_thu_nhap = moc["ptn"]
 		tt.soat_tep_unc_moi = moc["soat"]
@@ -949,4 +958,37 @@ def _():
 		cn._gui_thu_da_nhan = moc["gui"]
 		cn.ghi_thu_cho_phieu = moc["ghi"]
 		fr.db.exists = moc["ex"]
+		tra()
+
+
+@ca('#476 SI vừa hết nợ sau chờ khóa: không lập PE từ snapshot cũ')
+def _():
+	from unittest.mock import patch
+	nk, tra = _dung_he()
+	gv = fr.db.get_value
+	def moi(dt, ten, *a, **kw):
+		if dt == 'Sales Invoice' and kw.get('for_update'):
+			return Doi(next(h for h in HD if h.name == ten), docstatus=1, outstanding_amount=0)
+		return gv(dt, ten, *a, **kw)
+	try:
+		with patch.object(fr.db, 'get_value', moi):
+			nem('phải từ chối dư cũ', lambda: tt.lap_phieu_thu_theo_gd([h.name for h in HD], GD, 7600000), fr.ValidationError)
+		la('không lập PE', [r for r in nk if r[0]=='insert'], [])
+	finally:
+		tra()
+
+
+@ca('#476 PE nháp vừa commit sau chờ SI: locking read thấy đủ phần đã phủ')
+def _():
+	from unittest.mock import patch
+	nk, tra = _dung_he()  # Snapshot get_all không thấy PE của người trước.
+	def hien_tai(q, values=None, **kw):
+		if 'for update' in q and 'tabPayment Entry Reference' in q:
+			return [Doi(reference_name=h.name,allocated_amount=h.outstanding_amount) for h in HD]
+		return []
+	try:
+		with patch.object(fr.db, 'sql', hien_tai):
+			nem('không phủ lần hai', lambda: tt.lap_phieu_thu_theo_gd([h.name for h in HD], GD, 7600000), fr.ValidationError)
+		la('không lập PE', [r for r in nk if r[0]=='insert'], [])
+	finally:
 		tra()
