@@ -1444,6 +1444,45 @@ def _thong_tin_xhd(o, did):
 	return {"vgb_xhd_ten": XHD_MAC_DINH, "vgb_xhd_mst": "", "vgb_xhd_dia_chi": "", "vgb_xhd_email": ""}
 
 
+TRUONG_XHD = ("vgb_xhd_ten", "vgb_xhd_mst", "vgb_xhd_dia_chi", "vgb_xhd_email")
+
+
+def nguoi_mua_con_trong(cu):
+	"""Ten nguoi mua tren to con trong hoac dang la cau mac dinh. Ham THUAN."""
+	ten = str((cu or {}).get("vgb_xhd_ten") or "").strip()
+	return not ten or ten == XHD_MAC_DINH
+
+
+def gop_nguoi_mua_dong_bo(cu, moi=None, mail=""):
+	"""Nhip dong bo Pancake duoc ghi gi vao bon o nguoi mua. Ham THUAN.
+
+	`cu`: bon o dang co tren to. `moi`: ket qua `_thong_tin_xhd` (chi can khi
+	ten con trong). `mail`: email nhat tu ghi chu don. Tra dict cac o can ghi.
+
+	Luat (v595, sau to HDB-26-10-02615 cua Loan Anh):
+	- Ten con trong hoac la cau mac dinh: ghi het ket qua doc lai, ke ca ten
+	  rong (de sales buoc phai dien tay khi khach co nhac hoa don). Rieng email
+	  dang co thi khong xoa trang.
+	- Ten that da co, du CO hay KHONG co ma so thue: may KHONG dung vao ten,
+	  ma so thue, dia chi. Ten that ma khong ma so thue nay la lua chon co chu y
+	  cua sales (nut "Khong co MST Viet Nam" hoac ca nhan); ke ca ghi chu sau do
+	  co mot ma so thue, do co the la MST cong ty me cua cong doan, may khong
+	  duoc doi nguoi mua. Chi bu email khi o email dang trong.
+	"""
+	cu = cu or {}
+	if nguoi_mua_con_trong(cu):
+		doi = {}
+		for truong, gt in (moi or {}).items():
+			if (truong == "vgb_xhd_email" and not str(gt or "").strip()
+					and str(cu.get(truong) or "").strip()):
+				continue
+			doi[truong] = gt
+		return doi
+	if not str(cu.get("vgb_xhd_email") or "").strip() and str(mail or "").strip():
+		return {"vgb_xhd_email": str(mail).strip()}
+	return {}
+
+
 def giu_khach_cua_don(cu, khach_dang_co, la_gop):
 	"""Nhip dong bo co GIU khach dang nam tren don khong. Ham THUAN.
 
@@ -1644,34 +1683,33 @@ def _upsert_hoa_don(o, ngay, cong_ty, khach):
 	if ghi_tt:
 		si.vgb_ghi_chu_doi_soat = ghi_tt
 	# Nguoi mua tren hoa don VAT. Dong bo chay lai KHONG duoc de len thong tin
-	# sales da sua tay: chi dien khi o dang trong, dang la gia tri mac dinh,
-	# hoac CHUA CO MA SO THUE.
+	# sales da sua tay: chi dien khi o ten dang trong hoac dang la gia tri mac
+	# dinh.
 	#
 	# Cai ve khong co ma so thue la bai hoc cua don 91476 (12/08/2026): luc
 	# don ve thi ghi chu "De in" ben Pancake chua co gi, sales dien thong tin
 	# xuat hoa don SAU do. Truoc day may chi doc ghi chu dung mot lan luc tao
 	# phieu nen thong tin dien sau khong bao gio ve, hoa don thieu ma so thue
-	# va dia chi. Nay lan dong bo nao cung doc lai chung nao con thieu ma so
-	# thue - da co ma so thue roi thi giu nguyen, khong de len tay nguoi sua.
-	cu_ten = (si.get("vgb_xhd_ten") or "").strip()
-	cu_mst = (si.get("vgb_xhd_mst") or "").strip()
-	if not cu_ten or cu_ten == XHD_MAC_DINH or not cu_mst:
-		moi = _thong_tin_xhd(o, did)
-		trong_truoc = not cu_ten or cu_ten == XHD_MAC_DINH
-		for truong, gt in moi.items():
-			# Doc lai ma khong ra gi thi GIU NGUYEN cai dang co. Sales go tay
-			# ten khach roi ma lan dong bo sau xoa trang thi con te hon la
-			# khong doc lai.
-			if not str(gt or "").strip() and not trong_truoc:
-				continue
-			si.set(truong, gt)
-	elif not (si.get("vgb_xhd_email") or "").strip():
-		# Ten nguoi mua da co (sales sua tay hoac lan dong bo truoc tra cong
-		# thong tin thue ra) nhung con thieu moi email - chi bu rieng o email,
-		# khong dung den ba truong kia.
-		mail = _tach_email(_text_don(o))
-		if mail:
-			si.vgb_xhd_email = mail
+	# va dia chi. Nay lan dong bo nao cung doc lai chung nao ten con trong
+	# hoac con la cau mac dinh (don 91476 dung la ca nay).
+	#
+	# v595 (Loan Anh bao 15/10/2026, to HDB-26-10-02615): dieu kien cu "hoac
+	# CHUA CO MA SO THUE" da de len nguoi mua "Khong co MST Viet Nam" (cong
+	# doan, cong ty nuoc ngoai). Sales luu ten COCO INVESTMENTS PTE. LTD
+	# khong ma so thue; 22:32 nhip dong bo doc lai ghi chu khong ra gi, tra
+	# ve cau mac dinh va DE LEN ten; 23:00 ten da la mac dinh nen xoa not dia
+	# chi va email; 23:07 hoa don xuat "Ban cho nguoi tieu dung". Nay luat
+	# gom vao MOT ham thuan `gop_nguoi_mua_dong_bo`: ten that da co thi may
+	# khong dung vao ten, ma so thue, dia chi, chi bu o email con trong.
+	cu_xhd = {k: si.get(k) for k in TRUONG_XHD}
+	if nguoi_mua_con_trong(cu_xhd):
+		doi = gop_nguoi_mua_dong_bo(cu_xhd, moi=_thong_tin_xhd(o, did))
+	elif not (cu_xhd.get("vgb_xhd_email") or "").strip():
+		doi = gop_nguoi_mua_dong_bo(cu_xhd, mail=_tach_email(_text_don(o)))
+	else:
+		doi = {}
+	for truong, gt in doi.items():
+		si.set(truong, gt)
 	for r in rows:
 		si.append("items", r)
 	si.flags.ignore_permissions = True
