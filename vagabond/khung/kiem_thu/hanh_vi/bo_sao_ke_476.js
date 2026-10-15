@@ -158,8 +158,12 @@ async function man(rows, can=714138056, save) {
     assert.equal(m.g.hsKhoiChoDoiChieu({}),'');
     const cho=m.g.hsKhoiChoDoiChieu({ly_do_som:'Ngân hàng trừ phí',cho_doi_chieu_sau:true});
     assert(cho.includes('Chờ đối chiếu sau'));assert(cho.includes('Ngân hàng trừ phí'));assert(cho.includes('Đối chiếu tay'));
-    const xong=m.g.hsKhoiChoDoiChieu({ly_do_som:'Ngân hàng trừ phí',cho_doi_chieu_sau:false});
+    const xong=m.g.hsKhoiChoDoiChieu({ly_do_som:'Ngân hàng trừ phí',cho_doi_chieu_sau:false,trang_thai:'Da thanh toan'});
     assert(xong.includes('đã đối chiếu đủ'));assert(!xong.includes('Chờ đối chiếu sau'));
+    for(const tt of ['Huy','Tu choi']){
+      const huy=m.g.hsKhoiChoDoiChieu({ly_do_som:'Ngân hàng trừ phí',cho_doi_chieu_sau:false,trang_thai:tt});
+      assert(!huy.includes('đã đối chiếu đủ'),tt);assert(huy.includes('Ngân hàng trừ phí'),tt);
+    }
   });
   await ca('UX: ba luồng dùng cùng một tên nút Bỏ đối chiếu',async()=>{
     for(const tep of ['11-khach-ca-hop-dong.js','16-mua-hang.js','23-khop-sepay.js']){
