@@ -325,7 +325,9 @@ def _():
 		"window.addEventListener('popstate', vgbXuLyPopstate);" in vd)
 	ps = k.split("function vgbXuLyPopstate(")[1].split("\nfunction reset(")[0]
 	la("popstate cắt chồng địa chỉ ở đúng một chỗ", ps.count("S.duong.length = d + 1"), 1)
-	la("chỗ cắt đó áp lại địa chỉ", ps.count("vgbApNac()"), 1)
+	# Hai cho ap lai dia chi: cho cat chung, va oLai khi chon o lai (Codex fbf05ff: trinh
+	# duyet da nhay sang dia chi dich nen phai ap lai dia chi cua nac dang dung).
+	la("chỗ cắt chung và chỗ ở lại đều áp lại địa chỉ", ps.count("vgbApNac()"), 2)
 	la("cả ba đường lui đều đi qua chỗ cắt chung", ps.count("cat()"), 3)
 
 
