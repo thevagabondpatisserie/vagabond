@@ -54,8 +54,12 @@ def _():
 	# Day chinh la duong anh Viet di khi bao loi. Nut ‹ trong app va nut
 	# Back cua trinh duyet la HAI duong khac nhau, sua mot duong thi duong
 	# kia van hong.
-	js = _js("12-van-don.js")
-	than = js.split("window.addEventListener('popstate'")[1]
+	# v596: than bo nghe popstate doi sang 01-khung-app.js (vgbXuLyPopstate), canh
+	# back() va nut nha, de moi loi roi man qua cung mot cua hoi "Chua luu".
+	dung("12-van-don.js chỉ đăng ký đúng bộ nghe của khung",
+		"window.addEventListener('popstate', vgbXuLyPopstate);" in _js("12-van-don.js"))
+	js = _js("01-khung-app.js")
+	than = js.split("function vgbXuLyPopstate(")[1].split("\nfunction reset(")[0]
 	dung("cắt mảng vị trí theo nấc", "S.cuon.length = d + 1;" in than)
 	dung("hẹn trả lại vị trí nấc còn lại", "vgbHenTraCuon();" in than)
 	# Nut Back co the nhay lui NHIEU nac mot lan, nen phai doc nac tren cung
