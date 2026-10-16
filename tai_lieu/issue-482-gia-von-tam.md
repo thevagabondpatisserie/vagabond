@@ -31,3 +31,6 @@
   - Mã bán thành phẩm có từ hai công thức chưa chọn mặc định: phiếu thử không lấy giá kho thay, báo thiếu để nhập giá tay.
   - Bỏ phiếu giữ nguyên giá vốn và giá đề xuất đã chụp, không tính lại.
   - Phiếu đã bỏ không sửa được nữa, kể cả trên Desk; bỏ phiếu không được kèm sửa nội dung. Một chỗ quyết: `quyet_luu_phieu`, gọi từ `validate()`.
+- 17/10/2026 (PR #486, Codex rà vòng 3 trên a848c9fbd, 2 finding, tái hiện đủ 2 rồi sửa):
+  - Mã nhiều công thức nằm ở tầng dưới (dòng công thức không ghi bom_no) cũng báo thiếu, không lấy giá kho; áp chung cho món đang bán, sheet chi tiết và phiếu thử. Một nguồn: `gia_la_cua` trong `_doc`.
+  - Ô "Một mẻ ra" để 0 hoặc trống: không tự thay 1 khi tính thử, ô kết quả nói cần sửa; Lưu cũng chặn. Máy chủ từ chối tính thử thì ô kết quả hiện đúng câu lỗi, bỏ số cũ.
