@@ -155,6 +155,7 @@ function dungMan(tuyChon) {
         var tre = tuyChon.treDs ? tuyChon.treDs.shift() : 0;
         return new Promise(function (r) { setTimeout(function () { r(tra); }, tre || 0); });
       }
+      if (duong === 'vagabond.gia_von_tam.tinh_thu' && tuyChon.loiTinhThu) return Promise.reject(new Error(tuyChon.loiTinhThu));
       if (duong === 'vagabond.gia_von_tam.tinh_thu') {
         /* treTinhThu: độ trễ từng lượt, để dựng đúng cảnh trả về lệch thứ tự. */
         var kqT = tinhPhieuPy([JSON.parse(ts.phieu)])[0];
@@ -195,6 +196,9 @@ function bang(mo, a, b) {
 }
 function tick() { return new Promise(function (r) { setTimeout(r, 5); }); }
 function cho(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+/* Chờ tới khi điều kiện đúng (tối đa 3 giây): máy chủ giả chạy python thật nên
+   lúc máy bận một lượt tính có thể lâu hơn 450ms; không dùng để che lỗi thứ tự. */
+async function choDen(dk) { for (var i = 0; i < 60 && !dk(); i++) await cho(50); }
 function go(m, el, v) { el.value = v; el.dispatchEvent(dg.suKien('input', {}, el)); }
 async function ca(ten, ham) {
   try { await ham(); ket.dat++; console.log('  DAT   ' + ten); }
@@ -545,6 +549,45 @@ function sheetCuoi(m) { var ds = m.tai.body.children; return ds[ds.length - 1]; 
     bang('tìm ở máy chủ', ds.slice(-2).map(function (x) { return x.ts; }), [{ tu_khoa: 'tart', bat_dau: 0 }, { tu_khoa: 'mousse', bat_dau: 0 }]);
     bang('màn giữ kết quả tìm mới', tim(m, '[data-gvtp]').map(function (e) { return e.getAttribute('data-gvtp'); }), ['GT-2610-003']);
     bang('ô tìm giữ chữ đang gõ', m.tai.getElementById('gvtThuQ').value, 'mousse');
+  });
+
+  /* Codex #486 v3: gõ 0 vào "Một mẻ ra" thì bản đầu tự gửi 1 lên máy chủ và
+     hiện một giá vốn trông như thật, trong khi Lưu thì bị chặn. Màn phải nói
+     ngay cần sửa gì và không giữ số của lần tính trước. */
+  await ca('Codex #486 v600 mẻ ra 0 hoặc trống: không gửi tính thử với số tự thay, ô kết quả nói cần sửa gì, bỏ số cũ', async function () {
+    var m = await moThu();
+    bam(m, tim(m, '[data-gvtp="GT-2610-001"]')[0]);
+    dung('lúc mở có giá vốn', chu(o(m, '#gvtpKq')).indexOf('Giá vốn 15.000đ/Cái') >= 0);
+    var truoc = m.goi.filter(function (x) { return x.duong === 'vagabond.gia_von_tam.tinh_thu'; }).length;
+    go(m, m.tai.getElementById('gvtpRa'), '0');
+    await cho(450);
+    var tt = m.goi.filter(function (x) { return x.duong === 'vagabond.gia_von_tam.tinh_thu'; });
+    bang('không gửi tính thử với mẻ ra thay bằng 1', tt.slice(truoc).map(function (x) { return JSON.parse(x.ts.phieu).so_ra; }), []);
+    dung('ô kết quả nói cần sửa: ' + chu(o(m, '#gvtpKq')), chu(o(m, '#gvtpKq')).indexOf('Một mẻ phải ra hơn 0') >= 0);
+    dung('không còn giá vốn cũ', chu(o(m, '#gvtpKq')).indexOf('Giá vốn 15.000đ') < 0);
+    go(m, m.tai.getElementById('gvtpRa'), '');
+    await cho(450);
+    dung('để trống cũng nói cần sửa', chu(o(m, '#gvtpKq')).indexOf('Một mẻ phải ra hơn 0') >= 0);
+    await m.tai.getElementById('gvtpLuu').onclick();
+    bang('bấm Lưu khi mẻ ra trống: không gửi lưu', goiTen(m).indexOf('vagabond.gia_von_tam.luu_thu'), -1);
+    dung('báo cần sửa', m.bao.indexOf('Một mẻ phải ra hơn 0. Sửa ô Một mẻ ra rồi bấm Lưu.') >= 0);
+    go(m, m.tai.getElementById('gvtpRa'), '2');
+    await cho(450);
+    await choDen(function () { return chu(o(m, '#gvtpKq')).indexOf('Giá vốn') >= 0; });
+    tt = m.goi.filter(function (x) { return x.duong === 'vagabond.gia_von_tam.tinh_thu'; });
+    bang('sửa thành 2 thì tính lại đúng 2', JSON.parse(tt[tt.length - 1].ts.phieu).so_ra, 2);
+    dung('giá vốn theo 2 cái: ' + chu(o(m, '#gvtpKq')), chu(o(m, '#gvtpKq')).indexOf('Giá vốn 30.000đ/Cái') >= 0);
+  });
+
+  /* Codex #486 v3 (cùng gốc): máy chủ từ chối tính thử thì bản đầu im lặng
+     giữ số cũ. Giờ ô kết quả hiện đúng câu máy chủ trả. */
+  await ca('Codex #486 v600 máy chủ từ chối tính thử: ô kết quả hiện câu lỗi, bỏ số cũ', async function () {
+    var m = await moThu({ loiTinhThu: 'Dòng 1 (Bột mì): số lượng phải lớn hơn 0.' });
+    bam(m, tim(m, '[data-gvtp="GT-2610-001"]')[0]);
+    go(m, o(m, '[data-gvtpsl="0"]'), '100');
+    await cho(450);
+    dung('hiện câu máy chủ: ' + chu(o(m, '#gvtpKq')), chu(o(m, '#gvtpKq')).indexOf('Dòng 1 (Bột mì): số lượng phải lớn hơn 0.') >= 0);
+    dung('không còn giá vốn cũ', chu(o(m, '#gvtpKq')).indexOf('Giá vốn 15.000đ') < 0);
   });
 
   await ca('v600 không có quyền lập phiếu: không có nút Phiếu mới, mở phiếu thì không có Lưu, Thêm, Xoá', async function () {
