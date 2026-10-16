@@ -37,6 +37,12 @@ def _lien_ket_an_toan(u):
 	return ""
 
 
+# Một nguồn cho nút liên hệ trên biên nhận (trang cũ và Vue, Codex #484):
+# (khoá liên hệ, khoá nhãn Editor, chữ mặc định).
+NUT_LIEN_HE_BIEN_NHAN = (("zalo", "bien_nhan_ed312c8e3", "Nhắn Zalo"),
+	("messenger", "bien_nhan_edbd31524", "Nhắn Messenger"))
+
+
 def chan_trang_html(phap_nhan, lien_he, chinh_sach):
 	"""Chân trang pháp nhân dùng chung. `chinh_sach` là danh sách trang ĐANG HIỆN."""
 	pn = phap_nhan or {}
@@ -66,21 +72,28 @@ def chan_trang_html(phap_nhan, lien_he, chinh_sach):
 	return "".join(dong)
 
 
+# Một nguồn (Codex #484): câu nghiệp vụ máy chủ trả trong biên nhận -> (khoá nhãn
+# Editor, chữ mặc định). Biên nhận trang cũ dùng ở _chu_bien_nhan, biên nhận Vue
+# nhận nguyên bảng này qua du_lieu rồi đọc nhãn bằng chu().
+GIA_TRI_BIEN_NHAN = {
+    'Sales báo phí khi xác nhận':('bien_nhan_phi_cho','Chúng tôi báo phí khi xác nhận'),
+    'Chờ Sales báo phí giao':('bien_nhan_tong_cho','Chờ xác nhận phí giao'),
+    'Tự đến lấy':('bien_nhan_nhan_tai_quay','Tự đến lấy'),
+    'Giao tận nơi':('bien_nhan_giao_tan_noi','Giao tận nơi'),
+    'Chuyển khoản (mã VietQR)':('bien_nhan_chuyen_khoan','Chuyển khoản (mã VietQR)'),
+    'Thẻ qua cổng OnePay':('bien_nhan_the','Thẻ qua cổng OnePay'),
+    'Tự lấy, không tính phí':('bien_nhan_phi_tu_lay','Tự lấy, không tính phí'),
+    'Miễn phí giao':('bien_nhan_phi_mien','Miễn phí giao'),
+}
+TIEN_TO_TU_LAY = ('Tự lấy tại ', 'bien_nhan_tu_lay_tai', 'Tự lấy tại')
+
+
 def _chu_bien_nhan(chu):
     """Câu nghiệp vụ thành nhãn; số tiền thật vẫn là dữ liệu đọc-only."""
-    bang = {
-        'Sales báo phí khi xác nhận':('bien_nhan_phi_cho','Chúng tôi báo phí khi xác nhận'),
-        'Chờ Sales báo phí giao':('bien_nhan_tong_cho','Chờ xác nhận phí giao'),
-        'Tự đến lấy':('bien_nhan_nhan_tai_quay','Tự đến lấy'),
-        'Giao tận nơi':('bien_nhan_giao_tan_noi','Giao tận nơi'),
-        'Chuyển khoản (mã VietQR)':('bien_nhan_chuyen_khoan','Chuyển khoản (mã VietQR)'),
-        'Thẻ qua cổng OnePay':('bien_nhan_the','Thẻ qua cổng OnePay'),
-        'Tự lấy, không tính phí':('bien_nhan_phi_tu_lay','Tự lấy, không tính phí'),
-        'Miễn phí giao':('bien_nhan_phi_mien','Miễn phí giao'),
-    }
-    if str(chu or '').startswith('Tự lấy tại '):
-        return _chu('bien_nhan_tu_lay_tai','Tự lấy tại') + ' ' + _e(chu[len('Tự lấy tại '):])
-    return _chu(*bang[chu]) if chu in bang else _e(chu)
+    tien_to, khoa, mac_dinh = TIEN_TO_TU_LAY
+    if str(chu or '').startswith(tien_to):
+        return _chu(khoa, mac_dinh) + ' ' + _e(chu[len(tien_to):])
+    return _chu(*GIA_TRI_BIEN_NHAN[chu]) if chu in GIA_TRI_BIEN_NHAN else _e(chu)
 
 
 def bien_nhan_html(tt, lien_he):
@@ -94,12 +107,10 @@ def bien_nhan_html(tt, lien_he):
 			('<span class="tien">%s</span>' % _e(m["thanh_tien"])) if m.get("thanh_tien") else "")
 		for m in tt.get("mon") or [])
 	nut = []
-	zalo = _lien_ket_an_toan(lh.get("zalo"))
-	if zalo:
-		nut.append('<a class="nut" href="%s" target="_blank" rel="noopener"><span data-vgb-chu="bien_nhan_ed312c8e3">Nhắn Zalo</span></a>' % _e(zalo))
-	mess = _lien_ket_an_toan(lh.get("messenger"))
-	if mess:
-		nut.append('<a class="nut" href="%s" target="_blank" rel="noopener"><span data-vgb-chu="bien_nhan_edbd31524">Nhắn Messenger</span></a>' % _e(mess))
+	for kenh, khoa, mac_dinh in NUT_LIEN_HE_BIEN_NHAN:
+		u = _lien_ket_an_toan(lh.get(kenh))
+		if u:
+			nut.append('<a class="nut" href="%s" target="_blank" rel="noopener"><span data-vgb-chu="%s">%s</span></a>' % (_e(u), khoa, mac_dinh))
 	if lh.get("dien_thoai_so"):
 		nut.append('<a class="nut phu" href="tel:%s">Gọi %s</a>' % (_e(lh["dien_thoai_so"]), _e(lh.get("dien_thoai"))))
 	lop = "bn-trang-thai cho" if tt.get("dang_xac_nhan") else ("bn-trang-thai huy" if tt.get("da_huy") else "bn-trang-thai")

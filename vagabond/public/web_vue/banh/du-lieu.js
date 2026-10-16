@@ -57,24 +57,34 @@ export function cakesGoc() {
   ];
 }
 
-/* Phụ kiện tặng kèm (chỉ để hiện). Tên đi qua t() lúc vẽ. */
+/* Phụ kiện có sẵn trong hộp bánh (chỉ để hiện). Tên đi qua t() lúc vẽ.
+   v597 (Minh Vũ báo): khách tưởng phải mua thêm hộp, túi. Hộp và túi lấy đúng
+   ảnh của dòng mua thêm, một nguồn ảnh. Nĩa, dĩa chuyển xuống ô ghi số. */
 export const ACC = [
-  {k: 'phu_kien_e0fe21772', n: 'Nến xoắn', ks: 'phu_kien_28be55676', sub: 'vỉ 6 cây, tặng kèm', i: ANH_DUNG_CU[0]},
-  {k: 'phu_kien_8034a0777', n: 'Cờ cắm in lời chúc', ks: 'phu_kien_da39a3ee5', sub: '', i: ANH_DUNG_CU[1]},
-  {k: 'phu_kien_262b4eaaa', n: 'Dao gỗ cắt bánh', ks: 'phu_kien_da39a3ee5', sub: '', i: ANH_DUNG_CU[2]},
-  {k: 'phu_kien_6901061b9', n: 'Nĩa gỗ', ks: 'phu_kien_865804acc', sub: 'khi quý khách yêu cầu', i: ANH_DUNG_CU[3]},
-  {k: 'phu_kien_08ee935af', n: 'Dĩa giấy bã mía', ks: 'phu_kien_865804acc', sub: 'khi quý khách yêu cầu', i: ANH_DUNG_CU[4]}
+  {k: 'pk_hop_banh', n: 'Hộp bánh', ks: 'pk_hop_banh_mo', sub: 'hộp giấy Vagabond, vừa size bánh', i: ANH_PHU_KIEN.BAPK00016},
+  {k: 'pk_tui_vai', n: 'Túi vải đen The Vagabond', ks: 'pk_tui_vai_mo', sub: 'xách đi tiện, dùng lại được', i: ANH_PHU_KIEN.BAPK00015},
+  {k: 'phu_kien_262b4eaaa', n: 'Dao gỗ cắt bánh', ks: '', sub: '', i: ANH_DUNG_CU[2]},
+  {k: 'phu_kien_e0fe21772', n: 'Nến xoắn', ks: 'pk_nen_xoan_mo', sub: 'vỉ 6 cây', i: ANH_DUNG_CU[0]},
+  {k: 'phu_kien_8034a0777', n: 'Cờ cắm in lời chúc', ks: 'pk_co_cam_mo', sub: 'in đúng lời chúc quý khách ghi ở mục 02', i: ANH_DUNG_CU[1]}
+];
+
+/* Hướng dẫn chọn size (poster Serving & Cutting Guide của bếp). Chữ sửa trong Editor. */
+export const HUONG_SIZE = [
+  {cm: 12, lat: 4, mieng: '4', nguoi: '2 - 4'},
+  {cm: 16, lat: 8, mieng: '8', nguoi: '6 - 8'},
+  {cm: 18, lat: 12, mieng: '12', nguoi: '8 - 10'},
+  {cm: 20, lat: 16, mieng: '14 - 16', nguoi: '10 - 12'}
 ];
 
 /* Nến số BAPK00003..12 và phụ kiện mua thêm (nhóm BAPK Pancake). */
 export const NUMS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => ({n, id: 'BAPK000' + String(3 + n).padStart(2, '0'), p: 17000, img: ANH_NEN_SO[n]}));
 export const ADDONS = [
-  {k: 'phu_kien_9908ba265', n: 'Nến xoắn (vỉ 6 cây)', id: 'BAPK00001', p: 11000},
+  {k: 'phu_kien_9908ba265', n: 'Nến xoắn (vỉ 6 cây)', id: 'BAPK00001', p: 11000, du_phong: true},
   {k: 'phu_kien_91d4d0b6f', n: 'Thiệp chúc mừng sinh nhật', id: 'BAPK00002', p: 17000},
   {k: 'phu_kien_f5af63739', n: 'Nón sinh nhật', id: 'BAPK00024', p: 20000},
   {k: 'phu_kien_55065e4f5', n: 'Sash sinh nhật', id: 'BAPK00025', p: 40000},
-  {k: 'phu_kien_9ed7b3e1a', n: 'Hộp bánh kem', id: 'BAPK00016', p: 22000},
-  {k: 'phu_kien_4decf2ff4', n: 'Túi vải đen The Vagabond', id: 'BAPK00015', p: 17000}
+  {k: 'phu_kien_9ed7b3e1a', n: 'Hộp bánh kem', id: 'BAPK00016', p: 22000, du_phong: true},
+  {k: 'phu_kien_4decf2ff4', n: 'Túi vải đen The Vagabond', id: 'BAPK00015', p: 17000, du_phong: true}
 ].map(a => ({...a, img: ANH_PHU_KIEN[a.id]}));
 
 export const DAYS = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];

@@ -1044,3 +1044,10 @@ extend_doctype_class["Journal Entry"] = ["vagabond.bo_sao_ke_document.KhoaBoCapQ
 
 _old_cap_cancel = doc_events.setdefault("Journal Entry", {}).get("on_cancel", [])
 doc_events["Journal Entry"]["on_cancel"] = ([_old_cap_cancel] if isinstance(_old_cap_cancel, str) else list(_old_cap_cancel)) + ["vagabond.bo_sao_ke_cap.sau_huy"]
+
+# #470: chỉ thêm route thử song song, chưa tráo /banh công khai.
+website_route_rules = list(website_route_rules) + [
+    {"from_route": "/web_moi/banh/xong/<token>", "to_route": "web_moi/xong"},
+    {"from_route": "/web_moi/banh/xong", "to_route": "web_moi/xong"},
+] + [{"from_route": "/web_moi/" + duong, "to_route": "web_moi/chinh-sach"}
+     for duong in ("chinh-sach-bao-mat", "dieu-khoan", "giao-hang-doi-tra")]

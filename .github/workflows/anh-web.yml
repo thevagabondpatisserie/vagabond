@@ -7,7 +7,11 @@ on:
       - 'vagabond/trang/banh.html'
       - 'vagabond/public/web_vue/**'
       - 'vagabond/www/web_moi/**'
-      - 'vagabond/public/web_order/chu-mac-dinh.json'
+      - 'vagabond/public/web_order/**'
+      - 'vagabond/www/**'
+      - 'cong_cu/ra_nut_web.py'
+      - 'cong_cu/kiem_web_vue_dom.cjs'
+      - 'vagabond/don_web.py'
       - 'vagabond/noi_dung_web.py'
       - 'cong_cu/xem_thu_web_vue.py'
       - 'cong_cu/chup_web_vue.py'
@@ -67,3 +71,56 @@ jobs:
             const old = comments.find(c => c.user.type === 'Bot' && c.body.includes(marker));
             if (old) await github.rest.issues.updateComment({...context.repo, comment_id: old.id, body});
             else await github.rest.issues.createComment({...context.repo, issue_number: context.issue.number, body});
+
+  # v598 (16/10/2026): nút "Gửi yêu cầu đặt bánh" bị co tròn khi có dòng báo lỗi.
+  # Rà mọi nút trên các trang khách ở 390 px và 1440 px; vi phạm thì job đỏ.
+  ra-nut:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Cai Chromium
+        run: |
+          python3 -m pip install playwright==1.55.0 jinja2==3.1.6
+          python3 -m playwright install --with-deps chromium
+      - name: Ra moi nut tren trang khach
+        run: python3 cong_cu/ra_nut_web.py --anh /tmp/ra-nut --json /tmp/ra-nut/ket-qua.json
+      - name: Dinh kem anh ra nut
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ra-nut-web-${{ github.event.pull_request.number }}
+          path: /tmp/ra-nut
+          retention-days: 14
+
+  # v598: thao tác DOM thật của khách trên cả trang cũ và bản Vue (chọn bánh,
+  # giỏ, gửi đơn lỗi, biên nhận, hộp Cách chọn size, đồ có sẵn). Trước đây bộ
+  # này chỉ chạy tay, nên lỗi giao diện chỉ lộ khi khách bấm. Đỏ là chặn merge.
+  dom-khach:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Cai Playwright va Chromium
+        run: |
+          npm install --no-save --prefix /tmp/pw playwright@1.55.0
+          /tmp/pw/node_modules/.bin/playwright install --with-deps chromium
+      - name: Thao tac DOM trang khach
+        env:
+          NODE_PATH: /tmp/pw/node_modules
+        run: node cong_cu/kiem_web_vue_dom.cjs

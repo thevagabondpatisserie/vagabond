@@ -196,6 +196,17 @@ def _km_gia(giam=0, ly_do="", mot_lan=False, giu_duoc=True, chuoi=None, loi_giu=
 	return km
 
 
+def _hang_so(tep, ten):
+	"""Đọc một hằng số literal ở cấp mô-đun mà không import (don_hang kéo requests)."""
+	import ast
+	from pathlib import Path
+	cay = ast.parse((Path(__file__).resolve().parents[2] / tep).read_text())
+	for nut in cay.body:
+		if isinstance(nut, ast.Assign) and any(isinstance(t, ast.Name) and t.id == ten for t in nut.targets):
+			return ast.literal_eval(nut.value)
+	raise KeyError(ten)
+
+
 def _moi_truong_tao_don(pancake, trung=None, km=None, phi=None, cauhinh=None, tong_pancake=None, thieu_giam_pancake=False):
 	"""Dựng môi trường gọi tao_don THẬT, chặn mọi đường ra ngoài.
 
@@ -204,6 +215,7 @@ def _moi_truong_tao_don(pancake, trung=None, km=None, phi=None, cauhinh=None, to
 	post, cập nhật, commit, xếp CAPI.
 	"""
 	vet = _Vet()
+	vet.log = []
 
 	class Doc(D):
 		pass
@@ -237,7 +249,8 @@ def _moi_truong_tao_don(pancake, trung=None, km=None, phi=None, cauhinh=None, to
 	)
 	fr = types.SimpleNamespace(
 		db=types.SimpleNamespace(commit=lambda: vet.su.append("commit"), rollback=lambda **kw: vet.su.append("rollback"), savepoint=lambda *a: None),
-		log_error=lambda *a, **k: None, get_traceback=lambda: "",
+		# v598: ghi lại Error Log (tiêu đề) để ca kiểm thẻ Pancake đọc được.
+		log_error=lambda *a, **k: vet.log.append(k.get("title") or (a[0] if a else "")), get_traceback=lambda: "",
 		get_all=lambda *a, **k: [],
 	)
 
@@ -275,8 +288,10 @@ def _moi_truong_tao_don(pancake, trung=None, km=None, phi=None, cauhinh=None, to
 	vet.km.vet.su = vet.su
 	for ten in ("_so", "_lam_sach_hang", "_lam_sach_the", "_ngay_iso", "_ngay_pancake", "_hoa_don_pancake", "_diem_lay",
 			"_uu_dai_don", "_giu_luot_uu_dai", "_tra_uu_dai_khi_tu_choi", "_bo_ctkm",
-			"_gan_giam_pancake", "_doc_lai_don_pancake", "_tong_pancake"):
+			"_gan_giam_pancake", "_doc_lai_don_pancake", "_tong_pancake",
+			"_gui_pancake", "la_loi_the", "bot_the", "_them_dong"):
 		nap("don_hang.py", ten, g)
+	g["TEN_THE"] = _hang_so("don_hang.py", "TEN_THE")
 	g["_bao_lech_tong_pancake"] = lambda *a: vet.su.append(("bao_lech", a))
 	g["MAX_DONG"], g["MAX_SL"] = 30, 20
 	g["_UUID"] = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
