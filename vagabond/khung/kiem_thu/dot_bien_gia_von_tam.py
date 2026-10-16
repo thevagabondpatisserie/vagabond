@@ -137,6 +137,13 @@ DOT_BIEN = [
 		'		if truoc.get("noi_dung") != nay.get("noi_dung"):\n', "		if False:\n", CA_PY),
 	("Codex #486 v2: lưu luôn tính lại, bỏ qua quyết định", PY,
 		'	if viec == "tinh":\n		return tinh_lai_doc(d)', '	if True:\n		return tinh_lai_doc(d)', CA_PY),
+	# ---- Codex #486 vòng 4 ----
+	("Codex #486 v4: Desk xoá được phiếu thử", CT,
+		'\t\tfrappe.throw("Không xoá phiếu tính giá thử.', '\t\treturn\n\t\tfrappe.throw("Không xoá phiếu tính giá thử.', CA_PY),
+	("Codex #486 v4: tính xong không vẽ ô giá tay cho dòng thiếu", JS,
+		"  if (ds && lech) {", "  if (false) {", CA_JS),
+	("Codex #486 v4: dòng mã thiếu giá không cần ô giá tay", JS,
+		"!d.item_code || !!(r && r.thieu) ||", "!d.item_code || false ||", CA_JS),
 	("Codex #486 P2: máy chủ bỏ qua vị trí bắt đầu", PY,
 		"		limit_start=bd, limit_page_length=TRANG_THU + 1)]", "		limit_start=0, limit_page_length=TRANG_THU + 1)]", CA_PY),
 	("Codex #486 P2: màn không có nút Xem thêm", JS,

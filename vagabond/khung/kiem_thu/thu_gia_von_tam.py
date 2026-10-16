@@ -683,7 +683,7 @@ def _doctype_thu():
 	la("lua chon nhom trung NHOM_BAN", nhom, [""] + list(G.NHOM_BAN))
 	la("field_order khop fields", cha["field_order"], [f["fieldname"] for f in cha["fields"]])
 	quyen_xoa = sorted(p["role"] for p in cha["permissions"] if p.get("delete"))
-	la("Codex #486 P1: chỉ System Manager còn quyền xoá cứng trên Desk (QT-20)", quyen_xoa, ["System Manager"])
+	la("Codex #486 v4: không vai nào còn quyền xoá cứng trên Desk (QT-20)", quyen_xoa, [])
 	dung("có trường bỏ mềm", {"da_bo", "bo_luc", "bo_boi"} <= truong)
 	bo = [f for f in cha["fields"] if f["fieldname"] == "da_bo"][0]
 	la("trường Đã bỏ chỉ đọc, lọc được", (bo["fieldtype"], bo.get("read_only"), bo.get("in_standard_filter")), ("Check", 1, 1))
@@ -936,3 +936,17 @@ def _bom_mo_ho_tang_duoi():
 		la("sheet chi tiết nói rõ nguồn", (kem["nguon"], kem["thieu"], kem["don_gia"]), (G.NGUON_NHIEU_CT, 1, 0))
 	finally:
 		_tra(cu)
+
+
+
+@ca("gia von tam: Codex #486 v4 xoa phieu thu tren Desk bi chan o bo dieu khien, ke ca System Manager (QT-20)")
+def _chan_xoa():
+	from vagabond.vagabond.doctype.vagabond_gia_thu.vagabond_gia_thu import VagabondGiaThu
+	d = _phieu_kho("GT-2610-001", "Tart chanh")
+	try:
+		VagabondGiaThu.on_trash(d)
+		dung("xoá phải bị chặn", False)
+	except AttributeError:
+		dung("bộ điều khiển chưa có on_trash", False)
+	except Exception as e:
+		dung("câu chặn chỉ cách bỏ phiếu: %s" % e, "Bỏ phiếu" in str(e))
