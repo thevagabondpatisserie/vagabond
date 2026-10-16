@@ -4010,6 +4010,16 @@ function coQuyenCongNo() {
   return QUYEN_CONG_NO_THU.some(function (v) { return hasRole(v); });
 }
 
+/* #482 (Codex #483 vong 3): ai thay o Gia von tam tinh. Cung tap voi
+   gia_von_tam.QUYEN_XEM (ca kiem chot hai ben khop), de Thu mua hay AP Kiem
+   soat khong thay mot o bam vao chi ra loi quyen. Chi de AN O, chan that o
+   may chu. */
+var QUYEN_GVT = ['Accounts Manager', 'Accounts User', 'VGB - Quản lý công thức', 'System Manager',
+  'Giám đốc', 'AP Giám đốc'];
+function coQuyenGvt() {
+  return QUYEN_GVT.some(function (v) { return hasRole(v); });
+}
+
 /* Ai duoc vao PHAN HE HRM (KPI va hoa hong).
 
    Anh Viet chot 01/09/2026: nut KPI "chi cho quan ly, ke toan, giam doc
@@ -4338,7 +4348,7 @@ async function scrHome() {
       card('💵', 'Biên nhận nộp tiền mặt', 'Theo dõi phiếu của cả ba điểm bán, ký nhận tiền, xuất Excel', 0, 'NQ') +
       card('📒', 'Bút toán tay', 'Trích lương, bảo hiểm, phân bổ, kết chuyển thuế theo định khoản mẫu', 0, 'BT') +
       /* #482: giá vốn nguyên liệu theo công thức và giá bán đề xuất, cho Khải. */
-      card('🧮', 'Giá vốn tạm tính', 'Giá vốn nguyên liệu theo công thức, so giá bán, giá đề xuất', 0, 'GVT') +
+      (coQuyenGvt() ? card('🧮', 'Giá vốn tạm tính', 'Giá vốn nguyên liệu theo công thức, so giá bán, giá đề xuất', 0, 'GVT') : '') +
       /* Duyet don hang tang (anh Viet 31/08/2026). Don tra bang phuong thuc
          Hang tang KHONG ghi so duoc cho toi khi giam doc bam duyet o day.
          Dat trong phan he Ke toan theo dung yeu cau cua anh Viet. */
@@ -59459,7 +59469,9 @@ var GVT_TT = {
   vong: { nhan: 'Công thức vòng', mau: '#b3261e', nen: '#fef2f2' },
   cao_hon_muc_tieu: { nhan: 'Cao hơn mục tiêu', mau: '#b45309', nen: '#fffbeb' }
 };
-var GVT_CHIP_TT = ['vuot_gia_ban', 'thieu_gia', 'cao_hon_muc_tieu'];
+/* Codex #483 vong 3: co ca 'vong' de loc rieng duoc mon cong thuc vong. Chip
+   chi hien khi co mon o trang thai do (xem gvtVe). */
+var GVT_CHIP_TT = ['vuot_gia_ban', 'vong', 'thieu_gia', 'cao_hon_muc_tieu'];
 var GVT_TIEU_DE = 'Giá vốn tạm tính';
 
 function gvtPhanTram(x) { return x == null ? '' : String(x).replace('.', ',') + '%'; }
@@ -59541,6 +59553,17 @@ function gvtVeDs() {
         (n.ty_le_muc_tieu ? 'mục tiêu ' + gvtPhanTram(n.ty_le_muc_tieu) : 'chưa đặt mục tiêu') + '</div>' +
         '<div class="card">' + cua.map(gvtThe).join('') + '</div>';
     });
+  }
+  /* Codex #483 vong 3: mon co nhieu cong thuc dang chay ma chua chon ban mac
+     dinh thi may chu KHONG doan, man noi ro ten va cach sua. */
+  var nct = kq.nhieu_cong_thuc || {};
+  if (nct.so) {
+    html += '<div class="card" data-gvtnct style="padding:12px 14px">' +
+      '<div style="font-size:13.5px;color:#b45309">' + nct.so + ' món có nhiều công thức nhưng chưa chọn công thức mặc định nên chưa tính. ' +
+      'Mở công thức đúng trên Desk, tích Mặc định rồi tính lại.</div>' +
+      '<div style="font-size:13px;color:#6b7280;margin-top:8px;line-height:1.6">' +
+      (nct.ten || []).map(h).join(', ') + (nct.so > (nct.ten || []).length ? ' và ' + (nct.so - nct.ten.length) + ' nữa' : '') +
+      '</div></div>';
   }
   var cct = kq.chua_cong_thuc || {};
   if (cct.so) {
