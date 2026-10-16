@@ -168,7 +168,9 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
     const fs=require('node:fs');
     const bn={ma:'DW-FIXTURE',ten:'K. T.',mon:[{ten:'CANDLE',sl:1,thanh_tien:'650.000 đ'}],
       tien_banh:'650.000 đ',giam:'- 50.000 đ',phi_giao:'42.000 đ',tong:'642.000 đ',trang_thai:'Đã nhận'};
-    const doc={loai:'bien_nhan',bien_nhan:bn,pixel_id:'123',su_kien:{ban:true,event_id:'ev-capi-fixture',gia_tri:650000,ma_mon:['BAWC00139']}};
+    const doc={loai:'bien_nhan',bien_nhan:bn,pixel_id:'123',su_kien:{ban:true,event_id:'ev-capi-fixture',gia_tri:650000,ma_mon:['BAWC00139']},
+      /* Codex #484 F2: nút liên hệ đọc nhãn Editor đã xuất bản. */
+      nhan:{bien_nhan_ed312c8e3:'Chat Zalo nhé'},lien_he:[{href:'https://zalo.me/1',khoa:'bien_nhan_ed312c8e3',ten:'Nhắn Zalo'}]};
     await page.addInitScript(()=>{window.suKienThu=[];window.fbq=(...args)=>window.suKienThu.push({args,path:location.pathname});});
     /* v598: dùng hàm so đường dẫn, không dùng glob '**' dính chữ: Playwright 1.55 (CI) không khớp
        '/xong**' với '/xong/TOKEN' còn 1.56 thì khớp, ca xanh trên máy mà đỏ trên CI. */
@@ -181,6 +183,7 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
     await page.goto(url+'/web_moi/banh/xong/TOKEN'); await page.locator('.bn-in').waitFor();
     assert.equal(new URL(page.url()).pathname,'/web_moi/banh/xong');
     assert.match(await page.locator('.bn-tien .tong').innerText(),/642.000/);
+    assert.equal(await page.locator('.bn-nut a.nut').first().innerText(),'Chat Zalo nhé');
     const events=await page.evaluate(()=>window.suKienThu);
     assert.equal(events.filter(x=>x.args[1]==='GuiDon').length,1);
     assert.equal(events.find(x=>x.args[1]==='GuiDon').args[3].eventID,'ev-capi-fixture');
