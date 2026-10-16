@@ -106,6 +106,10 @@ var DS_THU = tinhPhieuPy([
     { item_code: 'NBTP00006', ten: 'BTP kem', dvt: 'Gram', so_luong: 50 },
     { ten: 'Chanh dây Đà Lạt', dvt: 'Gram', so_luong: 200, don_gia_tay: 50 }] }
 ]);
+var DS_THU_2 = tinhPhieuPy([
+  { name: 'GT-2610-003', ten_mon: 'Mousse xoài', nhom: 'Bánh lạnh', so_ra: 1, gia_ban_du_kien: 0, dong: [
+    { item_code: 'NVLT00001', ten: 'Bột mì', dvt: 'Gram', so_luong: 100 }] }
+]);
 var NHOM_BAN = [{ ten: 'Bánh ổ sinh nhật', nhan: 'Bánh ổ' }, { ten: 'Bánh lạnh', nhan: 'Bánh lạnh' }, { ten: 'Bánh nướng', nhan: 'Bánh nướng' }];
 var CHI_TIET = {
   '': { ma: 'BAWC00067', ten: 'Bánh Ổ Roman De La Rose, size 16cm', bom: 'B1', so_ra: 1, gia: 250959, dong: [
@@ -141,12 +145,24 @@ function dungMan(tuyChon) {
       if (duong === 'vagabond.gia_von_tam.chi_tiet') return Promise.resolve(JSON.parse(JSON.stringify(CHI_TIET[ts.bom || ''])));
       if (duong === 'vagabond.gia_von_tam.luu_he_so') return Promise.resolve({ he_so: {} });
       if (duong === 'vagabond.gia_von_tam.ds_thu') {
-        return Promise.resolve({ ds: tuyChon.khongPhieu ? [] : JSON.parse(JSON.stringify(DS_THU)), he_so: { 'Bánh lạnh': 5 },
-          nhom_ban: NHOM_BAN, sua_duoc: !tuyChon.khongSua });
+        /* Như máy chủ: lọc theo tên, chia trang theo bat_dau, báo con_nua. */
+        var tat = tuyChon.khongPhieu ? [] : JSON.parse(JSON.stringify(tuyChon.nhieuTrang ? DS_THU.concat(DS_THU_2) : DS_THU));
+        var tu = String((ts && ts.tu_khoa) || '').toLowerCase();
+        if (tu) tat = tat.filter(function (p) { return p.ten_mon.toLowerCase().indexOf(tu) >= 0; });
+        var bd = (ts && ts.bat_dau) || 0, co = tuyChon.nhieuTrang ? 1 : 30;
+        var tra = { ds: tat.slice(bd, bd + co), he_so: { 'Bánh lạnh': 5 }, nhom_ban: NHOM_BAN, sua_duoc: !tuyChon.khongSua,
+          tu_khoa: tu, bat_dau: bd, con_nua: tat.length > bd + co, bat_dau_tiep: Math.min(bd + co, tat.length) };
+        var tre = tuyChon.treDs ? tuyChon.treDs.shift() : 0;
+        return new Promise(function (r) { setTimeout(function () { r(tra); }, tre || 0); });
       }
-      if (duong === 'vagabond.gia_von_tam.tinh_thu') return Promise.resolve(tinhPhieuPy([JSON.parse(ts.phieu)])[0]);
+      if (duong === 'vagabond.gia_von_tam.tinh_thu') {
+        /* treTinhThu: độ trễ từng lượt, để dựng đúng cảnh trả về lệch thứ tự. */
+        var kqT = tinhPhieuPy([JSON.parse(ts.phieu)])[0];
+        var treT = tuyChon.treTinhThu ? tuyChon.treTinhThu.shift() : 0;
+        return new Promise(function (r) { setTimeout(function () { r(kqT); }, treT || 0); });
+      }
       if (duong === 'vagabond.gia_von_tam.luu_thu') return Promise.resolve(Object.assign(tinhPhieuPy([JSON.parse(ts.phieu)])[0], { name: 'GT-2610-002' }));
-      if (duong === 'vagabond.gia_von_tam.xoa_thu') return Promise.resolve({ ok: 1 });
+      if (duong === 'vagabond.gia_von_tam.bo_thu') return Promise.resolve({ ok: 1 });
       if (duong === 'vagabond.gia_von_tam.tim_nl') {
         return Promise.resolve([{ ma: 'NVLT00001', ten: 'Bột mì', dvt: 'Gram', nhom: 'Nguyên liệu' },
           { ma: 'NVLT00099', ten: 'Bột hạnh nhân', dvt: 'Gram', nhom: 'Nguyên liệu' }]);
@@ -463,7 +479,7 @@ function sheetCuoi(m) { var ds = m.tai.body.children; return ds[ds.length - 1]; 
     bang('về danh sách và tải lại', [m.g._t, goiTen(m).slice(-1)[0]], ['Giá vốn tạm tính', 'vagabond.gia_von_tam.ds_thu']);
   });
 
-  await ca('v600 mở phiếu đã lưu: thấy kết quả ngay không gọi tính thử; bỏ dòng thì tính lại; Xoá phiếu hỏi trước, huỷ thì không xoá', async function () {
+  await ca('v600 mở phiếu đã lưu: thấy kết quả ngay không gọi tính thử; bỏ dòng thì tính lại; Bỏ phiếu hỏi trước, huỷ thì không bỏ, xác nhận thì bỏ mềm (Codex #486 P1)', async function () {
     var m = await moThu();
     bam(m, tim(m, '[data-gvtp="GT-2610-001"]')[0]);
     bang('mở không gọi tính thử', goiTen(m).filter(function (x) { return x.indexOf('tinh_thu') >= 0; }).length, 0);
@@ -475,13 +491,60 @@ function sheetCuoi(m) { var ds = m.tai.body.children; return ds[ds.length - 1]; 
     m.hoi.length = 0;
     var m2 = await moThu({ tuChoi: true });
     bam(m2, tim(m2, '[data-gvtp="GT-2610-001"]')[0]);
-    bam(m2, tim(m2, '[data-gvtpxoaphieu]')[0]);
+    bam(m2, tim(m2, '[data-gvtpbo]')[0]);
     await tick();
-    dung('hỏi trước khi xoá', m2.hoi[0].indexOf('Xoá phiếu tính giá thử "Tart chanh dây"?') === 0);
-    bang('huỷ thì không xoá', goiTen(m2).indexOf('vagabond.gia_von_tam.xoa_thu'), -1);
-    bam(m, tim(m, '[data-gvtpxoaphieu]')[0]);
+    dung('hỏi trước khi bỏ', m2.hoi[0].indexOf('Bỏ phiếu tính giá thử "Tart chanh dây"?') === 0);
+    dung('nói rõ vẫn giữ để tra lại', m2.hoi[0].indexOf('vẫn giữ trên hệ thống để tra lại') >= 0);
+    bang('huỷ thì không bỏ', goiTen(m2).indexOf('vagabond.gia_von_tam.bo_thu'), -1);
+    bam(m, tim(m, '[data-gvtpbo]')[0]);
     await tick(); await tick();
-    bang('xác nhận thì xoá đúng phiếu', m.goi.filter(function (x) { return x.duong === 'vagabond.gia_von_tam.xoa_thu'; }).map(function (x) { return x.ts; }), [{ name: 'GT-2610-001' }]);
+    bang('xác nhận thì bỏ đúng phiếu', m.goi.filter(function (x) { return x.duong === 'vagabond.gia_von_tam.bo_thu'; }).map(function (x) { return x.ts; }), [{ name: 'GT-2610-001' }]);
+    dung('báo đã bỏ', m.toast.indexOf('Đã bỏ phiếu. Vẫn tra lại được trên Desk.') >= 0);
+  });
+
+
+  /* Codex #486 P2: gõ lần hai khi lượt tính đầu còn đang chạy. Lượt đầu về
+     SAU lượt hai thì màn không được quay lại số cũ. Trước khi sửa: màn hiện
+     giá của lượt đầu (số lượng 100) dù ô đang ghi 200. */
+  await ca('Codex #486 v600 tính thử về lệch thứ tự: kết quả cũ về sau không đè kết quả mới', async function () {
+    var m = await moThu({ treTinhThu: [600, 10] });
+    bam(m, tim(m, '[data-gvtp="GT-2610-001"]')[0]);
+    go(m, o(m, '[data-gvtpsl="0"]'), '100');
+    await cho(450);            /* lượt 1 đã gửi, đang chờ 600ms */
+    go(m, o(m, '[data-gvtpsl="0"]'), '200');
+    await cho(450);            /* lượt 2 gửi và về sau 10ms */
+    await cho(250);            /* lượt 1 về sau cùng */
+    var tt = m.goi.filter(function (x) { return x.duong === 'vagabond.gia_von_tam.tinh_thu'; });
+    bang('hai lượt tính', tt.length, 2);
+    /* 200 x 30 + kem 20.000 + chanh 10.000 = 36.000 / 4 = 9.000 */
+    dung('màn giữ kết quả lượt mới: ' + chu(o(m, '#gvtpKq')), chu(o(m, '#gvtpKq')).indexOf('Giá vốn 9.000đ/Cái') >= 0);
+    dung('dòng giữ thành tiền lượt mới', chu(o(m, '[data-gvtpgiadong="0"]')).indexOf('6.000đ') >= 0);
+  });
+
+  /* Codex #486 P2: bản đầu máy chủ cắt 200 phiếu, màn không có cách xem
+     phần còn lại. Giờ có Xem thêm và tìm ở máy chủ. */
+  await ca('Codex #486 v600 danh sách phiếu thử: Xem thêm nạp trang sau nối vào, tìm theo tên gọi máy chủ, kết quả tìm cũ về sau không đè', async function () {
+    var m = await moThu({ nhieuTrang: true, treDs: [0, 0, 600, 10] });
+    bang('trang đầu một phiếu', tim(m, '[data-gvtp]').length, 1);
+    var them = tim(m, '[data-gvtthemds]');
+    bang('có nút Xem thêm', them.length, 1);
+    bam(m, them[0]);
+    await cho(30);
+    var ds = m.goi.filter(function (x) { return x.duong === 'vagabond.gia_von_tam.ds_thu'; });
+    bang('xem thêm gọi trang sau', ds[ds.length - 1].ts, { tu_khoa: '', bat_dau: 1 });
+    bang('đủ hai phiếu, giữ thứ tự', tim(m, '[data-gvtp]').map(function (e) { return e.getAttribute('data-gvtp'); }), ['GT-2610-001', 'GT-2610-003']);
+    bang('hết trang thì không còn Xem thêm', tim(m, '[data-gvtthemds]').length, 0);
+    var q = m.tai.getElementById('gvtThuQ');
+    dung('có ô tìm phiếu', !!q);
+    go(m, q, 'tart');
+    await cho(350);              /* lượt tìm 'tart' gửi, chờ 600ms */
+    go(m, m.tai.getElementById('gvtThuQ'), 'mousse');
+    await cho(350);              /* lượt 'mousse' gửi, về sau 10ms */
+    await cho(300);              /* lượt 'tart' về sau cùng */
+    ds = m.goi.filter(function (x) { return x.duong === 'vagabond.gia_von_tam.ds_thu'; });
+    bang('tìm ở máy chủ', ds.slice(-2).map(function (x) { return x.ts; }), [{ tu_khoa: 'tart', bat_dau: 0 }, { tu_khoa: 'mousse', bat_dau: 0 }]);
+    bang('màn giữ kết quả tìm mới', tim(m, '[data-gvtp]').map(function (e) { return e.getAttribute('data-gvtp'); }), ['GT-2610-003']);
+    bang('ô tìm giữ chữ đang gõ', m.tai.getElementById('gvtThuQ').value, 'mousse');
   });
 
   await ca('v600 không có quyền lập phiếu: không có nút Phiếu mới, mở phiếu thì không có Lưu, Thêm, Xoá', async function () {
@@ -489,7 +552,7 @@ function sheetCuoi(m) { var ds = m.tai.body.children; return ds[ds.length - 1]; 
     dung('không nút mới', !m.tai.getElementById('gvtThuMoi'));
     bam(m, tim(m, '[data-gvtp="GT-2610-001"]')[0]);
     dung('không Lưu', !m.tai.getElementById('gvtpLuu'));
-    bang('không Thêm, Xoá', [tim(m, '[data-gvtpthem]').length, tim(m, '[data-gvtpxoaphieu]').length], [0, 0]);
+    bang('không Thêm, Bỏ', [tim(m, '[data-gvtpthem]').length, tim(m, '[data-gvtpbo]').length], [0, 0]);
   });
 
   await ca('v600 chưa có phiếu nào: câu chỉ đường nói nút cần bấm', async function () {

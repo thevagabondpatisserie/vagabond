@@ -27,6 +27,7 @@ var KHUNG = doc('01-khung-app.js');
 var BAO_GIA = doc('22-bao-gia.js');
 var DON_HUY = doc('29-don-huy.js');
 var SOAN_DO = doc('48-ban-soan-do.js');
+var GIA_VON_TAM = doc('53-gia-von-tam.js');
 
 var ket = { dat: 0, hong: 0, loi: [] };
 function dung(mo, dk) { if (!dk) throw new Error(mo + ': duoc false, mong true'); }
@@ -79,6 +80,22 @@ function mayChu(canh) {
           tong_don: 500000, da_nhan: 500000, muc_hoan: 500000, noi_dung_ck: 'HOAN ' + a.ma_don };
       }
       if (m === 'vagabond.don_huy.tao_hoan') return { ho_so: 'HS-1', phieu_thu: 'PT-1', phieu_chi: 'PC-1' };
+      /* Giá vốn tạm tính, tab Món thử (Codex #486 P1). Số tính đơn giản:
+         chỉ dòng giá tay, đủ để thấy màn đọc kết quả máy chủ. */
+      if (m === 'vagabond.gia_von_tam.tinh') return { dong: [], nhom: [], sua_duoc: true, cap_nhat_luc: '09:00' };
+      if (m === 'vagabond.gia_von_tam.ds_thu') {
+        return { ds: [], nhom_ban: [{ ten: 'Bánh lạnh', nhan: 'Bánh lạnh' }], sua_duoc: true, tu_khoa: '', bat_dau: 0, con_nua: false, bat_dau_tiep: 0 };
+      }
+      if (m === 'vagabond.gia_von_tam.tinh_thu' || m === 'vagabond.gia_von_tam.luu_thu') {
+        var ph = JSON.parse(a.phieu), tong = 0;
+        var dongKq = ph.dong.map(function (d) {
+          var tt = (d.so_luong || 0) * (d.don_gia_tay || 0); tong += tt;
+          return { item_code: d.item_code, ten: d.ten, dvt: d.dvt, so_luong: d.so_luong, don_gia_tay: d.don_gia_tay,
+            don_gia: d.don_gia_tay, nguon: 'Nhập tay', thanh_tien: tt, thieu: 0 };
+        });
+        return { name: m === 'vagabond.gia_von_tam.luu_thu' ? 'GT-2610-009' : null, dong: dongKq, tong_me: tong,
+          gia_von: tong / (ph.so_ra || 1), thieu_so: 0, trang_thai: 'chua_dat_muc_tieu', he_so: null, he_so_muc_tieu: null, gia_de_xuat: null };
+      }
       /* Khuon that cua nop_quy.tao: lech tu 1.000d ma chua co ly do thi TRA
          VE THANH CONG voi co can_ly_do, CHUA tao phieu. */
       if (m === 'vagabond.nop_quy.tao') return (a && a.ly_do_lech) ? { ok: 1, ma: 'NQ-26-1' } : { can_ly_do: 1, lech: 5000 };
@@ -146,6 +163,7 @@ function appMoi(kho, canh) {
   vm.runInContext(KHUNG, g);
   vm.runInContext(BAO_GIA, g);
   vm.runInContext(DON_HUY, g);
+  vm.runInContext(GIA_VON_TAM, g);
   /* Moi man lap phieu KHAC ma 48 boc: ca nay khong nap that, chi can co ten
      de 48 boc duoc luc nap. Man that cua bao gia thi da nap o tren. */
   var boc = SOAN_DO.match(/^(\w+) = sdBoc(?:Hop)?\(/gm).map(function (x) { return x.split(' ')[0]; });
@@ -173,7 +191,7 @@ function appMoi(kho, canh) {
     el: function (id) { return tl.getElementById(id); },
     /* Go chu vao o nhu nguoi dung: doi value, ban input, su kien noi len toi document. */
     go: function (id, chu) {
-      var o = tl.getElementById(id);
+      var o = typeof id === 'string' ? tl.getElementById(id) : id;
       if (!o) throw new Error('khong thay o #' + id);
       o.value = chu;
       var ev = domGia.suKien('input', {}, o);
@@ -489,6 +507,53 @@ async function chayHet() {
     bang('giu ghi chu', v.s.ghi, 'giữ');
   });
 
+
+  /* Codex #486 P1: phiếu tính giá thử (Món thử R&D) là màn lập phiếu nhưng
+     bản v600 đầu chưa khai bản nháp, sập nguồn là mất hết nguyên liệu đã gõ
+     (AGENTS.md: màn lập phiếu mới phải có bản nháp tự lưu). */
+  await ca('Codex #486: phieu tinh gia thu R&D go do, may sap nguon, mo lai tu the thi dien lai du ten, nhom, nguyen lieu; Luu xong het ban nhap', async function () {
+    var kho = khoMay();
+    var a = appMoi(kho);
+    await moTrangChu(a);
+    await a.g.go(a.g.scrGiaVonTam); await a.cho();
+    await a.bam(a.tl.querySelector('[data-gvttab="thu"]')); await a.cho();
+    await a.bam('gvtThuMoi'); await a.cho(); await a.cho();
+    dung('man phieu thu da ve', !!a.el('gvtpTen'));
+    /* Tên không có dấu &: DOM giả không giải mã thực thể trong value=, trình duyệt thật thì có. */
+    a.go('gvtpTen', 'Tart chanh dây thử');
+    await a.bam(a.tl.querySelector('[data-gvtpn="Bánh lạnh"]'));
+    await a.bam(a.tl.querySelector('[data-gvtpthem]'));
+    a.tl.querySelector('[data-gvtnmoiten]').value = 'Chanh dây Đà Lạt';
+    a.tl.querySelector('[data-gvtnmoidvt]').value = 'Gram';
+    await a.bam(a.tl.querySelector('[data-gvtnmoi]'));
+    a.go(a.tl.querySelector('[data-gvtpsl="0"]'), '200');
+    a.go(a.tl.querySelector('[data-gvtpgia="0"]'), '50');
+    await a.tua(700);
+    bang('dung mot ban nhap cho phieu thu moi', cacKhoa(kho), ['vgbSoanDo:loananh@vagabond.vn:gia_thu:moi']);
+    /* Sap nguon. */
+    var b = appMoi(kho);
+    await moTrangChu(b);
+    var dong = b.el('sdThe').querySelectorAll('[data-sdmo]');
+    bang('the co dung mot dong', dong.length, 1);
+    dung('dong ghi ten mon thu: ' + dong[0].textContent, dong[0].textContent.indexOf('Tart chanh dây thử') >= 0);
+    await b.bam(dong[0]);
+    await b.cho(); await b.cho(); await b.cho();
+    bang('ten mon dien lai', b.el('gvtpTen').value, 'Tart chanh dây thử');
+    bang('nhom dien lai', b.g.GVT.p.nhom, 'Bánh lạnh');
+    bang('dong nguyen lieu dien lai', b.g.GVT.p.dong.map(function (d) { return [d.ten, d.dvt, String(d.so_luong), String(d.don_gia_tay)]; }),
+      [['Chanh dây Đà Lạt', 'Gram', '200', '50']]);
+    bang('o so luong dien lai', b.tl.querySelector('[data-gvtpsl="0"]').value, '200');
+    dung('co chip nhom sau khi tai danh sach', !!b.tl.querySelector('[data-gvtpn="Bánh lạnh"]'));
+    dung('mo lai thi tinh thu lai o may chu', b.mc.goi.some(function (x) { return x.m === 'vagabond.gia_von_tam.tinh_thu'; }));
+    await b.bam('gvtpLuu'); await b.cho(); await b.cho();
+    var luu = b.mc.goi.filter(function (x) { return x.m === 'vagabond.gia_von_tam.luu_thu'; });
+    bang('luu mot lan', luu.length, 1);
+    var ph = JSON.parse(luu[0].a.phieu);
+    bang('may chu nhan dung', [ph.ten_mon, ph.nhom, ph.dong.map(function (d) { return [d.ten, d.so_luong, d.don_gia_tay]; })],
+      ['Tart chanh dây thử', 'Bánh lạnh', [['Chanh dây Đà Lạt', 200, 50]]]);
+    bang('luu xong thi het ban nhap', cacKhoa(kho), []);
+  });
+
   await ca('Nap CA app ghep that (app_bep.js): nap khong loi, moi man duoc boc dung ten, moi dong khai doc/dat duoc trang thai that', async function () {
     /* Bat loi khong ca nao khac bat duoc: go sai ten mot bien trong dong khai
        (vi du hsHdTu) thi luc chay sdChup nuot loi va ban nhap lang le khong
@@ -535,7 +600,8 @@ async function chayHet() {
     });
     bang('khong dong khai nao loi', sai, []);
     /* v549: them tra_truoc_erp (khoan da tra truoc khi len ERP, Codex #403). */
-    bang('du 41 loai phieu', Object.keys(k.SD_MAN).length, 41);
+    /* v600 Codex #486: them gia_thu (phieu tinh gia thu R&D). */
+    bang('du 42 loai phieu', Object.keys(k.SD_MAN).length, 42);
   });
 
   console.log('ban_soan_do_533: dat ' + ket.dat + ', hong ' + ket.hong);
