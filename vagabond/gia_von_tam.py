@@ -151,12 +151,37 @@ def chon_con(bom_no, mac_dinh, dang_chay):
 	return mac_dinh or None
 
 
-def bom_cua_ma(ds_bom):
-	"""Mã -> công thức đang chạy, ưu tiên bản mặc định. THUẦN."""
-	ra = {}
+def _bom_theo_ma(ds_bom):
+	theo_ma = {}
 	for b in ds_bom or []:
-		if b.get("item") not in ra or int(b.get("is_default") or 0):
-			ra[b.get("item")] = b.get("name")
+		theo_ma.setdefault(b.get("item"), []).append(b)
+	return theo_ma
+
+
+def bom_cua_ma(ds_bom):
+	"""Mã -> công thức dùng để tính giá. THUẦN.
+
+	Codex #483 vòng 3: có bản mặc định thì lấy bản mặc định; chỉ một bản đang
+	chạy thì lấy bản đó; từ hai bản trở lên mà không bản nào mặc định thì KHÔNG
+	đoán, vì thứ tự cơ sở dữ liệu trả về không phải luật nghiệp vụ. Mã đó nằm
+	trong `ma_mo_ho` để màn hình nói rõ cần chọn công thức mặc định."""
+	ra = {}
+	for ma, ds in _bom_theo_ma(ds_bom).items():
+		mac_dinh = sorted(b.get("name") for b in ds if int(b.get("is_default") or 0))
+		if mac_dinh:
+			ra[ma] = mac_dinh[0]
+		elif len(ds) == 1:
+			ra[ma] = ds[0].get("name")
+	return ra
+
+
+def ma_mo_ho(ds_bom):
+	"""Mã có từ hai công thức đang chạy mà chưa bản nào mặc định -> tên các
+	công thức, đã xếp. THUẦN."""
+	ra = {}
+	for ma, ds in _bom_theo_ma(ds_bom).items():
+		if len(ds) > 1 and not any(int(b.get("is_default") or 0) for b in ds):
+			ra[ma] = sorted(b.get("name") for b in ds)
 	return ra
 
 
@@ -347,18 +372,20 @@ def dong_bang_gia(dong, ngay):
 	return luu, bo_qua
 
 
-def dung_bang(ban, ma_bom, ket, gia_ban, chot_truoc, ty_le, ton_nhom=None):
+def dung_bang(ban, ma_bom, ket, gia_ban, chot_truoc, ty_le, ton_nhom=None, mo_ho=None):
 	"""Ghép mọi thứ thành dữ liệu màn hình. THUẦN.
 
 	`ban`: các món bán ra {ma, ten, nhom, dvt, anh}. `ket`: kết quả cong_don.
 	`gia_ban`: mã -> giá. `chot_truoc`: mã -> (ngày, giá). `ty_le`: nhóm -> %.
-	`ton_nhom`: mã -> tên nguyên liệu (để nói tên NVL thiếu giá)."""
+	`ton_nhom`: mã -> tên nguyên liệu (để nói tên NVL thiếu giá).
+	`mo_ho`: mã -> các công thức đang chạy khi chưa chọn bản mặc định."""
 	ten_nl = ton_nhom or {}
-	dong, chua = [], []
+	mo_ho = mo_ho or {}
+	dong, chua, nhieu = [], [], []
 	for m in ban:
 		bom = ma_bom.get(m["ma"])
 		if not bom:
-			chua.append(m)
+			(nhieu if m["ma"] in mo_ho else chua).append(m)
 			continue
 		k = ket.get(bom) or {"gia": 0, "thieu": set(), "vong": False}
 		gv = round(flt(k["gia"]))
@@ -389,9 +416,11 @@ def dung_bang(ban, ma_bom, ket, gia_ban, chot_truoc, ty_le, ton_nhom=None):
 			"trung_vi": trung_vi([d["ty_le"] for d in cua if d["trang_thai"] not in TRANG_THAI_BO_QUA]),
 		})
 	chua.sort(key=lambda m: (thu_nhom.get(m["nhom"], 99), m["ten"] or ""))
+	nhieu.sort(key=lambda m: (thu_nhom.get(m["nhom"], 99), m["ten"] or ""))
 	return {
 		"dong": dong, "nhom": nhom,
 		"chua_cong_thuc": {"so": len(chua), "ten": [m["ten"] for m in chua[:30]]},
+		"nhieu_cong_thuc": {"so": len(nhieu), "ten": [m["ten"] for m in nhieu[:30]]},
 	}
 
 
@@ -454,6 +483,7 @@ def _doc():
 	ds_bom = frappe.get_all("BOM", filters={"docstatus": 1, "is_active": 1},
 		fields=["name", "item", "quantity", "is_default"], limit_page_length=0)
 	ma_bom = bom_cua_ma(ds_bom)
+	mo_ho = ma_mo_ho(ds_bom)
 	thanh_phan = {b.name: {"so_ra": flt(b.quantity), "dong": []} for b in ds_bom}
 	for d in _theo_lo("BOM Item", "parent", thanh_phan.keys(),
 			["parent", "item_code", "item_name", "qty", "stock_qty", "stock_uom", "uom", "bom_no"],
@@ -475,11 +505,11 @@ def _doc():
 
 	ket = cong_don(thanh_phan, ma_bom, gia_la_cua)
 	ten_nl = {k: v.item_name for k, v in mat_hang.items()}
-	return thanh_phan, ma_bom, gia_la_cua, ket, ten_nl
+	return thanh_phan, ma_bom, gia_la_cua, ket, ten_nl, mo_ho
 
 
 def _bang():
-	thanh_phan, ma_bom, gia_la_cua, ket, ten_nl = _doc()
+	thanh_phan, ma_bom, gia_la_cua, ket, ten_nl, mo_ho = _doc()
 	ban = [{"ma": i.name, "ten": i.item_name, "nhom": i.item_group, "dvt": i.stock_uom, "anh": i.image}
 		for i in frappe.get_all("Item", filters={"item_group": ["in", list(NHOM_BAN)], "disabled": 0},
 			fields=["name", "item_name", "item_group", "stock_uom", "image"], limit_page_length=0)]
@@ -491,7 +521,7 @@ def _bang():
 			them={"price_list": BANG_GIA}, order_by="valid_from desc"):
 		chot_truoc.setdefault(p.item_code, (p.valid_from, p.price_list_rate))
 	ty_le = _ty_le_da_luu()
-	return dung_bang(ban, ma_bom, ket, gia_ban, chot_truoc, ty_le, ten_nl), ty_le
+	return dung_bang(ban, ma_bom, ket, gia_ban, chot_truoc, ty_le, ten_nl, mo_ho), ty_le
 
 
 @frappe.whitelist()
@@ -511,8 +541,11 @@ def chi_tiet(ma, bom=None):
 	"""Các dòng nguyên liệu một tầng của một món (hoặc của một công thức con
 	khi bấm xuống bán thành phẩm). Chỉ đọc."""
 	_kiem(QUYEN_XEM, "xem giá vốn tạm tính")
-	thanh_phan, ma_bom, gia_la_cua, ket, _ten = _doc()
+	thanh_phan, ma_bom, gia_la_cua, ket, _ten, mo_ho = _doc()
 	bom = bom or ma_bom.get(ma)
+	if not bom and ma in mo_ho:
+		frappe.throw("Món này có %d công thức đang dùng nhưng chưa chọn công thức mặc định. "
+			"Mở công thức đúng trên Desk, tích Mặc định rồi tính lại." % len(mo_ho[ma]))
 	if not bom or bom not in thanh_phan:
 		frappe.throw("Món này chưa có công thức đang dùng.")
 	k = ket.get(bom) or {}
