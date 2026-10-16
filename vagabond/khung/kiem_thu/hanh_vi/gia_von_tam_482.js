@@ -38,7 +38,7 @@ var NEN_HAM = ['h', 'money', 'num', 'kl', 'anhMon', 'vgbChuan', 'vgbKhop'].map(f
   '\n' + layHam(POS, 'posChipNut');
 
 /* Dữ liệu màn dựng bằng chính phép máy chủ. */
-function tinhThat() {
+function tinhThat(them) {
   var py = [
     'import json, sys',
     'sys.path.insert(0, sys.argv[1])',
@@ -61,13 +61,21 @@ function tinhThat() {
     'gia_ban = {"BAWC00067": 880000, "BAEN00073": 160000, "BANU00060": 65000, "BANU00099": 45000, "BACF00001": 190000}',
     'ten = {"BTPB00153": "BTP Brown Butter", "BTPB00156": "BTP Nước ép dứa", "BTPB00154": "BTP Thịt bí"}',
     'ty_le = {"Bánh ổ sinh nhật": 25}',
-    'b = G.dung_bang(ban, ma_bom, ket, gia_ban, {"BAWC00067": ("2026-10-12", 245000)}, ty_le, ten)',
+    'mo_ho = {}',
+    'if sys.argv[2] == "1":',
+    '  ban.append({"ma": "BAVO00001", "ten": "Bánh Công Thức Vòng", "nhom": "Bánh nướng", "dvt": "Cái"})',
+    '  ket["B6"] = {"gia": 0, "thieu": set(), "vong": True}',
+    '  ma_bom["BAVO00001"] = "B6"',
+    '  ban.append({"ma": "BAHAI0001", "ten": "Bánh Hai Công Thức", "nhom": "Bánh lạnh", "dvt": "Cái"})',
+    '  mo_ho["BAHAI0001"] = ["BOM-BAHAI0001-001", "BOM-BAHAI0001-002"]',
+    'b = G.dung_bang(ban, ma_bom, ket, gia_ban, {"BAWC00067": ("2026-10-12", 245000)}, ty_le, ten, mo_ho)',
     'b.update({"ty_le": ty_le, "cap_nhat_luc": "09:15", "sua_duoc": True, "ngay": "2026-10-16"})',
     'sys.stdout.write(json.dumps(b, ensure_ascii=False, default=str))',
   ].join('\n');
-  return JSON.parse(cp.execFileSync('python3', ['-c', py, GOC], { encoding: 'utf8' }));
+  return JSON.parse(cp.execFileSync('python3', ['-c', py, GOC, them ? '1' : '0'], { encoding: 'utf8' }));
 }
 var TINH = tinhThat();
+var TINH_VONG = tinhThat(true);  /* Codex #483 vong 3: co mon vong va mon hai cong thuc */
 var CHI_TIET = {
   '': { ma: 'BAWC00067', ten: 'Bánh Ổ Roman De La Rose, size 16cm', bom: 'B1', so_ra: 1, gia: 250959, dong: [
     { ma: 'NBTP00006', ten: 'BTP Cấp 2 Bánh Ổ Roman size 16', sl: 1, dvt: 'Cái', don_gia: 198466, nguon: 'Công thức', thanh_tien: 198466, bom_con: 'BOM-NBTP00006-001', thieu: 0 },
@@ -95,7 +103,7 @@ function dungMan(tuyChon) {
       goi.push({ duong: duong, ts: ts });
       if (tuyChon.loi && duong === 'vagabond.gia_von_tam.tinh' && goi.length === 1) return Promise.reject(new Error(tuyChon.loi));
       if (duong === 'vagabond.gia_von_tam.tinh') {
-        var d = JSON.parse(JSON.stringify(TINH));
+        var d = JSON.parse(JSON.stringify(tuyChon.vong ? TINH_VONG : TINH));
         if (tuyChon.khongSua) d.sua_duoc = false;
         return Promise.resolve(d);
       }
@@ -293,6 +301,31 @@ function sheetCuoi(m) { var ds = m.tai.body.children; return ds[ds.length - 1]; 
     await ov2.onclick({ target: ov2.querySelector('[data-gvtlui]') });
     await tick();
     bang('quay lại gọi lại tầng trên', m.goi[3].ts, { ma: 'BAWC00067' });
+  });
+
+  await ca('Codex #483 v3: có món công thức vòng thì có chip lọc "Công thức vòng" kèm số, bấm vào chỉ còn món đó', async function () {
+    var m = await moMan({ vong: true });
+    var chip = tim(m, '[data-gvtt="vong"]');
+    bang('một chip vòng', chip.length, 1);
+    dung('chip có chữ và số', chu(chip[0]).indexOf('Công thức vòng 1') >= 0);
+    bam(m, chip[0]);
+    bang('chỉ còn món vòng', the(m), ['BAVO00001']);
+  });
+
+  await ca('Codex #483 v3: không có món vòng thì không hiện chip vòng rỗng', async function () {
+    var m = await moMan();
+    bang('không chip vòng', tim(m, '[data-gvtt="vong"]').length, 0);
+  });
+
+  await ca('Codex #483 v3: món nhiều công thức chưa chọn mặc định không có thẻ giá, có khung nói tên và cách sửa', async function () {
+    var m = await moMan({ vong: true });
+    dung('không có thẻ giá', the(m).indexOf('BAHAI0001') < 0);
+    var k = tim(m, '[data-gvtnct]');
+    bang('một khung', k.length, 1);
+    var c = chu(k[0]);
+    dung('nói số và lý do', c.indexOf('1 món có nhiều công thức nhưng chưa chọn công thức mặc định') >= 0);
+    dung('nói tên món', c.indexOf('Bánh Hai Công Thức') >= 0);
+    dung('nói cách sửa', c.indexOf('tích Mặc định') >= 0);
   });
 
   console.log('\n' + ket.dat + ' ca dat, ' + ket.hong + ' ca hong.');
