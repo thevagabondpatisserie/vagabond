@@ -21,3 +21,9 @@
 - 16/10/2026 (đã deploy v599): anh Việt xem trên điện thoại, chốt hai việc cho v600:
   - Đọc theo hệ số "lãi số lần" (giá bán gấp mấy lần giá vốn), phần trăm giá vốn chỉ hiện kèm: `x6,1 (16,5%)`. Mục tiêu đặt theo hệ số từng nhóm, giá đề xuất = giá vốn x hệ số, làm tròn lên nghìn. Khoá lưu mới `vgb_gia_von_tam_he_so`; khoá cũ theo % chưa ai đặt nên không chuyển.
   - Món R&D chưa bán: tab "Món thử (R&D)" với Phiếu tính giá thử (doctype `Vagabond Gia Thu`). Mã có sẵn lấy giá như món đang bán (bán thành phẩm theo công thức cộng dồn), NVL chưa có mã nhập giá tay. Không tạo Item, không tạo BOM, không đụng kho hay sổ.
+- 17/10/2026 (PR #486, Codex rà vòng 1, 5 finding, tái hiện đủ 5 rồi sửa):
+  - Phiếu thử có bản nháp tự lưu trên máy (loại `gia_thu`), mở lại từ thẻ trên trang chủ.
+  - Bỏ phiếu là bỏ mềm: trường Đã bỏ, người bỏ, lúc bỏ; danh sách ẩn phiếu đã bỏ; chỉ System Manager còn quyền xoá cứng trên Desk.
+  - Lưu trên Desk cũng tính lại giá vốn và giá đề xuất qua `validate()`, chung một nguồn với app.
+  - Kết quả tính thử và tìm phiếu về trễ không đè kết quả mới.
+  - Danh sách chia trang 30 phiếu, có Xem thêm và ô tìm ở máy chủ.
