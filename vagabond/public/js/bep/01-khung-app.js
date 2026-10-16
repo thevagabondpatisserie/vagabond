@@ -473,6 +473,16 @@ function coQuyenCongNo() {
   return QUYEN_CONG_NO_THU.some(function (v) { return hasRole(v); });
 }
 
+/* #482 (Codex #483 vong 3): ai thay o Gia von tam tinh. Cung tap voi
+   gia_von_tam.QUYEN_XEM (ca kiem chot hai ben khop), de Thu mua hay AP Kiem
+   soat khong thay mot o bam vao chi ra loi quyen. Chi de AN O, chan that o
+   may chu. */
+var QUYEN_GVT = ['Accounts Manager', 'Accounts User', 'VGB - Quản lý công thức', 'System Manager',
+  'Giám đốc', 'AP Giám đốc'];
+function coQuyenGvt() {
+  return QUYEN_GVT.some(function (v) { return hasRole(v); });
+}
+
 /* Ai duoc vao PHAN HE HRM (KPI va hoa hong).
 
    Anh Viet chot 01/09/2026: nut KPI "chi cho quan ly, ke toan, giam doc

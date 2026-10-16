@@ -20,7 +20,9 @@ var GVT_TT = {
   vong: { nhan: 'Công thức vòng', mau: '#b3261e', nen: '#fef2f2' },
   cao_hon_muc_tieu: { nhan: 'Cao hơn mục tiêu', mau: '#b45309', nen: '#fffbeb' }
 };
-var GVT_CHIP_TT = ['vuot_gia_ban', 'thieu_gia', 'cao_hon_muc_tieu'];
+/* Codex #483 vong 3: co ca 'vong' de loc rieng duoc mon cong thuc vong. Chip
+   chi hien khi co mon o trang thai do (xem gvtVe). */
+var GVT_CHIP_TT = ['vuot_gia_ban', 'vong', 'thieu_gia', 'cao_hon_muc_tieu'];
 var GVT_TIEU_DE = 'Giá vốn tạm tính';
 
 function gvtPhanTram(x) { return x == null ? '' : String(x).replace('.', ',') + '%'; }
@@ -102,6 +104,17 @@ function gvtVeDs() {
         (n.ty_le_muc_tieu ? 'mục tiêu ' + gvtPhanTram(n.ty_le_muc_tieu) : 'chưa đặt mục tiêu') + '</div>' +
         '<div class="card">' + cua.map(gvtThe).join('') + '</div>';
     });
+  }
+  /* Codex #483 vong 3: mon co nhieu cong thuc dang chay ma chua chon ban mac
+     dinh thi may chu KHONG doan, man noi ro ten va cach sua. */
+  var nct = kq.nhieu_cong_thuc || {};
+  if (nct.so) {
+    html += '<div class="card" data-gvtnct style="padding:12px 14px">' +
+      '<div style="font-size:13.5px;color:#b45309">' + nct.so + ' món có nhiều công thức nhưng chưa chọn công thức mặc định nên chưa tính. ' +
+      'Mở công thức đúng trên Desk, tích Mặc định rồi tính lại.</div>' +
+      '<div style="font-size:13px;color:#6b7280;margin-top:8px;line-height:1.6">' +
+      (nct.ten || []).map(h).join(', ') + (nct.so > (nct.ten || []).length ? ' và ' + (nct.so - nct.ten.length) + ' nữa' : '') +
+      '</div></div>';
   }
   var cct = kq.chua_cong_thuc || {};
   if (cct.so) {
