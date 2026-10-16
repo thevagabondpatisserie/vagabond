@@ -229,7 +229,8 @@ def bao_moi(doc, method=None):
     except Exception:
         frappe.log_error(title="Đăng ký tiệc: chưa ghi được tin Zalo", message="Phiếu %s." % doc.name)
         return
-    kenh_zalo.bao("viec", "dat_ban", tieu_de, dong, khoa="tiec:%s" % doc.name,
-                  kiem="tiec_cho", nguon=doc.name)
+    # Codex #481: chưa có nhóm nhận thì để lại Error Log nêu tên phiếu.
+    kenh_zalo.bao_hoac_ghi_loi("viec", "dat_ban", tieu_de, dong, khoa="tiec:%s" % doc.name,
+                               kiem="tiec_cho", nguon=doc.name)
 
 
