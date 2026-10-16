@@ -57584,6 +57584,14 @@ sdKhai('nhan_hang', 'scrNhpDon', {
   ghep: function (moi, v) { return sdGhepDong(moi, v, 'dong'); },
   ma: function (a) { return a[0] || ''; }, luu: ['vagabond.nhan_hang.tao_phieu']
 });
+sdKhai('gia_thu', 'gvtManPhieu', {
+  /* v600 Codex #486: phieu tinh gia thu mon R&D. Mo lai tu ban nhap thi bo
+     ket qua cu (pk) de man tinh lai o may chu theo gia hom nay. */
+  ten: 'Phiếu tính giá thử', lay: function () { return GVT.p; },
+  dat: function (v) { GVT.p = v; GVT.pk = null; GVT.pkDong = null; GVT.lan++; },
+  ma: function () { return (GVT.p && GVT.p.name) || ''; }, tieuDe: sdTieuDe('#gvtpTen', 'ten_mon'),
+  luu: ['vagabond.gia_von_tam.luu_thu', 'vagabond.gia_von_tam.bo_thu']
+});
 sdKhai('khai_sx', 'scrMfgDeclare', {
   ten: 'Khai nguyên liệu sản xuất', lay: function () { return mfgD; }, dat: function (v) { mfgD = v; },
   ma: function () { return (mfgD && mfgD.code) || ''; }, tieuDe: sdTieuDe('name', 'code'),
@@ -57684,6 +57692,7 @@ scrXkPvNew = sdBoc('chot_kho_diem', 'scrXkPvNew', scrXkPvNew);
 scrRecvDoc = sdBoc('nhap_kho', 'scrRecvDoc', scrRecvDoc);
 scrNhpDon = sdBoc('nhan_hang', 'scrNhpDon', scrNhpDon);
 scrMfgDeclare = sdBoc('khai_sx', 'scrMfgDeclare', scrMfgDeclare);
+gvtManPhieu = sdBoc('gia_thu', 'gvtManPhieu', gvtManPhieu);
 hoanMoForm = sdBocHop('hoan_tien', 'hoanMoForm', hoanMoForm);
 hoanMoFormDu = sdBocHop('hoan_du', 'hoanMoFormDu', hoanMoFormDu);
 hoanMoFormHuy = sdBocHop('hoan_huy', 'hoanMoFormHuy', hoanMoFormHuy);
@@ -59467,7 +59476,9 @@ async function dsvnNapKhoiHd(si) {
    chỉ lọc và bày ra (vagabond/gia_von_tam.py).
    =================================================================== */
 
-var GVT = { kq: null, nhom: '', tt: '', tim: '', moCct: false, tab: 'ban', thu: null, p: null, pk: null, hen: null };
+var GVT = { kq: null, nhom: '', tt: '', tim: '', moCct: false, tab: 'ban', thu: null, p: null, pk: null, hen: null,
+  /* Codex #486: số lượt để bỏ kết quả về trễ (tính thử, tải danh sách). */
+  lan: 0, lanDs: 0, thuQ: '', henQ: null };
 
 var GVT_TT = {
   vuot_gia_ban: { nhan: 'Vượt giá bán', mau: '#b3261e', nen: '#fef2f2' },
@@ -59788,9 +59799,30 @@ async function gvtChot() {
 
 async function gvtTaiThu() {
   frame(GVT_TIEU_DE, gvtTab() + '<div class="emp"><div class="e1">⏳</div><div>Đang tính các phiếu thử...</div></div>');
-  try { GVT.thu = await api('vagabond.gia_von_tam.ds_thu', {}); }
-  catch (e) { GVT.thu = null; return gvtLoi(e); }
+  var lan = ++GVT.lanDs;
+  var kq;
+  try { kq = await api('vagabond.gia_von_tam.ds_thu', { tu_khoa: GVT.thuQ, bat_dau: 0 }); }
+  catch (e) { if (lan === GVT.lanDs) { GVT.thu = null; gvtLoi(e); } return; }
+  if (lan !== GVT.lanDs) return;
+  GVT.thu = kq;
   gvtVeThu();
+}
+
+/* Tải danh sách phiếu thử theo ô tìm (trang đầu) hoặc nối trang sau (Xem
+   thêm). Máy chủ chia trang và tìm; kết quả của lượt cũ về sau bị bỏ, để
+   gõ nhanh hai chữ không hiện nhầm danh sách của chữ trước (Codex #486). */
+async function gvtTaiDs(noiTiep) {
+  var t = GVT.thu || {};
+  var lan = ++GVT.lanDs;
+  var kq;
+  try {
+    kq = await api('vagabond.gia_von_tam.ds_thu', noiTiep ? { tu_khoa: t.tu_khoa || '', bat_dau: t.bat_dau_tiep || 0 } : { tu_khoa: GVT.thuQ, bat_dau: 0 });
+  } catch (e) { if (lan === GVT.lanDs) baoTin((e && e.message) || 'Không tải được danh sách phiếu thử'); return; }
+  if (lan !== GVT.lanDs) return;
+  if (noiTiep) kq.ds = (t.ds || []).concat(kq.ds || []);
+  GVT.thu = kq;
+  var vung = document.getElementById('gvtThuDs');
+  if (vung) vung.innerHTML = gvtDsThu();
 }
 
 function gvtTenNhom(ten) {
@@ -59820,26 +59852,41 @@ function gvtThePhieu(p) {
     '</div></div>';
 }
 
-function gvtVeThu() {
+/* Danh sách phiếu (phần dưới ô tìm): thẻ, câu rỗng, nút Xem thêm. */
+function gvtDsThu() {
   var t = GVT.thu || {};
   var ds = t.ds || [];
+  if (!ds.length) {
+    var cau = t.tu_khoa ? 'Không thấy phiếu nào có tên chứa "' + h(t.tu_khoa) + '".' :
+      'Chưa có phiếu tính giá thử nào.' + (t.sua_duoc ? ' Bấm Phiếu tính giá thử mới để bắt đầu.' : '');
+    return '<div class="card"><div class="emp" style="padding:24px"><div class="e1">🧪</div><div>' + cau + '</div></div></div>';
+  }
+  return '<div class="card">' + ds.map(gvtThePhieu).join('') + '</div>' +
+    (t.con_nua ? '<button class="btn gh" data-gvtthemds style="margin:0 0 10px">Xem thêm phiếu cũ hơn</button>' : '');
+}
+
+function gvtVeThu() {
+  var t = GVT.thu || {};
   var html = gvtTab() + '<div class="card" style="padding:12px 14px"><div style="font-size:13.5px;color:#4b5563;line-height:1.55">' +
     'Món đang thử chưa bán: nhập nguyên liệu tạm để có giá vốn và giá bán đề xuất theo hệ số mục tiêu của nhóm. ' +
-    'Tính bằng giá kho hôm nay, bán thành phẩm lấy theo công thức đang có. Không tạo mã hàng, không tạo công thức, không đổi sổ sách.</div></div>';
-  if (!ds.length) {
-    html += '<div class="card"><div class="emp" style="padding:24px"><div class="e1">🧪</div>' +
-      '<div>Chưa có phiếu tính giá thử nào.' + (t.sua_duoc ? ' Bấm Phiếu tính giá thử mới để bắt đầu.' : '') + '</div></div></div>';
-  } else {
-    html += '<div class="card">' + ds.map(gvtThePhieu).join('') + '</div>';
-  }
+    'Tính bằng giá kho hôm nay, bán thành phẩm lấy theo công thức đang có. Không tạo mã hàng, không tạo công thức, không đổi sổ sách.</div>' +
+    '<input class="tin" id="gvtThuQ" placeholder="Tìm tên món thử" value="' + h(GVT.thuQ) + '" style="margin:10px 0 0"></div>' +
+    '<div id="gvtThuDs">' + gvtDsThu() + '</div>';
   var b = frame(GVT_TIEU_DE, html, t.sua_duoc ? { footer: '<button class="btn" id="gvtThuMoi">Phiếu tính giá thử mới</button>' } : {});
   b.onclick = function (e) {
     var el;
     if ((el = e.target.closest('[data-gvttab]'))) return gvtDoiTab(el.getAttribute('data-gvttab'));
+    if (e.target.closest('[data-gvtthemds]')) return gvtTaiDs(true);
     if ((el = e.target.closest('[data-gvtp]'))) {
-      var p = ds.filter(function (x) { return x.name === el.getAttribute('data-gvtp'); })[0];
+      var p = ((GVT.thu || {}).ds || []).filter(function (x) { return x.name === el.getAttribute('data-gvtp'); })[0];
       if (p) gvtMoPhieu(p);
     }
+  };
+  var q = document.getElementById('gvtThuQ');
+  if (q) q.oninput = function () {
+    GVT.thuQ = q.value;
+    if (GVT.henQ) clearTimeout(GVT.henQ);
+    GVT.henQ = setTimeout(function () { GVT.henQ = null; gvtTaiDs(false); }, 300);
   };
   var mo = document.getElementById('gvtThuMoi');
   if (mo) mo.onclick = function () {
@@ -59859,6 +59906,7 @@ function gvtMoPhieu(p) {
   }));
   GVT.pk = p.name ? JSON.parse(JSON.stringify(p)) : null;
   GVT.pkDong = p.name ? GVT.pk.dong : null;   /* phiếu đã lưu: mọi dòng đều hợp lệ, kết quả khớp từng dòng */
+  GVT.lan++;
   vgbBoChuaLuu();
   go(gvtManPhieu);
 }
@@ -59885,9 +59933,13 @@ function gvtDanhDau() {
 
 async function gvtTinhLai() {
   var g = gvtGoiTinh();
+  /* Codex #486: gõ tiếp khi lượt trước còn chạy thì lượt trước về sau phải
+     bị bỏ, không đè số mới. Rời phiếu (lưu, bỏ, mở phiếu khác) cũng tăng lượt. */
+  var lan = ++GVT.lan, p = GVT.p;
   var kq;
   try { kq = await api('vagabond.gia_von_tam.tinh_thu', { phieu: JSON.stringify(g.phieu) }); }
   catch (e) { return; }
+  if (lan !== GVT.lan || p !== GVT.p) return;
   var dongKq = [];
   g.chiSo.forEach(function (i, j) { dongKq[i] = (kq.dong || [])[j]; });
   GVT.pk = kq;
@@ -59949,6 +60001,16 @@ function gvtDongNhap(d, i) {
 
 function gvtManPhieu() {
   var p = GVT.p;
+  /* Mở lại từ bản nháp trên trang chủ: chưa có danh sách nên chưa có nhóm
+     bán và quyền. Tải trang đầu rồi vẽ lại nếu vẫn đang ở màn này. */
+  if (!GVT.thu) {
+    GVT.thu = { nhom_ban: [], sua_duoc: true, ds: [] };
+    var man = S.stack[S.stack.length - 1];
+    api('vagabond.gia_von_tam.ds_thu', { tu_khoa: '', bat_dau: 0 }).then(function (kq) {
+      GVT.thu = kq;
+      if (S.stack[S.stack.length - 1] === man && GVT.p === p) gvtManPhieu();
+    }, function () { });
+  }
   var t = GVT.thu || {};
   var sua = t.sua_duoc !== false;
   var nhom = t.nhom_ban || [];
@@ -59974,7 +60036,7 @@ function gvtManPhieu() {
     '<div class="card" id="gvtpDs">' + (p.dong.length ? p.dong.map(gvtDongNhap).join('') :
       '<div class="emp" style="padding:18px"><div>Chưa có nguyên liệu.</div></div>') + '</div>' +
     (sua ? '<button class="btn gh" data-gvtpthem style="margin:0 0 10px">Thêm nguyên liệu</button>' : '') +
-    (sua && p.name ? '<button class="btn gh" data-gvtpxoaphieu style="margin:0 0 10px;color:#b3261e">Xoá phiếu</button>' : '');
+    (sua && p.name ? '<button class="btn gh" data-gvtpbo style="margin:0 0 10px;color:#b3261e">Bỏ phiếu</button>' : '');
   var b = frame(GVT_TIEU_DE_THU, html, sua ? { footer: '<button class="btn" id="gvtpLuu">Lưu phiếu</button>' } : {});
   var gan = function (id, k) {
     var o = document.getElementById(id);
@@ -59996,7 +60058,7 @@ function gvtManPhieu() {
       p.dong.splice(+el.getAttribute('data-gvtpxoa'), 1); gvtDanhDau(); gvtManPhieu(); return gvtTinhLai();
     }
     if (e.target.closest('[data-gvtpthem]')) return gvtThemNl();
-    if (e.target.closest('[data-gvtpxoaphieu]')) return gvtXoaPhieu();
+    if (e.target.closest('[data-gvtpbo]')) return gvtBoPhieu();
   };
   var l = document.getElementById('gvtpLuu');
   if (l) l.onclick = gvtLuuPhieu;
@@ -60070,20 +60132,23 @@ async function gvtLuuPhieu() {
   catch (e) { busy(false); return baoTin((e && e.message) || 'Lưu phiếu lỗi'); }
   vgbBoChuaLuu();
   toast('Đã lưu phiếu ' + kq.name, 3000);
-  GVT.thu = null; GVT.p = null; GVT.pk = null; GVT.pkDong = null;
+  GVT.thu = null; GVT.p = null; GVT.pk = null; GVT.pkDong = null; GVT.lan++;
   GVT.tab = 'thu';
   back();
 }
 
-async function gvtXoaPhieu() {
+/* Bỏ phiếu là bỏ MỀM (QT-20, Codex #486): phiếu ẩn khỏi danh sách, vẫn giữ
+   trên hệ thống cùng người bỏ và lúc bỏ. */
+async function gvtBoPhieu() {
   var p = GVT.p;
-  if (!await confirmSheet('Xoá phiếu', 'Xoá phiếu tính giá thử "' + p.ten_mon + '"? Không ảnh hưởng mã hàng, công thức hay sổ sách.', 'Xoá', true)) return;
+  if (!await confirmSheet('Bỏ phiếu', 'Bỏ phiếu tính giá thử "' + p.ten_mon + '"? Phiếu ẩn khỏi danh sách nhưng vẫn giữ trên hệ thống để tra lại. ' +
+    'Không ảnh hưởng mã hàng, công thức hay sổ sách.', 'Bỏ phiếu', true)) return;
   busy(true);
-  try { await api('vagabond.gia_von_tam.xoa_thu', { name: p.name }); busy(false); }
-  catch (e) { busy(false); return baoTin((e && e.message) || 'Xoá phiếu lỗi'); }
+  try { await api('vagabond.gia_von_tam.bo_thu', { name: p.name }); busy(false); }
+  catch (e) { busy(false); return baoTin((e && e.message) || 'Bỏ phiếu lỗi'); }
   vgbBoChuaLuu();
-  toast('Đã xoá phiếu', 3000);
-  GVT.thu = null; GVT.p = null; GVT.pk = null; GVT.pkDong = null;
+  toast('Đã bỏ phiếu. Vẫn tra lại được trên Desk.', 3000);
+  GVT.thu = null; GVT.p = null; GVT.pk = null; GVT.pkDong = null; GVT.lan++;
   GVT.tab = 'thu';
   back();
 }
