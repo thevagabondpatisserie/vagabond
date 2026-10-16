@@ -1529,7 +1529,10 @@ function renderSheet(c){
     value:Math.min(...c.sizes.map(s=>s.p||0)), currency:'VND'});
   veChuMonDangMo();
   vgbVeThumbs(c);
-  picked_nums=[]; picked_add=new Set(); $('#s-wish').value=''; wishCount(); drawAddons();
+  picked_nums=[]; picked_add=new Set(); $('#s-wish').value=''; wishCount();
+  /* Codex #481 vòng 2: bánh mới chưa chọn đồ dự phòng thì dòng gấp đóng lại. */
+  const dp=$('#s-duphong'); if(dp) dp.open=false;
+  drawAddons();
   drawSizes();
   $('#sheet').classList.add('open'); $('#sheet').scrollTop=0; document.body.style.overflow='hidden';
 }
