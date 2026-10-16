@@ -273,7 +273,7 @@ async function scrHome() {
       card('💵', 'Biên nhận nộp tiền mặt', 'Theo dõi phiếu của cả ba điểm bán, ký nhận tiền, xuất Excel', 0, 'NQ') +
       card('📒', 'Bút toán tay', 'Trích lương, bảo hiểm, phân bổ, kết chuyển thuế theo định khoản mẫu', 0, 'BT') +
       /* #482: giá vốn nguyên liệu theo công thức và giá bán đề xuất, cho Khải. */
-      (coQuyenGvt() ? card('🧮', 'Giá vốn tạm tính', 'Giá vốn nguyên liệu theo công thức, so giá bán, giá đề xuất', 0, 'GVT') : '') +
+      (coQuyenGvt() ? card('🧮', 'Giá vốn tạm tính', 'Giá vốn nguyên liệu, hệ số giá bán, giá đề xuất, tính giá món thử R&D', 0, 'GVT') : '') +
       /* Duyet don hang tang (anh Viet 31/08/2026). Don tra bang phuong thuc
          Hang tang KHONG ghi so duoc cho toi khi giam doc bam duyet o day.
          Dat trong phan he Ke toan theo dung yeu cau cua anh Viet. */
