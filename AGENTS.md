@@ -1,3 +1,27 @@
+## Phân công và báo review ngay (anh Việt chốt 15/10/2026)
+
+Mục này ưu tiên mọi phân công cũ mâu thuẫn bên dưới và trong tài liệu liên kết.
+Codex rà PR; anh Việt nhận kết luận rồi giao Claude sửa và làm tiếp. Codex
+không tự chuyển từ review sang sửa hoặc gọi vòng review trả qua lại, trừ khi
+anh Việt giao rõ. Quyền merge/deploy vẫn theo lệnh riêng và đủ cổng.
+
+Ngay khi kết thúc mỗi vòng rà, trước khi chuyển việc hoặc kết thúc phiên:
+- Đăng kết luận trên đúng PR, ghi full SHA đã rà, đạt/chưa đạt, finding còn
+  lại, link bằng chứng và người cần làm tiếp. CI/bench xanh không thay review.
+- Dùng `[BỊ CHẶN]` khi còn finding chặn; dùng `[CẦN DUYỆT]` khi rà đạt và cần
+  anh giao bước tiếp. Không gọi review xong là `[ĐÃ SỬA XONG]`.
+- Kèm đúng một khối `telegram-tomtat`: nói rõ kết luận bằng lời nghiệp vụ và
+  "Anh Việt giao Claude làm tiếp" cùng việc cụ thể. Gửi ngay cả khi chưa đạt;
+  không chờ Claude, bản phát hành, merge hoặc deploy mới báo.
+- Kiểm workflow Telegram và biên nhận `message_id` của đúng comment. Hễ chưa
+  có biên nhận cho đúng comment đó thì dispatch `telegram.yml` chế độ
+  `doi-soat`, kể cả khi đã có lượt chạy xong và báo thành công: lượt đó có thể
+  không thu được gì vì một lượt khác vừa đẩy con trỏ dưới 180 giây trước
+  (Codex #478). Cơ chế chống trùng sẵn có lo phần gửi lặp; không gửi tay lặp
+  hoặc đợi lịch 15 phút.
+- Chỉ báo đã gửi khi có biên nhận. Nếu gửi lỗi, báo trực tiếp anh kèm link
+  kết luận và lỗi gửi. Không coi biên nhận là anh đã đọc hoặc đã duyệt.
+
 ## Cửa vào chung từ 12/10/2026
 
 Đọc [Instruction chung](INSTRUCTION_VAGABOND.md) trước. Quy trình nhận việc,
