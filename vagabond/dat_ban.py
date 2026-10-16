@@ -185,50 +185,34 @@ def kiem_phieu(doc):
         frappe.throw('Chọn trạng thái đặt bàn hợp lệ.')
 
 
-def _loi_lark(ten):
-    # Không đưa URL chứa khóa hoặc nội dung khách vào Error Log.
-    frappe.log_error(title='Đặt bàn: chưa gửi được Lark',
-                     message='Phiếu %s. Kiểm tra webhook nhóm đặt bàn và hàng đợi.' % ten)
+def _loi_zalo(ten):
+    # Không đưa nội dung khách vào Error Log.
+    frappe.log_error(title='Đặt bàn: chưa ghi được tin Zalo',
+                     message='Phiếu %s. Kiểm tra bảng nhóm Zalo (chủ đề Đặt bàn).' % ten)
+
+
+def con_cho_xac_nhan(ten):
+    """Tin Zalo loại việc hỏi lại ngay trước khi gửi: phiếu còn chờ xác nhận không."""
+    return frappe.db.get_value(DOCTYPE, ten, 'trang_thai') == 'Chờ xác nhận'
 
 
 def bao_dat_ban_moi(doc, method=None):
-    """Chỉ móc after_insert; lỗi hàng đợi không làm mất yêu cầu khách."""
+    """v597 (anh Việt 16/10/2026: chuyển hết Lark sang Zalo): báo nhóm Zalo chủ đề
+    Đặt bàn. kenh_zalo.bao ghi tin vào sổ trong giao dịch của phiếu rồi gửi sau
+    commit; Zalo lỗi hay chưa có nhóm thì yêu cầu khách vẫn lưu nguyên."""
     if getattr(frappe.flags, 'vagabond_kiem_that', False):
         return
+    from vagabond import diem_ban, kenh_zalo
     try:
-        if not frappe.db.get_single_value('Vagabond Settings', 'webhook_dat_ban'):
-            return
-        frappe.db.after_commit.add(partial(_xep_lark, doc.name))
+        d = doc.as_dict()
+        d['ten_co_so'] = (diem_ban.theo_ma(d.get('co_so')) or {}).get('ten') or d.get('co_so')
+        d['url'] = frappe.utils.get_url_to_form(DOCTYPE, doc.name)
+        tieu_de, dong = kenh_zalo.tach_tin(soan_tin_dat_ban(d))
     except Exception:
-        _loi_lark(doc.name)
-
-
-def _xep_lark(ten):
-    # Frappe background_jobs.enqueue_after_commit chỉ hoãn q.enqueue_call;
-    # CallbackManager.run không bắt lỗi Redis. Bao ở chính callback sau commit
-    # để lỗi xếp hàng không đổi phản hồi thành thất bại sau khi phiếu đã lưu.
-    try:
-        frappe.enqueue('vagabond.dat_ban.gui_lark', ten=ten, queue='short')
-    except Exception:
-        _loi_lark(ten)
-        # Chỉ chạy sau commit phiếu: giao dịch mới này chỉ lưu Error Log.
-        frappe.db.commit()
-
-
-def gui_lark(ten):
-    """Đọc phiếu sau commit; Lark lỗi không tác động trạng thái đặt bàn."""
-    from vagabond.gui_thu import ban_webhook
-    from vagabond import diem_ban
-    if getattr(frappe.flags, 'vagabond_kiem_that', False):
+        _loi_zalo(doc.name)
         return
-    try:
-        url = str(frappe.db.get_single_value('Vagabond Settings', 'webhook_dat_ban') or '').strip()
-        if not url:
-            return
-        doc = frappe.get_doc(DOCTYPE, ten).as_dict()
-        doc['ten_co_so'] = (diem_ban.theo_ma(doc.get('co_so')) or {}).get('ten') or doc.get('co_so')
-        doc['url'] = frappe.utils.get_url_to_form(DOCTYPE, ten)
-        if not ban_webhook(soan_tin_dat_ban(doc), url=url):
-            _loi_lark(ten)
-    except Exception:
-        _loi_lark(ten)
+    # Không bọc bao(): nó tự nuốt lỗi lẻ, chỉ ném lỗi làm chết cả giao dịch.
+    kenh_zalo.bao('viec', 'dat_ban', tieu_de, dong, khoa='dat-ban:%s' % doc.name,
+                  kiem='dat_ban_cho', nguon=doc.name)
+
+

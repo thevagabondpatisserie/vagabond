@@ -49,13 +49,17 @@ LOAI = {
 	"ban_tin": ("📊", "Bản tin"),
 	"phat_hanh": ("🚀", "Phát hành"),
 }
-CHU_DE = ("kho", "san_xuat", "cong_no", "ban_hang", "don_web", "dat_ban", "phat_hanh")
+# v597: "he_thong" cho còi báo động thư hỏng (thay webhook Lark nhóm quản trị).
+CHU_DE = ("kho", "san_xuat", "cong_no", "ban_hang", "don_web", "dat_ban", "phat_hanh", "he_thong")
 
 # Codex #413 P2: tin "việc cần làm" phải kiểm lại việc còn mở ngay trước khi
 # gửi. Mã kiểm -> hàm(nguon) trả True nếu việc vẫn cần làm. Chỉ tra trong bảng
 # này, không gọi hàm theo tên tuỳ ý.
 DIEU_KIEN = {
 	"cho_duyet_truoc_erp": "vagabond.cong_no_ncc.con_cho_duyet_truoc_erp",
+	# v597: đặt bàn, đăng ký tiệc đã có người xác nhận hoặc huỷ thì không nhắc nữa.
+	"dat_ban_cho": "vagabond.dat_ban.con_cho_xac_nhan",
+	"tiec_cho": "vagabond.tiec_web.con_cho_xac_nhan",
 }
 BO_QUA = "Bỏ qua (đã xử lý)"
 CHO_GUI = "Chờ gửi"
@@ -74,6 +78,15 @@ LOI_CHUA_GUI = ("ConnectTimeout", "ConnectTimeoutError", "NewConnectionError", "
 
 
 # ------------------------------------------------------------------ THUẦN
+
+def tach_tin(chu):
+	"""THUẦN: tin nhiều dòng soạn sẵn (khuôn tin Lark cũ) -> (tiêu đề, các dòng).
+
+	v597: các nơi từng bắn Lark giữ nguyên hàm soạn chữ (đã có ca kiểm nội dung),
+	chỉ đổi đường gửi sang bao(). Dòng đầu là tiêu đề, bỏ dòng trống."""
+	ds = [x.strip() for x in str(chu or "").splitlines() if x.strip()]
+	return (ds[0] if ds else ""), ds[1:]
+
 
 def tach_ds(s):
 	"""THUẦN: "viec, canh_bao" -> {"viec", "canh_bao"}; rỗng -> set()."""

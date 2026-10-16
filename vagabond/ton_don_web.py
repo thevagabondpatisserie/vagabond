@@ -65,13 +65,14 @@ def bao_loi(ngay):
     """Dùng đúng kênh Sales nhận đơn web; lỗi cảnh báo không chặn đơn."""
     try:
         _ghi_loi(frappe.get_traceback(), "F21: chưa kiểm được tồn đơn web")
-        from vagabond.lib import cfg_o
-        from vagabond.gui_thu import ban_webhook
-        url = str(cfg_o("webhook_don_web") or "").strip()
-        cau = ("Sales kiểm lại tồn đơn web - ngày nhận %s. Phép kiểm tồn bị lỗi; "
-               "web vẫn tiếp nhận yêu cầu. Sales kiểm lại tồn trước khi xác nhận với khách." % ngay)
-        if not url or not ban_webhook(cau, url=url):
-            _ghi_loi("Kiểm tra webhook_don_web và kênh nhận đơn của Sales.",
+        from vagabond import kenh_zalo
+        # v597: Zalo thay Lark. Một tin mỗi ngày nhận, không nhắc lặp mỗi đơn.
+        ten = kenh_zalo.bao("canh_bao", "don_web", "Sales kiểm lại tồn đơn web ngày nhận %s" % ngay,
+                            ["Phép kiểm tồn bị lỗi; web vẫn tiếp nhận yêu cầu.",
+                             "Sales kiểm lại tồn trước khi xác nhận với khách."],
+                            khoa="f21-ton-loi:%s" % ngay)
+        if not ten:
+            _ghi_loi("Chưa có nhóm Zalo nhận chủ đề Đơn web, hoặc chưa ghi được tin.",
                      "F21: chưa gửi được cảnh báo Sales")
     except Exception:
         try:

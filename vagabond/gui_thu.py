@@ -615,6 +615,19 @@ def ban_webhook(cau, url=None):
 		return False
 
 
+def _bao_zalo(cau):
+	"""v597: hú còi vào nhóm Zalo nhận Cảnh báo, chủ đề Hệ thống (thay webhook Lark).
+
+	Thư đang hỏng nên không dựa vào thư. Lỗi Zalo không chặn đường thư dự phòng."""
+	try:
+		from vagabond import kenh_zalo
+		tieu_de, dong = kenh_zalo.tach_tin(cau)
+		kenh_zalo.bao("canh_bao", "he_thong", tieu_de or "Thư không gửi được", dong,
+			khoa="bao-dong-thu:%s" % now_datetime().strftime("%Y%m%d%H"))
+	except Exception:
+		frappe.log_error("Chưa ghi được tin Zalo báo động thư.", "gui_thu: zalo bao dong loi")
+
+
 def _bao_bang_thu(cau, so_loi):
 	"""Đường dự phòng: gửi thư cho địa chỉ khai ở Vagabond Settings.
 
@@ -701,7 +714,7 @@ def canh_bao_email_loi():
 			moc.strftime("%H:%M %d/%m"),
 			now_datetime().strftime("%H:%M %d/%m"),
 		)
-		ban_webhook(cau)
+		_bao_zalo(cau)
 		_bao_bang_thu(cau, len(ds))
 		frappe.db.set_single_value("Vagabond Settings", TRUONG_LAN_HU, now_datetime())
 		frappe.db.commit()

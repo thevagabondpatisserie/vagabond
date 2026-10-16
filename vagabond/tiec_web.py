@@ -211,35 +211,25 @@ def kiem_phieu(doc):
         frappe.throw("Chọn trạng thái đăng ký hợp lệ.")
 
 
+def con_cho_xac_nhan(ten):
+    """Tin Zalo loại việc hỏi lại ngay trước khi gửi: đăng ký còn chờ xác nhận không."""
+    return frappe.db.get_value(DOCTYPE, ten, "trang_thai") == "Chờ xác nhận"
+
+
 def bao_moi(doc, method=None):
-    """Báo nhóm FOH qua đúng kênh Lark của đặt bàn. Lỗi báo không làm mất đăng ký."""
+    """v597: báo nhóm Zalo chủ đề Đặt bàn (FOH, cùng nhóm với đặt bàn), thay Lark.
+    Lỗi báo không làm mất đăng ký."""
     if getattr(frappe.flags, "vagabond_kiem_that", False):
         return
+    from vagabond import kenh_zalo
     try:
-        if not frappe.db.get_single_value("Vagabond Settings", "webhook_dat_ban"):
-            return
-        frappe.db.after_commit.add(lambda: _xep(doc.name))
+        d = doc.as_dict()
+        d["url"] = frappe.utils.get_url_to_form(DOCTYPE, doc.name)
+        tieu_de, dong = kenh_zalo.tach_tin(soan_tin(d))
     except Exception:
-        frappe.log_error(title="Đăng ký tiệc: chưa gửi được Lark", message="Phiếu %s." % doc.name)
+        frappe.log_error(title="Đăng ký tiệc: chưa ghi được tin Zalo", message="Phiếu %s." % doc.name)
+        return
+    kenh_zalo.bao("viec", "dat_ban", tieu_de, dong, khoa="tiec:%s" % doc.name,
+                  kiem="tiec_cho", nguon=doc.name)
 
 
-def _xep(ten):
-    try:
-        frappe.enqueue("vagabond.tiec_web.gui_lark", ten=ten, queue="short")
-    except Exception:
-        frappe.log_error(title="Đăng ký tiệc: chưa gửi được Lark", message="Phiếu %s." % ten)
-        frappe.db.commit()
-
-
-def gui_lark(ten):
-    from vagabond.gui_thu import ban_webhook
-    try:
-        url = str(frappe.db.get_single_value("Vagabond Settings", "webhook_dat_ban") or "").strip()
-        if not url:
-            return
-        doc = frappe.get_doc(DOCTYPE, ten).as_dict()
-        doc["url"] = frappe.utils.get_url_to_form(DOCTYPE, ten)
-        if not ban_webhook(soan_tin(doc), url=url):
-            frappe.log_error(title="Đăng ký tiệc: chưa gửi được Lark", message="Phiếu %s." % ten)
-    except Exception:
-        frappe.log_error(title="Đăng ký tiệc: chưa gửi được Lark", message="Phiếu %s." % ten)
