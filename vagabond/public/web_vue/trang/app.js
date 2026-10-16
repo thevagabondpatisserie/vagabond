@@ -65,7 +65,7 @@ export function khoiDongTrang(D, goc = '#app') {
         dong(chu('bien_nhan_06a446f5c','Phí giao'), bn.phi_giao), dong(chu('bien_nhan_de995d836','Tổng'), bn.tong, 'tong')]),
       h('p', {class:'bn-luu-y'}, chu('bien_nhan_0ea4a5a10','Chúng tôi chưa thu tiền ở bước này. Chúng tôi sẽ gọi xác nhận rồi gửi hướng dẫn thanh toán.')),
       h('div', {class:'bn-nut'}, [
-        ...(D.lien_he || []).map(a => h('a', {class:'nut',href:a.href,rel:'noopener noreferrer'},a.ten)),
+        ...(D.lien_he || []).map(a => h('a', {class:'nut',href:a.href,rel:'noopener noreferrer'},a.khoa ? chu(a.khoa, a.ten) : a.ten)),
         h('a', {class:'nut chinh', href:'/web_moi/banh'}, chu('bien_nhan_3f197d985','Đặt thêm bánh'))])
     ])]);
   }}).mount(goc);
