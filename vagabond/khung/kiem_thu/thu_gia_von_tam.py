@@ -6,6 +6,8 @@ chỉ 480/2.055 dòng có `bom_no`, nên phép cộng dồn PHẢI tự tra côn
 định của mã. Mỗi ca ghi trong tên nó chặn đường lỗi nào.
 """
 
+import json
+
 from vagabond import gia_von_tam as G
 from vagabond.khung.kiem_thu import nen
 from vagabond.khung.kiem_thu.nen import ca, dung, la
@@ -107,39 +109,49 @@ def _nguon_gia():
 	la("ton am khong tinh vao binh quan", G.gia_la([{"actual_qty": -5, "stock_value": -50}, {"actual_qty": 10, "stock_value": 300}], 0, 0), (30.0, "Giá kho"))
 
 
-@ca("gia von tam: gia de xuat lam tron LEN toi nghin, bien 0, 95, 96, gia von 0 (chan lam tron xuong)")
+@ca("gia von tam: v600 gia de xuat = gia von NHAN he so, lam tron LEN toi nghin; bien 1, 20, 20,5, gia von 0 (chan lam tron xuong, chan chia nham)")
 def _de_xuat():
-	la("Roman 16 voi 25%", G.gia_de_xuat(250959, 25), 1004000)
-	la("chia tron khong bi day len nghin sau", G.gia_de_xuat(250000, 25), 1000000)
-	la("nhan 25,5 dang chuoi", G.gia_de_xuat(255000, "25.5"), 1000000)
-	la("0%", G.gia_de_xuat(250959, 0), None)
-	la("95% duoc", G.gia_de_xuat(95000, 95), 100000)
-	la("96%", G.gia_de_xuat(250959, 96), None)
-	la("gia von 0", G.gia_de_xuat(0, 25), None)
-	la("chua dat ty le", G.gia_de_xuat(1000, None), None)
+	la("Roman 16 voi x4", G.gia_de_xuat(250959, 4), 1004000)
+	la("nhan tron khong bi day len nghin sau", G.gia_de_xuat(250000, 4), 1000000)
+	la("nhan 3,5 dang chuoi co dau phay", G.gia_de_xuat(100001, "3,5"), 351000)
+	la("x1 khong phai muc tieu", G.gia_de_xuat(250959, 1), None)
+	la("x20 duoc", G.gia_de_xuat(5000, 20), 100000)
+	la("x20,5 qua tay", G.gia_de_xuat(5000, 20.5), None)
+	la("gia von 0", G.gia_de_xuat(0, 4), None)
+	la("chua dat he so", G.gia_de_xuat(1000, None), None)
 
 
-@ca("gia von tam: du tam nhanh trang thai, co ca giong Shiopan vuot gia ban")
+@ca("gia von tam: v600 he so hien thi la gia ban / gia von mot so le, % gia von di kem (anh Viet: lai so lan)")
+def _he_so_hien():
+	la("BOHOL anh chup", (G.he_so_hien(174575, 1060000), G.ty_le_hien(174575, 1060000)), (6.1, 16.5))
+	la("Epi 12", G.he_so_hien(52278, 600000), 11.5)
+	la("thieu gia ban", G.he_so_hien(1000, 0), None)
+	la("gia von 0", G.he_so_hien(0, 1000), None)
+
+
+@ca("gia von tam: du tam nhanh trang thai, co ca giong Shiopan vuot gia ban, so bang ty so that khong so so da lam tron")
 def _trang_thai():
 	T = G.trang_thai
-	la("chua cong thuc", T(False, False, 0, 0, 0, 25), "chua_cong_thuc")
-	la("vong", T(True, True, 2, 0, 65000, 25), "vong")
-	la("thieu gia", T(True, False, 1, 379233, 65000, 25), "thieu_gia")
-	la("Shiopan 379.233 / 65.000", T(True, False, 0, 379233, 65000, 25), "vuot_gia_ban")
-	la("chua gia ban", T(True, False, 0, 10000, 0, 25), "chua_gia_ban")
-	la("Roman 16 28,5% > 25%", T(True, False, 0, 250959, 880000, 25), "cao_hon_muc_tieu")
-	la("trong muc tieu", T(True, False, 0, 23885, 160000, 25), "dat")
-	la("chua dat ty le", T(True, False, 0, 23885, 160000, None), "chua_dat_ty_le")
+	la("chua cong thuc", T(False, False, 0, 0, 0, 4), "chua_cong_thuc")
+	la("vong", T(True, True, 2, 0, 65000, 4), "vong")
+	la("thieu gia", T(True, False, 1, 379233, 65000, 4), "thieu_gia")
+	la("Shiopan 379.233 / 65.000", T(True, False, 0, 379233, 65000, 4), "vuot_gia_ban")
+	la("chua gia ban", T(True, False, 0, 10000, 0, 4), "chua_gia_ban")
+	la("Roman 16 x3,5 < x4", T(True, False, 0, 250959, 880000, 4), "duoi_muc_tieu")
+	la("x4,96 chua dat x5 du lam tron ra 5,0", T(True, False, 0, 100000, 496000, 5), "duoi_muc_tieu")
+	la("dung bang x5 la dat", T(True, False, 0, 100000, 500000, 5), "dat")
+	la("vuot muc tieu", T(True, False, 0, 23885, 160000, 4), "dat")
+	la("chua dat he so", T(True, False, 0, 23885, 160000, None), "chua_dat_muc_tieu")
 
 
-@ca("gia von tam: lam sach ty le muc tieu: o trong la bo, 25,5 duoc, ngoai 1..95 va nhom la bi chan")
-def _chuan_ty_le():
-	la("lam sach", G.chuan_ty_le({"Bánh lạnh": "25,5", "Bánh khô": "", "Bánh ổ sinh nhật": 30}),
-		{"Bánh lạnh": 25.5, "Bánh ổ sinh nhật": 30.0})
-	la("nhan chuoi json", G.chuan_ty_le('{"Bánh nướng": 20}'), {"Bánh nướng": 20.0})
-	for sai in ({"Bánh lạnh": 0}, {"Bánh lạnh": 96}, {"Bánh lạnh": "abc"}, {"Nguyên liệu": 20}):
+@ca("gia von tam: lam sach he so muc tieu: o trong la bo, 5,5 duoc, khong lon hon 1 hoac qua 20 va nhom la bi chan")
+def _chuan_he_so():
+	la("lam sach", G.chuan_he_so({"Bánh lạnh": "5,5", "Bánh khô": "", "Bánh ổ sinh nhật": 4}),
+		{"Bánh lạnh": 5.5, "Bánh ổ sinh nhật": 4.0})
+	la("nhan chuoi json", G.chuan_he_so('{"Bánh nướng": 6}'), {"Bánh nướng": 6.0})
+	for sai in ({"Bánh lạnh": 1}, {"Bánh lạnh": 0.5}, {"Bánh lạnh": 21}, {"Bánh lạnh": "abc"}, {"Nguyên liệu": 5}):
 		try:
-			G.chuan_ty_le(sai)
+			G.chuan_he_so(sai)
 			raise AssertionError("phai chan %r" % sai)
 		except ValueError:
 			pass
@@ -147,7 +159,7 @@ def _chuan_ty_le():
 
 def _dong(**kw):
 	d = {"ma": "BAWC00067", "ten": "Roman 16", "nhom": "Bánh ổ sinh nhật", "dvt": "Cái", "gia_von": 250959,
-		"gia_ban": 880000, "ty_le_muc_tieu": 25, "gia_de_xuat": 1004000, "trang_thai": "cao_hon_muc_tieu"}
+		"gia_ban": 880000, "he_so_muc_tieu": 4, "gia_de_xuat": 1004000, "trang_thai": "duoi_muc_tieu"}
 	d.update(kw)
 	return d
 
@@ -159,16 +171,16 @@ def _dong_bang_gia():
 		_dong(ma="X1", trang_thai="thieu_gia"),
 		_dong(ma="X2", trang_thai="thieu_gia"),
 		_dong(ma="X3", trang_thai="vong"),
-		_dong(ma="X4", trang_thai="chua_dat_ty_le", gia_von=0, ty_le_muc_tieu=None, gia_de_xuat=None),
-		_dong(ma="X5", trang_thai="chua_gia_ban", gia_ban=0, gia_de_xuat=None, ty_le_muc_tieu=None),
+		_dong(ma="X4", trang_thai="chua_dat_muc_tieu", gia_von=0, he_so_muc_tieu=None, gia_de_xuat=None),
+		_dong(ma="X5", trang_thai="chua_gia_ban", gia_ban=0, gia_de_xuat=None, he_so_muc_tieu=None),
 	], "2026-10-16")
 	la("ma duoc luu", [p["item_code"] for p in luu], ["BAWC00067", "X5"])
 	la("bo qua", bo, {"Thiếu giá nguyên liệu": 2, "Công thức vòng lặp": 1, "Giá vốn bằng 0": 1})
 	la("ngay", luu[0]["valid_from"], "2026-10-16")
 	la("don vi kho", luu[0]["uom"], "Cái")
 	la("ghi chu", luu[0]["note"],
-		"Tỷ lệ mục tiêu 25%. Giá bán đề xuất 1.004.000. Giá bán lúc chốt 880.000. Chỉ gồm nguyên liệu.")
-	la("ghi chu khi chua co gi", luu[1]["note"], "Chưa đặt tỷ lệ mục tiêu. Chưa có giá bán. Chỉ gồm nguyên liệu.")
+		"Hệ số mục tiêu x4. Giá bán đề xuất 1.004.000. Giá bán lúc chốt 880.000. Chỉ gồm nguyên liệu.")
+	la("ghi chu khi chua co gi", luu[1]["note"], "Chưa đặt hệ số mục tiêu. Chưa có giá bán. Chỉ gồm nguyên liệu.")
 
 
 @ca("gia von tam: dung bang: mon chua cong thuc tach rieng, mon can xu len dau nhom, trung vi chi tinh mon du gia")
@@ -186,18 +198,21 @@ def _dung_bang():
 	}
 	b = G.dung_bang(ban, {"BANH": "B1", "SHIO": "B2", "THIEU": "B3"}, ket,
 		{"BANH": 160000, "SHIO": 65000, "THIEU": 50000}, {"BANH": ("2026-10-12", 19500)},
-		{"Bánh lạnh": 15}, {"LA-BAC": "Lá bạc"})
+		{"Bánh lạnh": 6}, {"LA-BAC": "Lá bạc"})
 	la("thu tu", [d["ma"] for d in b["dong"]], ["SHIO", "BANH", "THIEU"])
 	la("chua cong thuc", b["chua_cong_thuc"], {"so": 1, "ten": ["Bánh mới"]})
 	shio = b["dong"][0]
-	la("Shiopan", (shio["trang_thai"], shio["ty_le"]), ("vuot_gia_ban", 583.4))
+	la("Shiopan", (shio["trang_thai"], shio["ty_le"], shio["he_so"]), ("vuot_gia_ban", 583.4, 0.2))
+	la("Banh B x8 (12,5%) vuot muc tieu x6", (b["dong"][1]["he_so"], b["dong"][1]["ty_le"], b["dong"][1]["trang_thai"],
+		b["dong"][1]["gia_de_xuat"]), (8.0, 12.5, "dat", 120000))
 	la("lan truoc", b["dong"][1]["lan_truoc"], {"ngay": "2026-10-12", "gia": 19500.0, "chenh_pct": 2.6})
 	thieu = b["dong"][2]
 	la("ten nguyen lieu thieu", (thieu["thieu_so"], thieu["thieu_ten"]), (3, ["BTP-1", "BTP-2", "Lá bạc"]))
 	dung("mon thieu gia khong co gia de xuat", thieu["gia_de_xuat"] is None)
 	nhom = {n["ten"]: n for n in b["nhom"]}
 	la("nhom banh lanh", (nhom["Bánh lạnh"]["so_mon"], nhom["Bánh lạnh"]["chua_cong_thuc"], nhom["Bánh lạnh"]["nhan"]), (2, 1, "Bánh lạnh"))
-	la("trung vi chi gom mon du gia", nhom["Bánh lạnh"]["trung_vi"], round((583.4 + 12.5) / 2, 1))
+	la("trung vi he so chi gom mon du gia", nhom["Bánh lạnh"]["trung_vi"], round((0.2 + 8.0) / 2, 1))
+	la("muc tieu nhom", nhom["Bánh lạnh"]["he_so_muc_tieu"], 6)
 
 
 @ca("gia von tam: danh sach nhom ban trung voi xuat_phuc_vu_ban, nhan chip toi da 16 ky tu")
@@ -281,7 +296,7 @@ def _frappe_gia(roles=("Accounts Manager",), gia_ban=None, gia_nhap=None, quy_do
 	cu = {k: getattr(frappe, k, None) for k in ("get_all", "db", "defaults", "get_roles")}
 	frappe.get_all = get_all
 	frappe.db = type("DB", (), {"get_single_value": staticmethod(lambda *a: "Standard Selling")})()
-	frappe.defaults = type("DF", (), {"get_global_default": staticmethod(lambda k: '{"Bánh lạnh": 20}')})()
+	frappe.defaults = type("DF", (), {"get_global_default": staticmethod(lambda k: '{"Bánh lạnh": 5}' if k == G.KHOA_HE_SO else None)})()
 	frappe.get_roles = lambda *a, **k: list(roles)
 	return cu, doc
 
@@ -296,14 +311,15 @@ def _tra(cu):
 def _doc_site():
 	cu, doc = _frappe_gia()
 	try:
-		bang, ty_le = G._bang()
+		bang, he_so = G._bang()
 	finally:
 		_tra(cu)
 	banh = [d for d in bang["dong"] if d["ma"] == "BANH"][0]
 	# KEM = 1000 gram x 300 / 1000 = 300 mỗi gram; BANH = 100 x 20 + 200 x 300 = 62.000
 	la("gia von", banh["gia_von"], 62000)
-	la("ty le va trang thai", (banh["ty_le"], banh["trang_thai"]), (20.0, "dat"))
-	la("de xuat 62000 / 20%", banh["gia_de_xuat"], 310000)
+	la("he so, ty le va trang thai", (banh["he_so"], banh["ty_le"], banh["trang_thai"]), (5.0, 20.0, "dat"))
+	la("de xuat 62000 x5", banh["gia_de_xuat"], 310000)
+	la("he so doc dung khoa moi", he_so, {"Bánh lạnh": 5})
 	la("mon chua cong thuc", bang["chua_cong_thuc"]["so"], 1)
 	# Codex #483 vòng 2 thêm một lượt đọc hệ số đơn vị cho mỗi bảng giá.
 	la("so lan doc moi doctype, khong hoi tung ma", sorted(set(doc)), ["BOM", "BOM Item", "Bin", "Item", "Item Price", "UOM Conversion Detail"])
@@ -314,7 +330,8 @@ def _doc_site():
 def _quyen_chot():
 	cu, doc = _frappe_gia(roles=("Accounts User",))
 	try:
-		for ham, ts in ((G.chot, ()), (G.luu_ty_le, ('{"Bánh lạnh": 20}',))):
+		for ham, ts in ((G.chot, ()), (G.luu_he_so, ('{"Bánh lạnh": 5}',)),
+				(G.luu_thu, ('{"ten_mon": "Thu", "dong": []}',)), (G.xoa_thu, ("GT-2610-001",))):
 			try:
 				ham(*ts)
 				raise AssertionError("%s phai bi chan" % ham.__name__)
@@ -458,3 +475,154 @@ def _o_trang_chu_dung_quyen():
 	tc = open(os.path.join(goc, "02-trang-chu.js"), encoding="utf-8").read()
 	i = tc.index("card('🧮', 'Giá vốn tạm tính'")
 	dung("o boc coQuyenGvt()", tc[i - 20:i].endswith("coQuyenGvt() ? "))
+
+
+# ------------------------------------------------ v600 phiếu tính giá thử (R&D)
+
+
+@ca("gia von tam: v600 phieu thu: lam sach dau vao, noi dung dong nao sai (chan luu phieu rong ten, so luong 0, gia am, nhom la)")
+def _chuan_phieu():
+	p = G.chuan_phieu({"ten_mon": "  Tart chanh dây ", "nhom": "Bánh lạnh", "so_ra": "8", "gia_ban_du_kien": "",
+		"dong": [{"item_code": "BOT", "so_luong": "120,5"}, {"ten": "Chanh dây Đà Lạt", "dvt": "Gram", "so_luong": 200, "don_gia_tay": "90"}]})
+	la("ten cat khoang trang", p["ten_mon"], "Tart chanh dây")
+	la("so ra", p["so_ra"], 8.0)
+	la("dong 1 so luong dau phay", p["dong"][0]["so_luong"], 120.5)
+	la("dong 2 gia tay", (p["dong"][1]["item_code"], p["dong"][1]["don_gia_tay"]), (None, 90.0))
+	la("so ra trong thi 1, don vi mac dinh Cai", (G.chuan_phieu({"ten_mon": "A"})["so_ra"], G.chuan_phieu({"ten_mon": "A"})["dvt_ra"]), (1.0, "Cái"))
+	for sai, cau in (
+		({"ten_mon": " "}, "Nhập tên món thử."),
+		({"ten_mon": "A", "nhom": "Nguyên liệu"}, "Nhóm món không thuộc"),
+		({"ten_mon": "A", "so_ra": 0}, "Một mẻ phải ra hơn 0."),
+		({"ten_mon": "A", "dong": [{"so_luong": 1}]}, "Dòng 1 chưa có nguyên liệu."),
+		({"ten_mon": "A", "dong": [{"item_code": "BOT", "so_luong": 0}]}, "Dòng 1 (BOT): số lượng phải lớn hơn 0."),
+		({"ten_mon": "A", "dong": [{"ten": "X", "so_luong": 1, "don_gia_tay": -1}]}, "Dòng 1 (X): giá nhập tay không được âm."),
+	):
+		try:
+			G.chuan_phieu(sai)
+			raise AssertionError("phai chan %r" % sai)
+		except ValueError as e:
+			dung("cau: " + str(e), str(e).startswith(cau))
+
+
+def _gia_ma(ma):
+	return {
+		"BOT": {"gia": 20.0, "nguon": "Giá kho", "thieu": 0, "vong": False},
+		"KEM": {"gia": 300.0, "nguon": "Công thức", "thieu": 0, "vong": False},
+		"BTP-THIEU": {"gia": 50.0, "nguon": "Công thức", "thieu": 2, "vong": False},
+		"LA-BAC": {"gia": 0.0, "nguon": "Thiếu giá", "thieu": 1, "vong": False},
+	}[ma]
+
+
+@ca("gia von tam: v600 phieu thu: tinh bang dung nguon gia cua mon dang ban, gia tay thang, chia so ra, de xuat theo he so nhom")
+def _tinh_phieu():
+	p = G.chuan_phieu({"ten_mon": "Tart", "nhom": "Bánh lạnh", "so_ra": 4, "gia_ban_du_kien": 150000, "dong": [
+		{"item_code": "BOT", "so_luong": 1000},             # 20.000
+		{"item_code": "KEM", "so_luong": 100},              # 30.000
+		{"ten": "Chanh dây", "dvt": "Gram", "so_luong": 200, "don_gia_tay": 50},   # 10.000
+	]})
+	k = G.tinh_phieu(p, _gia_ma, {"Bánh lạnh": 5})
+	la("ca me", k["tong_me"], 60000)
+	la("gia von mot cai", k["gia_von"], 15000)
+	la("de xuat x5", k["gia_de_xuat"], 75000)
+	la("gia ban du kien x10 (10%)", (k["he_so"], k["ty_le"], k["trang_thai"]), (10.0, 10.0, "dat"))
+	la("nguon tung dong", [d["nguon"] for d in k["dong"]], ["Giá kho", "Công thức", "Nhập tay"])
+	la("thanh tien", [d["thanh_tien"] for d in k["dong"]], [20000.0, 30000.0, 10000.0])
+	# Mã thiếu giá: có giá tay thì thắng, không thì thiếu và không đề xuất.
+	p2 = G.chuan_phieu({"ten_mon": "T2", "nhom": "Bánh lạnh", "dong": [{"item_code": "LA-BAC", "so_luong": 1}]})
+	k2 = G.tinh_phieu(p2, _gia_ma, {"Bánh lạnh": 5})
+	la("thieu gia", (k2["trang_thai"], k2["thieu_so"], k2["gia_de_xuat"]), ("thieu_gia", 1, None))
+	p2["dong"][0]["don_gia_tay"] = 1200.0
+	k3 = G.tinh_phieu(p2, _gia_ma, {"Bánh lạnh": 5})
+	la("gia tay chua thieu", (k3["trang_thai"], k3["gia_von"], k3["gia_de_xuat"]), ("chua_gia_ban", 1200, 6000))
+	k4 = G.tinh_phieu(G.chuan_phieu({"ten_mon": "T", "dong": [{"item_code": "BTP-THIEU", "so_luong": 1}]}), _gia_ma, {})
+	la("ban thanh pham thieu gia o tang duoi cung tinh la thieu", k4["trang_thai"], "thieu_gia")
+	la("phieu rong", G.tinh_phieu(G.chuan_phieu({"ten_mon": "R"}), _gia_ma, {})["trang_thai"], "chua_nguyen_lieu")
+	la("chua chon nhom thi khong de xuat", G.tinh_phieu(G.chuan_phieu({"ten_mon": "N", "dong": [{"item_code": "BOT", "so_luong": 10}]}), _gia_ma, {"Bánh lạnh": 5})["gia_de_xuat"], None)
+
+
+class _DocGia(_Dong):
+	def __init__(self, **kw):
+		_Dong.__init__(self, **kw)
+		self.dong = []
+		self.flags = _Dong()
+
+	def set(self, k, v):
+		setattr(self, k, v)
+
+	def get(self, k, d=None):
+		return getattr(self, k, d)
+
+	def append(self, k, v):
+		getattr(self, k).append(_Dong(**v))
+
+	def insert(self):
+		self.name = "GT-2610-001"
+		_DocGia.kho[self.name] = self
+		_DocGia.ghi.append(("insert", self.name))
+
+	def save(self):
+		_DocGia.ghi.append(("save", self.name))
+
+
+@ca("gia von tam: v600 phieu thu doc site: luu tinh lai o may chu, mon BTP lay gia cong thuc, NVL ngoai cong thuc doc gia cung lo; chi ghi vao Vagabond Gia Thu")
+def _phieu_site():
+	import frappe
+	_DocGia.kho, _DocGia.ghi = {}, []
+	cu, doc = _frappe_gia()
+	cu.update({k: getattr(frappe, k, None) for k in ("new_doc", "get_doc", "delete_doc")})
+	goc = frappe.get_all
+
+	def get_all(dt, **kw):
+		if dt == "Bin" and "VANI" in ((kw.get("filters") or {}).get("item_code") or ["", []])[1]:
+			return goc(dt, **kw) + [_Dong(item_code="VANI", actual_qty=10, stock_value=9000)]
+		if dt == G.DT_THU:
+			return [_Dong(name=n) for n in _DocGia.kho]
+		return goc(dt, **kw)
+	frappe.get_all = get_all
+	frappe.new_doc = lambda dt: _DocGia(doctype=dt, name=None, modified="2026-10-16 23:00:00", owner="khai@x")
+	frappe.get_doc = lambda dt, ten=None: _DocGia.kho[ten]
+	frappe.db.exists = lambda dt, ten: ten in _DocGia.kho
+	try:
+		phieu = {"ten_mon": "Tart vani", "nhom": "Bánh lạnh", "so_ra": 2, "gia_ban_du_kien": 50000,
+			"dong": [{"item_code": "KEM", "so_luong": 100}, {"item_code": "VANI", "so_luong": 10}, {"ten": "Lá vàng", "dvt": "Lá", "so_luong": 1, "don_gia_tay": 5000}],
+			"gia_von": 1}
+		kq = G.luu_thu(json.dumps(phieu))
+		# KEM theo công thức 300/gram x 100 = 30.000; VANI kho 900 x 10 = 9.000; lá vàng 5.000; chia 2.
+		la("gia von tinh lai, khong nhan so may khach", kq["gia_von"], 22000)
+		la("de xuat x5", kq["gia_de_xuat"], 110000)
+		la("nguon", [d["nguon"] for d in kq["dong"]], ["Công thức", "Giá kho", "Nhập tay"])
+		la("ten va don vi lay tu ma", (kq["dong"][1]["ten"], kq["dong"][1]["dvt"]), ("VANI", "Gram"))
+		d = _DocGia.kho["GT-2610-001"]
+		la("anh chup luu kem", (d.gia_von, d.gia_de_xuat, len(d.dong)), (22000, 110000, 3))
+		la("chi ghi phieu thu", _DocGia.ghi, [("insert", "GT-2610-001")])
+		dung("khong doc doctype la: %s" % sorted(set(doc)), set(doc) <= {"BOM", "BOM Item", "Bin", "Item", "Item Price", "UOM Conversion Detail", G.DT_THU})
+		# Sửa lại cùng phiếu: thay dòng, không tạo phiếu mới.
+		phieu.update(name="GT-2610-001", dong=[{"item_code": "KEM", "so_luong": 50}])
+		kq2 = G.luu_thu(json.dumps(phieu))
+		la("sua phieu cu", (_DocGia.ghi[-1], len(_DocGia.kho), len(d.dong), kq2["gia_von"]), (("save", "GT-2610-001"), 1, 1, 7500))
+		ds = G.ds_thu()
+		la("danh sach tinh lai", [(p["name"], p["gia_von"], p["trang_thai"]) for p in ds["ds"]], [("GT-2610-001", 7500, "dat")])
+		dung("co nhom ban de chon", len(ds["nhom_ban"]) == len(G.NHOM_BAN) and ds["sua_duoc"])
+		t = G.tinh_thu(json.dumps({"ten_mon": "Nháp", "dong": [{"item_code": "VANI", "so_luong": 1}]}))
+		la("tinh thu khong luu", (t["gia_von"], len(_DocGia.kho)), (900, 1))
+	finally:
+		_tra(cu)
+
+
+@ca("gia von tam: v600 doctype phieu thu: vai ghi trung QUYEN_CHOT, vai xem phu QUYEN_XEM, co du truong luu_thu ghi")
+def _doctype_thu():
+	import os
+	goc = os.path.join(os.path.dirname(os.path.abspath(G.__file__)), "vagabond", "doctype")
+	cha = json.load(open(os.path.join(goc, "vagabond_gia_thu", "vagabond_gia_thu.json"), encoding="utf-8"))
+	con = json.load(open(os.path.join(goc, "vagabond_gia_thu_dong", "vagabond_gia_thu_dong.json"), encoding="utf-8"))
+	la("ten", (cha["name"], con["name"], con["istable"]), (G.DT_THU, "Vagabond Gia Thu Dong", 1))
+	ghi = {p["role"] for p in cha["permissions"] if p.get("write")}
+	xem = {p["role"] for p in cha["permissions"] if p.get("read")}
+	la("vai ghi", ghi, G.QUYEN_CHOT)
+	la("vai xem", xem, G.QUYEN_XEM)
+	truong = {f["fieldname"] for f in cha["fields"]}
+	dung("truong cha", {"ten_mon", "nhom", "so_ra", "dvt_ra", "gia_ban_du_kien", "ghi_chu", "dong", "gia_von", "gia_de_xuat"} <= truong)
+	la("truong con", [f["fieldname"] for f in con["fields"]], ["item_code", "ten", "so_luong", "dvt", "don_gia_tay"])
+	nhom = [f for f in cha["fields"] if f["fieldname"] == "nhom"][0]["options"].split("\n")
+	la("lua chon nhom trung NHOM_BAN", nhom, [""] + list(G.NHOM_BAN))
+	la("field_order khop fields", cha["field_order"], [f["fieldname"] for f in cha["fields"]])
