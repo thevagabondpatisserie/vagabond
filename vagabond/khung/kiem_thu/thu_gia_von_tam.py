@@ -7,6 +7,7 @@ chỉ 480/2.055 dòng có `bom_no`, nên phép cộng dồn PHẢI tự tra côn
 """
 
 from vagabond import gia_von_tam as G
+from vagabond.khung.kiem_thu import nen
 from vagabond.khung.kiem_thu.nen import ca, dung, la
 
 KHO = {
@@ -242,7 +243,7 @@ class _Dong(dict):
 	__getattr__ = dict.get
 
 
-def _frappe_gia(roles=("Accounts Manager",)):
+def _frappe_gia(roles=("Accounts Manager",), gia_ban=None, gia_nhap=None):
 	"""Frappe giả đủ cho _bang(): trả dữ liệu theo doctype và bộ lọc, ghi lại
 	mọi lần đọc để chốt "đọc theo lô, không hỏi từng mã"."""
 	import frappe
@@ -267,7 +268,9 @@ def _frappe_gia(roles=("Accounts Manager",)):
 			return [_Dong(name=n, item_name=n, stock_uom="Gram", valuation_rate=0) for n in f["name"][1]]
 		if dt == "Item Price":
 			if f.get("price_list") == "Standard Selling":
-				return [_Dong(item_code="BANH", price_list_rate=310000, uom="Cái")]
+				return list(gia_ban or [_Dong(item_code="BANH", price_list_rate=310000, uom="Cái")])
+			if f.get("price_list") == "Bảng giá nhập":
+				return list(gia_nhap or [])
 			return []
 		return list(du.get(dt, []))
 
@@ -317,3 +320,59 @@ def _quyen_chot():
 		la("chua doc gi", doc, [])
 	finally:
 		_tra(cu)
+
+
+@ca("gia von tam: Codex #483 v1: mon co nhieu dong gia ban (het han, gia rieng khach, tuong lai) chi lay dong dang ap dung (chan so sanh voi gia la)")
+def _gia_ap_dung_site():
+	hom = str(nen.HOM_NAY)
+	ban = [
+		_Dong(item_code="BANH", price_list_rate=310000, uom="Cái", valid_from="2026-08-01", valid_upto=None, customer=None, supplier=None, batch_no=None),
+		_Dong(item_code="BANH", price_list_rate=999000, uom="Cái", valid_from="2025-01-01", valid_upto="2025-12-31", customer=None, supplier=None, batch_no=None),
+		_Dong(item_code="BANH", price_list_rate=50000, uom="Cái", valid_from=None, valid_upto=None, customer="Khách sỉ A", supplier=None, batch_no=None),
+		_Dong(item_code="BANH", price_list_rate=777000, uom="Cái", valid_from="2099-01-01", valid_upto=None, customer=None, supplier=None, batch_no=None),
+	]
+	cu, doc = _frappe_gia(gia_ban=ban)
+	try:
+		bang, _t = G._bang()
+	finally:
+		_tra(cu)
+	banh = [d for d in bang["dong"] if d["ma"] == "BANH"][0]
+	la("gia ban dang ap dung hom " + hom, banh["gia_ban"], 310000.0)
+
+
+@ca("gia von tam: Codex #483 v1: chon gia ap dung: bo khach/NCC/lo, het han, tuong lai, sai don vi; uu tien dung don vi roi valid_from moi nhat")
+def _chon_gia_ap_dung():
+	C = G.chon_gia_ap_dung
+	d = lambda gia, **kw: dict({"price_list_rate": gia, "uom": "Cái", "valid_from": None, "valid_upto": None}, **kw)
+	la("rong", C([], "Cái", "2026-10-16"), None)
+	la("chi dong rieng khach, NCC, lo thi coi nhu khong co",
+		C([d(1, customer="K"), d(2, supplier="N"), d(3, batch_no="L")], "Cái", "2026-10-16"), None)
+	la("bo het han va tuong lai", C([d(1, valid_upto="2026-10-15"), d(2, valid_from="2026-10-17"), d(3)], "Cái", "2026-10-16"), 3.0)
+	la("ngay bien van ap dung", C([d(5, valid_from="2026-10-16", valid_upto="2026-10-16")], "Cái", "2026-10-16"), 5.0)
+	la("valid_from moi nhat thang", C([d(1, valid_from="2026-01-01"), d(2, valid_from="2026-09-01"), d(3)], "Cái", "2026-10-16"), 2.0)
+	la("sai don vi kho bi bo", C([d(9, uom="Hộp"), d(4)], "Cái", "2026-10-16"), 4.0)
+	la("dung don vi xep truoc dong khong ghi don vi", C([d(7, uom=None, valid_from="2026-10-01"), d(6, valid_from="2026-01-01")], "Cái", "2026-10-16"), 6.0)
+
+
+@ca("gia von tam: Codex #483 v1: bang gia nhap cung chi lay dong dang ap dung khi nguyen lieu khong co gia kho")
+def _gia_nhap_ap_dung():
+	nhap = [
+		_Dong(item_code="BOT", price_list_rate=99, uom="Gram", valid_from="2025-01-01", valid_upto="2025-12-31", customer=None, supplier=None, batch_no=None),
+		_Dong(item_code="BOT", price_list_rate=20, uom="Gram", valid_from="2026-08-01", valid_upto=None, customer=None, supplier=None, batch_no=None),
+		_Dong(item_code="BOT", price_list_rate=5, uom="Gram", valid_from=None, valid_upto=None, customer=None, supplier="NCC rẻ", batch_no=None),
+	]
+	cu, doc = _frappe_gia(gia_nhap=nhap)
+	import frappe
+	goc = frappe.get_all
+
+	def bo_ton(dt, **kw):
+		return [] if dt == "Bin" else goc(dt, **kw)
+	frappe.get_all = bo_ton
+	try:
+		bang, _t = G._bang()
+	finally:
+		_tra(cu)
+	banh = [d for d in bang["dong"] if d["ma"] == "BANH"][0]
+	# BOT 100 gram x 20 (bảng giá nhập đang áp dụng); BO và KEM không còn giá nên thiếu.
+	la("thieu dung BO", banh["thieu_so"], 1)
+	la("gia von chi tinh phan BOT", banh["gia_von"], 2000)
