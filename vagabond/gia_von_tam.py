@@ -66,6 +66,10 @@ NGUON_ITEM = "Giá khai trên mặt hàng"
 NGUON_NHAP = "Bảng giá nhập"
 NGUON_THIEU = "Thiếu giá"
 NGUON_CONG_THUC = "Công thức"
+# Codex #486 v2: mã có từ hai công thức đang chạy mà chưa chọn mặc định thì
+# phiếu thử KHÔNG lấy giá kho thay, coi là thiếu để nhập giá tay hoặc chọn
+# công thức mặc định trên Desk (giống màn món đang bán).
+NGUON_NHIEU_CT = "Nhiều công thức, chưa chọn mặc định"
 
 # Thứ tự bày trong nhóm: món cần xử lên trước.
 THU_TU_TRANG_THAI = (
@@ -505,6 +509,38 @@ def chuan_phieu(vao, nhom_hop_le=NHOM_BAN):
 		"ghi_chu": str(vao.get("ghi_chu") or "").strip(), "dong": dong}
 
 
+def noi_dung_phieu(d):
+	"""Phần nội dung của một phiếu thử để so trước và sau khi lưu. THUẦN.
+	`d` là dict hoặc Document; dòng là list dict hoặc dòng con."""
+	g = (lambda o, k: o.get(k))
+	return {
+		"ten_mon": str(g(d, "ten_mon") or ""), "nhom": str(g(d, "nhom") or ""),
+		"so_ra": flt(g(d, "so_ra")), "dvt_ra": str(g(d, "dvt_ra") or ""),
+		"gia_ban_du_kien": flt(g(d, "gia_ban_du_kien")), "ghi_chu": str(g(d, "ghi_chu") or ""),
+		"dong": [[g(r, "item_code") or None, str(g(r, "ten") or ""), str(g(r, "dvt") or ""),
+			flt(g(r, "so_luong")), flt(g(r, "don_gia_tay"))] for r in (g(d, "dong") or [])],
+	}
+
+
+def quyet_luu_phieu(truoc, nay):
+	"""Lưu phiếu thử thì làm gì. THUẦN. Codex #486 v2.
+
+	`truoc`: None nếu phiếu mới, không thì {"da_bo", "noi_dung"} lúc đọc ra;
+	`nay`: {"da_bo", "noi_dung"} sắp lưu. Trả "tinh" (tính lại ảnh chụp giá)
+	hoặc "giu" (đang bỏ phiếu: giữ nguyên giá đã chụp để tra lại). Phiếu đã
+	bỏ thì không sửa được nữa, kể cả từ Desk; bỏ phiếu không được kèm sửa
+	nội dung. Sai thì ném ValueError bằng câu tiếng Việt."""
+	if truoc and int(truoc.get("da_bo") or 0):
+		raise ValueError("Phiếu này đã bỏ, không sửa được nữa. Bấm Phiếu tính giá thử mới để lập lại.")
+	if int(nay.get("da_bo") or 0):
+		if truoc is None:
+			raise ValueError("Không lập phiếu mới ở trạng thái đã bỏ.")
+		if truoc.get("noi_dung") != nay.get("noi_dung"):
+			raise ValueError("Bỏ phiếu không kèm sửa nội dung. Lưu phần sửa trước, hoặc tải lại phiếu rồi mới bỏ.")
+		return "giu"
+	return "tinh"
+
+
 def chuan_trang(tu_khoa, bat_dau):
 	"""Tham số trang danh sách phiếu thử. THUẦN.
 
@@ -741,11 +777,13 @@ def chot():
 
 def _bo_gia_ma(cac_ma):
 	"""Một lượt đọc -> hàm gia_ma(ma) cho tinh_phieu, kèm tên và đơn vị kho."""
-	thanh_phan, ma_bom, gia_la_cua, ket, _ten, _mo = _doc(them_ma=cac_ma)
+	thanh_phan, ma_bom, gia_la_cua, ket, _ten, mo_ho = _doc(them_ma=cac_ma)
 	mat_hang = {i.name: i for i in _theo_lo("Item", "name", [m for m in cac_ma if m], ["name", "item_name", "stock_uom"])}
 
 	def gia_ma(ma):
 		bom = ma_bom.get(ma)
+		if not bom and ma in mo_ho:
+			return {"gia": 0.0, "nguon": NGUON_NHIEU_CT, "thieu": 1, "vong": False}
 		if bom and bom in ket:
 			k = ket[bom]
 			return {"gia": flt(k["gia"]), "nguon": NGUON_CONG_THUC, "thieu": len(k["thieu"]), "vong": k["vong"]}
@@ -819,6 +857,20 @@ def tinh_thu(phieu):
 	return _tinh_cac_phieu([p])[0][0]
 
 
+def kiem_khi_luu(d):
+	"""Gọi từ validate() của Vagabond Gia Thu: chặn sửa phiếu đã bỏ, bỏ
+	phiếu thì giữ nguyên ảnh chụp, còn lại tính lại (tinh_lai_doc)."""
+	cu = None if d.is_new() else d.get_doc_before_save()
+	truoc = None if cu is None else {"da_bo": cu.get("da_bo"), "noi_dung": noi_dung_phieu(cu)}
+	try:
+		viec = quyet_luu_phieu(truoc, {"da_bo": d.get("da_bo"), "noi_dung": noi_dung_phieu(d)})
+	except ValueError as e:
+		frappe.throw(str(e))
+	if viec == "tinh":
+		return tinh_lai_doc(d)
+	return None
+
+
 def tinh_lai_doc(d):
 	"""MỘT nguồn tính cho phiếu thử khi lưu, gọi từ validate() của doctype.
 
@@ -858,8 +910,6 @@ def luu_thu(phieu):
 		if not frappe.db.exists(DT_THU, p["name"]):
 			frappe.throw("Không tìm thấy phiếu %s." % p["name"])
 		d = frappe.get_doc(DT_THU, p["name"])
-		if d.get("da_bo"):
-			frappe.throw("Phiếu %s đã bỏ, không sửa được nữa. Bấm Phiếu tính giá thử mới để lập lại." % p["name"])
 		d.set("dong", [])
 	else:
 		d = frappe.new_doc(DT_THU)
@@ -878,7 +928,8 @@ def luu_thu(phieu):
 @frappe.whitelist(methods=["POST"])
 def bo_thu(name):
 	"""Bỏ một phiếu thử: ẩn khỏi danh sách, KHÔNG xoá (QT-20, Codex #486 P1).
-	Giữ nguyên dòng nguyên liệu và giá lúc lưu để tra lại, ghi ai bỏ lúc nào."""
+	Giữ nguyên dòng nguyên liệu và giá lúc lưu để tra lại, ghi ai bỏ lúc nào.
+	validate() thấy đang bỏ nên không tính lại giá (Codex #486 v2)."""
 	_kiem(QUYEN_CHOT, "bỏ phiếu tính giá thử")
 	if not frappe.db.exists(DT_THU, name):
 		frappe.throw("Không tìm thấy phiếu %s." % name)
