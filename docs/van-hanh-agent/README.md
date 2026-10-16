@@ -55,6 +55,8 @@ kiểm và đẩy lên nhánh PR mà không chờ anh Việt chuyển việc l�
 
 - [Phát hành gom v594](cong-viec/phat-hanh-594.md)
 
+- [Issue470: web Vue, GĐ2 đang làm](cong-viec/issue-470.md)
+
 - [Đối chiếu công nợ 30/09: phương án chờ review](cong-viec/doi-chieu-cong-no-20260930.md)
 - [PR389: mã kế toán và liên kết sổ HĐĐT](cong-viec/pr-389.md)
 
