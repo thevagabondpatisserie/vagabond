@@ -37,6 +37,12 @@ def _lien_ket_an_toan(u):
 	return ""
 
 
+# Một nguồn cho nút liên hệ trên biên nhận (trang cũ và Vue, Codex #484):
+# (khoá liên hệ, khoá nhãn Editor, chữ mặc định).
+NUT_LIEN_HE_BIEN_NHAN = (("zalo", "bien_nhan_ed312c8e3", "Nhắn Zalo"),
+	("messenger", "bien_nhan_edbd31524", "Nhắn Messenger"))
+
+
 def chan_trang_html(phap_nhan, lien_he, chinh_sach):
 	"""Chân trang pháp nhân dùng chung. `chinh_sach` là danh sách trang ĐANG HIỆN."""
 	pn = phap_nhan or {}
@@ -94,12 +100,10 @@ def bien_nhan_html(tt, lien_he):
 			('<span class="tien">%s</span>' % _e(m["thanh_tien"])) if m.get("thanh_tien") else "")
 		for m in tt.get("mon") or [])
 	nut = []
-	zalo = _lien_ket_an_toan(lh.get("zalo"))
-	if zalo:
-		nut.append('<a class="nut" href="%s" target="_blank" rel="noopener"><span data-vgb-chu="bien_nhan_ed312c8e3">Nhắn Zalo</span></a>' % _e(zalo))
-	mess = _lien_ket_an_toan(lh.get("messenger"))
-	if mess:
-		nut.append('<a class="nut" href="%s" target="_blank" rel="noopener"><span data-vgb-chu="bien_nhan_edbd31524">Nhắn Messenger</span></a>' % _e(mess))
+	for kenh, khoa, mac_dinh in NUT_LIEN_HE_BIEN_NHAN:
+		u = _lien_ket_an_toan(lh.get(kenh))
+		if u:
+			nut.append('<a class="nut" href="%s" target="_blank" rel="noopener"><span data-vgb-chu="%s">%s</span></a>' % (_e(u), khoa, mac_dinh))
 	if lh.get("dien_thoai_so"):
 		nut.append('<a class="nut phu" href="tel:%s">Gọi %s</a>' % (_e(lh["dien_thoai_so"]), _e(lh.get("dien_thoai"))))
 	lop = "bn-trang-thai cho" if tt.get("dang_xac_nhan") else ("bn-trang-thai huy" if tt.get("da_huy") else "bn-trang-thai")

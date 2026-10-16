@@ -1,4 +1,5 @@
 """Dữ liệu trang Vue dùng nguyên cửa công khai hiện có, không đọc bản nháp."""
+import re
 from html.parser import HTMLParser
 from vagabond import noi_dung_web, trang_khach
 
@@ -37,6 +38,25 @@ class CayChinhSach(HTMLParser):
 
     def handle_data(self, data):
         self.ngan[-1].append(data)
+
+
+def chinh_sach_vue(ds):
+    """THUẦN (Codex #484): chính sách ở chân trang Vue giữ trong /web_moi, không
+    nhảy sang trang cũ. Cùng luật lọc với trang đặt bánh Vue: chỉ /chu-thuong."""
+    return [dict(c, duong='/web_moi' + c['duong']) for c in ds or []
+            if re.fullmatch(r'/[a-z-]+', str(c.get('duong') or ''))]
+
+
+def nut_lien_he_bien_nhan(lh, nhan):
+    """THUẦN (Codex #484): nút Zalo, Messenger của biên nhận Vue lấy chữ từ sổ
+    nhãn đã xuất bản (Marketing sửa trong Editor), trống thì chữ mặc định."""
+    ra = []
+    for kenh, khoa, mac_dinh in trang_khach.NUT_LIEN_HE_BIEN_NHAN:
+        u = trang_khach._lien_ket_an_toan((lh or {}).get(kenh))
+        if u:
+            chu = (nhan or {}).get(khoa)
+            ra.append({'href': u, 'khoa': khoa, 'ten': chu.strip() if isinstance(chu, str) and chu.strip() else mac_dinh})
+    return ra
 
 
 def cay_chinh_sach(html):
