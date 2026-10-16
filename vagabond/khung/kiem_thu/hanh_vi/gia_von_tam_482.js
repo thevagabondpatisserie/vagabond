@@ -60,7 +60,7 @@ function tinhThat(them) {
     'ma_bom = {"BAWC00067": "B1", "BAEN00073": "B2", "BANU00060": "B3", "BANU00099": "B4", "BACF00001": "B5"}',
     'gia_ban = {"BAWC00067": 880000, "BAEN00073": 160000, "BANU00060": 65000, "BANU00099": 45000, "BACF00001": 190000}',
     'ten = {"BTPB00153": "BTP Brown Butter", "BTPB00156": "BTP Nước ép dứa", "BTPB00154": "BTP Thịt bí"}',
-    'ty_le = {"Bánh ổ sinh nhật": 25}',
+    'he_so = {"Bánh ổ sinh nhật": 4}',
     'mo_ho = {}',
     'if sys.argv[2] == "1":',
     '  ban.append({"ma": "BAVO00001", "ten": "Bánh Công Thức Vòng", "nhom": "Bánh nướng", "dvt": "Cái"})',
@@ -68,14 +68,45 @@ function tinhThat(them) {
     '  ma_bom["BAVO00001"] = "B6"',
     '  ban.append({"ma": "BAHAI0001", "ten": "Bánh Hai Công Thức", "nhom": "Bánh lạnh", "dvt": "Cái"})',
     '  mo_ho["BAHAI0001"] = ["BOM-BAHAI0001-001", "BOM-BAHAI0001-002"]',
-    'b = G.dung_bang(ban, ma_bom, ket, gia_ban, {"BAWC00067": ("2026-10-12", 245000)}, ty_le, ten, mo_ho)',
-    'b.update({"ty_le": ty_le, "cap_nhat_luc": "09:15", "sua_duoc": True, "ngay": "2026-10-16"})',
+    'b = G.dung_bang(ban, ma_bom, ket, gia_ban, {"BAWC00067": ("2026-10-12", 245000)}, he_so, ten, mo_ho)',
+    'b.update({"he_so": he_so, "cap_nhat_luc": "09:15", "sua_duoc": True, "ngay": "2026-10-16"})',
     'sys.stdout.write(json.dumps(b, ensure_ascii=False, default=str))',
   ].join('\n');
   return JSON.parse(cp.execFileSync('python3', ['-c', py, GOC, them ? '1' : '0'], { encoding: 'utf8' }));
 }
 var TINH = tinhThat();
 var TINH_VONG = tinhThat(true);  /* Codex #483 vong 3: co mon vong va mon hai cong thuc */
+
+/* v600 phiếu thử: kết quả do CHÍNH gia_von_tam.chuan_phieu + tinh_phieu tính,
+   với bảng giá mã cố định, để đổi hình dạng dữ liệu bên máy chủ là ca thấy. */
+var GIA_MA_PY = 'GM = {"NVLT00001": {"gia": 30.0, "nguon": "Giá kho", "thieu": 0, "vong": False},' +
+  ' "NBTP00006": {"gia": 400.0, "nguon": "Công thức", "thieu": 0, "vong": False},' +
+  ' "NVLT00099": {"gia": 0.0, "nguon": "Thiếu giá", "thieu": 1, "vong": False}}';
+function tinhPhieuPy(cacPhieu) {
+  var py = [
+    'import json, sys',
+    'sys.path.insert(0, sys.argv[1])',
+    'from vagabond.khung.kiem_thu import nen',
+    'nen.gia_lap()',
+    'from vagabond import gia_von_tam as G',
+    GIA_MA_PY,
+    'ra = []',
+    'for p in json.loads(sys.argv[2]):',
+    '  c = G.chuan_phieu(p)',
+    '  r = dict(c, **G.tinh_phieu(c, lambda m: GM[m], {"Bánh lạnh": 5}))',
+    '  r.update(name=p.get("name"), cap_nhat="2026-10-16 22:00")',
+    '  ra.append(r)',
+    'sys.stdout.write(json.dumps(ra, ensure_ascii=False, default=str))',
+  ].join('\n');
+  return JSON.parse(cp.execFileSync('python3', ['-c', py, GOC, JSON.stringify(cacPhieu)], { encoding: 'utf8' }));
+}
+var DS_THU = tinhPhieuPy([
+  { name: 'GT-2610-001', ten_mon: 'Tart chanh dây', nhom: 'Bánh lạnh', so_ra: 4, gia_ban_du_kien: 30000, dong: [
+    { item_code: 'NVLT00001', ten: 'Bột mì', dvt: 'Gram', so_luong: 1000 },
+    { item_code: 'NBTP00006', ten: 'BTP kem', dvt: 'Gram', so_luong: 50 },
+    { ten: 'Chanh dây Đà Lạt', dvt: 'Gram', so_luong: 200, don_gia_tay: 50 }] }
+]);
+var NHOM_BAN = [{ ten: 'Bánh ổ sinh nhật', nhan: 'Bánh ổ' }, { ten: 'Bánh lạnh', nhan: 'Bánh lạnh' }, { ten: 'Bánh nướng', nhan: 'Bánh nướng' }];
 var CHI_TIET = {
   '': { ma: 'BAWC00067', ten: 'Bánh Ổ Roman De La Rose, size 16cm', bom: 'B1', so_ra: 1, gia: 250959, dong: [
     { ma: 'NBTP00006', ten: 'BTP Cấp 2 Bánh Ổ Roman size 16', sl: 1, dvt: 'Cái', don_gia: 198466, nguon: 'Công thức', thanh_tien: 198466, bom_con: 'BOM-NBTP00006-001', thieu: 0 },
@@ -108,13 +139,30 @@ function dungMan(tuyChon) {
         return Promise.resolve(d);
       }
       if (duong === 'vagabond.gia_von_tam.chi_tiet') return Promise.resolve(JSON.parse(JSON.stringify(CHI_TIET[ts.bom || ''])));
-      if (duong === 'vagabond.gia_von_tam.luu_ty_le') return Promise.resolve({ ty_le: {} });
+      if (duong === 'vagabond.gia_von_tam.luu_he_so') return Promise.resolve({ he_so: {} });
+      if (duong === 'vagabond.gia_von_tam.ds_thu') {
+        return Promise.resolve({ ds: tuyChon.khongPhieu ? [] : JSON.parse(JSON.stringify(DS_THU)), he_so: { 'Bánh lạnh': 5 },
+          nhom_ban: NHOM_BAN, sua_duoc: !tuyChon.khongSua });
+      }
+      if (duong === 'vagabond.gia_von_tam.tinh_thu') return Promise.resolve(tinhPhieuPy([JSON.parse(ts.phieu)])[0]);
+      if (duong === 'vagabond.gia_von_tam.luu_thu') return Promise.resolve(Object.assign(tinhPhieuPy([JSON.parse(ts.phieu)])[0], { name: 'GT-2610-002' }));
+      if (duong === 'vagabond.gia_von_tam.xoa_thu') return Promise.resolve({ ok: 1 });
+      if (duong === 'vagabond.gia_von_tam.tim_nl') {
+        return Promise.resolve([{ ma: 'NVLT00001', ten: 'Bột mì', dvt: 'Gram', nhom: 'Nguyên liệu' },
+          { ma: 'NVLT00099', ten: 'Bột hạnh nhân', dvt: 'Gram', nhom: 'Nguyên liệu' }]);
+      }
       if (duong === 'vagabond.gia_von_tam.chot') return Promise.resolve({ da_luu: 4, bo_qua: { 'Thiếu giá nguyên liệu': 1 } });
       return Promise.reject(new Error('api la: ' + duong));
     },
     confirmSheet: function (t, m) { hoi.push(m); return Promise.resolve(tuyChon.tuChoi ? false : true); },
     toast: function (m) { toastDs.push(m); },
     busy: function () {},
+    clearTimeout: clearTimeout,
+    /* Chồng màn tối giản như 01-khung-app.js: go đẩy và vẽ, back gỡ và vẽ lại. */
+    S: { stack: [], chuaLuu: '', chuaLuuNac: null },
+    go: function (fn) { that.S.stack.push(fn); return fn(); },
+    back: function () { that.S.stack.pop(); var f = that.S.stack[that.S.stack.length - 1]; return f && f(); },
+    vgbBoChuaLuu: function () { that.S.chuaLuu = ''; that.S.chuaLuuNac = null; },
     baoTin: function (m) { bao.push(m); },
   };
   that.window = that;
@@ -130,6 +178,8 @@ function bang(mo, a, b) {
   if (x !== y) throw new Error(mo + ': duoc ' + x + ', mong ' + y);
 }
 function tick() { return new Promise(function (r) { setTimeout(r, 5); }); }
+function cho(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+function go(m, el, v) { el.value = v; el.dispatchEvent(dg.suKien('input', {}, el)); }
 async function ca(ten, ham) {
   try { await ham(); ket.dat++; console.log('  DAT   ' + ten); }
   catch (e) { ket.hong++; console.log('  HONG  ' + ten + '\n        ' + e.message); }
@@ -145,6 +195,7 @@ function the(m) { return tim(m, '[data-gvtm]').map(function (e) { return e.getAt
 function goiTen(m) { return m.goi.map(function (x) { return x.duong; }); }
 async function moMan(tuyChon) {
   var m = dungMan(tuyChon);
+  m.g.S.stack.push(m.g.scrGiaVonTam);
   await m.g.scrGiaVonTam();
   await tick();
   return m;
@@ -161,12 +212,13 @@ function sheetCuoi(m) { var ds = m.tai.body.children; return ds[ds.length - 1]; 
     bang('năm thẻ theo thứ tự máy chủ', the(m), ['BAWC00067', 'BAEN00073', 'BANU00060', 'BANU00099', 'BACF00001']);
     var shio = tim(m, '[data-gvtm="BANU00060"]')[0];
     dung('Shiopan có cờ vượt giá bán', chu(shio).indexOf('Giá vốn vượt giá bán') >= 0);
-    dung('Shiopan chip tỷ lệ 583,4%', chu(shio).indexOf('583,4%') >= 0);
+    /* Đọc HTML vì DOM giả gom chữ của nút cha trước chữ của thẻ con <b>. */
+    dung('Shiopan hệ số kèm % giá vốn', m.khung.innerHTML.indexOf('· <b>x0,2</b> (583,4%)') >= 0);
     var roman = tim(m, '[data-gvtm="BAWC00067"]')[0];
-    dung('Roman giá vốn và giá bán', chu(roman).indexOf('Giá vốn 250.959đ · Giá bán 880.000đ') >= 0);
-    dung('Roman đề xuất làm tròn lên', chu(roman).indexOf('Đề xuất 1.004.000đ (mục tiêu 25%)') >= 0);
+    dung('Roman giá vốn, giá bán, hệ số x3,5 kèm 28,5%', m.khung.innerHTML.indexOf('Giá vốn 250.959đ · Giá bán 880.000đ · <b>x3,5</b> (28,5%)') >= 0);
+    dung('Roman đề xuất làm tròn lên', chu(roman).indexOf('Đề xuất 1.004.000đ (mục tiêu x4)') >= 0);
     dung('Roman lần chốt trước', chu(roman).indexOf('Lần chốt 12/10: 245.000đ (+2,4%)') >= 0);
-    dung('món chưa đặt mục tiêu nói rõ', chu(tim(m, '[data-gvtm="BAEN00073"]')[0]).indexOf('Chưa đặt tỷ lệ mục tiêu') >= 0);
+    dung('món chưa đặt mục tiêu nói rõ', chu(tim(m, '[data-gvtm="BAEN00073"]')[0]).indexOf('Chưa đặt hệ số mục tiêu') >= 0);
     dung('có nút Chốt', !!m.tai.getElementById('gvtChot'));
     dung('món chưa công thức không thành thẻ', the(m).indexOf('BAEN00051') < 0);
   });
@@ -175,8 +227,8 @@ function sheetCuoi(m) { var ds = m.tai.body.children; return ds[ds.length - 1]; 
      của tỷ lệ (AGENTS 2b điều 3). Trước khi sửa, thẻ thiếu giá không có chip. */
   await ca('mỗi thẻ có đúng một chip trạng thái có chữ và đúng màu', async function () {
     var m = await moMan();
-    var mong = { BAWC00067: ['cao_hon_muc_tieu', 'Cao hơn mục tiêu'], BAEN00073: ['chua_dat_ty_le', 'Chưa đặt mục tiêu'],
-      BANU00060: ['vuot_gia_ban', 'Vượt giá bán'], BANU00099: ['thieu_gia', 'Thiếu giá NVL'], BACF00001: ['chua_dat_ty_le', 'Chưa đặt mục tiêu'] };
+    var mong = { BAWC00067: ['duoi_muc_tieu', 'Dưới mục tiêu'], BAEN00073: ['chua_dat_muc_tieu', 'Chưa đặt mục tiêu'],
+      BANU00060: ['vuot_gia_ban', 'Vượt giá bán'], BANU00099: ['thieu_gia', 'Thiếu giá NVL'], BACF00001: ['chua_dat_muc_tieu', 'Chưa đặt mục tiêu'] };
     Object.keys(mong).forEach(function (ma) {
       var the1 = tim(m, '[data-gvtm="' + ma + '"]')[0];
       var chip = the1.querySelectorAll('[data-gvttt]');
@@ -201,7 +253,7 @@ function sheetCuoi(m) { var ds = m.tai.body.children; return ds[ds.length - 1]; 
     var chipN = tim(m, '[data-gvtn]').map(function (e) { return chu(e); });
     bang('chip nhóm', chipN, ['Tất cả 5', 'Bánh ổ 1', 'Bánh lạnh 1', 'Bánh nướng 2', 'Bánh khô 1']);
     var chipT = tim(m, '[data-gvtt]').map(function (e) { return chu(e); });
-    bang('chip trạng thái chỉ hiện chip có số', chipT, ['Vượt giá bán 1', 'Thiếu giá NVL 1', 'Cao hơn mục tiêu 1']);
+    bang('chip trạng thái chỉ hiện chip có số', chipT, ['Vượt giá bán 1', 'Thiếu giá NVL 1', 'Dưới mục tiêu 1']);
     bam(m, tim(m, '[data-gvtn="Bánh nướng"]')[0]);
     bang('lọc nhóm', the(m), ['BANU00060', 'BANU00099']);
     bam(m, tim(m, '[data-gvtn=""]')[0]);
@@ -247,24 +299,27 @@ function sheetCuoi(m) { var ds = m.tai.body.children; return ds[ds.length - 1]; 
     dung('câu quyền', chu(q.khung).indexOf('Tài khoản của bạn không có quyền xem giá vốn tạm tính.') >= 0);
   });
 
-  await ca('sheet tỷ lệ: ô ngoài 1..95 bị chặn tại chỗ không gửi; lưu gửi đúng dict rồi tải lại', async function () {
+  await ca('v600 sheet hệ số: ô không lớn hơn 1 hoặc quá 20 bị chặn tại chỗ không gửi; gõ là hiện % giá vốn; lưu gửi đúng dict rồi tải lại', async function () {
     var m = await moMan();
-    bam(m, tim(m, '[data-gvttyle]')[0]);
+    bam(m, tim(m, '[data-gvthso]')[0]);
     var ov = sheetCuoi(m);
-    var o = function (n) { return ov.querySelector('[data-gvtpct="' + n + '"]'); };
-    dung('có ô cho nhóm Bánh ổ, đã điền 25', o('Bánh ổ sinh nhật') && o('Bánh ổ sinh nhật').value === '25');
-    dung('gợi ý trung vị', chu(ov).indexOf('Hiện trung vị') >= 0);
-    o('Bánh lạnh').value = '0';
+    var o = function (n) { return ov.querySelector('[data-gvthsn="' + n + '"]'); };
+    dung('có ô cho nhóm Bánh ổ, đã điền 4', o('Bánh ổ sinh nhật') && o('Bánh ổ sinh nhật').value === '4');
+    dung('gợi ý trung vị theo hệ số', chu(ov).indexOf('Hiện trung vị x') >= 0);
+    dung('quy đổi sẵn cho ô đã có', chu(ov.querySelector('[data-gvtqd="Bánh ổ sinh nhật"]')) === 'tức giá vốn 25% giá bán');
+    go(m, o('Bánh lạnh'), '5');
+    bang('gõ là đổi', chu(ov.querySelector('[data-gvtqd="Bánh lạnh"]')), 'tức giá vốn 20% giá bán');
+    o('Bánh lạnh').value = '1';
     await ov.onclick({ target: ov.querySelector('[data-gvtluu]') });
-    bang('chưa gửi', goiTen(m).filter(function (x) { return x.indexOf('luu_ty_le') >= 0; }).length, 0);
-    dung('báo sai tại chỗ', chu(ov.querySelector('[data-gvtsai="Bánh lạnh"]')).indexOf('Nhập số từ 1 tới 95.') >= 0);
-    o('Bánh lạnh').value = '15,5';
+    bang('chưa gửi', goiTen(m).filter(function (x) { return x.indexOf('luu_he_so') >= 0; }).length, 0);
+    dung('báo sai tại chỗ', chu(ov.querySelector('[data-gvtsai="Bánh lạnh"]')).indexOf('Nhập số lớn hơn 1, tối đa 20.') >= 0);
+    o('Bánh lạnh').value = '5,5';
     o('Bánh ổ sinh nhật').value = '';
     await ov.onclick({ target: ov.querySelector('[data-gvtluu]') });
     await tick();
-    var g = m.goi.filter(function (x) { return x.duong === 'vagabond.gia_von_tam.luu_ty_le'; });
+    var g = m.goi.filter(function (x) { return x.duong === 'vagabond.gia_von_tam.luu_he_so'; });
     bang('gửi một lần', g.length, 1);
-    bang('đúng dict', JSON.parse(g[0].ts.ty_le), { 'Bánh ổ sinh nhật': '', 'Bánh lạnh': 15.5, 'Bánh nướng': '', 'Bánh khô': '' });
+    bang('đúng dict', JSON.parse(g[0].ts.he_so), { 'Bánh ổ sinh nhật': '', 'Bánh lạnh': 5.5, 'Bánh nướng': '', 'Bánh khô': '' });
     bang('tải lại sau khi lưu', goiTen(m).slice(-1), ['vagabond.gia_von_tam.tinh']);
   });
 
@@ -280,10 +335,10 @@ function sheetCuoi(m) { var ds = m.tai.body.children; return ds[ds.length - 1]; 
     bang('huỷ thì không chot', goiTen(h2).indexOf('vagabond.gia_von_tam.chot'), -1);
   });
 
-  await ca('không có quyền chốt: không thấy nút Chốt, không thấy nút Tỷ lệ mục tiêu', async function () {
+  await ca('không có quyền chốt: không thấy nút Chốt, không thấy nút Hệ số mục tiêu', async function () {
     var m = await moMan({ khongSua: true });
     dung('không nút chốt', !m.tai.getElementById('gvtChot'));
-    bang('không nút tỷ lệ', tim(m, '[data-gvttyle]').length, 0);
+    bang('không nút hệ số', tim(m, '[data-gvthso]').length, 0);
   });
 
   await ca('bấm thẻ mới gọi chi_tiet; dòng bán thành phẩm mở xuống tầng con, Quay lại về tầng trên', async function () {
@@ -326,6 +381,120 @@ function sheetCuoi(m) { var ds = m.tai.body.children; return ds[ds.length - 1]; 
     dung('nói số và lý do', c.indexOf('1 món có nhiều công thức nhưng chưa chọn công thức mặc định') >= 0);
     dung('nói tên món', c.indexOf('Bánh Hai Công Thức') >= 0);
     dung('nói cách sửa', c.indexOf('tích Mặc định') >= 0);
+  });
+
+  /* ---------------- v600 tab Món thử (R&D) ---------------- */
+
+  async function moThu(tuyChon) {
+    var m = await moMan(tuyChon);
+    bam(m, tim(m, '[data-gvttab="thu"]')[0]);
+    await tick();
+    return m;
+  }
+  function o(m, chon) { return m.khung.querySelector(chon) || m.tai.querySelector(chon); }
+
+  await ca('v600 tab Món thử: bấm tab mới gọi ds_thu một lần, không tính lại tab bán; quay lại tab bán không gọi tinh lần hai', async function () {
+    var m = await moThu();
+    bang('gọi', goiTen(m), ['vagabond.gia_von_tam.tinh', 'vagabond.gia_von_tam.ds_thu']);
+    var t = chu(tim(m, '[data-gvtp="GT-2610-001"]')[0]);
+    // Bột 1000 x 30 + kem 50 x 400 + chanh dây 200 x 50 = 60.000, mẻ ra 4.
+    dung('giá vốn mỗi cái: ' + t, t.indexOf('Giá vốn 15.000đ/Cái · mẻ ra 4 Cái · Bánh lạnh') >= 0);
+    dung('đề xuất theo hệ số nhóm', t.indexOf('Đề xuất 75.000đ (mục tiêu x5)') >= 0);
+    dung('giá bán dự kiến kèm hệ số', m.khung.innerHTML.indexOf('Giá bán dự kiến 30.000đ · <b>x2</b> (50%)') >= 0);
+    dung('chip trạng thái', t.indexOf('Dưới mục tiêu') >= 0);
+    dung('có nút phiếu mới', !!m.tai.getElementById('gvtThuMoi'));
+    dung('không có nút Chốt ở tab thử', !m.tai.getElementById('gvtChot'));
+    bam(m, tim(m, '[data-gvttab="ban"]')[0]);
+    await tick();
+    bang('không gọi thêm', goiTen(m).length, 2);
+    bang('thẻ bán còn đủ', the(m).length, 5);
+  });
+
+  await ca('v600 phiếu mới: tìm thêm mã, nhập số lượng thì tính thử ở máy chủ; dòng chưa có số lượng không gửi; Lưu gửi đủ dòng rồi về danh sách', async function () {
+    var m = await moThu();
+    m.tai.getElementById('gvtThuMoi').onclick();
+    bang('tiêu đề màn nhập', m.g._t, 'Phiếu tính giá thử');
+    go(m, m.tai.getElementById('gvtpTen'), 'Tart vani');
+    dung('đánh dấu chưa lưu', m.g.S.chuaLuu.indexOf('chưa bấm Lưu phiếu') >= 0);
+    bam(m, tim(m, '[data-gvtpn="Bánh lạnh"]')[0]);
+    await tick();
+    bam(m, tim(m, '[data-gvtpthem]')[0]);
+    var ov = sheetCuoi(m);
+    go(m, ov.querySelector('[data-gvtntim]'), 'b');
+    await cho(350);
+    bang('một chữ chưa tìm', goiTen(m).filter(function (x) { return x.indexOf('tim_nl') >= 0; }).length, 0);
+    go(m, ov.querySelector('[data-gvtntim]'), 'bột');
+    await cho(350);
+    bang('tìm một lần', m.goi.filter(function (x) { return x.duong === 'vagabond.gia_von_tam.tim_nl'; }).map(function (x) { return x.ts; }), [{ tu_khoa: 'bột' }]);
+    await ov.onclick({ target: ov.querySelector('[data-gvtnchon="0"]') });
+    var truoc = goiTen(m).filter(function (x) { return x.indexOf('tinh_thu') >= 0; }).length;
+    bam(m, tim(m, '[data-gvtpthem]')[0]);
+    var ov2 = sheetCuoi(m);
+    await ov2.onclick({ target: ov2.querySelector('[data-gvtnmoi]') });
+    dung('NVL mới thiếu tên báo tại chỗ', chu(ov2.querySelector('[data-gvtnsai]')) === 'Ghi cả tên và đơn vị.');
+    ov2.querySelector('[data-gvtnmoiten]').value = 'Vani Tahiti';
+    ov2.querySelector('[data-gvtnmoidvt]').value = 'Quả';
+    await ov2.onclick({ target: ov2.querySelector('[data-gvtnmoi]') });
+    bang('hai dòng', tim(m, '[data-gvtpd]').length, 2);
+    dung('dòng NVL mới ghi rõ chưa có mã và có ô giá tay', chu(tim(m, '[data-gvtpd="1"]')[0]).indexOf('chưa có mã') >= 0 && !!o(m, '[data-gvtpgia="1"]'));
+    dung('dòng có mã không có ô giá tay khi chưa thiếu giá', !o(m, '[data-gvtpgia="0"]'));
+    go(m, o(m, '[data-gvtpsl="0"]'), '500');
+    await cho(450);
+    var tt = m.goi.filter(function (x) { return x.duong === 'vagabond.gia_von_tam.tinh_thu'; });
+    dung('có tính thử', tt.length > truoc);
+    var gui = JSON.parse(tt[tt.length - 1].ts.phieu);
+    bang('chỉ gửi dòng có số lượng', gui.dong.map(function (d) { return [d.item_code, d.so_luong]; }), [['NVLT00001', 500]]);
+    dung('kết quả 500 x 30 = 15.000: ' + chu(o(m, '#gvtpKq')), chu(o(m, '#gvtpKq')).indexOf('Giá vốn 15.000đ/Cái') >= 0);
+    dung('đề xuất x5', chu(o(m, '#gvtpKq')).indexOf('Đề xuất 75.000đ (mục tiêu x5)') >= 0);
+    dung('dòng có nguồn giá', chu(o(m, '[data-gvtpgiadong="0"]')).indexOf('30đ/Gram (Giá kho)') >= 0);
+    go(m, o(m, '[data-gvtpsl="1"]'), '2');
+    go(m, o(m, '[data-gvtpgia="1"]'), '40000');
+    await cho(450);
+    dung('cộng dòng giá tay: ' + chu(o(m, '#gvtpKq')), chu(o(m, '#gvtpKq')).indexOf('Giá vốn 95.000đ/Cái') >= 0);
+    await m.tai.getElementById('gvtpLuu').onclick();
+    await tick();
+    var l = m.goi.filter(function (x) { return x.duong === 'vagabond.gia_von_tam.luu_thu'; });
+    bang('lưu một lần', l.length, 1);
+    var p = JSON.parse(l[0].ts.phieu);
+    bang('payload lưu', [p.name, p.ten_mon, p.nhom, p.dong.map(function (d) { return [d.item_code, d.ten, d.so_luong, d.don_gia_tay]; })],
+      [null, 'Tart vani', 'Bánh lạnh', [['NVLT00001', 'Bột mì', 500, 0], [null, 'Vani Tahiti', 2, 40000]]]);
+    bang('xoá cờ chưa lưu', m.g.S.chuaLuu, '');
+    dung('báo đã lưu', m.toast.indexOf('Đã lưu phiếu GT-2610-002') >= 0);
+    bang('về danh sách và tải lại', [m.g._t, goiTen(m).slice(-1)[0]], ['Giá vốn tạm tính', 'vagabond.gia_von_tam.ds_thu']);
+  });
+
+  await ca('v600 mở phiếu đã lưu: thấy kết quả ngay không gọi tính thử; bỏ dòng thì tính lại; Xoá phiếu hỏi trước, huỷ thì không xoá', async function () {
+    var m = await moThu();
+    bam(m, tim(m, '[data-gvtp="GT-2610-001"]')[0]);
+    bang('mở không gọi tính thử', goiTen(m).filter(function (x) { return x.indexOf('tinh_thu') >= 0; }).length, 0);
+    dung('dòng kem theo công thức', chu(o(m, '[data-gvtpgiadong="1"]')).indexOf('400đ/Gram (Công thức)') >= 0);
+    bam(m, tim(m, '[data-gvtpxoa="2"]')[0]);
+    await tick();
+    bang('còn hai dòng', tim(m, '[data-gvtpd]').length, 2);
+    dung('tính lại 50.000 / 4: ' + chu(o(m, '#gvtpKq')), chu(o(m, '#gvtpKq')).indexOf('Giá vốn 12.500đ/Cái') >= 0);
+    m.hoi.length = 0;
+    var m2 = await moThu({ tuChoi: true });
+    bam(m2, tim(m2, '[data-gvtp="GT-2610-001"]')[0]);
+    bam(m2, tim(m2, '[data-gvtpxoaphieu]')[0]);
+    await tick();
+    dung('hỏi trước khi xoá', m2.hoi[0].indexOf('Xoá phiếu tính giá thử "Tart chanh dây"?') === 0);
+    bang('huỷ thì không xoá', goiTen(m2).indexOf('vagabond.gia_von_tam.xoa_thu'), -1);
+    bam(m, tim(m, '[data-gvtpxoaphieu]')[0]);
+    await tick(); await tick();
+    bang('xác nhận thì xoá đúng phiếu', m.goi.filter(function (x) { return x.duong === 'vagabond.gia_von_tam.xoa_thu'; }).map(function (x) { return x.ts; }), [{ name: 'GT-2610-001' }]);
+  });
+
+  await ca('v600 không có quyền lập phiếu: không có nút Phiếu mới, mở phiếu thì không có Lưu, Thêm, Xoá', async function () {
+    var m = await moThu({ khongSua: true });
+    dung('không nút mới', !m.tai.getElementById('gvtThuMoi'));
+    bam(m, tim(m, '[data-gvtp="GT-2610-001"]')[0]);
+    dung('không Lưu', !m.tai.getElementById('gvtpLuu'));
+    bang('không Thêm, Xoá', [tim(m, '[data-gvtpthem]').length, tim(m, '[data-gvtpxoaphieu]').length], [0, 0]);
+  });
+
+  await ca('v600 chưa có phiếu nào: câu chỉ đường nói nút cần bấm', async function () {
+    var m = await moThu({ khongPhieu: true });
+    dung('câu rỗng', chu(m.khung).indexOf('Chưa có phiếu tính giá thử nào. Bấm Phiếu tính giá thử mới để bắt đầu.') >= 0);
   });
 
   console.log('\n' + ket.dat + ' ca dat, ' + ket.hong + ' ca hong.');
