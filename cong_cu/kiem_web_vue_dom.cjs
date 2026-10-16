@@ -170,7 +170,9 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
       tien_banh:'650.000 đ',giam:'- 50.000 đ',phi_giao:'42.000 đ',tong:'642.000 đ',trang_thai:'Đã nhận'};
     const doc={loai:'bien_nhan',bien_nhan:bn,pixel_id:'123',su_kien:{ban:true,event_id:'ev-capi-fixture',gia_tri:650000,ma_mon:['BAWC00139']}};
     await page.addInitScript(()=>{window.suKienThu=[];window.fbq=(...args)=>window.suKienThu.push({args,path:location.pathname});});
-    await page.route('**/web_moi/banh/xong**',r=>{
+    /* v598: dùng hàm so đường dẫn, không dùng glob '**' dính chữ: Playwright 1.55 (CI) không khớp
+       '/xong**' với '/xong/TOKEN' còn 1.56 thì khớp, ca xanh trên máy mà đỏ trên CI. */
+    await page.route(u=>new URL(String(u)).pathname.startsWith('/web_moi/banh/xong'),r=>{
       const d=r.request().url().endsWith('/TOKEN')?doc:{loai:'bien_nhan',khong_token:1};
       const html=fs.readFileSync(root+'/vagabond/www/web_moi/xong.html','utf8')
         .replace('{{ du_lieu }}',JSON.stringify(d)).replace('{{ csrf_token }}','fixture').replace('{{ chan_trang }}','');
