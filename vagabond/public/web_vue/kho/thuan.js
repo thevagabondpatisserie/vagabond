@@ -178,7 +178,7 @@ export function themVaoGio(gio, o) {
 }
 
 export function chuDungCu(o) {
-  return o && o.dung_cu && (o.dung_cu.nia || o.dung_cu.dia) ? `${o.dung_cu.nia * o.qty} nĩa gỗ, ${o.dung_cu.dia * o.qty} dĩa giấy` : '';
+  return o && o.dung_cu && (o.dung_cu.nia || o.dung_cu.dia) ? `${o.dung_cu.nia * o.qty} nĩa gỗ, ${o.dung_cu.dia * o.qty} dĩa bã mía` : '';
 }
 
 /* ---------------- Danh mục ---------------- */
