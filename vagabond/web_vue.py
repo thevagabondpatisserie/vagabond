@@ -56,7 +56,31 @@ def nut_lien_he_bien_nhan(lh, nhan):
         if u:
             chu = (nhan or {}).get(khoa)
             ra.append({'href': u, 'khoa': khoa, 'ten': chu.strip() if isinstance(chu, str) and chu.strip() else mac_dinh})
+    # Cùng nút "Gọi" như biên nhận trang cũ (trang cũ cũng không có khoá nhãn cho nút này).
+    so = str((lh or {}).get('dien_thoai_so') or '')
+    if so and re.fullmatch(r'\+?[0-9]{6,15}', so):
+        ra.append({'href': 'tel:' + so, 'khoa': '', 'ten': 'Gọi ' + str((lh or {}).get('dien_thoai') or so), 'lop': 'phu'})
     return ra
+
+
+def bang_bien_nhan():
+    """THUẦN (Codex #484): bảng câu nghiệp vụ -> nhãn cho biên nhận Vue, lấy từ
+    đúng một nguồn với biên nhận trang cũ."""
+    tien_to, khoa, mac_dinh = trang_khach.TIEN_TO_TU_LAY
+    return {'gia_tri': {k: list(v) for k, v in trang_khach.GIA_TRI_BIEN_NHAN.items()},
+            'tien_to': [tien_to, khoa, mac_dinh]}
+
+
+def doi_ngon_ngu_html(duong, ngon_ngu, co_en, nhan):
+    """THUẦN (Codex #484): link đổi ngôn ngữ trang chính sách Vue, chữ đọc từ nhãn
+    ngon_ngu_vn / ngon_ngu_en như trang chính sách cũ."""
+    nhan = nhan or {}
+    chu = lambda k, d: (nhan.get(k).strip() if isinstance(nhan.get(k), str) and nhan.get(k).strip() else d)
+    if ngon_ngu == 'en':
+        return '<a href="%s">%s</a>' % (trang_khach._e(duong), trang_khach._e(chu('ngon_ngu_vn', 'Tiếng Việt')))
+    if co_en:
+        return '<a href="%s?ngon_ngu=en">%s</a>' % (trang_khach._e(duong), trang_khach._e(chu('ngon_ngu_en', 'English')))
+    return ''
 
 
 def cay_chinh_sach(html):
