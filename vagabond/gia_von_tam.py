@@ -8,9 +8,14 @@ xuống công thức con khi dòng có `bom_no` (trên site 480/2.055 dòng có)
 không có phép nào tính ra giá bán. Anh chốt ba điểm:
 
 1. Chỉ tính nguyên liệu, cộng dồn qua từng lớp bán thành phẩm, theo giá kho.
-2. Giá bán đề xuất = giá vốn tạm / tỷ lệ giá vốn mục tiêu của nhóm món, làm
-   tròn LÊN tới nghìn.
+2. Giá bán đề xuất = giá vốn tạm NHÂN hệ số mục tiêu của nhóm món, làm tròn
+   LÊN tới nghìn. Anh Việt 16/10 tối: tiệm đọc theo "lãi số lần" (giá bán
+   gấp mấy lần giá vốn), nên mục tiêu và con số chính là hệ số, phần trăm
+   giá vốn chỉ hiện kèm.
 3. Chốt thì lưu vào bảng giá riêng "Giá vốn tạm tính", mỗi ngày một dòng.
+4. Món R&D chưa bán: Phiếu tính giá thử (doctype Vagabond Gia Thu) nhập
+   nguyên liệu tạm, tính bằng đúng phép cộng dồn của món đang bán. Không tạo
+   Item, không tạo BOM.
 
 Mô-đun này KHÔNG ghi vào BOM, Item, Bin, sổ kho, sổ cái hay bảng giá bán.
 Đường ghi duy nhất là Item Price của bảng "Giá vốn tạm tính" trong `chot()`.
@@ -30,7 +35,10 @@ from vagabond.vai_cua_hang import VAI_QLCT
 BANG_GIA = "Giá vốn tạm tính"
 BANG_GIA_NHAP = "Bảng giá nhập"   # cùng tên với bang_gia_nhap.TEN_BANG_GIA
 BANG_GIA_BAN_MAC_DINH = "Standard Selling"
-KHOA_TY_LE = "vgb_gia_von_tam_ty_le"
+KHOA_HE_SO = "vgb_gia_von_tam_he_so"
+DT_THU = "Vagabond Gia Thu"
+HE_SO_MIN, HE_SO_MAX = 1.0, 20.0   # hệ số phải > 1 (bán lỗ không phải mục tiêu) và <= 20
+NGUON_TAY = "Nhập tay"
 
 # Nhóm bánh bán ra, cùng danh sách với xuat_phuc_vu_ban.NGOAI_PHAM_VI (ca kiểm
 # chốt hai bên khớp). Thứ tự này là thứ tự bày trên màn.
@@ -60,8 +68,8 @@ NGUON_CONG_THUC = "Công thức"
 
 # Thứ tự bày trong nhóm: món cần xử lên trước.
 THU_TU_TRANG_THAI = (
-	"vuot_gia_ban", "vong", "thieu_gia", "cao_hon_muc_tieu",
-	"chua_gia_ban", "chua_dat_ty_le", "dat",
+	"vuot_gia_ban", "vong", "thieu_gia", "duoi_muc_tieu",
+	"chua_gia_ban", "chua_dat_muc_tieu", "dat",
 )
 TRANG_THAI_BO_QUA = {
 	"chua_cong_thuc": "Chưa có công thức",
@@ -255,32 +263,49 @@ def dong_chi_tiet(bom, thanh_phan, ma_bom, gia_la_cua, ket):
 	return ra
 
 
-def gia_de_xuat(gia_von, ty_le_pct):
-	"""Giá bán đề xuất = giá vốn / tỷ lệ, làm tròn LÊN tới nghìn. THUẦN.
-	None khi giá vốn <= 0 hoặc tỷ lệ ngoài (0, 95]."""
-	if flt(gia_von) <= 0:
+def _so(x):
+	"""Nhận số kiểu Việt ("5,5") hoặc số. None nếu không phải số. THUẦN."""
+	if x in (None, ""):
 		return None
 	try:
-		p = float(ty_le_pct)
-	except (TypeError, ValueError):
+		return float(str(x).replace(",", "."))
+	except ValueError:
 		return None
-	if not (0 < p <= 95):
+
+
+def he_so_hop_le(he_so):
+	h = _so(he_so)
+	return h is not None and HE_SO_MIN < h <= HE_SO_MAX
+
+
+def gia_de_xuat(gia_von, he_so):
+	"""Giá bán đề xuất = giá vốn x hệ số mục tiêu, làm tròn LÊN tới nghìn.
+	THUẦN. None khi giá vốn <= 0 hoặc hệ số ngoài (1, 20]."""
+	if flt(gia_von) <= 0 or not he_so_hop_le(he_so):
 		return None
-	# round(.., 6) để 250000 / 0.25 không thành 1000.0000000001 nghìn.
-	return int(math.ceil(round(flt(gia_von) / (p / 100.0) / 1000.0, 6))) * 1000
+	# round(.., 6) để 250000 x 4 không thành 1000.0000000001 nghìn.
+	return int(math.ceil(round(flt(gia_von) * _so(he_so) / 1000.0, 6))) * 1000
 
 
 def ty_le_hien(gia_von, gia_ban):
-	"""Giá vốn / giá bán, phần trăm một số lẻ. THUẦN."""
+	"""Giá vốn / giá bán, phần trăm một số lẻ (hiện kèm hệ số). THUẦN."""
 	if flt(gia_ban) <= 0 or flt(gia_von) <= 0:
 		return None
 	return round(flt(gia_von) * 100.0 / flt(gia_ban), 1)
 
 
-def trang_thai(co_cong_thuc, vong, so_thieu, gia_von, gia_ban, ty_le_muc_tieu):
+def he_so_hien(gia_von, gia_ban):
+	"""Giá bán gấp mấy lần giá vốn, một số lẻ ("lãi số lần"). THUẦN."""
+	if flt(gia_ban) <= 0 or flt(gia_von) <= 0:
+		return None
+	return round(flt(gia_ban) / flt(gia_von), 1)
+
+
+def trang_thai(co_cong_thuc, vong, so_thieu, gia_von, gia_ban, he_so_muc_tieu):
 	"""Một món đang ở đâu. THUẦN. Thứ tự ưu tiên: chua_cong_thuc, vong,
-	thieu_gia, vuot_gia_ban, chua_gia_ban, cao_hon_muc_tieu / dat,
-	chua_dat_ty_le."""
+	thieu_gia, vuot_gia_ban, chua_gia_ban, chua_dat_muc_tieu, duoi_muc_tieu
+	(giá bán chưa gấp đủ số lần mục tiêu) / dat. So bằng tỷ số thật, không so
+	số đã làm tròn để x4,96 không lọt thành "đạt" x5."""
 	if not co_cong_thuc:
 		return "chua_cong_thuc"
 	if vong:
@@ -291,18 +316,18 @@ def trang_thai(co_cong_thuc, vong, so_thieu, gia_von, gia_ban, ty_le_muc_tieu):
 		return "vuot_gia_ban"
 	if flt(gia_ban) <= 0:
 		return "chua_gia_ban"
-	if gia_de_xuat(1, ty_le_muc_tieu) is None:
-		return "chua_dat_ty_le"
-	if (ty_le_hien(gia_von, gia_ban) or 0) > float(ty_le_muc_tieu):
-		return "cao_hon_muc_tieu"
+	if not he_so_hop_le(he_so_muc_tieu):
+		return "chua_dat_muc_tieu"
+	if flt(gia_von) > 0 and flt(gia_ban) / flt(gia_von) < _so(he_so_muc_tieu):
+		return "duoi_muc_tieu"
 	return "dat"
 
 
-def chuan_ty_le(vao, nhom_hop_le=NHOM_BAN):
-	"""Làm sạch dict nhóm -> phần trăm khi Khải lưu. THUẦN.
+def chuan_he_so(vao, nhom_hop_le=NHOM_BAN):
+	"""Làm sạch dict nhóm -> hệ số khi Khải lưu. THUẦN.
 
-	Ô trống thì bỏ tỷ lệ của nhóm đó. Nhận "25" hoặc "25,5". Ngoài 1..95 hoặc
-	nhóm lạ thì ném ValueError bằng câu tiếng Việt."""
+	Ô trống thì bỏ mục tiêu của nhóm đó. Nhận "5" hoặc "5,5". Không lớn hơn 1,
+	quá 20 hoặc nhóm lạ thì ném ValueError bằng câu tiếng Việt."""
 	if isinstance(vao, str):
 		vao = json.loads(vao or "{}")
 	ra = {}
@@ -311,13 +336,12 @@ def chuan_ty_le(vao, nhom_hop_le=NHOM_BAN):
 			raise ValueError("Nhóm món không thuộc danh sách bánh bán ra: %s" % nhom)
 		if gia_tri in (None, ""):
 			continue
-		try:
-			p = float(str(gia_tri).replace(",", "."))
-		except ValueError:
-			raise ValueError("Tỷ lệ của nhóm %s phải là số, ví dụ 25." % nhom)
-		if not (1 <= p <= 95):
-			raise ValueError("Tỷ lệ của nhóm %s phải từ 1 tới 95 phần trăm." % nhom)
-		ra[nhom] = round(p, 1)
+		h = _so(gia_tri)
+		if h is None:
+			raise ValueError("Hệ số của nhóm %s phải là số, ví dụ 5." % nhom)
+		if not (HE_SO_MIN < h <= HE_SO_MAX):
+			raise ValueError("Hệ số của nhóm %s phải lớn hơn 1 và không quá 20 lần." % nhom)
+		ra[nhom] = round(h, 2)
 	return ra
 
 
@@ -337,13 +361,17 @@ def trung_vi(so):
 	return so[n // 2] if n % 2 else round((so[n // 2 - 1] + so[n // 2]) / 2.0, 1)
 
 
+def _so_vn(x):
+	return ("%g" % x).replace(".", ",")
+
+
 def ghi_chu(d):
 	"""Ghi chú trên dòng Item Price lúc chốt. THUẦN."""
 	phan = []
-	if d.get("ty_le_muc_tieu"):
-		phan.append("Tỷ lệ mục tiêu %s%%." % ("%g" % d["ty_le_muc_tieu"]).replace(".", ","))
+	if d.get("he_so_muc_tieu"):
+		phan.append("Hệ số mục tiêu x%s." % _so_vn(d["he_so_muc_tieu"]))
 	else:
-		phan.append("Chưa đặt tỷ lệ mục tiêu.")
+		phan.append("Chưa đặt hệ số mục tiêu.")
 	if d.get("gia_de_xuat"):
 		phan.append("Giá bán đề xuất %s." % tien(d["gia_de_xuat"]))
 	phan.append("Giá bán lúc chốt %s." % tien(d["gia_ban"]) if flt(d.get("gia_ban")) > 0 else "Chưa có giá bán.")
@@ -372,11 +400,12 @@ def dong_bang_gia(dong, ngay):
 	return luu, bo_qua
 
 
-def dung_bang(ban, ma_bom, ket, gia_ban, chot_truoc, ty_le, ton_nhom=None, mo_ho=None):
+def dung_bang(ban, ma_bom, ket, gia_ban, chot_truoc, he_so, ton_nhom=None, mo_ho=None):
 	"""Ghép mọi thứ thành dữ liệu màn hình. THUẦN.
 
 	`ban`: các món bán ra {ma, ten, nhom, dvt, anh}. `ket`: kết quả cong_don.
-	`gia_ban`: mã -> giá. `chot_truoc`: mã -> (ngày, giá). `ty_le`: nhóm -> %.
+	`gia_ban`: mã -> giá. `chot_truoc`: mã -> (ngày, giá). `he_so`: nhóm -> hệ số
+	mục tiêu.
 	`ton_nhom`: mã -> tên nguyên liệu (để nói tên NVL thiếu giá).
 	`mo_ho`: mã -> các công thức đang chạy khi chưa chọn bản mặc định."""
 	ten_nl = ton_nhom or {}
@@ -390,13 +419,14 @@ def dung_bang(ban, ma_bom, ket, gia_ban, chot_truoc, ty_le, ton_nhom=None, mo_ho
 		k = ket.get(bom) or {"gia": 0, "thieu": set(), "vong": False}
 		gv = round(flt(k["gia"]))
 		gb = flt(gia_ban.get(m["ma"]))
-		muc = ty_le.get(m["nhom"])
+		muc = he_so.get(m["nhom"])
 		tt = trang_thai(True, k["vong"], len(k["thieu"]), gv, gb, muc)
 		thieu = sorted(k["thieu"])
 		ct = chot_truoc.get(m["ma"]) or (None, None)
 		dong.append({
 			"ma": m["ma"], "ten": m["ten"], "nhom": m["nhom"], "dvt": m.get("dvt"), "anh": m.get("anh"),
-			"gia_von": gv, "gia_ban": gb, "ty_le": ty_le_hien(gv, gb), "ty_le_muc_tieu": muc,
+			"gia_von": gv, "gia_ban": gb, "he_so": he_so_hien(gv, gb), "ty_le": ty_le_hien(gv, gb),
+			"he_so_muc_tieu": muc,
 			"gia_de_xuat": gia_de_xuat(gv, muc) if tt not in TRANG_THAI_BO_QUA else None,
 			"trang_thai": tt, "thieu_so": len(thieu), "thieu_ten": [ten_nl.get(x, x) for x in thieu[:5]],
 			"lan_truoc": lan_truoc(gv, ct[0], ct[1]),
@@ -412,8 +442,8 @@ def dung_bang(ban, ma_bom, ket, gia_ban, chot_truoc, ty_le, ton_nhom=None, mo_ho
 			continue
 		nhom.append({
 			"ten": n, "nhan": nhan_nhom(n), "so_mon": len(cua), "chua_cong_thuc": so_chua,
-			"ty_le_muc_tieu": ty_le.get(n),
-			"trung_vi": trung_vi([d["ty_le"] for d in cua if d["trang_thai"] not in TRANG_THAI_BO_QUA]),
+			"he_so_muc_tieu": he_so.get(n),
+			"trung_vi": trung_vi([d["he_so"] for d in cua if d["trang_thai"] not in TRANG_THAI_BO_QUA]),
 		})
 	chua.sort(key=lambda m: (thu_nhom.get(m["nhom"], 99), m["ten"] or ""))
 	nhieu.sort(key=lambda m: (thu_nhom.get(m["nhom"], 99), m["ten"] or ""))
@@ -421,6 +451,93 @@ def dung_bang(ban, ma_bom, ket, gia_ban, chot_truoc, ty_le, ton_nhom=None, mo_ho
 		"dong": dong, "nhom": nhom,
 		"chua_cong_thuc": {"so": len(chua), "ten": [m["ten"] for m in chua[:30]]},
 		"nhieu_cong_thuc": {"so": len(nhieu), "ten": [m["ten"] for m in nhieu[:30]]},
+	}
+
+
+# ------------------------------------------------ phiếu tính giá thử (R&D)
+
+MAX_DONG_THU = 150
+
+
+def chuan_phieu(vao, nhom_hop_le=NHOM_BAN):
+	"""Làm sạch phiếu tính giá thử từ máy khách. THUẦN.
+
+	Mỗi dòng là một mã có sẵn (`item_code`) hoặc nguyên liệu chưa có mã (`ten`
+	kèm `dvt`, giá nhập tay). Số lượng theo ĐƠN VỊ KHO của mã. Sai thì ném
+	ValueError bằng câu tiếng Việt, nói đúng dòng nào."""
+	if isinstance(vao, str):
+		vao = json.loads(vao or "{}")
+	vao = vao or {}
+	ten = str(vao.get("ten_mon") or "").strip()
+	if not ten:
+		raise ValueError("Nhập tên món thử.")
+	nhom = str(vao.get("nhom") or "").strip()
+	if nhom and nhom not in nhom_hop_le:
+		raise ValueError("Nhóm món không thuộc danh sách bánh bán ra: %s" % nhom)
+	so_ra = _so(vao.get("so_ra"))
+	if so_ra is None:
+		so_ra = 1.0
+	if so_ra <= 0:
+		raise ValueError("Một mẻ phải ra hơn 0.")
+	gia_ban = _so(vao.get("gia_ban_du_kien")) or 0.0
+	if gia_ban < 0:
+		raise ValueError("Giá bán dự kiến không được âm.")
+	dong = []
+	for i, d in enumerate(vao.get("dong") or [], 1):
+		ma = str(d.get("item_code") or "").strip() or None
+		ten_nl = str(d.get("ten") or "").strip()
+		if not ma and not ten_nl:
+			raise ValueError("Dòng %d chưa có nguyên liệu." % i)
+		sl = _so(d.get("so_luong"))
+		if sl is None or sl <= 0:
+			raise ValueError("Dòng %d (%s): số lượng phải lớn hơn 0." % (i, ten_nl or ma))
+		gia_tay = _so(d.get("don_gia_tay")) or 0.0
+		if gia_tay < 0:
+			raise ValueError("Dòng %d (%s): giá nhập tay không được âm." % (i, ten_nl or ma))
+		dong.append({"item_code": ma, "ten": ten_nl, "dvt": str(d.get("dvt") or "").strip(),
+			"so_luong": sl, "don_gia_tay": gia_tay})
+	if len(dong) > MAX_DONG_THU:
+		raise ValueError("Một phiếu tối đa %d dòng nguyên liệu." % MAX_DONG_THU)
+	return {"name": vao.get("name") or None, "ten_mon": ten, "nhom": nhom, "so_ra": so_ra,
+		"dvt_ra": str(vao.get("dvt_ra") or "").strip() or "Cái", "gia_ban_du_kien": gia_ban,
+		"ghi_chu": str(vao.get("ghi_chu") or "").strip(), "dong": dong}
+
+
+def tinh_phieu(phieu, gia_ma, he_so_nhom=None):
+	"""Giá vốn của một phiếu thử bằng đúng nguồn giá của món đang bán. THUẦN.
+
+	`gia_ma(ma)` -> {"gia", "nguon", "thieu", "vong"}: bán thành phẩm có công
+	thức thì lấy giá cộng dồn, lá thì lấy giá kho / mặt hàng / bảng giá nhập.
+	Giá nhập tay > 0 luôn thắng (NVL mới, hoặc mã đang thiếu giá). Dòng không
+	mã mà không có giá tay là thiếu giá."""
+	rows, tong, thieu, vong = [], 0.0, 0, False
+	for d in phieu.get("dong") or []:
+		if flt(d.get("don_gia_tay")) > 0:
+			g = {"gia": flt(d["don_gia_tay"]), "nguon": NGUON_TAY, "thieu": 0, "vong": False}
+		elif d.get("item_code"):
+			g = gia_ma(d["item_code"])
+		else:
+			g = {"gia": 0.0, "nguon": NGUON_THIEU, "thieu": 1, "vong": False}
+		tt = flt(g["gia"]) * flt(d.get("so_luong"))
+		tong += tt
+		if g.get("thieu"):
+			thieu += 1
+		vong = vong or bool(g.get("vong"))
+		rows.append(dict(d, don_gia=flt(g["gia"]), nguon=g["nguon"], thieu=int(bool(g.get("thieu"))),
+			thanh_tien=tt))
+	so_ra = flt(phieu.get("so_ra")) or 1.0
+	gv = round(tong / so_ra)
+	muc = (he_so_nhom or {}).get(phieu.get("nhom"))
+	gb = flt(phieu.get("gia_ban_du_kien"))
+	if not rows:
+		tt = "chua_nguyen_lieu"
+	else:
+		tt = trang_thai(True, vong, thieu, gv, gb, muc)
+	return {
+		"dong": rows, "tong_me": round(tong), "gia_von": gv, "thieu_so": thieu,
+		"he_so_muc_tieu": muc,
+		"gia_de_xuat": gia_de_xuat(gv, muc) if tt not in TRANG_THAI_BO_QUA and tt != "chua_nguyen_lieu" else None,
+		"he_so": he_so_hien(gv, gb), "ty_le": ty_le_hien(gv, gb), "trang_thai": tt,
 	}
 
 
@@ -467,9 +584,9 @@ def _gia_ap_dung(cac_ma, bang_gia, dvt):
 	return ra
 
 
-def _ty_le_da_luu():
+def _he_so_da_luu():
 	try:
-		return json.loads(frappe.defaults.get_global_default(KHOA_TY_LE) or "{}") or {}
+		return json.loads(frappe.defaults.get_global_default(KHOA_HE_SO) or "{}") or {}
 	except ValueError:
 		return {}
 
@@ -478,8 +595,9 @@ def _bang_gia_ban():
 	return frappe.db.get_single_value("Selling Settings", "selling_price_list") or BANG_GIA_BAN_MAC_DINH
 
 
-def _doc():
-	"""Đọc một lượt mọi thứ cần cho cả màn. Không hỏi từng mã."""
+def _doc(them_ma=()):
+	"""Đọc một lượt mọi thứ cần cho cả màn. Không hỏi từng mã. `them_ma`: mã
+	nguyên liệu của phiếu thử chưa nằm trong công thức nào, đọc giá cùng lô."""
 	ds_bom = frappe.get_all("BOM", filters={"docstatus": 1, "is_active": 1},
 		fields=["name", "item", "quantity", "is_default"], limit_page_length=0)
 	ma_bom = bom_cua_ma(ds_bom)
@@ -492,7 +610,7 @@ def _doc():
 			"ma": d.item_code, "ten": d.item_name, "dvt": d.stock_uom or d.uom,
 			"sl": flt(d.stock_qty) or flt(d.qty), "bom_no": d.bom_no,
 		})
-	ma_nl = {d["ma"] for t in thanh_phan.values() for d in t["dong"]}
+	ma_nl = {d["ma"] for t in thanh_phan.values() for d in t["dong"]} | {m for m in them_ma if m}
 	ton = {}
 	for b in _theo_lo("Bin", "item_code", ma_nl, ["item_code", "actual_qty", "stock_value"]):
 		ton.setdefault(b.item_code, []).append(b)
@@ -520,17 +638,17 @@ def _bang():
 	for p in _theo_lo("Item Price", "item_code", ma_ban, ["item_code", "price_list_rate", "valid_from"],
 			them={"price_list": BANG_GIA}, order_by="valid_from desc"):
 		chot_truoc.setdefault(p.item_code, (p.valid_from, p.price_list_rate))
-	ty_le = _ty_le_da_luu()
-	return dung_bang(ban, ma_bom, ket, gia_ban, chot_truoc, ty_le, ten_nl, mo_ho), ty_le
+	he_so = _he_so_da_luu()
+	return dung_bang(ban, ma_bom, ket, gia_ban, chot_truoc, he_so, ten_nl, mo_ho), he_so
 
 
 @frappe.whitelist()
 def tinh():
 	"""Dữ liệu cả màn Giá vốn tạm tính. Chỉ đọc."""
 	_kiem(QUYEN_XEM, "xem giá vốn tạm tính")
-	bang, ty_le = _bang()
+	bang, he_so = _bang()
 	bang.update({
-		"ty_le": ty_le, "cap_nhat_luc": now_datetime().strftime("%H:%M"),
+		"he_so": he_so, "cap_nhat_luc": now_datetime().strftime("%H:%M"),
 		"sua_duoc": bool(QUYEN_CHOT & set(frappe.get_roles())), "ngay": nowdate(),
 	})
 	return bang
@@ -557,15 +675,15 @@ def chi_tiet(ma, bom=None):
 
 
 @frappe.whitelist()
-def luu_ty_le(ty_le):
-	"""Lưu tỷ lệ giá vốn mục tiêu theo nhóm. Không đụng doctype nào."""
-	_kiem(QUYEN_CHOT, "đặt tỷ lệ mục tiêu")
+def luu_he_so(he_so):
+	"""Lưu hệ số giá bán mục tiêu theo nhóm. Không đụng doctype nào."""
+	_kiem(QUYEN_CHOT, "đặt hệ số mục tiêu")
 	try:
-		sach = chuan_ty_le(ty_le)
+		sach = chuan_he_so(he_so)
 	except ValueError as e:
 		frappe.throw(str(e))
-	frappe.defaults.set_global_default(KHOA_TY_LE, json.dumps(sach, ensure_ascii=False))
-	return {"ty_le": sach}
+	frappe.defaults.set_global_default(KHOA_HE_SO, json.dumps(sach, ensure_ascii=False))
+	return {"he_so": sach}
 
 
 def _bao_dam_bang_gia():
@@ -585,7 +703,7 @@ def chot():
 	chủ, không nhận số từ máy khách. Mỗi món mỗi ngày một dòng (ERPNext v16
 	cho nhiều dòng khác `valid_from`); chốt lại trong ngày thì cập nhật."""
 	_kiem(QUYEN_CHOT, "chốt giá vốn tạm tính")
-	bang, _ty_le = _bang()
+	bang, _he_so = _bang()
 	ngay = getdate(nowdate())
 	luu, bo_qua = dong_bang_gia(bang["dong"], ngay)
 	ten_bang = _bao_dam_bang_gia()
@@ -601,6 +719,129 @@ def chot():
 		else:
 			frappe.get_doc(dict(p, doctype="Item Price", price_list=ten_bang, valid_from=ngay)).insert(ignore_permissions=True)
 	return {"da_luu": len(luu), "bo_qua": bo_qua, "ngay": str(ngay), "bang_gia": ten_bang}
+
+
+# ------------------------------------------------ phiếu tính giá thử (R&D)
+
+
+def _bo_gia_ma(cac_ma):
+	"""Một lượt đọc -> hàm gia_ma(ma) cho tinh_phieu, kèm tên và đơn vị kho."""
+	thanh_phan, ma_bom, gia_la_cua, ket, _ten, _mo = _doc(them_ma=cac_ma)
+	mat_hang = {i.name: i for i in _theo_lo("Item", "name", [m for m in cac_ma if m], ["name", "item_name", "stock_uom"])}
+
+	def gia_ma(ma):
+		bom = ma_bom.get(ma)
+		if bom and bom in ket:
+			k = ket[bom]
+			return {"gia": flt(k["gia"]), "nguon": NGUON_CONG_THUC, "thieu": len(k["thieu"]), "vong": k["vong"]}
+		if ma not in mat_hang:
+			return {"gia": 0.0, "nguon": NGUON_THIEU, "thieu": 1, "vong": False}
+		g, nguon = gia_la_cua(ma)
+		return {"gia": g, "nguon": nguon, "thieu": int(nguon == NGUON_THIEU), "vong": False}
+	return gia_ma, mat_hang
+
+
+def _tinh_cac_phieu(cac_phieu):
+	ma = {d["item_code"] for p in cac_phieu for d in p["dong"] if d.get("item_code")}
+	gia_ma, mat_hang = _bo_gia_ma(ma)
+	he_so = _he_so_da_luu()
+	ra = []
+	for p in cac_phieu:
+		for d in p["dong"]:
+			i = mat_hang.get(d.get("item_code"))
+			if i:
+				d["ten"] = i.item_name
+				d["dvt"] = i.stock_uom
+		ra.append(dict(p, **tinh_phieu(p, gia_ma, he_so)))
+	return ra, he_so
+
+
+def _doc_phieu(ten):
+	d = frappe.get_doc(DT_THU, ten)
+	return {
+		"name": d.name, "ten_mon": d.ten_mon, "nhom": d.nhom or "", "so_ra": flt(d.so_ra) or 1.0,
+		"dvt_ra": d.dvt_ra or "Cái", "gia_ban_du_kien": flt(d.gia_ban_du_kien), "ghi_chu": d.ghi_chu or "",
+		"cap_nhat": str(d.modified)[:16], "nguoi": d.owner,
+		"dong": [{"item_code": r.item_code or None, "ten": r.ten or "", "dvt": r.dvt or "",
+			"so_luong": flt(r.so_luong), "don_gia_tay": flt(r.don_gia_tay)} for r in d.dong],
+	}
+
+
+def _nhom_ban():
+	return [{"ten": n, "nhan": nhan_nhom(n)} for n in NHOM_BAN]
+
+
+@frappe.whitelist()
+def ds_thu():
+	"""Danh sách phiếu tính giá thử, tính lại theo giá hôm nay. Chỉ đọc."""
+	_kiem(QUYEN_XEM, "xem giá vốn tạm tính")
+	ten = [r.name for r in frappe.get_all(DT_THU, fields=["name"], order_by="modified desc", limit_page_length=200)]
+	ds, he_so = _tinh_cac_phieu([_doc_phieu(t) for t in ten])
+	return {"ds": ds, "he_so": he_so, "nhom_ban": _nhom_ban(),
+		"sua_duoc": bool(QUYEN_CHOT & set(frappe.get_roles()))}
+
+
+@frappe.whitelist()
+def tinh_thu(phieu):
+	"""Tính thử một phiếu chưa lưu (màn nhập gọi mỗi lần đổi). Chỉ đọc."""
+	_kiem(QUYEN_XEM, "xem giá vốn tạm tính")
+	try:
+		p = chuan_phieu(phieu)
+	except ValueError as e:
+		frappe.throw(str(e))
+	return _tinh_cac_phieu([p])[0][0]
+
+
+@frappe.whitelist(methods=["POST"])
+def luu_thu(phieu):
+	"""Lưu phiếu tính giá thử. Chỉ ghi vào Vagabond Gia Thu, không đụng Item,
+	BOM, kho hay sổ sách. Giá vốn lưu kèm chỉ là ảnh chụp lúc lưu."""
+	_kiem(QUYEN_CHOT, "lập phiếu tính giá thử")
+	try:
+		p = chuan_phieu(phieu)
+	except ValueError as e:
+		frappe.throw(str(e))
+	kq = _tinh_cac_phieu([p])[0][0]
+	if p["name"]:
+		if not frappe.db.exists(DT_THU, p["name"]):
+			frappe.throw("Không tìm thấy phiếu %s, có thể đã bị xoá." % p["name"])
+		d = frappe.get_doc(DT_THU, p["name"])
+		d.set("dong", [])
+	else:
+		d = frappe.new_doc(DT_THU)
+	for k in ("ten_mon", "nhom", "so_ra", "dvt_ra", "gia_ban_du_kien", "ghi_chu"):
+		d.set(k, p[k])
+	for r in kq["dong"]:
+		d.append("dong", {"item_code": r.get("item_code"), "ten": r.get("ten"), "dvt": r.get("dvt"),
+			"so_luong": r["so_luong"], "don_gia_tay": r["don_gia_tay"]})
+	d.gia_von = kq["gia_von"]
+	d.gia_de_xuat = kq["gia_de_xuat"] or 0
+	d.flags.ignore_permissions = True
+	d.save() if p["name"] else d.insert()
+	kq["name"] = d.name
+	return kq
+
+
+@frappe.whitelist(methods=["POST"])
+def xoa_thu(name):
+	"""Xoá một phiếu thử (bản nháp R&D, không phải chứng từ)."""
+	_kiem(QUYEN_CHOT, "xoá phiếu tính giá thử")
+	if frappe.db.exists(DT_THU, name):
+		frappe.delete_doc(DT_THU, name, ignore_permissions=True)
+	return {"ok": 1}
+
+
+@frappe.whitelist()
+def tim_nl(tu_khoa):
+	"""Tìm nguyên liệu, bán thành phẩm để thêm vào phiếu thử (trừ bánh bán ra)."""
+	_kiem(QUYEN_XEM, "xem giá vốn tạm tính")
+	q = "%" + str(tu_khoa or "").strip().replace("%", "") + "%"
+	if len(q) < 4:
+		return []
+	ds = frappe.get_all("Item", filters={"disabled": 0, "item_group": ["not in", list(NHOM_BAN)]},
+		or_filters={"item_name": ["like", q], "name": ["like", q]},
+		fields=["name", "item_name", "stock_uom", "item_group"], order_by="item_name asc", limit_page_length=20)
+	return [{"ma": i.name, "ten": i.item_name, "dvt": i.stock_uom, "nhom": i.item_group} for i in ds]
 
 
 def dung_sidebar():
