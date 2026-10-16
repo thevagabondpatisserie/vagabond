@@ -18,7 +18,7 @@ if (typeof VGB_CD === 'undefined' || !VGB_CD || !VGB_CD.tongHop) {
 // read_only, không gõ tay được); máy chủ vẫn kiểm lại lúc lưu.
 var VGB_ZALO_DANH_MUC = {
 	loai_tin: ['thong_bao', 'viec', 'canh_bao', 'ban_tin', 'phat_hanh'],
-	chu_de: ['kho', 'san_xuat', 'cong_no', 'ban_hang', 'don_web', 'dat_ban', 'phat_hanh'],
+	chu_de: ['kho', 'san_xuat', 'cong_no', 'ban_hang', 'don_web', 'dat_ban', 'phat_hanh', 'he_thong'],
 };
 // v568: anh Việt 04/10/2026, kèm ảnh hộp Chọn loại tin chỉ có mã ban_tin,
 // canh_bao...: *"không có subtext để biết tin đó là tin gì"*. Mã vẫn là giá trị
@@ -40,6 +40,8 @@ var VGB_ZALO_NHAN = {
 		don_web: ['🌐', 'Đơn web', 'Đơn đặt bánh trên trang web.'],
 		dat_ban: ['🪑', 'Đặt bàn', 'Khách đặt bàn tại cửa hàng.'],
 		phat_hanh: ['🚀', 'Phát hành app', 'Tin bản mới của app.'],
+		// v597: còi báo động thư hỏng đi Zalo thay webhook Lark nhóm quản trị.
+		he_thong: ['🛠️', 'Hệ thống', 'Sự cố máy chủ, ví dụ thư không gửi được. Nên chọn kèm loại Cảnh báo.'],
 	},
 };
 // ====================================================================
@@ -192,6 +194,16 @@ var VGB_CD = (function () {
 	}
 
 	// Trạng thái: ok xanh, no xám (chưa khai), off vàng (khai rồi nhưng tắt), err đỏ.
+	// v597: THUẦN, bản JS của kenh_zalo.chon_nhom: có nhóm bật, có mã chat, nhận (loại, chủ đề) không.
+	function coNhomZalo(doc, loai, chuDe) {
+		var tach = function (s) { return String(s || '').split(/[,;]/).map(function (x) { return x.trim(); }).filter(Boolean); };
+		return (doc.zalo_nhom || []).some(function (r) {
+			if (!r || !bat(r.bat) || !co(r.chat_id)) return false;
+			var lt = tach(r.loai_tin), cd = tach(r.chu_de);
+			return (!lt.length || lt.indexOf(loai) >= 0) && (!cd.length || cd.indexOf(chuDe) >= 0);
+		});
+	}
+
 	function tinhTrang(doc, bayGio) {
 		doc = doc || {};
 		var ra = KET_NOI.map(function (k) {
@@ -206,7 +218,8 @@ var VGB_CD = (function () {
 		// Còi báo động: hú trong 24 giờ qua là đỏ, kể cả khi đã khai đủ.
 		var luc = co(doc.email_bao_dong_lan_cuoi) ? Date.parse(String(doc.email_bao_dong_lan_cuoi).replace(' ', 'T')) : NaN;
 		var gio = isNaN(luc) ? null : Math.floor(((bayGio || Date.now()) - luc) / 3600000);
-		var coDuong = co(doc.email_canh_bao) || co(doc.webhook_bao_dong);
+		// v597: đường báo là thư dự phòng HOẶC một nhóm Zalo nhận Cảnh báo chủ đề Hệ thống.
+		var coDuong = co(doc.email_canh_bao) || coNhomZalo(doc, 'canh_bao', 'he_thong');
 		var thu = { ten: 'Thư cảnh báo', toi: 'email_canh_bao', muc: 'sec_gui_thu', hau: 'Sự cố lớn không có ai được báo.' };
 		if (gio !== null && gio >= 0 && gio < 24) {
 			thu.trang = 'err'; thu.ghi = 'hú còi ' + (gio === 0 ? 'chưa tới 1 giờ' : gio + ' giờ') + ' trước';
