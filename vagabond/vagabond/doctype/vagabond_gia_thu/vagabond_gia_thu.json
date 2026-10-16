@@ -1,0 +1,181 @@
+{
+ "actions": [],
+ "autoname": "format:GT-{YY}{MM}-{###}",
+ "creation": "2026-10-16 23:30:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "ten_mon",
+  "nhom",
+  "cb0",
+  "so_ra",
+  "dvt_ra",
+  "gia_ban_du_kien",
+  "sb_dong",
+  "ht_dong",
+  "dong",
+  "sb_kq",
+  "gia_von",
+  "cb1",
+  "gia_de_xuat",
+  "sb_gc",
+  "ghi_chu"
+ ],
+ "fields": [
+  {
+   "fieldname": "ten_mon",
+   "fieldtype": "Data",
+   "label": "Tên món thử",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "nhom",
+   "fieldtype": "Select",
+   "label": "Nhóm bán dự kiến",
+   "options": "\nBánh ổ sinh nhật\nBánh lạnh\nBánh nướng\nBánh khô\nHộp bánh theo mùa\nBánh Wholesale\nBÁNH NHẸ / CONFECTIONERY\nTopping cho món bánh\nThành phẩm Bánh",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "cb0",
+   "fieldtype": "Column Break",
+   "label": ""
+  },
+  {
+   "fieldname": "so_ra",
+   "fieldtype": "Float",
+   "label": "Một mẻ ra bao nhiêu",
+   "default": "1"
+  },
+  {
+   "fieldname": "dvt_ra",
+   "fieldtype": "Data",
+   "label": "Đơn vị ra",
+   "default": "Cái"
+  },
+  {
+   "fieldname": "gia_ban_du_kien",
+   "fieldtype": "Currency",
+   "label": "Giá bán dự kiến",
+   "options": "VND"
+  },
+  {
+   "fieldname": "sb_dong",
+   "fieldtype": "Section Break",
+   "label": "Nguyên liệu"
+  },
+  {
+   "fieldname": "ht_dong",
+   "fieldtype": "HTML",
+   "label": "",
+   "options": "<div class='text-muted small'>Số lượng theo đơn vị kho của mã. Nguyên liệu chưa có mã thì để trống mã, ghi tên, đơn vị và giá nhập tay. Phiếu này chỉ để định giá, không tạo mã hàng, không tạo công thức, không đổi sổ sách.</div>"
+  },
+  {
+   "fieldname": "dong",
+   "fieldtype": "Table",
+   "label": "Nguyên liệu",
+   "options": "Vagabond Gia Thu Dong"
+  },
+  {
+   "fieldname": "sb_kq",
+   "fieldtype": "Section Break",
+   "label": "Kết quả lúc lưu"
+  },
+  {
+   "fieldname": "gia_von",
+   "fieldtype": "Currency",
+   "label": "Giá vốn một đơn vị",
+   "options": "VND",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "cb1",
+   "fieldtype": "Column Break",
+   "label": ""
+  },
+  {
+   "fieldname": "gia_de_xuat",
+   "fieldtype": "Currency",
+   "label": "Giá bán đề xuất",
+   "options": "VND",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "sb_gc",
+   "fieldtype": "Section Break",
+   "label": ""
+  },
+  {
+   "fieldname": "ghi_chu",
+   "fieldtype": "Small Text",
+   "label": "Ghi chú"
+  }
+ ],
+ "links": [],
+ "modified": "2026-10-16 23:30:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Vagabond Gia Thu",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1
+  },
+  {
+   "role": "Accounts Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1
+  },
+  {
+   "role": "VGB - Quản lý công thức",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1
+  },
+  {
+   "role": "Giám đốc",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1
+  },
+  {
+   "role": "Accounts User",
+   "read": 1,
+   "report": 1
+  },
+  {
+   "role": "AP Giám đốc",
+   "read": 1,
+   "report": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "ten_mon",
+ "track_changes": 1
+}
