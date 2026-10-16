@@ -143,6 +143,7 @@ MAN = (
 	("NHAPSK", "Nhập sao kê", None),
 	("TS", "Tài sản", None),
 	("BT", "Bút toán", None),
+	("GVT", "Giá vốn tạm tính", None),
 	("DNC", "Thanh toán nội bộ", None),
 	# Loi tat ben Ke toan sang cung man (anh Viet 17/09/2026).
 	("DSTTNB", "Danh sách thanh toán nội bộ", None),
