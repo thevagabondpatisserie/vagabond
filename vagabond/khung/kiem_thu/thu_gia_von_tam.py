@@ -905,3 +905,34 @@ def _bo_giu_anh():
 		la("ảnh chụp vẫn nguyên", (d2.gia_von, d2.gia_de_xuat), (1234, 7000))
 	finally:
 		_tra(cu)
+
+
+@ca("gia von tam: Codex #486 v3 ma nhieu cong thuc nam o tang duoi (dong BOM khong bom_no) cung bao thieu, khong lay gia kho, ca phieu thu lan mon dang ban")
+def _bom_mo_ho_tang_duoi():
+	import frappe
+	# BANH dùng KEM (dòng không bom_no); KEM có hai công thức, chưa chọn mặc định.
+	ds = [_Dong(name="B-BANH", item="BANH", quantity=1, is_default=1),
+		_Dong(name="B-KEM-2", item="KEM", quantity=1000, is_default=0),
+		_Dong(name="B-KEM", item="KEM", quantity=1000, is_default=0)]
+	cu, _doc = _frappe_gia(bom=ds)
+	goc = frappe.get_all
+
+	def get_all(dt, **kw):
+		if dt == "Bin":
+			return goc(dt, **kw) + [_Dong(item_code="KEM", actual_qty=1000, stock_value=50000)]
+		return goc(dt, **kw)
+	frappe.get_all = get_all
+	try:
+		kq = G.tinh_thu(json.dumps({"ten_mon": "Thử", "dong": [{"item_code": "BANH", "so_luong": 1}]}))
+		d = kq["dong"][0]
+		la("dòng BANH theo công thức nhưng báo thiếu vì KEM ở tầng dưới", (d["nguon"], d["thieu"]), (G.NGUON_CONG_THUC, 1))
+		la("phiếu báo thiếu", kq["thieu_so"], 1)
+		bang, _t = G._bang()
+		banh = [x for x in bang["dong"] if x["ma"] == "BANH"][0]
+		la("món đang bán BANH cũng thành thiếu giá", banh["trang_thai"], "thieu_gia")
+		frappe.db.get_value = lambda *a, **k: None
+		ct = G.chi_tiet("BANH")
+		kem = [x for x in ct["dong"] if x["ma"] == "KEM"][0]
+		la("sheet chi tiết nói rõ nguồn", (kem["nguon"], kem["thieu"], kem["don_gia"]), (G.NGUON_NHIEU_CT, 1, 0))
+	finally:
+		_tra(cu)
