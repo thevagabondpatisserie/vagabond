@@ -272,6 +272,8 @@ async function scrHome() {
          ben phan he Ban hang. Cung mot bang du lieu, khac moi bo loc. */
       card('💵', 'Biên nhận nộp tiền mặt', 'Theo dõi phiếu của cả ba điểm bán, ký nhận tiền, xuất Excel', 0, 'NQ') +
       card('📒', 'Bút toán tay', 'Trích lương, bảo hiểm, phân bổ, kết chuyển thuế theo định khoản mẫu', 0, 'BT') +
+      /* #482: giá vốn nguyên liệu theo công thức và giá bán đề xuất, cho Khải. */
+      card('🧮', 'Giá vốn tạm tính', 'Giá vốn nguyên liệu theo công thức, so giá bán, giá đề xuất', 0, 'GVT') +
       /* Duyet don hang tang (anh Viet 31/08/2026). Don tra bang phuong thuc
          Hang tang KHONG ghi so duoc cho toi khi giam doc bam duyet o day.
          Dat trong phan he Ke toan theo dung yeu cau cua anh Viet. */
@@ -590,12 +592,13 @@ var VGB_NHOM = [
   },
   {
     k: 'KT', ten: 'Kế toán', icon: '🧮',
-    keys: ['HDBAN', 'TRUKHO', 'HDMUA', 'DCM', 'DSVN', 'CN', 'CNPT', 'HT', 'APPTT', 'DSTTNB', 'PAY', 'TS', 'NQ', 'BT', 'DUYETTANG', 'BC:BC05'],
+    keys: ['HDBAN', 'TRUKHO', 'HDMUA', 'DCM', 'DSVN', 'CN', 'CNPT', 'HT', 'APPTT', 'DSTTNB', 'PAY', 'TS', 'NQ', 'BT', 'DUYETTANG', 'BC:BC05', 'GVT'],
     nhom: [
       { t: 'Hoá đơn', p: 'làm hàng ngày', keys: ['HDBAN', 'TRUKHO', 'HDMUA', 'DCM', 'DSVN', 'BC:BC05'] },
       { t: 'Công nợ', p: 'ai nợ ai', keys: ['CN', 'CNPT'] },
       { t: 'Chi tiền', p: 'duyệt và trả', keys: ['APPTT', 'DSTTNB', 'PAY', 'HT', 'NQ'] },
-      { t: 'Tổng hợp và tài sản', p: 'cuối tháng', keys: ['BT', 'TS', 'DUYETTANG'] }
+      { t: 'Tổng hợp và tài sản', p: 'cuối tháng', keys: ['BT', 'TS', 'DUYETTANG'] },
+      { t: 'Giá thành', p: 'định giá bán', keys: ['GVT'] }
     ]
   },
   /* Nhan su (anh Viet chot 01/09/2026). Nhom nay CHI hien voi quan ly, ke
@@ -1795,6 +1798,7 @@ var VGB_DUONG = {
   'don-tiec': 'TIEC',
   'duyet-don-hang-tang': 'DUYETTANG',
   'duyet-yeu-cau': 'DUYETYC',
+  'gia-von-tam-tinh': 'GVT',
   'hang-chuyen-ve-kho-toi': 'NHANDC',
   'hang-khach': 'CDHT',
   'ho-so-thanh-toan': 'APPTT',
@@ -2053,6 +2057,7 @@ function vgbGo(k) {
   if (k === 'PTCH') return go(scrChuyenPhantom);
   if (k === 'NHAPSK') return go(scrNhapSaoKe);
   if (k === 'TS') return go(scrTaiSan);
+  if (k === 'GVT') return go(scrGiaVonTam);
   if (k === 'BT') return go(scrButToan);
   if (k === 'QLND') return go(scrNguoiDung);
   if (k === 'QLQ') return go(scrQuyen);
