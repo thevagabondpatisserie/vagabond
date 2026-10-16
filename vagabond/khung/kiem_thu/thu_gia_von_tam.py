@@ -243,7 +243,7 @@ class _Dong(dict):
 	__getattr__ = dict.get
 
 
-def _frappe_gia(roles=("Accounts Manager",), gia_ban=None, gia_nhap=None):
+def _frappe_gia(roles=("Accounts Manager",), gia_ban=None, gia_nhap=None, quy_doi=None):
 	"""Frappe giả đủ cho _bang(): trả dữ liệu theo doctype và bộ lọc, ghi lại
 	mọi lần đọc để chốt "đọc theo lô, không hỏi từng mã"."""
 	import frappe
@@ -272,6 +272,8 @@ def _frappe_gia(roles=("Accounts Manager",), gia_ban=None, gia_nhap=None):
 			if f.get("price_list") == "Bảng giá nhập":
 				return list(gia_nhap or [])
 			return []
+		if dt == "UOM Conversion Detail":
+			return list(quy_doi or [])
 		return list(du.get(dt, []))
 
 	cu = {k: getattr(frappe, k, None) for k in ("get_all", "db", "defaults", "get_roles")}
@@ -301,8 +303,9 @@ def _doc_site():
 	la("ty le va trang thai", (banh["ty_le"], banh["trang_thai"]), (20.0, "dat"))
 	la("de xuat 62000 / 20%", banh["gia_de_xuat"], 310000)
 	la("mon chua cong thuc", bang["chua_cong_thuc"]["so"], 1)
-	la("so lan doc moi doctype, khong hoi tung ma", sorted(set(doc)), ["BOM", "BOM Item", "Bin", "Item", "Item Price"])
-	dung("so lan doc gioi han", len(doc) <= 9)
+	# Codex #483 vòng 2 thêm một lượt đọc hệ số đơn vị cho mỗi bảng giá.
+	la("so lan doc moi doctype, khong hoi tung ma", sorted(set(doc)), ["BOM", "BOM Item", "Bin", "Item", "Item Price", "UOM Conversion Detail"])
+	dung("so lan doc gioi han", len(doc) <= 11)
 
 
 @ca("gia von tam: chot va dat ty le chan tai khoan chi duoc xem, truoc khi cham du lieu (chan bo cong quyen)")
@@ -352,6 +355,11 @@ def _chon_gia_ap_dung():
 	la("valid_from moi nhat thang", C([d(1, valid_from="2026-01-01"), d(2, valid_from="2026-09-01"), d(3)], "Cái", "2026-10-16"), 2.0)
 	la("sai don vi kho bi bo", C([d(9, uom="Hộp"), d(4)], "Cái", "2026-10-16"), 4.0)
 	la("dung don vi xep truoc dong khong ghi don vi", C([d(7, uom=None, valid_from="2026-10-01"), d(6, valid_from="2026-01-01")], "Cái", "2026-10-16"), 6.0)
+	# Codex #483 vòng 2: đổi đơn vị mua về đơn vị kho bằng hệ số; không có hệ số thì bỏ.
+	la("doi Kg ve Gram", C([d(20000, uom="Kg")], "Gram", "2026-10-16", {"Kg": 1000}), 20.0)
+	la("khong co he so thi bo", C([d(20000, uom="Kg")], "Gram", "2026-10-16", {}), None)
+	la("dung don vi kho xep truoc dong phai doi", C([d(30000, uom="Kg"), d(25, uom="Gram")], "Gram", "2026-10-16", {"Kg": 1000}), 25.0)
+	la("dong phai doi xep truoc dong khong ghi don vi", C([d(9, uom=None), d(20000, uom="Kg")], "Gram", "2026-10-16", {"Kg": 1000}), 20.0)
 
 
 @ca("gia von tam: Codex #483 v1: bang gia nhap cung chi lay dong dang ap dung khi nguyen lieu khong co gia kho")
@@ -376,3 +384,24 @@ def _gia_nhap_ap_dung():
 	# BOT 100 gram x 20 (bảng giá nhập đang áp dụng); BO và KEM không còn giá nên thiếu.
 	la("thieu dung BO", banh["thieu_so"], 1)
 	la("gia von chi tinh phan BOT", banh["gia_von"], 2000)
+
+
+@ca("gia von tam: Codex #483 v2: bang gia nhap ghi theo don vi mua (Kg) thi doi ve don vi kho (Gram) bang he so, khong bao thieu gia")
+def _gia_nhap_doi_don_vi():
+	nhap = [_Dong(item_code="BOT", price_list_rate=20000, uom="Kg", valid_from="2026-08-01", valid_upto=None, customer=None, supplier=None, batch_no=None)]
+	qd = [_Dong(parent="BOT", uom="Kg", conversion_factor=1000)]
+	cu, doc = _frappe_gia(gia_nhap=nhap, quy_doi=qd)
+	import frappe
+	goc = frappe.get_all
+
+	def bo_ton(dt, **kw):
+		return [] if dt == "Bin" else goc(dt, **kw)
+	frappe.get_all = bo_ton
+	try:
+		bang, _t = G._bang()
+	finally:
+		_tra(cu)
+	banh = [d for d in bang["dong"] if d["ma"] == "BANH"][0]
+	# BOT 100 gram x (20.000 / 1000) = 2.000; chỉ còn BO thiếu giá.
+	la("gia von", banh["gia_von"], 2000)
+	la("chi BO thieu", banh["thieu_so"], 1)
