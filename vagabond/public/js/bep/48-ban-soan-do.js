@@ -775,7 +775,7 @@ sdKhai('gia_thu', 'gvtManPhieu', {
   /* v600 Codex #486: phieu tinh gia thu mon R&D. Mo lai tu ban nhap thi bo
      ket qua cu (pk) de man tinh lai o may chu theo gia hom nay. */
   ten: 'Phiếu tính giá thử', lay: function () { return GVT.p; },
-  dat: function (v) { GVT.p = v; GVT.pk = null; GVT.pkDong = null; GVT.lan++; },
+  dat: function (v) { GVT.p = v; GVT.pk = null; GVT.pkDong = null; GVT.loiTinh = null; GVT.lan++; },
   ma: function () { return (GVT.p && GVT.p.name) || ''; }, tieuDe: sdTieuDe('#gvtpTen', 'ten_mon'),
   luu: ['vagabond.gia_von_tam.luu_thu', 'vagabond.gia_von_tam.bo_thu']
 });
