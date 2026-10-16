@@ -304,6 +304,10 @@ def _frappe_gia(roles=("Accounts Manager",), gia_ban=None, gia_nhap=None, quy_do
 def _tra(cu):
 	import frappe
 	for k, v in cu.items():
+		if k == "__ten_khop":
+			from vagabond import tim_kiem
+			tim_kiem.ten_khop = v
+			continue
 		setattr(frappe, k, v)
 
 
@@ -331,7 +335,7 @@ def _quyen_chot():
 	cu, doc = _frappe_gia(roles=("Accounts User",))
 	try:
 		for ham, ts in ((G.chot, ()), (G.luu_he_so, ('{"Bánh lạnh": 5}',)),
-				(G.luu_thu, ('{"ten_mon": "Thu", "dong": []}',)), (G.xoa_thu, ("GT-2610-001",))):
+				(G.luu_thu, ('{"ten_mon": "Thu", "dong": []}',)), (G.bo_thu, ("GT-2610-001",))):
 			try:
 				ham(*ts)
 				raise AssertionError("%s phai bi chan" % ham.__name__)
@@ -555,13 +559,45 @@ class _DocGia(_Dong):
 	def append(self, k, v):
 		getattr(self, k).append(_Dong(**v))
 
+	# Frappe chạy validate() của bộ điều khiển trước mỗi insert/save. Ca giả
+	# gọi đúng hàm validate thật của Vagabond Gia Thu, không gọi phép tính
+	# trực tiếp, để luu_thu và Desk đi chung một đường (Codex #486 P2).
+	def _validate(self):
+		from vagabond.vagabond.doctype.vagabond_gia_thu.vagabond_gia_thu import VagabondGiaThu
+		VagabondGiaThu.validate(self)
+
 	def insert(self):
-		self.name = "GT-2610-001"
+		self._validate()
+		self.name = "GT-2610-%03d" % (len(_DocGia.kho) + 1)
 		_DocGia.kho[self.name] = self
 		_DocGia.ghi.append(("insert", self.name))
 
 	def save(self):
+		self._validate()
 		_DocGia.ghi.append(("save", self.name))
+
+
+def _get_all_thu(kho):
+	"""get_all giả của Vagabond Gia Thu: hiểu da_bo, ten_mon like, limit_start
+	và limit_page_length như Frappe, để ca thấy được phiếu bị rơi khỏi trang."""
+	def lam(filters=None, limit_start=0, limit_page_length=None, **kw):
+		f = filters or {}
+		if isinstance(f, dict):
+			f = [[k] + (list(v) if isinstance(v, (list, tuple)) else ["=", v]) for k, v in f.items()]
+		ra = []
+		for ten, d in kho.items():
+			hop = True
+			for cot, phep, gt in f:
+				co = ten if cot == "name" else d.get(cot)
+				if phep == "=" and int(co or 0) != int(gt):
+					hop = False
+				if phep == "in" and co not in gt:
+					hop = False
+			if hop:
+				ra.append(_Dong(name=ten))
+		ra = ra[int(limit_start or 0):]
+		return ra[:limit_page_length] if limit_page_length else ra
+	return lam
 
 
 @ca("gia von tam: v600 phieu thu doc site: luu tinh lai o may chu, mon BTP lay gia cong thuc, NVL ngoai cong thuc doc gia cung lo; chi ghi vao Vagabond Gia Thu")
@@ -576,12 +612,13 @@ def _phieu_site():
 		if dt == "Bin" and "VANI" in ((kw.get("filters") or {}).get("item_code") or ["", []])[1]:
 			return goc(dt, **kw) + [_Dong(item_code="VANI", actual_qty=10, stock_value=9000)]
 		if dt == G.DT_THU:
-			return [_Dong(name=n) for n in _DocGia.kho]
+			return _get_all_thu(_DocGia.kho)(**kw)
 		return goc(dt, **kw)
 	frappe.get_all = get_all
 	frappe.new_doc = lambda dt: _DocGia(doctype=dt, name=None, modified="2026-10-16 23:00:00", owner="khai@x")
 	frappe.get_doc = lambda dt, ten=None: _DocGia.kho[ten]
 	frappe.db.exists = lambda dt, ten: ten in _DocGia.kho
+	frappe.delete_doc = lambda *a, **k: _DocGia.ghi.append(("delete",) + a)
 	try:
 		phieu = {"ten_mon": "Tart vani", "nhom": "Bánh lạnh", "so_ra": 2, "gia_ban_du_kien": 50000,
 			"dong": [{"item_code": "KEM", "so_luong": 100}, {"item_code": "VANI", "so_luong": 10}, {"ten": "Lá vàng", "dvt": "Lá", "so_luong": 1, "don_gia_tay": 5000}],
@@ -626,3 +663,152 @@ def _doctype_thu():
 	nhom = [f for f in cha["fields"] if f["fieldname"] == "nhom"][0]["options"].split("\n")
 	la("lua chon nhom trung NHOM_BAN", nhom, [""] + list(G.NHOM_BAN))
 	la("field_order khop fields", cha["field_order"], [f["fieldname"] for f in cha["fields"]])
+	quyen_xoa = sorted(p["role"] for p in cha["permissions"] if p.get("delete"))
+	la("Codex #486 P1: chỉ System Manager còn quyền xoá cứng trên Desk (QT-20)", quyen_xoa, ["System Manager"])
+	dung("có trường bỏ mềm", {"da_bo", "bo_luc", "bo_boi"} <= truong)
+	bo = [f for f in cha["fields"] if f["fieldname"] == "da_bo"][0]
+	la("trường Đã bỏ chỉ đọc, lọc được", (bo["fieldtype"], bo.get("read_only"), bo.get("in_standard_filter")), ("Check", 1, 1))
+
+
+def _site_thu(kho_dau=None):
+	"""Dựng site giả có sẵn các phiếu thử trong kho. Trả (cu, ghi)."""
+	import frappe
+	_DocGia.kho, _DocGia.ghi = dict(kho_dau or {}), []
+	cu, doc = _frappe_gia()
+	cu.update({k: getattr(frappe, k, None) for k in ("new_doc", "get_doc", "delete_doc", "session")})
+	goc = frappe.get_all
+
+	def get_all(dt, **kw):
+		if dt == G.DT_THU:
+			return _get_all_thu(_DocGia.kho)(**kw)
+		return goc(dt, **kw)
+	frappe.get_all = get_all
+	frappe.new_doc = lambda dt: _DocGia(doctype=dt, name=None, modified="2026-10-16 23:00:00", owner="khai@x")
+	frappe.get_doc = lambda dt, ten=None: _DocGia.kho[ten]
+	frappe.db.exists = lambda dt, ten: ten in _DocGia.kho
+	frappe.delete_doc = lambda *a, **k: _DocGia.ghi.append(("delete",) + a)
+	frappe.session = _Dong(user="khai@x")
+	# Bước hỏi SQL của tim_kiem cần site; thay bằng chính phép khop thuần
+	# (bước 2 của tim_kiem.ten_khop) chạy trên kho giả. them_loc, loc_ten thật.
+	from vagabond import tim_kiem
+	cu["__ten_khop"] = tim_kiem.ten_khop
+
+	def ten_khop(dt, q, cot, gioi_han=2000):
+		if not tim_kiem.cac_tu(q):
+			return None
+		return sorted(t for t, d in _DocGia.kho.items() if tim_kiem.khop([t] + [d.get(c) for c in cot if c != "name"], q))
+	tim_kiem.ten_khop = ten_khop
+	return cu
+
+
+def _phieu_kho(ten, ten_mon, da_bo=0):
+	d = _DocGia(doctype=G.DT_THU, name=ten, ten_mon=ten_mon, nhom="Bánh lạnh", so_ra=1, dvt_ra="Cái",
+		gia_ban_du_kien=0, ghi_chu="", modified="2026-10-16 22:00:00", owner="khai@x", da_bo=da_bo)
+	d.dong = [_Dong(item_code=None, ten="Lá vàng", dvt="Lá", so_luong=1, don_gia_tay=1000)]
+	return d
+
+
+@ca("gia von tam: Codex #486 P1 bo phieu thu la bo mem: khong goi delete_doc, giu nguyen dong va gia, an khoi danh sach, khong luu de len phieu da bo")
+def _bo_mem():
+	cu = _site_thu({"GT-2610-001": _phieu_kho("GT-2610-001", "Tart chanh"), "GT-2610-002": _phieu_kho("GT-2610-002", "Mousse xoài")})
+	try:
+		kq = G.bo_thu("GT-2610-001")
+		d = _DocGia.kho.get("GT-2610-001")
+		dung("phiếu vẫn còn trong kho", d is not None)
+		la("không xoá cứng", [g for g in _DocGia.ghi if g[0] == "delete"], [])
+		la("đánh dấu bỏ, ghi người và lúc bỏ", (d.da_bo, d.bo_boi, bool(d.bo_luc)), (1, "khai@x", True))
+		la("giữ nguyên dòng nguyên liệu để tra lại", len(d.dong), 1)
+		la("trả về ok", kq.get("ok"), 1)
+		la("danh sách chỉ còn phiếu chưa bỏ", [p["name"] for p in G.ds_thu()["ds"]], ["GT-2610-002"])
+		try:
+			G.luu_thu(json.dumps({"name": "GT-2610-001", "ten_mon": "Tart chanh", "dong": [{"ten": "Lá", "dvt": "Lá", "so_luong": 1, "don_gia_tay": 1}]}))
+			dung("lưu đè lên phiếu đã bỏ phải bị chặn", False)
+		except Exception as e:
+			dung("câu chặn nói phiếu đã bỏ: %s" % e, "đã bỏ" in str(e))
+	finally:
+		_tra(cu)
+
+
+@ca("gia von tam: Codex #486 P2 luu phieu thu tu Desk cung tinh lai gia von va gia de xuat qua validate, dong co ma lay ten va don vi tu mat hang")
+def _desk_luu():
+	from vagabond.vagabond.doctype.vagabond_gia_thu.vagabond_gia_thu import VagabondGiaThu
+	cu = _site_thu()
+	try:
+		d = _DocGia(doctype=G.DT_THU, name="GT-2610-009", ten_mon="Bánh Desk", nhom="Bánh lạnh", so_ra=2, dvt_ra="Cái",
+			gia_ban_du_kien=0, ghi_chu="", gia_von=1, gia_de_xuat=1)
+		# Người dùng Desk gõ mã KEM, để trống tên và đơn vị, sửa số mẻ ra 2.
+		d.dong = [_Dong(item_code="KEM", ten="", dvt="", so_luong=100, don_gia_tay=0),
+			_Dong(item_code=None, ten="Lá vàng", dvt="Lá", so_luong=1, don_gia_tay=5000)]
+		VagabondGiaThu.validate(d)
+		# KEM theo công thức 300/gram x 100 = 30.000; lá vàng 5.000; chia 2 = 17.500; x5 = 87.500 -> 88.000.
+		la("giá vốn tính lại, không giữ số cũ", (d.gia_von, d.gia_de_xuat), (17500, 88000))
+		la("dòng có mã lấy tên và đơn vị kho", (d.dong[0].ten, d.dong[0].dvt), ("KEM", "Gram"))
+		d.dong = [_Dong(item_code=None, ten="", dvt="", so_luong=1, don_gia_tay=0)]
+		try:
+			VagabondGiaThu.validate(d)
+			dung("dòng trống phải bị chặn", False)
+		except Exception as e:
+			dung("câu chặn nói đúng dòng: %s" % e, "Dòng 1" in str(e))
+	finally:
+		_tra(cu)
+
+
+@ca("gia von tam: Codex #486 P2 danh sach phieu thu chia trang va tim o may chu: khong phieu nao bi roi khi co nhieu hon mot trang")
+def _trang_ds():
+	kho = {}
+	for i in range(1, 76):
+		ten = "GT-2610-%03d" % i
+		kho[ten] = _phieu_kho(ten, ("Mousse " if i % 5 == 0 else "Tart ") + str(i))
+	kho["GT-2610-076"] = _phieu_kho("GT-2610-076", "Tart bỏ", da_bo=1)
+	cu = _site_thu(kho)
+	try:
+		thay = []
+		bat_dau = 0
+		for _vong in range(10):
+			t = G.ds_thu(bat_dau=bat_dau)
+			thay += [p["name"] for p in t["ds"]]
+			if not t["con_nua"]:
+				break
+			bat_dau = t["bat_dau_tiep"]
+		la("đi hết các trang thấy đủ 75 phiếu chưa bỏ, không trùng", (len(thay), len(set(thay))), (75, 75))
+		la("mỗi trang tối đa TRANG_THU phiếu", len(G.ds_thu()["ds"]), G.TRANG_THU)
+		t = G.ds_thu(tu_khoa="MOUSSE")
+		la("tìm ở máy chủ qua tim_kiem, không phân biệt hoa thường", sorted(p["name"] for p in t["ds"]), sorted("GT-2610-%03d" % i for i in range(5, 76, 5)))
+		la("gõ không dấu vẫn ra, nhưng không ra phiếu đã bỏ", G.ds_thu(tu_khoa="tart bo")["ds"], [])
+		la("phiếu đã bỏ thật có khớp chữ, chỉ bị lọc vì đã bỏ", G.tim_kiem.khop(["Tart bỏ"], "tart bo"), True)
+	finally:
+		_tra(cu)
+
+
+@ca("gia von tam: Codex #486 chuan_trang lam sach tham so trang: so am, chu, tu khoa dai")
+def _chuan_trang():
+	la("mặc định", G.chuan_trang(None, None), ("", 0))
+	la("số âm về 0, chữ về 0", (G.chuan_trang("", -5)[1], G.chuan_trang("", "abc")[1]), (0, 0))
+	la("bỏ khoảng trắng hai đầu, giữ chữ để tim_kiem chuẩn hoá", G.chuan_trang(" Tart chanh ", "30"), ("Tart chanh", 30))
+	la("cắt từ khoá dài", len(G.chuan_trang("x" * 500, 0)[0]), 80)
+
+
+@ca("gia von tam: Codex #486 tim nguyen lieu cho phieu thu di qua tim_kiem (v583), loai nhom banh ban, go mot chu chua tim")
+def _tim_nl():
+	import frappe
+	from vagabond import tim_kiem
+	cu, _doc = _frappe_gia()
+	goi = []
+	cu_tk = tim_kiem.ten_khop
+	tim_kiem.ten_khop = lambda dt, q, cot, gioi_han=2000: ["NVLT00001"] if tim_kiem.cac_tu(q) else None
+
+	def get_all(dt, filters=None, **kw):
+		goi.append((dt, filters))
+		return [_Dong(name="NVLT00001", item_name="Bột mì", stock_uom="Gram", item_group="Nguyên liệu")]
+	frappe.get_all = get_all
+	try:
+		la("một chữ chưa tìm", (G.tim_nl("b"), goi), ([], []))
+		kq = G.tim_nl("bot mi")
+		la("trả mã, tên, đơn vị, nhóm", kq, [{"ma": "NVLT00001", "ten": "Bột mì", "dvt": "Gram", "nhom": "Nguyên liệu"}])
+		loc = goi[0][1]
+		dung("lọc theo tên khớp của tim_kiem: %s" % loc, ["name", "in", ["NVLT00001"]] in loc)
+		dung("loại nhóm bánh bán ra", ["item_group", "not in", list(G.NHOM_BAN)] in loc)
+		dung("không tự viết like", "like" not in json.dumps(loc, ensure_ascii=False))
+	finally:
+		tim_kiem.ten_khop = cu_tk
+		_tra(cu)

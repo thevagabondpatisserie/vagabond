@@ -17,6 +17,8 @@ GOC = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.ab
 PY = "vagabond/gia_von_tam.py"
 JS = "vagabond/public/js/bep/53-gia-von-tam.js"
 TC = "vagabond/public/js/bep/02-trang-chu.js"
+SD = "vagabond/public/js/bep/48-ban-soan-do.js"
+CT = "vagabond/vagabond/doctype/vagabond_gia_thu/vagabond_gia_thu.py"
 
 CA_PY = [sys.executable, "-c", (
 	"import sys; sys.path.insert(0, %r)\n"
@@ -24,6 +26,12 @@ CA_PY = [sys.executable, "-c", (
 	"from vagabond.khung.kiem_thu import thu_gia_von_tam\n"
 	"sys.exit(1 if nen.chay_het(im=True) else 0)" % GOC)]
 CA_JS = ["node", "vagabond/khung/kiem_thu/hanh_vi/gia_von_tam_482.js"]
+CA_SD = ["node", "vagabond/khung/kiem_thu/hanh_vi/ban_soan_do_533.js"]
+CA_SD_PY = [sys.executable, "-c", (
+	"import sys; sys.path.insert(0, %r)\n"
+	"from vagabond.khung.kiem_thu import nen; nen.gia_lap()\n"
+	"from vagabond.khung.kiem_thu import thu_ban_soan_do_533\n"
+	"sys.exit(1 if nen.chay_het(im=True) else 0)" % GOC)]
 
 DOT_BIEN = [
 	("bỏ đi xuống công thức con khi bom_no rỗng", PY,
@@ -80,6 +88,37 @@ DOT_BIEN = [
 		"  if (!await confirmSheet('Chốt giá vốn tạm',", "  if (false && await confirmSheet('Chốt giá vốn tạm',", CA_JS),
 	("gọi chi_tiet ngay lúc mở màn", JS,
 		"  gvtVe();\n}", "  gvtVe();\n  api('vagabond.gia_von_tam.chi_tiet', { ma: 'x' });\n}", CA_JS),
+	# ---- Codex #486 vòng 1 ----
+	("Codex #486 P1: phiếu thử không bọc bản nháp", SD,
+		"gvtManPhieu = sdBoc('gia_thu', 'gvtManPhieu', gvtManPhieu);\n", "", CA_SD),
+	("Codex #486 P1: bản nháp phiếu thử không đọc trạng thái", SD,
+		"  ten: 'Phiếu tính giá thử', lay: function () { return GVT.p; },", "  ten: 'Phiếu tính giá thử', lay: function () { return null; },", CA_SD),
+	("Codex #486 P1: màn phiếu thử khai bằng biểu thức, không được nâng lên trước 48", JS,
+		"function gvtManPhieu() {", "var gvtManPhieu = function () {", CA_SD_PY),
+	("Codex #486 P1: bỏ phiếu thành xoá cứng", PY,
+		"		d.da_bo = 1\n", "		frappe.delete_doc(DT_THU, name, ignore_permissions=True)\n", CA_PY),
+	("Codex #486 P1: danh sách hiện cả phiếu đã bỏ", PY,
+		'tim_kiem.them_loc({"da_bo": 0}, DT_THU,', 'tim_kiem.them_loc({}, DT_THU,', CA_PY),
+	("Codex #486 P1: lưu đè được lên phiếu đã bỏ", PY,
+		'		if d.get("da_bo"):\n', "		if False:\n", CA_PY),
+	("Codex #486 P1: bỏ phiếu không hỏi xác nhận", JS,
+		"  if (!await confirmSheet('Bỏ phiếu',", "  if (false && await confirmSheet('Bỏ phiếu',", CA_JS),
+	("Codex #486 P2: Desk lưu không tính lại", CT,
+		"		tinh_lai_doc(self)\n", "		pass\n", CA_PY),
+	("Codex #486 P2: tính lại mà không ghi giá vốn vào phiếu", PY,
+		'	d.gia_von = kq["gia_von"]\n', "", CA_PY),
+	("Codex #486 P2: kết quả tính thử cũ về sau đè số mới", JS,
+		"  if (lan !== GVT.lan || p !== GVT.p) return;\n", "", CA_JS),
+	("Codex #486 P2: kết quả tìm phiếu cũ về sau đè kết quả mới", JS,
+		"  if (lan !== GVT.lanDs) return;\n  if (noiTiep)", "  if (noiTiep)", CA_JS),
+	("Codex #486 P2: máy chủ không báo còn trang sau", PY,
+		"	con_nua = len(ten) > TRANG_THU\n", "	con_nua = False\n", CA_PY),
+	("Codex #486: tìm nguyên liệu không loại nhóm bánh bán", PY,
+		'{"disabled": 0, "item_group": ["not in", list(NHOM_BAN)]}, "Item"', '{"disabled": 0}, "Item"', CA_PY),
+	("Codex #486 P2: máy chủ bỏ qua vị trí bắt đầu", PY,
+		"		limit_start=bd, limit_page_length=TRANG_THU + 1)]", "		limit_start=0, limit_page_length=TRANG_THU + 1)]", CA_PY),
+	("Codex #486 P2: màn không có nút Xem thêm", JS,
+		"    (t.con_nua ? '<button class=\"btn gh\" data-gvtthemds", "    (false ? '<button class=\"btn gh\" data-gvtthemds", CA_JS),
 ]
 
 
