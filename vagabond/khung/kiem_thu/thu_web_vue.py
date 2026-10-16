@@ -211,7 +211,7 @@ def _ba_chinh_sach():
 		fr = D(local=D(request=D(path='/web_moi/'+duong)),form_dict={'ngon_ngu':'en'},
 			sessions=D(get_csrf_token=lambda:'csrf'),PageDoesNotExistError=ValueError)
 		vet=[]
-		nd = D(khoa_tu_duong=noi_dung_web.khoa_tu_duong, chinh_sach_dang_hien=lambda:[],
+		nd = D(khoa_tu_duong=noi_dung_web.khoa_tu_duong, chinh_sach_dang_hien=lambda:[], nhan_cong_khai=lambda:{},
 			trang_chinh_sach=lambda k,n:(vet.append((k,n)) or {'ten':'Chính sách','html':'<p>Published</p>','ngon_ngu':'en','co_en':True}))
 		g=dict(frappe=fr,noi_dung_web=nd,web_vue=web_vue,don_web=D(PHAP_NHAN={},lien_he=lambda:{}),
 			trang_khach=D(_e=trang_khach._e,json_trong_script=trang_khach.json_trong_script,chan_trang_html=lambda *a:''))
