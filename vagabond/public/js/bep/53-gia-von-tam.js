@@ -3,29 +3,43 @@
 
    Cho kế toán giá thành (Khải) xem giá vốn nguyên liệu của từng bánh bán
    ra, cộng dồn qua từng lớp bán thành phẩm theo giá kho hôm nay, so với giá
-   bán, và giá bán đề xuất theo tỷ lệ giá vốn mục tiêu của nhóm. Bấm Chốt thì
-   máy chủ lưu vào bảng giá riêng "Giá vốn tạm tính".
+   bán, và giá bán đề xuất theo HỆ SỐ mục tiêu của nhóm (giá bán gấp mấy lần
+   giá vốn, anh Việt 16/10 tối: tiệm đọc theo "lãi số lần", phần trăm giá vốn
+   chỉ hiện kèm). Bấm Chốt thì máy chủ lưu vào bảng giá riêng "Giá vốn tạm
+   tính".
 
-   Màn này chỉ ĐỌC, trừ hai việc ghi đều qua máy chủ: lưu tỷ lệ mục tiêu và
-   chốt bảng giá. Không đụng công thức, tồn kho hay sổ sách. Mọi con số
-   (giá vốn, trạng thái, giá đề xuất, quyền) do máy chủ tính; màn chỉ lọc và
-   bày ra (vagabond/gia_von_tam.py).
+   Tab "Món thử (R&D)": phiếu tính giá thử cho món chưa bán. Nhập nguyên liệu
+   tạm (mã có sẵn hoặc NVL mới kèm giá tay), máy chủ tính bằng đúng phép cộng
+   dồn của món đang bán. Không tạo mã hàng, không tạo công thức.
+
+   Màn chỉ ĐỌC, trừ các việc ghi đều qua máy chủ: lưu hệ số mục tiêu, chốt
+   bảng giá, lưu và xoá phiếu thử. Không đụng công thức, tồn kho hay sổ sách.
+   Mọi con số (giá vốn, trạng thái, giá đề xuất, quyền) do máy chủ tính; màn
+   chỉ lọc và bày ra (vagabond/gia_von_tam.py).
    =================================================================== */
 
-var GVT = { kq: null, nhom: '', tt: '', tim: '', moCct: false };
+var GVT = { kq: null, nhom: '', tt: '', tim: '', moCct: false, tab: 'ban', thu: null, p: null, pk: null, hen: null };
 
 var GVT_TT = {
   vuot_gia_ban: { nhan: 'Vượt giá bán', mau: '#b3261e', nen: '#fef2f2' },
   thieu_gia: { nhan: 'Thiếu giá NVL', mau: '#b45309', nen: '#fffbeb' },
   vong: { nhan: 'Công thức vòng', mau: '#b3261e', nen: '#fef2f2' },
-  cao_hon_muc_tieu: { nhan: 'Cao hơn mục tiêu', mau: '#b45309', nen: '#fffbeb' }
+  duoi_muc_tieu: { nhan: 'Dưới mục tiêu', mau: '#b45309', nen: '#fffbeb' }
 };
 /* Codex #483 vong 3: co ca 'vong' de loc rieng duoc mon cong thuc vong. Chip
    chi hien khi co mon o trang thai do (xem gvtVe). */
-var GVT_CHIP_TT = ['vuot_gia_ban', 'vong', 'thieu_gia', 'cao_hon_muc_tieu'];
+var GVT_CHIP_TT = ['vuot_gia_ban', 'vong', 'thieu_gia', 'duoi_muc_tieu'];
 var GVT_TIEU_DE = 'Giá vốn tạm tính';
+var GVT_TIEU_DE_THU = 'Phiếu tính giá thử';
 
 function gvtPhanTram(x) { return x == null ? '' : String(x).replace('.', ',') + '%'; }
+function gvtHeSo(x) { return x == null ? '' : 'x' + String(x).replace('.', ','); }
+
+/* "x6,1 (16,5%)": hệ số là con số chính, phần trăm giá vốn đi kèm. */
+function gvtHeSoKem(d) {
+  if (d.he_so == null) return '';
+  return '<b>' + gvtHeSo(d.he_so) + '</b>' + (d.ty_le != null ? ' (' + gvtPhanTram(d.ty_le) + ')' : '');
+}
 
 function gvtNgay(s) {
   var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s || ''));
@@ -46,12 +60,13 @@ function gvtLoc() {
    xanh đạt, vàng cần xem, đỏ cần xử, xám chưa đủ dữ liệu. */
 var GVT_CHIP = {
   dat: ['Đạt mục tiêu', '#047857', '#ecfdf5'],
-  cao_hon_muc_tieu: ['Cao hơn mục tiêu', '#b45309', '#fffbeb'],
+  duoi_muc_tieu: ['Dưới mục tiêu', '#b45309', '#fffbeb'],
   vuot_gia_ban: ['Vượt giá bán', '#b3261e', '#fef2f2'],
   thieu_gia: ['Thiếu giá NVL', '#b45309', '#fffbeb'],
   vong: ['Công thức vòng', '#b3261e', '#fef2f2'],
   chua_gia_ban: ['Chưa có giá bán', '#6b7280', '#f3f4f6'],
-  chua_dat_ty_le: ['Chưa đặt mục tiêu', '#6b7280', '#f3f4f6']
+  chua_dat_muc_tieu: ['Chưa đặt mục tiêu', '#6b7280', '#f3f4f6'],
+  chua_nguyen_lieu: ['Chưa có nguyên liệu', '#6b7280', '#f3f4f6']
 };
 function gvtChipTrangThai(d) {
   var c = GVT_CHIP[d.trang_thai] || [d.trang_thai, '#6b7280', '#f3f4f6'];
@@ -62,9 +77,9 @@ function gvtChipTrangThai(d) {
 function gvtThe(d) {
   var dong3;
   if (d.trang_thai === 'thieu_gia' || d.trang_thai === 'vong') dong3 = '';
-  else if (d.gia_de_xuat) dong3 = 'Đề xuất ' + money(d.gia_de_xuat) + 'đ (mục tiêu ' + gvtPhanTram(d.ty_le_muc_tieu) + ')';
+  else if (d.gia_de_xuat) dong3 = 'Đề xuất ' + money(d.gia_de_xuat) + 'đ (mục tiêu ' + gvtHeSo(d.he_so_muc_tieu) + ')';
   else if (!d.gia_ban) dong3 = 'Chưa có giá bán';
-  else dong3 = 'Chưa đặt tỷ lệ mục tiêu';
+  else dong3 = 'Chưa đặt hệ số mục tiêu';
   var co = '';
   if (d.trang_thai === 'thieu_gia') {
     var ten = (d.thieu_ten || []).slice(0, 2);
@@ -76,11 +91,12 @@ function gvtThe(d) {
     co = 'Công thức trỏ vòng vào chính nó, chưa tính được.';
   }
   var tt = GVT_TT[d.trang_thai];
+  var hs = gvtHeSoKem(d);
   return '<div class="hub" data-gvtm="' + h(d.ma) + '" style="align-items:flex-start">' + anhMon(d.anh) +
     '<div class="hub-t" style="flex:1;min-width:0">' +
       '<div style="display:flex;gap:8px;align-items:center"><div class="t1" style="flex:1;min-width:0">' + h(d.ten) + '</div>' + gvtChipTrangThai(d) + '</div>' +
       '<div class="t2">Giá vốn ' + money(d.gia_von) + 'đ · ' + (d.gia_ban ? 'Giá bán ' + money(d.gia_ban) + 'đ' : 'Chưa có giá bán') +
-        (d.ty_le != null ? ' · <b>' + gvtPhanTram(d.ty_le) + '</b>' : '') + '</div>' +
+        (hs ? ' · ' + hs : '') + '</div>' +
       (dong3 ? '<div class="t2" style="color:#0f766e;font-weight:700">' + h(dong3) + '</div>' : '') +
       (d.lan_truoc ? '<div class="t2">Lần chốt ' + gvtNgay(d.lan_truoc.ngay) + ': ' + money(d.lan_truoc.gia) + 'đ (' +
         (d.lan_truoc.chenh_pct > 0 ? '+' : '') + gvtPhanTram(d.lan_truoc.chenh_pct) + ')</div>' : '') +
@@ -101,7 +117,7 @@ function gvtVeDs() {
       var cua = ds.filter(function (d) { return d.nhom === n.ten; });
       if (!cua.length) return;
       html += '<div class="sec">' + h(n.ten) + ', ' +
-        (n.ty_le_muc_tieu ? 'mục tiêu ' + gvtPhanTram(n.ty_le_muc_tieu) : 'chưa đặt mục tiêu') + '</div>' +
+        (n.he_so_muc_tieu ? 'mục tiêu ' + gvtHeSo(n.he_so_muc_tieu) : 'chưa đặt mục tiêu') + '</div>' +
         '<div class="card">' + cua.map(gvtThe).join('') + '</div>';
     });
   }
@@ -120,7 +136,7 @@ function gvtVeDs() {
   if (cct.so) {
     html += '<div class="card" data-gvtcct style="padding:12px 14px;cursor:pointer">' +
       '<div style="font-size:13.5px;color:#4b5563">' + cct.so + ' món chưa có công thức nên chưa tính được. ' +
-      (GVT.moCct ? 'Bấm để thu gọn.' : 'Bấm để xem.') + '</div>' +
+      (GVT.moCct ? 'Bấm để thu gọn.' : 'Bấm để xem.') + ' Món mới đang thử thì dùng tab Món thử (R&D).</div>' +
       (GVT.moCct ? '<div data-gvtcctds style="font-size:13px;color:#6b7280;margin-top:8px;line-height:1.6">' +
         (cct.ten || []).map(h).join(', ') + (cct.so > (cct.ten || []).length ? ' và ' + (cct.so - cct.ten.length) + ' nữa' : '') +
         '</div>' : '') + '</div>';
@@ -128,11 +144,20 @@ function gvtVeDs() {
   return html;
 }
 
+/* Hai tab: Món đang bán, Món thử (R&D). */
+function gvtTab() {
+  return '<div style="display:flex;gap:7px;margin-bottom:10px">' +
+    posChipNut('data-gvttab="ban"', 'Món đang bán', GVT.tab === 'ban') +
+    posChipNut('data-gvttab="thu"', 'Món thử (R&D)', GVT.tab === 'thu') + '</div>';
+}
+
 function gvtVe() {
+  if (GVT.tab === 'thu') return gvtVeThu();
   var kq = GVT.kq || {};
   var dong = kq.dong || [];
-  var html = '<div class="card" style="padding:12px 14px"><div style="font-size:13.5px;color:#4b5563;line-height:1.55">' +
+  var html = gvtTab() + '<div class="card" style="padding:12px 14px"><div style="font-size:13.5px;color:#4b5563;line-height:1.55">' +
     'Tiền nguyên liệu theo công thức đang dùng, tính dồn qua bán thành phẩm, theo giá kho hôm nay. ' +
+    'x5 nghĩa là giá bán gấp 5 lần giá vốn; số trong ngoặc là giá vốn trên giá bán. ' +
     'Chưa gồm bao bì, công, hao hụt. Chỉ để định giá, không đổi sổ sách.</div>' +
     '<div style="font-size:12.5px;color:#9ca3af;margin-top:6px">Tính lúc ' + h(kq.cap_nhat_luc || '') + '</div>' +
     '<input class="tin" id="gvtQ" placeholder="Tìm tên hoặc mã bánh" value="' + h(GVT.tim) + '" style="margin:10px 0 0"></div>';
@@ -150,7 +175,7 @@ function gvtVe() {
   });
   html += '<div class="card" style="padding:10px 12px;overflow-x:auto"><div style="display:flex;gap:7px;padding:0 2px">' + chipNhom + '</div>' +
     (chipTt ? '<div style="display:flex;gap:7px;padding:8px 2px 0">' + chipTt + '</div>' : '') + '</div>';
-  if (kq.sua_duoc) html += '<button class="btn gh" data-gvttyle style="margin:0 0 10px">Tỷ lệ mục tiêu</button>';
+  if (kq.sua_duoc) html += '<button class="btn gh" data-gvthso style="margin:0 0 10px">Hệ số mục tiêu</button>';
   html += '<div id="gvtDs">' + gvtVeDs() + '</div>';
 
   var b = frame(GVT_TIEU_DE, html, kq.sua_duoc ? { footer: '<button class="btn" id="gvtChot">Chốt vào bảng Giá vốn tạm tính</button>' } : {});
@@ -163,11 +188,12 @@ function gvtVe() {
   b.onclick = function (e) {
     var t = e.target;
     var el;
+    if ((el = t.closest('[data-gvttab]'))) return gvtDoiTab(el.getAttribute('data-gvttab'));
     if ((el = t.closest('[data-gvtn]'))) { GVT.nhom = el.getAttribute('data-gvtn') || ''; return gvtVe(); }
     if ((el = t.closest('[data-gvtt]'))) { var k = el.getAttribute('data-gvtt'); GVT.tt = GVT.tt === k ? '' : k; return gvtVe(); }
     if (t.closest('[data-gvtbo]')) { GVT.nhom = ''; GVT.tt = ''; GVT.tim = ''; return gvtVe(); }
     if (t.closest('[data-gvtcct]')) { GVT.moCct = !GVT.moCct; return gvtVe(); }
-    if (t.closest('[data-gvttyle]')) return gvtSuaTyLe();
+    if (t.closest('[data-gvthso]')) return gvtSuaHeSo();
     if ((el = t.closest('[data-gvtm]'))) return gvtChiTiet(el.getAttribute('data-gvtm'), null, []);
   };
   var c = document.getElementById('gvtChot');
@@ -184,52 +210,74 @@ function gvtLoi(e) {
 }
 
 async function scrGiaVonTam() {
+  if (GVT.tab === 'thu') return gvtTaiThu();
   frame(GVT_TIEU_DE, '<div class="emp"><div class="e1">⏳</div><div>Đang tính giá vốn...</div></div>');
   try { GVT.kq = await api('vagabond.gia_von_tam.tinh', {}); }
   catch (e) { GVT.kq = null; return gvtLoi(e); }
   gvtVe();
 }
 
-/* Sheet tỷ lệ mục tiêu: mỗi nhóm một ô %. Ô ngoài 1 tới 95 bị chặn tại chỗ,
-   không gửi lên máy chủ (máy chủ vẫn kiểm lại, chuan_ty_le). */
-function gvtSuaTyLe() {
+/* Đổi tab chỉ tải phần chưa có, không tính lại tab kia. */
+function gvtDoiTab(t) {
+  GVT.tab = t === 'thu' ? 'thu' : 'ban';
+  if (GVT.tab === 'thu') return GVT.thu ? gvtVeThu() : gvtTaiThu();
+  return GVT.kq ? gvtVe() : scrGiaVonTam();
+}
+
+/* Sheet hệ số mục tiêu: mỗi nhóm một ô "x". Ô không lớn hơn 1 hoặc quá 20 bị
+   chặn tại chỗ, không gửi lên máy chủ (máy chủ vẫn kiểm lại, chuan_he_so).
+   Gõ tới đâu hiện phần trăm giá vốn tương ứng tới đó. */
+function gvtQuyDoi(v) {
+  var p = parseFloat(String(v || '').trim().replace(',', '.'));
+  if (isNaN(p) || p <= 1 || p > 20) return '';
+  return 'tức giá vốn ' + gvtPhanTram(Math.round(1000 / p) / 10) + ' giá bán';
+}
+function gvtSuaHeSo() {
   var kq = GVT.kq || {};
   var nhom = (kq.nhom || []).filter(function (n) { return n.so_mon; });
   var ov = document.createElement('div'); ov.className = 'sh';
   ov.innerHTML = '<div class="shb" style="padding:18px 16px calc(env(safe-area-inset-bottom,0px) + 16px)">' +
-    '<div style="font-size:17.5px;font-weight:700;margin-bottom:6px">Tỷ lệ giá vốn mục tiêu</div>' +
-    '<div style="font-size:13.5px;color:#5a6070;line-height:1.5;margin-bottom:12px">Giá bán đề xuất = giá vốn tạm chia tỷ lệ này, làm tròn lên nghìn. ' +
-    'Để trống thì không đề xuất giá cho nhóm đó.</div>' +
+    '<div style="font-size:17.5px;font-weight:700;margin-bottom:6px">Hệ số giá bán mục tiêu</div>' +
+    '<div style="font-size:13.5px;color:#5a6070;line-height:1.5;margin-bottom:12px">Giá bán đề xuất = giá vốn nhân hệ số này, làm tròn lên nghìn. ' +
+    'Ví dụ x5 là giá bán gấp 5 lần giá vốn. Để trống thì không đề xuất giá cho nhóm đó.</div>' +
     nhom.map(function (n) {
       return '<div style="margin-bottom:12px"><div style="display:flex;align-items:center;gap:10px">' +
-        '<div style="flex:1;font-size:14.5px;font-weight:600">' + h(n.ten) + '</div>' +
-        '<input class="nt" data-gvtpct="' + h(n.ten) + '" inputmode="decimal" value="' + (n.ty_le_muc_tieu == null ? '' : h(String(n.ty_le_muc_tieu).replace('.', ','))) +
-        '" style="width:84px;height:44px;text-align:right;padding:0 10px"><span>%</span></div>' +
-        '<div style="font-size:12.5px;color:#9ca3af">' + (n.trung_vi != null ? 'Hiện trung vị ' + gvtPhanTram(n.trung_vi) : 'Chưa đủ số để tính trung vị') + '</div>' +
+        '<div style="flex:1;font-size:14.5px;font-weight:600">' + h(n.ten) + '</div><span style="font-weight:700">x</span>' +
+        '<input class="nt" data-gvthsn="' + h(n.ten) + '" inputmode="decimal" value="' + (n.he_so_muc_tieu == null ? '' : h(String(n.he_so_muc_tieu).replace('.', ','))) +
+        '" style="width:84px;height:44px;text-align:right;padding:0 10px"></div>' +
+        '<div style="font-size:12.5px;color:#9ca3af">' + (n.trung_vi != null ? 'Hiện trung vị ' + gvtHeSo(n.trung_vi) : 'Chưa đủ số để tính trung vị') +
+        ' <span data-gvtqd="' + h(n.ten) + '">' + h(gvtQuyDoi(n.he_so_muc_tieu)) + '</span></div>' +
         '<div data-gvtsai="' + h(n.ten) + '" style="font-size:12.5px;color:#b3261e"></div></div>';
     }).join('') +
-    '<button class="btn" data-gvtluu>Lưu tỷ lệ</button><button class="btn gh" data-gvthuy style="margin-top:9px">Huỷ</button></div>';
+    '<button class="btn" data-gvtluu>Lưu hệ số</button><button class="btn gh" data-gvthuy style="margin-top:9px">Huỷ</button></div>';
   document.body.appendChild(ov);
+  ov.oninput = function (e) {
+    var o = e.target.closest && e.target.closest('[data-gvthsn]');
+    if (!o) return;
+    var qd = ov.querySelector('[data-gvtqd="' + o.getAttribute('data-gvthsn') + '"]');
+    if (qd) qd.innerHTML = h(gvtQuyDoi(o.value));
+  };
   ov.onclick = async function (e) {
     if (e.target === ov || e.target.closest('[data-gvthuy]')) { ov.remove(); return; }
     if (!e.target.closest('[data-gvtluu]')) return;
-    var ty = {}, sai = 0;
+    var hs = {}, sai = 0;
     nhom.forEach(function (n) {
-      var o = ov.querySelector('[data-gvtpct="' + n.ten + '"]');
+      var o = ov.querySelector('[data-gvthsn="' + n.ten + '"]');
       var bao = ov.querySelector('[data-gvtsai="' + n.ten + '"]');
       var v = String((o && o.value) || '').trim().replace(',', '.');
       if (bao) bao.innerHTML = '';
-      if (!v) { ty[n.ten] = ''; return; }
+      if (!v) { hs[n.ten] = ''; return; }
       var p = parseFloat(v);
-      if (isNaN(p) || p < 1 || p > 95) { sai++; if (bao) bao.innerHTML = 'Nhập số từ 1 tới 95.'; return; }
-      ty[n.ten] = p;
+      if (isNaN(p) || p <= 1 || p > 20) { sai++; if (bao) bao.innerHTML = 'Nhập số lớn hơn 1, tối đa 20.'; return; }
+      hs[n.ten] = p;
     });
     if (sai) return;
     busy(true);
-    try { await api('vagabond.gia_von_tam.luu_ty_le', { ty_le: JSON.stringify(ty) }); busy(false); }
-    catch (er) { busy(false); return baoTin((er && er.message) || 'Lưu tỷ lệ lỗi'); }
+    try { await api('vagabond.gia_von_tam.luu_he_so', { he_so: JSON.stringify(hs) }); busy(false); }
+    catch (er) { busy(false); return baoTin((er && er.message) || 'Lưu hệ số lỗi'); }
     ov.remove();
-    toast('Đã lưu tỷ lệ mục tiêu', 3000);
+    toast('Đã lưu hệ số mục tiêu', 3000);
+    GVT.thu = null;
     scrGiaVonTam();
   };
 }
@@ -283,4 +331,310 @@ async function gvtChot() {
   Object.keys(kq.bo_qua || {}).forEach(function (k) { boQua += kq.bo_qua[k]; });
   toast('Đã lưu ' + kq.da_luu + ' món.' + (boQua ? ' Bỏ qua ' + boQua + ' món.' : ''), 5000);
   scrGiaVonTam();
+}
+
+/* =================================================================
+   MÓN THỬ (R&D): danh sách phiếu và màn nhập
+   ================================================================= */
+
+async function gvtTaiThu() {
+  frame(GVT_TIEU_DE, gvtTab() + '<div class="emp"><div class="e1">⏳</div><div>Đang tính các phiếu thử...</div></div>');
+  try { GVT.thu = await api('vagabond.gia_von_tam.ds_thu', {}); }
+  catch (e) { GVT.thu = null; return gvtLoi(e); }
+  gvtVeThu();
+}
+
+function gvtTenNhom(ten) {
+  var n = ((GVT.thu || {}).nhom_ban || []).filter(function (x) { return x.ten === ten; })[0];
+  return n ? n.nhan : ten;
+}
+
+/* Dòng giá đề xuất của một phiếu: nói rõ thiếu gì khi chưa đề xuất được. */
+function gvtCauDeXuat(p) {
+  if (p.gia_de_xuat) return 'Đề xuất ' + money(p.gia_de_xuat) + 'đ (mục tiêu ' + gvtHeSo(p.he_so_muc_tieu) + ')';
+  if (p.trang_thai === 'chua_nguyen_lieu') return 'Thêm nguyên liệu để tính';
+  if (p.trang_thai === 'thieu_gia' || p.trang_thai === 'vong') return '';
+  if (!p.nhom) return 'Chọn nhóm bán để có giá đề xuất';
+  return 'Nhóm ' + gvtTenNhom(p.nhom) + ' chưa đặt hệ số mục tiêu';
+}
+
+function gvtThePhieu(p) {
+  var de = gvtCauDeXuat(p);
+  return '<div class="hub" data-gvtp="' + h(p.name) + '" style="align-items:flex-start">' +
+    '<div class="hub-t" style="flex:1;min-width:0">' +
+      '<div style="display:flex;gap:8px;align-items:center"><div class="t1" style="flex:1;min-width:0">' + h(p.ten_mon) + '</div>' + gvtChipTrangThai(p) + '</div>' +
+      '<div class="t2">Giá vốn ' + money(p.gia_von) + 'đ/' + h(p.dvt_ra) + ' · mẻ ra ' + String(p.so_ra).replace('.', ',') + ' ' + h(p.dvt_ra) +
+        (p.nhom ? ' · ' + h(gvtTenNhom(p.nhom)) : '') + '</div>' +
+      (de ? '<div class="t2" style="color:#0f766e;font-weight:700">' + h(de) + '</div>' : '') +
+      (p.gia_ban_du_kien ? '<div class="t2">Giá bán dự kiến ' + money(p.gia_ban_du_kien) + 'đ' + (p.he_so != null ? ' · ' + gvtHeSoKem(p) : '') + '</div>' : '') +
+      (p.thieu_so ? '<div class="t2" style="color:#b45309">Thiếu giá ' + p.thieu_so + ' nguyên liệu. Mở phiếu để nhập giá tay.</div>' : '') +
+    '</div></div>';
+}
+
+function gvtVeThu() {
+  var t = GVT.thu || {};
+  var ds = t.ds || [];
+  var html = gvtTab() + '<div class="card" style="padding:12px 14px"><div style="font-size:13.5px;color:#4b5563;line-height:1.55">' +
+    'Món đang thử chưa bán: nhập nguyên liệu tạm để có giá vốn và giá bán đề xuất theo hệ số mục tiêu của nhóm. ' +
+    'Tính bằng giá kho hôm nay, bán thành phẩm lấy theo công thức đang có. Không tạo mã hàng, không tạo công thức, không đổi sổ sách.</div></div>';
+  if (!ds.length) {
+    html += '<div class="card"><div class="emp" style="padding:24px"><div class="e1">🧪</div>' +
+      '<div>Chưa có phiếu tính giá thử nào.' + (t.sua_duoc ? ' Bấm Phiếu tính giá thử mới để bắt đầu.' : '') + '</div></div></div>';
+  } else {
+    html += '<div class="card">' + ds.map(gvtThePhieu).join('') + '</div>';
+  }
+  var b = frame(GVT_TIEU_DE, html, t.sua_duoc ? { footer: '<button class="btn" id="gvtThuMoi">Phiếu tính giá thử mới</button>' } : {});
+  b.onclick = function (e) {
+    var el;
+    if ((el = e.target.closest('[data-gvttab]'))) return gvtDoiTab(el.getAttribute('data-gvttab'));
+    if ((el = e.target.closest('[data-gvtp]'))) {
+      var p = ds.filter(function (x) { return x.name === el.getAttribute('data-gvtp'); })[0];
+      if (p) gvtMoPhieu(p);
+    }
+  };
+  var mo = document.getElementById('gvtThuMoi');
+  if (mo) mo.onclick = function () {
+    gvtMoPhieu({ name: null, ten_mon: '', nhom: '', so_ra: 1, dvt_ra: 'Cái', gia_ban_du_kien: 0, ghi_chu: '', dong: [] });
+  };
+  return b;
+}
+
+/* Mở màn nhập. Bản sao sâu, sửa không đụng danh sách cho tới khi Lưu. */
+function gvtMoPhieu(p) {
+  GVT.p = JSON.parse(JSON.stringify({
+    name: p.name || null, ten_mon: p.ten_mon || '', nhom: p.nhom || '', so_ra: p.so_ra || 1, dvt_ra: p.dvt_ra || 'Cái',
+    gia_ban_du_kien: p.gia_ban_du_kien || '', ghi_chu: p.ghi_chu || '',
+    dong: (p.dong || []).map(function (d) {
+      return { item_code: d.item_code || null, ten: d.ten || '', dvt: d.dvt || '', so_luong: d.so_luong, don_gia_tay: d.don_gia_tay || '' };
+    })
+  }));
+  GVT.pk = p.name ? JSON.parse(JSON.stringify(p)) : null;
+  GVT.pkDong = p.name ? GVT.pk.dong : null;   /* phiếu đã lưu: mọi dòng đều hợp lệ, kết quả khớp từng dòng */
+  vgbBoChuaLuu();
+  go(gvtManPhieu);
+}
+
+/* Payload gửi máy chủ để TÍNH THỬ: chỉ dòng đã có số lượng > 0. `chiSo` giữ
+   vị trí từng dòng gửi đi để ghép kết quả về đúng dòng trên màn. */
+function gvtSoVn(v) { var p = parseFloat(String(v == null ? '' : v).trim().replace(',', '.')); return isNaN(p) ? null : p; }
+function gvtGoiTinh() {
+  var p = GVT.p, chiSo = [], dong = [];
+  p.dong.forEach(function (d, i) {
+    var sl = gvtSoVn(d.so_luong);
+    if (sl == null || sl <= 0) return;
+    chiSo.push(i);
+    dong.push({ item_code: d.item_code, ten: d.ten, dvt: d.dvt, so_luong: sl, don_gia_tay: gvtSoVn(d.don_gia_tay) || 0 });
+  });
+  return { chiSo: chiSo, phieu: { ten_mon: p.ten_mon || 'Món thử', nhom: p.nhom, so_ra: gvtSoVn(p.so_ra) || 1,
+    dvt_ra: p.dvt_ra, gia_ban_du_kien: gvtSoVn(p.gia_ban_du_kien) || 0, dong: dong } };
+}
+
+function gvtDanhDau() {
+  S.chuaLuu = 'Phiếu tính giá thử đang sửa dở, chưa bấm Lưu phiếu. Rời màn này là mất.';
+  S.chuaLuuNac = S.stack.length - 1;
+}
+
+async function gvtTinhLai() {
+  var g = gvtGoiTinh();
+  var kq;
+  try { kq = await api('vagabond.gia_von_tam.tinh_thu', { phieu: JSON.stringify(g.phieu) }); }
+  catch (e) { return; }
+  var dongKq = [];
+  g.chiSo.forEach(function (i, j) { dongKq[i] = (kq.dong || [])[j]; });
+  GVT.pk = kq;
+  GVT.pkDong = dongKq;
+  gvtVeKetQua();
+}
+function gvtHenTinh() {
+  if (GVT.hen) clearTimeout(GVT.hen);
+  GVT.hen = setTimeout(function () { GVT.hen = null; gvtTinhLai(); }, 400);
+}
+
+/* Khối kết quả trên đầu màn nhập. */
+function gvtKhoiKetQua() {
+  var k = GVT.pk;
+  var p = GVT.p;
+  if (!k) return '<div style="font-size:13.5px;color:#6b7280">Thêm nguyên liệu và số lượng để máy tính giá vốn.</div>';
+  var de = gvtCauDeXuat(Object.assign({}, k, { nhom: p.nhom }));
+  return '<div style="display:flex;gap:8px;align-items:center"><div style="flex:1;font-size:15px;font-weight:800">Giá vốn ' + money(k.gia_von) + 'đ/' + h(p.dvt_ra || 'Cái') + '</div>' +
+    gvtChipTrangThai(k) + '</div>' +
+    '<div class="t2" style="margin-top:4px">Cả mẻ ' + money(k.tong_me) + 'đ, ra ' + String(p.so_ra || 1).replace('.', ',') + ' ' + h(p.dvt_ra || 'Cái') + '</div>' +
+    (de ? '<div class="t2" style="color:#0f766e;font-weight:700">' + h(de) + '</div>' : '') +
+    (k.he_so != null ? '<div class="t2">Giá bán dự kiến ' + money(gvtSoVn(p.gia_ban_du_kien)) + 'đ · ' + gvtHeSoKem(k) + '</div>' : '') +
+    (k.thieu_so ? '<div class="t2" style="color:#b45309">Thiếu giá ' + k.thieu_so + ' nguyên liệu: nhập giá tay ở dòng đó.</div>' : '');
+}
+function gvtVeKetQua() {
+  var el = document.getElementById('gvtpKq');
+  if (el) el.innerHTML = gvtKhoiKetQua();
+  (GVT.p.dong || []).forEach(function (d, i) {
+    var o = document.querySelector('[data-gvtpgiadong="' + i + '"]');
+    if (o) o.innerHTML = gvtGiaDong(d, (GVT.pkDong || [])[i]);
+  });
+}
+
+/* Dòng giá của một nguyên liệu: nguồn giá và thành tiền theo kết quả máy chủ. */
+function gvtGiaDong(d, r) {
+  if (!r) return '<span style="color:#9ca3af">Nhập số lượng để tính</span>';
+  return money(r.don_gia) + 'đ/' + h(r.dvt || d.dvt || '') + ' (' + h(r.nguon) + ')' +
+    (r.thieu ? ' · <span style="color:#b45309">thiếu giá</span>' : '') +
+    ' · <b>' + money(r.thanh_tien) + 'đ</b>';
+}
+
+function gvtDongNhap(d, i) {
+  var r = (GVT.pkDong || [])[i];
+  var canGiaTay = !d.item_code || (r && r.thieu) || gvtSoVn(d.don_gia_tay) > 0;
+  return '<div class="hub" data-gvtpd="' + i + '" style="align-items:flex-start;cursor:default">' +
+    '<div class="hub-t" style="flex:1;min-width:0">' +
+      '<div style="display:flex;gap:8px;align-items:center"><div class="t1" style="flex:1;min-width:0">' + h(d.ten || d.item_code) +
+        (d.item_code ? '' : ' <span style="font-size:12px;color:#6b7280;font-weight:600">· chưa có mã</span>') + '</div>' +
+        '<button class="ic" data-gvtpxoa="' + i + '" aria-label="Bỏ dòng" style="min-width:44px;min-height:44px;color:#b3261e">&times;</button></div>' +
+      '<div style="display:flex;gap:8px;align-items:center;margin-top:6px">' +
+        '<input class="nt" data-gvtpsl="' + i + '" inputmode="decimal" placeholder="Số lượng" value="' + h(d.so_luong == null ? '' : String(d.so_luong).replace('.', ',')) +
+        '" style="width:110px;height:44px;text-align:right;padding:0 10px"><span style="font-size:14px">' + h(d.dvt || '') + '</span>' +
+        (canGiaTay ? '<input class="nt" data-gvtpgia="' + i + '" inputmode="numeric" placeholder="Giá tay/' + h(d.dvt || 'đv') + '" value="' +
+          h(gvtSoVn(d.don_gia_tay) > 0 ? String(d.don_gia_tay) : '') + '" style="flex:1;min-width:0;height:44px;text-align:right;padding:0 10px">' : '') +
+      '</div>' +
+      '<div class="t2" data-gvtpgiadong="' + i + '" style="margin-top:4px">' + gvtGiaDong(d, r) + '</div>' +
+    '</div></div>';
+}
+
+function gvtManPhieu() {
+  var p = GVT.p;
+  var t = GVT.thu || {};
+  var sua = t.sua_duoc !== false;
+  var nhom = t.nhom_ban || [];
+  var html = '<div class="card" style="padding:12px 14px" id="gvtpKq">' + gvtKhoiKetQua() + '</div>' +
+    '<div class="card" style="padding:12px 14px">' +
+      '<div class="t2" style="margin-bottom:4px">Tên món thử</div>' +
+      '<input class="tin" id="gvtpTen" placeholder="Ví dụ: Tart chanh dây size 16" value="' + h(p.ten_mon) + '" style="margin:0 0 10px">' +
+      '<div class="t2" style="margin-bottom:6px">Nhóm bán dự kiến (để lấy hệ số mục tiêu)</div>' +
+      '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px">' +
+        nhom.map(function (n) { return posChipNut('data-gvtpn="' + h(n.ten) + '" title="' + h(n.ten) + '"', h(n.nhan), p.nhom === n.ten); }).join('') + '</div>' +
+      '<div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:10px">' +
+        '<div style="flex:1"><div class="t2" style="margin-bottom:4px">Một mẻ ra</div><input class="nt" id="gvtpRa" inputmode="decimal" value="' +
+          h(String(p.so_ra).replace('.', ',')) + '" style="width:100%;height:44px;text-align:right;padding:0 10px"></div>' +
+        '<div style="flex:1"><div class="t2" style="margin-bottom:4px">Đơn vị</div><input class="nt" id="gvtpDvt" value="' + h(p.dvt_ra) +
+          '" style="width:100%;height:44px;padding:0 10px"></div></div>' +
+      '<div class="t2" style="margin-bottom:4px">Giá bán dự kiến (không bắt buộc)</div>' +
+      '<input class="nt" id="gvtpGb" inputmode="numeric" placeholder="Để trống nếu chưa có" value="' + h(gvtSoVn(p.gia_ban_du_kien) > 0 ? String(p.gia_ban_du_kien) : '') +
+        '" style="width:100%;height:44px;text-align:right;padding:0 10px;margin-bottom:10px">' +
+      '<div class="t2" style="margin-bottom:4px">Ghi chú</div>' +
+      '<textarea class="tin" id="gvtpGc" rows="2" style="margin:0">' + h(p.ghi_chu) + '</textarea>' +
+    '</div>' +
+    '<div class="sec">Nguyên liệu, số lượng theo đơn vị kho</div>' +
+    '<div class="card" id="gvtpDs">' + (p.dong.length ? p.dong.map(gvtDongNhap).join('') :
+      '<div class="emp" style="padding:18px"><div>Chưa có nguyên liệu.</div></div>') + '</div>' +
+    (sua ? '<button class="btn gh" data-gvtpthem style="margin:0 0 10px">Thêm nguyên liệu</button>' : '') +
+    (sua && p.name ? '<button class="btn gh" data-gvtpxoaphieu style="margin:0 0 10px;color:#b3261e">Xoá phiếu</button>' : '');
+  var b = frame(GVT_TIEU_DE_THU, html, sua ? { footer: '<button class="btn" id="gvtpLuu">Lưu phiếu</button>' } : {});
+  var gan = function (id, k) {
+    var o = document.getElementById(id);
+    if (o) o.oninput = function () { p[k] = o.value; gvtDanhDau(); if (k !== 'ten_mon' && k !== 'ghi_chu') gvtHenTinh(); };
+  };
+  gan('gvtpTen', 'ten_mon'); gan('gvtpRa', 'so_ra'); gan('gvtpDvt', 'dvt_ra'); gan('gvtpGb', 'gia_ban_du_kien'); gan('gvtpGc', 'ghi_chu');
+  b.oninput = function (e) {
+    var o = e.target, i;
+    if (o.getAttribute && (i = o.getAttribute('data-gvtpsl')) != null) { p.dong[+i].so_luong = o.value; gvtDanhDau(); gvtHenTinh(); }
+    else if (o.getAttribute && (i = o.getAttribute('data-gvtpgia')) != null) { p.dong[+i].don_gia_tay = o.value; gvtDanhDau(); gvtHenTinh(); }
+  };
+  b.onclick = function (e) {
+    var el;
+    if ((el = e.target.closest('[data-gvtpn]'))) {
+      var n = el.getAttribute('data-gvtpn');
+      p.nhom = p.nhom === n ? '' : n; gvtDanhDau(); gvtManPhieu(); return gvtTinhLai();
+    }
+    if ((el = e.target.closest('[data-gvtpxoa]'))) {
+      p.dong.splice(+el.getAttribute('data-gvtpxoa'), 1); gvtDanhDau(); gvtManPhieu(); return gvtTinhLai();
+    }
+    if (e.target.closest('[data-gvtpthem]')) return gvtThemNl();
+    if (e.target.closest('[data-gvtpxoaphieu]')) return gvtXoaPhieu();
+  };
+  var l = document.getElementById('gvtpLuu');
+  if (l) l.onclick = gvtLuuPhieu;
+  if (!GVT.pkDong && p.dong.length) gvtTinhLai();
+  return b;
+}
+
+/* Sheet thêm nguyên liệu: gõ tìm mã có sẵn, hoặc ghi NVL chưa có mã. */
+function gvtThemNl() {
+  var ov = document.createElement('div'); ov.className = 'sh';
+  var kq = [];
+  ov.innerHTML = '<div class="shb"><div class="shh"><b>Thêm nguyên liệu</b><div class="x" data-gvtndong>&times;</div></div>' +
+    '<div style="padding:4px 14px 8px"><input class="tin" data-gvtntim placeholder="Gõ tên hoặc mã nguyên liệu, bán thành phẩm" style="margin:0"></div>' +
+    '<div class="shl" data-gvtnkq><div style="padding:10px 14px;font-size:13px;color:#6b7280">Gõ ít nhất 2 chữ để tìm.</div></div>' +
+    '<div style="padding:10px 14px 14px;border-top:1px solid #eef0f4">' +
+      '<div style="font-size:14px;font-weight:700;margin-bottom:6px">Nguyên liệu chưa có mã</div>' +
+      '<div style="display:flex;gap:8px"><input class="nt" data-gvtnmoiten placeholder="Tên nguyên liệu" style="flex:2;min-width:0;height:44px;padding:0 10px">' +
+      '<input class="nt" data-gvtnmoidvt placeholder="Đơn vị, ví dụ Gram" style="flex:1;min-width:0;height:44px;padding:0 10px"></div>' +
+      '<div data-gvtnsai style="font-size:12.5px;color:#b3261e;margin-top:4px"></div>' +
+      '<button class="btn gh" data-gvtnmoi style="margin-top:8px">Thêm nguyên liệu chưa có mã</button></div></div>';
+  document.body.appendChild(ov);
+  var hen = null;
+  var o = ov.querySelector('[data-gvtntim]');
+  var them = function (r) {
+    GVT.p.dong.push(r); ov.remove(); gvtDanhDau(); gvtManPhieu();
+    var sl = document.querySelector('[data-gvtpsl="' + (GVT.p.dong.length - 1) + '"]');
+    if (sl && sl.focus) sl.focus();
+  };
+  o.oninput = function () {
+    if (hen) clearTimeout(hen);
+    var tu = o.value.trim();
+    var vung = ov.querySelector('[data-gvtnkq]');
+    if (tu.length < 2) { vung.innerHTML = '<div style="padding:10px 14px;font-size:13px;color:#6b7280">Gõ ít nhất 2 chữ để tìm.</div>'; return; }
+    hen = setTimeout(async function () {
+      try { kq = await api('vagabond.gia_von_tam.tim_nl', { tu_khoa: tu }); } catch (e) { kq = []; }
+      vung.innerHTML = kq.length ? kq.map(function (x, i) {
+        return '<div class="shi" data-gvtnchon="' + i + '"><span style="flex:1;min-width:0">' + h(x.ten) +
+          '<div style="color:#6b7280;font-size:12.5px">' + h(x.ma) + ' · ' + h(x.dvt) + ' · ' + h(x.nhom) + '</div></span></div>';
+      }).join('') : '<div style="padding:10px 14px;font-size:13px;color:#6b7280">Không thấy. Ghi vào ô Nguyên liệu chưa có mã bên dưới.</div>';
+    }, 300);
+  };
+  ov.onclick = function (e) {
+    if (e.target === ov || e.target.closest('[data-gvtndong]')) { ov.remove(); return; }
+    var el = e.target.closest('[data-gvtnchon]');
+    if (el) {
+      var x = kq[+el.getAttribute('data-gvtnchon')];
+      return them({ item_code: x.ma, ten: x.ten, dvt: x.dvt, so_luong: '', don_gia_tay: '' });
+    }
+    if (e.target.closest('[data-gvtnmoi]')) {
+      var ten = ov.querySelector('[data-gvtnmoiten]').value.trim();
+      var dvt = ov.querySelector('[data-gvtnmoidvt]').value.trim();
+      if (!ten || !dvt) { ov.querySelector('[data-gvtnsai]').innerHTML = 'Ghi cả tên và đơn vị.'; return; }
+      them({ item_code: null, ten: ten, dvt: dvt, so_luong: '', don_gia_tay: '' });
+    }
+  };
+  if (o.focus) o.focus();
+}
+
+async function gvtLuuPhieu() {
+  var p = GVT.p;
+  var gui = {
+    name: p.name, ten_mon: p.ten_mon, nhom: p.nhom, so_ra: gvtSoVn(p.so_ra), dvt_ra: p.dvt_ra,
+    gia_ban_du_kien: gvtSoVn(p.gia_ban_du_kien) || 0, ghi_chu: p.ghi_chu,
+    dong: p.dong.map(function (d) {
+      return { item_code: d.item_code, ten: d.ten, dvt: d.dvt, so_luong: gvtSoVn(d.so_luong), don_gia_tay: gvtSoVn(d.don_gia_tay) || 0 };
+    })
+  };
+  var kq;
+  busy(true);
+  try { kq = await api('vagabond.gia_von_tam.luu_thu', { phieu: JSON.stringify(gui) }); busy(false); }
+  catch (e) { busy(false); return baoTin((e && e.message) || 'Lưu phiếu lỗi'); }
+  vgbBoChuaLuu();
+  toast('Đã lưu phiếu ' + kq.name, 3000);
+  GVT.thu = null; GVT.p = null; GVT.pk = null; GVT.pkDong = null;
+  GVT.tab = 'thu';
+  back();
+}
+
+async function gvtXoaPhieu() {
+  var p = GVT.p;
+  if (!await confirmSheet('Xoá phiếu', 'Xoá phiếu tính giá thử "' + p.ten_mon + '"? Không ảnh hưởng mã hàng, công thức hay sổ sách.', 'Xoá', true)) return;
+  busy(true);
+  try { await api('vagabond.gia_von_tam.xoa_thu', { name: p.name }); busy(false); }
+  catch (e) { busy(false); return baoTin((e && e.message) || 'Xoá phiếu lỗi'); }
+  vgbBoChuaLuu();
+  toast('Đã xoá phiếu', 3000);
+  GVT.thu = null; GVT.p = null; GVT.pk = null; GVT.pkDong = null;
+  GVT.tab = 'thu';
+  back();
 }
