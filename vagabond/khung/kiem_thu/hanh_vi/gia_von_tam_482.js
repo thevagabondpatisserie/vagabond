@@ -590,6 +590,33 @@ function sheetCuoi(m) { var ds = m.tai.body.children; return ds[ds.length - 1]; 
     dung('không còn giá vốn cũ', chu(o(m, '#gvtpKq')).indexOf('Giá vốn 15.000đ') < 0);
   });
 
+  /* Codex #486 v4: mã vừa chọn chưa có giá (hoặc nhiều công thức) thì lúc
+     thêm dòng chưa biết thiếu, nên chưa có ô giá tay. Tính xong máy chủ báo
+     thiếu mà bản trước chỉ vẽ lại dòng chữ giá, ô giá tay không hiện. */
+  await ca('Codex #486 v600 mã thiếu giá: tính xong hiện ngay ô giá tay ở đúng dòng, gõ giá thì tính lại có giá đó', async function () {
+    var m = await moThu();
+    m.tai.getElementById('gvtThuMoi').onclick();
+    go(m, m.tai.getElementById('gvtpTen'), 'Bánh hạnh nhân');
+    bam(m, tim(m, '[data-gvtpthem]')[0]);
+    var ov = sheetCuoi(m);
+    go(m, ov.querySelector('[data-gvtntim]'), 'hạnh nhân');
+    await cho(350);
+    await ov.onclick({ target: ov.querySelector('[data-gvtnchon="1"]') });
+    dung('chưa tính thì chưa có ô giá tay', !o(m, '[data-gvtpgia="0"]'));
+    go(m, o(m, '[data-gvtpsl="0"]'), '100');
+    await cho(450);
+    await choDen(function () { return chu(o(m, '[data-gvtpgiadong="0"]')).indexOf('thiếu giá') >= 0; });
+    dung('máy chủ báo thiếu', chu(o(m, '[data-gvtpgiadong="0"]')).indexOf('thiếu giá') >= 0);
+    dung('có ô giá tay ở dòng thiếu', !!o(m, '[data-gvtpgia="0"]'));
+    bang('ô số lượng giữ chữ đã gõ', o(m, '[data-gvtpsl="0"]').value, '100');
+    go(m, o(m, '[data-gvtpgia="0"]'), '400');
+    await cho(450);
+    await choDen(function () { return chu(o(m, '#gvtpKq')).indexOf('Giá vốn 40.000đ') >= 0; });
+    var tt = m.goi.filter(function (x) { return x.duong === 'vagabond.gia_von_tam.tinh_thu'; });
+    bang('gửi giá tay', JSON.parse(tt[tt.length - 1].ts.phieu).dong[0].don_gia_tay, 400);
+    dung('tính có giá tay: ' + chu(o(m, '#gvtpKq')), chu(o(m, '#gvtpKq')).indexOf('Giá vốn 40.000đ/Cái') >= 0);
+  });
+
   await ca('v600 không có quyền lập phiếu: không có nút Phiếu mới, mở phiếu thì không có Lưu, Thêm, Xoá', async function () {
     var m = await moThu({ khongSua: true });
     dung('không nút mới', !m.tai.getElementById('gvtThuMoi'));
