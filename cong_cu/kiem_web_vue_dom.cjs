@@ -192,6 +192,41 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
     assert.match(await page.locator('h1').innerText(),/DW-FIXTURE/);
     assert.equal((await page.evaluate(()=>window.suKienThu)).length,0);
   });
+  await test('F37 Codex #484: biên nhận Vue đọc nhãn Editor cho câu nghiệp vụ, trang hết token, tiêu đề tab, nút Gọi',async()=>{
+    /* Bảng câu nghiệp vụ lấy từ hàm Python THẬT (một nguồn với trang cũ), không chép tay vào ca kiểm. */
+    const r=require('node:child_process').spawnSync(process.env.PYTHON||'python3',['-c',
+      'import json,sys;sys.path.insert(0,".");from vagabond.khung.kiem_thu import nen;nen.gia_lap();from vagabond import web_vue;print(json.dumps(web_vue.bang_bien_nhan(),ensure_ascii=False))'],{cwd:root,encoding:'utf8'});
+    assert.equal(r.status,0,r.stderr); const bang=JSON.parse(r.stdout);
+    const fs=require('node:fs');
+    const nhan={bien_nhan_tu_lay_tai:'Lấy ở',bien_nhan_chuyen_khoan:'Chuyển khoản QR',bien_nhan_phi_mien:'Không tính phí giao',
+      bien_nhan_8d4e8c5d8:'Biên nhận Vagabond',bien_nhan_37a6f269e:'Mở lại từ tin nhắn nhé',bien_nhan_6be58a5f5:'Quay về đặt bánh'};
+    const bn={ma:'DW-F37',mon:[{ten:'CANDLE',sl:1,thanh_tien:'650.000 đ'}],tien_banh:'650.000 đ',phi_giao:'Miễn phí giao',tong:'650.000 đ',
+      cach_nhan:'Tự lấy tại Cửa hàng Sài Gòn',thanh_toan:'Chuyển khoản (mã VietQR)',trang_thai:'Đã nhận'};
+    const c=await browser.newContext({viewport:{width:390,height:844},timezoneId:'Asia/Ho_Chi_Minh'});
+    await c.route('**/*',r2=>r2.request().url().startsWith(url)?r2.continue():r2.abort());
+    const loiF37=[]; c.on('weberror',e=>loiF37.push(String(e.error())));
+    const p=await c.newPage(); p.on('console',m=>{if(m.type()==='error')loiF37.push(m.text());});
+    await c.route(u=>new URL(String(u)).pathname.startsWith('/web_moi/banh/xong'),r2=>{
+      const co=r2.request().url().endsWith('/TOKEN');
+      const d=co?{loai:'bien_nhan',bien_nhan:bn,nhan,bang,lien_he:[{href:'tel:0931224334',khoa:'',ten:'Gọi 0931 224 334',lop:'phu'}]}
+        :{loai:'bien_nhan',khong_token:1,nhan,bang};
+      return r2.fulfill({contentType:'text/html',body:fs.readFileSync(root+'/vagabond/www/web_moi/xong.html','utf8')
+        .replace('{{ du_lieu }}',JSON.stringify(d)).replace('{{ csrf_token }}','fixture').replace('{{ chan_trang }}','')});
+    });
+    await p.goto(url+'/web_moi/banh/xong/TOKEN'); await p.locator('.bn-in').waitFor({timeout:8000}).catch(e=>{throw new Error('F37 trang co token: '+loiF37.join(' | ')+' '+e.message.slice(0,80));});
+    const dong=await p.locator('.bn-dong').innerText(), tien=await p.locator('.bn-tien').innerText();
+    assert.match(dong,/Lấy ở Cửa hàng Sài Gòn/); assert.match(dong,/Chuyển khoản QR/);
+    assert.doesNotMatch(dong,/Tự lấy tại|mã VietQR/);
+    assert.match(tien,/Không tính phí giao/);
+    assert.equal(await p.title(),'Biên nhận Vagabond');
+    assert.equal(await p.locator('.bn-nut a.nut.phu').getAttribute('href'),'tel:0931224334');
+    /* Tab mới không có bản lưu trong phiên: trang hết token đọc đủ bốn nhãn như trang cũ. */
+    const p2=await c.newPage(); await p2.goto(url+'/web_moi/banh/xong'); await p2.locator('.bn-in').waitFor();
+    assert.equal(await p2.locator('h1').innerText(),'Mở lại từ tin nhắn nhé');
+    assert.equal(await p2.locator('.bn-nut a').innerText(),'Quay về đặt bánh');
+    assert.match(await p2.locator('.bn-cau').innerText(),/tin nhắn của chúng tôi/);
+    await c.close();
+  });
   await test('F27 chính sách DOM giữ chữ như text, không thực thi ngoặc Vue',async()=>{
     const fs=require('node:fs');
     for(const route of ['chinh-sach-bao-mat','dieu-khoan','giao-hang-doi-tra']) {
