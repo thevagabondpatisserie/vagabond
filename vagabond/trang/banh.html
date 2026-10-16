@@ -1656,7 +1656,7 @@ function drawCart(){
   const el=$('#cartList');
   if(!CART.length){ el.innerHTML=("<li class=\"cart-empty\">" + htmlChuWeb("dat_banh_b5f223212", "Giỏ chưa có bánh nào.") + "</li>"); return; }
   el.innerHTML=CART.map((o,i)=>{
-    const ex=[ [o.dung_cu&&(o.dung_cu.nia||o.dung_cu.dia)?htmlChuWeb("dung_cu_gio","{nia} nĩa gỗ, {dia} dĩa giấy",{nia:o.dung_cu.nia,dia:o.dung_cu.dia}):'', o.dung_cu&&o.dung_cu.thiep?htmlChuWeb("dung_cu_thiep_gio","{so} thiệp nhỏ",{so:o.dung_cu.thiep}):''].filter(Boolean).join(', '), o.wish?(htmlChuWeb("dat_banh_1970655ae", "Lời chúc:") + " " + "<em>" + "" + (esc(o.wish)) + "</em>"):'',
+    const ex=[ [o.dung_cu&&(o.dung_cu.nia||o.dung_cu.dia)?htmlChuWeb("dung_cu_gio","{nia} nĩa gỗ, {dia} dĩa bã mía",{nia:o.dung_cu.nia,dia:o.dung_cu.dia}):'', o.dung_cu&&o.dung_cu.thiep?htmlChuWeb("dung_cu_thiep_gio","{so} thiệp nhỏ",{so:o.dung_cu.thiep}):''].filter(Boolean).join(', '), o.wish?(htmlChuWeb("dat_banh_1970655ae", "Lời chúc:") + " " + "<em>" + "" + (esc(o.wish)) + "</em>"):'',
                o.adds.length?(htmlChuWeb("dat_banh_2c04193c6", "Thêm: {gia_tri_a}", {gia_tri_a:(o.adds.map(a=>a.n).join(', '))})):'' ].filter(Boolean).join('<br>');
     return ("<li>" + "\n      " + "<div class=\"im\">" + "<img src=\"" + (o.img) + "\" alt=\"\">" + "</div>" + "\n      " + "<div class=\"bd\">" + "\n        " + "<div class=\"t\">" + "" + (esc(chuMonWeb(o.id,'ten',o.k))) + "</div>" + "\n        " + "<div class=\"s\">" + htmlChuWeb("dat_banh_7498bc8a8", "Ø {gia_tri_a}cm · mã {gia_tri_b}", {gia_tri_a:(o.cm), gia_tri_b:(o.id)}) + "</div>" + "\n        " + (ex?`<div class="ex">${ex}</div>`:'') + "\n      " + "</div>" + "\n      " + "<div class=\"rt\">" + (o.cm?`<button class="sua-gio" onclick="suaDongGio(${i})">${htmlChuWeb("sua_banh","Sửa bánh")}</button>`:'') + "\n        " + "<div class=\"p\">" + "" + (vnd(lineUnit(o)*o.qty)) + "</div>" + "\n        " + "<div class=\"qty\">" + "<button onclick=\"cartQty(" + (i) + ",-1)\">" + "−" + "</button>" + "<span>" + "" + (o.qty) + "</span>" + "<button onclick=\"cartQty(" + (i) + ",1)\">" + "+" + "</button>" + "</div>" + "\n        " + "<button class=\"rm\" onclick=\"cartRemove(" + (i) + ")\">" + htmlChuWeb("dat_banh_15ec2c1bb", "Bỏ") + "</button>" + "\n      " + "</div>" + "</li>");
   }).join('');
@@ -2231,7 +2231,7 @@ function sendBusy(on, text){
 
 /* Một nguồn cho chữ dụng cụ của một dòng giỏ, dùng chung cho note và note_print. */
 function chuDungCu(o){ if(!o||!o.dung_cu) return ''; const d=o.dung_cu;
-  return [(d.nia||d.dia)?`${(d.nia||0)*o.qty} nĩa gỗ, ${(d.dia||0)*o.qty} dĩa giấy`:'', d.thiep?`${d.thiep*o.qty} thiệp nhỏ`:''].filter(Boolean).join(', '); }
+  return [(d.nia||d.dia)?`${(d.nia||0)*o.qty} nĩa gỗ, ${(d.dia||0)*o.qty} dĩa bã mía`:'', d.thiep?`${d.thiep*o.qty} thiệp nhỏ`:''].filter(Boolean).join(', '); }
 /* v597: mot nguon cho dung cu tang theo yeu cau (nia, dia, thiep nho). */
 function chuanDungCu(d){ const so=x=>Math.min(30,Math.max(0,parseInt(x)||0)); d=d||{}; return {nia:so(d.nia),dia:so(d.dia),thiep:so(d.thiep)}; }
 function ganDungCu(d){ const x=chuanDungCu(d); $('#s-nia').value=x.nia; $('#s-dia').value=x.dia; $('#s-thiep').value=x.thiep; }
