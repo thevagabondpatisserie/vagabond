@@ -19,7 +19,11 @@
   "cb1",
   "gia_de_xuat",
   "sb_gc",
-  "ghi_chu"
+  "ghi_chu",
+  "sb_bo",
+  "da_bo",
+  "bo_luc",
+  "bo_boi"
  ],
  "fields": [
   {
@@ -113,10 +117,38 @@
    "fieldname": "ghi_chu",
    "fieldtype": "Small Text",
    "label": "Ghi chú"
+  },
+  {
+   "fieldname": "sb_bo",
+   "fieldtype": "Section Break",
+   "label": "Bỏ phiếu",
+   "collapsible": 1,
+   "depends_on": "eval:doc.da_bo"
+  },
+  {
+   "fieldname": "da_bo",
+   "fieldtype": "Check",
+   "label": "Đã bỏ (ẩn khỏi danh sách, vẫn giữ để tra lại)",
+   "read_only": 1,
+   "in_standard_filter": 1,
+   "default": "0"
+  },
+  {
+   "fieldname": "bo_luc",
+   "fieldtype": "Datetime",
+   "label": "Bỏ lúc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "bo_boi",
+   "fieldtype": "Link",
+   "label": "Người bỏ",
+   "options": "User",
+   "read_only": 1
   }
  ],
  "links": [],
- "modified": "2026-10-16 23:30:00.000000",
+ "modified": "2026-10-17 02:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Gia Thu",
@@ -137,7 +169,6 @@
    "read": 1,
    "write": 1,
    "create": 1,
-   "delete": 1,
    "report": 1,
    "export": 1,
    "print": 1
@@ -147,7 +178,6 @@
    "read": 1,
    "write": 1,
    "create": 1,
-   "delete": 1,
    "report": 1,
    "export": 1,
    "print": 1
@@ -157,7 +187,6 @@
    "read": 1,
    "write": 1,
    "create": 1,
-   "delete": 1,
    "report": 1,
    "export": 1,
    "print": 1
