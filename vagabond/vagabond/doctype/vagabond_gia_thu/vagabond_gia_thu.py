@@ -15,3 +15,8 @@ class VagabondGiaThu(Document):
 	def validate(self):
 		from vagabond.gia_von_tam import kiem_khi_luu
 		kiem_khi_luu(self)
+
+	def on_trash(self):
+		# QT-20, Codex #486 v4: không xoá cứng phiếu thử, kể cả System Manager.
+		import frappe
+		frappe.throw("Không xoá phiếu tính giá thử. Bấm Bỏ phiếu trên app: phiếu ẩn khỏi danh sách, vẫn giữ để tra lại.")
