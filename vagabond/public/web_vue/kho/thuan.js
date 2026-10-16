@@ -150,8 +150,15 @@ export function vgbChuan(s) {
 
 /* ---------------- Giỏ ---------------- */
 
+/* v598: MỘT nguồn cho dụng cụ tặng theo yêu cầu (nĩa gỗ, dĩa bã mía, thiệp nhỏ),
+   như chuanDungCu của banh.html v597. Mỗi loại kẹp 0 tới 30. */
+export function chuanDungCu(d) {
+  const so = x => Math.min(30, Math.max(0, parseInt(x) || 0));
+  d = d || {};
+  return {nia: so(d.nia), dia: so(d.dia), thiep: so(d.thiep)};
+}
 export function cartKey(o) {
-  return [o.id, o.wish, (o.adds || []).map(a => a.id).join('+'), [o.dung_cu?.nia || 0, o.dung_cu?.dia || 0].join(',')].join('|');
+  return [o.id, o.wish, (o.adds || []).map(a => a.id).join('+'), [o.dung_cu?.nia || 0, o.dung_cu?.dia || 0, o.dung_cu?.thiep || 0].join(',')].join('|');
 }
 export function lineUnit(o) { return o.price + (o.adds || []).reduce((a, x) => a + x.p, 0); }
 export function cartCount(gio) { return gio.reduce((a, x) => a + x.qty, 0); }
@@ -177,8 +184,22 @@ export function themVaoGio(gio, o) {
   return hit || null;
 }
 
+/* Hình cắt bánh của hộp Cách chọn size: n đường từ tâm ra mép vòng bán kính 44
+   trong khung 100 x 100, cùng phép vẽ veHinhCat của banh.html v597. */
+export function duongCat(n) {
+  const ra = [];
+  for (let i = 0; i < n; i++) {
+    const g = 2 * Math.PI * i / n;
+    ra.push({x2: (50 + 44 * Math.cos(g)).toFixed(1), y2: (50 + 44 * Math.sin(g)).toFixed(1)});
+  }
+  return ra;
+}
 export function chuDungCu(o) {
-  return o && o.dung_cu && (o.dung_cu.nia || o.dung_cu.dia) ? `${o.dung_cu.nia * o.qty} nĩa gỗ, ${o.dung_cu.dia * o.qty} dĩa bã mía` : '';
+  /* Chữ in phiếu bếp: nhân số lượng bánh, cùng chữ với banh.html v597. */
+  if (!o || !o.dung_cu) return '';
+  const d = o.dung_cu;
+  return [(d.nia || d.dia) ? `${(d.nia || 0) * o.qty} nĩa gỗ, ${(d.dia || 0) * o.qty} dĩa bã mía` : '',
+    d.thiep ? `${d.thiep * o.qty} thiệp nhỏ` : ''].filter(Boolean).join(', ');
 }
 
 /* ---------------- Danh mục ---------------- */
