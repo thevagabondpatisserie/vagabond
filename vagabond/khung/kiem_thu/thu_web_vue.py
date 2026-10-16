@@ -139,7 +139,8 @@ def _bien_nhan_context():
 	dw = D(PHAP_NHAN={}, lien_he=lambda: {}, pixel_id=lambda: '123',
 		bien_nhan_theo_token=lambda tok: goi.append(tok))
 	g = {'frappe': fr, 'don_web': dw, 'trang_khach': D(_lien_ket_an_toan=trang_khach._lien_ket_an_toan, json_trong_script=trang_khach.json_trong_script,
-		chan_trang_html=lambda *a: ''), 'noi_dung_web': D(chinh_sach_dang_hien=lambda: [], cong_khai=lambda: {}), 'TIEU_DE': TIEU_DE}
+		chan_trang_html=lambda *a: ''), 'noi_dung_web': D(chinh_sach_dang_hien=lambda: [], cong_khai=lambda: {}), 'TIEU_DE': TIEU_DE,
+		'web_vue': __import__('vagabond.web_vue', fromlist=['x'])}
 	fn = nap('www/web_moi/xong.py', 'get_context', g)
 	c = fn(D()); la('không token không đọc', goi, [])
 	dung('không token', 'khong_token' in c.du_lieu)
