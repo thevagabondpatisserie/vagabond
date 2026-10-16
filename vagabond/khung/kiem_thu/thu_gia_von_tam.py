@@ -243,7 +243,7 @@ class _Dong(dict):
 	__getattr__ = dict.get
 
 
-def _frappe_gia(roles=("Accounts Manager",), gia_ban=None, gia_nhap=None, quy_doi=None):
+def _frappe_gia(roles=("Accounts Manager",), gia_ban=None, gia_nhap=None, quy_doi=None, bom=None):
 	"""Frappe giả đủ cho _bang(): trả dữ liệu theo doctype và bộ lọc, ghi lại
 	mọi lần đọc để chốt "đọc theo lô, không hỏi từng mã"."""
 	import frappe
@@ -257,6 +257,8 @@ def _frappe_gia(roles=("Accounts Manager",), gia_ban=None, gia_nhap=None, quy_do
 			_Dong(parent="B-KEM", item_code="BO", item_name="Bơ", qty=1, stock_qty=1000, stock_uom="Gram", uom="Kg", bom_no=None)],
 		"Bin": [_Dong(item_code="BOT", actual_qty=1000, stock_value=20000), _Dong(item_code="BO", actual_qty=1000, stock_value=300000)],
 	}
+	if bom is not None:
+		du["BOM"] = list(bom)
 
 	def get_all(dt, filters=None, fields=None, limit_page_length=None, order_by=None):
 		doc.append(dt)
@@ -405,3 +407,54 @@ def _gia_nhap_doi_don_vi():
 	# BOT 100 gram x (20.000 / 1000) = 2.000; chỉ còn BO thiếu giá.
 	la("gia von", banh["gia_von"], 2000)
 	la("chi BO thieu", banh["thieu_so"], 1)
+
+
+@ca("gia von tam: Codex #483 v3: nhieu cong thuc dang chay ma khong ban nao mac dinh thi KHONG doan theo thu tu doc (chan gia phu thuoc thu tu co so du lieu)")
+def _bom_mo_ho_thuan():
+	a = [{"item": "A", "name": "BOM-A-002", "is_default": 0}, {"item": "A", "name": "BOM-A-001", "is_default": 0},
+		{"item": "B", "name": "BOM-B-001", "is_default": 0},
+		{"item": "C", "name": "BOM-C-002", "is_default": 1}, {"item": "C", "name": "BOM-C-001", "is_default": 0}]
+	for ds in (a, a[::-1]):
+		la("mo ho khong chon", G.bom_cua_ma(ds).get("A"), None)
+		la("chi mot ban thi lay", G.bom_cua_ma(ds).get("B"), "BOM-B-001")
+		la("co mac dinh thi lay mac dinh", G.bom_cua_ma(ds).get("C"), "BOM-C-002")
+		la("danh sach mo ho da xep", G.ma_mo_ho(ds), {"A": ["BOM-A-001", "BOM-A-002"]})
+	b = G.dung_bang([{"ma": "A", "ten": "Bánh A", "nhom": "Bánh lạnh"}, {"ma": "X", "ten": "Bánh X", "nhom": "Bánh lạnh"}],
+		{}, {}, {}, {}, {}, None, G.ma_mo_ho(a))
+	la("khong co dong gia", b["dong"], [])
+	la("tach rieng mon nhieu cong thuc", b["nhieu_cong_thuc"], {"so": 1, "ten": ["Bánh A"]})
+	la("mon khong cong thuc van o cho cu", b["chua_cong_thuc"], {"so": 1, "ten": ["Bánh X"]})
+	luu, _bo = G.dong_bang_gia(b["dong"], "2026-10-16")
+	la("chot khong luu mon mo ho", luu, [])
+
+
+@ca("gia von tam: Codex #483 v3: doc site: hai cong thuc BANH khong mac dinh, doi thu tu doc van cung ket qua, mon vao khung nhieu cong thuc")
+def _bom_mo_ho_site():
+	hai = [_Dong(name="B-BANH-2", item="BANH", quantity=1, is_default=0),
+		_Dong(name="B-BANH", item="BANH", quantity=1, is_default=0),
+		_Dong(name="B-KEM", item="KEM", quantity=1000, is_default=1)]
+	ra = []
+	for ds in (hai, hai[::-1]):
+		cu, doc = _frappe_gia(bom=ds)
+		try:
+			bang, _t = G._bang()
+		finally:
+			_tra(cu)
+		ra.append(bang)
+		la("BANH khong co dong gia", [d["ma"] for d in bang["dong"]], [])
+		la("BANH vao khung nhieu cong thuc", bang["nhieu_cong_thuc"], {"so": 1, "ten": ["Bánh B"]})
+	la("hai thu tu doc cho cung ket qua", ra[0], ra[1])
+
+
+@ca("gia von tam: Codex #483 v3: o tren trang chu hien dung tap vai may chu cho xem (chan Thu mua thay o chet)")
+def _o_trang_chu_dung_quyen():
+	import os
+	import re
+	goc = os.path.join(os.path.dirname(os.path.abspath(G.__file__)), "public", "js", "bep")
+	js = open(os.path.join(goc, "01-khung-app.js"), encoding="utf-8").read()
+	m = re.search(r"var QUYEN_GVT = \[([^\]]*)\]", js)
+	dung("co tap JS", bool(m))
+	la("JS khop may chu", set(re.findall(r"'([^']+)'", m.group(1))), set(G.QUYEN_XEM))
+	tc = open(os.path.join(goc, "02-trang-chu.js"), encoding="utf-8").read()
+	i = tc.index("card('🧮', 'Giá vốn tạm tính'")
+	dung("o boc coQuyenGvt()", tc[i - 20:i].endswith("coQuyenGvt() ? "))

@@ -16,6 +16,7 @@ import sys
 GOC = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 PY = "vagabond/gia_von_tam.py"
 JS = "vagabond/public/js/bep/53-gia-von-tam.js"
+TC = "vagabond/public/js/bep/02-trang-chu.js"
 
 CA_PY = [sys.executable, "-c", (
 	"import sys; sys.path.insert(0, %r)\n"
@@ -47,6 +48,14 @@ DOT_BIEN = [
 			"			gia, hang = gia / hs, 1\n", "			hang = 1\n", CA_PY),
 	("Codex #483 v2: thẻ không có chip trạng thái", JS,
 		"'</div>' + gvtChipTrangThai(d) + '</div>' +", "'</div>' + '</div>' +", CA_JS),
+	("Codex #483 v3: nhiều công thức không mặc định thì lấy đại bản đầu", PY,
+		'		elif len(ds) == 1:\n			ra[ma] = ds[0].get("name")\n', '		else:\n			ra[ma] = ds[0].get("name")\n', CA_PY),
+	("Codex #483 v3: ô trang chủ hiện cho mọi vai kế toán", TC,
+		"(coQuyenGvt() ? card('🧮'", "(true ? card('🧮'", CA_PY),
+	("Codex #483 v3: bỏ chip lọc Công thức vòng", JS,
+		"['vuot_gia_ban', 'vong', 'thieu_gia', 'cao_hon_muc_tieu']", "['vuot_gia_ban', 'thieu_gia', 'cao_hon_muc_tieu']", CA_JS),
+	("Codex #483 v3: không hiện khung món nhiều công thức", JS,
+		"  if (nct.so) {", "  if (false) {", CA_JS),
 	("hiện nút Chốt cho người không có quyền", JS,
 		"kq.sua_duoc ? { footer:", "true ? { footer:", CA_JS),
 	("Chốt không hỏi xác nhận", JS,
