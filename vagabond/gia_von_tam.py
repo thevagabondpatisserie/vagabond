@@ -30,6 +30,7 @@ import math
 import frappe
 from frappe.utils import flt, getdate, nowdate, now_datetime
 
+from vagabond import tim_kiem
 from vagabond.vai_cua_hang import VAI_QLCT
 
 BANG_GIA = "Giá vốn tạm tính"
@@ -457,6 +458,7 @@ def dung_bang(ban, ma_bom, ket, gia_ban, chot_truoc, he_so, ton_nhom=None, mo_ho
 # ------------------------------------------------ phiếu tính giá thử (R&D)
 
 MAX_DONG_THU = 150
+TRANG_THU = 30   # số phiếu thử mỗi trang danh sách (Codex #486: không cắt im lặng)
 
 
 def chuan_phieu(vao, nhom_hop_le=NHOM_BAN):
@@ -501,6 +503,19 @@ def chuan_phieu(vao, nhom_hop_le=NHOM_BAN):
 	return {"name": vao.get("name") or None, "ten_mon": ten, "nhom": nhom, "so_ra": so_ra,
 		"dvt_ra": str(vao.get("dvt_ra") or "").strip() or "Cái", "gia_ban_du_kien": gia_ban,
 		"ghi_chu": str(vao.get("ghi_chu") or "").strip(), "dong": dong}
+
+
+def chuan_trang(tu_khoa, bat_dau):
+	"""Tham số trang danh sách phiếu thử. THUẦN.
+
+	Từ khoá bỏ khoảng trắng hai đầu, tối đa 80 ký tự (việc khớp chữ do
+	tim_kiem lo). Vị trí bắt đầu là số nguyên >= 0, sai thì về 0."""
+	tu = str(tu_khoa or "").strip()[:80]
+	try:
+		bd = int(bat_dau or 0)
+	except (TypeError, ValueError):
+		bd = 0
+	return tu, max(bd, 0)
 
 
 def tinh_phieu(phieu, gia_ma, he_so_nhom=None):
@@ -772,12 +787,24 @@ def _nhom_ban():
 
 
 @frappe.whitelist()
-def ds_thu():
-	"""Danh sách phiếu tính giá thử, tính lại theo giá hôm nay. Chỉ đọc."""
+def ds_thu(tu_khoa="", bat_dau=0):
+	"""Danh sách phiếu tính giá thử chưa bỏ, mỗi trang TRANG_THU phiếu, tìm
+	theo tên ở máy chủ. Tính lại theo giá hôm nay. Chỉ đọc.
+
+	Codex #486: bản đầu cắt cứng 200 phiếu mà màn không có cách xem phần còn
+	lại. Giờ trả `con_nua` và `bat_dau_tiep` để màn nạp tiếp."""
 	_kiem(QUYEN_XEM, "xem giá vốn tạm tính")
-	ten = [r.name for r in frappe.get_all(DT_THU, fields=["name"], order_by="modified desc", limit_page_length=200)]
+	tu, bd = chuan_trang(tu_khoa, bat_dau)
+	# Ô tìm đi qua MỘT nguồn tim_kiem (v583): gõ có dấu, không dấu, đảo thứ tự
+	# chữ đều ra. Không tự viết like.
+	loc = tim_kiem.them_loc({"da_bo": 0}, DT_THU, tu, ["name", "ten_mon"])
+	ten = [r.name for r in frappe.get_all(DT_THU, filters=loc, fields=["name"], order_by="modified desc",
+		limit_start=bd, limit_page_length=TRANG_THU + 1)]
+	con_nua = len(ten) > TRANG_THU
+	ten = ten[:TRANG_THU]
 	ds, he_so = _tinh_cac_phieu([_doc_phieu(t) for t in ten])
-	return {"ds": ds, "he_so": he_so, "nhom_ban": _nhom_ban(),
+	return {"ds": ds, "he_so": he_so, "nhom_ban": _nhom_ban(), "tu_khoa": tu, "bat_dau": bd,
+		"con_nua": con_nua, "bat_dau_tiep": bd + len(ten),
 		"sua_duoc": bool(QUYEN_CHOT & set(frappe.get_roles()))}
 
 
@@ -792,42 +819,76 @@ def tinh_thu(phieu):
 	return _tinh_cac_phieu([p])[0][0]
 
 
+def tinh_lai_doc(d):
+	"""MỘT nguồn tính cho phiếu thử khi lưu, gọi từ validate() của doctype.
+
+	Lưu qua app (luu_thu) hay sửa thẳng trên Desk đều đi qua đây, nên giá vốn
+	và giá đề xuất lưu kèm không bao giờ là số cũ (Codex #486 P2). Dòng có mã
+	lấy lại tên và đơn vị kho từ mặt hàng. Kết quả đầy đủ để ở
+	`d.flags.kq_gia_thu` cho luu_thu trả về màn."""
+	vao = {k: d.get(k) for k in ("ten_mon", "nhom", "so_ra", "dvt_ra", "gia_ban_du_kien", "ghi_chu")}
+	vao["dong"] = [{"item_code": r.get("item_code"), "ten": r.get("ten"), "dvt": r.get("dvt"),
+		"so_luong": r.get("so_luong"), "don_gia_tay": r.get("don_gia_tay")} for r in (d.get("dong") or [])]
+	try:
+		p = chuan_phieu(vao)
+	except ValueError as e:
+		frappe.throw(str(e))
+	kq = _tinh_cac_phieu([p])[0][0]
+	for r, k in zip(d.get("dong") or [], kq["dong"]):
+		if r.get("item_code"):
+			r.ten = k.get("ten")
+			r.dvt = k.get("dvt")
+	d.gia_von = kq["gia_von"]
+	d.gia_de_xuat = kq["gia_de_xuat"] or 0
+	d.flags.kq_gia_thu = kq
+	return kq
+
+
 @frappe.whitelist(methods=["POST"])
 def luu_thu(phieu):
 	"""Lưu phiếu tính giá thử. Chỉ ghi vào Vagabond Gia Thu, không đụng Item,
-	BOM, kho hay sổ sách. Giá vốn lưu kèm chỉ là ảnh chụp lúc lưu."""
+	BOM, kho hay sổ sách. Giá vốn lưu kèm chỉ là ảnh chụp lúc lưu, do
+	validate() tính lại (tinh_lai_doc), không nhận số từ máy khách."""
 	_kiem(QUYEN_CHOT, "lập phiếu tính giá thử")
 	try:
 		p = chuan_phieu(phieu)
 	except ValueError as e:
 		frappe.throw(str(e))
-	kq = _tinh_cac_phieu([p])[0][0]
 	if p["name"]:
 		if not frappe.db.exists(DT_THU, p["name"]):
-			frappe.throw("Không tìm thấy phiếu %s, có thể đã bị xoá." % p["name"])
+			frappe.throw("Không tìm thấy phiếu %s." % p["name"])
 		d = frappe.get_doc(DT_THU, p["name"])
+		if d.get("da_bo"):
+			frappe.throw("Phiếu %s đã bỏ, không sửa được nữa. Bấm Phiếu tính giá thử mới để lập lại." % p["name"])
 		d.set("dong", [])
 	else:
 		d = frappe.new_doc(DT_THU)
 	for k in ("ten_mon", "nhom", "so_ra", "dvt_ra", "gia_ban_du_kien", "ghi_chu"):
 		d.set(k, p[k])
-	for r in kq["dong"]:
+	for r in p["dong"]:
 		d.append("dong", {"item_code": r.get("item_code"), "ten": r.get("ten"), "dvt": r.get("dvt"),
 			"so_luong": r["so_luong"], "don_gia_tay": r["don_gia_tay"]})
-	d.gia_von = kq["gia_von"]
-	d.gia_de_xuat = kq["gia_de_xuat"] or 0
 	d.flags.ignore_permissions = True
 	d.save() if p["name"] else d.insert()
+	kq = dict(d.flags.kq_gia_thu)
 	kq["name"] = d.name
 	return kq
 
 
 @frappe.whitelist(methods=["POST"])
-def xoa_thu(name):
-	"""Xoá một phiếu thử (bản nháp R&D, không phải chứng từ)."""
-	_kiem(QUYEN_CHOT, "xoá phiếu tính giá thử")
-	if frappe.db.exists(DT_THU, name):
-		frappe.delete_doc(DT_THU, name, ignore_permissions=True)
+def bo_thu(name):
+	"""Bỏ một phiếu thử: ẩn khỏi danh sách, KHÔNG xoá (QT-20, Codex #486 P1).
+	Giữ nguyên dòng nguyên liệu và giá lúc lưu để tra lại, ghi ai bỏ lúc nào."""
+	_kiem(QUYEN_CHOT, "bỏ phiếu tính giá thử")
+	if not frappe.db.exists(DT_THU, name):
+		frappe.throw("Không tìm thấy phiếu %s." % name)
+	d = frappe.get_doc(DT_THU, name)
+	if not d.get("da_bo"):
+		d.da_bo = 1
+		d.bo_luc = now_datetime()
+		d.bo_boi = frappe.session.user
+		d.flags.ignore_permissions = True
+		d.save()
 	return {"ok": 1}
 
 
@@ -835,11 +896,12 @@ def xoa_thu(name):
 def tim_nl(tu_khoa):
 	"""Tìm nguyên liệu, bán thành phẩm để thêm vào phiếu thử (trừ bánh bán ra)."""
 	_kiem(QUYEN_XEM, "xem giá vốn tạm tính")
-	q = "%" + str(tu_khoa or "").strip().replace("%", "") + "%"
-	if len(q) < 4:
+	tu = str(tu_khoa or "").strip()[:80]
+	if len(tu) < 2:
 		return []
-	ds = frappe.get_all("Item", filters={"disabled": 0, "item_group": ["not in", list(NHOM_BAN)]},
-		or_filters={"item_name": ["like", q], "name": ["like", q]},
+	# Một nguồn tìm tim_kiem (v583), không tự viết like.
+	loc = tim_kiem.them_loc({"disabled": 0, "item_group": ["not in", list(NHOM_BAN)]}, "Item", tu, ["name", "item_name"])
+	ds = frappe.get_all("Item", filters=loc,
 		fields=["name", "item_name", "stock_uom", "item_group"], order_by="item_name asc", limit_page_length=20)
 	return [{"ma": i.name, "ten": i.item_name, "dvt": i.stock_uom, "nhom": i.item_group} for i in ds]
 
