@@ -21,6 +21,7 @@ def get_context(context):
     d['nhan'] = (noi_dung_web.cong_khai().get('nhan') or {})
     lh = don_web.lien_he()
     d['lien_he'] = web_vue.nut_lien_he_bien_nhan(lh, d['nhan'])
+    d['bang'] = web_vue.bang_bien_nhan()
     context.du_lieu = trang_khach.json_trong_script(d)
     context.chan_trang = trang_khach.chan_trang_html(don_web.PHAP_NHAN, lh, web_vue.chinh_sach_vue(noi_dung_web.chinh_sach_dang_hien()))
     return context

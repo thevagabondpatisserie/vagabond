@@ -14,7 +14,7 @@ def get_context(context):
     d = noi_dung_web.trang_chinh_sach(khoa, ngon) if khoa else None
     if not d:
         raise frappe.PageDoesNotExistError
-    context.doi_ngon_ngu = ('<a href="' + trang_khach._e(duong) + ('">Tiếng Việt</a>' if d['ngon_ngu'] == 'en' else '?ngon_ngu=en">English</a>')) if d['co_en'] else ''
+    context.doi_ngon_ngu = web_vue.doi_ngon_ngu_html(duong, d['ngon_ngu'], d['co_en'], noi_dung_web.nhan_cong_khai())
     context.tieu_de = trang_khach._e(d['ten'])
     context.du_lieu = trang_khach.json_trong_script({'loai':'chinh_sach', 'ten':d['ten'], 'mo':d.get('mo',''), 'cay':web_vue.cay_chinh_sach(d['html'])})
     context.chan_trang = trang_khach.chan_trang_html(don_web.PHAP_NHAN, don_web.lien_he(), web_vue.chinh_sach_vue(noi_dung_web.chinh_sach_dang_hien()))
