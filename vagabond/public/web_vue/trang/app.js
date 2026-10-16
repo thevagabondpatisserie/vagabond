@@ -39,12 +39,25 @@ export function bienNhan(D, win = window) {
 export function khoiDongTrang(D, goc = '#app') {
   const bn = D.loai === 'bien_nhan' ? bienNhan(D) : null;
   const chu = (k, macDinh) => (D.nhan || {})[k] || macDinh;
+  /* Codex #484: câu nghiệp vụ (cách nhận, thanh toán, phí giao, tổng) đổi thành
+     nhãn Editor theo bảng máy chủ gửi, cùng nguồn với biên nhận trang cũ. */
+  const bang = D.bang || {}, tienTo = bang.tien_to || [];
+  const giaTri = v => {
+    const s = String(v == null ? '' : v);
+    if (tienTo[0] && s.startsWith(tienTo[0])) return chu(tienTo[1], tienTo[2]) + ' ' + s.slice(tienTo[0].length);
+    const m = (bang.gia_tri || {})[s];
+    return m ? chu(m[0], m[1]) : s;
+  };
+  if (D.loai === 'bien_nhan') try { document.title = chu('bien_nhan_8d4e8c5d8', 'Biên nhận yêu cầu đặt bánh · The Vagabond Pâtisserie'); } catch (_) {}
   const dong = (nhan, gia, lop = '') => h('div', {class:lop}, [h('dt', nhan), h('dd', gia || '')]);
   return createApp({render() {
     if (D.loai === 'chinh_sach') return h('main', {class: 'cs'}, [h('article', {class:'cs-in'}, [
       h('h1', D.ten), h('p', {class:'cs-mo'}, D.mo || ''), ...veCay(D.cay)])]);
-    if (!bn) return h('main', {class:'bn'}, [h('p', 'Biên nhận chỉ mở được từ đường dẫn sau khi đặt bánh.'),
-      h('a', {href:'/web_moi/banh'}, chu('bien_nhan_3f197d985', 'Đặt thêm bánh'))]);
+    if (!bn) return h('main', {class:'bn'}, [h('div', {class:'bn-in'}, [
+      h('p', {class:'bn-nhan'}, chu('bien_nhan_fae8f9966', 'BIÊN NHẬN')),
+      h('h1', chu('bien_nhan_37a6f269e', 'Biên nhận chỉ mở được từ đường dẫn chúng tôi hiện ngay sau khi đặt.')),
+      h('p', {class:'bn-cau'}, chu('bien_nhan_bbd687e19', 'Quý khách xem lại mã yêu cầu trong tin nhắn của chúng tôi, hoặc nhắn chúng tôi qua Zalo, Messenger ở cuối trang.')),
+      h('div', {class:'bn-nut'}, [h('a', {class:'nut chinh', href:'/web_moi/banh'}, chu('bien_nhan_6be58a5f5', 'Về trang đặt bánh'))])])]);
     const tt = bn.dang_xac_nhan ? 'cho' : (bn.da_huy ? 'huy' : 'nhan');
     const cau = {cho:'Chúng tôi đã tiếp nhận yêu cầu và đang kiểm tra. Quý khách không cần đặt lại.',
       huy:'Đơn này đã được huỷ. Quý khách có thể đặt đơn mới hoặc liên hệ để được hỗ trợ.',
@@ -57,15 +70,15 @@ export function khoiDongTrang(D, goc = '#app') {
       h('dl', {class:'bn-dong'}, [
         bn.ten ? dong(chu('bien_nhan_bd76ef893','Người đặt'), bn.ten) : null,
         dong(chu('bien_nhan_c3baf86a6','Nhận bánh'), [bn.ngay_nhan,bn.khung_gio].filter(Boolean).join(' · ')),
-        dong(chu('bien_nhan_d5ba29353','Cách nhận'), bn.cach_nhan),
-        dong(chu('bien_nhan_9d5a6614c','Thanh toán'), bn.thanh_toan)]),
+        dong(chu('bien_nhan_d5ba29353','Cách nhận'), giaTri(bn.cach_nhan)),
+        dong(chu('bien_nhan_9d5a6614c','Thanh toán'), giaTri(bn.thanh_toan))]),
       h('ul', {class:'bn-mon'}, (bn.mon || []).map(m => h('li', [h('span', m.ten), h('b', 'x'+m.sl), h('span',{class:'tien'},m.thanh_tien)]))),
       h('dl', {class:'bn-tien'}, [dong(chu('bien_nhan_ea3b9f8b1','Tiền bánh'), bn.tien_banh),
         bn.giam ? dong(chu('bien_nhan_uu_dai','Ưu đãi') + (bn.uu_dai ? ' ('+bn.uu_dai+')' : ''), bn.giam) : null,
-        dong(chu('bien_nhan_06a446f5c','Phí giao'), bn.phi_giao), dong(chu('bien_nhan_de995d836','Tổng'), bn.tong, 'tong')]),
+        dong(chu('bien_nhan_06a446f5c','Phí giao'), giaTri(bn.phi_giao)), dong(chu('bien_nhan_de995d836','Tổng'), giaTri(bn.tong), 'tong')]),
       h('p', {class:'bn-luu-y'}, chu('bien_nhan_0ea4a5a10','Chúng tôi chưa thu tiền ở bước này. Chúng tôi sẽ gọi xác nhận rồi gửi hướng dẫn thanh toán.')),
       h('div', {class:'bn-nut'}, [
-        ...(D.lien_he || []).map(a => h('a', {class:'nut',href:a.href,rel:'noopener noreferrer'},a.khoa ? chu(a.khoa, a.ten) : a.ten)),
+        ...(D.lien_he || []).map(a => h('a', {class:a.lop === 'phu' ? 'nut phu' : 'nut',href:a.href,rel:'noopener noreferrer'},a.khoa ? chu(a.khoa, a.ten) : a.ten)),
         h('a', {class:'nut chinh', href:'/web_moi/banh'}, chu('bien_nhan_3f197d985','Đặt thêm bánh'))])
     ])]);
   }}).mount(goc);
