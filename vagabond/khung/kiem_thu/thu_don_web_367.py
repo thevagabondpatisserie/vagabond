@@ -1288,8 +1288,9 @@ GHI.goiMang.length=0; submitOrder(); await CHO_XONG();
 var d=cacDon()[0]||{};
 RA({in_bep:d.note_print||'', note:d.note||''});
 """)
-	dung("phiếu bếp có dụng cụ nhân số lượng", "dụng cụ: 4 nĩa gỗ, 2 dĩa giấy" in r["in_bep"])
-	dung("ghi chú đơn vẫn có", "4 nĩa gỗ, 2 dĩa giấy" in r["note"])
+	# v597 Codex #481: ô khách nhập là dĩa bã mía, phiếu bếp ghi đúng chất liệu.
+	dung("phiếu bếp có dụng cụ nhân số lượng", "dụng cụ: 4 nĩa gỗ, 2 dĩa bã mía" in r["in_bep"])
+	dung("ghi chú đơn vẫn có", "4 nĩa gỗ, 2 dĩa bã mía" in r["note"])
 
 
 @ca("#367 L gửi lỗi rồi gửi lại: CÙNG nonce để máy chủ nhận ra cùng một đơn; thành công thì sang biên nhận")

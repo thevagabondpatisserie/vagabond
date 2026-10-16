@@ -102,7 +102,7 @@ RA({dc:CART[0].dung_cu, soDong, gio, veKhong, khoiPhuc, bep:chuDungCu(CART[0]), 
     dung('giỏ hiện thiệp', '2 thiệp nhỏ' in d['gio'])
     la('mở bánh mới thì ô thiệp về 0', str(d['veKhong']), '0')
     la('sửa dòng khôi phục thiệp', str(d['khoiPhuc']), '2')
-    la('phiếu bếp nhân số lượng, giữ chữ cũ cho nĩa dĩa', d['bep'], '3 nĩa gỗ, 0 dĩa giấy, 6 thiệp nhỏ')
+    la('phiếu bếp nhân số lượng, dĩa ghi đúng bã mía (Codex #481)', d['bep'], '3 nĩa gỗ, 0 dĩa bã mía, 6 thiệp nhỏ')
     la('chỉ có thiệp', d['bep2'], '2 thiệp nhỏ')
     la('không có gì thì rỗng', d['trong'], '')
     la('chặn số lạ trong khoảng 0 đến 30', d['quaTay'], {'nia': 30, 'dia': 0, 'thiep': 0})

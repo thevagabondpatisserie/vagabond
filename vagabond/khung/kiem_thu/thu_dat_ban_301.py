@@ -42,7 +42,7 @@ def hook():
     dung('không hook wildcard','dat_ban' not in str(su_kien.get('*',{})))
     from vagabond import kenh_zalo
     vet=[]; loi=[]
-    kz=NS(tach_tin=kenh_zalo.tach_tin, bao=lambda *a,**k: vet.append((a,k)) or ['Z1'])
+    kz=NS(tach_tin=kenh_zalo.tach_tin, bao_hoac_ghi_loi=lambda *a,**k: vet.append((a,k)) or ['Z1'])
     dm=NS(theo_ma=lambda ma:{'ten':'Tiệm Trần Cao Vân'})
     f=NS(flags=NS(),utils=NS(get_url_to_form=lambda dt,n:'https://fixture.invalid/app/vagabond-dat-ban/'+n),log_error=lambda **k:loi.append(k))
     g=dict(frappe=f,DOCTYPE='Vagabond Dat Ban',soan_tin_dat_ban=soan,_loi_zalo=lambda t:loi.append(t))
@@ -111,7 +111,7 @@ def khong_lark():
         for chu in ('gui_lark','webhook_dat_ban','ban_webhook'):
             dung(tep+' bỏ '+chu, chu not in x)
     x=(GOC/'vagabond/tiec_web.py').read_text()
-    dung('tiệc chủ đề đặt bàn, hỏi lại việc', 'kenh_zalo.bao("viec", "dat_ban"' in x and 'kiem="tiec_cho"' in x)
+    dung('tiệc chủ đề đặt bàn, hỏi lại việc', 'kenh_zalo.bao_hoac_ghi_loi("viec", "dat_ban"' in x and 'kiem="tiec_cho"' in x)
     from vagabond import kenh_zalo
     la('tách tin', kenh_zalo.tach_tin('A\n\n B \nC'), ('A',['B','C']))
     la('tin rỗng', kenh_zalo.tach_tin(''), ('',[]))
