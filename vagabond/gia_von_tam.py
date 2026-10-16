@@ -104,27 +104,38 @@ def gia_la(ton, gia_item, gia_nhap):
 	return 0.0, NGUON_THIEU
 
 
-def chon_gia_ap_dung(dong, dvt, hom_nay):
+def chon_gia_ap_dung(dong, dvt, hom_nay, he_so=None):
 	"""Chọn MỘT giá đang áp dụng trong các dòng Item Price của một mã. THUẦN.
 
 	Codex #483 vòng 1: một mã có thể có nhiều dòng (hết hạn, tương lai, giá
 	riêng khách hoặc nhà cung cấp, theo lô, đơn vị khác). Lấy đúng như
 	ERPNext v16 tự tra: bỏ dòng gắn khách, nhà cung cấp, lô; chỉ dòng còn hiệu
 	lực hôm nay; đúng đơn vị kho (dòng không ghi đơn vị xếp sau); rồi
-	`valid_from` mới nhất. Không có dòng nào thì None."""
+	`valid_from` mới nhất. Không có dòng nào thì None.
+
+	Codex #483 vòng 2: Bảng giá nhập ghi giá theo đơn vị MUA của hoá đơn
+	(100.000 mỗi Kg cho mã tính kho bằng Gram). `he_so` là {đơn vị: số đơn vị
+	kho} lấy từ UOM Conversion Detail của mã; dòng khác đơn vị kho mà có hệ
+	số thì đổi về giá một đơn vị kho, không có hệ số mới bỏ. Thứ tự ưu tiên:
+	đúng đơn vị kho, rồi đổi được qua hệ số, rồi dòng không ghi đơn vị."""
 	hn = str(hom_nay)[:10]
 	hop = []
 	for p in dong or []:
 		if p.get("customer") or p.get("supplier") or p.get("batch_no"):
 			continue
 		u = p.get("uom")
+		gia = flt(p.get("price_list_rate"))
+		hang = 2 if u else 0
 		if u and dvt and u != dvt:
-			continue
+			hs = flt((he_so or {}).get(u))
+			if hs <= 0:
+				continue
+			gia, hang = gia / hs, 1
 		tu = str(p.get("valid_from") or "")[:10]
 		den = str(p.get("valid_upto") or "")[:10]
 		if (tu and tu > hn) or (den and den < hn):
 			continue
-		hop.append((1 if u else 0, tu, flt(p.get("price_list_rate"))))
+		hop.append((hang, tu, gia))
 	if not hop:
 		return None
 	hop.sort(reverse=True)
@@ -414,10 +425,14 @@ def _gia_ap_dung(cac_ma, bang_gia, dvt):
 			["item_code", "price_list_rate", "uom", "valid_from", "valid_upto", "customer", "supplier", "batch_no"],
 			them={"price_list": bang_gia}):
 		theo_ma.setdefault(p.item_code, []).append(p)
+	he_so = {}
+	for c in _theo_lo("UOM Conversion Detail", "parent", list(theo_ma), ["parent", "uom", "conversion_factor"],
+			them={"parenttype": "Item"}):
+		he_so.setdefault(c.parent, {})[c.uom] = flt(c.conversion_factor)
 	ra = {}
 	hom_nay = nowdate()
 	for ma, dong in theo_ma.items():
-		g = chon_gia_ap_dung(dong, dvt.get(ma), hom_nay)
+		g = chon_gia_ap_dung(dong, dvt.get(ma), hom_nay, he_so.get(ma))
 		if g is not None:
 			ra[ma] = g
 	return ra
