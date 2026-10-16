@@ -57588,7 +57588,7 @@ sdKhai('gia_thu', 'gvtManPhieu', {
   /* v600 Codex #486: phieu tinh gia thu mon R&D. Mo lai tu ban nhap thi bo
      ket qua cu (pk) de man tinh lai o may chu theo gia hom nay. */
   ten: 'Phiếu tính giá thử', lay: function () { return GVT.p; },
-  dat: function (v) { GVT.p = v; GVT.pk = null; GVT.pkDong = null; GVT.lan++; },
+  dat: function (v) { GVT.p = v; GVT.pk = null; GVT.pkDong = null; GVT.loiTinh = null; GVT.lan++; },
   ma: function () { return (GVT.p && GVT.p.name) || ''; }, tieuDe: sdTieuDe('#gvtpTen', 'ten_mon'),
   luu: ['vagabond.gia_von_tam.luu_thu', 'vagabond.gia_von_tam.bo_thu']
 });
@@ -59478,7 +59478,9 @@ async function dsvnNapKhoiHd(si) {
 
 var GVT = { kq: null, nhom: '', tt: '', tim: '', moCct: false, tab: 'ban', thu: null, p: null, pk: null, hen: null,
   /* Codex #486: số lượt để bỏ kết quả về trễ (tính thử, tải danh sách). */
-  lan: 0, lanDs: 0, thuQ: '', henQ: null };
+  lan: 0, lanDs: 0, thuQ: '', henQ: null,
+  /* Codex #486 v3: câu lỗi của lần tính thử gần nhất (mẻ ra sai, máy chủ từ chối). */
+  loiTinh: null };
 
 var GVT_TT = {
   vuot_gia_ban: { nhan: 'Vượt giá bán', mau: '#b3261e', nen: '#fef2f2' },
@@ -59906,7 +59908,7 @@ function gvtMoPhieu(p) {
   }));
   GVT.pk = p.name ? JSON.parse(JSON.stringify(p)) : null;
   GVT.pkDong = p.name ? GVT.pk.dong : null;   /* phiếu đã lưu: mọi dòng đều hợp lệ, kết quả khớp từng dòng */
-  GVT.lan++;
+  GVT.lan++; GVT.loiTinh = null;
   vgbBoChuaLuu();
   go(gvtManPhieu);
 }
@@ -59922,7 +59924,7 @@ function gvtGoiTinh() {
     chiSo.push(i);
     dong.push({ item_code: d.item_code, ten: d.ten, dvt: d.dvt, so_luong: sl, don_gia_tay: gvtSoVn(d.don_gia_tay) || 0 });
   });
-  return { chiSo: chiSo, phieu: { ten_mon: p.ten_mon || 'Món thử', nhom: p.nhom, so_ra: gvtSoVn(p.so_ra) || 1,
+  return { chiSo: chiSo, phieu: { ten_mon: p.ten_mon || 'Món thử', nhom: p.nhom, so_ra: gvtSoVn(p.so_ra),
     dvt_ra: p.dvt_ra, gia_ban_du_kien: gvtSoVn(p.gia_ban_du_kien) || 0, dong: dong } };
 }
 
@@ -59936,14 +59938,26 @@ async function gvtTinhLai() {
   /* Codex #486: gõ tiếp khi lượt trước còn chạy thì lượt trước về sau phải
      bị bỏ, không đè số mới. Rời phiếu (lưu, bỏ, mở phiếu khác) cũng tăng lượt. */
   var lan = ++GVT.lan, p = GVT.p;
+  /* Codex #486 v3: mẻ ra 0 hoặc trống thì không tự thay 1 rồi gửi, mà nói
+     ngay cần sửa gì và bỏ số của lần trước. */
+  var soRa = g.phieu.so_ra;
+  if (soRa == null || soRa <= 0) return gvtBaoLoiTinh('Một mẻ phải ra hơn 0. Sửa ô Một mẻ ra để tính.');
   var kq;
   try { kq = await api('vagabond.gia_von_tam.tinh_thu', { phieu: JSON.stringify(g.phieu) }); }
-  catch (e) { return; }
+  catch (e) {
+    if (lan !== GVT.lan || p !== GVT.p) return;
+    return gvtBaoLoiTinh((e && e.message) || 'Không tính được. Kiểm mạng rồi sửa lại một ô để tính lại.');
+  }
   if (lan !== GVT.lan || p !== GVT.p) return;
+  GVT.loiTinh = null;
   var dongKq = [];
   g.chiSo.forEach(function (i, j) { dongKq[i] = (kq.dong || [])[j]; });
   GVT.pk = kq;
   GVT.pkDong = dongKq;
+  gvtVeKetQua();
+}
+function gvtBaoLoiTinh(cau) {
+  GVT.pk = null; GVT.pkDong = []; GVT.loiTinh = cau;
   gvtVeKetQua();
 }
 function gvtHenTinh() {
@@ -59955,6 +59969,7 @@ function gvtHenTinh() {
 function gvtKhoiKetQua() {
   var k = GVT.pk;
   var p = GVT.p;
+  if (GVT.loiTinh) return '<div style="font-size:14px;color:#b3261e;font-weight:700">' + h(GVT.loiTinh) + '</div>';
   if (!k) return '<div style="font-size:13.5px;color:#6b7280">Thêm nguyên liệu và số lượng để máy tính giá vốn.</div>';
   var de = gvtCauDeXuat(Object.assign({}, k, { nhom: p.nhom }));
   return '<div style="display:flex;gap:8px;align-items:center"><div style="flex:1;font-size:15px;font-weight:800">Giá vốn ' + money(k.gia_von) + 'đ/' + h(p.dvt_ra || 'Cái') + '</div>' +
@@ -60119,6 +60134,10 @@ function gvtThemNl() {
 
 async function gvtLuuPhieu() {
   var p = GVT.p;
+  /* Cùng luật với ô kết quả: mẻ ra trống hoặc 0 thì không gửi (máy chủ tự
+     hiểu trống là 1, sẽ lưu sai điều người dùng thấy trên màn). */
+  var soRa = gvtSoVn(p.so_ra);
+  if (soRa == null || soRa <= 0) return baoTin('Một mẻ phải ra hơn 0. Sửa ô Một mẻ ra rồi bấm Lưu.');
   var gui = {
     name: p.name, ten_mon: p.ten_mon, nhom: p.nhom, so_ra: gvtSoVn(p.so_ra), dvt_ra: p.dvt_ra,
     gia_ban_du_kien: gvtSoVn(p.gia_ban_du_kien) || 0, ghi_chu: p.ghi_chu,
