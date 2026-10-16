@@ -297,6 +297,8 @@ CUA_NGO = {
 	"don_du_lieu.py": ["dat_tran_vuot_lenh", "doi_ten", "don_kho_do_dang",
 		"ma_thay_the", "nap_bom_thu_vien", "nuoc_het_ton"],
 	# Danh muc cong thuc BOM cho bep truong, them 21/08/2026.
+	# #482: màn Giá vốn tạm tính cho kế toán giá thành.
+	"gia_von_tam.py": ["chi_tiet", "chot", "luu_ty_le", "tinh"],
 	"cong_thuc.py": ["bo_nhap", "chi_tiet", "danh_sach", "dieu_chinh",
 		"ghi_so", "lich_su", "nhat_ky", "ban_da_xoa", "sua_nhap", "tao_moi", "xuat_excel"],
 	# Loi ke toan mua hang, them 21/08/2026. `giu_tk_theo_phieu_nhap` la hook
