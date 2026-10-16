@@ -70,6 +70,9 @@ NGUON_CONG_THUC = "Công thức"
 # phiếu thử KHÔNG lấy giá kho thay, coi là thiếu để nhập giá tay hoặc chọn
 # công thức mặc định trên Desk (giống màn món đang bán).
 NGUON_NHIEU_CT = "Nhiều công thức, chưa chọn mặc định"
+# Codex #486 v3: mã đó nằm ở tầng dưới (dòng BOM không bom_no) cũng vậy. Một
+# nguồn: `_doc` trả gia_la_cua đã biết mã mơ hồ; mọi nơi coi "thiếu" theo bộ này.
+NGUON_LA_THIEU = (NGUON_THIEU, NGUON_NHIEU_CT)
 
 # Thứ tự bày trong nhóm: món cần xử lên trước.
 THU_TU_TRANG_THAI = (
@@ -230,7 +233,7 @@ def cong_don(thanh_phan, ma_bom, gia_la_cua):
 				vong = vong or k["vong"]
 			else:
 				g, nguon = gia_la_cua(d.get("ma"))
-				if nguon == NGUON_THIEU:
+				if nguon in NGUON_LA_THIEU:
 					thieu.add(d.get("ma"))
 			tong += flt(g) * flt(d.get("sl"))
 		so_ra = flt(info.get("so_ra"))
@@ -259,7 +262,7 @@ def dong_chi_tiet(bom, thanh_phan, ma_bom, gia_la_cua, ket):
 			thieu = len(k.get("thieu") or ())
 		else:
 			don_gia, nguon = gia_la_cua(d.get("ma"))
-			thieu = 1 if nguon == NGUON_THIEU else 0
+			thieu = 1 if nguon in NGUON_LA_THIEU else 0
 		ra.append({
 			"ma": d.get("ma"), "ten": d.get("ten") or d.get("ma"), "sl": flt(d.get("sl")),
 			"dvt": d.get("dvt") or "", "don_gia": don_gia, "nguon": nguon,
@@ -669,6 +672,10 @@ def _doc(them_ma=()):
 	gia_nhap = _gia_ap_dung(ma_nl, BANG_GIA_NHAP, {k: v.stock_uom for k, v in mat_hang.items()})
 
 	def gia_la_cua(ma):
+		# Mã có từ hai công thức chưa chọn mặc định: KHÔNG lấy giá kho thay,
+		# ở bất kỳ tầng nào (Codex #486 v2, v3).
+		if ma in mo_ho:
+			return 0.0, NGUON_NHIEU_CT
 		i = mat_hang.get(ma)
 		return gia_la(ton.get(ma), i.valuation_rate if i else 0, gia_nhap.get(ma))
 
@@ -777,20 +784,18 @@ def chot():
 
 def _bo_gia_ma(cac_ma):
 	"""Một lượt đọc -> hàm gia_ma(ma) cho tinh_phieu, kèm tên và đơn vị kho."""
-	thanh_phan, ma_bom, gia_la_cua, ket, _ten, mo_ho = _doc(them_ma=cac_ma)
+	thanh_phan, ma_bom, gia_la_cua, ket, _ten, _mo = _doc(them_ma=cac_ma)
 	mat_hang = {i.name: i for i in _theo_lo("Item", "name", [m for m in cac_ma if m], ["name", "item_name", "stock_uom"])}
 
 	def gia_ma(ma):
 		bom = ma_bom.get(ma)
-		if not bom and ma in mo_ho:
-			return {"gia": 0.0, "nguon": NGUON_NHIEU_CT, "thieu": 1, "vong": False}
 		if bom and bom in ket:
 			k = ket[bom]
 			return {"gia": flt(k["gia"]), "nguon": NGUON_CONG_THUC, "thieu": len(k["thieu"]), "vong": k["vong"]}
 		if ma not in mat_hang:
 			return {"gia": 0.0, "nguon": NGUON_THIEU, "thieu": 1, "vong": False}
 		g, nguon = gia_la_cua(ma)
-		return {"gia": g, "nguon": nguon, "thieu": int(nguon == NGUON_THIEU), "vong": False}
+		return {"gia": g, "nguon": nguon, "thieu": int(nguon in NGUON_LA_THIEU), "vong": False}
 	return gia_ma, mat_hang
 
 
