@@ -2,7 +2,7 @@
 
 Đặc tả đầy đủ nằm ở Issue #482. Tệp này chỉ để mở PR làm đầu mối giao việc cho Codex.
 
-- Owner code: Codex. Lead và rà: Claude.
+- Owner code: Claude (anh Việt đổi vai 16/10/2026). Rà: Codex.
 - Phạm vi tệp dự kiến:
   - `vagabond/gia_von_tam.py` (mới)
   - một tệp bep mới cho màn GVT
@@ -16,3 +16,5 @@
 ## Nhật ký giai đoạn
 
 - 16/10/2026: Claude lập đặc tả, mở PR nháp, giao Codex làm.
+- 16/10/2026: bản cloud của Codex (6d88fb113) không đẩy được lên GitHub. Anh Việt đổi vai: Claude tự làm trên nhánh này, mời Codex rà.
+- 16/10/2026: Claude đẩy bản v599 gồm máy chủ, màn app GVT, lối vào Desk, ca kiểm và đột biến.
