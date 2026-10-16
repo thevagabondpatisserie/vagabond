@@ -648,46 +648,60 @@ def _():
 
 
 def _frappe_bao_sales(url, nhan):
-	"""Frappe giả cho _bao_sales: ghi lại set_value, webhook trả `nhan`."""
+	"""Frappe giả cho _bao_sales (v597: đi Zalo). `nhan` True là có nhóm nhận (bao trả tên dòng).
+
+	`url` còn giữ để đọc ca cũ: rỗng nghĩa là chưa gán nhóm, bao trả danh sách rỗng."""
 	ghi, goi = [], []
 	fr = types.SimpleNamespace(
 		db=types.SimpleNamespace(set_value=lambda *a, **k: ghi.append(a), commit=lambda: None),
 		log_error=lambda **k: goi.append(("log", k.get("title"))),
 		utils=types.SimpleNamespace(get_url_to_form=lambda dt, n: "/app/x/" + n))
-	gui = types.ModuleType("vagabond.gui_thu")
-	gui.ban_webhook = lambda cau, url=None: goi.append(("webhook", url)) or nhan
+	kz = types.ModuleType("vagabond.kenh_zalo")
+	kz.tach_tin = don_web.__dict__.get("tach_tin") or __import__("vagabond.kenh_zalo", fromlist=["tach_tin"]).tach_tin
+	kz.bao = lambda loai, chu_de, tieu_de, dong=None, **k: goi.append(("zalo", loai, chu_de, tieu_de, k)) or (["Z1"] if (url and nhan) else [])
 	fr.db.exists = lambda *a, **k: False
-	g = dict(frappe=fr, cfg_o=lambda k: url, soan_tin_sales=lambda r, u: "tin", now_datetime=lambda: "T",
+	g = dict(frappe=fr, soan_tin_sales=lambda r, u="": "ĐƠN WEB CHƯA VÀO PANCAKE: X\nDòng 1", now_datetime=lambda: "T",
 		DOCTYPE="Vagabond Don Web", add_to_date=lambda d, **k: d, PHUT_BAO_SALES=30,
 		TIEU_DE_THIEU_WEBHOOK=don_web.TIEU_DE_THIEU_WEBHOOK)
-	# Nạp THẬT cả hàm báo thiếu webhook và nguồn giãn chung, cùng bộ Frappe giả (vòng 3, 4).
 	g["_bao_thieu_webhook"] = lambda r: nap("don_web.py", "_bao_thieu_webhook", g)(r)
 	g["_bao_cau_hinh_thieu"] = lambda t, n: nap("don_web.py", "_bao_cau_hinh_thieu", g)(t, n)
 	g["_log_ben"] = lambda t, n: nap("don_web.py", "_log_ben", g)(t, n)
-	return g, gui, ghi, goi
+	return g, kz, ghi, goi
 
 
-@ca("#367 H báo Sales: chỉ đóng dấu đã báo SAU khi Lark nhận, lỗi hay thiếu URL thì nhịp sau thử lại (Codex)")
-def _():
+def _chay_bao_sales(g, kz, r):
 	import sys
+	cu = sys.modules.get("vagabond.kenh_zalo")
+	import vagabond as _vg
+	cu_attr = getattr(_vg, "kenh_zalo", None)
+	sys.modules["vagabond.kenh_zalo"] = kz
+	_vg.kenh_zalo = kz
+	try:
+		return nap("don_web.py", "_bao_sales", g)(r)
+	finally:
+		if cu is None:
+			sys.modules.pop("vagabond.kenh_zalo", None)
+		else:
+			sys.modules["vagabond.kenh_zalo"] = cu
+		if cu_attr is None:
+			delattr(_vg, "kenh_zalo")
+		else:
+			_vg.kenh_zalo = cu_attr
+
+
+@ca("#367 H báo Sales (v597 qua Zalo): chỉ đóng dấu đã báo khi có nhóm nhận, chưa gán nhóm thì nhịp sau thử lại (Codex)")
+def _():
 	r = {"name": "DW-1"}
-	for url, nhan, mong_ghi, mong_ket in (("https://lark/x", True, 1, True), ("https://lark/x", False, 0, False), ("", True, 0, False)):
-		g, gui, ghi, goi = _frappe_bao_sales(url, nhan)
-		cu = sys.modules.get("vagabond.gui_thu")
-		sys.modules["vagabond.gui_thu"] = gui
-		try:
-			ket = nap("don_web.py", "_bao_sales", g)(r)
-		finally:
-			if cu is None:
-				sys.modules.pop("vagabond.gui_thu", None)
-			else:
-				sys.modules["vagabond.gui_thu"] = cu
-		la("kết quả url=%r nhận=%r" % (url, nhan), ket, mong_ket)
-		la("số lần đóng dấu url=%r nhận=%r" % (url, nhan), len(ghi), mong_ghi)
-		if url and not nhan:
-			dung("gửi hỏng thì ghi Error Log", ("log", "Don web: chua bao duoc nhom Sales qua Lark") in goi)
-		if not url:
-			la("thiếu URL thì không gọi webhook", [x for x in goi if x[0] == "webhook"], [])
+	for url, nhan, mong_ghi, mong_ket in (("co-nhom", True, 1, True), ("", True, 0, False)):
+		g, kz, ghi, goi = _frappe_bao_sales(url, nhan)
+		ket = _chay_bao_sales(g, kz, r)
+		la("kết quả nhóm=%r" % url, ket, mong_ket)
+		la("số lần đóng dấu nhóm=%r" % url, len(ghi), mong_ghi)
+		z = [x for x in goi if x[0] == "zalo"]
+		la("ghi đúng một tin Zalo", len(z), 1)
+		la("loại việc, chủ đề đơn web", z[0][1:3], ("viec", "don_web"))
+		la("tiêu đề lấy dòng đầu tin cũ", z[0][3], "ĐƠN WEB CHƯA VÀO PANCAKE: X")
+		la("khoá chống trùng theo bản ghi", z[0][4].get("khoa"), "don-web-treo:DW-1")
 	dung("mốc đóng dấu là ô da_bao_sales_luc", ghi == [] or ghi[0][2] == "da_bao_sales_luc")
 
 
@@ -782,7 +796,7 @@ def _():
 	dung("mốc 30 phút chỉ tính một chỗ", x.count("timedelta(minutes=PHUT_BAO_SALES)") == 1 and x.count("moc_bao_sales(") == 3)
 
 
-@ca("#367 H vòng 3: thiếu webhook nhóm Sales thì có Error Log hành động được, giãn 6 giờ một lần (Codex 3a7a37a)")
+@ca("#367 H vòng 3 (v597 Zalo): chưa có nhóm Zalo nhận tin Sales thì có Error Log hành động được, giãn 6 giờ một lần (Codex 3a7a37a)")
 def _():
 	import sys
 	for co_gan_day, mong in ((False, 1), (True, 0)):
@@ -790,20 +804,12 @@ def _():
 		hoi = []
 		g["frappe"].db.exists = lambda dt, loc=None: hoi.append((dt, loc)) or co_gan_day
 		g["add_to_date"] = lambda d, hours=0, **k: ("truoc", hours)
-		cu = sys.modules.get("vagabond.gui_thu")
-		sys.modules["vagabond.gui_thu"] = gui
-		try:
-			ket = nap("don_web.py", "_bao_sales", g)({"name": "DW-9"})
-		finally:
-			if cu is None:
-				sys.modules.pop("vagabond.gui_thu", None)
-			else:
-				sys.modules["vagabond.gui_thu"] = cu
+		ket = _chay_bao_sales(g, gui, {"name": "DW-9"})
 		la("vẫn chưa coi là đã báo (co_gan_day=%r)" % co_gan_day, (ket, len(ghi)), (False, 0))
 		la("số Error Log thiếu webhook (co_gan_day=%r)" % co_gan_day,
-			len([x for x in goi if x == ("log", "Don web: chua cau hinh webhook nhom Sales")]), mong)
+			len([x for x in goi if x == ("log", "Don web: chua co nhom Zalo nhan tin Sales")]), mong)
 		dung("giãn theo Error Log cùng tiêu đề trong 6 giờ", bool(hoi) and hoi[0][0] == "Error Log"
-			and (hoi[0][1] or {}).get("method") == "Don web: chua cau hinh webhook nhom Sales")
+			and (hoi[0][1] or {}).get("method") == "Don web: chua co nhom Zalo nhan tin Sales")
 
 
 @ca("#367 H vòng 4: thiếu khoá hay mã shop Pancake thì vẫn đưa bản ghi quá giờ sang lối báo Sales, có Error Log (Codex 46b7a9a)")
@@ -1282,8 +1288,9 @@ GHI.goiMang.length=0; submitOrder(); await CHO_XONG();
 var d=cacDon()[0]||{};
 RA({in_bep:d.note_print||'', note:d.note||''});
 """)
-	dung("phiếu bếp có dụng cụ nhân số lượng", "dụng cụ: 4 nĩa gỗ, 2 dĩa giấy" in r["in_bep"])
-	dung("ghi chú đơn vẫn có", "4 nĩa gỗ, 2 dĩa giấy" in r["note"])
+	# v597 Codex #481: ô khách nhập là dĩa bã mía, phiếu bếp ghi đúng chất liệu.
+	dung("phiếu bếp có dụng cụ nhân số lượng", "dụng cụ: 4 nĩa gỗ, 2 dĩa bã mía" in r["in_bep"])
+	dung("ghi chú đơn vẫn có", "4 nĩa gỗ, 2 dĩa bã mía" in r["note"])
 
 
 @ca("#367 L gửi lỗi rồi gửi lại: CÙNG nonce để máy chủ nhận ra cùng một đơn; thành công thì sang biên nhận")

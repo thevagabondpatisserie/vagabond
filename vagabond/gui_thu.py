@@ -615,6 +615,39 @@ def ban_webhook(cau, url=None):
 		return False
 
 
+def _bao_zalo(cau):
+	"""v597: hú còi vào nhóm Zalo nhận Cảnh báo, chủ đề Hệ thống (thay webhook Lark).
+
+	Thư đang hỏng nên không dựa vào thư. Lỗi Zalo không chặn đường thư dự phòng.
+	Trả True khi có ít nhất một nhóm nhận (đã ghi dòng tin vào sổ), Codex #481."""
+	try:
+		from vagabond import kenh_zalo
+		tieu_de, dong = kenh_zalo.tach_tin(cau)
+		return bool(kenh_zalo.bao("canh_bao", "he_thong", tieu_de or "Thư không gửi được", dong,
+			khoa="bao-dong-thu:%s" % now_datetime().strftime("%Y%m%d%H")))
+	except Exception:
+		frappe.log_error("Chưa ghi được tin Zalo báo động thư.", "gui_thu: zalo bao dong loi")
+		return False
+
+
+TIEU_DE_KHONG_DUONG = "Báo động thư: không có đường báo nào nhận"
+
+
+def _ghi_khong_duong(so_loi):
+	"""Không nhóm Zalo nào nhận và thư dự phòng cũng không đi: để lại Error Log hành
+	động được, giãn theo khoảng im của còi để không đầy log mỗi nhịp (Codex #481)."""
+	try:
+		if frappe.db.exists("Error Log", {"method": TIEU_DE_KHONG_DUONG,
+				"creation": [">=", add_to_date(now_datetime(), minutes=-IM_SAU_KHI_HU_PHUT)]}):
+			return
+		frappe.log_error(title=TIEU_DE_KHONG_DUONG, message=(
+			"%d thư không gửi được nhưng chưa báo được ai: chưa có nhóm Zalo bật nhận loại Cảnh báo, "
+			"chủ đề Hệ thống, và ô Email nhận thư cảnh báo trống hoặc gửi lỗi. Vào Cài đặt lõi, mục "
+			"Thông báo, gán nhóm. Máy sẽ hú lại ở nhịp sau." % so_loi))
+	except Exception:
+		pass
+
+
 def _bao_bang_thu(cau, so_loi):
 	"""Đường dự phòng: gửi thư cho địa chỉ khai ở Vagabond Settings.
 
@@ -701,8 +734,13 @@ def canh_bao_email_loi():
 			moc.strftime("%H:%M %d/%m"),
 			now_datetime().strftime("%H:%M %d/%m"),
 		)
-		ban_webhook(cau)
-		_bao_bang_thu(cau, len(ds))
+		qua_zalo = _bao_zalo(cau)
+		qua_thu = _bao_bang_thu(cau, len(ds))
+		if not (qua_zalo or qua_thu):
+			# Codex #481: không ai nhận thì KHÔNG đóng dấu đã hú, nhịp sau thử lại.
+			_ghi_khong_duong(len(ds))
+			frappe.db.commit()
+			return
 		frappe.db.set_single_value("Vagabond Settings", TRUONG_LAN_HU, now_datetime())
 		frappe.db.commit()
 	except Exception:

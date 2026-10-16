@@ -2710,7 +2710,7 @@
   },
   "dung_cu_gio": {
     "ten": "Giỏ: số dụng cụ tặng",
-    "mac_dinh": "{nia} nĩa gỗ, {dia} dĩa giấy",
+    "mac_dinh": "{nia} nĩa gỗ, {dia} dĩa bã mía",
     "nhom": "gio_hang"
   },
   "kenh_noi_nhan": {
@@ -3047,5 +3047,165 @@
     "nhom": "dat_banh",
     "mac_dinh": "Gọi hỗ trợ đặt bánh",
     "nhieu_dong": false
+  },
+  "dv_nav_nhan": {
+    "ten": "Thanh điều hướng: tên đọc cho người khiếm thị",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Trang của chúng tôi"
+  },
+  "dv_nav_dat_ban": {
+    "ten": "Thanh điều hướng: Đặt bàn",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Đặt bàn"
+  },
+  "dv_nav_thanh_vien": {
+    "ten": "Thanh điều hướng: Thành viên",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Thành viên"
+  },
+  "huong_size_nut": {
+    "ten": "Nút Cách chọn size",
+    "nhom": "dat_banh",
+    "mac_dinh": "Cách chọn size"
+  },
+  "huong_size_tieu_de": {
+    "ten": "Hộp chọn size: tiêu đề",
+    "nhom": "dat_banh",
+    "mac_dinh": "Chọn size bánh"
+  },
+  "huong_size_mo_ta": {
+    "ten": "Hộp chọn size: câu đầu",
+    "nhom": "dat_banh",
+    "mac_dinh": "Mọi bánh cao 5 cm. Số miếng tính theo cách cắt thường, mỗi miếng vừa một người ăn tráng miệng."
+  },
+  "huong_size_so": {
+    "ten": "Hộp chọn size: tên size",
+    "nhom": "dat_banh",
+    "mac_dinh": "Size {so}"
+  },
+  "huong_size_mieng": {
+    "ten": "Hộp chọn size: số miếng",
+    "nhom": "dat_banh",
+    "mac_dinh": "{so} miếng"
+  },
+  "huong_size_nguoi": {
+    "ten": "Hộp chọn size: số người",
+    "nhom": "dat_banh",
+    "mac_dinh": "{so} người"
+  },
+  "huong_size_meo": {
+    "ten": "Hộp chọn size: lời khuyên",
+    "nhom": "dat_banh",
+    "mac_dinh": "Tiệc đông người hoặc ăn thay bữa thì chọn lớn hơn một size. Chưa chắc thì gọi 0931 224 334, chúng tôi tư vấn ngay."
+  },
+  "huong_size_ok": {
+    "ten": "Hộp chọn size: nút đóng chính",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đã hiểu, chọn size"
+  },
+  "huong_size_dong": {
+    "ten": "Hộp chọn size: nút X (đọc cho người khiếm thị)",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đóng"
+  },
+  "pk_co_san_muc": {
+    "ten": "Mục 03: tên mục đồ có sẵn",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đã có sẵn trong hộp bánh"
+  },
+  "pk_co_san_tieu_de": {
+    "ten": "Mục 03: tiêu đề khung",
+    "nhom": "dat_banh",
+    "mac_dinh": "Tặng kèm mọi bánh ổ"
+  },
+  "pk_co_san_mo_ta": {
+    "ten": "Mục 03: câu dưới tiêu đề",
+    "nhom": "dat_banh",
+    "mac_dinh": "Đã nằm trong giá bánh, quý khách không phải mua thêm."
+  },
+  "pk_co_san_nhan": {
+    "ten": "Mục 03: nhãn từng dòng",
+    "nhom": "dat_banh",
+    "mac_dinh": "Có sẵn"
+  },
+  "pk_hop_banh": {
+    "ten": "Đồ có sẵn: hộp bánh",
+    "nhom": "san_pham",
+    "mac_dinh": "Hộp bánh"
+  },
+  "pk_hop_banh_mo": {
+    "ten": "Đồ có sẵn: dòng phụ hộp bánh",
+    "nhom": "san_pham",
+    "mac_dinh": "hộp giấy Vagabond, vừa size bánh"
+  },
+  "pk_tui_vai": {
+    "ten": "Đồ có sẵn: túi vải",
+    "nhom": "san_pham",
+    "mac_dinh": "Túi vải đen The Vagabond"
+  },
+  "pk_tui_vai_mo": {
+    "ten": "Đồ có sẵn: dòng phụ túi vải",
+    "nhom": "san_pham",
+    "mac_dinh": "xách đi tiện, dùng lại được"
+  },
+  "pk_nen_xoan_mo": {
+    "ten": "Đồ có sẵn: dòng phụ nến xoắn",
+    "nhom": "san_pham",
+    "mac_dinh": "vỉ 6 cây"
+  },
+  "pk_co_cam_mo": {
+    "ten": "Đồ có sẵn: dòng phụ cờ cắm",
+    "nhom": "san_pham",
+    "mac_dinh": "in đúng lời chúc quý khách ghi ở mục 02"
+  },
+  "pk_theo_yeu_cau": {
+    "ten": "Mục 03: tiêu đề đồ miễn phí theo yêu cầu",
+    "nhom": "dat_banh",
+    "mac_dinh": "Thêm miễn phí khi quý khách cần"
+  },
+  "pk_theo_yeu_cau_mo": {
+    "ten": "Mục 03: câu giải thích đồ theo yêu cầu",
+    "nhom": "dat_banh",
+    "mac_dinh": "Mặc định chúng tôi không gửi để bớt đồ dùng một lần. Cần bao nhiêu thì ghi số."
+  },
+  "so_dia_ba_mia": {
+    "ten": "Ô số dĩa bã mía",
+    "nhom": "dat_banh",
+    "mac_dinh": "Số dĩa bã mía"
+  },
+  "so_thiep_nho": {
+    "ten": "Ô số thiệp nhỏ",
+    "nhom": "dat_banh",
+    "mac_dinh": "Số thiệp nhỏ"
+  },
+  "dung_cu_thiep_gio": {
+    "ten": "Giỏ: số thiệp nhỏ tặng",
+    "nhom": "gio_hang",
+    "mac_dinh": "{so} thiệp nhỏ"
+  },
+  "pk_mua_them_muc": {
+    "ten": "Mục 04: tên mục mua thêm",
+    "nhom": "dat_banh",
+    "mac_dinh": "Mua thêm, không bắt buộc"
+  },
+  "pk_mua_them_dan": {
+    "ten": "Mục 04: câu nhấn đầu mục",
+    "nhom": "dat_banh",
+    "mac_dinh": "Bánh đã có đủ hộp, túi, nến và dao."
+  },
+  "pk_mua_them_mo": {
+    "ten": "Mục 04: câu sau câu nhấn",
+    "nhom": "dat_banh",
+    "mac_dinh": "Mục này dành cho quý khách muốn thêm đồ trang trí."
+  },
+  "pk_du_phong_hoi": {
+    "ten": "Mục 04: dòng gấp đồ dự phòng",
+    "nhom": "dat_banh",
+    "mac_dinh": "Cần thêm hộp, túi hay nến dự phòng?"
+  },
+  "pk_du_phong_mo": {
+    "ten": "Mục 04: chữ nhỏ dòng gấp",
+    "nhom": "dat_banh",
+    "mac_dinh": "Mỗi bánh đã có sẵn một bộ."
   }
 }

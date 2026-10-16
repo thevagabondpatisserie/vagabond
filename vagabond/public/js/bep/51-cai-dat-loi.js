@@ -64,6 +64,9 @@ function cdlDoc() {
     ra[k] = cdlLaKhoa(k) ? (CDL.thay[k] ? '*' : ra[k]) : CDL.thay[k];
   });
   Object.keys(CDL.xoaKhoa).forEach(function (k) { ra[k] = ''; });
+  // v597: gộp cả các bảng (nhóm Zalo...). Thiếu bảng thì app báo "Zalo bắn tin nhóm"
+  // chưa khai trong khi Desk báo ổn (lệch 11 ổn và 12 ổn trên site 15/10).
+  Object.keys(CDL.bang || {}).forEach(function (k) { ra[k] = CDL.bang[k]; });
   return ra;
 }
 

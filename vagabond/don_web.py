@@ -460,7 +460,7 @@ def ghep_don_pancake(sdt, tao_luc, hang, dons, da_gan=(), truoc=600, sau=3600):
 
 
 def soan_tin_sales(ban_ghi, url=""):
-	"""Tin Lark cho nhóm Sales khi một đơn web quá 30 phút chưa ghép được."""
+	"""Tin cho nhóm Sales (Zalo từ v597) khi một đơn web quá 30 phút chưa ghép được."""
 	b = ban_ghi or {}
 	dong = [
 		"ĐƠN WEB CHƯA VÀO PANCAKE: %s" % (b.get("name") or ""),
@@ -1035,7 +1035,7 @@ def _doi_soat_mot(r, dons, gan):
 		_bao_sales(r)
 
 
-TIEU_DE_THIEU_WEBHOOK = "Don web: chua cau hinh webhook nhom Sales"
+TIEU_DE_THIEU_WEBHOOK = "Don web: chua co nhom Zalo nhan tin Sales"
 TIEU_DE_THIEU_PANCAKE = "Don web: chua cau hinh Pancake de doi soat"
 
 
@@ -1054,32 +1054,27 @@ def _bao_cau_hinh_thieu(tieu_de, noi_dung):
 
 
 def _bao_thieu_webhook(r):
-	"""Báo thiếu webhook nhóm Sales (giãn 6 giờ)."""
+	"""Báo chưa có nhóm Zalo nhận tin đơn web (giãn 6 giờ)."""
 	return _bao_cau_hinh_thieu(TIEU_DE_THIEU_WEBHOOK,
-		"Vagabond Settings chua co webhook_don_web, nen don web qua %d phut chua vao Pancake "
-		"khong bao duoc nhom Sales (vi du ban ghi %s). Dien webhook Lark nhom Sales, nhip 5 phut sau "
-		"se bao cac ban ghi con treo." % (PHUT_BAO_SALES, (r or {}).get("name") or ""))
+		"Chua co nhom Zalo nao nhan chu de Don web, nen don web qua %d phut chua vao Pancake "
+		"khong bao duoc nhom Sales (vi du ban ghi %s). Vao Cai dat loi > Thong bao, gan nhom Sales "
+		"nhan chu de Don web; nhip 5 phut sau se bao cac ban ghi con treo." % (PHUT_BAO_SALES, (r or {}).get("name") or ""))
 
 
 def _bao_sales(r):
-	"""Báo nhóm Sales qua Lark (anh Việt chọn Lark 25/09/2026). Chỉ báo một lần
-	khi đã gửi được; trả True khi Lark nhận."""
-	from vagabond.gui_thu import ban_webhook
+	"""Báo nhóm Sales qua Zalo (v597, anh Việt 16/10/2026 chuyển hết Lark sang Zalo).
 
-	url = str(cfg_o("webhook_don_web") or "").strip()
-	if not url:
-		# Chưa cấu hình webhook thì chưa coi là đã báo: điền URL xong nhịp sau
-		# sẽ báo các bản ghi còn treo. Nhưng phải LÊN TIẾNG (Codex 3a7a37a):
-		# một Error Log chỉ việc cần làm, giãn 6 giờ một lần.
+	kenh_zalo.bao trả tên các dòng tin đã ghi vào sổ; sổ tự gửi và gửi bù khi Zalo
+	lỗi. Chỉ đóng dấu đã báo khi có ít nhất một dòng (tức có nhóm nhận), để chưa
+	gán nhóm thì nhịp sau còn báo lại (Codex, giữ luật cũ của Lark)."""
+	from vagabond import kenh_zalo
+
+	tieu_de, dong = kenh_zalo.tach_tin(soan_tin_sales(r))
+	ten = kenh_zalo.bao("viec", "don_web", tieu_de, dong, khoa="don-web-treo:%s" % r["name"],
+		link=frappe.utils.get_url_to_form(DOCTYPE, r["name"]))
+	if not ten:
 		_bao_thieu_webhook(r)
 		return False
-	cau = soan_tin_sales(r, frappe.utils.get_url_to_form(DOCTYPE, r["name"]))
-	if not ban_webhook(cau, url=url):
-		_log_ben("Don web: chua bao duoc nhom Sales qua Lark",
-			"Ban ghi %s. Kiem tra webhook nhom Sales don web. Se thu lai nhip sau." % r["name"])
-		return False
-	# Chỉ đóng dấu SAU khi Lark nhận, để lỗi mạng hay webhook sai còn được
-	# thử lại ở nhịp sau, không tắt vĩnh viễn lối người xử lý (Codex).
 	frappe.db.set_value(DOCTYPE, r["name"], "da_bao_sales_luc", now_datetime(), update_modified=False)
 	frappe.db.commit()
 	return True

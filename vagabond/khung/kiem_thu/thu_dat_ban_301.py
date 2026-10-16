@@ -33,28 +33,37 @@ def tin():
     s=soan(dict(nd,tre_em=0,dip='Không có dịp riêng',url='TEST'))
     for chu in ('Dịp:','Khu vực:','Email:','Bánh kèm theo:','Ghi chú:','0 trẻ em','SĐT liên hệ',chr(0x2014),chr(0x2013)):dung('bỏ '+chu,chu not in s)
 
-@ca('#301 hook chỉ tạo mới, xếp sau commit, trống cấu hình không gửi hoặc báo lỗi')
+@ca('#301 hook chỉ tạo mới (v597: báo nhóm Zalo chủ đề Đặt bàn thay Lark), tin việc có hỏi lại trước khi gửi')
 def hook():
     cay=ast.parse((GOC/'vagabond/hooks.py').read_text())
     n=next(n for n in cay.body if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id=='doc_events' for t in n.targets))
     su_kien=ast.literal_eval(n.value)
     la('đúng doctype',su_kien['Vagabond Dat Ban'],{'after_insert':'vagabond.dat_ban.bao_dat_ban_moi'})
     dung('không hook wildcard','dat_ban' not in str(su_kien.get('*',{})))
-    for url in ('', 'https://fixture.invalid/key'):
-        vet=[]; callbacks=[]
-        f=NS(flags=NS(),db=NS(get_single_value=lambda *a:url,after_commit=NS(add=callbacks.append),commit=lambda:vet.append('commit_log')),enqueue=lambda *a,**k:vet.append(k))
-        g=dict(frappe=f,partial=partial,_loi_lark=lambda x:vet.append('loi'))
-        g['_xep_lark']=nap('dat_ban.py','_xep_lark',g)
-        nap('dat_ban.py','bao_dat_ban_moi',g)(D(name='TEST'))
-        la('chưa xếp trước commit',vet,[])
-        if url:
-            la('một callback',len(callbacks),1);callbacks[0]()
-            la('sau commit',vet,[dict(ten='TEST',queue='short')])
-            vet.clear()
-            def hong(*a,**kw):raise RuntimeError('Redis ngắt')
-            f.enqueue=hong;callbacks[0]()
-            la('không ném lỗi khách, lưu log',vet,['loi','commit_log'])
-        else:la('không callback',callbacks,[])
+    from vagabond import kenh_zalo
+    vet=[]; loi=[]
+    kz=NS(tach_tin=kenh_zalo.tach_tin, bao_hoac_ghi_loi=lambda *a,**k: vet.append((a,k)) or ['Z1'])
+    dm=NS(theo_ma=lambda ma:{'ten':'Tiệm Trần Cao Vân'})
+    f=NS(flags=NS(),utils=NS(get_url_to_form=lambda dt,n:'https://fixture.invalid/app/vagabond-dat-ban/'+n),log_error=lambda **k:loi.append(k))
+    g=dict(frappe=f,DOCTYPE='Vagabond Dat Ban',soan_tin_dat_ban=soan,_loi_zalo=lambda t:loi.append(t))
+    doc=D(name='TEST'); doc.as_dict=lambda:dict(nd,name='TEST')
+    with patch.dict(sys.modules,{'vagabond.kenh_zalo':kz,'vagabond.diem_ban':dm}), patch.object(__import__('vagabond'),'kenh_zalo',kz,create=True), patch.object(__import__('vagabond'),'diem_ban',dm,create=True):
+        nap('dat_ban.py','bao_dat_ban_moi',g)(doc)
+    la('một tin',len(vet),1)
+    a,k=vet[0]
+    la('loại việc, chủ đề đặt bàn',a[:2],('viec','dat_ban'))
+    la('tiêu đề',a[2],'YÊU CẦU ĐẶT BÀN MỚI')
+    dung('có tên cơ sở',any('Cơ sở: Tiệm Trần Cao Vân' in x for x in a[3]))
+    dung('có đường mở phiếu',any('/app/vagabond-dat-ban/TEST' in x for x in a[3]))
+    la('khoá chống trùng',k.get('khoa'),'dat-ban:TEST')
+    la('hỏi lại việc còn chờ',(k.get('kiem'),k.get('nguon')),('dat_ban_cho','TEST'))
+    dung('mã kiểm có trong danh mục',kenh_zalo.DIEU_KIEN.get('dat_ban_cho')=='vagabond.dat_ban.con_cho_xac_nhan')
+    la('không lỗi',loi,[])
+    # Soạn tin hỏng thì ghi tên phiếu, không gửi, không làm hỏng phiếu khách.
+    vet.clear(); g['soan_tin_dat_ban']=lambda d:(_ for _ in ()).throw(ValueError('x'))
+    with patch.dict(sys.modules,{'vagabond.kenh_zalo':kz,'vagabond.diem_ban':dm}), patch.object(__import__('vagabond'),'kenh_zalo',kz,create=True), patch.object(__import__('vagabond'),'diem_ban',dm,create=True):
+        nap('dat_ban.py','bao_dat_ban_moi',g)(doc)
+    la('không gửi',vet,[]); la('ghi tên phiếu',loi,['TEST'])
 
 @ca('#301 sender giữ mặc định, URL riêng không đọc nhóm quản trị, bắt HTTP và Lark lỗi')
 def sender():
@@ -95,22 +104,17 @@ def giao_dien():
     r=subprocess.run(['node','vagabond/khung/kiem_thu/hanh_vi/dat_ban_301.cjs'],cwd=GOC,capture_output=True,text=True,timeout=30)
     la(r.stdout+r.stderr,r.returncode,0)
 
-@ca('#301 worker im khi trống URL, lỗi Lark ghi tên phiếu không lộ khóa')
-def worker():
-    for url, ket in [('',True),('https://fixture.invalid/secret',True),('https://fixture.invalid/secret',False)]:
-        vet=[]; loi=[]
-        def gui(cau,url=None):vet.append((cau,url));return ket
-        g=dict(frappe=NS(flags=NS(),db=NS(get_single_value=lambda *a:url),
-                get_doc=lambda *a:NS(as_dict=lambda:dict(nd,name='TEST')),
-                utils=NS(get_url_to_form=lambda *a:'https://fixture.invalid/app/vagabond-dat-ban/TEST')),
-                DOCTYPE='Vagabond Dat Ban',soan_tin_dat_ban=soan,_loi_lark=loi.append)
-        with patch.dict(sys.modules,{'vagabond.gui_thu':NS(ban_webhook=gui)}), patch.object(__import__('vagabond'),'diem_ban',NS(theo_ma=lambda ma:{'ten':'Tiệm Trần Cao Vân'}),create=True):
-            nap('dat_ban.py','gui_lark',g)('TEST')
-        la('gửi đúng số lượt',len(vet),1 if url else 0)
-        la('chỉ tên phiếu trong lỗi',loi,['TEST'] if url and not ket else [])
-        if vet:
-            la('nhóm riêng',vet[0][1],url)
-            dung('tên cơ sở', 'Cơ sở: Tiệm Trần Cao Vân' in vet[0][0])
+@ca('#301 v597 không còn đường Lark cho đặt bàn và tiệc; tiệc đi cùng nhóm Zalo chủ đề Đặt bàn')
+def khong_lark():
+    for tep in ('vagabond/dat_ban.py','vagabond/tiec_web.py'):
+        x=(GOC/tep).read_text()
+        for chu in ('gui_lark','webhook_dat_ban','ban_webhook'):
+            dung(tep+' bỏ '+chu, chu not in x)
+    x=(GOC/'vagabond/tiec_web.py').read_text()
+    dung('tiệc chủ đề đặt bàn, hỏi lại việc', 'kenh_zalo.bao_hoac_ghi_loi("viec", "dat_ban"' in x and 'kiem="tiec_cho"' in x)
+    from vagabond import kenh_zalo
+    la('tách tin', kenh_zalo.tach_tin('A\n\n B \nC'), ('A',['B','C']))
+    la('tin rỗng', kenh_zalo.tach_tin(''), ('',[]))
 
 @ca('#301 nhân viên đổi trạng thái không được sửa thông tin khách đã gửi')
 def bat_bien():

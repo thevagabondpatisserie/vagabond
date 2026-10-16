@@ -580,6 +580,22 @@ function moTab(m, fn) { bam(m, mot(m, '[data-cdltab="' + fn + '"]')); }
     bang('lưu xong: không hỏi nữa', m.S.chuaLuu, '');
   });
 
+  await ca('v597 app đọc cả bảng nhóm Zalo như Desk: hết lệch đếm "Zalo bắn tin nhóm", còi báo đi Zalo', async function () {
+    // Site 15/10: app đếm 11 ổn, Desk đếm 12 ổn vì cdlDoc() bỏ sót bảng zalo_nhom.
+    var m = await moMan();
+    var doc = m.g.cdlDoc();
+    bang('có bảng nhóm Zalo trong doc của app', (doc.zalo_nhom || []).length, 1);
+    var tt = m.g.VGB_CD.tinhTrang(Object.assign({}, doc, { zalo_bot_token: '*' }));
+    var zl = tt.filter(function (x) { return x.ten === 'Zalo bắn tin nhóm'; })[0];
+    dung('có token và có nhóm thì không còn chưa khai', zl && zl.trang !== 'no');
+    var thu = tt.filter(function (x) { return x.ten === 'Thư cảnh báo'; })[0];
+    bang('không có email nhưng có nhóm Zalo nhận Cảnh báo (chủ đề để trống = nhận tất): đường báo ổn', thu.trang, 'ok');
+    var khongNhom = m.g.VGB_CD.tinhTrang(Object.assign({}, doc, { zalo_nhom: [] }));
+    bang('không email, không nhóm: còi chưa khai', khongNhom.filter(function (x) { return x.ten === 'Thư cảnh báo'; })[0].trang, 'no');
+    var chiKho = m.g.VGB_CD.tinhTrang(Object.assign({}, doc, { zalo_nhom: [{ bat: 1, chat_id: 'g-1', loai_tin: 'canh_bao', chu_de: 'kho' }] }));
+    bang('nhóm chỉ nhận chủ đề Kho thì không tính là đường báo hệ thống', chiKho.filter(function (x) { return x.ten === 'Thư cảnh báo'; })[0].trang, 'no');
+  });
+
   console.log('\n' + ket.dat + ' ca dat, ' + ket.hong + ' ca hong.');
   if (ket.hong) process.exit(1);
 })();

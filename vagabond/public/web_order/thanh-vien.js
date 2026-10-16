@@ -25,7 +25,7 @@
       const ten=tao('div','');ten.append(tao('h4',m.ten||m.ma||(chuWeb("thanh_vien_50b133f3b", "Món bánh"))),tao('p',(chuWeb("thanh_vien_0433ae990", "Số lượng:") + " ")+m.sl));ten.children[0].className='c-name';
       mon.append(khung,ten);dong.append(mon);
     });g.append(dong);
-  });bao(d.co_ho_so?(chuWeb("thanh_vien_62cff3945", "Điểm đọc từ sổ điểm hiện tại của chúng tôi.")):(chuWeb("thanh_vien_389b3feae", "Số điện thoại đã xác thực; chưa có hồ sơ thành viên tại cửa hàng.")));return true;}
+  });bao(d.co_ho_so?'':(chuWeb("thanh_vien_389b3feae", "Số điện thoại đã xác thực; chưa có hồ sơ thành viên tại cửa hàng.")));return true;}
   try{if(!await hoSo()){const c=await api('san_sang');if(!c.otp){tim('nut-gui').disabled=true;bao(lyDo.chua_mo);}else bao((chuWeb("thanh_vien_6168467d3", "Nhập số điện thoại đã mua bánh để xem hồ sơ.")));}}catch(e){bao(e.message,true);tim('dang-nhap').hidden=false;}
   tim('gui-ma').onsubmit=async e=>{e.preventDefault();tim('nut-gui').disabled=true;try{const so=tim('sdt').value;const d=await api('gui_ma',{sdt:so});if(!d.ok)throw new Error(lyDo[d.ly_do]||(chuWeb("thanh_vien_f23771e85", "Chưa gửi được mã. Thử lại sau.")));soDaGui=so;tim('xac-thuc').hidden=false;tim('ma').focus();bao((chuWeb("thanh_vien_593248be0", "Đã gửi mã qua Zalo. Mã có hiệu lực 5 phút.")));}catch(e){bao(e.message,true);}finally{tim('nut-gui').disabled=false;}};
   tim('xac-thuc').onsubmit=async e=>{e.preventDefault();tim('nut-xac-thuc').disabled=true;try{const d=await api('xac_thuc',{sdt:soDaGui,ma:tim('ma').value});if(!d.ok)throw new Error(lyDo[d.ly_do]||(chuWeb("thanh_vien_b345af644", "Không xác thực được. Gửi mã mới.")));tim('ma').value='';await hoSo();}catch(e){bao(e.message,true);}finally{tim('nut-xac-thuc').disabled=false;}};

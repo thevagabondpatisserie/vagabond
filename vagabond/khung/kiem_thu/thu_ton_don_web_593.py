@@ -66,12 +66,17 @@ def _():
     with patch.object(ton, 'kiem', side_effect=RuntimeError('IO')), patch.object(ton, 'bao_loi') as bao:
         la('nhận', ham(d)['ok'], 1)
         dung('đã yêu cầu cảnh báo', bao.called)
-    from vagabond import gui_thu, lib
+    from vagabond import kenh_zalo
     fr=D(log_error=lambda *a,**k: vet.su.append('log'), get_traceback=lambda: 'IO')
-    with patch.object(ton,'frappe',fr), patch.object(lib,'cfg_o',lambda k: 'https://sales.invalid' if k == 'webhook_don_web' else ''), patch.object(gui_thu,'ban_webhook',lambda cau,**k: vet.su.append(('sales',cau,k['url'])) or True):
+    # v597: Zalo thay Lark (anh Việt 16/10/2026).
+    with patch.object(ton,'frappe',fr), patch.object(kenh_zalo,'bao',lambda loai,chu_de,tieu_de,dong=None,**k: vet.su.append(('zalo',loai,chu_de,tieu_de,k.get('khoa'))) or ['Z1']):
         ton.bao_loi('2026-10-13')
     dung('log thật được gọi', 'log' in vet.su)
-    dung('đúng kênh đơn web', any(isinstance(x,tuple) and x[0]=='sales' and x[2]=='https://sales.invalid' and '2026-10-13' in x[1] for x in vet.su))
+    dung('đúng chủ đề đơn web, loại cảnh báo, khoá theo ngày nhận', any(isinstance(x,tuple) and x[:3]==('zalo','canh_bao','don_web') and '2026-10-13' in x[3] and x[4]=='f21-ton-loi:2026-10-13' for x in vet.su))
+    vet.su.clear()
+    with patch.object(ton,'frappe',fr), patch.object(kenh_zalo,'bao',lambda *a,**k: []):
+        ton.bao_loi('2026-10-13')
+    la('chưa có nhóm nhận thì ghi thêm log hành động được', vet.su.count('log'), 2)
 
 
 @ca('F21-6 nonce đã nhận đứng trước tồn, trả biên nhận cũ dù hết hàng')
@@ -86,10 +91,10 @@ def _():
 
 @ca('F21 lỗi cả cảnh báo Sales không làm hỏng cửa nhận đơn')
 def _():
-    from vagabond import gui_thu, lib
+    from vagabond import kenh_zalo
     vet, ham, d = gui()
     fr=D(log_error=lambda *a,**k: vet.su.append('log'), get_traceback=lambda: 'IO')
-    with patch.object(ton, 'kiem', side_effect=RuntimeError('IO')), patch.object(ton,'frappe',fr), patch.object(lib,'cfg_o',lambda k: 'https://sales.invalid'), patch.object(gui_thu,'ban_webhook',side_effect=RuntimeError('Lark')):
+    with patch.object(ton, 'kiem', side_effect=RuntimeError('IO')), patch.object(ton,'frappe',fr), patch.object(kenh_zalo,'bao',side_effect=RuntimeError('Zalo')):
         la('nhận dù Sales lỗi',ham(d)['ok'],1)
         dung('ghi lỗi đọc và gửi',vet.su.count('log') >= 2)
 

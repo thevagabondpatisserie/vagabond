@@ -49,13 +49,20 @@ LOAI = {
 	"ban_tin": ("📊", "Bản tin"),
 	"phat_hanh": ("🚀", "Phát hành"),
 }
-CHU_DE = ("kho", "san_xuat", "cong_no", "ban_hang", "don_web", "dat_ban", "phat_hanh")
+# v597: "he_thong" cho còi báo động thư hỏng (thay webhook Lark nhóm quản trị).
+CHU_DE = ("kho", "san_xuat", "cong_no", "ban_hang", "don_web", "dat_ban", "phat_hanh", "he_thong")
+# Tên có dấu của chủ đề, khớp hộp chọn ở Cài đặt lõi (cai_dat_loi_chung.js).
+TEN_CHU_DE = {"kho": "Kho", "san_xuat": "Sản xuất", "cong_no": "Công nợ", "ban_hang": "Bán hàng",
+	"don_web": "Đơn web", "dat_ban": "Đặt bàn", "phat_hanh": "Phát hành app", "he_thong": "Hệ thống"}
 
 # Codex #413 P2: tin "việc cần làm" phải kiểm lại việc còn mở ngay trước khi
 # gửi. Mã kiểm -> hàm(nguon) trả True nếu việc vẫn cần làm. Chỉ tra trong bảng
 # này, không gọi hàm theo tên tuỳ ý.
 DIEU_KIEN = {
 	"cho_duyet_truoc_erp": "vagabond.cong_no_ncc.con_cho_duyet_truoc_erp",
+	# v597: đặt bàn, đăng ký tiệc đã có người xác nhận hoặc huỷ thì không nhắc nữa.
+	"dat_ban_cho": "vagabond.dat_ban.con_cho_xac_nhan",
+	"tiec_cho": "vagabond.tiec_web.con_cho_xac_nhan",
 }
 BO_QUA = "Bỏ qua (đã xử lý)"
 CHO_GUI = "Chờ gửi"
@@ -74,6 +81,30 @@ LOI_CHUA_GUI = ("ConnectTimeout", "ConnectTimeoutError", "NewConnectionError", "
 
 
 # ------------------------------------------------------------------ THUẦN
+
+def tach_tin(chu):
+	"""THUẦN: tin nhiều dòng soạn sẵn (khuôn tin Lark cũ) -> (tiêu đề, các dòng).
+
+	v597: các nơi từng bắn Lark giữ nguyên hàm soạn chữ (đã có ca kiểm nội dung),
+	chỉ đổi đường gửi sang bao(). Dòng đầu là tiêu đề, bỏ dòng trống."""
+	ds = [x.strip() for x in str(chu or "").splitlines() if x.strip()]
+	return (ds[0] if ds else ""), ds[1:]
+
+
+def chu_chua_nhom(loai, chu_de, nguon=None):
+	"""THUẦN: (tiêu đề, lời) Error Log khi bao() không ghi được dòng tin nào.
+
+	v597 Codex #481: Zalo tắt hoặc chưa có nhóm bật nhận đúng loại và chủ đề thì
+	bao() trả rỗng mà không ném lỗi; người trực phải biết để gán nhóm và báo tay."""
+	ten_loai = LOAI.get(loai, ("", loai))[1]
+	ten_cd = TEN_CHU_DE.get(chu_de, chu_de)
+	tieu_de = "Zalo: chưa có nhóm nhận %s, chủ đề %s" % (ten_loai, ten_cd)
+	loi = ("Tin %s, chủ đề %s không ghi được cho nhóm Zalo nào: Zalo đang tắt hoặc chưa có nhóm bật "
+		"nhận đúng loại và chủ đề. Vào Cài đặt lõi, mục Thông báo, gán nhóm." % (ten_loai, ten_cd))
+	if nguon:
+		loi += " Chứng từ %s chưa được báo, cần báo tay." % nguon
+	return tieu_de[:140], loi
+
 
 def tach_ds(s):
 	"""THUẦN: "viec, canh_bao" -> {"viec", "canh_bao"}; rỗng -> set()."""
@@ -514,6 +545,20 @@ def bao(loai, chu_de, tieu_de, dong=None, link=None, khoa=None, nguoi=None, han=
 		if chet_giao_dich(e):
 			raise
 		frappe.log_error("Chưa ghi được tin Zalo loại %s." % loai, "kenh_zalo: bao loi")
+
+
+def bao_hoac_ghi_loi(loai, chu_de, tieu_de, dong=None, **kw):
+	"""Như bao(), cho tin chỉ có MỘT dịp báo (hook lúc tạo phiếu): không ghi được dòng
+	nào thì để lại Error Log hành động được, nêu tên chứng từ (v597 Codex #481).
+	Trả tên các dòng như bao()."""
+	ten = bao(loai, chu_de, tieu_de, dong, **kw)
+	if not ten and not getattr(frappe.flags, "vagabond_kiem_that", False):
+		t, loi = chu_chua_nhom(loai, chu_de, kw.get("nguon"))
+		try:
+			frappe.log_error(title=t, message=loi)
+		except Exception:
+			pass
+	return ten
 
 
 def _ghi_hop_thu(tin):
