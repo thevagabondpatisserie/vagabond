@@ -167,9 +167,16 @@ def ban_can_duyet(c):
 
 
 def tom_tat_comment(c):
-    """Chỉ đọc khối ngắn do chủ repo soạn, không suy tóm tắt từ log."""
-    if (c.get('user', {}).get('login') != REPO.split('/')[0]
-            or c.get('author_association') != 'OWNER'):
+    """Chỉ đọc khối ngắn do chủ repo HOẶC bot Codex soạn, không suy tóm tắt từ log.
+
+    Codex #478 (8b3703d): phân công 15/10 bắt Codex đính khối telegram-tomtat vào
+    kết luận rà soát; trước đây khối từ bot bị bỏ nên tin mất phần kết luận
+    nghiệp vụ. Tên đăng nhập kết thúc bằng [bot] là tài khoản ứng dụng GitHub,
+    người ngoài không mạo danh được."""
+    u = c.get('user', {})
+    la_chu = u.get('login') == REPO.split('/')[0] and c.get('author_association') == 'OWNER'
+    la_codex = u.get('login') == CODEX and u.get('type', 'Bot') == 'Bot'
+    if not (la_chu or la_codex):
         return None, False
     body = c.get('body') or ''
     blocks = re.findall(r'<!-- telegram-tomtat\s*([\s\S]*?)-->', body)
@@ -356,7 +363,8 @@ def thu_thap(gh, state):
                 text += '\n' + tom_tat
             elif la_chu_repo:
                 text += '\nKhối tóm tắt chưa hợp lệ'
-            codex = tom_tat_codex(c)
+            # Đã có khối tóm tắt của Codex thì không chép thêm ý Summary cho khỏi trùng.
+            codex = None if tom_tat else tom_tat_codex(c)
             if codex:
                 text += '\nCodex: ' + codex
             if (dau and dau[0].strip() == '[ĐÃ DEPLOY]'

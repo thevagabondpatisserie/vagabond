@@ -240,6 +240,26 @@ class ThuThap(unittest.TestCase):
                 self.assertIn('Khối tóm tắt chưa hợp lệ', text)
                 self.assertNotIn('Tóm tắt:', text)
 
+    def test_478_khoi_tom_tat_cua_bot_codex_duoc_gui(self):
+        # Codex #478 8b3703d: phân công 15/10 bắt Codex đính telegram-tomtat; trước
+        # bản sửa, khối từ bot bị bỏ và tin mất kết luận nghiệp vụ.
+        body = ('[BỊ CHẶN] Rà đủ SHA 8b3703d\n### Summary\n* Ý Summary không được chép thêm.\n'
+                '<!-- telegram-tomtat {"tom_tat":"Chưa đạt: còn 2 finding.",'
+                '"tiep_theo":"Anh Việt giao Claude làm tiếp finding 1."} -->')
+        c = self.comment(body, 'chatgpt-codex-connector[bot]', 'NONE')
+        c['user']['type'] = 'Bot'
+        text = self.text_comment(c)
+        self.assertIn('Tóm tắt: Chưa đạt: còn 2 finding.\nTiếp theo: Anh Việt giao Claude làm tiếp finding 1.', text)
+        self.assertNotIn('Codex: ', text)
+
+    def test_478_ten_giong_codex_khong_phai_bot_thi_khong_nhan(self):
+        body = '<!-- telegram-tomtat {"tom_tat":"Giả mạo.","tiep_theo":"Giả mạo."} -->'
+        for login, kieu in (('chatgpt-codex-connector', 'User'), ('chatgpt-codex-connector[bot]', 'User')):
+            with self.subTest(login=login, kieu=kieu):
+                c = self.comment(body, login, 'NONE')
+                c['user']['type'] = kieu
+                self.assertNotIn('Giả mạo', self.text_comment(c))
+
     def test_codex_chi_lay_gach_dau_dong_dau_cua_summary(self):
         body = ('### Summary\n\n* Đã sửa **ảnh bánh** theo [nghiệp vụ](https://example.com/a).\n'
                 '* Không lấy ý thứ hai.\n\n**Testing**\n* SECRET log')
