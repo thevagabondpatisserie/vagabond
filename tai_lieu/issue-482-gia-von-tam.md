@@ -34,3 +34,6 @@
 - 17/10/2026 (PR #486, Codex rà vòng 3 trên a848c9fbd, 2 finding, tái hiện đủ 2 rồi sửa):
   - Mã nhiều công thức nằm ở tầng dưới (dòng công thức không ghi bom_no) cũng báo thiếu, không lấy giá kho; áp chung cho món đang bán, sheet chi tiết và phiếu thử. Một nguồn: `gia_la_cua` trong `_doc`.
   - Ô "Một mẻ ra" để 0 hoặc trống: không tự thay 1 khi tính thử, ô kết quả nói cần sửa; Lưu cũng chặn. Máy chủ từ chối tính thử thì ô kết quả hiện đúng câu lỗi, bỏ số cũ.
+- 17/10/2026 (PR #486, Codex rà vòng 4 trên bcf8c846e, 2 finding, tái hiện đủ 2 rồi sửa):
+  - Không vai nào còn quyền xoá phiếu thử trên Desk, và bộ điều khiển chặn xoá (`on_trash`), kể cả System Manager.
+  - Mã vừa chọn mà máy chủ báo thiếu giá thì hiện ngay ô giá tay ở đúng dòng sau khi tính.
