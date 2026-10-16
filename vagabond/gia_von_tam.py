@@ -104,6 +104,33 @@ def gia_la(ton, gia_item, gia_nhap):
 	return 0.0, NGUON_THIEU
 
 
+def chon_gia_ap_dung(dong, dvt, hom_nay):
+	"""Chọn MỘT giá đang áp dụng trong các dòng Item Price của một mã. THUẦN.
+
+	Codex #483 vòng 1: một mã có thể có nhiều dòng (hết hạn, tương lai, giá
+	riêng khách hoặc nhà cung cấp, theo lô, đơn vị khác). Lấy đúng như
+	ERPNext v16 tự tra: bỏ dòng gắn khách, nhà cung cấp, lô; chỉ dòng còn hiệu
+	lực hôm nay; đúng đơn vị kho (dòng không ghi đơn vị xếp sau); rồi
+	`valid_from` mới nhất. Không có dòng nào thì None."""
+	hn = str(hom_nay)[:10]
+	hop = []
+	for p in dong or []:
+		if p.get("customer") or p.get("supplier") or p.get("batch_no"):
+			continue
+		u = p.get("uom")
+		if u and dvt and u != dvt:
+			continue
+		tu = str(p.get("valid_from") or "")[:10]
+		den = str(p.get("valid_upto") or "")[:10]
+		if (tu and tu > hn) or (den and den < hn):
+			continue
+		hop.append((1 if u else 0, tu, flt(p.get("price_list_rate"))))
+	if not hop:
+		return None
+	hop.sort(reverse=True)
+	return hop[0][2]
+
+
 def chon_con(bom_no, mac_dinh, dang_chay):
 	"""Dòng trỏ vào công thức con nào. THUẦN. Cùng luật với
 	patches/no_phantom_chuan.chon_bom_con: `bom_no` đang chạy thì giữ, rỗng
@@ -380,6 +407,22 @@ def _theo_lo(doctype, truong, gia_tri, fields, them=None, lo=300, **kw):
 	return ra
 
 
+def _gia_ap_dung(cac_ma, bang_gia, dvt):
+	"""Mã -> giá đang áp dụng hôm nay trong một bảng giá (chon_gia_ap_dung)."""
+	theo_ma = {}
+	for p in _theo_lo("Item Price", "item_code", cac_ma,
+			["item_code", "price_list_rate", "uom", "valid_from", "valid_upto", "customer", "supplier", "batch_no"],
+			them={"price_list": bang_gia}):
+		theo_ma.setdefault(p.item_code, []).append(p)
+	ra = {}
+	hom_nay = nowdate()
+	for ma, dong in theo_ma.items():
+		g = chon_gia_ap_dung(dong, dvt.get(ma), hom_nay)
+		if g is not None:
+			ra[ma] = g
+	return ra
+
+
 def _ty_le_da_luu():
 	try:
 		return json.loads(frappe.defaults.get_global_default(KHOA_TY_LE) or "{}") or {}
@@ -409,12 +452,7 @@ def _doc():
 	for b in _theo_lo("Bin", "item_code", ma_nl, ["item_code", "actual_qty", "stock_value"]):
 		ton.setdefault(b.item_code, []).append(b)
 	mat_hang = {i.name: i for i in _theo_lo("Item", "name", ma_nl, ["name", "item_name", "stock_uom", "valuation_rate"])}
-	gia_nhap = {}
-	for p in _theo_lo("Item Price", "item_code", ma_nl, ["item_code", "price_list_rate", "uom"],
-			them={"price_list": BANG_GIA_NHAP}):
-		i = mat_hang.get(p.item_code)
-		if i and (not p.uom or p.uom == i.stock_uom):
-			gia_nhap[p.item_code] = flt(p.price_list_rate)
+	gia_nhap = _gia_ap_dung(ma_nl, BANG_GIA_NHAP, {k: v.stock_uom for k, v in mat_hang.items()})
 
 	def gia_la_cua(ma):
 		i = mat_hang.get(ma)
@@ -432,12 +470,7 @@ def _bang():
 			fields=["name", "item_name", "item_group", "stock_uom", "image"], limit_page_length=0)]
 	ma_ban = [m["ma"] for m in ban]
 	dvt = {m["ma"]: m["dvt"] for m in ban}
-	gia_ban = {}
-	for p in _theo_lo("Item Price", "item_code", ma_ban, ["item_code", "price_list_rate", "uom"],
-			them={"price_list": _bang_gia_ban()}):
-		# Ưu tiên dòng đúng đơn vị kho; không có thì lấy dòng đầu tiên.
-		if p.item_code not in gia_ban or (not p.uom or p.uom == dvt.get(p.item_code)):
-			gia_ban[p.item_code] = flt(p.price_list_rate)
+	gia_ban = _gia_ap_dung(ma_ban, _bang_gia_ban(), dvt)
 	chot_truoc = {}
 	for p in _theo_lo("Item Price", "item_code", ma_ban, ["item_code", "price_list_rate", "valid_from"],
 			them={"price_list": BANG_GIA}, order_by="valid_from desc"):
