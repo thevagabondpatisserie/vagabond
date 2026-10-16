@@ -83,6 +83,22 @@ RA({moKhac, moSua:!!EL('#s-duphong').open});
     la('mở lại khi sửa dòng có đồ dự phòng', d['moSua'], True)
 
 
+@ca('v597 Codex #481 vòng 2 (821b84c): mở bánh khác thì dòng gấp dự phòng đóng lại; khách tự mở dòng gấp rồi chọn đồ trang trí thì không bị đóng')
+def _gap_banh_moi():
+    # Bánh trước có chọn túi dự phòng, mở bánh khác: picked_add đã xoá nhưng dòng gấp
+    # vẫn mở, chiếm nửa màn hình điện thoại. Chuỗi bấm đúng như khách, không gọi thêm.
+    d = _chay(r'''
+const c=CAKES[0]; const s=c.sizes[0]; TODAY[s.id]=3; renderSheet(c); setSize(s.id);
+toggleAdd('BAPK00015'); const moKhiChon=!!EL('#s-duphong').open;
+renderSheet(CAKES[1]||c); const moBanhMoi=!!EL('#s-duphong').open;
+EL('#s-duphong').open=true; toggleAdd('BAPK00002'); const giuTuMo=!!EL('#s-duphong').open;
+RA({moKhiChon, moBanhMoi, giuTuMo});
+''')
+    la('chọn túi dự phòng thì dòng gấp mở', d['moKhiChon'], True)
+    la('mở bánh khác thì dòng gấp đóng', d['moBanhMoi'], False)
+    la('khách tự mở rồi chọn đồ trang trí thì dòng gấp vẫn mở', d['giuTuMo'], True)
+
+
 @ca('v597 thiệp nhỏ theo yêu cầu: vào giỏ, tách dòng, khôi phục khi sửa, có trên phiếu bếp nhân số lượng')
 def _thiep():
     d = _chay(r'''
