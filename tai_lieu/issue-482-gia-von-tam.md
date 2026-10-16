@@ -27,3 +27,7 @@
   - Lưu trên Desk cũng tính lại giá vốn và giá đề xuất qua `validate()`, chung một nguồn với app.
   - Kết quả tính thử và tìm phiếu về trễ không đè kết quả mới.
   - Danh sách chia trang 30 phiếu, có Xem thêm và ô tìm ở máy chủ.
+- 17/10/2026 (PR #486, Codex rà vòng 2 trên 74de7508d, 3 finding, tái hiện đủ 3 rồi sửa):
+  - Mã bán thành phẩm có từ hai công thức chưa chọn mặc định: phiếu thử không lấy giá kho thay, báo thiếu để nhập giá tay.
+  - Bỏ phiếu giữ nguyên giá vốn và giá đề xuất đã chụp, không tính lại.
+  - Phiếu đã bỏ không sửa được nữa, kể cả trên Desk; bỏ phiếu không được kèm sửa nội dung. Một chỗ quyết: `quyet_luu_phieu`, gọi từ `validate()`.
