@@ -2225,6 +2225,27 @@ là no-op, không gom lỗi submit vào nhánh thành công. Bench xác minh SLE
 
 - Bổ sung kiểm core: `row_changed` dùng index trước child.name. Chỉ đổi qty thì diff không chứa tên/UOM; phải đọc metadata dòng, không dùng fixture tự thêm tên để che lỗi. Slug màn mới phải khai tại `duong_app.py` để lần dựng không xoá mất.
 
+### #470: kiểm kê Vue phải tách code, kiểm kho và kiểm trang
+
+`web_vue_banh.mjs` chạy kho Vue thật nhưng không mount DOM; môi trường
+`suKien` là no-op. 25 ca xanh không chứng minh các nút, Pixel, Editor
+xem trước Vue hay metadata cho crawler. Bảng đối chiếu phải ghi nguồn hàm,
+ca kiểm hiện có và phần chưa chứng minh. Biên nhận chuyển sang trang cũ
+không có nghĩa đã có biên nhận Vue. Nguồn: docs/web-vue/470-doi-chieu-tinh-nang.md.
+
+
+### 13/10/2026 - #471: lời hứa gửi đơn và phản hồi địa chỉ
+
+- Nhấp kép có thể lọt trong lúc kiểm ưu đãi trước POST: khóa cả lời hứa gửi,
+  trả cùng kết quả cho hai lượt, giữ nonce khi mất phản hồi.
+- Gợi ý/tọa độ cũ trả muộn có thể ghi đè địa chỉ vừa sửa: đánh số lượt địa chỉ,
+  bỏ kết quả cũ ở cả thành công và lỗi; không chỉ chống muộn ở phép tính phí.
+- Tải tồn lỗi lần đầu cần câu báo lỗi và nút thử lại, không để màn trống.
+- Ca kho Vue và Chromium fixture kiểm hai tầng khác nhau. Không nhận nonce
+  Map giả hoặc lời gọi AST là bằng chứng cạnh tranh DB hay tồn production.
+- Nguồn PR #471; thay từng hàng rào trong bản sao làm đỏ đúng1ca/lượt.
+
+
 ### 13/10/2026 - F21 nguồn tồn khi gửi đơn
 
 Danh mục công khai bỏ dòng0 nên không dùng việc vắng món để suy ra hết. Đọc
