@@ -59979,9 +59979,20 @@ function gvtKhoiKetQua() {
     (k.he_so != null ? '<div class="t2">Giá bán dự kiến ' + money(gvtSoVn(p.gia_ban_du_kien)) + 'đ · ' + gvtHeSoKem(k) + '</div>' : '') +
     (k.thieu_so ? '<div class="t2" style="color:#b45309">Thiếu giá ' + k.thieu_so + ' nguyên liệu: nhập giá tay ở dòng đó.</div>' : '');
 }
+/* Dòng cần ô giá tay: NVL chưa có mã, mã máy chủ báo thiếu giá (kể cả nhiều
+   công thức), hoặc đã có giá tay. MỘT chỗ quyết cho cả lúc vẽ dòng và lúc
+   nhận kết quả (Codex #486 v4). */
+function gvtCanGiaTay(d, r) { return !d.item_code || !!(r && r.thieu) || gvtSoVn(d.don_gia_tay) > 0; }
 function gvtVeKetQua() {
   var el = document.getElementById('gvtpKq');
   if (el) el.innerHTML = gvtKhoiKetQua();
+  /* Kết quả mới làm một dòng cần ô giá tay mà dòng đó chưa có: vẽ lại danh
+     sách dòng (ô đang gõ giữ chữ vì chữ nằm trong GVT.p). */
+  var ds = document.getElementById('gvtpDs');
+  var lech = (GVT.p.dong || []).some(function (d, i) {
+    return gvtCanGiaTay(d, (GVT.pkDong || [])[i]) && !document.querySelector('[data-gvtpgia="' + i + '"]');
+  });
+  if (ds && lech) { ds.innerHTML = GVT.p.dong.map(gvtDongNhap).join(''); return; }
   (GVT.p.dong || []).forEach(function (d, i) {
     var o = document.querySelector('[data-gvtpgiadong="' + i + '"]');
     if (o) o.innerHTML = gvtGiaDong(d, (GVT.pkDong || [])[i]);
@@ -59998,7 +60009,7 @@ function gvtGiaDong(d, r) {
 
 function gvtDongNhap(d, i) {
   var r = (GVT.pkDong || [])[i];
-  var canGiaTay = !d.item_code || (r && r.thieu) || gvtSoVn(d.don_gia_tay) > 0;
+  var canGiaTay = gvtCanGiaTay(d, r);
   return '<div class="hub" data-gvtpd="' + i + '" style="align-items:flex-start;cursor:default">' +
     '<div class="hub-t" style="flex:1;min-width:0">' +
       '<div style="display:flex;gap:8px;align-items:center"><div class="t1" style="flex:1;min-width:0">' + h(d.ten || d.item_code) +
