@@ -290,7 +290,7 @@ export function taoKho(moiTruong) {
   function cartRemove(i) { S.CART.splice(i, 1); }
   const dongGio = computed(() => S.CART.map((o, i) => {
     const ex = [];
-    if (o.dung_cu && (o.dung_cu.nia || o.dung_cu.dia)) ex.push([thuong(t('dung_cu_gio', '{nia} nĩa gỗ, {dia} dĩa giấy', {nia: o.dung_cu.nia, dia: o.dung_cu.dia}))]);
+    if (o.dung_cu && (o.dung_cu.nia || o.dung_cu.dia)) ex.push([thuong(t('dung_cu_gio', '{nia} nĩa gỗ, {dia} dĩa bã mía', {nia: o.dung_cu.nia, dia: o.dung_cu.dia}))]);
     if (o.wish) ex.push([thuong(t('dat_banh_1970655ae', 'Lời chúc:') + ' '), {chu: o.wish, nghieng: true}]);
     if (o.adds.length) ex.push([thuong(t('dat_banh_2c04193c6', 'Thêm: {gia_tri_a}', {gia_tri_a: o.adds.map(a => a.n).join(', ')}))]);
     return {i, o, ten: tenMonGio(o), phu: t('dat_banh_7498bc8a8', 'Ø {gia_tri_a}cm · mã {gia_tri_b}', {gia_tri_a: o.cm, gia_tri_b: o.id}),

@@ -356,7 +356,7 @@ export const MAU = `
       <summary><span>{{ t('phu_kien_cho_banh','Phụ kiện cho bánh') }}</span><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg></summary>
     <div class="sec"><span class="n">03</span><h3><span>{{ t('dat_banh_2320148b6','Phụ kiện tặng kèm') }}</span></h3><i class="rule"></i></div>
     <ul class="acc" id="s-acc"><li v-for="a in ACC" :key="a.k"><img :src="a.i" alt=""><span class="nm">{{ t(a.k, a.n) }}<small v-if="t(a.ks, a.sub)">{{ t(a.ks, a.sub) }}</small></span></li></ul>
-    <h4>{{ t('yeu_cau_dung_cu','Dụng cụ tặng kèm theo yêu cầu') }}</h4><div class="dung-cu"><label><span>{{ t('so_nia','Số nĩa gỗ') }}</span><input id="s-nia" type="number" min="0" max="30" v-model.number="S.nia"></label><label><span>{{ t('so_dia','Số dĩa giấy') }}</span><input id="s-dia" type="number" min="0" max="30" v-model.number="S.dia"></label></div>
+    <h4>{{ t('yeu_cau_dung_cu','Dụng cụ tặng kèm theo yêu cầu') }}</h4><div class="dung-cu"><label><span>{{ t('so_nia','Số nĩa gỗ') }}</span><input id="s-nia" type="number" min="0" max="30" v-model.number="S.nia"></label><label><span>{{ t('so_dia_ba_mia','Số dĩa bã mía') }}</span><input id="s-dia" type="number" min="0" max="30" v-model.number="S.dia"></label></div>
 
     <div class="sec"><span class="n">04</span><h3><span>{{ t('dat_banh_b009ad199','Phụ kiện mua thêm') }}</span></h3><i class="rule"></i></div>
     <div class="addon-lead"><span>{{ t('dat_banh_16c989c4d','Quý khách chọn thêm phụ kiện cần dùng. Chúng tôi sẽ ghi nhận cùng đơn bánh.') }}</span></div>
