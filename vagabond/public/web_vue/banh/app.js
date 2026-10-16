@@ -11,7 +11,7 @@ import {createApp, computed, watch, nextTick} from '../lib/vue.esm-browser.prod.
 import {ND, t, tMon, napNoiDung, telChu, telSo, mxh} from '../kho/chu.js';
 import {doc, ghi} from '../kho/api.js';
 import {taoKho} from './kho-banh.js';
-import {DAYS, ACC, NUMS, ADDONS, PAYS, ANH_NEN} from './du-lieu.js';
+import {DAYS, ACC, NUMS, ADDONS, PAYS, ANH_NEN, HUONG_SIZE} from './du-lieu.js';
 import {LOGO} from './anh.js';
 import {DongChu, BieuTuong, AnhMon} from './thanh-phan.js';
 import {KhoiNoiDung, TieuDeMuc, CuaHang, KenhNoi, ChuyenMuc, dsMuc} from './noi-dung.js';
@@ -32,6 +32,18 @@ export function khoiDong(goc = '#app') {
     cookie: () => document.cookie, timKiem: () => location.search});
   const S = kho.S;
 
+  /* v598 (port v597): hộp Cách chọn size. Đóng bảng chi tiết hay đổi đường dẫn thì hộp đóng theo. */
+  function moHuongSize() { S.huongSize = true; }
+  function dongHuongSize() { S.huongSize = false; }
+  watch(() => S.trang, v => { if (v !== 'banh') S.huongSize = false; });
+  watch(() => S.huongSize, mo => document.body.classList.toggle('hs-mo', !!mo));
+  /* Escape chỉ đóng hộp, không đóng luôn bảng chi tiết phía sau: bắt ở pha capture
+     và chặn lan truyền khi hộp đang mở. */
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape' || !S.huongSize) return;
+    e.stopImmediatePropagation(); e.preventDefault(); dongHuongSize();
+  }, true);
+
   const app = createApp({
     template: MAU,
     components: {DongChu, BieuTuong, AnhMon, KhoiNoiDung, TieuDeMuc, CuaHang, KenhNoi, ChuyenMuc},
@@ -49,7 +61,7 @@ export function khoiDong(goc = '#app') {
         return {quay, chon, mon, tong: mon.reduce((a, m) => a + (m.con || 0), 0),
           nhom: ['', ...new Set(ds.map(m => m.nhom).filter(Boolean))].map(n => ({n, so: ds.filter(m => !n || m.nhom === n).length}))};
       });
-      const chinhSach = computed(() => ((S.cauHinh && S.cauHinh.chinh_sach) || []).filter(c => /^\/[a-z-]+$/.test(String(c.duong || ''))));
+      const chinhSach = computed(() => ((S.cauHinh && S.cauHinh.chinh_sach) || []).filter(c => /^\/[a-z-]+$/.test(String(c.duong || ''))).map(c => ({...c, duong: location.pathname.startsWith('/web_moi/') ? '/web_moi' + c.duong : c.duong})));
       const baoMat = computed(() => chinhSach.value.find(c => c.khoa === 'chinh_sach_bao_mat') || null);
       const lienHe = computed(() => (S.cauHinh && S.cauHinh.lien_he) || {});
       const ngayBan = computed(() => { void S.nhip; const b = new Date(); return DAYS[b.getDay()] + ', ' + kho.T.dmy(b); });
@@ -95,7 +107,7 @@ export function khoiDong(goc = '#app') {
           tinh: m.het ? t('dat_banh_7fbd55eb5', 'Hết hàng mùa này') : (S.MUA.ten_mua || t('dat_banh_d7e8f3298', 'Hàng theo mùa')) + ' · ' + kho.T.nhanTon(m.con, t('dat_banh_d2cd4ec77', 'phần'), t)};
       });
       const tienTom = n => kho.T.tienVN(n);
-      return {S, ND, kho, t, tMon, telChu, telSo, LOGO, ANH_NEN, ACC, NUMS, ADDONS, PAYS, tab, gioMo, coTiec, coQuay, quayHien, chinhSach, baoMat,
+      return {S, ND, kho, t, tMon, telChu, telSo, LOGO, ANH_NEN, ACC, NUMS, ADDONS, PAYS, HUONG_SIZE, moHuongSize, dongHuongSize, tab, gioMo, coTiec, coQuay, quayHien, chinhSach, baoMat,
         lienHe, ngayBan, theHomNay, theDatTruoc, chiTiet, anhChon, kichThuocDong, tomTatLich, hangTomTat, monMua, muaXem, tienTom, thuong,
         go, nav, navBack, moBanh: c => nav('#/banh/' + kho.T.slug(c.k)), themNhanh, themVaoGio, suaDongGio, moGio, guiDon,
         moMua: m => nav('#/in-season/' + m.ma), themTuMua, tgl, gioMo2: () => nav('#/gio-hang'), mxh};
@@ -176,7 +188,7 @@ export function khoiDong(goc = '#app') {
   const CHO = {lich: '#c-days', ten: '#f-name', sdt: '#f-phone', diem_nhan: '#pickList', dia_chi: '#f-addr', cach_nhan: '#m-pick', dong_y: '#c-dongy', uu_dai: '#sum'};
   async function guiDon() {
     const kq = await kho.submitOrder();
-    if (kq.buoc === 'xong' && kq.duong_dan) { location.assign(kq.duong_dan); return; }
+    if (kq.buoc === 'xong' && kq.duong_dan) { location.assign(location.pathname.startsWith('/web_moi/') ? '/web_moi' + kq.duong_dan : kq.duong_dan); return; }
     const sel = CHO[kq.buoc]; if (!sel) return;
     await nextTick();
     const o = document.querySelector(sel); if (!o) return;
@@ -190,11 +202,15 @@ export function khoiDong(goc = '#app') {
      chỗ cũ. */
   const CHON = 'button:not([disabled]),a[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),summary,[tabindex="0"]';
   const nutTrong = el => Array.from(el.querySelectorAll(CHON)).filter(n => n.getClientRects().length);
-  const bangMo = () => document.querySelector('#sheet.open,#sheetMua.open,#checkout.open');
+  /* Hộp Cách chọn size nằm trên bảng chi tiết: đang mở thì Tab quay vòng trong hộp. */
+  const bangMo = () => document.querySelector('#huongSize:not([hidden])') || document.querySelector('#sheet.open,#sheetMua.open,#checkout.open');
   let bangCu = null, conTroTruoc = null;
-  watch(() => S.trang, () => nextTick(() => {
+  watch(() => [S.trang, S.huongSize], () => nextTick(() => {
     const moi = bangMo();
     if (moi === bangCu) return;
+    /* Đóng hộp Cách chọn size mà bảng chi tiết vẫn mở: trả con trỏ về đúng nút đã mở hộp. */
+    const veNutHop = bangCu && bangCu.id === 'huongSize' && moi && moi.id === 'sheet' ? document.getElementById('s-huongsize') : null;
+    if (veNutHop) { bangCu = moi; veNutHop.focus({preventScroll: true}); return; }
     if (moi) { if (!bangCu) conTroTruoc = document.activeElement; bangCu = moi; const n = nutTrong(moi)[0]; if (n) n.focus({preventScroll: true}); }
     else { bangCu = null; if (conTroTruoc && conTroTruoc.isConnected && conTroTruoc.getClientRects().length) conTroTruoc.focus({preventScroll: true}); conTroTruoc = null; }
   }), {flush: 'post'});

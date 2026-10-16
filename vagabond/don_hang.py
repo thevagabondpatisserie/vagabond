@@ -104,6 +104,40 @@ def _lam_sach_the(tags):
 	return ra
 
 
+# v598 (16/10/2026): ten cac the trang dat banh tu gan (khop THE_* va SLOTS
+# trong trang/banh.html). Dung de ghi thanh chu khi Pancake chan the.
+TEN_THE = {74: "Xuất hoá đơn", 68: "Bánh tặng", 32: "Chụp ảnh gửi trước khi giao",
+	33: "Gọi trước khi giao", 73: "Cấp đông bánh", 98: "Viết thiệp"}
+
+
+def la_loi_the(ma_http, du_lieu):
+	"""THUAN: Pancake tu choi CHI vi the (vd. nhom the chi cho 1 the, the da xoa).
+
+	Ngay 16/10/2026 Pancake gom "Xuat hoa don" va "Banh tang" vao nhom "Khach yeu
+	cau" chi cho mot the: don co ca hai bi tra 422 "[tags]: ...", ca don hong.
+	Loi kiem du lieu nhu vay la Pancake CHUA tao don, nen gui lai mot lan an toan."""
+	if ma_http not in (400, 422) or not isinstance(du_lieu, dict):
+		return False
+	return str(du_lieu.get("message") or "").strip().lower().startswith("[tags]")
+
+
+def bot_the(tags):
+	"""THUAN: giu the dau (khung gio, trang luon dat dau) va tra ve (con lai, chu ghi chu).
+
+	Cac the bo di ghi thanh chu de Sales gan tay, khong mat yeu cau cua khach."""
+	tags = list(tags or [])
+	giu, bo = tags[:1], tags[1:]
+	if not bo:
+		return giu, ""
+	ten = [TEN_THE.get(t) or ("thẻ số %s" % t) for t in bo]
+	return giu, "Thẻ Pancake chưa gắn được, Sales gắn tay: " + ", ".join(ten) + "."
+
+
+def _them_dong(chu, dong):
+	chu = (chu or "").strip()
+	return (chu + "\n" + dong) if chu else dong
+
+
 def _ngay_iso(v):
 	"""Doi ngay nhan ve ISO datetime.
 
@@ -365,6 +399,29 @@ def _bao_lech_tong_pancake(ma_don, mong_doi, thuc_te, ten_don):
 		% (ma_don, thuc_te if thuc_te is not None else "chưa đọc được", mong_doi)
 	], link="/app/vagabond-don-web/%s" % ten_don, khoa="don-web-lech-tong:%s" % ma_don)
 	frappe.db.commit()
+
+
+def _gui_pancake(shop_id, k, body, ten):
+	"""Mot lan POST tao don. Tra (ma_http, du_lieu, loi_mang); loi thi ghi Error Log."""
+	ma_http, du_lieu, loi_mang = 0, None, False
+	try:
+		r = requests.post(
+			"%s/shops/%s/orders" % (PANCAKE, shop_id),
+			params={"api_key": k},
+			json=body,
+			timeout=TIMEOUT,
+		)
+		ma_http = r.status_code
+		try:
+			du_lieu = r.json()
+		except ValueError:
+			du_lieu = None
+		if ma_http not in (200, 201):
+			frappe.log_error(title="Vagabond: Pancake tu choi don", message="%s HTTP %s: %s" % (ten, ma_http, (r.text or "")[:800]))
+	except Exception:
+		loi_mang = True
+		frappe.log_error(title="Vagabond: Pancake khong tao duoc don", message=frappe.get_traceback())
+	return ma_http, du_lieu, loi_mang
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
@@ -700,24 +757,19 @@ def tao_don(don=None):
 
 	# KHONG tu gui lai: Pancake khong co co che chong trung cong khai nao de
 	# dua vao, gui lai sau mot lan mat phan hoi la nguy co hai don.
-	ma_http, du_lieu, loi_mang = 0, None, False
-	try:
-		r = requests.post(
-			"%s/shops/%s/orders" % (PANCAKE, shop_id),
-			params={"api_key": k},
-			json=body,
-			timeout=TIMEOUT,
-		)
-		ma_http = r.status_code
-		try:
-			du_lieu = r.json()
-		except ValueError:
-			du_lieu = None
-		if ma_http not in (200, 201):
-			frappe.log_error(title="Vagabond: Pancake tu choi don", message="%s HTTP %s: %s" % (ban_ghi.name, ma_http, (r.text or "")[:800]))
-	except Exception:
-		loi_mang = True
-		frappe.log_error(title="Vagabond: Pancake khong tao duoc don", message=frappe.get_traceback())
+	# NGOAI LE DUY NHAT (v598): Pancake tra loi ro rang la chan THE ("[tags]"),
+	# tuc chua tao don. Khi do gui lai MOT lan, chi giu the khung gio, ghi cac the
+	# con lai vao ghi chu, de mot cau hinh the ben Pancake khong lam hong ca don.
+	ma_http, du_lieu, loi_mang = _gui_pancake(shop_id, k, body, ban_ghi.name)
+	if la_loi_the(ma_http, du_lieu) and len(body.get("tags") or []) > 1:
+		giu, chu = bot_the(body["tags"])
+		body["tags"] = giu
+		body["note_print"] = _them_dong(body.get("note_print"), chu)
+		body["note"] = _them_dong(body.get("note"), chu)
+		frappe.log_error(title="Vagabond: Pancake chan the don web",
+			message="%s: Pancake chan the, da gui lai chi the khung gio. Kiem cau hinh nhom the "
+			"tren Pancake (nhom chi cho mot the). %s" % (ban_ghi.name, chu))
+		ma_http, du_lieu, loi_mang = _gui_pancake(shop_id, k, body, ban_ghi.name)
 
 	kq = don_web.phan_loai_pancake(ma_http, du_lieu, loi_mang)
 	don_web.cap_nhat_sau_pancake(ban_ghi, kq)

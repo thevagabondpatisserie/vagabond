@@ -3048,6 +3048,11 @@
     "mac_dinh": "Gọi hỗ trợ đặt bánh",
     "nhieu_dong": false
   },
+  "ton_tai_loi": {
+    "ten": "Lỗi tải số bánh",
+    "nhom": "dat_banh",
+    "mac_dinh": "Chưa cập nhật được số bánh. Quý khách tải lại hoặc liên hệ chúng tôi để xác nhận."
+  },
   "dv_nav_nhan": {
     "ten": "Thanh điều hướng: tên đọc cho người khiếm thị",
     "nhom": "thanh_vien",

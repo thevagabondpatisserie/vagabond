@@ -22,7 +22,7 @@ from pathlib import Path
 GOC = Path(__file__).resolve().parent.parent
 THU_MUC = GOC / 'vagabond/public/web_vue'
 TIEN_TO = '/assets/vagabond/web_vue/'
-TRANG = [GOC / 'vagabond/www/web_moi/banh.html']
+TRANG = sorted((GOC / 'vagabond/www/web_moi').glob('*.html'))
 DAU, CUOI = '<!-- vue-map:dau -->', '<!-- vue-map:cuoi -->'
 
 

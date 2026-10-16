@@ -771,3 +771,12 @@ def _():
 			dung("%s trỏ vào mô đun của app" % dt, phan[0] == "vagabond")
 			tep = os.path.join(GOI, *phan[1:-1]) + ".py"
 			la("hàm %s được whitelist" % d, phan[-1] in _ten_whitelist(tep), True)
+
+
+@ca('#471 route Vue thử chỉ cho các trang khách đã nêu, không chuyển trang ngoài phạm vi')
+def _web_vue_route():
+    from vagabond.ten_mien import dich_chuyen_huong, MIEN_KHACH
+    for path in ('/web_moi/banh', '/web_moi/banh/xong/token', '/web_moi/chinh-sach-bao-mat',
+                 '/web_moi/dieu-khoan', '/web_moi/giao-hang-doi-tra', '/dat-ban', '/thanh-vien', '/tt', '/xhd'):
+        la(path + ' giữ nguyên trên miền khách', dich_chuyen_huong(MIEN_KHACH, path), '')
+    la('Desk vẫn không lộ', dich_chuyen_huong(MIEN_KHACH, '/desk'), '/banh')

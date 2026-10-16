@@ -165,7 +165,7 @@ body{padding-top:0!important}
 .day.on b{color:var(--cyan)}
 .day.best{position:relative}
 .day.best::after{content:'';position:absolute;top:-1px;right:-1px;width:6px;height:6px;background:var(--cyan)}
-.slot{flex:0 0 auto;border:1px solid var(--line);padding:10px 15px;font-size:12.5px;letter-spacing:.04em;white-space:nowrap;color:var(--fog);transition:.25s}
+.slot{flex:0 0 auto;min-height:44px;border:1px solid var(--line);padding:10px 15px;font-size:12.5px;letter-spacing:.04em;white-space:nowrap;color:var(--fog);transition:.25s}
 .slot.on{border-color:var(--cyan);color:var(--cyan);background:rgba(41,189,179,.10)}
 .slot.off{color:var(--fog-2);opacity:.4;pointer-events:none;
   background:repeating-linear-gradient(135deg,transparent,transparent 5px,rgba(255,255,255,.07) 5px,rgba(255,255,255,.07) 6px)}
@@ -178,7 +178,7 @@ body{padding-top:0!important}
 @media(min-width:760px){.hero-img{aspect-ratio:16/9;max-height:70vh}}
 .hero-img img{width:100%;height:100%;object-fit:cover}
 .hero-img::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,9,10,.55),rgba(8,9,10,0) 38%,rgba(8,9,10,.9))}
-.close{position:absolute;top:16px;left:16px;z-index:3;width:40px;height:40px;border:1px solid var(--line);background:rgba(0,0,0,.5);backdrop-filter:blur(8px);display:grid;place-items:center}
+.close{position:absolute;top:16px;left:16px;z-index:3;width:44px;height:44px;border:1px solid var(--line);background:rgba(0,0,0,.5);backdrop-filter:blur(8px);display:grid;place-items:center}
 .close svg{width:14px;height:14px;stroke:var(--paper);stroke-width:1.6}
 .thumbs{display:flex;gap:8px;overflow-x:auto;padding:18px 20px;margin:0 -20px;scrollbar-width:none}
 @media(min-width:900px){.thumbs{padding:14px 40px;margin:0 -40px}}
@@ -225,7 +225,7 @@ h4.theo-yeu-cau{font-weight:400;font-size:14px;margin-top:22px}
 .du-phong summary small{color:var(--fog-2);font-size:12.5px}
 .du-phong .addons{margin:0 14px 6px}
 /* v597: nut va hop Cach chon size */
-.huong-size{flex:0 0 auto;display:inline-flex;align-items:center;gap:8px;min-height:36px;padding:6px 11px;border:1px solid rgba(41,189,179,.5);color:var(--cyan);font:11px var(--sans);letter-spacing:.14em;text-transform:uppercase;white-space:nowrap}
+.huong-size{flex:0 0 auto;display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:6px 11px;border:1px solid rgba(41,189,179,.5);color:var(--cyan);font:11px var(--sans);letter-spacing:.14em;text-transform:uppercase;white-space:nowrap}
 .huong-size i{width:16px;height:16px;border:1px solid currentColor;border-radius:50%;display:grid;place-items:center;font-style:normal;font-size:10px}
 body.hs-mo{overflow:hidden}
 .hs-nen{position:fixed;inset:0;z-index:120;background:rgba(0,0,0,.72);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);display:grid;place-items:center;padding:16px;overflow-y:auto}
@@ -312,7 +312,9 @@ body.has-bar .sheet,body.has-bar main{padding-bottom:86px}
  opacity:0;pointer-events:none;transition:.28s}
 .toast.on{opacity:1;transform:translate(-50%,0)}
 
-.cta{position:sticky;bottom:0;background:linear-gradient(180deg,rgba(0,0,0,0),var(--bg) 30%);padding:24px 0 max(20px,env(safe-area-inset-bottom));display:flex;gap:10px;margin-top:14px}
+.cta{position:sticky;bottom:0;background:linear-gradient(180deg,rgba(0,0,0,0),var(--bg) 30%);padding:24px 0 max(20px,env(safe-area-inset-bottom));display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+/* v598: dong bao loi, goi y trong hang nut xuong dong rieng, khong ep nut co lai (nut gui bi co tron 16/10). */
+.cta>:not(.btn):not(.tel){flex:1 0 100%}
 .cta .btn:not(.btn-md):not(.btn-lg):not(.btn-xs){flex:1;text-align:center;margin:0;padding:19px 10px;min-height:58px;font-size:12px;display:flex;align-items:center;justify-content:center;gap:6px}
 .cta .tel{width:64px;min-height:58px;display:grid;place-items:center;border:1px solid var(--cyan-dim)}
 .cta .tel svg{width:21px;height:21px;stroke:var(--cyan);fill:none;stroke-width:1.6}
@@ -322,7 +324,7 @@ body.has-bar .sheet,body.has-bar main{padding-bottom:86px}
 .co.open{transform:none;visibility:visible}
 .co-top{position:sticky;top:0;z-index:5;background:rgba(0,0,0,.92);backdrop-filter:blur(14px);border-bottom:1px solid var(--line-2)}
 .co-top .in{display:flex;align-items:center;gap:14px;height:60px}
-.co-top .bk{width:36px;height:36px;border:1px solid var(--line);display:grid;place-items:center}
+.co-top .bk{width:44px;height:44px;border:1px solid var(--line);display:grid;place-items:center}
 .co-top .bk svg{width:14px;height:14px;stroke:var(--paper);stroke-width:1.7;fill:none}
 .co-top b{font-size:11px;letter-spacing:.2em;text-transform:uppercase;font-weight:400;color:var(--fog)}
 .fld{margin-top:16px}
