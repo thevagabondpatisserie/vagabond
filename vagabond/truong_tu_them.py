@@ -336,6 +336,9 @@ def dung():
 	# Nhật ký BOM dùng Version sẵn có, chỉ cần dựng một lối vào trên Desk.
 	from vagabond import cong_thuc
 	cong_thuc.dung_sidebar()
+	# #482: lối vào màn Giá vốn tạm tính trên sidebar Hoá đơn và Sản xuất.
+	from vagabond import gia_von_tam
+	gia_von_tam.dung_sidebar()
 
 	# Phieu chi: o ghi vet nguoi xac nhan da chuyen tien va to uy nhiem chi
 	# cua rieng phieu. Doc dau tep duyet_chi.py.

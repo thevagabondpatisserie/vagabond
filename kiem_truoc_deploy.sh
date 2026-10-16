@@ -240,3 +240,5 @@ node vagabond/khung/kiem_thu/hanh_vi/tem_khong_lo_560.js
 node vagabond/khung/kiem_thu/hanh_vi/goi_y_tk_561.js
 # v564: man Bo ao mot ma (24-phantom.js that).
 node vagabond/khung/kiem_thu/hanh_vi/bo_ao_564.js
+# #482: man Gia von tam tinh (53-gia-von-tam.js that, du lieu dung bang phep may chu).
+node vagabond/khung/kiem_thu/hanh_vi/gia_von_tam_482.js
