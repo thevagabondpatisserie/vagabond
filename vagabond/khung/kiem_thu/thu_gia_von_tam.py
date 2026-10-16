@@ -553,6 +553,13 @@ class _DocGia(_Dong):
 	def set(self, k, v):
 		setattr(self, k, v)
 
+	# Như Frappe: phiếu mới chưa có tên; bản trước khi lưu là bản đọc từ kho.
+	def is_new(self):
+		return not self.get("name") or self.get("name") not in _DocGia.kho
+
+	def get_doc_before_save(self):
+		return None if self.is_new() else self.get("_truoc")
+
 	def get(self, k, d=None):
 		return getattr(self, k, d)
 
@@ -569,12 +576,24 @@ class _DocGia(_Dong):
 	def insert(self):
 		self._validate()
 		self.name = "GT-2610-%03d" % (len(_DocGia.kho) + 1)
+		self._truoc = _chup(self)
 		_DocGia.kho[self.name] = self
 		_DocGia.ghi.append(("insert", self.name))
 
 	def save(self):
 		self._validate()
+		self._truoc = _chup(self)
 		_DocGia.ghi.append(("save", self.name))
+
+
+def _chup(d):
+	"""Bản sao lúc đọc ra (get_doc_before_save của Frappe)."""
+	# _Dong là dict; trường gán bằng dấu chấm nằm ở __dict__, gom cả hai.
+	tr = dict(d.items())
+	tr.update({k: v for k, v in vars(d).items() if k not in ("dong", "flags", "_truoc")})
+	c = _DocGia(**tr)
+	c.dong = [_Dong(dict(r), **{k: v for k, v in vars(r).items()}) for r in d.dong]
+	return c
 
 
 def _get_all_thu(kho):
@@ -616,7 +635,7 @@ def _phieu_site():
 		return goc(dt, **kw)
 	frappe.get_all = get_all
 	frappe.new_doc = lambda dt: _DocGia(doctype=dt, name=None, modified="2026-10-16 23:00:00", owner="khai@x")
-	frappe.get_doc = lambda dt, ten=None: _DocGia.kho[ten]
+	frappe.get_doc = _lay_doc
 	frappe.db.exists = lambda dt, ten: ten in _DocGia.kho
 	frappe.delete_doc = lambda *a, **k: _DocGia.ghi.append(("delete",) + a)
 	try:
@@ -670,6 +689,12 @@ def _doctype_thu():
 	la("trường Đã bỏ chỉ đọc, lọc được", (bo["fieldtype"], bo.get("read_only"), bo.get("in_standard_filter")), ("Check", 1, 1))
 
 
+def _lay_doc(dt, ten=None):
+	d = _DocGia.kho[ten]
+	d._truoc = _chup(d)
+	return d
+
+
 def _site_thu(kho_dau=None):
 	"""Dựng site giả có sẵn các phiếu thử trong kho. Trả (cu, ghi)."""
 	import frappe
@@ -684,7 +709,7 @@ def _site_thu(kho_dau=None):
 		return goc(dt, **kw)
 	frappe.get_all = get_all
 	frappe.new_doc = lambda dt: _DocGia(doctype=dt, name=None, modified="2026-10-16 23:00:00", owner="khai@x")
-	frappe.get_doc = lambda dt, ten=None: _DocGia.kho[ten]
+	frappe.get_doc = _lay_doc
 	frappe.db.exists = lambda dt, ten: ten in _DocGia.kho
 	frappe.delete_doc = lambda *a, **k: _DocGia.ghi.append(("delete",) + a)
 	frappe.session = _Dong(user="khai@x")
@@ -811,4 +836,72 @@ def _tim_nl():
 		dung("không tự viết like", "like" not in json.dumps(loc, ensure_ascii=False))
 	finally:
 		tim_kiem.ten_khop = cu_tk
+		_tra(cu)
+
+
+
+@ca("gia von tam: Codex #486 v2 phieu thu: ma ban thanh pham co hai cong thuc chua chon mac dinh thi KHONG lay gia kho, bao thieu de nhap tay")
+def _thu_bom_mo_ho():
+	import frappe
+	hai = [_Dong(name="B-BANH", item="BANH", quantity=1, is_default=1),
+		_Dong(name="B-KEM-2", item="KEM", quantity=1000, is_default=0),
+		_Dong(name="B-KEM", item="KEM", quantity=1000, is_default=0)]
+	cu, _doc = _frappe_gia(bom=hai)
+	goc = frappe.get_all
+
+	def get_all(dt, **kw):
+		if dt == "Bin":
+			return goc(dt, **kw) + [_Dong(item_code="KEM", actual_qty=1000, stock_value=50000)]
+		return goc(dt, **kw)
+	frappe.get_all = get_all
+	try:
+		kq = G.tinh_thu(json.dumps({"ten_mon": "Thử", "dong": [{"item_code": "KEM", "so_luong": 10}]}))
+		d = kq["dong"][0]
+		la("không lấy giá kho 50đ của KEM", (d["nguon"], d["don_gia"], d["thieu"]), (G.NGUON_NHIEU_CT, 0, 1))
+		la("phiếu báo thiếu giá một dòng", (kq["thieu_so"], kq["gia_von"]), (1, 0))
+		kq2 = G.tinh_thu(json.dumps({"ten_mon": "Thử", "dong": [{"item_code": "KEM", "so_luong": 10, "don_gia_tay": 70}]}))
+		la("nhập giá tay thì tính được", (kq2["dong"][0]["nguon"], kq2["gia_von"], kq2["thieu_so"]), (G.NGUON_TAY, 700, 0))
+	finally:
+		_tra(cu)
+
+
+@ca("gia von tam: Codex #486 v2 quyet_luu_phieu: phieu da bo khong sua duoc, bo phieu giu nguyen anh chup, bo kem sua noi dung bi chan")
+def _quyet_luu():
+	nd = {"ten_mon": "A", "dong": [1]}
+	la("phiếu mới thì tính", G.quyet_luu_phieu(None, {"da_bo": 0, "noi_dung": nd}), "tinh")
+	la("sửa phiếu đang dùng thì tính", G.quyet_luu_phieu({"da_bo": 0, "noi_dung": nd}, {"da_bo": 0, "noi_dung": {"ten_mon": "B"}}), "tinh")
+	la("bỏ phiếu không đổi nội dung thì giữ ảnh chụp", G.quyet_luu_phieu({"da_bo": 0, "noi_dung": nd}, {"da_bo": 1, "noi_dung": dict(nd)}), "giu")
+	for ten, truoc, nay, chu in (
+		("sửa phiếu đã bỏ", {"da_bo": 1, "noi_dung": nd}, {"da_bo": 1, "noi_dung": {"ten_mon": "B"}}, "đã bỏ"),
+		("lưu lại phiếu đã bỏ dù không đổi", {"da_bo": 1, "noi_dung": nd}, {"da_bo": 1, "noi_dung": nd}, "đã bỏ"),
+		("bỏ kèm sửa nội dung", {"da_bo": 0, "noi_dung": nd}, {"da_bo": 1, "noi_dung": {"ten_mon": "B"}}, "không kèm sửa"),
+		("lập mới ở trạng thái đã bỏ", None, {"da_bo": 1, "noi_dung": nd}, "đã bỏ")):
+		try:
+			G.quyet_luu_phieu(truoc, nay)
+			dung("%s phải bị chặn" % ten, False)
+		except ValueError as e:
+			dung("%s: câu chặn: %s" % (ten, e), chu in str(e))
+
+
+@ca("gia von tam: Codex #486 v2 bo phieu giu nguyen gia von va gia de xuat da chup, Desk khong sua duoc phieu da bo")
+def _bo_giu_anh():
+	from vagabond.vagabond.doctype.vagabond_gia_thu.vagabond_gia_thu import VagabondGiaThu
+	p = _phieu_kho("GT-2610-001", "Tart chanh")
+	p.gia_von, p.gia_de_xuat = 1234, 7000    # ảnh chụp lúc lưu, giá hôm nay đã khác (lá vàng 1.000)
+	cu = _site_thu({"GT-2610-001": p})
+	try:
+		G.bo_thu("GT-2610-001")
+		d = _DocGia.kho["GT-2610-001"]
+		la("bỏ phiếu không tính lại ảnh chụp", (d.da_bo, d.gia_von, d.gia_de_xuat), (1, 1234, 7000))
+		la("có ghi lưu", _DocGia.ghi[-1], ("save", "GT-2610-001"))
+		# Người có quyền ghi mở phiếu đã bỏ trên Desk, sửa số lượng rồi bấm Lưu.
+		d2 = _lay_doc(G.DT_THU, "GT-2610-001")
+		d2.dong[0].so_luong = 5
+		try:
+			VagabondGiaThu.validate(d2)
+			dung("Desk sửa phiếu đã bỏ phải bị chặn", False)
+		except Exception as e:
+			dung("câu chặn nói đã bỏ: %s" % e, "đã bỏ" in str(e))
+		la("ảnh chụp vẫn nguyên", (d2.gia_von, d2.gia_de_xuat), (1234, 7000))
+	finally:
 		_tra(cu)
