@@ -163,6 +163,24 @@ function sheetCuoi(m) { var ds = m.tai.body.children; return ds[ds.length - 1]; 
     dung('món chưa công thức không thành thẻ', the(m).indexOf('BAEN00051') < 0);
   });
 
+  /* Codex #483 vòng 2: mọi thẻ phải có chip trạng thái có chữ, không chỉ màu
+     của tỷ lệ (AGENTS 2b điều 3). Trước khi sửa, thẻ thiếu giá không có chip. */
+  await ca('mỗi thẻ có đúng một chip trạng thái có chữ và đúng màu', async function () {
+    var m = await moMan();
+    var mong = { BAWC00067: ['cao_hon_muc_tieu', 'Cao hơn mục tiêu'], BAEN00073: ['chua_dat_ty_le', 'Chưa đặt mục tiêu'],
+      BANU00060: ['vuot_gia_ban', 'Vượt giá bán'], BANU00099: ['thieu_gia', 'Thiếu giá NVL'], BACF00001: ['chua_dat_ty_le', 'Chưa đặt mục tiêu'] };
+    Object.keys(mong).forEach(function (ma) {
+      var the1 = tim(m, '[data-gvtm="' + ma + '"]')[0];
+      var chip = the1.querySelectorAll('[data-gvttt]');
+      bang(ma + ' một chip', chip.length, 1);
+      bang(ma + ' trạng thái', chip[0].getAttribute('data-gvttt'), mong[ma][0]);
+      bang(ma + ' chữ', chu(chip[0]), mong[ma][1]);
+    });
+    var mau = function (ma) { return tim(m, '[data-gvtm="' + ma + '"]')[0].querySelectorAll('[data-gvttt]')[0].getAttribute('style'); };
+    dung('vượt giá bán màu đỏ', mau('BANU00060').indexOf('#b3261e') >= 0);
+    dung('chưa đặt mục tiêu màu xám', mau('BAEN00073').indexOf('#6b7280') >= 0);
+  });
+
   await ca('thẻ thiếu giá: đúng chữ, tối đa hai tên rồi "và N nữa", không có giá đề xuất', async function () {
     var m = await moMan();
     var t = chu(tim(m, '[data-gvtm="BANU00099"]')[0]);
