@@ -6,7 +6,9 @@
   let cauHinh, dip = '', khuVuc = '', gio = '', dangGui = false, yeuCau = null;
   const ma = crypto.randomUUID();
   const nutGui = tim('gui').textContent;
-  function bao(chu, loi) { tim('trang-thai').textContent = chu; tim('trang-thai').classList.toggle('loi', !!loi); }
+  function bao(chu, loi) { const o = tim('trang-thai'); o.textContent = chu; o.classList.toggle('loi', !!loi);
+    // v598: lỗi hiện ở đầu trang, khách đang ở nút Gửi cuối trang không thấy. Cuộn tới dòng báo.
+    if (loi && o.scrollIntoView) o.scrollIntoView({block: 'center', behavior: 'smooth'}); }
   function chip(id, ds, chon) {
     ds.forEach(g => {const b=document.createElement('button');b.type='button';b.textContent=g;
       b.setAttribute('aria-pressed','false');b.onclick=()=>{const da=b.getAttribute('aria-pressed')==='true';
