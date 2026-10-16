@@ -59479,16 +59479,21 @@ function gvtLoc() {
   });
 }
 
-/* Màu chip tỷ lệ: xanh trong mục tiêu, vàng cao hơn, đỏ vượt giá bán, xám
-   khi chưa có mục tiêu hoặc chưa có giá bán (anh Việt duyệt màu 03/09). */
-function gvtChipTyLe(d) {
-  if (d.ty_le == null) return '';
-  var mau = '#6b7280', nen = '#f3f4f6';
-  if (d.trang_thai === 'vuot_gia_ban') { mau = '#b3261e'; nen = '#fef2f2'; }
-  else if (d.trang_thai === 'cao_hon_muc_tieu') { mau = '#b45309'; nen = '#fffbeb'; }
-  else if (d.trang_thai === 'dat') { mau = '#047857'; nen = '#ecfdf5'; }
-  return '<span data-gvtty style="flex:none;font-size:13px;font-weight:800;color:' + mau + ';background:' + nen +
-    ';border-radius:999px;padding:4px 10px">' + gvtPhanTram(d.ty_le) + '</span>';
+/* Chip trạng thái có chữ trên MỌI thẻ (Codex #483 vòng 2, AGENTS 2b điều 3):
+   xanh đạt, vàng cần xem, đỏ cần xử, xám chưa đủ dữ liệu. */
+var GVT_CHIP = {
+  dat: ['Đạt mục tiêu', '#047857', '#ecfdf5'],
+  cao_hon_muc_tieu: ['Cao hơn mục tiêu', '#b45309', '#fffbeb'],
+  vuot_gia_ban: ['Vượt giá bán', '#b3261e', '#fef2f2'],
+  thieu_gia: ['Thiếu giá NVL', '#b45309', '#fffbeb'],
+  vong: ['Công thức vòng', '#b3261e', '#fef2f2'],
+  chua_gia_ban: ['Chưa có giá bán', '#6b7280', '#f3f4f6'],
+  chua_dat_ty_le: ['Chưa đặt mục tiêu', '#6b7280', '#f3f4f6']
+};
+function gvtChipTrangThai(d) {
+  var c = GVT_CHIP[d.trang_thai] || [d.trang_thai, '#6b7280', '#f3f4f6'];
+  return '<span data-gvttt="' + h(d.trang_thai) + '" style="flex:none;font-size:13px;font-weight:800;color:' + c[1] +
+    ';background:' + c[2] + ';border-radius:999px;padding:4px 10px;white-space:nowrap">' + h(c[0]) + '</span>';
 }
 
 function gvtThe(d) {
@@ -59510,8 +59515,9 @@ function gvtThe(d) {
   var tt = GVT_TT[d.trang_thai];
   return '<div class="hub" data-gvtm="' + h(d.ma) + '" style="align-items:flex-start">' + anhMon(d.anh) +
     '<div class="hub-t" style="flex:1;min-width:0">' +
-      '<div style="display:flex;gap:8px;align-items:center"><div class="t1" style="flex:1;min-width:0">' + h(d.ten) + '</div>' + gvtChipTyLe(d) + '</div>' +
-      '<div class="t2">Giá vốn ' + money(d.gia_von) + 'đ · ' + (d.gia_ban ? 'Giá bán ' + money(d.gia_ban) + 'đ' : 'Chưa có giá bán') + '</div>' +
+      '<div style="display:flex;gap:8px;align-items:center"><div class="t1" style="flex:1;min-width:0">' + h(d.ten) + '</div>' + gvtChipTrangThai(d) + '</div>' +
+      '<div class="t2">Giá vốn ' + money(d.gia_von) + 'đ · ' + (d.gia_ban ? 'Giá bán ' + money(d.gia_ban) + 'đ' : 'Chưa có giá bán') +
+        (d.ty_le != null ? ' · <b>' + gvtPhanTram(d.ty_le) + '</b>' : '') + '</div>' +
       (dong3 ? '<div class="t2" style="color:#0f766e;font-weight:700">' + h(dong3) + '</div>' : '') +
       (d.lan_truoc ? '<div class="t2">Lần chốt ' + gvtNgay(d.lan_truoc.ngay) + ': ' + money(d.lan_truoc.gia) + 'đ (' +
         (d.lan_truoc.chenh_pct > 0 ? '+' : '') + gvtPhanTram(d.lan_truoc.chenh_pct) + ')</div>' : '') +
