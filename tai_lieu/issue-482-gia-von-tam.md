@@ -44,3 +44,4 @@
 - 17/10/2026 (PR #486, Codex rà vòng 7 trên 14ec6c0c7, 2 finding P2 theo AGENTS.md 2b, tái hiện đủ 2 rồi sửa):
   - Danh sách phiếu thử có ba hàng chip: trạng thái có đếm, nhóm bán có đếm (kể cả "Chưa chọn nhóm"), khoảng ngày lập. Lọc, đếm và chia trang ở máy chủ (`loc_trang_thu`), Xem thêm đi đúng bộ lọc đang dùng. Trạng thái tính theo giá hôm nay nên máy chủ tính cả tập tối đa 500 phiếu mới sửa nhất rồi lọc; vượt thì màn ghi rõ.
   - Nhóm bán của phiếu (chín nhóm) chọn bằng thẻ giá trị đang chọn mở sheet có ô tìm, không còn hàng chip.
+- 17/10/2026 (PR #486, Codex rà vòng 8 trên ba6517a1f, 1 finding P2, tái hiện rồi sửa): quá 500 phiếu khớp tên thì câu "chỉ lọc trong 500 phiếu sửa gần nhất, gõ tên để thu hẹp" hiện cả khi lọc ra rỗng.
