@@ -2348,3 +2348,15 @@ tự nạp CSS. Ca DOM không tính CSS nên không bắt được. Khắc phụ
 của màn dùng lớp riêng (`cdl-nhom`, `cdl-khoi`), không dùng `.card` cho phần tử
 cần flex; ca kiểm chốt "dòng nhóm không mang lớp card". Bài học: thấy một màn
 dùng `.card` làm hàng ngang thì kiểm ngay bằng ảnh chụp, đừng tin ca DOM.
+
+### v600 (Codex #486): màn lập phiếu mới lọt khỏi lưới bản nháp vì tên không theo mẫu scr*
+
+Triệu chứng: màn Phiếu tính giá thử (`gvtManPhieu`) là màn lập phiếu, mà bản
+đầu không khai bản nháp tự lưu; sập nguồn là mất hết nguyên liệu đã gõ. Ca
+`_khong_sot` của v533 chỉ dò hàm tên `scr*Tao/New/Sua...`, nên màn đặt tên khác
+lọt qua mà cổng vẫn xanh. Cùng PR, nút Xoá phiếu gọi `delete_doc` trên dữ liệu
+nghiệp vụ, trái QT-20. Khắc phục: khai `gia_thu` trong 48, thêm `gvtManPhieu`
+vào `MAN_LAP_PHIEU`, ca hành vi gõ, sập nguồn, mở lại từ thẻ; bỏ phiếu thành
+bỏ mềm. Bài học: thêm màn có nút Lưu tạo chứng từ thì TỰ thêm vào 48 và
+`MAN_LAP_PHIEU`, đừng chờ ca dò tên bắt hộ; thêm nút xoá thì hỏi trước "QT-20
+cho xoá cứng không", gần như luôn là không.

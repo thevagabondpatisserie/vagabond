@@ -771,6 +771,14 @@ sdKhai('nhan_hang', 'scrNhpDon', {
   ghep: function (moi, v) { return sdGhepDong(moi, v, 'dong'); },
   ma: function (a) { return a[0] || ''; }, luu: ['vagabond.nhan_hang.tao_phieu']
 });
+sdKhai('gia_thu', 'gvtManPhieu', {
+  /* v600 Codex #486: phieu tinh gia thu mon R&D. Mo lai tu ban nhap thi bo
+     ket qua cu (pk) de man tinh lai o may chu theo gia hom nay. */
+  ten: 'Phiếu tính giá thử', lay: function () { return GVT.p; },
+  dat: function (v) { GVT.p = v; GVT.pk = null; GVT.pkDong = null; GVT.loiTinh = null; GVT.lan++; },
+  ma: function () { return (GVT.p && GVT.p.name) || ''; }, tieuDe: sdTieuDe('#gvtpTen', 'ten_mon'),
+  luu: ['vagabond.gia_von_tam.luu_thu', 'vagabond.gia_von_tam.bo_thu']
+});
 sdKhai('khai_sx', 'scrMfgDeclare', {
   ten: 'Khai nguyên liệu sản xuất', lay: function () { return mfgD; }, dat: function (v) { mfgD = v; },
   ma: function () { return (mfgD && mfgD.code) || ''; }, tieuDe: sdTieuDe('name', 'code'),
@@ -871,6 +879,7 @@ scrXkPvNew = sdBoc('chot_kho_diem', 'scrXkPvNew', scrXkPvNew);
 scrRecvDoc = sdBoc('nhap_kho', 'scrRecvDoc', scrRecvDoc);
 scrNhpDon = sdBoc('nhan_hang', 'scrNhpDon', scrNhpDon);
 scrMfgDeclare = sdBoc('khai_sx', 'scrMfgDeclare', scrMfgDeclare);
+gvtManPhieu = sdBoc('gia_thu', 'gvtManPhieu', gvtManPhieu);
 hoanMoForm = sdBocHop('hoan_tien', 'hoanMoForm', hoanMoForm);
 hoanMoFormDu = sdBocHop('hoan_du', 'hoanMoFormDu', hoanMoFormDu);
 hoanMoFormHuy = sdBocHop('hoan_huy', 'hoanMoFormHuy', hoanMoFormHuy);

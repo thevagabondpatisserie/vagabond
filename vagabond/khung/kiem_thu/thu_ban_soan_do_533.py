@@ -34,8 +34,17 @@ MAN_LAP_PHIEU = [
 	"scrTiecXuat", "scrTqSua", "scrTqLapDot", "scrBntTao", "scrKPITuKhai",
 	"scrXkNbNew", "scrXkTraNew", "scrXkSiNew", "scrXkPvNew", "scrRecvDoc",
 	"scrNhpDon", "scrMfgDeclare", "scrCntTruocErp",
+	"gvtManPhieu",  # v600 Codex #486: phiếu tính giá thử R&D, tên không theo mẫu scr*
 	"hoanMoForm", "hoanMoFormDu", "hoanMoFormHuy", "dhMo", "kmSheetCtkm",
 ]
+# Man lap phieu nam o phan SAU 48, duoc duyet tung ten (v600 Codex #486).
+# So phan 00-47 da het cho, ma man Phieu tinh gia thu thuoc 53-gia-von-tam.js.
+# An toan vi ca app nam trong MOT vo ham: khai bao `function` duoc nang len
+# dau vo, nen luc 48 chay `gvtManPhieu = sdBoc(...)` thi ham da co that. Dieu
+# kien bat buoc (ca _thu_tu chot): khai bang `function` dung mot lan, va
+# khong phan nao ngoai 48 gan lai ten do. Ca "Nap CA app ghep that" cua
+# hanh_vi/ban_soan_do_533.js chot them: cuoi luc nap, ten van tro vao ban boc.
+SAU_48_DUOC_BOC = {"gvtManPhieu": "53-gia-von-tam.js"}
 # Man ten giong man lap phieu nhung CO Y khong boc, kem ly do.
 MIEN = {
 	"scrKkNew": "kiểm kê đã tự lưu lên máy chủ mỗi 3 giây",
@@ -153,7 +162,14 @@ def _thu_tu():
 	for f in sau[:-1]:
 		m = CAC_PHAN[f]
 		dinh = set(re.findall(r"^(?:async )?function (\w+)\(", m, re.M))
-		la("%s sau 48 không có màn lập phiếu" % f, sorted(dinh & set(MAN_LAP_PHIEU)), [])
+		duyet = {t for t, tep in SAU_48_DUOC_BOC.items() if tep == f}
+		la("%s sau 48 không có màn lập phiếu ngoài danh sách duyệt" % f, sorted((dinh & set(MAN_LAP_PHIEU)) - duyet), [])
+		for t in duyet:
+			la("%s khai bằng function đúng một lần trong %s" % (t, f), len(re.findall(r"^(?:async )?function %s\(" % t, m, re.M)), 1)
+			# CAC_PHAN không có 48; 48 gán đúng một lần (dòng bọc), phần khác không gán.
+			gan = [n for n, ma in CAC_PHAN.items() if re.search(r"^\s*%s\s*=" % t, ma, re.M)]
+			la("%s không bị phần nào ngoài 48 gán lại" % t, gan, [])
+			la("%s được 48 bọc đúng một lần" % t, len(re.findall(r"^%s = sdBoc\(" % t, MA48, re.M)), 1)
 		dung("%s sau 48 không có móc ghép bản nháp" % f, "sdGhep(" not in m)
 		dung("%s sau 48 không gán lại frame/api" % f,
 			not re.search(r"^\s*(frame|api)\s*=", m, re.M))
@@ -161,9 +177,13 @@ def _thu_tu():
 	# v570: 51-cai-dat-loi.js (màn Cài đặt lõi và API, không lập phiếu) qua đủ ba điều kiện trên.
 	# v579: 52-doi-soat-vendor.js (màn Đối soát nhà cung cấp, chỉ đọc và nhận tệp, không lập phiếu) qua đủ ba điều kiện trên.
 	# #482: 53-gia-von-tam.js (màn Giá vốn tạm tính, chỉ đọc và chốt bảng giá riêng, không lập phiếu) qua đủ ba điều kiện trên.
+	# v600 Codex #486: 53 thêm màn Phiếu tính giá thử, duyệt riêng tên gvtManPhieu qua SAU_48_DUOC_BOC (xem lý do ở đó).
 	la("chỉ phần được duyệt đứng giữa 48 và 99", sau[:-1], ["49-tru-kho-bu.js", "50-so-tay.js", "51-cai-dat-loi.js", "52-doi-soat-vendor.js", "53-gia-von-tam.js"])
 	for t in _boc():
 		tep = [n for n, ma in CAC_PHAN.items() if re.search(r"^(?:async )?function %s\(" % t, ma, re.M)]
+		if t in SAU_48_DUOC_BOC:
+			la("%s nằm đúng phần đã duyệt" % t, tep, [SAU_48_DUOC_BOC[t]])
+			continue
 		dung("%s nằm ở phần trước 48" % t, bool(tep) and tep[0] < "48-ban-soan-do.js")
 
 

@@ -17,6 +17,8 @@ GOC = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.ab
 PY = "vagabond/gia_von_tam.py"
 JS = "vagabond/public/js/bep/53-gia-von-tam.js"
 TC = "vagabond/public/js/bep/02-trang-chu.js"
+SD = "vagabond/public/js/bep/48-ban-soan-do.js"
+CT = "vagabond/vagabond/doctype/vagabond_gia_thu/vagabond_gia_thu.py"
 
 CA_PY = [sys.executable, "-c", (
 	"import sys; sys.path.insert(0, %r)\n"
@@ -24,6 +26,12 @@ CA_PY = [sys.executable, "-c", (
 	"from vagabond.khung.kiem_thu import thu_gia_von_tam\n"
 	"sys.exit(1 if nen.chay_het(im=True) else 0)" % GOC)]
 CA_JS = ["node", "vagabond/khung/kiem_thu/hanh_vi/gia_von_tam_482.js"]
+CA_SD = ["node", "vagabond/khung/kiem_thu/hanh_vi/ban_soan_do_533.js"]
+CA_SD_PY = [sys.executable, "-c", (
+	"import sys; sys.path.insert(0, %r)\n"
+	"from vagabond.khung.kiem_thu import nen; nen.gia_lap()\n"
+	"from vagabond.khung.kiem_thu import thu_ban_soan_do_533\n"
+	"sys.exit(1 if nen.chay_het(im=True) else 0)" % GOC)]
 
 DOT_BIEN = [
 	("bỏ đi xuống công thức con khi bom_no rỗng", PY,
@@ -47,27 +55,201 @@ DOT_BIEN = [
 	("Codex #483 v2: không đổi đơn vị mua về đơn vị kho", PY,
 			"			gia, hang = gia / hs, 1\n", "			hang = 1\n", CA_PY),
 	("Codex #483 v2: thẻ không có chip trạng thái", JS,
-		"'</div>' + gvtChipTrangThai(d) + '</div>' +", "'</div>' + '</div>' +", CA_JS),
+		"'<div class=\"gvt-chips\">' + gvtChipTrangThai(d) + gvtChipHeSo(d) + chot", "'<div class=\"gvt-chips\">' + gvtChipHeSo(d) + chot", CA_JS),
 	("Codex #483 v3: nhiều công thức không mặc định thì lấy đại bản đầu", PY,
 		'		elif len(ds) == 1:\n			ra[ma] = ds[0].get("name")\n', '		else:\n			ra[ma] = ds[0].get("name")\n', CA_PY),
 	("Codex #483 v3: ô trang chủ hiện cho mọi vai kế toán", TC,
 		"(coQuyenGvt() ? card('🧮'", "(true ? card('🧮'", CA_PY),
 	("Codex #483 v3: bỏ chip lọc Công thức vòng", JS,
-		"['vuot_gia_ban', 'vong', 'thieu_gia', 'cao_hon_muc_tieu']", "['vuot_gia_ban', 'thieu_gia', 'cao_hon_muc_tieu']", CA_JS),
+		"['vuot_gia_ban', 'vong', 'thieu_gia', 'duoi_muc_tieu']", "['vuot_gia_ban', 'thieu_gia', 'duoi_muc_tieu']", CA_JS),
 	("Codex #483 v3: không hiện khung món nhiều công thức", JS,
 		"  if (nct.so) {", "  if (false) {", CA_JS),
+	("v600: chia cho hệ số thay vì nhân", PY,
+		"flt(gia_von) * _so(he_so) / 1000.0", "flt(gia_von) / _so(he_so) / 1000.0", CA_PY),
+	("v600: so hệ số đã làm tròn thay vì tỷ số thật", PY,
+		"flt(gia_ban) / flt(gia_von) < _so(he_so_muc_tieu)", "he_so_hien(gia_von, gia_ban) < _so(he_so_muc_tieu)", CA_PY),
+	("v600: hệ số 1 được nhận là mục tiêu", PY,
+		"return h is not None and HE_SO_MIN < h <= HE_SO_MAX", "return h is not None and HE_SO_MIN <= h <= HE_SO_MAX", CA_PY),
+	("v600: phiếu thử bỏ hẳn giá tay (cả mã thiếu giá và NVL chưa có mã)", PY,
+		'		tay = flt(d.get("don_gia_tay")) > 0\n', "		tay = False\n", CA_PY),
+	("v600: phiếu thử không chia số ra của mẻ", PY,
+		"	gv = round(tong / so_ra)\n", "	gv = round(tong)\n", CA_PY),
+	("v600: bỏ cổng quyền lập phiếu thử", PY,
+		'	_kiem(QUYEN_CHOT, "lập phiếu tính giá thử")\n', "", CA_PY),
+	("v600: tính thử gửi cả dòng chưa có số lượng", JS,
+		"    if (sl == null || sl <= 0) return;\n", "", CA_JS),
+	("v600: sửa phiếu không đánh dấu chưa lưu", JS,
+		"  S.chuaLuu = 'Phiếu tính giá thử đang sửa dở", "  if (0) S.chuaLuu = 'Phiếu tính giá thử đang sửa dở", CA_JS),
+	("v600: đổi tab tính lại cả tab bán", JS,
+		"  return GVT.kq ? gvtVe() : scrGiaVonTam();", "  return scrGiaVonTam();", CA_JS),
 	("hiện nút Chốt cho người không có quyền", JS,
 		"kq.sua_duoc ? { footer:", "true ? { footer:", CA_JS),
 	("Chốt không hỏi xác nhận", JS,
-		"  if (!await confirmSheet(", "  if (false && await confirmSheet(", CA_JS),
+		"  if (!await confirmSheet('Chốt giá vốn tạm',", "  if (false && await confirmSheet('Chốt giá vốn tạm',", CA_JS),
 	("gọi chi_tiet ngay lúc mở màn", JS,
 		"  gvtVe();\n}", "  gvtVe();\n  api('vagabond.gia_von_tam.chi_tiet', { ma: 'x' });\n}", CA_JS),
+	# ---- Codex #486 vòng 1 ----
+	("Codex #486 P1: phiếu thử không bọc bản nháp", SD,
+		"gvtManPhieu = sdBoc('gia_thu', 'gvtManPhieu', gvtManPhieu);\n", "", CA_SD),
+	("Codex #486 P1: bản nháp phiếu thử không đọc trạng thái", SD,
+		"  ten: 'Phiếu tính giá thử', lay: function () { return GVT.p; },", "  ten: 'Phiếu tính giá thử', lay: function () { return null; },", CA_SD),
+	("Codex #486 P1: màn phiếu thử khai bằng biểu thức, không được nâng lên trước 48", JS,
+		"function gvtManPhieu() {", "var gvtManPhieu = function () {", CA_SD_PY),
+	("Codex #486 P1: bỏ phiếu thành xoá cứng", PY,
+		"		d.da_bo = 1\n", "		frappe.delete_doc(DT_THU, name, ignore_permissions=True)\n", CA_PY),
+	("Codex #486 P1: danh sách hiện cả phiếu đã bỏ", PY,
+		'	loc = [["da_bo", "=", 0]]\n', '	loc = []\n', CA_PY),
+	("Codex #486 P1 + v2: sửa được phiếu đã bỏ (app và Desk)", PY,
+		'	if truoc and int(truoc.get("da_bo") or 0):\n', "	if False:\n", CA_PY),
+	("Codex #486 P1: bỏ phiếu không hỏi xác nhận", JS,
+		"  if (!await confirmSheet('Bỏ phiếu',", "  if (false && await confirmSheet('Bỏ phiếu',", CA_JS),
+	("Codex #486 P2: Desk lưu không tính lại", CT,
+		"		kiem_khi_luu(self)\n", "		pass\n", CA_PY),
+	("Codex #486 P2: tính lại mà không ghi giá vốn vào phiếu", PY,
+		'	d.gia_von = kq["gia_von"]\n', "", CA_PY),
+	("Codex #486 P2: kết quả tính thử cũ về sau đè số mới", JS,
+		"  if (lan !== GVT.lan || p !== GVT.p) return;\n  GVT.loiTinh = null;", "  GVT.loiTinh = null;", CA_JS),
+	("Codex #486 P2: kết quả tìm phiếu cũ về sau đè kết quả mới", JS,
+		"  if (lan !== GVT.lanDs) return;\n  if (noiTiep)", "  if (noiTiep)", CA_JS),
+	("Codex #486 P2: máy chủ không báo còn trang sau", PY,
+		'		"con_nua": bd + len(cat) < len(hop),', '		"con_nua": False,', CA_PY),
+	# Từ v13 bộ lọc là "trong phạm vi nguyên liệu"; đột biến này gỡ hẳn lọc nhóm.
+	("Codex #486: tìm nguyên liệu không lọc nhóm", PY,
+		'{"disabled": 0, "item_group": ["in", nhom]}, "Item"', '{"disabled": 0}, "Item"', CA_PY),
+	# ---- Codex #486 vòng 2 ----
+	("Codex #486 v2+v3: mã nhiều công thức chưa chọn mặc định lấy giá kho (mọi tầng)", PY,
+		"		if ma in mo_ho:\n			return 0.0, NGUON_NHIEU_CT", "		if False:\n			return 0.0, NGUON_NHIEU_CT", CA_PY),
+	# ---- Codex #486 vòng 3 ----
+	("Codex #486 v3: cộng dồn không coi mã nhiều công thức là thiếu", PY,
+		"				if nguon in NGUON_LA_THIEU:\n					thieu.add", "				if nguon == NGUON_THIEU:\n					thieu.add", CA_PY),
+	("Codex #486 v3: sheet chi tiết không báo thiếu cho mã nhiều công thức", PY,
+		"			thieu = 1 if nguon in NGUON_LA_THIEU else 0", "			thieu = 1 if nguon == NGUON_THIEU else 0", CA_PY),
+	("Codex #486 v3: mẻ ra 0 vẫn gửi tính thử", JS,
+		"  if (soRa == null || soRa <= 0) return gvtBaoLoiTinh(", "  if (false) return gvtBaoLoiTinh(", CA_JS),
+	("Codex #486 v3: mẻ ra trống tự thay 1", JS,
+		"ten_mon: p.ten_mon || 'Món thử', nhom: p.nhom, so_ra: gvtSoVn(p.so_ra),", "ten_mon: p.ten_mon || 'Món thử', nhom: p.nhom, so_ra: gvtSoVn(p.so_ra) || 1,", CA_JS),
+	("Codex #486 v3: máy chủ từ chối tính thử thì im lặng giữ số cũ", JS,
+		"    return gvtBaoLoiTinh((e && e.message) ||", "    return; gvtBaoLoiTinh((e && e.message) ||", CA_JS),
+	("Codex #486 v3: Lưu khi mẻ ra trống vẫn gửi", JS,
+		"  if (soRa == null || soRa <= 0) return baoTin(", "  if (false) return baoTin(", CA_JS),
+	("Codex #486 v2: bỏ phiếu tính lại ảnh chụp giá", PY,
+		'		return "giu"\n', '		return "tinh"\n', CA_PY),
+	("Codex #486 v2: bỏ phiếu kèm sửa nội dung lọt qua", PY,
+		'		if truoc.get("noi_dung") != nay.get("noi_dung"):\n', "		if False:\n", CA_PY),
+	("Codex #486 v2: lưu luôn tính lại, bỏ qua quyết định", PY,
+		'	if viec == "tinh":\n		return tinh_lai_doc(d)', '	if True:\n		return tinh_lai_doc(d)', CA_PY),
+	# ---- Codex #486 vòng 4 ----
+	("Codex #486 v4: Desk xoá được phiếu thử", CT,
+		'\t\tfrappe.throw("Không xoá phiếu tính giá thử.', '\t\treturn\n\t\tfrappe.throw("Không xoá phiếu tính giá thử.', CA_PY),
+	("Codex #486 v4: tính xong không vẽ ô giá tay cho dòng thiếu", JS,
+		"  if (ds && lech) {", "  if (false) {", CA_JS),
+	("Codex #486 v4: dòng mã thiếu giá không cần ô giá tay", JS,
+		"  return r ? !!(r.thieu || r.tay)", "  return r ? !!(r.tay)", CA_JS),
+	# ---- Giao diện chip 17/10/2026 ----
+	("Chip: chip hệ số không đổi màu theo trạng thái", JS,
+		"[d.trang_thai] ||\n    ['#0b7c93', '#ecfeff'];", "['x'] ||\n    ['#0b7c93', '#ecfeff'];", CA_JS),
+	("Chip: thẻ thiếu giá vẫn hiện ô đề xuất xanh", JS,
+		"  if (!tinhDuoc) oDx = gvtO('Đề xuất', 'Chưa tính', '', 1);\n  else if (d.gia_de_xuat)", "  if (false) oDx = 0;\n  else if (d.gia_de_xuat)", CA_JS),
+	("Chip: đầu nhóm không nói chưa đặt mục tiêu", JS,
+		"      : '<span class=\"gvt-c\">Chưa đặt mục tiêu</span>') + '</div>';", "      : '') + '</div>';", CA_JS),
+	# ---- Codex #486 vòng 6 ----
+	("Codex #486 v6: chip hệ số hiện khi giá vốn còn thiếu", JS,
+		"  if (d.he_so == null || !gvtTinhDuoc(d)) return '';", "  if (d.he_so == null) return '';", CA_JS),
+	("Codex #486 v6: thẻ phiếu thử thiếu giá vẫn tính được", JS,
+		"  return d.trang_thai !== 'thieu_gia' && d.trang_thai !== 'vong'", "  return d.trang_thai !== 'vong'", CA_JS),
+	("Codex #486 v6: thẻ phiếu thử không có ô ảnh món", JS,
+		"    '<div class=\"gvt-dau\">' + anhMon('') + '<div class=\"gvt-th\">' +", "    '<div class=\"gvt-dau\"><div class=\"gvt-th\">' +", CA_JS),
+	# ---- Codex #486 vòng 12 ----
+	("Codex #486 v12: NVL chưa có mã không cần đơn vị", PY,
+		"		if not ma and not dvt:", "		if False:", CA_PY),
+	("Codex #486 v12: lưu không so bản", PY,
+		"			kiem_phien_ban(p[\"phien_ban\"], d.modified, p[\"name\"])", "			pass", CA_PY),
+	("Codex #486 v12: bản cũ vẫn lưu được", PY,
+		"	if str(gui) != str(hien_tai):", "	if False:", CA_PY),
+	("Codex #486 v12: lưu không gửi bản lúc mở", JS,
+		"name: p.name, phien_ban: p.phien_ban || '', ten_mon:", "name: p.name, ten_mon:", CA_JS),
+	("Codex #486 v12: mở phiếu không giữ bản", JS,
+		"    phien_ban: p.phien_ban || '',\n", "", CA_JS),
+	("Codex #486 P2: máy chủ bỏ qua vị trí bắt đầu", PY,
+		"	cat = hop[bd:bd + trang]", "	cat = hop[0:trang]", CA_PY),
+	# ---- Codex #486 vòng 7 ----
+	("Codex #486 v7: máy chủ bỏ qua lọc nhóm", PY,
+		"		return not nhom or (p.get(\"nhom\") or CHUA_NHOM) == nhom", "		return True", CA_PY),
+	("Codex #486 v7: đếm nhóm không theo trạng thái đang chọn", PY,
+		"		if khop_tt(p):\n			k = p.get(\"nhom\")", "		if True:\n			k = p.get(\"nhom\")", CA_PY),
+	("Codex #486 v7: máy chủ bỏ qua khoảng ngày lập", PY,
+		"	if moc:\n		loc.append", "	if False:\n		loc.append", CA_PY),
+	("Codex #486 v7: bấm chip trạng thái không gửi lên máy chủ", JS,
+		"trang_thai: GVT.thuTt, nhom: GVT.thuNhom", "trang_thai: '', nhom: GVT.thuNhom", CA_JS),
+	("Codex #486 v7: Xem thêm bỏ mất bộ lọc", JS,
+		"      trang_thai: t.trang_thai || '', nhom: t.nhom || '', khoang: t.khoang || '' }", "      trang_thai: '', nhom: '', khoang: '' }", CA_JS),
+	("Codex #486 v7: sheet nhóm bán gõ không lọc", JS,
+		"  o.oninput = function () { ve(o.value); };", "  o.oninput = function () { };", CA_JS),
+	("Codex #486 v7: không hiện hàng chip lọc phiếu thử", JS,
+		"  var chip = (t.tong || dangLoc) ? gvtChipThu(t) : '';", "  var chip = '';", CA_JS),
+	("Codex #486 v8: lọc ra rỗng mất câu giới hạn 500 phiếu", JS,
+		"    return chip + vuot + '<div class=\"card\"><div class=\"emp\"", "    return chip + '<div class=\"card\"><div class=\"emp\"", CA_JS),
+	# ---- Codex #486 vòng 9 ----
+	("Codex #486 v9: giá tay thắng cả mã đã có giá", PY,
+		"			if g.get(\"thieu\") and tay and not g.get(\"vong\"):", "			if tay:", CA_PY),
+	("Codex #486 v10: giá tay xoá cờ công thức vòng", PY,
+		"			if g.get(\"thieu\") and tay and not g.get(\"vong\"):", "			if g.get(\"thieu\") and tay:", CA_PY),
+	("Codex #486 v10: dấu vết lấy từ kết quả tính thử", JS,
+		"(p.vet ? gvtDauVet(p.vet, 'margin:0 0 8px')", "(GVT.pk ? gvtDauVet(GVT.pk, 'margin:0 0 8px')", CA_JS),
+	# ---- Codex #486 vòng 11 ----
+	("Codex #486 v11: lưu hệ số thay cả bộ, xoá nhóm bị ẩn", PY,
+		"	moi = gop_he_so(_he_so_da_luu(), vao, sach)", "	moi = sach", CA_PY),
+	("Codex #486 v11: dòng không báo cờ vòng", PY,
+		"vong=int(bool(g.get(\"vong\"))), thanh_tien=tt))", "vong=0, thanh_tien=tt))", CA_PY),
+	("Codex #486 v11: sheet hệ số chỉ có nhóm có món bán", JS,
+		"(kq.nhom_ban || (kq.nhom", "((kq.nhom", CA_JS),
+	("Codex #486 v11: dòng vòng vẫn có ô giá tay", JS,
+		"  if (r && r.vong) return false;\n", "", CA_JS),
+	("Codex #486 v11: ô kết quả vòng vẫn bảo nhập giá tay", JS,
+		"    (k.trang_thai === 'vong' ?", "    (false ?", CA_JS),
+	("Codex #486 v11: thẻ phiếu vòng vẫn bảo nhập giá tay", JS,
+		"    (p.trang_thai === 'vong' ?", "    (false ?", CA_JS),
+	("Codex #486 v11: bản nháp phiếu đã lưu mất dấu vết", SD,
+		"dat: function (v) { GVT.p = v; GVT.pk = null;", "dat: function (v) { if (v) delete v.vet; GVT.p = v; GVT.pk = null;", CA_SD),
+	("Codex #486 v9: lưu đổi nội dung không đếm sửa", PY,
+		"	return lan + 1 if truoc.get(\"noi_dung\") != noi_dung_nay else lan", "	return lan", CA_PY),
+	("Codex #486 v9: lưu không ghi số lần sửa vào phiếu", PY,
+		"	d.so_lan_sua = lan_sua_moi(", "	d.so_lan_sua_x = lan_sua_moi(", CA_PY),
+	("Codex #486 v9: còn ô giá tay ở mã đã có giá", JS,
+		"  return r ? !!(r.thieu || r.tay) : gvtSoVn(d.don_gia_tay) > 0;", "  return r ? !!(r.thieu || r.tay) || gvtSoVn(d.don_gia_tay) > 0 : gvtSoVn(d.don_gia_tay) > 0;", CA_JS),
+	("Codex #486 v9: thẻ phiếu thử không có dấu vết", JS,
+		"    gvtDauVet(p) +\n  '</div>';", "  '</div>';", CA_JS),
+	("Codex #486 v9: không có chip Đã sửa N lần", JS,
+		"(p.so_lan_sua ? ' <span class=\"gvt-c\" data-gvtsua", "(false ? ' <span class=\"gvt-c\" data-gvtsua", CA_JS),
+	("Codex #486 P2: màn không có nút Xem thêm", JS,
+		"    (t.con_nua ? '<button class=\"btn gh\" data-gvtthemds", "    (false ? '<button class=\"btn gh\" data-gvtthemds", CA_JS),
+	# ---- Codex #486 vòng 13 ----
+	("Codex #486 v13: bỏ phiếu không kiểm bản đang mở", PY,
+		"			kiem_phien_ban(phien_ban, d.modified, name, \"bo\")\n", "			pass\n", CA_PY),
+	("Codex #486 v13: màn bỏ phiếu không gửi bản", JS,
+		"{ name: p.name, phien_ban: p.phien_ban || '' }", "{ name: p.name }", CA_JS),
+	("Codex #486 v13: tìm lỗi mạng hiện như không có", JS,
+		"try { kq = await api('vagabond.gia_von_tam.tim_nl', { tu_khoa: tu }); }\n      catch (e) {",
+		"try { kq = await api('vagabond.gia_von_tam.tim_nl', { tu_khoa: tu }); } catch (e) { kq = []; }\n      if (false) {", CA_JS),
+	("Codex #486 v13: nút Tìm lại không tìm lại", JS,
+		"Đang tìm...</div>'; o.oninput(); return; }", "Đang tìm...</div>'; return; }", CA_JS),
+	("Codex #486 v13: tìm nguyên liệu quay về mọi thứ trừ bánh", PY,
+		"{\"disabled\": 0, \"item_group\": [\"in\", nhom]}", "{\"disabled\": 0, \"item_group\": [\"not in\", list(NHOM_BAN)]}", CA_PY),
+	("Codex #486 v13: phạm vi không nhận nhóm con", PY,
+		"			ra.add(g(n, \"name\"))\n", "			pass\n", CA_PY),
+	("Codex #486 v13: phạm vi lấy nhóm cha thay nhóm con", PY,
+		"if any(a < l and r < b for a, b in moc):", "if any(l < a and b < r for a, b in moc):", CA_PY),
+	("Codex #486 v13: thêm văn phòng phẩm vào nhóm nguyên liệu", PY,
+		"	\"Bao bì\",\n)", "	\"Bao bì\", \"Văn phòng phẩm\",\n)", CA_PY),
 ]
 
 
 def main():
 	bat = 0
-	for ten, tep, cu, moi, lenh in DOT_BIEN:
+	# Tuỳ chọn: chỉ chạy đột biến có tên chứa chuỗi đưa vào, ví dụ "v13".
+	loc = sys.argv[1] if len(sys.argv) > 1 else ""
+	ds = [x for x in DOT_BIEN if loc in x[0]]
+	for ten, tep, cu, moi, lenh in ds:
 		duong = os.path.join(GOC, tep)
 		with io.open(duong, encoding="utf-8") as f:
 			goc = f.read()
@@ -87,8 +269,8 @@ def main():
 			print("  BAT      %s" % ten)
 		else:
 			print("  LOT      %s" % ten)
-	print("\n%d/%d đột biến bị bắt." % (bat, len(DOT_BIEN)))
-	return 0 if bat == len(DOT_BIEN) else 1
+	print("\n%d/%d đột biến bị bắt." % (bat, len(ds)))
+	return 0 if bat == len(ds) else 1
 
 
 if __name__ == "__main__":
