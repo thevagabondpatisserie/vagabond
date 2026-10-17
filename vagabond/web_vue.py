@@ -101,3 +101,31 @@ def seo_banh():
             'image': anh if anh.startswith('https://') else '',
             'title': nhan.get('dat_banh_e7c59d5a1') or 'Đặt bánh · The Vagabond Pâtisserie',
             'url': 'https://order.thevagabondpatisserie.com/banh'}
+
+
+# ------------------------------------------------------------ tráo /banh sang bản Vue
+# Anh Việt 17/10/2026: chuyển trang đặt bánh sang bản Vue. Công tắc nằm ở Cài đặt
+# (Vagabond Settings > Web & quảng cáo > "Dùng trang đặt bánh bản mới"), tắt là
+# về trang cũ ngay, không cần deploy. Phần chạm Frappe ở vagabond/trang_banh_vue.py.
+
+def dung_ban_vue(duong, bat, tham_so=None):
+    """THUẦN: đường dẫn này có phát trang Vue thay trang /banh cũ không.
+
+    Chỉ đúng đường /banh (kể cả trang chủ tên miền order, Frappe đã đổi thành
+    "banh" trước khi tới đây). Editor xem trước (?bien_tap=1) và ?ban=cu luôn
+    mở trang cũ: Editor chưa có bản Vue, còn ?ban=cu để nhân viên so hai bản.
+    """
+    if str(duong or "").strip("/") != "banh":
+        return False
+    try:
+        bat = int(bat or 0)
+    except (TypeError, ValueError):
+        bat = 0
+    if not bat:
+        return False
+    q = tham_so or {}
+    if str(q.get("bien_tap") or "") not in ("", "0"):
+        return False
+    if str(q.get("ban") or "").strip().lower() == "cu":
+        return False
+    return True

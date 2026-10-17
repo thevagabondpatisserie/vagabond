@@ -14,3 +14,7 @@ def get_context(context):
 	context.no_cache = 1
 	context.seo = seo_banh()
 	context.csrf_token = frappe.sessions.get_csrf_token()
+	# Phát tại /banh (đã tráo) thì là trang công khai, cho máy tìm kiếm đọc;
+	# ở đường thử /web_moi/banh thì vẫn noindex.
+	req = getattr(frappe.local, "request", None)
+	context.cong_khai = str(getattr(req, "path", "") or "").strip("/") in ("", "banh")

@@ -355,6 +355,37 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
       await c.close();
     }
   });
+  await test('F38 v601 tráo Vue: phát tại đúng /banh thì chính sách và biên nhận đi đường công khai, không lọt về /web_moi',async()=>{
+    /* Máy chủ thật (trang_banh_vue.TrangBanhVue) dựng ĐÚNG tệp www/web_moi/banh.html tại /banh. Ở đây trả đúng tệp đó
+       tại /banh, cong_khai đúng (Jinja bỏ dòng robots). Chuỗi khách: mở /banh, đọc chân trang, đặt đơn tự lấy, gửi. */
+    const fs=require('node:fs');
+    const c=await browser.newContext({viewport:{width:390,height:844},timezoneId:'Asia/Ho_Chi_Minh'});
+    await c.route('**/*',r=>r.request().url().startsWith(url)?r.continue():r.abort());
+    const loi=[]; c.on('weberror',e=>loi.push(String(e.error())));
+    const html=fs.readFileSync(root+'/vagabond/www/web_moi/banh.html','utf8').replace('{{ csrf_token }}','thu')
+      .replace('{% if not cong_khai %}<meta name="robots" content="noindex,nofollow">{% endif %}','');
+    await c.route(u=>new URL(String(u)).pathname==='/banh',r=>r.fulfill({contentType:'text/html; charset=utf-8',body:html}));
+    const di=[];
+    await c.route(u=>new URL(String(u)).pathname.startsWith('/banh/xong/'),r=>{di.push(new URL(r.request().url()).pathname);return r.fulfill({contentType:'text/html; charset=utf-8',body:'<h1>Biên nhận cũ</h1>'});});
+    await c.route(u=>new URL(String(u)).pathname.startsWith('/web_moi/banh/xong'),r=>{di.push(new URL(r.request().url()).pathname);return r.fulfill({contentType:'text/html',body:'<h1>Lạc</h1>'});});
+    const p=await c.newPage();
+    await p.goto(url+'/banh'); await p.locator('#fChinhSach a').first().waitFor({state:'attached'});
+    const cs=await p.locator('#fChinhSach a').evaluateAll(a=>a.map(x=>x.getAttribute('href')));
+    assert(cs.length>0); assert(cs.every(h=>!h.startsWith('/web_moi')),'chính sách lọt về /web_moi: '+cs.join(','));
+    assert.equal(await p.locator('meta[name=robots]').count(),0);
+    await p.goto(url+'/banh#/banh/candle'); await p.locator('#sheet.open').waitFor({state:'visible'});
+    await p.locator('#s-sizes button').first().click(); await p.locator('#s-cta').click();
+    await p.locator('#bar .go').click(); await p.locator('#checkout.open').waitFor();
+    await p.locator('#f-name').fill('Khách thử'); await p.locator('#f-phone').fill('0900000000');
+    await p.locator('#m-pick').click(); await p.locator('#pickList button').first().click();
+    await p.locator('#c-days button').nth(2).click(); await p.locator('#c-slots button:not([disabled])').first().click();
+    await p.locator('#c-dongy').click();
+    await p.locator('#btnSend').click(); await p.waitForURL(u=>new URL(String(u)).pathname.startsWith('/banh/xong/')||new URL(String(u)).pathname.startsWith('/web_moi/banh/xong'));
+    assert.deepEqual(di.map(x=>x.split('/').slice(0,3).join('/')),['/banh/xong']);
+    assert.equal(await p.locator('h1').innerText(),'Biên nhận cũ');
+    assert.deepEqual(loi,[]);
+    await c.close();
+  });
   assert.deepEqual(errors,[]);
   console.log(`${passed} ca DOM đạt`);
 } finally {if(browser)await browser.close();server.kill();}})().catch(e=>{console.error(e);process.exitCode=1;});
