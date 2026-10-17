@@ -514,12 +514,15 @@ function gvtDsThu() {
   var ds = t.ds || [];
   var dangLoc = !!(t.trang_thai || t.nhom || t.khoang);
   var chip = (t.tong || dangLoc) ? gvtChipThu(t) : '';
-  var vuot = t.vuot ? '<div style="font-size:13px;color:#6b7280;margin:0 2px 8px">Chỉ đếm và lọc trong ' + (t.tong || 0) + ' phiếu sửa gần nhất.</div>' : '';
+  /* Quá TOI_DA_THU phiếu khớp tên: máy chủ chỉ đếm, lọc trong phần mới sửa nhất.
+     Câu này hiện cả khi lọc ra rỗng, để không bảo sai là không có (Codex #486 v8). */
+  var vuot = t.vuot ? '<div data-gvtvuot style="font-size:13px;color:#b45309;margin:0 2px 8px">Chỉ đếm và lọc trong ' + (t.tong || 0) +
+    ' phiếu sửa gần nhất. Phiếu cũ hơn có thể khớp: gõ tên món vào ô tìm để thu hẹp.</div>' : '';
   if (!ds.length) {
     var cau = dangLoc ? 'Không có phiếu nào khớp bộ lọc' + (t.tu_khoa ? ' và tên "' + h(t.tu_khoa) + '"' : '') + '.' :
       t.tu_khoa ? 'Không thấy phiếu nào có tên chứa "' + h(t.tu_khoa) + '".' :
       'Chưa có phiếu tính giá thử nào.' + (t.sua_duoc ? ' Bấm Phiếu tính giá thử mới để bắt đầu.' : '');
-    return chip + '<div class="card"><div class="emp" style="padding:24px"><div class="e1">🧪</div><div>' + cau + '</div>' +
+    return chip + vuot + '<div class="card"><div class="emp" style="padding:24px"><div class="e1">🧪</div><div>' + cau + '</div>' +
       (dangLoc ? '<button class="btn gh" data-gvtthubo style="margin-top:12px">Bỏ lọc</button>' : '') + '</div></div>';
   }
   return chip + vuot + '<div class="card">' + ds.map(gvtThePhieu).join('') + '</div>' +
