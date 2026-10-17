@@ -59495,6 +59495,9 @@ var GVT_TT = {
 var GVT_CHIP_TT = ['vuot_gia_ban', 'vong', 'thieu_gia', 'duoi_muc_tieu'];
 var GVT_TIEU_DE = 'Giá vốn tạm tính';
 var GVT_TIEU_DE_THU = 'Phiếu tính giá thử';
+/* Phiếu thử có nguyên liệu mà công thức trỏ vòng: giá tay không thay được
+   (Codex #486 v10, v11), chỉ đường sửa công thức. MỘT câu cho thẻ và màn phiếu. */
+var GVT_CAU_VONG = 'Công thức của một bán thành phẩm trong phiếu trỏ vòng vào chính nó nên chưa tính được. Sửa công thức đó trên Desk; giá tay không thay được.';
 
 function gvtPhanTram(x) { return x == null ? '' : String(x).replace('.', ',') + '%'; }
 function gvtHeSo(x) { return x == null ? '' : 'x' + String(x).replace('.', ','); }
@@ -59761,21 +59764,32 @@ function gvtQuyDoi(v) {
 }
 function gvtSuaHeSo() {
   var kq = GVT.kq || {};
-  var nhom = (kq.nhom || []).filter(function (n) { return n.so_mon; });
+  /* Codex #486 v11: đủ mọi nhóm bán (kể cả nhóm chỉ có món thử, chưa có món
+     bán tính được), để lưu không làm mất mục tiêu của nhóm bị ẩn. Máy chủ
+     cũng chỉ ghi đè nhóm có gửi (gop_he_so). */
+  var thongKe = {};
+  (kq.nhom || []).forEach(function (n) { thongKe[n.ten] = n; });
+  var nhom = (kq.nhom_ban || (kq.nhom || []).filter(function (n) { return n.so_mon; })).map(function (n) {
+    var t = thongKe[n.ten] || {};
+    return { ten: n.ten, so_mon: t.so_mon || 0, trung_vi: t.trung_vi == null ? null : t.trung_vi,
+      he_so_muc_tieu: (kq.he_so || {})[n.ten] != null ? kq.he_so[n.ten] : (t.he_so_muc_tieu == null ? null : t.he_so_muc_tieu) };
+  });
   var ov = document.createElement('div'); ov.className = 'sh';
   ov.innerHTML = '<div class="shb" style="padding:18px 16px calc(env(safe-area-inset-bottom,0px) + 16px)">' +
     '<div style="font-size:17.5px;font-weight:700;margin-bottom:6px">Hệ số giá bán mục tiêu</div>' +
     '<div style="font-size:13.5px;color:#5a6070;line-height:1.5;margin-bottom:12px">Giá bán đề xuất = giá vốn nhân hệ số này, làm tròn lên nghìn. ' +
     'Ví dụ x5 là giá bán gấp 5 lần giá vốn. Để trống thì không đề xuất giá cho nhóm đó.</div>' +
+    '<div data-gvthsds style="flex:1;min-height:0;overflow-y:auto;margin:0 -4px 8px;padding:0 4px">' +
     nhom.map(function (n) {
       return '<div style="margin-bottom:12px"><div style="display:flex;align-items:center;gap:10px">' +
         '<div style="flex:1;font-size:14.5px;font-weight:600">' + h(n.ten) + '</div><span style="font-weight:700">x</span>' +
         '<input class="nt" data-gvthsn="' + h(n.ten) + '" inputmode="decimal" value="' + (n.he_so_muc_tieu == null ? '' : h(String(n.he_so_muc_tieu).replace('.', ','))) +
         '" style="width:84px;height:44px;text-align:right;padding:0 10px"></div>' +
-        '<div style="font-size:12.5px;color:#9ca3af">' + (n.trung_vi != null ? 'Hiện trung vị ' + gvtHeSo(n.trung_vi) : 'Chưa đủ số để tính trung vị') +
+        '<div style="font-size:13px;color:#9ca3af">' + (n.trung_vi != null ? 'Hiện trung vị ' + gvtHeSo(n.trung_vi) :
+          n.so_mon ? 'Chưa đủ số để tính trung vị' : 'Chưa có món đang bán tính được') +
         ' <span data-gvtqd="' + h(n.ten) + '">' + h(gvtQuyDoi(n.he_so_muc_tieu)) + '</span></div>' +
-        '<div data-gvtsai="' + h(n.ten) + '" style="font-size:12.5px;color:#b3261e"></div></div>';
-    }).join('') +
+        '<div data-gvtsai="' + h(n.ten) + '" style="font-size:13px;color:#b3261e"></div></div>';
+    }).join('') + '</div>' +
     '<button class="btn" data-gvtluu>Lưu hệ số</button><button class="btn gh" data-gvthuy style="margin-top:9px">Huỷ</button></div>';
   document.body.appendChild(ov);
   ov.oninput = function (e) {
@@ -59933,7 +59947,8 @@ function gvtThePhieu(p) {
       (p.gia_ban_du_kien ? gvtO('Giá dự kiến', money(p.gia_ban_du_kien) + 'đ') : gvtO('Giá dự kiến', 'Chưa có', '', 1)) +
       oDx +
     '</div>' +
-    (p.thieu_so ? '<div class="gvt-ghi" style="color:#b45309">Thiếu giá ' + p.thieu_so + ' nguyên liệu. Mở phiếu để nhập giá tay.</div>' :
+    (p.trang_thai === 'vong' ? '<div class="gvt-ghi" data-gvtvong style="color:#b3261e">' + GVT_CAU_VONG + '</div>' :
+      p.thieu_so ? '<div class="gvt-ghi" style="color:#b45309">Thiếu giá ' + p.thieu_so + ' nguyên liệu. Mở phiếu để nhập giá tay.</div>' :
       (!p.gia_de_xuat && tinhDuoc && gvtCauDeXuat(p) ? '<div class="gvt-ghi" style="color:#667085">' + h(gvtCauDeXuat(p)) + '</div>' : '')) +
     gvtDauVet(p) +
   '</div>';
@@ -60043,15 +60058,16 @@ function gvtMoPhieu(p) {
   GVT.p = JSON.parse(JSON.stringify({
     name: p.name || null, ten_mon: p.ten_mon || '', nhom: p.nhom || '', so_ra: p.so_ra || 1, dvt_ra: p.dvt_ra || 'Cái',
     gia_ban_du_kien: p.gia_ban_du_kien || '', ghi_chu: p.ghi_chu || '',
+    /* Dấu vết giữ riêng trong phiếu đang sửa: kết quả tính thử thay GVT.pk mà
+       không có ai lập, ai sửa (Codex #486 v10), và bản nháp lưu GVT.p nên mở
+       lại từ bản nháp vẫn còn dấu vết (v11). Không gửi lên máy chủ. */
+    vet: p.name ? { name: p.name, nguoi: p.nguoi, ten_nguoi: p.ten_nguoi, lap_luc: p.lap_luc, nguoi_sua: p.nguoi_sua,
+      ten_nguoi_sua: p.ten_nguoi_sua, cap_nhat: p.cap_nhat, so_lan_sua: p.so_lan_sua } : null,
     dong: (p.dong || []).map(function (d) {
       return { item_code: d.item_code || null, ten: d.ten || '', dvt: d.dvt || '', so_luong: d.so_luong, don_gia_tay: d.don_gia_tay || '' };
     })
   }));
   GVT.pk = p.name ? JSON.parse(JSON.stringify(p)) : null;
-  /* Dấu vết giữ riêng: kết quả tính thử thay GVT.pk nhưng không có ai lập,
-     ai sửa, số lần sửa (Codex #486 v10). */
-  GVT.vet = p.name ? { name: p.name, nguoi: p.nguoi, ten_nguoi: p.ten_nguoi, lap_luc: p.lap_luc, nguoi_sua: p.nguoi_sua,
-    ten_nguoi_sua: p.ten_nguoi_sua, cap_nhat: p.cap_nhat, so_lan_sua: p.so_lan_sua } : null;
   GVT.pkDong = p.name ? GVT.pk.dong : null;   /* phiếu đã lưu: mọi dòng đều hợp lệ, kết quả khớp từng dòng */
   GVT.lan++; GVT.loiTinh = null;
   vgbBoChuaLuu();
@@ -60124,7 +60140,8 @@ function gvtKhoiKetQua() {
       (de ? '<span class="gvt-c" style="color:' + (k.gia_de_xuat ? '#047857;background:#ecfdf5' : '#475467;background:#f2f4f7') + '">' + h(de) + '</span>' : '') +
     '</div>' +
     (k.he_so != null ? '<div class="t2" style="margin-top:6px">Giá bán dự kiến ' + money(gvtSoVn(p.gia_ban_du_kien)) + 'đ</div>' : '') +
-    (k.thieu_so ? '<div class="gvt-ghi" style="color:#b45309">Thiếu giá ' + k.thieu_so + ' nguyên liệu: nhập giá tay ở dòng đó.</div>' : '');
+    (k.trang_thai === 'vong' ? '<div class="gvt-ghi" data-gvtvong style="color:#b3261e">' + GVT_CAU_VONG + '</div>' :
+      k.thieu_so ? '<div class="gvt-ghi" style="color:#b45309">Thiếu giá ' + k.thieu_so + ' nguyên liệu: nhập giá tay ở dòng đó.</div>' : '');
 }
 /* Dòng cần ô giá tay: NVL chưa có mã, mã máy chủ báo thiếu giá (kể cả nhiều
    công thức) hoặc máy chủ đang dùng giá tay của dòng đó. Mã đã có giá danh
@@ -60133,6 +60150,9 @@ function gvtKhoiKetQua() {
    và lúc nhận kết quả (Codex #486 v4). */
 function gvtCanGiaTay(d, r) {
   if (!d.item_code) return true;
+  /* Công thức vòng: máy chủ không nhận giá tay (Codex #486 v10), ô giá tay
+     chỉ làm người dùng gõ mãi không hết lỗi (v11). Phải sửa công thức. */
+  if (r && r.vong) return false;
   return r ? !!(r.thieu || r.tay) : gvtSoVn(d.don_gia_tay) > 0;
 }
 function gvtVeKetQua() {
@@ -60155,7 +60175,7 @@ function gvtVeKetQua() {
 function gvtGiaDong(d, r) {
   if (!r) return '<span style="color:#9ca3af">Nhập số lượng để tính</span>';
   return money(r.don_gia) + 'đ/' + h(r.dvt || d.dvt || '') + ' (' + h(r.nguon) + ')' +
-    (r.thieu ? ' · <span style="color:#b45309">thiếu giá</span>' : '') +
+    (r.vong ? ' · <span style="color:#b3261e">công thức vòng, sửa trên Desk</span>' : r.thieu ? ' · <span style="color:#b45309">thiếu giá</span>' : '') +
     ' · <b>' + money(r.thanh_tien) + 'đ</b>';
 }
 
@@ -60194,7 +60214,7 @@ function gvtManPhieu() {
   var sua = t.sua_duoc !== false;
   var html = '<div class="card" style="padding:12px 14px" id="gvtpKq">' + gvtKhoiKetQua() + '</div>' +
     '<div class="card" style="padding:12px 14px">' +
-      (GVT.vet ? gvtDauVet(GVT.vet, 'margin:0 0 8px') : '') +
+      (p.vet ? gvtDauVet(p.vet, 'margin:0 0 8px') : '') +
       '<div class="t2" style="margin-bottom:4px">Tên món thử</div>' +
       '<input class="tin" id="gvtpTen" placeholder="Ví dụ: Tart chanh dây size 16" value="' + h(p.ten_mon) + '" style="margin:0 0 10px">' +
       '<div class="t2" style="margin-bottom:6px">Nhóm bán dự kiến (để lấy hệ số mục tiêu)</div>' +
@@ -60358,7 +60378,7 @@ async function gvtLuuPhieu() {
   catch (e) { busy(false); return baoTin((e && e.message) || 'Lưu phiếu lỗi'); }
   vgbBoChuaLuu();
   toast('Đã lưu phiếu ' + kq.name, 3000);
-  GVT.thu = null; GVT.p = null; GVT.pk = null; GVT.pkDong = null; GVT.vet = null; GVT.lan++;
+  GVT.thu = null; GVT.p = null; GVT.pk = null; GVT.pkDong = null; GVT.lan++;
   GVT.tab = 'thu';
   back();
 }
@@ -60374,7 +60394,7 @@ async function gvtBoPhieu() {
   catch (e) { busy(false); return baoTin((e && e.message) || 'Bỏ phiếu lỗi'); }
   vgbBoChuaLuu();
   toast('Đã bỏ phiếu. Vẫn tra lại được trên Desk.', 3000);
-  GVT.thu = null; GVT.p = null; GVT.pk = null; GVT.pkDong = null; GVT.vet = null; GVT.lan++;
+  GVT.thu = null; GVT.p = null; GVT.pk = null; GVT.pkDong = null; GVT.lan++;
   GVT.tab = 'thu';
   back();
 }
