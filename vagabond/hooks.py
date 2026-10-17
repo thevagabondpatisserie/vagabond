@@ -1051,3 +1051,7 @@ website_route_rules = list(website_route_rules) + [
     {"from_route": "/web_moi/banh/xong", "to_route": "web_moi/xong"},
 ] + [{"from_route": "/web_moi/" + duong, "to_route": "web_moi/chinh-sach"}
      for duong in ("chinh-sach-bao-mat", "dieu-khoan", "giao-hang-doi-tra")]
+
+# 17/10/2026: /banh phát bản Vue khi bật công tắc "Dùng trang đặt bánh bản mới"
+# (Cài đặt > Web & quảng cáo). Tắt là về Web Page "banh" cũ, không cần deploy.
+page_renderer = ["vagabond.trang_banh_vue.TrangBanhVue"]
