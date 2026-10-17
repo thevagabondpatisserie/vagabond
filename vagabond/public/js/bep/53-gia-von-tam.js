@@ -39,12 +39,6 @@ var GVT_TIEU_DE_THU = 'Phiếu tính giá thử';
 function gvtPhanTram(x) { return x == null ? '' : String(x).replace('.', ',') + '%'; }
 function gvtHeSo(x) { return x == null ? '' : 'x' + String(x).replace('.', ','); }
 
-/* "x6,1 (16,5%)": hệ số là con số chính, phần trăm giá vốn đi kèm. */
-function gvtHeSoKem(d) {
-  if (d.he_so == null) return '';
-  return '<b>' + gvtHeSo(d.he_so) + '</b>' + (d.ty_le != null ? ' (' + gvtPhanTram(d.ty_le) + ')' : '');
-}
-
 function gvtNgay(s) {
   var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s || ''));
   return m ? m[3] + '/' + m[2] : String(s || '');
@@ -74,16 +68,68 @@ var GVT_CHIP = {
 };
 function gvtChipTrangThai(d) {
   var c = GVT_CHIP[d.trang_thai] || [d.trang_thai, '#6b7280', '#f3f4f6'];
-  return '<span data-gvttt="' + h(d.trang_thai) + '" style="flex:none;font-size:13px;font-weight:800;color:' + c[1] +
-    ';background:' + c[2] + ';border-radius:999px;padding:4px 10px;white-space:nowrap">' + h(c[0]) + '</span>';
+  return '<span class="gvt-c" data-gvttt="' + h(d.trang_thai) + '" style="color:' + c[1] + ';background:' + c[2] + '">' + h(c[0]) + '</span>';
+}
+
+/* Giao diện thẻ kiểu chip (anh Việt 17/10/2026: "nhìn kiểu chip ấy, hiện tại
+   không đẹp như các phân hệ khác"). Một bộ lớp `gvt-*` dùng chung cho thẻ
+   món đang bán, thẻ phiếu thử và ô kết quả, nạp MỘT lần. Trên điện thoại
+   390px: tên và chip đứng cạnh ảnh, ba ô số trải hết bề ngang thẻ để số
+   tiền bảy chữ số không bị cắt. */
+function gvtCss() {
+  if (typeof document === 'undefined' || !document.head || !document.createElement) return;
+  if (document.getElementById && document.getElementById('gvtCss')) return;
+  var st = document.createElement('style');
+  st.id = 'gvtCss';
+  st.textContent =
+    '.gvt-the{padding:14px;border-bottom:1px solid #f0f2f6;background:#fff;cursor:pointer;-webkit-tap-highlight-color:transparent}' +
+    '.gvt-the:last-child{border-bottom:0}' +
+    '.gvt-the:active{background:#f8fafc}' +
+    '.gvt-dau{display:flex;gap:12px;align-items:flex-start}' +
+    '.gvt-dau .imm{flex:none}' +
+    '.gvt-th{flex:1;min-width:0}' +
+    '.gvt-ten{font-size:15.5px;font-weight:700;color:#101828;line-height:1.3;overflow:hidden;' +
+    'display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}' +
+    '.gvt-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px}' +
+    '.gvt-c{display:inline-flex;align-items:center;font-size:13px;font-weight:700;border-radius:999px;' +
+    'padding:3px 10px;white-space:nowrap;line-height:1.4;color:#475467;background:#f2f4f7}' +
+    '.gvt-c b{font-weight:800;margin-right:3px}' +
+    '.gvt-so{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:10px}' +
+    '.gvt-o{background:#f8fafc;border-radius:10px;padding:7px 8px;min-width:0}' +
+    '.gvt-o .l{font-size:13px;color:#667085;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
+    '.gvt-o .v{font-size:15px;font-weight:800;color:#101828;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}' +
+    '.gvt-o .v.nhat{font-size:13px;font-weight:600;color:#98a2b3;white-space:normal;line-height:1.3}' +
+    '.gvt-o.dx{background:#ecfdf5}.gvt-o.dx .v{color:#047857}' +
+    '.gvt-o.do{background:#fef2f2}.gvt-o.do .v{color:#b3261e}' +
+    '.gvt-ghi{font-size:13px;line-height:1.5;margin-top:8px}' +
+    '.gvt-nhom{display:flex;align-items:center;gap:8px;margin:14px 2px 8px}' +
+    '.gvt-nhom .n{font-size:13px;font-weight:700;color:#8a8f9c;text-transform:uppercase;letter-spacing:.4px;flex:1;min-width:0}';
+  document.head.appendChild(st);
+}
+
+/* Chip hệ số: "Hệ số x6,1 · vốn 16,5%". Màu theo trạng thái: xanh đạt, vàng
+   dưới mục tiêu, đỏ vượt giá bán, xanh dương khi chưa có mục tiêu. */
+function gvtChipHeSo(d) {
+  if (d.he_so == null) return '';
+  var mau = { dat: ['#047857', '#ecfdf5'], duoi_muc_tieu: ['#b45309', '#fffbeb'], vuot_gia_ban: ['#b3261e', '#fef2f2'] }[d.trang_thai] ||
+    ['#0b7c93', '#ecfeff'];
+  return '<span class="gvt-c" data-gvths style="color:' + mau[0] + ';background:' + mau[1] + '"><b>' + gvtHeSo(d.he_so) + '</b>' +
+    (d.ty_le != null ? '· vốn ' + gvtPhanTram(d.ty_le) : '') + '</span>';
+}
+
+/* Một ô số trong dải ba ô. `nhat`: chưa có số, chữ xám. */
+function gvtO(nhan, giaTri, lop, nhat) {
+  return '<div class="gvt-o' + (lop ? ' ' + lop : '') + '"><div class="l">' + h(nhan) + '</div>' +
+    '<div class="v' + (nhat ? ' nhat' : '') + '">' + h(giaTri) + '</div></div>';
 }
 
 function gvtThe(d) {
-  var dong3;
-  if (d.trang_thai === 'thieu_gia' || d.trang_thai === 'vong') dong3 = '';
-  else if (d.gia_de_xuat) dong3 = 'Đề xuất ' + money(d.gia_de_xuat) + 'đ (mục tiêu ' + gvtHeSo(d.he_so_muc_tieu) + ')';
-  else if (!d.gia_ban) dong3 = 'Chưa có giá bán';
-  else dong3 = 'Chưa đặt hệ số mục tiêu';
+  var tinhDuoc = d.trang_thai !== 'thieu_gia' && d.trang_thai !== 'vong';
+  var oDx;
+  if (!tinhDuoc) oDx = gvtO('Đề xuất', 'Chưa tính', '', 1);
+  else if (d.gia_de_xuat) oDx = gvtO('Đề xuất ' + gvtHeSo(d.he_so_muc_tieu), money(d.gia_de_xuat) + 'đ', 'dx');
+  else if (!d.gia_ban) oDx = gvtO('Đề xuất', 'Chưa có giá bán', '', 1);
+  else oDx = gvtO('Đề xuất', 'Chưa đặt hệ số', '', 1);
   var co = '';
   if (d.trang_thai === 'thieu_gia') {
     var ten = (d.thieu_ten || []).slice(0, 2);
@@ -95,17 +141,28 @@ function gvtThe(d) {
     co = 'Công thức trỏ vòng vào chính nó, chưa tính được.';
   }
   var tt = GVT_TT[d.trang_thai];
-  var hs = gvtHeSoKem(d);
-  return '<div class="hub" data-gvtm="' + h(d.ma) + '" style="align-items:flex-start">' + anhMon(d.anh) +
-    '<div class="hub-t" style="flex:1;min-width:0">' +
-      '<div style="display:flex;gap:8px;align-items:center"><div class="t1" style="flex:1;min-width:0">' + h(d.ten) + '</div>' + gvtChipTrangThai(d) + '</div>' +
-      '<div class="t2">Giá vốn ' + money(d.gia_von) + 'đ · ' + (d.gia_ban ? 'Giá bán ' + money(d.gia_ban) + 'đ' : 'Chưa có giá bán') +
-        (hs ? ' · ' + hs : '') + '</div>' +
-      (dong3 ? '<div class="t2" style="color:#0f766e;font-weight:700">' + h(dong3) + '</div>' : '') +
-      (d.lan_truoc ? '<div class="t2">Lần chốt ' + gvtNgay(d.lan_truoc.ngay) + ': ' + money(d.lan_truoc.gia) + 'đ (' +
-        (d.lan_truoc.chenh_pct > 0 ? '+' : '') + gvtPhanTram(d.lan_truoc.chenh_pct) + ')</div>' : '') +
-      (co ? '<div class="t2" data-gvtco style="color:' + (tt ? tt.mau : '#b45309') + '">' + h(co) + '</div>' : '') +
-    '</div></div>';
+  var chot = d.lan_truoc ? '<span class="gvt-c" data-gvtchot>Chốt ' + gvtNgay(d.lan_truoc.ngay) + ': ' + money(d.lan_truoc.gia) + 'đ (' +
+    (d.lan_truoc.chenh_pct > 0 ? '+' : '') + gvtPhanTram(d.lan_truoc.chenh_pct) + ')</span>' : '';
+  return '<div class="gvt-the" data-gvtm="' + h(d.ma) + '">' +
+    '<div class="gvt-dau">' + anhMon(d.anh) + '<div class="gvt-th">' +
+      '<div class="gvt-ten">' + h(d.ten) + '</div>' +
+      /* Thiếu giá hay vòng thì giá vốn chưa đủ, hệ số dễ làm hiểu nhầm: ẩn. */
+      '<div class="gvt-chips">' + gvtChipTrangThai(d) + (tinhDuoc ? gvtChipHeSo(d) : '') + chot + '</div>' +
+    '</div></div>' +
+    '<div class="gvt-so">' +
+      gvtO('Giá vốn', money(d.gia_von) + 'đ', d.trang_thai === 'vuot_gia_ban' ? 'do' : '') +
+      (d.gia_ban ? gvtO('Giá bán', money(d.gia_ban) + 'đ') : gvtO('Giá bán', 'Chưa có', '', 1)) +
+      oDx +
+    '</div>' +
+    (co ? '<div class="gvt-ghi" data-gvtco style="color:' + (tt ? tt.mau : '#b45309') + '">' + h(co) + '</div>' : '') +
+  '</div>';
+}
+
+/* Đầu mỗi nhóm: tên nhóm và chip hệ số mục tiêu của nhóm. */
+function gvtDauNhom(ten, heSo) {
+  return '<div class="gvt-nhom"><div class="n">' + h(ten) + '</div>' +
+    (heSo ? '<span class="gvt-c" style="color:#0f766e;background:#ccfbf1">Mục tiêu <b style="margin:0 0 0 3px">' + gvtHeSo(heSo) + '</b></span>'
+      : '<span class="gvt-c">Chưa đặt mục tiêu</span>') + '</div>';
 }
 
 function gvtVeDs() {
@@ -120,9 +177,7 @@ function gvtVeDs() {
     (kq.nhom || []).forEach(function (n) {
       var cua = ds.filter(function (d) { return d.nhom === n.ten; });
       if (!cua.length) return;
-      html += '<div class="sec">' + h(n.ten) + ', ' +
-        (n.he_so_muc_tieu ? 'mục tiêu ' + gvtHeSo(n.he_so_muc_tieu) : 'chưa đặt mục tiêu') + '</div>' +
-        '<div class="card">' + cua.map(gvtThe).join('') + '</div>';
+      html += gvtDauNhom(n.ten, n.he_so_muc_tieu) + '<div class="card">' + cua.map(gvtThe).join('') + '</div>';
     });
   }
   /* Codex #483 vong 3: mon co nhieu cong thuc dang chay ma chua chon ban mac
@@ -156,12 +211,13 @@ function gvtTab() {
 }
 
 function gvtVe() {
+  gvtCss();
   if (GVT.tab === 'thu') return gvtVeThu();
   var kq = GVT.kq || {};
   var dong = kq.dong || [];
   var html = gvtTab() + '<div class="card" style="padding:12px 14px"><div style="font-size:13.5px;color:#4b5563;line-height:1.55">' +
     'Tiền nguyên liệu theo công thức đang dùng, tính dồn qua bán thành phẩm, theo giá kho hôm nay. ' +
-    'x5 nghĩa là giá bán gấp 5 lần giá vốn; số trong ngoặc là giá vốn trên giá bán. ' +
+    'x5 nghĩa là giá bán gấp 5 lần giá vốn; "vốn 20%" là giá vốn trên giá bán. ' +
     'Chưa gồm bao bì, công, hao hụt. Chỉ để định giá, không đổi sổ sách.</div>' +
     '<div style="font-size:12.5px;color:#9ca3af;margin-top:6px">Tính lúc ' + h(kq.cap_nhat_luc || '') + '</div>' +
     '<input class="tin" id="gvtQ" placeholder="Tìm tên hoặc mã bánh" value="' + h(GVT.tim) + '" style="margin:10px 0 0"></div>';
@@ -384,16 +440,24 @@ function gvtCauDeXuat(p) {
 }
 
 function gvtThePhieu(p) {
-  var de = gvtCauDeXuat(p);
-  return '<div class="hub" data-gvtp="' + h(p.name) + '" style="align-items:flex-start">' +
-    '<div class="hub-t" style="flex:1;min-width:0">' +
-      '<div style="display:flex;gap:8px;align-items:center"><div class="t1" style="flex:1;min-width:0">' + h(p.ten_mon) + '</div>' + gvtChipTrangThai(p) + '</div>' +
-      '<div class="t2">Giá vốn ' + money(p.gia_von) + 'đ/' + h(p.dvt_ra) + ' · mẻ ra ' + String(p.so_ra).replace('.', ',') + ' ' + h(p.dvt_ra) +
-        (p.nhom ? ' · ' + h(gvtTenNhom(p.nhom)) : '') + '</div>' +
-      (de ? '<div class="t2" style="color:#0f766e;font-weight:700">' + h(de) + '</div>' : '') +
-      (p.gia_ban_du_kien ? '<div class="t2">Giá bán dự kiến ' + money(p.gia_ban_du_kien) + 'đ' + (p.he_so != null ? ' · ' + gvtHeSoKem(p) : '') + '</div>' : '') +
-      (p.thieu_so ? '<div class="t2" style="color:#b45309">Thiếu giá ' + p.thieu_so + ' nguyên liệu. Mở phiếu để nhập giá tay.</div>' : '') +
-    '</div></div>';
+  var dvt = p.dvt_ra || 'Cái';
+  var tinhDuoc = p.trang_thai !== 'thieu_gia' && p.trang_thai !== 'vong' && p.trang_thai !== 'chua_nguyen_lieu';
+  var oDx;
+  if (p.gia_de_xuat) oDx = gvtO('Đề xuất ' + gvtHeSo(p.he_so_muc_tieu), money(p.gia_de_xuat) + 'đ', 'dx');
+  else oDx = gvtO('Đề xuất', !tinhDuoc ? 'Chưa tính' : (p.nhom ? 'Chưa đặt hệ số' : 'Chọn nhóm'), '', 1);
+  return '<div class="gvt-the" data-gvtp="' + h(p.name) + '">' +
+    '<div class="gvt-ten">' + h(p.ten_mon) + '</div>' +
+    '<div class="gvt-chips">' + gvtChipTrangThai(p) + gvtChipHeSo(p) +
+      (p.nhom ? '<span class="gvt-c">' + h(gvtTenNhom(p.nhom)) + '</span>' : '') +
+      '<span class="gvt-c">Mẻ ra ' + String(p.so_ra).replace('.', ',') + ' ' + h(dvt) + '</span></div>' +
+    '<div class="gvt-so">' +
+      gvtO('Giá vốn/' + dvt, money(p.gia_von) + 'đ', p.trang_thai === 'vuot_gia_ban' ? 'do' : '') +
+      (p.gia_ban_du_kien ? gvtO('Giá dự kiến', money(p.gia_ban_du_kien) + 'đ') : gvtO('Giá dự kiến', 'Chưa có', '', 1)) +
+      oDx +
+    '</div>' +
+    (p.thieu_so ? '<div class="gvt-ghi" style="color:#b45309">Thiếu giá ' + p.thieu_so + ' nguyên liệu. Mở phiếu để nhập giá tay.</div>' :
+      (!p.gia_de_xuat && tinhDuoc && gvtCauDeXuat(p) ? '<div class="gvt-ghi" style="color:#667085">' + h(gvtCauDeXuat(p)) + '</div>' : '')) +
+  '</div>';
 }
 
 /* Danh sách phiếu (phần dưới ô tìm): thẻ, câu rỗng, nút Xem thêm. */
@@ -410,6 +474,7 @@ function gvtDsThu() {
 }
 
 function gvtVeThu() {
+  gvtCss();
   var t = GVT.thu || {};
   var html = gvtTab() + '<div class="card" style="padding:12px 14px"><div style="font-size:13.5px;color:#4b5563;line-height:1.55">' +
     'Món đang thử chưa bán: nhập nguyên liệu tạm để có giá vốn và giá bán đề xuất theo hệ số mục tiêu của nhóm. ' +
@@ -514,12 +579,14 @@ function gvtKhoiKetQua() {
   if (GVT.loiTinh) return '<div style="font-size:14px;color:#b3261e;font-weight:700">' + h(GVT.loiTinh) + '</div>';
   if (!k) return '<div style="font-size:13.5px;color:#6b7280">Thêm nguyên liệu và số lượng để máy tính giá vốn.</div>';
   var de = gvtCauDeXuat(Object.assign({}, k, { nhom: p.nhom }));
-  return '<div style="display:flex;gap:8px;align-items:center"><div style="flex:1;font-size:15px;font-weight:800">Giá vốn ' + money(k.gia_von) + 'đ/' + h(p.dvt_ra || 'Cái') + '</div>' +
-    gvtChipTrangThai(k) + '</div>' +
-    '<div class="t2" style="margin-top:4px">Cả mẻ ' + money(k.tong_me) + 'đ, ra ' + String(p.so_ra || 1).replace('.', ',') + ' ' + h(p.dvt_ra || 'Cái') + '</div>' +
-    (de ? '<div class="t2" style="color:#0f766e;font-weight:700">' + h(de) + '</div>' : '') +
-    (k.he_so != null ? '<div class="t2">Giá bán dự kiến ' + money(gvtSoVn(p.gia_ban_du_kien)) + 'đ · ' + gvtHeSoKem(k) + '</div>' : '') +
-    (k.thieu_so ? '<div class="t2" style="color:#b45309">Thiếu giá ' + k.thieu_so + ' nguyên liệu: nhập giá tay ở dòng đó.</div>' : '');
+  /* Cùng bộ chip với thẻ danh sách (17/10/2026). */
+  return '<div style="font-size:17px;font-weight:800;color:#101828">Giá vốn ' + money(k.gia_von) + 'đ/' + h(p.dvt_ra || 'Cái') + '</div>' +
+    '<div class="t2" style="margin-top:2px">Cả mẻ ' + money(k.tong_me) + 'đ, ra ' + String(p.so_ra || 1).replace('.', ',') + ' ' + h(p.dvt_ra || 'Cái') + '</div>' +
+    '<div class="gvt-chips">' + gvtChipTrangThai(k) + gvtChipHeSo(k) +
+      (de ? '<span class="gvt-c" style="color:' + (k.gia_de_xuat ? '#047857;background:#ecfdf5' : '#475467;background:#f2f4f7') + '">' + h(de) + '</span>' : '') +
+    '</div>' +
+    (k.he_so != null ? '<div class="t2" style="margin-top:6px">Giá bán dự kiến ' + money(gvtSoVn(p.gia_ban_du_kien)) + 'đ</div>' : '') +
+    (k.thieu_so ? '<div class="gvt-ghi" style="color:#b45309">Thiếu giá ' + k.thieu_so + ' nguyên liệu: nhập giá tay ở dòng đó.</div>' : '');
 }
 /* Dòng cần ô giá tay: NVL chưa có mã, mã máy chủ báo thiếu giá (kể cả nhiều
    công thức), hoặc đã có giá tay. MỘT chỗ quyết cho cả lúc vẽ dòng và lúc
@@ -568,6 +635,7 @@ function gvtDongNhap(d, i) {
 }
 
 function gvtManPhieu() {
+  gvtCss();
   var p = GVT.p;
   /* Mở lại từ bản nháp trên trang chủ: chưa có danh sách nên chưa có nhóm
      bán và quyền. Tải trang đầu rồi vẽ lại nếu vẫn đang ở màn này. */
