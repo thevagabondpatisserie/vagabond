@@ -53,3 +53,6 @@
   - Sheet hệ số mục tiêu có đủ chín nhóm (máy chủ trả `nhom_ban`), cuộn được; máy chủ chỉ đổi nhóm có gửi (`gop_he_so`), nhóm không gửi giữ nguyên mục tiêu.
   - Công thức vòng: không bảo nhập giá tay, không có ô giá tay, chỉ đường sửa công thức (một câu chung cho thẻ và màn phiếu).
   - Dấu vết nằm trong phiếu đang sửa nên bản nháp của phiếu đã lưu mở lại vẫn còn.
+- 17/10/2026 (PR #486, Codex rà vòng 12 trên efaa7afe6, 2 finding P2, tái hiện đủ 2 rồi sửa):
+  - NVL chưa có mã phải có đơn vị, máy chủ chặn kể cả lưu trên Desk hay gọi API.
+  - Lưu đè phiếu đã có phải gửi bản lúc mở (`phien_ban` = modified); người khác, tab khác hay bản nháp cũ đã đổi phiếu thì máy chủ chặn và chỉ mở lại phiếu, không xoá phần người khác sửa.
