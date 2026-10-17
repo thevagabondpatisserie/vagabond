@@ -59686,7 +59686,7 @@ function gvtVe() {
     'Tiền nguyên liệu theo công thức đang dùng, tính dồn qua bán thành phẩm, theo giá kho hôm nay. ' +
     'x5 nghĩa là giá bán gấp 5 lần giá vốn; "vốn 20%" là giá vốn trên giá bán. ' +
     'Chưa gồm bao bì, công, hao hụt. Chỉ để định giá, không đổi sổ sách.</div>' +
-    '<div style="font-size:12.5px;color:#9ca3af;margin-top:6px">Tính lúc ' + h(kq.cap_nhat_luc || '') + '</div>' +
+    '<div style="font-size:13px;color:#9ca3af;margin-top:6px">Tính lúc ' + h(kq.cap_nhat_luc || '') + '</div>' +
     '<input class="tin" id="gvtQ" placeholder="Tìm tên hoặc mã bánh" value="' + h(GVT.tim) + '" style="margin:10px 0 0"></div>';
 
   var chipNhom = posChipNut('data-gvtn=""', 'Tất cả ' + dong.length, !GVT.nhom);
@@ -59935,6 +59935,7 @@ function gvtThePhieu(p) {
     '</div>' +
     (p.thieu_so ? '<div class="gvt-ghi" style="color:#b45309">Thiếu giá ' + p.thieu_so + ' nguyên liệu. Mở phiếu để nhập giá tay.</div>' :
       (!p.gia_de_xuat && tinhDuoc && gvtCauDeXuat(p) ? '<div class="gvt-ghi" style="color:#667085">' + h(gvtCauDeXuat(p)) + '</div>' : '')) +
+    gvtDauVet(p) +
   '</div>';
 }
 
@@ -59964,6 +59965,20 @@ function gvtChipThu(t) {
   if (chua || GVT.thuNhom === GVT_CHUA_NHOM) r2 += posChipNut('data-gvtfn="' + GVT_CHUA_NHOM + '"', 'Chưa chọn nhóm ' + chua, GVT.thuNhom === GVT_CHUA_NHOM);
   var r3 = GVT_KHOANG.map(function (k) { return posChipNut('data-gvtfk="' + k[0] + '"', k[1], GVT.thuKh === k[0]); }).join('');
   return '<div class="card" data-gvtloc style="padding:10px 12px">' + hang(r1, 1) + hang(r2) + hang(r3) + '</div>';
+}
+
+/* Dấu vết của phiếu đã lưu (AGENTS.md 2b điều 11, Codex #486 v9): ai lập lúc
+   nào, ai sửa gần nhất lúc nào, chip "Đã sửa N lần". Số do máy chủ đếm. */
+function gvtLuc(s) {
+  var m = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/.exec(String(s || ''));
+  return m ? m[3] + '/' + m[2] + ' ' + m[4] + ':' + m[5] : '';
+}
+function gvtDauVet(p, kieu) {
+  if (!p || !p.name) return '';
+  var s = 'Lập: ' + h(p.ten_nguoi || p.nguoi || '') + ' ' + gvtLuc(p.lap_luc);
+  if (p.so_lan_sua) s += ' · Sửa gần nhất: ' + h(p.ten_nguoi_sua || p.nguoi_sua || '') + ' ' + gvtLuc(p.cap_nhat);
+  return '<div class="gvt-ghi" data-gvtvet style="color:#6b7280;' + (kieu || '') + '">' + s +
+    (p.so_lan_sua ? ' <span class="gvt-c" data-gvtsua style="color:#92400e;background:#fef3c7">Đã sửa ' + p.so_lan_sua + ' lần</span>' : '') + '</div>';
 }
 
 /* Danh sách phiếu (phần dưới ô tìm): ba hàng chip, thẻ, câu rỗng, nút Xem thêm. */
@@ -60108,9 +60123,14 @@ function gvtKhoiKetQua() {
     (k.thieu_so ? '<div class="gvt-ghi" style="color:#b45309">Thiếu giá ' + k.thieu_so + ' nguyên liệu: nhập giá tay ở dòng đó.</div>' : '');
 }
 /* Dòng cần ô giá tay: NVL chưa có mã, mã máy chủ báo thiếu giá (kể cả nhiều
-   công thức), hoặc đã có giá tay. MỘT chỗ quyết cho cả lúc vẽ dòng và lúc
-   nhận kết quả (Codex #486 v4). */
-function gvtCanGiaTay(d, r) { return !d.item_code || !!(r && r.thieu) || gvtSoVn(d.don_gia_tay) > 0; }
+   công thức) hoặc máy chủ đang dùng giá tay của dòng đó. Mã đã có giá danh
+   mục thì máy chủ bỏ qua giá tay (Codex #486 v9), nên không hiện ô giá tay.
+   Chưa có kết quả thì theo giá tay đã gõ. MỘT chỗ quyết cho cả lúc vẽ dòng
+   và lúc nhận kết quả (Codex #486 v4). */
+function gvtCanGiaTay(d, r) {
+  if (!d.item_code) return true;
+  return r ? !!(r.thieu || r.tay) : gvtSoVn(d.don_gia_tay) > 0;
+}
 function gvtVeKetQua() {
   var el = document.getElementById('gvtpKq');
   if (el) el.innerHTML = gvtKhoiKetQua();
@@ -60170,6 +60190,7 @@ function gvtManPhieu() {
   var sua = t.sua_duoc !== false;
   var html = '<div class="card" style="padding:12px 14px" id="gvtpKq">' + gvtKhoiKetQua() + '</div>' +
     '<div class="card" style="padding:12px 14px">' +
+      (GVT.pk ? gvtDauVet(GVT.pk, 'margin:0 0 8px') : '') +
       '<div class="t2" style="margin-bottom:4px">Tên món thử</div>' +
       '<input class="tin" id="gvtpTen" placeholder="Ví dụ: Tart chanh dây size 16" value="' + h(p.ten_mon) + '" style="margin:0 0 10px">' +
       '<div class="t2" style="margin-bottom:6px">Nhóm bán dự kiến (để lấy hệ số mục tiêu)</div>' +
