@@ -612,6 +612,8 @@ def _get_all_thu(kho):
 					hop = False
 				if phep == "in" and co not in gt:
 					hop = False
+				if phep == ">=" and str(co or "") < str(gt):
+					hop = False
 			if hop:
 				ra.append(_Dong(name=ten))
 		ra = ra[int(limit_start or 0):]
@@ -726,9 +728,10 @@ def _site_thu(kho_dau=None):
 	return cu
 
 
-def _phieu_kho(ten, ten_mon, da_bo=0):
-	d = _DocGia(doctype=G.DT_THU, name=ten, ten_mon=ten_mon, nhom="Bánh lạnh", so_ra=1, dvt_ra="Cái",
-		gia_ban_du_kien=0, ghi_chu="", modified="2026-10-16 22:00:00", owner="khai@x", da_bo=da_bo)
+def _phieu_kho(ten, ten_mon, da_bo=0, nhom="Bánh lạnh", creation="2026-10-16 21:00:00", gia_ban=0):
+	d = _DocGia(doctype=G.DT_THU, name=ten, ten_mon=ten_mon, nhom=nhom, so_ra=1, dvt_ra="Cái",
+		gia_ban_du_kien=gia_ban, ghi_chu="", modified="2026-10-16 22:00:00", owner="khai@x", da_bo=da_bo,
+		creation=creation)
 	d.dong = [_Dong(item_code=None, ten="Lá vàng", dvt="Lá", so_luong=1, don_gia_tay=1000)]
 	return d
 
@@ -802,6 +805,79 @@ def _trang_ds():
 		la("gõ không dấu vẫn ra, nhưng không ra phiếu đã bỏ", G.ds_thu(tu_khoa="tart bo")["ds"], [])
 		la("phiếu đã bỏ thật có khớp chữ, chỉ bị lọc vì đã bỏ", G.tim_kiem.khop(["Tart bỏ"], "tart bo"), True)
 	finally:
+		_tra(cu)
+
+
+@ca("gia von tam: Codex #486 v7 loc_trang_thu: so tren chip bang so the khi bam, dem cheo theo bo loc kia, chia trang khong truot")
+def _loc_trang_thu():
+	ds = ([{"name": "A%d" % i, "nhom": "Bánh lạnh", "trang_thai": "dat"} for i in range(5)] +
+		[{"name": "B%d" % i, "nhom": "Bánh lạnh", "trang_thai": "thieu_gia"} for i in range(3)] +
+		[{"name": "C%d" % i, "nhom": "", "trang_thai": "chua_gia_ban"} for i in range(2)] +
+		[{"name": "D0", "nhom": "Bánh khô", "trang_thai": "dat"}])
+	r = G.loc_trang_thu(ds)
+	la("không lọc: đếm trạng thái", r["dem_tt"], {"dat": 6, "thieu_gia": 3, "chua_gia_ban": 2})
+	la("không lọc: đếm nhóm, chưa chọn nhóm có khoá riêng", r["dem_nhom"], {"Bánh lạnh": 8, G.CHUA_NHOM: 2, "Bánh khô": 1})
+	for k, so in r["dem_tt"].items():
+		la("bấm chip %s ra đúng %d thẻ" % (k, so), G.loc_trang_thu(ds, trang_thai=k)["so_hop"], so)
+	for k, so in r["dem_nhom"].items():
+		la("bấm chip nhóm %s ra đúng %d thẻ" % (k, so), G.loc_trang_thu(ds, nhom=k)["so_hop"], so)
+	r = G.loc_trang_thu(ds, trang_thai="dat")
+	la("đếm nhóm trong trạng thái đang chọn", r["dem_nhom"], {"Bánh lạnh": 5, "Bánh khô": 1})
+	la("đếm trạng thái không bị trạng thái đang chọn thu hẹp", r["dem_tt"]["thieu_gia"], 3)
+	r = G.loc_trang_thu(ds, nhom="Bánh lạnh")
+	la("đếm trạng thái trong nhóm đang chọn", r["dem_tt"], {"dat": 5, "thieu_gia": 3})
+	thay, bd = [], 0
+	for _v in range(10):
+		t = G.loc_trang_thu(ds, nhom="Bánh lạnh", bat_dau=bd, trang=3)
+		thay += [p["name"] for p in t["ds"]]
+		if not t["con_nua"]:
+			break
+		bd = t["bat_dau_tiep"]
+	la("đi hết các trang có lọc: đủ, không trùng, giữ thứ tự", thay, ["A0", "A1", "A2", "A3", "A4", "B0", "B1", "B2"])
+
+
+@ca("gia von tam: Codex #486 v7 chuan_loc_thu va moc_khoang: gia tri la ve tat ca, khoang ngay tinh ca hom nay")
+def _chuan_loc_thu():
+	import datetime
+	la("hợp lệ", G.chuan_loc_thu("thieu_gia", "Bánh lạnh", "7_ngay"), ("thieu_gia", "Bánh lạnh", "7_ngay"))
+	la("chưa chọn nhóm", G.chuan_loc_thu("", G.CHUA_NHOM, ""), ("", G.CHUA_NHOM, ""))
+	la("giá trị lạ về tất cả", G.chuan_loc_thu("xoa_het", "Nhóm lạ", "100_nam"), ("", "", ""))
+	la("trống", G.chuan_loc_thu(None, None, None), ("", "", ""))
+	hn = datetime.date(2026, 10, 17)
+	la("hôm nay", G.moc_khoang("hom_nay", hn), hn)
+	la("7 ngày gồm hôm nay", G.moc_khoang("7_ngay", hn), datetime.date(2026, 10, 11))
+	la("30 ngày gồm hôm nay", G.moc_khoang("30_ngay", hn), datetime.date(2026, 9, 18))
+	la("mọi ngày", G.moc_khoang("", hn), None)
+
+
+@ca("gia von tam: Codex #486 v7 ds_thu loc trang thai, nhom, ngay lap o may chu, tra lai bo loc da dung")
+def _ds_thu_loc():
+	import frappe
+	kho = {
+		"GT-2610-001": _phieu_kho("GT-2610-001", "Tart cũ", creation="2026-09-01 08:00:00", gia_ban=10000),
+		"GT-2610-002": _phieu_kho("GT-2610-002", "Tart mới", creation="2026-10-16 08:00:00"),
+		"GT-2610-003": _phieu_kho("GT-2610-003", "Su kem", nhom="", creation="2026-10-15 08:00:00"),
+		"GT-2610-004": _phieu_kho("GT-2610-004", "Tart bỏ", da_bo=1, creation="2026-10-16 08:00:00"),
+	}
+	cu = _site_thu(kho)
+	cu["__nowdate"] = G.nowdate
+	G.nowdate = lambda: "2026-10-17"
+	try:
+		t = G.ds_thu()
+		la("không lọc: đủ phiếu chưa bỏ", sorted(p["name"] for p in t["ds"]), ["GT-2610-001", "GT-2610-002", "GT-2610-003"])
+		la("trả bộ lọc và tổng", (t["trang_thai"], t["nhom"], t["khoang"], t["tong"], t["vuot"]), ("", "", "", 3, False))
+		la("đếm nhóm", t["dem_nhom"], {"Bánh lạnh": 2, G.CHUA_NHOM: 1})
+		k = G.ds_thu(khoang="7_ngay")
+		la("lập 7 ngày qua bỏ phiếu cũ", sorted(p["name"] for p in k["ds"]), ["GT-2610-002", "GT-2610-003"])
+		la("tổng theo khoảng", k["tong"], 2)
+		n = G.ds_thu(nhom=G.CHUA_NHOM)
+		la("chưa chọn nhóm", [p["name"] for p in n["ds"]], ["GT-2610-003"])
+		tt = t["ds"][0]["trang_thai"]
+		s = G.ds_thu(trang_thai=tt)
+		dung("lọc trạng thái chỉ còn đúng trạng thái", all(p["trang_thai"] == tt for p in s["ds"]) and len(s["ds"]) == t["dem_tt"][tt])
+		la("bộ lọc lạ không làm rỗng danh sách", len(G.ds_thu(trang_thai="la", nhom="la", khoang="la")["ds"]), 3)
+	finally:
+		G.nowdate = cu.pop("__nowdate")
 		_tra(cu)
 
 
