@@ -557,6 +557,59 @@ def chuan_trang(tu_khoa, bat_dau):
 	return tu, max(bd, 0)
 
 
+# Ba hàng chip của danh sách phiếu thử (Codex #486 v7, AGENTS.md 2b điều 3):
+# trạng thái có đếm số, nhóm bán, khoảng ngày lập. Trạng thái tính theo giá
+# HÔM NAY nên không lọc bằng SQL được: máy chủ tính cả tập (tối đa TOI_DA_THU
+# phiếu mới sửa nhất) rồi lọc, đếm, chia trang trong python, để số trên chip
+# luôn bằng số thẻ hiện ra và Xem thêm không trượt.
+TOI_DA_THU = 500
+CHUA_NHOM = "__chua_nhom"   # khoá chip "Chưa chọn nhóm"
+KHOANG_THU = {"hom_nay": 0, "7_ngay": 6, "30_ngay": 29}   # số ngày lùi, tính cả hôm nay
+TT_THU = ("vuot_gia_ban", "vong", "thieu_gia", "duoi_muc_tieu", "chua_dat_muc_tieu", "chua_gia_ban",
+	"chua_nguyen_lieu", "dat")
+
+
+def chuan_loc_thu(trang_thai, nhom, khoang, nhom_hop_le=NHOM_BAN):
+	"""Bộ lọc chip của danh sách phiếu thử. THUẦN. Giá trị lạ về rỗng (tất cả)."""
+	tt = str(trang_thai or "").strip()
+	nh = str(nhom or "").strip()
+	kh = str(khoang or "").strip()
+	return (tt if tt in TT_THU else "", nh if (nh in nhom_hop_le or nh == CHUA_NHOM) else "",
+		kh if kh in KHOANG_THU else "")
+
+
+def moc_khoang(khoang, hom_nay):
+	"""Ngày lập sớm nhất của khoảng, None là mọi ngày. THUẦN. `hom_nay` là date."""
+	import datetime
+	if khoang not in KHOANG_THU:
+		return None
+	return hom_nay - datetime.timedelta(days=KHOANG_THU[khoang])
+
+
+def loc_trang_thu(ds, trang_thai="", nhom="", bat_dau=0, trang=TRANG_THU):
+	"""Lọc theo chip, đếm chip, cắt trang. THUẦN. `ds` đã tính và xếp sẵn.
+
+	Số trên chip trạng thái đếm trong nhóm đang chọn, số trên chip nhóm đếm
+	trong trạng thái đang chọn: bấm chip nào cũng ra đúng số thẻ đã hiện."""
+	def khop_nhom(p):
+		return not nhom or (p.get("nhom") or CHUA_NHOM) == nhom
+
+	def khop_tt(p):
+		return not trang_thai or p.get("trang_thai") == trang_thai
+	dem_tt, dem_nhom = {}, {}
+	for p in ds:
+		if khop_nhom(p):
+			dem_tt[p.get("trang_thai")] = dem_tt.get(p.get("trang_thai"), 0) + 1
+		if khop_tt(p):
+			k = p.get("nhom") or CHUA_NHOM
+			dem_nhom[k] = dem_nhom.get(k, 0) + 1
+	hop = [p for p in ds if khop_nhom(p) and khop_tt(p)]
+	bd = max(int(bat_dau or 0), 0)
+	cat = hop[bd:bd + trang]
+	return {"ds": cat, "dem_tt": dem_tt, "dem_nhom": dem_nhom, "so_hop": len(hop),
+		"con_nua": bd + len(cat) < len(hop), "bat_dau_tiep": bd + len(cat)}
+
+
 def tinh_phieu(phieu, gia_ma, he_so_nhom=None):
 	"""Giá vốn của một phiếu thử bằng đúng nguồn giá của món đang bán. THUẦN.
 
@@ -830,25 +883,34 @@ def _nhom_ban():
 
 
 @frappe.whitelist()
-def ds_thu(tu_khoa="", bat_dau=0):
+def ds_thu(tu_khoa="", bat_dau=0, trang_thai="", nhom="", khoang=""):
 	"""Danh sách phiếu tính giá thử chưa bỏ, mỗi trang TRANG_THU phiếu, tìm
-	theo tên ở máy chủ. Tính lại theo giá hôm nay. Chỉ đọc.
+	theo tên ở máy chủ, lọc theo ba hàng chip. Tính lại theo giá hôm nay.
+	Chỉ đọc.
 
 	Codex #486: bản đầu cắt cứng 200 phiếu mà màn không có cách xem phần còn
-	lại. Giờ trả `con_nua` và `bat_dau_tiep` để màn nạp tiếp."""
+	lại. Giờ trả `con_nua` và `bat_dau_tiep` để màn nạp tiếp. Codex #486 v7:
+	lọc trạng thái, nhóm, khoảng ngày lập và đếm chip ở máy chủ
+	(loc_trang_thu), trả lại bộ lọc đã dùng để Xem thêm đi đúng bộ lọc đó."""
 	_kiem(QUYEN_XEM, "xem giá vốn tạm tính")
 	tu, bd = chuan_trang(tu_khoa, bat_dau)
+	tt, nh, kh = chuan_loc_thu(trang_thai, nhom, khoang)
+	loc = [["da_bo", "=", 0]]
+	moc = moc_khoang(kh, getdate(nowdate()))
+	if moc:
+		loc.append(["creation", ">=", str(moc)])
 	# Ô tìm đi qua MỘT nguồn tim_kiem (v583): gõ có dấu, không dấu, đảo thứ tự
 	# chữ đều ra. Không tự viết like.
-	loc = tim_kiem.them_loc({"da_bo": 0}, DT_THU, tu, ["name", "ten_mon"])
+	loc = tim_kiem.them_loc(loc, DT_THU, tu, ["name", "ten_mon"])
 	ten = [r.name for r in frappe.get_all(DT_THU, filters=loc, fields=["name"], order_by="modified desc",
-		limit_start=bd, limit_page_length=TRANG_THU + 1)]
-	con_nua = len(ten) > TRANG_THU
-	ten = ten[:TRANG_THU]
-	ds, he_so = _tinh_cac_phieu([_doc_phieu(t) for t in ten])
-	return {"ds": ds, "he_so": he_so, "nhom_ban": _nhom_ban(), "tu_khoa": tu, "bat_dau": bd,
-		"con_nua": con_nua, "bat_dau_tiep": bd + len(ten),
-		"sua_duoc": bool(QUYEN_CHOT & set(frappe.get_roles()))}
+		limit_page_length=TOI_DA_THU + 1)]
+	vuot = len(ten) > TOI_DA_THU
+	tat, he_so = _tinh_cac_phieu([_doc_phieu(t) for t in ten[:TOI_DA_THU]])
+	ra = loc_trang_thu(tat, tt, nh, bd)
+	ra.update({"he_so": he_so, "nhom_ban": _nhom_ban(), "tu_khoa": tu, "bat_dau": bd,
+		"trang_thai": tt, "nhom": nh, "khoang": kh, "tong": len(tat), "vuot": vuot,
+		"sua_duoc": bool(QUYEN_CHOT & set(frappe.get_roles()))})
+	return ra
 
 
 @frappe.whitelist()
