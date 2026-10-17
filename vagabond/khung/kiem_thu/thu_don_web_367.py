@@ -1013,6 +1013,8 @@ def _():
 
 @ca("12/10 #462 Hannari: ảnh sp do máy chép lùi sau Pancake sống, nhưng vẫn là dự phòng")
 def _():
+	# GHI CHÚ 17/10 (v601): ca này truyền cả mã 18cm BAWC00098 vào nhóm nên che
+	# mất lỗi. Ngoài đời nhóm chỉ gồm size đang có số (12, 16cm); xem ca v601 bên dưới.
 	c = anh_web.chon_anh
 	ma = ["BAWC00023", "BAWC00098", "BAWC00024"]
 	erp = ["/files/sp-bawc00023a1227d.jpg", "/files/sp-bawc00098565623.jpg",
@@ -1026,6 +1028,23 @@ def _():
 	la("Pancake rỗng thì tệp sp vẫn dự phòng, không rơi về ảnh nền",
 		c("/files/sp-bawc00023a1227d.jpg", [], ma_hang="BAWC00023")[0],
 		"/files/sp-bawc00023a1227d.jpg")
+
+
+@ca("17/10 v601 Hannari: nhóm chỉ có 12 và 16cm, Item 16cm mang tệp chép của mã 18cm, Pancake sống vẫn đứng đầu")
+def _():
+	c = anh_web.chon_anh
+	# Đúng dữ liệu site 17/10: BAWC00023 -> sp-bawc00023a1227d.jpg, BAWC00024 -> sp-bawc00098565623.jpg,
+	# nhóm đặt trước chỉ có hai mã đang có số đủ decor.
+	ma = ["BAWC00023", "BAWC00024"]
+	erp = ["/files/sp-bawc00023a1227d.jpg", "/files/sp-bawc00098565623.jpg"]
+	song = ["https://content.pancake.vn/hannari-dung.webp"]
+	anh, ds = c(erp, song, "", ma_hang=ma)
+	la("ảnh đầu là Pancake sống", anh, song[0])
+	la("tệp chép của mã khác lùi sau Pancake", ds.index("/files/sp-bawc00098565623.jpg") > ds.index(song[0]), True)
+	for ten, mong in (("sp-bawc00098565623.jpg", True), ("sp-bawc00023a1227d.jpg", True), ("sp-bawc00002.jpg", True),
+			("sp-bapk00016.png", True), ("hannari-chon-tay.jpg", False), ("sp-anh-moi.jpg", False), ("spbawc00023.jpg", False)):
+		la("nhận tệp chép " + ten, anh_web.la_anh_pancake_da_chep("/files/" + ten), mong)
+	la("ảnh người chọn vẫn đứng trước Pancake", c(["/files/hannari-chon-tay.jpg", erp[1]], song, ma_hang=ma)[0], "/files/hannari-chon-tay.jpg")
 
 
 @ca("#367 I nhánh Hôm nay và Đặt trước: ảnh ERP thắng ảnh Pancake, kể cả khi chưa có khoá Pancake")
