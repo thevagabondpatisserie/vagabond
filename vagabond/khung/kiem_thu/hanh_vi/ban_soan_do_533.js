@@ -28,6 +28,18 @@ var BAO_GIA = doc('22-bao-gia.js');
 var DON_HUY = doc('29-don-huy.js');
 var SOAN_DO = doc('48-ban-soan-do.js');
 var GIA_VON_TAM = doc('53-gia-von-tam.js');
+/* Hàm tìm bỏ dấu THẬT của 00-nen.js (sheet nhóm bán của phiếu thử gọi vgbKhop, Codex #486 v7). */
+function layHam(src, ten) {
+  var dau = src.indexOf('function ' + ten + '(');
+  if (dau < 0) throw new Error('Khong thay ham ' + ten);
+  var i = src.indexOf('{', dau), sau = 0;
+  for (var j = i; j < src.length; j++) {
+    if (src[j] === '{') sau++;
+    else if (src[j] === '}') { sau--; if (!sau) return src.slice(dau, j + 1); }
+  }
+  throw new Error('Ham ' + ten + ' khong dong ngoac');
+}
+var NEN_TIM = ['vgbChuan', 'vgbKhop'].map(function (t) { return layHam(doc('00-nen.js'), t); }).join('\n');
 
 var ket = { dat: 0, hong: 0, loi: [] };
 function dung(mo, dk) { if (!dk) throw new Error(mo + ': duoc false, mong true'); }
@@ -163,6 +175,7 @@ function appMoi(kho, canh) {
   vm.runInContext(KHUNG, g);
   vm.runInContext(BAO_GIA, g);
   vm.runInContext(DON_HUY, g);
+  vm.runInContext(NEN_TIM, g);
   vm.runInContext(GIA_VON_TAM, g);
   /* Moi man lap phieu KHAC ma 48 boc: ca nay khong nap that, chi can co ten
      de 48 boc duoc luc nap. Man that cua bao gia thi da nap o tren. */
@@ -521,7 +534,9 @@ async function chayHet() {
     dung('man phieu thu da ve', !!a.el('gvtpTen'));
     /* Tên không có dấu &: DOM giả không giải mã thực thể trong value=, trình duyệt thật thì có. */
     a.go('gvtpTen', 'Tart chanh dây thử');
-    await a.bam(a.tl.querySelector('[data-gvtpn="Bánh lạnh"]'));
+    /* Codex #486 v7: nhóm bán chọn qua thẻ mở sheet có ô tìm (chín nhóm). */
+    await a.bam(a.tl.querySelector('[data-gvtpnhom]'));
+    await a.bam(a.tl.querySelector('[data-gvtpnchon="Bánh lạnh"]'));
     await a.bam(a.tl.querySelector('[data-gvtpthem]'));
     a.tl.querySelector('[data-gvtnmoiten]').value = 'Chanh dây Đà Lạt';
     a.tl.querySelector('[data-gvtnmoidvt]').value = 'Gram';
@@ -543,7 +558,8 @@ async function chayHet() {
     bang('dong nguyen lieu dien lai', b.g.GVT.p.dong.map(function (d) { return [d.ten, d.dvt, String(d.so_luong), String(d.don_gia_tay)]; }),
       [['Chanh dây Đà Lạt', 'Gram', '200', '50']]);
     bang('o so luong dien lai', b.tl.querySelector('[data-gvtpsl="0"]').value, '200');
-    dung('co chip nhom sau khi tai danh sach', !!b.tl.querySelector('[data-gvtpn="Bánh lạnh"]'));
+    var theNhom = b.tl.querySelector('[data-gvtpnhom]');
+    dung('the nhom ban hien dung nhom sau khi tai danh sach', !!theNhom && theNhom.textContent.indexOf('Bánh lạnh') >= 0);
     dung('mo lai thi tinh thu lai o may chu', b.mc.goi.some(function (x) { return x.m === 'vagabond.gia_von_tam.tinh_thu'; }));
     await b.bam('gvtpLuu'); await b.cho(); await b.cho();
     var luu = b.mc.goi.filter(function (x) { return x.m === 'vagabond.gia_von_tam.luu_thu'; });

@@ -117,7 +117,27 @@ var DS_THU_THIEU = tinhPhieuPy([
     { item_code: 'NVLT00001', ten: 'Bột mì', dvt: 'Gram', so_luong: 100 },
     { item_code: 'NVLT00099', ten: 'Bột hạnh nhân', dvt: 'Gram', so_luong: 100 }] }
 ]);
-var NHOM_BAN = [{ ten: 'Bánh ổ sinh nhật', nhan: 'Bánh ổ' }, { ten: 'Bánh lạnh', nhan: 'Bánh lạnh' }, { ten: 'Bánh nướng', nhan: 'Bánh nướng' }];
+/* Codex #486 vòng 7: thêm một phiếu chưa chọn nhóm để có đủ ba hàng chip. */
+var DS_THU_KHONG_NHOM = tinhPhieuPy([
+  { name: 'GT-2610-005', ten_mon: 'Su kem thử', nhom: '', so_ra: 2, gia_ban_du_kien: 40000, dong: [
+    { item_code: 'NVLT00001', ten: 'Bột mì', dvt: 'Gram', so_luong: 100 }] }
+]);
+/* Lọc chip, đếm chip, chia trang bằng CHÍNH gia_von_tam.loc_trang_thu (Codex
+   #486 v7), để máy chủ giả không tự viết lại luật lọc. */
+function locPy(ds, ts, co) {
+  var py = ['import json, sys', 'sys.path.insert(0, sys.argv[1])', 'from vagabond.khung.kiem_thu import nen', 'nen.gia_lap()',
+    'from vagabond import gia_von_tam as G', 'a = json.loads(sys.argv[2])',
+    'tt, nh, kh = G.chuan_loc_thu(a["tt"], a["nhom"], a["kh"])',
+    'r = G.loc_trang_thu(a["ds"], tt, nh, a["bd"], a["co"])',
+    'r.update(trang_thai=tt, nhom=nh, khoang=kh, tong=len(a["ds"]))',
+    'sys.stdout.write(json.dumps(r, ensure_ascii=False))'].join('\n');
+  return JSON.parse(cp.execFileSync('python3', ['-c', py, GOC, JSON.stringify({ ds: ds, tt: ts.trang_thai || '', nhom: ts.nhom || '',
+    kh: ts.khoang || '', bd: ts.bat_dau || 0, co: co })], { encoding: 'utf8' }));
+}
+/* Đủ chín nhóm bán thật của máy chủ (Codex #486 v7: hơn 8 lựa chọn là sheet có ô tìm). */
+var NHOM_BAN = JSON.parse(cp.execFileSync('python3', ['-c', ['import json, sys', 'sys.path.insert(0, sys.argv[1])',
+  'from vagabond.khung.kiem_thu import nen', 'nen.gia_lap()', 'from vagabond import gia_von_tam as G',
+  'sys.stdout.write(json.dumps(G._nhom_ban(), ensure_ascii=False))'].join('\n'), GOC], { encoding: 'utf8' }));
 var CHI_TIET = {
   '': { ma: 'BAWC00067', ten: 'Bánh Ổ Roman De La Rose, size 16cm', bom: 'B1', so_ra: 1, gia: 250959, dong: [
     { ma: 'NBTP00006', ten: 'BTP Cấp 2 Bánh Ổ Roman size 16', sl: 1, dvt: 'Cái', don_gia: 198466, nguon: 'Công thức', thanh_tien: 198466, bom_con: 'BOM-NBTP00006-001', thieu: 0 },
@@ -154,12 +174,13 @@ function dungMan(tuyChon) {
       if (duong === 'vagabond.gia_von_tam.ds_thu') {
         /* Như máy chủ: lọc theo tên, chia trang theo bat_dau, báo con_nua. */
         var tat = tuyChon.khongPhieu ? [] : JSON.parse(JSON.stringify(tuyChon.nhieuTrang ? DS_THU.concat(DS_THU_2) :
-          tuyChon.phieuThieu ? DS_THU.concat(DS_THU_THIEU) : DS_THU));
+          tuyChon.phieuThieu ? DS_THU.concat(DS_THU_THIEU) :
+          tuyChon.locNhieu ? DS_THU.concat(DS_THU_2, DS_THU_THIEU, DS_THU_KHONG_NHOM) : DS_THU));
         var tu = String((ts && ts.tu_khoa) || '').toLowerCase();
         if (tu) tat = tat.filter(function (p) { return p.ten_mon.toLowerCase().indexOf(tu) >= 0; });
-        var bd = (ts && ts.bat_dau) || 0, co = tuyChon.nhieuTrang ? 1 : 30;
-        var tra = { ds: tat.slice(bd, bd + co), he_so: { 'Bánh lạnh': 5 }, nhom_ban: NHOM_BAN, sua_duoc: !tuyChon.khongSua,
-          tu_khoa: tu, bat_dau: bd, con_nua: tat.length > bd + co, bat_dau_tiep: Math.min(bd + co, tat.length) };
+        var bd = (ts && ts.bat_dau) || 0, co = tuyChon.co || (tuyChon.nhieuTrang ? 1 : 30);
+        var tra = Object.assign(locPy(tat, ts || {}, co), { he_so: { 'Bánh lạnh': 5 }, nhom_ban: NHOM_BAN, sua_duoc: !tuyChon.khongSua,
+          tu_khoa: tu, bat_dau: bd });
         var tre = tuyChon.treDs ? tuyChon.treDs.shift() : 0;
         return new Promise(function (r) { setTimeout(function () { r(tra); }, tre || 0); });
       }
@@ -459,7 +480,9 @@ function sheetCuoi(m) { var ds = m.tai.body.children; return ds[ds.length - 1]; 
     bang('tiêu đề màn nhập', m.g._t, 'Phiếu tính giá thử');
     go(m, m.tai.getElementById('gvtpTen'), 'Tart vani');
     dung('đánh dấu chưa lưu', m.g.S.chuaLuu.indexOf('chưa bấm Lưu phiếu') >= 0);
-    bam(m, tim(m, '[data-gvtpn="Bánh lạnh"]')[0]);
+    bam(m, tim(m, '[data-gvtpnhom]')[0]);
+    var ovn = sheetCuoi(m);
+    await ovn.onclick({ target: ovn.querySelector('[data-gvtpnchon="Bánh lạnh"]') });
     await tick();
     bam(m, tim(m, '[data-gvtpthem]')[0]);
     var ov = sheetCuoi(m);
@@ -563,7 +586,7 @@ function sheetCuoi(m) { var ds = m.tai.body.children; return ds[ds.length - 1]; 
     bam(m, them[0]);
     await cho(30);
     var ds = m.goi.filter(function (x) { return x.duong === 'vagabond.gia_von_tam.ds_thu'; });
-    bang('xem thêm gọi trang sau', ds[ds.length - 1].ts, { tu_khoa: '', bat_dau: 1 });
+    bang('xem thêm gọi trang sau', ds[ds.length - 1].ts, { tu_khoa: '', bat_dau: 1, trang_thai: '', nhom: '', khoang: '' });
     bang('đủ hai phiếu, giữ thứ tự', tim(m, '[data-gvtp]').map(function (e) { return e.getAttribute('data-gvtp'); }), ['GT-2610-001', 'GT-2610-003']);
     bang('hết trang thì không còn Xem thêm', tim(m, '[data-gvtthemds]').length, 0);
     var q = m.tai.getElementById('gvtThuQ');
@@ -574,7 +597,8 @@ function sheetCuoi(m) { var ds = m.tai.body.children; return ds[ds.length - 1]; 
     await cho(350);              /* lượt 'mousse' gửi, về sau 10ms */
     await cho(300);              /* lượt 'tart' về sau cùng */
     ds = m.goi.filter(function (x) { return x.duong === 'vagabond.gia_von_tam.ds_thu'; });
-    bang('tìm ở máy chủ', ds.slice(-2).map(function (x) { return x.ts; }), [{ tu_khoa: 'tart', bat_dau: 0 }, { tu_khoa: 'mousse', bat_dau: 0 }]);
+    bang('tìm ở máy chủ', ds.slice(-2).map(function (x) { return x.ts; }), [{ tu_khoa: 'tart', bat_dau: 0, trang_thai: '', nhom: '', khoang: '' },
+      { tu_khoa: 'mousse', bat_dau: 0, trang_thai: '', nhom: '', khoang: '' }]);
     bang('màn giữ kết quả tìm mới', tim(m, '[data-gvtp]').map(function (e) { return e.getAttribute('data-gvtp'); }), ['GT-2610-003']);
     bang('ô tìm giữ chữ đang gõ', m.tai.getElementById('gvtThuQ').value, 'mousse');
   });
@@ -681,6 +705,97 @@ function sheetCuoi(m) { var ds = m.tai.body.children; return ds[ds.length - 1]; 
       dung('thẻ ' + t.getAttribute('data-gvtp') + ' có khối đầu', !!dau);
       dung('thẻ ' + t.getAttribute('data-gvtp') + ' có ô ảnh 🍰', !!dau.querySelector('.immp') && chu(dau).indexOf('🍰') >= 0);
     });
+  });
+
+  /* Codex #486 vòng 7 (P2, AGENTS.md 2b điều 2): chín nhóm bán là hơn 8 lựa
+     chọn, không được bày hàng chip; dùng thẻ giá trị đang chọn mở sheet có ô tìm. */
+  await ca('Codex #486 v7 nhóm bán của phiếu thử: thẻ đang chọn mở sheet có ô tìm, không còn hàng chín chip', async function () {
+    var m = await moThu();
+    m.tai.getElementById('gvtThuMoi').onclick();
+    bang('không còn chip nhóm trên màn nhập', tim(m, '[data-gvtpn]').length, 0);
+    var the1 = tim(m, '[data-gvtpnhom]');
+    bang('một thẻ nhóm', the1.length, 1);
+    dung('thẻ nói chưa chọn: ' + chu(the1[0]), chu(the1[0]).indexOf('Chọn nhóm bán') >= 0 && chu(the1[0]).indexOf('Chọn để có giá bán đề xuất') >= 0);
+    bam(m, the1[0]);
+    var ov = sheetCuoi(m);
+    dung('mở sheet có ô tìm', !!ov.querySelector('[data-gvtpntim]'));
+    bang('đủ chín nhóm và dòng Chưa chọn', ov.querySelectorAll('[data-gvtpnchon]').length, NHOM_BAN.length + 1);
+    go(m, ov.querySelector('[data-gvtpntim]'), 'banh lanh');
+    bang('gõ không dấu ra đúng nhóm', ov.querySelectorAll('[data-gvtpnchon]').map(function (e) { return e.getAttribute('data-gvtpnchon'); }), ['Bánh lạnh']);
+    dung('dòng nhóm nói hệ số mục tiêu', chu(ov).indexOf('Hệ số mục tiêu x5') >= 0);
+    go(m, ov.querySelector('[data-gvtpntim]'), 'khong co nhom nay');
+    dung('gõ sai nói rõ', chu(ov).indexOf('Không có nhóm nào khớp.') >= 0);
+    go(m, ov.querySelector('[data-gvtpntim]'), 'lanh');
+    await ov.onclick({ target: ov.querySelector('[data-gvtpnchon="Bánh lạnh"]') });
+    bang('đóng sheet', m.tai.body.children.indexOf(ov), -1);
+    bang('phiếu nhận nhóm', m.g.GVT.p.nhom, 'Bánh lạnh');
+    var the2 = tim(m, '[data-gvtpnhom]')[0];
+    dung('thẻ hiện tên đậm và hệ số: ' + chu(the2), chu(the2).indexOf('Bánh lạnh') >= 0 && chu(the2).indexOf('Hệ số mục tiêu x5') >= 0);
+    dung('đánh dấu chưa lưu', m.g.S.chuaLuu.indexOf('chưa bấm Lưu phiếu') >= 0);
+    bam(m, the2);
+    ov = sheetCuoi(m);
+    await ov.onclick({ target: ov.querySelector('[data-gvtpnchon=""]') });
+    bang('chọn Chưa chọn nhóm là bỏ nhóm', m.g.GVT.p.nhom, '');
+  });
+
+  /* Codex #486 vòng 7 (P2, AGENTS.md 2b điều 3): danh sách phiếu thử có ba
+     hàng chip trạng thái có đếm, nhóm có đếm, khoảng ngày; lọc ở máy chủ. */
+  function nhanSo(el) { var m2 = /(\d+)$/.exec(chu(el).trim()); return m2 ? +m2[1] : -1; }
+  function goiDs(m) { return m.goi.filter(function (x) { return x.duong === 'vagabond.gia_von_tam.ds_thu'; }); }
+  await ca('Codex #486 v7 danh sách phiếu thử: ba hàng chip, số trên chip bằng số thẻ khi bấm, lọc ở máy chủ', async function () {
+    var m = await moThu({ locNhieu: true });
+    var tt = tim(m, '[data-gvtft]'), nh = tim(m, '[data-gvtfn]'), kh = tim(m, '[data-gvtfk]');
+    dung('đủ ba hàng chip: ' + [tt.length, nh.length, kh.length], tt.length >= 3 && nh.length >= 3 && kh.length === 4);
+    bang('chip Tất cả đếm đủ', nhanSo(tt[0]), 4);
+    var chipTt = tt.slice(1).map(function (e) { return [e.getAttribute('data-gvtft'), nhanSo(e)]; });
+    dung('có chip Thiếu giá NVL', chipTt.some(function (x) { return x[0] === 'thieu_gia' && x[1] === 1; }));
+    for (var i = 0; i < chipTt.length; i++) {
+      bam(m, tim(m, '[data-gvtft="' + chipTt[i][0] + '"]')[0]);
+      await choDen(function () { return (m.g.GVT.thu || {}).trang_thai === chipTt[i][0]; });
+      var g = goiDs(m);
+      bang('gửi trạng thái lên máy chủ từ trang đầu', [g[g.length - 1].ts.trang_thai, g[g.length - 1].ts.bat_dau], [chipTt[i][0], 0]);
+      var the3 = tim(m, '[data-gvtp]');
+      bang('chip ' + chipTt[i][0] + ': số thẻ bằng số trên chip', the3.length, chipTt[i][1]);
+      dung('mọi thẻ đúng trạng thái', the3.every(function (e) { return !!e.querySelector('[data-gvttt="' + chipTt[i][0] + '"]'); }));
+    }
+    bam(m, tim(m, '[data-gvtft="' + chipTt[chipTt.length - 1][0] + '"]')[0]);
+    await choDen(function () { return (m.g.GVT.thu || {}).trang_thai === ''; });
+    bang('bấm lại chip đang chọn là bỏ lọc trạng thái', tim(m, '[data-gvtp]').length, 4);
+    var chua = tim(m, '[data-gvtfn="__chua_nhom"]')[0];
+    dung('có chip Chưa chọn nhóm 1', !!chua && nhanSo(chua) === 1);
+    bam(m, chua);
+    await choDen(function () { return (m.g.GVT.thu || {}).nhom === '__chua_nhom'; });
+    bang('lọc nhóm ra đúng phiếu chưa chọn nhóm', tim(m, '[data-gvtp]').map(function (e) { return e.getAttribute('data-gvtp'); }), ['GT-2610-005']);
+    var lanh = tim(m, '[data-gvtfn="Bánh lạnh"]')[0];
+    bang('chip Bánh lạnh đếm 3', nhanSo(lanh), 3);
+    bam(m, lanh);
+    await choDen(function () { return (m.g.GVT.thu || {}).nhom === 'Bánh lạnh'; });
+    bang('đếm trạng thái theo nhóm đang chọn', nhanSo(tim(m, '[data-gvtft=""]')[0]), 3);
+    bam(m, tim(m, '[data-gvtfk="7_ngay"]')[0]);
+    await choDen(function () { return (m.g.GVT.thu || {}).khoang === '7_ngay'; });
+    var g2 = goiDs(m);
+    bang('khoảng ngày gửi lên máy chủ cùng bộ lọc đang có', [g2[g2.length - 1].ts.khoang, g2[g2.length - 1].ts.nhom], ['7_ngay', 'Bánh lạnh']);
+    dung('chip khoảng đang chọn tô đậm', tim(m, '[data-gvtfk="7_ngay"]')[0].getAttribute('style').indexOf('font-weight:800') >= 0);
+  });
+
+  await ca('Codex #486 v7 Xem thêm đi đúng bộ lọc đang chọn; lọc ra rỗng có nút Bỏ lọc', async function () {
+    var m = await moThu({ locNhieu: true, co: 1 });
+    bam(m, tim(m, '[data-gvtfn="Bánh lạnh"]')[0]);
+    await choDen(function () { return (m.g.GVT.thu || {}).nhom === 'Bánh lạnh'; });
+    bang('trang đầu một thẻ', tim(m, '[data-gvtp]').length, 1);
+    bam(m, tim(m, '[data-gvtthemds]')[0]);
+    await choDen(function () { return tim(m, '[data-gvtp]').length === 2; });
+    var g = goiDs(m);
+    bang('xem thêm giữ bộ lọc', g[g.length - 1].ts, { tu_khoa: '', bat_dau: 1, trang_thai: '', nhom: 'Bánh lạnh', khoang: '' });
+    dung('thẻ nối vào đều thuộc Bánh lạnh', tim(m, '[data-gvtp]').every(function (e) { return chu(e).indexOf('Bánh lạnh') >= 0; }));
+    go(m, m.tai.getElementById('gvtThuQ'), 'khong co mon nay');
+    await cho(350);
+    await choDen(function () { return (m.g.GVT.thu || {}).tu_khoa === 'khong co mon nay'; });
+    dung('câu rỗng nói khớp bộ lọc: ' + chu(m.khung), chu(m.khung).indexOf('Không có phiếu nào khớp bộ lọc') >= 0);
+    bam(m, tim(m, '[data-gvtthubo]')[0]);
+    await choDen(function () { return (m.g.GVT.thu || {}).nhom === ''; });
+    var g3 = goiDs(m);
+    bang('Bỏ lọc gửi lại không bộ lọc, giữ chữ đang tìm', g3[g3.length - 1].ts, { tu_khoa: 'khong co mon nay', bat_dau: 0, trang_thai: '', nhom: '', khoang: '' });
   });
 
   await ca('v600 chưa có phiếu nào: câu chỉ đường nói nút cần bấm', async function () {
