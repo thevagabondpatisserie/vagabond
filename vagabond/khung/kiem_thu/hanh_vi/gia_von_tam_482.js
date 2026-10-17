@@ -69,7 +69,7 @@ function tinhThat(them) {
     '  ban.append({"ma": "BAHAI0001", "ten": "Bánh Hai Công Thức", "nhom": "Bánh lạnh", "dvt": "Cái"})',
     '  mo_ho["BAHAI0001"] = ["BOM-BAHAI0001-001", "BOM-BAHAI0001-002"]',
     'b = G.dung_bang(ban, ma_bom, ket, gia_ban, {"BAWC00067": ("2026-10-12", 245000)}, he_so, ten, mo_ho)',
-    'b.update({"he_so": he_so, "cap_nhat_luc": "09:15", "sua_duoc": True, "ngay": "2026-10-16"})',
+    'b.update({"he_so": he_so, "cap_nhat_luc": "09:15", "sua_duoc": True, "ngay": "2026-10-16", "nhom_ban": G._nhom_ban()})',
     'sys.stdout.write(json.dumps(b, ensure_ascii=False, default=str))',
   ].join('\n');
   return JSON.parse(cp.execFileSync('python3', ['-c', py, GOC, them ? '1' : '0'], { encoding: 'utf8' }));
@@ -81,7 +81,8 @@ var TINH_VONG = tinhThat(true);  /* Codex #483 vong 3: co mon vong va mon hai co
    với bảng giá mã cố định, để đổi hình dạng dữ liệu bên máy chủ là ca thấy. */
 var GIA_MA_PY = 'GM = {"NVLT00001": {"gia": 30.0, "nguon": "Giá kho", "thieu": 0, "vong": False},' +
   ' "NBTP00006": {"gia": 400.0, "nguon": "Công thức", "thieu": 0, "vong": False},' +
-  ' "NVLT00099": {"gia": 0.0, "nguon": "Thiếu giá", "thieu": 1, "vong": False}}';
+  ' "NVLT00099": {"gia": 0.0, "nguon": "Thiếu giá", "thieu": 1, "vong": False},' +
+  ' "NBTPVONG": {"gia": 0.0, "nguon": "Công thức", "thieu": 1, "vong": True}}';
 function tinhPhieuPy(cacPhieu) {
   var py = [
     'import json, sys',
@@ -134,6 +135,12 @@ var DS_THU_VET = tinhPhieuPy([
     { nguoi: 'khai@x', ten_nguoi: 'Khải', lap_luc: '2026-10-16 21:00:00', nguoi_sua: 'loan@x', ten_nguoi_sua: 'Loan', cap_nhat: '2026-10-17 09:30', so_lan_sua: 2 } :
     { nguoi: 'khai@x', ten_nguoi: 'Khải', lap_luc: '2026-10-17 08:05:00', nguoi_sua: 'khai@x', ten_nguoi_sua: 'Khải', cap_nhat: '2026-10-17 08:05', so_lan_sua: 0 });
 });
+/* Codex #486 vòng 11: phiếu có bán thành phẩm công thức vòng kèm thiếu giá lá,
+   có cả giá tay (máy chủ phải giữ vòng, không nhận giá tay). */
+var DS_THU_VONG = tinhPhieuPy([
+  { name: 'GT-2610-008', ten_mon: 'Bánh vòng thử', nhom: 'Bánh lạnh', so_ra: 1, gia_ban_du_kien: 50000, dong: [
+    { item_code: 'NBTPVONG', ten: 'BTP vòng', dvt: 'Gram', so_luong: 10, don_gia_tay: 500 }] }
+]);
 /* Lọc chip, đếm chip, chia trang bằng CHÍNH gia_von_tam.loc_trang_thu (Codex
    #486 v7), để máy chủ giả không tự viết lại luật lọc. */
 function locPy(ds, ts, co) {
@@ -188,7 +195,7 @@ function dungMan(tuyChon) {
         var tat = tuyChon.khongPhieu ? [] : JSON.parse(JSON.stringify(tuyChon.nhieuTrang ? DS_THU.concat(DS_THU_2) :
           tuyChon.phieuThieu ? DS_THU.concat(DS_THU_THIEU) :
           tuyChon.locNhieu ? DS_THU.concat(DS_THU_2, DS_THU_THIEU, DS_THU_KHONG_NHOM) :
-          tuyChon.vet ? DS_THU_VET : DS_THU));
+          tuyChon.vet ? DS_THU_VET : tuyChon.vong ? DS_THU_VONG : DS_THU));
         var tu = String((ts && ts.tu_khoa) || '').toLowerCase();
         if (tu) tat = tat.filter(function (p) { return p.ten_mon.toLowerCase().indexOf(tu) >= 0; });
         var bd = (ts && ts.bat_dau) || 0, co = tuyChon.co || (tuyChon.nhieuTrang ? 1 : 30);
@@ -393,7 +400,11 @@ function sheetCuoi(m) { var ds = m.tai.body.children; return ds[ds.length - 1]; 
     await tick();
     var g = m.goi.filter(function (x) { return x.duong === 'vagabond.gia_von_tam.luu_he_so'; });
     bang('gửi một lần', g.length, 1);
-    bang('đúng dict', JSON.parse(g[0].ts.he_so), { 'Bánh ổ sinh nhật': '', 'Bánh lạnh': 5.5, 'Bánh nướng': '', 'Bánh khô': '' });
+    /* Codex #486 v11: gửi đủ mọi nhóm bán, kể cả nhóm chưa có món bán tính được. */
+    var mong = {};
+    NHOM_BAN.forEach(function (n) { mong[n.ten] = ''; });
+    mong['Bánh lạnh'] = 5.5;
+    bang('đúng dict, đủ nhóm', JSON.parse(g[0].ts.he_so), mong);
     bang('tải lại sau khi lưu', goiTen(m).slice(-1), ['vagabond.gia_von_tam.tinh']);
   });
 
@@ -878,6 +889,33 @@ function sheetCuoi(m) { var ds = m.tai.body.children; return ds[ds.length - 1]; 
     await ov.onclick({ target: ov.querySelector('[data-gvtpnchon="Bánh khô"]') });
     var vf = o(m, '[data-gvtvet]');
     dung('vẽ lại cả màn vẫn còn dấu vết: ' + (vf ? chu(vf) : 'không có'), !!vf && chu(vf).indexOf('Sửa gần nhất: Loan 17/10 09:30') >= 0 && chu(vf).indexOf('Đã sửa 2 lần') >= 0);
+  });
+
+  /* Codex #486 vòng 11 (P2): sheet hệ số chỉ có nhóm có món bán tính được;
+     lưu thì máy chủ thay cả bộ, nhóm bị ẩn mất mục tiêu. */
+  await ca('Codex #486 v11 sheet hệ số mục tiêu có đủ chín nhóm, nhóm chưa có món bán nói rõ, cuộn được', async function () {
+    var m = await moMan();
+    bam(m, tim(m, '[data-gvthso]')[0]);
+    var ov = sheetCuoi(m);
+    bang('đủ ô cho mọi nhóm', ov.querySelectorAll('[data-gvthsn]').length, NHOM_BAN.length);
+    dung('nhóm chưa có món bán nói rõ: ' + chu(ov), chu(ov).indexOf('Chưa có món đang bán tính được') >= 0);
+    dung('danh sách nhóm cuộn được', (ov.querySelector('[data-gvthsds]').getAttribute('style') || '').indexOf('overflow-y:auto') >= 0);
+  });
+
+  /* Codex #486 vòng 11 (P2): công thức vòng kèm thiếu giá: không bảo nhập giá
+     tay, không hiện ô giá tay, chỉ đường sửa công thức. */
+  await ca('Codex #486 v11 phiếu có công thức vòng: không bảo nhập giá tay, không có ô giá tay, chỉ đường sửa công thức', async function () {
+    var p = DS_THU_VONG[0];
+    bang('máy chủ giữ vòng, không nhận giá tay', [p.trang_thai, p.dong[0].tay, p.dong[0].vong], ['vong', 0, 1]);
+    var m = await moThu({ vong: true });
+    var t = tim(m, '[data-gvtp="GT-2610-008"]')[0];
+    dung('thẻ chỉ đường sửa công thức: ' + chu(t), !!t.querySelector('[data-gvtvong]') && chu(t).indexOf('nhập giá tay') < 0);
+    bam(m, t);
+    await tick();
+    dung('không có ô giá tay ở dòng vòng', !o(m, '[data-gvtpgia="0"]'));
+    dung('dòng nói công thức vòng: ' + chu(o(m, '[data-gvtpgiadong="0"]')), chu(o(m, '[data-gvtpgiadong="0"]')).indexOf('công thức vòng') >= 0);
+    var kq = o(m, '#gvtpKq');
+    dung('ô kết quả chỉ đường sửa công thức: ' + chu(kq), !!kq.querySelector('[data-gvtvong]') && chu(kq).indexOf('nhập giá tay ở dòng đó') < 0);
   });
 
   await ca('v600 chưa có phiếu nào: câu chỉ đường nói nút cần bấm', async function () {

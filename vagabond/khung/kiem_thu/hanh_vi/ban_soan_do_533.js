@@ -28,7 +28,7 @@ var BAO_GIA = doc('22-bao-gia.js');
 var DON_HUY = doc('29-don-huy.js');
 var SOAN_DO = doc('48-ban-soan-do.js');
 var GIA_VON_TAM = doc('53-gia-von-tam.js');
-/* Hàm tìm bỏ dấu THẬT của 00-nen.js (sheet nhóm bán của phiếu thử gọi vgbKhop, Codex #486 v7). */
+/* Hàm THẬT của 00-nen.js: tìm bỏ dấu (sheet nhóm bán, Codex #486 v7) và ô ảnh món (thẻ phiếu thử, v6). */
 function layHam(src, ten) {
   var dau = src.indexOf('function ' + ten + '(');
   if (dau < 0) throw new Error('Khong thay ham ' + ten);
@@ -39,7 +39,7 @@ function layHam(src, ten) {
   }
   throw new Error('Ham ' + ten + ' khong dong ngoac');
 }
-var NEN_TIM = ['vgbChuan', 'vgbKhop'].map(function (t) { return layHam(doc('00-nen.js'), t); }).join('\n');
+var NEN_TIM = ['vgbChuan', 'vgbKhop', 'anhMon'].map(function (t) { return layHam(doc('00-nen.js'), t); }).join('\n');
 
 var ket = { dat: 0, hong: 0, loi: [] };
 function dung(mo, dk) { if (!dk) throw new Error(mo + ': duoc false, mong true'); }
@@ -96,7 +96,9 @@ function mayChu(canh) {
          chỉ dòng giá tay, đủ để thấy màn đọc kết quả máy chủ. */
       if (m === 'vagabond.gia_von_tam.tinh') return { dong: [], nhom: [], sua_duoc: true, cap_nhat_luc: '09:00' };
       if (m === 'vagabond.gia_von_tam.ds_thu') {
-        return { ds: [], nhom_ban: [{ ten: 'Bánh lạnh', nhan: 'Bánh lạnh' }], sua_duoc: true, tu_khoa: '', bat_dau: 0, con_nua: false, bat_dau_tiep: 0 };
+        var dsT = (canh && canh.dsThu) || [];
+        return { ds: JSON.parse(JSON.stringify(dsT)), nhom_ban: [{ ten: 'Bánh lạnh', nhan: 'Bánh lạnh' }], sua_duoc: true, tu_khoa: '', bat_dau: 0,
+          con_nua: false, bat_dau_tiep: dsT.length, tong: dsT.length, dem_tt: {}, dem_nhom: {} };
       }
       if (m === 'vagabond.gia_von_tam.tinh_thu' || m === 'vagabond.gia_von_tam.luu_thu') {
         var ph = JSON.parse(a.phieu), tong = 0;
@@ -568,6 +570,34 @@ async function chayHet() {
     bang('may chu nhan dung', [ph.ten_mon, ph.nhom, ph.dong.map(function (d) { return [d.ten, d.so_luong, d.don_gia_tay]; })],
       ['Tart chanh dây thử', 'Bánh lạnh', [['Chanh dây Đà Lạt', 200, 50]]]);
     bang('luu xong thi het ban nhap', cacKhoa(kho), []);
+  });
+
+  /* Codex #486 v11: sửa phiếu thử ĐÃ LƯU, sập nguồn, mở lại từ bản nháp thì
+     vẫn còn dấu vết ai lập, ai sửa, đã sửa mấy lần (bản nháp mang theo). */
+  await ca('Codex #486 v11: ban nhap cua phieu thu da luu mo lai van con dau vet ai lap, ai sua, da sua may lan', async function () {
+    var canh = { dsThu: [{ name: 'GT-2610-010', ten_mon: 'Tart sửa nhiều', nhom: 'Bánh lạnh', so_ra: 1, dvt_ra: 'Cái', gia_ban_du_kien: 0, ghi_chu: '',
+      dong: [{ item_code: null, ten: 'Lá vàng', dvt: 'Lá', so_luong: 1, don_gia_tay: 1000, don_gia: 1000, nguon: 'Nhập tay', thieu: 0, tay: 1, vong: 0, thanh_tien: 1000 }],
+      tong_me: 1000, gia_von: 1000, thieu_so: 0, trang_thai: 'chua_gia_ban', he_so: null, he_so_muc_tieu: 5, gia_de_xuat: null,
+      nguoi: 'khai@x', ten_nguoi: 'Khải', lap_luc: '2026-10-16 21:00', nguoi_sua: 'loan@x', ten_nguoi_sua: 'Loan', cap_nhat: '2026-10-17 09:30', so_lan_sua: 2 }] };
+    var kho = khoMay();
+    var a = appMoi(kho, canh);
+    await moTrangChu(a);
+    await a.g.go(a.g.scrGiaVonTam); await a.cho();
+    await a.bam(a.tl.querySelector('[data-gvttab="thu"]')); await a.cho();
+    await a.bam(a.tl.querySelector('[data-gvtp="GT-2610-010"]')); await a.cho();
+    dung('mo phieu da luu co dau vet', !!a.tl.querySelector('[data-gvtvet]'));
+    a.go('gvtpTen', 'Tart sửa nhiều lần ba');
+    await a.tua(700);
+    bang('mot ban nhap cho phieu da luu', cacKhoa(kho).length, 1);
+    var b = appMoi(kho, canh);
+    await moTrangChu(b);
+    var dong = b.el('sdThe').querySelectorAll('[data-sdmo]');
+    await b.bam(dong[0]);
+    await b.cho(); await b.cho(); await b.cho();
+    bang('ten dien lai', b.el('gvtpTen').value, 'Tart sửa nhiều lần ba');
+    var vet = b.tl.querySelector('[data-gvtvet]');
+    dung('mo lai tu ban nhap van co dau vet: ' + (vet ? vet.textContent : 'khong co'),
+      !!vet && vet.textContent.indexOf('Sửa gần nhất: Loan 17/10 09:30') >= 0 && vet.textContent.indexOf('Đã sửa 2 lần') >= 0);
   });
 
   await ca('Nap CA app ghep that (app_bep.js): nap khong loi, moi man duoc boc dung ten, moi dong khai doc/dat duoc trang thai that', async function () {
