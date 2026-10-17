@@ -49,3 +49,7 @@
   - Dòng có mã: hỏi giá mã trước, chỉ nhận giá nhập tay khi mã thiếu giá (chưa có giá hoặc nhiều công thức chưa chọn). Mã đã có giá thì giá tay cũ bị bỏ qua, màn không hiện ô giá tay. Công thức vòng không bị giá tay che.
   - Dấu vết trên thẻ và màn phiếu: ai lập lúc nào, ai sửa gần nhất lúc nào, chip "Đã sửa N lần". Trường mới `so_lan_sua` (chỉ đọc) do máy chủ đếm mỗi lần lưu có đổi nội dung, kể cả sửa trên Desk; bỏ phiếu không tính.
 - 17/10/2026 (PR #486, Codex rà vòng 10 trên 356502e1c, 2 finding, tái hiện đủ 2 rồi sửa): công thức vòng kèm thiếu giá lá thì giá tay không xoá cờ vòng; dấu vết phiếu giữ riêng nên tính thử rồi vẽ lại màn vẫn còn.
+- 17/10/2026 (PR #486, Codex rà vòng 11 trên b3a3bd611, 3 finding P2, tái hiện đủ 3 rồi sửa):
+  - Sheet hệ số mục tiêu có đủ chín nhóm (máy chủ trả `nhom_ban`), cuộn được; máy chủ chỉ đổi nhóm có gửi (`gop_he_so`), nhóm không gửi giữ nguyên mục tiêu.
+  - Công thức vòng: không bảo nhập giá tay, không có ô giá tay, chỉ đường sửa công thức (một câu chung cho thẻ và màn phiếu).
+  - Dấu vết nằm trong phiếu đang sửa nên bản nháp của phiếu đã lưu mở lại vẫn còn.
