@@ -214,7 +214,10 @@ function dungMan(tuyChon) {
         return new Promise(function (r) { setTimeout(function () { r(kqT); }, treT || 0); });
       }
       if (duong === 'vagabond.gia_von_tam.luu_thu') return Promise.resolve(Object.assign(tinhPhieuPy([JSON.parse(ts.phieu)])[0], { name: 'GT-2610-002' }));
+      if (duong === 'vagabond.gia_von_tam.bo_thu' && tuyChon.loiBo) return Promise.reject(new Error(tuyChon.loiBo));
       if (duong === 'vagabond.gia_von_tam.bo_thu') return Promise.resolve({ ok: 1 });
+      /* loiTimNl: số lượt tìm đầu tiên bị lỗi mạng (Codex #486 v13). */
+      if (duong === 'vagabond.gia_von_tam.tim_nl' && tuyChon.loiTimNl) { tuyChon.loiTimNl--; return Promise.reject(new Error('Failed to fetch')); }
       if (duong === 'vagabond.gia_von_tam.tim_nl') {
         return Promise.resolve([{ ma: 'NVLT00001', ten: 'Bột mì', dvt: 'Gram', nhom: 'Nguyên liệu' },
           { ma: 'NVLT00099', ten: 'Bột hạnh nhân', dvt: 'Gram', nhom: 'Nguyên liệu' }]);
@@ -579,7 +582,7 @@ function sheetCuoi(m) { var ds = m.tai.body.children; return ds[ds.length - 1]; 
     bang('huỷ thì không bỏ', goiTen(m2).indexOf('vagabond.gia_von_tam.bo_thu'), -1);
     bam(m, tim(m, '[data-gvtpbo]')[0]);
     await tick(); await tick();
-    bang('xác nhận thì bỏ đúng phiếu', m.goi.filter(function (x) { return x.duong === 'vagabond.gia_von_tam.bo_thu'; }).map(function (x) { return x.ts; }), [{ name: 'GT-2610-001' }]);
+    bang('xác nhận thì bỏ đúng phiếu', m.goi.filter(function (x) { return x.duong === 'vagabond.gia_von_tam.bo_thu'; }).map(function (x) { return x.ts; }), [{ name: 'GT-2610-001', phien_ban: '' }]);
     dung('báo đã bỏ', m.toast.indexOf('Đã bỏ phiếu. Vẫn tra lại được trên Desk.') >= 0);
   });
 
@@ -932,6 +935,50 @@ function sheetCuoi(m) { var ds = m.tai.body.children; return ds[ds.length - 1]; 
     bang('lưu một lần', l.length, 1);
     var gui = JSON.parse(l[0].ts.phieu);
     bang('gửi đúng phiếu và bản lúc mở', [gui.name, gui.phien_ban], ['GT-2610-006', '2026-10-17 09:30:12.345678']);
+  });
+
+  /* Codex #486 vòng 13 (P2): bỏ phiếu cũng phải gửi bản lúc mở, để máy chủ
+     chặn khi người khác vừa sửa; máy chủ chặn thì màn báo lỗi, không báo đã bỏ. */
+  await ca('Codex #486 v13 Bỏ phiếu gửi kèm bản lúc mở; máy chủ chặn thì báo lỗi, không báo đã bỏ, vẫn ở màn phiếu', async function () {
+    var m = await moThu({ vet: true });
+    bam(m, tim(m, '[data-gvtp="GT-2610-006"]')[0]);
+    await tick();
+    bam(m, tim(m, '[data-gvtpbo]')[0]);
+    await tick(); await tick();
+    bang('gửi đúng phiếu và bản lúc mở', m.goi.filter(function (x) { return x.duong === 'vagabond.gia_von_tam.bo_thu'; }).map(function (x) { return x.ts; }),
+      [{ name: 'GT-2610-006', phien_ban: '2026-10-17 09:30:12.345678' }]);
+    var cau = 'Phiếu GT-2610-006 vừa được sửa ở nơi khác. Mở lại phiếu từ danh sách để xem bản mới rồi mới bỏ; phiếu chưa bị bỏ.';
+    var m2 = await moThu({ vet: true, loiBo: cau });
+    bam(m2, tim(m2, '[data-gvtp="GT-2610-006"]')[0]);
+    await tick();
+    bam(m2, tim(m2, '[data-gvtpbo]')[0]);
+    await tick(); await tick();
+    bang('báo đúng câu máy chủ', m2.bao, [cau]);
+    dung('không báo đã bỏ', m2.toast.indexOf('Đã bỏ phiếu. Vẫn tra lại được trên Desk.') < 0);
+    bang('vẫn ở màn phiếu', m2.g._t, 'Phiếu tính giá thử');
+  });
+
+  /* Codex #486 vòng 13 (P2): tìm nguyên liệu lỗi mạng không được hiện như
+     "không có", vì câu đó mời ghi dòng chưa có mã, sinh trùng hay giá tay. */
+  await ca('Codex #486 v13 tìm nguyên liệu lỗi mạng: báo lỗi kèm Tìm lại, không nói Không thấy; Tìm lại thì ra kết quả chọn được', async function () {
+    var m = await moThu({ loiTimNl: 1 });
+    m.tai.getElementById('gvtThuMoi').onclick();
+    bam(m, tim(m, '[data-gvtpthem]')[0]);
+    var ov = sheetCuoi(m);
+    go(m, ov.querySelector('[data-gvtntim]'), 'bột');
+    await cho(350);
+    var vung = ov.querySelector('[data-gvtnkq]');
+    dung('có khung lỗi: ' + chu(vung), !!vung.querySelector('[data-gvtnloi]') && chu(vung).indexOf('mất mạng hoặc máy chủ lỗi') >= 0);
+    dung('không nói Không thấy', chu(vung).indexOf('Không thấy') < 0);
+    dung('dặn đừng ghi dòng chưa có mã', chu(vung).indexOf('đừng ghi thành dòng chưa có mã') >= 0);
+    var lai = vung.querySelector('[data-gvtnlai]');
+    dung('có nút Tìm lại', !!lai);
+    await ov.onclick({ target: lai });
+    await cho(350);
+    bang('tìm hai lượt cùng từ', m.goi.filter(function (x) { return x.duong === 'vagabond.gia_von_tam.tim_nl'; }).map(function (x) { return x.ts.tu_khoa; }), ['bột', 'bột']);
+    dung('Tìm lại ra kết quả: ' + chu(vung), chu(vung).indexOf('Bột mì') >= 0 && !vung.querySelector('[data-gvtnloi]'));
+    await ov.onclick({ target: ov.querySelector('[data-gvtnchon="0"]') });
+    bang('chọn được dòng có mã', tim(m, '[data-gvtpd]').length, 1);
   });
 
   await ca('v600 chưa có phiếu nào: câu chỉ đường nói nút cần bấm', async function () {
