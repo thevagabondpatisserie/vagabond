@@ -1047,6 +1047,20 @@ def _():
 	la("ảnh người chọn vẫn đứng trước Pancake", c(["/files/hannari-chon-tay.jpg", erp[1]], song, ma_hang=ma)[0], "/files/hannari-chon-tay.jpg")
 
 
+@ca("Codex #487 P1: mã hàng có hậu tố size (BAWC00104S16CM) thì tệp chép sp-bawc00104s16cm*.jpg cũng lùi sau Pancake")
+def _():
+	# Tái hiện trên 982c09dc2: la_anh_pancake_da_chep("/files/sp-bawc00104s16cm.jpg") = False, chon_anh đặt tệp chép lên đầu.
+	c = anh_web.chon_anh
+	song = ["https://content.pancake.vn/dung.webp"]
+	for tep in ("/files/sp-bawc00104s16cm.jpg", "/files/sp-bawc00104s16cma1b2c3.jpg", "/files/sp-bawc00105mini12cm.png",
+			"/files/sp-bawc00107m18cm.webp"):
+		la("nhận tệp chép " + tep, anh_web.la_anh_pancake_da_chep(tep), True)
+		anh, ds = c([tep], song, "", ma_hang=["BAWC00104S16CM"])
+		la("Pancake sống đứng đầu với " + tep, anh, song[0])
+	for ten in ("sp-anh-moi.jpg", "sp-bawc00104s16cm", "sp-bawc00104 s16.jpg", "hannari-sp-bawc00104.jpg", "sp-bawc00104.jpg.exe.zz"):
+		la("không nhận " + ten, anh_web.la_anh_pancake_da_chep("/files/" + ten), False)
+
+
 @ca("#367 I nhánh Hôm nay và Đặt trước: ảnh ERP thắng ảnh Pancake, kể cả khi chưa có khoá Pancake")
 def _():
 	for co_khoa in (True, False):
