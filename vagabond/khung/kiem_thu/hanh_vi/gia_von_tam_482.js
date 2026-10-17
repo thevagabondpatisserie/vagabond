@@ -110,6 +110,13 @@ var DS_THU_2 = tinhPhieuPy([
   { name: 'GT-2610-003', ten_mon: 'Mousse xoài', nhom: 'Bánh lạnh', so_ra: 1, gia_ban_du_kien: 0, dong: [
     { item_code: 'NVLT00001', ten: 'Bột mì', dvt: 'Gram', so_luong: 100 }] }
 ]);
+/* Codex #486 vòng 6: phiếu có giá dự kiến, một mã có giá và một mã thiếu giá.
+   Máy chủ trả he_so tính trên giá vốn THIẾU kèm trang_thai thieu_gia. */
+var DS_THU_THIEU = tinhPhieuPy([
+  { name: 'GT-2610-004', ten_mon: 'Bánh hạnh nhân thử', nhom: 'Bánh lạnh', so_ra: 1, gia_ban_du_kien: 60000, dong: [
+    { item_code: 'NVLT00001', ten: 'Bột mì', dvt: 'Gram', so_luong: 100 },
+    { item_code: 'NVLT00099', ten: 'Bột hạnh nhân', dvt: 'Gram', so_luong: 100 }] }
+]);
 var NHOM_BAN = [{ ten: 'Bánh ổ sinh nhật', nhan: 'Bánh ổ' }, { ten: 'Bánh lạnh', nhan: 'Bánh lạnh' }, { ten: 'Bánh nướng', nhan: 'Bánh nướng' }];
 var CHI_TIET = {
   '': { ma: 'BAWC00067', ten: 'Bánh Ổ Roman De La Rose, size 16cm', bom: 'B1', so_ra: 1, gia: 250959, dong: [
@@ -146,7 +153,8 @@ function dungMan(tuyChon) {
       if (duong === 'vagabond.gia_von_tam.luu_he_so') return Promise.resolve({ he_so: {} });
       if (duong === 'vagabond.gia_von_tam.ds_thu') {
         /* Như máy chủ: lọc theo tên, chia trang theo bat_dau, báo con_nua. */
-        var tat = tuyChon.khongPhieu ? [] : JSON.parse(JSON.stringify(tuyChon.nhieuTrang ? DS_THU.concat(DS_THU_2) : DS_THU));
+        var tat = tuyChon.khongPhieu ? [] : JSON.parse(JSON.stringify(tuyChon.nhieuTrang ? DS_THU.concat(DS_THU_2) :
+          tuyChon.phieuThieu ? DS_THU.concat(DS_THU_THIEU) : DS_THU));
         var tu = String((ts && ts.tu_khoa) || '').toLowerCase();
         if (tu) tat = tat.filter(function (p) { return p.ten_mon.toLowerCase().indexOf(tu) >= 0; });
         var bd = (ts && ts.bat_dau) || 0, co = tuyChon.nhieuTrang ? 1 : 30;
@@ -475,6 +483,10 @@ function sheetCuoi(m) { var ds = m.tai.body.children; return ds[ds.length - 1]; 
     dung('dòng có mã không có ô giá tay khi chưa thiếu giá', !o(m, '[data-gvtpgia="0"]'));
     go(m, o(m, '[data-gvtpsl="0"]'), '500');
     await cho(450);
+    /* Máy chủ giả chạy python đồng bộ ngay lúc gọi, máy bận thì kết quả về sau
+       mốc 450ms (ca này chập chờn 1/3 lần ngày 17/10). Chỉ chờ kết quả về,
+       không gọi thêm hàm nào của màn. */
+    await choDen(function () { return chu(o(m, '#gvtpKq')).indexOf('Giá vốn 15.000đ/Cái') >= 0; });
     var tt = m.goi.filter(function (x) { return x.duong === 'vagabond.gia_von_tam.tinh_thu'; });
     dung('có tính thử', tt.length > truoc);
     var gui = JSON.parse(tt[tt.length - 1].ts.phieu);
@@ -485,6 +497,7 @@ function sheetCuoi(m) { var ds = m.tai.body.children; return ds[ds.length - 1]; 
     go(m, o(m, '[data-gvtpsl="1"]'), '2');
     go(m, o(m, '[data-gvtpgia="1"]'), '40000');
     await cho(450);
+    await choDen(function () { return chu(o(m, '#gvtpKq')).indexOf('Giá vốn 95.000đ/Cái') >= 0; });
     dung('cộng dòng giá tay: ' + chu(o(m, '#gvtpKq')), chu(o(m, '#gvtpKq')).indexOf('Giá vốn 95.000đ/Cái') >= 0);
     await m.tai.getElementById('gvtpLuu').onclick();
     await tick();
@@ -638,6 +651,36 @@ function sheetCuoi(m) { var ds = m.tai.body.children; return ds[ds.length - 1]; 
     bam(m, tim(m, '[data-gvtp="GT-2610-001"]')[0]);
     dung('không Lưu', !m.tai.getElementById('gvtpLuu'));
     bang('không Thêm, Bỏ', [tim(m, '[data-gvtpthem]').length, tim(m, '[data-gvtpbo]').length], [0, 0]);
+  });
+
+  /* Codex #486 vòng 6 (P2): phiếu thử thiếu giá vẫn có he_so từ máy chủ (tính
+     trên giá vốn thiếu). Chip hệ số kèm % vốn phải ẩn ở cả thẻ danh sách lẫn
+     khối kết quả trong phiếu, như thẻ món đang bán. */
+  await ca('Codex #486 v6 phiếu thử thiếu giá: không hiện chip hệ số ở thẻ danh sách và trong phiếu', async function () {
+    var p = DS_THU_THIEU[0];
+    bang('máy chủ trả hệ số kèm trạng thái thiếu giá', [p.he_so != null, p.trang_thai], [true, 'thieu_gia']);
+    var m = await moThu({ phieuThieu: true });
+    var tThieu = tim(m, '[data-gvtp="GT-2610-004"]')[0], tDu = tim(m, '[data-gvtp="GT-2610-001"]')[0];
+    dung('thẻ đủ giá vẫn có chip hệ số', !!tDu.querySelector('[data-gvths]'));
+    dung('thẻ thiếu giá không có chip hệ số: ' + chu(tThieu), !tThieu.querySelector('[data-gvths]'));
+    dung('thẻ thiếu giá có chip Thiếu giá', chu(tThieu).indexOf('Thiếu giá') >= 0);
+    bam(m, tThieu);
+    await tick();
+    dung('trong phiếu không có chip hệ số: ' + chu(o(m, '#gvtpKq')), !o(m, '#gvtpKq').querySelector('[data-gvths]'));
+    dung('trong phiếu vẫn báo thiếu giá', chu(o(m, '#gvtpKq')).indexOf('Thiếu giá 1 nguyên liệu') >= 0);
+  });
+
+  /* Codex #486 vòng 6 (P2): AGENTS.md mục 4, chỗ nào có tên món thì có ô ảnh
+     món; phiếu thử chưa có ảnh nên giữ ô 🍰 như thẻ món đang bán. */
+  await ca('Codex #486 v6 thẻ phiếu thử có ô ảnh món giữ hàng như thẻ món đang bán', async function () {
+    var m = await moThu({ phieuThieu: true });
+    var ds = tim(m, '[data-gvtp]');
+    bang('số thẻ', ds.length, 2);
+    ds.forEach(function (t) {
+      var dau = t.querySelector('.gvt-dau');
+      dung('thẻ ' + t.getAttribute('data-gvtp') + ' có khối đầu', !!dau);
+      dung('thẻ ' + t.getAttribute('data-gvtp') + ' có ô ảnh 🍰', !!dau.querySelector('.immp') && chu(dau).indexOf('🍰') >= 0);
+    });
   });
 
   await ca('v600 chưa có phiếu nào: câu chỉ đường nói nút cần bấm', async function () {
