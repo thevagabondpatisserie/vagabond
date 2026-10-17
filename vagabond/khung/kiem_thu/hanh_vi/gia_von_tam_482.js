@@ -862,6 +862,24 @@ function sheetCuoi(m) { var ds = m.tai.body.children; return ds[ds.length - 1]; 
     dung('giá vốn theo giá kho: ' + chu(o(m, '#gvtpKq')), chu(o(m, '#gvtpKq')).indexOf('Giá vốn 3.000đ/Cái') >= 0);
   });
 
+  /* Codex #486 vòng 10 (P2): sửa phiếu đã lưu thì kết quả tính thử thay
+     GVT.pk mà không có dấu vết; lần vẽ lại cả màn sau đó (xoá dòng, thêm
+     dòng, đổi nhóm) làm mất dòng dấu vết. Dấu vết phải giữ riêng. */
+  await ca('Codex #486 v10 sửa phiếu đã lưu: tính thử xong rồi vẽ lại cả màn vẫn còn dấu vết', async function () {
+    var m = await moThu({ vet: true });
+    bam(m, tim(m, '[data-gvtp="GT-2610-006"]')[0]);
+    await tick();
+    go(m, o(m, '[data-gvtpsl="0"]'), '200');
+    await cho(450);
+    await choDen(function () { return chu(o(m, '#gvtpKq')).indexOf('Giá vốn 6.000đ/Cái') >= 0; });
+    dung('đã tính thử: ' + chu(o(m, '#gvtpKq')), chu(o(m, '#gvtpKq')).indexOf('Giá vốn 6.000đ/Cái') >= 0);
+    bam(m, tim(m, '[data-gvtpnhom]')[0]);
+    var ov = sheetCuoi(m);
+    await ov.onclick({ target: ov.querySelector('[data-gvtpnchon="Bánh khô"]') });
+    var vf = o(m, '[data-gvtvet]');
+    dung('vẽ lại cả màn vẫn còn dấu vết: ' + (vf ? chu(vf) : 'không có'), !!vf && chu(vf).indexOf('Sửa gần nhất: Loan 17/10 09:30') >= 0 && chu(vf).indexOf('Đã sửa 2 lần') >= 0);
+  });
+
   await ca('v600 chưa có phiếu nào: câu chỉ đường nói nút cần bấm', async function () {
     var m = await moThu({ khongPhieu: true });
     dung('câu rỗng', chu(m.khung).indexOf('Chưa có phiếu tính giá thử nào. Bấm Phiếu tính giá thử mới để bắt đầu.') >= 0);
