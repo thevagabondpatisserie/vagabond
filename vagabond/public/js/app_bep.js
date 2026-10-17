@@ -60058,6 +60058,9 @@ function gvtMoPhieu(p) {
   GVT.p = JSON.parse(JSON.stringify({
     name: p.name || null, ten_mon: p.ten_mon || '', nhom: p.nhom || '', so_ra: p.so_ra || 1, dvt_ra: p.dvt_ra || 'Cái',
     gia_ban_du_kien: p.gia_ban_du_kien || '', ghi_chu: p.ghi_chu || '',
+    /* Bản của phiếu lúc mở (máy chủ trả), gửi kèm khi lưu để không đè bản người
+       khác vừa sửa; bản nháp mang theo nên bản nháp cũ cũng bị chặn (v12). */
+    phien_ban: p.phien_ban || '',
     /* Dấu vết giữ riêng trong phiếu đang sửa: kết quả tính thử thay GVT.pk mà
        không có ai lập, ai sửa (Codex #486 v10), và bản nháp lưu GVT.p nên mở
        lại từ bản nháp vẫn còn dấu vết (v11). Không gửi lên máy chủ. */
@@ -60366,7 +60369,7 @@ async function gvtLuuPhieu() {
   var soRa = gvtSoVn(p.so_ra);
   if (soRa == null || soRa <= 0) return baoTin('Một mẻ phải ra hơn 0. Sửa ô Một mẻ ra rồi bấm Lưu.');
   var gui = {
-    name: p.name, ten_mon: p.ten_mon, nhom: p.nhom, so_ra: gvtSoVn(p.so_ra), dvt_ra: p.dvt_ra,
+    name: p.name, phien_ban: p.phien_ban || '', ten_mon: p.ten_mon, nhom: p.nhom, so_ra: gvtSoVn(p.so_ra), dvt_ra: p.dvt_ra,
     gia_ban_du_kien: gvtSoVn(p.gia_ban_du_kien) || 0, ghi_chu: p.ghi_chu,
     dong: p.dong.map(function (d) {
       return { item_code: d.item_code, ten: d.ten, dvt: d.dvt, so_luong: gvtSoVn(d.so_luong), don_gia_tay: gvtSoVn(d.don_gia_tay) || 0 };
