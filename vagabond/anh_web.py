@@ -53,7 +53,10 @@ def anh_cong_khai(u):
 
 # Tên tệp đối soát đặt: "sp-<mã hàng viết thường>.<đuôi>", Frappe trùng tên thì
 # chèn thêm chuỗi băm hex (vd. sp-bawc00098565623.jpg, sp-bawc00023a1227d.jpg).
-MAU_TEP_CHEP = re.compile(r"^sp-[a-z]{2,8}[0-9]{3,}(?:[^a-z0-9]|[a-f0-9]{6,})")
+# Codex #487 P1: mã hàng có thể mang hậu tố size sau phần số (BAWC00104S16CM ra
+# sp-bawc00104s16cm.jpg), nên khớp CẢ tên tệp: "sp-" + chữ + số + phần đuôi mã
+# hoặc băm (chữ, số, gạch) + ".đuôi". Không còn đòi mã dừng ngay sau dãy số.
+MAU_TEP_CHEP = re.compile(r"^sp-[a-z]{2,8}[0-9]{3,}[a-z0-9_-]*\.[a-z0-9]{2,5}$")
 
 
 def la_anh_pancake_da_chep(u, ma_hang=None):
