@@ -90,13 +90,21 @@ var STUB = [
   try { b = await pw.chromium.launch(); } catch (e) { console.log('THIẾU Chromium: ' + e.message); process.exit(2); }
   var pg = await b.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
   await pg.setContent('<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
-    '<style>' + cssNen() + '</style></head><body><div style="background:#4dd8ef;padding:18px 16px;font-size:20px;font-weight:700;text-align:center" id="tieuDe"></div>' +
-    '<div id="vgbBody" style="padding:12px"></div><div id="chan" style="padding:0 12px 20px"></div></body></html>');
+    '<style>' + cssNen() + '</style></head><body><div id="vgb"><div style="background:#4dd8ef;padding:18px 16px;font-size:20px;font-weight:700;text-align:center" id="tieuDe"></div>' +
+    '<div id="vgbBody" style="padding:12px"></div><div id="chan" style="padding:0 12px 20px"></div></div></body></html>');
   await pg.addScriptTag({ content: 'var DL = ' + JSON.stringify(DL) + ';\n' + HAM + '\n' + STUB + '\n' + doc('53-gia-von-tam.js') });
   var hong = [];
   async function doMan(ten) {
     var so = await pg.evaluate(function () {
-      var ra = { cuonNgang: document.documentElement.scrollWidth - window.innerWidth, chuNho: [], cat: [] };
+      var ra = { cuonNgang: document.documentElement.scrollWidth - window.innerWidth, chuNho: [], cat: [], tran: [] };
+      /* Ô nào lòi ra ngoài mép màn (trừ trong hàng chip cuộn ngang) cũng tính là hỏng,
+         kể cả khi trang có overflow ẩn làm scrollWidth không đổi. Nền app đặt
+         box-sizing trong #vgb nên trang đo phải bọc đúng #vgb như app thật. */
+      document.querySelectorAll('#vgb input, #vgb textarea, #vgb button, #vgb .card, .shb, .shb input, .shi').forEach(function (e) {
+        for (var a = e.parentElement; a; a = a.parentElement) { var ox = getComputedStyle(a).overflowX; if (ox === 'auto' || ox === 'scroll') return; }
+        var r = e.getBoundingClientRect();
+        if (r.width && r.right > window.innerWidth + 0.5) ra.tran.push((e.id || e.className || e.tagName) + ' ' + Math.round(r.right) + 'px');
+      });
       document.querySelectorAll('.gvt-the *, .gvt-nhom *').forEach(function (e) {
         if (!e.childNodes.length || ![].some.call(e.childNodes, function (n) { return n.nodeType === 3 && n.textContent.trim(); })) return;
         var c = parseFloat(getComputedStyle(e).fontSize);
@@ -109,9 +117,9 @@ var STUB = [
       });
       return ra;
     });
-    console.log(ten + ': cuộn ngang ' + so.cuonNgang + 'px, chữ dưới 13px ' + so.chuNho.length + ', ô bị cắt chữ ' + so.cat.length);
-    so.chuNho.concat(so.cat).forEach(function (x) { console.log('   ' + x); });
-    if (so.cuonNgang > 0 || so.chuNho.length || so.cat.length) hong.push(ten);
+    console.log(ten + ': cuộn ngang ' + so.cuonNgang + 'px, chữ dưới 13px ' + so.chuNho.length + ', ô bị cắt chữ ' + so.cat.length + ', ô lòi mép ' + so.tran.length);
+    so.chuNho.concat(so.cat, so.tran).forEach(function (x) { console.log('   ' + x); });
+    if (so.cuonNgang > 0 || so.chuNho.length || so.cat.length || so.tran.length) hong.push(ten);
   }
   await pg.evaluate(function () { return scrGiaVonTam(); });
   await pg.waitForTimeout(200);
