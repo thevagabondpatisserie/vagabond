@@ -132,7 +132,8 @@ var DS_THU_VET = tinhPhieuPy([
     { item_code: 'NVLT00001', ten: 'Bột mì', dvt: 'Gram', so_luong: 100 }] }
 ]).map(function (p, i) {
   return Object.assign(p, i === 0 ?
-    { nguoi: 'khai@x', ten_nguoi: 'Khải', lap_luc: '2026-10-16 21:00:00', nguoi_sua: 'loan@x', ten_nguoi_sua: 'Loan', cap_nhat: '2026-10-17 09:30', so_lan_sua: 2 } :
+    { nguoi: 'khai@x', ten_nguoi: 'Khải', lap_luc: '2026-10-16 21:00:00', nguoi_sua: 'loan@x', ten_nguoi_sua: 'Loan', cap_nhat: '2026-10-17 09:30', so_lan_sua: 2,
+      phien_ban: '2026-10-17 09:30:12.345678' } :
     { nguoi: 'khai@x', ten_nguoi: 'Khải', lap_luc: '2026-10-17 08:05:00', nguoi_sua: 'khai@x', ten_nguoi_sua: 'Khải', cap_nhat: '2026-10-17 08:05', so_lan_sua: 0 });
 });
 /* Codex #486 vòng 11: phiếu có bán thành phẩm công thức vòng kèm thiếu giá lá,
@@ -916,6 +917,21 @@ function sheetCuoi(m) { var ds = m.tai.body.children; return ds[ds.length - 1]; 
     dung('dòng nói công thức vòng: ' + chu(o(m, '[data-gvtpgiadong="0"]')), chu(o(m, '[data-gvtpgiadong="0"]')).indexOf('công thức vòng') >= 0);
     var kq = o(m, '#gvtpKq');
     dung('ô kết quả chỉ đường sửa công thức: ' + chu(kq), !!kq.querySelector('[data-gvtvong]') && chu(kq).indexOf('nhập giá tay ở dòng đó') < 0);
+  });
+
+  /* Codex #486 vòng 12 (P2): lưu đè phiếu đã có phải gửi bản lúc mở, để máy
+     chủ chặn khi người khác vừa sửa. */
+  await ca('Codex #486 v12 lưu phiếu đã có gửi kèm bản lúc mở (chống đè bản người khác vừa sửa)', async function () {
+    var m = await moThu({ vet: true });
+    bam(m, tim(m, '[data-gvtp="GT-2610-006"]')[0]);
+    await tick();
+    go(m, o(m, '#gvtpTen'), 'Tart vani sửa lần ba');
+    await m.tai.getElementById('gvtpLuu').onclick();
+    await tick();
+    var l = m.goi.filter(function (x) { return x.duong === 'vagabond.gia_von_tam.luu_thu'; });
+    bang('lưu một lần', l.length, 1);
+    var gui = JSON.parse(l[0].ts.phieu);
+    bang('gửi đúng phiếu và bản lúc mở', [gui.name, gui.phien_ban], ['GT-2610-006', '2026-10-17 09:30:12.345678']);
   });
 
   await ca('v600 chưa có phiếu nào: câu chỉ đường nói nút cần bấm', async function () {
