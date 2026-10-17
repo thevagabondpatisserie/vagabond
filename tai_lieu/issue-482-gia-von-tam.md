@@ -48,3 +48,4 @@
 - 17/10/2026 (PR #486, Codex rà vòng 9 trên f61c6d30f, 2 finding P1, tái hiện đủ 2 rồi sửa):
   - Dòng có mã: hỏi giá mã trước, chỉ nhận giá nhập tay khi mã thiếu giá (chưa có giá hoặc nhiều công thức chưa chọn). Mã đã có giá thì giá tay cũ bị bỏ qua, màn không hiện ô giá tay. Công thức vòng không bị giá tay che.
   - Dấu vết trên thẻ và màn phiếu: ai lập lúc nào, ai sửa gần nhất lúc nào, chip "Đã sửa N lần". Trường mới `so_lan_sua` (chỉ đọc) do máy chủ đếm mỗi lần lưu có đổi nội dung, kể cả sửa trên Desk; bỏ phiếu không tính.
+- 17/10/2026 (PR #486, Codex rà vòng 10 trên 356502e1c, 2 finding, tái hiện đủ 2 rồi sửa): công thức vòng kèm thiếu giá lá thì giá tay không xoá cờ vòng; dấu vết phiếu giữ riêng nên tính thử rồi vẽ lại màn vẫn còn.
