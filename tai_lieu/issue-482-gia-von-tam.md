@@ -37,3 +37,7 @@
 - 17/10/2026 (PR #486, Codex rà vòng 4 trên bcf8c846e, 2 finding, tái hiện đủ 2 rồi sửa):
   - Không vai nào còn quyền xoá phiếu thử trên Desk, và bộ điều khiển chặn xoá (`on_trash`), kể cả System Manager.
   - Mã vừa chọn mà máy chủ báo thiếu giá thì hiện ngay ô giá tay ở đúng dòng sau khi tính.
+- 17/10/2026 (PR #486, giao diện chip theo yêu cầu anh Việt; Codex rà vòng 6 trên d23359d49, 2 finding, tái hiện đủ 2 rồi sửa):
+  - Thẻ món bán, thẻ phiếu thử và khối kết quả trong phiếu dùng chung kiểu chip và lưới ba ô.
+  - Giá vốn còn thiếu, vòng hoặc chưa có nguyên liệu thì không hiện chip hệ số ở bất kỳ đâu (máy chủ vẫn có thể trả hệ số tính trên giá vốn thiếu). Một chỗ quyết: `gvtTinhDuoc`.
+  - Thẻ phiếu thử có ô ảnh món giữ hàng như thẻ món bán.
