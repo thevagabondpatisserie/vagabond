@@ -113,8 +113,9 @@ DOT_BIEN = [
 		"  if (lan !== GVT.lanDs) return;\n  if (noiTiep)", "  if (noiTiep)", CA_JS),
 	("Codex #486 P2: máy chủ không báo còn trang sau", PY,
 		'		"con_nua": bd + len(cat) < len(hop),', '		"con_nua": False,', CA_PY),
-	("Codex #486: tìm nguyên liệu không loại nhóm bánh bán", PY,
-		'{"disabled": 0, "item_group": ["not in", list(NHOM_BAN)]}, "Item"', '{"disabled": 0}, "Item"', CA_PY),
+	# Từ v13 bộ lọc là "trong phạm vi nguyên liệu"; đột biến này gỡ hẳn lọc nhóm.
+	("Codex #486: tìm nguyên liệu không lọc nhóm", PY,
+		'{"disabled": 0, "item_group": ["in", nhom]}, "Item"', '{"disabled": 0}, "Item"', CA_PY),
 	# ---- Codex #486 vòng 2 ----
 	("Codex #486 v2+v3: mã nhiều công thức chưa chọn mặc định lấy giá kho (mọi tầng)", PY,
 		"		if ma in mo_ho:\n			return 0.0, NGUON_NHIEU_CT", "		if False:\n			return 0.0, NGUON_NHIEU_CT", CA_PY),
@@ -222,12 +223,33 @@ DOT_BIEN = [
 		"(p.so_lan_sua ? ' <span class=\"gvt-c\" data-gvtsua", "(false ? ' <span class=\"gvt-c\" data-gvtsua", CA_JS),
 	("Codex #486 P2: màn không có nút Xem thêm", JS,
 		"    (t.con_nua ? '<button class=\"btn gh\" data-gvtthemds", "    (false ? '<button class=\"btn gh\" data-gvtthemds", CA_JS),
+	# ---- Codex #486 vòng 13 ----
+	("Codex #486 v13: bỏ phiếu không kiểm bản đang mở", PY,
+		"			kiem_phien_ban(phien_ban, d.modified, name, \"bo\")\n", "			pass\n", CA_PY),
+	("Codex #486 v13: màn bỏ phiếu không gửi bản", JS,
+		"{ name: p.name, phien_ban: p.phien_ban || '' }", "{ name: p.name }", CA_JS),
+	("Codex #486 v13: tìm lỗi mạng hiện như không có", JS,
+		"try { kq = await api('vagabond.gia_von_tam.tim_nl', { tu_khoa: tu }); }\n      catch (e) {",
+		"try { kq = await api('vagabond.gia_von_tam.tim_nl', { tu_khoa: tu }); } catch (e) { kq = []; }\n      if (false) {", CA_JS),
+	("Codex #486 v13: nút Tìm lại không tìm lại", JS,
+		"Đang tìm...</div>'; o.oninput(); return; }", "Đang tìm...</div>'; return; }", CA_JS),
+	("Codex #486 v13: tìm nguyên liệu quay về mọi thứ trừ bánh", PY,
+		"{\"disabled\": 0, \"item_group\": [\"in\", nhom]}", "{\"disabled\": 0, \"item_group\": [\"not in\", list(NHOM_BAN)]}", CA_PY),
+	("Codex #486 v13: phạm vi không nhận nhóm con", PY,
+		"			ra.add(g(n, \"name\"))\n", "			pass\n", CA_PY),
+	("Codex #486 v13: phạm vi lấy nhóm cha thay nhóm con", PY,
+		"if any(a < l and r < b for a, b in moc):", "if any(l < a and b < r for a, b in moc):", CA_PY),
+	("Codex #486 v13: thêm văn phòng phẩm vào nhóm nguyên liệu", PY,
+		"	\"Bao bì\",\n)", "	\"Bao bì\", \"Văn phòng phẩm\",\n)", CA_PY),
 ]
 
 
 def main():
 	bat = 0
-	for ten, tep, cu, moi, lenh in DOT_BIEN:
+	# Tuỳ chọn: chỉ chạy đột biến có tên chứa chuỗi đưa vào, ví dụ "v13".
+	loc = sys.argv[1] if len(sys.argv) > 1 else ""
+	ds = [x for x in DOT_BIEN if loc in x[0]]
+	for ten, tep, cu, moi, lenh in ds:
 		duong = os.path.join(GOC, tep)
 		with io.open(duong, encoding="utf-8") as f:
 			goc = f.read()
@@ -247,8 +269,8 @@ def main():
 			print("  BAT      %s" % ten)
 		else:
 			print("  LOT      %s" % ten)
-	print("\n%d/%d đột biến bị bắt." % (bat, len(DOT_BIEN)))
-	return 0 if bat == len(DOT_BIEN) else 1
+	print("\n%d/%d đột biến bị bắt." % (bat, len(ds)))
+	return 0 if bat == len(ds) else 1
 
 
 if __name__ == "__main__":

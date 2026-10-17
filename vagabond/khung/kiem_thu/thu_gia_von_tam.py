@@ -743,7 +743,7 @@ def _phieu_kho(ten, ten_mon, da_bo=0, nhom="Bánh lạnh", creation="2026-10-16 
 def _bo_mem():
 	cu = _site_thu({"GT-2610-001": _phieu_kho("GT-2610-001", "Tart chanh"), "GT-2610-002": _phieu_kho("GT-2610-002", "Mousse xoài")})
 	try:
-		kq = G.bo_thu("GT-2610-001")
+		kq = G.bo_thu("GT-2610-001", G._doc_phieu("GT-2610-001")["phien_ban"])
 		d = _DocGia.kho.get("GT-2610-001")
 		dung("phiếu vẫn còn trong kho", d is not None)
 		la("không xoá cứng", [g for g in _DocGia.ghi if g[0] == "delete"], [])
@@ -846,6 +846,77 @@ def _don_vi_v12():
 	la("mã có sẵn không cần đơn vị gửi lên", G.chuan_phieu({"ten_mon": "x", "dong": [{"item_code": "KEM", "so_luong": 1}]})["dong"][0]["dvt"], "")
 
 
+# Cây Nhóm món giả: gốc "Mua vào" chứa NVL Thô (có nhóm con Bột), bao bì,
+# đồ uống bán ra, dịch vụ, văn phòng phẩm, tài sản cố định; "Sản xuất" chứa BTP.
+_CAY_NHOM = [
+	_Dong(name="All Item Groups", lft=1, rgt=40),
+	_Dong(name="Mua vào", lft=2, rgt=21),
+	_Dong(name="Nguyên vật liệu Thô", lft=3, rgt=8),
+	_Dong(name="Bột", lft=4, rgt=5),
+	_Dong(name="Bơ sữa", lft=6, rgt=7),
+	_Dong(name="Bao bì", lft=9, rgt=10),
+	_Dong(name="Văn phòng phẩm", lft=11, rgt=12),
+	_Dong(name="Tài sản Cố định", lft=13, rgt=14),
+	_Dong(name="Bán ra", lft=22, rgt=31),
+	_Dong(name="Cà phê", lft=23, rgt=24),
+	_Dong(name="Dịch vụ Bán hàng", lft=25, rgt=26),
+	_Dong(name="Bánh lạnh", lft=27, rgt=28),
+	_Dong(name="Sản xuất", lft=32, rgt=39),
+	_Dong(name="Bán thành phẩm Bánh", lft=33, rgt=36),
+	_Dong(name="Cốt bánh", lft=34, rgt=35),
+	_Dong(name="Nhân bán thành phẩm", lft=37, rgt=38),
+]
+
+
+@ca("gia von tam: Codex #486 v13 pham vi nguyen lieu cua phieu thu: chi NVL, ban thanh pham, bao bi va nhom con; khong lan do uong, dich vu, van phong pham, tai san, banh ban")
+def _pham_vi_nl_v13():
+	from vagabond import xuat_phuc_vu_ban as X
+	ds = G.pham_vi_nl(_CAY_NHOM)
+	for co in ("Nguyên vật liệu Thô", "Bột", "Bơ sữa", "Bao bì", "Bán thành phẩm Bánh", "Cốt bánh", "Nhân bán thành phẩm",
+			"Nguyên vật liệu Sonneto", "Bán thành phẩm Nước"):
+		dung("%s được chọn làm nguyên liệu" % co, co in ds)
+	for khong in ("All Item Groups", "Mua vào", "Sản xuất", "Bán ra", "Cà phê", "Dịch vụ Bán hàng", "Văn phòng phẩm",
+			"Tài sản Cố định", "Bánh lạnh"):
+		dung("%s không được chọn" % khong, khong not in ds)
+	la("không trùng nhóm bánh bán ra", set(G.NHOM_NL) & set(G.NHOM_BAN), set())
+	# Tên lá lấy đúng cây Nhóm món mà xuat_phuc_vu_ban đã đọc từ site.
+	ten_site = {n["nhom"] for n in X.NHOM}
+	la("mọi nhóm nguyên liệu có trên cây của site", sorted(set(G.NHOM_NL) - ten_site), [])
+	ngoai = {n for k in X.NGOAI_PHAM_VI for n in k["nhom"]}
+	la("không nhóm nào thuộc nhóm bán ra hay tài sản", sorted(set(G.NHOM_NL) & ngoai), [])
+	la("cây rỗng vẫn giữ nhóm gốc theo tên", G.pham_vi_nl([]), sorted(G.NHOM_NL))
+
+
+@ca("gia von tam: Codex #486 v13 bo phieu phai dung ban dang mo: ban cu hay thieu ban khong bo am tham ban moi hon")
+def _bo_phien_ban_v13():
+	import json as _j
+	for gui, mo in (("", "thiếu bản"), ("2026-10-17 09:00:00", "bản cũ")):
+		try:
+			G.kiem_phien_ban(gui, "2026-10-17 10:00:01", "GT-1", "bo")
+			dung("%s phải bị chặn" % mo, False)
+		except ValueError as e:
+			dung("câu nói rõ chưa bỏ, mở lại: %s" % e, "Mở lại phiếu từ danh sách" in str(e) and "bỏ" in str(e) and "lưu" not in str(e))
+	cu = _site_thu({"GT-2610-001": _phieu_kho("GT-2610-001", "Tart chanh")})
+	try:
+		ban_a = G._doc_phieu("GT-2610-001")["phien_ban"]
+		# Loan mở phiếu, sửa rồi lưu; Khải vẫn để tab cũ (bản A) và bấm Bỏ.
+		G.luu_thu(_j.dumps({"name": "GT-2610-001", "phien_ban": ban_a, "ten_mon": "Tart chanh", "nhom": "Bánh lạnh",
+			"ghi_chu": "Loan sửa", "dong": [{"ten": "Lá vàng", "dvt": "Lá", "so_luong": 2, "don_gia_tay": 1000}]}))
+		for gui in (ban_a, None):
+			try:
+				G.bo_thu("GT-2610-001", gui)
+				dung("bỏ trên bản %s phải bị chặn" % (gui or "trống"), False)
+			except Exception as e:
+				dung("câu nói vừa được sửa hoặc chưa rõ bản: %s" % e, "vừa được sửa ở nơi khác" in str(e) or "chưa rõ bản" in str(e))
+		d = _DocGia.kho["GT-2610-001"]
+		la("bản Loan sửa chưa bị bỏ", (d.get("da_bo") or 0, d.ghi_chu), (0, "Loan sửa"))
+		G.bo_thu("GT-2610-001", G._doc_phieu("GT-2610-001")["phien_ban"])
+		la("mở lại bản mới thì bỏ được", d.da_bo, 1)
+		la("bỏ lại phiếu đã bỏ vẫn ok, không cần bản", G.bo_thu("GT-2610-001", ""), {"ok": 1})
+	finally:
+		_tra(cu)
+
+
 @ca("gia von tam: Codex #486 v12 luu de phieu da co phai dung ban dang luu: ban cu, ban nhap cu, thieu ban deu bi chan, khong mat phan nguoi khac sua")
 def _phien_ban_v12():
 	import json as _j
@@ -926,7 +997,7 @@ def _dau_vet_v9():
 		ph["dong"][0]["so_luong"] = 2
 		luu()
 		la("hai lần đổi nội dung: 2", _DocGia.kho[kq["name"]].so_lan_sua, 2)
-		G.bo_thu(kq["name"])
+		G.bo_thu(kq["name"], str(_DocGia.kho[kq["name"]].modified))
 		la("bỏ phiếu không tính là sửa", _DocGia.kho[kq["name"]].so_lan_sua, 2)
 		_DocGia.kho[kq["name"]].da_bo = 0
 		d = _DocGia.kho[kq["name"]]
@@ -1040,15 +1111,23 @@ def _tim_nl():
 
 	def get_all(dt, filters=None, **kw):
 		goi.append((dt, filters))
-		return [_Dong(name="NVLT00001", item_name="Bột mì", stock_uom="Gram", item_group="Nguyên liệu")]
+		if dt == "Item Group":
+			return list(_CAY_NHOM)
+		return [_Dong(name="NVLT00001", item_name="Bột mì", stock_uom="Gram", item_group="Nguyên vật liệu Thô")]
 	frappe.get_all = get_all
 	try:
 		la("một chữ chưa tìm", (G.tim_nl("b"), goi), ([], []))
 		kq = G.tim_nl("bot mi")
-		la("trả mã, tên, đơn vị, nhóm", kq, [{"ma": "NVLT00001", "ten": "Bột mì", "dvt": "Gram", "nhom": "Nguyên liệu"}])
-		loc = goi[0][1]
+		la("trả mã, tên, đơn vị, nhóm", kq, [{"ma": "NVLT00001", "ten": "Bột mì", "dvt": "Gram", "nhom": "Nguyên vật liệu Thô"}])
+		loc = [f for dt, f in goi if dt == "Item"][0]
 		dung("lọc theo tên khớp của tim_kiem: %s" % loc, ["name", "in", ["NVLT00001"]] in loc)
-		dung("loại nhóm bánh bán ra", ["item_group", "not in", list(G.NHOM_BAN)] in loc)
+		# Codex #486 v13: chỉ trong phạm vi nguyên liệu, kể cả nhóm con; không còn
+		# "mọi thứ trừ bánh" để đồ uống, dịch vụ, văn phòng phẩm lọt vào.
+		nl = [f for f in loc if f[0] == "item_group"]
+		la("lọc theo nhóm nguyên liệu: %s" % nl, nl, [["item_group", "in", G.pham_vi_nl(_CAY_NHOM)]])
+		dung("nhóm con Bột của NVL Thô được nhận", "Bột" in nl[0][2])
+		for ngoai in ("Cà phê", "Dịch vụ Bán hàng", "Văn phòng phẩm", "Tài sản Cố định", "Bánh lạnh"):
+			dung("%s không lọt vào bộ lọc" % ngoai, ngoai not in nl[0][2])
 		dung("không tự viết like", "like" not in json.dumps(loc, ensure_ascii=False))
 	finally:
 		tim_kiem.ten_khop = cu_tk
@@ -1106,7 +1185,7 @@ def _bo_giu_anh():
 	p.gia_von, p.gia_de_xuat = 1234, 7000    # ảnh chụp lúc lưu, giá hôm nay đã khác (lá vàng 1.000)
 	cu = _site_thu({"GT-2610-001": p})
 	try:
-		G.bo_thu("GT-2610-001")
+		G.bo_thu("GT-2610-001", str(_DocGia.kho["GT-2610-001"].modified))
 		d = _DocGia.kho["GT-2610-001"]
 		la("bỏ phiếu không tính lại ảnh chụp", (d.da_bo, d.gia_von, d.gia_de_xuat), (1, 1234, 7000))
 		la("có ghi lưu", _DocGia.ghi[-1], ("save", "GT-2610-001"))
