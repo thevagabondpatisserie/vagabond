@@ -808,6 +808,72 @@ def _trang_ds():
 		_tra(cu)
 
 
+@ca("gia von tam: Codex #486 v9 tinh_phieu: ma da co gia danh muc thi bo qua gia tay cu, chi nhan gia tay khi ma thieu gia")
+def _gia_tay_v9():
+	gm = {"CO": {"gia": 30.0, "nguon": "Giá kho", "thieu": 0, "vong": False},
+		"THIEU": {"gia": 0.0, "nguon": "Thiếu giá", "thieu": 1, "vong": False},
+		"VONG": {"gia": 0.0, "nguon": "Công thức", "thieu": 0, "vong": True}}
+	def mot(dong):
+		p = G.chuan_phieu({"ten_mon": "x", "dong": [dong]})
+		r = G.tinh_phieu(p, lambda m: gm[m], {})
+		d = r["dong"][0]
+		return (d["nguon"], d["don_gia"], d["thieu"], d["tay"], r["gia_von"])
+	la("mã có giá kho, giá tay cũ 500 bị bỏ qua", mot({"item_code": "CO", "so_luong": 100, "don_gia_tay": 500}), ("Giá kho", 30.0, 0, 0, 3000))
+	la("mã thiếu giá, có giá tay thì nhận giá tay", mot({"item_code": "THIEU", "so_luong": 100, "don_gia_tay": 500}), ("Nhập tay", 500.0, 0, 1, 50000))
+	la("mã thiếu giá, chưa có giá tay thì vẫn thiếu", mot({"item_code": "THIEU", "so_luong": 100}), ("Thiếu giá", 0.0, 1, 0, 0))
+	p = G.chuan_phieu({"ten_mon": "x", "dong": [{"item_code": "VONG", "so_luong": 1, "don_gia_tay": 500}]})
+	la("công thức vòng không bị giá tay che", G.tinh_phieu(p, lambda m: gm[m], {})["trang_thai"], "vong")
+	la("NVL chưa có mã dùng giá tay", mot({"ten": "Lá vàng", "dvt": "Lá", "so_luong": 2, "don_gia_tay": 1000}), ("Nhập tay", 1000.0, 0, 1, 2000))
+
+
+@ca("gia von tam: Codex #486 v9 lan_sua_moi: phieu moi 0, luu doi noi dung cong 1, luu khong doi hay bo phieu giu nguyen")
+def _lan_sua_moi():
+	la("phiếu mới", G.lan_sua_moi(None, "a", 5), 0)
+	la("đổi nội dung", G.lan_sua_moi({"noi_dung": "a"}, "b", 2), 3)
+	la("không đổi", G.lan_sua_moi({"noi_dung": "a"}, "a", 2), 2)
+	la("số cũ trống hay sai về 0", (G.lan_sua_moi({"noi_dung": "a"}, "b", None), G.lan_sua_moi({"noi_dung": "a"}, "b", "x")), (1, 1))
+
+
+@ca("gia von tam: Codex #486 v9 dau vet phieu thu: may chu dem so lan sua khi luu, ke ca Desk; danh sach tra nguoi lap, nguoi sua, luc nao")
+def _dau_vet_v9():
+	import json as _j
+	cu = _site_thu({})
+	try:
+		ph = {"ten_mon": "Tart vết", "nhom": "Bánh lạnh", "so_ra": 1, "gia_ban_du_kien": 0,
+			"dong": [{"ten": "Lá vàng", "dvt": "Lá", "so_luong": 1, "don_gia_tay": 1000}]}
+		kq = G.luu_thu(_j.dumps(ph))
+		d = _DocGia.kho[kq["name"]]
+		la("lập mới: 0 lần sửa", d.so_lan_sua, 0)
+		ph["name"] = kq["name"]
+		G.luu_thu(_j.dumps(ph))
+		la("lưu lại không đổi gì: vẫn 0", _DocGia.kho[kq["name"]].so_lan_sua, 0)
+		ph["ghi_chu"] = "bớt đường"
+		G.luu_thu(_j.dumps(ph))
+		ph["dong"][0]["so_luong"] = 2
+		G.luu_thu(_j.dumps(ph))
+		la("hai lần đổi nội dung: 2", _DocGia.kho[kq["name"]].so_lan_sua, 2)
+		G.bo_thu(kq["name"])
+		la("bỏ phiếu không tính là sửa", _DocGia.kho[kq["name"]].so_lan_sua, 2)
+		_DocGia.kho[kq["name"]].da_bo = 0
+		d = _DocGia.kho[kq["name"]]
+		d.creation, d.modified_by = "2026-10-16 21:00:00.123", "loan@x"
+		p = G._doc_phieu(kq["name"])
+		la("danh sách trả dấu vết", (p["lap_luc"], p["nguoi"], p["nguoi_sua"], p["so_lan_sua"], bool(p["ten_nguoi"])),
+			("2026-10-16 21:00", "khai@x", "loan@x", 2, True))
+	finally:
+		_tra(cu)
+
+
+@ca("gia von tam: Codex #486 v9 doctype co truong So lan sua chi doc, neo sau ghi chu")
+def _truong_lan_sua():
+	import os
+	goc = os.path.join(os.path.dirname(os.path.abspath(G.__file__)), "vagabond", "doctype")
+	cha = json.load(open(os.path.join(goc, "vagabond_gia_thu", "vagabond_gia_thu.json"), encoding="utf-8"))
+	f = [x for x in cha["fields"] if x["fieldname"] == "so_lan_sua"]
+	la("có trường Int chỉ đọc", [(x["fieldtype"], x.get("read_only")) for x in f], [("Int", 1)])
+	la("đứng sau ghi chú", cha["field_order"][cha["field_order"].index("so_lan_sua") - 1], "ghi_chu")
+
+
 @ca("gia von tam: Codex #486 v7 loc_trang_thu: so tren chip bang so the khi bam, dem cheo theo bo loc kia, chia trang khong truot")
 def _loc_trang_thu():
 	ds = ([{"name": "A%d" % i, "nhom": "Bánh lạnh", "trang_thai": "dat"} for i in range(5)] +
