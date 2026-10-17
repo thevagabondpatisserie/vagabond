@@ -590,6 +590,10 @@ function gvtMoPhieu(p) {
     })
   }));
   GVT.pk = p.name ? JSON.parse(JSON.stringify(p)) : null;
+  /* Dấu vết giữ riêng: kết quả tính thử thay GVT.pk nhưng không có ai lập,
+     ai sửa, số lần sửa (Codex #486 v10). */
+  GVT.vet = p.name ? { name: p.name, nguoi: p.nguoi, ten_nguoi: p.ten_nguoi, lap_luc: p.lap_luc, nguoi_sua: p.nguoi_sua,
+    ten_nguoi_sua: p.ten_nguoi_sua, cap_nhat: p.cap_nhat, so_lan_sua: p.so_lan_sua } : null;
   GVT.pkDong = p.name ? GVT.pk.dong : null;   /* phiếu đã lưu: mọi dòng đều hợp lệ, kết quả khớp từng dòng */
   GVT.lan++; GVT.loiTinh = null;
   vgbBoChuaLuu();
@@ -732,7 +736,7 @@ function gvtManPhieu() {
   var sua = t.sua_duoc !== false;
   var html = '<div class="card" style="padding:12px 14px" id="gvtpKq">' + gvtKhoiKetQua() + '</div>' +
     '<div class="card" style="padding:12px 14px">' +
-      (GVT.pk ? gvtDauVet(GVT.pk, 'margin:0 0 8px') : '') +
+      (GVT.vet ? gvtDauVet(GVT.vet, 'margin:0 0 8px') : '') +
       '<div class="t2" style="margin-bottom:4px">Tên món thử</div>' +
       '<input class="tin" id="gvtpTen" placeholder="Ví dụ: Tart chanh dây size 16" value="' + h(p.ten_mon) + '" style="margin:0 0 10px">' +
       '<div class="t2" style="margin-bottom:6px">Nhóm bán dự kiến (để lấy hệ số mục tiêu)</div>' +
@@ -896,7 +900,7 @@ async function gvtLuuPhieu() {
   catch (e) { busy(false); return baoTin((e && e.message) || 'Lưu phiếu lỗi'); }
   vgbBoChuaLuu();
   toast('Đã lưu phiếu ' + kq.name, 3000);
-  GVT.thu = null; GVT.p = null; GVT.pk = null; GVT.pkDong = null; GVT.lan++;
+  GVT.thu = null; GVT.p = null; GVT.pk = null; GVT.pkDong = null; GVT.vet = null; GVT.lan++;
   GVT.tab = 'thu';
   back();
 }
@@ -912,7 +916,7 @@ async function gvtBoPhieu() {
   catch (e) { busy(false); return baoTin((e && e.message) || 'Bỏ phiếu lỗi'); }
   vgbBoChuaLuu();
   toast('Đã bỏ phiếu. Vẫn tra lại được trên Desk.', 3000);
-  GVT.thu = null; GVT.p = null; GVT.pk = null; GVT.pkDong = null; GVT.lan++;
+  GVT.thu = null; GVT.p = null; GVT.pk = null; GVT.pkDong = null; GVT.vet = null; GVT.lan++;
   GVT.tab = 'thu';
   back();
 }
