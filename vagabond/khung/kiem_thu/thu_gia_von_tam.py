@@ -582,6 +582,9 @@ class _DocGia(_Dong):
 
 	def save(self):
 		self._validate()
+		# Như Frappe: mỗi lần lưu đổi mốc modified (Codex #486 v12 so bản theo mốc này).
+		_DocGia.lan_luu = getattr(_DocGia, "lan_luu", 0) + 1
+		self.modified = "2026-10-17 10:%02d:%02d.000001" % divmod(_DocGia.lan_luu, 60)
 		self._truoc = _chup(self)
 		_DocGia.ghi.append(("save", self.name))
 
@@ -655,7 +658,7 @@ def _phieu_site():
 		la("chi ghi phieu thu", _DocGia.ghi, [("insert", "GT-2610-001")])
 		dung("khong doc doctype la: %s" % sorted(set(doc)), set(doc) <= {"BOM", "BOM Item", "Bin", "Item", "Item Price", "UOM Conversion Detail", G.DT_THU})
 		# Sửa lại cùng phiếu: thay dòng, không tạo phiếu mới.
-		phieu.update(name="GT-2610-001", dong=[{"item_code": "KEM", "so_luong": 50}])
+		phieu.update(name="GT-2610-001", dong=[{"item_code": "KEM", "so_luong": 50}], phien_ban=str(d.modified))
 		kq2 = G.luu_thu(json.dumps(phieu))
 		la("sua phieu cu", (_DocGia.ghi[-1], len(_DocGia.kho), len(d.dong), kq2["gia_von"]), (("save", "GT-2610-001"), 1, 1, 7500))
 		ds = G.ds_thu()
@@ -749,7 +752,8 @@ def _bo_mem():
 		la("trả về ok", kq.get("ok"), 1)
 		la("danh sách chỉ còn phiếu chưa bỏ", [p["name"] for p in G.ds_thu()["ds"]], ["GT-2610-002"])
 		try:
-			G.luu_thu(json.dumps({"name": "GT-2610-001", "ten_mon": "Tart chanh", "dong": [{"ten": "Lá", "dvt": "Lá", "so_luong": 1, "don_gia_tay": 1}]}))
+			G.luu_thu(json.dumps({"name": "GT-2610-001", "phien_ban": str(d.modified), "ten_mon": "Tart chanh",
+				"dong": [{"ten": "Lá", "dvt": "Lá", "so_luong": 1, "don_gia_tay": 1}]}))
 			dung("lưu đè lên phiếu đã bỏ phải bị chặn", False)
 		except Exception as e:
 			dung("câu chặn nói phiếu đã bỏ: %s" % e, "đã bỏ" in str(e))
@@ -832,6 +836,46 @@ def _gia_tay_v9():
 	la("Codex #486 v11: dòng vòng trả cờ vong cho màn", r["dong"][0]["vong"], 1)
 
 
+@ca("gia von tam: Codex #486 v12 NVL chua co ma phai co don vi, ke ca Desk va API")
+def _don_vi_v12():
+	try:
+		G.chuan_phieu({"ten_mon": "x", "dong": [{"ten": "Lá vàng", "dvt": " ", "so_luong": 2, "don_gia_tay": 1000}]})
+		dung("thiếu đơn vị phải bị chặn", False)
+	except ValueError as e:
+		dung("câu nói đúng dòng và cách sửa: %s" % e, "Dòng 1 (Lá vàng)" in str(e) and "đơn vị" in str(e))
+	la("mã có sẵn không cần đơn vị gửi lên", G.chuan_phieu({"ten_mon": "x", "dong": [{"item_code": "KEM", "so_luong": 1}]})["dong"][0]["dvt"], "")
+
+
+@ca("gia von tam: Codex #486 v12 luu de phieu da co phai dung ban dang luu: ban cu, ban nhap cu, thieu ban deu bi chan, khong mat phan nguoi khac sua")
+def _phien_ban_v12():
+	import json as _j
+	la("thuần: đúng bản thì qua", G.kiem_phien_ban("2026-10-17 10:00:01", "2026-10-17 10:00:01", "GT-1"), None)
+	for gui, mo in (("", "thiếu bản"), ("2026-10-17 09:00:00", "bản cũ")):
+		try:
+			G.kiem_phien_ban(gui, "2026-10-17 10:00:01", "GT-1")
+			dung("%s phải bị chặn" % mo, False)
+		except ValueError as e:
+			dung("câu chỉ mở lại phiếu: %s" % e, "Mở lại phiếu từ danh sách" in str(e))
+	cu = _site_thu({"GT-2610-001": _phieu_kho("GT-2610-001", "Tart chanh")})
+	try:
+		ban_a = G._doc_phieu("GT-2610-001")["phien_ban"]
+		ph = {"name": "GT-2610-001", "phien_ban": ban_a, "ten_mon": "Tart chanh", "nhom": "Bánh lạnh",
+			"dong": [{"ten": "Lá vàng", "dvt": "Lá", "so_luong": 2, "don_gia_tay": 1000}]}
+		G.luu_thu(_j.dumps(dict(ph, ghi_chu="Loan sửa")))
+		dung("người khác lưu thì đổi bản", str(_DocGia.kho["GT-2610-001"].modified) != ban_a)
+		try:
+			G.luu_thu(_j.dumps(dict(ph, ghi_chu="Khải sửa trên bản cũ")))
+			dung("lưu trên bản cũ phải bị chặn", False)
+		except Exception as e:
+			dung("câu nói vừa được sửa ở nơi khác: %s" % e, "vừa được sửa ở nơi khác" in str(e))
+		la("phần Loan sửa còn nguyên", _DocGia.kho["GT-2610-001"].ghi_chu, "Loan sửa")
+		ph2 = dict(ph, phien_ban=G._doc_phieu("GT-2610-001")["phien_ban"], ghi_chu="Khải sửa trên bản mới")
+		G.luu_thu(_j.dumps(ph2))
+		la("mở lại lấy bản mới thì lưu được", _DocGia.kho["GT-2610-001"].ghi_chu, "Khải sửa trên bản mới")
+	finally:
+		_tra(cu)
+
+
 @ca("gia von tam: Codex #486 v11 gop_he_so va luu_he_so: chi nhom co gui moi doi, nhom an giu nguyen muc tieu da luu")
 def _gop_he_so():
 	la("thuần", G.gop_he_so({"Bánh lạnh": 4, "Bánh khô": 3}, {"Bánh lạnh": "", "Bánh nướng": 6}, {"Bánh nướng": 6.0}),
@@ -870,12 +914,17 @@ def _dau_vet_v9():
 		d = _DocGia.kho[kq["name"]]
 		la("lập mới: 0 lần sửa", d.so_lan_sua, 0)
 		ph["name"] = kq["name"]
-		G.luu_thu(_j.dumps(ph))
+
+		def luu():
+			# Như màn: mỗi lần mở lại phiếu là lấy bản mới nhất (v12).
+			ph["phien_ban"] = str(_DocGia.kho[kq["name"]].modified)
+			G.luu_thu(_j.dumps(ph))
+		luu()
 		la("lưu lại không đổi gì: vẫn 0", _DocGia.kho[kq["name"]].so_lan_sua, 0)
 		ph["ghi_chu"] = "bớt đường"
-		G.luu_thu(_j.dumps(ph))
+		luu()
 		ph["dong"][0]["so_luong"] = 2
-		G.luu_thu(_j.dumps(ph))
+		luu()
 		la("hai lần đổi nội dung: 2", _DocGia.kho[kq["name"]].so_lan_sua, 2)
 		G.bo_thu(kq["name"])
 		la("bỏ phiếu không tính là sửa", _DocGia.kho[kq["name"]].so_lan_sua, 2)

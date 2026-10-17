@@ -158,6 +158,17 @@ DOT_BIEN = [
 		"  return d.trang_thai !== 'thieu_gia' && d.trang_thai !== 'vong'", "  return d.trang_thai !== 'vong'", CA_JS),
 	("Codex #486 v6: thẻ phiếu thử không có ô ảnh món", JS,
 		"    '<div class=\"gvt-dau\">' + anhMon('') + '<div class=\"gvt-th\">' +", "    '<div class=\"gvt-dau\"><div class=\"gvt-th\">' +", CA_JS),
+	# ---- Codex #486 vòng 12 ----
+	("Codex #486 v12: NVL chưa có mã không cần đơn vị", PY,
+		"		if not ma and not dvt:", "		if False:", CA_PY),
+	("Codex #486 v12: lưu không so bản", PY,
+		"			kiem_phien_ban(p[\"phien_ban\"], d.modified, p[\"name\"])", "			pass", CA_PY),
+	("Codex #486 v12: bản cũ vẫn lưu được", PY,
+		"	if str(gui) != str(hien_tai):", "	if False:", CA_PY),
+	("Codex #486 v12: lưu không gửi bản lúc mở", JS,
+		"name: p.name, phien_ban: p.phien_ban || '', ten_mon:", "name: p.name, ten_mon:", CA_JS),
+	("Codex #486 v12: mở phiếu không giữ bản", JS,
+		"    phien_ban: p.phien_ban || '',\n", "", CA_JS),
 	("Codex #486 P2: máy chủ bỏ qua vị trí bắt đầu", PY,
 		"	cat = hop[bd:bd + trang]", "	cat = hop[0:trang]", CA_PY),
 	# ---- Codex #486 vòng 7 ----
