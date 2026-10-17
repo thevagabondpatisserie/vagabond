@@ -880,7 +880,18 @@ function gvtThemNl() {
     var vung = ov.querySelector('[data-gvtnkq]');
     if (tu.length < 2) { vung.innerHTML = '<div style="padding:10px 14px;font-size:13px;color:#6b7280">Gõ ít nhất 2 chữ để tìm.</div>'; return; }
     hen = setTimeout(async function () {
-      try { kq = await api('vagabond.gia_von_tam.tim_nl', { tu_khoa: tu }); } catch (e) { kq = []; }
+      /* Mất mạng hay máy chủ lỗi KHÔNG phải là không có nguyên liệu: báo lỗi
+         kèm nút thử lại, không mời ghi dòng chưa có mã (Codex #486 v13). */
+      kq = [];
+      try { kq = await api('vagabond.gia_von_tam.tim_nl', { tu_khoa: tu }); }
+      catch (e) {
+        if (o.value.trim() !== tu) return;
+        vung.innerHTML = '<div data-gvtnloi style="padding:10px 14px;font-size:13px;color:#b3261e">Chưa tìm được do mất mạng hoặc máy chủ lỗi. ' +
+          'Nguyên liệu có thể vẫn có trong danh mục, đừng ghi thành dòng chưa có mã.' +
+          '<button class="btn gh" data-gvtnlai style="margin-top:8px;width:100%">Tìm lại</button></div>';
+        return;
+      }
+      if (o.value.trim() !== tu) return;
       vung.innerHTML = kq.length ? kq.map(function (x, i) {
         return '<div class="shi" data-gvtnchon="' + i + '"><span style="flex:1;min-width:0">' + h(x.ten) +
           '<div style="color:#6b7280;font-size:12.5px">' + h(x.ma) + ' · ' + h(x.dvt) + ' · ' + h(x.nhom) + '</div></span></div>';
@@ -889,6 +900,7 @@ function gvtThemNl() {
   };
   ov.onclick = function (e) {
     if (e.target === ov || e.target.closest('[data-gvtndong]')) { ov.remove(); return; }
+    if (e.target.closest('[data-gvtnlai]')) { ov.querySelector('[data-gvtnkq]').innerHTML = '<div style="padding:10px 14px;font-size:13px;color:#6b7280">Đang tìm...</div>'; o.oninput(); return; }
     var el = e.target.closest('[data-gvtnchon]');
     if (el) {
       var x = kq[+el.getAttribute('data-gvtnchon')];
@@ -935,7 +947,9 @@ async function gvtBoPhieu() {
   if (!await confirmSheet('Bỏ phiếu', 'Bỏ phiếu tính giá thử "' + p.ten_mon + '"? Phiếu ẩn khỏi danh sách nhưng vẫn giữ trên hệ thống để tra lại. ' +
     'Không ảnh hưởng mã hàng, công thức hay sổ sách.', 'Bỏ phiếu', true)) return;
   busy(true);
-  try { await api('vagabond.gia_von_tam.bo_thu', { name: p.name }); busy(false); }
+  /* Gửi bản đang mở: bản nháp cũ hay tab để lâu không được bỏ âm thầm một
+     bản người khác vừa sửa (Codex #486 v13). */
+  try { await api('vagabond.gia_von_tam.bo_thu', { name: p.name, phien_ban: p.phien_ban || '' }); busy(false); }
   catch (e) { busy(false); return baoTin((e && e.message) || 'Bỏ phiếu lỗi'); }
   vgbBoChuaLuu();
   toast('Đã bỏ phiếu. Vẫn tra lại được trên Desk.', 3000);
