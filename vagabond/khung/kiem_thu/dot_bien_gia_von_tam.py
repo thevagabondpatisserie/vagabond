@@ -179,7 +179,11 @@ DOT_BIEN = [
 		"    return chip + vuot + '<div class=\"card\"><div class=\"emp\"", "    return chip + '<div class=\"card\"><div class=\"emp\"", CA_JS),
 	# ---- Codex #486 vòng 9 ----
 	("Codex #486 v9: giá tay thắng cả mã đã có giá", PY,
-		"			if g.get(\"thieu\") and tay:", "			if tay:", CA_PY),
+		"			if g.get(\"thieu\") and tay and not g.get(\"vong\"):", "			if tay:", CA_PY),
+	("Codex #486 v10: giá tay xoá cờ công thức vòng", PY,
+		"			if g.get(\"thieu\") and tay and not g.get(\"vong\"):", "			if g.get(\"thieu\") and tay:", CA_PY),
+	("Codex #486 v10: dấu vết lấy từ kết quả tính thử", JS,
+		"(GVT.vet ? gvtDauVet(GVT.vet, 'margin:0 0 8px')", "(GVT.pk ? gvtDauVet(GVT.pk, 'margin:0 0 8px')", CA_JS),
 	("Codex #486 v9: lưu đổi nội dung không đếm sửa", PY,
 		"	return lan + 1 if truoc.get(\"noi_dung\") != noi_dung_nay else lan", "	return lan", CA_PY),
 	("Codex #486 v9: lưu không ghi số lần sửa vào phiếu", PY,

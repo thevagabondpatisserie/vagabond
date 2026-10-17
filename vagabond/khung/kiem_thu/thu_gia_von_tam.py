@@ -824,6 +824,11 @@ def _gia_tay_v9():
 	p = G.chuan_phieu({"ten_mon": "x", "dong": [{"item_code": "VONG", "so_luong": 1, "don_gia_tay": 500}]})
 	la("công thức vòng không bị giá tay che", G.tinh_phieu(p, lambda m: gm[m], {})["trang_thai"], "vong")
 	la("NVL chưa có mã dùng giá tay", mot({"ten": "Lá vàng", "dvt": "Lá", "so_luong": 2, "don_gia_tay": 1000}), ("Nhập tay", 1000.0, 0, 1, 2000))
+	# Codex #486 v10: công thức vừa vòng vừa thiếu giá lá: giá tay không được xoá cờ vòng.
+	gm["VONG_THIEU"] = {"gia": 0.0, "nguon": "Công thức", "thieu": 1, "vong": True}
+	p = G.chuan_phieu({"ten_mon": "x", "dong": [{"item_code": "VONG_THIEU", "so_luong": 1, "don_gia_tay": 500}]})
+	r = G.tinh_phieu(p, lambda m: gm[m], {})
+	la("Codex #486 v10: vòng kèm thiếu giá, có giá tay vẫn là vòng, không nhận giá tay", (r["trang_thai"], r["dong"][0]["tay"]), ("vong", 0))
 
 
 @ca("gia von tam: Codex #486 v9 lan_sua_moi: phieu moi 0, luu doi noi dung cong 1, luu khong doi hay bo phieu giu nguyen")
