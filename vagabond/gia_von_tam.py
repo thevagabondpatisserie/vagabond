@@ -48,6 +48,14 @@ NHOM_BAN = (
 	"Hộp bánh theo mùa", "Bánh Wholesale", "BÁNH NHẸ / CONFECTIONERY",
 	"Topping cho món bánh", "Thành phẩm Bánh",
 )
+# Nhóm được chọn làm nguyên liệu cho phiếu thử (Codex #486 v13), tên lá lấy
+# đúng cây Nhóm món như xuat_phuc_vu_ban.NHOM. Bao bì có vì hộp, đế, ruy băng
+# là một phần giá vốn của món; nhóm con của các nhóm này cũng được nhận.
+NHOM_NL = (
+	"Nguyên vật liệu Thô", "Nguyên vật liệu Sonneto",
+	"Bán thành phẩm Bánh", "Bán thành phẩm Nước", "Nhân bán thành phẩm",
+	"Bao bì",
+)
 # Nhãn chip, tối đa 16 ký tự (AGENTS.md 2b điều 18).
 NHAN_NHOM = {
 	"Bánh ổ sinh nhật": "Bánh ổ",
@@ -534,15 +542,38 @@ def chuan_phieu(vao, nhom_hop_le=NHOM_BAN):
 		"phien_ban": str(vao.get("phien_ban") or "").strip()[:40]}
 
 
-def kiem_phien_ban(gui, hien_tai, ten):
-	"""Lưu đè phiếu đã có thì bản mở để sửa phải là bản đang lưu. THUẦN.
+def kiem_phien_ban(gui, hien_tai, ten, viec="luu"):
+	"""Lưu đè hay bỏ một phiếu đã có thì bản đang mở phải là bản đang lưu. THUẦN.
 	Codex #486 v12: người khác (hay tab khác, hay bản nháp cũ) vừa sửa thì
-	lưu sẽ xoá âm thầm phần họ sửa. Sai thì ném ValueError bằng câu tiếng Việt."""
+	lưu sẽ xoá âm thầm phần họ sửa. v13: bỏ phiếu cũng vậy, bản cũ không được
+	bỏ âm thầm một bản mới hơn. Sai thì ném ValueError bằng câu tiếng Việt."""
+	bo = viec == "bo"
 	if not gui:
-		raise ValueError("Phiếu %s chưa rõ bản đang sửa. Mở lại phiếu từ danh sách rồi sửa tiếp." % ten)
+		raise ValueError(("Phiếu %s chưa rõ bản đang mở. Mở lại phiếu từ danh sách rồi mới bỏ." if bo else
+			"Phiếu %s chưa rõ bản đang sửa. Mở lại phiếu từ danh sách rồi sửa tiếp.") % ten)
 	if str(gui) != str(hien_tai):
+		if bo:
+			raise ValueError("Phiếu %s vừa được sửa ở nơi khác. Mở lại phiếu từ danh sách để xem bản mới rồi mới bỏ; "
+				"phiếu chưa bị bỏ." % ten)
 		raise ValueError("Phiếu %s vừa được sửa ở nơi khác. Mở lại phiếu từ danh sách để lấy bản mới rồi sửa tiếp; "
 			"phần đang gõ ở đây chưa được lưu." % ten)
+
+
+def pham_vi_nl(cac_nhom, goc=None):
+	"""Tên mọi nhóm món được chọn làm nguyên liệu của phiếu thử. THUẦN.
+	Codex #486 v13: chỉ nguyên liệu, bán thành phẩm và bao bì, cùng mọi nhóm
+	con của chúng trên cây (lft, rgt); đồ uống bán ra, dịch vụ, văn phòng phẩm,
+	tài sản cố định không lọt vào. `cac_nhom` là các dòng Item Group có
+	name, lft, rgt. Nhóm gốc chưa có trên cây vẫn giữ theo tên."""
+	goc = NHOM_NL if goc is None else goc
+	g = lambda o, k: o.get(k) if isinstance(o, dict) else getattr(o, k, None)
+	ra = set(goc)
+	moc = [(flt(g(n, "lft")), flt(g(n, "rgt"))) for n in cac_nhom if g(n, "name") in set(goc)]
+	for n in cac_nhom:
+		l, r = flt(g(n, "lft")), flt(g(n, "rgt"))
+		if any(a < l and r < b for a, b in moc):
+			ra.add(g(n, "name"))
+	return sorted(ra)
 
 
 def noi_dung_phieu(d):
@@ -1077,7 +1108,7 @@ def luu_thu(phieu):
 
 
 @frappe.whitelist(methods=["POST"])
-def bo_thu(name):
+def bo_thu(name, phien_ban=None):
 	"""Bỏ một phiếu thử: ẩn khỏi danh sách, KHÔNG xoá (QT-20, Codex #486 P1).
 	Giữ nguyên dòng nguyên liệu và giá lúc lưu để tra lại, ghi ai bỏ lúc nào.
 	validate() thấy đang bỏ nên không tính lại giá (Codex #486 v2)."""
@@ -1086,6 +1117,11 @@ def bo_thu(name):
 		frappe.throw("Không tìm thấy phiếu %s." % name)
 	d = frappe.get_doc(DT_THU, name)
 	if not d.get("da_bo"):
+		# Bản đang mở phải là bản đang lưu (Codex #486 v13), như luu_thu.
+		try:
+			kiem_phien_ban(phien_ban, d.modified, name, "bo")
+		except ValueError as e:
+			frappe.throw(str(e))
 		d.da_bo = 1
 		d.bo_luc = now_datetime()
 		d.bo_boi = frappe.session.user
@@ -1096,13 +1132,15 @@ def bo_thu(name):
 
 @frappe.whitelist()
 def tim_nl(tu_khoa):
-	"""Tìm nguyên liệu, bán thành phẩm để thêm vào phiếu thử (trừ bánh bán ra)."""
+	"""Tìm nguyên liệu, bán thành phẩm, bao bì để thêm vào phiếu thử. Chỉ trong
+	các nhóm NHOM_NL và nhóm con (Codex #486 v13), không phải mọi thứ trừ bánh."""
 	_kiem(QUYEN_XEM, "xem giá vốn tạm tính")
 	tu = str(tu_khoa or "").strip()[:80]
 	if len(tu) < 2:
 		return []
 	# Một nguồn tìm tim_kiem (v583), không tự viết like.
-	loc = tim_kiem.them_loc({"disabled": 0, "item_group": ["not in", list(NHOM_BAN)]}, "Item", tu, ["name", "item_name"])
+	nhom = pham_vi_nl(frappe.get_all("Item Group", fields=["name", "lft", "rgt"], limit_page_length=0))
+	loc = tim_kiem.them_loc({"disabled": 0, "item_group": ["in", nhom]}, "Item", tu, ["name", "item_name"])
 	ds = frappe.get_all("Item", filters=loc,
 		fields=["name", "item_name", "stock_uom", "item_group"], order_by="item_name asc", limit_page_length=20)
 	return [{"ma": i.name, "ten": i.item_name, "dvt": i.stock_uom, "nhom": i.item_group} for i in ds]
