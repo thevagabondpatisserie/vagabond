@@ -175,6 +175,8 @@ DOT_BIEN = [
 		"  o.oninput = function () { ve(o.value); };", "  o.oninput = function () { };", CA_JS),
 	("Codex #486 v7: không hiện hàng chip lọc phiếu thử", JS,
 		"  var chip = (t.tong || dangLoc) ? gvtChipThu(t) : '';", "  var chip = '';", CA_JS),
+	("Codex #486 v8: lọc ra rỗng mất câu giới hạn 500 phiếu", JS,
+		"    return chip + vuot + '<div class=\"card\"><div class=\"emp\"", "    return chip + '<div class=\"card\"><div class=\"emp\"", CA_JS),
 	("Codex #486 P2: màn không có nút Xem thêm", JS,
 		"    (t.con_nua ? '<button class=\"btn gh\" data-gvtthemds", "    (false ? '<button class=\"btn gh\" data-gvtthemds", CA_JS),
 ]
