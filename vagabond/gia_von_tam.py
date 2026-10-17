@@ -641,7 +641,9 @@ def tinh_phieu(phieu, gia_ma, he_so_nhom=None):
 		g_tay = {"gia": flt(d.get("don_gia_tay")), "nguon": NGUON_TAY, "thieu": 0, "vong": False, "tay": 1}
 		if d.get("item_code"):
 			g = gia_ma(d["item_code"])
-			if g.get("thieu") and tay:
+			# Công thức vòng thì giá tay không che được, kể cả khi vòng kèm thiếu giá
+			# lá (Codex #486 v10): phiếu phải báo vòng để sửa công thức.
+			if g.get("thieu") and tay and not g.get("vong"):
 				g = g_tay
 		elif tay:
 			g = g_tay
