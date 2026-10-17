@@ -20,6 +20,7 @@
   "gia_de_xuat",
   "sb_gc",
   "ghi_chu",
+  "so_lan_sua",
   "sb_bo",
   "da_bo",
   "bo_luc",
@@ -119,6 +120,14 @@
    "label": "Ghi chú"
   },
   {
+   "default": "0",
+   "description": "Máy tự đếm mỗi lần lưu có đổi nội dung, kể cả sửa trên Desk.",
+   "fieldname": "so_lan_sua",
+   "fieldtype": "Int",
+   "label": "Số lần sửa",
+   "read_only": 1
+  },
+  {
    "fieldname": "sb_bo",
    "fieldtype": "Section Break",
    "label": "Bỏ phiếu",
@@ -148,7 +157,7 @@
   }
  ],
  "links": [],
- "modified": "2026-10-17 04:00:00.000000",
+ "modified": "2026-10-17 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Gia Thu",
