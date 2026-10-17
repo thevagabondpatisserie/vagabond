@@ -181,6 +181,7 @@ function dungMan(tuyChon) {
         var bd = (ts && ts.bat_dau) || 0, co = tuyChon.co || (tuyChon.nhieuTrang ? 1 : 30);
         var tra = Object.assign(locPy(tat, ts || {}, co), { he_so: { 'Bánh lạnh': 5 }, nhom_ban: NHOM_BAN, sua_duoc: !tuyChon.khongSua,
           tu_khoa: tu, bat_dau: bd });
+        if (tuyChon.vuot) { tra.vuot = true; tra.tong = 500; }   /* như máy chủ: hơn 500 phiếu khớp tên, chỉ tính 500 */
         var tre = tuyChon.treDs ? tuyChon.treDs.shift() : 0;
         return new Promise(function (r) { setTimeout(function () { r(tra); }, tre || 0); });
       }
@@ -796,6 +797,23 @@ function sheetCuoi(m) { var ds = m.tai.body.children; return ds[ds.length - 1]; 
     await choDen(function () { return (m.g.GVT.thu || {}).nhom === ''; });
     var g3 = goiDs(m);
     bang('Bỏ lọc gửi lại không bộ lọc, giữ chữ đang tìm', g3[g3.length - 1].ts, { tu_khoa: 'khong co mon nay', bat_dau: 0, trang_thai: '', nhom: '', khoang: '' });
+  });
+
+  /* Codex #486 vòng 8 (P2): hơn 500 phiếu khớp thì máy chủ chỉ lọc trong 500
+     phiếu mới sửa nhất. Lọc ra rỗng mà không nói điều đó là bảo sai "không có". */
+  await ca('Codex #486 v8 quá 500 phiếu: lọc ra rỗng vẫn nói chỉ lọc trong phiếu gần nhất và chỉ cách thu hẹp', async function () {
+    var m = await moThu({ locNhieu: true, vuot: true });
+    dung('có thẻ thì có câu giới hạn: ' + chu(m.khung), chu(m.khung).indexOf('Chỉ đếm và lọc trong 500 phiếu sửa gần nhất') >= 0);
+    bam(m, tim(m, '[data-gvtft="thieu_gia"]')[0]);
+    await choDen(function () { return (m.g.GVT.thu || {}).trang_thai === 'thieu_gia'; });
+    go(m, m.tai.getElementById('gvtThuQ'), 'khong co mon nay');
+    await cho(350);
+    await choDen(function () { return (m.g.GVT.thu || {}).tu_khoa === 'khong co mon nay'; });
+    bang('rỗng', tim(m, '[data-gvtp]').length, 0);
+    var t = chu(m.khung);
+    dung('rỗng vẫn có câu giới hạn: ' + t, t.indexOf('Chỉ đếm và lọc trong 500 phiếu sửa gần nhất') >= 0);
+    dung('rỗng chỉ cách thu hẹp: ' + t, t.indexOf('Phiếu cũ hơn có thể khớp') >= 0);
+    dung('vẫn có Bỏ lọc', tim(m, '[data-gvtthubo]').length === 1);
   });
 
   await ca('v600 chưa có phiếu nào: câu chỉ đường nói nút cần bấm', async function () {
