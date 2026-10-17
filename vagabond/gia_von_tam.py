@@ -544,6 +544,21 @@ def quyet_luu_phieu(truoc, nay):
 	return "tinh"
 
 
+def lan_sua_moi(truoc, noi_dung_nay, lan_cu):
+	"""Số lần sửa sau lần lưu này. THUẦN. Codex #486 v9 (AGENTS.md 2b điều 11).
+
+	Phiếu mới là 0. Lưu có đổi nội dung (tên, nhóm, mẻ ra, giá dự kiến, ghi
+	chú, dòng nguyên liệu) thì cộng 1. Lưu lại không đổi gì, hay bỏ phiếu,
+	thì giữ nguyên."""
+	if truoc is None:
+		return 0
+	try:
+		lan = max(int(lan_cu or 0), 0)
+	except (TypeError, ValueError):
+		lan = 0
+	return lan + 1 if truoc.get("noi_dung") != noi_dung_nay else lan
+
+
 def chuan_trang(tu_khoa, bat_dau):
 	"""Tham số trang danh sách phiếu thử. THUẦN.
 
@@ -615,14 +630,21 @@ def tinh_phieu(phieu, gia_ma, he_so_nhom=None):
 
 	`gia_ma(ma)` -> {"gia", "nguon", "thieu", "vong"}: bán thành phẩm có công
 	thức thì lấy giá cộng dồn, lá thì lấy giá kho / mặt hàng / bảng giá nhập.
-	Giá nhập tay > 0 luôn thắng (NVL mới, hoặc mã đang thiếu giá). Dòng không
-	mã mà không có giá tay là thiếu giá."""
+	Dòng có mã: hỏi giá mã TRƯỚC, chỉ nhận giá nhập tay khi mã đó thiếu giá
+	(chưa có giá, hoặc nhiều công thức chưa chọn mặc định). Mã đã có giá thì
+	giá tay cũ bị bỏ qua, để phiếu không lệch âm thầm khỏi giá danh mục
+	(Codex #486 v9). NVL chưa có mã thì dùng giá tay; không có là thiếu giá.
+	Mỗi dòng trả `tay` = 1 khi giá đang dùng là giá nhập tay."""
 	rows, tong, thieu, vong = [], 0.0, 0, False
 	for d in phieu.get("dong") or []:
-		if flt(d.get("don_gia_tay")) > 0:
-			g = {"gia": flt(d["don_gia_tay"]), "nguon": NGUON_TAY, "thieu": 0, "vong": False}
-		elif d.get("item_code"):
+		tay = flt(d.get("don_gia_tay")) > 0
+		g_tay = {"gia": flt(d.get("don_gia_tay")), "nguon": NGUON_TAY, "thieu": 0, "vong": False, "tay": 1}
+		if d.get("item_code"):
 			g = gia_ma(d["item_code"])
+			if g.get("thieu") and tay:
+				g = g_tay
+		elif tay:
+			g = g_tay
 		else:
 			g = {"gia": 0.0, "nguon": NGUON_THIEU, "thieu": 1, "vong": False}
 		tt = flt(g["gia"]) * flt(d.get("so_luong"))
@@ -631,7 +653,7 @@ def tinh_phieu(phieu, gia_ma, he_so_nhom=None):
 			thieu += 1
 		vong = vong or bool(g.get("vong"))
 		rows.append(dict(d, don_gia=flt(g["gia"]), nguon=g["nguon"], thieu=int(bool(g.get("thieu"))),
-			thanh_tien=tt))
+			tay=int(bool(g.get("tay"))), thanh_tien=tt))
 	so_ra = flt(phieu.get("so_ra")) or 1.0
 	gv = round(tong / so_ra)
 	muc = (he_so_nhom or {}).get(phieu.get("nhom"))
@@ -873,9 +895,24 @@ def _doc_phieu(ten):
 		"name": d.name, "ten_mon": d.ten_mon, "nhom": d.nhom or "", "so_ra": flt(d.so_ra) or 1.0,
 		"dvt_ra": d.dvt_ra or "Cái", "gia_ban_du_kien": flt(d.gia_ban_du_kien), "ghi_chu": d.ghi_chu or "",
 		"cap_nhat": str(d.modified)[:16], "nguoi": d.owner,
+		# Dấu vết trên thẻ và màn phiếu (Codex #486 v9, AGENTS.md 2b điều 11).
+		"lap_luc": str(d.get("creation") or "")[:16], "nguoi_sua": d.get("modified_by") or d.owner,
+		"ten_nguoi": _ten_nguoi(d.owner), "ten_nguoi_sua": _ten_nguoi(d.get("modified_by") or d.owner),
+		"so_lan_sua": int(d.get("so_lan_sua") or 0),
 		"dong": [{"item_code": r.item_code or None, "ten": r.ten or "", "dvt": r.dvt or "",
 			"so_luong": flt(r.so_luong), "don_gia_tay": flt(r.don_gia_tay)} for r in d.dong],
 	}
+
+
+def _ten_nguoi(u):
+	"""Tên hiển thị của một tài khoản, không có thì giữ email."""
+	if not u:
+		return ""
+	try:
+		from frappe.utils import get_fullname
+		return get_fullname(u) or u
+	except Exception:
+		return u
 
 
 def _nhom_ban():
@@ -929,10 +966,13 @@ def kiem_khi_luu(d):
 	phiếu thì giữ nguyên ảnh chụp, còn lại tính lại (tinh_lai_doc)."""
 	cu = None if d.is_new() else d.get_doc_before_save()
 	truoc = None if cu is None else {"da_bo": cu.get("da_bo"), "noi_dung": noi_dung_phieu(cu)}
+	nd = noi_dung_phieu(d)
 	try:
-		viec = quyet_luu_phieu(truoc, {"da_bo": d.get("da_bo"), "noi_dung": noi_dung_phieu(d)})
+		viec = quyet_luu_phieu(truoc, {"da_bo": d.get("da_bo"), "noi_dung": nd})
 	except ValueError as e:
 		frappe.throw(str(e))
+	# Dấu vết "Đã sửa N lần" do máy chủ đếm, kể cả sửa thẳng trên Desk (v9).
+	d.so_lan_sua = lan_sua_moi(truoc, nd, None if cu is None else cu.get("so_lan_sua"))
 	if viec == "tinh":
 		return tinh_lai_doc(d)
 	return None
