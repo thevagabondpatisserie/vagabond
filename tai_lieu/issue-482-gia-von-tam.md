@@ -41,3 +41,6 @@
   - Thẻ món bán, thẻ phiếu thử và khối kết quả trong phiếu dùng chung kiểu chip và lưới ba ô.
   - Giá vốn còn thiếu, vòng hoặc chưa có nguyên liệu thì không hiện chip hệ số ở bất kỳ đâu (máy chủ vẫn có thể trả hệ số tính trên giá vốn thiếu). Một chỗ quyết: `gvtTinhDuoc`.
   - Thẻ phiếu thử có ô ảnh món giữ hàng như thẻ món bán.
+- 17/10/2026 (PR #486, Codex rà vòng 7 trên 14ec6c0c7, 2 finding P2 theo AGENTS.md 2b, tái hiện đủ 2 rồi sửa):
+  - Danh sách phiếu thử có ba hàng chip: trạng thái có đếm, nhóm bán có đếm (kể cả "Chưa chọn nhóm"), khoảng ngày lập. Lọc, đếm và chia trang ở máy chủ (`loc_trang_thu`), Xem thêm đi đúng bộ lọc đang dùng. Trạng thái tính theo giá hôm nay nên máy chủ tính cả tập tối đa 500 phiếu mới sửa nhất rồi lọc; vượt thì màn ghi rõ.
+  - Nhóm bán của phiếu (chín nhóm) chọn bằng thẻ giá trị đang chọn mở sheet có ô tìm, không còn hàng chip.
