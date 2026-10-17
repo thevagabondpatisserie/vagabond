@@ -107,10 +107,18 @@ function gvtCss() {
   document.head.appendChild(st);
 }
 
+/* Giá vốn đã đủ để tin chưa. Thiếu giá, vòng hay chưa có nguyên liệu thì máy
+   chủ vẫn có thể trả he_so tính trên giá vốn THIẾU (Codex #486 v6): MỘT chỗ
+   quyết cho thẻ món bán, thẻ phiếu thử và khối kết quả trong phiếu. */
+function gvtTinhDuoc(d) {
+  return d.trang_thai !== 'thieu_gia' && d.trang_thai !== 'vong' && d.trang_thai !== 'chua_nguyen_lieu';
+}
+
 /* Chip hệ số: "Hệ số x6,1 · vốn 16,5%". Màu theo trạng thái: xanh đạt, vàng
-   dưới mục tiêu, đỏ vượt giá bán, xanh dương khi chưa có mục tiêu. */
+   dưới mục tiêu, đỏ vượt giá bán, xanh dương khi chưa có mục tiêu. Giá vốn
+   chưa đủ thì không có chip, hệ số trên giá vốn thiếu là con số sai. */
 function gvtChipHeSo(d) {
-  if (d.he_so == null) return '';
+  if (d.he_so == null || !gvtTinhDuoc(d)) return '';
   var mau = { dat: ['#047857', '#ecfdf5'], duoi_muc_tieu: ['#b45309', '#fffbeb'], vuot_gia_ban: ['#b3261e', '#fef2f2'] }[d.trang_thai] ||
     ['#0b7c93', '#ecfeff'];
   return '<span class="gvt-c" data-gvths style="color:' + mau[0] + ';background:' + mau[1] + '"><b>' + gvtHeSo(d.he_so) + '</b>' +
@@ -124,7 +132,7 @@ function gvtO(nhan, giaTri, lop, nhat) {
 }
 
 function gvtThe(d) {
-  var tinhDuoc = d.trang_thai !== 'thieu_gia' && d.trang_thai !== 'vong';
+  var tinhDuoc = gvtTinhDuoc(d);
   var oDx;
   if (!tinhDuoc) oDx = gvtO('Đề xuất', 'Chưa tính', '', 1);
   else if (d.gia_de_xuat) oDx = gvtO('Đề xuất ' + gvtHeSo(d.he_so_muc_tieu), money(d.gia_de_xuat) + 'đ', 'dx');
@@ -146,8 +154,7 @@ function gvtThe(d) {
   return '<div class="gvt-the" data-gvtm="' + h(d.ma) + '">' +
     '<div class="gvt-dau">' + anhMon(d.anh) + '<div class="gvt-th">' +
       '<div class="gvt-ten">' + h(d.ten) + '</div>' +
-      /* Thiếu giá hay vòng thì giá vốn chưa đủ, hệ số dễ làm hiểu nhầm: ẩn. */
-      '<div class="gvt-chips">' + gvtChipTrangThai(d) + (tinhDuoc ? gvtChipHeSo(d) : '') + chot + '</div>' +
+      '<div class="gvt-chips">' + gvtChipTrangThai(d) + gvtChipHeSo(d) + chot + '</div>' +
     '</div></div>' +
     '<div class="gvt-so">' +
       gvtO('Giá vốn', money(d.gia_von) + 'đ', d.trang_thai === 'vuot_gia_ban' ? 'do' : '') +
@@ -441,15 +448,18 @@ function gvtCauDeXuat(p) {
 
 function gvtThePhieu(p) {
   var dvt = p.dvt_ra || 'Cái';
-  var tinhDuoc = p.trang_thai !== 'thieu_gia' && p.trang_thai !== 'vong' && p.trang_thai !== 'chua_nguyen_lieu';
+  var tinhDuoc = gvtTinhDuoc(p);
   var oDx;
   if (p.gia_de_xuat) oDx = gvtO('Đề xuất ' + gvtHeSo(p.he_so_muc_tieu), money(p.gia_de_xuat) + 'đ', 'dx');
   else oDx = gvtO('Đề xuất', !tinhDuoc ? 'Chưa tính' : (p.nhom ? 'Chưa đặt hệ số' : 'Chọn nhóm'), '', 1);
+  /* Phiếu thử chưa có ảnh: ô 🍰 giữ hàng như thẻ món bán (AGENTS.md, Codex #486 v6). */
   return '<div class="gvt-the" data-gvtp="' + h(p.name) + '">' +
-    '<div class="gvt-ten">' + h(p.ten_mon) + '</div>' +
-    '<div class="gvt-chips">' + gvtChipTrangThai(p) + gvtChipHeSo(p) +
-      (p.nhom ? '<span class="gvt-c">' + h(gvtTenNhom(p.nhom)) + '</span>' : '') +
-      '<span class="gvt-c">Mẻ ra ' + String(p.so_ra).replace('.', ',') + ' ' + h(dvt) + '</span></div>' +
+    '<div class="gvt-dau">' + anhMon('') + '<div class="gvt-th">' +
+      '<div class="gvt-ten">' + h(p.ten_mon) + '</div>' +
+      '<div class="gvt-chips">' + gvtChipTrangThai(p) + gvtChipHeSo(p) +
+        (p.nhom ? '<span class="gvt-c">' + h(gvtTenNhom(p.nhom)) + '</span>' : '') +
+        '<span class="gvt-c">Mẻ ra ' + String(p.so_ra).replace('.', ',') + ' ' + h(dvt) + '</span></div>' +
+    '</div></div>' +
     '<div class="gvt-so">' +
       gvtO('Giá vốn/' + dvt, money(p.gia_von) + 'đ', p.trang_thai === 'vuot_gia_ban' ? 'do' : '') +
       (p.gia_ban_du_kien ? gvtO('Giá dự kiến', money(p.gia_ban_du_kien) + 'đ') : gvtO('Giá dự kiến', 'Chưa có', '', 1)) +
