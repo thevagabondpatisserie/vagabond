@@ -829,6 +829,26 @@ def _gia_tay_v9():
 	p = G.chuan_phieu({"ten_mon": "x", "dong": [{"item_code": "VONG_THIEU", "so_luong": 1, "don_gia_tay": 500}]})
 	r = G.tinh_phieu(p, lambda m: gm[m], {})
 	la("Codex #486 v10: vòng kèm thiếu giá, có giá tay vẫn là vòng, không nhận giá tay", (r["trang_thai"], r["dong"][0]["tay"]), ("vong", 0))
+	la("Codex #486 v11: dòng vòng trả cờ vong cho màn", r["dong"][0]["vong"], 1)
+
+
+@ca("gia von tam: Codex #486 v11 gop_he_so va luu_he_so: chi nhom co gui moi doi, nhom an giu nguyen muc tieu da luu")
+def _gop_he_so():
+	la("thuần", G.gop_he_so({"Bánh lạnh": 4, "Bánh khô": 3}, {"Bánh lạnh": "", "Bánh nướng": 6}, {"Bánh nướng": 6.0}),
+		{"Bánh khô": 3, "Bánh nướng": 6.0})
+	la("không gửi gì thì giữ nguyên", G.gop_he_so({"Bánh khô": 3}, {}, {}), {"Bánh khô": 3})
+	import frappe
+	cu = {k: getattr(frappe, k, None) for k in ("defaults", "get_roles")}
+	kho = {G.KHOA_HE_SO: '{"Bánh khô": 3, "Bánh lạnh": 4}'}
+	frappe.defaults = type("DF", (), {"get_global_default": staticmethod(lambda k: kho.get(k)),
+		"set_global_default": staticmethod(lambda k, v: kho.__setitem__(k, v))})()
+	frappe.get_roles = lambda *a: list(G.QUYEN_CHOT)
+	try:
+		kq = G.luu_he_so('{"Bánh lạnh": "5,5", "Bánh nướng": ""}')
+		la("máy khách chỉ gửi hai nhóm: Bánh khô giữ 3", json.loads(kho[G.KHOA_HE_SO]), {"Bánh khô": 3, "Bánh lạnh": 5.5})
+		la("trả lại bộ đầy đủ", kq["he_so"], {"Bánh khô": 3, "Bánh lạnh": 5.5})
+	finally:
+		_tra(cu)
 
 
 @ca("gia von tam: Codex #486 v9 lan_sua_moi: phieu moi 0, luu doi noi dung cong 1, luu khong doi hay bo phieu giu nguyen")
