@@ -122,6 +122,18 @@ var DS_THU_KHONG_NHOM = tinhPhieuPy([
   { name: 'GT-2610-005', ten_mon: 'Su kem thử', nhom: '', so_ra: 2, gia_ban_du_kien: 40000, dong: [
     { item_code: 'NVLT00001', ten: 'Bột mì', dvt: 'Gram', so_luong: 100 }] }
 ]);
+/* Codex #486 vòng 9: phiếu đã lưu có dấu vết do máy chủ trả (_doc_phieu), và
+   một dòng có mã đã có giá kho nhưng còn giá tay cũ 500 (máy chủ phải bỏ qua). */
+var DS_THU_VET = tinhPhieuPy([
+  { name: 'GT-2610-006', ten_mon: 'Tart vani sửa nhiều', nhom: 'Bánh lạnh', so_ra: 1, gia_ban_du_kien: 30000, dong: [
+    { item_code: 'NVLT00001', ten: 'Bột mì', dvt: 'Gram', so_luong: 100, don_gia_tay: 500 }] },
+  { name: 'GT-2610-007', ten_mon: 'Su kem mới lập', nhom: 'Bánh lạnh', so_ra: 1, gia_ban_du_kien: 30000, dong: [
+    { item_code: 'NVLT00001', ten: 'Bột mì', dvt: 'Gram', so_luong: 100 }] }
+]).map(function (p, i) {
+  return Object.assign(p, i === 0 ?
+    { nguoi: 'khai@x', ten_nguoi: 'Khải', lap_luc: '2026-10-16 21:00:00', nguoi_sua: 'loan@x', ten_nguoi_sua: 'Loan', cap_nhat: '2026-10-17 09:30', so_lan_sua: 2 } :
+    { nguoi: 'khai@x', ten_nguoi: 'Khải', lap_luc: '2026-10-17 08:05:00', nguoi_sua: 'khai@x', ten_nguoi_sua: 'Khải', cap_nhat: '2026-10-17 08:05', so_lan_sua: 0 });
+});
 /* Lọc chip, đếm chip, chia trang bằng CHÍNH gia_von_tam.loc_trang_thu (Codex
    #486 v7), để máy chủ giả không tự viết lại luật lọc. */
 function locPy(ds, ts, co) {
@@ -175,7 +187,8 @@ function dungMan(tuyChon) {
         /* Như máy chủ: lọc theo tên, chia trang theo bat_dau, báo con_nua. */
         var tat = tuyChon.khongPhieu ? [] : JSON.parse(JSON.stringify(tuyChon.nhieuTrang ? DS_THU.concat(DS_THU_2) :
           tuyChon.phieuThieu ? DS_THU.concat(DS_THU_THIEU) :
-          tuyChon.locNhieu ? DS_THU.concat(DS_THU_2, DS_THU_THIEU, DS_THU_KHONG_NHOM) : DS_THU));
+          tuyChon.locNhieu ? DS_THU.concat(DS_THU_2, DS_THU_THIEU, DS_THU_KHONG_NHOM) :
+          tuyChon.vet ? DS_THU_VET : DS_THU));
         var tu = String((ts && ts.tu_khoa) || '').toLowerCase();
         if (tu) tat = tat.filter(function (p) { return p.ten_mon.toLowerCase().indexOf(tu) >= 0; });
         var bd = (ts && ts.bat_dau) || 0, co = tuyChon.co || (tuyChon.nhieuTrang ? 1 : 30);
@@ -814,6 +827,39 @@ function sheetCuoi(m) { var ds = m.tai.body.children; return ds[ds.length - 1]; 
     dung('rỗng vẫn có câu giới hạn: ' + t, t.indexOf('Chỉ đếm và lọc trong 500 phiếu sửa gần nhất') >= 0);
     dung('rỗng chỉ cách thu hẹp: ' + t, t.indexOf('Phiếu cũ hơn có thể khớp') >= 0);
     dung('vẫn có Bỏ lọc', tim(m, '[data-gvtthubo]').length === 1);
+  });
+
+  /* Codex #486 vòng 9 (P1, AGENTS.md 2b điều 11): thẻ và màn phiếu có dấu
+     vết ai lập, ai sửa, lúc nào, chip "Đã sửa N lần" do máy chủ đếm. */
+  await ca('Codex #486 v9 dấu vết phiếu thử: ai lập, ai sửa gần nhất, lúc nào, chip Đã sửa N lần ở thẻ và màn phiếu', async function () {
+    var m = await moThu({ vet: true });
+    var t1 = tim(m, '[data-gvtp="GT-2610-006"]')[0], t2 = tim(m, '[data-gvtp="GT-2610-007"]')[0];
+    var v1 = chu(t1.querySelector('[data-gvtvet]'));
+    dung('thẻ sửa nhiều: ' + v1, v1.indexOf('Lập: Khải 16/10 21:00') >= 0 && v1.indexOf('Sửa gần nhất: Loan 17/10 09:30') >= 0);
+    bang('chip đếm sửa', chu(t1.querySelector('[data-gvtsua]')), 'Đã sửa 2 lần');
+    var v2 = chu(t2.querySelector('[data-gvtvet]'));
+    dung('thẻ chưa sửa chỉ có người lập: ' + v2, v2.indexOf('Lập: Khải 17/10 08:05') >= 0 && v2.indexOf('Sửa gần nhất') < 0);
+    dung('thẻ chưa sửa không có chip sửa', !t2.querySelector('[data-gvtsua]'));
+    bam(m, t1);
+    await tick();
+    var vf = o(m, '[data-gvtvet]');
+    dung('màn phiếu có dấu vết: ' + (vf ? chu(vf) : ''), !!vf && chu(vf).indexOf('Sửa gần nhất: Loan 17/10 09:30') >= 0 && chu(vf).indexOf('Đã sửa 2 lần') >= 0);
+    m.g.back(); await tick();
+    m.tai.getElementById('gvtThuMoi').onclick();
+    dung('phiếu mới chưa có dấu vết', !o(m, '[data-gvtvet]'));
+  });
+
+  /* Codex #486 vòng 9 (P1): mã đã có giá danh mục thì máy chủ bỏ qua giá tay
+     cũ; màn không hiện ô giá tay cho dòng đó và giá vốn theo giá kho. */
+  await ca('Codex #486 v9 mã có giá kho mà còn giá tay cũ: tính theo giá kho, không hiện ô giá tay', async function () {
+    var p = DS_THU_VET[0];
+    bang('máy chủ dùng giá kho, bỏ giá tay', [p.dong[0].nguon, p.dong[0].don_gia, p.dong[0].tay, p.gia_von], ['Giá kho', 30, 0, 3000]);
+    var m = await moThu({ vet: true });
+    bam(m, tim(m, '[data-gvtp="GT-2610-006"]')[0]);
+    await tick();
+    dung('không có ô giá tay ở dòng có giá kho', !o(m, '[data-gvtpgia="0"]'));
+    dung('dòng nói nguồn giá kho: ' + chu(o(m, '[data-gvtpgiadong="0"]')), chu(o(m, '[data-gvtpgiadong="0"]')).indexOf('(Giá kho)') >= 0);
+    dung('giá vốn theo giá kho: ' + chu(o(m, '#gvtpKq')), chu(o(m, '#gvtpKq')).indexOf('Giá vốn 3.000đ/Cái') >= 0);
   });
 
   await ca('v600 chưa có phiếu nào: câu chỉ đường nói nút cần bấm', async function () {
