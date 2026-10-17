@@ -56,3 +56,7 @@
 - 17/10/2026 (PR #486, Codex rà vòng 12 trên efaa7afe6, 2 finding P2, tái hiện đủ 2 rồi sửa):
   - NVL chưa có mã phải có đơn vị, máy chủ chặn kể cả lưu trên Desk hay gọi API.
   - Lưu đè phiếu đã có phải gửi bản lúc mở (`phien_ban` = modified); người khác, tab khác hay bản nháp cũ đã đổi phiếu thì máy chủ chặn và chỉ mở lại phiếu, không xoá phần người khác sửa.
+- 17/10/2026 (PR #486, Codex rà vòng 13 trên ee12b6652, 3 finding P2, tái hiện đủ 3 rồi sửa):
+  - Bỏ phiếu cũng phải gửi bản lúc mở; tab cũ hay bản nháp cũ không bỏ âm thầm bản người khác vừa sửa.
+  - Tìm nguyên liệu lỗi mạng hay máy chủ lỗi thì báo lỗi kèm nút Tìm lại, không hiện như "không có" để mời ghi dòng chưa có mã.
+  - Ô tìm nguyên liệu chỉ trong nhóm nguyên liệu, bán thành phẩm, bao bì và nhóm con của chúng (`NHOM_NL`), không còn "mọi thứ trừ bánh". Lưu qua API hay Desk với mã ngoài phạm vi vẫn chưa chặn (ghi VIỆC CHƯA LÀM).
