@@ -232,13 +232,21 @@ function sheetCuoi(m) { var ds = m.tai.body.children; return ds[ds.length - 1]; 
     bang('năm thẻ theo thứ tự máy chủ', the(m), ['BAWC00067', 'BAEN00073', 'BANU00060', 'BANU00099', 'BACF00001']);
     var shio = tim(m, '[data-gvtm="BANU00060"]')[0];
     dung('Shiopan có cờ vượt giá bán', chu(shio).indexOf('Giá vốn vượt giá bán') >= 0);
-    /* Đọc HTML vì DOM giả gom chữ của nút cha trước chữ của thẻ con <b>. */
-    dung('Shiopan hệ số kèm % giá vốn', m.khung.innerHTML.indexOf('· <b>x0,2</b> (583,4%)') >= 0);
+    /* Giao diện chip 17/10/2026: hệ số là chip "x0,2 · vốn 583,4%", ba ô số
+       Giá vốn / Giá bán / Đề xuất. Đọc HTML vì DOM giả gom chữ của nút cha
+       trước chữ của thẻ con <b>. */
+    var H = m.khung.innerHTML;
+    var o3 = function (nhan, gt) { return '<div class="l">' + nhan + '</div><div class="v">' + gt + '</div>'; };
+    dung('Shiopan chip hệ số kèm % giá vốn, màu đỏ vượt giá bán', H.indexOf('style="color:#b3261e;background:#fef2f2"><b>x0,2</b>· vốn 583,4%</span>') >= 0);
     var roman = tim(m, '[data-gvtm="BAWC00067"]')[0];
-    dung('Roman giá vốn, giá bán, hệ số x3,5 kèm 28,5%', m.khung.innerHTML.indexOf('Giá vốn 250.959đ · Giá bán 880.000đ · <b>x3,5</b> (28,5%)') >= 0);
-    dung('Roman đề xuất làm tròn lên', chu(roman).indexOf('Đề xuất 1.004.000đ (mục tiêu x4)') >= 0);
-    dung('Roman lần chốt trước', chu(roman).indexOf('Lần chốt 12/10: 245.000đ (+2,4%)') >= 0);
-    dung('món chưa đặt mục tiêu nói rõ', chu(tim(m, '[data-gvtm="BAEN00073"]')[0]).indexOf('Chưa đặt hệ số mục tiêu') >= 0);
+    dung('Roman ô giá vốn', H.indexOf(o3('Giá vốn', '250.959đ')) >= 0);
+    dung('Roman ô giá bán', H.indexOf(o3('Giá bán', '880.000đ')) >= 0);
+    dung('Roman chip hệ số x3,5 kèm 28,5%, vàng dưới mục tiêu', H.indexOf('style="color:#b45309;background:#fffbeb"><b>x3,5</b>· vốn 28,5%</span>') >= 0);
+    dung('Roman ô đề xuất làm tròn lên, ghi hệ số mục tiêu', H.indexOf('<div class="gvt-o dx">' + o3('Đề xuất x4', '1.004.000đ')) >= 0);
+    dung('Roman chip lần chốt trước', chu(roman).indexOf('Chốt 12/10: 245.000đ (+2,4%)') >= 0);
+    dung('món chưa đặt mục tiêu nói rõ ở ô đề xuất', chu(tim(m, '[data-gvtm="BAEN00073"]')[0]).indexOf('Đề xuấtChưa đặt hệ số') >= 0);
+    dung('đầu nhóm có chip mục tiêu', H.indexOf('Mục tiêu <b style="margin:0 0 0 3px">x4</b>') >= 0);
+    dung('nhóm chưa đặt có chip nói rõ', H.indexOf('<span class="gvt-c">Chưa đặt mục tiêu</span>') >= 0);
     dung('có nút Chốt', !!m.tai.getElementById('gvtChot'));
     dung('món chưa công thức không thành thẻ', the(m).indexOf('BAEN00051') < 0);
   });
@@ -265,7 +273,10 @@ function sheetCuoi(m) { var ds = m.tai.body.children; return ds[ds.length - 1]; 
     var m = await moMan();
     var t = chu(tim(m, '[data-gvtm="BANU00099"]')[0]);
     dung('câu thiếu giá: ' + t, t.indexOf('Thiếu giá 3 nguyên liệu: BTP Brown Butter, BTP Thịt bí và 1 nữa') >= 0);
-    dung('không đề xuất giá', t.indexOf('Đề xuất') < 0);
+    dung('ô đề xuất nói chưa tính, không có số', t.indexOf('Đề xuấtChưa tính') >= 0 && m.khung.innerHTML.indexOf('data-gvtm="BANU00099"') >= 0);
+    var h99 = m.khung.innerHTML.slice(m.khung.innerHTML.indexOf('data-gvtm="BANU00099"'));
+    h99 = h99.slice(0, h99.indexOf('data-gvtm=', 10) > 0 ? h99.indexOf('data-gvtm=', 10) : h99.length);
+    dung('thẻ thiếu giá không có ô đề xuất xanh', h99.indexOf('gvt-o dx') < 0);
   });
 
   await ca('chip nhóm và chip trạng thái: số trên chip đúng, bấm là lọc, bấm lại chip trạng thái là bỏ lọc', async function () {
@@ -418,9 +429,13 @@ function sheetCuoi(m) { var ds = m.tai.body.children; return ds[ds.length - 1]; 
     bang('gọi', goiTen(m), ['vagabond.gia_von_tam.tinh', 'vagabond.gia_von_tam.ds_thu']);
     var t = chu(tim(m, '[data-gvtp="GT-2610-001"]')[0]);
     // Bột 1000 x 30 + kem 50 x 400 + chanh dây 200 x 50 = 60.000, mẻ ra 4.
-    dung('giá vốn mỗi cái: ' + t, t.indexOf('Giá vốn 15.000đ/Cái · mẻ ra 4 Cái · Bánh lạnh') >= 0);
-    dung('đề xuất theo hệ số nhóm', t.indexOf('Đề xuất 75.000đ (mục tiêu x5)') >= 0);
-    dung('giá bán dự kiến kèm hệ số', m.khung.innerHTML.indexOf('Giá bán dự kiến 30.000đ · <b>x2</b> (50%)') >= 0);
+    var H = m.khung.innerHTML;
+    var o3 = function (nhan, gt) { return '<div class="l">' + nhan + '</div><div class="v">' + gt + '</div>'; };
+    dung('ô giá vốn mỗi cái', H.indexOf(o3('Giá vốn/Cái', '15.000đ')) >= 0);
+    dung('chip mẻ ra và nhóm: ' + t, t.indexOf('Bánh lạnhMẻ ra 4 Cái') >= 0);
+    dung('ô đề xuất theo hệ số nhóm', H.indexOf('<div class="gvt-o dx">' + o3('Đề xuất x5', '75.000đ')) >= 0);
+    dung('ô giá dự kiến', H.indexOf(o3('Giá dự kiến', '30.000đ')) >= 0);
+    dung('chip hệ số dự kiến kèm % vốn', H.indexOf('<b>x2</b>· vốn 50%</span>') >= 0);
     dung('chip trạng thái', t.indexOf('Dưới mục tiêu') >= 0);
     dung('có nút phiếu mới', !!m.tai.getElementById('gvtThuMoi'));
     dung('không có nút Chốt ở tab thử', !m.tai.getElementById('gvtChot'));
