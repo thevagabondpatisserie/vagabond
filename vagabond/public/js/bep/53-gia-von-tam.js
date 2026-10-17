@@ -21,6 +21,8 @@
 var GVT = { kq: null, nhom: '', tt: '', tim: '', moCct: false, tab: 'ban', thu: null, p: null, pk: null, hen: null,
   /* Codex #486: số lượt để bỏ kết quả về trễ (tính thử, tải danh sách). */
   lan: 0, lanDs: 0, thuQ: '', henQ: null,
+  /* Codex #486 v7: ba hàng chip của danh sách phiếu thử (trạng thái, nhóm, khoảng ngày lập). */
+  thuTt: '', thuNhom: '', thuKh: '',
   /* Codex #486 v3: câu lỗi của lần tính thử gần nhất (mẻ ra sai, máy chủ từ chối). */
   loiTinh: null };
 
@@ -404,11 +406,17 @@ async function gvtChot() {
    MÓN THỬ (R&D): danh sách phiếu và màn nhập
    ================================================================= */
 
+/* Tham số gọi danh sách phiếu thử: MỘT chỗ ghép ô tìm và ba hàng chip, cho
+   lần tải đầu, gõ tìm, bấm chip và mở lại bản nháp (Codex #486 v7). */
+function gvtThamSoDs() {
+  return { tu_khoa: GVT.thuQ, bat_dau: 0, trang_thai: GVT.thuTt, nhom: GVT.thuNhom, khoang: GVT.thuKh };
+}
+
 async function gvtTaiThu() {
   frame(GVT_TIEU_DE, gvtTab() + '<div class="emp"><div class="e1">⏳</div><div>Đang tính các phiếu thử...</div></div>');
   var lan = ++GVT.lanDs;
   var kq;
-  try { kq = await api('vagabond.gia_von_tam.ds_thu', { tu_khoa: GVT.thuQ, bat_dau: 0 }); }
+  try { kq = await api('vagabond.gia_von_tam.ds_thu', gvtThamSoDs()); }
   catch (e) { if (lan === GVT.lanDs) { GVT.thu = null; gvtLoi(e); } return; }
   if (lan !== GVT.lanDs) return;
   GVT.thu = kq;
@@ -423,7 +431,9 @@ async function gvtTaiDs(noiTiep) {
   var lan = ++GVT.lanDs;
   var kq;
   try {
-    kq = await api('vagabond.gia_von_tam.ds_thu', noiTiep ? { tu_khoa: t.tu_khoa || '', bat_dau: t.bat_dau_tiep || 0 } : { tu_khoa: GVT.thuQ, bat_dau: 0 });
+    /* Xem thêm đi đúng bộ lọc máy chủ đã dùng cho trang đang hiện. */
+    kq = await api('vagabond.gia_von_tam.ds_thu', noiTiep ? { tu_khoa: t.tu_khoa || '', bat_dau: t.bat_dau_tiep || 0,
+      trang_thai: t.trang_thai || '', nhom: t.nhom || '', khoang: t.khoang || '' } : gvtThamSoDs());
   } catch (e) { if (lan === GVT.lanDs) baoTin((e && e.message) || 'Không tải được danh sách phiếu thử'); return; }
   if (lan !== GVT.lanDs) return;
   if (noiTiep) kq.ds = (t.ds || []).concat(kq.ds || []);
@@ -470,16 +480,49 @@ function gvtThePhieu(p) {
   '</div>';
 }
 
-/* Danh sách phiếu (phần dưới ô tìm): thẻ, câu rỗng, nút Xem thêm. */
+/* Ba hàng chip trên danh sách phiếu thử (AGENTS.md 2b điều 3, Codex #486 v7):
+   trạng thái có đếm, nhóm bán có đếm, khoảng ngày lập. Số do máy chủ đếm
+   trên cả tập đã tính, chip đang chọn tô đậm, mỗi hàng cuộn ngang. */
+var GVT_TT_THU = ['vuot_gia_ban', 'vong', 'thieu_gia', 'duoi_muc_tieu', 'chua_dat_muc_tieu', 'chua_gia_ban', 'chua_nguyen_lieu', 'dat'];
+var GVT_CHUA_NHOM = '__chua_nhom';
+var GVT_KHOANG = [['', 'Mọi ngày lập'], ['hom_nay', 'Lập hôm nay'], ['7_ngay', 'Lập 7 ngày qua'], ['30_ngay', 'Lập 30 ngày qua']];
+function gvtChipThu(t) {
+  var dt = t.dem_tt || {}, dn = t.dem_nhom || {};
+  var cong = function (o) { return Object.keys(o).reduce(function (s, k) { return s + (o[k] || 0); }, 0); };
+  var hang = function (x, dau) { return '<div style="display:flex;gap:7px;overflow-x:auto;padding:' + (dau ? '0' : '8px') + ' 2px 2px">' + x + '</div>'; };
+  var r1 = posChipNut('data-gvtft=""', 'Tất cả ' + cong(dt), !GVT.thuTt);
+  GVT_TT_THU.forEach(function (k) {
+    var so = dt[k] || 0;
+    if (!so && GVT.thuTt !== k) return;
+    r1 += posChipNut('data-gvtft="' + k + '"', GVT_CHIP[k][0] + ' ' + so, GVT.thuTt === k, false, GVT_CHIP[k][1]);
+  });
+  var r2 = posChipNut('data-gvtfn=""', 'Mọi nhóm ' + cong(dn), !GVT.thuNhom);
+  (t.nhom_ban || []).forEach(function (n) {
+    var so = dn[n.ten] || 0;
+    if (!so && GVT.thuNhom !== n.ten) return;
+    r2 += posChipNut('data-gvtfn="' + h(n.ten) + '" title="' + h(n.ten) + '"', h(n.nhan) + ' ' + so, GVT.thuNhom === n.ten);
+  });
+  var chua = dn[GVT_CHUA_NHOM] || 0;
+  if (chua || GVT.thuNhom === GVT_CHUA_NHOM) r2 += posChipNut('data-gvtfn="' + GVT_CHUA_NHOM + '"', 'Chưa chọn nhóm ' + chua, GVT.thuNhom === GVT_CHUA_NHOM);
+  var r3 = GVT_KHOANG.map(function (k) { return posChipNut('data-gvtfk="' + k[0] + '"', k[1], GVT.thuKh === k[0]); }).join('');
+  return '<div class="card" data-gvtloc style="padding:10px 12px">' + hang(r1, 1) + hang(r2) + hang(r3) + '</div>';
+}
+
+/* Danh sách phiếu (phần dưới ô tìm): ba hàng chip, thẻ, câu rỗng, nút Xem thêm. */
 function gvtDsThu() {
   var t = GVT.thu || {};
   var ds = t.ds || [];
+  var dangLoc = !!(t.trang_thai || t.nhom || t.khoang);
+  var chip = (t.tong || dangLoc) ? gvtChipThu(t) : '';
+  var vuot = t.vuot ? '<div style="font-size:13px;color:#6b7280;margin:0 2px 8px">Chỉ đếm và lọc trong ' + (t.tong || 0) + ' phiếu sửa gần nhất.</div>' : '';
   if (!ds.length) {
-    var cau = t.tu_khoa ? 'Không thấy phiếu nào có tên chứa "' + h(t.tu_khoa) + '".' :
+    var cau = dangLoc ? 'Không có phiếu nào khớp bộ lọc' + (t.tu_khoa ? ' và tên "' + h(t.tu_khoa) + '"' : '') + '.' :
+      t.tu_khoa ? 'Không thấy phiếu nào có tên chứa "' + h(t.tu_khoa) + '".' :
       'Chưa có phiếu tính giá thử nào.' + (t.sua_duoc ? ' Bấm Phiếu tính giá thử mới để bắt đầu.' : '');
-    return '<div class="card"><div class="emp" style="padding:24px"><div class="e1">🧪</div><div>' + cau + '</div></div></div>';
+    return chip + '<div class="card"><div class="emp" style="padding:24px"><div class="e1">🧪</div><div>' + cau + '</div>' +
+      (dangLoc ? '<button class="btn gh" data-gvtthubo style="margin-top:12px">Bỏ lọc</button>' : '') + '</div></div>';
   }
-  return '<div class="card">' + ds.map(gvtThePhieu).join('') + '</div>' +
+  return chip + vuot + '<div class="card">' + ds.map(gvtThePhieu).join('') + '</div>' +
     (t.con_nua ? '<button class="btn gh" data-gvtthemds style="margin:0 0 10px">Xem thêm phiếu cũ hơn</button>' : '');
 }
 
@@ -496,6 +539,11 @@ function gvtVeThu() {
     var el;
     if ((el = e.target.closest('[data-gvttab]'))) return gvtDoiTab(el.getAttribute('data-gvttab'));
     if (e.target.closest('[data-gvtthemds]')) return gvtTaiDs(true);
+    /* Bấm chip là lọc ở máy chủ từ trang đầu; bấm lại chip trạng thái đang chọn là bỏ. */
+    if ((el = e.target.closest('[data-gvtft]'))) { var k = el.getAttribute('data-gvtft'); GVT.thuTt = k && GVT.thuTt !== k ? k : ''; return gvtTaiDs(false); }
+    if ((el = e.target.closest('[data-gvtfn]'))) { GVT.thuNhom = el.getAttribute('data-gvtfn') || ''; return gvtTaiDs(false); }
+    if ((el = e.target.closest('[data-gvtfk]'))) { GVT.thuKh = el.getAttribute('data-gvtfk') || ''; return gvtTaiDs(false); }
+    if (e.target.closest('[data-gvtthubo]')) { GVT.thuTt = ''; GVT.thuNhom = ''; GVT.thuKh = ''; return gvtTaiDs(false); }
     if ((el = e.target.closest('[data-gvtp]'))) {
       var p = ((GVT.thu || {}).ds || []).filter(function (x) { return x.name === el.getAttribute('data-gvtp'); })[0];
       if (p) gvtMoPhieu(p);
@@ -652,21 +700,19 @@ function gvtManPhieu() {
   if (!GVT.thu) {
     GVT.thu = { nhom_ban: [], sua_duoc: true, ds: [] };
     var man = S.stack[S.stack.length - 1];
-    api('vagabond.gia_von_tam.ds_thu', { tu_khoa: '', bat_dau: 0 }).then(function (kq) {
+    api('vagabond.gia_von_tam.ds_thu', gvtThamSoDs()).then(function (kq) {
       GVT.thu = kq;
       if (S.stack[S.stack.length - 1] === man && GVT.p === p) gvtManPhieu();
     }, function () { });
   }
   var t = GVT.thu || {};
   var sua = t.sua_duoc !== false;
-  var nhom = t.nhom_ban || [];
   var html = '<div class="card" style="padding:12px 14px" id="gvtpKq">' + gvtKhoiKetQua() + '</div>' +
     '<div class="card" style="padding:12px 14px">' +
       '<div class="t2" style="margin-bottom:4px">Tên món thử</div>' +
       '<input class="tin" id="gvtpTen" placeholder="Ví dụ: Tart chanh dây size 16" value="' + h(p.ten_mon) + '" style="margin:0 0 10px">' +
       '<div class="t2" style="margin-bottom:6px">Nhóm bán dự kiến (để lấy hệ số mục tiêu)</div>' +
-      '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px">' +
-        nhom.map(function (n) { return posChipNut('data-gvtpn="' + h(n.ten) + '" title="' + h(n.ten) + '"', h(n.nhan), p.nhom === n.ten); }).join('') + '</div>' +
+      gvtTheNhom(p.nhom, sua) +
       '<div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:10px">' +
         '<div style="flex:1"><div class="t2" style="margin-bottom:4px">Một mẻ ra</div><input class="nt" id="gvtpRa" inputmode="decimal" value="' +
           h(String(p.so_ra).replace('.', ',')) + '" style="width:100%;height:44px;text-align:right;padding:0 10px"></div>' +
@@ -696,10 +742,7 @@ function gvtManPhieu() {
   };
   b.onclick = function (e) {
     var el;
-    if ((el = e.target.closest('[data-gvtpn]'))) {
-      var n = el.getAttribute('data-gvtpn');
-      p.nhom = p.nhom === n ? '' : n; gvtDanhDau(); gvtManPhieu(); return gvtTinhLai();
-    }
+    if (sua && e.target.closest('[data-gvtpnhom]')) return gvtChonNhom();
     if ((el = e.target.closest('[data-gvtpxoa]'))) {
       p.dong.splice(+el.getAttribute('data-gvtpxoa'), 1); gvtDanhDau(); gvtManPhieu(); return gvtTinhLai();
     }
@@ -710,6 +753,53 @@ function gvtManPhieu() {
   if (l) l.onclick = gvtLuuPhieu;
   if (!GVT.pkDong && p.dong.length) gvtTinhLai();
   return b;
+}
+
+/* Nhóm bán của phiếu thử: chín nhóm, hơn 8 lựa chọn nên KHÔNG dùng hàng chip
+   mà dùng thẻ giá trị đang chọn (tên đậm, dòng phụ xám, mũi tên), chạm vào
+   mở sheet có ô tìm (AGENTS.md 2b điều 2, Codex #486 v7). */
+function gvtHeSoNhom(ten) { return (((GVT.thu || {}).he_so) || {})[ten]; }
+function gvtTheNhom(ten, sua) {
+  var hs = ten ? gvtHeSoNhom(ten) : null;
+  var phu = !ten ? 'Chưa chọn. Chọn để có giá bán đề xuất.' : (hs ? 'Hệ số mục tiêu ' + gvtHeSo(hs) : 'Nhóm này chưa đặt hệ số mục tiêu');
+  return '<div data-gvtpnhom style="display:flex;align-items:center;gap:10px;min-height:52px;padding:8px 12px;border:1.5px solid #d7dce5;' +
+    'border-radius:12px;margin-bottom:10px;' + (sua ? 'cursor:pointer' : '') + '">' +
+    '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:700;color:' + (ten ? '#101828' : '#6b7280') + '">' +
+      h(ten || 'Chọn nhóm bán') + '</div><div style="font-size:13px;color:#6b7280;margin-top:2px">' + h(phu) + '</div></div>' +
+    (sua ? '<div style="font-size:20px;color:#9ca3af">›</div>' : '') + '</div>';
+}
+function gvtChonNhom() {
+  var nhom = (GVT.thu || {}).nhom_ban || [];
+  var dang = GVT.p.nhom || '';
+  var ov = document.createElement('div'); ov.className = 'sh';
+  ov.innerHTML = '<div class="shb"><div class="shh"><b>Nhóm bán dự kiến</b><div class="x" data-gvtpndong>&times;</div></div>' +
+    '<div style="padding:4px 14px 8px"><input class="tin" data-gvtpntim placeholder="Gõ tên nhóm" style="margin:0"></div>' +
+    '<div class="shl" data-gvtpnkq></div></div>';
+  document.body.appendChild(ov);
+  var vung = ov.querySelector('[data-gvtpnkq]');
+  var ve = function (q) {
+    var hop = nhom.filter(function (n) { return vgbKhop([n.ten, n.nhan], q); });
+    vung.innerHTML = (q ? '' : '<div class="shi' + (!dang ? ' on' : '') + '" data-gvtpnchon=""><span style="flex:1;min-width:0">Chưa chọn nhóm' +
+        '<div style="color:#6b7280;font-size:13px">Không có giá bán đề xuất</div></span></div>') +
+      (hop.length ? hop.map(function (n) {
+        var hs = gvtHeSoNhom(n.ten);
+        return '<div class="shi' + (dang === n.ten ? ' on' : '') + '" data-gvtpnchon="' + h(n.ten) + '"><span style="flex:1;min-width:0">' + h(n.ten) +
+          '<div style="color:#6b7280;font-size:13px">' + (hs ? 'Hệ số mục tiêu ' + gvtHeSo(hs) : 'Chưa đặt hệ số mục tiêu') + '</div></span>' +
+          (dang === n.ten ? '<span>&#10003;</span>' : '') + '</div>';
+      }).join('') : '<div style="padding:10px 14px;font-size:13px;color:#6b7280">Không có nhóm nào khớp.</div>');
+  };
+  ve('');
+  var o = ov.querySelector('[data-gvtpntim]');
+  o.oninput = function () { ve(o.value); };
+  ov.onclick = function (e) {
+    if (e.target === ov || e.target.closest('[data-gvtpndong]')) { ov.remove(); return; }
+    var el = e.target.closest('[data-gvtpnchon]');
+    if (!el) return;
+    ov.remove();
+    var n = el.getAttribute('data-gvtpnchon') || '';
+    if (n === (GVT.p.nhom || '')) return;
+    GVT.p.nhom = n; gvtDanhDau(); gvtManPhieu(); return gvtTinhLai();
+  };
 }
 
 /* Sheet thêm nguyên liệu: gõ tìm mã có sẵn, hoặc ghi NVL chưa có mã. */
