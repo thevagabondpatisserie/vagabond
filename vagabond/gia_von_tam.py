@@ -519,13 +519,30 @@ def chuan_phieu(vao, nhom_hop_le=NHOM_BAN):
 		gia_tay = _so(d.get("don_gia_tay")) or 0.0
 		if gia_tay < 0:
 			raise ValueError("Dòng %d (%s): giá nhập tay không được âm." % (i, ten_nl or ma))
-		dong.append({"item_code": ma, "ten": ten_nl, "dvt": str(d.get("dvt") or "").strip(),
-			"so_luong": sl, "don_gia_tay": gia_tay})
+		dvt = str(d.get("dvt") or "").strip()
+		# NVL chưa có mã: giá tay tính theo đơn vị nào phải nói rõ, kể cả khi
+		# lưu thẳng trên Desk hay gọi API (Codex #486 v12).
+		if not ma and not dvt:
+			raise ValueError("Dòng %d (%s): ghi đơn vị cho nguyên liệu chưa có mã, ví dụ Gram." % (i, ten_nl))
+		dong.append({"item_code": ma, "ten": ten_nl, "dvt": dvt, "so_luong": sl, "don_gia_tay": gia_tay})
 	if len(dong) > MAX_DONG_THU:
 		raise ValueError("Một phiếu tối đa %d dòng nguyên liệu." % MAX_DONG_THU)
 	return {"name": vao.get("name") or None, "ten_mon": ten, "nhom": nhom, "so_ra": so_ra,
 		"dvt_ra": str(vao.get("dvt_ra") or "").strip() or "Cái", "gia_ban_du_kien": gia_ban,
-		"ghi_chu": str(vao.get("ghi_chu") or "").strip(), "dong": dong}
+		"ghi_chu": str(vao.get("ghi_chu") or "").strip(), "dong": dong,
+		# Bản của phiếu lúc mở để sửa (modified), chống lưu đè bản mới hơn (v12).
+		"phien_ban": str(vao.get("phien_ban") or "").strip()[:40]}
+
+
+def kiem_phien_ban(gui, hien_tai, ten):
+	"""Lưu đè phiếu đã có thì bản mở để sửa phải là bản đang lưu. THUẦN.
+	Codex #486 v12: người khác (hay tab khác, hay bản nháp cũ) vừa sửa thì
+	lưu sẽ xoá âm thầm phần họ sửa. Sai thì ném ValueError bằng câu tiếng Việt."""
+	if not gui:
+		raise ValueError("Phiếu %s chưa rõ bản đang sửa. Mở lại phiếu từ danh sách rồi sửa tiếp." % ten)
+	if str(gui) != str(hien_tai):
+		raise ValueError("Phiếu %s vừa được sửa ở nơi khác. Mở lại phiếu từ danh sách để lấy bản mới rồi sửa tiếp; "
+			"phần đang gõ ở đây chưa được lưu." % ten)
 
 
 def noi_dung_phieu(d):
@@ -921,6 +938,7 @@ def _doc_phieu(ten):
 		"lap_luc": str(d.get("creation") or "")[:16], "nguoi_sua": d.get("modified_by") or d.owner,
 		"ten_nguoi": _ten_nguoi(d.owner), "ten_nguoi_sua": _ten_nguoi(d.get("modified_by") or d.owner),
 		"so_lan_sua": int(d.get("so_lan_sua") or 0),
+		"phien_ban": str(d.modified),
 		"dong": [{"item_code": r.item_code or None, "ten": r.ten or "", "dvt": r.dvt or "",
 			"so_luong": flt(r.so_luong), "don_gia_tay": flt(r.don_gia_tay)} for r in d.dong],
 	}
@@ -1039,6 +1057,10 @@ def luu_thu(phieu):
 		if not frappe.db.exists(DT_THU, p["name"]):
 			frappe.throw("Không tìm thấy phiếu %s." % p["name"])
 		d = frappe.get_doc(DT_THU, p["name"])
+		try:
+			kiem_phien_ban(p["phien_ban"], d.modified, p["name"])
+		except ValueError as e:
+			frappe.throw(str(e))
 		d.set("dong", [])
 	else:
 		d = frappe.new_doc(DT_THU)
