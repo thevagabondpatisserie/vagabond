@@ -68,7 +68,8 @@ var py = [
   'for p in [{"name": "GT-2610-001", "ten_mon": "Tart chanh dây", "nhom": "Bánh lạnh", "so_ra": 4, "gia_ban_du_kien": 95000, "dong": [{"item_code": "NVL1", "so_luong": 1000}, {"item_code": "BTP1", "so_luong": 50}, {"ten": "Chanh dây", "dvt": "Gram", "so_luong": 200, "don_gia_tay": 50}]},',
   '          {"name": "GT-2610-002", "ten_mon": "Mousse xoài cát Hòa Lộc", "nhom": "", "so_ra": 1, "gia_ban_du_kien": 0, "dong": [{"item_code": "NVL1", "so_luong": 300}]}]:',
   '  c = G.chuan_phieu(p); r = dict(c, **G.tinh_phieu(c, lambda m: GM[m], he_so)); r.update(name=p["name"]); thu.append(r)',
-  'sys.stdout.write(json.dumps({"ban": b, "thu": thu, "nhom_ban": [{"ten": n, "nhan": G.nhan_nhom(n)} for n in G.NHOM_BAN]}, ensure_ascii=False, default=str))'
+  'lt = G.loc_trang_thu(thu); lt.update(tong=len(thu), trang_thai="", nhom="", khoang="", he_so=he_so)',
+  'sys.stdout.write(json.dumps({"ban": b, "thu": thu, "lt": lt, "nhom_ban": [{"ten": n, "nhan": G.nhan_nhom(n)} for n in G.NHOM_BAN]}, ensure_ascii=False, default=str))'
 ].join('\n');
 var DL = JSON.parse(cp.execFileSync('python3', ['-c', py, GOC], { encoding: 'utf8' }));
 
@@ -77,7 +78,8 @@ var STUB = [
   'function frame(t, html, opt) { document.getElementById("tieuDe").textContent = t; var b = document.getElementById("vgbBody");',
   '  b.innerHTML = html; document.getElementById("chan").innerHTML = (opt && opt.footer) || ""; b.onclick = null; return b; }',
   'function api(d, ts) { if (d === "vagabond.gia_von_tam.tinh") return Promise.resolve(JSON.parse(JSON.stringify(DL.ban)));',
-  '  if (d === "vagabond.gia_von_tam.ds_thu") return Promise.resolve({ ds: DL.thu, nhom_ban: DL.nhom_ban, sua_duoc: true, con_nua: false, tu_khoa: "" });',
+  '  if (d === "vagabond.gia_von_tam.ds_thu") return Promise.resolve(Object.assign({}, DL.lt, { nhom_ban: DL.nhom_ban, sua_duoc: true, tu_khoa: "" }));',
+  '  if (d === "vagabond.gia_von_tam.tinh_thu") return Promise.resolve(DL.thu[0]);',
   '  return Promise.resolve({}); }',
   'function go(f) { S.stack.push(f); return f(); } function back() {} function toast() {} function busy() {}',
   'function vgbBoChuaLuu() {} function baoTin() {} function confirmSheet() { return Promise.resolve(false); }'
@@ -119,6 +121,14 @@ var STUB = [
   await pg.waitForTimeout(200);
   await doMan('Món thử');
   await pg.screenshot({ path: path.join(RA, 'gvt-mon-thu.png'), fullPage: true });
+  /* Codex #486 v7: màn nhập phiếu có thẻ nhóm bán, chạm mở sheet có ô tìm. */
+  await pg.evaluate(function () { return gvtMoPhieu(GVT.thu.ds[0]); });
+  await pg.waitForTimeout(200);
+  await doMan('Màn nhập phiếu');
+  await pg.evaluate(function () { return gvtChonNhom(); });
+  await pg.waitForTimeout(100);
+  await doMan('Sheet nhóm bán');
+  await pg.screenshot({ path: path.join(RA, 'gvt-sheet-nhom.png') });
   await b.close();
   console.log(hong.length ? 'HỎNG: ' + hong.join(', ') : 'ĐẠT');
   process.exit(hong.length ? 1 : 0);
