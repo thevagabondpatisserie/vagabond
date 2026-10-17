@@ -353,6 +353,22 @@ def chuan_he_so(vao, nhom_hop_le=NHOM_BAN):
 	return ra
 
 
+def gop_he_so(cu, vao, sach):
+	"""Hệ số sau khi lưu. THUẦN. Codex #486 v11.
+
+	Chỉ nhóm CÓ GỬI lên mới đổi: có số thì đặt, ô trống thì bỏ mục tiêu.
+	Nhóm không gửi (màn ẩn nhóm đó, hoặc máy khách cũ) giữ nguyên số đã lưu,
+	không bị xoá âm thầm. `vao` là dict thô máy khách gửi, `sach` là kết quả
+	chuan_he_so(vao)."""
+	ra = dict(cu or {})
+	for nhom in (vao or {}):
+		if nhom in sach:
+			ra[nhom] = sach[nhom]
+		else:
+			ra.pop(nhom, None)
+	return ra
+
+
 def lan_truoc(gia_von, ngay, gia):
 	"""Lần chốt gần nhất so với giá vốn bây giờ. THUẦN."""
 	if not ngay or flt(gia) <= 0:
@@ -655,7 +671,7 @@ def tinh_phieu(phieu, gia_ma, he_so_nhom=None):
 			thieu += 1
 		vong = vong or bool(g.get("vong"))
 		rows.append(dict(d, don_gia=flt(g["gia"]), nguon=g["nguon"], thieu=int(bool(g.get("thieu"))),
-			tay=int(bool(g.get("tay"))), thanh_tien=tt))
+			tay=int(bool(g.get("tay"))), vong=int(bool(g.get("vong"))), thanh_tien=tt))
 	so_ra = flt(phieu.get("so_ra")) or 1.0
 	gv = round(tong / so_ra)
 	muc = (he_so_nhom or {}).get(phieu.get("nhom"))
@@ -784,6 +800,8 @@ def tinh():
 	bang, he_so = _bang()
 	bang.update({
 		"he_so": he_so, "cap_nhat_luc": now_datetime().strftime("%H:%M"),
+		# Đủ nhóm bán cho sheet hệ số mục tiêu, kể cả nhóm chưa có món bán (v11).
+		"nhom_ban": _nhom_ban(),
 		"sua_duoc": bool(QUYEN_CHOT & set(frappe.get_roles())), "ngay": nowdate(),
 	})
 	return bang
@@ -813,12 +831,14 @@ def chi_tiet(ma, bom=None):
 def luu_he_so(he_so):
 	"""Lưu hệ số giá bán mục tiêu theo nhóm. Không đụng doctype nào."""
 	_kiem(QUYEN_CHOT, "đặt hệ số mục tiêu")
+	vao = json.loads(he_so or "{}") if isinstance(he_so, str) else (he_so or {})
 	try:
-		sach = chuan_he_so(he_so)
+		sach = chuan_he_so(vao)
 	except ValueError as e:
 		frappe.throw(str(e))
-	frappe.defaults.set_global_default(KHOA_HE_SO, json.dumps(sach, ensure_ascii=False))
-	return {"he_so": sach}
+	moi = gop_he_so(_he_so_da_luu(), vao, sach)
+	frappe.defaults.set_global_default(KHOA_HE_SO, json.dumps(moi, ensure_ascii=False))
+	return {"he_so": moi}
 
 
 def _bao_dam_bang_gia():
