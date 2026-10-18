@@ -173,14 +173,14 @@ def _cong_tac():
 def _seo(nhan=None, khoi=None, mien=None):
 	from vagabond.khung.kiem_thu.thu_su_co_290 import nap
 	from vagabond import trang_khach, web_vue
-	g = {"trang_khach": trang_khach, "_chu_nhan": web_vue._chu_nhan, "du_lieu_cau_truc": web_vue.du_lieu_cau_truc,
+	g = {"trang_khach": trang_khach, "du_lieu_cau_truc": web_vue.du_lieu_cau_truc,
 		"SEO_MO_TA": web_vue.SEO_MO_TA, "SEO_ANH": web_vue.SEO_ANH,
 		"noi_dung_web": types.SimpleNamespace(cong_khai=lambda: {"nhan": nhan or {}, "khoi": khoi or []})}
 	f = nap("web_vue.py", "seo_banh", g)
 	return f(mien) if mien else f()
 
 
-@ca("v605 SEO: không lấy khối Editor 'Mở các kênh đặt hàng' + logo Grab; mô tả, ảnh của tiệm; Editor ghi đè được")
+@ca("v605 SEO: không lấy khối Editor 'Mở các kênh đặt hàng' + logo Grab; mô tả, ảnh cố định của tiệm")
 def _seo_mac_dinh():
 	from vagabond import web_vue
 	khoi = [{"hien": True, "anh": "/assets/vagabond/web_order/logo-kenh/grab.png", "tieu_de": "Mở các kênh đặt hàng",
@@ -189,12 +189,17 @@ def _seo_mac_dinh():
 	dung("mô tả không phải câu kênh", "kênh" not in s["description"] and "Trần Cao Vân" in s["description"])
 	la("ảnh của tiệm", s["image"], "https://order.%s/assets/vagabond/web_order/og-banh.jpg" % CHINH)
 	dung("tệp ảnh có thật", (GOC / "public/web_order/og-banh.jpg").is_file())
-	s = _seo(nhan={"seo_mo_ta": " Mô tả riêng ", "seo_anh": "/files/a.jpg"}, mien=CHINH)
-	la("Editor ghi đè", (s["description"], s["image"]), ("Mô tả riêng", "https://%s/files/a.jpg" % CHINH))
-	la("canonical tên miền chính", s["url"], "https://%s/banh" % CHINH)
-	s = _seo(nhan={"seo_anh": "javascript:alert(1)"})
-	la("ảnh bẩn về mặc định", s["image"], "https://order.%s/assets/vagabond/web_order/og-banh.jpg" % CHINH)
+	s = _seo(mien=CHINH)
+	la("ảnh, canonical theo tên miền chính", (s["image"], s["url"]),
+		("https://%s/assets/vagabond/web_order/og-banh.jpg" % CHINH, "https://%s/banh" % CHINH))
 	dung("mô tả không quá 300", len(web_vue.SEO_MO_TA) <= 300)
+
+
+@ca("v605 Codex #491: không đọc nhãn SEO chưa đăng ký (Editor không lưu được thì không hứa sửa được)")
+def _khong_nhan_ma():
+	src = (GOC / "web_vue.py").read_text()
+	for k in ("seo_mo_ta", "seo_anh"):
+		dung("web_vue không đọc " + k, "'%s'" % k not in src and '"%s"' % k not in src)
 
 
 @ca("v605 JSON-LD: Bakery + WebSite, đúng tên miền, không đóng thẻ script sớm")
