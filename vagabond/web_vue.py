@@ -40,10 +40,14 @@ class CayChinhSach(HTMLParser):
         self.ngan[-1].append(data)
 
 
-def chinh_sach_vue(ds):
+def chinh_sach_vue(ds, duong=None):
     """THUẦN (Codex #484): chính sách ở chân trang Vue giữ trong /web_moi, không
-    nhảy sang trang cũ. Cùng luật lọc với trang đặt bánh Vue: chỉ /chu-thuong."""
-    return [dict(c, duong='/web_moi' + c['duong']) for c in ds or []
+    nhảy sang trang cũ. Cùng luật lọc với trang đặt bánh Vue: chỉ /chu-thuong.
+
+    v603: trang Vue đang phát ở đường công khai (biên nhận /banh/xong khi đã
+    tráo) thì trỏ thẳng ba trang chính sách công khai, không lọt về /web_moi."""
+    tien_to = '' if duong is not None and trang_chu_dat_banh(duong) == '/banh' else '/web_moi'
+    return [dict(c, duong=tien_to + c['duong']) for c in ds or []
             if re.fullmatch(r'/[a-z-]+', str(c.get('duong') or ''))]
 
 
@@ -101,3 +105,50 @@ def seo_banh():
             'image': anh if anh.startswith('https://') else '',
             'title': nhan.get('dat_banh_e7c59d5a1') or 'Đặt bánh · The Vagabond Pâtisserie',
             'url': 'https://order.thevagabondpatisserie.com/banh'}
+
+
+# ------------------------------------------------------------ tráo /banh sang bản Vue
+# Anh Việt 17/10/2026: chuyển trang đặt bánh sang bản Vue. Công tắc nằm ở Cài đặt
+# (Vagabond Settings > Web & quảng cáo > "Dùng trang đặt bánh bản mới"), tắt là
+# về trang cũ ngay, không cần deploy. Phần chạm Frappe ở vagabond/trang_banh_vue.py.
+
+# Đường khách -> tệp Vue phát thay khi công tắc bật. Ba trang chính sách cố ý
+# KHÔNG tráo: trang cũ dựng chữ ngay trên máy chủ, bộ kiểm của Meta và máy tìm
+# kiếm đọc được không cần chạy JS; bản Vue dựng chữ bằng JS.
+TEP_VUE = {"banh": "web_moi/banh", "banh/xong": "web_moi/xong"}
+
+
+def tep_ban_vue(duong, bat, tham_so=None):
+    """THUẦN: trả tệp Vue phát thay cho đường này, hoặc "" để giữ trang cũ.
+
+    Nhận /banh (kể cả trang chủ tên miền order, Frappe đã đổi thành "banh"
+    trước khi tới đây) và biên nhận /banh/xong[/<token>] (luật định tuyến đã
+    đổi thành "banh/xong" và đặt token vào form_dict). v603: Editor xem trước
+    (?bien_tap=1) đi theo công tắc, để Marketing xem đúng bản khách đang thấy.
+    ?ban=cu luôn mở trang cũ, để nhân viên so hai bản.
+    """
+    tep = TEP_VUE.get(str(duong or "").strip("/"), "")
+    if not tep:
+        return ""
+    try:
+        bat = int(bat or 0)
+    except (TypeError, ValueError):
+        bat = 0
+    if not bat:
+        return ""
+    q = tham_so or {}
+    if str(q.get("ban") or "").strip().lower() == "cu":
+        return ""
+    return tep
+
+
+def dung_ban_vue(duong, bat, tham_so=None):
+    """THUẦN: đường dẫn này có phát trang Vue thay trang cũ không."""
+    return bool(tep_ban_vue(duong, bat, tham_so))
+
+
+def trang_chu_dat_banh(duong):
+    """THUẦN: nút "Về trang đặt bánh" của biên nhận, chính sách Vue: đã tráo (đang
+    phát ở /banh/...) thì về /banh, còn lại (đường thử /web_moi/...) về /web_moi/banh."""
+    d = str(duong or "")
+    return "/banh" if d == "/banh" or d.startswith("/banh/") else "/web_moi/banh"
