@@ -3272,22 +3272,29 @@ def tu_ghi_so_cuoi_ngay(bo_qua_gio=False, chay_tay=False, tren_hang_doi=False):
 		# Da o tren hang doi dai voi mot gio: lam tiep ngay, khong xep them.
 		cho_ghi_so_roi_phat_hanh(str(ngay), ds, cho_xuat=cho_xuat)
 		return
+	_giao_luot_cho(ngay, ds, cho_xuat, "cuoi-ngay", "vgb-phat-hanh-cuoi-ngay-%s" % ngay)
+
+
+def _giao_luot_cho(ngay, ds, cho_xuat, noi_goi, job_id):
+	"""Xếp lượt chờ (cho_ghi_so_roi_phat_hanh) lên hàng đợi dài. MỘT cửa cho
+	mọi đường đã xếp lượt ghi sổ riêng mà sau đó còn phát hành hay báo số."""
 	try:
 		frappe.enqueue(
 			"vagabond.ban_hang.cho_ghi_so_roi_phat_hanh",
 			queue="long",
 			timeout=3600,
-			job_id="vgb-phat-hanh-cuoi-ngay-%s" % ngay,
+			job_id=job_id,
 			deduplicate=True,
 			ngay=str(ngay),
 			ds=list(ds),
 			cho_xuat=bool(cho_xuat),
+			noi_goi=noi_goi,
 		)
 	except Exception:
 		# Khong day duoc viec sang hang doi thi lam ngay tai cho, con hon la
 		# khong lam. Bi cat thi nhip bu moi gio con do.
-		frappe.log_error(frappe.get_traceback(), "ban_hang cuoi ngay: khong day duoc viec phat hanh")
-		cho_ghi_so_roi_phat_hanh(str(ngay), ds, cho_xuat=cho_xuat)
+		frappe.log_error(frappe.get_traceback(), "ban_hang %s: khong day duoc luot cho" % noi_goi)
+		cho_ghi_so_roi_phat_hanh(str(ngay), ds, cho_xuat=cho_xuat, noi_goi=noi_goi)
 
 
 def _job_dang_chay(ten):
@@ -3313,7 +3320,7 @@ def _trang_thai_lo(ds):
 		limit_page_length=0)}
 
 
-def cho_ghi_so_roi_phat_hanh(ngay, ds, cho_xuat=True, so_loi=0):
+def cho_ghi_so_roi_phat_hanh(ngay, ds, cho_xuat=True, so_loi=0, noi_goi="cuoi-ngay"):
 	"""Đợi các lượt ghi sổ riêng của lô ds xong, rồi mới phát hành và ký (v602).
 
 	Trần chờ do hddt_bu.giay_cho_toi_da quyết: tối đa GIAY_CHO_LO và luôn
@@ -3335,7 +3342,7 @@ def cho_ghi_so_roi_phat_hanh(ngay, ds, cho_xuat=True, so_loi=0):
 		time.sleep(hddt_bu.GIAY_NGHI_CHO)
 	da_ghi, con = hddt_bu.ket_qua_lo(ds, tt)
 	if not cho_xuat:
-		_bao_hoan_phat_hanh(ngay, da_ghi, con, "cuoi-ngay")
+		_bao_hoan_phat_hanh(ngay, da_ghi, con, noi_goi)
 		return
 	phat_hanh_cuoi_ngay(str(ngay), da_ghi, cint(so_loi) + len(con))
 
@@ -3712,9 +3719,13 @@ def xuat_rai_trong_ngay():
 		chon = hddt_bu.chon_de_xep(ds, lambda r: _ly_do_xep(r, khach_le))
 		if not chon:
 			return
-		so = _xep_ghi_so(chon, ngay, cho_xuat=cho_xuat, nguon="xuat-rai")
+		_xep_ghi_so(chon, ngay, cho_xuat=cho_xuat, nguon="xuat-rai")
 		if not cho_xuat:
-			_bao_hoan_phat_hanh(ngay, so, [], "xuat-rai")
+			# Codex #488 vòng 2: số đã XẾP không phải số đã ghi sổ. Báo hoãn
+			# qua cùng lượt chờ của chuỗi 23h, đếm lại từ sổ sau khi các lượt
+			# riêng xong. Mã lượt theo phút: mỗi nhịp xuất rải một lượt chờ.
+			_giao_luot_cho(ngay, chon, False, "xuat-rai",
+				"vgb-cho-hoan-xuat-rai-%s" % now_datetime().strftime("%Y%m%d%H%M"))
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "ban_hang: xuat rai trong ngay")
 
