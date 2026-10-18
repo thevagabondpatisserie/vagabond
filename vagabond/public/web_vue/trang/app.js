@@ -15,6 +15,12 @@ export function bienNhan(D, win = window) {
     anToan = !/\/xong\//.test(win.location.pathname);
   } catch (_) {}
   if (D.khong_token) {
+    /* v603 (Codex #489): công tắc đổi giữa chừng thì tải lại /banh/xong ra trang
+       kia. Tab chỉ có bản tóm tắt của biên nhận trang cũ thì chuyển sang đúng
+       trang cũ (?ban=cu) để khách vẫn thấy biên nhận của mình. */
+    if (!doc(key) && doc('vgb_bien_nhan')) {
+      try { win.location.replace('/banh/xong?ban=cu'); return null; } catch (_) { /* để trang mặc định */ }
+    }
     try { return JSON.parse(doc(key) || 'null'); } catch (_) { return null; }
   }
   const bn = D.bien_nhan;
