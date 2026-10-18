@@ -3211,7 +3211,8 @@ def tu_ghi_so_cuoi_ngay(bo_qua_gio=False, chay_tay=False, tren_hang_doi=False):
 	# giữ khoá đơn Sales tới lúc hàng đợi cắt ở 3600 giây: 62 đơn Sales và 28
 	# bill quầy đủ điều kiện nằm nháp sang hôm sau. Nay mỗi đơn một lượt chạy
 	# riêng có trần thời gian riêng (_xep_ghi_so); lượt này chỉ đọc danh sách,
-	# xếp, đánh dấu, rồi đi tiếp sang phát hành. Đơn nào kẹt thì chỉ kẹt chính
+	# xếp, đánh dấu, rồi giao lượt chờ (cho_ghi_so_roi_phat_hanh) đợi các lượt
+	# riêng xong mới phát hành. Đơn nào kẹt thì chỉ kẹt chính
 	# nó, nhịp vét 5 phút xếp lại đơn còn nháp, 23:20 còn thì báo Zalo.
 	try:
 		khach_le = _khach_le()
@@ -3222,7 +3223,6 @@ def tu_ghi_so_cuoi_ngay(bo_qua_gio=False, chay_tay=False, tren_hang_doi=False):
 	# Bam tay thi phai bao ro khi khong co gi de lam, truoc day im lang tra
 	# ve, nguoi bam nhin man hinh khong doi gi ma tuong da chay xong.
 	xong = _xep_ghi_so(ds, ngay, cho_xuat=cho_xuat, nguon="vet" if (da_du_chuoi and not chay_tay) else "cuoi-ngay")
-	loi = []
 	frappe.db.commit()
 
 	# Dat co ngay sau khi XEP xong: tu day nhip vet 5 phut lo phan con lai
@@ -3233,28 +3233,15 @@ def tu_ghi_so_cuoi_ngay(bo_qua_gio=False, chay_tay=False, tren_hang_doi=False):
 		frappe.db.set_single_value("Vagabond Settings", "tu_ghi_so_lan_cuoi", ngay)
 		frappe.db.commit()
 
-	if not cho_xuat:
-		_bao_hoan_phat_hanh(ngay, xong, loi, "cuoi-ngay")
-		return
-
-	# Ghi so xong moi phat hanh, phat hanh xong moi ky. Ba buoc lien nhau
-	# trong mot lan chay nen khong con canh buoc sau chay truoc buoc truoc.
-	#
-	# Hai Server Script kieu API duoi day KHONG tu kiem cong tac goc: truoc
-	# day cai lich rieng moi kiem ho chung. Nay lich do da tat, neu o day
-	# khong kiem thi ke toan tat cong tac ben m-invoice ma may van cu xuat
-	# va ky - dung canh hai cong tac noi khac nhau da gay ra vu 37 hoa don
-	# hom 10/08. Kiem lai o day cho mot cua.
-	#
-	# Nhip VET bo qua ca hai buoc: da phat hanh va ky ca luot dau roi, ma
-	# moi don vua ghi so o tren deu tu day hoa don rieng qua hook sau ghi so.
-	# Goi lai hang loat moi 5 phut chi lam m-invoice met.
+	# Nhip VET chi xep lai don con nhap: khong phat hanh, ky hang loat (moi
+	# don ghi so xong tu day hoa don rieng qua hook sau ghi so). Dang hoan
+	# phat hanh thi giu nguyen cau HOAN trong nhat ky, khong de len.
 	if da_du_chuoi and not chay_tay:
 		# Khong lam gi thi IM. Truoc 03/09/2026 nhip vet ghi de nhat ky moi 5
 		# phut, ke ca khi khong lam gi, nen cau "ghi so them 0 don, xuat hoa
 		# don 0" de mat cau cua chuoi chinh, va man Cai dat nhin nhu moi thu
 		# on trong khi 49 to chua co hoa don dien tu.
-		if not hddt_bu.vet_co_gi_de_ghi(xong, 0, 0):
+		if not cho_xuat or not hddt_bu.vet_co_gi_de_ghi(xong, 0, 0):
 			return
 		nhat_ky = "%s vét lúc %s: xếp lại %d đơn còn nháp để ghi sổ." % (
 			ngay,
@@ -3265,51 +3252,92 @@ def tu_ghi_so_cuoi_ngay(bo_qua_gio=False, chay_tay=False, tren_hang_doi=False):
 		frappe.db.commit()
 		return
 
-	# PHAT HANH VA KY DI LUOT CHAY RIENG TREN HANG DOI DAI.
-	#
-	# Truoc 03/09/2026 ca ba buoc nam trong MOT luot chay nen, ma hang doi
-	# mac dinh cat luot chay o 300 giay. Keo Pancake 3 phut, ghi so 1 phut,
-	# con hon mot phut cho hon 140 to hoa don moi to hon mot giay: 01/09 bi
-	# cat sau 90 to, 02/09 sau 99 to, buoc ky khong chay toi. Phan duoi nam
-	# lai ma khong lop nao keu.
-	#
-	# Nay ghi so xong la nha khoa, ghi nhat ky "dang phat hanh", roi day viec
-	# phat hanh va ky sang hang doi dai voi mot gio. Ben do lam theo lo, moi
-	# lo commit rieng, nen co bi cat giua chung thi phan da lam van con va
-	# nhip bu moi gio lam not.
-	nhat_ky = "%s lúc %s: đã xếp %d đơn ghi sổ, mỗi đơn một lượt riêng. Đang phát hành và ký hoá đơn điện tử ở lượt chạy nền, xem lại sau vài phút.%s" % (
-		ngay,
-		now_datetime().strftime("%H:%M"),
-		xong,
-		(" Còn %d đơn cần xem lại." % len(loi)) if loi else "",
-	)
-	frappe.db.set_single_value("Vagabond Settings", "tu_ghi_so_nhat_ky", nhat_ky[:500])
-	frappe.db.commit()
-	if loi:
-		frappe.log_error(
-			title="Vagabond: chuỗi cuối ngày %s" % ngay,
-			message=nhat_ky + "\n\n" + "\n".join(loi),
+	# v602 vòng 2 (Codex #488): xếp xong KHÔNG có nghĩa là đã ghi sổ. Phát
+	# hành và ký phải đợi các lượt ghi sổ riêng chạy xong, không thì lượt
+	# phát hành chỉ thấy một phần đơn, đơn chậm ra hoá đơn sau lượt ký, và
+	# nhật ký báo "ghi sổ N đơn" theo số đã XẾP. Nay một lượt chờ riêng trên
+	# hàng đợi dài đợi đủ (có trần, chừa giờ trước nửa đêm), đếm lại số đơn
+	# ĐÃ ghi sổ thật trong cơ sở dữ liệu, rồi mới phát hành, ký và ghi nhật ký.
+	# Đang hoãn phát hành thì không ghi câu "rồi mới phát hành": lượt chờ ghi
+	# câu HOÃN với số đã ghi sổ thật, giữ các dòng cảnh báo cũ.
+	if cho_xuat:
+		nhat_ky = "%s lúc %s: đã xếp %d đơn ghi sổ, mỗi đơn một lượt riêng. Đang chờ các lượt đó ghi sổ xong rồi mới phát hành và ký hoá đơn điện tử, xem lại sau vài phút." % (
+			ngay,
+			now_datetime().strftime("%H:%M"),
+			xong,
 		)
+		frappe.db.set_single_value("Vagabond Settings", "tu_ghi_so_nhat_ky", nhat_ky[:500])
+		frappe.db.commit()
 	if tren_hang_doi:
 		# Da o tren hang doi dai voi mot gio: lam tiep ngay, khong xep them.
-		phat_hanh_cuoi_ngay(str(ngay), xong, len(loi))
+		cho_ghi_so_roi_phat_hanh(str(ngay), ds, cho_xuat=cho_xuat)
 		return
 	try:
 		frappe.enqueue(
-			"vagabond.ban_hang.phat_hanh_cuoi_ngay",
+			"vagabond.ban_hang.cho_ghi_so_roi_phat_hanh",
 			queue="long",
 			timeout=3600,
 			job_id="vgb-phat-hanh-cuoi-ngay-%s" % ngay,
 			deduplicate=True,
 			ngay=str(ngay),
-			xong=xong,
-			so_loi=len(loi),
+			ds=list(ds),
+			cho_xuat=bool(cho_xuat),
 		)
 	except Exception:
 		# Khong day duoc viec sang hang doi thi lam ngay tai cho, con hon la
 		# khong lam. Bi cat thi nhip bu moi gio con do.
 		frappe.log_error(frappe.get_traceback(), "ban_hang cuoi ngay: khong day duoc viec phat hanh")
-		phat_hanh_cuoi_ngay(str(ngay), xong, len(loi))
+		cho_ghi_so_roi_phat_hanh(str(ngay), ds, cho_xuat=cho_xuat)
+
+
+def _job_dang_chay(ten):
+	"""Lượt ghi sổ riêng của đơn này còn chờ hoặc đang chạy không.
+	True/False; None khi không hỏi được hàng đợi (khi đó coi đơn còn nháp là
+	còn chờ, tới trần thời gian thì thôi)."""
+	try:
+		from frappe.utils.background_jobs import is_job_enqueued
+	except Exception:
+		return None
+	try:
+		return bool(is_job_enqueued(hddt_bu.job_ghi_so(ten)))
+	except Exception:
+		return None
+
+
+def _trang_thai_lo(ds):
+	"""Tên đơn -> docstatus hiện tại trong cơ sở dữ liệu."""
+	if not ds:
+		return {}
+	return {r.name: cint(r.docstatus) for r in frappe.db.get_all(
+		"Sales Invoice", filters={"name": ["in", list(ds)]}, fields=["name", "docstatus"],
+		limit_page_length=0)}
+
+
+def cho_ghi_so_roi_phat_hanh(ngay, ds, cho_xuat=True, so_loi=0):
+	"""Đợi các lượt ghi sổ riêng của lô ds xong, rồi mới phát hành và ký (v602).
+
+	Trần chờ do hddt_bu.giay_cho_toi_da quyết: tối đa GIAY_CHO_LO và luôn
+	chừa giờ phát hành trước MOC_CUOI_CHO. Hết trần mà còn đơn chưa xong thì
+	vẫn phát hành phần đã ghi sổ, đơn còn lại tính là "cần xem lại" và nhịp
+	vét, nhịp bù, báo động 23:20 lo tiếp."""
+	frappe.set_user("Administrator")
+	ds = [str(t) for t in (ds or []) if t]
+	bay_gio = now_datetime()
+	het = time.monotonic() + hddt_bu.giay_cho_toi_da(bay_gio.hour * 3600 + bay_gio.minute * 60 + bay_gio.second)
+	while True:
+		# Lượt dài đọc trong MỘT giao dịch thì MariaDB trả mãi ảnh chụp cũ
+		# (REPEATABLE READ): đơn lượt riêng vừa ghi sổ vẫn hiện là nháp, lượt
+		# chờ đợi tới trần rồi báo sai. Đóng giao dịch trước MỖI lần đọc.
+		frappe.db.commit()
+		tt = _trang_thai_lo(ds)
+		if not hddt_bu.con_cho(ds, tt, _job_dang_chay) or time.monotonic() >= het:
+			break
+		time.sleep(hddt_bu.GIAY_NGHI_CHO)
+	da_ghi, con = hddt_bu.ket_qua_lo(ds, tt)
+	if not cho_xuat:
+		_bao_hoan_phat_hanh(ngay, da_ghi, con, "cuoi-ngay")
+		return
+	phat_hanh_cuoi_ngay(str(ngay), da_ghi, cint(so_loi) + len(con))
 
 
 # ---------------------------------------------------- phat hanh va ky theo lo

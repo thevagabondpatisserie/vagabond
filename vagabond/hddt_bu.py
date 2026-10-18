@@ -254,6 +254,12 @@ GIAY_CHO_KHOA_DONG = 20
 # 18/10/2026: "Có thể xuất hoá đơn của sales rải trong ngày như D1 cũng được").
 GIO_CHO_SALES_DA_GIAO = 2
 VAN_DON_DA_GIAO = "Đã giao"
+# Lượt chờ trước khi phát hành (Codex #488 vòng 2): đợi các lượt ghi sổ riêng
+# xong tối đa chừng này giây, nghỉ GIAY_NGHI_CHO giữa hai lần đếm, và luôn
+# dừng chờ trước MOC_CUOI_CHO để còn giờ phát hành, ký trước nửa đêm.
+GIAY_CHO_LO = 1500
+GIAY_NGHI_CHO = 15
+MOC_CUOI_CHO = 23 * 3600 + 45 * 60
 
 
 def job_ghi_so(ten):
@@ -326,3 +332,38 @@ def _dmy(ngay):
 
 def _tien_vn(v):
 	return "{:,.0f}".format(float(v or 0)).replace(",", ".")
+
+
+def giay_cho_toi_da(giay_trong_ngay):
+	"""Số giây tối đa lượt chờ được đợi, tính từ lúc bắt đầu. THUẦN.
+
+	Không quá GIAY_CHO_LO, và không vượt MOC_CUOI_CHO: chạy tay lúc 23:40 thì
+	chỉ chờ 5 phút, quá mốc thì không chờ, phát hành ngay phần đã ghi sổ."""
+	con = MOC_CUOI_CHO - int(giay_trong_ngay or 0)
+	return max(0, min(GIAY_CHO_LO, con))
+
+
+def con_cho(ds, trang_thai, dang_chay):
+	"""Các đơn của lô còn phải chờ. THUẦN.
+
+	trang_thai: tên -> docstatus đọc lại từ cơ sở dữ liệu (thiếu tên là đơn đã
+	bị xoá, không chờ). dang_chay(tên) -> True, False, hoặc None khi không
+	hỏi được hàng đợi. Còn chờ khi đơn còn nháp và lượt của nó chưa chắc đã
+	xong (True hoặc None). Lượt đã xong mà đơn còn nháp là lượt đó bỏ hay lỗi,
+	chờ thêm vô ích."""
+	ra = []
+	for ten in ds or []:
+		if ten not in (trang_thai or {}) or int(trang_thai[ten] or 0) != 0:
+			continue
+		if dang_chay(ten) is False:
+			continue
+		ra.append(ten)
+	return ra
+
+
+def ket_qua_lo(ds, trang_thai):
+	"""(số đơn ĐÃ ghi sổ, danh sách đơn còn nháp) của lô sau khi chờ. THUẦN.
+	Đếm theo cơ sở dữ liệu, không theo số đã xếp."""
+	da = sum(1 for t in ds or [] if int((trang_thai or {}).get(t, -1)) == 1)
+	con = [t for t in ds or [] if int((trang_thai or {}).get(t, -1)) == 0]
+	return da, con
