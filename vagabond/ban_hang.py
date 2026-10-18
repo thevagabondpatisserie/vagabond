@@ -2941,6 +2941,10 @@ def ghi_so_mot_don_nen(ten, ngay, cho_xuat=True, nguon=""):
 			return 0, 0, ""
 		if _ly_do_xep(si) in ("tang_cho_duyet", "tang_tu_choi"):
 			return 0, 0, ""
+		# Quyền phát hành tính lại lúc lượt này chạy THẬT (Codex #488 vòng 6):
+		# lượt xếp trước nửa đêm mà tới sau 0h thì chỉ ghi sổ, không phát hành
+		# tờ của hôm trước ở đây.
+		cho_xuat = hddt_bu.con_phat_hanh(cho_xuat, ngay, nowdate())
 		sepay = None
 		if not (si.get("vgb_quay") or "").strip():
 			try:
@@ -3349,6 +3353,9 @@ def cho_ghi_so_roi_phat_hanh(ngay, ds, cho_xuat=True, so_loi=0, noi_goi="cuoi-ng
 			break
 		time.sleep(hddt_bu.GIAY_NGHI_CHO)
 	da_ghi, con = hddt_bu.ket_qua_lo(ds, tt)
+	# Lô của hôm trước mà lượt chờ chạy sau nửa đêm: không phát hành, ký ở
+	# đây, báo hoãn như mọi tờ ngày cũ (Codex #488 vòng 6, cùng phép với lượt riêng).
+	cho_xuat = hddt_bu.con_phat_hanh(cho_xuat, ngay, nowdate())
 	if not cho_xuat:
 		_bao_hoan_phat_hanh(ngay, da_ghi, con, noi_goi)
 		return
@@ -4126,10 +4133,15 @@ def canh_bao_don_treo():
 
 
 def bao_dong_ghi_so_toi():
-	"""Cron 23:20 và 23:45 (v602): còn đơn của HÔM NAY chưa ghi sổ thì báo Zalo.
+	"""Cron 5 phút trong giờ 23 (v602): còn đơn của HÔM NAY chưa ghi sổ thì báo Zalo.
 
 	Đêm 17/10/2026 chuỗi kẹt từ 23:03 mà lớp kêu đầu tiên là thư 23:56, lúc
-	không ai còn mở máy. Báo sớm khi còn nửa tiếng để bấm Chạy ngay."""
+	không ai còn mở máy. Báo sớm khi còn nửa tiếng để bấm Chạy ngay. Chỉ báo ở
+	mốc 20 và 45 phút sau giờ chuỗi đã khai (hddt_bu.moc_bao_dong): khai chuỗi
+	23:30 thì không báo lúc 23:20 khi chuỗi chưa chạy (Codex #488 vòng 6)."""
+	gio = _gio_hop_le(cfg().get("tu_ghi_so_gio"))
+	if not hddt_bu.den_luc_bao_dong(now_datetime().strftime("%H:%M"), gio):
+		return
 	bao_dong_ghi_so(nowdate())
 
 

@@ -342,6 +342,47 @@ def _tien_vn(v):
 	return "{:,.0f}".format(float(v or 0)).replace(",", ".")
 
 
+def con_phat_hanh(cho_xuat, ngay, hom_nay):
+	"""Lô của ngày `ngay` còn được phát hành ngay lúc này không. THUẦN.
+
+	Quyền phát hành tính lúc xếp có thể đã cũ khi lượt riêng hay lượt chờ chạy
+	thật: hàng đợi tồn, lô xếp sát nửa đêm. Qua ngày thì KHÔNG phát hành tờ
+	của hôm trước ở đây; ghi sổ vẫn làm, tờ đó đi đường hoá đơn ngày cũ của
+	hôm sau như mọi tờ hoãn (Codex #488 vòng 6)."""
+	return bool(cho_xuat) and str(ngay or "")[:10] == str(hom_nay or "")[:10]
+
+
+def moc_bao_dong(gio_chuoi):
+	"""Các mốc HH:MM báo động còn đơn chưa ghi sổ, theo giờ chuỗi đã khai. THUẦN.
+
+	20 và 45 phút sau giờ chuỗi, làm tròn lên bội 5 phút, không quá 23:55. Giờ
+	chuỗi 23:00 cho 23:20, 23:45 như trước; khai 23:30 thì 23:50, 23:55, không
+	báo trước khi chuỗi kịp chạy (Codex #488 vòng 6)."""
+	try:
+		h, m = [int(x) for x in str(gio_chuoi or "23:00").split(":")[:2]]
+	except Exception:
+		h, m = 23, 0
+	goc = h * 60 + m
+	ra = []
+	for tre in (20, 45):
+		t = min(goc + tre, 23 * 60 + 55)
+		t = min(((t + 4) // 5) * 5, 23 * 60 + 55)
+		hhmm = "%02d:%02d" % (t // 60, t % 60)
+		if hhmm not in ra:
+			ra.append(hhmm)
+	return ra
+
+
+def den_luc_bao_dong(hhmm, gio_chuoi):
+	"""Nhịp 5 phút lúc hhmm có phải mốc báo động không. THUẦN."""
+	try:
+		h, m = [int(x) for x in str(hhmm).split(":")[:2]]
+	except Exception:
+		return False
+	t = h * 60 + (m // 5) * 5
+	return "%02d:%02d" % (t // 60, t % 60) in moc_bao_dong(gio_chuoi)
+
+
 def giay_cho_toi_da(giay_trong_ngay, cung_ngay=True):
 	"""Số giây tối đa lượt chờ được đợi, tính từ lúc bắt đầu. THUẦN.
 
