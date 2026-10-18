@@ -1628,7 +1628,10 @@ async function dtKeo() {
   try { kq = await api('vagabond.ban_hang.keo_va_ghi_so', { so_ngay: dtNgay, chay_thu: 0 }); }
   catch (e) { busy(false); return baoTin((e && e.message) || 'Chạy lỗi'); }
   busy(false);
-  baoTin('Xong: kéo ' + kq.keo + ' đơn, ghi sổ ' + kq.ghi_so + ' đơn, xuất hoá đơn ' + kq.xuat_hddt + '.' +
+  /* v602: ghi sổ đi lượt chạy nền, mỗi đơn một lượt (như chuỗi 23h), nên
+     máy trả số đơn ĐÃ XẾP chứ chưa phải số đã ghi sổ. Nói đúng như vậy. */
+  baoTin('Đã kéo ' + kq.keo + ' đơn sang hôm nay và xếp ghi sổ ' + (kq.da_xep || 0) + ' đơn. ' +
+    'Máy ghi sổ và xuất hoá đơn từng đơn trong vài phút; mở lại màn này để xem đơn nào còn lại.' +
     ((kq.loi || []).length ? '\n\nCòn lại:\n' + kq.loi.slice(0, 10).join('\n') : ''));
   go(scrDonTreo, true);
 }
