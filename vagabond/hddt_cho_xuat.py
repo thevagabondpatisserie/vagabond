@@ -1292,13 +1292,28 @@ def ngay_cho_xuat_can_thu_lai(hom_nay):
 	return {"con_han": con_han, "qua_han": qua_han}
 
 
-def phat_hanh(ngay, goi_kich_ban):
+def _qua_ngay(trong_ngay):
+	"""Đã qua ngày `trong_ngay` chưa (v602, Codex #488 vòng 8). None: không kiểm."""
+	return bool(trong_ngay) and str(trong_ngay)[:10] != str(nowdate())[:10]
+
+
+QUA_NUA_DEM = "Đã qua nửa đêm: dừng tờ chờ xuất của ngày %s, nhịp bù làm tiếp."
+
+
+def phat_hanh(ngay, goi_kich_ban, trong_ngay=None):
 	"""Phát hành từng tờ chờ xuất cho `ngay` qua kịch bản m-invoice (phieu=...),
 	mỗi tờ một lần gọi và tự commit như các lô của chuỗi cuối ngày.
 	goi_kich_ban(ten, tham_so) là ban_hang._goi_server_script, truyền vào để
-	không import vòng."""
+	không import vòng.
+
+	trong_ngay: lượt của HÔM NAY truyền ngày đó; trước MỖI tờ kiểm lại còn
+	trong ngày không, qua nửa đêm thì dừng (Codex #488 vòng 8). Đường thử lại
+	tờ hẹn hôm qua còn hạn gọi không có tham số này vì nó cố ý làm sau 0h."""
 	ds = []
 	for r in ds_cho_xuat(ngay):
+		if _qua_ngay(trong_ngay):
+			ds.append({"tim_thay": 0, "tao_ok": 0, "loi": [QUA_NUA_DEM % trong_ngay]})
+			break
 		try:
 			kq = goi_kich_ban("MInvoice - Phat hanh HD Sales (API)",
 				{"che_do": "day", "ngay": str(ngay), "so_luong": 0, "phieu": r.name, "khong_commit": 0})
@@ -1309,9 +1324,10 @@ def phat_hanh(ngay, goi_kich_ban):
 	return gom_ket_qua(ds)
 
 
-def ky(ngay, goi_kich_ban):
+def ky(ngay, goi_kich_ban, trong_ngay=None):
 	"""Ký từng tờ chờ xuất cho `ngay` đã lên m-invoice mà còn Chờ ký. Kịch bản
-	ký hàng loạt lọc theo ngày SỔ nên không tự thấy các tờ này."""
+	ký hàng loạt lọc theo ngày SỔ nên không tự thấy các tờ này.
+	trong_ngay: như phat_hanh, kiểm lại trước MỖI tờ."""
 	rows = frappe.db.get_all(
 		"Sales Invoice",
 		filters={TRUONG_NGAY_XUAT: getdate(ngay), "docstatus": 1,
@@ -1320,6 +1336,9 @@ def ky(ngay, goi_kich_ban):
 	)
 	ra = {"can_ky": len(rows), "da_ky": 0, "loi": []}
 	for ten in rows:
+		if _qua_ngay(trong_ngay):
+			ra["loi"].append(QUA_NUA_DEM % trong_ngay)
+			break
 		try:
 			kq = goi_kich_ban("MInvoice - Ky hang loat hoa don", {"ngay": str(ngay), "phieu": ten, "so_luong": 0, "lui": 0})
 			kq = kq if isinstance(kq, dict) else {}

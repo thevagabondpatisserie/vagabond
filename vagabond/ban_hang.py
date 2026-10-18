@@ -3588,14 +3588,14 @@ def phat_hanh_cuoi_ngay(ngay, xong=0, so_loi=0):
 			# (hddt_cho_xuat) đi cùng lượt, cùng kịch bản, cùng khoá. Qua nửa
 			# đêm thì "hôm nay" của lượt này đã sai, không làm (Codex #488 vòng 7).
 			if _con_trong_ngay(ngay):
-				ph = _gop_cho_xuat(ph, hddt_cho_xuat.phat_hanh(ngay, _goi_server_script))
+				ph = _gop_cho_xuat(ph, hddt_cho_xuat.phat_hanh(ngay, _goi_server_script, trong_ngay=ngay))
 				loi += ph.get("loi_cho_xuat") or []
 		else:
 			ph = "bỏ qua (tắt ở m-invoice)"
 		if bat_ky:
 			ky = _ky_theo_lo(ngay, trong_ngay=ngay)
 			loi += ky.get("loi") or []
-			ky_them = (hddt_cho_xuat.ky(ngay, _goi_server_script) if _con_trong_ngay(ngay)
+			ky_them = (hddt_cho_xuat.ky(ngay, _goi_server_script, trong_ngay=ngay) if _con_trong_ngay(ngay)
 				else {"can_ky": 0, "da_ky": 0, "loi": []})
 			ky = {"can_ky": ky.get("can_ky", 0) + ky_them["can_ky"], "da_ky": ky.get("da_ky", 0) + ky_them["da_ky"],
 				"loi": (ky.get("loi") or []) + ky_them["loi"]}
@@ -5325,14 +5325,17 @@ def xuat_hddt_con_thieu_tu_dong(cho_khoa=5):
 		da_thu_hen = set()
 		try:
 			for d in ds_ngay:
-				ph = _phat_hanh_theo_lo(str(d))
-				ky = _ky_theo_lo(str(d)) if bat_ky else {"can_ky": 0, "da_ky": 0, "loi": []}
+				# v602 (Codex #488 vòng 8): lượt của HÔM NAY (nhịp 23:52) kiểm lại
+				# ngày trước mỗi lô, mỗi tờ; ngày cũ thì cố ý làm, không kiểm.
+				tn = str(d) if d == hom_nay else None
+				ph = _phat_hanh_theo_lo(str(d), trong_ngay=tn)
+				ky = _ky_theo_lo(str(d), trong_ngay=tn) if bat_ky else {"can_ky": 0, "da_ky": 0, "loi": []}
 				# #266: tờ chờ xuất cho hôm nay đi cùng lưới đỡ, cùng khoá.
 				if d == hom_nay:
-					ph = _gop_cho_xuat(ph, hddt_cho_xuat.phat_hanh(str(d), _goi_server_script))
+					ph = _gop_cho_xuat(ph, hddt_cho_xuat.phat_hanh(str(d), _goi_server_script, trong_ngay=tn))
 					da_thu_hen.add(d)
 					if bat_ky:
-						k2 = hddt_cho_xuat.ky(str(d), _goi_server_script)
+						k2 = hddt_cho_xuat.ky(str(d), _goi_server_script, trong_ngay=tn)
 						ky = {"can_ky": ky.get("can_ky", 0) + k2["can_ky"], "da_ky": ky.get("da_ky", 0) + k2["da_ky"],
 							"loi": (ky.get("loi") or []) + k2["loi"]}
 				loi = (ph.get("loi") or []) + (ky.get("loi") or [])
