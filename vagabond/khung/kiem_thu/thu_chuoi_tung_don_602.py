@@ -90,7 +90,7 @@ def _bao_dong_thuan():
 # ------------------------------------------------- chuỗi 23h: dựng lại vụ 17/10
 
 
-def _g_chuoi(rows, xep, moc, ghi_inline):
+def _g_chuoi(rows, xep, moc, ghi_inline, cho=None, ph=None):
 	"""Không gian tên giả cho tu_ghi_so_cuoi_ngay lượt chính trên hàng đợi."""
 	f = NS(set_user=lambda *a: None, log_error=lambda *a, **kw: None, local=NS(message_log=[]),
 		db=NS(commit=lambda: None, rollback=lambda: None, count=lambda *a, **kw: len(rows),
@@ -104,20 +104,122 @@ def _g_chuoi(rows, xep, moc, ghi_inline):
 		_con_nhap=lambda ngay, quay: rows, _ly_do_xep=lambda r, k="": "", hddt_bu=hddt_bu,
 		_xep_ghi_so=lambda ds, ngay, cho_xuat=True, nguon="": xep.append((list(ds), ngay, cho_xuat, nguon)) or len(ds),
 		_ghi_so_mot_don=ghi_inline, _khoa_dong_bo=lambda **kw: object(), _mo_khoa_dong_bo=lambda *a: None,
-		_bao_hoan_phat_hanh=lambda *a: None, phat_hanh_cuoi_ngay=lambda *a, **kw: None)
+		_bao_hoan_phat_hanh=lambda *a: None,
+		phat_hanh_cuoi_ngay=lambda *a, **kw: (ph if ph is not None else []).append(a),
+		cho_ghi_so_roi_phat_hanh=lambda ngay, ds, cho_xuat=True, so_loi=0: (cho if cho is not None else []).append(
+			(ngay, list(ds), cho_xuat)))
 	return g
 
 
 @ca("v602 chuỗi 23h (vụ 17/10): xếp MỌI đơn thành lượt riêng, không ghi sổ lần lượt dưới một khoá, đặt cờ ngày")
 def _chuoi_xep_het():
 	rows = [D(name="HDB-%d" % i) for i in range(1, 91)]
-	xep, moc, inline = [], [], []
-	g = _g_chuoi(rows, xep, moc, lambda *a, **kw: inline.append(a) or (1, 1, ""))
+	xep, moc, inline, cho, ph = [], [], [], [], []
+	g = _g_chuoi(rows, xep, moc, lambda *a, **kw: inline.append(a) or (1, 1, ""), cho, ph)
 	nap("tu_ghi_so_cuoi_ngay", g)(bo_qua_gio=True, tren_hang_doi=True)
+	# Codex #488 vòng 2 (P1): xếp xong chưa phải ghi sổ xong. Lượt chính giao
+	# ĐÚNG danh sách đã xếp cho lượt chờ, không phát hành thẳng.
+	la("giao lượt chờ đúng 90 đơn đã xếp", [(c[0], len(c[1]), c[2]) for c in cho], [("2026-10-17", 90, True)])
+	la("không phát hành thẳng khi các lượt riêng chưa xong", ph, [])
 	la("xếp một lần đủ 90 đơn", (len(xep), len(xep[0][0]) if xep else 0), (1, 90))
 	la("ngày và nguồn", (xep[0][1], xep[0][3]), ("2026-10-17", "cuoi-ngay"))
 	la("không ghi sổ đơn nào ngay trong lượt chính", inline, [])
 	dung("đặt cờ ngày sau khi xếp", ("Vagabond Settings", "tu_ghi_so_lan_cuoi", "2026-10-17") in moc)
+
+
+# ------------------------------------- lượt chờ trước phát hành (Codex #488 vòng 2)
+
+
+@ca("v602 thuần: trần chờ 25 phút, luôn dừng trước 23:45 để kịp phát hành và ký")
+def _tran_cho():
+	la("23:00 chờ đủ trần", hddt_bu.giay_cho_toi_da(23 * 3600), hddt_bu.GIAY_CHO_LO)
+	la("chạy tay 23:40 chỉ chờ 5 phút", hddt_bu.giay_cho_toi_da(23 * 3600 + 40 * 60), 300)
+	la("quá 23:45 thì không chờ", hddt_bu.giay_cho_toi_da(23 * 3600 + 50 * 60), 0)
+	dung("trần chờ ngắn hơn trần một giờ của lượt chính", hddt_bu.GIAY_CHO_LO <= 1800)
+
+
+@ca("v602 thuần: còn chờ đơn nháp có lượt chưa xong; lượt xong mà còn nháp hay đơn đã ghi sổ thì thôi")
+def _con_cho():
+	tt = {"A": 1, "B": 0, "C": 0, "D": 0, "E": 2}
+	chay = {"B": True, "C": False, "D": None}
+	la("chỉ B và D", hddt_bu.con_cho(["A", "B", "C", "D", "E", "X"], tt, lambda t: chay.get(t, False)), ["B", "D"])
+	la("đếm theo sổ, không theo số đã xếp", hddt_bu.ket_qua_lo(["A", "B", "C", "E", "X"], tt), (1, ["B", "C"]))
+
+
+class _Gio:
+	"""Đồng hồ giả: sleep tua giờ, monotonic đọc giờ."""
+
+	def __init__(self):
+		self.t = 0.0
+		self.ngu = []
+
+	def monotonic(self):
+		return self.t
+
+	def sleep(self, s):
+		self.ngu.append(s)
+		self.t += s
+
+
+def _g_cho(buoc, chay, gio_luc=datetime(2026, 10, 17, 23, 2)):
+	"""Lượt chờ với cơ sở dữ liệu giả có ẢNH CHỤP như MariaDB REPEATABLE READ:
+	get_all trả trạng thái lúc commit gần nhất. buoc: danh sách trạng thái
+	thật theo thời gian, mỗi lần commit lấy bước kế tiếp."""
+	su = []
+	db = NS(i=-1, anh={})
+
+	def commit():
+		db.i = min(db.i + 1, len(buoc) - 1)
+		db.anh = dict(buoc[db.i])
+		su.append("commit")
+
+	def get_all(dt, filters=None, fields=None, limit_page_length=None):
+		su.append("doc")
+		return [D(name=k, docstatus=v) for k, v in db.anh.items() if k in filters["name"][1]]
+	gio = _Gio()
+	f = NS(set_user=lambda *a: None, db=NS(commit=commit, get_all=get_all))
+	g = dict(frappe=f, hddt_bu=hddt_bu, cint=lambda x: int(x or 0), time=gio,
+		now_datetime=lambda: gio_luc, _job_dang_chay=lambda t: chay(t, db.i),
+		phat_hanh_cuoi_ngay=lambda *a: su.append(("ph",) + a),
+		_bao_hoan_phat_hanh=lambda *a: su.append(("hoan",) + a))
+	nap("_trang_thai_lo", g)
+	return g, su, gio
+
+
+@ca("v602 lượt chờ (Codex #488 P1): đợi các lượt riêng xong rồi mới phát hành, nhật ký đếm số ĐÃ ghi sổ")
+def _cho_roi_phat_hanh():
+	# Đúng chuỗi Codex mô tả: 3 đơn đã xếp, lúc đầu chưa đơn nào ghi sổ; lượt
+	# của B chạy lâu hơn; lượt của C xong mà C vẫn nháp (lỗi). Phát hành phải
+	# tới SAU khi B ghi sổ, với số 2 đơn đã ghi sổ và 1 đơn cần xem lại.
+	buoc = [{"A": 0, "B": 0, "C": 0}, {"A": 1, "B": 0, "C": 0}, {"A": 1, "B": 1, "C": 0}]
+	g, su, gio = _g_cho(buoc, lambda t, i: {0: True, 1: t == "B"}.get(i, False))
+	nap("cho_ghi_so_roi_phat_hanh", g)("2026-10-17", ["A", "B", "C"])
+	ph = [x for x in su if isinstance(x, tuple)]
+	la("phát hành đúng một lần, số thật: ghi sổ 2, cần xem lại 1", ph, [("ph", "2026-10-17", 2, 1)])
+	la("phát hành nằm sau lần đọc thấy B đã ghi sổ", su.index(ph[0]), len(su) - 1)
+	la("nghỉ giữa hai lần đếm", gio.ngu, [hddt_bu.GIAY_NGHI_CHO] * 2)
+	dung("đóng giao dịch trước MỖI lần đọc", all(su[i - 1] == "commit" for i, x in enumerate(su) if x == "doc"))
+
+
+@ca("v602 lượt chờ: lượt riêng kẹt thì dừng chờ ở trần, vẫn phát hành phần đã ghi sổ")
+def _cho_tran():
+	buoc = [{"A": 1, "B": 0}]
+	g, su, gio = _g_cho(buoc, lambda t, i: True)
+	nap("cho_ghi_so_roi_phat_hanh", g)("2026-10-17", ["A", "B"])
+	la("phát hành với 1 đơn đã ghi, 1 đơn cần xem lại", [x for x in su if isinstance(x, tuple)], [("ph", "2026-10-17", 1, 1)])
+	dung("chờ không quá trần", sum(gio.ngu) <= hddt_bu.GIAY_CHO_LO + hddt_bu.GIAY_NGHI_CHO)
+	dung("có chờ thật", sum(gio.ngu) >= hddt_bu.GIAY_CHO_LO - hddt_bu.GIAY_NGHI_CHO)
+	g, su, gio = _g_cho(buoc, lambda t, i: True, gio_luc=datetime(2026, 10, 17, 23, 50))
+	nap("cho_ghi_so_roi_phat_hanh", g)("2026-10-17", ["A", "B"])
+	la("quá 23:45 không chờ, phát hành ngay", (gio.ngu, [x for x in su if isinstance(x, tuple)]), ([], [("ph", "2026-10-17", 1, 1)]))
+
+
+@ca("v602 lượt chờ: đang hoãn phát hành thì báo hoãn với số ĐÃ ghi sổ và đơn còn nháp, không phát hành")
+def _cho_hoan():
+	buoc = [{"A": 0, "B": 0}, {"A": 1, "B": 0}]
+	g, su, gio = _g_cho(buoc, lambda t, i: i == 0)
+	nap("cho_ghi_so_roi_phat_hanh", g)("2026-10-17", ["A", "B"], cho_xuat=False)
+	la("báo hoãn đúng số", [x for x in su if isinstance(x, tuple)], [("hoan", "2026-10-17", 1, ["B"], "cuoi-ngay")])
 
 
 @ca("v602 vụ 17/10: đơn thứ hai đứng yên tới lúc bị cắt, các đơn còn lại vẫn ghi sổ, khoá được nhả")

@@ -175,10 +175,11 @@ def _chuoi_hang_doi():
 	than = _than(s, "tu_ghi_so_cuoi_ngay")
 	dung("lượt chính đẩy sang hàng đợi long",
 		'"vagabond.ban_hang.chuoi_cuoi_ngay_nen"' in than and 'queue="long"' in than)
+	# v602 vòng 2: phát hành đi qua lượt chờ các lượt ghi sổ riêng xong.
 	dung("phát hành cũng đi hàng đợi long khi chưa ở đó",
-		'"vagabond.ban_hang.phat_hanh_cuoi_ngay"' in than)
+		'"vagabond.ban_hang.cho_ghi_so_roi_phat_hanh"' in than)
 	dung("đang ở hàng đợi dài thì gọi thẳng, không xếp thêm",
-		"if tren_hang_doi:" in than and "phat_hanh_cuoi_ngay(str(ngay), xong, len(loi))" in than)
+		"if tren_hang_doi:" in than and "cho_ghi_so_roi_phat_hanh(str(ngay), ds, cho_xuat=cho_xuat)" in than)
 	dung("một giờ, không phải 300 giây", "timeout=3600" in than)
 	dung("chống đẩy trùng theo ngày", "deduplicate=True" in than and '"vgb-chuoi-cuoi-ngay-%s" % ngay' in than)
 	dung("không còn gọi phát hành thẳng trong luồng 300 giây",
