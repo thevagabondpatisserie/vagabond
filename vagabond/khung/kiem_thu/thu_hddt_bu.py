@@ -219,13 +219,13 @@ def _rai_bo_qua():
 def _rai_ma_nguon():
 	s = _py("ban_hang.py")
 	than = _than(s, "xuat_rai_trong_ngay")
-	dung("cùng hàm ghi sổ của chuỗi", "_ghi_so_mot_don(si, None, cho_xuat=cho_xuat)" in than)
-	dung("cùng kịch bản m-invoice, từng phiếu", '"phieu": ten' in than)
-	dung("hai khoá", "_khoa_dong_bo(" in than and "_khoa_hddt(" in than)
+	# v602: cùng đường với chuỗi nghĩa là cùng _xep_ghi_so (mỗi bill một lượt
+	# riêng, khoá đơn Sales lấy trong lượt riêng). Hook sau ghi sổ tự đẩy hoá
+	# đơn điện tử; ca hành vi ở thu_chuoi_tung_don_602.
+	dung("cùng đường xếp từng đơn của chuỗi", "_xep_ghi_so(" in than and "_ghi_so_mot_don(" not in than)
 	dung("lọc theo lần sửa cuối", '"modified": ["<=", moc]' in than)
 	dung("chỉ điểm đang bật tự ghi sổ", "_quay_tu_ghi_so()" in than)
-	dung("bỏ qua theo phép thuần", "hddt_bu.rai_bo_qua(" in than)
-	dung("chưa đủ tiền thì im", '"chưa đủ tiền" not in e' in than)
+	dung("bỏ qua theo phép thuần", "hddt_bu.chon_de_xep(" in than and "_ly_do_xep(" in than)
 	h = _py("hooks.py")
 	# v527: nhịp 30 phút khai vào vỏ đẩy hàng đợi dài, thân vẫn là
 	# xuat_rai_trong_ngay (ca "v527 vỏ hàng đợi dài" chạy thật vỏ đó).

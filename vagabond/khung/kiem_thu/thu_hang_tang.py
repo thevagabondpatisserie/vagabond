@@ -311,8 +311,15 @@ def _():
 	i = s.find("def tu_ghi_so_cuoi_ngay(")
 	j = s.find("\ndef ", i + 10)
 	than = s[i:j]
+	# v602: chuỗi xếp từng đơn; bỏ đơn tặng chưa duyệt ở MỘT chỗ _ly_do_xep,
+	# dùng chung cho chuỗi, xuất rải và lượt riêng ghi_so_mot_don_nen.
+	dung("chuỗi lọc qua _ly_do_xep", "_ly_do_xep(" in than)
+	i = s.find("def _ly_do_xep(")
 	dung("có nhánh bỏ qua đơn tặng chưa duyệt",
-		'"tang_cho_duyet", "tang_tu_choi"' in than)
+		'"tang_cho_duyet", "tang_tu_choi"' in s[i:s.find("\ndef ", i + 10)])
+	i = s.find("def ghi_so_mot_don_nen(")
+	dung("lượt riêng cũng bỏ đơn tặng chưa duyệt",
+		'"tang_cho_duyet", "tang_tu_choi"' in s[i:s.find("\ndef ", i + 10)])
 	# Man tinh tien phai doc duoc o trang thai duyet, khong thi chip "Khong
 	# ghi so duoc" im lang bo qua ca nhom don tang.
 	i = s.find("def pos_ds_bill(")

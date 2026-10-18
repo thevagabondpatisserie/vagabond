@@ -1,0 +1,101 @@
+# -*- coding: utf-8 -*-
+"""Đột biến cho v602 (chuỗi cuối ngày đi từng đơn), đọc theo AGENTS điều 17.
+
+Mỗi đột biến làm hỏng lại đúng một chỗ, khẳng định mẫu khớp ĐÚNG MỘT lần,
+chạy bộ ca liên quan, rồi trả tệp về như cũ. In thật số bắt được.
+
+Chạy:  python3 vagabond/khung/kiem_thu/dot_bien_chuoi_602.py
+"""
+
+import io
+import os
+import subprocess
+import sys
+
+GOC = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+BH = "vagabond/ban_hang.py"
+HB = "vagabond/hddt_bu.py"
+KZ = "vagabond/kenh_zalo.py"
+CA = [sys.executable, "-c", (
+	"import sys; sys.path.insert(0, %r)\n"
+	"from vagabond.khung.kiem_thu import thu_cach_ly_243\n"
+	"from vagabond.khung.kiem_thu import nen; nen.gia_lap()\n"
+	"from vagabond.khung.kiem_thu import thu_chuoi_tung_don_602, thu_ghi_so_266, thu_hddt_bu, thu_hang_tang\n"
+	"sys.exit(1 if nen.chay_het(im=True) else 0)" % GOC)]
+
+DOT_BIEN = [
+	("chuỗi không xếp đơn nào", BH,
+		'	xong = _xep_ghi_so(ds, ngay, cho_xuat=cho_xuat, nguon="vet" if (da_du_chuoi and not chay_tay) else "cuoi-ngay")',
+		"	xong = 0"),
+	("chuỗi không đặt cờ ngày", BH,
+		'		frappe.db.set_single_value("Vagabond Settings", "tu_ghi_so_lan_cuoi", ngay)\n		frappe.db.commit()\n\n	if not cho_xuat:\n		_bao_hoan_phat_hanh(ngay, xong, loi, "cuoi-ngay")',
+		'		pass\n\n	if not cho_xuat:\n		_bao_hoan_phat_hanh(ngay, xong, loi, "cuoi-ngay")'),
+	("lượt riêng không nhả khoá khi kẹt", BH,
+		"		return _ghi_so_mot_don(si, sepay, cho_xuat=cho_xuat)\n	finally:\n		_mo_khoa_dong_bo(khoa)",
+		"		return _ghi_so_mot_don(si, sepay, cho_xuat=cho_xuat)\n	finally:\n		pass"),
+	("lượt riêng không đặt trần chờ khoá dòng", BH,
+		'		frappe.db.sql("SET SESSION innodb_lock_wait_timeout = %s" % int(hddt_bu.GIAY_CHO_KHOA_DONG))',
+		"		pass"),
+	("lượt riêng không kiểm đơn còn nên ghi", BH,
+		"		if not hddt_bu.con_duoc_ghi_so(si, ngay):\n			return 0, 0, \"\"",
+		"		pass"),
+	("xếp với trần một giờ như cũ", BH,
+		"				timeout=hddt_bu.GIAY_MOI_DON,", "				timeout=3600,"),
+	("xếp không chống trùng", BH,
+		"				job_id=hddt_bu.job_ghi_so(ten),\n				deduplicate=True,",
+		"				job_id=hddt_bu.job_ghi_so(ten),\n				deduplicate=False,"),
+	("hỏng hàng đợi thì bỏ đơn", BH,
+		"			ghi_so_mot_don_nen(ten, str(ngay), cho_xuat=cho_xuat, nguon=nguon)", "			pass"),
+	("chọn đơn không bỏ đơn cần người xử", HB,
+		"		if rai_bo_qua(ly_do_cua(r)):\n			continue\n", ""),
+	("lượt tới muộn vẫn ghi đơn đã kéo sang ngày khác", HB,
+		'	return str(si.get("posting_date") or "")[:10] == str(ngay or "")[:10]', "	return True"),
+	("xuất rải bỏ đơn Sales đã giao", BH,
+		"		ds += _sales_da_giao_du_gio(ngay, truong)", "		pass"),
+	("xuất rải lấy đơn giao SAU mốc", BH,
+		'"giao_luc": ["<=", moc], "ngay_giao": ngay,', '"giao_luc": [">=", moc], "ngay_giao": ngay,'),
+	("kéo đơn đổi ngày thẳng, mất ngày bán gốc", BH,
+		'				_doi_ngay_ban_nhap(si, moi, "kéo hoá đơn treo hàng loạt", "hàng loạt")',
+		"				si.posting_date = moi"),
+	("kéo đơn không nhận bill quầy gọi đích danh", BH,
+		"		if thieu:\n			cho += _bill_quay_nhap_cu(thieu, so_ngay)", "		pass"),
+	("báo động gửi chủ đề Bán hàng", BH,
+		'kenh_zalo.bao_hoac_ghi_loi("canh_bao", "hoa_don", tin[0], tin[1],',
+		'kenh_zalo.bao_hoac_ghi_loi("canh_bao", "ban_hang", tin[0], tin[1],'),
+	("tin báo động im cả khi còn đơn", HB,
+		"	if not tong:\n		return None", "	return None"),
+	("bỏ chủ đề Hoá đơn ở máy chủ", KZ,
+		'"ban_hang", "hoa_don", "don_web"', '"ban_hang", "don_web"'),
+]
+
+
+def main():
+	loc = sys.argv[1] if len(sys.argv) > 1 else ""
+	ds = [x for x in DOT_BIEN if loc in x[0]]
+	bat = 0
+	for ten, tep, cu, moi in ds:
+		duong = os.path.join(GOC, tep)
+		with io.open(duong, encoding="utf-8") as f:
+			goc = f.read()
+		so = goc.count(cu)
+		if so != 1:
+			print("  MAU SAI  %s: khop %d lan, mong 1" % (ten, so))
+			continue
+		try:
+			with io.open(duong, "w", encoding="utf-8") as f:
+				f.write(goc.replace(cu, moi))
+			rc = subprocess.run(CA, cwd=GOC, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=300).returncode
+		finally:
+			with io.open(duong, "w", encoding="utf-8") as f:
+				f.write(goc)
+		if rc:
+			bat += 1
+			print("  BAT      %s" % ten)
+		else:
+			print("  LOT      %s" % ten)
+	print("\n%d/%d đột biến bị bắt." % (bat, len(ds)))
+	return 0 if bat == len(ds) else 1
+
+
+if __name__ == "__main__":
+	sys.exit(main())
