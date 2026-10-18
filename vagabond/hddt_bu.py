@@ -260,6 +260,11 @@ VAN_DON_DA_GIAO = "Đã giao"
 GIAY_CHO_LO = 1500
 GIAY_NGHI_CHO = 15
 MOC_CUOI_CHO = 23 * 3600 + 45 * 60
+# Lượt bắt đầu muộn (bấm Chạy ngay sau tin báo 23:45, hay giờ chuỗi đặt muộn)
+# vẫn chờ tối thiểu GIAY_CHO_TRE, nhưng không vượt MOC_NUA_DEM: phải còn giờ
+# ký trước 0h (Codex #488 vòng 4).
+GIAY_CHO_TRE = 300
+MOC_NUA_DEM = 23 * 3600 + 58 * 60
 
 
 def job_ghi_so(ten):
@@ -340,25 +345,30 @@ def _tien_vn(v):
 def giay_cho_toi_da(giay_trong_ngay):
 	"""Số giây tối đa lượt chờ được đợi, tính từ lúc bắt đầu. THUẦN.
 
-	Không quá GIAY_CHO_LO, và không vượt MOC_CUOI_CHO: chạy tay lúc 23:40 thì
-	chỉ chờ 5 phút, quá mốc thì không chờ, phát hành ngay phần đã ghi sổ."""
-	con = MOC_CUOI_CHO - int(giay_trong_ngay or 0)
-	return max(0, min(GIAY_CHO_LO, con))
+	Không quá GIAY_CHO_LO và thường dừng ở MOC_CUOI_CHO để còn giờ phát hành,
+	ký. Lượt bắt đầu sát hoặc quá mốc đó vẫn chờ GIAY_CHO_TRE (Codex #488
+	vòng 4: trước đây trả 0, lượt 23:45 phát hành, ký khi các lượt riêng vừa
+	xếp chưa chạy), chỉ không vượt MOC_NUA_DEM. Trả 0 là đã hết giờ trong ngày."""
+	giay = int(giay_trong_ngay or 0)
+	han = max(MOC_CUOI_CHO - giay, min(GIAY_CHO_TRE, MOC_NUA_DEM - giay))
+	return max(0, min(GIAY_CHO_LO, han))
 
 
-def con_cho(ds, trang_thai, dang_chay):
+def con_cho(ds, trang_thai, dang_chay, chi_chac=False):
 	"""Các đơn của lô còn phải chờ. THUẦN.
 
 	trang_thai: tên -> docstatus đọc lại từ cơ sở dữ liệu (thiếu tên là đơn đã
 	bị xoá, không chờ). dang_chay(tên) -> True, False, hoặc None khi không
 	hỏi được hàng đợi. Còn chờ khi đơn còn nháp và lượt của nó chưa chắc đã
 	xong (True hoặc None). Lượt đã xong mà đơn còn nháp là lượt đó bỏ hay lỗi,
-	chờ thêm vô ích."""
+	chờ thêm vô ích. chi_chac=True chỉ lấy đơn hàng đợi XÁC NHẬN còn chạy
+	(dùng để giao lượt tiếp, không giao theo phỏng đoán khi hàng đợi hỏng)."""
 	ra = []
 	for ten in ds or []:
 		if ten not in (trang_thai or {}) or int(trang_thai[ten] or 0) != 0:
 			continue
-		if dang_chay(ten) is False:
+		chay = dang_chay(ten)
+		if chay is False or (chi_chac and chay is not True):
 			continue
 		ra.append(ten)
 	return ra

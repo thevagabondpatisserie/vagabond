@@ -3347,10 +3347,28 @@ def cho_ghi_so_roi_phat_hanh(ngay, ds, cho_xuat=True, so_loi=0, noi_goi="cuoi-ng
 	if not cho_xuat:
 		_bao_hoan_phat_hanh(ngay, da_ghi, con, noi_goi)
 		return
-	if noi_goi == "xuat-rai":
+	# Hết trần mà hàng đợi xác nhận còn lượt riêng đang chờ, đang chạy: sau
+	# lượt phát hành, ký này các đơn đó vẫn ra tờ Chờ ký. Giao một lượt chờ
+	# TIẾP cho riêng chúng (Codex #488 vòng 4), đọc trước khi phát hành.
+	tiep = hddt_bu.con_cho(ds, tt, _job_dang_chay, chi_chac=True)
+	if noi_goi == "cuoi-ngay":
+		phat_hanh_cuoi_ngay(str(ngay), da_ghi, cint(so_loi) + len(con))
+	else:
 		phat_hanh_sau_rai(str(ngay), [t for t in ds if cint(tt.get(t)) == 1], con)
+	if tiep:
+		_giao_tiep(ngay, tiep)
+
+
+def _giao_tiep(ngay, tiep):
+	"""Lượt chờ tiếp cho các đơn còn đang chạy sau trần: chờ, phát hành bù,
+	ký riêng chúng (đi đường phát hành sau rải, không ghi đè nhật ký chuỗi).
+	Hết giờ trong ngày thì chỉ ghi dấu; nhịp bù và báo động sáng lo tiếp."""
+	bay_gio = now_datetime()
+	if hddt_bu.giay_cho_toi_da(bay_gio.hour * 3600 + bay_gio.minute * 60 + bay_gio.second) <= 0:
+		frappe.log_error("Còn %d đơn đang ghi sổ sau mốc cuối ngày: %s" % (len(tiep), ", ".join(tiep)[:3800]),
+			"Vagabond: lượt chờ %s hết giờ" % ngay)
 		return
-	phat_hanh_cuoi_ngay(str(ngay), da_ghi, cint(so_loi) + len(con))
+	_giao_luot_cho(ngay, tiep, True, "tiep", "vgb-cho-tiep-%s" % bay_gio.strftime("%Y%m%d%H%M%S"))
 
 
 def phat_hanh_sau_rai(ngay, xong, con=None):
