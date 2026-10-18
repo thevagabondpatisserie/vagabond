@@ -57,6 +57,62 @@ CHU_DE = ("kho", "san_xuat", "cong_no", "ban_hang", "hoa_don", "don_web", "dat_b
 TEN_CHU_DE = {"kho": "Kho", "san_xuat": "Sản xuất", "cong_no": "Công nợ", "ban_hang": "Bán hàng",
 	"hoa_don": "Hoá đơn", "don_web": "Đơn web", "dat_ban": "Đặt bàn", "phat_hanh": "Phát hành app", "he_thong": "Hệ thống"}
 
+# v604: anh Việt 18/10/2026 bỏ hẳn thư cảnh báo nội bộ, mọi tin nhắc việc và báo sự
+# cố cho nhân viên đi qua nhóm Zalo. Mỗi nhóm trong Cài đặt có ô "Tin nhận": anh
+# tích đúng những tin nhóm đó cần, không phải đoán qua Loại tin và Chủ đề. Bảng
+# dưới là danh mục DUY NHẤT của các tin đó; mỗi nơi gọi bao() phải truyền ma_tin
+# có trong bảng (ca thu_tin_zalo_604 dò mã nguồn để chốt), và bản JS VGB_ZALO_TIN
+# trong cai_dat_loi_chung.js phải trùng từng chữ.
+# Mã -> (bộ phận, tên, giải thích một dòng, loại, chủ đề). Loại và chủ đề giữ cho
+# nhóm chưa chọn Tin nhận (lọc kiểu cũ) và cho giờ im (chỉ Cảnh báo vượt giờ im).
+BO_PHAN = ("Hoá đơn, kế toán", "Bán hàng, cửa hàng", "Bếp", "Hệ thống")
+TIN = {
+	"hd_ket_ghi_so": ("Hoá đơn, kế toán", "Kẹt ghi sổ, kẹt hoá đơn cuối ngày",
+		"20 và 45 phút sau giờ chạy cuối ngày, và 07:30 sáng hôm sau, còn đơn chưa ghi sổ.", "canh_bao", "hoa_don"),
+	"hd_don_chua_ghi_so": ("Hoá đơn, kế toán", "Đơn chưa ghi sổ còn sót lúc 23:55",
+		"23:55 mỗi ngày, còn đơn bán chưa ghi sổ được.", "canh_bao", "hoa_don"),
+	"hd_hddt_sot": ("Hoá đơn, kế toán", "Đã ghi sổ mà chưa xuất hoá đơn điện tử",
+		"23:55 mỗi ngày, còn tờ đã ghi sổ mà chưa có hoá đơn điện tử.", "canh_bao", "hoa_don"),
+	"hd_giu_ngay_cu": ("Hoá đơn, kế toán", "Hoá đơn ngày cũ bị giữ lại, không phát hành",
+		"Khi chuỗi cuối ngày giữ hoá đơn lại vì còn nợ ngày cũ chưa đối soát.", "canh_bao", "hoa_don"),
+	"hd_trung": ("Hoá đơn, kế toán", "Đơn có hoá đơn trùng (doanh thu tính đôi)",
+		"02:00 mỗi đêm, có đơn mang từ hai hoá đơn bán hàng trở lên.", "canh_bao", "hoa_don"),
+	"hd_dau_vao": ("Hoá đơn, kế toán", "Hoá đơn đầu vào m-invoice tắc nhịp hoặc trùng",
+		"08:25 mỗi sáng, hoá đơn mua vào chưa dựng được chứng từ hoặc có chứng từ trùng.", "canh_bao", "hoa_don"),
+	"kt_tra_truoc_erp": ("Hoá đơn, kế toán", "Khoản trả trước chờ duyệt",
+		"Thu mua gửi một khoản đã trả trước khi lên ERP, chờ kế toán duyệt.", "viec", "cong_no"),
+	"kt_hoan_tien": ("Hoá đơn, kế toán", "Yêu cầu hoàn tiền chờ chi",
+		"Sales gửi yêu cầu hoàn tiền cho khách, chờ kế toán chuyển khoản.", "viec", "cong_no"),
+	"kt_de_nghi_chi": ("Hoá đơn, kế toán", "Đề nghị chi chờ duyệt hoặc bị trả lại",
+		"Đề nghị chi chuyển sang bước duyệt kế tiếp, hoặc bị trả về người lập.", "viec", "cong_no"),
+	"kt_tra_truoc_kiem": ("Hoá đơn, kế toán", "Phiếu trả trước chờ kiểm",
+		"Có phiếu trả trước nhà cung cấp chờ kế toán kiểm tra.", "viec", "cong_no"),
+	"kt_diem_het_han": ("Hoá đơn, kế toán", "Điểm khách hết hạn: máy tự dừng vì chạm trần",
+		"05:00 sáng, số khách tới hạn đốt điểm vượt mức an toàn nên máy chưa đốt.", "viec", "ban_hang"),
+	"kt_hop_dong_dc": ("Hoá đơn, kế toán", "Hợp đồng vừa điều chỉnh",
+		"Sales vừa chốt một lần điều chỉnh hợp đồng so với bản gốc.", "thong_bao", "ban_hang"),
+	"bh_don_web_treo": ("Bán hàng, cửa hàng", "Đơn web treo quá 30 phút chưa vào Pancake",
+		"Đơn đặt bánh trên web quá 30 phút mà chưa tạo được trên Pancake.", "viec", "don_web"),
+	"bh_ton_web_loi": ("Bán hàng, cửa hàng", "Lỗi kiểm tồn khi khách đặt web",
+		"Phép kiểm tồn bánh lỗi lúc khách đặt; Sales kiểm lại tồn trước khi xác nhận.", "canh_bao", "don_web"),
+	"bh_ahamove_huy": ("Bán hàng, cửa hàng", "Tài xế Ahamove huỷ hoặc giao thất bại",
+		"Tài xế huỷ hoặc giao không được, vận đơn về Chờ giao để phân công lại.", "viec", "ban_hang"),
+	"bh_dat_ban": ("Bán hàng, cửa hàng", "Đặt bàn mới",
+		"Khách vừa gửi yêu cầu đặt bàn, chờ cửa hàng xác nhận.", "viec", "dat_ban"),
+	"bh_tiec": ("Bán hàng, cửa hàng", "Đăng ký tiệc mới",
+		"Khách vừa đăng ký vé tiệc, chờ cửa hàng xác nhận.", "viec", "dat_ban"),
+	"bh_pancake_lech_tong": ("Bán hàng, cửa hàng", "Đơn web lệch tổng tiền trên Pancake",
+		"Tổng tiền trên Pancake khác số máy chủ chốt; Sales kiểm trước khi gửi mã QR.", "canh_bao", "don_web"),
+	"bh_ahamove_phi": ("Bán hàng, cửa hàng", "Không lấy được phí giao Ahamove",
+		"Trang đặt bánh không tính được phí giao vì Ahamove không trả lời.", "canh_bao", "don_web"),
+	"bep_ke_hoach_sx": ("Bếp", "Kế hoạch sản xuất hôm nay (05:00)",
+		"05:00 sáng, kế hoạch sản xuất trong ngày đã sẵn, bếp đọc rồi chốt.", "viec", "san_xuat"),
+	"ht_email_loi": ("Hệ thống", "Email của tiệm không gửi được",
+		"Trong một giờ có từ 5 thư lỗi; báo lại sau 3 giờ nếu còn lỗi.", "canh_bao", "he_thong"),
+	"ht_phat_hanh": ("Hệ thống", "Bản tin cập nhật app sau mỗi deploy",
+		"App vừa lên bản mới: thêm gì, bộ phận cần làm gì.", "phat_hanh", "phat_hanh"),
+}
+
 # Codex #413 P2: tin "việc cần làm" phải kiểm lại việc còn mở ngay trước khi
 # gửi. Mã kiểm -> hàm(nguon) trả True nếu việc vẫn cần làm. Chỉ tra trong bảng
 # này, không gọi hàm theo tên tuỳ ý.
@@ -93,11 +149,20 @@ def tach_tin(chu):
 	return (ds[0] if ds else ""), ds[1:]
 
 
-def chu_chua_nhom(loai, chu_de, nguon=None):
+def chu_chua_nhom(loai, chu_de, nguon=None, ma_tin=None):
 	"""THUẦN: (tiêu đề, lời) Error Log khi bao() không ghi được dòng tin nào.
 
 	v597 Codex #481: Zalo tắt hoặc chưa có nhóm bật nhận đúng loại và chủ đề thì
-	bao() trả rỗng mà không ném lỗi; người trực phải biết để gán nhóm và báo tay."""
+	bao() trả rỗng mà không ném lỗi; người trực phải biết để gán nhóm và báo tay.
+	v604: tin có mã thì gọi đúng tên tin (người trực tìm đúng ô cần tích)."""
+	ten_tin = TIN.get(ma_tin, (None, None))[1] if ma_tin else None
+	if ten_tin:
+		tieu_de = "Zalo: chưa có nhóm nhận tin %s" % ten_tin
+		loi = ("Tin \"%s\" không ghi được cho nhóm Zalo nào: Zalo đang tắt hoặc chưa nhóm nào bật nhận "
+			"tin này. Vào Cài đặt lõi, mục Thông báo, mở nhóm cần nhận, tích tin này ở phần Tin nhận." % ten_tin)
+		if nguon:
+			loi += " Chứng từ %s chưa được báo, cần báo tay." % nguon
+		return tieu_de[:140], loi
 	ten_loai = LOAI.get(loai, ("", loai))[1]
 	ten_cd = TEN_CHU_DE.get(chu_de, chu_de)
 	tieu_de = "Zalo: chưa có nhóm nhận %s, chủ đề %s" % (ten_loai, ten_cd)
@@ -144,13 +209,21 @@ def trong_gio_im(gio, im_tu, im_den):
 	return a <= g < b if a < b else (g >= a or g < b)
 
 
-def chon_nhom(ds, loai, chu_de):
-	"""THUẦN: các dòng nhóm nhận tin (loai, chu_de). Dòng là dict.
+def chon_nhom(ds, loai, chu_de, ma_tin=None):
+	"""THUẦN: các dòng nhóm nhận tin (loai, chu_de, ma_tin). Dòng là dict.
 
-	Loại hoặc chủ đề để trống = nhận tất. Thiếu mã chat hoặc tắt thì bỏ."""
+	Thiếu mã chat hoặc tắt thì bỏ. v604: nhóm đã tích Tin nhận thì CHỈ nhận đúng
+	các tin đã tích, không xét Loại tin và Chủ đề nữa; tin không mang mã không bao
+	giờ tới nhóm đó. Nhóm chưa tích tin nào giữ luật cũ: loại hoặc chủ đề để trống
+	là nhận tất (để nhóm cũ không mất tin ngay sau khi cập nhật)."""
 	ra = []
 	for r in ds or []:
 		if not cint(r.get("bat")) or not str(r.get("chat_id") or "").strip():
+			continue
+		tn = tach_ds(r.get("tin_nhan"))
+		if tn:
+			if ma_tin and ma_tin in tn:
+				ra.append(r)
 			continue
 		lt, cd = tach_ds(r.get("loai_tin")), tach_ds(r.get("chu_de"))
 		if lt and loai not in lt:
@@ -202,7 +275,7 @@ def kiem_bo_loc(ds):
 
 	Codex #417: hai ô này là chữ tự do; gõ sai (ví dụ "việc" thay vì "viec")
 	thì chon_nhom lặng lẽ bỏ nhóm đó và tin cần gửi biến mất. Chặn ngay lúc lưu."""
-	loi = []
+	loi, la_tin = [], []
 	for i, r in enumerate(ds or [], 1):
 		la_loai = sorted(tach_ds(r.get("loai_tin")) - set(LOAI))
 		la_cd = sorted(tach_ds(r.get("chu_de")) - set(CHU_DE))
@@ -210,10 +283,22 @@ def kiem_bo_loc(ds):
 			loi.append("dòng %s Loại tin không có: %s" % (i, ", ".join(la_loai)))
 		if la_cd:
 			loi.append("dòng %s Chủ đề không có: %s" % (i, ", ".join(la_cd)))
-	if not loi:
+		# v604: mã tin lạ (gõ tay, hoặc tin đã bỏ khỏi danh mục) thì nhóm lặng lẽ
+		# không nhận gì; chặn lúc lưu, nói tên nhóm để người sửa biết mở nhóm nào.
+		la = sorted(tach_ds(r.get("tin_nhan")) - set(TIN))
+		if la:
+			la_tin.append("nhóm %s có %d tin không còn trong danh mục (%s)" % (
+				str(r.get("ten_nhom") or "").strip() or ("dòng %s" % i), len(la), ", ".join(la)))
+	if not loi and not la_tin:
 		return ""
-	return ("Bảng Nhóm nhận tin Zalo: %s. Loại tin chỉ nhận: %s. Chủ đề chỉ nhận: %s. Để trống là nhận tất."
-		% ("; ".join(loi), ", ".join(LOAI), ", ".join(CHU_DE)))
+	ra = []
+	if loi:
+		ra.append("Bảng Nhóm nhận tin Zalo: %s. Loại tin chỉ nhận: %s. Chủ đề chỉ nhận: %s. Để trống là nhận tất."
+			% ("; ".join(loi), ", ".join(LOAI), ", ".join(CHU_DE)))
+	if la_tin:
+		ra.append("Bảng Nhóm nhận tin Zalo: %s. Mở nhóm, bấm Chọn tin nhận, tích lại các tin cần nhận rồi lưu."
+			% "; ".join(la_tin))
+	return " ".join(ra)
 
 
 def gio_hop_le(s):
@@ -521,7 +606,19 @@ def _gui_zalo(chat_id, tin):
 	return tt, loi
 
 
-def bao(loai, chu_de, tieu_de, dong=None, link=None, khoa=None, nguoi=None, han=None, kiem=None, nguon=None):
+def cat_dong(ds, toi_da=12, don_vi="đơn"):
+	"""THUẦN: tối đa toi_da dòng chi tiết, phần còn lại gom thành "... và N đơn nữa".
+
+	v604: thư cũ kê hết danh sách; tin Zalo chỉ có 2.000 ký tự và đọc trên điện
+	thoại, nên chỉ kê vài dòng đầu rồi chỉ màn có đủ danh sách."""
+	ds = [str(x) for x in (ds or []) if str(x or "").strip()]
+	if len(ds) <= toi_da:
+		return ds
+	return ds[:toi_da] + ["... và %d %s nữa" % (len(ds) - toi_da, don_vi)]
+
+
+def bao(loai, chu_de, tieu_de, dong=None, link=None, khoa=None, nguoi=None, han=None, kiem=None, nguon=None,
+		ma_tin=None):
 	"""Điểm gọi DUY NHẤT cho mọi nơi trong app. Không ném lỗi ra ngoài, TRỪ lỗi làm chết
 	cả giao dịch (deadlock, chờ khoá quá hạn): khi đó chứng từ phải dừng, không được báo
 	thành công trong khi cơ sở dữ liệu đã rollback (Codex #428 vòng 12).
@@ -530,6 +627,7 @@ def bao(loai, chu_de, tieu_de, dong=None, link=None, khoa=None, nguoi=None, han=
 	Thiếu khoa thì không chống trùng (chỉ dùng cho tin một lần).
 	kiem, nguon: mã trong DIEU_KIEN và tên chứng từ; trước khi gửi (kể cả sau
 	giờ im) máy hỏi lại việc còn mở không, hết việc thì bỏ, không nhắc thừa.
+	ma_tin: mã trong TIN (v604); nhóm đã tích Tin nhận chỉ nhận tin có mã khớp.
 
 	Codex #425: ghi tin vào sổ ("Chờ gửi") NGAY TRONG giao dịch của chứng từ,
 	rồi mới xếp hàng đợi sau commit. Chứng từ rollback thì tin cũng mất theo;
@@ -538,7 +636,8 @@ def bao(loai, chu_de, tieu_de, dong=None, link=None, khoa=None, nguoi=None, han=
 		if getattr(frappe.flags, "vagabond_kiem_that", False) or not _bat():
 			return
 		tin = {"loai": loai, "chu_de": chu_de, "tieu_de": tieu_de, "dong": list(dong or []),
-			"link": link, "khoa": khoa, "nguoi": nguoi, "han": han, "kiem": kiem, "nguon": nguon}
+			"link": link, "khoa": khoa, "nguoi": nguoi, "han": han, "kiem": kiem, "nguon": nguon,
+			"ma_tin": ma_tin}
 		ten = _ghi_hop_thu(tin)
 		if ten:
 			frappe.db.after_commit.add(lambda: _xep(ten))
@@ -550,12 +649,21 @@ def bao(loai, chu_de, tieu_de, dong=None, link=None, khoa=None, nguoi=None, han=
 
 
 def bao_hoac_ghi_loi(loai, chu_de, tieu_de, dong=None, **kw):
-	"""Như bao(), cho tin chỉ có MỘT dịp báo (hook lúc tạo phiếu): không ghi được dòng
-	nào thì để lại Error Log hành động được, nêu tên chứng từ (v597 Codex #481).
-	Trả tên các dòng như bao()."""
+	"""Như bao(), cho tin chỉ có MỘT dịp báo (hook lúc tạo phiếu, nhịp lịch): không
+	nhóm nào nhận thì để lại Error Log hành động được, nêu tên tin và chứng từ
+	(v597 Codex #481, v604). Trả tên các dòng như bao()."""
 	ten = bao(loai, chu_de, tieu_de, dong, **kw)
 	if not ten and not getattr(frappe.flags, "vagabond_kiem_that", False):
-		t, loi = chu_chua_nhom(loai, chu_de, kw.get("nguon"))
+		# v604: nhịp lặp (23:55, 2h, 8h25) gọi lại cùng khoá thì bao() trả rỗng vì tin
+		# đã nằm trong sổ, không phải vì thiếu nhóm. Chỉ ghi lỗi khi thật sự không có
+		# nhóm nào nhận; đọc cài đặt hỏng thì coi như chưa có nhóm (thà báo thừa).
+		try:
+			co_nhom = bool(_bat()) and bool(chon_nhom(_cac_nhom(), loai, chu_de, kw.get("ma_tin")))
+		except Exception:
+			co_nhom = False
+		if co_nhom:
+			return ten
+		t, loi = chu_chua_nhom(loai, chu_de, kw.get("nguon"), kw.get("ma_tin"))
 		try:
 			frappe.log_error(title=t, message=loi)
 		except Exception:
@@ -571,7 +679,7 @@ def _ghi_hop_thu(tin):
 	noi_dung = soan_tin(tin.get("loai"), tin.get("tieu_de"), tin.get("dong"), tin.get("link"),
 		tin.get("nguoi"), tin.get("han"))
 	ra = []
-	for n in chon_nhom(_cac_nhom(), tin.get("loai"), tin.get("chu_de")):
+	for n in chon_nhom(_cac_nhom(), tin.get("loai"), tin.get("chu_de"), tin.get("ma_tin")):
 		ten = khoa_tin(tin.get("khoa") or frappe.generate_hash(length=12), n.get("chat_id"))
 		sp = "zl_" + frappe.generate_hash(length=8)
 		frappe.db.savepoint(sp)
@@ -580,6 +688,7 @@ def _ghi_hop_thu(tin):
 				"nhom": n.get("ten_nhom"), "chat_id": str(n.get("chat_id")).strip(), "loai": tin.get("loai"),
 				"chu_de": tin.get("chu_de"), "noi_dung": noi_dung,
 				"kiem": tin.get("kiem") or "", "nguon": tin.get("nguon") or "",
+				"ma_tin": tin.get("ma_tin") or "",
 				"trang_thai": CHO_GUI}).insert(ignore_permissions=True)
 			ra.append(ten)
 		except frappe.DuplicateEntryError:

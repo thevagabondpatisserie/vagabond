@@ -156,7 +156,7 @@ def quet():
 	gui = 0
 	for x in chon_ban(cac, ban):
 		kenh_zalo.bao("phat_hanh", "phat_hanh", "Vagabond cập nhật %s, đã lên app" % x["version"],
-			dong=[d.strip() for d in x["features"]], khoa="phat_hanh:" + x["sha"])
+			dong=[d.strip() for d in x["features"]], khoa="phat_hanh:" + x["sha"], ma_tin="ht_phat_hanh")
 		gui += 1
 	if gui:
 		frappe.db.commit()

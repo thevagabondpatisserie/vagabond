@@ -469,14 +469,33 @@ def _bao_giam_doc(doc, pb, khac):
 	Anh Việt: *"để Giám đốc biết Sales đã thay đổi gì so với bản gốc ban
 	đầu."* Nhật ký nằm sẵn trên màn, nhưng nhật ký chỉ trả lời khi có người
 	mở ra xem. Một cái chuông thì nói ngay lúc việc vừa xảy ra.
+
+	v604: anh Việt 18/10/2026 đưa tin nội bộ lên nhóm Zalo. Giữ chuông web cho
+	giám đốc, thêm tin Zalo "Hợp đồng vừa điều chỉnh".
 	"""
+	try:
+		tom = ", ".join(k["nhan"] for k in khac[:3]) or "không ô nào"
+		if len(khac) > 3:
+			tom += " và %d ô nữa" % (len(khac) - 3)
+	except Exception:
+		tom = "%d ô" % len(khac or [])
+	try:
+		from vagabond import kenh_zalo
+
+		kenh_zalo.bao_hoac_ghi_loi(
+			"thong_bao", "ban_hang", "Hợp đồng %s vừa được điều chỉnh" % doc.name,
+			["%s, đổi: %s" % (pb.nhan, tom)],
+			link=frappe.utils.get_url("/hop-dong"), khoa="hd-dieu-chinh:%s:%s" % (doc.name, pb.nhan),
+			nguon=doc.name, ma_tin="kt_hop_dong_dc")
+	except Exception as e:
+		from vagabond.loi_csdl import chet_giao_dich
+		if chet_giao_dich(e):
+			raise
+		frappe.log_error(frappe.get_traceback(), "hop_dong_dieu_chinh: bao zalo loi")
 	try:
 		from vagabond import thong_bao
 		from vagabond.viec_can_lam import VAI_GIAM_DOC
 
-		tom = ", ".join(k["nhan"] for k in khac[:3]) or "không ô nào"
-		if len(khac) > 3:
-			tom += " và %d ô nữa" % (len(khac) - 3)
 		thong_bao.bao_cho_vai(
 			sorted(VAI_GIAM_DOC),
 			"Hợp đồng vừa được điều chỉnh",

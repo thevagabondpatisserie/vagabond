@@ -397,7 +397,8 @@ def _bao_lech_tong_pancake(ma_don, mong_doi, thuc_te, ten_don):
 	bao("canh_bao", "don_web", "Đơn web lệch tổng tiền trên Pancake", [
 		"Đơn Pancake %s đang là %s đ, máy chủ chốt %s đ. Sales kiểm tra trước khi gửi mã QR."
 		% (ma_don, thuc_te if thuc_te is not None else "chưa đọc được", mong_doi)
-	], link="/app/vagabond-don-web/%s" % ten_don, khoa="don-web-lech-tong:%s" % ma_don)
+	], link="/app/vagabond-don-web/%s" % ten_don, khoa="don-web-lech-tong:%s" % ma_don,
+		ma_tin="bh_pancake_lech_tong")
 	frappe.db.commit()
 
 

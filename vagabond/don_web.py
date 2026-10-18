@@ -1071,7 +1071,7 @@ def _bao_sales(r):
 
 	tieu_de, dong = kenh_zalo.tach_tin(soan_tin_sales(r))
 	ten = kenh_zalo.bao("viec", "don_web", tieu_de, dong, khoa="don-web-treo:%s" % r["name"],
-		link=frappe.utils.get_url_to_form(DOCTYPE, r["name"]))
+		link=frappe.utils.get_url_to_form(DOCTYPE, r["name"]), ma_tin="bh_don_web_treo")
 	if not ten:
 		_bao_thieu_webhook(r)
 		return False

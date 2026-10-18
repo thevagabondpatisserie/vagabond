@@ -1197,11 +1197,18 @@ def _bao_buoc_ke_tiep(doc):
 
 	KHÔNG BAO GIỜ ném lỗi: phiếu đã duyệt xong và đã lưu rồi, một cái chuông
 	hỏng không được phép cuốn theo thao tác duyệt thật.
+
+	v604: anh Việt 18/10/2026 đưa mọi tin nhắc việc nội bộ lên nhóm Zalo. Giữ
+	nguyên việc giao (ToDo) và chuông web, thêm tin Zalo "Đề nghị chi chờ duyệt
+	hoặc bị trả lại" cho nhóm đã tích tin đó.
 	"""
+	vai = VAI_BUOC.get(doc.trang_thai)
+	if vai:
+		nhan = NHAN_TRANG_THAI.get(doc.trang_thai) or doc.trang_thai
+		_bao_zalo(doc, "Đề nghị chi %s %s" % (doc.name, nhan[:1].lower() + nhan[1:]))
 	try:
 		from vagabond import giao_viec
 
-		vai = VAI_BUOC.get(doc.trang_thai)
 		if not vai:
 			# Phiếu đã xong hoặc đã huỷ: gỡ việc để nó rời hộp của mọi người.
 			giao_viec.go_giao(DT, doc.name)
@@ -1220,6 +1227,29 @@ def _bao_buoc_ke_tiep(doc):
 		frappe.log_error(frappe.get_traceback(), "de_nghi_chi: bao buoc ke tiep loi")
 
 
+def _bao_zalo(doc, tieu_de, them=None):
+	"""v604: tin Zalo cho đề nghị chi chuyển bước hoặc bị trả lại. Nuốt lỗi lẻ.
+
+	Khoá theo phiếu, trạng thái và mốc sửa: hook chạy lặp không gửi hai lần,
+	còn phiếu bị trả lại rồi gửi lại thì vẫn có tin mới."""
+	try:
+		from vagabond import kenh_zalo
+
+		tien = tien_phieu(doc.as_dict() if hasattr(doc, "as_dict") else doc)
+		dong = ["%s đ · %s" % (_tien(tien), (doc.get("ten_khoan_chi") or "").strip() or "đề nghị chi")]
+		dong += list(them or [])
+		kenh_zalo.bao_hoac_ghi_loi(
+			"viec", "cong_no", tieu_de, dong,
+			link=frappe.utils.get_url("/danh-sach-thanh-toan-noi-bo"),
+			khoa="de-nghi-chi:%s:%s:%s" % (doc.name, doc.trang_thai, str(doc.get("modified") or "")[:19]),
+			nguon=doc.name, ma_tin="kt_de_nghi_chi")
+	except Exception as e:
+		from vagabond.loi_csdl import chet_giao_dich
+		if chet_giao_dich(e):
+			raise
+		frappe.log_error(frappe.get_traceback(), "de_nghi_chi: bao zalo loi")
+
+
 @frappe.whitelist()
 def tra_lai(ma_phieu, ly_do):
 	"""Trả phiếu về cho người lập, bắt buộc ghi lý do."""
@@ -1236,6 +1266,8 @@ def tra_lai(ma_phieu, ly_do):
 	doc.tra_lai_boi = frappe.session.user
 	doc.tra_lai_luc = now_datetime()
 	doc.save(ignore_permissions=True)
+	# v604: báo nhóm Zalo phiếu bị trả lại (giữ việc giao đích danh bên dưới).
+	_bao_zalo(doc, "Đề nghị chi bị trả lại: %s" % doc.name, ["Lý do: %s" % doc.ly_do_tra_lai[:200]])
 	# Trả lại thì việc thuộc về NGƯỜI LẬP, không còn thuộc người duyệt. Giao
 	# đích danh chứ không giao theo vai: chỉ một người sửa được phiếu này.
 	try:
