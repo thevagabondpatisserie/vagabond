@@ -355,6 +355,182 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
       await c.close();
     }
   });
+  await test('F38 v601/v603 tráo Vue: phát tại đúng /banh thì chính sách đi đường công khai, biên nhận /banh/xong là bản Vue có logo, không lọt về /web_moi',async()=>{
+    /* Máy chủ thật (trang_banh_vue.TrangBanhVue) dựng ĐÚNG tệp www/web_moi/banh.html tại /banh. Ở đây trả đúng tệp đó
+       tại /banh, cong_khai đúng (Jinja bỏ dòng robots). Chuỗi khách: mở /banh, đọc chân trang, đặt đơn tự lấy, gửi. */
+    const fs=require('node:fs');
+    const c=await browser.newContext({viewport:{width:390,height:844},timezoneId:'Asia/Ho_Chi_Minh'});
+    await c.route('**/*',r=>r.request().url().startsWith(url)?r.continue():r.abort());
+    const loi=[]; c.on('weberror',e=>loi.push(String(e.error())));
+    const html=fs.readFileSync(root+'/vagabond/www/web_moi/banh.html','utf8').replace('{{ csrf_token }}','thu')
+      .replace('{% if not cong_khai %}<meta name="robots" content="noindex,nofollow">{% endif %}','');
+    await c.route(u=>new URL(String(u)).pathname==='/banh',r=>r.fulfill({contentType:'text/html; charset=utf-8',body:html}));
+    const di=[];
+    /* v603: máy chủ thật dựng www/web_moi/xong.html tại /banh/xong/<token> khi công tắc bật; trang_chu là giá trị
+       get_context đặt cho đường /banh/xong (web_vue.trang_chu_dat_banh, kiểm ở thu_trao_vue_601.py). */
+    const bnF38={ma:'YC-THU-0001',ten:'K. T.',mon:[{ten:'CANDLE',sl:1,thanh_tien:'650.000 đ'}],tien_banh:'650.000 đ',phi_giao:'Miễn phí',tong:'650.000 đ',
+      cach_nhan:'Tự lấy tại Cửa hàng Sài Gòn',thanh_toan:'Chuyển khoản (mã VietQR)'};
+    await c.route(u=>new URL(String(u)).pathname.startsWith('/banh/xong/'),r=>{di.push(new URL(r.request().url()).pathname);
+      return r.fulfill({contentType:'text/html; charset=utf-8',body:fs.readFileSync(root+'/vagabond/www/web_moi/xong.html','utf8')
+        .replace('{{ du_lieu }}',JSON.stringify({loai:'bien_nhan',bien_nhan:bnF38,nhan:{},lien_he:[],trang_chu:'/banh'}))
+        .replace('{{ csrf_token }}','thu').replace('{{ chan_trang }}','').replace('{{ trang_chu }}','/banh')});});
+    await c.route(u=>new URL(String(u)).pathname.startsWith('/web_moi/banh/xong'),r=>{di.push(new URL(r.request().url()).pathname);return r.fulfill({contentType:'text/html',body:'<h1>Lạc</h1>'});});
+    const p=await c.newPage();
+    await p.goto(url+'/banh'); await p.locator('#fChinhSach a').first().waitFor({state:'attached'});
+    const cs=await p.locator('#fChinhSach a').evaluateAll(a=>a.map(x=>x.getAttribute('href')));
+    assert(cs.length>0); assert(cs.every(h=>!h.startsWith('/web_moi')),'chính sách lọt về /web_moi: '+cs.join(','));
+    assert.equal(await p.locator('meta[name=robots]').count(),0);
+    await p.goto(url+'/banh#/banh/candle'); await p.locator('#sheet.open').waitFor({state:'visible'});
+    await p.locator('#s-sizes button').first().click(); await p.locator('#s-cta').click();
+    await p.locator('#bar .go').click(); await p.locator('#checkout.open').waitFor();
+    await p.locator('#f-name').fill('Khách thử'); await p.locator('#f-phone').fill('0900000000');
+    await p.locator('#m-pick').click(); await p.locator('#pickList button').first().click();
+    await p.locator('#c-days button').nth(2).click(); await p.locator('#c-slots button:not([disabled])').first().click();
+    await p.locator('#c-dongy').click();
+    await p.locator('#btnSend').click(); await p.waitForURL(u=>new URL(String(u)).pathname.startsWith('/banh/xong/')||new URL(String(u)).pathname.startsWith('/web_moi/banh/xong'));
+    assert.deepEqual(di.map(x=>x.split('/').slice(0,3).join('/')),['/banh/xong']);
+    await p.locator('.bn-in').waitFor({timeout:8000});
+    assert.match(await p.locator('h1').innerText(),/YC-THU-0001/);
+    assert.equal(new URL(p.url()).pathname,'/banh/xong','gỡ token khỏi đường dẫn');
+    /* Logo ở đầu trang và hai nút về trang đặt bánh: về /banh, không lọt về /web_moi. */
+    assert.equal(await p.locator('header.tk-dau a.tk-logo img').count(),1);
+    const ve=await p.locator('a').evaluateAll(a=>a.map(x=>x.getAttribute('href')));
+    assert(ve.includes('/banh'),'thiếu nút về /banh: '+ve.join(','));
+    assert(ve.every(h=>!String(h).startsWith('/web_moi')),'biên nhận lọt về /web_moi: '+ve.join(','));
+    assert.deepEqual(loi,[]);
+    await c.close();
+  });
+
+  await test('F39 v603 Editor xem trước: khung /banh?bien_tap=1 bản Vue nhận bản nháp, tô khối đang chọn, bấm khối báo về Editor, không tải bản công khai, không Pixel',async()=>{
+    /* Chuỗi của Editor thật (web_order/bien-tap.js): iframe /banh?bien_tap=1, chờ vgb-san-sang, gửi vgb-noi-dung, nghe vgb-chon-khoi.
+       Trang cha ở đây làm đúng ba việc đó, không gọi hàm nào của Vue. */
+    const fs=require('node:fs');
+    const c=await browser.newContext({viewport:{width:1280,height:900},timezoneId:'Asia/Ho_Chi_Minh'});
+    await c.route('**/*',r=>r.request().url().startsWith(url)?r.continue():r.abort());
+    const loi=[]; c.on('weberror',e=>loi.push(String(e.error())));
+    const html=fs.readFileSync(root+'/vagabond/www/web_moi/banh.html','utf8').replace('{{ csrf_token }}','thu')
+      .replace('{% if not cong_khai %}<meta name="robots" content="noindex,nofollow">{% endif %}','');
+    await c.route(u=>new URL(String(u)).pathname==='/banh',r=>r.fulfill({contentType:'text/html; charset=utf-8',body:html}));
+    const congKhai=[];
+    c.on('request',r=>{ if(r.url().includes('vagabond.noi_dung_web.cong_khai') && r.frame() && r.frame().parentFrame()) congKhai.push(r.url()); });
+    const nd=(await (await fetch(url+'/api/method/vagabond.noi_dung_web.cong_khai')).json()).message;
+    nd.khoi=(nd.khoi||[]).concat([
+      {id:'f39-a',loai:'gioi_thieu',hien:true,vi_tri:'cuoi_trang',nhan:'NHÃN',tieu_de:'NHÁP F39 MỘT',noi_dung:'Chữ nháp chưa xuất bản'},
+      {id:'f39-b',loai:'gioi_thieu',hien:true,vi_tri:'cuoi_trang',nhan:'NHÃN',tieu_de:'NHÁP F39 HAI',noi_dung:'Khối thứ hai'}]);
+    await c.route(u=>new URL(String(u)).pathname==='/editor-thu',r=>r.fulfill({contentType:'text/html; charset=utf-8',body:
+      `<!doctype html><meta charset="utf-8"><iframe id="preview" style="width:1200px;height:800px"></iframe><script>
+      window.__chon=[]; const nd=${JSON.stringify(nd)};
+      const xem=()=>document.getElementById('preview').contentWindow.postMessage({loai:'vgb-noi-dung',noi_dung:nd,chon:'f39-a'},location.origin);
+      addEventListener('message',e=>{ if(e.origin!==location.origin) return;
+        if(e.data&&e.data.loai==='vgb-san-sang') xem(); if(e.data&&e.data.loai==='vgb-chon-khoi') window.__chon.push(e.data.id); });
+      try{sessionStorage.setItem('vgb-gio-v1',JSON.stringify({luc:Date.now(),gio:[{id:'BAWC00139',qty:2,cm:12,price:650000}],truong:{'f-name':'KHÁCH CŨ F39','f-phone':'0911111111','f-addr':'12 Đường Một'},co:{mode:'ship'}}));}catch(e){}
+      document.getElementById('preview').src='/banh?bien_tap=1';</script>`}));
+    const p=await c.newPage(); await p.goto(url+'/editor-thu');
+    const f=p.frameLocator('#preview');
+    const khoiA=f.locator('[data-khoi="f39-a"]');
+    await khoiA.waitFor({timeout:8000});
+    assert.equal(await khoiA.locator('.web-tieu-de').innerText(),'NHÁP F39 MỘT');
+    assert.match(await khoiA.getAttribute('class'),/vgb-dang-chon/);
+    assert.doesNotMatch(await f.locator('[data-khoi="f39-b"]').getAttribute('class'),/vgb-dang-chon/);
+    await f.locator('[data-khoi="f39-b"]').click();
+    await p.waitForFunction(()=>window.__chon.length>0);
+    assert.deepEqual(await p.evaluate(()=>window.__chon),['f39-b']);
+    assert.deepEqual(congKhai,[],'khung xem thử không được tải bản công khai');
+    /* Codex #489 P2: tab Editor có sẵn giỏ của phiên trước (cùng sessionStorage với iframe). Khung xem thử
+       không được phục hồi giỏ, tên, số điện thoại, địa chỉ của khách; cũng không được ghi đè giỏ đó. */
+    const fr=p.frames()[1];
+    assert.equal(await fr.evaluate(()=>document.body.innerText.includes('KHÁCH CŨ F39')||[...document.querySelectorAll('input')].some(i=>i.value.includes('KHÁCH CŨ'))),false,'xem thử phục hồi thông tin khách');
+    assert.equal(await fr.evaluate(()=>document.querySelector('#bar .go')?getComputedStyle(document.querySelector('#bar')).display!=='none'&&document.body.classList.contains('has-bar'):false),false,'xem thử phục hồi giỏ');
+    assert.match(await p.evaluate(()=>sessionStorage.getItem('vgb-gio-v1')),/KHÁCH CŨ F39/,'giỏ thật của tab bị ghi đè');
+    assert.equal(await p.frames()[1].evaluate(()=>typeof window.fbq),'undefined');
+    assert.deepEqual(loi,[]);
+    await c.close();
+  });
+  await test('F34 v603 tra số điện thoại: đổi số bỏ ngay kết quả số cũ, phản hồi muộn của số cũ bị bỏ, lỗi tra vẫn cho nhập tay',async()=>{
+    const c=await browser.newContext({viewport:{width:390,height:844},timezoneId:'Asia/Ho_Chi_Minh'});
+    await c.route('**/*',r=>r.request().url().startsWith(url)?r.continue():r.abort());
+    const loi=[]; c.on('weberror',e=>loi.push(String(e.error())));
+    const hoi=[]; let treSo=null;
+    await c.route('**/api/method/vagabond.api.tra_khach*',async r=>{
+      const so=new URL(r.request().url()).searchParams.get('phone') || JSON.parse(r.request().postData()||'{}').phone; hoi.push(so);
+      if(so==='0911111111'){ if(treSo) await treSo; return r.fulfill({json:{message:{addresses:[
+        {ho_ten:'Khách Một',phone:'0911111111',dia_chi:'12 Đường Một, Quận 1'},{ho_ten:'Khách Một',phone:'0911111111',dia_chi:'34 Đường Hai, Quận 3'}]}}}); }
+      if(so==='0922222222') return r.fulfill({status:500,json:{exc_type:'Loi'}});
+      return r.fulfill({json:{message:{addresses:[]}}});
+    });
+    const p=await c.newPage();
+    await p.goto(url+'/web_moi/banh#/banh/candle'); await p.locator('#sheet.open').waitFor({state:'visible'});
+    await p.locator('#s-sizes button').first().click(); await p.locator('#s-cta').click();
+    await p.locator('#bar .go').click(); await p.locator('#checkout.open').waitFor();
+    const goiY=p.locator('#phoneHint');
+    await p.locator('#f-phone').fill('0911111111');
+    await p.waitForFunction(()=>/Tìm thấy/.test(document.querySelector('#phoneHint').innerText));
+    assert.match(await goiY.innerText(),/2 địa chỉ/);
+    /* Xoá bớt một số: câu "Tìm thấy 2 địa chỉ" của số cũ phải mất ngay, không chờ tra. */
+    await p.locator('#f-phone').press('Backspace');
+    assert.doesNotMatch(await goiY.innerText(),/Tìm thấy/);
+    assert.equal(await p.getByText('Đường Một',{exact:false}).count(),0);
+    /* Phản hồi muộn: số cũ trả về sau khi khách đã đổi sang số khác thì bị bỏ. */
+    let tha; treSo=new Promise(r=>tha=r);
+    await p.locator('#f-phone').fill('0911111111'); await p.waitForTimeout(500);
+    await p.locator('#f-phone').fill('0933333333'); await p.waitForTimeout(600);
+    tha(); await p.waitForTimeout(300);
+    assert.doesNotMatch(await goiY.innerText(),/Tìm thấy/);
+    assert.match(await goiY.innerText(),/nhập địa chỉ bên dưới/);
+    /* Tra lỗi (máy chủ 500): vẫn nhập tay được địa chỉ. */
+    await p.locator('#f-phone').fill('0922222222');
+    await p.waitForFunction(()=>/nhập địa chỉ bên dưới/.test(document.querySelector('#phoneHint').innerText));
+    await p.locator('#m-ship').click();
+    await p.locator('#f-addr').fill('99 Đường Tay, Quận 1');
+    assert.equal(await p.locator('#f-addr').inputValue(),'99 Đường Tay, Quận 1');
+    assert(hoi.includes('0922222222') && hoi.includes('0933333333'));
+    assert.deepEqual(loi,[]);
+    await c.close();
+  });
+
+  await test('F40 v603 Codex #489: đặt ở trang cũ ?ban=cu thì biên nhận giữ ?ban=cu; biên nhận Vue tải lại mà tab chỉ có bản cũ thì chuyển sang trang cũ',async()=>{
+    const fs=require('node:fs');
+    const c=await browser.newContext({viewport:{width:390,height:844},timezoneId:'Asia/Ho_Chi_Minh'});
+    await c.route('**/*',r=>r.request().url().startsWith(url)?r.continue():r.abort());
+    const loi=[]; c.on('weberror',e=>loi.push(String(e.error())));
+    const den=[];
+    await c.route(u=>new URL(String(u)).pathname.startsWith('/banh/xong'),r=>{const u=new URL(r.request().url());den.push(u.pathname+u.search);
+      return r.fulfill({contentType:'text/html; charset=utf-8',body:'<h1>bien nhan</h1>'});});
+    const p=await c.newPage();
+    /* Chuỗi khách ở trang cũ (?ban=cu), như F21 nhưng gửi được. */
+    await p.goto(url+'/banh?ban=cu#/banh/candle');await p.locator('#s-cta').waitFor({state:'visible'});
+    await p.locator('#s-sizes button').first().click();await p.locator('#s-cta').click();await p.locator('#bar .go').click();
+    await p.locator('#f-name').fill('Khách thử');await p.locator('#f-phone').fill('0900000000');
+    await p.locator('#m-pick').click();await p.locator('#pickList button').first().click();
+    await p.locator('#c-days button').nth(2).click();await p.locator('#c-slots button:not([disabled])').first().click();
+    await p.locator('#c-dongy').click();
+    await p.locator('#btnSend').click();await p.waitForURL(u=>new URL(String(u)).pathname.startsWith('/banh/xong/'));
+    assert.deepEqual(den,['/banh/xong/thu0001?ban=cu']);
+    /* Biên nhận Vue không token, tab chỉ có bản tóm tắt của biên nhận trang cũ. */
+    den.length=0;
+    await c.unroute(u=>true).catch(()=>{});
+    await c.route('**/*',r=>r.request().url().startsWith(url)?r.continue():r.abort());
+    await c.route(u=>new URL(String(u)).pathname==='/banh/xong',r=>{const u=new URL(r.request().url());den.push(u.pathname+u.search);
+      if(u.search.includes('ban=cu')) return r.fulfill({contentType:'text/html; charset=utf-8',body:'<h1>trang cu</h1>'});
+      return r.fulfill({contentType:'text/html; charset=utf-8',body:fs.readFileSync(root+'/vagabond/www/web_moi/xong.html','utf8')
+        .replace('{{ du_lieu }}',JSON.stringify({loai:'bien_nhan',khong_token:1,nhan:{},trang_chu:'/banh'}))
+        .replace('{{ csrf_token }}','thu').replace('{{ chan_trang }}','').replace('{{ trang_chu }}','/banh')});});
+    const p2=await c.newPage();
+    await p2.goto(url+'/web_moi/banh');
+    await p2.evaluate(()=>{sessionStorage.setItem('vgb_bien_nhan','<main>cu</main>');sessionStorage.removeItem('vgb_bien_nhan_vue');});
+    await p2.goto(url+'/banh/xong');
+    await p2.waitForURL(u=>new URL(String(u)).search.includes('ban=cu'),{timeout:8000});
+    assert.equal(await p2.locator('h1').innerText(),'trang cu');
+    assert.deepEqual(den,['/banh/xong','/banh/xong?ban=cu']);
+    /* Có bản Vue của chính mình thì ở lại. */
+    den.length=0;
+    await p2.evaluate(()=>sessionStorage.setItem('vgb_bien_nhan_vue',JSON.stringify({ma:'DW-F40',mon:[]})));
+    await p2.goto(url+'/banh/xong'); await p2.locator('.bn-in').waitFor({timeout:8000});
+    assert.match(await p2.locator('h1').innerText(),/DW-F40/);
+    assert.deepEqual(den,['/banh/xong']);
+    assert.deepEqual(loi,[]);
+    await c.close();
+  });
   assert.deepEqual(errors,[]);
   console.log(`${passed} ca DOM đạt`);
 } finally {if(browser)await browser.close();server.kill();}})().catch(e=>{console.error(e);process.exitCode=1;});

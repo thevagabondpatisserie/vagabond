@@ -2418,7 +2418,9 @@ async function submitOrder(){
   CART=[]; CO.nonce=''; CO.uuMa=''; CO.uu=null; drawBar(); drawCart();
   if(m.duong_dan && /^\/banh\/xong\/[A-Za-z0-9_-]+$/.test(m.duong_dan)){
     $('#sendHint').innerHTML=("<b style=\"color:var(--cyan)\">" + htmlChuWeb("dat_banh_01d9e68a4", "Chúng tôi đã nhận yêu cầu.") + "</b>" + " " + htmlChuWeb("dat_banh_f977b08ed", "Đang mở biên nhận..."));
-    location.assign(m.duong_dan);
+    /* v603 (Codex #489): dang xem ban cu bang ?ban=cu thi bien nhan cung la ban
+       cu; khong co thi bien nhan theo cong tac Cai dat nhu trang dat banh. */
+    location.assign(m.duong_dan + (/(^|[?&])ban=cu(&|$)/i.test(location.search || '') ? '?ban=cu' : ''));
     return;
   }
   /* May chu cu chua tra duong dan (dang deploy do): van bao cho khach. */

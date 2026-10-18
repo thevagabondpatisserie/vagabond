@@ -14,14 +14,22 @@
   function doc(k) { try { return window.sessionStorage.getItem(k); } catch (e) { return null; } }
   function ghi(k, v) { try { window.sessionStorage.setItem(k, v); } catch (e) { /* che do rieng tu */ } }
 
+  /* v603 (Codex #489): giu ?ban=cu khi go token, de tai lai van la ban cu. */
+  var BAN_CU = /(^|[?&])ban=cu(&|$)/i.test((window.location && window.location.search) || '');
   try {
-    if (/^\/banh\/xong\/./.test(window.location.pathname)) window.history.replaceState(null, '', '/banh/xong');
+    if (/^\/banh\/xong\/./.test(window.location.pathname)) window.history.replaceState(null, '', '/banh/xong' + (BAN_CU ? '?ban=cu' : ''));
   } catch (e) { /* trinh duyet cu */ }
 
   var o = document.getElementById('bien-nhan');
   function chu(k, macDinh) { return '<span data-vgb-chu="' + k + '">' + htmlChuWeb(k, macDinh) + '</span>'; }
   if (D.khong_token) {
     var cu = doc(KHOA);
+    /* v603 (Codex #489): cong tac doi giua chung (bat hoac tat ban moi) thi
+       tai lai /banh/xong ra trang kia. Tab chi co ban tom tat cua bien nhan ban
+       moi thi chuyen sang dung trang ban moi de khach van thay bien nhan. */
+    if (!cu && doc('vgb_bien_nhan_vue')) {
+      try { window.location.replace('/web_moi/banh/xong'); return; } catch (e) { /* de trang mac dinh */ }
+    }
     if (o) {
       o.innerHTML = cu || (("<main class=\"bn\">" + "<div class=\"bn-in\">" + "<p class=\"bn-nhan\">" + chu("bien_nhan_fae8f9966", "BIÊN NHẬN") + "</p>")
         + ("<h1>" + chu("bien_nhan_37a6f269e", "Biên nhận chỉ mở được từ đường dẫn chúng tôi hiện ngay sau khi đặt.") + "</h1>")

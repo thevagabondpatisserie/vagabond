@@ -8,7 +8,7 @@
      #/in-season[/<ma>]  hàng mùa vụ         #/in-store    bánh trên tủ quầy
      #/uu-dai  #/tiec  #/tuyen-dung          ba chuyên mục */
 import {createApp, computed, watch, nextTick} from '../lib/vue.esm-browser.prod.js';
-import {ND, t, tMon, napNoiDung, telChu, telSo, mxh} from '../kho/chu.js';
+import {ND, t, tMon, napNoiDung, laXemThu, telChu, telSo, mxh} from '../kho/chu.js';
 import {doc, ghi} from '../kho/api.js';
 import {taoKho} from './kho-banh.js';
 import {DAYS, ACC, NUMS, ADDONS, PAYS, ANH_NEN, HUONG_SIZE} from './du-lieu.js';
@@ -26,6 +26,11 @@ function ngauNhien(n) {
 }
 
 export function khoiDong(goc = '#app') {
+  /* Codex #489 P2: biết mình là khung xem thử của Editor NGAY từ đầu, trước khi
+     kho phục hồi giỏ của phiên (cùng sessionStorage với tab Editor). Trước đây
+     cờ này chỉ được đặt trong napNoiDung, chạy SAU phucHoiGio, nên khung xem
+     thử hiện giỏ và thông tin khách cũ. Cùng một hàm laXemThu với napNoiDung. */
+  ND.xemThu = laXemThu(window);
   const pixel = {id: ''};
   const suKien = (ten, du) => { try { if (pixel.id && typeof window.fbq === 'function') window.fbq('track', ten, du); } catch (e) { /* im lặng */ } };
   const kho = taoKho({t, tMon, doc, ghi, luuTru: luuTruAnToan(), suKien, ngauNhien, xemThu: () => ND.xemThu, mxh, nd: ND,

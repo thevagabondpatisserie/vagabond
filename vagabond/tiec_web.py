@@ -231,6 +231,6 @@ def bao_moi(doc, method=None):
         return
     # Codex #481: chưa có nhóm nhận thì để lại Error Log nêu tên phiếu.
     kenh_zalo.bao_hoac_ghi_loi("viec", "dat_ban", tieu_de, dong, khoa="tiec:%s" % doc.name,
-                               kiem="tiec_cho", nguon=doc.name)
+                               kiem="tiec_cho", nguon=doc.name, ma_tin="bh_tiec")
 
 

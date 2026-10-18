@@ -1059,3 +1059,7 @@ website_route_rules = list(website_route_rules) + [
 # theo giờ chuỗi đã khai và chỉ đọc một ô cài đặt khi chưa tới mốc.
 scheduler_events.setdefault("cron", {}).setdefault("*/5 * * * *", []).append("vagabond.ban_hang.bao_dong_ghi_so_toi")
 scheduler_events.setdefault("cron", {}).setdefault("30 7 * * *", []).append("vagabond.ban_hang.bao_dong_ghi_so_sang")
+
+# 17/10/2026: /banh phát bản Vue khi bật công tắc "Dùng trang đặt bánh bản mới"
+# (Cài đặt > Web & quảng cáo). Tắt là về Web Page "banh" cũ, không cần deploy.
+page_renderer = ["vagabond.trang_banh_vue.TrangBanhVue"]

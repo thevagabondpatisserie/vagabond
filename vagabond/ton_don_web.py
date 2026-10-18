@@ -70,7 +70,7 @@ def bao_loi(ngay):
         ten = kenh_zalo.bao("canh_bao", "don_web", "Sales kiểm lại tồn đơn web ngày nhận %s" % ngay,
                             ["Phép kiểm tồn bị lỗi; web vẫn tiếp nhận yêu cầu.",
                              "Sales kiểm lại tồn trước khi xác nhận với khách."],
-                            khoa="f21-ton-loi:%s" % ngay)
+                            khoa="f21-ton-loi:%s" % ngay, ma_tin="bh_ton_web_loi")
         if not ten:
             _ghi_loi("Chưa có nhóm Zalo nhận chủ đề Đơn web, hoặc chưa ghi được tin.",
                      "F21: chưa gửi được cảnh báo Sales")

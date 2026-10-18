@@ -169,7 +169,8 @@ def _():
 	ra, loi = cdl.kiem_dong_bang(cot, {"cot_la": 1}, ())
 	dung("cột lạ báo lỗi", len(loi) == 1)
 	tb = cdl.tom_bang(cot)
-	la("mô tả cột không có ô ngắt cột", [c["fn"] for c in tb], ["ten_nhom", "chat_id", "loai_tin", "chu_de", "im_tu", "im_den", "bat"])
+	# v604: thêm cột Tin nhận ngay sau Chủ đề.
+	la("mô tả cột không có ô ngắt cột", [c["fn"] for c in tb], ["ten_nhom", "chat_id", "loai_tin", "chu_de", "tin_nhan", "im_tu", "im_den", "bat"])
 
 
 @ca("cài đặt lõi v570: dòng Zalo đã có giữ nguyên cột app không gửi")

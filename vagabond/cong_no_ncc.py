@@ -456,7 +456,8 @@ def lap_truoc_erp(hoa_don, so_tien, ngay_tra, unc=None, ghi_chu="", ma_lan=""):
              "%s đ, đã trả ngày %s" % ("{:,.0f}".format(float(_so(so_tien))).replace(",", "."), str(ngay_tra)[:10]),
              "Gửi bởi %s" % frappe.utils.get_fullname(frappe.session.user)],
             link=frappe.utils.get_url("/cong-no-phai-tra"), khoa="cho_duyet:" + je.name,
-            nguoi="Kế toán", han="Trong ngày", kiem="cho_duyet_truoc_erp", nguon=je.name)
+            nguoi="Kế toán", han="Trong ngày", kiem="cho_duyet_truoc_erp", nguon=je.name,
+            ma_tin="kt_tra_truoc_erp")
     return {"je": je.name, "da_ghi_so": je.docstatus == 1}
 
 

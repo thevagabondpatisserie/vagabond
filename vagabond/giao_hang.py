@@ -74,7 +74,7 @@ def _ghi_canh_bao_ahamove(khoa, loi):
 	from vagabond.kenh_zalo import bao
 	ten = bao("canh_bao", "don_web", "Không lấy được phí giao Ahamove", [
 		"Kiểm tra Địa chỉ API Ahamove trong Cài đặt; máy chủ chạy thật không được chứa apistg."
-	], link="/bep", khoa=khoa)
+	], link="/bep", khoa=khoa, ma_tin="bh_ahamove_phi")
 	frappe.db.commit()
 	# bao() có thể nuốt lỗi ghi hoặc không có nhóm nhận; không khoá mất lượt thử sau.
 	if ten:

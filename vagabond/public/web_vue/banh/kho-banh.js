@@ -436,7 +436,9 @@ export function taoKho(moiTruong) {
   function lookupPhone() {
     huyHen(phHen);
     const v = (S.f.phone || '').replace(/\D/g, '');
-    S.CO.addrList = []; S.CO.addrSel = -1;
+    /* v603 (F34): đổi số là bỏ ngay câu "Tìm thấy N địa chỉ" của số cũ, kể cả
+       khi số mới chưa đủ dài để tra; không để khách đọc kết quả của số khác. */
+    S.CO.addrList = []; S.CO.addrSel = -1; S.goi.phone = null;
     if (v.length < 9) return;
     phHen = hen(async () => {
       let ds = [];

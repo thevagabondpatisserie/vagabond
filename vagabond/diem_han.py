@@ -270,7 +270,7 @@ def het_han_tu_dong():
 		kq = het_han(chay_that=1)
 		if kq.get("cham_tran"):
 			# Cham tran la chuyen phai co nguoi doc, khong phai mot dong
-			# nhat ky. Gui thu roi thoi, KHONG dot.
+			# nhat ky. Bao nhom Zalo roi thoi, KHONG dot.
 			_bao_nguoi(
 				"Điểm hết hạn: máy đã dừng lại",
 				"Đêm nay có %d khách tới hạn đốt điểm, vượt mức an toàn. Máy chưa "
@@ -284,26 +284,17 @@ def het_han_tu_dong():
 
 
 def _bao_nguoi(tieu_de, noi_dung):
+	"""v604: anh Việt 18/10/2026 bỏ email, báo Zalo (tin "Điểm khách hết hạn: máy
+	tự dừng vì chạm trần"). Không nhóm nào nhận thì để lại Error Log như cũ."""
 	try:
-		from vagabond.lib import cfg
+		from vagabond import kenh_zalo
 
-		nhan = (cfg().get("email_canh_bao") or "").strip()
-		if not nhan:
-			frappe.log_error(noi_dung, tieu_de)
-			return
-		from vagabond import thu_khung as _tk
-		from vagabond.nhan_su import link_app
-
-		frappe.sendmail(
-			recipients=[nhan], subject="[Vagabond] " + tieu_de,
-			message=_tk.khung(
-				tieu_de, _tk.doan(_tk.h(noi_dung), cach=0),
-				nut_html=_tk.nut(link_app(), "Mở app", goc_anh=_tk.goc_anh()),
-				chan="noi_bo", nhan="Điểm thành viên",
-			),
-		)
+		kenh_zalo.bao_hoac_ghi_loi(
+			"viec", "ban_hang", tieu_de, [noi_dung], link=frappe.utils.get_url("/bep"),
+			khoa="diem-het-han:%s" % frappe.utils.nowdate(), ma_tin="kt_diem_het_han")
+		frappe.db.commit()
 	except Exception:
-		frappe.log_error(frappe.get_traceback(), "diem_han: khong gui duoc thu")
+		frappe.log_error(frappe.get_traceback(), "diem_han: khong bao duoc Zalo")
 
 
 def _chi_quan_ly():

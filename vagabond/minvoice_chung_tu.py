@@ -107,10 +107,6 @@ LOAI_RA = "Đầu ra"
 # Trạng thái mà hoá đơn KHÔNG cần thành chứng từ nữa.
 TT_KHOI_DUNG = ("Bị thay thế", "Đã huỷ")
 
-# Chuông báo tắc nhịp gửi về hộp thư kế toán, vì việc phải làm khi nghe
-# chuông là việc của kế toán chứ không phải của người viết mã.
-EMAIL_KE_TOAN = "account@thevagabondpatisserie.com"
-
 # Chênh DƯỚI bao nhiêu đồng thì coi như khớp, khỏi nắn.
 #
 # Đọc kỹ chữ DƯỚI. Ngưỡng này là ngưỡng HỞ: chênh đúng một đồng là PHẢI
@@ -1651,7 +1647,7 @@ def nhip_da_tac(so_to_cho, gio_ke_tu_lan_dung_cuoi, nguong=GIO_COI_LA_TAC):
 
 
 def canh_bao_tac_nhip():
-	"""Nhịp ngày: nhịp dựng chứng từ mà tắc thì gửi thư, đừng để im.
+	"""Nhịp ngày: nhịp dựng chứng từ mà tắc thì báo nhóm Zalo, đừng để im.
 
 	VÌ SAO CÓ HÀM NÀY
 	-----------------
@@ -1668,6 +1664,9 @@ def canh_bao_tac_nhip():
 	(nhịp có chạy đâu mà lỗi), `con_sot` thì có nhưng phải mở ra mới thấy.
 
 	Hàm này là cái lớp còn thiếu: nó không sửa gì cả, nó chỉ la lên.
+
+	v604: anh Việt 18/10/2026 bỏ email, báo Zalo (tin "Hoá đơn đầu vào m-invoice
+	tắc nhịp hoặc trùng"); trước đây thư gửi hộp kế toán.
 	"""
 	try:
 		if not frappe.db.exists("DocType", DT_HD):
@@ -1684,7 +1683,7 @@ def canh_bao_tac_nhip():
 			gio = (
 				frappe.utils.now_datetime() - frappe.utils.get_datetime(lan_cuoi)
 			).total_seconds() / 3600.0
-		# HAI CHUYỆN KHÁC HẲN NHAU, MỘT LÁ THƯ
+		# HAI CHUYỆN KHÁC HẲN NHAU, MỘT TIN
 		#
 		# Tắc nhịp là thiếu chứng từ. Trùng là THỪA chứng từ. Ngày 31/08/2026
 		# gặp cả hai trong một buổi sáng, và cái thừa nguy hơn: thiếu thì kế
@@ -1694,53 +1693,33 @@ def canh_bao_tac_nhip():
 		tac = nhip_da_tac(cho, gio)
 		if not tac and not cint(trung.get("so_to_thua")):
 			return
-		phan = []
+		from vagabond import kenh_zalo
+
+		dong = []
 		if tac:
-			phan.append(
-				"<p><b>Nhịp dựng chứng từ đang tắc.</b> Đang có <b>%s</b> hoá "
-				"đơn điện tử đầu vào xếp hàng mà <b>%s tiếng</b> nay hệ không "
-				"dựng thêm được chứng từ nào.</p>"
-				"<p>Mở màn Hoá đơn mua hàng trên Desk, bấm nút "
-				"<b>Đồng bộ M-Invoice</b>. Vẫn không nhúc nhích thì báo anh "
-				"Việt, nhiều khả năng nhịp tự động đã tắt.</p>" % (cho, int(gio))
-			)
+			dong += [
+				"Nhịp dựng chứng từ đang tắc: %s hoá đơn điện tử đầu vào xếp hàng mà %s tiếng nay hệ "
+				"không dựng thêm được chứng từ nào." % (cho, int(gio)),
+				"Mở màn Hoá đơn mua hàng trên Desk, bấm Đồng bộ M-Invoice. Vẫn không nhúc nhích thì "
+				"báo anh Việt, nhiều khả năng nhịp tự động đã tắt.",
+			]
 		if cint(trung.get("so_to_thua")):
-			phan.append(
-				"<p><b>Có chứng từ trùng.</b> %s tờ hoá đơn điện tử đang có "
-				"nhiều hơn một chứng từ trỏ về, thừa <b>%s tờ</b>.</p>"
-				"<p>ĐỪNG GHI SỔ khi còn trùng, ghi sổ là mua vào đếm hai lần. "
-				"Giữ tờ dựng trước, tick <b>Đã huỷ</b> cho tờ sau. Các tờ đang "
-				"trùng: %s.</p>"
-				% (
-					trung.get("so_nhom"),
-					trung.get("so_to_thua"),
-					", ".join(
-						" và ".join(n.get("ten") or [])
-						for n in (trung.get("ds") or [])[:10]
-					) or "(xem màn Còn sót)",
-				)
-			)
-		frappe.sendmail(
-			recipients=[EMAIL_KE_TOAN],
-			subject=(
-				"Hoá đơn điện tử: %s"
-				% (" và ".join(
-					(["nhịp dựng chứng từ đang tắc"] if tac else [])
-					+ (["có chứng từ trùng"] if cint(trung.get("so_to_thua")) else [])
-				))
-			),
-			message=_khung_chuong("".join(phan)),
+			dong += [
+				"Có chứng từ trùng: %s tờ hoá đơn điện tử đang có nhiều hơn một chứng từ trỏ về, thừa %s tờ."
+				% (trung.get("so_nhom"), trung.get("so_to_thua")),
+				"ĐỪNG GHI SỔ khi còn trùng, ghi sổ là mua vào đếm hai lần. Giữ tờ dựng trước, tick Đã huỷ cho tờ sau.",
+			]
+			dong += kenh_zalo.cat_dong(
+				["Đang trùng: " + " và ".join(n.get("ten") or []) for n in (trung.get("ds") or [])], 10, "nhóm")
+		kenh_zalo.bao_hoac_ghi_loi(
+			"canh_bao", "hoa_don",
+			"Hoá đơn điện tử đầu vào: %s" % " và ".join(
+				(["nhịp dựng chứng từ đang tắc"] if tac else [])
+				+ (["có chứng từ trùng"] if cint(trung.get("so_to_thua")) else [])),
+			dong, link=frappe.utils.get_url("/hoa-don-mua"),
+			khoa="hd-dau-vao:%s" % frappe.utils.nowdate(), ma_tin="hd_dau_vao",
 		)
+		frappe.db.commit()
 	except Exception:
 		frappe.log_error(frappe.get_traceback(),
 			"minvoice_chung_tu: chuong bao tac nhip")
-
-
-def _khung_chuong(than):
-	"""Boc thu chuong bao vao khuon thu chung. Hong thi gui than thu tho."""
-	try:
-		from vagabond import thu_khung as _tk
-
-		return _tk.khung("Hoá đơn điện tử đầu vào cần xem ngay", than, chan="noi_bo", nhan="Chuông báo")
-	except Exception:
-		return than

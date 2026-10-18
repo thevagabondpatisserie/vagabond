@@ -2124,36 +2124,37 @@ def aha_webhook():
 			doc.flags.ignore_permissions = True
 			doc.save()
 			frappe.db.commit()
-			_mail_tai_xe_huy(doc)
+			_bao_tai_xe_huy(doc)
 		return {"ok": 1}
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "vagabond: aha webhook loi")
 		return {"ok": 0}
 
 
-def _mail_tai_xe_huy(doc):
-	"""Bao sales de phan cong lai ngay, khong de don nam im."""
-	try:
-		ds = frappe.get_all(
-			"Has Role",
-			filters={"role": "Sales User", "parenttype": "User"},
-			fields=["parent"],
-		)
-		nhan = [r.parent for r in ds if r.parent not in ("Administrator", "Guest")
-			and frappe.db.get_value("User", r.parent, "enabled")]
-		if not nhan:
-			return
-		from vagabond.nhan_su import thu_tai_xe_huy_html
+def _bao_tai_xe_huy(doc):
+	"""Bao sales de phan cong lai ngay, khong de don nam im.
 
-		frappe.sendmail(
-			recipients=nhan,
-			subject="Tài xế huỷ đơn: %s - %s" % (doc.ma_don or doc.name, doc.khach or ""),
-			message=thu_tai_xe_huy_html(doc),
-			delayed=False,
-			retry=2,
-		)
+	v604: anh Việt 18/10/2026 bỏ email, báo Zalo (tin "Tài xế Ahamove huỷ hoặc
+	giao thất bại"); trước đây thư gửi mọi tài khoản Sales User."""
+	try:
+		from vagabond import kenh_zalo
+
+		# Cùng một nguồn nơi giao với ba đường gọi xe: đơn pickup thì xe tới quầy.
+		ng = _noi_giao(doc)
+		dong = ["Giao tới: %s" % (ng.get("dia_chi") or "chưa có địa chỉ")]
+		if doc.tag_gio:
+			dong.append("Khung giờ: %s" % doc.tag_gio)
+		if flt(ng.get("cod")):
+			dong.append("Thu hộ (COD): %s đ" % "{:,.0f}".format(flt(ng.get("cod"))).replace(",", "."))
+		dong.append("Máy đã gỡ mã đặt xe, vận đơn về Chờ giao. Nhờ Sales phân công lại.")
+		kenh_zalo.bao_hoac_ghi_loi(
+			"viec", "ban_hang", "Tài xế huỷ đơn %s - %s" % (doc.ma_don or doc.name, doc.khach or ""), dong,
+			link="%s/bep?vd=%s" % (frappe.utils.get_url().rstrip("/"), doc.name),
+			khoa="tai-xe-huy:%s:%s" % (doc.name, str(doc.get("modified") or "")[:19]),
+			nguon=doc.name, ma_tin="bh_ahamove_huy")
+		frappe.db.commit()
 	except Exception:
-		frappe.log_error(frappe.get_traceback(), "vagabond: mail tai xe huy loi")
+		frappe.log_error(frappe.get_traceback(), "vagabond: bao zalo tai xe huy loi")
 
 
 # ---------------------------------------------------------------- Chi phi shipper

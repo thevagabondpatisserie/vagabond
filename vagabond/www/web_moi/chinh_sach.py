@@ -10,6 +10,7 @@ def get_context(context):
     frappe.local.no_cache = 1
     duong = str(getattr(getattr(frappe.local, 'request', None), 'path', '') or getattr(frappe.local, 'path', ''))
     khoa = noi_dung_web.khoa_tu_duong(duong.removeprefix('/web_moi'))
+    context.trang_chu = web_vue.trang_chu_dat_banh(duong)
     ngon = 'en' if frappe.form_dict.get('ngon_ngu') == 'en' else 'vn'
     d = noi_dung_web.trang_chinh_sach(khoa, ngon) if khoa else None
     if not d:

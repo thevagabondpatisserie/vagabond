@@ -215,6 +215,6 @@ def bao_dat_ban_moi(doc, method=None):
     # Codex #481: hook chỉ chạy một lần lúc tạo phiếu; chưa có nhóm nhận thì để
     # lại Error Log nêu tên phiếu, gán nhóm sau không tự báo lại phiếu này.
     kenh_zalo.bao_hoac_ghi_loi('viec', 'dat_ban', tieu_de, dong, khoa='dat-ban:%s' % doc.name,
-                               kiem='dat_ban_cho', nguon=doc.name)
+                               kiem='dat_ban_cho', nguon=doc.name, ma_tin='bh_dat_ban')
 
 

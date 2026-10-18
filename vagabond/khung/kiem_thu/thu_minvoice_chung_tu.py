@@ -431,8 +431,10 @@ def _():
 		"vagabond.minvoice_chung_tu.canh_bao_tac_nhip" in MA_HOOKS)
 	dung("hàm có thật trong mô đun", "def canh_bao_tac_nhip" in MA)
 	doan = MA.split("def canh_bao_tac_nhip")[1]
-	dung("có gửi thư chứ không chỉ ghi Error Log", "frappe.sendmail" in doan)
-	dung("gửi về hộp kế toán", "EMAIL_KE_TOAN" in doan)
+	# v604: anh Việt 18/10/2026 bỏ email, báo Zalo (không chỉ ghi Error Log).
+	dung("có báo nhóm Zalo chứ không chỉ ghi Error Log", "kenh_zalo.bao_hoac_ghi_loi(" in doan)
+	dung("đúng tin hoá đơn đầu vào", 'ma_tin="hd_dau_vao"' in doan)
+	dung("không còn gửi thư", "frappe.sendmail" not in doan)
 	dung("chuông KHÔNG tự sửa gì, chỉ la lên",
 		"_chay(" not in doan and "dung_hoa_don_mua" not in doan)
 

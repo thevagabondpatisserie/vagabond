@@ -137,6 +137,7 @@
   "email_da_cuu_su_co_1608",
   "tab_web",
   "sec_web_dat_banh",
+  "web_ban_vue",
   "mien_phi_giao_tu",
   "web_dien_thoai",
   "web_email",
@@ -846,7 +847,7 @@
    "label": "Thư cảnh báo và webhook"
   },
   {
-   "description": "Nhiều địa chỉ thì ngăn nhau bằng dấu phẩy. Dùng cho thư báo đơn trùng hoá đơn.",
+   "description": "Không còn dùng từ 18/10/2026: mọi cảnh báo nội bộ đi qua nhóm Zalo, mỗi nhóm tích tin cần nhận ở mục Bắn tin vào nhóm Zalo.",
    "fieldname": "email_canh_bao",
    "fieldtype": "Data",
    "label": "Email nhận thư cảnh báo"
@@ -925,6 +926,13 @@
    "fieldname": "sec_web_dat_banh",
    "fieldtype": "Section Break",
    "label": "Trang đặt bánh"
+  },
+  {
+   "default": "0",
+   "description": "Bật: khách vào order.thevagabondpatisserie.com/banh thấy trang đặt bánh bản mới. Tắt: quay về trang cũ ngay, không cần deploy. Bật thì biên nhận sau khi đặt và màn xem trước của Editor cũng là bản mới. Ba trang chính sách giữ bản cũ. Muốn xem bản cũ thì thêm ?ban=cu vào đường dẫn.",
+   "fieldname": "web_ban_vue",
+   "fieldtype": "Check",
+   "label": "Dùng trang đặt bánh bản mới"
   },
   {
    "description": "Tiền bánh (chưa gồm phí giao, máy chủ tự tính) từ mức này trở lên thì khách không trả phí giao, tiệm chịu phí Ahamove. Để trống hoặc 0 là tắt miễn phí giao.",
@@ -1136,7 +1144,7 @@
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-10-16 12:00:00.000000",
+ "modified": "2026-10-18 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Settings",

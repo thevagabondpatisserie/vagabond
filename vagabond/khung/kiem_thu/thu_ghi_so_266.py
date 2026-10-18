@@ -110,12 +110,18 @@ def ghi_so():
 
 @ca('#266 cảnh báo không lọc cột giả, không đè lượt cũ và không che chuông sót')
 def canh_bao():
+	# v604: anh Việt 18/10/2026 bỏ email, báo Zalo. Ca giữ đủ các bẫy cũ (cột giả,
+	# lượt rỗng không đè nhật ký, Redis mất, gửi hỏng không ghi mốc), chỉ đổi đường
+	# báo từ thư sang tin Zalo qua kenh_zalo.bao_hoac_ghi_loi.
 	import sys
+	import vagabond
 	from unittest.mock import patch
+	from vagabond import kenh_zalo as kz_that
 	calls = []
-	mail = []
+	tin = []
 	moc = {}
 	logs = []
+	ket = {'v': ['ZL-1']}
 	state = D(tu_ghi_so_nhat_ky='Chuỗi chính đã ghi sổ 140 đơn. CẢNH BÁO khác.')
 
 	def ghi(*a):
@@ -124,59 +130,73 @@ def canh_bao():
 
 	def cot_la(*a):
 		raise AssertionError('Email Queue không có subject')
+
+	def bao(loai, chu_de, tieu_de, dong=None, **kw):
+		tin.append(dict(kw, loai=loai, chu_de=chu_de, tieu_de=tieu_de, chu=' '.join(dong or [])))
+		if isinstance(ket['v'], Exception):
+			raise ket['v']
+		return ket['v']
 	cache = NS(get_value=lambda k: moc.get(k), set_value=lambda k, v, **kw: moc.update({k: v}))
-	f = NS(db=NS(set_single_value=ghi, commit=lambda : None, exists=cot_la), cache=lambda : cache, utils=NS(escape_html=escape), get_traceback=lambda : 'lỗi giả lập', log_error=lambda *a, **kw: logs.append((a, kw)), sendmail=lambda **kw: mail.append(kw), set_user=lambda *a: None)
-	ns = NS(_khung_thu=lambda *a, **kw: ' '.join(a), _nut_xanh=lambda *a: 'Nút mở app', link_app=lambda : 'https://example.invalid')
-	g = dict(giau_khoa=lambda x:x, frappe=f, cfg=lambda : state, _nguoi_nhan_don_treo=lambda : ['ci@example.invalid'])
-	with patch.dict(sys.modules, {'vagabond.nhan_su': ns}):
+	f = NS(db=NS(set_single_value=ghi, commit=lambda : None, exists=cot_la), cache=lambda : cache,
+		utils=NS(escape_html=escape, get_url=lambda p='': 'https://erp.test' + p), get_traceback=lambda : 'lỗi giả lập',
+		log_error=lambda *a, **kw: logs.append((a, kw)), set_user=lambda *a: None)
+	kz = NS(bao_hoac_ghi_loi=bao, cat_dong=kz_that.cat_dong)
+	g = dict(giau_khoa=lambda x:x, frappe=f, cfg=lambda : state)
+	MOC = 'vgb-hoan-phat-hanh-2026-09-12-xuat-rai-e3b0c44298fc1c14-zalo'
+	with patch.dict(sys.modules, {'vagabond.kenh_zalo': kz}), patch.object(vagabond, 'kenh_zalo', kz):
 		fn = nap('_bao_hoan_phat_hanh', g)
 		fn('2026-09-12', 1, [], 'xuat-rai')
-		la('xếp thư dù exists từ chối cột giả', len(mail), 1)
+		la('báo Zalo dù exists từ chối cột giả', len(tin), 1)
+		la('đúng tin Hoá đơn ngày cũ bị giữ lại', tin[0].get('ma_tin'), 'hd_giu_ngay_cu')
+		la('cảnh báo chủ đề hoá đơn', (tin[0]['loai'], tin[0]['chu_de']), ('canh_bao', 'hoa_don'))
+		dung('tin mở đúng màn Cuối ngày', str(tin[0].get('link')).endswith('/cai-dat-cuoi-ngay'))
 		dung('giữ kết quả chuỗi chính', '140 đơn' in state['tu_ghi_so_nhat_ky'])
-		dung('thư có nút', bool(mail) and 'Nút mở app' in mail[0]['message'])
 		truoc = state['tu_ghi_so_nhat_ky']
 		fn('2026-09-12', 0, [], 'xuat-rai')
 		fn('2026-09-12', 0, [], 'xuat-rai')
 		la('không đè bằng lượt rỗng', state['tu_ghi_so_nhat_ky'], truoc)
-		la('không xếp lại thư', len(mail), 1)
+		la('không báo lại', len(tin), 1)
 		la('không log lặp', len(logs), 1)
 		g.update(nowdate=lambda : '2026-09-12', _dem_hddt_sot=lambda *a: (140, 100000), hddt_bu=NS(cau_canh_bao_sot=lambda *a: 'CẢNH BÁO còn 140 hóa đơn chưa xuất'))
 		nap('canh_bao_hddt_sot', g)()
 		dung('chuông sót vẫn ghi', 'CẢNH BÁO còn 140' in state['tu_ghi_so_nhat_ky'])
-		la('chuông sót vẫn gửi thư riêng', len(mail), 2)
-		moc.pop('vgb-hoan-phat-hanh-2026-09-12-xuat-rai-e3b0c44298fc1c14-mail')
+		la('chuông sót vẫn báo riêng', len(tin), 2)
+		la('chuông sót đúng tin hoá đơn điện tử sót', tin[-1].get('ma_tin'), 'hd_hddt_sot')
+		moc.pop(MOC)
 
-		def hong(**kw):
-			raise RuntimeError('Hàng đợi không ghi được')
-		f.sendmail = hong
+		ket['v'] = RuntimeError('Sổ tin không ghi được')
 		fn('2026-09-12', 0, [], 'xuat-rai')
-		la('xếp thư lỗi không ghi mốc thành công', moc.get('vgb-hoan-phat-hanh-2026-09-12-xuat-rai-e3b0c44298fc1c14-mail'), None)
-		f.sendmail = lambda **kw: mail.append(kw)
+		la('báo lỗi không ghi mốc thành công', moc.get(MOC), None)
+		ket['v'] = []
 		fn('2026-09-12', 0, [], 'xuat-rai')
-		la('nhịp sau vẫn xếp lại được', len(mail), 3)
+		la('chưa nhóm nào nhận thì không ghi mốc, nhịp sau còn báo', moc.get(MOC), None)
+		ket['v'] = ['ZL-2']
+		fn('2026-09-12', 0, [], 'xuat-rai')
+		la('nhịp sau vẫn báo lại được', len(tin), 5)
 		fn('2026-09-12', 140, ['Đơn thử thiếu phương thức'], 'cuoi-ngay')
-		la('cuối ngày có thư riêng', len(mail), 4)
+		la('cuối ngày có tin riêng', len(tin), 6)
 		dung('log giữ nội dung lỗi', any('Đơn thử thiếu phương thức' in str(x) for x in logs))
 		so_log=len(logs)
 		fn('2026-09-12', 140, ['Đơn thử thiếu phương thức'], 'cuoi-ngay')
 		la('cùng lỗi không log lặp',len(logs),so_log)
-		la('cùng lỗi không thư lặp',len(mail),4)
+		la('cùng lỗi không báo lặp',len(tin),6)
 
 		def hong_cache():
 			raise RuntimeError('Redis ngắt')
 		f.cache=hong_cache
 		fn('2026-09-12', 0, [], 'xuat-rai')
-		la('Redis lỗi vẫn xếp thư', len(mail), 5)
+		la('Redis lỗi vẫn báo', len(tin), 7)
+		dung('khoá tin theo cùng mốc để sổ Zalo chặn trùng khi Redis mất', str(tin[-1].get('khoa')).endswith('xuat-rai-e3b0c44298fc1c14'))
 		def dem_hong(*a):
 			raise RuntimeError('Không đọc được script')
 		g['hddt_cho_xuat']=NS(_cai_dat_minvoice=dem_hong)
 		g['cint']=lambda x:int(x or 0)
 		g['_dem_hddt_sot']=nap('_dem_hddt_sot',g)
 		nap('canh_bao_hddt_sot',g)()
-		la('đếm lỗi vẫn có thư', len(mail), 6)
+		la('đếm lỗi vẫn có tin', len(tin), 8)
 		dung('nhật ký không coi lỗi là0', 'không đếm được' in state['tu_ghi_so_nhat_ky'])
-		dung('thư nói chưa biết số', 'chưa đếm được' in mail[-1]['subject'])
-		dung('đếm hỏng không hướng dẫn chạy ngay', 'Cuối ngày &gt;' not in mail[-1]['message'] and 'Cuối ngày >' not in mail[-1]['message'])
+		dung('tin nói chưa biết số', 'Chưa đếm được' in tin[-1]['tieu_de'])
+		dung('đếm hỏng không hướng dẫn chạy ngay', 'Cuối ngày >' not in tin[-1]['chu'])
 		from vagabond import hddt_bu
 		g['hddt_bu']=hddt_bu
 		g['hddt_cho_xuat']=NS(_cai_dat_minvoice=lambda: (None, ['Pancake'], ['@']), thuoc_diem_dang_xuat=lambda *a: True, da_co_hddt=lambda *a: False)
@@ -185,18 +205,18 @@ def canh_bao():
 		so_log=len(logs)
 		nap('canh_bao_hddt_sot',g)()
 		la('tổng tiền lỗi ghi một log',len(logs)-so_log,1)
-		dung('giữ số tờ đã đếm', '140' in mail[-1]['subject'] and 'chưa đếm được' not in mail[-1]['subject'])
+		dung('giữ số tờ đã đếm', '140' in tin[-1]['tieu_de'] and 'Chưa đếm được' not in tin[-1]['tieu_de'])
 		dung('nói rõ tiền chưa biết', 'chưa đọc được tổng tiền' in state['tu_ghi_so_nhat_ky'])
-		dung('có đường thao tác khi đã đếm', 'Cài đặt &gt; Cuối ngày &gt; Chạy ngay' in mail[-1]['message'])
-		dung('không dựng mốc0h chung', 'trước 0h' not in mail[-1]['message'])
+		dung('có đường thao tác khi đã đếm', 'Cài đặt > Cuối ngày > Chạy ngay' in tin[-1]['chu'])
+		dung('không dựng mốc0h chung', 'trước 0h' not in tin[-1]['chu'])
 		for nhat_ky, hoan in [('HOÃN PHÁT HÀNH 2026-09-12 (cuoi-ngay): còn nợ', True), ('Chuỗi chính đã ghi sổ', False), ('HOÃN PHÁT HÀNH 2026-09-11 (cuoi-ngay): còn nợ', False)]:
 			state['tu_ghi_so_nhat_ky'] = nhat_ky
 			nap('canh_bao_hddt_sot', g)()
-			than = mail[-1]['message']
-			la('hướng dẫn theo trạng thái hoãn hôm nay', 'Anh chị mở Cài đặt &gt; Hóa đơn ngày cũ' in than, hoan)
-			la('không hoãn dẫn tới chạy ngay', 'Anh chị xử lý ngay trong ca: mở Cài đặt &gt; Cuối ngày' in than, not hoan)
+			than = tin[-1]['chu']
+			la('hướng dẫn theo trạng thái hoãn hôm nay', 'Anh chị mở Cài đặt > Hóa đơn ngày cũ' in than, hoan)
+			la('không hoãn dẫn tới chạy ngay', 'Anh chị xử lý ngay trong ca: mở Cài đặt > Cuối ngày' in than, not hoan)
 			if hoan:
-				dung('đối soát trước chạy ngay', than.index('Cài đặt &gt; Hóa đơn ngày cũ') < than.index('Cài đặt &gt; Cuối ngày'))
+				dung('đối soát trước chạy ngay', than.index('Cài đặt > Hóa đơn ngày cũ') < than.index('Cài đặt > Cuối ngày'))
 
 
 

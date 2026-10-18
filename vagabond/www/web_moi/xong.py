@@ -11,6 +11,9 @@ def get_context(context):
     context.csrf_token = frappe.sessions.get_csrf_token()
     frappe.local.no_cache = 1
     frappe.local.response_headers.update(TIEU_DE)
+    # v603: phát cả ở /banh/xong (đã tráo) lẫn /web_moi/banh/xong (đường thử).
+    duong = str(getattr(getattr(frappe.local, 'request', None), 'path', '') or '')
+    context.trang_chu = web_vue.trang_chu_dat_banh(duong)
     token = str(frappe.form_dict.get('token') or '')
     d = {'loai': 'bien_nhan', 'khong_token': 1}
     if token:
@@ -22,6 +25,7 @@ def get_context(context):
     lh = don_web.lien_he()
     d['lien_he'] = web_vue.nut_lien_he_bien_nhan(lh, d['nhan'])
     d['bang'] = web_vue.bang_bien_nhan()
+    d['trang_chu'] = context.trang_chu
     context.du_lieu = trang_khach.json_trong_script(d)
-    context.chan_trang = trang_khach.chan_trang_html(don_web.PHAP_NHAN, lh, web_vue.chinh_sach_vue(noi_dung_web.chinh_sach_dang_hien()))
+    context.chan_trang = trang_khach.chan_trang_html(don_web.PHAP_NHAN, lh, web_vue.chinh_sach_vue(noi_dung_web.chinh_sach_dang_hien(), duong))
     return context
