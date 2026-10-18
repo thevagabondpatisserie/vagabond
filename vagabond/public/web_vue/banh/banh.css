@@ -402,7 +402,9 @@ html body .h1 em#bigDate{display:none}
    thong cho deu net. Moi tieu de (Tang huong, Dat banh nhan em nhe, o trong)
    giu phong thuong hieu Vagabond Sans nhu truoc v529. */
 .stat b,.day b,.size b,.numpick .big,.sum .row.tot b{font-family:var(--sans);font-weight:600;letter-spacing:0}
-.c-name.vi,.s-head h2.vi{font-family:var(--sans);font-weight:600;letter-spacing:0}
+/* v605 (anh Viet 18/10/2026, mon LadyRuby): bo luat doi ten banh co dau sang
+   phong he thong. Vagabond Sans du glyph tieng Viet (v532), giu luat do thi ten
+   co dau lech kieu chu so voi cac banh khac. */
 .ngay-ban{font-family:var(--sans);font-size:13px;color:var(--fog);padding:8px 16px 0;max-width:var(--shell);margin:0 auto}
 .dong-tt{font-family:var(--sans);font-size:14px;color:var(--fog);margin-top:14px;line-height:1.5}
 .dong-tt b{color:var(--paper);font-weight:600}
