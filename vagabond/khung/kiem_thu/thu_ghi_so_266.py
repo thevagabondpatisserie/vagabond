@@ -81,7 +81,8 @@ def hai_nhip():
 			return len(ds)
 		from vagabond import hddt_bu as _hb
 		g = dict(frappe=f, cfg=lambda : D(tu_ghi_so_bat=1, tu_ghi_so_gio='23:00', tu_ghi_so_quay='TCV'), cint=lambda x: int(x or 0), nowdate=lambda : '2026-09-12', now_datetime=lambda : datetime(2026, 9, 12, 23, 10), _gio_hop_le=lambda x: x, hddt_cho_xuat=NS(xuat_ngay_cu_truoc=lambda : False), _dong_bo_doanh_so=lambda *a: None, pancake_nhip=NS(ghi_ok=lambda : None), _khoa_dong_bo=lambda **kw: object(), _mo_khoa_dong_bo=lambda *a: None, _sepay_theo_don=lambda *a: None, ghi_so_dieu_kien=NS(ly_do=lambda *a, **kw: 'san_sang'), _ghi_so_mot_don=goi, _quay_tu_ghi_so=lambda : ['TCV'], _khach_le=lambda : 'Khách lẻ', _bao_hoan_phat_hanh=lambda *a: bao.append(a), hddt_bu=NS(duoc_rai=lambda *a: True, moc_bill_du_gio=lambda *a: '2026-09-12 19:00:00', rai_bo_qua=lambda *a: False, chon_de_xep=_hb.chon_de_xep), _con_nhap=lambda ngay, q: [si], _ly_do_xep=lambda r, k='': '', _xep_ghi_so=xep, _sales_da_giao_du_gio=lambda *a: [],
-			cho_ghi_so_roi_phat_hanh=lambda ngay, ds, cho_xuat=True, so_loi=0: cho.append((ngay, list(ds), cho_xuat)))
+			cho_ghi_so_roi_phat_hanh=lambda ngay, ds, cho_xuat=True, so_loi=0: cho.append((ngay, list(ds), cho_xuat)),
+			_giao_luot_cho=lambda ngay, ds, cho_xuat, noi_goi, job_id: cho.append((ngay, list(ds), cho_xuat, noi_goi)))
 		fn = nap(name, g)
 		if name == 'tu_ghi_so_cuoi_ngay':
 			fn(bo_qua_gio=True, tren_hang_doi=True)
@@ -93,7 +94,8 @@ def hai_nhip():
 			# đếm số ĐÃ ghi sổ thật rồi mới báo hoãn (ca ở thu_chuoi_tung_don_602).
 			la(name + ' giao lượt chờ với cờ hoãn', cho, [('2026-09-12', ['SI-THU'], False)])
 		else:
-			la(name + ' báo cả khi tờ cũ chỉ nháp', bao, [('2026-09-12', 1, [], 'xuat-rai')])
+			# v602 vòng 2 (Codex #488): xuất rải cũng giao lượt chờ, không báo số đã xếp.
+			la(name + ' giao lượt chờ với cờ hoãn', (cho, bao), ([('2026-09-12', ['SI-THU'], False, 'xuat-rai')], []))
 		if name == 'tu_ghi_so_cuoi_ngay':
 			la('ghi sổ xong đánh dấu trước khi hoãn', moc, [('Vagabond Settings', 'tu_ghi_so_lan_cuoi', '2026-09-12')])
 

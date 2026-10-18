@@ -176,8 +176,10 @@ def _chuoi_hang_doi():
 	dung("lượt chính đẩy sang hàng đợi long",
 		'"vagabond.ban_hang.chuoi_cuoi_ngay_nen"' in than and 'queue="long"' in than)
 	# v602 vòng 2: phát hành đi qua lượt chờ các lượt ghi sổ riêng xong.
+	giao = _than(s, "_giao_luot_cho")
 	dung("phát hành cũng đi hàng đợi long khi chưa ở đó",
-		'"vagabond.ban_hang.cho_ghi_so_roi_phat_hanh"' in than)
+		'_giao_luot_cho(ngay, ds, cho_xuat, "cuoi-ngay"' in than
+		and '"vagabond.ban_hang.cho_ghi_so_roi_phat_hanh"' in giao and 'queue="long"' in giao)
 	dung("đang ở hàng đợi dài thì gọi thẳng, không xếp thêm",
 		"if tren_hang_doi:" in than and "cho_ghi_so_roi_phat_hanh(str(ngay), ds, cho_xuat=cho_xuat)" in than)
 	dung("một giờ, không phải 300 giây", "timeout=3600" in than)

@@ -315,6 +315,19 @@ def _mot_nguon():
 	dung("chỉ lượt riêng gọi _ghi_so_mot_don", "_ghi_so_mot_don(" in _than("ghi_so_mot_don_nen"))
 
 
+@ca("v602 mã nguồn (Codex #488 vòng 2): báo số ghi sổ và phát hành chỉ còn đi qua lượt chờ đếm từ sổ")
+def _mot_cua_bao_so():
+	# Chốt cấu trúc, không thay ca hành vi: không còn chỗ nào tự đưa số đã
+	# XẾP vào câu báo "ghi sổ N đơn" hay vào lượt phát hành cuối ngày.
+	s = SRC.read_text()
+	la("báo hoãn chỉ gọi ở lượt chờ", s.count("_bao_hoan_phat_hanh("), 2)
+	dung("lời gọi báo hoãn nằm trong lượt chờ", "_bao_hoan_phat_hanh(" in _than("cho_ghi_so_roi_phat_hanh"))
+	la("phát hành cuối ngày chỉ gọi ở lượt chờ", s.count("phat_hanh_cuoi_ngay(") - s.count('"vagabond.ban_hang.phat_hanh_cuoi_ngay"'), 2)
+	dung("lời gọi phát hành nằm trong lượt chờ", "phat_hanh_cuoi_ngay(" in _than("cho_ghi_so_roi_phat_hanh"))
+	for ten in ("tu_ghi_so_cuoi_ngay", "xuat_rai_trong_ngay"):
+		dung(ten + " giao lượt chờ", "_giao_luot_cho(" in _than(ten))
+
+
 # -------------------------------------------------------- xuất rải và kéo
 
 
@@ -329,9 +342,48 @@ def _rai_sales():
 		_quay_tu_ghi_so=lambda: ["TCV"], _sales_da_giao_du_gio=lambda ngay, truong: [D(name="S1", vgb_quay="")],
 		_khach_le=lambda: "", _ly_do_xep=lambda r, k="": "",
 		_xep_ghi_so=lambda ds, ngay, cho_xuat=True, nguon="": xep.append((list(ds), nguon)) or len(ds),
-		_bao_hoan_phat_hanh=lambda *a: None)
+		_bao_hoan_phat_hanh=lambda *a: bao.append(a),
+		_giao_luot_cho=lambda *a: giao.append(a))
+	bao, giao = [], []
 	nap("xuat_rai_trong_ngay", g)()
 	la("xếp cả bill quầy lẫn đơn Sales đã giao", xep, [(["Q1", "S1"], "xuat-rai")])
+	la("phát hành không hoãn: không giao lượt chờ, không báo", (giao, bao), ([], []))
+	# Codex #488 vòng 2 (P1, dòng báo hoãn của xuất rải): đang hoãn phát hành
+	# thì KHÔNG báo số đã xếp; giao lượt chờ đúng danh sách đã xếp.
+	xep.clear()
+	g["hddt_cho_xuat"] = NS(xuat_ngay_cu_truoc=lambda: False)
+	nap("xuat_rai_trong_ngay", g)()
+	la("hoãn: không báo số đã xếp", bao, [])
+	la("hoãn: giao lượt chờ đúng danh sách, cờ hoãn, nhãn xuất rải",
+		[(a[0], a[1], a[2], a[3], a[4]) for a in giao], [("2026-10-18", ["Q1", "S1"], False, "xuat-rai", "vgb-cho-hoan-xuat-rai-202610181510")])
+
+
+@ca("v602 lượt chờ của xuất rải: đợi các lượt riêng xong rồi báo hoãn với số ĐÃ ghi sổ và nhãn xuất rải")
+def _cho_hoan_rai():
+	buoc = [{"Q1": 0, "S1": 0}, {"Q1": 1, "S1": 0}]
+	g, su, gio = _g_cho(buoc, lambda t, i: i == 0)
+	nap("cho_ghi_so_roi_phat_hanh", g)("2026-10-18", ["Q1", "S1"], cho_xuat=False, noi_goi="xuat-rai")
+	la("báo hoãn số thật", [x for x in su if isinstance(x, tuple)], [("hoan", "2026-10-18", 1, ["S1"], "xuat-rai")])
+
+
+@ca("v602 giao lượt chờ: hàng đợi dài, trần một giờ, mã lượt và chống trùng; hỏng hàng đợi thì làm tại chỗ")
+def _giao():
+	xep, lam = [], []
+	f = NS(enqueue=lambda *a, **kw: xep.append((a, kw)), log_error=lambda *a, **kw: None, get_traceback=lambda: "")
+	g = dict(frappe=f, cho_ghi_so_roi_phat_hanh=lambda *a, **kw: lam.append((a, kw)))
+	fn = nap("_giao_luot_cho", g)
+	fn("2026-10-18", ["Q1"], False, "xuat-rai", "vgb-cho-hoan-xuat-rai-1")
+	a, kw = xep[0]
+	la("hàm và hàng đợi", (a[0], kw["queue"], kw["timeout"], kw["job_id"], kw["deduplicate"]),
+		("vagabond.ban_hang.cho_ghi_so_roi_phat_hanh", "long", 3600, "vgb-cho-hoan-xuat-rai-1", True))
+	la("tham số", (kw["ngay"], kw["ds"], kw["cho_xuat"], kw["noi_goi"]), ("2026-10-18", ["Q1"], False, "xuat-rai"))
+	la("không làm tại chỗ khi xếp được", lam, [])
+
+	def hong(*a, **kw):
+		raise RuntimeError("redis")
+	f.enqueue = hong
+	fn("2026-10-18", ["Q1"], True, "cuoi-ngay", "x")
+	la("hỏng hàng đợi thì làm tại chỗ", lam, [(("2026-10-18", ["Q1"]), {"cho_xuat": True, "noi_goi": "cuoi-ngay"})])
 
 
 @ca("v602 đơn Sales đã giao: lọc vận đơn Đã giao, đủ 2 giờ, đúng ngày; chưa có vận đơn nào thì trả rỗng")
