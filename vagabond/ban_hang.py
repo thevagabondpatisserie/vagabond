@@ -3332,15 +3332,20 @@ def cho_ghi_so_roi_phat_hanh(ngay, ds, cho_xuat=True, so_loi=0, noi_goi="cuoi-ng
 	vét, nhịp bù, báo động 23:20 lo tiếp."""
 	frappe.set_user("Administrator")
 	ds = [str(t) for t in (ds or []) if t]
-	bay_gio = now_datetime()
-	het = time.monotonic() + hddt_bu.giay_cho_toi_da(bay_gio.hour * 3600 + bay_gio.minute * 60 + bay_gio.second)
+	het = time.monotonic() + _giay_cho(ngay)
 	while True:
+		# Hỏi hàng đợi TRƯỚC, đọc sổ SAU (Codex #488 vòng 5). Lượt riêng commit
+		# rồi mới rời hàng đợi, nên đơn hàng đợi báo đã xong thì lần đọc sổ
+		# ngay sau chắc chắn thấy kết quả của nó. Đọc sổ trước rồi mới hỏi thì
+		# đơn xong đúng giữa hai lần bị tính là nháp mà không còn chạy: lọt
+		# khỏi cả danh sách ký lẫn lượt tiếp.
+		chay = {t: _job_dang_chay(t) for t in ds}
 		# Lượt dài đọc trong MỘT giao dịch thì MariaDB trả mãi ảnh chụp cũ
 		# (REPEATABLE READ): đơn lượt riêng vừa ghi sổ vẫn hiện là nháp, lượt
 		# chờ đợi tới trần rồi báo sai. Đóng giao dịch trước MỖI lần đọc.
 		frappe.db.commit()
 		tt = _trang_thai_lo(ds)
-		if not hddt_bu.con_cho(ds, tt, _job_dang_chay) or time.monotonic() >= het:
+		if not hddt_bu.con_cho(ds, tt, chay.get) or time.monotonic() >= het:
 			break
 		time.sleep(hddt_bu.GIAY_NGHI_CHO)
 	da_ghi, con = hddt_bu.ket_qua_lo(ds, tt)
@@ -3350,7 +3355,7 @@ def cho_ghi_so_roi_phat_hanh(ngay, ds, cho_xuat=True, so_loi=0, noi_goi="cuoi-ng
 	# Hết trần mà hàng đợi xác nhận còn lượt riêng đang chờ, đang chạy: sau
 	# lượt phát hành, ký này các đơn đó vẫn ra tờ Chờ ký. Giao một lượt chờ
 	# TIẾP cho riêng chúng (Codex #488 vòng 4), đọc trước khi phát hành.
-	tiep = hddt_bu.con_cho(ds, tt, _job_dang_chay, chi_chac=True)
+	tiep = hddt_bu.con_cho(ds, tt, chay.get, chi_chac=True)
 	if noi_goi == "cuoi-ngay":
 		phat_hanh_cuoi_ngay(str(ngay), da_ghi, cint(so_loi) + len(con))
 	else:
@@ -3359,12 +3364,21 @@ def cho_ghi_so_roi_phat_hanh(ngay, ds, cho_xuat=True, so_loi=0, noi_goi="cuoi-ng
 		_giao_tiep(ngay, tiep)
 
 
+def _giay_cho(ngay):
+	"""Số giây lượt chờ còn được đợi cho ngày `ngay`, tính từ bây giờ. Qua nửa
+	đêm (ngày của lô khác hôm nay) thì 0, không để giờ trong ngày quay vòng
+	về 00:xx mà mở lại cửa chờ (Codex #488 vòng 5)."""
+	bay_gio = now_datetime()
+	return hddt_bu.giay_cho_toi_da(bay_gio.hour * 3600 + bay_gio.minute * 60 + bay_gio.second,
+		cung_ngay=str(ngay)[:10] == bay_gio.strftime("%Y-%m-%d"))
+
+
 def _giao_tiep(ngay, tiep):
 	"""Lượt chờ tiếp cho các đơn còn đang chạy sau trần: chờ, phát hành bù,
 	ký riêng chúng (đi đường phát hành sau rải, không ghi đè nhật ký chuỗi).
 	Hết giờ trong ngày thì chỉ ghi dấu; nhịp bù và báo động sáng lo tiếp."""
 	bay_gio = now_datetime()
-	if hddt_bu.giay_cho_toi_da(bay_gio.hour * 3600 + bay_gio.minute * 60 + bay_gio.second) <= 0:
+	if _giay_cho(ngay) <= 0:
 		frappe.log_error("Còn %d đơn đang ghi sổ sau mốc cuối ngày: %s" % (len(tiep), ", ".join(tiep)[:3800]),
 			"Vagabond: lượt chờ %s hết giờ" % ngay)
 		return

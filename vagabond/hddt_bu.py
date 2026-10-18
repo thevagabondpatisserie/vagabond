@@ -342,13 +342,16 @@ def _tien_vn(v):
 	return "{:,.0f}".format(float(v or 0)).replace(",", ".")
 
 
-def giay_cho_toi_da(giay_trong_ngay):
+def giay_cho_toi_da(giay_trong_ngay, cung_ngay=True):
 	"""Số giây tối đa lượt chờ được đợi, tính từ lúc bắt đầu. THUẦN.
 
 	Không quá GIAY_CHO_LO và thường dừng ở MOC_CUOI_CHO để còn giờ phát hành,
 	ký. Lượt bắt đầu sát hoặc quá mốc đó vẫn chờ GIAY_CHO_TRE (Codex #488
 	vòng 4: trước đây trả 0, lượt 23:45 phát hành, ký khi các lượt riêng vừa
 	xếp chưa chạy), chỉ không vượt MOC_NUA_DEM. Trả 0 là đã hết giờ trong ngày."""
+	if not cung_ngay:
+		# Lô của ngày đã qua: giờ trong ngày đã quay về 00:xx, đừng mở lại cửa.
+		return 0
 	giay = int(giay_trong_ngay or 0)
 	han = max(MOC_CUOI_CHO - giay, min(GIAY_CHO_TRE, MOC_NUA_DEM - giay))
 	return max(0, min(GIAY_CHO_LO, han))
