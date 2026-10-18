@@ -1482,7 +1482,7 @@ async function scrDonTreo() {
 
   var html = '<div class="card" style="padding:12px 14px;font-size:13px;line-height:1.6;color:#374151">' +
     'Đơn trước hôm nay <b>chưa ghi sổ được</b> nằm ở đây kèm lý do. Đơn đang phục vụ hôm nay xem tại màn bán hàng của điểm bán. ' +
-    'Đúng 23h55 máy gửi thư báo cho kế toán và quản lý.</div>';
+    'Đúng 23h55 máy báo nhóm Zalo đã tích tin Đơn chưa ghi sổ.</div>';
 
   /* Bootstrap cua Frappe dat .card{display:flex;flex-direction:column} nen chip
      nhet thang vao .card se xep DOC va gian het be ngang. Luon boc mot lop

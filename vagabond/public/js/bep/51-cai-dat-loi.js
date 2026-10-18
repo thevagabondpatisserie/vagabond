@@ -565,7 +565,9 @@ function cdlTomDongZalo(r) {
   var tach = function (s) { return String(s || '').split(/[,;]/).map(function (x) { return x.trim(); }).filter(Boolean); };
   var lt = tach(r.loai_tin).map(function (x) { return (N.loai_tin[x] || ['', x])[1]; });
   var cd = tach(r.chu_de).map(function (x) { return (N.chu_de[x] || ['', x])[1]; });
-  return [lt.length ? lt.join(' · ') : 'Mọi loại tin', cd.length ? 'chủ đề ' + cd.join(', ') : '',
+  // v604: nhóm đã tích Tin nhận thì tóm tắt nói số tin và vài tên, không nói loại, chủ đề.
+  var tin = VGB_CD['tomTatTin'](r.tin_nhan);
+  return [tin || (lt.length ? lt.join(' · ') : 'Mọi loại tin'), (!tin && cd.length) ? 'chủ đề ' + cd.join(', ') : '',
     (r.im_tu && r.im_den) ? 'im ' + r.im_tu + ' đến ' + r.im_den : '', parseInt(r.bat, 10) === 1 ? '' : 'Đang tắt',
     r.chat_id ? cdlNhanNhomZalo({ chat_id: r.chat_id }) : 'Chưa chọn nhóm Zalo'].filter(Boolean).join(' · ');
 }
@@ -599,7 +601,15 @@ function cdlMoDong(fnBang, i) {
 function cdlVeDong(fnBang, i, nhap) {
   var meta = CDL.d.bang[fnBang] || { cot: [] };
   var choGhi = meta.ghi_qua_hop_chon || [];
-  var html = '<div class="cdl-khoi" style="padding:10px 14px">' + meta.cot.map(function (c) {
+  // v604: Tin nhận là ô chính của nhóm Zalo, đặt ngay sau nhóm Zalo, trước Loại tin.
+  var cot = meta.cot.slice();
+  if (fnBang === 'zalo_nhom') {
+    var iTin = cot.map(function (c) { return c.fn; }).indexOf('tin_nhan');
+    var iChat = cot.map(function (c) { return c.fn; }).indexOf('chat_id');
+    if (iTin > iChat && iChat >= 0) cot.splice(iChat + 1, 0, cot.splice(iTin, 1)[0]);
+  }
+  var coTin = String(nhap.tin_nhan || '').trim() !== '';
+  var html = '<div class="cdl-khoi" style="padding:10px 14px">' + cot.map(function (c) {
     var v = nhap[c.fn];
     var mo = c.mo ? '<div class="cdl-mo">' + h(c.mo) + '</div>' : '';
     var nhan = '<label>' + h(c.nhan) + (c.bat_buoc ? ' *' : '') + '</label>';
@@ -607,11 +617,17 @@ function cdlVeDong(fnBang, i, nhap) {
       var b = parseInt(v, 10) === 1;
       return '<div class="cdl-row"><div class="cdl-x"><b>' + h(c.nhan) + '</b></div><button class="cdl-tg' + (b ? ' on' : '') + '" data-cdldbat="' + h(c.fn) + '"></button></div>';
     }
+    if (fnBang === 'zalo_nhom' && c.fn === 'tin_nhan') {
+      return '<div class="cdl-f">' + nhan + '<div class="cdl-val"><span>' + h(VGB_CD['tomTatTin'](v) || 'Chưa tích tin nào') + '</span>' +
+        '<span style="margin-left:auto"></span><button class="cdl-lnk" data-cdldtin="1">Chọn tin nhận</button></div>' +
+        '<div class="cdl-mo">' + h(VGB_CD.GHI_CHU_TIN) + '</div></div>';
+    }
     if (fnBang === 'zalo_nhom' && (c.fn === 'loai_tin' || c.fn === 'chu_de')) {
       var tach = String(v || '').split(/[,;]/).map(function (x) { return x.trim(); }).filter(Boolean);
       var N = VGB_CD.ZALO_NHAN[c.fn];
       return '<div class="cdl-f">' + nhan + '<div class="cdl-val">' + h(tach.length ? tach.map(function (x) { return (N[x] || ['', x])[1]; }).join(', ') : 'Tất cả') +
-        '<span style="margin-left:auto"></span><button class="cdl-lnk" data-cdldchon="' + h(c.fn) + '">Chọn</button></div></div>';
+        '<span style="margin-left:auto"></span><button class="cdl-lnk" data-cdldchon="' + h(c.fn) + '">Chọn</button></div>' +
+        (coTin ? '<div class="cdl-mo">Không dùng: nhóm đã chọn Tin nhận.</div>' : '') + '</div>';
     }
     if (fnBang === 'zalo_nhom' && c.fn === 'chat_id') {
       return '<div class="cdl-f">' + nhan + '<div class="cdl-val">' + (v ? '<span><b>' + h(cdlNhanNhomZalo({ chat_id: v })) + '</b><div class="cdl-mo">' + h(v) + '</div></span>' : '<span style="color:#9aa1a8">Chưa chọn</span>') +
@@ -636,6 +652,7 @@ function cdlVeDong(fnBang, i, nhap) {
       var f = el.getAttribute('data-cdldbat'); nhap[f] = parseInt(nhap[f], 10) === 1 ? 0 : 1; return cdlVeDong(fnBang, i, nhap);
     }
     if ((el = e.target.closest('[data-cdldchon]'))) return cdlChonZalo(el.getAttribute('data-cdldchon'), nhap, function () { cdlVeDong(fnBang, i, nhap); });
+    if (e.target.closest('[data-cdldtin]')) return cdlChonTinZalo(nhap, function () { cdlVeDong(fnBang, i, nhap); });
     if ((el = e.target.closest('[data-cdldnhom]'))) return cdlChonNhomZalo(nhap, function () { cdlVeDong(fnBang, i, nhap); }, i);
     if (e.target.closest('#cdlDongXong')) {
       if (!String(nhap.ten_nhom || '').trim() && fnBang === 'zalo_nhom') return toast('Đặt tên nhóm trước, ví dụ Kế toán.');
@@ -683,6 +700,53 @@ function cdlChonZalo(cot, nhap, xong) {
     }
     if (e.target.closest('[data-cdlzxong]') || e.target.closest('.x')) {
       if (e.target.closest('[data-cdlzxong]')) nhap[cot] = DM.filter(function (m) { return dang.indexOf(m) >= 0; }).join(', ');
+      ov.remove();
+      xong();
+    }
+  };
+  return { ov: ov, box: box };
+}
+
+/* v604: anh Việt 18/10/2026 bỏ thư cảnh báo nội bộ, mọi tin đi nhóm Zalo; mỗi
+   nhóm tích đúng tin cần nhận. Hộp chọn gom tin theo bộ phận, mỗi dòng là ô tích,
+   tên và một dòng giải thích (cùng nguồn VGB_CD với Desk), mỗi bộ phận có nút
+   Chọn cả mục. Không tích tin nào thì nhóm nhận theo Loại tin, Chủ đề như cũ. */
+function cdlChonTinZalo(nhap, xong) {
+  var BP = VGB_CD['tinTheoBoPhan']();
+  var dang = VGB_CD.tachMa(nhap.tin_nhan);
+  var ov = document.createElement('div'); ov.className = 'sh';
+  var box = document.createElement('div'); box.className = 'shb';
+  function ve() {
+    box.innerHTML = '<div class="shh"><b>Nhóm này nhận những tin nào?</b><div class="x">&times;</div></div>' +
+      '<div class="cdl-mo" style="padding:6px 14px">' + h(VGB_CD.GHI_CHU_TIN) + '</div>' +
+      '<div class="shl">' + BP.map(function (bp, k) {
+        return '<div style="display:flex;align-items:center;gap:8px;padding:10px 14px 2px;font-size:14px"><b style="flex:1">' + h(bp.bo_phan) + '</b>' +
+          '<button class="cdl-lnk" data-cdltca="' + k + '">Chọn cả mục</button></div>' +
+          bp.tin.map(function (t) {
+            return '<div class="shi" data-cdlt="' + h(t.ma) + '" style="align-items:flex-start;min-height:60px"><span style="font-size:18px">' + (dang.indexOf(t.ma) >= 0 ? '☑' : '☐') +
+              '</span><span style="flex:1"><b>' + h(t.ten) + '</b><div class="cdl-mo">' + h(t.giai_thich) + '</div></span></div>';
+          }).join('');
+      }).join('') + '</div><div style="padding:10px 14px"><button class="btn" data-cdltxong="1" style="width:100%;margin:0">Xong</button></div>';
+  }
+  ve();
+  ov.appendChild(box); document.body.appendChild(ov);
+  box.onclick = function (e) {
+    var r = e.target.closest('[data-cdlt]');
+    if (r) {
+      var m = r.getAttribute('data-cdlt'), k = dang.indexOf(m);
+      if (k >= 0) dang.splice(k, 1); else dang.push(m);
+      return ve();
+    }
+    var ca = e.target.closest('[data-cdltca]');
+    if (ca) {
+      var ds = (BP[parseInt(ca.getAttribute('data-cdltca'), 10)] || { tin: [] }).tin.map(function (t) { return t.ma; });
+      var het = ds.every(function (m) { return dang.indexOf(m) >= 0; });
+      ds.forEach(function (m) { var j = dang.indexOf(m); if (het && j >= 0) dang.splice(j, 1); if (!het && j < 0) dang.push(m); });
+      return ve();
+    }
+    if (e.target.closest('[data-cdltxong]') || e.target.closest('.x')) {
+      // Lưu theo thứ tự danh mục, mã đã bỏ khỏi danh mục rơi ra (máy chủ cũng chặn mã lạ).
+      if (e.target.closest('[data-cdltxong]')) nhap.tin_nhan = Object.keys(VGB_CD.ZALO_TIN).filter(function (m) { return dang.indexOf(m) >= 0; }).join(', ');
       ov.remove();
       xong();
     }

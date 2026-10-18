@@ -1769,13 +1769,13 @@ async function htFGui() {
       : huy ? 'Huỷ đơn và trả lại ' + money(f.tien) + ' đ?'
       : 'Gửi yêu cầu hoàn ' + money(f.tien) + ' đ?',
     du
-      ? 'Kế toán nhận thư báo ngay. Máy KHÔNG lập hoá đơn trả hàng, doanh thu của đơn ' +
+      ? 'Nhóm kế toán nhận tin Zalo ngay. Máy KHÔNG lập hoá đơn trả hàng, doanh thu của đơn ' +
         'giữ nguyên ' + money(f.tong) + ' đ. Tiền chỉ ra khi kế toán chuyển khoản thật.'
       : huy
       ? 'Máy đánh dấu huỷ đơn ngay, rồi gửi phiếu cho kế toán. Đơn chưa từng ghi sổ nên ' +
         'KHÔNG có doanh thu, KHÔNG hoá đơn trả hàng, KHÔNG hoá đơn điện tử. ' +
         'Tiền chỉ ra khi kế toán chuyển khoản thật.'
-      : 'Kế toán nhận thư báo ngay. Tiền chỉ ra khi kế toán chuyển khoản thật, và máy ' +
+      : 'Nhóm kế toán nhận tin Zalo ngay. Tiền chỉ ra khi kế toán chuyển khoản thật, và máy ' +
         'chỉ sinh chứng từ sau khi ngân hàng báo tiền đã đi.',
     'Gửi duyệt');
   if (!ok) return;
@@ -1808,7 +1808,7 @@ async function htFGui() {
       (du ? 'Đây là phiếu TIỀN NỘP THỪA: máy không lập hoá đơn trả hàng, doanh thu của đơn giữ nguyên.\n\n' : '') +
       (huy ? 'Đã đánh dấu huỷ đơn nên chuỗi ghi sổ cuối ngày sẽ không đụng tới nó nữa.\n' +
              'Đơn chưa từng ghi sổ nên không có doanh thu, không hoá đơn trả hàng, không hoá đơn điện tử.\n\n' : '') +
-      (kq.da_bao_ke_toan ? 'Đã báo kế toán qua email.' : 'Chưa gửi được email báo kế toán, nhưng phiếu đã nằm trên màn Hoàn tiền.') +
+      (kq.da_bao_ke_toan ? 'Đã báo nhóm kế toán qua Zalo.' : 'Chưa báo được nhóm kế toán qua Zalo, nhưng phiếu đã nằm trên màn Hoàn tiền.') +
       '\n\nNội dung chuyển khoản kế toán sẽ dùng:\n' + kq.noi_dung_ck +
       (kq.mot_phan ? '\n\nHoàn một phần nên khách giữ lại hàng, máy không lập phiếu chuyển Kho Hàng Hủy.' : '') +
       (kq.canh_bao_hddt ? '\n\nĐơn đã xuất hoá đơn điện tử số ' + kq.canh_bao_hddt + ', phải xử lý riêng bên m-invoice.' : ''),
