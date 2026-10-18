@@ -28,11 +28,17 @@ def _c(host, duong, pt="GET", hoi="", bat=1):
 	return chuyen_ten_mien(host, duong, pt, hoi, bat)
 
 
-@ca("v605 công tắc tắt: không tên miền nào bị chuyển, order. chạy như trước")
+@ca("v605 công tắc tắt: order. chạy như trước; tên miền chính, www vẫn là cửa khách (Codex #491 P1)")
 def _tat():
-	for h in ("order." + CHINH, CHINH, "www." + CHINH):
-		for d in ("/", "/banh", "/shop/"):
-			la("tắt %s%s" % (h, d), _c(h, d, bat=0), None)
+	for d in ("/", "/banh", "/shop/"):
+		la("tắt order" + d, _c("order." + CHINH, d, bat=0), None)
+	la("tắt: chính / vẫn về /banh", _c(CHINH, "/", bat=0), ("/banh", 302))
+	la("tắt: chính /shop vẫn 301", _c(CHINH, "/shop/", bat=0), ("/banh", 301))
+	la("tắt: www vẫn về chính", _c("www." + CHINH, "/banh", bat=0), ("https://%s/banh" % CHINH, 301))
+	from vagabond.ten_mien import dich_chuyen_huong
+	for h in (CHINH, "www." + CHINH):
+		for d in ("/app", "/bep", "/app/user"):
+			la("chính không mở nội bộ " + h + d, dich_chuyen_huong(h, d), "/banh")
 
 
 @ca("v605 order. và www. chuyển 301 về tên miền chính, giữ đường và chuỗi hỏi")
@@ -139,6 +145,7 @@ def _hook():
 
 	e, doc, H = _chay_hook(_Req(CHINH, "/"))
 	la("trang chủ 302", (e.code, e.get_response()), (302, ("REDIRECT", "/banh", 302)))
+	la("tên miền chính: không đọc Cài đặt", doc, [])
 
 	e, doc, H = _chay_hook(_Req("order." + CHINH, "/banh"), bat=0)
 	la("công tắc tắt", e, None)
@@ -164,10 +171,11 @@ def _cong_tac():
 	la("kiểu, mặc định", (o["fieldtype"], o.get("default")), ("Check", "0"))
 	dung("nhãn có dấu", o["label"] == "Dùng tên miền chính cho web khách")
 	dung("giải thích cách tắt", "không cần deploy" in o["description"] and "Tắt" in o["description"])
+	dung("nói đường lui tên miền chính là DNS (Codex #491)", "sửa DNS" in o["description"])
 	fo = d["field_order"]
 	la("ngay dưới web_ban_vue", fo[fo.index("web_ban_vue") + 1], "web_ten_mien_chinh")
 	la("field_order khớp", sorted(fo), sorted(x["fieldname"] for x in d["fields"]))
-	dung("modified đã đẩy", d["modified"] >= "2026-10-18 23:00")
+	dung("modified đã đẩy", d["modified"] >= "2026-10-18 23:30")
 
 
 def _seo(nhan=None, khoi=None, mien=None):
