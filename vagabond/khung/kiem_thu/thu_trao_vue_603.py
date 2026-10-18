@@ -104,3 +104,53 @@ def _():
 	dung("nói chính sách giữ bản cũ", "chính sách giữ bản cũ" in mo)
 	dung("vẫn nói cách quay lại", "không cần deploy" in mo and "?ban=cu" in mo)
 	la("đẩy mốc modified để site nạp lại", d["modified"] >= "2026-10-18", True)
+
+
+def _chay_bien_nhan_cu(du_lieu, bo_nho=None, duong="/banh/xong/" + "a" * 43, tim=""):
+	"""Chạy bien-nhan.js THẬT (biên nhận trang cũ) trong node với location có search và replace."""
+	import subprocess
+	ma = r"""
+const vm=require('vm'); const fs=require('fs');
+const src=fs.readFileSync(process.argv[1],'utf8');
+const vet=[]; const kho=new Map(JSON.parse(process.argv[3]));
+const window={ VGB_BIEN_NHAN: JSON.parse(process.argv[2]),
+  location:{pathname:process.argv[4], search:process.argv[5], replace:u=>vet.push('chuyen:'+u)},
+  history:{replaceState:(a,b,u)=>{ vet.push('replace:'+u); window.location.pathname=u.split('?')[0]; }},
+  sessionStorage:{getItem:k=>kho.has(k)?kho.get(k):null, setItem:(k,v)=>{kho.set(k,String(v));}},
+};
+const el={innerHTML:''};
+const document={ getElementById:()=>el, getElementsByTagName:()=>[{parentNode:{insertBefore:()=>0}}], createElement:()=>({}) };
+const htmlChuWeb=(k,d)=>d;
+vm.runInNewContext(src, {window, document, console, htmlChuWeb});
+console.log(JSON.stringify({vet, html:el.innerHTML}));
+"""
+	p = str(GOC / "public" / "web_order" / "bien-nhan.js")
+	r = subprocess.run(["node", "-e", ma, p, json.dumps(du_lieu), json.dumps(bo_nho or []), duong, tim],
+		capture_output=True, text=True, timeout=30)
+	if r.returncode != 0:
+		raise AssertionError("bien-nhan.js lỗi: " + r.stderr[:400])
+	return json.loads(r.stdout.strip().splitlines()[-1])
+
+
+@ca("v603 Codex #489 P2 (L141): biên nhận trang cũ mở từ ?ban=cu giữ ?ban=cu khi gỡ token, tải lại vẫn là bản cũ")
+def _():
+	d = {"pixel_id": "", "than": "<main>cu</main>", "su_kien": {}}
+	la("có ?ban=cu", _chay_bien_nhan_cu(d, tim="?ban=cu")["vet"][0], "replace:/banh/xong?ban=cu")
+	la("không có thì như trước", _chay_bien_nhan_cu(d)["vet"][0], "replace:/banh/xong")
+	s = (GOC / "trang/banh.html").read_text()
+	dung("trang cũ gửi đơn từ ?ban=cu thì sang biên nhận kèm ?ban=cu",
+		"location.assign(m.duong_dan + (/(^|[?&])ban=cu(&|$)/i.test(location.search || '') ? '?ban=cu' : ''));" in s)
+
+
+@ca("v603 Codex #489 P2 (L118): đổi công tắc giữa chừng, tải lại /banh/xong không token vẫn ra biên nhận của khách")
+def _():
+	cu = [["vgb_bien_nhan", "<main>bien nhan cu</main>"]]
+	moi = [["vgb_bien_nhan_vue", json.dumps({"ma": "DW-1"})]]
+	r = _chay_bien_nhan_cu({"khong_token": 1}, bo_nho=moi, duong="/banh/xong")
+	la("trang cũ, tab chỉ có bản Vue: chuyển sang biên nhận Vue", [x for x in r["vet"] if x.startswith("chuyen:")], ["chuyen:/web_moi/banh/xong"])
+	r = _chay_bien_nhan_cu({"khong_token": 1}, bo_nho=cu + moi, duong="/banh/xong")
+	la("có bản của chính mình: không chuyển", [x for x in r["vet"] if x.startswith("chuyen:")], [])
+	la("và hiện đúng bản cũ", r["html"], "<main>bien nhan cu</main>")
+	r = _chay_bien_nhan_cu({"khong_token": 1}, bo_nho=[], duong="/banh/xong")
+	la("không có bản nào: không chuyển", [x for x in r["vet"] if x.startswith("chuyen:")], [])
+	dung("không có bản nào: câu mời xem tin nhắn", "Biên nhận chỉ mở được" in r["html"])
