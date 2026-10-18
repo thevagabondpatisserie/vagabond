@@ -270,7 +270,9 @@ def _chuong():
 	than = _than(s, "canh_bao_hddt_sot")
 	dung("đếm tờ sót", "_dem_hddt_sot(" in than)
 	dung("ghi cảnh báo vào nhật ký", "tu_ghi_so_nhat_ky" in than)
-	dung("gửi thư kế toán", "frappe.sendmail(" in than)
+	# v604: anh Việt 18/10/2026 bỏ email, báo Zalo.
+	dung("báo nhóm Zalo đúng tin hoá đơn điện tử sót", 'ma_tin="hd_hddt_sot"' in than)
+	dung("không còn gửi thư", "frappe.sendmail(" not in than)
 	dem = _than(s, "_dem_hddt_sot")
 	dung("đếm không chạy kịch bản phát hành", '_goi_server_script' not in dem)
 	h = _py("hooks.py")
