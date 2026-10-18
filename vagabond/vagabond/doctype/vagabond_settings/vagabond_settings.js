@@ -9,15 +9,16 @@
 // trước khi deploy còn giữ window.__vgb_cd_nap (đã xong) trỏ tới bản chung cũ thiếu
 // tongHop; dùng lại khoá cũ thì trang Cài đặt hỏng tới khi tải lại hẳn trình duyệt.
 // Đổi khoá khi bản mới cần hàm mới mà bản cũ không có.
-var VGB_CD_KHOA_NAP = '__vgb_cd_nap_596';
+// v604: bản chung có Tin nhận (tinTheoBoPhan), nên đổi khoá và hàm kiểm theo.
+var VGB_CD_KHOA_NAP = '__vgb_cd_nap_604';
 function vgb_nap_cd_chung() {
-	if (window.VGB_CD && window.VGB_CD.tongHop) return Promise.resolve(window.VGB_CD);
+	if (window.VGB_CD && window.VGB_CD.tinTheoBoPhan) return Promise.resolve(window.VGB_CD);
 	if (window[VGB_CD_KHOA_NAP]) return window[VGB_CD_KHOA_NAP];
 	window[VGB_CD_KHOA_NAP] = new Promise(function (ok, hong) {
 		var s = document.createElement('script');
 		s.src = '/assets/vagabond/js/cai_dat_loi_chung.js?t=' + Date.now();
 		s.onload = function () {
-			if (window.VGB_CD && window.VGB_CD.tongHop) return ok(window.VGB_CD);
+			if (window.VGB_CD && window.VGB_CD.tinTheoBoPhan) return ok(window.VGB_CD);
 			window[VGB_CD_KHOA_NAP] = null;
 			hong(new Error('Tệp cài đặt dùng chung còn bản cũ. Tải lại trang (Ctrl+Shift+R).'));
 		};
@@ -26,24 +27,40 @@ function vgb_nap_cd_chung() {
 	});
 	return window[VGB_CD_KHOA_NAP];
 }
+// v604: hộp "Nhóm này nhận những tin nào?" trên lưới. Tin gom dưới tên bộ phận,
+// mỗi dòng: ô tích, tên tiếng Việt, một dòng giải thích; mỗi bộ phận có nút Chọn
+// cả mục. Giá trị lưu là mã nối ", " như hai ô loại tin, chủ đề.
+function zalo_chon_tin_html(dang) {
+	const e = frappe.utils.escape_html;
+	return '<div class="vgbz-goi">' + e(VGB_CD.GHI_CHU_TIN) + '</div>' +
+		VGB_CD.tinTheoBoPhan().map((bp, i) => '<div class="vgbz-bp"><b>' + e(bp.bo_phan) + '</b>' +
+			'<button type="button" class="btn btn-default btn-sm vgbz-ca" data-vgbzbp="' + i + '">Chọn cả mục</button></div>' +
+			bp.tin.map(t => '<label class="vgbz-dong" data-vgbzbpd="' + i + '"><input type="checkbox" value="' + e(t.ma) + '"' +
+				(dang.includes(t.ma) ? ' checked' : '') + '><span><b>' + e(t.ten) + '</b><small>' + e(t.giai_thich) + '</small></span></label>').join('')
+		).join('');
+}
 function zalo_chon(frm, cdt, cdn, truong) {
 	const row = locals[cdt][cdn];
 	const dang = (row[truong] || '').split(/[,;]/).map(s => s.trim()).filter(Boolean);
 	const nhan = VGB_CD.ZALO_NHAN[truong];
 	const e = frappe.utils.escape_html;
-	const html = '<div class="vgbz-goi">Không tích ô nào là nhóm nhận <b>tất cả</b> ' +
+	const html = (truong === 'tin_nhan' ? zalo_chon_tin_html(dang) : (
+		(VGB_CD.tachMa(row.tin_nhan).length ? '<div class="vgbz-goi">Nhóm này đã chọn Tin nhận nên ô này đang không dùng.</div>' : '') +
+		'<div class="vgbz-goi">Không tích ô nào là nhóm nhận <b>tất cả</b> ' +
 		(truong === 'loai_tin' ? 'loại tin.' : 'chủ đề.') + '</div>' +
 		VGB_CD.ZALO_DANH_MUC[truong].map(v => {
 			const n = nhan[v] || ['', v, ''];
 			return '<label class="vgbz-dong"><input type="checkbox" value="' + e(v) + '"' + (dang.includes(v) ? ' checked' : '') + '>' +
 				'<span class="vgbz-ic">' + e(n[0]) + '</span><span><b>' + e(n[1]) + '</b><small>' + e(n[2]) + '</small></span></label>';
-		}).join('') +
+		}).join(''))) +
 		'<style>.vgbz-goi{font-size:13px;color:var(--text-muted);margin-bottom:8px}' +
+		'.vgbz-bp{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:14px 0 4px;font-size:14px}' +
+		'.vgbz-ca{min-height:44px;font-size:13px}' +
 		'.vgbz-dong{display:flex;align-items:flex-start;gap:12px;min-height:56px;padding:10px 8px;border-top:1px solid var(--border-color);cursor:pointer;margin:0}' +
 		'.vgbz-dong input{margin-top:3px;width:18px;height:18px;flex:none}.vgbz-ic{font-size:18px;line-height:22px;flex:none}' +
 		'.vgbz-dong b{display:block;font-size:14px}.vgbz-dong small{display:block;font-size:13px;color:var(--text-muted);line-height:1.4}</style>';
 	const d = new frappe.ui.Dialog({
-		title: truong === 'loai_tin' ? 'Nhóm này nhận loại tin nào?' : 'Nhóm này nhận chủ đề nào?',
+		title: truong === 'tin_nhan' ? 'Nhóm này nhận những tin nào?' : (truong === 'loai_tin' ? 'Nhóm này nhận loại tin nào?' : 'Nhóm này nhận chủ đề nào?'),
 		fields: [{ fieldname: 'ds', fieldtype: 'HTML', options: html }],
 		primary_action_label: 'Xong',
 		primary_action() {
@@ -51,6 +68,12 @@ function zalo_chon(frm, cdt, cdn, truong) {
 			frappe.model.set_value(cdt, cdn, truong, chon.join(', '));
 			d.hide();
 		},
+	});
+	// Chọn cả mục: còn ô nào chưa tích thì tích hết, đã tích hết thì bỏ hết.
+	d.$wrapper.on('click', '[data-vgbzbp]', function () {
+		const o = d.$wrapper.find('[data-vgbzbpd="' + $(this).attr('data-vgbzbp') + '"] input');
+		const het = o.toArray().every(x => x.checked);
+		o.prop('checked', !het);
 	});
 	d.show();
 }
@@ -81,7 +104,7 @@ frappe.ui.form.on('Vagabond Kenh Zalo', {
 		// v562 Codex #425: mã chat chỉ chọn từ các NHÓM đã nhắn bot, không gõ tay.
 		$('<button class="btn btn-xs btn-default"></button>').text('Chọn nhóm đã nhắn bot').appendTo(hang)
 			.on('click', () => zalo_chon_nhom(frm, cdt, cdn));
-		[['loai_tin', 'Chọn loại tin'], ['chu_de', 'Chọn chủ đề']].forEach(([f, nhan]) => {
+		[['tin_nhan', 'Chọn tin nhận'], ['loai_tin', 'Chọn loại tin'], ['chu_de', 'Chọn chủ đề']].forEach(([f, nhan]) => {
 			$('<button class="btn btn-xs btn-default"></button>').text(nhan).appendTo(hang)
 				.on('click', () => vgb_nap_cd_chung().then(() => zalo_chon(frm, cdt, cdn, f)));
 		});
@@ -446,13 +469,15 @@ frappe.ui.form.on('Vagabond Kenh Zalo', {
 		var rows = frm.doc.zalo_nhom || [];
 		f.$wrapper.html((rows.length ? '<div class="vgbc-zl-the">' + rows.map(function (r, i) {
 			var t = VGB_CD.theNhomZalo(r);
+			// v604: nhóm đã tích Tin nhận thì thẻ nói số tin và vài tên, không nói loại, chủ đề.
 			return '<div class="vgbc-card"><div class="h"><b>' + esc(t.ten) + '</b>' + chip(t.trang, t.ghi, 1) + '</div>' +
-				'<div class="d"><small>Nhận:</small> ' + esc(t.loai) + '</div>' +
-				'<div class="d"><small>Chủ đề:</small> ' + esc(t.chu_de) + '</div>' +
+				(t.tin ? '<div class="d"><small>Tin nhận:</small> ' + esc(t.tin) + '</div>' :
+					'<div class="d"><small>Nhận:</small> ' + esc(t.loai) + '</div>' +
+					'<div class="d"><small>Chủ đề:</small> ' + esc(t.chu_de) + '</div>') +
 				'<div class="d"><small>Giờ im:</small> ' + esc(t.im) + '</div>' +
 				'<div class="n"><button type="button" class="btn btn-default" data-zls="' + i + '">Sửa</button>' +
 				(t.guiThu ? '<button type="button" class="btn btn-default" data-zlg="' + i + '">Gửi thử</button>' : '') + '</div></div>';
-		}).join('') + '</div>' : '<div class="vgbc-mo">Chưa có nhóm nào. Bấm Thêm nhóm nhận tin, chọn nhóm Zalo đã nhắn bot, chọn loại tin nhóm cần nhận.</div>') +
+		}).join('') + '</div>' : '<div class="vgbc-mo">Chưa có nhóm nào. Bấm Thêm nhóm nhận tin, chọn nhóm Zalo đã nhắn bot, tích những tin nhóm cần nhận.</div>') +
 			'<div class="vgbc-zl-nut"><button type="button" class="btn btn-primary" data-zls="-1">+ Thêm nhóm nhận tin</button></div>');
 		f.$wrapper.off('click.zl').on('click.zl', '[data-zls]', function () { suaNhomZalo(frm, parseInt($(this).attr('data-zls'), 10)); })
 			.on('click.zl', '[data-zlg]', function () {
@@ -471,6 +496,27 @@ frappe.ui.form.on('Vagabond Kenh Zalo', {
 	}
 	function maDaChon(cot, v) {
 		return VGB_CD.ZALO_DANH_MUC[cot].filter(function (ma) { return v[cot + '__' + ma]; });
+	}
+	// v604: phần Tin nhận của hộp Thêm/Sửa nhóm. Mỗi bộ phận một mục có nút Chọn cả
+	// mục, mỗi tin một ô tích có tên và dòng giải thích hiện ra. hop() trả hộp sau khi dựng.
+	function oChonTin(dang, hop) {
+		var ra = [{ fieldtype: 'Section Break', label: 'Nhóm này nhận những tin nào?', description: VGB_CD.GHI_CHU_TIN }];
+		VGB_CD.tinTheoBoPhan().forEach(function (bp, i) {
+			ra.push({ fieldtype: 'Section Break', label: bp.bo_phan, fieldname: 'tin_bp_' + i });
+			ra.push({ fieldtype: 'Button', label: 'Chọn cả mục', fieldname: 'tin_ca_' + i, click: function () {
+				var d = hop();
+				if (!d) return;
+				var het = bp.tin.every(function (t) { return d.get_value('tin_nhan__' + t.ma); });
+				bp.tin.forEach(function (t) { d.set_value('tin_nhan__' + t.ma, het ? 0 : 1); });
+			} });
+			bp.tin.forEach(function (t) {
+				ra.push({ fieldname: 'tin_nhan__' + t.ma, fieldtype: 'Check', label: t.ten, description: t.giai_thich, default: dang.indexOf(t.ma) >= 0 ? 1 : 0 });
+			});
+		});
+		return ra;
+	}
+	function tinDaChon(v) {
+		return Object.keys(VGB_CD.ZALO_TIN).filter(function (ma) { return v['tin_nhan__' + ma]; });
 	}
 
 	// i < 0 là thêm nhóm mới. Ghi vào bảng gốc theo đúng cách lưu cũ: mã nối bằng ", ".
@@ -493,9 +539,10 @@ frappe.ui.form.on('Vagabond Kenh Zalo', {
 						: 'Chưa có nhóm nào nhắn bot. Thêm bot vào nhóm Zalo, @nhắc bot một lần, rồi mở lại hộp này.' },
 				{ fieldname: 'ten_nhom', fieldtype: 'Data', label: 'Tên gọi trong ERP', reqd: 1, default: nhap.ten_nhom, description: 'Để bạn nhận ra nhóm, ví dụ Kế toán, Bếp.' },
 				{ fieldname: 'bat', fieldtype: 'Check', label: 'Nhóm đang nhận tin', default: nhap.bat ? 1 : 0 },
-				{ fieldtype: 'Section Break', label: 'Nhóm nhận loại tin nào?', description: 'Không tích ô nào là nhóm nhận tất cả loại tin.' },
-			].concat(oChonMa('loai_tin', VGB_CD.tachMa(r && r.loai_tin)), [
-				{ fieldtype: 'Section Break', label: 'Nhóm nhận chủ đề nào?', description: 'Không tích ô nào là nhóm nhận tất cả chủ đề.' },
+			].concat(oChonTin(VGB_CD.tachMa(r && r.tin_nhan), function () { return d; }), [
+				{ fieldtype: 'Section Break', label: 'Nhóm nhận loại tin nào?', description: 'Không tích ô nào là nhóm nhận tất cả loại tin. Đã tích tin ở phần Tin nhận thì phần này không dùng.' },
+			], oChonMa('loai_tin', VGB_CD.tachMa(r && r.loai_tin)), [
+				{ fieldtype: 'Section Break', label: 'Nhóm nhận chủ đề nào?', description: 'Không tích ô nào là nhóm nhận tất cả chủ đề. Đã tích tin ở phần Tin nhận thì phần này không dùng.' },
 			], oChonMa('chu_de', VGB_CD.tachMa(r && r.chu_de)), [
 				{ fieldtype: 'Section Break', label: 'Giờ im (không bắt buộc)', description: 'Trong giờ im chỉ Cảnh báo được gửi; tin khác gom lại gửi khi hết giờ im. Dạng giờ:phút, ví dụ 22:00 và 07:00. Để trống cả hai là không im.' },
 				{ fieldname: 'im_tu', fieldtype: 'Data', label: 'Im từ', default: nhap.im_tu, placeholder: '22:00' },
@@ -510,6 +557,7 @@ frappe.ui.form.on('Vagabond Kenh Zalo', {
 				var row = r || frm.add_child('zalo_nhom');
 				var gt = { ten_nhom: String(v.ten_nhom || '').trim(), chat_id: chat, bat: v.bat ? 1 : 0,
 					loai_tin: maDaChon('loai_tin', v).join(', '), chu_de: maDaChon('chu_de', v).join(', '),
+					tin_nhan: tinDaChon(v).join(', '),
 					im_tu: String(v.im_tu || '').trim(), im_den: String(v.im_den || '').trim() };
 				Object.keys(gt).forEach(function (k) { frappe.model.set_value(row.doctype, row.name, k, gt[k]); });
 				d.hide();
@@ -563,5 +611,5 @@ frappe.ui.form.on('Vagabond Kenh Zalo', {
 	});
 	// Chỉ cho ca kiểm node (hanh_vi/cai_dat_568.js); trên trình duyệt không có module.
 	if (typeof module !== 'undefined' && module.exports) module.exports._desk = { veNganHang: veNganHang, veChipMuc: veChipMuc, veThanh: veThanh, veLoiO: veLoiO,
-		veZalo: veZalo, suaNhomZalo: suaNhomZalo };
+		veZalo: veZalo, suaNhomZalo: suaNhomZalo, zaloChonTinHtml: zalo_chon_tin_html };
 })();
