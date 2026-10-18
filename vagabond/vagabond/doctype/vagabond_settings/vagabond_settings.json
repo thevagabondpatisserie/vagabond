@@ -847,7 +847,7 @@
    "label": "Thư cảnh báo và webhook"
   },
   {
-   "description": "Nhiều địa chỉ thì ngăn nhau bằng dấu phẩy. Dùng cho thư báo đơn trùng hoá đơn.",
+   "description": "Không còn dùng từ 18/10/2026: mọi cảnh báo nội bộ đi qua nhóm Zalo, mỗi nhóm tích tin cần nhận ở mục Bắn tin vào nhóm Zalo.",
    "fieldname": "email_canh_bao",
    "fieldtype": "Data",
    "label": "Email nhận thư cảnh báo"
