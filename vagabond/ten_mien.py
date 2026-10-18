@@ -169,3 +169,131 @@ def ap_luat():
 		if frappe.local.flags.get("redirect_location"):
 			raise
 		return
+
+
+# ------------------------------------------------------------------ v605
+# Anh Việt 18/10/2026: đưa trang đặt bánh lên tên miền chính
+# thevagabondpatisserie.com (thay web WordPress cũ), order. và www. chuyển
+# vĩnh viễn (301) về tên miền chính, mọi đường dẫn WordPress cũ đã có trên
+# Google chuyển 301 về trang đặt bánh để giữ thứ hạng.
+#
+# VÌ SAO CHẠY Ở before_request CHỨ KHÔNG Ở `ap_luat`: `ap_luat` chạy lúc DỰNG
+# trang, mà Frappe giữ trang đã dựng trong bộ nhớ đệm cho khách vãng lai (xem
+# ghi chú DUONG_CHUNG ở trên). Chuyển hướng tên miền phải chạy ở MỌI lượt, nên
+# đặt ở before_request, chạy trước cả bộ đệm trang.
+#
+# Ba chốt an toàn, giữ nguyên khi sửa:
+# 1. order. chỉ chuyển khi công tắc "Dùng tên miền chính" trong Cài đặt bật.
+#    Bật sau khi DNS và SSL của tên miền chính đã kiểm; tắt là order. hết chuyển
+#    hướng ngay, không cần deploy. Tên miền chính và www không theo công tắc
+#    (Codex #491): đường lui của chúng là DNS.
+# 2. Chỉ GET và HEAD. POST (gửi đơn, webhook) đi thẳng, chuyển hướng POST là
+#    mất dữ liệu khách.
+# 3. Không đụng CHUA_RA (/api, /assets, /files...): app và đối tác gọi qua
+#    chính tên miền order., chặn là trắng màn và rớt webhook.
+
+MIEN_WWW = "www." + MIEN_CHINH
+
+# Đường dẫn WordPress cũ (đọc từ wp-sitemap.xml ngày 18/10/2026) và đường
+# dẫn hệ thống của WordPress. Khớp theo cả đoạn đường: "/en" khớp "/en" và
+# "/en/...", không khớp "/endless".
+DUONG_WP = (
+	"/shop", "/cart", "/checkout", "/my-account", "/thanks-page", "/products", "/product",
+	"/product-category", "/category", "/author", "/tag", "/gioi-thieu", "/tin-tuc", "/lien-he",
+	"/xin-chao", "/2026mooncake", "/en", "/hello-world", "/sample-page", "/hello-theme-7",
+	"/feed", "/comments", "/wp-admin", "/wp-content", "/wp-includes", "/wp-json",
+	"/wp-login.php", "/xmlrpc.php", "/index.php", "/wp-sitemap.xml", "/sitemap_index.xml",
+)
+# Bài viết cũ có số đuôi -2, -3...: khớp theo đầu chuỗi.
+DAU_BAI_WP = ("/the-vagabond-nhung-nguoi-lam-banh-lang-thang-tim-cai-dep",)
+
+# Đường không bao giờ chuyển tên miền (giữ cho app, đối tác, máy tìm kiếm).
+KHONG_CHUYEN = ("/api/", "/assets/", "/files/", "/private/", "/socket.io/", "/.well-known/", "/backups/")
+
+
+def chuyen_ten_mien(host, duong, phuong_thuc="GET", chuoi_hoi="", bat=False):
+	"""THUẦN: (địa chỉ đích, mã) nếu lượt này phải chuyển, None nếu cho đi tiếp.
+
+	host, duong, chuoi_hoi lấy nguyên từ request (chuoi_hoi không có dấu ?).
+
+	Codex #491 (P1): công tắc CHỈ gác order. -> tên miền chính, vì order. luôn
+	trỏ về hệ thống. Tên miền chính và www chỉ tới được đây khi DNS đã trỏ về
+	hệ thống, lúc đó chúng luôn là cửa khách (không bao giờ mở Desk hay app nội
+	bộ, xem ca Web #245), nên luật của chúng không theo công tắc. Muốn trả tên
+	miền chính về web cũ thì sửa DNS, không phải tắt công tắc.
+	"""
+	if str(phuong_thuc or "").upper() not in ("GET", "HEAD"):
+		return None
+	m = _mien(host)
+	if m not in (MIEN_KHACH, MIEN_CHINH, MIEN_WWW):
+		return None
+	if m == MIEN_KHACH and not bat:
+		return None
+	goc = "/" + str(duong or "").lstrip("/")
+	if any(goc.startswith(x) or goc == x.rstrip("/") for x in KHONG_CHUYEN):
+		return None
+	hoi = str(chuoi_hoi or "").lstrip("?")
+	duoi = goc + ("?" + hoi if hoi else "")
+
+	if m in (MIEN_KHACH, MIEN_WWW):
+		return ("https://%s%s" % (MIEN_CHINH, duoi), 301)
+
+	# Tên miền chính.
+	d = _sach(goc)
+	if d == "/":
+		# 302: trang chủ thương hiệu sau này sẽ nằm ở "/", đừng để trình duyệt
+		# nhớ vĩnh viễn. Giữ chuỗi hỏi để không mất mã utm của quảng cáo.
+		return ("/banh" + ("?" + hoi if hoi else ""), 302)
+	thap = d.lower()
+	if _thuoc(thap, DUONG_WP) or any(thap.startswith(x) for x in DAU_BAI_WP):
+		return ("/banh", 301)
+	return None
+
+
+def mien_cong_khai(bat):
+	"""THUẦN: tên miền ghi vào thẻ canonical, og:url của trang khách."""
+	return MIEN_CHINH if bat else MIEN_KHACH
+
+
+def cong_tac_mien_chinh():
+	"""Đọc công tắc trong Cài đặt. Lỗi đọc (chưa migrate) coi như tắt."""
+	import frappe
+
+	try:
+		return int(frappe.db.get_single_value("Vagabond Settings", "web_ten_mien_chinh", cache=True) or 0)
+	except Exception:
+		return 0
+
+
+
+def truoc_request():
+	"""Hook before_request. Chỉ đọc Cài đặt khi tên miền thuộc ba tên miền khách.
+
+	Nuốt mọi lỗi trừ chính lệnh chuyển hướng: hỏng ở đây là hỏng MỌI lượt gọi
+	của site, kể cả app nội bộ.
+	"""
+	import frappe
+	from werkzeug.exceptions import HTTPException
+	from werkzeug.utils import redirect
+
+	try:
+		req = getattr(frappe.local, "request", None)
+		m = _mien(req.host) if req else ""
+		if m not in (MIEN_KHACH, MIEN_CHINH, MIEN_WWW):
+			return
+		qs = req.query_string.decode("utf-8", "ignore") if isinstance(req.query_string, bytes) else str(req.query_string or "")
+		# Chỉ order. cần công tắc; đọc Cài đặt đúng lúc đó.
+		kq = chuyen_ten_mien(req.host, req.path, req.method, qs, cong_tac_mien_chinh() if m == MIEN_KHACH else 0)
+		if not kq:
+			return
+		dich, ma = kq
+	except Exception:
+		return
+
+	class ChuyenHuong(HTTPException):
+		code = ma
+
+		def get_response(self, environ=None, scope=None):
+			return redirect(dich, ma)
+
+	raise ChuyenHuong()

@@ -187,8 +187,9 @@ def _phong_thuong_hieu():
 		dung("%s (%s) khai phông thương hiệu" % (lop, mo), lop + "font-family:'Vagabond Sans'" in trang)
 	# Anh Viet 03/10 (PR424): giu dung bo phong da chot luc dau. Ten/tieu de co
 	# dau tieng Viet dung phong he thong dam, khong ep Vagabond Sans len moi h1-h3.
-	dung("ten bánh tiếng Việt giữ phông hệ thống",
-	     ".c-name.vi,.s-head h2.vi{font-family:var(--sans);font-weight:600" in trang)
+	# v605 (anh Viet 18/10/2026, mon LadyRuby): anh chon "Sua phong cho moi ten",
+	# ten banh co dau cung dung Vagabond Sans nhu cac banh khac. Luat 03/10 bo.
+	dung("ten bánh có dấu không còn bị ép phông hệ thống", ".c-name.vi" not in trang)
 	nen = _doc("vagabond", "public", "web_order", "nen.css")
 	dung("nen.css không ép Vagabond Sans lên mọi h1-h3", "html body h1,html body h2" not in nen)
 	try:

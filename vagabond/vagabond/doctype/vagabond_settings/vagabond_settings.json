@@ -138,6 +138,7 @@
   "tab_web",
   "sec_web_dat_banh",
   "web_ban_vue",
+  "web_ten_mien_chinh",
   "mien_phi_giao_tu",
   "web_dien_thoai",
   "web_email",
@@ -935,6 +936,13 @@
    "label": "Dùng trang đặt bánh bản mới"
   },
   {
+   "default": "0",
+   "description": "Bật: địa chỉ order.thevagabondpatisserie.com tự chuyển về thevagabondpatisserie.com và Google ghi nhận tên miền chính. Chỉ bật khi tên miền chính đã trỏ về hệ thống và có SSL. Tắt: order. hoạt động như trước ngay, không cần deploy. Tên miền chính khi đã trỏ về hệ thống luôn mở trang đặt bánh; muốn trả về web cũ thì sửa DNS.",
+   "fieldname": "web_ten_mien_chinh",
+   "fieldtype": "Check",
+   "label": "Dùng tên miền chính cho web khách"
+  },
+  {
    "description": "Tiền bánh (chưa gồm phí giao, máy chủ tự tính) từ mức này trở lên thì khách không trả phí giao, tiệm chịu phí Ahamove. Để trống hoặc 0 là tắt miễn phí giao.",
    "fieldname": "mien_phi_giao_tu",
    "fieldtype": "Currency",
@@ -1144,7 +1152,7 @@
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-10-18 12:00:00.000000",
+ "modified": "2026-10-18 23:30:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Settings",

@@ -114,16 +114,20 @@ def _cay_chinh_sach():
 
 @ca('#471 SEO đọc nhãn Editor công khai, không lấy nháp, URL canonical cố định')
 def _seo():
+	# v605: mô tả, ảnh không còn lấy từ khối Editor đầu tiên (khối đó là "Mở các
+	# kênh đặt hàng" + logo Grab, Google hiện nguyên câu đó). Ca này giữ phần
+	# tiêu đề đọc nhãn công khai; phần mô tả, ảnh kiểm ở thu_ten_mien_605.
 	from vagabond.khung.kiem_thu.thu_su_co_290 import nap
-	from vagabond import trang_khach
+	from vagabond import trang_khach, web_vue
 	import types
-	g = {'trang_khach': trang_khach, 'noi_dung_web': types.SimpleNamespace(cong_khai=lambda: {
+	g = {'trang_khach': trang_khach, 'du_lieu_cau_truc': web_vue.du_lieu_cau_truc,
+		'SEO_MO_TA': web_vue.SEO_MO_TA, 'SEO_ANH': web_vue.SEO_ANH,
+		'noi_dung_web': types.SimpleNamespace(cong_khai=lambda: {
 		'nhan': {'dat_banh_e7c59d5a1': 'Tiêu đề đã xuất bản'},
-		'khoi': [{'hien': False, 'anh': '/files/nhap.png', 'tieu_de': 'Nháp'},
-			{'hien': True, 'anh': '/files/bia.png', 'tieu_de': 'Bánh', 'noi_dung': 'Mô tả'}]})}
+		'khoi': [{'hien': False, 'anh': '/files/nhap.png', 'tieu_de': 'Nháp'}]})}
 	seo = nap('web_vue.py', 'seo_banh', g)()
-	la('nội dung', (seo['title'], seo['description']), ('Tiêu đề đã xuất bản', 'Mô tả'))
-	la('ảnh tuyệt đối', seo['image'], 'https://order.thevagabondpatisserie.com/files/bia.png')
+	la('tiêu đề', seo['title'], 'Tiêu đề đã xuất bản')
+	la('ảnh tuyệt đối', seo['image'], 'https://order.thevagabondpatisserie.com/assets/vagabond/web_order/og-banh.jpg')
 	la('canonical', seo['url'], 'https://order.thevagabondpatisserie.com/banh')
 
 
