@@ -347,15 +347,78 @@ def _rai_sales():
 	bao, giao = [], []
 	nap("xuat_rai_trong_ngay", g)()
 	la("xếp cả bill quầy lẫn đơn Sales đã giao", xep, [(["Q1", "S1"], "xuat-rai")])
-	la("phát hành không hoãn: không giao lượt chờ, không báo", (giao, bao), ([], []))
+	# Codex #488 vòng 3 (P1): không hoãn thì vẫn giao lượt chờ để phát hành
+	# bù và KÝ sau khi các lượt riêng xong, như đuôi xuất rải trước v602.
+	la("phát hành ngay: giao lượt chờ để ký, không báo", (giao, bao),
+		([("2026-10-18", ["Q1", "S1"], True, "xuat-rai", "vgb-cho-xuat-rai-202610181510")], []))
 	# Codex #488 vòng 2 (P1, dòng báo hoãn của xuất rải): đang hoãn phát hành
 	# thì KHÔNG báo số đã xếp; giao lượt chờ đúng danh sách đã xếp.
 	xep.clear()
+	giao.clear()
 	g["hddt_cho_xuat"] = NS(xuat_ngay_cu_truoc=lambda: False)
 	nap("xuat_rai_trong_ngay", g)()
 	la("hoãn: không báo số đã xếp", bao, [])
 	la("hoãn: giao lượt chờ đúng danh sách, cờ hoãn, nhãn xuất rải",
-		[(a[0], a[1], a[2], a[3], a[4]) for a in giao], [("2026-10-18", ["Q1", "S1"], False, "xuat-rai", "vgb-cho-hoan-xuat-rai-202610181510")])
+		[(a[0], a[1], a[2], a[3], a[4]) for a in giao], [("2026-10-18", ["Q1", "S1"], False, "xuat-rai", "vgb-cho-xuat-rai-202610181510")])
+
+
+@ca("v602 lượt chờ của xuất rải (Codex #488 vòng 3 P1): xong thì phát hành bù và KÝ phần đã ghi sổ, không chạy phát hành cuối ngày")
+def _cho_rai_ky():
+	buoc = [{"Q1": 0, "S1": 0}, {"Q1": 1, "S1": 0}]
+	g, su, gio = _g_cho(buoc, lambda t, i: i == 0)
+	g["phat_hanh_sau_rai"] = lambda *a: su.append(("rai",) + a)
+	nap("cho_ghi_so_roi_phat_hanh", g)("2026-10-18", ["Q1", "S1"], cho_xuat=True, noi_goi="xuat-rai")
+	la("phát hành sau rải với đúng phiếu đã ghi sổ và phiếu còn nháp", [x for x in su if isinstance(x, tuple)],
+		[("rai", "2026-10-18", ["Q1"], ["S1"])])
+
+
+def _g_sau_rai(bat_ph=True, bat_ky=True, khoa=True, tao=0):
+	su = []
+	f = NS(log_error=lambda *a, **kw: su.append(("log",)), get_traceback=lambda: "")
+	g = dict(frappe=f, cint=lambda x: int(x or 0), _cong_tac_minvoice=lambda: (bat_ph, bat_ky),
+		_khoa_hddt=lambda cho=5: su.append(("khoa",)) or ("K" if khoa else None),
+		_mo_khoa_dong_bo=lambda k: su.append(("nha", k)),
+		_goi_server_script=lambda ten, ts: su.append(("ph", ts["phieu"])) or {"tao_ok": tao, "loi": []},
+		_ky_theo_lo=lambda ngay: su.append(("ky", ngay)) or {"loi": []})
+	return nap("phat_hanh_sau_rai", g), su
+
+
+@ca("v602 phát hành sau rải: phát hành bù từng phiếu đã ghi sổ rồi ký cả khi hook đã phát hành trước (kịch bản báo 0 tờ mới)")
+def _sau_rai():
+	fn, su = _g_sau_rai(tao=0)
+	fn("2026-10-18", ["Q1", "S1"], [])
+	la("thứ tự: khoá, phát hành từng phiếu, ký, nhả khoá", su,
+		[("khoa",), ("ph", "Q1"), ("ph", "S1"), ("ky", "2026-10-18"), ("nha", "K")])
+	fn, su = _g_sau_rai(bat_ky=False)
+	fn("2026-10-18", ["Q1"], [])
+	la("tắt ký ở m-invoice thì không ký", [x for x in su if x[0] == "ky"], [])
+	fn, su = _g_sau_rai(khoa=False)
+	fn("2026-10-18", ["Q1"], [])
+	la("không lấy được khoá hoá đơn thì thôi, nhịp sau làm", su, [("khoa",)])
+	fn, su = _g_sau_rai()
+	fn("2026-10-18", [], ["S1"])
+	la("không có phiếu đã ghi sổ: không phát hành, không ký, chỉ ghi dấu", su, [("log",)])
+	fn, su = _g_sau_rai()
+	fn("2026-10-18", ["Q1"], ["S1"])
+	dung("còn nháp thì ghi dấu sau khi ký", su[-1] == ("log",) and ("ky", "2026-10-18") in su)
+
+
+@ca("v602 chọn đơn (Codex #488 vòng 3 P2): đơn Sales tạm tính không vào hàng đợi, ở cả bước đọc, bước lọc lý do và lúc kéo")
+def _tam_tinh():
+	import vagabond.ghi_so_dieu_kien as gsdk
+	g = dict(ghi_so_dieu_kien=gsdk)
+	ly = nap("_ly_do_xep", g)
+	rows = [D(name="S-TT", docstatus=0, vgb_huy=0, vgb_tam_tinh=1, vgb_quay="", vgb_pt_thanh_toan=""),
+		D(name="S-OK", docstatus=0, vgb_huy=0, vgb_tam_tinh=0, vgb_quay="", vgb_pt_thanh_toan=""),
+		D(name="Q-TT", docstatus=0, vgb_huy=0, vgb_tam_tinh=1, vgb_quay="TCV", vgb_pt_thanh_toan="Tiền mặt")]
+	la("lý do giữ tạm tính cho đơn Sales", ly(rows[0]), "tam_tinh")
+	la("đơn Sales chưa ghi phương thức vẫn xếp (suy theo nguồn lúc ghi sổ)", ly(rows[1]), "")
+	la("chỉ xếp đơn không tạm tính", hddt_bu.chon_de_xep(rows, ly), ["S-OK"])
+	goi = []
+	f = NS(db=NS(get_all=lambda dt, filters=None, **kw: goi.append(filters) or []))
+	nap("_con_nhap", dict(frappe=f))("2026-10-17", ["TCV"])
+	dung("đọc đơn Sales đã bỏ tạm tính", goi[0].get("vgb_tam_tinh") == 0)
+	dung("đọc bill quầy đã bỏ tạm tính", goi[1].get("vgb_tam_tinh") == 0)
 
 
 @ca("v602 lượt chờ của xuất rải: đợi các lượt riêng xong rồi báo hoãn với số ĐÃ ghi sổ và nhãn xuất rải")
@@ -411,18 +474,21 @@ def _sales_da_giao():
 def _keo():
 	da_doi, xep = [], []
 	si = {"HDB-1": D(name="HDB-1", docstatus=0, posting_date="2026-10-17"),
-		"Q-1": D(name="Q-1", docstatus=0, posting_date="2026-10-17")}
+		"Q-1": D(name="Q-1", docstatus=0, posting_date="2026-10-17"),
+		"HDB-TT": D(name="HDB-TT", docstatus=0, posting_date="2026-10-17", vgb_tam_tinh=1)}
 	f = NS(get_doc=lambda dt, ten: si[ten], local=NS(message_log=[]), get_roles=lambda: ["Accounts Manager"],
 		whitelist=lambda *a, **kw: (lambda h: h),
 		throw=lambda m: (_ for _ in ()).throw(Exception(m)), db=NS(commit=lambda: None, rollback=lambda: None))
-	treo = [D(name="HDB-1", posting_date="2026-10-17", grand_total=100, custom_pancake_display_id="91", ly_do="san_sang", hom_nay=0)]
+	treo = [D(name="HDB-1", posting_date="2026-10-17", grand_total=100, custom_pancake_display_id="91", ly_do="san_sang", hom_nay=0),
+		D(name="HDB-TT", posting_date="2026-10-17", grand_total=70, custom_pancake_display_id="92", ly_do="tam_tinh", hom_nay=0)]
 	g = dict(frappe=f, cint=lambda x: int(x or 0), flt=float, json=__import__("json"), nowdate=lambda: "2026-10-18",
 		_kiem_quyen_ghi_so=lambda: None, QUYEN_SUA_NGAY={"Accounts Manager"}, _quet_don_treo=lambda n: treo,
 		_bill_quay_nhap_cu=lambda ten, n: [D(name=t, posting_date="2026-10-17", grand_total=50, custom_pancake_display_id="") for t in ten],
 		hddt_cho_xuat=NS(xuat_ngay_cu_truoc=lambda: True),
 		_doi_ngay_ban_nhap=lambda s, ngay, ly_do, cach: da_doi.append((s.name, ngay)),
 		_xep_ghi_so=lambda ds, ngay, cho_xuat=True, nguon="": xep.append((list(ds), ngay, nguon)) or len(ds))
-	kq = nap("keo_va_ghi_so", g)(ds='["HDB-1","Q-1"]', chay_thu=0)
+	# HDB-TT là đơn Sales tạm tính gọi đích danh (Codex #488 vòng 3 P2): không kéo, không xếp.
+	kq = nap("keo_va_ghi_so", g)(ds='["HDB-1","Q-1","HDB-TT"]', chay_thu=0)
 	la("đổi ngày qua cửa chung", da_doi, [("HDB-1", "2026-10-18"), ("Q-1", "2026-10-18")])
 	la("xếp ghi sổ đủ hai", xep, [(["HDB-1", "Q-1"], "2026-10-18", "keo")])
 	la("đếm", (kq["keo"], kq["da_xep"], kq["loi"]), (2, 2, []))
