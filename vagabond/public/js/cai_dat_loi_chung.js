@@ -13,7 +13,8 @@
  */
 // v596: điều kiện nạp lại dựa trên tongHop, hàm mới nhất; trang còn giữ bản cũ
 // trong bộ nhớ (chưa tải lại sau deploy) vẫn nạp được bản mới.
-if (typeof VGB_CD === 'undefined' || !VGB_CD || !VGB_CD.tongHop) {
+// v604: thêm Tin nhận; điều kiện nạp lại đổi sang hàm mới nhất (tinTheoBoPhan).
+if (typeof VGB_CD === 'undefined' || !VGB_CD || !VGB_CD.tinTheoBoPhan) {
 // v562 Codex #417, #423: Loại tin và Chủ đề chỉ chọn từ danh mục (hai ô này
 // read_only, không gõ tay được); máy chủ vẫn kiểm lại lúc lưu.
 var VGB_ZALO_DANH_MUC = {
@@ -46,6 +47,35 @@ var VGB_ZALO_NHAN = {
 		he_thong: ['🛠️', 'Hệ thống', 'Sự cố máy chủ, ví dụ thư không gửi được. Nên chọn kèm loại Cảnh báo.'],
 	},
 };
+// v604: anh Việt 18/10/2026 bỏ thư cảnh báo nội bộ, mọi tin đi nhóm Zalo; mỗi nhóm
+// tích đúng những tin cần nhận. Bản sao của kenh_zalo.TIN (mã -> [bộ phận, tên,
+// giải thích]); ca thu_tin_zalo_604 so từng chữ với bản Python, sửa một bên phải
+// sửa bên kia. Mã chỉ là giá trị lưu, người dùng chỉ thấy tên và giải thích.
+var VGB_ZALO_BO_PHAN = ['Hoá đơn, kế toán', 'Bán hàng, cửa hàng', 'Bếp', 'Hệ thống'];
+var VGB_ZALO_TIN = {
+	hd_ket_ghi_so: ['Hoá đơn, kế toán', 'Kẹt ghi sổ, kẹt hoá đơn cuối ngày', '20 và 45 phút sau giờ chạy cuối ngày, và 07:30 sáng hôm sau, còn đơn chưa ghi sổ.'],
+	hd_don_chua_ghi_so: ['Hoá đơn, kế toán', 'Đơn chưa ghi sổ còn sót lúc 23:55', '23:55 mỗi ngày, còn đơn bán chưa ghi sổ được.'],
+	hd_hddt_sot: ['Hoá đơn, kế toán', 'Đã ghi sổ mà chưa xuất hoá đơn điện tử', '23:55 mỗi ngày, còn tờ đã ghi sổ mà chưa có hoá đơn điện tử.'],
+	hd_giu_ngay_cu: ['Hoá đơn, kế toán', 'Hoá đơn ngày cũ bị giữ lại, không phát hành', 'Khi chuỗi cuối ngày giữ hoá đơn lại vì còn nợ ngày cũ chưa đối soát.'],
+	hd_trung: ['Hoá đơn, kế toán', 'Đơn có hoá đơn trùng (doanh thu tính đôi)', '02:00 mỗi đêm, có đơn mang từ hai hoá đơn bán hàng trở lên.'],
+	hd_dau_vao: ['Hoá đơn, kế toán', 'Hoá đơn đầu vào m-invoice tắc nhịp hoặc trùng', '08:25 mỗi sáng, hoá đơn mua vào chưa dựng được chứng từ hoặc có chứng từ trùng.'],
+	kt_tra_truoc_erp: ['Hoá đơn, kế toán', 'Khoản trả trước chờ duyệt', 'Thu mua gửi một khoản đã trả trước khi lên ERP, chờ kế toán duyệt.'],
+	kt_hoan_tien: ['Hoá đơn, kế toán', 'Yêu cầu hoàn tiền chờ chi', 'Sales gửi yêu cầu hoàn tiền cho khách, chờ kế toán chuyển khoản.'],
+	kt_de_nghi_chi: ['Hoá đơn, kế toán', 'Đề nghị chi chờ duyệt hoặc bị trả lại', 'Đề nghị chi chuyển sang bước duyệt kế tiếp, hoặc bị trả về người lập.'],
+	kt_tra_truoc_kiem: ['Hoá đơn, kế toán', 'Phiếu trả trước chờ kiểm', 'Có phiếu trả trước nhà cung cấp chờ kế toán kiểm tra.'],
+	kt_diem_het_han: ['Hoá đơn, kế toán', 'Điểm khách hết hạn: máy tự dừng vì chạm trần', '05:00 sáng, số khách tới hạn đốt điểm vượt mức an toàn nên máy chưa đốt.'],
+	kt_hop_dong_dc: ['Hoá đơn, kế toán', 'Hợp đồng vừa điều chỉnh', 'Sales vừa chốt một lần điều chỉnh hợp đồng so với bản gốc.'],
+	bh_don_web_treo: ['Bán hàng, cửa hàng', 'Đơn web treo quá 30 phút chưa vào Pancake', 'Đơn đặt bánh trên web quá 30 phút mà chưa tạo được trên Pancake.'],
+	bh_ton_web_loi: ['Bán hàng, cửa hàng', 'Lỗi kiểm tồn khi khách đặt web', 'Phép kiểm tồn bánh lỗi lúc khách đặt; Sales kiểm lại tồn trước khi xác nhận.'],
+	bh_ahamove_huy: ['Bán hàng, cửa hàng', 'Tài xế Ahamove huỷ hoặc giao thất bại', 'Tài xế huỷ hoặc giao không được, vận đơn về Chờ giao để phân công lại.'],
+	bh_dat_ban: ['Bán hàng, cửa hàng', 'Đặt bàn mới', 'Khách vừa gửi yêu cầu đặt bàn, chờ cửa hàng xác nhận.'],
+	bh_tiec: ['Bán hàng, cửa hàng', 'Đăng ký tiệc mới', 'Khách vừa đăng ký vé tiệc, chờ cửa hàng xác nhận.'],
+	bh_pancake_lech_tong: ['Bán hàng, cửa hàng', 'Đơn web lệch tổng tiền trên Pancake', 'Tổng tiền trên Pancake khác số máy chủ chốt; Sales kiểm trước khi gửi mã QR.'],
+	bh_ahamove_phi: ['Bán hàng, cửa hàng', 'Không lấy được phí giao Ahamove', 'Trang đặt bánh không tính được phí giao vì Ahamove không trả lời.'],
+	bep_ke_hoach_sx: ['Bếp', 'Kế hoạch sản xuất hôm nay (05:00)', '05:00 sáng, kế hoạch sản xuất trong ngày đã sẵn, bếp đọc rồi chốt.'],
+	ht_email_loi: ['Hệ thống', 'Email của tiệm không gửi được', 'Trong một giờ có từ 5 thư lỗi; báo lại sau 3 giờ nếu còn lỗi.'],
+	ht_phat_hanh: ['Hệ thống', 'Bản tin cập nhật app sau mỗi deploy', 'App vừa lên bản mới: thêm gì, bộ phận cần làm gì.'],
+};
 // ====================================================================
 // v568: quy hoạch lại trang Cài đặt Vagabond.
 //
@@ -62,7 +92,7 @@ var VGB_ZALO_NHAN = {
 // (khung/kiem_thu/hanh_vi/cai_dat_568.js). Phần chạm form nằm cuối tệp.
 // ====================================================================
 var VGB_CD = (function () {
-	var ZALO_DANH_MUC = VGB_ZALO_DANH_MUC, ZALO_NHAN = VGB_ZALO_NHAN;
+	var ZALO_DANH_MUC = VGB_ZALO_DANH_MUC, ZALO_NHAN = VGB_ZALO_NHAN, ZALO_TIN = VGB_ZALO_TIN, ZALO_BO_PHAN = VGB_ZALO_BO_PHAN;
 	function boDau(s) {
 		return String(s == null ? '' : s).toLowerCase()
 			.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd');
@@ -197,12 +227,16 @@ var VGB_CD = (function () {
 
 	// Trạng thái: ok xanh, no xám (chưa khai), off vàng (khai rồi nhưng tắt), err đỏ.
 	// v597: THUẦN, bản JS của kenh_zalo.chon_nhom: có nhóm bật, có mã chat, nhận (loại, chủ đề) không.
-	function coNhomZalo(doc, loai, chuDe) {
+	// v604: cùng luật Tin nhận với kenh_zalo.chon_nhom: nhóm đã tích tin thì chỉ nhận
+	// đúng tin đã tích (bỏ qua loại, chủ đề); tin không mã không tới nhóm đó.
+	function coNhomZalo(doc, loai, chuDe, maTin) {
 		var tach = function (s) { return String(s || '').split(/[,;]/).map(function (x) { return x.trim(); }).filter(Boolean); };
-		return (doc.zalo_nhom || []).some(function (r) {
+		return ((doc || {}).zalo_nhom || []).some(function (r) {
 			if (!r || !bat(r.bat) || !co(r.chat_id)) return false;
+			var tn = tach(r.tin_nhan);
+			if (tn.length) return !!maTin && tn.indexOf(maTin) >= 0;
 			var lt = tach(r.loai_tin), cd = tach(r.chu_de);
-			return (!lt.length || lt.indexOf(loai) >= 0) && (!cd.length || cd.indexOf(chuDe) >= 0);
+			return (!lt.length || lt.indexOf(loai) >= 0) && (!cd.length || !chuDe || cd.indexOf(chuDe) >= 0);
 		});
 	}
 
@@ -220,13 +254,20 @@ var VGB_CD = (function () {
 		// Còi báo động: hú trong 24 giờ qua là đỏ, kể cả khi đã khai đủ.
 		var luc = co(doc.email_bao_dong_lan_cuoi) ? Date.parse(String(doc.email_bao_dong_lan_cuoi).replace(' ', 'T')) : NaN;
 		var gio = isNaN(luc) ? null : Math.floor(((bayGio || Date.now()) - luc) / 3600000);
-		// v597: đường báo là thư dự phòng HOẶC một nhóm Zalo nhận Cảnh báo chủ đề Hệ thống.
-		var coDuong = co(doc.email_canh_bao) || coNhomZalo(doc, 'canh_bao', 'he_thong');
-		var thu = { ten: 'Thư cảnh báo', toi: 'email_canh_bao', muc: 'sec_gui_thu', hau: 'Sự cố lớn không có ai được báo.' };
+		// v597: đường báo là một nhóm Zalo nhận Cảnh báo chủ đề Hệ thống.
+		// v604: anh Việt 18/10/2026 bỏ thư dự phòng (ô Email nhận thư cảnh báo không
+		// còn là đường báo); đường duy nhất là nhóm Zalo nhận tin thư hỏng.
+		var coDuong = coNhomZalo(doc, 'canh_bao', 'he_thong', 'ht_email_loi');
+		// Codex #490: máy chủ (kenh_zalo.bao) không gửi gì khi công tắc Zalo Bot tắt, mà
+		// thư dự phòng đã bỏ, nên có nhóm mà bot tắt thì chưa có đường báo thật: vàng.
+		var botBat = bat(doc.zalo_bot_bat);
+		var thu = { ten: 'Thư cảnh báo', toi: 'zalo_bot_bat', muc: 'sec_zalo_bot', hau: 'Email của tiệm hỏng mà không nhóm Zalo nào được báo.' };
 		if (gio !== null && gio >= 0 && gio < 24) {
 			thu.trang = 'err'; thu.ghi = 'hú còi ' + (gio === 0 ? 'chưa tới 1 giờ' : gio + ' giờ') + ' trước';
-		} else if (coDuong) {
+		} else if (coDuong && botBat) {
 			thu.trang = 'ok'; thu.ghi = 'đã khai';
+		} else if (coDuong) {
+			thu.trang = 'off'; thu.ghi = 'đã khai, Zalo Bot đang tắt';
 		} else {
 			thu.trang = 'no'; thu.ghi = 'chưa khai';
 		}
@@ -386,15 +427,35 @@ var VGB_CD = (function () {
 	// cả Desk và app.
 	function tachMa(s) { return String(s || '').split(/[,;]/).map(function (x) { return x.trim(); }).filter(Boolean); }
 	function tenMaZalo(cot, ma) { return ((ZALO_NHAN[cot] || {})[ma] || ['', ma])[1]; }
+	var GHI_CHU_TIN = 'Tích tin nào thì nhóm nhận tin đó. Không tích tin nào thì nhóm nhận theo Loại tin và Chủ đề như cũ.';
+	// v604: tên tin theo mã; mã lạ (đã bỏ khỏi danh mục) hiện câu chung, không lộ mã.
+	function tenTin(ma) { return (ZALO_TIN[ma] || [null, 'Tin không còn trong danh mục'])[1]; }
+	// Danh mục tin gom theo bộ phận, đúng thứ tự BO_PHAN rồi thứ tự trong bảng.
+	function tinTheoBoPhan() {
+		return ZALO_BO_PHAN.map(function (bp) {
+			return { bo_phan: bp, tin: Object.keys(ZALO_TIN).filter(function (m) { return ZALO_TIN[m][0] === bp; })
+				.map(function (m) { return { ma: m, ten: ZALO_TIN[m][1], giai_thich: ZALO_TIN[m][2] }; }) };
+		}).filter(function (x) { return x.tin.length; });
+	}
+	// Tóm tắt Tin nhận cho thẻ nhóm: tối đa 3 tên rồi "và N tin nữa" (điều 17).
+	function tomTatTin(s) {
+		var ds = tachMa(s);
+		if (!ds.length) return '';
+		var ten = ds.slice(0, 3).map(tenTin);
+		return ds.length + ' tin: ' + ten.join(', ') + (ds.length > 3 ? ' và ' + (ds.length - 3) + ' tin nữa' : '');
+	}
 	function theNhomZalo(r) {
 		r = r || {};
 		var lt = tachMa(r.loai_tin).map(function (x) { return tenMaZalo('loai_tin', x); });
 		var cd = tachMa(r.chu_de).map(function (x) { return tenMaZalo('chu_de', x); });
 		var coNhom = co(r.chat_id), bat = parseInt(r.bat, 10) === 1;
+		var tin = tomTatTin(r.tin_nhan);
 		return {
 			ten: co(r.ten_nhom) ? String(r.ten_nhom).trim() : 'Nhóm chưa đặt tên',
-			loai: lt.length ? lt.join(', ') : 'Mọi loại tin',
-			chu_de: cd.length ? cd.join(', ') : 'Mọi chủ đề',
+			// v604: nhóm đã tích Tin nhận thì thẻ nói tin, không nói loại, chủ đề (không dùng nữa).
+			tin: tin,
+			loai: tin ? 'Không dùng, nhóm nhận theo Tin nhận' : (lt.length ? lt.join(', ') : 'Mọi loại tin'),
+			chu_de: tin ? 'Không dùng, nhóm nhận theo Tin nhận' : (cd.length ? cd.join(', ') : 'Mọi chủ đề'),
 			im: co(r.im_tu) && co(r.im_den) ? 'Từ ' + r.im_tu + ' đến ' + r.im_den + ' chỉ gửi Cảnh báo, tin khác gom gửi sau' : 'Không đặt giờ im',
 			trang: !coNhom ? 'no' : (bat ? 'ok' : 'off'),
 			ghi: !coNhom ? 'Chưa chọn nhóm Zalo' : (bat ? 'Đang nhận tin' : 'Đang tắt'),
@@ -432,7 +493,9 @@ var VGB_CD = (function () {
 		tongHop: tongHop, loiTruong: loiTruong, oThieu: oThieu,
 		NHAN_CHON: NHAN_CHON, KET_NOI: KET_NOI, docJson: docJson, nganHangTheoBin: nganHangTheoBin, timNganHang: timNganHang, moToi: moToi, xepTinhTrang: xepTinhTrang, kiemCapNganHang: kiemCapNganHang,
 		ZALO_NHAN: ZALO_NHAN, ZALO_DANH_MUC: ZALO_DANH_MUC, theNhomZalo: theNhomZalo, tachMa: tachMa,
-		maNhomZalo: maNhomZalo, nhanNhomZalo: nhanNhomZalo };
+		maNhomZalo: maNhomZalo, nhanNhomZalo: nhanNhomZalo,
+		ZALO_TIN: ZALO_TIN, ZALO_BO_PHAN: ZALO_BO_PHAN, coNhomZalo: coNhomZalo, tenTin: tenTin, tinTheoBoPhan: tinTheoBoPhan,
+		tomTatTin: tomTatTin, GHI_CHU_TIN: GHI_CHU_TIN };
 })();
 
 if (typeof window !== 'undefined') window.VGB_CD = VGB_CD;
