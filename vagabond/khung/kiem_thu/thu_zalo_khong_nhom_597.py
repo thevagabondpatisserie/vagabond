@@ -105,7 +105,7 @@ def _loi_thuan():
 	dung("không nguồn thì không ghi chữ None", "None" not in t2 + m2)
 
 
-def _chay_coi(ket_zalo, ket_thu, co_log_gan_day=False):
+def _chay_coi(ket_zalo, co_log_gan_day=False):
 	ghi, dau = [], []
 	fr = _fr(ghi)
 	fr.get_all = lambda *a, **k: [{"name": "Q%d" % i, "error": "SMTP 535 auth"} for i in range(6)]
@@ -121,21 +121,25 @@ def _chay_coi(ket_zalo, ket_thu, co_log_gan_day=False):
 		return ket_zalo
 
 	with patch.object(gui_thu, "frappe", fr), patch.object(kenh_zalo, "frappe", fr), \
-			patch.object(kenh_zalo, "bao", bao), \
-			patch.object(gui_thu, "_bao_bang_thu", lambda cau, n: ket_thu):
+			patch.object(kenh_zalo, "bao", bao):
 		gui_thu.canh_bao_email_loi()
 	return goi, dau, [x for x in ghi if x[0] == "log"]
 
 
 @ca("v597 F2 Codex #481: còi thư chỉ đóng dấu đã hú khi có đường nhận; không đường thì ghi Error Log, giãn 3 giờ")
 def _coi():
-	for kz, thu, mong_dau in ((["Z1"], False, 1), ([], True, 1), (None, True, 1), ([], False, 0), (None, False, 0)):
-		goi, dau, log = _chay_coi(kz, thu)
-		la("đã thử Zalo (zalo=%r, thư=%r)" % (kz, thu), len(goi), 1)
-		la("đóng dấu đã hú (zalo=%r, thư=%r)" % (kz, thu), dau.count(gui_thu.TRUONG_LAN_HU), mong_dau)
+	# v604: anh Việt 18/10/2026 bỏ email, báo Zalo. Thư dự phòng đã gỡ nên Zalo là
+	# đường duy nhất: Zalo không ghi được dòng nào thì không đóng dấu, có Error Log.
+	for kz, mong_dau in ((["Z1"], 1), ([], 0), (None, 0)):
+		goi, dau, log = _chay_coi(kz)
+		la("đã thử Zalo (zalo=%r)" % (kz,), len(goi), 1)
+		la("báo đúng tin thư hỏng (zalo=%r)" % (kz,), [k.get("ma_tin") for _, k in goi], ["ht_email_loi"])
+		la("đóng dấu đã hú (zalo=%r)" % (kz,), dau.count(gui_thu.TRUONG_LAN_HU), mong_dau)
 		if not mong_dau:
 			dung("có Error Log hành động được", any("báo động" in (x[1] or "").lower() for x in log))
-	goi, dau, log = _chay_coi([], False, co_log_gan_day=True)
+			dung("Error Log chỉ đúng tin cần tích", any("Email của tiệm không gửi được" in (x[2] or "") for x in log))
+	dung("đã gỡ đường thư dự phòng", not hasattr(gui_thu, "_bao_bang_thu"))
+	goi, dau, log = _chay_coi([], co_log_gan_day=True)
 	la("đã có log trong 3 giờ thì không ghi thêm", [x for x in log if "không có đường" in (x[1] or "")], [])
 	la("vẫn không đóng dấu để nhịp sau thử lại", dau, [])
 

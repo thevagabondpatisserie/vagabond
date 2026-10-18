@@ -148,7 +148,9 @@ def _tep_gui_thu():
 @ca("khuon thu: MOI tep co goi gui thu deu di qua khuon chung")
 def _():
 	ds = _tep_gui_thu()
-	dung("tim thay cac tep gui thu", len(ds) >= 12)
+	# v604: anh Việt 18/10/2026 bỏ thư cảnh báo nội bộ (diem_han, minvoice_chung_tu,
+	# hoan_tien, gui_thu báo động... chuyển sang Zalo) nên số tệp gửi thư giảm.
+	dung("tim thay cac tep gui thu", len(ds) >= 8)
 	for ten in ds:
 		m = _doc("vagabond", ten)
 		qua_khuon = (
@@ -156,7 +158,6 @@ def _():
 			or "_khung_thu(" in m
 			or "thu_moi_html(" in m
 			or "thu_phan_cong_html(" in m
-			or "thu_tai_xe_huy_html(" in m
 			or ten == "thu_khung.py"
 		)
 		dung("%s boc khuon" % ten, qua_khuon)
@@ -196,15 +197,20 @@ def _():
 		i = m.find(ham)
 		than = m[i:m.find("\n\n\n", i)]
 		dung("%s %s gui cho khach" % (ten, ham), 'chan="khach"' in than)
-	# Noi bo
-	for ten, ham in (("hoan_tien.py", "def _bao_ke_toan("), ("gui_thu.py", "def _khung_bao_dong("),
-			("minvoice_chung_tu.py", "def _khung_chuong("), ("diem_han.py", "def _bao_nguoi(")):
+	# Noi bo: v604 anh Việt 18/10/2026 bỏ email, báo Zalo. Bốn thư nội bộ cũ (hoàn
+	# tiền, báo động thư, chuông hoá đơn đầu vào, điểm hết hạn) và ba thư cảnh báo bán
+	# hàng nay đi nhóm Zalo; chốt là chúng KHÔNG quay lại đường thư.
+	for ten, ham in (("hoan_tien.py", "def _bao_ke_toan("), ("minvoice_chung_tu.py", "def canh_bao_tac_nhip("),
+			("diem_han.py", "def _bao_nguoi("), ("gui_thu.py", "def canh_bao_email_loi(")):
 		m = _doc("vagabond", ten)
 		i = m.find(ham)
 		than = m[i:m.find("\n\n\n", i)]
-		dung("%s %s la thu noi bo" % (ten, ham), 'chan="noi_bo"' in than)
+		dung("%s %s khong con gui thu" % (ten, ham), i >= 0 and "sendmail(" not in than)
 	m = _doc("vagabond", "ban_hang.py")
-	dung("ba thu canh bao ban hang la noi bo", m.count('chan="noi_bo"') >= 3)
+	for ham in ("def canh_bao_don_treo(", "def canh_bao_hddt_sot(", "def ra_trung_hang_dem(", "def _bao_hoan_phat_hanh("):
+		i = m.find(ham)
+		than = m[i:m.find("\n\n\n", i)]
+		dung("ban_hang %s khong con gui thu" % ham, i >= 0 and "sendmail(" not in than)
 	# Nhan vien
 	m = _doc("vagabond", "nhan_su.py")
 	dung("thu moi la nhan vien", 'chan="nhan_vien"' in m[m.find("def thu_moi_html("):])
