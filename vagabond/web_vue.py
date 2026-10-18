@@ -96,18 +96,14 @@ def cay_chinh_sach(html):
 # v605 (anh Việt 18/10/2026, SEO trang đặt bánh trên tên miền chính).
 # Trước đây mô tả và ảnh xem trước lấy từ khối Editor đầu tiên có ảnh, mà khối
 # đó là "Mở các kênh đặt hàng" kèm logo Grab: Google và Facebook hiện đúng câu
-# đó và logo Grab. Nay dùng mô tả, ảnh của riêng tiệm; Marketing đổi được bằng
-# hai nhãn Editor "seo_mo_ta" và "seo_anh" (để trống là dùng mặc định).
+# đó và logo Grab. Nay dùng mô tả, ảnh cố định của riêng tiệm. Chưa mở cho Editor
+# sửa (Codex #491: nhãn chưa đăng ký trong noi_dung_web.NHAN thì Editor không lưu
+# được); muốn mở thì đăng ký nhãn và kiểm qua đường lưu thật của Editor.
 SEO_MO_TA = ("The Vagabond Pâtisserie, tiệm bánh ngọt Pháp tại 9 Trần Cao Vân, trung tâm TP.HCM. "
 	"Đặt bánh sinh nhật, entremet và bánh theo mùa online, nhận tại tiệm hoặc giao tận nơi.")
 SEO_ANH = "/assets/vagabond/web_order/og-banh.jpg"
 TEN_TIEM = "The Vagabond Pâtisserie"
 DIEN_THOAI = "+84931224334"
-
-
-def _chu_nhan(nhan, khoa):
-    v = (nhan or {}).get(khoa)
-    return v.strip() if isinstance(v, str) and v.strip() else ''
 
 
 def du_lieu_cau_truc(goc, anh):
@@ -130,12 +126,8 @@ def seo_banh(mien="order.thevagabondpatisserie.com"):
     nd = noi_dung_web.cong_khai()
     nhan = nd.get('nhan') or {}
     goc = 'https://' + mien
-    anh = trang_khach._lien_ket_an_toan(_chu_nhan(nhan, 'seo_anh')) or SEO_ANH
-    if anh.startswith('/'):
-        anh = goc + anh
-    if not anh.startswith('https://'):
-        anh = goc + SEO_ANH
-    return {'description': (_chu_nhan(nhan, 'seo_mo_ta') or SEO_MO_TA)[:300],
+    anh = goc + SEO_ANH
+    return {'description': SEO_MO_TA[:300],
             'image': anh,
             'title': nhan.get('dat_banh_e7c59d5a1') or 'Đặt bánh · The Vagabond Pâtisserie',
             'url': goc + '/banh',
