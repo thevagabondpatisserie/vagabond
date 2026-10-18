@@ -491,14 +491,15 @@ def _cho_rai_ky():
 		[("rai", "2026-10-18", ["Q1"], ["S1"])])
 
 
-def _g_sau_rai(bat_ph=True, bat_ky=True, khoa=True, tao=0):
+def _g_sau_rai(bat_ph=True, bat_ky=True, khoa=True, tao=0, trong_ngay=lambda d: True):
 	su = []
 	f = NS(log_error=lambda *a, **kw: su.append(("log",)), get_traceback=lambda: "")
 	g = dict(frappe=f, cint=lambda x: int(x or 0), _cong_tac_minvoice=lambda: (bat_ph, bat_ky),
+		_con_trong_ngay=trong_ngay, QUA_NUA_DEM="qua %s",
 		_khoa_hddt=lambda cho=5: su.append(("khoa",)) or ("K" if khoa else None),
 		_mo_khoa_dong_bo=lambda k: su.append(("nha", k)),
 		_goi_server_script=lambda ten, ts: su.append(("ph", ts["phieu"])) or {"tao_ok": tao, "loi": []},
-		_ky_theo_lo=lambda ngay: su.append(("ky", ngay)) or {"loi": []})
+		_ky_theo_lo=lambda ngay, **kw: su.append(("ky", ngay)) or {"loi": []})
 	return nap("phat_hanh_sau_rai", g), su
 
 
@@ -698,10 +699,71 @@ def _moc_bao_dong():
 	la("23:50: báo", gui, ["2026-10-18"])
 
 
+@ca("v602 phát hành sau rải (Codex #488 vòng 7 P1): qua nửa đêm giữa vòng thì dừng phát hành và ký")
+def _sau_rai_qua_dem():
+	dem = {"n": 0}
+
+	def trong_ngay(d):
+		dem["n"] += 1
+		return dem["n"] <= 1
+	fn, su = _g_sau_rai(trong_ngay=trong_ngay)
+	fn("2026-10-17", ["Q1", "S1", "S2"], [])
+	la("chỉ phát hành phiếu trước nửa đêm, không ký", [x for x in su if x[0] in ("ph", "ky")], [("ph", "Q1")])
+	dung("ghi dấu lý do dừng", su[-1] == ("log",))
+
+
+def _g_lo(trong):
+	goi = []
+	g = dict(frappe=NS(log_error=lambda *a, **kw: None, get_traceback=lambda: ""), hddt_bu=hddt_bu,
+		MOI_LO_HDDT=20, TOI_DA_LO_HDDT=40, QUA_NUA_DEM="qua %s", _con_trong_ngay=trong,
+		_goi_server_script=lambda ten, ts: goi.append(ten) or {"tim_thay": 20, "tao_ok": 20, "can_ky": 20, "da_ky": 20, "loi": []})
+	return g, goi
+
+
+@ca("v602 phát hành, ký theo lô (Codex #488 vòng 7 P1): kiểm lại ngày trước MỖI lô; đường ngày cũ không bị chặn")
+def _lo_qua_dem():
+	dem = {"n": 0}
+
+	def trong(d):
+		dem["n"] += 1
+		return dem["n"] <= 2
+	g, goi = _g_lo(trong)
+	kq = nap("_phat_hanh_theo_lo", g)("2026-10-17", trong_ngay="2026-10-17")
+	la("dừng sau 2 lô khi qua nửa đêm", len(goi), 2)
+	dung("báo lý do", any("qua 2026-10-17" in x for x in kq.get("loi") or []))
+	dem["n"] = 0
+	g, goi = _g_lo(trong)
+	nap("_ky_theo_lo", g)("2026-10-17", trong_ngay="2026-10-17")
+	la("ký cũng dừng sau 2 lô", len(goi), 2)
+	g, goi = _g_lo(lambda d: False)
+	nap("_phat_hanh_theo_lo", g)("2026-10-15")
+	dung("đường hoá đơn ngày cũ (không truyền trong_ngay) vẫn chạy", len(goi) >= 1)
+
+
+@ca("v602 phát hành cuối ngày (Codex #488 vòng 7 P1): truyền ngày của lô cho lô phát hành, ký; qua nửa đêm bỏ phần tờ chờ xuất")
+def _cuoi_ngay_qua_dem():
+	vet = []
+	g = dict(
+		frappe=NS(set_user=lambda *a: None, log_error=lambda *a, **k: None,
+			db=NS(set_single_value=lambda *a: None, commit=lambda: None)),
+		hddt_cho_xuat=NS(tu_doi_chieu_co=lambda **kw: None,
+			phat_hanh=lambda *a: vet.append("cho_xuat_ph") or {"tim_thay": 0, "tao_ok": 0, "loi": []},
+			ky=lambda *a: vet.append("cho_xuat_ky") or {"can_ky": 0, "da_ky": 0, "loi": []}),
+		_khoa_hddt=lambda **kw: object(), _mo_khoa_dong_bo=lambda *a: None, _cong_tac_minvoice=lambda: (1, 1),
+		_phat_hanh_theo_lo=lambda d, **kw: vet.append(("lo", kw.get("trong_ngay"))) or {"tim_thay": 1, "tao_ok": 1, "loi": []},
+		_ky_theo_lo=lambda d, **kw: vet.append(("ky", kw.get("trong_ngay"))) or {"can_ky": 1, "da_ky": 1, "loi": []},
+		_gop_cho_xuat=lambda a, b: dict(a, loi_cho_xuat=[]), _goi_server_script=None,
+		_con_trong_ngay=lambda d: False,
+		hddt_bu=hddt_bu, now_datetime=lambda: datetime(2026, 10, 18, 0, 1), cint=lambda x: int(x or 0))
+	nap("phat_hanh_cuoi_ngay", g)("2026-10-17", 3, 0)
+	la("lô nhận ngày của lô, phần tờ chờ xuất bỏ khi qua nửa đêm", vet, [("lo", "2026-10-17"), ("ky", "2026-10-17")])
+
+
 @ca("v602 lịch: báo động 23:20, 23:45 và 07:30; chủ đề Hoá đơn có ở máy chủ và màn Cài đặt")
 def _lich():
 	h = (GOC / "hooks.py").read_text()
-	dung("nhịp 5 phút trong giờ 23", '"*/5 23 * * *", []).append("vagabond.ban_hang.bao_dong_ghi_so_toi")' in h)
+	# Codex #488 vòng 7 (P2): giờ chuỗi khai được ngoài giờ 23, nên nhịp chạy cả ngày.
+	dung("nhịp 5 phút cả ngày", '"*/5 * * * *", []).append("vagabond.ban_hang.bao_dong_ghi_so_toi")' in h)
 	dung("07:30 sáng", '"30 7 * * *", []).append("vagabond.ban_hang.bao_dong_ghi_so_sang")' in h)
 	# Đọc hằng số từ mã nguồn, không import (kenh_zalo cần frappe.utils thật).
 	kz = {}
