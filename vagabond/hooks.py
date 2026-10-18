@@ -1055,6 +1055,7 @@ website_route_rules = list(website_route_rules) + [
 # v602: đêm 17/10/2026 chuỗi ghi sổ kẹt từ 23:03, lớp kêu đầu tiên là thư 23:56.
 # Báo Zalo (chủ đề Hoá đơn) 20 và 45 phút sau giờ chuỗi (mặc định 23:20, 23:45)
 # khi còn đơn hôm nay chưa ghi sổ, và 07:30 sáng hôm sau cho đơn của hôm qua.
-# Cron 5 phút trong giờ 23, hàm tự chọn mốc theo giờ chuỗi đã khai.
-scheduler_events.setdefault("cron", {}).setdefault("*/5 23 * * *", []).append("vagabond.ban_hang.bao_dong_ghi_so_toi")
+# Cron 5 phút cả ngày (giờ chuỗi khai được ngoài giờ 23), hàm tự chọn mốc
+# theo giờ chuỗi đã khai và chỉ đọc một ô cài đặt khi chưa tới mốc.
+scheduler_events.setdefault("cron", {}).setdefault("*/5 * * * *", []).append("vagabond.ban_hang.bao_dong_ghi_so_toi")
 scheduler_events.setdefault("cron", {}).setdefault("30 7 * * *", []).append("vagabond.ban_hang.bao_dong_ghi_so_sang")

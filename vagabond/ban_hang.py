@@ -3416,6 +3416,9 @@ def phat_hanh_sau_rai(ngay, xong, con=None):
 			return
 		try:
 			for ten in xong:
+				if not _con_trong_ngay(ngay):
+					loi.append(QUA_NUA_DEM % ngay)
+					break
 				try:
 					r = _goi_server_script(
 						"MInvoice - Phat hanh HD Sales (API)",
@@ -3427,8 +3430,8 @@ def phat_hanh_sau_rai(ngay, xong, con=None):
 				except Exception:
 					frappe.log_error(frappe.get_traceback(), "ban_hang: xuat rai %s" % ten)
 					loi.append("%s: phát hành lỗi, xem Error Log." % ten)
-			if bat_ky:
-				ky = _ky_theo_lo(ngay)
+			if bat_ky and _con_trong_ngay(ngay):
+				ky = _ky_theo_lo(ngay, trong_ngay=ngay)
 				loi += ky.get("loi") or []
 		finally:
 			_mo_khoa_dong_bo(khoa2)
@@ -3482,15 +3485,30 @@ def _cong_tac_minvoice():
 		return 0, 0
 
 
-def _phat_hanh_theo_lo(ngay, moi_lo=MOI_LO_HDDT, toi_da_lo=TOI_DA_LO_HDDT):
+QUA_NUA_DEM = "Đã qua nửa đêm: dừng phát hành, ký tờ của ngày %s; tờ còn lại đi đường hoá đơn ngày cũ."
+
+
+def _con_trong_ngay(ngay):
+	"""Bây giờ vẫn còn là ngày `ngay` không (v602, Codex #488 vòng 7)."""
+	return hddt_bu.con_phat_hanh(True, ngay, nowdate())
+
+
+def _phat_hanh_theo_lo(ngay, moi_lo=MOI_LO_HDDT, toi_da_lo=TOI_DA_LO_HDDT, trong_ngay=None):
 	"""Goi kich ban phat hanh m-invoice theo tung lo nho cho mot ngay.
 
 	Kich ban tu commit cuoi moi lan goi, nen moi lo la mot moc da luu: bi
 	cat giua chung thi mat toi da mot lo chu khong mat ca ngay. Tra ve dict
 	da gop (tim_thay, tao_ok, loi).
+
+	trong_ngay: lượt cuối ngày truyền ngày của lô; trước MỖI lô kiểm lại còn
+	trong ngày đó không, qua nửa đêm thì dừng (Codex #488 vòng 7). Đường hoá
+	đơn ngày cũ gọi không có tham số này vì nó cố ý làm ngày cũ.
 	"""
 	ds = []
 	while True:
+		if trong_ngay and not _con_trong_ngay(trong_ngay):
+			ds.append({"tim_thay": 0, "tao_ok": 0, "loi": [QUA_NUA_DEM % trong_ngay]})
+			break
 		try:
 			r = _goi_server_script(
 				"MInvoice - Phat hanh HD Sales (API)",
@@ -3506,10 +3524,14 @@ def _phat_hanh_theo_lo(ngay, moi_lo=MOI_LO_HDDT, toi_da_lo=TOI_DA_LO_HDDT):
 	return hddt_bu.gom_lo(ds)
 
 
-def _ky_theo_lo(ngay, moi_lo=MOI_LO_HDDT, toi_da_lo=TOI_DA_LO_HDDT):
-	"""Ky hang loat theo lo cho mot ngay (chi to cua dung ngay do)."""
+def _ky_theo_lo(ngay, moi_lo=MOI_LO_HDDT, toi_da_lo=TOI_DA_LO_HDDT, trong_ngay=None):
+	"""Ky hang loat theo lo cho mot ngay (chi to cua dung ngay do).
+	trong_ngay: như _phat_hanh_theo_lo, kiểm lại trước MỖI lô ký."""
 	ds = []
 	while True:
+		if trong_ngay and not _con_trong_ngay(trong_ngay):
+			ds.append({"can_ky": 0, "da_ky": 0, "loi": [QUA_NUA_DEM % trong_ngay]})
+			break
 		try:
 			r = _goi_server_script(
 				"MInvoice - Ky hang loat hoa don",
@@ -3560,18 +3582,21 @@ def phat_hanh_cuoi_ngay(ngay, xong=0, so_loi=0):
 	try:
 		bat_ph, bat_ky = _cong_tac_minvoice()
 		if bat_ph:
-			ph = _phat_hanh_theo_lo(ngay)
+			ph = _phat_hanh_theo_lo(ngay, trong_ngay=ngay)
 			loi += ph.get("loi") or []
 			# #266: tờ ngày cũ đã ghi sổ được kéo ngày lập sang hôm nay
-			# (hddt_cho_xuat) đi cùng lượt, cùng kịch bản, cùng khoá.
-			ph = _gop_cho_xuat(ph, hddt_cho_xuat.phat_hanh(ngay, _goi_server_script))
-			loi += ph.get("loi_cho_xuat") or []
+			# (hddt_cho_xuat) đi cùng lượt, cùng kịch bản, cùng khoá. Qua nửa
+			# đêm thì "hôm nay" của lượt này đã sai, không làm (Codex #488 vòng 7).
+			if _con_trong_ngay(ngay):
+				ph = _gop_cho_xuat(ph, hddt_cho_xuat.phat_hanh(ngay, _goi_server_script))
+				loi += ph.get("loi_cho_xuat") or []
 		else:
 			ph = "bỏ qua (tắt ở m-invoice)"
 		if bat_ky:
-			ky = _ky_theo_lo(ngay)
+			ky = _ky_theo_lo(ngay, trong_ngay=ngay)
 			loi += ky.get("loi") or []
-			ky_them = hddt_cho_xuat.ky(ngay, _goi_server_script)
+			ky_them = (hddt_cho_xuat.ky(ngay, _goi_server_script) if _con_trong_ngay(ngay)
+				else {"can_ky": 0, "da_ky": 0, "loi": []})
 			ky = {"can_ky": ky.get("can_ky", 0) + ky_them["can_ky"], "da_ky": ky.get("da_ky", 0) + ky_them["da_ky"],
 				"loi": (ky.get("loi") or []) + ky_them["loi"]}
 			loi += ky_them["loi"]
@@ -4133,7 +4158,7 @@ def canh_bao_don_treo():
 
 
 def bao_dong_ghi_so_toi():
-	"""Cron 5 phút trong giờ 23 (v602): còn đơn của HÔM NAY chưa ghi sổ thì báo Zalo.
+	"""Cron 5 phút (v602): còn đơn của HÔM NAY chưa ghi sổ thì báo Zalo.
 
 	Đêm 17/10/2026 chuỗi kẹt từ 23:03 mà lớp kêu đầu tiên là thư 23:56, lúc
 	không ai còn mở máy. Báo sớm khi còn nửa tiếng để bấm Chạy ngay. Chỉ báo ở
