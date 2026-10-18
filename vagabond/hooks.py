@@ -1063,3 +1063,9 @@ scheduler_events.setdefault("cron", {}).setdefault("30 7 * * *", []).append("vag
 # 17/10/2026: /banh phát bản Vue khi bật công tắc "Dùng trang đặt bánh bản mới"
 # (Cài đặt > Web & quảng cáo). Tắt là về Web Page "banh" cũ, không cần deploy.
 page_renderer = ["vagabond.trang_banh_vue.TrangBanhVue"]
+
+# v605 (anh Việt 18/10/2026): tên miền chính thevagabondpatisserie.com phát
+# trang đặt bánh, order. và www. chuyển 301 về đó. Chạy ở before_request để
+# không bị bộ đệm trang nuốt mất; chỉ chạy khi công tắc "Dùng tên miền chính"
+# trong Cài đặt bật. Xem vagabond/ten_mien.py mục v605.
+before_request = ["vagabond.ten_mien.truoc_request"]
