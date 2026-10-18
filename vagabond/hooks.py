@@ -1051,3 +1051,9 @@ website_route_rules = list(website_route_rules) + [
     {"from_route": "/web_moi/banh/xong", "to_route": "web_moi/xong"},
 ] + [{"from_route": "/web_moi/" + duong, "to_route": "web_moi/chinh-sach"}
      for duong in ("chinh-sach-bao-mat", "dieu-khoan", "giao-hang-doi-tra")]
+
+# v602: đêm 17/10/2026 chuỗi ghi sổ kẹt từ 23:03, lớp kêu đầu tiên là thư 23:56.
+# Báo Zalo (chủ đề Hoá đơn) lúc 23:20, 23:45 khi còn đơn hôm nay chưa ghi sổ,
+# và 07:30 sáng hôm sau cho đơn của hôm qua. Xem ban_hang.bao_dong_ghi_so.
+scheduler_events.setdefault("cron", {}).setdefault("20,45 23 * * *", []).append("vagabond.ban_hang.bao_dong_ghi_so_toi")
+scheduler_events.setdefault("cron", {}).setdefault("30 7 * * *", []).append("vagabond.ban_hang.bao_dong_ghi_so_sang")

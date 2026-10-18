@@ -228,3 +228,101 @@ def rai_bo_qua(ma_ly_do):
 	SePay, tien ve roi thi qua, chua ve thi bill nam lai cho luot sau.
 	"""
 	return str(ma_ly_do or "") in LY_DO_BO_QUA_RAI
+
+
+# ------------------------------------------------- ghi sổ TỪNG ĐƠN (v602)
+#
+# Đêm 17/10/2026: chuỗi 23h ghi sổ và xuất xong 4 đơn lúc 23:03, rồi đứng yên
+# gần một giờ mà vẫn giữ khoá đơn Sales, tới khi hàng đợi dài cắt ở 3600 giây.
+# 62 đơn Sales đủ điều kiện và 28 bill quầy nằm nháp sang ngày hôm sau. Đây
+# là lần thứ năm chuỗi này hỏng, lần nào cũng chung một gốc: MỘT lượt chạy làm
+# lần lượt mọi đơn dưới MỘT khoá, một đơn kẹt là cả lô kẹt, mà không lớp nào
+# kêu trước 23h55.
+#
+# Từ v602 mọi đường ghi sổ tự động (chuỗi 23h, nhịp vét, xuất rải trong ngày,
+# kéo đơn treo) đều xếp MỖI ĐƠN thành một lượt chạy riêng có trần thời gian
+# riêng. Một đơn kẹt chỉ kẹt chính nó: hàng đợi cắt lượt đó, hệ điều hành
+# nhả khoá tệp, đơn sau chạy tiếp, nhịp vét 5 phút xếp lại đơn còn nháp.
+
+JOB_GHI_SO = "vgb-ghi-so-%s"
+# Trần cho MỘT đơn: chuẩn bị + ghi sổ + gọi m-invoice (30 giây) còn dư nhiều.
+GIAY_MOI_DON = 180
+# Chờ khoá dòng trong cơ sở dữ liệu tối đa chừng này rồi bỏ đơn đó, thay vì
+# 50 giây mặc định nhân với cả trăm đơn.
+GIAY_CHO_KHOA_DONG = 20
+# Đơn Sales đã giao xong chừng này giờ thì xuất rải, không đợi 23h (anh Việt
+# 18/10/2026: "Có thể xuất hoá đơn của sales rải trong ngày như D1 cũng được").
+GIO_CHO_SALES_DA_GIAO = 2
+VAN_DON_DA_GIAO = "Đã giao"
+
+
+def job_ghi_so(ten):
+	"""Mã lượt chạy ghi sổ của MỘT đơn. Cố định theo tên đơn để chống xếp trùng:
+	đơn đang chờ hoặc đang chạy thì nhịp sau không xếp thêm."""
+	return JOB_GHI_SO % str(ten or "").strip()
+
+
+def chon_de_xep(rows, ly_do_cua):
+	"""Tên các đơn được xếp ghi sổ. THUẦN.
+
+	rows: các dòng đơn nháp (dict). ly_do_cua(row) -> mã lý do của
+	ghi_so_dieu_kien. Bỏ những đơn cần NGƯỜI xử (rai_bo_qua): xếp chúng chỉ
+	sinh lỗi lặp mỗi 5 phút. Giữ thứ tự, bỏ trùng."""
+	ra, da = [], set()
+	for r in rows or []:
+		ten = str((r or {}).get("name") or "").strip()
+		if not ten or ten in da:
+			continue
+		if rai_bo_qua(ly_do_cua(r)):
+			continue
+		da.add(ten)
+		ra.append(ten)
+	return ra
+
+
+def con_duoc_ghi_so(si, ngay):
+	"""Đơn này còn nên ghi sổ ở lượt chạy riêng không. THUẦN.
+
+	Lượt chạy có thể tới muộn hơn lúc xếp: người khác đã ghi sổ tay, đã huỷ,
+	đã chuyển thành tạm tính, hay đã kéo sang ngày khác. Khi đó bỏ, im lặng."""
+	si = si or {}
+	if int(si.get("docstatus") or 0) != 0:
+		return False
+	if int(si.get("vgb_huy") or 0) or int(si.get("vgb_tam_tinh") or 0):
+		return False
+	return str(si.get("posting_date") or "")[:10] == str(ngay or "")[:10]
+
+
+def soan_bao_dong(ngay, gio, dem, tien, ten_ly_do):
+	"""Tin cảnh báo còn đơn chưa ghi sổ. THUẦN. Không còn đơn thì trả None.
+
+	dem, tien: mã lý do -> số đơn, số tiền. ten_ly_do: mã -> câu tiếng Việt.
+	Đơn đủ điều kiện mà còn nháp là MÁY chưa làm xong, nói trước; đơn cần
+	người xử nói sau, kèm việc phải làm."""
+	tong = sum(int(v or 0) for v in (dem or {}).values())
+	if not tong:
+		return None
+	tong_tien = sum(float(v or 0) for v in (tien or {}).values())
+	tieu_de = "Ngày %s lúc %s còn %d đơn chưa ghi sổ, %s đ" % (
+		_dmy(ngay), gio, tong, _tien_vn(tong_tien))
+	dong = []
+	san = int((dem or {}).get("san_sang") or 0)
+	if san:
+		dong.append("%d đơn đủ điều kiện mà máy chưa ghi sổ xong (%s đ). Mở Cài đặt, mục Cuối ngày, bấm Chạy ngay; "
+			"vẫn còn thì báo kỹ thuật." % (san, _tien_vn((tien or {}).get("san_sang"))))
+	for ma, so in sorted((dem or {}).items(), key=lambda x: -int(x[1] or 0)):
+		if ma == "san_sang" or not so:
+			continue
+		dong.append("%d đơn: %s (%s đ)" % (int(so), (ten_ly_do or {}).get(ma, ma), _tien_vn((tien or {}).get(ma))))
+	dong.append("Xem từng đơn ở Bán hàng, mục Đơn còn treo.")
+	return tieu_de, dong
+
+
+def _dmy(ngay):
+	s = str(ngay or "")[:10]
+	p = s.split("-")
+	return "%s/%s/%s" % (p[2], p[1], p[0]) if len(p) == 3 else s
+
+
+def _tien_vn(v):
+	return "{:,.0f}".format(float(v or 0)).replace(",", ".")
