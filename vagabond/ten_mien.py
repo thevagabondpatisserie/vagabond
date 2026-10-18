@@ -183,9 +183,10 @@ def ap_luat():
 # đặt ở before_request, chạy trước cả bộ đệm trang.
 #
 # Ba chốt an toàn, giữ nguyên khi sửa:
-# 1. Chỉ chạy khi công tắc "Dùng tên miền chính" trong Cài đặt đang bật. Bật
-#    sau khi DNS và SSL của tên miền chính đã kiểm; tắt là order. hết chuyển
-#    hướng ngay, không cần deploy.
+# 1. order. chỉ chuyển khi công tắc "Dùng tên miền chính" trong Cài đặt bật.
+#    Bật sau khi DNS và SSL của tên miền chính đã kiểm; tắt là order. hết chuyển
+#    hướng ngay, không cần deploy. Tên miền chính và www không theo công tắc
+#    (Codex #491): đường lui của chúng là DNS.
 # 2. Chỉ GET và HEAD. POST (gửi đơn, webhook) đi thẳng, chuyển hướng POST là
 #    mất dữ liệu khách.
 # 3. Không đụng CHUA_RA (/api, /assets, /files...): app và đối tác gọi qua
@@ -214,13 +215,19 @@ def chuyen_ten_mien(host, duong, phuong_thuc="GET", chuoi_hoi="", bat=False):
 	"""THUẦN: (địa chỉ đích, mã) nếu lượt này phải chuyển, None nếu cho đi tiếp.
 
 	host, duong, chuoi_hoi lấy nguyên từ request (chuoi_hoi không có dấu ?).
+
+	Codex #491 (P1): công tắc CHỈ gác order. -> tên miền chính, vì order. luôn
+	trỏ về hệ thống. Tên miền chính và www chỉ tới được đây khi DNS đã trỏ về
+	hệ thống, lúc đó chúng luôn là cửa khách (không bao giờ mở Desk hay app nội
+	bộ, xem ca Web #245), nên luật của chúng không theo công tắc. Muốn trả tên
+	miền chính về web cũ thì sửa DNS, không phải tắt công tắc.
 	"""
-	if not bat:
-		return None
 	if str(phuong_thuc or "").upper() not in ("GET", "HEAD"):
 		return None
 	m = _mien(host)
 	if m not in (MIEN_KHACH, MIEN_CHINH, MIEN_WWW):
+		return None
+	if m == MIEN_KHACH and not bat:
 		return None
 	goc = "/" + str(duong or "").lstrip("/")
 	if any(goc.startswith(x) or goc == x.rstrip("/") for x in KHONG_CHUYEN):
@@ -271,10 +278,12 @@ def truoc_request():
 
 	try:
 		req = getattr(frappe.local, "request", None)
-		if not req or _mien(req.host) not in (MIEN_KHACH, MIEN_CHINH, MIEN_WWW):
+		m = _mien(req.host) if req else ""
+		if m not in (MIEN_KHACH, MIEN_CHINH, MIEN_WWW):
 			return
 		qs = req.query_string.decode("utf-8", "ignore") if isinstance(req.query_string, bytes) else str(req.query_string or "")
-		kq = chuyen_ten_mien(req.host, req.path, req.method, qs, cong_tac_mien_chinh())
+		# Chỉ order. cần công tắc; đọc Cài đặt đúng lúc đó.
+		kq = chuyen_ten_mien(req.host, req.path, req.method, qs, cong_tac_mien_chinh() if m == MIEN_KHACH else 0)
 		if not kq:
 			return
 		dich, ma = kq
