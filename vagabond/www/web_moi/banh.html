@@ -16,9 +16,11 @@
 <meta property="og:type" content="website"><meta property="og:title" content="{{ seo.title | e }}">
 <meta property="og:description" content="{{ seo.description | e }}"><meta property="og:url" content="{{ seo.url | e }}">
 {% if seo.image %}<meta property="og:image" content="{{ seo.image | e }}">{% endif %}
+<link rel="icon" href="/favicon.ico" sizes="any"><link rel="icon" type="image/png" sizes="192x192" href="/assets/vagabond/pwa/icon-192.png"><link rel="apple-touch-icon" href="/assets/vagabond/pwa/icon-180.png">
+{% if cong_khai and seo.ld_json %}<script type="application/ld+json">{{ seo.ld_json }}</script>{% endif %}
 <link rel="stylesheet" href="/assets/vagabond/web_order/khoi.css?v=b91cd8ec17ed">
 <link rel="stylesheet" href="/assets/vagabond/web_order/nen.css?v=35b24d4964ff">
-<link rel="stylesheet" href="/assets/vagabond/web_vue/banh/banh.css?v=90771ba5c749">
+<link rel="stylesheet" href="/assets/vagabond/web_vue/banh/banh.css?v=fe1558554038">
 <link rel="stylesheet" href="/assets/vagabond/web_order/cua-hang.css?v=39d9d61486e9">
 <link rel="stylesheet" href="/assets/vagabond/web_order/kenh-noi.css?v=86dc663f411f">
 <link rel="stylesheet" href="/assets/vagabond/web_order/chuyen-muc.css?v=92ea2d87302d">
