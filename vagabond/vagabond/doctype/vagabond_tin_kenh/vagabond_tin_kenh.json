@@ -17,6 +17,7 @@
   "ma_lo",
   "kiem",
   "nguon",
+  "ma_tin",
   "sec_nd",
   "noi_dung"
  ],
@@ -105,6 +106,13 @@
    "read_only": 1
   },
   {
+   "fieldname": "ma_tin",
+   "fieldtype": "Data",
+   "label": "Mã tin trong danh mục",
+   "description": "Tin nào trong danh mục Tin nhận của nhóm Zalo (v604). Máy tự ghi.",
+   "read_only": 1
+  },
+  {
    "fieldname": "sec_nd",
    "fieldtype": "Section Break"
   },
@@ -117,7 +125,7 @@
  ],
  "in_create": 1,
  "links": [],
- "modified": "2026-10-03 23:00:00.000000",
+ "modified": "2026-10-18 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Tin Kenh",
