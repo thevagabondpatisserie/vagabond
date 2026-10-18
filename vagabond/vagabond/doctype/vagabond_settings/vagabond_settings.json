@@ -937,7 +937,7 @@
   },
   {
    "default": "0",
-   "description": "Bật: khách vào thevagabondpatisserie.com thấy ngay trang đặt bánh; địa chỉ order.thevagabondpatisserie.com, www và mọi đường dẫn web cũ (WordPress) tự chuyển về đó, Google giữ thứ hạng. Chỉ bật khi tên miền chính đã trỏ về hệ thống và có SSL. Tắt: order. hoạt động như trước ngay, không cần deploy.",
+   "description": "Bật: địa chỉ order.thevagabondpatisserie.com tự chuyển về thevagabondpatisserie.com và Google ghi nhận tên miền chính. Chỉ bật khi tên miền chính đã trỏ về hệ thống và có SSL. Tắt: order. hoạt động như trước ngay, không cần deploy. Tên miền chính khi đã trỏ về hệ thống luôn mở trang đặt bánh; muốn trả về web cũ thì sửa DNS.",
    "fieldname": "web_ten_mien_chinh",
    "fieldtype": "Check",
    "label": "Dùng tên miền chính cho web khách"
@@ -1152,7 +1152,7 @@
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-10-18 23:00:00.000000",
+ "modified": "2026-10-18 23:30:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Settings",
