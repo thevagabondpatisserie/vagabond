@@ -18,7 +18,7 @@ if (typeof VGB_CD === 'undefined' || !VGB_CD || !VGB_CD.tongHop) {
 // read_only, không gõ tay được); máy chủ vẫn kiểm lại lúc lưu.
 var VGB_ZALO_DANH_MUC = {
 	loai_tin: ['thong_bao', 'viec', 'canh_bao', 'ban_tin', 'phat_hanh'],
-	chu_de: ['kho', 'san_xuat', 'cong_no', 'ban_hang', 'don_web', 'dat_ban', 'phat_hanh', 'he_thong'],
+	chu_de: ['kho', 'san_xuat', 'cong_no', 'ban_hang', 'hoa_don', 'don_web', 'dat_ban', 'phat_hanh', 'he_thong'],
 };
 // v568: anh Việt 04/10/2026, kèm ảnh hộp Chọn loại tin chỉ có mã ban_tin,
 // canh_bao...: *"không có subtext để biết tin đó là tin gì"*. Mã vẫn là giá trị
@@ -36,7 +36,9 @@ var VGB_ZALO_NHAN = {
 		kho: ['📦', 'Kho', 'Nhập, xuất, điều chuyển, kiểm kê, ngưỡng tồn.'],
 		san_xuat: ['🧑‍🍳', 'Sản xuất', 'Phiếu yêu cầu, lệnh sản xuất, bảng bếp.'],
 		cong_no: ['💳', 'Công nợ', 'Phải thu, phải trả, khoản chờ duyệt chi.'],
-		ban_hang: ['🎂', 'Bán hàng', 'Đơn bán, hoá đơn, chốt ca quầy.'],
+		ban_hang: ['🎂', 'Bán hàng', 'Đơn bán, chốt ca quầy.'],
+		// v602: tách khỏi Bán hàng để chuông kẹt hoá đơn vào đúng nhóm kế toán.
+		hoa_don: ['🧾', 'Hoá đơn', 'Đơn chưa ghi sổ được, hoá đơn điện tử chưa xuất. Nên chọn kèm loại Cảnh báo.'],
 		don_web: ['🌐', 'Đơn web', 'Đơn đặt bánh trên trang web.'],
 		dat_ban: ['🪑', 'Đặt bàn', 'Khách đặt bàn tại cửa hàng.'],
 		phat_hanh: ['🚀', 'Phát hành app', 'Tin bản mới của app.'],

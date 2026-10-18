@@ -206,11 +206,13 @@ def _phat_hanh_cuoi_ngay(ph):
 		frappe=NS(set_user=lambda *a: None, log_error=lambda *a, **k: log.append(k.get("title") or a),
 			db=NS(set_single_value=lambda *a: None, commit=lambda: None)),
 		hddt_cho_xuat=NS(tu_doi_chieu_co=lambda **kw: vet.append(("tu_doi_chieu", kw)),
-			phat_hanh=lambda *a: {"tim_thay": 0, "tao_ok": 0, "loi": []},
-			ky=lambda *a: {"can_ky": 0, "da_ky": 0, "loi": []}),
+			phat_hanh=lambda *a, **kw: {"tim_thay": 0, "tao_ok": 0, "loi": []},
+			ky=lambda *a, **kw: {"can_ky": 0, "da_ky": 0, "loi": []}),
 		_khoa_hddt=lambda **kw: vet.append("khoa") or object(), _mo_khoa_dong_bo=lambda *a: vet.append("nha"),
-		_cong_tac_minvoice=lambda: (1, 1), _phat_hanh_theo_lo=lambda d: dict(ph),
-		_ky_theo_lo=lambda d: {"can_ky": ph["tao_ok"], "da_ky": ph["tao_ok"], "loi": []},
+		_cong_tac_minvoice=lambda: (1, 1), _phat_hanh_theo_lo=lambda d, **kw: dict(ph),
+		_ky_theo_lo=lambda d, **kw: {"can_ky": ph["tao_ok"], "da_ky": ph["tao_ok"], "loi": []},
+		# v602: lượt cuối ngày kiểm lại còn trong ngày trước mỗi bước phát hành, ký.
+		_con_trong_ngay=lambda d: True,
 		_gop_cho_xuat=lambda a, b: dict(a, loi_cho_xuat=[]), _goi_server_script=None,
 		hddt_bu=hddt_bu, now_datetime=lambda: datetime.datetime(2026, 9, 24, 23, 6), cint=lambda x: int(x or 0))
 	_nap("ban_hang.py", "phat_hanh_cuoi_ngay", g)("2026-09-24", 72, 0)

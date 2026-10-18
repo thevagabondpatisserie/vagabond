@@ -50,10 +50,12 @@ LOAI = {
 	"phat_hanh": ("🚀", "Phát hành"),
 }
 # v597: "he_thong" cho còi báo động thư hỏng (thay webhook Lark nhóm quản trị).
-CHU_DE = ("kho", "san_xuat", "cong_no", "ban_hang", "don_web", "dat_ban", "phat_hanh", "he_thong")
+# v602: "hoa_don" tách khỏi "ban_hang" để chuông kẹt ghi sổ, kẹt hoá đơn điện tử
+# vào đúng nhóm kế toán chọn, không đổ hết vào nhóm Sales (anh Việt 18/10/2026).
+CHU_DE = ("kho", "san_xuat", "cong_no", "ban_hang", "hoa_don", "don_web", "dat_ban", "phat_hanh", "he_thong")
 # Tên có dấu của chủ đề, khớp hộp chọn ở Cài đặt lõi (cai_dat_loi_chung.js).
 TEN_CHU_DE = {"kho": "Kho", "san_xuat": "Sản xuất", "cong_no": "Công nợ", "ban_hang": "Bán hàng",
-	"don_web": "Đơn web", "dat_ban": "Đặt bàn", "phat_hanh": "Phát hành app", "he_thong": "Hệ thống"}
+	"hoa_don": "Hoá đơn", "don_web": "Đơn web", "dat_ban": "Đặt bàn", "phat_hanh": "Phát hành app", "he_thong": "Hệ thống"}
 
 # Codex #413 P2: tin "việc cần làm" phải kiểm lại việc còn mở ngay trước khi
 # gửi. Mã kiểm -> hàm(nguon) trả True nếu việc vẫn cần làm. Chỉ tra trong bảng

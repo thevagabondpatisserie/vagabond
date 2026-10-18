@@ -2360,3 +2360,18 @@ vào `MAN_LAP_PHIEU`, ca hành vi gõ, sập nguồn, mở lại từ thẻ; b�
 bỏ mềm. Bài học: thêm màn có nút Lưu tạo chứng từ thì TỰ thêm vào 48 và
 `MAN_LAP_PHIEU`, đừng chờ ca dò tên bắt hộ; thêm nút xoá thì hỏi trước "QT-20
 cho xoá cứng không", gần như luôn là không.
+
+### v602 (sự cố 17/10, Codex #488): một lượt làm cả lô dưới một khoá, và "đã xếp" không phải "đã xong"
+
+Triệu chứng: đêm 17/10/2026 chuỗi 23h ghi sổ xong 4 đơn lúc 23:03 rồi đứng
+tới khi hàng đợi cắt ở 3600 giây, giữ khoá đơn Sales suốt thời gian đó; 62 đơn
+Sales và 28 bill quầy đủ điều kiện nằm nháp sang hôm sau. Đây là lần thứ năm
+chuỗi này hỏng cùng một gốc: MỘT lượt chạy làm lần lượt mọi đơn, một đơn kẹt là
+cả lô kẹt. Khắc phục: mỗi đơn một lượt hàng đợi riêng (trần 180 giây, chờ khoá
+dòng 20 giây, mã lượt cố định chống trùng), báo động Zalo 23:20 nếu còn đơn.
+Bẫy thứ hai, Codex bắt ở vòng 1: xếp lượt nền xong rồi đi thẳng sang phát hành
+và ghi nhật ký "ghi sổ N đơn" theo số đã XẾP. Nay một lượt chờ đợi các lượt
+riêng xong (có trần, dừng trước 23:45), đọc lại docstatus thật rồi mới phát
+hành. Lượt dài đọc lặp trên MariaDB phải commit trước mỗi lần đọc, không thì
+REPEATABLE READ trả mãi ảnh chụp cũ. Bài học: chuyển việc sang lượt nền thì
+mọi bước SAU nó phải đợi hoặc đếm lại từ cơ sở dữ liệu, không dùng số đã xếp.

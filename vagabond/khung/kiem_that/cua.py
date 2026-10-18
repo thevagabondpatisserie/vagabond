@@ -121,3 +121,4 @@ from vagabond.khung.kiem_that import thu_bang_sang_351  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_tra_lai_app_339
 from vagabond.khung.kiem_that import thu_chu_web_367  # noqa: F401,E402
 from vagabond.khung.kiem_that import thu_don_web_367  # noqa: F401,E402
+from vagabond.khung.kiem_that import thu_chuoi_tung_don_602  # noqa: F401,E402

@@ -175,10 +175,13 @@ def _chuoi_hang_doi():
 	than = _than(s, "tu_ghi_so_cuoi_ngay")
 	dung("lượt chính đẩy sang hàng đợi long",
 		'"vagabond.ban_hang.chuoi_cuoi_ngay_nen"' in than and 'queue="long"' in than)
+	# v602 vòng 2: phát hành đi qua lượt chờ các lượt ghi sổ riêng xong.
+	giao = _than(s, "_giao_luot_cho")
 	dung("phát hành cũng đi hàng đợi long khi chưa ở đó",
-		'"vagabond.ban_hang.phat_hanh_cuoi_ngay"' in than)
+		'_giao_luot_cho(ngay, ds, cho_xuat, "cuoi-ngay"' in than
+		and '"vagabond.ban_hang.cho_ghi_so_roi_phat_hanh"' in giao and 'queue="long"' in giao)
 	dung("đang ở hàng đợi dài thì gọi thẳng, không xếp thêm",
-		"if tren_hang_doi:" in than and "phat_hanh_cuoi_ngay(str(ngay), xong, len(loi))" in than)
+		"if tren_hang_doi:" in than and "cho_ghi_so_roi_phat_hanh(str(ngay), ds, cho_xuat=cho_xuat)" in than)
 	dung("một giờ, không phải 300 giây", "timeout=3600" in than)
 	dung("chống đẩy trùng theo ngày", "deduplicate=True" in than and '"vgb-chuoi-cuoi-ngay-%s" % ngay' in than)
 	dung("không còn gọi phát hành thẳng trong luồng 300 giây",
@@ -219,13 +222,13 @@ def _rai_bo_qua():
 def _rai_ma_nguon():
 	s = _py("ban_hang.py")
 	than = _than(s, "xuat_rai_trong_ngay")
-	dung("cùng hàm ghi sổ của chuỗi", "_ghi_so_mot_don(si, None, cho_xuat=cho_xuat)" in than)
-	dung("cùng kịch bản m-invoice, từng phiếu", '"phieu": ten' in than)
-	dung("hai khoá", "_khoa_dong_bo(" in than and "_khoa_hddt(" in than)
+	# v602: cùng đường với chuỗi nghĩa là cùng _xep_ghi_so (mỗi bill một lượt
+	# riêng, khoá đơn Sales lấy trong lượt riêng). Hook sau ghi sổ tự đẩy hoá
+	# đơn điện tử; ca hành vi ở thu_chuoi_tung_don_602.
+	dung("cùng đường xếp từng đơn của chuỗi", "_xep_ghi_so(" in than and "_ghi_so_mot_don(" not in than)
 	dung("lọc theo lần sửa cuối", '"modified": ["<=", moc]' in than)
 	dung("chỉ điểm đang bật tự ghi sổ", "_quay_tu_ghi_so()" in than)
-	dung("bỏ qua theo phép thuần", "hddt_bu.rai_bo_qua(" in than)
-	dung("chưa đủ tiền thì im", '"chưa đủ tiền" not in e' in than)
+	dung("bỏ qua theo phép thuần", "hddt_bu.chon_de_xep(" in than and "_ly_do_xep(" in than)
 	h = _py("hooks.py")
 	# v527: nhịp 30 phút khai vào vỏ đẩy hàng đợi dài, thân vẫn là
 	# xuat_rai_trong_ngay (ca "v527 vỏ hàng đợi dài" chạy thật vỏ đó).

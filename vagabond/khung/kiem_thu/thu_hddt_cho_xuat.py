@@ -839,8 +839,9 @@ def _noi_vao_chuoi():
 	s = _doc("vagabond", "ban_hang.py")
 	i = s.find("def phat_hanh_cuoi_ngay(")
 	than = s[i:s.find("\ndef ", i + 10)]
-	dung("chuỗi cuối ngày phát hành tờ chờ xuất", "hddt_cho_xuat.phat_hanh(ngay, _goi_server_script)" in than)
-	dung("chuỗi cuối ngày ký tờ chờ xuất", "hddt_cho_xuat.ky(ngay, _goi_server_script)" in than)
+	# v602: thêm trong_ngay để dừng từng tờ khi qua nửa đêm (Codex #488 vòng 8).
+	dung("chuỗi cuối ngày phát hành tờ chờ xuất", "hddt_cho_xuat.phat_hanh(ngay, _goi_server_script, trong_ngay=ngay)" in than)
+	dung("chuỗi cuối ngày ký tờ chờ xuất", "hddt_cho_xuat.ky(ngay, _goi_server_script, trong_ngay=ngay)" in than)
 	i = s.find("def xuat_hddt_con_thieu_tu_dong(")
 	than = s[i:s.find("\ndef ", i + 10)]
 	dung("nhịp bù đọc cả ngày hẹn lỗi qua nửa đêm",

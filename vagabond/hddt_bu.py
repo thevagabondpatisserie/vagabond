@@ -228,3 +228,199 @@ def rai_bo_qua(ma_ly_do):
 	SePay, tien ve roi thi qua, chua ve thi bill nam lai cho luot sau.
 	"""
 	return str(ma_ly_do or "") in LY_DO_BO_QUA_RAI
+
+
+# ------------------------------------------------- ghi sổ TỪNG ĐƠN (v602)
+#
+# Đêm 17/10/2026: chuỗi 23h ghi sổ và xuất xong 4 đơn lúc 23:03, rồi đứng yên
+# gần một giờ mà vẫn giữ khoá đơn Sales, tới khi hàng đợi dài cắt ở 3600 giây.
+# 62 đơn Sales đủ điều kiện và 28 bill quầy nằm nháp sang ngày hôm sau. Đây
+# là lần thứ năm chuỗi này hỏng, lần nào cũng chung một gốc: MỘT lượt chạy làm
+# lần lượt mọi đơn dưới MỘT khoá, một đơn kẹt là cả lô kẹt, mà không lớp nào
+# kêu trước 23h55.
+#
+# Từ v602 mọi đường ghi sổ tự động (chuỗi 23h, nhịp vét, xuất rải trong ngày,
+# kéo đơn treo) đều xếp MỖI ĐƠN thành một lượt chạy riêng có trần thời gian
+# riêng. Một đơn kẹt chỉ kẹt chính nó: hàng đợi cắt lượt đó, hệ điều hành
+# nhả khoá tệp, đơn sau chạy tiếp, nhịp vét 5 phút xếp lại đơn còn nháp.
+
+JOB_GHI_SO = "vgb-ghi-so-%s"
+# Trần cho MỘT đơn: chuẩn bị + ghi sổ + gọi m-invoice (30 giây) còn dư nhiều.
+GIAY_MOI_DON = 180
+# Chờ khoá dòng trong cơ sở dữ liệu tối đa chừng này rồi bỏ đơn đó, thay vì
+# 50 giây mặc định nhân với cả trăm đơn.
+GIAY_CHO_KHOA_DONG = 20
+# Đơn Sales đã giao xong chừng này giờ thì xuất rải, không đợi 23h (anh Việt
+# 18/10/2026: "Có thể xuất hoá đơn của sales rải trong ngày như D1 cũng được").
+GIO_CHO_SALES_DA_GIAO = 2
+VAN_DON_DA_GIAO = "Đã giao"
+# Lượt chờ trước khi phát hành (Codex #488 vòng 2): đợi các lượt ghi sổ riêng
+# xong tối đa chừng này giây, nghỉ GIAY_NGHI_CHO giữa hai lần đếm, và luôn
+# dừng chờ trước MOC_CUOI_CHO để còn giờ phát hành, ký trước nửa đêm.
+GIAY_CHO_LO = 1500
+GIAY_NGHI_CHO = 15
+MOC_CUOI_CHO = 23 * 3600 + 45 * 60
+# Lượt bắt đầu muộn (bấm Chạy ngay sau tin báo 23:45, hay giờ chuỗi đặt muộn)
+# vẫn chờ tối thiểu GIAY_CHO_TRE, nhưng không vượt MOC_NUA_DEM: phải còn giờ
+# ký trước 0h (Codex #488 vòng 4).
+GIAY_CHO_TRE = 300
+MOC_NUA_DEM = 23 * 3600 + 58 * 60
+
+
+def job_ghi_so(ten):
+	"""Mã lượt chạy ghi sổ của MỘT đơn. Cố định theo tên đơn để chống xếp trùng:
+	đơn đang chờ hoặc đang chạy thì nhịp sau không xếp thêm."""
+	return JOB_GHI_SO % str(ten or "").strip()
+
+
+def chon_de_xep(rows, ly_do_cua):
+	"""Tên các đơn được xếp ghi sổ. THUẦN.
+
+	rows: các dòng đơn nháp (dict). ly_do_cua(row) -> mã lý do của
+	ghi_so_dieu_kien. Bỏ những đơn cần NGƯỜI xử (rai_bo_qua): xếp chúng chỉ
+	sinh lỗi lặp mỗi 5 phút. Giữ thứ tự, bỏ trùng."""
+	ra, da = [], set()
+	for r in rows or []:
+		ten = str((r or {}).get("name") or "").strip()
+		if not ten or ten in da:
+			continue
+		ma = ly_do_cua(r)
+		# Tạm tính: khách chưa trả, không bao giờ ghi sổ được; xếp vào chỉ sinh
+		# lượt bị từ chối lặp mỗi 5 phút (Codex #488 vòng 3).
+		if rai_bo_qua(ma) or ma == "tam_tinh":
+			continue
+		da.add(ten)
+		ra.append(ten)
+	return ra
+
+
+def con_duoc_ghi_so(si, ngay):
+	"""Đơn này còn nên ghi sổ ở lượt chạy riêng không. THUẦN.
+
+	Lượt chạy có thể tới muộn hơn lúc xếp: người khác đã ghi sổ tay, đã huỷ,
+	đã chuyển thành tạm tính, hay đã kéo sang ngày khác. Khi đó bỏ, im lặng."""
+	si = si or {}
+	if int(si.get("docstatus") or 0) != 0:
+		return False
+	if int(si.get("vgb_huy") or 0) or int(si.get("vgb_tam_tinh") or 0):
+		return False
+	return str(si.get("posting_date") or "")[:10] == str(ngay or "")[:10]
+
+
+def soan_bao_dong(ngay, gio, dem, tien, ten_ly_do):
+	"""Tin cảnh báo còn đơn chưa ghi sổ. THUẦN. Không còn đơn thì trả None.
+
+	dem, tien: mã lý do -> số đơn, số tiền. ten_ly_do: mã -> câu tiếng Việt.
+	Đơn đủ điều kiện mà còn nháp là MÁY chưa làm xong, nói trước; đơn cần
+	người xử nói sau, kèm việc phải làm."""
+	tong = sum(int(v or 0) for v in (dem or {}).values())
+	if not tong:
+		return None
+	tong_tien = sum(float(v or 0) for v in (tien or {}).values())
+	tieu_de = "Ngày %s lúc %s còn %d đơn chưa ghi sổ, %s đ" % (
+		_dmy(ngay), gio, tong, _tien_vn(tong_tien))
+	dong = []
+	san = int((dem or {}).get("san_sang") or 0)
+	if san:
+		dong.append("%d đơn đủ điều kiện mà máy chưa ghi sổ xong (%s đ). Mở Cài đặt, mục Cuối ngày, bấm Chạy ngay; "
+			"vẫn còn thì báo kỹ thuật." % (san, _tien_vn((tien or {}).get("san_sang"))))
+	for ma, so in sorted((dem or {}).items(), key=lambda x: -int(x[1] or 0)):
+		if ma == "san_sang" or not so:
+			continue
+		dong.append("%d đơn: %s (%s đ)" % (int(so), (ten_ly_do or {}).get(ma, ma), _tien_vn((tien or {}).get(ma))))
+	dong.append("Xem từng đơn ở Bán hàng, mục Đơn còn treo.")
+	return tieu_de, dong
+
+
+def _dmy(ngay):
+	s = str(ngay or "")[:10]
+	p = s.split("-")
+	return "%s/%s/%s" % (p[2], p[1], p[0]) if len(p) == 3 else s
+
+
+def _tien_vn(v):
+	return "{:,.0f}".format(float(v or 0)).replace(",", ".")
+
+
+def con_phat_hanh(cho_xuat, ngay, hom_nay):
+	"""Lô của ngày `ngay` còn được phát hành ngay lúc này không. THUẦN.
+
+	Quyền phát hành tính lúc xếp có thể đã cũ khi lượt riêng hay lượt chờ chạy
+	thật: hàng đợi tồn, lô xếp sát nửa đêm. Qua ngày thì KHÔNG phát hành tờ
+	của hôm trước ở đây; ghi sổ vẫn làm, tờ đó đi đường hoá đơn ngày cũ của
+	hôm sau như mọi tờ hoãn (Codex #488 vòng 6)."""
+	return bool(cho_xuat) and str(ngay or "")[:10] == str(hom_nay or "")[:10]
+
+
+def moc_bao_dong(gio_chuoi):
+	"""Các mốc HH:MM báo động còn đơn chưa ghi sổ, theo giờ chuỗi đã khai. THUẦN.
+
+	20 và 45 phút sau giờ chuỗi, làm tròn lên bội 5 phút, không quá 23:55. Giờ
+	chuỗi 23:00 cho 23:20, 23:45 như trước; khai 23:30 thì 23:50, 23:55, không
+	báo trước khi chuỗi kịp chạy (Codex #488 vòng 6)."""
+	try:
+		h, m = [int(x) for x in str(gio_chuoi or "23:00").split(":")[:2]]
+	except Exception:
+		h, m = 23, 0
+	goc = h * 60 + m
+	ra = []
+	for tre in (20, 45):
+		t = min(goc + tre, 23 * 60 + 55)
+		t = min(((t + 4) // 5) * 5, 23 * 60 + 55)
+		hhmm = "%02d:%02d" % (t // 60, t % 60)
+		if hhmm not in ra:
+			ra.append(hhmm)
+	return ra
+
+
+def den_luc_bao_dong(hhmm, gio_chuoi):
+	"""Nhịp 5 phút lúc hhmm có phải mốc báo động không. THUẦN."""
+	try:
+		h, m = [int(x) for x in str(hhmm).split(":")[:2]]
+	except Exception:
+		return False
+	t = h * 60 + (m // 5) * 5
+	return "%02d:%02d" % (t // 60, t % 60) in moc_bao_dong(gio_chuoi)
+
+
+def giay_cho_toi_da(giay_trong_ngay, cung_ngay=True):
+	"""Số giây tối đa lượt chờ được đợi, tính từ lúc bắt đầu. THUẦN.
+
+	Không quá GIAY_CHO_LO và thường dừng ở MOC_CUOI_CHO để còn giờ phát hành,
+	ký. Lượt bắt đầu sát hoặc quá mốc đó vẫn chờ GIAY_CHO_TRE (Codex #488
+	vòng 4: trước đây trả 0, lượt 23:45 phát hành, ký khi các lượt riêng vừa
+	xếp chưa chạy), chỉ không vượt MOC_NUA_DEM. Trả 0 là đã hết giờ trong ngày."""
+	if not cung_ngay:
+		# Lô của ngày đã qua: giờ trong ngày đã quay về 00:xx, đừng mở lại cửa.
+		return 0
+	giay = int(giay_trong_ngay or 0)
+	han = max(MOC_CUOI_CHO - giay, min(GIAY_CHO_TRE, MOC_NUA_DEM - giay))
+	return max(0, min(GIAY_CHO_LO, han))
+
+
+def con_cho(ds, trang_thai, dang_chay, chi_chac=False):
+	"""Các đơn của lô còn phải chờ. THUẦN.
+
+	trang_thai: tên -> docstatus đọc lại từ cơ sở dữ liệu (thiếu tên là đơn đã
+	bị xoá, không chờ). dang_chay(tên) -> True, False, hoặc None khi không
+	hỏi được hàng đợi. Còn chờ khi đơn còn nháp và lượt của nó chưa chắc đã
+	xong (True hoặc None). Lượt đã xong mà đơn còn nháp là lượt đó bỏ hay lỗi,
+	chờ thêm vô ích. chi_chac=True chỉ lấy đơn hàng đợi XÁC NHẬN còn chạy
+	(dùng để giao lượt tiếp, không giao theo phỏng đoán khi hàng đợi hỏng)."""
+	ra = []
+	for ten in ds or []:
+		if ten not in (trang_thai or {}) or int(trang_thai[ten] or 0) != 0:
+			continue
+		chay = dang_chay(ten)
+		if chay is False or (chi_chac and chay is not True):
+			continue
+		ra.append(ten)
+	return ra
+
+
+def ket_qua_lo(ds, trang_thai):
+	"""(số đơn ĐÃ ghi sổ, danh sách đơn còn nháp) của lô sau khi chờ. THUẦN.
+	Đếm theo cơ sở dữ liệu, không theo số đã xếp."""
+	da = sum(1 for t in ds or [] if int((trang_thai or {}).get(t, -1)) == 1)
+	con = [t for t in ds or [] if int((trang_thai or {}).get(t, -1)) == 0]
+	return da, con
