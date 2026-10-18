@@ -49,7 +49,7 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_trang_dat_banh,
 	thu_don_web_367,
 	thu_ton_don_web_593, thu_giu_ton_web_476,
-	thu_nhan_web_532, thu_chu_web_367, thu_web_vue, thu_web_597, thu_zalo_khong_nhom_597, thu_the_pancake_598, thu_nut_web_598, thu_bien_nhan_vue_484,
+	thu_nhan_web_532, thu_chu_web_367, thu_web_vue, thu_web_597, thu_zalo_khong_nhom_597, thu_the_pancake_598, thu_nut_web_598, thu_bien_nhan_vue_484, thu_trao_vue_601, thu_trao_vue_603,
 	thu_trang_www_532b,
 	thu_buoc_hoa_don_mua,
 	thu_nghiep_vu_tien,
