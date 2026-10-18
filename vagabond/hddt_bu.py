@@ -279,7 +279,10 @@ def chon_de_xep(rows, ly_do_cua):
 		ten = str((r or {}).get("name") or "").strip()
 		if not ten or ten in da:
 			continue
-		if rai_bo_qua(ly_do_cua(r)):
+		ma = ly_do_cua(r)
+		# Tạm tính: khách chưa trả, không bao giờ ghi sổ được; xếp vào chỉ sinh
+		# lượt bị từ chối lặp mỗi 5 phút (Codex #488 vòng 3).
+		if rai_bo_qua(ma) or ma == "tam_tinh":
 			continue
 		da.add(ten)
 		ra.append(ten)

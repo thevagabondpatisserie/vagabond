@@ -2884,7 +2884,10 @@ def _ly_do_xep(r, khach_le=""):
 	ma = ghi_so_dieu_kien.ly_do(r, khach_le=khach_le)
 	if (r.get("vgb_quay") or "").strip():
 		return ma
-	return ma if ma in ("tang_cho_duyet", "tang_tu_choi") else ""
+	# Codex #488 vòng 3: giữ cả tam_tinh. Đơn Sales tạm tính mà lọt vào hàng
+	# đợi thì lượt riêng từ chối, lượt chờ đếm là "cần xem lại", nhịp vét xếp
+	# lại mỗi 5 phút; vòng cũ bỏ thẳng đơn tạm tính.
+	return ma if ma in ("tang_cho_duyet", "tang_tu_choi", "tam_tinh") else ""
 
 
 def _xep_ghi_so(ds, ngay, cho_xuat=True, nguon=""):
@@ -2955,7 +2958,7 @@ def _con_nhap(ngay, quay_bat):
 		"customer", "vgb_tang_duyet", "custom_nguon", "vgb_quay", "grand_total", "custom_pancake_display_id"]
 	ds = frappe.db.get_all("Sales Invoice", filters={
 		"posting_date": ngay, "custom_pancake_id": ["!=", ""], "docstatus": 0,
-		"vgb_quay": ["in", ["", None]], "vgb_huy": 0}, fields=truong, order_by="creation asc",
+		"vgb_quay": ["in", ["", None]], "vgb_tam_tinh": 0, "vgb_huy": 0}, fields=truong, order_by="creation asc",
 		limit_page_length=0)
 	if quay_bat:
 		ds += frappe.db.get_all("Sales Invoice", filters={
@@ -3344,7 +3347,58 @@ def cho_ghi_so_roi_phat_hanh(ngay, ds, cho_xuat=True, so_loi=0, noi_goi="cuoi-ng
 	if not cho_xuat:
 		_bao_hoan_phat_hanh(ngay, da_ghi, con, noi_goi)
 		return
+	if noi_goi == "xuat-rai":
+		phat_hanh_sau_rai(str(ngay), [t for t in ds if cint(tt.get(t)) == 1], con)
+		return
 	phat_hanh_cuoi_ngay(str(ngay), da_ghi, cint(so_loi) + len(con))
+
+
+def phat_hanh_sau_rai(ngay, xong, con=None):
+	"""Sau khi các lượt ghi sổ riêng của một nhịp xuất rải đã xong (v602).
+
+	Giữ đúng phần đuôi của xuất rải trước v602: phát hành bù từng phiếu đã ghi
+	sổ qua kịch bản m-invoice (phiếu đã có hoá đơn thì kịch bản bỏ qua), rồi
+	KÝ theo lô của ngày. Hook sau ghi sổ chỉ tạo tờ Chờ ký, mà nhịp bù mỗi giờ
+	bỏ qua hôm nay tới khi chuỗi 23h đặt cờ ngày; không ký ở đây thì tờ xuất
+	rải trong ngày nằm Chờ ký tới tối (Codex #488 vòng 3).
+
+	Ký khi có phiếu đã ghi sổ, không đợi kịch bản báo tạo mới: phiếu thường đã
+	được hook phát hành trước, kịch bản báo 0 tờ mới nhưng tờ vẫn chờ ký."""
+	loi = []
+	if not xong:
+		if con:
+			frappe.log_error("Còn nháp sau lượt chờ: %s" % ", ".join(con)[:4000], "Vagabond: xuất rải %s" % ngay)
+		return
+	bat_ph, bat_ky = _cong_tac_minvoice()
+	tao = 0
+	if bat_ph:
+		khoa2 = _khoa_hddt(cho=5)
+		if khoa2 is None:
+			return
+		try:
+			for ten in xong:
+				try:
+					r = _goi_server_script(
+						"MInvoice - Phat hanh HD Sales (API)",
+						{"che_do": "day", "ngay": ngay, "so_luong": 0, "phieu": ten, "khong_commit": 0},
+					)
+					tao += cint((r or {}).get("tao_ok"))
+					for x in (r or {}).get("loi") or []:
+						loi.append(str(x))
+				except Exception:
+					frappe.log_error(frappe.get_traceback(), "ban_hang: xuat rai %s" % ten)
+					loi.append("%s: phát hành lỗi, xem Error Log." % ten)
+			if bat_ky:
+				ky = _ky_theo_lo(ngay)
+				loi += ky.get("loi") or []
+		finally:
+			_mo_khoa_dong_bo(khoa2)
+	if loi or con:
+		frappe.log_error(
+			"Ghi sổ %d, phát hành %d, còn nháp %d.\n%s" % (len(xong), tao, len(con or []),
+				"\n".join(str(x) for x in loi + ["còn nháp: " + ", ".join(con or [])])[:4000]),
+			"Vagabond: xuất rải %s" % ngay,
+		)
 
 
 # ---------------------------------------------------- phat hanh va ky theo lo
@@ -3720,12 +3774,12 @@ def xuat_rai_trong_ngay():
 		if not chon:
 			return
 		_xep_ghi_so(chon, ngay, cho_xuat=cho_xuat, nguon="xuat-rai")
-		if not cho_xuat:
-			# Codex #488 vòng 2: số đã XẾP không phải số đã ghi sổ. Báo hoãn
-			# qua cùng lượt chờ của chuỗi 23h, đếm lại từ sổ sau khi các lượt
-			# riêng xong. Mã lượt theo phút: mỗi nhịp xuất rải một lượt chờ.
-			_giao_luot_cho(ngay, chon, False, "xuat-rai",
-				"vgb-cho-hoan-xuat-rai-%s" % now_datetime().strftime("%Y%m%d%H%M"))
+		# Codex #488 vòng 2 và 3: số đã XẾP không phải số đã ghi sổ, và sau khi
+		# các lượt riêng xong vẫn phải phát hành bù rồi KÝ như vòng cũ (hook sau
+		# ghi sổ chỉ tạo tờ Chờ ký). Cả hai việc đi qua lượt chờ, đếm lại từ sổ.
+		# Mã lượt theo phút: mỗi nhịp xuất rải một lượt chờ.
+		_giao_luot_cho(ngay, chon, cho_xuat, "xuat-rai",
+			"vgb-cho-xuat-rai-%s" % now_datetime().strftime("%Y%m%d%H%M"))
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "ban_hang: xuat rai trong ngay")
 
@@ -3925,7 +3979,7 @@ def keo_va_ghi_so(ds=None, so_ngay=14, chay_thu=1):
 		nhan_don = r.custom_pancake_display_id or r.name
 		try:
 			si = frappe.get_doc("Sales Invoice", r.name)
-			if si.docstatus != 0 or cint(si.get("vgb_huy")) or si.get("custom_hddt_so"):
+			if si.docstatus != 0 or cint(si.get("vgb_huy")) or cint(si.get("vgb_tam_tinh")) or si.get("custom_hddt_so"):
 				continue
 			if str(si.posting_date) != moi:
 				_doi_ngay_ban_nhap(si, moi, "kéo hoá đơn treo hàng loạt", "hàng loạt")
