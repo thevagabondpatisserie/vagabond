@@ -747,8 +747,8 @@ def _cuoi_ngay_qua_dem():
 		frappe=NS(set_user=lambda *a: None, log_error=lambda *a, **k: None,
 			db=NS(set_single_value=lambda *a: None, commit=lambda: None)),
 		hddt_cho_xuat=NS(tu_doi_chieu_co=lambda **kw: None,
-			phat_hanh=lambda *a: vet.append("cho_xuat_ph") or {"tim_thay": 0, "tao_ok": 0, "loi": []},
-			ky=lambda *a: vet.append("cho_xuat_ky") or {"can_ky": 0, "da_ky": 0, "loi": []}),
+			phat_hanh=lambda *a, **kw: vet.append(("cho_xuat_ph", kw.get("trong_ngay"))) or {"tim_thay": 0, "tao_ok": 0, "loi": []},
+			ky=lambda *a, **kw: vet.append(("cho_xuat_ky", kw.get("trong_ngay"))) or {"can_ky": 0, "da_ky": 0, "loi": []}),
 		_khoa_hddt=lambda **kw: object(), _mo_khoa_dong_bo=lambda *a: None, _cong_tac_minvoice=lambda: (1, 1),
 		_phat_hanh_theo_lo=lambda d, **kw: vet.append(("lo", kw.get("trong_ngay"))) or {"tim_thay": 1, "tao_ok": 1, "loi": []},
 		_ky_theo_lo=lambda d, **kw: vet.append(("ky", kw.get("trong_ngay"))) or {"can_ky": 1, "da_ky": 1, "loi": []},
@@ -757,6 +757,55 @@ def _cuoi_ngay_qua_dem():
 		hddt_bu=hddt_bu, now_datetime=lambda: datetime(2026, 10, 18, 0, 1), cint=lambda x: int(x or 0))
 	nap("phat_hanh_cuoi_ngay", g)("2026-10-17", 3, 0)
 	la("lô nhận ngày của lô, phần tờ chờ xuất bỏ khi qua nửa đêm", vet, [("lo", "2026-10-17"), ("ky", "2026-10-17")])
+	# Codex #488 vòng 8: còn trong ngày thì tờ chờ xuất cũng nhận ngày để tự
+	# kiểm lại trước MỖI tờ.
+	vet.clear()
+	g["_con_trong_ngay"] = lambda d: True
+	g["now_datetime"] = lambda: datetime(2026, 10, 17, 23, 30)
+	nap("phat_hanh_cuoi_ngay", g)("2026-10-17", 3, 0)
+	la("tờ chờ xuất nhận ngày của lô", [x for x in vet if x[0].startswith("cho_xuat")],
+		[("cho_xuat_ph", "2026-10-17"), ("cho_xuat_ky", "2026-10-17")])
+
+
+def _nap_cx(ten, g):
+	"""Nạp một hàm từ hddt_cho_xuat.py vào không gian tên giả."""
+	src = GOC / "hddt_cho_xuat.py"
+	fn = next(n for n in ast.parse(src.read_text()).body if isinstance(n, ast.FunctionDef) and n.name == ten)
+	exec(compile(ast.Module(body=[fn], type_ignores=[]), str(src), "exec"), g)
+	return g[ten]
+
+
+@ca("v602 tờ chờ xuất (Codex #488 vòng 8 P1): kiểm lại ngày trước MỖI tờ khi phát hành, ký; đường thử lại hẹn hôm qua không bị chặn")
+def _cho_xuat_tung_to():
+	ngay = {"v": "2026-10-17"}
+	goi = []
+
+	def kb(ten, ts):
+		goi.append(ts["phieu"])
+		ngay["v"] = "2026-10-18"  # tờ đầu xong thì qua nửa đêm
+		return {"tim_thay": 1, "tao_ok": 1, "da_ky": 1, "loi": []}
+	g = dict(nowdate=lambda: ngay["v"], QUA_NUA_DEM="qua %s", frappe=NS(log_error=lambda *a, **kw: None,
+		get_traceback=lambda: "", db=NS(get_all=lambda *a, **kw: ["T1", "T2", "T3"])),
+		ds_cho_xuat=lambda d: [D(name="T1"), D(name="T2"), D(name="T3")], cint=lambda x: int(x or 0),
+		getdate=lambda x: x, TRUONG_NGAY_XUAT="vgb_hddt_ngay_xuat",
+		gom_ket_qua=lambda ds: {"tim_thay": sum(int(x.get("tim_thay") or 0) for x in ds),
+			"tao_ok": sum(int(x.get("tao_ok") or 0) for x in ds), "loi": sum((x.get("loi") or [] for x in ds), [])})
+	_nap_cx("_qua_ngay", g)
+	kq = _nap_cx("phat_hanh", g)("2026-10-17", kb, trong_ngay="2026-10-17")
+	la("phát hành dừng sau tờ đầu", goi, ["T1"])
+	dung("báo lý do", "qua 2026-10-17" in kq["loi"])
+	goi.clear()
+	ngay["v"] = "2026-10-17"
+	kq = _nap_cx("ky", g)("2026-10-17", kb, trong_ngay="2026-10-17")
+	la("ký dừng sau tờ đầu", (goi, kq["da_ky"]), (["T1"], 1))
+	goi.clear()
+	ngay["v"] = "2026-10-18"
+	_nap_cx("phat_hanh", g)("2026-10-17", kb)
+	la("không truyền trong_ngay (thử lại tờ hẹn hôm qua): làm đủ", goi, ["T1", "T2", "T3"])
+	nhip_bu = _than("xuat_hddt_con_thieu_tu_dong")
+	dung("nhịp bù truyền ngày cho lượt HÔM NAY", "tn = str(d) if d == hom_nay else None" in nhip_bu
+		and "hddt_cho_xuat.phat_hanh(str(d), _goi_server_script, trong_ngay=tn)" in nhip_bu
+		and "_phat_hanh_theo_lo(str(d), trong_ngay=tn)" in nhip_bu)
 
 
 @ca("v602 lịch: báo động 23:20, 23:45 và 07:30; chủ đề Hoá đơn có ở máy chủ và màn Cài đặt")
