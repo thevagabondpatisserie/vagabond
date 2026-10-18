@@ -487,6 +487,50 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
     assert.deepEqual(loi,[]);
     await c.close();
   });
+
+  await test('F40 v603 Codex #489: đặt ở trang cũ ?ban=cu thì biên nhận giữ ?ban=cu; biên nhận Vue tải lại mà tab chỉ có bản cũ thì chuyển sang trang cũ',async()=>{
+    const fs=require('node:fs');
+    const c=await browser.newContext({viewport:{width:390,height:844},timezoneId:'Asia/Ho_Chi_Minh'});
+    await c.route('**/*',r=>r.request().url().startsWith(url)?r.continue():r.abort());
+    const loi=[]; c.on('weberror',e=>loi.push(String(e.error())));
+    const den=[];
+    await c.route(u=>new URL(String(u)).pathname.startsWith('/banh/xong'),r=>{const u=new URL(r.request().url());den.push(u.pathname+u.search);
+      return r.fulfill({contentType:'text/html; charset=utf-8',body:'<h1>bien nhan</h1>'});});
+    const p=await c.newPage();
+    /* Chuỗi khách ở trang cũ (?ban=cu), như F21 nhưng gửi được. */
+    await p.goto(url+'/banh?ban=cu#/banh/candle');await p.locator('#s-cta').waitFor({state:'visible'});
+    await p.locator('#s-sizes button').first().click();await p.locator('#s-cta').click();await p.locator('#bar .go').click();
+    await p.locator('#f-name').fill('Khách thử');await p.locator('#f-phone').fill('0900000000');
+    await p.locator('#m-pick').click();await p.locator('#pickList button').first().click();
+    await p.locator('#c-days button').nth(2).click();await p.locator('#c-slots button:not([disabled])').first().click();
+    await p.locator('#c-dongy').click();
+    await p.locator('#btnSend').click();await p.waitForURL(u=>new URL(String(u)).pathname.startsWith('/banh/xong/'));
+    assert.deepEqual(den,['/banh/xong/thu0001?ban=cu']);
+    /* Biên nhận Vue không token, tab chỉ có bản tóm tắt của biên nhận trang cũ. */
+    den.length=0;
+    await c.unroute(u=>true).catch(()=>{});
+    await c.route('**/*',r=>r.request().url().startsWith(url)?r.continue():r.abort());
+    await c.route(u=>new URL(String(u)).pathname==='/banh/xong',r=>{const u=new URL(r.request().url());den.push(u.pathname+u.search);
+      if(u.search.includes('ban=cu')) return r.fulfill({contentType:'text/html; charset=utf-8',body:'<h1>trang cu</h1>'});
+      return r.fulfill({contentType:'text/html; charset=utf-8',body:fs.readFileSync(root+'/vagabond/www/web_moi/xong.html','utf8')
+        .replace('{{ du_lieu }}',JSON.stringify({loai:'bien_nhan',khong_token:1,nhan:{},trang_chu:'/banh'}))
+        .replace('{{ csrf_token }}','thu').replace('{{ chan_trang }}','').replace('{{ trang_chu }}','/banh')});});
+    const p2=await c.newPage();
+    await p2.goto(url+'/web_moi/banh');
+    await p2.evaluate(()=>{sessionStorage.setItem('vgb_bien_nhan','<main>cu</main>');sessionStorage.removeItem('vgb_bien_nhan_vue');});
+    await p2.goto(url+'/banh/xong');
+    await p2.waitForURL(u=>new URL(String(u)).search.includes('ban=cu'),{timeout:8000});
+    assert.equal(await p2.locator('h1').innerText(),'trang cu');
+    assert.deepEqual(den,['/banh/xong','/banh/xong?ban=cu']);
+    /* Có bản Vue của chính mình thì ở lại. */
+    den.length=0;
+    await p2.evaluate(()=>sessionStorage.setItem('vgb_bien_nhan_vue',JSON.stringify({ma:'DW-F40',mon:[]})));
+    await p2.goto(url+'/banh/xong'); await p2.locator('.bn-in').waitFor({timeout:8000});
+    assert.match(await p2.locator('h1').innerText(),/DW-F40/);
+    assert.deepEqual(den,['/banh/xong']);
+    assert.deepEqual(loi,[]);
+    await c.close();
+  });
   assert.deepEqual(errors,[]);
   console.log(`${passed} ca DOM đạt`);
 } finally {if(browser)await browser.close();server.kill();}})().catch(e=>{console.error(e);process.exitCode=1;});
