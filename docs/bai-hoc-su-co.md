@@ -2375,3 +2375,14 @@ riêng xong (có trần, dừng trước 23:45), đọc lại docstatus thật r
 hành. Lượt dài đọc lặp trên MariaDB phải commit trước mỗi lần đọc, không thì
 REPEATABLE READ trả mãi ảnh chụp cũ. Bài học: chuyển việc sang lượt nền thì
 mọi bước SAU nó phải đợi hoặc đếm lại từ cơ sở dữ liệu, không dùng số đã xếp.
+
+### v604 (anh Việt 18/10/2026): chuyển tin sang "nhóm tích đúng tin" thì mọi nơi phát phải mang mã
+
+Bỏ thư cảnh báo nội bộ, mỗi nhóm Zalo tích đúng tin cần nhận (`kenh_zalo.TIN`).
+Bẫy: nhóm đã tích Tin nhận chỉ nhận tin có mã khớp, nên một lời gọi `bao()` quên
+`ma_tin` là tin đó lặng lẽ không tới nhóm nào, `bao()` vẫn trả rỗng như khi chưa
+gán nhóm. Rà bằng grep lúc làm còn lộ hai tin Zalo có sẵn mà danh sách duyệt chưa
+ghi (lệch tổng Pancake, phí giao Ahamove). Phòng: ca `thu_tin_zalo_604` dò AST mọi
+lời gọi `bao`/`bao_hoac_ghi_loi`, đòi có `ma_tin` trong danh mục và mỗi tin có
+nơi phát. Bẫy thứ hai: nhịp lặp gọi lại cùng khoá thì `bao()` trả rỗng vì tin đã
+nằm trong sổ; `bao_hoac_ghi_loi` nay chỉ ghi Error Log khi thật sự không có nhóm.
