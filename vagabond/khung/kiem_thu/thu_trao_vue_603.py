@@ -92,3 +92,15 @@ def _():
 def _():
 	s = (GOC / "public/web_order/bien-tap.js").read_text()
 	la("đường khung xem trước", re.findall(r"preview'\)\.src = '([^']+)'", s), ["/banh?bien_tap=1"])
+
+
+@ca("v603 Codex #489 P2: lời giải thích công tắc nói đúng phạm vi mới (biên nhận, Editor xem trước theo công tắc; chính sách giữ cũ)")
+def _():
+	d = json.loads((GOC / "vagabond/doctype/vagabond_settings/vagabond_settings.json").read_text())
+	mo = next(x for x in d["fields"] if x["fieldname"] == "web_ban_vue")["description"]
+	dung("không còn câu cũ về Editor", "Editor vẫn mở trang cũ" not in mo)
+	dung("không còn câu cũ về biên nhận", "vẫn là trang cũ" not in mo)
+	dung("nói biên nhận và Editor cũng là bản mới", "biên nhận" in mo and "xem trước của Editor" in mo)
+	dung("nói chính sách giữ bản cũ", "chính sách giữ bản cũ" in mo)
+	dung("vẫn nói cách quay lại", "không cần deploy" in mo and "?ban=cu" in mo)
+	la("đẩy mốc modified để site nạp lại", d["modified"] >= "2026-10-18", True)
