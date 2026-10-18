@@ -249,26 +249,6 @@ def thu_phan_cong_html(ten, doc):
 	return _khung_thu("Có đơn mới cho anh chị", than, _nut_xanh(link_app(), "Mở app xem đơn"), nhan="Giao hàng")
 
 
-def thu_tai_xe_huy_html(doc):
-	"""Bao sales rang tai xe app ngoai da huy, don dang cho phan cong lai."""
-	h = frappe.utils.escape_html
-	dong = [
-		"<b>%s</b> - %s" % (h(doc.ma_don or doc.name), h(doc.khach or "")),
-		h(doc.dia_chi or ""),
-	]
-	if doc.tag_gio:
-		dong.append("Khung giờ: <b>%s</b>" % h(doc.tag_gio))
-	if doc.tien_thu_ho:
-		dong.append("Thu hộ (COD): <b>%s đ</b>" % _tien(doc.tien_thu_ho))
-	than = (
-		"<p style='margin:0 0 14px'>Tài xế bên app ngoài đã huỷ đơn này. "
-		"Hệ thống đã gỡ mã đặt xe và trả vận đơn về <b>Chờ giao</b>, "
-		"nhờ anh chị phân công lại giúp.</p>%s"
-	) % _o_nhat("<br>".join(dong))
-	return _khung_thu("Tài xế huỷ đơn, cần phân công lại", than,
-		_nut_xanh(link_app(), "Mở màn Vận đơn"), chan="noi_bo", nhan="Giao hàng")
-
-
 CONG_TY = "CÔNG TY TNHH PATISSERIE VAGABOND"
 
 

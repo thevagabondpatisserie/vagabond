@@ -585,7 +585,7 @@ def ban_webhook(cau, url=None):
 	theo mẫu tới một số điện thoại, không bắn được vào nhóm. Lark, Slack,
 	Google Chat, và Zalo qua cầu trung gian đều nhận dạng này.
 
-	Không có URL thì thôi, không coi là lỗi: cảnh báo còn đường thư dự phòng.
+	Không có URL thì thôi, không coi là lỗi: còi báo động thư hỏng đi Zalo (v597).
 	"""
 	rieng = url is not None
 	url = str(url if rieng else _webhook()).strip()
@@ -616,15 +616,17 @@ def ban_webhook(cau, url=None):
 
 
 def _bao_zalo(cau):
-	"""v597: hú còi vào nhóm Zalo nhận Cảnh báo, chủ đề Hệ thống (thay webhook Lark).
+	"""v597: hú còi vào nhóm Zalo nhận tin "Email của tiệm không gửi được" (thay webhook Lark).
 
-	Thư đang hỏng nên không dựa vào thư. Lỗi Zalo không chặn đường thư dự phòng.
+	Thư đang hỏng nên không dựa vào thư. v604: anh Việt 18/10/2026 bỏ email, báo
+	Zalo: thư dự phòng gửi email_canh_bao đã gỡ, Zalo là đường duy nhất, không ai
+	nhận thì để lại Error Log hành động được (_ghi_khong_duong).
 	Trả True khi có ít nhất một nhóm nhận (đã ghi dòng tin vào sổ), Codex #481."""
 	try:
 		from vagabond import kenh_zalo
 		tieu_de, dong = kenh_zalo.tach_tin(cau)
 		return bool(kenh_zalo.bao("canh_bao", "he_thong", tieu_de or "Thư không gửi được", dong,
-			khoa="bao-dong-thu:%s" % now_datetime().strftime("%Y%m%d%H")))
+			khoa="bao-dong-thu:%s" % now_datetime().strftime("%Y%m%d%H"), ma_tin="ht_email_loi"))
 	except Exception:
 		frappe.log_error("Chưa ghi được tin Zalo báo động thư.", "gui_thu: zalo bao dong loi")
 		return False
@@ -634,75 +636,25 @@ TIEU_DE_KHONG_DUONG = "Báo động thư: không có đường báo nào nhận"
 
 
 def _ghi_khong_duong(so_loi):
-	"""Không nhóm Zalo nào nhận và thư dự phòng cũng không đi: để lại Error Log hành
-	động được, giãn theo khoảng im của còi để không đầy log mỗi nhịp (Codex #481)."""
+	"""Không nhóm Zalo nào nhận: để lại Error Log hành động được, giãn theo khoảng im
+	của còi để không đầy log mỗi nhịp (Codex #481)."""
 	try:
 		if frappe.db.exists("Error Log", {"method": TIEU_DE_KHONG_DUONG,
 				"creation": [">=", add_to_date(now_datetime(), minutes=-IM_SAU_KHI_HU_PHUT)]}):
 			return
 		frappe.log_error(title=TIEU_DE_KHONG_DUONG, message=(
-			"%d thư không gửi được nhưng chưa báo được ai: chưa có nhóm Zalo bật nhận loại Cảnh báo, "
-			"chủ đề Hệ thống, và ô Email nhận thư cảnh báo trống hoặc gửi lỗi. Vào Cài đặt lõi, mục "
-			"Thông báo, gán nhóm. Máy sẽ hú lại ở nhịp sau." % so_loi))
+			"%d thư không gửi được nhưng chưa báo được ai: chưa có nhóm Zalo bật nhận tin \"Email của "
+			"tiệm không gửi được\" (hoặc Zalo đang tắt). Vào Cài đặt lõi, mục Thông báo, mở nhóm cần nhận "
+			"và tích tin này. Máy sẽ hú lại ở nhịp sau." % so_loi))
 	except Exception:
 		pass
-
-
-def _bao_bang_thu(cau, so_loi):
-	"""Đường dự phòng: gửi thư cho địa chỉ khai ở Vagabond Settings.
-
-	Có vẻ trớ trêu khi báo sự cố email bằng email. Nhưng lỗi hay gặp là hỏng
-	MỘT hộp thư chứ không phải hỏng cả máy chủ, mà thư cảnh báo đi từ hộp
-	mặc định, nên phần lớn trường hợp nó vẫn tới. Webhook mới là đường
-	chính, đây chỉ là đường thứ hai.
-	"""
-	dia_chi = [
-		e.strip()
-		for e in re.split(
-			r"[,;\s]+",
-			frappe.db.get_single_value("Vagabond Settings", "email_canh_bao") or "",
-		)
-		if "@" in e
-	]
-	if not dia_chi:
-		return False
-	try:
-		_ten, nguoi_gui = _hop_thu_mac_dinh()
-		frappe.sendmail(
-			recipients=dia_chi,
-			sender=nguoi_gui,
-			subject="[Vagabond] BAO DONG DO: %d email khong gui duoc" % so_loi,
-			message=_khung_bao_dong(cau, so_loi),
-		)
-		return True
-	except Exception:
-		frappe.log_error(frappe.get_traceback(), "gui_thu: bao bang thu loi")
-		return False
-
-
-def _khung_bao_dong(cau, so_loi):
-	"""Thu bao dong do qua khuon thu chung. Noi dung loi giu nguyen dang chu
-	don cach de doc duoc ten hop thu va ma loi."""
-	try:
-		from vagabond import thu_khung as _tk
-
-		than = (
-			_tk.doan("Trong cửa sổ vừa qua có <b>%d</b> thư không gửi được. Chi tiết:" % so_loi)
-			+ '<pre style="margin:0 0 14px;padding:12px 14px;background:%s;border:1px solid %s;'
-			'font-size:12px;line-height:1.55;color:%s;white-space:pre-wrap;word-break:break-word">%s</pre>'
-			% (_tk.KEM, _tk.KE, _tk.MUC, frappe.utils.escape_html(cau))
-			+ _tk.doan("Mở Desk, vào Email Queue lọc trạng thái Error để xem từng thư.", cach=0)
-		)
-		return _tk.khung("Email của tiệm đang không gửi được", than, chan="noi_bo", nhan="Báo động đỏ")
-	except Exception:
-		return "<pre>%s</pre>" % frappe.utils.escape_html(cau)
 
 
 def canh_bao_email_loi():
 	"""Nhịp lập lịch: quét hàng đợi, đủ ngưỡng lỗi thì hú còi.
 
 	Đếm bản ghi trạng thái Error sinh trong cửa sổ vừa qua. Từ ngưỡng trở
-	lên thì bắn webhook và gửi thư.
+	lên thì báo nhóm Zalo (v604: bỏ thư dự phòng, anh Việt 18/10/2026).
 
 	Đếm bản ghi LỖI chứ không đếm bản ghi chưa gửi: hàng đợi đang dài là
 	chuyện bình thường lúc gửi hàng loạt, còn năm cái lỗi trong một giờ thì
@@ -734,9 +686,7 @@ def canh_bao_email_loi():
 			moc.strftime("%H:%M %d/%m"),
 			now_datetime().strftime("%H:%M %d/%m"),
 		)
-		qua_zalo = _bao_zalo(cau)
-		qua_thu = _bao_bang_thu(cau, len(ds))
-		if not (qua_zalo or qua_thu):
+		if not _bao_zalo(cau):
 			# Codex #481: không ai nhận thì KHÔNG đóng dấu đã hú, nhịp sau thử lại.
 			_ghi_khong_duong(len(ds))
 			frappe.db.commit()

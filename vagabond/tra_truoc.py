@@ -623,7 +623,26 @@ def _bao_ke_toan(ten_phieu, d, tien, vai=VAI_FIN):
 
 	Khong bao gio nem loi: phieu da luu roi ma cai chuong lam hong ca thao
 	tac thi mat mot viec that vi mot cai nhan.
+
+	v604: anh Việt 18/10/2026 đưa tin nhắc việc nội bộ lên nhóm Zalo. Giữ việc
+	giao (ToDo, chuông web), thêm tin Zalo "Phiếu trả trước chờ kiểm" khi phiếu
+	đang chờ kế toán. Phiếu còn Nháp (giao lại thu mua) thì không báo nhóm.
 	"""
+	if vai != "AP Officer":
+		try:
+			from vagabond import kenh_zalo
+
+			kenh_zalo.bao_hoac_ghi_loi(
+				"viec", "cong_no", "Phiếu trả trước chờ kiểm: %s" % ten_phieu,
+				["%s đ cho %s" % (tien_vn(tien), d.get("supplier_name") or d.supplier),
+					"Theo đơn %s" % d.name],
+				link=frappe.utils.get_url("/ho-so-thanh-toan"), khoa="tra-truoc-kiem:" + ten_phieu,
+				nguoi="Kế toán", nguon=ten_phieu, ma_tin="kt_tra_truoc_kiem")
+		except Exception as e:
+			from vagabond.loi_csdl import chet_giao_dich
+			if chet_giao_dich(e):
+				raise
+			frappe.log_error(frappe.get_traceback(), "tra_truoc: bao zalo loi")
 	try:
 		from vagabond import giao_viec
 

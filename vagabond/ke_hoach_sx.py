@@ -713,19 +713,31 @@ def tu_lap_nua_dem():
 
 
 def nhac_bep_sang():
-	"""Nhịp 5h: rung điện thoại bếp trưởng khi kế hoạch đã sẵn."""
+	"""Nhịp 5h: rung điện thoại bếp trưởng khi kế hoạch đã sẵn.
+
+	v604: anh Việt 18/10/2026 đưa tin nhắc việc nội bộ lên nhóm Zalo. Giữ chuông
+	web cho bếp trưởng, thêm tin Zalo "Kế hoạch sản xuất hôm nay (05:00)". Chưa
+	có nhóm Bếp thì bao_hoac_ghi_loi để lại Error Log, chuông web vẫn kêu."""
 	try:
 		from vagabond import thong_bao
 
 		ten = _phieu_cua_ngay(nowdate())
 		if not ten:
 			return
-		d = frappe.db.get_value("Production Plan", ten,
-			["total_planned_qty", "docstatus"], as_dict=True) or {}
 		so_tp = frappe.db.count("Production Plan Item", {"parent": ten})
 		so_btp = frappe.db.count("Production Plan Sub Assembly Item", {"parent": ten})
 		than = ("%d món thành phẩm, %d bán thành phẩm cần làm hôm nay. "
 			"Mở ra đọc rồi bấm Chốt kế hoạch." % (so_tp, so_btp))
+		try:
+			from vagabond import kenh_zalo
+
+			kenh_zalo.bao_hoac_ghi_loi(
+				"viec", "san_xuat", "Kế hoạch sản xuất hôm nay: %s" % ten, [than],
+				link=frappe.utils.get_url("/lap-ke-hoach-san-xuat"), khoa="khsx-sang:%s" % ten,
+				nguon=ten, ma_tin="bep_ke_hoach_sx")
+			frappe.db.commit()
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "ke_hoach_sx: bao zalo bep sang")
 		thong_bao.bao_cho_vai(list(VAI_NHAC), "Kế hoạch sản xuất hôm nay",
 			than, duong_dan="/bep#lap-ke-hoach-san-xuat", tag="ke-hoach-sx")
 	except Exception:

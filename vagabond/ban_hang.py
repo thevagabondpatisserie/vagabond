@@ -2320,10 +2320,14 @@ def ra_trung_toan_bo():
 
 
 def ra_trung_hang_dem():
-	"""2h sang: ra don trung ca lich su, co thi gui thu bao.
+	"""2h sang: ra don trung ca lich su, co thi bao nhom Zalo.
 
 	Khoa duy nhat duoi co so du lieu da chan tu goc roi, cai nay la luoi thu
 	hai - de neu khoa bi go hay co duong nao lot thi van co nguoi biet.
+
+	v604: anh Việt 18/10/2026 bỏ email, báo Zalo (tin "Đơn có hoá đơn trùng").
+	Không nhóm nào nhận thì bao_hoac_ghi_loi để lại Error Log như thư cũ khi
+	chưa khai email.
 	"""
 	try:
 		frappe.set_user("Administrator")
@@ -2337,49 +2341,27 @@ def ra_trung_hang_dem():
 		nhom = _nhom_trung(sis)
 		if not nhom:
 			return
-		dong = "".join(
-			"<li>Đơn <b>%s</b> ngày %s (%s đ): giữ %s%s%s</li>"
-			% (
-				n["don"],
-				n["ngay"],
-				_tien(n["so_tien"]),
-				n["giu"],
+		from vagabond import kenh_zalo
+
+		dong = [
+			"Đơn %s ngày %s (%s đ): giữ %s%s%s" % (
+				n["don"], n["ngay"], _tien(n["so_tien"]), n["giu"],
 				(", gỡ được " + ", ".join(n["go"])) if n["go"] else "",
-				("<br><i>" + "; ".join(n["ket"]) + "</i>") if n["ket"] else "",
+				(" (" + "; ".join(n["ket"]) + ")") if n["ket"] else "",
 			)
 			for n in nhom
+		]
+		kenh_zalo.bao_hoac_ghi_loi(
+			"canh_bao", "hoa_don",
+			"%d đơn đang có hoá đơn trùng, doanh thu bị tính đôi" % len(nhom),
+			kenh_zalo.cat_dong(dong) + [
+				"Mở app, vào Bán hàng, Doanh thu Sales, chọn đúng ngày rồi bấm Rà và gỡ phiếu trùng."],
+			link=frappe.utils.get_url("/doanh-so"),
+			khoa="hd-trung:%s:%s" % (nowdate(), len(nhom)), ma_tin="hd_trung",
 		)
-		than = (
-			"<p>Máy tìm thấy <b>%d đơn</b> đang có từ hai hoá đơn bán hàng trở lên. "
-			"Ghi sổ như vậy là doanh thu bị tính đôi.</p><ul>%s</ul>"
-			"<p>Mở app, vào Bán hàng, Doanh thu Sales, chọn đúng ngày rồi bấm "
-			"<b>Rà và gỡ phiếu trùng</b>.</p>" % (len(nhom), dong)
-		)
-		nguoi = _nguoi_nhan_canh_bao()
-		if not nguoi:
-			frappe.log_error(than[:5000], "ban_hang: co don trung ma chua khai email canh bao")
-			return
-		from vagabond import thu_khung as _tk
-		from vagabond.nhan_su import link_app as _link_app
-
-		frappe.sendmail(
-			recipients=nguoi,
-			subject="[Vagabond] %d đơn đang có hoá đơn trùng" % len(nhom),
-			message=_tk.khung(
-				"Có đơn đang bị tính doanh thu hai lần", than,
-				nut_html=_tk.nut(_link_app(), "Mở app rà phiếu trùng", goc_anh=_tk.goc_anh()),
-				chan="noi_bo", nhan="Cảnh báo doanh thu",
-			),
-		)
+		frappe.db.commit()
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "ban_hang cron ra trung")
-
-
-def _nguoi_nhan_canh_bao():
-	"""Danh sach email nhan thu canh bao, khai o Vagabond Settings."""
-	c = cfg()
-	ds = [e.strip() for e in re.split(r"[,;\s]+", c.get("email_canh_bao") or "") if "@" in e]
-	return ds
 
 
 def kiem_truoc_khi_luu(doc, method=None):
@@ -3012,23 +2994,25 @@ def _bao_hoan_phat_hanh(ngay, da_ghi, loi, noi_goi):
 			frappe.db.commit()
 			ghi_moc(moc + "-log")
 		except Exception:
-			pass  # Hỏng bước log không được chặn cảnh báo qua thư.
-	if doc_moc(moc + "-mail"):
+			pass  # Hỏng bước log không được chặn tin báo Zalo.
+	# v604: anh Việt 18/10/2026 bỏ email, báo Zalo (tin "Hoá đơn ngày cũ bị giữ lại").
+	# Khoá tin theo cùng mốc nên Redis mất mốc thì sổ tin Zalo vẫn chặn gửi trùng.
+	if doc_moc(moc + "-zalo"):
 		return
 	try:
-		nhan = _nguoi_nhan_don_treo()
-		if nhan:
-			from vagabond.nhan_su import _khung_thu, _nut_xanh, link_app
-			frappe.sendmail(recipients=nhan,
-				subject="Vagabond: cần xử lý hàng rào hóa đơn ngày " + str(ngay),
-				message=_khung_thu("Đang hoãn phát hành hóa đơn",
-					"<p>%s</p>" % frappe.utils.escape_html(cau),
-					_nut_xanh(link_app(), "Mở app để xử lý"), chan="noi_bo", nhan="Cuối ngày"),
-				delayed=True)
-			frappe.db.commit()
-			ghi_moc(moc + "-mail")
+		from vagabond import kenh_zalo
+		ten = kenh_zalo.bao_hoac_ghi_loi(
+			"canh_bao", "hoa_don", "Đang giữ hoá đơn ngày %s, chưa phát hành" % ngay,
+			["Lượt %s ghi sổ %d đơn, %d lỗi." % (noi_goi, da_ghi, loi_ghi),
+				"Còn nợ ngày cũ hoặc chưa xác minh được hàng rào hoá đơn.",
+				"Mở Cài đặt, mục Cuối ngày, phần Hoá đơn ngày cũ để đối soát; không gửi lại tờ chưa rõ."],
+			link=frappe.utils.get_url("/cai-dat-cuoi-ngay"), khoa="hoan-phat-hanh:" + moc,
+			ma_tin="hd_giu_ngay_cu")
+		frappe.db.commit()
+		if ten:
+			ghi_moc(moc + "-zalo")
 	except Exception:
-		frappe.log_error(frappe.get_traceback(), "Vagabond: gửi cảnh báo hoãn phát hành lỗi")
+		frappe.log_error(frappe.get_traceback(), "Vagabond: báo Zalo hoãn phát hành lỗi")
 
 
 def _diem_ban_hddt():
@@ -3713,8 +3697,8 @@ def canh_bao_hddt_sot():
 
 	Lop con thieu cua vu 01-02/09/2026: chuoi bi cat giua chung, 95 to nam
 	lai hai ngay ma khong ai biet vi khong lop nao co viec keu. Nhu chuong
-	don treo: co thi gui thu ke toan va ghi vao nhat ky de man Cai dat hien
-	do, khong co thi im.
+	don treo: co thi bao nhom Zalo (v604, truoc la thu ke toan) va ghi vao
+	nhat ky de man Cai dat hien do, khong co thi im.
 	"""
 	try:
 		frappe.set_user("Administrator")
@@ -3735,11 +3719,6 @@ def canh_bao_hddt_sot():
 				"Vagabond Settings", "tu_ghi_so_nhat_ky", (cau + "\n" + cu)[:500]
 			)
 			frappe.db.commit()
-		nhan = _nguoi_nhan_don_treo()
-		if not nhan:
-			return
-		from vagabond.nhan_su import _khung_thu, _nut_xanh, link_app
-
 		# Đường thành công ghi đè nhật ký, nên HOÃN của lượt trước đã được gỡ.
 		buoc_tiep = (
 			"Anh chị mở Cài đặt và Nhật ký lỗi để xác minh phép đếm. Chưa thể kết luận đã xuất đủ."
@@ -3752,18 +3731,15 @@ def canh_bao_hddt_sot():
 			"Nếu còn nợ ngày cũ, mở mục Hóa đơn ngày cũ để đối soát trước. "
 			"Nhịp bù mỗi giờ không thay việc kiểm tra này."
 		)
-		than = (
-			"<p style='margin:0 0 14px'>%s</p>"
-			"<p style='margin:0 0 14px'>%s Không tự đổi ngày hoặc gửi lại tờ chưa rõ kết quả.</p>"
-		) % (frappe.utils.escape_html(cau), frappe.utils.escape_html(buoc_tiep))
-		frappe.sendmail(
-			recipients=nhan,
-			subject=("Vagabond: chưa đếm được hóa đơn còn sót ngày %s" % ngay if so is None else
-				"Vagabond: còn %d hoá đơn chưa xuất hoá đơn điện tử ngày %s" % (so, ngay)),
-			message=_khung_thu("Hoá đơn điện tử còn sót", than, _nut_xanh(link_app(), "Mở app"),
-				chan="noi_bo", nhan="Cuối ngày"),
-			delayed=False,
-			retry=2,
+		# v604: anh Việt 18/10/2026 bỏ email, báo Zalo (tin "Đã ghi sổ mà chưa xuất hoá đơn điện tử").
+		from vagabond import kenh_zalo
+		kenh_zalo.bao_hoac_ghi_loi(
+			"canh_bao", "hoa_don",
+			("Chưa đếm được hoá đơn còn sót ngày %s" % ngay if so is None else
+				"Còn %d hoá đơn chưa xuất hoá đơn điện tử ngày %s" % (so, ngay)),
+			[cau, buoc_tiep, "Không tự đổi ngày hoặc gửi lại tờ chưa rõ kết quả."],
+			link=frappe.utils.get_url("/cai-dat-cuoi-ngay"),
+			khoa="hddt-sot:%s:%s" % (ngay, "?" if so is None else so), ma_tin="hd_hddt_sot",
 		)
 		frappe.db.commit()
 	except Exception:
@@ -4072,84 +4048,44 @@ def _bill_quay_nhap_cu(ten, so_ngay=14):
 		"posting_date": ["between", [tu, add_days(nowdate(), -1)]]},
 		fields=["name", "posting_date", "grand_total", "custom_pancake_display_id"], limit_page_length=0)
 
-def _nguoi_nhan_don_treo():
-	"""Ai nhan thu canh bao don treo: khai trong Cai dat, khong thi lay cac
-	tai khoan dang bat co vai ke toan hoac quan ly.
-
-	KHONG dat ten _nguoi_nhan_canh_bao: ten do da co san o tren cho thu bao
-	don trung ma. Hai ham cung ten trong mot mo dun thi cai sau de len cai
-	truoc, va cho goi o tren im lang doi hanh vi - kieu loi khong ai doc ma
-	nhin ra (bat duoc khi ra soat 13/08/2026)."""
-	tho = str(cfg().get("email_canh_bao") or "").strip()
-	if tho:
-		ra = [x.strip() for x in tho.replace(",", "\n").splitlines() if x.strip() and "@" in x]
-		if ra:
-			return ra
-	ra = []
-	for vai in ("Accounts Manager", "Accounts User", "System Manager"):
-		for r in frappe.get_all("Has Role", filters={"role": vai, "parenttype": "User"}, pluck="parent"):
-			if r in ("Administrator", "Guest") or r in ra:
-				continue
-			if frappe.db.get_value("User", r, "enabled") and "@" in r:
-				ra.append(r)
-	return ra[:10]
-
-
 def canh_bao_don_treo():
-	"""23h55 moi ngay: con don nao chua ghi so duoc thi gui thu bao ngay.
+	"""23h55 moi ngay: con don nao chua ghi so duoc thi bao ngay.
 
 	Chay SAU chuoi cuoi ngay va sau cac nhip vet, nen con lai la nhung don
 	that su can nguoi xu. Khong con don nao thi khong gui gi - khong ai
-	muon moi dem nhan mot cai thu "khong co gi".
+	muon moi dem nhan mot cai tin "khong co gi".
+
+	v604: anh Việt 18/10/2026 bỏ email, báo Zalo (tin "Đơn chưa ghi sổ còn sót
+	lúc 23:55"). Tin Zalo đọc trên điện thoại: mỗi lý do một dòng đếm, rồi tối đa
+	12 đơn đầu, đủ danh sách nằm ở màn Đơn còn treo.
 	"""
 	try:
 		ds = _quet_don_treo(14)
 		ds = [r for r in ds if r["ly_do"] != "san_sang" or not r["hom_nay"]]
 		if not ds:
 			return
-		from vagabond.nhan_su import _khung_thu, _nut_xanh, _o_nhat, link_app
+		from vagabond import kenh_zalo
 
-		nhan = _nguoi_nhan_don_treo()
-		if not nhan:
-			return
-		h = frappe.utils.escape_html
 		nhom = {}
 		for r in ds:
 			nhom.setdefault(r["ly_do"], []).append(r)
-		khoi = []
+		dau, chi_tiet = [], []
 		for ma_ly_do, rows in sorted(nhom.items(), key=lambda x: -len(x[1])):
-			dong = [
-				"%s <b>#%s</b> - %s đ%s" % (
+			dau.append("%s: %d đơn, %s đ" % (
+				LY_DO_TREO.get(ma_ly_do, ma_ly_do), len(rows), _tien(sum(flt(r.grand_total) for r in rows))))
+			for r in rows:
+				chi_tiet.append("%s #%s - %s đ%s" % (
 					"/".join(reversed(str(r.posting_date).split("-"))),
-					h(r.custom_pancake_display_id or r.name),
+					r.custom_pancake_display_id or r.name,
 					_tien(r.grand_total),
 					(" - đã nhận %s đ" % _tien(r["sepay_nhan"])) if r["ly_do"] == "chua_ve_tien" else "",
-				)
-				for r in rows[:12]
-			]
-			if len(rows) > 12:
-				dong.append("<i>... và %d đơn nữa</i>" % (len(rows) - 12))
-			khoi.append(
-				"<p style='margin:14px 0 6px'><b>%s</b> - %d đơn, %s đ</p>%s"
-				% (
-					h(LY_DO_TREO.get(ma_ly_do, ma_ly_do)),
-					len(rows),
-					_tien(sum(flt(r.grand_total) for r in rows)),
-					_o_nhat("<br>".join(dong)),
-				)
-			)
-		than = (
-			"<p style='margin:0 0 14px'>Chuỗi cuối ngày đã chạy xong nhưng còn "
-			"<b>%d đơn</b> chưa ghi sổ được, tổng <b>%s đ</b>. "
-			"Anh chị mở app vào Bán hàng, mục <b>Đơn còn treo</b> để xử.</p>%s"
-		) % (len(ds), _tien(sum(flt(r.grand_total) for r in ds)), "".join(khoi))
-		frappe.sendmail(
-			recipients=nhan,
-			subject="Vagabond: còn %d đơn chưa ghi sổ ngày %s" % (len(ds), nowdate()),
-			message=_khung_thu("Đơn chưa ghi sổ được", than, _nut_xanh(link_app(), "Mở app xử đơn"),
-				chan="noi_bo", nhan="Cuối ngày"),
-			delayed=False,
-			retry=2,
+				))
+		kenh_zalo.bao_hoac_ghi_loi(
+			"canh_bao", "hoa_don",
+			"Còn %d đơn chưa ghi sổ được, tổng %s đ" % (len(ds), _tien(sum(flt(r.grand_total) for r in ds))),
+			dau + kenh_zalo.cat_dong(chi_tiet) + ["Mở app vào Bán hàng, mục Đơn còn treo để xử."],
+			link=frappe.utils.get_url("/don-con-treo"),
+			khoa="don-treo:%s" % nowdate(), ma_tin="hd_don_chua_ghi_so",
 		)
 		frappe.db.commit()
 	except Exception:
@@ -4214,7 +4150,7 @@ def bao_dong_ghi_so(ngay):
 			return None
 		from vagabond import kenh_zalo
 		ten = kenh_zalo.bao_hoac_ghi_loi("canh_bao", "hoa_don", tin[0], tin[1],
-			khoa="ghi-so-ket:%s:%s" % (ngay, gio))
+			khoa="ghi-so-ket:%s:%s" % (ngay, gio), ma_tin="hd_ket_ghi_so")
 		frappe.db.commit()
 		return ten
 	except Exception:

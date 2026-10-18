@@ -1070,78 +1070,38 @@ VAI_KE_TOAN = ("Accounts Manager", "Accounts User")
 
 
 def _bao_ke_toan(ho_so, si):
-	"""Gui thu bao ke toan co yeu cau hoan tien moi. Tra (da_gui, danh_sach).
+	"""Bao nhom ke toan co yeu cau hoan tien moi. Tra (da_gui, danh_sach).
 
 	Anh Viet chot 16/08/2026: gui cho MOI nguoi mang vai tro ke toan tren
-	he, khong khai dia chi co dinh. Ai duoc them vai tro sau nay thi tu
-	dong nhan, khong phai sua ma.
+	he, khong khai dia chi co dinh. v604: anh Việt 18/10/2026 bỏ email, báo
+	Zalo (tin "Yêu cầu hoàn tiền chờ chi"): nhóm nào tích tin này thì nhận,
+	không còn dò người theo vai. danh_sach trả rỗng (không còn email người nhận).
+	Số tài khoản của khách không đưa vào nhóm chat: kế toán mở màn Hoàn tiền.
 
-	Ham nay KHONG BAO GIO nem loi: ho so da lap xong roi, may chu thu hong
+	Ham nay KHONG BAO GIO nem loi: ho so da lap xong roi, kenh bao hong
 	thi ke toan van thay yeu cau tren man danh sach. Nem loi o day la lam
 	hong mot viec da thanh cong.
 	"""
 	try:
-		nguoi = set()
-		for vai in VAI_KE_TOAN:
-			for u in frappe.get_all("Has Role", filters={"role": vai}, fields=["parent"], limit_page_length=0):
-				nguoi.add(u["parent"])
-		mail = []
-		for u in nguoi:
-			d = frappe.db.get_value("User", u, ["email", "enabled"], as_dict=True)
-			if d and cint(d.get("enabled")) and (d.get("email") or "").strip():
-				mail.append(d["email"].strip())
-		mail = sorted(set(mail))
-		if not mail:
-			frappe.log_error(
-				"Khong tim thay nguoi dung nao mang vai tro ke toan, nen khong gui duoc "
-				"thu bao ho so %s." % ho_so.name,
-				"hoan_tien: khong co nguoi nhan",
-			)
-			return 0, []
+		from vagabond import kenh_zalo
 
 		tien = "{:,.0f}".format(flt(ho_so.so_tien)).replace(",", ".")
 		tong = "{:,.0f}".format(flt(si.grand_total)).replace(",", ".")
 		phan = "toàn bộ đơn" if flt(ho_so.so_tien) >= flt(si.grand_total) - 0.5 else "một phần đơn"
-		from vagabond import thu_khung as _tk
-		from vagabond.nhan_su import link_app as _link_app
-
-		e = _tk.h
-		than = (
-			_tk.doan("Có một yêu cầu hoàn tiền mới chờ chi.")
-			+ _tk.cap([
-				("Phiếu", "<b>%s</b>" % e(ho_so.name)),
-				("Hoá đơn gốc", "%s (tổng %s đ)" % (e(si.name), tong)),
-				("Số tiền hoàn", "<b>%s đ</b> - %s" % (tien, phan)),
-				("Lý do", e(ho_so.ly_do or "") + ((": " + e(ho_so.dien_giai)) if ho_so.dien_giai else "")),
-				("Người gửi", e(ho_so.nguoi_duyet or "")),
-				("Tài khoản nhận", "%s - %s - %s" % (e(ho_so.ten_tk or ""), e(ho_so.so_tk or ""), e(str(ho_so.ngan_hang or "")))),
-				("Nội dung CK", "<b>%s</b>" % e(ho_so.noi_dung_ck or "")),
-			])
-			+ _tk.doan(
-				"Mở app, vào Bán hàng, Hoàn tiền / Trả hàng để xem ảnh khách gửi kèm và bấm "
-				"Xuất thông tin chuyển khoản MB Biz.", cach=10,
-			)
-			+ _tk.o_canh_bao(
-				"Tiền chỉ được ghi sổ sau khi có Uỷ nhiệm chi tải từ e-banking đính kèm. "
-				"Dòng sao kê SePay chỉ để biết tiền đã đi chưa."
-			)
-		)
-		than = _tk.khung(
-			"Yêu cầu hoàn tiền %s đ chờ chi" % tien, than,
-			nut_html=_tk.nut(_link_app(), "Mở app xem hồ sơ", goc_anh=_tk.goc_anh()),
-			chan="noi_bo", nhan="Hoàn tiền",
-		)
-		frappe.sendmail(
-			recipients=mail,
-			subject="[Vagabond] Yêu cầu hoàn tiền %s - %s đ - đơn %s" % (ho_so.name, tien, si.name),
-			message=than,
-			reference_doctype=DT,
-			reference_name=ho_so.name,
-			now=False,
-		)
-		return 1, mail
+		ly_do = (ho_so.ly_do or "") + ((": " + ho_so.dien_giai) if ho_so.dien_giai else "")
+		ten = kenh_zalo.bao_hoac_ghi_loi(
+			"viec", "cong_no", "Yêu cầu hoàn tiền %s đ chờ chi: %s" % (tien, ho_so.name),
+			["Hoá đơn gốc %s (tổng %s đ), hoàn %s" % (si.name, tong, phan),
+				"Lý do: %s" % (ly_do or "chưa ghi"),
+				"Người gửi: %s" % (ho_so.nguoi_duyet or ""),
+				"Nội dung CK: %s" % (ho_so.noi_dung_ck or ""),
+				"Mở app, Bán hàng, Hoàn tiền / Trả hàng để xem tài khoản nhận, ảnh khách gửi và xuất thông tin chuyển khoản MB Biz.",
+				"Tiền chỉ ghi sổ sau khi có Uỷ nhiệm chi từ e-banking đính kèm."],
+			link=frappe.utils.get_url("/hoan-tien"), khoa="hoan-tien:" + ho_so.name,
+			nguoi="Kế toán", nguon=ho_so.name, ma_tin="kt_hoan_tien")
+		return (1 if ten else 0), []
 	except Exception:
-		frappe.log_error(frappe.get_traceback(), "hoan_tien: gui thu bao ke toan loi")
+		frappe.log_error(frappe.get_traceback(), "hoan_tien: bao ke toan loi")
 		return 0, []
 
 

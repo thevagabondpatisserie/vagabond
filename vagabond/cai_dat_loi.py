@@ -35,7 +35,8 @@ CHU = ("Data", "Small Text", "Text", "Long Text", "Code", "Text Editor", "Select
 # Ô trên Desk để chỉ đọc chỉ vì bắt người dùng chọn qua hộp chọn (không gõ tay),
 # máy chủ vẫn kiểm lại lúc lưu. App có hộp chọn tương ứng nên được ghi.
 GHI_QUA_HOP_CHON = {
-	"zalo_nhom": ("chat_id", "loai_tin", "chu_de"),
+	# v604: Tin nhận cũng chỉ chọn qua hộp chọn, app ghi được như loại tin, chủ đề.
+	"zalo_nhom": ("chat_id", "loai_tin", "chu_de", "tin_nhan"),
 }
 # Ô trên trang để chỉ đọc vì chỉ đổi qua ô chọn ngân hàng (ghi cả hai cùng lúc).
 GHI_QUA_HOP_CHON_TRANG = ("ngan_hang_hien_thi",)
