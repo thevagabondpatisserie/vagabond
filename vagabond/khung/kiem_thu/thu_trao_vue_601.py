@@ -132,7 +132,8 @@ def _():
 	for duong, mong in (("/banh", True), ("/", True), ("/web_moi/banh", False)):
 		fr = D(local=D(request=D(path=duong)), sessions=D(get_csrf_token=lambda: "c"))
 		c = D()
-		nap("www/web_moi/banh.py", "get_context", {"frappe": fr, "seo_banh": lambda: {}})(c)
+		nap("www/web_moi/banh.py", "get_context", {"frappe": fr, "seo_banh": lambda *a: {},
+			"cong_tac_mien_chinh": lambda: 0, "mien_cong_khai": lambda b: "order.thevagabondpatisserie.com"})(c)
 		la("cong_khai tại " + duong, c.cong_khai, mong)
 	html = (GOC / "www/web_moi/banh.html").read_text()
 	dung("robots chỉ khi không công khai", '{% if not cong_khai %}<meta name="robots" content="noindex,nofollow">{% endif %}' in html)
