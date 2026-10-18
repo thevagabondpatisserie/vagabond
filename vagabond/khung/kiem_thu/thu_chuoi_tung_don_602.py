@@ -187,7 +187,8 @@ def _g_cho(buoc, chay, gio_luc=datetime(2026, 10, 17, 23, 2)):
 	g = dict(frappe=f, hddt_bu=hddt_bu, cint=lambda x: int(x or 0), time=gio,
 		# Hàng đợi được hỏi TRƯỚC lần commit kế tiếp; bước i là trạng thái
 		# cùng lúc của hàng đợi và sổ, nên hỏi ở bước sắp đọc (i + 1).
-		now_datetime=lambda: gio_luc, _job_dang_chay=lambda t: chay(t, min(db.i + 1, len(buoc) - 1)),
+		now_datetime=lambda: gio_luc, nowdate=lambda: gio_luc.strftime("%Y-%m-%d"),
+		_job_dang_chay=lambda t: chay(t, min(db.i + 1, len(buoc) - 1)),
 		phat_hanh_cuoi_ngay=lambda *a: su.append(("ph",) + a),
 		_bao_hoan_phat_hanh=lambda *a: su.append(("hoan",) + a),
 		phat_hanh_sau_rai=lambda *a: su.append(("rai",) + a),
@@ -278,7 +279,9 @@ def _cho_qua_dem():
 	g, su, gio = _g_cho(buoc, lambda t, i: True, gio_luc=datetime(2026, 10, 18, 0, 5))
 	nap("cho_ghi_so_roi_phat_hanh", g)("2026-10-17", ["A", "B"])
 	la("không ngủ chờ", gio.ngu, [])
-	dung("phát hành phần đã ghi sổ", ("ph", "2026-10-17", 1, 1) in su)
+	# Codex #488 vòng 6: qua ngày thì không phát hành, ký tờ của hôm trước ở
+	# đây; báo hoãn với số đã ghi sổ thật, tờ đi đường hoá đơn ngày cũ.
+	la("báo hoãn, không phát hành", [x for x in su if isinstance(x, tuple)], [("hoan", "2026-10-17", 1, ["B"], "cuoi-ngay")])
 
 
 class _SuKien:
@@ -315,7 +318,7 @@ def _dua_mot_don():
 		gio = _Gio()
 		f = NS(set_user=lambda *a: None, db=NS(commit=sk.commit, get_all=sk.doc))
 		g = dict(frappe=f, hddt_bu=hddt_bu, cint=lambda x: int(x or 0), time=gio,
-			now_datetime=lambda: datetime(2026, 10, 18, 15, 10), _job_dang_chay=sk.chay,
+			now_datetime=lambda: datetime(2026, 10, 18, 15, 10), nowdate=lambda: "2026-10-18", _job_dang_chay=sk.chay,
 			phat_hanh_cuoi_ngay=lambda *a: su.append(("ph",) + a),
 			_bao_hoan_phat_hanh=lambda *a: su.append(("hoan",) + a),
 			phat_hanh_sau_rai=lambda *a: su.append(("rai",) + a),
@@ -355,7 +358,8 @@ def _don_ket():
 		db=NS(sql=lambda q: sql.append(q)))
 	g = dict(frappe=f, hddt_bu=hddt_bu, _khoa_dong_bo=lambda **kw: khoa.append("lay") or "K",
 		_mo_khoa_dong_bo=lambda k: khoa.append("nha"), _ly_do_xep=lambda *a, **kw: "",
-		_sepay_theo_don=lambda shop, ma: {"tu": ma}, cfg=lambda: D(pancake_shop_id="S"), _ghi_so_mot_don=ghi)
+		_sepay_theo_don=lambda shop, ma: {"tu": ma}, cfg=lambda: D(pancake_shop_id="S"), _ghi_so_mot_don=ghi,
+		nowdate=lambda: "2026-10-17")
 	fn = nap("ghi_so_mot_don_nen", g)
 	for ten in ("HDB-1", "HDB-2", "HDB-3"):
 		try:
@@ -376,7 +380,8 @@ def _luot_bo():
 			posting_date="2026-10-16" if ten == "CU" else "2026-10-17", vgb_quay="TCV"))
 	g = dict(frappe=f, hddt_bu=hddt_bu, _mo_khoa_dong_bo=lambda k: None,
 		_ly_do_xep=lambda si, *a: "tang_cho_duyet" if si.name == "TANG" else "",
-		_sepay_theo_don=lambda *a: None, cfg=lambda: D(), _ghi_so_mot_don=lambda *a, **kw: goi.append(a[0].name) or (1, 0, ""))
+		_sepay_theo_don=lambda *a: None, cfg=lambda: D(), _ghi_so_mot_don=lambda *a, **kw: goi.append(a[0].name) or (1, 0, ""),
+		nowdate=lambda: "2026-10-17")
 	g["_khoa_dong_bo"] = lambda **kw: None
 	la("không khoá thì thôi", nap("ghi_so_mot_don_nen", dict(g))("OK", "2026-10-17"), (0, 0, ""))
 	g["_khoa_dong_bo"] = lambda **kw: "K"
@@ -647,10 +652,56 @@ def _bao_dong():
 			la("chống trùng theo ngày giờ", kw["khoa"], "ghi-so-ket:2026-10-17:23:20")
 
 
+@ca("v602 thuần (Codex #488 vòng 6 P1): qua ngày thì không phát hành tờ của hôm trước")
+def _con_phat_hanh():
+	la("cùng ngày, được phát hành", hddt_bu.con_phat_hanh(True, "2026-10-17", "2026-10-17"), True)
+	la("qua nửa đêm: không", hddt_bu.con_phat_hanh(True, "2026-10-17", "2026-10-18"), False)
+	la("đang hoãn thì vẫn hoãn", hddt_bu.con_phat_hanh(False, "2026-10-17", "2026-10-17"), False)
+
+
+@ca("v602 lượt riêng (Codex #488 vòng 6 P1): xếp trước nửa đêm, chạy sau 0h thì ghi sổ mà không phát hành")
+def _luot_qua_dem():
+	goi = []
+	si = D(name="HDB-9", docstatus=0, posting_date="2026-10-17", vgb_quay="TCV")
+	f = NS(set_user=lambda *a: None, db=NS(sql=lambda q: None), log_error=lambda *a, **kw: None,
+		get_doc=lambda dt, ten: si)
+	g = dict(frappe=f, hddt_bu=hddt_bu, _khoa_dong_bo=lambda **kw: "K", _mo_khoa_dong_bo=lambda k: None,
+		_ly_do_xep=lambda *a, **kw: "", _sepay_theo_don=lambda *a: None, cfg=lambda: D(),
+		_ghi_so_mot_don=lambda s, sp=None, cho_xuat=True: goi.append(cho_xuat) or (1, 0, ""),
+		nowdate=lambda: "2026-10-18")
+	nap("ghi_so_mot_don_nen", g)("HDB-9", "2026-10-17", cho_xuat=True)
+	la("ghi sổ, cờ phát hành tắt", goi, [False])
+	g["nowdate"] = lambda: "2026-10-17"
+	nap("ghi_so_mot_don_nen", g)("HDB-9", "2026-10-17", cho_xuat=True)
+	la("cùng ngày vẫn phát hành", goi[-1], True)
+
+
+@ca("v602 báo động (Codex #488 vòng 6 P2): mốc báo theo giờ chuỗi đã khai, không báo trước khi chuỗi chạy")
+def _moc_bao_dong():
+	la("chuỗi 23:00", hddt_bu.moc_bao_dong("23:00"), ["23:20", "23:45"])
+	la("chuỗi 23:30", hddt_bu.moc_bao_dong("23:30"), ["23:50", "23:55"])
+	la("chuỗi 23:40", hddt_bu.moc_bao_dong("23:40"), ["23:55"])
+	la("chuỗi 22:00", hddt_bu.moc_bao_dong("22:00"), ["22:20", "22:45"])
+	dung("23:20 báo khi chuỗi 23:00", hddt_bu.den_luc_bao_dong("23:21", "23:00"))
+	dung("23:20 không báo khi chuỗi 23:30", not hddt_bu.den_luc_bao_dong("23:20", "23:30"))
+	dung("23:50 báo khi chuỗi 23:30", hddt_bu.den_luc_bao_dong("23:50", "23:30"))
+	dung("23:25 không phải mốc", not hddt_bu.den_luc_bao_dong("23:25", "23:00"))
+	gui = []
+	g = dict(cfg=lambda: D(tu_ghi_so_gio="23:30"), _gio_hop_le=lambda x: x or "23:00", hddt_bu=hddt_bu,
+		now_datetime=lambda: datetime(2026, 10, 18, 23, 20), nowdate=lambda: "2026-10-18",
+		bao_dong_ghi_so=lambda ngay: gui.append(ngay))
+	fn = nap("bao_dong_ghi_so_toi", g)
+	fn()
+	la("23:20 với chuỗi 23:30: không báo", gui, [])
+	g["now_datetime"] = lambda: datetime(2026, 10, 18, 23, 50, 40)
+	fn()
+	la("23:50: báo", gui, ["2026-10-18"])
+
+
 @ca("v602 lịch: báo động 23:20, 23:45 và 07:30; chủ đề Hoá đơn có ở máy chủ và màn Cài đặt")
 def _lich():
 	h = (GOC / "hooks.py").read_text()
-	dung("23:20 và 23:45", '"20,45 23 * * *", []).append("vagabond.ban_hang.bao_dong_ghi_so_toi")' in h)
+	dung("nhịp 5 phút trong giờ 23", '"*/5 23 * * *", []).append("vagabond.ban_hang.bao_dong_ghi_so_toi")' in h)
 	dung("07:30 sáng", '"30 7 * * *", []).append("vagabond.ban_hang.bao_dong_ghi_so_sang")' in h)
 	# Đọc hằng số từ mã nguồn, không import (kenh_zalo cần frappe.utils thật).
 	kz = {}
