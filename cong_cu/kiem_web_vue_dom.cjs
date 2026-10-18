@@ -423,6 +423,7 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
       const xem=()=>document.getElementById('preview').contentWindow.postMessage({loai:'vgb-noi-dung',noi_dung:nd,chon:'f39-a'},location.origin);
       addEventListener('message',e=>{ if(e.origin!==location.origin) return;
         if(e.data&&e.data.loai==='vgb-san-sang') xem(); if(e.data&&e.data.loai==='vgb-chon-khoi') window.__chon.push(e.data.id); });
+      try{sessionStorage.setItem('vgb-gio-v1',JSON.stringify({luc:Date.now(),gio:[{id:'BAWC00139',qty:2,cm:12,price:650000}],truong:{'f-name':'KHÁCH CŨ F39','f-phone':'0911111111','f-addr':'12 Đường Một'},co:{mode:'ship'}}));}catch(e){}
       document.getElementById('preview').src='/banh?bien_tap=1';</script>`}));
     const p=await c.newPage(); await p.goto(url+'/editor-thu');
     const f=p.frameLocator('#preview');
@@ -435,6 +436,12 @@ async function test(name, fn) { if (process.env.VGB_CA && !name.startsWith(proce
     await p.waitForFunction(()=>window.__chon.length>0);
     assert.deepEqual(await p.evaluate(()=>window.__chon),['f39-b']);
     assert.deepEqual(congKhai,[],'khung xem thử không được tải bản công khai');
+    /* Codex #489 P2: tab Editor có sẵn giỏ của phiên trước (cùng sessionStorage với iframe). Khung xem thử
+       không được phục hồi giỏ, tên, số điện thoại, địa chỉ của khách; cũng không được ghi đè giỏ đó. */
+    const fr=p.frames()[1];
+    assert.equal(await fr.evaluate(()=>document.body.innerText.includes('KHÁCH CŨ F39')||[...document.querySelectorAll('input')].some(i=>i.value.includes('KHÁCH CŨ'))),false,'xem thử phục hồi thông tin khách');
+    assert.equal(await fr.evaluate(()=>document.querySelector('#bar .go')?getComputedStyle(document.querySelector('#bar')).display!=='none'&&document.body.classList.contains('has-bar'):false),false,'xem thử phục hồi giỏ');
+    assert.match(await p.evaluate(()=>sessionStorage.getItem('vgb-gio-v1')),/KHÁCH CŨ F39/,'giỏ thật của tab bị ghi đè');
     assert.equal(await p.frames()[1].evaluate(()=>typeof window.fbq),'undefined');
     assert.deepEqual(loi,[]);
     await c.close();
