@@ -929,7 +929,7 @@
   },
   {
    "default": "0",
-   "description": "Bật: khách vào order.thevagabondpatisserie.com/banh thấy trang đặt bánh bản mới. Tắt: quay về trang cũ ngay, không cần deploy. Màn xem trước của Editor vẫn mở trang cũ. Biên nhận sau khi đặt vẫn là trang cũ.",
+   "description": "Bật: khách vào order.thevagabondpatisserie.com/banh thấy trang đặt bánh bản mới. Tắt: quay về trang cũ ngay, không cần deploy. Bật thì biên nhận sau khi đặt và màn xem trước của Editor cũng là bản mới. Ba trang chính sách giữ bản cũ. Muốn xem bản cũ thì thêm ?ban=cu vào đường dẫn.",
    "fieldname": "web_ban_vue",
    "fieldtype": "Check",
    "label": "Dùng trang đặt bánh bản mới"
@@ -1144,7 +1144,7 @@
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-10-17 12:00:00.000000",
+ "modified": "2026-10-18 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Settings",
