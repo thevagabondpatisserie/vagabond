@@ -125,7 +125,8 @@ ca('tình trạng: ô chỉ có dấu cách coi như trống', function () {
 });
 
 ca('thư cảnh báo: hú còi trong 24 giờ là ĐỎ kèm số giờ, quá 24 giờ thì về bình thường', function () {
-  var d = { email_canh_bao: 'a@b.c', email_bao_dong_lan_cuoi: '2026-10-04 08:00:00' };
+  // v604: anh Việt 18/10/2026 bỏ email, báo Zalo: đường báo là nhóm Zalo nhận tin thư hỏng.
+  var d = { zalo_nhom: [{ bat: 1, chat_id: 'g-1', tin_nhan: 'ht_email_loi' }], email_bao_dong_lan_cuoi: '2026-10-04 08:00:00' };
   var t = tim(V.tinhTrang(d, BAY_GIO), 'Thư cảnh báo');
   la('đỏ', t.trang, 'err');
   la('ghi số giờ', t.ghi, 'hú còi 2 giờ trước');
@@ -134,6 +135,9 @@ ca('thư cảnh báo: hú còi trong 24 giờ là ĐỎ kèm số giờ, quá 24
   d.email_bao_dong_lan_cuoi = '2026-10-02 08:00:00';
   la('quá 24 giờ', tim(V.tinhTrang(d, BAY_GIO), 'Thư cảnh báo').trang, 'ok');
   la('không có đường gửi', tim(V.tinhTrang({}, BAY_GIO), 'Thư cảnh báo').trang, 'no');
+  la('chỉ còn ô email, không nhóm Zalo: chưa có đường báo', tim(V.tinhTrang({ email_canh_bao: 'a@b.c' }, BAY_GIO), 'Thư cảnh báo').trang, 'no');
+  la('nhóm tích tin khác, không tích tin thư hỏng: chưa có đường báo',
+    tim(V.tinhTrang({ zalo_nhom: [{ bat: 1, chat_id: 'g-1', tin_nhan: 'hd_trung', loai_tin: 'canh_bao', chu_de: 'he_thong' }] }, BAY_GIO), 'Thư cảnh báo').trang, 'no');
 });
 
 ca('mỗi chip tình trạng nhảy tới một ô và nằm ở một mục có thật', function () {
@@ -650,6 +654,55 @@ ca('v579: nhóm đã lưu nhưng không còn trong 20 chat gần nhất vẫn s�
 });
 
 
+// v604: anh Việt 18/10/2026 bỏ thư cảnh báo nội bộ, mỗi nhóm Zalo tích đúng tin cần
+// nhận. Chạy THẬT suaNhomZalo và veZalo của Desk: hộp có phần Tin nhận gom theo bộ
+// phận, Chọn cả mục bấm thật qua get_value/set_value của hộp, lưu mã, thẻ nói số tin.
+ca('v604 Desk: hộp nhóm có phần Tin nhận theo bộ phận, Chọn cả mục, lưu mã; thẻ nhóm nói số tin', function () {
+  global.$ = $;
+  var z = frmZalo(ROWS()), g = giaFrappe(z.frm);
+  var d = V._desk.suaNhomZalo(z.frm, -1);
+  var fs = d.o.fields;
+  var gt = {};
+  fs.forEach(function (x) { if (x.fieldname) gt[x.fieldname] = x.default; });
+  d.get_value = function (k) { return gt[k]; };
+  d.set_value = function (k, v) { gt[k] = v; };
+  var dau = fs.filter(function (x) { return x.label === 'Nhóm này nhận những tin nào?'; })[0];
+  dung('có mục Nhóm này nhận những tin nào?', !!dau);
+  la('câu dẫn đúng lời anh Việt', dau.description, 'Tích tin nào thì nhóm nhận tin đó. Không tích tin nào thì nhóm nhận theo Loại tin và Chủ đề như cũ.');
+  dung('phần Tin nhận đứng trước phần loại tin', fs.indexOf(dau) < fs.map(function (x) { return x.fieldname || ''; }).indexOf('loai_tin__thong_bao'));
+  V.ZALO_BO_PHAN.forEach(function (bp) { dung('có mục ' + bp, fs.some(function (x) { return x.fieldtype === 'Section Break' && x.label === bp; })); });
+  Object.keys(V.ZALO_TIN).forEach(function (ma) {
+    var x = fs.filter(function (y) { return y.fieldname === 'tin_nhan__' + ma; })[0];
+    dung('có ô ' + ma, x && x.fieldtype === 'Check');
+    la('nhãn là tên tiếng Việt ' + ma, x.label, V.ZALO_TIN[ma][1]);
+    la('có dòng giải thích ' + ma, x.description, V.ZALO_TIN[ma][2]);
+  });
+  var nut = fs.filter(function (x) { return x.fieldtype === 'Button'; });
+  la('mỗi bộ phận một nút Chọn cả mục', nut.map(function (x) { return x.label; }), V.ZALO_BO_PHAN.map(function () { return 'Chọn cả mục'; }));
+  nut[1].click();
+  var bh = Object.keys(V.ZALO_TIN).filter(function (m) { return V.ZALO_TIN[m][0] === 'Bán hàng, cửa hàng'; });
+  la('Chọn cả mục tích hết mục bán hàng', bh.filter(function (m) { return gt['tin_nhan__' + m]; }).length, bh.length);
+  nut[1].click();
+  la('bấm lần nữa thì bỏ hết', bh.filter(function (m) { return gt['tin_nhan__' + m]; }).length, 0);
+  nut[1].click();
+  var v = Object.assign({}, gt, { nhom_zalo: 'Nhóm Zalo mã TOAN', ten_nhom: 'Sales', bat: 1, tin_nhan__ht_phat_hanh: 1 });
+  d.o.primary_action(v);
+  var r = z.frm.con[0];
+  la('lưu mã theo thứ tự danh mục', r.tin_nhan, bh.concat(['ht_phat_hanh']).join(', '));
+  la('loại tin, chủ đề để trống', [r.loai_tin, r.chu_de], ['', '']);
+  var chu = chuEl(z.the);
+  dung('thẻ nhóm nói số tin', chu.indexOf((bh.length + 1) + ' tin: ') >= 0);
+  la('không lộ mã tin trên thẻ', Object.keys(V.ZALO_TIN).filter(function (m) { return chu.indexOf(m) >= 0; }), []);
+  // Sửa lại nhóm vừa lưu: ô tích sẵn đúng như đang lưu.
+  var d2 = V._desk.suaNhomZalo(z.frm, z.frm.doc.zalo_nhom.length - 1);
+  la('ô tin tích sẵn đúng như đang lưu', d2.o.fields.filter(function (x) { return /^tin_nhan__/.test(x.fieldname || '') && x.default; }).map(function (x) { return x.fieldname.slice(10); }),
+    bh.concat(['ht_phat_hanh']));
+  var html = V._desk.zaloChonTinHtml(['hd_trung']);
+  dung('hộp chọn trên lưới có câu dẫn', html.indexOf('Tích tin nào thì nhóm nhận tin đó.') >= 0);
+  la('hộp chọn trên lưới đủ ô tích', (html.match(/type="checkbox"/g) || []).length, Object.keys(V.ZALO_TIN).length);
+  la('hộp chọn trên lưới tích sẵn tin đang lưu', (html.match(/ checked/g) || []).length, 1);
+});
+
 // v581 Codex #447 (finding 1): menu Zalo trên thanh công cụ (Nối Zalo Bot, Kiểm lại
 // đường nhận) gọi máy chủ rồi reload_doc mà KHÔNG chặn khi form chưa lưu, nên vừa
 // chạy trên cấu hình cũ vừa xoá bản nháp. Ca này chạy THẬT mọi hàm refresh đã đăng
@@ -778,7 +831,8 @@ ca('Codex 3d0b446: Desk đang giữ bản chung CŨ (thiếu tongHop) thì vgb_n
   var vm = require('vm');
   var fs = require('fs');
   var src = fs.readFileSync(path.join(GOC, 'vagabond', 'vagabond', 'doctype', 'vagabond_settings', 'vagabond_settings.js'), 'utf8');
-  var cu = { tinhTrang: function () { return []; } };
+  // v604: bản cũ còn trong bộ nhớ là bản v596 (có tongHop) nhưng thiếu Tin nhận (tinTheoBoPhan).
+  var cu = { tinhTrang: function () { return []; }, tongHop: function () { return {}; } };
   var gan = [];
   var g = {
     frappe: { ui: { form: { on: function () {} } } },
@@ -799,7 +853,7 @@ ca('Codex 3d0b446: Desk đang giữ bản chung CŨ (thiếu tongHop) thì vgb_n
   la('đang nạp dở thì gọi lần hai không gắn thêm thẻ script', gan.length, 1);
   dung('gọi lần hai nhận cùng lời hứa', hua2 === hua);
   // Tệp mới nạp xong (có tongHop): gọi tiếp trả ngay bản mới, không gắn thêm script.
-  g.VGB_CD = { tinhTrang: function () { return []; }, tongHop: function () { return {}; } };
+  g.VGB_CD = { tinhTrang: function () { return []; }, tongHop: function () { return {}; }, tinTheoBoPhan: function () { return []; } };
   gan[0].onload();
   g.vgb_nap_cd_chung();
   la('đã có bản mới thì không nạp nữa', gan.length, 1);

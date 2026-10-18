@@ -596,6 +596,51 @@ function moTab(m, fn) { bam(m, mot(m, '[data-cdltab="' + fn + '"]')); }
     bang('nhóm chỉ nhận chủ đề Kho thì không tính là đường báo hệ thống', chiKho.filter(function (x) { return x.ten === 'Thư cảnh báo'; })[0].trang, 'no');
   });
 
+  // v604: anh Việt 18/10/2026 bỏ thư cảnh báo nội bộ, mỗi nhóm Zalo tích đúng tin cần
+  // nhận. Bấm THẬT: thêm nhóm, Chọn tin nhận, Chọn cả mục, tích thêm một tin, Xong, Lưu.
+  await ca('v604 Zalo: hộp Tin nhận gom theo bộ phận, có giải thích, Chọn cả mục, lưu mã theo thứ tự danh mục', async function () {
+    var m = await moMan();
+    moTab(m, 'tab_tin_nhan');
+    bam(m, mot(m, '[data-cdlbangthem="zalo_nhom"]'));
+    var oTen = m.khung.querySelectorAll('[data-cdld]').filter(function (e) { return e.getAttribute('data-cdld') === 'ten_nhom'; })[0];
+    oTen.value = 'Kế toán';
+    m.khung.oninput({ target: oTen });
+    dung('màn sửa nhóm có ô Tin nhận và nút Chọn tin nhận', tim(m, '[data-cdldtin]').length === 1);
+    dung('chưa tích tin nào thì nói rõ', chu(m.khung).indexOf('Chưa tích tin nào') >= 0);
+    bam(m, mot(m, '[data-cdldtin]'));
+    var ov = m.tai.body.children[m.tai.body.children.length - 1];
+    var box = ov.children[0];
+    var TIN = m.g.VGB_ZALO_TIN;
+    var dong = box.querySelectorAll('[data-cdlt]');
+    bang('mỗi tin trong danh mục một dòng', dong.length, Object.keys(TIN).length);
+    dung('có câu dẫn đầu hộp', chu(box).indexOf('Tích tin nào thì nhóm nhận tin đó. Không tích tin nào thì nhóm nhận theo Loại tin và Chủ đề như cũ.') >= 0);
+    m.g.VGB_ZALO_BO_PHAN.forEach(function (bp) { dung('có mục ' + bp, chu(box).indexOf(bp) >= 0); });
+    dong.forEach(function (d) {
+      var ma = d.getAttribute('data-cdlt');
+      dung('tin ' + ma + ' hiện tên tiếng Việt', chu(d).indexOf(TIN[ma][1]) >= 0);
+      dung('tin ' + ma + ' có dòng giải thích', chu(d.querySelectorAll('.cdl-mo')[0] || {}) === TIN[ma][2]);
+    });
+    bang('không lộ mã tin nào trong chữ của hộp', Object.keys(TIN).filter(function (ma) { return chu(box).indexOf(ma) >= 0; }), []);
+    var ca0 = box.querySelectorAll('[data-cdltca]');
+    bang('mỗi bộ phận một nút Chọn cả mục', ca0.length, m.g.VGB_ZALO_BO_PHAN.length);
+    box.onclick({ target: ca0[0] });
+    var kt = Object.keys(TIN).filter(function (ma) { return TIN[ma][0] === 'Hoá đơn, kế toán'; });
+    bang('Chọn cả mục tích hết mục kế toán', box.querySelectorAll('[data-cdlt]').filter(function (d) { return chu(d).indexOf('☑') >= 0; }).length, kt.length);
+    box.onclick({ target: box.querySelectorAll('[data-cdltca]')[0] });
+    bang('bấm lần nữa thì bỏ hết', box.querySelectorAll('[data-cdlt]').filter(function (d) { return chu(d).indexOf('☑') >= 0; }).length, 0);
+    box.onclick({ target: box.querySelectorAll('[data-cdltca]')[0] });
+    box.onclick({ target: box.querySelectorAll('[data-cdlt]').filter(function (d) { return d.getAttribute('data-cdlt') === 'ht_email_loi'; })[0] });
+    box.onclick({ target: box.querySelectorAll('[data-cdltxong]')[0] });
+    dung('màn nhóm tóm tắt số tin', chu(m.khung).indexOf((kt.length + 1) + ' tin: ') >= 0);
+    dung('loại tin, chủ đề ghi rõ không dùng', chu(m.khung).indexOf('Không dùng: nhóm đã chọn Tin nhận.') >= 0);
+    bam(m, mot(m, '#cdlDongXong'));
+    dung('thẻ nhóm ở danh sách nói số tin, không nói loại tin', chu(m.khung).indexOf((kt.length + 1) + ' tin: ') >= 0);
+    await m.g.cdlLuu();
+    var g = m.goi.filter(function (x) { return x.duong === 'vagabond.cai_dat_loi.luu'; })[0];
+    var b = JSON.parse(g.ts.bang).zalo_nhom;
+    bang('lưu mã theo thứ tự danh mục, nối dấu phẩy', b[1].tin_nhan, kt.concat(['ht_email_loi']).join(', '));
+  });
+
   console.log('\n' + ket.dat + ' ca dat, ' + ket.hong + ' ca hong.');
   if (ket.hong) process.exit(1);
 })();
