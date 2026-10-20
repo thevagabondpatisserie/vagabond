@@ -171,3 +171,19 @@ def _tru_dan():
 	la("đơn 3 giữ Tiền mặt người chọn", hd3.vgb_pt_thanh_toan, "Tiền mặt")
 	la("đơn 3 bỏ bảng tách", len(hd3.get("vgb_thanh_toan_nhieu") or []), 0)
 	la("đơn 3 không còn giữ chỗ số dư", tk.so_du_khach(khach)["giu_cho"], 0.0)
+
+	# Codex #493 vòng 4: số dư là phần NHỎ (ô chính đã là Tiền mặt), người dùng
+	# chọn Tiền mặt cho cả đơn qua cửa chọn phương thức thì vẫn bỏ dòng số dư.
+	hd4 = khong_nem("lưu đơn 4 tách số dư phần nhỏ", lambda: _don(cty, mon, khach, 400000, [
+		{"pt": tk.PT_SO_DU, "so_tien": 100000}, {"pt": "Tiền mặt", "so_tien": 300000}]))
+	if not hd4:
+		return
+	hd4.reload()
+	la("đơn 4 ô chính đã là Tiền mặt", hd4.vgb_pt_thanh_toan, "Tiền mặt")
+	tk.chon_pt_ca_don(hd4, "Tiền mặt")
+	hd4.flags.ignore_permissions = True
+	if khong_nem("chọn Tiền mặt cho cả đơn 4", lambda: hd4.save(ignore_permissions=True)) is None:
+		return
+	hd4.reload()
+	la("đơn 4 bỏ bảng tách", len(hd4.get("vgb_thanh_toan_nhieu") or []), 0)
+	la("đơn 4 không giữ chỗ số dư", tk.so_du_khach(khach)["giu_cho"], 0.0)
