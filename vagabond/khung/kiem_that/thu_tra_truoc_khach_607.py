@@ -71,7 +71,8 @@ def _don(cty, mon, khach, tien_don, dong=None):
 	hd.append("taxes", {"charge_type": "On Net Total", "account_head": tai_khoan(cty, "33311", "Liability"),
 		"rate": 8, "description": "VAT ca kiểm 607", "included_in_print_rate": 1})
 	hd.append("items", {"item_code": mon, "qty": 1, "rate": tien_don, "warehouse": mot_kho(cty)})
-	hd.vgb_pt_thanh_toan = tk.PT_SO_DU
+	# Như app: có bảng tách thì ô chính là dòng lớn nhất (ap_dung, thanh_toan_nhieu.luu).
+	hd.vgb_pt_thanh_toan = max(dong, key=lambda d: d["so_tien"])["pt"] if dong else tk.PT_SO_DU
 	for d in (dong or []):
 		hd.append("vgb_thanh_toan_nhieu", d)
 	hd.flags.ignore_permissions = True
@@ -163,7 +164,7 @@ def _tru_dan():
 		return
 	hd3.reload()
 	la("đơn 3 phương thức chính là dòng lớn nhất", hd3.vgb_pt_thanh_toan, tk.PT_SO_DU)
-	hd3.vgb_pt_thanh_toan = "Tiền mặt"
+	tk.chon_pt_ca_don(hd3, "Tiền mặt")
 	hd3.flags.ignore_permissions = True
 	if khong_nem("đổi đơn 3 sang Tiền mặt", lambda: hd3.save(ignore_permissions=True)) is None:
 		return
