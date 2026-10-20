@@ -353,3 +353,40 @@ def _loi_doc():
 		except QueryDeadlockError:
 			len_ = "len"
 	la("lỗi chết giao dịch đi lên", len_, "len")
+
+
+@ca("v606 Codex #492 P2 (4324386326) tái hiện: đọc token lỗi tạm thời trước đây ghi Lỗi (mất tin); giờ không gọi Zalo, trả gửi lại; lỗi chết giao dịch đi lên")
+def _loi_token():
+	# Trên a9349cf96: cả bot 5 lẫn bot chính đều ra ("Lỗi", "Chưa ... token ...") khi
+	# kho mật khẩu ném lỗi, và _gui_mot ghi Lỗi chứ không trả về Chờ gửi.
+	url = []
+
+	def hong(*a, **k):
+		raise RuntimeError("kho mat khau loi")
+	pw = types.ModuleType("frappe.utils.password")
+	pw.get_decrypted_password = hong
+	for bot, s in (("5", types.SimpleNamespace(get_password=lambda *a, **k: "x")), ("1", types.SimpleNamespace(get_password=hong))):
+		url.clear()
+		with patch.object(kz, "_bot_chat", lambda c: bot), patch.object(kz.frappe, "get_single", lambda *a: s, create=True), \
+				patch.dict("sys.modules", {"requests": _mang(url), "frappe.utils.password": pw}):
+			tt, loi = kz._gui_zalo("g", "x")
+		la("bot %s: không gọi Zalo" % bot, url, [])
+		la("bot %s: trả gửi lại" % bot, tt, kz.MANG_LOI)
+		dung("bot %s: lời báo nói rõ" % bot, "token" in loi and "gửi lại" in loi)
+	pw.get_decrypted_password = lambda *a, **k: None
+	with patch.object(kz, "_bot_chat", lambda c: "5"), patch.dict("sys.modules", {"requests": _mang(url), "frappe.utils.password": pw}):
+		la("chưa khai token thật thì vẫn là Lỗi rõ ràng", kz._gui_zalo("g", "x")[0], "Lỗi")
+
+	class QueryDeadlockError(Exception):
+		pass
+
+	def chet(*a, **k):
+		raise QueryDeadlockError("deadlock")
+	pw.get_decrypted_password = chet
+	with patch.object(kz, "_bot_chat", lambda c: "5"), patch.dict("sys.modules", {"requests": _mang(url), "frappe.utils.password": pw}):
+		try:
+			kz._gui_zalo("g", "x")
+			len_ = "khong"
+		except QueryDeadlockError:
+			len_ = "len"
+	la("lỗi chết giao dịch đi lên", len_, "len")
