@@ -752,11 +752,17 @@ def _chay_validate(d):
 	return d
 
 
-def _si_tach(pt):
-	d = _si_tt(vgb_pt_thanh_toan=pt, grand_total=700000, vgb_thanh_toan_nhieu=[
+def _si_tach(pt, chon=True):
+	"""Đơn tách 600.000 số dư + 100.000 tiền mặt. `chon`: người dùng vừa chọn
+	`pt` cho cả đơn qua cửa chung `chon_pt_ca_don` (như pos_chot)."""
+	d = _si_tt(vgb_pt_thanh_toan=tk.PT_SO_DU, grand_total=700000, flags=NS(), vgb_thanh_toan_nhieu=[
 		D(pt=tk.PT_SO_DU, so_tien=600000, do_may=0), D(pt="Tiền mặt", so_tien=100000, do_may=0)])
 	d.set = lambda k, v: d.__setitem__(k, list(v))
 	d.get_doc_before_save = lambda: None
+	if chon:
+		tk.chon_pt_ca_don(d, pt)
+	else:
+		d.vgb_pt_thanh_toan = pt
 	return d
 
 
@@ -766,17 +772,25 @@ def _():
 		d = _chay_validate(_si_tach(pt))
 		la("%s: giữ phương thức người chọn" % pt, d.vgb_pt_thanh_toan, pt)
 		la("%s: bỏ dòng tách cũ" % pt, list(d.vgb_thanh_toan_nhieu), [])
-	# Lưu lại không đổi gì (phương thức vẫn là dòng lớn nhất): giữ nguyên bảng tách.
-	d = _chay_validate(_si_tach(tk.PT_SO_DU))
+	# Lưu lại không qua cửa chọn phương thức: giữ nguyên bảng tách.
+	d = _chay_validate(_si_tach(tk.PT_SO_DU, chon=False))
 	la("giữ phương thức số dư", d.vgb_pt_thanh_toan, tk.PT_SO_DU)
 	la("giữ hai dòng tách", [(x.pt, x.so_tien) for x in d.vgb_thanh_toan_nhieu], [(tk.PT_SO_DU, 600000), ("Tiền mặt", 100000)])
 	# Bảng tách không có dòng số dư: không đụng (luật cũ của bảng nhiều phương thức).
-	d = _si_tt(vgb_pt_thanh_toan="Chuyển khoản", grand_total=700000, vgb_thanh_toan_nhieu=[
+	d = _si_tt(vgb_pt_thanh_toan="Tiền mặt", grand_total=700000, flags=NS(), vgb_thanh_toan_nhieu=[
 		D(pt="Tiền mặt", so_tien=600000, do_may=0), D(pt="Chuyển khoản", so_tien=100000, do_may=0)])
 	d.set = lambda k, v: d.__setitem__(k, list(v))
 	d.get_doc_before_save = lambda: None
+	tk.chon_pt_ca_don(d, "Chuyển khoản")
 	d = _chay_validate(d)
 	la("bảng không có số dư giữ nguyên", len(d.vgb_thanh_toan_nhieu), 2)
+
+
+@ca("v607 Codex #493 vòng 4 dòng tách: Desk sửa tay ô chính KHÔNG qua cửa chọn phương thức thì không xoá bảng tách của họ")
+def _():
+	d = _chay_validate(_si_tach("Chuyển khoản", chon=False))
+	la("giữ hai dòng tách", [(x.pt, x.so_tien) for x in d.vgb_thanh_toan_nhieu], [(tk.PT_SO_DU, 600000), ("Tiền mặt", 100000)])
+	la("ô chính theo dòng lớn nhất như luật cũ", d.vgb_pt_thanh_toan, tk.PT_SO_DU)
 
 
 @ca("v607 Codex #493 vòng 3 dòng tách: chọn Hàng tặng trên đơn đã tách số dư thì bỏ dòng tách, không vấp chặn dòng tay")
