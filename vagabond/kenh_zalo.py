@@ -667,14 +667,15 @@ def _bot_them():
 
 
 def _mat(loai, bot=BOT_CHINH):
-	"""Đọc token hay khoá bí mật của một bot từ kho mật khẩu. Không ghi ra đâu."""
-	try:
-		if ma_bot(bot) == BOT_CHINH:
-			return frappe.get_single("Vagabond Settings").get_password(loai, raise_exception=False) or ""
-		from frappe.utils.password import get_decrypted_password
-		return get_decrypted_password("Vagabond Settings", "Vagabond Settings", o_mat(loai, bot), raise_exception=False) or ""
-	except Exception:
-		return ""
+	"""Đọc token hay khoá bí mật của một bot từ kho mật khẩu. Không ghi ra đâu.
+
+	Chưa khai thì trả rỗng. Codex #492 (P2, 4324386326): ĐỌC LỖI (kho mật khẩu,
+	cơ sở dữ liệu, giải mã) thì để lỗi đi lên, không đổi thành rỗng: rỗng là "chưa
+	điền token", tin ghi Lỗi và mất, trong khi lỗi đọc chỉ là tạm thời."""
+	if ma_bot(bot) == BOT_CHINH:
+		return frappe.get_single("Vagabond Settings").get_password(loai, raise_exception=False) or ""
+	from frappe.utils.password import get_decrypted_password
+	return get_decrypted_password("Vagabond Settings", "Vagabond Settings", o_mat(loai, bot), raise_exception=False) or ""
 
 
 def _token(bot=BOT_CHINH):
@@ -713,7 +714,14 @@ def _goi(method, body, bot=BOT_CHINH, token=None):
 	v606: bot là số bot gửi; token chỉ truyền khi kiểm một token vừa dán, chưa lưu."""
 	if getattr(frappe.flags, "vagabond_kiem_that", False):
 		return "Lỗi", "Đang chạy kiểm thử trên site: không gọi Zalo.", None
-	tk = token or _token(bot)
+	try:
+		tk = token or _token(bot)
+	except Exception as e:
+		# Codex #492 (P2): đọc token lỗi tạm thời thì chưa gửi gì, trả MANG_LOI để
+		# hàng đợi gửi lại; lỗi chết giao dịch vẫn đi lên.
+		if chet_giao_dich(e):
+			raise
+		return MANG_LOI, "Chưa đọc được token bot (%s), máy sẽ gửi lại." % type(e).__name__, None
 	if not tk:
 		return "Lỗi", ("Chưa điền token Zalo Bot trong Cài đặt." if ma_bot(bot) == BOT_CHINH
 			else "Chưa có token của bot số %s trong Cài đặt." % ma_bot(bot)), None
