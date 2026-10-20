@@ -129,14 +129,23 @@ def _don_si(**o):
 
 
 def _goi_luu_tang(d, anh_cu=(), **kw):
+	# Ảnh đính được phải hiện ra ở `_anh_cua_to` như File thật, vì từ vòng 2
+	# (Codex #493 P1) `luu_tang` đếm lại ảnh SAU khi đính. Bản giả cũ trả danh
+	# sách cố định nên ca "ảnh gửi kèm thì lưu" đỏ dù code đúng.
 	dinh = []
+	co = list(anh_cu)
+
+	def _dinh(n, a):
+		dinh.append(a)
+		co.extend({"url": "/f/%s" % x.get("ten")} for x in a)
+		return len(a)
 	fr = NS(get_doc=lambda *a: d, throw=_nem, parse_json=lambda s: __import__("json").loads(s),
 		db=NS(commit=lambda: None))
 	bh = types.ModuleType("vagabond.ban_hang")
 	bh._kiem_pt = lambda pt, nguon: pt
 	with patch.object(ht, "frappe", fr), patch.object(ht, "_quyen", lambda: None), \
-			patch.object(ht, "_anh_cua_to", lambda n: list(anh_cu)), \
-			patch.object(ht, "_dinh_anh", lambda n, a: dinh.append(a) or len(a)), \
+			patch.object(ht, "_anh_cua_to", lambda n: list(co)), \
+			patch.object(ht, "_dinh_anh", _dinh), \
 			patch.dict(sys.modules, {"vagabond.ban_hang": bh}):
 		return ht.luu_tang("SI-95631", **kw), dinh
 
