@@ -1,0 +1,211 @@
+"""v606 (anh Việt 20/10/2026): báo cáo cuối ngày cho chủ qua nhóm Zalo.
+
+Anh duyệt mẫu dựng từ số thật ngày 19/10 (gửi 23:30, nhóm nào tích tin "Báo
+cáo cuối ngày" thì nhận). Ca đầu chốt NGUYÊN VĂN tin của ngày đó; các ca sau
+chạy hàm thật lay_so_lieu, gui_cuoi_ngay và đường ghi tin của kenh_zalo, chỉ
+thay tầng Frappe và các hàm đọc hoá đơn của phân hệ Báo cáo bằng bản giả.
+"""
+import datetime
+import json
+import os
+from unittest.mock import patch
+
+from vagabond.khung.kiem_thu.nen import ca, dung, la
+from vagabond import bao_cao_chu as b
+from vagabond import kenh_zalo as kz
+
+SL=dict(ngay=datetime.date(2026,10,19),ngay_truoc=datetime.date(2026,10,18),tong=123039344,so_hd=171,tong_truoc=114423188,
+ diem=[dict(ten="Sales Online",tien=88949984,so_hd=48,truoc=77062381,giam=505516),dict(ten="District 1",tien=31807342,so_hd=108,truoc=33959307,giam=5073658),dict(ten="NVHTN",tien=2282018,so_hd=15,truoc=3401500,giam=547982)],
+ kenh=[("Pancake",87760500),("Tại chỗ",19596000),("GrabFood",13041250),("ShopeeFood",2173672),("GreenSM Food",323422),("BeFood",144500)],
+ thanh_toan=[("Chuyển khoản",92244000),("GrabFood",13041250),("Thẻ - ShinhanBank",9220000),("Tiền mặt",2500000),("OnePay",2190000),("ShopeeFood",2173672),("Công nợ",1670422)],
+ giam=6127156,ctkm=dict(tien=945000,luot=11,top=("VOUCHER 200.000 GRAB DINE OUT",395000)),huy=dict(so=2,tien=91979),sua=7,
+ ban_chay=[dict(ten="Bánh trung thu Thập Cẩm Jambon Nấm Truffle",sl=60,tien=9600000),dict(ten="Bánh trung thu Vải Hoa Hồng\t",sl=60,tien=7800000),dict(ten="Bánh trung thu Phúc Bồn Tử Dâu",sl=60,tien=7800000)],
+ nhap=dict(so=1,tien=1012500))
+
+MAU = """📊 Vagabond | Báo cáo cuối ngày T2 19/10
+Doanh thu 123,0 tr · 171 hoá đơn · bình quân 720k
+So với CN 18/10: +7,5%
+
+🏠 Theo điểm bán
+• Sales Online 88,9 tr (72%) · 48 HĐ · +15%
+• District 1 31,8 tr (26%) · 108 HĐ · -6%
+• NVHTN 2,3 tr (2%) · 15 HĐ · -33%
+
+🛵 Theo kênh
+• Pancake 87,8 tr · Tại chỗ 19,6 tr
+• GrabFood 13,0 tr · ShopeeFood 2,2 tr · GreenSM Food, BeFood 468k
+
+💳 Tiền về
+• Chuyển khoản 92,2 tr · Thẻ 9,2 tr · Tiền mặt 2,5 tr
+• Sàn, ví 17,4 tr · Khác 1,7 tr
+
+🎫 Giảm giá 6,1 tr (5,0% doanh thu)
+• District 1 5,1 tr · NVHTN 548k · Sales Online 506k
+• Khuyến mãi 945k / 11 lượt, nhiều nhất VOUCHER 200.000 GRAB DINE OUT (395k)
+
+✂️ Sửa, huỷ: 2 huỷ (92k), 7 sửa
+
+🍰 Bán chạy
+• BTT Thập Cẩm Jambon Nấm Truffle: 60 (9,6 tr)
+• BTT Vải Hoa Hồng: 60 (7,8 tr)
+• BTT Phúc Bồn Tử Dâu: 60 (7,8 tr)
+
+⚠️ Cần để ý
+• NVHTN giảm 33% so với hôm trước
+• 1 đơn chưa ghi sổ (1,0 tr) đã tính vào số trên
+
+Chi tiết: app > Báo cáo"""
+
+
+@ca("v606 báo cáo ngày: tin ngày 19/10 đúng nguyên văn mẫu anh Việt duyệt (thứ thật T2, chữ có dấu, dưới 2.000 ký tự)")
+def _mau():
+	t = b.soan_bao_cao(SL)
+	la("nguyên văn", t, MAU)
+	dung("dưới giới hạn Zalo", len(t) <= 2000)
+	dung("không em dash, en dash", "\u2013" not in t and "\u2014" not in t)
+
+
+@ca("v606 báo cáo ngày: số gọn và phần trăm kiểu Việt")
+def _so():
+	la("tiền", [b.tien_gon(x) for x in (123039344, 945000, 91979, 500, 0, None, "x", -2500000)],
+		["123,0 tr", "945k", "92k", "500 đ", "0 đ", "0 đ", "0 đ", "-2,5 tr"])
+	la("phần trăm", [b.phan_tram(7.53, 1), b.phan_tram(-33.4), b.phan_tram(0), b.phan_tram(None)], ["+7,5%", "-33%", "0%", ""])
+	la("chênh không có số trước", b.chenh(5, 0), None)
+	la("thứ", [b.ngay_vn(datetime.date(2026, 10, 19)), b.ngay_vn(datetime.date(2026, 10, 25))], ["T2 19/10", "CN 25/10"])
+	la("nhóm thanh toán", [b.nhom_thanh_toan(x) for x in ("Chuyển khoản", "Thẻ - ShinhanBank", "Tiền mặt", "GrabFood", "OnePay", "Công nợ", "")],
+		["Chuyển khoản", "Thẻ", "Tiền mặt", "Sàn, ví", "Sàn, ví", "Khác", "Khác"])
+	la("gộp kênh nhỏ", b.gop_kenh([("A", 90), ("B", 9.5), ("C", 0.3), ("D", 0.2), ("E", 0)], 100), [("A", 90), ("B", 9.5), ("C, D", 0.5)])
+
+
+@ca("v606 báo cáo ngày: mục Cần để ý theo ngưỡng; ngày yên thì nói rõ không có gì bất thường; ngày không hoá đơn nói rõ")
+def _de_y():
+	yen = dict(SL, diem=[dict(d, truoc=d["tien"]) for d in SL["diem"]], nhap={"so": 0, "tien": 0})
+	la("ngày yên", b.can_de_y(yen), [])
+	dung("tin ngày yên", "✅ Không có gì bất thường." in b.soan_bao_cao(yen))
+	xau = dict(yen, tong_truoc=SL["tong"] * 2, giam=SL["tong"] * 0.1, huy={"so": 3, "tien": 50000})
+	la("ngày xấu", b.can_de_y(xau), ["Doanh thu cả ngày giảm 50% so với hôm trước", "Giảm giá chiếm 10,0% doanh thu", "3 hoá đơn bị huỷ (50k)"])
+	la("huỷ ít mà tiền lớn", b.can_de_y(dict(yen, huy={"so": 1, "tien": 1500000})), ["1 hoá đơn bị huỷ (1,5 tr)"])
+	t = b.soan_bao_cao(dict(SL, so_hd=0, tong=0))
+	la("không hoá đơn", t, "📊 Vagabond | Báo cáo cuối ngày T2 19/10\nHôm nay chưa có hoá đơn nào.\n\nChi tiết: app > Báo cáo")
+	dai = dict(SL, kenh=[("Kênh %d" % i, 1000000) for i in range(400)])
+	dung("tin quá dài thì cắt ở 2.000 ký tự", len(b.soan_bao_cao(dai)) <= 2000)
+
+
+def _gia_bao_cao(hd_nay, hd_truoc):
+	"""Bản giả các hàm đọc của phân hệ Báo cáo: mỗi hàm trả đúng hình dạng thật."""
+	from vagabond import bao_cao as bc
+
+	def hoa_don(tu, den, **k):
+		return hd_nay if tu == datetime.date(2026, 10, 19) else hd_truoc
+
+	def tong(hd, **k):
+		gom = {}
+		for r in hd:
+			o = gom.setdefault(r["diem"], {"diem": r["diem"], "so_hd": 0, "tien": 0.0, "giam": 0.0})
+			o["so_hd"] += 1
+			o["tien"] += r["tien"]
+			o["giam"] += r["giam"]
+		return {"dong": list(gom.values())}
+	return [patch.object(bc, "_hoa_don", hoa_don),
+		patch.object(bc, "_bc_tong_doanh_thu", tong),
+		patch.object(bc, "_bc_nguon_don", lambda hd, **k: {"dong": [{"nguon": "Pancake", "tien": sum(r["tien"] for r in hd)}]}),
+		patch.object(bc, "_bc_thanh_toan", lambda hd, **k: {"dong": [{"pt": "Chuyển khoản", "tien": sum(r["tien"] for r in hd)}]}),
+		patch.object(bc, "_bc_khuyen_mai", lambda hd, **k: {"dong": [{"ctkm": "Mã A", "so_lan": 2, "giam": 100000}, {"ctkm": "Mã B", "so_lan": 1, "giam": 50000}]}),
+		patch.object(bc, "_bc_sua_huy", lambda hd, **k: {"dong": [{"viec": "Huỷ hoá đơn", "tien": 300000}, {"viec": "Huỷ bill nháp: nhầm", "tien": 20000},
+			{"viec": "Sửa hoá đơn: món", "tien": 0}, {"viec": "Đổi ngày hoá đơn", "tien": 0}]}),
+		patch.object(bc, "_bc_mon_ban_chay", lambda hd, **k: {"dong": [{"mon": "Nĩa gỗ", "sl": 99, "tien": 0}, {"mon": "Kankin", "sl": 2, "tien": 2000000},
+			{"mon": "Very Berry", "sl": 1, "tien": 1300000}]}),
+		patch.object(bc, "_do_nhap", lambda hd: (1, 500000))]
+
+
+def _chay(cac, ham):
+	from contextlib import ExitStack
+	with ExitStack() as st:
+		for p in cac:
+			st.enter_context(p)
+		return ham()
+
+
+HD = [{"diem": "District 1", "tien": 1000000, "giam": 100000}, {"diem": "District 1", "tien": 2000000, "giam": 0},
+	{"diem": "Sales Online", "tien": 3000000, "giam": 50000}]
+HD_CU = [{"diem": "District 1", "tien": 6000000, "giam": 0}, {"diem": "Sales Online", "tien": 2000000, "giam": 0}]
+for _r in HD + HD_CU:
+	_r["grand_total"] = _r["tien"]
+
+
+@ca("v606 báo cáo ngày: lay_so_lieu đọc qua đúng hàm của phân hệ Báo cáo, tách huỷ khỏi sửa, so với hôm trước theo từng điểm")
+def _lay():
+	sl = _chay(_gia_bao_cao(HD, HD_CU), lambda: b.lay_so_lieu(datetime.date(2026, 10, 19)))
+	la("tổng, số hoá đơn, hôm trước", (sl["tong"], sl["so_hd"], sl["tong_truoc"]), (6000000, 3, 8000000))
+	la("từng điểm có số hôm trước", [(d["ten"], d["tien"], d["truoc"], d["giam"]) for d in sl["diem"]],
+		[("District 1", 3000000, 6000000, 100000), ("Sales Online", 3000000, 2000000, 50000)])
+	la("huỷ và sửa", (sl["huy"], sl["sua"]), ({"so": 2, "tien": 320000}, 2))
+	la("khuyến mãi", sl["ctkm"], {"tien": 150000, "luot": 3, "top": ("Mã A", 100000)})
+	la("bán chạy theo doanh thu", [m["ten"] for m in sl["ban_chay"]], ["Kankin", "Very Berry", "Nĩa gỗ"])
+	t = b.soan_bao_cao(sl)
+	dung("District 1 giảm 50% vào Cần để ý", "• District 1 giảm 50% so với hôm trước" in t)
+	dung("món 0 đồng không vào Bán chạy", "Nĩa gỗ" not in t)
+
+
+@ca("v606 báo cáo ngày: gửi 23:30 bằng tin soạn sẵn, mã tin Báo cáo cuối ngày, một khoá mỗi ngày; đọc số lỗi thì không gửi số dở")
+def _gui():
+	goi = []
+	with patch.object(kz, "bao_hoac_ghi_loi", lambda *a, **k: goi.append((a, k))), \
+			patch.object(b.frappe.db, "commit", lambda: None, create=True), \
+			patch.object(b, "lay_so_lieu", lambda ngay: SL):
+		t = b.gui_cuoi_ngay(datetime.date(2026, 10, 19))
+	la("một lần gọi", len(goi), 1)
+	a, k = goi[0]
+	la("loại, chủ đề", a[:2], ("ban_tin", "ban_hang"))
+	la("mã tin, khoá ngày", (k["ma_tin"], k["khoa"]), ("bgd_bao_cao_ngay", "bao_cao_ngay:2026-10-19"))
+	la("gửi nguyên văn tin đã soạn", k["noi_dung"], MAU)
+	dung("mã tin có trong danh mục, đúng bộ phận", kz.TIN["bgd_bao_cao_ngay"][0] == "Ban giám đốc" and "Ban giám đốc" in kz.BO_PHAN)
+	loi = []
+	goi.clear()
+
+	def hong(ngay):
+		raise RuntimeError("doc hoa don loi")
+	with patch.object(kz, "bao_hoac_ghi_loi", lambda *a, **k: goi.append((a, k))), \
+			patch.object(b.frappe, "log_error", lambda *a, **k: loi.append(a), create=True), \
+			patch.object(b.frappe, "get_traceback", lambda: "tb", create=True), \
+			patch.object(b, "lay_so_lieu", hong):
+		la("lỗi đọc số: không gửi", (b.gui_cuoi_ngay(datetime.date(2026, 10, 19)), goi), (None, []))
+	la("lỗi đọc số: ghi Error Log", len(loi), 1)
+	hooks = open(os.path.join(os.path.dirname(kz.__file__), "hooks.py"), encoding="utf-8").read()
+	dung("nhịp 23:30", '"30 23 * * *", []).append("vagabond.bao_cao_chu.gui_cuoi_ngay")' in hooks)
+
+
+@ca("v606 kênh Zalo: tin soạn sẵn đi nguyên văn vào sổ tin, không qua khuôn soan_tin; quá dài thì cắt ở 2.000 ký tự")
+def _ghi():
+	ghi = []
+
+	class Doc(dict):
+		def insert(self, **k):
+			ghi.append(dict(self))
+	nhom = [{"ten_nhom": "BGĐ", "chat_id": "zgr-bgd", "bat": 1, "tin_nhan": "bgd_bao_cao_ngay"}]
+	with patch.object(kz, "_cac_nhom", lambda: nhom), \
+			patch.object(kz.frappe, "get_doc", lambda d: Doc(d), create=True), \
+			patch.object(kz.frappe, "generate_hash", lambda length=8: "h" * length, create=True), \
+			patch.object(kz.frappe.db, "savepoint", lambda sp: None, create=True):
+		kz._ghi_hop_thu({"loai": "ban_tin", "chu_de": "ban_hang", "tieu_de": "x", "khoa": "bao_cao_ngay:2026-10-19",
+			"ma_tin": "bgd_bao_cao_ngay", "noi_dung": MAU})
+		kz._ghi_hop_thu({"loai": "ban_tin", "chu_de": "ban_hang", "tieu_de": "x", "khoa": "k2",
+			"ma_tin": "bgd_bao_cao_ngay", "noi_dung": "a" * 2500})
+	la("nguyên văn", ghi[0]["noi_dung"], MAU)
+	la("cắt dài", len(ghi[1]["noi_dung"]), 2000)
+	la("tin thường vẫn qua khuôn cũ", kz.tin_soan_san(None), "")
+
+
+@ca("v606 kênh Zalo: bao() chuyển tin soạn sẵn xuống sổ tin (đường thật bao_hoac_ghi_loi -> bao -> ghi sổ)")
+def _bao():
+	import types
+	nhan = []
+	f = kz.frappe
+	sau = types.SimpleNamespace(add=lambda fn: None)
+	with patch.object(kz, "_bat", lambda: 1), patch.object(kz, "_ghi_hop_thu", lambda tin: nhan.append(tin) or ["T1"]), \
+			patch.object(f, "flags", types.SimpleNamespace(), create=True), \
+			patch.object(f.db, "after_commit", sau, create=True):
+		kq = kz.bao_hoac_ghi_loi("ban_tin", "ban_hang", "Báo cáo cuối ngày T2 19/10", khoa="bao_cao_ngay:2026-10-19",
+			ma_tin="bgd_bao_cao_ngay", noi_dung=MAU)
+	la("ghi sổ một lần", (kq, len(nhan)), (["T1"], 1))
+	la("tin soạn sẵn tới sổ", (nhan[0]["noi_dung"], nhan[0]["ma_tin"]), (MAU, "bgd_bao_cao_ngay"))

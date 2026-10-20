@@ -66,6 +66,8 @@ NOI_PHAT = {
 	("ke_hoach_sx.py", "nhac_bep_sang"): "bep_ke_hoach_sx",
 	("gui_thu.py", "_bao_zalo"): "ht_email_loi",
 	("zalo_phat_hanh.py", "quet"): "ht_phat_hanh",
+	# v606: báo cáo cuối ngày cho chủ (anh Việt duyệt mẫu 20/10/2026).
+	("bao_cao_chu.py", "gui_cuoi_ngay"): "bgd_bao_cao_ngay",
 }
 # Các hàm từng gửi thư nội bộ, nay chỉ được báo Zalo.
 DA_BO_THU = [
@@ -125,8 +127,9 @@ def _danh_muc():
 	la("có đúng một bảng TIN", len(gan), 1)
 	khoa = [k.value for k in gan[0].value.keys]
 	la("không mã nào trùng", sorted(x for x in set(khoa) if khoa.count(x) > 1), [])
-	la("đủ 22 tin (20 tin đã duyệt và 2 tin Zalo có sẵn)", len(kz.TIN), 22)
-	la("bốn bộ phận đúng thứ tự", kz.BO_PHAN, ("Hoá đơn, kế toán", "Bán hàng, cửa hàng", "Bếp", "Hệ thống"))
+	# v606: thêm "Báo cáo cuối ngày" của Ban giám đốc (anh Việt duyệt 20/10/2026).
+	la("đủ 23 tin (20 tin đã duyệt, 2 tin Zalo có sẵn, báo cáo cuối ngày)", len(kz.TIN), 23)
+	la("năm bộ phận đúng thứ tự", kz.BO_PHAN, ("Ban giám đốc", "Hoá đơn, kế toán", "Bán hàng, cửa hàng", "Bếp", "Hệ thống"))
 	for ma, (bp, ten, gt, loai, cd) in kz.TIN.items():
 		dung("%s: bộ phận có trong danh mục" % ma, bp in kz.BO_PHAN)
 		dung("%s: loại có thật" % ma, loai in kz.LOAI)
