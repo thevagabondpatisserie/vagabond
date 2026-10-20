@@ -174,6 +174,35 @@ def tong_so(nap, giu_cho):
 	}
 
 
+def bo_dong_tach(pt, dong, chinh):
+	"""Có bỏ bảng dòng tách số dư khi người dùng chọn phương thức khác không. THUẦN.
+
+	Codex #493 vòng 3: `ap_dung` tách đơn thành dòng số dư + dòng phần còn
+	lại, ô phương thức chính là dòng lớn nhất. Bill quầy đổi phương thức qua
+	`pos_chot` chỉ sửa ô chính, rồi hook `dat_pt_chinh` dựng lại ô chính từ
+	bảng dòng cũ, lặng lẽ trả về phép tách cũ mà màn quầy không có chỗ sửa.
+
+	Quy tắc: bảng có dòng số dư, và ô chính KHÁC dòng lớn nhất của bảng, tức
+	người dùng vừa chọn tay một phương thức cho cả đơn. Bỏ bảng. Lưu lại mà
+	không đổi gì (ô chính vẫn là dòng lớn nhất) thì giữ nguyên. Bảng không có
+	dòng số dư thì không đụng, đó là luật cũ của bảng nhiều phương thức.
+	`chinh` là dòng lớn nhất do `thanh_toan_nhieu.chinh_cua` tính.
+	"""
+	pt = chuoi(pt)
+	if not pt or not chinh:
+		return False
+	if not any(chuoi((d or {}).get("pt")) == PT_SO_DU and so((d or {}).get("so_tien")) > 0 for d in (dong or [])):
+		return False
+	return pt != chuoi(chinh)
+
+
+def ma_lan_hop_le(ma):
+	"""Mã lần gửi của form nạp: chuỗi máy sinh, 16 tới 64 ký tự chữ thường, số, gạch. THUẦN."""
+	import re
+
+	return bool(re.fullmatch(r"[a-z0-9-]{16,64}", chuoi(ma)))
+
+
 def chia_don(tong, so_du, pt_con_lai):
 	"""Dòng thanh toán khi trả bằng số dư. THUẦN.
 
@@ -209,7 +238,9 @@ PE = "Payment Entry"
 JE = "Journal Entry"
 CO = "vgb_nap_tra_truoc"
 O_NGUON = "vgb_nguon_nap"
+O_MA_LAN = "vgb_ma_lan_nap"
 DT_DONG = "Vagabond Dong Thanh Toan"
+DT_BANG = "vgb_thanh_toan_nhieu"
 
 TRUONG_MOI = {
 	PE: [
@@ -228,6 +259,16 @@ TRUONG_MOI = {
 			"insert_after": CO,
 			"read_only": 1,
 		},
+		{
+			"fieldname": O_MA_LAN,
+			"label": "Mã lần gửi phiếu nạp",
+			"fieldtype": "Data",
+			"insert_after": O_NGUON,
+			"read_only": 1,
+			"hidden": 1,
+			"search_index": 1,
+			"description": "Máy ghi. Form nạp gửi lại sau khi mất phản hồi thì trả về đúng phiếu này, không lập phiếu thứ hai.",
+		},
 	],
 	JE: [
 		{
@@ -244,6 +285,16 @@ TRUONG_MOI = {
 			"fieldtype": "Data",
 			"insert_after": CO,
 			"read_only": 1,
+		},
+		{
+			"fieldname": O_MA_LAN,
+			"label": "Mã lần gửi phiếu nạp",
+			"fieldtype": "Data",
+			"insert_after": O_NGUON,
+			"read_only": 1,
+			"hidden": 1,
+			"search_index": 1,
+			"description": "Máy ghi. Form nạp gửi lại sau khi mất phản hồi thì trả về đúng phiếu này, không lập phiếu thứ hai.",
 		},
 	],
 	"Vagabond Settings": [
@@ -277,12 +328,19 @@ def _la_ke_toan():
 
 
 def _cong_ty():
-	return (frappe.defaults.get_user_default("Company")
-		or frappe.db.get_single_value("Global Defaults", "default_company"))
+	"""Công ty của phiếu nạp: ĐÚNG công ty mà app lập hoá đơn bán.
+
+	Codex #493 vòng 3: trước đây lấy mặc định của người dùng trước. Người
+	dùng có công ty mặc định khác Global Defaults thì phiếu nạp nằm ở công ty
+	đó, còn hoá đơn app (`ban_hang._cong_ty`) nằm ở công ty chung; màn vẫn
+	báo số dư mà ERPNext không cấn được. Không import ban_hang (kéo requests).
+	"""
+	return frappe.db.get_single_value("Global Defaults", "default_company")
 
 
-def _nap_pe(khach=None):
-	loc = {CO: 1, "docstatus": ["<", 2], "party_type": "Customer", "payment_type": "Receive"}
+def _nap_pe(khach=None, cty=None):
+	loc = {CO: 1, "docstatus": ["<", 2], "party_type": "Customer", "payment_type": "Receive",
+		"company": cty or _cong_ty()}
 	if khach:
 		loc["party"] = khach
 	return [
@@ -298,9 +356,9 @@ def _nap_pe(khach=None):
 	]
 
 
-def _nap_je(khach=None):
+def _nap_je(khach=None, cty=None):
 	ds = frappe.get_all(
-		JE, filters={CO: 1, "docstatus": ["<", 2]},
+		JE, filters={CO: 1, "docstatus": ["<", 2], "company": cty or _cong_ty()},
 		fields=["name", "posting_date", "docstatus", O_NGUON, "owner", "creation", "user_remark"],
 		order_by="posting_date asc, creation asc", limit_page_length=0,
 	)
@@ -329,13 +387,19 @@ def _nap_je(khach=None):
 	return ra
 
 
-def cac_phieu_nap(khach=None):
-	return _nap_pe(khach) + _nap_je(khach)
+def cac_phieu_nap(khach=None, cty=None):
+	"""Phiếu nạp của một công ty. Không truyền thì là công ty app lập hoá đơn.
+
+	Codex #493 vòng 3: mọi phép đọc số dư phải theo ĐÚNG công ty của hoá đơn
+	đang xét, vì ERPNext chỉ cấn khoản ứng trước cùng công ty.
+	"""
+	cty = cty or _cong_ty()
+	return _nap_pe(khach, cty) + _nap_je(khach, cty)
 
 
-def _dong_giu_cho(khach=None, tru=None):
+def _dong_giu_cho(khach=None, tru=None, cty=None):
 	"""Các đơn NHÁP đang chọn trả bằng số dư, kèm số tiền đang giữ."""
-	loc = {"docstatus": 0, "vgb_huy": 0}
+	loc = {"docstatus": 0, "vgb_huy": 0, "company": cty or _cong_ty()}
 	if khach:
 		loc["customer"] = khach
 	theo_bang = {}
@@ -368,10 +432,13 @@ def _dong_giu_cho(khach=None, tru=None):
 	return ra
 
 
-def so_du_khach(khach, tru=None):
-	"""Số dư của một khách. `tru` là tên đơn đang xét, không tính giữ chỗ của chính nó."""
-	nap = cac_phieu_nap(khach)
-	giu = _dong_giu_cho(khach, tru=tru)
+def so_du_khach(khach, tru=None, cty=None):
+	"""Số dư của một khách trong một công ty. `tru` là tên đơn đang xét, không
+	tính giữ chỗ của chính nó. `cty` là công ty của đơn; không truyền thì là
+	công ty app lập hoá đơn."""
+	cty = cty or _cong_ty()
+	nap = cac_phieu_nap(khach, cty)
+	giu = _dong_giu_cho(khach, tru=tru, cty=cty)
 	return tong_so(nap, sum(g["so"] for g in giu))
 
 
@@ -380,7 +447,31 @@ def so_du_khach(khach, tru=None):
 
 def _dong_cua(doc):
 	return [{"pt": d.get("pt"), "so_tien": d.get("so_tien")}
-		for d in (doc.get("vgb_thanh_toan_nhieu") or [])]
+		for d in (doc.get(DT_BANG) or [])]
+
+
+def bo_dong_tach_khi_doi_pt(doc, method=None):
+	"""Hook validate, ĐỨNG TRƯỚC `thanh_toan_nhieu.dat_pt_chinh` (Codex #493 vòng 3).
+
+	Đơn đã tách số dư mà người dùng chọn một phương thức khác cho cả đơn (Bill
+	quầy, Doanh thu Sales, Hàng tặng) thì bỏ bảng dòng tách, để `dat_pt_chinh`
+	không dựng lại phép tách cũ. Một chỗ cho mọi cửa đổi phương thức, không vá
+	từng cửa. Xem `bo_dong_tach`.
+	"""
+	if cint(doc.get("docstatus")) != 0:
+		return
+	dong = [{"pt": d.get("pt"), "so_tien": d.get("so_tien"), "ma_tham_chieu": d.get("ma_tham_chieu"),
+		"do_may": d.get("do_may")} for d in (doc.get(DT_BANG) or [])]
+	if not dong:
+		return
+	from vagabond.thanh_toan_nhieu import chinh_cua, gom_dong
+
+	try:
+		chinh = chinh_cua(gom_dong(dong))
+	except Exception:
+		return
+	if bo_dong_tach(doc.get("vgb_pt_thanh_toan"), dong, chinh):
+		doc.set(DT_BANG, [])
 
 
 def kiem_khi_luu(doc, method=None):
@@ -405,7 +496,7 @@ def kiem_khi_luu(doc, method=None):
 		frappe.throw(
 			"Đơn trả bằng số dư trả trước phải gắn đúng khách đã nạp tiền. Bấm chip "
 			"Số dư trả trước rồi chọn khách.", title="Chưa chọn khách trả trước")
-	s = so_du_khach(doc.get("customer"), tru=doc.get("name"))
+	s = so_du_khach(doc.get("customer"), tru=doc.get("name"), cty=doc.get("company"))
 	if can > s["kha_dung_tam"] + 1:
 		frappe.throw(
 			"Khách %s chỉ còn %s đ số dư trả trước, đơn này cần trừ %s đ. Chọn trả "
@@ -427,7 +518,8 @@ def can_tru_khi_ghi_so(doc, method=None):
 	can = phan_tra_truoc(doc.get("vgb_pt_thanh_toan"), _dong_cua(doc), doc.get("grand_total"))
 	if can <= 0:
 		return
-	nap = {(n["loai"], n["name"]) for n in cac_phieu_nap(doc.get("customer")) if int(n["docstatus"]) == 1}
+	nap = {(n["loai"], n["name"]) for n in cac_phieu_nap(doc.get("customer"), cty=doc.get("company"))
+		if int(n["docstatus"]) == 1}
 	res = doc.get_advance_entries(include_unallocated=True)
 	nguon = []
 	theo = {}
@@ -441,7 +533,7 @@ def can_tru_khi_ghi_so(doc, method=None):
 		theo[khoa] = r
 	chia, thieu = phan_bo(can, nguon)
 	if thieu > 0:
-		s = so_du_khach(doc.get("customer"))
+		s = so_du_khach(doc.get("customer"), cty=doc.get("company"))
 		frappe.throw(
 			"Đơn %s cần trừ %s đ vào số dư trả trước nhưng khách %s mới có %s đ đã ghi "
 			"sổ. %sNhờ kế toán ghi sổ phiếu nạp hoặc chọn trả phần thiếu bằng phương thức khác."
@@ -583,7 +675,8 @@ def so_du(khach, si=None):
 	khach = chuoi(khach)
 	if not khach:
 		return tong_so([], 0)
-	s = so_du_khach(khach, tru=chuoi(si) or None)
+	cty = (frappe.db.get_value(SI, chuoi(si), "company") if chuoi(si) else None) or _cong_ty()
+	s = so_du_khach(khach, tru=chuoi(si) or None, cty=cty)
 	s["khach"] = khach
 	s["ten"] = frappe.db.get_value("Customer", khach, "customer_name") or khach
 	return s
@@ -642,15 +735,69 @@ def _so_anh(anh):
 		and la_anh(a.get("ten")) and chuoi(a.get("noi_dung"))])
 
 
+KHOA_NAP = "vgb_nap_tra_truoc:"
+
+
+def _phieu_theo_ma_lan(ma_lan):
+	"""Phiếu nạp (chưa huỷ) đã lập với mã lần gửi này: (doctype, {name, nguon, khach, so})."""
+	loc = {O_MA_LAN: ma_lan, CO: 1, "docstatus": ["<", 2]}
+	r = frappe.db.get_value(PE, loc, ["name", O_NGUON, "party", "paid_amount"], as_dict=True)
+	if r:
+		return PE, {"name": r.name, "nguon": r.get(O_NGUON), "khach": r.get("party"), "so": flt(r.get("paid_amount"))}
+	r = frappe.db.get_value(JE, loc, ["name", O_NGUON], as_dict=True)
+	if r:
+		dong = frappe.get_all("Journal Entry Account", filters={"parent": r.name, "party_type": "Customer"},
+			fields=["party", "credit_in_account_currency"], limit_page_length=0)
+		return JE, {"name": r.name, "nguon": r.get(O_NGUON), "khach": dong[0].party if dong else None,
+			"so": sum(flt(d.credit_in_account_currency) for d in dong)}
+	return None, None
+
+
+def _tra_phieu_cu(dt, cu, khach, tien, nguon):
+	"""Gửi lại cùng mã lần: trả đúng phiếu cũ. Khác khách, số tiền hay nguồn thì chặn."""
+	if cu["khach"] != khach or tron(cu["so"]) != tron(tien) or chuoi(cu["nguon"]) != chuoi(nguon):
+		frappe.throw(
+			"Form này đã lập phiếu nạp %s rồi. Mở lại màn Nạp tiền để lập phiếu mới." % cu["name"],
+			title="Phiếu nạp đã lập")
+	return {"ok": 1, "doctype": dt, "name": cu["name"], "trung": 1}
+
+
 @frappe.whitelist()
-def tao_phieu_nap(khach, so_tien, nguon, anh=None, ghi_chu="", quay="", ma_giao_dich=""):
+def tao_phieu_nap(khach, so_tien, nguon, anh=None, ghi_chu="", quay="", ma_giao_dich="", ma_lan=""):
 	"""Lập phiếu nạp số dư trả trước, ở trạng thái CHỜ KẾ TOÁN GHI SỔ.
 
 	Thu ngân, Sales lập; kế toán đối chiếu tiền về rồi ghi sổ. Phiếu còn chờ
 	vẫn được tính tạm vào số dư khi chọn trên màn, nhưng chỉ phiếu đã ghi sổ
 	mới cấn được vào đơn lúc ghi sổ đơn.
+
+	Codex #493 vòng 3: `ma_lan` là mã form nạp sinh MỘT lần (giữ cả trong bản
+	nháp tự lưu). Lần đầu đã lập mà mất phản hồi, bấm lại thì trả về đúng phiếu
+	cũ, không lập phiếu thứ hai làm số dư tạm nhân đôi. Khoá có tên theo mã
+	lần giữ từ lúc tra tới sau commit, hai lần bấm sát nhau cũng chỉ ra một
+	phiếu (cùng nếp `doi_soat_vendor`).
 	"""
 	_quyen()
+	ma_lan = chuoi(ma_lan).lower()
+	if not ma_lan_hop_le(ma_lan):
+		frappe.throw("Tải lại app rồi lập lại phiếu nạp: màn đang mở là bản cũ.",
+			title="Chưa lập phiếu nạp")
+	khoa = KHOA_NAP + ma_lan
+	r = frappe.db.sql("select get_lock(%s, %s)", (khoa, 15))
+	if not r or r[0][0] != 1:
+		frappe.throw("Phiếu nạp này đang được lập ở lần bấm trước. Đợi vài giây rồi mở sổ khách xem.",
+			title="Đang lập phiếu nạp")
+	try:
+		# Mở ảnh dữ liệu mới sau khi có khoá, không dùng ảnh đọc từ trước khi chờ.
+		frappe.db.commit()
+		dt, cu = _phieu_theo_ma_lan(ma_lan)
+		if cu:
+			return _tra_phieu_cu(dt, cu, chuoi(khach), tron(so_tien), nguon)
+		return _lap_phieu_nap(khach, so_tien, nguon, anh, ghi_chu, quay, ma_giao_dich, ma_lan)
+	finally:
+		frappe.db.sql("select release_lock(%s)", (khoa,))
+
+
+def _lap_phieu_nap(khach, so_tien, nguon, anh, ghi_chu, quay, ma_giao_dich, ma_lan):
 	khach = chuoi(khach)
 	if not khach or not frappe.db.exists("Customer", khach):
 		frappe.throw("Chọn khách nạp tiền.")
@@ -690,6 +837,7 @@ def tao_phieu_nap(khach, so_tien, nguon, anh=None, ghi_chu="", quay="", ma_giao_
 			je.posting_date = ngay
 			je.set(CO, 1)
 			je.set(O_NGUON, ng["ma"])
+			je.set(O_MA_LAN, ma_lan)
 			je.user_remark = dien_giai
 			je.cheque_no = chuoi(ma_giao_dich) or None
 			je.cheque_date = ngay if chuoi(ma_giao_dich) else None
@@ -726,6 +874,7 @@ def tao_phieu_nap(khach, so_tien, nguon, anh=None, ghi_chu="", quay="", ma_giao_
 			pe.bank_account = ba
 		pe.set(CO, 1)
 		pe.set(O_NGUON, ng["ma"])
+		pe.set(O_MA_LAN, ma_lan)
 		if ng["can_quay"]:
 			pe.vgb_quay = chuoi(quay).upper()
 		pe.remarks = dien_giai
@@ -780,7 +929,7 @@ def ap_dung(si_name, khach, pt_con_lai="", ma_tham_chieu=""):
 	_kiem_pt(PT_SO_DU, si.get("custom_nguon"))
 	if chuoi(pt_con_lai):
 		pt_con_lai = _kiem_pt(pt_con_lai, si.get("custom_nguon"))
-	s = so_du_khach(khach, tru=si.name)
+	s = so_du_khach(khach, tru=si.name, cty=si.company)
 	dong, loi = chia_don(si.grand_total, s["kha_dung_tam"], pt_con_lai)
 	if loi:
 		frappe.throw(loi, title="Chưa áp số dư trả trước")
@@ -803,7 +952,7 @@ def ap_dung(si_name, khach, pt_con_lai="", ma_tham_chieu=""):
 	si.flags.ignore_permissions = True
 	si.save()
 	frappe.db.commit()
-	return {"ok": 1, "dong": dong, "so_du": so_du_khach(khach, tru=si.name)}
+	return {"ok": 1, "dong": dong, "so_du": so_du_khach(khach, tru=si.name, cty=si.company)}
 
 
 def thu_nap_tai_quay(quay, tu_luc, den_luc, theo_ngay=False):

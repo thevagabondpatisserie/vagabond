@@ -778,6 +778,11 @@ doc_events = {
 			"vagabond.he_so_chung_tu.kiem",
 			"vagabond.ban_hang.kiem_truoc_khi_luu",
 			"vagabond.qua_tang_hoa_don.truoc_khi_luu",
+			# v607 Codex #493 vòng 3: đơn đã tách số dư trả trước mà người
+			# dùng chọn phương thức khác cho cả đơn thì bỏ bảng dòng tách
+			# TRƯỚC hang_tang và dat_pt_chinh, không thì dat_pt_chinh dựng lại
+			# phép tách cũ (và Hàng tặng vấp chặn dòng tay).
+			"vagabond.tra_truoc_khach.bo_dong_tach_khi_doi_pt",
 			"vagabond.hang_tang.truoc_khi_luu",
 			"vagabond.thanh_toan_nhieu.dat_pt_chinh",
 			# v607: đơn trả bằng số dư trả trước phải gắn khách thật và đủ số
