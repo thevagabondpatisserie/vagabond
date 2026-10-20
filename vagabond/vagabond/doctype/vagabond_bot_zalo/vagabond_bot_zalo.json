@@ -1,0 +1,61 @@
+{
+ "actions": [],
+ "creation": "2026-10-20 12:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "istable": 1,
+ "field_order": [
+  "ma_bot",
+  "ten_bot",
+  "co_token",
+  "trang_thai"
+ ],
+ "fields": [
+  {
+   "fieldname": "ma_bot",
+   "fieldtype": "Data",
+   "label": "Số bot",
+   "in_list_view": 1,
+   "read_only": 1,
+   "columns": 1,
+   "description": "Máy cấp khi thêm bot, không đổi và không cấp lại. Thẻ nhóm ghi số này ở Gửi bằng bot số."
+  },
+  {
+   "fieldname": "ten_bot",
+   "fieldtype": "Data",
+   "label": "Tên gợi nhớ",
+   "in_list_view": 1,
+   "columns": 3,
+   "description": "Ví dụ: Bot nhóm Bếp. Để trống lúc thêm thì lấy tên bot trên Zalo."
+  },
+  {
+   "fieldname": "co_token",
+   "fieldtype": "Check",
+   "label": "Đã khai token",
+   "in_list_view": 1,
+   "read_only": 1,
+   "columns": 2,
+   "description": "Token cất mã hoá, không hiện ra đây. Đổi token bằng nút Đổi token ở hàng nút Zalo."
+  },
+  {
+   "fieldname": "trang_thai",
+   "fieldtype": "Small Text",
+   "label": "Kết quả nối",
+   "in_list_view": 1,
+   "read_only": 1,
+   "columns": 4,
+   "description": "Phải là Đã xác minh thì nhóm @nhắc bot này mới hiện trong ô Chat vừa nhắn bot."
+  }
+ ],
+ "links": [],
+ "modified": "2026-10-20 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Vagabond",
+ "name": "Vagabond Bot Zalo",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
