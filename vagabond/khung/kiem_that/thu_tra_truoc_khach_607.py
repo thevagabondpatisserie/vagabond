@@ -65,6 +65,11 @@ def _don(cty, mon, khach, tien_don, dong=None):
 	hd.ignore_pricing_rule = 1
 	hd.set("taxes", [])
 	hd.taxes_and_charges = None
+	# Bench không có mẫu thuế mặc định; khai VAT đã gồm trong giá tường minh như
+	# fixture #227 để tổng đơn đúng bằng giá món, không phụ thuộc cấu hình site.
+	from vagabond.hang_tang_so_cai import tai_khoan
+	hd.append("taxes", {"charge_type": "On Net Total", "account_head": tai_khoan(cty, "33311", "Liability"),
+		"rate": 8, "description": "VAT ca kiểm 607", "included_in_print_rate": 1})
 	hd.append("items", {"item_code": mon, "qty": 1, "rate": tien_don, "warehouse": mot_kho(cty)})
 	hd.vgb_pt_thanh_toan = tk.PT_SO_DU
 	for d in (dong or []):
