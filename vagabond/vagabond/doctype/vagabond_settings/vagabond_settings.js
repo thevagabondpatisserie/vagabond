@@ -425,8 +425,14 @@ frappe.ui.form.on('Vagabond Kenh Zalo', {
 			: (kq.indexOf('Đã xác minh') === 0 ? chip('ok', 'Đã nối bot, Zalo gọi về được', 1)
 				: chip(kq.indexOf('THẤT BẠI') >= 0 ? 'err' : 'off', kq.split('. ')[0], 1));
 		var coNhom = (frm.doc.zalo_nhom || []).some(function (r) { return r.chat_id; });
-		f.$wrapper.html('<div class="vgbc-chips">' + tt + '</div><div class="vgbc-zl-nut">' +
+		// v606: bot chính đầy nhóm thì nối thêm bot thứ hai. Chỉ hiện khi đã dán token bot thứ hai.
+		var co2 = !!frm.doc.zalo_bot_token_2, kq2 = String(frm.doc.zalo_noi_trang_thai_2 || '');
+		var tt2 = !co2 ? '' : (!kq2 ? chip('no', 'Bot thứ hai: chưa nối, Lưu rồi bấm Nối bot thứ hai', 1)
+			: (kq2.indexOf('Đã xác minh') === 0 ? chip('ok', 'Bot thứ hai đã nối', 1)
+				: chip(kq2.indexOf('THẤT BẠI') >= 0 ? 'err' : 'off', 'Bot thứ hai: ' + kq2.split('. ')[0], 1)));
+		f.$wrapper.html('<div class="vgbc-chips">' + tt + tt2 + '</div><div class="vgbc-zl-nut">' +
 			'<button type="button" class="btn btn-default" data-zl="noi">Nối Zalo Bot</button>' +
+			(co2 ? '<button type="button" class="btn btn-default" data-zl="noi2">Nối bot thứ hai</button>' : '') +
 			'<button type="button" class="btn btn-default" data-zl="guithu"' + (coNhom ? '' : ' disabled') + '>Gửi thử tới một nhóm</button>' +
 			'<button type="button" class="btn btn-default" data-zl="xem">Xem trước tin mẫu</button>' +
 			'<button type="button" class="btn btn-default" data-zl="kiem">Kiểm lại đường nhận</button></div>' +
@@ -438,9 +444,10 @@ frappe.ui.form.on('Vagabond Kenh Zalo', {
 	// Zalo trên thanh công cụ (Codex #447). Nối và Kiểm gọi máy chủ trên cấu hình
 	// ĐÃ LƯU rồi tải lại form, nên phải chặn khi còn bản nháp.
 	function zaloTacVu(frm, v) {
-			if (v === 'noi' || v === 'kiem') {
+			if (v === 'noi' || v === 'kiem' || v === 'noi2') {
 			if (frm.is_dirty()) { frappe.msgprint('Bấm Lưu trước (Ctrl+S), rồi mới bấm nút này.'); return; }
-			frappe.call({ method: v === 'noi' ? 'vagabond.kenh_zalo.dang_ky_webhook' : 'vagabond.kenh_zalo.kiem_webhook', freeze: true })
+			frappe.call({ method: v === 'kiem' ? 'vagabond.kenh_zalo.kiem_webhook' : 'vagabond.kenh_zalo.dang_ky_webhook',
+				args: { bot: v === 'noi2' ? 2 : 1 }, freeze: true })
 				.then(function (r) { var m = (r && r.message) || {}; frappe.msgprint({ message: m.loi_nhan || '', indicator: m.ok ? 'green' : 'orange' }); frm.reload_doc(); });
 		} else if (v === 'xem') {
 			frappe.call({ method: 'vagabond.kenh_zalo.xem_truoc', args: { loai: 'viec' } })
@@ -475,6 +482,7 @@ frappe.ui.form.on('Vagabond Kenh Zalo', {
 					'<div class="d"><small>Nhận:</small> ' + esc(t.loai) + '</div>' +
 					'<div class="d"><small>Chủ đề:</small> ' + esc(t.chu_de) + '</div>') +
 				'<div class="d"><small>Giờ im:</small> ' + esc(t.im) + '</div>' +
+				(String(r.bot || '1') === '2' ? '<div class="d"><small>Gửi bằng:</small> bot thứ hai</div>' : '') +
 				'<div class="n"><button type="button" class="btn btn-default" data-zls="' + i + '">Sửa</button>' +
 				(t.guiThu ? '<button type="button" class="btn btn-default" data-zlg="' + i + '">Gửi thử</button>' : '') + '</div></div>';
 		}).join('') + '</div>' : '<div class="vgbc-mo">Chưa có nhóm nào. Bấm Thêm nhóm nhận tin, chọn nhóm Zalo đã nhắn bot, tích những tin nhóm cần nhận.</div>') +
