@@ -247,7 +247,7 @@ def _():
 	moi = {f["fieldname"] for f in d["fields"] if f["fieldtype"] not in ("Tab Break", "Section Break", "Column Break")}
 	# v579: hai ô HTML vẽ hàng nút Zalo và thẻ nhóm nhận tin; ô HTML không lưu giá trị.
 	# v601: công tắc tráo /banh sang bản Vue (Check, mặc định tắt), thêm mới, không đổi tên ô cũ.
-	la("ô có giá trị mới thêm", sorted(moi - can_co - _o_cu()), ["html_du_lieu_app", "web_ban_vue", "web_ten_mien_chinh", "zalo_bi_mat_2", "zalo_bot_token_2", "zalo_nhom_the", "zalo_noi_trang_thai_2", "zalo_tac_vu"])
+	la("ô có giá trị mới thêm", sorted(moi - can_co - _o_cu()), ["html_du_lieu_app", "web_ban_vue", "web_ten_mien_chinh", "zalo_bot_ma_cuoi", "zalo_bot_phu", "zalo_nhom_the", "zalo_tac_vu"])
 
 
 def _o_cu():

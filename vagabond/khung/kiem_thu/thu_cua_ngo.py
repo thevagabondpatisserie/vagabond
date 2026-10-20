@@ -532,7 +532,7 @@ CUA_NGO = {
 	# v548 (#402) + v549: cong no NCC, them luong tra truoc khi len ERP.
 	# v562 (#410): ban tin Zalo. `nhan` la diem nhan cua Zalo Bot (allow_guest,
 	# tu xac thuc bang header X-Bot-Api-Secret-Token); ba ham con lai chi quan tri.
-	"kenh_zalo.py": ["dang_ky_webhook", "gui_thu", "kiem_webhook", "nhan", "nhom_da_nhan_bot", "xem_truoc"],
+	"kenh_zalo.py": ["dang_ky_webhook", "gui_thu", "kiem_webhook", "luu_bot", "nhan", "nhom_da_nhan_bot", "xem_truoc"],
 	# v552: man But toan them doi_tai_khoan (chi Dung doi ve Co tren nhap).
 	"but_toan.py": ["danh_sach", "danh_sach_mau", "doi_tai_khoan", "ghi_so", "huy", "tao", "tim_tai_khoan", "xem"],
 	"cong_no_ncc.py": ["bo_truoc_erp", "danh_sach", "duyet_truoc_erp", "khoan_da_tra", "lap_truoc_erp",
