@@ -784,3 +784,75 @@ def _():
 	d = _si_tach("Hàng tặng")
 	d = _chay_validate(d)
 	la("Hàng tặng, không còn dòng tách", (d.vgb_pt_thanh_toan, list(d.vgb_thanh_toan_nhieu)), ("Hàng tặng", []))
+
+
+# ------------------------------------------- Codex #493 vòng 4 (SHA 18128bc24)
+
+
+def _si_tach_nho():
+	"""Ca Codex 4330524517: số dư là phần NHỎ, ô chính đã là Tiền mặt."""
+	d = _don_si(vgb_pt_thanh_toan="Tiền mặt", grand_total=700000, customer="KL040476",
+		vgb_thanh_toan_nhieu=[D(pt=tk.PT_SO_DU, so_tien=100000, do_may=0), D(pt="Tiền mặt", so_tien=600000, do_may=0)])
+	d.set = lambda k, v: d.__setitem__(k, list(v))
+	d.get_doc_before_save = lambda: None
+	return d
+
+
+@ca("v607 Codex #493 vòng 4: Bill quầy chọn Tiền mặt cho cả đơn khi Tiền mặt ĐÃ là dòng lớn nhất thì vẫn bỏ dòng số dư")
+def _():
+	for ten in ("pos_chot", "pos_luu_don"):
+		ghi = []
+		d = _si_tach_nho()
+		d.save = lambda **k: (_chay_validate(d), ghi.append("save"))
+		f = nap("ban_hang.py", ten, _g_ban_hang(d, ghi))
+		f("SI-95631", pt="Tiền mặt")
+		dung("%s lưu" % ten, "save" in ghi)
+		la("%s giữ Tiền mặt" % ten, d.vgb_pt_thanh_toan, "Tiền mặt")
+		la("%s bỏ bảng tách, không còn trừ số dư" % ten, list(d.vgb_thanh_toan_nhieu), [])
+
+
+@ca("v607 Codex #493 vòng 4: Doanh thu Sales chọn một phương thức trên đơn đang tách số dư thì đi đường Document, bỏ bảng tách")
+def _():
+	ghi = []
+	d = _si_tach_nho()
+	d.save = lambda **k: (_chay_validate(d), ghi.append("save"))
+	g = _g_ban_hang(d, ghi)
+	g["_co_dong_so_du"] = lambda n: True
+	nap("ban_hang.py", "luu_thanh_toan", g)("SI-95631", pt="Tiền mặt")
+	la("không đi set_value bỏ qua validate", ghi.count("set"), 0)
+	la("bỏ bảng tách", list(d.vgb_thanh_toan_nhieu), [])
+	# Đơn không tách số dư: giữ đường cũ (set_value), không đổi hành vi.
+	ghi = []
+	d = _si_tach_nho()
+	g = _g_ban_hang(d, ghi)
+	g["_co_dong_so_du"] = lambda n: False
+	nap("ban_hang.py", "luu_thanh_toan", g)("SI-95631", pt="Tiền mặt")
+	la("đơn thường vẫn set_value", ghi.count("set"), 1)
+
+
+@ca("v607 Codex #493 vòng 4: lưu lại KHÔNG qua nút chọn phương thức (nhịp Pancake) thì giữ nguyên bảng tách")
+def _():
+	d = _chay_validate(_si_tach_nho())
+	la("giữ hai dòng", [(x.pt, x.so_tien) for x in d.vgb_thanh_toan_nhieu], [(tk.PT_SO_DU, 100000), ("Tiền mặt", 600000)])
+
+
+@ca("v607 Codex #493 vòng 4: không cửa người dùng nào tự gán ô phương thức, mọi cửa đi qua chon_pt_ca_don")
+def _():
+	for tep in ("ban_hang.py", "hang_tang.py"):
+		cay = ast.parse((GOC / tep).read_text(encoding="utf-8"))
+		for ham in [n for n in cay.body if isinstance(n, ast.FunctionDef)]:
+			mo = any("whitelist" in ast.unparse(x) for x in ham.decorator_list)
+			if not mo:
+				continue
+			gan = [n.lineno for n in ast.walk(ham) if isinstance(n, ast.Assign)
+				for t in n.targets if isinstance(t, ast.Attribute) and t.attr == "vgb_pt_thanh_toan"]
+			la("%s:%s không tự gán ô phương thức" % (tep, ham.name), gan, [])
+			sv = [n.lineno for n in ast.walk(ham) if isinstance(n, ast.Call) and ast.unparse(n.func).endswith("db.set_value")
+				and "vgb_pt_thanh_toan" in ast.unparse(n)]
+			if sv:
+				dung("%s:%s set_value phương thức phải có rào đơn tách số dư" % (tep, ham.name),
+					ham.name == "luu_thanh_toan" and "_co_dong_so_du(" in ast.unparse(ham))
+	ten = {n.name for n in ast.walk(ast.parse((GOC / "ban_hang.py").read_text(encoding="utf-8")))
+		if isinstance(n, ast.FunctionDef) and "chon_pt_ca_don(" in ast.unparse(n)}
+	la("năm cửa của ban_hang đi qua chon_pt_ca_don", sorted(ten & {"pos_chot", "pos_luu_don", "pos_sua_don", "luu_thanh_toan", "chot_mot_don"}),
+		["chot_mot_don", "luu_thanh_toan", "pos_chot", "pos_luu_don", "pos_sua_don"])
