@@ -178,7 +178,9 @@ def _thu_tu():
 	# v579: 52-doi-soat-vendor.js (màn Đối soát nhà cung cấp, chỉ đọc và nhận tệp, không lập phiếu) qua đủ ba điều kiện trên.
 	# #482: 53-gia-von-tam.js (màn Giá vốn tạm tính, chỉ đọc và chốt bảng giá riêng, không lập phiếu) qua đủ ba điều kiện trên.
 	# v600 Codex #486: 53 thêm màn Phiếu tính giá thử, duyệt riêng tên gvtManPhieu qua SAU_48_DUOC_BOC (xem lý do ở đó).
-	la("chỉ phần được duyệt đứng giữa 48 và 99", sau[:-1], ["49-tru-kho-bu.js", "50-so-tay.js", "51-cai-dat-loi.js", "52-doi-soat-vendor.js", "53-gia-von-tam.js"])
+	# v607: 54-ly-do-tang.js (khối Hàng tặng dùng chung) và 55-so-du-tra-truoc.js
+	# (màn Số dư trả trước) không lập phiếu nháp nào, qua đủ ba điều kiện trên.
+	la("chỉ phần được duyệt đứng giữa 48 và 99", sau[:-1], ["49-tru-kho-bu.js", "50-so-tay.js", "51-cai-dat-loi.js", "52-doi-soat-vendor.js", "53-gia-von-tam.js", "54-ly-do-tang.js", "55-so-du-tra-truoc.js"])
 	for t in _boc():
 		tep = [n for n, ma in CAC_PHAN.items() if re.search(r"^(?:async )?function %s\(" % t, ma, re.M)]
 		if t in SAU_48_DUOC_BOC:

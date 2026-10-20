@@ -58,9 +58,10 @@ def _json():
 def _truong_tu_them():
 	"""Mọi trường tự thêm của Vagabond Settings khai trong repo."""
 	from vagabond import hach_toan_kho, minvoice_tep, o_cai_dat, qua_tang_hoa_don, sepay, tai_khoan
+	from vagabond import tra_truoc_khach
 
 	ra = []
-	for m in (o_cai_dat, tai_khoan, hach_toan_kho, minvoice_tep, sepay, qua_tang_hoa_don):
+	for m in (o_cai_dat, tai_khoan, hach_toan_kho, minvoice_tep, sepay, qua_tang_hoa_don, tra_truoc_khach):
 		for f in m.TRUONG_MOI.get("Vagabond Settings", []):
 			ra.append(dict(f))
 	return ra
@@ -158,6 +159,8 @@ def _():
 		"vgb_ban_tru_kho_tu": ("tab_ke_toan", "vgb_sec_hach_toan_kho"),
 		"vgb_sx_621_tu": ("tab_ke_toan", "vgb_sec_hach_toan_kho"),
 		"tk_chi_phi_qua_tang": ("tab_ke_toan", "sec_qua_tang"),
+		# v607: ô tài khoản Giám đốc thu hộ đứng ngay dưới, cùng mục.
+		"tk_gd_thu_ho": ("tab_ke_toan", "sec_qua_tang"),
 		"tu_ghi_so_bat": ("tab_ban_hang", "sec_vgb_tu_dong"),
 		"tu_ghi_so_nhat_ky": ("tab_ban_hang", "sec_vgb_tu_dong"),
 		# Ô cũ từng bị mục Hạch toán kho chen ngang và kéo đi:
@@ -191,7 +194,8 @@ def _():
 		if re.search(r"""["']Vagabond Settings["']\s*:\s*\[""", s):
 			co.add(ten[:-3])
 	la("các module khai trường tự thêm", sorted(co),
-		sorted(["o_cai_dat", "tai_khoan", "hach_toan_kho", "minvoice_tep", "sepay", "qua_tang_hoa_don"]))
+		sorted(["o_cai_dat", "tai_khoan", "hach_toan_kho", "minvoice_tep", "sepay", "qua_tang_hoa_don",
+			"tra_truoc_khach"]))
 
 
 @ca("cài đặt v568: mọi nhãn và mô tả là tiếng Việt có dấu, không còn số issue trong nhãn")
