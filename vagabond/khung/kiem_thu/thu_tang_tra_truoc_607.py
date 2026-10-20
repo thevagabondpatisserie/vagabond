@@ -353,7 +353,7 @@ def _():
 
 	def chay(d, so_du, cu=None):
 		d.get_doc_before_save = lambda: cu
-		with patch.object(tk, "frappe", fr), patch.object(tk, "so_du_khach", lambda k, tru=None: so_du), \
+		with patch.object(tk, "frappe", fr), patch.object(tk, "so_du_khach", lambda k, tru=None, cty=None: so_du), \
 				patch.dict(sys.modules, {"vagabond.khach_hang": kh}):
 			tk.kiem_khi_luu(d)
 
@@ -394,8 +394,8 @@ def _():
 		d.append = lambda k, v: d[k].append(v)
 		d.tinh = 0
 		d.calculate_taxes_and_totals = lambda: d.__setitem__("tinh", d.tinh + 1)
-		with patch.object(tk, "frappe", fr), patch.object(tk, "cac_phieu_nap", lambda k: nap_), \
-				patch.object(tk, "so_du_khach", lambda k, tru=None: tk.tong_so([], 0)):
+		with patch.object(tk, "frappe", fr), patch.object(tk, "cac_phieu_nap", lambda k, cty=None: nap_), \
+				patch.object(tk, "so_du_khach", lambda k, tru=None, cty=None: tk.tong_so([], 0)):
 			tk.can_tru_khi_ghi_so(d)
 		return d
 
@@ -447,6 +447,9 @@ def _():
 # ------------------------------------------- Codex #493 P1: ảnh đính hỏng
 
 
+MA_LAN_P1 = "0d6c1b9a-5e4f-4a3b-8c7d-6e5f4a3b2c1d"
+
+
 def _goi_nap(nguon, so_dinh, anh='[{"ten": "ck.jpg", "noi_dung": "data:image/jpeg;base64,AAA"}]'):
 	"""Chạy THẬT tao_phieu_nap, chỉ thay phần chạm Frappe; trả (lỗi, các lần commit)."""
 	ghi = []
@@ -467,7 +470,8 @@ def _goi_nap(nguon, so_dinh, anh='[{"ten": "ck.jpg", "noi_dung": "data:image/jpe
 
 	fr = NS(throw=_nem, new_doc=moi, generate_hash=lambda length=6: "abc",
 		parse_json=lambda s: __import__("json").loads(s),
-		db=NS(exists=lambda *a: True, commit=lambda: ghi.append("commit")))
+		db=NS(exists=lambda *a: True, commit=lambda: ghi.append("commit"),
+			get_value=lambda *a, **k: None, sql=lambda *a, **k: ((1,),)))
 	kh = types.ModuleType("vagabond.khach_hang")
 	kh.la_khach_gop = lambda c: False
 
@@ -492,7 +496,7 @@ def _goi_nap(nguon, so_dinh, anh='[{"ten": "ck.jpg", "noi_dung": "data:image/jpe
 		fr.db.exists = lambda *a: True
 		tk.frappe.db.exists = lambda *a: True
 		try:
-			kq = tk.tao_phieu_nap("KL040476", 50000000, nguon, anh=anh, quay="TCV")
+			kq = tk.tao_phieu_nap("KL040476", 50000000, nguon, anh=anh, quay="TCV", ma_lan=MA_LAN_P1)
 		except Chan as e:
 			return str(e), ghi
 	return kq, ghi
@@ -500,15 +504,21 @@ def _goi_nap(nguon, so_dinh, anh='[{"ten": "ck.jpg", "noi_dung": "data:image/jpe
 
 @ca("v607 Codex #493 P1: nạp bắt ảnh mà không đính được ảnh nào thì không commit, báo lập lại")
 def _():
+	# Từ vòng 3, tao_phieu_nap commit MỘT lần ngay sau khi lấy khoá mã lần gửi
+	# (mở ảnh dữ liệu mới, chưa ghi gì). Điều cần chốt ở đây là không có
+	# commit nào SAU khi đã insert phiếu.
+	def sau_insert(ghi):
+		return ghi[ghi.index("insert"):] if "insert" in ghi else []
+
 	for nguon in ("ck_cty", "gd_thu_ho", "the_payoo"):
 		kq, ghi = _goi_nap(nguon, 0)
 		dung("%s báo lỗi" % nguon, isinstance(kq, str) and "Không đính được ảnh" in kq)
-		dung("%s không commit" % nguon, "commit" not in ghi)
+		dung("%s không commit sau khi insert" % nguon, "commit" not in sau_insert(ghi))
 		kq, ghi = _goi_nap(nguon, 1)
 		dung("%s đính được thì lập" % nguon, isinstance(kq, dict) and kq.get("ok") == 1)
-		dung("%s đính được thì commit" % nguon, "commit" in ghi)
+		dung("%s đính được thì commit sau insert" % nguon, "commit" in sau_insert(ghi))
 	kq, ghi = _goi_nap("tien_mat", 0, anh="")
-	dung("tiền mặt không bắt ảnh vẫn lập", isinstance(kq, dict) and "commit" in ghi)
+	dung("tiền mặt không bắt ảnh vẫn lập", isinstance(kq, dict) and "commit" in sau_insert(ghi))
 
 
 @ca("v607 Codex #493 P1: đơn đền bù gửi ảnh mà đính hỏng thì không commit")
@@ -530,3 +540,247 @@ def _():
 		else:
 			dung("phải chặn", False)
 	la("không commit", ghi, [])
+
+
+# ------------------------------------------- Codex #493 vòng 3 (SHA 52e319de1)
+
+
+@ca("v607 Codex #493 vòng 3 công ty: phiếu nạp lập đúng công ty của hoá đơn app (Global Defaults), không theo mặc định người dùng")
+def _():
+	fr = NS(defaults=NS(get_user_default=lambda k: "CTY-NGUOI-DUNG"),
+		db=NS(get_single_value=lambda dt, f: "CTY-CHUNG"))
+	with patch.object(tk, "frappe", fr):
+		cty = tk._cong_ty()
+	ban = nap("ban_hang.py", "_cong_ty", {"frappe": fr})()
+	la("phiếu nạp cùng công ty với hoá đơn app", cty, ban)
+
+
+def _loc_khi_doc(goi_ham, dt_tra=None):
+	"""Chạy THẬT hàm đọc số dư, chỉ ghi lại bộ lọc của từng lần get_all."""
+	loc = {}
+
+	def ga(dt, filters=None, fields=None, order_by=None, limit_page_length=None, pluck=None):
+		loc.setdefault(dt, []).append(dict(filters or {}))
+		return (dt_tra or {}).get(dt, [])
+
+	fr = NS(get_all=ga, throw=_nem, db=NS(get_value=lambda *a, **k: None))
+	with patch.object(tk, "frappe", fr):
+		try:
+			goi_ham()
+		except Chan:
+			pass  # đơn 1.000 đ mà không có phiếu nạp nào thì bị chặn; ca chỉ đọc bộ lọc.
+	return loc
+
+
+@ca("v607 Codex #493 vòng 3 công ty: số dư chỉ đọc phiếu nạp và đơn giữ chỗ của ĐÚNG công ty hoá đơn")
+def _():
+	kh = types.ModuleType("vagabond.khach_hang")
+	kh.la_khach_gop = lambda c: False
+	d = _si_tt(company="CTY-B", grand_total=1000)
+	d.get_doc_before_save = lambda: None
+	with patch.dict(sys.modules, {"vagabond.khach_hang": kh}):
+		loc = _loc_khi_doc(lambda: tk.kiem_khi_luu(d))
+	for dt in (tk.PE, tk.JE, tk.SI):
+		cac = [x for x in loc.get(dt, []) if x.get(tk.CO) or dt == tk.SI]
+		dung("%s có đọc" % dt, bool(cac))
+		la("%s lọc đúng công ty của đơn" % dt, sorted({x.get("company") for x in cac}, key=str), ["CTY-B"])
+
+
+@ca("v607 Codex #493 vòng 3 công ty: ghi sổ chỉ nhận phiếu nạp cùng công ty với đơn")
+def _():
+	seen = {}
+
+	def cac(khach, cty=None):
+		seen["cty"] = cty
+		return []
+
+	d = _si_tt(company="CTY-B")
+	d.get_advance_entries = lambda include_unallocated=True: []
+	with patch.object(tk, "frappe", NS(throw=_nem, db=NS(get_value=lambda *a: None))), \
+			patch.object(tk, "cac_phieu_nap", cac), \
+			patch.object(tk, "so_du_khach", lambda k, tru=None, cty=None: tk.tong_so([], 0)):
+		try:
+			tk.can_tru_khi_ghi_so(d)
+		except Chan:
+			pass
+	la("đọc phiếu nạp theo công ty của đơn", seen.get("cty"), "CTY-B")
+
+
+def _may_nap():
+	"""Chạy THẬT tao_phieu_nap nhiều lần trên cùng một 'cơ sở dữ liệu' giả.
+
+	Ghi lại mọi lần insert; tra lại theo mã lần gửi như truy vấn thật. Khoá
+	có tên trả 1 (lấy được), ghi lại lần lấy và nhả để ca kiểm đọc thứ tự.
+	"""
+	kho, vet = [], []
+
+	class Phieu(D):
+		def append(self, k, v):
+			self.setdefault(k, []).append(v)
+
+		def set(self, k, v):
+			self[k] = v
+
+	def moi(dt):
+		p = Phieu(doctype=dt, name="", flags=NS())
+
+		def chen(**k):
+			p.name = "%s-%d" % ("PE" if dt == tk.PE else "JE", len(kho) + 1)
+			kho.append(p)
+			vet.append("insert")
+		p.insert = chen
+		p.setup_party_account_field = lambda: None
+		p.set_missing_values = lambda: None
+		return p
+
+	def gv(dt, loc, f=None, as_dict=False, **k):
+		for p in kho:
+			if p.doctype == dt and all(p.get(a) == b for a, b in loc.items() if a != "docstatus"):
+				return D({x: p.get(x) for x in f}, name=p.name)
+		return None
+
+	def ga(dt, filters=None, fields=None, limit_page_length=None):
+		ra = []
+		for p in kho:
+			if p.name == filters["parent"]:
+				ra += [D(party=x.get("party"), credit_in_account_currency=x.get("credit_in_account_currency"))
+					for x in p.get("accounts") or [] if x.get("party_type") == "Customer"]
+		return ra
+
+	def sql(q, a=None, **k):
+		vet.append(q.split("(")[0].strip())
+		return ((1,),)
+
+	fr = NS(throw=_nem, new_doc=moi, generate_hash=lambda length=6: "abc",
+		parse_json=lambda s: __import__("json").loads(s),
+		get_all=ga,
+		db=NS(exists=lambda *a: True, commit=lambda: vet.append("commit"), get_value=gv, sql=sql))
+	kh = types.ModuleType("vagabond.khach_hang")
+	kh.la_khach_gop = lambda c: False
+
+	class Nang:
+		def __enter__(self):
+			return "nv@x"
+
+		def __exit__(self, *a):
+			return False
+
+	from vagabond import thu_tien as tt_mod
+	lib = types.ModuleType("vagabond.lib")
+	lib.cfg = lambda: {"tk_gd_thu_ho": "1388 - GD"}
+	pa = types.ModuleType("erpnext.accounts.party")
+	pa.get_party_account = lambda *a: "131 - KH"
+
+	def goi(**kw):
+		with patch.object(tk, "frappe", fr), patch.object(tk, "_quyen", lambda: None), \
+				patch.object(tk, "_cong_ty", lambda: "CTY"), patch.object(tk, "nowdate", lambda: "2026-10-20"), \
+				patch.object(tk, "_dinh_tep", lambda dt, n, a: 1), \
+				patch.object(tt_mod, "nang_quyen_lap_phieu", Nang), patch.object(tt_mod, "_giu_chu", lambda *a: None), \
+				patch.object(tt_mod, "tk_tien_thu", lambda c, p: ("1111 - TM", None)), \
+				patch.dict(sys.modules, {"vagabond.khach_hang": kh, "vagabond.lib": lib, "erpnext.accounts.party": pa}):
+			try:
+				return tk.tao_phieu_nap(**kw)
+			except Chan as e:
+				return str(e)
+			except TypeError as e:
+				return "TypeError: %s" % e
+	return goi, kho, vet
+
+
+MA_LAN = "3f2a9c1e-7b4d-4e8a-9c2f-1a2b3c4d5e6f"
+
+
+@ca("v607 Codex #493 vòng 3 gửi lại: cùng mã lần gửi thì chỉ MỘT phiếu nạp, lần sau trả lại đúng phiếu cũ")
+def _():
+	goi, kho, vet = _may_nap()
+	tham = dict(khach="KL040476", so_tien=2000000, nguon="tien_mat", quay="TCV", ma_lan=MA_LAN)
+	a = goi(**tham)
+	b = goi(**tham)
+	la("chỉ một lần insert", vet.count("insert"), 1)
+	dung("lần đầu lập được: %r" % (a,), isinstance(a, dict) and a.get("name") == "PE-1")
+	dung("lần gửi lại trả đúng phiếu cũ: %r" % (b,), isinstance(b, dict) and b.get("name") == "PE-1" and b.get("trung") == 1)
+	# Giám đốc thu hộ (Journal Entry) cũng vậy.
+	goi, kho, vet = _may_nap()
+	anh = '[{"ten": "ck.jpg", "noi_dung": "data:image/jpeg;base64,AAA"}]'
+	tham = dict(khach="KL040476", so_tien=50000000, nguon="gd_thu_ho", anh=anh, ma_lan=MA_LAN)
+	goi(**tham)
+	b = goi(**tham)
+	la("JE chỉ một lần insert", vet.count("insert"), 1)
+	dung("JE gửi lại trả đúng phiếu cũ: %r" % (b,), isinstance(b, dict) and b.get("name") == "JE-1")
+
+
+@ca("v607 Codex #493 vòng 3 gửi lại: thiếu mã lần gửi thì không lập; cùng mã mà khác khách hay số tiền thì chặn")
+def _():
+	goi, kho, vet = _may_nap()
+	a = goi(khach="KL040476", so_tien=2000000, nguon="tien_mat", quay="TCV")
+	dung("thiếu mã lần gửi bị chặn: %r" % (a,), isinstance(a, str) and "Tải lại" in a)
+	la("không insert", vet.count("insert"), 0)
+	goi(khach="KL040476", so_tien=2000000, nguon="tien_mat", quay="TCV", ma_lan=MA_LAN)
+	b = goi(khach="KL040476", so_tien=3000000, nguon="tien_mat", quay="TCV", ma_lan=MA_LAN)
+	dung("khác số tiền bị chặn: %r" % (b,), isinstance(b, str) and "đã lập" in b)
+	la("vẫn chỉ một phiếu", vet.count("insert"), 1)
+
+
+@ca("v607 Codex #493 vòng 3 gửi lại: lấy khoá theo mã lần gửi TRƯỚC khi tra và insert, nhả khoá sau commit")
+def _():
+	goi, kho, vet = _may_nap()
+	goi(khach="KL040476", so_tien=2000000, nguon="tien_mat", quay="TCV", ma_lan=MA_LAN)
+	thu_tu = [v for v in vet if v in ("select get_lock", "insert", "commit", "select release_lock")]
+	la("thứ tự khoá", [thu_tu[0], thu_tu[-1]], ["select get_lock", "select release_lock"])
+	dung("insert nằm giữa lấy khoá và nhả khoá", thu_tu.index("insert") > 0 and thu_tu.index("insert") < len(thu_tu) - 1)
+	dung("commit trước khi nhả khoá", thu_tu[-2] == "commit")
+
+
+def _chay_validate(d):
+	"""Chạy các hook validate của hoá đơn bán liên quan, ĐÚNG thứ tự trong hooks.py."""
+	from vagabond import hooks, thanh_toan_nhieu as ttn
+
+	can = {"vagabond.thanh_toan_nhieu.dat_pt_chinh": ttn.dat_pt_chinh}
+	for ten in dir(tk):
+		if not ten.startswith("_"):
+			can["vagabond.tra_truoc_khach." + ten] = getattr(tk, ten)
+	kh = types.ModuleType("vagabond.khach_hang")
+	kh.la_khach_gop = lambda c: False
+	tt = types.ModuleType("vagabond.thu_tien")
+	tt.la_cong_no = lambda pt: pt == "Công nợ"
+	with patch.object(tk, "frappe", NS(throw=_nem)), patch.object(ttn, "frappe", NS(throw=_nem)), \
+			patch.object(tk, "so_du_khach", lambda *a, **k: tk.tong_so([{"docstatus": 1, "tong": 9e9, "con": 9e9}], 0)), \
+			patch.dict(sys.modules, {"vagabond.khach_hang": kh, "vagabond.thu_tien": tt}):
+		for ten in hooks.doc_events["Sales Invoice"]["validate"]:
+			if ten in can:
+				can[ten](d)
+	return d
+
+
+def _si_tach(pt):
+	d = _si_tt(vgb_pt_thanh_toan=pt, grand_total=700000, vgb_thanh_toan_nhieu=[
+		D(pt=tk.PT_SO_DU, so_tien=600000, do_may=0), D(pt="Tiền mặt", so_tien=100000, do_may=0)])
+	d.set = lambda k, v: d.__setitem__(k, list(v))
+	d.get_doc_before_save = lambda: None
+	return d
+
+
+@ca("v607 Codex #493 vòng 3 dòng tách: Bill quầy đổi sang phương thức khác thì bỏ dòng tách số dư, không tự quay lại")
+def _():
+	for pt in ("Chuyển khoản", "Tiền mặt"):
+		d = _chay_validate(_si_tach(pt))
+		la("%s: giữ phương thức người chọn" % pt, d.vgb_pt_thanh_toan, pt)
+		la("%s: bỏ dòng tách cũ" % pt, list(d.vgb_thanh_toan_nhieu), [])
+	# Lưu lại không đổi gì (phương thức vẫn là dòng lớn nhất): giữ nguyên bảng tách.
+	d = _chay_validate(_si_tach(tk.PT_SO_DU))
+	la("giữ phương thức số dư", d.vgb_pt_thanh_toan, tk.PT_SO_DU)
+	la("giữ hai dòng tách", [(x.pt, x.so_tien) for x in d.vgb_thanh_toan_nhieu], [(tk.PT_SO_DU, 600000), ("Tiền mặt", 100000)])
+	# Bảng tách không có dòng số dư: không đụng (luật cũ của bảng nhiều phương thức).
+	d = _si_tt(vgb_pt_thanh_toan="Chuyển khoản", grand_total=700000, vgb_thanh_toan_nhieu=[
+		D(pt="Tiền mặt", so_tien=600000, do_may=0), D(pt="Chuyển khoản", so_tien=100000, do_may=0)])
+	d.set = lambda k, v: d.__setitem__(k, list(v))
+	d.get_doc_before_save = lambda: None
+	d = _chay_validate(d)
+	la("bảng không có số dư giữ nguyên", len(d.vgb_thanh_toan_nhieu), 2)
+
+
+@ca("v607 Codex #493 vòng 3 dòng tách: chọn Hàng tặng trên đơn đã tách số dư thì bỏ dòng tách, không vấp chặn dòng tay")
+def _():
+	d = _si_tach("Hàng tặng")
+	d = _chay_validate(d)
+	la("Hàng tặng, không còn dòng tách", (d.vgb_pt_thanh_toan, list(d.vgb_thanh_toan_nhieu)), ("Hàng tặng", []))
