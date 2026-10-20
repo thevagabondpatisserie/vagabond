@@ -390,3 +390,35 @@ def _loi_token():
 		except QueryDeadlockError:
 			len_ = "len"
 	la("lỗi chết giao dịch đi lên", len_, "len")
+
+
+@ca("v606 Codex #492 P2 (4325875324): cửa lưu chung của màn Cài đặt lõi trên app KHÔNG nhận bảng Bot thêm (chỉ tạo được dòng không token)")
+def _cai_dat_loi_chan_bot():
+	from vagabond import cai_dat_loi as cdl
+	from vagabond.khung.kiem_thu import thu_cai_dat_loi_570 as t570
+
+	class DocGia(dict):
+		modified = "m1"
+
+		def get(self, k, d=None):
+			return dict.get(self, k, d)
+
+		def set(self, k, v):
+			self[k] = v
+
+		def append(self, k, v):
+			self.setdefault(k, []).append(v)
+
+		def save(self):
+			self["_da_luu"] = 1
+	d = DocGia()
+	# Trường của trang như Frappe trả: ô nào cũng có thuộc tính hidden.
+	tr = [dict(f, hidden=f.get("hidden", 0)) for f in t570._truong_da_xep()]
+	bang = json.dumps({"zalo_bot_phu": [{"ten_bot": "Bot tay"}]})
+	try:
+		t570._goi_may_chu(lambda: cdl.luu(bang=bang, modified="m1"), truong=tr, doc=d)
+		dung("luu phải từ chối bảng bot", False)
+	except Exception as e:
+		dung("câu từ chối chỉ đúng nút Thêm bot: " + str(e)[:120], "Thêm bot" in str(e))
+	dung("không lưu gì", "_da_luu" not in d and "zalo_bot_phu" not in d)
+	la("bảng bot nằm trong danh sách bảng có nút riêng", sorted(cdl.BANG_NUT_RIENG), ["zalo_bot_phu"])
