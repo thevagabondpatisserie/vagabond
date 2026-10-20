@@ -2489,7 +2489,7 @@ def dong_bo_doanh_so_tu_dong():
 
 
 @frappe.whitelist()
-def luu_thanh_toan(si_name, pt=None, ma_tham_chieu=None):
+def luu_thanh_toan(si_name, pt=None, ma_tham_chieu=None, doi_pt=None):
 	"""Sales luu phuong thuc thanh toan + ma tham chieu, chua ghi so."""
 	_kiem_quyen_doc_luu_don()
 	si = frappe.db.get_value(
@@ -2514,20 +2514,21 @@ def luu_thanh_toan(si_name, pt=None, ma_tham_chieu=None):
 			frappe.throw("Hoá đơn đã ghi sổ, không chuyển sang Hàng tặng được.")
 		from vagabond.tra_truoc_khach import chon_pt_ca_don
 
-		chon_pt_ca_don(doc, pt)
+		chon_pt_ca_don(doc, pt, doi_pt=cint(doi_pt))
 		doc.vgb_ma_tham_chieu = ma
 		_chan_tang_thieu(doc)
 		doc.save(ignore_permissions=True)
-	elif _co_dong_so_du(si_name):
-		# v607 Codex #493 vòng 4: đơn đang tách số dư trả trước thì đi đường
-		# Document để hook bỏ bảng tách; set_value bỏ qua validate, bảng cũ
-		# còn nguyên và lần lưu sau dựng lại phép tách.
+	elif cint(doi_pt) and _co_dong_so_du(si_name):
+		# v607 Codex #493 vòng 4, 5: người dùng VỪA bấm chip phương thức trên
+		# đơn đang tách số dư thì đi đường Document để hook bỏ bảng tách;
+		# set_value bỏ qua validate, bảng cũ còn nguyên và lần lưu sau dựng
+		# lại phép tách. Màn chỉ gửi kèm phương thức đang hiện thì giữ bảng.
 		from vagabond.tra_truoc_khach import chon_pt_ca_don
 
 		doc = frappe.get_doc("Sales Invoice", si_name)
 		if doc.docstatus != 0:
 			frappe.throw("Hoá đơn đã ghi sổ, không đổi phương thức được nữa.")
-		chon_pt_ca_don(doc, pt)
+		chon_pt_ca_don(doc, pt, doi_pt=True)
 		doc.vgb_ma_tham_chieu = ma
 		doc.save(ignore_permissions=True)
 	else:
@@ -2667,7 +2668,7 @@ def luu_khach_no(si_name, khach=None):
 
 
 @frappe.whitelist()
-def chot_mot_don(si_name, pt=None, ma_tham_chieu=None, khach=None):
+def chot_mot_don(si_name, pt=None, ma_tham_chieu=None, khach=None, doi_pt=None):
 	"""Submit mot don le, sales ra soat xong don nao chot don do."""
 	_kiem_quyen_ghi_so()
 	si = frappe.get_doc("Sales Invoice", si_name)
@@ -2681,7 +2682,7 @@ def chot_mot_don(si_name, pt=None, ma_tham_chieu=None, khach=None):
 	if pt:
 		from vagabond.tra_truoc_khach import chon_pt_ca_don
 
-		chon_pt_ca_don(si, pt, ha_co_may=False)
+		chon_pt_ca_don(si, pt, ha_co_may=False, doi_pt=cint(doi_pt))
 	ma_kh = (khach or "").strip()
 	if ma_kh:
 		if not frappe.db.exists("Customer", ma_kh):
@@ -6224,7 +6225,7 @@ def _huy_lay(name):
 
 
 @frappe.whitelist()
-def pos_chot(name, pt=None, ma_tham_chieu=None, giam_gia=None, ghi_chu=None, otp=None):
+def pos_chot(name, pt=None, ma_tham_chieu=None, giam_gia=None, ghi_chu=None, otp=None, doi_pt=None):
 	"""Chot mot bill tam tinh: khach thanh toan xong, cashier chon phuong
 	thuc, bill thanh bill thuong cho ghi so. Cung dung de sua pt/ghi chu
 	cua bill nhap chua ghi so."""
@@ -6249,7 +6250,7 @@ def pos_chot(name, pt=None, ma_tham_chieu=None, giam_gia=None, ghi_chu=None, otp
 			ma_tham_chieu, si.vgb_ma_tham_chieu, pt, si.vgb_pt_thanh_toan)
 		from vagabond.tra_truoc_khach import chon_pt_ca_don
 
-		chon_pt_ca_don(si, pt)
+		chon_pt_ca_don(si, pt, doi_pt=cint(doi_pt))
 		si.vgb_ma_tham_chieu = _chuan_ma_tham_chieu(pt, ma_tham_chieu, bat_buoc=False)
 		if si.vgb_ma_tham_chieu:
 			_kiem_trung_ma(pt, si.vgb_ma_tham_chieu, bo_qua=si.name)
@@ -6331,6 +6332,7 @@ def pos_sua_don(
 	xhd_mst=None,
 	xhd_dia_chi=None,
 	xhd_email=None,
+	doi_pt=None,
 ):
 	"""Sua lai hoa don da tinh tien cho khach - phai co ma OTP quan ly.
 
@@ -6425,7 +6427,7 @@ def pos_sua_don(
 			ma_tham_chieu, si.vgb_ma_tham_chieu, pt, si.vgb_pt_thanh_toan)
 		from vagabond.tra_truoc_khach import chon_pt_ca_don
 
-		chon_pt_ca_don(si, pt)
+		chon_pt_ca_don(si, pt, doi_pt=cint(doi_pt))
 		si.vgb_ma_tham_chieu = _chuan_ma_tham_chieu(pt, ma_tham_chieu, bat_buoc=False)
 		if si.vgb_ma_tham_chieu:
 			_kiem_trung_ma(pt, si.vgb_ma_tham_chieu, bo_qua=si.name)
@@ -6534,7 +6536,7 @@ def _kiem_quyen_ghi_so():
 
 
 @frappe.whitelist()
-def pos_luu_don(name, pt=None, ma_tham_chieu=None, ghi_chu=None):
+def pos_luu_don(name, pt=None, ma_tham_chieu=None, ghi_chu=None, doi_pt=None):
 	"""Lưu nháp đã đủ điều kiện, không submit và không phát hành (#296)."""
 	_kiem_quyen_ban()
 	si = _pos_lay(name)
@@ -6546,7 +6548,7 @@ def pos_luu_don(name, pt=None, ma_tham_chieu=None, ghi_chu=None):
 			ma_tham_chieu, si.vgb_ma_tham_chieu, pt, si.vgb_pt_thanh_toan)
 		from vagabond.tra_truoc_khach import chon_pt_ca_don
 
-		chon_pt_ca_don(si, pt)
+		chon_pt_ca_don(si, pt, doi_pt=cint(doi_pt))
 		_chan_tang_thieu(si)
 	if ma_tham_chieu is not None:
 		si.vgb_ma_tham_chieu = ma_tham_chieu

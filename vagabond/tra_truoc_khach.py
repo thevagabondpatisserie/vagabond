@@ -428,22 +428,26 @@ def _dong_cua(doc):
 		for d in (doc.get(DT_BANG) or [])]
 
 
-def chon_pt_ca_don(doc, pt, ha_co_may=True):
-	"""MỘT cửa cho mọi nút người dùng chọn một phương thức cho CẢ đơn (Codex #493 vòng 4).
+def chon_pt_ca_don(doc, pt, ha_co_may=True, doi_pt=False):
+	"""MỘT cửa gán ô phương thức từ các nút của người dùng (Codex #493 vòng 4, 5).
 
 	`pos_chot`, `pos_luu_don`, `pos_sua_don`, `luu_thanh_toan`, `chot_mot_don`
-	và `hang_tang.luu_tang` đều gọi hàm này thay vì tự gán ô phương thức. Ngoài
-	việc gán, nó để lại dấu `flags.vgb_chon_pt_ca_don` cho hook
-	`bo_dong_tach_khi_doi_pt`: người dùng VỪA chọn một phương thức cho cả đơn,
-	nên bảng tách số dư cũ phải bỏ, kể cả khi phương thức chọn trùng dòng lớn
-	nhất của bảng (100.000 số dư + 600.000 tiền mặt, chọn Tiền mặt). Chỉ nhìn
-	trạng thái thì không phân biệt được lần chọn đó với một lần lưu lại không
-	đổi gì. Ca `thu_tang_tra_truoc_607` chốt không còn cửa nào tự gán.
+	và `hang_tang.luu_tang` đều gọi hàm này thay vì tự gán ô phương thức. Ca
+	`thu_tang_tra_truoc_607` chốt không còn cửa nào tự gán.
+
+	`doi_pt`: người dùng VỪA BẤM chip phương thức trên màn (màn gửi `doi_pt=1`),
+	tức chọn một phương thức cho cả đơn. Chỉ khi đó mới để dấu
+	`flags.vgb_chon_pt_ca_don` cho hook `bo_dong_tach_khi_doi_pt` bỏ bảng tách
+	số dư, kể cả khi phương thức chọn trùng dòng lớn nhất (100.000 số dư +
+	600.000 tiền mặt, chọn Tiền mặt). Hai màn bán gửi kèm phương thức đang
+	hiện trong MỌI lần lưu, ghi sổ, sửa đơn (vòng 5): coi mỗi lần gửi kèm đó
+	là chọn lại thì bấm Ghi sổ một đơn đang tách là mất phần trừ số dư.
 	"""
 	doc.vgb_pt_thanh_toan = pt
 	if ha_co_may:
 		doc.vgb_pt_do_may = 0
-	doc.flags.vgb_chon_pt_ca_don = True
+	if doi_pt:
+		doc.flags.vgb_chon_pt_ca_don = True
 
 
 def co_dong_so_du(dong):

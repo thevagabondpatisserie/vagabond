@@ -967,7 +967,8 @@ def luu_tang(name, ma_ly_do=None, them=None, anh=None, ghi_chu=None):
 	pt = _kiem_pt(PT_TANG, si.get("custom_nguon"))
 	from vagabond.tra_truoc_khach import chon_pt_ca_don
 
-	chon_pt_ca_don(si, pt)
+	# Chọn Hàng tặng luôn là lựa chọn cho cả đơn (khối riêng, nút riêng).
+	chon_pt_ca_don(si, pt, doi_pt=True)
 	si.vgb_tang_loai = loai
 	si.vgb_tang_ly_do = ly
 	si.vgb_tang_ma_ly_do = chuoi(ma_ly_do).upper()
