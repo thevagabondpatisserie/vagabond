@@ -287,3 +287,34 @@ def _huy_het():
 	dung("ngày có bán mà không huỷ, sửa: không dòng Sửa, huỷ, không khoảng trống thừa", "✂️" not in yen and "\n\n\n" not in yen)
 	chi_sua = b.soan_bao_cao(dict(SL, huy={"so": 0, "tien": 0}, sua=2))
 	dung("ngày chỉ có sửa vẫn có dòng Sửa, huỷ", "✂️ Sửa, huỷ: 0 huỷ, 2 sửa" in chi_sua)
+
+
+@ca("v606 báo cáo ngày (Codex #492 P2 4325572133): chỉ đếm sửa thật trên bill; ghi vết đối soát hoá đơn điện tử, điểm, tờ thay thế, khoá sổ không phải sửa")
+def _chi_sua_that():
+	# Nội dung là đúng câu các nơi đang ghi vết Info lên Sales Invoice. Không
+	# nạp ban_hang hay doi_soat_hddt_ra ở đây vì chúng kéo requests (CI tay
+	# không); khuôn "%s - người (cách)" chép từ ban_hang._ghi_vet. Ca chốt
+	# nguồn bên dưới đọc mã ban_hang để câu ở đây không lệch câu thật.
+	vet = [
+		("SI-5", "Sửa hoá đơn: giá món - thu.ngan@vgb (OTP)"),                       # ban_hang sửa bill
+		("SI-6", "Đổi ngày hoá đơn 2026-10-18 sang 2026-10-19 - ql@vgb (Quản lý)"),  # ban_hang đổi ngày
+		("SI-7", "Gắn khách công nợ KH-01 cho đơn đã ghi sổ - kt@vgb ()"),           # ban_hang gắn khách
+		("SI-8", "Gỡ dấu huỷ, phiếu dùng lại bình thường. - ql@vgb"),                # chung_tu gỡ huỷ
+		("SI-9", "Nối tờ hoá đơn điện tử 123 (C26TVG, lập thẳng trên m-invoice, 100.000 đ) vào đơn này."),  # doi_soat_hddt_ra
+		("SI-9", "Gỡ tờ hoá đơn điện tử 123 khỏi đơn này. Lý do: nhầm. Người gỡ: kt@vgb."),               # doi_soat_hddt_ra
+		("SI-10", "[Điểm] Trừ 100 điểm của khách, giảm 10.000 đ. - thu.ngan@vgb"),   # diem_otp
+		# Lý do gõ tay có thể chứa đúng chữ "Sửa hoá đơn"; chỉ ĐẦU CÂU mới là sửa.
+		("SI-10", "[Điểm] Hoàn lại 100 điểm. Sửa hoá đơn nên hoàn - thu.ngan@vgb"),  # diem_otp
+		("SI-11", "Ghi nhận hoá đơn thay thế 456 cho tờ cũ 123. Lý do: sai MST"),     # ban_hang tờ thay thế
+		("SI-12", "MỞ KHOÁ SỔ để sửa. Lý do: kiểm kê - kt@vgb"),                     # chung_tu mở khoá sổ
+		("SI-12", "Đóng khoá sổ lại. - kt@vgb"),
+	]
+	dong = [{"hoa_don": h, "viec": v, "tien": 0} for h, v in vet]
+	la("bốn lần sửa thật, không huỷ", b.gom_huy_sua(dong), ({"so": 0, "tien": 0}, 4))
+	nguon = open(os.path.join(os.path.dirname(b.__file__), "ban_hang.py"), encoding="utf-8").read()
+	for cau in ('_ghi_vet(name, "Sửa hoá đơn: %s"', '_ghi_vet(si.name, "Đổi ngày hoá đơn %s', '_ghi_vet(si.name, "Gắn khách công nợ %s'):
+		dung("câu ghi vết trong ban_hang còn đúng đầu câu: " + cau, cau in nguon)
+	ct = open(os.path.join(os.path.dirname(b.__file__), "chung_tu.py"), encoding="utf-8").read()
+	dung("câu gỡ huỷ trong chung_tu còn đúng", '"Gỡ dấu huỷ, phiếu dùng lại bình thường."' in ct)
+	la("mỗi đầu câu sửa đều có trong danh mục", sorted(b.DAU_SUA),
+		sorted(["Sửa hoá đơn", "Đổi ngày hoá đơn", "Gắn khách công nợ", "Gỡ dấu huỷ"]))
