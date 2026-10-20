@@ -13,7 +13,17 @@
 var SDT_CD = null;
 var sdtTim = '';
 var sdtKhachMo = '';
-var sdtNap = null; /* {khach:{ma,ten}, so_tien, nguon, quay, anh[], ghi_chu, ma_gd} */
+var sdtNap = null; /* {khach:{ma,ten}, so_tien, nguon, quay, anh[], ghi_chu, ma_gd, ma_lan} */
+
+/* Ma lan gui cua MOT form nap (Codex #493 vong 3). Sinh mot lan khi mo form,
+   giu ca trong ban nhap tu luu (48). Lan bam Luu dau da lap ma mat phan hoi,
+   bam lai gui cung ma: may chu tra dung phieu cu, so du khong nhan doi. */
+function sdtMaLan() {
+  try { if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID().toLowerCase(); } catch (e) { }
+  var s = Date.now().toString(36) + '-';
+  for (var i = 0; i < 24; i++) s += Math.floor(Math.random() * 36).toString(36);
+  return s;
+}
 
 async function sdtCaiDat() {
   if (SDT_CD) return SDT_CD;
@@ -161,6 +171,7 @@ async function scrSoDuNap() {
   if (!sdtNap) sdtNap = {};
   var n = sdtNap;
   if (!n.anh) n.anh = [];
+  if (!n.ma_lan) n.ma_lan = sdtMaLan();
   if (!n.quay && typeof posQuay !== 'undefined' && posQuay && posQuay.ma) n.quay = posQuay.ma;
   var ng = (cd.nguon || []).filter(function (x) { return x.ma === n.nguon; })[0];
   var html = '<div class="card" style="padding:12px 13px;display:grid;gap:10px">' +
@@ -251,12 +262,14 @@ async function scrSoDuNap() {
       (ng ? ng.nhan.toLowerCase() : '') + '?')) return;
     busy(true);
     try {
-      await api('vagabond.tra_truoc_khach.tao_phieu_nap', {
+      var kq = await api('vagabond.tra_truoc_khach.tao_phieu_nap', {
         khach: n.khach.ma, so_tien: n.so_tien, nguon: n.nguon, quay: n.quay || '',
         anh: n.anh.length ? JSON.stringify(n.anh) : '', ghi_chu: n.ghi_chu || '', ma_giao_dich: n.ma_gd || '',
+        ma_lan: n.ma_lan,
       });
       busy(false);
-      toast('Đã lập phiếu nạp, chờ kế toán ghi sổ.', 4000);
+      toast(kq && kq.trung ? 'Phiếu nạp này đã lập ở lần bấm trước, không lập thêm.'
+        : 'Đã lập phiếu nạp, chờ kế toán ghi sổ.', 4000);
       sdtKhachMo = n.khach.ma;
       sdtNap = null;
       go(scrSoDuKhach, true);
