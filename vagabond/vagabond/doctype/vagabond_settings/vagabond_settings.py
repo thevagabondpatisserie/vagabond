@@ -34,12 +34,18 @@ class VagabondSettings(Document):
 		loi = kiem_ma_chat(ds, cu, moi)
 		if loi:
 			frappe.throw(loi)
-		# v606: mỗi nhóm gửi bằng bot đang ở trong nhóm đó (bot chính đầy nhóm thì
-		# thêm bot thứ hai). Điền ô bot theo bot đã nhận cập nhật của nhóm.
-		from vagabond.kenh_zalo import dien_bot
+		# v606: mỗi nhóm gửi bằng bot đang ở trong nhóm đó (bot đầy nhóm thì thêm
+		# bot ở bảng Bot thêm). Dòng Bot thêm chưa có số thì cấp số, không bao giờ
+		# cấp lại số đã dùng; điền ô bot của nhóm theo bot đã nhận cập nhật.
+		from vagabond.kenh_zalo import dien_bot, gan_ma_bot
+		them = self.get("zalo_bot_phu") or []
+		cap, cuoi = gan_ma_bot([r.as_dict() for r in them], self.get("zalo_bot_ma_cuoi"))
+		for i, m in cap:
+			them[i].ma_bot = m
+		self.zalo_bot_ma_cuoi = cuoi
 		dong = self.get("zalo_nhom") or []
 		for i, b in dien_bot(ds, moi):
-			dong[i].bot = str(b)
+			dong[i].bot = b
 
 	def on_update(self):
 		from vagabond.tai_khoan_btp import khi_luu_cau_hinh

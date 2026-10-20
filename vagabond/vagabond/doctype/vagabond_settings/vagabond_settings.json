@@ -98,7 +98,7 @@
   "sec_zalo_bot",
   "zalo_bot_bat",
   "zalo_bot_token",
-  "zalo_bot_token_2",
+  "zalo_bot_phu",
   "col_cd_13",
   "zalo_tac_vu",
   "sec_zalo_nhom",
@@ -106,9 +106,8 @@
   "zalo_nhom",
   "sec_zalo_bot_goc",
   "zalo_bi_mat",
-  "zalo_bi_mat_2",
   "zalo_noi_trang_thai",
-  "zalo_noi_trang_thai_2",
+  "zalo_bot_ma_cuoi",
   "col_cd_14",
   "zalo_chat_moi",
   "sec_zalo",
@@ -714,10 +713,11 @@
    "label": "Token Zalo Bot"
   },
   {
-   "fieldname": "zalo_bot_token_2",
-   "fieldtype": "Password",
-   "label": "Token bot Zalo thứ hai",
-   "description": "Chỉ cần khi bot chính đã đầy nhóm (Zalo báo \"Bot đã vượt quá số lượng nhóm có thể tham gia\"). Tạo thêm một bot trên Zalo Bot Manager, dán token vào đây, Lưu, bấm Nối bot thứ hai, rồi thêm bot đó vào nhóm mới và @nhắc nó một lần. ERP tự gửi tin vào nhóm đó bằng bot thứ hai."
+   "description": "Chỉ cần khi bot chính đã đầy nhóm (Zalo báo \"Bot đã vượt quá số lượng nhóm có thể tham gia\"). Tạo thêm bot trên Zalo Bot Manager rồi bấm Thêm bot ở hàng nút Zalo: dán token, máy kiểm token và nối bot luôn. Mỗi nhóm tự gửi bằng bot đang ở trong nhóm đó.",
+   "fieldname": "zalo_bot_phu",
+   "fieldtype": "Table",
+   "label": "Bot thêm (khi bot chính đầy nhóm)",
+   "options": "Vagabond Bot Zalo"
   },
   {
    "fieldname": "col_cd_13",
@@ -758,12 +758,6 @@
    "read_only": 1
   },
   {
-   "fieldname": "zalo_bi_mat_2",
-   "fieldtype": "Password",
-   "label": "Khoá bí mật đường nhận của bot thứ hai (máy tự sinh)",
-   "read_only": 1
-  },
-  {
    "description": "Zalo gọi thử đường nhận khi Nối bot hoặc Kiểm lại. Phải là Đã xác minh thì ô Chat vừa nhắn bot mới nhận được mã nhóm.",
    "fieldname": "zalo_noi_trang_thai",
    "fieldtype": "Small Text",
@@ -771,11 +765,13 @@
    "read_only": 1
   },
   {
-   "fieldname": "zalo_noi_trang_thai_2",
-   "fieldtype": "Small Text",
-   "label": "Kết quả xác minh đường nhận của bot thứ hai",
-   "read_only": 1,
-   "description": "Phải là Đã xác minh thì nhóm @nhắc bot thứ hai mới hiện trong ô Chat vừa nhắn bot."
+   "default": "1",
+   "description": "Số lớn nhất từng cấp cho bot thêm. Máy giữ để không cấp lại số của bot đã xoá.",
+   "fieldname": "zalo_bot_ma_cuoi",
+   "fieldtype": "Int",
+   "hidden": 1,
+   "label": "Số bot đã cấp",
+   "read_only": 1
   },
   {
    "fieldname": "col_cd_14",
@@ -1174,7 +1170,7 @@
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-10-20 09:00:00.000000",
+ "modified": "2026-10-20 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Settings",

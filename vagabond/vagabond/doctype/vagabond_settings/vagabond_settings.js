@@ -173,6 +173,7 @@ frappe.ui.form.on('Vagabond Kenh Zalo', {
 		// v579: thẻ nhóm Zalo và hàng nút Zalo ngay trong mục.
 		'.vgb-cd .vgbc-zl-nut{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}',
 		'.vgb-cd .vgbc-zl-nut button,.vgb-cd .vgbc-zl-the button{min-height:44px;padding:0 14px;font-size:13px}',
+		'.vgb-cd .vgbc-zl-bot{margin:8px 0}.vgb-cd .vgbc-zl-bot .vgbc-dong{flex-wrap:wrap}.vgb-cd .vgbc-zl-bot button{min-height:44px;padding:0 12px;font-size:13px}',
 		'.vgb-cd .vgbc-zl-the{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}',
 		'.vgb-cd .vgbc-zl-the .vgbc-card .h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}',
 		'.vgb-cd .vgbc-zl-the .vgbc-card .d{font-size:13px;line-height:1.5;margin:2px 0}',
@@ -425,14 +426,28 @@ frappe.ui.form.on('Vagabond Kenh Zalo', {
 			: (kq.indexOf('Đã xác minh') === 0 ? chip('ok', 'Đã nối bot, Zalo gọi về được', 1)
 				: chip(kq.indexOf('THẤT BẠI') >= 0 ? 'err' : 'off', kq.split('. ')[0], 1));
 		var coNhom = (frm.doc.zalo_nhom || []).some(function (r) { return r.chat_id; });
-		// v606: bot chính đầy nhóm thì nối thêm bot thứ hai. Chỉ hiện khi đã dán token bot thứ hai.
-		var co2 = !!frm.doc.zalo_bot_token_2, kq2 = String(frm.doc.zalo_noi_trang_thai_2 || '');
-		var tt2 = !co2 ? '' : (!kq2 ? chip('no', 'Bot thứ hai: chưa nối, Lưu rồi bấm Nối bot thứ hai', 1)
-			: (kq2.indexOf('Đã xác minh') === 0 ? chip('ok', 'Bot thứ hai đã nối', 1)
-				: chip(kq2.indexOf('THẤT BẠI') >= 0 ? 'err' : 'off', 'Bot thứ hai: ' + kq2.split('. ')[0], 1)));
-		f.$wrapper.html('<div class="vgbc-chips">' + tt + tt2 + '</div><div class="vgbc-zl-nut">' +
+		// v606: bot chính đầy nhóm thì thêm bot (bảng Bot thêm, bao nhiêu bot cũng được).
+		// Mỗi bot một dòng: tên, trạng thái nối, nút Nối lại và Đổi token.
+		var them = (frm.doc.zalo_bot_phu || []).filter(function (r) { return r.ma_bot; });
+		// Thêm bot đi qua hộp Thêm bot (kiểm token, cất mã hoá); lưới chỉ để sửa tên, xoá dòng.
+		if (frm.fields_dict.zalo_bot_phu) {
+			frm.set_df_property('zalo_bot_phu', 'cannot_add_rows', 1);
+			frm.toggle_display('zalo_bot_phu', (frm.doc.zalo_bot_phu || []).length > 0);
+		}
+		var dsBot = them.map(function (r) {
+			var k = String(r.trang_thai || ''), ten = (r.ten_bot || ('Bot số ' + r.ma_bot)) + ' (số ' + r.ma_bot + ')';
+			var c = !r.co_token ? chip('no', 'Chưa khai token', 1)
+				: (!k ? chip('no', 'Chưa nối', 1) : (k.indexOf('Đã xác minh') === 0 ? chip('ok', 'Đã nối', 1)
+					: chip(k.indexOf('THẤT BẠI') >= 0 ? 'err' : 'off', k.split('. ')[0], 1)));
+			return '<div class="vgbc-dong"><span>' + esc(ten) + ' ' + c + '</span><span>' +
+				'<button type="button" class="btn btn-default" data-zl="noi:' + esc(r.ma_bot) + '">Nối lại</button> ' +
+				'<button type="button" class="btn btn-default" data-zl="token:' + esc(r.ma_bot) + '">Đổi token</button></span></div>';
+		}).join('');
+		f.$wrapper.html('<div class="vgbc-chips">' + tt + '</div>' +
+			(dsBot ? '<div class="vgbc-zl-bot"><small>Bot thêm (khi bot chính đầy nhóm):</small>' + dsBot + '</div>' : '') +
+			'<div class="vgbc-zl-nut">' +
 			'<button type="button" class="btn btn-default" data-zl="noi">Nối Zalo Bot</button>' +
-			(co2 ? '<button type="button" class="btn btn-default" data-zl="noi2">Nối bot thứ hai</button>' : '') +
+			'<button type="button" class="btn btn-default" data-zl="thembot">Thêm bot (bot chính đầy nhóm)</button>' +
 			'<button type="button" class="btn btn-default" data-zl="guithu"' + (coNhom ? '' : ' disabled') + '>Gửi thử tới một nhóm</button>' +
 			'<button type="button" class="btn btn-default" data-zl="xem">Xem trước tin mẫu</button>' +
 			'<button type="button" class="btn btn-default" data-zl="kiem">Kiểm lại đường nhận</button></div>' +
@@ -443,11 +458,38 @@ frappe.ui.form.on('Vagabond Kenh Zalo', {
 	// Nguồn duy nhất cho bốn việc Zalo, dùng chung cho hàng nút trong mục và menu
 	// Zalo trên thanh công cụ (Codex #447). Nối và Kiểm gọi máy chủ trên cấu hình
 	// ĐÃ LƯU rồi tải lại form, nên phải chặn khi còn bản nháp.
+	// v606: nối (đăng ký đường nhận) một bot theo số; '1' là bot chính.
+	function noiBot(frm, ma) {
+		return frappe.call({ method: 'vagabond.kenh_zalo.dang_ky_webhook', args: { bot: ma }, freeze: true, freeze_message: 'Đang nối bot với Zalo...' })
+			.then(function (r) { var m = (r && r.message) || {}; frappe.msgprint({ message: m.loi_nhan || '', indicator: m.ok ? 'green' : 'orange' }); frm.reload_doc(); });
+	}
+	// v606: thêm bot (ma trống) hoặc đổi token bot đã có. Máy kiểm token với Zalo,
+	// cất mã hoá, rồi nối luôn, nên người dùng chỉ dán token một lần là xong.
+	function hopBot(frm, ma) {
+		var r = (frm.doc.zalo_bot_phu || []).filter(function (x) { return x.ma_bot === ma; })[0];
+		var d = new frappe.ui.Dialog({ title: ma ? 'Đổi token ' + ((r && r.ten_bot) || ('bot số ' + ma)) : 'Thêm bot Zalo', fields: [
+			{ fieldtype: 'HTML', options: '<div class="vgbc-mo">' + (ma ? 'Dán token mới của bot này. Máy kiểm token với Zalo rồi nối lại.'
+				: 'Dùng khi bot chính (hoặc bot thêm trước đó) đã đầy nhóm. Tạo bot mới trên Zalo Bot Manager, bật quyền vào nhóm, chép token dán vào đây. Máy kiểm token, cất mã hoá và nối bot luôn. Sau đó thêm bot mới vào nhóm Zalo và @nhắc nó một lần.') + '</div>' },
+			{ fieldname: 'ten', fieldtype: 'Data', label: 'Tên gợi nhớ', default: (r && r.ten_bot) || '', description: 'Ví dụ: Bot nhóm Bếp. Để trống thì lấy tên bot trên Zalo.' },
+			{ fieldname: 'token', fieldtype: 'Password', label: 'Token của bot', reqd: 1, description: 'Zalo Bot Manager > chọn bot > Token. Token không hiện lại sau khi lưu.' }
+		], primary_action_label: ma ? 'Lưu và nối lại' : 'Thêm và nối bot', primary_action: function (v) {
+			d.hide();
+			frappe.call({ method: 'vagabond.kenh_zalo.luu_bot', args: { ma: ma || '', ten: v.ten || '', token: v.token || '' }, freeze: true, freeze_message: 'Đang kiểm token với Zalo...' })
+				.then(function (x) { var m = (x && x.message) || {}; if (m.ma_bot) return noiBot(frm, m.ma_bot); frm.reload_doc(); });
+		} });
+		d.show();
+		return d;
+	}
+
 	function zaloTacVu(frm, v) {
-			if (v === 'noi' || v === 'kiem' || v === 'noi2') {
+		v = String(v || '');
+		var ma = v.indexOf(':') > 0 ? v.split(':')[1] : '';
+		if (v === 'noi' || v === 'kiem' || v === 'thembot' || v.indexOf('noi:') === 0 || v.indexOf('token:') === 0) {
 			if (frm.is_dirty()) { frappe.msgprint('Bấm Lưu trước (Ctrl+S), rồi mới bấm nút này.'); return; }
-			frappe.call({ method: v === 'kiem' ? 'vagabond.kenh_zalo.kiem_webhook' : 'vagabond.kenh_zalo.dang_ky_webhook',
-				args: { bot: v === 'noi2' ? 2 : 1 }, freeze: true })
+			if (v === 'thembot') return hopBot(frm, '');
+			if (v.indexOf('token:') === 0) return hopBot(frm, ma);
+			if (v === 'noi' || v.indexOf('noi:') === 0) return noiBot(frm, ma || '1');
+			frappe.call({ method: 'vagabond.kenh_zalo.kiem_webhook', args: { bot: '1' }, freeze: true })
 				.then(function (r) { var m = (r && r.message) || {}; frappe.msgprint({ message: m.loi_nhan || '', indicator: m.ok ? 'green' : 'orange' }); frm.reload_doc(); });
 		} else if (v === 'xem') {
 			frappe.call({ method: 'vagabond.kenh_zalo.xem_truoc', args: { loai: 'viec' } })
@@ -468,6 +510,12 @@ frappe.ui.form.on('Vagabond Kenh Zalo', {
 		}
 	}
 
+	// v606: tên bot cho thẻ nhóm. Bot đã xoá khỏi bảng thì máy gửi bằng bot chính.
+	function tenBot(frm, ma) {
+		var r = (frm.doc.zalo_bot_phu || []).filter(function (x) { return String(x.ma_bot) === String(ma); })[0];
+		return r ? ((r.ten_bot || ('bot số ' + ma)) + ' (số ' + ma + ')') : ('bot số ' + ma + ' đã xoá, đang gửi bằng bot chính');
+	}
+
 	function veZaloNhom(frm) {
 		var f = frm.fields_dict.zalo_nhom_the;
 		if (!f) return;
@@ -482,7 +530,7 @@ frappe.ui.form.on('Vagabond Kenh Zalo', {
 					'<div class="d"><small>Nhận:</small> ' + esc(t.loai) + '</div>' +
 					'<div class="d"><small>Chủ đề:</small> ' + esc(t.chu_de) + '</div>') +
 				'<div class="d"><small>Giờ im:</small> ' + esc(t.im) + '</div>' +
-				(String(r.bot || '1') === '2' ? '<div class="d"><small>Gửi bằng:</small> bot thứ hai</div>' : '') +
+				(String(r.bot || '1') !== '1' ? '<div class="d"><small>Gửi bằng:</small> ' + esc(tenBot(frm, r.bot)) + '</div>' : '') +
 				'<div class="n"><button type="button" class="btn btn-default" data-zls="' + i + '">Sửa</button>' +
 				(t.guiThu ? '<button type="button" class="btn btn-default" data-zlg="' + i + '">Gửi thử</button>' : '') + '</div></div>';
 		}).join('') + '</div>' : '<div class="vgbc-mo">Chưa có nhóm nào. Bấm Thêm nhóm nhận tin, chọn nhóm Zalo đã nhắn bot, tích những tin nhóm cần nhận.</div>') +
@@ -598,7 +646,7 @@ frappe.ui.form.on('Vagabond Kenh Zalo', {
 			if (!document.getElementById('vgb-cd-css')) $('<style id="vgb-cd-css"></style>').text(CSS).appendTo('head');
 		},
 		refresh(frm) {
-			[['Nối Zalo Bot', 'noi'], ['Kiểm lại đường nhận', 'kiem'], ['Xem trước tin mẫu', 'xem'], ['Gửi thử tới một nhóm', 'guithu']].forEach(function (x) {
+			[['Nối Zalo Bot', 'noi'], ['Thêm bot (bot chính đầy nhóm)', 'thembot'], ['Kiểm lại đường nhận', 'kiem'], ['Xem trước tin mẫu', 'xem'], ['Gửi thử tới một nhóm', 'guithu']].forEach(function (x) {
 				frm.add_custom_button(x[0], function () { zaloTacVu(frm, x[1]); }, 'Zalo');
 			});
 			$(frm.wrapper).addClass('vgb-cd');
