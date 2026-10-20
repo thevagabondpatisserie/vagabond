@@ -134,6 +134,7 @@ HD = [{"diem": "District 1", "tien": 1000000, "giam": 100000}, {"diem": "Distric
 HD_CU = [{"diem": "District 1", "tien": 6000000, "giam": 0}, {"diem": "Sales Online", "tien": 2000000, "giam": 0}]
 for _r in HD + HD_CU:
 	_r["grand_total"] = _r["tien"]
+	_r["discount_amount"] = _r["giam"]
 
 
 @ca("v606 báo cáo ngày: lay_so_lieu đọc qua đúng hàm của phân hệ Báo cáo, tách huỷ khỏi sửa, so với hôm trước theo từng điểm")
@@ -144,6 +145,7 @@ def _lay():
 		[("District 1", 3000000, 6000000, 100000), ("Sales Online", 3000000, 2000000, 50000)])
 	la("huỷ và sửa", (sl["huy"], sl["sua"]), ({"so": 2, "tien": 320000}, 2))
 	la("khuyến mãi", sl["ctkm"], {"tien": 150000, "luot": 3, "top": ("Mã A", 100000)})
+	la("giảm giá cộng từ hoá đơn", sl["giam"], 150000)
 	la("bán chạy theo doanh thu", [m["ten"] for m in sl["ban_chay"]], ["Kankin", "Very Berry", "Nĩa gỗ"])
 	t = b.soan_bao_cao(sl)
 	dung("District 1 giảm 50% vào Cần để ý", "• District 1 giảm 50% so với hôm trước" in t)
@@ -318,3 +320,27 @@ def _chi_sua_that():
 	dung("câu gỡ huỷ trong chung_tu còn đúng", '"Gỡ dấu huỷ, phiếu dùng lại bình thường."' in ct)
 	la("mỗi đầu câu sửa đều có trong danh mục", sorted(b.DAU_SUA),
 		sorted(["Sửa hoá đơn", "Đổi ngày hoá đơn", "Gắn khách công nợ", "Gỡ dấu huỷ"]))
+
+
+@ca("v606 báo cáo ngày (Codex #492 P2 4326539769): hoá đơn mang mã quầy chưa khai vẫn vào tiền giảm giá và có dòng riêng ở Theo điểm bán")
+def _quay_chua_khai():
+	# Chạy THẬT bao_cao._bc_tong_doanh_thu (chỉ thay danh sách điểm bán trong
+	# Cài đặt). Hàm này chỉ trả các điểm đã khai, nên hoá đơn quầy Q9 rơi khỏi
+	# bảng điểm dù vẫn nằm trong tổng. Khoá "tien" chỉ cho bản giả kênh, thanh toán.
+	from vagabond import bao_cao as bc
+	R = lambda **k: type("R", (dict,), {"__getattr__": dict.get})(**k)
+	hd = [R(name="A", vgb_quay="D1", tien=1000000, grand_total=1000000, discount_amount=100000),
+		R(name="B", vgb_quay="", tien=500000, grand_total=500000, discount_amount=0),
+		R(name="C", vgb_quay="Q9", tien=2000000, grand_total=2000000, discount_amount=300000)]
+	truoc = [R(name="X", vgb_quay="D1", tien=1000000, grand_total=1000000, discount_amount=0)]
+	ds = [{"ma": "D1", "ten_ngan": "District 1", "dia_chi": ""}, {"ma": "SALES", "ten_ngan": "Sales Online", "dia_chi": ""}]
+	gia = [p for p in _gia_bao_cao(hd, truoc) if getattr(p, "attribute", "") not in ("_bc_tong_doanh_thu",)]
+	gia += [patch.object(bc.diem_ban, "ds", lambda: ds), patch.object(bc.diem_ban, "ten_diem", lambda: {"D1": "District 1", "SALES": "Sales Online"})]
+	sl = _chay(gia, lambda: b.lay_so_lieu(datetime.date(2026, 10, 19)))
+	la("tổng vẫn đủ ba hoá đơn", (sl["tong"], sl["so_hd"]), (3500000, 3))
+	la("giảm giá tính trên mọi hoá đơn", sl["giam"], 400000)
+	la("bảng điểm có dòng quầy chưa khai", [(d["ten"], d["tien"], d["so_hd"], d["giam"]) for d in sl["diem"]],
+		[("District 1", 1000000, 1, 100000), ("Sales Online", 500000, 1, 0), ("Quầy chưa khai trong Cài đặt", 2000000, 1, 300000)])
+	t = b.soan_bao_cao(sl)
+	dung("tin có giảm giá đủ 400k", "🎫 Giảm giá 400k" in t)
+	dung("tin có dòng quầy chưa khai", "• Quầy chưa khai trong Cài đặt 2,0 tr" in t)
