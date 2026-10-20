@@ -704,8 +704,10 @@ def _cam_goi_khi_kiem():
 	da = []
 	gia.post = lambda url, json=None, timeout=None: (da.append(url), types.SimpleNamespace(json=lambda: {"ok": True, "result": {}}))[1]
 	co = types.SimpleNamespace(vagabond_kiem_that=True)
+	# v606 Codex #492: _gui_zalo đọc bot của nhóm trước khi gọi, đọc lỗi thì không gửi;
+	# ca này kiểm cửa _goi nên cho bản đọc trả bot chính.
 	with patch.object(kz, "_token", lambda *a: "123:BIMAT"), patch.dict("sys.modules", {"requests": gia}), \
-			patch.object(f, "flags", co, create=True):
+			patch.object(kz, "_bot_chat", lambda c: "1"), patch.object(f, "flags", co, create=True):
 		tt, loi, _ = kz._goi("sendMessage", {"chat_id": "c", "text": "x"})
 		la("không gọi HTTP", da, [])
 		la("báo lỗi rõ", (tt, "kiểm thử" in loi), ("Lỗi", True))

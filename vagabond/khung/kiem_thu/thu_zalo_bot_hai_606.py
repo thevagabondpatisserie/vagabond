@@ -315,3 +315,41 @@ def _o():
 	dung("hộp Thêm bot gọi luu_bot rồi nối luôn", "vagabond.kenh_zalo.luu_bot" in js and "return noiBot(frm, m.ma_bot)" in js)
 	dung("không còn làm cứng bot thứ hai", "noi2" not in js and "zalo_bot_token_2" not in js)
 	dung("lưới không cho thêm dòng tay", "set_df_property('zalo_bot_phu', 'cannot_add_rows', 1)" in js)
+
+
+@ca("v606 Codex #492 P2 tái hiện: đọc Cài đặt lỗi khi chọn bot thì KHÔNG gửi bằng bot chính, trả gửi lại; lỗi chết giao dịch vẫn đi lên")
+def _loi_doc():
+	# Trước bản sửa (0a252627a): cả ba chỗ đọc lỗi đều gửi bằng token bot chính vào
+	# nhóm của bot 5; Zalo từ chối vì bot chính không ở trong nhóm, tin ghi Lỗi và mất.
+	url = []
+
+	def hong():
+		raise RuntimeError("doc Cai dat loi")
+	tk = lambda bot="1": {"1": "111:CHINH", "5": "555:NAM"}[kz.ma_bot(bot)]
+	cho = [("_cac_nhom", dict(_cac_nhom=hong, _doc_chat_moi=lambda: [{"chat_id": "g5", "bot": "5"}], _bot_them=lambda: [{"ma_bot": "5"}])),
+		("_doc_chat_moi", dict(_cac_nhom=lambda: [], _doc_chat_moi=hong, _bot_them=lambda: [{"ma_bot": "5"}])),
+		("_bot_them", dict(_cac_nhom=lambda: [{"chat_id": "g5", "bot": "5"}], _doc_chat_moi=lambda: [], _bot_them=hong))]
+	# Thêm một lối: hàm đọc bảng Bot thêm THẬT, chính Frappe đọc lỗi.
+	cho.append(("Cài đặt", dict(_cac_nhom=lambda: [{"chat_id": "g5", "bot": "5"}], _doc_chat_moi=lambda: [])))
+	for ten, gia in cho:
+		url.clear()
+		with patch.multiple(kz, _token=tk, **gia), patch.dict("sys.modules", {"requests": _mang(url)}), \
+				patch.object(kz.frappe, "get_single", lambda *a: hong(), create=True):
+			tt, loi = kz._gui_zalo("g5", "x")
+		la("%s lỗi: không gọi Zalo" % ten, url, [])
+		la("%s lỗi: trả gửi lại" % ten, tt, kz.MANG_LOI)
+		dung("%s lỗi: lời báo nói rõ" % ten, "bot gửi" in loi and "gửi lại" in loi)
+
+	class QueryDeadlockError(Exception):
+		pass
+
+	def chet():
+		raise QueryDeadlockError("deadlock")
+	with patch.multiple(kz, _token=tk, _cac_nhom=chet, _doc_chat_moi=lambda: [], _bot_them=lambda: []), \
+			patch.dict("sys.modules", {"requests": _mang(url)}):
+		try:
+			kz._gui_zalo("g5", "x")
+			len_ = "khong"
+		except QueryDeadlockError:
+			len_ = "len"
+	la("lỗi chết giao dịch đi lên", len_, "len")
