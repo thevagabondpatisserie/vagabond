@@ -984,8 +984,15 @@ def luu_tang(name, ma_ly_do=None, them=None, anh=None, ghi_chu=None):
 	si.flags.ignore_permissions = True
 	si.save()
 	them_anh = _dinh_anh(name, anh) if anh else 0
-	frappe.db.commit()
 	da_co = _anh_cua_to(name)
+	# Codex #493 P1, cùng lỗi với phiếu nạp: `_dinh_anh` nuốt lỗi từng tệp.
+	# Đền bù mà sau khi đính vẫn không có ảnh nào thì ném lỗi TRƯỚC commit
+	# để cả lần lưu lùi theo, đúng hứa "thiếu là không lưu gì".
+	if can_anh(loai) and not da_co:
+		frappe.throw(
+			"Không đính được ảnh chứng minh nên chưa lưu đơn tặng. Chụp lại ảnh "
+			"(JPG hoặc PNG) rồi lưu lại.", title="Chưa lưu đơn tặng")
+	frappe.db.commit()
 	thieu = thieu_gi(si, so_anh=len(da_co))
 	return {
 		"ok": 1,

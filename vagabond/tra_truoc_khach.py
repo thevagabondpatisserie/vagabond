@@ -615,6 +615,26 @@ def _dinh_tep(doctype, name, anh):
 	return n
 
 
+def thieu_anh_sau_dinh(ng, so_da_dinh):
+	"""Nguồn bắt ảnh mà không đính được tệp nào. THUẦN (Codex #493 P1)."""
+	return bool((ng or {}).get("can_anh")) and int(so_da_dinh or 0) <= 0
+
+
+def _chan_thieu_anh(ng, so_da_dinh):
+	"""Đính ảnh hỏng thì KHÔNG giữ phiếu nạp.
+
+	`_dinh_tep` nuốt lỗi từng tệp để một tệp hỏng không làm đổ cả lô. Nhưng
+	nguồn bắt ảnh mà không đính được tệp nào thì phiếu nạp thành phiếu
+	không chứng cứ: phiếu ngân hàng không ghi sổ được, bút toán Giám đốc
+	thu hộ thì ghi sổ được mà không có gì để đối chiếu. Ném lỗi TRƯỚC lúc
+	commit để cả phiếu lùi theo, người lập chụp lại ảnh rồi lập lại.
+	"""
+	if thieu_anh_sau_dinh(ng, so_da_dinh):
+		frappe.throw(
+			"Không đính được ảnh chuyển khoản hoặc bill cà thẻ nên chưa lập phiếu nạp. "
+			"Chụp lại ảnh (JPG hoặc PNG) rồi lập lại.", title="Chưa lập phiếu nạp")
+
+
 def _so_anh(anh):
 	from vagabond.hang_tang import la_anh
 
@@ -681,7 +701,7 @@ def tao_phieu_nap(khach, so_tien, nguon, anh=None, ghi_chu="", quay="", ma_giao_
 			je.flags.ignore_permissions = True
 			je.insert(ignore_permissions=True)
 			_giu_chu(je, goc)
-			_dinh_tep(JE, je.name, anh)
+			_chan_thieu_anh(ng, _dinh_tep(JE, je.name, anh))
 		frappe.db.commit()
 		return {"ok": 1, "doctype": JE, "name": je.name}
 
@@ -714,7 +734,7 @@ def tao_phieu_nap(khach, so_tien, nguon, anh=None, ghi_chu="", quay="", ma_giao_
 		pe.flags.ignore_permissions = True
 		pe.insert(ignore_permissions=True)
 		_giu_chu(pe, goc)
-		_dinh_tep(PE, pe.name, anh)
+		_chan_thieu_anh(ng, _dinh_tep(PE, pe.name, anh))
 	frappe.db.commit()
 	return {"ok": 1, "doctype": PE, "name": pe.name}
 
