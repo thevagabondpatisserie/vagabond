@@ -126,7 +126,7 @@ def _chao():
 	f = kz.frappe
 	goi, loi = [], []
 
-	def go(method, body):
+	def go(method, body, *a):
 		goi.append((method, body))
 		return "Lỗi", "Bot chưa vào nhóm", None
 	with patch.object(kz, "_goi", go), patch.object(f, "log_error", lambda *a, **k: loi.append(a), create=True):
