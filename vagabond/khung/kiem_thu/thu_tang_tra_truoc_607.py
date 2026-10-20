@@ -225,7 +225,8 @@ def _g_ban_hang(d, ghi):
 		_chuan_ma_tham_chieu=lambda *a, **k: "", _kiem_trung_ma=lambda *a, **k: None,
 		_nan_pt_tai_cho=lambda si: None, _giam_tu_diem=lambda si: 0,
 		_chuan_bi_ghi_so=lambda *a, **k: None,
-		flt=float, cint=int,
+		# Như frappe.utils.cint: None, chuỗi rỗng ra 0 (vòng 5 gọi cint(doi_pt)).
+		flt=float, cint=lambda x: int(float(x or 0)),
 	)
 	# Hàng rào THẬT của ban_hang, không phải bản giả: ca kiểm phải chạy đúng
 	# cái cửa hàng chặn ngoài site.
@@ -760,7 +761,7 @@ def _si_tach(pt, chon=True):
 	d.set = lambda k, v: d.__setitem__(k, list(v))
 	d.get_doc_before_save = lambda: None
 	if chon:
-		tk.chon_pt_ca_don(d, pt)
+		tk.chon_pt_ca_don(d, pt, doi_pt=True)
 	else:
 		d.vgb_pt_thanh_toan = pt
 	return d
@@ -781,7 +782,7 @@ def _():
 		D(pt="Tiền mặt", so_tien=600000, do_may=0), D(pt="Chuyển khoản", so_tien=100000, do_may=0)])
 	d.set = lambda k, v: d.__setitem__(k, list(v))
 	d.get_doc_before_save = lambda: None
-	tk.chon_pt_ca_don(d, "Chuyển khoản")
+	tk.chon_pt_ca_don(d, "Chuyển khoản", doi_pt=True)
 	d = _chay_validate(d)
 	la("bảng không có số dư giữ nguyên", len(d.vgb_thanh_toan_nhieu), 2)
 
@@ -819,7 +820,7 @@ def _():
 		d = _si_tach_nho()
 		d.save = lambda **k: (_chay_validate(d), ghi.append("save"))
 		f = nap("ban_hang.py", ten, _g_ban_hang(d, ghi))
-		f("SI-95631", pt="Tiền mặt")
+		f("SI-95631", pt="Tiền mặt", doi_pt=1)
 		dung("%s lưu" % ten, "save" in ghi)
 		la("%s giữ Tiền mặt" % ten, d.vgb_pt_thanh_toan, "Tiền mặt")
 		la("%s bỏ bảng tách, không còn trừ số dư" % ten, list(d.vgb_thanh_toan_nhieu), [])
@@ -832,7 +833,7 @@ def _():
 	d.save = lambda **k: (_chay_validate(d), ghi.append("save"))
 	g = _g_ban_hang(d, ghi)
 	g["_co_dong_so_du"] = lambda n: True
-	nap("ban_hang.py", "luu_thanh_toan", g)("SI-95631", pt="Tiền mặt")
+	nap("ban_hang.py", "luu_thanh_toan", g)("SI-95631", pt="Tiền mặt", doi_pt=1)
 	la("không đi set_value bỏ qua validate", ghi.count("set"), 0)
 	la("bỏ bảng tách", list(d.vgb_thanh_toan_nhieu), [])
 	# Đơn không tách số dư: giữ đường cũ (set_value), không đổi hành vi.
@@ -840,7 +841,7 @@ def _():
 	d = _si_tach_nho()
 	g = _g_ban_hang(d, ghi)
 	g["_co_dong_so_du"] = lambda n: False
-	nap("ban_hang.py", "luu_thanh_toan", g)("SI-95631", pt="Tiền mặt")
+	nap("ban_hang.py", "luu_thanh_toan", g)("SI-95631", pt="Tiền mặt", doi_pt=1)
 	la("đơn thường vẫn set_value", ghi.count("set"), 1)
 
 
@@ -870,3 +871,62 @@ def _():
 		if isinstance(n, ast.FunctionDef) and "chon_pt_ca_don(" in ast.unparse(n)}
 	la("năm cửa của ban_hang đi qua chon_pt_ca_don", sorted(ten & {"pos_chot", "pos_luu_don", "pos_sua_don", "luu_thanh_toan", "chot_mot_don"}),
 		["chot_mot_don", "luu_thanh_toan", "pos_chot", "pos_luu_don", "pos_sua_don"])
+
+
+
+# ------------------------------------------- Codex #493 vòng 5 (SHA 72271dd80)
+
+
+def _g_chot(d, ghi):
+	g = _g_ban_hang(d, ghi)
+	g.update(_kiem_quyen_ghi_so=lambda: None, _tu_xuat_hddt=lambda n: (0, None))
+	return g
+
+
+@ca("v607 Codex #493 vòng 5: Ghi sổ, Lưu đơn, Chốt chỉ GỬI KÈM phương thức đang hiện thì giữ phần trừ số dư")
+def _():
+	# Đơn 100.000 số dư + 600.000 tiền mặt, ô chính Tiền mặt. Màn gửi kèm pt
+	# đang hiện (DSV_PT, PB_PT) trong mọi lần bấm, không bấm chip nào.
+	for ten in ("pos_chot", "pos_luu_don", "chot_mot_don"):
+		ghi = []
+		d = _si_tach_nho()
+		d.custom_pancake_id = "P-95631"
+		d.save = lambda **k: (_chay_validate(d), ghi.append("save"))
+		d.submit = lambda: (_chay_validate(d), ghi.append("submit"))
+		f = nap("ban_hang.py", ten, _g_chot(d, ghi))
+		f("SI-95631", pt="Tiền mặt")
+		dung("%s chạy tới lưu hoặc ghi sổ: %r" % (ten, ghi), "save" in ghi or "submit" in ghi)
+		la("%s giữ hai dòng tách, số dư vẫn được trừ" % ten,
+			[(x.pt, x.so_tien) for x in d.vgb_thanh_toan_nhieu], [(tk.PT_SO_DU, 100000), ("Tiền mặt", 600000)])
+	# Doanh thu Sales bấm Lưu (luu_thanh_toan) mà không bấm chip: giữ đường set_value cũ, bảng không đụng.
+	ghi = []
+	d = _si_tach_nho()
+	g = _g_ban_hang(d, ghi)
+	g["_co_dong_so_du"] = lambda n: True
+	nap("ban_hang.py", "luu_thanh_toan", g)("SI-95631", pt="Tiền mặt")
+	la("luu_thanh_toan không bấm chip: set_value, không đi Document", ghi.count("set"), 1)
+	la("bảng tách còn nguyên", len(d.vgb_thanh_toan_nhieu), 2)
+
+
+@ca("v607 Codex #493 vòng 5: chot_mot_don có bấm chip (doi_pt=1) thì bỏ phần trừ số dư như lựa chọn cho cả đơn")
+def _():
+	ghi = []
+	d = _si_tach_nho()
+	d.custom_pancake_id = "P-95631"
+	d.submit = lambda: (_chay_validate(d), ghi.append("submit"))
+	nap("ban_hang.py", "chot_mot_don", _g_chot(d, ghi))("SI-95631", pt="Tiền mặt", doi_pt=1)
+	la("bỏ bảng tách", list(d.vgb_thanh_toan_nhieu), [])
+
+
+@ca("v607 Codex #493 vòng 5: năm cửa của ban_hang nhận doi_pt và chỉ truyền đúng doi_pt vào chon_pt_ca_don")
+def _():
+	cay = ast.parse((GOC / "ban_hang.py").read_text(encoding="utf-8"))
+	for ham in [n for n in cay.body if isinstance(n, ast.FunctionDef)
+			and n.name in ("pos_chot", "pos_luu_don", "pos_sua_don", "luu_thanh_toan", "chot_mot_don")]:
+		dung("%s có tham số doi_pt" % ham.name, "doi_pt" in [a.arg for a in ham.args.args])
+		goi = [n for n in ast.walk(ham) if isinstance(n, ast.Call) and ast.unparse(n.func) == "chon_pt_ca_don"]
+		dung("%s gọi chon_pt_ca_don" % ham.name, bool(goi))
+		for c in goi:
+			kw = {k.arg: ast.unparse(k.value) for k in c.keywords}
+			dung("%s: doi_pt lấy từ tham số hoặc đã có rào doi_pt (%s)" % (ham.name, kw.get("doi_pt")),
+				kw.get("doi_pt") in ("cint(doi_pt)", "True") and (kw.get("doi_pt") != "True" or ham.name == "luu_thanh_toan"))
