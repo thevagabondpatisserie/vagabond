@@ -26,6 +26,13 @@ NGUONG_GIAM_TONG = 15      # cả ngày giảm từ 15%
 NGUONG_GIAM_GIA = 8        # giảm giá chiếm từ 8% doanh thu
 NGUONG_HUY_SO = 3          # từ 3 hoá đơn bị huỷ
 NGUONG_HUY_TIEN = 1000000  # hoặc tiền huỷ từ 1 triệu
+
+# Đầu câu ghi vết Info trên Sales Invoice được tính là MỘT LẦN SỬA bill (Codex
+# #492 P2 4325572133). Các ghi vết khác trên cùng hoá đơn (nối, gỡ tờ hoá đơn
+# điện tử; trừ, hoàn điểm; tờ, biên bản thay thế; mở, đóng khoá sổ) không phải
+# sửa bán hàng. Nguồn: ban_hang._ghi_vet (sửa bill, đổi ngày, gắn khách công
+# nợ) và chung_tu (gỡ dấu huỷ). Thêm lối sửa mới thì thêm đầu câu vào đây.
+DAU_SUA = ("Sửa hoá đơn", "Đổi ngày hoá đơn", "Gắn khách công nợ", "Gỡ dấu huỷ")
 KENH_NHO = 1.0             # kênh dưới 1% doanh thu gộp chung một mục
 
 
@@ -123,14 +130,16 @@ def gom_huy_sua(dong):
 	và dòng ghi vết Comment "Huỷ ..." (tiền 0) mà cả ba đường huỷ đều ghi.
 	Đếm thẳng số dòng là một bill huỷ thành hai, và báo động huỷ bật nhầm.
 	Ở đây gom theo mã phiếu, tiền lấy dòng lớn nhất của phiếu đó. Dòng không
-	mang mã phiếu thì đứng riêng. Dòng không bắt đầu bằng "Huỷ" là một lần sửa."""
+	mang mã phiếu thì đứng riêng. Chỉ dòng mở đầu bằng một câu trong DAU_SUA là
+	một lần sửa; ghi vết khác (đối soát hoá đơn điện tử, điểm...) bỏ qua."""
 	huy = {}
 	sua = 0
 	for i, d in enumerate(dong):
-		if str(d.get("viec") or "").startswith("Huỷ"):
+		viec = str(d.get("viec") or "")
+		if viec.startswith("Huỷ"):
 			k = d.get("hoa_don") or ("dong", i)
 			huy[k] = max(huy.get(k, 0.0), float(d.get("tien") or 0))
-		else:
+		elif viec.startswith(DAU_SUA):
 			sua += 1
 	return {"so": len(huy), "tien": sum(huy.values())}, sua
 
