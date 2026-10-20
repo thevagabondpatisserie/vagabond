@@ -626,12 +626,14 @@ function moTab(m, fn) { bam(m, mot(m, '[data-cdltab="' + fn + '"]')); }
     bang('không lộ mã tin nào trong chữ của hộp', Object.keys(TIN).filter(function (ma) { return chu(box).indexOf(ma) >= 0; }), []);
     var ca0 = box.querySelectorAll('[data-cdltca]');
     bang('mỗi bộ phận một nút Chọn cả mục', ca0.length, m.g.VGB_ZALO_BO_PHAN.length);
-    box.onclick({ target: ca0[0] });
+    /* v606: mục Ban giám đốc đứng đầu, nên tìm nút theo tên bộ phận chứ không theo vị trí. */
+    var iKt = m.g.VGB_ZALO_BO_PHAN.indexOf('Hoá đơn, kế toán');
+    box.onclick({ target: ca0[iKt] });
     var kt = Object.keys(TIN).filter(function (ma) { return TIN[ma][0] === 'Hoá đơn, kế toán'; });
     bang('Chọn cả mục tích hết mục kế toán', box.querySelectorAll('[data-cdlt]').filter(function (d) { return chu(d).indexOf('☑') >= 0; }).length, kt.length);
-    box.onclick({ target: box.querySelectorAll('[data-cdltca]')[0] });
+    box.onclick({ target: box.querySelectorAll('[data-cdltca]')[iKt] });
     bang('bấm lần nữa thì bỏ hết', box.querySelectorAll('[data-cdlt]').filter(function (d) { return chu(d).indexOf('☑') >= 0; }).length, 0);
-    box.onclick({ target: box.querySelectorAll('[data-cdltca]')[0] });
+    box.onclick({ target: box.querySelectorAll('[data-cdltca]')[iKt] });
     box.onclick({ target: box.querySelectorAll('[data-cdlt]').filter(function (d) { return d.getAttribute('data-cdlt') === 'ht_email_loi'; })[0] });
     box.onclick({ target: box.querySelectorAll('[data-cdltxong]')[0] });
     dung('màn nhóm tóm tắt số tin', chu(m.khung).indexOf((kt.length + 1) + ' tin: ') >= 0);
