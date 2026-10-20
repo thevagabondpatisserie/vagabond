@@ -14609,10 +14609,15 @@ async function scrDsView(name, can) {
     } catch (e) { busy(false); toast((e && e.message) || 'Huỷ lỗi', 5000); }
   };
   var DSV_PT = d.vgb_pt_thanh_toan || '';
+  /* v607 Codex #493 vong 5: 1 khi Sales VUA BAM chip phuong thuc. Gui kem
+     doi_pt; luu, ghi so chi gui kem phuong thuc dang hien thi thi may chu
+     giu nguyen bang tach so du tra truoc. */
+  var DSV_DOI_PT = 0;
   var ptWrap = document.getElementById('dsvPt');
   if (ptWrap) ptWrap.querySelectorAll('.ptc').forEach(function (b) {
     b.onclick = function () {
       DSV_PT = b.getAttribute('data-pt');
+      DSV_DOI_PT = 1;
       ptWrap.querySelectorAll('.ptc').forEach(function (x) {
         var on = x.getAttribute('data-pt') === DSV_PT;
         x.style.border = '1.5px solid ' + (on ? '#0d9488' : '#e5e7eb');
@@ -15187,7 +15192,7 @@ async function scrDsView(name, can) {
   var xlu = document.getElementById('xhdLuu');
   if (xlu) xlu.onclick = async function () {
     busy(true);
-    try { await api('vagabond.ban_hang.luu_thanh_toan', { si_name: d.name, pt: DSV_PT, ma_tham_chieu: mtcGiaTri() }); await luuXhd(d.name); busy(false); toast('Đã lưu thông tin đơn'); }
+    try { await api('vagabond.ban_hang.luu_thanh_toan', { si_name: d.name, pt: DSV_PT, ma_tham_chieu: mtcGiaTri(), doi_pt: DSV_DOI_PT ? 1 : 0 }); await luuXhd(d.name); busy(false); toast('Đã lưu thông tin đơn'); }
     catch (e) { busy(false); baoTin((e && e.message) || 'Lưu lỗi'); }
   };
   (async function () {
@@ -15245,7 +15250,7 @@ async function scrDsView(name, can) {
     }
     if (!await xacNhan('Ghi sổ hoá đơn cho đơn #' + (d.custom_pancake_display_id || '') + '? Số sẽ vào doanh thu chính thức.')) return;
     busy(true);
-    try { await luuXhd(d.name); await api('vagabond.ban_hang.chot_mot_don', { si_name: d.name, pt: DSV_PT, ma_tham_chieu: mtcGiaTri(), khach: dsvKhach.ma || '' }); busy(false); toast('Đã ghi sổ ' + d.name); }
+    try { await luuXhd(d.name); await api('vagabond.ban_hang.chot_mot_don', { si_name: d.name, pt: DSV_PT, ma_tham_chieu: mtcGiaTri(), khach: dsvKhach.ma || '', doi_pt: DSV_DOI_PT ? 1 : 0 }); busy(false); toast('Đã ghi sổ ' + d.name); }
     catch (e) { busy(false); baoTin((e && e.message) || 'Chốt lỗi'); }
     go(scrDoanhSo, true);
   };
@@ -18646,6 +18651,11 @@ async function scrPosBill(name) {
   var chuaCoPt = nhap && !d.vgb_pt_thanh_toan && !d.vgb_huy;
   var choChon = suaMo || (nhap && tamTinh) || chuaCoPt;
   var PB_PT = suaMo ? (posSua.pt || d.vgb_pt_thanh_toan || '') : (d.vgb_pt_thanh_toan || '');
+  /* v607 Codex #493 vong 5: 1 khi nguoi dung VUA BAM chip phuong thuc tren
+     man nay. Gui kem doi_pt cho may chu: chi khi do may chu moi coi la chon
+     mot phuong thuc cho CA don va bo bang tach so du tra truoc. Cac lan
+     luu, chot, sua chi gui kem phuong thuc dang hien thi giu nguyen bang. */
+  var PB_DOI_PT = suaMo && posSua.doiPt ? 1 : 0;
   html += '<div class="sec">' + (nhap && !suaMo && (tamTinh || chuaCoPt)
     ? 'Khách thanh toán bằng gì?' : 'Thanh toán') + '</div>';
   /* Noi thang la con thieu gi, dung de thu ngan tu doan. Cau nay chi hien
@@ -18860,7 +18870,8 @@ async function scrPosBill(name) {
   if (ptw) ptw.querySelectorAll('.ptc').forEach(function (c) {
     c.onclick = function () {
       PB_PT = c.getAttribute('data-pt');
-      if (posSua) posSua.pt = PB_PT;
+      PB_DOI_PT = 1;
+      if (posSua) { posSua.pt = PB_PT; posSua.doiPt = 1; }
       ptw.querySelectorAll('.ptc').forEach(function (x) {
         var on = x.getAttribute('data-pt') === PB_PT;
         x.style.border = '1.5px solid ' + (on ? '#0d9488' : '#e5e7eb');
@@ -18925,7 +18936,7 @@ async function scrPosBill(name) {
     if (!PB_PT) return toast('Chọn phương thức thanh toán trước.');
     busy(true);
     try {
-      await api(chot ? 'vagabond.ban_hang.pos_luu_don' : 'vagabond.ban_hang.pos_chot', { name: d.name, pt: PB_PT, ma_tham_chieu: docO('pbMtc'), ghi_chu: docO('pbGhiChu') });
+      await api(chot ? 'vagabond.ban_hang.pos_luu_don' : 'vagabond.ban_hang.pos_chot', { name: d.name, pt: PB_PT, ma_tham_chieu: docO('pbMtc'), ghi_chu: docO('pbGhiChu'), doi_pt: PB_DOI_PT ? 1 : 0 });
       busy(false);
       toast(chot ? 'Đã lưu đơn nháp ' + d.name : 'Đã chốt hoá đơn ' + d.name);
       posHomNayTxt = null;
@@ -18947,7 +18958,7 @@ async function scrPosBill(name) {
     try {
       await api('vagabond.ban_hang.pos_chot', {
         name: d.name, pt: PB_PT, ma_tham_chieu: docO('pbMtc'),
-        ghi_chu: docO('pbGhiChu'),
+        ghi_chu: docO('pbGhiChu'), doi_pt: PB_DOI_PT ? 1 : 0,
       });
       busy(false);
       toast('Đã lưu phương thức thanh toán: ' + PB_PT);
@@ -19147,7 +19158,7 @@ async function scrPosBill(name) {
         return { item_code: m.item_code, qty: m.qty, rate: m.rate, tuy_chon: (m.tc || []).join(', '), ghi_chu: m.gc || '', combo: m.combo || '', dong_goc: m.dong_goc || '' };
       }));
       goi.giam_gia = posSoTien(posSua.giam);
-      if (posSua.pt) { goi.pt = posSua.pt; goi.ma_tham_chieu = posSua.mtc || ''; }
+      if (posSua.pt) { goi.pt = posSua.pt; goi.ma_tham_chieu = posSua.mtc || ''; goi.doi_pt = posSua.doiPt ? 1 : 0; }
     }
     var ok = await confirmSheet('Lưu thay đổi hoá đơn ' + (maBill || d.name) + '?',
       (nhap ? 'Tổng mới: ' + money(Math.max(0, posSua.mon.reduce(function (t, m) { return t + (m.combo_tien != null ? m.combo_tien : m.qty * m.rate); }, 0) - posSoTien(posSua.giam))) + ' đ.\n' : '') +
