@@ -80,9 +80,19 @@ def _don(cty, mon, khach, tien_don, dong=None):
 	return hd
 
 
-def _nap(khach, so_tien, nguon, quay=""):
-	kq = tk.tao_phieu_nap(khach, so_tien, nguon, anh=ANH if nguon != "tien_mat" else "", quay=quay)
+def _ma_lan():
+	return "kiem-607-" + frappe.generate_hash(length=20).lower()
+
+
+def _nap(khach, so_tien, nguon, quay="", ma_lan=None):
+	ma_lan = ma_lan or _ma_lan()
+	kq = tk.tao_phieu_nap(khach, so_tien, nguon, anh=ANH if nguon != "tien_mat" else "", quay=quay, ma_lan=ma_lan)
 	_DA_TAO.append((kq["doctype"], kq["name"]))
+	# Codex #493 vòng 3: gửi lại cùng mã lần (mất phản hồi) trả đúng phiếu cũ.
+	lai = tk.tao_phieu_nap(khach, so_tien, nguon, anh=ANH if nguon != "tien_mat" else "", quay=quay, ma_lan=ma_lan)
+	la("%s gửi lại cùng mã lần trả đúng phiếu cũ" % nguon, (lai["name"], lai.get("trung")), (kq["name"], 1))
+	la("%s chỉ một phiếu cho mã lần" % nguon,
+		frappe.db.count(kq["doctype"], {tk.O_MA_LAN: ma_lan, "docstatus": ["<", 2]}), 1)
 	tk.ghi_so_phieu_nap(kq["doctype"], kq["name"])
 	return frappe.get_doc(kq["doctype"], kq["name"])
 
@@ -144,3 +154,20 @@ def _tru_dan():
 	if khong_nem("huỷ đơn 1", lambda: hd1.cancel()) is None and hd1.docstatus != 2:
 		return
 	la("số dư trả lại sau huỷ", tk.so_du_khach(khach)["con_chua_can"], 300000.0)
+
+	# Codex #493 vòng 3: đơn đã tách số dư, người dùng chọn Tiền mặt cho cả
+	# đơn rồi lưu (như Bill quầy pos_chot) thì bảng tách bị bỏ, không tự quay lại.
+	hd3 = khong_nem("lưu đơn 3 tách số dư", lambda: _don(cty, mon, khach, 400000, [
+		{"pt": tk.PT_SO_DU, "so_tien": 300000}, {"pt": "Tiền mặt", "so_tien": 100000}]))
+	if not hd3:
+		return
+	hd3.reload()
+	la("đơn 3 phương thức chính là dòng lớn nhất", hd3.vgb_pt_thanh_toan, tk.PT_SO_DU)
+	hd3.vgb_pt_thanh_toan = "Tiền mặt"
+	hd3.flags.ignore_permissions = True
+	if khong_nem("đổi đơn 3 sang Tiền mặt", lambda: hd3.save(ignore_permissions=True)) is None:
+		return
+	hd3.reload()
+	la("đơn 3 giữ Tiền mặt người chọn", hd3.vgb_pt_thanh_toan, "Tiền mặt")
+	la("đơn 3 bỏ bảng tách", len(hd3.get("vgb_thanh_toan_nhieu") or []), 0)
+	la("đơn 3 không còn giữ chỗ số dư", tk.so_du_khach(khach)["giu_cho"], 0.0)
