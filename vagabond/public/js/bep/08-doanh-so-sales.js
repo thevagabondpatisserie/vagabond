@@ -756,10 +756,15 @@ async function scrDsView(name, can) {
     } catch (e) { busy(false); toast((e && e.message) || 'Huỷ lỗi', 5000); }
   };
   var DSV_PT = d.vgb_pt_thanh_toan || '';
+  /* v607 Codex #493 vong 5: 1 khi Sales VUA BAM chip phuong thuc. Gui kem
+     doi_pt; luu, ghi so chi gui kem phuong thuc dang hien thi thi may chu
+     giu nguyen bang tach so du tra truoc. */
+  var DSV_DOI_PT = 0;
   var ptWrap = document.getElementById('dsvPt');
   if (ptWrap) ptWrap.querySelectorAll('.ptc').forEach(function (b) {
     b.onclick = function () {
       DSV_PT = b.getAttribute('data-pt');
+      DSV_DOI_PT = 1;
       ptWrap.querySelectorAll('.ptc').forEach(function (x) {
         var on = x.getAttribute('data-pt') === DSV_PT;
         x.style.border = '1.5px solid ' + (on ? '#0d9488' : '#e5e7eb');
@@ -1334,7 +1339,7 @@ async function scrDsView(name, can) {
   var xlu = document.getElementById('xhdLuu');
   if (xlu) xlu.onclick = async function () {
     busy(true);
-    try { await api('vagabond.ban_hang.luu_thanh_toan', { si_name: d.name, pt: DSV_PT, ma_tham_chieu: mtcGiaTri() }); await luuXhd(d.name); busy(false); toast('Đã lưu thông tin đơn'); }
+    try { await api('vagabond.ban_hang.luu_thanh_toan', { si_name: d.name, pt: DSV_PT, ma_tham_chieu: mtcGiaTri(), doi_pt: DSV_DOI_PT ? 1 : 0 }); await luuXhd(d.name); busy(false); toast('Đã lưu thông tin đơn'); }
     catch (e) { busy(false); baoTin((e && e.message) || 'Lưu lỗi'); }
   };
   (async function () {
@@ -1392,7 +1397,7 @@ async function scrDsView(name, can) {
     }
     if (!await xacNhan('Ghi sổ hoá đơn cho đơn #' + (d.custom_pancake_display_id || '') + '? Số sẽ vào doanh thu chính thức.')) return;
     busy(true);
-    try { await luuXhd(d.name); await api('vagabond.ban_hang.chot_mot_don', { si_name: d.name, pt: DSV_PT, ma_tham_chieu: mtcGiaTri(), khach: dsvKhach.ma || '' }); busy(false); toast('Đã ghi sổ ' + d.name); }
+    try { await luuXhd(d.name); await api('vagabond.ban_hang.chot_mot_don', { si_name: d.name, pt: DSV_PT, ma_tham_chieu: mtcGiaTri(), khach: dsvKhach.ma || '', doi_pt: DSV_DOI_PT ? 1 : 0 }); busy(false); toast('Đã ghi sổ ' + d.name); }
     catch (e) { busy(false); baoTin((e && e.message) || 'Chốt lỗi'); }
     go(scrDoanhSo, true);
   };
