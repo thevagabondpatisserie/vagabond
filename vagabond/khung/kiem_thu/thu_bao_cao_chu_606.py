@@ -85,8 +85,11 @@ def _de_y():
 	xau = dict(yen, tong_truoc=SL["tong"] * 2, giam=SL["tong"] * 0.1, huy={"so": 3, "tien": 50000})
 	la("ngày xấu", b.can_de_y(xau), ["Doanh thu cả ngày giảm 50% so với hôm trước", "Giảm giá chiếm 10,0% doanh thu", "3 hoá đơn bị huỷ (50k)"])
 	la("huỷ ít mà tiền lớn", b.can_de_y(dict(yen, huy={"so": 1, "tien": 1500000})), ["1 hoá đơn bị huỷ (1,5 tr)"])
+	# Dòng này từng chốt NGUYÊN VĂN tin ngắn cho dict(SL, so_hd=0) dù SL còn
+	# huỷ, sửa và hôm trước có bán: chính nó che lỗi Codex #492 P2 4325217633.
+	# Đã chuyển sang ca _huy_het; đừng chốt lại tin ngắn cho ngày còn huỷ, sửa.
 	t = b.soan_bao_cao(dict(SL, so_hd=0, tong=0))
-	la("không hoá đơn", t, "📊 Vagabond | Báo cáo cuối ngày T2 19/10\nHôm nay chưa có hoá đơn nào.\n\nChi tiết: app > Báo cáo")
+	dung("không hoá đơn: nói rõ, vẫn báo huỷ", "Hôm nay chưa có hoá đơn nào." in t and "✂️ Sửa, huỷ: 2 huỷ" in t)
 	dai = dict(SL, kenh=[("Kênh %d" % i, 1000000) for i in range(400)])
 	dung("tin quá dài thì cắt ở 2.000 ký tự", len(b.soan_bao_cao(dai)) <= 2000)
 
@@ -254,3 +257,33 @@ def _huy_mot_lan():
 	la("một lần sửa (đổi ngày)", sl["sua"], 1)
 	t = b.soan_bao_cao(sl)
 	dung("Cần để ý nói 3 hoá đơn huỷ, không phải 6", "• 3 hoá đơn bị huỷ (470k)" in t and "6 hoá đơn" not in t)
+
+
+@ca("v606 báo cáo ngày (Codex #492 P2 4325217633): ngày huỷ hết hoá đơn vẫn báo số huỷ, sửa và mục Cần để ý, không chỉ nói chưa có hoá đơn")
+def _huy_het():
+	# Đi đúng đường thật: lay_so_lieu với _hoa_don rỗng (huỷ thì _hoa_don lọc
+	# bỏ) nhưng BC07 còn ba hoá đơn huỷ và một lần sửa, hôm trước có bán.
+	from vagabond import bao_cao as bc
+	sh = [{"hoa_don": "SI-%d" % i, "viec": v, "tien": t} for i, v, t in (
+		(1, "Huỷ hoá đơn", 300000), (1, "Huỷ ghi sổ hàng loạt. Lý do: trùng - a", 0),
+		(2, "Huỷ bill nháp: khách đổi ý", 20000), (2, "Huỷ phiếu nháp. Lý do: khách đổi ý - a", 0),
+		(3, "Huỷ bill nháp: nhầm món", 150000), (4, "Đổi ngày hoá đơn - a", 0))]
+	gia = [p for p in _gia_bao_cao([], HD_CU) if getattr(p, "attribute", "") not in ("_bc_sua_huy", "_bc_khuyen_mai", "_bc_mon_ban_chay", "_do_nhap")]
+	gia += [patch.object(bc, "_bc_sua_huy", lambda hd, **k: {"dong": sh}),
+		patch.object(bc, "_bc_khuyen_mai", lambda hd, **k: {"dong": []}),
+		patch.object(bc, "_bc_mon_ban_chay", lambda hd, **k: {"dong": []}),
+		patch.object(bc, "_do_nhap", lambda hd: (0, 0))]
+	sl = _chay(gia, lambda: b.lay_so_lieu(datetime.date(2026, 10, 19)))
+	la("không hoá đơn, ba huỷ, một sửa", (sl["so_hd"], sl["huy"], sl["sua"]), (0, {"so": 3, "tien": 470000}, 1))
+	t = b.soan_bao_cao(sl)
+	la("tin ngày huỷ hết", t, "📊 Vagabond | Báo cáo cuối ngày T2 19/10\nHôm nay chưa có hoá đơn nào.\n\n"
+		"✂️ Sửa, huỷ: 3 huỷ (470k), 1 sửa\n\n⚠️ Cần để ý\n• Doanh thu cả ngày giảm 100% so với hôm trước\n"
+		"• 3 hoá đơn bị huỷ (470k)\n\nChi tiết: app > Báo cáo")
+	trong = dict(SL, so_hd=0, tong=0, tong_truoc=0, diem=[], huy={"so": 0, "tien": 0}, sua=0, giam=0,
+		ctkm={"tien": 0, "luot": 0, "top": None}, nhap={"so": 0, "tien": 0})
+	la("ngày không có gì thật thì vẫn gọn", b.soan_bao_cao(trong),
+		"📊 Vagabond | Báo cáo cuối ngày T2 19/10\nHôm nay chưa có hoá đơn nào.\n\nChi tiết: app > Báo cáo")
+	yen = b.soan_bao_cao(dict(SL, huy={"so": 0, "tien": 0}, sua=0))
+	dung("ngày có bán mà không huỷ, sửa: không dòng Sửa, huỷ, không khoảng trống thừa", "✂️" not in yen and "\n\n\n" not in yen)
+	chi_sua = b.soan_bao_cao(dict(SL, huy={"so": 0, "tien": 0}, sua=2))
+	dung("ngày chỉ có sửa vẫn có dòng Sửa, huỷ", "✂️ Sửa, huỷ: 0 huỷ, 2 sửa" in chi_sua)
