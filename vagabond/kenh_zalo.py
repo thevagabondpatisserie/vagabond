@@ -65,8 +65,10 @@ TEN_CHU_DE = {"kho": "Kho", "san_xuat": "Sản xuất", "cong_no": "Công nợ",
 # trong cai_dat_loi_chung.js phải trùng từng chữ.
 # Mã -> (bộ phận, tên, giải thích một dòng, loại, chủ đề). Loại và chủ đề giữ cho
 # nhóm chưa chọn Tin nhận (lọc kiểu cũ) và cho giờ im (chỉ Cảnh báo vượt giờ im).
-BO_PHAN = ("Hoá đơn, kế toán", "Bán hàng, cửa hàng", "Bếp", "Hệ thống")
+BO_PHAN = ("Ban giám đốc", "Hoá đơn, kế toán", "Bán hàng, cửa hàng", "Bếp", "Hệ thống")
 TIN = {
+	"bgd_bao_cao_ngay": ("Ban giám đốc", "Báo cáo cuối ngày (23:30)",
+		"23:30 mỗi tối: doanh thu, giảm giá, sửa huỷ, điểm cần để ý. Nhóm nhận đừng đặt giờ im lúc 23:30.", "ban_tin", "ban_hang"),
 	"hd_ket_ghi_so": ("Hoá đơn, kế toán", "Kẹt ghi sổ, kẹt hoá đơn cuối ngày",
 		"20 và 45 phút sau giờ chạy cuối ngày, và 07:30 sáng hôm sau, còn đơn chưa ghi sổ.", "canh_bao", "hoa_don"),
 	"hd_don_chua_ghi_so": ("Hoá đơn, kế toán", "Đơn chưa ghi sổ còn sót lúc 23:55",
@@ -199,6 +201,14 @@ def soan_tin(loai, tieu_de, dong=None, link=None, nguoi=None, han=None):
 		duoi = ("\nMở: %s" % link) if link else ""
 		tin = tin[:TOI_DA_KY_TU - len(duoi) - 2].rstrip() + "…" + duoi
 	return tin
+
+
+def tin_soan_san(noi_dung):
+	"""THUẦN (v606): tin soạn sẵn, bỏ khoảng trắng đầu cuối, không quá TOI_DA_KY_TU ký tự."""
+	t = str(noi_dung or "").strip()
+	if len(t) > TOI_DA_KY_TU:
+		t = t[:TOI_DA_KY_TU - 1].rstrip() + "…"
+	return t
 
 
 def trong_gio_im(gio, im_tu, im_den):
@@ -798,7 +808,7 @@ def cat_dong(ds, toi_da=12, don_vi="đơn"):
 
 
 def bao(loai, chu_de, tieu_de, dong=None, link=None, khoa=None, nguoi=None, han=None, kiem=None, nguon=None,
-		ma_tin=None):
+		ma_tin=None, noi_dung=None):
 	"""Điểm gọi DUY NHẤT cho mọi nơi trong app. Không ném lỗi ra ngoài, TRỪ lỗi làm chết
 	cả giao dịch (deadlock, chờ khoá quá hạn): khi đó chứng từ phải dừng, không được báo
 	thành công trong khi cơ sở dữ liệu đã rollback (Codex #428 vòng 12).
@@ -808,6 +818,8 @@ def bao(loai, chu_de, tieu_de, dong=None, link=None, khoa=None, nguoi=None, han=
 	kiem, nguon: mã trong DIEU_KIEN và tên chứng từ; trước khi gửi (kể cả sau
 	giờ im) máy hỏi lại việc còn mở không, hết việc thì bỏ, không nhắc thừa.
 	ma_tin: mã trong TIN (v604); nhóm đã tích Tin nhận chỉ nhận tin có mã khớp.
+	noi_dung: tin đã soạn sẵn theo mẫu riêng (v606, báo cáo cuối ngày); có thì
+	dùng nguyên văn (cắt ở TOI_DA_KY_TU) thay cho khuôn soan_tin.
 
 	Codex #425: ghi tin vào sổ ("Chờ gửi") NGAY TRONG giao dịch của chứng từ,
 	rồi mới xếp hàng đợi sau commit. Chứng từ rollback thì tin cũng mất theo;
@@ -817,7 +829,7 @@ def bao(loai, chu_de, tieu_de, dong=None, link=None, khoa=None, nguoi=None, han=
 			return
 		tin = {"loai": loai, "chu_de": chu_de, "tieu_de": tieu_de, "dong": list(dong or []),
 			"link": link, "khoa": khoa, "nguoi": nguoi, "han": han, "kiem": kiem, "nguon": nguon,
-			"ma_tin": ma_tin}
+			"ma_tin": ma_tin, "noi_dung": noi_dung}
 		ten = _ghi_hop_thu(tin)
 		if ten:
 			frappe.db.after_commit.add(lambda: _xep(ten))
@@ -856,8 +868,8 @@ def _ghi_hop_thu(tin):
 
 	Mỗi dòng có savepoint riêng: trùng khoá (sự kiện đã ghi) hay lỗi lẻ thì lùi
 	đúng dòng đó, không đụng tới chứng từ đang lưu."""
-	noi_dung = soan_tin(tin.get("loai"), tin.get("tieu_de"), tin.get("dong"), tin.get("link"),
-		tin.get("nguoi"), tin.get("han"))
+	noi_dung = tin_soan_san(tin.get("noi_dung")) or soan_tin(tin.get("loai"), tin.get("tieu_de"),
+		tin.get("dong"), tin.get("link"), tin.get("nguoi"), tin.get("han"))
 	ra = []
 	for n in chon_nhom(_cac_nhom(), tin.get("loai"), tin.get("chu_de"), tin.get("ma_tin")):
 		ten = khoa_tin(tin.get("khoa") or frappe.generate_hash(length=12), n.get("chat_id"))

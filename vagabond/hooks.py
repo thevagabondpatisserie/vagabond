@@ -997,6 +997,8 @@ scheduler_events.setdefault("hourly", []).append("vagabond.don_web.doi_soat_uu_d
 scheduler_events.setdefault("hourly", []).append("vagabond.kenh_zalo.xa_gio_im")
 # Codex #425: gửi bù tin Zalo còn Chờ gửi (hàng đợi hỏng lúc xếp).
 scheduler_events.setdefault("cron", {}).setdefault("*/5 * * * *", []).append("vagabond.kenh_zalo.quet_cho_gui")
+# v606: báo cáo cuối ngày cho chủ vào nhóm Zalo đã tích tin "Báo cáo cuối ngày".
+scheduler_events.setdefault("cron", {}).setdefault("30 23 * * *", []).append("vagabond.bao_cao_chu.gui_cuoi_ngay")
 # v585: bản tin phát hành (cùng nguồn [ĐÃ DEPLOY] với Telegram) vào nhóm Zalo.
 scheduler_events.setdefault("cron", {}).setdefault("*/15 * * * *", []).append("vagabond.zalo_phat_hanh.quet")
 
