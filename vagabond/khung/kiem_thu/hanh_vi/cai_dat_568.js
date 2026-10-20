@@ -686,12 +686,14 @@ ca('v604 Desk: hộp nhóm có phần Tin nhận theo bộ phận, Chọn cả m
   });
   var nut = fs.filter(function (x) { return x.fieldtype === 'Button'; });
   la('mỗi bộ phận một nút Chọn cả mục', nut.map(function (x) { return x.label; }), V.ZALO_BO_PHAN.map(function () { return 'Chọn cả mục'; }));
-  nut[1].click();
+  /* v606: thêm mục Ban giám đốc đứng đầu, nên tìm nút theo tên bộ phận chứ không theo vị trí. */
+  var iBh = V.ZALO_BO_PHAN.indexOf('Bán hàng, cửa hàng');
+  nut[iBh].click();
   var bh = Object.keys(V.ZALO_TIN).filter(function (m) { return V.ZALO_TIN[m][0] === 'Bán hàng, cửa hàng'; });
   la('Chọn cả mục tích hết mục bán hàng', bh.filter(function (m) { return gt['tin_nhan__' + m]; }).length, bh.length);
-  nut[1].click();
+  nut[iBh].click();
   la('bấm lần nữa thì bỏ hết', bh.filter(function (m) { return gt['tin_nhan__' + m]; }).length, 0);
-  nut[1].click();
+  nut[iBh].click();
   var v = Object.assign({}, gt, { nhom_zalo: 'Nhóm Zalo mã TOAN', ten_nhom: 'Sales', bat: 1, tin_nhan__ht_phat_hanh: 1 });
   d.o.primary_action(v);
   var r = z.frm.con[0];
