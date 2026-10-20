@@ -62,7 +62,9 @@ var GIA_RONG = ['khachTrenDon', 'khachMotDong', 'veKhachNo', 'dsvTaiHt', 'dsvVeH
   'dsvnNapKhoiHd', 'dsvnKhoiHd', 'dsvOSo', 'dsvNapLai', 'dsvTaiThe', 'ttnVe', 'tkNapKhoi', 'tkKhoiChiTiet', 'sheetTimKhach',
   'promptSheet', 'posXinPhep', 'posTaiKhoan', 'posQrUrl', 'posNoiDungCk', 'hopKhung', 'hoanMoFormHuy', 'hoanMoFormDu', 'hoanMoForm',
   'hddtChoXuatChu', 'hdGanBind', 'hdAiLamGi', 'dstGanNganCach', 'dstDiemDs', 'dstSoThuan', 'dstNganCach', 'dsTayDoc', 'cfgBanHang',
-  'ptTheoNguon', 'nguonBH', 'veOMtc', 'xacNhan', 'confirmSheet', 'dsvGanThe', 'veTruDiem'];
+  'ptTheoNguon', 'nguonBH', 'veOMtc', 'xacNhan', 'confirmSheet', 'dsvGanThe', 'veTruDiem',
+  /* v607: khối Hàng tặng và khối Số dư trả trước nằm ở 54, 55. */
+  'tangGan', 'sdtKhoiDon'];
 
 function appMoi(don) {
   var tl = domGia.taiLieuGia();
