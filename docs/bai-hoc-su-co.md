@@ -2400,3 +2400,15 @@ thiếu lý do thì dừng và chỉ đúng nút cần bấm. Không chặn ở 
 nhịp đồng bộ Pancake lưu lại đơn. Bài học: một màn có hai nút cùng lưu một tờ
 thì mỗi nút phải lưu ĐỦ mọi ô bắt buộc mà nó có thể làm đổi, hoặc nút kia phải
 ẩn; và hàng rào phải đặt ở mọi cửa máy chủ, không chỉ ở nút trên màn.
+
+### v607 (Codex #493 vòng 3): nới ca kiểm thứ tự mà quên khai bản nháp
+
+Triệu chứng: thêm phần 55 có màn lập phiếu Nạp tiền trả trước, đứng sau 48.
+Ca `thu_ban_soan_do_533._thu_tu` đỏ, và cách sửa lúc đó là thêm 54, 55 vào
+danh sách phần được đứng sau 48. Ca xanh, nhưng màn nạp không có bản nháp tự
+lưu: tải lại trang là mất khách, số tiền, nguồn đã chọn. Ca `_khong_sot` cũng
+không bắt vì tên `scrSoDuNap` không khớp mẫu Tao/New/Lap/Nhap. Khắc phục: khai
+`sdKhai` + `sdBoc` trong 48, duyệt tên qua `SAU_48_DUOC_BOC`, thêm ca hành vi
+sập nguồn rồi mở lại. Bài học: ca kiểm đỏ vì phần mới thì đọc lý do nó canh
+gì trước khi nới; phần mới có màn lập phiếu là phải có bản nháp, không phải
+chỉ được phép đứng chỗ đó.
