@@ -433,3 +433,91 @@ def _():
 	b = si["before_submit"]
 	dung("có hook ghi sổ", "vagabond.tra_truoc_khach.can_tru_khi_ghi_so" in b)
 	dung("sau kiểm dòng thanh toán", b.index("vagabond.tra_truoc_khach.can_tru_khi_ghi_so") > b.index("vagabond.thanh_toan_nhieu.kiem_truoc_ghi_so"))
+
+
+# ------------------------------------------- Codex #493 P1: ảnh đính hỏng
+
+
+def _goi_nap(nguon, so_dinh, anh='[{"ten": "ck.jpg", "noi_dung": "data:image/jpeg;base64,AAA"}]'):
+	"""Chạy THẬT tao_phieu_nap, chỉ thay phần chạm Frappe; trả (lỗi, các lần commit)."""
+	ghi = []
+
+	class Phieu(D):
+		def append(self, k, v):
+			self.setdefault(k, []).append(v)
+
+		def set(self, k, v):
+			self[k] = v
+
+	def moi(dt):
+		p = Phieu(doctype=dt, name="NAP-1", flags=NS())
+		p.insert = lambda **k: ghi.append("insert")
+		p.setup_party_account_field = lambda: None
+		p.set_missing_values = lambda: None
+		return p
+
+	fr = NS(throw=_nem, new_doc=moi, generate_hash=lambda length=6: "abc",
+		parse_json=lambda s: __import__("json").loads(s),
+		db=NS(exists=lambda *a: True, commit=lambda: ghi.append("commit")))
+	kh = types.ModuleType("vagabond.khach_hang")
+	kh.la_khach_gop = lambda c: False
+
+	class Nang:
+		def __enter__(self):
+			return "nv@x"
+
+		def __exit__(self, *a):
+			return False
+
+	from vagabond import thu_tien as tt_mod
+	lib = types.ModuleType("vagabond.lib")
+	lib.cfg = lambda: {"tk_gd_thu_ho": "1388 - GD"}
+	pa = types.ModuleType("erpnext.accounts.party")
+	pa.get_party_account = lambda *a: "131 - KH"
+	with patch.object(tk, "frappe", fr), patch.object(tk, "_quyen", lambda: None), \
+			patch.object(tk, "_cong_ty", lambda: "CTY"), patch.object(tk, "nowdate", lambda: "2026-10-20"), \
+			patch.object(tk, "_dinh_tep", lambda dt, n, a: so_dinh), \
+			patch.object(tt_mod, "nang_quyen_lap_phieu", Nang), patch.object(tt_mod, "_giu_chu", lambda *a: None), \
+			patch.object(tt_mod, "tk_tien_thu", lambda c, p: ("1111 - TM", None)), \
+			patch.dict(sys.modules, {"vagabond.khach_hang": kh, "vagabond.lib": lib, "erpnext.accounts.party": pa}):
+		fr.db.exists = lambda *a: True
+		tk.frappe.db.exists = lambda *a: True
+		try:
+			kq = tk.tao_phieu_nap("KL040476", 50000000, nguon, anh=anh, quay="TCV")
+		except Chan as e:
+			return str(e), ghi
+	return kq, ghi
+
+
+@ca("v607 Codex #493 P1: nạp bắt ảnh mà không đính được ảnh nào thì không commit, báo lập lại")
+def _():
+	for nguon in ("ck_cty", "gd_thu_ho", "the_payoo"):
+		kq, ghi = _goi_nap(nguon, 0)
+		dung("%s báo lỗi" % nguon, isinstance(kq, str) and "Không đính được ảnh" in kq)
+		dung("%s không commit" % nguon, "commit" not in ghi)
+		kq, ghi = _goi_nap(nguon, 1)
+		dung("%s đính được thì lập" % nguon, isinstance(kq, dict) and kq.get("ok") == 1)
+		dung("%s đính được thì commit" % nguon, "commit" in ghi)
+	kq, ghi = _goi_nap("tien_mat", 0, anh="")
+	dung("tiền mặt không bắt ảnh vẫn lập", isinstance(kq, dict) and "commit" in ghi)
+
+
+@ca("v607 Codex #493 P1: đơn đền bù gửi ảnh mà đính hỏng thì không commit")
+def _():
+	d = _don_si()
+	ghi = []
+	fr = NS(get_doc=lambda *a: d, throw=_nem, parse_json=lambda s: __import__("json").loads(s),
+		db=NS(commit=lambda: ghi.append("commit")))
+	bh = types.ModuleType("vagabond.ban_hang")
+	bh._kiem_pt = lambda pt, nguon: pt
+	with patch.object(ht, "frappe", fr), patch.object(ht, "_quyen", lambda: None), \
+			patch.object(ht, "_anh_cua_to", lambda n: []), patch.object(ht, "_dinh_anh", lambda n, a: 0), \
+			patch.dict(sys.modules, {"vagabond.ban_hang": bh}):
+		try:
+			ht.luu_tang("SI-95631", ma_ly_do="D3", them="Chị Mai",
+				anh='[{"ten": "banh.jpg", "noi_dung": "data:image/jpeg;base64,AAA"}]')
+		except Chan as e:
+			dung("báo không đính được ảnh", "Không đính được ảnh" in str(e))
+		else:
+			dung("phải chặn", False)
+	la("không commit", ghi, [])
