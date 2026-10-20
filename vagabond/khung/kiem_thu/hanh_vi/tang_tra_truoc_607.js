@@ -389,6 +389,46 @@ function chuTrongKhoi(k) { return k.tl.getElementById('pbTgForm').innerHTML; }
     bang('tham số', [g[0].a.khach, g[0].a.so_tien, g[0].a.nguon, JSON.parse(g[0].a.anh).length], ['KL040476', 50000000, 'gd_thu_ho', 1]);
   });
 
+  await ca('Codex #493 vòng 3: lần Lưu đầu mất phản hồi, bấm lại gửi CÙNG mã lần gửi; lập xong thì form mới có mã mới', async function () {
+    var app = manSales(donSales());
+    var lan = 0;
+    app.mc.api = (function (cu) {
+      return function (m, a) {
+        if (m === 'vagabond.tra_truoc_khach.cai_dat') {
+          app.mc.goi.push({ m: m, a: a });
+          return Promise.resolve({ nguon: [{ ma: 'tien_mat', nhan: 'Tiền mặt tại quầy', can_anh: 0, can_quay: 1, giai_thich: '' }],
+            quay: [{ ma: 'TCV', ten: 'Trần Cao Vân' }], thieu_tk_gd: 0 });
+        }
+        if (m === 'vagabond.tra_truoc_khach.tao_phieu_nap') {
+          app.mc.goi.push({ m: m, a: a });
+          lan++;
+          /* Lần đầu máy chủ ĐÃ lập nhưng phản hồi mất giữa đường. */
+          if (lan === 1) return Promise.reject(new Error('Mất kết nối'));
+          return Promise.resolve({ ok: 1, doctype: 'Payment Entry', name: 'ACC-PAY-1', trung: 1 });
+        }
+        if (m === 'vagabond.tra_truoc_khach.so_khach') { app.mc.goi.push({ m: m, a: a }); return Promise.resolve({ dong: [] }); }
+        return cu(m, a);
+      };
+    })(app.mc.api);
+    app.g.xacNhan = function () { return Promise.resolve(true); };
+    app.g.sheetTimKhach = function (t, cb) { cb({ name: 'KL040476', customer_name: 'Mỹ Dung' }); };
+    await app.g.scrSoDuNap(); await nghi();
+    await app.bam(app.mot('#sdtChonKh')); await nghi();
+    app.mot('#sdtSoTien').value = '2.000.000';
+    await app.bam(app.mot('[data-sdtng="tien_mat"]')); await nghi();
+    await app.bam(app.mot('[data-sdtq="TCV"]')); await nghi();
+    await app.bam(app.mot('#sdtLuuNap')); await nghi();
+    await app.bam(app.mot('#sdtLuuNap')); await nghi();
+    var g = app.mc.cac('vagabond.tra_truoc_khach.tao_phieu_nap');
+    bang('hai lần gửi', g.length, 2);
+    dung('có mã lần gửi: ' + g[0].a.ma_lan, /^[a-z0-9-]{16,64}$/.test(String(g[0].a.ma_lan)));
+    bang('lần bấm lại dùng đúng mã cũ', g[1].a.ma_lan, g[0].a.ma_lan);
+    dung('báo đã lập ở lần trước', app.tin.some(function (t) { return t.indexOf('đã lập ở lần bấm trước') >= 0; }));
+    /* Form mới sau khi lập xong: mã mới. */
+    await app.g.scrSoDuNap(); await nghi();
+    dung('form mới có mã khác', app.g.sdtNap.ma_lan && app.g.sdtNap.ma_lan !== g[0].a.ma_lan);
+  });
+
   /* ---------------- Man Duyet don tang: noi truoc con thieu gi ---------------- */
   function manDuyet(ct) {
     var goi = [], tin = [];
