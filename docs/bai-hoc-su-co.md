@@ -2386,3 +2386,17 @@ ghi (lệch tổng Pancake, phí giao Ahamove). Phòng: ca `thu_tin_zalo_604` d�
 lời gọi `bao`/`bao_hoac_ghi_loi`, đòi có `ma_tin` trong danh mục và mỗi tin có
 nơi phát. Bẫy thứ hai: nhịp lặp gọi lại cùng khoá thì `bao()` trả rỗng vì tin đã
 nằm trong sổ; `bao_hoac_ghi_loi` nay chỉ ghi Error Log khi thật sự không có nhóm.
+
+### v607 (anh Việt 20/10/2026, đơn #95631): hai nút lưu trên một màn, một nút lưu thiếu
+
+Triệu chứng: cửa hàng chọn Hàng tặng, gõ lý do, bấm "Lưu phương thức thanh
+toán". Nút đó chỉ lưu phương thức; ô lý do nằm trong khối Hàng tặng có nút
+lưu riêng, nên lý do mất trắng mà không ai được báo. Giám đốc mở màn duyệt bấm
+Duyệt mới thấy "Không duyệt được". Màn Doanh thu Sales còn không có ô lý do nào.
+Khắc phục: chọn Hàng tặng thì chỉ còn MỘT nút (`hang_tang.luu_tang`) lưu phương
+thức, loại, lý do chọn sẵn và ảnh cùng một lần, thiếu là không lưu gì; bốn cửa
+cũ (`pos_chot`, `pos_luu_don`, `pos_sua_don`, `luu_thanh_toan`) gặp Hàng tặng
+thiếu lý do thì dừng và chỉ đúng nút cần bấm. Không chặn ở hook validate vì
+nhịp đồng bộ Pancake lưu lại đơn. Bài học: một màn có hai nút cùng lưu một tờ
+thì mỗi nút phải lưu ĐỦ mọi ô bắt buộc mà nó có thể làm đổi, hoặc nút kia phải
+ẩn; và hàng rào phải đặt ở mọi cửa máy chủ, không chỉ ở nút trên màn.
