@@ -85,7 +85,11 @@ function dungMan() {
     back: function () { S.stack.pop(); var top = S.stack[S.stack.length - 1]; if (top) top(); },
     api: function (duong, ts) {
       goi.push({ duong: duong, ts: ts });
-      if (duong === 'vagabond.cai_dat_loi.lay') return Promise.resolve(JSON.parse(JSON.stringify(that._lay || LAY)));
+      if (duong === 'vagabond.cai_dat_loi.lay') {
+        // v606: _loiLay giả lỗi mạng ở lần đọc lại SAU lần mở đầu tiên.
+        if (that._loiLay && goi.filter(function (x) { return x.duong === duong; }).length > 1) return Promise.reject(new Error('Mất mạng'));
+        return Promise.resolve(JSON.parse(JSON.stringify(that._lay || LAY)));
+      }
       // v606: máy chủ của bot Zalo thêm. luu_bot cấp số 3 cho bot mới, giữ số cũ khi đổi.
       if (duong === 'vagabond.kenh_zalo.luu_bot') {
         if (that._loiBot) return Promise.reject(new Error(that._loiBot));
@@ -701,6 +705,7 @@ function moTab(m, fn) { bam(m, mot(m, '[data-cdltab="' + fn + '"]')); }
     bang('đọc lại cài đặt sau khi thêm', m.goi.filter(function (x) { return x.duong === 'vagabond.cai_dat_loi.lay'; }).length, 2);
     dung('quay về tab', m.g._t !== 'Thêm bot Zalo');
     dung('báo kết quả nối', m.toast.join(' ').indexOf('Đã nối bot số 3.') >= 0);
+    dung('đọc lại được thì không có câu nhắc đọc lại hỏng', m.toast.join(' ').indexOf('chưa tải lại') < 0);
     dung('token không còn trong trạng thái app', JSON.stringify(m.g.CDL).indexOf('TOKEN-BOT-BA') < 0);
     bang('không tạo thay đổi chờ lưu', m.g.cdlSoThay(), 0);
   });
@@ -741,6 +746,26 @@ function moTab(m, fn) { bam(m, mot(m, '[data-cdltab="' + fn + '"]')); }
     bang('chỉ luu_bot, không nối', lan(m2), ['vagabond.kenh_zalo.luu_bot']);
     bang('ở lại màn Thêm bot', m2.g._t, 'Thêm bot Zalo');
     dung('báo lỗi máy chủ', m2.toast.join(' ').indexOf('Token sai') >= 0);
+  });
+
+  await ca('v606 (Codex #492 P2 4326242179): đọc lại cài đặt lỗi sau khi thêm hoặc nối bot thì nói thẳng, không chỉ báo thành công', async function () {
+    var m = await moMan();
+    m.g._loiLay = 1;
+    moTab(m, tabBot());
+    bam(m, mot(m, '[data-cdlbotthem]'));
+    go_(m, 'token', 'TOKEN-BOT-BA');
+    bam(m, mot(m, '#cdlBotXong'));
+    await tick(); await tick();
+    var t = m.toast.join(' | ');
+    dung('vẫn báo việc đã làm xong trên máy chủ', t.indexOf('Đã nối bot số 3.') >= 0);
+    dung('nói chưa tải lại được và cách làm: ' + t, t.indexOf('chưa tải lại được') >= 0 && t.indexOf('Mở lại màn Cài đặt lõi') >= 0);
+    m.toast.length = 0;
+    bam(m, mot(m, '[data-cdlbotnoi="2"]'));
+    await tick(); await tick();
+    t = m.toast.join(' | ');
+    dung('Nối lại cũng nói chưa tải lại được: ' + t, t.indexOf('chưa tải lại được') >= 0);
+    // Đọc lại hỏng thì lần mở màn sau phải đọc máy chủ (không có thay đổi chờ lưu nên không giữ bản cũ).
+    bang('không còn thay đổi chờ lưu', m.g.cdlSoThay(), 0);
   });
 
   await ca('v606 thẻ nhóm Zalo trên app nói nhóm gửi bằng bot nào; bot đã xoá thì nói đang gửi bằng bot chính', async function () {
