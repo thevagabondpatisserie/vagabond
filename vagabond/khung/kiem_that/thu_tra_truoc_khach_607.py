@@ -164,7 +164,7 @@ def _tru_dan():
 		return
 	hd3.reload()
 	la("đơn 3 phương thức chính là dòng lớn nhất", hd3.vgb_pt_thanh_toan, tk.PT_SO_DU)
-	tk.chon_pt_ca_don(hd3, "Tiền mặt")
+	tk.chon_pt_ca_don(hd3, "Tiền mặt", doi_pt=True)  # như bấm chip (vòng 5)
 	hd3.flags.ignore_permissions = True
 	if khong_nem("đổi đơn 3 sang Tiền mặt", lambda: hd3.save(ignore_permissions=True)) is None:
 		return
@@ -181,7 +181,7 @@ def _tru_dan():
 		return
 	hd4.reload()
 	la("đơn 4 ô chính đã là Tiền mặt", hd4.vgb_pt_thanh_toan, "Tiền mặt")
-	tk.chon_pt_ca_don(hd4, "Tiền mặt")
+	tk.chon_pt_ca_don(hd4, "Tiền mặt", doi_pt=True)  # như bấm chip (vòng 5)
 	hd4.flags.ignore_permissions = True
 	if khong_nem("chọn Tiền mặt cho cả đơn 4", lambda: hd4.save(ignore_permissions=True)) is None:
 		return
