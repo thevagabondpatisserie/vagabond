@@ -116,6 +116,25 @@ def gop_kenh(kenh, tong):
 	return lon
 
 
+def gom_huy_sua(dong):
+	"""Đếm huỷ và sửa từ các dòng BC07 (Codex #492 P2 4324973553).
+
+	Mỗi lần huỷ, BC07 trả HAI dòng cho cùng một phiếu: dòng hoá đơn (có tiền)
+	và dòng ghi vết Comment "Huỷ ..." (tiền 0) mà cả ba đường huỷ đều ghi.
+	Đếm thẳng số dòng là một bill huỷ thành hai, và báo động huỷ bật nhầm.
+	Ở đây gom theo mã phiếu, tiền lấy dòng lớn nhất của phiếu đó. Dòng không
+	mang mã phiếu thì đứng riêng. Dòng không bắt đầu bằng "Huỷ" là một lần sửa."""
+	huy = {}
+	sua = 0
+	for i, d in enumerate(dong):
+		if str(d.get("viec") or "").startswith("Huỷ"):
+			k = d.get("hoa_don") or ("dong", i)
+			huy[k] = max(huy.get(k, 0.0), float(d.get("tien") or 0))
+		else:
+			sua += 1
+	return {"so": len(huy), "tien": sum(huy.values())}, sua
+
+
 def can_de_y(sl):
 	"""THUẦN: các dòng "Cần để ý" theo ngưỡng ở đầu tệp."""
 	ra = []
@@ -233,7 +252,7 @@ def lay_so_lieu(ngay):
 		"truoc": cu.get(d["diem"], 0)} for d in tong_dt]
 	km = bc._bc_khuyen_mai(hd, tu=ngay, den=ngay)["dong"]
 	sh = bc._bc_sua_huy(hd, tu=ngay, den=ngay)["dong"]
-	huy = [d for d in sh if str(d.get("viec") or "").startswith("Huỷ")]
+	huy, sua = gom_huy_sua(sh)
 	mon = sorted(bc._bc_mon_ban_chay(hd)["dong"], key=lambda m: -float(m.get("tien") or 0))
 	so_nhap, tien_nhap = bc._do_nhap(hd)
 	return {
@@ -248,8 +267,8 @@ def lay_so_lieu(ngay):
 		"giam": sum(float(d["giam"] or 0) for d in diem),
 		"ctkm": {"tien": sum(float(d["giam"] or 0) for d in km), "luot": sum(int(d["so_lan"] or 0) for d in km),
 			"top": (km[0]["ctkm"], km[0]["giam"]) if km else None},
-		"huy": {"so": len(huy), "tien": sum(float(d.get("tien") or 0) for d in huy)},
-		"sua": len(sh) - len(huy),
+		"huy": huy,
+		"sua": sua,
 		"ban_chay": [{"ten": m["mon"], "sl": m["sl"], "tien": m["tien"]} for m in mon[:3]],
 		"nhap": {"so": so_nhap, "tien": tien_nhap},
 	}
