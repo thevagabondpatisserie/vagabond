@@ -174,28 +174,6 @@ def tong_so(nap, giu_cho):
 	}
 
 
-def bo_dong_tach(pt, dong, chinh):
-	"""Có bỏ bảng dòng tách số dư khi người dùng chọn phương thức khác không. THUẦN.
-
-	Codex #493 vòng 3: `ap_dung` tách đơn thành dòng số dư + dòng phần còn
-	lại, ô phương thức chính là dòng lớn nhất. Bill quầy đổi phương thức qua
-	`pos_chot` chỉ sửa ô chính, rồi hook `dat_pt_chinh` dựng lại ô chính từ
-	bảng dòng cũ, lặng lẽ trả về phép tách cũ mà màn quầy không có chỗ sửa.
-
-	Quy tắc: bảng có dòng số dư, và ô chính KHÁC dòng lớn nhất của bảng, tức
-	người dùng vừa chọn tay một phương thức cho cả đơn. Bỏ bảng. Lưu lại mà
-	không đổi gì (ô chính vẫn là dòng lớn nhất) thì giữ nguyên. Bảng không có
-	dòng số dư thì không đụng, đó là luật cũ của bảng nhiều phương thức.
-	`chinh` là dòng lớn nhất do `thanh_toan_nhieu.chinh_cua` tính.
-	"""
-	pt = chuoi(pt)
-	if not pt or not chinh:
-		return False
-	if not co_dong_so_du(dong):
-		return False
-	return pt != chuoi(chinh)
-
-
 def ma_lan_hop_le(ma):
 	"""Mã lần gửi của form nạp: chuỗi máy sinh, 16 tới 64 ký tự chữ thường, số, gạch. THUẦN."""
 	import re
@@ -474,29 +452,26 @@ def co_dong_so_du(dong):
 
 
 def bo_dong_tach_khi_doi_pt(doc, method=None):
-	"""Hook validate, ĐỨNG TRƯỚC `thanh_toan_nhieu.dat_pt_chinh` (Codex #493 vòng 3).
+	"""Hook validate, ĐỨNG TRƯỚC `hang_tang.truoc_khi_luu` và `thanh_toan_nhieu.dat_pt_chinh`.
 
-	Đơn đã tách số dư mà người dùng chọn một phương thức khác cho cả đơn (Bill
-	quầy, Doanh thu Sales, Hàng tặng) thì bỏ bảng dòng tách, để `dat_pt_chinh`
-	không dựng lại phép tách cũ. Một chỗ cho mọi cửa đổi phương thức, không vá
-	từng cửa. Xem `bo_dong_tach`.
+	Codex #493 vòng 3 và vòng 4: `ap_dung` tách đơn thành dòng số dư + dòng
+	phần còn lại. Người dùng sau đó chọn MỘT phương thức cho cả đơn (Bill
+	quầy, Doanh thu Sales, Hàng tặng) mà bảng tách cũ còn thì `dat_pt_chinh`
+	dựng lại phép tách và số dư vẫn bị trừ lúc ghi sổ; màn quầy không có chỗ
+	sửa bảng. Mọi cửa chọn phương thức đi qua `chon_pt_ca_don`, để lại dấu
+	`flags.vgb_chon_pt_ca_don`; có dấu và bảng có dòng số dư thì bỏ bảng, kể
+	cả khi phương thức chọn trùng dòng lớn nhất.
+
+	KHÔNG đoán từ trạng thái (ô chính khác dòng lớn nhất): lần lưu ở Desk sửa
+	tay bảng dòng cũng ra trạng thái đó, xoá bảng của họ là sai. Không có dấu
+	thì giữ nguyên luật cũ, `dat_pt_chinh` lấy dòng lớn nhất.
 	"""
 	if cint(doc.get("docstatus")) != 0:
 		return
-	dong = [{"pt": d.get("pt"), "so_tien": d.get("so_tien"), "ma_tham_chieu": d.get("ma_tham_chieu"),
-		"do_may": d.get("do_may")} for d in (doc.get(DT_BANG) or [])]
-	if not dong:
+	if not getattr(doc.flags, "vgb_chon_pt_ca_don", False):
 		return
-	if getattr(doc.flags, "vgb_chon_pt_ca_don", False) and co_dong_so_du(dong):
-		doc.set(DT_BANG, [])
-		return
-	from vagabond.thanh_toan_nhieu import chinh_cua, gom_dong
-
-	try:
-		chinh = chinh_cua(gom_dong(dong))
-	except Exception:
-		return
-	if bo_dong_tach(doc.get("vgb_pt_thanh_toan"), dong, chinh):
+	dong = [{"pt": d.get("pt"), "so_tien": d.get("so_tien")} for d in (doc.get(DT_BANG) or [])]
+	if co_dong_so_du(dong):
 		doc.set(DT_BANG, [])
 
 
