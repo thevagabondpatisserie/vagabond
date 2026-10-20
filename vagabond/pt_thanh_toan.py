@@ -68,6 +68,7 @@ TEN_KHOA = {
 	"Chuyển khoản": "đối soát SePay dò theo đúng tên này",
 	"Công nợ": "phân hệ Công nợ phải thu lọc hoá đơn theo đúng tên này",
 	"Hàng tặng": "luồng duyệt đơn tặng của giám đốc dò theo đúng tên này",
+	"Số dư trả trước": "luồng cấn số dư khách trả trước dò theo đúng tên này",
 }
 
 # Giu DUNG mau cu ben ban_hang.py: bill ca the in ca "So tham chieu" toan
@@ -196,6 +197,24 @@ MAC_DINH = [
 		"ten": "Trả trước", "ic": "🎫",
 		"quay": 0, "online": 0, "tien_ve": TIEN_NGAY_KHAC, "minvoice": "",
 		"bat": 1, "nhan": "Số phiếu đặt bánh", "vd": "SO-2026-00123",
+	},
+	{
+		# Khách NẠP TRƯỚC một khoản rồi trừ dần qua nhiều đơn (anh Việt duyệt
+		# 20/10/2026, v607). Xem vagabond/tra_truoc_khach.py.
+		#
+		# TIEN_NGAY_KHAC: tiền đã về rồi, ở ngày nạp, và đã được đếm ở ca của
+		# ngày nạp. Ngày bán không có đồng nào vào két, nên nhóm này phải rơi
+		# khỏi bảng đối soát két, giống hệt "Trả trước" của đặt bánh.
+		#
+		# Khác "Trả trước" ở chỗ HIỆN ở màn chọn: chọn nó là mở hộp chọn khách
+		# và xem số dư, máy kiểm đủ số dư mới cho lưu, và lúc ghi sổ máy cấn
+		# đúng vào phiếu nạp của khách đó. Chọn nhầm cho khách không có số dư
+		# thì bị chặn ngay, không có đường hụt két im lặng như ca PR #197.
+		#
+		# minvoice để trống: tiền thật vào bằng đường của ngày nạp.
+		"ten": "Số dư trả trước", "ic": "💳",
+		"quay": 1, "online": 1, "tien_ve": TIEN_NGAY_KHAC, "minvoice": "",
+		"nhan": "Khách đã nạp tiền trước, trừ dần vào số dư",
 	},
 	# Bon phuong thuc duoi day di theo NGUON DON cua san, khong hien o man
 	# chon phuong thuc - nhung van phai khai de con kiem ma don va gui dung

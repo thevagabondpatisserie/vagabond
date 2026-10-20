@@ -774,6 +774,23 @@ def _kiem_pt(pt, nguon):
 	return pt
 
 
+def _chan_tang_thieu(si):
+	"""Chặn mọi cửa lưu phương thức đặt Hàng tặng khi đơn chưa có lý do (v607).
+
+	Ca #95631: nút "Lưu phương thức thanh toán" đi qua `pos_chot`, chỉ lưu
+	phương thức, lý do người lập đã gõ mất trắng. Nay đơn Hàng tặng chỉ lưu
+	qua `hang_tang.luu_tang` (lưu phương thức và lý do cùng lúc); các cửa
+	khác gặp đơn Hàng tặng thiếu lý do thì dừng và chỉ đúng nút cần bấm.
+
+	KHÔNG đặt ở hook validate: nhịp đồng bộ Pancake lưu lại đơn mỗi 30 phút,
+	chặn ở đó là làm hỏng cả nhịp vì một đơn cũ thiếu lý do.
+	"""
+	from vagabond import hang_tang
+
+	if hang_tang.thieu_khi_dat_tang(si):
+		frappe.throw(hang_tang.CHAN_THIEU, title="Chưa lưu đơn tặng")
+
+
 def _nan_pt_theo_nguon(si):
 	"""Nan phuong thuc ve dung nguon don, va GHI LAI viec da nan.
 
@@ -2498,6 +2515,7 @@ def luu_thanh_toan(si_name, pt=None, ma_tham_chieu=None):
 		doc.vgb_pt_thanh_toan = pt
 		doc.vgb_ma_tham_chieu = ma
 		doc.vgb_pt_do_may = 0
+		_chan_tang_thieu(doc)
 		doc.save(ignore_permissions=True)
 	else:
 		frappe.db.set_value(
@@ -6212,6 +6230,7 @@ def pos_chot(name, pt=None, ma_tham_chieu=None, giam_gia=None, ghi_chu=None, otp
 		si.vgb_ma_tham_chieu = _chuan_ma_tham_chieu(pt, ma_tham_chieu, bat_buoc=False)
 		if si.vgb_ma_tham_chieu:
 			_kiem_trung_ma(pt, si.vgb_ma_tham_chieu, bo_qua=si.name)
+		_chan_tang_thieu(si)
 	_nan_pt_tai_cho(si)
 	if ghi_chu is not None:
 		si.vgb_ghi_chu = (ghi_chu or "").strip()
@@ -6386,6 +6405,7 @@ def pos_sua_don(
 		si.vgb_ma_tham_chieu = _chuan_ma_tham_chieu(pt, ma_tham_chieu, bat_buoc=False)
 		if si.vgb_ma_tham_chieu:
 			_kiem_trung_ma(pt, si.vgb_ma_tham_chieu, bo_qua=si.name)
+		_chan_tang_thieu(si)
 		doi.append("phương thức thanh toán")
 	_nan_pt_tai_cho(si)
 	if ghi_chu is not None:
@@ -6502,6 +6522,7 @@ def pos_luu_don(name, pt=None, ma_tham_chieu=None, ghi_chu=None):
 			ma_tham_chieu, si.vgb_ma_tham_chieu, pt, si.vgb_pt_thanh_toan)
 		si.vgb_pt_thanh_toan = pt
 		si.vgb_pt_do_may = 0
+		_chan_tang_thieu(si)
 	if ma_tham_chieu is not None:
 		si.vgb_ma_tham_chieu = ma_tham_chieu
 	if ghi_chu is not None:
