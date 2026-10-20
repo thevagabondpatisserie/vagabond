@@ -965,8 +965,9 @@ def luu_tang(name, ma_ly_do=None, them=None, anh=None, ghi_chu=None):
 		frappe.throw(THIEU["anh"], title="Chưa lưu đơn tặng")
 
 	pt = _kiem_pt(PT_TANG, si.get("custom_nguon"))
-	si.vgb_pt_thanh_toan = pt
-	si.vgb_pt_do_may = 0
+	from vagabond.tra_truoc_khach import chon_pt_ca_don
+
+	chon_pt_ca_don(si, pt)
 	si.vgb_tang_loai = loai
 	si.vgb_tang_ly_do = ly
 	si.vgb_tang_ma_ly_do = chuoi(ma_ly_do).upper()

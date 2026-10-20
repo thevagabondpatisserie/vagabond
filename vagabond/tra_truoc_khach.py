@@ -191,7 +191,7 @@ def bo_dong_tach(pt, dong, chinh):
 	pt = chuoi(pt)
 	if not pt or not chinh:
 		return False
-	if not any(chuoi((d or {}).get("pt")) == PT_SO_DU and so((d or {}).get("so_tien")) > 0 for d in (dong or [])):
+	if not co_dong_so_du(dong):
 		return False
 	return pt != chuoi(chinh)
 
@@ -450,6 +450,29 @@ def _dong_cua(doc):
 		for d in (doc.get(DT_BANG) or [])]
 
 
+def chon_pt_ca_don(doc, pt, ha_co_may=True):
+	"""MỘT cửa cho mọi nút người dùng chọn một phương thức cho CẢ đơn (Codex #493 vòng 4).
+
+	`pos_chot`, `pos_luu_don`, `pos_sua_don`, `luu_thanh_toan`, `chot_mot_don`
+	và `hang_tang.luu_tang` đều gọi hàm này thay vì tự gán ô phương thức. Ngoài
+	việc gán, nó để lại dấu `flags.vgb_chon_pt_ca_don` cho hook
+	`bo_dong_tach_khi_doi_pt`: người dùng VỪA chọn một phương thức cho cả đơn,
+	nên bảng tách số dư cũ phải bỏ, kể cả khi phương thức chọn trùng dòng lớn
+	nhất của bảng (100.000 số dư + 600.000 tiền mặt, chọn Tiền mặt). Chỉ nhìn
+	trạng thái thì không phân biệt được lần chọn đó với một lần lưu lại không
+	đổi gì. Ca `thu_tang_tra_truoc_607` chốt không còn cửa nào tự gán.
+	"""
+	doc.vgb_pt_thanh_toan = pt
+	if ha_co_may:
+		doc.vgb_pt_do_may = 0
+	doc.flags.vgb_chon_pt_ca_don = True
+
+
+def co_dong_so_du(dong):
+	"""Bảng dòng thanh toán có dòng số dư trả trước không. THUẦN."""
+	return any(chuoi((d or {}).get("pt")) == PT_SO_DU and so((d or {}).get("so_tien")) > 0 for d in (dong or []))
+
+
 def bo_dong_tach_khi_doi_pt(doc, method=None):
 	"""Hook validate, ĐỨNG TRƯỚC `thanh_toan_nhieu.dat_pt_chinh` (Codex #493 vòng 3).
 
@@ -463,6 +486,9 @@ def bo_dong_tach_khi_doi_pt(doc, method=None):
 	dong = [{"pt": d.get("pt"), "so_tien": d.get("so_tien"), "ma_tham_chieu": d.get("ma_tham_chieu"),
 		"do_may": d.get("do_may")} for d in (doc.get(DT_BANG) or [])]
 	if not dong:
+		return
+	if getattr(doc.flags, "vgb_chon_pt_ca_don", False) and co_dong_so_du(dong):
+		doc.set(DT_BANG, [])
 		return
 	from vagabond.thanh_toan_nhieu import chinh_cua, gom_dong
 

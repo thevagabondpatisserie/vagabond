@@ -2512,10 +2512,23 @@ def luu_thanh_toan(si_name, pt=None, ma_tham_chieu=None):
 		doc = frappe.get_doc("Sales Invoice", si_name)
 		if doc.docstatus != 0:
 			frappe.throw("Hoá đơn đã ghi sổ, không chuyển sang Hàng tặng được.")
-		doc.vgb_pt_thanh_toan = pt
+		from vagabond.tra_truoc_khach import chon_pt_ca_don
+
+		chon_pt_ca_don(doc, pt)
 		doc.vgb_ma_tham_chieu = ma
-		doc.vgb_pt_do_may = 0
 		_chan_tang_thieu(doc)
+		doc.save(ignore_permissions=True)
+	elif _co_dong_so_du(si_name):
+		# v607 Codex #493 vòng 4: đơn đang tách số dư trả trước thì đi đường
+		# Document để hook bỏ bảng tách; set_value bỏ qua validate, bảng cũ
+		# còn nguyên và lần lưu sau dựng lại phép tách.
+		from vagabond.tra_truoc_khach import chon_pt_ca_don
+
+		doc = frappe.get_doc("Sales Invoice", si_name)
+		if doc.docstatus != 0:
+			frappe.throw("Hoá đơn đã ghi sổ, không đổi phương thức được nữa.")
+		chon_pt_ca_don(doc, pt)
+		doc.vgb_ma_tham_chieu = ma
 		doc.save(ignore_permissions=True)
 	else:
 		frappe.db.set_value(
@@ -2523,6 +2536,13 @@ def luu_thanh_toan(si_name, pt=None, ma_tham_chieu=None):
 		)
 	frappe.db.commit()
 	return {"ok": 1, "pt": pt, "ma_tham_chieu": ma}
+
+
+def _co_dong_so_du(si_name):
+	"""Đơn có dòng thanh toán "Số dư trả trước" trong bảng tách không (v607)."""
+	from vagabond.tra_truoc_khach import PT_SO_DU, DT_DONG
+
+	return bool(frappe.db.exists(DT_DONG, {"parent": si_name, "parenttype": "Sales Invoice", "pt": PT_SO_DU}))
 
 
 def _tien(n):
@@ -2659,7 +2679,9 @@ def chot_mot_don(si_name, pt=None, ma_tham_chieu=None, khach=None):
 		si.vgb_ma_tham_chieu = luat_thanh_toan.ma_can_ghi(
 			ma_tham_chieu, si.vgb_ma_tham_chieu, pt, si.vgb_pt_thanh_toan)
 	if pt:
-		si.vgb_pt_thanh_toan = pt
+		from vagabond.tra_truoc_khach import chon_pt_ca_don
+
+		chon_pt_ca_don(si, pt, ha_co_may=False)
 	ma_kh = (khach or "").strip()
 	if ma_kh:
 		if not frappe.db.exists("Customer", ma_kh):
@@ -6225,8 +6247,9 @@ def pos_chot(name, pt=None, ma_tham_chieu=None, giam_gia=None, ghi_chu=None, otp
 		pt = _kiem_pt(pt, si.custom_nguon)
 		ma_tham_chieu = luat_thanh_toan.ma_can_ghi(
 			ma_tham_chieu, si.vgb_ma_tham_chieu, pt, si.vgb_pt_thanh_toan)
-		si.vgb_pt_thanh_toan = pt
-		si.vgb_pt_do_may = 0
+		from vagabond.tra_truoc_khach import chon_pt_ca_don
+
+		chon_pt_ca_don(si, pt)
 		si.vgb_ma_tham_chieu = _chuan_ma_tham_chieu(pt, ma_tham_chieu, bat_buoc=False)
 		if si.vgb_ma_tham_chieu:
 			_kiem_trung_ma(pt, si.vgb_ma_tham_chieu, bo_qua=si.name)
@@ -6400,8 +6423,9 @@ def pos_sua_don(
 		pt = _kiem_pt(pt, si.custom_nguon)
 		ma_tham_chieu = luat_thanh_toan.ma_can_ghi(
 			ma_tham_chieu, si.vgb_ma_tham_chieu, pt, si.vgb_pt_thanh_toan)
-		si.vgb_pt_thanh_toan = pt
-		si.vgb_pt_do_may = 0
+		from vagabond.tra_truoc_khach import chon_pt_ca_don
+
+		chon_pt_ca_don(si, pt)
 		si.vgb_ma_tham_chieu = _chuan_ma_tham_chieu(pt, ma_tham_chieu, bat_buoc=False)
 		if si.vgb_ma_tham_chieu:
 			_kiem_trung_ma(pt, si.vgb_ma_tham_chieu, bo_qua=si.name)
@@ -6520,8 +6544,9 @@ def pos_luu_don(name, pt=None, ma_tham_chieu=None, ghi_chu=None):
 		pt = _kiem_pt(pt, si.custom_nguon)
 		ma_tham_chieu = luat_thanh_toan.ma_can_ghi(
 			ma_tham_chieu, si.vgb_ma_tham_chieu, pt, si.vgb_pt_thanh_toan)
-		si.vgb_pt_thanh_toan = pt
-		si.vgb_pt_do_may = 0
+		from vagabond.tra_truoc_khach import chon_pt_ca_don
+
+		chon_pt_ca_don(si, pt)
 		_chan_tang_thieu(si)
 	if ma_tham_chieu is not None:
 		si.vgb_ma_tham_chieu = ma_tham_chieu
