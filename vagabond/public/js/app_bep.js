@@ -58816,17 +58816,22 @@ function cdlChanBot() {
   return true;
 }
 
+/* Trả câu nhắc khi đọc lại hỏng (Codex #492 P2 4326242179): việc trên máy chủ đã
+   xong nhưng bảng bot trên màn còn cũ, phải nói thẳng để quản trị không bấm lại. */
 async function cdlTaiLaiBot() {
-  try { cdlNhan(await api('vagabond.cai_dat_loi.lay', {})); } catch (e) { /* giữ bản cũ, lần mở sau đọc lại */ }
+  try { cdlNhan(await api('vagabond.cai_dat_loi.lay', {})); return ''; }
+  catch (e) { return ' Nhưng màn này chưa tải lại được cài đặt (' + ((e && e.message) || 'lỗi mạng') + '), danh sách bot bên dưới có thể còn cũ. Mở lại màn Cài đặt lõi để xem bản mới, đừng bấm lại.'; }
 }
 
 async function cdlNoiBot(ma) {
   if (cdlChanBot()) return;
+  var tin;
   try {
     var n = await api('vagabond.kenh_zalo.dang_ky_webhook', { bot: ma });
-    toast((n && n.loi_nhan) || 'Đã nối bot.', 5000);
-  } catch (e) { toast((e && e.message) || 'Chưa nối được bot', 6000); }
-  await cdlTaiLaiBot();
+    tin = (n && n.loi_nhan) || 'Đã nối bot.';
+  } catch (e) { tin = (e && e.message) || 'Chưa nối được bot'; }
+  tin += await cdlTaiLaiBot();
+  toast(tin, 7000);
   var top = S.stack[S.stack.length - 1];
   if (top) top(); else cdlVeTong();
 }
@@ -58876,8 +58881,8 @@ async function cdlGuiBot(ma, nhap) {
     } catch (e) { tin += ' Chưa nối được: ' + ((e && e.message) || 'lỗi') + '. Bấm Nối lại sau.'; }
   }
   CDL.dangBot = 0;
-  await cdlTaiLaiBot();
-  toast(tin, 5000);
+  tin += await cdlTaiLaiBot();
+  toast(tin, 7000);
   back();
 }
 
