@@ -34,6 +34,12 @@ CHU = ("Data", "Small Text", "Text", "Long Text", "Code", "Text Editor", "Select
 
 # Ô trên Desk để chỉ đọc chỉ vì bắt người dùng chọn qua hộp chọn (không gõ tay),
 # máy chủ vẫn kiểm lại lúc lưu. App có hộp chọn tương ứng nên được ghi.
+# v606 (Codex #492 P2 4325875324): bảng chỉ sửa qua nút riêng, không qua cửa lưu
+# chung. Bot Zalo thêm phải qua kenh_zalo.luu_bot (kiểm token với Zalo, cất mã
+# hoá) rồi nối; lưới chung chỉ tạo được dòng không token, không bao giờ gửi được.
+BANG_NUT_RIENG = {
+	"zalo_bot_phu": "Bot Zalo thêm chỉ sửa bằng nút Thêm bot, Đổi token, Nối lại ở mục Zalo.",
+}
 GHI_QUA_HOP_CHON = {
 	# v604: Tin nhận cũng chỉ chọn qua hộp chọn, app ghi được như loại tin, chủ đề.
 	"zalo_nhom": ("chat_id", "loai_tin", "chu_de", "tin_nhan"),
@@ -337,6 +343,9 @@ def luu(thay=None, bang=None, xoa_khoa=None, modified=None):
 		df = theo_ten.get(fn)
 		if df is None or df.fieldtype != "Table" or df.hidden:
 			loi.append("Bảng %s không sửa ở đây được." % fn)
+			continue
+		if fn in BANG_NUT_RIENG:
+			loi.append(BANG_NUT_RIENG[fn])
 			continue
 		con = list(frappe.get_meta(df.options).fields)
 		cu = {r.name: r for r in (doc.get(fn) or [])}

@@ -169,8 +169,8 @@ def _():
 	ra, loi = cdl.kiem_dong_bang(cot, {"cot_la": 1}, ())
 	dung("cột lạ báo lỗi", len(loi) == 1)
 	tb = cdl.tom_bang(cot)
-	# v604: thêm cột Tin nhận ngay sau Chủ đề.
-	la("mô tả cột không có ô ngắt cột", [c["fn"] for c in tb], ["ten_nhom", "chat_id", "loai_tin", "chu_de", "tin_nhan", "im_tu", "im_den", "bat"])
+	# v604: thêm cột Tin nhận ngay sau Chủ đề. v606: cột Gửi bằng bot (chỉ đọc, máy tự điền) sau mã chat.
+	la("mô tả cột không có ô ngắt cột", [c["fn"] for c in tb], ["ten_nhom", "chat_id", "bot", "loai_tin", "chu_de", "tin_nhan", "im_tu", "im_den", "bat"])
 
 
 @ca("cài đặt lõi v570: dòng Zalo đã có giữ nguyên cột app không gửi")
@@ -217,7 +217,8 @@ def _():
 		if f["fieldtype"] not in ("Section Break", "Column Break", "Tab Break")]
 	# Được gõ: bảng Zalo và cặp ô ngân hàng có hộp chọn riêng; ô HTML thẻ tóm tắt
 	# dữ liệu app tự ghi được vẽ bằng hàm chung thay cho HTML của Desk.
-	cho_phep = {"zalo_nhom", "ngan_hang_hien_thi", "ngan_hang_bin", "zalo_chat_moi", "html_du_lieu_app"}
+	# v606: bảng Bot Zalo thêm có nút riêng (Thêm bot, Đổi token, Nối lại), không đi lưới chung.
+	cho_phep = {"zalo_nhom", "ngan_hang_hien_thi", "ngan_hang_bin", "zalo_chat_moi", "html_du_lieu_app", "zalo_bot_phu"}
 	go_tay = sorted(fn for fn in truong if fn not in cho_phep and re.search(r"['\"]%s['\"]" % re.escape(fn), app))
 	la("không ô nào gõ tay trong màn app", go_tay, [])
 	dung("app nạp tệp chung", "/assets/vagabond/js/cai_dat_loi_chung.js" in app)

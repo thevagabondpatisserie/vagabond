@@ -528,6 +528,9 @@ function cdlBam(e, fnTab) {
   if ((el = e.target.closest('[data-cdllk]'))) return cdlChonLienKet(el.getAttribute('data-cdllk'), fnTab);
   if ((el = e.target.closest('[data-cdlbo]'))) { cdlDatThay(el.getAttribute('data-cdlbo'), ''); return cdlVeTab(fnTab); }
   if ((el = e.target.closest('[data-cdlbangthem]'))) return cdlMoDong(el.getAttribute('data-cdlbangthem'), -1);
+  if ((el = e.target.closest('[data-cdlbotthem]'))) return cdlHopBot('');
+  if ((el = e.target.closest('[data-cdlbottoken]'))) return cdlHopBot(el.getAttribute('data-cdlbottoken'));
+  if ((el = e.target.closest('[data-cdlbotnoi]'))) return cdlNoiBot(el.getAttribute('data-cdlbotnoi'));
   if ((el = e.target.closest('[data-cdlguithu]'))) return cdlGuiThuZalo((CDL.bang.zalo_nhom || [])[parseInt(el.getAttribute('data-cdlguithu'), 10)]);
   if ((el = e.target.closest('[data-cdldong]'))) {
     return cdlMoDong(el.getAttribute('data-cdlbang'), parseInt(el.getAttribute('data-cdldong'), 10));
@@ -569,6 +572,8 @@ function cdlTomDongZalo(r) {
   var tin = VGB_CD['tomTatTin'](r.tin_nhan);
   return [tin || (lt.length ? lt.join(' · ') : 'Mọi loại tin'), (!tin && cd.length) ? 'chủ đề ' + cd.join(', ') : '',
     (r.im_tu && r.im_den) ? 'im ' + r.im_tu + ' đến ' + r.im_den : '', parseInt(r.bat, 10) === 1 ? '' : 'Đang tắt',
+    // v606: nhóm gửi bằng bot thêm thì nói rõ bot nào, như thẻ nhóm trên Desk.
+    (r.bot && String(r.bot) !== '1') ? 'gửi bằng ' + cdlTenBot(r.bot) : '',
     r.chat_id ? cdlNhanNhomZalo({ chat_id: r.chat_id }) : 'Chưa chọn nhóm Zalo'].filter(Boolean).join(' · ');
 }
 
@@ -581,6 +586,7 @@ async function cdlGuiThuZalo(r) {
 }
 
 function cdlVeBang(o) {
+  if (o.fn === 'zalo_bot_phu') return cdlVeBotZalo(o);
   var rows = CDL.bang[o.fn] || [];
   return '<label style="display:block;font-size:13px;color:#4b545c">' + h(o.nhan) + '</label>' +
     (rows.length ? rows.map(function (r, i) {
@@ -590,6 +596,113 @@ function cdlVeBang(o) {
         (o.fn === 'zalo_nhom' && r.chat_id ? '<button class="cdl-lnk" data-cdlguithu="' + i + '">Gửi thử vào nhóm này</button>' : '') + '</div>';
     }).join('') : '<div class="cdl-mo">Chưa có dòng nào.</div>') +
     '<button class="cdl-lnk" data-cdlbangthem="' + h(o.fn) + '">+ Thêm ' + (o.fn === 'zalo_nhom' ? 'nhóm nhận tin' : 'dòng') + '</button>';
+}
+
+/* ---------- v606 (Codex #492 P2 4325875324): bot Zalo thêm ----------
+   Không đi lưới chung: token phải qua luu_bot (máy chủ kiểm với Zalo, cất mã
+   hoá) rồi nối ngay, giống hộp Thêm bot trên Desk. Lưới chung chỉ tạo được
+   dòng không token, không bao giờ gửi được (máy chủ cũng chặn đường đó). */
+function cdlTenBot(ma) {
+  var r = (CDL.bang.zalo_bot_phu || []).filter(function (x) { return String(x.ma_bot) === String(ma); })[0];
+  return r ? ((r.ten_bot || ('bot số ' + ma)) + ' (số ' + ma + ')') : ('bot số ' + ma + ' đã xoá, đang gửi bằng bot chính');
+}
+
+function cdlChipBot(r) {
+  var k = String(r.trang_thai || '');
+  if (parseInt(r.co_token, 10) !== 1) return cdlChip('no', 'Chưa khai token');
+  if (!k) return cdlChip('no', 'Chưa nối');
+  if (k.indexOf('Đã xác minh') === 0) return cdlChip('ok', 'Đã nối');
+  return cdlChip(k.indexOf('THẤT BẠI') >= 0 ? 'err' : 'off', k.split('. ')[0]);
+}
+
+function cdlVeBotZalo(o) {
+  var rows = (CDL.bang[o.fn] || []).filter(function (r) { return r.ma_bot; });
+  return '<label style="display:block;font-size:13px;color:#4b545c">' + h(o.nhan) + '</label>' +
+    '<div class="cdl-mo">Dùng khi bot chính đã đầy nhóm. Mỗi nhóm tự gửi bằng bot đang ở trong nhóm đó.</div>' +
+    rows.map(function (r) {
+      return '<div class="cdl-grp"><b style="font-size:14px">' + h(cdlTenBot(r.ma_bot)) + '</b> ' + cdlChipBot(r) +
+        '<div><button class="cdl-lnk" data-cdlbotnoi="' + h(r.ma_bot) + '">Nối lại</button> ' +
+        '<button class="cdl-lnk" data-cdlbottoken="' + h(r.ma_bot) + '">Đổi token, tên</button></div></div>';
+    }).join('') +
+    '<button class="cdl-lnk" data-cdlbotthem="1">+ Thêm bot (bot chính đầy nhóm)</button>';
+}
+
+/* Nối và thêm bot ghi thẳng lên máy chủ rồi đọc lại cài đặt, nên phải chặn khi
+   còn thay đổi chưa lưu (đọc lại sẽ đè mất, máy chủ cũng báo mốc modified lệch). */
+function cdlChanBot() {
+  if (!cdlSoThay()) return false;
+  toast('Bấm Lưu các thay đổi đang sửa trước, rồi mới thêm hoặc nối bot.');
+  return true;
+}
+
+/* Trả câu nhắc khi đọc lại hỏng (Codex #492 P2 4326242179): việc trên máy chủ đã
+   xong nhưng bảng bot trên màn còn cũ, phải nói thẳng để quản trị không bấm lại. */
+async function cdlTaiLaiBot() {
+  try { cdlNhan(await api('vagabond.cai_dat_loi.lay', {})); return ''; }
+  catch (e) { return ' Nhưng màn này chưa tải lại được cài đặt (' + ((e && e.message) || 'lỗi mạng') + '), danh sách bot bên dưới có thể còn cũ. Mở lại màn Cài đặt lõi để xem bản mới, đừng bấm lại.'; }
+}
+
+async function cdlNoiBot(ma) {
+  if (cdlChanBot()) return;
+  var tin;
+  try {
+    var n = await api('vagabond.kenh_zalo.dang_ky_webhook', { bot: ma });
+    tin = (n && n.loi_nhan) || 'Đã nối bot.';
+  } catch (e) { tin = (e && e.message) || 'Chưa nối được bot'; }
+  tin += await cdlTaiLaiBot();
+  toast(tin, 7000);
+  var top = S.stack[S.stack.length - 1];
+  if (top) top(); else cdlVeTong();
+}
+
+function cdlHopBot(ma) {
+  if (cdlChanBot()) return;
+  var r = (CDL.bang.zalo_bot_phu || []).filter(function (x) { return String(x.ma_bot) === String(ma); })[0];
+  var nhap = { ten: (r && r.ten_bot) || '', token: '' };
+  go(function () { cdlVeHopBot(ma, nhap); });
+}
+
+function cdlVeHopBot(ma, nhap) {
+  var html = '<div class="cdl-khoi" style="padding:10px 14px">' +
+    '<div class="cdl-mo">' + h(ma ? 'Dán token mới nếu bot đổi token; máy kiểm với Zalo rồi nối lại. Chỉ đổi tên thì để trống ô token.'
+      : 'Tạo bot mới trên Zalo Bot Manager, bật quyền vào nhóm, chép token dán vào đây. Máy kiểm token với Zalo, cất mã hoá và nối bot luôn. Sau đó thêm bot vào nhóm Zalo và @nhắc nó một lần.') + '</div>' +
+    '<div class="cdl-f"><label>Tên gợi nhớ</label><input class="tin" data-cdlbot="ten" value="' + h(nhap.ten) + '">' +
+    '<div class="cdl-mo">Ví dụ: Bot nhóm Bếp. Để trống thì lấy tên bot trên Zalo.</div></div>' +
+    '<div class="cdl-f"><label>Token của bot' + (ma ? '' : ' *') + '</label><input class="tin" type="password" autocomplete="off" data-cdlbot="token" value="">' +
+    '<div class="cdl-mo">Zalo Bot Manager, chọn bot, mục Token. Token không hiện lại sau khi lưu.</div></div></div>' +
+    '<button class="btn" id="cdlBotXong" style="width:100%">' + (ma ? 'Lưu' : 'Thêm và nối bot') + '</button>';
+  var b = frame(ma ? 'Đổi token, tên ' + cdlTenBot(ma) : 'Thêm bot Zalo', html);
+  b.oninput = function (e) {
+    var k = e.target && e.target.getAttribute && e.target.getAttribute('data-cdlbot');
+    if (k) nhap[k] = e.target.value;
+  };
+  b.onclick = function (e) { if (e.target.closest('#cdlBotXong')) return cdlGuiBot(ma, nhap); };
+}
+
+async function cdlGuiBot(ma, nhap) {
+  var token = String(nhap.token || '').trim();
+  if (!ma && !token) return toast('Dán token của bot mới trước (Zalo Bot Manager, chọn bot, mục Token).');
+  if (CDL.dangBot) return;
+  CDL.dangBot = 1;
+  var m;
+  try {
+    m = await api('vagabond.kenh_zalo.luu_bot', { ma: ma || '', ten: String(nhap.ten || '').trim(), token: token });
+  } catch (e) {
+    CDL.dangBot = 0;
+    return toast((e && e.message) || 'Chưa lưu được bot', 6000);
+  }
+  nhap.token = '';
+  var tin = ma ? 'Đã lưu ' + cdlTenBot(ma) + '.' : 'Đã thêm bot số ' + ((m && m.ma_bot) || '') + '.';
+  if (token && m && m.ma_bot) {
+    try {
+      var n = await api('vagabond.kenh_zalo.dang_ky_webhook', { bot: m.ma_bot });
+      tin = (n && n.loi_nhan) || tin;
+    } catch (e) { tin += ' Chưa nối được: ' + ((e && e.message) || 'lỗi') + '. Bấm Nối lại sau.'; }
+  }
+  CDL.dangBot = 0;
+  tin += await cdlTaiLaiBot();
+  toast(tin, 7000);
+  back();
 }
 
 function cdlMoDong(fnBang, i) {

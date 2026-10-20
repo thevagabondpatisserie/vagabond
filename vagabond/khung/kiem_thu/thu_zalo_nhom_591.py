@@ -126,10 +126,12 @@ def _chao():
 	f = kz.frappe
 	goi, loi = [], []
 
-	def go(method, body):
+	def go(method, body, *a):
 		goi.append((method, body))
 		return "Lỗi", "Bot chưa vào nhóm", None
-	with patch.object(kz, "_goi", go), patch.object(f, "log_error", lambda *a, **k: loi.append(a), create=True):
+	# v606 Codex #492: _gui_zalo đọc bot của nhóm trước khi gọi; ca này cho bản đọc trả bot chính.
+	with patch.object(kz, "_goi", go), patch.object(kz, "_bot_chat", lambda c: "1"), \
+			patch.object(f, "log_error", lambda *a, **k: loi.append(a), create=True):
 		kz.chao_nhom("zgr-50abae45f4271d794436")
 	la("gửi sendMessage đúng nhóm", (goi[0][0], goi[0][1]["chat_id"]), ("sendMessage", "zgr-50abae45f4271d794436"))
 	dung("nội dung có mã nhóm", "Mã nhóm: 4436" in goi[0][1]["text"])

@@ -65,8 +65,10 @@ TEN_CHU_DE = {"kho": "Kho", "san_xuat": "Sản xuất", "cong_no": "Công nợ",
 # trong cai_dat_loi_chung.js phải trùng từng chữ.
 # Mã -> (bộ phận, tên, giải thích một dòng, loại, chủ đề). Loại và chủ đề giữ cho
 # nhóm chưa chọn Tin nhận (lọc kiểu cũ) và cho giờ im (chỉ Cảnh báo vượt giờ im).
-BO_PHAN = ("Hoá đơn, kế toán", "Bán hàng, cửa hàng", "Bếp", "Hệ thống")
+BO_PHAN = ("Ban giám đốc", "Hoá đơn, kế toán", "Bán hàng, cửa hàng", "Bếp", "Hệ thống")
 TIN = {
+	"bgd_bao_cao_ngay": ("Ban giám đốc", "Báo cáo cuối ngày (23:30)",
+		"23:30 mỗi tối: doanh thu, giảm giá, sửa huỷ, điểm cần để ý. Nhóm nhận đừng đặt giờ im lúc 23:30.", "ban_tin", "ban_hang"),
 	"hd_ket_ghi_so": ("Hoá đơn, kế toán", "Kẹt ghi sổ, kẹt hoá đơn cuối ngày",
 		"20 và 45 phút sau giờ chạy cuối ngày, và 07:30 sáng hôm sau, còn đơn chưa ghi sổ.", "canh_bao", "hoa_don"),
 	"hd_don_chua_ghi_so": ("Hoá đơn, kế toán", "Đơn chưa ghi sổ còn sót lúc 23:55",
@@ -199,6 +201,14 @@ def soan_tin(loai, tieu_de, dong=None, link=None, nguoi=None, han=None):
 		duoi = ("\nMở: %s" % link) if link else ""
 		tin = tin[:TOI_DA_KY_TU - len(duoi) - 2].rstrip() + "…" + duoi
 	return tin
+
+
+def tin_soan_san(noi_dung):
+	"""THUẦN (v606): tin soạn sẵn, bỏ khoảng trắng đầu cuối, không quá TOI_DA_KY_TU ký tự."""
+	t = str(noi_dung or "").strip()
+	if len(t) > TOI_DA_KY_TU:
+		t = t[:TOI_DA_KY_TU - 1].rstrip() + "…"
+	return t
 
 
 def trong_gio_im(gio, im_tu, im_den):
@@ -429,8 +439,11 @@ def con_can_lam(kiem, nguon, ham):
 	return bool(ham(nguon))
 
 
-def ghi_chat_moi(ds, cap_nhat, luc):
+def ghi_chat_moi(ds, cap_nhat, luc, bot=None):
 	"""THUẦN: thêm cuộc chat vừa nhắn bot vào đầu danh sách, bỏ trùng, giữ 20.
+
+	v606: bot là số bot nhận cập nhật ("1" bot chính, "2", "3"... bot thêm); ghi
+	kèm để biết gửi tin vào nhóm này bằng bot nào.
 
 	v591: giữ mốc "chao" (lần cuối bot trả lời mã nhóm) của dòng cũ, để không
 	trả lời nhóm mỗi lần có người @nhắc bot."""
@@ -442,6 +455,8 @@ def ghi_chat_moi(ds, cap_nhat, luc):
 	nguoi = (msg.get("from") or {}).get("display_name") or ""
 	moi = {"chat_id": cid, "loai": chat.get("chat_type") or chat.get("type") or "",
 		"ten": chat.get("title") or chat.get("display_name") or nguoi, "nguoi": nguoi, "luc": str(luc)[:16]}
+	if bot is not None:
+		moi["bot"] = ma_bot(bot)
 	cu = [x for x in (ds or []) if x.get("chat_id") == cid]
 	if cu and cu[0].get("chao"):
 		moi["chao"] = cu[0]["chao"]
@@ -510,13 +525,175 @@ def ds_nhom_chon(chat_moi, bang):
 	return ra
 
 
+# ------------------------------------------------------- NHIỀU BOT (v606)
+# Anh Việt 19/10/2026: thêm bot vào nhóm thứ ba thì Zalo báo "Bot đã vượt quá số
+# lượng nhóm có thể tham gia". Mỗi bot Zalo chỉ vào được một số nhóm giới hạn
+# (tài liệu bot.zaloplatforms.com không ghi con số; thực tế bot chính đứng ở hai
+# nhóm thì bị chặn). Anh chốt 20/10: thêm được NHIỀU bot, không chỉ hai. Mỗi
+# nhóm gửi bằng bot đang ở trong nhóm đó.
+#
+# Bot chính là số "1" (giữ nguyên ba ô cũ của Cài đặt). Bot thêm nằm ở bảng
+# "Bot thêm" (Vagabond Bot Zalo), mỗi dòng một số "2", "3"... máy cấp, KHÔNG
+# BAO GIỜ cấp lại số đã dùng (ô zalo_bot_ma_cuoi), để nhóm đang trỏ vào một bot
+# đã xoá không vô tình sang bot mới. Token và khoá bí mật của bot thêm cất mã
+# hoá trong kho mật khẩu của Frappe dưới tên ô có đuôi số bot, không nằm trong
+# bảng, nên không lộ ra lưới hay API đọc bảng.
+BOT_CHINH = "1"
+
+
+def ma_bot(x):
+	"""THUẦN: số bot dạng chữ ("1", "2"...). Trống, lạ, nhỏ hơn 1 thì là bot chính."""
+	s = str(x if x is not None else "").strip()
+	try:
+		n = int(s)
+	except (TypeError, ValueError):
+		return BOT_CHINH
+	return str(n) if n >= 1 else BOT_CHINH
+
+
+def cac_bot(bot_them):
+	"""THUẦN: danh sách số bot đang có: bot chính rồi các dòng bảng Bot thêm đã có số."""
+	ra = [BOT_CHINH]
+	for r in bot_them or []:
+		m = str((r or {}).get("ma_bot") or "").strip()
+		if m and ma_bot(m) == m and m not in ra:
+			ra.append(m)
+	return ra
+
+
+def ma_bot_moi(cac, ma_cuoi):
+	"""THUẦN: số cho bot thêm mới: lớn hơn mọi số đang có VÀ mọi số từng cấp."""
+	try:
+		cuoi = int(ma_cuoi or 1)
+	except (TypeError, ValueError):
+		cuoi = 1
+	return str(max([int(ma_bot(x)) for x in (cac or [])] + [cuoi, 1]) + 1)
+
+
+def gan_ma_bot(bot_them, ma_cuoi):
+	"""THUẦN: dòng Bot thêm chưa có số (thêm tay ở lưới) thì cấp số. Trả
+	([(chỉ số dòng, số)], số cuối mới)."""
+	cac = cac_bot(bot_them)
+	ra = []
+	for i, r in enumerate(bot_them or []):
+		if not str((r or {}).get("ma_bot") or "").strip():
+			m = ma_bot_moi(cac, ma_cuoi)
+			cac.append(m)
+			ma_cuoi = int(m)
+			ra.append((i, m))
+	try:
+		ma_cuoi = max(int(ma_cuoi or 1), max(int(x) for x in cac))
+	except (TypeError, ValueError):
+		pass
+	return ra, ma_cuoi
+
+
+def o_mat(loai, ma):
+	"""THUẦN: tên ô trong kho mật khẩu: bot chính dùng ô cũ ("zalo_bot_token",
+	"zalo_bi_mat"), bot thêm thêm đuôi số ("zalo_bot_token_3")."""
+	m = ma_bot(ma)
+	return loai if m == BOT_CHINH else "%s_%s" % (loai, m)
+
+
+def ten_cua_bot(ma, bot_them):
+	"""THUẦN: tên đọc được của bot cho lời báo và thẻ nhóm."""
+	m = ma_bot(ma)
+	if m == BOT_CHINH:
+		return "bot chính"
+	for r in bot_them or []:
+		if str((r or {}).get("ma_bot") or "").strip() == m:
+			return str((r or {}).get("ten_bot") or "").strip() or "bot số %s" % m
+	return "bot số %s" % m
+
+
+def bot_cua_chat(chat_id, nhom, chat_moi, cac=None):
+	"""THUẦN, NGUỒN DUY NHẤT: gửi vào chat này bằng bot nào.
+
+	Dòng Nhóm nhận tin có ô bot thì theo ô đó (Cài đặt tự điền khi lưu, xem
+	dien_bot); chat chưa có dòng (gửi thử, trả lời mã nhóm) thì theo bot đã nhận
+	cập nhật của chat đó; không biết, hoặc bot đó đã bị xoá khỏi bảng, thì bot chính."""
+	cac = cac or [BOT_CHINH]
+	c = str(chat_id or "").strip()
+	for r in nhom or []:
+		if isinstance(r, dict) and str(r.get("chat_id") or "").strip() == c and str(r.get("bot") or "").strip():
+			m = ma_bot(r.get("bot"))
+			return m if m in cac else BOT_CHINH
+	for x in chat_moi or []:
+		if isinstance(x, dict) and str(x.get("chat_id") or "").strip() == c and x.get("bot") is not None:
+			m = ma_bot(x.get("bot"))
+			return m if m in cac else BOT_CHINH
+	return BOT_CHINH
+
+
+def dien_bot(ds, chat_moi):
+	"""THUẦN: [(chỉ số dòng, số bot)] cần ghi vào ô bot của bảng Nhóm nhận tin.
+
+	Bằng chứng là bot đã nhận cập nhật của nhóm (Chat vừa nhắn bot). Dòng không
+	còn trong danh sách đó (chỉ giữ 20 chat) thì giữ nguyên; ô trống thì về bot chính."""
+	biet = {}
+	for x in chat_moi or []:
+		if isinstance(x, dict) and x.get("bot") is not None:
+			biet.setdefault(str(x.get("chat_id") or "").strip(), ma_bot(x.get("bot")))
+	ra = []
+	for i, r in enumerate(ds or []):
+		c = str((r or {}).get("chat_id") or "").strip()
+		cu = str((r or {}).get("bot") or "").strip()
+		moi = biet.get(c) if c in biet else (ma_bot(cu) if cu else BOT_CHINH)
+		if cu != moi:
+			ra.append((i, moi))
+	return ra
+
+
+def bot_theo_bi_mat(gui_len, bi_mat):
+	"""THUẦN: số bot có khoá bí mật trùng header Zalo gửi lên, None nếu không bot nào.
+
+	bi_mat: {số bot: khoá}. So bằng compare_digest với MỌI khoá (không dừng sớm),
+	khoá rỗng hay quá ngắn bỏ qua."""
+	g = str(gui_len or "")
+	trung = None
+	for b in sorted((bi_mat or {}), key=lambda x: int(ma_bot(x))):
+		k = str((bi_mat or {}).get(b) or "")
+		if len(k) >= 16 and hmac.compare_digest(g, k) and trung is None:
+			trung = ma_bot(b)
+	return trung
+
+
 # --------------------------------------------------------------- CHẠM HỆ
 
-def _token():
-	try:
-		return frappe.get_single("Vagabond Settings").get_password("zalo_bot_token", raise_exception=False) or ""
-	except Exception:
-		return ""
+def _bot_them():
+	"""Dòng bảng Bot thêm. Lỗi đọc thì để lỗi đi lên (Codex #492): đoán bừa bot
+	chính là gửi bằng một bot không ở trong nhóm, Zalo từ chối và tin mất."""
+	return [r.as_dict() for r in (frappe.get_single("Vagabond Settings").get("zalo_bot_phu") or [])]
+
+
+def _mat(loai, bot=BOT_CHINH):
+	"""Đọc token hay khoá bí mật của một bot từ kho mật khẩu. Không ghi ra đâu.
+
+	Chưa khai thì trả rỗng. Codex #492 (P2, 4324386326): ĐỌC LỖI (kho mật khẩu,
+	cơ sở dữ liệu, giải mã) thì để lỗi đi lên, không đổi thành rỗng: rỗng là "chưa
+	điền token", tin ghi Lỗi và mất, trong khi lỗi đọc chỉ là tạm thời."""
+	if ma_bot(bot) == BOT_CHINH:
+		return frappe.get_single("Vagabond Settings").get_password(loai, raise_exception=False) or ""
+	from frappe.utils.password import get_decrypted_password
+	return get_decrypted_password("Vagabond Settings", "Vagabond Settings", o_mat(loai, bot), raise_exception=False) or ""
+
+
+def _token(bot=BOT_CHINH):
+	return _mat("zalo_bot_token", bot)
+
+
+def _doc_chat_moi():
+	"""Đọc thẳng bảng (không qua bộ nhớ đệm) danh sách Chat vừa nhắn bot. Lỗi đọc
+	thì để lỗi đi lên, xem _bot_chat."""
+	v = frappe.db.sql("select value from `tabSingles` where doctype='Vagabond Settings' and field='zalo_chat_moi'")
+	ds = json.loads((v[0][0] if v else None) or "[]")
+	return ds if isinstance(ds, list) else []
+
+
+def _bot_chat(chat_id):
+	"""Bot gửi vào chat này. Codex #492 (P2): KHÔNG nuốt lỗi đọc Cài đặt rồi đoán
+	bot chính; lỗi đi lên để _gui_zalo dừng trước khi gọi Zalo và trả về gửi lại."""
+	return bot_cua_chat(chat_id, _cac_nhom(), _doc_chat_moi(), cac_bot(_bot_them()))
 
 
 def _bat():
@@ -527,17 +704,27 @@ def _cac_nhom():
 	return [r.as_dict() for r in (frappe.get_single("Vagabond Settings").get("zalo_nhom") or [])]
 
 
-def _goi(method, body):
+def _goi(method, body, bot=BOT_CHINH, token=None):
 	"""Gọi Zalo Bot API. Trả (trạng thái, lỗi, kết quả). Không ghi token ra đâu.
 
 	Codex #423: mọi đường ra Zalo (gửi ngay, xả giờ im, gửi thử, nối bot) đi
 	qua đây, nên chặn chế độ kiểm thử ngay tại cửa này. Tin đã gửi không rút
-	lại được, ca bench quên giả lập cũng không được bắn vào nhóm thật."""
+	lại được, ca bench quên giả lập cũng không được bắn vào nhóm thật.
+
+	v606: bot là số bot gửi; token chỉ truyền khi kiểm một token vừa dán, chưa lưu."""
 	if getattr(frappe.flags, "vagabond_kiem_that", False):
 		return "Lỗi", "Đang chạy kiểm thử trên site: không gọi Zalo.", None
-	tk = _token()
+	try:
+		tk = token or _token(bot)
+	except Exception as e:
+		# Codex #492 (P2): đọc token lỗi tạm thời thì chưa gửi gì, trả MANG_LOI để
+		# hàng đợi gửi lại; lỗi chết giao dịch vẫn đi lên.
+		if chet_giao_dich(e):
+			raise
+		return MANG_LOI, "Chưa đọc được token bot (%s), máy sẽ gửi lại." % type(e).__name__, None
 	if not tk:
-		return "Lỗi", "Chưa điền token Zalo Bot trong Cài đặt.", None
+		return "Lỗi", ("Chưa điền token Zalo Bot trong Cài đặt." if ma_bot(bot) == BOT_CHINH
+			else "Chưa có token của bot số %s trong Cài đặt." % ma_bot(bot)), None
 	try:
 		import requests
 	except Exception:
@@ -602,7 +789,18 @@ def chua_gui_di(e):
 
 
 def _gui_zalo(chat_id, tin):
-	tt, loi, _ = _goi("sendMessage", {"chat_id": str(chat_id), "text": tin})
+	# v606: mọi đường gửi (gửi ngay, xả giờ im, trả lời mã nhóm, gửi thử) đi qua
+	# đây, nên chọn bot ở đây theo một nguồn duy nhất bot_cua_chat.
+	# Codex #492 (P2): chưa đọc được bot của nhóm thì chưa gửi gì, trả MANG_LOI để
+	# hàng đợi gửi lại sau, không gửi bằng bot khác (bot không ở trong nhóm thì Zalo
+	# từ chối, tin ghi Lỗi và mất). Lỗi làm chết giao dịch vẫn đi lên như mọi chỗ khác.
+	try:
+		bot = _bot_chat(chat_id)
+	except Exception as e:
+		if chet_giao_dich(e):
+			raise
+		return MANG_LOI, "Chưa đọc được bot gửi của nhóm (%s), máy sẽ gửi lại." % type(e).__name__
+	tt, loi, _ = _goi("sendMessage", {"chat_id": str(chat_id), "text": tin}, bot)
 	return tt, loi
 
 
@@ -618,7 +816,7 @@ def cat_dong(ds, toi_da=12, don_vi="đơn"):
 
 
 def bao(loai, chu_de, tieu_de, dong=None, link=None, khoa=None, nguoi=None, han=None, kiem=None, nguon=None,
-		ma_tin=None):
+		ma_tin=None, noi_dung=None):
 	"""Điểm gọi DUY NHẤT cho mọi nơi trong app. Không ném lỗi ra ngoài, TRỪ lỗi làm chết
 	cả giao dịch (deadlock, chờ khoá quá hạn): khi đó chứng từ phải dừng, không được báo
 	thành công trong khi cơ sở dữ liệu đã rollback (Codex #428 vòng 12).
@@ -628,6 +826,8 @@ def bao(loai, chu_de, tieu_de, dong=None, link=None, khoa=None, nguoi=None, han=
 	kiem, nguon: mã trong DIEU_KIEN và tên chứng từ; trước khi gửi (kể cả sau
 	giờ im) máy hỏi lại việc còn mở không, hết việc thì bỏ, không nhắc thừa.
 	ma_tin: mã trong TIN (v604); nhóm đã tích Tin nhận chỉ nhận tin có mã khớp.
+	noi_dung: tin đã soạn sẵn theo mẫu riêng (v606, báo cáo cuối ngày); có thì
+	dùng nguyên văn (cắt ở TOI_DA_KY_TU) thay cho khuôn soan_tin.
 
 	Codex #425: ghi tin vào sổ ("Chờ gửi") NGAY TRONG giao dịch của chứng từ,
 	rồi mới xếp hàng đợi sau commit. Chứng từ rollback thì tin cũng mất theo;
@@ -637,7 +837,7 @@ def bao(loai, chu_de, tieu_de, dong=None, link=None, khoa=None, nguoi=None, han=
 			return
 		tin = {"loai": loai, "chu_de": chu_de, "tieu_de": tieu_de, "dong": list(dong or []),
 			"link": link, "khoa": khoa, "nguoi": nguoi, "han": han, "kiem": kiem, "nguon": nguon,
-			"ma_tin": ma_tin}
+			"ma_tin": ma_tin, "noi_dung": noi_dung}
 		ten = _ghi_hop_thu(tin)
 		if ten:
 			frappe.db.after_commit.add(lambda: _xep(ten))
@@ -676,8 +876,8 @@ def _ghi_hop_thu(tin):
 
 	Mỗi dòng có savepoint riêng: trùng khoá (sự kiện đã ghi) hay lỗi lẻ thì lùi
 	đúng dòng đó, không đụng tới chứng từ đang lưu."""
-	noi_dung = soan_tin(tin.get("loai"), tin.get("tieu_de"), tin.get("dong"), tin.get("link"),
-		tin.get("nguoi"), tin.get("han"))
+	noi_dung = tin_soan_san(tin.get("noi_dung")) or soan_tin(tin.get("loai"), tin.get("tieu_de"),
+		tin.get("dong"), tin.get("link"), tin.get("nguoi"), tin.get("han"))
 	ra = []
 	for n in chon_nhom(_cac_nhom(), tin.get("loai"), tin.get("chu_de"), tin.get("ma_tin")):
 		ten = khoa_tin(tin.get("khoa") or frappe.generate_hash(length=12), n.get("chat_id"))
@@ -905,13 +1105,23 @@ def _chi_quan_tri():
 def nhan():
 	"""Zalo gọi khi có người nhắn hoặc @nhắc bot. Chỉ ghi lại mã chat để
 	quản trị gán vào nhóm; không lưu nội dung tin nhắn."""
-	bi_mat = ""
+	bi_mat = {}
 	try:
-		bi_mat = frappe.get_single("Vagabond Settings").get_password("zalo_bi_mat", raise_exception=False) or ""
+		bi_mat[BOT_CHINH] = _mat("zalo_bi_mat", BOT_CHINH)
+	except Exception:
+		pass
+	try:
+		# Đọc bảng Bot thêm lỗi thì chỉ bot thêm không vào được lượt này (401, Zalo gọi
+		# lại sau); bot chính vẫn nhận như trước v606.
+		for b in cac_bot(_bot_them())[1:]:
+			bi_mat[b] = _mat("zalo_bi_mat", b)
 	except Exception:
 		pass
 	gui_len = (frappe.get_request_header("X-Bot-Api-Secret-Token") or "") if frappe.request else ""
-	if not bi_mat or not hmac.compare_digest(str(gui_len), str(bi_mat)):
+	# v606: mỗi bot một khoá bí mật; khoá khớp cho biết cập nhật đến từ bot nào. Bot
+	# đã xoá khỏi bảng Bot thêm thì khoá của nó không còn được nhận.
+	bot = bot_theo_bi_mat(gui_len, bi_mat)
+	if not bot:
 		frappe.local.response["http_status_code"] = 401
 		return {"ok": False}
 	try:
@@ -928,7 +1138,7 @@ def nhan():
 		cu = json.loads((v[0][0] if v else None) or "[]")
 	except Exception:
 		cu = []
-	ds, moi = ghi_chat_moi(cu, goi, now_datetime())
+	ds, moi = ghi_chat_moi(cu, goi, now_datetime(), bot)
 	chao = False
 	if moi:
 		# v591: nhóm nhắc bot lần đầu (hoặc lâu rồi chưa được trả lời) thì bot trả lời
@@ -968,16 +1178,23 @@ def nhom_da_nhan_bot():
 	return ds_nhom_chon(cm, _cac_nhom())
 
 
-def _ghi_noi(tt, goi_y):
-	"""Ghi kết quả xác minh đường nhận vào Cài đặt để quản trị xem lại."""
+def _ghi_noi(tt, goi_y, bot=BOT_CHINH):
+	"""Ghi kết quả xác minh đường nhận vào Cài đặt để quản trị xem lại: bot chính
+	ở ô cũ, bot thêm ở cột Kết quả nối của dòng bot đó."""
 	nhan = {"ok": "Đã xác minh", "loi": "Xác minh THẤT BẠI", "chua_ro": "Chưa rõ"}.get(tt, tt)
-	frappe.db.set_single_value("Vagabond Settings", "zalo_noi_trang_thai",
-		"%s lúc %s. %s" % (nhan, str(now_datetime())[:16], goi_y or ""))
+	chu = "%s lúc %s. %s" % (nhan, str(now_datetime())[:16], goi_y or "")
+	if ma_bot(bot) == BOT_CHINH:
+		frappe.db.set_single_value("Vagabond Settings", "zalo_noi_trang_thai", chu)
+	else:
+		frappe.db.set_value("Vagabond Bot Zalo", {"parent": "Vagabond Settings", "ma_bot": ma_bot(bot)}, "trang_thai", chu)
 	frappe.db.commit()
 
 
-def _bao_noi(tt, goi_y, ten_bot=""):
+def _bao_noi(tt, goi_y, ten_bot="", bot=BOT_CHINH):
 	if tt == "ok":
+		if ma_bot(bot) != BOT_CHINH:
+			return {"ok": 1, "xac_minh": tt, "bot": ten_bot, "ma_bot": ma_bot(bot),
+				"loi_nhan": "Đã nối bot số %s (%s) và Zalo đã gọi thử đường nhận thành công. Thêm bot này vào nhóm Zalo mới (nhóm mà bot khác không vào được nữa) rồi @nhắc bot một lần; khi chọn nhóm đó trong Nhóm nhận tin, ERP tự gửi tin bằng bot này." % (ma_bot(bot), ten_bot)}
 		return {"ok": 1, "xac_minh": tt, "bot": ten_bot,
 			"loi_nhan": "Đã nối bot %s và Zalo đã gọi thử đường nhận thành công. Thêm bot vào nhóm Zalo rồi @nhắc bot một lần, mã nhóm sẽ hiện trong ô Chat vừa nhắn bot." % ten_bot}
 	if tt == "loi":
@@ -987,15 +1204,84 @@ def _bao_noi(tt, goi_y, ten_bot=""):
 		"loi_nhan": "Chưa biết Zalo có gọi được đường nhận không (%s). Bấm Zalo > Kiểm lại đường nhận sau ít phút." % (goi_y or "chưa rõ")}
 
 
+def _bot_co_that(bot):
+	"""Số bot quản trị bấm phải là bot đang có (bot chính hoặc một dòng Bot thêm)."""
+	m = ma_bot(bot)
+	if m == BOT_CHINH:
+		return m
+	if m not in cac_bot(_bot_them()):
+		frappe.throw("Không thấy bot số %s trong bảng Bot thêm. Tải lại trang rồi thử lại." % m)
+	return m
+
+
+def _cat_mat(loai, bot, gia_tri):
+	"""Cất token hay khoá bí mật của bot thêm vào kho mật khẩu (mã hoá)."""
+	from frappe.utils.password import set_encrypted_password
+	set_encrypted_password("Vagabond Settings", "Vagabond Settings", gia_tri, o_mat(loai, bot))
+
+
 @frappe.whitelist(methods=["POST"])
-def dang_ky_webhook():
+def luu_bot(ma="", ten="", token=""):
+	"""v606: thêm một bot (ma trống) hoặc đổi token, tên của bot thêm đã có.
+
+	Kiểm token với Zalo (getMe) TRƯỚC khi lưu, nên token sai không vào được bảng.
+	Không nhận token trùng bot khác: hai dòng cùng một bot thì không biết nhóm nào
+	gửi bằng dòng nào. Trả số bot để Desk bấm Nối ngay sau đó."""
+	_chi_quan_tri()
+	token = str(token or "").strip()
+	ten = str(ten or "").strip()[:60]
+	s = frappe.get_single("Vagabond Settings")
+	dong = s.get("zalo_bot_phu") or []
+	ma = str(ma or "").strip()
+	if ma:
+		ma = _bot_co_that(ma)
+		if ma == BOT_CHINH:
+			frappe.throw("Token bot chính sửa ở ô Token Zalo Bot.")
+	elif not token:
+		frappe.throw("Dán token của bot mới (Zalo Bot Manager > bot > Token).")
+	ten_zalo = ""
+	if token:
+		tt, loi, toi = _goi("getMe", {}, token=token)
+		bao_loi = loi_get_me(tt, loi)
+		if bao_loi:
+			frappe.throw(bao_loi)
+		loi_bot = kiem_bot(toi)
+		if loi_bot:
+			frappe.throw(loi_bot)
+		ten_zalo = (toi or {}).get("account_name") or (toi or {}).get("display_name") or ""
+		for m in cac_bot([r.as_dict() for r in dong]):
+			if m != ma and hmac.compare_digest(_mat("zalo_bot_token", m), token):
+				frappe.throw("Token này đang là của %s. Mỗi bot chỉ khai một lần." % ten_cua_bot(m, [r.as_dict() for r in dong]))
+	if not ma:
+		ma = ma_bot_moi(cac_bot([r.as_dict() for r in dong]), s.get("zalo_bot_ma_cuoi"))
+		s.append("zalo_bot_phu", {"ma_bot": ma, "ten_bot": ten or ten_zalo or "Bot số %s" % ma, "co_token": 1})
+		s.zalo_bot_ma_cuoi = int(ma)
+	else:
+		for r in dong:
+			if str(r.ma_bot or "").strip() == ma:
+				if ten:
+					r.ten_bot = ten
+				if token:
+					r.co_token = 1
+					r.trang_thai = ""
+	s.flags.ignore_permissions = True
+	s.save(ignore_permissions=True)
+	if token:
+		_cat_mat("zalo_bot_token", ma, token)
+	frappe.db.commit()
+	return {"ma_bot": ma, "ten": ten_cua_bot(ma, [r.as_dict() for r in (s.get("zalo_bot_phu") or [])])}
+
+
+@frappe.whitelist(methods=["POST"])
+def dang_ky_webhook(bot=BOT_CHINH):
 	"""Quản trị bấm một lần: kiểm token, sinh khoá bí mật, đăng ký đường nhận.
 
 	Codex #413 P1: khoá bí mật mới phải COMMIT trước khi gọi setWebhook, vì
 	Zalo gọi thử đường nhận ngay lúc đăng ký từ một yêu cầu khác; và phải đọc
 	result.verification chứ không tin ok:true ở ngoài."""
 	_chi_quan_tri()
-	tt, loi, toi = _goi("getMe", {})
+	bot = _bot_co_that(bot)
+	tt, loi, toi = _goi("getMe", {}, bot)
 	bao_loi = loi_get_me(tt, loi)
 	if bao_loi:
 		frappe.throw(bao_loi)
@@ -1003,38 +1289,42 @@ def dang_ky_webhook():
 	if loi_bot:
 		frappe.throw(loi_bot)
 	ten_bot = (toi or {}).get("account_name") or (toi or {}).get("display_name") or ""
-	s = frappe.get_single("Vagabond Settings")
-	bi_mat = s.get_password("zalo_bi_mat", raise_exception=False) or ""
+	bi_mat = _mat("zalo_bi_mat", bot)
 	if len(bi_mat) < 16:
 		bi_mat = secrets.token_urlsafe(32)
-		s.zalo_bi_mat = bi_mat
-		s.flags.ignore_permissions = True
-		s.save(ignore_permissions=True)
+		if bot == BOT_CHINH:
+			s = frappe.get_single("Vagabond Settings")
+			s.zalo_bi_mat = bi_mat
+			s.flags.ignore_permissions = True
+			s.save(ignore_permissions=True)
+		else:
+			_cat_mat("zalo_bi_mat", bot, bi_mat)
 	frappe.db.commit()
 	duong = get_url("/api/method/vagabond.kenh_zalo.nhan")
-	tt, loi, kq = _goi("setWebhook", {"url": duong, "secret_token": bi_mat})
+	tt, loi, kq = _goi("setWebhook", {"url": duong, "secret_token": bi_mat}, bot)
 	if tt != "Đã gửi":
 		frappe.throw("Chưa đăng ký được đường nhận. %s" % loi)
 	xm, goi_y = doc_xac_minh(kq)
 	if xm == "chua_ro":
-		tt2, _, kq2 = _goi("testWebhook", {})
+		tt2, _, kq2 = _goi("testWebhook", {}, bot)
 		if tt2 == "Đã gửi":
 			xm, goi_y = doc_xac_minh(kq2)
-	_ghi_noi(xm, goi_y)
-	return dict(_bao_noi(xm, goi_y, ten_bot), duong=duong)
+	_ghi_noi(xm, goi_y, bot)
+	return dict(_bao_noi(xm, goi_y, ten_bot, bot), duong=duong)
 
 
 @frappe.whitelist(methods=["POST"])
-def kiem_webhook():
+def kiem_webhook(bot=BOT_CHINH):
 	"""Quản trị bấm để Zalo gọi thử lại đường nhận (testWebhook)."""
 	_chi_quan_tri()
-	tt, loi, kq = _goi("testWebhook", {})
+	bot = _bot_co_that(bot)
+	tt, loi, kq = _goi("testWebhook", {}, bot)
 	if tt != "Đã gửi":
 		xm, goi_y = ("chua_ro", loi) if tt == "Chưa rõ" else ("loi", loi)
 	else:
 		xm, goi_y = doc_xac_minh(kq)
-	_ghi_noi(xm, goi_y)
-	return _bao_noi(xm, goi_y)
+	_ghi_noi(xm, goi_y, bot)
+	return _bao_noi(xm, goi_y, bot=bot)
 
 
 @frappe.whitelist(methods=["POST"])

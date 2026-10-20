@@ -51,8 +51,9 @@ var VGB_ZALO_NHAN = {
 // tích đúng những tin cần nhận. Bản sao của kenh_zalo.TIN (mã -> [bộ phận, tên,
 // giải thích]); ca thu_tin_zalo_604 so từng chữ với bản Python, sửa một bên phải
 // sửa bên kia. Mã chỉ là giá trị lưu, người dùng chỉ thấy tên và giải thích.
-var VGB_ZALO_BO_PHAN = ['Hoá đơn, kế toán', 'Bán hàng, cửa hàng', 'Bếp', 'Hệ thống'];
+var VGB_ZALO_BO_PHAN = ['Ban giám đốc', 'Hoá đơn, kế toán', 'Bán hàng, cửa hàng', 'Bếp', 'Hệ thống'];
 var VGB_ZALO_TIN = {
+	bgd_bao_cao_ngay: ['Ban giám đốc', 'Báo cáo cuối ngày (23:30)', '23:30 mỗi tối: doanh thu, giảm giá, sửa huỷ, điểm cần để ý. Nhóm nhận đừng đặt giờ im lúc 23:30.'],
 	hd_ket_ghi_so: ['Hoá đơn, kế toán', 'Kẹt ghi sổ, kẹt hoá đơn cuối ngày', '20 và 45 phút sau giờ chạy cuối ngày, và 07:30 sáng hôm sau, còn đơn chưa ghi sổ.'],
 	hd_don_chua_ghi_so: ['Hoá đơn, kế toán', 'Đơn chưa ghi sổ còn sót lúc 23:55', '23:55 mỗi ngày, còn đơn bán chưa ghi sổ được.'],
 	hd_hddt_sot: ['Hoá đơn, kế toán', 'Đã ghi sổ mà chưa xuất hoá đơn điện tử', '23:55 mỗi ngày, còn tờ đã ghi sổ mà chưa có hoá đơn điện tử.'],

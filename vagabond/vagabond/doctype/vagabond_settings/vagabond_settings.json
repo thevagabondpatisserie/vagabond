@@ -98,6 +98,7 @@
   "sec_zalo_bot",
   "zalo_bot_bat",
   "zalo_bot_token",
+  "zalo_bot_phu",
   "col_cd_13",
   "zalo_tac_vu",
   "sec_zalo_nhom",
@@ -106,6 +107,7 @@
   "sec_zalo_bot_goc",
   "zalo_bi_mat",
   "zalo_noi_trang_thai",
+  "zalo_bot_ma_cuoi",
   "col_cd_14",
   "zalo_chat_moi",
   "sec_zalo",
@@ -711,6 +713,13 @@
    "label": "Token Zalo Bot"
   },
   {
+   "description": "Chỉ cần khi bot chính đã đầy nhóm (Zalo báo \"Bot đã vượt quá số lượng nhóm có thể tham gia\"). Tạo thêm bot trên Zalo Bot Manager rồi bấm Thêm bot ở hàng nút Zalo: dán token, máy kiểm token và nối bot luôn. Mỗi nhóm tự gửi bằng bot đang ở trong nhóm đó.",
+   "fieldname": "zalo_bot_phu",
+   "fieldtype": "Table",
+   "label": "Bot thêm (khi bot chính đầy nhóm)",
+   "options": "Vagabond Bot Zalo"
+  },
+  {
    "fieldname": "col_cd_13",
    "fieldtype": "Column Break"
   },
@@ -753,6 +762,15 @@
    "fieldname": "zalo_noi_trang_thai",
    "fieldtype": "Small Text",
    "label": "Kết quả xác minh đường nhận",
+   "read_only": 1
+  },
+  {
+   "default": "1",
+   "description": "Số lớn nhất từng cấp cho bot thêm. Máy giữ để không cấp lại số của bot đã xoá.",
+   "fieldname": "zalo_bot_ma_cuoi",
+   "fieldtype": "Int",
+   "hidden": 1,
+   "label": "Số bot đã cấp",
    "read_only": 1
   },
   {
@@ -1152,7 +1170,7 @@
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-10-18 23:30:00.000000",
+ "modified": "2026-10-20 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Settings",

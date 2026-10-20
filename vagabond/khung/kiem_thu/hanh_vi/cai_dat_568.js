@@ -686,12 +686,14 @@ ca('v604 Desk: hộp nhóm có phần Tin nhận theo bộ phận, Chọn cả m
   });
   var nut = fs.filter(function (x) { return x.fieldtype === 'Button'; });
   la('mỗi bộ phận một nút Chọn cả mục', nut.map(function (x) { return x.label; }), V.ZALO_BO_PHAN.map(function () { return 'Chọn cả mục'; }));
-  nut[1].click();
+  /* v606: thêm mục Ban giám đốc đứng đầu, nên tìm nút theo tên bộ phận chứ không theo vị trí. */
+  var iBh = V.ZALO_BO_PHAN.indexOf('Bán hàng, cửa hàng');
+  nut[iBh].click();
   var bh = Object.keys(V.ZALO_TIN).filter(function (m) { return V.ZALO_TIN[m][0] === 'Bán hàng, cửa hàng'; });
   la('Chọn cả mục tích hết mục bán hàng', bh.filter(function (m) { return gt['tin_nhan__' + m]; }).length, bh.length);
-  nut[1].click();
+  nut[iBh].click();
   la('bấm lần nữa thì bỏ hết', bh.filter(function (m) { return gt['tin_nhan__' + m]; }).length, 0);
-  nut[1].click();
+  nut[iBh].click();
   var v = Object.assign({}, gt, { nhom_zalo: 'Nhóm Zalo mã TOAN', ten_nhom: 'Sales', bat: 1, tin_nhan__ht_phat_hanh: 1 });
   d.o.primary_action(v);
   var r = z.frm.con[0];
@@ -759,6 +761,114 @@ ca('v581: menu Gửi thử khi chưa có nhóm nào có mã chat thì nói rõ c
     la(rows.length + ' dòng: không gửi gì', g.goi.length, 0);
     dung(rows.length + ' dòng: chỉ đường Thêm nhóm nhận tin', g.bao.some(function (m) { return String(m).indexOf('Thêm nhóm nhận tin') >= 0; }));
   });
+});
+
+// v606: anh Việt 19/10/2026 thêm bot vào nhóm thứ ba thì Zalo báo "Bot đã vượt quá số
+// lượng nhóm có thể tham gia"; 20/10 chốt thêm được NHIỀU bot. Chạy THẬT veZalo của
+// Desk và bấm THẬT nút trên hàng nút, hộp Thêm bot, Đổi token, Nối lại. Ba bot trở lên
+// để không lọt cách làm cứng cho hai bot.
+function frmBot(them, nhom, ban) {
+  var z = frmZalo(nhom || [], { zalo_bot_phu: them });
+  z.frm.fields_dict.zalo_bot_phu = {};
+  z.frm.dfp = [];
+  z.frm.set_df_property = function (fn, k, v) { z.frm.dfp.push([fn, k, v]); };
+  z.frm.is_dirty = function () { return !!ban; };
+  z.frm.tai = 0;
+  z.frm.reload_doc = function () { z.frm.tai++; };
+  var g = giaFrappe(z.frm);
+  // frappe.call giả trả ngay: luu_bot trả số bot, các hàm khác trả lời báo nối.
+  global.frappe.call = function (o) {
+    g.goi.push(o);
+    var m = o.method === 'vagabond.kenh_zalo.luu_bot' ? { ma_bot: o.args.ma || '7' } : { ok: 1, loi_nhan: 'Đã nối' };
+    return { then: function (fn) { var r = fn({ message: m }); return r && r.then ? r : { then: function () {} }; } };
+  };
+  return { z: z, g: g };
+}
+var BOT_THEM = function () {
+  return [{ ma_bot: '2', ten_bot: 'Bot <b>Bếp</b>', co_token: 1, trang_thai: 'Đã xác minh lúc 2026-10-20 10:00. ok' },
+    { ma_bot: '5', ten_bot: '', co_token: 1, trang_thai: '' },
+    { ma_bot: '6', ten_bot: 'Bot Kho', co_token: 1, trang_thai: 'Xác minh THẤT BẠI lúc 2026-10-20 10:00. 404' }];
+};
+
+ca('v606: mỗi bot thêm một dòng có tên, trạng thái nối, nút Nối lại và Đổi token theo đúng số bot; lưới không cho thêm dòng tay', function () {
+  global.$ = $;
+  var b = frmBot(BOT_THEM());
+  V._desk.veZalo(b.z.frm);
+  var chu = chuEl(b.z.nut);
+  dung('tên bot đã thoát HTML', chu.indexOf('Bot &lt;b&gt;Bếp&lt;/b&gt; (số 2)') >= 0 && b.z.nut.querySelectorAll('b').length === 0);
+  dung('bot chưa đặt tên gọi theo số', chu.indexOf('Bot số 5 (số 5)') >= 0);
+  var vb = b.z.nut.querySelectorAll('.vgbc-zl-bot')[0];
+  la('chip trạng thái từng bot', ['.vgbc-ok', '.vgbc-no', '.vgbc-err'].map(function (c) { return vb.querySelectorAll(c).length; }), [1, 1, 1]);
+  var zl = b.z.nut.querySelectorAll('[data-zl]').map(function (e) { return e.getAttribute('data-zl'); });
+  la('nút Nối lại theo số', zl.filter(function (v) { return v.indexOf('noi:') === 0; }), ['noi:2', 'noi:5', 'noi:6']);
+  la('nút Đổi token theo số', zl.filter(function (v) { return v.indexOf('token:') === 0; }), ['token:2', 'token:5', 'token:6']);
+  la('một nút Thêm bot', b.z.nut.querySelectorAll('[data-zl="thembot"]').length, 1);
+  la('lưới Bot thêm không cho thêm dòng tay', b.z.frm.dfp, [['zalo_bot_phu', 'cannot_add_rows', 1]]);
+  dung('có bot thì bảng Bot thêm hiện', b.z.frm.an.some(function (x) { return x[0] === 'zalo_bot_phu' && x[1] === true; }));
+  var k = frmBot([]);
+  V._desk.veZalo(k.z.frm);
+  la('chưa có bot thêm thì không vẽ danh sách bot', k.z.nut.querySelectorAll('.vgbc-zl-bot').length, 0);
+  dung('chưa có bot thêm thì ẩn bảng rỗng', k.z.frm.an.some(function (x) { return x[0] === 'zalo_bot_phu' && x[1] === false; }));
+});
+
+ca('v606: bấm Nối lại bot 5 nối đúng bot 5; Nối Zalo Bot vẫn là bot chính', function () {
+  global.$ = $;
+  var b = frmBot(BOT_THEM());
+  V._desk.veZalo(b.z.frm);
+  bamJq(b.z.nut, b.z.nut.querySelectorAll('[data-zl="noi:5"]')[0]);
+  bamJq(b.z.nut, b.z.nut.querySelectorAll('[data-zl="noi"]')[0]);
+  la('đúng bot', b.g.goi.map(function (o) { return [o.method, o.args.bot]; }),
+    [['vagabond.kenh_zalo.dang_ky_webhook', '5'], ['vagabond.kenh_zalo.dang_ky_webhook', '1']]);
+  la('mỗi lần nối xong tải lại form', b.z.frm.tai, 2);
+});
+
+ca('v606: Thêm bot: hộp có lời dẫn và ô token bắt buộc; Thêm và nối bot gọi luu_bot rồi nối NGAY đúng số bot máy cấp', function () {
+  global.$ = $;
+  var b = frmBot(BOT_THEM());
+  V._desk.veZalo(b.z.frm);
+  bamJq(b.z.nut, b.z.nut.querySelectorAll('[data-zl="thembot"]')[0]);
+  la('mở một hộp', b.g.hop.length, 1);
+  var o = b.g.hop[0].o, tk = o.fields.filter(function (x) { return x.fieldname === 'token'; })[0];
+  la('ô token', [tk.fieldtype, tk.reqd], ['Password', 1]);
+  dung('lời dẫn nói lúc nào dùng và làm gì sau đó', /đầy nhóm/.test(o.fields[0].options) && /@nhắc/.test(o.fields[0].options));
+  la('nút chính', o.primary_action_label, 'Thêm và nối bot');
+  o.primary_action({ ten: 'Bot Quầy', token: '777:BAY' });
+  la('lưu rồi nối bot 7', b.g.goi.map(function (o) { return [o.method, JSON.stringify(o.args)]; }),
+    [['vagabond.kenh_zalo.luu_bot', '{"ma":"","ten":"Bot Quầy","token":"777:BAY"}'], ['vagabond.kenh_zalo.dang_ky_webhook', '{"bot":"7"}']]);
+  dung('hộp đóng', b.g.hop[0].an === 1);
+});
+
+ca('v606: Đổi token bot 6 gửi đúng số 6 rồi nối lại bot 6; form chưa lưu thì không mở hộp, không gọi máy chủ', function () {
+  global.$ = $;
+  var b = frmBot(BOT_THEM());
+  V._desk.veZalo(b.z.frm);
+  bamJq(b.z.nut, b.z.nut.querySelectorAll('[data-zl="token:6"]')[0]);
+  var o = b.g.hop[0].o;
+  dung('tiêu đề nói bot nào', o.title.indexOf('Bot Kho') >= 0);
+  la('tên đang có điền sẵn', o.fields.filter(function (x) { return x.fieldname === 'ten'; })[0].default, 'Bot Kho');
+  o.primary_action({ ten: 'Bot Kho', token: '666:MOI' });
+  la('đổi đúng bot rồi nối lại', b.g.goi.map(function (o) { return [o.method, o.args.ma || o.args.bot]; }),
+    [['vagabond.kenh_zalo.luu_bot', '6'], ['vagabond.kenh_zalo.dang_ky_webhook', '6']]);
+  ['thembot', 'token:2', 'noi:2'].forEach(function (v) {
+    var c = frmBot(BOT_THEM(), [], true);
+    V._desk.veZalo(c.z.frm);
+    bamJq(c.z.nut, c.z.nut.querySelectorAll('[data-zl="' + v + '"]')[0]);
+    la(v + ' khi chưa lưu: không hộp, không gọi', [c.g.hop.length, c.g.goi.length], [0, 0]);
+    dung(v + ' khi chưa lưu: nhắc bấm Lưu', c.g.bao.some(function (m) { return String(m).indexOf('Lưu') >= 0; }));
+  });
+});
+
+ca('v606: thẻ nhóm nói gửi bằng bot nào; bot đã xoá thì nói thẳng đang gửi bằng bot chính; bot chính không ghi gì thêm', function () {
+  global.$ = $;
+  var nhom = [{ doctype: 'Vagabond Kenh Zalo', name: 'a', ten_nhom: 'Bếp', chat_id: 'zgr-a', bot: '2', bat: 1 },
+    { doctype: 'Vagabond Kenh Zalo', name: 'b', ten_nhom: 'Kho', chat_id: 'zgr-b', bot: '9', bat: 1 },
+    { doctype: 'Vagabond Kenh Zalo', name: 'c', ten_nhom: 'Kế toán', chat_id: 'zgr-c', bot: '1', bat: 1 }];
+  var b = frmBot(BOT_THEM(), nhom);
+  V._desk.veZalo(b.z.frm);
+  var the = b.z.the.querySelectorAll('.vgbc-card').map(chuEl);
+  dung('nhóm bot 2 (tên đã thoát HTML)', the[0].indexOf('Bot &lt;b&gt;Bếp&lt;/b&gt; (số 2)') >= 0);
+  dung('nhóm bot đã xoá', the[1].indexOf('bot số 9 đã xoá, đang gửi bằng bot chính') >= 0);
+  dung('nhóm bot chính không ghi Gửi bằng', the[2].indexOf('Gửi bằng') < 0);
 });
 
 /* ---------- v596: tóm tắt, cần xử lý, ô lỗi (anh Việt duyệt mockup 15/10/2026) ---------- */

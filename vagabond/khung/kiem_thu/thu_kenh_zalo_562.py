@@ -142,12 +142,12 @@ def _goi_api():
 		da.append(url)
 		raise ReadTimeout("het gio " + url)
 	gia.post = post
-	with patch.object(kz, "_token", lambda: "123:BIMAT"), patch.dict("sys.modules", {"requests": gia}):
+	with patch.object(kz, "_token", lambda *a: "123:BIMAT"), patch.dict("sys.modules", {"requests": gia}):
 		tt, loi, _ = kz._goi("sendMessage", {"chat_id": "c", "text": "x"})
 	la("timeout là Chưa rõ", tt, "Chưa rõ")
 	dung("đúng đường API", da and da[0] == "https://bot-api.zaloplatforms.com/bot123:BIMAT/sendMessage")
 	dung("lỗi trả về không chứa token", "BIMAT" not in loi)
-	with patch.object(kz, "_token", lambda: ""):
+	with patch.object(kz, "_token", lambda *a: ""):
 		la("thiếu token", kz._goi("sendMessage", {})[0], "Lỗi")
 
 
@@ -524,7 +524,10 @@ def _noi(phan_hoi, bi_mat_cu="", test=None):
 		def save(self, **k):
 			nk.append("save")
 
-	def goi(m, body):
+		def set(self, k, v):
+			setattr(self, k, v)
+
+	def goi(m, body, *a):
 		nk.append(m)
 		if m == "getMe":
 			return "Đã gửi", "", {"account_name": "VGB"}
@@ -532,7 +535,7 @@ def _noi(phan_hoi, bi_mat_cu="", test=None):
 			return "Đã gửi", "", phan_hoi
 		return test or ("Đã gửi", "", {"ok": True})
 	with patch.object(kz, "_chi_quan_tri", lambda: None), patch.object(kz, "_goi", goi), \
-			patch.object(kz, "_ghi_noi", lambda tt, g: nk.append("ghi:" + tt)), \
+			patch.object(kz, "_ghi_noi", lambda tt, g, *a: nk.append("ghi:" + tt)), \
 			patch.object(kz, "get_url", lambda p: "https://erp" + p), \
 			patch.object(f, "get_single", lambda *a: S(), create=True), \
 			patch.object(f.db, "commit", lambda: nk.append("commit"), create=True):
@@ -701,13 +704,15 @@ def _cam_goi_khi_kiem():
 	da = []
 	gia.post = lambda url, json=None, timeout=None: (da.append(url), types.SimpleNamespace(json=lambda: {"ok": True, "result": {}}))[1]
 	co = types.SimpleNamespace(vagabond_kiem_that=True)
-	with patch.object(kz, "_token", lambda: "123:BIMAT"), patch.dict("sys.modules", {"requests": gia}), \
-			patch.object(f, "flags", co, create=True):
+	# v606 Codex #492: _gui_zalo đọc bot của nhóm trước khi gọi, đọc lỗi thì không gửi;
+	# ca này kiểm cửa _goi nên cho bản đọc trả bot chính.
+	with patch.object(kz, "_token", lambda *a: "123:BIMAT"), patch.dict("sys.modules", {"requests": gia}), \
+			patch.object(kz, "_bot_chat", lambda c: "1"), patch.object(f, "flags", co, create=True):
 		tt, loi, _ = kz._goi("sendMessage", {"chat_id": "c", "text": "x"})
 		la("không gọi HTTP", da, [])
 		la("báo lỗi rõ", (tt, "kiểm thử" in loi), ("Lỗi", True))
 		la("gửi thử qua _gui_zalo cũng bị chặn", (kz._gui_zalo("c", "x")[0], da), ("Lỗi", []))
-	with patch.object(kz, "_token", lambda: "123:BIMAT"), patch.dict("sys.modules", {"requests": gia}), \
+	with patch.object(kz, "_token", lambda *a: "123:BIMAT"), patch.dict("sys.modules", {"requests": gia}), \
 			patch.object(f, "flags", types.SimpleNamespace(), create=True):
 		la("ngoài kiểm thử thì gọi bình thường", kz._goi("sendMessage", {})[0], "Đã gửi")
 	la("đã gọi đúng một lần khi không kiểm thử", len(da), 1)
@@ -736,7 +741,7 @@ def _bot_khong_vao_nhom():
 	la("thiếu trường thì không chặn", kz.kiem_bot({"account_name": "x"}), "")
 	goi = []
 
-	def gia(m, body):
+	def gia(m, body, *a):
 		goi.append(m)
 		return ("Đã gửi", "", {"account_name": "VGB", "can_join_groups": False}) if m == "getMe" else ("Đã gửi", "", {})
 	# Dựng đủ đường đi như ca _noi để nếu bỏ chặn thì luồng chạy tới setWebhook
@@ -1131,7 +1136,7 @@ def _phan_loai_loi():
 		def post(url, json=None, timeout=None, loi=loi):
 			raise loi
 		gia.post = post
-		with patch.object(kz, "_token", lambda: "123:BIMAT"), patch.dict("sys.modules", {"requests": gia}):
+		with patch.object(kz, "_token", lambda *a: "123:BIMAT"), patch.dict("sys.modules", {"requests": gia}):
 			kq[k] = kz._goi("sendMessage", {"chat_id": "c", "text": "x"})[0]
 	la("kết quả của cửa gọi Zalo", kq, {"dns": kz.MANG_LOI, "khong_mo_duoc": kz.MANG_LOI, "het_gio_ket_noi": kz.MANG_LOI,
 		"het_gio_doc": "Chưa rõ", "dut_giua_chung": "Chưa rõ"})
@@ -1237,7 +1242,7 @@ def _phan_hoi_hong():
 					raise ValueError("không phải JSON hoặc bị cắt")
 				return than
 		gia.post = lambda url, json=None, timeout=None: _R()
-		with patch.object(kz, "_token", lambda: "123:BIMAT"), patch.dict("sys.modules", {"requests": gia}):
+		with patch.object(kz, "_token", lambda *a: "123:BIMAT"), patch.dict("sys.modules", {"requests": gia}):
 			tt, loi, _ = kz._goi("sendMessage", {"chat_id": "c", "text": "x"})
 		return tt, str(ma) in loi
 	la("502 trang HTML", goi(502, None), ("Chưa rõ", True))
@@ -1262,7 +1267,7 @@ def _get_me_tam_thoi():
 	# Đi qua đường bấm nút thật: getMe trả 503 thì dừng, báo thử lại, không gọi setWebhook.
 	goi, bao = [], []
 
-	def gia(m, body):
+	def gia(m, body, *a):
 		goi.append(m)
 		return ("Chưa rõ", "Zalo trả HTTP 503, không rõ tin đã tới chưa.", None) if m == "getMe" else ("Đã gửi", "", {})
 

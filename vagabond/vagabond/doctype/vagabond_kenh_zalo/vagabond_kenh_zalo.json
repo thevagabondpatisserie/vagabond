@@ -8,6 +8,7 @@
  "field_order": [
   "ten_nhom",
   "chat_id",
+  "bot",
   "loai_tin",
   "chu_de",
   "tin_nhan",
@@ -33,6 +34,14 @@
    "in_list_view": 1,
    "columns": 2,
    "description": "Mở dòng, bấm Chọn nhóm đã nhắn bot. Chỉ nhận nhóm Zalo đã @nhắc bot, không nhận chat riêng.",
+   "read_only": 1
+  },
+  {
+   "default": "1",
+   "description": "Số bot gửi tin vào nhóm này: 1 là bot chính, số khác là bot ở bảng Bot thêm. Máy tự điền khi lưu theo bot đã được @nhắc trong nhóm, không cần chọn tay.",
+   "fieldname": "bot",
+   "fieldtype": "Data",
+   "label": "Gửi bằng bot số",
    "read_only": 1
   },
   {
@@ -86,7 +95,7 @@
   }
  ],
  "links": [],
- "modified": "2026-10-18 12:00:00.000000",
+ "modified": "2026-10-20 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Kenh Zalo",

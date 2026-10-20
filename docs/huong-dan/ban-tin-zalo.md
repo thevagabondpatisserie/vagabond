@@ -40,6 +40,27 @@ duyệt" gửi nhóm Kế toán. Các tin khác thêm dần sau khi chạy ổn.
    mẫu** chỉ hiện nội dung, không gửi. Trên app, màn Cài đặt lõi và API cũng
    có nút **Gửi thử vào nhóm này** trên từng nhóm.
 
+### Bot đã đầy nhóm: thêm bot (v606)
+
+Mỗi bot Zalo chỉ vào được một số nhóm giới hạn. Thêm bot vào nhóm mới mà Zalo
+báo **"Bot đã vượt quá số lượng nhóm có thể tham gia"** thì thêm một bot nữa.
+Thêm bao nhiêu bot cũng được, mỗi bot một số (2, 3, 4...).
+
+1. Vào Zalo Bot Manager tạo thêm một bot, bật quyền tham gia nhóm, chép token.
+2. Desk > Cài đặt Vagabond > Bắn tin vào nhóm Zalo: bấm **Thêm bot (bot chính
+   đầy nhóm)**, dán token, bấm **Thêm và nối bot**. Máy kiểm token với Zalo,
+   cất token mã hoá, rồi nối bot luôn. Thấy chip "Đã nối" cạnh tên bot là được.
+3. Thêm bot mới vào nhóm Zalo mới, @nhắc nó một lần. Bot trả lời mã nhóm.
+4. Thêm nhóm nhận tin như mục 2 ở trên. Máy tự ghi nhóm đó gửi bằng bot nào
+   (thẻ nhóm hiện "Gửi bằng: <tên bot> (số N)"), không cần chọn tay. Nhóm cũ
+   vẫn gửi bằng bot cũ.
+
+Đổi token một bot: bấm **Đổi token** cạnh tên bot. Bỏ một bot: xoá dòng của nó
+ở bảng **Bot thêm** rồi Lưu. Số của bot đó không bao giờ được cấp lại. Nhóm
+đang gửi bằng bot đó chuyển sang thử bot chính (thẻ nhóm báo "đã xoá"); bot
+chính không ở nhóm đó thì tin không tới, nên thêm một bot khác vào nhóm và
+@nhắc nó một lần.
+
 ## 3. Năm loại tin
 
 | Mã | Đầu tin | Khi nào |

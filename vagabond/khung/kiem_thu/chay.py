@@ -176,6 +176,9 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_chuoi_tung_don_602,
 	thu_tin_zalo_604,
 	thu_ten_mien_605,
+	thu_zalo_bot_hai_606,
+	thu_len_web_606,
+	thu_bao_cao_chu_606,
 )
 
 

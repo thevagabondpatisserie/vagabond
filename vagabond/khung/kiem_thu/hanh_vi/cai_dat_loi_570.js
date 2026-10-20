@@ -44,6 +44,12 @@ function layThat() {
     'ra = {"bo_cuc": c.bo_cuc(tr), "gia_tri": c.gia_tri(tr, doc), "modified": "2026-10-04 09:00:00.000001",',
     '  "bang": {"zalo_nhom": {"cot": c.tom_bang(cot), "dong": [dict(c.gia_tri(cot, r), name=r["name"]) for r in dong],',
     '    "ghi_qua_hop_chon": list(c.GHI_QUA_HOP_CHON["zalo_nhom"])}}}',
+    '# v606: bảng Bot thêm dựng bằng chính phép máy chủ trên JSON thật của doctype con.',
+    'import os',
+    'cot_bot = json.load(open(os.path.join(sys.argv[1], "vagabond", "vagabond", "doctype", "vagabond_bot_zalo", "vagabond_bot_zalo.json"), encoding="utf-8"))["fields"]',
+    'bot = [{"name": "b2", "ma_bot": "2", "ten_bot": "Bot Bếp", "co_token": 1, "trang_thai": "Đã xác minh đường nhận lúc 20/10 10:00."}]',
+    'ra["bang"]["zalo_bot_phu"] = {"cot": c.tom_bang(cot_bot), "dong": [dict(c.gia_tri(cot_bot, r), name=r["name"]) for r in bot],',
+    '  "ghi_qua_hop_chon": list(c.GHI_QUA_HOP_CHON.get("zalo_bot_phu", ()))}',
     '# v591: danh sách nhóm của hộp chọn dựng bằng chính phép máy chủ trên cùng dữ liệu.',
     'u = sys.modules["frappe"].utils',
     'u.get_url = getattr(u, "get_url", None) or (lambda *a, **k: "https://vagabond.test")',
@@ -79,7 +85,17 @@ function dungMan() {
     back: function () { S.stack.pop(); var top = S.stack[S.stack.length - 1]; if (top) top(); },
     api: function (duong, ts) {
       goi.push({ duong: duong, ts: ts });
-      if (duong === 'vagabond.cai_dat_loi.lay') return Promise.resolve(JSON.parse(JSON.stringify(LAY)));
+      if (duong === 'vagabond.cai_dat_loi.lay') {
+        // v606: _loiLay giả lỗi mạng ở lần đọc lại SAU lần mở đầu tiên.
+        if (that._loiLay && goi.filter(function (x) { return x.duong === duong; }).length > 1) return Promise.reject(new Error('Mất mạng'));
+        return Promise.resolve(JSON.parse(JSON.stringify(that._lay || LAY)));
+      }
+      // v606: máy chủ của bot Zalo thêm. luu_bot cấp số 3 cho bot mới, giữ số cũ khi đổi.
+      if (duong === 'vagabond.kenh_zalo.luu_bot') {
+        if (that._loiBot) return Promise.reject(new Error(that._loiBot));
+        return Promise.resolve({ ma_bot: ts.ma || '3', ten: ts.ten || 'Bot Zalo' });
+      }
+      if (duong === 'vagabond.kenh_zalo.dang_ky_webhook') return Promise.resolve({ ok: 1, loi_nhan: 'Đã nối bot số ' + ts.bot + '.' });
       if (duong === 'vagabond.tai_khoan.danh_sach') return Promise.resolve({ ngan_hang: NGAN_HANG });
       if (duong === 'vagabond.cai_dat_loi.tim_lien_ket') return Promise.resolve(['Kho A', 'Kho B']);
       if (duong === 'vagabond.kenh_zalo.nhom_da_nhan_bot') return Promise.resolve(JSON.parse(JSON.stringify(that._nhomBot || LAY.nhom_bot)));
@@ -626,12 +642,14 @@ function moTab(m, fn) { bam(m, mot(m, '[data-cdltab="' + fn + '"]')); }
     bang('không lộ mã tin nào trong chữ của hộp', Object.keys(TIN).filter(function (ma) { return chu(box).indexOf(ma) >= 0; }), []);
     var ca0 = box.querySelectorAll('[data-cdltca]');
     bang('mỗi bộ phận một nút Chọn cả mục', ca0.length, m.g.VGB_ZALO_BO_PHAN.length);
-    box.onclick({ target: ca0[0] });
+    /* v606: mục Ban giám đốc đứng đầu, nên tìm nút theo tên bộ phận chứ không theo vị trí. */
+    var iKt = m.g.VGB_ZALO_BO_PHAN.indexOf('Hoá đơn, kế toán');
+    box.onclick({ target: ca0[iKt] });
     var kt = Object.keys(TIN).filter(function (ma) { return TIN[ma][0] === 'Hoá đơn, kế toán'; });
     bang('Chọn cả mục tích hết mục kế toán', box.querySelectorAll('[data-cdlt]').filter(function (d) { return chu(d).indexOf('☑') >= 0; }).length, kt.length);
-    box.onclick({ target: box.querySelectorAll('[data-cdltca]')[0] });
+    box.onclick({ target: box.querySelectorAll('[data-cdltca]')[iKt] });
     bang('bấm lần nữa thì bỏ hết', box.querySelectorAll('[data-cdlt]').filter(function (d) { return chu(d).indexOf('☑') >= 0; }).length, 0);
-    box.onclick({ target: box.querySelectorAll('[data-cdltca]')[0] });
+    box.onclick({ target: box.querySelectorAll('[data-cdltca]')[iKt] });
     box.onclick({ target: box.querySelectorAll('[data-cdlt]').filter(function (d) { return d.getAttribute('data-cdlt') === 'ht_email_loi'; })[0] });
     box.onclick({ target: box.querySelectorAll('[data-cdltxong]')[0] });
     dung('màn nhóm tóm tắt số tin', chu(m.khung).indexOf((kt.length + 1) + ' tin: ') >= 0);
@@ -642,6 +660,125 @@ function moTab(m, fn) { bam(m, mot(m, '[data-cdltab="' + fn + '"]')); }
     var g = m.goi.filter(function (x) { return x.duong === 'vagabond.cai_dat_loi.luu'; })[0];
     var b = JSON.parse(g.ts.bang).zalo_nhom;
     bang('lưu mã theo thứ tự danh mục, nối dấu phẩy', b[1].tin_nhan, kt.concat(['ht_email_loi']).join(', '));
+  });
+
+  // v606 (Codex #492 P2 4325875324): bảng Bot thêm trên app không được đi lưới chung
+  // (chỉ tạo được dòng không token, không bao giờ gửi được). App có Thêm bot, Đổi
+  // token, Nối lại gọi đúng máy chủ như Desk. Bấm THẬT, không gọi hàm nào ngoài chuỗi.
+  function tabBot() {
+    return LAY.bo_cuc.filter(function (t) { return t.muc.some(function (mu) { return mu.o.some(function (o) { return o.fn === 'zalo_bot_phu'; }); }); })[0].fn;
+  }
+  function oBot(m, k) { return m.khung.querySelectorAll('[data-cdlbot]').filter(function (e) { return e.getAttribute('data-cdlbot') === k; })[0]; }
+  function go_(m, k, v) { var o = oBot(m, k); o.value = v; m.khung.oninput({ target: o }); }
+  function lan(m) { return m.goi.map(function (x) { return x.duong; }).filter(function (d) { return d !== 'vagabond.cai_dat_loi.lay'; }); }
+
+  await ca('v606 bot thêm trên app: không có lưới chung "+ Thêm dòng"; mỗi bot một dòng có chip, Nối lại, Đổi token; có nút Thêm bot', async function () {
+    var m = await moMan();
+    moTab(m, tabBot());
+    bang('không có nút thêm dòng chung cho bảng bot', tim(m, '[data-cdlbangthem="zalo_bot_phu"]').length, 0);
+    bang('dòng bot không mở màn sửa dòng chung', tim(m, '[data-cdlbang="zalo_bot_phu"]').length, 0);
+    var t = chu(m.khung);
+    dung('tên và số bot', t.indexOf('Bot Bếp (số 2)') >= 0);
+    dung('chip Đã nối', t.indexOf('Đã nối') >= 0);
+    bang('nút Nối lại đúng số', tim(m, '[data-cdlbotnoi]').map(function (e) { return e.getAttribute('data-cdlbotnoi'); }), ['2']);
+    bang('nút Đổi token đúng số', tim(m, '[data-cdlbottoken]').map(function (e) { return e.getAttribute('data-cdlbottoken'); }), ['2']);
+    bang('một nút Thêm bot', tim(m, '[data-cdlbotthem]').length, 1);
+  });
+
+  await ca('v606 Thêm bot trên app: token trống thì không gọi máy chủ; dán token thì luu_bot rồi nối đúng số máy cấp, đọc lại cài đặt, không giữ token', async function () {
+    var m = await moMan();
+    moTab(m, tabBot());
+    bam(m, mot(m, '[data-cdlbotthem]'));
+    bang('màn Thêm bot', m.g._t, 'Thêm bot Zalo');
+    dung('ô token là ô mật khẩu', oBot(m, 'token').getAttribute('type') === 'password');
+    bam(m, mot(m, '#cdlBotXong'));
+    bang('token trống: không gọi gì', lan(m), []);
+    dung('token trống: nói cần dán token', m.toast.join(' ').indexOf('token') >= 0);
+    go_(m, 'ten', 'Bot nhóm Bánh lạnh');
+    go_(m, 'token', 'TOKEN-BOT-BA');
+    bam(m, mot(m, '#cdlBotXong'));
+    await tick(); await tick();
+    var g = m.goi.filter(function (x) { return x.duong !== 'vagabond.cai_dat_loi.lay'; });
+    bang('gọi đúng thứ tự', g.map(function (x) { return x.duong; }), ['vagabond.kenh_zalo.luu_bot', 'vagabond.kenh_zalo.dang_ky_webhook']);
+    bang('luu_bot nhận số trống, tên, token', g[0].ts, { ma: '', ten: 'Bot nhóm Bánh lạnh', token: 'TOKEN-BOT-BA' });
+    bang('nối đúng số máy cấp', g[1].ts, { bot: '3' });
+    bang('đọc lại cài đặt sau khi thêm', m.goi.filter(function (x) { return x.duong === 'vagabond.cai_dat_loi.lay'; }).length, 2);
+    dung('quay về tab', m.g._t !== 'Thêm bot Zalo');
+    dung('báo kết quả nối', m.toast.join(' ').indexOf('Đã nối bot số 3.') >= 0);
+    dung('đọc lại được thì không có câu nhắc đọc lại hỏng', m.toast.join(' ').indexOf('chưa tải lại') < 0);
+    dung('token không còn trong trạng thái app', JSON.stringify(m.g.CDL).indexOf('TOKEN-BOT-BA') < 0);
+    bang('không tạo thay đổi chờ lưu', m.g.cdlSoThay(), 0);
+  });
+
+  await ca('v606 Đổi token, tên trên app: chỉ đổi tên thì luu_bot với token trống và KHÔNG nối lại; Nối lại gọi đúng số bot', async function () {
+    var m = await moMan();
+    moTab(m, tabBot());
+    bam(m, mot(m, '[data-cdlbottoken="2"]'));
+    bang('ô tên điền sẵn tên cũ', oBot(m, 'ten').value, 'Bot Bếp');
+    go_(m, 'ten', 'Bot Bếp mới');
+    bam(m, mot(m, '#cdlBotXong'));
+    await tick(); await tick();
+    bang('chỉ luu_bot', lan(m), ['vagabond.kenh_zalo.luu_bot']);
+    bang('đúng số, token trống', m.goi.filter(function (x) { return x.duong === 'vagabond.kenh_zalo.luu_bot'; })[0].ts, { ma: '2', ten: 'Bot Bếp mới', token: '' });
+    bam(m, mot(m, '[data-cdlbotnoi="2"]'));
+    await tick(); await tick();
+    bang('Nối lại gọi đăng ký đường nhận bot 2', m.goi.filter(function (x) { return x.duong === 'vagabond.kenh_zalo.dang_ky_webhook'; }).map(function (x) { return x.ts; }), [{ bot: '2' }]);
+  });
+
+  await ca('v606 bot trên app: còn thay đổi chưa lưu thì không mở Thêm bot, không nối; luu_bot báo lỗi thì ở lại màn, không nối', async function () {
+    var m = await moMan();
+    moTab(m, 'tab_ke_toan');
+    bam(m, mot(m, '[data-cdlbat="sepay_bat"]'));
+    m.g.back();
+    moTab(m, tabBot());
+    bam(m, mot(m, '[data-cdlbotthem]'));
+    bam(m, mot(m, '[data-cdlbotnoi="2"]'));
+    await tick();
+    bang('không gọi máy chủ', lan(m), []);
+    dung('nhắc bấm Lưu trước', m.toast.join(' ').indexOf('Lưu') >= 0);
+    var m2 = await moMan();
+    m2.g._loiBot = 'Token sai hoặc bot đã bị xoá';
+    moTab(m2, tabBot());
+    bam(m2, mot(m2, '[data-cdlbotthem]'));
+    go_(m2, 'token', 'TOKEN-SAI');
+    bam(m2, mot(m2, '#cdlBotXong'));
+    await tick(); await tick();
+    bang('chỉ luu_bot, không nối', lan(m2), ['vagabond.kenh_zalo.luu_bot']);
+    bang('ở lại màn Thêm bot', m2.g._t, 'Thêm bot Zalo');
+    dung('báo lỗi máy chủ', m2.toast.join(' ').indexOf('Token sai') >= 0);
+  });
+
+  await ca('v606 (Codex #492 P2 4326242179): đọc lại cài đặt lỗi sau khi thêm hoặc nối bot thì nói thẳng, không chỉ báo thành công', async function () {
+    var m = await moMan();
+    m.g._loiLay = 1;
+    moTab(m, tabBot());
+    bam(m, mot(m, '[data-cdlbotthem]'));
+    go_(m, 'token', 'TOKEN-BOT-BA');
+    bam(m, mot(m, '#cdlBotXong'));
+    await tick(); await tick();
+    var t = m.toast.join(' | ');
+    dung('vẫn báo việc đã làm xong trên máy chủ', t.indexOf('Đã nối bot số 3.') >= 0);
+    dung('nói chưa tải lại được và cách làm: ' + t, t.indexOf('chưa tải lại được') >= 0 && t.indexOf('Mở lại màn Cài đặt lõi') >= 0);
+    m.toast.length = 0;
+    bam(m, mot(m, '[data-cdlbotnoi="2"]'));
+    await tick(); await tick();
+    t = m.toast.join(' | ');
+    dung('Nối lại cũng nói chưa tải lại được: ' + t, t.indexOf('chưa tải lại được') >= 0);
+    // Đọc lại hỏng thì lần mở màn sau phải đọc máy chủ (không có thay đổi chờ lưu nên không giữ bản cũ).
+    bang('không còn thay đổi chờ lưu', m.g.cdlSoThay(), 0);
+  });
+
+  await ca('v606 thẻ nhóm Zalo trên app nói nhóm gửi bằng bot nào; bot đã xoá thì nói đang gửi bằng bot chính', async function () {
+    var lay = JSON.parse(JSON.stringify(LAY));
+    lay.bang.zalo_nhom.dong.push(Object.assign({}, lay.bang.zalo_nhom.dong[0], { name: 'r2', ten_nhom: 'Bánh lạnh', chat_id: 'g-2', bot: '2' }),
+      Object.assign({}, lay.bang.zalo_nhom.dong[0], { name: 'r3', ten_nhom: 'Kho', chat_id: 'g-3', bot: '5' }));
+    var m = dungMan(); m.g._lay = lay; m.g.go(m.g.scrCaiDatLoi); await tick();
+    moTab(m, tabBot());
+    var t = chu(m.khung);
+    dung('nhóm bot 2', t.indexOf('gửi bằng Bot Bếp (số 2)') >= 0);
+    dung('nhóm bot đã xoá', t.indexOf('bot số 5 đã xoá, đang gửi bằng bot chính') >= 0);
+    var the0 = tim(m, '[data-cdldong="0"]')[0];
+    dung('nhóm bot chính không ghi gửi bằng', chu(the0).indexOf('Vận hành') >= 0 && chu(the0).indexOf('gửi bằng') < 0);
   });
 
   console.log('\n' + ket.dat + ' ca dat, ' + ket.hong + ' ca hong.');

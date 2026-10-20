@@ -1442,10 +1442,14 @@ def co_the_ban_hom_nay():
 	ds = frappe.get_all(
 		"Item",
 		filters={"item_code": ["in", [d.ma_hang for d in dong]]},
-		fields=["item_code", "item_name", "image", "standard_rate"],
+		fields=TRUONG_LEN_WEB,
 		limit_page_length=0,
 	)
 	it = {x["item_code"]: x for x in ds}
+	# v606: cùng một luật với tab Đặt bánh trước (duoc_len_web).
+	dong = [d for d in dong if duoc_len_web(it.get(d.ma_hang), tat)]
+	if not dong:
+		return rong
 
 	mon = []
 	for d in dong:
@@ -1536,6 +1540,34 @@ def _bo_anh_mo_ta(ds_nhom):
 		g["tang"] = [d.strip() for d in dong_mo_ta[1:]][:12]
 
 
+TRUONG_LEN_WEB = ["item_code", "item_name", "image", "standard_rate", "disabled", "is_sales_item"]
+
+
+def duoc_len_web(x, tat=None):
+	"""THUẦN, NGUỒN DUY NHẤT cho cả hai tab của trang đặt bánh (bánh có sẵn hôm
+	nay và đặt bánh trước): một mã có được hiện cho khách không.
+
+	v606 (Minh Vũ báo 20/10/2026): tab Đặt bánh trước không xét nút "Tắt bán
+	web" của màn Kiểm bánh, nên Kankin còn số Đủ decor vẫn hiện dù đã tắt; và
+	mã phụ BAWC00080L20CM không giá, không ảnh hiện thành "Tira-Missing-U 3.0
+	từ 0 đ" kèm ảnh nền. Luật: phải có Item, không ngừng dùng, là hàng bán,
+	giá lớn hơn 0, và không đang tắt bán web.
+	"""
+	if not x:
+		return False
+	if int(x.get("disabled") or 0):
+		return False
+	if not int(x.get("is_sales_item") if x.get("is_sales_item") is not None else 1):
+		return False
+	try:
+		gia = float(x.get("standard_rate") or 0)
+	except (TypeError, ValueError):
+		gia = 0
+	if gia <= 0:
+		return False
+	return not ((tat or {}).get(x.get("item_code")) or {}).get("tat")
+
+
 def _dat_truoc_theo_decor():
 	"""Danh muc tab DAT BANH TRUOC cua trang order, lay theo o DU DECOR
 	ma bep dien trong /kiem-banh (kho BTP Banh O). Chot voi anh Viet
@@ -1570,17 +1602,20 @@ def _dat_truoc_theo_decor():
 	ds = frappe.get_all(
 		"Item",
 		filters={"item_code": ["in", [b.ma_hang for b in dong]]},
-		fields=["item_code", "item_name", "image", "standard_rate"],
+		fields=TRUONG_LEN_WEB,
 		limit_page_length=0,
 	)
 	it = {x["item_code"]: x for x in ds}
+	# v606: nút "Tắt bán web" của màn Kiểm bánh nay áp cho cả tab này.
+	tat = tat_ban_web.bang([b.ma_hang for b in dong], ngay)
 
 	nhom, thu_tu = {}, []
 	for b in dong:
 		x = it.get(b.ma_hang)
-		if not x:
-			# Ma trong kho BTP khong co Item ben Next (vd go nham ma):
-			# khong dua len trang khach keo hien nguyen cuc ma va gia 0.
+		if not duoc_len_web(x, tat):
+			# Ma trong kho BTP khong co Item ben Next (vd go nham ma), ma
+			# khong gia (hien "tu 0 d"), ngung dung, hay dang tat ban web:
+			# khong dua len trang khach (v606, xem duoc_len_web).
 			continue
 		con = int(b.so_decor or 0) - int(da_dat.get(b.ma_hang, 0))
 		if con <= 0:
