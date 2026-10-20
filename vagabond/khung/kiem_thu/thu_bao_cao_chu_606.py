@@ -209,3 +209,48 @@ def _bao():
 			ma_tin="bgd_bao_cao_ngay", noi_dung=MAU)
 	la("ghi sổ một lần", (kq, len(nhan)), (["T1"], 1))
 	la("tin soạn sẵn tới sổ", (nhan[0]["noi_dung"], nhan[0]["ma_tin"]), (MAU, "bgd_bao_cao_ngay"))
+
+
+@ca("v606 báo cáo ngày (Codex #492 P2 4324973553): một lần huỷ ra hai dòng BC07 (dòng hoá đơn và dòng ghi vết) vẫn chỉ đếm một hoá đơn huỷ")
+def _huy_mot_lan():
+	# Chạy THẬT bao_cao._bc_sua_huy; chỉ thay frappe.get_all. Nội dung ghi vết
+	# lấy từ chính chung_tu._ghi_vet, với đúng câu ba đường huỷ đang ghi:
+	# huỷ mềm phiếu nháp (chung_tu.danh_dau_huy), huỷ bill ở quầy (ban_hang),
+	# huỷ ghi sổ hàng loạt (chung_tu). Bản giả cũ của ca _lay chỉ có dòng hoá
+	# đơn, không có dòng ghi vết, nên không thấy lỗi đếm đôi.
+	from vagabond import bao_cao as bc
+	from vagabond import chung_tu as ct
+	vet = []
+
+	class Doc(dict):
+		def insert(self, **k):
+			vet.append(dict(self))
+	with patch.object(ct.frappe, "get_doc", lambda d: Doc(d), create=True), \
+			patch.object(ct.frappe, "session", type("S", (), {"user": "thu.ngan@vgb"})(), create=True):
+		ct._ghi_vet("Sales Invoice", "SI-2", "Huỷ phiếu nháp. Lý do: khách đổi ý")
+		ct._ghi_vet("Sales Invoice", "SI-3", "Huỷ bill PCK-3 (150.000 đ). Lý do: nhầm món")
+		ct._ghi_vet("Sales Invoice", "SI-1", "Huỷ ghi sổ hàng loạt. Lý do: trùng")
+		ct._ghi_vet("Sales Invoice", "SI-4", "Đổi ngày hoá đơn 18/10 -> 19/10")
+	R = lambda **k: type("R", (dict,), {"__getattr__": dict.get})(**k)
+	ngay = datetime.date(2026, 10, 19)
+
+	def get_all(dt, filters=None, **k):
+		if dt == "Sales Invoice" and filters.get("docstatus") == 2:
+			return [R(name="SI-1", posting_date=ngay, grand_total=300000, vgb_quay="D1", vgb_huy=1, vgb_huy_ly_do="trùng")]
+		if dt == "Sales Invoice":
+			return [R(name="SI-2", posting_date=ngay, grand_total=20000, vgb_quay="D1", vgb_huy=1, vgb_huy_ly_do="khách đổi ý"),
+				R(name="SI-3", posting_date=ngay, grand_total=150000, vgb_quay="D1", vgb_huy=1, vgb_huy_ly_do="nhầm món")]
+		if dt == "Comment":
+			return [R(reference_name=v["reference_name"], content=v["content"], creation="2026-10-19 20:00:00", owner="thu.ngan@vgb")
+				for v in vet]
+		raise AssertionError(dt)
+	gia = [p for p in _gia_bao_cao(HD, HD_CU) if getattr(p, "attribute", "") != "_bc_sua_huy"]
+	gia += [patch.object(bc.frappe, "get_all", get_all, create=True),
+		patch.object(bc.diem_ban, "ten_diem", lambda: {"D1": "District 1"})]
+	sh = _chay(gia, lambda: bc._bc_sua_huy([], tu=ngay, den=ngay))["dong"]
+	la("BC07 vẫn giữ đủ dòng ghi vết (màn Báo cáo không đổi)", len(sh), 7)
+	sl = _chay(gia, lambda: b.lay_so_lieu(ngay))
+	la("ba hoá đơn huỷ, tiền lấy từ dòng hoá đơn", sl["huy"], {"so": 3, "tien": 470000})
+	la("một lần sửa (đổi ngày)", sl["sua"], 1)
+	t = b.soan_bao_cao(sl)
+	dung("Cần để ý nói 3 hoá đơn huỷ, không phải 6", "• 3 hoá đơn bị huỷ (470k)" in t and "6 hoá đơn" not in t)
