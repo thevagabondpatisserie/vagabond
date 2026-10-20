@@ -161,6 +161,16 @@ def _ghep(muc, ngan="\n"):
 	return ngan.join(x for x in muc if x)
 
 
+def _khoi_sua_huy(sl):
+	"""THUẦN: dòng "Sửa, huỷ"; rỗng khi không có huỷ và sửa nào."""
+	huy = sl.get("huy") or {}
+	sua = int(sl.get("sua") or 0)
+	if not (int(huy.get("so") or 0) or sua):
+		return ""
+	return "✂️ Sửa, huỷ: %s huỷ%s, %s sửa" % (int(huy.get("so") or 0),
+		(" (%s)" % tien_gon(huy.get("tien"))) if float(huy.get("tien") or 0) > 0 else "", sua)
+
+
 def soan_bao_cao(sl):
 	"""THUẦN: dict số liệu một ngày -> tin chữ theo mẫu anh Việt duyệt 20/10/2026.
 
@@ -173,7 +183,16 @@ def soan_bao_cao(sl):
 	so_hd = int(sl.get("so_hd") or 0)
 	dau = "📊 Vagabond | Báo cáo cuối ngày %s" % ngay
 	if so_hd <= 0:
-		return dau + "\nHôm nay chưa có hoá đơn nào.\n\nChi tiết: app > Báo cáo"
+		# Ngày không còn hoá đơn bán (kể cả khi huỷ hết) vẫn phải báo huỷ, sửa
+		# và Cần để ý (Codex #492 P2 4325217633): _hoa_don lọc bỏ hoá đơn huỷ,
+		# nên đúng ngày huỷ nhiều nhất lại là ngày tin im lặng nhất.
+		khoi = [dau + "\nHôm nay chưa có hoá đơn nào."]
+		khoi.append(_khoi_sua_huy(sl))
+		de_y = can_de_y(sl)
+		if de_y:
+			khoi.append(_ghep(["⚠️ Cần để ý"] + ["• " + x for x in de_y]))
+		khoi.append("Chi tiết: app > Báo cáo")
+		return "\n\n".join(x for x in khoi if x)
 	khoi = []
 	c = chenh(tong, sl.get("tong_truoc"))
 	khoi.append(_ghep([
@@ -215,14 +234,7 @@ def soan_bao_cao(sl):
 			dong.append("• Khuyến mãi %s / %s lượt%s" % (tien_gon(ct["tien"]), int(ct.get("luot") or 0),
 				(", nhiều nhất %s (%s)" % (top[0], tien_gon(top[1]))) if top else ""))
 		khoi.append(_ghep(dong))
-	huy = sl.get("huy") or {}
-	sua = int(sl.get("sua") or 0)
-	dong = []
-	if int(huy.get("so") or 0) or sua:
-		dong.append("✂️ Sửa, huỷ: %s huỷ%s, %s sửa" % (int(huy.get("so") or 0),
-			(" (%s)" % tien_gon(huy.get("tien"))) if float(huy.get("tien") or 0) > 0 else "", sua))
-	if dong:
-		khoi.append(_ghep(dong))
+	khoi.append(_khoi_sua_huy(sl))
 	bc = [m for m in (sl.get("ban_chay") or []) if float(m.get("tien") or 0) > 0][:3]
 	if bc:
 		khoi.append(_ghep(["🍰 Bán chạy"] + ["• %s: %s (%s)" % (ten_mon_gon(m["ten"], 36),
@@ -230,7 +242,7 @@ def soan_bao_cao(sl):
 	de_y = can_de_y(sl)
 	khoi.append(_ghep(["⚠️ Cần để ý"] + ["• " + x for x in de_y]) if de_y else "✅ Không có gì bất thường.")
 	khoi.append("Chi tiết: app > Báo cáo")
-	tin = "\n\n".join(khoi)
+	tin = "\n\n".join(x for x in khoi if x)
 	if len(tin) > TOI_DA:
 		tin = tin[:TOI_DA - 1].rstrip() + "…"
 	return tin
