@@ -429,6 +429,31 @@ function chuTrongKhoi(k) { return k.tl.getElementById('pbTgForm').innerHTML; }
     dung('form mới có mã khác', app.g.sdtNap.ma_lan && app.g.sdtNap.ma_lan !== g[0].a.ma_lan);
   });
 
+  await ca('Codex #493 vòng 5: Doanh thu Sales bấm Ghi sổ không bấm chip thì gửi doi_pt=0; bấm chip rồi Ghi sổ thì doi_pt=1', async function () {
+    for (var lan = 0; lan < 2; lan++) {
+      var app = manSales(donSales({ vgb_pt_thanh_toan: 'Tiền mặt', grand_total: 700000 }));
+      app.g.xacNhan = function () { return Promise.resolve(true); };
+      /* Kế toán mới thấy nút Ghi sổ (dsDuocGhiSo); 01 nạp sau ghi đè hasRole giả. */
+      app.g.hasRole = function () { return true; };
+      /* Ghi sổ xong màn quay về danh sách; danh sách không phải phần đang kiểm. */
+      app.g.scrDoanhSo = async function () {};
+      await app.g.scrDsView('ACC-SINV-2026-00009'); await nghi(); await nghi();
+      if (lan === 1) await app.bam(app.mot('#dsvPt [data-pt="Tiền mặt"]'.replace('#dsvPt ', '')));
+      await app.bam(app.mot('#dsvChot')); await nghi(); await nghi();
+      var g = app.mc.cac('vagabond.ban_hang.chot_mot_don');
+      bang('lần ' + lan + ': gọi ghi sổ một lần', g.length, 1);
+      bang('lần ' + lan + ': doi_pt', [g[0].a.pt, g[0].a.doi_pt], ['Tiền mặt', lan]);
+    }
+  });
+
+  await ca('Codex #493 vòng 5: Doanh thu Sales bấm Lưu không bấm chip thì luu_thanh_toan nhận doi_pt=0', async function () {
+    var app = manSales(donSales({ vgb_pt_thanh_toan: 'Tiền mặt', grand_total: 700000 }));
+    await app.g.scrDsView('ACC-SINV-2026-00009'); await nghi(); await nghi();
+    await app.bam(app.mot('#xhdLuu')); await nghi();
+    var g = app.mc.cac('vagabond.ban_hang.luu_thanh_toan');
+    bang('một lần lưu, doi_pt 0', g.map(function (x) { return x.a.doi_pt; }), [0]);
+  });
+
   /* ---------------- Man Duyet don tang: noi truoc con thieu gi ---------------- */
   function manDuyet(ct) {
     var goi = [], tin = [];

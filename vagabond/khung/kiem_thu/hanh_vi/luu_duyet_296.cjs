@@ -15,7 +15,7 @@ function ham(src, ten) {
 (async () => {
   for (const loi of [false, true]) {
     const goi = [], bao = [], di = [];
-    const c = vm.createContext({PB_PT:'Tiền mặt',d:{name:'SI296'},docO:()=>'',
+    const c = vm.createContext({PB_PT:'Tiền mặt',PB_DOI_PT:0,d:{name:'SI296'},docO:()=>'',
       busy:()=>{},toast:m=>bao.push(m),go:()=>di.push(1),scrPosDs:()=>{},
       api:async (m,p)=>{goi.push(m);if(loi)throw Error('Thiếu khách công nợ');return {ok:1};}});
     vm.runInContext(ham(fs.readFileSync(path.join(bep,'10-bill-quay.js'),'utf8'),'luuVe'),c);
@@ -23,6 +23,15 @@ function ham(src, ten) {
     assert.deepStrictEqual(goi,['vagabond.ban_hang.pos_luu_don']);
     assert.strictEqual(di.length,loi ? 0 : 1);
     assert(bao[0].includes(loi ? 'Thiếu khách công nợ' : 'Đã lưu đơn nháp'));
+  }
+  // v607 Codex #493 vòng 5: Lưu đơn, Chốt chỉ gửi doi_pt=1 khi thu ngân VỪA bấm chip phương thức.
+  for (const [doi, mong] of [[0, 0], [1, 1]]) {
+    const thamSo = [];
+    const c = vm.createContext({PB_PT:'Tiền mặt',PB_DOI_PT:doi,d:{name:'SI607'},docO:()=>'',
+      busy:()=>{},toast:()=>{},go:()=>{},scrPosDs:()=>{},api:async (m,p)=>{thamSo.push(p);return {ok:1};}});
+    vm.runInContext(ham(fs.readFileSync(path.join(bep,'10-bill-quay.js'),'utf8'),'luuVe'),c);
+    await c.luuVe(true); await c.luuVe(false);
+    assert.deepStrictEqual(thamSo.map(p=>p.doi_pt),[mong,mong]);
   }
   for (const truong of ['xong','loi','huy','api']) {
     const goi=[],bao=[];
@@ -70,5 +79,5 @@ function ham(src, ten) {
     await c.scrDoanhSo();
     assert.strictEqual(!!doc.body.querySelector('[data-ds="chot"]'),vai!=='Sales User');
   }
-  console.log('12/12 ca xử lý Lưu đơn, QR, Duyệt và quyền ghi sổ đạt');
+  console.log('14/14 ca xử lý Lưu đơn, QR, Duyệt, quyền ghi sổ và chip phương thức đạt');
 })().catch(e=>{console.error(e);process.exit(1);});
