@@ -651,10 +651,9 @@ def bot_theo_bi_mat(gui_len, bi_mat):
 # --------------------------------------------------------------- CHẠM HỆ
 
 def _bot_them():
-	try:
-		return [r.as_dict() for r in (frappe.get_single("Vagabond Settings").get("zalo_bot_phu") or [])]
-	except Exception:
-		return []
+	"""Dòng bảng Bot thêm. Lỗi đọc thì để lỗi đi lên (Codex #492): đoán bừa bot
+	chính là gửi bằng một bot không ở trong nhóm, Zalo từ chối và tin mất."""
+	return [r.as_dict() for r in (frappe.get_single("Vagabond Settings").get("zalo_bot_phu") or [])]
 
 
 def _mat(loai, bot=BOT_CHINH):
@@ -673,20 +672,17 @@ def _token(bot=BOT_CHINH):
 
 
 def _doc_chat_moi():
-	"""Đọc thẳng bảng (không qua bộ nhớ đệm) danh sách Chat vừa nhắn bot."""
-	try:
-		v = frappe.db.sql("select value from `tabSingles` where doctype='Vagabond Settings' and field='zalo_chat_moi'")
-		ds = json.loads((v[0][0] if v else None) or "[]")
-		return ds if isinstance(ds, list) else []
-	except Exception:
-		return []
+	"""Đọc thẳng bảng (không qua bộ nhớ đệm) danh sách Chat vừa nhắn bot. Lỗi đọc
+	thì để lỗi đi lên, xem _bot_chat."""
+	v = frappe.db.sql("select value from `tabSingles` where doctype='Vagabond Settings' and field='zalo_chat_moi'")
+	ds = json.loads((v[0][0] if v else None) or "[]")
+	return ds if isinstance(ds, list) else []
 
 
 def _bot_chat(chat_id):
-	try:
-		return bot_cua_chat(chat_id, _cac_nhom(), _doc_chat_moi(), cac_bot(_bot_them()))
-	except Exception:
-		return BOT_CHINH
+	"""Bot gửi vào chat này. Codex #492 (P2): KHÔNG nuốt lỗi đọc Cài đặt rồi đoán
+	bot chính; lỗi đi lên để _gui_zalo dừng trước khi gọi Zalo và trả về gửi lại."""
+	return bot_cua_chat(chat_id, _cac_nhom(), _doc_chat_moi(), cac_bot(_bot_them()))
 
 
 def _bat():
@@ -777,7 +773,16 @@ def chua_gui_di(e):
 def _gui_zalo(chat_id, tin):
 	# v606: mọi đường gửi (gửi ngay, xả giờ im, trả lời mã nhóm, gửi thử) đi qua
 	# đây, nên chọn bot ở đây theo một nguồn duy nhất bot_cua_chat.
-	tt, loi, _ = _goi("sendMessage", {"chat_id": str(chat_id), "text": tin}, _bot_chat(chat_id))
+	# Codex #492 (P2): chưa đọc được bot của nhóm thì chưa gửi gì, trả MANG_LOI để
+	# hàng đợi gửi lại sau, không gửi bằng bot khác (bot không ở trong nhóm thì Zalo
+	# từ chối, tin ghi Lỗi và mất). Lỗi làm chết giao dịch vẫn đi lên như mọi chỗ khác.
+	try:
+		bot = _bot_chat(chat_id)
+	except Exception as e:
+		if chet_giao_dich(e):
+			raise
+		return MANG_LOI, "Chưa đọc được bot gửi của nhóm (%s), máy sẽ gửi lại." % type(e).__name__
+	tt, loi, _ = _goi("sendMessage", {"chat_id": str(chat_id), "text": tin}, bot)
 	return tt, loi
 
 
@@ -1082,7 +1087,13 @@ def nhan():
 	quản trị gán vào nhóm; không lưu nội dung tin nhắn."""
 	bi_mat = {}
 	try:
-		for b in cac_bot(_bot_them()):
+		bi_mat[BOT_CHINH] = _mat("zalo_bi_mat", BOT_CHINH)
+	except Exception:
+		pass
+	try:
+		# Đọc bảng Bot thêm lỗi thì chỉ bot thêm không vào được lượt này (401, Zalo gọi
+		# lại sau); bot chính vẫn nhận như trước v606.
+		for b in cac_bot(_bot_them())[1:]:
 			bi_mat[b] = _mat("zalo_bi_mat", b)
 	except Exception:
 		pass
@@ -1176,6 +1187,8 @@ def _bao_noi(tt, goi_y, ten_bot="", bot=BOT_CHINH):
 def _bot_co_that(bot):
 	"""Số bot quản trị bấm phải là bot đang có (bot chính hoặc một dòng Bot thêm)."""
 	m = ma_bot(bot)
+	if m == BOT_CHINH:
+		return m
 	if m not in cac_bot(_bot_them()):
 		frappe.throw("Không thấy bot số %s trong bảng Bot thêm. Tải lại trang rồi thử lại." % m)
 	return m
