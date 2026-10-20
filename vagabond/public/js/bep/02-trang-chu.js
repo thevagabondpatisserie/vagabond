@@ -161,6 +161,8 @@ async function scrHome() {
          Hoàn tất để tra lại bill đã tặng. Nút Duyệt vẫn chỉ hiện với giám
          đốc, chặn thật ở máy chủ (hang_tang.duoc_duyet). */
       card('🎁', 'Sổ hàng tặng', 'Đơn tặng đã xong và đang chờ duyệt, xem lại bill, xuất Excel', 0, 'SOTANG') +
+      /* v607: khách nạp tiền trước rồi trừ dần qua nhiều đơn (55-so-du-tra-truoc.js). */
+      card('💳', 'Số dư trả trước của khách', 'Khách nạp tiền trước, các đơn sau trừ dần: nạp tiền, xem sổ, số dư còn lại', 0, 'SODU') +
       card('👥', 'Danh sách khách hàng', 'Tra cứu khách sỉ và lẻ, hạng khách, mức chi tiêu', 0, 'KH') +
       /* Don treo phai co mot cua rieng, khong nap trong man Doanh thu Sales:
          don treo cua NGAY CU khong ai mo lai ngay do de xem (anh Viet
@@ -547,11 +549,11 @@ var VGB_NHOM = [
   { k: 'KK', ten: 'Kiểm kê', icon: '🧮', keys: ['KK', 'STOCK', 'TONCHANG'] },
   {
     k: 'BH', ten: 'Bán hàng', icon: '🎂',
-    keys: ['KBD', 'KBM', 'POS', 'TQV', 'HDG', 'OTP', 'KM', 'CN', 'SOTANG', 'KH', 'DTREO', 'PHHUY', 'BNTM'],
+    keys: ['KBD', 'KBM', 'POS', 'TQV', 'HDG', 'OTP', 'KM', 'CN', 'SOTANG', 'SODU', 'KH', 'DTREO', 'PHHUY', 'BNTM'],
     nhom: [
       { t: 'Bán và thu tiền', p: 'việc của quầy', keys: ['POS', 'DTREO', 'BNTM'] },
       { t: 'Bánh và tồn', p: 'đầu ngày', keys: ['KBD', 'KBM'] },
-      { t: 'Khách hàng', p: 'chăm sóc và công nợ', keys: ['TQV', 'KH', 'CN', 'SOTANG'] },
+      { t: 'Khách hàng', p: 'chăm sóc và công nợ', keys: ['TQV', 'KH', 'CN', 'SOTANG', 'SODU'] },
       { t: 'Chương trình và hợp đồng', p: '', keys: ['KM', 'HDG'] },
       { t: 'Quản lý', p: 'ít dùng', keys: ['OTP', 'PHHUY'] }
     ]
@@ -1847,6 +1849,7 @@ var VGB_DUONG = {
   'quyen-quay': 'CDQQ',
   'san-xuat': 'MFG',
   'sepay': 'CDSE',
+  'so-du-tra-truoc': 'SODU',
   'so-tay': 'SOTAY',
   'tai-khoan-cua-toi': 'ACC',
   'tai-khoan-ke-toan': 'CDTK',
@@ -2008,6 +2011,7 @@ function vgbGo(k) {
   if (k === 'DSTTNB') return go(scrTTNB);
   if (k === 'DUYETTANG') { dtgChang = ''; return go(scrDuyetTang); }
   if (k === 'SOTANG') { dtgChang = 'hoan_tat'; return go(scrDuyetTang); }
+  if (k === 'SODU') return go(scrSoDuTraTruoc);
   if (k === 'HDMUA') return go(scrHdMua);
   if (k === 'DCM') return go(scrDoiChieuMua);
   if (k && k.indexOf('BC:') === 0) { bcMa = k.slice(3); return go(scrBaoCaoXem); }
