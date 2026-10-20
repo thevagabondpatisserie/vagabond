@@ -144,6 +144,21 @@ def gom_huy_sua(dong):
 	return {"so": len(huy), "tien": sum(huy.values())}, sua
 
 
+DIEM_CHUA_KHAI = "Quầy chưa khai trong Cài đặt"
+
+
+def dong_quay_chua_khai(diem, tong, so_hd, giam):
+	"""THUẦN (Codex #492 P2 4326539769): BC01 chỉ trả các điểm bán đã khai, nên
+	hoá đơn mang mã quầy lạ nằm trong tổng mà rơi khỏi bảng điểm. Trả một dòng
+	phần còn lại để bảng điểm cộng đúng bằng tổng; không còn thì trả None."""
+	con = int(so_hd or 0) - sum(int(d.get("so_hd") or 0) for d in diem)
+	if con <= 0:
+		return None
+	return {"ten": DIEM_CHUA_KHAI, "so_hd": con, "truoc": 0,
+		"tien": float(tong or 0) - sum(float(d.get("tien") or 0) for d in diem),
+		"giam": float(giam or 0) - sum(float(d.get("giam") or 0) for d in diem)}
+
+
 def can_de_y(sl):
 	"""THUẦN: các dòng "Cần để ý" theo ngưỡng ở đầu tệp."""
 	ra = []
@@ -271,6 +286,13 @@ def lay_so_lieu(ngay):
 	cu = {d["diem"]: d["tien"] for d in bc._bc_tong_doanh_thu(hd_truoc)["dong"]}
 	diem = [{"ten": d["diem"], "tien": d["tien"], "so_hd": d["so_hd"], "giam": d["giam"],
 		"truoc": cu.get(d["diem"], 0)} for d in tong_dt]
+	# Tổng và giảm giá cộng thẳng từ hoá đơn (như màn Báo cáo), không cộng từ các
+	# điểm bán: hoá đơn mang mã quầy lạ vẫn phải nằm trong tổng và tiền giảm.
+	tong = sum(float(r.get("grand_total") or 0) for r in hd)
+	giam = sum(float(r.get("discount_amount") or 0) for r in hd)
+	du = dong_quay_chua_khai(diem, tong, len(hd), giam)
+	if du:
+		diem.append(du)
 	km = bc._bc_khuyen_mai(hd, tu=ngay, den=ngay)["dong"]
 	sh = bc._bc_sua_huy(hd, tu=ngay, den=ngay)["dong"]
 	huy, sua = gom_huy_sua(sh)
@@ -278,14 +300,12 @@ def lay_so_lieu(ngay):
 	so_nhap, tien_nhap = bc._do_nhap(hd)
 	return {
 		"ngay": ngay, "ngay_truoc": truoc,
-		# Tổng cộng thẳng từ hoá đơn (như màn Báo cáo), không cộng từ các điểm bán:
-		# hoá đơn mang mã quầy lạ vẫn phải nằm trong tổng.
-		"tong": sum(float(r.get("grand_total") or 0) for r in hd), "so_hd": len(hd),
+		"tong": tong, "so_hd": len(hd),
 		"tong_truoc": sum(float(r.get("grand_total") or 0) for r in hd_truoc),
 		"diem": diem,
 		"kenh": [(d["nguon"], d["tien"]) for d in bc._bc_nguon_don(hd)["dong"]],
 		"thanh_toan": [(d["pt"], d["tien"]) for d in bc._bc_thanh_toan(hd)["dong"]],
-		"giam": sum(float(d["giam"] or 0) for d in diem),
+		"giam": giam,
 		"ctkm": {"tien": sum(float(d["giam"] or 0) for d in km), "luot": sum(int(d["so_lan"] or 0) for d in km),
 			"top": (km[0]["ctkm"], km[0]["giam"]) if km else None},
 		"huy": huy,
