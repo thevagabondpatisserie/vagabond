@@ -873,7 +873,9 @@ def _km_giam_quay(items, ctkm_ap, ma_voucher, combo_ap, quay, nguon, khach, sdt,
 	Dung DUNG duong ma tao_don_tay dung, de con so hien tren man tinh tien
 	khong lech voi con so cuoi cung tren hoa don.
 	"""
-	if not (ctkm_ap or combo_ap or (ma_voucher or "").strip()):
+	# v607: khách có hạng giảm giá thì vẫn phải tính dù không chọn chương
+	# trình nào, đúng như tao_don_tay (ưu đãi hạng nằm trong khuyen_mai.tinh).
+	if not (ctkm_ap or combo_ap or (ma_voucher or "").strip() or khach):
 		return 0.0
 	try:
 		from vagabond import khuyen_mai as _km

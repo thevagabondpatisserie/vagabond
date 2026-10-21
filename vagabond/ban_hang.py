@@ -4558,7 +4558,12 @@ def tao_don_tay(
 	# Tinh trên gio hang GOC (chua co phi giao) - khong ai duoc giam gia
 	# tren phi ship.
 	km_kq, km_giam = None, 0.0
-	if ctkm_ap or combo_ap or (ma_voucher or "").strip():
+	# v607 (anh Việt 21/10/2026): khách chọn qua số điện thoại (khach_ma) có
+	# hạng giảm giá thì cũng phải tính, kể cả khi không chọn chương trình nào.
+	# Trước đây chỉ truyền khach_no nên cả ưu đãi hạng lẫn chương trình "Theo
+	# hạng khách" không bao giờ thấy khách vừa nhập số điện thoại.
+	khach_km = khach_no or khach_ma or None
+	if ctkm_ap or combo_ap or (ma_voucher or "").strip() or khach_km:
 		from vagabond import khuyen_mai as _km
 
 		# Codex #460: cùng giao thức giữ lượt với đơn web (khoá chương trình,
@@ -4571,7 +4576,7 @@ def tao_don_tay(
 			combo=combo_ap,
 			quay=quay,
 			nguon=nguon,
-			khach=khach_no or None,
+			khach=khach_km,
 			sdt=dien_thoai,
 			ngay=ngay,
 		)
