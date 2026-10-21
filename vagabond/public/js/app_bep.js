@@ -27118,7 +27118,11 @@ function posKmChuKy() {
 }
 
 async function posTinhKm() {
-  var coGi = (posDon.ctkm && posDon.ctkm.length) || (posDon.combo && posDon.combo.length) || posDon.maVc;
+  /* v607 (anh Viet 21/10/2026): da chon khach (go so dien thoai hoac chon
+     khach cong no) thi cung phai hoi may chu: khach hang Ambassador, Family...
+     duoc giam theo hang ngay ca khi khong chon chuong trinh nao. */
+  var coGi = (posDon.ctkm && posDon.ctkm.length) || (posDon.combo && posDon.combo.length) || posDon.maVc ||
+    (posDon.khach_no && posDon.khach_no.ma) || posDon.khach_ma;
   if (!coGi || !(posDon.mon || []).length) { posDon.kmKq = null; return; }
   var ck = posKmChuKy();
   if (posDon.kmKq && posDon.kmKq.ck === ck) return;
@@ -27159,10 +27163,13 @@ function posKhoiKm() {
     html += '<div style="background:#f0fdfa;border:1.5px solid #7fe5f6;border-radius:9px;padding:9px 11px;margin-bottom:7px">';
     (kq.ap || []).forEach(function (a) {
       html += '<div style="display:flex;align-items:flex-start;gap:6px;padding:3px 0;font-size:13px">' +
-        '<span style="flex:1;min-width:0">' + (a.loai === 'combo' ? '🧺 ' : '🎫 ') + '<b>' + h(a.ten) + '</b>' +
+        '<span style="flex:1;min-width:0">' + (a.loai === 'combo' ? '🧺 ' : (a.loai === 'hang' ? '⭐ ' : '🎫 ')) + '<b>' + h(a.ten) + '</b>' +
         (a.dien_giai ? '<div style="font-size:11.5px;color:#0b7c93;margin-top:1px">' + h(a.dien_giai) + '</div>' : '') + '</span>' +
         '<b style="flex:none;color:#0f766e">−' + money(a.giam) + ' đ</b>' +
-        '<button data-kmbo="' + h(a.ma) + '" data-l="' + h(a.loai) + '" style="flex:none;border:0;background:transparent;color:#b3261e;font-size:15px;cursor:pointer;padding:0 2px">✕</button></div>';
+        /* Uu dai hang di theo khach, khong phai chuong trinh thu ngan chon:
+           khong co nut bo. Muon bo thi bo chon khach. */
+        (a.loai === 'hang' ? '' :
+          '<button data-kmbo="' + h(a.ma) + '" data-l="' + h(a.loai) + '" style="flex:none;border:0;background:transparent;color:#b3261e;font-size:15px;cursor:pointer;padding:0 2px">✕</button>') + '</div>';
     });
     html += '</div>';
   }
@@ -27461,6 +27468,38 @@ function posNoiTimKhach() {
   /* Bam vao o la xo luon danh sach khach gan day, khoi phai nho ten. */
   o.onfocus = function () { tim(o.value.trim()); };
   o.onblur = function () { setTimeout(dong, 220); };
+  /* v607 (anh Viet 21/10/2026): thu ngan go thang so dien thoai vao o "So
+     dien thoai" ma khong chon khach trong danh sach thi truoc day hoa don
+     khong biet khach la ai: khong tich diem, khong giam theo hang. Nay go
+     xong so (roi o) ma DUNG MOT ho so khach co so do thi tu gan khach, hien
+     the hang ngay tren man. Nhieu ho so cung so thi khong doan, de thu ngan
+     chon o tren. */
+  var oS = document.getElementById('posSdt');
+  if (oS) oS.onchange = function () { posGanKhachTheoSdt(oS.value); };
+}
+
+/* So dien thoai Viet Nam ve 9 so cuoi de so khop: bo dau cach, bo +84/84/0. */
+function posDuoiSdt(s) {
+  var so = String(s || '').replace(/\D/g, '');
+  return so.length >= 9 ? so.slice(-9) : '';
+}
+
+async function posGanKhachTheoSdt(gt) {
+  posDoc();
+  if (posDon.khach_ma || (posDon.khach_no && posDon.khach_no.ma)) return;
+  var duoi = posDuoiSdt(gt);
+  if (!duoi) return;
+  var kq;
+  try { kq = await api('vagabond.cong_no.tim_khach', { tu_khoa: duoi }); } catch (e) { return; }
+  var khop = ((kq && kq.khach) || []).filter(function (k) { return posDuoiSdt(k.mobile_no) === duoi; });
+  if (khop.length !== 1) return;
+  /* Trong luc cho may chu, thu ngan co the da chon khach khac: khong de. */
+  if (posDon.khach_ma || (posDon.khach_no && posDon.khach_no.ma)) return;
+  posDiemDat();
+  posDon.khach_ma = khop[0].name;
+  posDon.ten = khop[0].customer_name || khop[0].name;
+  posDon.kmKq = null;
+  go(scrPosQuay, true);
 }
 
 /* Chuong trinh nao bat buoc OTP quan ly thi hoi ma ngay truoc khi luu.
@@ -41508,6 +41547,11 @@ async function scrNguoiDungXem(email) {
   html += '<div class="card" style="padding:4px 14px 10px">' +
     o('Bộ phận', d.bo_phan_ten || 'Chưa gắn bộ phận') +
     (d.bo_phan_bep ? '<div style="font-size:12.5px;color:#6b7280;padding:2px 0 8px">Thấy phiếu sản xuất của ' + h(d.bo_phan_bep) + '.</div>' : '') +
+    /* v607 (De 21/10/2026): kho phu trach quyet dinh nguoi nay thay va xac
+       nhan hang chuyen ve kho nao. Truoc day chi sua duoc tren Desk. */
+    ((d.kho_chon_duoc || []).length || (d.kho_phu_trach || []).length
+      ? o('Kho phụ trách', (d.kho_phu_trach || []).length ? d.kho_phu_trach.map(qndTenKho).join(', ') : 'Chưa khai kho nào')
+      : '') +
     o('Số điện thoại', d.sdt) +
     o('Vào app lần cuối', d.lan_cuoi ? hsNgayVn(String(d.lan_cuoi).slice(0, 10)) : 'Chưa đăng nhập lần nào') +
     o('Tạo tài khoản', d.tao_luc ? hsNgayVn(String(d.tao_luc).slice(0, 10)) : '') +
@@ -41539,6 +41583,7 @@ async function scrNguoiDungXem(email) {
 
   html += '<button class="btn" id="qndDoiGoi">🗝 Đổi gói chức vụ</button>' +
     (coDoiBp ? '<button class="btn gh" id="qndDoiBp">🏷 Đổi bộ phận</button>' : '') +
+    ((d.kho_chon_duoc || []).length ? '<button class="btn gh" id="qndDoiKho">🏬 Đổi kho phụ trách</button>' : '') +
     '<button class="btn gh" id="qndThu">✉️ Gửi lại thư mời đặt mật khẩu</button>' +
     '<button class="btn gh" id="qndChiTiet">🔧 Chỉnh từng quyền một</button>' +
     (d.la_toi ? '' : '<button class="btn ' + (d.bat ? 'dg' : 'gh') + '" id="qndBatTat">' + (d.bat ? '🚫 Tắt tài khoản này' : '✅ Bật lại tài khoản') + '</button>');
@@ -41579,6 +41624,25 @@ async function scrNguoiDungXem(email) {
     go(function () { scrNguoiDungXem(d.email); }, true);
   };
 
+  var nutKho = document.getElementById('qndDoiKho');
+  if (nutKho) nutKho.onclick = async function () {
+    var KHONG = '__khong_kho__';
+    var ds = [{ k: KHONG, nhan: 'Không phụ trách kho nào', mo_ta: 'Bỏ hết kho đang khai. Người này không còn thấy hàng chuyển về và không xác nhận nhận hàng được.', icon: '🚫' }]
+      .concat(d.kho_chon_duoc || []);
+    var chon = await hoiChonNhieu('Kho phụ trách của ' + d.ten,
+      'Chọn một hoặc nhiều kho. Người này sẽ thấy và xác nhận hàng chuyển về các kho đó, và được xuất hàng từ đó. Gói chức vụ và quyền giữ nguyên.',
+      ds, d.kho_phu_trach || [], 'Lưu kho');
+    if (!chon || !chon.length) return;
+    var kho = chon.filter(function (k) { return k !== KHONG; });
+    if (chon.indexOf(KHONG) >= 0 && kho.length) return toast('Đã chọn "Không phụ trách kho nào" thì không chọn thêm kho. Chọn lại.', 5000);
+    busy(true);
+    try {
+      var kq = await api('vagabond.nguoi_dung.dat_kho_phu_trach', { email: d.email, kho: JSON.stringify(kho) });
+      busy(false); toast(kq.loi_nhan, 4500);
+    } catch (er) { busy(false); return baoTin((er && er.message) || 'Đổi kho lỗi'); }
+    go(function () { scrNguoiDungXem(d.email); }, true);
+  };
+
   document.getElementById('qndThu').onclick = async function () {
     if (!await hoiCo('Gửi thư mời', 'Gửi lại thư hướng dẫn đặt mật khẩu tới ' + d.email + '?', 'Gửi')) return;
     busy(true);
@@ -41602,6 +41666,12 @@ async function scrNguoiDungXem(email) {
   };
 }
 
+
+/* Ten kho khong co duoi cong ty, cung phep voi nguoi_dung.ten_ngan_kho. */
+function qndTenKho(t) {
+  t = String(t || '').trim();
+  return t.replace(/ - TVD$/, '').replace(/ - TV$/, '');
+}
 
 /* Che do chi tiet. Co y de sau mot lop vi 99% truong hop khong can toi. */
 function qndSuaLe(d) {
