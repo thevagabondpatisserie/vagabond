@@ -2412,3 +2412,16 @@ không bắt vì tên `scrSoDuNap` không khớp mẫu Tao/New/Lap/Nhap. Khắc 
 sập nguồn rồi mở lại. Bài học: ca kiểm đỏ vì phần mới thì đọc lý do nó canh
 gì trước khi nới; phần mới có màn lập phiếu là phải có bản nháp, không phải
 chỉ được phép đứng chỗ đó.
+
+### v607 (Codex #493 vòng 6): khối lưu riêng xong mà chế độ sửa còn nhớ lựa chọn cũ
+
+Triệu chứng: Bill quầy đang Sửa hoá đơn, bấm chip Số dư trả trước rồi áp số dư
+một phần trong khối riêng. Máy chủ đã tách đơn, nhưng `posSua` vẫn giữ phương
+thức và dấu "vừa bấm chip" của lần trước; bấm Lưu thay đổi là gửi lại lựa chọn
+cũ và máy chủ bỏ bảng tách vừa áp. Cùng vòng: Doanh thu Sales chọn Số dư trả
+trước rồi Lưu thì cửa lưu ghi thẳng bằng `set_value`, bỏ qua hook kiểm khách
+và số dư. Khắc phục: khối riêng lưu xong gọi một hàm chung xoá lựa chọn tạm của
+chế độ sửa để màn đọc lại từ đơn; chọn Số dư trả trước luôn đi đường Document.
+Bài học: trạng thái tạm của một chế độ (sửa, nháp) phải được xoá ở MỌI lối lưu
+làm đổi đúng ô đó trên máy chủ, kể cả lối lưu của khối con; và ô có hook kiểm
+thì không được ghi bằng `set_value`.
