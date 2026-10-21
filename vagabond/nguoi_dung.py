@@ -683,6 +683,110 @@ def chi_tiet(email):
 		"bo_phan_bep": bep_cua_bo_phan(bo_phan),
 		# Site chua co o Bo phan tren User thi khong moi doi (khong ve nut).
 		"bo_phan_chon_duoc": cac_bo_phan_chon(_bo_phan_co_that()) if _co_o_bo_phan() else [],
+		# v607 (De 21/10/2026): kho phu trach doi ngay tren app, khong phai vao Desk.
+		"kho_phu_trach": _kho_phu_trach_cua(email),
+		"kho_chon_duoc": cac_kho_chon(_kho_co_that()) if _co_o_kho_phu_trach() else [],
+	}
+
+
+# ------------------------------------------------------------ kho phu trach
+#
+# O `custom_kho_phu_trach` tren User (Small Text, ten kho cach nhau dau phay)
+# la o ma xuat_kho._kho_phu_trach, nhan_dieu_chuyen, giao_viec va viec_can_lam
+# cung doc. Truoc v607 chi sua duoc tren Desk, ma cau bao loi tren app lai chi
+# sang "man Quan ly nguoi dung" (De 21/10/2026: man do khong co cho nao de khai).
+
+O_KHO = "custom_kho_phu_trach"
+
+
+def tach_kho(chuoi):
+	"""Chuoi "Kho A, Kho B" thanh danh sach ten kho, bo trung, giu thu tu. THUAN."""
+	ra = []
+	for x in str(chuoi or "").split(","):
+		t = x.strip()
+		if t and t not in ra:
+			ra.append(t)
+	return ra
+
+
+def ten_ngan_kho(ten):
+	"""Bo duoi cong ty: "Kho Hàng Hoá - TV" thanh "Kho Hàng Hoá". THUAN."""
+	t = str(ten or "").strip()
+	for duoi in (" - TVD", " - TV"):
+		if t.endswith(duoi):
+			return t[: -len(duoi)]
+	return t
+
+
+def cac_kho_chon(ds):
+	"""Lua chon kho cho hop chon: ten co dau, dong giai thich, khoa la ten day du. THUAN."""
+	ra = []
+	for k in ds or []:
+		ra.append({
+			"k": k,
+			"nhan": ten_ngan_kho(k),
+			"mo_ta": "Thấy và xác nhận hàng chuyển về kho này; được xuất hàng từ kho này.",
+		})
+	return ra
+
+
+def _kho_phu_trach_cua(email):
+	try:
+		return tach_kho(frappe.db.get_value("User", email, O_KHO))
+	except Exception:
+		return []
+
+
+def _co_o_kho_phu_trach():
+	try:
+		return bool(frappe.get_meta("User").has_field(O_KHO))
+	except Exception:
+		return False
+
+
+def _kho_co_that():
+	"""Kho la vi tri that (khong phai nhom), chua tat, moi cong ty."""
+	return frappe.get_all(
+		"Warehouse", filters={"is_group": 0, "disabled": 0}, pluck="name",
+		order_by="name", limit_page_length=0,
+	)
+
+
+@frappe.whitelist()
+def dat_kho_phu_trach(email, kho=None):
+	"""Doi danh sach kho mot nguoi phu trach (De 21/10/2026).
+
+	`kho`: ten kho cach nhau dau phay, hoac JSON list; rong la bo het. Ghi
+	THANG bang db.set_value nhu dat_bo_phan: luu ca tai lieu User la khung
+	dung lai vai tu bo vai mau (xem _go_bo_vai_mau).
+	"""
+	_kiem("đổi kho phụ trách")
+	if email in BO_QUA_USER:
+		frappe.throw("Không đụng vào tài khoản hệ thống được.")
+	u = frappe.db.get_value("User", email, ["name", "full_name"], as_dict=True)
+	if not u:
+		frappe.throw("Không thấy tài khoản %s." % email)
+	if not _co_o_kho_phu_trach():
+		frappe.throw("Tài khoản người dùng trên site này chưa có ô Kho phụ trách. Báo quản trị hệ thống thêm ô đó rồi đổi lại.")
+	if isinstance(kho, str) and kho.strip().startswith("["):
+		kho = json.loads(kho)
+	ds = tach_kho(", ".join(kho) if isinstance(kho, (list, tuple)) else kho)
+	co_that = set(_kho_co_that())
+	la = [k for k in ds if k not in co_that]
+	if la:
+		frappe.throw("Không có kho %s. Chọn kho trong danh sách." % ", ".join(la))
+	cu = _kho_phu_trach_cua(email)
+	frappe.db.set_value("User", email, O_KHO, ", ".join(ds), update_modified=False)
+	ten_cu = ", ".join(ten_ngan_kho(k) for k in cu) or "chưa khai"
+	ten_moi = ", ".join(ten_ngan_kho(k) for k in ds) or "không kho nào"
+	_ghi_vet("Đổi kho phụ trách %s: %s thành %s" % (email, ten_cu, ten_moi))
+	return {
+		"ok": 1,
+		"kho": ds,
+		"loi_nhan": "Đã ghi %s phụ trách %s.%s" % (
+			u.full_name or email, ten_moi,
+			" Lần mở app tới sẽ thấy hàng chuyển về kho đó." if ds else "",
+		),
 	}
 
 

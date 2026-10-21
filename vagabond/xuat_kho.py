@@ -679,6 +679,14 @@ def _gio_hhmm(v):
 	return "%02d:%02d" % (cint(p[0]), cint(p[1]))
 
 
+# v607 (De 21/10/2026): truoc day cau bao chi "Bao anh Viet khai giup o man
+# Quan ly nguoi dung" ma man do khong co cho khai. Nay co nut rieng.
+CHI_DUONG_KHO = (
+	"Nhờ người quản lý người dùng (quản lý cửa hàng hoặc anh Việt) mở Quản lý "
+	"người dùng, bấm vào tên bạn, bấm Đổi kho phụ trách và chọn kho."
+)
+
+
 def _kho_phu_trach(nguoi=None):
 	"""Cac kho nguoi nay phu trach, doc tu o Kho phu trach tren User."""
 	nguoi = nguoi or frappe.session.user
@@ -701,8 +709,8 @@ def hang_chuyen_ve(so_ngay=14, kho=None):
 	if kho:
 		if kho not in cua_toi:
 			frappe.throw(
-				"Kho này không nằm trong các kho bạn phụ trách. Cần xem kho khác "
-				"thì báo anh Việt khai thêm ở màn Quản lý người dùng."
+				"Kho này không nằm trong các kho bạn phụ trách. Cần xem kho khác thì "
+				"khai thêm kho đó. " + CHI_DUONG_KHO
 			)
 		cua_toi = [kho]
 	if not cua_toi:
@@ -711,7 +719,7 @@ def hang_chuyen_ve(so_ngay=14, kho=None):
 			"co_kho": 0,
 			"ds": [],
 			"nhac": "Tài khoản của bạn chưa khai Kho phụ trách nên máy chưa biết "
-			"lấy hàng về kho nào. Báo anh Việt khai giúp ở màn Quản lý người dùng.",
+			"lấy hàng về kho nào. " + CHI_DUONG_KHO,
 		}
 
 	tu = add_days(nowdate(), -so_ngay)
