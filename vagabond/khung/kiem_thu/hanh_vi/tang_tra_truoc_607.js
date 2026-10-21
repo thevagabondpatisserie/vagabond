@@ -626,7 +626,9 @@ function chuTrongKhoi(k) { return k.tl.getElementById('pbTgForm').innerHTML; }
     vm.runInContext([
       'var posDon = { mon: [{ item_code: "BANH", qty: 1, rate: 700000 }], ctkm: [], combo: [], maVc: "", khach_ma: "", khach_no: null, sdt: "", ten: "", kmKq: null };',
       'var posQuay = { ma: "TCV" }; var __ve = 0;',
-      'function posNguonThuc() { return "Tại chỗ"; } function posDoc() {}',
+      'function posNguonThuc() { return "Tại chỗ"; }',
+      /* posDoc that doc o So dien thoai vao posDon.sdt; o day doc dung o do (co thi doc). */
+      'function posDoc() { var o = document.getElementById("posSdt"); if (o) posDon.sdt = o.value; }',
       'function scrPosQuay() {} function go() { __ve++; } function toast() {}',
       'function h(s) { return String(s == null ? "" : s); } function money(x) { return String(x); }',
       'function posChipNut(a, t) { return "<button " + a + ">" + t + "</button>"; }',
@@ -640,6 +642,7 @@ function chuTrongKhoi(k) { return k.tl.getElementById('pbTgForm').innerHTML; }
 
   await ca('v607 ưu đãi hạng: gõ số điện thoại khớp đúng một hồ sơ thì tự gắn khách', async function () {
     var k = khoiKm(MOT);
+    k.g.posDon.sdt = '0901 234 567'; /* ô Số điện thoại đang mang đúng số vừa rời */
     await k.g.posGanKhachTheoSdt('0901 234 567');
     bang('gắn khách', [k.g.posDon.khach_ma, k.g.posDon.ten], ['KL013432', 'Chị Ambassador']);
     bang('vẽ lại màn một lần', k.g.__ve, 1);
@@ -670,6 +673,46 @@ function chuTrongKhoi(k) { return k.tl.getElementById('pbTgForm').innerHTML; }
     k.g.posDon.khach_ma = 'KL099999';
     await k.g.posGanKhachTheoSdt('0901234567');
     bang('đã chọn khách: giữ khách đã chọn', k.g.posDon.khach_ma, 'KL099999');
+  });
+
+  await ca('v607 ưu đãi hạng (Codex vòng 9): sửa số trong lúc chờ máy chủ thì câu trả lời cũ không được gắn khách', async function () {
+    /* Chuỗi của thu ngân: gõ số A, rời ô (hỏi máy chủ, chưa về), sửa thành số B,
+       rời ô (hỏi lần hai). Câu trả lời của B về TRƯỚC, câu của A về SAU. Khách
+       phải là của B. Trước sửa: A về sau thấy đã có khách nên bỏ, nhưng nếu B
+       chưa khớp ai (số lạ) thì A gắn nhầm khách A vào đơn mang số B. */
+    var treo = {};
+    var k = khoiKm(MOT);
+    k.mc.api = (function (goc) {
+      return function (m, a) {
+        if (m === 'vagabond.cong_no.tim_khach') {
+          k.mc.goi.push({ m: m, a: a });
+          return new Promise(function (res) { treo[a.tu_khoa] = function () { res({ khach: MOT }); }; });
+        }
+        return goc(m, a);
+      };
+    })(k.mc.api);
+    var tl = k.g.document;
+    var vung = tl.createElement('div');
+    vung.innerHTML = '<input id="posSdt">';
+    tl.body.appendChild(vung);
+    var o = tl.getElementById('posSdt');
+    o.value = '0901234567';
+    var pA = k.g.posGanKhachTheoSdt(o.value);
+    o.value = '0912 000 000';
+    var pB = k.g.posGanKhachTheoSdt(o.value);
+    await nghi();
+    bang('hỏi máy chủ hai lần, đúng hai số', k.mc.cac('vagabond.cong_no.tim_khach').map(function (c) { return c.a.tu_khoa; }), ['901234567', '912000000']);
+    treo['912000000'](); await pB; await nghi();
+    bang('số B lạ: chưa gắn ai', k.g.posDon.khach_ma, '');
+    treo['901234567'](); await pA; await nghi();
+    bang('câu trả lời cũ của A về sau: KHÔNG gắn khách A vào đơn mang số B', k.g.posDon.khach_ma, '');
+    bang('không vẽ lại màn', k.g.__ve, 0);
+    /* Ngược lại: số không đổi thì câu trả lời về muộn vẫn gắn bình thường. */
+    o.value = '0901234567';
+    var pC = k.g.posGanKhachTheoSdt(o.value);
+    await nghi();
+    treo['901234567'](); await pC; await nghi();
+    bang('số không đổi: gắn đúng khách A', k.g.posDon.khach_ma, 'KL013432');
   });
 
   await ca('v607 ưu đãi hạng: đã có khách thì hỏi máy chủ tính giảm dù không chọn chương trình, dòng hạng không có nút bỏ', async function () {
