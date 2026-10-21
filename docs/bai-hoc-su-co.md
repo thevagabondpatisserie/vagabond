@@ -2432,7 +2432,11 @@ Triệu chứng: Bill quầy đang Sửa hoá đơn, thêm món chưa lưu rồi
 phần. `ap_dung` tách theo tổng cũ trên máy chủ; Lưu thay đổi tính lại tổng
 mới nhưng hai dòng vẫn cộng ra tổng cũ, tới lúc ghi sổ bị chặn lệch tổng. Cùng
 lỗi xảy ra khi đơn đã áp số dư rồi sửa món ở bất kỳ lần nào sau đó. Khắc phục:
-hook validate chỉnh lại bảng tách đúng dạng `ap_dung` dựng (một dòng số dư, một
-dòng khác): giữ phần trừ số dư, phần còn lại theo tổng mới. Bài học: bảng dòng
-tiền máy tự dựng từ tổng đơn phải được dựng lại mỗi khi tổng đơn đổi, không chỉ
-ở lúc tạo; chặn lúc ghi sổ là lưới cuối, không phải cách sửa.
+hook validate chỉnh lại bảng tách do `ap_dung` dựng: giữ phần trừ số dư, phần
+còn lại theo tổng mới. Vòng 8 (Codex): bản đầu nhận bảng theo HÌNH DẠNG (hai
+dòng, một dòng số dư) nên bảng kế toán nhập tay cùng hình dạng cũng bị viết lại,
+ghi sổ thu tiền mặt chưa hề thu. Sửa: `ap_dung` ghi dấu bền `vgb_ky_tach_so_du`,
+hook chỉ chỉnh khi bảng còn đúng dấu, nhập tay thì xoá dấu. Bài học: bảng dòng
+tiền máy tự dựng từ tổng đơn phải được dựng lại mỗi khi tổng đơn đổi; và việc
+máy tự sửa số tiền phải dựa trên dấu nguồn gốc bền, không bao giờ suy từ hình
+dạng dữ liệu, vì người nhập tay có thể tạo ra đúng hình dạng đó.
