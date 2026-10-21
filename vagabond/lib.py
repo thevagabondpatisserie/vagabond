@@ -25,6 +25,26 @@ def nhan_trang_thai_pancake(trang_thai, ten_trang_thai=None):
 	return {"nhan": nhan, "mau": mau}
 
 
+def aha_url(base, duong_dan):
+	"""Ghép địa chỉ gọi Ahamove từ ô Vagabond Settings. THUẦN.
+
+	Ngày 21/10/2026 web mất phí giao suốt hai tuần vì ô cài đặt được điền
+	"https://partner-api.ahamove.com/v3" trong khi mã tự nối "/v3/...", thành
+	".../v3/v3/accounts/token" và Ahamove trả 404. Ô cài đặt là chỗ người điền
+	tay, nên MỘT hàm này chịu mọi kiểu điền: có hay không dấu "/" cuối, có hay
+	không đuôi "/v3", có khoảng trắng. Mọi chỗ gọi Ahamove đều đi qua đây.
+	"""
+	b = (base or "").strip().rstrip("/")
+	while b.lower().endswith("/v3"):
+		b = b[:-3].rstrip("/")
+	d = (duong_dan or "").strip()
+	if not d.startswith("/"):
+		d = "/" + d
+	if not d.startswith("/v3/") and d != "/v3":
+		d = "/v3" + d
+	return b + d
+
+
 import frappe
 
 GOONG = "https://rsapi.goong.io"
