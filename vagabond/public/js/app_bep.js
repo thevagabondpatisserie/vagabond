@@ -18338,7 +18338,18 @@ async function scrPosDs() {
    cua khach nen mac dinh KHOA HET - xem thi duoc, sua thi phai bam nut Sua
    hoa don va co ma OTP cua quan ly. Rieng hoa don con TAM TINH (khach chua
    tra tien) thi cashier van chot binh thuong, do la nghiep vu hang ngay. */
-var posSua = null; /* {name, otp, mon[], giam, pt, mtc, ghi_chu, so_ban, xh} */
+var posSua = null; /* {name, otp, mon[], giam, pt, mtc, ghi_chu, so_ban, xh, doiPt} */
+
+/* v607 Codex #493 vong 6: luu xong o khoi rieng (Ap so du tra truoc, Luu don
+   tang) thi phuong thuc tren may chu da doi. Che do sua hoa don con giu
+   posSua.pt va posSua.doiPt cua lan bam chip truoc: lan Luu thay doi sau se
+   gui lai doi_pt=1 va may chu bo bang tach vua ap. Xoa hai o do de man doc
+   phuong thuc moi tu don va khong gui lai lua chon cu. */
+function pbXongKhoiRieng(name) {
+  posHomNayTxt = null;
+  if (posSua && posSua.name === name) { posSua.pt = ''; posSua.doiPt = 0; }
+  go(function () { scrPosBill(name); }, true);
+}
 /* Khoi "Hang tang khong thu tien" tren man bill.
 
    Ba viec: noi ro don nay dang o dau trong luong duyet, cho nguoi lap chon
@@ -18897,10 +18908,7 @@ async function scrPosBill(name) {
     /* Khoi Hang tang chi nap danh sach ly do khi THUC SU chon Hang tang. */
     if (PB_PT === 'Hàng tặng' && !pbTangDaGan && document.getElementById('pbTgForm')) {
       pbTangDaGan = true;
-      tangGan('pb', d, function () { return docO('pbGhiChu'); }, function () {
-        posHomNayTxt = null;
-        go(function () { scrPosBill(d.name); }, true);
-      });
+      tangGan('pb', d, function () { return docO('pbGhiChu'); }, function () { pbXongKhoiRieng(d.name); });
     }
     ['pbLuuPt', 'pbChot'].forEach(function (id) {
       var n = document.getElementById(id);
@@ -18909,10 +18917,7 @@ async function scrPosBill(name) {
     var os = document.getElementById('pbSoDu');
     if (os) {
       os.style.display = PB_PT === 'Số dư trả trước' ? 'block' : 'none';
-      if (PB_PT === 'Số dư trả trước') sdtKhoiDon('pb', d, dsPt.map(function (p) { return p.v; }), function () {
-        posHomNayTxt = null;
-        go(function () { scrPosBill(d.name); }, true);
-      });
+      if (PB_PT === 'Số dư trả trước') sdtKhoiDon('pb', d, dsPt.map(function (p) { return p.v; }), function () { pbXongKhoiRieng(d.name); });
     }
   }
   pbAnNutTang();
