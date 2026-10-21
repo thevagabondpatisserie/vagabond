@@ -202,6 +202,36 @@ def chia_don(tong, so_du, pt_con_lai):
 	return [{"pt": PT_SO_DU, "so_tien": d}, {"pt": p, "so_tien": t - d}], ""
 
 
+def khop_tach_so_du(dong, tong):
+	"""Bảng tách số dư khi tổng đơn đã đổi. THUẦN.
+
+	Codex #493 vòng 7: `ap_dung` tách theo tổng đơn LÚC ÁP. Sau đó đơn còn
+	sửa món, giảm giá (Bill quầy Sửa hoá đơn, Pancake đồng bộ lại) thì tổng
+	đổi mà hai dòng vẫn cộng ra tổng cũ, tới lúc ghi sổ bị chặn lệch tổng.
+
+	Chỉ xét đúng dạng `ap_dung` dựng: hai dòng, một dòng số dư và một dòng
+	phương thức khác. Giữ nguyên phần trừ số dư (không trừ thêm của khách),
+	phần còn lại theo tổng mới. Tổng mới không vượt phần số dư thì cả đơn trả
+	bằng số dư. Bảng tay nhiều dòng thì để nguyên cho kế toán.
+
+	Trả None khi không cần đổi, hoặc danh sách dòng mới (rỗng là cả đơn số dư).
+	"""
+	ds = [d for d in (dong or []) if chuoi((d or {}).get("pt")) and so((d or {}).get("so_tien")) > 0]
+	if len(ds) != 2:
+		return None
+	sd = [d for d in ds if chuoi(d.get("pt")) == PT_SO_DU]
+	if len(sd) != 1:
+		return None
+	khac = ds[1] if ds[0] is sd[0] else ds[0]
+	t = tron(tong)
+	a = tron(sd[0].get("so_tien"))
+	if t <= 0 or abs(a + tron(khac.get("so_tien")) - t) <= 1:
+		return None
+	if a >= t:
+		return []
+	return [{"pt": PT_SO_DU, "so_tien": a}, {"pt": chuoi(khac.get("pt")), "so_tien": t - a}]
+
+
 def _vnd(x):
 	return "{:,.0f}".format(so(x)).replace(",", ".")
 
@@ -477,6 +507,29 @@ def bo_dong_tach_khi_doi_pt(doc, method=None):
 	dong = [{"pt": d.get("pt"), "so_tien": d.get("so_tien")} for d in (doc.get(DT_BANG) or [])]
 	if co_dong_so_du(dong):
 		doc.set(DT_BANG, [])
+
+
+def khop_dong_tach_theo_tong(doc, method=None):
+	"""Hook validate, sau `bo_dong_tach_khi_doi_pt`, trước `dat_pt_chinh`.
+
+	Đơn tách số dư mà tổng đơn đã đổi thì chỉnh lại số tiền hai dòng theo
+	`khop_tach_so_du` (Codex #493 vòng 7). Sửa tại chỗ từng dòng để giữ mã
+	tham chiếu của dòng phần còn lại.
+	"""
+	if cint(doc.get("docstatus")) != 0 or cint(doc.get("vgb_huy")):
+		return
+	moi = khop_tach_so_du(_dong_cua(doc), doc.get("grand_total"))
+	if moi is None:
+		return
+	if not moi:
+		doc.set(DT_BANG, [])
+		doc.vgb_pt_thanh_toan = PT_SO_DU
+		return
+	tien = {d["pt"]: d["so_tien"] for d in moi}
+	for r in doc.get(DT_BANG) or []:
+		p = chuoi(r.get("pt"))
+		if p in tien and so(r.get("so_tien")) > 0:
+			r.so_tien = tien[p]
 
 
 def kiem_khi_luu(doc, method=None):

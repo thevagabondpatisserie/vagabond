@@ -783,6 +783,9 @@ doc_events = {
 			# TRƯỚC hang_tang và dat_pt_chinh, không thì dat_pt_chinh dựng lại
 			# phép tách cũ (và Hàng tặng vấp chặn dòng tay).
 			"vagabond.tra_truoc_khach.bo_dong_tach_khi_doi_pt",
+			# v607 Codex #493 vòng 7: đơn tách số dư mà tổng đơn đổi (sửa món,
+			# giảm giá) thì giữ phần trừ số dư, phần còn lại theo tổng mới.
+			"vagabond.tra_truoc_khach.khop_dong_tach_theo_tong",
 			"vagabond.hang_tang.truoc_khi_luu",
 			"vagabond.thanh_toan_nhieu.dat_pt_chinh",
 			# v607: đơn trả bằng số dư trả trước phải gắn khách thật và đủ số
