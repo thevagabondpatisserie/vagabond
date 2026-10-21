@@ -991,3 +991,77 @@ def _():
 	d.save = lambda **k: (_chay_validate(d), ghi.append("save"))
 	nap("ban_hang.py", "luu_thanh_toan", _g_luu_tt(d, ghi))("SI-1", pt=tk.PT_SO_DU, doi_pt=1)
 	la("bấm chip thì bỏ bảng tách", list(d.vgb_thanh_toan_nhieu), [])
+
+
+# ------------------------------------------- Codex #493 vòng 7 (SHA 71a01c4b1)
+
+
+def _luu_lai_voi_tong(d, tong):
+	"""Như `pos_sua_don` lưu món hoặc giảm giá mới: ERPNext tính lại tổng đơn
+	rồi chạy các hook validate THẬT theo hooks.py. Trả lỗi ghi sổ (hoặc None)
+	của `thanh_toan_nhieu.kiem_truoc_ghi_so` THẬT trên đơn sau khi lưu."""
+	from vagabond import thanh_toan_nhieu as ttn
+
+	cu = dict(d)
+	d.get_doc_before_save = lambda: NS(get=cu.get)
+	d.grand_total = tong
+	_chay_validate(d)
+	with patch.object(ttn, "frappe", NS(throw=_nem)):
+		try:
+			ttn.kiem_truoc_ghi_so(d)
+		except Chan as e:
+			return str(e)
+	return None
+
+
+@ca("v607 Codex #493 vòng 7: áp số dư một phần rồi sửa món làm tổng đơn đổi thì phần còn lại theo tổng mới, ghi sổ được")
+def _():
+	# Đơn 700.000 đã áp 100.000 số dư + 600.000 tiền mặt; Lưu thay đổi món lên 800.000.
+	d = _si_tach_nho()
+	loi = _luu_lai_voi_tong(d, 800000)
+	la("ghi sổ không bị chặn lệch tổng", loi, None)
+	la("giữ phần trừ số dư, phần còn lại theo tổng mới",
+		[(x.pt, x.so_tien) for x in d.vgb_thanh_toan_nhieu], [(tk.PT_SO_DU, 100000), ("Tiền mặt", 700000)])
+	la("ô chính là dòng lớn nhất", d.vgb_pt_thanh_toan, "Tiền mặt")
+	# Bớt món còn 50.000: không vượt phần số dư nên cả đơn trả bằng số dư.
+	d = _si_tach_nho()
+	loi = _luu_lai_voi_tong(d, 50000)
+	la("tổng nhỏ hơn phần số dư: ghi sổ được", loi, None)
+	la("cả đơn trả bằng số dư, bỏ bảng tách", (d.vgb_pt_thanh_toan, list(d.vgb_thanh_toan_nhieu)), (tk.PT_SO_DU, []))
+
+
+@ca("v607 Codex #493 vòng 7: chỉ chỉnh bảng tách số dư hai dòng; tổng không đổi hoặc bảng tay nhiều dòng thì để nguyên")
+def _():
+	d = _si_tach_nho()
+	_luu_lai_voi_tong(d, 700000)
+	la("tổng không đổi: giữ nguyên", [(x.pt, x.so_tien) for x in d.vgb_thanh_toan_nhieu], [(tk.PT_SO_DU, 100000), ("Tiền mặt", 600000)])
+	d = _si_tt(vgb_pt_thanh_toan="Tiền mặt", grand_total=700000, flags=NS(), vgb_thanh_toan_nhieu=[
+		D(pt=tk.PT_SO_DU, so_tien=100000, do_may=0), D(pt="Tiền mặt", so_tien=300000, do_may=0),
+		D(pt="Chuyển khoản", so_tien=300000, do_may=0)])
+	d.set = lambda k, v: d.__setitem__(k, list(v))
+	loi = _luu_lai_voi_tong(d, 800000)
+	dung("bảng tay ba dòng vẫn bị chặn lệch tổng như cũ: %r" % loi, bool(loi) and "thiếu" in loi)
+	la("bảng tay ba dòng giữ nguyên", [x.so_tien for x in d.vgb_thanh_toan_nhieu], [100000, 300000, 300000])
+	d = _si_tt(vgb_pt_thanh_toan="Tiền mặt", grand_total=700000, flags=NS(), vgb_thanh_toan_nhieu=[
+		D(pt="Tiền mặt", so_tien=400000, do_may=0), D(pt="Chuyển khoản", so_tien=300000, do_may=0)])
+	d.set = lambda k, v: d.__setitem__(k, list(v))
+	loi = _luu_lai_voi_tong(d, 800000)
+	dung("bảng hai dòng không có số dư vẫn bị chặn như cũ", bool(loi))
+
+
+@ca("v607 Codex #493 vòng 7: hàm thuần khop_tach_so_du")
+def _():
+	S = tk.PT_SO_DU
+	f = tk.khop_tach_so_du
+	la("tăng tổng", f([{"pt": S, "so_tien": 100000}, {"pt": "Tiền mặt", "so_tien": 600000}], 800000),
+		[{"pt": S, "so_tien": 100000.0}, {"pt": "Tiền mặt", "so_tien": 700000.0}])
+	la("thứ tự dòng ngược vẫn đúng", f([{"pt": "Chuyển khoản", "so_tien": 600000}, {"pt": S, "so_tien": 100000}], 650000),
+		[{"pt": S, "so_tien": 100000.0}, {"pt": "Chuyển khoản", "so_tien": 550000.0}])
+	la("tổng bằng phần số dư: cả đơn số dư", f([{"pt": S, "so_tien": 100000}, {"pt": "Tiền mặt", "so_tien": 600000}], 100000), [])
+	la("khớp tổng (lệch thuế 8% dưới 1 đồng): không đổi",
+		f([{"pt": S, "so_tien": 100000}, {"pt": "Tiền mặt", "so_tien": 2125000}], 2224999.9996), None)
+	la("một dòng: không đổi", f([{"pt": S, "so_tien": 100000}], 800000), None)
+	la("hai dòng đều số dư: không đổi", f([{"pt": S, "so_tien": 100000}, {"pt": S, "so_tien": 600000}], 800000), None)
+	la("tổng 0: không đổi", f([{"pt": S, "so_tien": 100000}, {"pt": "Tiền mặt", "so_tien": 600000}], 0), None)
+	la("bỏ dòng 0 đồng khi đếm", f([{"pt": S, "so_tien": 100000}, {"pt": "Tiền mặt", "so_tien": 600000},
+		{"pt": "Chuyển khoản", "so_tien": 0}], 800000), [{"pt": S, "so_tien": 100000.0}, {"pt": "Tiền mặt", "so_tien": 700000.0}])
