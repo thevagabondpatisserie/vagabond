@@ -192,17 +192,20 @@ def _tru_dan():
 	# Codex #493 vòng 7: áp số dư một phần (100.000 + 300.000 tiền mặt) rồi
 	# sửa món làm tổng đơn lên 500.000 và lưu (như Lưu thay đổi ở Bill quầy):
 	# ERPNext tính lại tổng thật, phần còn lại theo tổng mới, ghi sổ được.
-	hd5 = khong_nem("lưu đơn 5 tách số dư", lambda: _don(cty, mon, khach, 400000, [
-		{"pt": tk.PT_SO_DU, "so_tien": 100000}, {"pt": "Tiền mặt", "so_tien": 300000}]))
+	dong5 = [{"pt": tk.PT_SO_DU, "so_tien": 100000}, {"pt": "Tiền mặt", "so_tien": 300000}]
+	hd5 = khong_nem("lưu đơn 5 tách số dư", lambda: _don(cty, mon, khach, 400000, dong5))
 	if not hd5:
 		return
 	hd5.reload()
+	# Dấu máy dựng đúng như ap_dung ghi (vòng 8): chỉ bảng mang dấu mới được chỉnh.
+	hd5.set(tk.O_KY_TACH, tk.ky_tach(dong5))
 	hd5.items[0].rate = 500000
 	hd5.flags.ignore_permissions = True
 	if khong_nem("sửa món đơn 5 lên 500.000", lambda: hd5.save(ignore_permissions=True)) is None:
 		return
 	hd5.reload()
 	la("đơn 5 tổng mới", round(flt(hd5.grand_total)), 500000)
+	la("đơn 5 dấu theo bảng mới", hd5.get(tk.O_KY_TACH), "100000|Tiền mặt|400000")
 	la("đơn 5 giữ phần số dư, phần còn lại theo tổng mới",
 		sorted((d.pt, round(flt(d.so_tien))) for d in hd5.get("vgb_thanh_toan_nhieu")),
 		sorted([(tk.PT_SO_DU, 100000), ("Tiền mặt", 400000)]))
