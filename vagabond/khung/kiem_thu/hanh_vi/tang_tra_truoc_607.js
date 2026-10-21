@@ -607,6 +607,85 @@ function chuTrongKhoi(k) { return k.tl.getElementById('pbTgForm').innerHTML; }
     }
   });
 
+  /* ------------------------------------------- v607 ưu đãi hạng (anh Việt 21/10/2026)
+     Nạp NGUYÊN 13-khuyen-mai.js. Thu ngân gõ số điện thoại vào ô Số điện thoại
+     (không chọn khách trong danh sách): máy phải tự gắn đúng một hồ sơ khớp số,
+     rồi hỏi máy chủ tính khuyến mãi dù không chọn chương trình nào. */
+  function khoiKm(dsKhach) {
+    var mc = mayChu({
+      'vagabond.cong_no.tim_khach': function () { return { khach: dsKhach }; },
+      'vagabond.khuyen_mai.xem_truoc': function () {
+        return { tong_giam: 70000, ap: [{ loai: 'hang', ma: 'AMBASSADOR', ten: 'Ưu đãi hạng AMBASSADOR', giam: 70000, dien_giai: 'giảm 10%' }], bo: [] };
+      },
+    });
+    var g = { console: console, JSON: JSON, Math: Math, Number: Number, String: String, Object: Object, Array: Array,
+      Promise: Promise, Error: Error, RegExp: RegExp, setTimeout: function (f) { f(); return 1; }, clearTimeout: function () {},
+      document: domGia.taiLieuGia() };
+    g.window = g;
+    vm.createContext(g);
+    vm.runInContext([
+      'var posDon = { mon: [{ item_code: "BANH", qty: 1, rate: 700000 }], ctkm: [], combo: [], maVc: "", khach_ma: "", khach_no: null, sdt: "", ten: "", kmKq: null };',
+      'var posQuay = { ma: "TCV" }; var __ve = 0;',
+      'function posNguonThuc() { return "Tại chỗ"; } function posDoc() {}',
+      'function scrPosQuay() {} function go() { __ve++; } function toast() {}',
+      'function h(s) { return String(s == null ? "" : s); } function money(x) { return String(x); }',
+      'function posChipNut(a, t) { return "<button " + a + ">" + t + "</button>"; }',
+      'function api(m, a) { return __mc.api(m, a); }',
+    ].join('\n'), Object.assign(g, { __mc: mc }));
+    vm.runInContext(doc('13-khuyen-mai.js'), g);
+    return { g: g, mc: mc };
+  }
+  var MOT = [{ name: 'KL013432', customer_name: 'Chị Ambassador', mobile_no: '+84 901 234 567' },
+    { name: 'KL099999', customer_name: 'Khác', mobile_no: '0909999999' }];
+
+  await ca('v607 ưu đãi hạng: gõ số điện thoại khớp đúng một hồ sơ thì tự gắn khách', async function () {
+    var k = khoiKm(MOT);
+    await k.g.posGanKhachTheoSdt('0901 234 567');
+    bang('gắn khách', [k.g.posDon.khach_ma, k.g.posDon.ten], ['KL013432', 'Chị Ambassador']);
+    bang('vẽ lại màn một lần', k.g.__ve, 1);
+  });
+
+  await ca('v607 ưu đãi hạng: ô Số điện thoại trên màn tính tiền thật sự gắn sự kiện, rời ô là gắn khách', async function () {
+    var k = khoiKm(MOT);
+    var tl = k.g.document;
+    var vung = tl.createElement('div');
+    vung.innerHTML = '<input id="posTen"><div id="posTenGoi"></div><input id="posSdt">';
+    tl.body.appendChild(vung);
+    k.g.posNoiTimKhach();
+    var o = tl.getElementById('posSdt');
+    o.value = '0901234567';
+    o.dispatchEvent(domGia.suKien('change', {}, o));
+    await nghi(); await nghi();
+    bang('gắn khách qua sự kiện của ô', k.g.posDon.khach_ma, 'KL013432');
+  });
+
+  await ca('v607 ưu đãi hạng: nhiều hồ sơ cùng số, số ngắn, hay đã chọn khách thì không tự gắn', async function () {
+    var k = khoiKm([MOT[0], { name: 'KL2', customer_name: 'Trùng', mobile_no: '0901234567' }]);
+    await k.g.posGanKhachTheoSdt('0901234567');
+    bang('hai hồ sơ trùng số: không đoán', k.g.posDon.khach_ma, '');
+    k = khoiKm(MOT);
+    await k.g.posGanKhachTheoSdt('12345');
+    bang('số ngắn: không hỏi máy chủ', k.mc.cac('vagabond.cong_no.tim_khach').length, 0);
+    k = khoiKm(MOT);
+    k.g.posDon.khach_ma = 'KL099999';
+    await k.g.posGanKhachTheoSdt('0901234567');
+    bang('đã chọn khách: giữ khách đã chọn', k.g.posDon.khach_ma, 'KL099999');
+  });
+
+  await ca('v607 ưu đãi hạng: đã có khách thì hỏi máy chủ tính giảm dù không chọn chương trình, dòng hạng không có nút bỏ', async function () {
+    var k = khoiKm(MOT);
+    await k.g.posTinhKm();
+    bang('chưa có khách: không hỏi', k.mc.cac('vagabond.khuyen_mai.xem_truoc').length, 0);
+    k.g.posDon.khach_ma = 'KL013432';
+    await k.g.posTinhKm();
+    var x = k.mc.cac('vagabond.khuyen_mai.xem_truoc');
+    bang('hỏi một lần với đúng khách', x.map(function (c) { return c.a.khach; }), ['KL013432']);
+    bang('giảm 70.000', k.g.posDon.kmKq.tong_giam, 70000);
+    var html = k.g.posKhoiKm();
+    dung('hiện dòng ưu đãi hạng', html.indexOf('Ưu đãi hạng AMBASSADOR') >= 0);
+    bang('không có nút bỏ dòng hạng', html.indexOf('data-kmbo="AMBASSADOR"'), -1);
+  });
+
   console.log('Bo ca kiem HANH VI v607 (ly do tang chon san, so du tra truoc)');
   ket.loi.forEach(function (l) { console.log('  HONG ' + l); });
   console.log(ket.dat + ' ca đạt, ' + ket.hong + ' ca hỏng, tổng ' + (ket.dat + ket.hong) + ' ca.');
