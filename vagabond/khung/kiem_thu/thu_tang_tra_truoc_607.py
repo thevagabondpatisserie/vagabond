@@ -1060,6 +1060,8 @@ def _():
 	la("tổng bằng phần số dư: cả đơn số dư", f([{"pt": S, "so_tien": 100000}, {"pt": "Tiền mặt", "so_tien": 600000}], 100000), [])
 	la("khớp tổng (lệch thuế 8% dưới 1 đồng): không đổi",
 		f([{"pt": S, "so_tien": 100000}, {"pt": "Tiền mặt", "so_tien": 2125000}], 2224999.9996), None)
+	# Lệch đúng 1 đồng: như thanh_toan_nhieu.ZERO coi là khớp, không ghi đè số người nhập.
+	la("lệch 1 đồng: không đổi", f([{"pt": S, "so_tien": 100000}, {"pt": "Tiền mặt", "so_tien": 2124999}], 2225000), None)
 	la("một dòng: không đổi", f([{"pt": S, "so_tien": 100000}], 800000), None)
 	la("hai dòng đều số dư: không đổi", f([{"pt": S, "so_tien": 100000}, {"pt": S, "so_tien": 600000}], 800000), None)
 	la("tổng 0: không đổi", f([{"pt": S, "so_tien": 100000}, {"pt": "Tiền mặt", "so_tien": 600000}], 0), None)
