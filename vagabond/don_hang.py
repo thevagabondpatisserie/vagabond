@@ -140,7 +140,7 @@ def cau_mien_phi(nguong):
 	except (TypeError, ValueError):
 		n = 0
 	if n > 0:
-		return "MIỄN PHÍ GIAO: đơn web từ %s, không thu phí giao của khách." % don_web.dinh_tien(n)
+		return "MIỄN PHÍ GIAO: đơn web từ %s đ, không thu phí giao của khách." % "{:,}".format(n).replace(",", ".")
 	return "MIỄN PHÍ GIAO: không thu phí giao của khách."
 
 
