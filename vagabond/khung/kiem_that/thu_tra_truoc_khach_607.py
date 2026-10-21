@@ -188,3 +188,25 @@ def _tru_dan():
 	hd4.reload()
 	la("đơn 4 bỏ bảng tách", len(hd4.get("vgb_thanh_toan_nhieu") or []), 0)
 	la("đơn 4 không giữ chỗ số dư", tk.so_du_khach(khach)["giu_cho"], 0.0)
+
+	# Codex #493 vòng 7: áp số dư một phần (100.000 + 300.000 tiền mặt) rồi
+	# sửa món làm tổng đơn lên 500.000 và lưu (như Lưu thay đổi ở Bill quầy):
+	# ERPNext tính lại tổng thật, phần còn lại theo tổng mới, ghi sổ được.
+	hd5 = khong_nem("lưu đơn 5 tách số dư", lambda: _don(cty, mon, khach, 400000, [
+		{"pt": tk.PT_SO_DU, "so_tien": 100000}, {"pt": "Tiền mặt", "so_tien": 300000}]))
+	if not hd5:
+		return
+	hd5.reload()
+	hd5.items[0].rate = 500000
+	hd5.flags.ignore_permissions = True
+	if khong_nem("sửa món đơn 5 lên 500.000", lambda: hd5.save(ignore_permissions=True)) is None:
+		return
+	hd5.reload()
+	la("đơn 5 tổng mới", round(flt(hd5.grand_total)), 500000)
+	la("đơn 5 giữ phần số dư, phần còn lại theo tổng mới",
+		sorted((d.pt, round(flt(d.so_tien))) for d in hd5.get("vgb_thanh_toan_nhieu")),
+		sorted([(tk.PT_SO_DU, 100000), ("Tiền mặt", 400000)]))
+	if khong_nem("ghi sổ đơn 5", lambda: hd5.submit()) is None and hd5.docstatus != 1:
+		return
+	hd5.reload()
+	la("đơn 5 cấn đúng phần số dư", flt(hd5.total_advance), 100000.0)
