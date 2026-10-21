@@ -2518,17 +2518,23 @@ def luu_thanh_toan(si_name, pt=None, ma_tham_chieu=None, doi_pt=None):
 		doc.vgb_ma_tham_chieu = ma
 		_chan_tang_thieu(doc)
 		doc.save(ignore_permissions=True)
-	elif cint(doi_pt) and _co_dong_so_du(si_name):
+	elif _la_so_du(pt) or (cint(doi_pt) and _co_dong_so_du(si_name)):
 		# v607 Codex #493 vòng 4, 5: người dùng VỪA bấm chip phương thức trên
 		# đơn đang tách số dư thì đi đường Document để hook bỏ bảng tách;
 		# set_value bỏ qua validate, bảng cũ còn nguyên và lần lưu sau dựng
 		# lại phép tách. Màn chỉ gửi kèm phương thức đang hiện thì giữ bảng.
+		# Vòng 6: chọn "Số dư trả trước" cũng đi đường này để hook
+		# `tra_truoc_khach.kiem_khi_luu` kiểm khách và số dư; set_value thì
+		# đơn thành trả trước cả tờ, giữ chỗ cả tổng mà không ai kiểm. Dấu
+		# chọn cả đơn vẫn chỉ theo `doi_pt`: đơn tách mà số dư là dòng lớn
+		# nhất thì màn gửi kèm "Số dư trả trước" ở mỗi lần Lưu, không được
+		# coi đó là chọn lại cho cả đơn.
 		from vagabond.tra_truoc_khach import chon_pt_ca_don
 
 		doc = frappe.get_doc("Sales Invoice", si_name)
 		if doc.docstatus != 0:
 			frappe.throw("Hoá đơn đã ghi sổ, không đổi phương thức được nữa.")
-		chon_pt_ca_don(doc, pt, doi_pt=True)
+		chon_pt_ca_don(doc, pt, doi_pt=cint(doi_pt))
 		doc.vgb_ma_tham_chieu = ma
 		doc.save(ignore_permissions=True)
 	else:
@@ -2537,6 +2543,13 @@ def luu_thanh_toan(si_name, pt=None, ma_tham_chieu=None, doi_pt=None):
 		)
 	frappe.db.commit()
 	return {"ok": 1, "pt": pt, "ma_tham_chieu": ma}
+
+
+def _la_so_du(pt):
+	"""Phương thức là "Số dư trả trước" (v607)."""
+	from vagabond.tra_truoc_khach import PT_SO_DU
+
+	return (pt or "").strip() == PT_SO_DU
 
 
 def _co_dong_so_du(si_name):
