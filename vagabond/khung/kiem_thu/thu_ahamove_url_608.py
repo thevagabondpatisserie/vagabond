@@ -65,8 +65,7 @@ def _():
 def _nap_cau_mien_phi():
 	cay = ast.parse((GOC / "don_hang.py").read_text(encoding="utf-8"))
 	ham = next(n for n in cay.body if isinstance(n, ast.FunctionDef) and n.name == "cau_mien_phi")
-	from vagabond import don_web
-	g = {"don_web": don_web}
+	g = {}
 	exec(compile(ast.Module(body=[ham], type_ignores=[]), "don_hang.py", "exec"), g)
 	return g["cau_mien_phi"]
 
