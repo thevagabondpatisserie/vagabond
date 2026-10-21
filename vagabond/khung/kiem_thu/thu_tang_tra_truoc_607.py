@@ -993,7 +993,7 @@ def _():
 	la("bấm chip thì bỏ bảng tách", list(d.vgb_thanh_toan_nhieu), [])
 
 
-# ------------------------------------------- Codex #493 vòng 7 (SHA 71a01c4b1)
+# ------------------------------------------- Codex #493 vòng 7 (SHA 71a01c4b1), vòng 8 (SHA 99afe996d)
 
 
 def _luu_lai_voi_tong(d, tong):
@@ -1014,56 +1014,151 @@ def _luu_lai_voi_tong(d, tong):
 	return None
 
 
+def _si_ap_dung():
+	"""Đơn 700.000 vừa qua `ap_dung` THẬT: 100.000 số dư + 600.000 tiền mặt,
+	bảng dòng và dấu `vgb_ky_tach_so_du` đúng như ap_dung ghi."""
+	d = _si_tt(name="SI-95631", customer="", vgb_pt_thanh_toan="Tiền mặt", grand_total=700000,
+		company="Vagabond", custom_nguon="Tại quầy", flags=NS(), vgb_thanh_toan_nhieu=[])
+	d.set = lambda k, v: d.__setitem__(k, list(v) if isinstance(v, list) else v)
+	d.append = lambda k, r: d[k].append(D(r))
+	d.save = lambda **k: None
+	_ap_dung_that(d, so_du=100000, pt_con_lai="Tiền mặt")
+	return d
+
+
+def _ap_dung_that(d, so_du, pt_con_lai):
+	"""Chạy THẬT `tra_truoc_khach.ap_dung` trên đơn giả, không kéo ban_hang (requests)."""
+	bh = types.ModuleType("vagabond.ban_hang")
+	bh._kiem_pt = lambda p, n: p
+	bh._kiem_quyen_ban = lambda: None
+	kh = types.ModuleType("vagabond.khach_hang")
+	kh.la_khach_gop = lambda c: False
+	gia = NS(throw=_nem, get_doc=lambda *a: d, db=NS(exists=lambda *a: True, commit=lambda: None))
+	with patch.object(tk, "frappe", gia), \
+			patch.object(tk, "so_du_khach", lambda *a, **k: {"kha_dung_tam": so_du}), \
+			patch.dict(sys.modules, {"vagabond.ban_hang": bh, "vagabond.khach_hang": kh}):
+		tk.ap_dung("SI-95631", "KL040476", pt_con_lai=pt_con_lai)
+
+
+@ca("v607 Codex #493 vòng 8: ap_dung THẬT ghi bảng tách kèm dấu máy dựng")
+def _():
+	d = _si_ap_dung()
+	la("bảng tách", [(x.pt, x.so_tien) for x in d.vgb_thanh_toan_nhieu], [(tk.PT_SO_DU, 100000.0), ("Tiền mặt", 600000.0)])
+	la("dấu máy dựng", d.get(tk.O_KY_TACH), "100000|Tiền mặt|600000")
+
+
 @ca("v607 Codex #493 vòng 7: áp số dư một phần rồi sửa món làm tổng đơn đổi thì phần còn lại theo tổng mới, ghi sổ được")
 def _():
 	# Đơn 700.000 đã áp 100.000 số dư + 600.000 tiền mặt; Lưu thay đổi món lên 800.000.
-	d = _si_tach_nho()
+	d = _si_ap_dung()
 	loi = _luu_lai_voi_tong(d, 800000)
 	la("ghi sổ không bị chặn lệch tổng", loi, None)
 	la("giữ phần trừ số dư, phần còn lại theo tổng mới",
-		[(x.pt, x.so_tien) for x in d.vgb_thanh_toan_nhieu], [(tk.PT_SO_DU, 100000), ("Tiền mặt", 700000)])
+		[(x.pt, x.so_tien) for x in d.vgb_thanh_toan_nhieu], [(tk.PT_SO_DU, 100000.0), ("Tiền mặt", 700000.0)])
 	la("ô chính là dòng lớn nhất", d.vgb_pt_thanh_toan, "Tiền mặt")
+	la("dấu theo bảng mới, lần sửa sau vẫn chỉnh được", d.get(tk.O_KY_TACH), "100000|Tiền mặt|700000")
+	la("sửa lần hai xuống 650.000", _luu_lai_voi_tong(d, 650000), None)
+	la("bảng sau lần hai", [x.so_tien for x in d.vgb_thanh_toan_nhieu], [100000.0, 550000.0])
 	# Bớt món còn 50.000: không vượt phần số dư nên cả đơn trả bằng số dư.
-	d = _si_tach_nho()
+	d = _si_ap_dung()
 	loi = _luu_lai_voi_tong(d, 50000)
 	la("tổng nhỏ hơn phần số dư: ghi sổ được", loi, None)
-	la("cả đơn trả bằng số dư, bỏ bảng tách", (d.vgb_pt_thanh_toan, list(d.vgb_thanh_toan_nhieu)), (tk.PT_SO_DU, []))
+	la("cả đơn trả bằng số dư, bỏ bảng tách, bỏ dấu",
+		(d.vgb_pt_thanh_toan, list(d.vgb_thanh_toan_nhieu), d.get(tk.O_KY_TACH)), (tk.PT_SO_DU, [], ""))
 
 
-@ca("v607 Codex #493 vòng 7: chỉ chỉnh bảng tách số dư hai dòng; tổng không đổi hoặc bảng tay nhiều dòng thì để nguyên")
+@ca("v607 Codex #493 vòng 8: bảng kế toán nhập tay hai dòng có số dư thì KHÔNG chỉnh khi tổng đổi, vẫn chặn lúc ghi sổ")
 def _():
-	d = _si_tach_nho()
+	# Kế toán nhập 100.000 số dư + 600.000 tiền mặt thật đã thu, không qua ap_dung (không có dấu).
+	d = _si_tt(vgb_pt_thanh_toan="Tiền mặt", grand_total=700000, flags=NS(), vgb_thanh_toan_nhieu=[
+		D(pt=tk.PT_SO_DU, so_tien=100000, do_may=0), D(pt="Tiền mặt", so_tien=600000, do_may=0)])
+	d.set = lambda k, v: d.__setitem__(k, list(v) if isinstance(v, list) else v)
+	loi = _luu_lai_voi_tong(d, 800000)
+	# Trước vòng 8: bảng bị viết lại 100.000 + 700.000, ghi sổ thu 700.000 tiền mặt chưa hề thu.
+	la("giữ nguyên số kế toán nhập", [x.so_tien for x in d.vgb_thanh_toan_nhieu], [100000, 600000])
+	dung("vẫn chặn lệch tổng lúc ghi sổ: %r" % loi, bool(loi) and "thiếu 100.000" in loi)
+	# Bảng máy dựng nhưng sau đó có người sửa tay (Desk) dòng tiền mặt: dấu không còn khớp, để nguyên.
+	d = _si_ap_dung()
+	d.vgb_thanh_toan_nhieu[1].so_tien = 550000
+	d.vgb_thanh_toan_nhieu.append(D(pt="Chuyển khoản", so_tien=50000, do_may=0))
+	loi = _luu_lai_voi_tong(d, 800000)
+	la("bảng đã sửa tay giữ nguyên", [x.so_tien for x in d.vgb_thanh_toan_nhieu], [100000.0, 550000, 50000])
+	dung("bảng đã sửa tay vẫn bị chặn", bool(loi))
+	d = _si_ap_dung()
+	d.vgb_thanh_toan_nhieu[1].so_tien = 650000
+	_luu_lai_voi_tong(d, 800000)
+	la("hai dòng nhưng số đã sửa tay: giữ nguyên", [x.so_tien for x in d.vgb_thanh_toan_nhieu], [100000.0, 650000])
+
+
+@ca("v607 Codex #493 vòng 8: thanh_toan_nhieu.luu THẬT (kế toán nhập tay) xoá dấu máy dựng")
+def _():
+	from vagabond import thanh_toan_nhieu as ttn
+
+	d = _si_ap_dung()
+	d.docstatus = 0
+	d.save = lambda **k: None
+	bh = types.ModuleType("vagabond.ban_hang")
+	bh._kiem_quyen_ban = lambda: None
+	bh._chuan_ma_tham_chieu = lambda pt, ma, bat: ma or ""
+	gia = NS(throw=_nem, get_doc=lambda *a: d, db=NS(exists=lambda *a: True, commit=lambda: None))
+	tt = types.ModuleType("vagabond.thu_tien")
+	tt.la_cong_no = lambda pt: pt == "Công nợ"
+	with patch.object(ttn, "frappe", gia), patch.object(ttn, "xem", lambda si: {}), \
+			patch.dict(sys.modules, {"vagabond.ban_hang": bh, "vagabond.thu_tien": tt}):
+		# Cùng đúng hai số như máy dựng: vẫn là số kế toán xác nhận, không còn là của máy.
+		ttn.luu("SI-95631", '[{"pt": "Số dư trả trước", "so_tien": 100000}, {"pt": "Tiền mặt", "so_tien": 600000}]')
+	la("dấu bị xoá", d.get(tk.O_KY_TACH), "")
+	_luu_lai_voi_tong(d, 800000)
+	la("tổng đổi sau đó: giữ số kế toán nhập", [x.so_tien for x in d.vgb_thanh_toan_nhieu], [100000.0, 600000.0])
+
+
+@ca("v607 Codex #493 vòng 7: tổng không đổi hoặc bảng tay nhiều dòng thì để nguyên")
+def _():
+	d = _si_ap_dung()
 	_luu_lai_voi_tong(d, 700000)
-	la("tổng không đổi: giữ nguyên", [(x.pt, x.so_tien) for x in d.vgb_thanh_toan_nhieu], [(tk.PT_SO_DU, 100000), ("Tiền mặt", 600000)])
+	la("tổng không đổi: giữ nguyên", [(x.pt, x.so_tien) for x in d.vgb_thanh_toan_nhieu], [(tk.PT_SO_DU, 100000.0), ("Tiền mặt", 600000.0)])
 	d = _si_tt(vgb_pt_thanh_toan="Tiền mặt", grand_total=700000, flags=NS(), vgb_thanh_toan_nhieu=[
 		D(pt=tk.PT_SO_DU, so_tien=100000, do_may=0), D(pt="Tiền mặt", so_tien=300000, do_may=0),
 		D(pt="Chuyển khoản", so_tien=300000, do_may=0)])
-	d.set = lambda k, v: d.__setitem__(k, list(v))
+	d.set = lambda k, v: d.__setitem__(k, list(v) if isinstance(v, list) else v)
 	loi = _luu_lai_voi_tong(d, 800000)
 	dung("bảng tay ba dòng vẫn bị chặn lệch tổng như cũ: %r" % loi, bool(loi) and "thiếu" in loi)
 	la("bảng tay ba dòng giữ nguyên", [x.so_tien for x in d.vgb_thanh_toan_nhieu], [100000, 300000, 300000])
-	d = _si_tt(vgb_pt_thanh_toan="Tiền mặt", grand_total=700000, flags=NS(), vgb_thanh_toan_nhieu=[
-		D(pt="Tiền mặt", so_tien=400000, do_may=0), D(pt="Chuyển khoản", so_tien=300000, do_may=0)])
-	d.set = lambda k, v: d.__setitem__(k, list(v))
-	loi = _luu_lai_voi_tong(d, 800000)
-	dung("bảng hai dòng không có số dư vẫn bị chặn như cũ", bool(loi))
 
 
-@ca("v607 Codex #493 vòng 7: hàm thuần khop_tach_so_du")
+@ca("v607 Codex #493 vòng 7, 8: hàm thuần ky_tach, khop_tach_so_du")
 def _():
 	S = tk.PT_SO_DU
 	f = tk.khop_tach_so_du
-	la("tăng tổng", f([{"pt": S, "so_tien": 100000}, {"pt": "Tiền mặt", "so_tien": 600000}], 800000),
-		[{"pt": S, "so_tien": 100000.0}, {"pt": "Tiền mặt", "so_tien": 700000.0}])
-	la("thứ tự dòng ngược vẫn đúng", f([{"pt": "Chuyển khoản", "so_tien": 600000}, {"pt": S, "so_tien": 100000}], 650000),
+	k = tk.ky_tach
+	hai = [{"pt": S, "so_tien": 100000}, {"pt": "Tiền mặt", "so_tien": 600000}]
+	la("dấu", k(hai), "100000|Tiền mặt|600000")
+	la("dấu thứ tự ngược", k(list(reversed(hai))), "100000|Tiền mặt|600000")
+	la("dấu một dòng", k(hai[:1]), "")
+	la("dấu ba dòng", k(hai + [{"pt": "Chuyển khoản", "so_tien": 1}]), "")
+	la("dấu hai dòng đều số dư", k([{"pt": S, "so_tien": 1}, {"pt": S, "so_tien": 2}]), "")
+	la("dấu bỏ dòng 0 đồng", k(hai + [{"pt": "Chuyển khoản", "so_tien": 0}]), "100000|Tiền mặt|600000")
+	la("không dấu: không đổi", f(hai, 800000), None)
+	la("dấu lệch bảng: không đổi", f(hai, 800000, "100000|Tiền mặt|500000"), None)
+	ky = k(hai)
+	la("tăng tổng", f(hai, 800000, ky), [{"pt": S, "so_tien": 100000.0}, {"pt": "Tiền mặt", "so_tien": 700000.0}])
+	nguoc = [{"pt": "Chuyển khoản", "so_tien": 600000}, {"pt": S, "so_tien": 100000}]
+	la("thứ tự dòng ngược vẫn đúng", f(nguoc, 650000, k(nguoc)),
 		[{"pt": S, "so_tien": 100000.0}, {"pt": "Chuyển khoản", "so_tien": 550000.0}])
-	la("tổng bằng phần số dư: cả đơn số dư", f([{"pt": S, "so_tien": 100000}, {"pt": "Tiền mặt", "so_tien": 600000}], 100000), [])
-	la("khớp tổng (lệch thuế 8% dưới 1 đồng): không đổi",
-		f([{"pt": S, "so_tien": 100000}, {"pt": "Tiền mặt", "so_tien": 2125000}], 2224999.9996), None)
+	la("tổng bằng phần số dư: cả đơn số dư", f(hai, 100000, ky), [])
+	thue = [{"pt": S, "so_tien": 100000}, {"pt": "Tiền mặt", "so_tien": 2125000}]
+	la("khớp tổng (lệch thuế 8% dưới 1 đồng): không đổi", f(thue, 2224999.9996, k(thue)), None)
 	# Lệch đúng 1 đồng: như thanh_toan_nhieu.ZERO coi là khớp, không ghi đè số người nhập.
-	la("lệch 1 đồng: không đổi", f([{"pt": S, "so_tien": 100000}, {"pt": "Tiền mặt", "so_tien": 2124999}], 2225000), None)
-	la("một dòng: không đổi", f([{"pt": S, "so_tien": 100000}], 800000), None)
-	la("hai dòng đều số dư: không đổi", f([{"pt": S, "so_tien": 100000}, {"pt": S, "so_tien": 600000}], 800000), None)
-	la("tổng 0: không đổi", f([{"pt": S, "so_tien": 100000}, {"pt": "Tiền mặt", "so_tien": 600000}], 0), None)
-	la("bỏ dòng 0 đồng khi đếm", f([{"pt": S, "so_tien": 100000}, {"pt": "Tiền mặt", "so_tien": 600000},
-		{"pt": "Chuyển khoản", "so_tien": 0}], 800000), [{"pt": S, "so_tien": 100000.0}, {"pt": "Tiền mặt", "so_tien": 700000.0}])
+	le = [{"pt": S, "so_tien": 100000}, {"pt": "Tiền mặt", "so_tien": 2124999}]
+	la("lệch 1 đồng: không đổi", f(le, 2225000, k(le)), None)
+	la("tổng 0: không đổi", f(hai, 0, ky), None)
+	la("bỏ dòng 0 đồng khi đếm", f(hai + [{"pt": "Chuyển khoản", "so_tien": 0}], 800000, ky),
+		[{"pt": S, "so_tien": 100000.0}, {"pt": "Tiền mặt", "so_tien": 700000.0}])
+
+
+@ca("v607 Codex #493 vòng 8: bấm chip chọn một phương thức cho cả đơn thì bỏ bảng tách và bỏ luôn dấu máy dựng")
+def _():
+	d = _si_ap_dung()
+	tk.chon_pt_ca_don(d, "Tiền mặt", doi_pt=True)
+	_chay_validate(d)
+	la("bỏ bảng, bỏ dấu", (list(d.vgb_thanh_toan_nhieu), d.get(tk.O_KY_TACH)), ([], ""))
