@@ -2440,3 +2440,30 @@ hook chỉ chỉnh khi bảng còn đúng dấu, nhập tay thì xoá dấu. Bà
 tiền máy tự dựng từ tổng đơn phải được dựng lại mỗi khi tổng đơn đổi; và việc
 máy tự sửa số tiền phải dựa trên dấu nguồn gốc bền, không bao giờ suy từ hình
 dạng dữ liệu, vì người nhập tay có thể tạo ra đúng hình dạng đó.
+
+### v607 (anh Việt 21/10/2026): cấu hình hiện trên màn mà không có dòng code nào áp
+
+Triệu chứng: hạng AMBASSADOR 10%, FAMILY 20%, OWNER 100% khai từ 16/08 ở Cài
+đặt hạng khách, màn ghi "Áp cho mọi hoá đơn của khách hạng này", màn tính tiền
+còn hiện chip "giảm 10%", nhưng không chỗ nào tính số tiền đó vào hoá đơn. Thêm
+hai lỗ: `tao_don_tay` chỉ truyền khách công nợ cho phần khuyến mãi nên khách
+chọn qua số điện thoại không bao giờ được xét theo hạng; và gõ số vào ô Số điện
+thoại mà không chọn trong danh sách thì hoá đơn không biết khách là ai. Khắc
+phục: ưu đãi hạng tính trong `khuyen_mai.tinh` (một công thức cho xem trước và
+chốt), truyền khách vừa chọn, ô Số điện thoại tự gắn khi khớp đúng một hồ sơ.
+Bài học: mỗi ô cấu hình có chữ "áp cho..." phải có ca kiểm chạy thật chứng minh
+nó áp; hiện con số lên màn không phải là đã áp.
+
+### v607 (Dễ 21/10/2026): câu báo lỗi chỉ đường tới màn không có nút đó
+
+Triệu chứng: nhân viên mở "Hàng chuyển về kho tôi" thì máy báo "chưa khai Kho
+phụ trách... Báo anh Việt khai giúp ở màn Quản lý người dùng". Quản lý cửa hàng
+có quyền Quản lý người dùng vào đúng màn đó tìm mãi không thấy chỗ khai, vì ô
+Kho phụ trách chỉ có trên Desk (form User), màn app chưa từng hiện hay sửa nó.
+Hệ quả: việc một quản lý tự làm được trong một phút phải chờ anh Việt. Khắc
+phục: màn Quản lý người dùng hiện dòng Kho phụ trách và nút Đổi kho phụ trách
+(chọn nhiều kho, tên ngắn, có dòng giải thích), câu báo ở hai chỗ chặn nói đúng
+nút cần bấm và ai bấm được. Bài học: câu báo "sửa ở màn X" phải được kiểm bằng
+cách mở màn X đúng vai của người đọc câu đó và bấm được tới ô; viết ca kiểm
+chốt câu báo nhắc đúng tên nút đang có trên màn, để sau này đổi tên nút thì ca
+đỏ.
