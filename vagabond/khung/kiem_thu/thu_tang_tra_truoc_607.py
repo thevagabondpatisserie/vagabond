@@ -231,6 +231,7 @@ def _g_ban_hang(d, ghi):
 	# Hàng rào THẬT của ban_hang, không phải bản giả: ca kiểm phải chạy đúng
 	# cái cửa hàng chặn ngoài site.
 	nap("ban_hang.py", "_chan_tang_thieu", g)
+	nap("ban_hang.py", "_la_so_du", g)
 	return g
 
 
@@ -732,8 +733,9 @@ def _():
 	dung("commit trước khi nhả khoá", thu_tu[-2] == "commit")
 
 
-def _chay_validate(d):
-	"""Chạy các hook validate của hoá đơn bán liên quan, ĐÚNG thứ tự trong hooks.py."""
+def _chay_validate(d, con=9e9):
+	"""Chạy các hook validate của hoá đơn bán liên quan, ĐÚNG thứ tự trong hooks.py.
+	`con`: số dư khả dụng của khách (vòng 6 cần khách chỉ còn 100.000)."""
 	from vagabond import hooks, thanh_toan_nhieu as ttn
 
 	can = {"vagabond.thanh_toan_nhieu.dat_pt_chinh": ttn.dat_pt_chinh}
@@ -745,7 +747,7 @@ def _chay_validate(d):
 	tt = types.ModuleType("vagabond.thu_tien")
 	tt.la_cong_no = lambda pt: pt == "Công nợ"
 	with patch.object(tk, "frappe", NS(throw=_nem)), patch.object(ttn, "frappe", NS(throw=_nem)), \
-			patch.object(tk, "so_du_khach", lambda *a, **k: tk.tong_so([{"docstatus": 1, "tong": 9e9, "con": 9e9}], 0)), \
+			patch.object(tk, "so_du_khach", lambda *a, **k: tk.tong_so([{"docstatus": 1, "tong": con, "con": con}], 0)), \
 			patch.dict(sys.modules, {"vagabond.khach_hang": kh, "vagabond.thu_tien": tt}):
 		for ten in hooks.doc_events["Sales Invoice"]["validate"]:
 			if ten in can:
@@ -930,3 +932,62 @@ def _():
 			kw = {k.arg: ast.unparse(k.value) for k in c.keywords}
 			dung("%s: doi_pt lấy từ tham số hoặc đã có rào doi_pt (%s)" % (ham.name, kw.get("doi_pt")),
 				kw.get("doi_pt") in ("cint(doi_pt)", "True") and (kw.get("doi_pt") != "True" or ham.name == "luu_thanh_toan"))
+
+
+
+# ------------------------------------------- Codex #493 vòng 6 (SHA 4cf9ceae9)
+
+
+def _g_luu_tt(d, ghi):
+	"""luu_thanh_toan THẬT với hai hàm phụ THẬT `_la_so_du`, `_co_dong_so_du`
+	(bảng dòng đọc từ chính đơn giả, như frappe.db.exists trên site)."""
+	g = _g_ban_hang(d, ghi)
+	g["frappe"].db.exists = lambda dt, f: any(
+		x.pt == f["pt"] for x in (d.get(tk.DT_BANG) or []))
+	nap("ban_hang.py", "_co_dong_so_du", g)
+	return g
+
+
+@ca("v607 Codex #493 vòng 6: Doanh thu Sales chọn Số dư trả trước cho đơn chưa tách rồi Lưu thì máy kiểm khách và số dư, không ghi thẳng")
+def _():
+	# Đơn 700.000 tiền mặt, chưa tách; khách chỉ còn 100.000 số dư.
+	for con, mong in ((100000, "chặn"), (9e9, "lưu")):
+		ghi = []
+		d = _si_tt(vgb_pt_thanh_toan="Tiền mặt", grand_total=700000, flags=NS(), vgb_thanh_toan_nhieu=[])
+		d.set = lambda k, v: d.__setitem__(k, list(v))
+		cu = dict(d)
+		d.get_doc_before_save = lambda: NS(get=cu.get)
+		d.save = lambda **k: (_chay_validate(d, con=con), ghi.append("save"))
+		f = nap("ban_hang.py", "luu_thanh_toan", _g_luu_tt(d, ghi))
+		loi = None
+		try:
+			f("SI-1", pt=tk.PT_SO_DU, doi_pt=1)
+		except Chan as e:
+			loi = str(e)
+		# Trước vòng 6: đi set_value, không validate, không lỗi: đơn thành trả trước cả tờ.
+		la("số dư %s: không ghi thẳng bằng set_value" % con, ghi.count("set"), 0)
+		if mong == "chặn":
+			dung("khách thiếu số dư thì báo: %r" % loi, bool(loi) and "chỉ còn" in loi)
+			dung("không lưu", "save" not in ghi)
+		else:
+			la("đủ số dư thì lưu qua Document", (loi, ghi.count("save")), (None, 1))
+			la("trả trước cả đơn", d.vgb_pt_thanh_toan, tk.PT_SO_DU)
+
+
+@ca("v607 Codex #493 vòng 6: đơn tách mà số dư là dòng lớn nhất, Sales bấm Lưu không bấm chip thì giữ bảng tách")
+def _():
+	# Màn gửi kèm phương thức đang hiện ("Số dư trả trước") và doi_pt=0.
+	ghi = []
+	d = _si_tach(tk.PT_SO_DU, chon=False)
+	cu = dict(d)
+	d.get_doc_before_save = lambda: NS(get=cu.get)
+	d.save = lambda **k: (_chay_validate(d), ghi.append("save"))
+	nap("ban_hang.py", "luu_thanh_toan", _g_luu_tt(d, ghi))("SI-1", pt=tk.PT_SO_DU, doi_pt=0)
+	la("lưu qua Document", ghi.count("save"), 1)
+	la("giữ hai dòng tách", [(x.pt, x.so_tien) for x in d.vgb_thanh_toan_nhieu], [(tk.PT_SO_DU, 600000), ("Tiền mặt", 100000)])
+	# Bấm chip Số dư trả trước (doi_pt=1): chọn cả đơn, bỏ bảng tách.
+	ghi = []
+	d = _si_tach(tk.PT_SO_DU, chon=False)
+	d.save = lambda **k: (_chay_validate(d), ghi.append("save"))
+	nap("ban_hang.py", "luu_thanh_toan", _g_luu_tt(d, ghi))("SI-1", pt=tk.PT_SO_DU, doi_pt=1)
+	la("bấm chip thì bỏ bảng tách", list(d.vgb_thanh_toan_nhieu), [])
