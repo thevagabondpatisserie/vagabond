@@ -395,6 +395,11 @@ async function posGanKhachTheoSdt(gt) {
   if (khop.length !== 1) return;
   /* Trong luc cho may chu, thu ngan co the da chon khach khac: khong de. */
   if (posDon.khach_ma || (posDon.khach_no && posDon.khach_no.ma)) return;
+  /* Codex #493 vong 9: thu ngan co the da sua so trong luc cho, va cau tra loi
+     cu ve sau cau moi. Chi gan khi o So dien thoai HIEN GIO van la so da hoi;
+     khong thi bo cau tra loi nay, cau cua so moi se tu gan. */
+  posDoc();
+  if (posDuoiSdt(posDon.sdt) !== duoi) return;
   posDiemDat();
   posDon.khach_ma = khop[0].name;
   posDon.ten = khop[0].customer_name || khop[0].name;
