@@ -400,7 +400,7 @@ CUA_NGO = {
 	# v583: dat_bo_phan sua bo phan tung nguoi tren app; chot ca mo dun.
 	"nguoi_dung.py": [
 		"danh_sach", "danh_sach_goi", "chi_tiet", "dat_goi", "sua_quyen_le",
-		"bat_tat", "dat_bo_phan", "moi", "gui_lai_thu",
+		"bat_tat", "dat_bo_phan", "dat_kho_phu_trach", "moi", "gui_lai_thu",
 	],
 	"tang_qua.py": ["chi_tiet", "danh_muc", "danh_muc_dot", "danh_sach",
 		"doi_trang_thai", "ds_dot", "khach_co_hang", "luu", "luu_dot",
