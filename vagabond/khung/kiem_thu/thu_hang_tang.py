@@ -354,8 +354,13 @@ def _():
 	dung("màn bill có khối hàng tặng", "function pbKhoiTang(" in b)
 	dung("khối hàng tặng bật tắt theo phương thức đang chọn",
 		"PB_PT === 'Hàng tặng'" in b)
-	dung("màn bill gửi được loại tặng và lý do lên máy chủ",
-		"vagabond.hang_tang.luu_thong_tin" in b)
+	# v607: khối khai chuyển sang 54-ly-do-tang.js dùng chung cho Bill quầy
+	# và Doanh thu Sales, lưu bằng MỘT cửa luu_tang. Hành vi kiểm bằng
+	# hanh_vi/ly_do_tang_607.js; ở đây chỉ chốt màn bill có gắn khối đó.
+	k = _doc("vagabond", "public", "js", "bep", "54-ly-do-tang.js")
+	dung("màn bill gắn khối hàng tặng dùng chung", "tangGan('pb'" in b)
+	dung("khối dùng chung gửi loại tặng và lý do lên máy chủ",
+		"vagabond.hang_tang.luu_tang" in k)
 
 
 # ============================ bổ sung 31/08/2026: ảnh chứng minh và báo cáo
@@ -440,5 +445,7 @@ def _():
 	dung("màn duyệt gọi cửa báo cáo", "vagabond.hang_tang.bao_cao" in m)
 	dung("màn duyệt vẽ ảnh thành hình thu nhỏ", "object-fit:cover" in m)
 	b = _doc("vagabond", "public", "js", "bep", "10-bill-quay.js")
-	dung("màn bill có ô đính ảnh", "pbTangAnh" in b)
-	dung("màn bill nhắc riêng loại đền bù", "'den_bu'" in b)
+	k = _doc("vagabond", "public", "js", "bep", "54-ly-do-tang.js")
+	dung("khối hàng tặng có ô đính ảnh", "TgAnh" in k and 'type="file"' in k)
+	# Loại bắt ảnh đọc từ máy chủ (cai_dat.loai_can_anh), không chép tay.
+	dung("khối hàng tặng nhắc riêng loại bắt ảnh", "loai_can_anh" in k)

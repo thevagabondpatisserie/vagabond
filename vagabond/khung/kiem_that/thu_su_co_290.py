@@ -32,6 +32,9 @@ def dong_bo_tang():
     hd.vgb_quay='TCV';hd.custom_nguon='Tại chỗ'
     hd.vgb_pt_thanh_toan='Tiền mặt';hd.vgb_pt_do_may=1
     hd.append(ttn.BANG,dict(pt='Tiền mặt',so_tien=hd.grand_total,do_may=1))
+    # v607: cửa cũ chặn đặt Hàng tặng khi chưa có loại và lý do (đơn #95631),
+    # nên fixture khai lý do trước như người lập trên màn mới.
+    hd.vgb_tang_loai='marketing';hd.vgb_tang_ly_do='Tặng sự kiện tiệm sau khi Sales chọn tay'
     hd.save(ignore_permissions=True);hd.reload()
     ban_hang.pos_chot(hd.name,pt='Hàng tặng')
     hang_tang.luu_thong_tin(hd.name,loai='marketing',ly_do='Tặng sự kiện tiệm sau khi Sales chọn tay')
@@ -80,6 +83,8 @@ def luu_doi_qua():
         hd.custom_nguon='Tại chỗ';hd.vgb_quay='TCV'
         hd.vgb_pt_thanh_toan='Tiền mặt';hd.vgb_pt_do_may=1
         hd.append(ttn.BANG,dict(pt='Tiền mặt',so_tien=hd.grand_total,do_may=may))
+        # v607: có lý do sẵn để ca chỉ kiểm hàng rào dòng tiền tay, không vấp chặn thiếu lý do.
+        hd.vgb_tang_loai='marketing';hd.vgb_tang_ly_do='Tặng sự kiện tiệm, ca kiểm dòng tay'
         hd.save(ignore_permissions=True);hd.reload()
         try: ban_hang.luu_thanh_toan(hd.name,pt='Hàng tặng')
         except frappe.ValidationError as e:

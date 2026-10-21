@@ -578,6 +578,20 @@ async function scrDsView(name, can) {
   /* Khach tra mot don bang NHIEU duong (anh Viet 01/09/2026). Khoi nay ve
      rieng o 42-thanh-toan-nhieu.js, nap sau khi man da dung xong. */
   html += '<div id="dsvTtn"></div>';
+  /* v607: khoi Hang tang (ly do chon san, mot nut luu) va khoi So du tra
+     truoc, dung chung voi man Bill quay. Xem 54-ly-do-tang.js va
+     55-so-du-tra-truoc.js. Chi hien khi dang chon dung phuong thuc. */
+  if (!d.vgb_huy && d.docstatus === 0) {
+    html += '<div id="dsvTang" style="display:' + (d.vgb_pt_thanh_toan === 'Hàng tặng' ? 'block' : 'none') +
+      ';margin-top:10px;border:1.5px solid #fde68a;border-radius:10px;padding:10px;background:#fffdf5">' +
+      '<div style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:8px">🎁 Hàng tặng không thu tiền: ' +
+      h(d.vgb_tang_duyet || 'Chờ duyệt') + '</div>' +
+      '<div style="font-size:12.5px;color:#92400e;margin-bottom:8px;line-height:1.5">Hoá đơn vẫn xuất nguyên giá. ' +
+      'Chọn loại và lý do rồi bấm nút dưới, đơn chỉ ghi sổ được sau khi Giám đốc duyệt.</div>' +
+      '<div id="dsvTgForm"><div style="font-size:12.5px;color:#98a2b3">Đang tải danh sách lý do...</div></div></div>';
+    html += '<div id="dsvSoDu" style="display:' + (d.vgb_pt_thanh_toan === 'Số dư trả trước' ? 'block' : 'none') +
+      ';margin-top:10px"></div>';
+  }
   /* Bon con so ke toan, bay san chu khong bat ai tu suy ra (anh Viet
      04/09/2026, nguyen tac 7). O nay tu an di khi to chua ghi so. */
   html += '<div id="dsvThu"></div>';
@@ -742,10 +756,15 @@ async function scrDsView(name, can) {
     } catch (e) { busy(false); toast((e && e.message) || 'Huỷ lỗi', 5000); }
   };
   var DSV_PT = d.vgb_pt_thanh_toan || '';
+  /* v607 Codex #493 vong 5: 1 khi Sales VUA BAM chip phuong thuc. Gui kem
+     doi_pt; luu, ghi so chi gui kem phuong thuc dang hien thi thi may chu
+     giu nguyen bang tach so du tra truoc. */
+  var DSV_DOI_PT = 0;
   var ptWrap = document.getElementById('dsvPt');
   if (ptWrap) ptWrap.querySelectorAll('.ptc').forEach(function (b) {
     b.onclick = function () {
       DSV_PT = b.getAttribute('data-pt');
+      DSV_DOI_PT = 1;
       ptWrap.querySelectorAll('.ptc').forEach(function (x) {
         var on = x.getAttribute('data-pt') === DSV_PT;
         x.style.border = '1.5px solid ' + (on ? '#0d9488' : '#e5e7eb');
@@ -755,7 +774,27 @@ async function scrDsView(name, can) {
       });
     };
   });
-    if (ptWrap) ptWrap.addEventListener('click', function () { setTimeout(function () { veOMtc(DSV_PT, 'dsvMtc', 'dsvMtcNhan'); veKhachNo(); dsvVeQr(); }, 0); });
+    if (ptWrap) ptWrap.addEventListener('click', function () { setTimeout(function () { veOMtc(DSV_PT, 'dsvMtc', 'dsvMtcNhan'); veKhachNo(); dsvVeQr(); dsvVeTangSoDu(); }, 0); });
+  /* v607: bat tat khoi Hang tang va khoi So du tra truoc theo chip dang chon. */
+  /* Khoi Hang tang chi nap danh sach ly do khi Sales THUC SU chon Hang tang,
+     khong goi may chu moi lan mo mot don thuong. */
+  var dsvTangDaGan = false;
+  function dsvVeTangSoDu() {
+    var ot = document.getElementById('dsvTang');
+    if (ot) ot.style.display = DSV_PT === 'Hàng tặng' ? 'block' : 'none';
+    if (ot && DSV_PT === 'Hàng tặng' && !dsvTangDaGan) {
+      dsvTangDaGan = true;
+      tangGan('dsv', d, null, function () { go(function () { scrDsView(name, can); }, true); });
+    }
+    var os = document.getElementById('dsvSoDu');
+    if (os) {
+      os.style.display = DSV_PT === 'Số dư trả trước' ? 'block' : 'none';
+      if (DSV_PT === 'Số dư trả trước') sdtKhoiDon('dsv', d, PTDS.map(function (p) { return p.v; }), function () {
+        go(function () { scrDsView(name, can); }, true);
+      });
+    }
+  }
+  if (d.docstatus === 0 && !d.vgb_huy && (DSV_PT === 'Hàng tặng' || DSV_PT === 'Số dư trả trước')) dsvVeTangSoDu();
   veOMtc(DSV_PT, 'dsvMtc', 'dsvMtcNhan');
   /* Khong await: mot vong goi nua khong duoc lam cham man chi tiet don. */
   ttnVe('dsvTtn', d.name, d.grand_total, PTDS.map(function (p) { return p.v; }));
@@ -1300,7 +1339,7 @@ async function scrDsView(name, can) {
   var xlu = document.getElementById('xhdLuu');
   if (xlu) xlu.onclick = async function () {
     busy(true);
-    try { await api('vagabond.ban_hang.luu_thanh_toan', { si_name: d.name, pt: DSV_PT, ma_tham_chieu: mtcGiaTri() }); await luuXhd(d.name); busy(false); toast('Đã lưu thông tin đơn'); }
+    try { await api('vagabond.ban_hang.luu_thanh_toan', { si_name: d.name, pt: DSV_PT, ma_tham_chieu: mtcGiaTri(), doi_pt: DSV_DOI_PT ? 1 : 0 }); await luuXhd(d.name); busy(false); toast('Đã lưu thông tin đơn'); }
     catch (e) { busy(false); baoTin((e && e.message) || 'Lưu lỗi'); }
   };
   (async function () {
@@ -1358,7 +1397,7 @@ async function scrDsView(name, can) {
     }
     if (!await xacNhan('Ghi sổ hoá đơn cho đơn #' + (d.custom_pancake_display_id || '') + '? Số sẽ vào doanh thu chính thức.')) return;
     busy(true);
-    try { await luuXhd(d.name); await api('vagabond.ban_hang.chot_mot_don', { si_name: d.name, pt: DSV_PT, ma_tham_chieu: mtcGiaTri(), khach: dsvKhach.ma || '' }); busy(false); toast('Đã ghi sổ ' + d.name); }
+    try { await luuXhd(d.name); await api('vagabond.ban_hang.chot_mot_don', { si_name: d.name, pt: DSV_PT, ma_tham_chieu: mtcGiaTri(), khach: dsvKhach.ma || '', doi_pt: DSV_DOI_PT ? 1 : 0 }); busy(false); toast('Đã ghi sổ ' + d.name); }
     catch (e) { busy(false); baoTin((e && e.message) || 'Chốt lỗi'); }
     go(scrDoanhSo, true);
   };

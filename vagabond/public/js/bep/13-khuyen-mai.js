@@ -18,7 +18,11 @@ function posKmChuKy() {
 }
 
 async function posTinhKm() {
-  var coGi = (posDon.ctkm && posDon.ctkm.length) || (posDon.combo && posDon.combo.length) || posDon.maVc;
+  /* v607 (anh Viet 21/10/2026): da chon khach (go so dien thoai hoac chon
+     khach cong no) thi cung phai hoi may chu: khach hang Ambassador, Family...
+     duoc giam theo hang ngay ca khi khong chon chuong trinh nao. */
+  var coGi = (posDon.ctkm && posDon.ctkm.length) || (posDon.combo && posDon.combo.length) || posDon.maVc ||
+    (posDon.khach_no && posDon.khach_no.ma) || posDon.khach_ma;
   if (!coGi || !(posDon.mon || []).length) { posDon.kmKq = null; return; }
   var ck = posKmChuKy();
   if (posDon.kmKq && posDon.kmKq.ck === ck) return;
@@ -59,10 +63,13 @@ function posKhoiKm() {
     html += '<div style="background:#f0fdfa;border:1.5px solid #7fe5f6;border-radius:9px;padding:9px 11px;margin-bottom:7px">';
     (kq.ap || []).forEach(function (a) {
       html += '<div style="display:flex;align-items:flex-start;gap:6px;padding:3px 0;font-size:13px">' +
-        '<span style="flex:1;min-width:0">' + (a.loai === 'combo' ? '🧺 ' : '🎫 ') + '<b>' + h(a.ten) + '</b>' +
+        '<span style="flex:1;min-width:0">' + (a.loai === 'combo' ? '🧺 ' : (a.loai === 'hang' ? '⭐ ' : '🎫 ')) + '<b>' + h(a.ten) + '</b>' +
         (a.dien_giai ? '<div style="font-size:11.5px;color:#0b7c93;margin-top:1px">' + h(a.dien_giai) + '</div>' : '') + '</span>' +
         '<b style="flex:none;color:#0f766e">−' + money(a.giam) + ' đ</b>' +
-        '<button data-kmbo="' + h(a.ma) + '" data-l="' + h(a.loai) + '" style="flex:none;border:0;background:transparent;color:#b3261e;font-size:15px;cursor:pointer;padding:0 2px">✕</button></div>';
+        /* Uu dai hang di theo khach, khong phai chuong trinh thu ngan chon:
+           khong co nut bo. Muon bo thi bo chon khach. */
+        (a.loai === 'hang' ? '' :
+          '<button data-kmbo="' + h(a.ma) + '" data-l="' + h(a.loai) + '" style="flex:none;border:0;background:transparent;color:#b3261e;font-size:15px;cursor:pointer;padding:0 2px">✕</button>') + '</div>';
     });
     html += '</div>';
   }
@@ -361,6 +368,43 @@ function posNoiTimKhach() {
   /* Bam vao o la xo luon danh sach khach gan day, khoi phai nho ten. */
   o.onfocus = function () { tim(o.value.trim()); };
   o.onblur = function () { setTimeout(dong, 220); };
+  /* v607 (anh Viet 21/10/2026): thu ngan go thang so dien thoai vao o "So
+     dien thoai" ma khong chon khach trong danh sach thi truoc day hoa don
+     khong biet khach la ai: khong tich diem, khong giam theo hang. Nay go
+     xong so (roi o) ma DUNG MOT ho so khach co so do thi tu gan khach, hien
+     the hang ngay tren man. Nhieu ho so cung so thi khong doan, de thu ngan
+     chon o tren. */
+  var oS = document.getElementById('posSdt');
+  if (oS) oS.onchange = function () { posGanKhachTheoSdt(oS.value); };
+}
+
+/* So dien thoai Viet Nam ve 9 so cuoi de so khop: bo dau cach, bo +84/84/0. */
+function posDuoiSdt(s) {
+  var so = String(s || '').replace(/\D/g, '');
+  return so.length >= 9 ? so.slice(-9) : '';
+}
+
+async function posGanKhachTheoSdt(gt) {
+  posDoc();
+  if (posDon.khach_ma || (posDon.khach_no && posDon.khach_no.ma)) return;
+  var duoi = posDuoiSdt(gt);
+  if (!duoi) return;
+  var kq;
+  try { kq = await api('vagabond.cong_no.tim_khach', { tu_khoa: duoi }); } catch (e) { return; }
+  var khop = ((kq && kq.khach) || []).filter(function (k) { return posDuoiSdt(k.mobile_no) === duoi; });
+  if (khop.length !== 1) return;
+  /* Trong luc cho may chu, thu ngan co the da chon khach khac: khong de. */
+  if (posDon.khach_ma || (posDon.khach_no && posDon.khach_no.ma)) return;
+  /* Codex #493 vong 9: thu ngan co the da sua so trong luc cho, va cau tra loi
+     cu ve sau cau moi. Chi gan khi o So dien thoai HIEN GIO van la so da hoi;
+     khong thi bo cau tra loi nay, cau cua so moi se tu gan. */
+  posDoc();
+  if (posDuoiSdt(posDon.sdt) !== duoi) return;
+  posDiemDat();
+  posDon.khach_ma = khop[0].name;
+  posDon.ten = khop[0].customer_name || khop[0].name;
+  posDon.kmKq = null;
+  go(scrPosQuay, true);
 }
 
 /* Chuong trinh nao bat buoc OTP quan ly thi hoi ma ngay truoc khi luu.

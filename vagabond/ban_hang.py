@@ -774,6 +774,23 @@ def _kiem_pt(pt, nguon):
 	return pt
 
 
+def _chan_tang_thieu(si):
+	"""Chặn mọi cửa lưu phương thức đặt Hàng tặng khi đơn chưa có lý do (v607).
+
+	Ca #95631: nút "Lưu phương thức thanh toán" đi qua `pos_chot`, chỉ lưu
+	phương thức, lý do người lập đã gõ mất trắng. Nay đơn Hàng tặng chỉ lưu
+	qua `hang_tang.luu_tang` (lưu phương thức và lý do cùng lúc); các cửa
+	khác gặp đơn Hàng tặng thiếu lý do thì dừng và chỉ đúng nút cần bấm.
+
+	KHÔNG đặt ở hook validate: nhịp đồng bộ Pancake lưu lại đơn mỗi 30 phút,
+	chặn ở đó là làm hỏng cả nhịp vì một đơn cũ thiếu lý do.
+	"""
+	from vagabond import hang_tang
+
+	if hang_tang.thieu_khi_dat_tang(si):
+		frappe.throw(hang_tang.CHAN_THIEU, title="Chưa lưu đơn tặng")
+
+
 def _nan_pt_theo_nguon(si):
 	"""Nan phuong thuc ve dung nguon don, va GHI LAI viec da nan.
 
@@ -2472,7 +2489,7 @@ def dong_bo_doanh_so_tu_dong():
 
 
 @frappe.whitelist()
-def luu_thanh_toan(si_name, pt=None, ma_tham_chieu=None):
+def luu_thanh_toan(si_name, pt=None, ma_tham_chieu=None, doi_pt=None):
 	"""Sales luu phuong thuc thanh toan + ma tham chieu, chua ghi so."""
 	_kiem_quyen_doc_luu_don()
 	si = frappe.db.get_value(
@@ -2495,9 +2512,30 @@ def luu_thanh_toan(si_name, pt=None, ma_tham_chieu=None):
 		doc = frappe.get_doc("Sales Invoice", si_name)
 		if doc.docstatus != 0:
 			frappe.throw("Hoá đơn đã ghi sổ, không chuyển sang Hàng tặng được.")
-		doc.vgb_pt_thanh_toan = pt
+		from vagabond.tra_truoc_khach import chon_pt_ca_don
+
+		chon_pt_ca_don(doc, pt, doi_pt=cint(doi_pt))
 		doc.vgb_ma_tham_chieu = ma
-		doc.vgb_pt_do_may = 0
+		_chan_tang_thieu(doc)
+		doc.save(ignore_permissions=True)
+	elif _la_so_du(pt) or (cint(doi_pt) and _co_dong_so_du(si_name)):
+		# v607 Codex #493 vòng 4, 5: người dùng VỪA bấm chip phương thức trên
+		# đơn đang tách số dư thì đi đường Document để hook bỏ bảng tách;
+		# set_value bỏ qua validate, bảng cũ còn nguyên và lần lưu sau dựng
+		# lại phép tách. Màn chỉ gửi kèm phương thức đang hiện thì giữ bảng.
+		# Vòng 6: chọn "Số dư trả trước" cũng đi đường này để hook
+		# `tra_truoc_khach.kiem_khi_luu` kiểm khách và số dư; set_value thì
+		# đơn thành trả trước cả tờ, giữ chỗ cả tổng mà không ai kiểm. Dấu
+		# chọn cả đơn vẫn chỉ theo `doi_pt`: đơn tách mà số dư là dòng lớn
+		# nhất thì màn gửi kèm "Số dư trả trước" ở mỗi lần Lưu, không được
+		# coi đó là chọn lại cho cả đơn.
+		from vagabond.tra_truoc_khach import chon_pt_ca_don
+
+		doc = frappe.get_doc("Sales Invoice", si_name)
+		if doc.docstatus != 0:
+			frappe.throw("Hoá đơn đã ghi sổ, không đổi phương thức được nữa.")
+		chon_pt_ca_don(doc, pt, doi_pt=cint(doi_pt))
+		doc.vgb_ma_tham_chieu = ma
 		doc.save(ignore_permissions=True)
 	else:
 		frappe.db.set_value(
@@ -2505,6 +2543,20 @@ def luu_thanh_toan(si_name, pt=None, ma_tham_chieu=None):
 		)
 	frappe.db.commit()
 	return {"ok": 1, "pt": pt, "ma_tham_chieu": ma}
+
+
+def _la_so_du(pt):
+	"""Phương thức là "Số dư trả trước" (v607)."""
+	from vagabond.tra_truoc_khach import PT_SO_DU
+
+	return (pt or "").strip() == PT_SO_DU
+
+
+def _co_dong_so_du(si_name):
+	"""Đơn có dòng thanh toán "Số dư trả trước" trong bảng tách không (v607)."""
+	from vagabond.tra_truoc_khach import PT_SO_DU, DT_DONG
+
+	return bool(frappe.db.exists(DT_DONG, {"parent": si_name, "parenttype": "Sales Invoice", "pt": PT_SO_DU}))
 
 
 def _tien(n):
@@ -2629,7 +2681,7 @@ def luu_khach_no(si_name, khach=None):
 
 
 @frappe.whitelist()
-def chot_mot_don(si_name, pt=None, ma_tham_chieu=None, khach=None):
+def chot_mot_don(si_name, pt=None, ma_tham_chieu=None, khach=None, doi_pt=None):
 	"""Submit mot don le, sales ra soat xong don nao chot don do."""
 	_kiem_quyen_ghi_so()
 	si = frappe.get_doc("Sales Invoice", si_name)
@@ -2641,7 +2693,9 @@ def chot_mot_don(si_name, pt=None, ma_tham_chieu=None, khach=None):
 		si.vgb_ma_tham_chieu = luat_thanh_toan.ma_can_ghi(
 			ma_tham_chieu, si.vgb_ma_tham_chieu, pt, si.vgb_pt_thanh_toan)
 	if pt:
-		si.vgb_pt_thanh_toan = pt
+		from vagabond.tra_truoc_khach import chon_pt_ca_don
+
+		chon_pt_ca_don(si, pt, ha_co_may=False, doi_pt=cint(doi_pt))
 	ma_kh = (khach or "").strip()
 	if ma_kh:
 		if not frappe.db.exists("Customer", ma_kh):
@@ -4504,7 +4558,12 @@ def tao_don_tay(
 	# Tinh trên gio hang GOC (chua co phi giao) - khong ai duoc giam gia
 	# tren phi ship.
 	km_kq, km_giam = None, 0.0
-	if ctkm_ap or combo_ap or (ma_voucher or "").strip():
+	# v607 (anh Việt 21/10/2026): khách chọn qua số điện thoại (khach_ma) có
+	# hạng giảm giá thì cũng phải tính, kể cả khi không chọn chương trình nào.
+	# Trước đây chỉ truyền khach_no nên cả ưu đãi hạng lẫn chương trình "Theo
+	# hạng khách" không bao giờ thấy khách vừa nhập số điện thoại.
+	khach_km = khach_no or khach_ma or None
+	if ctkm_ap or combo_ap or (ma_voucher or "").strip() or khach_km:
 		from vagabond import khuyen_mai as _km
 
 		# Codex #460: cùng giao thức giữ lượt với đơn web (khoá chương trình,
@@ -4517,7 +4576,7 @@ def tao_don_tay(
 			combo=combo_ap,
 			quay=quay,
 			nguon=nguon,
-			khach=khach_no or None,
+			khach=khach_km,
 			sdt=dien_thoai,
 			ngay=ngay,
 		)
@@ -6184,7 +6243,7 @@ def _huy_lay(name):
 
 
 @frappe.whitelist()
-def pos_chot(name, pt=None, ma_tham_chieu=None, giam_gia=None, ghi_chu=None, otp=None):
+def pos_chot(name, pt=None, ma_tham_chieu=None, giam_gia=None, ghi_chu=None, otp=None, doi_pt=None):
 	"""Chot mot bill tam tinh: khach thanh toan xong, cashier chon phuong
 	thuc, bill thanh bill thuong cho ghi so. Cung dung de sua pt/ghi chu
 	cua bill nhap chua ghi so."""
@@ -6207,11 +6266,13 @@ def pos_chot(name, pt=None, ma_tham_chieu=None, giam_gia=None, ghi_chu=None, otp
 		pt = _kiem_pt(pt, si.custom_nguon)
 		ma_tham_chieu = luat_thanh_toan.ma_can_ghi(
 			ma_tham_chieu, si.vgb_ma_tham_chieu, pt, si.vgb_pt_thanh_toan)
-		si.vgb_pt_thanh_toan = pt
-		si.vgb_pt_do_may = 0
+		from vagabond.tra_truoc_khach import chon_pt_ca_don
+
+		chon_pt_ca_don(si, pt, doi_pt=cint(doi_pt))
 		si.vgb_ma_tham_chieu = _chuan_ma_tham_chieu(pt, ma_tham_chieu, bat_buoc=False)
 		if si.vgb_ma_tham_chieu:
 			_kiem_trung_ma(pt, si.vgb_ma_tham_chieu, bo_qua=si.name)
+		_chan_tang_thieu(si)
 	_nan_pt_tai_cho(si)
 	if ghi_chu is not None:
 		si.vgb_ghi_chu = (ghi_chu or "").strip()
@@ -6289,6 +6350,7 @@ def pos_sua_don(
 	xhd_mst=None,
 	xhd_dia_chi=None,
 	xhd_email=None,
+	doi_pt=None,
 ):
 	"""Sua lai hoa don da tinh tien cho khach - phai co ma OTP quan ly.
 
@@ -6381,11 +6443,13 @@ def pos_sua_don(
 		pt = _kiem_pt(pt, si.custom_nguon)
 		ma_tham_chieu = luat_thanh_toan.ma_can_ghi(
 			ma_tham_chieu, si.vgb_ma_tham_chieu, pt, si.vgb_pt_thanh_toan)
-		si.vgb_pt_thanh_toan = pt
-		si.vgb_pt_do_may = 0
+		from vagabond.tra_truoc_khach import chon_pt_ca_don
+
+		chon_pt_ca_don(si, pt, doi_pt=cint(doi_pt))
 		si.vgb_ma_tham_chieu = _chuan_ma_tham_chieu(pt, ma_tham_chieu, bat_buoc=False)
 		if si.vgb_ma_tham_chieu:
 			_kiem_trung_ma(pt, si.vgb_ma_tham_chieu, bo_qua=si.name)
+		_chan_tang_thieu(si)
 		doi.append("phương thức thanh toán")
 	_nan_pt_tai_cho(si)
 	if ghi_chu is not None:
@@ -6490,7 +6554,7 @@ def _kiem_quyen_ghi_so():
 
 
 @frappe.whitelist()
-def pos_luu_don(name, pt=None, ma_tham_chieu=None, ghi_chu=None):
+def pos_luu_don(name, pt=None, ma_tham_chieu=None, ghi_chu=None, doi_pt=None):
 	"""Lưu nháp đã đủ điều kiện, không submit và không phát hành (#296)."""
 	_kiem_quyen_ban()
 	si = _pos_lay(name)
@@ -6500,8 +6564,10 @@ def pos_luu_don(name, pt=None, ma_tham_chieu=None, ghi_chu=None):
 		pt = _kiem_pt(pt, si.custom_nguon)
 		ma_tham_chieu = luat_thanh_toan.ma_can_ghi(
 			ma_tham_chieu, si.vgb_ma_tham_chieu, pt, si.vgb_pt_thanh_toan)
-		si.vgb_pt_thanh_toan = pt
-		si.vgb_pt_do_may = 0
+		from vagabond.tra_truoc_khach import chon_pt_ca_don
+
+		chon_pt_ca_don(si, pt, doi_pt=cint(doi_pt))
+		_chan_tang_thieu(si)
 	if ma_tham_chieu is not None:
 		si.vgb_ma_tham_chieu = ma_tham_chieu
 	if ghi_chu is not None:

@@ -408,6 +408,21 @@ def _doanh_thu_he_thong(diem, tu_luc, den_luc):
 		ten = (ten or "").strip() or "Chưa rõ"
 		pt[ten] = pt.get(ten, 0.0) + flt(so)
 		so_bill.setdefault(ten, 0)
+	# Tiền khách NẠP SỐ DƯ TRẢ TRƯỚC tại quầy (v607). Cùng lý do với khối
+	# trên: tiền vào két mà không có hoá đơn nào, thiếu dòng này là két thừa.
+	try:
+		from vagabond import tra_truoc_khach
+
+		nap = tra_truoc_khach.thu_nap_tai_quay(
+			diem, tu_luc, den_luc, theo_ngay=not _co_quay(diem)
+		)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "ca_quay: doc tien nap tra truoc")
+		nap = {}
+	for ten, so in (nap or {}).items():
+		ten = (ten or "").strip() or "Chưa rõ"
+		pt[ten] = pt.get(ten, 0.0) + flt(so)
+		so_bill.setdefault(ten, 0)
 	return pt, so_bill
 
 

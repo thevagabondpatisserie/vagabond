@@ -778,8 +778,19 @@ doc_events = {
 			"vagabond.he_so_chung_tu.kiem",
 			"vagabond.ban_hang.kiem_truoc_khi_luu",
 			"vagabond.qua_tang_hoa_don.truoc_khi_luu",
+			# v607 Codex #493 vòng 3: đơn đã tách số dư trả trước mà người
+			# dùng chọn phương thức khác cho cả đơn thì bỏ bảng dòng tách
+			# TRƯỚC hang_tang và dat_pt_chinh, không thì dat_pt_chinh dựng lại
+			# phép tách cũ (và Hàng tặng vấp chặn dòng tay).
+			"vagabond.tra_truoc_khach.bo_dong_tach_khi_doi_pt",
+			# v607 Codex #493 vòng 7: đơn tách số dư mà tổng đơn đổi (sửa món,
+			# giảm giá) thì giữ phần trừ số dư, phần còn lại theo tổng mới.
+			"vagabond.tra_truoc_khach.khop_dong_tach_theo_tong",
 			"vagabond.hang_tang.truoc_khi_luu",
 			"vagabond.thanh_toan_nhieu.dat_pt_chinh",
+			# v607: đơn trả bằng số dư trả trước phải gắn khách thật và đủ số
+			# dư. Sau dat_pt_chinh vì cần phương thức chính đã chốt.
+			"vagabond.tra_truoc_khach.kiem_khi_luu",
 		],
 		# Chan ban lo han muc mua vu (anh Viet chot 18/08/2026: "tuyet doi
 		# khong cho phep ban lo").
@@ -804,6 +815,8 @@ doc_events = {
 			"vagabond.qua_tang_hoa_don.truoc_khi_ghi_so",
 			"vagabond.hang_tang.truoc_khi_ghi_so",
 			"vagabond.thanh_toan_nhieu.kiem_truoc_ghi_so",
+			# v607: cấn phần trả bằng số dư vào phiếu nạp của khách, cũ trước.
+			"vagabond.tra_truoc_khach.can_tru_khi_ghi_so",
 			"vagabond.hang_tang_so_cai.truoc_khi_ghi_so",
 		],
 		# Tich diem cho khach theo hang. Dat o on_submit chu khong o

@@ -89,6 +89,64 @@ NHAN_LOAI = dict(LOAI_TANG)
 # trong một tấm ảnh. Không có ảnh thì bất kỳ ai cũng khai được là đền bù.
 LOAI_CAN_ANH = ("den_bu",)
 
+# Lý do tặng CHỌN SẴN (anh Việt duyệt 20/10/2026, v607).
+#
+# Ca gốc: đơn #95631, cửa hàng bảo đã ghi lý do mà đơn vẫn trống. Nguyên
+# nhân là nút "Lưu phương thức thanh toán" chỉ lưu phương thức, bỏ qua ô
+# lý do. Anh Việt: *"Cho liệt kê những lý do ra cho anh duyệt rồi map lên
+# để chỉ việc chọn chứ không cần phải viết tay mất thời gian"*.
+#
+# Dựng từ 76 đơn tặng thật. Mỗi dòng: (mã, loại tặng, nhãn, cần thêm gì).
+# "Cần thêm" là ô phải điền kèm theo lý do:
+#   nguoi    tên người nhận (máy lấy sẵn tên khách trên đơn, sửa được)
+#   kol      tên KOL hoặc tên chương trình
+#   doi_tac  tên đối tác
+#   tay      lý do gõ tay, ít nhất TOI_THIEU_TAY ký tự (chỉ có lý do Khác)
+#   ""       không cần gì thêm
+# Lý do lưu xuống ô vgb_tang_ly_do dạng "<nhãn>: <phần thêm>", mã lưu riêng
+# ở vgb_tang_ma_ly_do để báo cáo cộng theo lý do mà không phải dò chữ.
+LY_DO_SAN = (
+	("V1", "vip", "Tặng sinh nhật khách", "nguoi"),
+	("V2", "vip", "Quà lễ, Tết, Trung thu cho khách thân thiết", "nguoi"),
+	("V3", "vip", "Quà cảm ơn khách quen", "nguoi"),
+	("V4", "vip", "Đổi thẻ tích điểm (Croissant)", "nguoi"),
+	("D1", "den_bu", "Giao trễ đơn", "nguoi"),
+	("D2", "den_bu", "Sót món, sót đơn", "nguoi"),
+	("D3", "den_bu", "Bánh hỏng, sai mẫu", "nguoi"),
+	("D4", "den_bu", "Phục vụ nhầm tại quầy", "nguoi"),
+	("M1", "marketing", "KOL, KOC đánh giá", "kol"),
+	("M2", "marketing", "Giveaway, minigame", "kol"),
+	("M3", "marketing", "Chụp hình, quay sản phẩm", "kol"),
+	("T1", "doi_tac", "Quà doanh nghiệp, đối tác", "doi_tac"),
+	("T2", "doi_tac", "Tài trợ sự kiện", "doi_tac"),
+	("N1", "noi_bo", "Thử món, kiểm mẻ", ""),
+	("N2", "noi_bo", "Sinh nhật, phúc lợi nhân viên", "nguoi"),
+	("N3", "noi_bo", "Ban giám đốc dùng, biếu", "nguoi"),
+	("K1", "khac", "Từ thiện, cúng dường", ""),
+	("K2", "khac", "Khác", "tay"),
+)
+
+# Nhãn của ô "cần thêm", hiện ngay trên màn và trong câu báo thiếu.
+NHAN_CAN = {
+	"nguoi": "Người nhận",
+	"kol": "Tên KOL hoặc chương trình",
+	"doi_tac": "Tên đối tác",
+	"tay": "Lý do cụ thể",
+}
+TOI_THIEU_TAY = 10
+TOI_THIEU_THEM = 2
+
+# Nhãn ngắn kèm biểu tượng cho chip Loại tặng trên điện thoại. Nhãn dài ở
+# LOAI_TANG vẫn là nhãn chuẩn cho báo cáo và Desk.
+CHIP_LOAI = {
+	"vip": "⭐ Khách VIP",
+	"den_bu": "🩹 Đền bù",
+	"marketing": "📣 Marketing",
+	"doi_tac": "🤝 Đối tác",
+	"noi_bo": "🧑‍🍳 Nội bộ",
+	"khac": "… Khác",
+}
+
 # Chờ duyệt quá bao nhiêu ngày thì kêu. Đơn tặng nằm chờ là đơn chưa vào
 # sổ, mà cuối tháng chốt sổ thì nó thành lỗ hổng doanh thu.
 CHO_NGAY = 1
@@ -217,6 +275,58 @@ def thieu_gi(don, so_anh=None):
 	elif can_anh(lo) and so_anh is not None and int(so_anh or 0) <= 0:
 		ra.append("anh")
 	return ra
+
+
+def ly_do_theo_ma(ma):
+	"""Một dòng lý do chọn sẵn theo mã, dạng dict. Không có thì None. THUẦN."""
+	m = chuoi(ma).upper()
+	for k, lo, nhan, can in LY_DO_SAN:
+		if k == m:
+			return {"ma": k, "loai": lo, "nhan": nhan, "can": can}
+	return None
+
+
+def soan_ly_do(ma, them=""):
+	"""Ghép lý do sẽ lưu từ mã chọn sẵn và phần điền thêm. THUẦN.
+
+	Trả (loại tặng, câu lý do, câu lỗi). Có câu lỗi thì hai cái kia không
+	dùng được, và câu lỗi nói rõ phải làm gì.
+	"""
+	r = ly_do_theo_ma(ma)
+	if not r:
+		return "", "", "Chọn một lý do tặng trong danh sách."
+	t = " ".join(chuoi(them).split())
+	can = r["can"]
+	if can == "tay":
+		if len(t) < TOI_THIEU_TAY:
+			return r["loai"], "", (
+				"Lý do Khác phải ghi rõ ít nhất %d ký tự: tặng cho ai, vì việc gì."
+				% TOI_THIEU_TAY
+			)
+		return r["loai"], "%s: %s" % (r["nhan"], t), ""
+	if can and len(t) < TOI_THIEU_THEM:
+		return r["loai"], "", "Điền %s cho lý do \"%s\"." % (
+			NHAN_CAN[can].lower(), r["nhan"])
+	return r["loai"], ("%s: %s" % (r["nhan"], t)) if t else r["nhan"], ""
+
+
+# Câu chặn khi một cửa lưu phương thức cố đặt Hàng tặng mà đơn chưa có lý do.
+CHAN_THIEU = (
+	"Đơn Hàng tặng phải chọn loại và lý do tặng trước khi lưu. Bấm nút "
+	"\"Lưu và gửi giám đốc duyệt\" trong khối Hàng tặng, máy lưu phương thức "
+	"và lý do cùng một lần."
+)
+
+
+def thieu_khi_dat_tang(don):
+	"""Đơn đang được đặt sang Hàng tặng còn thiếu loại hay lý do không. THUẦN.
+
+	Chỉ xét loại và lý do. Ảnh chứng minh xét riêng ở cửa lưu đơn tặng, vì
+	ảnh nằm ở bảng tệp đính kèm chứ không nằm trên tờ.
+	"""
+	if not la_don_tang(don):
+		return []
+	return [m for m in thieu_gi(don) if m in ("ly_do", "loai")]
 
 
 def dau_van(tong, dong):
@@ -426,6 +536,15 @@ TRUONG_MOI = {
 			"options": "Journal Entry",
 			"insert_after": "vgb_tang_dau_van",
 			"read_only": 1,
+		},
+		{
+			"fieldname": "vgb_tang_ma_ly_do",
+			"label": "Mã lý do tặng",
+			"fieldtype": "Data",
+			"insert_after": "vgb_but_toan_tang",
+			"read_only": 1,
+			"hidden": 1,
+			"description": "Mã lý do chọn sẵn, để báo cáo cộng theo lý do.",
 		},
 	],
 }
@@ -713,6 +832,15 @@ def cai_dat():
 		"thieu_tai_khoan": _thieu_tai_khoan(),
 		"duyet_duoc": 1 if duoc_duyet() else 0,
 		"loai_can_anh": list(LOAI_CAN_ANH),
+		# v607: chip loại và danh sách lý do chọn sẵn. Màn hình đọc từ đây,
+		# không tự chép danh sách, để một nơi khai mọi nơi đọc lại.
+		"chip_loai": [{"k": k, "ten": CHIP_LOAI.get(k, t)} for k, t in LOAI_TANG],
+		"ly_do_san": [
+			{"ma": m, "loai": lo, "nhan": nhan, "can": can,
+				"nhan_can": NHAN_CAN.get(can, ""),
+				"toi_thieu": TOI_THIEU_TAY if can == "tay" else (TOI_THIEU_THEM if can else 0)}
+			for m, lo, nhan, can in LY_DO_SAN
+		],
 	}
 
 
@@ -795,6 +923,177 @@ def luu_thong_tin(name, loai=None, ly_do=None, anh=None):
 		"thieu": thieu_gi(si, so_anh=len(da_co)),
 		"cau_thieu": [THIEU[m] for m in thieu_gi(si, so_anh=len(da_co))],
 	}
+
+
+def _dem_anh_moi(anh):
+	"""Số ảnh hợp lệ trong lô người dùng gửi kèm. THUẦN."""
+	n = 0
+	for a in (anh or []):
+		if not isinstance(a, dict):
+			continue
+		if la_anh(a.get("ten")) and chuoi(a.get("noi_dung")):
+			n += 1
+	return n
+
+
+@frappe.whitelist()
+def luu_tang(name, ma_ly_do=None, them=None, anh=None, ghi_chu=None):
+	"""MỘT nút lưu cho đơn Hàng tặng: phương thức, loại, lý do, ảnh cùng lúc.
+
+	v607 (anh Việt duyệt 20/10/2026). Trước đây có hai nút: "Lưu phương
+	thức thanh toán" chỉ lưu phương thức, "Lưu và gửi giám đốc duyệt" mới
+	lưu lý do. Cửa hàng bấm nút đầu, lý do mất, đơn #95631 treo ở màn duyệt
+	với câu "Không duyệt được". Nay chọn Hàng tặng thì chỉ còn nút này.
+
+	Tất cả hoặc không gì: thiếu lý do, thiếu người nhận, đền bù mà không có
+	ảnh thì KHÔNG lưu gì cả và nói rõ thiếu gì.
+	"""
+	_quyen()
+	from vagabond.ban_hang import _kiem_pt
+
+	si = frappe.get_doc(SI, name)
+	if cint(si.docstatus) != 0:
+		frappe.throw("Đơn %s đã ghi sổ, không đổi sang Hàng tặng được nữa." % name)
+	if cint(si.get("vgb_huy")):
+		frappe.throw("Đơn %s đã huỷ, không lưu thông tin hàng tặng được." % name)
+	loai, ly, loi = soan_ly_do(ma_ly_do, them)
+	if loi:
+		frappe.throw(loi, title="Chưa lưu đơn tặng")
+	if isinstance(anh, str):
+		anh = frappe.parse_json(anh or "[]") or []
+	if can_anh(loai) and not (_anh_cua_to(name) or _dem_anh_moi(anh)):
+		frappe.throw(THIEU["anh"], title="Chưa lưu đơn tặng")
+
+	pt = _kiem_pt(PT_TANG, si.get("custom_nguon"))
+	from vagabond.tra_truoc_khach import chon_pt_ca_don
+
+	# Chọn Hàng tặng luôn là lựa chọn cho cả đơn (khối riêng, nút riêng).
+	chon_pt_ca_don(si, pt, doi_pt=True)
+	si.vgb_tang_loai = loai
+	si.vgb_tang_ly_do = ly
+	si.vgb_tang_ma_ly_do = chuoi(ma_ly_do).upper()
+	if ghi_chu is not None:
+		si.vgb_ghi_chu = chuoi(ghi_chu)
+	if cint(si.get("vgb_tam_tinh")):
+		si.vgb_tam_tinh = 0
+	# Gửi lại là một yêu cầu duyệt mới, không mang ý kiến từ chối cũ.
+	if chuoi(si.get("vgb_tang_duyet")) == TT_TU_CHOI:
+		si.vgb_tang_duyet = TT_CHO
+		si.vgb_tang_y_kien = ""
+		si.vgb_tang_dau_van = ""
+		si.vgb_tang_nguoi_duyet = None
+		si.vgb_tang_luc_duyet = None
+	si.flags.ignore_permissions = True
+	si.save()
+	them_anh = _dinh_anh(name, anh) if anh else 0
+	da_co = _anh_cua_to(name)
+	# Codex #493 P1, cùng lỗi với phiếu nạp: `_dinh_anh` nuốt lỗi từng tệp.
+	# Đền bù mà sau khi đính vẫn không có ảnh nào thì ném lỗi TRƯỚC commit
+	# để cả lần lưu lùi theo, đúng hứa "thiếu là không lưu gì".
+	if can_anh(loai) and not da_co:
+		frappe.throw(
+			"Không đính được ảnh chứng minh nên chưa lưu đơn tặng. Chụp lại ảnh "
+			"(JPG hoặc PNG) rồi lưu lại.", title="Chưa lưu đơn tặng")
+	frappe.db.commit()
+	thieu = thieu_gi(si, so_anh=len(da_co))
+	return {
+		"ok": 1,
+		"trang_thai": chuoi(si.get("vgb_tang_duyet")),
+		"loai": chuoi(si.get("vgb_tang_loai")),
+		"ly_do": chuoi(si.get("vgb_tang_ly_do")),
+		"anh_them": them_anh,
+		"so_anh": len(da_co),
+		"thieu": thieu,
+		"cau_thieu": [THIEU[m] for m in thieu],
+	}
+
+
+@frappe.whitelist()
+def goi_y(name):
+	"""Gợi ý điền sẵn cho khối Hàng tặng: tên khách và ghi chú Pancake.
+
+	Ghi chú Pancake CHỈ để người lập đọc và bấm chép (anh Việt chọn
+	20/10/2026), máy không tự đổ vào ô lý do: ghi chú Pancake thường chỉ là
+	"Bánh tặng", không nói được tặng ai vì việc gì.
+	"""
+	_quyen()
+	d = frappe.db.get_value(SI, name, ["customer", "customer_name"], as_dict=True)
+	if not d:
+		frappe.throw("Không tìm thấy đơn %s." % name)
+	ten = chuoi(d.get("customer_name"))
+	try:
+		from vagabond.khach_hang import la_khach_gop
+
+		if la_khach_gop(d.get("customer")):
+			ten = ""
+	except Exception:
+		pass
+	gc = ""
+	try:
+		gc = chuoi(frappe.db.get_value("Van Don", {"hoa_don": name}, "ghi_chu"))
+	except Exception:
+		gc = ""
+	return {"khach": ten, "ghi_chu_pancake": gc[:500], "so_anh": len(_anh_cua_to(name))}
+
+
+def nguoi_dat_tang(lich_su, chu_don):
+	"""Ai đã đặt đơn sang Hàng tặng, từ lịch sử sửa mới nhất trước. THUẦN.
+
+	`lich_su` là list {owner, data} với data là dict Version của Frappe.
+	Không tìm thấy lượt đổi nào thì trả người lập đơn.
+	"""
+	for v in (lich_su or []):
+		dl = (v or {}).get("data") or {}
+		for c in (dl.get("changed") or []):
+			if c and len(c) >= 3 and c[0] == "vgb_pt_thanh_toan" and chuoi(c[2]) == PT_TANG:
+				return (v or {}).get("owner")
+	return chu_don
+
+
+@frappe.whitelist()
+def nhac_nguoi_lap(name):
+	"""Giám đốc nhắc người lập khai nốt đơn tặng còn thiếu (v607).
+
+	Tạo một việc cần làm giao cho người đã chọn Hàng tặng, kèm đúng câu còn
+	thiếu. Không đụng gì vào tờ hoá đơn.
+	"""
+	_chan_neu_khong_duyet()
+	si = frappe.get_doc(SI, name)
+	if not la_don_tang(si):
+		frappe.throw("Đơn %s không phải đơn Hàng tặng." % name)
+	da_co = _anh_cua_to(name)
+	thieu = thieu_gi(si, so_anh=len(da_co))
+	if not thieu:
+		frappe.throw("Đơn %s đã khai đủ thông tin, không cần nhắc." % name)
+	ls = []
+	try:
+		for v in frappe.get_all(
+			"Version",
+			filters={"ref_doctype": SI, "docname": name},
+			fields=["owner", "data"], order_by="creation desc", limit_page_length=50,
+		):
+			ls.append({"owner": v.get("owner"), "data": frappe.parse_json(v.get("data") or "{}") or {}})
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "hang_tang: doc lich su don tang")
+	ai = nguoi_dat_tang(ls, si.owner)
+	if not ai or ai in ("Administrator", "Guest"):
+		frappe.throw("Không tìm ra người lập đơn %s để nhắc." % name)
+	ma = chuoi(si.get("custom_pancake_display_id")) or name
+	frappe.get_doc({
+		"doctype": "ToDo",
+		"allocated_to": ai,
+		"reference_type": SI,
+		"reference_name": name,
+		"priority": "High",
+		"description": (
+			"Khai nốt đơn hàng tặng %s để giám đốc duyệt. Còn thiếu: %s Mở bill, "
+			"chọn lý do trong khối Hàng tặng rồi bấm Lưu và gửi giám đốc duyệt."
+			% (ma, " ".join(THIEU[m] for m in thieu))
+		),
+	}).insert(ignore_permissions=True)
+	_ghi_vet(name, "Nhắc %s khai nốt đơn tặng" % ai)
+	frappe.db.commit()
+	return {"ok": 1, "nguoi": ai, "ten": ten_nguoi.ten(ai)}
 
 
 @frappe.whitelist()
@@ -1048,6 +1347,9 @@ def chi_tiet(name):
 	d["anh"] = _anh_cua_to(name)
 	d["can_anh"] = 1 if can_anh(d.get("vgb_tang_loai")) else 0
 	d["nhan_loai"] = NHAN_LOAI.get(chuoi(d.get("vgb_tang_loai")), "Chưa chọn")
+	# v607: nói ngay còn thiếu gì, để giám đốc khỏi bấm Duyệt rồi mới biết.
+	d["thieu"] = thieu_gi(d, so_anh=len(d["anh"]))
+	d["cau_thieu"] = [THIEU[m] for m in d["thieu"]]
 	d["creation"] = str(d.get("creation") or "")[:16]
 	# Người lập này đã tặng bao nhiêu trong tháng. Con số để giám đốc nhìn
 	# trước khi bấm duyệt, không phải hàng rào cứng: đặt hạn mức bao nhiêu

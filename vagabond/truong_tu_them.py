@@ -236,6 +236,11 @@ def dung():
 	from vagabond import dat_banh
 
 	_dung_nhom(dat_banh.TRUONG_MOI, "dat_banh")
+	# Số dư khách trả trước, trừ dần (anh Việt duyệt 20/10/2026, v607). Sau
+	# dat_banh vì cờ nạp neo vào ô Phiếu đặt bánh trên phiếu thu.
+	from vagabond import tra_truoc_khach
+
+	_dung_nhom(tra_truoc_khach.TRUONG_MOI, "tra_truoc_khach")
 	# Nhet phuong thuc thanh toan moi cua ma nguon vao cau hinh DA LUU tren
 	# site. Khong co buoc nay thi them mot dong vao MAC_DINH chi co tac dung
 	# tren site trong - xem `pt_thanh_toan.bo_sung_mac_dinh`.

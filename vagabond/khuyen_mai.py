@@ -292,6 +292,45 @@ def _dong_trong_pham_vi(km, gio):
 	return [d for d in gio if d["item_code"] in ma_mon]
 
 
+# ------------------------------------------------------------ uu dai hang the
+#
+# Anh Viet 21/10/2026: "nhap so dien thoai vao van chua duoc tru giam gia du
+# da set cho cac hang nhu Ambassador". Man Cai dat hang khach ghi "Ap cho moi
+# hoa don cua khach hang nay" va man tinh tien hien chip "giam 10%", nhung
+# truoc ban nay KHONG cho nao tinh so tien do vao hoa don. Nay may chu tinh
+# NGAY TRONG `tinh` (mot cong thuc cho ca xem truoc lan chot that), thanh mot
+# dong "Uu dai hang ..." nam chung voi cac chuong trinh khuyen mai.
+
+# Don san: gia do san dinh, tiem khong tu giam them. Don si: gia si rieng.
+# Ca kiem thu_uu_dai_hang_607 chot danh sach nay trung khoa NGUON_META ben
+# ban_hang, them san moi ma quen o day la ca kiem do.
+NGUON_KHONG_GIAM_HANG = ("GrabFood", "BeFood", "GreenSM Food", "ShopeeFood", "Khách sỉ")
+
+
+def tien_giam_hang(con_lai, phan_tram):
+	"""So tien giam theo hang tren phan tien con lai. THUAN. Lam tron dong."""
+	pt = min(max(flt(phan_tram), 0.0), 100.0)
+	goc = max(flt(con_lai), 0.0)
+	if pt <= 0 or goc <= 0:
+		return 0.0
+	return float(round(goc * pt / 100.0))
+
+
+def _uu_dai_hang(khach, nguon):
+	"""Hang dang bat va phan tram giam cua khach tren don nay, hoac None."""
+	if not khach or (nguon or "").strip() in NGUON_KHONG_GIAM_HANG:
+		return None
+	hang = frappe.db.get_value("Customer", khach, "vgb_hang")
+	if not hang:
+		return None
+	h = frappe.db.get_value(
+		"Vagabond Hang Khach", hang, ["name", "ten_hang", "giam_gia", "bat"], as_dict=True
+	)
+	if not h or not cint(h.get("bat")) or flt(h.get("giam_gia")) <= 0:
+		return None
+	return {"hang": h.get("name"), "ten": h.get("ten_hang") or h.get("name"), "pt": flt(h.get("giam_gia"))}
+
+
 def _giam_theo_kieu(kieu, gia_tri, goc):
 	if kieu == "So tien":
 		return min(flt(gia_tri), flt(goc))
@@ -1017,6 +1056,7 @@ def tinh(items, ctkm=None, ma=None, combo=None, quay=None, nguon=None,
 			'Chương trình "%s" không cộng dồn được với chương trình khác. Vui lòng bỏ bớt rồi bấm lại.' % khong_cong_don[0].get("ten")
 		)
 
+	da_ap_km = []
 	for km in ds_km:
 		if not cint(km.get("bat")):
 			bo.append({"ten": km.get("ten"), "ly_do": "chương trình đang tắt"})
@@ -1040,6 +1080,7 @@ def tinh(items, ctkm=None, ma=None, combo=None, quay=None, nguon=None,
 			bo.append({"ten": km.get("ten"), "ly_do": kq.get("dien_giai") or "không đủ điều kiện"})
 			continue
 		tong_giam += giam
+		da_ap_km.append(km)
 		can_otp = can_otp or cint(km.get("can_otp"))
 		them_mon.extend(kq.get("them_mon") or [])
 		ap.append({
@@ -1053,6 +1094,26 @@ def tinh(items, ctkm=None, ma=None, combo=None, quay=None, nguon=None,
 			"can_otp": cint(km.get("can_otp")),
 			"voucher": ma if km["name"] == ma_ctkm_tu_voucher else "",
 		})
+
+	# --- uu dai hang the: tu dong, tinh tren phan con lai sau combo va CTKM ---
+	gh = _uu_dai_hang(khach, nguon)
+	if gh:
+		chan = [k for k in da_ap_km if not cint(k.get("cong_don"))]
+		ten_gh = "Ưu đãi hạng %s" % gh["ten"]
+		if chan:
+			bo.append({"ten": ten_gh, "ly_do": 'chương trình "%s" không cộng dồn' % chan[0].get("ten")})
+		else:
+			giam = tien_giam_hang(tong_hd - tong_giam, gh["pt"])
+			if giam > 0:
+				tong_giam += giam
+				ap.append({
+					"loai": "hang",
+					"ma": gh["hang"],
+					"ten": ten_gh,
+					"giam": _vnd(giam),
+					"dien_giai": "giảm %s%% theo hạng thành viên" % ("%g" % gh["pt"]),
+					"can_otp": 0,
+				})
 
 	# Khong bao gio de bill am. Neu cong don vuot tong thi cat ve tong.
 	if tong_giam > tong_hd:
@@ -1092,6 +1153,10 @@ def ghi_su_dung(kq, si_name=None, quay=None, nguon=None, khach=None, sdt=None,
 	ngay = str(getdate(ngay or nowdate()))
 	so = re.sub(r"\D", "", str(sdt or ""))
 	for a in (kq or {}).get("ap") or []:
+		# Uu dai hang khong phai chuong trinh khuyen mai: khong co ban ghi
+		# CTKM de dem luot, dau vet nam tren hoa don (vgb_km).
+		if a.get("loai") == "hang":
+			continue
 		try:
 			frappe.get_doc({
 				"doctype": "Vagabond CTKM Su Dung",

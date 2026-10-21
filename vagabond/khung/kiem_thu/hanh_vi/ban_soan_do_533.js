@@ -28,6 +28,7 @@ var BAO_GIA = doc('22-bao-gia.js');
 var DON_HUY = doc('29-don-huy.js');
 var SOAN_DO = doc('48-ban-soan-do.js');
 var GIA_VON_TAM = doc('53-gia-von-tam.js');
+var SO_DU = doc('55-so-du-tra-truoc.js');
 /* Hàm THẬT của 00-nen.js: tìm bỏ dấu (sheet nhóm bán, Codex #486 v7) và ô ảnh món (thẻ phiếu thử, v6). */
 function layHam(src, ten) {
   var dau = src.indexOf('function ' + ten + '(');
@@ -112,6 +113,16 @@ function mayChu(canh) {
       }
       /* Khuon that cua nop_quy.tao: lech tu 1.000d ma chua co ly do thi TRA
          VE THANH CONG voi co can_ly_do, CHUA tao phieu. */
+      /* So du tra truoc (v607 Codex #493 vong 3): man nap tien. */
+      if (m === 'vagabond.tra_truoc_khach.cai_dat') {
+        return { nguon: [{ ma: 'tien_mat', nhan: 'Tiền mặt tại quầy', can_anh: 0, can_quay: 1, giai_thich: '' }],
+          quay: [{ ma: 'TCV', ten: 'Trần Cao Vân' }], thieu_tk_gd: 0 };
+      }
+      if (m === 'vagabond.tra_truoc_khach.tao_phieu_nap') {
+        if (canh && canh.napLoi) { canh.napLoi--; throw new Error('Mất mạng'); }
+        return { ok: 1, doctype: 'Payment Entry', name: 'ACC-PAY-1' };
+      }
+      if (m === 'vagabond.tra_truoc_khach.so_khach') return { dong: [], khach: a.khach, ten: 'Mỹ Dung' };
       if (m === 'vagabond.nop_quy.tao') return (a && a.ly_do_lech) ? { ok: 1, ma: 'NQ-26-1' } : { can_ly_do: 1, lech: 5000 };
       return {};
     },
@@ -171,6 +182,9 @@ function appMoi(kho, canh) {
     'function rndLbl(t) { return "<div>" + h(t) + "</div>"; }',
     'function oTep(o) { return "<span>" + h(o.ten) + "</span>"; }',
     'function errMsg(e) { return String((e && e.message) || e); }',
+    'function sheetTimKhach(t, cb) { cb({ name: "KL040476", customer_name: "Mỹ Dung" }); }',
+    'function xacNhan() { return Promise.resolve(true); }',
+    'async function scrSoDuKhach() { frame("Sổ khách", "<div>so</div>"); }',
     'async function scrDonHuy() { frame("Đơn đã huỷ", "<div>ds</div>"); }',
     'async function scrHome() { frame(APPNAME, "<div class=\\"emp\\">...</div>"); vgbGomNhom(); }',
   ].join('\n'), Object.assign(g, { __tin: tin, __hoi: hoi, __canh: canh, __mc: mc }));
@@ -179,6 +193,7 @@ function appMoi(kho, canh) {
   vm.runInContext(DON_HUY, g);
   vm.runInContext(NEN_TIM, g);
   vm.runInContext(GIA_VON_TAM, g);
+  vm.runInContext(SO_DU, g);
   /* Moi man lap phieu KHAC ma 48 boc: ca nay khong nap that, chi can co ten
      de 48 boc duoc luc nap. Man that cua bao gia thi da nap o tren. */
   var boc = SOAN_DO.match(/^(\w+) = sdBoc(?:Hop)?\(/gm).map(function (x) { return x.split(' ')[0]; });
@@ -233,6 +248,43 @@ async function moTrangChu(app) { await app.g.reset(app.g.scrHome); await app.cho
 async function moBaoGiaMoi(app) { await app.g.bgMoi(''); await app.cho(); await app.cho(); }
 
 async function chayHet() {
+  await ca('Codex #493 vong 3: phieu nap tra truoc go do, may sap nguon, mo lai tu the thi dien lai khach, so tien, nguon va GIU ma lan gui; Luu xong het ban nhap', async function () {
+    var kho = khoMay();
+    var a = appMoi(kho);
+    await moTrangChu(a);
+    await a.g.go(a.g.scrSoDuNap); await a.cho(); await a.cho();
+    dung('man nap da ve', !!a.el('sdtLuuNap'));
+    var maLan = a.g.sdtNap && a.g.sdtNap.ma_lan;
+    dung('form co ma lan gui: ' + maLan, /^[a-z0-9-]{16,64}$/.test(String(maLan)));
+    await a.bam('sdtChonKh'); await a.cho(); await a.cho();
+    a.go('sdtSoTien', '50.000.000');
+    await a.bam(a.tl.querySelector('[data-sdtng="tien_mat"]')); await a.cho(); await a.cho();
+    await a.bam(a.tl.querySelector('[data-sdtq="TCV"]')); await a.cho(); await a.cho();
+    a.go('sdtGhiChu', 'Trả trước đặt bánh cả năm');
+    var oTien = a.el('sdtSoTien').value;
+    await a.tua(700);
+    bang('dung mot ban nhap cho phieu nap moi', cacKhoa(kho), ['vgbSoanDo:loananh@vagabond.vn:nap_tra_truoc:moi']);
+    /* Sap nguon. */
+    var b = appMoi(kho);
+    await moTrangChu(b);
+    var dong = b.el('sdThe').querySelectorAll('[data-sdmo]');
+    bang('the co dung mot dong', dong.length, 1);
+    dung('dong ghi ten khach: ' + dong[0].textContent, dong[0].textContent.indexOf('Mỹ Dung') >= 0);
+    await b.bam(dong[0]);
+    await b.cho(); await b.cho(); await b.cho();
+    bang('khach, nguon, quay dien lai', [b.g.sdtNap.khach.ma, b.g.sdtNap.nguon, b.g.sdtNap.quay], ['KL040476', 'tien_mat', 'TCV']);
+    bang('so tien dien lai', b.g.sdtNap.so_tien, 50000000);
+    bang('o so tien dien lai dung chu luc sap nguon', b.el('sdtSoTien').value, oTien);
+    bang('o ghi chu dien lai', b.el('sdtGhiChu').value, 'Trả trước đặt bánh cả năm');
+    bang('giu nguyen ma lan gui', b.g.sdtNap.ma_lan, maLan);
+    await b.bam('sdtLuuNap'); await b.cho(); await b.cho();
+    var luu = b.mc.goi.filter(function (x) { return x.m === 'vagabond.tra_truoc_khach.tao_phieu_nap'; });
+    bang('lap mot lan', luu.length, 1);
+    bang('may chu nhan dung', [luu[0].a.khach, luu[0].a.so_tien, luu[0].a.nguon, luu[0].a.quay, luu[0].a.ma_lan],
+      ['KL040476', 50000000, 'tien_mat', 'TCV', maLan]);
+    bang('luu xong thi het ban nhap', cacKhoa(kho), []);
+  });
+
   await ca('Loan Anh: go bao gia moi, may sap nguon, mo lai app thi the Phieu dang soan do dua ve DUNG to dang go', async function () {
     var kho = khoMay();
     var a = appMoi(kho);
@@ -647,7 +699,8 @@ async function chayHet() {
     bang('khong dong khai nao loi', sai, []);
     /* v549: them tra_truoc_erp (khoan da tra truoc khi len ERP, Codex #403). */
     /* v600 Codex #486: them gia_thu (phieu tinh gia thu R&D). */
-    bang('du 42 loai phieu', Object.keys(k.SD_MAN).length, 42);
+    /* v607 Codex #493 vong 3: them phieu nap tra truoc (nap_tra_truoc). */
+    bang('du 43 loai phieu', Object.keys(k.SD_MAN).length, 43);
   });
 
   console.log('ban_soan_do_533: dat ' + ket.dat + ', hong ' + ket.hong);

@@ -258,10 +258,22 @@ function dtgThan(r, kq) {
   }
   s += '<div style="margin-top:10px"><button class="btn gh" data-dtgbill="' + h(r.name) +
     '" style="width:100%;margin:0;min-height:44px">🧾 Xem lại bill</button></div>';
+  /* v607: noi TRUOC con thieu gi, khong de giam doc bam Duyet roi moi bat
+     "Khong duyet duoc" (ca #95631). Don thieu thi nut Duyet mo, thay vao
+     do la nut nhac nguoi lap bo sung. */
+  var thieu = (ct.cau_thieu || []);
+  if (!r.da_ghi_so && thieu.length) {
+    s += '<div style="margin-top:10px;padding:8px 10px;background:#fef2f2;border:1px solid #fecaca;' +
+      'border-radius:8px;font-size:12.5px;color:#b3261e;line-height:1.55"><b>Chưa duyệt được, còn thiếu:</b>' +
+      thieu.map(function (c) { return '<div>- ' + h(c) + '</div>'; }).join('') + '</div>';
+  }
   if (kq.duyet_duoc && !r.da_ghi_so && (r.vgb_tang_duyet || 'Chờ duyệt') !== 'Đã duyệt') {
     s += '<div style="display:flex;gap:9px;margin-top:10px">' +
       '<button class="btn gh" data-dtgtc="' + h(r.name) + '" style="flex:1;margin:0">✖️ Từ chối</button>' +
-      '<button class="btn" data-dtgok="' + h(r.name) + '" style="flex:2;margin:0">✅ Duyệt đơn</button></div>';
+      (thieu.length
+        ? '<button class="btn" data-dtgnhac="' + h(r.name) + '" style="flex:2;margin:0">🔔 Nhắc người lập bổ sung</button>'
+        : '<button class="btn" data-dtgok="' + h(r.name) + '" style="flex:2;margin:0">✅ Duyệt đơn</button>') +
+      '</div>';
   } else if (kq.duyet_duoc && !r.da_ghi_so && r.vgb_tang_duyet === 'Đã duyệt') {
     s += '<div style="margin-top:10px"><button class="btn gh" data-dtgtc="' + h(r.name) +
       '" style="width:100%;margin:0">✖️ Rút lại, từ chối đơn này</button></div>';
@@ -293,6 +305,16 @@ async function dtgBam(ev) {
     } catch (e) { return baoTin(errMsg(e), 'Không duyệt được'); }
     delete dtgChiTiet[ma];
     return go(scrDuyetTang, true);
+  }
+
+  t = ev.target.closest('[data-dtgnhac]');
+  if (t) {
+    var maN = t.getAttribute('data-dtgnhac');
+    try {
+      var kqN = await api('vagabond.hang_tang.nhac_nguoi_lap', { name: maN });
+      toast('Đã nhắc ' + (kqN.ten || kqN.nguoi) + ' khai nốt đơn tặng.', 4000);
+    } catch (e) { return baoTin(errMsg(e), 'Chưa nhắc được'); }
+    return;
   }
 
   t = ev.target.closest('[data-dtgtc]');

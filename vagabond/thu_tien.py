@@ -73,7 +73,11 @@ PT_KHONG_PHAI_THU = ("Công nợ", "Chưa thu", "Ghi nợ")
 #
 # Nên nó nằm riêng khỏi PT_KHONG_PHAI_THU: vào danh sách đó thì nó lại bị
 # tính thành nợ, và màn công nợ sẽ đi đòi khách một hộp bánh mình tặng.
-PT_KHONG_SINH_PHIEU = ("Hàng tặng",)
+#
+# "Số dư trả trước" (v607) cũng vậy: phần đó tất toán bằng khoản khách đã
+# nạp từ trước, cấn lúc ghi sổ (tra_truoc_khach.can_tru_khi_ghi_so). Sinh
+# thêm phiếu thu là thu khách hai lần cho cùng một đồng.
+PT_KHONG_SINH_PHIEU = ("Hàng tặng", "Số dư trả trước")
 
 
 def khong_sinh_phieu(pt):

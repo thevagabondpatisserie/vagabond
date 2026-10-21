@@ -779,6 +779,16 @@ sdKhai('gia_thu', 'gvtManPhieu', {
   ma: function () { return (GVT.p && GVT.p.name) || ''; }, tieuDe: sdTieuDe('#gvtpTen', 'ten_mon'),
   luu: ['vagabond.gia_von_tam.luu_thu', 'vagabond.gia_von_tam.bo_thu']
 });
+sdKhai('nap_tra_truoc', 'scrSoDuNap', {
+  /* v607 Codex #493 vong 3: phieu nap so du tra truoc cua khach. Giu ca ma lan
+     gui (ma_lan) trong ban nhap: tai lai trang roi bam Luu van gui cung ma,
+     may chu tra lai dung phieu da lap, khong lap phieu thu hai. */
+  ten: 'Phiếu nạp trả trước', lay: function () { return sdtNap; }, dat: function (v) { sdtNap = v; },
+  tieuDe: function (v) {
+    return v && v.khach ? 'Nạp cho ' + (v.khach.ten || v.khach.ma) + (v.so_tien ? ', ' + money(v.so_tien) + ' đ' : '') : '';
+  },
+  luu: ['vagabond.tra_truoc_khach.tao_phieu_nap']
+});
 sdKhai('khai_sx', 'scrMfgDeclare', {
   ten: 'Khai nguyên liệu sản xuất', lay: function () { return mfgD; }, dat: function (v) { mfgD = v; },
   ma: function () { return (mfgD && mfgD.code) || ''; }, tieuDe: sdTieuDe('name', 'code'),
@@ -880,6 +890,7 @@ scrRecvDoc = sdBoc('nhap_kho', 'scrRecvDoc', scrRecvDoc);
 scrNhpDon = sdBoc('nhan_hang', 'scrNhpDon', scrNhpDon);
 scrMfgDeclare = sdBoc('khai_sx', 'scrMfgDeclare', scrMfgDeclare);
 gvtManPhieu = sdBoc('gia_thu', 'gvtManPhieu', gvtManPhieu);
+scrSoDuNap = sdBoc('nap_tra_truoc', 'scrSoDuNap', scrSoDuNap);
 hoanMoForm = sdBocHop('hoan_tien', 'hoanMoForm', hoanMoForm);
 hoanMoFormDu = sdBocHop('hoan_du', 'hoanMoFormDu', hoanMoFormDu);
 hoanMoFormHuy = sdBocHop('hoan_huy', 'hoanMoFormHuy', hoanMoFormHuy);

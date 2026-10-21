@@ -2386,3 +2386,84 @@ ghi (lệch tổng Pancake, phí giao Ahamove). Phòng: ca `thu_tin_zalo_604` d�
 lời gọi `bao`/`bao_hoac_ghi_loi`, đòi có `ma_tin` trong danh mục và mỗi tin có
 nơi phát. Bẫy thứ hai: nhịp lặp gọi lại cùng khoá thì `bao()` trả rỗng vì tin đã
 nằm trong sổ; `bao_hoac_ghi_loi` nay chỉ ghi Error Log khi thật sự không có nhóm.
+
+### v607 (anh Việt 20/10/2026, đơn #95631): hai nút lưu trên một màn, một nút lưu thiếu
+
+Triệu chứng: cửa hàng chọn Hàng tặng, gõ lý do, bấm "Lưu phương thức thanh
+toán". Nút đó chỉ lưu phương thức; ô lý do nằm trong khối Hàng tặng có nút
+lưu riêng, nên lý do mất trắng mà không ai được báo. Giám đốc mở màn duyệt bấm
+Duyệt mới thấy "Không duyệt được". Màn Doanh thu Sales còn không có ô lý do nào.
+Khắc phục: chọn Hàng tặng thì chỉ còn MỘT nút (`hang_tang.luu_tang`) lưu phương
+thức, loại, lý do chọn sẵn và ảnh cùng một lần, thiếu là không lưu gì; bốn cửa
+cũ (`pos_chot`, `pos_luu_don`, `pos_sua_don`, `luu_thanh_toan`) gặp Hàng tặng
+thiếu lý do thì dừng và chỉ đúng nút cần bấm. Không chặn ở hook validate vì
+nhịp đồng bộ Pancake lưu lại đơn. Bài học: một màn có hai nút cùng lưu một tờ
+thì mỗi nút phải lưu ĐỦ mọi ô bắt buộc mà nó có thể làm đổi, hoặc nút kia phải
+ẩn; và hàng rào phải đặt ở mọi cửa máy chủ, không chỉ ở nút trên màn.
+
+### v607 (Codex #493 vòng 3): nới ca kiểm thứ tự mà quên khai bản nháp
+
+Triệu chứng: thêm phần 55 có màn lập phiếu Nạp tiền trả trước, đứng sau 48.
+Ca `thu_ban_soan_do_533._thu_tu` đỏ, và cách sửa lúc đó là thêm 54, 55 vào
+danh sách phần được đứng sau 48. Ca xanh, nhưng màn nạp không có bản nháp tự
+lưu: tải lại trang là mất khách, số tiền, nguồn đã chọn. Ca `_khong_sot` cũng
+không bắt vì tên `scrSoDuNap` không khớp mẫu Tao/New/Lap/Nhap. Khắc phục: khai
+`sdKhai` + `sdBoc` trong 48, duyệt tên qua `SAU_48_DUOC_BOC`, thêm ca hành vi
+sập nguồn rồi mở lại. Bài học: ca kiểm đỏ vì phần mới thì đọc lý do nó canh
+gì trước khi nới; phần mới có màn lập phiếu là phải có bản nháp, không phải
+chỉ được phép đứng chỗ đó.
+
+### v607 (Codex #493 vòng 6): khối lưu riêng xong mà chế độ sửa còn nhớ lựa chọn cũ
+
+Triệu chứng: Bill quầy đang Sửa hoá đơn, bấm chip Số dư trả trước rồi áp số dư
+một phần trong khối riêng. Máy chủ đã tách đơn, nhưng `posSua` vẫn giữ phương
+thức và dấu "vừa bấm chip" của lần trước; bấm Lưu thay đổi là gửi lại lựa chọn
+cũ và máy chủ bỏ bảng tách vừa áp. Cùng vòng: Doanh thu Sales chọn Số dư trả
+trước rồi Lưu thì cửa lưu ghi thẳng bằng `set_value`, bỏ qua hook kiểm khách
+và số dư. Khắc phục: khối riêng lưu xong gọi một hàm chung xoá lựa chọn tạm của
+chế độ sửa để màn đọc lại từ đơn; chọn Số dư trả trước luôn đi đường Document.
+Bài học: trạng thái tạm của một chế độ (sửa, nháp) phải được xoá ở MỌI lối lưu
+làm đổi đúng ô đó trên máy chủ, kể cả lối lưu của khối con; và ô có hook kiểm
+thì không được ghi bằng `set_value`.
+
+### v607 (Codex #493 vòng 7): bảng tách dựng theo tổng lúc áp, tổng đổi sau đó
+
+Triệu chứng: Bill quầy đang Sửa hoá đơn, thêm món chưa lưu rồi áp số dư một
+phần. `ap_dung` tách theo tổng cũ trên máy chủ; Lưu thay đổi tính lại tổng
+mới nhưng hai dòng vẫn cộng ra tổng cũ, tới lúc ghi sổ bị chặn lệch tổng. Cùng
+lỗi xảy ra khi đơn đã áp số dư rồi sửa món ở bất kỳ lần nào sau đó. Khắc phục:
+hook validate chỉnh lại bảng tách do `ap_dung` dựng: giữ phần trừ số dư, phần
+còn lại theo tổng mới. Vòng 8 (Codex): bản đầu nhận bảng theo HÌNH DẠNG (hai
+dòng, một dòng số dư) nên bảng kế toán nhập tay cùng hình dạng cũng bị viết lại,
+ghi sổ thu tiền mặt chưa hề thu. Sửa: `ap_dung` ghi dấu bền `vgb_ky_tach_so_du`,
+hook chỉ chỉnh khi bảng còn đúng dấu, nhập tay thì xoá dấu. Bài học: bảng dòng
+tiền máy tự dựng từ tổng đơn phải được dựng lại mỗi khi tổng đơn đổi; và việc
+máy tự sửa số tiền phải dựa trên dấu nguồn gốc bền, không bao giờ suy từ hình
+dạng dữ liệu, vì người nhập tay có thể tạo ra đúng hình dạng đó.
+
+### v607 (anh Việt 21/10/2026): cấu hình hiện trên màn mà không có dòng code nào áp
+
+Triệu chứng: hạng AMBASSADOR 10%, FAMILY 20%, OWNER 100% khai từ 16/08 ở Cài
+đặt hạng khách, màn ghi "Áp cho mọi hoá đơn của khách hạng này", màn tính tiền
+còn hiện chip "giảm 10%", nhưng không chỗ nào tính số tiền đó vào hoá đơn. Thêm
+hai lỗ: `tao_don_tay` chỉ truyền khách công nợ cho phần khuyến mãi nên khách
+chọn qua số điện thoại không bao giờ được xét theo hạng; và gõ số vào ô Số điện
+thoại mà không chọn trong danh sách thì hoá đơn không biết khách là ai. Khắc
+phục: ưu đãi hạng tính trong `khuyen_mai.tinh` (một công thức cho xem trước và
+chốt), truyền khách vừa chọn, ô Số điện thoại tự gắn khi khớp đúng một hồ sơ.
+Bài học: mỗi ô cấu hình có chữ "áp cho..." phải có ca kiểm chạy thật chứng minh
+nó áp; hiện con số lên màn không phải là đã áp.
+
+### v607 (Dễ 21/10/2026): câu báo lỗi chỉ đường tới màn không có nút đó
+
+Triệu chứng: nhân viên mở "Hàng chuyển về kho tôi" thì máy báo "chưa khai Kho
+phụ trách... Báo anh Việt khai giúp ở màn Quản lý người dùng". Quản lý cửa hàng
+có quyền Quản lý người dùng vào đúng màn đó tìm mãi không thấy chỗ khai, vì ô
+Kho phụ trách chỉ có trên Desk (form User), màn app chưa từng hiện hay sửa nó.
+Hệ quả: việc một quản lý tự làm được trong một phút phải chờ anh Việt. Khắc
+phục: màn Quản lý người dùng hiện dòng Kho phụ trách và nút Đổi kho phụ trách
+(chọn nhiều kho, tên ngắn, có dòng giải thích), câu báo ở hai chỗ chặn nói đúng
+nút cần bấm và ai bấm được. Bài học: câu báo "sửa ở màn X" phải được kiểm bằng
+cách mở màn X đúng vai của người đọc câu đó và bấm được tới ô; viết ca kiểm
+chốt câu báo nhắc đúng tên nút đang có trên màn, để sau này đổi tên nút thì ca
+đỏ.

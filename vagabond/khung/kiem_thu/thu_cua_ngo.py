@@ -400,7 +400,7 @@ CUA_NGO = {
 	# v583: dat_bo_phan sua bo phan tung nguoi tren app; chot ca mo dun.
 	"nguoi_dung.py": [
 		"danh_sach", "danh_sach_goi", "chi_tiet", "dat_goi", "sua_quyen_le",
-		"bat_tat", "dat_bo_phan", "moi", "gui_lai_thu",
+		"bat_tat", "dat_bo_phan", "dat_kho_phu_trach", "moi", "gui_lai_thu",
 	],
 	"tang_qua.py": ["chi_tiet", "danh_muc", "danh_muc_dot", "danh_sach",
 		"doi_trang_thai", "ds_dot", "khach_co_hang", "luu", "luu_dot",
@@ -417,7 +417,10 @@ CUA_NGO = {
 	# hooks.py goi, KHONG duoc mo ra ngoai; `bo_sung_mac_dinh` ben
 	# pt_thanh_toan cung vay, no chi chay trong after_migrate.
 	"hang_tang.py": ["cai_dat", "luu_thong_tin", "dem_cho_duyet", "ds_don",
-		"chi_tiet", "duyet", "tu_choi", "bao_cao"],
+		"chi_tiet", "duyet", "tu_choi", "bao_cao",
+		# v607: một nút lưu đơn tặng, gợi ý tên khách và ghi chú Pancake,
+		# giám đốc nhắc người lập khai nốt.
+		"luu_tang", "goi_y", "nhac_nguoi_lap"],
 	# Hoa don dien tu thanh chung tu, them 26/08/2026 sau khi phat hien 125
 	# to bi nuot. `con_sot` chi DOC, `mo_lai` chi doi co, `chay_bu` dung
 	# chung tu that. `chay_tu_dong` la nhip lap lich, `_chay`, `_mot_to`,
@@ -450,6 +453,8 @@ CUA_NGO = {
 	# ba cua DOC de app bay man hinh, mot cua GHI dung phieu o trang thai
 	# nhap. Khong cua nao ghi so, khong cua nao chuyen tien.
 	"tra_truoc.py": ["chi_tiet_don", "ds_don_mua", "ds_nguon_tien", "ds_phieu", "tao_phieu"],
+	# v607: số dư khách trả trước, trừ dần.
+	"tra_truoc_khach.py": ["ap_dung", "cai_dat", "ds", "ghi_so_phieu_nap", "so_du", "so_khach", "tao_phieu_nap"],
 	"thong_bao.py": ["dang_ky", "khoa_cong_khai", "tinh_hinh", "thu_gui"],
 	# Tang doi soat SePay dung chung, them 24/08/2026. Ba cua ngo nay phuc vu
 	# MOI man co doi soat, nen thieu mot ten la mot man mat nut.

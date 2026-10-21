@@ -242,6 +242,9 @@ LOC_LIEN_KET = {
 	"kho_hang_huy": {"company": "@cong_ty", "is_group": 0, "disabled": 0},
 	# qua_tang_hoa_don._tk_chi_phi: tài khoản chi phí chi tiết.
 	"tk_chi_phi_qua_tang": {"company": "@cong_ty", "is_group": 0, "disabled": 0, "root_type": "Expense"},
+	# tra_truoc_khach.tao_phieu_nap (v607): tài khoản tài sản chi tiết, không
+	# theo dõi đối tượng (phải thu Giám đốc thu hộ).
+	"tk_gd_thu_ho": {"company": "@cong_ty", "is_group": 0, "disabled": 0, "root_type": "Asset"},
 	# tai_khoan_btp.loi_tai_khoan: Stock, chi tiết, còn dùng, VND.
 	"tk_ton_btp_cap1": {"company": "@cong_ty", "is_group": 0, "disabled": 0, "account_type": "Stock", "account_currency": "VND"},
 	"tk_ton_btp_cap2": {"company": "@cong_ty", "is_group": 0, "disabled": 0, "account_type": "Stock", "account_currency": "VND"},

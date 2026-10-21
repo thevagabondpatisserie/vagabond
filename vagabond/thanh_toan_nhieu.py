@@ -457,6 +457,9 @@ def luu(si=None, dong=None):
 			"pt": d["pt"], "so_tien": d["so_tien"],
 			"ma_tham_chieu": d["ma_tham_chieu"], "do_may": 0,
 		})
+	# Codex #493 vòng 8: bảng nhập tay không còn là phép tách máy dựng khi áp
+	# số dư trả trước. Xoá dấu để hook không chỉnh lại số tiền người nhập.
+	doc.set("vgb_ky_tach_so_du", "")
 	dat_pt_chinh(doc)
 	doc.flags.ignore_permissions = True
 	doc.save(ignore_permissions=True)

@@ -276,7 +276,7 @@ def _chan_khong_phai_kho_nhan(doc):
 	if not cua_toi:
 		frappe.throw(
 			"Tài khoản của bạn chưa khai Kho phụ trách nên máy chưa biết bạn "
-			"nhận hàng về kho nào. Báo anh Việt khai giúp ở màn Quản lý người dùng."
+			"nhận hàng về kho nào. " + xuat_kho.CHI_DUONG_KHO
 		)
 	if doc.to_warehouse not in cua_toi:
 		frappe.throw(
