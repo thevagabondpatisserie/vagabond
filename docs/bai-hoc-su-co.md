@@ -2425,3 +2425,14 @@ chế độ sửa để màn đọc lại từ đơn; chọn Số dư trả trư
 Bài học: trạng thái tạm của một chế độ (sửa, nháp) phải được xoá ở MỌI lối lưu
 làm đổi đúng ô đó trên máy chủ, kể cả lối lưu của khối con; và ô có hook kiểm
 thì không được ghi bằng `set_value`.
+
+### v607 (Codex #493 vòng 7): bảng tách dựng theo tổng lúc áp, tổng đổi sau đó
+
+Triệu chứng: Bill quầy đang Sửa hoá đơn, thêm món chưa lưu rồi áp số dư một
+phần. `ap_dung` tách theo tổng cũ trên máy chủ; Lưu thay đổi tính lại tổng
+mới nhưng hai dòng vẫn cộng ra tổng cũ, tới lúc ghi sổ bị chặn lệch tổng. Cùng
+lỗi xảy ra khi đơn đã áp số dư rồi sửa món ở bất kỳ lần nào sau đó. Khắc phục:
+hook validate chỉnh lại bảng tách đúng dạng `ap_dung` dựng (một dòng số dư, một
+dòng khác): giữ phần trừ số dư, phần còn lại theo tổng mới. Bài học: bảng dòng
+tiền máy tự dựng từ tổng đơn phải được dựng lại mỗi khi tổng đơn đổi, không chỉ
+ở lúc tạo; chặn lúc ghi sổ là lưới cuối, không phải cách sửa.
