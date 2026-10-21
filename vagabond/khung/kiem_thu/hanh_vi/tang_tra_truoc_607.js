@@ -490,6 +490,123 @@ function chuTrongKhoi(k) { return k.tl.getElementById('pbTgForm').innerHTML; }
     bang('không có khung thiếu', s.indexOf('Chưa duyệt được, còn thiếu'), -1);
   });
 
+  /* ---------------------------------------------- Codex #493 vòng 6 (SHA 4cf9ceae9)
+     Màn Bill quầy THẬT: nạp nguyên 01 + 08 + 10 + 54 + 55, cộng vài hàm lấy
+     nguyên văn từ 00-nen.js và 09 (00-nen là phần mở đầu của bản ghép nên
+     không nạp nguyên tệp được). Bấm đúng chuỗi của thu ngân: Sửa hoá đơn,
+     chip phương thức, khối số dư, Lưu thay đổi. Không gọi hàm nào khác của
+     màn ngoài các cú bấm đó. */
+  function layHam(ten) {
+    var ds = fs.readdirSync(BEP).filter(function (t) { return /\.js$/.test(t); });
+    for (var i = 0; i < ds.length; i++) {
+      var x = doc(ds[i]);
+      var m = new RegExp('\\n(async )?function ' + ten + '\\(').exec(x);
+      if (m) { var a = m.index + 1; return x.slice(a, x.indexOf('\n}', a) + 2); }
+    }
+    throw new Error('không thấy hàm ' + ten);
+  }
+  function manBill(don, them) {
+    var tl = domGia.taiLieuGia();
+    var vgb = tl.createElement('div'); vgb.id = 'vgb'; tl.body.appendChild(vgb);
+    var PT4 = ['Tiền mặt', 'Chuyển khoản', 'Hàng tặng', 'Số dư trả trước'];
+    var mc = mayChu(Object.assign({
+      'frappe.client.get': function () { return JSON.parse(JSON.stringify(don)); },
+      'vagabond.ban_hang.cau_hinh_ban_hang': function () {
+        return { pt: PT4.map(function (v) { return { v: v }; }), pt_pancake: [], nguon: [{ v: 'Tại quầy', pt: PT4 }] };
+      },
+      'vagabond.tra_truoc_khach.so_du': function () { return { kha_dung_tam: 100000 }; },
+      /* Như máy chủ: ap_dung tách 100.000 số dư + phần còn lại, ô chính là dòng lớn nhất. */
+      'vagabond.tra_truoc_khach.ap_dung': function (a) {
+        don.vgb_pt_thanh_toan = a.pt_con_lai;
+        don.vgb_thanh_toan_nhieu = [{ pt: 'Số dư trả trước', so_tien: 100000 }, { pt: a.pt_con_lai, so_tien: don.grand_total - 100000 }];
+        return { ok: 1 };
+      },
+    }, them || {}));
+    var tin = [];
+    var g = {
+      console: console, JSON: JSON, Math: Math, Number: Number, String: String, Object: Object, Array: Array,
+      Promise: Promise, Error: Error, RegExp: RegExp, parseFloat: parseFloat, parseInt: parseInt, isNaN: isNaN, Date: Date,
+      document: tl, frappe: { session: { user: 'quay@vagabond.vn' } }, navigator: {},
+      location: { href: 'https://app.x/bep', pathname: '/bep', hostname: 'app.x', search: '', hash: '', replace: function () {} },
+      history: { pushState: function () {}, replaceState: function () {}, back: function () {} },
+      requestAnimationFrame: function (f) { f(); },
+      setTimeout: function (f) { if (typeof f === 'function') f(); return 1; }, clearTimeout: function () {},
+      setInterval: function () { return 1; }, clearInterval: function () {},
+    };
+    g.window = g;
+    vm.createContext(g);
+    vm.runInContext([
+      'var root = document.getElementById("vgb");',
+      'function h(s) { return String(s == null ? "" : s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;"); }',
+      'function toast(s) { __tin.push("toast:" + s); }', 'function busy() {}',
+      'function baoTin(s) { __tin.push("baoTin:" + s); return Promise.resolve(); }', 'function dSkin() {}',
+      'function money(x) { return String(x); }', 'function num(x) { return Number(x) || 0; }',
+      'function today() { return "2026-10-20"; }', 'function posNgayVn(x) { return x; }', 'function hasRole() { return true; }',
+      'function errMsg(e) { return String((e && e.message) || e); }', 'function api(m, a) { return __mc.api(m, a); }',
+      'var DS_MAU_HD = {}, KHACH_NO = {};', 'async function scrHome() { frame(APPNAME, "<div></div>"); }',
+      /* Hộp xác nhận: thu ngân bấm Đồng ý. Quyền bỏ món "tự do" để Sửa không đòi OTP. */
+      'function confirmSheet() { return Promise.resolve(true); }', 'function posQuyenBoMon() { return "tu_do"; }',
+      /* Khối mã QR chuyển khoản không phải phần đang kiểm. */
+      'function posKhoiQr() { return ""; }', 'function posNoiDungCk() { return ""; }',
+    ].join('\n'), Object.assign(g, { __tin: tin, __mc: mc }));
+    vm.runInContext(doc('01-khung-app.js'), g);
+    vm.runInContext(doc('08-doanh-so-sales.js'), g);
+    vm.runInContext(doc('10-bill-quay.js'), g);
+    vm.runInContext(doc('49-tru-kho-bu.js'), g);
+    vm.runInContext(doc('54-ly-do-tang.js'), g);
+    vm.runInContext(doc('55-so-du-tra-truoc.js'), g);
+    ['khachMotDong', 'khachTrenDon', 'posSoTien', 'posNutPt', 'posONhan'].forEach(function (t) { vm.runInContext(layHam(t), g); });
+    /* Chốt xong màn quay về danh sách bill; danh sách không phải phần đang kiểm. */
+    g.scrPosDs = async function () {};
+    return { g: g, tl: tl, mc: mc, tin: tin,
+      mot: function (chon) { var r = tl.body.querySelectorAll(chon); if (r.length !== 1) throw new Error('mong dung 1 ' + chon + ', co ' + r.length); return r[0]; },
+      bam: async function (el) { el.dispatchEvent(domGia.suKien('click', {}, el)); await nghi(); await nghi(); } };
+  }
+  function donBill(them) {
+    return Object.assign({ name: 'SI-95631', docstatus: 0, custom_nguon: 'Tại quầy', grand_total: 700000,
+      vgb_pt_thanh_toan: 'Tiền mặt', customer: 'KL040476', customer_name: 'Mỹ Dung',
+      items: [{ item_code: 'B1', item_name: 'Bánh', qty: 1, rate: 700000, name: 'dong1' }] }, them || {});
+  }
+
+  await ca('Codex #493 vòng 6: Bill quầy đang Sửa hoá đơn, áp số dư một phần rồi Lưu thay đổi thì KHÔNG gửi lại lựa chọn cũ', async function () {
+    var app = manBill(donBill());
+    await app.g.scrPosBill('SI-95631'); await nghi();
+    await app.bam(app.mot('#pbSua')); await nghi();
+    await app.bam(app.mot('[data-pt="Số dư trả trước"]'));
+    bang('khối số dư hiện', app.tl.getElementById('pbSoDu').style.display, 'block');
+    await app.bam(app.mot('[data-sdtpc="Tiền mặt"]'));
+    await app.bam(app.mot('[data-sdtluu]')); await nghi();
+    var ap = app.mc.cac('vagabond.tra_truoc_khach.ap_dung');
+    bang('áp số dư một lần, phần còn lại tiền mặt', ap.map(function (x) { return x.a.pt_con_lai; }), ['Tiền mặt']);
+    await app.bam(app.mot('#pbLuuSua')); await nghi();
+    var sd = app.mc.cac('vagabond.ban_hang.pos_sua_don');
+    /* Trước vòng 6: {pt:"Số dư trả trước", doi_pt:1} nên máy chủ bỏ bảng tách vừa áp. */
+    bang('Lưu thay đổi gửi phương thức đọc lại từ đơn, không bấm chip', sd.map(function (x) { return [x.a.pt, x.a.doi_pt]; }), [['Tiền mặt', 0]]);
+  });
+
+  await ca('Codex #493 vòng 6: Bill quầy đang Sửa hoá đơn, bấm chip rồi Lưu thay đổi thì doi_pt=1; không bấm chip thì 0', async function () {
+    for (var lan = 0; lan < 2; lan++) {
+      var app = manBill(donBill());
+      await app.g.scrPosBill('SI-95631'); await nghi();
+      await app.bam(app.mot('#pbSua')); await nghi();
+      if (lan === 1) await app.bam(app.mot('[data-pt="Chuyển khoản"]'));
+      await app.bam(app.mot('#pbLuuSua')); await nghi();
+      var sd = app.mc.cac('vagabond.ban_hang.pos_sua_don');
+      bang('lần ' + lan, sd.map(function (x) { return [x.a.pt, x.a.doi_pt]; }), [[lan ? 'Chuyển khoản' : 'Tiền mặt', lan]]);
+    }
+  });
+
+  await ca('Codex #493 vòng 6: Bill quầy tạm tính, bấm Chốt không bấm chip gửi doi_pt=0; bấm chip rồi Chốt gửi doi_pt=1', async function () {
+    for (var lan = 0; lan < 2; lan++) {
+      var app = manBill(donBill({ vgb_tam_tinh: 1 }));
+      await app.g.scrPosBill('SI-95631'); await nghi();
+      if (lan === 1) await app.bam(app.mot('[data-pt="Chuyển khoản"]'));
+      await app.bam(app.mot('#pbChot')); await nghi();
+      var c = app.mc.cac('vagabond.ban_hang.pos_chot');
+      bang('lần ' + lan, c.map(function (x) { return [x.a.pt, x.a.doi_pt]; }), [[lan ? 'Chuyển khoản' : 'Tiền mặt', lan]]);
+    }
+  });
+
   console.log('Bo ca kiem HANH VI v607 (ly do tang chon san, so du tra truoc)');
   ket.loi.forEach(function (l) { console.log('  HONG ' + l); });
   console.log(ket.dat + ' ca đạt, ' + ket.hong + ' ca hỏng, tổng ' + (ket.dat + ket.hong) + ' ca.');
