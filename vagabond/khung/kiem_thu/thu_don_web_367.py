@@ -289,7 +289,7 @@ def _moi_truong_tao_don(pancake, trung=None, km=None, phi=None, cauhinh=None, to
 	for ten in ("_so", "_lam_sach_hang", "_lam_sach_the", "_ngay_iso", "_ngay_pancake", "_hoa_don_pancake", "_diem_lay",
 			"_uu_dai_don", "_giu_luot_uu_dai", "_tra_uu_dai_khi_tu_choi", "_bo_ctkm",
 			"_gan_giam_pancake", "_doc_lai_don_pancake", "_tong_pancake",
-			"_gui_pancake", "la_loi_the", "bot_the", "_them_dong"):
+			"_gui_pancake", "la_loi_the", "bot_the", "_them_dong", "cau_mien_phi"):
 		nap("don_hang.py", ten, g)
 	g["TEN_THE"] = _hang_so("don_hang.py", "TEN_THE")
 	g["_bao_lech_tong_pancake"] = lambda *a: vet.su.append(("bao_lech", a))
@@ -2163,9 +2163,10 @@ def _():
 			ghi = nap("giao_hang.py", "_ghi_canh_bao_ahamove", {
 				"cache_get": lambda k: bo_nho.get(k),
 				"cache_set": lambda k, v, ttl: (viec.append("khoa"), bo_nho.__setitem__(k, v))[1], "frappe": fr})
+			from vagabond.lib import aha_url
 			hoi = nap("giao_hang.py", "_hoi_ahamove", {"requests": goi, "TIMEOUT": 10,
 				"_token": lambda c: "TOKEN-KHONG-DUOC-GHI", "_bao_ahamove_mot_lan": bao,
-				"_loi_http_ahamove": loi_http, "frappe": fr})
+				"_loi_http_ahamove": loi_http, "frappe": fr, "aha_url": aha_url})
 			c = D(ahamove_base="https://api.ahamove.test", ahamove_mobile="0900000000",
 				ma_dich_vu="SGN-BIKE", dung_dich_vu_de_vo=0)
 			for _lan in range(2):

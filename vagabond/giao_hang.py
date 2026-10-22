@@ -25,7 +25,7 @@ import requests
 from frappe.rate_limiter import rate_limit
 
 from vagabond.dia_chi import geocode
-from vagabond.lib import TIMEOUT, cache_get, cache_set, cfg, key
+from vagabond.lib import TIMEOUT, aha_url, cache_get, cache_set, cfg, key
 
 BAN_KINH_MAC_DINH = 12.0
 
@@ -41,7 +41,7 @@ def _token(c):
 	if hit:
 		return hit
 	r = requests.post(
-		(c.ahamove_base or "").rstrip("/") + "/v3/accounts/token",
+		aha_url(c.ahamove_base, "/accounts/token"),
 		json={"mobile": c.ahamove_mobile, "api_key": key(c, "ahamove_api_key")},
 		timeout=TIMEOUT,
 	)
@@ -185,7 +185,7 @@ def _hoi_ahamove(c, diem_lay, diem_khach, luc_giao):
 	}
 	try:
 		r = requests.post(
-			(c.ahamove_base or "").rstrip("/") + "/v3/orders/estimates",
+			aha_url(c.ahamove_base, "/orders/estimates"),
 			json=body,
 			headers={"Authorization": "Bearer " + _token(c)},
 			timeout=TIMEOUT,

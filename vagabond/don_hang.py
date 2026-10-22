@@ -133,6 +133,17 @@ def bot_the(tags):
 	return giu, "Thẻ Pancake chưa gắn được, Sales gắn tay: " + ", ".join(ten) + "."
 
 
+def cau_mien_phi(nguong):
+	"""Dòng ghi chú cho sales khi đơn web được miễn phí giao. THUẦN."""
+	try:
+		n = int(float(nguong or 0))
+	except (TypeError, ValueError):
+		n = 0
+	if n > 0:
+		return "MIỄN PHÍ GIAO: đơn web từ %s đ, không thu phí giao của khách." % "{:,}".format(n).replace(",", ".")
+	return "MIỄN PHÍ GIAO: không thu phí giao của khách."
+
+
 def _them_dong(chu, dong):
 	chu = (chu or "").strip()
 	return (chu + "\n" + dong) if chu else dong
@@ -625,6 +636,14 @@ def tao_don(don=None):
 	}
 	if giam:
 		body["items"] = _gan_giam_pancake(hang, hang_goc, gia, giam)
+	if phi.get("mien_phi"):
+		# 21/10/2026: khach duoc mien phi giao tren web nhung sales nhin don
+		# Pancake chi thay phi giao 0, tuong chua tinh nen thu them. Ghi ro
+		# bang co va bang chu, o ca ghi chu noi bo lan ghi chu in.
+		body["is_free_shipping"] = True
+		chu_mp = cau_mien_phi(don_web.nguong_mien_phi())
+		body["note_print"] = _them_dong(body.get("note_print"), chu_mp)
+		body["note"] = _them_dong(body.get("note"), chu_mp)
 
 	nguon = str(c.pancake_order_source_id or "").strip()
 	if nguon:

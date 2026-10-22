@@ -2454,6 +2454,22 @@ chốt), truyền khách vừa chọn, ô Số điện thoại tự gắn khi kh
 Bài học: mỗi ô cấu hình có chữ "áp cho..." phải có ca kiểm chạy thật chứng minh
 nó áp; hiện con số lên màn không phải là đã áp.
 
+### v608 (anh Việt 21/10/2026): ô cài đặt điền tay làm hỏng địa chỉ API, web mất phí giao hai tuần
+
+Triệu chứng: từ 06/10 web báo "ahamove_loi", không có phí giao; khách đặt đơn
+từ 1.000.000 thấy "Miễn phí giao" (đúng cài đặt), nhưng đơn sang Pancake chỉ
+có phí giao 0 và không chữ nào nói là miễn phí, sales tưởng chưa tính nên thu
+thêm, khách phản ứng. Gốc: ô Địa chỉ API Ahamove được điền
+"https://partner-api.ahamove.com/v3", mã ở bốn chỗ tự nối "/v3/..." thành
+".../v3/v3/accounts/token", Ahamove trả 404; Error Log có ghi nhưng không ai
+đọc. Khắc phục: một hàm lib.aha_url chịu mọi kiểu điền (có hay không "/",
+có hay không đuôi "/v3"), bốn chỗ gọi đều đi qua nó, ca kiểm AST chốt không
+còn chỗ nào tự ghép; đơn miễn phí giao gửi Pancake cờ is_free_shipping và
+dòng ghi chú in đậm cho sales. Bài học: ô cài đặt người điền tay là đầu vào
+không tin được, mã phải chịu được mọi cách điền hợp lý; và một trạng thái
+"miễn phí" máy đã quyết phải hiện thành CHỮ ở màn người thu tiền, con số 0
+đứng một mình ai cũng đọc thành "chưa tính".
+
 ### v607 (Dễ 21/10/2026): câu báo lỗi chỉ đường tới màn không có nút đó
 
 Triệu chứng: nhân viên mở "Hàng chuyển về kho tôi" thì máy báo "chưa khai Kho

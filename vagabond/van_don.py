@@ -25,7 +25,7 @@ from frappe.utils import add_days, cint, flt, get_datetime, now_datetime, nowdat
 from vagabond import nhat_ky_dong_bo as nhat_ky
 from vagabond.kiem_banh import BO_QUA_TT, _keo_don, _khoang_unix
 from vagabond import pickup
-from vagabond.lib import PANCAKE, TIMEOUT, cache_get, cache_set, cfg, key
+from vagabond.lib import PANCAKE, TIMEOUT, aha_url, cache_get, cache_set, cfg, key
 from vagabond.vai_cua_hang import VAI_QLCH
 
 QUYEN_SALES = {"System Manager", "Sales User", "Sales Manager"}  # 01/10: gỡ Bộ phận đặt hàng (vai thu mua)
@@ -1861,7 +1861,7 @@ def _ahamove_dat_don(doc, service_id=None, them_reqs=None):
 	body["path"][0].pop("dia_chi", None)
 	body["path"][0].pop("ten", None)
 	r = _mang().post(
-		(c.ahamove_base or "").rstrip("/") + "/v3/orders",
+		aha_url(c.ahamove_base, "/orders"),
 		json=body,
 		headers={"Authorization": "Bearer " + _aha_token(c)},
 		timeout=TIMEOUT,
@@ -1986,7 +1986,7 @@ AHA_ADDON_HIEN = ("D2D", "FRAGILE", "BULKY", "BAGA", "TIP")
 def _aha_goi(c, duong_dan, phuong_thuc="GET", body=None):
 	from vagabond.giao_hang import _token as _aha_token
 
-	url = (c.ahamove_base or "").rstrip("/") + duong_dan
+	url = aha_url(c.ahamove_base, duong_dan)
 	dau = {"Authorization": "Bearer " + _aha_token(c)}
 	if phuong_thuc == "POST":
 		r = _mang().post(url, json=body or {}, headers=dau, timeout=TIMEOUT)

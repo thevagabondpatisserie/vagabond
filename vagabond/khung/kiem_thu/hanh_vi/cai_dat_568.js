@@ -902,7 +902,11 @@ ca('v596: loiTruong là nguồn duy nhất của ô đỏ; máy chủ thật th�
   // Codex 3d0b446: theo câu sửa cũ gõ api.ahamove.com thì hết đỏ mà gọi sai máy chủ.
   dung('api.ahamove.com vẫn là lỗi, câu sửa chỉ partner-api',
     String(V.loiTruong({ ahamove_base: 'https://api.ahamove.com' }).ahamove_base || '').indexOf('https://partner-api.ahamove.com') >= 0);
-  dung('thêm /v3 cũng là lỗi (code tự nối /v3)', !!V.loiTruong({ ahamove_base: 'https://partner-api.ahamove.com/v3' }).ahamove_base);
+  // v608 (Codex 4337249728): máy chủ chịu đuôi /v3 (lib.aha_url) thì ô cài đặt không được tô đỏ nữa.
+  la('thêm /v3 không còn là lỗi, cùng luật chuẩn hoá với máy chủ', V.loiTruong({ ahamove_base: 'https://partner-api.ahamove.com/v3' }), {});
+  la('đuôi /V3/ hoa và gạch chéo', V.loiTruong({ ahamove_base: 'https://partner-api.ahamove.com/V3/' }), {});
+  dung('chạy thử kèm /v3 vẫn là lỗi chạy thử', /chạy thử/.test(V.loiTruong({ ahamove_base: 'https://partner-apistg.ahamove.com/v3' }).ahamove_base));
+  dung('api.ahamove.com/v3 vẫn sai máy chủ', !!V.loiTruong({ ahamove_base: 'https://api.ahamove.com/v3' }).ahamove_base);
   la('trống', V.loiTruong({}), {});
 });
 
