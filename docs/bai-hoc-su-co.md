@@ -2467,3 +2467,44 @@ nút cần bấm và ai bấm được. Bài học: câu báo "sửa ở màn X"
 cách mở màn X đúng vai của người đọc câu đó và bấm được tới ô; viết ca kiểm
 chốt câu báo nhắc đúng tên nút đang có trên màn, để sau này đổi tên nút thì ca
 đỏ.
+
+### v609 (anh Việt 22/10/2026): tắt webhook email rồi mà thư giao việc vẫn tới, vì thư đó của Frappe lõi
+
+Triệu chứng: anh Việt đã bỏ email khỏi phần webhook và tắt thư cảnh báo nội bộ
+(v604), nhưng hộp mail vẫn nhận hàng chục thư "đã phân công nhiệm vụ mới" trong
+vài phút. Nguyên nhân: hàm giao việc của app gọi
+frappe.desk.form.assign_to.add(), mà bản Frappe v16 của hàm đó không có tham số
+tắt báo và luôn gọi notify_assignment, tức ghi Notification Log rồi gửi email
+theo cấu hình người nhận. Thư này không đi qua webhook hay bất kỳ cài đặt nào
+của app, nên tắt mọi thứ trong app cũng không hết. Khắc phục: ghi ToDo thẳng
+(một dòng mỗi người, đủ ô tham chiếu, ưu tiên, hạn, người giao), chia sẻ quyền
+đọc chứng từ khi người nhận chưa đọc được; ca kiểm AST chốt tệp không còn import
+hay gọi assign_to. Bài học: trước khi gọi một hàm tiện của Frappe thay cho ghi
+bản ghi, đọc hàm đó xem nó còn gửi gì ra ngoài (email, thông báo, webhook); mọi
+đường gửi ra ngoài của app phải đi qua đúng một chỗ (kenh_zalo), không để thư
+nào sinh ra từ lớp lõi mà cài đặt của app không tắt được.
+
+### v609 (anh Việt 22/10/2026): tin báo về hàng hoá phải có tên hàng, và tiền chỉ cho đúng bộ phận
+
+Bối cảnh: thêm 21 tin Zalo cho kho, thu mua, sản xuất, đơn web. Anh Việt duyệt
+mẫu với hai luật: tin về hàng hoá phải kê TÊN HÀNG, số lượng, đơn vị (tối đa 5
+món rồi "+N món khác"), và số tiền chỉ xuất hiện ở tin của Thu mua và Kế toán,
+không ở tin cho Kho, Bếp, Bán hàng. Cách giữ luật: mỗi tin một hàm phát duy
+nhất (ca thu_tin_zalo_604 chốt NOI_PHAT), hai tin cùng một chứng từ (xuất huỷ
+cho kho và giá vốn cho kế toán) tách hai hàm, hàm hook chỉ điều phối; ca kiểm
+chạy hàm thật và soi từng dòng tin kho không có mẫu "số đ". Bẫy đã gặp khi viết
+ca: dò chữ " đ" bắt nhầm " đơn", phải dò bằng mẫu "chữ số, khoảng trắng, đ, hết
+từ". Bài học: luật trình bày tin cho người dùng phải có ca kiểm máy đọc được,
+không để người viết tin sau nhớ bằng miệng.
+
+### v609 (22/10/2026): đột biến "không bắt" vì Python chạy tệp .pyc cũ
+
+Triệu chứng: đột biến đổi khoá sắp xếp "han" thành "ghi" (cùng độ dài) rồi chạy
+ca kiểm trong cùng giây với lần khôi phục trước, máy báo KHÔNG BẮT; chạy tay
+lại thì bắt ngay. Nguyên nhân: Python quyết định dùng .pyc theo mốc thời gian
+giây và kích thước tệp nguồn; thay chuỗi cùng độ dài trong cùng giây thì cả hai
+không đổi, nên nó nạp bản biên dịch của mã CHƯA đột biến. Đây là trường hợp
+thứ tư của điều 17 (ngoài bộ kiểm yếu, mẫu không khớp, lớp bảo vệ dư): mã
+chạy không phải mã trên đĩa. Cách phòng: kịch bản đột biến xoá __pycache__
+trước mỗi lần chạy, hoặc chạy python3 -B; và một đột biến "không bắt" phải
+được chạy tay lại một lần trước khi ghi vào báo cáo.
