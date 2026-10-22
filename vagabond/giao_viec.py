@@ -127,6 +127,37 @@ def _dong_bo_nhan(doctype, name):
 		frappe.log_error(frappe.get_traceback(), "giao_viec: dong bo _assign loi")
 
 
+def _them_viec(doctype, name, nguoi, mo_ta, han=None):
+	"""Ghi MỘT dòng ToDo cho một người, KHÔNG qua frappe.desk.form.assign_to.add.
+
+	v609 (anh Việt 22/10/2026): Frappe 16 bỏ công tắc "notify" của assign_to.add,
+	cứ giao việc là gửi mail "đã phân công nhiệm vụ mới" cho từng người. Ngày
+	22/10 Uyên lập 3 phiếu nhập kho, máy giao cho 7 người giữ vai kho, hộp thư
+	anh Việt nhận 40 thư trong 8 phút. Chuông của app đi qua thong_bao.gui (đẩy
+	lên điện thoại) và tin Zalo; thư Frappe là thừa. ToDo ghi thẳng thì vẫn vào
+	đúng bảng mà ô Assigned To và màn Việc cần làm đọc, chỉ không có thư.
+	Giữ phần chia sẻ quyền đọc như assign_to.add, để người được giao mà vai
+	chưa đọc được chứng từ vẫn mở được.
+	"""
+	td = frappe.get_doc({
+		"doctype": "ToDo",
+		"allocated_to": nguoi,
+		"reference_type": doctype,
+		"reference_name": name,
+		"description": mo_ta,
+		"priority": "Medium",
+		"status": "Open",
+		"date": han,
+		"assigned_by": frappe.session.user,
+	})
+	td.insert(ignore_permissions=True)
+	try:
+		if not frappe.has_permission(doctype, "read", doc=name, user=nguoi):
+			frappe.share.add(doctype, name, nguoi, flags={"ignore_share_permission": True})
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "giao_viec: chia se quyen doc loi")
+
+
 def giao(doctype, name, nguoi, mo_ta, han=None, doc_lap=1, bao=1):
 	"""Giao phiếu cho một danh sách người. KHÔNG BAO GIỜ ném lỗi.
 
@@ -144,18 +175,8 @@ def giao(doctype, name, nguoi, mo_ta, han=None, doc_lap=1, bao=1):
 			go_giao(doctype, name, tru=set(nguoi))
 		da_co = _dang_giao(doctype, name)
 		them = [u for u in nguoi if u not in da_co]
-		if them:
-			from frappe.desk.form.assign_to import add
-
-			add({
-				"doctype": doctype,
-				"name": name,
-				"assign_to": them,
-				"description": mo_ta,
-				"date": han,
-				"notify": 0,
-				"assigned_by": frappe.session.user,
-			})
+		for u in them:
+			_them_viec(doctype, name, u, mo_ta, han)
 		_dong_bo_nhan(doctype, name)
 		if bao:
 			_bao(nguoi, doctype, name, mo_ta)

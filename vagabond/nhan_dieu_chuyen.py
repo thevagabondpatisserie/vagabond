@@ -340,6 +340,9 @@ def xac_nhan(phieu=None, dong=None, ghi_chu=None):
 		update_modified=False,
 	)
 	_ghi_vet(doc.name, tt, lech, ghi_chu)
+	# v609: báo kho đi và quản lý; nhận thiếu là Cảnh báo (qua cả giờ im).
+	from vagabond import tin_kho
+	tin_kho.bao_da_nhan_chuyen(doc, tt, cac_dong)
 	frappe.db.commit()
 	return {
 		"ok": 1,

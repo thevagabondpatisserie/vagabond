@@ -776,6 +776,13 @@ def tao_don(don=None):
 	don_web.cap_nhat_sau_pancake(ban_ghi, kq)
 	frappe.db.commit()
 
+	if kq["ket_qua"] == "da_nhan":
+		# v609: tin "Đơn web mới" cho Sales, sau khi Pancake đã nhận. Không chặn đơn.
+		from vagabond import tin_kho
+		tin_kho.bao_don_web_moi(ban_ghi.name, ten, ngay, tu_lay, don.get("diem_lay_ten"), dia_chi, snapshot["mon"],
+			tien_banh - giam + (phi.get("phi_khach") or 0), bool(phi.get("mien_phi")), kq.get("pancake_display_id") or kq.get("pancake_id"))
+		frappe.db.commit()
+
 	if giam and kq["ket_qua"] == "da_nhan":
 		ma_don = kq.get("pancake_id")
 		doc_lai = _doc_lai_don_pancake(shop_id, k, ma_don)
