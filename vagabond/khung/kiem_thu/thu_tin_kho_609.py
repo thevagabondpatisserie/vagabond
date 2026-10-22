@@ -282,6 +282,8 @@ def _lich():
 	tu, den = tk.cua_so_chua_nhan(bay_gio)
 	la("cửa sổ 2 tới 48 giờ", (tu, den), (datetime.datetime(2026, 8, 13, 9, 0), datetime.datetime(2026, 8, 15, 7, 0)))
 	dung("lọc theo modified, không creation", bo_loc[0]["modified"] == ["between", (tu, den)] and "creation" not in bo_loc[0])
+	# Codex #495 vòng 6: ô chưa xác nhận có thể là NULL; ["in", ("", None)] không khớp NULL.
+	la("chưa xác nhận lọc bằng is not set (khớp cả NULL)", bo_loc[0]["vgb_nhan_tt"], ["is", "not set"])
 	# Nháp lập 60 giờ trước, ghi sổ 3 giờ trước: theo creation thì rơi ngoài cửa sổ (không bao giờ nhắc), theo mốc ghi sổ thì nhắc.
 	tao = datetime.datetime(2026, 8, 12, 21, 0); ghi_so = datetime.datetime(2026, 8, 15, 6, 0)
 	la("theo creation: KHÔNG nhắc", tu <= tao <= den, False)
