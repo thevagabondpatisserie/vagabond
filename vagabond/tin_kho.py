@@ -287,7 +287,7 @@ def nhac_don_mua_tre_hen():
 		ds = frappe.get_all("Purchase Order", filters={"docstatus": 1, "status": ["not in", ("Closed", "Completed")],
 			"per_received": ["<", 99.99], "schedule_date": ["<", hom_nay], "vgb_huy": ["!=", 1]},
 			fields=["name", "supplier_name", "schedule_date", "grand_total", "per_received"],
-			order_by="schedule_date asc", limit=50)
+			order_by="schedule_date asc", limit_page_length=0)
 		if not ds:
 			return
 		dong = ["%s: %s, hẹn %s, về %s%%, %s" % (d.name, d.supplier_name or "", ngay_vn(d.schedule_date),
@@ -307,7 +307,7 @@ def nhac_hang_ve_chua_hoa_don():
 		moc = add_days(hom_nay, -NGAY_CHO_HOA_DON)
 		ds = frappe.get_all("Purchase Receipt", filters={"docstatus": 1, "per_billed": ["<", 99.99], "posting_date": ["<=", moc],
 			"status": ["!=", "Closed"]}, fields=["name", "supplier_name", "posting_date", "grand_total"],
-			order_by="posting_date asc", limit=50)
+			order_by="posting_date asc", limit_page_length=0)
 		if not ds:
 			return
 		dong = ["%s: %s, nhập %s, %s" % (d.name, d.supplier_name or "", ngay_vn(d.posting_date), tien(d.grand_total)) for d in ds]
@@ -497,12 +497,17 @@ def nhac_chuyen_chua_nhan():
 	Stock Entry không có ô giờ ghi sổ; dùng modified: ghi sổ đổi docstatus nên
 	modified bằng giờ ghi sổ, và các lượt ghi ô sau đó của app (xác nhận nhận, vết)
 	đều update_modified=False. Một lượt sửa tay sau ghi sổ chỉ làm nhắc trễ, không
-	làm mất nhắc; khoá chống trùng giữ mỗi phiếu một tin."""
+	làm mất nhắc; khoá chống trùng giữ mỗi phiếu một tin.
+
+	Codex #495 P2 (vòng 2): KHÔNG giới hạn số dòng. Giới hạn 30 với thứ tự cố định
+	thì 30 phiếu cũ nhất (đã có tin, khoá chặn trùng) chiếm chỗ mỗi giờ, phiếu thứ
+	31 không bao giờ tới lượt và trôi khỏi cửa sổ 48 giờ mà không ai nhắc. Cửa sổ
+	chỉ 46 giờ phiếu điều chuyển chưa xác nhận nên đọc hết là an toàn."""
 	try:
 		tu, den = cua_so_chua_nhan(now_datetime())
 		ds = frappe.get_all("Stock Entry", filters={"docstatus": 1, "purpose": "Material Transfer", "vgb_huy": ["!=", 1],
 			MOC_GHI_SO: ["between", (tu, den)], "vgb_nhan_tt": ["in", ("", None)]},
-			fields=["name", "from_warehouse", "to_warehouse", MOC_GHI_SO], order_by=MOC_GHI_SO + " asc", limit=30)
+			fields=["name", "from_warehouse", "to_warehouse", MOC_GHI_SO], order_by=MOC_GHI_SO + " asc", limit_page_length=0)
 		for d in ds:
 			kenh_zalo.bao("viec", "kho", "Hàng chuyển tới chưa được xác nhận nhận", [
 				"Phiếu %s: %s sang %s, ghi sổ lúc %s" % (d.name, ten_kho(d.from_warehouse), ten_kho(d.to_warehouse), gio_vn(d.get(MOC_GHI_SO))),
@@ -580,19 +585,43 @@ def bao_ke_toan_kiem_ke_lech(doc, ma_sr):
 		_ghi_loi("giá trị kiểm kê")
 
 
-def _ton_lo_theo_kho(lo, ma):
-	"""{kho: tồn} của một lô, qua get_batch_qty của ERPNext; lỗi thì rỗng."""
+def gom_ton_theo_kho(dong):
+	"""THUẦN: {kho: tồn dương} từ các dòng {"warehouse", "qty"} (bỏ dòng không kho, tồn âm hay 0)."""
 	ra = {}
+	for d in dong or []:
+		kho = (d or {}).get("warehouse") if hasattr(d, "get") else None
+		if kho:
+			ra[kho] = flt(ra.get(kho, 0)) + flt(d.get("qty"))
+	return {k: v for k, v in ra.items() if v > 0.0005}
+
+
+def _ton_lo_theo_kho(lo, ma):
+	"""{kho: tồn} của một lô, KỂ CẢ lô đã quá hạn.
+
+	Codex #495 P1: get_batch_qty không có cờ for_stock_levels thì lọc bỏ lô có
+	expiry_date trước hôm nay (lo_hang._ton_tung_lo_tai đã ghi đúng bẫy này), nên
+	lô hết hạn hôm qua mà còn hàng, thứ cần nhắc nhất, không có dòng nào. Phải
+	truyền for_stock_levels=True. ERPNext trả về rỗng hay không có cột kho thì
+	cộng thẳng sổ: gói lô (Serial and Batch Entry của gói đã ghi sổ) và sổ kho
+	có cột batch_no, cùng cách lo_hang đã đo ngày 03/09/2026."""
 	try:
 		from erpnext.stock.doctype.batch.batch import get_batch_qty
-		ds = get_batch_qty(batch_no=lo, item_code=ma) or []
-		for d in ds if isinstance(ds, (list, tuple)) else []:
-			kho = (d or {}).get("warehouse") if hasattr(d, "get") else None
-			if kho and flt((d or {}).get("qty")) > 0.0005:
-				ra[kho] = flt(ra.get(kho, 0)) + flt(d.get("qty"))
+		ds = get_batch_qty(batch_no=lo, item_code=ma, for_stock_levels=True) or []
+		ra = gom_ton_theo_kho(ds if isinstance(ds, (list, tuple)) else [])
+		if ra or any(hasattr(d, "get") and d.get("warehouse") for d in (ds if isinstance(ds, (list, tuple)) else [])):
+			return ra
 	except Exception:
-		ra = {}
-	return ra
+		pass
+	try:
+		dong = frappe.db.sql("""select e.warehouse as warehouse, sum(e.qty) as qty
+			from `tabSerial and Batch Entry` e join `tabSerial and Batch Bundle` b on b.name = e.parent
+			where e.batch_no = %s and b.docstatus = 1 and b.is_cancelled = 0 group by e.warehouse""", (lo,), as_dict=True)
+		dong += frappe.db.sql("""select warehouse, sum(actual_qty) as qty from `tabStock Ledger Entry`
+			where batch_no = %s and is_cancelled = 0 group by warehouse""", (lo,), as_dict=True)
+		return gom_ton_theo_kho(dong)
+	except Exception:
+		_ghi_loi("tồn lô theo kho")
+		return {}
 
 
 def gom_lo_sap_het_han(cac_lo, hom_nay, so_ngay=NGAY_SAP_HET_HAN):
@@ -622,7 +651,7 @@ def nhac_lo_sap_het_han():
 		hom_nay = nowdate()
 		moc = add_days(hom_nay, NGAY_SAP_HET_HAN)
 		lo = frappe.get_all("Batch", filters={"expiry_date": ["between", (add_days(hom_nay, -30), moc)], "disabled": 0},
-			fields=["name", "item", "item_name", "stock_uom", "expiry_date"], order_by="expiry_date asc", limit=300)
+			fields=["name", "item", "item_name", "stock_uom", "expiry_date"], order_by="expiry_date asc", limit_page_length=0)
 		cac_lo = [{"lo": b.name, "ten": b.item_name or b.item, "dvt": b.stock_uom or "", "han": b.expiry_date,
 			"ton": _ton_lo_theo_kho(b.name, b.item)} for b in lo]
 		theo_kho = gom_lo_sap_het_han(cac_lo, hom_nay)
@@ -655,7 +684,7 @@ def nhac_ton_duoi_muc():
 	try:
 		hom_nay = nowdate()
 		muc = frappe.get_all("Item Reorder", filters={"warehouse_reorder_level": [">", 0]},
-			fields=["parent", "warehouse", "warehouse_reorder_level"], limit=500)
+			fields=["parent", "warehouse", "warehouse_reorder_level"], limit_page_length=0)
 		if not muc:
 			return
 		ma = sorted({m.parent for m in muc})
