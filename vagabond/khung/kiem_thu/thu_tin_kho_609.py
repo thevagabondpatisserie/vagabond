@@ -312,13 +312,19 @@ def _ton_lo():
 	sql_goi = []
 
 	def sql(q, a=None, as_dict=False, **k):
-		sql_goi.append(q.split("from")[1].split("where")[0].strip()[:30])
+		q1 = " ".join(q.split())
+		sql_goi.append(q1)
 		return [{"warehouse": "Kho D1 - TV", "qty": 4}] if "Serial and Batch Entry" in q else [{"warehouse": "Kho D1 - TV", "qty": 1}, {"warehouse": "Kho TC - TV", "qty": 2}]
 	mods = {"erpnext": types.ModuleType("erpnext"), "erpnext.stock": types.ModuleType("erpnext.stock"), "erpnext.stock.doctype": types.ModuleType("erpnext.stock.doctype"),
 		"erpnext.stock.doctype.batch": types.ModuleType("erpnext.stock.doctype.batch"), "erpnext.stock.doctype.batch.batch": bm}
 	with um.patch.dict(sys.modules, mods), um.patch.object(fr, "db", types.SimpleNamespace(sql=sql, get_value=lambda *a, **k: None)):
 		la("cộng gói lô và sổ kho theo kho", tk._ton_lo_theo_kho("LO-9", "BOT-01"), {"Kho D1 - TV": 5, "Kho TC - TV": 2})
 	la("đọc đủ hai bảng", len(sql_goi), 2)
+	# Codex #495 vòng 3: gói lô phải nối qua sổ kho còn hiệu lực (Pick List ghi sổ gói mà không vào sổ kho);
+	# dòng sổ kho kiểu cũ loại dòng đã trỏ gói để không đếm hai lần.
+	dung("gói lô nối qua Stock Ledger Entry, không qua bảng gói", "join `tabStock Ledger Entry` s on s.serial_and_batch_bundle = e.parent" in sql_goi[0]
+		and "s.is_cancelled = 0" in sql_goi[0] and "Serial and Batch Bundle" not in sql_goi[0])
+	dung("sổ kho kiểu cũ loại dòng có gói", "ifnull(serial_and_batch_bundle, '') = ''" in sql_goi[1] and "is_cancelled = 0" in sql_goi[1])
 	bm.get_batch_qty = lambda **k: [{"warehouse": "Kho D1 - TV", "qty": 7}]
 	with um.patch.dict(sys.modules, mods), um.patch.object(fr, "db", types.SimpleNamespace(sql=lambda *a, **k: (_ for _ in ()).throw(RuntimeError("không được gọi")))):
 		la("ERPNext có dòng thì không đụng sổ", tk._ton_lo_theo_kho("LO-9", "BOT-01"), {"Kho D1 - TV": 7})
