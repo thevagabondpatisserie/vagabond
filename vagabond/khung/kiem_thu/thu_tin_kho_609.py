@@ -112,11 +112,13 @@ def _thuan():
 @ca("v609 thuần: phân loại phiếu kho đúng từng ô, phục vụ bán và huỷ mềm thì im")
 def _phan_loai():
 	la("ma trận", [
-		tk.phan_loai_phieu_kho("Material Transfer", "", 0), tk.phan_loai_phieu_kho("Material Issue", "", 0),
+		tk.phan_loai_phieu_kho("Material Transfer", "", 0), tk.phan_loai_phieu_kho("Material Issue", "", 0, "Hỏng"),
 		tk.phan_loai_phieu_kho("Material Issue", "phuc_vu_ban", 0), tk.phan_loai_phieu_kho("Material Issue", "marketing", 0),
 		tk.phan_loai_phieu_kho("Manufacture", "", 0), tk.phan_loai_phieu_kho("Material Receipt", "", 0),
 		tk.phan_loai_phieu_kho("Material Transfer", "", 1),
 	], ["chuyen", "huy", "", "noi_bo", "san_xuat", "", ""])
+	# Codex #495 vòng 4: Material Issue trống mục đích mà KHÔNG có lý do huỷ (trừ kho bù, tiệc, dọn dữ liệu) thì không phải xuất huỷ.
+	la("không lý do huỷ thì im", [tk.phan_loai_phieu_kho("Material Issue", "", 0), tk.phan_loai_phieu_kho("Material Issue", "", 0, "  "), tk.phan_loai_phieu_kho("Material Issue", None, 0, None)], ["", "", ""])
 	la("tên mục đích", (tk.ten_muc_dich("marketing"), tk.ten_muc_dich("la_ma")), ("Marketing chụp ảnh, quay phim", "la_ma"))
 
 
@@ -130,6 +132,9 @@ def _phieu_nhap():
 	pr.flags.vgb_nhap_ngay = True
 	la("giương cờ thì im", _chay(lambda: tk.khi_lap_phieu_nhap(pr)), [])
 	pr.flags = D()
+	# Codex #495 vòng 4: phiếu trả hàng nhà cung cấp (is_return) không báo nhập ở cả hai móc.
+	la("trả hàng NCC: nháp im", _chay(lambda: tk.khi_lap_phieu_nhap(D(pr, is_return=1))), [])
+	la("trả hàng NCC: ghi sổ im", _chay(lambda: tk.khi_ghi_so_phieu_nhap(D(pr, is_return=1, docstatus=1))), [])
 	pr.docstatus = 1
 	la("đã ghi sổ thì after_insert im", _chay(lambda: tk.khi_lap_phieu_nhap(pr)), [])
 
@@ -174,6 +179,10 @@ def _phieu_kho():
 	la("thành phẩm riêng, nguyên liệu riêng", goi[0].dong, ["Phiếu PXK-1, lệnh LSX-9", "Thành phẩm: Bánh mì vỏ giòn 40 Cái", "Bột mì số 13: 5 Kg"])
 	se = _doc(purpose="Material Issue", vgb_muc_dich_xuat="", **dict(nen, vgb_huy=1))
 	la("huỷ mềm im", _chay(lambda: tk.khi_ghi_so_phieu_kho(se)), [])
+	# Codex #495 vòng 4: phiếu trừ kho bù của hoá đơn (Material Issue, không lý do huỷ) không phải xuất huỷ.
+	se = _doc(purpose="Material Issue", vgb_muc_dich_xuat="", vgb_hd_tru_bu="HD-1", **dict(nen, vgb_ly_do_huy=""))
+	la("trừ kho bù: ghi sổ im", _chay(lambda: tk.khi_ghi_so_phieu_kho(se)), [])
+	la("trừ kho bù: nháp im", _chay(lambda: tk.khi_lap_phieu_kho(D(se, docstatus=0))), [])
 	# Nháp: chỉ xuất huỷ mới nhắc ghi sổ.
 	se = _doc(purpose="Material Issue", vgb_muc_dich_xuat="", **dict(nen, docstatus=0))
 	la("nháp huỷ nhắc ghi sổ", [(g.ma_tin, g.loai) for g in _chay(lambda: tk.khi_lap_phieu_kho(se))], [("kho_huy_cho_ghi_so", "viec")])
@@ -256,8 +265,10 @@ def _lich():
 	goi = _chay(tk.nhac_don_mua_tre_hen, get_all=ga)
 	la("trễ hẹn", [(g.ma_tin, g.khoa, g.nguon) for g in goi], [("tm_don_mua_tre_hen", "dmh-tre:%s" % hom, "Purchase Order")])
 	dung("dòng có tiền và phần trăm", "40%" in goi[0].dong[0] and "3.000.000 đ" in goi[0].dong[0])
-	goi = _chay(tk.nhac_hang_ve_chua_hoa_don, get_all=ga)
+	bl_hd = []
+	goi = _chay(tk.nhac_hang_ve_chua_hoa_don, get_all=lambda dt, **k: (bl_hd.append(k.get("filters")), ga(dt))[1])
 	la("chưa hoá đơn", [(g.ma_tin, g.khoa) for g in goi], [("tm_hang_ve_chua_hoa_don", "pnk-chua-hd:%s" % hom)])
+	la("loại phiếu trả hàng NCC (Codex #495 vòng 4)", bl_hd[0].get("is_return"), 0)
 	bo_loc, bo_loc_k = [], []
 	goi = _chay(tk.nhac_chuyen_chua_nhan, get_all=lambda dt, **k: (bo_loc.append(k.get("filters")), bo_loc_k.append(k), ga(dt))[2])
 	la("chuyển chưa nhận: mỗi phiếu một khoá", [(g.ma_tin, g.loai, g.khoa) for g in goi],
