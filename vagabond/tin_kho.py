@@ -613,11 +613,14 @@ def _ton_lo_theo_kho(lo, ma):
 	except Exception:
 		pass
 	try:
-		dong = frappe.db.sql("""select e.warehouse as warehouse, sum(e.qty) as qty
-			from `tabSerial and Batch Entry` e join `tabSerial and Batch Bundle` b on b.name = e.parent
-			where e.batch_no = %s and b.docstatus = 1 and b.is_cancelled = 0 group by e.warehouse""", (lo,), as_dict=True)
+		# Codex #495 vòng 3: gói lô chỉ tính khi có DÒNG SỔ KHO còn hiệu lực trỏ tới
+		# (Pick List cũng ghi sổ gói mà không vào sổ kho); dòng sổ kho kiểu cũ (cột
+		# batch_no) chỉ tính khi không trỏ gói, để không đếm hai lần cùng một lô.
+		dong = frappe.db.sql("""select s.warehouse as warehouse, sum(e.qty) as qty
+			from `tabSerial and Batch Entry` e join `tabStock Ledger Entry` s on s.serial_and_batch_bundle = e.parent
+			where e.batch_no = %s and s.is_cancelled = 0 group by s.warehouse""", (lo,), as_dict=True)
 		dong += frappe.db.sql("""select warehouse, sum(actual_qty) as qty from `tabStock Ledger Entry`
-			where batch_no = %s and is_cancelled = 0 group by warehouse""", (lo,), as_dict=True)
+			where batch_no = %s and is_cancelled = 0 and ifnull(serial_and_batch_bundle, '') = '' group by warehouse""", (lo,), as_dict=True)
 		return gom_ton_theo_kho(dong)
 	except Exception:
 		_ghi_loi("tồn lô theo kho")
