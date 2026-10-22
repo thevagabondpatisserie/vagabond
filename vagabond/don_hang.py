@@ -779,8 +779,10 @@ def tao_don(don=None):
 	if kq["ket_qua"] == "da_nhan":
 		# v609: tin "Đơn web mới" cho Sales, sau khi Pancake đã nhận. Không chặn đơn.
 		from vagabond import tin_kho
+		# Codex #495 P2: phí chưa rõ (Ahamove không báo được) KHÔNG ép thành 0;
+		# truyền nguyên phi để tin nói "phí giao chưa rõ" thay cho một Tổng giả.
 		tin_kho.bao_don_web_moi(ban_ghi.name, ten, ngay, tu_lay, don.get("diem_lay_ten"), dia_chi, snapshot["mon"],
-			tien_banh - giam + (phi.get("phi_khach") or 0), bool(phi.get("mien_phi")), kq.get("pancake_display_id") or kq.get("pancake_id"))
+			tien_banh - giam, phi, kq.get("pancake_display_id") or kq.get("pancake_id"))
 		frappe.db.commit()
 
 	if giam and kq["ket_qua"] == "da_nhan":

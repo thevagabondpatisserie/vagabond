@@ -169,15 +169,34 @@ def dong_don_web(mon, toi_da=TOI_DA_MON):
 	return ra
 
 
-def soan_don_web_moi(ten, ngay_nhan, tu_lay, diem_lay, dia_chi, mon, tong, mien_phi, ma_pancake):
-	"""THUẦN: dòng tin "Đơn web mới" cho Sales. Không in đủ họ tên, số điện thoại."""
+def dong_tien_don_web(sau_giam, phi):
+	"""THUẦN: dòng tiền của tin đơn web theo bốn trạng thái phí của don_web.quyet_phi_giao.
+
+	Codex #495 P2: phí "chua_ro" (Ahamove không báo được) KHÔNG được cộng thành 0
+	rồi gọi là Tổng; Sales phải báo phí khi gọi khách, nên tin nói rõ điều đó."""
+	phi = phi or {}
+	sau_giam = int(flt(sau_giam))
+	pk = phi.get("phi_khach")
+	if (phi.get("trang_thai") or "") == "tu_lay":
+		return "Tổng %s, tự lấy" % tien(sau_giam)
+	if phi.get("mien_phi"):
+		return "Tổng %s, miễn phí giao" % tien(sau_giam)
+	if pk is None:
+		return "Tiền bánh %s, phí giao CHƯA RÕ (Ahamove không báo được), Sales báo phí khi gọi khách" % tien(sau_giam)
+	return "Tổng %s (gồm phí giao %s)" % (tien(sau_giam + int(flt(pk))), tien(pk))
+
+
+def soan_don_web_moi(ten, ngay_nhan, tu_lay, diem_lay, dia_chi, mon, sau_giam, phi, ma_pancake):
+	"""THUẦN: dòng tin "Đơn web mới" cho Sales. Không in đủ họ tên, số điện thoại.
+
+	sau_giam: tiền bánh sau giảm; phi: dict của don_web.quyet_phi_giao (bốn trạng thái)."""
 	from vagabond.don_web import khung_gio, viet_tat_ten
 	ngay, gio = khung_gio(ngay_nhan)
 	nhan = ("Tự lấy tại %s" % diem_lay) if tu_lay else ("Giao: %s" % (dia_chi or "")[:80])
 	khi = (" ".join([x for x in (ngay, gio) if x])).strip()
 	dong = ["Khách %s, %s" % (viet_tat_ten(ten), ("nhận " + khi) if khi else "chưa rõ giờ nhận"), nhan]
 	dong += dong_don_web(mon)
-	dong.append("Tổng %s%s" % (tien(tong), ", miễn phí giao" if mien_phi else ""))
+	dong.append(dong_tien_don_web(sau_giam, phi))
 	if ma_pancake:
 		dong.append("Đã vào Pancake, mã %s" % ma_pancake)
 	return dong
@@ -462,18 +481,31 @@ def bao_da_nhan_chuyen(doc, tt, cac_dong):
 		_ghi_loi("nhận điều chuyển")
 
 
+MOC_GHI_SO = "modified"
+
+
+def cua_so_chua_nhan(bay_gio):
+	"""THUẦN: (từ, đến) của cửa sổ nhắc: ghi sổ từ GIO_CHUA_NHAN_TU tới GIO_CHUA_NHAN_DEN giờ trước."""
+	return add_to_date(bay_gio, hours=-GIO_CHUA_NHAN_DEN), add_to_date(bay_gio, hours=-GIO_CHUA_NHAN_TU)
+
+
 def nhac_chuyen_chua_nhan():
-	"""Lịch mỗi giờ: phiếu điều chuyển đã ghi sổ từ 2 tới 48 giờ mà kho nhận chưa xác nhận."""
+	"""Lịch mỗi giờ: phiếu điều chuyển đã ghi sổ từ 2 tới 48 giờ mà kho nhận chưa xác nhận.
+
+	Codex #495 P2: mốc là lúc GHI SỔ, không phải lúc tạo nháp. Phiếu nháp lập trên
+	Desk rồi ghi sổ hai ngày sau mà đo theo creation thì không bao giờ được nhắc.
+	Stock Entry không có ô giờ ghi sổ; dùng modified: ghi sổ đổi docstatus nên
+	modified bằng giờ ghi sổ, và các lượt ghi ô sau đó của app (xác nhận nhận, vết)
+	đều update_modified=False. Một lượt sửa tay sau ghi sổ chỉ làm nhắc trễ, không
+	làm mất nhắc; khoá chống trùng giữ mỗi phiếu một tin."""
 	try:
-		bay_gio = now_datetime()
-		tu = add_to_date(bay_gio, hours=-GIO_CHUA_NHAN_DEN)
-		den = add_to_date(bay_gio, hours=-GIO_CHUA_NHAN_TU)
+		tu, den = cua_so_chua_nhan(now_datetime())
 		ds = frappe.get_all("Stock Entry", filters={"docstatus": 1, "purpose": "Material Transfer", "vgb_huy": ["!=", 1],
-			"creation": ["between", (tu, den)], "vgb_nhan_tt": ["in", ("", None)]},
-			fields=["name", "from_warehouse", "to_warehouse", "creation"], order_by="creation asc", limit=30)
+			MOC_GHI_SO: ["between", (tu, den)], "vgb_nhan_tt": ["in", ("", None)]},
+			fields=["name", "from_warehouse", "to_warehouse", MOC_GHI_SO], order_by=MOC_GHI_SO + " asc", limit=30)
 		for d in ds:
 			kenh_zalo.bao("viec", "kho", "Hàng chuyển tới chưa được xác nhận nhận", [
-				"Phiếu %s: %s sang %s, ghi sổ lúc %s" % (d.name, ten_kho(d.from_warehouse), ten_kho(d.to_warehouse), gio_vn(d.creation)),
+				"Phiếu %s: %s sang %s, ghi sổ lúc %s" % (d.name, ten_kho(d.from_warehouse), ten_kho(d.to_warehouse), gio_vn(d.get(MOC_GHI_SO))),
 				"Kho %s mở Hàng chuyển về kho tôi, đếm rồi bấm Xác nhận." % ten_kho(d.to_warehouse),
 			], link=_url("/app/stock-entry/%s" % d.name), khoa="chua-nhan:%s" % d.name, ma_tin="kho_chuyen_chua_nhan")
 	except Exception:
@@ -645,10 +677,10 @@ def nhac_ton_duoi_muc():
 # -------------------------------------------------------- Bán hàng (bh_)
 
 
-def bao_don_web_moi(ten_don, ten, ngay_nhan, tu_lay, diem_lay, dia_chi, mon, tong, mien_phi, ma_pancake):
+def bao_don_web_moi(ten_don, ten, ngay_nhan, tu_lay, diem_lay, dia_chi, mon, sau_giam, phi, ma_pancake):
 	"""Gọi từ don_hang.tao_don sau khi Pancake đã nhận đơn. Không bao giờ làm hỏng đơn."""
 	try:
-		dong = soan_don_web_moi(ten, ngay_nhan, tu_lay, diem_lay, dia_chi, mon, tong, mien_phi, ma_pancake)
+		dong = soan_don_web_moi(ten, ngay_nhan, tu_lay, diem_lay, dia_chi, mon, sau_giam, phi, ma_pancake)
 		kenh_zalo.bao("thong_bao", "don_web", "Đơn web mới", dong,
 			link=_url("/app/vagabond-don-web/%s" % ten_don), khoa="don-web-moi:%s" % ten_don, ma_tin="bh_don_web_moi")
 	except Exception as e:
