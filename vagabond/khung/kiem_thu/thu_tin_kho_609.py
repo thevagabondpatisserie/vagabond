@@ -240,6 +240,8 @@ def _thu_mua():
 	goi = _chay(lambda: tk.khi_ghi_so_giao_si(dn))
 	la("giao sỉ", [(g.ma_tin, g.khoa) for g in goi], [("kho_giao_si", "dn-xong:GH-1")])
 	dung("khách, kho, người nhận", "Khách sỉ A" in goi[0].dong[0] and "Kho TC" in goi[0].dong[0] and "Anh Ba" in goi[0].dong[0])
+	# Codex #495 vòng 5: phiếu khách trả hàng (is_return) không báo xuất giao.
+	la("khách trả hàng im", _chay(lambda: tk.khi_ghi_so_giao_si(D(dn, is_return=1))), [])
 	_khong_tien(goi)
 
 
