@@ -532,6 +532,10 @@ def nhac_chuyen_chua_nhan():
 def khi_ghi_so_giao_si(doc, method=None):
 	"""Hook Delivery Note on_submit: hàng xuất giao khách sỉ."""
 	try:
+		# Codex #495 vòng 5: phiếu khách trả hàng (is_return) là hàng VỀ, không báo xuất giao
+		# (cùng điều kiện xuat_ban.ds_phieu đang lọc).
+		if cint(doc.get("is_return")):
+			return
 		dong = ["Phiếu %s, khách %s, từ kho %s%s" % (doc.name, doc.get("customer_name") or doc.get("customer") or "",
 			ten_kho(doc.get("set_warehouse")), (", người nhận %s" % doc.get("vgb_nguoi_nhan")) if doc.get("vgb_nguoi_nhan") else "")]
 		dong += dong_hang(hang_tu_items(doc.get("items")))
