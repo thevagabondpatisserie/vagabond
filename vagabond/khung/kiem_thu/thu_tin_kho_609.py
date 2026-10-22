@@ -258,8 +258,8 @@ def _lich():
 	dung("dòng có tiền và phần trăm", "40%" in goi[0].dong[0] and "3.000.000 đ" in goi[0].dong[0])
 	goi = _chay(tk.nhac_hang_ve_chua_hoa_don, get_all=ga)
 	la("chưa hoá đơn", [(g.ma_tin, g.khoa) for g in goi], [("tm_hang_ve_chua_hoa_don", "pnk-chua-hd:%s" % hom)])
-	bo_loc = []
-	goi = _chay(tk.nhac_chuyen_chua_nhan, get_all=lambda dt, **k: (bo_loc.append(k.get("filters")), ga(dt))[1])
+	bo_loc, bo_loc_k = [], []
+	goi = _chay(tk.nhac_chuyen_chua_nhan, get_all=lambda dt, **k: (bo_loc.append(k.get("filters")), bo_loc_k.append(k), ga(dt))[2])
 	la("chuyển chưa nhận: mỗi phiếu một khoá", [(g.ma_tin, g.loai, g.khoa) for g in goi],
 		[("kho_chuyen_chua_nhan", "viec", "chua-nhan:PXK-5"), ("kho_chuyen_chua_nhan", "viec", "chua-nhan:PXK-6")])
 	dung("chỉ kho nhận phải làm", "Kho TC mở Hàng chuyển về kho tôi" in goi[0].dong[1])
@@ -273,9 +273,25 @@ def _lich():
 	tao = datetime.datetime(2026, 8, 12, 21, 0); ghi_so = datetime.datetime(2026, 8, 15, 6, 0)
 	la("theo creation: KHÔNG nhắc", tu <= tao <= den, False)
 	la("theo mốc ghi sổ: nhắc", tu <= ghi_so <= den, True)
-	ton = {"LO-1": {"Kho D1 - TV": 12, "Kho TC - TV": 3}, "LO-2": {"Kho D1 - TV": 30}, "LO-3": {"Kho D1 - TV": 9}}
-	with um.patch.object(tk, "_ton_lo_theo_kho", lambda lo, ma: ton.get(lo, {})):
+	dung("lịch chuyển chưa nhận đọc hết, không giới hạn số dòng (Codex #495 vòng 2)", "limit" not in bo_loc_k[0] and bo_loc_k[0].get("limit_page_length") == 0)
+	# Codex #495 P1: _ton_lo_theo_kho chạy THẬT qua get_batch_qty giả; lô hết hạn hôm qua
+	# chỉ có dòng khi for_stock_levels=True (đúng hành vi ERPNext v16).
+	ton = {"LO-1": [{"warehouse": "Kho D1 - TV", "qty": 12}, {"warehouse": "Kho TC - TV", "qty": 3}],
+		"LO-2": [{"warehouse": "Kho D1 - TV", "qty": 30}], "LO-3": [{"warehouse": "Kho D1 - TV", "qty": 9}, {"warehouse": "Kho D2 - TV", "qty": 0}]}
+	han = {"LO-1": "2026-08-16", "LO-2": "2026-08-14", "LO-3": "2026-09-30"}
+	goi_gbq = []
+
+	def get_batch_qty(batch_no=None, warehouse=None, item_code=None, for_stock_levels=False, **k):
+		goi_gbq.append((batch_no, for_stock_levels))
+		if han[batch_no] < str(HOM_NAY) and not for_stock_levels:
+			return []
+		return list(ton.get(batch_no, []))
+	bm = types.ModuleType("erpnext.stock.doctype.batch.batch"); bm.get_batch_qty = get_batch_qty
+	with um.patch.dict(sys.modules, {"erpnext": types.ModuleType("erpnext"), "erpnext.stock": types.ModuleType("erpnext.stock"),
+			"erpnext.stock.doctype": types.ModuleType("erpnext.stock.doctype"), "erpnext.stock.doctype.batch": types.ModuleType("erpnext.stock.doctype.batch"),
+			"erpnext.stock.doctype.batch.batch": bm}):
 		goi = _chay(tk.nhac_lo_sap_het_han, get_all=ga)
+	la("gọi get_batch_qty với cờ kể cả lô quá hạn", sorted(goi_gbq), [("LO-1", True), ("LO-2", True), ("LO-3", True)])
 	la("lô hết hạn: một tin mỗi kho", [(g.ma_tin, g.khoa) for g in goi],
 		[("kho_lo_sap_het_han", "lo-het-han:Kho D1 - TV:%s" % hom), ("kho_lo_sap_het_han", "lo-het-han:Kho TC - TV:%s" % hom)])
 	la("kho D1: quá hạn trước, bỏ lô còn xa", goi[0].dong[1:3], ["Trứng gà: 30 Quả (đã quá hạn 14/08)", "Bột mì số 13: 12 Kg (hết hạn 16/08)"])
@@ -286,6 +302,32 @@ def _lich():
 	_khong_tien(goi)
 	la("không có gì thì im", _chay(lambda: (tk.nhac_don_mua_tre_hen(), tk.nhac_lo_sap_het_han(), tk.nhac_ton_duoi_muc(), tk.nhac_chuyen_chua_nhan()),
 		get_all=lambda dt, **k: []), [])
+
+
+@ca("v609 tồn lô theo kho: ERPNext trả rỗng thì cộng thẳng sổ gói lô và sổ kho; tồn âm hay 0 bị bỏ; lỗi cả hai đường thì rỗng và ghi Error Log")
+def _ton_lo():
+	la("gom thuần", tk.gom_ton_theo_kho([{"warehouse": "A", "qty": 2}, {"warehouse": "A", "qty": 3}, {"warehouse": "B", "qty": 0}, {"warehouse": "C", "qty": -1}, {"qty": 9}]), {"A": 5})
+	fr = sys.modules["frappe"]
+	bm = types.ModuleType("erpnext.stock.doctype.batch.batch"); bm.get_batch_qty = lambda **k: []
+	sql_goi = []
+
+	def sql(q, a=None, as_dict=False, **k):
+		sql_goi.append(q.split("from")[1].split("where")[0].strip()[:30])
+		return [{"warehouse": "Kho D1 - TV", "qty": 4}] if "Serial and Batch Entry" in q else [{"warehouse": "Kho D1 - TV", "qty": 1}, {"warehouse": "Kho TC - TV", "qty": 2}]
+	mods = {"erpnext": types.ModuleType("erpnext"), "erpnext.stock": types.ModuleType("erpnext.stock"), "erpnext.stock.doctype": types.ModuleType("erpnext.stock.doctype"),
+		"erpnext.stock.doctype.batch": types.ModuleType("erpnext.stock.doctype.batch"), "erpnext.stock.doctype.batch.batch": bm}
+	with um.patch.dict(sys.modules, mods), um.patch.object(fr, "db", types.SimpleNamespace(sql=sql, get_value=lambda *a, **k: None)):
+		la("cộng gói lô và sổ kho theo kho", tk._ton_lo_theo_kho("LO-9", "BOT-01"), {"Kho D1 - TV": 5, "Kho TC - TV": 2})
+	la("đọc đủ hai bảng", len(sql_goi), 2)
+	bm.get_batch_qty = lambda **k: [{"warehouse": "Kho D1 - TV", "qty": 7}]
+	with um.patch.dict(sys.modules, mods), um.patch.object(fr, "db", types.SimpleNamespace(sql=lambda *a, **k: (_ for _ in ()).throw(RuntimeError("không được gọi")))):
+		la("ERPNext có dòng thì không đụng sổ", tk._ton_lo_theo_kho("LO-9", "BOT-01"), {"Kho D1 - TV": 7})
+	bm.get_batch_qty = lambda **k: (_ for _ in ()).throw(RuntimeError("hỏng"))
+	loi = []
+	with um.patch.dict(sys.modules, mods), um.patch.object(fr, "db", types.SimpleNamespace(sql=lambda *a, **k: (_ for _ in ()).throw(RuntimeError("hỏng sql")))), \
+			um.patch.object(fr, "log_error", lambda *a, **k: loi.append(a)):
+		la("hỏng cả hai thì rỗng", tk._ton_lo_theo_kho("LO-9", "BOT-01"), {})
+	la("và ghi Error Log", len(loi), 1)
 
 
 @ca("v609 đơn web mới: tên viết tắt, không số điện thoại, giờ nhận, món cắt ở 5, bốn trạng thái phí (phí chưa rõ KHÔNG thành Tổng 0)")
