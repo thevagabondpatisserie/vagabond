@@ -593,6 +593,10 @@ def ghi_so(name, phieu):
 		doc.trang_thai = "Đã ghi sổ"
 		doc.stock_reconciliation = ma
 		doc.save()
+		# v609: tin cho kho (dòng lệch) và kế toán (giá trị chênh lệch đã vào sổ).
+		from vagabond import tin_kho
+		tin_kho.bao_kiem_ke_da_ghi_so(doc, ma)
+		tin_kho.bao_ke_toan_kiem_ke_lech(doc, ma)
 		return {"name": ma, "khong_doi": not bool(ma)}
 	except Exception:
 		frappe.db.rollback(save_point="kiem_ke_ghi_so")

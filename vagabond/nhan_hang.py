@@ -723,6 +723,8 @@ def tao_phieu(don, dong=None, anh1=None, anh2=None, scan=None, ghi_chu=None):
 	pr.remarks = ((pr.get("remarks") or "") + " | " + ghi).strip(" |")
 
 	pr.flags.ignore_permissions = True
+	# v609: ghi sổ ngay nên không báo "chờ kho đếm", chỉ báo "đã nhập" ở on_submit.
+	pr.flags.vgb_nhap_ngay = True
 	pr.insert()
 	pr.submit()
 

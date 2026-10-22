@@ -68,6 +68,29 @@ NOI_PHAT = {
 	("zalo_phat_hanh.py", "quet"): "ht_phat_hanh",
 	# v606: báo cáo cuối ngày cho chủ (anh Việt duyệt mẫu 20/10/2026).
 	("bao_cao_chu.py", "gui_cuoi_ngay"): "bgd_bao_cao_ngay",
+	# v609: kho, thu mua, sản xuất, đơn web (anh Việt duyệt mẫu 22/10/2026). Mỗi hàm
+	# đúng một tin; khi_ghi_so_phieu_kho chỉ điều phối, không tự gọi bao().
+	("tin_kho.py", "khi_co_yeu_cau_mua"): "tm_yeu_cau_mua",
+	("tin_kho.py", "khi_ghi_so_don_mua"): "tm_don_mua_moi",
+	("tin_kho.py", "nhac_don_mua_tre_hen"): "tm_don_mua_tre_hen",
+	("tin_kho.py", "nhac_hang_ve_chua_hoa_don"): "tm_hang_ve_chua_hoa_don",
+	("tin_kho.py", "khi_lap_phieu_nhap"): "kho_nhap_cho_kiem",
+	("tin_kho.py", "khi_ghi_so_phieu_nhap"): "kho_da_nhap",
+	("tin_kho.py", "khi_lap_phieu_kho"): "kho_huy_cho_ghi_so",
+	("tin_kho.py", "_bao_da_chuyen"): "kho_da_chuyen",
+	("tin_kho.py", "_bao_da_huy"): "kho_da_huy",
+	("tin_kho.py", "_bao_ke_toan_gia_von_huy"): "kt_xuat_huy_gia_von",
+	("tin_kho.py", "_bao_xuat_noi_bo"): "kho_xuat_noi_bo",
+	("tin_kho.py", "_bao_bep_xuat_nvl"): "bep_lenh_sx_xuat_nvl",
+	("tin_kho.py", "bao_da_nhan_chuyen"): "kho_da_nhan_chuyen",
+	("tin_kho.py", "nhac_chuyen_chua_nhan"): "kho_chuyen_chua_nhan",
+	("tin_kho.py", "khi_ghi_so_giao_si"): "kho_giao_si",
+	("tin_kho.py", "khi_doi_phieu_kiem_ke"): "kho_kiem_ke_cho_duyet",
+	("tin_kho.py", "bao_kiem_ke_da_ghi_so"): "kho_kiem_ke_da_ghi_so",
+	("tin_kho.py", "bao_ke_toan_kiem_ke_lech"): "kt_kiem_ke_lech",
+	("tin_kho.py", "nhac_lo_sap_het_han"): "kho_lo_sap_het_han",
+	("tin_kho.py", "nhac_ton_duoi_muc"): "kho_ton_duoi_muc",
+	("tin_kho.py", "bao_don_web_moi"): "bh_don_web_moi",
 }
 # Các hàm từng gửi thư nội bộ, nay chỉ được báo Zalo.
 DA_BO_THU = [
@@ -128,8 +151,13 @@ def _danh_muc():
 	khoa = [k.value for k in gan[0].value.keys]
 	la("không mã nào trùng", sorted(x for x in set(khoa) if khoa.count(x) > 1), [])
 	# v606: thêm "Báo cáo cuối ngày" của Ban giám đốc (anh Việt duyệt 20/10/2026).
-	la("đủ 23 tin (20 tin đã duyệt, 2 tin Zalo có sẵn, báo cáo cuối ngày)", len(kz.TIN), 23)
-	la("năm bộ phận đúng thứ tự", kz.BO_PHAN, ("Ban giám đốc", "Hoá đơn, kế toán", "Bán hàng, cửa hàng", "Bếp", "Hệ thống"))
+	# v609: thêm 21 tin kho, thu mua, sản xuất, đơn web (anh Việt duyệt 22/10/2026).
+	la("đủ 44 tin (23 tới v606, 21 tin kho và thu mua v609)", len(kz.TIN), 44)
+	la("bảy bộ phận đúng thứ tự", kz.BO_PHAN, ("Ban giám đốc", "Hoá đơn, kế toán", "Bán hàng, cửa hàng", "Bếp", "Thu mua", "Kho", "Hệ thống"))
+	# Luật tiền (anh Việt 22/10/2026): tin Kho, Bếp không nói tiền; chỉ Thu mua, Kế toán.
+	for ma, v in kz.TIN.items():
+		if v[0] in ("Kho", "Bếp"):
+			dung("%s: giải thích không hứa tiền" % ma, "tiền" not in v[2] and "giá vốn" not in v[2])
 	for ma, (bp, ten, gt, loai, cd) in kz.TIN.items():
 		dung("%s: bộ phận có trong danh mục" % ma, bp in kz.BO_PHAN)
 		dung("%s: loại có thật" % ma, loai in kz.LOAI)
@@ -497,8 +525,11 @@ def _patch():
 @ca("v604 bản vá: nhóm Kế toán nhận 12 tin kế toán, thư hỏng, phát hành; nhóm Sales nhận tin bán hàng và phát hành")
 def _patch_map():
 	p = _patch()
-	kt = [m for m, v in kz.TIN.items() if v[0] == "Hoá đơn, kế toán"] + ["ht_email_loi", "ht_phat_hanh"]
-	bh = [m for m, v in kz.TIN.items() if v[0] == "Bán hàng, cửa hàng"] + ["ht_phat_hanh"]
+	# Bản vá v604 đã chạy trên site, điền danh mục TẠI THỜI ĐIỂM ĐÓ. Tin thêm sau
+	# (v609) không thuộc bản vá: anh Việt tích tay trong Cài đặt cho nhóm cần.
+	v609 = {"kt_xuat_huy_gia_von", "kt_kiem_ke_lech", "bh_don_web_moi"}
+	kt = [m for m, v in kz.TIN.items() if v[0] == "Hoá đơn, kế toán" and m not in v609] + ["ht_email_loi", "ht_phat_hanh"]
+	bh = [m for m, v in kz.TIN.items() if v[0] == "Bán hàng, cửa hàng" and m not in v609] + ["ht_phat_hanh"]
 	la("nhóm văn phòng kế toán", p.tin_cho_nhom("ERP Văn Phòng - Kế Toán - Thu Mua"), kt)
 	la("nhóm Sales", p.tin_cho_nhom("Sales Vagabond - Nhóm Bán hàng"), bh)
 	la("không dấu, hoa thường vẫn khớp", p.tin_cho_nhom("ke toan"), kt)

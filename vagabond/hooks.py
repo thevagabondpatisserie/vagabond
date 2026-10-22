@@ -1084,3 +1084,25 @@ page_renderer = ["vagabond.trang_banh_vue.TrangBanhVue"]
 # không bị bộ đệm trang nuốt mất; chỉ chạy khi công tắc "Dùng tên miền chính"
 # trong Cài đặt bật. Xem vagabond/ten_mien.py mục v605.
 before_request = ["vagabond.ten_mien.truoc_request"]
+
+# v609: tin Zalo cho kho, thu mua, sản xuất, đơn web (anh Việt duyệt mẫu 22/10/2026).
+# Nối vào CUỐI chuỗi hook sẵn có, không đụng thứ tự các hàm cũ.
+for _dt_tk, _sk_tk, _ham_tk in (
+	("Material Request", "after_insert", "vagabond.tin_kho.khi_co_yeu_cau_mua"),
+	("Material Request", "on_submit", "vagabond.tin_kho.khi_co_yeu_cau_mua"),
+	("Purchase Order", "on_submit", "vagabond.tin_kho.khi_ghi_so_don_mua"),
+	("Purchase Receipt", "after_insert", "vagabond.tin_kho.khi_lap_phieu_nhap"),
+	("Purchase Receipt", "on_submit", "vagabond.tin_kho.khi_ghi_so_phieu_nhap"),
+	("Stock Entry", "after_insert", "vagabond.tin_kho.khi_lap_phieu_kho"),
+	("Stock Entry", "on_submit", "vagabond.tin_kho.khi_ghi_so_phieu_kho"),
+	("Delivery Note", "on_submit", "vagabond.tin_kho.khi_ghi_so_giao_si"),
+	("Phieu Kiem Ke", "on_update", "vagabond.tin_kho.khi_doi_phieu_kiem_ke"),
+):
+	_cu_tk = doc_events.setdefault(_dt_tk, {}).get(_sk_tk, [])
+	doc_events[_dt_tk][_sk_tk] = ([_cu_tk] if isinstance(_cu_tk, str) else list(_cu_tk)) + [_ham_tk]
+del _dt_tk, _sk_tk, _ham_tk, _cu_tk
+scheduler_events.setdefault("cron", {}).setdefault("0 7 * * *", []).append("vagabond.tin_kho.nhac_lo_sap_het_han")
+scheduler_events.setdefault("cron", {}).setdefault("0 7 * * *", []).append("vagabond.tin_kho.nhac_ton_duoi_muc")
+scheduler_events.setdefault("cron", {}).setdefault("0 8 * * *", []).append("vagabond.tin_kho.nhac_don_mua_tre_hen")
+scheduler_events.setdefault("cron", {}).setdefault("25 8 * * *", []).append("vagabond.tin_kho.nhac_hang_ve_chua_hoa_don")
+scheduler_events.setdefault("hourly", []).append("vagabond.tin_kho.nhac_chuyen_chua_nhan")

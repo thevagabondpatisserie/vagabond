@@ -51,7 +51,7 @@ var VGB_ZALO_NHAN = {
 // tích đúng những tin cần nhận. Bản sao của kenh_zalo.TIN (mã -> [bộ phận, tên,
 // giải thích]); ca thu_tin_zalo_604 so từng chữ với bản Python, sửa một bên phải
 // sửa bên kia. Mã chỉ là giá trị lưu, người dùng chỉ thấy tên và giải thích.
-var VGB_ZALO_BO_PHAN = ['Ban giám đốc', 'Hoá đơn, kế toán', 'Bán hàng, cửa hàng', 'Bếp', 'Hệ thống'];
+var VGB_ZALO_BO_PHAN = ['Ban giám đốc', 'Hoá đơn, kế toán', 'Bán hàng, cửa hàng', 'Bếp', 'Thu mua', 'Kho', 'Hệ thống'];
 var VGB_ZALO_TIN = {
 	bgd_bao_cao_ngay: ['Ban giám đốc', 'Báo cáo cuối ngày (23:30)', '23:30 mỗi tối: doanh thu, giảm giá, sửa huỷ, điểm cần để ý. Nhóm nhận đừng đặt giờ im lúc 23:30.'],
 	hd_ket_ghi_so: ['Hoá đơn, kế toán', 'Kẹt ghi sổ, kẹt hoá đơn cuối ngày', '20 và 45 phút sau giờ chạy cuối ngày, và 07:30 sáng hôm sau, còn đơn chưa ghi sổ.'],
@@ -66,6 +66,8 @@ var VGB_ZALO_TIN = {
 	kt_tra_truoc_kiem: ['Hoá đơn, kế toán', 'Phiếu trả trước chờ kiểm', 'Có phiếu trả trước nhà cung cấp chờ kế toán kiểm tra.'],
 	kt_diem_het_han: ['Hoá đơn, kế toán', 'Điểm khách hết hạn: máy tự dừng vì chạm trần', '05:00 sáng, số khách tới hạn đốt điểm vượt mức an toàn nên máy chưa đốt.'],
 	kt_hop_dong_dc: ['Hoá đơn, kế toán', 'Hợp đồng vừa điều chỉnh', 'Sales vừa chốt một lần điều chỉnh hợp đồng so với bản gốc.'],
+	kt_xuat_huy_gia_von: ['Hoá đơn, kế toán', 'Xuất huỷ đã ghi sổ, kèm giá vốn', 'Phiếu xuất huỷ vừa ghi sổ: kho, lý do, tên hàng và giá vốn đã trừ.'],
+	kt_kiem_ke_lech: ['Hoá đơn, kế toán', 'Kiểm kê đã ghi sổ, kèm giá trị chênh lệch', 'Kiểm kê vừa điều chỉnh tồn: tên hàng lệch và giá trị chênh lệch đã vào sổ.'],
 	bh_don_web_treo: ['Bán hàng, cửa hàng', 'Đơn web treo quá 30 phút chưa vào Pancake', 'Đơn đặt bánh trên web quá 30 phút mà chưa tạo được trên Pancake.'],
 	bh_ton_web_loi: ['Bán hàng, cửa hàng', 'Lỗi kiểm tồn khi khách đặt web', 'Phép kiểm tồn bánh lỗi lúc khách đặt; Sales kiểm lại tồn trước khi xác nhận.'],
 	bh_ahamove_huy: ['Bán hàng, cửa hàng', 'Tài xế Ahamove huỷ hoặc giao thất bại', 'Tài xế huỷ hoặc giao không được, vận đơn về Chờ giao để phân công lại.'],
@@ -73,7 +75,26 @@ var VGB_ZALO_TIN = {
 	bh_tiec: ['Bán hàng, cửa hàng', 'Đăng ký tiệc mới', 'Khách vừa đăng ký vé tiệc, chờ cửa hàng xác nhận.'],
 	bh_pancake_lech_tong: ['Bán hàng, cửa hàng', 'Đơn web lệch tổng tiền trên Pancake', 'Tổng tiền trên Pancake khác số máy chủ chốt; Sales kiểm trước khi gửi mã QR.'],
 	bh_ahamove_phi: ['Bán hàng, cửa hàng', 'Không lấy được phí giao Ahamove', 'Trang đặt bánh không tính được phí giao vì Ahamove không trả lời.'],
+	bh_don_web_moi: ['Bán hàng, cửa hàng', 'Đơn web mới đã vào Pancake', 'Khách vừa đặt trên web: giờ nhận, món, tổng tiền, miễn phí giao hay không.'],
 	bep_ke_hoach_sx: ['Bếp', 'Kế hoạch sản xuất hôm nay (05:00)', '05:00 sáng, kế hoạch sản xuất trong ngày đã sẵn, bếp đọc rồi chốt.'],
+	bep_lenh_sx_xuat_nvl: ['Bếp', 'Lệnh sản xuất đã xuất nguyên liệu', 'Phiếu sản xuất vừa ghi sổ: thành phẩm và nguyên liệu đã trừ kho.'],
+	tm_yeu_cau_mua: ['Thu mua', 'Yêu cầu mua hàng mới', 'Bộ phận vừa lập yêu cầu mua: tên hàng, số lượng, ngày cần.'],
+	tm_don_mua_moi: ['Thu mua', 'Đơn mua hàng vừa đặt', 'Đơn mua vừa ghi sổ: nhà cung cấp, ngày hẹn về, tên hàng, tổng tiền.'],
+	tm_don_mua_tre_hen: ['Thu mua', 'Đơn mua trễ hẹn chưa về đủ (08:00)', '08:00 mỗi sáng, đơn mua đã qua ngày hẹn mà hàng chưa về đủ.'],
+	tm_hang_ve_chua_hoa_don: ['Thu mua', 'Hàng về quá 3 ngày chưa có hoá đơn (08:25)', '08:25 mỗi sáng, phiếu nhập đã ghi sổ quá 3 ngày mà chưa có hoá đơn mua.'],
+	kho_nhap_cho_kiem: ['Kho', 'Phiếu nhập chờ kho đếm và ghi sổ', 'Có phiếu nhập còn nháp chờ kho đếm hàng rồi ghi sổ.'],
+	kho_da_nhap: ['Kho', 'Đã nhập hàng vào kho', 'Phiếu nhập vừa ghi sổ: tên hàng, số lượng, lệch so với đơn mua, hạn lô.'],
+	kho_da_chuyen: ['Kho', 'Đã chuyển hàng giữa kho', 'Phiếu điều chuyển vừa ghi sổ: kho đi, kho đến, tên hàng, số lượng.'],
+	kho_da_nhan_chuyen: ['Kho', 'Kho nhận đã xác nhận hàng điều chuyển', 'Kho nhận vừa xác nhận số thực nhận; nhận thiếu thì báo kèm dòng lệch.'],
+	kho_chuyen_chua_nhan: ['Kho', 'Hàng chuyển tới quá 2 giờ chưa xác nhận', 'Mỗi giờ: phiếu điều chuyển đã ghi sổ từ 2 giờ mà kho nhận chưa xác nhận.'],
+	kho_huy_cho_ghi_so: ['Kho', 'Phiếu xuất huỷ chờ ghi sổ', 'Có phiếu xuất huỷ còn nháp chờ người có quyền ghi sổ.'],
+	kho_da_huy: ['Kho', 'Đã xuất huỷ', 'Phiếu xuất huỷ vừa ghi sổ: kho, lý do, tên hàng, số lượng.'],
+	kho_xuat_noi_bo: ['Kho', 'Đã xuất dùng nội bộ', 'Phiếu xuất nội bộ vừa ghi sổ: mục đích, tên hàng, số lượng.'],
+	kho_giao_si: ['Kho', 'Đã xuất giao khách sỉ', 'Phiếu giao hàng sỉ vừa ghi sổ: khách, kho, tên hàng, số lượng.'],
+	kho_kiem_ke_cho_duyet: ['Kho', 'Phiếu kiểm kê chờ duyệt', 'Phiếu kiểm kê vừa chuyển sang Chờ duyệt, kèm các dòng lệch.'],
+	kho_kiem_ke_da_ghi_so: ['Kho', 'Kiểm kê đã ghi sổ', 'Phiếu kiểm kê đã ghi sổ điều chỉnh tồn, kèm các dòng lệch.'],
+	kho_lo_sap_het_han: ['Kho', 'Lô sắp hết hạn trong 3 ngày (07:00)', '07:00 mỗi sáng, một tin mỗi kho: lô còn tồn mà hết hạn trong 3 ngày.'],
+	kho_ton_duoi_muc: ['Kho', 'Tồn kho dưới mức tối thiểu (07:00)', '07:00 mỗi sáng, một tin mỗi kho: món có tồn thấp hơn mức tối thiểu đã khai.'],
 	ht_email_loi: ['Hệ thống', 'Email của tiệm không gửi được', 'Trong một giờ có từ 5 thư lỗi; báo lại sau 3 giờ nếu còn lỗi.'],
 	ht_phat_hanh: ['Hệ thống', 'Bản tin cập nhật app sau mỗi deploy', 'App vừa lên bản mới: thêm gì, bộ phận cần làm gì.'],
 };
