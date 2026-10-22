@@ -242,8 +242,8 @@ def _lich():
 		return {
 			"Purchase Order": [D(name="DMH-2", supplier_name="Cty B", schedule_date="2026-08-10", grand_total=3000000, per_received=40)],
 			"Purchase Receipt": [D(name="PNK-7", supplier_name="Cty C", posting_date="2026-08-01", grand_total=900000)],
-			"Stock Entry": [D(name="PXK-5", from_warehouse="Kho D1 - TV", to_warehouse="Kho TC - TV", creation=datetime.datetime(2026, 8, 15, 5, 0)),
-				D(name="PXK-6", from_warehouse="Kho D1 - TV", to_warehouse="Kho D2 - TV", creation=datetime.datetime(2026, 8, 14, 20, 0))],
+			"Stock Entry": [D(name="PXK-5", from_warehouse="Kho D1 - TV", to_warehouse="Kho TC - TV", modified=datetime.datetime(2026, 8, 15, 5, 0)),
+				D(name="PXK-6", from_warehouse="Kho D1 - TV", to_warehouse="Kho D2 - TV", modified=datetime.datetime(2026, 8, 14, 20, 0))],
 			"Batch": [D(name="LO-1", item="BOT-01", item_name="Bột mì số 13", stock_uom="Kg", expiry_date="2026-08-16"),
 				D(name="LO-2", item="TRUNG", item_name="Trứng gà", stock_uom="Quả", expiry_date="2026-08-14"),
 				D(name="LO-3", item="BO-02", item_name="Bơ lạt", stock_uom="Kg", expiry_date="2026-09-30")],
@@ -258,10 +258,21 @@ def _lich():
 	dung("dòng có tiền và phần trăm", "40%" in goi[0].dong[0] and "3.000.000 đ" in goi[0].dong[0])
 	goi = _chay(tk.nhac_hang_ve_chua_hoa_don, get_all=ga)
 	la("chưa hoá đơn", [(g.ma_tin, g.khoa) for g in goi], [("tm_hang_ve_chua_hoa_don", "pnk-chua-hd:%s" % hom)])
-	goi = _chay(tk.nhac_chuyen_chua_nhan, get_all=ga)
+	bo_loc = []
+	goi = _chay(tk.nhac_chuyen_chua_nhan, get_all=lambda dt, **k: (bo_loc.append(k.get("filters")), ga(dt))[1])
 	la("chuyển chưa nhận: mỗi phiếu một khoá", [(g.ma_tin, g.loai, g.khoa) for g in goi],
 		[("kho_chuyen_chua_nhan", "viec", "chua-nhan:PXK-5"), ("kho_chuyen_chua_nhan", "viec", "chua-nhan:PXK-6")])
 	dung("chỉ kho nhận phải làm", "Kho TC mở Hàng chuyển về kho tôi" in goi[0].dong[1])
+	dung("giờ ghi sổ lấy từ mốc ghi sổ", "ghi sổ lúc 05:00 15/08" in goi[0].dong[0])
+	# Codex #495 P2: mốc là lúc ghi sổ (modified), không phải lúc tạo nháp (creation).
+	bay_gio = datetime.datetime(2026, 8, 15, 9, 0)
+	tu, den = tk.cua_so_chua_nhan(bay_gio)
+	la("cửa sổ 2 tới 48 giờ", (tu, den), (datetime.datetime(2026, 8, 13, 9, 0), datetime.datetime(2026, 8, 15, 7, 0)))
+	dung("lọc theo modified, không creation", bo_loc[0]["modified"] == ["between", (tu, den)] and "creation" not in bo_loc[0])
+	# Nháp lập 60 giờ trước, ghi sổ 3 giờ trước: theo creation thì rơi ngoài cửa sổ (không bao giờ nhắc), theo mốc ghi sổ thì nhắc.
+	tao = datetime.datetime(2026, 8, 12, 21, 0); ghi_so = datetime.datetime(2026, 8, 15, 6, 0)
+	la("theo creation: KHÔNG nhắc", tu <= tao <= den, False)
+	la("theo mốc ghi sổ: nhắc", tu <= ghi_so <= den, True)
 	ton = {"LO-1": {"Kho D1 - TV": 12, "Kho TC - TV": 3}, "LO-2": {"Kho D1 - TV": 30}, "LO-3": {"Kho D1 - TV": 9}}
 	with um.patch.object(tk, "_ton_lo_theo_kho", lambda lo, ma: ton.get(lo, {})):
 		goi = _chay(tk.nhac_lo_sap_het_han, get_all=ga)
@@ -277,20 +288,31 @@ def _lich():
 		get_all=lambda dt, **k: []), [])
 
 
-@ca("v609 đơn web mới: tên viết tắt, không số điện thoại, giờ nhận, món cắt ở 5, miễn phí giao, mã Pancake")
+@ca("v609 đơn web mới: tên viết tắt, không số điện thoại, giờ nhận, món cắt ở 5, bốn trạng thái phí (phí chưa rõ KHÔNG thành Tổng 0)")
 def _don_web():
+	from vagabond.don_web import quyet_phi_giao
 	mon = [{"ma": "m%d" % i, "ten": "Bánh %d" % i, "sl": 2, "gia": 100000} for i in range(6)]
-	goi = _chay(lambda: tk.bao_don_web_moi("DW-1", "Nguyễn Văn An", "2026-10-25T13:00", False, "", "12 Lê Lợi, Q1", mon, 1200000, True, "PK-77"))
+	# Codex #495 P2: Ahamove không báo được -> quyet_phi_giao trả phi_khach None.
+	chua_ro = quyet_phi_giao(1200000, 2000000, False, None)
+	la("tiền đề: phí chưa rõ", (chua_ro["phi_khach"], chua_ro["trang_thai"]), (None, "chua_ro"))
+	goi = _chay(lambda: tk.bao_don_web_moi("DW-1", "Nguyễn Văn An", "2026-10-25T13:00", False, "", "12 Lê Lợi, Q1", mon, 1200000, chua_ro, "PK-77"))
 	la("một tin", [(g.ma_tin, g.loai, g.chu_de, g.khoa) for g in goi], [("bh_don_web_moi", "thong_bao", "don_web", "don-web-moi:DW-1")])
 	d = goi[0].dong
 	la("đầu tin", d[0], "Khách N. V. An, nhận Chủ nhật, 25/10 13h - 15h")
 	la("giao", d[1], "Giao: 12 Lê Lợi, Q1")
 	la("món cắt ở 5", (d[2], d[7]), ("Bánh 0 x2", "+1 món khác"))
-	la("tổng và miễn phí giao, mã Pancake", d[8:], ["Tổng 1.200.000 đ, miễn phí giao", "Đã vào Pancake, mã PK-77"])
+	la("phí chưa rõ: không có chữ Tổng, nói Sales báo phí", d[8], "Tiền bánh 1.200.000 đ, phí giao CHƯA RÕ (Ahamove không báo được), Sales báo phí khi gọi khách")
+	la("mã Pancake", d[9:], ["Đã vào Pancake, mã PK-77"])
 	dung("không lộ họ tên đầy đủ", not any("Nguyễn Văn An" in x for x in d))
-	goi = _chay(lambda: tk.bao_don_web_moi("DW-2", "An", "", True, "The Vagabond Thảo Điền", "", mon[:1], 100000, False, ""))
+	# Bốn trạng thái phí, chạy đúng hàm quyet_phi_giao thật.
+	mp = quyet_phi_giao(1200000, 1000000, False, None)
+	cx = quyet_phi_giao(500000, 1000000, False, {"ok": 1, "total_fee": 35000})
+	tl = quyet_phi_giao(500000, 1000000, True, None)
+	la("miễn phí giao", tk.dong_tien_don_web(1200000, mp), "Tổng 1.200.000 đ, miễn phí giao")
+	la("có báo giá: tổng gồm phí", tk.dong_tien_don_web(500000, cx), "Tổng 535.000 đ (gồm phí giao 35.000 đ)")
+	la("tự lấy", tk.dong_tien_don_web(500000, tl), "Tổng 500.000 đ, tự lấy")
+	goi = _chay(lambda: tk.bao_don_web_moi("DW-2", "An", "", True, "The Vagabond Thảo Điền", "", mon[:1], 100000, tl, ""))
 	la("tự lấy, chưa rõ giờ", goi[0].dong[:2], ["Khách An, chưa rõ giờ nhận", "Tự lấy tại The Vagabond Thảo Điền"])
-	dung("không miễn phí thì không ghi", goi[0].dong[-1] == "Tổng 100.000 đ")
 
 
 @ca("v609 an toàn: kênh Zalo lỗi thì hook im và ghi Error Log, lỗi chết giao dịch thì ném tiếp cho chứng từ dừng")
@@ -347,6 +369,7 @@ def _noi_day():
 	td = _ham(ast.parse(open(os.path.join(GOI, "don_hang.py"), encoding="utf-8").read()), "tao_don")
 	goi = _goi_trong(td, "bao_don_web_moi")
 	la("tao_don gọi bao_don_web_moi một lần", len(goi), 1)
+	dung("truyền nguyên phi, không ép phí chưa rõ thành 0 (Codex #495)", ast.unparse(goi[0].args[8]) == "phi" and "or 0" not in ast.unparse(goi[0]))
 	# Lời gọi nằm trong nhánh da_nhan: tìm If bao quanh.
 	bao_quanh = [n for n in ast.walk(td) if isinstance(n, ast.If) and any(c is goi[0] for c in ast.walk(n)) and "da_nhan" in ast.unparse(n.test)]
 	dung("chỉ khi Pancake đã nhận", len(bao_quanh) >= 1)
