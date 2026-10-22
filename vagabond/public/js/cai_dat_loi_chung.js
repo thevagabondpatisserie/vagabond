@@ -202,11 +202,17 @@ var VGB_CD = (function () {
 	// v596: lỗi cụ thể của TỪNG Ô, để màn tô đỏ đúng ô và nói cách sửa. Nguồn duy
 	// nhất: chip đỏ của kết nối cũng đọc từ đây (không tự dò lại chỗ khác).
 	// Codex 3d0b446: máy chủ thật của Ahamove cho đối tác là partner-api.ahamove.com
-	// (tài liệu môi trường của Ahamove, khớp mô tả ô trên doctype); code tự nối /v3/...
-	// nên địa chỉ phải đúng gốc đó. api.ahamove.com hay thêm /v3 đều gọi sai chỗ.
+	// (tài liệu môi trường của Ahamove, khớp mô tả ô trên doctype). api.ahamove.com
+	// là sai chỗ. v608 (Codex 4337249728): máy chủ đã chịu đuôi /v3 (lib.aha_url bỏ
+	// đuôi đó trước khi nối), nên ô này cũng phải nhận, cùng một luật chuẩn hoá.
 	var AHAMOVE_THAT = 'https://partner-api.ahamove.com';
-	function loiAhamove(base) {
+	function chuanBaseAhamove(base) {
 		var b = String(base || '').trim().replace(/\/+$/, '').toLowerCase();
+		while (/\/v3$/.test(b)) b = b.replace(/\/v3$/, '').replace(/\/+$/, '');
+		return b;
+	}
+	function loiAhamove(base) {
+		var b = chuanBaseAhamove(base);
 		if (!b) return null;
 		if (/apistg/.test(b)) {
 			return { ghi: 'đang trỏ máy chủ chạy thử, phí giao thật sẽ lỗi',
@@ -214,7 +220,7 @@ var VGB_CD = (function () {
 		}
 		if (b !== AHAMOVE_THAT) {
 			return { ghi: 'địa chỉ API chưa đúng, phí giao sẽ lỗi',
-				cau: 'Không phải máy chủ thật của Ahamove. Chạy thật dùng ' + AHAMOVE_THAT + ' (không thêm /v3).' };
+				cau: 'Không phải máy chủ thật của Ahamove. Chạy thật dùng ' + AHAMOVE_THAT + '.' };
 		}
 		return null;
 	}
