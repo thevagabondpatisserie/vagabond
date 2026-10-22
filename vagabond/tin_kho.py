@@ -518,7 +518,9 @@ def nhac_chuyen_chua_nhan():
 	try:
 		tu, den = cua_so_chua_nhan(now_datetime())
 		ds = frappe.get_all("Stock Entry", filters={"docstatus": 1, "purpose": "Material Transfer", "vgb_huy": ["!=", 1],
-			MOC_GHI_SO: ["between", (tu, den)], "vgb_nhan_tt": ["in", ("", None)]},
+			# Codex #495 vòng 6: ô chưa từng ghi là NULL; ["in", ("", None)] ra SQL IN ('', NULL)
+			# không khớp NULL (bẫy đã ghi ở ban_hang.py). "is not set" dịch ra ifnull(ô, '') = ''.
+			MOC_GHI_SO: ["between", (tu, den)], "vgb_nhan_tt": ["is", "not set"]},
 			fields=["name", "from_warehouse", "to_warehouse", MOC_GHI_SO], order_by=MOC_GHI_SO + " asc", limit_page_length=0)
 		for d in ds:
 			kenh_zalo.bao("viec", "kho", "Hàng chuyển tới chưa được xác nhận nhận", [
