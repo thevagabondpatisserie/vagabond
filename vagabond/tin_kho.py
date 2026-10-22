@@ -137,11 +137,16 @@ def ten_muc_dich(ma):
 	return ma or ""
 
 
-def phan_loai_phieu_kho(purpose, muc_dich, huy):
+def phan_loai_phieu_kho(purpose, muc_dich, huy, ly_do_huy=None):
 	"""THUẦN: một phiếu kho ghi sổ thuộc tin nào.
 
 	Trả "chuyen", "huy", "noi_bo", "san_xuat" hoặc "" (không báo: phục vụ bán,
-	phiếu huỷ mềm, loại khác)."""
+	phiếu huỷ mềm, loại khác).
+
+	Codex #495 vòng 4: Material Issue KHÔNG mặc nhiên là xuất huỷ. Trừ kho bù
+	(tru_kho_bu), xuất nguyên liệu tiệc (tiec), dọn dữ liệu (don_du_lieu) đều là
+	Material Issue để trống mục đích. Xuất huỷ chỉ nhận khi có dấu hiệu DƯƠNG:
+	ô Lý do huỷ có giá trị (màn Xuất huỷ bắt buộc chọn lý do)."""
 	if huy:
 		return ""
 	if purpose == "Material Transfer":
@@ -151,11 +156,15 @@ def phan_loai_phieu_kho(purpose, muc_dich, huy):
 	if purpose == "Material Issue":
 		md = (muc_dich or "").strip()
 		if not md:
-			return "huy"
+			return "huy" if (ly_do_huy or "").strip() else ""
 		if md == MUC_DICH_PHUC_VU_BAN:
 			return ""
 		return "noi_bo"
 	return ""
+
+
+def _loai_phieu(doc):
+	return phan_loai_phieu_kho(doc.get("purpose"), doc.get("vgb_muc_dich_xuat"), cint(doc.get("vgb_huy")), doc.get("vgb_ly_do_huy"))
 
 
 def dong_don_web(mon, toi_da=TOI_DA_MON):
@@ -305,7 +314,7 @@ def nhac_hang_ve_chua_hoa_don():
 	try:
 		hom_nay = nowdate()
 		moc = add_days(hom_nay, -NGAY_CHO_HOA_DON)
-		ds = frappe.get_all("Purchase Receipt", filters={"docstatus": 1, "per_billed": ["<", 99.99], "posting_date": ["<=", moc],
+		ds = frappe.get_all("Purchase Receipt", filters={"docstatus": 1, "is_return": 0, "per_billed": ["<", 99.99], "posting_date": ["<=", moc],
 			"status": ["!=", "Closed"]}, fields=["name", "supplier_name", "posting_date", "grand_total"],
 			order_by="posting_date asc", limit_page_length=0)
 		if not ds:
@@ -328,7 +337,8 @@ def khi_lap_phieu_nhap(doc, method=None):
 	Màn Nhận hàng của app ghi sổ ngay lúc tạo (cờ vgb_nhap_ngay): không báo chờ
 	kiểm, tin "đã nhập" sẽ đi ở on_submit."""
 	try:
-		if cint(doc.get("docstatus")) != 0 or getattr(doc.flags, "vgb_nhap_ngay", False):
+		# Codex #495 vòng 4: phiếu trả hàng nhà cung cấp (is_return) là hàng ĐI, không báo nhập.
+		if cint(doc.get("docstatus")) != 0 or getattr(doc.flags, "vgb_nhap_ngay", False) or cint(doc.get("is_return")):
 			return
 		dong = ["Phiếu %s, nhà cung cấp %s, kho %s" % (doc.name, doc.get("supplier_name") or doc.get("supplier") or "",
 			ten_kho(doc.get("set_warehouse")))]
@@ -344,6 +354,8 @@ def khi_lap_phieu_nhap(doc, method=None):
 def khi_ghi_so_phieu_nhap(doc, method=None):
 	"""Hook Purchase Receipt on_submit: hàng đã vào kho, kèm lệch so với đơn và hạn lô gần nhất."""
 	try:
+		if cint(doc.get("is_return")):
+			return
 		hang = hang_tu_items(doc.get("items"))
 
 		def duoi(d):
@@ -365,7 +377,7 @@ def khi_lap_phieu_kho(doc, method=None):
 	try:
 		if cint(doc.get("docstatus")) != 0:
 			return
-		if phan_loai_phieu_kho(doc.get("purpose"), doc.get("vgb_muc_dich_xuat"), cint(doc.get("vgb_huy"))) != "huy":
+		if _loai_phieu(doc) != "huy":
 			return
 		dong = ["Phiếu %s, kho %s%s" % (doc.name, ten_kho(doc.get("from_warehouse")),
 			(", lý do: %s" % doc.get("vgb_ly_do_huy")) if doc.get("vgb_ly_do_huy") else "")]
@@ -380,7 +392,7 @@ def khi_lap_phieu_kho(doc, method=None):
 
 def khi_ghi_so_phieu_kho(doc, method=None):
 	"""Hook Stock Entry on_submit: điều phối theo loại phiếu, mỗi tin một hàm."""
-	loai = phan_loai_phieu_kho(doc.get("purpose"), doc.get("vgb_muc_dich_xuat"), cint(doc.get("vgb_huy")))
+	loai = _loai_phieu(doc)
 	if loai == "chuyen":
 		_bao_da_chuyen(doc)
 	elif loai == "huy":
