@@ -5973,9 +5973,17 @@ def _gd_co_chu_toan_he(gds, ten_bill=None, ma_cua_bill=()):
 	try:
 		from vagabond import doi_soat_sepay as dss
 
-		for ma, chu in (dss.chu_cua_giao_dich(
-				[g.get("ten") for g in gds or []], bo_qua_hoa_don=ten_bill) or {}).items():
-			ra.setdefault(ma, chu)
+		# Codex #497 v2 (4367048767): phieu cu co the luu SO THAM CHIEU ngan
+		# hang thay vi ten dong, nen hoi ca hai khoa roi quy ve ten dong.
+		ve_ten = {}
+		for g in gds or []:
+			ten = str(g.get("ten") or "").strip()
+			for k in (ten, str(g.get("tham_chieu") or "").strip()):
+				if ten and k:
+					ve_ten.setdefault(k, ten)
+		for ma, chu in (dss.chu_cua_giao_dich(sorted(ve_ten), bo_qua_hoa_don=ten_bill) or {}).items():
+			if ma in ve_ten:
+				ra.setdefault(ve_ten[ma], chu)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "ban_hang: hoi chu toan he cho nut Do tien")
 	from vagabond import doi_soat_ck as dsck

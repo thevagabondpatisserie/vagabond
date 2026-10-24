@@ -321,7 +321,12 @@ def chu_cua_giao_dich(ds_gd, bo_qua_loai=None, bo_qua_phieu=None, bo_qua_hoa_don
 	for loai, b in _SO.items():
 		if bo_qua_loai and loai == bo_qua_loai:
 			continue
-		loc = {b["truong_gd"]: (["is", "set"] if cho_bo and loai=="cong_no" else ["in", sorted(muon)])}
+		# Phieu cong no ghi CONG DON nhieu ma vao mot o (cong_no: gom_gd), nen
+		# loc "in" nguyen o bo sot dong nam giua danh sach. Codex #497 v2
+		# (4367048767): truoc v610 chi cua bo sao ke (cho_bo) moi tach, cac cua
+		# khac (nut Do tien, ghi so bill quay) mu voi phieu cong no cu nhieu ma.
+		# Nay moi cua deu doc o roi tach, mot nguon duy nhat.
+		loc = {b["truong_gd"]: (["is", "set"] if loai == "cong_no" else ["in", sorted(muon)])}
 		loc.update(b.get("loc_chiem") or {})
 		if bo_qua_phieu:
 			loc["name"] = ["!=", bo_qua_phieu]
@@ -334,7 +339,7 @@ def chu_cua_giao_dich(ds_gd, bo_qua_loai=None, bo_qua_phieu=None, bo_qua_hoa_don
 			continue
 		for r in ds:
 			if cho_bo and r.get(bs.O_BO):continue
-			if cho_bo and loai=="cong_no":
+			if loai == "cong_no":
 				from vagabond.chiem_sao_ke import tach_gd
 				for ma in tach_gd(r.get(b['truong_gd'])):
 					if ma in muon:ra.setdefault(ma,b['ten_man']+' '+r['name'])
