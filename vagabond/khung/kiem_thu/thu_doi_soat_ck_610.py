@@ -226,12 +226,14 @@ def _loc_gia(ban_ghi, loc):
 	return [_Si(r) for r in ban_ghi if all(hop(r, k, v) for k, v in ds)]
 
 
-def _chay_gan(vai, ma_gd, chu_he=None, si_them=None, sao_ke_them=None, hd_khac=None):
+def _chay_gan(vai, ma_gd, chu_he=None, si_them=None, sao_ke_them=None, hd_khac=None, cong_no=None):
 	"""Chạy THẬT pos_gan_tien cho bill TCVEHQHG. Trả (bill, lỗi).
 
 	si_them      ô thay trên bill (ví dụ bill đã gắn một lần: mã tham chiếu là số ngân hàng)
 	sao_ke_them  {tên dòng: ô thay} trên dòng sao kê
 	hd_khac      các hoá đơn khác trong hệ (cho phép hỏi chủ theo mã tham chiếu và mã bill)
+	cong_no      các phiếu công nợ trong hệ. Có thì chạy THẬT doi_soat_sepay.chu_cua_giao_dich
+	             với sổ chỉ có luồng công nợ và bộ lọc DB giả (Codex #497 v2 4367048767)
 	"""
 	from vagabond import doi_soat_ck as d
 	from vagabond import ma_bill
@@ -280,13 +282,34 @@ def _chay_gan(vai, ma_gd, chu_he=None, si_them=None, sao_ke_them=None, hd_khac=N
 	_nap("_chu_ma_bill", g)
 	_nap("_gd_co_chu_toan_he", g)
 	gan = _nap("pos_gan_tien", g)
-	dss = types.ModuleType("vagabond.doi_soat_sepay")
-	dss.chu_cua_giao_dich = lambda ds, bo_qua_hoa_don=None: dict(chu_he or {})
 	import vagabond
 	loi = None
-	with patch.dict(sys.modules, {"vagabond.doi_soat_sepay": dss}), \
-			patch.object(vagabond, "doi_soat_sepay", dss, create=True), \
-			patch.object(d, "bang_dau_he", lambda: d.bang_dau(CAU_HINH, TEN)):
+	if cong_no is not None:
+		import contextlib
+
+		import frappe
+		from vagabond import bo_sao_ke_db as bs
+		from vagabond import doi_soat_sepay as that
+
+		so = {"cong_no": {"doctype": "Vagabond Cong No", "truong_gd": "ma_gd",
+			"ten_man": "phiếu công nợ", "loc_chiem": {"trang_thai": ["!=", "Huy"]}}}
+		bang = {"Vagabond Cong No": cong_no, "Sales Invoice": hd}
+
+		def _get_all(dt, filters=None, fields=None, **k):
+			return _loc_gia(bang.get(dt, []), filters or {})
+
+		boc = contextlib.ExitStack()
+		for x in (patch.object(that, "_SO", so), patch.object(that, "nap_so", lambda: None),
+				patch.object(bs, "_cac_bo", lambda ma: []), patch.object(frappe, "get_all", _get_all, create=True),
+				patch.object(frappe, "log_error", lambda *a, **k: None, create=True)):
+			boc.enter_context(x)
+	else:
+		dss = types.ModuleType("vagabond.doi_soat_sepay")
+		dss.chu_cua_giao_dich = lambda ds, bo_qua_hoa_don=None: dict(chu_he or {})
+		boc = __import__("contextlib").ExitStack()
+		boc.enter_context(patch.dict(sys.modules, {"vagabond.doi_soat_sepay": dss}))
+		boc.enter_context(patch.object(vagabond, "doi_soat_sepay", dss, create=True))
+	with boc, patch.object(d, "bang_dau_he", lambda: d.bang_dau(CAU_HINH, TEN)):
 		try:
 			gan("HDB-26-10-04707", ma_gd)
 		except _Loi as e:
@@ -363,3 +386,32 @@ def _f3_ma_cua_chinh_bill():
 	# Mã không còn bill nào mang (đã bị thay) mà không phải của bill này: vẫn chặn, không đoán.
 	si3, loi3 = _chay_gan(QLCH, "BT-CTY", sao_ke_them={"BT-CTY": {"description": "TCVACDEF chuyen tien"}})
 	dung("mã lạ vẫn chặn: %r" % loi3, bool(loi3) and "TCVACDEF" in loi3)
+
+
+# ------------------------------------------------- vòng 3: finding Codex trên ad1816d
+
+
+@ca("v610 v3 Codex 4367048767: phiếu công nợ cũ giữ NHIỀU giao dịch trong một ô vẫn là chủ")
+def _f4_cong_no_nhieu_ma():
+	# Chạy THẬT doi_soat_sepay.chu_cua_giao_dich. Phiếu công nợ ghi cộng dồn
+	# (cong_no.py: gom_gd) nên ô ma_gd là "BT-X\nBT-CTY". Lọc "in" nguyên ô
+	# thì không khớp và cửa gắn cho quản lý nhận khoản đã trả công nợ.
+	cn = [{"name": "CN-OLD", "trang_thai": "Da thu du", "ma_gd": "BT-X\nBT-CTY"}]
+	si, loi = _chay_gan(QLCH, "BT-CTY", cong_no=cn)
+	dung("tên dòng nằm giữa danh sách: chặn và nói ai giữ: %r" % loi,
+		bool(loi) and "phiếu công nợ CN-OLD" in loi)
+	la("bill không lưu", si.get("_da_luu"), None)
+	# Phiếu cũ lưu SỐ THAM CHIẾU ngân hàng thay vì tên dòng (lịch sử).
+	cn2 = [{"name": "CN-REF", "trang_thai": "Thu thieu", "ma_gd": "FT26296028012585\nBT-X"}]
+	si2, loi2 = _chay_gan(QLCH, "BT-CTY", cong_no=cn2)
+	dung("số tham chiếu lịch sử cũng chặn: %r" % loi2, bool(loi2) and "phiếu công nợ CN-REF" in loi2)
+	la("bill không lưu", si2.get("_da_luu"), None)
+	# Phiếu đã huỷ thì nhả dòng (loc_chiem của luồng), không chặn nhầm.
+	cn3 = [{"name": "CN-HUY", "trang_thai": "Huy", "ma_gd": "BT-X\nBT-CTY"}]
+	si3, loi3 = _chay_gan(QLCH, "BT-CTY", cong_no=cn3)
+	la("phiếu huỷ không giữ tiền", loi3, None)
+	la("bill đã lưu", si3.get("_da_luu"), 1)
+	# Một ô một mã như cũ vẫn chặn.
+	cn4 = [{"name": "CN-1", "trang_thai": "Cho thu", "ma_gd": "BT-CTY"}]
+	si4, loi4 = _chay_gan(QLCH, "BT-CTY", cong_no=cn4)
+	dung("một mã vẫn chặn: %r" % loi4, bool(loi4) and "phiếu công nợ CN-1" in loi4)
