@@ -43,6 +43,7 @@ function layHam(src, ten) {
 var HAM = ['h', 'money', 'today'].map(function (t) { return layHam(NEN, t); })
   .concat(['posChipNut', 'posNgayVn', 'posDtCong', 'posSheetDoTien'].map(function (t) { return layHam(POS, t); }))
   .concat(['dsccHang', 'dsCongCu', 'dsCongCuNoi'].map(function (t) { return layHam(KHUON, t); }))
+  .concat(['var scanBarcode = function () { return Promise.resolve(window.__maQuet || null); };'])
   .concat([layHam(KM, 'kmHangChip'), layHam(KHO, 'errMsg')]).join('\n');
 
 /* pos_do_tien giả: chạy thật doi_soat_ck.dung_bang_do_tien. */
@@ -70,8 +71,8 @@ var BILL = JSON.parse(cp.execFileSync('python3', ['-c', [
   'import json, sys', 'sys.path.insert(0, sys.argv[1])',
   'from vagabond.khung.kiem_thu import nen', 'nen.gia_lap()',
   'from vagabond import doi_soat_ck as D',
-  'b = [dict(name="HDB-26-10-04707", ma="TCVEHQHG", quay="TCV", gio="13:46", tong=1875000, nhan=0, ghi_so=0, khach="PHUC"),',
-  '     dict(name="HDB-26-10-04650", ma="NVHACDEF", quay="NVHTN", gio="11:02", tong=245000, nhan=245000, ghi_so=0, khach="")]',
+  'b = [dict(name="HDB-26-10-04707", ma="TCVEHQHG", ma_tc="TCVEHQHG", quay="TCV", gio="13:46", tong=1875000, nhan=0, ghi_so=0, khach="PHUC"),',
+  '     dict(name="HDB-26-10-04650", ma="NVHACDEF", ma_tc="FT26296000000009", quay="NVHTN", gio="11:02", tong=245000, nhan=245000, ghi_so=0, khach="")]',
   'for r in b: r["tt"] = D.trang_thai_tien(r["nhan"], r["tong"])',
   'sys.stdout.write(json.dumps({"ngay": "2026-10-23", "rows": b}, ensure_ascii=False))'].join('\n'), GOC], { encoding: 'utf8' }));
 
@@ -235,6 +236,47 @@ async function moDoTien(vai, ten) {
     var hang = m.khung.querySelectorAll('[data-dsckmo]');
     bang('chỉ bill đã khớp', hang.length, 1);
     dung('bill NVH', chu(hang[0]).indexOf('NVHACDEF') >= 0);
+  });
+
+  /* Codex #497 v1 (4366436288): ô tìm và nút quét ở màn danh sách. */
+  await ca('màn Đối soát chuyển khoản: gõ mã bill là thấy đúng bill, bỏ qua chip đang lọc', async function () {
+    var m = dungMoi(QLCH);
+    vm.runInNewContext('dsckNgay = "2026-10-23"; dsckTt = "du";', m.g);
+    m.g.S.stack.push(m.g.scrDoiSoatCk);
+    await m.g.scrDoiSoatCk();
+    await tick();
+    var o = m.tai.getElementById('dsckDsTim');
+    dung('có ô tìm', !!o);
+    dung('có nút quét cạnh ô tìm', m.khung.querySelectorAll('[data-dsquet]').length === 1);
+    bang('đang ở chip Đã khớp đủ: chỉ thấy bill NVH', m.khung.querySelectorAll('[data-dsckmo]').length, 1);
+    o.value = 'tcvehqhg';
+    o.dispatchEvent(dg.suKien('change', {}, o));
+    await choDen(function () { return m.goi.filter(function (x) { return x.duong === 'vagabond.doi_soat_ck.ds_bill_ck'; }).length === 2; });
+    await tick();
+    var hang = m.khung.querySelectorAll('[data-dsckmo]');
+    bang('chỉ một bill', hang.length, 1);
+    dung('đúng TCVEHQHG dù chip đang là Đã khớp đủ', chu(hang[0]).indexOf('TCVEHQHG') >= 0);
+  });
+
+  await ca('màn Đối soát chuyển khoản: quét chuỗi dài chứa mã bill là thấy đúng bill', async function () {
+    var m = dungMoi(QLCH);
+    vm.runInNewContext('dsckNgay = "2026-10-23"; dsckTt = "chua_xong"; dsckTim = "";', m.g);
+    m.g.__maQuet = '00020101021238570010A000000727 NVHACDEF 5303704';
+    m.g.S.stack.push(m.g.scrDoiSoatCk);
+    await m.g.scrDoiSoatCk();
+    await tick();
+    var nut = m.khung.querySelectorAll('[data-dsquet]')[0];
+    m.khung.dispatchEvent(dg.suKien('click', {}, nut));
+    await choDen(function () { return m.goi.filter(function (x) { return x.duong === 'vagabond.doi_soat_ck.ds_bill_ck'; }).length === 2; });
+    await tick();
+    var hang = m.khung.querySelectorAll('[data-dsckmo]');
+    bang('chỉ một bill', hang.length, 1);
+    dung('đúng bill NVH', chu(hang[0]).indexOf('NVHACDEF') >= 0);
+    m.g.__maQuet = 'FT26296000000009';
+    m.khung.dispatchEvent(dg.suKien('click', {}, m.khung.querySelectorAll('[data-dsquet]')[0]));
+    await choDen(function () { return m.goi.filter(function (x) { return x.duong === 'vagabond.doi_soat_ck.ds_bill_ck'; }).length === 3; });
+    await tick();
+    dung('tìm được theo số tham chiếu ngân hàng đã gắn', chu(m.khung.querySelectorAll('[data-dsckmo]')[0]).indexOf('NVHACDEF') >= 0);
   });
 
   console.log('\n' + ket.dat + ' ca đạt, ' + ket.hong + ' ca hỏng.');
