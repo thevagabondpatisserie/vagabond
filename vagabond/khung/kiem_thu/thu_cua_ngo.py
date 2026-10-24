@@ -459,6 +459,8 @@ CUA_NGO = {
 	# Tang doi soat SePay dung chung, them 24/08/2026. Ba cua ngo nay phuc vu
 	# MOI man co doi soat, nen thieu mot ten la mot man mat nut.
 	"doi_soat_sepay.py": ["tu_dong", "ung_vien", "khop_tay"],
+	# v610: màn Đối soát chuyển khoản (chỉ QLCH và kế toán, kiểm trong hàm).
+	"doi_soat_ck.py": ["ds_bill_ck"],
 
 	"hoan_tien.py": [
 		"chi_tiet", "dem_cho_chi",

@@ -347,10 +347,13 @@ def _do_tien_ca_ngay():
 	# Anh Việt 01/09/2026: *"nút Dò tay thì cài thêm để vừa dò tự động, vừa
 	# phải xổ ra danh sách giao dịch ngày hôm đó chuyển khoản vào tài khoản
 	# ảo của điểm bán, nhân viên click vào rồi chọn từ danh sách để gắn"*.
+	# v610: phép lọc theo điểm chuyển về doi_soat_ck.loc_theo_nguon (chip
+	# tài khoản), ca hành vi ở thu_doi_soat_ck_610.py.
 	s = _py("ban_hang.py")
-	dung("có phép lọc sao kê theo điểm", "def _gd_cua_diem(" in s)
-	dung("cửa dò tiền dùng phép đó", "gds, tk = _gd_cua_diem(ngay, diem)" in s)
-	dung("đánh dấu khoản đúng số tiền", '"khop":' in s)
+	than = s[s.index("def pos_do_tien("):]
+	than = than[: than.index("\ndef ")]
+	dung("cửa dò tiền dựng bảng bằng một phép chung", "dsck.dung_bang_do_tien(" in than)
+	dung("đánh dấu khoản đúng số tiền", '"khop":' in _py("doi_soat_ck.py"))
 	dung("nói rõ khoản nào đã có chủ", "def _gd_da_co_chu(" in s)
 	j = _js("09-tinh-tien-quay.js")
 	dung("màn hình nói rõ đang soi tài khoản nào", "tk_rieng" in j)
@@ -361,9 +364,10 @@ def _do_tien_ca_ngay():
 def _dau_tk():
 	# Ngân hàng ghi "Q00033k5p6" cho tài khoản "VQRQ00033k5p6". Đối chiếu cả
 	# chuỗi thì không dòng sao kê nào khớp.
-	s = _py("ban_hang.py")
-	dung("có hàm cắt tiền tố VQR", "def _dau_tk(" in s)
-	dung("cắt đúng ba chữ VQR", 't[3:] if t.startswith("VQR") else t' in s)
+	# v610: hàm nằm ở doi_soat_ck, chạy thật thay vì dò chuỗi.
+	from vagabond import doi_soat_ck
+	la("cắt đúng ba chữ VQR", doi_soat_ck.dau_tk("VQRQ00033k5p6"), "Q00033K5P6")
+	la("tài khoản thường không để dấu", doi_soat_ck.dau_tk("31561568"), "")
 
 
 @ca("gắn tay lệch số tiền thì KHÔNG chặn, nhưng phải ghi rõ số lệch")

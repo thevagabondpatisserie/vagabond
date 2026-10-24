@@ -1673,20 +1673,46 @@ function posKhoiQr(noiDung, tien, nguon, maDiem) {
    `siName` rong nghia la bill CHUA LUU: luc do chi xem cho biet tien da ve
    chua, khong gan duoc vao dau. Luu bill xong bam lai o man danh sach thi
    moi gan. */
-async function posSheetDoTien(tien, siName, sauKhiGan) {
-  busy(true);
-  var kq;
-  try {
-    kq = await api('vagabond.ban_hang.pos_do_tien', {
-      tien: tien || 0, name: siName || '', quay: (posQuay && posQuay.ma) || ''
-    });
-  }
-  catch (e) { busy(false); return toast((e && e.message) || 'Không đọc được sao kê.'); }
-  busy(false);
-  var gd = (kq && kq.gd) || [];
+/* v610 (anh Viet 24/10/2026, bill TCVEHQHG cua diem TCV): khach xin so tai
+   khoan roi chuyen THANG vao tai khoan chinh cong ty. Tien ve SePay that,
+   nhung bang nay chi soi tai khoan ao cua diem nen khong bao gio thay. Nay
+   co hai hang chip:
+     - tai khoan: cua diem / vao thang tai khoan chinh / tat ca
+     - ngay: ngay cua bill, hom truoc, hom sau (khach chuyen truoc mot hom)
+   Khoan khong nam trong tai khoan ao cua diem thi chi Quan ly cua hang va
+   Ke toan gan duoc (may chu tra `duoc_gan`, chan that o pos_gan_tien).
+   `tuyChon.quay`: man Doi soat chuyen khoan truyen diem cua bill vao, vi o
+   do khong co posQuay. */
+function posDtCong(iso, n) {
+  var d = new Date(String(iso || today()).slice(0, 10) + 'T12:00:00');
+  d.setDate(d.getDate() + n);
+  return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+}
+async function posSheetDoTien(tien, siName, sauKhiGan, tuyChon) {
+  tuyChon = tuyChon || {};
+  var trang = { nguon: '', ngay: tuyChon.ngay || '', goc: '' };
+  var quayGui = tuyChon.quay || (siName ? '' : ((posQuay && posQuay.ma) || ''));
+  var kq = null, gd = [];
   var ov = document.createElement('div'); ov.className = 'sh';
 
+  async function doc() {
+    busy(true);
+    try {
+      kq = await api('vagabond.ban_hang.pos_do_tien', {
+        tien: tien || 0, name: siName || '', quay: quayGui,
+        nguon: trang.nguon || '', ngay: trang.ngay || ''
+      });
+    } catch (e) { busy(false); toast((e && e.message) || 'Không đọc được sao kê.'); return false; }
+    busy(false);
+    gd = (kq && kq.gd) || [];
+    trang.nguon = kq.nguon || 'diem';
+    if (!trang.goc) trang.goc = kq.ngay || today();
+    trang.ngay = kq.ngay || trang.ngay;
+    return true;
+  }
+
   var dong = function (g, i) {
+    var khoa = !g.cua_bill && !g.duoc_gan;
     var vien = g.khop ? '#0d9488' : (g.cua_bill ? '#e5e7eb' : '#cbd5e1');
     var nen = g.khop ? '#f0fdfa' : '#fff';
     var mo = g.cua_bill ? 'opacity:.62;' : '';
@@ -1697,51 +1723,84 @@ async function posSheetDoTien(tien, siName, sauKhiGan) {
       money(g.tien) + ' đ<span style="font-weight:600;color:#6b7280"> · ' + h(g.gio || '') + '</span>' +
       (g.khop ? '<span style="margin-left:8px;font-size:11.5px;background:#ccfbf1;color:#0f766e;border-radius:999px;padding:2px 8px">đúng số tiền</span>' : '') +
       '</div>' +
+      (trang.nguon !== 'diem' && g.tk_nhan ? '<div style="font-size:12px;color:#475467;margin-top:2px">🏦 ' + h(g.tk_nhan) + '</div>' : '') +
       '<div style="font-size:11.5px;color:#98a2b3;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
-      (g.cua_bill ? '⛔ Đã gắn cho ' + h(g.cua_bill) : h(g.mo_ta || '')) + '</div></div>' +
-      (siName && !g.cua_bill ? '<span style="flex:none;font-size:12.5px;font-weight:700;color:#0d9488">Chọn &#8250;</span>' : '') +
+      (g.cua_bill ? '⛔ Đã thuộc về ' + h(g.cua_bill) : h(g.mo_ta || '')) + '</div></div>' +
+      (siName && !g.cua_bill ? (khoa
+        ? '<span style="flex:none;font-size:12px;font-weight:700;color:#92400e">🔒 Quản lý gắn</span>'
+        : '<span style="flex:none;font-size:12.5px;font-weight:700;color:#0d9488">Chọn &#8250;</span>') : '') +
       '</div>';
   };
 
-  var than = '';
-  if (!gd.length) {
-    than = '<div style="padding:20px 4px;text-align:center;color:#6b7280;font-size:13.5px;line-height:1.7">' +
-      'Hôm nay chưa có khoản chuyển khoản nào về tài khoản của điểm bán này.<br>' +
-      'Khách vừa chuyển thì chờ vài giây rồi dò lại.</div>';
-  } else {
-    than = gd.map(dong).join('');
+  function ve() {
+    var dem = kq.so_dong_nguon || {}, khop = kq.so_khop_nguon || {};
+    var nhanDiem = kq.tk_rieng ? '🏪 Tài khoản điểm' : '🏪 Sao kê chung';
+    var chipNguon = [['diem', nhanDiem], ['cty', '🏦 Vào thẳng TK công ty'], ['tat_ca', 'Tất cả']].map(function (c) {
+      return posChipNut('data-dtnguon="' + c[0] + '"', h(c[1]) + ' · ' + (dem[c[0]] || 0), trang.nguon === c[0], false, '#0f766e');
+    }).join('');
+    var chipNgay = [[0, 'Ngày bill ' + posNgayVn(trang.goc)], [-1, 'Hôm trước'], [1, 'Hôm sau']].map(function (c) {
+      var ng = posDtCong(trang.goc, c[0]);
+      return posChipNut('data-dtngay="' + ng + '"', h(c[1]), trang.ngay === ng, false, '#b45309');
+    }).join('');
+    var goiY = '';
+    if (trang.nguon === 'diem' && khop.cty) {
+      goiY = '<div data-dtnguon="cty" style="cursor:pointer;margin:0 0 10px;padding:9px 11px;border-radius:10px;background:#fffbeb;border:1px solid #fde68a;' +
+        'font-size:12.5px;color:#92400e;text-align:left;line-height:1.5">💡 Có ' + khop.cty + ' khoản đúng ' + money(kq.tien) +
+        ' đ vào thẳng tài khoản chính công ty. Bấm vào đây để xem.</div>';
+    }
+    var than;
+    if (!gd.length) {
+      than = '<div style="padding:20px 4px;text-align:center;color:#6b7280;font-size:13.5px;line-height:1.7">' +
+        (trang.nguon === 'cty' ? 'Ngày này không có khoản nào vào thẳng tài khoản chính công ty.' :
+          trang.nguon === 'tat_ca' ? 'Ngày này chưa có khoản chuyển khoản nào về.' :
+            'Ngày này chưa có khoản chuyển khoản nào về tài khoản của điểm bán này.') +
+        '<br>Khách vừa chuyển thì chờ vài giây rồi dò lại, hoặc đổi chip tài khoản, chip ngày ở trên.</div>';
+    } else {
+      than = gd.map(dong).join('');
+    }
+    /* Noi ro dang soi tai khoan nao. */
+    var dauMuc = trang.nguon === 'cty'
+      ? 'Tiền khách chuyển tay vào tài khoản chính, không qua mã QR. Tài khoản này còn nhận tiền khách sỉ trả nợ, nên đối chiếu giờ và số tiền thật kỹ.' +
+        (kq.gan_ngoai ? '' : '<br><b>Chỉ Quản lý cửa hàng hoặc Kế toán gắn được khoản ở đây.</b>')
+      : trang.nguon === 'tat_ca' ? 'Mọi khoản tiền về trong ngày, ghi rõ vào tài khoản nào.'
+        : (kq.tk_rieng
+          ? 'Tiền về tài khoản <b>' + h(kq.tk_stk || '') + '</b> của điểm này.'
+          : '<span style="color:#b45309">⚠ Điểm này chưa khai tài khoản riêng nên đây là sao kê chung của cả ba điểm. Vào Cài đặt · Tài khoản nhận tiền để khai.</span>');
+    ov.innerHTML = '<div class="shb" style="padding:18px 16px calc(env(safe-area-inset-bottom,0px) + 16px);text-align:center">' +
+      '<div style="font-size:19px;font-weight:800">Dò tiền chuyển khoản</div>' +
+      '<div style="font-size:12.5px;color:#6b7280;margin:2px 0 8px">Cần thu ' + money(tien || kq.tien || 0) + ' đ' +
+      (kq.so_khop ? ' · máy thấy ' + kq.so_khop + ' khoản đúng số tiền' : '') + '</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-bottom:8px">' + chipNguon + '</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-bottom:10px">' + chipNgay + '</div>' +
+      '<div style="font-size:12px;color:#6b7280;margin-bottom:10px;line-height:1.6;text-align:left">' + dauMuc + '</div>' +
+      goiY +
+      '<div style="max-height:46vh;overflow:auto;text-align:left">' + than + '</div>' +
+      (siName
+        ? '<div style="font-size:11.5px;color:#98a2b3;margin-top:8px;line-height:1.6;text-align:left">Đối chiếu giờ với điện thoại khách rồi chọn đúng khoản. Máy ghi số tham chiếu ngân hàng và tên người gắn vào hoá đơn, không tự chọn hộ.</div>'
+        : '<div style="font-size:11.5px;color:#98a2b3;margin-top:8px;line-height:1.6;text-align:left">Hoá đơn chưa lưu nên chỉ xem cho biết tiền đã về chưa. Lưu xong vào danh sách hoá đơn bấm dò lại thì mới gắn được.</div>') +
+      '<button class="btn gh" data-dong style="width:100%;margin:12px 0 0">Đóng</button></div>';
   }
 
-  /* Noi ro dang soi tai khoan nao. Diem chua khai tai khoan rieng thi danh
-     sach nay la sao ke CHUNG cua ca ba diem, phai bao ra chu khong de nguoi
-     ta tuong day la tien cua riêng quay minh. */
-  var dauMuc = kq && kq.tk_rieng
-    ? 'Tiền về tài khoản <b>' + h(kq.tk_stk || '') + '</b> của điểm này, hôm nay.'
-    : '<span style="color:#b45309">⚠ Điểm này chưa khai tài khoản riêng nên đây là sao kê chung của cả ba điểm. Vào Cài đặt · Tài khoản nhận tiền để khai.</span>';
-
-  ov.innerHTML = '<div class="shb" style="padding:18px 16px calc(env(safe-area-inset-bottom,0px) + 16px);text-align:center">' +
-    '<div style="font-size:19px;font-weight:800">Dò tiền chuyển khoản</div>' +
-    '<div style="font-size:12.5px;color:#6b7280;margin:2px 0 4px">Cần thu ' + money(tien) + ' đ' +
-    (kq && kq.so_khop ? ' · máy thấy ' + kq.so_khop + ' khoản đúng số tiền' : '') + '</div>' +
-    '<div style="font-size:12px;color:#6b7280;margin-bottom:12px;line-height:1.6">' + dauMuc + '</div>' +
-    '<div style="max-height:52vh;overflow:auto;text-align:left">' + than + '</div>' +
-    (siName
-      ? '<div style="font-size:11.5px;color:#98a2b3;margin-top:8px;line-height:1.6;text-align:left">Đối chiếu giờ với điện thoại khách rồi chọn đúng khoản. Máy ghi số tham chiếu ngân hàng vào hoá đơn, không tự chọn hộ.</div>'
-      : '<div style="font-size:11.5px;color:#98a2b3;margin-top:8px;line-height:1.6;text-align:left">Hoá đơn chưa lưu nên chỉ xem cho biết tiền đã về chưa. Lưu xong vào danh sách hoá đơn bấm dò lại thì mới gắn được.</div>') +
-    '<button class="btn gh" data-dong style="width:100%;margin:12px 0 0">Đóng</button></div>';
+  if (!(await doc())) return;
+  ve();
   document.body.appendChild(ov);
 
   ov.onclick = async function (e) {
     if (e.target === ov || e.target.hasAttribute('data-dong')) return ov.remove();
+    var cn = e.target.closest('[data-dtnguon]');
+    if (cn) { trang.nguon = cn.getAttribute('data-dtnguon'); if (await doc()) ve(); return; }
+    var cg = e.target.closest('[data-dtngay]');
+    if (cg) { trang.ngay = cg.getAttribute('data-dtngay'); if (await doc()) ve(); return; }
     var t = e.target.closest('[data-gan]');
     if (!t || !siName) return;
     var g = gd[+t.getAttribute('data-gan')];
     if (!g) return;
-    if (g.cua_bill) return toast('Khoản này đã gắn cho hoá đơn ' + g.cua_bill + '.', 4000);
+    if (g.cua_bill) return toast('Khoản này đã thuộc về ' + g.cua_bill + '.', 4000);
+    if (!g.duoc_gan) return toast('Khoản này không vào tài khoản của điểm. Chỉ Quản lý cửa hàng hoặc Kế toán gắn được, nhờ quản lý mở màn Đối soát chuyển khoản.', 6000);
     var lech = Math.round(g.tien - (tien || 0));
     var dong_y = await confirmSheet(
       'Gắn khoản này vào hoá đơn?',
-      money(g.tien) + ' đ về lúc ' + (g.gio || '') + '.\nHoá đơn ' + siName + ', cần thu ' + money(tien || 0) + ' đ.' +
+      money(g.tien) + ' đ về lúc ' + (g.gio || '') + (g.tk_nhan ? ' (' + g.tk_nhan + ')' : '') + '.\nHoá đơn ' + siName + ', cần thu ' + money(tien || 0) + ' đ.' +
       (Math.abs(lech) > 1 ? '\n\n⚠ LỆCH ' + money(Math.abs(lech)) + ' đ ' + (lech > 0 ? 'THỪA' : 'THIẾU') + '. Máy vẫn gắn và ghi rõ số lệch vào ghi chú đối soát.' : '') +
       '\n\nMáy ghi số tham chiếu ngân hàng vào hoá đơn.',
       'Gắn vào hoá đơn', Math.abs(lech) > 1);
