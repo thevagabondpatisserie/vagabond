@@ -279,6 +279,52 @@ async function moDoTien(vai, ten) {
     dung('tìm được theo số tham chiếu ngân hàng đã gắn', chu(m.khung.querySelectorAll('[data-dsckmo]')[0]).indexOf('NVHACDEF') >= 0);
   });
 
+  /* Codex #497 v3 (4367298442, AGENTS 2b.6): thẻ tóm tắt đầu màn có số bill,
+     tổng tiền, chia theo trạng thái và điểm bán; bấm số là lọc và danh sách
+     ra ĐÚNG số vừa bấm; đang lọc thì có thanh Tổng theo bộ lọc tính trên các
+     dòng đang hiện. */
+  await ca('màn Đối soát chuyển khoản: thẻ tóm tắt có tổng tiền, bấm số là lọc, có Tổng theo bộ lọc', async function () {
+    var m = dungMoi(QLCH);
+    vm.runInNewContext('dsckNgay = "2026-10-23"; dsckTt = "chua_xong"; dsckTim = ""; dsckDiem = "";', m.g);
+    m.g.S.stack.push(m.g.scrDoiSoatCk);
+    await m.g.scrDoiSoatCk();
+    await tick();
+    var the = m.khung.querySelectorAll('[data-dscktom]')[0];
+    dung('có thẻ tóm tắt', !!the);
+    var t = chu(the);
+    dung('số bill và tổng tiền cả ngày: ' + t, t.indexOf('2 bill') >= 0 && t.indexOf(m.g.money(2120000)) >= 0);
+    dung('còn thiếu của nhóm chưa khớp: ' + t, t.indexOf(m.g.money(1875000)) >= 0);
+    var loc = m.khung.querySelectorAll('[data-dscktongloc]')[0];
+    dung('mặc định đang lọc Chưa khớp: có thanh Tổng theo bộ lọc', !!loc && chu(loc).indexOf('Tổng theo bộ lọc') >= 0);
+    dung('tổng theo bộ lọc tính trên dòng đang hiện: ' + chu(loc), chu(loc).indexOf('1 bill') >= 0 && chu(loc).indexOf(m.g.money(1875000)) >= 0);
+    var so = m.khung.querySelectorAll('[data-dscktt="du"]')[0];
+    dung('số Đã khớp đủ bấm được', !!so);
+    m.khung.dispatchEvent(dg.suKien('click', {}, so));
+    await choDen(function () { return m.goi.filter(function (x) { return x.duong === 'vagabond.doi_soat_ck.ds_bill_ck'; }).length === 2; });
+    await tick();
+    var hang = m.khung.querySelectorAll('[data-dsckmo]');
+    bang('bấm số Đã khớp đủ (1) ra đúng 1 bill', hang.length, 1);
+    dung('đúng bill NVH', chu(hang[0]).indexOf('NVHACDEF') >= 0);
+    loc = m.khung.querySelectorAll('[data-dscktongloc]')[0];
+    dung('tổng theo bộ lọc đổi theo: ' + (loc ? chu(loc) : ''), !!loc && chu(loc).indexOf(m.g.money(245000)) >= 0);
+    var diem = m.khung.querySelectorAll('[data-dsckdiem="TCV"]')[0];
+    dung('số theo điểm bán bấm được', !!diem);
+    m.khung.dispatchEvent(dg.suKien('click', {}, diem));
+    await choDen(function () { return m.goi.filter(function (x) { return x.duong === 'vagabond.doi_soat_ck.ds_bill_ck'; }).length === 3; });
+    await tick();
+    hang = m.khung.querySelectorAll('[data-dsckmo]');
+    bang('bấm số điểm TCV (1) ra đúng 1 bill dù trước đó đang lọc Đã khớp', hang.length, 1);
+    dung('đúng bill TCVEHQHG', chu(hang[0]).indexOf('TCVEHQHG') >= 0);
+    /* Đang lọc điểm TCV mà bấm số Đã khớp đủ (1, đếm cả ngày) thì phải ra
+       đúng 1 bill: bỏ lọc điểm, không giao hai bộ lọc thành 0. */
+    m.khung.dispatchEvent(dg.suKien('click', {}, m.khung.querySelectorAll('[data-dscktt="du"]')[0]));
+    await choDen(function () { return m.goi.filter(function (x) { return x.duong === 'vagabond.doi_soat_ck.ds_bill_ck'; }).length === 4; });
+    await tick();
+    hang = m.khung.querySelectorAll('[data-dsckmo]');
+    bang('bấm số Đã khớp đủ khi đang lọc điểm TCV vẫn ra đúng 1 bill', hang.length, 1);
+    dung('đúng bill NVH', chu(hang[0]).indexOf('NVHACDEF') >= 0);
+  });
+
   console.log('\n' + ket.dat + ' ca đạt, ' + ket.hong + ' ca hỏng.');
   if (ket.hong) process.exit(1);
 })();
