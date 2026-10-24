@@ -61406,6 +61406,48 @@ var DSCK_TT = [
   { k: 'du', ten: 'Đã khớp đủ', ic: '✅' },
 ];
 
+/* Codex #497 v3 (4367298442, AGENTS 2b.6): thẻ tóm tắt đầu màn. Số bill và
+   tổng tiền cả ngày, chia theo trạng thái và điểm bán. Bấm một số là lọc
+   ĐÚNG nhóm đó (bỏ các bộ lọc khác), nên danh sách ra đúng số vừa bấm. */
+function dsckTien(ds) {
+  return ds.reduce(function (t, r) { return t + Number(r.tong || 0); }, 0);
+}
+function dsckThieu(ds) {
+  return ds.reduce(function (t, r) {
+    return t + (r.tt === 'du' ? 0 : Math.max(0, Number(r.tong || 0) - Number(r.nhan || 0)));
+  }, 0);
+}
+function dsckOSo(attr, nhan, ds, dong, mau, dangChon) {
+  return '<button class="btn gh" ' + attr + ' style="margin:0;min-height:44px;padding:8px 10px;text-align:left;' +
+    'display:block;width:100%;border-radius:10px;' + (dangChon ? 'border:2px solid ' + mau + ';' : '') + '">' +
+    '<div style="font-size:12px;color:#475467">' + nhan + '</div>' +
+    '<div style="font-size:17px;font-weight:800;color:' + mau + '">' + ds.length + ' bill</div>' +
+    '<div style="font-size:12.5px;color:#101828">' + money(dsckTien(ds)) + ' đ</div>' +
+    (dong ? '<div style="font-size:12px;color:#b45309;margin-top:1px">' + dong + '</div>' : '') + '</button>';
+}
+function dsckTheTomTat(tatCa, diemDs) {
+  var chua = tatCa.filter(function (r) { return r.tt !== 'du'; });
+  var du = tatCa.filter(function (r) { return r.tt === 'du'; });
+  var thieu = dsckThieu(chua);
+  var html = '<div class="card" data-dscktom="1" style="padding:12px 13px">' +
+    '<div style="font-size:12px;color:#98a2b3;letter-spacing:.3px">BILL CHUYỂN KHOẢN TRONG NGÀY</div>' +
+    '<div style="font-size:22px;font-weight:800;line-height:1.3">' + tatCa.length + ' bill · ' + money(dsckTien(tatCa)) + ' đ</div>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">' +
+    dsckOSo('data-dscktt="chua_xong"', '⏳ Chưa khớp đủ tiền', chua, thieu ? 'Còn thiếu ' + money(thieu) + ' đ' : '', '#b45309',
+      dsckTt === 'chua_xong' && !dsckDiem && !dsckTim) +
+    dsckOSo('data-dscktt="du"', '✅ Đã khớp đủ', du, '', '#15803d', dsckTt === 'du' && !dsckDiem && !dsckTim) + '</div>';
+  if (diemDs.length > 1 || (diemDs.length === 1 && dsckDiem)) {
+    html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">' + diemDs.map(function (m) {
+      var cua = tatCa.filter(function (r) { return r.quay === m; });
+      var chon = dsckDiem === m && !dsckTt && !dsckTim;
+      return '<button class="btn gh" data-dsckdiem="' + h(m) + '" style="flex:0 0 auto;width:auto;margin:0;min-height:44px;' +
+        'padding:4px 12px;font-size:13px;border-radius:999px;' + (chon ? 'border:2px solid #4338ca;' : '') + '">🏪 ' + h(m) +
+        ' <b>' + cua.length + '</b> · ' + money(dsckTien(cua)) + ' đ</button>';
+    }).join('') + '</div>';
+  }
+  return html + '</div>';
+}
+
 function dsckChip(r) {
   var the = function (bg, fg, chu) {
     return '<span style="display:inline-block;background:' + bg + ';color:' + fg + ';font-size:11.5px;font-weight:700;' +
@@ -61460,7 +61502,18 @@ async function scrDoiSoatCk() {
     '<div style="font-size:12.5px;color:#475467;margin-top:8px;line-height:1.6">' +
     (dem.chua_xong ? '<b style="color:#b45309">' + dem.chua_xong + ' bill chưa khớp đủ tiền.</b> ' : '<b style="color:#15803d">Mọi bill chuyển khoản đã khớp đủ tiền.</b> ') +
     'Bấm một bill để dò tiền: có chip <b>Vào thẳng TK công ty</b> cho khoản khách chuyển tay vào tài khoản chính, không qua mã QR.</div></div>';
+  html += dsckTheTomTat(tatCa, diemDs);
   html += dsCongCu(cc);
+  /* Đang lọc (chip, điểm, ô tìm) thì có thanh Tổng theo bộ lọc, cộng đúng
+     các dòng đang hiện bên dưới. Mặc định đang ở chip Chưa khớp nên thanh
+     này hiện ngay từ đầu. */
+  if (dsckTim || dsckDiem || dsckTt || ds.length !== tatCa.length) {
+    var thieuLoc = dsckThieu(ds);
+    html += '<div data-dscktongloc="1" style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin:0 2px 8px;' +
+      'padding:8px 10px;border-radius:8px;background:#fffaeb;font-size:13px;color:#101828">' +
+      '<span>Tổng theo bộ lọc · ' + ds.length + ' bill</span><b>' + money(dsckTien(ds)) + ' đ' +
+      (thieuLoc ? ' · còn thiếu ' + money(thieuLoc) + ' đ' : '') + '</b></div>';
+  }
   html += '<div class="card">';
   if (!ds.length) {
     html += '<div class="emp" style="padding:24px"><div class="e1">🏦</div><div>' +
@@ -61485,6 +61538,12 @@ async function scrDoiSoatCk() {
     else if (ho === 'diem') dsckDiem = k;
     else if (ho === 'tim') dsckTim = k;
     go(scrDoiSoatCk, true);
+  });
+  than.addEventListener('click', function (e) {
+    var t = e.target.closest('[data-dscktt]');
+    if (t) { dsckTt = t.getAttribute('data-dscktt'); dsckDiem = ''; dsckTim = ''; go(scrDoiSoatCk, true); return; }
+    t = e.target.closest('[data-dsckdiem]');
+    if (t) { dsckDiem = t.getAttribute('data-dsckdiem'); dsckTt = ''; dsckTim = ''; go(scrDoiSoatCk, true); }
   });
   than.querySelectorAll('[data-dsckngay]').forEach(function (b) {
     b.onclick = function () {
