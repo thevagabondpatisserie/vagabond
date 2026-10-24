@@ -2544,3 +2544,10 @@ Bài học: một bộ lọc ở cửa NHÌN biến dữ liệu thật thành "k
 người dùng. Khi nghe "hệ thống không ghi nhận", đọc bảng gốc trên site trước
 rồi mới sửa. Lọc sẵn theo phạm vi hẹp thì luôn phải có chip mở rộng ra, như
 điều đã chốt ngày 14/09/2026 cho mọi màn khớp giao dịch thủ công.
+
+Vòng 2 (Codex #497): khi gộp "ai đang giữ dòng này" từ nhiều nguồn, phải loại
+chính chứng từ đang xem NGAY ở nguồn của nó rồi mới gộp. Gộp trước rồi xoá mục
+của chính mình thì `setdefault` đã bỏ qua chủ thật ở nguồn sau, và dòng vừa
+thuộc bill này vừa thuộc phiếu công nợ ra "không ai giữ". Và một ô bị ghi đè
+(mã tham chiếu đổi thành số ngân hàng sau khi gắn) không còn là danh tính của
+chứng từ: so danh tính bằng mọi mã chứng từ từng mang.
