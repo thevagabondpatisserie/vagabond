@@ -18,6 +18,18 @@ function coQuyenDsck() {
 var dsckNgay = '';
 var dsckDiem = '';
 var dsckTt = 'chua_xong';
+var dsckTim = '';
+/* Codex #497 v1 (4366436288): ô tìm theo mã bill, số hoá đơn, tên khách, kèm
+   nút quét. Chuỗi quét từ mã QR có thể dài hơn mã bill nên khớp cả hai chiều:
+   chữ gõ nằm trong dòng, hoặc mã bill nằm trong chữ quét. Đang tìm thì bỏ qua
+   chip trạng thái và chip điểm, để gõ mã là thấy bill dù đang lọc gì. */
+function dsckKhopTim(r, q) {
+  var t = String(q || '').trim().toUpperCase();
+  if (!t) return true;
+  var dong = [r.ma, r.ma_tc, r.name, r.khach].join(' ').toUpperCase();
+  if (dong.indexOf(t) >= 0) return true;
+  return [r.ma, r.ma_tc, r.name].some(function (m) { m = String(m || '').toUpperCase(); return m.length >= 6 && t.indexOf(m) >= 0; });
+}
 var DSCK_TT = [
   { k: 'chua_xong', ten: 'Chưa khớp đủ tiền', ic: '⏳' },
   { k: 'du', ten: 'Đã khớp đủ', ic: '✅' },
@@ -55,6 +67,7 @@ async function scrDoiSoatCk() {
     demDiem[r.quay] = (demDiem[r.quay] || 0) + 1;
   });
   var ds = tatCa.filter(function (r) {
+    if (dsckTim) return dsckKhopTim(r, dsckTim);
     if (dsckDiem && r.quay !== dsckDiem) return false;
     if (dsckTt === 'du') return r.tt === 'du';
     if (dsckTt === 'chua_xong') return r.tt !== 'du';
@@ -66,6 +79,7 @@ async function scrDoiSoatCk() {
       { k: 'tt', ds: DSCK_TT, dem: dem, chon: dsckTt, tatCa: 'Mọi bill', mau: '#0d9488' },
       { k: 'diem', ds: diemDs.map(function (m) { return { k: m, ten: m, ic: '🏪' }; }), dem: demDiem, chon: dsckDiem, tatCa: 'Mọi điểm bán', mau: '#4338ca' },
     ],
+    tim: { gt: dsckTim, goiY: 'Tìm mã bill, số hoá đơn, tên khách', quet: true },
   };
   var html = '<div class="card" style="padding:12px 13px">' +
     '<div style="display:flex;gap:8px;align-items:center">' +
@@ -79,7 +93,8 @@ async function scrDoiSoatCk() {
   html += '<div class="card">';
   if (!ds.length) {
     html += '<div class="emp" style="padding:24px"><div class="e1">🏦</div><div>' +
-      (tatCa.length ? 'Không có bill nào trong nhóm này.' : 'Ngày này không có bill quầy nào trả bằng chuyển khoản.') + '</div></div>';
+      (dsckTim ? 'Không có bill nào khớp "' + h(dsckTim) + '" trong ngày này. Kiểm lại mã hoặc đổi ngày.' :
+        tatCa.length ? 'Không có bill nào trong nhóm này.' : 'Ngày này không có bill quầy nào trả bằng chuyển khoản.') + '</div></div>';
   }
   ds.forEach(function (r, i) {
     html += '<div class="row" data-dsckmo="' + i + '" style="cursor:pointer;display:flex;gap:10px;align-items:center;' +
@@ -97,6 +112,7 @@ async function scrDoiSoatCk() {
   dsCongCuNoi(than, cc, function (ho, k) {
     if (ho === 'tt') dsckTt = k;
     else if (ho === 'diem') dsckDiem = k;
+    else if (ho === 'tim') dsckTim = k;
     go(scrDoiSoatCk, true);
   });
   than.querySelectorAll('[data-dsckngay]').forEach(function (b) {
