@@ -208,13 +208,38 @@ class _Si(dict):
 		self["_da_luu"] = 1
 
 
-def _chay_gan(vai, ma_gd, chu_he=None):
-	"""Chạy THẬT pos_gan_tien cho bill TCVEHQHG. Trả (bill, lỗi)."""
+def _loc_gia(ban_ghi, loc):
+	"""Bộ lọc frappe.get_all tối thiểu cho Frappe giả: =, !=, in, <."""
+	def hop(r, k, v):
+		x = r.get(k)
+		if isinstance(v, (list, tuple)) and len(v) == 2 and v[0] in ("in", "!=", "<", "is"):
+			op, gt = v
+			if op == "in":
+				return x in gt
+			if op == "!=":
+				return x != gt
+			if op == "<":
+				return (x or 0) < gt
+			return bool(x) if gt == "set" else not x
+		return x == v
+	ds = loc.items() if isinstance(loc, dict) else [(f[0], [f[1], f[2]]) for f in loc]
+	return [_Si(r) for r in ban_ghi if all(hop(r, k, v) for k, v in ds)]
+
+
+def _chay_gan(vai, ma_gd, chu_he=None, si_them=None, sao_ke_them=None, hd_khac=None):
+	"""Chạy THẬT pos_gan_tien cho bill TCVEHQHG. Trả (bill, lỗi).
+
+	si_them      ô thay trên bill (ví dụ bill đã gắn một lần: mã tham chiếu là số ngân hàng)
+	sao_ke_them  {tên dòng: ô thay} trên dòng sao kê
+	hd_khac      các hoá đơn khác trong hệ (cho phép hỏi chủ theo mã tham chiếu và mã bill)
+	"""
 	from vagabond import doi_soat_ck as d
 	from vagabond import ma_bill
 
 	si = _Si(name="HDB-26-10-04707", docstatus=0, grand_total=1875000, vgb_quay="TCV",
-		vgb_ma_tham_chieu="TCVEHQHG", vgb_ghi_chu_doi_soat="", flags=types.SimpleNamespace())
+		vgb_ma_tham_chieu="TCVEHQHG", custom_pancake_display_id="TCVEHQHG",
+		vgb_ghi_chu_doi_soat="", flags=types.SimpleNamespace())
+	si.update(si_them or {})
 	sao_ke = {
 		"BT-CTY": dict(name="BT-CTY", deposit=1875000, reference_number="FT26296028012585",
 			date="2026-10-23", docstatus=0, description=MO_TA_CTY.replace(" FT26296028012585", ""),
@@ -223,6 +248,9 @@ def _chay_gan(vai, ma_gd, chu_he=None):
 			date="2026-10-23", docstatus=0, description=MO_TA_TCV.replace(" FT26296000000001", ""),
 			unallocated_amount=1875000),
 	}
+	for ten_gd, them in (sao_ke_them or {}).items():
+		sao_ke[ten_gd].update(them)
+	hd = [dict(si, docstatus=si.docstatus, vgb_huy=0)] + [dict(r) for r in (hd_khac or [])]
 	db = types.SimpleNamespace(
 		get_value=lambda dt, ten, cot, as_dict=False: _Si(sao_ke[ten]) if ten in sao_ke else None,
 		set_value=lambda *a, **k: None, commit=lambda: None)
@@ -232,7 +260,8 @@ def _chay_gan(vai, ma_gd, chu_he=None):
 
 	fr = types.SimpleNamespace(
 		get_doc=lambda dt, ten: si, db=db, throw=_throw, get_roles=lambda: vai,
-		get_all=lambda *a, **k: [], session=types.SimpleNamespace(user="de@x"),
+		get_all=lambda dt, filters=None, fields=None, **k: _loc_gia(hd, filters or {}) if dt == "Sales Invoice" else [],
+		session=types.SimpleNamespace(user="de@x"),
 		utils=types.SimpleNamespace(get_fullname=lambda u: "Dễ"),
 		log_error=lambda *a, **k: None, get_traceback=lambda: "")
 	tk = types.SimpleNamespace(CN_DIEM="@diem:", tk_cho=lambda n, diem: {"rieng": 1, "stk": "VQRQALEAF2999"})
@@ -240,13 +269,15 @@ def _chay_gan(vai, ma_gd, chu_he=None):
 		"frappe": fr, "re": re, "tai_khoan": tk,
 		"_kiem_quyen_ban": lambda: None,
 		"_diem_cua_bill": lambda s: "TCV",
-		"_gd_da_co_chu": lambda gds: {},
 		"RE_MA_NGAN_HANG": re.compile(r"[A-Z0-9]{6,40}"),
 		"RE_MA_BILL": ma_bill.RE_MA,
 		"cint": lambda v: int(v or 0), "flt": lambda v: float(v or 0),
 		"fmt_money": lambda v: "{:,.0f}".format(float(v)).replace(",", "."),
 		"SAI_SO_DO_TIEN": 1.0,
 	}
+	_nap("_gd_da_co_chu", g)
+	_nap("_ma_cua_bill", g)
+	_nap("_chu_ma_bill", g)
 	_nap("_gd_co_chu_toan_he", g)
 	gan = _nap("pos_gan_tien", g)
 	dss = types.ModuleType("vagabond.doi_soat_sepay")
@@ -294,3 +325,41 @@ def _gan_diem():
 	si, loi = _chay_gan(QUAY, "BT-TCV")
 	la("không lỗi", loi, None)
 	dung("vết thu ngân như cũ", si.vgb_ghi_chu_doi_soat.startswith("Thu ngân dò tay: gắn khoản 1.875.000 đ"))
+
+
+# ------------------------------------------------- vòng 2: ba finding Codex trên d6777aa
+
+
+@ca("v610 v2 Codex 4366436285: bill đã giữ số tham chiếu nhưng dòng còn chủ khác thì vẫn bị chặn")
+def _f1_chu_khac():
+	# Dựng đúng chuỗi Codex mô tả: bill đang xem ĐÃ giữ số tham chiếu của dòng
+	# (gắn trước đó), đồng thời dòng đã thuộc phiếu công nợ và đã phân bổ trong
+	# Đối chiếu ngân hàng. Trên d6777aa hàm hỏi chủ trả {} nên cửa gắn cho qua.
+	si, loi = _chay_gan(QLCH, "BT-CTY", chu_he={"BT-CTY": "phiếu công nợ CN-0001"},
+		si_them={"vgb_ma_tham_chieu": "FT26296028012585"},
+		sao_ke_them={"BT-CTY": {"unallocated_amount": 0}})
+	dung("bị chặn và nói ai giữ: %r" % loi, bool(loi) and "phiếu công nợ CN-0001" in loi)
+	la("bill không lưu", si.get("_da_luu"), None)
+	si2, loi2 = _chay_gan(QLCH, "BT-CTY", si_them={"vgb_ma_tham_chieu": "FT26296028012585"},
+		sao_ke_them={"BT-CTY": {"unallocated_amount": 0}})
+	dung("chỉ còn chủ Đối chiếu ngân hàng cũng bị chặn: %r" % loi2,
+		bool(loi2) and "Đối chiếu ngân hàng" in loi2)
+
+
+@ca("v610 v2 Codex 4366436291: gắn lại dòng mang mã của chính bill sau khi mã tham chiếu đã đổi")
+def _f3_ma_cua_chinh_bill():
+	# Lần gắn đầu thay vgb_ma_tham_chieu bằng số ngân hàng; mã bill gốc còn ở
+	# custom_pancake_display_id. Thử lại (mất phản hồi) phải qua.
+	mo_ta = "TCVEHQHG chuyen tien banh"
+	si, loi = _chay_gan(QLCH, "BT-CTY", si_them={"vgb_ma_tham_chieu": "FT26296028012585"},
+		sao_ke_them={"BT-CTY": {"description": mo_ta}})
+	la("không lỗi", loi, None)
+	la("bill đã lưu", si.get("_da_luu"), 1)
+	# Mã của MỘT BILL KHÁC trong nội dung thì vẫn chặn.
+	si2, loi2 = _chay_gan(QLCH, "BT-CTY", sao_ke_them={"BT-CTY": {"description": "TCVACDEF chuyen tien"}},
+		hd_khac=[{"name": "HDB-26-10-04700", "docstatus": 0, "vgb_huy": 0,
+			"vgb_ma_tham_chieu": "TCVACDEF", "custom_pancake_display_id": "TCVACDEF"}])
+	dung("mã bill khác bị chặn: %r" % loi2, bool(loi2) and "HDB-26-10-04700" in loi2)
+	# Mã không còn bill nào mang (đã bị thay) mà không phải của bill này: vẫn chặn, không đoán.
+	si3, loi3 = _chay_gan(QLCH, "BT-CTY", sao_ke_them={"BT-CTY": {"description": "TCVACDEF chuyen tien"}})
+	dung("mã lạ vẫn chặn: %r" % loi3, bool(loi3) and "TCVACDEF" in loi3)
