@@ -168,21 +168,34 @@ def trang_thai_tien(nhan, tong, sai_so=1.0):
 	return TT_CHUA
 
 
-def chu_theo_noi_dung(gds, ma_bill_nay, re_ma_bill):
+def chu_theo_noi_dung(gds, ma_cua_bill, re_ma_bill, chu_ma=None):
 	"""Hai kiểu "đã có chủ" đọc được ngay trên dòng sao kê. THUẦN.
 
 	  - dòng mang mã của MỘT BILL KHÁC trong nội dung: tiền đó là của bill kia
 	  - dòng đã khớp chứng từ trong Đối chiếu ngân hàng của ERPNext
 	    (`da_phan_bo` > 1 đồng)
+
+	ma_cua_bill  mọi mã bill đang xem từng mang (mã tham chiếu và mã bill gốc).
+	             Codex #497 v1: sau lần gắn đầu mã tham chiếu đổi thành số ngân
+	             hàng, so một ô thì mã gốc trong nội dung bị tưởng của bill khác.
+	chu_ma       {mã: tên hoá đơn đang mang mã đó}, đã trừ bill đang xem. Mã
+	             không ai mang mà cũng không phải của bill này thì VẪN coi là
+	             có chủ: không đoán.
 	Trả {tên dòng: câu nói ai đang giữ}.
 	"""
 	ra = {}
-	nay = str(ma_bill_nay or "").strip().upper()
+	if isinstance(ma_cua_bill, str):
+		ma_cua_bill = [ma_cua_bill]
+	cua_minh = {str(m or "").strip().upper() for m in (ma_cua_bill or []) if str(m or "").strip()}
+	chu_ma = chu_ma or {}
 	for g in gds or []:
 		ten = g.get("ten")
-		m = re_ma_bill.search(str(g.get("mo_ta") or "").upper()) if re_ma_bill else None
-		if m and m.group(0) != nay:
-			ra[ten] = "bill mang mã " + m.group(0)
+		ma_la = []
+		if re_ma_bill:
+			ma_la = [m for m in re_ma_bill.findall(str(g.get("mo_ta") or "").upper()) if m not in cua_minh]
+		if ma_la:
+			m = ma_la[0]
+			ra[ten] = ("bill %s (mã %s)" % (chu_ma[m], m)) if chu_ma.get(m) else ("bill mang mã " + m)
 			continue
 		try:
 			pb = float(g.get("da_phan_bo") or 0)
@@ -290,20 +303,24 @@ def ds_bill_ck(ngay=None, diem=""):
 	ds = frappe.get_all(
 		"Sales Invoice", filters=loc,
 		fields=["name", "creation", "docstatus", "grand_total", "vgb_quay",
-			"vgb_ma_tham_chieu", "customer_name", "vgb_ghi_chu_doi_soat"],
+			"vgb_ma_tham_chieu", "custom_pancake_display_id", "customer_name",
+			"vgb_ghi_chu_doi_soat"],
 		order_by="creation desc", limit_page_length=0)
-	theo_ma, _bo = bh._sepay_theo_ma_bill([r.vgb_ma_tham_chieu for r in ds])
+	theo_ma, _bo = bh._sepay_theo_ma_bill(
+		[r.vgb_ma_tham_chieu for r in ds] + [r.custom_pancake_display_id for r in ds])
 	rows, dem = [], {TT_DU: 0, TT_THIEU: 0, TT_CHUA: 0}
 	for r in ds:
-		ma = str(r.vgb_ma_tham_chieu or "").strip().upper()
-		g = theo_ma.get(ma) or {}
-		if not g and ma and not bh.RE_MA_BILL.fullmatch(ma):
-			g = bh._sepay_theo_tham_chieu(ma) or {}
-		nhan = flt(g.get("nhan"))
+		ma_tc = str(r.vgb_ma_tham_chieu or "").strip().upper()
+		# Mã bill gốc nằm yên ở custom_pancake_display_id; ô tham chiếu đổi
+		# thành số ngân hàng sau khi gắn tay (Codex #497 v1).
+		ma = str(r.custom_pancake_display_id or "").strip().upper() or ma_tc
+		nhan = max(flt((theo_ma.get(ma) or {}).get("nhan")), flt((theo_ma.get(ma_tc) or {}).get("nhan")))
+		if ma_tc and not bh.RE_MA_BILL.fullmatch(ma_tc):
+			nhan = max(nhan, flt((bh._sepay_theo_tham_chieu(ma_tc) or {}).get("nhan")))
 		tt = TT_DU if cint(r.docstatus) == 1 else trang_thai_tien(nhan, r.grand_total)
 		dem[tt] = dem.get(tt, 0) + 1
 		rows.append({
-			"name": r.name, "ma": ma, "quay": r.vgb_quay or "",
+			"name": r.name, "ma": ma, "ma_tc": ma_tc, "quay": r.vgb_quay or "",
 			"gio": str(r.creation or "")[11:16], "tong": flt(r.grand_total),
 			"nhan": nhan, "tt": tt, "ghi_so": cint(r.docstatus),
 			"khach": r.customer_name or "",
