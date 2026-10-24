@@ -2551,3 +2551,10 @@ của chính mình thì `setdefault` đã bỏ qua chủ thật ở nguồn sau,
 thuộc bill này vừa thuộc phiếu công nợ ra "không ai giữ". Và một ô bị ghi đè
 (mã tham chiếu đổi thành số ngân hàng sau khi gắn) không còn là danh tính của
 chứng từ: so danh tính bằng mọi mã chứng từ từng mang.
+
+Vòng 3 (Codex #497 4367048767): phiếu công nợ ghi CỘNG DỒN nhiều mã giao dịch
+vào một ô văn bản, nên lọc `in` nguyên ô bỏ sót dòng nằm giữa danh sách. Trước
+v610 chỉ cửa bộ sao kê mới tách ô, các cửa khác (Dò tiền, ghi sổ bill quầy)
+mù với phiếu công nợ cũ nhiều mã. Phiếu cũ còn có thể lưu SỐ THAM CHIẾU ngân
+hàng thay vì tên dòng. Hỏi chủ phải dùng cả hai khoá rồi quy về tên dòng, và
+cách đọc ô nhiều mã phải nằm trong một hàm chung cho mọi cửa, không theo cờ.
