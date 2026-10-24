@@ -5513,7 +5513,8 @@ def _gd_ngay(ngay):
 	"""
 	try:
 		gds = frappe.db.sql(
-			"""select name, description, reference_number, deposit, creation, date
+			"""select name, description, reference_number, deposit, creation, date,
+				bank_account, unallocated_amount
 			from `tabBank Transaction`
 			where docstatus < 2 and date = %s and deposit > 0""",
 			(str(getdate(ngay)),), as_dict=True)
@@ -5533,6 +5534,11 @@ def _gd_ngay(ngay):
 			"phut": p,
 			"mo_ta": "%s %s" % (g.get("description") or "", g.get("reference_number") or ""),
 			"tham_chieu": (g.get("reference_number") or "").strip(),
+			# v610: hai o duoi cho nut Do tien. `da_phan_bo` > 0 nghia la dong
+			# nay da khop mot chung tu trong Doi chieu ngan hang cua ERPNext.
+			"tai_khoan": g.get("bank_account") or "",
+			"da_phan_bo": max(0.0, flt(g.get("deposit")) - flt(g.get("unallocated_amount")))
+				if g.get("unallocated_amount") is not None else 0.0,
 		})
 	return ra
 
@@ -5793,46 +5799,9 @@ def pos_kiem_sepay(noi_dung=None, tien=0):
 SAI_SO_DO_TIEN = 1.0
 
 
-def _dau_tk(stk):
-	"""Dau nhan dien mot tai khoan ao trong noi dung sao ke. THUAN.
-
-	Ngan hang ghi "Q00033k5p6" cho tai khoan "VQRQ00033k5p6": no cat ba chu
-	VQR o dau. Nen doi chieu bang phan duoi chu khong doi chieu ca chuoi,
-	khong thi khong dong sao ke nao khop.
-	"""
-	t = re.sub(r"\s+", "", str(stk or "")).upper()
-	return t[3:] if t.startswith("VQR") else t
-
-
-def _gd_cua_diem(ngay, diem):
-	"""Moi khoan tien ve trong ngay CUA MOT DIEM BAN.
-
-	ANH VIET 01/09/2026: *"Nut Do tay thi cai them de vua do tu dong, vua
-	phai xo ra danh sach giao dich ngay hom do chuyen khoan vao tai khoan ao
-	cua diem ban, nhan vien click vao roi chon tu danh sach de gan tay."*
-
-	Tu 01/09/2026 moi diem mot tai khoan ao rieng, nen sao ke da tu tach san
-	theo diem. O day chi loc lai: dong nao mang dau tai khoan cua diem thi la
-	tien cua diem do.
-
-	Diem chua khai tai khoan rieng thi KHONG loc, va noi ro ra cho man hinh
-	de nguoi biet minh dang nhin ca sao ke chung chu khong phai cua rieng
-	diem minh.
-
-	Tra ve (danh_sach, tk) - tk de man hinh hien so tai khoan dang soi.
-	"""
-	ds = _gd_ngay(ngay)
-	try:
-		tk = tai_khoan.tk_cho("", str(diem or "").strip().upper())
-	except Exception:
-		frappe.log_error(frappe.get_traceback(), "ban_hang: doc tai khoan cua diem")
-		return ds, {}
-	if not cint(tk.get("rieng")):
-		return ds, tk
-	dau = _dau_tk(tk.get("stk"))
-	if not dau:
-		return ds, tk
-	return [g for g in ds if dau in (g.get("mo_ta") or "").upper()], tk
+# v610: hai ham `_dau_tk` va `_gd_cua_diem` da bo. Loc sao ke theo tai khoan
+# nay nam MOT cho la doi_soat_ck (dau_tk, thuoc_tk, loc_theo_nguon), dung
+# chung cho nut Do tien, cua gan tien va man Doi soat chuyen khoan.
 
 
 def _gd_da_co_chu(gds):
@@ -5880,60 +5849,141 @@ def _gd_thay_duoc(tien, ngay=None, sai_so=None):
 
 
 @frappe.whitelist()
-def pos_do_tien(tien=0, ngay=None, name=None, quay=None):
-	"""Sao ke tien ve trong ngay CUA DIEM BAN nay. KHONG ghi gi.
+def pos_do_tien(tien=0, ngay=None, name=None, quay=None, nguon=""):
+	"""Sao ke tien ve trong ngay, loc theo chip tai khoan. KHONG ghi gi.
 
 	Tra ve CA HAI thu, vi anh Viet 01/09/2026 muon ca hai:
 
 	  - Khoan nao DUNG BANG so phai thu va chua hoa don nao nhan: danh dau
 	    `khop` de man hinh day len dau, do la de xuat cua may.
-	  - VA toan bo giao dich trong ngay cua diem, ke ca da co chu hay lech
-	    so tien, de nguoi tu nhin va tu chon khi may khong de xuat duoc.
+	  - VA toan bo giao dich trong ngay cua chip dang chon, ke ca da co chu
+	    hay lech so tien, de nguoi tu nhin va tu chon.
+
+	v610 (anh Viet 24/10/2026, bill TCVEHQHG): them chip `nguon`.
+	  diem    tien vao tai khoan ao cua diem nay, nhu truoc
+	  cty     tien vao THANG tai khoan chinh (khach xin so tai khoan roi
+	          chuyen tay), truoc day khong bao gio hien ra
+	  tat_ca  moi khoan tien ve trong ngay
+	Bo trong thi may tu chon: diem khong co khoan dung so tien ma tai khoan
+	chinh co thi mo thang chip tai khoan chinh.
 
 	Goi duoc ca khi bill CHUA luu (man bam bill, truyen `tien` va `quay`)
 	lan khi bill da luu (truyen `name`, may tu biet diem va so tien).
 	"""
 	_kiem_quyen_ban()
+	from vagabond import doi_soat_ck as dsck
+
 	t = flt(tien)
 	diem = str(quay or "").strip().upper()
+	ma_bill_nay = ()
 	if name:
 		si = frappe.db.get_value(
 			"Sales Invoice", str(name),
-			["grand_total", "vgb_quay", "custom_nguon", "posting_date"], as_dict=True) or {}
+			["grand_total", "vgb_quay", "custom_nguon", "posting_date", "vgb_ma_tham_chieu",
+				"custom_pancake_display_id"],
+			as_dict=True) or {}
 		if not t:
 			t = flt(si.get("grand_total"))
 		if not diem:
 			diem = _diem_cua_bill(si) or ""
 		if not ngay and si.get("posting_date"):
 			ngay = si.get("posting_date")
+		ma_bill_nay = _ma_cua_bill(si)
 	ngay = str(getdate(ngay or nowdate()))
-	gds, tk = _gd_cua_diem(ngay, diem)
-	co_chu = _gd_da_co_chu(gds)
-	ra = []
+	try:
+		tk = tai_khoan.tk_cho("", diem)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "ban_hang: doc tai khoan cua diem")
+		tk = {}
+	rieng = 1 if cint((tk or {}).get("rieng")) else 0
+	khoa_diem = (tai_khoan.CN_DIEM + diem) if diem else ""
+	gds = _gd_ngay(ngay)
 	for g in gds:
-		ten = g.get("ten")
-		khop = bool(t) and khop_tien.cung_tien(g.get("tien"), t, SAI_SO_DO_TIEN)
-		ra.append({
-			"ten": ten,
-			"tien": flt(g.get("tien")),
-			"gio": _gio_hhmm(g.get("phut")),
-			"mo_ta": (g.get("mo_ta") or "").strip()[:140],
-			"khop": 1 if (khop and ten not in co_chu) else 0,
-			"cua_bill": co_chu.get(ten) or "",
-		})
-	# Khoan khop va chua co chu len dau, roi den khoan chua co chu, cuoi cung
-	# la khoan da gan cho hoa don khac. Trong tung nhom thi moi nhat len truoc.
-	ra.sort(key=lambda g: (0 if g["khop"] else (1 if not g["cua_bill"] else 2), g["gio"]), reverse=False)
-	ra.sort(key=lambda g: (0 if g["khop"] else (1 if not g["cua_bill"] else 2)))
-	return {
+		g["gio"] = _gio_hhmm(g.get("phut"))
+	kq = dsck.dung_bang_do_tien(
+		gds, dsck.bang_dau_he(), khoa_diem, rieng, t,
+		_gd_co_chu_toan_he(gds, name, ma_bill_nay), frappe.get_roles(), nguon,
+		lambda a, b: khop_tien.cung_tien(a, b, SAI_SO_DO_TIEN))
+	kq.update({
 		"tien": t,
 		"ngay": ngay,
 		"diem": diem,
-		"tk_rieng": 1 if cint((tk or {}).get("rieng")) else 0,
+		"tk_rieng": rieng,
 		"tk_stk": str((tk or {}).get("stk") or ""),
-		"so_khop": len([g for g in ra if g["khop"]]),
-		"gd": ra,
-	}
+	})
+	return kq
+
+
+def _ma_cua_bill(si):
+	"""Moi ma ma bill nay tung mang: o Ma tham chieu (doi thanh so ngan hang
+	sau khi gan tay) va ma bill goc in tren QR (nam yen o custom_pancake_display_id).
+	Codex #497 v1 (4366436291): chi so voi o Ma tham chieu thi sau lan gan dau
+	ma bill goc trong noi dung bi tuong la cua bill khac."""
+	lay = si.get if hasattr(si, "get") else (lambda k: getattr(si, k, None))
+	return tuple(sorted({
+		str(lay(k) or "").strip().upper()
+		for k in ("vgb_ma_tham_chieu", "custom_pancake_display_id")
+		if str(lay(k) or "").strip()
+	}))
+
+
+def _chu_ma_bill(gds, ten_bill=None):
+	"""Ma bill nao trong noi dung sao ke dang thuoc hoa don nao (tru bill dang xem).
+
+	Hoi ca hai o: Ma tham chieu va ma bill goc. Tra {ma: ten hoa don}."""
+	ma = set()
+	for g in gds or []:
+		for m in RE_MA_BILL.findall(str(g.get("mo_ta") or "").upper()):
+			ma.add(m)
+	if not ma:
+		return {}
+	ra = {}
+	try:
+		for o in ("custom_pancake_display_id", "vgb_ma_tham_chieu"):
+			for r in frappe.get_all(
+					"Sales Invoice",
+					filters={o: ["in", sorted(ma)], "docstatus": ["<", 2]},
+					fields=["name", o], limit_page_length=0):
+				m = str(r.get(o) or "").strip().upper()
+				if m and r.name != ten_bill:
+					ra.setdefault(m, r.name)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "ban_hang: hoi chu ma bill trong sao ke")
+	return ra
+
+
+def _gd_co_chu_toan_he(gds, ten_bill=None, ma_cua_bill=()):
+	"""Dong sao ke nao da co chu, hoi TOAN HE chu khong rieng bill quay.
+
+	Truoc v610 nut Do tien chi hoi o Ma tham chieu cua hoa don ban. Du the
+	cung du, vi no chi soi tai khoan ao cua diem. Nay mo ra tai khoan chinh,
+	noi con nhan tien khach si tra no, nha cung cap hoan tien, nen phai hoi
+	du bon cho:
+	  1. hoa don ban KHAC dang mang so tham chieu do (cach cu)
+	  2. moi luong doi soat khac va o vgb_gd_sepay (doi_soat_sepay.chu_cua_giao_dich)
+	  3. dong mang ma bill cua MOT BILL KHAC trong noi dung
+	  4. dong da khop chung tu trong Doi chieu ngan hang cua ERPNext
+	Tra {ten_gd: cau noi ai dang giu}.
+
+	Codex #497 v1 (4366436285): bill dang xem phai bi loai NGAY o nguon 1,
+	truoc khi gop. Ban d6777aa gop truoc roi moi xoa muc cua bill dang xem, nen
+	dong vua thuoc bill nay vua thuoc phieu cong no bi xoa sach chu.
+	"""
+	ra = {k: v for k, v in (_gd_da_co_chu(gds) or {}).items() if not ten_bill or v != ten_bill}
+	try:
+		from vagabond import doi_soat_sepay as dss
+
+		for ma, chu in (dss.chu_cua_giao_dich(
+				[g.get("ten") for g in gds or []], bo_qua_hoa_don=ten_bill) or {}).items():
+			ra.setdefault(ma, chu)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "ban_hang: hoi chu toan he cho nut Do tien")
+	from vagabond import doi_soat_ck as dsck
+
+	for ten, chu in dsck.chu_theo_noi_dung(
+			gds, ma_cua_bill, RE_MA_BILL, _chu_ma_bill(gds, ten_bill)).items():
+		ra.setdefault(ten, chu)
+	return ra
 
 
 def _gio_hhmm(phut):
@@ -5963,9 +6013,42 @@ def pos_gan_tien(name=None, gd=None):
 		frappe.throw("Hoá đơn %s đã huỷ, không gắn tiền được." % ten)
 	g = frappe.db.get_value(
 		"Bank Transaction", ma_gd,
-		["name", "deposit", "reference_number", "date", "docstatus"], as_dict=True)
+		["name", "deposit", "reference_number", "date", "docstatus", "description",
+			"unallocated_amount"], as_dict=True)
 	if not g or cint(g.docstatus) == 2:
 		frappe.throw("Không tìm thấy dòng sao kê %s." % ma_gd)
+	# v610: khoan KHONG vao tai khoan ao cua diem (vao thang tai khoan chinh,
+	# hoac tai khoan ao cua diem khac, cua khach si) thi chi quan ly cua hang
+	# va ke toan duoc gan (anh Viet 24/10/2026). Kiem o CUA GHI, man hinh an
+	# nut chi la cho de nhin.
+	from vagabond import doi_soat_ck as dsck
+
+	diem = _diem_cua_bill(si) or ""
+	try:
+		rieng = cint((tai_khoan.tk_cho("", diem) or {}).get("rieng"))
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "ban_hang: doc tai khoan cua diem khi gan tien")
+		rieng = 1
+	khoa_diem = (tai_khoan.CN_DIEM + diem) if diem else ""
+	mo_ta = "%s %s" % (g.description or "", g.reference_number or "")
+	khoa_gd, nhan_tk = dsck.thuoc_tk(mo_ta, dsck.bang_dau_he())
+	ngoai = not (not rieng or (khoa_gd and khoa_gd == khoa_diem))
+	if not dsck.duoc_gan(khoa_gd, khoa_diem, rieng, frappe.get_roles()):
+		frappe.throw(
+			"Khoản này %s, không phải tài khoản của điểm %s. Chỉ Quản lý cửa hàng "
+			"hoặc Kế toán được gắn khoản này cho bill. Nhờ quản lý mở màn Đối soát "
+			"chuyển khoản để gắn." % (nhan_tk.lower() if nhan_tk == dsck.NHAN_CTY else "vào " + nhan_tk, diem or "này"))
+	# Dong da co chu o BAT KY luong nao (cong no, hoan tien, bo sao ke, hoa
+	# don da ghi so) thi khong gan duoc. Tai khoan chinh nhan ca tien khach si
+	# tra no, gan nham la mot lan tien tinh hai cho.
+	co_chu = _gd_co_chu_toan_he(
+		[{"ten": g.name, "mo_ta": mo_ta,
+			"tham_chieu": (g.reference_number or "").strip(),
+			"da_phan_bo": max(0.0, flt(g.deposit) - flt(g.unallocated_amount))
+				if g.unallocated_amount is not None else 0.0}],
+		ten, _ma_cua_bill(si))
+	if co_chu.get(g.name):
+		frappe.throw("Khoản này đã thuộc về %s. Một khoản tiền chỉ thuộc về một chứng từ." % co_chu[g.name])
 	tc = re.sub(r"\s+", "", str(g.reference_number or "")).upper()
 	if not RE_MA_NGAN_HANG.fullmatch(tc):
 		frappe.throw(
@@ -5989,7 +6072,9 @@ def pos_gan_tien(name=None, gd=None):
 	# hai con so, ho quyet dinh duoc. Viec cua may la ghi lai that ro de ke
 	# toan cuoi thang doc ra hieu ngay.
 	lech = flt(g.deposit) - flt(si.grand_total)
-	dong = "Thu ngân dò tay: gắn khoản %s đ ngày %s, số tham chiếu %s.%s" % (
+	ai = frappe.utils.get_fullname(frappe.session.user) or frappe.session.user
+	dong = ("Thu ngân dò tay: gắn khoản %s đ ngày %s, số tham chiếu %s.%s" if not ngoai else
+		("Quản lý dò tay (" + ai + ", " + nhan_tk.lower() + "): gắn khoản %s đ ngày %s, số tham chiếu %s.%s")) % (
 		fmt_money(flt(g.deposit)), g.date, tc,
 		("" if abs(lech) <= SAI_SO_DO_TIEN else
 		 " Lệch %s đ so với hoá đơn %s đ." % (fmt_money(lech), fmt_money(flt(si.grand_total)))))

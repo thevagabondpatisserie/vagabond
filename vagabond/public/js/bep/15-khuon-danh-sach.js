@@ -596,6 +596,8 @@ function dsCongCu(c) {
     hang.push('<div style="display:flex;gap:8px;align-items:center">' +
       (coTim ? '<input class="tin" id="' + ma + 'DsTim" type="search" enterkeyhint="search" placeholder="' +
         h(c.tim.goiY || 'Tìm') + '" value="' + h(c.tim.gt || '') + '" style="flex:1;min-width:0;height:44px">' : '<span style="flex:1"></span>') +
+      /* v610: danh sách có mã thì có nút quét (AGENTS 2b.5). Khai tim.quet. */
+      (coTim && c.tim.quet ? '<button class="btn gh" data-dsquet="1" aria-label="Quét mã" title="Quét mã" style="flex:0 0 48px;width:48px;margin:0;min-height:44px;padding:0">📷</button>' : '') +
       (coXuat ? '<button class="btn gh" data-dsxuat="1" style="flex:0 0 auto;width:auto;margin:0;min-height:44px;padding:0 14px;white-space:nowrap">📊 Xuất Excel' +
         (c.xuat.so != null ? ' ' + money(c.xuat.so) : '') + '</button>' : '') +
       '</div>');
@@ -627,6 +629,10 @@ function dsCongCuNoi(khung, c, doi) {
     if (t) {
       var v = t.getAttribute('data-dscc'), i = v.indexOf('|');
       doi(v.slice(0, i), v.slice(i + 1));
+      return;
+    }
+    if (e.target.closest('[data-dsquet]') && c.tim && c.tim.quet) {
+      scanBarcode().then(function (ma) { if (ma) doi('tim', String(ma).trim()); });
       return;
     }
     if (e.target.closest('[data-dsxuat]') && c.xuat) {

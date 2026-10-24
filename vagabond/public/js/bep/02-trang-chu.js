@@ -168,6 +168,9 @@ async function scrHome() {
          don treo cua NGAY CU khong ai mo lai ngay do de xem (anh Viet
          13/08/2026). So dem lay theo 14 ngay gan day. */
       card('⏳', 'Đơn còn treo', 'Hoá đơn chưa ghi sổ được và lý do vì sao', dtn, 'DTREO') +
+      /* v610: bill quay chuyen khoan chua khop tien, ke ca khoan khach chuyen
+         thang vao tai khoan chinh (56-doi-soat-ck.js). Chi QLCH, ke toan. */
+      (coQuyenDsck() ? card('🏦', 'Đối soát chuyển khoản', 'Bill quầy chuyển khoản chưa khớp tiền, gắn cả khoản khách chuyển thẳng vào tài khoản công ty', 0, 'DSCK') : '') +
       /* Phieu hoan don huy (anh Viet 31/08/2026). Sales lap phieu xong la
          mat dau, vi phan con lai nam ben Ke toan ma v355 da khoa phan he do
          lai. O nay la cua so CHI DOC mo ve phia Sales, kem nut tai uy nhiem
@@ -244,6 +247,7 @@ async function scrHome() {
     try { tkCho = (await api('vagabond.tru_kho_bu.dem_chua_tru_kho', {})).so || 0; } catch (e) { }
     html += '<div class="sec">Kế toán</div><div class="card">' +
       card('🧾', 'Hoá đơn bán ra', 'Lọc theo điểm bán và trạng thái hoá đơn điện tử', 0, 'HDBAN') +
+      (coQuyenDsck() ? card('🏦', 'Đối soát chuyển khoản', 'Bill quầy chuyển khoản chưa khớp tiền, gắn cả khoản khách chuyển thẳng vào tài khoản công ty', 0, 'DSCK') : '') +
       card('📦', 'Hoá đơn chưa trừ kho', 'Bán lúc kho điểm bán chưa có hàng, trừ bù khi hàng về', tkCho, 'TRUKHO') +
       card('🛒', 'Hoá đơn mua vào', 'Lọc theo nhà cung cấp, hạn trả, còn nợ', 0, 'HDMUA') +
       card('🔗', 'Đối chiếu hoá đơn mua', 'Nối hoá đơn nhà cung cấp với phiếu nhập kho rồi ghi sổ một nút', 0, 'DCM') +
@@ -549,9 +553,9 @@ var VGB_NHOM = [
   { k: 'KK', ten: 'Kiểm kê', icon: '🧮', keys: ['KK', 'STOCK', 'TONCHANG'] },
   {
     k: 'BH', ten: 'Bán hàng', icon: '🎂',
-    keys: ['KBD', 'KBM', 'POS', 'TQV', 'HDG', 'OTP', 'KM', 'CN', 'SOTANG', 'SODU', 'KH', 'DTREO', 'PHHUY', 'BNTM'],
+    keys: ['KBD', 'KBM', 'POS', 'TQV', 'HDG', 'OTP', 'KM', 'CN', 'SOTANG', 'SODU', 'KH', 'DTREO', 'DSCK', 'PHHUY', 'BNTM'],
     nhom: [
-      { t: 'Bán và thu tiền', p: 'việc của quầy', keys: ['POS', 'DTREO', 'BNTM'] },
+      { t: 'Bán và thu tiền', p: 'việc của quầy', keys: ['POS', 'DTREO', 'DSCK', 'BNTM'] },
       { t: 'Bánh và tồn', p: 'đầu ngày', keys: ['KBD', 'KBM'] },
       { t: 'Khách hàng', p: 'chăm sóc và công nợ', keys: ['TQV', 'KH', 'CN', 'SOTANG', 'SODU'] },
       { t: 'Chương trình và hợp đồng', p: '', keys: ['KM', 'HDG'] },
@@ -594,9 +598,9 @@ var VGB_NHOM = [
   },
   {
     k: 'KT', ten: 'Kế toán', icon: '🧮',
-    keys: ['HDBAN', 'TRUKHO', 'HDMUA', 'DCM', 'DSVN', 'CN', 'CNPT', 'HT', 'APPTT', 'DSTTNB', 'PAY', 'TS', 'NQ', 'BT', 'DUYETTANG', 'BC:BC05', 'GVT'],
+    keys: ['HDBAN', 'DSCK', 'TRUKHO', 'HDMUA', 'DCM', 'DSVN', 'CN', 'CNPT', 'HT', 'APPTT', 'DSTTNB', 'PAY', 'TS', 'NQ', 'BT', 'DUYETTANG', 'BC:BC05', 'GVT'],
     nhom: [
-      { t: 'Hoá đơn', p: 'làm hàng ngày', keys: ['HDBAN', 'TRUKHO', 'HDMUA', 'DCM', 'DSVN', 'BC:BC05'] },
+      { t: 'Hoá đơn', p: 'làm hàng ngày', keys: ['HDBAN', 'DSCK', 'TRUKHO', 'HDMUA', 'DCM', 'DSVN', 'BC:BC05'] },
       { t: 'Công nợ', p: 'ai nợ ai', keys: ['CN', 'CNPT'] },
       { t: 'Chi tiền', p: 'duyệt và trả', keys: ['APPTT', 'DSTTNB', 'PAY', 'HT', 'NQ'] },
       { t: 'Tổng hợp và tài sản', p: 'cuối tháng', keys: ['BT', 'TS', 'DUYETTANG'] },
@@ -1791,6 +1795,7 @@ var VGB_DUONG = {
   'diem-ban': 'CDDB',
   'doanh-so': 'DS',
   'doi-chieu-mua': 'DCM',
+  'doi-soat-chuyen-khoan': 'DSCK',
   'doi-soat-cod': 'DSCOD',
   'doi-soat-nha-cung-cap': 'DSVN',
   'don-chung-tu-thu': 'PTDON',
@@ -1988,6 +1993,7 @@ function vgbGo(k) {
   if (k === 'KK') return go(scrKkList);
   if (k === 'DS') return go(scrDoanhSo);
   if (k === 'DTREO') return go(scrDonTreo);
+  if (k === 'DSCK') return go(scrDoiSoatCk);
   /* Man "Don da huy cho hoan" truoc gio chi mo duoc tu man khac, khong co
      khoa rieng. Them khoa o day de no co DIA CHI that, con o nho tren trang
      chu thi giu nguyen nhu cu, khong them the moi. */
