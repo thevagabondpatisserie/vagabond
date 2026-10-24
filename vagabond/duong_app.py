@@ -111,6 +111,8 @@ MAN = (
 	("DUYETTANG", "Duyệt đơn hàng tặng", None),
 	# v607: khách nạp tiền trước, các đơn sau trừ dần (tra_truoc_khach.py).
 	("SODU", "Số dư trả trước của khách", "so-du-tra-truoc"),
+	# v610: bill quầy chuyển khoản chưa khớp tiền (doi_soat_ck.py).
+	("DSCK", "Đối soát chuyển khoản", "doi-soat-chuyen-khoan"),
 	("TRUKHO", "Hoá đơn chưa trừ kho", None),
 	# --- Nhan su (HRM). Anh Viet chot 01/09/2026, lam trong app Vagabond
 	# chu chua cai phan he HR cua Frappe.
