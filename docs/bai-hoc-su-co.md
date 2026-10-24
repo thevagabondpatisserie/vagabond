@@ -2524,3 +2524,23 @@ thứ tư của điều 17 (ngoài bộ kiểm yếu, mẫu không khớp, lớp
 chạy không phải mã trên đĩa. Cách phòng: kịch bản đột biến xoá __pycache__
 trước mỗi lần chạy, hoặc chạy python3 -B; và một đột biến "không bắt" phải
 được chạy tay lại một lần trước khi ghi vào báo cáo.
+
+### v610 (anh Việt 24/10/2026): "SePay không ghi nhận" thường là màn hình không soi tới
+
+Triệu chứng: Dễ báo bill TCVEHQHG chuyển khoản 1.875.000 đ "SePay không ghi
+nhận nên không ghi sổ tự động được". Đọc bảng sao kê trên site: SePay CÓ ghi,
+dòng ACC-BTN-2026-08831 lúc 13:27, trước cả lúc lập bill. Khách xin số tài
+khoản công ty rồi chuyển thẳng vào MB 31561568, nội dung không mang dấu tài
+khoản ảo nào. Nút Dò tiền lọc sao kê theo dấu tài khoản ảo của điểm, nên khoản
+đó không bao giờ hiện ra để chọn, và người dùng kết luận là ngân hàng không về.
+
+Sửa: chip tài khoản (của điểm / vào thẳng tài khoản chính / tất cả) và chip
+ngày trong bảng Dò tiền, màn Đối soát chuyển khoản cho quản lý và kế toán. Khoản
+ngoài tài khoản điểm chỉ quản lý cửa hàng và kế toán gắn được, và phải hỏi chủ
+TOÀN HỆ (công nợ, hoàn tiền, bộ sao kê, hoá đơn đã ghi sổ, Đối chiếu ngân hàng)
+vì tài khoản chính còn nhận tiền khách sỉ trả nợ.
+
+Bài học: một bộ lọc ở cửa NHÌN biến dữ liệu thật thành "không có" trong mắt
+người dùng. Khi nghe "hệ thống không ghi nhận", đọc bảng gốc trên site trước
+rồi mới sửa. Lọc sẵn theo phạm vi hẹp thì luôn phải có chip mở rộng ra, như
+điều đã chốt ngày 14/09/2026 cho mọi màn khớp giao dịch thủ công.
