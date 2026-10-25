@@ -243,13 +243,17 @@ def _throw_that(msg, exc=None, title=None, **k):
 	raise (exc or sys.modules["frappe"].ValidationError)(msg)
 
 
-def _nhan(thieu, loi=None):
+def _nhan(thieu, loi=None, loi_chen=None):
 	"""Chạy THẬT lan_nhan.nhan_theo_phieu, ghi sổ hỏng như ca Tài."""
 	from vagabond import lan_nhan as ln
 	nhat = []
 	doc = D(items=[], flags=D())
 	doc.append = lambda k, v: doc["items"].append(D(v))
-	doc.insert = lambda: nhat.append("insert")
+	def chen():
+		nhat.append("insert")
+		if loi_chen:
+			raise loi_chen
+	doc.insert = chen
 
 	def submit():
 		raise loi or _LoiDinhGia("Tỷ giá định giá cho Mặt hàng BTPN00001 là bắt buộc")
@@ -291,8 +295,21 @@ def _nhan_thieu():
 	nhat, bao, e = _nhan([])
 	dung("kho đủ hàng thì lỗi gốc đi nguyên", isinstance(e, _LoiDinhGia))
 	la("không báo, không commit", (bao, "commit" in nhat), ([], False))
-	nhat, bao, e = _nhan([{"ten": "x", "sl": 1, "dvt": "Kg"}], loi=RuntimeError("Deadlock found when trying to get lock"))
-	dung("lỗi không phải ValidationError vẫn ra câu dễ hiểu", e is not None and "chưa đủ hàng" in str(e))
+	# Codex #498 vòng 2, bench CI 58b0ccb (ca Tài dựng trên ERPNext thật): câu
+	# "Valuation Rate ... is required" ném ngay ở INSERT, chưa tới submit.
+	nhat, bao, e = _nhan(t, loi_chen=_LoiDinhGia("Valuation Rate for the Item X, is required to do accounting entries"))
+	dung("lỗi ở insert cũng ra câu dễ hiểu", e is not None and "chưa đủ hàng" in str(e) and "Valuation" not in str(e))
+	la("insert hỏng: lùi điểm lưu, đọc tồn, commit tin", [x for x in nhat if x != "savepoint:vgb_lan_nhan_chen"],
+		["insert", "rollback:vgb_lan_nhan_chen", "doc_ton", "commit"])
+	la("insert hỏng: báo Zalo", len(bao), 1)
+	# Câu đã dễ hiểu của app (lo_hang) không bị thay, không lùi, không báo.
+	cau_lo = 'Kho "Kho tổng 307" không đủ BTP để trừ: còn thiếu 70 Kg.'
+	nhat, bao, e = _nhan(t, loi_chen=_LoiDinhGia(cau_lo))
+	la("câu lo_hang đi nguyên", str(e), cau_lo)
+	la("không đọc tồn, không báo, không commit", ("doc_ton" in nhat, bao, "commit" in nhat), (False, [], False))
+	la("lỗi lõi nhận diện đúng", [tk.la_loi_ton_loi(x) for x in (_LoiDinhGia("Tỷ giá định giá cho Mặt hàng X là bắt buộc"),
+		type("NegativeStockError", (Exception,), {})("x"), _LoiDinhGia("20 units of X needed in Kho A on 25-10-2026 to complete this transaction."),
+		_LoiDinhGia(cau_lo), RuntimeError("Deadlock found"))], [True, True, True, False, False])
 
 
 # ------------------------------------------------------------- đặt bàn
@@ -350,7 +367,7 @@ class _Phieu(D):
 	pass
 
 
-def _xu_ly(ham, vai=("VGB - Quản lý cửa hàng",), phieu=None, gio=HOM, **ts):
+def _xu_ly(ham, vai=("VGB - Quản lý cửa hàng",), phieu=None, gio=HOM, loi_thu=None, **ts):
 	"""Chạy THẬT một nút của màn đặt bàn trên phiếu giả. Trả (kết quả hoặc lỗi, phiếu, thư, zalo)."""
 	p = _Phieu(phieu or DB)
 	luu, thu = [], []
@@ -361,7 +378,7 @@ def _xu_ly(ham, vai=("VGB - Quản lý cửa hàng",), phieu=None, gio=HOM, **ts
 	fr = sys.modules["frappe"]
 	ps = [um.patch.object(fr, "get_roles", lambda *a: list(vai), create=True),
 		um.patch.object(fr, "get_doc", lambda *a, **k: p, create=True),
-		um.patch.object(fr, "sendmail", lambda **k: thu.append(k), create=True),
+		um.patch.object(fr, "sendmail", lambda **k: (_ for _ in ()).throw(loi_thu) if loi_thu else thu.append(k), create=True),
 		um.patch.object(fr, "session", D(user="de@vagabond.vn"), create=True),
 		um.patch.object(fr.utils, "get_fullname", lambda u: "Lê Hoàng Dễ", create=True),
 		um.patch.object(fr.utils, "now_datetime", lambda: gio, create=True),
@@ -415,6 +432,21 @@ def _xac_nhan_chan():
 		la("%s: không lưu, không thư, không tin" % mo, (len(luu), len(thu), len(goi)), (0, 0, 0))
 	kq, p, luu, thu, goi = _xu_ly(db.xac_nhan, phieu=D(DB, trang_thai="Đã xác nhận"), gui_email=1)
 	la("bấm lại khi đã xác nhận: báo đã có, không gửi lại", (kq.get("da_co"), len(thu), len(goi)), (1, 0, 0))
+
+
+class QueryDeadlockError(Exception):
+	"""Cùng tên lớp với frappe.QueryDeadlockError: loi_csdl nhận theo tên lớp."""
+
+
+@ca("v611 nút Xác nhận: gửi thư gặp lỗi chết giao dịch thì lỗi đi lên, KHÔNG nhắn Zalo, KHÔNG báo xong (Codex #498 4371394665)")
+def _xac_nhan_chet_giao_dich():
+	kq, p, luu, thu, goi = _xu_ly(db.xac_nhan, gui_email=1, loi_thu=QueryDeadlockError("Deadlock found when trying to get lock"))
+	dung("lỗi đi lên cho người bấm: " + repr(kq), isinstance(kq, QueryDeadlockError))
+	la("không nhắn Zalo đã xác nhận", len(goi), 0)
+	dung("không ghi câu email dự phòng", p.thu_khach != "CHƯA gửi được email, gọi báo khách")
+	kq, p, luu, thu, goi = _xu_ly(db.xac_nhan, gui_email=1, loi_thu=RuntimeError("SMTP 421"))
+	la("lỗi thư thường: vẫn xác nhận, ghi câu dự phòng, vẫn nhắn Zalo", (kq.get("trang_thai") if isinstance(kq, dict) else repr(kq),
+		p.thu_khach, len(goi)), ("Đã xác nhận", "CHƯA gửi được email, gọi báo khách", 1))
 
 
 @ca("v611 nút Huỷ: bắt buộc lý do; có lý do thì thư huỷ kèm lý do và tin bh_dat_ban_huy")
