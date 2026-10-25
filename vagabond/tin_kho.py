@@ -737,3 +737,229 @@ def bao_don_web_moi(ten_don, ten, ngay_nhan, tu_lay, diem_lay, dia_chi, mon, sau
 		if kenh_zalo.chet_giao_dich(e):
 			raise
 		_ghi_loi("đơn web mới")
+
+
+# ================================================================ v611
+# Anh Việt 25/10/2026: tắt thư nội bộ (yêu cầu sản xuất, điều chuyển, đặt mua đang
+# gửi qua Notification của Frappe), thay bằng tin Zalo; thêm tin sản xuất, tin yêu
+# cầu điều chuyển treo, tin nhận hàng không được vì kho xuất chưa đủ hàng.
+
+NGAY_YCDC_TREO = 2
+TT_MR_XONG = ("Stopped", "Cancelled", "Transferred", "Received", "Issued", "Manufactured", "Draft")
+
+
+def soan_ycsx(d, items, hom_nay):
+	"""THUẦN: (tiêu đề, dòng) của tin yêu cầu sản xuất mới.
+
+	d: các ô của phiếu (name, custom_bep_nhan, bo_phan_yeu_cau, nguoi_yeu_cau,
+	schedule_date, set_warehouse). Cần trong hôm nay hoặc đã qua ngày thì GẤP."""
+	bep = (d.get("custom_bep_nhan") or "").strip() or "bếp"
+	can = d.get("schedule_date")
+	gap = bool(can) and getdate(can) <= getdate(hom_nay)
+	tieu_de = ("GẤP: " if gap else "") + "Yêu cầu sản xuất mới cho %s" % bep
+	ai = ", ".join([x for x in ((d.get("bo_phan_yeu_cau") or "").strip(), (d.get("nguoi_yeu_cau") or "").strip()) if x])
+	dau = "Phiếu %s%s" % (d.get("name"), (", " + ai) if ai else "")
+	if can:
+		dau += ", cần ngày %s" % ngay_vn(can)
+	if d.get("set_warehouse"):
+		dau += ", giao %s" % ten_kho(d.get("set_warehouse"))
+	return tieu_de, [dau] + dong_hang(items)
+
+
+def gom_ycsx_theo_bep(dong):
+	"""THUẦN: {bếp: [{"ten","sl","dvt","ghi"}]} cộng số lượng cùng món, kèm số phiếu.
+
+	dong: [{"bep","ma","ten","sl","dvt","phieu"}]; bếp trống gom vào "Chưa chọn bếp"."""
+	ra = {}
+	for r in dong or []:
+		bep = (r.get("bep") or "").strip() or "Chưa chọn bếp"
+		khoa = (r.get("ma") or r.get("ten"), r.get("dvt") or "")
+		o = ra.setdefault(bep, {}).setdefault(khoa, {"ten": r.get("ten") or r.get("ma") or "", "sl": 0.0,
+			"dvt": r.get("dvt") or "", "phieu": set()})
+		o["sl"] += flt(r.get("sl"))
+		if r.get("phieu"):
+			o["phieu"].add(r.get("phieu"))
+	kq = {}
+	for bep, mon in ra.items():
+		ds = sorted(mon.values(), key=lambda x: (-x["sl"], x["ten"]))
+		kq[bep] = [{"ten": x["ten"], "sl": x["sl"], "dvt": x["dvt"], "so_phieu": len(x["phieu"])} for x in ds]
+	return kq
+
+
+def gom_ycdc_treo(rows, hom_nay, so_ngay=NGAY_YCDC_TREO):
+	"""THUẦN: các yêu cầu điều chuyển đã gửi từ so_ngay ngày trở lên mà chưa xong, cũ nhất trước.
+
+	rows: [{"name","status","transaction_date","set_from_warehouse","set_warehouse","so_mon"}]."""
+	hom_nay = getdate(hom_nay)
+	ra = []
+	for r in rows or []:
+		if (r.get("status") or "") in TT_MR_XONG or not r.get("transaction_date"):
+			continue
+		tre = (hom_nay - getdate(r.get("transaction_date"))).days
+		if tre >= so_ngay:
+			ra.append(dict(r, tre=tre))
+	ra.sort(key=lambda r: (-r["tre"], r.get("name") or ""))
+	return ra
+
+
+def dong_ycdc_treo(ds, toi_da=8):
+	"""THUẦN: mỗi phiếu một dòng "YCDC-...: Kho A sang Kho B, gửi dd/mm (N ngày), K món"."""
+	ra = ["%s: %s sang %s, gửi %s (%d ngày), %d món" % (r.get("name"), ten_kho(r.get("set_from_warehouse")) or "?",
+		ten_kho(r.get("set_warehouse")) or "?", ngay_vn(r.get("transaction_date")), r.get("tre", 0), int(r.get("so_mon") or 0))
+		for r in (ds or [])[:toi_da]]
+	if len(ds or []) > toi_da:
+		ra.append("+%d phiếu khác" % (len(ds) - toi_da))
+	return ra
+
+
+def gom_thieu_ton(items, ton, gia=None):
+	"""THUẦN: dòng hàng mà kho xuất không đủ tồn (hoặc có tồn nhưng chưa có giá vốn).
+
+	items: [{"ma","ten","can","dvt","kho"}] theo đơn vị kho; ton: {(ma, kho): tồn};
+	gia: {(ma, kho): giá vốn}. Trả [{"ten","sl","dvt","ghi"}] cho dong_hang."""
+	gia = gia or {}
+	can = {}
+	for r in items or []:
+		k = (r.get("ma"), r.get("kho"))
+		o = can.setdefault(k, {"ten": r.get("ten") or r.get("ma") or "", "can": 0.0, "dvt": r.get("dvt") or ""})
+		o["can"] += flt(r.get("can"))
+	ra = []
+	for k, o in can.items():
+		co = flt(ton.get(k, 0))
+		if co < o["can"] - 0.0005:
+			ra.append({"ten": o["ten"], "sl": o["can"], "dvt": o["dvt"], "ghi": "kho đang có %s" % so(max(co, 0))})
+		elif flt(gia.get(k, 0)) <= 0:
+			ra.append({"ten": o["ten"], "sl": o["can"], "dvt": o["dvt"], "ghi": "có hàng nhưng máy chưa có giá nhập, báo kế toán"})
+	return ra
+
+
+def cau_thieu_ton(kho_xuat, thieu):
+	"""THUẦN: câu báo trên màn hình cho người bấm nhận, thay câu lỗi thô của ERPNext."""
+	return ("%s chưa đủ hàng để chuyển: %s. Bếp hoặc kho cần ghi nhận sản xuất hoặc nhập kho "
+		"các món này vào %s trước, rồi bấm nhận lại." % (ten_kho(kho_xuat), "; ".join(dong_hang(thieu, toi_da=8)),
+		ten_kho(kho_xuat)))
+
+
+def khi_co_yeu_cau_sx(doc, method=None):
+	"""Hook Material Request on_submit: yêu cầu sản xuất mới gửi bếp (thay thư Notification)."""
+	try:
+		if (doc.get("material_request_type") or "") != "Manufacture":
+			return
+		tieu_de, dong = soan_ycsx(doc.as_dict() if hasattr(doc, "as_dict") else doc, hang_tu_items(doc.get("items")), nowdate())
+		kenh_zalo.bao("viec", "san_xuat", tieu_de, dong,
+			link=_url("/app/material-request/%s" % doc.name), khoa="ycsx:%s" % doc.name, ma_tin="bep_ycsx_moi")
+	except Exception as e:
+		if kenh_zalo.chet_giao_dich(e):
+			raise
+		_ghi_loi("yêu cầu sản xuất mới")
+
+
+def khi_huy_yeu_cau_sx(doc, method=None):
+	"""Hook Material Request on_cancel: yêu cầu sản xuất bị huỷ, bếp bỏ khỏi kế hoạch."""
+	try:
+		if (doc.get("material_request_type") or "") != "Manufacture":
+			return
+		dong = ["Phiếu %s cho %s, cần ngày %s, %s huỷ" % (doc.name, doc.get("custom_bep_nhan") or "bếp",
+			ngay_vn(doc.get("schedule_date")) or "?", _ten_nguoi(frappe.session.user))]
+		dong += dong_hang(hang_tu_items(doc.get("items")))
+		kenh_zalo.bao("thong_bao", "san_xuat", "Yêu cầu sản xuất đã huỷ", dong,
+			link=_url("/app/material-request/%s" % doc.name), khoa="ycsx-huy:%s" % doc.name, ma_tin="bep_ycsx_huy")
+	except Exception as e:
+		if kenh_zalo.chet_giao_dich(e):
+			raise
+		_ghi_loi("huỷ yêu cầu sản xuất")
+
+
+def nhac_ycsx_ngay_mai():
+	"""Lịch 20:30: cộng các yêu cầu sản xuất cần ngày mai, một tin mỗi bếp."""
+	try:
+		mai = add_days(nowdate(), 1)
+		phieu = frappe.get_all("Material Request", filters={"material_request_type": "Manufacture", "docstatus": 1,
+			"schedule_date": mai, "status": ["not in", list(TT_MR_XONG)]},
+			fields=["name", "custom_bep_nhan"], limit_page_length=0)
+		if not phieu:
+			return
+		bep = {p.name: p.custom_bep_nhan for p in phieu}
+		dong = [{"bep": bep.get(i.parent), "ma": i.item_code, "ten": i.item_name, "sl": i.qty, "dvt": i.uom, "phieu": i.parent}
+			for i in frappe.get_all("Material Request Item", filters={"parent": ["in", list(bep)]},
+				fields=["parent", "item_code", "item_name", "qty", "uom"], limit_page_length=0)]
+		for ten_bep, ds in sorted(gom_ycsx_theo_bep(dong).items()):
+			so_phieu = len({p for p, b in bep.items() if ((b or "").strip() or "Chưa chọn bếp") == ten_bep})
+			noi = ["%s, ngày %s: %d phiếu, %d món" % (ten_bep, ngay_vn(mai), so_phieu, len(ds))] + dong_hang(ds, toi_da=12)
+			kenh_zalo.bao("viec", "san_xuat", "Yêu cầu sản xuất cho ngày mai", noi,
+				link=_url("/app/material-request?material_request_type=Manufacture"),
+				khoa="ycsx-mai:%s:%s" % (ten_bep, mai), ma_tin="bep_ycsx_ngay_mai")
+	except Exception:
+		_ghi_loi("yêu cầu sản xuất ngày mai")
+
+
+def khi_co_yeu_cau_chuyen(doc, method=None):
+	"""Hook Material Request on_submit: yêu cầu điều chuyển mới (thay thư Notification)."""
+	try:
+		if (doc.get("material_request_type") or "") != "Material Transfer":
+			return
+		ai = ", ".join([x for x in ((doc.get("bo_phan_yeu_cau") or "").strip(), (doc.get("nguoi_yeu_cau") or "").strip()) if x])
+		dau = "Phiếu %s: %s sang %s%s%s" % (doc.name, ten_kho(doc.get("set_from_warehouse")) or "?",
+			ten_kho(doc.get("set_warehouse")) or "?", (", " + ai) if ai else "",
+			(", cần ngày %s" % ngay_vn(doc.get("schedule_date"))) if doc.get("schedule_date") else "")
+		kenh_zalo.bao("viec", "kho", "Yêu cầu điều chuyển mới", [dau] + dong_hang(hang_tu_items(doc.get("items"))),
+			link=_url("/app/material-request/%s" % doc.name), khoa="ycdc:%s" % doc.name, ma_tin="kho_ycdc_moi")
+	except Exception as e:
+		if kenh_zalo.chet_giao_dich(e):
+			raise
+		_ghi_loi("yêu cầu điều chuyển mới")
+
+
+def nhac_ycdc_treo():
+	"""Lịch 08:00: yêu cầu điều chuyển gửi từ NGAY_YCDC_TREO ngày trở lên mà chưa chuyển xong."""
+	try:
+		hom_nay = nowdate()
+		rows = frappe.get_all("Material Request", filters={"material_request_type": "Material Transfer", "docstatus": 1,
+			"transaction_date": ["<=", add_days(hom_nay, -NGAY_YCDC_TREO)], "status": ["not in", list(TT_MR_XONG)]},
+			fields=["name", "status", "transaction_date", "set_from_warehouse", "set_warehouse"], limit_page_length=0)
+		if not rows:
+			return
+		dem = {}
+		for i in frappe.get_all("Material Request Item", filters={"parent": ["in", [r.name for r in rows]]},
+				fields=["parent"], limit_page_length=0):
+			dem[i.parent] = dem.get(i.parent, 0) + 1
+		ds = gom_ycdc_treo([dict(r, so_mon=dem.get(r.name, 0)) for r in rows], hom_nay)
+		if not ds:
+			return
+		dong = ["%d phiếu chờ quá %d ngày" % (len(ds), NGAY_YCDC_TREO)] + dong_ycdc_treo(ds)
+		dong.append("Kho xuất soạn hàng, kho nhận bấm nhận; không cần nữa thì dừng phiếu.")
+		kenh_zalo.bao("viec", "kho", "Yêu cầu điều chuyển treo", dong,
+			link=_url("/app/material-request?material_request_type=Material%20Transfer"),
+			khoa="ycdc-treo:%s" % hom_nay, ma_tin="kho_ycdc_treo")
+	except Exception:
+		_ghi_loi("yêu cầu điều chuyển treo")
+
+
+def kiem_thieu_ton(doc):
+	"""Dòng hàng mà kho xuất của phiếu chuyển không đủ tồn hoặc chưa có giá vốn. Chỉ đọc."""
+	items = [{"ma": r.item_code, "ten": r.item_name or r.item_code, "can": flt(r.transfer_qty) or flt(r.qty),
+		"dvt": r.stock_uom or r.uom or "", "kho": r.s_warehouse} for r in doc.get("items") or [] if r.get("s_warehouse")]
+	if not items:
+		return []
+	bins = frappe.get_all("Bin", filters={"item_code": ["in", sorted({i["ma"] for i in items})],
+		"warehouse": ["in", sorted({i["kho"] for i in items})]}, fields=["item_code", "warehouse", "actual_qty", "valuation_rate"])
+	ton = {(b.item_code, b.warehouse): flt(b.actual_qty) for b in bins}
+	gia = {(b.item_code, b.warehouse): flt(b.valuation_rate) for b in bins}
+	return gom_thieu_ton(items, ton, gia)
+
+
+def bao_nhan_thieu_ton(phieu, kho_xuat, kho_nhan, thieu):
+	"""Tin cho Kho khi người bấm nhận không ghi sổ được vì kho xuất chưa đủ hàng.
+	Gọi SAU khi đã rollback phiếu hỏng; người gọi commit để tin còn lại."""
+	try:
+		dong = ["Phiếu %s: %s sang %s, %s bấm nhận" % (phieu or "(nhận tay)", ten_kho(kho_xuat), ten_kho(kho_nhan),
+			_ten_nguoi(frappe.session.user))]
+		dong += dong_hang(thieu, toi_da=8)
+		dong.append("Bếp hoặc kho ghi nhận sản xuất, nhập kho vào %s trước, rồi nhận lại." % ten_kho(kho_xuat))
+		kenh_zalo.bao("canh_bao", "kho", "Nhận hàng không được: kho xuất chưa đủ hàng", dong,
+			link=_url("/app/material-request/%s" % phieu) if phieu else None,
+			khoa="thieu-ton:%s:%s:%s" % (phieu or kho_nhan, kho_xuat, nowdate()), ma_tin="kho_nhan_thieu_ton")
+	except Exception as e:
+		if kenh_zalo.chet_giao_dich(e):
+			raise
+		_ghi_loi("nhận hàng thiếu tồn")

@@ -226,5 +226,25 @@ def nhan_theo_phieu(ma_lan_nhan=None, phieu=None, kho_xuat=None, kho_nhan=None,
 		if not cu:
 			raise
 		return _tra_phieu_cu(cu)
-	doc.submit()
+	try:
+		doc.submit()
+	except Exception:
+		# v611 (25/10/2026, Tài nhận YCDC-2026-00059): kho xuất chưa từng có
+		# BTP Sauce Cherry nên ERPNext ném câu dịch máy "Tỷ giá định giá cho
+		# Mặt hàng ... là bắt buộc". Dò lại tồn ở kho xuất: thiếu hàng thì lùi
+		# phiếu, báo Zalo Kho rồi nói câu dễ hiểu; lỗi khác giữ nguyên.
+		from vagabond import tin_kho
+
+		try:
+			thieu = tin_kho.kiem_thieu_ton(doc)
+		except Exception:
+			thieu = []
+		if not thieu:
+			raise
+		# Lùi về điểm lưu trước lần chèn (không rollback trần, xem ghi chú điểm lưu ở trên).
+		frappe.db.rollback(save_point=diem)
+		frappe.local.message_log = []
+		tin_kho.bao_nhan_thieu_ton(phieu, kho_xuat, kho_nhan, thieu)
+		frappe.db.commit()
+		frappe.throw(tin_kho.cau_thieu_ton(kho_xuat, thieu), title="Kho xuất chưa đủ hàng")
 	return {"ok": 1, "name": doc.name, "da_co": 0}

@@ -1561,7 +1561,8 @@ def gan_shipper(name, shipper=None, kenh=None, diem=None, bo_diem=0):
 			frappe.throw(
 				"Phiếu điều chuyển %s đã bị huỷ nên không phân công giao được. "
 				"Hàng không còn rời kho theo phiếu này nữa." % doc.chung_tu_goc)
-	cu = doc.shipper
+	# v611: bỏ thư "Đơn giao mới" cho shipper (anh Việt 25/10/2026 tắt thư nội bộ;
+	# shipper mở app là thấy đơn được giao).
 	# --- Noi khach lay, doc lap voi nguoi cho ---
 	if cint(bo_diem):
 		doc.diem_pickup = ""
@@ -1597,8 +1598,6 @@ def gan_shipper(name, shipper=None, kenh=None, diem=None, bo_diem=0):
 		doc.trang_thai = _tt_theo_gan(doc)
 	doc.flags.ignore_permissions = True
 	doc.save()
-	if doc.shipper and doc.shipper != cu:
-		_mail_phan_cong(doc)
 	return {"name": doc.name, "shipper": doc.shipper, "kenh": doc.kenh,
 		"diem_pickup": doc.diem_pickup, "trang_thai": doc.trang_thai}
 
@@ -1608,24 +1607,6 @@ def ds_diem_pickup():
 	"""Ba diem khach ra lay hang, cho o Phan cong tren app."""
 	_kiem_quyen_xem()
 	return pickup.ds()
-
-
-def _mail_phan_cong(doc):
-	"""Bao cho shipper biet vua co don moi. Hong thi bo qua, khong chan viec gan."""
-	try:
-		from vagabond.nhan_su import thu_phan_cong_html
-
-		email = frappe.db.get_value("User", doc.shipper, "email") or doc.shipper
-		ten = frappe.db.get_value("User", doc.shipper, "full_name") or ""
-		frappe.sendmail(
-			recipients=email,
-			subject="Đơn giao mới: %s - %s" % (doc.ma_don or doc.name, doc.khach or ""),
-			message=thu_phan_cong_html(ten, doc),
-			delayed=False,
-			retry=2,
-		)
-	except Exception:
-		frappe.log_error(frappe.get_traceback(), "vagabond: mail phan cong loi")
 
 
 @frappe.whitelist()

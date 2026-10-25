@@ -158,6 +158,33 @@ def thieu_ten_rieng(ten):
 	return not phan_rieng(ten)
 
 
+# ------------------------------------------------------------- o email
+
+# v611 (anh Viet 25/10/2026): bill Pancake 95914 nam nhap ba ngay vi m-invoice
+# tu choi email "_quynhntm@ocb.com.vn" (dau gach duoi o dau), ma may chi biet
+# luc ghi so. Chan ngay luc nhap, cung mot luat cho Sales lan khach tu dien.
+# Phan truoc @ phai bat dau va ket thuc bang chu hoac so, khong hai dau cham
+# lien nhau; ten mien co it nhat mot dau cham, duoi tu 2 chu.
+import re as _re
+
+RE_EMAIL_HD = _re.compile(
+	r"^[A-Za-z0-9](?:[A-Za-z0-9._%+-]*[A-Za-z0-9])?@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?"
+	r"(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*\.[A-Za-z]{2,}$")
+
+
+def loi_email_hd(email):
+	"""Cau bao loi neu email nhan hoa don sai, rong neu dung hoac de trong. THUAN.
+
+	Nhieu dia chi thi ngan bang dau phay hoac cham phay, tung cai deu phai dung.
+	"""
+	ds = [x.strip() for x in _re.split(r"[;,]", str(email or "")) if x.strip()]
+	for e in ds:
+		if len(e) > 140 or ".." in e or not RE_EMAIL_HD.match(e):
+			return ("Email nhận hoá đơn \"%s\" không hợp lệ. Kiểm lại: không có khoảng trắng, "
+				"không bắt đầu hay kết thúc bằng dấu chấm, gạch dưới, ví dụ ten@congty.com." % e)
+	return ""
+
+
 # ------------------------------------------------------- dien giai thay the
 
 # ------------------------------------------------------------- o dia chi
