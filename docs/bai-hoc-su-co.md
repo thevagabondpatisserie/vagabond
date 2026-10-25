@@ -2558,3 +2558,28 @@ v610 chỉ cửa bộ sao kê mới tách ô, các cửa khác (Dò tiền, ghi 
 mù với phiếu công nợ cũ nhiều mã. Phiếu cũ còn có thể lưu SỐ THAM CHIẾU ngân
 hàng thay vì tên dòng. Hỏi chủ phải dùng cả hai khoá rồi quy về tên dòng, và
 cách đọc ô nhiều mã phải nằm trong một hàm chung cho mọi cửa, không theo cờ.
+
+## 25/10/2026 (v611): lỗi chỉ nằm trong Error Log là lỗi không ai biết
+
+Bill Pancake 95914 (HDB-26-10-04205) nằm nháp ba ngày. Máy tự ghi sổ mỗi lượt,
+m-invoice mỗi lượt từ chối vì email nhận hoá đơn "_quynhntm@ocb.com.vn" có dấu
+gạch dưới ở đầu, và máy chỉ ghi Error Log. Sales không đọc Error Log, nên đơn
+treo cho tới khi kế toán đi tìm. Cùng ngày, Tài nhận YCDC-2026-00059 thì ERPNext
+ném câu dịch máy "Tỷ giá định giá cho Mặt hàng ... là bắt buộc", thật ra là Kho
+tổng 307 chưa từng có món BTP đó.
+
+Sửa: chặn email sai ngay lúc nhập (cả hai cửa: Sales sửa bill, khách tự điền);
+m-invoice chê thông tin người mua thì báo Zalo nhóm Bán hàng; nhận hàng mà kho
+xuất thiếu thì lùi về điểm lưu, báo Zalo Kho, rồi nói câu dễ hiểu.
+
+Bài học: (1) Lỗi nào cần NGƯỜI sửa dữ liệu thì phải tới đúng người đó, Error Log
+chỉ là nơi lưu cho kỹ thuật. (2) Chặn dữ liệu sai ở cửa NHẬP, đừng để cửa GHI SỔ
+phát hiện muộn. (3) Câu lỗi thô của ERPNext (bản dịch máy) phải được dịch lại
+thành việc cần làm ở chỗ người dùng bấm.
+
+Ca kiểm (thu_dat_ban_zalo_611, dat_ban_611.js): đột biến lần chạy đầu bắt
+16/18. Hai cái lọt đều vì có lớp đỡ thứ hai (điều 17c): tìm SĐT không có nhánh
+số thì phép tìm chung vẫn ra, vì dữ liệu mẫu không có ca hai cụm số đủ mà không
+liền nhau; bản vá không xét kênh thì danh sách tên vẫn đỡ. Thêm đúng ca đó thì
+bắt đủ 18/18. Khi viết dữ liệu mẫu cho phép tìm số, kiểm cả ca trùng tình cờ:
+"0912 345" là dãy con của "0909 123 456".
