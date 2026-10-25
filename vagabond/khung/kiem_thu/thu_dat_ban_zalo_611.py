@@ -234,8 +234,13 @@ def _thieu_ton():
 	dung("tin không nói tiền", not any(re.search(r"\d đ\b", x) for x in goi[0].dong))
 
 
-class _LoiDinhGia(Exception):
-	pass
+class _LoiDinhGia(sys.modules["frappe"].ValidationError):
+	"""Đứng thay NegativeStockError: lớp con của ValidationError như Frappe thật."""
+
+
+def _throw_that(msg, exc=None, title=None, **k):
+	"""Như frappe.throw thật: tôn trọng exc= (bản giả chung của nen.py bỏ qua nó)."""
+	raise (exc or sys.modules["frappe"].ValidationError)(msg)
 
 
 def _nhan(thieu, loi=None):
@@ -256,7 +261,10 @@ def _nhan(thieu, loi=None):
 	bao = []
 	ps = [um.patch.object(fr, "new_doc", lambda dt: doc, create=True), um.patch.object(fr, "db", db_gia),
 		um.patch.object(ln, "_da_co", lambda *a, **k: None),
-		um.patch.object(tk, "kiem_thieu_ton", lambda d: thieu),
+		# Codex #498 (4371298484): ghi lại LÚC NÀO đọc tồn. Đọc trước khi lùi
+		# điểm lưu là đọc Bin của giao dịch dở (bench CI: kho 30 ra "đang có 0").
+		um.patch.object(tk, "kiem_thieu_ton", lambda d: nhat.append("doc_ton") or thieu),
+		um.patch.object(fr, "throw", _throw_that),
 		um.patch.object(tk, "bao_nhan_thieu_ton", lambda *a: bao.append(a))]
 	for p in ps:
 		p.start()
@@ -275,13 +283,16 @@ def _nhan(thieu, loi=None):
 def _nhan_thieu():
 	t = [{"ten": "BTP Sauce Cherry", "sl": 2, "dvt": "Kg", "ghi": "kho đang có 0"}]
 	nhat, bao, e = _nhan(t)
-	la("thứ tự: chèn, lùi điểm lưu, commit", [x for x in nhat if x != "savepoint:vgb_lan_nhan_chen"],
-		["insert", "rollback:vgb_lan_nhan_chen", "commit"])
+	la("thứ tự: chèn, lùi điểm lưu, RỒI mới đọc tồn, commit", [x for x in nhat if x != "savepoint:vgb_lan_nhan_chen"],
+		["insert", "rollback:vgb_lan_nhan_chen", "doc_ton", "commit"])
 	la("báo đúng phiếu và kho", [a[:3] for a in bao], [("YCDC-2026-00059", "Kho tổng 307 - TV", "Kho TCV - TV")])
 	dung("người bấm thấy câu dễ hiểu, không thấy câu dịch máy", e is not None and "chưa đủ hàng" in str(e) and "Tỷ giá" not in str(e))
+	dung("giữ đúng lớp lỗi gốc để màn Nhận hàng xử lý như cũ", type(e) is _LoiDinhGia)
 	nhat, bao, e = _nhan([])
 	dung("kho đủ hàng thì lỗi gốc đi nguyên", isinstance(e, _LoiDinhGia))
 	la("không báo, không commit", (bao, "commit" in nhat), ([], False))
+	nhat, bao, e = _nhan([{"ten": "x", "sl": 1, "dvt": "Kg"}], loi=RuntimeError("Deadlock found when trying to get lock"))
+	dung("lỗi không phải ValidationError vẫn ra câu dễ hiểu", e is not None and "chưa đủ hàng" in str(e))
 
 
 # ------------------------------------------------------------- đặt bàn
