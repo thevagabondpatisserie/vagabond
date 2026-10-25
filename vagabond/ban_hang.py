@@ -2795,6 +2795,9 @@ def luu_xhd(si_name, ten=None, mst=None, dia_chi=None, email=None):
 		frappe.throw("Có mã số thuế thì phải có tên pháp nhân.")
 	if so_mst and hoa_don_vat.thieu_ten_rieng(ten):
 		frappe.throw(hoa_don_vat.LOI_TEN_CUT)
+	loi_mail = hoa_don_vat.loi_email_hd(email)
+	if loi_mail:
+		frappe.throw(loi_mail)
 	dia_chi = hoa_don_vat.sach_dia_chi_xhd(dia_chi)
 	_chan_dia_chi_khong_chu(ten or XHD_MAC_DINH, so_mst, dia_chi)
 	gt = {
@@ -2896,6 +2899,15 @@ def _ghi_so_mot_don(si, sepay=None, cho_xuat=True):
 		frappe.db.rollback()
 		frappe.local.message_log = []
 		frappe.log_error(frappe.get_traceback(), "ban_hang tu ghi so: %s" % si.name)
+		# v611: m-invoice chê thông tin người mua thì báo Zalo nhóm Sales, không
+		# chỉ nằm im trong Error Log (bill 95914 nằm nháp ba ngày vì email sai).
+		try:
+			from vagabond import tin_ban_hang
+
+			tin_ban_hang.bao_thong_tin_hd_sai(si, str(e))
+			frappe.db.commit()
+		except Exception:
+			frappe.db.rollback()
 		return 0, 0, "Đơn %s chưa ghi sổ: %s" % (nhan, giau_khoa(str(e))[:500])
 	if not cho_xuat:
 		return 1, 0, ""  # Cửa chuỗi ghi cảnh báo hoãn phát hành riêng.
@@ -6999,6 +7011,8 @@ def xhd_khach_luu(d=None, t=None, ten=None, mst=None, dia_chi=None, email=None, 
 	email = (email or "").strip()
 	if not email or "@" not in email or "." not in email.split("@")[-1]:
 		frappe.throw("Vui lòng nhập email để nhận hoá đơn điện tử.")
+	if hoa_don_vat.loi_email_hd(email):
+		frappe.throw(hoa_don_vat.loi_email_hd(email))
 	dia_chi = hoa_don_vat.sach_dia_chi_xhd(dia_chi)
 	_chan_dia_chi_khong_chu(ten, so_mst, dia_chi)
 	frappe.db.set_value(

@@ -228,27 +228,6 @@ def _tien(v):
 		return "0"
 
 
-def thu_phan_cong_html(ten, doc):
-	"""Bao shipper vua duoc giao mot don. Ngan gon, mo app la thay."""
-	h = frappe.utils.escape_html
-	dong = [
-		"<b>%s</b> - %s" % (h(doc.ma_don or doc.name), h(doc.khach or "")),
-		h(doc.dia_chi or ""),
-	]
-	if doc.nguoi_nhan or doc.sdt_nhan:
-		dong.append("Người nhận: %s %s" % (h(doc.nguoi_nhan or ""), h(doc.sdt_nhan or "")))
-	if doc.tag_gio:
-		dong.append("Khung giờ: <b>%s</b>" % h(doc.tag_gio))
-	if doc.tien_thu_ho:
-		dong.append("Thu hộ (COD): <b>%s đ</b>" % _tien(doc.tien_thu_ho))
-	if doc.ghi_chu_in:
-		dong.append("Ghi chú: %s" % h(doc.ghi_chu_in))
-	than = (
-		"<p style='margin:0 0 14px'>Chào <b>%s</b>, anh chị vừa được giao một đơn mới.</p>%s"
-	) % (h(ten or ""), _o_nhat("<br>".join(dong)))
-	return _khung_thu("Có đơn mới cho anh chị", than, _nut_xanh(link_app(), "Mở app xem đơn"), nhan="Giao hàng")
-
-
 CONG_TY = "CÔNG TY TNHH PATISSERIE VAGABOND"
 
 

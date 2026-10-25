@@ -3,6 +3,7 @@
   "name": "Vagabond Dat Ban",
   "module": "Vagabond",
   "engine": "InnoDB",
+  "modified": "2026-10-25 20:00:00.000000",
   "fields": [
     {
       "fieldname": "ten",
@@ -93,6 +94,30 @@
       "label": "Ghi chú xử lý"
     },
     {
+      "fieldname": "xu_ly_boi",
+      "fieldtype": "Data",
+      "label": "Người xử lý",
+      "read_only": 1
+    },
+    {
+      "fieldname": "xu_ly_luc",
+      "fieldtype": "Datetime",
+      "label": "Lúc xử lý",
+      "read_only": 1
+    },
+    {
+      "fieldname": "ly_do_huy",
+      "fieldtype": "Small Text",
+      "label": "Lý do huỷ (đã báo khách)",
+      "read_only": 1
+    },
+    {
+      "fieldname": "thu_khach",
+      "fieldtype": "Data",
+      "label": "Email báo khách",
+      "read_only": 1
+    },
+    {
       "fieldname": "bam_noi_dung",
       "fieldtype": "Data",
       "label": "Dấu vết yêu cầu",
@@ -115,6 +140,10 @@
     "ghi_chu",
     "trang_thai",
     "xu_ly",
+    "xu_ly_boi",
+    "xu_ly_luc",
+    "ly_do_huy",
+    "thu_khach",
     "bam_noi_dung"
   ],
   "permissions": [

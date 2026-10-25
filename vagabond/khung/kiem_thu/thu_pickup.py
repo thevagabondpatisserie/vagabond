@@ -129,7 +129,7 @@ def _khong_loai_tru():
 	quay do lay - day la truong hop thuong gap nhat. Ban v424 bat hai thu
 	loai tru nhau, sai."""
 	i = VD.find("def gan_shipper(")
-	than = VD[i:VD.find("def _mail_phan_cong", i)]
+	than = VD[i:VD.find("def ds_diem_pickup", i)]
 	# Chi con DUNG MOT cho xoa diem, la khi nguoi ta bam Bo diem.
 	la("chi mot cho xoa diem", than.count('doc.diem_pickup = ""'), 1)
 	j = than.find('doc.diem_pickup = ""')
@@ -146,7 +146,7 @@ def _khong_loai_tru():
 @ca("gan diem khong go ten shipper dang cho")
 def _gan_diem_giu_shipper():
 	i = VD.find("def gan_shipper(")
-	than = VD[i:VD.find("def _mail_phan_cong", i)]
+	than = VD[i:VD.find("def ds_diem_pickup", i)]
 	j = than.find("elif diem:")
 	k = than.find("# --- Nguoi cho ---")
 	dung("nhanh gan diem dung truoc phan nguoi cho", 0 < j < k)

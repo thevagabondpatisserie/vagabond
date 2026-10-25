@@ -1106,3 +1106,18 @@ scheduler_events.setdefault("cron", {}).setdefault("0 7 * * *", []).append("vaga
 scheduler_events.setdefault("cron", {}).setdefault("0 8 * * *", []).append("vagabond.tin_kho.nhac_don_mua_tre_hen")
 scheduler_events.setdefault("cron", {}).setdefault("25 8 * * *", []).append("vagabond.tin_kho.nhac_hang_ve_chua_hoa_don")
 scheduler_events.setdefault("hourly", []).append("vagabond.tin_kho.nhac_chuyen_chua_nhan")
+
+# v611 (anh Việt 25/10/2026): tắt thư nội bộ, thay bằng tin Zalo cho yêu cầu sản
+# xuất, yêu cầu điều chuyển; thêm nhắc đặt bàn, tiền chưa gắn, điều chuyển treo.
+for _dt_v611, _sk_v611, _ham_v611 in (
+	("Material Request", "on_submit", "vagabond.tin_kho.khi_co_yeu_cau_sx"),
+	("Material Request", "on_submit", "vagabond.tin_kho.khi_co_yeu_cau_chuyen"),
+	("Material Request", "on_cancel", "vagabond.tin_kho.khi_huy_yeu_cau_sx"),
+):
+	_cu_v611 = doc_events.setdefault(_dt_v611, {}).get(_sk_v611, [])
+	doc_events[_dt_v611][_sk_v611] = ([_cu_v611] if isinstance(_cu_v611, str) else list(_cu_v611)) + [_ham_v611]
+del _dt_v611, _sk_v611, _ham_v611, _cu_v611
+scheduler_events.setdefault("cron", {}).setdefault("*/15 * * * *", []).append("vagabond.dat_ban.nhac_sap_toi")
+scheduler_events.setdefault("cron", {}).setdefault("30 20 * * *", []).append("vagabond.tin_kho.nhac_ycsx_ngay_mai")
+scheduler_events.setdefault("cron", {}).setdefault("0 8 * * *", []).append("vagabond.tin_kho.nhac_ycdc_treo")
+scheduler_events.setdefault("cron", {}).setdefault("0 8 * * *", []).append("vagabond.tin_ban_hang.nhac_tien_chua_gan")

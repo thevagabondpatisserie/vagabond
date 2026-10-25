@@ -118,7 +118,9 @@ async function scrHome() {
   html += '<div class="sec">Kiểm kê</div><div class="card">' +
     card('\ud83d\udccb', 'Kiểm kê kho', 'Quét mã, đếm hàng thực tế trong kho', kkn, 'KK') + '</div>';
   if (isSales()) {
-    var dsn = 0, dtn = 0, phCho = 0, phTreo = 0;
+    var dsn = 0, dtn = 0, phCho = 0, phTreo = 0, dbn = 0;
+    /* v611: số đặt bàn còn chờ xác nhận, máy chủ đếm (dat_ban.dem_cho_xac_nhan). */
+    if (coQuyenDatBan()) { try { dbn = (await api('vagabond.dat_ban.dem_cho_xac_nhan', {})).so || 0; } catch (e) { } }
     /* So badge lay tu MAY CHU, khong dem o day: man hinh chi duoc HIEN so,
        khong duoc tu tinh so. Cung nguyen tac voi badge o Ke toan. */
     try {
@@ -163,6 +165,8 @@ async function scrHome() {
       card('🎁', 'Sổ hàng tặng', 'Đơn tặng đã xong và đang chờ duyệt, xem lại bill, xuất Excel', 0, 'SOTANG') +
       /* v607: khách nạp tiền trước rồi trừ dần qua nhiều đơn (55-so-du-tra-truoc.js). */
       card('💳', 'Số dư trả trước của khách', 'Khách nạp tiền trước, các đơn sau trừ dần: nạp tiền, xem sổ, số dư còn lại', 0, 'SODU') +
+      /* v611: đặt bàn khách gửi từ web, xác nhận hoặc huỷ kèm email khách và tin Zalo (57-dat-ban.js). */
+      (coQuyenDatBan() ? card('🪑', 'Thông tin đặt bàn', 'Khách đặt bàn trên web: xác nhận, huỷ kèm lý do, ghi khách đã đến', dbn, 'DATBAN') : '') +
       card('👥', 'Danh sách khách hàng', 'Tra cứu khách sỉ và lẻ, hạng khách, mức chi tiêu', 0, 'KH') +
       /* Don treo phai co mot cua rieng, khong nap trong man Doanh thu Sales:
          don treo cua NGAY CU khong ai mo lai ngay do de xem (anh Viet
@@ -553,11 +557,11 @@ var VGB_NHOM = [
   { k: 'KK', ten: 'Kiểm kê', icon: '🧮', keys: ['KK', 'STOCK', 'TONCHANG'] },
   {
     k: 'BH', ten: 'Bán hàng', icon: '🎂',
-    keys: ['KBD', 'KBM', 'POS', 'TQV', 'HDG', 'OTP', 'KM', 'CN', 'SOTANG', 'SODU', 'KH', 'DTREO', 'DSCK', 'PHHUY', 'BNTM'],
+    keys: ['KBD', 'KBM', 'POS', 'TQV', 'HDG', 'OTP', 'KM', 'CN', 'SOTANG', 'SODU', 'DATBAN', 'KH', 'DTREO', 'DSCK', 'PHHUY', 'BNTM'],
     nhom: [
       { t: 'Bán và thu tiền', p: 'việc của quầy', keys: ['POS', 'DTREO', 'DSCK', 'BNTM'] },
       { t: 'Bánh và tồn', p: 'đầu ngày', keys: ['KBD', 'KBM'] },
-      { t: 'Khách hàng', p: 'chăm sóc và công nợ', keys: ['TQV', 'KH', 'CN', 'SOTANG', 'SODU'] },
+      { t: 'Khách hàng', p: 'chăm sóc và công nợ', keys: ['TQV', 'DATBAN', 'KH', 'CN', 'SOTANG', 'SODU'] },
       { t: 'Chương trình và hợp đồng', p: '', keys: ['KM', 'HDG'] },
       { t: 'Quản lý', p: 'ít dùng', keys: ['OTP', 'PHHUY'] }
     ]
@@ -1864,6 +1868,7 @@ var VGB_DUONG = {
   'thanh-toan': 'PAY',
   'thanh-toan-noi-bo': 'DNC',
   'thong-bao': 'CDTB',
+  'thong-tin-dat-ban': 'DATBAN',
   'ton-kho': 'STOCK',
   'ton-kho-theo-chang': 'TONCHANG',
   'tra-cuu-bang-gia-mua-vao': 'DM:DMGIA',
@@ -1994,6 +1999,7 @@ function vgbGo(k) {
   if (k === 'DS') return go(scrDoanhSo);
   if (k === 'DTREO') return go(scrDonTreo);
   if (k === 'DSCK') return go(scrDoiSoatCk);
+  if (k === 'DATBAN') return go(scrDatBan);
   /* Man "Don da huy cho hoan" truoc gio chi mo duoc tu man khac, khong co
      khoa rieng. Them khoa o day de no co DIA CHI that, con o nho tren trang
      chu thi giu nguyen nhu cu, khong them the moi. */

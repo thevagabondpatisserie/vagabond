@@ -41,6 +41,20 @@ const {chromium} = require('playwright');
     if (lan1.status < 400 || lan1.body.exc_type !== 'NegativeStockError') {
       throw new Error('Phải tái hiện đúng lỗi kho âm từ core: ' + JSON.stringify(lan1));
     }
+    // v611 (Codex #498 4371298484): máy chủ thay câu lõi bằng câu dễ hiểu, giữ
+    // lớp NegativeStockError. Số tồn trong câu phải là tồn THẬT 30 của kho
+    // xuất: bản a4dda06 đọc Bin của giao dịch dở nên ra "kho đang có 0".
+    const chu1 = [String(lan1.body.exception || '')];
+    try {
+      JSON.parse(lan1.body._server_messages || '[]').forEach(m => {
+        try { chu1.push(String(JSON.parse(m).message || m)); } catch (x) { chu1.push(String(m)); }
+      });
+    } catch (x) { chu1.push(String(lan1.body._server_messages || '')); }
+    const cau1 = chu1.join(' | ');
+    if (!/chưa đủ hàng/.test(cau1) || !/kho đang có 30\b/.test(cau1)) {
+      throw new Error('Câu báo thiếu hàng phải nêu tồn thật 30: ' + cau1);
+    }
+    ket.buoc.push('Câu báo dễ hiểu: ' + cau1.slice(0, 160));
     await p.waitForFunction(el => !el.isConnected, oCu);
     await o.waitFor();
     if (await o.isDisabled()) throw new Error('Lỗi kho âm làm khoá cứng ô số');
