@@ -45,6 +45,9 @@ CUA_NGO = {
 	"noi_dung_web.py": ["cong_khai", "doc_bang", "tai_anh", "luu", "san_pham_bien_tap",
 		"bang_moi", "luu_muc", "xoa_muc_web", "luu_thong_tin", "luu_lien_he", "luu_nhan"],
 	"tiec_web.py": ["dang_ky"],
+	# v611: đặt bàn web. cau_hinh và gửi yêu cầu mở cho khách; năm hàm của màn
+	# Thông tin đặt bàn chặn quyền ở máy chủ (QUYEN_DAT_BAN).
+	"dat_ban.py": ["cau_hinh", "gui", "ds_dat_ban", "dem_cho_xac_nhan", "xac_nhan", "huy", "da_den"],
 	# #296: chốt cả danh sách để cửa Lưu đơn không mất whitelist.
 	"ban_hang.py": [
 		"otp_hien_tai", "pos_anh_quay_luu", "cau_hinh_ban_hang", "dong_bo_doanh_so",

@@ -91,6 +91,19 @@ NOI_PHAT = {
 	("tin_kho.py", "nhac_lo_sap_het_han"): "kho_lo_sap_het_han",
 	("tin_kho.py", "nhac_ton_duoi_muc"): "kho_ton_duoi_muc",
 	("tin_kho.py", "bao_don_web_moi"): "bh_don_web_moi",
+	# v611: đặt bàn, hoá đơn sai, tiền chưa gắn, sản xuất và điều chuyển (anh Việt
+	# duyệt 25/10/2026, cùng lúc tắt thư báo YCSX, YCDC, YCMH nội bộ).
+	("dat_ban.py", "_bao_xac_nhan"): "bh_dat_ban_xac_nhan",
+	("dat_ban.py", "_bao_huy"): "bh_dat_ban_huy",
+	("dat_ban.py", "nhac_sap_toi"): "bh_dat_ban_sap_toi",
+	("tin_ban_hang.py", "bao_thong_tin_hd_sai"): "bh_thong_tin_hd_sai",
+	("tin_ban_hang.py", "nhac_tien_chua_gan"): "kt_tien_chua_gan",
+	("tin_kho.py", "khi_co_yeu_cau_sx"): "bep_ycsx_moi",
+	("tin_kho.py", "khi_huy_yeu_cau_sx"): "bep_ycsx_huy",
+	("tin_kho.py", "nhac_ycsx_ngay_mai"): "bep_ycsx_ngay_mai",
+	("tin_kho.py", "khi_co_yeu_cau_chuyen"): "kho_ycdc_moi",
+	("tin_kho.py", "nhac_ycdc_treo"): "kho_ycdc_treo",
+	("tin_kho.py", "bao_nhan_thieu_ton"): "kho_nhan_thieu_ton",
 }
 # Các hàm từng gửi thư nội bộ, nay chỉ được báo Zalo.
 DA_BO_THU = [
@@ -99,6 +112,8 @@ DA_BO_THU = [
 	("minvoice_chung_tu.py", "canh_bao_tac_nhip"), ("hoan_tien.py", "_bao_ke_toan"),
 	("diem_han.py", "_bao_nguoi"), ("van_don.py", "_bao_tai_xe_huy"),
 	("gui_thu.py", "canh_bao_email_loi"), ("gui_thu.py", "_bao_zalo"),
+	# v611: thư "Đơn giao mới" cho shipper đã gỡ hẳn (ca dưới), hàm gán vẫn không gửi thư.
+	("van_don.py", "gan_shipper"),
 ]
 
 
@@ -152,7 +167,8 @@ def _danh_muc():
 	la("không mã nào trùng", sorted(x for x in set(khoa) if khoa.count(x) > 1), [])
 	# v606: thêm "Báo cáo cuối ngày" của Ban giám đốc (anh Việt duyệt 20/10/2026).
 	# v609: thêm 21 tin kho, thu mua, sản xuất, đơn web (anh Việt duyệt 22/10/2026).
-	la("đủ 44 tin (23 tới v606, 21 tin kho và thu mua v609)", len(kz.TIN), 44)
+	# v611: thêm 11 tin đặt bàn, hoá đơn sai, tiền chưa gắn, sản xuất, điều chuyển (25/10/2026).
+	la("đủ 55 tin (23 tới v606, 21 tin kho và thu mua v609, 11 tin v611)", len(kz.TIN), 55)
 	la("bảy bộ phận đúng thứ tự", kz.BO_PHAN, ("Ban giám đốc", "Hoá đơn, kế toán", "Bán hàng, cửa hàng", "Bếp", "Thu mua", "Kho", "Hệ thống"))
 	# Luật tiền (anh Việt 22/10/2026): tin Kho, Bếp không nói tiền; chỉ Thu mua, Kế toán.
 	for ma, v in kz.TIN.items():
@@ -204,7 +220,8 @@ def _bo_thu():
 		goi = [n for n in ast.walk(h[0]) if isinstance(n, ast.Call) and getattr(n.func, "attr", "") == "sendmail"] if h else [1]
 		la("%s %s không gửi thư" % (tep, ham), len(goi), 0)
 	for tep, ham in (("gui_thu.py", "_bao_bang_thu"), ("gui_thu.py", "_khung_bao_dong"), ("ban_hang.py", "_nguoi_nhan_don_treo"),
-			("ban_hang.py", "_nguoi_nhan_canh_bao"), ("minvoice_chung_tu.py", "_khung_chuong"), ("nhan_su.py", "thu_tai_xe_huy_html")):
+			("ban_hang.py", "_nguoi_nhan_canh_bao"), ("minvoice_chung_tu.py", "_khung_chuong"), ("nhan_su.py", "thu_tai_xe_huy_html"),
+			("van_don.py", "_mail_phan_cong"), ("nhan_su.py", "thu_phan_cong_html")):
 		la("%s %s đã gỡ (không còn ai dùng)" % (tep, ham), len(_ham(_cay(tep), ham)), 0)
 
 
@@ -527,7 +544,9 @@ def _patch_map():
 	p = _patch()
 	# Bản vá v604 đã chạy trên site, điền danh mục TẠI THỜI ĐIỂM ĐÓ. Tin thêm sau
 	# (v609) không thuộc bản vá: anh Việt tích tay trong Cài đặt cho nhóm cần.
-	v609 = {"kt_xuat_huy_gia_von", "kt_kiem_ke_lech", "bh_don_web_moi"}
+	v609 = {"kt_xuat_huy_gia_von", "kt_kiem_ke_lech", "bh_don_web_moi",
+		# v611: bản vá riêng v611_tat_thu_noi_bo tích tin đặt bàn và hoá đơn sai.
+		"kt_tien_chua_gan", "bh_dat_ban_xac_nhan", "bh_dat_ban_huy", "bh_dat_ban_sap_toi", "bh_thong_tin_hd_sai"}
 	kt = [m for m, v in kz.TIN.items() if v[0] == "Hoá đơn, kế toán" and m not in v609] + ["ht_email_loi", "ht_phat_hanh"]
 	bh = [m for m, v in kz.TIN.items() if v[0] == "Bán hàng, cửa hàng" and m not in v609] + ["ht_phat_hanh"]
 	la("nhóm văn phòng kế toán", p.tin_cho_nhom("ERP Văn Phòng - Kế Toán - Thu Mua"), kt)
