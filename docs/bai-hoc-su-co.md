@@ -2590,3 +2590,9 @@ sau `submit()` hỏng là Bin của giao dịch dở, ERPNext đã trừ tồn t
 lỗi. Bắt lỗi ghi sổ xong muốn đọc lại sổ thì phải LÙI ĐIỂM LƯU TRƯỚC rồi mới
 đọc. Và khi thay câu lỗi lõi bằng câu dễ hiểu, giữ nguyên lớp lỗi gốc
 (NegativeStockError...) vì màn hình và ca kiểm có thể đang bắt theo lớp đó.
+
+Vòng 3 (Codex #498, bench CI 58b0ccb): ca kiểm ERPNext thật dựng đúng ca Tài
+cho thấy câu "Valuation Rate ... is required" ném ngay ở `insert()` (lúc
+validate tính giá xuất), chưa tới `submit()`. Bắt lỗi chỉ quanh submit là bỏ
+sót đúng ca gốc. Và chỉ thay câu LÕI ERPNext: câu đã dễ hiểu của app (lo_hang
+"còn thiếu ...") phải đi nguyên, không thì mất thông tin người dùng cần.
