@@ -47,11 +47,12 @@ function ngayCong(n) {
   return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
 }
 var MAI = ngayCong(1), QUA = ngayCong(-1);
+var GHI_DAI = '';
 function rows() {
   return [
     { name: 'DB-1', ten: 'Nguyễn Minh Anh', sdt: '0909 123 456', co_so: 'TCV', ten_co_so: 'District 1', ngay: MAI, gio: '18:30',
       so_khach: 4, tre_em: 1, dip: 'Sinh nhật', khu_vuc: 'Bàn sofa thấp', email: 'minhanh@gmail.com',
-      banh_kem_theo: '1 Entremet Pistachio 16cm', ghi_chu: 'Cho em xin góc yên tĩnh', trang_thai: 'Chờ xác nhận' },
+      banh_kem_theo: '1 Entremet Pistachio 16cm', ghi_chu: GHI_DAI || 'Cho em xin góc yên tĩnh', trang_thai: 'Chờ xác nhận' },
     { name: 'DB-2', ten: 'Trần Hoàng Long', sdt: '0912345678', co_so: 'TCV', ten_co_so: 'District 1', ngay: MAI, gio: '19:00',
       so_khach: 2, tre_em: 0, dip: 'Không có dịp riêng', khu_vuc: 'Phòng áp mái', email: '', trang_thai: 'Chờ xác nhận' },
     { name: 'DB-3', ten: 'Lê Thu', sdt: '0987654321', co_so: 'TCV', ten_co_so: 'District 1', ngay: MAI, gio: '16:00',
@@ -273,6 +274,36 @@ async function mo(vai, loi, dat) {
     dung('báo câu máy chủ', m.toast[0].indexOf('Đã quá giờ hẹn') === 0);
     dung('bảng còn, nút mở lại', sheet(m) === sh && !ok.disabled);
     bang('không tải lại danh sách', goiTen(m, 'ds_dat_ban').length, 1);
+  });
+
+  /* Codex #498 (4371298490), AGENTS 2b.17: khách gõ ghi chú tới 1.000 ký tự.
+     Ghi chú phải nằm DƯỚI hàng nút, thu về một dòng đếm số, bấm mới mở. */
+  await ca('ghi chú dài: nằm dưới hàng nút, thu về một dòng, bấm Xem mới mở, bấm lại thì đóng', async function () {
+    GHI_DAI = 'Em muốn đặt góc gần cửa sổ, ' + new Array(40).join('tiệm chuẩn bị giúp em nến và thiệp, ') + 'cảm ơn tiệm.';
+    try {
+      dung('ghi chú mẫu dài cỡ 1.000 ký tự', GHI_DAI.length > 900);
+      var m = await mo(QLCH, null, 'dbKhoang = "7_ngay"; dbTt = ""; dbTim = "";');
+      var t1 = the(m, 'DB-1');
+      var thuTu = [];
+      (function di(n) { (n.children || []).forEach(function (c) {
+        if (c.hasAttribute('data-dbxn')) thuTu.push('nut');
+        if (c.hasAttribute('data-dbghimo')) thuTu.push('gon');
+        if (c.hasAttribute('data-dbghi')) thuTu.push('khoi');
+        di(c);
+      }); })(t1);
+      bang('thứ tự: nút trước, dòng thu gọn, rồi khối ẩn', thuTu, ['nut', 'gon', 'khoi']);
+      var gon = t1.querySelectorAll('[data-dbghimo]')[0], khoi = t1.querySelectorAll('[data-dbghi]')[0];
+      dung('dòng thu gọn ngắn, có đếm số: ' + chu(gon), chu(gon).length < 90 && chu(gon).indexOf('2 ghi chú') >= 0);
+      dung('khối đầy đủ đang ẩn', khoi.hasAttribute('hidden') && khoi.style.display === 'none');
+      dung('khối đầy đủ chứa trọn ghi chú', chu(khoi).indexOf('cảm ơn tiệm.') >= 0);
+      bam(m, gon);
+      dung('bấm Xem thì mở', !khoi.hasAttribute('hidden') && khoi.style.display === 'block' && gon.getAttribute('aria-expanded') === 'true');
+      bam(m, gon);
+      dung('bấm lại thì đóng', khoi.hasAttribute('hidden') && khoi.style.display === 'none');
+      bang('mở đóng ghi chú không hỏi máy chủ', m.goi.length, 1);
+      var t3 = the(m, 'DB-3');
+      dung('ghi chú ngắn (≤ 2 dòng) vẫn hiện thẳng, không thu', t3.querySelectorAll('[data-dbghimo]').length === 0 && !t3.querySelectorAll('[data-dbghi]')[0].hasAttribute('hidden'));
+    } finally { GHI_DAI = ''; }
   });
 
   await ca('thu ngân không có quyền: không hỏi máy chủ, nói rõ ai xem được', async function () {
