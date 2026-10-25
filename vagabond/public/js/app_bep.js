@@ -61696,15 +61696,16 @@ function dbThe(r, i) {
   var phu = [h(r.sdt)];
   if (r.khu_vuc) phu.push(h(r.khu_vuc));
   if (r.dip && r.dip !== 'Không có dịp riêng') phu.push((r.dip === 'Sinh nhật' ? '🎂 ' : '') + h(r.dip));
+  /* Chữ thô, thoát HTML lúc vẽ (dbKhoiGhi) để đo được độ dài thấy trên màn. */
   var ghi = [];
-  if (r.banh_kem_theo) ghi.push('🍰 Bánh đặt sẵn: ' + h(r.banh_kem_theo));
-  if (r.ghi_chu) ghi.push('💬 Khách nhắn: ' + h(r.ghi_chu));
+  if (r.banh_kem_theo) ghi.push('🍰 Bánh đặt sẵn: ' + r.banh_kem_theo);
+  if (r.ghi_chu) ghi.push('💬 Khách nhắn: ' + r.ghi_chu);
   if (r.trang_thai !== 'Chờ xác nhận' && r.xu_ly_boi) {
     var viec = { 'Đã xác nhận': 'Xác nhận', 'Đã hủy': 'Huỷ', 'Đã đến': 'Ghi khách đến' }[r.trang_thai] || 'Xử lý';
-    ghi.push(viec + ' bởi ' + h(r.xu_ly_boi) + (dbGioLuc(r.xu_ly_luc) ? ' lúc ' + dbGioLuc(r.xu_ly_luc) : ''));
+    ghi.push(viec + ' bởi ' + r.xu_ly_boi + (dbGioLuc(r.xu_ly_luc) ? ' lúc ' + dbGioLuc(r.xu_ly_luc) : ''));
   }
-  if (r.trang_thai === 'Đã hủy' && r.ly_do_huy) ghi.push('Lý do đã báo khách: ' + h(r.ly_do_huy));
-  if (r.thu_khach && r.trang_thai !== 'Chờ xác nhận') ghi.push('✉ ' + h(r.thu_khach));
+  if (r.trang_thai === 'Đã hủy' && r.ly_do_huy) ghi.push('Lý do đã báo khách: ' + r.ly_do_huy);
+  if (r.thu_khach && r.trang_thai !== 'Chờ xác nhận') ghi.push('✉ ' + r.thu_khach);
   var nut = [];
   var tel = String(r.sdt || '').replace(/[^0-9+]/g, '');
   var goi = tel ? '<a href="tel:' + h(tel) + '" data-dbgoi="' + i + '" style="flex:0 0 76px;height:44px;border-radius:11px;' +
@@ -61725,9 +61726,28 @@ function dbThe(r, i) {
     t.ic + ' ' + h(t.k === 'Đã đến' ? 'Đã đến' : t.ten) + '</span></div>' +
     '<div style="font-weight:700;font-size:15.5px">' + h(r.ten) + ' · ' + h(dbSoKhach(r)) + '</div>' +
     '<div style="font-size:13px;color:#475467;margin-top:2px">' + phu.join(' · ') + '</div>' +
-    (ghi.length ? '<div style="font-size:12.5px;color:#475467;background:#f8fafc;border-radius:9px;padding:7px 9px;margin-top:7px;line-height:1.5">' +
-      ghi.join('<br>') + '</div>' : '') +
-    (nut.length ? '<div style="display:flex;gap:7px;margin-top:10px">' + nut.join('') + '</div>' : '') + '</div>';
+    (nut.length ? '<div style="display:flex;gap:7px;margin-top:10px">' + nut.join('') + '</div>' : '') +
+    dbKhoiGhi(ghi, i) + '</div>';
+}
+
+/* Codex #498 (4371298490), AGENTS 2b.17: khối chỉ để đọc
+   không lấn chỗ khối để bấm. Ghi chú nằm DƯỚI hàng nút; tối đa hai dòng ngắn
+   thì hiện thẳng, dài hơn (khách được gõ tới 1.000 ký tự) thì thu về một dòng
+   đếm số, bấm mới mở. */
+var DB_GHI_NGAN = 56;
+function dbGhiNgan(ghi) {
+  return ghi.length <= 2 && ghi.every(function (g) { return String(g).length <= DB_GHI_NGAN; });
+}
+function dbKhoiGhi(ghi, i) {
+  if (!ghi.length) return '';
+  var khung = 'font-size:12.5px;color:#475467;background:#f8fafc;border-radius:9px;padding:7px 9px;margin-top:8px;line-height:1.5;';
+  var day = ghi.map(function (g) { return h(g); }).join('<br>');
+  if (dbGhiNgan(ghi)) return '<div data-dbghi="' + i + '" style="' + khung + '">' + day + '</div>';
+  var dau = String(ghi[0]);
+  return '<button type="button" data-dbghimo="' + i + '" aria-expanded="false" style="' + khung +
+    'display:block;width:100%;min-height:44px;text-align:left;border:0;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' +
+    '📝 ' + ghi.length + ' ghi chú · ' + h(dau.length > 40 ? dau.slice(0, 40) + '…' : dau) + ' <b style="color:#0d9488">Xem</b></button>' +
+    '<div data-dbghi="' + i + '" hidden style="' + khung + 'display:none;white-space:pre-line;word-break:break-word">' + day + '</div>';
 }
 
 function dbVeDs(tatCa, homNay) {
@@ -61909,7 +61929,15 @@ async function scrDatBan() {
     go(scrDatBan, true);
   });
   than.addEventListener('click', function (e) {
-    var t = e.target.closest('[data-dbtt]');
+    var t = e.target.closest('[data-dbghimo]');
+    if (t) {
+      var mo = t.getAttribute('aria-expanded') !== 'true';
+      var khoi = than.querySelectorAll('[data-dbghi="' + t.getAttribute('data-dbghimo') + '"]')[0];
+      t.setAttribute('aria-expanded', mo ? 'true' : 'false');
+      if (khoi) { khoi.style.display = mo ? 'block' : 'none'; if (mo) khoi.removeAttribute('hidden'); else khoi.setAttribute('hidden', ''); }
+      return;
+    }
+    t = e.target.closest('[data-dbtt]');
     if (t) {
       var k = t.getAttribute('data-dbtt');
       dbTt = dbTt === k ? '' : k; dbTim = '';
