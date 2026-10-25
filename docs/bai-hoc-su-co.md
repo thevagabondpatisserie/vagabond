@@ -2583,3 +2583,10 @@ số thì phép tìm chung vẫn ra, vì dữ liệu mẫu không có ca hai c�
 liền nhau; bản vá không xét kênh thì danh sách tên vẫn đỡ. Thêm đúng ca đó thì
 bắt đủ 18/18. Khi viết dữ liệu mẫu cho phép tìm số, kiểm cả ca trùng tình cờ:
 "0912 345" là dãy con của "0909 123 456".
+
+Vòng 2 (Codex #498 4371298484): bench CI chạy ERPNext thật bắt được điều
+mock không thấy. Kho có 30, nhận 50, câu báo ra "kho đang có 0": Bin đọc ngay
+sau `submit()` hỏng là Bin của giao dịch dở, ERPNext đã trừ tồn trước khi ném
+lỗi. Bắt lỗi ghi sổ xong muốn đọc lại sổ thì phải LÙI ĐIỂM LƯU TRƯỚC rồi mới
+đọc. Và khi thay câu lỗi lõi bằng câu dễ hiểu, giữ nguyên lớp lỗi gốc
+(NegativeStockError...) vì màn hình và ca kiểm có thể đang bắt theo lớp đó.
