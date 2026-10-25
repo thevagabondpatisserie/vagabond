@@ -214,6 +214,11 @@ def nhan_theo_phieu(ma_lan_nhan=None, phieu=None, kho_xuat=None, kho_nhan=None,
 		doc.insert()
 	except Exception as e:
 		if not _la_loi_trung_khoa(e):
+			# Codex #498 vòng 2, bench CI 58b0ccb (ca Tài dựng trên ERPNext
+			# thật): câu "Valuation Rate ... is required" ném ngay ở INSERT
+			# (validate tính giá xuất), chưa tới submit. Nên nhánh thiếu hàng
+			# phải bọc cả insert lẫn submit.
+			_loi_thieu_ton(e, doc, diem, phieu, kho_xuat, kho_nhan)
 			raise
 		frappe.db.rollback(save_point=diem)
 		# Đọc KHOÁ (FOR UPDATE), không đọc thường: MariaDB REPEATABLE READ giữ
@@ -229,31 +234,41 @@ def nhan_theo_phieu(ma_lan_nhan=None, phieu=None, kho_xuat=None, kho_nhan=None,
 	try:
 		doc.submit()
 	except Exception as loi_goc:
-		# v611 (25/10/2026, Tài nhận YCDC-2026-00059): kho xuất chưa từng có
-		# BTP Sauce Cherry nên ERPNext ném câu dịch máy "Tỷ giá định giá cho
-		# Mặt hàng ... là bắt buộc". Thiếu hàng thì lùi phiếu, báo Zalo Kho rồi
-		# nói câu dễ hiểu; lỗi khác giữ nguyên.
-		#
-		# Codex #498 (4371298484), tái hiện trên bench CI a4dda06: kho có 30,
-		# nhận 50, câu báo ra "kho đang có 0". Bin đọc NGAY sau submit hỏng là
-		# Bin của giao dịch dở (ERPNext đã trừ tồn trước khi ném lỗi). Phải lùi
-		# về điểm lưu TRƯỚC rồi mới đọc tồn. Giữ đúng lớp lỗi gốc
-		# (NegativeStockError...) để màn Nhận hàng xử lý như cũ.
-		from vagabond import tin_kho
-		from vagabond.loi_csdl import chet_giao_dich
-
-		if chet_giao_dich(loi_goc):
-			raise
-		frappe.db.rollback(save_point=diem)
-		try:
-			thieu = tin_kho.kiem_thieu_ton(doc)
-		except Exception:
-			thieu = []
-		if not thieu:
-			raise
-		frappe.local.message_log = []
-		tin_kho.bao_nhan_thieu_ton(phieu, kho_xuat, kho_nhan, thieu)
-		frappe.db.commit()
-		lop = type(loi_goc) if isinstance(loi_goc, frappe.ValidationError) else frappe.ValidationError
-		frappe.throw(tin_kho.cau_thieu_ton(kho_xuat, thieu), exc=lop, title="Kho xuất chưa đủ hàng")
+		_loi_thieu_ton(loi_goc, doc, diem, phieu, kho_xuat, kho_nhan)
+		raise
 	return {"ok": 1, "name": doc.name, "da_co": 0}
+
+
+def _loi_thieu_ton(loi_goc, doc, diem, phieu, kho_xuat, kho_nhan):
+	"""Lỗi ghi phiếu chuyển (insert hoặc submit) vì kho xuất chưa đủ hàng thì
+	lùi phiếu, báo Zalo Kho rồi nói câu dễ hiểu. Không phải ca thiếu hàng thì
+	TRẢ VỀ, người gọi ném lại nguyên lỗi gốc.
+
+	v611 (25/10/2026, Tài nhận YCDC-2026-00059): kho xuất chưa từng có BTP
+	Sauce Cherry nên ERPNext ném câu dịch máy "Tỷ giá định giá cho Mặt hàng
+	... là bắt buộc".
+
+	Codex #498 (4371298484), tái hiện trên bench CI a4dda06: kho có 30, nhận
+	50, câu báo ra "kho đang có 0". Bin đọc NGAY sau lỗi là Bin của giao dịch
+	dở (ERPNext đã trừ tồn trước khi ném lỗi). Phải lùi về điểm lưu TRƯỚC rồi
+	mới đọc tồn. Giữ đúng lớp lỗi gốc (NegativeStockError...) để màn Nhận
+	hàng xử lý như cũ. Lỗi chết giao dịch thì không đụng điểm lưu."""
+	from vagabond import tin_kho
+	from vagabond.loi_csdl import chet_giao_dich
+
+	# Chỉ thay câu LÕI ERPNext (kho âm, thiếu giá xuất). Câu đã dễ hiểu của app
+	# (lo_hang: "Kho ... không đủ ... còn thiếu ...") đi nguyên.
+	if chet_giao_dich(loi_goc) or not tin_kho.la_loi_ton_loi(loi_goc):
+		return
+	frappe.db.rollback(save_point=diem)
+	try:
+		thieu = tin_kho.kiem_thieu_ton(doc)
+	except Exception:
+		thieu = []
+	if not thieu:
+		return
+	frappe.local.message_log = []
+	tin_kho.bao_nhan_thieu_ton(phieu, kho_xuat, kho_nhan, thieu)
+	frappe.db.commit()
+	lop = type(loi_goc) if isinstance(loi_goc, frappe.ValidationError) else frappe.ValidationError
+	frappe.throw(tin_kho.cau_thieu_ton(kho_xuat, thieu), exc=lop, title="Kho xuất chưa đủ hàng")

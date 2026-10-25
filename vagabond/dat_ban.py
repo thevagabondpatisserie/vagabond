@@ -433,7 +433,13 @@ def _xu_ly(name, trang_thai, cho_phep, loi_nhan='', ly_do='', gui_email=1):
     if gui:
         try:
             _gui_thu(doc, loai, loi_nhan, ly_do)
-        except Exception:
+        except Exception as e:
+            # Codex #498 (4371394665): deadlock hay mất kết nối lúc xếp thư thì
+            # MariaDB đã lùi cả lần lưu trạng thái phía trên. Nuốt lỗi là báo
+            # "đã xác nhận" và nhắn Zalo trong khi phiếu vẫn ở trạng thái cũ.
+            from vagabond.loi_csdl import chet_giao_dich
+            if chet_giao_dich(e):
+                raise
             frappe.log_error(title='Đặt bàn: chưa gửi được email khách', message='Phiếu %s.' % doc.name)
             doc.db_set('thu_khach', 'CHƯA gửi được email, gọi báo khách', update_modified=False)
     if loai:

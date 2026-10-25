@@ -833,6 +833,22 @@ def gom_thieu_ton(items, ton, gia=None):
 	return ra
 
 
+# Lỗi của lõi ERPNext khi kho xuất chưa đủ hàng hoặc chưa có giá (bản tiếng Anh
+# và bản dịch máy tiếng Việt trên site). Câu báo đã dễ hiểu của chính app (ví
+# dụ lo_hang "Kho ... không đủ ... còn thiếu ...") KHÔNG thuộc nhóm này, giữ nguyên.
+LOP_LOI_TON = ("NegativeStockError",)
+CHU_LOI_TON = ("valuation rate", "tỷ giá định giá", "is required to do accounting entries",
+	"to complete this transaction")
+
+
+def la_loi_ton_loi(e):
+	"""THUẦN: lỗi này là câu lõi ERPNext về thiếu tồn hoặc thiếu giá xuất kho không."""
+	if type(e).__name__ in LOP_LOI_TON:
+		return True
+	chu = str(e or "").lower()
+	return any(c in chu for c in CHU_LOI_TON)
+
+
 def cau_thieu_ton(kho_xuat, thieu):
 	"""THUẦN: câu báo trên màn hình cho người bấm nhận, thay câu lỗi thô của ERPNext."""
 	return ("%s chưa đủ hàng để chuyển: %s. Bếp hoặc kho cần ghi nhận sản xuất hoặc nhập kho "
