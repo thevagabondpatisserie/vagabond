@@ -574,3 +574,93 @@ def _qua_han_van_thieu():
 	la("lô tắt còn 30", _ton_lo(lo_tat,tu_kho),30)
 	dung("vết lô tắt", "Phiếu dùng lô đã tắt:" in se.remarks and lo_tat in se.remarks)
 	se.cancel(); la("huỷ trả đủ 430", _ton_kho(ma,tu_kho),430)
+
+
+# ------------------------------------------------------------ v611: nhận thiếu tồn
+#
+# Codex #498 (4371298484): nhánh mới của `lan_nhan.nhan_theo_phieu` bắt lỗi
+# ghi sổ của ERPNext, lùi về điểm lưu, báo Zalo Kho rồi nói câu dễ hiểu. Ca
+# dưới đây dựng ĐÚNG ca Tài (YCDC-2026-00059): kho xuất chưa từng có món,
+# món chưa có giá, chạy THẬT insert + submit để ERPNext tự ném lỗi (kho âm
+# nếu site cấm âm, "Tỷ giá định giá ... là bắt buộc" nếu site cho âm), rồi
+# đọc lại sổ kho xem có gì sót không; nhập hàng xong nhận lại thì phải ghi
+# sổ được. Ca kho có 30 mà nhận 50 chạy trên bench CI (kiem_nhan_hang.cjs).
+# Tin Zalo im vì cờ vagabond_kiem_that.
+
+
+def _mon_thuong(ma):
+	"""Món kho thường, không lô, CHƯA có giá: lỗi do ERPNext ném lúc submit."""
+	if frappe.db.exists("Item", ma):
+		return ma
+	it = frappe.new_doc("Item")
+	it.item_code = ma
+	it.item_name = "Ca kiem tich hop %s" % ma
+	it.item_group = _nhom_hang()
+	it.stock_uom = _uom()
+	it.is_stock_item = 1
+	it.has_batch_no = 0
+	it.valuation_rate = 0
+	it.flags.ignore_permissions = True
+	it.insert(ignore_permissions=True)
+	nen._DA_TAO.append(("Item", it.name))
+	return it.name
+
+
+def _nhap_thuong(ma, kho, so, cty):
+	se = frappe.new_doc("Stock Entry")
+	se.company = cty
+	se.purpose = "Material Receipt"
+	se.stock_entry_type = "Material Receipt"
+	se.set_posting_time = 1
+	se.posting_date = nowdate()
+	se.posting_time = nowtime()
+	se.append("items", {"item_code": ma, "qty": so, "t_warehouse": kho, "basic_rate": 1000})
+	se.flags.ignore_permissions = True
+	se.insert(ignore_permissions=True)
+	nen._DA_TAO.append(("Stock Entry", se.name))
+	se.submit()
+	return se
+
+
+@ca("v611 nhan thieu ton (ca Tai): kho xuat chua tung co mon, ERPNext chan, cau de hieu, khong sot phieu hay so kho; nhap 30 roi nhan 20 ghi so duoc")
+def _nhan_thieu_ton_v611():
+	if not _co_o_ma_lan():
+		dung("site chưa có ô vgb_ma_lan_nhan trên Stock Entry (chưa migrate bản này)", False)
+		return
+	cty = cong_ty()
+	tu_kho = mot_kho(cty)
+	den_kho = _kho_nhan(cty)
+	ma = _mon_thuong("KTTH-V611-THIEU-TON")
+	la("kho xuất chưa có món", _ton_kho(ma, tu_kho), 0.0)
+	mr = khong_nem("phiếu yêu cầu chuyển 2", lambda: _yeu_cau(ma, tu_kho, den_kho, 2, cty))
+	if not mr:
+		return
+	so_se = frappe.db.count("Stock Entry", {"docstatus": ["!=", 2]})
+	so_sle = frappe.db.count("Stock Ledger Entry", {"is_cancelled": 0})
+	sp = "vagabond_kiem_that_v611_thieu"
+	frappe.db.savepoint(sp)
+	loi = ""
+	try:
+		_nhan_qua_cua("KTTH-LAN-NHAN-V611A", mr, tu_kho, den_kho, ma, 2, cty)
+	except Exception as e:
+		loi = nen.cau_loi(e)
+		frappe.db.rollback(save_point=sp)
+	dung("ERPNext chặn: " + loi, bool(loi))
+	dung("câu dễ hiểu, không phải câu lõi: " + loi, "chưa đủ hàng" in loi and "Tỷ giá" not in loi)
+	dung("câu nêu tồn THẬT của kho xuất (0): " + loi, "kho đang có 0)" in loi)
+	la("không sót phiếu chuyển nào", frappe.db.count("Stock Entry", {"docstatus": ["!=", 2]}), so_se)
+	la("không sót phiếu mang mã lần nhận lỗi", frappe.db.count("Stock Entry", {"vgb_ma_lan_nhan": "KTTH-LAN-NHAN-V611A"}), 0)
+	la("sổ kho không thêm dòng", frappe.db.count("Stock Ledger Entry", {"is_cancelled": 0}), so_sle)
+	la("tồn kho xuất vẫn 0", _ton_kho(ma, tu_kho), 0.0)
+	mr.reload()
+	la("MR chưa chuyển gì", float(mr.items[0].ordered_qty or 0), 0.0)
+	khong_nem("bếp nhập kho xuất 30", lambda: _nhap_thuong(ma, tu_kho, 30, cty))
+	kq = khong_nem("nhận lại 2 với mã mới", lambda: _nhan_qua_cua("KTTH-LAN-NHAN-V611B", mr, tu_kho, den_kho, ma, 2, cty))
+	if not kq:
+		return
+	nen._DA_TAO.append(("Stock Entry", kq["name"]))
+	la("phiếu nhận lại đã ghi sổ", int(frappe.db.get_value("Stock Entry", kq["name"], "docstatus") or 0), 1)
+	la("tồn kho xuất còn 28", _ton_kho(ma, tu_kho), 28.0)
+	la("tồn kho nhận 2", _ton_kho(ma, den_kho), 2.0)
+	mr.reload()
+	la("MR đã chuyển 2", float(mr.items[0].ordered_qty or 0), 2.0)
