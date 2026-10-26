@@ -192,7 +192,7 @@ var VGB_CD = (function () {
 		// van_don.py: key(ahamove_api_key) and ahamove_base and ahamove_mobile
 		{ hau: 'Không báo phí giao và không đặt xe Ahamove từ app được.', ten: 'Ahamove', can: ['ahamove_api_key', 'ahamove_mobile', 'ahamove_base'], toi: 'ahamove_api_key', muc: 'sec_aha' },
 		{ hau: 'Không gợi ý địa chỉ và không tính được khoảng cách giao.', ten: 'Goong bản đồ', can: ['goong_api_key'], toi: 'goong_api_key', muc: 'sec_goong' },
-		// van_don._greensm_dat_don: client_id, client_secret và token_url. be_token
+		// greensm.co_khoa (v612): client_id, client_secret và token_url. be_token
 		// không có dòng Python nào đọc, nên không làm chip xanh được.
 		{ hau: 'Không đặt xe GreenSM từ app được.', ten: 'GreenSM', can: ['greensm_client_id', 'greensm_client_secret', 'greensm_token_url'], toi: 'greensm_client_id', muc: 'sec_gsm' },
 		// Codex #435 vòng 7: kenh_zalo.chon_nhom bỏ dòng tắt hoặc thiếu mã chat; không
