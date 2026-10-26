@@ -250,3 +250,4 @@ node vagabond/khung/kiem_thu/hanh_vi/gia_von_tam_482.js
 node vagabond/khung/kiem_thu/hanh_vi/doi_soat_ck_610.js
 # v611: man Thong tin dat ban (57-dat-ban.js that): loc, tim, Xac nhan, Huy, Khach da den.
 node vagabond/khung/kiem_thu/hanh_vi/dat_ban_611.js
+node vagabond/khung/kiem_thu/hanh_vi/goi_xe_greensm_612.js
