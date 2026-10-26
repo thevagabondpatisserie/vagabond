@@ -1,0 +1,247 @@
+<title>Sonneto</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Be+Vietnam+Pro:wght@300;400;500&family=JetBrains+Mono:wght@400&display=swap">
+<style>
+/* Layout: nền tối một cột, hình gấp bột chạy canvas làm điểm nhìn, chữ ít, mỗi phần một ý. */
+:root{
+  --ink:#0d0e0f;--ink2:#151718;--paper:#ebe8e1;--mute:#8e9297;--line:#272a2e;--butter:#cdb98a;
+  --fd:"Cormorant Garamond","Times New Roman",Georgia,serif;
+  --fb:"Be Vietnam Pro","Helvetica Neue",Arial,sans-serif;
+  --fm:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  --gl:max(20px,env(safe-area-inset-left,0px));--gr:max(20px,env(safe-area-inset-right,0px));
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--ink);color:var(--paper);font-family:var(--fb);font-weight:300;font-size:1rem;line-height:1.65;-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--ink)}
+a{color:inherit}
+::selection{background:var(--butter);color:var(--ink)}
+:focus-visible{outline:1px solid var(--butter);outline-offset:3px}
+.wrap{max-width:1180px;margin:0 auto;padding-left:var(--gl);padding-right:var(--gr)}
+@media(min-width:760px){.wrap{padding-left:max(44px,env(safe-area-inset-left,0px));padding-right:max(44px,env(safe-area-inset-right,0px))}}
+.lab{font-family:var(--fm);font-size:.7rem;letter-spacing:.16em;text-transform:uppercase;color:var(--mute)}
+.lab b{color:var(--butter);font-weight:400}
+
+/* header */
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:9;background:color-mix(in srgb,var(--ink) 86%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+header .wrap{display:flex;align-items:center;justify-content:space-between;padding-block:14px}
+.mark{font-family:var(--fd);font-size:1.7rem;text-decoration:none;letter-spacing:.02em}
+nav{display:flex;gap:26px;align-items:center}
+nav a{text-decoration:none;font-size:.8rem;letter-spacing:.06em;color:var(--mute);transition:color .2s}
+nav a:hover{color:var(--paper)}
+nav a.in{color:var(--paper);border:1px solid var(--line);padding:8px 14px}
+nav a.in:hover{border-color:var(--butter);color:var(--butter)}
+@media(max-width:700px){nav a:not(.in){display:none}}
+
+/* hero */
+.hero{position:relative;border-bottom:1px solid var(--line);overflow:hidden}
+.hero .wrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:40px;align-items:center;padding-block:clamp(56px,9vw,120px)}
+h1{font-family:var(--fd);font-weight:300;font-size:clamp(2.9rem,7.2vw,6rem);line-height:1;letter-spacing:-.015em;margin:0;text-wrap:balance}
+h1 em{font-style:italic;color:var(--butter)}
+.hero p{margin:22px 0 0;max-width:26rem;font-size:1.05rem;color:var(--paper)}
+.acts{display:flex;gap:12px;flex-wrap:wrap;margin-top:32px}
+.btn{display:inline-block;text-decoration:none;font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;padding:15px 22px;border:1px solid var(--paper);transition:.2s}
+.btn.s{background:var(--paper);color:var(--ink)}
+.btn:hover{background:var(--butter);border-color:var(--butter);color:var(--ink)}
+.fold{position:relative;aspect-ratio:1/.9;max-width:100%}
+.fold canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.fold .cnt{position:absolute;left:0;bottom:0;display:grid;gap:2px}
+.fold .cnt strong{font-family:var(--fd);font-weight:300;font-size:clamp(2.6rem,5vw,4.2rem);line-height:1;color:var(--butter);font-variant-numeric:tabular-nums}
+@media(max-width:760px){.hero .wrap{grid-template-columns:1fr;gap:16px}.fold{aspect-ratio:1/.7;order:-1}.fold .cnt strong{font-size:2.4rem}}
+
+/* dải chữ chạy */
+.tape{border-bottom:1px solid var(--line);overflow:hidden;padding-block:14px}
+.tape div{display:flex;gap:56px;width:max-content;animation:tape 42s linear infinite;font-family:var(--fm);font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);white-space:nowrap}
+.tape span b{color:var(--butter);font-weight:400;margin-right:10px}
+@keyframes tape{to{transform:translateX(-50%)}}
+@media(prefers-reduced-motion:reduce){.tape div{animation:none}}
+
+/* phần */
+section{border-bottom:1px solid var(--line)}
+section>.wrap{padding-block:clamp(56px,8vw,110px);display:grid;gap:40px}
+h2{font-family:var(--fd);font-weight:300;font-size:clamp(2.2rem,4.6vw,3.6rem);line-height:1.05;margin:0;text-wrap:balance}
+h2 em{font-style:italic;color:var(--butter)}
+.hd{display:grid;gap:10px;max-width:40rem}
+.hd p{margin:0;color:var(--mute)}
+
+/* hai việc */
+.two{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line)}
+.two a{display:grid;gap:16px;align-content:start;padding:36px;background:var(--ink);text-decoration:none;position:relative;overflow:hidden;min-width:0}
+.two a::after{content:"";position:absolute;left:0;bottom:0;height:2px;width:0;background:var(--butter);transition:width .45s cubic-bezier(.2,.7,.2,1)}
+.two a:hover::after{width:100%}
+.two h3{font-family:var(--fd);font-weight:400;font-size:2rem;margin:0;line-height:1.1}
+.two p{margin:0;color:var(--mute);max-width:28rem}
+.two .go{color:var(--butter);font-size:.78rem;letter-spacing:.12em;text-transform:uppercase}
+@media(max-width:700px){.two{grid-template-columns:1fr}.two a{padding:26px}}
+
+/* khoá */
+.kh{display:grid;gap:0;border-top:1px solid var(--line)}
+.kh a{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) auto;gap:24px;align-items:center;padding:24px 0;border-bottom:1px solid var(--line);text-decoration:none;transition:padding-left .3s}
+.kh a:hover{padding-left:12px}
+.kh h3{font-family:var(--fd);font-weight:400;font-size:1.6rem;margin:0;line-height:1.15}
+.kh h3 small{display:block;font-family:var(--fb);font-weight:300;font-size:.9rem;color:var(--mute);margin-top:4px}
+.kh .mt{display:flex;gap:18px;flex-wrap:wrap;font-family:var(--fm);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+.kh .pr{font-family:var(--fm);font-size:.78rem;color:var(--butter);white-space:nowrap}
+@media(max-width:700px){.kh a{grid-template-columns:1fr;gap:10px}}
+
+/* R&D */
+.rd{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line)}
+.rd div{background:var(--ink);padding:32px;display:grid;gap:10px;align-content:start}
+.rd h3{font-family:var(--fd);font-weight:400;font-size:1.7rem;margin:0;line-height:1.1}
+.rd p{margin:0;color:var(--mute)}
+.note{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:start;max-width:46rem;color:var(--paper)}
+.note i{display:block;width:28px;height:1px;background:var(--butter);margin-top:.8em}
+@media(max-width:760px){.rd{grid-template-columns:1fr}.rd div{padding:24px}}
+
+/* liên hệ */
+.ct{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:48px}
+form{display:grid;gap:22px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.f{display:grid;gap:6px;min-width:0}
+.f label{font-family:var(--fm);font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
+.f input,.f textarea{width:100%;font:inherit;color:var(--paper);background:transparent;border:0;border-bottom:1px solid var(--line);padding:9px 0;border-radius:0}
+.f input:focus,.f textarea:focus{outline:0;border-bottom-color:var(--butter)}
+.f textarea{resize:vertical;min-height:5rem}
+.ch{display:flex;gap:8px;flex-wrap:wrap}
+.ch input{position:absolute;opacity:0;pointer-events:none}
+.ch label{cursor:pointer;font-size:.88rem;border:1px solid var(--line);padding:9px 14px;transition:.2s}
+.ch input:checked+label{background:var(--paper);color:var(--ink);border-color:var(--paper)}
+.ch input:focus-visible+label{outline:1px solid var(--butter);outline-offset:3px}
+form button{justify-self:start;font:inherit;cursor:pointer}
+.st{margin:0;color:var(--butter);font-size:.88rem;min-height:1.4em}
+.ct .big{font-family:var(--fd);font-weight:300;font-size:1.6rem;line-height:1.3;margin:0;color:var(--paper)}
+.ct .big+p{margin:14px 0 0;color:var(--mute)}
+@media(max-width:800px){.ct{grid-template-columns:1fr;gap:28px}}
+@media(max-width:520px){.row{grid-template-columns:1fr}}
+footer .wrap{padding-block:30px;display:flex;flex-wrap:wrap;gap:16px;justify-content:space-between;align-items:baseline}
+</style>
+
+<header><div class="wrap">
+  <a class="mark" href="#top">Sonneto</a>
+  <nav><a href="#khoa">Khoá học</a><a href="#rd">R&amp;D</a><a href="#lienhe">Liên hệ</a><a class="in" href="#lienhe">Học viên đăng nhập</a></nav>
+</div></header>
+
+<main id="top">
+<section class="hero"><div class="wrap">
+  <div>
+    <p class="lab">Bếp thử nghiệm <b>·</b> Sài Gòn</p>
+    <h1>Học làm bánh.<br>Làm bánh <em>cho quán của bạn.</em></h1>
+    <p>Lớp online, lớp tại bếp, và nhận làm bánh riêng cho quán cà phê, nhà hàng, chuỗi.</p>
+    <div class="acts"><a class="btn s" href="#khoa">Xem khoá học</a><a class="btn" href="#rd">Đặt làm R&amp;D</a></div>
+  </div>
+  <div class="fold">
+    <canvas id="cv" aria-hidden="true"></canvas>
+    <div class="cnt"><span class="lab" id="ph">Gấp lần 1</span><strong id="n">3</strong><span class="lab">lớp bơ</span></div>
+  </div>
+</div></section>
+
+<div class="tape" aria-hidden="true"><div id="tape">
+  <span><b>Bơ</b>82% béo</span><span><b>Bột ra lò trộn</b>24°C</span><span><b>Gấp</b>3 × 3 = 27 lớp</span><span><b>Ủ</b>27°C · ẩm 75%</span><span><b>Nghỉ lạnh</b>30 phút</span><span><b>Nướng</b>175°C · 18 phút</span><span><b>Mỗi mẻ</b>cân, đo, ghi lại</span>
+</div></div>
+
+<section><div class="wrap">
+  <div class="two">
+    <a href="#khoa"><span class="lab">Cho người học</span><h3>Khoá học</h3><p>Học công thức và lý do đằng sau từng con số. Có tài khoản riêng, học trên điện thoại hay máy tính.</p><span class="go">Xem khoá →</span></a>
+    <a href="#rd"><span class="lab">Cho quán, cho chuỗi</span><h3>Làm bánh theo đặt hàng</h3><p>Anh chị nói món muốn bán, giá muốn bán. Sonneto làm mẫu, chốt công thức, dạy bếp của anh chị làm lại được.</p><span class="go">Cách làm việc →</span></a>
+  </div>
+</div></section>
+
+<section id="khoa"><div class="wrap">
+  <div class="hd"><p class="lab">Khoá học</p><h2>Bốn khoá <em>đầu tiên.</em></h2><p>Mỗi khoá có video, công thức tải về, và chỗ hỏi giảng viên. Mua xong học trong 12 tháng.</p></div>
+  <div class="kh">
+    <a href="#lienhe"><h3>Croissant và viennoiserie<small>Cán bột, gấp bơ, ủ, nướng. Đọc mặt cắt để biết sai ở đâu.</small></h3><span class="mt"><span>12 bài</span><span>Online</span><span>3 giờ video</span></span><span class="pr">Sắp mở</span></a>
+    <a href="#lienhe"><h3>Entremets<small>Dựng bánh nhiều lớp, mousse, lớp gương bền trong trời nóng.</small></h3><span class="mt"><span>10 bài</span><span>Online</span><span>2,5 giờ video</span></span><span class="pr">Sắp mở</span></a>
+    <a href="#lienhe"><h3>Tính giá vốn cho bếp bánh<small>Từ công thức ra giá từng chiếc bánh, kèm bảng tính mẫu.</small></h3><span class="mt"><span>6 bài</span><span>Online</span><span>1,5 giờ video</span></span><span class="pr">Sắp mở</span></a>
+    <a href="#lienhe"><h3>Bánh bán kèm cho quán cà phê<small>Chọn món hợp đồ uống, để được cả ngày, trưng bày đẹp.</small></h3><span class="mt"><span>1 ngày</span><span>Tại bếp</span><span>Tối đa 8 người</span></span><span class="pr">Sắp mở</span></a>
+  </div>
+</div></section>
+
+<section id="rd"><div class="wrap">
+  <div class="hd"><p class="lab">R&amp;D cho quán, cho chuỗi</p><h2>Ba bước, <em>từ ý tới chiếc bánh bán được.</em></h2></div>
+  <div class="rd">
+    <div><span class="lab">01</span><h3>Nghe anh chị cần gì</h3><p>Món muốn bán, giá bán, bếp đang có máy gì, bán bao nhiêu mỗi ngày.</p></div>
+    <div><span class="lab">02</span><h3>Làm mẫu, nếm cùng nhau</h3><p>Vài phương án, sửa tới khi anh chị gật đầu.</p></div>
+    <div><span class="lab">03</span><h3>Giao công thức, dạy bếp làm</h3><p>Công thức theo gram, giá vốn, hạn dùng. Theo bếp của anh chị tới khi ra đều tay.</p></div>
+  </div>
+  <p class="note"><i></i><span>Ký bảo mật trước khi bắt đầu. Công thức giao xong là của anh chị. Giá tính theo gói trọn hoặc phí phát triển kèm đơn sản xuất, nói rõ từ buổi đầu.</span></p>
+</div></section>
+
+<section id="lienhe"><div class="wrap">
+  <div class="ct">
+    <div><p class="big">Để lại số, Sonneto gọi lại trong ngày.</p><p>Hoặc nhắn Zalo. Khoá học mở bán thì anh chị cũng nhận tin trước.</p></div>
+    <form id="fm" novalidate>
+      <div class="f"><span class="lab" id="nl">Anh chị quan tâm</span>
+        <div class="ch" role="radiogroup" aria-labelledby="nl">
+          <input type="radio" name="need" id="n1" value="Khoá học" checked><label for="n1">Khoá học</label>
+          <input type="radio" name="need" id="n2" value="R&D"><label for="n2">Làm bánh cho quán</label>
+        </div></div>
+      <div class="row"><div class="f"><label for="f1">Tên</label><input id="f1" name="name" autocomplete="name"></div><div class="f"><label for="f2">Điện thoại / Zalo</label><input id="f2" name="phone" type="tel" autocomplete="tel"></div></div>
+      <div class="f"><label for="f3">Vài dòng về việc anh chị cần</label><textarea id="f3" name="msg"></textarea></div>
+      <button class="btn s" type="submit">Gửi</button>
+      <p class="st" id="st" role="status" aria-live="polite"></p>
+    </form>
+  </div>
+</div></section>
+</main>
+<footer><div class="wrap"><span class="mark" style="font-size:1.2rem">Sonneto</span><span class="lab">Bếp thử nghiệm · TP. Hồ Chí Minh · 2026</span></div></footer>
+
+<script>
+(function(){
+  var reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function tok(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim()}
+  function rgba(hex,a){var m=hex.replace('#','');var n=parseInt(m,16);return 'rgba('+(n>>16&255)+','+(n>>8&255)+','+(n&255)+','+a+')'}
+  var C={butter:tok('--butter')||'#cdb98a',paper:tok('--paper')||'#ebe8e1',ink:tok('--ink')||'#0d0e0f'};
+  var cv=document.getElementById('cv'),ctx=cv.getContext('2d'),W=0,H=0;
+  var nEl=document.getElementById('n'),phEl=document.getElementById('ph');
+  function fit(){var r=cv.getBoundingClientRect(),d=Math.min(devicePixelRatio||1,2);cv.width=r.width*d;cv.height=r.height*d;ctx.setTransform(d,0,0,d,0,0);W=r.width;H=r.height}
+  fit();addEventListener('resize',fit);
+  var ease=function(t){return t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2};
+  /* Khối bột nhìn ngang. Mỗi chu kỳ: gấp phải, gấp trái, cán dài. Lớp bơ nhân 3. */
+  function slab(x,y,w,h,layers,mirror){
+    for(var i=0;i<layers;i++){
+      var ly=y+h*(i+.5)/layers; var isB=(mirror?(layers-1-i):i)%2===1;
+      ctx.beginPath();ctx.moveTo(x,ly);ctx.lineTo(x+w,ly);
+      ctx.strokeStyle=isB?rgba(C.butter,.85):rgba(C.paper,.22);ctx.lineWidth=isB?Math.max(.8,h/layers*.55):.6;ctx.stroke();
+    }
+    ctx.strokeStyle=rgba(C.paper,.45);ctx.lineWidth=.8;ctx.strokeRect(x,y,w,h);
+  }
+  var cycle=5200,fold=1,layers=3,last=-1;
+  function frame(now){
+    var t=(now%cycle)/cycle, k=Math.floor(now/cycle);
+    if(k!==last){last=k;fold=(k%3)+1;layers=[3,9,27][k%3];
+      nEl.textContent=layers;phEl.textContent='Gấp lần '+fold}
+    ctx.clearRect(0,0,W,H);
+    var pad=W*.06, w0=W-pad*2, h0=Math.min(H*.3,110), base=H*.5-h0/2, x0=pad;
+    var third=w0/3, L=layers;
+    if(t<.34){ /* gấp phần phải lên phần giữa */
+      var a=ease(t/.34);
+      slab(x0,base,third*2,h0,L,false);
+      if(a<.5){var s=1-a*2; slab(x0+third*2,base,third*s,h0,L,false)}
+      else{var s2=(a-.5)*2; slab(x0+third*2-third*s2,base-h0,third*s2,h0,L,true)}
+    }else if(t<.66){ /* gấp phần trái lên */
+      var b=ease((t-.34)/.32);
+      slab(x0+third,base,third,h0,L,false); slab(x0+third,base-h0,third,h0,L,true);
+      if(b<.5){var s3=1-b*2; slab(x0+third-third*s3,base,third*s3,h0,L,false)}
+      else{var s4=(b-.5)*2; slab(x0+third,base-h0*2,third*s4,h0,L,true)}
+    }else{ /* cán dài: ba tầng thành một, lớp nhân ba */
+      var c=ease((t-.66)/.34);
+      var h=h0*3-(h0*2)*c, w=third+(w0-third)*c, x=x0+third-(third)*c, y=base-h0*2+(h0*2)*c;
+      slab(x,y,w,h,L*3,false);
+    }
+    /* thước đo */
+    ctx.font='10px '+tok('--fm');ctx.fillStyle=rgba(C.paper,.5);
+    ctx.fillText('60 cm',x0,H*.5+h0/2+22);
+    ctx.beginPath();ctx.moveTo(x0,H*.5+h0/2+10);ctx.lineTo(x0+w0,H*.5+h0/2+10);ctx.strokeStyle=rgba(C.paper,.25);ctx.lineWidth=.6;ctx.stroke();
+    if(!reduce)requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+  var tp=document.getElementById('tape');tp.innerHTML+=tp.innerHTML;
+  var fm=document.getElementById('fm'),st=document.getElementById('st');
+  fm.addEventListener('submit',function(e){e.preventDefault();
+    if(!fm.elements.phone.value.trim()){st.textContent='Anh chị cho xin số điện thoại để Sonneto gọi lại.';fm.elements.phone.focus();return}
+    st.textContent='Bản xem thử, chưa gửi đi đâu. Lên tên miền thật thì yêu cầu về thẳng hệ thống.'});
+})();
+</script>
