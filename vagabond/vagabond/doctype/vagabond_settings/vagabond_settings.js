@@ -641,6 +641,16 @@ frappe.ui.form.on('Vagabond Kenh Zalo', {
 
 	function veZalo(frm) { veZaloNut(frm); veZaloNhom(frm); }
 
+	function thuGreenSM(frm) {
+		if (frm.is_dirty()) { frappe.msgprint('Bấm Lưu trước rồi mới thử kết nối GreenSM.'); return; }
+		frappe.call({ method: 'vagabond.greensm.thu_ket_noi', freeze: true, freeze_message: 'Đang thử kết nối GreenSM...' }).then(function (r) {
+			var m = r.message || {};
+			var dong = (m.buoc || []).map(function (b) { return '<li>' + frappe.utils.escape_html(b) + '</li>'; }).join('');
+			frappe.msgprint({ title: m.ok ? 'GreenSM kết nối được' : 'GreenSM chưa chạy hết chuỗi', indicator: m.ok ? 'green' : 'orange',
+				message: '<ul style="padding-left:18px;margin:0">' + dong + '</ul>' });
+		});
+	}
+
 	frappe.ui.form.on('Vagabond Settings', {
 		onload(frm) {
 			if (!document.getElementById('vgb-cd-css')) $('<style id="vgb-cd-css"></style>').text(CSS).appendTo('head');
@@ -649,6 +659,9 @@ frappe.ui.form.on('Vagabond Kenh Zalo', {
 			[['Nối Zalo Bot', 'noi'], ['Thêm bot (bot chính đầy nhóm)', 'thembot'], ['Kiểm lại đường nhận', 'kiem'], ['Xem trước tin mẫu', 'xem'], ['Gửi thử tới một nhóm', 'guithu']].forEach(function (x) {
 				frm.add_custom_button(x[0], function () { zaloTacVu(frm, x[1]); }, 'Zalo');
 			});
+			// v612: chạy đủ chuỗi danh sách xe, báo giá, tạo đơn, xem đơn trên môi trường
+			// thử GreenSM, để GreenSM nghiệm thu bước tích hợp trước khi cấp khoá thật.
+			frm.add_custom_button('Thử kết nối GreenSM', function () { thuGreenSM(frm); }, 'Giao hàng');
 			$(frm.wrapper).addClass('vgb-cd');
 			vgb_nap_cd_chung().then(function () {
 				veThanh(frm);
