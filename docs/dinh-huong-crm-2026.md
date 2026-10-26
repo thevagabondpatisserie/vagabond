@@ -115,7 +115,8 @@ Mỗi đợt vẫn qua Codex rà và chờ anh Việt cho lệnh deploy.
     - Khách chưa có ghi nhận đồng ý thì chỉ được gọi hỏi thăm, không gửi tin hàng loạt.
 - **Zalo.**
     - [Tin ZNS](https://pos.manual.nhanh.vn/pos/cai-dat/gui-zalo-zns/cac-loai-tin-cua-oa) giá 250 đồng một tin thường. ZNS chỉ dùng cho tin giao dịch và chăm sóc, mẫu phải qua duyệt. Tin khuyến mãi thuần không đi đường này.
-    - Tin quảng bá đi bằng broadcast tới người đã quan tâm OA: miễn phí, tối đa 40 tin mỗi 30 ngày, lọc được theo nhóm khách.
+    - Tin quảng bá đi bằng broadcast tới người đã quan tâm OA. [Theo hướng dẫn của Zalo](https://oa.zalo.me/home/documents/guides/cau-hoi-thuong-gap-tin-broadcast), OA đăng ký từ 01/06/2026 phải ở gói Tăng trưởng hoặc Toàn diện mới gửi được; gói Cơ bản và Tiêu chuẩn không có broadcast. Mỗi người quan tâm nhận tối đa 4 tin miễn phí mỗi tháng và 1 tin mỗi ngày; tin mẫu ZBS quảng cáo cũng ăn vào hạn mức này. OA gói cũ (Dùng thử, Nâng cao, Premium) còn hạn thì vẫn được 4 tin mỗi tháng.
+    - Việc phải làm trước chiến dịch Giáng sinh: kiểm OA của Vagabond đang ở gói nào. Nếu chưa đủ gói thì tính phí nâng gói (bài viết bên thứ ba ghi khoảng 2,5 triệu đồng mỗi năm cho gói Tăng trưởng, cần đối chiếu [bảng giá chính thức](https://zalo.solutions/oa/pricing)), hoặc lên kế hoạch tháng 12 chỉ bằng gọi điện và nhắn Zalo cá nhân.
     - Tin sau bán (Follow Up) đòi OA đạt 50.000 tin ZNS và có từ 5 cửa hàng trở lên. Vagabond chưa đủ điều kiện.
     - Vì vậy cần bắt đầu kéo khách quan tâm OA ngay từ bây giờ.
 - **Rủi ro.**
@@ -126,7 +127,7 @@ Mỗi đợt vẫn qua Codex rà và chờ anh Việt cho lệnh deploy.
 
 - [ ] Thứ tự ba đợt đã đúng ưu tiên chưa? Hay anh muốn đưa phần khách doanh nghiệp quà Tết lên trước Giáng sinh?
 - [ ] Ai chạy chiến dịch hằng ngày? Ai được xem số chi tiêu của từng khách?
-- [ ] Vagabond có Zalo OA nào đang có người quan tâm không, khoảng bao nhiêu người?
+- [ ] Vagabond có Zalo OA nào đang có người quan tâm không, khoảng bao nhiêu người, và OA đang ở gói nào? Có đồng ý nâng gói để gửi broadcast không?
 - [ ] Anh duyệt câu chữ xin đồng ý nhận tin ở quầy và trên web. Có cần luật sư rà không?
 - [ ] Ngân sách ưu đãi mùa lễ cho khách cũ là bao nhiêu?
 - [ ] Có cho Sales gọi trước 4.446 khách mùa lễ năm ngoái bằng danh sách xuất tạm không?
