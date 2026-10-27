@@ -505,6 +505,29 @@ def cua_so_do(ngay_chot):
 	return tu, tu + dt.timedelta(days=CUA_SO_DO)
 
 
+def dk_tim_khach(tim, cot_ma="h.name"):
+	"""Một chỗ duy nhất dựng điều kiện tìm khách, ra (mệnh đề, tham số). THUẦN.
+
+	Gõ số (từ 3 chữ số, cho phép dấu cách, chấm, +84) là tìm theo số điện
+	thoại; còn lại tìm theo mã khách, tên khách. Ký tự đại diện SQL được thoát.
+	Bảng: c = Customer, h = hồ sơ CRM; cot_ma là cột mã khách của câu gọi.
+	Rỗng thì ("", []).
+	"""
+	import re
+
+	tim = str(tim or "").strip()[:80]
+	if not tim:
+		return "", []
+	so = re.sub(r"\D", "", tim)
+	if len(so) >= 3 and len(so) == len(re.sub(r"[\s.+()-]", "", tim)):
+		if so.startswith("84") and len(so) >= 11:
+			so = "0" + so[2:]
+		return ("(ifnull(h.sdt, '') like %s or replace(replace(ifnull(c.mobile_no, ''), ' ', ''), '.', '') like %s)",
+			["%" + so + "%"] * 2)
+	like = "%" + tim.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+	return ("(%s like %%s or ifnull(c.customer_name, '') like %%s or ifnull(h.ten_khach, '') like %%s)" % cot_ma, [like] * 3)
+
+
 def dk_so_dong_y(kenh="", trang_thai="", tim=""):
 	"""Điều kiện lọc Sổ đồng ý, ra (mệnh đề where, tham số). THUẦN.
 
@@ -512,8 +535,6 @@ def dk_so_dong_y(kenh="", trang_thai="", tim=""):
 	một khách cũ. Tìm theo tên, mã khách hoặc số điện thoại (gõ một phần số).
 	Bảng: n = nhật ký đồng ý, c = Customer, h = hồ sơ CRM.
 	"""
-	import re
-
 	dk, ts = [], []
 	if kenh in KENH:
 		dk.append("n.kenh = %s")
@@ -521,18 +542,10 @@ def dk_so_dong_y(kenh="", trang_thai="", tim=""):
 	if trang_thai in ("Đồng ý", "Từ chối"):
 		dk.append("n.trang_thai = %s")
 		ts.append(trang_thai)
-	tim = str(tim or "").strip()[:80]
-	if tim:
-		so = re.sub(r"\D", "", tim)
-		if len(so) >= 3 and len(so) == len(re.sub(r"[\s.+()-]", "", tim)):
-			if so.startswith("84") and len(so) >= 11:
-				so = "0" + so[2:]
-			dk.append("(ifnull(h.sdt, '') like %s or replace(replace(ifnull(c.mobile_no, ''), ' ', ''), '.', '') like %s)")
-			ts += ["%" + so + "%"] * 2
-		else:
-			like = "%" + tim.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
-			dk.append("(n.khach like %s or ifnull(c.customer_name, '') like %s or ifnull(h.ten_khach, '') like %s)")
-			ts += [like] * 3
+	c_tim, ts_tim = dk_tim_khach(tim, "n.khach")
+	if c_tim:
+		dk.append(c_tim)
+		ts += ts_tim
 	return (" where " + " and ".join(dk)) if dk else "", ts
 
 
@@ -741,8 +754,13 @@ def _ten_nguoi(u):
 # ---------------------------------------------------------------- hồ sơ 360
 
 @frappe.whitelist()
-def ho_so_crm(khach=None):
-	"""Phần CRM của hồ sơ khách: nhóm, đồng ý, món hay mua, dịp, nhật ký."""
+def ho_so_crm(khach=None, lh_bat_dau=0):
+	"""Phần CRM của hồ sơ khách: nhóm, đồng ý, món hay mua, dịp, nhật ký.
+
+	Nhật ký liên hệ trả 20 dòng một trang; lh_bat_dau để nút Xem thêm lấy tiếp
+	dòng cũ hơn, lh_con_nua = 1 khi còn (Codex PR #505 vòng 5: danh sách nào
+	cắt N dòng thì phải lấy tiếp được).
+	"""
 	_kiem(CRM_XEM, "dùng phân hệ Khách hàng")
 	khach = (khach or "").strip()
 	if not khach or not frappe.db.exists("Customer", khach):
@@ -770,10 +788,13 @@ def ho_so_crm(khach=None):
 		from `tabSales Invoice` where customer = %s
 		""", (khach,), as_dict=True)
 	khac = (khac or [{}])[0] or {}
+	lh_bat_dau = max(0, cint(lh_bat_dau))
 	lh = frappe.get_all(
 		DT_LIEN_HE, filters={"khach": khach},
 		fields=["name", "kenh", "ket_qua", "ghi_chu", "chien_dich", "nguoi", "luc"],
-		order_by="luc desc", limit_page_length=20)
+		order_by="luc desc, name desc", limit_start=lh_bat_dau, limit_page_length=21)
+	lh_con_nua = 1 if len(lh) > 20 else 0
+	lh = lh[:20]
 	for r in lh:
 		r["ten_nguoi"] = _ten_nguoi(r.nguoi)
 		r["ten_chien_dich"] = frappe.db.get_value(DT_CD, r.chien_dich, "ten") if r.chien_dich else ""
@@ -788,6 +809,8 @@ def ho_so_crm(khach=None):
 		"dip": dip_tu_thang(thang, _ngay(sn).month if _ngay(sn) else None),
 		"khac": {k: cint(khac.get(k)) for k in ("chua_ghi_so", "huy", "tra")},
 		"lien_he": lh,
+		"lh_con_nua": lh_con_nua,
+		"lh_bat_dau": lh_bat_dau,
 		"duoc_dat_kqc": 1 if _co(CRM_KQC) else 0,
 	}
 
@@ -875,11 +898,18 @@ def dem_loc(loc):
 
 
 @frappe.whitelist()
-def ds_khach_loc(loc=None, so_dong=50):
-	"""Mẫu danh sách khách khớp một bộ lọc, để xem trước trên màn Nhóm khách."""
+def ds_khach_loc(loc=None, so_dong=50, tim=""):
+	"""Mẫu danh sách khách khớp một bộ lọc, để xem trước trên màn Nhóm khách.
+
+	tim: tên, mã khách hoặc một phần số điện thoại, tìm trong số khách khớp
+	bộ lọc (Codex PR #505 vòng 5: ô tìm ở đầu mọi danh sách).
+	"""
 	_kiem(CRM_XEM, "xem nhóm khách")
 	loc = loc_sach(loc)
 	where, ts = dieu_kien_loc(loc, nowdate())
+	c_tim, ts_tim = dk_tim_khach(tim, "h.name")
+	if c_tim:
+		where, ts = where + " and " + c_tim, list(ts) + ts_tim
 	rows = frappe.db.sql(
 		"""
 		select h.name khach, c.customer_name ten, c.mobile_no sdt, h.nhom, h.lan_cuoi, h.so_don,
