@@ -697,3 +697,32 @@ def _ds_cd_trang():
 	mon = [q for q in cau if "tabSales Invoice Item" in q][0]
 	dung("câu món hay mua nối Item lấy ảnh", "left join `tabItem` it on it.name = i.item_code" in mon and "max(it.image) anh" in mon)
 	la("ảnh đi tới màn", [m.get("anh") for m in hs.get("mon", [])], ["/files/entremet.jpg"])
+
+
+@ca("v614 Codex #505 vòng 4: món giới thiệu của chiến dịch trả kèm ảnh món")
+def _cd_mon_anh():
+	fr = crm.frappe
+
+	class Doc(D):
+		def as_dict(self):
+			return dict(self)
+
+		def get(self, k, d=None):
+			return dict.get(self, k, d)
+
+	doc = Doc(name="CD-1", ten="Giáng sinh", trang_thai="Nháp", loc='{"nhom": ["Đã ngủ"]}', kenh_goi=1, kenh_zalo=0,
+		mon=[D(item="BANH-1", ten="Entremet"), D(item="BANH-2", ten="Tart chanh")], sales=[])
+	hoi = []
+
+	def get_all(dt, filters=None, fields=None, **k):
+		hoi.append((dt, filters, fields))
+		return [D(name="BANH-1", image="/files/entremet.jpg"), D(name="BANH-2", image=None)] if dt == "Item" else []
+
+	with um.patch.object(fr, "get_all", get_all):
+		d = crm._cd_dict(doc)
+	la("ảnh từng món, chưa có ảnh thì rỗng", [(m["item"], m["anh"]) for m in d["mon"]], [("BANH-1", "/files/entremet.jpg"), ("BANH-2", "")])
+	la("một lần đọc ảnh cho mọi món", [h[0] for h in hoi], ["Item"])
+	doc2 = Doc(name="CD-2", ten="Rỗng", trang_thai="Nháp", loc="{}", kenh_goi=1, kenh_zalo=0, mon=[], sales=[])
+	hoi.clear()
+	with um.patch.object(fr, "get_all", get_all):
+		la("không có món thì không đọc Item", (crm._cd_dict(doc2)["mon"], hoi), ([], []))
