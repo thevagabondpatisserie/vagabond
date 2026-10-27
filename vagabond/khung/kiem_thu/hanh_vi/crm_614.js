@@ -683,6 +683,22 @@ function mot(el, chon) { return el.querySelectorAll(chon)[0]; }
     bang('một dòng khớp', m.khung.querySelectorAll('[data-crmhqmo]').length, 1);
   });
 
+  /* ------------------------------------------------ Codex PR #505 vòng 4 (rà fe4ddf4) */
+
+  await ca('Codex #505 v4: món giới thiệu của chiến dịch hiện ảnh món; món mới chọn giữ ảnh từ bảng chọn món', async function () {
+    var m = await moCd(QL, cdMau({ mon: [{ item: 'BANH-1', ten: 'Entremet', anh: '/files/entremet.jpg' }, { item: 'BANH-2', ten: 'Tart chanh', anh: '' }] }),
+      { luu_chien_dich: function (ts) { return cdMau({ mon: JSON.parse(ts.dat).mon }); } });
+    var b1 = mot(m.khung, '[data-crmcdmonr="BANH-1"]'), b2 = mot(m.khung, '[data-crmcdmonr="BANH-2"]');
+    bang('ảnh món', mot(b1, 'img').getAttribute('src'), '/files/entremet.jpg');
+    dung('chưa có ảnh: ô 🍰', !mot(b2, 'img') && chu(mot(b2, '.immp')) === '🍰');
+    m.g._mon = [{ ma: 'BANH-3', ten: 'Mousse xoài', hinh: '/files/mousse.jpg' }];
+    bam(m, mot(m.khung, '[data-crmcdmon]'));
+    await choDen(function () { return mot(m.khung, '[data-crmcdmonr="BANH-3"]'); });
+    bang('món mới chọn có ảnh', mot(mot(m.khung, '[data-crmcdmonr="BANH-3"]'), 'img').getAttribute('src'), '/files/mousse.jpg');
+    bam(m, mot(m.khung, '[data-crmcdbomon="1"]'));
+    dung('bỏ món vẫn được', !mot(m.khung, '[data-crmcdmonr="BANH-2"]'));
+  });
+
   console.log('\n' + ket.dat + ' ca đạt, ' + ket.hong + ' ca hỏng.');
   process.exit(ket.hong ? 1 : 0);
 })();
