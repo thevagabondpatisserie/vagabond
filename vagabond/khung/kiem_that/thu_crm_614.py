@@ -219,9 +219,18 @@ def _crm():
 		la("khách xin ngừng", hq["khach_tu_choi"], 1)
 		la("có đối chứng", hq["co_doi_chung"], 1 if dcs else 0)
 		la("theo Sales: đã gọi xong một khách", [(r.sales, int(r.da_xong)) for r in hq["theo_sales"]], [(sales, 1)])
-	dsc = khong_nem("danh sách chiến dịch", lambda: crm.ds_chien_dich())
+	dsc = khong_nem("danh sách chiến dịch", lambda: crm.ds_chien_dich(tim=cd["name"]))
 	if dsc:
 		c = [x for x in dsc["ds"] if x.name == cd["name"]][0]
 		la("tiến độ gọi", c["tien_do"].get("Đã xong"), 1)
+		dung("chip có đếm", dsc["dem"].get("tat_ca", 0) >= 1)
+	# Codex #505 vòng 3: lọc ở máy chủ, câu SQL thật.
+	dct = khong_nem("chiến dịch đã chốt tìm theo tên", lambda: crm.ds_chien_dich(tim="kiểm 614", da_chot=1, so_dong=200))
+	if dct:
+		dung("ra chiến dịch vừa chốt", any(x.name == cd["name"] for x in dct["ds"]))
+		dung("không có nháp", all(x.trang_thai != "Nháp" for x in dct["ds"]))
+	hs2 = khong_nem("hồ sơ CRM đọc món kèm ảnh", lambda: crm.ho_so_crm(kh[0]))
+	if hs2:
+		dung("món nào cũng có trường ảnh", all("anh" in m for m in hs2["mon"]))
 	khong_nem("kết thúc chiến dịch", lambda: crm.ket_thuc_chien_dich(cd["name"]))
 	la("đã kết thúc", frappe.db.get_value(crm.DT_CD, cd["name"], "trang_thai"), "Đã kết thúc")
