@@ -1,0 +1,40 @@
+{
+ "actions": [],
+ "creation": "2026-10-27 18:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "module": "Vagabond",
+ "name": "Vagabond Chien Dich Mon",
+ "modified": "2026-10-27 18:00:00.000000",
+ "modified_by": "Administrator",
+ "owner": "Administrator",
+ "description": "Món giới thiệu trong chiến dịch.",
+ "field_order": [
+  "item",
+  "ten"
+ ],
+ "fields": [
+  {
+   "fieldname": "item",
+   "fieldtype": "Link",
+   "label": "Món",
+   "options": "Item",
+   "in_list_view": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "ten",
+   "fieldtype": "Data",
+   "label": "Tên món",
+   "in_list_view": 1,
+   "read_only": 1
+  }
+ ],
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "links": [],
+ "istable": 1,
+ "editable_grid": 1
+}
