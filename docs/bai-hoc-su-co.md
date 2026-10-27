@@ -6,6 +6,17 @@ sửa những chỗ có liên quan, vì phần lớn các lỗi đó KHÔNG có 
 
 Tệp này chỉ giữ bài học rút gọn. Nhật ký đầy đủ từng ngày nằm ngoài repo.
 
+## 27/10/2026 - Thêm trường cho tin Zalo phải đi qua MỌI đường gửi, kể cả xả giờ im (#504)
+
+v613 thêm ảnh bảng cho tin, đường gửi ngay đã truyền ảnh nhưng đường gộp tin hoãn
+giờ im chỉ đọc chữ: ảnh mất mà sổ vẫn ghi "Đã gửi gộp". Cách phòng: thêm cột cho
+Vagabond Tin Kenh thì dò mọi nơi đọc dòng tin (_nhan_mot, _nhan_lo) và mọi lời gọi
+_gui_zalo; bản giả get_all trong ca kiểm phải chỉ trả các cột được hỏi. Đổi chữ ký
+hàm thì sửa cả bản giả trong khung/kiem_that: CI máy không chạy thư mục này, chỉ
+bench bắt được (#504 bench đỏ vì bản giả _gui_zalo hai tham số).
+Cùng PR: tính nguyên liệu theo công thức phải nổ bán thành phẩm phantom như lệnh
+sản xuất, và ngày cần của YCSX lọc trên từng dòng, không theo đầu phiếu.
+
 ## 12/10/2026 - Kiểm lại tổng sau tạo đơn và biên nhận cảnh báo (#465)
 
 Giảm giá gửi đúng trường vẫn cần đọc lại số phải thu của hệ nhận đơn. Lỗi
@@ -2620,3 +2631,11 @@ Vòng Codex #505: (4) Danh sách chốt cố định để ĐO, nhưng quyền L
 trái ý khách. (5) Mốc đo bắt đầu từ GIỜ chốt, không phải đầu ngày: so cả
 `posting_time` của hoá đơn. (6) Luật "sửa kịch bản là mất duyệt" đặt trong hàm
 app thì Desk đi vòng được; đặt ở `validate` của doctype để mọi đường lưu đều qua.
+
+Vòng 2 (rà 9ffd042): (7) Máy chủ đổi quyền của một khách thì danh sách đang giữ
+trên máy cũng phải đổi theo, ở MỌI dòng của khách đó, kể cả dòng thuộc chiến dịch
+khác: ghi "không nhận tin nữa" xong mà sang chip khác nút Gọi hiện lại là sửa nửa
+vời. (8) Nút hành động chỉ gửi mã (Duyệt, Chốt) thì máy chủ làm trên bản ĐÃ LƯU;
+màn đang có chữ sửa dở phải bắt Lưu trước, kiểm lại ngay lúc bấm vì gõ chữ không
+vẽ lại nút. (9) Sổ làm bằng chứng mà chỉ trả N dòng mới nhất thì phải có ô tìm
+hỏi máy chủ và nút Xem thêm; lọc trên số dòng đã tải không tìm ra khách cũ.
