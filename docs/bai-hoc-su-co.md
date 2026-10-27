@@ -2648,3 +2648,7 @@ Vòng 4 (rà fe4ddf4): (12) Màn có bản nháp tự lưu mà Lưu xong vẫn �
 tiếp thì phải mở lại màn qua bản bọc của 48 với mã vừa có (thay nấc đang đứng),
 vì lời gọi lưu đã làm 48 thôi theo dõi. Ca kiểm phải chạy 48 thật và kiểm khoá
 bản nháp sau khi lưu, không chỉ lúc mở màn.
+Vòng 5 (rà 3a79937): (13) Codex nêu một chỗ vi phạm luật chung (ô tìm ở đầu
+mọi danh sách, có tên món thì có ảnh) thì rà CẢ mô đun theo luật đó trong cùng
+vòng, không chỉ sửa đúng dòng được chỉ: vòng 3, 4, 5 lần lượt lộ thêm từng chỗ
+cùng loại (Hiệu quả, món giới thiệu, bộ lọc đã lưu, món trong bộ lọc).
