@@ -6,6 +6,15 @@ sửa những chỗ có liên quan, vì phần lớn các lỗi đó KHÔNG có 
 
 Tệp này chỉ giữ bài học rút gọn. Nhật ký đầy đủ từng ngày nằm ngoài repo.
 
+## 27/10/2026 - Thêm trường cho tin Zalo phải đi qua MỌI đường gửi, kể cả xả giờ im (#504)
+
+v613 thêm ảnh bảng cho tin, đường gửi ngay đã truyền ảnh nhưng đường gộp tin hoãn
+giờ im chỉ đọc chữ: ảnh mất mà sổ vẫn ghi "Đã gửi gộp". Cách phòng: thêm cột cho
+Vagabond Tin Kenh thì dò mọi nơi đọc dòng tin (_nhan_mot, _nhan_lo) và mọi lời gọi
+_gui_zalo; bản giả get_all trong ca kiểm phải chỉ trả các cột được hỏi.
+Cùng PR: tính nguyên liệu theo công thức phải nổ bán thành phẩm phantom như lệnh
+sản xuất, và ngày cần của YCSX lọc trên từng dòng, không theo đầu phiếu.
+
 ## 12/10/2026 - Kiểm lại tổng sau tạo đơn và biên nhận cảnh báo (#465)
 
 Giảm giá gửi đúng trường vẫn cần đọc lại số phải thu của hệ nhận đơn. Lỗi
