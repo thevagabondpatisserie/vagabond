@@ -2596,3 +2596,21 @@ cho thấy câu "Valuation Rate ... is required" ném ngay ở `insert()` (lúc
 validate tính giá xuất), chưa tới `submit()`. Bắt lỗi chỉ quanh submit là bỏ
 sót đúng ca gốc. Và chỉ thay câu LÕI ERPNext: câu đã dễ hiểu của app (lo_hang
 "còn thiếu ...") phải đi nguyên, không thì mất thông tin người dùng cần.
+
+## 27/10/2026 (v614): đếm trên bảng nối một-nhiều, và hàm có commit theo lô
+
+Màn Hiệu quả chiến dịch đếm "Sales đã gọi xong bao nhiêu khách" bằng
+`sum(k.trang_thai = 'Đã xong')` trong câu đã `left join` hoá đơn của khách.
+Khách có ba hoá đơn trong 14 ngày đo thì bị đếm ba lần. Lớp Frappe giả không
+chạy SQL nên không ca tầng khung nào thấy. Sửa: `count(distinct case when ...
+then k.khach end)`.
+
+Bài học: (1) Câu nào đã nối bảng con một-nhiều (hoá đơn, dòng hàng) thì mọi
+`sum(...)`, `count(*)` trên bảng cha phải đổi thành `count(distinct ...)`, đọc
+lại từng cột trước khi giao. (2) Hàm chạy đêm ghi theo lô có `commit` sau mỗi
+lô thì bench CI (chạy trong điểm lưu, khoá commit) không gọi được: thêm tham số
+`luu=False` cho ca kiểm, và ca tầng khung phải chốt cả hai nhánh (có commit,
+không commit). (3) Lượt đêm ghi đè cả bảng bằng `ON DUPLICATE KEY UPDATE` thì
+liệt kê cột được cập nhật TƯỜNG MINH, loại các cột do người nhập (đồng ý nhận
+tin, Danh sách không quảng cáo), và có ca chạy hai lượt liền để chứng minh lời
+khách đã nói không bị xoá.
