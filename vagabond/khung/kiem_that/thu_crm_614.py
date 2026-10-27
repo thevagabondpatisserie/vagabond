@@ -108,6 +108,18 @@ def _crm():
 	if sd:
 		dung("sổ đồng ý lọc Từ chối có khách ca dựng", any(r.khach == kh[12] for r in sd["dong"]))
 		dung("tổng gọi điện đồng ý", sd["tong"]["Gọi điện"].get("Đồng ý", 0) >= 12)
+	# Codex #505 vòng 2: tìm khách cũ trong sổ và lấy tiếp trang sau, câu SQL thật.
+	ten0 = frappe.db.get_value("Customer", kh[0], "customer_name")
+	t1 = khong_nem("sổ đồng ý tìm theo tên", lambda: crm.so_dong_y(tim=ten0))
+	if t1:
+		dung("tìm tên ra đúng khách", any(r.khach == kh[0] for r in t1["dong"]))
+	t2 = khong_nem("sổ đồng ý tìm theo số", lambda: crm.so_dong_y(tim="096 140 0000"))
+	if t2:
+		dung("tìm số có dấu cách ra đúng khách", any(r.khach == kh[0] for r in t2["dong"]))
+		dung("tìm số không lẫn khách từ chối", not any(r.khach == kh[12] for r in t2["dong"]))
+	t3 = khong_nem("sổ đồng ý trang sau", lambda: crm.so_dong_y(so_dong=1, bat_dau=1))
+	if t3:
+		la("trang sau đúng một dòng, còn nữa", (len(t3["dong"]), t3["bat_dau"], t3["con_nua"]), (1, 1, 1))
 
 	# 5. Lập, duyệt, sửa kịch bản là mất duyệt.
 	dat = {"ten": "Giáng sinh 2026 kiểm 614", "loc": {"nhom": ["Chưa mua"]}, "kenh_goi": 1, "kenh_zalo": 0,
