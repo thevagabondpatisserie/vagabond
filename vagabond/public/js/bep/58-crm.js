@@ -170,10 +170,16 @@ function crmVeHoSo(d) {
     (d.duoc_dat_kqc ? '<button class="btn gh" data-crmhskqc="1" style="margin:8px 0 0;padding:10px;font-size:13.5px">' +
       (d.khong_quang_cao ? 'Bỏ khỏi Danh sách không quảng cáo' : 'Số này nằm trong Danh sách không quảng cáo') + '</button>' : '') +
     '</div>';
-  html += '<div class="sec">Món hay mua <span style="text-transform:none;font-weight:500">· từ 08/2026</span></div><div class="card" style="padding:12px 14px">' +
-    ((d.mon || []).length ? d.mon.map(function (m) { return crmTag((m.ten || m.item_code) + ' ×' + m.so_don, 'lam'); }).join('')
-      : '<div style="color:#98a2b3;font-size:13px">Chưa có hoá đơn nào trên ERP. Fabi không để lại từng món.</div>') +
-    '<div style="font-size:12.5px;color:#8a8f9c">Đơn chưa ghi sổ: ' + d.khac.chua_ghi_so + ' · Đơn huỷ: ' + d.khac.huy + ' · Hàng trả: ' + d.khac.tra + '</div></div>';
+  /* Codex PR #505 vòng 3 (AGENTS: chỗ nào có tên món thì có ảnh món): mỗi món
+     một dòng có ảnh, chưa có ảnh thì ô 🍰 của anhMon. */
+  html += '<div class="sec">Món hay mua <span style="text-transform:none;font-weight:500">· từ 08/2026</span></div><div class="card">' +
+    ((d.mon || []).length ? d.mon.map(function (m) {
+      return '<div class="li" data-crmhsmon="' + h(m.item_code) + '" style="padding:10px 14px;cursor:default">' + anhMon(m.anh) +
+        '<div class="lt"><div class="l1" style="font-size:14.5px">' + h(m.ten || m.item_code) + '</div>' +
+        '<div class="l2">' + money(m.so_don) + ' đơn</div></div></div>';
+    }).join('')
+      : '<div style="color:#98a2b3;font-size:13px;padding:12px 14px">Chưa có hoá đơn nào trên ERP. Fabi không để lại từng món.</div>') +
+    '<div style="font-size:12.5px;color:#8a8f9c;padding:10px 14px">Đơn chưa ghi sổ: ' + d.khac.chua_ghi_so + ' · Đơn huỷ: ' + d.khac.huy + ' · Hàng trả: ' + d.khac.tra + '</div></div>';
   html += '<div class="sec">Nhật ký liên hệ</div><div class="card">' +
     ((d.lien_he || []).length ? d.lien_he.map(function (r) {
       return '<div data-crmlh="' + h(r.name) + '" style="padding:12px 14px;border-bottom:1px solid #f0f2f6">' +
@@ -220,6 +226,24 @@ async function crmDatKqc(khach, bat, xong) {
     await api('vagabond.crm.dat_khong_quang_cao', { khach: khach, bat: bat ? 1 : 0 });
     busy(false); toast(bat ? 'Đã đánh dấu: không gọi, không nhắn quảng cáo cho số này' : 'Đã bỏ đánh dấu'); if (xong) xong();
   } catch (e) { busy(false); toast(errMsg(e), 5000); }
+}
+
+/* Codex PR #505 vòng 3: màn Chi tiết khách hàng đọc hồ sơ bán hàng, chỉ mở
+   cho Sales và kế toán (trùng ban_hang.QUYEN_BAN_VA_KE_TOAN). Marketing và
+   quản lý cửa hàng chỉ có quyền CRM thì mở màn Chăm sóc khách, đọc ho_so_crm
+   (cổng CRM_XEM), không mở rộng cổng bán hàng. */
+var CRM_HO_SO_DAY_DU = ['System Manager', 'Sales User', 'Sales Manager', 'Accounts User', 'Accounts Manager'];
+function crmMoHoSo(khach, ten) {
+  if (!khach) return;
+  if (typeof scrKhachChiTiet === 'function' && CRM_HO_SO_DAY_DU.some(function (v) { return hasRole(v); })) {
+    khMa = khach; return go(scrKhachChiTiet);
+  }
+  return go(function () { return scrCrmHoSo(khach, ten); });
+}
+async function scrCrmHoSo(khach, ten) {
+  frame('Chăm sóc khách', '<div class="card" style="padding:12px 14px"><div style="font-size:16px;font-weight:700">' + h(ten || khach) + '</div>' +
+    '<div style="font-size:12.5px;color:#8a8f9c">Phần chăm sóc khách. Hoá đơn, công nợ của khách chỉ Sales và kế toán xem.</div></div><div id="crmHs"></div>');
+  return crmGanHoSo(khach, ten);
 }
 
 /* ================================================================ danh sách gọi */
@@ -315,7 +339,8 @@ async function scrCrmGoi(daCo) {
     var kq = e.target.closest('[data-crmkq]');
     if (kq) return crmSheetKetQua(crmGoiDs[+kq.getAttribute('data-crmkq')], ketQua, function () { scrCrmGoi(true); });
     var ten = e.target.closest('[data-crmmohs]');
-    if (ten && typeof scrKhachChiTiet === 'function') { khMa = ten.getAttribute('data-crmmohs'); return go(scrKhachChiTiet); }
+    if (ten) { var rr = crmGoiDs.filter(function (x) { return x.khach === ten.getAttribute('data-crmmohs'); })[0] || {};
+      return crmMoHoSo(ten.getAttribute('data-crmmohs'), rr.ten_khach); }
   };
 }
 
@@ -472,7 +497,7 @@ async function crmSheetXemLoc(loc, ten, boLoc) {
   var ov = crmMoSheet('<div style="font-size:18px;font-weight:700">' + h(ten) + '</div>' +
     '<div style="font-size:13px;color:#8a8f9c;margin:2px 0 10px">' + h(d.mo_ta) + ' · <b>' + money(d.so) + ' khách</b>' + (d.so > d.dong.length ? ', hiện ' + d.dong.length + ' khách mua gần nhất' : '') + '</div>' +
     (d.dong.length ? d.dong.map(function (r) {
-      return '<div data-crmxkh="' + h(r.khach) + '" style="padding:10px 0;border-bottom:1px solid #f0f2f6;cursor:pointer;min-height:44px">' +
+      return '<div data-crmxkh="' + h(r.khach) + '" data-crmxten="' + h(r.ten || '') + '" style="padding:10px 0;border-bottom:1px solid #f0f2f6;cursor:pointer;min-height:44px">' +
         '<div style="font-size:14.5px;font-weight:600">' + h(r.ten || r.khach) + (r.hang ? ' · <span style="color:#0B7C93">' + h(r.hang) + '</span>' : '') + '</div>' +
         '<div style="font-size:12.5px;color:#8a8f9c">' + h(r.nhom || '') + (r.lan_cuoi ? ' · mua lần cuối ' + crmNgay(r.lan_cuoi) : '') +
         ' · Zalo ' + (r.dy_zalo === 'Đồng ý' ? '✓' : '✗') + ' · gọi ' + (r.dy_goi === 'Đồng ý' ? '✓' : '✗') + '</div></div>';
@@ -482,7 +507,7 @@ async function crmSheetXemLoc(loc, ten, boLoc) {
   ov.onclick = async function (e) {
     if (e.target === ov) return ov.remove();
     var kh = e.target.closest('[data-crmxkh]');
-    if (kh && typeof scrKhachChiTiet === 'function') { ov.remove(); khMa = kh.getAttribute('data-crmxkh'); return go(scrKhachChiTiet); }
+    if (kh) { ov.remove(); return crmMoHoSo(kh.getAttribute('data-crmxkh'), kh.getAttribute('data-crmxten') || ''); }
     if (e.target.closest('[data-crmxlap]')) {
       ov.remove();
       crmCdMoi = { loc: loc, bo_loc: boLoc ? boLoc.name : '', ten_loc: ten };
@@ -619,7 +644,8 @@ async function scrCrmDongY(them) {
   b.onclick = function (e) {
     if (e.target.closest('[data-crmdythem]')) return scrCrmDongY(true);
     var kh = e.target.closest('[data-crmdykh]');
-    if (kh && typeof scrKhachChiTiet === 'function') { khMa = kh.getAttribute('data-crmdykh'); return go(scrKhachChiTiet); }
+    if (kh) { var dd = crmDyDong.filter(function (x) { return x.khach === kh.getAttribute('data-crmdykh'); })[0] || {};
+      return crmMoHoSo(kh.getAttribute('data-crmdykh'), dd.ten_khach); }
   };
 }
 
@@ -632,29 +658,42 @@ function crmTagTt(tt) {
 }
 
 var crmCdTt = '', crmCdTim = '';
+/* Codex PR #505 vòng 3: máy chủ lọc theo trạng thái và chữ tìm, trả từng
+   trang; nút Xem thêm lấy tiếp chiến dịch cũ hơn. Không lọc trên số dòng đã
+   tải, vì chiến dịch cũ nằm ngoài trang đầu. */
+var crmCdDsDong = [], crmCdDsCon = 0;
+async function crmDsCd(them, loc) {
+  var bat = them === true ? crmCdDsDong.length : 0;
+  var d = await api('vagabond.crm.ds_chien_dich', Object.assign({ bat_dau: bat }, loc));
+  crmCdDsDong = bat ? crmCdDsDong.concat(d.ds || []) : (d.ds || []);
+  crmCdDsCon = +d.con_nua ? 1 : 0;
+  return d;
+}
 
-async function scrCrmCdDs() {
+async function scrCrmCdDs(them) {
   var tieuDe = 'Chiến dịch';
   if (!coQuyenCrm()) return frame(tieuDe, crmTrong('🔒', 'Phân hệ Khách hàng chỉ mở cho Sales, quản lý cửa hàng và Marketing.'));
-  frame(tieuDe, '<div class="emp"><div class="e1">⏳</div><div>Đang đọc chiến dịch...</div></div>');
+  if (them === true) busy(true);
+  else frame(tieuDe, '<div class="emp"><div class="e1">⏳</div><div>Đang đọc chiến dịch...</div></div>');
   var d;
-  try { d = await api('vagabond.crm.ds_chien_dich', {}); }
-  catch (e) { return frame(tieuDe, crmTrong('⚠️', h(errMsg(e)))); }
-  var tatCa = d.ds || [], dem = { tat_ca: tatCa.length };
-  tatCa.forEach(function (c) { dem[c.trang_thai] = (dem[c.trang_thai] || 0) + 1; });
+  try { d = await crmDsCd(them, { trang_thai: crmCdTt, tim: crmCdTim }); }
+  catch (e) { if (them === true) { busy(false); return toast(errMsg(e), 5000); } return frame(tieuDe, crmTrong('⚠️', h(errMsg(e)))); }
+  if (them === true) busy(false);
+  var dem = d.dem || {};
   var cc = {
     ma: 'crmCd',
     chang: { ds: ['Nháp', 'Đang chạy', 'Đã kết thúc'].map(function (t) { return { k: t, ten: t }; }), dem: dem, chon: crmCdTt, tatCa: 'Tất cả' },
-    tim: { gt: crmCdTim, goiY: '🔎 Tìm tên chiến dịch' }
+    tim: { gt: crmCdTim, goiY: '🔎 Tìm tên hoặc mã chiến dịch' }
   };
-  var ds = tatCa.filter(function (c) { return (!crmCdTt || c.trang_thai === crmCdTt) && (!crmCdTim || vgbKhop([c.ten, c.name], crmCdTim)); });
-  var html = (tatCa.length ? dsCongCu(cc) : '') + (ds.length ? '<div class="card">' + ds.map(function (c) {
+  var ds = crmCdDsDong, coGi = +dem.tat_ca || crmCdTim || crmCdTt;
+  var html = (coGi ? dsCongCu(cc) : '') + (ds.length ? '<div class="card">' + ds.map(function (c) {
     var td = c.tien_do || {}, tong = (td['Chưa gọi'] || 0) + (td['Hẹn gọi lại'] || 0) + (td['Đã xong'] || 0);
     return '<div class="hub" data-crmcdmo="' + h(c.name) + '"><div class="hi">📣</div><div class="ht"><div class="h1">' + h(c.ten) + '</div>' +
       '<div class="h2">' + crmTagTt(c.trang_thai) + (c.ngay_chot ? 'chốt ' + crmNgay(c.ngay_chot) + ' · ' : '') +
       (tong ? 'đã gọi ' + (tong - (td['Chưa gọi'] || 0)) + ' / ' + tong : 'chưa chốt danh sách') + '</div></div>' +
       '<span class="fc" style="color:#c3c8d4;font-size:22px">&#8250;</span></div>';
-  }).join('') + '</div>' : crmTrong('📣', tatCa.length ? 'Không có chiến dịch nào khớp.' : 'Chưa có chiến dịch nào.' + (d.duoc_lap ? ' Bấm nút dưới để lập chiến dịch đầu tiên.' : '')));
+  }).join('') + '</div>' : crmTrong('📣', coGi ? 'Không có chiến dịch nào khớp.' : 'Chưa có chiến dịch nào.' + (d.duoc_lap ? ' Bấm nút dưới để lập chiến dịch đầu tiên.' : '')));
+  if (crmCdDsCon) html += '<button class="btn gh" data-crmcdthem="1" style="margin:0 0 10px">Xem thêm chiến dịch cũ hơn</button>';
   if (d.duoc_lap) html += '<button class="btn" data-crmcdnew="1" style="margin:0">+ Chiến dịch mới</button>';
   var b = frame(tieuDe, html);
   dsCongCuNoi(b, cc, function (ho, v) {
@@ -662,6 +701,7 @@ async function scrCrmCdDs() {
     scrCrmCdDs();
   });
   b.onclick = function (e) {
+    if (e.target.closest('[data-crmcdthem]')) return scrCrmCdDs(true);
     var m = e.target.closest('[data-crmcdmo]');
     if (m) { var ten = m.getAttribute('data-crmcdmo'); return go(function () { scrCrmCd(ten); }); }
     if (e.target.closest('[data-crmcdnew]')) { crmCdMoi = null; return go(function () { scrCrmCd(''); }); }
@@ -922,22 +962,39 @@ async function crmCdGoi(method, xong) {
 
 /* ================================================================ hiệu quả */
 
-async function scrCrmHqDs() {
-  /* Ô Hiệu quả chiến dịch mở danh sách chiến dịch đã chốt. */
+var crmHqTt = '', crmHqTim = '';
+async function scrCrmHqDs(them) {
+  /* Ô Hiệu quả chiến dịch mở danh sách chiến dịch đã chốt. Codex PR #505
+     vòng 3: có ô tìm và chip trạng thái (AGENTS: ô tìm nhanh ở đầu mọi danh
+     sách), máy chủ lọc "đã chốt" nên nháp mới không đẩy chiến dịch cũ ra. */
   var tieuDe = 'Hiệu quả chiến dịch';
   if (!coQuyenCrm()) return frame(tieuDe, crmTrong('🔒', 'Phân hệ Khách hàng chỉ mở cho Sales, quản lý cửa hàng và Marketing.'));
-  frame(tieuDe, '<div class="emp"><div class="e1">⏳</div><div>Đang đọc chiến dịch...</div></div>');
+  if (them === true) busy(true);
+  else frame(tieuDe, '<div class="emp"><div class="e1">⏳</div><div>Đang đọc chiến dịch...</div></div>');
   var d;
-  try { d = await api('vagabond.crm.ds_chien_dich', {}); }
-  catch (e) { return frame(tieuDe, crmTrong('⚠️', h(errMsg(e)))); }
-  var ds = (d.ds || []).filter(function (c) { return c.trang_thai !== 'Nháp'; });
-  var html = ds.length ? '<div class="card">' + ds.map(function (c) {
+  try { d = await crmDsCd(them, { trang_thai: crmHqTt, tim: crmHqTim, da_chot: 1 }); }
+  catch (e) { if (them === true) { busy(false); return toast(errMsg(e), 5000); } return frame(tieuDe, crmTrong('⚠️', h(errMsg(e)))); }
+  if (them === true) busy(false);
+  var dem = d.dem || {}, ds = crmCdDsDong;
+  var cc = {
+    ma: 'crmHq',
+    chang: { ds: ['Đang chạy', 'Đã kết thúc'].map(function (t) { return { k: t, ten: t }; }), dem: dem, chon: crmHqTt, tatCa: 'Tất cả' },
+    tim: { gt: crmHqTim, goiY: '🔎 Tìm tên hoặc mã chiến dịch' }
+  };
+  var coGi = +dem.tat_ca || crmHqTim || crmHqTt;
+  var html = (coGi ? dsCongCu(cc) : '') + (ds.length ? '<div class="card">' + ds.map(function (c) {
     return '<div class="hub" data-crmhqmo="' + h(c.name) + '"><div class="hi">📊</div><div class="ht"><div class="h1">' + h(c.ten) + '</div>' +
       '<div class="h2">' + crmTagTt(c.trang_thai) + 'chốt ' + crmNgay(c.ngay_chot) + ' · ' + money(c.so_nhan) + ' khách được liên hệ, ' +
       money(c.so_doi_chung) + ' đối chứng</div></div><span class="fc" style="color:#c3c8d4;font-size:22px">&#8250;</span></div>';
-  }).join('') + '</div>' : crmTrong('📊', 'Chưa có chiến dịch nào đã chốt danh sách.');
+  }).join('') + '</div>' : crmTrong('📊', coGi ? 'Không có chiến dịch nào khớp.' : 'Chưa có chiến dịch nào đã chốt danh sách.'));
+  if (crmCdDsCon) html += '<button class="btn gh" data-crmhqthem="1" style="margin:0">Xem thêm chiến dịch cũ hơn</button>';
   var b = frame(tieuDe, html);
+  dsCongCuNoi(b, cc, function (ho, v) {
+    if (ho === 'chang') crmHqTt = v; else if (ho === 'tim') crmHqTim = v;
+    scrCrmHqDs();
+  });
   b.onclick = function (e) {
+    if (e.target.closest('[data-crmhqthem]')) return scrCrmHqDs(true);
     var m = e.target.closest('[data-crmhqmo]');
     if (m) { var n = m.getAttribute('data-crmhqmo'); return go(function () { scrCrmHieuQua(n); }); }
   };
