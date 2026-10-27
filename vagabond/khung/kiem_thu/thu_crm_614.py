@@ -698,6 +698,20 @@ def _ds_cd_trang():
 	dung("câu món hay mua nối Item lấy ảnh", "left join `tabItem` it on it.name = i.item_code" in mon and "max(it.image) anh" in mon)
 	la("ảnh đi tới màn", [m.get("anh") for m in hs.get("mon", [])], ["/files/entremet.jpg"])
 
+	# Codex PR #505 vòng 5: nhật ký liên hệ có trang.
+	goi_lh = []
+
+	def get_all_lh(dt, **k):
+		goi_lh.append(k)
+		return [D(name="LH-%d" % i, nguoi="", chien_dich="") for i in range(21)] if dt == crm.DT_LIEN_HE else []
+
+	with um.patch.object(fr, "get_roles", lambda *a: ["Marketing"]), um.patch.object(fr.db, "sql", sql2), \
+			um.patch.object(fr.db, "exists", lambda *a, **k: True), um.patch.object(fr.db, "get_value", lambda *a, **k: None), \
+			um.patch.object(fr, "get_all", get_all_lh), um.patch.object(crm, "_ho_so", lambda k: {}), _nen_ban():
+		hs2 = crm.ho_so_crm("KH-1", 40)
+	la("lấy dư một dòng, bỏ qua 40 dòng đã xem", (goi_lh[-1]["limit_start"], goi_lh[-1]["limit_page_length"]), (40, 21))
+	la("trả 20 dòng, còn nữa", (len(hs2["lien_he"]), hs2["lh_con_nua"], hs2["lh_bat_dau"]), (20, 1, 40))
+
 
 @ca("v614 Codex #505 vòng 4: món giới thiệu của chiến dịch trả kèm ảnh món")
 def _cd_mon_anh():
@@ -726,3 +740,31 @@ def _cd_mon_anh():
 	hoi.clear()
 	with um.patch.object(fr, "get_all", get_all):
 		la("không có món thì không đọc Item", (crm._cd_dict(doc2)["mon"], hoi), ([], []))
+
+
+@ca("v614 Codex #505 vòng 5: một chỗ dựng điều kiện tìm khách; Xem khách theo bộ lọc tìm ở máy chủ")
+def _tim_khach():
+	la("rỗng", crm.dk_tim_khach("  "), ("", []))
+	c, ts = crm.dk_tim_khach("Minh Anh", "h.name")
+	dung("tìm mã, tên", "h.name like %s" in c and "c.customer_name" in c and "h.ten_khach" in c)
+	la("ba tham số tên", ts, ["%Minh Anh%"] * 3)
+	la("số có dấu chấm", crm.dk_tim_khach("0909.123.4")[1], ["%09091234%"] * 2)
+	src = io.open(os.path.join(GOI, "crm.py"), encoding="utf-8").read()
+	la("không còn chỗ nào tự dựng điều kiện tìm số", src.count('so.startswith("84")'), 1)
+	la("Sổ đồng ý dùng chung hàm", crm.dk_so_dong_y("", "", "Minh Anh")[0], " where " + crm.dk_tim_khach("Minh Anh", "n.khach")[0])
+
+	fr = crm.frappe
+	cau = []
+
+	def sql(q, ts=None, **k):
+		cau.append((q, ts))
+		return []
+
+	with um.patch.object(fr, "get_roles", lambda *a: ["Marketing"]), um.patch.object(fr.db, "sql", sql), \
+			um.patch.object(crm, "dem_loc", lambda loc: 0), um.patch.object(crm, "_cot_hang", lambda: "''"):
+		crm.ds_khach_loc('{"nhom": ["Sắp rời đi"]}', 30, "0909 123")
+		crm.ds_khach_loc('{"nhom": ["Sắp rời đi"]}', 30, "")
+	q1, t1 = cau[0]
+	dung("câu có điều kiện bộ lọc và điều kiện tìm số", "h.nhom in" in q1 and "ifnull(h.sdt, '') like %s" in q1)
+	la("tham số tìm nối sau tham số bộ lọc", list(t1)[-2:], ["%0909123%", "%0909123%"])
+	dung("không tìm thì không thêm điều kiện", "h.sdt, '') like" not in cau[1][0])
