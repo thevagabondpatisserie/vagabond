@@ -505,6 +505,37 @@ def cua_so_do(ngay_chot):
 	return tu, tu + dt.timedelta(days=CUA_SO_DO)
 
 
+def dk_so_dong_y(kenh="", trang_thai="", tim=""):
+	"""Điều kiện lọc Sổ đồng ý, ra (mệnh đề where, tham số). THUẦN.
+
+	Codex PR #505: sổ chỉ trả 100 dòng mới nhất, không tìm được bằng chứng của
+	một khách cũ. Tìm theo tên, mã khách hoặc số điện thoại (gõ một phần số).
+	Bảng: n = nhật ký đồng ý, c = Customer, h = hồ sơ CRM.
+	"""
+	import re
+
+	dk, ts = [], []
+	if kenh in KENH:
+		dk.append("n.kenh = %s")
+		ts.append(kenh)
+	if trang_thai in ("Đồng ý", "Từ chối"):
+		dk.append("n.trang_thai = %s")
+		ts.append(trang_thai)
+	tim = str(tim or "").strip()[:80]
+	if tim:
+		so = re.sub(r"\D", "", tim)
+		if len(so) >= 3 and len(so) == len(re.sub(r"[\s.+()-]", "", tim)):
+			if so.startswith("84") and len(so) >= 11:
+				so = "0" + so[2:]
+			dk.append("(ifnull(h.sdt, '') like %s or replace(replace(ifnull(c.mobile_no, ''), ' ', ''), '.', '') like %s)")
+			ts += ["%" + so + "%"] * 2
+		else:
+			like = "%" + tim.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+			dk.append("(n.khach like %s or ifnull(c.customer_name, '') like %s or ifnull(h.ten_khach, '') like %s)")
+			ts += [like] * 3
+	return (" where " + " and ".join(dk)) if dk else "", ts
+
+
 # ================================================================ phần chạm hệ
 
 import frappe  # noqa: E402
@@ -634,8 +665,12 @@ def dat_khong_quang_cao(khach=None, bat=1, ghi_chu=""):
 
 
 @frappe.whitelist()
-def so_dong_y(kenh="", trang_thai="", so_dong=100):
-	"""Sổ đồng ý: tổng theo kênh và các dòng nhật ký mới nhất."""
+def so_dong_y(kenh="", trang_thai="", so_dong=100, tim="", bat_dau=0):
+	"""Sổ đồng ý: tổng theo kênh và các dòng nhật ký mới nhất.
+
+	tim: tên, mã khách hoặc một phần số điện thoại; bat_dau: lấy tiếp từ dòng
+	thứ mấy (nút Xem thêm). con_nua = 1 khi còn dòng cũ hơn.
+	"""
 	_kiem(CRM_XEM, "xem sổ đồng ý nhận tin")
 	tong = {}
 	for k in KENH:
@@ -644,21 +679,26 @@ def so_dong_y(kenh="", trang_thai="", so_dong=100):
 			"select ifnull(h.%s, 'Chưa hỏi') tt, count(*) n from `tab%s` h where ifnull(h.la_gop, 0) = 0 group by tt"
 			% (cot, DT_HO_SO), as_dict=True)
 		tong[k] = {chuan_dong_y(r.tt): cint(r.n) for r in rows}
-	loc = {}
-	if kenh in KENH:
-		loc["kenh"] = kenh
-	if trang_thai in ("Đồng ý", "Từ chối"):
-		loc["trang_thai"] = trang_thai
-	dong = frappe.get_all(
-		DT_NHAT_KY, filters=loc,
-		fields=["name", "khach", "kenh", "trang_thai", "noi_ghi", "nguoi", "luc", "chien_dich"],
-		order_by="luc desc", limit_page_length=min(500, cint(so_dong) or 100))
+	where, ts = dk_so_dong_y(kenh, trang_thai, tim)
+	so_dong = max(1, min(500, cint(so_dong) or 100))
+	bat_dau = max(0, cint(bat_dau))
+	dong = frappe.db.sql(
+		"""select n.name, n.khach, n.kenh, n.trang_thai, n.noi_ghi, n.nguoi, n.luc, n.chien_dich
+		from `tab%s` n
+		left join `tabCustomer` c on c.name = n.khach
+		left join `tab%s` h on h.name = n.khach
+		%s
+		order by n.luc desc, n.name desc
+		limit %d offset %d""" % (DT_NHAT_KY, DT_HO_SO, where, so_dong + 1, bat_dau),
+		tuple(ts), as_dict=True)
+	con_nua = 1 if len(dong) > so_dong else 0
+	dong = dong[:so_dong]
 	ten = _ten_khach([d.khach for d in dong])
 	for d in dong:
 		d["ten_khach"] = ten.get(d.khach) or d.khach
 		d["ten_nguoi"] = _ten_nguoi(d.nguoi)
 	kqc = frappe.db.count(DT_HO_SO, {"khong_quang_cao": 1})
-	return {"tong": tong, "dong": dong, "khong_quang_cao": kqc}
+	return {"tong": tong, "dong": dong, "khong_quang_cao": kqc, "con_nua": con_nua, "bat_dau": bat_dau}
 
 
 def _ten_khach(ds):
