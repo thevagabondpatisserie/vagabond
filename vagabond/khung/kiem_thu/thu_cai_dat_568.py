@@ -159,8 +159,8 @@ def _():
 		"vgb_ban_tru_kho_tu": ("tab_ke_toan", "vgb_sec_hach_toan_kho"),
 		"vgb_sx_621_tu": ("tab_ke_toan", "vgb_sec_hach_toan_kho"),
 		"tk_chi_phi_qua_tang": ("tab_ke_toan", "sec_qua_tang"),
-		# v607: ô tài khoản Giám đốc thu hộ đứng ngay dưới, cùng mục.
-		"tk_gd_thu_ho": ("tab_ke_toan", "sec_qua_tang"),
+		# v615: ô tài khoản Giám đốc thu hộ có mục riêng, không lẫn vào mục hàng biếu tặng.
+		"tk_gd_thu_ho": ("tab_ke_toan", "sec_tra_truoc_khach"),
 		"tu_ghi_so_bat": ("tab_ban_hang", "sec_vgb_tu_dong"),
 		"tu_ghi_so_nhat_ky": ("tab_ban_hang", "sec_vgb_tu_dong"),
 		# Ô cũ từng bị mục Hạch toán kho chen ngang và kéo đi:

@@ -457,7 +457,9 @@ CUA_NGO = {
 	# nhap. Khong cua nao ghi so, khong cua nao chuyen tien.
 	"tra_truoc.py": ["chi_tiet_don", "ds_don_mua", "ds_nguon_tien", "ds_phieu", "tao_phieu"],
 	# v607: số dư khách trả trước, trừ dần.
-	"tra_truoc_khach.py": ["ap_dung", "cai_dat", "ds", "ghi_so_phieu_nap", "so_du", "so_khach", "tao_phieu_nap"],
+	# v615: kế toán chọn tài khoản phải thu Giám đốc thu hộ ngay trên màn nạp (kiểm quyền trong hàm).
+	"tra_truoc_khach.py": ["ap_dung", "cai_dat", "ds", "ghi_so_phieu_nap", "luu_tk_gd", "so_du", "so_khach", "tao_phieu_nap",
+		"tim_tk_gd"],
 	"thong_bao.py": ["dang_ky", "khoa_cong_khai", "tinh_hinh", "thu_gui"],
 	# Tang doi soat SePay dung chung, them 24/08/2026. Ba cua ngo nay phuc vu
 	# MOI man co doi soat, nen thieu mot ten la mot man mat nut.

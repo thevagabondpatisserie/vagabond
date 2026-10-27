@@ -1162,3 +1162,103 @@ def _():
 	tk.chon_pt_ca_don(d, "Tiền mặt", doi_pt=True)
 	_chay_validate(d)
 	la("bỏ bảng, bỏ dấu", (list(d.vgb_thanh_toan_nhieu), d.get(tk.O_KY_TACH)), ([], ""))
+
+
+# ---------------------------------------------- v615: chọn tài khoản Giám đốc thu hộ tại chỗ
+
+class _Chan(Exception):
+	pass
+
+
+class _QuyenLoi(Exception):
+	pass
+
+
+def _fr_tk(vai, tk_db=None):
+	"""Frappe giả cho luu_tk_gd, tim_tk_gd: ghi lại Cài đặt đã lưu và bộ lọc tìm."""
+	da = {"luu": [], "loc": []}
+
+	class Doc(dict):
+		flags = NS()
+
+		def set(self, k, v):
+			self[k] = v
+
+		def save(self):
+			da["luu"].append((dict(self), getattr(self.flags, "ignore_permissions", False)))
+
+	def nem(msg, exc=None, title=None):
+		raise (_QuyenLoi if exc == "PERM" else _Chan)(msg)
+
+	def get_all(dt, filters=None, **k):
+		da["loc"].append((dt, filters))
+		return []
+	fr = NS(get_roles=lambda: vai, throw=nem, PermissionError="PERM", get_doc=lambda dt: Doc(),
+		get_all=get_all, db=NS(get_value=lambda dt, n, f, as_dict=True: (tk_db or {}).get(n), commit=lambda: None))
+	return fr, da
+
+
+TK_TOT = {"name": "1388 - Phải thu Giám đốc - VGB", "company": "VGB", "is_group": 0, "disabled": 0,
+	"root_type": "Asset", "account_type": ""}
+
+
+@ca("v615 loi_tk_gd: chỉ nhận tài khoản tài sản chi tiết, còn dùng, đúng công ty, không theo dõi đối tượng")
+def _():
+	la("tài khoản tốt", tk.loi_tk_gd(TK_TOT, "VGB"), "")
+	for doi, chu in (({"is_group": 1}, "tổng hợp"), ({"disabled": 1}, "đang tắt"), ({"company": "Khác"}, "công ty khác"),
+			({"root_type": "Liability"}, "không phải tài khoản tài sản"), ({"account_type": "Receivable"}, "theo dõi theo đối tượng"),
+			({"account_type": "Payable"}, "theo dõi theo đối tượng")):
+		loi = tk.loi_tk_gd(dict(TK_TOT, **doi), "VGB")
+		dung("%r bị chặn với câu nói rõ (%s)" % (doi, loi), chu in loi)
+	dung("không tìm thấy", "Không tìm thấy" in tk.loi_tk_gd(None, "VGB"))
+
+
+@ca("v615 luu_tk_gd chạy THẬT: Sales bị chặn; kế toán chọn tài khoản theo dõi đối tượng thì không lưu; tài khoản đúng thì lưu vào Cài đặt")
+def _():
+	db = {TK_TOT["name"]: TK_TOT, "131 - Phải thu khách - VGB": dict(TK_TOT, name="131 - Phải thu khách - VGB", account_type="Receivable")}
+	fr, da = _fr_tk(["Sales User"], db)
+	with patch.object(tk, "frappe", fr), patch.object(tk, "_la_ke_toan", lambda: False), patch.object(tk, "_cong_ty", lambda: "VGB"):
+		try:
+			tk.luu_tk_gd(TK_TOT["name"])
+			dung("Sales phải bị chặn", False)
+		except _QuyenLoi:
+			pass
+		la("Sales: không lưu gì", da["luu"], [])
+	fr, da = _fr_tk(["Accounts User"], db)
+	with patch.object(tk, "frappe", fr), patch.object(tk, "_la_ke_toan", lambda: True), patch.object(tk, "_cong_ty", lambda: "VGB"):
+		try:
+			tk.luu_tk_gd("131 - Phải thu khách - VGB")
+			dung("tài khoản phải thu khách phải bị chặn", False)
+		except _Chan as e:
+			dung("câu chặn nói rõ lý do", "theo dõi theo đối tượng" in str(e))
+		la("chọn sai: không lưu", da["luu"], [])
+		la("chọn đúng: trả về tài khoản", tk.luu_tk_gd("  " + TK_TOT["name"] + " "), {"ok": 1, "tk": TK_TOT["name"]})
+		la("lưu đúng ô, bỏ qua quyền ghi Cài đặt của kế toán", da["luu"], [({"tk_gd_thu_ho": TK_TOT["name"]}, True)])
+
+
+@ca("v615 tim_tk_gd: lọc đúng phạm vi (tài sản, chi tiết, còn dùng, đúng công ty, không phải thu khách, phải trả); Sales bị chặn")
+def _():
+	fr, da = _fr_tk(["Accounts User"])
+	with patch.object(tk, "frappe", fr), patch.object(tk, "_la_ke_toan", lambda: True), patch.object(tk, "_cong_ty", lambda: "VGB"):
+		la("không có kết quả", tk.tim_tk_gd(""), [])
+	dt, loc = da["loc"][0]
+	la("tìm trong Account", dt, "Account")
+	la("bộ lọc", loc, {"company": "VGB", "is_group": 0, "disabled": 0, "root_type": "Asset",
+		"account_type": ["not in", ["Receivable", "Payable"]]})
+	fr, da = _fr_tk(["Sales User"])
+	with patch.object(tk, "frappe", fr), patch.object(tk, "_la_ke_toan", lambda: False):
+		try:
+			tk.tim_tk_gd("")
+			dung("Sales phải bị chặn", False)
+		except _QuyenLoi:
+			pass
+
+
+@ca("v615 Cài đặt: ô tài khoản Giám đốc thu hộ có mục riêng 'Khách nạp tiền trả trước', không lẫn vào mục hàng biếu tặng")
+def _():
+	ds = tk.TRUONG_MOI["Vagabond Settings"]
+	sec = [f for f in ds if f["fieldtype"] == "Section Break"]
+	la("một mục mới", [(f["fieldname"], f["label"]) for f in sec], [("sec_tra_truoc_khach", "Khách nạp tiền trả trước")])
+	o = [f for f in ds if f["fieldname"] == "tk_gd_thu_ho"][0]
+	la("ô đứng ngay dưới mục mới", o["insert_after"], "sec_tra_truoc_khach")
+	dung("mô tả ô nói kế toán chọn được ngay trên màn nạp", "màn Số dư trả trước" in o["description"])
