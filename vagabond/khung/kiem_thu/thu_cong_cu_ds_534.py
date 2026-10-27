@@ -729,6 +729,8 @@ MIEN = {
 	"scrDiemBan": KHONG_PHAI, "scrPtThanhToan": KHONG_PHAI, "scrTaiKhoan": KHONG_PHAI,
 	"scrCaiDatKho": KHONG_PHAI, "scrMayIn": KHONG_PHAI, "scrNguoiDung": KHONG_PHAI,
 	"scrMauBg": KHONG_PHAI, "scrMauIn": KHONG_PHAI,
+	# v614: danh sách chiến dịch đã chốt để mở số hiệu quả, vài dòng mỗi mùa.
+	"scrCrmHqDs": "danh sách chiến dịch đã chốt, mỗi mùa vài dòng, bấm vào là xem số",
 }
 DOT1 = ("scrCongNo", "scrDuyetTang")
 
