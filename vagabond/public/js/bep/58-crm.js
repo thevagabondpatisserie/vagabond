@@ -752,11 +752,20 @@ function crmCdDau(c) {
     s(c.ctkm), s(c.han), s(c.kich_ban), s(c.noi_dung_zalo), +c.ty_le_doi_chung || 0]);
 }
 function crmCdChuaLuu() { return !!(crmCd && crmCd.name) && crmCdDau(crmCd) !== crmCdGoc; }
+/* Codex PR #505 vòng 4: Lưu nháp xong thì 48 thôi theo dõi (sdDaLuu) mà màn
+   vẫn sửa tiếp được, tải lại trang là mất phần sửa sau. Lưu xong mở lại màn
+   qua bản bọc của 48 với mã chiến dịch vừa có, để bản nháp tự lưu theo dõi
+   lại đúng chiến dịch đó; dùng luôn bản máy chủ vừa trả, không hỏi lại. */
+var crmCdSan = null;
 
 async function scrCrmCd(name) {
   var tieuDe = name ? 'Chiến dịch' : 'Chiến dịch mới';
   crmCdGoc = '';
-  if (name) {
+  if (name && crmCdSan && crmCdSan.name === name) {
+    crmCd = crmCdSan; crmCdSan = null;
+    crmCdGoc = crmCdDau(crmCd);
+  } else if (name) {
+    crmCdSan = null;
     frame(tieuDe, '<div class="emp"><div class="e1">⏳</div><div>Đang đọc chiến dịch...</div></div>');
     try { crmCd = await api('vagabond.crm.doc_chien_dich', { name: name }); }
     catch (e) { return frame(tieuDe, crmTrong('⚠️', h(errMsg(e)))); }
@@ -794,8 +803,11 @@ function crmCdVe() {
         : (+c.kenh_goi ? posChipNut('data-x', '📞 Gọi điện', true) : '') + (+c.kenh_zalo ? posChipNut('data-x', '💬 Zalo cá nhân', true) : '')) +
       '<span style="border:1.5px dashed #d0d5dd;color:#a0a6b2;border-radius:999px;padding:9px 13px;font-size:13px">Zalo OA hàng loạt · đợt 2</span>') +
     crmCdNhan('MÓN GIỚI THIỆU') +
+    /* Codex PR #505 vòng 4: mỗi món giới thiệu một dòng có ảnh món (ô 🍰 khi chưa có ảnh). */
     '<div>' + (c.mon || []).map(function (x, i) {
-      return crmTag('🍰 ' + (x.ten || x.item), 'lam').replace('</span>', sua ? ' <b data-crmcdbomon="' + i + '" style="cursor:pointer">✕</b></span>' : '</span>');
+      return '<div class="li" data-crmcdmonr="' + h(x.item) + '" style="padding:8px 0;cursor:default">' + anhMon(x.anh) +
+        '<div class="lt"><div class="l1" style="font-size:14.5px">' + h(x.ten || x.item) + '</div></div>' +
+        (sua ? '<button type="button" data-crmcdbomon="' + i + '" aria-label="Bỏ món này" style="border:0;background:#f2f4f7;color:#475467;border-radius:10px;min-width:44px;min-height:44px;font-size:16px">✕</button>' : '') + '</div>';
     }).join('') + (sua ? '<button class="btn gh" data-crmcdmon="1" style="margin:4px 0 0;padding:10px;font-size:14px">+ Thêm món</button>' : '') + '</div>' +
     crmCdNhan('MÃ ƯU ĐÃI RIÊNG') +
     '<button class="btn gh" data-crmcdkm="1"' + dis + ' style="margin:0;padding:12px;text-align:left">🎫 ' +
@@ -867,7 +879,7 @@ async function crmCdBam(e) {
     crmCdDocO();
     var ds = await vgbChonMon({ tieu_de: 'Món giới thiệu trong chiến dịch', nhieu: true });
     (ds || []).forEach(function (m) {
-      if (!c.mon.some(function (x) { return x.item === m.ma; })) c.mon.push({ item: m.ma, ten: m.ten });
+      if (!c.mon.some(function (x) { return x.item === m.ma; })) c.mon.push({ item: m.ma, ten: m.ten, anh: m.hinh || '' });
     });
     return crmCdVe();
   }
@@ -948,6 +960,11 @@ async function crmCdLuu() {
     d.mo_ta_loc = c.bo_loc ? (c.mo_ta_loc || d.mo_ta_loc) : d.mo_ta_loc;
     crmCd = d; crmCdGoc = crmCdDau(d);
     toast('Đã lưu nháp');
+    if (d.name && d.trang_thai === 'Nháp' && +d.duoc_lap) {
+      /* Thay nấc đang đứng (không đẩy thêm nấc): lùi ra vẫn về danh sách. */
+      var ma = d.name; crmCdSan = d;
+      return go(function () { return scrCrmCd(ma); }, true);
+    }
     crmCdVe();
   } catch (e) { busy(false); toast(errMsg(e), 5000); }
 }
