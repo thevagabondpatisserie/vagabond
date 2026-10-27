@@ -61070,7 +61070,15 @@ async function sdtChonTkGd(sauLuu) {
     '<div style="flex:0 0 auto;padding:10px 14px 4px"><input class="nt" id="sdtTimTk" placeholder="Gõ số hoặc tên tài khoản, ví dụ 1388" ' +
     'style="height:46px;padding:0 12px;width:100%;box-sizing:border-box"></div><div class="shl"></div>';
   var lst = box.querySelector('.shl');
+  var loiTim = '';
   function ve() {
+    /* Codex #507 P1: lần tìm hỏng thì bỏ kết quả cũ và nói rõ, không để danh sách
+       cũ trông như kết quả của chữ vừa gõ. */
+    if (loiTim) {
+      lst.innerHTML = '<div class="emp" data-tkloi="1"><div class="e2">Chưa tìm được: ' + h(loiTim) +
+        '. Kiểm mạng rồi gõ lại ô tìm để thử lại.</div></div>';
+      return;
+    }
     lst.innerHTML = ds.length ? ds.map(function (x) {
       return '<div class="shi" data-tkgd="' + h(x.name) + '"><span>📒</span><span style="flex:1;min-width:0">' + h(x.ten) +
         '<div style="color:#a0a6b4;font-size:12px;margin-top:2px">' + h(x.so ? 'Số hiệu ' + x.so : x.name) + '</div></span></div>';
@@ -61078,11 +61086,20 @@ async function sdtChonTkGd(sauLuu) {
   }
   ve();
   ov.appendChild(box); document.body.appendChild(ov);
-  var inp = box.querySelector('#sdtTimTk'), tre = null;
+  var inp = box.querySelector('#sdtTimTk'), tre = null, luot = 0;
   inp.oninput = function () {
     if (tre) clearTimeout(tre);
     tre = setTimeout(async function () {
-      try { ds = (await api('vagabond.tra_truoc_khach.tim_tk_gd', { tu: inp.value })) || []; ve(); } catch (e) { }
+      var cua = ++luot;
+      try {
+        var kq = (await api('vagabond.tra_truoc_khach.tim_tk_gd', { tu: inp.value })) || [];
+        if (cua !== luot) return;
+        ds = kq; loiTim = '';
+      } catch (e) {
+        if (cua !== luot) return;
+        ds = []; loiTim = errMsg(e) || 'lỗi không rõ';
+      }
+      ve();
     }, 260);
   };
   function dong() { ov.remove(); }
