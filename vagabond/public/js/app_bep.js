@@ -62173,7 +62173,18 @@ async function crmGanHoSo(khach, tenKhach) {
   try { d = await api('vagabond.crm.ho_so_crm', { khach: khach }); }
   catch (e) { o.innerHTML = '<div class="card" style="padding:12px 14px;color:#b42318">' + h(errMsg(e)) + '</div>'; return; }
   o.innerHTML = crmVeHoSo(d);
-  o.onclick = function (e) {
+  o.onclick = async function (e) {
+    if (e.target.closest('[data-crmlhthem]')) {
+      /* Nhật ký liên hệ cũ hơn: lấy tiếp 20 dòng, nối vào cuối. */
+      busy(true);
+      try {
+        var t = await api('vagabond.crm.ho_so_crm', { khach: khach, lh_bat_dau: (d.lien_he || []).length });
+        busy(false);
+        d.lien_he = (d.lien_he || []).concat(t.lien_he || []); d.lh_con_nua = t.lh_con_nua;
+        o.innerHTML = crmVeHoSo(d);
+      } catch (er) { busy(false); toast(errMsg(er), 5000); }
+      return;
+    }
     if (e.target.closest('[data-crmhsdy]')) {
       var dy = Object.assign({ cau_hoi: '' }, d.dong_y);
       return crmSheetDongY(khach, tenKhach, dy, 'Hồ sơ khách', function () { crmGanHoSo(khach, tenKhach); });
@@ -62214,7 +62225,8 @@ function crmVeHoSo(d) {
         (r.ghi_chu ? '<div style="font-size:13px;color:#475467;margin-top:2px">' + h(r.ghi_chu) + '</div>' : '') +
         '<div style="font-size:12px;color:#8a8f9c;margin-top:2px">' + h(r.ten_nguoi || '') + ' · ' + crmGioNgay(r.luc) +
         (r.ten_chien_dich ? ' · ' + h(r.ten_chien_dich) : '') + '</div></div>';
-    }).join('') : '<div style="padding:14px;color:#98a2b3;font-size:13px">Chưa ai ghi liên hệ với khách này.</div>') + '</div>';
+    }).join('') : '<div style="padding:14px;color:#98a2b3;font-size:13px">Chưa ai ghi liên hệ với khách này.</div>') +
+    (+d.lh_con_nua ? '<div style="padding:8px 14px 14px"><button class="btn gh" data-crmlhthem="1" style="margin:0;padding:11px">Xem thêm liên hệ cũ hơn</button></div>' : '') + '</div>';
   return html;
 }
 
@@ -62456,6 +62468,12 @@ function crmSheetKetQua(r, ketQua, xong) {
 
 var crmNhomChon = 'Sắp rời đi';
 var crmNhomD = null;
+/* Codex PR #505 vòng 5: ô tìm ở đầu danh sách bộ lọc đã lưu. Máy chủ trả đủ
+   mọi bộ lọc chưa ẩn nên lọc trên máy, theo tên và mô tả, bỏ dấu. */
+var crmBlTim = '';
+function crmLocBoLoc(ds, tim) {
+  return (ds || []).filter(function (b) { return !tim || vgbKhop([b.ten, b.mo_ta], tim); });
+}
 
 async function scrCrmNhom() {
   var tieuDe = 'Nhóm khách';
@@ -62488,14 +62506,17 @@ function crmNhomVe(tieuDe) {
       '<div style="font-size:13px;color:#8a8f9c;margin-top:4px">' + pt + '% nhóm này đã đồng ý ít nhất một kênh. Chỉ những khách này được gọi hay nhắn trong chiến dịch.</div>' +
       '<button class="btn gh" data-crmxemkh="1" style="margin:10px 0 0;padding:11px">👀 Xem khách trong nhóm</button></div>';
   }
-  html += '<div class="sec">Bộ lọc đã lưu</div><div class="card">' +
-    (d.bo_loc.length ? d.bo_loc.map(function (b) {
+  var ccBl = { ma: 'crmBl', tim: { gt: crmBlTim, goiY: '🔎 Tìm tên bộ lọc' } };
+  var dsBl = crmLocBoLoc(d.bo_loc, crmBlTim);
+  html += '<div class="sec">Bộ lọc đã lưu</div>' + (d.bo_loc.length ? dsCongCu(ccBl) : '') + '<div class="card">' +
+    (dsBl.length ? dsBl.map(function (b) {
       return '<div class="hub" data-crmbl="' + h(b.name) + '"><div class="hi">🎯</div><div class="ht"><div class="h1">' + h(b.ten) + '</div>' +
         '<div class="h2">' + h(b.mo_ta) + ' · ' + money(b.so) + ' khách</div></div><span class="fc" style="color:#c3c8d4;font-size:22px">&#8250;</span></div>';
-    }).join('') : '<div style="padding:14px;color:#98a2b3;font-size:13px">Chưa có bộ lọc nào. Lưu một bộ lọc để dùng lại khi lập chiến dịch.</div>') +
+    }).join('') : '<div style="padding:14px;color:#98a2b3;font-size:13px">' + (crmBlTim ? 'Không có bộ lọc nào khớp chữ tìm.' : 'Chưa có bộ lọc nào. Lưu một bộ lọc để dùng lại khi lập chiến dịch.') + '</div>') +
     '<div style="padding:8px 14px 14px"><button class="btn gh" data-crmblmoi="1" style="margin:0;padding:12px">+ Lưu bộ lọc mới</button></div></div>';
   if (d.duoc_lap && tong) html += '<button class="btn" data-crmlapnhom="1" style="margin:0">📣 Lập chiến dịch từ nhóm ' + h(crmNhomChon) + '</button>';
   var b = frame(tieuDe, html);
+  dsCongCuNoi(b, ccBl, function (ho, v) { if (ho === 'tim') { crmBlTim = v; crmNhomVe(tieuDe); } });
   b.onclick = function (e) {
     var c = e.target.closest('[data-crmnh]');
     if (c) { crmNhomChon = c.getAttribute('data-crmnh'); return crmNhomVe(tieuDe); }
@@ -62515,22 +62536,29 @@ function crmKv(nhan, gt) {
 }
 
 /* Xem mẫu khách khớp một bộ lọc, kèm nút lập chiến dịch và ẩn bộ lọc. */
-async function crmSheetXemLoc(loc, ten, boLoc) {
+async function crmSheetXemLoc(loc, ten, boLoc, tim) {
+  /* Codex PR #505 vòng 5: ô tìm (tên, mã, số điện thoại) hỏi máy chủ trong số
+     khách khớp bộ lọc, không chỉ trong 30 khách đang hiện. */
+  tim = tim || '';
   busy(true);
   var d;
-  try { d = await api('vagabond.crm.ds_khach_loc', { loc: JSON.stringify(loc), so_dong: 30 }); }
+  try { d = await api('vagabond.crm.ds_khach_loc', { loc: JSON.stringify(loc), so_dong: 30, tim: tim }); }
   catch (e) { busy(false); return toast(errMsg(e), 5000); }
   busy(false);
+  var ccX = { ma: 'crmX', tim: { gt: tim, goiY: '🔎 Tìm tên khách, số điện thoại' } };
   var ov = crmMoSheet('<div style="font-size:18px;font-weight:700">' + h(ten) + '</div>' +
-    '<div style="font-size:13px;color:#8a8f9c;margin:2px 0 10px">' + h(d.mo_ta) + ' · <b>' + money(d.so) + ' khách</b>' + (d.so > d.dong.length ? ', hiện ' + d.dong.length + ' khách mua gần nhất' : '') + '</div>' +
+    '<div style="font-size:13px;color:#8a8f9c;margin:2px 0 10px">' + h(d.mo_ta) + ' · <b>' + money(d.so) + ' khách</b>' +
+    (tim ? ', khớp chữ tìm ' + money(d.dong.length) + (d.dong.length >= 30 ? '+' : '') + ' khách' : (d.so > d.dong.length ? ', hiện ' + d.dong.length + ' khách mua gần nhất' : '')) + '</div>' +
+    (d.so ? dsCongCu(ccX) : '') +
     (d.dong.length ? d.dong.map(function (r) {
       return '<div data-crmxkh="' + h(r.khach) + '" data-crmxten="' + h(r.ten || '') + '" style="padding:10px 0;border-bottom:1px solid #f0f2f6;cursor:pointer;min-height:44px">' +
         '<div style="font-size:14.5px;font-weight:600">' + h(r.ten || r.khach) + (r.hang ? ' · <span style="color:#0B7C93">' + h(r.hang) + '</span>' : '') + '</div>' +
         '<div style="font-size:12.5px;color:#8a8f9c">' + h(r.nhom || '') + (r.lan_cuoi ? ' · mua lần cuối ' + crmNgay(r.lan_cuoi) : '') +
         ' · Zalo ' + (r.dy_zalo === 'Đồng ý' ? '✓' : '✗') + ' · gọi ' + (r.dy_goi === 'Đồng ý' ? '✓' : '✗') + '</div></div>';
-    }).join('') : '<div style="color:#98a2b3;padding:10px 0">Không có khách nào khớp.</div>') +
+    }).join('') : '<div style="color:#98a2b3;padding:10px 0">' + (tim ? 'Không có khách nào khớp chữ tìm.' : 'Không có khách nào khớp.') + '</div>') +
     (crmCoLap() && d.so ? '<button class="btn" data-crmxlap="1" style="margin-top:12px">📣 Lập chiến dịch từ ' + (boLoc ? 'bộ lọc' : 'nhóm') + ' này</button>' : '') +
     (boLoc ? '<button class="btn gh" data-crmxan="1" style="margin-top:9px">Ẩn bộ lọc này</button>' : ''));
+  dsCongCuNoi(ov, ccX, function (ho, v) { if (ho === 'tim') { ov.remove(); crmSheetXemLoc(loc, ten, boLoc, v); } });
   ov.onclick = async function (e) {
     if (e.target === ov) return ov.remove();
     var kh = e.target.closest('[data-crmxkh]');
@@ -62554,6 +62582,7 @@ function crmSheetBoLoc(cu, xong) {
   var loc = JSON.parse(JSON.stringify((cu && cu.loc) || {}));
   loc.nhom = loc.nhom || []; loc.dong_y = loc.dong_y || [];
   var tenMon = (cu && cu.ten_mon) || loc.mon || '';
+  var anhMonLoc = (cu && cu.anh_mon) || '';
   var ov = crmMoSheet('');
   var box = ov.querySelector('.shb');
   function ve() {
@@ -62568,7 +62597,10 @@ function crmSheetBoLoc(cu, xong) {
       '<div style="font-size:12px;color:#0B7C93;font-weight:600;margin:12px 0 6px">ĐÃ ÍT NHẤT BAO NHIÊU NGÀY CHƯA MUA</div>' +
       '<input class="tin" type="number" inputmode="numeric" id="crmBlNgay" value="' + h(loc.chua_mua_ngay || '') + '" placeholder="Để trống là không xét" style="font-size:15px;font-weight:500">' +
       '<div style="font-size:12px;color:#0B7C93;font-weight:600;margin:12px 0 6px">ĐÃ MUA MÓN (hoá đơn từ 08/2026)</div>' +
-      '<button class="btn gh" data-crmblmon="1" style="margin:0;padding:12px;text-align:left">' + (loc.mon ? '🍰 ' + h(tenMon) + ' · bấm để đổi' : '🍰 Chọn món từ danh mục') + '</button>' +
+      /* Codex PR #505 vòng 5: món đã chọn hiện kèm ảnh món (ô 🍰 khi chưa có ảnh). */
+      (loc.mon ? '<button class="btn gh" data-crmblmon="1" style="margin:0;padding:10px 12px;text-align:left;display:flex;align-items:center;gap:10px">' +
+        anhMon(anhMonLoc) + '<span style="flex:1">' + h(tenMon) + ' · bấm để đổi</span></button>'
+        : '<button class="btn gh" data-crmblmon="1" style="margin:0;padding:12px;text-align:left">🍰 Chọn món từ danh mục</button>') +
       (loc.mon ? '<button class="btn gh" data-crmblbomon="1" style="margin:6px 0 0;padding:9px;font-size:13px">Bỏ điều kiện món</button>' : '') +
       '<div style="font-size:12px;color:#0B7C93;font-weight:600;margin:12px 0 6px">CHỈ KHÁCH ĐÃ ĐỒNG Ý (không chọn là không xét)</div>' +
       kmHangChip(['Gọi điện', 'Zalo'].map(function (k) { return posChipNut('data-crmbldy="' + h(k) + '"', CRM_IC_KENH[k] + ' ' + h(k), loc.dong_y.indexOf(k) >= 0); }).join('')) +
@@ -62591,10 +62623,10 @@ function crmSheetBoLoc(cu, xong) {
     if (e.target.closest('[data-crmblmon]')) {
       docO();
       var ds = await vgbChonMon({ tieu_de: 'Khách đã mua món nào?', nhieu: false });
-      if (ds && ds.length) { loc.mon = ds[0].ma; tenMon = ds[0].ten; }
+      if (ds && ds.length) { loc.mon = ds[0].ma; tenMon = ds[0].ten; anhMonLoc = ds[0].hinh || ''; }
       return ve();
     }
-    if (e.target.closest('[data-crmblbomon]')) { docO(); loc.mon = ''; tenMon = ''; return ve(); }
+    if (e.target.closest('[data-crmblbomon]')) { docO(); loc.mon = ''; tenMon = ''; anhMonLoc = ''; return ve(); }
     if (e.target.closest('[data-crmbldem]')) {
       docO();
       try {
