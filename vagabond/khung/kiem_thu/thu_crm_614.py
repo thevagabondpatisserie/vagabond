@@ -475,6 +475,21 @@ def _quyen():
 	for ten, may_chu in (("CRM_XEM", crm.CRM_XEM), ("CRM_LAP", crm.CRM_LAP)):
 		m = re.search(r"var %s = \[([^\]]*)\]" % ten, js)
 		la(ten + " trùng máy chủ", re.findall(r"'([^']+)'", m.group(1)), list(may_chu))
+	# Codex PR #505 vòng 3: ai được mở màn Chi tiết khách hàng phải trùng cổng bán hàng.
+	# Đọc tập vai từ mã nguồn ban_hang.py (không import: mô đun đó kéo requests ở đầu tệp).
+	import ast
+	bh = io.open(os.path.join(GOI, "ban_hang.py"), encoding="utf-8").read()
+	tap = {}
+	for nut in ast.parse(bh).body:
+		if isinstance(nut, ast.Assign) and len(nut.targets) == 1 and getattr(nut.targets[0], "id", "") in ("QUYEN_BAN_HANG_THAT", "QUYEN_BAN_VA_KE_TOAN"):
+			v = nut.value
+			if isinstance(v, ast.Set):
+				tap[nut.targets[0].id] = {ast.literal_eval(x) for x in v.elts}
+			else:
+				tap[nut.targets[0].id] = tap[v.left.id] | {ast.literal_eval(x) for x in v.right.elts}
+	day_du = sorted(tap["QUYEN_BAN_VA_KE_TOAN"])
+	la("CRM_HO_SO_DAY_DU trùng cổng hồ sơ bán hàng",
+		sorted(re.findall(r"'([^']+)'", re.search(r"var CRM_HO_SO_DAY_DU = \[([^\]]*)\]", js).group(1))), day_du)
 	la("sáu nhóm trùng máy chủ", re.findall(r"'([^']+)'", re.search(r"var CRM_NHOM = \[([^\]]*)\]", js).group(1)), list(crm.NHOM))
 	hk = io.open(os.path.join(GOI, "hooks.py"), encoding="utf-8").read()
 	dung("lịch 02:30", '.setdefault("30 2 * * *", []).append("vagabond.crm.tinh_nhom_dem")' in hk)
@@ -628,3 +643,57 @@ def _so_dong_y_tim():
 		crm.so_dong_y(so_dong=99999, bat_dau=-5)
 		doc = [c for c in cau if "order by n.luc desc" in c[0]][-1]
 		dung("trần 500 dòng, không âm", "limit 501 offset 0" in doc[0])
+
+
+@ca("v614 Codex #505 vòng 3: danh sách chiến dịch lọc ở máy chủ, có trang; món hay mua kèm ảnh món")
+def _ds_cd_trang():
+	la("không lọc", crm.dk_ds_chien_dich(), ("", []))
+	w, ts = crm.dk_ds_chien_dich("Đang chạy", " Giáng sinh ", 1)
+	dung("trạng thái, đã chốt, tên hoặc mã", "trang_thai = %s" in w and "trang_thai != 'Nháp'" in w and "name like %s" in w and "ten, '') like %s" in w)
+	la("tham số", ts, ["Đang chạy", "%Giáng sinh%", "%Giáng sinh%"])
+	la("trạng thái lạ bị bỏ", crm.dk_ds_chien_dich("Xoá", "", 0), ("", []))
+	la("ký tự đại diện được thoát", crm.dk_ds_chien_dich("", "10%", 0)[1][0], "%10\\%%")
+
+	fr = crm.frappe
+	cau = []
+
+	def sql(q, ts=None, **k):
+		cau.append((q, ts))
+		if "group by trang_thai" in q:
+			return [("Đang chạy", 70), ("Đã kết thúc", 40)]
+		if "order by creation desc" in q:
+			n = int(re.search(r"limit (\d+)", q).group(1))
+			return [D(name="CD-%d" % i, ten="Chiến dịch %d" % i, trang_thai="Đang chạy") for i in range(min(n, 51))]
+		return []
+
+	with um.patch.object(fr, "get_roles", lambda *a: ["Marketing"]), um.patch.object(fr.db, "sql", sql):
+		kq = crm.ds_chien_dich(tim="Giáng", da_chot=1, bat_dau=50)
+	ds = [c for c in cau if "order by creation desc" in c[0]][-1]
+	dung("lấy dư một dòng, bỏ qua 50 dòng đã xem", "limit 51 offset 50" in ds[0])
+	la("chỉ chiến dịch đã chốt, theo chữ tìm", ds[1], ("%Giáng%", "%Giáng%"))
+	dem = [c for c in cau if "group by trang_thai" in c[0]][-1]
+	dung("đếm chip theo cùng chữ tìm", "name like %s" in dem[0] and "trang_thai = %s" not in dem[0])
+	la("trả 50 dòng, còn nữa, có đếm", (len(kq["ds"]), kq["con_nua"], kq["dem"]),
+		(50, 1, {"Đang chạy": 70, "Đã kết thúc": 40, "tat_ca": 110}))
+
+	cau.clear()
+
+	def sql2(q, ts=None, **k):
+		cau.append(q)
+		if "tabSales Invoice Item" in q:
+			return [D(item_code="BANH-1", ten="Entremet", sl=3, so_don=2, anh="/files/entremet.jpg")]
+		if "month(posting_date)" in q:
+			return []
+		return [D(chua_ghi_so=0, huy=0, tra=0)]
+
+	with um.patch.object(fr, "get_roles", lambda *a: ["Marketing"]), um.patch.object(fr.db, "sql", sql2), \
+			um.patch.object(fr.db, "exists", lambda *a, **k: True), um.patch.object(fr.db, "get_value", lambda *a, **k: None), \
+			um.patch.object(fr, "get_all", lambda *a, **k: []), um.patch.object(crm, "_ho_so", lambda k: {}), _nen_ban():
+		try:
+			hs = crm.ho_so_crm("KH-1")
+		except Exception as e:  # noqa: BLE001
+			hs = {"loi": repr(e)}
+	la("hồ sơ đọc được", hs.get("loi"), None)
+	mon = [q for q in cau if "tabSales Invoice Item" in q][0]
+	dung("câu món hay mua nối Item lấy ảnh", "left join `tabItem` it on it.name = i.item_code" in mon and "max(it.image) anh" in mon)
+	la("ảnh đi tới màn", [m.get("anh") for m in hs.get("mon", [])], ["/files/entremet.jpg"])
