@@ -11,7 +11,9 @@ Tệp này chỉ giữ bài học rút gọn. Nhật ký đầy đủ từng ng�
 v613 thêm ảnh bảng cho tin, đường gửi ngay đã truyền ảnh nhưng đường gộp tin hoãn
 giờ im chỉ đọc chữ: ảnh mất mà sổ vẫn ghi "Đã gửi gộp". Cách phòng: thêm cột cho
 Vagabond Tin Kenh thì dò mọi nơi đọc dòng tin (_nhan_mot, _nhan_lo) và mọi lời gọi
-_gui_zalo; bản giả get_all trong ca kiểm phải chỉ trả các cột được hỏi.
+_gui_zalo; bản giả get_all trong ca kiểm phải chỉ trả các cột được hỏi. Đổi chữ ký
+hàm thì sửa cả bản giả trong khung/kiem_that: CI máy không chạy thư mục này, chỉ
+bench bắt được (#504 bench đỏ vì bản giả _gui_zalo hai tham số).
 Cùng PR: tính nguyên liệu theo công thức phải nổ bán thành phẩm phantom như lệnh
 sản xuất, và ngày cần của YCSX lọc trên từng dòng, không theo đầu phiếu.
 
