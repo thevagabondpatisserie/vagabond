@@ -179,20 +179,21 @@ def dong_don_web(mon, toi_da=TOI_DA_MON):
 
 
 def dong_tien_don_web(sau_giam, phi):
-	"""THUẦN: dòng tiền của tin đơn web theo bốn trạng thái phí của don_web.quyet_phi_giao.
+	"""THUẦN: dòng phí giao của tin đơn web theo bốn trạng thái phí của don_web.quyet_phi_giao.
 
-	Codex #495 P2: phí "chua_ro" (Ahamove không báo được) KHÔNG được cộng thành 0
-	rồi gọi là Tổng; Sales phải báo phí khi gọi khách, nên tin nói rõ điều đó."""
+	Codex #495 P2: phí "chua_ro" (Ahamove không báo được) phải nói rõ để Sales báo
+	phí khi gọi khách.
+	v613 (anh Việt 27/10/2026): tin đơn hàng KHÔNG hiện tổng tiền nữa, chỉ nói cách
+	nhận và phí giao đã chốt hay chưa. sau_giam giữ trong chữ ký cho nơi gọi cũ."""
 	phi = phi or {}
-	sau_giam = int(flt(sau_giam))
 	pk = phi.get("phi_khach")
 	if (phi.get("trang_thai") or "") == "tu_lay":
-		return "Tổng %s, tự lấy" % tien(sau_giam)
+		return "Khách tự lấy"
 	if phi.get("mien_phi"):
-		return "Tổng %s, miễn phí giao" % tien(sau_giam)
+		return "Miễn phí giao"
 	if pk is None:
-		return "Tiền bánh %s, phí giao CHƯA RÕ (Ahamove không báo được), Sales báo phí khi gọi khách" % tien(sau_giam)
-	return "Tổng %s (gồm phí giao %s)" % (tien(sau_giam + int(flt(pk))), tien(pk))
+		return "Phí giao CHƯA RÕ (đơn vị giao không báo được), Sales báo phí khi gọi khách"
+	return "Có phí giao, đã tính vào đơn"
 
 
 def soan_don_web_moi(ten, ngay_nhan, tu_lay, diem_lay, dia_chi, mon, sau_giam, phi, ma_pancake):
@@ -280,7 +281,7 @@ def khi_ghi_so_don_mua(doc, method=None):
 		if doc.get("schedule_date"):
 			dong.append("Hẹn về %s" % ngay_vn(doc.get("schedule_date")))
 		dong += dong_hang(hang_tu_items(doc.get("items")))
-		dong.append("Tổng %s" % tien(doc.get("grand_total")))
+		# v613: tin đơn hàng không hiện tổng tiền (anh Việt 27/10/2026).
 		kenh_zalo.bao("thong_bao", "kho", "Đơn mua hàng vừa đặt", dong,
 			link=_url("/app/purchase-order/%s" % doc.name), khoa="dmh:%s" % doc.name, ma_tin="tm_don_mua_moi")
 	except Exception as e:
@@ -295,12 +296,12 @@ def nhac_don_mua_tre_hen():
 		hom_nay = nowdate()
 		ds = frappe.get_all("Purchase Order", filters={"docstatus": 1, "status": ["not in", ("Closed", "Completed")],
 			"per_received": ["<", 99.99], "schedule_date": ["<", hom_nay], "vgb_huy": ["!=", 1]},
-			fields=["name", "supplier_name", "schedule_date", "grand_total", "per_received"],
+			fields=["name", "supplier_name", "schedule_date", "per_received"],
 			order_by="schedule_date asc", limit_page_length=0)
 		if not ds:
 			return
-		dong = ["%s: %s, hẹn %s, về %s%%, %s" % (d.name, d.supplier_name or "", ngay_vn(d.schedule_date),
-			so(d.per_received), tien(d.grand_total)) for d in ds]
+		dong = ["%s: %s, hẹn %s, về %s%%" % (d.name, d.supplier_name or "", ngay_vn(d.schedule_date),
+			so(d.per_received)) for d in ds]
 		dong = kenh_zalo.cat_dong(dong, 8, "đơn")
 		kenh_zalo.bao_hoac_ghi_loi("viec", "kho", "%d đơn mua trễ hẹn chưa về đủ" % len(ds), dong,
 			link=_url("/app/purchase-order?status=To%20Receive%20and%20Bill"), khoa="dmh-tre:%s" % hom_nay,
@@ -315,11 +316,11 @@ def nhac_hang_ve_chua_hoa_don():
 		hom_nay = nowdate()
 		moc = add_days(hom_nay, -NGAY_CHO_HOA_DON)
 		ds = frappe.get_all("Purchase Receipt", filters={"docstatus": 1, "is_return": 0, "per_billed": ["<", 99.99], "posting_date": ["<=", moc],
-			"status": ["!=", "Closed"]}, fields=["name", "supplier_name", "posting_date", "grand_total"],
+			"status": ["!=", "Closed"]}, fields=["name", "supplier_name", "posting_date"],
 			order_by="posting_date asc", limit_page_length=0)
 		if not ds:
 			return
-		dong = ["%s: %s, nhập %s, %s" % (d.name, d.supplier_name or "", ngay_vn(d.posting_date), tien(d.grand_total)) for d in ds]
+		dong = ["%s: %s, nhập %s" % (d.name, d.supplier_name or "", ngay_vn(d.posting_date)) for d in ds]
 		dong = kenh_zalo.cat_dong(dong, 8, "phiếu")
 		kenh_zalo.bao_hoac_ghi_loi("viec", "kho", "%d phiếu nhập quá %d ngày chưa có hoá đơn" % (len(ds), NGAY_CHO_HOA_DON), dong,
 			link=_url("/app/purchase-receipt?status=To%20Bill"), khoa="pnk-chua-hd:%s" % hom_nay,

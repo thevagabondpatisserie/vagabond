@@ -406,8 +406,9 @@ def _tong_pancake(don):
 def _bao_lech_tong_pancake(ma_don, mong_doi, thuc_te, ten_don):
 	from vagabond.kenh_zalo import bao
 	bao("canh_bao", "don_web", "Đơn web lệch tổng tiền trên Pancake", [
-		"Đơn Pancake %s đang là %s đ, máy chủ chốt %s đ. Sales kiểm tra trước khi gửi mã QR."
-		% (ma_don, thuc_te if thuc_te is not None else "chưa đọc được", mong_doi)
+		# v613: tin đơn hàng không hiện tiền (anh Việt 27/10/2026); số nằm trên phiếu.
+		"Tổng tiền đơn Pancake %s %s số máy chủ đã chốt. Sales mở phiếu so số, sửa trước khi gửi mã QR."
+		% (ma_don, "khác" if thuc_te is not None else "chưa đọc được để so với")
 	], link="/app/vagabond-don-web/%s" % ten_don, khoa="don-web-lech-tong:%s" % ma_don,
 		ma_tin="bh_pancake_lech_tong")
 	frappe.db.commit()

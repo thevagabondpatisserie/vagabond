@@ -1105,6 +1105,31 @@ def _bao_ke_toan(ho_so, si):
 		return 0, []
 
 
+def soan_da_hoan(ho_so, khach, hoa_don, ly_do):
+	"""THUẦN (v613): tin cho Sales khi kế toán đã hoàn tiền xong. Tin bán hàng nên KHÔNG có số
+	tiền (anh Việt 27/10/2026), không có số tài khoản khách."""
+	return ("Đã hoàn tiền cho khách %s" % (khach or "").strip()).strip(), [
+		"Phiếu hoàn %s của hoá đơn %s" % (ho_so, hoa_don or "chưa rõ"),
+		"Lý do: %s" % ((ly_do or "").strip() or "chưa ghi"),
+		"Sales báo khách đã chuyển tiền hoàn; khách chưa nhận thì báo kế toán kèm mã phiếu."]
+
+
+def _bao_sales_da_hoan(ho_so):
+	"""Báo nhóm bán hàng: không bao giờ ném lỗi trừ lỗi làm chết giao dịch."""
+	try:
+		from vagabond import kenh_zalo
+
+		d = frappe.db.get_value(DT, ho_so, ["khach", "hoa_don", "ly_do"], as_dict=True) or {}
+		tieu, dong = soan_da_hoan(ho_so, d.get("khach"), d.get("hoa_don"), d.get("ly_do"))
+		kenh_zalo.bao_hoac_ghi_loi("thong_bao", "ban_hang", tieu, dong, link=frappe.utils.get_url("/hoan-tien"),
+			khoa="hoan-tien-xong:%s" % ho_so, nguon=ho_so, ma_tin="bh_hoan_tien_xong")
+	except Exception as e:
+		from vagabond.loi_csdl import chet_giao_dich
+		if chet_giao_dich(e):
+			raise
+		frappe.log_error(frappe.get_traceback(), "hoan_tien: bao sales da hoan loi")
+
+
 def _kiem_tra_duoc(si):
 	"""Hoa don nay con tra duoc khong. Nem loi theo QT-24 neu khong."""
 	if cint(si.docstatus) != 1:
@@ -3944,6 +3969,7 @@ def hoan_thanh(ho_so=None):
 		"nguoi_hoan_thanh": frappe.session.user,
 		"ngay_hoan_thanh": now_datetime(),
 	})
+	_bao_sales_da_hoan(ho_so)
 	try:
 		frappe.get_doc(DT, ho_so).add_comment(
 			"Comment",

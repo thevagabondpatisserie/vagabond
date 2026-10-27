@@ -29,6 +29,7 @@ testWebhook trả kết quả gọi thử ở result. Nhóm: thêm bot vào nhó
 
 import hmac
 import json
+import re
 import secrets
 
 import frappe
@@ -70,6 +71,9 @@ BO_PHAN = ("Ban giám đốc", "Hoá đơn, kế toán", "Bán hàng, cửa hàn
 TIN = {
 	"bgd_bao_cao_ngay": ("Ban giám đốc", "Báo cáo cuối ngày (23:30)",
 		"23:30 mỗi tối: doanh thu, giảm giá, sửa huỷ, điểm cần để ý. Nhóm nhận đừng đặt giờ im lúc 23:30.", "ban_tin", "ban_hang"),
+	# v613 (anh Việt 27/10/2026): báo từng bước duyệt phiếu chi APP.
+	"bgd_app_cho_duyet": ("Ban giám đốc", "Phiếu chi chờ giám đốc duyệt",
+		"Kế toán đã kiểm phiếu chi trả nhà cung cấp, chờ giám đốc duyệt.", "viec", "cong_no"),
 	"hd_ket_ghi_so": ("Hoá đơn, kế toán", "Kẹt ghi sổ, kẹt hoá đơn cuối ngày",
 		"20 và 45 phút sau giờ chạy cuối ngày, và 07:30 sáng hôm sau, còn đơn chưa ghi sổ.", "canh_bao", "hoa_don"),
 	"hd_don_chua_ghi_so": ("Hoá đơn, kế toán", "Đơn chưa ghi sổ còn sót lúc 23:55",
@@ -100,6 +104,14 @@ TIN = {
 		"Kiểm kê vừa điều chỉnh tồn: tên hàng lệch và giá trị chênh lệch đã vào sổ.", "thong_bao", "kho"),
 	"kt_tien_chua_gan": ("Hoá đơn, kế toán", "Tiền vào tài khoản công ty chưa gắn chứng từ (08:00)",
 		"08:00 mỗi sáng: khoản tiền vào tài khoản chính công ty quá 24 giờ mà chưa thuộc đơn hay phiếu nào.", "viec", "cong_no"),
+	"kt_app_da_duyet": ("Hoá đơn, kế toán", "Phiếu chi giám đốc đã duyệt, chờ chuyển tiền",
+		"Giám đốc vừa duyệt phiếu chi; kế toán chuyển khoản rồi xác nhận đã chuyển.", "viec", "cong_no"),
+	"kt_app_tra_lai": ("Hoá đơn, kế toán", "Phiếu chi bị trả lại",
+		"Phiếu chi bị trả về người lập, kèm người trả và lý do.", "viec", "cong_no"),
+	"kt_app_da_chi": ("Hoá đơn, kế toán", "Phiếu chi đã chuyển tiền và ghi sổ",
+		"Kế toán xác nhận đã chuyển tiền, phiếu chi đã ghi sổ.", "thong_bao", "cong_no"),
+	"kt_de_nghi_chi_da_chi": ("Hoá đơn, kế toán", "Đề nghị chi đã chi xong",
+		"Khoản chi của đề nghị chi đã khớp sao kê ngân hàng, người lập biết tiền đã đi.", "thong_bao", "cong_no"),
 	"bh_don_web_treo": ("Bán hàng, cửa hàng", "Đơn web treo quá 30 phút chưa vào Pancake",
 		"Đơn đặt bánh trên web quá 30 phút mà chưa tạo được trên Pancake.", "viec", "don_web"),
 	"bh_ton_web_loi": ("Bán hàng, cửa hàng", "Lỗi kiểm tồn khi khách đặt web",
@@ -124,6 +136,8 @@ TIN = {
 		"Trang đặt bánh không tính được phí giao vì Ahamove không trả lời.", "canh_bao", "don_web"),
 	"bh_don_web_moi": ("Bán hàng, cửa hàng", "Đơn web mới đã vào Pancake",
 		"Khách vừa đặt trên web: giờ nhận, món, tổng tiền, miễn phí giao hay không.", "thong_bao", "don_web"),
+	"bh_hoan_tien_xong": ("Bán hàng, cửa hàng", "Đã hoàn tiền cho khách",
+		"Kế toán đã chuyển xong tiền hoàn, Sales báo khách.", "thong_bao", "ban_hang"),
 	"bep_ke_hoach_sx": ("Bếp", "Kế hoạch sản xuất hôm nay (05:00)",
 		"05:00 sáng, kế hoạch sản xuất trong ngày đã sẵn, bếp đọc rồi chốt.", "viec", "san_xuat"),
 	"bep_lenh_sx_xuat_nvl": ("Bếp", "Lệnh sản xuất đã xuất nguyên liệu",
@@ -134,6 +148,12 @@ TIN = {
 		"Yêu cầu sản xuất đã gửi bếp vừa bị huỷ, bếp bỏ khỏi kế hoạch.", "thong_bao", "san_xuat"),
 	"bep_ycsx_ngay_mai": ("Bếp", "Tổng yêu cầu sản xuất cho ngày mai (20:30)",
 		"20:30 mỗi tối, một tin mỗi bếp: cộng món và số lượng của các yêu cầu cần ngày mai.", "viec", "san_xuat"),
+	"bep_thieu_nvl_ngay_mai": ("Bếp", "Thiếu nguyên liệu cho yêu cầu ngày mai (20:45)",
+		"20:45 mỗi tối, một tin mỗi bếp: nguyên liệu trong kho bếp không đủ làm theo công thức.", "viec", "san_xuat"),
+	"bep_san_luong_ngay": ("Bếp", "Sản lượng cuối ngày từng bếp, kèm ảnh bảng (21:00)",
+		"21:00 mỗi tối, một ảnh mỗi bếp: yêu cầu hôm nay, số đã làm, món còn thiếu.", "ban_tin", "san_xuat"),
+	"bep_lenh_chua_xong": ("Bếp", "Lệnh sản xuất quá ngày chưa ghi hoàn tất (08:00)",
+		"08:00 mỗi sáng: lệnh sản xuất từ hôm qua trở về trước chưa ghi làm xong, kho chưa có hàng.", "viec", "san_xuat"),
 	"tm_yeu_cau_mua": ("Thu mua", "Yêu cầu mua hàng mới",
 		"Bộ phận vừa lập yêu cầu mua: tên hàng, số lượng, ngày cần.", "viec", "kho"),
 	"tm_don_mua_moi": ("Thu mua", "Đơn mua hàng vừa đặt",
@@ -174,6 +194,12 @@ TIN = {
 		"07:00 mỗi sáng, một tin mỗi kho: lô còn tồn mà hết hạn trong 3 ngày.", "viec", "kho"),
 	"kho_ton_duoi_muc": ("Kho", "Tồn kho dưới mức tối thiểu (07:00)",
 		"07:00 mỗi sáng, một tin mỗi kho: món có tồn thấp hơn mức tối thiểu đã khai.", "viec", "kho"),
+	"kho_ton_quay_cuoi_ngay": ("Kho", "Tồn bánh cuối ngày từng chi nhánh, kèm ảnh bảng (23:00)",
+		"23:00 mỗi tối, một ảnh mỗi chi nhánh: đầu ngày, nhập, bán, hỏng, còn lại của từng bánh.", "ban_tin", "kho"),
+	"kho_ton_am": ("Kho", "Tồn âm trên máy (08:00)",
+		"08:00 mỗi sáng: món đang âm kho, tức còn phiếu nhập hay sản xuất chưa ghi.", "viec", "kho"),
+	"kho_hang_nam_im": ("Kho", "Hàng nằm im 30 ngày (Thứ Hai 08:05)",
+		"Thứ Hai hằng tuần: nguyên liệu, bao bì còn tồn mà 30 ngày không xuất lần nào.", "thong_bao", "kho"),
 	"ht_email_loi": ("Hệ thống", "Email của tiệm không gửi được",
 		"Trong một giờ có từ 5 thư lỗi; báo lại sau 3 giờ nếu còn lỗi.", "canh_bao", "he_thong"),
 	"ht_phat_hanh": ("Hệ thống", "Bản tin cập nhật app sau mỗi deploy",
@@ -266,6 +292,34 @@ def soan_tin(loai, tieu_de, dong=None, link=None, nguoi=None, han=None):
 		duoi = ("\nMở: %s" % link) if link else ""
 		tin = tin[:TOI_DA_KY_TU - len(duoi) - 2].rstrip() + "…" + duoi
 	return tin
+
+
+# v613 (anh Việt 27/10/2026): tin đơn hàng không hiện tổng tiền. Luật gom về MỘT chỗ:
+# tin của các bộ phận ngoài danh sách dưới đây không được mang số tiền. Nơi phát đã soạn
+# không tiền; cửa ghi sổ tin vẫn lọc lần cuối để một chỗ quên không lọt ra nhóm.
+BO_PHAN_DUOC_TIEN = ("Ban giám đốc", "Hoá đơn, kế toán", "Hệ thống")
+MAU_TIEN = re.compile(r"\d[\d.,]*\s*(?:đ|₫|vnđ|vnd)(?!\w)", re.I)
+
+
+def khong_duoc_tien(ma_tin):
+	"""THUẦN: tin mang mã này có bị cấm hiện số tiền không (theo bộ phận của tin)."""
+	v = TIN.get(ma_tin or "")
+	return bool(v) and v[0] not in BO_PHAN_DUOC_TIEN
+
+
+def bo_dong_tien(noi_dung):
+	"""THUẦN: bỏ số tiền khỏi một tin. Dòng đầu (tiêu đề) chỉ xoá con số; dòng sau có
+	số tiền thì bỏ cả dòng. Trả (tin sạch, số chỗ đã bỏ)."""
+	ds = str(noi_dung or "").split("\n")
+	ra, bo = [], 0
+	for i, d in enumerate(ds):
+		if not MAU_TIEN.search(d):
+			ra.append(d)
+			continue
+		bo += 1
+		if i == 0:
+			ra.append(re.sub(r"\s{2,}", " ", MAU_TIEN.sub("", d)).strip())
+	return "\n".join(ra), bo
 
 
 def tin_soan_san(noi_dung):
@@ -853,7 +907,16 @@ def chua_gui_di(e):
 	return False
 
 
-def _gui_zalo(chat_id, tin):
+def goi_gui(chat_id, tin, anh=None):
+	"""THUẦN (v613): (method, body) cho Zalo Bot API. Có ảnh thì sendPhoto, chữ thành
+	chú thích (tối đa 2.000 ký tự, đúng giới hạn sendPhoto); không thì sendMessage."""
+	anh = str(anh or "").strip()
+	if anh:
+		return "sendPhoto", {"chat_id": str(chat_id), "photo": anh, "caption": tin_soan_san(tin)}
+	return "sendMessage", {"chat_id": str(chat_id), "text": tin}
+
+
+def _gui_zalo(chat_id, tin, anh=None):
 	# v606: mọi đường gửi (gửi ngay, xả giờ im, trả lời mã nhóm, gửi thử) đi qua
 	# đây, nên chọn bot ở đây theo một nguồn duy nhất bot_cua_chat.
 	# Codex #492 (P2): chưa đọc được bot của nhóm thì chưa gửi gì, trả MANG_LOI để
@@ -865,7 +928,8 @@ def _gui_zalo(chat_id, tin):
 		if chet_giao_dich(e):
 			raise
 		return MANG_LOI, "Chưa đọc được bot gửi của nhóm (%s), máy sẽ gửi lại." % type(e).__name__
-	tt, loi, _ = _goi("sendMessage", {"chat_id": str(chat_id), "text": tin}, bot)
+	method, body = goi_gui(chat_id, tin, anh)
+	tt, loi, _ = _goi(method, body, bot)
 	return tt, loi
 
 
@@ -881,7 +945,7 @@ def cat_dong(ds, toi_da=12, don_vi="đơn"):
 
 
 def bao(loai, chu_de, tieu_de, dong=None, link=None, khoa=None, nguoi=None, han=None, kiem=None, nguon=None,
-		ma_tin=None, noi_dung=None):
+		ma_tin=None, noi_dung=None, anh=None):
 	"""Điểm gọi DUY NHẤT cho mọi nơi trong app. Không ném lỗi ra ngoài, TRỪ lỗi làm chết
 	cả giao dịch (deadlock, chờ khoá quá hạn): khi đó chứng từ phải dừng, không được báo
 	thành công trong khi cơ sở dữ liệu đã rollback (Codex #428 vòng 12).
@@ -893,6 +957,8 @@ def bao(loai, chu_de, tieu_de, dong=None, link=None, khoa=None, nguoi=None, han=
 	ma_tin: mã trong TIN (v604); nhóm đã tích Tin nhận chỉ nhận tin có mã khớp.
 	noi_dung: tin đã soạn sẵn theo mẫu riêng (v606, báo cáo cuối ngày); có thì
 	dùng nguyên văn (cắt ở TOI_DA_KY_TU) thay cho khuôn soan_tin.
+	anh: đường dẫn công khai của một ảnh (v613, bảng tồn, sản lượng); có thì gửi
+	ảnh, chữ của tin thành chú thích ảnh. Zalo tự tải ảnh từ đường dẫn này.
 
 	Codex #425: ghi tin vào sổ ("Chờ gửi") NGAY TRONG giao dịch của chứng từ,
 	rồi mới xếp hàng đợi sau commit. Chứng từ rollback thì tin cũng mất theo;
@@ -902,7 +968,7 @@ def bao(loai, chu_de, tieu_de, dong=None, link=None, khoa=None, nguoi=None, han=
 			return
 		tin = {"loai": loai, "chu_de": chu_de, "tieu_de": tieu_de, "dong": list(dong or []),
 			"link": link, "khoa": khoa, "nguoi": nguoi, "han": han, "kiem": kiem, "nguon": nguon,
-			"ma_tin": ma_tin, "noi_dung": noi_dung}
+			"ma_tin": ma_tin, "noi_dung": noi_dung, "anh": anh}
 		ten = _ghi_hop_thu(tin)
 		if ten:
 			frappe.db.after_commit.add(lambda: _xep(ten))
@@ -943,6 +1009,12 @@ def _ghi_hop_thu(tin):
 	đúng dòng đó, không đụng tới chứng từ đang lưu."""
 	noi_dung = tin_soan_san(tin.get("noi_dung")) or soan_tin(tin.get("loai"), tin.get("tieu_de"),
 		tin.get("dong"), tin.get("link"), tin.get("nguoi"), tin.get("han"))
+	if khong_duoc_tien(tin.get("ma_tin")):
+		noi_dung, bo = bo_dong_tien(noi_dung)
+		if bo:
+			# Nơi phát soạn lọt số tiền: tin vẫn đi (đã lọc), kỹ thuật biết để sửa nơi phát.
+			frappe.log_error("Tin %s mang số tiền, đã bỏ %s chỗ trước khi gửi." % (tin.get("ma_tin"), bo),
+				"kenh_zalo: tin don hang lot tien")
 	ra = []
 	for n in chon_nhom(_cac_nhom(), tin.get("loai"), tin.get("chu_de"), tin.get("ma_tin")):
 		ten = khoa_tin(tin.get("khoa") or frappe.generate_hash(length=12), n.get("chat_id"))
@@ -953,7 +1025,7 @@ def _ghi_hop_thu(tin):
 				"nhom": n.get("ten_nhom"), "chat_id": str(n.get("chat_id")).strip(), "loai": tin.get("loai"),
 				"chu_de": tin.get("chu_de"), "noi_dung": noi_dung,
 				"kiem": tin.get("kiem") or "", "nguon": tin.get("nguon") or "",
-				"ma_tin": tin.get("ma_tin") or "",
+				"ma_tin": tin.get("ma_tin") or "", "anh": tin.get("anh") or "",
 				"trang_thai": CHO_GUI}).insert(ignore_permissions=True)
 			ra.append(ten)
 		except frappe.DuplicateEntryError:
@@ -1008,7 +1080,7 @@ def _nhan_mot(ten):
 	frappe.db.sql("""update `tabVagabond Tin Kenh` set trang_thai='Đang gửi', ma_lo=%s, modified=%s
 		where name=%s and trang_thai=%s""", (ma, now_datetime(), ten, CHO_GUI))
 	frappe.db.commit()
-	r = frappe.db.get_value("Vagabond Tin Kenh", ten, ["name", "chat_id", "loai", "noi_dung", "kiem", "nguon", "ma_lo"],
+	r = frappe.db.get_value("Vagabond Tin Kenh", ten, ["name", "chat_id", "loai", "noi_dung", "kiem", "nguon", "ma_lo", "anh"],
 		as_dict=True)
 	return r if r and r.get("ma_lo") == ma else None
 
@@ -1041,7 +1113,7 @@ def _gui_mot(ten, theo_chat, gio):
 	frappe.db.commit()
 	if (frappe.db.get_value("Vagabond Tin Kenh", ten, ["trang_thai", "ma_lo"], as_dict=True) or {}).get("ma_lo") != r.get("ma_lo"):
 		return
-	tt, loi = _gui_zalo(r.get("chat_id"), r.get("noi_dung"))
+	tt, loi = _gui_zalo(r.get("chat_id"), r.get("noi_dung"), r.get("anh"))
 	if tt == MANG_LOI:
 		# Chưa gửi được gì: về Chờ gửi, nhịp quet_cho_gui gửi lại.
 		frappe.db.set_value("Vagabond Tin Kenh", ten, {"trang_thai": CHO_GUI, "ma_lo": None, "loi": loi})
