@@ -343,6 +343,16 @@ function crmGoiDong(r) {
     '<button type="button" data-crmkq="' + i + '" style="' + nut + 'background:#f2f4f7;color:#475467">✍ Kết quả</button></div></div>';
 }
 
+/* Codex PR #505 vòng 2: Sales ghi "Không muốn nhận tin nữa" thì máy chủ rút
+   đồng ý cả hai kênh, nhưng danh sách trên máy vẫn giữ kênh cũ: sang chip Đã
+   xong là nút Gọi, Chép tin hiện lại, và dòng của cùng khách ở chiến dịch khác
+   vẫn gọi được. Khoá liên hệ MỌI dòng của khách đó ngay trên máy. THUẦN. */
+function crmGoiNgungKhach(ds, khach) {
+  (ds || []).forEach(function (x) {
+    if (x && khach && x.khach === khach) { x.kenh_duoc = ''; x.tin_zalo = ''; x.ngung = 1; }
+  });
+}
+
 function crmChep(r) {
   if (!r || !r.tin_zalo) return;
   var xong = function () { toast('Đã chép tin cho ' + (r.ten_khach || r.khach) + '. Mở Zalo dán vào.', 3200); };
@@ -383,6 +393,7 @@ function crmSheetKetQua(r, ketQua, xong) {
       var kq = await api('vagabond.crm.ghi_ket_qua', { name: r.name, ket_qua: chon, ghi_chu: ov.querySelector('#crmKqGhi').value.trim() });
       busy(false); ov.remove();
       r.trang_thai = kq.trang_thai; r.ket_qua = chon;
+      if (chon === 'Không muốn nhận tin nữa') { crmGoiNgungKhach(crmGoiDs, r.khach); crmGoiNgungKhach([r], r.khach); }
       toast(chon === 'Không muốn nhận tin nữa' ? 'Đã ghi. Khách sẽ không được gọi hay nhắn quảng cáo nữa.' : 'Đã lưu kết quả');
       if (xong) xong();
     } catch (e) { busy(false); toast(errMsg(e), 5000); }
@@ -554,14 +565,27 @@ function crmSheetBoLoc(cu, xong) {
 /* ================================================================ sổ đồng ý */
 
 var crmDyLoc = '';
+/* Codex PR #505 vòng 2: sổ chỉ trả 100 dòng mới nhất, không tìm được bằng
+   chứng của một khách cũ. Ô tìm hỏi máy chủ (tên, mã, một phần số điện thoại),
+   nút Xem thêm lấy tiếp các dòng cũ hơn. */
+var crmDyTim = '', crmDyDong = [], crmDyCon = 0;
 
-async function scrCrmDongY() {
+async function scrCrmDongY(them) {
   var tieuDe = 'Sổ đồng ý nhận tin';
   if (!coQuyenCrm()) return frame(tieuDe, crmTrong('🔒', 'Phân hệ Khách hàng chỉ mở cho Sales, quản lý cửa hàng và Marketing.'));
-  frame(tieuDe, '<div class="emp"><div class="e1">⏳</div><div>Đang đọc sổ đồng ý...</div></div>');
+  var bat = them === true ? crmDyDong.length : 0;
+  if (bat) busy(true);
+  else frame(tieuDe, '<div class="emp"><div class="e1">⏳</div><div>Đang đọc sổ đồng ý...</div></div>');
   var d;
-  try { d = await api('vagabond.crm.so_dong_y', { trang_thai: crmDyLoc }); }
-  catch (e) { return frame(tieuDe, crmTrong('⚠️', h(errMsg(e)))); }
+  try { d = await api('vagabond.crm.so_dong_y', { trang_thai: crmDyLoc, tim: crmDyTim, bat_dau: bat }); }
+  catch (e) {
+    if (bat) { busy(false); return toast(errMsg(e), 5000); }
+    return frame(tieuDe, crmTrong('⚠️', h(errMsg(e))));
+  }
+  if (bat) busy(false);
+  crmDyDong = bat ? crmDyDong.concat(d.dong || []) : (d.dong || []);
+  crmDyCon = +d.con_nua ? 1 : 0;
+  d.dong = crmDyDong;
   var html = '<div style="font-size:13px;color:#8a8f9c;margin:0 2px 10px;line-height:1.45">Mỗi lần khách đồng ý hay từ chối đều có một dòng ở đây: kênh nào, ghi ở đâu, ai ghi, lúc nào. Đây là bằng chứng khi cần.</div>' +
     '<div class="card" style="padding:4px 14px 10px">';
   ['Zalo', 'Gọi điện', 'Email'].forEach(function (k) {
@@ -571,20 +595,29 @@ async function scrCrmDongY() {
       '<b style="color:#b42318">' + money(t['Từ chối'] || 0) + ' từ chối</b> · ' + money(t['Chưa hỏi'] || 0) + ' chưa hỏi</span></div>';
   });
   html += '<div style="display:flex;justify-content:space-between;padding:10px 0;font-size:14.5px"><span>🚫 Danh sách không quảng cáo</span><b>' + money(d.khong_quang_cao) + ' số</b></div></div>';
-  html += '<div style="display:flex;gap:8px;flex-wrap:wrap;padding:2px 0 10px">' +
-    [['', 'Tất cả'], ['Đồng ý', 'Đồng ý'], ['Từ chối', 'Từ chối']].map(function (x) {
-      return posChipNut('data-crmdyl="' + h(x[0]) + '"', h(x[1]), crmDyLoc === x[0]);
-    }).join('') + '</div>';
+  var cc = {
+    ma: 'crmDy',
+    chang: { ds: [{ k: 'Đồng ý', ten: 'Đồng ý' }, { k: 'Từ chối', ten: 'Từ chối' }], dem: null, chon: crmDyLoc, tatCa: 'Tất cả' },
+    tim: { gt: crmDyTim, goiY: '🔎 Tìm tên khách, mã khách, số điện thoại' }
+  };
+  html += dsCongCu(cc);
+  if (crmDyTim) html += '<div data-crmdyloc="1" style="font-size:13px;color:#101828;background:#fffaeb;border-radius:8px;padding:8px 10px;margin:0 0 10px">Đang tìm "' +
+    h(crmDyTim) + '": <b>' + money(crmDyDong.length) + (crmDyCon ? '+' : '') + ' dòng</b></div>';
   html += (d.dong || []).length ? '<div class="card">' + d.dong.map(function (r) {
     return '<div data-crmdykh="' + h(r.khach) + '" style="padding:12px 14px;border-bottom:1px solid #f0f2f6;cursor:pointer">' +
       '<div style="display:flex;justify-content:space-between;gap:8px"><b style="font-size:14.5px">' + h(r.ten_khach) + '</b>' +
       crmTagDy(r.kenh, r.trang_thai) + '</div>' +
       '<div style="font-size:12.5px;color:#8a8f9c">' + h(r.noi_ghi || '') + ' · ' + h(r.ten_nguoi || '') + ' · ' + crmGioNgay(r.luc) + '</div></div>';
-  }).join('') + '</div>' : crmTrong('✅', 'Chưa có dòng nào. Khi thu ngân hỏi khách ở quầy, dòng đầu tiên hiện ở đây.');
+  }).join('') + '</div>' : crmTrong(crmDyTim ? '🔎' : '✅', crmDyTim ? 'Không có dòng nào khớp chữ tìm. Thử tên khác hoặc vài số cuối của điện thoại.'
+    : 'Chưa có dòng nào. Khi thu ngân hỏi khách ở quầy, dòng đầu tiên hiện ở đây.');
+  if (crmDyCon) html += '<button class="btn gh" data-crmdythem="1" style="margin:0">Xem thêm dòng cũ hơn</button>';
   var b = frame(tieuDe, html);
+  dsCongCuNoi(b, cc, function (ho, v) {
+    if (ho === 'chang') crmDyLoc = v; else if (ho === 'tim') crmDyTim = v;
+    scrCrmDongY();
+  });
   b.onclick = function (e) {
-    var l = e.target.closest('[data-crmdyl]');
-    if (l) { crmDyLoc = l.getAttribute('data-crmdyl'); return scrCrmDongY(); }
+    if (e.target.closest('[data-crmdythem]')) return scrCrmDongY(true);
     var kh = e.target.closest('[data-crmdykh]');
     if (kh && typeof scrKhachChiTiet === 'function') { khMa = kh.getAttribute('data-crmdykh'); return go(scrKhachChiTiet); }
   };
@@ -660,12 +693,34 @@ function crmCdGhepNhap() {
   if (v.name) { crmCd.dong_chay = null; crmCd.ly_do_chua_chot = 'Lưu nháp để máy đếm lại khách theo bản đang soạn.'; }
 }
 
+/* Codex PR #505 vòng 2: Duyệt và Chốt chỉ gửi mã chiến dịch, máy chủ làm trên
+   bản ĐÃ LƯU. Sửa kịch bản, nhóm, kênh hay Sales mà chưa Lưu nháp rồi bấm Chốt
+   thì chốt nhầm bản cũ và mất phần vừa sửa. Giữ dấu của bản máy chủ trả về,
+   khác dấu thì bắt Lưu nháp trước. */
+var crmCdGoc = '';
+var CRM_CD_CHUA_LUU = 'Có thay đổi chưa lưu. Bấm Lưu nháp để máy đếm lại khách và kiểm duyệt, rồi mới duyệt hay chốt.';
+function crmCdDau(c) {
+  c = c || {};
+  var s = function (x) { return String(x == null ? '' : x); };
+  var xep = function (o) {
+    if (!o || typeof o !== 'object') return o == null ? '' : o;
+    if (Array.isArray(o)) return o.map(xep);
+    var r = {}; Object.keys(o).sort().forEach(function (k) { r[k] = xep(o[k]); }); return r;
+  };
+  return JSON.stringify([s(c.ten), xep(c.loc || {}), s(c.bo_loc), +c.kenh_goi ? 1 : 0, +c.kenh_zalo ? 1 : 0,
+    (c.mon || []).map(function (x) { return s(x && x.item); }), (c.sales || []).map(function (x) { return s(x && x.nguoi); }),
+    s(c.ctkm), s(c.han), s(c.kich_ban), s(c.noi_dung_zalo), +c.ty_le_doi_chung || 0]);
+}
+function crmCdChuaLuu() { return !!(crmCd && crmCd.name) && crmCdDau(crmCd) !== crmCdGoc; }
+
 async function scrCrmCd(name) {
   var tieuDe = name ? 'Chiến dịch' : 'Chiến dịch mới';
+  crmCdGoc = '';
   if (name) {
     frame(tieuDe, '<div class="emp"><div class="e1">⏳</div><div>Đang đọc chiến dịch...</div></div>');
     try { crmCd = await api('vagabond.crm.doc_chien_dich', { name: name }); }
     catch (e) { return frame(tieuDe, crmTrong('⚠️', h(errMsg(e)))); }
+    crmCdGoc = crmCdDau(crmCd);
   } else {
     var m = crmCdMoi || {};
     crmCd = {
@@ -729,11 +784,12 @@ function crmCdVe() {
       crmChan('Máy chọn đối chứng ngẫu nhiên và khoá cố định lúc chốt. Danh sách đã chốt không đổi theo nhóm chạy đêm.');
   }
   if (sua) {
+    var chuaLuu = crmCdChuaLuu(), lyDo = c.ly_do_chua_chot || (chuaLuu ? CRM_CD_CHUA_LUU : '');
     html += '<button class="btn gh" data-crmcdluu="1" style="margin:0 0 10px">💾 Lưu nháp' + (c.name ? '' : ' và đếm khách') + '</button>';
-    if (c.name && c.duoc_duyet && !+c.kich_ban_duyet) html += '<button class="btn gh" data-crmcdduyet="1" style="margin:0 0 10px">✔ Duyệt kịch bản gọi</button>';
+    if (c.name && c.duoc_duyet && !+c.kich_ban_duyet) html += '<button class="btn gh" data-crmcdduyet="1"' + (chuaLuu ? ' disabled' : '') + ' style="margin:0 0 10px">✔ Duyệt kịch bản gọi</button>';
     if (c.name) {
-      if (c.ly_do_chua_chot) html += '<div data-crmlydo="1" style="font-size:13px;color:#93370d;margin:0 2px 8px">' + h(c.ly_do_chua_chot) + '</div>';
-      html += '<button class="btn" data-crmcdchot="1"' + (c.ly_do_chua_chot ? ' disabled' : '') + ' style="margin:0">Chốt danh sách và chia việc</button>';
+      if (lyDo) html += '<div data-crmlydo="1" style="font-size:13px;color:#93370d;margin:0 2px 8px">' + h(lyDo) + '</div>';
+      html += '<button class="btn" data-crmcdchot="1"' + (lyDo ? ' disabled' : '') + ' style="margin:0">Chốt danh sách và chia việc</button>';
     }
   } else if (!nhap) {
     html += '<button class="btn" data-crmcdhq="1" style="margin:0 0 10px">📊 Xem hiệu quả</button>';
@@ -816,6 +872,11 @@ async function crmCdBam(e) {
     return crmCdVe();
   }
   if (e.target.closest('[data-crmcdluu]')) { crmCdDocO(); return crmCdLuu(); }
+  /* Chữ gõ trong ô không vẽ lại màn, nên nút còn sáng: kiểm lại lúc bấm. */
+  if (e.target.closest('[data-crmcdduyet], [data-crmcdchot]')) {
+    crmCdDocO();
+    if (crmCdChuaLuu()) { crmCdVe(); return toast(CRM_CD_CHUA_LUU, 5000); }
+  }
   if (e.target.closest('[data-crmcdduyet]')) return crmCdGoi('vagabond.crm.duyet_kich_ban', 'Đã duyệt kịch bản gọi');
   if (e.target.closest('[data-crmcdchot]')) {
     var dc = c.dong_chay || {};
@@ -845,7 +906,7 @@ async function crmCdLuu() {
     }) });
     busy(false);
     d.mo_ta_loc = c.bo_loc ? (c.mo_ta_loc || d.mo_ta_loc) : d.mo_ta_loc;
-    crmCd = d;
+    crmCd = d; crmCdGoc = crmCdDau(d);
     toast('Đã lưu nháp');
     crmCdVe();
   } catch (e) { busy(false); toast(errMsg(e), 5000); }
@@ -854,7 +915,7 @@ async function crmCdLuu() {
 async function crmCdGoi(method, xong) {
   busy(true);
   try {
-    crmCd = await api(method, { name: crmCd.name });
+    crmCd = await api(method, { name: crmCd.name }); crmCdGoc = crmCdDau(crmCd);
     busy(false); toast(xong, 3600); crmCdVe();
   } catch (e) { busy(false); toast(errMsg(e), 5000); }
 }
