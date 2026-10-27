@@ -252,6 +252,40 @@ def _vnd(x):
 	return "{:,.0f}".format(so(x)).replace(",", ".")
 
 
+# v615 (Codex #507 P1): phép kiểm tài khoản Giám đốc thu hộ thuộc phần thuần, chạy
+# được không cần Frappe như mọi phép thuần khác của tệp.
+
+def _so_nguyen(x):
+	"""THUẦN: 0/1 từ ô Check (số, chuỗi "1", None); chuỗi lạ là 0."""
+	try:
+		return int(float(x or 0))
+	except (TypeError, ValueError):
+		return 0
+
+
+LOAI_CO_DOI_TUONG = ("Receivable", "Payable")
+
+
+def loi_tk_gd(tk, cong_ty):
+	"""THUẦN: câu lỗi nếu tài khoản tk (dict đọc từ Account) không dùng được làm tài khoản
+	phải thu Giám đốc thu hộ; "" nếu dùng được."""
+	if not tk:
+		return "Không tìm thấy tài khoản này."
+	ten = tk.get("name") or ""
+	if cong_ty and tk.get("company") != cong_ty:
+		return "Tài khoản %s thuộc công ty khác." % ten
+	if _so_nguyen(tk.get("is_group")):
+		return "Tài khoản %s là tài khoản tổng hợp. Chọn tài khoản chi tiết bên dưới nó." % ten
+	if _so_nguyen(tk.get("disabled")):
+		return "Tài khoản %s đang tắt." % ten
+	if tk.get("root_type") != "Asset":
+		return "Tài khoản %s không phải tài khoản tài sản (phải thu)." % ten
+	if tk.get("account_type") in LOAI_CO_DOI_TUONG:
+		return ("Tài khoản %s đang theo dõi theo đối tượng (khách, nhà cung cấp). Chọn tài khoản "
+			"phải thu khác không theo dõi đối tượng, ví dụ tài khoản 1388 chi tiết cho Giám đốc." % ten)
+	return ""
+
+
 # ------------------------------------------------------- phần chạm Frappe
 
 import frappe  # noqa: E402
@@ -705,29 +739,6 @@ def cai_dat():
 # cho kế toán và quản trị; phạm vi chọn đúng như ô trên Cài đặt, cộng thêm: không nhận
 # tài khoản theo dõi đối tượng (phải thu, phải trả), vì bút toán Giám đốc thu hộ không
 # gắn đối tượng ở dòng này.
-
-LOAI_CO_DOI_TUONG = ("Receivable", "Payable")
-
-
-def loi_tk_gd(tk, cong_ty):
-	"""THUẦN: câu lỗi nếu tài khoản tk (dict đọc từ Account) không dùng được làm tài khoản
-	phải thu Giám đốc thu hộ; "" nếu dùng được."""
-	if not tk:
-		return "Không tìm thấy tài khoản này."
-	ten = tk.get("name") or ""
-	if cong_ty and tk.get("company") != cong_ty:
-		return "Tài khoản %s thuộc công ty khác." % ten
-	if cint(tk.get("is_group")):
-		return "Tài khoản %s là tài khoản tổng hợp. Chọn tài khoản chi tiết bên dưới nó." % ten
-	if cint(tk.get("disabled")):
-		return "Tài khoản %s đang tắt." % ten
-	if tk.get("root_type") != "Asset":
-		return "Tài khoản %s không phải tài khoản tài sản (phải thu)." % ten
-	if tk.get("account_type") in LOAI_CO_DOI_TUONG:
-		return ("Tài khoản %s đang theo dõi theo đối tượng (khách, nhà cung cấp). Chọn tài khoản "
-			"phải thu khác không theo dõi đối tượng, ví dụ tài khoản 1388 chi tiết cho Giám đốc." % ten)
-	return ""
-
 
 def _duoc_sua_tk_gd():
 	return bool(_la_ke_toan() or "System Manager" in frappe.get_roles())
