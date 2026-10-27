@@ -426,6 +426,54 @@ function mot(el, chon) { return el.querySelectorAll(chon)[0]; }
     dung('nói lý do', chu(m2.khung).indexOf('không giữ nhóm đối chứng (dưới 10 khách đủ điều kiện)') >= 0);
   });
 
+  /* ------------------------------------------------ Codex PR #505 vòng 1 */
+
+  await ca('Codex #505: khách rút đồng ý sau khi chốt thì dòng gọi không còn nút Gọi, Chép tin, có dòng nhắc, vẫn ghi kết quả', async function () {
+    var ds = [{ name: 'N1', chien_dich: 'CD-1', ten_chien_dich: 'Giáng sinh', khach: 'KH-9', ten_khach: 'Khách rút', sdt: '0909 111 222',
+      trang_thai: 'Chưa gọi', kenh_duoc: '', ngung: 1, tin_zalo: '' },
+      { name: 'N2', chien_dich: 'CD-1', ten_chien_dich: 'Giáng sinh', khach: 'KH-8', ten_khach: 'Khách còn', sdt: '0909 333 444',
+      trang_thai: 'Chưa gọi', kenh_duoc: 'Gọi điện', ngung: 0, tin_zalo: '' }];
+    var m = dungMoi(SALES, { ds_goi_cua_toi: { dong: ds, ket_qua: KQ } });
+    vm.runInNewContext('crmGoiTt = "Chưa gọi"; crmGoiCd = ""; crmGoiTim = "";', m.g);
+    await m.g.scrCrmGoi();
+    var n1 = mot(m.khung, '[data-crmdong="N1"]'), n2 = mot(m.khung, '[data-crmdong="N2"]');
+    dung('không nút Gọi, không Chép tin', !mot(n1, '[data-crmgoi]') && !mot(n1, '[data-crmchep]'));
+    dung('có dòng nhắc', chu(mot(n1, '[data-crmngung]')).indexOf('Khách đã rút đồng ý hoặc xin không nhận quảng cáo') === 0);
+    dung('vẫn có nút Kết quả', !!mot(n1, '[data-crmkq]'));
+    dung('khách còn đồng ý: có Gọi, không nhắc', !!mot(n2, '[data-crmgoi]') && !mot(n2, '[data-crmngung]'));
+  });
+
+  await ca('Codex #505: bản nháp chiến dịch mới mở lại đủ tên, kịch bản, kênh, Sales; bản nháp của chiến dịch khác hay đã chốt thì không ghép', async function () {
+    var m = dungMoi(QL, {});
+    var nhap = { name: '', ten: 'Gọi khách đã ngủ', loc: { nhom: ['Đã ngủ'] }, mo_ta_loc: 'Nhóm Đã ngủ', kenh_goi: 1, kenh_zalo: 1,
+      mon: [{ item: 'BANH-1', ten: 'Entremet' }], sales: [{ nguoi: 'b@x', ten: 'Sales 2' }], kich_ban: 'Dạ chào anh chị, lâu rồi chưa ghé tiệm',
+      noi_dung_zalo: 'Chào {ten}', ty_le_doi_chung: 10 };
+    m.g.crmCdKhoiPhuc = JSON.parse(JSON.stringify(nhap));
+    await m.g.scrCrmCd('');
+    bang('tên', mot(m.khung, '#crmCdTen').getAttribute('value'), 'Gọi khách đã ngủ');
+    dung('kịch bản', chu(mot(m.khung, '#crmCdKb')).indexOf('lâu rồi chưa ghé tiệm') >= 0);
+    dung('nhóm, món, Sales', chu(m.khung).indexOf('Nhóm Đã ngủ') >= 0 && chu(m.khung).indexOf('Entremet') >= 0 && chu(m.khung).indexOf('Sales 2') >= 0);
+    bang('đã dùng xong bản nháp', m.g.crmCdKhoiPhuc, null);
+    var lay = m.g.crmCdNhap();
+    bang('đọc lại để tự lưu', [lay.ten, lay.kenh_zalo, lay.sales.length, lay.kich_ban], ['Gọi khách đã ngủ', 1, 1, 'Dạ chào anh chị, lâu rồi chưa ghé tiệm']);
+    m.g.crmCdKhoiPhuc = JSON.parse(JSON.stringify(nhap));
+    m.g.crmCdKhoiPhuc.name = 'CD-26-0009';
+    await m.g.scrCrmCd('');
+    bang('bản nháp của chiến dịch khác: không ghép', mot(m.khung, '#crmCdTen').getAttribute('value'), '');
+    var m2 = await moCd(QL, cdMau({ trang_thai: 'Đang chạy' }));
+    bang('đã chốt: không tự lưu bản nháp', m2.g.crmCdNhap(), null);
+    var m3 = await moCd(SALES, cdMau({ duoc_lap: 0 }));
+    bang('không quyền lập: không tự lưu', m3.g.crmCdNhap(), null);
+  });
+
+  await ca('Codex #505: màn hiệu quả ghi mốc đo theo giờ chốt', async function () {
+    var d = { ten: 'Giáng sinh 2026', tu: '2026-10-27 18:00:00', den: '2026-11-10 18:00:00', dang_do: 0, co_doi_chung: 0,
+      nhan: { so_khach: 9, ty_le_mua: 0, binh_quan: 0 }, doi_chung: { so_khach: 0, ty_le_mua: 0, binh_quan: 0 }, ctkm: '', khach_tu_choi: 0, theo_sales: [] };
+    var m = dungMoi(QL, { hieu_qua_chien_dich: d });
+    await m.g.scrCrmHieuQua('CD-26-0001');
+    bang('mốc đo', chu(mot(m.khung, '[data-crmhqmoc]')), 'Đo từ 18:00 27/10 (lúc chốt) tới 18:00 10/11, cùng mốc cho cả hai nhóm');
+  });
+
   console.log('\n' + ket.dat + ' ca đạt, ' + ket.hong + ' ca hỏng.');
   process.exit(ket.hong ? 1 : 0);
 })();

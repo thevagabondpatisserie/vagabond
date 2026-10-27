@@ -700,7 +700,8 @@ async function chayHet() {
     /* v549: them tra_truoc_erp (khoan da tra truoc khi len ERP, Codex #403). */
     /* v600 Codex #486: them gia_thu (phieu tinh gia thu R&D). */
     /* v607 Codex #493 vong 3: them phieu nap tra truoc (nap_tra_truoc). */
-    bang('du 43 loai phieu', Object.keys(k.SD_MAN).length, 43);
+    /* v614 Codex #505: them chien_dich (lap chien dich CRM, 58-crm.js). */
+    bang('du 44 loai phieu', Object.keys(k.SD_MAN).length, 44);
   });
 
   console.log('ban_soan_do_533: dat ' + ket.dat + ', hong ' + ket.hong);
