@@ -1262,3 +1262,20 @@ def _():
 	o = [f for f in ds if f["fieldname"] == "tk_gd_thu_ho"][0]
 	la("ô đứng ngay dưới mục mới", o["insert_after"], "sec_tra_truoc_khach")
 	dung("mô tả ô nói kế toán chọn được ngay trên màn nạp", "màn Số dư trả trước" in o["description"])
+
+
+@ca("v615 Codex #507 P1: loi_tk_gd nằm trong phần thuần, nạp RIÊNG phần trên import frappe vẫn chạy đủ bảng kiểm")
+def _():
+	src = (GOC / "tra_truoc_khach.py").read_text(encoding="utf-8")
+	thuan = src.split("# ------------------------------------------------------- phần chạm Frappe")[0]
+	import re
+	dung("phần thuần không import frappe", not re.search(r"^\s*(import|from)\s+frappe", thuan, re.M) and "frappe." not in thuan)
+	ns = {}
+	exec(compile(thuan, "tra_truoc_khach_thuan", "exec"), ns)
+	f = ns.get("loi_tk_gd")
+	dung("phần thuần có loi_tk_gd", callable(f))
+	tot = dict(TK_TOT, is_group="0", disabled=None)
+	la("ô Check dạng chuỗi, rỗng vẫn đọc đúng", f(tot, "VGB"), "")
+	dung("is_group chuỗi '1' bị chặn", "tổng hợp" in f(dict(TK_TOT, is_group="1"), "VGB"))
+	dung("disabled 1 bị chặn", "đang tắt" in f(dict(TK_TOT, disabled=1), "VGB"))
+	dung("Receivable bị chặn", "theo dõi theo đối tượng" in f(dict(TK_TOT, account_type="Receivable"), "VGB"))
