@@ -25951,7 +25951,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '613';
+var APPVER = '615';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -61041,6 +61041,70 @@ async function sdtCaiDat() {
   return SDT_CD;
 }
 
+/* v615 (anh Việt 27/10/2026: "Không biết khai chỗ này ở đâu? ... mở luôn ô để khai ngay
+   bên cạnh"). Chưa có tài khoản phải thu Giám đốc thu hộ: kế toán (và quản trị) chọn
+   ngay tại đây; người khác được chỉ rõ ai làm, làm ở đâu. */
+function sdtKhoiThieuTkGd(cd) {
+  var nen = 'margin-top:6px;padding:9px 10px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;font-size:12.5px;color:#b3261e;line-height:1.5';
+  if (cd && cd.sua_tk_gd) {
+    return '<div style="' + nen + '">Chưa chọn <b>Tài khoản phải thu Giám đốc thu hộ</b>. Chọn ngay ở đây, chọn một lần là dùng cho mọi phiếu sau.' +
+      '<button type="button" class="btn" id="sdtChonTkGd" style="margin:8px 0 0;min-height:44px">Chọn tài khoản</button></div>';
+  }
+  return '<div style="' + nen + '">Chưa chọn <b>Tài khoản phải thu Giám đốc thu hộ</b>, nên chưa lập được phiếu này. ' +
+    'Nhờ kế toán mở màn Nạp tiền trả trước, chọn Tài khoản cá nhân Giám đốc rồi bấm Chọn tài khoản ngay dưới lời báo này.</div>';
+}
+
+async function sdtChonTkGd(sauLuu) {
+  busy(true);
+  var ds;
+  try { ds = await api('vagabond.tra_truoc_khach.tim_tk_gd', { tu: '' }); }
+  catch (e) { busy(false); return toast(errMsg(e)); }
+  busy(false);
+  ds = ds || [];
+  var ov = document.createElement('div'); ov.className = 'sh';
+  var box = document.createElement('div'); box.className = 'shb';
+  box.innerHTML = '<div class="shh"><b>Tài khoản phải thu Giám đốc thu hộ</b><div class="x">&times;</div></div>' +
+    '<div style="flex:0 0 auto;padding:8px 14px 0;font-size:12.5px;color:#475467;line-height:1.5">' +
+    'Khách chuyển tiền vào tài khoản cá nhân Giám đốc thì công ty ghi Nợ tài khoản này (phải thu lại Giám đốc). ' +
+    'Chỉ hiện tài khoản phải thu chi tiết, không theo dõi theo khách hay nhà cung cấp.</div>' +
+    '<div style="flex:0 0 auto;padding:10px 14px 4px"><input class="nt" id="sdtTimTk" placeholder="Gõ số hoặc tên tài khoản, ví dụ 1388" ' +
+    'style="height:46px;padding:0 12px;width:100%;box-sizing:border-box"></div><div class="shl"></div>';
+  var lst = box.querySelector('.shl');
+  function ve() {
+    lst.innerHTML = ds.length ? ds.map(function (x) {
+      return '<div class="shi" data-tkgd="' + h(x.name) + '"><span>📒</span><span style="flex:1;min-width:0">' + h(x.ten) +
+        '<div style="color:#a0a6b4;font-size:12px;margin-top:2px">' + h(x.so ? 'Số hiệu ' + x.so : x.name) + '</div></span></div>';
+    }).join('') : '<div class="emp"><div class="e2">Không có tài khoản hợp lệ. Kế toán tạo tài khoản phải thu chi tiết (ví dụ 1388 Phải thu Giám đốc) trong Hệ thống tài khoản trước.</div></div>';
+  }
+  ve();
+  ov.appendChild(box); document.body.appendChild(ov);
+  var inp = box.querySelector('#sdtTimTk'), tre = null;
+  inp.oninput = function () {
+    if (tre) clearTimeout(tre);
+    tre = setTimeout(async function () {
+      try { ds = (await api('vagabond.tra_truoc_khach.tim_tk_gd', { tu: inp.value })) || []; ve(); } catch (e) { }
+    }, 260);
+  };
+  function dong() { ov.remove(); }
+  ov.onclick = function (e) { if (e.target === ov) dong(); };
+  box.querySelector('.x').onclick = dong;
+  lst.onclick = async function (e) {
+    var r = e.target.closest('[data-tkgd]'); if (!r) return;
+    var ma = r.getAttribute('data-tkgd');
+    if (!await xacNhan('Dùng tài khoản ' + ma + ' cho mọi phiếu nạp qua Giám đốc thu hộ? Đổi sau được, ở đây hoặc trong Cài đặt.',
+      'Chọn tài khoản', 'Dùng tài khoản này')) return;
+    busy(true);
+    try { await api('vagabond.tra_truoc_khach.luu_tk_gd', { tk: ma }); }
+    catch (e2) { busy(false); return toast(errMsg(e2)); }
+    busy(false);
+    dong();
+    if (SDT_CD) SDT_CD.thieu_tk_gd = 0;
+    toast('Đã lưu tài khoản ' + ma + '. Lập phiếu tiếp được rồi.');
+    if (sauLuu) sauLuu();
+  };
+  setTimeout(function () { try { inp.focus(); } catch (e) { } }, 120);
+}
+
 /* Chip trạng thái số dư, cùng bảng màu chung: xanh ổn, vàng sắp hết, đỏ hết. */
 function sdtChip(con) {
   if (con <= 0) return '<span style="background:#fef2f2;color:#b3261e;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:700">Hết tiền</span>';
@@ -61202,9 +61266,7 @@ async function scrSoDuNap() {
         '<span style="flex:1;min-width:0">' + h(x.nhan) + '<small style="display:block;color:#7b8794;font-size:11.5px">' +
         h(x.giai_thich) + '</small></span></button>';
     }).join('') + '</div>' +
-    (n.nguon === 'gd_thu_ho' && cd.thieu_tk_gd
-      ? '<div style="margin-top:6px;padding:7px 9px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;font-size:12.5px;' +
-        'color:#b3261e">Chưa khai Tài khoản phải thu Giám đốc thu hộ trong Cài đặt. Nhờ kế toán khai trước rồi mới lập phiếu này.</div>' : '') +
+    (n.nguon === 'gd_thu_ho' && cd.thieu_tk_gd ? sdtKhoiThieuTkGd(cd) : '') +
     '</div>' +
     (ng && ng.can_quay
       ? '<div><div style="font-size:13px;font-weight:700;margin-bottom:6px">Quầy nhận tiền <b style="color:#b3261e">*</b></div>' +
@@ -61247,6 +61309,8 @@ async function scrSoDuNap() {
   document.querySelectorAll('[data-sdtq]').forEach(function (b) {
     b.onclick = function () { hut(); n.quay = b.getAttribute('data-sdtq'); go(scrSoDuNap, true); };
   });
+  var btGd = document.getElementById('sdtChonTkGd');
+  if (btGd) btGd.onclick = function () { hut(); sdtChonTkGd(function () { go(scrSoDuNap, true); }); };
   var oa = document.getElementById('sdtAnh');
   oa.onchange = function () {
     hut();
