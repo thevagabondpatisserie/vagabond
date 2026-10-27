@@ -32,7 +32,7 @@ function layHam(src, ten) {
   }
   throw new Error('Ham ' + ten + ' khong dong ngoac');
 }
-var HAM = ['h', 'money', 'today', 'vgbChuan', 'vgbKhop'].map(function (t) { return layHam(NEN, t); })
+var HAM = ['h', 'money', 'today', 'vgbChuan', 'vgbKhop', 'anhMon'].map(function (t) { return layHam(NEN, t); })
   .concat([layHam(POS, 'posChipNut')])
   .concat(['dsccHang', 'dsCongCu', 'dsCongCuNoi'].map(function (t) { return layHam(KHUON, t); }))
   .concat(['var scanBarcode = function () { return Promise.resolve(null); };'])
@@ -78,7 +78,9 @@ function dungMoi(vai, traLoi) {
   var that = {
     document: tai, console: console, Math: Math, JSON: JSON, String: String, Array: Array, Object: Object,
     RegExp: RegExp, Promise: Promise, Number: Number, Date: Date, setTimeout: setTimeout, isNaN: isNaN, parseInt: parseInt,
-    navigator: {}, S: { roles: vai, stack: [] },
+    navigator: {}, S: { roles: vai, stack: [] }, khMa: '',
+    /* Màn Chi tiết khách hàng (18-doi-chieu-may-in.js) không nạp: ghi lại mã khách được mở. */
+    scrKhachChiTiet: function () { that._moKh = that.khMa; },
     hasRole: function (r) { return vai.indexOf(r) >= 0; },
     frame: function (t, html) {
       khung.innerHTML = html; khung._nghe = {}; khung.onclick = null; that._t = t; return khung;
@@ -592,6 +594,93 @@ function mot(el, chon) { return el.querySelectorAll(chon)[0]; }
     bam(m, mot(m.khung, '[data-dscc="chang|Từ chối"]'));
     await choDen(function () { return goiTen(m, 'so_dong_y').length > 3; });
     bang('chip giữ chữ tìm', goiTen(m, 'so_dong_y')[3].ts, { trang_thai: 'Từ chối', tim: 'Minh Anh', bat_dau: 0 });
+  });
+
+  /* ------------------------------------------------ Codex PR #505 vòng 3 (rà 808a738) */
+
+  var HS_CRM = { nhom: 'Sắp rời đi', giai_thich_nhom: 'Lâu chưa quay lại', dip: [], dong_y: { 'Zalo': 'Đồng ý', 'Gọi điện': 'Chưa hỏi', 'Email': 'Chưa hỏi' },
+    khong_quang_cao: 0, duoc_dat_kqc: 0, lien_he: [], khac: { chua_ghi_so: 0, huy: 0, tra: 0 },
+    mon: [{ item_code: 'BANH-1', ten: 'Entremet', so_don: 3, anh: '/files/entremet.jpg' }, { item_code: 'BANH-2', ten: 'Tart chanh', so_don: 1, anh: null }] };
+  var SO_DY = { tong: { 'Zalo': {}, 'Gọi điện': {}, 'Email': {} }, khong_quang_cao: 0, con_nua: 0,
+    dong: [{ name: 'NK-7', khach: 'KH-7', ten_khach: 'Nguyễn Minh Anh', kenh: 'Zalo', trang_thai: 'Đồng ý', noi_ghi: 'Quầy', ten_nguoi: 'Thu ngân', luc: '2026-10-27 10:00:00' }] };
+
+  await ca('Codex #505 v3: Marketing bấm khách trong Sổ đồng ý mở màn Chăm sóc khách, không vào hồ sơ bán hàng; Sales vẫn mở hồ sơ đầy đủ', async function () {
+    var m = dungMoi(['Marketing'], { so_dong_y: SO_DY, ho_so_crm: HS_CRM });
+    vm.runInNewContext('crmDyLoc = ""; crmDyTim = "";', m.g);
+    await m.g.scrCrmDongY();
+    bam(m, mot(m.khung, '[data-crmdykh="KH-7"]'));
+    await choDen(function () { return goiTen(m, 'ho_so_crm').length && mot(m.khung, '[data-crmhsmon]'); });
+    bang('không mở hồ sơ bán hàng', m.g._moKh, undefined);
+    bang('màn Chăm sóc khách', m.g._t, 'Chăm sóc khách');
+    bang('đọc phần CRM đúng khách', goiTen(m, 'ho_so_crm')[0].ts, { khach: 'KH-7' });
+    dung('có tên khách và lời nói rõ phạm vi', chu(m.khung).indexOf('Nguyễn Minh Anh') >= 0 && chu(m.khung).indexOf('chỉ Sales và kế toán xem') >= 0);
+    var m2 = dungMoi(SALES, { so_dong_y: SO_DY });
+    vm.runInNewContext('crmDyLoc = ""; crmDyTim = "";', m2.g);
+    await m2.g.scrCrmDongY();
+    bam(m2, mot(m2.khung, '[data-crmdykh="KH-7"]'));
+    bang('Sales mở hồ sơ đầy đủ', m2.g._moKh, 'KH-7');
+    bang('Sales không cần màn CRM riêng', goiTen(m2, 'ho_so_crm').length, 0);
+    var m3 = dungMoi(['VGB - Quản lý cửa hàng'], { ds_goi_cua_toi: { dong: dongGoi(), ket_qua: KQ }, ho_so_crm: HS_CRM });
+    vm.runInNewContext('crmGoiTt = "Chưa gọi"; crmGoiCd = ""; crmGoiTim = "";', m3.g);
+    await m3.g.scrCrmGoi();
+    bam(m3, mot(mot(m3.khung, '[data-crmdong="L1"]'), '[data-crmmohs]'));
+    await choDen(function () { return goiTen(m3, 'ho_so_crm').length; });
+    dung('quản lý cửa hàng từ danh sách gọi: màn Chăm sóc khách', m3.g._moKh === undefined && m3.g._t === 'Chăm sóc khách');
+  });
+
+  await ca('Codex #505 v3: Món hay mua hiện ảnh món, chưa có ảnh thì ô 🍰', async function () {
+    var m = dungMoi(['Marketing'], { ho_so_crm: HS_CRM });
+    await m.g.scrCrmHoSo('KH-7', 'Nguyễn Minh Anh');
+    await choDen(function () { return mot(m.khung, '[data-crmhsmon]'); });
+    var b1 = mot(m.khung, '[data-crmhsmon="BANH-1"]'), b2 = mot(m.khung, '[data-crmhsmon="BANH-2"]');
+    bang('ảnh món', mot(b1, 'img').getAttribute('src'), '/files/entremet.jpg');
+    dung('chưa có ảnh: ô 🍰', !mot(b2, 'img') && chu(mot(b2, '.immp')) === '🍰');
+    dung('tên và số đơn', chu(b1).indexOf('Entremet') >= 0 && chu(b1).indexOf('3 đơn') >= 0);
+  });
+
+  await ca('Codex #505 v3: danh sách chiến dịch hỏi máy chủ theo chip và chữ tìm, Xem thêm lấy tiếp chiến dịch cũ', async function () {
+    var trang = function (tu, n) { var r = []; for (var i = 0; i < n; i++) r.push({ name: 'CD-' + (tu + i), ten: 'Chiến dịch ' + (tu + i), trang_thai: 'Đã kết thúc', ngay_chot: '2026-01-02 10:00:00', tien_do: {} }); return r; };
+    var m = dungMoi(QL, { ds_chien_dich: function (ts) {
+      if (ts.tim) return { ds: [{ name: 'CD-2025-0003', ten: 'Trung thu 2025', trang_thai: 'Đã kết thúc', ngay_chot: '2025-09-01 09:00:00', tien_do: {} }], dem: { 'Đã kết thúc': 1, tat_ca: 1 }, con_nua: 0, duoc_lap: 1 };
+      return { ds: trang(+ts.bat_dau || 0, 50), dem: { 'Nháp': 2, 'Đang chạy': 3, 'Đã kết thúc': 120, tat_ca: 125 }, con_nua: (+ts.bat_dau || 0) < 100 ? 1 : 0, duoc_lap: 1 };
+    } });
+    vm.runInNewContext('crmCdTt = ""; crmCdTim = "";', m.g);
+    await m.g.scrCrmCdDs();
+    bang('hỏi trang đầu', goiTen(m, 'ds_chien_dich')[0].ts, { bat_dau: 0, trang_thai: '', tim: '' });
+    dung('chip đếm theo máy chủ', chu(mot(m.khung, '[data-dscc="chang|Đã kết thúc"]')).indexOf('120') >= 0);
+    bang('50 dòng', m.khung.querySelectorAll('[data-crmcdmo]').length, 50);
+    bam(m, mot(m.khung, '[data-crmcdthem]'));
+    await choDen(function () { return goiTen(m, 'ds_chien_dich').length > 1; });
+    await tick();
+    bang('Xem thêm từ dòng 50', goiTen(m, 'ds_chien_dich')[1].ts.bat_dau, 50);
+    bang('nối thêm', m.khung.querySelectorAll('[data-crmcdmo]').length, 100);
+    var o = m.tai.getElementById('crmCdDsTim');
+    o.value = 'Trung thu';
+    o.dispatchEvent(dg.suKien('change', {}, o));
+    await choDen(function () { return goiTen(m, 'ds_chien_dich').length > 2; });
+    await tick();
+    bang('tìm ở máy chủ, từ đầu', goiTen(m, 'ds_chien_dich')[2].ts, { bat_dau: 0, trang_thai: '', tim: 'Trung thu' });
+    bang('ra chiến dịch cũ', m.khung.querySelectorAll('[data-crmcdmo]').map(function (x) { return x.getAttribute('data-crmcdmo'); }), ['CD-2025-0003']);
+    dung('hết thì không còn Xem thêm', !mot(m.khung, '[data-crmcdthem]'));
+  });
+
+  await ca('Codex #505 v3: Hiệu quả chiến dịch có ô tìm, chỉ hỏi chiến dịch đã chốt, Xem thêm', async function () {
+    var m = dungMoi(QL, { ds_chien_dich: function (ts) {
+      var r = []; for (var i = 0; i < (ts.tim ? 1 : 50); i++) r.push({ name: 'CD-' + i, ten: ts.tim ? 'Tết 2026' : 'Chiến dịch ' + i, trang_thai: 'Đã kết thúc', ngay_chot: '2026-01-02 10:00:00', so_nhan: 10, so_doi_chung: 1 });
+      return { ds: r, dem: { 'Đã kết thúc': ts.tim ? 1 : 80, tat_ca: ts.tim ? 1 : 80 }, con_nua: ts.tim ? 0 : 1, duoc_lap: 1 };
+    } });
+    vm.runInNewContext('crmHqTt = ""; crmHqTim = "";', m.g);
+    await m.g.scrCrmHqDs();
+    bang('chỉ chiến dịch đã chốt', goiTen(m, 'ds_chien_dich')[0].ts, { bat_dau: 0, trang_thai: '', tim: '', da_chot: 1 });
+    var o = m.tai.getElementById('crmHqDsTim');
+    dung('có ô tìm', !!o);
+    dung('có Xem thêm', !!mot(m.khung, '[data-crmhqthem]'));
+    o.value = 'Tết';
+    o.dispatchEvent(dg.suKien('change', {}, o));
+    await choDen(function () { return goiTen(m, 'ds_chien_dich').length > 1; });
+    await tick();
+    bang('tìm gửi máy chủ', goiTen(m, 'ds_chien_dich')[1].ts, { bat_dau: 0, trang_thai: '', tim: 'Tết', da_chot: 1 });
+    bang('một dòng khớp', m.khung.querySelectorAll('[data-crmhqmo]').length, 1);
   });
 
   console.log('\n' + ket.dat + ' ca đạt, ' + ket.hong + ' ca hỏng.');
