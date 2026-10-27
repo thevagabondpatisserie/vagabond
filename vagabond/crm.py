@@ -462,6 +462,49 @@ def ly_do_chua_chot(cd, so_sales):
 	return ""
 
 
+def kenh_lien_he_luc_nay(ho_so, cd):
+	"""Kênh Sales được dùng NGAY LÚC NÀY với một khách trong chiến dịch. THUẦN.
+
+	Codex PR #505: danh sách đã chốt giữ cố định để đo, nhưng nút Gọi và Chép
+	tin phải theo đồng ý hiện tại. Khách rút đồng ý hay vào Danh sách không
+	quảng cáo sau lúc chốt thì không còn kênh nào, dù dòng chốt ghi gì.
+	"""
+	ho_so = ho_so or {}
+	if int(ho_so.get("khong_quang_cao") or ho_so.get("kqc") or 0):
+		return []
+	return kenh_duoc_lien_he(ho_so, kenh_cua_chien_dich(cd))
+
+
+def duyet_sau_sua(kb_cu, duyet_cu, kb_moi, duyet_moi, duoc_duyet):
+	"""Cờ duyệt kịch bản sau một lần lưu, đi đường nào cũng vậy. THUẦN.
+
+	Codex PR #505: chữ kịch bản đổi (bỏ khoảng trắng đầu cuối) thì mất duyệt,
+	kể cả khi sửa trên Desk. Bật cờ duyệt mà người lưu không có quyền duyệt
+	thì không nhận. Trả 0 hoặc 1.
+	"""
+	if (kb_cu or "").strip() != (kb_moi or "").strip():
+		return 0
+	if int(duyet_moi or 0) and not int(duyet_cu or 0) and not duoc_duyet:
+		return 0
+	return 1 if int(duyet_moi or 0) else 0
+
+
+def cua_so_do(ngay_chot):
+	"""Khoảng đo hiệu quả: từ đúng GIỜ chốt tới đúng 14 ngày sau. THUẦN.
+
+	Codex PR #505: đổi về ngày thì đơn mua trước lúc chốt cùng ngày bị tính
+	vào chiến dịch, còn mấy giờ cuối của ngày thứ 14 lại bị bỏ.
+	"""
+	import datetime as dt
+
+	if isinstance(ngay_chot, str):
+		ngay_chot = dt.datetime.fromisoformat(ngay_chot.strip()[:19])
+	elif isinstance(ngay_chot, dt.date) and not isinstance(ngay_chot, dt.datetime):
+		ngay_chot = dt.datetime.combine(ngay_chot, dt.time())
+	tu = ngay_chot.replace(microsecond=0)
+	return tu, tu + dt.timedelta(days=CUA_SO_DO)
+
+
 # ================================================================ phần chạm hệ
 
 import frappe  # noqa: E402
@@ -826,12 +869,21 @@ def kiem_sua_chien_dich(doc):
 	Danh sách đã chốt phải cố định (Codex PR #503): đổi kênh, bộ lọc hay tỉ lệ
 	đối chứng sau khi chốt là làm hỏng phép đo. Mọi thay đổi đi qua app.
 	"""
-	if doc.is_new() or frappe.flags.get("crm_ghi"):
-		return
-	cu = frappe.db.get_value(DT_CD, doc.name, "trang_thai")
-	if cu and cu != "Nháp":
+	cu = None if doc.is_new() else frappe.db.get_value(
+		DT_CD, doc.name, ["trang_thai", "kich_ban", "kich_ban_duyet"], as_dict=True)
+	cu = cu or {}
+	if not frappe.flags.get("crm_ghi") and cu.get("trang_thai") and cu.get("trang_thai") != "Nháp":
 		frappe.throw("Chiến dịch %s đã chốt danh sách nên không sửa trên Desk được. "
 			"Mở app, phân hệ Khách hàng, Chiến dịch." % doc.name)
+	# Codex PR #505: cờ duyệt kịch bản tính lại ở MỌI đường lưu (app lẫn Desk).
+	# Bản mới chưa có gì để so: coi kịch bản cũ chính là kịch bản đang lưu, chỉ
+	# xét quyền bật cờ.
+	kb_cu = cu.get("kich_ban") if cu else doc.get("kich_ban")
+	duyet = duyet_sau_sua(kb_cu, cu.get("kich_ban_duyet"), doc.get("kich_ban"), doc.get("kich_ban_duyet"), _co(CRM_DUYET))
+	if not duyet and int(doc.get("kich_ban_duyet") or 0):
+		doc.kich_ban_duyet = 0
+		doc.duyet_boi = None
+		doc.duyet_luc = None
 
 
 def _cd(name, khoa=False):
@@ -1082,6 +1134,7 @@ def ds_goi_cua_toi(chien_dich=None):
 		"""
 		select k.name, k.chien_dich, d.ten ten_chien_dich, k.khach, k.ten_khach, k.sdt, k.trang_thai,
 		       k.ket_qua, k.ghi_chu, k.lan_cuoi, k.so_lan, k.kenh_duoc, d.noi_dung_zalo, d.kich_ban,
+		       d.kenh_goi, d.kenh_zalo, h.dy_goi, h.dy_zalo, ifnull(h.khong_quang_cao, 0) kqc,
 		       h.lan_cuoi mua_cuoi, h.nhom, %s hang
 		from `tab%s` k join `tab%s` d on d.name = k.chien_dich
 		left join `tab%s` h on h.name = k.khach
@@ -1089,8 +1142,13 @@ def ds_goi_cua_toi(chien_dich=None):
 		where %s order by field(k.trang_thai, 'Chưa gọi', 'Hẹn gọi lại', 'Đã xong'), k.ten_khach
 		""" % (_cot_hang(), DT_CD_KHACH, DT_CD, DT_HO_SO, dk), ts, as_dict=True)
 	for r in rows:
-		r["tin_zalo"] = tin_zalo(r.noi_dung_zalo, r.ten_khach)
-		r.pop("noi_dung_zalo", None)
+		# Codex PR #505: nút liên hệ theo đồng ý HIỆN TẠI, không theo dòng chốt.
+		kenh = kenh_lien_he_luc_nay(r, r)
+		r["kenh_duoc"] = ", ".join(kenh)
+		r["ngung"] = 0 if kenh else 1
+		r["tin_zalo"] = tin_zalo(r.noi_dung_zalo, r.ten_khach) if "Zalo" in kenh else ""
+		for c in ("noi_dung_zalo", "dy_goi", "dy_zalo", "kqc", "kenh_goi", "kenh_zalo"):
+			r.pop(c, None)
 	return {"dong": rows, "ket_qua": list(KET_QUA)}
 
 
@@ -1132,10 +1190,8 @@ def hieu_qua_chien_dich(name=None):
 	doc = _cd(name)
 	if not doc.ngay_chot:
 		frappe.throw("Chiến dịch chưa chốt danh sách nên chưa có gì để đo.")
-	import datetime as dt
-
-	tu = _ngay(doc.ngay_chot)
-	den = tu + dt.timedelta(days=CUA_SO_DO)
+	tu, den = cua_so_do(doc.ngay_chot)
+	tu_s, den_s = str(tu), str(den)
 	nhanh = {}
 	for n in ("Nhận", "Đối chứng"):
 		r = frappe.db.sql(
@@ -1144,9 +1200,9 @@ def hieu_qua_chien_dich(name=None):
 			       count(distinct s.customer) khach_mua, ifnull(sum(s.grand_total), 0) tien
 			from `tab%s` k left join `tabSales Invoice` s on s.customer = k.khach
 			     and s.docstatus = 1 and ifnull(s.vgb_huy, 0) = 0 and ifnull(s.is_return, 0) = 0
-			     and s.posting_date >= %%s and s.posting_date < %%s
+			     and timestamp(s.posting_date, s.posting_time) >= %%s and timestamp(s.posting_date, s.posting_time) < %%s
 			where k.chien_dich = %%s and k.nhanh = %%s
-			""" % DT_CD_KHACH, (str(tu), str(den), doc.name, n), as_dict=True)
+			""" % DT_CD_KHACH, (tu_s, den_s, doc.name, n), as_dict=True)
 		nhanh[n] = (r or [{}])[0] or {}
 	kq = hieu_qua(nhanh["Nhận"], nhanh["Đối chứng"])
 	ma = 0
@@ -1155,8 +1211,8 @@ def hieu_qua_chien_dich(name=None):
 			"""select count(distinct u.hoa_don) from `tabVagabond CTKM Su Dung` u
 			join `tabSales Invoice` s on s.name = u.hoa_don
 			join `tab%s` k on k.khach = s.customer and k.chien_dich = %%s
-			where u.ctkm = %%s and ifnull(u.da_tra, 0) = 0 and u.ngay >= %%s and u.ngay < %%s""" % DT_CD_KHACH,
-			(doc.name, doc.ctkm, str(tu), str(den)))
+			where u.ctkm = %%s and ifnull(u.da_tra, 0) = 0 and u.luc >= %%s and u.luc < %%s""" % DT_CD_KHACH,
+			(doc.name, doc.ctkm, tu_s, den_s))
 		ma = cint(r[0][0]) if r else 0
 	tu_choi = frappe.db.count(DT_CD_KHACH, {"chien_dich": doc.name, "ket_qua": KET_QUA_TU_CHOI})
 	theo_sales = frappe.db.sql(
@@ -1165,15 +1221,15 @@ def hieu_qua_chien_dich(name=None):
 		       count(distinct case when k.trang_thai = 'Đã xong' then k.khach end) da_xong
 		from `tab%s` k left join `tabSales Invoice` s on s.customer = k.khach
 		     and s.docstatus = 1 and ifnull(s.vgb_huy, 0) = 0 and ifnull(s.is_return, 0) = 0
-		     and s.posting_date >= %%s and s.posting_date < %%s
+		     and timestamp(s.posting_date, s.posting_time) >= %%s and timestamp(s.posting_date, s.posting_time) < %%s
 		where k.chien_dich = %%s and k.nhanh = 'Nhận' group by k.sales
-		""" % DT_CD_KHACH, (str(tu), str(den), doc.name), as_dict=True)
+		""" % DT_CD_KHACH, (tu_s, den_s, doc.name), as_dict=True)
 	for r in theo_sales:
 		r["ten"] = _ten_nguoi(r.sales)
 	kq.update({
-		"ten": doc.ten, "tu": str(tu), "den": str(den - dt.timedelta(days=1)), "ctkm": doc.ctkm or "",
+		"ten": doc.ten, "tu": tu_s, "den": den_s, "ctkm": doc.ctkm or "",
 		"ma_uu_dai": doc.ma_uu_dai or "", "don_dung_ma": ma, "khach_tu_choi": tu_choi,
-		"theo_sales": theo_sales, "dang_do": 1 if _ngay(nowdate()) < den else 0,
+		"theo_sales": theo_sales, "dang_do": 1 if now_datetime() < den else 0,
 	})
 	return kq
 
