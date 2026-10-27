@@ -2644,3 +2644,7 @@ thì ô tìm và chip phải hỏi máy chủ, có nút Xem thêm; lọc trên t
 mất bản ghi cũ. (11) Màn mới mở rộng quyền xem (CRM cho Marketing, quản lý cửa
 hàng) mà dẫn sang màn cũ có cổng hẹp hơn (hồ sơ bán hàng) thì phải rẽ theo vai,
 không nới cổng cũ; giữ danh sách vai hai bên trùng nhau bằng ca kiểm.
+Vòng 4 (rà fe4ddf4): (12) Màn có bản nháp tự lưu mà Lưu xong vẫn ở lại sửa
+tiếp thì phải mở lại màn qua bản bọc của 48 với mã vừa có (thay nấc đang đứng),
+vì lời gọi lưu đã làm 48 thôi theo dõi. Ca kiểm phải chạy 48 thật và kiểm khoá
+bản nháp sau khi lưu, không chỉ lúc mở màn.
