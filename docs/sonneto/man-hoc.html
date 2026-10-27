@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Sonneto - Màn học</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,400&family=Be+Vietnam+Pro:wght@300;400;500&family=JetBrains+Mono&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Be+Vietnam+Pro:wght@300;400;500&family=JetBrains+Mono&display=swap">
 <style>
 :root{--ink:#0e0f10;--ink2:#161819;--ink3:#1d2022;--paper:#ebe8e1;--mute:#8e9297;--line:#2a2d31;--butter:#cdb98a;
 --fd:"Cormorant Garamond",serif;--fb:"Be Vietnam Pro",sans-serif;--fm:"JetBrains Mono",monospace}
@@ -24,7 +24,7 @@ body{background:var(--ink);color:var(--paper);font:300 14px/1.55 var(--fb);-webk
 .body{display:grid;grid-template-columns:1fr 360px;min-height:0}
 .main{min-width:0;overflow:hidden;display:grid;grid-template-rows:auto 1fr}
 .video{position:relative;height:460px;background:#000;overflow:hidden}
-.video img{width:100%;height:100%;object-fit:cover;filter:brightness(.62) saturate(.9)}
+.video .poster{position:absolute;inset:0}.video .poster{background:radial-gradient(60% 80% at 50% 60%,#3a2a1a,#0d0e0f)}.video .poster svg text,.video .poster svg line{display:none}.video .poster svg{width:100%;height:100%;display:block}.video .poster::after{content:"";position:absolute;inset:0;background:linear-gradient(rgba(14,15,16,.55),transparent 35%,transparent 60%,rgba(14,15,16,.6))}
 .video .play{position:absolute;left:50%;top:50%;width:76px;height:76px;transform:translate(-50%,-50%);border:1px solid rgba(235,232,225,.7);border-radius:50%;display:grid;place-items:center;background:rgba(14,15,16,.35);backdrop-filter:blur(4px)}
 .video .play i{width:0;height:0;border-left:18px solid var(--paper);border-top:11px solid transparent;border-bottom:11px solid transparent;margin-left:5px}
 .video .cap{position:absolute;left:28px;top:24px;display:grid;gap:6px}
@@ -42,14 +42,14 @@ body{background:var(--ink);color:var(--paper);font:300 14px/1.55 var(--fb);-webk
 .under{display:grid;grid-template-columns:1fr 1fr;min-height:0}
 .tabs{border-right:1px solid var(--line);display:grid;grid-template-rows:auto 1fr;min-height:0}
 .tabh{display:flex;gap:26px;padding:0 28px;border-bottom:1px solid var(--line)}
-.tabh a{padding:14px 0 12px;font-size:13px;color:var(--mute);border-bottom:1px solid transparent;margin-bottom:-1px}
+.tabh a{min-height:48px;display:inline-flex;align-items:center;padding:0;font-size:13px;color:var(--mute);border-bottom:1px solid transparent;margin-bottom:-1px}
 .tabh a.on{color:var(--paper);border-bottom-color:var(--butter)}
 .recipe{padding:18px 28px;overflow:hidden;display:grid;gap:14px;align-content:start}
 .rh{display:flex;align-items:baseline;justify-content:space-between}
 .rh h2{font:400 22px/1.1 var(--fd)}
-.scale{display:flex;gap:6px;align-items:center}
+.scale{display:flex;gap:8px;align-items:center}
 .scale span{font:400 10.5px var(--fm);letter-spacing:.08em;color:var(--mute);margin-right:4px}
-.scale a{border:1px solid var(--line);padding:4px 9px;font:400 11px var(--fm);color:var(--mute)}
+.scale a{border:1px solid var(--line);min-width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;font:400 13px var(--fm);color:var(--mute)}
 .scale a.on{background:var(--paper);color:var(--ink);border-color:var(--paper)}
 table{border-collapse:collapse;width:100%;font-size:13px}
 td,th{padding:7px 0;border-bottom:1px solid var(--line);text-align:left;vertical-align:baseline}
@@ -77,7 +77,7 @@ td.pct{color:var(--mute)}
 .exp b{font-weight:400;color:var(--butter);font-family:var(--fm);font-size:11px}
 .ls{overflow:hidden;padding:12px 0 0}
 .ch{padding:12px 22px 4px}
-.l{display:grid;grid-template-columns:18px 1fr auto;gap:12px;align-items:center;padding:9px 22px;font-size:13px;color:var(--mute)}
+.l{display:grid;grid-template-columns:18px 1fr auto;gap:12px;align-items:center;min-height:44px;padding:0 22px;font-size:13px;color:var(--mute)}
 .l .k{width:14px;height:14px;border:1px solid var(--line);border-radius:50%;display:grid;place-items:center}
 .l.done{color:var(--paper)}
 .l.done .k{background:var(--butter);border-color:var(--butter)}
@@ -97,13 +97,13 @@ td.pct{color:var(--mute)}
 .mob .ctrl{padding:10px 16px 12px}
 .mob .bar .mt{display:none}
 .mob .mtab{display:flex;gap:20px;padding:0 18px;border-bottom:1px solid var(--line)}
-.mob .mtab a{padding:12px 0 10px;font-size:13px;color:var(--mute);border-bottom:1px solid transparent;margin-bottom:-1px}
+.mob .mtab a{min-height:48px;display:inline-flex;align-items:center;font-size:14px;color:var(--mute);border-bottom:1px solid transparent;margin-bottom:-1px}
 .mob .mtab a.on{color:var(--paper);border-bottom-color:var(--butter)}
 .mob .recipe{padding:14px 18px}
 .mob .rh h2{font-size:20px}
 .m table{font-size:12.5px}
 .mob .fab{position:absolute;left:0;right:0;bottom:0;padding:12px 18px 28px;background:linear-gradient(transparent,var(--ink) 40%);display:flex;gap:10px}
-.mob .fab a{flex:1;text-align:center;padding:12px;font:400 11px var(--fm);letter-spacing:.1em;text-transform:uppercase;border:1px solid var(--paper)}
+.mob .fab a{flex:1;display:flex;align-items:center;justify-content:center;min-height:48px;font:400 12px var(--fm);letter-spacing:.1em;text-transform:uppercase;border:1px solid var(--paper)}
 .mob .fab a.s{background:var(--paper);color:var(--ink)}
 .wrap{display:flex;background:#070808}
 .mob{position:relative}
@@ -124,7 +124,7 @@ td.pct{color:var(--mute)}
   <div class="body">
     <div class="main">
       <div class="video">
-        <img src="frame.jpg" alt="">
+        <div class="poster" data-t="croissant"></div>
         <div class="cap"><span class="lab">Bài 4 <b>·</b> 24 phút</span><h1>Cán bột <em>và gấp bơ</em></h1></div>
         <div class="play"><i></i></div>
         <div class="ctrl">
@@ -198,7 +198,7 @@ td.pct{color:var(--mute)}
 <div class="mob" id="mobile">
   <div class="mt"><span class="mark" style="font-size:18px">Sonneto</span><span class="lab">BÀI <b>4</b>/12 · CÒN 142 NGÀY</span></div>
   <div class="video">
-    <img src="frame.jpg" alt="">
+    <div class="poster" data-t="croissant"></div>
     <div class="cap"><span class="lab">Bài 4 <b>·</b> 24 phút</span><h1>Cán bột <em>và gấp bơ</em></h1></div>
     <div class="play"><i></i></div>
     <div class="ctrl"><div class="bar"><div class="done"></div><div class="knob"></div><i class="m" style="left:12%"></i><i class="m" style="left:38%"></i><i class="m" style="left:61%"></i><i class="m" style="left:84%"></i></div>
@@ -217,9 +217,10 @@ td.pct{color:var(--mute)}
       <tr><td>Bơ nhồi</td><td class="n">80</td><td class="n pct">8</td></tr>
       <tr><td>Bơ lá 82%</td><td class="n">560</td><td class="n pct">56</td></tr>
     </table>
-    <div class="st now" style="margin-top:6px"><span class="t">08:24</span><p>Bọc bơ, cán dài 60 cm, gấp ba lần 1.<small>Đang xem</small></p></div>
+    
   </div>
   <div class="fab"><a>Tải PDF</a><a class="s">Bài tiếp theo</a></div>
 </div>
 </div>
+<script src="thumbs.js"></script><script>document.querySelectorAll(".poster").forEach(function(e){e.innerHTML=THUMBS.croissant.replace('preserveAspectRatio="xMidYMid slice"','preserveAspectRatio="xMidYMid meet"')})</script>
 </body></html>
