@@ -145,11 +145,33 @@ def bang_san_luong(yeu_cau, da_lam):
 	return ["Món", "ĐVT", "Yêu cầu", "Đã làm", "Còn thiếu"], hang, tong
 
 
+def no_thanh_phan(bom, sl, thanh_phan, sau=0):
+	"""THUẦN (Codex #504 P2): các dòng nguyên liệu thật để làm sl đơn vị theo công thức bom.
+
+	Dòng bán thành phẩm phantom (is_phantom_item, có bom_no) không quản tồn: nổ tiếp vào
+	công thức con theo đúng tỷ lệ, như lệnh sản xuất của ERPNext (patches/no_phantom_chuan).
+	Bán thành phẩm CÓ quản tồn giữ nguyên một dòng, so với tồn kho của chính nó.
+	Trả [(dòng, số lượng)]. Công thức tự trỏ vào mình hoặc sâu quá 10 tầng thì dừng ở dòng đó."""
+	ct = (thanh_phan or {}).get(bom or "")
+	if not ct:
+		return []
+	he = flt(sl) / (flt(ct.get("so_ra")) or 1.0)
+	ra = []
+	for d in ct.get("dong") or []:
+		con = d.get("bom_no") if cint(d.get("phantom")) else None
+		if con and con in (thanh_phan or {}) and con != bom and sau < 10:
+			ra += no_thanh_phan(con, flt(d.get("sl")) * he, thanh_phan, sau + 1)
+		else:
+			ra.append((d, flt(d.get("sl")) * he))
+	return ra
+
+
 def tinh_thieu_nvl(can_lam, thanh_phan, ton):
 	"""THUẦN: nguyên liệu thiếu cho các món cần làm.
 
-	can_lam: [{"ma","ten","sl","bom"}] (sl theo đơn vị kho của món); thanh_phan: {bom: {"so_ra","dong":[{ma,ten,dvt,sl}]}}
-	(ke_hoach_sx._thanh_phan_bom); ton: {ma: tồn trong kho nguyên liệu của bếp}.
+	can_lam: [{"ma","ten","sl","bom"}] (sl theo đơn vị kho của món);
+	thanh_phan: {bom: {"so_ra","dong":[{ma,ten,dvt,sl,phantom,bom_no}]}} (_cay_bom, gồm cả công thức
+	con của dòng phantom); ton: {ma: tồn trong kho nguyên liệu của bếp}.
 	Trả (thiếu [{"ten","sl","dvt","ghi"}], món không có công thức [tên])."""
 	can, khong_ct = {}, []
 	for m in can_lam or []:
@@ -157,10 +179,9 @@ def tinh_thieu_nvl(can_lam, thanh_phan, ton):
 		if not ct:
 			khong_ct.append(m.get("ten") or m.get("ma") or "")
 			continue
-		he = flt(m.get("sl")) / (flt(ct.get("so_ra")) or 1.0)
-		for d in ct.get("dong") or []:
+		for d, sl in no_thanh_phan(m.get("bom"), flt(m.get("sl")), thanh_phan):
 			o = can.setdefault(d.get("ma"), {"ten": d.get("ten") or d.get("ma"), "dvt": d.get("dvt") or "", "sl": 0.0})
-			o["sl"] += flt(d.get("sl")) * he
+			o["sl"] += sl
 	thieu = []
 	for ma, o in can.items():
 		co = flt((ton or {}).get(ma))
@@ -270,21 +291,27 @@ def nhac_hang_nam_im():
 # -------------------------------------------- Bếp: đọc yêu cầu và sản lượng
 
 def _yeu_cau_ngay(ngay, chi_mo=False):
-	"""{mã bếp: {ma: {"ten","sl","dvt","bom"}}} từ YCSX đã gửi cho ngày đó (số theo đơn vị kho)."""
+	"""{mã bếp: {ma: {"ten","sl","dvt","bom"}}} từ YCSX đã gửi, các DÒNG cần đúng ngày đó (số theo đơn vị kho).
+
+	Codex #504 P2: lọc ngày cần trên từng dòng (Material Request Item.schedule_date), như
+	ke_hoach_sx.ycsx_can_lam; một phiếu có thể gom món cần nhiều ngày khác nhau."""
 	from vagabond.tin_kho import TT_MR_XONG
 
-	loc = {"material_request_type": "Manufacture", "docstatus": 1, "schedule_date": ngay}
+	dong = frappe.get_all("Material Request Item", filters={"schedule_date": ngay, "docstatus": 1},
+		fields=["parent", "item_code", "item_name", "stock_qty", "qty", "stock_uom"], limit_page_length=0)
+	ra = {}
+	if not dong:
+		return ra
+	loc = {"name": ["in", sorted({i.parent for i in dong})], "material_request_type": "Manufacture", "docstatus": 1}
 	if chi_mo:
 		loc["status"] = ["not in", list(TT_MR_XONG)]
 	else:
 		loc["status"] = ["not in", ["Stopped", "Cancelled"]]
 	phieu = {p.name: p.custom_bep_nhan for p in frappe.get_all("Material Request", filters=loc,
 		fields=["name", "custom_bep_nhan"], limit_page_length=0)}
-	ra = {}
-	if not phieu:
-		return ra
-	for i in frappe.get_all("Material Request Item", filters={"parent": ["in", list(phieu)]},
-			fields=["parent", "item_code", "item_name", "stock_qty", "qty", "stock_uom"], limit_page_length=0):
+	for i in dong:
+		if i.parent not in phieu:
+			continue
 		bep = bep_cua_ten(phieu.get(i.parent)) or ""
 		o = ra.setdefault(bep, {}).setdefault(i.item_code, {"ten": i.item_name or i.item_code, "sl": 0.0,
 			"dvt": i.stock_uom or ""})
@@ -337,10 +364,32 @@ def gui_san_luong_bep():
 		_ghi_loi("sản lượng cuối ngày")
 
 
+def _cay_bom(cac_bom):
+	"""{bom: {"so_ra","dong":[{ma,ten,dvt,sl,phantom,bom_no}]}} cho các công thức và MỌI công thức con
+	mà dòng phantom trỏ vào (đọc theo tầng, mỗi tầng một lượt, tối đa 10 tầng)."""
+	ra, can_doc = {}, sorted({b for b in (cac_bom or []) if b})
+	for _ in range(10):
+		if not can_doc:
+			break
+		for b in frappe.get_all("BOM", filters={"name": ["in", can_doc]}, fields=["name", "quantity"], limit_page_length=0):
+			ra[b.name] = {"so_ra": flt(b.quantity) or 1.0, "dong": []}
+		con = set()
+		for d in frappe.get_all("BOM Item", filters={"parent": ["in", can_doc]}, fields=["parent", "item_code", "item_name",
+				"qty", "uom", "stock_uom", "stock_qty", "is_phantom_item", "bom_no"], order_by="idx", limit_page_length=0):
+			o = ra.get(d.parent)
+			if o is None:
+				continue
+			o["dong"].append({"ma": d.item_code, "ten": d.item_name or d.item_code, "dvt": d.stock_uom or d.uom or "",
+				"sl": flt(d.stock_qty) or flt(d.qty), "phantom": cint(d.is_phantom_item), "bom_no": d.bom_no or ""})
+			if cint(d.is_phantom_item) and d.bom_no:
+				con.add(d.bom_no)
+		can_doc = sorted(con - set(ra))
+	return ra
+
+
 def nhac_thieu_nvl_ngay_mai():
 	"""Lịch 20:45: nguyên liệu trong kho bếp không đủ làm các yêu cầu cần ngày mai (một tin mỗi bếp)."""
 	try:
-		from vagabond.ke_hoach_sx import _thanh_phan_bom
 		from vagabond.kho_san_xuat import NGUYEN_LIEU, ten_kho_cua
 
 		mai = add_days(nowdate(), 1)
@@ -349,13 +398,13 @@ def nhac_thieu_nvl_ngay_mai():
 		if not ma:
 			return
 		bom = {i.name: i.default_bom for i in frappe.get_all("Item", filters={"name": ["in", ma]}, fields=["name", "default_bom"])}
-		thanh_phan = _thanh_phan_bom([b for b in bom.values() if b])
+		thanh_phan = _cay_bom([b for b in bom.values() if b])
 		for bep, mon in sorted(yc.items()):
 			kho = ten_kho_cua(bep, NGUYEN_LIEU) if bep else None
 			if not kho:
 				continue
 			can = [{"ma": m, "ten": o["ten"], "sl": o["sl"], "bom": bom.get(m)} for m, o in mon.items()]
-			thanh = {d["ma"] for b in {x["bom"] for x in can if x["bom"]} for d in (thanh_phan.get(b) or {}).get("dong", [])}
+			thanh = {d["ma"] for x in can if x["bom"] for d, _ in no_thanh_phan(x["bom"], 1, thanh_phan)}
 			ton = {b.item_code: flt(b.actual_qty) for b in frappe.get_all("Bin", filters={"warehouse": kho,
 				"item_code": ["in", sorted(thanh) or [""]]}, fields=["item_code", "actual_qty"])}
 			thieu, khong_ct = tinh_thieu_nvl(can, thanh_phan, ton)

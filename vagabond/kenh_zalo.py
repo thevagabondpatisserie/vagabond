@@ -548,6 +548,21 @@ def chia_lo_gop(dong, tieu_de="Tin trong giờ im"):
 	return ra
 
 
+def chia_lo_gui(con):
+	"""THUẦN (Codex #504 P2): chia các tin hoãn giờ im thành những lần gửi.
+
+	con: [{"noi_dung", "anh"}] theo thứ tự tạo. Tin có ảnh gửi riêng, nguyên văn, kèm
+	ảnh (gộp vào tin chữ thì mất ảnh mà vẫn ghi đã gửi); tin chữ gộp bằng chia_lo_gop.
+	Trả [(nội dung, [chỉ số trong con], ảnh hoặc None)]; tin có ảnh đứng sau phần gộp."""
+	chu = [i for i, r in enumerate(con) if not str(r.get("anh") or "").strip()]
+	ra = [(tin, [chu[j] for j in idx], None) for tin, idx in chia_lo_gop([dong_gop(con[i].get("noi_dung")) for i in chu])]
+	for i, r in enumerate(con):
+		anh = str(r.get("anh") or "").strip()
+		if anh:
+			ra.append((r.get("noi_dung") or "", [i], anh))
+	return ra
+
+
 def con_can_lam(kiem, nguon, ham):
 	"""THUẦN: tin còn cần gửi không. kiem rỗng là tin không gắn việc nào.
 
@@ -1156,7 +1171,7 @@ def _nhan_lo(chat_id, ma_lo):
 		where chat_id=%s and trang_thai='Hoãn giờ im' order by creation limit %s""", (ma_lo, now_datetime(), chat_id, LO_GOP))
 	frappe.db.commit()
 	return frappe.get_all("Vagabond Tin Kenh", filters={"ma_lo": ma_lo},
-		fields=["name", "noi_dung", "kiem", "nguon"], order_by="creation asc", limit_page_length=LO_GOP)
+		fields=["name", "noi_dung", "kiem", "nguon", "anh"], order_by="creation asc", limit_page_length=LO_GOP)
 
 
 def _moc_chua_ro(ten_ds, ma_lo):
@@ -1212,10 +1227,12 @@ def xa_gio_im():
 		frappe.db.commit()
 		if not con:
 			continue
-		for tin, idx in chia_lo_gop([dong_gop(r.noi_dung) for r in con]):
+		# Codex #504 P2: tin có ảnh bảng (tồn cuối ngày, sản lượng) không gộp được vào tin
+		# chữ, nên gửi riêng từng tin kèm ảnh, theo đúng thứ tự; tin chữ gộp như cũ.
+		for tin, idx, anh in chia_lo_gui(con):
 			if not _moc_chua_ro([con[i].name for i in idx], ma):
 				break
-			tt, loi = _gui_zalo(chat, tin)
+			tt, loi = _gui_zalo(chat, tin, anh)
 			if tt == MANG_LOI:
 				# Mạng hỏng trước khi gửi: phần này và mọi phần chưa gọi của lô về Hoãn
 				# giờ im để lượt xả sau gửi lại; dừng nhóm này.
