@@ -1933,7 +1933,30 @@ def _khi_khop_ttnb(doc, ma_gd):
 	})
 	frappe.db.commit()
 	_het_viec(doc.name)
+	_bao_da_chi(doc, ma_gd)
 	return None
+
+
+def _bao_da_chi(doc, ma_gd=""):
+	"""v613 (anh Việt 27/10/2026): khoản chi đã khớp sao kê thì báo Zalo cho kế toán và người lập.
+	Chạy SAU commit của bước khớp; lỗi lẻ không đụng tới dấu đã chi."""
+	try:
+		from vagabond import kenh_zalo
+
+		tien = tien_phieu(doc.as_dict() if hasattr(doc, "as_dict") else doc)
+		dong = ["%s đ · %s" % (_tien(tien), (doc.get("ten_khoan_chi") or "").strip() or "đề nghị chi"),
+			"Người lập: %s" % (frappe.utils.get_fullname(doc.get("nguoi_tao")) if doc.get("nguoi_tao") else "chưa rõ")]
+		if ma_gd:
+			dong.append("Đã khớp giao dịch ngân hàng %s" % ma_gd)
+		kenh_zalo.bao_hoac_ghi_loi("thong_bao", "cong_no", "Đề nghị chi %s đã chi xong" % doc.name, dong,
+			link=frappe.utils.get_url("/danh-sach-thanh-toan-noi-bo"), khoa="de-nghi-chi-da-chi:%s" % doc.name,
+			nguon=doc.name, ma_tin="kt_de_nghi_chi_da_chi")
+		frappe.db.commit()
+	except Exception as e:
+		from vagabond.loi_csdl import chet_giao_dich
+		if chet_giao_dich(e):
+			raise
+		frappe.log_error(frappe.get_traceback(), "de_nghi_chi: bao zalo da chi loi")
 
 
 def _loi_nguon_chi_ttnb(g):
