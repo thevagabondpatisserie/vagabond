@@ -104,6 +104,19 @@ NOI_PHAT = {
 	("tin_kho.py", "khi_co_yeu_cau_chuyen"): "kho_ycdc_moi",
 	("tin_kho.py", "nhac_ycdc_treo"): "kho_ycdc_treo",
 	("tin_kho.py", "bao_nhan_thieu_ton"): "kho_nhan_thieu_ton",
+	# v613: tồn kho, sản xuất (có ảnh bảng) và từng bước duyệt chi (anh Việt duyệt 27/10/2026).
+	("duyet_chi.py", "_bao_app_cho_gd"): "bgd_app_cho_duyet",
+	("duyet_chi.py", "_bao_app_da_duyet"): "kt_app_da_duyet",
+	("duyet_chi.py", "_bao_app_tra_lai"): "kt_app_tra_lai",
+	("duyet_chi.py", "_bao_app_da_chi"): "kt_app_da_chi",
+	("de_nghi_chi.py", "_bao_da_chi"): "kt_de_nghi_chi_da_chi",
+	("hoan_tien.py", "_bao_sales_da_hoan"): "bh_hoan_tien_xong",
+	("tin_ton_sx.py", "gui_ton_quay_cuoi_ngay"): "kho_ton_quay_cuoi_ngay",
+	("tin_ton_sx.py", "nhac_ton_am"): "kho_ton_am",
+	("tin_ton_sx.py", "nhac_hang_nam_im"): "kho_hang_nam_im",
+	("tin_ton_sx.py", "gui_san_luong_bep"): "bep_san_luong_ngay",
+	("tin_ton_sx.py", "nhac_thieu_nvl_ngay_mai"): "bep_thieu_nvl_ngay_mai",
+	("tin_ton_sx.py", "nhac_lenh_chua_xong"): "bep_lenh_chua_xong",
 }
 # Các hàm từng gửi thư nội bộ, nay chỉ được báo Zalo.
 DA_BO_THU = [
@@ -168,7 +181,8 @@ def _danh_muc():
 	# v606: thêm "Báo cáo cuối ngày" của Ban giám đốc (anh Việt duyệt 20/10/2026).
 	# v609: thêm 21 tin kho, thu mua, sản xuất, đơn web (anh Việt duyệt 22/10/2026).
 	# v611: thêm 11 tin đặt bàn, hoá đơn sai, tiền chưa gắn, sản xuất, điều chuyển (25/10/2026).
-	la("đủ 55 tin (23 tới v606, 21 tin kho và thu mua v609, 11 tin v611)", len(kz.TIN), 55)
+	# v613: thêm 12 tin tồn kho, sản xuất, duyệt chi (27/10/2026).
+	la("đủ 67 tin (23 tới v606, 21 tin kho và thu mua v609, 11 tin v611, 12 tin v613)", len(kz.TIN), 67)
 	la("bảy bộ phận đúng thứ tự", kz.BO_PHAN, ("Ban giám đốc", "Hoá đơn, kế toán", "Bán hàng, cửa hàng", "Bếp", "Thu mua", "Kho", "Hệ thống"))
 	# Luật tiền (anh Việt 22/10/2026): tin Kho, Bếp không nói tiền; chỉ Thu mua, Kế toán.
 	for ma, v in kz.TIN.items():
@@ -546,7 +560,9 @@ def _patch_map():
 	# (v609) không thuộc bản vá: anh Việt tích tay trong Cài đặt cho nhóm cần.
 	v609 = {"kt_xuat_huy_gia_von", "kt_kiem_ke_lech", "bh_don_web_moi",
 		# v611: bản vá riêng v611_tat_thu_noi_bo tích tin đặt bàn và hoá đơn sai.
-		"kt_tien_chua_gan", "bh_dat_ban_xac_nhan", "bh_dat_ban_huy", "bh_dat_ban_sap_toi", "bh_thong_tin_hd_sai"}
+		"kt_tien_chua_gan", "bh_dat_ban_xac_nhan", "bh_dat_ban_huy", "bh_dat_ban_sap_toi", "bh_thong_tin_hd_sai",
+		# v613: tin duyệt chi, đã chi, đã hoàn; anh Việt tích tay sau khi dựng lại nhóm Zalo.
+		"kt_app_da_duyet", "kt_app_tra_lai", "kt_app_da_chi", "kt_de_nghi_chi_da_chi", "bh_hoan_tien_xong"}
 	kt = [m for m, v in kz.TIN.items() if v[0] == "Hoá đơn, kế toán" and m not in v609] + ["ht_email_loi", "ht_phat_hanh"]
 	bh = [m for m, v in kz.TIN.items() if v[0] == "Bán hàng, cửa hàng" and m not in v609] + ["ht_phat_hanh"]
 	la("nhóm văn phòng kế toán", p.tin_cho_nhom("ERP Văn Phòng - Kế Toán - Thu Mua"), kt)

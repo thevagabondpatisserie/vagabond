@@ -974,8 +974,10 @@ def _():
 def _():
 	t = don_web.soan_tin_sales({"name": "DW-1", "ho_ten": "An", "dien_thoai": "0931224334",
 		"tien_banh": 650000, "ngay_nhan": "2026-09-26 13:00:00"}, "https://erp/app/x")
-	for chu in ("DW-1", "0931224334", "650.000 đ", "Thứ 7, 26/09 13h - 15h", "mã đơn Pancake", "https://erp/app/x"):
+	for chu in ("DW-1", "0931224334", "Thứ 7, 26/09 13h - 15h", "mã đơn Pancake", "https://erp/app/x"):
 		dung("có " + chu, chu in t)
+	# v613 (anh Việt 27/10/2026): tin đơn hàng không hiện tiền nữa.
+	dung("không có tiền bánh", "650.000" not in t)
 	dung("không dấu gạch dài", chr(0x2014) not in t and chr(0x2013) not in t)
 	h = _doc("vagabond/hooks.py")
 	dung("nhịp 5 phút nối thêm", '"vagabond.don_web.doi_soat_tu_dong"' in h and 'setdefault("*/5 * * * *", [])' in h)
