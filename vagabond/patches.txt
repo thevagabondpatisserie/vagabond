@@ -395,3 +395,5 @@ vagabond.patches.dong_bo_cau_truc #v609
 vagabond.patches.dong_bo_cau_truc #v610
 vagabond.patches.dong_bo_cau_truc #v611
 vagabond.patches.v611_tat_thu_noi_bo
+vagabond.patches.dong_bo_cau_truc #v614
+vagabond.patches.v614_crm_tinh_nhom
