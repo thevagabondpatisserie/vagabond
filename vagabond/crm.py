@@ -536,6 +536,30 @@ def dk_so_dong_y(kenh="", trang_thai="", tim=""):
 	return (" where " + " and ".join(dk)) if dk else "", ts
 
 
+TT_CD = ("Nháp", "Đang chạy", "Đã kết thúc")
+
+
+def dk_ds_chien_dich(trang_thai="", tim="", da_chot=0):
+	"""Điều kiện lọc danh sách chiến dịch, ra (where, tham số). THUẦN.
+
+	Codex PR #505 vòng 3: danh sách chỉ trả 100 chiến dịch mới nhất, màn tìm
+	trên máy nên chiến dịch cũ và số hiệu quả của nó không mở lại được. Lọc ở
+	máy chủ theo trạng thái, chữ tìm (tên hoặc mã) và "chỉ chiến dịch đã chốt".
+	"""
+	dk, ts = [], []
+	if trang_thai in TT_CD:
+		dk.append("trang_thai = %s")
+		ts.append(trang_thai)
+	if cint(da_chot):
+		dk.append("trang_thai != 'Nháp'")
+	tim = str(tim or "").strip()[:80]
+	if tim:
+		like = "%" + tim.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+		dk.append("(name like %s or ifnull(ten, '') like %s)")
+		ts += [like, like]
+	return (" where " + " and ".join(dk)) if dk else "", ts
+
+
 # ================================================================ phần chạm hệ
 
 import frappe  # noqa: E402
@@ -726,8 +750,9 @@ def ho_so_crm(khach=None):
 	hs = _ho_so(khach) or {}
 	mon = frappe.db.sql(
 		"""
-		select i.item_code, max(i.item_name) ten, sum(i.qty) sl, count(distinct s.name) so_don
+		select i.item_code, max(i.item_name) ten, sum(i.qty) sl, count(distinct s.name) so_don, max(it.image) anh
 		from `tabSales Invoice Item` i join `tabSales Invoice` s on s.name = i.parent
+		left join `tabItem` it on it.name = i.item_code
 		where s.customer = %s and s.docstatus = 1 and ifnull(s.vgb_huy, 0) = 0
 		  and ifnull(s.is_return, 0) = 0 and i.item_code != %s
 		group by i.item_code order by so_don desc, sl desc limit 6
@@ -943,11 +968,26 @@ def _cd_dict(doc):
 
 
 @frappe.whitelist()
-def ds_chien_dich():
-	"""Danh sách chiến dịch, mới nhất trước, kèm tiến độ gọi."""
+def ds_chien_dich(trang_thai="", tim="", da_chot=0, bat_dau=0, so_dong=50):
+	"""Danh sách chiến dịch, mới nhất trước, kèm tiến độ gọi.
+
+	dem: số chiến dịch theo trạng thái (đã theo chữ tìm), để chip có đếm;
+	con_nua = 1 khi còn chiến dịch cũ hơn, bat_dau để nút Xem thêm lấy tiếp.
+	"""
 	_kiem(CRM_XEM, "xem chiến dịch")
-	ds = frappe.get_all(DT_CD, fields=["name", "ten", "trang_thai", "ngay_chot", "han", "so_nhan", "so_doi_chung"],
-		order_by="creation desc", limit_page_length=100)
+	so_dong = max(1, min(200, cint(so_dong) or 50))
+	bat_dau = max(0, cint(bat_dau))
+	w_dem, ts_dem = dk_ds_chien_dich("", tim, da_chot)
+	dem = {r[0]: cint(r[1]) for r in frappe.db.sql(
+		"select trang_thai, count(*) from `tab%s`%s group by trang_thai" % (DT_CD, w_dem), tuple(ts_dem))}
+	dem["tat_ca"] = sum(dem.values())
+	where, ts = dk_ds_chien_dich(trang_thai, tim, da_chot)
+	ds = frappe.db.sql(
+		"""select name, ten, trang_thai, ngay_chot, han, so_nhan, so_doi_chung from `tab%s`%s
+		order by creation desc, name desc limit %d offset %d""" % (DT_CD, where, so_dong + 1, bat_dau),
+		tuple(ts), as_dict=True)
+	con_nua = 1 if len(ds) > so_dong else 0
+	ds = ds[:so_dong]
 	if ds:
 		tien = frappe.db.sql(
 			"""select chien_dich, trang_thai, count(*) n from `tab%s`
@@ -955,7 +995,7 @@ def ds_chien_dich():
 			(tuple(d.name for d in ds),), as_dict=True)
 		for d in ds:
 			d["tien_do"] = {r.trang_thai: cint(r.n) for r in tien if r.chien_dich == d.name}
-	return {"ds": ds, "duoc_lap": 1 if _co(CRM_LAP) else 0}
+	return {"ds": ds, "dem": dem, "con_nua": con_nua, "bat_dau": bat_dau, "duoc_lap": 1 if _co(CRM_LAP) else 0}
 
 
 @frappe.whitelist()
