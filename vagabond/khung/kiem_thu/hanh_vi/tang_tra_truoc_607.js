@@ -500,6 +500,30 @@ function chuTrongKhoi(k) { return k.tl.getElementById('pbTgForm').innerHTML; }
     bang('không lẫn kết quả cũ', app.tat('[data-tkgd="A"]').length, 0);
   });
 
+  await ca('v615 Codex #507 vòng 2: đang chờ kết quả tìm thì không còn dòng cũ nào bấm chọn được', async function () {
+    var app = manNapTkGd(true);
+    var treo = null;
+    app.mc.api = (function (cu) {
+      return function (m, a) {
+        if (m === 'vagabond.tra_truoc_khach.tim_tk_gd' && a.tu === '1388') {
+          app.mc.goi.push({ m: m, a: a });
+          return new Promise(function (ok) { treo = function () { cu(m, a).then(ok); }; });
+        }
+        return cu(m, a);
+      };
+    })(app.mc.api);
+    await app.g.scrSoDuNap(); await nghi();
+    await app.bam(app.mot('[data-sdtng="gd_thu_ho"]')); await nghi();
+    await app.bam(app.mot('#sdtChonTkGd')); await nghi();
+    bang('lần đầu: hai tài khoản', app.tat('[data-tkgd]').length, 2);
+    await app.go(app.mot('#sdtTimTk'), '1388'); await nghi();
+    bang('đang chờ: không dòng nào bấm chọn được', app.tat('[data-tkgd]').length, 0);
+    bang('đang chờ: có dòng đang tìm', app.tat('[data-tkdang]').length, 1);
+    treo(); await nghi(); await nghi();
+    bang('kết quả về: đúng một tài khoản của 1388', app.tat('[data-tkgd]').length, 1);
+    bang('hết dòng đang tìm', app.tat('[data-tkdang]').length, 0);
+  });
+
   await ca('v615 Sales không có quyền: không có nút chọn, lời báo chỉ đúng người và đúng chỗ', async function () {
     var app = manNapTkGd(false);
     await app.g.scrSoDuNap(); await nghi();
