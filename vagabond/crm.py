@@ -963,7 +963,11 @@ def _cd_dict(doc):
 	d["mo_ta_loc"] = mo_ta_loc(d["loc"])
 	d["kenh"] = kenh_cua_chien_dich(d)
 	d["sales"] = [{"nguoi": r.nguoi, "ten": r.ten or _ten_nguoi(r.nguoi)} for r in (doc.get("sales") or [])]
-	d["mon"] = [{"item": r.item, "ten": r.ten} for r in (doc.get("mon") or [])]
+	mon = doc.get("mon") or []
+	# Codex PR #505 vòng 4: món giới thiệu hiện kèm ảnh món (AGENTS: có tên món thì có ảnh).
+	anh = {r.name: r.image for r in frappe.get_all(
+		"Item", filters={"name": ["in", [r.item for r in mon]]}, fields=["name", "image"])} if mon else {}
+	d["mon"] = [{"item": r.item, "ten": r.ten, "anh": anh.get(r.item) or ""} for r in mon]
 	return d
 
 
