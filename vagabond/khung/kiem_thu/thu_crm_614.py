@@ -588,3 +588,43 @@ def _cua_so():
 	ma = [c for c in cau if "u.hoa_don" in c[0]][0]
 	dung("đơn dùng mã so theo giờ dùng mã", "u.luc >=" in ma[0])
 	la("hiện mốc đo có giờ", (kq["tu"], kq["den"]), ("2026-10-27 18:00:00", "2026-11-10 18:00:00"))
+
+
+@ca("v614 Codex #505 vòng 2: Sổ đồng ý tìm khách theo tên, mã, số điện thoại; lấy tiếp dòng cũ hơn")
+def _so_dong_y_tim():
+	la("không lọc", crm.dk_so_dong_y("", "", ""), ("", []))
+	w, ts = crm.dk_so_dong_y("Zalo", "Từ chối", "  Minh Anh ")
+	dung("lọc kênh, trạng thái, tên", "n.kenh = %s" in w and "n.trang_thai = %s" in w and "c.customer_name" in w and "h.ten_khach" in w)
+	la("tham số tên", ts, ["Zalo", "Từ chối", "%Minh Anh%", "%Minh Anh%", "%Minh Anh%"])
+	w, ts = crm.dk_so_dong_y("", "", "0909 123")
+	dung("gõ số: tìm theo số điện thoại", "h.sdt" in w and "c.mobile_no" in w and "customer_name" not in w)
+	la("số bỏ dấu cách", ts, ["%0909123%", "%0909123%"])
+	la("số dạng 84", crm.dk_so_dong_y("", "", "+84 909 123 456")[1], ["%0909123456%", "%0909123456%"])
+	la("hai chữ số là tìm tên", crm.dk_so_dong_y("", "", "12")[1], ["%12%"] * 3)
+	la("ký tự đại diện SQL được thoát", crm.dk_so_dong_y("", "", "50%_x")[1][0], "%50\\%\\_x%")
+	la("kênh, trạng thái lạ bị bỏ", crm.dk_so_dong_y("Fax", "Chưa hỏi", ""), ("", []))
+
+	fr = crm.frappe
+	cau = []
+
+	def sql(q, ts=None, **k):
+		cau.append((q, ts))
+		if "group by tt" in q:
+			return [D(tt="Đồng ý", n=3)]
+		if "tabCustomer` where name in" in q:
+			return []
+		if "order by n.luc desc" in q:
+			n = int(re.search(r"limit (\d+)", q).group(1))
+			return [D(name="NK-%d" % i, khach="KH-%d" % i, nguoi="") for i in range(min(n, 101))]
+		return []
+
+	with um.patch.object(fr, "get_roles", lambda *a: ["Sales Manager"]), um.patch.object(fr.db, "sql", sql), \
+			um.patch.object(fr.db, "count", lambda *a, **k: 0, create=True):
+		kq = crm.so_dong_y(trang_thai="Từ chối", tim="Minh Anh", bat_dau=200)
+		doc = [c for c in cau if "order by n.luc desc" in c[0]][-1]
+		dung("lấy dư một dòng để biết còn nữa, bỏ qua 200 dòng đã xem", "limit 101 offset 200" in doc[0])
+		la("tham số đi qua câu SQL", doc[1], ("Từ chối", "%Minh Anh%", "%Minh Anh%", "%Minh Anh%"))
+		la("trả đúng 100 dòng, báo còn nữa", (len(kq["dong"]), kq["con_nua"], kq["bat_dau"]), (100, 1, 200))
+		crm.so_dong_y(so_dong=99999, bat_dau=-5)
+		doc = [c for c in cau if "order by n.luc desc" in c[0]][-1]
+		dung("trần 500 dòng, không âm", "limit 501 offset 0" in doc[0])
