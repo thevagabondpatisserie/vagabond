@@ -319,3 +319,95 @@ def _hooks():
 	for gio, ham in (("0 23 * * *", "gui_ton_quay_cuoi_ngay"), ("5 8 * * 1", "nhac_hang_nam_im"), ("45 20 * * *", "nhac_thieu_nvl_ngay_mai"),
 			("0 21 * * *", "gui_san_luong_bep")):
 		dung("giờ %s cho %s" % (gio, ham), '("%s", "vagabond.tin_ton_sx.%s")' % (gio, ham) in src)
+
+
+# ------------------------------------------------------- Codex #504 vòng 1 (ba P2)
+
+def _khop_loc(d, loc):
+	for k, v in (loc or {}).items():
+		if isinstance(v, list):
+			op, gt = v
+			if (op == "in" and d.get(k) not in gt) or (op == "not in" and d.get(k) in gt):
+				return False
+		elif d.get(k) != v:
+			return False
+	return True
+
+
+@ca("v613 Codex #504 P2: tin có ảnh bị hoãn giờ im, lúc xả vẫn gửi KÈM ẢNH (riêng từng tin), tin chữ vẫn gộp; mọi dòng ghi đã gửi")
+def _xa_gio_im_anh():
+	from vagabond.khung.kiem_thu import thu_kenh_zalo_562 as T
+	so = T._SoGia([dict(T._hoan(1, "Tồn bánh cuối ngày"), anh="https://x.test/ton.png"), T._hoan(2, "Việc chữ A"),
+		T._hoan(3, "Việc chữ B")])
+	goi = []
+	f = kz.frappe
+	dem = [0]
+
+	def bam(length=10):
+		dem[0] += 1
+		return "lo%d" % dem[0]
+	db = types.SimpleNamespace(sql=so.sql, set_value=so.set_value, commit=so.commit, get_value=so.get_value)
+
+	def doc_dung_cot(dt, filters=None, fields=None, **k):
+		# Chỉ trả các cột được hỏi, như frappe.get_all thật: quên đọc cột ảnh thì ảnh mất.
+		return [T._Dong({c: d.get(c) for c in fields} if fields else d) for d in so.get_all(dt, filters=filters, **k)]
+	with um.patch.object(kz, "_bat", lambda: 1), um.patch.object(kz, "_cac_nhom", lambda: [T.nhom()]), \
+			um.patch.object(kz, "_gui_zalo", lambda c, t, anh=None: (goi.append((c, t, anh)), ("Đã gửi", ""))[1]), \
+			um.patch.object(kz, "now_datetime", lambda: types.SimpleNamespace(strftime=lambda fmt: "10:00")), \
+			um.patch.object(kz, "_con_can", lambda k, n: True), um.patch.object(f, "db", db, create=True), \
+			um.patch.object(f, "get_all", doc_dung_cot, create=True), um.patch.object(f, "generate_hash", bam, create=True):
+		kz.xa_gio_im()
+	la("hai lần gửi: một tin gộp chữ, một tin kèm ảnh", [(g[2], "Tồn bánh" in g[1]) for g in goi],
+		[(None, False), ("https://x.test/ton.png", True)])
+	dung("tin gộp có đủ hai việc chữ", "Việc chữ A" in goi[0][1] and "Việc chữ B" in goi[0][1])
+	la("mọi dòng đã gửi", sorted({d["trang_thai"] for d in so.dong}), ["Đã gửi gộp"])
+	la("chia_lo_gui: chỉ số và ảnh", [(x[1], x[2]) for x in kz.chia_lo_gui([{"noi_dung": "a"}, {"noi_dung": "b", "anh": " u "},
+		{"noi_dung": "c"}])], [([0, 2], None), ([1], "u")])
+	la("chia_lo_gui: chỉ có tin ảnh thì không có tin gộp rỗng", [x[2] for x in kz.chia_lo_gui([{"noi_dung": "b", "anh": "u"}])], ["u"])
+
+
+@ca("v613 Codex #504 P2: thiếu nguyên liệu nổ bán thành phẩm phantom xuống nguyên liệu thật; BTP có quản tồn giữ một dòng")
+def _no_phantom():
+	BOM = [D(name="BOM-A", quantity=10), D(name="BOM-GM", quantity=1), D(name="BOM-ME", quantity=2)]
+	DONG = [D(parent="BOM-A", item_code="GM", item_name="Gelatine Mass", stock_qty=0.5, stock_uom="Kg", is_phantom_item=1, bom_no="BOM-GM"),
+		D(parent="BOM-A", item_code="CO", item_name="Cốt bánh", stock_qty=1, stock_uom="Cái", is_phantom_item=0, bom_no="BOM-CO"),
+		D(parent="BOM-A", item_code="BO", item_name="Bơ", stock_qty=1, stock_uom="Kg"),
+		D(parent="BOM-GM", item_code="GEL", item_name="Bột gelatine", stock_qty=0.2, stock_uom="Kg"),
+		D(parent="BOM-GM", item_code="ME", item_name="Nước đường", stock_qty=0.8, stock_uom="Kg", is_phantom_item=1, bom_no="BOM-ME"),
+		D(parent="BOM-ME", item_code="DUONG", item_name="Đường", stock_qty=1, stock_uom="Kg"),
+		D(parent="BOM-ME", item_code="NUOC", item_name="Nước", stock_qty=1, stock_uom="Kg")]
+	goi = []
+
+	def get_all(dt, filters=None, **k):
+		goi.append(dt)
+		return [d for d in (BOM if dt == "BOM" else DONG) if _khop_loc(d, {"name": filters["name"]} if dt == "BOM"
+			else {"parent": filters["parent"]})]
+	with um.patch.object(ts.frappe, "get_all", get_all, create=True):
+		cay = ts._cay_bom(["BOM-A"])
+	la("đọc đủ công thức con của dòng phantom, không đọc công thức BTP có quản tồn", sorted(cay), ["BOM-A", "BOM-GM", "BOM-ME"])
+	la("ba tầng, mỗi tầng hai lượt đọc", len(goi), 6)
+	thieu, khong = ts.tinh_thieu_nvl([{"ma": "A", "ten": "Bánh A", "sl": 20, "bom": "BOM-A"}], cay,
+		{"BO": 5, "GEL": 5, "DUONG": 0.3, "NUOC": 5, "CO": 0})
+	la("thiếu đường (nổ hai tầng) và cốt (BTP quản tồn), không báo Gelatine Mass",
+		[(x["ten"], round(x["sl"], 3)) for x in thieu], [("Cốt bánh", 2.0), ("Đường", 0.1)])
+	la("không món nào thiếu công thức", khong, [])
+	la("nổ có vòng lặp dừng an toàn", [(d["ma"], s) for d, s in ts.no_thanh_phan("X", 1, {"X": {"so_ra": 1,
+		"dong": [{"ma": "X", "sl": 1, "phantom": 1, "bom_no": "X"}]}})], [("X", 1.0)])
+
+
+@ca("v613 Codex #504 P2: yêu cầu theo ngày lọc NGÀY CẦN TRÊN TỪNG DÒNG YCSX, không theo ngày đầu phiếu")
+def _yeu_cau_theo_dong():
+	MR = [D(name="YCSX-1", custom_bep_nhan="Bếp Pastry", status="Pending", docstatus=1, material_request_type="Manufacture"),
+		D(name="YCSX-2", custom_bep_nhan="Bếp Baker", status="Pending", docstatus=1, material_request_type="Manufacture"),
+		D(name="YCSX-3", custom_bep_nhan="Bếp Pastry", status="Stopped", docstatus=1, material_request_type="Manufacture")]
+	MRI = [D(parent="YCSX-1", item_code="A", item_name="Hannari", stock_qty=5, stock_uom="Cái", schedule_date="2026-10-28", docstatus=1),
+		D(parent="YCSX-1", item_code="B", item_name="Candle", stock_qty=3, stock_uom="Cái", schedule_date="2026-10-29", docstatus=1),
+		D(parent="YCSX-2", item_code="C", item_name="Bánh mì", stock_qty=2, stock_uom="Cái", schedule_date="2026-10-28", docstatus=1),
+		D(parent="YCSX-3", item_code="D", item_name="Đã dừng", stock_qty=9, stock_uom="Cái", schedule_date="2026-10-28", docstatus=1)]
+
+	def get_all(dt, filters=None, **k):
+		return [d for d in (MR if dt == "Material Request" else MRI) if _khop_loc(d, filters)]
+	with um.patch.object(ts.frappe, "get_all", get_all, create=True):
+		r = ts._yeu_cau_ngay("2026-10-28")
+	la("đúng món cần ngày 28/10 theo dòng, bỏ phiếu đã dừng", {b: {m: o["sl"] for m, o in v.items()} for b, v in r.items()},
+		{"pastry": {"A": 5.0}, "baker": {"C": 2.0}})
