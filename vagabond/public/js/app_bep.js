@@ -61070,8 +61070,13 @@ async function sdtChonTkGd(sauLuu) {
     '<div style="flex:0 0 auto;padding:10px 14px 4px"><input class="nt" id="sdtTimTk" placeholder="Gõ số hoặc tên tài khoản, ví dụ 1388" ' +
     'style="height:46px;padding:0 12px;width:100%;box-sizing:border-box"></div><div class="shl"></div>';
   var lst = box.querySelector('.shl');
-  var loiTim = '';
+  var loiTim = '', dangTim = false;
   function ve() {
+    /* Codex #507 vòng 2: đang chờ kết quả của chữ vừa gõ thì không để dòng cũ nào bấm được. */
+    if (dangTim) {
+      lst.innerHTML = '<div class="emp" data-tkdang="1"><div class="e2">Đang tìm...</div></div>';
+      return;
+    }
     /* Codex #507 P1: lần tìm hỏng thì bỏ kết quả cũ và nói rõ, không để danh sách
        cũ trông như kết quả của chữ vừa gõ. */
     if (loiTim) {
@@ -61088,17 +61093,23 @@ async function sdtChonTkGd(sauLuu) {
   ov.appendChild(box); document.body.appendChild(ov);
   var inp = box.querySelector('#sdtTimTk'), tre = null, luot = 0;
   inp.oninput = function () {
+    /* Tăng lượt và khoá danh sách NGAY lúc gõ, không chờ hết nhịp chờ: phản hồi của
+       lần gõ trước về trong lúc này cũng bị bỏ. */
+    var cua = ++luot;
+    ds = []; loiTim = ''; dangTim = true;
+    ve();
     if (tre) clearTimeout(tre);
     tre = setTimeout(async function () {
-      var cua = ++luot;
+      if (cua !== luot) return;
       try {
         var kq = (await api('vagabond.tra_truoc_khach.tim_tk_gd', { tu: inp.value })) || [];
         if (cua !== luot) return;
-        ds = kq; loiTim = '';
+        ds = kq;
       } catch (e) {
         if (cua !== luot) return;
-        ds = []; loiTim = errMsg(e) || 'lỗi không rõ';
+        loiTim = errMsg(e) || 'lỗi không rõ';
       }
+      dangTim = false;
       ve();
     }, 260);
   };
