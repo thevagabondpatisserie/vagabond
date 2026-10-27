@@ -343,16 +343,25 @@ TRUONG_MOI = {
 	],
 	"Vagabond Settings": [
 		{
+			# v615 (anh Việt 27/10/2026: "Không biết khai chỗ này ở đâu?"): ô này từng nằm
+			# lẫn trong mục Hàng biếu tặng khách VIP. Tách ra mục riêng có tên đúng việc.
+			"fieldname": "sec_tra_truoc_khach",
+			"label": "Khách nạp tiền trả trước",
+			"fieldtype": "Section Break",
+			"insert_after": "tk_chi_phi_qua_tang",
+		},
+		{
 			"fieldname": "tk_gd_thu_ho",
 			"label": "Tài khoản phải thu Giám đốc thu hộ",
 			"fieldtype": "Link",
 			"options": "Account",
-			"insert_after": "tk_chi_phi_qua_tang",
+			"insert_after": "sec_tra_truoc_khach",
 			"description": (
 				"Khi khách chuyển tiền trả trước vào tài khoản cá nhân Giám đốc, "
 				"công ty ghi Nợ tài khoản này (phải thu lại Giám đốc) và Có khách "
 				"trả trước. Chọn tài khoản chi tiết, không theo dõi theo đối tượng. "
-				"Chưa chọn thì nguồn nạp Giám đốc thu hộ chưa ghi sổ được."
+				"Chưa chọn thì nguồn nạp Giám đốc thu hộ chưa ghi sổ được. Kế toán "
+				"chọn được ngay trên màn Số dư trả trước, không cần mở Cài đặt."
 			),
 		},
 	],
@@ -686,7 +695,85 @@ def cai_dat():
 		"quay": _ds_quay(),
 		"la_ke_toan": 1 if _la_ke_toan() else 0,
 		"thieu_tk_gd": 0 if chuoi((cfg() or {}).get("tk_gd_thu_ho")) else 1,
+		"sua_tk_gd": 1 if _duoc_sua_tk_gd() else 0,
 	}
+
+
+# ------------------------------------------- v615: khai tài khoản Giám đốc thu hộ tại chỗ
+# Anh Việt 27/10/2026: màn nạp báo "Chưa khai ... trong Cài đặt" mà kế toán không
+# biết khai ở đâu (trang Cài đặt chỉ quản trị mở được). Mở ô chọn ngay cạnh lời báo,
+# cho kế toán và quản trị; phạm vi chọn đúng như ô trên Cài đặt, cộng thêm: không nhận
+# tài khoản theo dõi đối tượng (phải thu, phải trả), vì bút toán Giám đốc thu hộ không
+# gắn đối tượng ở dòng này.
+
+LOAI_CO_DOI_TUONG = ("Receivable", "Payable")
+
+
+def loi_tk_gd(tk, cong_ty):
+	"""THUẦN: câu lỗi nếu tài khoản tk (dict đọc từ Account) không dùng được làm tài khoản
+	phải thu Giám đốc thu hộ; "" nếu dùng được."""
+	if not tk:
+		return "Không tìm thấy tài khoản này."
+	ten = tk.get("name") or ""
+	if cong_ty and tk.get("company") != cong_ty:
+		return "Tài khoản %s thuộc công ty khác." % ten
+	if cint(tk.get("is_group")):
+		return "Tài khoản %s là tài khoản tổng hợp. Chọn tài khoản chi tiết bên dưới nó." % ten
+	if cint(tk.get("disabled")):
+		return "Tài khoản %s đang tắt." % ten
+	if tk.get("root_type") != "Asset":
+		return "Tài khoản %s không phải tài khoản tài sản (phải thu)." % ten
+	if tk.get("account_type") in LOAI_CO_DOI_TUONG:
+		return ("Tài khoản %s đang theo dõi theo đối tượng (khách, nhà cung cấp). Chọn tài khoản "
+			"phải thu khác không theo dõi đối tượng, ví dụ tài khoản 1388 chi tiết cho Giám đốc." % ten)
+	return ""
+
+
+def _duoc_sua_tk_gd():
+	return bool(_la_ke_toan() or "System Manager" in frappe.get_roles())
+
+
+def _chan_sua_tk_gd():
+	if not _duoc_sua_tk_gd():
+		frappe.throw("Chỉ kế toán chọn được tài khoản phải thu Giám đốc thu hộ.", frappe.PermissionError)
+
+
+O_TK = ["name", "account_name", "account_number", "company", "is_group", "disabled", "root_type", "account_type"]
+
+
+@frappe.whitelist()
+def tim_tk_gd(tu=""):
+	"""Gợi ý tài khoản cho ô Tài khoản phải thu Giám đốc thu hộ (đúng phạm vi ô trên Cài đặt)."""
+	import re
+
+	_chan_sua_tk_gd()
+	cty = _cong_ty()
+	loc = {"company": cty, "is_group": 0, "disabled": 0, "root_type": "Asset",
+		"account_type": ["not in", list(LOAI_CO_DOI_TUONG)]}
+	tu = re.sub(r"[%_\\]", "", chuoi(tu))[:60]
+	from vagabond import tim_kiem
+
+	loc = tim_kiem.them_loc(loc, "Account", tu, ["name", "account_name", "account_number"])
+	ds = frappe.get_all("Account", filters=loc, fields=["name", "account_name", "account_number"],
+		order_by="lft asc", limit_page_length=30)
+	return [{"name": r.name, "ten": r.account_name or r.name, "so": r.account_number or ""} for r in ds]
+
+
+@frappe.whitelist(methods=["POST"])
+def luu_tk_gd(tk=""):
+	"""Kế toán chọn tài khoản phải thu Giám đốc thu hộ ngay trên màn nạp."""
+	_chan_sua_tk_gd()
+	tk = chuoi(tk)
+	row = frappe.db.get_value("Account", tk, O_TK, as_dict=True) if tk else None
+	loi = loi_tk_gd(row, _cong_ty())
+	if loi:
+		frappe.throw(loi, title="Chưa lưu được tài khoản")
+	doc = frappe.get_doc("Vagabond Settings")
+	doc.set("tk_gd_thu_ho", tk)
+	doc.flags.ignore_permissions = True
+	doc.save()
+	frappe.db.commit()
+	return {"ok": 1, "tk": tk}
 
 
 @frappe.whitelist()
@@ -923,8 +1010,9 @@ def _lap_phieu_nap(khach, so_tien, nguon, anh, ghi_chu, quay, ma_giao_dich, ma_l
 		tk_gd = chuoi((cfg() or {}).get("tk_gd_thu_ho"))
 		if not tk_gd:
 			frappe.throw(
-				"Chưa khai Tài khoản phải thu Giám đốc thu hộ trong Cài đặt. Nhờ kế toán "
-				"chọn tài khoản rồi lập lại phiếu nạp.", title="Thiếu tài khoản")
+				"Chưa chọn Tài khoản phải thu Giám đốc thu hộ. Kế toán chọn ngay trên màn "
+				"Nạp tiền trả trước (nút Chọn tài khoản dưới lựa chọn Tài khoản cá nhân Giám đốc), "
+				"rồi lập lại phiếu nạp.", title="Thiếu tài khoản")
 		from erpnext.accounts.party import get_party_account
 
 		tk_kh = get_party_account("Customer", khach, cty)
