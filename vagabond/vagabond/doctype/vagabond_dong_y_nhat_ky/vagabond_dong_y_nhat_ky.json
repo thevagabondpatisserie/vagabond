@@ -1,0 +1,126 @@
+{
+ "actions": [],
+ "creation": "2026-10-27 18:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "module": "Vagabond",
+ "name": "Vagabond Dong Y Nhat Ky",
+ "modified": "2026-10-27 18:00:00.000000",
+ "modified_by": "Administrator",
+ "owner": "Administrator",
+ "description": "Nhật ký đồng ý hoặc từ chối nhận tin. Chỉ thêm, không sửa, không xoá: đây là bằng chứng.",
+ "field_order": [
+  "khach",
+  "kenh",
+  "trang_thai",
+  "noi_ghi",
+  "cb1",
+  "nguoi",
+  "luc",
+  "chien_dich",
+  "cau_hoi"
+ ],
+ "fields": [
+  {
+   "fieldname": "khach",
+   "fieldtype": "Link",
+   "label": "Khách hàng",
+   "options": "Customer",
+   "reqd": 1,
+   "in_list_view": 1,
+   "search_index": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "kenh",
+   "fieldtype": "Select",
+   "label": "Kênh",
+   "options": "Zalo\nGọi điện\nEmail",
+   "reqd": 1,
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "trang_thai",
+   "fieldtype": "Select",
+   "label": "Khách chọn",
+   "options": "Đồng ý\nTừ chối",
+   "reqd": 1,
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "noi_ghi",
+   "fieldtype": "Select",
+   "label": "Ghi ở đâu",
+   "options": "Quầy\nWeb\nSales gọi\nHồ sơ khách\nDesk",
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "nguoi",
+   "fieldtype": "Link",
+   "label": "Người ghi",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "luc",
+   "fieldtype": "Datetime",
+   "label": "Lúc",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "chien_dich",
+   "fieldtype": "Link",
+   "label": "Chiến dịch",
+   "options": "Vagabond Chien Dich",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cau_hoi",
+   "fieldtype": "Small Text",
+   "label": "Câu đã đọc cho khách",
+   "read_only": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "Sales User",
+   "read": 1,
+   "report": 1
+  },
+  {
+   "role": "Sales Manager",
+   "read": 1,
+   "report": 1
+  },
+  {
+   "role": "System Manager",
+   "read": 1,
+   "report": 1
+  },
+  {
+   "role": "VGB - Quản lý cửa hàng",
+   "read": 1,
+   "report": 1
+  },
+  {
+   "role": "Marketing",
+   "read": 1,
+   "report": 1
+  }
+ ],
+ "sort_field": "luc",
+ "sort_order": "DESC",
+ "states": [],
+ "links": [],
+ "autoname": "hash",
+ "track_changes": 1,
+ "title_field": "khach"
+}
