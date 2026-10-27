@@ -2639,3 +2639,8 @@ vời. (8) Nút hành động chỉ gửi mã (Duyệt, Chốt) thì máy chủ 
 màn đang có chữ sửa dở phải bắt Lưu trước, kiểm lại ngay lúc bấm vì gõ chữ không
 vẽ lại nút. (9) Sổ làm bằng chứng mà chỉ trả N dòng mới nhất thì phải có ô tìm
 hỏi máy chủ và nút Xem thêm; lọc trên số dòng đã tải không tìm ra khách cũ.
+Vòng 3 (rà 808a738): (10) Danh sách nào trả N dòng mới nhất (chiến dịch, sổ)
+thì ô tìm và chip phải hỏi máy chủ, có nút Xem thêm; lọc trên trang đã tải là
+mất bản ghi cũ. (11) Màn mới mở rộng quyền xem (CRM cho Marketing, quản lý cửa
+hàng) mà dẫn sang màn cũ có cổng hẹp hơn (hồ sơ bán hàng) thì phải rẽ theo vai,
+không nới cổng cũ; giữ danh sách vai hai bên trùng nhau bằng ca kiểm.
