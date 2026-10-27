@@ -2614,3 +2614,9 @@ không commit). (3) Lượt đêm ghi đè cả bảng bằng `ON DUPLICATE KEY 
 liệt kê cột được cập nhật TƯỜNG MINH, loại các cột do người nhập (đồng ý nhận
 tin, Danh sách không quảng cáo), và có ca chạy hai lượt liền để chứng minh lời
 khách đã nói không bị xoá.
+
+Vòng Codex #505: (4) Danh sách chốt cố định để ĐO, nhưng quyền LIÊN HỆ phải đọc
+đồng ý hiện tại: khách rút đồng ý sau lúc chốt mà nút Gọi vẫn hiện là quảng cáo
+trái ý khách. (5) Mốc đo bắt đầu từ GIỜ chốt, không phải đầu ngày: so cả
+`posting_time` của hoá đơn. (6) Luật "sửa kịch bản là mất duyệt" đặt trong hàm
+app thì Desk đi vòng được; đặt ở `validate` của doctype để mọi đường lưu đều qua.
