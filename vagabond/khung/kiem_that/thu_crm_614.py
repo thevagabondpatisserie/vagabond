@@ -130,6 +130,12 @@ def _crm():
 	cd = crm.luu_chien_dich(json.dumps(dat))
 	la("sửa kịch bản: mất duyệt", int(cd["kich_ban_duyet"]), 0)
 	cd = crm.duyet_kich_ban(cd["name"])
+	# Codex PR #505: sửa kịch bản thẳng trên Desk cũng mất duyệt.
+	desk = frappe.get_doc(crm.DT_CD, cd["name"])
+	desk.kich_ban = (desk.kich_ban or "") + " (sửa trên Desk)"
+	khong_nem("Desk sửa kịch bản bản nháp", lambda: desk.save(ignore_permissions=True))
+	la("Desk sửa kịch bản: mất duyệt", int(frappe.db.get_value(crm.DT_CD, cd["name"], "kich_ban_duyet") or 0), 0)
+	cd = crm.duyet_kich_ban(cd["name"])
 	du_kien = cd["dong_chay"]
 
 	# 6. Chốt.
@@ -176,6 +182,9 @@ def _crm():
 			la("tóm tắt số việc", crm.tong_quan()["viec_toi"] >= len(nhan), True)
 		mot = [r for r in nhan if r.khach == kh[0]] or nhan[:1]
 		khong_nem("ghi khách xin ngừng", lambda: crm.ghi_ket_qua(mot[0].name, "Không muốn nhận tin nữa", "đừng gọi nữa"))
+		# Codex PR #505: mở lại danh sách thì dòng đó hết kênh liên hệ.
+		lai = {r["name"]: r for r in crm.ds_goi_cua_toi(cd["name"])["dong"]}
+		la("khách vừa từ chối: hết nút liên hệ", (lai[mot[0].name]["kenh_duoc"], lai[mot[0].name]["ngung"]), ("", 1))
 		if dcs:
 			try:
 				crm.ghi_ket_qua(dcs[0].name, "Quan tâm")
