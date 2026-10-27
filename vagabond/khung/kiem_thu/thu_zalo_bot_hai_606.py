@@ -154,7 +154,10 @@ def _gui():
 @ca("v606: chỉ một cửa gọi sendMessage (_gui_zalo), mọi đường gửi đi qua đó nên không chỗ nào tự chọn bot")
 def _mot_cua():
 	src = open(os.path.join(GOC, "kenh_zalo.py"), encoding="utf-8").read()
-	la("một chỗ gọi sendMessage", src.count('_goi("sendMessage"'), 1)
+	# v613: hàm Zalo (sendMessage hay sendPhoto) chọn ở goi_gui, _gui_zalo là chỗ DUY NHẤT gọi _goi để gửi tin.
+	la("một chỗ gửi tin gọi _goi", src.count("_goi(method, body, bot)"), 1)
+	la("tên hàm gửi chỉ nằm ở goi_gui", (src.count('"sendMessage"'), src.count('"sendPhoto"')), (1, 1))
+	dung("_gui_zalo dùng goi_gui", "goi_gui(chat_id, tin, anh)" in src.split("def _gui_zalo", 1)[1].split("\ndef ", 1)[0])
 	for ham in ("def _gui_mot", "def xa_gio_im", "def chao_nhom", "def gui_thu"):
 		than = src.split(ham, 1)[1].split("\ndef ", 1)[0]
 		dung(ham + " gửi qua _gui_zalo", "_gui_zalo(" in than and "_goi(" not in than)

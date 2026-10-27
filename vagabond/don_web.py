@@ -465,7 +465,8 @@ def soan_tin_sales(ban_ghi, url=""):
 	dong = [
 		"ĐƠN WEB CHƯA VÀO PANCAKE: %s" % (b.get("name") or ""),
 		"Khách %s, điện thoại %s." % (b.get("ho_ten") or "không tên", b.get("dien_thoai") or "không có"),
-		"Tiền bánh %s, nhận %s." % (dinh_tien(b.get("tien_banh")), " ".join(x for x in khung_gio(b.get("ngay_nhan")) if x) or "chưa rõ"),
+		# v613: tin đơn hàng không hiện tiền (anh Việt 27/10/2026).
+		"Nhận %s." % (" ".join(x for x in khung_gio(b.get("ngay_nhan")) if x) or "chưa rõ"),
 		"Máy chưa tìm thấy đơn này bên Pancake sau %d phút. Sales gọi khách xác nhận, tạo đơn tay nếu cần, rồi điền mã đơn Pancake vào bản ghi." % PHUT_BAO_SALES,
 	]
 	if url:

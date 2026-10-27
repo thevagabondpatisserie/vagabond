@@ -420,7 +420,8 @@ def _dk_thuan():
             dung("câu báo: " + chu, chu in str(e))
     la("không giới hạn vé", tw.con_ve(dict(TIEC, so_ve=""), 999), None)
     tin = tw.soan_tin(dict(ok, url="https://x"))
-    dung("tin có tạm tính", "Tạm tính: 700.000 đ" in tin and "ĐĂNG KÝ TIỆC MỚI" in tin)
+    # v613 (anh Việt 27/10/2026): tin đăng ký tiệc không hiện tiền nữa.
+    dung("tin không có tạm tính", "700.000" not in tin and "ĐĂNG KÝ TIỆC MỚI" in tin)
 
 
 @ca("v586: cửa đăng ký khoá hàng TRƯỚC khi đếm vé, gửi lại cùng mã không tạo đăng ký mới")

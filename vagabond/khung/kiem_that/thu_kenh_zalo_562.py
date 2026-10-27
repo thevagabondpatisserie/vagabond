@@ -31,7 +31,7 @@ def _so_gui():
 	tin = {"loai": "viec", "chu_de": "cong_no", "tieu_de": "Thử 562", "dong": ["a"], "link": None,
 		"khoa": "thu562:" + uuid.uuid4().hex}
 	with patch.object(kz, "_bat", lambda: 1), patch.object(kz, "_cac_nhom", lambda: nhom), \
-			patch.object(kz, "_gui_zalo", lambda c, t: (goi.append(c), ("Đã gửi", ""))[1]), \
+			patch.object(kz, "_gui_zalo", lambda c, t, anh=None: (goi.append(c), ("Đã gửi", ""))[1]), \
 			patch.object(frappe.db, "commit", lambda: None), patch.object(frappe.db, "rollback", lambda: None):
 		# Codex #425: hộp thư ghi trong giao dịch trước, rồi mới gửi theo tên dòng.
 		ds = kz._ghi_hop_thu(tin)
@@ -86,7 +86,7 @@ def _ket_that():
 	goi = []
 	nhom = [{"ten_nhom": "Thử kẹt", "chat_id": chat, "loai_tin": "", "chu_de": "", "im_tu": "", "im_den": "", "bat": 1}]
 	with patch.object(kz, "_bat", lambda: 1), patch.object(kz, "_cac_nhom", lambda: nhom), \
-			patch.object(kz, "_gui_zalo", lambda c, t: (goi.append(c), ("Đã gửi", ""))[1]), \
+			patch.object(kz, "_gui_zalo", lambda c, t, anh=None: (goi.append(c), ("Đã gửi", ""))[1]), \
 			patch.object(frappe.db, "commit", lambda: None):
 		kz.quet_cho_gui()
 		kz.quet_cho_gui()

@@ -86,12 +86,12 @@ def _chay(nhom_ds, tin, gio="10:00", gui=None, da_co=(), con_can=None):
 	for t in da_co:
 		so.dong.append({"name": t, "trang_thai": "Đã gửi"})
 	goi, cap = [], []
-	gui = gui or (lambda c, t: ("Đã gửi", ""))
+	gui = gui or (lambda c, t, anh=None: ("Đã gửi", ""))
 
 	def sv(dt, ten, v):
 		cap.append((ten, v))
 		so.set_value(dt, ten, v)
-	with _gia(so, nhom_ds, gio, lambda c, t: (goi.append((c, t)), gui(c, t))[1], con_can or (lambda k, n: True), sv):
+	with _gia(so, nhom_ds, gio, lambda c, t, anh=None: (goi.append((c, t)), gui(c, t))[1], con_can or (lambda k, n: True), sv):
 		ten = kz._ghi_hop_thu(tin)
 		kz.gui_hang_doi(ten)
 	return goi, [so.tim(t) for t in ten], cap
@@ -122,9 +122,9 @@ def _hoan():
 
 @ca("v562 Zalo: Zalo không trả lời thì ghi Chưa rõ, lỗi thì ghi Lỗi, không ném ra ngoài")
 def _loi():
-	_, _, cap = _chay([nhom()], TIN, gui=lambda c, t: ("Chưa rõ", "Zalo không trả lời trong 10 giây."))
+	_, _, cap = _chay([nhom()], TIN, gui=lambda c, t, anh=None: ("Chưa rõ", "Zalo không trả lời trong 10 giây."))
 	la("timeout", cap[0][1]["trang_thai"], "Chưa rõ")
-	_, _, cap2 = _chay([nhom()], dict(TIN, khoa="k2"), gui=lambda c, t: ("Lỗi", "Zalo báo lỗi 400"))
+	_, _, cap2 = _chay([nhom()], dict(TIN, khoa="k2"), gui=lambda c, t, anh=None: ("Lỗi", "Zalo báo lỗi 400"))
 	la("lỗi", cap2[0][1]["trang_thai"], "Lỗi")
 
 
@@ -373,11 +373,11 @@ def _xa(so, gui=None, con_can=None, nhom_ds=None):
 		# chung bộ đếm cho mọi lượt, kể cả lượt lồng nhau trong ca chạy chồng.
 		_DEM_LO[0] += 1
 		return "lo%04d" % _DEM_LO[0]
-	gui = gui or (lambda c, t: ("Đã gửi", ""))
+	gui = gui or (lambda c, t, anh=None: ("Đã gửi", ""))
 	db = types.SimpleNamespace(sql=so.sql, set_value=so.set_value, commit=so.commit, get_value=so.get_value)
 	with patch.object(kz, "_bat", lambda: 1), \
 			patch.object(kz, "_cac_nhom", lambda: nhom_ds or [nhom()]), \
-			patch.object(kz, "_gui_zalo", lambda c, t: (da_gui.append((c, t)), gui(c, t))[1]), \
+			patch.object(kz, "_gui_zalo", lambda c, t, anh=None: (da_gui.append((c, t)), gui(c, t))[1]), \
 			patch.object(kz, "now_datetime", lambda: types.SimpleNamespace(strftime=lambda fmt: "10:00")), \
 			patch.object(kz, "_con_can", con_can or (lambda k, n: True)), \
 			patch.object(f, "db", db, create=True), patch.object(f, "get_all", so.get_all, create=True), \
@@ -406,7 +406,7 @@ def _gop_mot_phan_loi():
 	so = _SoGia([_hoan(i, "Việc dài số %02d " % i + "x" * 150) for i in range(30)])
 	lan = [0]
 
-	def gui(c, t):
+	def gui(c, t, anh=None):
 		lan[0] += 1
 		return ("Lỗi", "Zalo báo lỗi 500") if lan[0] == 2 else ("Đã gửi", "")
 	tin = _xa(so, gui=gui)
@@ -423,7 +423,7 @@ def _gop_chong():
 	vao = [0]
 	tat_ca = []
 
-	def gui(c, t):
+	def gui(c, t, anh=None):
 		tat_ca.append(t)
 		if not vao[0]:
 			# Lượt thứ hai chen vào đúng lúc lượt đầu đang gọi Zalo (sau claim, trước cập nhật).
@@ -441,7 +441,7 @@ def _gop_chet():
 	class _Chet(BaseException):
 		pass
 
-	def gui(c, t):
+	def gui(c, t, anh=None):
 		raise _Chet()
 	try:
 		_xa(so, gui=gui)
@@ -802,7 +802,7 @@ def _hop_thu():
 
 	def enq(*a, **k):
 		raise RuntimeError("redis chết")
-	with _gia(so, [nhom()], "10:00", lambda c, t: (goi.append(c), ("Đã gửi", ""))[1], lambda k, n: True), \
+	with _gia(so, [nhom()], "10:00", lambda c, t, anh=None: (goi.append(c), ("Đã gửi", ""))[1], lambda k, n: True), \
 			patch.object(f.db, "after_commit", types.SimpleNamespace(add=sau_commit.append), create=True), \
 			patch.object(f, "flags", types.SimpleNamespace(), create=True), \
 			patch.object(f, "enqueue", enq, create=True), \
@@ -827,7 +827,7 @@ def _hop_thu_chong():
 	goi = []
 	vao = [0]
 
-	def gui(c, t):
+	def gui(c, t, anh=None):
 		goi.append(c)
 		if not vao[0]:
 			vao[0] = 1
@@ -843,9 +843,9 @@ def _hop_thu_chong():
 def _nhom_tat():
 	so = _So([])
 	goi = []
-	with _gia(so, [nhom()], "10:00", lambda c, t: (goi.append(c), ("Đã gửi", ""))[1], lambda k, n: True):
+	with _gia(so, [nhom()], "10:00", lambda c, t, anh=None: (goi.append(c), ("Đã gửi", ""))[1], lambda k, n: True):
 		ten = kz._ghi_hop_thu(TIN)
-	with _gia(so, [nhom(bat=0)], "10:00", lambda c, t: (goi.append(c), ("Đã gửi", ""))[1], lambda k, n: True):
+	with _gia(so, [nhom(bat=0)], "10:00", lambda c, t, anh=None: (goi.append(c), ("Đã gửi", ""))[1], lambda k, n: True):
 		kz.gui_hang_doi(ten)
 	la("không gửi", goi, [])
 	la("Bỏ qua có lý do", (so.dong[0]["trang_thai"], "tắt" in so.dong[0]["loi"]), (kz.BO_QUA, True))
@@ -881,7 +881,7 @@ def _ghi_savepoint():
 	f = kz.frappe
 	so = _So([])
 	sp, lui = [], []
-	with _gia(so, [nhom(), nhom(ten_nhom="Kho", chat_id="c2")], "10:00", lambda c, t: ("Đã gửi", ""), lambda k, n: True):
+	with _gia(so, [nhom(), nhom(ten_nhom="Kho", chat_id="c2")], "10:00", lambda c, t, anh=None: ("Đã gửi", ""), lambda k, n: True):
 		so.dong.append({"name": kz.khoa_tin(TIN["khoa"], "c1"), "trang_thai": "Đã gửi"})
 		with patch.object(f.db, "savepoint", sp.append), patch.object(f.db, "rollback", lambda **k: lui.append(k)):
 			ten = kz._ghi_hop_thu(TIN)
@@ -930,7 +930,7 @@ def _gui_bu(so, gui, phut, con_can=None):
 def _ket_dang_gui():
 	so = _So([])
 	goi = []
-	gui = lambda c, t: (goi.append(c), ("Đã gửi", ""))[1]
+	gui = lambda c, t, anh=None: (goi.append(c), ("Đã gửi", ""))[1]
 	with _gia(so, [nhom()], "10:00", gui, lambda k, n: True):
 		ten = kz._ghi_hop_thu(TIN)
 		so.gio = 0
@@ -951,7 +951,7 @@ def _ket_chua_ro():
 	class _Chet(Exception):
 		pass
 
-	def chet(c, t):
+	def chet(c, t, anh=None):
 		goi.append(c)
 		raise _Chet("worker bị giết giữa lúc gọi Zalo")
 	with _gia(so, [nhom()], "10:00", chet, lambda k, n: True):
@@ -961,7 +961,7 @@ def _ket_chua_ro():
 		except _Chet:
 			pass
 		la("kẹt Chưa rõ", so.dong[0]["trang_thai"], kz.CHUA_RO)
-		_gui_bu(so, lambda c, t: (goi.append(c), ("Đã gửi", ""))[1], 30)
+		_gui_bu(so, lambda c, t, anh=None: (goi.append(c), ("Đã gửi", ""))[1], 30)
 	la("không gửi lại", goi, ["c1"])
 
 
@@ -969,7 +969,7 @@ def _ket_chua_ro():
 def _lot_cu_song_lai():
 	so = _So([])
 	goi = []
-	gui = lambda c, t: (goi.append(c), ("Đã gửi", ""))[1]
+	gui = lambda c, t, anh=None: (goi.append(c), ("Đã gửi", ""))[1]
 	vao = [0]
 
 	def con_can(k, n):
@@ -1055,7 +1055,7 @@ def _gop_ket_giua():
 		pass
 	da = []
 
-	def gui(c, t):
+	def gui(c, t, anh=None):
 		if da:
 			raise _Chet("worker chết trước phần thứ hai")
 		da.append(t)
@@ -1148,7 +1148,7 @@ def _mang_loi_gui_bu():
 	goi = []
 	mang = ["hong"]
 
-	def gui(c, t):
+	def gui(c, t, anh=None):
 		goi.append(c)
 		return (kz.MANG_LOI, "Chưa kết nối được Zalo") if mang[0] == "hong" else ("Đã gửi", "")
 	with _gia(so, [nhom()], "10:00", gui, lambda k, n: True):
@@ -1165,7 +1165,7 @@ def _mang_loi_gui_bu():
 @ca("v562 #425 vòng 11: gửi gộp gặp mạng hỏng trước khi gửi thì cả lô về Hoãn giờ im, lượt sau gửi đủ một lần")
 def _mang_loi_gop():
 	so = _SoGia([_hoan(i, "Việc %02d" % i) for i in range(3)])
-	gui = _xa(so, gui=lambda c, t: (kz.MANG_LOI, "Chưa kết nối được Zalo"))
+	gui = _xa(so, gui=lambda c, t, anh=None: (kz.MANG_LOI, "Chưa kết nối được Zalo"))
 	la("lượt hỏng có gọi", len(gui), 1)
 	la("cả lô về Hoãn giờ im, mất mã lô", sorted({(d["trang_thai"], d["ma_lo"]) for d in so.dong}), [("Hoãn giờ im", None)])
 	gui2 = _xa(so)
@@ -1174,7 +1174,7 @@ def _mang_loi_gop():
 	# Lô nhiều phần: các phần chưa gọi cũng về Hoãn giờ im ngay, không phải chờ 10 phút.
 	so2 = _SoGia([_hoan(i, "Khoản trả trước ERP chờ duyệt PKT-2026-%05d của nhà cung cấp tên rất dài số %02d" % (i, i))
 		for i in range(50)])
-	_xa(so2, gui=lambda c, t: (kz.MANG_LOI, "Chưa kết nối được Zalo"))
+	_xa(so2, gui=lambda c, t, anh=None: (kz.MANG_LOI, "Chưa kết nối được Zalo"))
 	la("lô 50 việc nhiều phần: cả lô về Hoãn giờ im ngay", sorted({(d["trang_thai"], d["ma_lo"]) for d in so2.dong}), [("Hoãn giờ im", None)])
 
 
@@ -1210,7 +1210,7 @@ def _deadlock():
 
 	def chen_chet(d):
 		raise QueryDeadlockError("Deadlock found when trying to get lock")
-	with _gia(so, [nhom()], "10:00", lambda c, t: ("Đã gửi", ""), lambda k, n: True), \
+	with _gia(so, [nhom()], "10:00", lambda c, t, anh=None: ("Đã gửi", ""), lambda k, n: True), \
 			patch.object(f, "flags", types.SimpleNamespace(), create=True), \
 			patch.object(f, "get_doc", lambda d: types.SimpleNamespace(insert=lambda **k: chen_chet(d)), create=True), \
 			patch.object(f, "log_error", lambda *a, **k: log.append(a), create=True), \
@@ -1219,7 +1219,7 @@ def _deadlock():
 		nem("bao() để deadlock đi lên", lambda: kz.bao("viec", "cong_no", "Chờ duyệt PKT-9", khoa="cho_duyet:PKT-9"))
 	la("không lùi về savepoint đã mất, không nuốt vào log", (lui, log), ([], []))
 	# Lỗi lẻ của một dòng vẫn chỉ lùi dòng đó, chứng từ đi tiếp.
-	with _gia(so, [nhom()], "10:00", lambda c, t: ("Đã gửi", ""), lambda k, n: True), \
+	with _gia(so, [nhom()], "10:00", lambda c, t, anh=None: ("Đã gửi", ""), lambda k, n: True), \
 			patch.object(f, "flags", types.SimpleNamespace(), create=True), \
 			patch.object(f, "get_doc", lambda d: types.SimpleNamespace(insert=lambda **k: (_ for _ in ()).throw(ValueError("lẻ"))), create=True), \
 			patch.object(f, "log_error", lambda *a, **k: log.append(a), create=True), \
