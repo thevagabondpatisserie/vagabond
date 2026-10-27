@@ -1121,3 +1121,6 @@ scheduler_events.setdefault("cron", {}).setdefault("*/15 * * * *", []).append("v
 scheduler_events.setdefault("cron", {}).setdefault("30 20 * * *", []).append("vagabond.tin_kho.nhac_ycsx_ngay_mai")
 scheduler_events.setdefault("cron", {}).setdefault("0 8 * * *", []).append("vagabond.tin_kho.nhac_ycdc_treo")
 scheduler_events.setdefault("cron", {}).setdefault("0 8 * * *", []).append("vagabond.tin_ban_hang.nhac_tien_chua_gan")
+# v614 phân hệ Khách hàng (CRM): tính lại nhóm khách mỗi đêm 02:30, lúc site
+# vắng nhất. Hai câu gom và ghi theo lô, xem vagabond/crm.py tinh_nhom_dem.
+scheduler_events.setdefault("cron", {}).setdefault("30 2 * * *", []).append("vagabond.crm.tinh_nhom_dem")
