@@ -385,14 +385,16 @@ def _desk():
 	fr = crm.frappe
 	doc = D(name="CD-1")
 	doc.is_new = lambda: False
-	with um.patch.object(fr.db, "get_value", lambda *a, **k: "Đang chạy"):
+	with um.patch.object(fr.db, "get_value", lambda *a, **k: D(trang_thai="Đang chạy")), \
+			um.patch.object(fr, "get_roles", lambda *a: ["Sales Manager"]):
 		nem("đã chốt", lambda: crm.kiem_sua_chien_dich(doc))
 		fr.flags.crm_ghi = True
 		try:
 			crm.kiem_sua_chien_dich(doc)
 		finally:
 			fr.flags.crm_ghi = False
-	with um.patch.object(fr.db, "get_value", lambda *a, **k: "Nháp"):
+	with um.patch.object(fr.db, "get_value", lambda *a, **k: D(trang_thai="Nháp")), \
+			um.patch.object(fr, "get_roles", lambda *a: ["Sales Manager"]):
 		crm.kiem_sua_chien_dich(doc)
 	src = io.open(os.path.join(GOI, "vagabond", "doctype", "vagabond_chien_dich", "vagabond_chien_dich.py"), encoding="utf-8").read()
 	dung("controller gọi kiem_sua_chien_dich", "kiem_sua_chien_dich(self)" in src)
@@ -499,3 +501,90 @@ def _doctype():
 		d = doc(t)
 		la(t + " khai đủ thứ tự ô", d["field_order"], [f["fieldname"] for f in d["fields"]])
 		dung(t + " có mốc modified", bool(d.get("modified")))
+
+
+# ------------------------------------------------- Codex PR #505 vòng 1
+
+@ca("v614 Codex #505: danh sách gọi đọc đồng ý HIỆN TẠI, khách rút đồng ý hay vào danh sách cấm sau khi chốt thì hết nút liên hệ")
+def _kenh_luc_nay():
+	cd = {"kenh_goi": 1, "kenh_zalo": 1}
+	la("vẫn đồng ý cả hai", crm.kenh_lien_he_luc_nay({"dy_goi": "Đồng ý", "dy_zalo": "Đồng ý"}, cd), ["Gọi điện", "Zalo"])
+	la("rút gọi điện sau khi chốt", crm.kenh_lien_he_luc_nay({"dy_goi": "Từ chối", "dy_zalo": "Đồng ý"}, cd), ["Zalo"])
+	la("vào Danh sách không quảng cáo: không kênh nào",
+		crm.kenh_lien_he_luc_nay({"dy_goi": "Đồng ý", "dy_zalo": "Đồng ý", "khong_quang_cao": 1}, cd), [])
+	la("chiến dịch chỉ gọi: Zalo đồng ý không mở nút Zalo", crm.kenh_lien_he_luc_nay({"dy_zalo": "Đồng ý"}, {"kenh_goi": 1}), [])
+	fr = crm.frappe
+	# Dòng đã chốt mang kenh_duoc cũ "Gọi điện, Zalo"; hồ sơ hiện tại đã Từ chối.
+	dong = [D(name="L1", chien_dich="CD-1", ten_chien_dich="Giáng sinh", khach="K1", ten_khach="Minh Anh", sdt="0909",
+		trang_thai="Chưa gọi", kenh_duoc="Gọi điện, Zalo", noi_dung_zalo="Chào {ten}", kich_ban="", mua_cuoi=None,
+		nhom="Mới", hang="", dy_goi="Từ chối", dy_zalo="Từ chối", kqc=0, kenh_goi=1, kenh_zalo=1),
+		D(name="L2", chien_dich="CD-1", ten_chien_dich="Giáng sinh", khach="K2", ten_khach="Long", sdt="0912",
+		trang_thai="Chưa gọi", kenh_duoc="Gọi điện", noi_dung_zalo="Chào {ten}", kich_ban="", mua_cuoi=None,
+		nhom="Mới", hang="", dy_goi="Đồng ý", dy_zalo="Chưa hỏi", kqc=1, kenh_goi=1, kenh_zalo=1),
+		D(name="L3", chien_dich="CD-1", ten_chien_dich="Giáng sinh", khach="K3", ten_khach="Thu", sdt="0987",
+		trang_thai="Chưa gọi", kenh_duoc="Gọi điện", noi_dung_zalo="Chào {ten}", kich_ban="", mua_cuoi=None,
+		nhom="Mới", hang="", dy_goi="Đồng ý", dy_zalo="Chưa hỏi", kqc=0, kenh_goi=1, kenh_zalo=1)]
+	cau = []
+
+	def sql(q, ts=None, **k):
+		cau.append(q)
+		return [D(r) for r in dong]
+
+	meta = types.SimpleNamespace(get_valid_columns=lambda: [])
+	with um.patch.object(fr, "get_roles", lambda *a: ["Sales User"]), um.patch.object(fr.db, "sql", sql), \
+			um.patch.object(fr, "get_meta", lambda dt_: meta, create=True):
+		kq = crm.ds_goi_cua_toi()
+	r = {x["name"]: x for x in kq["dong"]}
+	la("rút cả hai: không còn kênh", (r["L1"]["kenh_duoc"], r["L1"]["ngung"], r["L1"]["tin_zalo"]), ("", 1, ""))
+	la("vào danh sách cấm: không còn kênh", (r["L2"]["kenh_duoc"], r["L2"]["ngung"]), ("", 1))
+	la("vẫn đồng ý: giữ nút gọi", (r["L3"]["kenh_duoc"], r["L3"]["ngung"]), ("Gọi điện", 0))
+	dung("câu đọc hồ sơ hiện tại", "h.dy_goi" in cau[0] and "khong_quang_cao" in cau[0])
+
+
+@ca("v614 Codex #505: sửa kịch bản trên Desk sau khi duyệt thì mất duyệt; Sales Manager tự tích duyệt trên Desk không được")
+def _desk_duyet():
+	la("đổi chữ kịch bản: mất duyệt", crm.duyet_sau_sua("Chào anh chị", 1, "Chào anh chị, có mã", 1, False), 0)
+	la("đổi chữ kịch bản dù người có quyền duyệt: vẫn mất duyệt", crm.duyet_sau_sua("A", 1, "B", 1, True), 0)
+	la("chỉ thêm khoảng trắng đầu cuối: giữ duyệt", crm.duyet_sau_sua("A", 1, " A ", 1, False), 1)
+	la("tự tích duyệt khi không có quyền: bỏ", crm.duyet_sau_sua("A", 0, "A", 1, False), 0)
+	la("giám đốc duyệt: giữ", crm.duyet_sau_sua("A", 0, "A", 1, True), 1)
+	fr = crm.frappe
+	doc = D(name="CD-1", trang_thai="Nháp", kich_ban="Kịch bản sửa trên Desk", kich_ban_duyet=1, duyet_boi="gd@x", duyet_luc="x")
+	doc.is_new = lambda: False
+	cu = D(trang_thai="Nháp", kich_ban="Kịch bản giám đốc đã đọc", kich_ban_duyet=1)
+	with um.patch.object(fr.db, "get_value", lambda *a, **k: cu), um.patch.object(fr, "get_roles", lambda *a: ["Sales Manager"]):
+		crm.kiem_sua_chien_dich(doc)
+	la("Desk sửa kịch bản: mất duyệt, xoá người duyệt", (doc.kich_ban_duyet, doc.duyet_boi, doc.duyet_luc), (0, None, None))
+	moi = D(name="CD-2", trang_thai="Nháp", kich_ban="Kịch bản", kich_ban_duyet=1)
+	moi.is_new = lambda: True
+	with um.patch.object(fr, "get_roles", lambda *a: ["Sales Manager"]):
+		crm.kiem_sua_chien_dich(moi)
+	la("tạo mới trên Desk tích sẵn duyệt: bỏ", moi.kich_ban_duyet, 0)
+
+
+@ca("v614 Codex #505: đo hiệu quả đúng 14 ngày tính từ GIỜ chốt, so cả giờ trên hoá đơn")
+def _cua_so():
+	tu, den = crm.cua_so_do(dt.datetime(2026, 10, 27, 18, 0, 0))
+	la("từ đúng giờ chốt tới đúng 14 ngày sau", (str(tu), str(den)), ("2026-10-27 18:00:00", "2026-11-10 18:00:00"))
+	fr = crm.frappe
+	doc = D(name="CD-1", ten="Giáng sinh", ngay_chot=dt.datetime(2026, 10, 27, 18, 0, 0), ctkm="CTKM-1", ma_uu_dai="XMAS")
+	cau = []
+
+	def sql(q, ts=None, **k):
+		cau.append((q, ts))
+		if "count(distinct u.hoa_don)" in q:
+			return [[0]]
+		return []
+
+	with um.patch.object(fr, "get_roles", lambda *a: ["Sales Manager"]), um.patch.object(fr.db, "sql", sql), \
+			um.patch.object(fr.db, "exists", lambda *a, **k: True), um.patch.object(fr, "get_doc", lambda *a, **k: doc), \
+			um.patch.object(fr.db, "count", lambda *a, **k: 0, create=True):
+		kq = crm.hieu_qua_chien_dich("CD-1")
+	hd = [c for c in cau if "tabSales Invoice" in c[0] and "u.hoa_don" not in c[0]]
+	dung("đủ ba câu đọc hoá đơn", len(hd) == 3)
+	for q, ts in hd:
+		dung("so cả giờ hoá đơn", "timestamp(s.posting_date, s.posting_time)" in q)
+		la("tham số mốc giờ", [str(x) for x in ts[:2]], ["2026-10-27 18:00:00", "2026-11-10 18:00:00"])
+	ma = [c for c in cau if "u.hoa_don" in c[0]][0]
+	dung("đơn dùng mã so theo giờ dùng mã", "u.luc >=" in ma[0])
+	la("hiện mốc đo có giờ", (kq["tu"], kq["den"]), ("2026-10-27 18:00:00", "2026-11-10 18:00:00"))

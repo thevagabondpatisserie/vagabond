@@ -37,6 +37,7 @@ MAN_LAP_PHIEU = [
 	"gvtManPhieu",  # v600 Codex #486: phiếu tính giá thử R&D, tên không theo mẫu scr*
 	"hoanMoForm", "hoanMoFormDu", "hoanMoFormHuy", "dhMo", "kmSheetCtkm",
 	"scrSoDuNap",  # v607 Codex #493 vòng 3: phiếu nạp số dư trả trước, tên không theo mẫu Tao/New
+	"scrCrmCd",  # v614 Codex #505: lập chiến dịch CRM (kịch bản, khách, món, Sales), tên không theo mẫu Tao/New
 ]
 # Man lap phieu nam o phan SAU 48, duoc duyet tung ten (v600 Codex #486).
 # So phan 00-47 da het cho, ma man Phieu tinh gia thu thuoc 53-gia-von-tam.js.
@@ -48,7 +49,10 @@ MAN_LAP_PHIEU = [
 SAU_48_DUOC_BOC = {"gvtManPhieu": "53-gia-von-tam.js",
 	# v607 Codex #493 vòng 3: màn Nạp tiền trả trước nằm ở 55, cùng lý do và
 	# cùng điều kiện như gvtManPhieu ở trên.
-	"scrSoDuNap": "55-so-du-tra-truoc.js"}
+	"scrSoDuNap": "55-so-du-tra-truoc.js",
+	# v614 Codex #505: màn Chiến dịch ở 58, cùng điều kiện. Không móc sdGhep
+	# (luật phần sau 48): ghép bản nháp bằng dat() vào crmCdKhoiPhuc.
+	"scrCrmCd": "58-crm.js"}
 # Man ten giong man lap phieu nhung CO Y khong boc, kem ly do.
 MIEN = {
 	"scrKkNew": "kiểm kê đã tự lưu lên máy chủ mỗi 3 giây",
