@@ -456,6 +456,50 @@ function chuTrongKhoi(k) { return k.tl.getElementById('pbTgForm').innerHTML; }
     bang('vẫn đánh dấu thiếu', app.g.SDT_CD.thieu_tk_gd, 1);
   });
 
+  await ca('v615 Codex #507 P1: lần tìm sau hỏng thì báo lỗi, bỏ kết quả cũ, không cho chọn tài khoản ngoài kết quả tìm', async function () {
+    var app = manNapTkGd(true);
+    var lan = 0;
+    app.mc.api = (function (cu) {
+      return function (m, a) {
+        if (m === 'vagabond.tra_truoc_khach.tim_tk_gd' && ++lan === 2) { app.mc.goi.push({ m: m, a: a }); return Promise.reject(new Error('Mất kết nối')); }
+        return cu(m, a);
+      };
+    })(app.mc.api);
+    await app.g.scrSoDuNap(); await nghi();
+    await app.bam(app.mot('[data-sdtng="gd_thu_ho"]')); await nghi();
+    await app.bam(app.mot('#sdtChonTkGd')); await nghi();
+    bang('lần đầu: hai tài khoản', app.tat('[data-tkgd]').length, 2);
+    await app.go(app.mot('#sdtTimTk'), '1388'); await nghi();
+    bang('tìm hỏng: không còn dòng nào bấm chọn được', app.tat('[data-tkgd]').length, 0);
+    dung('tìm hỏng: báo lỗi và cách thử lại', app.tat('[data-tkloi]').length === 1);
+    await app.go(app.mot('#sdtTimTk'), '1388'); await nghi();
+    bang('gõ lại được: hết lời báo lỗi', app.tat('[data-tkloi]').length, 0);
+    bang('gõ lại được: đúng kết quả của chữ vừa gõ', app.tat('[data-tkgd]').length, 1);
+  });
+
+  await ca('v615 Codex #507: kết quả lần gõ trước về muộn không đè kết quả lần gõ sau', async function () {
+    var app = manNapTkGd(true);
+    var treo = null;
+    app.mc.api = (function (cu) {
+      return function (m, a) {
+        if (m === 'vagabond.tra_truoc_khach.tim_tk_gd' && a.tu === '13') {
+          app.mc.goi.push({ m: m, a: a });
+          return new Promise(function (ok) { treo = function () { ok([{ name: 'A', ten: 'A', so: '' }, { name: 'B', ten: 'B', so: '' }]); }; });
+        }
+        return cu(m, a);
+      };
+    })(app.mc.api);
+    await app.g.scrSoDuNap(); await nghi();
+    await app.bam(app.mot('[data-sdtng="gd_thu_ho"]')); await nghi();
+    await app.bam(app.mot('#sdtChonTkGd')); await nghi();
+    await app.go(app.mot('#sdtTimTk'), '13'); await nghi();
+    await app.go(app.mot('#sdtTimTk'), '1388'); await nghi();
+    bang('kết quả của 1388', app.tat('[data-tkgd]').length, 1);
+    treo(); await nghi(); await nghi();
+    bang('lần gõ 13 về muộn: vẫn là kết quả của 1388', app.tat('[data-tkgd="1388 - Phải thu Giám đốc - VGB"]').length, 1);
+    bang('không lẫn kết quả cũ', app.tat('[data-tkgd="A"]').length, 0);
+  });
+
   await ca('v615 Sales không có quyền: không có nút chọn, lời báo chỉ đúng người và đúng chỗ', async function () {
     var app = manNapTkGd(false);
     await app.g.scrSoDuNap(); await nghi();
