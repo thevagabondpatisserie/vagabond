@@ -333,6 +333,10 @@ function crmGoiDong(r) {
     (r.mua_cuoi ? 'Mua lần cuối ' + crmNgay(r.mua_cuoi) : 'Chưa có ngày mua') + (r.nhom ? ' · ' + h(r.nhom) : '') +
     ' · đồng ý: ' + h(kenh || 'không kênh nào') +
     (r.ket_qua ? '<br>Lần trước: <b style="color:#475467">' + h(r.ket_qua) + '</b>' + (r.lan_cuoi ? ' lúc ' + crmGioNgay(r.lan_cuoi) : '') : '') + '</div>' +
+    /* Codex PR #505: kênh theo đồng ý HIỆN TẠI (máy chủ tính). Khách rút đồng ý
+       hay vào Danh sách không quảng cáo sau lúc chốt thì không còn nút liên hệ. */
+    (+r.ngung ? '<div data-crmngung="1" style="font-size:12.5px;color:#b42318;background:#fef3f2;border-radius:8px;padding:7px 9px;margin:0 0 8px;line-height:1.4">' +
+      'Khách đã rút đồng ý hoặc xin không nhận quảng cáo. Không gọi, không nhắn; vẫn ghi kết quả được.</div>' : '') +
     '<div style="display:flex;gap:8px">' +
     (coGoi ? '<a href="tel:' + h(tel) + '" data-crmgoi="' + i + '" style="' + nut + 'background:#12a150;color:#fff">📞 Gọi</a>' : '') +
     (coZalo ? '<button type="button" data-crmchep="' + i + '" style="' + nut + 'background:#E4F9FD;color:#0B7C93">💬 Chép tin</button>' : '') +
@@ -632,6 +636,29 @@ async function scrCrmCdDs() {
 }
 
 var crmCd = null;
+/* Codex PR #505 (AGENTS.md: màn lập phiếu phải có bản nháp tự lưu, v533).
+   48-ban-soan-do.js khai loại 'chien_dich' và bọc scrCrmCd. Phần 58 đứng sau
+   48 nên không dùng móc sdGhep: 48 gọi dat() TRƯỚC khi mở màn, gán bản nháp
+   vào crmCdKhoiPhuc, rồi scrCrmCd ghép vào ngay sau khi dựng trạng thái. */
+var crmCdKhoiPhuc = null;
+var CRM_CD_NHAP = ['name', 'ten', 'loc', 'bo_loc', 'mo_ta_loc', 'kenh_goi', 'kenh_zalo', 'mon', 'sales', 'ctkm',
+  'ma_uu_dai', 'han', 'kich_ban', 'noi_dung_zalo', 'ty_le_doi_chung'];
+function crmCdNhap() {
+  var c = crmCd;
+  if (!c || c.trang_thai !== 'Nháp' || !+c.duoc_lap) return null;
+  crmCdDocO();
+  var o = {};
+  CRM_CD_NHAP.forEach(function (k) { o[k] = c[k]; });
+  return JSON.parse(JSON.stringify(o));
+}
+function crmCdGhepNhap() {
+  var v = crmCdKhoiPhuc; crmCdKhoiPhuc = null;
+  if (!v || !crmCd || crmCd.trang_thai !== 'Nháp' || (v.name || '') !== (crmCd.name || '')) return;
+  CRM_CD_NHAP.forEach(function (k) { if (v[k] !== undefined) crmCd[k] = v[k]; });
+  /* Khung số "Ai sẽ được liên hệ" tính theo bản trên máy chủ, có thể đã cũ so
+     với bản nháp: ẩn đi tới khi Lưu nháp đếm lại. */
+  if (v.name) { crmCd.dong_chay = null; crmCd.ly_do_chua_chot = 'Lưu nháp để máy đếm lại khách theo bản đang soạn.'; }
+}
 
 async function scrCrmCd(name) {
   var tieuDe = name ? 'Chiến dịch' : 'Chiến dịch mới';
@@ -649,6 +676,7 @@ async function scrCrmCd(name) {
     };
     crmCdMoi = null;
   }
+  crmCdGhepNhap();
   crmCdVe();
 }
 
@@ -723,8 +751,11 @@ function crmDcDong(nhan, so, kieu) {
 }
 
 function crmCdDocO() {
-  var c = crmCd, v = function (id) { var n = document.getElementById(id); return n ? n.value : ''; };
-  c.ten = v('crmCdTen'); c.han = v('crmCdHan'); c.kich_ban = v('crmCdKb'); c.noi_dung_zalo = v('crmCdZalo');
+  /* Ô không có trên màn (đã rời màn, bản nháp tự lưu gọi tới) thì giữ giá trị
+     cũ, không ghi chuỗi rỗng đè lên. */
+  var c = crmCd, v = function (id, cu) { var n = document.getElementById(id); return n ? n.value : cu; };
+  c.ten = v('crmCdTen', c.ten); c.han = v('crmCdHan', c.han); c.kich_ban = v('crmCdKb', c.kich_ban);
+  c.noi_dung_zalo = v('crmCdZalo', c.noi_dung_zalo);
 }
 
 async function crmCdBam(e) {
@@ -865,7 +896,7 @@ async function scrCrmHieuQua(name) {
       crmKv('Bình quân / khách', money(g.binh_quan) + ' đ') + '</div>';
   };
   var html = '<div class="card" style="padding:12px 14px"><div style="font-weight:700;font-size:16px">' + h(d.ten) + '</div>' +
-    '<div style="font-size:13px;color:#8a8f9c">Đo ' + crmNgay(d.tu) + ' tới ' + crmNgay(d.den) + ', cùng mốc cho cả hai nhóm' +
+    '<div data-crmhqmoc="1" style="font-size:13px;color:#8a8f9c">Đo từ ' + crmGioNgay(d.tu) + ' (lúc chốt) tới ' + crmGioNgay(d.den) + ', cùng mốc cho cả hai nhóm' +
     (d.dang_do ? ' · <b style="color:#93370d">đang đo, số còn tăng</b>' : '') + '</div></div>' +
     '<div data-crmhqhai="1" style="display:flex;gap:10px">' + o('Nhóm được liên hệ', a) + o('Nhóm đối chứng', b) + '</div>';
   html += '<div class="card" style="margin-top:12px;padding:12px 14px">';
