@@ -699,6 +699,91 @@ function mot(el, chon) { return el.querySelectorAll(chon)[0]; }
     dung('bỏ món vẫn được', !mot(m.khung, '[data-crmcdmonr="BANH-2"]'));
   });
 
+  /* ------------------------------------------------ Codex PR #505 vòng 5 (rà 3a79937) */
+
+  var NHOM_KH = { tinh_luc: '2026-10-27 02:30:00', duoc_lap: 1,
+    nhom: ['Trung thành', 'Mới', 'Sắp rời đi', 'Đã ngủ', 'Chỉ mua dịp lễ', 'Chưa mua'].map(function (n, i) {
+      return { nhom: n, giai_thich: 'Giải thích ' + n, so: 10 + i, zalo: 3, goi: 4, tu_choi: 1, it_nhat_mot: 5 }; }),
+    bo_loc: [{ name: 'BL-1', ten: 'Khách mùa lễ năm ngoái', mo_ta: 'mua lần cuối từ 01/12/2025', so: 120, loc: { lan_cuoi_tu: '2025-12-01' } },
+      { name: 'BL-2', ten: 'Khách mua Entremet', mo_ta: 'đã mua Entremet (từ 08/2026)', so: 40, loc: { mon: 'BANH-1' } },
+      { name: 'BL-3', ten: 'Khách lâu chưa quay lại', mo_ta: 'đã 90 ngày chưa mua', so: 300, loc: { chua_mua_ngay: 90 } }] };
+
+  await ca('Codex #505 v5: Bộ lọc đã lưu có ô tìm (bỏ dấu, theo tên và mô tả), không khớp thì nói rõ', async function () {
+    var m = dungMoi(QL, { nhom_khach: NHOM_KH });
+    vm.runInNewContext('crmBlTim = "";', m.g);
+    await m.g.scrCrmNhom();
+    var o = m.tai.getElementById('crmBlDsTim');
+    dung('có ô tìm', !!o);
+    bang('đủ ba bộ lọc', m.khung.querySelectorAll('[data-crmbl]').length, 3);
+    o.value = 'mua le';
+    o.dispatchEvent(dg.suKien('change', {}, o));
+    bang('tìm không dấu theo tên', m.khung.querySelectorAll('[data-crmbl]').map(function (x) { return x.getAttribute('data-crmbl'); }), ['BL-1']);
+    o = m.tai.getElementById('crmBlDsTim');
+    o.value = 'entremet';
+    o.dispatchEvent(dg.suKien('change', {}, o));
+    bang('tìm theo mô tả', m.khung.querySelectorAll('[data-crmbl]').map(function (x) { return x.getAttribute('data-crmbl'); }), ['BL-2']);
+    o = m.tai.getElementById('crmBlDsTim');
+    o.value = 'khong co';
+    o.dispatchEvent(dg.suKien('change', {}, o));
+    dung('không khớp thì nói rõ', chu(m.khung).indexOf('Không có bộ lọc nào khớp chữ tìm.') >= 0);
+    bang('lọc trên máy, không hỏi lại máy chủ', goiTen(m, 'nhom_khach').length, 1);
+  });
+
+  await ca('Codex #505 v5: Xem khách trong nhóm có ô tìm, tìm hỏi máy chủ trong số khách khớp bộ lọc', async function () {
+    var m = dungMoi(QL, { nhom_khach: NHOM_KH, ds_khach_loc: function (ts) {
+      var dong = ts.tim ? [{ khach: 'KH-77', ten: 'Nguyễn Minh Anh', nhom: 'Sắp rời đi', lan_cuoi: '2025-03-02' }]
+        : [{ khach: 'KH-1', ten: 'Khách 1', nhom: 'Sắp rời đi' }, { khach: 'KH-2', ten: 'Khách 2', nhom: 'Sắp rời đi' }];
+      return { so: 312, mo_ta: 'nhóm Sắp rời đi', dong: dong };
+    } });
+    vm.runInNewContext('crmBlTim = ""; crmNhomChon = "Sắp rời đi";', m.g);
+    await m.g.scrCrmNhom();
+    bam(m, mot(m.khung, '[data-crmxemkh]'));
+    await choDen(function () { return sheet(m); });
+    bang('lần đầu không có chữ tìm', goiTen(m, 'ds_khach_loc')[0].ts, { loc: JSON.stringify({ nhom: ['Sắp rời đi'] }), so_dong: 30, tim: '' });
+    var o = m.tai.getElementById('crmXDsTim');
+    dung('có ô tìm trong tấm', !!o);
+    o.value = 'Minh Anh';
+    o.dispatchEvent(dg.suKien('change', {}, o));
+    await choDen(function () { return goiTen(m, 'ds_khach_loc').length > 1 && sheet(m) && mot(sheet(m), '[data-crmxkh="KH-77"]'); });
+    bang('tìm gửi máy chủ', goiTen(m, 'ds_khach_loc')[1].ts.tim, 'Minh Anh');
+    bang('chỉ một tấm mở', m.tai.body.children.length, 2);
+    dung('ra khách ngoài 30 khách đầu', !!mot(sheet(m), '[data-crmxkh="KH-77"]') && !mot(sheet(m), '[data-crmxkh="KH-1"]'));
+    dung('nói rõ đang tìm', chu(sheet(m)).indexOf('khớp chữ tìm 1 khách') >= 0);
+  });
+
+  await ca('Codex #505 v5: tấm Bộ lọc mới: món đã chọn hiện ảnh món; bỏ điều kiện món thì hết ảnh', async function () {
+    var m = dungMoi(QL, {});
+    m.g.crmSheetBoLoc(null, function () {});
+    m.g._mon = [{ ma: 'BANH-1', ten: 'Entremet', hinh: '/files/entremet.jpg' }];
+    bam(m, mot(sheet(m), '[data-crmblmon]'));
+    await choDen(function () { return mot(sheet(m), 'img'); });
+    var nut = mot(sheet(m), '[data-crmblmon]');
+    bang('ảnh món đã chọn', mot(nut, 'img').getAttribute('src'), '/files/entremet.jpg');
+    dung('tên món', chu(nut).indexOf('Entremet') >= 0);
+    bam(m, mot(sheet(m), '[data-crmblbomon]'));
+    dung('bỏ món: hết ảnh', !mot(sheet(m), 'img') && chu(mot(sheet(m), '[data-crmblmon]')).indexOf('Chọn món từ danh mục') >= 0);
+    m.g._mon = [{ ma: 'BANH-2', ten: 'Tart chanh' }];
+    bam(m, mot(sheet(m), '[data-crmblmon]'));
+    await choDen(function () { return chu(mot(sheet(m), '[data-crmblmon]')).indexOf('Tart chanh') >= 0; });
+    dung('món chưa có ảnh: ô 🍰', chu(mot(mot(sheet(m), '[data-crmblmon]'), '.immp')) === '🍰');
+  });
+
+  await ca('Codex #505 v5: Nhật ký liên hệ trong hồ sơ có Xem thêm, nối tiếp dòng cũ hơn', async function () {
+    var lh = function (tu, n) { var r = []; for (var i = 0; i < n; i++) r.push({ name: 'LH-' + (tu + i), kenh: 'Gọi điện', ket_qua: 'Quan tâm', ten_nguoi: 'Loan', luc: '2026-10-01 10:00:00' }); return r; };
+    var m = dungMoi(['Marketing'], { ho_so_crm: function (ts) {
+      var tu = +ts.lh_bat_dau || 0;
+      return Object.assign(JSON.parse(JSON.stringify(HS_CRM)), { lien_he: lh(tu, tu ? 5 : 20), lh_con_nua: tu ? 0 : 1 });
+    } });
+    await m.g.scrCrmHoSo('KH-7', 'Nguyễn Minh Anh');
+    await choDen(function () { return mot(m.khung, '[data-crmlhthem]'); });
+    bang('20 dòng đầu', m.khung.querySelectorAll('[data-crmlh]').length, 20);
+    bam(m, mot(m.khung, '[data-crmlhthem]'));
+    await choDen(function () { return goiTen(m, 'ho_so_crm').length > 1 && m.khung.querySelectorAll('[data-crmlh]').length > 20; });
+    bang('lấy tiếp từ dòng 20', goiTen(m, 'ho_so_crm')[1].ts, { khach: 'KH-7', lh_bat_dau: 20 });
+    bang('nối thêm', m.khung.querySelectorAll('[data-crmlh]').length, 25);
+    dung('hết thì không còn Xem thêm', !mot(m.khung, '[data-crmlhthem]'));
+  });
+
   console.log('\n' + ket.dat + ' ca đạt, ' + ket.hong + ' ca hỏng.');
   process.exit(ket.hong ? 1 : 0);
 })();
