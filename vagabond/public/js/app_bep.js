@@ -2444,7 +2444,12 @@ body{-webkit-text-size-adjust:100%;font-family:-apple-system,BlinkMacSystemFont,
    quy tac lop, nen chung khong he suy suyen. Xem them ham kmHangChip trong
    13-khuyen-mai.js: hai phien truoc da gap dung cai bay nay va tung
    nguoi tu boc mot lop div rieng de tranh. Nay chan mot lan cho tat ca. */
-.card{display:block;background:#fff;border-radius:16px;margin-bottom:12px;overflow:hidden;box-shadow:0 1px 3px rgba(20,25,40,.07)}
+.card{display:block;background:#fff;border-radius:16px;margin-bottom:12px;overflow:hidden;box-shadow:0 1px 3px rgba(20,25,40,.07);flex-direction:row}
+/* v617 (anh Việt 28/10/2026, ảnh màn Danh sách khách hàng): flex-direction:row
+   ở trên cũng là CÓ Ý. Bootstrap còn để lại flex-direction:column, nên thẻ nào
+   khai inline display:flex mà không ghi hướng (hàng tab Vận đơn, ô Đang xem và
+   Chi tiêu của Danh sách khách hàng) bị xếp DỌC từng dòng một. Trả về mặc định
+   của CSS là hàng ngang; thẻ cần cột đã tự khai flex-direction:column inline. */
 .fld{display:flex;align-items:center;gap:12px;padding:14px 14px;border-bottom:1px solid #f0f2f6;cursor:pointer;background:#fff}
 .fld:last-child{border-bottom:0}
 .fld:active{background:#f6f8fc}
@@ -2537,6 +2542,33 @@ body{-webkit-text-size-adjust:100%;font-family:-apple-system,BlinkMacSystemFont,
 .tw .lb{font-size:12px;color:#8a8f9c;margin-bottom:6px}
 .tin{width:100%;border:1.5px solid #dfe3ec;border-radius:12px;height:52px;font-size:20px;font-weight:700;text-align:center;background:#fff;color:#16181d;outline:0;font-family:inherit}
 .tin:focus{border-color:#0FB5CE}
+/* v617: ô TÌM dùng lại lớp .tin (ô nhập số tiền: chữ 20px đậm căn giữa), nên
+   chữ gợi ý to quá khổ và bị cắt (ảnh anh Việt 28/10/2026). Ô tìm thì chữ
+   thường, căn trái, vừa một dòng. */
+.tin[type=search],.tin.tim{font-size:15.5px;font-weight:500;text-align:left;padding:0 14px;height:46px}
+.tin[type=search]::placeholder,.tin.tim::placeholder{color:#98a2b3;font-weight:400}
+/* v617: hàng cuộn ngang (chip lọc, tab) không lộ thanh cuộn xám bên dưới. */
+.cuon-ngang{display:flex;gap:7px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:2px 0}
+.cuon-ngang::-webkit-scrollbar{display:none}
+/* v617: thanh tiến độ kiểu bước 1-2-3-4 dùng chung (hàm veBuoc ở 15-khuon-danh-sach.js). */
+.buoc{display:flex;align-items:flex-start;margin:6px 0 4px}
+.buoc .b{flex:1 1 0;display:flex;flex-direction:column;align-items:center;position:relative;min-width:0}
+.buoc .b:before{content:'';position:absolute;top:15px;right:50%;width:100%;height:3px;background:#e4e7ec}
+.buoc .b:first-child:before{display:none}
+.buoc .b.xong:before,.buoc .b.dang:before{background:#12a150}
+.buoc .so{width:32px;height:32px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;background:#fff;border:2px solid #d0d5dd;color:#98a2b3;position:relative;z-index:1}
+.buoc .xong .so{background:#12a150;border-color:#12a150;color:#fff}
+.buoc .dang .so{background:#0B7C93;border-color:#0B7C93;color:#fff;box-shadow:0 0 0 4px #d5f5fb}
+.buoc .loi .so{background:#d92d20;border-color:#d92d20;color:#fff}
+.buoc .t{font-size:13px;line-height:1.3;color:#667085;text-align:center;margin-top:6px;padding:0 2px;overflow-wrap:anywhere}
+.buoc .dang .t{color:#0B7C93;font-weight:700}
+.buoc .xong .t{color:#027a48}
+.buoc .loi .t{color:#b42318;font-weight:700}
+.buoc .n{font-size:13px;font-weight:800;color:#344054;margin-top:2px}
+/* v617: chip có ảnh (thẻ hạng thành viên): ảnh và chữ cùng một trục, ảnh
+   cao vừa chữ, không để chữ đậm to đè ảnh nhỏ. */
+.chip-anh{display:inline-flex;align-items:center;gap:7px}
+.chip-anh img{height:18px;width:29px;border-radius:3px;object-fit:cover;flex:none;background:#fff}
 .tch{display:flex;gap:7px;overflow-x:auto;padding-top:9px}
 .tch::-webkit-scrollbar{display:none}
 .tch span{flex:0 0 auto;border:1px solid #dfe3ec;border-radius:9px;padding:8px 13px;font-size:14px;background:#fff;cursor:pointer;font-weight:600;color:#4a5061}
@@ -3875,6 +3907,15 @@ function frame(title, bodyHtml, opt) {
     '<div class="vb" id="vgbBody">' + bodyHtml + '</div>' +
     (opt.footer ? '<div class="vf">' + opt.footer + '</div>' : '') +
     (opt.fab ? '<button class="fab" id="vgbFab">+</button>' : '');
+  /* v617: màn có thanh nút dưới đáy thì nhấc nút Trợ lý lên trên thanh đó.
+     Trước đây nút tròn nằm đè lên nút Lưu nháp của màn Chiến dịch và nút
+     Gộp tuyến của Vận đơn (ảnh chụp 28/10/2026). Nút đã kéo đi chỗ khác thì
+     giữ chỗ người dùng chọn (kiểu inline thắng lớp). */
+  try {
+    var vgbVf = root.querySelector('.vf');
+    document.body.classList.toggle('vgb-co-vf', !!vgbVf);
+    document.documentElement.style.setProperty('--vgb-vf', vgbVf ? vgbVf.offsetHeight + 'px' : '0px');
+  } catch (e) { }
   var b = document.getElementById('vgbBack'); if (b) b.onclick = back;
   var hb = document.getElementById('vgbHome'); if (hb) hb.onclick = function () {
     /* v596 Codex #480: nut nha cat ca chong, nen cung qua cua hoi chung. */
@@ -14408,6 +14449,18 @@ async function dsvVeThu(name) {
   o.innerHTML = s;
 }
 
+/* v617 (anh Việt 28/10: chỗ có tiến độ thì hiện thanh bước 1, 2, 3, 4). Bốn
+   bước của một đơn bán: Nhận đơn, Thanh toán (đã chọn phương thức), Ghi sổ,
+   Hoá đơn điện tử. Đơn huỷ dừng ở bước 2 tô đỏ. HĐĐT cần đối chiếu thì bước 4
+   tô đỏ. THUẦN: đọc đúng các ô của Sales Invoice, ca kiểm gọi thẳng. */
+function buocDonBan(d) {
+  d = d || {};
+  if (+d.vgb_huy) return { buoc: [{ ten: 'Nhận đơn' }, { ten: 'Đã huỷ', loi: true }], dang: 1 };
+  var b = [{ ten: 'Nhận đơn' }, { ten: 'Thanh toán' }, { ten: 'Ghi sổ' }, { ten: 'Hoá đơn điện tử', loi: +d.docstatus === 1 && !d.custom_hddt_so && !!d.vgb_hddt_cho_doi_chieu }];
+  var dang = +d.docstatus === 1 ? (d.custom_hddt_so ? 4 : 3) : (d.vgb_pt_thanh_toan ? 2 : 1);
+  return { buoc: b, dang: dang };
+}
+
 async function scrDsView(name, can) {
   frame('Chi tiết đơn', '<div class="emp"><div class="e1">⏳</div></div>');
   var d;
@@ -14426,6 +14479,8 @@ async function scrDsView(name, can) {
       : (!d.custom_hddt_so && d.docstatus === 1 && d.vgb_hddt_ngay_xuat
         ? '<div style="color:#92400e;font-size:13px">⏳ ' + hddtChoXuatChu(d.vgb_hddt_ngay_xuat) + ' · sổ vẫn giữ ngày bán</div>' : '')) +
     '</div>';
+  var bd = buocDonBan(d);
+  html += '<div class="card" data-dsbuoc="1" style="padding:12px 8px 10px">' + veBuoc(bd.buoc, bd.dang, 'Tiến độ đơn') + '</div>';
   /* Don cua ngay cu ma con nhap: luat ke toan bat xuat hoa don dien tu ngay
      trong ngay ban, nen don hom qua co truc trac thi phai keo sang hom nay
      roi moi ghi so duoc (chi Dung 12/08/2026). Chi quan ly va ke toan thay
@@ -17071,7 +17126,9 @@ function posChipNut(attr, chu, dangChon, laXoa, mau) {
   var vien = dangChon ? m : (laXoa ? '#fecaca' : '#d7dce5');
   var nen = dangChon ? m : '#fff';
   var chuMau = dangChon ? '#fff' : (laXoa ? '#b3261e' : '#374151');
-  return '<button ' + attr + ' style="border:1.5px solid ' + vien + ';background:' + nen +
+  /* v617: chip đang chọn mang data-chipchon để màn cuộn nó vào tầm nhìn
+     (hàng chip cuộn ngang không còn cắt mất chip đang chọn ở mép). */
+  return '<button ' + attr + (dangChon ? ' data-chipchon="1" aria-pressed="true"' : '') + ' style="border:1.5px solid ' + vien + ';background:' + nen +
     ';color:' + chuMau + ';border-radius:999px;padding:9px 15px;font-size:14px;font-weight:' +
     (dangChon ? '800' : '600') + ';cursor:pointer;white-space:nowrap;line-height:1.2">' + chu + '</button>';
 }
@@ -20331,7 +20388,56 @@ don con o ban nhap chua phai tien that.
 
 Hang do doctype "Vagabond Hang Khach" giu, khong nhet trong ma, nen anh
 Viet chot muc chi tieu luc nao thi sua o do la xong. */
-var khDang = '', khHang = '', khTim = '', khData = null;
+var khDang = '', khHang = '', khTim = '', khData = null, khDangGo = false;
+
+/* v617: chip hạng có ảnh thẻ, chữ và ảnh cùng một trục. THUẦN. */
+function khChipHang(hg) {
+  var anh = hg && hg.anh ? '<img src="' + h(hg.anh) + '" alt="" loading="lazy">' : '';
+  return '<span class="chip-anh">' + anh + h(hg.ten_hang) + (hg.giam_gia ? ' · −' + money(hg.giam_gia) + '%' : '') + '</span>';
+}
+
+/* v617: ô tổng đầu màn. Số khách, sỉ, lẻ, chi tiêu đều của ĐÚNG nhóm đang
+   lọc, do máy chủ đếm và cộng trên đủ nhóm (không cộng từ 200 dòng đã tải).
+   Hai cột nằm ngang (thẻ .card nay là hàng ngang, xem 00-nen.js). THUẦN. */
+function khTongHtml(kq) {
+  kq = kq || {};
+  return '<div class="card" data-khtong="1" style="padding:12px 14px;display:flex;gap:12px">' +
+    '<div style="flex:1;min-width:0"><div style="font-size:12.5px;color:#667085;font-weight:600">ĐANG XEM</div>' +
+    '<div style="font-size:20px;font-weight:800">' + money(kq.tong_so || 0) + ' khách</div>' +
+    '<div style="font-size:13px;color:#667085">' + money(kq.so_si || 0) + ' sỉ · ' + money(kq.so_le || 0) + ' lẻ</div></div>' +
+    '<div style="flex:1;min-width:0;border-left:1px solid #eef0f4;padding-left:12px"><div style="font-size:12.5px;color:#667085;font-weight:600">CHI TIÊU 12 THÁNG</div>' +
+    '<div style="font-size:20px;font-weight:800;color:#0f766e">' + money(kq.tong_tien || 0) + ' đ</div>' +
+    '<div style="font-size:13px;color:#667085">gồm chi tiêu cũ trên Fabi</div></div></div>';
+}
+
+/* v617: một dòng khách. Ảnh thẻ hạng đứng riêng bên trái (đúng tỉ lệ thẻ
+   1,586), tên hạng nằm trong chip ở hàng chip, chữ ít nhất 12,5px. Bản cũ
+   ghi tên hạng 8px dưới thẻ, đọc không được trên điện thoại. Khách chỉ có chi
+   tiêu cũ trên Fabi thì ghi rõ, không để "6.151.500 đ · 0 hoá đơn". THUẦN. */
+function khDongHtml(x, hg) {
+  var chip = function (nen, mau, vien, chu, them) {
+    return '<span style="background:' + nen + ';color:' + mau + ';border:1.5px ' + (vien || 'solid transparent') + ';border-radius:999px;padding:2px 9px;font-size:12.5px;line-height:1.35' + (them || '') + '">' + chu + '</span>';
+  };
+  var trai = hg && hg.anh
+    ? '<img src="' + h(hg.anh) + '" alt="' + h(hg.ten_hang) + '" loading="lazy" style="width:60px;aspect-ratio:1.586;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;flex:none;background:#f2f4f7">'
+    : '<span style="width:44px;height:44px;flex:none;border-radius:12px;background:' + (x.si ? '#eef2ff' : '#f0fdfa') + ';display:flex;align-items:center;justify-content:center;font-size:20px">' + (x.si ? '🏢' : '🧍') + '</span>';
+  var duoi = x.so_don ? money(x.so_don) + ' hoá đơn'
+    : (x.tieu_cu ? 'chi tiêu cũ Fabi' : 'chưa mua 12 tháng');
+  return '<div data-khx="' + h(x.ma) + '" style="display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid #f2f4f7;cursor:pointer">' + trai +
+    '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + h(x.ten) + '</div>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:5px">' +
+    (hg ? chip('#fef3c7', '#92400e', 'solid #fcd34d', h(hg.ten_hang) + (hg.giam_gia ? ' · giảm ' + money(hg.giam_gia) + '%' : ''), ';font-weight:800')
+      : chip('#f6f7f9', '#667085', 'dashed #d7dce5', 'chưa xếp hạng')) +
+    /* Ma khach hien ngay tren dong (anh Viet 11/08/2026): tra cuu, doi chieu
+       voi phieu giay va goi dien cho nhau deu can doc ma. */
+    chip('#f1f5f9', '#475569', 'solid #e2e8f0', h(x.ma), ';font-family:ui-monospace,monospace') +
+    (x.mst ? chip('#eef2ff', '#3730a3', '', 'MST ' + h(x.mst)) : '') +
+    (x.dt ? chip('#f0fdfa', '#0f766e', '', h(x.dt)) : '') +
+    '</div></div>' +
+    '<div style="text-align:right;flex:none"><b style="font-size:15px">' + money(x.tien) + ' đ</b>' +
+    '<div style="font-size:12.5px;color:#667085">' + duoi + '</div></div>' +
+    '<span style="color:#c3c8d4;font-size:18px">›</span></div>';
+}
 
 async function scrKhachHang() {
   frame('Danh sách khách hàng', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc danh mục khách...</div></div>');
@@ -20347,45 +20453,35 @@ async function scrKhachHang() {
   var all = (kq && kq.khach) || [], hangs = (kh && kh.hang) || [];
 
   var DANG = [
-    { k: '', nhan: 'Tất cả', loc: function () { return true; } },
-    { k: 'si', nhan: '🏢 Khách sỉ', loc: function (x) { return !!x.si; } },
-    { k: 'le', nhan: '🧍 Khách lẻ', loc: function (x) { return !x.si; } }
+    { k: '', nhan: 'Tất cả' },
+    { k: 'si', nhan: '🏢 Khách sỉ' },
+    { k: 'le', nhan: '🧍 Khách lẻ' }
   ];
-  var HANG = [{ k: '', nhan: 'Mọi hạng', loc: function () { return true; } }];
+  var HANG = [{ k: '', nhan: 'Mọi hạng' }];
   hangs.forEach(function (hg) {
-    HANG.push({
-      k: hg.name,
-      /* Anh the hang ngay tren chip loc: nhin mau nen la biet hang nao,
-         khong phai doc ten (anh Viet 12/08/2026). */
-      nhan: hangChipAnh(hg, 14) + h(hg.ten_hang) + (hg.giam_gia ? ' −' + money(hg.giam_gia) + '%' : ''),
-      loc: function (x) { return x.hang === hg.name; }
-    });
+    /* Anh the hang ngay tren chip loc: nhin mau nen la biet hang nao, khong
+       phai doc ten (anh Viet 12/08/2026). v617: anh va chu cung mot truc
+       (.chip-anh), anh cao vua chu, khong de chu dam to de anh nho. */
+    HANG.push({ k: hg.name, nhan: khChipHang(hg) });
   });
-  HANG.push({ k: '_chua', nhan: '· Chưa xếp hạng', loc: function (x) { return !x.hang; } });
+  HANG.push({ k: '_chua', nhan: 'Chưa xếp hạng' });
 
   var fD = locTim(DANG, khDang); khDang = fD.k;
   var fH = locTim(HANG, khHang); khHang = fH.k;
-  /* May chu da loc san theo dang va hang roi (khong the loc o day duoc vi
-     danh muc hon 1500 khach, chi tai ve mot phan). */
+  /* May chu da loc, xep "chi nhieu nhat len dau" va cong dong tong tren DU
+     nhom dang loc (v617). Man chi hien, khong tu cong lai tu 200 dong da tai. */
   var ds = all;
-  var tong = ds.reduce(function (t, x) { return t + x.tien; }, 0);
-
-  var html = '<div class="card" style="padding:12px 14px;display:flex;gap:10px">' +
-    '<div style="flex:1"><div style="font-size:12px;color:#98a2b3">ĐANG XEM</div>' +
-    '<div style="font-size:19px;font-weight:800">' + (kq.tong_so || ds.length) + ' khách</div>' +
-    '<div style="font-size:12px;color:#98a2b3">' + kq.so_si + ' sỉ · ' + kq.so_le + ' lẻ</div></div>' +
-    '<div style="flex:1;border-left:1px solid #eef0f4;padding-left:10px"><div style="font-size:12px;color:#98a2b3">CHI TIÊU 12 THÁNG</div>' +
-    '<div style="font-size:19px;font-weight:800;color:#0f766e">' + money(tong) + ' đ</div></div></div>';
+  var html = khTongHtml(kq);
 
   html += '<div class="card" style="padding:10px 12px">' +
-    '<input class="tin" id="khO" placeholder="Tìm theo tên, mã, mã số thuế, số điện thoại..." value="' + h(khTim) + '" style="margin-bottom:8px"></div>';
-  var chipHang = function (ds2, chon, attr) {
-    return '<div style="flex:0 0 auto;display:flex;gap:7px;padding:2px 0;overflow-x:auto;-webkit-overflow-scrolling:touch">' +
-      ds2.map(function (c) { return posChipNut(attr + '="' + h(c.k) + '"', c.nhan, c.k === chon); }).join('') + '</div>';
+    '<input class="tin tim" id="khO" type="search" enterkeyhint="search" placeholder="🔎 Tìm tên, mã khách, MST, số điện thoại" value="' + h(khTim) + '"></div>';
+  var chipHang = function (ds2, chon, attr, mau) {
+    return '<div class="cuon-ngang" data-khhang="' + attr + '">' +
+      ds2.map(function (c) { return posChipNut(attr + '="' + h(c.k) + '"', c.nhan, c.k === chon, false, mau); }).join('') + '</div>';
   };
-  html += '<div class="card" style="padding:10px 12px;display:flex;flex-direction:column;gap:7px">' +
+  html += '<div class="card" style="padding:10px 12px;display:flex;flex-direction:column;gap:8px">' +
     chipHang(DANG, khDang, 'data-khd') +
-    chipHang(HANG, khHang, 'data-khh') + '</div>';
+    chipHang(HANG, khHang, 'data-khh', '#92400e') + '</div>';
 
   if (!hangs.length) {
     html += '<div class="card" style="padding:12px 14px;background:#fffbeb;border:1.5px solid #fcd34d;font-size:13px;color:#92400e">' +
@@ -20396,51 +20492,29 @@ async function scrKhachHang() {
   if (!ds.length) html += '<div class="emp" style="padding:24px"><div class="e1">🔍</div><div>Không có khách nào thuộc nhóm này.</div></div>';
   ds.slice(0, 200).forEach(function (x) {
     var hg = hangs.filter(function (y) { return y.name === x.hang; })[0];
-    html += '<div data-khx="' + h(x.ma) + '" style="display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid #f6f7f9;cursor:pointer">' +
-      /* Anh the to han va dung ti le the (1.586:1), ten hang nam DUOI the
-         chu khong nhet chung mot chip (anh Viet 13/08/2026). Chip cu chi
-         hien duoc mot lat cat 14px cua the nen nhin nhu bi lech. */
-      (hg && hg.anh
-        /* 68px chu khong phai 62: ten hang dai nhat la VAGABONDER, o 62px
-           thi bi cat thanh "VAGABOND..." (thay khi chay that 13/08/2026). */
-        ? '<div style="width:68px;flex:none;text-align:center">' +
-          '<img src="' + h(hg.anh) + '" alt="" loading="lazy" style="width:68px;aspect-ratio:1.586;object-fit:cover;border-radius:5px;border:1px solid #e5e7eb;display:block;background:#f2f4f7">' +
-          '<div style="font-size:8px;font-weight:800;color:#92400e;margin-top:3px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + h(hg.ten_hang) + '</div></div>'
-        : '<span style="width:38px;height:38px;flex:none;border-radius:10px;background:' + (x.si ? '#eef2ff' : '#f0fdfa') + ';display:flex;align-items:center;justify-content:center;font-size:18px">' + (x.si ? '🏢' : '🧍') + '</span>') +
-      '<div style="flex:1;min-width:0"><div style="font-size:14.5px;font-weight:600">' + h(x.ten) + '</div>' +
-      '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px">' +
-      (hg
-        ? (hg.anh
-          /* The da hien ten hang roi, o day chi con nhac quyen loi giam
-             gia - lap lai ten hang lan nua la thua cho tren dong hep. */
-          ? (hg.giam_gia
-            ? '<span style="background:#fef3c7;color:#92400e;border:1.5px solid #fcd34d;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:800">giảm ' + money(hg.giam_gia) + '%</span>'
-            : '')
-          : '<span style="display:inline-flex;align-items:center;background:#fef3c7;color:#92400e;border:1.5px solid #fcd34d;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:800">' + h(hg.ten_hang) + (hg.giam_gia ? ' · −' + money(hg.giam_gia) + '%' : '') + '</span>')
-        : '<span style="background:#f6f7f9;color:#98a2b3;border:1.5px dashed #d7dce5;border-radius:999px;padding:2px 9px;font-size:11.5px">chưa xếp hạng</span>') +
-      /* Ma khach hien ngay tren dong (anh Viet 11/08/2026): tra cuu, doi
-         chieu voi phieu giay va goi dien cho nhau deu can doc ma. */
-      '<span style="background:#f1f5f9;color:#475569;border:1.5px solid #e2e8f0;border-radius:999px;padding:2px 9px;font-size:11.5px;font-family:ui-monospace,monospace">' + h(x.ma) + '</span>' +
-      (x.mst ? '<span style="background:#eef2ff;color:#3730a3;border-radius:999px;padding:2px 9px;font-size:11.5px">MST ' + h(x.mst) + '</span>' : '') +
-      (x.dt ? '<span style="background:#f0fdfa;color:#0f766e;border-radius:999px;padding:2px 9px;font-size:11.5px">' + h(x.dt) + '</span>' : '') +
-      '</div></div>' +
-      '<div style="text-align:right;flex:none"><b style="font-size:14.5px">' + money(x.tien) + ' đ</b>' +
-      '<div style="font-size:11.5px;color:#98a2b3">' + x.so_don + ' hoá đơn</div></div>' +
-      '<span style="color:#c3c8d4;font-size:18px">›</span></div>';
+    html += khDongHtml(x, hg);
   });
   var conLai = Math.max(0, (kq.tong_so || ds.length) - Math.min(ds.length, 200));
-  if (conLai) html += '<div style="padding:10px 0;text-align:center;font-size:12.5px;color:#98a2b3">Nhóm này có <b>' + (kq.tong_so || ds.length) + ' khách</b>, đang hiện ' + Math.min(ds.length, 200) + '. Gõ tìm để ra đúng khách cần.</div>';
+  if (conLai) html += '<div style="padding:10px 0;text-align:center;font-size:13px;color:#667085">Nhóm này có <b>' + money(kq.tong_so || ds.length) + ' khách</b>, đang hiện ' + Math.min(ds.length, 200) + ' khách chi nhiều nhất. Gõ tìm để ra đúng khách cần.</div>';
   html += '</div>';
 
   var b = frame('Danh sách khách hàng', html);
   var o = document.getElementById('khO');
   if (o) {
+    /* v617: vẽ lại sau khi gõ tìm thì ô tìm giữ con trỏ, gõ tiếp được ngay,
+       không phải chạm lại vào ô sau mỗi lần dừng tay. */
+    if (khDangGo) { khDangGo = false; try { o.focus(); o.setSelectionRange(o.value.length, o.value.length); } catch (e) { } }
     var tre = null;
     o.oninput = function () {
       if (tre) clearTimeout(tre);
-      tre = setTimeout(function () { khTim = o.value; go(scrKhachHang, true); }, 320);
+      tre = setTimeout(function () { khTim = o.value; khDangGo = true; go(scrKhachHang, true); }, 320);
     };
   }
+  /* v617: chip đang chọn luôn nằm trong tầm nhìn, không bị cắt mép trái. */
+  b.querySelectorAll('.cuon-ngang').forEach(function (hang) {
+    var on = hang.querySelector('[data-chipchon="1"]');
+    if (on && on.scrollIntoView) { try { on.scrollIntoView({ block: 'nearest', inline: 'center' }); } catch (e) { } }
+  });
   b.onclick = function (e) {
     var t = e.target.closest('[data-khd]');
     if (t) { khDang = t.getAttribute('data-khd'); return go(scrKhachHang, true); }
@@ -25244,7 +25318,9 @@ async function scrVanDon() {
     nutF.push('<button class="btn gh" id="vdIn" style="flex:1">🖨️ In đơn</button>');
     if (vdLaShipper() && !isSales()) nutF.push('<button class="btn gh" id="vdDuong" style="flex:1">🗺️ Chỉ đường</button>');
     if (isSales() || vdLaKeToan()) nutF.push('<button class="btn gh" id="vdCod" style="flex:1">💵 Đối soát COD</button>');
-    if (nutF.length) foot = '<div style="display:flex;gap:8px">' + nutF.join('') + '</div>';
+    /* v617: từ 4 nút trở lên xếp lưới 2 cột, chữ trên nút không bị bẻ đôi
+       ("Gộp / chuyến", "Đối / soát / COD" ở ảnh chụp 28/10/2026). */
+    if (nutF.length) foot = '<div style="display:' + (nutF.length > 3 ? 'grid;grid-template-columns:1fr 1fr' : 'flex') + ';gap:8px">' + nutF.join('') + '</div>';
   }
   var b = frame('Vận đơn', html, Object.assign({ action: '➕', onAction: function () { go(scrVdTao); } }, foot ? { footer: foot } : {}));
   var di = document.getElementById('vdDate');
@@ -25479,7 +25555,10 @@ async function scrVdView(name) {
   var d;
   try { d = await api('frappe.client.get', { doctype: 'Van Don', name: name }); if (!vtShipper) { try { vtShipper = await api('vagabond.van_don.ds_shipper'); } catch (e11) { vtShipper = []; } } await vdNapDiem(); }
   catch (e) { frame('Chi tiết vận đơn', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không đọc được') + '</div></div>'); return; }
-  var html = '<div class="card" style="padding:12px 14px;line-height:1.7">' +
+  /* v617: thanh tiến độ 1-2-3-4 của vận đơn, ngay đầu màn (anh Việt 28/10/2026). */
+  var vdB = buocVanDon(d);
+  var html = '<div class="card" data-vdbuoc="1" style="padding:12px 10px 10px">' + veBuoc(vdB.buoc, vdB.hienTai, 'Tiến độ vận đơn') + '</div>' +
+    '<div class="card" style="padding:12px 14px;line-height:1.7">' +
     '<div style="display:flex;justify-content:space-between"><b>' + (d.ma_don ? '#' + h(d.ma_don) : h(d.name)) + '</b><span>' + h(d.trang_thai) + '</span></div>' +
     '<div>' + h(d.khach || 'Khách lẻ') + (d.sdt ? ' · <a href="tel:' + h(d.sdt) + '">' + h(d.sdt) + '</a>' : '') + '</div>' +
     (d.la_dieu_chuyen
@@ -25989,7 +26068,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '615';
+var APPVER = '617';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -26610,6 +26689,24 @@ function vdHuyHieu(r) {
   if (!t.length) return '';
   return '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:5px">' + t.join('') + '</div>';
 }
+/* v617: các bước của một vận đơn cho thanh tiến độ. THUẦN.
+   Giao tận nơi: Tạo vận đơn → Phân công → Đang giao → Đã giao.
+   Khách tự lấy: Tạo vận đơn → Chờ khách lấy → Khách đã lấy.
+   Không giao được: bước Đang giao đỏ. Huỷ: bước Đã huỷ đỏ. */
+function buocVanDon(d) {
+  d = d || {};
+  var tt = d.trang_thai || 'Chờ giao';
+  if (tt === 'Huỷ') return { buoc: [{ ten: 'Tạo vận đơn' }, { ten: 'Đã huỷ', loi: 1 }], hienTai: 1 };
+  if (tt === 'Chờ khách lấy' || (d.kenh === 'Khách tự lấy' && tt !== 'Không giao được')) {
+    return { buoc: [{ ten: 'Tạo vận đơn' }, { ten: 'Chờ khách lấy' }, { ten: 'Khách đã lấy' }],
+      hienTai: tt === 'Đã giao' ? 3 : 1 };
+  }
+  var buoc = [{ ten: 'Tạo vận đơn' }, { ten: 'Phân công' }, { ten: 'Đang giao' }, { ten: 'Đã giao' }];
+  if (tt === 'Đã giao') return { buoc: buoc, hienTai: 4 };
+  if (tt === 'Không giao được') { buoc[2] = { ten: 'Không giao được', loi: 1 }; return { buoc: buoc, hienTai: 2 }; }
+  if (tt === 'Đang giao' || d.shipper || d.booking_id) return { buoc: buoc, hienTai: 2 };
+  return { buoc: buoc, hienTai: 1 };
+}
 function vdChip(id, nhan, dang) {
   return '<button class="btn gh" id="' + id + '" style="flex:0 0 auto;width:auto;padding:6px 12px;font-size:13px' + (dang ? ';background:#0f766e;color:#fff;border-color:#0f766e' : '') + '">' + nhan + '</button>';
 }
@@ -26680,7 +26777,8 @@ function vdTabHtml(ds) {
       ' <span style="background:' + (on ? t.mau : '#e5e7eb') + ';color:' + (on ? '#fff' : '#4b5563') +
       ';border-radius:999px;padding:1px 7px;font-size:11.5px;font-weight:700">' + n + '</span></button>';
   }).join('');
-  return '<div class="card" style="padding:0 4px;display:flex;gap:2px;overflow-x:auto;-webkit-overflow-scrolling:touch">' + ra + '</div>';
+  /* v617: cuon-ngang: hàng tab nằm NGANG và không lộ thanh cuộn (xem .card ở 00-nen.js). */
+  return '<div class="card cuon-ngang" data-vdtabs="1" style="padding:0 4px;display:flex;flex-direction:row;gap:2px;overflow-x:auto;-webkit-overflow-scrolling:touch">' + ra + '</div>';
 }
 
 /* ---------- Ô tìm nhanh ----------
@@ -30176,6 +30274,27 @@ function dsccHang(ho, ds, dem, chon, tatCa, mau) {
       (x.ic ? x.ic + ' ' : '') + h(x.ten) + so(x.k), chon === x.k, false, mau));
   });
   return ra.length ? kmHangChip(ra.join('')) : '';
+}
+
+/* v617: thanh tiến độ kiểu bước 1-2-3-4 dùng chung (anh Việt 28/10/2026:
+   "phần Sales làm việc hay những chỗ có tiến độ thì phải hiển thị thanh tiến
+   độ kiểu 1, 2, 3, 4").
+
+   buoc: [{ ten, n (số đếm, tuỳ), loi (bước hỏng, tuỳ) }]. hienTai: chỉ số bước
+   đang ở; các bước trước là xong, bước sau là chờ. hienTai >= số bước thì mọi
+   bước đã xong. Mỗi màn có một hàm THUẦN tính hienTai (buocChienDich,
+   buocVanDon, buocGoi...) để ca kiểm gọi thẳng. */
+function veBuoc(buoc, hienTai, nhan) {
+  buoc = buoc || [];
+  var i0 = Math.max(0, Math.min(buoc.length, +hienTai || 0));
+  return '<div class="buoc" role="list" data-buoc="' + i0 + '"' + (nhan ? ' aria-label="' + h(nhan) + '"' : '') + '>' +
+    buoc.map(function (b, i) {
+      var tt = b.loi ? 'loi' : i < i0 ? 'xong' : i === i0 ? 'dang' : 'cho';
+      return '<div class="b ' + tt + '" role="listitem" data-buocso="' + (i + 1) + '"' + (i === i0 ? ' aria-current="step"' : '') + '>' +
+        '<span class="so">' + (tt === 'xong' ? '✓' : tt === 'loi' ? '!' : (i + 1)) + '</span>' +
+        '<span class="t">' + h(b.ten) + '</span>' +
+        (b.n != null ? '<span class="n">' + money(b.n) + '</span>' : '') + '</div>';
+    }).join('') + '</div>';
 }
 
 function dsCongCu(c) {
@@ -50749,6 +50868,8 @@ function tlCss() {
     'display:flex;align-items:center;justify-content:center;z-index:12;' +
     'touch-action:none;user-select:none;-webkit-user-select:none}' +
     '#tlNut.keo{cursor:grabbing;opacity:.85;transform:scale(1.08)}' +
+    /* v617: màn có thanh nút đáy (.vf) thì nút đứng TRÊN thanh đó, không đè nút. */
+    'body.vgb-co-vf #tlNut{bottom:calc(env(safe-area-inset-bottom,0px) + var(--vgb-vf,0px) + 12px)}' +
     '#tlNen{position:fixed;inset:0;background:rgba(5,50,60,.42);z-index:13;display:none}' +
     '#tlKhung{position:fixed;left:0;right:0;bottom:0;max-height:82vh;background:#fff;' +
     'border-radius:18px 18px 0 0;z-index:14;display:none;flex-direction:column;' +
@@ -62140,7 +62261,11 @@ function crmCoLap() { return CRM_LAP.some(function (v) { return hasRole(v); }); 
 /* Sáu nhóm, đúng chữ lưu ở máy chủ (crm.NHOM). */
 var CRM_NHOM = ['Trung thành', 'Mới', 'Sắp rời đi', 'Đã ngủ', 'Chỉ mua dịp lễ', 'Chưa mua'];
 var CRM_KENH = ['Zalo', 'Gọi điện', 'Email'];
-var CRM_IC_KENH = { 'Zalo': '💬', 'Gọi điện': '📞', 'Email': '✉️' };
+var CRM_IC_KENH = { 'Zalo': '💬', 'Gọi điện': '📞', 'Email': '✉️', 'Zalo OA': '💠' };
+/* v617: nơi ghi đồng ý, đúng chữ máy chủ (crm.NOI_GHI), kèm biểu tượng cho chip. */
+var CRM_NOI_GHI = [['Quầy', '🏪'], ['Web', '🌐'], ['Zalo OA', '💠'], ['Sales gọi', '📞'], ['Hồ sơ khách', '👤'], ['Desk', '🖥']];
+/* Năm bước của chiến dịch, đúng crm.BUOC_CD (ca kiểm chốt). */
+var CRM_BUOC_CD = ['Soạn nháp', 'Duyệt nội dung', 'Chốt danh sách', 'Đang liên hệ', 'Kết thúc'];
 var CRM_TT_GOI = ['Chưa gọi', 'Hẹn gọi lại', 'Đã xong'];
 
 function crmNgay(s) {
@@ -62176,6 +62301,16 @@ function crmMoSheet(html) {
   return ov;
 }
 /* Công tắc bật tắt (skill thiết kế: bật tắt dùng công tắc, không hộp tích). */
+/* v617 (anh Việt 28/10: chữ lệch tỷ lệ với ô): mọi nút mở hộp chọn trong phân
+   hệ dùng chung một khuôn: rộng hết dòng, chữ trái 15px đậm vừa, cao 48, mũi
+   tên phải. Trước đây mỗi nút một cỡ chữ, một độ cao. */
+function crmNutChon(attr, ic, chu, dis, phu) {
+  return '<button type="button" class="btn gh" ' + attr + (dis ? ' disabled' : '') + ' style="margin:0;padding:10px 14px;min-height:48px;' +
+    'display:flex;align-items:center;gap:10px;text-align:left;font-size:15px;font-weight:600;line-height:1.3">' +
+    '<span style="flex:0 0 auto;font-size:18px">' + ic + '</span><span style="flex:1;min-width:0">' + chu +
+    (phu ? '<span style="display:block;font-size:12.5px;font-weight:500;color:#667085;margin-top:2px">' + phu + '</span>' : '') + '</span>' +
+    (dis ? '' : '<span style="flex:0 0 auto;color:#98a2b3;font-size:20px">&#8250;</span>') + '</button>';
+}
 function crmCongTac(attr, bat) {
   return '<button type="button" role="switch" ' + attr + ' aria-checked="' + (bat ? 'true' : 'false') + '" style="flex:0 0 50px;width:50px;height:30px;' +
     'border-radius:15px;border:0;padding:0;position:relative;cursor:pointer;background:' + (bat ? '#12a150' : '#d0d5dd') + '">' +
@@ -62211,11 +62346,20 @@ function crmSheetDongY(khach, tenKhach, dangCo, noiGhi, xong) {
       (dangCo[k] === 'Từ chối' ? ' <span style="font-size:12px;color:#b42318;margin-left:6px">đang từ chối</span>' : '') +
       '<span style="flex:1"></span>' + crmCongTac('data-crmsw="' + h(k) + '"', bat[k]) + '</div>';
   });
+  /* v617: mời quan tâm Zalo OA. Khách quét mã, quan tâm OA rồi chia sẻ số là
+     máy tự ghi đồng ý Zalo (nơi ghi Zalo OA), không cần bật tay ở đây. */
+  if (dangCo.oa_link) {
+    html += '<div data-crmoamoi="1" style="display:flex;gap:12px;align-items:center;background:#f3fcfe;border:1px solid #c6f1f9;border-radius:14px;padding:10px 12px;margin-top:12px">' +
+      '<img data-crmoaqr="1" alt="Mã QR quan tâm Zalo OA" style="width:96px;height:96px;flex:0 0 96px;background:#fff;border-radius:8px">' +
+      '<div style="font-size:13px;line-height:1.45;color:#344054"><b>💠 Mời quan tâm Zalo OA</b><br>Khách quét mã, bấm Quan tâm rồi chia sẻ số điện thoại: máy tự ghi đồng ý nhận tin Zalo và nối đúng hồ sơ.</div></div>';
+  }
   html += '<div style="display:flex;gap:10px;margin-top:14px">' +
     '<button class="btn gh" data-crmtuchoi="1" style="margin:0;flex:1">Khách từ chối hết</button>' +
     '<button class="btn" data-crmluu="1" style="margin:0;flex:1">Lưu</button></div>' +
     '<div style="font-size:12.5px;color:#8a8f9c;text-align:center;margin-top:12px">Bấm ra ngoài để bỏ qua: khách vẫn là "chưa hỏi"</div>';
   var ov = crmMoSheet(html);
+  var qr = ov.querySelector('[data-crmoaqr]');
+  if (qr && typeof inQrAnh === 'function') inQrAnh(dangCo.oa_link).then(function (src) { if (src) qr.setAttribute('src', src); });
   ov.querySelectorAll('[data-crmsw]').forEach(function (n) {
     n.onclick = function () { var k = n.getAttribute('data-crmsw'); bat[k] = !bat[k]; crmDatCongTac(n, bat[k]); };
   });
@@ -62278,7 +62422,7 @@ async function crmGanHoSo(khach, tenKhach) {
       return;
     }
     if (e.target.closest('[data-crmhsdy]')) {
-      var dy = Object.assign({ cau_hoi: '' }, d.dong_y);
+      var dy = Object.assign({ cau_hoi: '', oa_link: d.oa_link || '' }, d.dong_y);
       return crmSheetDongY(khach, tenKhach, dy, 'Hồ sơ khách', function () { crmGanHoSo(khach, tenKhach); });
     }
     if (e.target.closest('[data-crmhslh]')) return crmSheetLienHe(khach, function () { crmGanHoSo(khach, tenKhach); });
@@ -62293,6 +62437,7 @@ function crmVeHoSo(d) {
     '<div style="font-size:12.5px;color:#8a8f9c;margin:0 0 8px">' + h(d.giai_thich_nhom || '') +
     (d.nhip_ngay ? ' · nhịp mua khoảng ' + d.nhip_ngay + ' ngày' : '') + '</div>' +
     '<div>' + CRM_KENH.map(function (k) { return crmTagDy(k, d.dong_y[k]); }).join('') +
+    (+d.oa ? crmTag('💠 Đang quan tâm Zalo OA', 'lam') : '') +
     (d.khong_quang_cao ? crmTag('Danh sách không quảng cáo', 'do') : '') + '</div>' +
     '<div style="display:flex;gap:8px;margin-top:6px">' +
     '<button class="btn gh" data-crmhsdy="1" style="margin:0;flex:1;padding:12px">✅ Đồng ý nhận tin</button>' +
@@ -62422,8 +62567,9 @@ async function scrCrmGoi(daCo) {
   var cd = {}, dsCd = [];
   ds.forEach(function (r) {
     var c = cd[r.chien_dich];
-    if (!c) { c = cd[r.chien_dich] = { ten: r.ten_chien_dich, tong: 0, xong: 0, kich_ban: r.kich_ban }; dsCd.push(r.chien_dich); }
+    if (!c) { c = cd[r.chien_dich] = { ten: r.ten_chien_dich, tong: 0, xong: 0, kich_ban: r.kich_ban, tt: {} }; dsCd.push(r.chien_dich); }
     c.tong++; if (r.trang_thai !== 'Chưa gọi') c.xong++;
+    c.tt[r.trang_thai] = (c.tt[r.trang_thai] || 0) + 1;
   });
   var html = '';
   dsCd.forEach(function (k) {
@@ -62433,6 +62579,8 @@ async function scrCrmGoi(daCo) {
       '<span>' + h(c.ten) + '</span><b>Đã gọi ' + c.xong + ' / ' + c.tong + '</b></div>' +
       '<div style="height:8px;background:#f0f2f6;border-radius:4px;overflow:hidden;margin-top:6px"><i style="display:block;height:100%;background:#50DBF2;width:' +
       Math.round(c.xong * 100 / c.tong) + '%"></i></div>' +
+      /* v617: thanh bước 1-2-3 có đếm (anh Việt: chỗ có tiến độ thì hiện bước). */
+      veBuoc(crmBuocGoi(c.tt), crmBuocGoiDang(c.tt), 'Tiến độ gọi ' + c.ten) +
       (c.kich_ban ? '<button class="btn gh" data-crmkb="' + h(k) + '" style="margin:10px 0 0;padding:10px;font-size:14px">📜 Xem kịch bản gọi</button>' : '') + '</div>';
   });
   /* Thanh công cụ chung (AGENTS 2b.3, 2b.5): chip trạng thái có đếm, chip
@@ -62473,6 +62621,20 @@ async function scrCrmGoi(daCo) {
     if (ten) { var rr = crmGoiDs.filter(function (x) { return x.khach === ten.getAttribute('data-crmmohs'); })[0] || {};
       return crmMoHoSo(ten.getAttribute('data-crmmohs'), rr.ten_khach); }
   };
+}
+
+/* Ba bước của danh sách gọi, có đếm từng bước. THUẦN. */
+function crmBuocGoi(tt) {
+  tt = tt || {};
+  return CRM_TT_GOI.map(function (k) { return { ten: k, n: tt[k] || 0 }; });
+}
+/* Đang ở bước nào: còn khách Chưa gọi là bước 1, hết rồi mà còn Hẹn gọi lại là
+   bước 2, không còn ai thì xong hết (3 bước tô xanh). THUẦN. */
+function crmBuocGoiDang(tt) {
+  tt = tt || {};
+  if (tt['Chưa gọi']) return 0;
+  if (tt['Hẹn gọi lại']) return 1;
+  return CRM_TT_GOI.length;
 }
 
 function crmGoiDong(r) {
@@ -62744,7 +62906,7 @@ var crmDyLoc = '';
 /* Codex PR #505 vòng 2: sổ chỉ trả 100 dòng mới nhất, không tìm được bằng
    chứng của một khách cũ. Ô tìm hỏi máy chủ (tên, mã, một phần số điện thoại),
    nút Xem thêm lấy tiếp các dòng cũ hơn. */
-var crmDyTim = '', crmDyDong = [], crmDyCon = 0;
+var crmDyTim = '', crmDyDong = [], crmDyCon = 0, crmDyNoi = '', crmDyKenh = '';
 
 async function scrCrmDongY(them) {
   var tieuDe = 'Sổ đồng ý nhận tin';
@@ -62753,7 +62915,7 @@ async function scrCrmDongY(them) {
   if (bat) busy(true);
   else frame(tieuDe, '<div class="emp"><div class="e1">⏳</div><div>Đang đọc sổ đồng ý...</div></div>');
   var d;
-  try { d = await api('vagabond.crm.so_dong_y', { trang_thai: crmDyLoc, tim: crmDyTim, bat_dau: bat }); }
+  try { d = await api('vagabond.crm.so_dong_y', { trang_thai: crmDyLoc, tim: crmDyTim, bat_dau: bat, noi_ghi: crmDyNoi, kenh: crmDyKenh }); }
   catch (e) {
     if (bat) { busy(false); return toast(errMsg(e), 5000); }
     return frame(tieuDe, crmTrong('⚠️', h(errMsg(e))));
@@ -62771,9 +62933,16 @@ async function scrCrmDongY(them) {
       '<b style="color:#b42318">' + money(t['Từ chối'] || 0) + ' từ chối</b> · ' + money(t['Chưa hỏi'] || 0) + ' chưa hỏi</span></div>';
   });
   html += '<div style="display:flex;justify-content:space-between;padding:10px 0;font-size:14.5px"><span>🚫 Danh sách không quảng cáo</span><b>' + money(d.khong_quang_cao) + ' số</b></div></div>';
+  /* v617: chip lọc theo kênh và theo nơi ghi (quầy, web, Zalo OA...), có đếm. */
   var cc = {
     ma: 'crmDy',
     chang: { ds: [{ k: 'Đồng ý', ten: 'Đồng ý' }, { k: 'Từ chối', ten: 'Từ chối' }], dem: null, chon: crmDyLoc, tatCa: 'Tất cả' },
+    ho: [
+      { k: 'kenh', tatCa: 'Mọi kênh', chon: crmDyKenh, dem: null, mau: '#0B7C93',
+        ds: CRM_KENH.map(function (k) { return { k: k, ten: CRM_IC_KENH[k] + ' ' + k }; }) },
+      { k: 'noi', tatCa: 'Mọi nơi ghi', chon: crmDyNoi, dem: d.theo_noi || null,
+        ds: CRM_NOI_GHI.map(function (x) { return { k: x[0], ten: x[1] + ' ' + x[0] }; }) }
+    ],
     tim: { gt: crmDyTim, goiY: '🔎 Tìm tên khách, mã khách, số điện thoại' }
   };
   html += dsCongCu(cc);
@@ -62783,13 +62952,14 @@ async function scrCrmDongY(them) {
     return '<div data-crmdykh="' + h(r.khach) + '" style="padding:12px 14px;border-bottom:1px solid #f0f2f6;cursor:pointer">' +
       '<div style="display:flex;justify-content:space-between;gap:8px"><b style="font-size:14.5px">' + h(r.ten_khach) + '</b>' +
       crmTagDy(r.kenh, r.trang_thai) + '</div>' +
-      '<div style="font-size:12.5px;color:#8a8f9c">' + h(r.noi_ghi || '') + ' · ' + h(r.ten_nguoi || '') + ' · ' + crmGioNgay(r.luc) + '</div></div>';
+      '<div style="font-size:12.5px;color:#8a8f9c">' + crmNoiGhiChip(r.noi_ghi) + h(r.nguoi === 'Guest' ? 'khách tự bấm' : (r.ten_nguoi || '')) + ' · ' + crmGioNgay(r.luc) + '</div></div>';
   }).join('') + '</div>' : crmTrong(crmDyTim ? '🔎' : '✅', crmDyTim ? 'Không có dòng nào khớp chữ tìm. Thử tên khác hoặc vài số cuối của điện thoại.'
     : 'Chưa có dòng nào. Khi thu ngân hỏi khách ở quầy, dòng đầu tiên hiện ở đây.');
   if (crmDyCon) html += '<button class="btn gh" data-crmdythem="1" style="margin:0">Xem thêm dòng cũ hơn</button>';
   var b = frame(tieuDe, html);
   dsCongCuNoi(b, cc, function (ho, v) {
     if (ho === 'chang') crmDyLoc = v; else if (ho === 'tim') crmDyTim = v;
+    else if (ho === 'noi') crmDyNoi = v; else if (ho === 'kenh') crmDyKenh = v;
     scrCrmDongY();
   });
   b.onclick = function (e) {
@@ -62798,6 +62968,14 @@ async function scrCrmDongY(them) {
     if (kh) { var dd = crmDyDong.filter(function (x) { return x.khach === kh.getAttribute('data-crmdykh'); })[0] || {};
       return crmMoHoSo(kh.getAttribute('data-crmdykh'), dd.ten_khach); }
   };
+}
+
+/* Chip nơi ghi trên dòng sổ đồng ý. THUẦN. */
+function crmNoiGhiChip(noi) {
+  var x = CRM_NOI_GHI.filter(function (y) { return y[0] === noi; })[0];
+  if (!noi) return '';
+  return '<span data-crmnoighi="' + h(noi) + '" style="display:inline-block;font-size:12px;font-weight:600;border-radius:999px;padding:2px 8px;margin-right:6px;background:#f2f4f7;color:#344054">' +
+    (x ? x[1] + ' ' : '') + h(noi) + '</span>';
 }
 
 /* ================================================================ chiến dịch */
@@ -62839,13 +63017,16 @@ async function scrCrmCdDs(them) {
   var ds = crmCdDsDong, coGi = +dem.tat_ca || crmCdTim || crmCdTt;
   var html = (coGi ? dsCongCu(cc) : '') + (ds.length ? '<div class="card">' + ds.map(function (c) {
     var td = c.tien_do || {}, tong = (td['Chưa gọi'] || 0) + (td['Hẹn gọi lại'] || 0) + (td['Đã xong'] || 0);
+    var b0 = Math.min(+c.buoc || 0, CRM_BUOC_CD.length);
     return '<div class="hub" data-crmcdmo="' + h(c.name) + '"><div class="hi">📣</div><div class="ht"><div class="h1">' + h(c.ten) + '</div>' +
-      '<div class="h2">' + crmTagTt(c.trang_thai) + (c.ngay_chot ? 'chốt ' + crmNgay(c.ngay_chot) + ' · ' : '') +
-      (tong ? 'đã gọi ' + (tong - (td['Chưa gọi'] || 0)) + ' / ' + tong : 'chưa chốt danh sách') + '</div></div>' +
+      '<div class="h2">' + crmTagTt(c.trang_thai) + (c.kenh || []).map(function (k) { return crmTag((CRM_IC_KENH[k] || '') + ' ' + k, 'lam'); }).join('') + '</div>' +
+      '<div class="h2" data-crmcdbuoc="' + b0 + '">' + (b0 >= CRM_BUOC_CD.length ? 'Đã xong cả 5 bước' : 'Bước ' + (b0 + 1) + '/5: ' + h(CRM_BUOC_CD[b0])) +
+      (c.ngay_chot ? ' · chốt ' + crmNgay(c.ngay_chot) : '') +
+      (tong ? ' · đã gọi ' + (tong - (td['Chưa gọi'] || 0)) + ' / ' + tong : '') + '</div></div>' +
       '<span class="fc" style="color:#c3c8d4;font-size:22px">&#8250;</span></div>';
   }).join('') + '</div>' : crmTrong('📣', coGi ? 'Không có chiến dịch nào khớp.' : 'Chưa có chiến dịch nào.' + (d.duoc_lap ? ' Bấm nút dưới để lập chiến dịch đầu tiên.' : '')));
   if (crmCdDsCon) html += '<button class="btn gh" data-crmcdthem="1" style="margin:0 0 10px">Xem thêm chiến dịch cũ hơn</button>';
-  if (d.duoc_lap) html += '<button class="btn" data-crmcdnew="1" style="margin:0">+ Chiến dịch mới</button>';
+  if (d.duoc_lap) html += '<button class="btn" data-crmcdnew="1" style="margin:0;min-height:50px;font-size:16px">+ Chiến dịch mới</button>';
   var b = frame(tieuDe, html);
   dsCongCuNoi(b, cc, function (ho, v) {
     if (ho === 'chang') crmCdTt = v; else if (ho === 'tim') crmCdTim = v;
@@ -62865,8 +63046,8 @@ var crmCd = null;
    48 nên không dùng móc sdGhep: 48 gọi dat() TRƯỚC khi mở màn, gán bản nháp
    vào crmCdKhoiPhuc, rồi scrCrmCd ghép vào ngay sau khi dựng trạng thái. */
 var crmCdKhoiPhuc = null;
-var CRM_CD_NHAP = ['name', 'ten', 'loc', 'bo_loc', 'mo_ta_loc', 'kenh_goi', 'kenh_zalo', 'mon', 'sales', 'ctkm',
-  'ma_uu_dai', 'han', 'kich_ban', 'noi_dung_zalo', 'ty_le_doi_chung'];
+var CRM_CD_NHAP = ['name', 'ten', 'loc', 'bo_loc', 'mo_ta_loc', 'kenh_goi', 'kenh_zalo', 'kenh_oa', 'tieu_de_oa', 'mon', 'sales', 'ctkm',
+  'ma_uu_dai', 'ma_rieng', 'han', 'kich_ban', 'noi_dung_zalo', 'ty_le_doi_chung', 'modified'];
 function crmCdNhap() {
   var c = crmCd;
   if (!c || c.trang_thai !== 'Nháp' || !+c.duoc_lap) return null;
@@ -62878,7 +63059,13 @@ function crmCdNhap() {
 function crmCdGhepNhap() {
   var v = crmCdKhoiPhuc; crmCdKhoiPhuc = null;
   if (!v || !crmCd || crmCd.trang_thai !== 'Nháp' || (v.name || '') !== (crmCd.name || '')) return;
-  CRM_CD_NHAP.forEach(function (k) { if (v[k] !== undefined) crmCd[k] = v[k]; });
+  /* v617: bản soạn dở mở từ bản cũ hơn bản đang lưu (người khác vừa sửa) thì
+     KHÔNG ghép: ghép là lặng lẽ đè phần người kia sửa khi bấm Lưu. */
+  if (v.name && v.modified && crmCd.modified && String(v.modified) !== String(crmCd.modified)) {
+    toast('Chiến dịch đã được người khác sửa sau lần bạn soạn dở. Màn đang hiện bản mới nhất, phần soạn dở không ghép vào.', 6000);
+    return;
+  }
+  CRM_CD_NHAP.forEach(function (k) { if (k !== 'modified' && v[k] !== undefined) crmCd[k] = v[k]; });
   /* Khung số "Ai sẽ được liên hệ" tính theo bản trên máy chủ, có thể đã cũ so
      với bản nháp: ẩn đi tới khi Lưu nháp đếm lại. */
   if (v.name) { crmCd.dong_chay = null; crmCd.ly_do_chua_chot = 'Lưu nháp để máy đếm lại khách theo bản đang soạn.'; }
@@ -62898,7 +63085,7 @@ function crmCdDau(c) {
     if (Array.isArray(o)) return o.map(xep);
     var r = {}; Object.keys(o).sort().forEach(function (k) { r[k] = xep(o[k]); }); return r;
   };
-  return JSON.stringify([s(c.ten), xep(c.loc || {}), s(c.bo_loc), +c.kenh_goi ? 1 : 0, +c.kenh_zalo ? 1 : 0,
+  return JSON.stringify([s(c.ten), xep(c.loc || {}), s(c.bo_loc), +c.kenh_goi ? 1 : 0, +c.kenh_zalo ? 1 : 0, +c.kenh_oa ? 1 : 0, s(c.tieu_de_oa),
     (c.mon || []).map(function (x) { return s(x && x.item); }), (c.sales || []).map(function (x) { return s(x && x.nguoi); }),
     s(c.ctkm), s(c.han), s(c.kich_ban), s(c.noi_dung_zalo), +c.ty_le_doi_chung || 0]);
 }
@@ -62925,7 +63112,7 @@ async function scrCrmCd(name) {
     var m = crmCdMoi || {};
     crmCd = {
       name: '', ten: '', trang_thai: 'Nháp', loc: m.loc || {}, bo_loc: m.bo_loc || '', mo_ta_loc: m.ten_loc || '',
-      kenh_goi: 1, kenh_zalo: 0, ty_le_doi_chung: 10, mon: [], sales: [], kich_ban: '', noi_dung_zalo: '',
+      kenh_goi: 1, kenh_zalo: 0, kenh_oa: 0, tieu_de_oa: '', ty_le_doi_chung: 10, mon: [], sales: [], kich_ban: '', noi_dung_zalo: '',
       ctkm: '', ma_uu_dai: '', han: '', kich_ban_duyet: 0, duoc_lap: crmCoLap() ? 1 : 0, duoc_duyet: hasRole('System Manager') ? 1 : 0,
       dong_chay: null, ly_do_chua_chot: ''
     };
@@ -62940,19 +63127,25 @@ function crmCdNhan(t) { return '<div style="font-size:12px;color:#0B7C93;font-we
 function crmCdVe() {
   var c = crmCd, nhap = c.trang_thai === 'Nháp', sua = nhap && c.duoc_lap;
   var dis = sua ? '' : ' disabled';
-  var html = '';
+  /* v617: thanh 5 bước của chiến dịch (máy chủ tính bước, crm.buoc_chien_dich). */
+  var html = '<div class="card" data-crmcdbuocthe="1" style="padding:12px 8px 10px">' + veBuoc(CRM_BUOC_CD.map(function (t) { return { ten: t }; }),
+    c.buoc == null ? 0 : +c.buoc, 'Các bước của chiến dịch') + '</div>';
   if (!nhap) html += '<div class="card" style="padding:12px 14px">' + crmTagTt(c.trang_thai) +
     '<div style="font-size:13px;color:#475467">Chốt ' + crmGioNgay(c.ngay_chot) + '. Danh sách đã khoá, không đổi theo nhóm chạy đêm.</div></div>';
+  if (!nhap && +c.kenh_oa) html += crmCdOaThe(c);
   html += '<div class="card" style="padding:4px 14px 14px">' +
     crmCdNhan('TÊN CHIẾN DỊCH') +
     '<input class="tin" id="crmCdTen" value="' + h(c.ten) + '"' + dis + ' placeholder="Ví dụ: Giáng sinh 2026 gọi khách mùa lễ cũ" style="font-size:15px;font-weight:500;text-align:left;padding:0 12px">' +
     crmCdNhan('NHÓM KHÁCH') +
-    '<button class="btn gh" data-crmcdloc="1"' + dis + ' style="margin:0;padding:12px;text-align:left">🎯 ' + h(c.mo_ta_loc || 'Chọn nhóm hoặc bộ lọc đã lưu') + '</button>' +
+    crmNutChon('data-crmcdloc="1"', '🎯', h(c.mo_ta_loc || 'Chọn nhóm hoặc bộ lọc đã lưu'), !sua) +
     crmCdNhan('KÊNH') +
-    kmHangChip(
-      (sua ? posChipNut('data-crmcdk="goi"', '📞 Gọi điện', !!+c.kenh_goi) + posChipNut('data-crmcdk="zalo"', '💬 Zalo cá nhân', !!+c.kenh_zalo)
-        : (+c.kenh_goi ? posChipNut('data-x', '📞 Gọi điện', true) : '') + (+c.kenh_zalo ? posChipNut('data-x', '💬 Zalo cá nhân', true) : '')) +
-      '<span style="border:1.5px dashed #d0d5dd;color:#a0a6b2;border-radius:999px;padding:9px 13px;font-size:13px">Zalo OA hàng loạt · đợt 2</span>') +
+    kmHangChip(CRM_CD_KENH.filter(function (x) { return sua || +c['kenh_' + x[0]]; }).map(function (x) {
+      return posChipNut(sua ? 'data-crmcdk="' + x[0] + '"' : 'data-x', x[1], !!+c['kenh_' + x[0]]);
+    }).join('')) +
+    '<div data-crmcdkenhgiai="1" style="font-size:12.5px;color:#667085;line-height:1.45;margin-top:2px">' + CRM_CD_KENH.map(function (x) {
+      return '<div>' + x[1] + ': ' + x[2] + '</div>'; }).join('') + '</div>' +
+    (+c.kenh_oa ? crmCdNhan('TIÊU ĐỀ TIN ZALO OA') +
+      '<input class="tin" id="crmCdOaTd" maxlength="100" value="' + h(c.tieu_de_oa || '') + '"' + dis + ' placeholder="Ưu đãi từ The Vagabond Pâtisserie" style="font-size:15px;font-weight:500;text-align:left;padding:0 12px">' : '') +
     crmCdNhan('MÓN GIỚI THIỆU') +
     /* Codex PR #505 vòng 4: mỗi món giới thiệu một dòng có ảnh món (ô 🍰 khi chưa có ảnh). */
     '<div>' + (c.mon || []).map(function (x, i) {
@@ -62960,20 +63153,20 @@ function crmCdVe() {
         '<div class="lt"><div class="l1" style="font-size:14.5px">' + h(x.ten || x.item) + '</div></div>' +
         (sua ? '<button type="button" data-crmcdbomon="' + i + '" aria-label="Bỏ món này" style="border:0;background:#f2f4f7;color:#475467;border-radius:10px;min-width:44px;min-height:44px;font-size:16px">✕</button>' : '') + '</div>';
     }).join('') + (sua ? '<button class="btn gh" data-crmcdmon="1" style="margin:4px 0 0;padding:10px;font-size:14px">+ Thêm món</button>' : '') + '</div>' +
-    crmCdNhan('MÃ ƯU ĐÃI RIÊNG') +
-    '<button class="btn gh" data-crmcdkm="1"' + dis + ' style="margin:0;padding:12px;text-align:left">🎫 ' +
-    (c.ctkm ? h(c.ctkm) + (c.ma_uu_dai ? ' · mã ' + h(c.ma_uu_dai) : '') : 'Chọn chương trình khuyến mãi có mã cố định') + '</button>' +
-    '<div style="font-size:12px;color:#8a8f9c;margin-top:4px">Mã riêng của chiến dịch để đếm đơn chiến dịch mang về. Tạo chương trình ở Khuyến mãi trước, chọn "Mã cố định".</div>' +
+    crmCdNhan('MÃ ƯU ĐÃI') +
+    crmNutChon('data-crmcdkm="1"', '🎫', c.ctkm ? h(c.ctkm) : 'Chọn chương trình khuyến mãi có mã', !sua,
+      c.ctkm ? (c.ma_uu_dai ? 'Cả chiến dịch chung mã ' + h(c.ma_uu_dai) : 'Mỗi khách một mã riêng, dùng một lần, máy phát lúc chốt') : '') +
+    '<div style="font-size:12px;color:#8a8f9c;margin-top:4px">Mã để đếm đơn chiến dịch mang về. Chương trình "Mã dùng một lần": mỗi khách được liên hệ nhận một mã riêng; "Mã cố định": cả chiến dịch dùng chung một mã. Tin Zalo ghi {ma} ở chỗ muốn hiện mã.</div>' +
     crmCdNhan('HẠN CHIẾN DỊCH') +
     '<input class="tin" type="date" id="crmCdHan" value="' + h(c.han || '') + '"' + dis + ' style="font-size:15px;font-weight:500">' +
-    crmCdNhan('SALES NHẬN DANH SÁCH') +
+    crmCdNhan('SALES NHẬN DANH SÁCH' + (+c.kenh_goi || +c.kenh_zalo ? '' : ' <span style="color:#667085;font-weight:500">· chỉ Zalo OA thì không cần</span>')) +
     '<div>' + (c.sales || []).map(function (s, i) {
       return crmTag('👤 ' + (s.ten || s.nguoi), 'xam').replace('</span>', sua ? ' <b data-crmcdbosl="' + i + '" style="cursor:pointer">✕</b></span>' : '</span>');
     }).join('') + (sua ? '<button class="btn gh" data-crmcdsl="1" style="margin:4px 0 0;padding:10px;font-size:14px">+ Thêm Sales</button>' : '') + '</div>' +
     crmCdNhan('KỊCH BẢN GỌI ' + (+c.kich_ban_duyet ? '<span style="color:#05603a">· đã duyệt</span>' : '<span style="color:#93370d">· chưa duyệt</span>')) +
     '<textarea class="nt" id="crmCdKb" rows="4"' + dis + ' placeholder="Ví dụ: chào khách, giới thiệu món mới mùa lễ, nhắc mã ưu đãi và hạn dùng">' + h(c.kich_ban || '') + '</textarea>' +
-    (sua ? '<div style="font-size:12px;color:#8a8f9c;margin-top:4px">Sửa kịch bản sau khi duyệt thì phải duyệt lại.</div>' : '') +
-    crmCdNhan('TIN ZALO SOẠN SẴN ({ten} là tên khách)') +
+    (sua ? '<div style="font-size:12px;color:#8a8f9c;margin-top:4px">Sửa kịch bản hay tin Zalo sau khi duyệt thì phải duyệt lại.</div>' : '') +
+    crmCdNhan('TIN ZALO ({ten} là tên khách, {ma} là mã ưu đãi)' + (+c.kenh_oa ? ' · máy gửi qua OA' : '')) +
     '<textarea class="nt" id="crmCdZalo" rows="3"' + dis + ' placeholder="Ví dụ: Chào {ten}, The Vagabond có món mới mùa Giáng sinh...">' + h(c.noi_dung_zalo || '') + '</textarea>' +
     '</div>';
   var dc = c.dong_chay;
@@ -62983,13 +63176,14 @@ function crmCdVe() {
       crmDcDong('Loại: chưa đồng ý kênh đã chọn', '− ' + money(dc.chua_dong_y), 'loai') +
       crmDcDong('Loại: trong Danh sách không quảng cáo', '− ' + money(dc.khong_quang_cao), 'loai') +
       crmDcDong('Đối chứng ' + (c.ty_le_doi_chung || 0) + '%: giữ lại, không liên hệ', money(dc.doi_chung), 'dc') +
-      crmDcDong('Chia cho ' + (dc.so_sales || 0) + ' Sales', money(dc.nhan), 'ok') + '</div>' +
+      crmDcDong(+c.kenh_goi || +c.kenh_zalo ? 'Chia cho ' + (dc.so_sales || 0) + ' Sales' : 'Máy gửi tin Zalo OA', money(dc.nhan), 'ok') + '</div>' +
       crmChan('Máy chọn đối chứng ngẫu nhiên và khoá cố định lúc chốt. Danh sách đã chốt không đổi theo nhóm chạy đêm.');
   }
   if (sua) {
     var chuaLuu = crmCdChuaLuu(), lyDo = c.ly_do_chua_chot || (chuaLuu ? CRM_CD_CHUA_LUU : '');
     html += '<button class="btn gh" data-crmcdluu="1" style="margin:0 0 10px">💾 Lưu nháp' + (c.name ? '' : ' và đếm khách') + '</button>';
-    if (c.name && c.duoc_duyet && !+c.kich_ban_duyet) html += '<button class="btn gh" data-crmcdduyet="1"' + (chuaLuu ? ' disabled' : '') + ' style="margin:0 0 10px">✔ Duyệt kịch bản gọi</button>';
+    if (c.name && c.duoc_duyet && !+c.kich_ban_duyet) html += '<button class="btn gh" data-crmcdduyet="1"' + (chuaLuu ? ' disabled' : '') + ' style="margin:0 0 10px">✔ Duyệt kịch bản gọi và tin Zalo</button>';
+    if (c.name && +c.kenh_oa) html += '<button class="btn gh" data-crmoathu="1"' + (chuaLuu ? ' disabled' : '') + ' style="margin:0 0 10px">💠 Gửi thử tin OA vào UID thử</button>';
     if (c.name) {
       if (lyDo) html += '<div data-crmlydo="1" style="font-size:13px;color:#93370d;margin:0 2px 8px">' + h(lyDo) + '</div>';
       html += '<button class="btn" data-crmcdchot="1"' + (lyDo ? ' disabled' : '') + ' style="margin:0">Chốt danh sách và chia việc</button>';
@@ -63014,14 +63208,52 @@ function crmCdDocO() {
      cũ, không ghi chuỗi rỗng đè lên. */
   var c = crmCd, v = function (id, cu) { var n = document.getElementById(id); return n ? n.value : cu; };
   c.ten = v('crmCdTen', c.ten); c.han = v('crmCdHan', c.han); c.kich_ban = v('crmCdKb', c.kich_ban);
-  c.noi_dung_zalo = v('crmCdZalo', c.noi_dung_zalo);
+  c.noi_dung_zalo = v('crmCdZalo', c.noi_dung_zalo); c.tieu_de_oa = v('crmCdOaTd', c.tieu_de_oa);
+}
+
+/* Ba kênh của chiến dịch: mã lưu, chip, một dòng giải thích (skill thiết kế). */
+var CRM_CD_KENH = [
+  ['goi', '📞 Gọi điện', 'Sales gọi theo kịch bản, khách đã đồng ý cho gọi.'],
+  ['zalo', '💬 Zalo cá nhân', 'Sales chép tin soạn sẵn, tự nhắn từ Zalo của mình.'],
+  ['oa', '💠 Zalo OA', 'Máy gửi tin Truyền thông qua OA cho khách đang quan tâm OA và đã đồng ý nhận tin Zalo.']
+];
+
+/* Thẻ gửi Zalo OA của chiến dịch đã chốt: đếm từng trạng thái, nút gửi. */
+function crmCdOaThe(c) {
+  var dm = c.oa_dem || {}, dang = c.oa_trang_thai === 'Đang gửi';
+  var chua = dm['Chưa gửi'] || 0, loi = dm['Lỗi'] || 0;
+  var buoc = [{ ten: 'Chưa gửi', n: chua }, { ten: 'Đã gửi', n: dm['Đã gửi'] || 0 }, { ten: 'Lỗi', n: loi, loi: !!loi }, { ten: 'Bỏ qua', n: dm['Bỏ qua'] || 0 }];
+  var html = '<div class="sec">Gửi tin Zalo OA</div><div class="card" data-crmoathe="1" style="padding:12px 8px 12px">' +
+    veBuoc(buoc, dang ? 0 : chua ? 0 : 4, 'Tiến độ gửi Zalo OA') +
+    '<div style="font-size:13px;color:#475467;margin:8px 6px 0;line-height:1.45">' +
+    (dang ? '<b style="color:#0B7C93">Máy đang gửi...</b> Mở lại màn sau ít phút để xem số mới.' : h(c.oa_ket_qua || 'Chưa gửi lần nào.')) + '</div>';
+  if (c.duoc_lap && c.trang_thai === 'Đang chạy' && !dang && (chua || loi)) {
+    html += +c.oa_bat ? '<button class="btn" data-crmoagui="1" style="margin:10px 6px 0;width:calc(100% - 12px)">💠 Gửi tin Zalo OA cho ' + money(chua + loi) + ' khách</button>'
+      : crmChan('Kênh Zalo OA đang tắt trong Cài đặt. Gửi thử thành công rồi nhờ giám đốc bật.');
+  }
+  return html + '</div>';
 }
 
 async function crmCdBam(e) {
   var c = crmCd;
   if (e.target.closest('[disabled]')) return;
   var k = e.target.closest('[data-crmcdk]');
-  if (k) { crmCdDocO(); var kk = k.getAttribute('data-crmcdk') === 'goi' ? 'kenh_goi' : 'kenh_zalo'; c[kk] = +c[kk] ? 0 : 1; return crmCdVe(); }
+  if (k) { crmCdDocO(); var kk = 'kenh_' + k.getAttribute('data-crmcdk'); c[kk] = +c[kk] ? 0 : 1; return crmCdVe(); }
+  if (e.target.closest('[data-crmoathu]')) {
+    crmCdDocO();
+    if (crmCdChuaLuu()) { crmCdVe(); return toast(CRM_CD_CHUA_LUU, 5000); }
+    busy(true);
+    try {
+      var tk = await api('vagabond.zalo_oa.gui_thu_oa', { name: c.name }); busy(false);
+      return +tk.ok ? toast('Đã gửi thử. Mở Zalo của UID thử để xem tin.', 4000) : baoTin(h(tk.loi || 'Zalo từ chối tin'), 'Gửi thử chưa được');
+    } catch (er) { busy(false); return toast(errMsg(er), 5000); }
+  }
+  if (e.target.closest('[data-crmoagui]')) {
+    if (!(await confirmSheet('Gửi tin Zalo OA?', 'Máy gửi tin đã duyệt cho từng khách đang quan tâm OA và còn đồng ý nhận tin Zalo. Khách đã rút đồng ý được bỏ qua.'))) return;
+    busy(true);
+    try { await api('vagabond.zalo_oa.gui_chien_dich_oa', { name: c.name }); busy(false); toast('Đã xếp việc gửi. Máy gửi dần, mở lại màn để xem số.', 4500); return scrCrmCd(c.name); }
+    catch (er) { busy(false); return toast(errMsg(er), 5000); }
+  }
   var bm = e.target.closest('[data-crmcdbomon]');
   if (bm) { crmCdDocO(); c.mon.splice(+bm.getAttribute('data-crmcdbomon'), 1); return crmCdVe(); }
   var bs = e.target.closest('[data-crmcdbosl]');
@@ -63053,10 +63285,11 @@ async function crmCdBam(e) {
     crmCdDocO();
     var km;
     try { km = await api('vagabond.crm.ds_ctkm_ma', {}); } catch (er) { return toast(errMsg(er), 5000); }
-    if (!(km.ds || []).length) return baoTin('Chưa có chương trình khuyến mãi nào đang bật mà dùng "Mã cố định". Tạo ở phân hệ Bán hàng, Chương trình khuyến mãi, rồi quay lại chọn.', 'Chưa có mã để chọn');
-    var ma = await hoiChon('Mã ưu đãi riêng của chiến dịch', 'Chọn một chương trình có mã cố định.',
-      km.ds.map(function (x) { return { k: x.name, nhan: x.ten || x.name, mo_ta: 'Mã ' + x.ma + (x.den_ngay ? ' · tới ' + crmNgay(x.den_ngay) : '') }; }), c.ctkm);
-    if (ma) { c.ctkm = ma; c.ma_uu_dai = (km.ds.filter(function (x) { return x.name === ma; })[0] || {}).ma || ''; }
+    if (!(km.ds || []).length) return baoTin('Chưa có chương trình khuyến mãi nào đang bật có mã. Tạo ở phân hệ Bán hàng, Chương trình khuyến mãi (chọn "Mã dùng một lần" hoặc "Mã cố định"), rồi quay lại chọn.', 'Chưa có mã để chọn');
+    var ma = await hoiChon('Mã ưu đãi của chiến dịch', 'Mã dùng một lần: mỗi khách một mã riêng. Mã cố định: cả chiến dịch chung một mã.',
+      km.ds.map(function (x) { return { k: x.name, icon: +x.rieng ? '🎟' : '🎫', nhan: x.ten || x.name,
+        mo_ta: (+x.rieng ? 'Mỗi khách một mã riêng, dùng một lần' : 'Chung mã ' + x.ma) + (x.den_ngay ? ' · tới ' + crmNgay(x.den_ngay) : '') }; }), c.ctkm);
+    if (ma) { var xm = km.ds.filter(function (x) { return x.name === ma; })[0] || {}; c.ctkm = ma; c.ma_uu_dai = xm.ma || ''; c.ma_rieng = +xm.rieng ? 1 : 0; }
     return crmCdVe();
   }
   if (e.target.closest('[data-crmcdloc]')) {
@@ -63083,8 +63316,9 @@ async function crmCdBam(e) {
   if (e.target.closest('[data-crmcdduyet]')) return crmCdGoi('vagabond.crm.duyet_kich_ban', 'Đã duyệt kịch bản gọi');
   if (e.target.closest('[data-crmcdchot]')) {
     var dc = c.dong_chay || {};
-    var ok = await confirmSheet('Chốt danh sách?', 'Máy giữ ' + money(dc.doi_chung || 0) + ' khách làm đối chứng và chia ' + money(dc.nhan || 0) +
-      ' khách cho ' + (dc.so_sales || 0) + ' Sales. Sau khi chốt, danh sách không đổi nữa.');
+    var ok = await confirmSheet('Chốt danh sách?', 'Máy giữ ' + money(dc.doi_chung || 0) + ' khách làm đối chứng và ' +
+      (+c.kenh_goi || +c.kenh_zalo ? 'chia ' + money(dc.nhan || 0) + ' khách cho ' + (dc.so_sales || 0) + ' Sales' : 'giữ ' + money(dc.nhan || 0) + ' khách để máy gửi Zalo OA') +
+      (c.ctkm && !c.ma_uu_dai ? ', phát mỗi khách một mã riêng' : '') + '. Sau khi chốt, danh sách không đổi nữa.');
     if (ok) return crmCdGoi('vagabond.crm.chot_chien_dich', 'Đã chốt danh sách, Sales đã thấy khách của mình');
     return;
   }
@@ -63103,7 +63337,8 @@ async function crmCdLuu() {
   busy(true);
   try {
     var d = await api('vagabond.crm.luu_chien_dich', { dat: JSON.stringify({
-      name: c.name || '', ten: c.ten, loc: c.loc, bo_loc: c.bo_loc || '', kenh_goi: +c.kenh_goi ? 1 : 0, kenh_zalo: +c.kenh_zalo ? 1 : 0,
+      name: c.name || '', modified: c.modified || '', ten: c.ten, loc: c.loc, bo_loc: c.bo_loc || '', kenh_goi: +c.kenh_goi ? 1 : 0, kenh_zalo: +c.kenh_zalo ? 1 : 0,
+      kenh_oa: +c.kenh_oa ? 1 : 0, tieu_de_oa: c.tieu_de_oa || '',
       ctkm: c.ctkm || '', han: c.han || '', kich_ban: c.kich_ban, noi_dung_zalo: c.noi_dung_zalo, ty_le_doi_chung: c.ty_le_doi_chung,
       mon: c.mon, sales: c.sales.map(function (s) { return s.nguoi; })
     }) });
@@ -63194,6 +63429,7 @@ async function scrCrmHieuQua(name) {
     html += '<div style="font-size:13.5px;color:#475467">Chiến dịch này không giữ nhóm đối chứng (dưới 10 khách đủ điều kiện), nên chỉ có số đơn, chưa tách được phần chiến dịch mang về thêm.</div>';
   }
   html += crmKv('Đơn dùng mã ' + (d.ma_uu_dai || d.ctkm || ''), d.ctkm ? money(d.don_dung_ma) + ' đơn' : 'chưa gắn mã') +
+    (+d.ma_rieng ? crmKv('Mã riêng đã dùng', money(d.ma_rieng_dung) + ' / ' + money(d.ma_rieng) + ' mã') : '') +
     crmKv('Khách xin ngừng nhận tin', money(d.khach_tu_choi)) + '</div>';
   if ((d.theo_sales || []).length) {
     html += '<div class="sec">Theo từng Sales</div><div class="card" style="padding:4px 14px 10px">' + d.theo_sales.map(function (s) {
