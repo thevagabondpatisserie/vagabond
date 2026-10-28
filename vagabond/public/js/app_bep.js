@@ -25991,7 +25991,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '615';
+var APPVER = '616';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -58794,7 +58794,8 @@ function cdlVeTab(fnTab, oToi) {
       (m.gon ? '<span class="cdl-mui">' + (mo ? '▾' : '▸') + '</span>' : '') + '</div>';
     return '<div class="cdl-khoi" data-cdlmuc="' + h(m.fn) + '">' + dau +
       (mo ? '<div class="cdl-mth">' + (m.mo ? '<div class="cdl-mo" style="margin-bottom:6px">' + h(m.mo) + '</div>' : '') +
-        m.o.map(function (o) { return cdlVeO(o, doc, loi[o.fn]); }).join('') + '</div>' : '') + '</div>';
+        m.o.map(function (o) { return cdlVeO(o, doc, loi[o.fn]); }).join('') +
+        (m.fn === 'sec_gsm' ? cdlVeThuGsm() : '') + '</div>' : '') + '</div>';
   }).join('');
   var b = frame(t.nhan, html, { footer: cdlFooter() });
   cdlAnThanh(cdlSoThay());
@@ -58981,6 +58982,7 @@ function cdlBam(e, fnTab) {
   if ((el = e.target.closest('[data-cdlbotthem]'))) return cdlHopBot('');
   if ((el = e.target.closest('[data-cdlbottoken]'))) return cdlHopBot(el.getAttribute('data-cdlbottoken'));
   if ((el = e.target.closest('[data-cdlbotnoi]'))) return cdlNoiBot(el.getAttribute('data-cdlbotnoi'));
+  if ((el = e.target.closest('[data-cdlthugsm]'))) return cdlThuGsm(fnTab);
   if ((el = e.target.closest('[data-cdlguithu]'))) return cdlGuiThuZalo((CDL.bang.zalo_nhom || [])[parseInt(el.getAttribute('data-cdlguithu'), 10)]);
   if ((el = e.target.closest('[data-cdldong]'))) {
     return cdlMoDong(el.getAttribute('data-cdlbang'), parseInt(el.getAttribute('data-cdldong'), 10));
@@ -59025,6 +59027,39 @@ function cdlTomDongZalo(r) {
     // v606: nhóm gửi bằng bot thêm thì nói rõ bot nào, như thẻ nhóm trên Desk.
     (r.bot && String(r.bot) !== '1') ? 'gửi bằng ' + cdlTenBot(r.bot) : '',
     r.chat_id ? cdlNhanNhomZalo({ chat_id: r.chat_id }) : 'Chưa chọn nhóm Zalo'].filter(Boolean).join(' · ');
+}
+
+/* v616 (Codex #499 4373739957): nút Thử kết nối GreenSM có cả trên app, không
+   chỉ trên Desk (AGENTS.md: Desk và app luôn đủ cả hai). Kết quả từng bước
+   hiện ngay dưới nút trong mục GreenSM để người nghiệm thu chép gửi GreenSM. */
+function cdlVeThuGsm() {
+  var k = CDL.gsmKq;
+  var kq = '';
+  if (k && k.dang) kq = '<div class="cdl-mo" style="margin-top:6px">Đang thử kết nối GreenSM, chờ khoảng nửa phút...</div>';
+  else if (k) {
+    kq = '<div style="margin-top:6px">' + cdlChip(k.ok ? 'ok' : (k.loi ? 'err' : 'off'),
+      k.ok ? 'GreenSM kết nối được' : (k.loi ? 'Chưa thử được' : 'GreenSM chưa chạy hết chuỗi')) +
+      (k.loi ? '<div class="cdl-mo" style="margin-top:4px">' + h(k.loi) + '</div>' : '') +
+      ((k.buoc || []).length ? '<ul style="padding-left:18px;margin:6px 0 0">' + k.buoc.map(function (x) { return '<li class="cdl-mo">' + h(x) + '</li>'; }).join('') + '</ul>' : '') + '</div>';
+  }
+  return '<div class="cdl-f" id="cdl-thu-gsm"><button class="cdl-lnk" data-cdlthugsm="1"' + (k && k.dang ? ' disabled' : '') +
+    '>Thử kết nối GreenSM</button><div class="cdl-mo">Chạy đủ chuỗi xem loại xe, báo giá, tạo đơn thử và xem lại đơn trên môi trường thử, để GreenSM nghiệm thu trước khi cấp khoá thật. Chỉ chạy khi đang bật Dùng môi trường thử nên không bao giờ gọi xe thật.</div>' + kq + '</div>';
+}
+
+async function cdlThuGsm(fnTab) {
+  if (CDL.gsmKq && CDL.gsmKq.dang) return;
+  if (cdlSoThay()) return toast('Bấm Lưu trước rồi mới thử kết nối GreenSM.');
+  CDL.gsmKq = { dang: 1 };
+  cdlVeTab(fnTab);
+  try {
+    var m = (await api('vagabond.greensm.thu_ket_noi', {})) || {};
+    CDL.gsmKq = { ok: !!m.ok, buoc: m.buoc || [] };
+  } catch (e) {
+    CDL.gsmKq = { loi: (e && e.message) || 'Không gọi được máy chủ, thử lại sau.' };
+  }
+  /* Người dùng đã rời màn trong lúc chờ thì không kéo họ quay lại, chỉ báo ngắn. */
+  if (document.getElementById('cdl-thu-gsm')) cdlVeTab(fnTab);
+  else toast(CDL.gsmKq.ok ? 'GreenSM kết nối được.' : 'Thử kết nối GreenSM chưa xong, mở lại mục GreenSM để xem từng bước.', 6000);
 }
 
 async function cdlGuiThuZalo(r) {
