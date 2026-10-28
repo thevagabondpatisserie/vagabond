@@ -96,6 +96,7 @@ var VGB_ZALO_TIN = {
 	bep_thieu_nvl_ngay_mai: ['Bếp', 'Thiếu nguyên liệu cho yêu cầu ngày mai (20:45)', '20:45 mỗi tối, một tin mỗi bếp: nguyên liệu trong kho bếp không đủ làm theo công thức.'],
 	bep_san_luong_ngay: ['Bếp', 'Sản lượng cuối ngày từng bếp, kèm ảnh bảng (21:00)', '21:00 mỗi tối, một ảnh mỗi bếp: yêu cầu hôm nay, số đã làm, món còn thiếu.'],
 	bep_lenh_chua_xong: ['Bếp', 'Lệnh sản xuất quá ngày chưa ghi hoàn tất (08:00)', '08:00 mỗi sáng: lệnh sản xuất từ hôm qua trở về trước chưa ghi làm xong, kho chưa có hàng.'],
+	bep_du_lieu_hao_hut: ['Bếp', 'Dữ liệu sản xuất cần ghi đủ (thứ Hai 08:00)', 'Thứ Hai 08:00, từng bếp: bánh bán chưa có lệnh, lệnh không ghi số cân thật, kho bếp lâu chưa kiểm kê.'],
 	tm_yeu_cau_mua: ['Thu mua', 'Yêu cầu mua hàng mới', 'Bộ phận vừa lập yêu cầu mua: tên hàng, số lượng, ngày cần.'],
 	tm_don_mua_moi: ['Thu mua', 'Đơn mua hàng vừa đặt', 'Đơn mua vừa ghi sổ: nhà cung cấp, ngày hẹn về, tên hàng, tổng tiền.'],
 	tm_don_mua_tre_hen: ['Thu mua', 'Đơn mua trễ hẹn chưa về đủ (08:00)', '08:00 mỗi sáng, đơn mua đã qua ngày hẹn mà hàng chưa về đủ.'],
