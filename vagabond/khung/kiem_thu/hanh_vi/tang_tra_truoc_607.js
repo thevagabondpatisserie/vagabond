@@ -311,6 +311,8 @@ function chuTrongKhoi(k) { return k.tl.getElementById('pbTgForm').innerHTML; }
     ].concat(GIA_RONG.map(function (t) { return 'function ' + t + '() { return ""; }'; })).join('\n'),
     Object.assign(g, { __tin: tin, __mc: mc }));
     vm.runInContext(doc('01-khung-app.js'), g);
+    /* v617: màn Chi tiết đơn vẽ thanh bước bằng veBuoc THẬT của 15-khuon-danh-sach.js. */
+    vm.runInContext((function () { var s = doc('15-khuon-danh-sach.js'), i = s.indexOf('function veBuoc('); return s.slice(i, s.indexOf('\nfunction ', i + 10)); })(), g);
     vm.runInContext(doc('08-doanh-so-sales.js'), g);
     vm.runInContext(doc('54-ly-do-tang.js'), g);
     vm.runInContext(doc('55-so-du-tra-truoc.js'), g);
@@ -693,6 +695,8 @@ function chuTrongKhoi(k) { return k.tl.getElementById('pbTgForm').innerHTML; }
       'function posKhoiQr() { return ""; }', 'function posNoiDungCk() { return ""; }',
     ].join('\n'), Object.assign(g, { __tin: tin, __mc: mc }));
     vm.runInContext(doc('01-khung-app.js'), g);
+    /* v617: màn Chi tiết đơn vẽ thanh bước bằng veBuoc THẬT của 15-khuon-danh-sach.js. */
+    vm.runInContext((function () { var s = doc('15-khuon-danh-sach.js'), i = s.indexOf('function veBuoc('); return s.slice(i, s.indexOf('\nfunction ', i + 10)); })(), g);
     vm.runInContext(doc('08-doanh-so-sales.js'), g);
     vm.runInContext(doc('10-bill-quay.js'), g);
     vm.runInContext(doc('49-tru-kho-bu.js'), g);

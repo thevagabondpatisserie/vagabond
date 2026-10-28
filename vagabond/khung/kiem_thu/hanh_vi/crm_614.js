@@ -34,7 +34,7 @@ function layHam(src, ten) {
 }
 var HAM = ['h', 'money', 'today', 'vgbChuan', 'vgbKhop', 'anhMon'].map(function (t) { return layHam(NEN, t); })
   .concat([layHam(POS, 'posChipNut')])
-  .concat(['dsccHang', 'dsCongCu', 'dsCongCuNoi'].map(function (t) { return layHam(KHUON, t); }))
+  .concat(['dsccHang', 'dsCongCu', 'dsCongCuNoi', 'veBuoc'].map(function (t) { return layHam(KHUON, t); }))
   .concat(['var scanBarcode = function () { return Promise.resolve(null); };'])
   .concat([layHam(KM, 'kmHangChip'), layHam(KHO, 'errMsg')]).join('\n');
 
@@ -313,7 +313,9 @@ function mot(el, chon) { return el.querySelectorAll(chon)[0]; }
     bang('năm dòng', dc, ['tong=Trong nhóm4.446', 'loai=Loại: chưa đồng ý kênh đã chọn− 3.180',
       'loai=Loại: trong Danh sách không quảng cáo− 12', 'dc=Đối chứng 10%: giữ lại, không liên hệ125', 'ok=Chia cho 4 Sales1.129']);
     dung('nói rõ đối chứng ngẫu nhiên và khoá', chu(m.khung).indexOf('Máy chọn đối chứng ngẫu nhiên và khoá cố định lúc chốt') >= 0);
-    dung('Zalo OA để đợt 2', chu(m.khung).indexOf('Zalo OA hàng loạt · đợt 2') >= 0);
+    /* v617 đợt 2: Zalo OA thành một kênh chọn được, có dòng giải thích. */
+    dung('có chip Zalo OA', !!mot(m.khung, '[data-crmcdk="oa"]'));
+    dung('kênh nào cũng có một dòng giải thích', chu(mot(m.khung, '[data-crmcdkenhgiai]')).indexOf('Máy gửi tin Truyền thông qua OA') >= 0);
   });
 
   await ca('chốt: còn lý do thì nút khoá, bấm không gọi máy chủ; hết lý do thì hỏi xác nhận kèm số rồi chốt', async function () {
@@ -403,7 +405,13 @@ function mot(el, chon) { return el.querySelectorAll(chon)[0]; }
     m2.g._chon = 'CTKM-9';
     bam(m2, mot(m2.khung, '[data-crmcdkm]'));
     await choDen(function () { return chu(m2.khung).indexOf('XMAS10') >= 0; });
-    dung('hiện mã', chu(mot(m2.khung, '[data-crmcdkm]')).indexOf('CTKM-9 · mã XMAS10') >= 0);
+    dung('hiện mã', chu(mot(m2.khung, '[data-crmcdkm]')).indexOf('Cả chiến dịch chung mã XMAS10') >= 0);
+    /* v617: chương trình "Mã dùng một lần" thì mỗi khách một mã riêng, máy phát lúc chốt. */
+    var m3 = await moCd(QL, cdMau(), { ds_ctkm_ma: { ds: [{ name: 'CTKM-7', ten: 'Tết mã riêng', ma: '', rieng: 1 }] } });
+    m3.g._chon = 'CTKM-7';
+    bam(m3, mot(m3.khung, '[data-crmcdkm]'));
+    await choDen(function () { return chu(m3.khung).indexOf('Mỗi khách một mã riêng') >= 0; });
+    dung('mã riêng: nói rõ máy phát lúc chốt', chu(mot(m3.khung, '[data-crmcdkm]')).indexOf('Mỗi khách một mã riêng, dùng một lần, máy phát lúc chốt') >= 0);
   });
 
   /* ------------------------------------------------ hiệu quả */
@@ -574,7 +582,7 @@ function mot(el, chon) { return el.querySelectorAll(chon)[0]; }
     vm.runInNewContext('crmDyLoc = ""; crmDyTim = "";', m.g);
     await m.g.scrCrmDongY();
     bang('trang đầu 100 dòng', m.khung.querySelectorAll('[data-crmdykh]').length, 100);
-    bang('hỏi lần đầu', goiTen(m, 'so_dong_y')[0].ts, { trang_thai: '', tim: '', bat_dau: 0 });
+    bang('hỏi lần đầu', goiTen(m, 'so_dong_y')[0].ts, { trang_thai: '', tim: '', bat_dau: 0, noi_ghi: '', kenh: '' });
     bam(m, mot(m.khung, '[data-crmdythem]'));
     await choDen(function () { return goiTen(m, 'so_dong_y').length > 1; });
     await tick();
@@ -587,13 +595,13 @@ function mot(el, chon) { return el.querySelectorAll(chon)[0]; }
     o.dispatchEvent(dg.suKien('change', {}, o));
     await choDen(function () { return goiTen(m, 'so_dong_y').length > 2; });
     await tick();
-    bang('tìm hỏi máy chủ, từ đầu', goiTen(m, 'so_dong_y')[2].ts, { trang_thai: '', tim: 'Minh Anh', bat_dau: 0 });
+    bang('tìm hỏi máy chủ, từ đầu', goiTen(m, 'so_dong_y')[2].ts, { trang_thai: '', tim: 'Minh Anh', bat_dau: 0, noi_ghi: '', kenh: '' });
     bang('chỉ dòng khớp', m.khung.querySelectorAll('[data-crmdykh]').map(function (x) { return x.getAttribute('data-crmdykh'); }), ['KH-7']);
     dung('thanh đang tìm', chu(mot(m.khung, '[data-crmdyloc]')).indexOf('1 dòng') >= 0);
     dung('hết dòng thì không còn Xem thêm', !mot(m.khung, '[data-crmdythem]'));
     bam(m, mot(m.khung, '[data-dscc="chang|Từ chối"]'));
     await choDen(function () { return goiTen(m, 'so_dong_y').length > 3; });
-    bang('chip giữ chữ tìm', goiTen(m, 'so_dong_y')[3].ts, { trang_thai: 'Từ chối', tim: 'Minh Anh', bat_dau: 0 });
+    bang('chip giữ chữ tìm', goiTen(m, 'so_dong_y')[3].ts, { trang_thai: 'Từ chối', tim: 'Minh Anh', bat_dau: 0, noi_ghi: '', kenh: '' });
   });
 
   /* ------------------------------------------------ Codex PR #505 vòng 3 (rà 808a738) */
@@ -782,6 +790,131 @@ function mot(el, chon) { return el.querySelectorAll(chon)[0]; }
     bang('lấy tiếp từ dòng 20', goiTen(m, 'ho_so_crm')[1].ts, { khach: 'KH-7', lh_bat_dau: 20 });
     bang('nối thêm', m.khung.querySelectorAll('[data-crmlh]').length, 25);
     dung('hết thì không còn Xem thêm', !mot(m.khung, '[data-crmlhthem]'));
+  });
+
+
+  /* ------------------------------------------------ v617 đợt 2 */
+
+  await ca('v617 Sổ đồng ý: chip Ghi ở đâu có đếm; bấm Web hỏi máy chủ đúng nơi ghi, giữ chữ tìm; dòng do khách tự bấm ghi rõ', async function () {
+    var tong = { 'Zalo': {}, 'Gọi điện': {}, 'Email': {} };
+    var m = dungMoi(QL, { so_dong_y: function (ts) {
+      return { tong: tong, khong_quang_cao: 0, con_nua: 0, theo_noi: { 'Quầy': 40, 'Web': 7, 'Zalo OA': 3 },
+        dong: [{ name: 'NK-1', khach: 'KH-1', ten_khach: 'An', kenh: 'Zalo', trang_thai: 'Đồng ý', noi_ghi: ts.noi_ghi || 'Web', nguoi: 'Guest', ten_nguoi: 'Guest', luc: '2026-10-28 10:00:00' }] };
+    } });
+    vm.runInNewContext('crmDyLoc = ""; crmDyTim = "Minh"; crmDyNoi = ""; crmDyKenh = "";', m.g);
+    await m.g.scrCrmDongY();
+    var chip = mot(m.khung, '[data-dscc="noi|Web"]');
+    dung('có chip Web', !!chip);
+    dung('chip có đếm 7', chu(chip).indexOf('7') >= 0);
+    dung('có chip Zalo OA', !!mot(m.khung, '[data-dscc="noi|Zalo OA"]'));
+    dung('dòng khách tự bấm: không ghi tên Guest', chu(mot(m.khung, '[data-crmdykh]')).indexOf('khách tự bấm') >= 0 && chu(mot(m.khung, '[data-crmdykh]')).indexOf('Guest') < 0);
+    dung('dòng có chip nơi ghi', !!mot(m.khung, '[data-crmnoighi="Web"]'));
+    bam(m, chip);
+    await choDen(function () { return goiTen(m, 'so_dong_y').length > 1; });
+    bang('hỏi đúng nơi ghi, giữ chữ tìm', goiTen(m, 'so_dong_y')[1].ts, { trang_thai: '', tim: 'Minh', bat_dau: 0, noi_ghi: 'Web', kenh: '' });
+    await tick();
+    bam(m, mot(m.khung, '[data-dscc="kenh|Gọi điện"]'));
+    await choDen(function () { return goiTen(m, 'so_dong_y').length > 2; });
+    bang('chip kênh giữ nơi ghi', goiTen(m, 'so_dong_y')[2].ts, { trang_thai: '', tim: 'Minh', bat_dau: 0, noi_ghi: 'Web', kenh: 'Gọi điện' });
+  });
+
+  await ca('v617 thanh 5 bước chiến dịch: nháp đã duyệt đứng ở bước Chốt; đang chạy ở bước Đang liên hệ; kết thúc tô xanh hết', async function () {
+    var m = await moCd(QL, cdMau({ buoc: 2 }));
+    var t = mot(mot(m.khung, '[data-crmcdbuocthe]'), '.buoc');
+    bang('đứng ở bước 3', t.getAttribute('data-buoc'), '2');
+    bang('năm bước đúng chữ', t.querySelectorAll('.t').map(chu), ['Soạn nháp', 'Duyệt nội dung', 'Chốt danh sách', 'Đang liên hệ', 'Kết thúc']);
+    bang('hai bước đầu xong', t.querySelectorAll('.b.xong').length, 2);
+    bang('bước đang làm có dấu', mot(t, '[aria-current="step"]').getAttribute('data-buocso'), '3');
+    var m2 = await moCd(QL, cdMau({ trang_thai: 'Đã kết thúc', ngay_chot: '2026-10-20 10:00:00', buoc: 5 }));
+    bang('kết thúc: cả 5 bước xong', mot(mot(m2.khung, '[data-crmcdbuocthe]'), '.buoc').querySelectorAll('.b.xong').length, 5);
+  });
+
+  await ca('v617 danh sách gọi: mỗi chiến dịch có thanh 3 bước kèm đếm; hết Chưa gọi thì sang bước Hẹn gọi lại', async function () {
+    var m = dungMoi(SALES, { ds_goi_cua_toi: { dong: dongGoi(), ket_qua: KQ } });
+    vm.runInNewContext('crmGoiTt = "Chưa gọi"; crmGoiCd = ""; crmGoiTim = "";', m.g);
+    await m.g.scrCrmGoi();
+    var the = mot(m.khung, '[data-crmcd="CD-26-0001"]');
+    var b = mot(the, '.buoc');
+    bang('đếm từng bước', b.querySelectorAll('.n').map(chu), ['2', '1', '0']);
+    bang('còn Chưa gọi: bước 1', b.getAttribute('data-buoc'), '0');
+    var b2 = mot(mot(m.khung, '[data-crmcd="CD-26-0002"]'), '.buoc');
+    bang('chiến dịch đã gọi xong hết: 3 bước xanh', b2.querySelectorAll('.b.xong').length, 3);
+    bang('THUẦN: hết Chưa gọi còn Hẹn gọi lại', m.g.crmBuocGoiDang({ 'Hẹn gọi lại': 2, 'Đã xong': 1 }), 1);
+  });
+
+  await ca('v617 kênh Zalo OA: bật chip thì hiện ô tiêu đề; Lưu gửi kenh_oa, tiêu đề và mốc sửa lúc mở', async function () {
+    var m = await moCd(QL, cdMau({ modified: '2026-10-28 09:00:00.000001', kenh_goi: 0 }));
+    dung('chưa bật: không có ô tiêu đề', !m.tai.getElementById('crmCdOaTd'));
+    bam(m, mot(m.khung, '[data-crmcdk="oa"]'));
+    await tick();
+    var o = m.tai.getElementById('crmCdOaTd');
+    dung('bật: có ô tiêu đề', !!o);
+    dung('Sales không bắt buộc khi chỉ có OA', chu(m.khung).indexOf('chỉ Zalo OA thì không cần') >= 0);
+    o.value = 'Quà Giáng sinh cho anh chị';
+    bam(m, mot(m.khung, '[data-crmcdluu]'));
+    await choDen(function () { return goiTen(m, 'luu_chien_dich').length; });
+    var dat = JSON.parse(goiTen(m, 'luu_chien_dich')[0].ts.dat);
+    bang('gửi kênh, tiêu đề, mốc sửa', [dat.kenh_oa, dat.kenh_goi, dat.tieu_de_oa, dat.modified], [1, 0, 'Quà Giáng sinh cho anh chị', '2026-10-28 09:00:00.000001']);
+  });
+
+  await ca('v617 gửi thử tin OA: chưa lưu thì nhắc lưu, không gửi; đã lưu thì gọi đúng hàm, Zalo từ chối thì hiện đúng câu', async function () {
+    var m = await moCd(QL, cdMau({ kenh_oa: 1, kenh_goi: 0 }), { 'vagabond.zalo_oa.gui_thu_oa': { ok: 0, loi: 'Người dùng chưa quan tâm OA (mã -213)' } });
+    var o = m.tai.getElementById('crmCdZalo'); o.value = 'Tin mới chưa lưu, đủ hai mươi chữ cái';
+    bam(m, mot(m.khung, '[data-crmoathu]'));
+    await tick();
+    bang('chưa lưu: không gửi', m.goi.filter(function (x) { return x.duong === 'vagabond.zalo_oa.gui_thu_oa'; }).length, 0);
+    var m2 = await moCd(QL, cdMau({ kenh_oa: 1, kenh_goi: 0 }), { 'vagabond.zalo_oa.gui_thu_oa': { ok: 0, loi: 'Người dùng chưa quan tâm OA (mã -213)' } });
+    bam(m2, mot(m2.khung, '[data-crmoathu]'));
+    await choDen(function () { return m2.toast.length; });
+    bang('gọi đúng chiến dịch', m2.goi.filter(function (x) { return x.duong === 'vagabond.zalo_oa.gui_thu_oa'; })[0].ts, { name: 'CD-26-0001' });
+    dung('hiện câu Zalo trả về: ' + m2.toast[0], m2.toast[0].indexOf('Gửi thử chưa được|') > 0 && m2.toast[0].indexOf('mã -213') > 0);
+  });
+
+  await ca('v617 chiến dịch đã chốt có kênh OA: thẻ gửi đếm từng trạng thái; OA tắt thì không có nút gửi; bật thì hỏi rồi gửi', async function () {
+    var chot = { trang_thai: 'Đang chạy', ngay_chot: '2026-10-27 15:00:00', kenh_oa: 1, kenh_goi: 0, buoc: 3,
+      oa_dem: { 'Chưa gửi': 90, 'Đã gửi': 10, 'Lỗi': 2 }, oa_trang_thai: '', oa_ket_qua: 'Đã gửi 10 khách, lỗi 2, bỏ qua 0.' };
+    var m = await moCd(QL, cdMau(Object.assign({ oa_bat: 0 }, chot)));
+    var the = mot(m.khung, '[data-crmoathe]');
+    bang('đếm bốn trạng thái', the.querySelectorAll('.n').map(chu), ['90', '10', '2', '0']);
+    dung('lỗi tô đỏ', !!mot(the, '.b.loi'));
+    dung('OA tắt: không nút gửi, chỉ đường bật', !mot(the, '[data-crmoagui]') && chu(the).indexOf('Kênh Zalo OA đang tắt') >= 0);
+    var m2 = await moCd(QL, cdMau(Object.assign({ oa_bat: 1 }, chot)), { 'vagabond.zalo_oa.gui_chien_dich_oa': { ok: 1, dang_gui: 1 } });
+    var nut = mot(m2.khung, '[data-crmoagui]');
+    dung('nút ghi số khách sẽ gửi (chưa gửi + lỗi)', chu(nut).indexOf('92 khách') >= 0);
+    bam(m2, nut);
+    await choDen(function () { return m2.goi.some(function (x) { return x.duong === 'vagabond.zalo_oa.gui_chien_dich_oa'; }); });
+    dung('hỏi xác nhận trước', m2.hoi[0].indexOf('Gửi tin Zalo OA?') === 0);
+    dung('báo đã xếp việc, chưa nói đã gửi', m2.toast.some(function (t) { return t.indexOf('Đã xếp việc gửi') === 0; }));
+    var m3 = await moCd(QL, cdMau(Object.assign({}, chot, { oa_bat: 1, oa_trang_thai: 'Đang gửi' })));
+    dung('đang gửi: không bấm gửi lần hai', !mot(m3.khung, '[data-crmoagui]') && chu(m3.khung).indexOf('Máy đang gửi') >= 0);
+  });
+
+  await ca('v617 tấm hỏi ở quầy: có mã QR mời quan tâm OA khi OA bật; không có đường dẫn thì không hiện', async function () {
+    var m = dungMoi(SALES);
+    m.g.inQrAnh = function (t) { return Promise.resolve('data:image/png;base64,' + t.length); };
+    m.g.crmSheetDongY('KH-1', 'An', { co: 1, cau_hoi: CAU, oa_link: 'https://zalo.me/1234567890' }, 'Quầy');
+    var sh = sheet(m);
+    dung('có khối mời OA', !!mot(sh, '[data-crmoamoi]'));
+    await choDen(function () { return mot(sh, '[data-crmoaqr]').getAttribute('src'); });
+    bang('QR từ đúng đường dẫn OA', mot(sh, '[data-crmoaqr]').getAttribute('src'), 'data:image/png;base64,' + 'https://zalo.me/1234567890'.length);
+    var m2 = dungMoi(SALES);
+    m2.g.crmSheetDongY('KH-1', 'An', { co: 1, cau_hoi: CAU }, 'Quầy');
+    dung('OA tắt: không có khối mời', !mot(sheet(m2), '[data-crmoamoi]'));
+  });
+
+  await ca('v617 bản soạn dở mở từ bản cũ hơn bản đang lưu: không ghép, báo rõ; cùng mốc thì ghép', async function () {
+    var cd = cdMau({ modified: '2026-10-28 10:00:00.000002' });
+    var m = dungMoi(QL, { doc_chien_dich: cd });
+    vm.runInNewContext('crmCdKhoiPhuc = ' + JSON.stringify({ name: 'CD-26-0001', ten: 'Tên soạn dở', modified: '2026-10-28 09:00:00.000001' }) + ';', m.g);
+    await m.g.scrCrmCd('CD-26-0001');
+    await tick();
+    bang('giữ tên bản mới', m.tai.getElementById('crmCdTen').getAttribute('value'), 'Giáng sinh 2026');
+    dung('báo người khác vừa sửa', m.toast.some(function (t) { return t.indexOf('người khác sửa sau lần bạn soạn dở') >= 0; }));
+    var m2 = dungMoi(QL, { doc_chien_dich: cd });
+    vm.runInNewContext('crmCdKhoiPhuc = ' + JSON.stringify({ name: 'CD-26-0001', ten: 'Tên soạn dở', modified: '2026-10-28 10:00:00.000002' }) + ';', m2.g);
+    await m2.g.scrCrmCd('CD-26-0001');
+    await tick();
+    bang('cùng mốc: ghép', m2.tai.getElementById('crmCdTen').getAttribute('value'), 'Tên soạn dở');
   });
 
   console.log('\n' + ket.dat + ' ca đạt, ' + ket.hong + ' ca hỏng.');

@@ -57,7 +57,7 @@ function donMau(them) {
 
 /* Cac ham ngoai tep 08 ma scrDsView goi toi: ban gia rong, chi de man ve
    duoc toi khoi hoa don. Khong ham nao trong so nay dung toi khoi xhd. */
-var GIA_RONG = ['khachTrenDon', 'khachMotDong', 'veKhachNo', 'dsvTaiHt', 'dsvVeHt', 'dsvKhoiHt', 'dsvVeQr', 'dsvVeThayThe',
+var GIA_RONG = [/* v617: thanh bước nằm ở 15-khuon-danh-sach.js, ca này không nạp phần đó */ 'veBuoc', 'khachTrenDon', 'khachMotDong', 'veKhachNo', 'dsvTaiHt', 'dsvVeHt', 'dsvKhoiHt', 'dsvVeQr', 'dsvVeThayThe',
   'dsvVeThu', 'dsvVeDiem', 'dsvVeTruDiem', 'dsvTheAnh', 'dsvHoiHt', 'dsvGanTruDiem', 'dsvGanHt', 'dsvChayDongHo', 'dsvTuPancake',
   'dsvnNapKhoiHd', 'dsvnKhoiHd', 'dsvOSo', 'dsvNapLai', 'dsvTaiThe', 'ttnVe', 'tkNapKhoi', 'tkKhoiChiTiet', 'sheetTimKhach',
   'promptSheet', 'posXinPhep', 'posTaiKhoan', 'posQrUrl', 'posNoiDungCk', 'hopKhung', 'hoanMoFormHuy', 'hoanMoFormDu', 'hoanMoForm',
