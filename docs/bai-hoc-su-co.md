@@ -2652,3 +2652,26 @@ Vòng 5 (rà 3a79937): (13) Codex nêu một chỗ vi phạm luật chung (ô t�
 mọi danh sách, có tên món thì có ảnh) thì rà CẢ mô đun theo luật đó trong cùng
 vòng, không chỉ sửa đúng dòng được chỉ: vòng 3, 4, 5 lần lượt lộ thêm từng chỗ
 cùng loại (Hiệu quả, món giới thiệu, bộ lọc đã lưu, món trong bộ lọc).
+
+## 28/10/2026 (v617): Bootstrap lật thẻ thành cột, và danh sách cắt trước khi xếp
+
+(1) Frappe nạp Bootstrap, mà Bootstrap đặt `.card{display:flex;flex-direction:column}`.
+App `/bep` dùng lại tên lớp `.card` và nhiều chỗ tự đặt `display:flex` để xếp ngang
+(hàng tab Vận đơn, ô tổng Danh sách khách hàng): thiếu `flex-direction` là bị lật
+thành cột, chữ dồn xuống, ô cao bất thường. Thẻ của app nay ghi rõ hướng hàng
+ngang trong 00-nen.js. Dựng bố cục ngang trong `.card` thì nhớ lớp này có từ trước.
+
+(2) Màn ghi "chi nhiều nhất lên đầu" nhưng máy chủ lấy 400 khách ĐẦU BẢNG CHỮ CÁI
+rồi mới xếp theo tiền: khách chi nhiều mà tên bắt đầu bằng chữ T không bao giờ
+hiện, và dòng tổng chỉ là tổng của 400 người đó. Danh sách nào hứa một thứ tự
+thì phải xếp và cộng NGAY TRONG CÂU TRUY VẤN trên đủ nhóm, rồi mới cắt. Ca kiểm
+chốt câu SQL (khach_thuan.py) và chốt màn chỉ hiện số máy chủ cộng.
+
+(3) Ô tìm dùng lại lớp `.tin` (ô gõ số tiền) thì chữ 22px canh giữa, đậm, nhìn
+lệch hẳn với các ô khác. Ô tìm dùng `class="tin tim" type="search"`.
+
+(4) Kênh gửi ra ngoài mà phiên làm việc không đọc được tài liệu gốc (trang tài
+liệu Zalo là ứng dụng một trang, không đọc bằng công cụ được): để kênh TẮT sẵn
+trong Cài đặt, có nút Gửi thử vào tài khoản của chính mình, và ghi rõ trong PR
+là định dạng thân tin chưa đối chiếu trên OA thật. Không bật cho khách trước khi
+Gửi thử thành công.
