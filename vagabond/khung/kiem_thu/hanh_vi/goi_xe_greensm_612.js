@@ -70,7 +70,7 @@ function dungMoi(dangThu) {
     busy: function () {},
     toast: function (m) { tin.push(m); },
     baoTin: function (m) { tin.push('LOI ' + m); },
-    xacNhan: function (m) { hoi.push(m); return Promise.resolve(true); },
+    xacNhan: function (m) { hoi.push(m); if (that._treXn) return new Promise(function (ok) { that._dongY = function () { ok(true); }; }); return Promise.resolve(true); },
     scrVdView: function () { that._ve = 'view'; },
     sheet: function (t, ops, cur, cb) { sheetCb.push({ t: t, ops: ops, cb: cb }); },
     api: function (duong, ts) {
@@ -79,6 +79,7 @@ function dungMoi(dangThu) {
       if (duong === 'vagabond.van_don.gsm_dich_vu') return Promise.resolve(Object.assign({ dang_thu: dangThu }, JSON.parse(JSON.stringify(DV_GSM))));
       if (duong === 'vagabond.van_don.aha_dich_vu') return Promise.resolve(JSON.parse(JSON.stringify(DV_AHA)));
       // v616: GreenSM trả mã bản giá; mỗi lần hỏi là một mã mới (fee-1, fee-2...).
+      if (duong === 'vagabond.van_don.gsm_bao_gia' && that._treGia) { that._soGia = (that._soGia || 0) + 1; var so = that._soGia; return new Promise(function (ok) { that._traGia = function () { ok({ tong: 123000, km: 6, dang_thu: dangThu, ma_gia: 'fee-' + so }); }; }); }
       if (duong === 'vagabond.van_don.gsm_bao_gia') { that._soGia = (that._soGia || 0) + 1; return Promise.resolve({ tong: 80000 + 1000 * (that._soGia - 1), km: 5.33, dang_thu: dangThu, ma_gia: 'fee-' + that._soGia }); }
       if (/bao_gia$/.test(duong)) return Promise.resolve({ tong: 80000, km: 5.33, dang_thu: dangThu });
       return Promise.resolve({});
@@ -172,6 +173,27 @@ async function mo(kenh, dangThu) {
     await tick();
     bang('xác nhận đúng cước đang hiện', m.hoi, ['Gọi xe GreenSM cho đơn này, cước 81.000 đ?']);
     bang('gửi mã bản giá đang hiện', cua(m, 'vagabond.van_don.book_xe')[0].ts.ma_gia, 'fee-2');
+  });
+
+  await ca('v616 (Codex #499 4395961827): đang chờ giá mới thì không Gọi xe được; giá mới về khi hộp xác nhận đang mở thì vẫn gửi mã của cước đã xác nhận', async function () {
+    var m = await mo('GreenSM', false);
+    await bamNut(m, 'gxGia');
+    // Chuỗi 1: bấm Xem giá lần nữa, giá chưa về.
+    m.g._treGia = true;
+    var cho = nut(m, 'gxGia').onclick();
+    await tick();
+    dung('đang hỏi giá thì Gọi xe khoá', khoa(nut(m, 'gxDat')));
+    await nut(m, 'gxDat').onclick(); await tick();
+    bang('bấm Gọi xe lúc đang hỏi giá: không hỏi xác nhận, không gọi máy chủ', [m.hoi.length, cua(m, 'vagabond.van_don.book_xe').length], [0, 0]);
+    m.g._traGia(); await cho; await tick();
+    // Chuỗi 2 (đúng chuỗi Codex): mở xác nhận ở cước đang hiện, giá mới về trong lúc hộp còn mở, rồi Đồng ý.
+    m.g._treGia = true; m.g._treXn = true;
+    var xn = nut(m, 'gxDat').onclick(); await tick();
+    bang('xác nhận cước đang hiện', m.hoi[m.hoi.length - 1], 'Gọi xe GreenSM cho đơn này, cước 123.000 đ?');
+    var cho2 = nut(m, 'gxGia').onclick(); await tick();
+    m.g._traGia(); await cho2; await tick();
+    m.g._dongY(); await xn; await tick();
+    bang('gửi mã của cước đã xác nhận, không phải mã mới về', cua(m, 'vagabond.van_don.book_xe')[0].ts.ma_gia, 'fee-2');
   });
 
   await ca('Ahamove vẫn đi ba cửa cũ, không bị khoá vì cờ chạy thử của GreenSM', async function () {
