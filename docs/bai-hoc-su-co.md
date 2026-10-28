@@ -2694,3 +2694,7 @@ còn mở sẽ thay biến chung, gửi đi thứ người dùng chưa từng th
 - Mọi đường đọc dòng để tính tiền (dựng mới, dựng lại, ghim lại theo gốc, dự
   kiến tổng) đi qua một hàm `dong_may_ghi`. Ghim lại theo gốc mà kéo về giá in
   trên hoá đơn là lật đi lật lại giữa hai đơn giá mỗi lần lưu.
+- Codex #512: đơn giá lẻ thì một dòng chia qua nhiều phiếu nhập, mỗi dòng con
+  làm tròn riêng (2 x 3,85 kg ra 173.501 + 173.501 = 347.002). Chia TIỀN của
+  dòng gốc cho các dòng con trước (phần dư vào dòng lẻ lớn nhất) rồi mới ra
+  đơn giá từng dòng con; lượt ghim lại theo gốc phải dùng cùng phép chia đó.
