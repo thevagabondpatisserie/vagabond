@@ -79,6 +79,7 @@ def dong_bo_giu_tang():
     g=dict(frappe=f,flt=lambda x:float(x or 0),cint=lambda x:int(x or 0),_dong_hang=lambda *a:([{'item_code':'BANH','qty':1,'rate':100}],[]),_lech_pancake=lambda *a:0,giu_khach_cua_don=lambda *a:True,_giam_tu_diem=lambda *a:0,_doan_thanh_toan=lambda *a:('Tiền mặt',''),_dien_dong_thanh_toan=lambda *a:None,nghi_cong_no=lambda *a:0,XHD_MAC_DINH='Khách lẻ',TRUONG_XHD=('vgb_xhd_ten','vgb_xhd_mst','vgb_xhd_dia_chi','vgb_xhd_email'))
     # v595: nhịp đồng bộ gọi luật người mua thật; nạp đúng hàm từ nguồn, không thay bằng hàm giả.
     nap('ban_hang.py','nguoi_mua_con_trong',g);nap('ban_hang.py','gop_nguoi_mua_dong_bo',g)
+    nap('ban_hang.py','giu_ten_dong',g)  # v619: nhịp đồng bộ giữ tên dòng món cũ.
     truoc=[d.get(k) for k in ('vgb_tang_loai','vgb_tang_ly_do','vgb_tang_duyet','vgb_tang_nguoi_duyet','vgb_pt_thanh_toan')]
     import sys
     from unittest.mock import patch
