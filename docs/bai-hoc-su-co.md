@@ -2718,21 +2718,28 @@ trên bench, vì lớp Frappe giả của tầng khung không chạy câu SQL.
 tạo đơn được. Lớp Frappe giả và bench không gọi đối tác thật nên không thấy; nút
 Thử kết nối chạy trên site mới lộ ra (đúng ngày deploy v616). Mã gọi đối tác phải
 chạy một chuỗi thật trên sandbox trước khi bàn giao, không chỉ khớp tài liệu.
+## 28/10/2026 (v618): nửa đồng làm tròn hai kiểu thành một dòng không mã hàng
 
-## 28/10/2026 (v618): lịch sử sửa phình vì máy dựng lại bảng con
-
-Cơ sở dữ liệu 1,62 GB trên trần 2 GB. Bảng lịch sử sửa (Version) chiếm 545 MB,
-riêng hoá đơn bán hơn 1 GB dữ liệu thô, 97% do Administrator ghi. Nguyên nhân:
-nhịp đồng bộ Pancake 30 phút một lần gán `si.items = []` rồi thêm lại mọi món
-của hoá đơn nháp, và ERPNext dựng lại bảng thuế theo dòng mỗi lần lưu. Dòng mới
-mang tên mới, nên mỗi lần lưu lịch sử chụp lại TOÀN BỘ dòng cũ (removed) lẫn dòng
-mới (added) dù nội dung y hệt (đo 111 trên 111 lần dựng lại có bảng món giống
-hệt). Lệnh dọn đêm vẫn chạy đều nhưng không thấy, vì lịch sử chứng từ nằm trong
-diện bảo vệ không xoá.
-
-Cách phòng: đo dung lượng theo `ref_doctype` và theo khoá trong `data` trước
-khi đề xuất dọn. Muốn bớt mà vẫn giữ dấu vết thì gọn đúng phần chụp lặp lại,
-giữ ai đổi, lúc nào, trường nào. Bản giả lập cơ sở dữ liệu phải đọc chính câu
-lệnh chứ không tự lọc theo tham số: đột biến đổi "and" thành "or" trong câu xoá
-đã lọt qua bản giả lập tự lọc. Ảnh và tệp nằm ở ổ đĩa (trần riêng 50 GB), xoá
-ảnh không làm tụt con số cơ sở dữ liệu.
+- Hoá đơn An Phú C26MYY/8345: bưởi 7,7 kg x 45.065 = 347.000,5. Người bán làm
+  tròn nửa đồng lên (347.001), ERPNext làm tròn nửa đồng về số chẵn (347.000).
+  Phép nắn cả tờ thấy thiếu 1 đồng nên thêm dòng "Chênh lệch làm tròn" không mã
+  hàng vào 632; tờ HDM-26-10-00298 kẹt "Thiếu mã hàng", giá trị hàng hụt 1 đồng.
+- Luật: thành tiền từng dòng trên hoá đơn là số gửi cơ quan thuế. Lệch dưới một
+  đồng ở một dòng thì đơn giá dòng chịu theo thành tiền (số lẻ đơn giá 9 chứa
+  được), không đẩy ra dòng bù. Dòng bù chỉ còn cho phần không đặt được vào dòng
+  nào (phí ngoài dòng hàng, số lẻ đơn giá không đủ chứa).
+- Mọi đường đọc dòng để tính tiền (dựng mới, dựng lại, ghim lại theo gốc, dự
+  kiến tổng) đi qua một hàm `dong_may_ghi`. Ghim lại theo gốc mà kéo về giá in
+  trên hoá đơn là lật đi lật lại giữa hai đơn giá mỗi lần lưu.
+- Codex #512: đơn giá lẻ thì một dòng chia qua nhiều phiếu nhập, mỗi dòng con
+  làm tròn riêng (2 x 3,85 kg ra 173.501 + 173.501 = 347.002). Chia TIỀN của
+  dòng gốc cho các dòng con trước (phần dư vào dòng lẻ lớn nhất) rồi mới ra
+  đơn giá từng dòng con; lượt ghim lại theo gốc phải dùng cùng phép chia đó.
+- Màn Hoá đơn hôm nay (chị Dễ báo cùng ngày): v617 trả `.card` về hàng ngang để
+  chữa các thẻ muốn hàng ngang, nhưng ba thẻ ở màn này lâu nay "đúng nhờ cột" của
+  Bootstrap. Nút `.btn` width:100% với flex:none chiếm trọn hàng, chữ bên cạnh co
+  còn 0 điểm và dựng đứng từng ký tự. Đổi mặc định của một lớp dùng chung là phải
+  rà MỌI chỗ dùng lớp đó theo cả hai chiều: chỗ được chữa và chỗ đang sống nhờ
+  mặc định cũ. Nay luật viết: thẻ `.card` khai display:flex ghi rõ
+  flex-direction, nút `.btn` khai flex:none ghi rõ chiều rộng (ca
+  thu_the_flex_618 soát toàn bộ bep/).
