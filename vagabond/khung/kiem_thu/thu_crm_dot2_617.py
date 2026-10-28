@@ -194,7 +194,12 @@ def _chot_moi_truong(doc, rows, km=None):
 
 	class Lo(D):
 		def insert(self, **k):
-			self["name"] = "LOV-26-0001"
+			# Chạy đúng validate của doctype thật (trần số mã một lô), không
+			# để lớp giả nhận một lô mà site thật từ chối (Codex PR #510 vòng 3).
+			from vagabond.vagabond.doctype.vagabond_lo_voucher.vagabond_lo_voucher import VagabondLoVoucher
+
+			VagabondLoVoucher.validate(self)
+			self["name"] = "LOV-26-%04d" % (len(ghi.lo) + 1)
 			ghi.lo.append(dict(self))
 			return self
 
@@ -208,7 +213,7 @@ def _chot_moi_truong(doc, rows, km=None):
 			return "loan@x"
 		return None
 
-	ma = iter("M%05d" % i for i in range(1000))
+	ma = iter("M%05d" % i for i in range(20000))
 	from vagabond import khuyen_mai  # noqa: F401  (đảm bảo nạp được trước khi vá)
 
 	vas = [
@@ -269,6 +274,30 @@ def _chot_ma_rieng():
 	la("một lô của chiến dịch", (len(ghi.lo), ghi.lo[0]["so_luong"], ghi.lo[0]["ctkm"]), (1, 27, "CTKM-7"))
 	la("phiếu ghi lô", doc.lo_voucher, "LOV-26-0001")
 	la("kênh ghi trên dòng", {r["kenh_duoc"] for r in dong}, {"Zalo OA"})
+
+
+@ca("Codex PR #510 vòng 3: hơn 5.000 khách nhận mã riêng thì chia nhiều lô, chốt không bị chặn, mỗi mã ghi đúng lô của nó")
+def _chot_nhieu_lo():
+	doc = _cd()
+	ghi, vas = _chot_moi_truong(doc, _rows(5600), D(ten="Tết đông khách", cach_ma="Ma dung mot lan", han_ma=None, bat=1))
+	with _khach_ca(ghi):
+		for v in vas:
+			v.start()
+		try:
+			crm.chot_chien_dich(doc.name)
+		finally:
+			for v in vas:
+				v.stop()
+	nhan = [r for r in ghi.bulk.get(crm.DT_CD_KHACH, []) if r["nhanh"] == "Nhận"]
+	la("5.040 khách nhận (10% đối chứng)", len(nhan), 5040)
+	la("hai lô, lô nào cũng không quá 5.000 mã", [x["so_luong"] for x in ghi.lo], [5000, 40])
+	v = ghi.bulk.get("Vagabond Voucher", [])
+	la("đủ 5.040 mã, không trùng", (len(v), len({r["ma"] for r in v})), (5040, 5040))
+	la("mỗi lô chứa đúng số mã đã khai", {lo: sum(1 for r in v if r["lo"] == lo) for lo in ("LOV-26-0001", "LOV-26-0002")},
+		{"LOV-26-0001": 5000, "LOV-26-0002": 40})
+	la("mã gắn đúng khách", {r["danh_cho"]: r["ma"] for r in v}, {r["khach"]: r["ma_uu_dai"] for r in nhan})
+	la("phiếu ghi lô đầu", doc.lo_voucher, "LOV-26-0001")
+	dung("ghi chú lô nói rõ lô mấy trên mấy", "lô 2/2" in ghi.lo[1]["ghi_chu"])
 
 
 @ca("v617 chốt: CTKM mã cố định thì không phát mã riêng; CTKM đang tắt thì không chốt (mã phát ra sẽ không dùng được)")
