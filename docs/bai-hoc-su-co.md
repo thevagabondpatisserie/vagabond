@@ -2652,3 +2652,25 @@ Vòng 5 (rà 3a79937): (13) Codex nêu một chỗ vi phạm luật chung (ô t�
 mọi danh sách, có tên món thì có ảnh) thì rà CẢ mô đun theo luật đó trong cùng
 vòng, không chỉ sửa đúng dòng được chỉ: vòng 3, 4, 5 lần lượt lộ thêm từng chỗ
 cùng loại (Hiệu quả, món giới thiệu, bộ lọc đã lưu, món trong bộ lọc).
+
+## 26/10/2026 (v612): đối tác báo "gửi curl xem", lỗi nằm ở thân yêu cầu mình đoán
+
+GreenSM sandbox trả 400 "missing required fields" suốt từ 21/10 vì khung cũ
+ĐOÁN tên trường (`pickup`/`dropoff` số ít, `lat`/`lng`, `contact_name`) khi
+tài liệu chưa có. Tài liệu ra rồi thì đúng là `pickups`/`dropoffs` (mảng),
+`service_ids` + `points` (`latitude`, `longitude`, `phone_number` dạng +84).
+Bài học: (1) khung viết theo đoán phải ghi rõ là ĐOÁN và có ca kiểm chốt
+không còn sót chỗ đoán khi đã có tài liệu; (2) sandbox của đối tác thường
+là dữ liệu GIẢ (mọi địa chỉ cùng một giá): không bao giờ để giá sandbox lọt
+ra cho khách, và không gọi xe sandbox cho vận đơn thật; (3) đột biến "lọt"
+lần đầu (M6) là do tệp .pyc cũ, cùng bẫy với v609: chạy đột biến luôn với
+PYTHONDONTWRITEBYTECODE=1 và xoá __pycache__ của tệp vừa đổi.
+
+Vòng Codex #499 (v616): (4) Giữ một bản giá ở máy chủ để "tạo đơn từ chính
+bản đó" thì phải giữ kèm DẤU của mọi đầu vào làm ra bản giá (nơi giao, người
+nhận, số điện thoại, tiền thu hộ, điểm lấy) và so lại lúc tạo đơn. Vận đơn bị
+đồng bộ Pancake đổi địa chỉ, COD giữa hai lần bấm là chuyện thường; chỉ so loại
+xe và dịch vụ thêm thì tài xế được gọi tới địa chỉ cũ và thu tiền khách đã trả.
+(5) Nút thêm bằng `add_custom_button` trên Desk không tự xuống app (app chỉ đọc
+cấu trúc ô của doctype): thêm nút trên Desk là phải thêm thao tác tương đương ở
+màn app và ca hành vi bấm nó.
