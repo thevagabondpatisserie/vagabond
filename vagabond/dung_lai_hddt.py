@@ -289,9 +289,10 @@ def _dung_dong_tai_cho(doc, g):
 	# vẫn giữ Món kế toán vừa gõ với hệ số 1, mà cửa chặn ghi sổ thì không
 	# còn thấy gì để chặn. Chỉ ba cửa chốt tay mới được xoá dấu.
 	giu_dau = _dau_dang_co(doc, dong_goc)
+	dp_gia, dp_tien, dp_sl = _do_chinh_xac(doc, g)
 	moi = []
 	for vi_tri, it in enumerate(dong_goc):
-		x = mc.dong_tu_hoa_don(it, mc.dau_cua_to(g.get("tong_tien")))
+		x = mc.dong_may_ghi(it, mc.dau_cua_to(g.get("tong_tien")), dp_gia, dp_tien, dp_sl)
 		# Nguồn không ghi UOM không phải là một UOM lạ. Khi dựng lại một
 		# dòng đã được người dùng chọn rõ, giữ duy nhất quy cách cùng tên/mã;
 		# guard Document vẫn kiểm quy cách này trước khi lưu hoặc ghi sổ.
@@ -312,7 +313,6 @@ def _dung_dong_tai_cho(doc, g):
 		if not str(d_moi.get("vgb_mon_may_doan") or "").strip():
 			d_moi["vgb_mon_may_doan"] = giu_dau.get(vi_tri, "")
 		moi.append(d_moi)
-	dp_gia, dp_tien, dp_sl = _do_chinh_xac(doc, g)
 	tong_dong = sum(
 		tien_dong_may_ghi(d.get("qty"), d.get("rate"), dp_gia, dp_tien, dp_sl)
 		for d in moi
@@ -384,10 +384,13 @@ def ghim_lai_theo_goc(doc, g):
 		return 0
 	from vagabond import minvoice_chung_tu as mc
 
+	# Kéo về đơn giá ĐÃ NẮN theo thành tiền, không về đơn giá in trên hoá
+	# đơn: kéo về 45.065 thì tờ An Phú 8345 lại hụt một đồng (v618).
+	dp_gia, dp_tien, dp_sl = _do_chinh_xac(doc, g)
 	theo_khoa = {}
 	dem = {}
 	for it in dong_goc:
-		x = mc.dong_tu_hoa_don(it, mc.dau_cua_to(g.get("tong_tien")))
+		x = mc.dong_may_ghi(it, mc.dau_cua_to(g.get("tong_tien")), dp_gia, dp_tien, dp_sl)
 		k = khoa_ten(x.get("ten"))
 		if not k:
 			continue
@@ -597,7 +600,7 @@ def du_kien_tong(doc, g):
 		dp_gia, dp_tien, dp_sl = _do_chinh_xac(doc, g)
 		tong_dong = 0.0
 		for it in dong_goc:
-			x = mc.dong_tu_hoa_don(it, mc.dau_cua_to(g.get("tong_tien")))
+			x = mc.dong_may_ghi(it, mc.dau_cua_to(g.get("tong_tien")), dp_gia, dp_tien, dp_sl)
 			tong_dong += tien_dong_may_ghi(
 				x.get("sl"), x.get("gia"), dp_gia, dp_tien, dp_sl)
 		dau = mc.dau_cua_to(g.get("tong_tien"))
