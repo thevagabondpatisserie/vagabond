@@ -255,3 +255,5 @@ node vagabond/khung/kiem_thu/hanh_vi/crm_614.js
 node vagabond/khung/kiem_thu/hanh_vi/goi_xe_greensm_612.js
 # v617: man Danh sach khach hang (tong tren du nhom, chip hang, o tim) va thanh buoc 1-2-3-4 (van don, don ban).
 node vagabond/khung/kiem_thu/hanh_vi/khach_ds_617.js
+# v618: man Hoa don hom nay cua quay (10-bill-quay.js that): the flex ghi huong, bien ngay khac, Bo loc.
+node vagabond/khung/kiem_thu/hanh_vi/ds_hoa_don_618.js
