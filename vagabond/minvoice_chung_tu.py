@@ -350,6 +350,53 @@ def dong_may_ghi(it, dau_to, dp_gia, dp_tien, dp_sl=None):
 	return x
 
 
+def gia_cac_dong_chia(sl_goc, sl_ds, gia, dp_gia, dp_tien, dp_sl=None):
+	"""Đơn giá từng dòng con khi MỘT dòng hoá đơn chia qua nhiều phiếu nhập. THUẦN.
+
+	PHÁT HIỆN CỦA CODEX TRÊN PR #512 (v618)
+	--------------------------------------------------------------------
+	Bưởi 7,7 kg giá đã nắn 45.065,064935065 chia vào hai phiếu, mỗi phiếu
+	3,85 kg: mỗi dòng con máy làm tròn 173.500,5 lên 173.501, cộng thành
+	347.002 thay vì 347.001. Mỗi dòng con làm tròn riêng nên tổng các dòng
+	con không còn bằng tiền của dòng gốc.
+
+	Nên chia TIỀN trước rồi mới ra đơn giá: tổng phải bằng đúng số máy ghi
+	cho cả dòng gốc, từng dòng con nhận phần nguyên của tích, phần dư chia
+	cho dòng có phần lẻ lớn nhất. Đơn giá dòng con chịu theo phần tiền đó
+	qua đúng `gia_cho_dung_thanh_tien`. Không chia ra đúng được thì trả
+	nguyên giá cho mọi dòng, như trước bản này.
+	"""
+	n = len(sl_ds or [])
+	ve = [gia] * n
+	try:
+		g = float(gia or 0)
+		muc = tien_dong_may_ghi(sl_goc, gia, dp_gia, dp_tien, dp_sl)
+		tich = [flt(s, dp_sl) * g for s in sl_ds]
+	except (TypeError, ValueError):
+		return ve
+	if n < 2 or not g:
+		return ve
+	if sum(tien_dong_may_ghi(s, gia, dp_gia, dp_tien, dp_sl) for s in sl_ds) == muc:
+		return ve
+	dau = -1 if muc < 0 else 1
+	buoc = 10 ** -(dp_tien or 0)
+	phan = []
+	for t in tich:
+		dv = round(abs(t) / buoc, 6)
+		phan.append((int(dv), dv - int(dv)))
+	du = int(round(abs(muc) / buoc)) - sum(p[0] for p in phan)
+	if du < 0 or du > n:
+		return ve
+	them = set(sorted(range(n), key=lambda i: -phan[i][1])[:du])
+	ra = []
+	for i, s in enumerate(sl_ds):
+		tien_i = dau * flt((phan[i][0] + (1 if i in them else 0)) * buoc, dp_tien)
+		ra.append(gia_cho_dung_thanh_tien(s, gia, tien_i, dp_gia, dp_tien, dp_sl))
+	if sum(tien_dong_may_ghi(s, r, dp_gia, dp_tien, dp_sl) for s, r in zip(sl_ds, ra)) != muc:
+		return ve
+	return ra
+
+
 def ten_dong_bu(so_tien):
 	"""Tên dòng bù cho phần chênh. THUẦN.
 

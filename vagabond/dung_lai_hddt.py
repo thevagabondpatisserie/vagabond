@@ -421,13 +421,21 @@ def ghim_lai_theo_goc(doc, g):
 		if not chia_phieu and flt(d.get("qty")) != flt(x.get("sl")):
 			d.qty = x.get("sl")
 			sua = True
-		if flt(d.get("rate")) != flt(x.get("gia")):
-			d.rate = x.get("gia")
+		gia_dung = x.get("gia")
+		if chia_phieu:
+			# Dòng đã chia qua nhiều phiếu: đơn giá từng dòng con lấy từ CÙNG
+			# phép chia lúc nối (`gia_cac_dong_chia`), không kéo cả nhóm về một
+			# giá, kéo về là tổng các dòng con lại lệch dòng gốc (Codex #512).
+			gia_dung = mc.gia_cac_dong_chia(
+				x.get("sl"), [r.get("qty") for r in nhom], x.get("gia"),
+				dp_gia, dp_tien, dp_sl)[next(i for i, r in enumerate(nhom) if r is d)]
+		if flt(d.get("rate")) != flt(gia_dung):
+			d.rate = gia_dung
 			sua = True
 		if sua:
 			# Ghim luôn giá bảng, không thì ERPNext lại lấy giá Bảng giá nhập
 			# điền đè lên ngay trong chính lượt lưu này.
-			d.price_list_rate = x.get("gia")
+			d.price_list_rate = gia_dung
 			d.discount_percentage = 0
 			d.discount_amount = 0
 			d.margin_rate_or_amount = 0

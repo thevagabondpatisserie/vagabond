@@ -991,12 +991,26 @@ def _go_noi_cu(doc, kho):
 	return bao
 
 
+def _do_chinh_xac_cua(doc):
+	"""Số lẻ (đơn giá, tiền, số lượng) máy sẽ dùng cho tờ này khi lưu."""
+	from vagabond import minvoice_chung_tu as mc
+	from vagabond.dung_lai_hddt import _goc
+
+	try:
+		goc = _goc(doc.get("custom_minvoice_id"))
+	except Exception:
+		goc = None
+	return mc.do_chinh_xac(doc, goc)
+
+
 def _noi(doc, phieu, chi_tiet=False):
 	"""Chia dòng qua các phiếu đủ lượng rồi dùng cùng cửa kiểm đơn vị/giá."""
 	kho = _kho_con_lai(doc, phieu)
 	da_go = _go_noi_cu(doc, kho)
 	# Bản kế hoạch riêng: lần nối thật bên dưới chỉ tiêu lượng đúng một lần.
 	du_kien = {ma: [dict(r) for r in ds] for ma, ds in kho.items()}
+	from vagabond import minvoice_chung_tu as mc
+	dp = None
 	dong = []
 	for d in list(doc.items):
 		if d.get("purchase_receipt"):
@@ -1013,6 +1027,7 @@ def _noi(doc, phieu, chi_tiet=False):
 			continue
 		goc = d.as_dict()
 		con = flt(d.qty)
+		con_cua_dong = []
 		for i, (r, sl) in enumerate(chia):
 			luong = con if i == len(chia) - 1 else sl / hs
 			con -= luong
@@ -1026,7 +1041,20 @@ def _noi(doc, phieu, chi_tiet=False):
 			moi.qty = luong
 			moi.amount = luong * flt(moi.rate)
 			dong.append(moi)
+			con_cua_dong.append(moi)
 			r["con"] -= sl
+		# Mỗi dòng con máy làm tròn riêng, cộng lại có thể lệch dòng gốc một
+		# đồng (Codex #512: 2 x 3,85 kg bưởi ra 347.002). Chia tiền trước rồi
+		# mới ra đơn giá từng dòng con, xem `gia_cac_dong_chia`.
+		if dp is None:
+			dp = _do_chinh_xac_cua(doc)
+		gia_con = mc.gia_cac_dong_chia(
+			goc.get("qty"), [c.qty for c in con_cua_dong], flt(goc.get("rate")), *dp)
+		for c, g in zip(con_cua_dong, gia_con):
+			if flt(c.rate) != flt(g):
+				c.rate = g
+				c.price_list_rate = g
+				c.amount = flt(c.qty) * flt(g)
 	doc.set("items", dong)
 	kq = _noi_tung_dong(doc, phieu, chi_tiet, kho)
 	if chi_tiet:
