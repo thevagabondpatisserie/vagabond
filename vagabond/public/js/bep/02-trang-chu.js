@@ -1817,6 +1817,7 @@ var VGB_DUONG = {
   'canh-bao-thanh-toan': 'CBTT',
   'chi-phi-van-don': 'CPX',
   'chien-dich': 'CRMCD',
+  'chuong-thong-bao': 'CHUONG',
   'chuyen-phantom': 'PTCH',
   'cong-no': 'CN',
   'cong-no-phai-tra': 'CNPT',
@@ -1835,6 +1836,7 @@ var VGB_DUONG = {
   'don-da-huy': 'DHUY',
   'don-mua-hang': 'PO',
   'don-tiec': 'TIEC',
+  'du-lieu-hao-hut': 'BCHH',
   'duyet-don-hang-tang': 'DUYETTANG',
   'duyet-yeu-cau': 'DUYETYC',
   'gia-von-tam-tinh': 'GVT',
@@ -2052,6 +2054,10 @@ function vgbGo(k) {
     return go(function () { scrNhom(nhx); });
   }
   if (k === 'VCL') return go(scrVclList);
+  /* v619: chuông thông báo (59-chuong.js) và đủ danh sách của tin Dữ liệu hao hụt
+     (báo cáo BC18, mở sẵn tuần trước vì tin gửi sáng thứ Hai cho tuần đó). */
+  if (k === 'CHUONG') return go(scrChuong);
+  if (k === 'BCHH') { bcMa = 'BC18'; bcKy = 'tuan'; bcMoc = addDays(today(), -7); return go(scrBaoCaoXem); }
   if (k === 'SOTAY') return go(scrSoTay);
   if (k === 'KBD') { location.href = '/kiem-banh'; return; }
   if (k === 'KBM') return go(scrMuaVuDs);

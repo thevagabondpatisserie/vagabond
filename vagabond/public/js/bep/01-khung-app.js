@@ -332,7 +332,9 @@ function frame(title, bodyHtml, opt) {
   var showBack = S.stack.length > 1;
   root.innerHTML =
     '<div class="vh">' +
-      (showBack ? '<button class="ic" id="vgbBack">&#8249;</button>' : '<span class="ic"></span>') +
+      (showBack ? '<button class="ic" id="vgbBack">&#8249;</button>' :
+        /* v619: màn gốc đeo chuông thông báo ở góc trái (59-chuong.js). */
+        (window.vgbNutChuong ? window.vgbNutChuong() : '<span class="ic"></span>')) +
       (showBack ? '<button class="ic" id="vgbHome" aria-label="Ve trang chu">&#127968;</button>' : '') +
       '<b>' + h(title) + '</b>' +
       (opt.action ? '<button class="ic" id="vgbAct">' + opt.action + '</button>' : '') +
@@ -351,6 +353,7 @@ function frame(title, bodyHtml, opt) {
     document.documentElement.style.setProperty('--vgb-vf', vgbVf ? vgbVf.offsetHeight + 'px' : '0px');
   } catch (e) { }
   var b = document.getElementById('vgbBack'); if (b) b.onclick = back;
+  try { if (!showBack && window.vgbGanChuong) window.vgbGanChuong(); } catch (e) { }
   var hb = document.getElementById('vgbHome'); if (hb) hb.onclick = function () {
     /* v596 Codex #480: nut nha cat ca chong, nen cung qua cua hoi chung. */
     var cau = vgbCauRoi(-1);
