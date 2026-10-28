@@ -401,3 +401,4 @@ vagabond.patches.v614_crm_tinh_nhom
 vagabond.patches.dong_bo_cau_truc #v615
 vagabond.patches.dong_bo_cau_truc #v616
 vagabond.patches.dong_bo_cau_truc #v617
+vagabond.patches.dong_bo_cau_truc #v618
