@@ -2743,3 +2743,26 @@ chạy một chuỗi thật trên sandbox trước khi bàn giao, không chỉ k
   mặc định cũ. Nay luật viết: thẻ `.card` khai display:flex ghi rõ
   flex-direction, nút `.btn` khai flex:none ghi rõ chiều rộng (ca
   thu_the_flex_618 soát toàn bộ bep/).
+
+## 28/10/2026 (v619): lịch sử sửa phình vì máy dựng lại bảng con
+
+Cơ sở dữ liệu 1,62 GB trên trần 2 GB. Bảng lịch sử sửa (Version) chiếm 545 MB,
+riêng hoá đơn bán hơn 1 GB dữ liệu thô, 97% do Administrator ghi. Nguyên nhân:
+nhịp đồng bộ Pancake 30 phút một lần gán `si.items = []` rồi thêm lại mọi món
+của hoá đơn nháp, và ERPNext dựng lại bảng thuế theo dòng mỗi lần lưu. Dòng mới
+mang tên mới, nên mỗi lần lưu lịch sử chụp lại TOÀN BỘ dòng cũ (removed) lẫn dòng
+mới (added) dù nội dung y hệt (đo 111 trên 111 lần dựng lại có bảng món giống
+hệt). Lệnh dọn đêm vẫn chạy đều nhưng không thấy, vì lịch sử chứng từ nằm trong
+diện bảo vệ không xoá.
+
+Sửa tận gốc (cùng PR): nhịp đồng bộ gắn tên dòng món cũ cho dòng dựng lại cùng
+vị trí (`giu_ten_dong`), nên ERPNext cập nhật đúng dòng đó và lịch sử chỉ ghi
+trường đổi. Bảng thuế theo dòng do ERPNext tự dựng lại thì vẫn chụp; nhịp gọn
+đêm lo phần đó.
+
+Cách phòng: đo dung lượng theo `ref_doctype` và theo khoá trong `data` trước
+khi đề xuất dọn. Muốn bớt mà vẫn giữ dấu vết thì gọn đúng phần chụp lặp lại,
+giữ ai đổi, lúc nào, trường nào. Bản giả lập cơ sở dữ liệu phải đọc chính câu
+lệnh chứ không tự lọc theo tham số: đột biến đổi "and" thành "or" trong câu xoá
+đã lọt qua bản giả lập tự lọc. Ảnh và tệp nằm ở ổ đĩa (trần riêng 50 GB), xoá
+ảnh không làm tụt con số cơ sở dữ liệu.
