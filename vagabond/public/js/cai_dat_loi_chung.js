@@ -216,6 +216,10 @@ var VGB_CD = (function () {
 		// nhất một mẫu (OTP đăng nhập, đòi tiền, trừ điểm) mới là đã khai.
 		{ hau: 'Không gửi được mã OTP, tin đòi tiền, tin trừ điểm cho khách.', ten: 'Zalo ZNS gửi khách', can: ['zalo_app_id', 'zalo_app_secret', 'zalo_refresh_token'],
 			canMot: [['zns_template_otp'], ['zns_template_thanh_toan'], ['zns_template_diem']], toi: 'zalo_app_id', muc: 'sec_zalo' },
+		// v617 zalo_oa.py: gửi tin cần token OA (ba ô trên) và công tắc bật; điểm nhận
+		// sự kiện cần khoá bí mật OA; mã QR mời quan tâm cần mã OA.
+		{ hau: 'Không mời khách quan tâm OA và không gửi tin Zalo OA theo chiến dịch.', ten: 'Zalo OA tin Truyền thông',
+			can: ['zalo_app_id', 'zalo_app_secret', 'zalo_refresh_token', 'zalo_oa_id', 'zalo_oa_khoa_webhook'], bat: 'zalo_oa_bat', toi: 'zalo_oa_bat', muc: 'sec_zalo_oa' },
 		// whatsapp.gui_mau từ chối khi không có tên mẫu; nơi gọi duy nhất dùng mẫu thanh toán.
 		{ hau: 'Không gửi được yêu cầu thanh toán qua WhatsApp.', ten: 'WhatsApp', can: ['wa_phone_id', 'wa_token', 'wa_template_thanh_toan'], toi: 'wa_phone_id', muc: 'sec_wa' },
 		// thong_bao.py gửi bằng khoá riêng VAPID; thiếu là "chua co khoa VAPID".

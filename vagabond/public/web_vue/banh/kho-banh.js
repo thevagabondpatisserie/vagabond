@@ -39,7 +39,7 @@ export function taoKho(moiTruong) {
     /* bảng chi tiết đang mở */
     cur: null, curSizeId: '', soLuong: 1, wish: '', nia: 0, dia: 0, thiep: 0, nums: [], adds: [], dongDangSua: -1, huongSize: false,
     muaDangXem: null,
-    CO: {mode: 'ship', pickupId: 'bep-tan-son-hoa', pay: 'bank', other: false, gift: false, vat: false, dongy: false,
+    CO: {mode: 'ship', pickupId: 'bep-tan-son-hoa', pay: 'bank', other: false, gift: false, vat: false, dongy: false, uudai: false,
       ship: null, shipTrangThai: null, quan: '', nonce: '', daBaoDat: '', addrList: [], addrSel: -1, pickedLoc: null,
       ngoaiVung: false, uuMa: '', uu: null, uuDangHoi: null},
     f: {phone: '', name: '', mail: '', addr: '', rname: '', rphone: '', note: '', mst: '', cname: '', cmail: '', caddr: '', ma: ''},
@@ -599,7 +599,7 @@ export function taoKho(moiTruong) {
       lat: S.CO.pickedLoc ? S.CO.pickedLoc.lat : null, lng: S.CO.pickedLoc ? S.CO.pickedLoc.lng : null,
       items: T.hangGui(S.CART), tags, ngay_nhan: mocGioNhan(),
       note_print: lines.join('\n'), note, hoa_don: vat,
-      nonce: S.CO.nonce, dong_y: true, thanh_toan: S.CO.pay,
+      nonce: S.CO.nonce, dong_y: true, nhan_uu_dai: S.CO.uudai === true, thanh_toan: S.CO.pay,
       diem_lay_ten: tuLay ? diemNhanChon.value.n : '', diem_lay_id: tuLay ? diemNhanChon.value.id : '',
       ma_uu_dai: S.CO.uuMa || '', giam_da_xem: giam.value, fbp: fb.fbp, fbc: fb.fbc
     };

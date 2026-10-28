@@ -776,6 +776,20 @@ def tao_don(don=None):
 					"chi_tiet": "Chưa giữ được ưu đãi lúc này. Quý khách thử gửi lại sau ít phút."}
 		frappe.db.commit()
 
+	if don.get("nhan_uu_dai") is True:
+		# v617: khách TỰ tích ô "nhận tin món mới và ưu đãi" (ô để trống sẵn).
+		# Ghi đồng ý Zalo và gọi điện vào sổ, nơi ghi Web, kèm câu đã tích. Ghi
+		# sau khi đơn đã lưu và trong khối riêng: lỗi ở đây không bao giờ làm
+		# hỏng đơn, chỉ ghi Error Log cho kỹ thuật.
+		try:
+			from vagabond import crm
+
+			crm.ghi_dong_y_web(dien_thoai, ten, ban_ghi.name)
+			frappe.db.commit()
+		except Exception:
+			frappe.db.rollback()
+			frappe.log_error(title="Vagabond: ghi đồng ý nhận tin từ web", message=frappe.get_traceback())
+
 	# KHONG tu gui lai: Pancake khong co co che chong trung cong khai nao de
 	# dua vao, gui lai sau mot lan mat phan hoi la nguy co hai don.
 	# NGOAI LE DUY NHAT (v598): Pancake tra loi ro rang la chan THE ("[tags]"),

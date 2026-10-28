@@ -5,7 +5,7 @@
  "engine": "InnoDB",
  "module": "Vagabond",
  "name": "Vagabond Dong Y Nhat Ky",
- "modified": "2026-10-27 18:00:00.000000",
+ "modified": "2026-10-28 12:00:00.000000",
  "modified_by": "Administrator",
  "owner": "Administrator",
  "description": "Nhật ký đồng ý hoặc từ chối nhận tin. Chỉ thêm, không sửa, không xoá: đây là bằng chứng.",
@@ -53,7 +53,7 @@
    "fieldname": "noi_ghi",
    "fieldtype": "Select",
    "label": "Ghi ở đâu",
-   "options": "Quầy\nWeb\nSales gọi\nHồ sơ khách\nDesk",
+   "options": "Quầy\nWeb\nSales gọi\nHồ sơ khách\nDesk\nZalo OA",
    "in_list_view": 1,
    "read_only": 1
   },

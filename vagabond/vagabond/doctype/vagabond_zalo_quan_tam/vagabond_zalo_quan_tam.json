@@ -1,0 +1,144 @@
+{
+ "actions": [],
+ "creation": "2026-10-28 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "module": "Vagabond",
+ "name": "Vagabond Zalo Quan Tam",
+ "modified": "2026-10-28 12:00:00.000000",
+ "modified_by": "Administrator",
+ "owner": "Administrator",
+ "description": "Người quan tâm Zalo OA của tiệm. Máy ghi từ sự kiện Zalo; khách chia sẻ số điện thoại thì nối với hồ sơ khách.",
+ "permissions": [
+  {
+   "role": "Sales User",
+   "read": 1,
+   "report": 1
+  },
+  {
+   "role": "Sales Manager",
+   "read": 1,
+   "report": 1
+  },
+  {
+   "role": "System Manager",
+   "read": 1,
+   "report": 1
+  },
+  {
+   "role": "VGB - Quản lý cửa hàng",
+   "read": 1,
+   "report": 1
+  },
+  {
+   "role": "Marketing",
+   "read": 1,
+   "report": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "links": [],
+ "autoname": "field:uid",
+ "track_changes": 1,
+ "title_field": "ten_zalo",
+ "fields": [
+  {
+   "fieldname": "uid",
+   "fieldtype": "Data",
+   "label": "Mã người dùng Zalo của OA",
+   "reqd": 1,
+   "unique": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "trang_thai",
+   "fieldtype": "Select",
+   "label": "Trạng thái",
+   "options": "Đang quan tâm\nĐã bỏ quan tâm",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "khach",
+   "fieldtype": "Link",
+   "label": "Khách hàng",
+   "options": "Customer",
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "ten_zalo",
+   "fieldtype": "Data",
+   "label": "Tên khách chia sẻ",
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "sdt",
+   "fieldtype": "Data",
+   "label": "Số điện thoại chia sẻ",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sb_luc",
+   "fieldtype": "Section Break",
+   "label": "Mốc thời gian"
+  },
+  {
+   "fieldname": "luc_quan_tam",
+   "fieldtype": "Datetime",
+   "label": "Quan tâm lúc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "luc_chia_se",
+   "fieldtype": "Datetime",
+   "label": "Chia sẻ số lúc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "luc_bo",
+   "fieldtype": "Datetime",
+   "label": "Bỏ quan tâm lúc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "hoi_sdt_luc",
+   "fieldtype": "Datetime",
+   "label": "Đã gửi tin hỏi số lúc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "hoi_sdt_loi",
+   "fieldtype": "Small Text",
+   "label": "Tin hỏi số chưa gửi được vì",
+   "read_only": 1
+  }
+ ],
+ "field_order": [
+  "uid",
+  "trang_thai",
+  "khach",
+  "cb1",
+  "ten_zalo",
+  "sdt",
+  "sb_luc",
+  "luc_quan_tam",
+  "luc_chia_se",
+  "luc_bo",
+  "cb2",
+  "hoi_sdt_luc",
+  "hoi_sdt_loi"
+ ]
+}

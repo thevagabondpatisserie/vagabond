@@ -2315,6 +2315,18 @@
     "nhom": "dat_banh",
     "nhieu_dong": true
   },
+  "uu_dai_nhan_tin": {
+    "ten": "Tôi muốn nhận tin món mới và ưu đãi dịp lễ của The Vagabond Pâtisserie qua Zalo hoặc gọi điện. Tôi đổi ý lúc nào cũng được.",
+    "mac_dinh": "Tôi muốn nhận tin món mới và ưu đãi dịp lễ của The Vagabond Pâtisserie qua Zalo hoặc gọi điện. Tôi đổi ý lúc nào cũng được.",
+    "nhom": "dat_banh",
+    "nhieu_dong": true
+  },
+  "uu_dai_khong_bat_buoc": {
+    "ten": "Không bắt buộc, không tích vẫn đặt bánh bình thường.",
+    "mac_dinh": "Không bắt buộc, không tích vẫn đặt bánh bình thường.",
+    "nhom": "dat_banh",
+    "nhieu_dong": true
+  },
   "phu_kien_e0fe21772": {
     "ten": "Nến xoắn",
     "mac_dinh": "Nến xoắn",
