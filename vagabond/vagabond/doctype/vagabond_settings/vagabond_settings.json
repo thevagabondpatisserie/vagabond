@@ -118,6 +118,13 @@
   "zalo_access_token",
   "zalo_token_het_han",
   "zns_template_otp",
+  "sec_zalo_oa",
+  "zalo_oa_bat",
+  "zalo_oa_id",
+  "zalo_oa_khoa_webhook",
+  "col_zalo_oa",
+  "zalo_oa_uid_thu",
+  "zalo_oa_anh",
   "sec_wa",
   "wa_phone_id",
   "wa_token",
@@ -829,6 +836,47 @@
    "label": "Mã mẫu ZNS cho tin xác thực"
   },
   {
+   "fieldname": "sec_zalo_oa",
+   "fieldtype": "Section Break",
+   "label": "Zalo OA: mời quan tâm và tin Truyền thông theo chiến dịch",
+   "description": "Dùng chung App ID, App Secret, Refresh Token của mục Zalo OA ở trên. Đăng ký đường dẫn nhận sự kiện trên Zalo Developers: https://app.thevagabondpatisserie.com/api/method/vagabond.zalo_oa.nhan_su_kien"
+  },
+  {
+   "fieldname": "zalo_oa_bat",
+   "fieldtype": "Check",
+   "label": "Bật gửi tin Zalo OA theo chiến dịch",
+   "default": "0",
+   "description": "Tắt thì nút Gửi tin Zalo OA của chiến dịch bị khoá và OA không tự hỏi số điện thoại người mới quan tâm. Chỉ bật sau khi Gửi thử thành công."
+  },
+  {
+   "fieldname": "zalo_oa_id",
+   "fieldtype": "Data",
+   "label": "Mã OA (OA ID)",
+   "description": "Số trong đường dẫn zalo.me của OA. Quầy hiện mã QR mời khách quan tâm từ số này."
+  },
+  {
+   "fieldname": "zalo_oa_khoa_webhook",
+   "fieldtype": "Password",
+   "label": "Khoá bí mật OA (OA Secret Key)",
+   "description": "Lấy ở Zalo Developers, mục Webhook. Thiếu khoá thì máy không nhận sự kiện quan tâm, chia sẻ số."
+  },
+  {
+   "fieldname": "col_zalo_oa",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "zalo_oa_uid_thu",
+   "fieldtype": "Data",
+   "label": "UID nhận tin thử",
+   "description": "Mã người dùng Zalo của anh chị (đã quan tâm OA). Nút Gửi thử tin OA của chiến dịch gửi vào đây."
+  },
+  {
+   "fieldname": "zalo_oa_anh",
+   "fieldtype": "Data",
+   "label": "Ảnh bìa tin OA (đường dẫn)",
+   "description": "Đường dẫn ảnh ngang đặt trên đầu tin Truyền thông và tin hỏi số. Để trống là tin không có ảnh."
+  },
+  {
    "description": "Chủ yếu cho khách nước ngoài.",
    "fieldname": "sec_wa",
    "fieldtype": "Section Break",
@@ -1170,7 +1218,7 @@
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-10-20 12:00:00.000000",
+ "modified": "2026-10-28 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Settings",
