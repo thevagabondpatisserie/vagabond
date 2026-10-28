@@ -3791,6 +3791,9 @@ function vgbXuLyPopstate(ev) {
 function reset(fn) {
   var slug = '';
   try { if (window.vgbSlugSapMo) slug = window.vgbSlugSapMo(); } catch (e) { }
+  /* v619: sắp vẽ màn đăng nhập thì ghi địa chỉ đang mở TRƯỚC khi vgbApNac
+     đổi nó về /bep, để đăng nhập xong quay lại đúng chỗ (Codex 4402066952). */
+  try { if (typeof scrLogin === 'function' && fn === scrLogin && window.vgbGhiDich) window.vgbGhiDich(); } catch (e) { }
   vgbBoChuaLuu();
   S.stack = [fn];
   S.duong = [slug];
@@ -6084,6 +6087,50 @@ function vgbApDiaChi(slug) {
   } catch (e) { }
 }
 window.vgbApDiaChi = vgbApDiaChi;
+
+/* v619 (Codex 4402066952): ĐÍCH SAU ĐĂNG NHẬP.
+
+   Link trong tin Zalo (vd /hang-chuyen-ve-kho-toi?mo=PDC-2026-00602) mà máy
+   chưa đăng nhập thì __boot hiện màn đăng nhập; reset() đặt lại địa chỉ về
+   /bep, và đăng nhập xong app tải lại /bep nên nhân viên mất phiếu. Phiên hết
+   giữa chừng (sessionGone) cũng vậy: đăng nhập lại là về trang chủ.
+
+   Cách giữ: ngay TRƯỚC khi khung app đổi địa chỉ để vẽ màn đăng nhập, ghi
+   địa chỉ đang mở vào kho phiên của thẻ; đăng nhập xong đọc ra, xoá, rồi tải
+   lại đúng chỗ đó. Chỉ nhận đường của chính app (một màn trong VGB_DUONG trên
+   cùng máy), nên giá trị lạ trong kho phiên không dẫn được đi đâu. */
+function vgbDichHopLe(dia) {
+  var s = String(dia || '');
+  if (s.charAt(0) !== '/' || s.charAt(1) === '/' || s.charAt(1) === '\\') return '';
+  var q = s.indexOf('?');
+  var p = q >= 0 ? s.slice(0, q) : s, tim = q >= 0 ? s.slice(q + 1) : '';
+  var d = p.replace(/^\/+|\/+$/g, '');
+  if (!d || !Object.prototype.hasOwnProperty.call(VGB_DUONG, d)) return '';
+  var con = '';
+  try {
+    var ts = new URLSearchParams(tim);
+    ts.delete('v'); ts.delete('t');
+    con = ts.toString();
+  } catch (e) { con = ''; }
+  return '/' + d + (con ? '?' + con : '');
+}
+function vgbGhiDich() {
+  try {
+    var d = vgbDichHopLe(String(location.pathname || '') + String(location.search || ''));
+    if (d) sessionStorage.setItem('vgb_dich', d);
+    else sessionStorage.removeItem('vgb_dich');
+  } catch (e) { }
+}
+function vgbLayDich() {
+  var d = '';
+  try {
+    d = vgbDichHopLe(sessionStorage.getItem('vgb_dich') || '');
+    sessionStorage.removeItem('vgb_dich');
+  } catch (e) { d = ''; }
+  return d;
+}
+window.vgbGhiDich = vgbGhiDich;
+window.vgbLayDich = vgbLayDich;
 
 /* Khoa man sap mo. vgbGo dat truoc khi goi go(), go() doc mot lan roi xoa.
 
@@ -11872,7 +11919,7 @@ function scrLogin() {
       try { if (window.frappe && frappe.csrf_token) hd['X-Frappe-CSRF-Token'] = frappe.csrf_token; } catch (e) { }
       var r = await fetch('/api/method/login', { method: 'POST', headers: hd, credentials: 'same-origin', body: JSON.stringify({ usr: usr, pwd: pwd }) });
       running = 0; busy(0);
-      if (r.ok) { clearFresh(); hardNav(); return; }
+      if (r.ok) { clearFresh(); hardNavDich(); return; }
       if (r.status === 401) return fail('Sai tài khoản hoặc mật khẩu.');
       if (r.status === 417) return fail('Tài khoản đang bị khoá hoặc chưa được kích hoạt.');
       fail('Không đăng nhập được (mã ' + r.status + ').');
@@ -26128,6 +26175,15 @@ function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') ||
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
 function hardNav() { window.location.replace(location.pathname + '?v=' + APPVER + '&t=' + (new Date()).getTime()); }
+/* v619: đăng nhập xong thì tải lại ĐÚNG chỗ nhân viên định mở (link trong tin
+   Zalo, màn đang dùng khi phiên hết), giữ cả tham số như ?mo=<mã phiếu>.
+   Không có đích hợp lệ thì như cũ. */
+function hardNavDich() {
+  var d = '';
+  try { if (window.vgbLayDich) d = window.vgbLayDich(); } catch (e) { d = ''; }
+  if (!d) return hardNav();
+  window.location.replace(d + (d.indexOf('?') >= 0 ? '&' : '?') + 'v=' + APPVER + '&t=' + (new Date()).getTime());
+}
 function goFresh() {
   var n = freshN();
   if (n >= 2) return false;
