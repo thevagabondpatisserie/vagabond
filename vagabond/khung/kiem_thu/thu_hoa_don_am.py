@@ -510,7 +510,8 @@ def _():
 
 	c = inspect.getsource(mc.dung_hoa_don_mua)
 	dung("có lấy dấu của tờ", 'dau_cua_to(r.get("tong_tien"))' in c)
-	dung("có truyền xuống dòng", "dong_tu_hoa_don(it, dau)" in c)
+	# v618: dòng đi qua `dong_may_ghi` (bọc `dong_tu_hoa_don`), dấu vẫn truyền xuống.
+	dung("có truyền xuống dòng", "dong_may_ghi(it, dau," in c)
 	dung("có nhân dấu vào cả hai vế khi cân", "dau * tong_dong" in c)
 	dung("dòng phí mang dấu của tờ", '"sl": dau' in c)
 	dung("ô giảm giá mang dấu của tờ", "(dau * so_tien) if viec" in c)
