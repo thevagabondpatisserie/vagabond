@@ -24,7 +24,7 @@ theo tiền tố mã phiếu, đọc từ site ngày 28/10/2026:
 Loại chưa có màn app thì về trang chủ app, không bao giờ để lại đường Desk.
 
 Phiếu điều chuyển mở thẳng đúng phiếu trên màn "Hàng chuyển về kho tôi" qua
-tham số ?mo=<mã phiếu> (02-trang-chu.js đọc tham số này lúc mở app).
+tham số ?mo=<mã phiếu> (03-kho-chung-tu.js đọc tham số này lúc mở app).
 """
 
 import re
