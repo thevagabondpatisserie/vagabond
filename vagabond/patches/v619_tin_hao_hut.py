@@ -1,17 +1,23 @@
-"""v619: tích sẵn tin "Dữ liệu để tính hao hụt" cho nhóm kế toán.
+"""v619: tích sẵn hai tin dữ liệu hao hụt cho đúng nhóm Zalo.
 
-Anh Việt 28/10/2026 duyệt tin tuần cho nhóm kế toán. Nhóm đã tích ô Tin nhận chỉ
-nhận đúng các tin đã tích, nên tin mới phải được tích thì mới tới. Đọc site
-28/10/2026: chỉ nhóm "VGB • BP • Kế toán" tích tin kiểm kê lệch (kt_kiem_ke_lech),
-là tin cùng mảng của kế toán giá thành. Bản vá tích thêm tin mới cho đúng các nhóm
-đã nhận tin đó; không nhắm theo tên nhóm vì anh đang đặt lại tên nhóm Zalo.
+Anh Việt 28/10/2026 duyệt tin tuần cho nhóm kế toán và chọn gửi thêm tin việc cần
+làm cho từng bếp. Nhóm đã tích ô Tin nhận chỉ nhận đúng các tin đã tích, nên tin
+mới phải được tích thì mới tới. Đọc site 28/10/2026:
+  - chỉ nhóm "VGB • BP • Kế toán" tích tin kiểm kê lệch (kt_kiem_ke_lech), là tin
+    cùng mảng của kế toán giá thành: tích thêm kt_du_lieu_hao_hut;
+  - chỉ nhóm "VGB • VH • Sản xuất & Tồn kho" tích tin lệnh sản xuất quá ngày
+    (bep_lenh_chua_xong): tích thêm bep_du_lieu_hao_hut.
+Không nhắm theo tên nhóm vì anh đang đặt lại tên nhóm Zalo.
 
 Nhóm để trống Tin nhận đang nhận mọi tin, không cần tích. Không bỏ mã nào anh đã
 tích, giữ thứ tự cũ, chạy lại không đổi gì (lũy đẳng).
 """
 
-MA_MOI = "kt_du_lieu_hao_hut"
-MA_MOC = "kt_kiem_ke_lech"
+# Mã mốc (nhóm đã tích) -> mã mới tích thêm.
+THEO_MOC = (
+	("kt_kiem_ke_lech", "kt_du_lieu_hao_hut"),
+	("bep_lenh_chua_xong", "bep_du_lieu_hao_hut"),
+)
 
 
 def _tach(chuoi):
@@ -21,17 +27,22 @@ def _tach(chuoi):
 def tin_them(tin_nhan):
 	"""THUẦN: chuỗi Tin nhận mới của một nhóm, None nếu không đổi."""
 	cu = _tach(tin_nhan)
-	if not cu or MA_MOC not in cu or MA_MOI in cu:
+	if not cu:
 		return None
-	return ", ".join(cu + [MA_MOI])
+	moi = list(cu)
+	for moc, ma in THEO_MOC:
+		if moc in cu and ma not in moi:
+			moi.append(ma)
+	return ", ".join(moi) if moi != cu else None
 
 
 def execute():
 	import frappe
 	from vagabond import kenh_zalo
 
-	if MA_MOI not in kenh_zalo.TIN:
-		raise Exception("v619_tin_hao_hut: mã tin %s không có trong kenh_zalo.TIN" % MA_MOI)
+	la = sorted({ma for _, ma in THEO_MOC} - set(kenh_zalo.TIN))
+	if la:
+		raise Exception("v619_tin_hao_hut: mã tin không có trong kenh_zalo.TIN: %s" % ", ".join(la))
 	if not frappe.db.has_column("Vagabond Kenh Zalo", "tin_nhan"):
 		return
 	rows = frappe.get_all("Vagabond Kenh Zalo",
