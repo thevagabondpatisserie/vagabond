@@ -432,6 +432,81 @@ def _():
 	dung("quầy: không thu hộ", "addons" not in bao["service_ids"][0])
 
 
+@ca("v616 gọi xe (Codex #499 4373739954): đổi địa chỉ, tiền thu hộ, người nhận hoặc điểm khách lấy sau khi xem giá thì bắt xem giá lại")
+def _():
+	# Đúng chuỗi Codex mô tả: Xem giá với COD 650.000đ, đồng bộ Pancake đổi
+	# vận đơn sang COD 0 và địa chỉ mới, rồi bấm Gọi xe. Không gọi thêm hàm
+	# nào giữa hai bước (điều 18 bài học).
+	import frappe
+
+	def thu(f):
+		try:
+			f()
+			return ""
+		except frappe.ValidationError as e:
+			return str(e)
+
+	def doi(**k):
+		d = _don()
+		d["tien_thu_ho"] = 650000
+		d.update(k)
+		return d
+
+	for ten, moi in (
+		("đổi COD và địa chỉ", {"tien_thu_ho": 0, "dia_chi": "12 Lê Lợi, Quận 1"}),
+		("chỉ đổi COD", {"tien_thu_ho": 0}),
+		("chỉ đổi địa chỉ", {"dia_chi": "12 Lê Lợi, Quận 1"}),
+		("đổi số người nhận", {"sdt": "0912000111"}),
+	):
+		with _Bo() as bo:
+			mang = _Mang()
+			d = doi()
+			vd = _vd(bo, _cfg(), mang, d)
+			vd.gsm_bao_gia("VD-2026-00123", service_id="1878", addon_ids="[]")
+			loi = thu(lambda: vd._greensm_dat_don(doi(**moi), "1878", []))
+			la(ten + ": bắt xem giá lại", "Xem giá lại" in loi, True)
+			la(ten + ": không tạo đơn", [x for x, b in mang.goi if x == "/create-order"], [])
+			dung(ten + ": bỏ bản giá cũ", not bo.cache.get("vgb:gsm:gia:VD-2026-00123"))
+	# Gán shipper chuyển sang khách lấy tại quầy sau khi xem giá.
+	with _Bo() as bo:
+		mang = _Mang()
+		from vagabond import van_don
+
+		vd = _vd(bo, _cfg(), mang, doi())
+		vd.gsm_bao_gia("VD-2026-00123", service_id="1878", addon_ids="[]")
+		bo.dat(van_don, "_noi_giao", lambda doc: {"dia_chi": "9 Trần Cao Vân", "ten": "The Vagabond TCV",
+			"sdt": "84964131194", "cod": 0.0, "toi_diem": 1})
+		loi = thu(lambda: vd._greensm_dat_don(doi(), "1878", []))
+	la("đổi sang lấy tại quầy: bắt xem giá lại", "Xem giá lại" in loi, True)
+	la("đổi sang lấy tại quầy: không tạo đơn", [x for x, b in mang.goi if x == "/create-order"], [])
+	# Không đổi gì thì vẫn gọi được, giữ COD đúng.
+	with _Bo() as bo:
+		mang = _Mang()
+		vd = _vd(bo, _cfg(), mang, doi())
+		vd.gsm_bao_gia("VD-2026-00123", service_id="1878", addon_ids="[]")
+		oid, _l, _p = vd._greensm_dat_don(doi(), "1878", [])
+		tao = [b for x, b in mang.goi if x == "/create-order"][0]
+	la("không đổi: gọi được", oid, "01M5V144E998PACHGYWE3J09JP")
+	la("không đổi: COD giữ nguyên", tao["points"][1]["addons"]["collect_cod"], 650000)
+
+
+@ca("v616 phép thuần: dấu dữ liệu giao bỏ khoảng trắng thừa, số COD viết khác vẫn là một")
+def _():
+	from vagabond import greensm
+
+	a = greensm.dau_giao({"dia_chi": "208  Nguyễn Hữu Cảnh ", "ten": "Chị Lan", "sdt": "0901234567", "cod": 650000},
+		{"dia_chi": "307/1 Nguyễn Văn Trỗi", "lat": 10.7975, "lng": 106.6712})
+	b = greensm.dau_giao({"dia_chi": "208 Nguyễn Hữu Cảnh", "ten": "Chị Lan", "sdt": "0901234567", "cod": "650000.0"},
+		{"dia_chi": "307/1 Nguyễn Văn Trỗi", "lat": 10.7975, "lng": 106.6712})
+	la("giống nhau", a, b)
+	c = greensm.dau_giao({"dia_chi": "208 Nguyễn Hữu Cảnh", "ten": "Chị Lan", "sdt": "0901234567", "cod": 0},
+		{"dia_chi": "307/1 Nguyễn Văn Trỗi", "lat": 10.7975, "lng": 106.6712})
+	dung("COD khác thì khác", a != c)
+	d = greensm.dau_giao({"dia_chi": "208 Nguyễn Hữu Cảnh", "ten": "Chị Lan", "sdt": "0901234567", "cod": 650000},
+		{"dia_chi": "9 Trần Cao Vân", "lat": 10.7869, "lng": 106.6993})
+	dung("điểm lấy khác thì khác", a != d)
+
+
 @ca("v612 gọi xe: thiếu số điện thoại người nhận thì chặn trước khi gọi GreenSM")
 def _():
 	import frappe
