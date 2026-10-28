@@ -2653,25 +2653,30 @@ mọi danh sách, có tên món thì có ảnh) thì rà CẢ mô đun theo lu�
 vòng, không chỉ sửa đúng dòng được chỉ: vòng 3, 4, 5 lần lượt lộ thêm từng chỗ
 cùng loại (Hiệu quả, món giới thiệu, bộ lọc đã lưu, món trong bộ lọc).
 
-## 28/10/2026 (v617): Bootstrap lật thẻ thành cột, và danh sách cắt trước khi xếp
+## 26/10/2026 (v612): đối tác báo "gửi curl xem", lỗi nằm ở thân yêu cầu mình đoán
 
-(1) Frappe nạp Bootstrap, mà Bootstrap đặt `.card{display:flex;flex-direction:column}`.
-App `/bep` dùng lại tên lớp `.card` và nhiều chỗ tự đặt `display:flex` để xếp ngang
-(hàng tab Vận đơn, ô tổng Danh sách khách hàng): thiếu `flex-direction` là bị lật
-thành cột, chữ dồn xuống, ô cao bất thường. Thẻ của app nay ghi rõ hướng hàng
-ngang trong 00-nen.js. Dựng bố cục ngang trong `.card` thì nhớ lớp này có từ trước.
+GreenSM sandbox trả 400 "missing required fields" suốt từ 21/10 vì khung cũ
+ĐOÁN tên trường (`pickup`/`dropoff` số ít, `lat`/`lng`, `contact_name`) khi
+tài liệu chưa có. Tài liệu ra rồi thì đúng là `pickups`/`dropoffs` (mảng),
+`service_ids` + `points` (`latitude`, `longitude`, `phone_number` dạng +84).
+Bài học: (1) khung viết theo đoán phải ghi rõ là ĐOÁN và có ca kiểm chốt
+không còn sót chỗ đoán khi đã có tài liệu; (2) sandbox của đối tác thường
+là dữ liệu GIẢ (mọi địa chỉ cùng một giá): không bao giờ để giá sandbox lọt
+ra cho khách, và không gọi xe sandbox cho vận đơn thật; (3) đột biến "lọt"
+lần đầu (M6) là do tệp .pyc cũ, cùng bẫy với v609: chạy đột biến luôn với
+PYTHONDONTWRITEBYTECODE=1 và xoá __pycache__ của tệp vừa đổi.
 
-(2) Màn ghi "chi nhiều nhất lên đầu" nhưng máy chủ lấy 400 khách ĐẦU BẢNG CHỮ CÁI
-rồi mới xếp theo tiền: khách chi nhiều mà tên bắt đầu bằng chữ T không bao giờ
-hiện, và dòng tổng chỉ là tổng của 400 người đó. Danh sách nào hứa một thứ tự
-thì phải xếp và cộng NGAY TRONG CÂU TRUY VẤN trên đủ nhóm, rồi mới cắt. Ca kiểm
-chốt câu SQL (khach_thuan.py) và chốt màn chỉ hiện số máy chủ cộng.
-
-(3) Ô tìm dùng lại lớp `.tin` (ô gõ số tiền) thì chữ 22px canh giữa, đậm, nhìn
-lệch hẳn với các ô khác. Ô tìm dùng `class="tin tim" type="search"`.
-
-(4) Kênh gửi ra ngoài mà phiên làm việc không đọc được tài liệu gốc (trang tài
-liệu Zalo là ứng dụng một trang, không đọc bằng công cụ được): để kênh TẮT sẵn
-trong Cài đặt, có nút Gửi thử vào tài khoản của chính mình, và ghi rõ trong PR
-là định dạng thân tin chưa đối chiếu trên OA thật. Không bật cho khách trước khi
-Gửi thử thành công.
+Vòng Codex #499 (v616): (4) Giữ một bản giá ở máy chủ để "tạo đơn từ chính
+bản đó" thì phải giữ kèm DẤU của mọi đầu vào làm ra bản giá (nơi giao, người
+nhận, số điện thoại, tiền thu hộ, điểm lấy) và so lại lúc tạo đơn. Vận đơn bị
+đồng bộ Pancake đổi địa chỉ, COD giữa hai lần bấm là chuyện thường; chỉ so loại
+xe và dịch vụ thêm thì tài xế được gọi tới địa chỉ cũ và thu tiền khách đã trả.
+(5) Nút thêm bằng `add_custom_button` trên Desk không tự xuống app (app chỉ đọc
+cấu trúc ô của doctype): thêm nút trên Desk là phải thêm thao tác tương đương ở
+màn app và ca hành vi bấm nó.
+(6) Bản giá giữ chung theo vận đơn thì lần Xem giá sau (người khác, tab khác)
+ghi đè lần trước: màn phải giữ MÃ bản giá mình đã hiện và gửi kèm khi Gọi xe;
+máy chủ khác mã thì bắt xem lại, không âm thầm đặt theo cước người kia thấy.
+(7) Trên màn, chốt dữ liệu người dùng xác nhận vào biến riêng TRƯỚC khi mở hộp
+xác nhận, và khoá nút hành động trong lúc đang chờ mạng: phản hồi về muộn khi hộp
+còn mở sẽ thay biến chung, gửi đi thứ người dùng chưa từng thấy.
