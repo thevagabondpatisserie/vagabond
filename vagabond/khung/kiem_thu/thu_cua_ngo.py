@@ -598,8 +598,12 @@ CUA_NGO = {
 	#
 	# van_don.py la mo dun to nhat trong ba: 32 cua, gom ca duong shipper
 	# bam va duong webhook cua Aha goi vao.
+	# v612: nút thử kết nối GreenSM trên Cài đặt (chỉ System Manager, chỉ môi trường thử).
+	"greensm.py": ["thu_ket_noi"],
 	"van_don.py": [
 		"aha_bao_gia", "aha_dich_vu", "aha_webhook", "luu_phi_book",
+		# v612: màn gọi xe GreenSM (xem giá giữ ở máy chủ rồi mới gọi xe).
+		"gsm_bao_gia", "gsm_dich_vu",
 		"bo_loc", "book_xe", "canh_bao_thanh_toan",
 		"chi_phi_danh_sach", "chi_phi_xuat_excel",
 		"chuyen_cua_toi", "chuyen_dang_chay",

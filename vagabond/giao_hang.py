@@ -1,4 +1,6 @@
-"""Ahamove: hoi phi giao, va chan don ngoai vung giao.
+"""Phi giao tren web (GreenSM hoac Ahamove, chon trong Cai dat), va chan don ngoai vung giao.
+
+v612: anh Viet 26/10/2026 chuyen nguon bao phi sang GreenSM (greensm.py).
 
 Khoa Ahamove nam o day. Token la JWT co han nen duoc nho lai,
 dung xin moi lan khach go dia chi.
@@ -21,10 +23,16 @@ import time
 from datetime import datetime, timedelta
 
 import frappe
-import requests
 from frappe.rate_limiter import rate_limit
 
-from vagabond.dia_chi import geocode
+# v612: máy CI tay không không có requests. Nạp mềm để ca kiểm của v612 import
+# được tệp này; trên site requests luôn có. dia_chi (kéo requests ở đầu tệp)
+# nạp trong phi_giao.
+try:
+	import requests
+except ImportError:  # pragma: no cover - chỉ xảy ra trên máy CI
+	requests = None
+
 from vagabond.lib import TIMEOUT, aha_url, cache_get, cache_set, cfg, key
 
 BAN_KINH_MAC_DINH = 12.0
@@ -205,6 +213,20 @@ def _hoi_ahamove(c, diem_lay, diem_khach, luc_giao):
 	return data, None
 
 
+def nguon_phi(c):
+	"""Đơn vị báo phí giao trên web. Ô trống coi như GreenSM (anh Việt 26/10/2026:
+	Ahamove làm việc chậm, chuyển sang GreenSM)."""
+	v = str(c.get("nguon_phi_giao_web") or "").strip()
+	return "Ahamove" if v == "Ahamove" else "GreenSM"
+
+
+def _hoi_greensm(c, diem_lay, diem_khach, luc_giao):
+	"""Cùng hình kết quả với _hoi_ahamove: (data có total_fee và distance, lỗi)."""
+	from vagabond import greensm
+
+	return greensm.phi_cho_web(c, diem_lay, diem_khach, luc_giao)
+
+
 @frappe.whitelist(allow_guest=True)
 @rate_limit(limit=40, seconds=60)
 def phi_giao(addr=None, lat=None, lng=None, luc_giao=None):
@@ -218,12 +240,23 @@ def phi_giao(addr=None, lat=None, lng=None, luc_giao=None):
 	TUYET DOI khong doan mot con so: con so sai lam mat uy tin hon la khong co so.
 	"""
 	c = cfg()
-	if not key(c, "ahamove_api_key") or not c.ahamove_base or not c.ahamove_mobile:
+	nguon = nguon_phi(c)
+	if nguon == "GreenSM":
+		from vagabond import greensm
+
+		if not greensm.co_khoa(c):
+			return {"ok": 0, "ly_do": "chua_dien_khoa_greensm"}
+		# Giá môi trường thử là giá giả: không bao giờ đưa cho khách.
+		if greensm.dang_thu(c):
+			return {"ok": 0, "ly_do": "greensm_dang_chay_thu"}
+	elif not key(c, "ahamove_api_key") or not c.ahamove_base or not c.ahamove_mobile:
 		return {"ok": 0, "ly_do": "chua_dien_khoa_ahamove"}
 
 	if lat and lng:
 		diem = {"lat": float(lat), "lng": float(lng), "dia_chi": addr or ""}
 	elif addr:
+		from vagabond.dia_chi import geocode
+
 		diem = geocode(c, addr.strip())
 		if not diem:
 			return {"ok": 0, "ly_do": "khong_tim_thay_dia_chi"}
@@ -253,14 +286,15 @@ def phi_giao(addr=None, lat=None, lng=None, luc_giao=None):
 		}
 
 	moc = _luc_giao_unix(luc_giao)
-	ck = "vgb:fee:%s,%s,%s,%s" % (
-		round(diem["lat"], 5), round(diem["lng"], 5), moc // 1800, gan_nhat["ten"]
+	ck = "vgb:fee:%s:%s,%s,%s,%s" % (
+		nguon, round(diem["lat"], 5), round(diem["lng"], 5), moc // 1800, gan_nhat["ten"]
 	)
 	hit = cache_get(ck)
 	if hit:
 		return json.loads(hit)
 
-	data, loi = _hoi_ahamove(c, gan_nhat, diem, moc)
+	hoi = _hoi_greensm if nguon == "GreenSM" else _hoi_ahamove
+	data, loi = hoi(c, gan_nhat, diem, moc)
 	theo_gio = bool(moc)
 	if loi and moc:
 		# Duong lui thu nhat: dat qua xa ngay. Hoi lai o ngay xa nhat con
@@ -268,12 +302,12 @@ def phi_giao(addr=None, lat=None, lng=None, luc_giao=None):
 		# nhieu so voi gia giao ngay bay gio (co the dang gio cao diem).
 		gan = _lui_ve_trong_han(moc)
 		if gan:
-			data, loi = _hoi_ahamove(c, gan_nhat, diem, gan)
+			data, loi = hoi(c, gan_nhat, diem, gan)
 		theo_gio = False
 	if loi and moc:
 		# Duong lui cuoi: gia giao ngay. Co so con hon khong co so nao,
 		# nhung phai noi ro la khong phai gia theo gio khach chon.
-		data, loi = _hoi_ahamove(c, gan_nhat, diem, 0)
+		data, loi = hoi(c, gan_nhat, diem, 0)
 		theo_gio = False
 	if loi:
 		return {"ok": 0, "ly_do": loi}
@@ -289,6 +323,7 @@ def phi_giao(addr=None, lat=None, lng=None, luc_giao=None):
 		"dia_chi": diem.get("dia_chi"),
 		"diem_lay": gan_nhat["ten"],
 		"theo_gio": theo_gio,
+		"nguon": nguon,
 	}
 	cache_set(ck, json.dumps(out), 600)
 	return out
