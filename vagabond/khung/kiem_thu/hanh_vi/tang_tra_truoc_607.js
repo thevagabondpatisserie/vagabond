@@ -316,7 +316,9 @@ function chuTrongKhoi(k) { return k.tl.getElementById('pbTgForm').innerHTML; }
     vm.runInContext(doc('55-so-du-tra-truoc.js'), g);
     return { g: g, tl: tl, mc: mc, tin: tin,
       mot: function (chon) { var r = tl.body.querySelectorAll(chon); if (r.length !== 1) throw new Error('mong dung 1 ' + chon + ', co ' + r.length); return r[0]; },
-      bam: async function (el) { el.dispatchEvent(domGia.suKien('click', {}, el)); await nghi(); await nghi(); } };
+      bam: async function (el) { el.dispatchEvent(domGia.suKien('click', {}, el)); await nghi(); await nghi(); },
+      tat: function (chon) { return tl.body.querySelectorAll(chon); },
+      go: async function (el, v) { el.value = v; el.dispatchEvent(domGia.suKien('input', {}, el)); await nghi(); await nghi(); } };
   }
   function donSales(them) {
     return Object.assign({ name: 'ACC-SINV-2026-00009', docstatus: 0, posting_date: '2026-10-20', custom_nguon: 'Pancake',
@@ -387,6 +389,147 @@ function chuTrongKhoi(k) { return k.tl.getElementById('pbTgForm').innerHTML; }
     var g = app.mc.cac('vagabond.tra_truoc_khach.tao_phieu_nap');
     bang('lập đúng một phiếu', g.length, 1);
     bang('tham số', [g[0].a.khach, g[0].a.so_tien, g[0].a.nguon, JSON.parse(g[0].a.anh).length], ['KL040476', 50000000, 'gd_thu_ho', 1]);
+  });
+
+  /* v615 (anh Việt 27/10/2026: "Không biết khai chỗ này ở đâu? ... mở luôn ô để khai ngay
+     bên cạnh"). Chuỗi thao tác thật của kế toán: chọn Tài khoản cá nhân Giám đốc, thấy
+     lời báo thiếu, bấm Chọn tài khoản, gõ tìm, bấm tài khoản, đồng ý; rồi lập phiếu. */
+  function manNapTkGd(suaDuoc, luuLoi) {
+    var app = manSales(donSales());
+    var cd = { nguon: [{ ma: 'gd_thu_ho', nhan: 'Tài khoản cá nhân Giám đốc', can_anh: 1, can_quay: 0, giai_thich: '' }],
+      quay: [], thieu_tk_gd: 1, sua_tk_gd: suaDuoc ? 1 : 0 };
+    app.mc.api = (function (cu) {
+      return function (m, a) {
+        if (m === 'vagabond.tra_truoc_khach.cai_dat') { app.mc.goi.push({ m: m, a: a }); return Promise.resolve(cd); }
+        if (m === 'vagabond.tra_truoc_khach.tim_tk_gd') {
+          app.mc.goi.push({ m: m, a: a });
+          var ds = [{ name: '1388 - Phải thu Giám đốc - VGB', ten: 'Phải thu Giám đốc', so: '1388' },
+            { name: '1381 - Tài sản thiếu chờ xử lý - VGB', ten: 'Tài sản thiếu chờ xử lý', so: '1381' }];
+          return Promise.resolve(ds.filter(function (x) { return !a.tu || x.name.indexOf(a.tu) >= 0; }));
+        }
+        if (m === 'vagabond.tra_truoc_khach.luu_tk_gd') {
+          app.mc.goi.push({ m: m, a: a });
+          return luuLoi ? Promise.reject(new Error(luuLoi)) : Promise.resolve({ ok: 1, tk: a.tk });
+        }
+        if (m === 'vagabond.tra_truoc_khach.tao_phieu_nap' || m === 'vagabond.tra_truoc_khach.so_khach') {
+          app.mc.goi.push({ m: m, a: a }); return Promise.resolve({ ok: 1, dong: [] });
+        }
+        return cu(m, a);
+      };
+    })(app.mc.api);
+    app.g.xacNhan = function () { return Promise.resolve(true); };
+    app.g.sheetTimKhach = function (t, cb) { cb({ name: 'KL040476', customer_name: 'Mỹ Dung' }); };
+    return app;
+  }
+
+  await ca('v615 kế toán: thiếu tài khoản Giám đốc thu hộ thì chọn ngay trên màn nạp, lưu đúng tài khoản, lời báo biến mất', async function () {
+    var app = manNapTkGd(true);
+    await app.g.scrSoDuNap(); await nghi();
+    await app.bam(app.mot('[data-sdtng="gd_thu_ho"]')); await nghi();
+    dung('lời báo nói rõ chọn ngay ở đây', app.tl.getElementById('vgb').innerHTML.indexOf('Chọn ngay ở đây') >= 0);
+    bang('không còn câu bảo vào Cài đặt', app.tl.getElementById('vgb').innerHTML.indexOf('trong Cài đặt. Nhờ kế toán khai'), -1);
+    await app.bam(app.mot('#sdtChonTkGd')); await nghi();
+    bang('mở hộp chọn: hỏi danh sách một lần', app.mc.cac('vagabond.tra_truoc_khach.tim_tk_gd').length, 1);
+    await app.go(app.mot('#sdtTimTk'), '1388'); await nghi();
+    bang('gõ 1388: còn đúng một tài khoản', app.tat('[data-tkgd]').length, 1);
+    await app.bam(app.mot('[data-tkgd="1388 - Phải thu Giám đốc - VGB"]')); await nghi();
+    bang('lưu đúng tài khoản', app.mc.cac('vagabond.tra_truoc_khach.luu_tk_gd').map(function (g) { return g.a.tk; }),
+      ['1388 - Phải thu Giám đốc - VGB']);
+    bang('hộp chọn đã đóng', app.tat('#sdtTimTk').length, 0);
+    bang('màn vẽ lại không còn lời báo thiếu', app.tat('#sdtChonTkGd').length, 0);
+    dung('báo đã lưu', app.tin.some(function (t) { return t.indexOf('Đã lưu tài khoản 1388') >= 0; }));
+    await app.bam(app.mot('#sdtChonKh')); await nghi();
+    app.mot('#sdtSoTien').value = '30.000.000';
+    app.g.sdtNap.anh = [{ ten: 'ck.jpg', noi_dung: 'data:image/jpeg;base64,AAA' }];
+    await app.bam(app.mot('#sdtLuuNap')); await nghi();
+    bang('lập phiếu nạp Giám đốc thu hộ', app.mc.cac('vagabond.tra_truoc_khach.tao_phieu_nap').map(function (g) { return g.a.nguon; }), ['gd_thu_ho']);
+  });
+
+  await ca('v615 kế toán: máy chủ từ chối tài khoản thì giữ hộp chọn, hiện lời máy chủ, không coi là đã khai', async function () {
+    var app = manNapTkGd(true, 'Tài khoản 1381 đang theo dõi theo đối tượng.');
+    await app.g.scrSoDuNap(); await nghi();
+    await app.bam(app.mot('[data-sdtng="gd_thu_ho"]')); await nghi();
+    await app.bam(app.mot('#sdtChonTkGd')); await nghi();
+    await app.bam(app.mot('[data-tkgd="1381 - Tài sản thiếu chờ xử lý - VGB"]')); await nghi();
+    dung('hiện lời máy chủ', app.tin.some(function (t) { return t.indexOf('theo dõi theo đối tượng') >= 0; }));
+    bang('hộp chọn vẫn mở', app.tat('#sdtTimTk').length, 1);
+    bang('vẫn đánh dấu thiếu', app.g.SDT_CD.thieu_tk_gd, 1);
+  });
+
+  await ca('v615 Codex #507 P1: lần tìm sau hỏng thì báo lỗi, bỏ kết quả cũ, không cho chọn tài khoản ngoài kết quả tìm', async function () {
+    var app = manNapTkGd(true);
+    var lan = 0;
+    app.mc.api = (function (cu) {
+      return function (m, a) {
+        if (m === 'vagabond.tra_truoc_khach.tim_tk_gd' && ++lan === 2) { app.mc.goi.push({ m: m, a: a }); return Promise.reject(new Error('Mất kết nối')); }
+        return cu(m, a);
+      };
+    })(app.mc.api);
+    await app.g.scrSoDuNap(); await nghi();
+    await app.bam(app.mot('[data-sdtng="gd_thu_ho"]')); await nghi();
+    await app.bam(app.mot('#sdtChonTkGd')); await nghi();
+    bang('lần đầu: hai tài khoản', app.tat('[data-tkgd]').length, 2);
+    await app.go(app.mot('#sdtTimTk'), '1388'); await nghi();
+    bang('tìm hỏng: không còn dòng nào bấm chọn được', app.tat('[data-tkgd]').length, 0);
+    dung('tìm hỏng: báo lỗi và cách thử lại', app.tat('[data-tkloi]').length === 1);
+    await app.go(app.mot('#sdtTimTk'), '1388'); await nghi();
+    bang('gõ lại được: hết lời báo lỗi', app.tat('[data-tkloi]').length, 0);
+    bang('gõ lại được: đúng kết quả của chữ vừa gõ', app.tat('[data-tkgd]').length, 1);
+  });
+
+  await ca('v615 Codex #507: kết quả lần gõ trước về muộn không đè kết quả lần gõ sau', async function () {
+    var app = manNapTkGd(true);
+    var treo = null;
+    app.mc.api = (function (cu) {
+      return function (m, a) {
+        if (m === 'vagabond.tra_truoc_khach.tim_tk_gd' && a.tu === '13') {
+          app.mc.goi.push({ m: m, a: a });
+          return new Promise(function (ok) { treo = function () { ok([{ name: 'A', ten: 'A', so: '' }, { name: 'B', ten: 'B', so: '' }]); }; });
+        }
+        return cu(m, a);
+      };
+    })(app.mc.api);
+    await app.g.scrSoDuNap(); await nghi();
+    await app.bam(app.mot('[data-sdtng="gd_thu_ho"]')); await nghi();
+    await app.bam(app.mot('#sdtChonTkGd')); await nghi();
+    await app.go(app.mot('#sdtTimTk'), '13'); await nghi();
+    await app.go(app.mot('#sdtTimTk'), '1388'); await nghi();
+    bang('kết quả của 1388', app.tat('[data-tkgd]').length, 1);
+    treo(); await nghi(); await nghi();
+    bang('lần gõ 13 về muộn: vẫn là kết quả của 1388', app.tat('[data-tkgd="1388 - Phải thu Giám đốc - VGB"]').length, 1);
+    bang('không lẫn kết quả cũ', app.tat('[data-tkgd="A"]').length, 0);
+  });
+
+  await ca('v615 Codex #507 vòng 2: đang chờ kết quả tìm thì không còn dòng cũ nào bấm chọn được', async function () {
+    var app = manNapTkGd(true);
+    var treo = null;
+    app.mc.api = (function (cu) {
+      return function (m, a) {
+        if (m === 'vagabond.tra_truoc_khach.tim_tk_gd' && a.tu === '1388') {
+          app.mc.goi.push({ m: m, a: a });
+          return new Promise(function (ok) { treo = function () { cu(m, a).then(ok); }; });
+        }
+        return cu(m, a);
+      };
+    })(app.mc.api);
+    await app.g.scrSoDuNap(); await nghi();
+    await app.bam(app.mot('[data-sdtng="gd_thu_ho"]')); await nghi();
+    await app.bam(app.mot('#sdtChonTkGd')); await nghi();
+    bang('lần đầu: hai tài khoản', app.tat('[data-tkgd]').length, 2);
+    await app.go(app.mot('#sdtTimTk'), '1388'); await nghi();
+    bang('đang chờ: không dòng nào bấm chọn được', app.tat('[data-tkgd]').length, 0);
+    bang('đang chờ: có dòng đang tìm', app.tat('[data-tkdang]').length, 1);
+    treo(); await nghi(); await nghi();
+    bang('kết quả về: đúng một tài khoản của 1388', app.tat('[data-tkgd]').length, 1);
+    bang('hết dòng đang tìm', app.tat('[data-tkdang]').length, 0);
+  });
+
+  await ca('v615 Sales không có quyền: không có nút chọn, lời báo chỉ đúng người và đúng chỗ', async function () {
+    var app = manNapTkGd(false);
+    await app.g.scrSoDuNap(); await nghi();
+    await app.bam(app.mot('[data-sdtng="gd_thu_ho"]')); await nghi();
+    bang('không có nút chọn tài khoản', app.tat('#sdtChonTkGd').length, 0);
+    dung('chỉ rõ kế toán chọn ngay trên màn này', app.tl.getElementById('vgb').innerHTML.indexOf('Nhờ kế toán mở màn Nạp tiền trả trước') >= 0);
   });
 
   await ca('Codex #493 vòng 3: lần Lưu đầu mất phản hồi, bấm lại gửi CÙNG mã lần gửi; lập xong thì form mới có mã mới', async function () {

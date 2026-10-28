@@ -681,6 +681,39 @@ Sales lập phiếu hoàn tiền. Kế toán chuyển khoản trả khách từ 
 - Ghi sổ rồi không sửa được: liên hệ kế toán trưởng.
 - Có hoàn hay không, hoàn bao nhiêu: việc này do anh Việt quyết.
 
+## Khách chuyển tiền trả trước vào tài khoản Giám đốc: chọn tài khoản và ghi sổ
+Từ khoá: Giám đốc thu hộ, tài khoản cá nhân Giám đốc, phải thu Giám đốc, 1388, nạp trả trước, chưa khai tài khoản, prepayment
+
+| Ai dùng | Màn hình | Nút chính |
+|---|---|---|
+| Kế toán | Số dư trả trước của khách (/so-du-tra-truoc) | [[Chọn tài khoản]] |
+
+Tiền khách vào tài khoản cá nhân Giám đốc thì công ty ghi phải thu lại Giám đốc. Chọn tài khoản một lần, phiếu sau dùng chung.
+
+**Các bước**
+1. Mở Số dư trả trước của khách, bấm [[＋ Nạp tiền trả trước]].
+2. Ở Tiền về đâu chọn Tài khoản cá nhân Giám đốc.
+3. Báo chưa chọn tài khoản thì bấm [[Chọn tài khoản]] ngay dưới lời báo.
+4. Gõ số tài khoản (ví dụ 1388), bấm dòng đúng, rồi [[Dùng tài khoản này]].
+5. Nhập khách, số tiền, ảnh chuyển khoản, bấm [[Lưu và gửi kế toán ghi sổ]].
+6. Thấy tiền về thì mở sổ của khách, bấm [[✅ Ghi sổ phiếu nạp]].
+
+**Vì sao bị chặn**
+| Máy báo | Cách gỡ |
+|---|---|
+| Chưa chọn Tài khoản phải thu Giám đốc thu hộ | Kế toán làm bước 3; Sales không có nút này |
+| Tài khoản đang theo dõi theo đối tượng | Không chọn 131, 331; chọn tài khoản phải thu khác |
+| Danh sách trống | Tạo tài khoản phải thu chi tiết cho Giám đốc trước |
+
+**Hạch toán**
+| Nợ | Có | Khi nào |
+|---|---|---|
+| Tài khoản đã chọn (ví dụ 1388) | 131 (khách) | Ghi sổ phiếu nạp |
+
+**Lưu ý**
+- Quản trị cũng sửa được ở Cài đặt, thẻ Hoá đơn & kế toán, mục Khách nạp tiền trả trước.
+- Đổi tài khoản chỉ áp cho phiếu lập sau, không sửa phiếu đã ghi sổ.
+
 ## Khai tài sản và chạy khấu hao
 Từ khoá: tài sản, tài sản cố định, TSCĐ, công cụ dụng cụ, CCDC, khấu hao, phân bổ 242, 214, asset, depreciation, ghi sổ tài sản
 
