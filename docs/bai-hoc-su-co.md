@@ -2793,3 +2793,14 @@ công thức, nên phiếu sản xuất không bao giờ cho thấy hao hụt ng
 kiểm kê kho bếp mới đo được thực dùng. Đừng dựng báo cáo hao hụt từ phiếu sản
 xuất. Mã tin truyền vào `bao()` phải là chuỗi viết thẳng, không qua hằng số:
 ca v604 dò mã nguồn để chốt mỗi tin có nơi phát.
+
+DOM giả: `innerHTML` của thẻ con nằm trong HTML đã đọc luôn RỖNG (cùng PR v619).
+`dom_gia.js` chỉ giữ chuỗi `_html` ở thẻ được gán `innerHTML` trực tiếp (thường là
+`#vgb`); thẻ con như `#vgbBody` đọc `innerHTML` ra chuỗi rỗng. Ca kiểm "không thấy
+chữ X" trên chuỗi rỗng sẽ xanh mà không kiểm gì. Đọc chữ trên màn bằng
+`textContent` (hoặc `outerHTML`), và với mỗi khẳng định "không thấy" phải có một
+khẳng định "thấy" đi cặp trên cùng nguồn đọc.
+
+### Đếm "lần kiểm kê" phải đọc phiếu kiểm kê, không đọc Stock Reconciliation (v619, Codex 4403241208)
+
+ERPNext bỏ các món khớp sổ khỏi Stock Reconciliation (`remove_items_with_no_change`); kiểm khớp hết thì `kiem_ke.ghi_so` không tạo Stock Reconciliation nào mà phiếu kiểm kê vẫn "Đã ghi sổ". Site 28/10/2026: Pastry nguyên liệu 13/10 đếm 15 món, Stock Reconciliation chỉ còn 9 dòng. Muốn biết bếp đã đếm bao nhiêu và khi nào thì đọc `Phieu Kiem Ke` (dòng `da_dem`), điều chỉnh tồn làm thẳng trên Desk vẫn tính, nhưng cùng ngày với phiếu thì lấy số lớn hơn chứ không cộng.
