@@ -5,11 +5,9 @@ Chot voi anh Viet 02/08/2026:
   upload, luu private). Cron xoa anh giao sau 30 ngay cho nhe he thong;
   anh hoa don chi phi (chung tu) thi giu nguyen.
 - Giao xong tu day trang thai "da nhan" (status 3) sang Pancake.
-- Book xe: Ahamove chay that (dung san client giao_hang). GreenSM va BE
-  dung khung cho key: GreenSM xac thuc OAuth2 client credentials, scope
-  express.trips, base https://api-partner.vn.gsm-api.net/v1/express/
-  (sandbox rieng), nho whitelist IP server. Dien key vao Vagabond Settings
-  la chay, khong phai sua code.
+- Book xe: Ahamove chay that (dung san client giao_hang). v612: GreenSM
+  xem gia roi goi xe theo tai lieu cong khai (greensm.py); dang moi truong
+  thu thi chi xem gia gia, khong goi xe cho van don that. BE chua co API.
 - Chi phi shipper (xang, bao tri...): shipper khai kem anh hoa don,
   Thu mua / Ke toan duyet roi danh dau hoan ung.
 """
@@ -1857,75 +1855,130 @@ def _ahamove_dat_don(doc, service_id=None, them_reqs=None):
 	return oid, ("https://cloud.ahamove.com/share-order/%s" % oid if oid else ""), phi
 
 
-def _greensm_token(c):
-	"""OAuth2 client credentials, scope express.trips (sandbox.express.trips)."""
-	ck = "vgb:gsm:token"
-	hit = cache_get(ck)
-	if hit:
-		return hit
-	scope = "sandbox.express.trips" if c.get("greensm_sandbox") else "express.trips"
-	r = _mang().post(
-		(c.greensm_token_url or "").strip(),
-		data={
-			"grant_type": "client_credentials",
-			"client_id": c.greensm_client_id,
-			"client_secret": key(c, "greensm_client_secret"),
-			"scope": scope,
-		},
-		timeout=TIMEOUT,
-	)
-	r.raise_for_status()
-	tok = (r.json() or {}).get("access_token")
-	if not tok:
-		frappe.throw("GreenSM không trả access_token, kiểm lại client_id/secret.")
-	cache_set(ck, tok, 1500)
-	return tok
-
-
-def _greensm_base(c):
-	if c.get("greensm_sandbox"):
-		return "https://api-sandbox.vn.gsm-api.net/v1/sandbox/express"
-	return "https://api-partner.vn.gsm-api.net/v1/express"
-
-
-def _greensm_dat_don(doc):
-	"""Khung tao don GreenSM Express. Payload chi tiet ho chua cong bo
-	(trang create-order dang 'being prepared'), co key + spec thi chinh
-	MAP_GSM ben duoi la chay."""
-	c = cfg()
-	if not (c.get("greensm_client_id") and key(c, "greensm_client_secret") and c.get("greensm_token_url")):
-		frappe.throw(
-			"GreenSM chưa có API key (đang chờ ký NDA). Khung đã dựng sẵn: "
-			"ký xong anh điền Client ID, Client Secret, Token URL vào Vagabond Settings "
-			"và nhớ đăng ký IP server với GreenSM (họ bắt whitelist IP)."
-		)
+def _gsm_diem(c, doc):
+	"""Hai điểm GreenSM cho một vận đơn: bếp và nơi giao (một nguồn _noi_giao)."""
+	from vagabond import greensm
 	from vagabond.dia_chi import geocode
 
 	noi = _noi_giao(doc)
-	toa = geocode(c, noi["dia_chi"] or "")
-	diem = _diem_lay(c)
-	MAP_GSM = {
-		"pickup": {"lat": diem["lat"], "lng": diem["lng"], "address": diem["dia_chi"], "contact_name": "The Vagabond", "contact_phone": c.ahamove_mobile or ""},
-		"dropoff": {"lat": (toa or {}).get("lat"), "lng": (toa or {}).get("lng"), "address": noi["dia_chi"], "contact_name": noi["ten"], "contact_phone": noi["sdt"]},
-		"cod_amount": noi["cod"],
-		"note": "Đơn %s - %s" % (doc.ma_don or doc.name, doc.gio_giao or ""),
-	}
-	r = _mang().post(
-		_greensm_base(c) + "/create-order",
-		json=MAP_GSM,
-		headers={"Authorization": "Bearer " + _greensm_token(c)},
-		timeout=TIMEOUT,
-	)
-	if r.status_code not in (200, 201):
-		frappe.log_error(title="Vagabond: GreenSM dat don loi", message=r.text[:1000])
-		frappe.throw("GreenSM từ chối đơn: %s" % r.text[:200])
-	d = r.json() or {}
-	oid = str(d.get("id") or d.get("order_id") or "")
-	return oid, str(d.get("tracking_url") or ""), flt(d.get("total_fee") or 0)
+	if not (noi["dia_chi"] or "").strip():
+		frappe.throw("Vận đơn chưa có địa chỉ giao.")
+	if not greensm.so_quoc_te(noi["sdt"]):
+		frappe.throw("Vận đơn chưa có số điện thoại người nhận hợp lệ, GreenSM bắt buộc có.")
+	toa = geocode(c, noi["dia_chi"])
+	if not toa or not toa.get("lat"):
+		frappe.throw("Không tìm được toạ độ cho địa chỉ này, vui lòng sửa lại địa chỉ.")
+	bep = _diem_lay(c)
+	ma = doc.ma_don or doc.name
+	lay = greensm.diem("PICK UP", bep["lat"], bep["lng"], bep["ten"], c.ahamove_mobile, bep["dia_chi"],
+		ghi_chu="Mã đơn %s" % ma, hang=True)
+	giao = greensm.diem("DROP OFF", toa["lat"], toa["lng"], noi["ten"], noi["sdt"], noi["dia_chi"],
+		ghi_chu=("Đơn %s %s" % (ma, doc.gio_giao or "")).strip())
+	return lay, giao, flt(noi["cod"])
+
+
+def _gsm_khoa_gia(name):
+	return "vgb:gsm:gia:%s" % name
+
+
+def _gsm_can_khoa(c):
+	from vagabond import greensm
+
+	if not greensm.co_khoa(c):
+		frappe.throw("Chưa khai khoá GreenSM trong Cài đặt, mục GreenSM Express.")
 
 
 @frappe.whitelist()
-def book_xe(name, kenh, service_id=None, requests_them=None):
+def gsm_dich_vu():
+	"""Loại xe và dịch vụ thêm GreenSM mở cho tiệm, cho màn gọi xe."""
+	from vagabond import greensm
+
+	if not _la_sales():
+		frappe.throw("Chỉ sales gọi xe được.")
+	c = cfg()
+	_gsm_can_khoa(c)
+	bep = _diem_lay(c)
+	try:
+		ds = greensm.dich_vu(c, bep["lat"], bep["lng"])
+	except greensm.LoiGsm as e:
+		frappe.throw(str(e))
+	return {"dich_vu": ds, "mac_dinh": ds[0]["id"] if ds else None, "dang_thu": greensm.dang_thu(c)}
+
+
+@frappe.whitelist()
+def gsm_bao_gia(name, service_id=None, addon_ids=None):
+	"""Giá GreenSM cho đúng vận đơn này. Bản giá (fee_id, order_time, điểm,
+	add-on) được giữ ở máy chủ để Gọi xe tạo đơn từ chính bản đó."""
+	from vagabond import greensm
+
+	if not _la_sales():
+		frappe.throw("Chỉ sales gọi xe được.")
+	if isinstance(addon_ids, str):
+		addon_ids = json.loads(addon_ids or "[]")
+	c = cfg()
+	_gsm_can_khoa(c)
+	doc = frappe.get_doc("Van Don", name)
+	lay, giao, cod = _gsm_diem(c, doc)
+	try:
+		bg, than = greensm.bao_gia(c, lay, giao, int(time.time()), service_id, addon_ids or [], cod)
+	except greensm.LoiGsm as e:
+		frappe.throw(str(e))
+	con = max(60, int(bg["het_han"] or 0) - int(time.time()) - 30) if bg.get("het_han") else 600
+	dau = greensm.dau_giao(_noi_giao(doc), _diem_lay(c))
+	cache_set(_gsm_khoa_gia(name), json.dumps({"bg": bg, "than": than, "dau": dau}), min(con, 1800))
+	return {
+		"tong": bg["tong"], "km": bg["km"], "phut": bg["phut"], "ten_xe": bg["ten_xe"],
+		"phi_them": bg["phi_them"], "cod": cod, "dang_thu": greensm.dang_thu(c),
+		# Mã bản giá: màn giữ lại và gửi kèm Gọi xe, để máy chủ biết người bấm
+		# đã xác nhận đúng bản giá nào (Codex #499 4395850127).
+		"ma_gia": bg["fee_id"],
+	}
+
+
+def _greensm_dat_don(doc, service_id=None, addon_ids=None, ma_gia=None):
+	"""Tạo đơn GreenSM từ bản giá đã giữ lúc bấm Xem giá. `ma_gia` là mã bản
+	giá màn đã hiện cho người bấm; thiếu hoặc khác bản đang giữ thì không đặt."""
+	from vagabond import greensm
+
+	c = cfg()
+	_gsm_can_khoa(c)
+	if greensm.dang_thu(c):
+		frappe.throw("GreenSM đang ở môi trường thử, gọi xe sẽ không có tài xế thật. "
+			"Tắt môi trường thử trong Cài đặt khi GreenSM cấp khoá thật.")
+	hit = cache_get(_gsm_khoa_gia(doc.name))
+	if not hit:
+		frappe.throw("Giá GreenSM đã hết hạn. Bấm Xem giá lại rồi Gọi xe.")
+	giu = json.loads(hit)
+	bg, than = giu["bg"], giu["than"]
+	if not ma_gia or str(ma_gia) != str(bg.get("fee_id") or ""):
+		# Hai người (hoặc hai tab) cùng Xem giá: lần sau ghi đè bản giá dùng
+		# chung. Người bấm Gọi xe ở màn cũ đã xác nhận cước khác, nên không
+		# đặt âm thầm theo cước mới. Không xoá bản giá: nó là của màn kia.
+		frappe.throw("Giá GreenSM của đơn này vừa được xem lại ở màn khác, cước có thể đã đổi. "
+			"Bấm Xem giá lại rồi Gọi xe.")
+	if giu.get("dau") != greensm.dau_giao(_noi_giao(doc), _diem_lay(c)):
+		# Vận đơn đổi sau khi xem giá (đồng bộ Pancake đổi địa chỉ hoặc tiền
+		# thu hộ, gán điểm khách lấy). Tạo đơn từ bản cũ là gọi tài xế giao
+		# sai nơi hoặc thu tiền khách đã trả (Codex #499).
+		cache_set(_gsm_khoa_gia(doc.name), "", 1)
+		frappe.throw("Địa chỉ, người nhận hoặc tiền thu hộ của vận đơn đã đổi sau khi xem giá. "
+			"Bấm Xem giá lại rồi Gọi xe.")
+	da_chon = sorted(int(a) for a in (addon_ids or []))
+	da_bao = sorted(int(a["id"]) for a in (than["service_ids"][0].get("addons") or []) if int(a["id"]) != greensm.ADDON_COD)
+	if (service_id and str(service_id) != str(bg["service_id"])) or da_chon != da_bao:
+		frappe.throw("Loại xe hoặc dịch vụ thêm đã đổi sau khi xem giá. Bấm Xem giá lại.")
+	try:
+		d = greensm.goi(c, "/create-order", greensm.than_tao_don(bg, than, doc.name))
+	except greensm.LoiGsm as e:
+		frappe.log_error(title="Vagabond: GreenSM dat don loi", message=str(e)[:1000])
+		frappe.throw("GreenSM từ chối đơn: %s" % str(e)[:200])
+	cache_set(_gsm_khoa_gia(doc.name), "", 1)
+	don = d.get("data") or {}
+	return str(don.get("id") or ""), str(don.get("tracking_url") or ""), flt(bg["tong"])
+
+
+@frappe.whitelist()
+def book_xe(name, kenh, service_id=None, requests_them=None, ma_gia=None):
 	"""Dat xe cho van don qua app ngoai.
 
 	service_id va requests_them den tu man xac nhan trong app: nhan vien chon
@@ -1941,7 +1994,7 @@ def book_xe(name, kenh, service_id=None, requests_them=None):
 	if kenh == "Ahamove":
 		oid, link, phi = _ahamove_dat_don(doc, service_id, requests_them)
 	elif kenh == "GreenSM":
-		oid, link, phi = _greensm_dat_don(doc)
+		oid, link, phi = _greensm_dat_don(doc, service_id, requests_them, ma_gia)
 	elif kenh == "BE":
 		frappe.throw("BE Delivery chưa cấp API (anh Việt đang xin). Có key là nối được, khung dùng chung với GreenSM.")
 	else:

@@ -252,3 +252,4 @@ node vagabond/khung/kiem_thu/hanh_vi/doi_soat_ck_610.js
 node vagabond/khung/kiem_thu/hanh_vi/dat_ban_611.js
 # v614: phan he Khach hang (58-crm.js that): hoi dong y o quay, danh sach goi, chien dich, hieu qua.
 node vagabond/khung/kiem_thu/hanh_vi/crm_614.js
+node vagabond/khung/kiem_thu/hanh_vi/goi_xe_greensm_612.js

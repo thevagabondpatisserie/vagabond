@@ -48,6 +48,7 @@
   "goong_api_key",
   "suggest_radius_km",
   "ban_kinh_giao_km",
+  "nguon_phi_giao_web",
   "col_cd_7",
   "kitchen_lat",
   "kitchen_lng",
@@ -432,6 +433,14 @@
    "precision": "1"
   },
   {
+   "default": "GreenSM",
+   "description": "Trang đặt bánh hỏi phí giao ở đơn vị này. GreenSM còn ở môi trường thử thì web chưa báo số, Sales báo phí khi xác nhận đơn.",
+   "fieldname": "nguon_phi_giao_web",
+   "fieldtype": "Select",
+   "label": "Nguồn báo phí giao trên web",
+   "options": "GreenSM\nAhamove"
+  },
+  {
    "fieldname": "col_cd_7",
    "fieldtype": "Column Break"
   },
@@ -508,7 +517,7 @@
    "label": "Báo hàng dễ vỡ"
   },
   {
-   "description": "Cộng vào phí Ahamove trước khi báo khách.",
+   "description": "Cộng vào phí giao (GreenSM hoặc Ahamove) trước khi báo khách.",
    "fieldname": "phu_thu",
    "fieldtype": "Currency",
    "label": "Phụ thu của tiệm"
@@ -516,7 +525,7 @@
   {
    "fieldname": "sec_gsm",
    "fieldtype": "Section Break",
-   "label": "GreenSM Express và BE Delivery (book xe)"
+   "label": "GreenSM Express và BE Delivery (báo phí, gọi xe)"
   },
   {
    "fieldname": "greensm_client_id",
@@ -529,6 +538,7 @@
    "label": "Khoá bí mật GreenSM (Client Secret)"
   },
   {
+   "description": "Thử: https://api-sandbox.vn.gsm-api.net/v1/sandbox/token. Thật: https://api-partner.vn.gsm-api.net/v1/public/token",
    "fieldname": "greensm_token_url",
    "fieldtype": "Data",
    "label": "Địa chỉ lấy token GreenSM (OAuth2)"
@@ -539,7 +549,7 @@
   },
   {
    "default": "1",
-   "description": "Bật là book xe ảo, không gọi tài xế thật.",
+   "description": "Bật là chạy thử: giá giả, không gọi tài xế thật, web chưa báo phí. Tắt khi GreenSM cấp khoá thật.",
    "fieldname": "greensm_sandbox",
    "fieldtype": "Check",
    "label": "Dùng môi trường thử GreenSM"
@@ -1170,7 +1180,7 @@
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-10-20 12:00:00.000000",
+ "modified": "2026-10-26 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Vagabond",
  "name": "Vagabond Settings",

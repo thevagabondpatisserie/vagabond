@@ -25689,9 +25689,11 @@ async function scrVdView(name) {
     if (k === 'book') {
       return sheet('Book xe qua app', [
         { value: 'Ahamove', label: 'Ahamove (chạy thật)', icon: '🔵' },
-        { value: 'GreenSM', label: 'GreenSM (chờ key NDA)', icon: '🟢' },
+        { value: 'GreenSM', label: 'GreenSM (xem giá rồi gọi xe)', icon: '🟢' },
         { value: 'BE', label: 'BE Delivery (chờ API)', icon: '🟡' }
       ], null, async function (o) {
+        // v612: GreenSM bắt xem giá trước (giá gắn mã fee_id), nên mở màn gọi xe.
+        if (o.value === 'GreenSM') return go(function () { scrVdGoiXe(name, 'GreenSM'); });
         busy(true);
         try {
           var kq = await api('vagabond.van_don.book_xe', { name: name, kenh: o.value });
@@ -25716,7 +25718,7 @@ var VD_KHUNG_GIO = ['7h - 9h', '8h - 10h', '9h - 11h', '10h - 12h', '11h - 13h',
 var VD_KENH_TAO = [
   { ten: 'Shipper nội bộ', icon: '🛵', mo: 'Shipper của tiệm, có xếp tuyến và đối soát COD' },
   { ten: 'Ahamove', mo: 'Gọi xe qua API, báo giá được trước khi book' },
-  { ten: 'GreenSM', mo: 'Gọi xe qua API, đang chờ khoá đối tác' },
+  { ten: 'GreenSM', mo: 'Gọi xe qua API, báo giá được trước khi gọi' },
   { ten: 'BE', mo: 'Đặt tay trên app BE rồi ghi mã vào đơn' },
   { ten: 'Grab', mo: 'Đặt tay trên app Grab rồi ghi mã vào đơn' },
   { ten: 'Lalamove', mo: 'Đặt tay trên app Lalamove rồi ghi mã vào đơn' },
@@ -25989,7 +25991,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '615';
+var APPVER = '616';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -26323,7 +26325,7 @@ function vdNutDong(r, chon) {
   if (!b.length) return '';
   return '<div style="display:flex;gap:6px">' + b.join('') + '</div>';
 }
-var vdAhaDv = null, vdDaGanLamMoi = 0;
+var vdDaGanLamMoi = 0;
 function vdDangOManDS() {
   return S.stack.length && S.stack[S.stack.length - 1] === scrVanDon;
 }
@@ -26346,52 +26348,69 @@ function vdTuLamMoi() {
   }, 45000);
 }
 
+/* v612: màn gọi xe dùng chung cho Ahamove và GreenSM. Hai bên khác nhau ở
+   ba cửa máy chủ (danh sách xe, báo giá, gọi xe) và ở việc GreenSM có môi
+   trường thử: giá thử là giá giả nên hiện cảnh báo và khoá nút Gọi xe. */
+var VD_GOI_XE = {
+  Ahamove: { dv: 'vagabond.van_don.aha_dich_vu', gia: 'vagabond.van_don.aha_bao_gia', khoaAdd: 'requests_them' },
+  GreenSM: { dv: 'vagabond.van_don.gsm_dich_vu', gia: 'vagabond.van_don.gsm_bao_gia', khoaAdd: 'addon_ids' }
+};
+var vdGxDv = {};
 async function scrVdGoiXe(name, kenh) {
   frame('Gọi xe ' + kenh, '<div class="emp"><div class="e1">⏳</div></div>');
-  if (kenh !== 'Ahamove') {
-    frame('Gọi xe ' + kenh, '<div class="emp"><div class="e1">🔑</div><div>' + h(kenh) + ' chưa cấp khoá API. Điền khoá vào Vagabond Settings là màn này chạy được ngay.</div></div>');
+  var cua = VD_GOI_XE[kenh];
+  if (!cua) {
+    frame('Gọi xe ' + kenh, '<div class="emp"><div class="e1">🔑</div><div>' + h(kenh) + ' chưa có API, đặt tay trên app của họ rồi ghi mã vào đơn.</div></div>');
     return;
   }
-  var d;
+  var d, goi;
   try {
     d = await api('frappe.client.get', { doctype: 'Van Don', name: name });
-    if (!vdAhaDv) vdAhaDv = await api('vagabond.van_don.aha_dich_vu');
+    if (!vdGxDv[kenh]) vdGxDv[kenh] = await api(cua.dv);
+    goi = vdGxDv[kenh];
   } catch (e) {
     frame('Gọi xe ' + kenh, '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không đọc được') + '</div></div>');
     return;
   }
-  var dsDv = (vdAhaDv && vdAhaDv.dich_vu) || [];
-  if (!dsDv.length) { frame('Gọi xe ' + kenh, '<div class="emp"><div class="e1">⚠️</div><div>Ahamove không trả về loại xe nào.</div></div>'); return; }
-  var chonDv = (vdAhaDv && vdAhaDv.mac_dinh) || dsDv[0].id;
+  var dsDv = (goi && goi.dich_vu) || [];
+  if (!dsDv.length) { frame('Gọi xe ' + kenh, '<div class="emp"><div class="e1">⚠️</div><div>' + h(kenh) + ' không trả về loại xe nào.</div></div>'); return; }
+  var dangThu = !!(goi && goi.dang_thu);
+  var chonDv = (goi && goi.mac_dinh) || dsDv[0].id;
   var chonAdd = {};
   var gia = null, dangTinh = false;
-  function dvHienTai() { for (var i = 0; i < dsDv.length; i++) { if (dsDv[i].id === chonDv) return dsDv[i]; } return dsDv[0]; }
+  function dvHienTai() { for (var i = 0; i < dsDv.length; i++) { if (String(dsDv[i].id) === String(chonDv)) return dsDv[i]; } return dsDv[0]; }
+  function addChon() { return Object.keys(chonAdd).filter(function (k) { return chonAdd[k]; }); }
+  function thamSo() { var t = { name: name, service_id: chonDv }; t[cua.khoaAdd] = JSON.stringify(addChon()); return t; }
   function ve() {
     var dv = dvHienTai();
-    var html = '<div class="card" style="padding:12px 14px;line-height:1.7">' +
+    var html = '';
+    if (dangThu) html += '<div class="card" style="padding:10px 14px;background:#fff7e6;border:1px solid #f5c26b;line-height:1.5">🧪 <b>GreenSM đang chạy thử.</b> Giá dưới đây là giá giả, chưa gọi được tài xế thật. Gọi xe thật bằng Ahamove hoặc đặt tay.</div>';
+    html += '<div class="card" style="padding:12px 14px;line-height:1.7">' +
       '<div><b>' + (d.ma_don ? '#' + h(d.ma_don) : h(d.name)) + '</b> · ' + h(d.khach || 'Khách lẻ') + '</div>' +
       '<div style="font-size:13px">' + h(d.dia_chi || '(chưa có địa chỉ)') + '</div>' +
       (d.tien_thu_ho ? '<div><b>Thu hộ (COD): ' + money(d.tien_thu_ho) + ' đ</b></div>' : '') +
       '</div>';
     html += '<div class="sec">Loại xe</div><div class="card">';
     dsDv.forEach(function (x) {
-      html += '<div class="row" data-dv="' + h(x.id) + '" style="cursor:pointer"><div>' + h(x.ten) + '</div><div>' + (x.id === chonDv ? '✓' : '') + '</div></div>';
+      html += '<div class="row" data-dv="' + h(x.id) + '" style="cursor:pointer"><div>' + h(x.ten) + '</div><div>' + (String(x.id) === String(chonDv) ? '✓' : '') + '</div></div>';
     });
     html += '</div>';
-    html += '<div class="sec">Dịch vụ thêm (Ahamove tính thêm tiền)</div><div class="card">';
+    html += '<div class="sec">Dịch vụ thêm (' + h(kenh) + ' tính thêm tiền)</div><div class="card">';
     if (!(dv.addon || []).length) html += '<div class="row"><div style="color:#6b7280">Loại xe này không có dịch vụ thêm.</div></div>';
     (dv.addon || []).forEach(function (r) {
       html += '<div class="row" data-add="' + h(r.id) + '" style="cursor:pointer"><div>' + (chonAdd[r.id] ? '☑️ ' : '⬜ ') + h(r.ten) + '</div><div style="color:#6b7280">' + (r.gia ? '+' + money(r.gia) + ' đ' : '') + '</div></div>';
     });
     html += '</div>';
     html += '<div class="card" style="padding:12px 14px;margin-top:10px">' +
-      (dangTinh ? '<div style="color:#6b7280">Đang hỏi giá Ahamove...</div>' :
-        (gia === null ? '<div style="color:#6b7280">Bấm Xem giá để Ahamove báo cước.</div>' :
-          '<div style="font-size:17px"><b>Cước: ' + money(gia.tong) + ' đ</b>' + (gia.km ? ' <span style="color:#6b7280;font-size:13px">· ' + num(gia.km) + ' km</span>' : '') + '</div>')) +
+      (dangTinh ? '<div style="color:#6b7280">Đang hỏi giá ' + h(kenh) + '...</div>' :
+        (gia === null ? '<div style="color:#6b7280">Bấm Xem giá để ' + h(kenh) + ' báo cước.</div>' :
+          '<div style="font-size:17px"><b>Cước: ' + money(gia.tong) + ' đ</b>' + (gia.km ? ' <span style="color:#6b7280;font-size:13px">· ' + num(gia.km) + ' km</span>' : '') + (dangThu ? ' <span style="color:#b45309;font-size:13px">· giá thử</span>' : '') + '</div>')) +
       '</div>';
+    /* v616 (Codex #499 4395961827): đang hỏi giá mới thì khoá Gọi xe, kẻo xác nhận cước cũ. */
+    var khoaGoi = gia === null || dangThu || dangTinh;
     var ft = '<button class="btn gh" id="gxGia" style="flex:1">Xem giá</button>' +
-      '<button class="btn" id="gxDat" style="flex:1"' + (gia === null ? ' disabled' : '') + '>Gọi xe</button>';
-    var b = frame('Gọi xe Ahamove', html, { footer: '<div style="display:flex;gap:8px">' + ft + '</div>' });
+      '<button class="btn" id="gxDat" style="flex:1"' + (khoaGoi ? ' disabled' : '') + '>Gọi xe</button>';
+    var b = frame('Gọi xe ' + kenh, html, { footer: '<div style="display:flex;gap:8px">' + ft + '</div>' });
     b.addEventListener('click', function (e) {
       var dvEl = e.target.closest('[data-dv]');
       if (dvEl) { chonDv = dvEl.getAttribute('data-dv'); chonAdd = {}; gia = null; ve(); return; }
@@ -26400,18 +26419,22 @@ async function scrVdGoiXe(name, kenh) {
     });
     document.getElementById('gxGia').onclick = async function () {
       dangTinh = true; ve();
-      try {
-        gia = await api('vagabond.van_don.aha_bao_gia', { name: name, service_id: chonDv, requests_them: JSON.stringify(Object.keys(chonAdd).filter(function (k) { return chonAdd[k]; })) });
-      } catch (e2) { baoTin((e2 && e2.message) || 'Ahamove không báo giá được'); }
+      try { gia = await api(cua.gia, thamSo()); }
+      catch (e2) { baoTin((e2 && e2.message) || (kenh + ' không báo giá được')); }
       dangTinh = false; ve();
     };
     document.getElementById('gxDat').onclick = async function () {
-      if (gia === null) return;
-      if (!await xacNhan('Gọi xe Ahamove cho đơn này, cước ' + money(gia.tong) + ' đ?')) return;
+      if (gia === null || dangThu || dangTinh) return;
+      /* Chốt bản giá người dùng đang xác nhận: giá mới về trong lúc hộp xác nhận còn
+         mở thì vẫn gửi mã của bản đã xác nhận, máy chủ sẽ bắt xem lại. */
+      var giaChot = gia;
+      if (!await xacNhan('Gọi xe ' + kenh + ' cho đơn này, cước ' + money(giaChot.tong) + ' đ?')) return;
       busy(true);
       try {
-        await api('vagabond.van_don.book_xe', { name: name, kenh: 'Ahamove', service_id: chonDv, requests_them: JSON.stringify(Object.keys(chonAdd).filter(function (k) { return chonAdd[k]; })) });
-        busy(false); toast('Đã gọi xe, Ahamove đang tìm tài xế');
+        /* v616 (Codex #499 4395850127): gửi kèm mã bản giá đang hiện, để máy chủ không
+           đặt theo bản giá người khác vừa xem lại cho cùng đơn. */
+        await api('vagabond.van_don.book_xe', { name: name, kenh: kenh, service_id: chonDv, requests_them: JSON.stringify(addChon()), ma_gia: giaChot.ma_gia || '' });
+        busy(false); toast('Đã gọi xe, ' + kenh + ' đang tìm tài xế');
         go(function () { scrVdView(name); }, true);
       } catch (e3) { busy(false); baoTin((e3 && e3.message) || 'Gọi xe lỗi'); }
     };
@@ -58777,7 +58800,8 @@ function cdlVeTab(fnTab, oToi) {
       (m.gon ? '<span class="cdl-mui">' + (mo ? '▾' : '▸') + '</span>' : '') + '</div>';
     return '<div class="cdl-khoi" data-cdlmuc="' + h(m.fn) + '">' + dau +
       (mo ? '<div class="cdl-mth">' + (m.mo ? '<div class="cdl-mo" style="margin-bottom:6px">' + h(m.mo) + '</div>' : '') +
-        m.o.map(function (o) { return cdlVeO(o, doc, loi[o.fn]); }).join('') + '</div>' : '') + '</div>';
+        m.o.map(function (o) { return cdlVeO(o, doc, loi[o.fn]); }).join('') +
+        (m.fn === 'sec_gsm' ? cdlVeThuGsm() : '') + '</div>' : '') + '</div>';
   }).join('');
   var b = frame(t.nhan, html, { footer: cdlFooter() });
   cdlAnThanh(cdlSoThay());
@@ -58964,6 +58988,7 @@ function cdlBam(e, fnTab) {
   if ((el = e.target.closest('[data-cdlbotthem]'))) return cdlHopBot('');
   if ((el = e.target.closest('[data-cdlbottoken]'))) return cdlHopBot(el.getAttribute('data-cdlbottoken'));
   if ((el = e.target.closest('[data-cdlbotnoi]'))) return cdlNoiBot(el.getAttribute('data-cdlbotnoi'));
+  if ((el = e.target.closest('[data-cdlthugsm]'))) return cdlThuGsm(fnTab);
   if ((el = e.target.closest('[data-cdlguithu]'))) return cdlGuiThuZalo((CDL.bang.zalo_nhom || [])[parseInt(el.getAttribute('data-cdlguithu'), 10)]);
   if ((el = e.target.closest('[data-cdldong]'))) {
     return cdlMoDong(el.getAttribute('data-cdlbang'), parseInt(el.getAttribute('data-cdldong'), 10));
@@ -59008,6 +59033,39 @@ function cdlTomDongZalo(r) {
     // v606: nhóm gửi bằng bot thêm thì nói rõ bot nào, như thẻ nhóm trên Desk.
     (r.bot && String(r.bot) !== '1') ? 'gửi bằng ' + cdlTenBot(r.bot) : '',
     r.chat_id ? cdlNhanNhomZalo({ chat_id: r.chat_id }) : 'Chưa chọn nhóm Zalo'].filter(Boolean).join(' · ');
+}
+
+/* v616 (Codex #499 4373739957): nút Thử kết nối GreenSM có cả trên app, không
+   chỉ trên Desk (AGENTS.md: Desk và app luôn đủ cả hai). Kết quả từng bước
+   hiện ngay dưới nút trong mục GreenSM để người nghiệm thu chép gửi GreenSM. */
+function cdlVeThuGsm() {
+  var k = CDL.gsmKq;
+  var kq = '';
+  if (k && k.dang) kq = '<div class="cdl-mo" style="margin-top:6px">Đang thử kết nối GreenSM, chờ khoảng nửa phút...</div>';
+  else if (k) {
+    kq = '<div style="margin-top:6px">' + cdlChip(k.ok ? 'ok' : (k.loi ? 'err' : 'off'),
+      k.ok ? 'GreenSM kết nối được' : (k.loi ? 'Chưa thử được' : 'GreenSM chưa chạy hết chuỗi')) +
+      (k.loi ? '<div class="cdl-mo" style="margin-top:4px">' + h(k.loi) + '</div>' : '') +
+      ((k.buoc || []).length ? '<ul style="padding-left:18px;margin:6px 0 0">' + k.buoc.map(function (x) { return '<li class="cdl-mo">' + h(x) + '</li>'; }).join('') + '</ul>' : '') + '</div>';
+  }
+  return '<div class="cdl-f" id="cdl-thu-gsm"><button class="cdl-lnk" data-cdlthugsm="1"' + (k && k.dang ? ' disabled' : '') +
+    '>Thử kết nối GreenSM</button><div class="cdl-mo">Chạy đủ chuỗi xem loại xe, báo giá, tạo đơn thử và xem lại đơn trên môi trường thử, để GreenSM nghiệm thu trước khi cấp khoá thật. Chỉ chạy khi đang bật Dùng môi trường thử nên không bao giờ gọi xe thật.</div>' + kq + '</div>';
+}
+
+async function cdlThuGsm(fnTab) {
+  if (CDL.gsmKq && CDL.gsmKq.dang) return;
+  if (cdlSoThay()) return toast('Bấm Lưu trước rồi mới thử kết nối GreenSM.');
+  CDL.gsmKq = { dang: 1 };
+  cdlVeTab(fnTab);
+  try {
+    var m = (await api('vagabond.greensm.thu_ket_noi', {})) || {};
+    CDL.gsmKq = { ok: !!m.ok, buoc: m.buoc || [] };
+  } catch (e) {
+    CDL.gsmKq = { loi: (e && e.message) || 'Không gọi được máy chủ, thử lại sau.' };
+  }
+  /* Người dùng đã rời màn trong lúc chờ thì không kéo họ quay lại, chỉ báo ngắn. */
+  if (document.getElementById('cdl-thu-gsm')) cdlVeTab(fnTab);
+  else toast(CDL.gsmKq.ok ? 'GreenSM kết nối được.' : 'Thử kết nối GreenSM chưa xong, mở lại mục GreenSM để xem từng bước.', 6000);
 }
 
 async function cdlGuiThuZalo(r) {

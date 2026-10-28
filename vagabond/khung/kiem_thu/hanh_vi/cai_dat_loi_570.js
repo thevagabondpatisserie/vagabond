@@ -96,6 +96,11 @@ function dungMan() {
         return Promise.resolve({ ma_bot: ts.ma || '3', ten: ts.ten || 'Bot Zalo' });
       }
       if (duong === 'vagabond.kenh_zalo.dang_ky_webhook') return Promise.resolve({ ok: 1, loi_nhan: 'Đã nối bot số ' + ts.bot + '.' });
+      // v616: thử kết nối GreenSM. _gsm là phản hồi máy chủ, _gsmLoi là câu lỗi máy chủ ném.
+      if (duong === 'vagabond.greensm.thu_ket_noi') {
+        if (that._gsmLoi) return Promise.reject(new Error(that._gsmLoi));
+        return Promise.resolve(JSON.parse(JSON.stringify(that._gsm || { ok: 1, buoc: [] })));
+      }
       if (duong === 'vagabond.tai_khoan.danh_sach') return Promise.resolve({ ngan_hang: NGAN_HANG });
       if (duong === 'vagabond.cai_dat_loi.tim_lien_ket') return Promise.resolve(['Kho A', 'Kho B']);
       if (duong === 'vagabond.kenh_zalo.nhom_da_nhan_bot') return Promise.resolve(JSON.parse(JSON.stringify(that._nhomBot || LAY.nhom_bot)));
@@ -779,6 +784,57 @@ function moTab(m, fn) { bam(m, mot(m, '[data-cdltab="' + fn + '"]')); }
     dung('nhóm bot đã xoá', t.indexOf('bot số 5 đã xoá, đang gửi bằng bot chính') >= 0);
     var the0 = tim(m, '[data-cdldong="0"]')[0];
     dung('nhóm bot chính không ghi gửi bằng', chu(the0).indexOf('Vận hành') >= 0 && chu(the0).indexOf('gửi bằng') < 0);
+  });
+
+  /* v616 (Codex #499 4373739957): nút Thử kết nối GreenSM phải có cả trên app. */
+  function tabGsm() {
+    return LAY.bo_cuc.filter(function (t) { return t.muc.some(function (mu) { return mu.fn === 'sec_gsm'; }); })[0];
+  }
+  function moMucGsm(m) {
+    var t = tabGsm();
+    moTab(m, t.fn);
+    var mu = t.muc.filter(function (x) { return x.fn === 'sec_gsm'; })[0];
+    if (!tim(m, '[data-cdlthugsm]').length && mu.gon) bam(m, mot(m, '[data-cdlgon="sec_gsm"]'));
+  }
+
+  await ca('v616 app: mục GreenSM có nút Thử kết nối GreenSM, bấm thì chạy đủ chuỗi và hiện từng bước ngay dưới nút', async function () {
+    dung('máy chủ có mục GreenSM trên app', !!tabGsm());
+    var m = await moMan();
+    m.g._gsm = { ok: 1, buoc: ['Danh sách loại xe: Express for partner (1878)', 'Báo giá: 80.000 đ, 5.33 km, mã giá f1', 'Tạo đơn: mã 01M5, trạng thái FINDING', 'Xem lại đơn: FINDING'] };
+    moMucGsm(m);
+    var n = mot(m, '[data-cdlthugsm]');
+    bang('chữ nút giống Desk', chu(n), 'Thử kết nối GreenSM');
+    dung('có dòng giải thích chỉ chạy môi trường thử', chu(mot(m, '#cdl-thu-gsm')).indexOf('không bao giờ gọi xe thật') >= 0);
+    bam(m, n);
+    dung('đang chạy thì nói chờ', chu(mot(m, '#cdl-thu-gsm')).indexOf('Đang thử kết nối GreenSM') >= 0);
+    bam(m, mot(m, '[data-cdlthugsm]'));
+    await tick(); await tick();
+    var g = m.goi.filter(function (x) { return x.duong === 'vagabond.greensm.thu_ket_noi'; });
+    bang('gọi máy chủ đúng một lần dù bấm hai lần', g.length, 1);
+    var t = chu(mot(m, '#cdl-thu-gsm'));
+    dung('báo kết nối được: ' + t, t.indexOf('GreenSM kết nối được') >= 0);
+    dung('hiện đủ bốn bước', ['1878', '80.000 đ', 'FINDING', 'Xem lại đơn'].every(function (x) { return t.indexOf(x) >= 0; }));
+  });
+
+  await ca('v616 app: còn ô chưa lưu thì không thử; máy chủ chặn (ví dụ đang dùng khoá thật) thì nói đúng câu máy chủ', async function () {
+    var m = await moMan();
+    moTab(m, 'tab_ke_toan');
+    bam(m, mot(m, '[data-cdlbat="sepay_bat"]'));
+    m.g.back();
+    moMucGsm(m);
+    bam(m, mot(m, '[data-cdlthugsm]'));
+    await tick();
+    bang('không gọi máy chủ', m.goi.filter(function (x) { return x.duong === 'vagabond.greensm.thu_ket_noi'; }).length, 0);
+    dung('nhắc lưu trước', m.toast.indexOf('Bấm Lưu trước rồi mới thử kết nối GreenSM.') >= 0);
+    var m2 = await moMan();
+    m2.g._gsmLoi = 'Nút thử chỉ chạy ở môi trường thử GreenSM, để không gọi xe thật.';
+    moMucGsm(m2);
+    bam(m2, mot(m2, '[data-cdlthugsm]'));
+    await tick(); await tick();
+    var t = chu(mot(m2, '#cdl-thu-gsm'));
+    dung('chip chưa thử được', t.indexOf('Chưa thử được') >= 0);
+    dung('câu máy chủ', t.indexOf('Nút thử chỉ chạy ở môi trường thử GreenSM') >= 0);
+    dung('nút bấm lại được', !mot(m2, '[data-cdlthugsm]').hasAttribute('disabled'));
   });
 
   console.log('\n' + ket.dat + ' ca dat, ' + ket.hong + ' ca hong.');
