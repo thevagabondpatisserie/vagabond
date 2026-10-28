@@ -26427,7 +26427,9 @@ async function scrVdGoiXe(name, kenh) {
       if (!await xacNhan('Gọi xe ' + kenh + ' cho đơn này, cước ' + money(gia.tong) + ' đ?')) return;
       busy(true);
       try {
-        await api('vagabond.van_don.book_xe', { name: name, kenh: kenh, service_id: chonDv, requests_them: JSON.stringify(addChon()) });
+        /* v616 (Codex #499 4395850127): gửi kèm mã bản giá đang hiện, để máy chủ không
+           đặt theo bản giá người khác vừa xem lại cho cùng đơn. */
+        await api('vagabond.van_don.book_xe', { name: name, kenh: kenh, service_id: chonDv, requests_them: JSON.stringify(addChon()), ma_gia: gia.ma_gia || '' });
         busy(false); toast('Đã gọi xe, ' + kenh + ' đang tìm tài xế');
         go(function () { scrVdView(name); }, true);
       } catch (e3) { busy(false); baoTin((e3 && e3.message) || 'Gọi xe lỗi'); }
