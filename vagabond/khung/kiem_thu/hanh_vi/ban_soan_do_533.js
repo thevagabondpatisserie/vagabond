@@ -29,6 +29,8 @@ var DON_HUY = doc('29-don-huy.js');
 var SOAN_DO = doc('48-ban-soan-do.js');
 var GIA_VON_TAM = doc('53-gia-von-tam.js');
 var SO_DU = doc('55-so-du-tra-truoc.js');
+/* v614 Codex #505 vòng 4: màn Chiến dịch CRM thật, để kiểm Lưu nháp xong 48 theo dõi lại. */
+var CRM = doc('58-crm.js');
 /* Hàm THẬT của 00-nen.js: tìm bỏ dấu (sheet nhóm bán, Codex #486 v7) và ô ảnh món (thẻ phiếu thử, v6). */
 function layHam(src, ten) {
   var dau = src.indexOf('function ' + ten + '(');
@@ -123,6 +125,19 @@ function mayChu(canh) {
         return { ok: 1, doctype: 'Payment Entry', name: 'ACC-PAY-1' };
       }
       if (m === 'vagabond.tra_truoc_khach.so_khach') return { dong: [], khach: a.khach, ten: 'Mỹ Dung' };
+      /* Chiến dịch CRM: máy chủ giữ bản đã lưu trong canh.cd. */
+      if (m === 'vagabond.crm.doc_chien_dich' || m === 'vagabond.crm.luu_chien_dich') {
+        var goc = (canh && canh.cd) || {};
+        if (m === 'vagabond.crm.luu_chien_dich') {
+          var dat = JSON.parse(a.dat);
+          goc = Object.assign({}, goc, { name: dat.name || 'CD-26-0007', ten: dat.ten, kich_ban: dat.kich_ban, noi_dung_zalo: dat.noi_dung_zalo,
+            kenh_goi: dat.kenh_goi, kenh_zalo: dat.kenh_zalo, mon: dat.mon || [], loc: dat.loc || {} });
+          if (canh) canh.cd = goc;
+        }
+        return Object.assign({ name: 'CD-26-0007', ten: '', trang_thai: 'Nháp', loc: {}, bo_loc: '', mo_ta_loc: 'Nhóm Đã ngủ', kenh_goi: 1, kenh_zalo: 0,
+          ty_le_doi_chung: 10, mon: [], sales: [], kich_ban: '', noi_dung_zalo: '', ctkm: '', ma_uu_dai: '', han: '', kich_ban_duyet: 0,
+          duoc_lap: 1, duoc_duyet: 0, ly_do_chua_chot: 'Kịch bản gọi chưa được duyệt.', dong_chay: null }, JSON.parse(JSON.stringify(goc)));
+      }
       if (m === 'vagabond.nop_quy.tao') return (a && a.ly_do_lech) ? { ok: 1, ma: 'NQ-26-1' } : { can_ly_do: 1, lech: 5000 };
       return {};
     },
@@ -194,6 +209,7 @@ function appMoi(kho, canh) {
   vm.runInContext(NEN_TIM, g);
   vm.runInContext(GIA_VON_TAM, g);
   vm.runInContext(SO_DU, g);
+  vm.runInContext(CRM, g);
   /* Moi man lap phieu KHAC ma 48 boc: ca nay khong nap that, chi can co ten
      de 48 boc duoc luc nap. Man that cua bao gia thi da nap o tren. */
   var boc = SOAN_DO.match(/^(\w+) = sdBoc(?:Hop)?\(/gm).map(function (x) { return x.split(' ')[0]; });
@@ -283,6 +299,38 @@ async function chayHet() {
     bang('may chu nhan dung', [luu[0].a.khach, luu[0].a.so_tien, luu[0].a.nguon, luu[0].a.quay, luu[0].a.ma_lan],
       ['KL040476', 50000000, 'tien_mat', 'TCV', maLan]);
     bang('luu xong thi het ban nhap', cacKhoa(kho), []);
+  });
+
+  await ca('Codex #505 v4: chiến dịch CRM Lưu nháp xong sửa tiếp vẫn tự lưu theo mã chiến dịch; sập nguồn mở lại từ thẻ còn đủ phần sửa sau', async function () {
+    var kho = khoMay();
+    var canh = {};
+    var a = appMoi(kho, canh);
+    a.g.S.roles = ['Sales Manager'];
+    await moTrangChu(a);
+    a.g.go(function () { return a.g.scrCrmCd(''); });
+    await a.cho(); await a.cho();
+    dung('màn chiến dịch mới đã về', !!a.el('crmCdTen'));
+    a.go('crmCdTen', 'Gọi khách đã ngủ');
+    await a.tua(700);
+    bang('bản nháp chiến dịch chưa có mã', cacKhoa(kho), ['vgbSoanDo:loananh@vagabond.vn:chien_dich:moi']);
+    await a.bam(a.tl.querySelectorAll('[data-crmcdluu]')[0]);
+    await a.cho(); await a.cho(); await a.cho();
+    bang('lưu một lần', a.mc.goi.filter(function (x) { return x.m === 'vagabond.crm.luu_chien_dich'; }).length, 1);
+    dung('lưu xong vẫn ở màn sửa', !!a.el('crmCdKb') && !a.el('crmCdKb').hasAttribute('disabled'));
+    bang('không hỏi lại máy chủ sau khi lưu', a.mc.goi.filter(function (x) { return x.m === 'vagabond.crm.doc_chien_dich'; }).length, 0);
+    a.go('crmCdKb', 'Kịch bản sửa sau khi lưu');
+    await a.tua(700);
+    bang('tự lưu lại theo mã chiến dịch vừa có', cacKhoa(kho), ['vgbSoanDo:loananh@vagabond.vn:chien_dich:CD-26-0007']);
+    /* Sập nguồn: mở app mới trên cùng máy. */
+    var b = appMoi(kho, canh);
+    b.g.S.roles = ['Sales Manager'];
+    await moTrangChu(b);
+    var dong = b.el('sdThe').querySelectorAll('[data-sdmo]');
+    bang('thẻ có đúng một dòng', dong.length, 1);
+    await b.bam(dong[0]);
+    await b.cho(); await b.cho(); await b.cho();
+    bang('mở lại có phần sửa sau khi lưu', b.el('crmCdKb').value, 'Kịch bản sửa sau khi lưu');
+    bang('tên vẫn đúng', b.el('crmCdTen').value, 'Gọi khách đã ngủ');
   });
 
   await ca('Loan Anh: go bao gia moi, may sap nguon, mo lai app thi the Phieu dang soan do dua ve DUNG to dang go', async function () {
@@ -700,7 +748,8 @@ async function chayHet() {
     /* v549: them tra_truoc_erp (khoan da tra truoc khi len ERP, Codex #403). */
     /* v600 Codex #486: them gia_thu (phieu tinh gia thu R&D). */
     /* v607 Codex #493 vong 3: them phieu nap tra truoc (nap_tra_truoc). */
-    bang('du 43 loai phieu', Object.keys(k.SD_MAN).length, 43);
+    /* v614 Codex #505: them chien_dich (lap chien dich CRM, 58-crm.js). */
+    bang('du 44 loai phieu', Object.keys(k.SD_MAN).length, 44);
   });
 
   console.log('ban_soan_do_533: dat ' + ket.dat + ', hong ' + ket.hong);

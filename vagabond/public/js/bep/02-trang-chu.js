@@ -151,9 +151,8 @@ async function scrHome() {
          Sales Online (anh Viet 10/08/2026). Truoc day Sales dung rieng mot
          nut o ngoai nen nhan vien hay vao nham. */
       card('🧾', 'Tính tiền - hoá đơn bán hàng', 'Chọn điểm bán: District 1, NVHTN, Sales Online', dsn, 'POS') +
-      /* CRM dat ngay DUOI nut Tinh tien (anh Viet chot 25/08/2026). Man
-         nay thay bang tinh tang qua khach VIP cua chi Loan Anh. */
-      card('💝', 'CRM - chăm sóc khách hàng', 'Tặng quà khách VIP: lên danh sách, chia việc, theo dõi đã tặng và đã liên hệ', 0, 'TQV') +
+      /* v614: ô Tặng quà khách VIP và Danh sách khách hàng chuyển sang phân
+         hệ Khách hàng (CRM), anh Việt duyệt mẫu 27/10/2026. */
         card('🔐', 'Mã OTP quản lý', 'Cấp mã cho nhân viên sửa hoặc xoá hoá đơn', 0, 'OTP') +
       card('🎫', 'Chương trình khuyến mãi - combo', 'Bảy cách thức khuyến mãi, combo rã món, mã voucher, báo cáo tiền đã giảm', 0, 'KM') +
       /* v582: chi Sales that, QLCH, ke toan, giam doc (coQuyenCongNo). */
@@ -167,7 +166,6 @@ async function scrHome() {
       card('💳', 'Số dư trả trước của khách', 'Khách nạp tiền trước, các đơn sau trừ dần: nạp tiền, xem sổ, số dư còn lại', 0, 'SODU') +
       /* v611: đặt bàn khách gửi từ web, xác nhận hoặc huỷ kèm email khách và tin Zalo (57-dat-ban.js). */
       (coQuyenDatBan() ? card('🪑', 'Thông tin đặt bàn', 'Khách đặt bàn trên web: xác nhận, huỷ kèm lý do, ghi khách đã đến', dbn, 'DATBAN') : '') +
-      card('👥', 'Danh sách khách hàng', 'Tra cứu khách sỉ và lẻ, hạng khách, mức chi tiêu', 0, 'KH') +
       /* Don treo phai co mot cua rieng, khong nap trong man Doanh thu Sales:
          don treo cua NGAY CU khong ai mo lai ngay do de xem (anh Viet
          13/08/2026). So dem lay theo 14 ngay gan day. */
@@ -188,6 +186,23 @@ async function scrHome() {
          ngay, ky tay roi mang tien ve. O nay bay phieu CUA CHINH MINH;
          ke toan co o rieng ben phan he Ke toan bay tat ca. */
       card('💵', 'Biên nhận nộp tiền mặt', 'Đếm số tờ, đối chiếu doanh thu của ngày, ký giao nhận', 0, 'BNTM') + '</div>';
+  }
+  /* v614 phân hệ Khách hàng (CRM, 58-crm.js). Anh Việt duyệt 8 màn mẫu ngày
+     27/10/2026. Số đỏ trên Danh sách gọi do MÁY CHỦ đếm (crm.tong_quan): số
+     khách mình còn phải gọi trong các chiến dịch đang chạy. Tra cứu khách và
+     Tặng quà VIP chỉ hiện với Sales như trước, vì máy chủ hai màn đó vẫn chặn
+     theo quyền bán hàng. */
+  if (coQuyenCrm()) {
+    var crmn = 0;
+    try { crmn = (await api('vagabond.crm.tong_quan', {})).viec_toi || 0; } catch (e) { }
+    html += '<div class="sec">Khách hàng</div><div class="card">' +
+      card('📞', 'Danh sách gọi của tôi', 'Khách được chia cho bạn: gọi, chép tin Zalo, ghi kết quả', crmn, 'CRMGOI') +
+      (isSales() ? card('👤', 'Tra cứu khách hàng', 'Hồ sơ đầy đủ: món hay mua, dịp đã mua, nhật ký liên hệ, đồng ý nhận tin', 0, 'KH') : '') +
+      card('🧩', 'Nhóm khách', '6 nhóm máy tự chia mỗi đêm và các bộ lọc đã lưu', 0, 'CRMNHOM') +
+      card('✅', 'Sổ đồng ý nhận tin', 'Ai đồng ý, ai từ chối, qua kênh nào, ngày nào, ở đâu', 0, 'CRMDY') +
+      card('📣', 'Chiến dịch', 'Chọn nhóm khách, món giới thiệu, mã ưu đãi riêng, chia cho Sales', 0, 'CRMCD') +
+      card('📊', 'Hiệu quả chiến dịch', 'Doanh thu nhóm được liên hệ so với nhóm đối chứng', 0, 'CRMHQ') +
+      (isSales() ? card('🎁', 'Tặng quà khách VIP', 'Lên danh sách, chia việc, theo dõi đã tặng và đã liên hệ', 0, 'TQV') : '') + '</div>';
   }
   /* Anh Viet 14/08/2026: doi ten nut 'Hop dong event, catering' thanh
      'Quan ly hop dong mua ban' va mo cho Loan Anh (Sales), thu mua va ke
@@ -557,13 +572,24 @@ var VGB_NHOM = [
   { k: 'KK', ten: 'Kiểm kê', icon: '🧮', keys: ['KK', 'STOCK', 'TONCHANG'] },
   {
     k: 'BH', ten: 'Bán hàng', icon: '🎂',
-    keys: ['KBD', 'KBM', 'POS', 'TQV', 'HDG', 'OTP', 'KM', 'CN', 'SOTANG', 'SODU', 'DATBAN', 'KH', 'DTREO', 'DSCK', 'PHHUY', 'BNTM'],
+    keys: ['KBD', 'KBM', 'POS', 'HDG', 'OTP', 'KM', 'CN', 'SOTANG', 'SODU', 'DATBAN', 'DTREO', 'DSCK', 'PHHUY', 'BNTM'],
     nhom: [
       { t: 'Bán và thu tiền', p: 'việc của quầy', keys: ['POS', 'DTREO', 'DSCK', 'BNTM'] },
       { t: 'Bánh và tồn', p: 'đầu ngày', keys: ['KBD', 'KBM'] },
-      { t: 'Khách hàng', p: 'chăm sóc và công nợ', keys: ['TQV', 'DATBAN', 'KH', 'CN', 'SOTANG', 'SODU'] },
+      { t: 'Khách hàng', p: 'đặt bàn và công nợ', keys: ['DATBAN', 'CN', 'SOTANG', 'SODU'] },
       { t: 'Chương trình và hợp đồng', p: '', keys: ['KM', 'HDG'] },
       { t: 'Quản lý', p: 'ít dùng', keys: ['OTP', 'PHHUY'] }
+    ]
+  },
+  /* v614 phân hệ Khách hàng (CRM). Đứng ngay sau Bán hàng, anh Việt duyệt
+     mẫu 27/10/2026. */
+  {
+    k: 'KHG', ten: 'Khách hàng', icon: '💝',
+    keys: ['CRMGOI', 'KH', 'CRMNHOM', 'CRMDY', 'CRMCD', 'CRMHQ', 'TQV'],
+    nhom: [
+      { t: 'Việc hôm nay', p: '', keys: ['CRMGOI'] },
+      { t: 'Hồ sơ khách', p: '', keys: ['KH', 'CRMNHOM', 'CRMDY'] },
+      { t: 'Chiến dịch', p: '', keys: ['CRMCD', 'CRMHQ', 'TQV'] }
     ]
   },
   {
@@ -1790,11 +1816,13 @@ var VGB_DUONG = {
   'cai-dat-loi-va-api': 'CDLOI',
   'canh-bao-thanh-toan': 'CBTT',
   'chi-phi-van-don': 'CPX',
+  'chien-dich': 'CRMCD',
   'chuyen-phantom': 'PTCH',
   'cong-no': 'CN',
   'cong-no-phai-tra': 'CNPT',
   'cong-thuc': 'CTBOM',
   'danh-muc-san-pham': 'CDSP',
+  'danh-sach-goi-cua-toi': 'CRMGOI',
   'danh-sach-thanh-toan-noi-bo': 'DSTTNB',
   'diem-ban': 'CDDB',
   'doanh-so': 'DS',
@@ -1812,6 +1840,7 @@ var VGB_DUONG = {
   'gia-von-tam-tinh': 'GVT',
   'hang-chuyen-ve-kho-toi': 'NHANDC',
   'hang-khach': 'CDHT',
+  'hieu-qua-chien-dich': 'CRMHQ',
   'ho-so-thanh-toan': 'APPTT',
   'hoa-don-ban': 'HDBAN',
   'hoa-don-chua-tru-kho': 'TRUKHO',
@@ -1837,6 +1866,7 @@ var VGB_DUONG = {
   'nhap-kho': 'RCV',
   'nhap-sao-ke': 'NHAPSK',
   'nhat-ky-sua-cong-thuc': 'CTNHATKY',
+  'nhom-khach': 'CRMNHOM',
   'nop-quy': 'NQ',
   'phan-he-ban-hang': 'PH:BH',
   'phan-he-bao-cao': 'PH:BC',
@@ -1845,6 +1875,7 @@ var VGB_DUONG = {
   'phan-he-dat-hang': 'PH:DH',
   'phan-he-giao-hang': 'PH:GH',
   'phan-he-ke-toan': 'PH:KT',
+  'phan-he-khach-hang': 'PH:KHG',
   'phan-he-kiem-ke': 'PH:KK',
   'phan-he-nhan-su': 'PH:NS',
   'phan-he-nhap-kho': 'PH:NK',
@@ -1858,6 +1889,7 @@ var VGB_DUONG = {
   'quyen-quay': 'CDQQ',
   'san-xuat': 'MFG',
   'sepay': 'CDSE',
+  'so-dong-y-nhan-tin': 'CRMDY',
   'so-du-tra-truoc': 'SODU',
   'so-tay': 'SOTAY',
   'tai-khoan-cua-toi': 'ACC',
@@ -2007,6 +2039,12 @@ function vgbGo(k) {
   if (k === 'PHHUY') return go(scrPhieuHoanHuy);
   if (k === 'POS') return go(scrPosChonQuay);
   if (k === 'TQV') return go(scrTqDot);
+  /* v614 phân hệ Khách hàng (58-crm.js). */
+  if (k === 'CRMGOI') return go(scrCrmGoi);
+  if (k === 'CRMNHOM') return go(scrCrmNhom);
+  if (k === 'CRMDY') return go(scrCrmDongY);
+  if (k === 'CRMCD') return go(scrCrmCdDs);
+  if (k === 'CRMHQ') return go(scrCrmHqDs);
   if (k === 'HDG') return go(scrHopDongHub);
   if (k === 'BC3') return go(function () { kmThe = 'bc'; scrKhuyenMai(); });
   if (k === 'KT1') return go(scrDoanhSo);

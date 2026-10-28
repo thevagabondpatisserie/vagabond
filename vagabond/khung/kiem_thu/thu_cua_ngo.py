@@ -48,6 +48,8 @@ CUA_NGO = {
 	# v611: đặt bàn web. cau_hinh và gửi yêu cầu mở cho khách; năm hàm của màn
 	# Thông tin đặt bàn chặn quyền ở máy chủ (QUYEN_DAT_BAN).
 	"dat_ban.py": ["cau_hinh", "gui", "ds_dat_ban", "dem_cho_xac_nhan", "xac_nhan", "huy", "da_den"],
+	# v614 phân hệ Khách hàng (CRM), 58-crm.js.
+	"crm.py": ["dong_y_cua", "ghi_dong_y", "dat_khong_quang_cao", "so_dong_y", "ho_so_crm", "ghi_lien_he", "nhom_khach", "ds_khach_loc", "luu_bo_loc", "an_bo_loc", "ds_chien_dich", "doc_chien_dich", "luu_chien_dich", "duyet_kich_ban", "chot_chien_dich", "ket_thuc_chien_dich", "ds_sales", "ds_ctkm_ma", "tong_quan", "ds_goi_cua_toi", "ghi_ket_qua", "hieu_qua_chien_dich"],
 	# #296: chốt cả danh sách để cửa Lưu đơn không mất whitelist.
 	"ban_hang.py": [
 		"otp_hien_tai", "pos_anh_quay_luu", "cau_hinh_ban_hang", "dong_bo_doanh_so",

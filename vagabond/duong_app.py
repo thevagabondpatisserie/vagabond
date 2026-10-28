@@ -115,6 +115,12 @@ MAN = (
 	("DSCK", "Đối soát chuyển khoản", "doi-soat-chuyen-khoan"),
 	# v611: đặt bàn khách gửi từ web (dat_ban.py, 57-dat-ban.js).
 	("DATBAN", "Thông tin đặt bàn", "thong-tin-dat-ban"),
+	# v614 phân hệ Khách hàng (crm.py, 58-crm.js).
+	("CRMGOI", "Danh sách gọi của tôi", None),
+	("CRMNHOM", "Nhóm khách", None),
+	("CRMDY", "Sổ đồng ý nhận tin", None),
+	("CRMCD", "Chiến dịch", None),
+	("CRMHQ", "Hiệu quả chiến dịch", None),
 	("TRUKHO", "Hoá đơn chưa trừ kho", None),
 	# --- Nhan su (HRM). Anh Viet chot 01/09/2026, lam trong app Vagabond
 	# chu chua cai phan he HR cua Frappe.
@@ -312,6 +318,7 @@ PHAN_HE = (
 	("XK", "Xuất kho"),
 	("KK", "Kiểm kê"),
 	("BH", "Bán hàng"),
+	("KHG", "Khách hàng"),
 	("GH", "Giao hàng"),
 	("BC", "Báo cáo"),
 	("TM", "Thu mua"),
