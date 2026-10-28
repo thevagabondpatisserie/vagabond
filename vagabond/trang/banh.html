@@ -736,6 +736,9 @@ html body .h1 em#bigDate{display:none}
     <button class="chk dongy" id="c-dongy" onclick="tgl('dongy')" role="checkbox" aria-checked="false"><span class="bx"></span>
       <span class="tx"><span data-vgb-chu="dat_banh_e12f05e93">Tôi đồng ý để The Vagabond Pâtisserie sử dụng họ tên, số điện thoại và địa chỉ để giao bánh và liên hệ về đơn này</span><small><span data-vgb-chu="dat_banh_01f52284d">Theo chính sách bảo mật của chúng tôi.</span></small></span></button>
     <p class="doc-cs" id="docChinhSach"></p>
+    <!-- v617: ô nhận ưu đãi, để TRỐNG sẵn; khách tự tích mới ghi đồng ý (crm.CAU_HOI_WEB). -->
+    <button class="chk" id="c-uudai" onclick="tgl('uudai')" role="checkbox" aria-checked="false"><span class="bx"></span>
+      <span class="tx"><span data-vgb-chu="uu_dai_nhan_tin">Tôi muốn nhận tin món mới và ưu đãi dịp lễ của The Vagabond Pâtisserie qua Zalo hoặc gọi điện. Tôi đổi ý lúc nào cũng được.</span><small><span data-vgb-chu="uu_dai_khong_bat_buoc">Không bắt buộc, không tích vẫn đặt bánh bình thường.</span></small></span></button>
 
     <div class="cta">
       <button class="btn" id="btnSend" style="width:100%" onclick="submitOrder()"><span data-vgb-chu="dat_banh_df2154067">Gửi yêu cầu đặt bánh</span></button>
@@ -1806,7 +1809,7 @@ const SHIP_DO_THAT = [
   {noi:"Nha Be",          km:19.39, p:119000}
 ];
 
-let CO = {mode:'ship', pickup:0, pickupId:'bep-tan-son-hoa', pay:'bank', other:false, gift:false, vat:false, dongy:false, mst:null, ship:null,
+let CO = {mode:'ship', pickup:0, pickupId:'bep-tan-son-hoa', pay:'bank', other:false, gift:false, vat:false, dongy:false, uudai:false, mst:null, ship:null,
   shipTrangThai:null, quan:'', nonce:'', addrList:[], addrSel:-1};
 
 function openCo(){
@@ -1846,7 +1849,7 @@ function tgl(k){ CO[k]=!CO[k];
   const nut=$('#c-'+k);
   nut.classList.toggle('on',CO[k]);
   nut.querySelector('.bx').textContent=CO[k]?'✓':'';
-  if(k==='dongy') nut.setAttribute('aria-checked', CO.dongy ? 'true' : 'false');
+  if(k==='dongy' || k==='uudai') nut.setAttribute('aria-checked', CO[k] ? 'true' : 'false');
   if(k==='other') $('#otherBlock').style.display=CO.other?'grid':'none';
   if(k==='vat')   $('#vatBlock').style.display  =CO.vat  ?'block':'none';
   /* Bung hay thu thi bao cho trinh doc man hinh biet, va dua con tro vao o
@@ -2360,7 +2363,7 @@ async function submitOrder(){
     hoa_don:vat,
     /* #367: chong trung, bang chung dong y, cach thanh toan de in bien nhan,
        va hai cookie Meta de quy don ve quang cao. */
-    nonce:CO.nonce, dong_y:true, thanh_toan:CO.pay,
+    nonce:CO.nonce, dong_y:true, nhan_uu_dai:CO.uudai===true, thanh_toan:CO.pay,
     diem_lay_ten: tuLay ? PICKUPS[CO.pickup].n : '',
     diem_lay_id: tuLay ? PICKUPS[CO.pickup].id : '',
     /* v589: máy chủ không dùng số này để tính tiền. Đây chỉ là số khách đã
