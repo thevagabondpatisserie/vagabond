@@ -1357,7 +1357,8 @@ async function scrVdGoiXe(name, kenh) {
         (gia === null ? '<div style="color:#6b7280">Bấm Xem giá để ' + h(kenh) + ' báo cước.</div>' :
           '<div style="font-size:17px"><b>Cước: ' + money(gia.tong) + ' đ</b>' + (gia.km ? ' <span style="color:#6b7280;font-size:13px">· ' + num(gia.km) + ' km</span>' : '') + (dangThu ? ' <span style="color:#b45309;font-size:13px">· giá thử</span>' : '') + '</div>')) +
       '</div>';
-    var khoaGoi = gia === null || dangThu;
+    /* v616 (Codex #499 4395961827): đang hỏi giá mới thì khoá Gọi xe, kẻo xác nhận cước cũ. */
+    var khoaGoi = gia === null || dangThu || dangTinh;
     var ft = '<button class="btn gh" id="gxGia" style="flex:1">Xem giá</button>' +
       '<button class="btn" id="gxDat" style="flex:1"' + (khoaGoi ? ' disabled' : '') + '>Gọi xe</button>';
     var b = frame('Gọi xe ' + kenh, html, { footer: '<div style="display:flex;gap:8px">' + ft + '</div>' });
@@ -1374,13 +1375,16 @@ async function scrVdGoiXe(name, kenh) {
       dangTinh = false; ve();
     };
     document.getElementById('gxDat').onclick = async function () {
-      if (gia === null || dangThu) return;
-      if (!await xacNhan('Gọi xe ' + kenh + ' cho đơn này, cước ' + money(gia.tong) + ' đ?')) return;
+      if (gia === null || dangThu || dangTinh) return;
+      /* Chốt bản giá người dùng đang xác nhận: giá mới về trong lúc hộp xác nhận còn
+         mở thì vẫn gửi mã của bản đã xác nhận, máy chủ sẽ bắt xem lại. */
+      var giaChot = gia;
+      if (!await xacNhan('Gọi xe ' + kenh + ' cho đơn này, cước ' + money(giaChot.tong) + ' đ?')) return;
       busy(true);
       try {
         /* v616 (Codex #499 4395850127): gửi kèm mã bản giá đang hiện, để máy chủ không
            đặt theo bản giá người khác vừa xem lại cho cùng đơn. */
-        await api('vagabond.van_don.book_xe', { name: name, kenh: kenh, service_id: chonDv, requests_them: JSON.stringify(addChon()), ma_gia: gia.ma_gia || '' });
+        await api('vagabond.van_don.book_xe', { name: name, kenh: kenh, service_id: chonDv, requests_them: JSON.stringify(addChon()), ma_gia: giaChot.ma_gia || '' });
         busy(false); toast('Đã gọi xe, ' + kenh + ' đang tìm tài xế');
         go(function () { scrVdView(name); }, true);
       } catch (e3) { busy(false); baoTin((e3 && e3.message) || 'Gọi xe lỗi'); }
