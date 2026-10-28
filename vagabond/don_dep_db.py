@@ -126,10 +126,13 @@ VERSION_NGAN = {
 # ERPNext tự dựng lại bảng thuế theo dòng mỗi lần lưu. Mỗi lần như vậy lịch sử
 # chụp lại TOÀN BỘ dòng cũ (removed) và dòng mới (added), dù nội dung y hệt.
 #
-# Quá số ngày dưới đây, lịch sử do máy ghi chỉ bỏ hai ảnh chụp đó và ghi lại
-# số dòng đã bỏ; ai đổi, lúc nào, trường nào đổi từ đâu sang đâu (changed,
-# row_changed) giữ nguyên. Lịch sử do NGƯỜI sửa không đụng tới. Không xoá dòng
-# lịch sử nào, nên chứng từ vẫn nằm trong KHONG_DUOC_DON.
+# Quá số ngày dưới đây, lịch sử do máy ghi chỉ bỏ từng CẶP dòng thêm/bớt có
+# nội dung y hệt (dòng dựng lại), và ghi lại số cặp đã bỏ. Dòng đổi thật (thay
+# món, đổi số lượng, đổi tiền thuế) giữ nguyên trong added/removed; ai đổi, lúc
+# nào, trường nào đổi (changed, row_changed) giữ nguyên. Lịch sử do NGƯỜI sửa
+# không đụng tới. Không xoá dòng lịch sử nào, nên chứng từ vẫn nằm trong
+# KHONG_DUOC_DON. Từ v619 nhịp đồng bộ giữ tên dòng món cũ nên dòng món dựng
+# lại không còn sinh cặp mới; bảng thuế theo dòng do ERPNext tự dựng thì vẫn.
 GON_MAY_GHI = {
 	"Sales Invoice": 30,
 }
@@ -143,16 +146,60 @@ DAU_GON = "vgb_da_gon"
 NGUONG_BYTE = 4000
 LO_GON = 500
 TRAN_GON = 30000
+# Con trỏ gọn lưu giữa các đêm (bảng giá trị chung của Frappe), mỗi chứng từ một khoá.
+CON_TRO = "vgb_gon_lich_su_may_%s"
+CON_TRO_DAU = ("2000-01-01 00:00:00", "")
+
+
+def _doc_con_tro(gt):
+	"""Đọc con trỏ "giờ tạo|tên"; trống hay hỏng thì bắt đầu từ đầu."""
+	if not gt or not isinstance(gt, str) or "|" not in gt:
+		return CON_TRO_DAU
+	tao, ten = gt.split("|", 1)
+	return (tao or CON_TRO_DAU[0], ten)
+
+
 # Gọn bớt được chừng này byte trở lên thì thu tệp bảng lại.
 NGUONG_GON_BYTE = 20 * 1024 * 1024
 
 
-def gon_du_lieu(data, ngay=None):
-	"""Bỏ ảnh chụp dòng con (added/removed) khỏi dữ liệu một lịch sử sửa.
+# Trường máy tự sinh lại mỗi lần lưu, không phải nội dung dòng. Hai dòng chỉ
+# khác nhau ở những trường này là cùng một dòng được dựng lại.
+TRUONG_MAY_SINH = frozenset((
+	"name", "idx", "creation", "modified", "modified_by", "owner",
+	"parent", "parenttype", "parentfield", "docstatus", "doctype",
+	"__islocal", "__unsaved",
+))
+CHO_TEN_DONG = "<dòng>"
 
-	Trả về (chuỗi mới, số byte bớt được), hoặc (None, 0) khi không có gì để
-	gọn hoặc dữ liệu không đọc được. Không bao giờ đụng khoá nào ngoài
-	KHOA_BO; dữ liệu đã gọn thì để nguyên.
+
+def _noi_dung_dong(bang, dong, ten_dong):
+	"""Khoá so sánh nội dung một dòng con, bỏ trường máy tự sinh.
+
+	Giá trị nào là tên của một dòng con trong cùng lịch sử (ví dụ dòng thuế trỏ
+	tới dòng món) thì thay bằng một chỗ chung, vì dòng dựng lại mang tên mới.
+	"""
+	import json
+
+	if not isinstance(dong, dict):
+		return json.dumps([bang, dong], sort_keys=True, default=str)
+	nd = {k: (CHO_TEN_DONG if isinstance(v, str) and v in ten_dong else v)
+		for k, v in dong.items() if k not in TRUONG_MAY_SINH}
+	return json.dumps([bang, nd], sort_keys=True, ensure_ascii=False, default=str)
+
+
+def gon_du_lieu(data, ngay=None):
+	"""Bỏ ảnh chụp dòng con dựng lại y hệt khỏi dữ liệu một lịch sử sửa.
+
+	Góp ý Codex 4400115947 (P1): máy đồng bộ có khi đổi món thật (thay món A
+	bằng món B), lúc đó cặp added/removed là dấu vết DUY NHẤT của nội dung cũ
+	và mới. Nên chỉ bỏ từng CẶP dòng thêm và dòng bớt cùng bảng có nội dung
+	trùng khớp sau khi bỏ trường máy tự sinh; dòng nào không có cặp thì giữ
+	nguyên trong added/removed.
+
+	Trả về (chuỗi mới, số byte bớt được), hoặc (None, 0) khi không có cặp nào để
+	bỏ hoặc dữ liệu không đọc được. Không bao giờ đụng khoá nào ngoài KHOA_BO;
+	dữ liệu đã gọn thì để nguyên.
 	"""
 	import json
 
@@ -164,17 +211,36 @@ def gon_du_lieu(data, ngay=None):
 		return None, 0
 	if not isinstance(d, dict) or DAU_GON in d:
 		return None, 0
-	dem = {}
-	for k in KHOA_BO:
-		v = d.get(k)
-		if isinstance(v, list) and v:
-			dem[k] = len(v)
-	if not dem:
+	them, bot_ra = d.get("added"), d.get("removed")
+	if not (isinstance(them, list) and them and isinstance(bot_ra, list) and bot_ra):
+		return None, 0
+	ten_dong = set()
+	for x in them + bot_ra:
+		if isinstance(x, list) and len(x) == 2 and isinstance(x[1], dict) and isinstance(x[1].get("name"), str):
+			ten_dong.add(x[1]["name"])
+
+	def khoa(x):
+		if isinstance(x, list) and len(x) == 2:
+			return _noi_dung_dong(x[0], x[1], ten_dong)
+		return None
+
+	cho = {}
+	for i, x in enumerate(bot_ra):
+		k = khoa(x)
+		if k is not None:
+			cho.setdefault(k, []).append(i)
+	bo_bot, bo_them = set(), set()
+	for i, x in enumerate(them):
+		k = khoa(x)
+		if k is not None and cho.get(k):
+			bo_bot.add(cho[k].pop(0))
+			bo_them.add(i)
+	if not bo_them:
 		return None, 0
 	moi = dict(d)
-	for k in dem:
-		moi[k] = []
-	moi[DAU_GON] = dict(dem, ngay=str(ngay or ""))
+	moi["added"] = [x for i, x in enumerate(them) if i not in bo_them]
+	moi["removed"] = [x for i, x in enumerate(bot_ra) if i not in bo_bot]
+	moi[DAU_GON] = {"added": len(bo_them), "removed": len(bo_bot), "ngay": str(ngay or "")}
 	chuoi = json.dumps(moi, ensure_ascii=False, separators=(",", ":"), default=str)
 	bot = len(data.encode("utf-8")) - len(chuoi.encode("utf-8"))
 	if bot <= 0:
@@ -348,13 +414,19 @@ def gon_lich_su_may(dt, so_ngay=None, lo=None, tran=None):
 	tran = int(tran or TRAN_GON)
 	hom_nay = nowdate()
 	so_dong = byte = 0
-	sau = ""  # Đi theo tên tăng dần: mỗi lượt chỉ đọc mỗi dòng một lần.
+	# Góp ý Codex 4400115951 (P2): dòng đã gọn mà vẫn dài, hay dòng chỉ có thay
+	# đổi thật không gọn được, không được chiếm trần mỗi đêm. Con trỏ (giờ tạo,
+	# tên) của dòng cuối đã đọc lưu lại giữa các đêm, cùng giao dịch với lô vừa
+	# gọn, nên mỗi dòng chỉ đọc một lần và đêm sau đọc tiếp từ chỗ dừng.
+	khoa_con_tro = CON_TRO % dt
+	tao, ten = _doc_con_tro(frappe.db.get_global(khoa_con_tro))
 	da_doc = 0
 	while da_doc < tran:
 		ds = frappe.db.sql(
-			"select name, data from `tabVersion` where ref_doctype = %s and owner in %s"
-			" and creation < %s and length(data) > %s and name > %s order by name limit %s",
-			(dt, tuple(NGUOI_MAY), moc, NGUONG_BYTE, sau, min(lo, tran - da_doc)),
+			"select name, data, creation from `tabVersion` where ref_doctype = %s and owner in %s"
+			" and creation < %s and length(data) > %s and (creation > %s or (creation = %s and name > %s))"
+			" order by creation, name limit %s",
+			(dt, tuple(NGUOI_MAY), moc, NGUONG_BYTE, tao, tao, ten, min(lo, tran - da_doc)),
 			as_dict=True,
 		)
 		if not ds:
@@ -370,12 +442,13 @@ def gon_lich_su_may(dt, so_ngay=None, lo=None, tran=None):
 				)
 				so_dong += 1
 				byte += bot
+			tao, ten = str(ds[-1].creation), ds[-1].name
+			frappe.db.set_global(khoa_con_tro, "%s|%s" % (tao, ten))
 			frappe.db.commit()
 		except Exception:
 			frappe.db.rollback()
 			raise
 		da_doc += len(ds)
-		sau = ds[-1].name
 	return {"so_dong": so_dong, "byte": byte}
 
 
