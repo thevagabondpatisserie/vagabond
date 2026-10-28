@@ -53,17 +53,45 @@ THANG_LE = {8, 9, 12, 1, 2}
 KENH = ("Zalo", "Gọi điện", "Email")
 COT_DONG_Y = {"Zalo": "dy_zalo", "Gọi điện": "dy_goi", "Email": "dy_email"}
 TT_DONG_Y = ("Chưa hỏi", "Đồng ý", "Từ chối")
-NOI_GHI = ("Quầy", "Web", "Sales gọi", "Hồ sơ khách", "Desk")
+NOI_GHI = ("Quầy", "Web", "Sales gọi", "Hồ sơ khách", "Desk", "Zalo OA")
 
-# Kênh liên hệ của chiến dịch đợt 1. Zalo OA hàng loạt để đợt 2 vì cần gói
-# OA trả phí (Codex PR #503).
-KENH_CHIEN_DICH = {"goi": "Gọi điện", "zalo": "Zalo"}
+# Kênh liên hệ của chiến dịch. Đợt 1 có gọi điện và Zalo cá nhân (Sales tự
+# nhắn). Đợt 2 (v617, anh Việt 28/10/2026: "OA Tăng trưởng bên anh có rồi")
+# thêm Zalo OA: máy gửi tin Truyền thông qua OA tới khách ĐÃ QUAN TÂM OA, đã
+# chia sẻ số điện thoại (nên nối được với hồ sơ) và đồng ý nhận tin Zalo.
+KENH_OA = "Zalo OA"
+KENH_CHIEN_DICH = {"goi": "Gọi điện", "zalo": "Zalo", "oa": KENH_OA}
+
+# Hai kênh cần người làm (Sales gọi hoặc tự nhắn). Zalo OA máy tự gửi nên
+# chiến dịch chỉ có Zalo OA thì không cần chia Sales.
+KENH_CAN_SALES = ("Gọi điện", "Zalo")
+
+# Khách đang quan tâm OA và đã chia sẻ số (bảng người quan tâm nối hồ sơ).
+DK_DANG_QUAN_TAM = (
+	"exists (select 1 from `tabVagabond Zalo Quan Tam` z where z.khach = h.name"
+	" and z.trang_thai = 'Đang quan tâm')"
+)
 
 # Câu thu ngân đọc khi hỏi khách. Dòng nhật ký lưu NGUYÊN câu đã đọc, vì đó
 # là bằng chứng khách biết rõ nội dung và cách thức (Điều 21 NĐ 13/2023).
 CAU_HOI_DONG_Y = (
 	"Dạ anh/chị có muốn tiệm báo món mới và ưu đãi dịp lễ qua Zalo hoặc gọi điện "
 	"không ạ? Anh/chị đổi ý lúc nào cũng được."
+)
+
+# Câu khách tự tích trên trang đặt bánh (v617). Ô để TRỐNG sẵn: khách phải tự
+# tích, im lặng không phải là đồng ý (Luật Bảo vệ dữ liệu cá nhân 2025). Câu
+# này phải trùng chữ trên web (khoá uu_dai_nhan_tin của chu-mac-dinh.json).
+CAU_HOI_WEB = (
+	"Tôi muốn nhận tin món mới và ưu đãi dịp lễ của The Vagabond Pâtisserie qua "
+	"Zalo hoặc gọi điện. Tôi đổi ý lúc nào cũng được."
+)
+
+# Câu trên tin OA mời khách chia sẻ số điện thoại (v617). Khách bấm chia sẻ
+# là đồng ý nhận tin Zalo; dòng nhật ký lưu nguyên câu này làm bằng chứng.
+CAU_HOI_OA = (
+	"Chia sẻ số điện thoại để The Vagabond Pâtisserie gửi anh/chị tin món mới và "
+	"ưu đãi dịp lễ qua Zalo. Anh/chị bỏ quan tâm OA lúc nào cũng được."
 )
 
 # Kết quả một lần gọi -> trạng thái của dòng trong danh sách gọi.
@@ -217,12 +245,19 @@ def doi_dong_y(cu, moi):
 def kenh_duoc_lien_he(ho_so, kenh_chon):
 	"""Những kênh trong kenh_chon mà khách đã đồng ý. THUẦN.
 
-	kenh_chon: danh sách tên kênh ("Gọi điện", "Zalo").
+	kenh_chon: danh sách tên kênh ("Gọi điện", "Zalo", "Zalo OA"). Zalo OA cần
+	cả đồng ý Zalo lẫn đang quan tâm OA (ho_so["oa"] = 1, đọc từ bảng người
+	quan tâm): khách bỏ quan tâm thì OA không gửi được nữa.
 	"""
 	ra = []
+	ho_so = ho_so or {}
 	for k in kenh_chon or []:
+		if k == KENH_OA:
+			if chuan_dong_y(ho_so.get("dy_zalo")) == "Đồng ý" and int(ho_so.get("oa") or 0):
+				ra.append(k)
+			continue
 		cot = COT_DONG_Y.get(k)
-		if cot and chuan_dong_y((ho_so or {}).get(cot)) == "Đồng ý":
+		if cot and chuan_dong_y(ho_so.get(cot)) == "Đồng ý":
 			ra.append(k)
 	return ra
 
@@ -429,21 +464,43 @@ def dieu_kien_loc(loc, hom_nay):
 
 
 def menh_de_dong_y(kenh_chon):
-	"""Mệnh đề 'đã đồng ý ít nhất một kênh đã chọn'. THUẦN. Rỗng thì sai."""
-	cot = [COT_DONG_Y[k] for k in (kenh_chon or []) if k in COT_DONG_Y]
-	if not cot:
+	"""Mệnh đề 'đã đồng ý ít nhất một kênh đã chọn'. THUẦN. Rỗng thì sai.
+
+	Zalo OA: đồng ý Zalo VÀ đang quan tâm OA (cùng luật kenh_duoc_lien_he).
+	"""
+	ph = []
+	for k in kenh_chon or []:
+		if k == KENH_OA:
+			ph.append("(ifnull(h.dy_zalo, '') = 'Đồng ý' and %s)" % DK_DANG_QUAN_TAM)
+		elif k in COT_DONG_Y:
+			ph.append("ifnull(h.%s, '') = 'Đồng ý'" % COT_DONG_Y[k])
+	if not ph:
 		return "1 = 0"
-	return "(" + " or ".join("ifnull(h.%s, '') = 'Đồng ý'" % c for c in cot) + ")"
+	return "(" + " or ".join(ph) + ")"
 
 
 def kenh_cua_chien_dich(cd):
 	"""Danh sách kênh đã chọn trên một chiến dịch. THUẦN."""
 	ra = []
-	if int((cd or {}).get("kenh_goi") or 0):
-		ra.append(KENH_CHIEN_DICH["goi"])
-	if int((cd or {}).get("kenh_zalo") or 0):
-		ra.append(KENH_CHIEN_DICH["zalo"])
+	for ma in ("goi", "zalo", "oa"):
+		if int((cd or {}).get("kenh_" + ma) or 0):
+			ra.append(KENH_CHIEN_DICH[ma])
 	return ra
+
+
+def can_sales(cd):
+	"""Chiến dịch có kênh cần người làm (gọi điện, Zalo cá nhân) không. THUẦN."""
+	return any(k in KENH_CAN_SALES for k in kenh_cua_chien_dich(cd))
+
+
+def noi_dung_duyet(cd):
+	"""Phần chữ giám đốc duyệt: kịch bản gọi và tin Zalo (cá nhân lẫn OA). THUẦN.
+
+	v617: tin Zalo OA máy gửi thẳng tới khách, không qua miệng Sales, nên tin
+	Zalo cũng phải nằm trong phần đã duyệt: sửa một chữ của tin là mất duyệt.
+	"""
+	cd = cd or {}
+	return ((cd.get("kich_ban") or "").strip() + "\n\n" + (cd.get("noi_dung_zalo") or "").strip()).strip()
 
 
 def ly_do_chua_chot(cd, so_sales):
@@ -451,15 +508,68 @@ def ly_do_chua_chot(cd, so_sales):
 	cd = cd or {}
 	if (cd.get("trang_thai") or "Nháp") != "Nháp":
 		return "Chiến dịch đã chốt danh sách rồi, danh sách không đổi nữa."
-	if not kenh_cua_chien_dich(cd):
-		return "Chọn ít nhất một kênh liên hệ (gọi điện hoặc Zalo cá nhân)."
+	kenh = kenh_cua_chien_dich(cd)
+	if not kenh:
+		return "Chọn ít nhất một kênh liên hệ (gọi điện, Zalo cá nhân hoặc Zalo OA)."
 	if not loc_sach(cd.get("loc")):
 		return "Chọn nhóm khách hoặc bộ lọc trước khi chốt."
+	if "Gọi điện" in kenh and len((cd.get("kich_ban") or "").strip()) < 20:
+		return "Viết kịch bản gọi (ít nhất 20 chữ) cho Sales đọc khi gọi."
+	if ("Zalo" in kenh or KENH_OA in kenh) and len((cd.get("noi_dung_zalo") or "").strip()) < 20:
+		return "Viết tin Zalo (ít nhất 20 chữ) trước khi chốt."
 	if not int(cd.get("kich_ban_duyet") or 0):
-		return "Kịch bản gọi chưa được duyệt. Nhờ giám đốc duyệt rồi chốt."
-	if not int(so_sales or 0):
+		return "Nội dung chưa được duyệt. Nhờ giám đốc duyệt rồi chốt."
+	if can_sales(cd) and not int(so_sales or 0):
 		return "Thêm ít nhất một Sales nhận danh sách gọi."
 	return ""
+
+
+def cung_phien_ban(gui_len, dang_luu):
+	"""Bản người dùng đang sửa có còn là bản mới nhất không. THUẦN.
+
+	v617 (việc còn lại của đợt 1): hai người cùng mở một chiến dịch, người sau
+	bấm Lưu là đè mất phần người trước vừa sửa mà không ai biết. Màn gửi kèm
+	mốc sửa lúc mở; khác mốc đang lưu thì không cho lưu. So theo chữ, bỏ chữ
+	T giữa ngày giờ và phần lẻ giây, để "2026-10-28 10:00:00.123456" và
+	"2026-10-28T10:00:00.123456" là một. Thiếu mốc gửi lên thì coi như cũ.
+	"""
+	def chuan(v):
+		return str(v or "").strip().replace("T", " ")[:26]
+
+	a, b = chuan(gui_len), chuan(dang_luu)
+	return bool(a) and a == b
+
+
+BUOC_CD = ("Soạn nháp", "Duyệt nội dung", "Chốt danh sách", "Đang liên hệ", "Kết thúc")
+
+
+def buoc_chien_dich(cd):
+	"""Chiến dịch đang ở bước nào trên thanh 1-2-3-4-5 (đếm từ 0). THUẦN.
+
+	Anh Việt 28/10/2026: "những chỗ có tiến độ thì cần phải hiển thị thanh tiến
+	độ kiểu 1, 2, 3, 4". Nháp chưa đủ chữ để duyệt là bước Soạn; đủ chữ mà
+	chưa duyệt là bước Duyệt; đã duyệt là bước Chốt; Đang chạy là Đang liên
+	hệ; Đã kết thúc trả 5 (mọi bước đã xong, thanh tô xanh hết).
+	"""
+	cd = cd or {}
+	tt = cd.get("trang_thai") or "Nháp"
+	if tt == "Đã kết thúc":
+		return len(BUOC_CD)
+	if tt == "Đang chạy":
+		return 3
+	if int(cd.get("kich_ban_duyet") or 0):
+		return 2
+	if kenh_cua_chien_dich(cd) and loc_sach(cd.get("loc")) and len(noi_dung_duyet(cd)) >= 20:
+		return 1
+	return 0
+
+
+def tin_zalo_khach(mau, ten, ma=""):
+	"""Tin Zalo của một khách: thay {ten} và {ma} (mã ưu đãi riêng). THUẦN.
+
+	Không có mã thì bỏ {ma} đi chứ không để lộ chữ {ma} cho khách thấy.
+	"""
+	return tin_zalo((mau or "").replace("{ma}", (ma or "").strip()), ten)
 
 
 def kenh_lien_he_luc_nay(ho_so, cd):
@@ -528,7 +638,7 @@ def dk_tim_khach(tim, cot_ma="h.name"):
 	return ("(%s like %%s or ifnull(c.customer_name, '') like %%s or ifnull(h.ten_khach, '') like %%s)" % cot_ma, [like] * 3)
 
 
-def dk_so_dong_y(kenh="", trang_thai="", tim=""):
+def dk_so_dong_y(kenh="", trang_thai="", tim="", noi_ghi=""):
 	"""Điều kiện lọc Sổ đồng ý, ra (mệnh đề where, tham số). THUẦN.
 
 	Codex PR #505: sổ chỉ trả 100 dòng mới nhất, không tìm được bằng chứng của
@@ -542,6 +652,9 @@ def dk_so_dong_y(kenh="", trang_thai="", tim=""):
 	if trang_thai in ("Đồng ý", "Từ chối"):
 		dk.append("n.trang_thai = %s")
 		ts.append(trang_thai)
+	if noi_ghi in NOI_GHI:
+		dk.append("n.noi_ghi = %s")
+		ts.append(noi_ghi)
 	c_tim, ts_tim = dk_tim_khach(tim, "n.khach")
 	if c_tim:
 		dk.append(c_tim)
@@ -651,7 +764,26 @@ def dong_y_cua(khach=None):
 		"Email": chuan_dong_y(hs.get("dy_email")),
 		"can_hoi": 1 if can_hoi(hs) else 0,
 		"cau_hoi": CAU_HOI_DONG_Y,
+		# v617: mã QR mời quan tâm OA ngay trên tấm hỏi (khi kênh OA đã bật).
+		"oa_link": _oa_link(),
 	}
+
+
+def _oa_link():
+	from vagabond import zalo_oa
+
+	try:
+		return zalo_oa.link_oa(zalo_oa._cfg().get("zalo_oa_id")) if zalo_oa.oa_dang_bat() else ""
+	except Exception:
+		return ""
+
+
+def _oa_cua(khach):
+	"""Khách có đang quan tâm OA (đã chia sẻ số, nối hồ sơ) không."""
+	try:
+		return 1 if frappe.db.exists("Vagabond Zalo Quan Tam", {"khach": khach, "trang_thai": "Đang quan tâm"}) else 0
+	except Exception:
+		return 0
 
 
 @frappe.whitelist()
@@ -662,6 +794,23 @@ def ghi_dong_y(khach=None, dat=None, noi_ghi="Quầy", chien_dich=None):
 	"Chưa hỏi" thì giữ nguyên, không xoá một lần đồng ý cũ.
 	"""
 	_kiem(CRM_XEM, "ghi đồng ý nhận tin")
+	if noi_ghi not in NOI_GHI or noi_ghi in NOI_GHI_MAY:
+		# Web và Zalo OA là lời khách TỰ bấm, chỉ máy ghi được (v617): nhân
+		# viên không được ghi hộ "khách đồng ý trên web".
+		noi_ghi = "Hồ sơ khách"
+	return ghi_dong_y_noi(khach, dat, noi_ghi, chien_dich,
+		cau_hoi=CAU_HOI_DONG_Y if noi_ghi == "Quầy" else "")
+
+
+# Nơi ghi chỉ máy được dùng: khách tự tích trên web, tự chia sẻ số qua OA.
+NOI_GHI_MAY = ("Web", "Zalo OA")
+
+
+def ghi_dong_y_noi(khach, dat, noi_ghi, chien_dich=None, cau_hoi="", nguoi=None):
+	"""Thân của ghi_dong_y, KHÔNG soát vai: web (khách vãng lai) và điểm nhận
+	Zalo OA gọi thẳng vào đây sau khi đã tự xác thực (v617). Một chỗ ghi duy
+	nhất cho mọi đường, để dòng nhật ký lúc nào cũng đủ câu đã hỏi, nơi ghi,
+	người ghi."""
 	khach = (khach or "").strip()
 	from vagabond.khach_hang import la_khach_gop
 
@@ -679,13 +828,32 @@ def ghi_dong_y(khach=None, dat=None, noi_ghi="Quầy", chien_dich=None):
 	for kenh, tt in doi:
 		frappe.get_doc({
 			"doctype": DT_NHAT_KY, "khach": khach, "kenh": kenh, "trang_thai": tt,
-			"noi_ghi": noi_ghi, "cau_hoi": CAU_HOI_DONG_Y if noi_ghi == "Quầy" else "",
-			"nguoi": frappe.session.user, "luc": luc, "chien_dich": chien_dich or None,
+			"noi_ghi": noi_ghi, "cau_hoi": cau_hoi or "",
+			"nguoi": nguoi or frappe.session.user, "luc": luc, "chien_dich": chien_dich or None,
 		}).insert(ignore_permissions=True)
 	moi = {COT_DONG_Y[k]: tt for k, tt in doi}
 	moi.update({"dy_luc": luc, "dy_noi": noi_ghi})
 	frappe.db.set_value(DT_HO_SO, khach, moi, update_modified=True)
 	return {"ok": 1, "doi": len(doi)}
+
+
+def ghi_dong_y_web(dien_thoai, ten, don_web=None):
+	"""Khách tích ô nhận ưu đãi trên trang đặt bánh (v617).
+
+	Tìm khách theo số điện thoại, chưa có thì dựng khách lẻ (cùng cách đồng bộ
+	đơn Pancake gắn khách, nên về sau đơn này nối đúng người). Ghi đồng ý Zalo
+	và gọi điện, nơi ghi Web, kèm nguyên câu khách đã tích. Lỗi không bao giờ
+	làm hỏng đơn: bên gọi bắt và chỉ ghi Error Log.
+	"""
+	from vagabond.nhap_khach import khach_cho_don
+
+	ma = khach_cho_don(dien_thoai, ten)
+	if not ma:
+		return {"ok": 0, "ly_do": "khong_gan_duoc_khach"}
+	kq = ghi_dong_y_noi(ma, {"Zalo": "Đồng ý", "Gọi điện": "Đồng ý"}, "Web",
+		cau_hoi=CAU_HOI_WEB + ((" (đơn web %s)" % don_web) if don_web else ""), nguoi="Guest")
+	kq["khach"] = ma
+	return kq
 
 
 @frappe.whitelist()
@@ -702,7 +870,7 @@ def dat_khong_quang_cao(khach=None, bat=1, ghi_chu=""):
 
 
 @frappe.whitelist()
-def so_dong_y(kenh="", trang_thai="", so_dong=100, tim="", bat_dau=0):
+def so_dong_y(kenh="", trang_thai="", so_dong=100, tim="", bat_dau=0, noi_ghi=""):
 	"""Sổ đồng ý: tổng theo kênh và các dòng nhật ký mới nhất.
 
 	tim: tên, mã khách hoặc một phần số điện thoại; bat_dau: lấy tiếp từ dòng
@@ -716,7 +884,14 @@ def so_dong_y(kenh="", trang_thai="", so_dong=100, tim="", bat_dau=0):
 			"select ifnull(h.%s, 'Chưa hỏi') tt, count(*) n from `tab%s` h where ifnull(h.la_gop, 0) = 0 group by tt"
 			% (cot, DT_HO_SO), as_dict=True)
 		tong[k] = {chuan_dong_y(r.tt): cint(r.n) for r in rows}
-	where, ts = dk_so_dong_y(kenh, trang_thai, tim)
+	where, ts = dk_so_dong_y(kenh, trang_thai, tim, noi_ghi)
+	# v617: chip "Ghi ở đâu" có đếm (đã theo kênh, trạng thái, chữ tìm).
+	w_noi, ts_noi = dk_so_dong_y(kenh, trang_thai, tim)
+	theo_noi = {r[0] or "": cint(r[1]) for r in frappe.db.sql(
+		"""select n.noi_ghi, count(*) from `tab%s` n
+		left join `tabCustomer` c on c.name = n.khach
+		left join `tab%s` h on h.name = n.khach
+		%s group by n.noi_ghi""" % (DT_NHAT_KY, DT_HO_SO, w_noi), tuple(ts_noi))}
 	so_dong = max(1, min(500, cint(so_dong) or 100))
 	bat_dau = max(0, cint(bat_dau))
 	dong = frappe.db.sql(
@@ -735,7 +910,8 @@ def so_dong_y(kenh="", trang_thai="", so_dong=100, tim="", bat_dau=0):
 		d["ten_khach"] = ten.get(d.khach) or d.khach
 		d["ten_nguoi"] = _ten_nguoi(d.nguoi)
 	kqc = frappe.db.count(DT_HO_SO, {"khong_quang_cao": 1})
-	return {"tong": tong, "dong": dong, "khong_quang_cao": kqc, "con_nua": con_nua, "bat_dau": bat_dau}
+	return {"tong": tong, "dong": dong, "khong_quang_cao": kqc, "con_nua": con_nua, "bat_dau": bat_dau,
+		"theo_noi": theo_noi, "noi_ghi": list(NOI_GHI)}
 
 
 def _ten_khach(ds):
@@ -812,6 +988,8 @@ def ho_so_crm(khach=None, lh_bat_dau=0):
 		"lh_con_nua": lh_con_nua,
 		"lh_bat_dau": lh_bat_dau,
 		"duoc_dat_kqc": 1 if _co(CRM_KQC) else 0,
+		"oa": _oa_cua(khach),
+		"oa_link": _oa_link(),
 	}
 
 
@@ -965,7 +1143,7 @@ def kiem_sua_chien_dich(doc):
 	đối chứng sau khi chốt là làm hỏng phép đo. Mọi thay đổi đi qua app.
 	"""
 	cu = None if doc.is_new() else frappe.db.get_value(
-		DT_CD, doc.name, ["trang_thai", "kich_ban", "kich_ban_duyet"], as_dict=True)
+		DT_CD, doc.name, ["trang_thai", "kich_ban", "noi_dung_zalo", "kich_ban_duyet"], as_dict=True)
 	cu = cu or {}
 	if not frappe.flags.get("crm_ghi") and cu.get("trang_thai") and cu.get("trang_thai") != "Nháp":
 		frappe.throw("Chiến dịch %s đã chốt danh sách nên không sửa trên Desk được. "
@@ -973,8 +1151,10 @@ def kiem_sua_chien_dich(doc):
 	# Codex PR #505: cờ duyệt kịch bản tính lại ở MỌI đường lưu (app lẫn Desk).
 	# Bản mới chưa có gì để so: coi kịch bản cũ chính là kịch bản đang lưu, chỉ
 	# xét quyền bật cờ.
-	kb_cu = cu.get("kich_ban") if cu else doc.get("kich_ban")
-	duyet = duyet_sau_sua(kb_cu, cu.get("kich_ban_duyet"), doc.get("kich_ban"), doc.get("kich_ban_duyet"), _co(CRM_DUYET))
+	# v617: phần được duyệt gồm cả tin Zalo (tin OA máy gửi thẳng cho khách).
+	kb_moi = noi_dung_duyet(doc)
+	kb_cu = noi_dung_duyet(cu) if cu else kb_moi
+	duyet = duyet_sau_sua(kb_cu, cu.get("kich_ban_duyet"), kb_moi, doc.get("kich_ban_duyet"), _co(CRM_DUYET))
 	if not duyet and int(doc.get("kich_ban_duyet") or 0):
 		doc.kich_ban_duyet = 0
 		doc.duyet_boi = None
@@ -1017,7 +1197,8 @@ def ds_chien_dich(trang_thai="", tim="", da_chot=0, bat_dau=0, so_dong=50):
 	dem["tat_ca"] = sum(dem.values())
 	where, ts = dk_ds_chien_dich(trang_thai, tim, da_chot)
 	ds = frappe.db.sql(
-		"""select name, ten, trang_thai, ngay_chot, han, so_nhan, so_doi_chung from `tab%s`%s
+		"""select name, ten, trang_thai, ngay_chot, han, so_nhan, so_doi_chung, kenh_goi, kenh_zalo, kenh_oa,
+		kich_ban_duyet, oa_trang_thai, loc, kich_ban, noi_dung_zalo from `tab%s`%s
 		order by creation desc, name desc limit %d offset %d""" % (DT_CD, where, so_dong + 1, bat_dau),
 		tuple(ts), as_dict=True)
 	con_nua = 1 if len(ds) > so_dong else 0
@@ -1029,6 +1210,10 @@ def ds_chien_dich(trang_thai="", tim="", da_chot=0, bat_dau=0, so_dong=50):
 			(tuple(d.name for d in ds),), as_dict=True)
 		for d in ds:
 			d["tien_do"] = {r.trang_thai: cint(r.n) for r in tien if r.chien_dich == d.name}
+			d["kenh"] = kenh_cua_chien_dich(d)
+			d["buoc"] = buoc_chien_dich(d)
+			for c in ("loc", "kich_ban", "noi_dung_zalo"):
+				d.pop(c, None)
 	return {"ds": ds, "dem": dem, "con_nua": con_nua, "bat_dau": bat_dau, "duoc_lap": 1 if _co(CRM_LAP) else 0}
 
 
@@ -1046,6 +1231,20 @@ def doc_chien_dich(name=None):
 	d["ly_do_chua_chot"] = ly_do_chua_chot(d, len(d["sales"])) if doc.trang_thai == "Nháp" else ""
 	d["duoc_lap"] = 1 if _co(CRM_LAP) else 0
 	d["duoc_duyet"] = 1 if _co(CRM_DUYET) else 0
+	d["can_sales"] = 1 if can_sales(d) else 0
+	# Bước của chiến dịch cho thanh tiến độ 1-2-3-4-5 (v617).
+	d["buoc"] = buoc_chien_dich(d)
+	if doc.trang_thai != "Nháp":
+		d["tien_do"] = {r[0]: cint(r[1]) for r in frappe.db.sql(
+			"select trang_thai, count(*) from `tab%s` where chien_dich = %%s and nhanh = 'Nhận' group by trang_thai"
+			% DT_CD_KHACH, (doc.name,))}
+		if cint(doc.get("kenh_oa")):
+			d["oa_dem"] = {(r[0] or "Chưa gửi"): cint(r[1]) for r in frappe.db.sql(
+				"select oa_trang_thai, count(*) from `tab%s` where chien_dich = %%s and nhanh = 'Nhận' group by oa_trang_thai"
+				% DT_CD_KHACH, (doc.name,))}
+	from vagabond.zalo_oa import oa_dang_bat
+
+	d["oa_bat"] = 1 if oa_dang_bat() else 0
 	return d
 
 
@@ -1079,23 +1278,31 @@ def luu_chien_dich(dat=None):
 		doc = _cd(dat["name"], khoa=True)
 		if doc.trang_thai != "Nháp":
 			frappe.throw("Chiến dịch đã chốt danh sách thì không sửa được nữa. Lập chiến dịch mới nếu cần.")
+		# v617: hai người cùng mở một chiến dịch thì người lưu sau không được
+		# đè mất phần người trước vừa sửa. Khoá dòng (khoa=True) ở trên giữ cho
+		# phép so này và lần lưu dưới đây là một bước.
+		if not cung_phien_ban(dat.get("modified"), doc.modified):
+			frappe.throw("Chiến dịch vừa được %s sửa lúc %s. Mở lại chiến dịch để xem bản mới rồi sửa tiếp, "
+				"phần bạn vừa gõ chưa được lưu." % (_ten_nguoi(doc.modified_by) or "người khác", str(doc.modified)[:16]))
 	else:
 		doc = frappe.new_doc(DT_CD)
 		doc.trang_thai = "Nháp"
-	kich_ban_cu = (doc.kich_ban or "").strip()
+	duyet_cu = noi_dung_duyet(doc)
 	doc.ten = ten
 	doc.loc = json.dumps(loc, ensure_ascii=False)
 	doc.bo_loc = dat.get("bo_loc") or None
 	doc.kenh_goi = 1 if cint(dat.get("kenh_goi")) else 0
 	doc.kenh_zalo = 1 if cint(dat.get("kenh_zalo")) else 0
+	doc.kenh_oa = 1 if cint(dat.get("kenh_oa")) else 0
+	doc.tieu_de_oa = (dat.get("tieu_de_oa") or "").strip()[:100]
 	doc.ctkm = dat.get("ctkm") or None
 	doc.han = dat.get("han") or None
 	doc.kich_ban = (dat.get("kich_ban") or "").strip()
 	doc.noi_dung_zalo = (dat.get("noi_dung_zalo") or "").strip()
 	doc.ty_le_doi_chung = max(0, min(50, cint(dat.get("ty_le_doi_chung") if dat.get("ty_le_doi_chung") is not None else TY_LE_DOI_CHUNG)))
-	# Sửa kịch bản sau khi duyệt thì phải duyệt lại: câu Sales đọc cho khách
-	# phải đúng câu giám đốc đã đọc.
-	if doc.kich_ban.strip() != kich_ban_cu and cint(doc.kich_ban_duyet):
+	# Sửa kịch bản hay tin Zalo sau khi duyệt thì phải duyệt lại: câu Sales
+	# đọc và tin máy gửi cho khách phải đúng câu giám đốc đã đọc.
+	if noi_dung_duyet(doc) != duyet_cu and cint(doc.kich_ban_duyet):
 		doc.kich_ban_duyet = 0
 		doc.duyet_boi = None
 		doc.duyet_luc = None
@@ -1109,8 +1316,11 @@ def luu_chien_dich(dat=None):
 		u = (u.get("nguoi") if isinstance(u, dict) else u) or ""
 		if u and frappe.db.exists("User", u):
 			doc.append("sales", {"nguoi": u, "ten": _ten_nguoi(u)})
+	doc.ma_uu_dai = ""
 	if doc.ctkm:
-		doc.ma_uu_dai = frappe.db.get_value("Vagabond CTKM", doc.ctkm, "ma_co_dinh") or ""
+		km = frappe.db.get_value("Vagabond CTKM", doc.ctkm, ["cach_ma", "ma_co_dinh"], as_dict=True) or {}
+		# Mã dùng một lần: mỗi khách một mã, phát lúc chốt danh sách (v617).
+		doc.ma_uu_dai = "" if km.get("cach_ma") == "Ma dung mot lan" else (km.get("ma_co_dinh") or "")
 	_luu_cd(doc)
 	return doc_chien_dich(doc.name)
 
@@ -1122,8 +1332,13 @@ def duyet_kich_ban(name=None):
 	doc = _cd(name, khoa=True)
 	if doc.trang_thai != "Nháp":
 		frappe.throw("Chiến dịch đã chốt, kịch bản đã khoá.")
-	if len((doc.kich_ban or "").strip()) < 20:
+	kenh = kenh_cua_chien_dich(doc)
+	if "Gọi điện" in kenh and len((doc.kich_ban or "").strip()) < 20:
 		frappe.throw("Kịch bản gọi còn trống hoặc quá ngắn, chưa duyệt được.")
+	if ("Zalo" in kenh or KENH_OA in kenh) and len((doc.noi_dung_zalo or "").strip()) < 20:
+		frappe.throw("Tin Zalo còn trống hoặc quá ngắn, chưa duyệt được.")
+	if len(noi_dung_duyet(doc)) < 20:
+		frappe.throw("Chưa có nội dung nào để duyệt. Viết kịch bản gọi hoặc tin Zalo trước.")
 	doc.kich_ban_duyet = 1
 	doc.duyet_boi = frappe.session.user
 	doc.duyet_luc = now_datetime()
@@ -1146,28 +1361,31 @@ def chot_chien_dich(name=None):
 	tat_ca = frappe.db.sql(
 		"""
 		select h.name khach, c.customer_name ten, ifnull(h.sdt, c.mobile_no) sdt,
-		       h.dy_zalo, h.dy_goi, h.dy_email, ifnull(h.khong_quang_cao, 0) kqc, %s du
+		       h.dy_zalo, h.dy_goi, h.dy_email, ifnull(h.khong_quang_cao, 0) kqc, %s du, %s oa
 		from `tab%s` h join `tabCustomer` c on c.name = h.name where %s
-		""" % (dy, DT_HO_SO, where), ts, as_dict=True)
+		""" % (dy, DK_DANG_QUAN_TAM if KENH_OA in kenh else "0", DT_HO_SO, where), ts, as_dict=True)
 	chua = [r for r in tat_ca if not cint(r.du)]
 	kqc = [r for r in tat_ca if cint(r.du) and cint(r.kqc)]
 	du = {r.khach: r for r in tat_ca if cint(r.du) and not cint(r.kqc)}
 	if not du:
 		frappe.throw("Không có khách nào vừa khớp bộ lọc vừa đã đồng ý kênh đã chọn. Chưa chốt được.")
 	nhan, dc = chia_doi_chung(list(du), doc.ty_le_doi_chung, doc.name)
-	giao = chia_sales(nhan, [s["nguoi"] for s in d["sales"]])
-	cot = ["name", "creation", "modified", "modified_by", "owner", "docstatus", "idx",
-		"chien_dich", "khach", "ten_khach", "sdt", "nhanh", "sales", "trang_thai", "kenh_duoc", "so_lan"]
+	# Chiến dịch chỉ có Zalo OA thì máy gửi, không chia Sales (v617).
+	giao = chia_sales(nhan, [s["nguoi"] for s in d["sales"]]) if can_sales(d) else {}
 	luc = now_datetime()
+	ma = _phat_ma_rieng(doc, nhan, du, luc)
+	cot = ["name", "creation", "modified", "modified_by", "owner", "docstatus", "idx",
+		"chien_dich", "khach", "ten_khach", "sdt", "nhanh", "sales", "trang_thai", "kenh_duoc", "so_lan", "ma_uu_dai"]
 	nguoi = frappe.session.user
+	tap_nhan = set(nhan)
 	dong = []
 	for k in nhan + dc:
 		r = du[k]
 		dong.append((
 			frappe.generate_hash(length=12), luc, luc, nguoi, nguoi, 0, 0,
 			doc.name, k, (r.ten or "")[:140], (r.sdt or "")[:40],
-			"Nhận" if k in giao else "Đối chứng", giao.get(k), "Chưa gọi",
-			", ".join(kenh_duoc_lien_he(r, kenh)), 0,
+			"Nhận" if k in tap_nhan else "Đối chứng", giao.get(k), "Chưa gọi",
+			", ".join(kenh_duoc_lien_he(r, kenh)), 0, ma.get(k) or "",
 		))
 	for i in range(0, len(dong), 500):
 		frappe.db.bulk_insert(DT_CD_KHACH, cot, dong[i:i + 500])
@@ -1181,6 +1399,47 @@ def chot_chien_dich(name=None):
 	doc.so_doi_chung = len(dc)
 	_luu_cd(doc)
 	return doc_chien_dich(doc.name)
+
+
+def _phat_ma_rieng(doc, nhan, du, luc):
+	"""Mỗi khách nhóm Nhận một mã dùng một lần, khi CTKM phát mã dùng một lần.
+
+	Anh Việt 28/10/2026 chọn "Mỗi khách một mã riêng": biết đúng khách nào dùng
+	mã, một mã không lan ra cả nhóm. Nhóm đối chứng KHÔNG có mã (không được
+	liên hệ). Mã nằm trong một lô riêng của chiến dịch, nên màn Lô voucher và
+	cửa tra mã ở quầy, web dùng được ngay như mã xuất lô thường. Hạn dùng theo
+	hạn chiến dịch, không có thì theo hạn mã của chương trình.
+	Trả dict khách -> mã (rỗng khi chương trình dùng mã cố định).
+	"""
+	if not doc.ctkm or not nhan:
+		return {}
+	km = frappe.db.get_value("Vagabond CTKM", doc.ctkm, ["ten", "cach_ma", "han_ma", "bat"], as_dict=True) or {}
+	if km.get("cach_ma") != "Ma dung mot lan":
+		return {}
+	if not cint(km.get("bat")):
+		frappe.throw("Chương trình khuyến mãi %s đang tắt nên chưa phát mã được. Bật chương trình rồi chốt lại." % (km.get("ten") or doc.ctkm))
+	from vagabond import khuyen_mai
+
+	han = doc.han or km.get("han_ma") or None
+	nguoi = frappe.session.user
+	email = frappe.db.get_value("User", nguoi, "email") or "hello@thevagabondpatisserie.com"
+	lo = frappe.get_doc({
+		"doctype": "Vagabond Lo Voucher", "ctkm": doc.ctkm, "so_luong": len(nhan), "email_nhan": email,
+		"gui_cho": ("Chiến dịch " + (doc.ten or doc.name))[:140], "han_dung": han,
+		"ghi_chu": "Mã riêng từng khách của chiến dịch %s, phát lúc chốt danh sách." % doc.name,
+		"nguoi_tao": nguoi, "ngay_tao": luc, "trang_thai": "Da gui", "con_lai": len(nhan),
+	})
+	lo.insert(ignore_permissions=True)
+	ds_ma = khuyen_mai._sinh_ma_moi(len(nhan))
+	ra = dict(zip(nhan, ds_ma))
+	cot = ["name", "creation", "modified", "modified_by", "owner", "docstatus", "idx",
+		"ma", "ctkm", "ten_ctkm", "trang_thai", "lo", "han_dung", "gui_cho", "chien_dich", "danh_cho"]
+	dong = [(m, luc, luc, nguoi, nguoi, 0, 0, m, doc.ctkm, (km.get("ten") or "")[:140], "Chua dung", lo.name, han,
+		((du[k].ten or k) + " (" + doc.name + ")")[:140], doc.name, k) for k, m in ra.items()]
+	for i in range(0, len(dong), 500):
+		frappe.db.bulk_insert("Vagabond Voucher", cot, dong[i:i + 500])
+	doc.lo_voucher = lo.name
+	return ra
 
 
 @frappe.whitelist()
@@ -1212,12 +1471,19 @@ def ds_sales():
 
 @frappe.whitelist()
 def ds_ctkm_ma():
-	"""Chương trình khuyến mãi đang bật, dùng mã cố định: mã riêng của chiến dịch."""
+	"""Chương trình khuyến mãi đang bật có mã: mã cố định (cả chiến dịch chung
+	một mã) hoặc mã dùng một lần (v617: mỗi khách một mã, phát lúc chốt)."""
 	_kiem(CRM_LAP, "lập chiến dịch")
-	ds = frappe.get_all("Vagabond CTKM", filters={"bat": 1, "cach_ma": "Ma co dinh"},
-		fields=["name", "ten", "ma_co_dinh", "den_ngay"], order_by="modified desc", limit_page_length=200)
-	return {"ds": [{"name": d.name, "ten": d.ten, "ma": d.ma_co_dinh or "", "den_ngay": str(d.den_ngay or "")}
-		for d in ds if (d.ma_co_dinh or "").strip()]}
+	ds = frappe.get_all("Vagabond CTKM", filters={"bat": 1, "cach_ma": ["in", ["Ma co dinh", "Ma dung mot lan"]]},
+		fields=["name", "ten", "ma_co_dinh", "den_ngay", "cach_ma"], order_by="modified desc", limit_page_length=200)
+	ra = []
+	for d in ds:
+		rieng = d.cach_ma == "Ma dung mot lan"
+		if not rieng and not (d.ma_co_dinh or "").strip():
+			continue
+		ra.append({"name": d.name, "ten": d.ten, "ma": "" if rieng else d.ma_co_dinh, "rieng": 1 if rieng else 0,
+			"den_ngay": str(d.den_ngay or "")})
+	return {"ds": ra}
 
 
 # ---------------------------------------------------------------- danh sách gọi
@@ -1248,7 +1514,7 @@ def ds_goi_cua_toi(chien_dich=None):
 		"""
 		select k.name, k.chien_dich, d.ten ten_chien_dich, k.khach, k.ten_khach, k.sdt, k.trang_thai,
 		       k.ket_qua, k.ghi_chu, k.lan_cuoi, k.so_lan, k.kenh_duoc, d.noi_dung_zalo, d.kich_ban,
-		       d.kenh_goi, d.kenh_zalo, h.dy_goi, h.dy_zalo, ifnull(h.khong_quang_cao, 0) kqc,
+		       d.kenh_goi, d.kenh_zalo, h.dy_goi, h.dy_zalo, ifnull(h.khong_quang_cao, 0) kqc, k.ma_uu_dai,
 		       h.lan_cuoi mua_cuoi, h.nhom, %s hang
 		from `tab%s` k join `tab%s` d on d.name = k.chien_dich
 		left join `tab%s` h on h.name = k.khach
@@ -1257,10 +1523,11 @@ def ds_goi_cua_toi(chien_dich=None):
 		""" % (_cot_hang(), DT_CD_KHACH, DT_CD, DT_HO_SO, dk), ts, as_dict=True)
 	for r in rows:
 		# Codex PR #505: nút liên hệ theo đồng ý HIỆN TẠI, không theo dòng chốt.
-		kenh = kenh_lien_he_luc_nay(r, r)
+		# Danh sách gọi chỉ có việc của người: Zalo OA là máy gửi (v617).
+		kenh = [k for k in kenh_lien_he_luc_nay(r, r) if k in KENH_CAN_SALES]
 		r["kenh_duoc"] = ", ".join(kenh)
 		r["ngung"] = 0 if kenh else 1
-		r["tin_zalo"] = tin_zalo(r.noi_dung_zalo, r.ten_khach) if "Zalo" in kenh else ""
+		r["tin_zalo"] = tin_zalo_khach(r.noi_dung_zalo, r.ten_khach, r.ma_uu_dai) if "Zalo" in kenh else ""
 		for c in ("noi_dung_zalo", "dy_goi", "dy_zalo", "kqc", "kenh_goi", "kenh_zalo"):
 			r.pop(c, None)
 	return {"dong": rows, "ket_qua": list(KET_QUA)}
@@ -1329,6 +1596,11 @@ def hieu_qua_chien_dich(name=None):
 			(doc.name, doc.ctkm, tu_s, den_s))
 		ma = cint(r[0][0]) if r else 0
 	tu_choi = frappe.db.count(DT_CD_KHACH, {"chien_dich": doc.name, "ket_qua": KET_QUA_TU_CHOI})
+	# v617: mã riêng từng khách. Đếm mã của chiến dịch đã dùng trong cửa sổ đo.
+	ma_rieng = frappe.db.count("Vagabond Voucher", {"chien_dich": doc.name}) if doc.get("lo_voucher") else 0
+	ma_rieng_dung = cint(frappe.db.sql(
+		"""select count(*) from `tabVagabond Voucher` where chien_dich = %s and trang_thai = 'Da dung'
+		and ngay_dung >= %s and ngay_dung < %s""", (doc.name, tu_s, den_s))[0][0]) if ma_rieng else 0
 	theo_sales = frappe.db.sql(
 		"""
 		select k.sales, count(distinct k.khach) so_khach, count(distinct s.name) so_don,
@@ -1344,6 +1616,7 @@ def hieu_qua_chien_dich(name=None):
 		"ten": doc.ten, "tu": tu_s, "den": den_s, "ctkm": doc.ctkm or "",
 		"ma_uu_dai": doc.ma_uu_dai or "", "don_dung_ma": ma, "khach_tu_choi": tu_choi,
 		"theo_sales": theo_sales, "dang_do": 1 if now_datetime() < den else 0,
+		"ma_rieng": ma_rieng, "ma_rieng_dung": ma_rieng_dung,
 	})
 	return kq
 
