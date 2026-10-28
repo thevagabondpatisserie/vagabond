@@ -773,7 +773,7 @@ function scrLogin() {
       try { if (window.frappe && frappe.csrf_token) hd['X-Frappe-CSRF-Token'] = frappe.csrf_token; } catch (e) { }
       var r = await fetch('/api/method/login', { method: 'POST', headers: hd, credentials: 'same-origin', body: JSON.stringify({ usr: usr, pwd: pwd }) });
       running = 0; busy(0);
-      if (r.ok) { clearFresh(); hardNav(); return; }
+      if (r.ok) { clearFresh(); hardNavDich(); return; }
       if (r.status === 401) return fail('Sai tài khoản hoặc mật khẩu.');
       if (r.status === 417) return fail('Tài khoản đang bị khoá hoặc chưa được kích hoạt.');
       fail('Không đăng nhập được (mã ' + r.status + ').');

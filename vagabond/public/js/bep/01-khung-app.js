@@ -222,6 +222,9 @@ function vgbXuLyPopstate(ev) {
 function reset(fn) {
   var slug = '';
   try { if (window.vgbSlugSapMo) slug = window.vgbSlugSapMo(); } catch (e) { }
+  /* v619: sắp vẽ màn đăng nhập thì ghi địa chỉ đang mở TRƯỚC khi vgbApNac
+     đổi nó về /bep, để đăng nhập xong quay lại đúng chỗ (Codex 4402066952). */
+  try { if (typeof scrLogin === 'function' && fn === scrLogin && window.vgbGhiDich) window.vgbGhiDich(); } catch (e) { }
   vgbBoChuaLuu();
   S.stack = [fn];
   S.duong = [slug];

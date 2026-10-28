@@ -952,6 +952,15 @@ function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') ||
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
 function hardNav() { window.location.replace(location.pathname + '?v=' + APPVER + '&t=' + (new Date()).getTime()); }
+/* v619: đăng nhập xong thì tải lại ĐÚNG chỗ nhân viên định mở (link trong tin
+   Zalo, màn đang dùng khi phiên hết), giữ cả tham số như ?mo=<mã phiếu>.
+   Không có đích hợp lệ thì như cũ. */
+function hardNavDich() {
+  var d = '';
+  try { if (window.vgbLayDich) d = window.vgbLayDich(); } catch (e) { d = ''; }
+  if (!d) return hardNav();
+  window.location.replace(d + (d.indexOf('?') >= 0 ? '&' : '?') + 'v=' + APPVER + '&t=' + (new Date()).getTime());
+}
 function goFresh() {
   var n = freshN();
   if (n >= 2) return false;
