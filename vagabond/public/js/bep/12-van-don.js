@@ -810,7 +810,7 @@ async function scrVdChiPhi() {
     [[7, '7 ngày'], [30, '30 ngày'], [90, '90 ngày'], [365, '1 năm']].map(function (x) {
       return posChipNut('data-cpng="' + x[0] + '"', x[1], !cpTu && cpKhoang === x[0]);
     }).join('')) + '</div>';
-  html += '<div class="card" style="padding:10px 12px;display:flex;align-items:center;gap:8px">' +
+  html += '<div class="card" style="padding:10px 12px;display:flex;flex-direction:row;align-items:center;gap:8px">' +
     '<input type="date" class="hin" id="cpTu" value="' + h(cpKhoangNgay().tu_ngay) + '" style="flex:1;margin:0;min-width:0">' +
     '<span style="color:#9aa1ad">đến</span>' +
     '<input type="date" class="hin" id="cpDen" value="' + h(cpKhoangNgay().den_ngay) + '" max="' + today() + '" style="flex:1;margin:0;min-width:0">' +
@@ -2054,7 +2054,7 @@ async function scrVdPhiApp() {
     [[30, '30 ngày'], [90, '3 tháng'], [180, '6 tháng'], [365, '1 năm']].map(function (x) {
       return posChipNut('data-pang="' + x[0] + '"', x[1], !paTu && !paDen && paKhoang === x[0]);
     }).join('')) + '</div>';
-  html += '<div class="card" style="padding:10px 12px;display:flex;align-items:center;gap:8px">' +
+  html += '<div class="card" style="padding:10px 12px;display:flex;flex-direction:row;align-items:center;gap:8px">' +
     '<input type="date" class="hin" id="paTu" value="' + h(ts.tu_ngay) + '" style="flex:1;margin:0;min-width:0">' +
     '<span style="color:#9aa1ad">đến</span>' +
     '<input type="date" class="hin" id="paDen" value="' + h(ts.den_ngay) + '" max="' + today() + '" style="flex:1;margin:0;min-width:0">' +

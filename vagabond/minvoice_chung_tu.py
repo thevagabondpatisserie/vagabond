@@ -281,6 +281,122 @@ def tien_dong_may_ghi(sl, gia, dp_gia, dp_tien, dp_sl=None):
 	return flt(flt(sl, dp_sl) * flt(gia, dp_gia), dp_tien)
 
 
+# Đơn giá được nắn tối đa bao nhiêu đồng trên một đơn vị để dòng ra đúng
+# thành tiền của hoá đơn. Nửa đồng giữ đơn giá mới vẫn nằm trong dung sai
+# của cửa "Giữ nguyên đơn giá suốt chu kỳ mua hàng" khi nối phiếu nhập
+# (`doi_chieu_mua`, 0,5 đồng trên một đơn vị kho).
+NAN_GIA_TOI_DA = 0.5
+
+
+def gia_cho_dung_thanh_tien(sl, gia, thtien, dp_gia, dp_tien, dp_sl=None):
+	"""Đơn giá để máy ghi ra ĐÚNG thành tiền của dòng trên hoá đơn. THUẦN.
+
+	CA THẬT AN PHÚ C26MYY SỐ 8345 NGÀY 20/10/2026 (HDM-26-10-00298)
+	--------------------------------------------------------------------
+	Bưởi vàng 7,7 kg x 45.065 = 347.000,5. Người bán làm tròn nửa đồng lên,
+	hoá đơn ghi 347.001. ERPNext làm tròn nửa đồng về số chẵn nên ghi
+	347.000. Trước bản này phép nắn cả tờ thấy thiếu một đồng và thêm một
+	dòng "Chênh lệch làm tròn" không mã hàng vào tài khoản 632. Dòng không
+	mã hàng thì tờ kẹt ở bước "Thiếu mã hàng", còn giá trị bưởi vào kho
+	hụt một đồng.
+
+	Thành tiền của dòng là số người bán đã gửi cơ quan thuế, nên đơn giá
+	phải chịu theo thành tiền: 347.001 / 7,7 = 45.065,064935065, máy ghi ra
+	đúng 347.001 và không cần dòng bù.
+
+	Chỉ nắn khi phần lệch đúng là làm tròn:
+	  * tích số lượng x đơn giá cách thành tiền DƯỚI một đồng;
+	  * đơn giá đổi không quá `NAN_GIA_TOI_DA` đồng trên một đơn vị;
+	  * đơn giá mới, sau khi máy cắt theo số lẻ của tờ, ra đúng thành tiền.
+	Thiếu một điều kiện là giữ nguyên đơn giá hoá đơn, phần lệch để phép
+	nắn cả tờ (`can_theo_truoc_thue`) xử như trước.
+	"""
+	try:
+		sl_may = flt(sl, dp_sl)
+		g = float(gia or 0)
+		tt = float(thtien)
+	except (TypeError, ValueError):
+		return gia
+	if not sl_may or not g or not tt:
+		return gia
+	tich = sl_may * g
+	# Dấu theo dòng máy dựng (tờ âm gom dấu về ô số lượng, xem `nan_dau_dong`).
+	muc = flt(abs(tt) if tich > 0 else -abs(tt), dp_tien)
+	if tien_dong_may_ghi(sl, gia, dp_gia, dp_tien, dp_sl) == muc:
+		return gia
+	if abs(tich - muc) >= NGUONG_KHOP:
+		return gia
+	moi = flt(muc / sl_may, dp_gia)
+	if abs(moi - g) > NAN_GIA_TOI_DA:
+		return gia
+	if tien_dong_may_ghi(sl, moi, dp_gia, dp_tien, dp_sl) != muc:
+		return gia
+	return moi
+
+
+def dong_may_ghi(it, dau_to, dp_gia, dp_tien, dp_sl=None):
+	"""Một dòng hoá đơn điện tử, đơn giá đã nắn cho máy ghi đúng thành tiền. THUẦN.
+
+	MỘT NGUỒN cho mọi đường tính tiền dòng: dựng mới, dựng lại, ghim lại
+	theo bản gốc và dự kiến tổng. Đường nào tự gọi `dong_tu_hoa_don` rồi
+	lấy thẳng đơn giá là ra con số khác đường kia, đúng cái bẫy đã đẻ ra tờ
+	HDM-26-09-00040 (xem `tien_dong_may_ghi`).
+	"""
+	x = dong_tu_hoa_don(it, dau_to)
+	gia = gia_cho_dung_thanh_tien(
+		x.get("sl"), x.get("gia"), (it or {}).get("thtien"), dp_gia, dp_tien, dp_sl)
+	if gia != x.get("gia"):
+		x = dict(x, gia=gia, tien=(x.get("sl") or 0) * gia)
+	return x
+
+
+def gia_cac_dong_chia(sl_goc, sl_ds, gia, dp_gia, dp_tien, dp_sl=None):
+	"""Đơn giá từng dòng con khi MỘT dòng hoá đơn chia qua nhiều phiếu nhập. THUẦN.
+
+	PHÁT HIỆN CỦA CODEX TRÊN PR #512 (v618)
+	--------------------------------------------------------------------
+	Bưởi 7,7 kg giá đã nắn 45.065,064935065 chia vào hai phiếu, mỗi phiếu
+	3,85 kg: mỗi dòng con máy làm tròn 173.500,5 lên 173.501, cộng thành
+	347.002 thay vì 347.001. Mỗi dòng con làm tròn riêng nên tổng các dòng
+	con không còn bằng tiền của dòng gốc.
+
+	Nên chia TIỀN trước rồi mới ra đơn giá: tổng phải bằng đúng số máy ghi
+	cho cả dòng gốc, từng dòng con nhận phần nguyên của tích, phần dư chia
+	cho dòng có phần lẻ lớn nhất. Đơn giá dòng con chịu theo phần tiền đó
+	qua đúng `gia_cho_dung_thanh_tien`. Không chia ra đúng được thì trả
+	nguyên giá cho mọi dòng, như trước bản này.
+	"""
+	n = len(sl_ds or [])
+	ve = [gia] * n
+	try:
+		g = float(gia or 0)
+		muc = tien_dong_may_ghi(sl_goc, gia, dp_gia, dp_tien, dp_sl)
+		tich = [flt(s, dp_sl) * g for s in sl_ds]
+	except (TypeError, ValueError):
+		return ve
+	if n < 2 or not g:
+		return ve
+	if sum(tien_dong_may_ghi(s, gia, dp_gia, dp_tien, dp_sl) for s in sl_ds) == muc:
+		return ve
+	dau = -1 if muc < 0 else 1
+	buoc = 10 ** -(dp_tien or 0)
+	phan = []
+	for t in tich:
+		dv = round(abs(t) / buoc, 6)
+		phan.append((int(dv), dv - int(dv)))
+	du = int(round(abs(muc) / buoc)) - sum(p[0] for p in phan)
+	if du < 0 or du > n:
+		return ve
+	them = set(sorted(range(n), key=lambda i: -phan[i][1])[:du])
+	ra = []
+	for i, s in enumerate(sl_ds):
+		tien_i = dau * flt((phan[i][0] + (1 if i in them else 0)) * buoc, dp_tien)
+		ra.append(gia_cho_dung_thanh_tien(s, gia, tien_i, dp_gia, dp_tien, dp_sl))
+	if sum(tien_dong_may_ghi(s, r, dp_gia, dp_tien, dp_sl) for s, r in zip(sl_ds, ra)) != muc:
+		return ve
+	return ra
+
+
 def ten_dong_bu(so_tien):
 	"""Tên dòng bù cho phần chênh. THUẦN.
 
@@ -1238,7 +1354,11 @@ def dung_hoa_don_mua(r):
 	# Dấu của cả tờ. Tờ âm là hoá đơn điều chỉnh giảm hoặc hoá đơn thay thế
 	# ghi số âm, Nghị định 70/2025 cho phép. Xem `nan_dau_dong`.
 	dau = dau_cua_to(r.get("tong_tien"))
-	dong_goc = [dong_tu_hoa_don(it, dau)
+	# Số lẻ hỏi TRƯỚC khi đọc dòng: đơn giá từng dòng được nắn theo đúng số
+	# lẻ máy sẽ dùng, xem `dong_may_ghi` (ca An Phú 8345, v618).
+	dp_gia, dp_tien, dp_sl = do_chinh_xac(
+		{"doctype": PI, "currency": "VND"}, r)
+	dong_goc = [dong_may_ghi(it, dau, dp_gia, dp_tien, dp_sl)
 		for it in dong_hang_hoa(json.loads(r.get("chi_tiet") or "[]"))]
 
 	dong = []
@@ -1263,8 +1383,6 @@ def dung_hoa_don_mua(r):
 	# phan bi cat o o don gia, va to ALOIN so 1144 (260 x 1.576,92) vao so
 	# thieu dung mot dong. Duong dung lai da tinh dung tu 27/08, duong dung
 	# moi thi chua, nay hai duong dung chung mot ham.
-	dp_gia, dp_tien, dp_sl = do_chinh_xac(
-		{"doctype": PI, "currency": "VND"}, r)
 	tong_dong = sum(
 		tien_dong_may_ghi(d.get("qty"), d.get("rate"), dp_gia, dp_tien, dp_sl)
 		for d in dong
