@@ -221,14 +221,17 @@ def _dieu_kien():
 
 @ca("v614 chưa chốt được: nói đúng việc còn thiếu, theo thứ tự")
 def _ly_do():
-	cd = {"trang_thai": "Nháp", "kenh_goi": 1, "loc": {"nhom": ["Mới"]}, "kich_ban_duyet": 1}
+	# v617: chốt cần có chữ cho kênh đã chọn (kịch bản gọi khi gọi điện).
+	cd = {"trang_thai": "Nháp", "kenh_goi": 1, "loc": {"nhom": ["Mới"]}, "kich_ban_duyet": 1,
+		"kich_ban": "Dạ chào anh chị, tiệm có món mới mùa Giáng sinh"}
 	la("đủ", crm.ly_do_chua_chot(cd, 2), "")
 	dung("thiếu kênh", "kênh" in crm.ly_do_chua_chot(dict(cd, kenh_goi=0), 2))
 	dung("thiếu nhóm", "nhóm khách" in crm.ly_do_chua_chot(dict(cd, loc={}), 2))
 	dung("kịch bản chưa duyệt", "chưa được duyệt" in crm.ly_do_chua_chot(dict(cd, kich_ban_duyet=0), 2))
 	dung("thiếu Sales", "Sales" in crm.ly_do_chua_chot(cd, 0))
 	dung("đã chốt", "đã chốt" in crm.ly_do_chua_chot(dict(cd, trang_thai="Đang chạy"), 2))
-	la("chỉ gọi điện và Zalo cá nhân, không có Zalo OA", sorted(crm.KENH_CHIEN_DICH.values()), ["Gọi điện", "Zalo"])
+	# v617 đợt 2 (anh Việt 28/10/2026: "OA Tăng trưởng bên anh có rồi"): thêm Zalo OA.
+	la("gọi điện, Zalo cá nhân và Zalo OA", sorted(crm.KENH_CHIEN_DICH.values()), ["Gọi điện", "Zalo", "Zalo OA"])
 	la("tin Zalo thay tên", crm.tin_zalo("Chào {ten}, tiệm có món mới", " Lan "), "Chào Lan, tiệm có món mới")
 	la("không tên", crm.tin_zalo("Chào {ten}", ""), "Chào anh/chị")
 
@@ -370,8 +373,10 @@ def _luu_kich_ban():
 			um.patch.object(crm, "doc_chien_dich", lambda n: {"name": n}), \
 			um.patch.object(fr.db, "exists", lambda *a, **k: True), \
 			um.patch.object(fr.db, "get_value", lambda *a, **k: "x"):
+		# v617: màn gửi kèm mốc sửa lúc mở (so phiên bản khi hai người cùng sửa).
+		doc.modified = "2026-10-28 09:00:00.000001"
 		dat = {"name": doc.name, "ten": doc.ten, "loc": {"nhom": ["Mới"]}, "kenh_goi": 1,
-			"kich_ban": doc.kich_ban, "sales": ["a@x"]}
+			"kich_ban": doc.kich_ban, "sales": ["a@x"], "modified": doc.modified}
 		crm.luu_chien_dich(json.dumps(dat))
 		la("giữ nguyên kịch bản thì giữ duyệt", doc.kich_ban_duyet, 1)
 		crm.luu_chien_dich(json.dumps(dict(dat, kich_ban=doc.kich_ban + " Giảm 10%.")))

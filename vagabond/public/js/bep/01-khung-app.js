@@ -338,6 +338,15 @@ function frame(title, bodyHtml, opt) {
     '<div class="vb" id="vgbBody">' + bodyHtml + '</div>' +
     (opt.footer ? '<div class="vf">' + opt.footer + '</div>' : '') +
     (opt.fab ? '<button class="fab" id="vgbFab">+</button>' : '');
+  /* v617: màn có thanh nút dưới đáy thì nhấc nút Trợ lý lên trên thanh đó.
+     Trước đây nút tròn nằm đè lên nút Lưu nháp của màn Chiến dịch và nút
+     Gộp tuyến của Vận đơn (ảnh chụp 28/10/2026). Nút đã kéo đi chỗ khác thì
+     giữ chỗ người dùng chọn (kiểu inline thắng lớp). */
+  try {
+    var vgbVf = root.querySelector('.vf');
+    document.body.classList.toggle('vgb-co-vf', !!vgbVf);
+    document.documentElement.style.setProperty('--vgb-vf', vgbVf ? vgbVf.offsetHeight + 'px' : '0px');
+  } catch (e) { }
   var b = document.getElementById('vgbBack'); if (b) b.onclick = back;
   var hb = document.getElementById('vgbHome'); if (hb) hb.onclick = function () {
     /* v596 Codex #480: nut nha cat ca chong, nen cung qua cua hoi chung. */

@@ -48,6 +48,8 @@ function tlCss() {
     'display:flex;align-items:center;justify-content:center;z-index:12;' +
     'touch-action:none;user-select:none;-webkit-user-select:none}' +
     '#tlNut.keo{cursor:grabbing;opacity:.85;transform:scale(1.08)}' +
+    /* v617: màn có thanh nút đáy (.vf) thì nút đứng TRÊN thanh đó, không đè nút. */
+    'body.vgb-co-vf #tlNut{bottom:calc(env(safe-area-inset-bottom,0px) + var(--vgb-vf,0px) + 12px)}' +
     '#tlNen{position:fixed;inset:0;background:rgba(5,50,60,.42);z-index:13;display:none}' +
     '#tlKhung{position:fixed;left:0;right:0;bottom:0;max-height:82vh;background:#fff;' +
     'border-radius:18px 18px 0 0;z-index:14;display:none;flex-direction:column;' +

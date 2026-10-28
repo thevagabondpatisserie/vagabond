@@ -143,99 +143,49 @@ def ds_khach(tu_khoa="", dang="", hang=""):
 	"""Danh sach khach hang de tra cuu, kem chi tieu va hang.
 
 	Chi tieu tinh trong 12 thang gan nhat theo hoa don DA GHI SO - don con
-	o ban nhap chua phai la tien that.
+	o ban nhap chua phai la tien that - cong moc chi tieu cu ben Fabi.
+
+	v617 (anh Viet 28/10/2026): xep "chi nhieu nhat len dau" va cong dong
+	tong NGAY TRONG CAU TRUY VAN tren du nhom dang loc (khach_thuan.py). Ban
+	cu lay 400 khach dau bang chu cai roi moi xep, nen khach chi nhieu ma ten
+	bat dau bang chu T khong bao gio hien, va so "Chi tieu 12 thang" chi la
+	tong cua 400 nguoi do.
 	"""
+	from vagabond import khach_thuan as kt
+
 	_kiem_quyen_ban()
 	q = (tu_khoa or "").strip()
-	# Loc phai chay o MAY CHU truoc khi cat bot, khong thi khach si nam
-	# cuoi bang chu cai se bien mat: co 1545 khach ma chi tai 500 cai dau
-	# thi 5 khach si B2B khong bao gio hien ra (bat duoc 11/08/2026).
-	loc = {"disabled": 0}
 	nhom_si = _nhom_si()
-	if dang == "si":
-		if not nhom_si:
-			return {"khach": [], "tong_tien": 0, "so_si": 0, "so_le": 0, "tong_so": 0}
-		loc["customer_group"] = ["in", nhom_si]
-	elif dang == "le" and nhom_si:
-		loc["customer_group"] = ["not in", nhom_si]
-	if hang == "_chua":
-		loc["vgb_hang"] = ["in", ["", None]]
-	elif hang:
-		loc["vgb_hang"] = hang
-	doi = {
-		"doctype": "Customer",
-		"filters": loc,
-		"fields": [
-			"name", "customer_name", "customer_group", "tax_id",
-			"mobile_no", "territory", "creation",
-		],
-		"order_by": "customer_name asc",
-		"limit_page_length": 400,
-	}
+	ten_khop = None
 	if q:
 		# v583: tim theo tung tu, bo dau, bo dau cau (tim_kiem.py).
 		from vagabond import tim_kiem
 
-		doi["filters"] = tim_kiem.them_loc(loc, "Customer", q,
-			["name", "customer_name", "tax_id", "mobile_no"])
-	try:
-		tong_so = frappe.db.count("Customer", loc)
-	except Exception:
-		tong_so = 0
-	ds = frappe.get_all(**doi)
-
-	# Truong hang nam o Custom Field tren Customer. Doc rieng de neu chua
-	# tao field thi man hinh van chay, chi la chua ai co hang.
-	hang_map = {}
-	try:
-		for r in frappe.get_all(
-			"Customer",
-			filters={"name": ["in", [x["name"] for x in ds]]},
-			fields=["name", "vgb_hang"],
-			limit_page_length=0,
-		):
-			if r.get("vgb_hang"):
-				hang_map[r["name"]] = r["vgb_hang"]
-	except Exception:
-		hang_map = {}
-
-	ct = _chi_tieu([r["name"] for r in ds])
-	bang_hang = {h["name"]: h for h in (ds_hang().get("hang") or [])}
-
-	ra = []
-	for r in ds:
-		o = ct.get(r["name"]) or {}
-		h = hang_map.get(r["name"]) or ""
-		hd = bang_hang.get(h) or {}
-		ra.append(
-			{
-				"ma": r["name"],
-				"ten": r.get("customer_name") or r["name"],
-				"nhom": r.get("customer_group") or "",
-				"si": 1 if _la_si(r.get("customer_group")) else 0,
-				"mst": r.get("tax_id") or "",
-				"dt": r.get("mobile_no") or "",
-				"hang": h,
-				"giam": flt(hd.get("giam_gia")),
-				"tien": flt(o.get("tien")),
-				"so_don": int(o.get("so_don") or 0),
-				"gan_nhat": o.get("gan_nhat") or "",
-			}
-		)
-
-	# Khach chi nhieu nhat len dau - do la khach can cham nhat.
-	ra.sort(key=lambda x: -x["tien"])
-	try:
-		so_si = frappe.db.count("Customer", {"disabled": 0, "customer_group": ["in", nhom_si]}) if nhom_si else 0
-		so_tat = frappe.db.count("Customer", {"disabled": 0})
-	except Exception:
-		so_si, so_tat = 0, len(ra)
+		# None: chữ tìm không có từ nào (chỉ dấu câu) thì coi như không tìm.
+		ten_khop = tim_kiem.ten_khop("Customer", q, ["name", "customer_name", "tax_id", "mobile_no"], 2000)
+	co_hang = bool(frappe.db.has_column("Customer", "vgb_hang"))
+	co_tieu_cu = bool(frappe.db.has_column("Customer", "vgb_chi_tieu_cu"))
+	rong = {"khach": [], "tong_tien": 0, "so_si": 0, "so_le": 0, "tong_so": 0, "da_tai": 0}
+	dk = kt.dk_ds_khach(nhom_si, dang, hang, ten_khop, co_hang)
+	if dk is None:
+		return rong
+	where, ts = dk
+	ts = dict(ts, tu=str(add_months(getdate(nowdate()), -12)))
+	if nhom_si:
+		ts["nhom_si_dem"] = tuple(nhom_si)
+	cau_ds, cau_tong = kt.cau_ds_khach(where, co_hang, co_tieu_cu, dem_si=bool(nhom_si))
+	tong = (frappe.db.sql(cau_tong, ts, as_dict=True) or [{}])[0]
+	rows = frappe.db.sql(cau_ds, ts, as_dict=True)
+	giam = {x["name"]: flt(x.get("giam_gia")) for x in (ds_hang().get("hang") or [])}
+	ra = [kt.dong_khach(r, _la_si, giam) for r in rows]
+	n = cint(tong.get("n"))
+	so_si = cint(tong.get("si"))
 	return {
 		"khach": ra,
-		"tong_tien": sum(x["tien"] for x in ra),
+		"tong_tien": flt(tong.get("tien")),
 		"so_si": so_si,
-		"so_le": max(0, so_tat - so_si),
-		"tong_so": tong_so,
+		"so_le": max(0, n - so_si),
+		"tong_so": n,
 		"da_tai": len(ra),
 	}
 

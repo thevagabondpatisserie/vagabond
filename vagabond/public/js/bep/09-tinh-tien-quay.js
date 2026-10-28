@@ -1175,7 +1175,9 @@ function posChipNut(attr, chu, dangChon, laXoa, mau) {
   var vien = dangChon ? m : (laXoa ? '#fecaca' : '#d7dce5');
   var nen = dangChon ? m : '#fff';
   var chuMau = dangChon ? '#fff' : (laXoa ? '#b3261e' : '#374151');
-  return '<button ' + attr + ' style="border:1.5px solid ' + vien + ';background:' + nen +
+  /* v617: chip đang chọn mang data-chipchon để màn cuộn nó vào tầm nhìn
+     (hàng chip cuộn ngang không còn cắt mất chip đang chọn ở mép). */
+  return '<button ' + attr + (dangChon ? ' data-chipchon="1" aria-pressed="true"' : '') + ' style="border:1.5px solid ' + vien + ';background:' + nen +
     ';color:' + chuMau + ';border-radius:999px;padding:9px 15px;font-size:14px;font-weight:' +
     (dangChon ? '800' : '600') + ';cursor:pointer;white-space:nowrap;line-height:1.2">' + chu + '</button>';
 }

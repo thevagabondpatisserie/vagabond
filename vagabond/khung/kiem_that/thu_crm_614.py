@@ -129,18 +129,32 @@ def _crm():
 	if not cd:
 		return
 	_DA_TAO.append((crm.DT_CD, cd["name"]))
-	la("chưa duyệt thì chưa chốt được", cd["ly_do_chua_chot"], "Kịch bản gọi chưa được duyệt. Nhờ giám đốc duyệt rồi chốt.")
+	# v617: duyệt bao cả tin Zalo nên câu chặn nói "Nội dung" thay cho "Kịch bản gọi".
+	la("chưa duyệt thì chưa chốt được", cd["ly_do_chua_chot"], "Nội dung chưa được duyệt. Nhờ giám đốc duyệt rồi chốt.")
 	dc = cd["dong_chay"]
 	dung("khung số: loại chưa đồng ý và Danh sách không quảng cáo",
 		dc["chua_dong_y"] >= 2 and dc["khong_quang_cao"] >= 1 and dc["nhan"] + dc["doi_chung"] == dc["du_dieu_kien"])
 	cd = crm.duyet_kich_ban(cd["name"])
 	la("duyệt xong", (int(cd["kich_ban_duyet"]), cd["ly_do_chua_chot"]), (1, ""))
 	dat["name"] = cd["name"]
+	# v617: màn gửi kèm mốc sửa của bản đang mở (đúng như 58-crm.js), máy so
+	# với mốc trên MariaDB thật; mỗi lần lưu lấy mốc của bản vừa trả về.
+	dat["modified"] = str(cd["modified"])
 	cd = crm.luu_chien_dich(json.dumps(dat))
 	la("lưu lại y kịch bản: còn duyệt", int(cd["kich_ban_duyet"]), 1)
+	cu = dat["modified"]
 	dat["kich_ban"] += ", nhắc mã ưu đãi"
+	dat["modified"] = str(cd["modified"])
 	cd = crm.luu_chien_dich(json.dumps(dat))
 	la("sửa kịch bản: mất duyệt", int(cd["kich_ban_duyet"]), 0)
+	# v617: người thứ hai còn giữ bản mở từ trước (mốc cũ) bấm Lưu thì bị chặn,
+	# phần người trước vừa sửa không bị đè.
+	try:
+		crm.luu_chien_dich(json.dumps(dict(dat, modified=cu, kich_ban="Bản cũ của người thứ hai")))
+		dung("lưu bằng mốc cũ phải bị chặn", False)
+	except frappe.ValidationError as e:
+		dung("câu chặn nói mở lại chiến dịch: " + str(e), "Mở lại chiến dịch" in str(e))
+	la("kịch bản người trước còn nguyên", frappe.db.get_value(crm.DT_CD, cd["name"], "kich_ban"), dat["kich_ban"])
 	cd = crm.duyet_kich_ban(cd["name"])
 	# Codex PR #505: sửa kịch bản thẳng trên Desk cũng mất duyệt.
 	desk = frappe.get_doc(crm.DT_CD, cd["name"])

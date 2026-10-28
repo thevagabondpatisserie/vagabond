@@ -649,7 +649,56 @@ don con o ban nhap chua phai tien that.
 
 Hang do doctype "Vagabond Hang Khach" giu, khong nhet trong ma, nen anh
 Viet chot muc chi tieu luc nao thi sua o do la xong. */
-var khDang = '', khHang = '', khTim = '', khData = null;
+var khDang = '', khHang = '', khTim = '', khData = null, khDangGo = false;
+
+/* v617: chip hạng có ảnh thẻ, chữ và ảnh cùng một trục. THUẦN. */
+function khChipHang(hg) {
+  var anh = hg && hg.anh ? '<img src="' + h(hg.anh) + '" alt="" loading="lazy">' : '';
+  return '<span class="chip-anh">' + anh + h(hg.ten_hang) + (hg.giam_gia ? ' · −' + money(hg.giam_gia) + '%' : '') + '</span>';
+}
+
+/* v617: ô tổng đầu màn. Số khách, sỉ, lẻ, chi tiêu đều của ĐÚNG nhóm đang
+   lọc, do máy chủ đếm và cộng trên đủ nhóm (không cộng từ 200 dòng đã tải).
+   Hai cột nằm ngang (thẻ .card nay là hàng ngang, xem 00-nen.js). THUẦN. */
+function khTongHtml(kq) {
+  kq = kq || {};
+  return '<div class="card" data-khtong="1" style="padding:12px 14px;display:flex;gap:12px">' +
+    '<div style="flex:1;min-width:0"><div style="font-size:12.5px;color:#667085;font-weight:600">ĐANG XEM</div>' +
+    '<div style="font-size:20px;font-weight:800">' + money(kq.tong_so || 0) + ' khách</div>' +
+    '<div style="font-size:13px;color:#667085">' + money(kq.so_si || 0) + ' sỉ · ' + money(kq.so_le || 0) + ' lẻ</div></div>' +
+    '<div style="flex:1;min-width:0;border-left:1px solid #eef0f4;padding-left:12px"><div style="font-size:12.5px;color:#667085;font-weight:600">CHI TIÊU 12 THÁNG</div>' +
+    '<div style="font-size:20px;font-weight:800;color:#0f766e">' + money(kq.tong_tien || 0) + ' đ</div>' +
+    '<div style="font-size:13px;color:#667085">gồm chi tiêu cũ trên Fabi</div></div></div>';
+}
+
+/* v617: một dòng khách. Ảnh thẻ hạng đứng riêng bên trái (đúng tỉ lệ thẻ
+   1,586), tên hạng nằm trong chip ở hàng chip, chữ ít nhất 12,5px. Bản cũ
+   ghi tên hạng 8px dưới thẻ, đọc không được trên điện thoại. Khách chỉ có chi
+   tiêu cũ trên Fabi thì ghi rõ, không để "6.151.500 đ · 0 hoá đơn". THUẦN. */
+function khDongHtml(x, hg) {
+  var chip = function (nen, mau, vien, chu, them) {
+    return '<span style="background:' + nen + ';color:' + mau + ';border:1.5px ' + (vien || 'solid transparent') + ';border-radius:999px;padding:2px 9px;font-size:12.5px;line-height:1.35' + (them || '') + '">' + chu + '</span>';
+  };
+  var trai = hg && hg.anh
+    ? '<img src="' + h(hg.anh) + '" alt="' + h(hg.ten_hang) + '" loading="lazy" style="width:60px;aspect-ratio:1.586;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;flex:none;background:#f2f4f7">'
+    : '<span style="width:44px;height:44px;flex:none;border-radius:12px;background:' + (x.si ? '#eef2ff' : '#f0fdfa') + ';display:flex;align-items:center;justify-content:center;font-size:20px">' + (x.si ? '🏢' : '🧍') + '</span>';
+  var duoi = x.so_don ? money(x.so_don) + ' hoá đơn'
+    : (x.tieu_cu ? 'chi tiêu cũ Fabi' : 'chưa mua 12 tháng');
+  return '<div data-khx="' + h(x.ma) + '" style="display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid #f2f4f7;cursor:pointer">' + trai +
+    '<div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + h(x.ten) + '</div>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:5px">' +
+    (hg ? chip('#fef3c7', '#92400e', 'solid #fcd34d', h(hg.ten_hang) + (hg.giam_gia ? ' · giảm ' + money(hg.giam_gia) + '%' : ''), ';font-weight:800')
+      : chip('#f6f7f9', '#667085', 'dashed #d7dce5', 'chưa xếp hạng')) +
+    /* Ma khach hien ngay tren dong (anh Viet 11/08/2026): tra cuu, doi chieu
+       voi phieu giay va goi dien cho nhau deu can doc ma. */
+    chip('#f1f5f9', '#475569', 'solid #e2e8f0', h(x.ma), ';font-family:ui-monospace,monospace') +
+    (x.mst ? chip('#eef2ff', '#3730a3', '', 'MST ' + h(x.mst)) : '') +
+    (x.dt ? chip('#f0fdfa', '#0f766e', '', h(x.dt)) : '') +
+    '</div></div>' +
+    '<div style="text-align:right;flex:none"><b style="font-size:15px">' + money(x.tien) + ' đ</b>' +
+    '<div style="font-size:12.5px;color:#667085">' + duoi + '</div></div>' +
+    '<span style="color:#c3c8d4;font-size:18px">›</span></div>';
+}
 
 async function scrKhachHang() {
   frame('Danh sách khách hàng', '<div class="emp"><div class="e1">⏳</div><div>Đang đọc danh mục khách...</div></div>');
@@ -665,45 +714,35 @@ async function scrKhachHang() {
   var all = (kq && kq.khach) || [], hangs = (kh && kh.hang) || [];
 
   var DANG = [
-    { k: '', nhan: 'Tất cả', loc: function () { return true; } },
-    { k: 'si', nhan: '🏢 Khách sỉ', loc: function (x) { return !!x.si; } },
-    { k: 'le', nhan: '🧍 Khách lẻ', loc: function (x) { return !x.si; } }
+    { k: '', nhan: 'Tất cả' },
+    { k: 'si', nhan: '🏢 Khách sỉ' },
+    { k: 'le', nhan: '🧍 Khách lẻ' }
   ];
-  var HANG = [{ k: '', nhan: 'Mọi hạng', loc: function () { return true; } }];
+  var HANG = [{ k: '', nhan: 'Mọi hạng' }];
   hangs.forEach(function (hg) {
-    HANG.push({
-      k: hg.name,
-      /* Anh the hang ngay tren chip loc: nhin mau nen la biet hang nao,
-         khong phai doc ten (anh Viet 12/08/2026). */
-      nhan: hangChipAnh(hg, 14) + h(hg.ten_hang) + (hg.giam_gia ? ' −' + money(hg.giam_gia) + '%' : ''),
-      loc: function (x) { return x.hang === hg.name; }
-    });
+    /* Anh the hang ngay tren chip loc: nhin mau nen la biet hang nao, khong
+       phai doc ten (anh Viet 12/08/2026). v617: anh va chu cung mot truc
+       (.chip-anh), anh cao vua chu, khong de chu dam to de anh nho. */
+    HANG.push({ k: hg.name, nhan: khChipHang(hg) });
   });
-  HANG.push({ k: '_chua', nhan: '· Chưa xếp hạng', loc: function (x) { return !x.hang; } });
+  HANG.push({ k: '_chua', nhan: 'Chưa xếp hạng' });
 
   var fD = locTim(DANG, khDang); khDang = fD.k;
   var fH = locTim(HANG, khHang); khHang = fH.k;
-  /* May chu da loc san theo dang va hang roi (khong the loc o day duoc vi
-     danh muc hon 1500 khach, chi tai ve mot phan). */
+  /* May chu da loc, xep "chi nhieu nhat len dau" va cong dong tong tren DU
+     nhom dang loc (v617). Man chi hien, khong tu cong lai tu 200 dong da tai. */
   var ds = all;
-  var tong = ds.reduce(function (t, x) { return t + x.tien; }, 0);
-
-  var html = '<div class="card" style="padding:12px 14px;display:flex;gap:10px">' +
-    '<div style="flex:1"><div style="font-size:12px;color:#98a2b3">ĐANG XEM</div>' +
-    '<div style="font-size:19px;font-weight:800">' + (kq.tong_so || ds.length) + ' khách</div>' +
-    '<div style="font-size:12px;color:#98a2b3">' + kq.so_si + ' sỉ · ' + kq.so_le + ' lẻ</div></div>' +
-    '<div style="flex:1;border-left:1px solid #eef0f4;padding-left:10px"><div style="font-size:12px;color:#98a2b3">CHI TIÊU 12 THÁNG</div>' +
-    '<div style="font-size:19px;font-weight:800;color:#0f766e">' + money(tong) + ' đ</div></div></div>';
+  var html = khTongHtml(kq);
 
   html += '<div class="card" style="padding:10px 12px">' +
-    '<input class="tin" id="khO" placeholder="Tìm theo tên, mã, mã số thuế, số điện thoại..." value="' + h(khTim) + '" style="margin-bottom:8px"></div>';
-  var chipHang = function (ds2, chon, attr) {
-    return '<div style="flex:0 0 auto;display:flex;gap:7px;padding:2px 0;overflow-x:auto;-webkit-overflow-scrolling:touch">' +
-      ds2.map(function (c) { return posChipNut(attr + '="' + h(c.k) + '"', c.nhan, c.k === chon); }).join('') + '</div>';
+    '<input class="tin tim" id="khO" type="search" enterkeyhint="search" placeholder="🔎 Tìm tên, mã khách, MST, số điện thoại" value="' + h(khTim) + '"></div>';
+  var chipHang = function (ds2, chon, attr, mau) {
+    return '<div class="cuon-ngang" data-khhang="' + attr + '">' +
+      ds2.map(function (c) { return posChipNut(attr + '="' + h(c.k) + '"', c.nhan, c.k === chon, false, mau); }).join('') + '</div>';
   };
-  html += '<div class="card" style="padding:10px 12px;display:flex;flex-direction:column;gap:7px">' +
+  html += '<div class="card" style="padding:10px 12px;display:flex;flex-direction:column;gap:8px">' +
     chipHang(DANG, khDang, 'data-khd') +
-    chipHang(HANG, khHang, 'data-khh') + '</div>';
+    chipHang(HANG, khHang, 'data-khh', '#92400e') + '</div>';
 
   if (!hangs.length) {
     html += '<div class="card" style="padding:12px 14px;background:#fffbeb;border:1.5px solid #fcd34d;font-size:13px;color:#92400e">' +
@@ -714,51 +753,29 @@ async function scrKhachHang() {
   if (!ds.length) html += '<div class="emp" style="padding:24px"><div class="e1">🔍</div><div>Không có khách nào thuộc nhóm này.</div></div>';
   ds.slice(0, 200).forEach(function (x) {
     var hg = hangs.filter(function (y) { return y.name === x.hang; })[0];
-    html += '<div data-khx="' + h(x.ma) + '" style="display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid #f6f7f9;cursor:pointer">' +
-      /* Anh the to han va dung ti le the (1.586:1), ten hang nam DUOI the
-         chu khong nhet chung mot chip (anh Viet 13/08/2026). Chip cu chi
-         hien duoc mot lat cat 14px cua the nen nhin nhu bi lech. */
-      (hg && hg.anh
-        /* 68px chu khong phai 62: ten hang dai nhat la VAGABONDER, o 62px
-           thi bi cat thanh "VAGABOND..." (thay khi chay that 13/08/2026). */
-        ? '<div style="width:68px;flex:none;text-align:center">' +
-          '<img src="' + h(hg.anh) + '" alt="" loading="lazy" style="width:68px;aspect-ratio:1.586;object-fit:cover;border-radius:5px;border:1px solid #e5e7eb;display:block;background:#f2f4f7">' +
-          '<div style="font-size:8px;font-weight:800;color:#92400e;margin-top:3px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + h(hg.ten_hang) + '</div></div>'
-        : '<span style="width:38px;height:38px;flex:none;border-radius:10px;background:' + (x.si ? '#eef2ff' : '#f0fdfa') + ';display:flex;align-items:center;justify-content:center;font-size:18px">' + (x.si ? '🏢' : '🧍') + '</span>') +
-      '<div style="flex:1;min-width:0"><div style="font-size:14.5px;font-weight:600">' + h(x.ten) + '</div>' +
-      '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px">' +
-      (hg
-        ? (hg.anh
-          /* The da hien ten hang roi, o day chi con nhac quyen loi giam
-             gia - lap lai ten hang lan nua la thua cho tren dong hep. */
-          ? (hg.giam_gia
-            ? '<span style="background:#fef3c7;color:#92400e;border:1.5px solid #fcd34d;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:800">giảm ' + money(hg.giam_gia) + '%</span>'
-            : '')
-          : '<span style="display:inline-flex;align-items:center;background:#fef3c7;color:#92400e;border:1.5px solid #fcd34d;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:800">' + h(hg.ten_hang) + (hg.giam_gia ? ' · −' + money(hg.giam_gia) + '%' : '') + '</span>')
-        : '<span style="background:#f6f7f9;color:#98a2b3;border:1.5px dashed #d7dce5;border-radius:999px;padding:2px 9px;font-size:11.5px">chưa xếp hạng</span>') +
-      /* Ma khach hien ngay tren dong (anh Viet 11/08/2026): tra cuu, doi
-         chieu voi phieu giay va goi dien cho nhau deu can doc ma. */
-      '<span style="background:#f1f5f9;color:#475569;border:1.5px solid #e2e8f0;border-radius:999px;padding:2px 9px;font-size:11.5px;font-family:ui-monospace,monospace">' + h(x.ma) + '</span>' +
-      (x.mst ? '<span style="background:#eef2ff;color:#3730a3;border-radius:999px;padding:2px 9px;font-size:11.5px">MST ' + h(x.mst) + '</span>' : '') +
-      (x.dt ? '<span style="background:#f0fdfa;color:#0f766e;border-radius:999px;padding:2px 9px;font-size:11.5px">' + h(x.dt) + '</span>' : '') +
-      '</div></div>' +
-      '<div style="text-align:right;flex:none"><b style="font-size:14.5px">' + money(x.tien) + ' đ</b>' +
-      '<div style="font-size:11.5px;color:#98a2b3">' + x.so_don + ' hoá đơn</div></div>' +
-      '<span style="color:#c3c8d4;font-size:18px">›</span></div>';
+    html += khDongHtml(x, hg);
   });
   var conLai = Math.max(0, (kq.tong_so || ds.length) - Math.min(ds.length, 200));
-  if (conLai) html += '<div style="padding:10px 0;text-align:center;font-size:12.5px;color:#98a2b3">Nhóm này có <b>' + (kq.tong_so || ds.length) + ' khách</b>, đang hiện ' + Math.min(ds.length, 200) + '. Gõ tìm để ra đúng khách cần.</div>';
+  if (conLai) html += '<div style="padding:10px 0;text-align:center;font-size:13px;color:#667085">Nhóm này có <b>' + money(kq.tong_so || ds.length) + ' khách</b>, đang hiện ' + Math.min(ds.length, 200) + ' khách chi nhiều nhất. Gõ tìm để ra đúng khách cần.</div>';
   html += '</div>';
 
   var b = frame('Danh sách khách hàng', html);
   var o = document.getElementById('khO');
   if (o) {
+    /* v617: vẽ lại sau khi gõ tìm thì ô tìm giữ con trỏ, gõ tiếp được ngay,
+       không phải chạm lại vào ô sau mỗi lần dừng tay. */
+    if (khDangGo) { khDangGo = false; try { o.focus(); o.setSelectionRange(o.value.length, o.value.length); } catch (e) { } }
     var tre = null;
     o.oninput = function () {
       if (tre) clearTimeout(tre);
-      tre = setTimeout(function () { khTim = o.value; go(scrKhachHang, true); }, 320);
+      tre = setTimeout(function () { khTim = o.value; khDangGo = true; go(scrKhachHang, true); }, 320);
     };
   }
+  /* v617: chip đang chọn luôn nằm trong tầm nhìn, không bị cắt mép trái. */
+  b.querySelectorAll('.cuon-ngang').forEach(function (hang) {
+    var on = hang.querySelector('[data-chipchon="1"]');
+    if (on && on.scrollIntoView) { try { on.scrollIntoView({ block: 'nearest', inline: 'center' }); } catch (e) { } }
+  });
   b.onclick = function (e) {
     var t = e.target.closest('[data-khd]');
     if (t) { khDang = t.getAttribute('data-khd'); return go(scrKhachHang, true); }

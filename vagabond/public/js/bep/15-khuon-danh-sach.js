@@ -571,6 +571,27 @@ function dsccHang(ho, ds, dem, chon, tatCa, mau) {
   return ra.length ? kmHangChip(ra.join('')) : '';
 }
 
+/* v617: thanh tiến độ kiểu bước 1-2-3-4 dùng chung (anh Việt 28/10/2026:
+   "phần Sales làm việc hay những chỗ có tiến độ thì phải hiển thị thanh tiến
+   độ kiểu 1, 2, 3, 4").
+
+   buoc: [{ ten, n (số đếm, tuỳ), loi (bước hỏng, tuỳ) }]. hienTai: chỉ số bước
+   đang ở; các bước trước là xong, bước sau là chờ. hienTai >= số bước thì mọi
+   bước đã xong. Mỗi màn có một hàm THUẦN tính hienTai (buocChienDich,
+   buocVanDon, buocGoi...) để ca kiểm gọi thẳng. */
+function veBuoc(buoc, hienTai, nhan) {
+  buoc = buoc || [];
+  var i0 = Math.max(0, Math.min(buoc.length, +hienTai || 0));
+  return '<div class="buoc" role="list" data-buoc="' + i0 + '"' + (nhan ? ' aria-label="' + h(nhan) + '"' : '') + '>' +
+    buoc.map(function (b, i) {
+      var tt = b.loi ? 'loi' : i < i0 ? 'xong' : i === i0 ? 'dang' : 'cho';
+      return '<div class="b ' + tt + '" role="listitem" data-buocso="' + (i + 1) + '"' + (i === i0 ? ' aria-current="step"' : '') + '>' +
+        '<span class="so">' + (tt === 'xong' ? '✓' : tt === 'loi' ? '!' : (i + 1)) + '</span>' +
+        '<span class="t">' + h(b.ten) + '</span>' +
+        (b.n != null ? '<span class="n">' + money(b.n) + '</span>' : '') + '</div>';
+    }).join('') + '</div>';
+}
+
 function dsCongCu(c) {
   c = c || {};
   var ma = c.ma || 'ds';

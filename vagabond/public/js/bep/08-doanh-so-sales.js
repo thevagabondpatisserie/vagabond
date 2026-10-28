@@ -505,6 +505,18 @@ async function dsvVeThu(name) {
   o.innerHTML = s;
 }
 
+/* v617 (anh Việt 28/10: chỗ có tiến độ thì hiện thanh bước 1, 2, 3, 4). Bốn
+   bước của một đơn bán: Nhận đơn, Thanh toán (đã chọn phương thức), Ghi sổ,
+   Hoá đơn điện tử. Đơn huỷ dừng ở bước 2 tô đỏ. HĐĐT cần đối chiếu thì bước 4
+   tô đỏ. THUẦN: đọc đúng các ô của Sales Invoice, ca kiểm gọi thẳng. */
+function buocDonBan(d) {
+  d = d || {};
+  if (+d.vgb_huy) return { buoc: [{ ten: 'Nhận đơn' }, { ten: 'Đã huỷ', loi: true }], dang: 1 };
+  var b = [{ ten: 'Nhận đơn' }, { ten: 'Thanh toán' }, { ten: 'Ghi sổ' }, { ten: 'Hoá đơn điện tử', loi: +d.docstatus === 1 && !d.custom_hddt_so && !!d.vgb_hddt_cho_doi_chieu }];
+  var dang = +d.docstatus === 1 ? (d.custom_hddt_so ? 4 : 3) : (d.vgb_pt_thanh_toan ? 2 : 1);
+  return { buoc: b, dang: dang };
+}
+
 async function scrDsView(name, can) {
   frame('Chi tiết đơn', '<div class="emp"><div class="e1">⏳</div></div>');
   var d;
@@ -523,6 +535,8 @@ async function scrDsView(name, can) {
       : (!d.custom_hddt_so && d.docstatus === 1 && d.vgb_hddt_ngay_xuat
         ? '<div style="color:#92400e;font-size:13px">⏳ ' + hddtChoXuatChu(d.vgb_hddt_ngay_xuat) + ' · sổ vẫn giữ ngày bán</div>' : '')) +
     '</div>';
+  var bd = buocDonBan(d);
+  html += '<div class="card" data-dsbuoc="1" style="padding:12px 8px 10px">' + veBuoc(bd.buoc, bd.dang, 'Tiến độ đơn') + '</div>';
   /* Don cua ngay cu ma con nhap: luat ke toan bat xuat hoa don dien tu ngay
      trong ngay ban, nen don hom qua co truc trac thi phai keo sang hom nay
      roi moi ghi so duoc (chi Dung 12/08/2026). Chi quan ly va ke toan thay

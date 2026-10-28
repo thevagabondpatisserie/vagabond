@@ -42,7 +42,9 @@ function layHam(src, ten) {
   }
   throw new Error('Ham ' + ten + ' khong dong ngoac');
 }
-var NEN_TIM = ['vgbChuan', 'vgbKhop', 'anhMon'].map(function (t) { return layHam(doc('00-nen.js'), t); }).join('\n');
+var NEN_TIM = ['vgbChuan', 'vgbKhop', 'anhMon'].map(function (t) { return layHam(doc('00-nen.js'), t); }).join('\n') +
+  /* v617: 58-crm.js vẽ thanh bước bằng veBuoc (15-khuon-danh-sach.js). */
+  '\n' + layHam(doc('15-khuon-danh-sach.js'), 'veBuoc');
 
 var ket = { dat: 0, hong: 0, loi: [] };
 function dung(mo, dk) { if (!dk) throw new Error(mo + ': duoc false, mong true'); }

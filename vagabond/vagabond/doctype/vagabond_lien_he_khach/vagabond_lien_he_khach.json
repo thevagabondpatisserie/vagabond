@@ -5,7 +5,7 @@
  "engine": "InnoDB",
  "module": "Vagabond",
  "name": "Vagabond Lien He Khach",
- "modified": "2026-10-27 18:00:00.000000",
+ "modified": "2026-10-28 12:00:00.000000",
  "modified_by": "Administrator",
  "owner": "Administrator",
  "description": "Nhật ký liên hệ khách: ai gọi, kết quả, thuộc chiến dịch nào.",
@@ -33,7 +33,7 @@
    "fieldname": "kenh",
    "fieldtype": "Select",
    "label": "Kênh",
-   "options": "Gọi điện\nZalo\nEmail\nGặp tại quầy\nKhác",
+   "options": "Gọi điện\nZalo\nEmail\nGặp tại quầy\nKhác\nZalo OA",
    "in_list_view": 1
   },
   {

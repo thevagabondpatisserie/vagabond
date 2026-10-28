@@ -5,7 +5,7 @@
  "engine": "InnoDB",
  "module": "Vagabond",
  "name": "Vagabond Chien Dich Khach",
- "modified": "2026-10-27 18:00:00.000000",
+ "modified": "2026-10-28 12:00:00.000000",
  "modified_by": "Administrator",
  "owner": "Administrator",
  "description": "Một khách trong danh sách đã chốt của một chiến dịch. Danh sách cố định từ lúc chốt.",
@@ -22,7 +22,12 @@
   "ghi_chu",
   "kenh_duoc",
   "so_lan",
-  "lan_cuoi"
+  "lan_cuoi",
+  "ma_uu_dai",
+  "sb_oa",
+  "oa_trang_thai",
+  "oa_luc",
+  "oa_loi"
  ],
  "fields": [
   {
@@ -117,6 +122,36 @@
    "fieldname": "lan_cuoi",
    "fieldtype": "Datetime",
    "label": "Gọi lần cuối",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ma_uu_dai",
+   "fieldtype": "Data",
+   "label": "Mã ưu đãi riêng",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sb_oa",
+   "fieldtype": "Section Break",
+   "label": "Zalo OA"
+  },
+  {
+   "fieldname": "oa_trang_thai",
+   "fieldtype": "Select",
+   "label": "Gửi OA",
+   "options": "\nĐã gửi\nLỗi\nBỏ qua",
+   "read_only": 1
+  },
+  {
+   "fieldname": "oa_luc",
+   "fieldtype": "Datetime",
+   "label": "Gửi OA lúc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "oa_loi",
+   "fieldtype": "Small Text",
+   "label": "Lý do chưa gửi được",
    "read_only": 1
   }
  ],

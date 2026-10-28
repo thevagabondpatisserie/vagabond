@@ -5,7 +5,7 @@
  "engine": "InnoDB",
  "module": "Vagabond",
  "name": "Vagabond Chien Dich",
- "modified": "2026-10-27 18:00:00.000000",
+ "modified": "2026-10-28 13:00:00.000000",
  "modified_by": "Administrator",
  "owner": "Administrator",
  "description": "Chiến dịch chăm sóc khách: nhóm khách, kênh, món giới thiệu, mã ưu đãi, chia Sales, đo hiệu quả.",
@@ -16,17 +16,20 @@
   "han",
   "ctkm",
   "ma_uu_dai",
+  "lo_voucher",
   "sb_khach",
   "bo_loc",
   "loc",
   "kenh_goi",
   "kenh_zalo",
+  "kenh_oa",
   "ty_le_doi_chung",
   "mon",
   "sales",
   "sb_kb",
   "kich_ban",
   "noi_dung_zalo",
+  "tieu_de_oa",
   "kich_ban_duyet",
   "duyet_boi",
   "duyet_luc",
@@ -38,7 +41,11 @@
   "so_loai_chua_dong_y",
   "so_loai_kqc",
   "so_doi_chung",
-  "so_nhan"
+  "so_nhan",
+  "sb_oa",
+  "oa_trang_thai",
+  "oa_gui_luc",
+  "oa_ket_qua"
  ],
  "fields": [
   {
@@ -81,6 +88,13 @@
    "read_only": 1
   },
   {
+   "fieldname": "lo_voucher",
+   "fieldtype": "Link",
+   "label": "Lô mã riêng từng khách",
+   "options": "Vagabond Lo Voucher",
+   "read_only": 1
+  },
+  {
    "fieldname": "sb_khach",
    "fieldtype": "Section Break",
    "label": "Khách và kênh"
@@ -107,6 +121,12 @@
    "fieldname": "kenh_zalo",
    "fieldtype": "Check",
    "label": "Zalo cá nhân"
+  },
+  {
+   "fieldname": "kenh_oa",
+   "fieldtype": "Check",
+   "label": "Gửi tin Zalo OA",
+   "description": "Máy gửi tin Truyền thông qua Zalo OA cho khách đang quan tâm OA và đã đồng ý nhận tin Zalo."
   },
   {
    "fieldname": "ty_le_doi_chung",
@@ -140,6 +160,12 @@
    "fieldname": "noi_dung_zalo",
    "fieldtype": "Text",
    "label": "Tin Zalo soạn sẵn ({ten} là tên khách)"
+  },
+  {
+   "fieldname": "tieu_de_oa",
+   "fieldtype": "Data",
+   "label": "Tiêu đề tin Zalo OA",
+   "description": "Dòng đậm đầu tin OA, tối đa 100 chữ. Để trống là: Ưu đãi từ The Vagabond Pâtisserie."
   },
   {
    "fieldname": "kich_ban_duyet",
@@ -210,6 +236,30 @@
    "fieldname": "so_nhan",
    "fieldtype": "Int",
    "label": "Được liên hệ",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sb_oa",
+   "fieldtype": "Section Break",
+   "label": "Gửi Zalo OA"
+  },
+  {
+   "fieldname": "oa_trang_thai",
+   "fieldtype": "Select",
+   "label": "Trạng thái gửi OA",
+   "options": "\nĐang gửi\nĐã gửi xong\nĐã dừng",
+   "read_only": 1
+  },
+  {
+   "fieldname": "oa_gui_luc",
+   "fieldtype": "Datetime",
+   "label": "Gửi xong lúc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "oa_ket_qua",
+   "fieldtype": "Small Text",
+   "label": "Kết quả gửi OA",
    "read_only": 1
   }
  ],

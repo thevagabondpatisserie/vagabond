@@ -94,6 +94,17 @@ def _():
 	# Trình duyệt gửi lẻn mã 4 vào add-on: không được nhân đôi hay thu hộ 0đ.
 	t3 = g.than_bao_gia(1878, 0, lay, giao, [4, "10"], 0)
 	la("mã 4 từ trình duyệt bị bỏ", [a["id"] for a in t3["service_ids"][0]["addons"]], [10])
+	# Đo trên sandbox thật 28/10/2026: cùng một thân, order_time = 0 thì 400
+	# "missing required fields", giờ hiện tại thì báo giá 70.000đ và tạo đơn
+	# được. Tài liệu ghi "0 hay null coi như bây giờ" nhưng sandbox không nhận.
+	t4 = g.than_bao_gia(1878, 0, lay, giao, [], 0, bay_gio=1793000000)
+	la("không hẹn giờ: gửi giờ hiện tại, không gửi 0", t4["order_time"], 1793000000)
+	t5 = g.than_bao_gia(1878, None, lay, giao, [], 0, bay_gio=1793000001)
+	la("order_time trống: gửi giờ hiện tại", t5["order_time"], 1793000001)
+	import time as _t
+	t6 = g.than_bao_gia(1878, 0, lay, giao, [], 0)
+	dung("không truyền bay_gio thì lấy đồng hồ máy chủ", abs(t6["order_time"] - int(_t.time())) <= 5)
+	la("có hẹn giờ thì giữ nguyên", g.than_bao_gia(1878, 1793007457, lay, giao, [], 0, bay_gio=1)["order_time"], 1793007457)
 
 
 @ca("v612 GreenSM: đọc báo giá đúng số, dịch vụ không báo được thì có lời giải thích")
