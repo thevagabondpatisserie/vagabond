@@ -261,3 +261,5 @@ node vagabond/khung/kiem_thu/hanh_vi/ds_hoa_don_618.js
 node vagabond/khung/kiem_thu/hanh_vi/hang_ve_kho_619.js
 # v619 (Codex 4402066952): link tin Zalo qua man dang nhap van toi dung man, dung phieu.
 node vagabond/khung/kiem_thu/hanh_vi/dang_nhap_giu_dich_619.js
+# v619: chuong thong bao tren trang chu (59-chuong.js that), so do, hai the, mo dung man.
+node vagabond/khung/kiem_thu/hanh_vi/chuong_619.js
