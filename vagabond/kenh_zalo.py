@@ -112,6 +112,9 @@ TIN = {
 		"Kế toán xác nhận đã chuyển tiền, phiếu chi đã ghi sổ.", "thong_bao", "cong_no"),
 	"kt_de_nghi_chi_da_chi": ("Hoá đơn, kế toán", "Đề nghị chi đã chi xong",
 		"Khoản chi của đề nghị chi đã khớp sao kê ngân hàng, người lập biết tiền đã đi.", "thong_bao", "cong_no"),
+	# v619 (anh Việt duyệt mẫu 28/10/2026): dữ liệu còn thiếu để tính hao hụt (tin_hao_hut.py).
+	"kt_du_lieu_hao_hut": ("Hoá đơn, kế toán", "Dữ liệu để tính hao hụt (thứ Hai 08:00)",
+		"Thứ Hai 08:00: bánh bán chưa có lệnh, lệnh không cân, kho bếp lâu chưa kiểm kê, giá lệch kho.", "ban_tin", "kho"),
 	"bh_don_web_treo": ("Bán hàng, cửa hàng", "Đơn web treo quá 30 phút chưa vào Pancake",
 		"Đơn đặt bánh trên web quá 30 phút mà chưa tạo được trên Pancake.", "viec", "don_web"),
 	"bh_ton_web_loi": ("Bán hàng, cửa hàng", "Lỗi kiểm tồn khi khách đặt web",
