@@ -195,7 +195,9 @@ async function scrVanDon() {
     nutF.push('<button class="btn gh" id="vdIn" style="flex:1">🖨️ In đơn</button>');
     if (vdLaShipper() && !isSales()) nutF.push('<button class="btn gh" id="vdDuong" style="flex:1">🗺️ Chỉ đường</button>');
     if (isSales() || vdLaKeToan()) nutF.push('<button class="btn gh" id="vdCod" style="flex:1">💵 Đối soát COD</button>');
-    if (nutF.length) foot = '<div style="display:flex;gap:8px">' + nutF.join('') + '</div>';
+    /* v617: từ 4 nút trở lên xếp lưới 2 cột, chữ trên nút không bị bẻ đôi
+       ("Gộp / chuyến", "Đối / soát / COD" ở ảnh chụp 28/10/2026). */
+    if (nutF.length) foot = '<div style="display:' + (nutF.length > 3 ? 'grid;grid-template-columns:1fr 1fr' : 'flex') + ';gap:8px">' + nutF.join('') + '</div>';
   }
   var b = frame('Vận đơn', html, Object.assign({ action: '➕', onAction: function () { go(scrVdTao); } }, foot ? { footer: foot } : {}));
   var di = document.getElementById('vdDate');
@@ -430,7 +432,10 @@ async function scrVdView(name) {
   var d;
   try { d = await api('frappe.client.get', { doctype: 'Van Don', name: name }); if (!vtShipper) { try { vtShipper = await api('vagabond.van_don.ds_shipper'); } catch (e11) { vtShipper = []; } } await vdNapDiem(); }
   catch (e) { frame('Chi tiết vận đơn', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không đọc được') + '</div></div>'); return; }
-  var html = '<div class="card" style="padding:12px 14px;line-height:1.7">' +
+  /* v617: thanh tiến độ 1-2-3-4 của vận đơn, ngay đầu màn (anh Việt 28/10/2026). */
+  var vdB = buocVanDon(d);
+  var html = '<div class="card" data-vdbuoc="1" style="padding:12px 10px 10px">' + veBuoc(vdB.buoc, vdB.hienTai, 'Tiến độ vận đơn') + '</div>' +
+    '<div class="card" style="padding:12px 14px;line-height:1.7">' +
     '<div style="display:flex;justify-content:space-between"><b>' + (d.ma_don ? '#' + h(d.ma_don) : h(d.name)) + '</b><span>' + h(d.trang_thai) + '</span></div>' +
     '<div>' + h(d.khach || 'Khách lẻ') + (d.sdt ? ' · <a href="tel:' + h(d.sdt) + '">' + h(d.sdt) + '</a>' : '') + '</div>' +
     (d.la_dieu_chuyen
@@ -940,7 +945,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '615';
+var APPVER = '617';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -1561,6 +1566,24 @@ function vdHuyHieu(r) {
   if (!t.length) return '';
   return '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:5px">' + t.join('') + '</div>';
 }
+/* v617: các bước của một vận đơn cho thanh tiến độ. THUẦN.
+   Giao tận nơi: Tạo vận đơn → Phân công → Đang giao → Đã giao.
+   Khách tự lấy: Tạo vận đơn → Chờ khách lấy → Khách đã lấy.
+   Không giao được: bước Đang giao đỏ. Huỷ: bước Đã huỷ đỏ. */
+function buocVanDon(d) {
+  d = d || {};
+  var tt = d.trang_thai || 'Chờ giao';
+  if (tt === 'Huỷ') return { buoc: [{ ten: 'Tạo vận đơn' }, { ten: 'Đã huỷ', loi: 1 }], hienTai: 1 };
+  if (tt === 'Chờ khách lấy' || (d.kenh === 'Khách tự lấy' && tt !== 'Không giao được')) {
+    return { buoc: [{ ten: 'Tạo vận đơn' }, { ten: 'Chờ khách lấy' }, { ten: 'Khách đã lấy' }],
+      hienTai: tt === 'Đã giao' ? 3 : 1 };
+  }
+  var buoc = [{ ten: 'Tạo vận đơn' }, { ten: 'Phân công' }, { ten: 'Đang giao' }, { ten: 'Đã giao' }];
+  if (tt === 'Đã giao') return { buoc: buoc, hienTai: 4 };
+  if (tt === 'Không giao được') { buoc[2] = { ten: 'Không giao được', loi: 1 }; return { buoc: buoc, hienTai: 2 }; }
+  if (tt === 'Đang giao' || d.shipper || d.booking_id) return { buoc: buoc, hienTai: 2 };
+  return { buoc: buoc, hienTai: 1 };
+}
 function vdChip(id, nhan, dang) {
   return '<button class="btn gh" id="' + id + '" style="flex:0 0 auto;width:auto;padding:6px 12px;font-size:13px' + (dang ? ';background:#0f766e;color:#fff;border-color:#0f766e' : '') + '">' + nhan + '</button>';
 }
@@ -1631,7 +1654,8 @@ function vdTabHtml(ds) {
       ' <span style="background:' + (on ? t.mau : '#e5e7eb') + ';color:' + (on ? '#fff' : '#4b5563') +
       ';border-radius:999px;padding:1px 7px;font-size:11.5px;font-weight:700">' + n + '</span></button>';
   }).join('');
-  return '<div class="card" style="padding:0 4px;display:flex;gap:2px;overflow-x:auto;-webkit-overflow-scrolling:touch">' + ra + '</div>';
+  /* v617: cuon-ngang: hàng tab nằm NGANG và không lộ thanh cuộn (xem .card ở 00-nen.js). */
+  return '<div class="card cuon-ngang" data-vdtabs="1" style="padding:0 4px;display:flex;flex-direction:row;gap:2px;overflow-x:auto;-webkit-overflow-scrolling:touch">' + ra + '</div>';
 }
 
 /* ---------- Ô tìm nhanh ----------

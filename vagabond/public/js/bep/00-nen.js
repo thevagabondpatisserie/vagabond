@@ -98,7 +98,12 @@ body{-webkit-text-size-adjust:100%;font-family:-apple-system,BlinkMacSystemFont,
    quy tac lop, nen chung khong he suy suyen. Xem them ham kmHangChip trong
    13-khuyen-mai.js: hai phien truoc da gap dung cai bay nay va tung
    nguoi tu boc mot lop div rieng de tranh. Nay chan mot lan cho tat ca. */
-.card{display:block;background:#fff;border-radius:16px;margin-bottom:12px;overflow:hidden;box-shadow:0 1px 3px rgba(20,25,40,.07)}
+.card{display:block;background:#fff;border-radius:16px;margin-bottom:12px;overflow:hidden;box-shadow:0 1px 3px rgba(20,25,40,.07);flex-direction:row}
+/* v617 (anh Việt 28/10/2026, ảnh màn Danh sách khách hàng): flex-direction:row
+   ở trên cũng là CÓ Ý. Bootstrap còn để lại flex-direction:column, nên thẻ nào
+   khai inline display:flex mà không ghi hướng (hàng tab Vận đơn, ô Đang xem và
+   Chi tiêu của Danh sách khách hàng) bị xếp DỌC từng dòng một. Trả về mặc định
+   của CSS là hàng ngang; thẻ cần cột đã tự khai flex-direction:column inline. */
 .fld{display:flex;align-items:center;gap:12px;padding:14px 14px;border-bottom:1px solid #f0f2f6;cursor:pointer;background:#fff}
 .fld:last-child{border-bottom:0}
 .fld:active{background:#f6f8fc}
@@ -191,6 +196,33 @@ body{-webkit-text-size-adjust:100%;font-family:-apple-system,BlinkMacSystemFont,
 .tw .lb{font-size:12px;color:#8a8f9c;margin-bottom:6px}
 .tin{width:100%;border:1.5px solid #dfe3ec;border-radius:12px;height:52px;font-size:20px;font-weight:700;text-align:center;background:#fff;color:#16181d;outline:0;font-family:inherit}
 .tin:focus{border-color:#0FB5CE}
+/* v617: ô TÌM dùng lại lớp .tin (ô nhập số tiền: chữ 20px đậm căn giữa), nên
+   chữ gợi ý to quá khổ và bị cắt (ảnh anh Việt 28/10/2026). Ô tìm thì chữ
+   thường, căn trái, vừa một dòng. */
+.tin[type=search],.tin.tim{font-size:15.5px;font-weight:500;text-align:left;padding:0 14px;height:46px}
+.tin[type=search]::placeholder,.tin.tim::placeholder{color:#98a2b3;font-weight:400}
+/* v617: hàng cuộn ngang (chip lọc, tab) không lộ thanh cuộn xám bên dưới. */
+.cuon-ngang{display:flex;gap:7px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:2px 0}
+.cuon-ngang::-webkit-scrollbar{display:none}
+/* v617: thanh tiến độ kiểu bước 1-2-3-4 dùng chung (hàm veBuoc ở 15-khuon-danh-sach.js). */
+.buoc{display:flex;align-items:flex-start;margin:6px 0 4px}
+.buoc .b{flex:1 1 0;display:flex;flex-direction:column;align-items:center;position:relative;min-width:0}
+.buoc .b:before{content:'';position:absolute;top:15px;right:50%;width:100%;height:3px;background:#e4e7ec}
+.buoc .b:first-child:before{display:none}
+.buoc .b.xong:before,.buoc .b.dang:before{background:#12a150}
+.buoc .so{width:32px;height:32px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;background:#fff;border:2px solid #d0d5dd;color:#98a2b3;position:relative;z-index:1}
+.buoc .xong .so{background:#12a150;border-color:#12a150;color:#fff}
+.buoc .dang .so{background:#0B7C93;border-color:#0B7C93;color:#fff;box-shadow:0 0 0 4px #d5f5fb}
+.buoc .loi .so{background:#d92d20;border-color:#d92d20;color:#fff}
+.buoc .t{font-size:13px;line-height:1.3;color:#667085;text-align:center;margin-top:6px;padding:0 2px;overflow-wrap:anywhere}
+.buoc .dang .t{color:#0B7C93;font-weight:700}
+.buoc .xong .t{color:#027a48}
+.buoc .loi .t{color:#b42318;font-weight:700}
+.buoc .n{font-size:13px;font-weight:800;color:#344054;margin-top:2px}
+/* v617: chip có ảnh (thẻ hạng thành viên): ảnh và chữ cùng một trục, ảnh
+   cao vừa chữ, không để chữ đậm to đè ảnh nhỏ. */
+.chip-anh{display:inline-flex;align-items:center;gap:7px}
+.chip-anh img{height:18px;width:29px;border-radius:3px;object-fit:cover;flex:none;background:#fff}
 .tch{display:flex;gap:7px;overflow-x:auto;padding-top:9px}
 .tch::-webkit-scrollbar{display:none}
 .tch span{flex:0 0 auto;border:1px solid #dfe3ec;border-radius:9px;padding:8px 13px;font-size:14px;background:#fff;cursor:pointer;font-weight:600;color:#4a5061}
