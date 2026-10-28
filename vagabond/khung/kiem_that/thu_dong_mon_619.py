@@ -18,7 +18,10 @@ from vagabond.khung.kiem_that.thu_hang_tang_227 import _hoa_don
 
 
 def _dong_bo(hd, dong):
+	# Nhịp đồng bộ thật bật cờ vgb_dong_bo quanh mỗi lượt (ban_hang._dong_bo_doanh_so),
+	# để hàng rào lưu của quầy không chặn tờ Pancake chưa có phương thức.
 	with ExitStack() as st:
+		st.enter_context(patch.object(frappe.local, "vgb_dong_bo", True, create=True))
 		st.enter_context(patch.object(ban_hang, "_dong_hang", return_value=(dong, [])))
 		st.enter_context(patch.object(ban_hang, "_lech_pancake", return_value=0))
 		st.enter_context(patch.object(ban_hang, "_doan_thanh_toan", return_value=("", "")))
@@ -42,7 +45,11 @@ def _():
 	hd = _hoa_don(False)
 	hd.custom_pancake_id = "THU619-" + frappe.generate_hash(length=10)
 	hd.custom_pancake_display_id = "THU619"
-	hd.save(ignore_permissions=True)
+	# Tờ của nhịp đồng bộ luôn mang nguồn Pancake (hàm đồng bộ tự đặt); hàng rào
+	# lưu chặn tờ thiếu nguồn, nên fixture đặt như tờ thật trước lần lưu đầu.
+	hd.custom_nguon = "Pancake"
+	with patch.object(frappe.local, "vgb_dong_bo", True, create=True):
+		hd.save(ignore_permissions=True)
 	hd.reload()
 	mon, kho = hd.items[0].item_code, hd.items[0].warehouse
 	ten_dau = hd.items[0].name
