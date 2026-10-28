@@ -2596,16 +2596,3 @@ cho thấy câu "Valuation Rate ... is required" ném ngay ở `insert()` (lúc
 validate tính giá xuất), chưa tới `submit()`. Bắt lỗi chỉ quanh submit là bỏ
 sót đúng ca gốc. Và chỉ thay câu LÕI ERPNext: câu đã dễ hiểu của app (lo_hang
 "còn thiếu ...") phải đi nguyên, không thì mất thông tin người dùng cần.
-
-## 26/10/2026 (v612): đối tác báo "gửi curl xem", lỗi nằm ở thân yêu cầu mình đoán
-
-GreenSM sandbox trả 400 "missing required fields" suốt từ 21/10 vì khung cũ
-ĐOÁN tên trường (`pickup`/`dropoff` số ít, `lat`/`lng`, `contact_name`) khi
-tài liệu chưa có. Tài liệu ra rồi thì đúng là `pickups`/`dropoffs` (mảng),
-`service_ids` + `points` (`latitude`, `longitude`, `phone_number` dạng +84).
-Bài học: (1) khung viết theo đoán phải ghi rõ là ĐOÁN và có ca kiểm chốt
-không còn sót chỗ đoán khi đã có tài liệu; (2) sandbox của đối tác thường
-là dữ liệu GIẢ (mọi địa chỉ cùng một giá): không bao giờ để giá sandbox lọt
-ra cho khách, và không gọi xe sandbox cho vận đơn thật; (3) đột biến "lọt"
-lần đầu (M6) là do tệp .pyc cũ, cùng bẫy với v609: chạy đột biến luôn với
-PYTHONDONTWRITEBYTECODE=1 và xoá __pycache__ của tệp vừa đổi.
