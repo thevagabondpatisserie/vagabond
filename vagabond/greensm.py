@@ -97,8 +97,16 @@ def dau_giao(noi, bep):
 	], ensure_ascii=False)
 
 
-def than_bao_gia(service_id, order_time, diem_lay, diem_giao, addon_ids=(), cod=0):
-	"""Thân /estimate/order. Add-on nằm TRONG service_ids, mỗi cái có apply."""
+def than_bao_gia(service_id, order_time, diem_lay, diem_giao, addon_ids=(), cod=0, bay_gio=None):
+	"""Thân /estimate/order. Add-on nằm TRONG service_ids, mỗi cái có apply.
+
+	Không hẹn giờ (order_time 0 hay trống) thì gửi GIỜ HIỆN TẠI: đo trên
+	sandbox 28/10/2026, order_time = 0 bị trả 400 "missing required fields"
+	dù tài liệu ghi 0 là giao ngay. Thân tạo đơn lấy lại đúng số này.
+	`bay_gio` chỉ để ca kiểm cố định đồng hồ."""
+	import time
+
+	order_time = int(order_time or 0) or int(bay_gio if bay_gio is not None else time.time())
 	addons = [{"id": int(a), "apply": True} for a in addon_ids or () if int(a) != ADDON_COD]
 	cod = int(round(float(cod or 0)))
 	giao = dict(diem_giao)
@@ -111,7 +119,7 @@ def than_bao_gia(service_id, order_time, diem_lay, diem_giao, addon_ids=(), cod=
 		dv["addons"] = addons
 	return {
 		"service_ids": [dv],
-		"order_time": int(order_time or 0),
+		"order_time": order_time,
 		"payment_method": THANH_TOAN,
 		"points": [dict(diem_lay), giao],
 	}
