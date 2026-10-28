@@ -1929,11 +1929,15 @@ def gsm_bao_gia(name, service_id=None, addon_ids=None):
 	return {
 		"tong": bg["tong"], "km": bg["km"], "phut": bg["phut"], "ten_xe": bg["ten_xe"],
 		"phi_them": bg["phi_them"], "cod": cod, "dang_thu": greensm.dang_thu(c),
+		# Mã bản giá: màn giữ lại và gửi kèm Gọi xe, để máy chủ biết người bấm
+		# đã xác nhận đúng bản giá nào (Codex #499 4395850127).
+		"ma_gia": bg["fee_id"],
 	}
 
 
-def _greensm_dat_don(doc, service_id=None, addon_ids=None):
-	"""Tạo đơn GreenSM từ bản giá đã giữ lúc bấm Xem giá."""
+def _greensm_dat_don(doc, service_id=None, addon_ids=None, ma_gia=None):
+	"""Tạo đơn GreenSM từ bản giá đã giữ lúc bấm Xem giá. `ma_gia` là mã bản
+	giá màn đã hiện cho người bấm; thiếu hoặc khác bản đang giữ thì không đặt."""
 	from vagabond import greensm
 
 	c = cfg()
@@ -1946,6 +1950,12 @@ def _greensm_dat_don(doc, service_id=None, addon_ids=None):
 		frappe.throw("Giá GreenSM đã hết hạn. Bấm Xem giá lại rồi Gọi xe.")
 	giu = json.loads(hit)
 	bg, than = giu["bg"], giu["than"]
+	if not ma_gia or str(ma_gia) != str(bg.get("fee_id") or ""):
+		# Hai người (hoặc hai tab) cùng Xem giá: lần sau ghi đè bản giá dùng
+		# chung. Người bấm Gọi xe ở màn cũ đã xác nhận cước khác, nên không
+		# đặt âm thầm theo cước mới. Không xoá bản giá: nó là của màn kia.
+		frappe.throw("Giá GreenSM của đơn này vừa được xem lại ở màn khác, cước có thể đã đổi. "
+			"Bấm Xem giá lại rồi Gọi xe.")
 	if giu.get("dau") != greensm.dau_giao(_noi_giao(doc), _diem_lay(c)):
 		# Vận đơn đổi sau khi xem giá (đồng bộ Pancake đổi địa chỉ hoặc tiền
 		# thu hộ, gán điểm khách lấy). Tạo đơn từ bản cũ là gọi tài xế giao
@@ -1968,7 +1978,7 @@ def _greensm_dat_don(doc, service_id=None, addon_ids=None):
 
 
 @frappe.whitelist()
-def book_xe(name, kenh, service_id=None, requests_them=None):
+def book_xe(name, kenh, service_id=None, requests_them=None, ma_gia=None):
 	"""Dat xe cho van don qua app ngoai.
 
 	service_id va requests_them den tu man xac nhan trong app: nhan vien chon
@@ -1984,7 +1994,7 @@ def book_xe(name, kenh, service_id=None, requests_them=None):
 	if kenh == "Ahamove":
 		oid, link, phi = _ahamove_dat_don(doc, service_id, requests_them)
 	elif kenh == "GreenSM":
-		oid, link, phi = _greensm_dat_don(doc, service_id, requests_them)
+		oid, link, phi = _greensm_dat_don(doc, service_id, requests_them, ma_gia)
 	elif kenh == "BE":
 		frappe.throw("BE Delivery chưa cấp API (anh Việt đang xin). Có key là nối được, khung dùng chung với GreenSM.")
 	else:
