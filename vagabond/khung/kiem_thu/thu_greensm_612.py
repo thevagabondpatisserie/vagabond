@@ -347,7 +347,7 @@ def _():
 		vd = _vd(bo, _cfg(), mang, _don())
 		gia = vd.gsm_bao_gia("VD-2026-00123", service_id="1878", addon_ids="[10]")
 		la("giá trả về màn", (gia["tong"], gia["dang_thu"]), (80000, False))
-		oid, link, phi = vd._greensm_dat_don(_don(), "1878", [10])
+		oid, link, phi = vd._greensm_dat_don(_don(), "1878", [10], gia["ma_gia"])
 		bao = [b for d, b in mang.goi if d == "/estimate/order"][0]
 		tao = [b for d, b in mang.goi if d == "/create-order"][0]
 		la("mã đơn GreenSM", oid, "01M5V144E998PACHGYWE3J09JP")
@@ -373,7 +373,7 @@ def _():
 		gia = vd.gsm_bao_gia("VD-2026-00123", service_id="1878", addon_ids="[]")
 		la("xem giá thử vẫn được, có cờ thử", gia["dang_thu"], True)
 		try:
-			vd._greensm_dat_don(_don(), "1878", [])
+			vd._greensm_dat_don(_don(), "1878", [], gia["ma_gia"])
 			bi_chan = False
 		except frappe.ValidationError as e:
 			bi_chan = "môi trường thử" in str(e)
@@ -395,10 +395,10 @@ def _():
 	with _Bo() as bo:
 		mang = _Mang()
 		vd = _vd(bo, _cfg(), mang, _don())
-		la("chưa xem giá", "hết hạn" in thu(lambda: vd._greensm_dat_don(_don(), "1878", [])), True)
-		vd.gsm_bao_gia("VD-2026-00123", service_id="1878", addon_ids="[10]")
-		la("bỏ add-on sau khi xem giá", "đã đổi" in thu(lambda: vd._greensm_dat_don(_don(), "1878", [])), True)
-		la("đổi loại xe", "đã đổi" in thu(lambda: vd._greensm_dat_don(_don(), "2099", [10])), True)
+		la("chưa xem giá", "hết hạn" in thu(lambda: vd._greensm_dat_don(_don(), "1878", [], "fee-cu")), True)
+		gia = vd.gsm_bao_gia("VD-2026-00123", service_id="1878", addon_ids="[10]")
+		la("bỏ add-on sau khi xem giá", "Loại xe hoặc dịch vụ thêm đã đổi" in thu(lambda: vd._greensm_dat_don(_don(), "1878", [], gia["ma_gia"])), True)
+		la("đổi loại xe", "Loại xe hoặc dịch vụ thêm đã đổi" in thu(lambda: vd._greensm_dat_don(_don(), "2099", [10], gia["ma_gia"])), True)
 	la("không tạo đơn nào", [d for d, b in mang.goi if d == "/create-order"], [])
 
 
@@ -409,8 +409,8 @@ def _():
 		d = _don()
 		d["tien_thu_ho"] = 650000
 		vd = _vd(bo, _cfg(), mang, d)
-		vd.gsm_bao_gia("VD-2026-00123", service_id="1878", addon_ids="[]")
-		vd._greensm_dat_don(d, "1878", [])
+		gia = vd.gsm_bao_gia("VD-2026-00123", service_id="1878", addon_ids="[]")
+		vd._greensm_dat_don(d, "1878", [], gia["ma_gia"])
 		bao = [b for x, b in mang.goi if x == "/estimate/order"][0]
 		tao = [b for x, b in mang.goi if x == "/create-order"][0]
 	la("báo giá: remain_cod", [a.get("remain_cod") for a in bao["service_ids"][0]["addons"]], [650000])
@@ -462,8 +462,8 @@ def _():
 			mang = _Mang()
 			d = doi()
 			vd = _vd(bo, _cfg(), mang, d)
-			vd.gsm_bao_gia("VD-2026-00123", service_id="1878", addon_ids="[]")
-			loi = thu(lambda: vd._greensm_dat_don(doi(**moi), "1878", []))
+			gia = vd.gsm_bao_gia("VD-2026-00123", service_id="1878", addon_ids="[]")
+			loi = thu(lambda: vd._greensm_dat_don(doi(**moi), "1878", [], gia["ma_gia"]))
 			la(ten + ": bắt xem giá lại", "Xem giá lại" in loi, True)
 			la(ten + ": không tạo đơn", [x for x, b in mang.goi if x == "/create-order"], [])
 			dung(ten + ": bỏ bản giá cũ", not bo.cache.get("vgb:gsm:gia:VD-2026-00123"))
@@ -473,21 +473,72 @@ def _():
 		from vagabond import van_don
 
 		vd = _vd(bo, _cfg(), mang, doi())
-		vd.gsm_bao_gia("VD-2026-00123", service_id="1878", addon_ids="[]")
+		gia = vd.gsm_bao_gia("VD-2026-00123", service_id="1878", addon_ids="[]")
 		bo.dat(van_don, "_noi_giao", lambda doc: {"dia_chi": "9 Trần Cao Vân", "ten": "The Vagabond TCV",
 			"sdt": "84964131194", "cod": 0.0, "toi_diem": 1})
-		loi = thu(lambda: vd._greensm_dat_don(doi(), "1878", []))
+		loi = thu(lambda: vd._greensm_dat_don(doi(), "1878", [], gia["ma_gia"]))
 	la("đổi sang lấy tại quầy: bắt xem giá lại", "Xem giá lại" in loi, True)
 	la("đổi sang lấy tại quầy: không tạo đơn", [x for x, b in mang.goi if x == "/create-order"], [])
 	# Không đổi gì thì vẫn gọi được, giữ COD đúng.
 	with _Bo() as bo:
 		mang = _Mang()
 		vd = _vd(bo, _cfg(), mang, doi())
-		vd.gsm_bao_gia("VD-2026-00123", service_id="1878", addon_ids="[]")
-		oid, _l, _p = vd._greensm_dat_don(doi(), "1878", [])
+		gia = vd.gsm_bao_gia("VD-2026-00123", service_id="1878", addon_ids="[]")
+		oid, _l, _p = vd._greensm_dat_don(doi(), "1878", [], gia["ma_gia"])
 		tao = [b for x, b in mang.goi if x == "/create-order"][0]
 	la("không đổi: gọi được", oid, "01M5V144E998PACHGYWE3J09JP")
 	la("không đổi: COD giữ nguyên", tao["points"][1]["addons"]["collect_cod"], 650000)
+
+
+@ca("v616 gọi xe (Codex #499 4395850127): hai màn cùng Xem giá, màn đầu bấm Gọi xe thì bắt xem lại, không đặt theo cước của màn sau")
+def _():
+	# Đúng chuỗi Codex mô tả: lần đầu 80.000đ mã fee-A, lần sau (màn khác)
+	# 123.000đ mã fee-B, rồi bấm Gọi xe ở màn đầu (gửi mã fee-A nó đang hiện).
+	import frappe
+
+	def thu(f):
+		try:
+			f()
+			return ""
+		except frappe.ValidationError as e:
+			return str(e)
+
+	with _Bo() as bo:
+		mang = _Mang(gia=_gia(tong=80000, fee="fee-A"))
+		vd = _vd(bo, _cfg(), mang, _don())
+		g1 = vd.gsm_bao_gia("VD-2026-00123", service_id="1878", addon_ids="[]")
+		mang.gia = _gia(tong=123000, fee="fee-B")
+		g2 = vd.gsm_bao_gia("VD-2026-00123", service_id="1878", addon_ids="[]")
+		la("màn nhận mã bản giá", (g1["ma_gia"], g2["ma_gia"]), ("fee-A", "fee-B"))
+		loi = thu(lambda: vd._greensm_dat_don(_don(), "1878", [], g1["ma_gia"]))
+		la("màn đầu: bắt xem giá lại", "Xem giá lại" in loi, True)
+		la("màn đầu: không tạo đơn", [x for x, b in mang.goi if x == "/create-order"], [])
+		dung("màn đầu: KHÔNG xoá bản giá của màn sau", bool(bo.cache.get("vgb:gsm:gia:VD-2026-00123")))
+		la("thiếu mã bản giá (app cũ): cũng bắt xem lại", "Xem giá lại" in thu(lambda: vd._greensm_dat_don(_don(), "1878", [])), True)
+		oid, _l, phi = vd._greensm_dat_don(_don(), "1878", [], g2["ma_gia"])
+		tao = [b for x, b in mang.goi if x == "/create-order"][0]
+	la("màn sau gọi được", oid, "01M5V144E998PACHGYWE3J09JP")
+	la("đặt đúng bản giá màn sau đã thấy", (tao["fee_id"], phi), ("fee-B", 123000))
+
+	# Đi qua đúng cửa app gọi (book_xe): mã bản giá phải được chuyển tới chỗ so.
+	class _Vd(Doi):
+		flags = Doi()
+
+		def save(self):
+			self["_da_luu"] = 1
+
+	with _Bo() as bo:
+		mang = _Mang(gia=_gia(tong=80000, fee="fee-A"))
+		d = _Vd(_don())
+		vd = _vd(bo, _cfg(), mang, d)
+		g1 = vd.gsm_bao_gia("VD-2026-00123", service_id="1878", addon_ids="[]")
+		mang.gia = _gia(tong=123000, fee="fee-B")
+		vd.gsm_bao_gia("VD-2026-00123", service_id="1878", addon_ids="[]")
+		loi = thu(lambda: vd.book_xe("VD-2026-00123", "GreenSM", service_id="1878", requests_them="[]", ma_gia=g1["ma_gia"]))
+		la("book_xe màn đầu: bắt xem lại", "Xem giá lại" in loi, True)
+		la("book_xe màn đầu: không tạo đơn, không lưu vận đơn", ([x for x, b in mang.goi if x == "/create-order"], d.get("_da_luu")), ([], None))
+		kq = vd.book_xe("VD-2026-00123", "GreenSM", service_id="1878", requests_them="[]", ma_gia="fee-B")
+	la("book_xe màn sau: đặt và ghi phí đúng", (kq["phi_giao"], d.get("_da_luu")), (123000, 1))
 
 
 @ca("v616 phép thuần: dấu dữ liệu giao bỏ khoảng trắng thừa, số COD viết khác vẫn là một")
