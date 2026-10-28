@@ -1022,8 +1022,14 @@ def _ghi_hop_thu(tin):
 
 	Mỗi dòng có savepoint riêng: trùng khoá (sự kiện đã ghi) hay lỗi lẻ thì lùi
 	đúng dòng đó, không đụng tới chứng từ đang lưu."""
-	noi_dung = tin_soan_san(tin.get("noi_dung")) or soan_tin(tin.get("loai"), tin.get("tieu_de"),
-		tin.get("dong"), tin.get("link"), tin.get("nguoi"), tin.get("han"))
+	# v619 (anh Việt 28/10/2026): mọi đường mở trong tin đi vào APP, không vào Desk.
+	# Đổi TRƯỚC khi soạn để phần cắt độ dài tính trên đường đã đổi.
+	from vagabond import lien_ket_app
+
+	link = lien_ket_app.doi_mot_link(tin.get("link")) if tin.get("link") else tin.get("link")
+	dong = [lien_ket_app.doi_tin(x) if isinstance(x, str) else x for x in (tin.get("dong") or [])]
+	noi_dung = tin_soan_san(lien_ket_app.doi_tin(tin.get("noi_dung"))) or soan_tin(tin.get("loai"),
+		tin.get("tieu_de"), dong, link, tin.get("nguoi"), tin.get("han"))
 	if khong_duoc_tien(tin.get("ma_tin")):
 		noi_dung, bo = bo_dong_tien(noi_dung)
 		if bo:

@@ -215,6 +215,14 @@ def soan_don_web_moi(ten, ngay_nhan, tu_lay, diem_lay, dia_chi, mon, sau_giam, p
 # --------------------------------------------------------- chạm Frappe: chung
 
 
+def _app(duong):
+	"""v619: đường màn app cho phiếu xuất (PXD dùng chung cho xuất huỷ và xuất nội
+	bộ nên cửa tin không tự phân biệt được; nơi phát biết loại phiếu thì ghi thẳng)."""
+	from vagabond import lien_ket_app
+
+	return lien_ket_app.link(duong)
+
+
 def _url(duong):
 	try:
 		return frappe.utils.get_url(duong)
@@ -384,7 +392,7 @@ def khi_lap_phieu_kho(doc, method=None):
 			(", lý do: %s" % doc.get("vgb_ly_do_huy")) if doc.get("vgb_ly_do_huy") else "")]
 		dong += dong_hang(hang_tu_items(doc.get("items")))
 		kenh_zalo.bao("viec", "kho", "Phiếu xuất huỷ chờ ghi sổ", dong,
-			link=_url("/app/stock-entry/%s" % doc.name), khoa="xh-cho:%s" % doc.name, ma_tin="kho_huy_cho_ghi_so")
+			link=_app("/xuat-huy"), khoa="xh-cho:%s" % doc.name, ma_tin="kho_huy_cho_ghi_so")
 	except Exception as e:
 		if kenh_zalo.chet_giao_dich(e):
 			raise
@@ -424,7 +432,7 @@ def _bao_da_huy(doc):
 			(", lý do: %s" % doc.get("vgb_ly_do_huy")) if doc.get("vgb_ly_do_huy") else "")]
 		dong += dong_hang(hang_tu_items(doc.get("items")))
 		kenh_zalo.bao("thong_bao", "kho", "Đã xuất huỷ", dong,
-			link=_url("/app/stock-entry/%s" % doc.name), khoa="xh-xong:%s" % doc.name, ma_tin="kho_da_huy")
+			link=_app("/xuat-huy"), khoa="xh-xong:%s" % doc.name, ma_tin="kho_da_huy")
 	except Exception as e:
 		if kenh_zalo.chet_giao_dich(e):
 			raise
@@ -438,7 +446,7 @@ def _bao_ke_toan_gia_von_huy(doc):
 			dong.append("Lý do: %s" % doc.get("vgb_ly_do_huy"))
 		dong += dong_hang(hang_tu_items(doc.get("items")))
 		kenh_zalo.bao("thong_bao", "kho", "Xuất huỷ đã ghi sổ, giá vốn", dong,
-			link=_url("/app/stock-entry/%s" % doc.name), khoa="xh-gv:%s" % doc.name, ma_tin="kt_xuat_huy_gia_von")
+			link=_app("/xuat-huy"), khoa="xh-gv:%s" % doc.name, ma_tin="kt_xuat_huy_gia_von")
 	except Exception as e:
 		if kenh_zalo.chet_giao_dich(e):
 			raise
@@ -450,7 +458,7 @@ def _bao_xuat_noi_bo(doc):
 		dong = ["Phiếu %s, kho %s, mục đích: %s" % (doc.name, ten_kho(doc.get("from_warehouse")), ten_muc_dich(doc.get("vgb_muc_dich_xuat")))]
 		dong += dong_hang(hang_tu_items(doc.get("items")))
 		kenh_zalo.bao("thong_bao", "kho", "Đã xuất dùng nội bộ", dong,
-			link=_url("/app/stock-entry/%s" % doc.name), khoa="xnb-xong:%s" % doc.name, ma_tin="kho_xuat_noi_bo")
+			link=_app("/xuat-dung-noi-bo"), khoa="xnb-xong:%s" % doc.name, ma_tin="kho_xuat_noi_bo")
 	except Exception as e:
 		if kenh_zalo.chet_giao_dich(e):
 			raise
