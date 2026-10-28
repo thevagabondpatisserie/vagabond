@@ -2712,3 +2712,9 @@ của một hàm thì `grep` cả `vagabond/khung/kiem_that/`, và trước mỗ
 cột kiểm `bench` của đúng SHA trên PR: chỉ ghi "bench đạt" khi đã thấy nó xanh.
 Phần mới chạm cơ sở dữ liệu (câu SQL tự viết, bulk_insert, bảng mới) phải có ca
 trên bench, vì lớp Frappe giả của tầng khung không chạy câu SQL.
+
+(6) GreenSM: tài liệu ghi `order_time` = 0 là "giao ngay", nhưng đo trên sandbox
+28/10/2026 thì 0 bị trả 400 "missing required fields", giờ hiện tại thì báo giá và
+tạo đơn được. Lớp Frappe giả và bench không gọi đối tác thật nên không thấy; nút
+Thử kết nối chạy trên site mới lộ ra (đúng ngày deploy v616). Mã gọi đối tác phải
+chạy một chuỗi thật trên sandbox trước khi bàn giao, không chỉ khớp tài liệu.
