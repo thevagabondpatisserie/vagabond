@@ -2766,3 +2766,14 @@ giữ ai đổi, lúc nào, trường nào. Bản giả lập cơ sở dữ li�
 lệnh chứ không tự lọc theo tham số: đột biến đổi "and" thành "or" trong câu xoá
 đã lọt qua bản giả lập tự lọc. Ảnh và tệp nằm ở ổ đĩa (trần riêng 50 GB), xoá
 ảnh không làm tụt con số cơ sở dữ liệu.
+
+Link trong tin Zalo (cùng PR v619, anh Việt 28/10/2026): hơn bốn mươi nơi phát
+tin tự ghép "/app/<loại>/<mã>" bằng `get_url`, nên tin ra link Desk trên tên
+miền mặc định của site, nhân viên bấm trên điện thoại vào nhầm bản desktop.
+Cửa ghi tin (`kenh_zalo._ghi_hop_thu`) nay đổi mọi đường Desk sang màn app qua
+`lien_ket_app` (một bảng loại chứng từ -> màn). Tham số `link` đổi nguyên cả
+chuỗi (có đường mang dấu cách như "Stock Balance"); chữ trong nội dung thì đổi
+theo từng đường. Phiếu xuất PXD dùng chung tiền tố cho xuất huỷ và xuất dùng
+nội bộ, nên nơi phát hai tin đó tự ghi màn đúng. Nơi phát tin mới chỉ cần đưa
+đường Desk hay đường app đều được, cửa ghi tin lo phần còn lại; loại chưa có
+màn app thì về trang chủ app, thêm dòng vào bảng `BANG` khi có màn mới.
