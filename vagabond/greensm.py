@@ -82,6 +82,21 @@ def diem(loai, lat, lng, ten, sdt, dia_chi, ngan="", ghi_chu="", hang=False):
 	return d
 
 
+def dau_giao(noi, bep):
+	"""Dấu của dữ liệu giao lúc Xem giá: nơi giao, người nhận, số điện thoại,
+	tiền thu hộ và điểm lấy. Gọi xe so dấu hiện tại với dấu đã giữ; khác là
+	vận đơn đã đổi (đồng bộ Pancake đổi địa chỉ, COD; gán điểm khách lấy) nên
+	phải Xem giá lại, không tạo đơn từ bản cũ (Codex #499)."""
+	def gon(x):
+		return " ".join(str(x or "").split()).lower()
+
+	return json.dumps([
+		gon(noi.get("dia_chi")), gon(noi.get("ten")), so_quoc_te(noi.get("sdt")),
+		int(round(float(noi.get("cod") or 0))),
+		gon(bep.get("dia_chi")), round(float(bep.get("lat") or 0), 6), round(float(bep.get("lng") or 0), 6),
+	], ensure_ascii=False)
+
+
 def than_bao_gia(service_id, order_time, diem_lay, diem_giao, addon_ids=(), cod=0):
 	"""Thân /estimate/order. Add-on nằm TRONG service_ids, mỗi cái có apply."""
 	addons = [{"id": int(a), "apply": True} for a in addon_ids or () if int(a) != ADDON_COD]

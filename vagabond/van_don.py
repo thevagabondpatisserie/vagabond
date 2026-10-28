@@ -1924,7 +1924,8 @@ def gsm_bao_gia(name, service_id=None, addon_ids=None):
 	except greensm.LoiGsm as e:
 		frappe.throw(str(e))
 	con = max(60, int(bg["het_han"] or 0) - int(time.time()) - 30) if bg.get("het_han") else 600
-	cache_set(_gsm_khoa_gia(name), json.dumps({"bg": bg, "than": than}), min(con, 1800))
+	dau = greensm.dau_giao(_noi_giao(doc), _diem_lay(c))
+	cache_set(_gsm_khoa_gia(name), json.dumps({"bg": bg, "than": than, "dau": dau}), min(con, 1800))
 	return {
 		"tong": bg["tong"], "km": bg["km"], "phut": bg["phut"], "ten_xe": bg["ten_xe"],
 		"phi_them": bg["phi_them"], "cod": cod, "dang_thu": greensm.dang_thu(c),
@@ -1945,6 +1946,13 @@ def _greensm_dat_don(doc, service_id=None, addon_ids=None):
 		frappe.throw("Giá GreenSM đã hết hạn. Bấm Xem giá lại rồi Gọi xe.")
 	giu = json.loads(hit)
 	bg, than = giu["bg"], giu["than"]
+	if giu.get("dau") != greensm.dau_giao(_noi_giao(doc), _diem_lay(c)):
+		# Vận đơn đổi sau khi xem giá (đồng bộ Pancake đổi địa chỉ hoặc tiền
+		# thu hộ, gán điểm khách lấy). Tạo đơn từ bản cũ là gọi tài xế giao
+		# sai nơi hoặc thu tiền khách đã trả (Codex #499).
+		cache_set(_gsm_khoa_gia(doc.name), "", 1)
+		frappe.throw("Địa chỉ, người nhận hoặc tiền thu hộ của vận đơn đã đổi sau khi xem giá. "
+			"Bấm Xem giá lại rồi Gọi xe.")
 	da_chon = sorted(int(a) for a in (addon_ids or []))
 	da_bao = sorted(int(a["id"]) for a in (than["service_ids"][0].get("addons") or []) if int(a["id"]) != greensm.ADDON_COD)
 	if (service_id and str(service_id) != str(bg["service_id"])) or da_chon != da_bao:
