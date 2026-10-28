@@ -1419,26 +1419,36 @@ def _phat_ma_rieng(doc, nhan, du, luc):
 	if not cint(km.get("bat")):
 		frappe.throw("Chương trình khuyến mãi %s đang tắt nên chưa phát mã được. Bật chương trình rồi chốt lại." % (km.get("ten") or doc.ctkm))
 	from vagabond import khuyen_mai
+	from vagabond.vagabond.doctype.vagabond_lo_voucher.vagabond_lo_voucher import TOI_DA
 
 	han = doc.han or km.get("han_ma") or None
 	nguoi = frappe.session.user
 	email = frappe.db.get_value("User", nguoi, "email") or "hello@thevagabondpatisserie.com"
-	lo = frappe.get_doc({
-		"doctype": "Vagabond Lo Voucher", "ctkm": doc.ctkm, "so_luong": len(nhan), "email_nhan": email,
-		"gui_cho": ("Chiến dịch " + (doc.ten or doc.name))[:140], "han_dung": han,
-		"ghi_chu": "Mã riêng từng khách của chiến dịch %s, phát lúc chốt danh sách." % doc.name,
-		"nguoi_tao": nguoi, "ngay_tao": luc, "trang_thai": "Da gui", "con_lai": len(nhan),
-	})
-	lo.insert(ignore_permissions=True)
 	ds_ma = khuyen_mai._sinh_ma_moi(len(nhan))
 	ra = dict(zip(nhan, ds_ma))
 	cot = ["name", "creation", "modified", "modified_by", "owner", "docstatus", "idx",
 		"ma", "ctkm", "ten_ctkm", "trang_thai", "lo", "han_dung", "gui_cho", "chien_dich", "danh_cho"]
-	dong = [(m, luc, luc, nguoi, nguoi, 0, 0, m, doc.ctkm, (km.get("ten") or "")[:140], "Chua dung", lo.name, han,
-		((du[k].ten or k) + " (" + doc.name + ")")[:140], doc.name, k) for k, m in ra.items()]
-	for i in range(0, len(dong), 500):
-		frappe.db.bulk_insert("Vagabond Voucher", cot, dong[i:i + 500])
-	doc.lo_voucher = lo.name
+	# Codex PR #510 vòng 3: một lô chỉ chứa tối đa TOI_DA mã (validate của
+	# Lô voucher), nên chiến dịch đông khách chia thành nhiều lô. Mã nào cũng
+	# ghi đúng lô của nó; phiếu chiến dịch ghi lô đầu, Hiệu quả đếm theo chiến dịch.
+	so_lo = (len(nhan) + TOI_DA - 1) // TOI_DA
+	ds_lo = []
+	for i in range(so_lo):
+		phan = nhan[i * TOI_DA:(i + 1) * TOI_DA]
+		lo = frappe.get_doc({
+			"doctype": "Vagabond Lo Voucher", "ctkm": doc.ctkm, "so_luong": len(phan), "email_nhan": email,
+			"gui_cho": ("Chiến dịch " + (doc.ten or doc.name))[:140], "han_dung": han,
+			"ghi_chu": "Mã riêng từng khách của chiến dịch %s, phát lúc chốt danh sách%s." % (
+				doc.name, (" (lô %d/%d)" % (i + 1, so_lo)) if so_lo > 1 else ""),
+			"nguoi_tao": nguoi, "ngay_tao": luc, "trang_thai": "Da gui", "con_lai": len(phan),
+		})
+		lo.insert(ignore_permissions=True)
+		ds_lo.append(lo.name)
+		dong = [(ra[k], luc, luc, nguoi, nguoi, 0, 0, ra[k], doc.ctkm, (km.get("ten") or "")[:140], "Chua dung", lo.name,
+			han, ((du[k].ten or k) + " (" + doc.name + ")")[:140], doc.name, k) for k in phan]
+		for j in range(0, len(dong), 500):
+			frappe.db.bulk_insert("Vagabond Voucher", cot, dong[j:j + 500])
+	doc.lo_voucher = ds_lo[0]
 	return ra
 
 
