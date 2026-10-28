@@ -2680,3 +2680,17 @@ máy chủ khác mã thì bắt xem lại, không âm thầm đặt theo cước
 (7) Trên màn, chốt dữ liệu người dùng xác nhận vào biến riêng TRƯỚC khi mở hộp
 xác nhận, và khoá nút hành động trong lúc đang chờ mạng: phản hồi về muộn khi hộp
 còn mở sẽ thay biến chung, gửi đi thứ người dùng chưa từng thấy.
+
+## 28/10/2026 (v618): nửa đồng làm tròn hai kiểu thành một dòng không mã hàng
+
+- Hoá đơn An Phú C26MYY/8345: bưởi 7,7 kg x 45.065 = 347.000,5. Người bán làm
+  tròn nửa đồng lên (347.001), ERPNext làm tròn nửa đồng về số chẵn (347.000).
+  Phép nắn cả tờ thấy thiếu 1 đồng nên thêm dòng "Chênh lệch làm tròn" không mã
+  hàng vào 632; tờ HDM-26-10-00298 kẹt "Thiếu mã hàng", giá trị hàng hụt 1 đồng.
+- Luật: thành tiền từng dòng trên hoá đơn là số gửi cơ quan thuế. Lệch dưới một
+  đồng ở một dòng thì đơn giá dòng chịu theo thành tiền (số lẻ đơn giá 9 chứa
+  được), không đẩy ra dòng bù. Dòng bù chỉ còn cho phần không đặt được vào dòng
+  nào (phí ngoài dòng hàng, số lẻ đơn giá không đủ chứa).
+- Mọi đường đọc dòng để tính tiền (dựng mới, dựng lại, ghim lại theo gốc, dự
+  kiến tổng) đi qua một hàm `dong_may_ghi`. Ghim lại theo gốc mà kéo về giá in
+  trên hoá đơn là lật đi lật lại giữa hai đơn giá mỗi lần lưu.
