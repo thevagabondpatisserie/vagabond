@@ -662,7 +662,7 @@ function khChipHang(hg) {
    Hai cột nằm ngang (thẻ .card nay là hàng ngang, xem 00-nen.js). THUẦN. */
 function khTongHtml(kq) {
   kq = kq || {};
-  return '<div class="card" data-khtong="1" style="padding:12px 14px;display:flex;gap:12px">' +
+  return '<div class="card" data-khtong="1" style="padding:12px 14px;display:flex;flex-direction:row;gap:12px">' +
     '<div style="flex:1;min-width:0"><div style="font-size:12.5px;color:#667085;font-weight:600">ĐANG XEM</div>' +
     '<div style="font-size:20px;font-weight:800">' + money(kq.tong_so || 0) + ' khách</div>' +
     '<div style="font-size:13px;color:#667085">' + money(kq.so_si || 0) + ' sỉ · ' + money(kq.so_le || 0) + ' lẻ</div></div>' +

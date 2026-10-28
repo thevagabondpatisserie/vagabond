@@ -1130,7 +1130,8 @@ function locHang(ds, dangChon, attr, rows) {
       'font-weight:' + (on ? '800' : '600') + ';cursor:pointer;white-space:nowrap;font-family:inherit">' +
       c.nhan + ' <span style="opacity:.75">' + n + '</span></button>';
   }).join('');
-  return '<div style="flex:0 0 auto;display:flex;gap:7px;padding:2px 0;overflow-x:auto;-webkit-overflow-scrolling:touch">' + ra + '</div>';
+  /* v618: lớp cuon-ngang (00-nen.js) giấu thanh cuộn xám dưới hàng chip. */
+  return '<div class="cuon-ngang" style="flex:0 0 auto;display:flex;gap:7px;padding:2px 0;overflow-x:auto;-webkit-overflow-scrolling:touch">' + ra + '</div>';
 }
 
 /* Chip nguon don + phuong thuc thanh toan sinh theo du lieu that cua ngay,

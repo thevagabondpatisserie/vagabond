@@ -166,7 +166,7 @@ function kgThanhLoc(kq) {
         '<input class="tin" data-kgtxt="' + h(f.k) + '" placeholder="' + h(moTa) + '" value="' +
         h(ts[f.k] || '') + '"></div>';
     } else if (f.kieu === 'khoang_so') {
-      ra += '<div class="card" style="padding:10px 12px;display:flex;gap:8px">' +
+      ra += '<div class="card" style="padding:10px 12px;display:flex;flex-direction:row;gap:8px">' +
         '<input class="tin" data-kgtxt="' + h(f.k) + '_tu" type="number" placeholder="' + h(f.nhan) + ' từ" value="' + h(ts[f.k + '_tu'] || '') + '" style="flex:1">' +
         '<input class="tin" data-kgtxt="' + h(f.k) + '_den" type="number" placeholder="đến" value="' + h(ts[f.k + '_den'] || '') + '" style="flex:1"></div>';
     } else if (f.kieu === 'co') {
