@@ -94,7 +94,7 @@ def chay():
 
 
 def chay_gon():
-	"""v618: gọn lịch sử máy ghi và xoá lịch sử ngắn, ba câu lệnh trên MariaDB thật."""
+	"""v619: gọn lịch sử máy ghi và xoá lịch sử ngắn, ba câu lệnh trên MariaDB thật."""
 	import json
 	if (os.environ.get('GITHUB_ACTIONS') != 'true' or frappe.local.site != 'bench-ci.localhost'
 		or not frappe.conf.get('vagabond_bench_thu')):
@@ -107,12 +107,19 @@ def chay_gon():
 	dong = {'item_code': 'KT618', 'qty': 1, 'rate': 1000, 'description': 'Bánh kiểm ' * 300}
 	du_lieu = json.dumps({'changed': [['status', 'Draft', 'Unpaid']], 'row_changed': [],
 		'added': [['items', dong]], 'removed': [['items', dong]]}, indent=1)
+	# Codex 4400115947: lịch sử máy đổi món thật thì giữ dòng thêm/bớt.
+	doi_that = json.dumps({'changed': [], 'row_changed': [],
+		'added': [['items', dict(dong, item_code='KT619-B', name='n1')]],
+		'removed': [['items', dict(dong, item_code='KT619-A', name='o1')]]}, indent=1)
 	mau = [('may-cu', 'Sales Invoice', None, -31), ('nguoi-cu', 'Sales Invoice', 'kt618@example.com', -31),
-		('may-moi', 'Sales Invoice', None, -1), ('web-cu', 'Web Page', None, -31), ('web-moi', 'Web Page', None, -1)]
+		('may-moi', 'Sales Invoice', None, -1), ('web-cu', 'Web Page', None, -31), ('web-moi', 'Web Page', None, -1),
+		('may-doi-that', 'Sales Invoice', None, -32)]
+	khoa_con_tro = dd.CON_TRO % 'Sales Invoice'
+	frappe.db.set_global(khoa_con_tro, None)
 	ten = {}
 	try:
 		for k, dt, owner, ngay in mau:
-			d = frappe.get_doc(dict(doctype='Version', ref_doctype=dt, docname=ma, data=du_lieu))
+			d = frappe.get_doc(dict(doctype='Version', ref_doctype=dt, docname=ma, data=doi_that if k == 'may-doi-that' else du_lieu))
 			d.insert(ignore_permissions=True)
 			ten[k] = d.name
 			gia = {'creation': add_days(nowdate(), ngay)}
@@ -129,6 +136,10 @@ def chay_gon():
 		for k in ('nguoi-cu', 'may-moi'):
 			if frappe.db.get_value('Version', ten[k], 'data') != du_lieu:
 				raise AssertionError('Đụng nhầm lịch sử ' + k)
+		if frappe.db.get_value('Version', ten['may-doi-that'], 'data') != doi_that:
+			raise AssertionError('Mất dấu vết đổi món thật')
+		if not frappe.db.get_global(khoa_con_tro):
+			raise AssertionError('Không lưu con trỏ gọn')
 		if dd.gon_lich_su_may('Sales Invoice', lo=2)['so_dong'] != 0:
 			raise AssertionError('Lượt hai vẫn gọn lại dòng đã gọn')
 		if dd.don_version_ngan('Web Page', lo=1) != 1:
@@ -137,10 +148,11 @@ def chay_gon():
 			raise AssertionError('Xoá sai lịch sử trang web')
 		if not all(frappe.db.exists('Version', ten[k]) for k in ('may-cu', 'nguoi-cu', 'may-moi')):
 			raise AssertionError('Mất lịch sử hoá đơn bán')
-		print('PASS v618: gọn lịch sử máy ghi, giữ lịch sử người sửa và lịch sử mới, xoá lịch sử web cũ trên MariaDB thật.', flush=True)
+		print('PASS v619: gọn lịch sử máy ghi, giữ đổi món thật, lịch sử người sửa và lịch sử mới, lưu con trỏ, xoá lịch sử web cũ trên MariaDB thật.', flush=True)
 	finally:
 		frappe.db.rollback()
 		frappe.db.delete('Version', {'docname': ma})
+		frappe.db.set_global(khoa_con_tro, None)
 		frappe.db.commit()
 
 
