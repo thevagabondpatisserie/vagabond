@@ -2703,3 +2703,12 @@ liệu Zalo là ứng dụng một trang, không đọc bằng công cụ đư�
 trong Cài đặt, có nút Gửi thử vào tài khoản của chính mình, và ghi rõ trong PR
 là định dạng thân tin chưa đối chiếu trên OA thật. Không bật cho khách trước khi
 Gửi thử thành công.
+
+(5) Bench tích hợp đỏ hai lượt liền (878fb55, 4ac5204) mà bàn giao vẫn ghi "cổng
+đạt", vì chỉ chạy bốn cổng ở máy rồi đọc mỗi kết luận của Codex. Ca bench v614
+gọi lưu chiến dịch mà không gửi mốc sửa (hợp đồng mới của v617) và còn chờ câu
+chặn cũ "Kịch bản gọi chưa được duyệt". Đổi câu chặn hay đổi tham số bắt buộc
+của một hàm thì `grep` cả `vagabond/khung/kiem_that/`, và trước mỗi bàn giao đọc
+cột kiểm `bench` của đúng SHA trên PR: chỉ ghi "bench đạt" khi đã thấy nó xanh.
+Phần mới chạm cơ sở dữ liệu (câu SQL tự viết, bulk_insert, bảng mới) phải có ca
+trên bench, vì lớp Frappe giả của tầng khung không chạy câu SQL.
