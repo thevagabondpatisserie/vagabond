@@ -157,6 +157,9 @@ TIN = {
 		"21:00 mỗi tối, một ảnh mỗi bếp: yêu cầu hôm nay, số đã làm, món còn thiếu.", "ban_tin", "san_xuat"),
 	"bep_lenh_chua_xong": ("Bếp", "Lệnh sản xuất quá ngày chưa ghi hoàn tất (08:00)",
 		"08:00 mỗi sáng: lệnh sản xuất từ hôm qua trở về trước chưa ghi làm xong, kho chưa có hàng.", "viec", "san_xuat"),
+	# v619 (anh Việt chọn 28/10/2026): mỗi bếp một tin việc cần làm cho dữ liệu hao hụt (tin_hao_hut.py).
+	"bep_du_lieu_hao_hut": ("Bếp", "Dữ liệu sản xuất cần ghi đủ (thứ Hai 08:00)",
+		"Thứ Hai 08:00, từng bếp: bánh bán chưa có lệnh, lệnh không ghi số cân thật, kho bếp lâu chưa kiểm kê.", "viec", "san_xuat"),
 	"tm_yeu_cau_mua": ("Thu mua", "Yêu cầu mua hàng mới",
 		"Bộ phận vừa lập yêu cầu mua: tên hàng, số lượng, ngày cần.", "viec", "kho"),
 	"tm_don_mua_moi": ("Thu mua", "Đơn mua hàng vừa đặt",

@@ -210,6 +210,8 @@ MAN = (
 	# --- Báo cáo
 	("BCHUB", "Báo cáo", None),
 	("BCSANG", "Việc hôm nay", None),
+	# v619: đủ danh sách của tin "Dữ liệu hao hụt" (báo cáo BC18, tin_hao_hut.py).
+	("BCHH", "Dữ liệu hao hụt", None),
 
 	# --- Cài đặt và quản trị
 	("CDDB", "Điểm bán", None),
@@ -236,6 +238,8 @@ MAN = (
 
 	# --- Man chung
 	("VCL", "Việc cần làm", None),
+	# v619: chuông thông báo, gộp tin Zalo của bộ phận và Việc cần làm (chuong.py).
+	("CHUONG", "Chuông thông báo", None),
 	# v554: so tay viet tay, ai dang nhap cung xem (anh Viet 02/10/2026).
 	("SOTAY", "Sổ tay", None),
 )

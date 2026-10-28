@@ -1142,6 +1142,7 @@ for _gio_v613, _ham_v613 in (
 	("10 3 * * *", "vagabond.anh_bang.don_anh_cu"),
 	# v619: tin tuần "Dữ liệu hao hụt" cho nhóm kế toán (anh Việt duyệt 28/10/2026).
 	("0 8 * * 1", "vagabond.tin_hao_hut.gui_tuan"),
+	("0 8 * * 1", "vagabond.tin_hao_hut.gui_tuan_bep"),
 ):
 	scheduler_events.setdefault("cron", {}).setdefault(_gio_v613, []).append(_ham_v613)
 del _gio_v613, _ham_v613

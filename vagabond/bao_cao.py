@@ -424,6 +424,14 @@ def _bc_hddt_minvoice(hd, tu=None, den=None, **kw):
 	return doi_soat_hddt_ra.bao_cao(tu, den, _cot)
 
 
+def _bc_du_lieu_hao_hut(hd, tu=None, den=None, **kw):
+	"""BC18 (v619) - du lieu con thieu de tinh hao hut: banh ban chua co lenh,
+	lenh khong can, kho bep lau chua kiem ke, gia von lech kho, ban thanh pham
+	chua co cong thuc. Doc kho va lenh, khong doc hd. Xem tin_hao_hut.py."""
+	from vagabond import tin_hao_hut
+	return tin_hao_hut.bao_cao(tu, den, _cot)
+
+
 def _bc_khuyen_mai(hd, tu=None, den=None, **kw):
 	"""BC06 - chuong trinh khuyen mai: bao nhieu luot, giam bao nhieu tien."""
 	ds = frappe.get_all(
@@ -914,6 +922,7 @@ DANH_SACH = [
 	{"ma": "BC15", "ten": "Tiền về theo ngày", "ic": "🧺", "mo": "Mỗi ngày thu bao nhiêu theo từng phương thức, dùng đối két", "ham": _bc_tien_ve_ngay, "nhom": "Kiểm soát", "ss": "vi_tri"},
 	{"ma": "BC16", "ten": "Bảng kê thanh toán và mã tham chiếu", "ic": "🔗", "mo": "Khớp từng giao dịch với sao kê, chỉ ra mã trùng và mã thiếu", "ham": _bc_ke_thanh_toan, "nhom": "Kế toán", "ss": None},
 	{"ma": "BC17", "ten": "Đối chiếu hoá đơn điện tử với m-invoice", "ic": "🔎", "mo": "Mỗi ngày m-invoice bao nhiêu tờ, ERP ghi nhận bao nhiêu, tờ thay thế và tờ tạo tay", "ham": _bc_hddt_minvoice, "nhom": "Kế toán", "ss": None, "khong_loc": 1},
+	{"ma": "BC18", "ten": "Dữ liệu hao hụt", "ic": "⚖️", "mo": "Bánh bán chưa có lệnh, lệnh không cân, kho bếp chưa kiểm kê, giá lệch kho", "ham": _bc_du_lieu_hao_hut, "nhom": "Kiểm soát", "ss": None, "khong_loc": 1},
 ]
 THEO_MA = {b["ma"]: b for b in DANH_SACH}
 
