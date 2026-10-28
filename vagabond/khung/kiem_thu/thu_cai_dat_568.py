@@ -251,9 +251,8 @@ def _():
 	moi = {f["fieldname"] for f in d["fields"] if f["fieldtype"] not in ("Tab Break", "Section Break", "Column Break")}
 	# v579: hai ô HTML vẽ hàng nút Zalo và thẻ nhóm nhận tin; ô HTML không lưu giá trị.
 	# v601: công tắc tráo /banh sang bản Vue (Check, mặc định tắt), thêm mới, không đổi tên ô cũ.
-	# v617: năm ô Zalo OA (tin Truyền thông theo chiến dịch), thêm mới, không đổi tên ô cũ.
-	la("ô có giá trị mới thêm", sorted(moi - can_co - _o_cu()), ["html_du_lieu_app", "web_ban_vue", "web_ten_mien_chinh", "zalo_bot_ma_cuoi", "zalo_bot_phu", "zalo_nhom_the",
-		"zalo_oa_anh", "zalo_oa_bat", "zalo_oa_id", "zalo_oa_khoa_webhook", "zalo_oa_uid_thu", "zalo_tac_vu"])
+	# v612: ô chọn nguồn báo phí giao trên web (GreenSM hoặc Ahamove).
+	la("ô có giá trị mới thêm", sorted(moi - can_co - _o_cu()), ["html_du_lieu_app", "nguon_phi_giao_web", "web_ban_vue", "web_ten_mien_chinh", "zalo_bot_ma_cuoi", "zalo_bot_phu", "zalo_nhom_the", "zalo_tac_vu"])
 
 
 def _o_cu():
@@ -337,7 +336,8 @@ def _():
 		universal_newlines=True)
 	kn = {k["ten"]: k for k in json.loads(ra)}
 	MAY_CHU = [
-		("GreenSM", "van_don.py", r'if not \(c\.get\("greensm_client_id"\) and key\(c, "greensm_client_secret"\) and c\.get\("greensm_token_url"\)\)'),
+		# v612: điều kiện GreenSM gom về greensm.co_khoa, mọi lối (web, gọi xe, nút thử) gọi nó.
+		("GreenSM", "greensm.py", r'if not \(c\.get\("greensm_client_id"\) and key\(c, "greensm_client_secret"\) and c\.get\("greensm_token_url"\)\)'),
 		("Ahamove", "van_don.py", r'if not \(key\(c, "ahamove_api_key"\) and c\.ahamove_base and c\.ahamove_mobile\)'),
 		("Zalo ZNS gửi khách", "zalo.py", r'if not \(app_id and bi_mat and refresh\)'),
 		("Thông báo đẩy", "thong_bao.py", r'rieng = c\.get_password\("push_khoa_rieng"'),
