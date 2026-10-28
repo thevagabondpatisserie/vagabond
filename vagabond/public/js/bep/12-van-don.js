@@ -195,9 +195,7 @@ async function scrVanDon() {
     nutF.push('<button class="btn gh" id="vdIn" style="flex:1">🖨️ In đơn</button>');
     if (vdLaShipper() && !isSales()) nutF.push('<button class="btn gh" id="vdDuong" style="flex:1">🗺️ Chỉ đường</button>');
     if (isSales() || vdLaKeToan()) nutF.push('<button class="btn gh" id="vdCod" style="flex:1">💵 Đối soát COD</button>');
-    /* v617: từ 4 nút trở lên xếp lưới 2 cột, chữ trên nút không bị bẻ đôi
-       ("Gộp / chuyến", "Đối / soát / COD" ở ảnh chụp 28/10/2026). */
-    if (nutF.length) foot = '<div style="display:' + (nutF.length > 3 ? 'grid;grid-template-columns:1fr 1fr' : 'flex') + ';gap:8px">' + nutF.join('') + '</div>';
+    if (nutF.length) foot = '<div style="display:flex;gap:8px">' + nutF.join('') + '</div>';
   }
   var b = frame('Vận đơn', html, Object.assign({ action: '➕', onAction: function () { go(scrVdTao); } }, foot ? { footer: foot } : {}));
   var di = document.getElementById('vdDate');
@@ -432,10 +430,7 @@ async function scrVdView(name) {
   var d;
   try { d = await api('frappe.client.get', { doctype: 'Van Don', name: name }); if (!vtShipper) { try { vtShipper = await api('vagabond.van_don.ds_shipper'); } catch (e11) { vtShipper = []; } } await vdNapDiem(); }
   catch (e) { frame('Chi tiết vận đơn', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không đọc được') + '</div></div>'); return; }
-  /* v617: thanh tiến độ 1-2-3-4 của vận đơn, ngay đầu màn (anh Việt 28/10/2026). */
-  var vdB = buocVanDon(d);
-  var html = '<div class="card" data-vdbuoc="1" style="padding:12px 10px 10px">' + veBuoc(vdB.buoc, vdB.hienTai, 'Tiến độ vận đơn') + '</div>' +
-    '<div class="card" style="padding:12px 14px;line-height:1.7">' +
+  var html = '<div class="card" style="padding:12px 14px;line-height:1.7">' +
     '<div style="display:flex;justify-content:space-between"><b>' + (d.ma_don ? '#' + h(d.ma_don) : h(d.name)) + '</b><span>' + h(d.trang_thai) + '</span></div>' +
     '<div>' + h(d.khach || 'Khách lẻ') + (d.sdt ? ' · <a href="tel:' + h(d.sdt) + '">' + h(d.sdt) + '</a>' : '') + '</div>' +
     (d.la_dieu_chuyen
@@ -645,9 +640,11 @@ async function scrVdView(name) {
     if (k === 'book') {
       return sheet('Book xe qua app', [
         { value: 'Ahamove', label: 'Ahamove (chạy thật)', icon: '🔵' },
-        { value: 'GreenSM', label: 'GreenSM (chờ key NDA)', icon: '🟢' },
+        { value: 'GreenSM', label: 'GreenSM (xem giá rồi gọi xe)', icon: '🟢' },
         { value: 'BE', label: 'BE Delivery (chờ API)', icon: '🟡' }
       ], null, async function (o) {
+        // v612: GreenSM bắt xem giá trước (giá gắn mã fee_id), nên mở màn gọi xe.
+        if (o.value === 'GreenSM') return go(function () { scrVdGoiXe(name, 'GreenSM'); });
         busy(true);
         try {
           var kq = await api('vagabond.van_don.book_xe', { name: name, kenh: o.value });
@@ -672,7 +669,7 @@ var VD_KHUNG_GIO = ['7h - 9h', '8h - 10h', '9h - 11h', '10h - 12h', '11h - 13h',
 var VD_KENH_TAO = [
   { ten: 'Shipper nội bộ', icon: '🛵', mo: 'Shipper của tiệm, có xếp tuyến và đối soát COD' },
   { ten: 'Ahamove', mo: 'Gọi xe qua API, báo giá được trước khi book' },
-  { ten: 'GreenSM', mo: 'Gọi xe qua API, đang chờ khoá đối tác' },
+  { ten: 'GreenSM', mo: 'Gọi xe qua API, báo giá được trước khi gọi' },
   { ten: 'BE', mo: 'Đặt tay trên app BE rồi ghi mã vào đơn' },
   { ten: 'Grab', mo: 'Đặt tay trên app Grab rồi ghi mã vào đơn' },
   { ten: 'Lalamove', mo: 'Đặt tay trên app Lalamove rồi ghi mã vào đơn' },
@@ -945,7 +942,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '617';
+var APPVER = '616';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -1279,7 +1276,7 @@ function vdNutDong(r, chon) {
   if (!b.length) return '';
   return '<div style="display:flex;gap:6px">' + b.join('') + '</div>';
 }
-var vdAhaDv = null, vdDaGanLamMoi = 0;
+var vdDaGanLamMoi = 0;
 function vdDangOManDS() {
   return S.stack.length && S.stack[S.stack.length - 1] === scrVanDon;
 }
@@ -1302,52 +1299,69 @@ function vdTuLamMoi() {
   }, 45000);
 }
 
+/* v612: màn gọi xe dùng chung cho Ahamove và GreenSM. Hai bên khác nhau ở
+   ba cửa máy chủ (danh sách xe, báo giá, gọi xe) và ở việc GreenSM có môi
+   trường thử: giá thử là giá giả nên hiện cảnh báo và khoá nút Gọi xe. */
+var VD_GOI_XE = {
+  Ahamove: { dv: 'vagabond.van_don.aha_dich_vu', gia: 'vagabond.van_don.aha_bao_gia', khoaAdd: 'requests_them' },
+  GreenSM: { dv: 'vagabond.van_don.gsm_dich_vu', gia: 'vagabond.van_don.gsm_bao_gia', khoaAdd: 'addon_ids' }
+};
+var vdGxDv = {};
 async function scrVdGoiXe(name, kenh) {
   frame('Gọi xe ' + kenh, '<div class="emp"><div class="e1">⏳</div></div>');
-  if (kenh !== 'Ahamove') {
-    frame('Gọi xe ' + kenh, '<div class="emp"><div class="e1">🔑</div><div>' + h(kenh) + ' chưa cấp khoá API. Điền khoá vào Vagabond Settings là màn này chạy được ngay.</div></div>');
+  var cua = VD_GOI_XE[kenh];
+  if (!cua) {
+    frame('Gọi xe ' + kenh, '<div class="emp"><div class="e1">🔑</div><div>' + h(kenh) + ' chưa có API, đặt tay trên app của họ rồi ghi mã vào đơn.</div></div>');
     return;
   }
-  var d;
+  var d, goi;
   try {
     d = await api('frappe.client.get', { doctype: 'Van Don', name: name });
-    if (!vdAhaDv) vdAhaDv = await api('vagabond.van_don.aha_dich_vu');
+    if (!vdGxDv[kenh]) vdGxDv[kenh] = await api(cua.dv);
+    goi = vdGxDv[kenh];
   } catch (e) {
     frame('Gọi xe ' + kenh, '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không đọc được') + '</div></div>');
     return;
   }
-  var dsDv = (vdAhaDv && vdAhaDv.dich_vu) || [];
-  if (!dsDv.length) { frame('Gọi xe ' + kenh, '<div class="emp"><div class="e1">⚠️</div><div>Ahamove không trả về loại xe nào.</div></div>'); return; }
-  var chonDv = (vdAhaDv && vdAhaDv.mac_dinh) || dsDv[0].id;
+  var dsDv = (goi && goi.dich_vu) || [];
+  if (!dsDv.length) { frame('Gọi xe ' + kenh, '<div class="emp"><div class="e1">⚠️</div><div>' + h(kenh) + ' không trả về loại xe nào.</div></div>'); return; }
+  var dangThu = !!(goi && goi.dang_thu);
+  var chonDv = (goi && goi.mac_dinh) || dsDv[0].id;
   var chonAdd = {};
   var gia = null, dangTinh = false;
-  function dvHienTai() { for (var i = 0; i < dsDv.length; i++) { if (dsDv[i].id === chonDv) return dsDv[i]; } return dsDv[0]; }
+  function dvHienTai() { for (var i = 0; i < dsDv.length; i++) { if (String(dsDv[i].id) === String(chonDv)) return dsDv[i]; } return dsDv[0]; }
+  function addChon() { return Object.keys(chonAdd).filter(function (k) { return chonAdd[k]; }); }
+  function thamSo() { var t = { name: name, service_id: chonDv }; t[cua.khoaAdd] = JSON.stringify(addChon()); return t; }
   function ve() {
     var dv = dvHienTai();
-    var html = '<div class="card" style="padding:12px 14px;line-height:1.7">' +
+    var html = '';
+    if (dangThu) html += '<div class="card" style="padding:10px 14px;background:#fff7e6;border:1px solid #f5c26b;line-height:1.5">🧪 <b>GreenSM đang chạy thử.</b> Giá dưới đây là giá giả, chưa gọi được tài xế thật. Gọi xe thật bằng Ahamove hoặc đặt tay.</div>';
+    html += '<div class="card" style="padding:12px 14px;line-height:1.7">' +
       '<div><b>' + (d.ma_don ? '#' + h(d.ma_don) : h(d.name)) + '</b> · ' + h(d.khach || 'Khách lẻ') + '</div>' +
       '<div style="font-size:13px">' + h(d.dia_chi || '(chưa có địa chỉ)') + '</div>' +
       (d.tien_thu_ho ? '<div><b>Thu hộ (COD): ' + money(d.tien_thu_ho) + ' đ</b></div>' : '') +
       '</div>';
     html += '<div class="sec">Loại xe</div><div class="card">';
     dsDv.forEach(function (x) {
-      html += '<div class="row" data-dv="' + h(x.id) + '" style="cursor:pointer"><div>' + h(x.ten) + '</div><div>' + (x.id === chonDv ? '✓' : '') + '</div></div>';
+      html += '<div class="row" data-dv="' + h(x.id) + '" style="cursor:pointer"><div>' + h(x.ten) + '</div><div>' + (String(x.id) === String(chonDv) ? '✓' : '') + '</div></div>';
     });
     html += '</div>';
-    html += '<div class="sec">Dịch vụ thêm (Ahamove tính thêm tiền)</div><div class="card">';
+    html += '<div class="sec">Dịch vụ thêm (' + h(kenh) + ' tính thêm tiền)</div><div class="card">';
     if (!(dv.addon || []).length) html += '<div class="row"><div style="color:#6b7280">Loại xe này không có dịch vụ thêm.</div></div>';
     (dv.addon || []).forEach(function (r) {
       html += '<div class="row" data-add="' + h(r.id) + '" style="cursor:pointer"><div>' + (chonAdd[r.id] ? '☑️ ' : '⬜ ') + h(r.ten) + '</div><div style="color:#6b7280">' + (r.gia ? '+' + money(r.gia) + ' đ' : '') + '</div></div>';
     });
     html += '</div>';
     html += '<div class="card" style="padding:12px 14px;margin-top:10px">' +
-      (dangTinh ? '<div style="color:#6b7280">Đang hỏi giá Ahamove...</div>' :
-        (gia === null ? '<div style="color:#6b7280">Bấm Xem giá để Ahamove báo cước.</div>' :
-          '<div style="font-size:17px"><b>Cước: ' + money(gia.tong) + ' đ</b>' + (gia.km ? ' <span style="color:#6b7280;font-size:13px">· ' + num(gia.km) + ' km</span>' : '') + '</div>')) +
+      (dangTinh ? '<div style="color:#6b7280">Đang hỏi giá ' + h(kenh) + '...</div>' :
+        (gia === null ? '<div style="color:#6b7280">Bấm Xem giá để ' + h(kenh) + ' báo cước.</div>' :
+          '<div style="font-size:17px"><b>Cước: ' + money(gia.tong) + ' đ</b>' + (gia.km ? ' <span style="color:#6b7280;font-size:13px">· ' + num(gia.km) + ' km</span>' : '') + (dangThu ? ' <span style="color:#b45309;font-size:13px">· giá thử</span>' : '') + '</div>')) +
       '</div>';
+    /* v616 (Codex #499 4395961827): đang hỏi giá mới thì khoá Gọi xe, kẻo xác nhận cước cũ. */
+    var khoaGoi = gia === null || dangThu || dangTinh;
     var ft = '<button class="btn gh" id="gxGia" style="flex:1">Xem giá</button>' +
-      '<button class="btn" id="gxDat" style="flex:1"' + (gia === null ? ' disabled' : '') + '>Gọi xe</button>';
-    var b = frame('Gọi xe Ahamove', html, { footer: '<div style="display:flex;gap:8px">' + ft + '</div>' });
+      '<button class="btn" id="gxDat" style="flex:1"' + (khoaGoi ? ' disabled' : '') + '>Gọi xe</button>';
+    var b = frame('Gọi xe ' + kenh, html, { footer: '<div style="display:flex;gap:8px">' + ft + '</div>' });
     b.addEventListener('click', function (e) {
       var dvEl = e.target.closest('[data-dv]');
       if (dvEl) { chonDv = dvEl.getAttribute('data-dv'); chonAdd = {}; gia = null; ve(); return; }
@@ -1356,18 +1370,22 @@ async function scrVdGoiXe(name, kenh) {
     });
     document.getElementById('gxGia').onclick = async function () {
       dangTinh = true; ve();
-      try {
-        gia = await api('vagabond.van_don.aha_bao_gia', { name: name, service_id: chonDv, requests_them: JSON.stringify(Object.keys(chonAdd).filter(function (k) { return chonAdd[k]; })) });
-      } catch (e2) { baoTin((e2 && e2.message) || 'Ahamove không báo giá được'); }
+      try { gia = await api(cua.gia, thamSo()); }
+      catch (e2) { baoTin((e2 && e2.message) || (kenh + ' không báo giá được')); }
       dangTinh = false; ve();
     };
     document.getElementById('gxDat').onclick = async function () {
-      if (gia === null) return;
-      if (!await xacNhan('Gọi xe Ahamove cho đơn này, cước ' + money(gia.tong) + ' đ?')) return;
+      if (gia === null || dangThu || dangTinh) return;
+      /* Chốt bản giá người dùng đang xác nhận: giá mới về trong lúc hộp xác nhận còn
+         mở thì vẫn gửi mã của bản đã xác nhận, máy chủ sẽ bắt xem lại. */
+      var giaChot = gia;
+      if (!await xacNhan('Gọi xe ' + kenh + ' cho đơn này, cước ' + money(giaChot.tong) + ' đ?')) return;
       busy(true);
       try {
-        await api('vagabond.van_don.book_xe', { name: name, kenh: 'Ahamove', service_id: chonDv, requests_them: JSON.stringify(Object.keys(chonAdd).filter(function (k) { return chonAdd[k]; })) });
-        busy(false); toast('Đã gọi xe, Ahamove đang tìm tài xế');
+        /* v616 (Codex #499 4395850127): gửi kèm mã bản giá đang hiện, để máy chủ không
+           đặt theo bản giá người khác vừa xem lại cho cùng đơn. */
+        await api('vagabond.van_don.book_xe', { name: name, kenh: kenh, service_id: chonDv, requests_them: JSON.stringify(addChon()), ma_gia: giaChot.ma_gia || '' });
+        busy(false); toast('Đã gọi xe, ' + kenh + ' đang tìm tài xế');
         go(function () { scrVdView(name); }, true);
       } catch (e3) { busy(false); baoTin((e3 && e3.message) || 'Gọi xe lỗi'); }
     };
@@ -1566,24 +1584,6 @@ function vdHuyHieu(r) {
   if (!t.length) return '';
   return '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:5px">' + t.join('') + '</div>';
 }
-/* v617: các bước của một vận đơn cho thanh tiến độ. THUẦN.
-   Giao tận nơi: Tạo vận đơn → Phân công → Đang giao → Đã giao.
-   Khách tự lấy: Tạo vận đơn → Chờ khách lấy → Khách đã lấy.
-   Không giao được: bước Đang giao đỏ. Huỷ: bước Đã huỷ đỏ. */
-function buocVanDon(d) {
-  d = d || {};
-  var tt = d.trang_thai || 'Chờ giao';
-  if (tt === 'Huỷ') return { buoc: [{ ten: 'Tạo vận đơn' }, { ten: 'Đã huỷ', loi: 1 }], hienTai: 1 };
-  if (tt === 'Chờ khách lấy' || (d.kenh === 'Khách tự lấy' && tt !== 'Không giao được')) {
-    return { buoc: [{ ten: 'Tạo vận đơn' }, { ten: 'Chờ khách lấy' }, { ten: 'Khách đã lấy' }],
-      hienTai: tt === 'Đã giao' ? 3 : 1 };
-  }
-  var buoc = [{ ten: 'Tạo vận đơn' }, { ten: 'Phân công' }, { ten: 'Đang giao' }, { ten: 'Đã giao' }];
-  if (tt === 'Đã giao') return { buoc: buoc, hienTai: 4 };
-  if (tt === 'Không giao được') { buoc[2] = { ten: 'Không giao được', loi: 1 }; return { buoc: buoc, hienTai: 2 }; }
-  if (tt === 'Đang giao' || d.shipper || d.booking_id) return { buoc: buoc, hienTai: 2 };
-  return { buoc: buoc, hienTai: 1 };
-}
 function vdChip(id, nhan, dang) {
   return '<button class="btn gh" id="' + id + '" style="flex:0 0 auto;width:auto;padding:6px 12px;font-size:13px' + (dang ? ';background:#0f766e;color:#fff;border-color:#0f766e' : '') + '">' + nhan + '</button>';
 }
@@ -1654,8 +1654,7 @@ function vdTabHtml(ds) {
       ' <span style="background:' + (on ? t.mau : '#e5e7eb') + ';color:' + (on ? '#fff' : '#4b5563') +
       ';border-radius:999px;padding:1px 7px;font-size:11.5px;font-weight:700">' + n + '</span></button>';
   }).join('');
-  /* v617: cuon-ngang: hàng tab nằm NGANG và không lộ thanh cuộn (xem .card ở 00-nen.js). */
-  return '<div class="card cuon-ngang" data-vdtabs="1" style="padding:0 4px;display:flex;flex-direction:row;gap:2px;overflow-x:auto;-webkit-overflow-scrolling:touch">' + ra + '</div>';
+  return '<div class="card" style="padding:0 4px;display:flex;gap:2px;overflow-x:auto;-webkit-overflow-scrolling:touch">' + ra + '</div>';
 }
 
 /* ---------- Ô tìm nhanh ----------
