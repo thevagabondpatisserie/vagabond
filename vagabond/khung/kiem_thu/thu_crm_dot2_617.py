@@ -491,8 +491,18 @@ def _gui_nen():
 			lh.append(dict(self))
 			return self
 
+	# Codex PR #510: việc nền đọc lại hồ sơ từng khách và trạng thái chiến dịch
+	# ngay trước mỗi tin, nên lớp giả trả hồ sơ theo đúng câu truy vấn đó.
+	ho_so = {r.khach: r for r in rows}
+
+	def sql(q, ts=None, *a, **k):
+		if "`tabVagabond Ho So CRM` h where h.name = %s" in q:
+			return [ho_so[ts[0]]]
+		return rows
+
 	with um.patch.object(fr, "get_doc", lambda *a, **k: doc if a and a[0] == crm.DT_CD else Doc(a[0])), \
-			um.patch.object(fr.db, "sql", lambda *a, **k: rows), \
+			um.patch.object(fr.db, "sql", sql), \
+			um.patch.object(fr.db, "get_value", lambda dt_, n, cot=None, *a, **k: "Đang chạy" if cot == "trang_thai" else None), \
 			um.patch.object(fr.db, "set_value", lambda dt_, n, v, *a, **k: sv.append((dt_, n, v))), \
 			um.patch.object(zalo_oa, "_post", gia_post), \
 			um.patch.object(zalo_oa, "_cfg", lambda: D(web_ten_mien_chinh="thevagabondpatisserie.com")), \
@@ -567,3 +577,124 @@ def _ds_khach_cau():
 	r = khach_thuan.dong_khach(D(name="K1", customer_name="", customer_group="Sỉ", hang="Vàng", tieu_cu=300000, tien_erp=200000, so_don=3,
 		gan_nhat="2026-10-01"), lambda n: n == "Sỉ", {"Vàng": 5})
 	la("dòng", (r["ten"], r["si"], r["tien"], r["giam"], r["so_don"]), ("K1", 1, 500000.0, 5.0, 3))
+
+
+# ------------------------------------------------------------ Codex PR #510 vòng 1 (rà 878fb55f39)
+
+def _gui_moi_truong(rows, ho_so, trang_thai_cd, sau_moi_tin=None, ma_cd=""):
+	"""Dựng gửi nền với cơ sở dữ liệu giả có TRẠNG THÁI: hồ sơ khách và trạng thái
+	chiến dịch đọc từ hai bảng giả, sau_moi_tin(lần) đổi chúng giữa chừng (khách
+	rút đồng ý, quản lý kết thúc chiến dịch) đúng như ngoài đời."""
+	fr = zalo_oa.frappe
+	doc = D(name="CD-26-0009", owner="loan@x", kenh_oa=1, noi_dung_zalo="Chào {ten}, mã {ma}", tieu_de_oa="",
+		han="2027-02-10", ma_uu_dai=ma_cd, trang_thai="Đang chạy")
+	doc.as_dict = lambda: dict(doc)
+	post, sv, lh = [], [], []
+
+	def sql(q, ts=None, *a, **k):
+		if "k.chien_dich = %s" in q:
+			return [D(r) for r in rows]
+		if "`tabVagabond Ho So CRM` h where h.name = %s" in q:
+			h = ho_so.get(ts[0]) or {}
+			return [D(dy_zalo=h.get("dy_zalo"), kqc=h.get("kqc", 0), uid=h.get("uid"))]
+		return []
+
+	def gv(dt_, name, cot=None, *a, **k):
+		if dt_ == crm.DT_CD and cot == "trang_thai":
+			return trang_thai_cd[0]
+		return None
+
+	def gia_post(duong, than):
+		post.append(than)
+		if sau_moi_tin:
+			sau_moi_tin(len(post))
+		return True, "", {}
+
+	class Doc(D):
+		def insert(self, **k):
+			lh.append(dict(self))
+			return self
+
+	vas = [um.patch.object(fr, "get_doc", lambda *a, **k: doc if a and a[0] == crm.DT_CD else Doc(a[0])),
+		um.patch.object(fr.db, "sql", sql), um.patch.object(fr.db, "get_value", gv),
+		um.patch.object(fr.db, "set_value", lambda dt_, n, v, *a, **k: sv.append((dt_, n, v))),
+		um.patch.object(zalo_oa, "_post", gia_post), um.patch.object(zalo_oa, "_cfg", lambda: D()),
+		um.patch.object(zalo_oa, "NGHI_GIUA_TIN", 0)]
+	return post, sv, lh, vas
+
+
+def _chay(vas, fn):
+	for v in vas:
+		v.start()
+	try:
+		return fn()
+	finally:
+		for v in vas:
+			v.stop()
+
+
+@ca("v617 Codex #510 4396957327: khách rút đồng ý hay vào Danh sách không quảng cáo GIỮA lượt gửi thì tin sau không tới khách đó")
+def _gui_doc_lai_dong_y():
+	rows = [D(name="R%d" % i, khach="K%d" % i, ten_khach="Khách %d" % i, ma_uu_dai="", dy_zalo="Đồng ý", kqc=0, uid="U%d" % i)
+		for i in (1, 2, 3)]
+	ho_so = {"K%d" % i: {"dy_zalo": "Đồng ý", "kqc": 0, "uid": "U%d" % i} for i in (1, 2, 3)}
+
+	def doi(lan):
+		# Gửi xong tin đầu thì khách 2 rút đồng ý Zalo, khách 3 vào Danh sách không quảng cáo.
+		if lan == 1:
+			ho_so["K2"]["dy_zalo"] = "Từ chối"
+			ho_so["K3"]["kqc"] = 1
+
+	post, sv, lh, vas = _gui_moi_truong(rows, ho_so, ["Đang chạy"], doi)
+	dem = _chay(vas, lambda: zalo_oa.gui_nen("CD-26-0009"))
+	la("chỉ gửi khách 1", [p["recipient"]["user_id"] for p in post], ["U1"])
+	la("hai khách sau bỏ qua", {n: v["oa_trang_thai"] for d, n, v in sv if d == crm.DT_CD_KHACH}, {"R1": "Đã gửi", "R2": "Bỏ qua", "R3": "Bỏ qua"})
+	la("đếm", dem, {"Đã gửi": 1, "Lỗi": 0, "Bỏ qua": 2})
+	# Bỏ quan tâm OA giữa chừng: UID hiện tại rỗng thì cũng không gửi.
+	ho_so2 = {"K%d" % i: {"dy_zalo": "Đồng ý", "kqc": 0, "uid": "U%d" % i} for i in (1, 2, 3)}
+	post2, sv2, _, vas2 = _gui_moi_truong(rows, ho_so2, ["Đang chạy"], lambda lan: ho_so2["K2"].update(uid=None) if lan == 1 else None)
+	_chay(vas2, lambda: zalo_oa.gui_nen("CD-26-0009"))
+	la("bỏ quan tâm giữa chừng: không gửi khách 2", [p["recipient"]["user_id"] for p in post2], ["U1", "U3"])
+
+
+@ca("v617 Codex #510 4396957339: chiến dịch kết thúc trước hay trong lượt gửi thì việc nền dừng, không gửi tiếp")
+def _gui_dung_khi_ket_thuc():
+	rows = [D(name="R%d" % i, khach="K%d" % i, ten_khach="Khách %d" % i, ma_uu_dai="", dy_zalo="Đồng ý", kqc=0, uid="U%d" % i)
+		for i in (1, 2, 3)]
+	ho_so = {"K%d" % i: {"dy_zalo": "Đồng ý", "kqc": 0, "uid": "U%d" % i} for i in (1, 2, 3)}
+	tt = ["Đã kết thúc"]
+	post, sv, lh, vas = _gui_moi_truong(rows, ho_so, tt)
+	_chay(vas, lambda: zalo_oa.gui_nen("CD-26-0009"))
+	la("kết thúc trước khi việc nền chạy: không gửi tin nào", len(post), 0)
+	cuoi = [v for d, n, v in sv if d == crm.DT_CD][-1]
+	la("ghi rõ đã dừng", (cuoi["oa_trang_thai"], "kết thúc" in cuoi["oa_ket_qua"]), ("Đã dừng", True))
+	tt2 = ["Đang chạy"]
+	post2, sv2, _, vas2 = _gui_moi_truong(rows, ho_so, tt2, lambda lan: tt2.__setitem__(0, "Đã kết thúc") if lan == 1 else None)
+	_chay(vas2, lambda: zalo_oa.gui_nen("CD-26-0009"))
+	la("kết thúc giữa chừng: dừng sau tin đang gửi", len(post2), 1)
+	la("dòng chưa gửi để nguyên", sorted(n for d, n, v in sv2 if d == crm.DT_CD_KHACH), ["R1"])
+
+
+@ca("v617 Codex #510 4396957331: chiến dịch mã cố định thì tin Zalo và tin OA hiện mã chung của chiến dịch, OA có bảng mã")
+def _ma_co_dinh_trong_tin():
+	rows = [D(name="R1", khach="K1", ten_khach="An", ma_uu_dai="", dy_zalo="Đồng ý", kqc=0, uid="U1")]
+	ho_so = {"K1": {"dy_zalo": "Đồng ý", "kqc": 0, "uid": "U1"}}
+	post, sv, lh, vas = _gui_moi_truong(rows, ho_so, ["Đang chạy"], ma_cd="XMAS10")
+	_chay(vas, lambda: zalo_oa.gui_nen("CD-26-0009"))
+	p = post[0]["message"]["attachment"]["payload"]
+	la("tin OA có mã chung", p["elements"][1]["content"], "Chào An, mã XMAS10")
+	la("tin OA có bảng mã", [e["type"] for e in p["elements"]][-1], "table")
+	fr = crm.frappe
+	dong = [D(name="L1", chien_dich="CD-1", ten_chien_dich="Noel", khach="K1", ten_khach="An", sdt="0909", trang_thai="Chưa gọi",
+		kenh_duoc="Zalo", noi_dung_zalo="Chào {ten}, dùng mã {ma}", kich_ban="", mua_cuoi=None, nhom="Mới", hang="",
+		dy_goi="", dy_zalo="Đồng ý", kqc=0, kenh_goi=0, kenh_zalo=1, ma_uu_dai="", ma_cd="XMAS10")]
+	meta = types.SimpleNamespace(get_valid_columns=lambda: [])
+	with um.patch.object(fr, "get_roles", lambda *a: ["Sales User"]), um.patch.object(fr.db, "sql", lambda *a, **k: [D(r) for r in dong]), \
+			um.patch.object(fr, "get_meta", lambda dt_: meta, create=True):
+		kq = crm.ds_goi_cua_toi()
+	la("tin Zalo cá nhân có mã chung", kq["dong"][0]["tin_zalo"], "Chào An, dùng mã XMAS10")
+	dong[0]["ma_uu_dai"] = "RIENG1"
+	with um.patch.object(fr, "get_roles", lambda *a: ["Sales User"]), um.patch.object(fr.db, "sql", lambda *a, **k: [D(r) for r in dong]), \
+			um.patch.object(fr, "get_meta", lambda dt_: meta, create=True):
+		kq = crm.ds_goi_cua_toi()
+	la("có mã riêng thì mã riêng đứng trước", kq["dong"][0]["tin_zalo"], "Chào An, dùng mã RIENG1")
