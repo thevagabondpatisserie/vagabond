@@ -2681,20 +2681,40 @@ máy chủ khác mã thì bắt xem lại, không âm thầm đặt theo cước
 xác nhận, và khoá nút hành động trong lúc đang chờ mạng: phản hồi về muộn khi hộp
 còn mở sẽ thay biến chung, gửi đi thứ người dùng chưa từng thấy.
 
-## 28/10/2026 (v618): nửa đồng làm tròn hai kiểu thành một dòng không mã hàng
+## 28/10/2026 (v617): Bootstrap lật thẻ thành cột, và danh sách cắt trước khi xếp
 
-- Hoá đơn An Phú C26MYY/8345: bưởi 7,7 kg x 45.065 = 347.000,5. Người bán làm
-  tròn nửa đồng lên (347.001), ERPNext làm tròn nửa đồng về số chẵn (347.000).
-  Phép nắn cả tờ thấy thiếu 1 đồng nên thêm dòng "Chênh lệch làm tròn" không mã
-  hàng vào 632; tờ HDM-26-10-00298 kẹt "Thiếu mã hàng", giá trị hàng hụt 1 đồng.
-- Luật: thành tiền từng dòng trên hoá đơn là số gửi cơ quan thuế. Lệch dưới một
-  đồng ở một dòng thì đơn giá dòng chịu theo thành tiền (số lẻ đơn giá 9 chứa
-  được), không đẩy ra dòng bù. Dòng bù chỉ còn cho phần không đặt được vào dòng
-  nào (phí ngoài dòng hàng, số lẻ đơn giá không đủ chứa).
-- Mọi đường đọc dòng để tính tiền (dựng mới, dựng lại, ghim lại theo gốc, dự
-  kiến tổng) đi qua một hàm `dong_may_ghi`. Ghim lại theo gốc mà kéo về giá in
-  trên hoá đơn là lật đi lật lại giữa hai đơn giá mỗi lần lưu.
-- Codex #512: đơn giá lẻ thì một dòng chia qua nhiều phiếu nhập, mỗi dòng con
-  làm tròn riêng (2 x 3,85 kg ra 173.501 + 173.501 = 347.002). Chia TIỀN của
-  dòng gốc cho các dòng con trước (phần dư vào dòng lẻ lớn nhất) rồi mới ra
-  đơn giá từng dòng con; lượt ghim lại theo gốc phải dùng cùng phép chia đó.
+(1) Frappe nạp Bootstrap, mà Bootstrap đặt `.card{display:flex;flex-direction:column}`.
+App `/bep` dùng lại tên lớp `.card` và nhiều chỗ tự đặt `display:flex` để xếp ngang
+(hàng tab Vận đơn, ô tổng Danh sách khách hàng): thiếu `flex-direction` là bị lật
+thành cột, chữ dồn xuống, ô cao bất thường. Thẻ của app nay ghi rõ hướng hàng
+ngang trong 00-nen.js. Dựng bố cục ngang trong `.card` thì nhớ lớp này có từ trước.
+
+(2) Màn ghi "chi nhiều nhất lên đầu" nhưng máy chủ lấy 400 khách ĐẦU BẢNG CHỮ CÁI
+rồi mới xếp theo tiền: khách chi nhiều mà tên bắt đầu bằng chữ T không bao giờ
+hiện, và dòng tổng chỉ là tổng của 400 người đó. Danh sách nào hứa một thứ tự
+thì phải xếp và cộng NGAY TRONG CÂU TRUY VẤN trên đủ nhóm, rồi mới cắt. Ca kiểm
+chốt câu SQL (khach_thuan.py) và chốt màn chỉ hiện số máy chủ cộng.
+
+(3) Ô tìm dùng lại lớp `.tin` (ô gõ số tiền) thì chữ 22px canh giữa, đậm, nhìn
+lệch hẳn với các ô khác. Ô tìm dùng `class="tin tim" type="search"`.
+
+(4) Kênh gửi ra ngoài mà phiên làm việc không đọc được tài liệu gốc (trang tài
+liệu Zalo là ứng dụng một trang, không đọc bằng công cụ được): để kênh TẮT sẵn
+trong Cài đặt, có nút Gửi thử vào tài khoản của chính mình, và ghi rõ trong PR
+là định dạng thân tin chưa đối chiếu trên OA thật. Không bật cho khách trước khi
+Gửi thử thành công.
+
+(5) Bench tích hợp đỏ hai lượt liền (878fb55, 4ac5204) mà bàn giao vẫn ghi "cổng
+đạt", vì chỉ chạy bốn cổng ở máy rồi đọc mỗi kết luận của Codex. Ca bench v614
+gọi lưu chiến dịch mà không gửi mốc sửa (hợp đồng mới của v617) và còn chờ câu
+chặn cũ "Kịch bản gọi chưa được duyệt". Đổi câu chặn hay đổi tham số bắt buộc
+của một hàm thì `grep` cả `vagabond/khung/kiem_that/`, và trước mỗi bàn giao đọc
+cột kiểm `bench` của đúng SHA trên PR: chỉ ghi "bench đạt" khi đã thấy nó xanh.
+Phần mới chạm cơ sở dữ liệu (câu SQL tự viết, bulk_insert, bảng mới) phải có ca
+trên bench, vì lớp Frappe giả của tầng khung không chạy câu SQL.
+
+(6) GreenSM: tài liệu ghi `order_time` = 0 là "giao ngay", nhưng đo trên sandbox
+28/10/2026 thì 0 bị trả 400 "missing required fields", giờ hiện tại thì báo giá và
+tạo đơn được. Lớp Frappe giả và bench không gọi đối tác thật nên không thấy; nút
+Thử kết nối chạy trên site mới lộ ra (đúng ngày deploy v616). Mã gọi đối tác phải
+chạy một chuỗi thật trên sandbox trước khi bàn giao, không chỉ khớp tài liệu.
