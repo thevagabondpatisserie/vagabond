@@ -187,6 +187,7 @@ from vagabond.khung.kiem_thu import (  # noqa: E402,F401
 	thu_greensm_612,
 	thu_gon_version_619,
 	thu_dong_mon_giu_ten_619,
+	thu_lien_ket_app_619,
 )
 
 
