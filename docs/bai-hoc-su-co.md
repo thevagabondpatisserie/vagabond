@@ -2777,3 +2777,19 @@ theo từng đường. Phiếu xuất PXD dùng chung tiền tố cho xuất hu�
 nội bộ, nên nơi phát hai tin đó tự ghi màn đúng. Nơi phát tin mới chỉ cần đưa
 đường Desk hay đường app đều được, cửa ghi tin lo phần còn lại; loại chưa có
 màn app thì về trang chủ app, thêm dòng vào bảng `BANG` khi có màn mới.
+
+Link sâu mất khi phải đăng nhập (cùng PR v619, Codex 4402066952): `reset()`
+của khung app tự đặt lại địa chỉ theo màn đang vẽ, nên `reset(scrLogin)` đổi
+`/hang-chuyen-ve-kho-toi?mo=...` thành `/bep` TRƯỚC khi nhân viên kịp đăng nhập;
+đăng nhập xong `hardNav()` tải lại `location.pathname` (lúc đó là `/bep`), mất cả
+màn lẫn phiếu. Phiên hết giữa chừng cũng vậy. Nay `reset(scrLogin)` ghi địa chỉ
+đang mở vào kho phiên ngay trước khi đổi, đăng nhập xong `hardNavDich()` đọc ra,
+xoá rồi tải lại đúng chỗ. Chỉ nhận đường của một màn trong `VGB_DUONG`. Bài học:
+link vào app phải kiểm cả nhánh CHƯA đăng nhập; ca hành vi phải nạp app hai lần
+(lần khách, lần sau đăng nhập) theo đúng địa chỉ mà lần một tải lại.
+
+Tin "Dữ liệu hao hụt" (cùng PR v619): hoàn tất lệnh trừ nguyên liệu ĐÚNG theo
+công thức, nên phiếu sản xuất không bao giờ cho thấy hao hụt nguyên liệu; chỉ
+kiểm kê kho bếp mới đo được thực dùng. Đừng dựng báo cáo hao hụt từ phiếu sản
+xuất. Mã tin truyền vào `bao()` phải là chuỗi viết thẳng, không qua hằng số:
+ca v604 dò mã nguồn để chốt mỗi tin có nơi phát.
