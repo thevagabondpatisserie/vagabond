@@ -276,3 +276,83 @@ def _mot_nguon():
 		dung("%s dùng dong_may_ghi" % ham.__name__, "dong_may_ghi(" in than)
 		dung("%s không tự đọc dòng bằng dong_tu_hoa_don" % ham.__name__,
 			"dong_tu_hoa_don(it" not in than)
+
+
+# ------------------------------- Codex #512: một dòng chia qua nhiều phiếu nhập
+
+
+def _to_noi():
+	from vagabond.khung.kiem_thu.thu_mua_hddt_227 import To
+
+	d = To(name="ROW", item_code="NVLT00358", item_name="Trái bưởi tươi, Kg",
+		ten_hang_ncc="BƯỞI VÀNG", qty=7.7, rate=GIA_NAN, price_list_rate=GIA_NAN,
+		amount=347001, uom="Kg", stock_uom="Gram", conversion_factor=1000, idx=1)
+	return To(name="HDM-26-10-00298", doctype="Purchase Invoice", currency="VND",
+		custom_minvoice_id=TO_8345["name"], items=[d])
+
+
+def _hai_phieu():
+	return {"P" + str(i): [dict(name="R" + str(i), item_code="NVLT00358", qty=3.85,
+		rate=45065, uom="Kg", stock_uom="Gram", conversion_factor=1000)] for i in range(2)}
+
+
+def _noi_hai_phieu(t):
+	from vagabond import doi_chieu_mua as dc
+	from vagabond.khung.kiem_thu.thu_mua_hddt_227 import _gia_lap
+
+	with _gia_lap(_hai_phieu(), giu_gia=1), \
+			patch.object(dl, "_goc", lambda ma: dict(TO_8345) if ma == TO_8345["name"] else None):
+		return dc._noi(t, ["P0", "P1"], True)
+
+
+@ca("v618 Codex #512: 7,7 kg chia hai phiếu 3,85 kg vẫn cộng đúng 347.001")
+def _chia_hai_phieu():
+	# Tái hiện đúng chuỗi Codex: trước bản sửa mỗi dòng con giữ 45.065,064935065
+	# và máy ghi 173.501 mỗi dòng, cộng 347.002.
+	la("trước bản sửa: một dòng con ra 173.501", mc.tien_dong_may_ghi(3.85, GIA_NAN, *_dp()), 173501.0)
+	t = _to_noi()
+	ra = _noi_hai_phieu(t)
+	la("nối đủ hai dòng", ra["da_noi"], 2)
+	la("không báo lỗi", ra["loi"], [])
+	la("hai dòng con", [d.qty for d in t.items], [3.85, 3.85])
+	la("tổng máy ghi đúng 347.001", sum(_tien(d) for d in t.items), 347001.0)
+	dung("mỗi dòng con lệch giá in chưa tới nửa đồng",
+		all(abs(d.rate - 45065) <= mc.NAN_GIA_TOI_DA for d in t.items))
+	dung("giá bảng theo đơn giá dòng", all(d.price_list_rate == d.rate for d in t.items))
+	# Lượt lưu sau (hook ghim lại theo gốc) không kéo cả nhóm về một giá.
+	with patch.object(dl, "_do_chinh_xac", lambda doc=None, g=None: _dp()):
+		la("ghim lại không đổi dòng nào", dl.ghim_lai_theo_goc(t, dict(TO_8345)), 0)
+	la("vẫn đúng 347.001 sau ghim", sum(_tien(d) for d in t.items), 347001.0)
+
+
+@ca("v618 Codex #512: chia tiền dòng gốc cho các dòng con, không chia được thì giữ giá")
+def _chia_thuan():
+	dp = _dp()
+	ra = mc.gia_cac_dong_chia(7.7, [3.85, 3.85], GIA_NAN, *dp)
+	la("tổng hai dòng con", sum(mc.tien_dong_may_ghi(s, g, *dp) for s, g in zip([3.85, 3.85], ra)), 347001.0)
+	dp1144 = _so_le_that(TO_1144)
+	sl = [100, 100, 60]
+	ra = mc.gia_cac_dong_chia(260, sl, 1576.923076923, *dp1144)
+	la("ba dòng con ALOIN đúng 410.000", sum(mc.tien_dong_may_ghi(s, g, *dp1144) for s, g in zip(sl, ra)), 410000.0)
+	# 2,1 x 1.287 = 2.702,7 ra 2.703; ba dòng con 386,1 + 1.930,5 + 386,1 làm
+	# tròn còn 2.702. Phần dư phải vào dòng có phần lẻ lớn nhất (1.930,5); dồn
+	# vào dòng đầu thì dòng 0,3 phải đổi giá 3,3 đồng một đơn vị, không nắn nổi.
+	sl3 = [0.3, 1.5, 0.3]
+	ra = mc.gia_cac_dong_chia(2.1, sl3, 1287.0, 2, 0, 3)
+	la("phần dư vào dòng lẻ lớn nhất", ra, [1287.0, 1287.33, 1287.0])
+	la("ba dòng cộng đúng 2.703", sum(mc.tien_dong_may_ghi(s, g, 2, 0, 3) for s, g in zip(sl3, ra)), 2703.0)
+	la("chia số tròn thì giữ nguyên giá", mc.gia_cac_dong_chia(2400, [800, 800, 800], 2300, *dp), [2300] * 3)
+	la("một dòng thì không chia", mc.gia_cac_dong_chia(7.7, [7.7], GIA_NAN, *dp), [GIA_NAN])
+	# Đơn giá 2 số lẻ vẫn chia được: 45.065,06 và 45.065,19 ra 173.501 + 173.500.
+	ra = mc.gia_cac_dong_chia(7.7, [3.85, 3.85], 45065.06, 2, 0, 3)
+	la("đơn giá 2 số lẻ vẫn cộng đúng", sum(mc.tien_dong_may_ghi(3.85, g, 2, 0, 3) for g in ra),
+		mc.tien_dong_may_ghi(7.7, 45065.06, 2, 0, 3))
+	# 1 x 3 = 3, chia 0,5 + 0,5: mỗi dòng 1,5 làm tròn lên 2, cộng 4. Muốn ra
+	# 3 phải hạ một dòng xuống giá 2, quá nửa đồng: giữ giá cho mọi dòng như trước.
+	la("không chia đúng được thì giữ giá", mc.gia_cac_dong_chia(1, [0.5, 0.5], 3, 0, 0, 3), [3, 3])
+	# Bốn dòng con, đơn giá 1 số lẻ: nắn được hai dòng nhưng hai dòng kia không
+	# nắn nổi, tổng vẫn lệch. Chia dở thì không ghi, giữ giá cho cả nhóm.
+	la("chia dở không ra đúng tổng thì giữ giá cả nhóm",
+		mc.gia_cac_dong_chia(7.0, [2.5, 1.5, 0.5, 2.5], 2351.0, 1, 0, 3), [2351.0] * 4)
+	ra = mc.gia_cac_dong_chia(-7.7, [-3.85, -3.85], GIA_NAN, *dp)
+	la("tờ âm cũng cộng đúng", sum(mc.tien_dong_may_ghi(s, g, *dp) for s, g in zip([-3.85, -3.85], ra)), -347001.0)
