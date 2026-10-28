@@ -1,0 +1,157 @@
+{
+ "actions": [],
+ "creation": "2026-10-27 18:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "module": "Vagabond",
+ "name": "Vagabond Chien Dich Khach",
+ "modified": "2026-10-27 18:00:00.000000",
+ "modified_by": "Administrator",
+ "owner": "Administrator",
+ "description": "Một khách trong danh sách đã chốt của một chiến dịch. Danh sách cố định từ lúc chốt.",
+ "field_order": [
+  "chien_dich",
+  "khach",
+  "ten_khach",
+  "sdt",
+  "nhanh",
+  "cb1",
+  "sales",
+  "trang_thai",
+  "ket_qua",
+  "ghi_chu",
+  "kenh_duoc",
+  "so_lan",
+  "lan_cuoi"
+ ],
+ "fields": [
+  {
+   "fieldname": "chien_dich",
+   "fieldtype": "Link",
+   "label": "Chiến dịch",
+   "options": "Vagabond Chien Dich",
+   "reqd": 1,
+   "in_list_view": 1,
+   "search_index": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "khach",
+   "fieldtype": "Link",
+   "label": "Khách hàng",
+   "options": "Customer",
+   "reqd": 1,
+   "in_list_view": 1,
+   "search_index": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "ten_khach",
+   "fieldtype": "Data",
+   "label": "Tên khách",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sdt",
+   "fieldtype": "Data",
+   "label": "Số điện thoại",
+   "read_only": 1
+  },
+  {
+   "fieldname": "nhanh",
+   "fieldtype": "Select",
+   "label": "Nhóm",
+   "options": "Nhận\nĐối chứng",
+   "in_list_view": 1,
+   "read_only": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "cb1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "sales",
+   "fieldtype": "Link",
+   "label": "Sales",
+   "options": "User",
+   "in_list_view": 1,
+   "search_index": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "trang_thai",
+   "fieldtype": "Select",
+   "label": "Trạng thái",
+   "options": "Chưa gọi\nHẹn gọi lại\nĐã xong",
+   "default": "Chưa gọi",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "ket_qua",
+   "fieldtype": "Data",
+   "label": "Kết quả",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ghi_chu",
+   "fieldtype": "Small Text",
+   "label": "Ghi chú",
+   "read_only": 1
+  },
+  {
+   "fieldname": "kenh_duoc",
+   "fieldtype": "Data",
+   "label": "Kênh khách đã đồng ý",
+   "read_only": 1
+  },
+  {
+   "fieldname": "so_lan",
+   "fieldtype": "Int",
+   "label": "Số lần gọi",
+   "read_only": 1
+  },
+  {
+   "fieldname": "lan_cuoi",
+   "fieldtype": "Datetime",
+   "label": "Gọi lần cuối",
+   "read_only": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "Sales User",
+   "read": 1,
+   "report": 1
+  },
+  {
+   "role": "Sales Manager",
+   "read": 1,
+   "report": 1
+  },
+  {
+   "role": "System Manager",
+   "read": 1,
+   "report": 1
+  },
+  {
+   "role": "VGB - Quản lý cửa hàng",
+   "read": 1,
+   "report": 1
+  },
+  {
+   "role": "Marketing",
+   "read": 1,
+   "report": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "links": [],
+ "autoname": "hash",
+ "track_changes": 1,
+ "title_field": "ten_khach"
+}

@@ -1143,3 +1143,6 @@ for _gio_v613, _ham_v613 in (
 ):
 	scheduler_events.setdefault("cron", {}).setdefault(_gio_v613, []).append(_ham_v613)
 del _gio_v613, _ham_v613
+# v614 phân hệ Khách hàng (CRM): tính lại nhóm khách mỗi đêm 02:30, lúc site
+# vắng nhất. Hai câu gom và ghi theo lô, xem vagabond/crm.py tinh_nhom_dem.
+scheduler_events.setdefault("cron", {}).setdefault("30 2 * * *", []).append("vagabond.crm.tinh_nhom_dem")

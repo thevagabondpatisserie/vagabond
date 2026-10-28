@@ -1263,6 +1263,11 @@ function khCtVe() {
       'Đây là giỏ dùng chung cho khách vãng lai, không phải một người thật. Không gắn hạng và không tích điểm cho bản ghi này.</div>';
   }
 
+  /* v614 CRM: nhóm khách, đồng ý nhận tin, món hay mua, nhật ký liên hệ.
+     Đọc riêng sau khi vẽ (crmGanHoSo trong 58-crm.js) để màn hồ sơ không phải
+     chờ thêm một lượt hỏi máy chủ. Giỏ dùng chung thì không có phần này. */
+  if (!khHs.la_gop) html += '<div id="crmHs"></div>';
+
   /* --- The thanh vien --- */
   html += '<div class="sec">Thẻ thành viên</div><div class="card" style="padding:4px 14px 10px">' +
     khO('Điểm hiện có', money(the.diem || 0) + ' điểm') +
@@ -1356,6 +1361,7 @@ function khCtVe() {
   if (ns) ns.onclick = function () { khSheetSua(); };
   var nd = document.getElementById('khSoDiem');
   if (nd) nd.onclick = function () { khSheetSoDiem(); };
+  if (!khHs.la_gop && typeof crmGanHoSo === 'function') crmGanHoSo(khMa, d.customer_name || khMa);
 }
 
 /* Sua thong tin lien he. So dien thoai va email di vao LIEN HE chu khong

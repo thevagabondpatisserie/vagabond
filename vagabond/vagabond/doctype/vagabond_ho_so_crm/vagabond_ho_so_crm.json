@@ -1,0 +1,260 @@
+{
+ "actions": [],
+ "creation": "2026-10-27 18:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "module": "Vagabond",
+ "name": "Vagabond Ho So CRM",
+ "modified": "2026-10-27 18:00:00.000000",
+ "modified_by": "Administrator",
+ "owner": "Administrator",
+ "description": "Hồ sơ CRM của một khách: nhóm máy tự chia mỗi đêm và trạng thái đồng ý nhận tin từng kênh.",
+ "field_order": [
+  "khach",
+  "ten_khach",
+  "sdt",
+  "cb1",
+  "nhom",
+  "la_gop",
+  "sb_mua",
+  "so_don",
+  "lan_dau",
+  "lan_cuoi",
+  "nhip_ngay",
+  "cb2",
+  "so_don_erp",
+  "tien_erp",
+  "lan_cuoi_erp",
+  "cb3",
+  "so_don_fabi",
+  "tien_fabi",
+  "lan_cuoi_fabi",
+  "tinh_luc",
+  "sb_dy",
+  "dy_zalo",
+  "dy_goi",
+  "dy_email",
+  "cb4",
+  "dy_luc",
+  "dy_noi",
+  "khong_quang_cao",
+  "kqc_ghi_chu"
+ ],
+ "fields": [
+  {
+   "fieldname": "khach",
+   "fieldtype": "Link",
+   "label": "Khách hàng",
+   "options": "Customer",
+   "reqd": 1,
+   "unique": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "ten_khach",
+   "fieldtype": "Data",
+   "label": "Tên khách",
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "sdt",
+   "fieldtype": "Data",
+   "label": "Số điện thoại",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "nhom",
+   "fieldtype": "Select",
+   "label": "Nhóm",
+   "options": "Trung thành\nMới\nSắp rời đi\nĐã ngủ\nChỉ mua dịp lễ\nChưa mua",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "la_gop",
+   "fieldtype": "Check",
+   "label": "Giỏ dùng chung (không phải một người)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sb_mua",
+   "fieldtype": "Section Break",
+   "label": "Mua hàng (máy tính lại mỗi đêm)"
+  },
+  {
+   "fieldname": "so_don",
+   "fieldtype": "Int",
+   "label": "Tổng số đơn (ERP và Fabi)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "lan_dau",
+   "fieldtype": "Date",
+   "label": "Mua lần đầu",
+   "read_only": 1
+  },
+  {
+   "fieldname": "lan_cuoi",
+   "fieldtype": "Date",
+   "label": "Mua lần cuối",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "nhip_ngay",
+   "fieldtype": "Int",
+   "label": "Nhịp mua (ngày)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "so_don_erp",
+   "fieldtype": "Int",
+   "label": "Số đơn trên ERP",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tien_erp",
+   "fieldtype": "Currency",
+   "label": "Tiền trên ERP",
+   "read_only": 1
+  },
+  {
+   "fieldname": "lan_cuoi_erp",
+   "fieldtype": "Date",
+   "label": "Lần cuối trên ERP",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "so_don_fabi",
+   "fieldtype": "Int",
+   "label": "Số đơn Fabi (trước 08/2026)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tien_fabi",
+   "fieldtype": "Currency",
+   "label": "Tiền Fabi tích luỹ",
+   "read_only": 1
+  },
+  {
+   "fieldname": "lan_cuoi_fabi",
+   "fieldtype": "Date",
+   "label": "Lần cuối bên Fabi",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tinh_luc",
+   "fieldtype": "Datetime",
+   "label": "Máy tính lúc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sb_dy",
+   "fieldtype": "Section Break",
+   "label": "Đồng ý nhận tin (sửa trên app, mỗi lần sửa có dòng nhật ký)"
+  },
+  {
+   "fieldname": "dy_zalo",
+   "fieldtype": "Select",
+   "label": "Zalo",
+   "options": "Chưa hỏi\nĐồng ý\nTừ chối",
+   "default": "Chưa hỏi",
+   "read_only": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "dy_goi",
+   "fieldtype": "Select",
+   "label": "Gọi điện",
+   "options": "Chưa hỏi\nĐồng ý\nTừ chối",
+   "default": "Chưa hỏi",
+   "read_only": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "dy_email",
+   "fieldtype": "Select",
+   "label": "Email",
+   "options": "Chưa hỏi\nĐồng ý\nTừ chối",
+   "default": "Chưa hỏi",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb4",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "dy_luc",
+   "fieldtype": "Datetime",
+   "label": "Đổi lần cuối lúc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "dy_noi",
+   "fieldtype": "Data",
+   "label": "Ghi ở đâu",
+   "read_only": 1
+  },
+  {
+   "fieldname": "khong_quang_cao",
+   "fieldtype": "Check",
+   "label": "Trong Danh sách không quảng cáo",
+   "read_only": 1
+  },
+  {
+   "fieldname": "kqc_ghi_chu",
+   "fieldtype": "Small Text",
+   "label": "Ghi chú Danh sách không quảng cáo",
+   "read_only": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "Sales User",
+   "read": 1,
+   "report": 1
+  },
+  {
+   "role": "Sales Manager",
+   "read": 1,
+   "report": 1
+  },
+  {
+   "role": "System Manager",
+   "read": 1,
+   "report": 1
+  },
+  {
+   "role": "VGB - Quản lý cửa hàng",
+   "read": 1,
+   "report": 1
+  },
+  {
+   "role": "Marketing",
+   "read": 1,
+   "report": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "links": [],
+ "autoname": "field:khach",
+ "track_changes": 1,
+ "title_field": "ten_khach"
+}
