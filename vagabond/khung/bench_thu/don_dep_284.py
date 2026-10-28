@@ -93,6 +93,57 @@ def chay():
 		frappe.db.commit()
 
 
+def chay_gon():
+	"""v618: gọn lịch sử máy ghi và xoá lịch sử ngắn, ba câu lệnh trên MariaDB thật."""
+	import json
+	if (os.environ.get('GITHUB_ACTIONS') != 'true' or frappe.local.site != 'bench-ci.localhost'
+		or not frappe.conf.get('vagabond_bench_thu')):
+		raise RuntimeError('Chỉ kiểm dọn dữ liệu trên bench GitHub dùng một lần.')
+	frappe.set_user('Administrator')
+	for dt in ('Sales Invoice', 'Web Page'):
+		if frappe.db.count('Version', {'ref_doctype': dt, 'creation': ['<', dd._moc(30)]}):
+			raise AssertionError('Bench đã có lịch sử %s cũ ngoài mẫu; cần nền sạch.' % dt)
+	ma = 'KT618-' + frappe.generate_hash(length=10)
+	dong = {'item_code': 'KT618', 'qty': 1, 'rate': 1000, 'description': 'Bánh kiểm ' * 300}
+	du_lieu = json.dumps({'changed': [['status', 'Draft', 'Unpaid']], 'row_changed': [],
+		'added': [['items', dong]], 'removed': [['items', dong]]}, indent=1)
+	mau = [('may-cu', 'Sales Invoice', None, -31), ('nguoi-cu', 'Sales Invoice', 'kt618@example.com', -31),
+		('may-moi', 'Sales Invoice', None, -1), ('web-cu', 'Web Page', None, -31), ('web-moi', 'Web Page', None, -1)]
+	ten = {}
+	try:
+		for k, dt, owner, ngay in mau:
+			d = frappe.get_doc(dict(doctype='Version', ref_doctype=dt, docname=ma, data=du_lieu))
+			d.insert(ignore_permissions=True)
+			ten[k] = d.name
+			gia = {'creation': add_days(nowdate(), ngay)}
+			if owner:
+				gia['owner'] = owner
+			frappe.db.set_value('Version', d.name, gia, update_modified=False)
+		frappe.db.commit()
+		kq = dd.gon_lich_su_may('Sales Invoice', lo=2)
+		if kq['so_dong'] != 1 or kq['byte'] <= 0:
+			raise AssertionError('Gọn sai số dòng trên MariaDB thật: %r' % kq)
+		d = json.loads(frappe.db.get_value('Version', ten['may-cu'], 'data'))
+		if d['added'] or d['removed'] or d['changed'] != [['status', 'Draft', 'Unpaid']] or dd.DAU_GON not in d:
+			raise AssertionError('Lịch sử máy cũ gọn sai: %r' % d)
+		for k in ('nguoi-cu', 'may-moi'):
+			if frappe.db.get_value('Version', ten[k], 'data') != du_lieu:
+				raise AssertionError('Đụng nhầm lịch sử ' + k)
+		if dd.gon_lich_su_may('Sales Invoice', lo=2)['so_dong'] != 0:
+			raise AssertionError('Lượt hai vẫn gọn lại dòng đã gọn')
+		if dd.don_version_ngan('Web Page', lo=1) != 1:
+			raise AssertionError('Không xoá đúng một lịch sử trang web cũ')
+		if frappe.db.exists('Version', ten['web-cu']) or not frappe.db.exists('Version', ten['web-moi']):
+			raise AssertionError('Xoá sai lịch sử trang web')
+		if not all(frappe.db.exists('Version', ten[k]) for k in ('may-cu', 'nguoi-cu', 'may-moi')):
+			raise AssertionError('Mất lịch sử hoá đơn bán')
+		print('PASS v618: gọn lịch sử máy ghi, giữ lịch sử người sửa và lịch sử mới, xoá lịch sử web cũ trên MariaDB thật.', flush=True)
+	finally:
+		frappe.db.rollback()
+		frappe.db.delete('Version', {'docname': ma})
+		frappe.db.commit()
+
+
 if __name__ == '__main__':
 	if os.environ.get('GITHUB_ACTIONS') != 'true':
 		raise RuntimeError('Không chạy ngoài GitHub Actions.')
@@ -100,6 +151,7 @@ if __name__ == '__main__':
 	frappe.connect()
 	try:
 		chay()
+		chay_gon()
 	finally:
 		frappe.db.rollback()
 		frappe.destroy()
