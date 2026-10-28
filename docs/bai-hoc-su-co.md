@@ -2674,3 +2674,6 @@ xe và dịch vụ thêm thì tài xế được gọi tới địa chỉ cũ v�
 (5) Nút thêm bằng `add_custom_button` trên Desk không tự xuống app (app chỉ đọc
 cấu trúc ô của doctype): thêm nút trên Desk là phải thêm thao tác tương đương ở
 màn app và ca hành vi bấm nó.
+(6) Bản giá giữ chung theo vận đơn thì lần Xem giá sau (người khác, tab khác)
+ghi đè lần trước: màn phải giữ MÃ bản giá mình đã hiện và gửi kèm khi Gọi xe;
+máy chủ khác mã thì bắt xem lại, không âm thầm đặt theo cước người kia thấy.
