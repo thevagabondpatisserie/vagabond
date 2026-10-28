@@ -1291,6 +1291,23 @@ lý nhận thiếu (chênh lệch sinh bút toán hao hụt) đụng vào giá v
 chờ anh Việt duyệt phương án trước - em để trong bảng mapping luồng kho. */
 var HVK = { ngay: 14, mo: '' };
 
+/* v619 (anh Viet 28/10/2026): tin Zalo "Da chuyen hang giua kho" mo thang
+   dung phieu tren man nay: /hang-chuyen-ve-kho-toi?mo=PDC-2026-00602.
+   Chi doc tham so khi dung duong cua man nay, ma phieu chi gom chu, so,
+   gach noi. Phieu tu tin co the cu hon 14 ngay nen mo rong ra 30 ngay. */
+function hvkTuDiaChi(tim, duong) {
+  if (String(duong || '').replace(/\/+$/, '') !== '/hang-chuyen-ve-kho-toi') return null;
+  var mo = '';
+  try { mo = new URLSearchParams(String(tim || '')).get('mo') || ''; } catch (e) { return null; }
+  mo = mo.trim();
+  if (!mo || !/^[A-Za-z0-9-]{3,40}$/.test(mo)) return null;
+  return { mo: mo, ngay: 30 };
+}
+try {
+  var hvkDau = hvkTuDiaChi(location.search, location.pathname);
+  if (hvkDau) { HVK.mo = hvkDau.mo; HVK.ngay = hvkDau.ngay; }
+} catch (eHvk) { }
+
 async function scrHangVeKho() {
   vgbCss();
   frame('Hàng chuyển về kho tôi', '<div class="emp"><div class="e1">⏳</div><div>Đang xem hàng về kho...</div></div>');
@@ -1352,6 +1369,13 @@ async function scrHangVeKho() {
   }
 
   var b = frame('Hàng chuyển về kho tôi', html);
+  /* Mo tu tin Zalo: cuon toi dung phieu dang mo. */
+  if (HVK.mo) {
+    try {
+      var hvkDong = b.querySelector('[data-hvm="' + HVK.mo + '"]');
+      if (hvkDong && hvkDong.scrollIntoView) hvkDong.scrollIntoView({ block: 'center' });
+    } catch (eCuon) { }
+  }
   b.querySelectorAll('[data-hvn]').forEach(function (n) {
     n.onclick = function () { HVK.ngay = +n.getAttribute('data-hvn'); HVK.mo = ''; go(scrHangVeKho, true); };
   });
