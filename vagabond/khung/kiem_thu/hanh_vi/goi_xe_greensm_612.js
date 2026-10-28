@@ -78,6 +78,8 @@ function dungMoi(dangThu) {
       if (duong === 'frappe.client.get') return Promise.resolve({ name: 'VD-1', ma_don: '91500', khach: 'Chị Lan', dia_chi: '208 Nguyễn Hữu Cảnh' });
       if (duong === 'vagabond.van_don.gsm_dich_vu') return Promise.resolve(Object.assign({ dang_thu: dangThu }, JSON.parse(JSON.stringify(DV_GSM))));
       if (duong === 'vagabond.van_don.aha_dich_vu') return Promise.resolve(JSON.parse(JSON.stringify(DV_AHA)));
+      // v616: GreenSM trả mã bản giá; mỗi lần hỏi là một mã mới (fee-1, fee-2...).
+      if (duong === 'vagabond.van_don.gsm_bao_gia') { that._soGia = (that._soGia || 0) + 1; return Promise.resolve({ tong: 80000 + 1000 * (that._soGia - 1), km: 5.33, dang_thu: dangThu, ma_gia: 'fee-' + that._soGia }); }
       if (/bao_gia$/.test(duong)) return Promise.resolve({ tong: 80000, km: 5.33, dang_thu: dangThu });
       return Promise.resolve({});
     },
@@ -142,7 +144,7 @@ async function mo(kenh, dangThu) {
     await tick();
     bang('hỏi xác nhận có số tiền', m.hoi, ['Gọi xe GreenSM cho đơn này, cước 80.000 đ?']);
     bang('book_xe đúng tham số', cua(m, 'vagabond.van_don.book_xe')[0].ts,
-      { name: 'VD-1', kenh: 'GreenSM', service_id: 1878, requests_them: '["10"]' });
+      { name: 'VD-1', kenh: 'GreenSM', service_id: 1878, requests_them: '["10"]', ma_gia: 'fee-1' });
     bang('về màn vận đơn', m.g._ve, 'view');
   });
 
@@ -161,6 +163,17 @@ async function mo(kenh, dangThu) {
     bang('lần hỏi sau theo xe mới', cua(m, 'vagabond.van_don.gsm_bao_gia')[2].ts, { name: 'VD-1', service_id: '2099', addon_ids: '[]' });
   });
 
+  await ca('v616 (Codex #499 4395850127): xem giá hai lần thì Gọi xe gửi mã của bản giá đang hiện và hỏi xác nhận đúng cước đó', async function () {
+    var m = await mo('GreenSM', false);
+    await bamNut(m, 'gxGia');
+    await bamNut(m, 'gxGia');
+    dung('màn hiện cước lần sau', chu(m.khung).indexOf('Cước: 81.000 đ') >= 0);
+    await bamNut(m, 'gxDat');
+    await tick();
+    bang('xác nhận đúng cước đang hiện', m.hoi, ['Gọi xe GreenSM cho đơn này, cước 81.000 đ?']);
+    bang('gửi mã bản giá đang hiện', cua(m, 'vagabond.van_don.book_xe')[0].ts.ma_gia, 'fee-2');
+  });
+
   await ca('Ahamove vẫn đi ba cửa cũ, không bị khoá vì cờ chạy thử của GreenSM', async function () {
     var m = await mo('Ahamove', false);
     bang('hỏi danh sách xe Ahamove', cua(m, 'vagabond.van_don.aha_dich_vu').length, 1);
@@ -171,7 +184,7 @@ async function mo(kenh, dangThu) {
     await bamNut(m, 'gxDat');
     await tick();
     bang('gọi xe Ahamove', cua(m, 'vagabond.van_don.book_xe')[0].ts,
-      { name: 'VD-1', kenh: 'Ahamove', service_id: 'SGN-BIKE', requests_them: '["SGN-BIKE-FRAGILE"]' });
+      { name: 'VD-1', kenh: 'Ahamove', service_id: 'SGN-BIKE', requests_them: '["SGN-BIKE-FRAGILE"]', ma_gia: '' });
   });
 
   await ca('hộp "Book xe qua app": chọn GreenSM thì mở màn gọi xe, không book thẳng', async function () {
