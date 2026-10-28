@@ -2677,3 +2677,6 @@ màn app và ca hành vi bấm nó.
 (6) Bản giá giữ chung theo vận đơn thì lần Xem giá sau (người khác, tab khác)
 ghi đè lần trước: màn phải giữ MÃ bản giá mình đã hiện và gửi kèm khi Gọi xe;
 máy chủ khác mã thì bắt xem lại, không âm thầm đặt theo cước người kia thấy.
+(7) Trên màn, chốt dữ liệu người dùng xác nhận vào biến riêng TRƯỚC khi mở hộp
+xác nhận, và khoá nút hành động trong lúc đang chờ mạng: phản hồi về muộn khi hộp
+còn mở sẽ thay biến chung, gửi đi thứ người dùng chưa từng thấy.
