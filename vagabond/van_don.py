@@ -2161,7 +2161,8 @@ def _bao_tai_xe_huy(doc):
 		if doc.tag_gio:
 			dong.append("Khung giờ: %s" % doc.tag_gio)
 		if flt(ng.get("cod")):
-			dong.append("Thu hộ (COD): %s đ" % "{:,.0f}".format(flt(ng.get("cod"))).replace(",", "."))
+			# v613: tin đơn hàng không hiện số tiền (anh Việt 27/10/2026).
+			dong.append("Có thu hộ (COD), số tiền xem trên vận đơn")
 		dong.append("Máy đã gỡ mã đặt xe, vận đơn về Chờ giao. Nhờ Sales phân công lại.")
 		kenh_zalo.bao_hoac_ghi_loi(
 			"viec", "ban_hang", "Tài xế huỷ đơn %s - %s" % (doc.ma_don or doc.name, doc.khach or ""), dong,

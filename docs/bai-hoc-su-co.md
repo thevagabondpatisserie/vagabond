@@ -6,6 +6,17 @@ sửa những chỗ có liên quan, vì phần lớn các lỗi đó KHÔNG có 
 
 Tệp này chỉ giữ bài học rút gọn. Nhật ký đầy đủ từng ngày nằm ngoài repo.
 
+## 27/10/2026 - Thêm trường cho tin Zalo phải đi qua MỌI đường gửi, kể cả xả giờ im (#504)
+
+v613 thêm ảnh bảng cho tin, đường gửi ngay đã truyền ảnh nhưng đường gộp tin hoãn
+giờ im chỉ đọc chữ: ảnh mất mà sổ vẫn ghi "Đã gửi gộp". Cách phòng: thêm cột cho
+Vagabond Tin Kenh thì dò mọi nơi đọc dòng tin (_nhan_mot, _nhan_lo) và mọi lời gọi
+_gui_zalo; bản giả get_all trong ca kiểm phải chỉ trả các cột được hỏi. Đổi chữ ký
+hàm thì sửa cả bản giả trong khung/kiem_that: CI máy không chạy thư mục này, chỉ
+bench bắt được (#504 bench đỏ vì bản giả _gui_zalo hai tham số).
+Cùng PR: tính nguyên liệu theo công thức phải nổ bán thành phẩm phantom như lệnh
+sản xuất, và ngày cần của YCSX lọc trên từng dòng, không theo đầu phiếu.
+
 ## 12/10/2026 - Kiểm lại tổng sau tạo đơn và biên nhận cảnh báo (#465)
 
 Giảm giá gửi đúng trường vẫn cần đọc lại số phải thu của hệ nhận đơn. Lỗi
@@ -2596,3 +2607,48 @@ cho thấy câu "Valuation Rate ... is required" ném ngay ở `insert()` (lúc
 validate tính giá xuất), chưa tới `submit()`. Bắt lỗi chỉ quanh submit là bỏ
 sót đúng ca gốc. Và chỉ thay câu LÕI ERPNext: câu đã dễ hiểu của app (lo_hang
 "còn thiếu ...") phải đi nguyên, không thì mất thông tin người dùng cần.
+
+## 27/10/2026 (v614): đếm trên bảng nối một-nhiều, và hàm có commit theo lô
+
+Màn Hiệu quả chiến dịch đếm "Sales đã gọi xong bao nhiêu khách" bằng
+`sum(k.trang_thai = 'Đã xong')` trong câu đã `left join` hoá đơn của khách.
+Khách có ba hoá đơn trong 14 ngày đo thì bị đếm ba lần. Lớp Frappe giả không
+chạy SQL nên không ca tầng khung nào thấy. Sửa: `count(distinct case when ...
+then k.khach end)`.
+
+Bài học: (1) Câu nào đã nối bảng con một-nhiều (hoá đơn, dòng hàng) thì mọi
+`sum(...)`, `count(*)` trên bảng cha phải đổi thành `count(distinct ...)`, đọc
+lại từng cột trước khi giao. (2) Hàm chạy đêm ghi theo lô có `commit` sau mỗi
+lô thì bench CI (chạy trong điểm lưu, khoá commit) không gọi được: thêm tham số
+`luu=False` cho ca kiểm, và ca tầng khung phải chốt cả hai nhánh (có commit,
+không commit). (3) Lượt đêm ghi đè cả bảng bằng `ON DUPLICATE KEY UPDATE` thì
+liệt kê cột được cập nhật TƯỜNG MINH, loại các cột do người nhập (đồng ý nhận
+tin, Danh sách không quảng cáo), và có ca chạy hai lượt liền để chứng minh lời
+khách đã nói không bị xoá.
+
+Vòng Codex #505: (4) Danh sách chốt cố định để ĐO, nhưng quyền LIÊN HỆ phải đọc
+đồng ý hiện tại: khách rút đồng ý sau lúc chốt mà nút Gọi vẫn hiện là quảng cáo
+trái ý khách. (5) Mốc đo bắt đầu từ GIỜ chốt, không phải đầu ngày: so cả
+`posting_time` của hoá đơn. (6) Luật "sửa kịch bản là mất duyệt" đặt trong hàm
+app thì Desk đi vòng được; đặt ở `validate` của doctype để mọi đường lưu đều qua.
+
+Vòng 2 (rà 9ffd042): (7) Máy chủ đổi quyền của một khách thì danh sách đang giữ
+trên máy cũng phải đổi theo, ở MỌI dòng của khách đó, kể cả dòng thuộc chiến dịch
+khác: ghi "không nhận tin nữa" xong mà sang chip khác nút Gọi hiện lại là sửa nửa
+vời. (8) Nút hành động chỉ gửi mã (Duyệt, Chốt) thì máy chủ làm trên bản ĐÃ LƯU;
+màn đang có chữ sửa dở phải bắt Lưu trước, kiểm lại ngay lúc bấm vì gõ chữ không
+vẽ lại nút. (9) Sổ làm bằng chứng mà chỉ trả N dòng mới nhất thì phải có ô tìm
+hỏi máy chủ và nút Xem thêm; lọc trên số dòng đã tải không tìm ra khách cũ.
+Vòng 3 (rà 808a738): (10) Danh sách nào trả N dòng mới nhất (chiến dịch, sổ)
+thì ô tìm và chip phải hỏi máy chủ, có nút Xem thêm; lọc trên trang đã tải là
+mất bản ghi cũ. (11) Màn mới mở rộng quyền xem (CRM cho Marketing, quản lý cửa
+hàng) mà dẫn sang màn cũ có cổng hẹp hơn (hồ sơ bán hàng) thì phải rẽ theo vai,
+không nới cổng cũ; giữ danh sách vai hai bên trùng nhau bằng ca kiểm.
+Vòng 4 (rà fe4ddf4): (12) Màn có bản nháp tự lưu mà Lưu xong vẫn ở lại sửa
+tiếp thì phải mở lại màn qua bản bọc của 48 với mã vừa có (thay nấc đang đứng),
+vì lời gọi lưu đã làm 48 thôi theo dõi. Ca kiểm phải chạy 48 thật và kiểm khoá
+bản nháp sau khi lưu, không chỉ lúc mở màn.
+Vòng 5 (rà 3a79937): (13) Codex nêu một chỗ vi phạm luật chung (ô tìm ở đầu
+mọi danh sách, có tên món thì có ảnh) thì rà CẢ mô đun theo luật đó trong cùng
+vòng, không chỉ sửa đúng dòng được chỉ: vòng 3, 4, 5 lần lượt lộ thêm từng chỗ
+cùng loại (Hiệu quả, món giới thiệu, bộ lọc đã lưu, món trong bộ lọc).

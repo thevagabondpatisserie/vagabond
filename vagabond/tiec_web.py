@@ -90,8 +90,6 @@ def soan_tin(doc):
             "Tiệc: %s%s" % (doc.get("ten_tiec"), (" ngày " + ngay) if ngay else ""),
             "Tên: %s, SĐT: %s" % (doc.get("ten"), doc.get("sdt")),
             "Số vé: %s" % doc.get("so_ve")]
-    if doc.get("tong_tien"):
-        dong.append("Tạm tính: {:,} đ".format(int(doc["tong_tien"])).replace(",", "."))
     for k, nhan in (("ghi_chu", "Ghi chú"), ("email", "Email")):
         if doc.get(k):
             dong.append("%s: %s" % (nhan, doc[k]))

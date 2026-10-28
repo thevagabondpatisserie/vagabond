@@ -1121,3 +1121,28 @@ scheduler_events.setdefault("cron", {}).setdefault("*/15 * * * *", []).append("v
 scheduler_events.setdefault("cron", {}).setdefault("30 20 * * *", []).append("vagabond.tin_kho.nhac_ycsx_ngay_mai")
 scheduler_events.setdefault("cron", {}).setdefault("0 8 * * *", []).append("vagabond.tin_kho.nhac_ycdc_treo")
 scheduler_events.setdefault("cron", {}).setdefault("0 8 * * *", []).append("vagabond.tin_ban_hang.nhac_tien_chua_gan")
+
+# v613 (anh Việt 27/10/2026): tin Zalo tồn kho, sản xuất (có ảnh bảng) và từng bước duyệt
+# phiếu chi APP. Phiếu chi báo ở cả on_update (app lưu bước rồi mới ghi sổ) lẫn on_submit
+# (Desk bấm bước cuối đi thẳng ghi sổ); khoá tin chống báo hai lần.
+for _dt_v613, _sk_v613, _ham_v613 in (
+	("Payment Entry", "on_update", "vagabond.duyet_chi.bao_doi_buoc"),
+	("Payment Entry", "on_submit", "vagabond.duyet_chi.bao_doi_buoc"),
+):
+	_cu_v613 = doc_events.setdefault(_dt_v613, {}).get(_sk_v613, [])
+	doc_events[_dt_v613][_sk_v613] = ([_cu_v613] if isinstance(_cu_v613, str) else list(_cu_v613)) + [_ham_v613]
+del _dt_v613, _sk_v613, _ham_v613, _cu_v613
+for _gio_v613, _ham_v613 in (
+	("0 23 * * *", "vagabond.tin_ton_sx.gui_ton_quay_cuoi_ngay"),
+	("0 8 * * *", "vagabond.tin_ton_sx.nhac_ton_am"),
+	("5 8 * * 1", "vagabond.tin_ton_sx.nhac_hang_nam_im"),
+	("45 20 * * *", "vagabond.tin_ton_sx.nhac_thieu_nvl_ngay_mai"),
+	("0 21 * * *", "vagabond.tin_ton_sx.gui_san_luong_bep"),
+	("0 8 * * *", "vagabond.tin_ton_sx.nhac_lenh_chua_xong"),
+	("10 3 * * *", "vagabond.anh_bang.don_anh_cu"),
+):
+	scheduler_events.setdefault("cron", {}).setdefault(_gio_v613, []).append(_ham_v613)
+del _gio_v613, _ham_v613
+# v614 phân hệ Khách hàng (CRM): tính lại nhóm khách mỗi đêm 02:30, lúc site
+# vắng nhất. Hai câu gom và ghi theo lô, xem vagabond/crm.py tinh_nhom_dem.
+scheduler_events.setdefault("cron", {}).setdefault("30 2 * * *", []).append("vagabond.crm.tinh_nhom_dem")

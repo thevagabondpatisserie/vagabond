@@ -342,6 +342,91 @@ def la_phieu_chi_app(doc):
 	return 0
 
 
+# v613 (anh Việt 27/10/2026): báo Zalo từng bước duyệt phiếu chi APP. Bước -> (hàm gửi, tiêu đề).
+# Mỗi tin một hàm gửi với mã tin viết thẳng: ca thu_tin_zalo_604 dò từng lời gọi bao()
+# phải có ma_tin hằng, để nhóm đã tích Tin nhận không bao giờ lỡ tin vì mã tính lúc chạy.
+TIN_BUOC = {
+	TT_CHO_GD: ("_bao_app_cho_gd", "Phiếu chi %s chờ giám đốc duyệt"),
+	TT_DA_DUYET_CHI: ("_bao_app_da_duyet", "Phiếu chi %s giám đốc đã duyệt, chờ chuyển tiền"),
+	TT_TRA_LAI: ("_bao_app_tra_lai", "Phiếu chi %s bị trả lại"),
+	TT_DA_GHI_SO: ("_bao_app_da_chi", "Phiếu chi %s đã chuyển tiền và ghi sổ"),
+}
+
+
+def tin_doi_buoc(cu, moi):
+	"""THUẦN: (tên hàm gửi, tiêu đề) khi phiếu vừa sang bước moi từ bước cu; None nếu không đổi
+	bước hoặc bước không cần báo."""
+	if not moi or moi == cu:
+		return None
+	return TIN_BUOC.get(moi)
+
+
+def dong_tin_buoc(moi, tien, ncc, nguoi, ma_gd=""):
+	"""THUẦN: các dòng của tin đổi bước phiếu chi (tin kế toán, được mang số tiền)."""
+	dong = ["%s cho %s" % (_tien(tien), ncc or "nhà cung cấp")]
+	if moi == TT_CHO_GD:
+		dong.append("Kế toán %s đã kiểm hợp lệ. Giám đốc mở phiếu bấm Duyệt chi hoặc Trả lại." % (nguoi or ""))
+	elif moi == TT_DA_DUYET_CHI:
+		dong.append("Giám đốc %s đã duyệt. Kế toán chuyển khoản, đính uỷ nhiệm chi rồi bấm Xác nhận đã chuyển tiền." % (nguoi or ""))
+	elif moi == TT_TRA_LAI:
+		dong.append("%s trả lại phiếu. Người lập xem lý do trong phiếu, sửa rồi gửi kiểm tra lại." % (nguoi or "Người duyệt"))
+	elif moi == TT_DA_GHI_SO:
+		dong.append("Kế toán %s đã chuyển tiền%s. Phiếu đã ghi sổ, thu mua báo nhà cung cấp nếu cần."
+			% (nguoi or "", (", mã giao dịch %s" % ma_gd) if ma_gd else ""))
+	return dong
+
+
+def _bao_app_cho_gd(tieu, dong, **kw):
+	from vagabond import kenh_zalo
+	return kenh_zalo.bao_hoac_ghi_loi("viec", "cong_no", tieu, dong, ma_tin="bgd_app_cho_duyet", **kw)
+
+
+def _bao_app_da_duyet(tieu, dong, **kw):
+	from vagabond import kenh_zalo
+	return kenh_zalo.bao_hoac_ghi_loi("viec", "cong_no", tieu, dong, ma_tin="kt_app_da_duyet", **kw)
+
+
+def _bao_app_tra_lai(tieu, dong, **kw):
+	from vagabond import kenh_zalo
+	return kenh_zalo.bao_hoac_ghi_loi("viec", "cong_no", tieu, dong, ma_tin="kt_app_tra_lai", **kw)
+
+
+def _bao_app_da_chi(tieu, dong, **kw):
+	from vagabond import kenh_zalo
+	return kenh_zalo.bao_hoac_ghi_loi("thong_bao", "cong_no", tieu, dong, ma_tin="kt_app_da_chi", **kw)
+
+
+def bao_doi_buoc(doc, method=None):
+	"""Hook Payment Entry on_update và on_submit: phiếu chi APP vừa đổi bước thì báo Zalo.
+
+	Hai hook vì Desk bấm "Xác nhận đã chuyển tiền" đi thẳng submit (chỉ on_submit), còn app
+	lưu bước rồi mới submit (on_update). Bước cuối khoá theo phiếu nên không báo hai lần.
+	Không bao giờ làm hỏng phiếu: lỗi lẻ ghi Error Log; lỗi làm chết giao dịch thì đi lên."""
+	try:
+		if not la_phieu_chi_app(doc):
+			return
+		truoc = doc.get_doc_before_save() if hasattr(doc, "get_doc_before_save") else None
+		cu = truoc.get("workflow_state") if truoc else None
+		moi = doc.get("workflow_state")
+		tin = tin_doi_buoc(cu, moi)
+		if not tin:
+			return
+		ham, tieu = tin
+		nguoi = frappe.utils.get_fullname(frappe.session.user)
+		khoa = "app-buoc:%s:%s" % (doc.name, moi)
+		if moi != TT_DA_GHI_SO:
+			khoa += ":" + str(doc.get("modified") or "")[:19]
+		globals()[ham](tieu % doc.name,
+			dong_tin_buoc(moi, flt(doc.get("paid_amount")), doc.get("party_name") or doc.get("party"), nguoi,
+				doc.get("vgb_chi_ma_gd") or ""),
+			link=frappe.utils.get_url("/app/payment-entry/%s" % doc.name), khoa=khoa, nguon=doc.name)
+	except Exception as e:
+		from vagabond.loi_csdl import chet_giao_dich
+		if chet_giao_dich(e):
+			raise
+		frappe.log_error(frappe.get_traceback(), "duyet_chi: bao zalo doi buoc loi")
+
+
 def _so_unc(doc):
 	"""So to uy nhiem chi cua phieu.
 

@@ -1,0 +1,40 @@
+{
+ "actions": [],
+ "creation": "2026-10-27 18:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "module": "Vagabond",
+ "name": "Vagabond Chien Dich Sales",
+ "modified": "2026-10-27 18:00:00.000000",
+ "modified_by": "Administrator",
+ "owner": "Administrator",
+ "description": "Sales nhận danh sách gọi của chiến dịch.",
+ "field_order": [
+  "nguoi",
+  "ten"
+ ],
+ "fields": [
+  {
+   "fieldname": "nguoi",
+   "fieldtype": "Link",
+   "label": "Sales",
+   "options": "User",
+   "in_list_view": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "ten",
+   "fieldtype": "Data",
+   "label": "Tên",
+   "in_list_view": 1,
+   "read_only": 1
+  }
+ ],
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "links": [],
+ "istable": 1,
+ "editable_grid": 1
+}

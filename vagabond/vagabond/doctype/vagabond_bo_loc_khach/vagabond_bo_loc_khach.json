@@ -1,0 +1,82 @@
+{
+ "actions": [],
+ "creation": "2026-10-27 18:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "module": "Vagabond",
+ "name": "Vagabond Bo Loc Khach",
+ "modified": "2026-10-27 18:00:00.000000",
+ "modified_by": "Administrator",
+ "owner": "Administrator",
+ "description": "Bộ lọc khách đã đặt tên, dùng lại khi lập chiến dịch.",
+ "field_order": [
+  "ten",
+  "loc",
+  "an"
+ ],
+ "fields": [
+  {
+   "fieldname": "ten",
+   "fieldtype": "Data",
+   "label": "Tên bộ lọc",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "loc",
+   "fieldtype": "Code",
+   "label": "Điều kiện (máy ghi)",
+   "options": "JSON",
+   "read_only": 1
+  },
+  {
+   "fieldname": "an",
+   "fieldtype": "Check",
+   "label": "Đã ẩn"
+  }
+ ],
+ "permissions": [
+  {
+   "role": "Sales User",
+   "read": 1,
+   "report": 1,
+   "write": 1,
+   "create": 1
+  },
+  {
+   "role": "Sales Manager",
+   "read": 1,
+   "report": 1,
+   "write": 1,
+   "create": 1
+  },
+  {
+   "role": "System Manager",
+   "read": 1,
+   "report": 1,
+   "write": 1,
+   "create": 1
+  },
+  {
+   "role": "VGB - Quản lý cửa hàng",
+   "read": 1,
+   "report": 1,
+   "write": 1,
+   "create": 1
+  },
+  {
+   "role": "Marketing",
+   "read": 1,
+   "report": 1,
+   "write": 1,
+   "create": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "links": [],
+ "autoname": "hash",
+ "track_changes": 1,
+ "title_field": "ten"
+}

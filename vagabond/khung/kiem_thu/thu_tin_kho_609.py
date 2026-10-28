@@ -234,7 +234,9 @@ def _thu_mua():
 	po = _doc(name="DMH-1", supplier_name="Cty ABC", schedule_date="2026-10-28", grand_total=12500000, vgb_huy=0, items=ITEMS)
 	goi = _chay(lambda: tk.khi_ghi_so_don_mua(po))
 	la("đơn mua", [(g.ma_tin, g.loai, g.khoa) for g in goi], [("tm_don_mua_moi", "thong_bao", "dmh:DMH-1")])
-	la("hẹn về và tổng", (goi[0].dong[1], goi[0].dong[-1]), ("Hẹn về 28/10", "Tổng 12.500.000 đ"))
+	# v613 (anh Việt 27/10/2026): tin đơn mua không hiện tổng tiền nữa; dòng cuối là hàng.
+	la("hẹn về, dòng cuối là hàng", (goi[0].dong[1], goi[0].dong[-1]), ("Hẹn về 28/10", "Bơ lạt Anchor: 4 Thùng"))
+	dung("không có tổng tiền", not any("12.500.000" in x for x in goi[0].dong))
 	la("huỷ mềm im", _chay(lambda: tk.khi_ghi_so_don_mua(D(po, vgb_huy=1))), [])
 	dn = _doc(name="GH-1", customer_name="Khách sỉ A", set_warehouse="Kho TC - TV", vgb_nguoi_nhan="Anh Ba", items=ITEMS)
 	goi = _chay(lambda: tk.khi_ghi_so_giao_si(dn))
@@ -266,7 +268,8 @@ def _lich():
 		}.get(dt, [])
 	goi = _chay(tk.nhac_don_mua_tre_hen, get_all=ga)
 	la("trễ hẹn", [(g.ma_tin, g.khoa, g.nguon) for g in goi], [("tm_don_mua_tre_hen", "dmh-tre:%s" % hom, "Purchase Order")])
-	dung("dòng có tiền và phần trăm", "40%" in goi[0].dong[0] and "3.000.000 đ" in goi[0].dong[0])
+	# v613: không tiền, vẫn có phần trăm đã về.
+	dung("dòng có phần trăm, không tiền", "40%" in goi[0].dong[0] and "3.000.000" not in goi[0].dong[0])
 	bl_hd = []
 	goi = _chay(tk.nhac_hang_ve_chua_hoa_don, get_all=lambda dt, **k: (bl_hd.append(k.get("filters")), ga(dt))[1])
 	la("chưa hoá đơn", [(g.ma_tin, g.khoa) for g in goi], [("tm_hang_ve_chua_hoa_don", "pnk-chua-hd:%s" % hom)])
@@ -364,16 +367,17 @@ def _don_web():
 	la("đầu tin", d[0], "Khách N. V. An, nhận Chủ nhật, 25/10 13h - 15h")
 	la("giao", d[1], "Giao: 12 Lê Lợi, Q1")
 	la("món cắt ở 5", (d[2], d[7]), ("Bánh 0 x2", "+1 món khác"))
-	la("phí chưa rõ: không có chữ Tổng, nói Sales báo phí", d[8], "Tiền bánh 1.200.000 đ, phí giao CHƯA RÕ (Ahamove không báo được), Sales báo phí khi gọi khách")
+	# v613 (anh Việt 27/10/2026): tin đơn hàng không hiện tiền; phí chưa rõ vẫn nói Sales báo phí.
+	la("phí chưa rõ: không tiền, nói Sales báo phí", d[8], "Phí giao CHƯA RÕ (đơn vị giao không báo được), Sales báo phí khi gọi khách")
 	la("mã Pancake", d[9:], ["Đã vào Pancake, mã PK-77"])
 	dung("không lộ họ tên đầy đủ", not any("Nguyễn Văn An" in x for x in d))
 	# Bốn trạng thái phí, chạy đúng hàm quyet_phi_giao thật.
 	mp = quyet_phi_giao(1200000, 1000000, False, None)
 	cx = quyet_phi_giao(500000, 1000000, False, {"ok": 1, "total_fee": 35000})
 	tl = quyet_phi_giao(500000, 1000000, True, None)
-	la("miễn phí giao", tk.dong_tien_don_web(1200000, mp), "Tổng 1.200.000 đ, miễn phí giao")
-	la("có báo giá: tổng gồm phí", tk.dong_tien_don_web(500000, cx), "Tổng 535.000 đ (gồm phí giao 35.000 đ)")
-	la("tự lấy", tk.dong_tien_don_web(500000, tl), "Tổng 500.000 đ, tự lấy")
+	la("miễn phí giao", tk.dong_tien_don_web(1200000, mp), "Miễn phí giao")
+	la("có báo giá: nói có phí, không số", tk.dong_tien_don_web(500000, cx), "Có phí giao, đã tính vào đơn")
+	la("tự lấy", tk.dong_tien_don_web(500000, tl), "Khách tự lấy")
 	goi = _chay(lambda: tk.bao_don_web_moi("DW-2", "An", "", True, "The Vagabond Thảo Điền", "", mon[:1], 100000, tl, ""))
 	la("tự lấy, chưa rõ giờ", goi[0].dong[:2], ["Khách An, chưa rõ giờ nhận", "Tự lấy tại The Vagabond Thảo Điền"])
 

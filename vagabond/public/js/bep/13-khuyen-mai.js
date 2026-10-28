@@ -1626,6 +1626,8 @@ function posDiemDat() {
   posDon.diemPhien = null;
   posDon.diemHan = 0;
   posDon.diemVe = null;
+  /* v614: trạng thái đồng ý nhận tin của khách cũ, đổi khách là đọc lại. */
+  posDon.crmDy = null;
 }
 
 function posDiemTat() {
@@ -1646,6 +1648,13 @@ async function posTaiThe(tongTruocDiem) {
       khach: posDon.khach_ma, tong: Math.max(0, tongTruocDiem || 0)
     });
   } catch (e) { posDon.diemTt = null; }
+  /* v614 CRM: khách đã được hỏi nhận tin ưu đãi chưa. Màn tính tiền vẽ lại
+     mỗi lần đổi giỏ, nên chỉ hỏi máy chủ khi đổi khách. Lỗi thì bỏ qua: không
+     ai được kẹt thu tiền vì khối này. */
+  if (typeof coQuyenCrm === 'function' && coQuyenCrm() && !(posDon.crmDy && posDon.crmDy.khach === posDon.khach_ma)) {
+    try { posDon.crmDy = await api('vagabond.crm.dong_y_cua', { khach: posDon.khach_ma }); }
+    catch (e) { posDon.crmDy = null; }
+  }
 }
 
 function posVeThe() {
@@ -1670,7 +1679,7 @@ function posVeThe() {
     '<div style="font-size:11.5px;color:#6b7280">Điểm tích cho bill này</div>' +
     '<div style="font-size:18px;font-weight:800;color:#15803d">' + money(t.diem_don_nay) + '</div>' +
     '<div style="font-size:11px;color:#94a3b8">hạng ' + h(t.ten_hang || '') + ' tích ' + money(t.tich_diem_pt) + '%</div></div>' +
-    '</div>' + posVeTruDiem() + '</div>';
+    '</div>' + posVeTruDiem() + (typeof crmTheHoi === 'function' ? crmTheHoi(posDon.crmDy) : '') + '</div>';
 }
 
 function posVeTruDiem() {
@@ -1722,6 +1731,12 @@ function posVeTruDiem() {
 }
 
 function posGanTruDiem(goiLai) {
+  /* v614 CRM: nút Hỏi khách trong khối thẻ thành viên mở tấm hỏi đồng ý. */
+  var nHoi = document.querySelector('[data-crmhoimo]');
+  if (nHoi && typeof crmSheetDongY === 'function') nHoi.onclick = function () {
+    var t = posDon.diemThe || {};
+    crmSheetDongY(posDon.khach_ma, t.ten || posDon.khach_ma, posDon.crmDy, 'Quầy', function () { posDon.crmDy = null; goiLai(); });
+  };
   /* Noi cac nut cua khoi diem. goiLai la ham ve lai man hinh. */
   posDiemTat();
   var nNhap = document.getElementById('posDiemNhap');

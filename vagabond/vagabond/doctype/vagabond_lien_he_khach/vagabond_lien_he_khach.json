@@ -1,0 +1,109 @@
+{
+ "actions": [],
+ "creation": "2026-10-27 18:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "module": "Vagabond",
+ "name": "Vagabond Lien He Khach",
+ "modified": "2026-10-27 18:00:00.000000",
+ "modified_by": "Administrator",
+ "owner": "Administrator",
+ "description": "Nhật ký liên hệ khách: ai gọi, kết quả, thuộc chiến dịch nào.",
+ "field_order": [
+  "khach",
+  "kenh",
+  "ket_qua",
+  "ghi_chu",
+  "cb1",
+  "chien_dich",
+  "nguoi",
+  "luc"
+ ],
+ "fields": [
+  {
+   "fieldname": "khach",
+   "fieldtype": "Link",
+   "label": "Khách hàng",
+   "options": "Customer",
+   "reqd": 1,
+   "in_list_view": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "kenh",
+   "fieldtype": "Select",
+   "label": "Kênh",
+   "options": "Gọi điện\nZalo\nEmail\nGặp tại quầy\nKhác",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "ket_qua",
+   "fieldtype": "Data",
+   "label": "Kết quả",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "ghi_chu",
+   "fieldtype": "Small Text",
+   "label": "Ghi chú"
+  },
+  {
+   "fieldname": "cb1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "chien_dich",
+   "fieldtype": "Link",
+   "label": "Chiến dịch",
+   "options": "Vagabond Chien Dich"
+  },
+  {
+   "fieldname": "nguoi",
+   "fieldtype": "Link",
+   "label": "Người liên hệ",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "luc",
+   "fieldtype": "Datetime",
+   "label": "Lúc",
+   "read_only": 1,
+   "in_list_view": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "Sales User",
+   "read": 1,
+   "report": 1
+  },
+  {
+   "role": "Sales Manager",
+   "read": 1,
+   "report": 1
+  },
+  {
+   "role": "System Manager",
+   "read": 1,
+   "report": 1
+  },
+  {
+   "role": "VGB - Quản lý cửa hàng",
+   "read": 1,
+   "report": 1
+  },
+  {
+   "role": "Marketing",
+   "read": 1,
+   "report": 1
+  }
+ ],
+ "sort_field": "luc",
+ "sort_order": "DESC",
+ "states": [],
+ "links": [],
+ "autoname": "hash",
+ "track_changes": 1,
+ "title_field": "khach"
+}

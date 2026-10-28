@@ -1,0 +1,254 @@
+{
+ "actions": [],
+ "creation": "2026-10-27 18:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "module": "Vagabond",
+ "name": "Vagabond Chien Dich",
+ "modified": "2026-10-27 18:00:00.000000",
+ "modified_by": "Administrator",
+ "owner": "Administrator",
+ "description": "Chiến dịch chăm sóc khách: nhóm khách, kênh, món giới thiệu, mã ưu đãi, chia Sales, đo hiệu quả.",
+ "field_order": [
+  "ten",
+  "trang_thai",
+  "cb1",
+  "han",
+  "ctkm",
+  "ma_uu_dai",
+  "sb_khach",
+  "bo_loc",
+  "loc",
+  "kenh_goi",
+  "kenh_zalo",
+  "ty_le_doi_chung",
+  "mon",
+  "sales",
+  "sb_kb",
+  "kich_ban",
+  "noi_dung_zalo",
+  "kich_ban_duyet",
+  "duyet_boi",
+  "duyet_luc",
+  "sb_chot",
+  "ngay_chot",
+  "chot_boi",
+  "cb2",
+  "so_trong_nhom",
+  "so_loai_chua_dong_y",
+  "so_loai_kqc",
+  "so_doi_chung",
+  "so_nhan"
+ ],
+ "fields": [
+  {
+   "fieldname": "ten",
+   "fieldtype": "Data",
+   "label": "Tên chiến dịch",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "trang_thai",
+   "fieldtype": "Select",
+   "label": "Trạng thái",
+   "options": "Nháp\nĐang chạy\nĐã kết thúc",
+   "default": "Nháp",
+   "in_list_view": 1,
+   "read_only": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "cb1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "han",
+   "fieldtype": "Date",
+   "label": "Hạn",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "ctkm",
+   "fieldtype": "Link",
+   "label": "Chương trình khuyến mãi",
+   "options": "Vagabond CTKM"
+  },
+  {
+   "fieldname": "ma_uu_dai",
+   "fieldtype": "Data",
+   "label": "Mã ưu đãi",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sb_khach",
+   "fieldtype": "Section Break",
+   "label": "Khách và kênh"
+  },
+  {
+   "fieldname": "bo_loc",
+   "fieldtype": "Link",
+   "label": "Bộ lọc đã lưu",
+   "options": "Vagabond Bo Loc Khach"
+  },
+  {
+   "fieldname": "loc",
+   "fieldtype": "Code",
+   "label": "Điều kiện chọn khách (máy ghi)",
+   "options": "JSON",
+   "read_only": 1
+  },
+  {
+   "fieldname": "kenh_goi",
+   "fieldtype": "Check",
+   "label": "Gọi điện"
+  },
+  {
+   "fieldname": "kenh_zalo",
+   "fieldtype": "Check",
+   "label": "Zalo cá nhân"
+  },
+  {
+   "fieldname": "ty_le_doi_chung",
+   "fieldtype": "Int",
+   "label": "Phần trăm đối chứng",
+   "default": "10"
+  },
+  {
+   "fieldname": "mon",
+   "fieldtype": "Table",
+   "label": "Món giới thiệu",
+   "options": "Vagabond Chien Dich Mon"
+  },
+  {
+   "fieldname": "sales",
+   "fieldtype": "Table",
+   "label": "Sales nhận danh sách",
+   "options": "Vagabond Chien Dich Sales"
+  },
+  {
+   "fieldname": "sb_kb",
+   "fieldtype": "Section Break",
+   "label": "Kịch bản"
+  },
+  {
+   "fieldname": "kich_ban",
+   "fieldtype": "Text",
+   "label": "Kịch bản gọi"
+  },
+  {
+   "fieldname": "noi_dung_zalo",
+   "fieldtype": "Text",
+   "label": "Tin Zalo soạn sẵn ({ten} là tên khách)"
+  },
+  {
+   "fieldname": "kich_ban_duyet",
+   "fieldtype": "Check",
+   "label": "Kịch bản đã duyệt",
+   "read_only": 1
+  },
+  {
+   "fieldname": "duyet_boi",
+   "fieldtype": "Link",
+   "label": "Người duyệt",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "duyet_luc",
+   "fieldtype": "Datetime",
+   "label": "Duyệt lúc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sb_chot",
+   "fieldtype": "Section Break",
+   "label": "Chốt danh sách"
+  },
+  {
+   "fieldname": "ngay_chot",
+   "fieldtype": "Datetime",
+   "label": "Chốt lúc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "chot_boi",
+   "fieldtype": "Link",
+   "label": "Người chốt",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "so_trong_nhom",
+   "fieldtype": "Int",
+   "label": "Trong nhóm",
+   "read_only": 1
+  },
+  {
+   "fieldname": "so_loai_chua_dong_y",
+   "fieldtype": "Int",
+   "label": "Loại vì chưa đồng ý",
+   "read_only": 1
+  },
+  {
+   "fieldname": "so_loai_kqc",
+   "fieldtype": "Int",
+   "label": "Loại vì Danh sách không quảng cáo",
+   "read_only": 1
+  },
+  {
+   "fieldname": "so_doi_chung",
+   "fieldtype": "Int",
+   "label": "Đối chứng",
+   "read_only": 1
+  },
+  {
+   "fieldname": "so_nhan",
+   "fieldtype": "Int",
+   "label": "Được liên hệ",
+   "read_only": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "Sales User",
+   "read": 1,
+   "report": 1
+  },
+  {
+   "role": "VGB - Quản lý cửa hàng",
+   "read": 1,
+   "report": 1
+  },
+  {
+   "role": "Marketing",
+   "read": 1,
+   "report": 1
+  },
+  {
+   "role": "Sales Manager",
+   "read": 1,
+   "report": 1,
+   "write": 1,
+   "create": 1
+  },
+  {
+   "role": "System Manager",
+   "read": 1,
+   "report": 1,
+   "write": 1,
+   "create": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "links": [],
+ "autoname": "CD-.YY.-.####",
+ "track_changes": 1,
+ "title_field": "ten"
+}

@@ -826,6 +826,12 @@ sdKhai('don_huy_hoan', 'dhMo', {
   hop: function () { return dhOv; }, dong: function () { dhDong(); },
   ma: function (a) { return a[0] || ''; }, tieuDe: sdTieuDe('hien', 'ten'), luu: ['vagabond.don_huy.tao_hoan']
 });
+/* v614 Codex PR #505: chiến dịch CRM (58-crm.js, đứng sau 48 nên ghép bằng
+   dat() chứ không móc sdGhep, xem crmCdGhepNhap). Chỉ lưu khi còn Nháp. */
+sdKhai('chien_dich', 'scrCrmCd', {
+  ten: 'Chiến dịch', lay: function () { return crmCdNhap(); }, dat: function (v) { crmCdKhoiPhuc = v; },
+  ma: function (a) { return a[0] || ''; }, tieuDe: sdTieuDe('ten'), luu: ['vagabond.crm.luu_chien_dich']
+});
 sdKhai('ctkm', 'kmSheetCtkm', {
   ten: 'Chương trình khuyến mãi', laHop: 1, lay: function () { return kmSua; },
   ghep: function (moi, v) { return v || moi; },
@@ -891,6 +897,7 @@ scrNhpDon = sdBoc('nhan_hang', 'scrNhpDon', scrNhpDon);
 scrMfgDeclare = sdBoc('khai_sx', 'scrMfgDeclare', scrMfgDeclare);
 gvtManPhieu = sdBoc('gia_thu', 'gvtManPhieu', gvtManPhieu);
 scrSoDuNap = sdBoc('nap_tra_truoc', 'scrSoDuNap', scrSoDuNap);
+scrCrmCd = sdBoc('chien_dich', 'scrCrmCd', scrCrmCd);
 hoanMoForm = sdBocHop('hoan_tien', 'hoanMoForm', hoanMoForm);
 hoanMoFormDu = sdBocHop('hoan_du', 'hoanMoFormDu', hoanMoFormDu);
 hoanMoFormHuy = sdBocHop('hoan_huy', 'hoanMoFormHuy', hoanMoFormHuy);
