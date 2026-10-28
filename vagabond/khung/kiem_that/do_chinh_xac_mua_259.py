@@ -54,7 +54,10 @@ Không dùng tổng đã được cân làm bằng chứng policy precision còn
         {'custom_minvoice_id': goc.name}), 0)
 
 
-def _luong(qty, rate, net, tax, doi_chung=False, bu=0):
+def _luong(qty, rate, net, tax, doi_chung=False, bu=0, gia_may=None):
+    # v618: dòng lệch do làm tròn thì đơn giá chịu theo thành tiền nguồn
+    # (`gia_may`), không thêm dòng bù. Không truyền thì giữ đúng giá in.
+    gia_may = rate if gia_may is None else gia_may
     mon = _mon()
     raw = [dict(ten='Decal thử259', sluong=qty, dgia=rate,
         thtien=net, dvtinh='Gram', tchat=1, stckhau=0)]
@@ -71,7 +74,7 @@ def _luong(qty, rate, net, tax, doi_chung=False, bu=0):
         hd = frappe.get_doc('Purchase Invoice', ma)
         for lan in range(2):
             hd.save(ignore_permissions=True); hd.reload()
-            la('giữ đơn giá nguồn sau reload/save', hd.items[0].rate, rate)
+            la('giữ đơn giá máy ghi sau reload/save', hd.items[0].rate, gia_may)
             la('giữ số lượng nguồn', hd.items[0].qty, qty)
             la('số dòng hàng và bù làm tròn', len(hd.items), 1 + bool(bu))
             if bu:
@@ -85,11 +88,11 @@ def _luong(qty, rate, net, tax, doi_chung=False, bu=0):
         thu = frappe.copy_doc(hd)
         dl._dung_dong_tai_cho(thu, goc.as_dict())
         la('dựng lại đúng số dòng', len(thu.items), 1 + bool(bu))
-        la('dựng lại giữ qty/rate', (thu.items[0].qty, thu.items[0].rate), (qty, rate))
+        la('dựng lại giữ qty/rate', (thu.items[0].qty, thu.items[0].rate), (qty, gia_may))
         la('dựng lại không giảm bù', thu.discount_amount, 0)
         hd.flags.ignore_permissions = True
         hd.submit(); hd.reload()
-        la('submit giữ giá nguồn', hd.items[0].rate, rate)
+        la('submit giữ giá máy ghi', hd.items[0].rate, gia_may)
         la('submit giữ gross', hd.grand_total, net+tax)
         gl = nen.so_cai_cua(hd)
         dung('có GL thật', bool(gl))
@@ -147,11 +150,16 @@ def _pham_vi():
     la('bỏ nguồn trả cache về cũ', (hd.precision('rate', 'items'), hd.items[0].precision('rate')), cu)
 
 
-@ca('#337 ALOIN1144: dựng/save/submit/GL/hủy giữ tổng442800 và bù đúng1đ')
+@ca('#337 ALOIN1144 (v618): dựng/save/submit/GL/hủy giữ tổng442800, đơn giá chịu theo thành tiền')
 def _aloin_1144():
-    _luong(260, 1576.92, 410000, 32800, bu=1)
+    _luong(260, 1576.92, 410000, 32800, gia_may=1576.923076923)
 
 
-@ca('#337 ALOIN1144 âm: bù âm1đ, GL và hủy đảo đúng tổng')
+@ca('#337 ALOIN1144 âm (v618): đơn giá chịu theo thành tiền, GL và hủy đảo đúng tổng')
 def _aloin_1144_am():
-    _luong(-260, 1576.92, -410000, -32800, bu=-1)
+    _luong(-260, 1576.92, -410000, -32800, gia_may=1576.923076923)
+
+
+@ca('v618 An Phú 8345: 7,7 x 45.065 = 347.000,5, ERPNext thật ghi đúng 347.001 không dòng bù')
+def _an_phu_8345():
+    _luong(7.7, 45065, 347001, 0, gia_may=45065.064935065)
