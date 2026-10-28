@@ -1195,7 +1195,7 @@ async function scrNopQuyTao() {
         (Math.abs(c.tong_lech) >= 1 ? ' · <span style="color:#b3261e">ca lệch ' + money(c.tong_lech) + '</span>' : '') + '</div></div>' +
         '<b style="white-space:nowrap">' + money(c.tien_mat_dem) + ' đ</b></label>';
     }).join('') + '</div>';
-  html += '<div class="card" style="padding:12px 14px;display:flex;align-items:center;gap:10px">' +
+  html += '<div class="card" style="padding:12px 14px;display:flex;flex-direction:row;align-items:center;gap:10px">' +
     '<div style="flex:1;font-size:13.5px;font-weight:600">Tiền lẻ để lại quầy cho ca sau</div>' +
     '<input class="tin" id="nqGiuLai" inputmode="numeric" placeholder="0" style="width:140px;text-align:right;margin:0"></div>';
   html += '<div class="sec">Bảng kê mệnh giá thực nộp</div><div class="card" style="padding:6px 14px">' +

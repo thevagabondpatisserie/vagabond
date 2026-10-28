@@ -85,7 +85,7 @@ async function scrDoanhSo() {
   catch (e) { frame('Doanh thu Sales', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được, thử lại sau') + '</div></div>'); return; }
   var rows = d.rows || [];
   var nhap = rows.filter(function (r) { return r.docstatus === 0; });
-  var html = '<div class="card" style="padding:12px 14px;display:flex;align-items:center;gap:12px">' +
+  var html = '<div class="card" style="padding:12px 14px;display:flex;flex-direction:row;align-items:center;gap:12px">' +
     '<div style="font-weight:600;white-space:nowrap">Ngày bán</div>' +
     '<input type="date" class="hin" id="dsDate" value="' + dsNgay + '" max="' + today() + '" style="flex:1;margin:0">' +
     '</div>' + '<div class="card" style="padding:2px 14px 12px">' + chipNgay('data-dsbuoc') + '</div>';

@@ -285,10 +285,11 @@ def _dung_moi_that():
 	t = _chay_dung_moi(dict(TO_1144))
 	la("tổng tờ khớp hoá đơn", t.grand_total, 442800.0)
 	la("tiền hàng khớp", t.net_total, 410000.0)
-	la("có thêm một dòng bù", len(t.items), 2)
-	la("dòng bù đúng một đồng", t.items[1].amount, 1.0)
-	la("gọi đúng tên dòng bù", t.items[1].item_name,
-		"Chênh lệch làm tròn theo hoá đơn điện tử")
+	# v618 (ca An Phu 8345): mot dong lam tron nay vao THANG don gia dong
+	# hang, khong con dong bu khong ma hang. Ban truoc mong 2 dong.
+	la("không còn dòng bù", len(t.items), 1)
+	la("đơn giá nắn theo thành tiền", t.items[0].rate, 1576.923076923)
+	la("dòng hàng ra đúng 410.000", t.items[0].amount, 410000.0)
 
 
 @ca("v502: to khong khai tach tien truoc thue van dung ra dung tong")
@@ -328,7 +329,10 @@ def _lech_thi_nem():
 	# Truoc 16/09/2026 hang rao so bang `>` nen to nhu vay vao so lang le.
 	loi = ""
 	try:
-		with patch.object(mc, "can_theo_truoc_thue", lambda *a: ("khop", 0)):
+		# v618: tu ban nay don gia dong 1144 duoc nan theo thanh tien nen to
+		# da dung so tu dong hang. Phai tat CA phep nan dong moi con lech.
+		with patch.object(mc, "can_theo_truoc_thue", lambda *a: ("khop", 0)), \
+				patch.object(mc, "gia_cho_dung_thanh_tien", lambda sl, gia, *a: gia):
 			_chay_dung_moi(dict(TO_1144))
 	except AssertionError as e:
 		loi = str(e)

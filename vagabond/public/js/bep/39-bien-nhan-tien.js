@@ -74,7 +74,7 @@ async function scrBntDs() {
     '<input class="tin" id="bntTim" type="search" autocomplete="off" placeholder="🔎 Tìm mã phiếu hoặc tên người nộp" value="' + h(bntTim) + '" style="margin:0"></div>';
 
   var tongNhan = ds.reduce(function (a, d) { return a + (d.tong_thuc_nhan || 0); }, 0);
-  html += '<div class="card" style="padding:12px 14px;display:flex;gap:14px">' +
+  html += '<div class="card" style="padding:12px 14px;display:flex;flex-direction:row;gap:14px">' +
     '<div style="flex:1"><div style="font-size:11.5px;color:#98a2b3;font-weight:700">SỐ PHIẾU</div>' +
     '<b style="font-size:19px">' + ds.length + '</b></div>' +
     '<div style="flex:2"><div style="font-size:11.5px;color:#98a2b3;font-weight:700">TỔNG THỰC NỘP</div>' +

@@ -613,9 +613,12 @@ def _():
 	j = MA_DUNG_LAI.find("def hoc_ma_hang")
 	than = MA_DUNG_LAI[i:j]
 	dung("co keo so luong ve goc", "d.qty = x.get(\"sl\")" in than)
-	dung("co keo don gia ve goc", "d.rate = x.get(\"gia\")" in than)
+	# v618 (Codex #512): don gia ve goc di qua `gia_dung`, dong da chia phieu
+	# lay theo `gia_cac_dong_chia`; hanh vi chot o thu_nan_gia_dong_618.
+	dung("co keo don gia ve goc", "gia_dung = x.get(\"gia\")" in than
+	     and "d.rate = gia_dung" in than)
 	dung("ghim ca gia bang keo ERPNext khoi dien de",
-	     "d.price_list_rate = x.get(\"gia\")" in than)
+	     "d.price_list_rate = gia_dung" in than)
 	dung("khong bao gio dung toi ma hang", "item_code =" not in than)
 	dung("khong thay ca bang dong hang", "doc.set(\"items\"" not in than)
 	dung("ten trung nhau thi bo qua, khong doan", "theo_khoa.pop(k, None)" in than)

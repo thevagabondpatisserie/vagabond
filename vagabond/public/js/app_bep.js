@@ -14029,7 +14029,7 @@ async function scrDoanhSo() {
   catch (e) { frame('Doanh thu Sales', '<div class="emp"><div class="e1">⚠️</div><div>' + h((e && e.message) || 'Không tải được, thử lại sau') + '</div></div>'); return; }
   var rows = d.rows || [];
   var nhap = rows.filter(function (r) { return r.docstatus === 0; });
-  var html = '<div class="card" style="padding:12px 14px;display:flex;align-items:center;gap:12px">' +
+  var html = '<div class="card" style="padding:12px 14px;display:flex;flex-direction:row;align-items:center;gap:12px">' +
     '<div style="font-weight:600;white-space:nowrap">Ngày bán</div>' +
     '<input type="date" class="hin" id="dsDate" value="' + dsNgay + '" max="' + today() + '" style="flex:1;margin:0">' +
     '</div>' + '<div class="card" style="padding:2px 14px 12px">' + chipNgay('data-dsbuoc') + '</div>';
@@ -17081,7 +17081,8 @@ function locHang(ds, dangChon, attr, rows) {
       'font-weight:' + (on ? '800' : '600') + ';cursor:pointer;white-space:nowrap;font-family:inherit">' +
       c.nhan + ' <span style="opacity:.75">' + n + '</span></button>';
   }).join('');
-  return '<div style="flex:0 0 auto;display:flex;gap:7px;padding:2px 0;overflow-x:auto;-webkit-overflow-scrolling:touch">' + ra + '</div>';
+  /* v618: lớp cuon-ngang (00-nen.js) giấu thanh cuộn xám dưới hàng chip. */
+  return '<div class="cuon-ngang" style="flex:0 0 auto;display:flex;gap:7px;padding:2px 0;overflow-x:auto;-webkit-overflow-scrolling:touch">' + ra + '</div>';
 }
 
 /* Chip nguon don + phuong thuc thanh toan sinh theo du lieu that cua ngay,
@@ -18388,23 +18389,40 @@ async function scrPosDs() {
      dan sang man Hoa don chua tru kho cua dung diem nay. */
   var soChoKho = ds.filter(tkConCho).length;
   if (soChoKho) {
-    html += '<div class="card" style="padding:11px 13px;background:#fff7ed;border:1px solid #fed7aa;' +
-      'color:#9a3412;font-size:12.5px;line-height:1.55;display:flex;align-items:center;gap:10px">' +
-      '<div style="flex:1">📦 ' + soChoKho + ' hoá đơn ghi sổ lúc kho chưa có hàng. Máy tự trừ bù khi hàng nhập về kho điểm bán.</div>' +
-      '<button class="btn gh" id="posDsTruKho" style="margin:0;padding:8px 11px;font-size:12.5px;flex:none">Xem</button></div>';
+    /* v618 (chị Dễ báo 28/10/2026, ảnh chữ dựng đứng từng ký tự): mọi thẻ
+       .card có display:flex ở màn này GHI RÕ hướng. Trước v617 Bootstrap lật
+       thẻ thành cột nên ba thẻ này vẫn xem được; v617 trả .card về hàng ngang
+       thì nút .btn (width:100%) chiếm trọn chiều ngang, chữ bên cạnh co còn
+       0 điểm. Nút trong hàng ngang khai width:auto, xem bài học v618. */
+    html += '<div class="card" data-pdkho="1" style="padding:11px 13px;background:#fff7ed;border:1px solid #fed7aa;' +
+      'color:#9a3412;font-size:12.5px;line-height:1.55;display:flex;flex-direction:row;align-items:center;gap:10px">' +
+      '<div style="flex:1;min-width:0">📦 ' + soChoKho + ' hoá đơn ghi sổ lúc kho chưa có hàng. Máy tự trừ bù khi hàng nhập về kho điểm bán.</div>' +
+      '<button class="btn gh" id="posDsTruKho" style="margin:0;padding:8px 12px;font-size:13px;flex:none;width:auto;min-height:44px">Xem</button></div>';
   }
-  /* Lich chon ngay: xem lai bill ngay qua khu (anh Viet 09/08). */
-  html += '<div class="card" style="padding:12px 14px;display:flex;align-items:center;gap:12px">' +
+  /* v618: đang xem NGÀY KHÁC thì nói to ngay đầu màn, kèm nút về hôm nay.
+     Thu ngân lật xem hôm qua rồi quên, tưởng hoá đơn hôm nay bị mất. */
+  if (!laHomNay) {
+    html += '<div class="card" data-pdkhac="1" style="padding:11px 13px;background:#fffbeb;border:1.5px solid #fcd34d;' +
+      'color:#92400e;font-size:13px;line-height:1.55;display:flex;flex-direction:row;align-items:center;gap:10px">' +
+      '<div style="flex:1;min-width:0">📅 Đang xem hoá đơn ngày <b>' + posDsNgay.split('-').reverse().join('/') +
+      '</b>, không phải hôm nay. Hoá đơn mới luôn lập cho hôm nay.</div>' +
+      posChipNut('data-pdbuoc="0"', 'Về hôm nay', false) + '</div>';
+  }
+  /* Lich chon ngay: xem lai bill ngay qua khu (anh Viet 09/08). v618: ngày và
+     ô lịch một hàng, chip ngày và ô tìm xuống hàng riêng đủ rộng. */
+  html += '<div class="card" data-pdngay="1" style="padding:12px 14px;display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;gap:8px 12px">' +
     '<div style="font-weight:600;white-space:nowrap">' + posNgayVn(posDsNgay) + '</div>' +
-    '<input type="date" class="hin" id="posDsDate" value="' + posDsNgay + '" max="' + today() + '" style="flex:1;margin:0">' +
-    chipNgay('data-pdbuoc') + '</div>';
-  html += '<div class="card" style="padding:12px 14px;display:flex;align-items:center;gap:8px">' +
-    '<div style="flex:1;min-width:0"><b>' + dsTien.length + ' hoá đơn · ' + money(tong) + ' đ</b>' +
+    '<input type="date" class="hin" id="posDsDate" value="' + posDsNgay + '" max="' + today() + '" style="flex:1 1 140px;min-width:0;margin:0">' +
+    '<div style="flex:1 1 100%;min-width:0">' + chipNgay('data-pdbuoc') + '</div></div>';
+  /* v618: tổng ở trên, hai nút chia đôi một hàng bên dưới, nút cao 44 điểm. */
+  html += '<div class="card" data-pdtong="1" style="padding:12px 14px;display:flex;flex-direction:column;gap:10px">' +
+    '<div style="min-width:0"><b style="font-size:15.5px">' + dsTien.length + ' hoá đơn · ' + money(tong) + ' đ</b>' +
     (soHuy ? '<span style="color:#991b1b;font-size:12.5px;font-weight:700;margin-left:8px">+ ' + soHuy + ' đã huỷ</span>' : '') +
-    '<div style="font-size:12px;color:#5b6472">' + (ptTxt || 'Chưa có hoá đơn doanh thu') + '</div>' +
-    '<div style="font-size:12px;color:#98a2b3">Hoá đơn của quầy ' + h(posQuay.ten) + ', mỗi quầy tự quản hoá đơn của mình.</div></div>' +
-    (laHomNay ? '<button class="btn gh" id="posDsMoi" style="margin:0;padding:9px 11px;font-size:13px;flex:none">🧾 Hoá đơn mới</button>' : '') +
-    '<button class="btn" id="posDsChotCa" style="margin:0;padding:9px 11px;font-size:13px;flex:none">🧮 Chốt ca</button></div>';
+    '<div style="font-size:12.5px;color:#5b6472;margin-top:2px">' + (ptTxt || 'Chưa có hoá đơn doanh thu') + '</div>' +
+    '<div style="font-size:12px;color:#98a2b3;margin-top:2px">Hoá đơn của quầy ' + h(posQuay.ten) + ', mỗi quầy tự quản hoá đơn của mình.</div></div>' +
+    '<div style="display:flex;flex-direction:row;gap:8px">' +
+    (laHomNay ? '<button class="btn gh" id="posDsMoi" style="margin:0;padding:11px 12px;font-size:14px;flex:1 1 0;width:auto;min-height:44px">🧾 Hoá đơn mới</button>' : '') +
+    '<button class="btn" id="posDsChotCa" style="margin:0;padding:11px 12px;font-size:14px;flex:1 1 0;width:auto;min-height:44px">🧮 Chốt ca</button></div></div>';
   /* Bo loc hai tang giong man Sales: tinh trang x nguon/phuong thuc.
      Quan ly ca soat cuoi ngay chi can bam vai chip la ra dung nhom can xem
      (anh Viet 10/08/2026). */
@@ -18440,7 +18458,15 @@ async function scrPosDs() {
   var PHD = locHddt();
   var pTt = locTim(PTT, posLocTt), pNg = locTim(PNG, posLocNg), pHd = locTim(PHD, posLocHd);
   posLocTt = pTt.k; posLocNg = pNg.k; posLocHd = pHd.k;
+  /* v618: đang lọc thì nói rõ lọc gì và có nút bỏ lọc một chạm. Bộ lọc giữ
+     qua các lần mở màn, người sau mở ra thấy thiếu hoá đơn mà không biết vì
+     sao. */
+  var dangLoc = [posLocTt === 'tat_ca' ? '' : pTt.nhan, pNg.k ? pNg.nhan : '', pHd.k ? pHd.nhan : ''].filter(Boolean);
   html += '<div class="card" style="padding:10px 12px;display:flex;flex-direction:column;gap:7px">' +
+    (dangLoc.length ? '<div data-pddangloc="1" style="display:flex;flex-direction:row;align-items:center;gap:8px;' +
+      'padding:7px 10px;background:#f0fdfa;border-radius:10px;font-size:12.5px;color:#0f766e;line-height:1.5">' +
+      '<div style="flex:1;min-width:0">🔎 Đang lọc: <b>' + dangLoc.join(' · ') + '</b>. Hoá đơn khác đang ẩn.</div>' +
+      posChipNut('data-pbo="1"', '✕ Bỏ lọc', false, true) + '</div>' : '') +
     locHang(PTT, posLocTt, 'data-ptt', ds) +
     locHang(PNG, posLocNg, 'data-png', ds.filter(pTt.loc)) +
     locHang(PHD, posLocHd, 'data-phd', ds.filter(pTt.loc)) + '</div>';
@@ -18474,7 +18500,9 @@ async function scrPosDs() {
   var oTk = document.getElementById('posDsTruKho');
   if (oTk) oTk.onclick = function () { tkDiem = (posQuay && posQuay.ma) || 'SALES'; tkLocChon = 'cho'; go(scrTruKho); };
   var oD = document.getElementById('posDsDate');
-  if (oD) oD.onchange = function () { posDsNgay = oD.value || today(); posLocTt = 'tat_ca'; posLocNg = ''; go(scrPosDs, true); };
+  /* v618: đổi ngày thì bỏ CẢ BA bộ lọc. Trước đây chip trạng thái hoá đơn
+     điện tử còn giữ, ngày mới ra ít hoá đơn mà không ai biết vì sao. */
+  if (oD) oD.onchange = function () { posDsNgay = oD.value || today(); posLocTt = 'tat_ca'; posLocNg = ''; posLocHd = ''; go(scrPosDs, true); };
   veODate('posDsDate');
   /* O tim don dung chung, khong gioi han ngay (anh Viet 18/08/2026). Hai
      man tinh tien deu dung chung mot o va mot phep tim. */
@@ -18484,10 +18512,11 @@ async function scrPosDs() {
     var bu = +t.getAttribute('data-pdbuoc');
     var moi = bu ? ngayCong(posDsNgay || today(), bu) : today();
     if (moi > today()) return toast('Chưa tới ngày đó.');
-    posDsNgay = moi; posLocTt = 'tat_ca'; posLocNg = '';
+    posDsNgay = moi; posLocTt = 'tat_ca'; posLocNg = ''; posLocHd = '';
     go(scrPosDs, true);
   });
   b.onclick = function (e) {
+    if (e.target.closest('[data-pbo]')) { posLocTt = 'tat_ca'; posLocNg = ''; posLocHd = ''; return go(scrPosDs, true); }
     var ct = e.target.closest('[data-ptt]');
     if (ct) { posLocTt = ct.getAttribute('data-ptt'); return go(scrPosDs, true); }
     ct = e.target.closest('[data-png]');
@@ -20401,7 +20430,7 @@ function khChipHang(hg) {
    Hai cột nằm ngang (thẻ .card nay là hàng ngang, xem 00-nen.js). THUẦN. */
 function khTongHtml(kq) {
   kq = kq || {};
-  return '<div class="card" data-khtong="1" style="padding:12px 14px;display:flex;gap:12px">' +
+  return '<div class="card" data-khtong="1" style="padding:12px 14px;display:flex;flex-direction:row;gap:12px">' +
     '<div style="flex:1;min-width:0"><div style="font-size:12.5px;color:#667085;font-weight:600">ĐANG XEM</div>' +
     '<div style="font-size:20px;font-weight:800">' + money(kq.tong_so || 0) + ' khách</div>' +
     '<div style="font-size:13px;color:#667085">' + money(kq.so_si || 0) + ' sỉ · ' + money(kq.so_le || 0) + ' lẻ</div></div>' +
@@ -25933,7 +25962,7 @@ async function scrVdChiPhi() {
     [[7, '7 ngày'], [30, '30 ngày'], [90, '90 ngày'], [365, '1 năm']].map(function (x) {
       return posChipNut('data-cpng="' + x[0] + '"', x[1], !cpTu && cpKhoang === x[0]);
     }).join('')) + '</div>';
-  html += '<div class="card" style="padding:10px 12px;display:flex;align-items:center;gap:8px">' +
+  html += '<div class="card" style="padding:10px 12px;display:flex;flex-direction:row;align-items:center;gap:8px">' +
     '<input type="date" class="hin" id="cpTu" value="' + h(cpKhoangNgay().tu_ngay) + '" style="flex:1;margin:0;min-width:0">' +
     '<span style="color:#9aa1ad">đến</span>' +
     '<input type="date" class="hin" id="cpDen" value="' + h(cpKhoangNgay().den_ngay) + '" max="' + today() + '" style="flex:1;margin:0;min-width:0">' +
@@ -26070,7 +26099,7 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '617';
+var APPVER = '618';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
@@ -27177,7 +27206,7 @@ async function scrVdPhiApp() {
     [[30, '30 ngày'], [90, '3 tháng'], [180, '6 tháng'], [365, '1 năm']].map(function (x) {
       return posChipNut('data-pang="' + x[0] + '"', x[1], !paTu && !paDen && paKhoang === x[0]);
     }).join('')) + '</div>';
-  html += '<div class="card" style="padding:10px 12px;display:flex;align-items:center;gap:8px">' +
+  html += '<div class="card" style="padding:10px 12px;display:flex;flex-direction:row;align-items:center;gap:8px">' +
     '<input type="date" class="hin" id="paTu" value="' + h(ts.tu_ngay) + '" style="flex:1;margin:0;min-width:0">' +
     '<span style="color:#9aa1ad">đến</span>' +
     '<input type="date" class="hin" id="paDen" value="' + h(ts.den_ngay) + '" max="' + today() + '" style="flex:1;margin:0;min-width:0">' +
@@ -29894,7 +29923,7 @@ function kgThanhLoc(kq) {
         '<input class="tin" data-kgtxt="' + h(f.k) + '" placeholder="' + h(moTa) + '" value="' +
         h(ts[f.k] || '') + '"></div>';
     } else if (f.kieu === 'khoang_so') {
-      ra += '<div class="card" style="padding:10px 12px;display:flex;gap:8px">' +
+      ra += '<div class="card" style="padding:10px 12px;display:flex;flex-direction:row;gap:8px">' +
         '<input class="tin" data-kgtxt="' + h(f.k) + '_tu" type="number" placeholder="' + h(f.nhan) + ' từ" value="' + h(ts[f.k + '_tu'] || '') + '" style="flex:1">' +
         '<input class="tin" data-kgtxt="' + h(f.k) + '_den" type="number" placeholder="đến" value="' + h(ts[f.k + '_den'] || '') + '" style="flex:1"></div>';
     } else if (f.kieu === 'co') {
@@ -43306,7 +43335,7 @@ async function scrNopQuyTao() {
         (Math.abs(c.tong_lech) >= 1 ? ' · <span style="color:#b3261e">ca lệch ' + money(c.tong_lech) + '</span>' : '') + '</div></div>' +
         '<b style="white-space:nowrap">' + money(c.tien_mat_dem) + ' đ</b></label>';
     }).join('') + '</div>';
-  html += '<div class="card" style="padding:12px 14px;display:flex;align-items:center;gap:10px">' +
+  html += '<div class="card" style="padding:12px 14px;display:flex;flex-direction:row;align-items:center;gap:10px">' +
     '<div style="flex:1;font-size:13.5px;font-weight:600">Tiền lẻ để lại quầy cho ca sau</div>' +
     '<input class="tin" id="nqGiuLai" inputmode="numeric" placeholder="0" style="width:140px;text-align:right;margin:0"></div>';
   html += '<div class="sec">Bảng kê mệnh giá thực nộp</div><div class="card" style="padding:6px 14px">' +
@@ -52323,7 +52352,7 @@ async function scrBntDs() {
     '<input class="tin" id="bntTim" type="search" autocomplete="off" placeholder="🔎 Tìm mã phiếu hoặc tên người nộp" value="' + h(bntTim) + '" style="margin:0"></div>';
 
   var tongNhan = ds.reduce(function (a, d) { return a + (d.tong_thuc_nhan || 0); }, 0);
-  html += '<div class="card" style="padding:12px 14px;display:flex;gap:14px">' +
+  html += '<div class="card" style="padding:12px 14px;display:flex;flex-direction:row;gap:14px">' +
     '<div style="flex:1"><div style="font-size:11.5px;color:#98a2b3;font-weight:700">SỐ PHIẾU</div>' +
     '<b style="font-size:19px">' + ds.length + '</b></div>' +
     '<div style="flex:2"><div style="font-size:11.5px;color:#98a2b3;font-weight:700">TỔNG THỰC NỘP</div>' +
