@@ -328,7 +328,15 @@ def gui_chien_dich_oa(name=None):
 
 
 def gui_nen(name):
-	"""Việc nền: gửi từng khách, ghi kết quả từng dòng, commit sau mỗi khách."""
+	"""Việc nền: gửi từng khách, ghi kết quả từng dòng, commit sau mỗi khách.
+
+	Codex PR #510 vòng 1: một lượt gửi kéo dài nhiều phút, nên NGAY TRƯỚC mỗi
+	tin phải đọc lại (1) chiến dịch còn Đang chạy không: quản lý bấm Kết thúc
+	thì dừng, dòng chưa gửi để nguyên; (2) đồng ý Zalo, Danh sách không quảng
+	cáo và UID quan tâm HIỆN TẠI của đúng khách đó: khách rút đồng ý hay bỏ
+	quan tâm giữa lượt thì tin của họ không đi. Danh sách đọc một lần ở đầu chỉ
+	để biết dòng nào chưa gửi.
+	"""
 	import time
 
 	from frappe.utils import now_datetime
@@ -338,23 +346,32 @@ def gui_nen(name):
 	doc = frappe.get_doc(crm.DT_CD, name)
 	cd = doc.as_dict()
 	dem = {"Đã gửi": 0, "Lỗi": 0, "Bỏ qua": 0}
+	dung = False
 	try:
 		rows = frappe.db.sql(
-			"""select k.name, k.khach, k.ten_khach, k.ma_uu_dai, h.dy_zalo, ifnull(h.khong_quang_cao, 0) kqc,
-			(select z.uid from `tab%s` z where z.khach = k.khach and z.trang_thai = 'Đang quan tâm'
-			 order by z.modified desc limit 1) uid
-			from `tab%s` k left join `tab%s` h on h.name = k.khach
+			"""select k.name, k.khach, k.ten_khach, k.ma_uu_dai
+			from `tab%s` k
 			where k.chien_dich = %%s and k.nhanh = 'Nhận' and ifnull(k.oa_trang_thai, '') in ('', 'Lỗi')
-			order by k.ten_khach""" % (DT_QUAN_TAM, crm.DT_CD_KHACH, crm.DT_HO_SO), (name,), as_dict=True)
+			order by k.ten_khach""" % crm.DT_CD_KHACH, (name,), as_dict=True)
 		for r in rows:
-			r["oa"] = 1 if r.uid else 0
-			kenh = crm.kenh_lien_he_luc_nay(r, cd)
-			if crm.KENH_OA not in kenh:
+			if frappe.db.get_value(crm.DT_CD, name, "trang_thai") != "Đang chạy":
+				dung = True
+				break
+			hien = (frappe.db.sql(
+				"""select h.dy_zalo, ifnull(h.khong_quang_cao, 0) kqc,
+				(select z.uid from `tab%s` z where z.khach = h.name and z.trang_thai = 'Đang quan tâm'
+				 order by z.modified desc limit 1) uid
+				from `tab%s` h where h.name = %%s""" % (DT_QUAN_TAM, crm.DT_HO_SO), (r.khach,), as_dict=True) or [{}])[0]
+			hien = dict(hien, oa=1 if hien.get("uid") else 0)
+			if crm.KENH_OA not in crm.kenh_lien_he_luc_nay(hien, cd):
 				# Khách rút đồng ý, bỏ quan tâm hay vào Danh sách không quảng cáo
-				# sau lúc chốt: không gửi (Codex PR #505, đồng ý hiện tại).
+				# sau lúc chốt (Codex PR #505) hay ngay trong lượt (Codex PR #510).
 				tt, loi = "Bỏ qua", "Khách không còn đồng ý nhận tin Zalo hoặc đã bỏ quan tâm OA."
 			else:
-				ok, loi, _ = _post("message/promotion", _tin_cua(cd, r.ten_khach, r.ma_uu_dai)(r.uid))
+				# Codex PR #510: chiến dịch mã cố định thì dòng không có mã riêng,
+				# tin dùng mã chung của chiến dịch.
+				ma = r.ma_uu_dai or cd.get("ma_uu_dai") or ""
+				ok, loi, _ = _post("message/promotion", _tin_cua(cd, r.ten_khach, ma)(hien.get("uid")))
 				tt = "Đã gửi" if ok else "Lỗi"
 				time.sleep(NGHI_GIUA_TIN)
 			dem[tt] += 1
@@ -367,8 +384,10 @@ def gui_nen(name):
 					"luc": luc}).insert(ignore_permissions=True)
 			frappe.db.commit()
 	finally:
-		frappe.db.set_value(crm.DT_CD, name, {"oa_trang_thai": "Đã gửi xong", "oa_gui_luc": now_datetime(),
-			"oa_ket_qua": "Đã gửi %d khách, lỗi %d, bỏ qua %d." % (dem["Đã gửi"], dem["Lỗi"], dem["Bỏ qua"])},
-			update_modified=False)
+		tom = "Đã gửi %d khách, lỗi %d, bỏ qua %d." % (dem["Đã gửi"], dem["Lỗi"], dem["Bỏ qua"])
+		if dung:
+			tom = "Dừng vì chiến dịch đã kết thúc. " + tom + " Khách chưa gửi để nguyên."
+		frappe.db.set_value(crm.DT_CD, name, {"oa_trang_thai": "Đã dừng" if dung else "Đã gửi xong",
+			"oa_gui_luc": now_datetime(), "oa_ket_qua": tom}, update_modified=False)
 		frappe.db.commit()
 	return dem

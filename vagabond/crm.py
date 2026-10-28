@@ -1514,7 +1514,7 @@ def ds_goi_cua_toi(chien_dich=None):
 		"""
 		select k.name, k.chien_dich, d.ten ten_chien_dich, k.khach, k.ten_khach, k.sdt, k.trang_thai,
 		       k.ket_qua, k.ghi_chu, k.lan_cuoi, k.so_lan, k.kenh_duoc, d.noi_dung_zalo, d.kich_ban,
-		       d.kenh_goi, d.kenh_zalo, h.dy_goi, h.dy_zalo, ifnull(h.khong_quang_cao, 0) kqc, k.ma_uu_dai,
+		       d.kenh_goi, d.kenh_zalo, h.dy_goi, h.dy_zalo, ifnull(h.khong_quang_cao, 0) kqc, k.ma_uu_dai, d.ma_uu_dai ma_cd,
 		       h.lan_cuoi mua_cuoi, h.nhom, %s hang
 		from `tab%s` k join `tab%s` d on d.name = k.chien_dich
 		left join `tab%s` h on h.name = k.khach
@@ -1527,8 +1527,10 @@ def ds_goi_cua_toi(chien_dich=None):
 		kenh = [k for k in kenh_lien_he_luc_nay(r, r) if k in KENH_CAN_SALES]
 		r["kenh_duoc"] = ", ".join(kenh)
 		r["ngung"] = 0 if kenh else 1
-		r["tin_zalo"] = tin_zalo_khach(r.noi_dung_zalo, r.ten_khach, r.ma_uu_dai) if "Zalo" in kenh else ""
-		for c in ("noi_dung_zalo", "dy_goi", "dy_zalo", "kqc", "kenh_goi", "kenh_zalo"):
+		# Codex PR #510: mã riêng của khách đứng trước, không có thì mã chung của
+		# chiến dịch (chương trình mã cố định).
+		r["tin_zalo"] = tin_zalo_khach(r.noi_dung_zalo, r.ten_khach, r.ma_uu_dai or r.get("ma_cd") or "") if "Zalo" in kenh else ""
+		for c in ("noi_dung_zalo", "dy_goi", "dy_zalo", "kqc", "kenh_goi", "kenh_zalo", "ma_cd"):
 			r.pop(c, None)
 	return {"dong": rows, "ket_qua": list(KET_QUA)}
 
