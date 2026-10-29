@@ -207,6 +207,19 @@ def vang_mat_du(lan_cuoi, hom_nay, so_ngay, bien=3):
 	return n <= vang < n + max(1, so_nguyen(bien, 3))
 
 
+def con_vang_mat(lan_mua_cuoi, hom_nay, so_ngay):
+	"""Ngay lúc gửi: khách còn vắng đủ `so_ngay` không. THUẦN.
+
+	Dòng mời quay lại được tạo từ ngày mua cuối của đêm trước; khách có thể
+	đã mua lại trước giờ gửi (Codex PR #517 vòng 4). Chưa có lần mua nào thì
+	coi như vẫn vắng (dòng đã qua bước quét theo hồ sơ CRM).
+	"""
+	lc, hn = ngay_cua(lan_mua_cuoi), ngay_cua(hom_nay)
+	if not lc or not hn:
+		return True
+	return (hn - lc).days >= max(1, so_nguyen(so_ngay, 60))
+
+
 def khoa_tin(ma, khach="", hoa_don="", moc=""):
 	"""Khoá duy nhất của một tin trên sổ. THUẦN.
 
@@ -592,13 +605,24 @@ def kiem_mau(ma):
 	return _cau_hinh(ma)
 
 
-def doi_mau_tren_form(doc):
-	"""Sửa mã mẫu thẳng trên form Desk cũng xoá kết quả kiểm của mẫu cũ."""
+def truoc_luu_form(doc):
+	"""Lưu thẳng trên form Desk theo đúng luật của màn app: đổi mã mẫu thì xoá
+	kết quả kiểm của mẫu cũ; chuyển từ tắt sang bật thì ghi lúc bật để quét
+	sau mua chỉ tính từ lúc đó (Codex PR #517 vòng 2 và 4)."""
 	truoc = doc.get_doc_before_save() if hasattr(doc, "get_doc_before_save") else None
+	dat = doc.__setitem__ if isinstance(doc, dict) else doc.set
 	if truoc is not None and str(truoc.get("ma_mau") or "") != str(doc.get("ma_mau") or ""):
-		dat = doc.__setitem__ if isinstance(doc, dict) else doc.set
 		for k, x in xoa_kiem_mau().items():
 			dat(k, x)
+	if int(doc.get("bat") or 0) and (truoc is None or not int(truoc.get("bat") or 0)):
+		dat("bat_luc", _bay_gio())
+
+
+def _lan_mua_cuoi(khach):
+	"""Ngày hoá đơn đã ghi sổ mới nhất của khách, đọc thẳng từ hoá đơn (không
+	chờ hồ sơ CRM cập nhật lúc 02:30)."""
+	r = frappe.db.sql("""select max(posting_date) from `tabSales Invoice` where customer = %s and docstatus = 1""", (khach,))
+	return r[0][0] if r and r[0] else None
 
 
 def _ho_so(khach):
@@ -636,9 +660,13 @@ def quet_sau_mua():
 	if not int(c.get("bat") or 0):
 		return 0
 	luc = _bay_gio()
-	tu = luc - timedelta(hours=CHO_TOI_DA_GIO)
 	bat_luc = c.get("bat_luc")
-	if bat_luc and get_datetime(bat_luc) > tu:
+	if not bat_luc:
+		# Bật bằng đường nào đó không ghi lúc bật: tính từ bây giờ, không gửi bù.
+		frappe.db.set_value(DT_KB, "sau_mua", "bat_luc", luc, update_modified=False)
+		return 0
+	tu = luc - timedelta(hours=CHO_TOI_DA_GIO)
+	if get_datetime(bat_luc) > tu:
 		tu = get_datetime(bat_luc)
 	rows = frappe.db.sql(
 		"""select d.khach, d.diem, d.hoa_don from `tabVagabond So Diem` d
@@ -762,6 +790,9 @@ def _gui_mot(c, row):
 		# Đọc lại đồng ý NGAY TRƯỚC khi gửi: khách rút đồng ý sau lúc quét thì thôi.
 		if not kh["dong_y"]:
 			_xong(row.name, TT_BO, "Khách không còn đồng ý nhận tin Zalo.")
+			return None
+		if ma_kb == "quay_lai" and not con_vang_mat(_lan_mua_cuoi(row.khach), _bay_gio().date(), c.get("so_ngay")):
+			_xong(row.name, TT_BO, "Khách đã quay lại mua, không gửi lời mời.")
 			return None
 		ma_v, han, loi = _phat_voucher(c, kh, row.khach, ma_kb)
 		if loi:
