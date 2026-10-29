@@ -196,6 +196,34 @@ def _gio_gui_va_trang():
 		["Tin 001", 60, "Tin 001"])
 
 
+@ca("v619 chuông: trang chỉ toàn bản sao vẫn đẩy mốc trang sau, xem hết được mọi tin")
+def _trang_toan_ban_sao():
+	# Codex 4408086813 (e72ac3de): 60 tin mới nhất có bản sao gửi nhóm thứ hai, bản sao cũ hơn
+	# chúng nhưng mới hơn tin thứ 61. Trang 2 là 60 bản sao (màn gộp hết); mốc phải vẫn lùi.
+	goc = _nhieu(61, dau="2026-10-16 00:00:00")
+	moi60, tin61 = goc[1:], goc[0]
+	from datetime import datetime, timedelta
+	g = datetime.fromisoformat("2026-10-17 00:00:00")
+	sao = [_tin("s%03d" % i, x["ma_tin"], x["noi_dung"], str(g + timedelta(minutes=i)) + ".000001") for i, x in enumerate(moi60)]
+	moi60 = [dict(x, creation=str(datetime.fromisoformat("2026-10-20 00:00:00") + timedelta(minutes=7 * i)) + ".000001",
+		luc_gui=str(datetime.fromisoformat("2026-10-20 00:00:00") + timedelta(minutes=7 * i)) + ".000001") for i, x in enumerate(moi60)]
+	so = moi60 + sao + [tin61]
+	moc = max(x["luc_gui"] for x in so)
+	kq, _ = _chay("thong_bao", "Kế toán - TV", so=so, da_xem=moc)
+	thay, hoi, trang = {x["tieu_de"] for x in kq["ds"]}, [], []
+	while kq["con_nua"] and len(hoi) < 6:
+		hoi.append(kq["tiep"])
+		kq, _ = _chay("thong_bao", "Kế toán - TV", so=so, da_xem=moc, ts={"truoc": kq["tiep"]})
+		moi = [x for x in kq["ds"] if x["tieu_de"] not in thay]
+		trang.append(len(moi))
+		thay |= {x["tieu_de"] for x in kq["ds"]}
+	la("có trang chỉ toàn bản sao (điều kiện của ca)", 0 in trang, True)
+	la("mốc mỗi lần đều lùi", all(b < a for a, b in zip(hoi, hoi[1:])), True)
+	la("xem hết đủ 61 tin, dừng sau vài trang", [len(thay), len(hoi) <= 4], [61, True])
+	la("hàm mốc: trang cắt thì mốc là tin cuối đã trả", ch.con_tro_tiep([{"luc": "b"}], [{"luc": "a"}], True), "b")
+	la("hàm mốc: không cắt thì mốc là dòng sổ cũ nhất", ch.con_tro_tiep([{"luc": "b"}], [{"luc": "c"}, {"luc": "a"}], False), "a")
+
+
 @ca("v619 chuông: Việc cần làm lỗi thì vẫn đếm tin, không ném lỗi ra trang chủ")
 def _dem_loi():
 	def hong():
