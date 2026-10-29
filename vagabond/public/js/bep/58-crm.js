@@ -1314,9 +1314,15 @@ function crmZlSheetCaiDat(k) {
       crmZlO('crmZlNhac', 'KHÔNG GỬI LẠI TRONG (NGÀY)', 'Một khách nhận tối đa một tin mời quay lại trong bấy nhiêu ngày.', k.nhac_lai_ngay, 'so');
     if (+k.km) {
       var ds = (crmZlDl && crmZlDl.ctkm) || [];
+      var chon = ds.filter(function (c) { return c.name === ctkm; })[0];
+      /* AGENTS.md 2b.2: hơn 8 lựa chọn thì thẻ chọn mở tấm có ô tìm, không đổ chip (Codex PR #517). */
       html += '<div style="font-size:12px;color:#0B7C93;font-weight:600;margin:12px 0 4px">CHƯƠNG TRÌNH PHÁT VOUCHER</div>' +
-        (ds.length ? kmHangChip(ds.map(function (c) { return posChipNut('data-crmzlkm="' + h(c.name) + '"', h(c.ten || c.name), c.name === ctkm); }).join(''))
-          : '<div style="font-size:13px;color:#b42318">Chưa có chương trình nào đang bật và để cách phát mã là Mã dùng một lần. Tạo ở màn Khuyến mãi trước.</div>') +
+        (!ds.length ? '<div style="font-size:13px;color:#b42318">Chưa có chương trình nào đang bật và để cách phát mã là Mã dùng một lần. Tạo ở màn Khuyến mãi trước.</div>'
+          : ds.length > 8 ? '<div data-crmzlkmchon="1" style="display:flex;align-items:center;gap:10px;border:1px solid #d0d5dd;border-radius:12px;padding:10px 12px;min-height:48px;cursor:pointer;background:#fff">' +
+              '<span style="font-size:20px">&#127873;</span><span style="flex:1;min-width:0"><b style="font-size:15px">' + h(chon ? (chon.ten || chon.name) : 'Chọn chương trình') + '</b>' +
+              '<div style="font-size:12.5px;color:#667085;margin-top:2px">' + h(chon ? (chon.phu || '') : 'Chạm để tìm trong ' + ds.length + ' chương trình') + '</div></span><span style="color:#98a2b3;font-size:20px">&#8250;</span></div>'
+          : kmHangChip(ds.map(function (c) { return posChipNut('data-crmzlkm="' + h(c.name) + '"', h(c.ten || c.name), c.name === ctkm); }).join(''))) +
+        (ctkm && !chon ? '<div style="font-size:13px;color:#b42318;margin-top:4px">Chương trình đã chọn trước đây đã hết hạn hoặc đã tắt, chọn lại chương trình khác.</div>' : '') +
         '<div style="font-size:12.5px;color:#667085;margin-top:3px;line-height:1.4">Mỗi khách nhận một mã riêng dùng một lần của chương trình này, dùng được ở quầy và trên web.</div>' +
         crmZlO('crmZlHan', 'VOUCHER DÙNG ĐƯỢC (NGÀY)', 'Tính từ ngày gửi tin.', k.han_ngay, 'so') +
         crmZlO('crmZlTenUd', 'TÊN ƯU ĐÃI TRÊN TIN (TỐI ĐA 30 CHỮ)', 'Để trống thì máy tự viết từ chương trình, ví dụ Giảm 10%.', k.ten_uu_dai, 'chu', ' maxlength="30"') +
@@ -1332,6 +1338,12 @@ function crmZlSheetCaiDat(k) {
   box.onclick = async function (e) {
     var c = e.target.closest('[data-crmzlkm]');
     if (c) { var giu = docO(); ctkm = c.getAttribute('data-crmzlkm'); ve(); datO(giu); return; }
+    if (e.target.closest('[data-crmzlkmchon]')) {
+      var giu2 = docO();
+      var ds2 = ((crmZlDl && crmZlDl.ctkm) || []).map(function (x) { return { value: x.name, label: x.ten || x.name, phu: x.phu || '', icon: '&#127873;' }; });
+      sheet('Chọn chương trình phát voucher', ds2, ctkm, function (it) { ctkm = it.value; ve(); datO(giu2); }, true);
+      return;
+    }
     if (!e.target.closest('[data-crmzlluu]')) return;
     var dat = docO();
     busy(true);
