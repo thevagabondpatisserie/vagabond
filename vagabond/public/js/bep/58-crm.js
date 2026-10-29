@@ -1273,7 +1273,7 @@ async function scrCrmZalo(dl) {
     if ((t = e.target.closest('[data-crmzlbat]'))) return crmZlBat(t.getAttribute('data-crmzlbat'));
     if ((t = e.target.closest('[data-crmzlcd]'))) return crmZlSheetCaiDat(crmZlTim(t.getAttribute('data-crmzlcd')));
     if ((t = e.target.closest('[data-crmzlthu]'))) return crmZlSheetThu(crmZlTim(t.getAttribute('data-crmzlthu')));
-    if ((t = e.target.closest('[data-crmzltin]'))) { var ma = t.getAttribute('data-crmzltin'); crmZlTinTt = ''; crmZlTinTim = ''; return go(function () { return scrCrmZaloTin(ma); }); }
+    if ((t = e.target.closest('[data-crmzltin]'))) { var ma = t.getAttribute('data-crmzltin'); crmZlTinTt = ''; crmZlTinTim = ''; crmZlTinKy = ''; crmZlTinTu = ''; crmZlTinDen = ''; return go(function () { return scrCrmZaloTin(ma); }); }
     if ((t = e.target.closest('[data-crmzlkiem]'))) {
       busy(true);
       try { var d = await api('vagabond.zalo_kich_ban.kiem_mau_zalo', { ma: t.getAttribute('data-crmzlkiem') }); busy(false); toast('Đã hỏi lại Zalo.', 2200); return scrCrmZalo(d); }
@@ -1382,19 +1382,22 @@ function crmZlSheetThu(k) {
   };
 }
 
-var crmZlTinDong = [], crmZlTinCon = 0, crmZlTinTt = '', crmZlTinTim = '';
+var crmZlTinDong = [], crmZlTinCon = 0, crmZlTinTt = '', crmZlTinTim = '', crmZlTinKy = '', crmZlTinTu = '', crmZlTinDen = '', crmZlTinDem = null;
 async function scrCrmZaloTin(ma, them) {
   var k = crmZlTim(ma);
   var tieuDe = 'Tin đã gửi: ' + (k.ten || '');
   var bat = them === true ? crmZlTinDong.length : 0;
   if (bat) busy(true); else frame(tieuDe, '<div class="emp"><div class="e1">⏳</div><div>Đang đọc sổ tin...</div></div>');
   var d;
-  try { d = await api('vagabond.zalo_kich_ban.ds_tin', { ma: ma, trang_thai: crmZlTinTt, bat_dau: bat, tim: crmZlTinTim }); }
+  try { d = await api('vagabond.zalo_kich_ban.ds_tin', { ma: ma, trang_thai: crmZlTinTt, bat_dau: bat, tim: crmZlTinTim, ky: crmZlTinKy, tu: crmZlTinTu, den: crmZlTinDen }); }
   catch (e) { if (bat) { busy(false); return toast(errMsg(e), 5000); } return frame(tieuDe, crmTrong('⚠️', h(errMsg(e)))); }
   if (bat) busy(false);
   crmZlTinDong = bat ? crmZlTinDong.concat(d.ds || []) : (d.ds || []);
   crmZlTinCon = +d.con_nua ? 1 : 0;
-  var cc = { ma: 'crmZlTin', chang: { ds: ['Đã gửi', 'Chờ gửi', 'Lỗi', 'Bỏ qua'].map(function (t) { return { k: t, ten: t }; }), dem: null, chon: crmZlTinTt, tatCa: 'Tất cả' },
+  if (!bat) crmZlTinDem = d.dem || null;
+  var cc = { ma: 'crmZlTin', chang: { ds: ['Đã gửi', 'Chờ gửi', 'Lỗi', 'Bỏ qua'].map(function (t) { return { k: t, ten: t }; }), dem: crmZlTinDem, chon: crmZlTinTt, tatCa: 'Tất cả' },
+    /* Codex PR #517 vòng 6: chip khoảng ngày dùng chung, lọc ở máy chủ; số đếm trạng thái theo phạm vi lọc (AGENTS.md mục 3). */
+    ky: { chon: crmZlTinKy, tu: crmZlTinTu, den: crmZlTinDen },
     /* Codex PR #517 vòng 2: tìm ở máy chủ, ra cả dòng chưa tải (AGENTS.md 2b.5). */
     tim: { goiY: 'Tìm tên khách, số điện thoại, hoá đơn, voucher', gt: crmZlTinTim, quet: true } };
   var mauTt = { 'Đã gửi': 'xanh', 'Chờ gửi': 'vang', 'Lỗi': 'do', 'Bỏ qua': 'xam' };
@@ -1409,6 +1412,9 @@ async function scrCrmZaloTin(ma, them) {
   dsCongCuNoi(b, cc, function (ho, v) {
     if (ho === 'chang') { crmZlTinTt = v; scrCrmZaloTin(ma); }
     if (ho === 'tim') { crmZlTinTim = v; scrCrmZaloTin(ma); }
+    if (ho === 'ky') { crmZlTinKy = v; scrCrmZaloTin(ma); }
+    if (ho === 'tu') { crmZlTinTu = v; scrCrmZaloTin(ma); }
+    if (ho === 'den') { crmZlTinDen = v; scrCrmZaloTin(ma); }
   });
   b.onclick = function (e) {
     if (e.target.closest('[data-crmzltinthem]')) return scrCrmZaloTin(ma, true);
