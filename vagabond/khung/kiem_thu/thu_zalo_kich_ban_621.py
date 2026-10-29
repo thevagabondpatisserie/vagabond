@@ -231,6 +231,48 @@ class Moi:
 		return [x["ma"] for x in self.chen if x.get("doctype") == "Vagabond Voucher"]
 
 
+class SoGia:
+	"""Lớp giả frappe.get_all cho sổ tin, Customer, hồ sơ CRM: chạy thật điều
+	kiện =, >=, <, in, like (cả dạng dict lẫn danh sách), or_filters, pluck và
+	đếm theo trạng thái (group_by)."""
+
+	def __init__(self, bang):
+		self.bang = bang
+		self.goi = []
+
+	@staticmethod
+	def khop(r, dk):
+		import re as _re
+		cot, toan, gt = dk
+		v = r.get(cot)
+		if toan == "=":
+			return v == gt
+		if toan == "in":
+			return v in gt
+		if toan == ">=":
+			return v is not None and str(v) >= str(gt)
+		if toan == "<":
+			return v is not None and str(v) < str(gt)
+		mau = "^" + _re.escape(gt).replace("%", ".*") + "$"
+		return v is not None and _re.match(mau, str(v), _re.I) is not None
+
+	def __call__(self, dt_, filters=None, or_filters=None, fields=None, pluck=None, limit_page_length=None, group_by=None, **k):
+		self.goi.append(dict(dt=dt_, filters=filters, or_filters=or_filters, fields=fields, group_by=group_by))
+		if isinstance(filters, dict):
+			filters = [[c, v[0], v[1]] if isinstance(v, list) else [c, "=", v] for c, v in filters.items()]
+		ra = [r for r in self.bang.get(dt_, []) if all(self.khop(r, f) for f in (filters or []))]
+		if or_filters:
+			ra = [r for r in ra if any(self.khop(r, d) for d in or_filters)]
+		if group_by:
+			dem = {}
+			for r in ra:
+				dem[r.get(group_by)] = dem.get(r.get(group_by), 0) + 1
+			return [D({group_by: g, "n": n}) for g, n in dem.items()]
+		if pluck:
+			return [r[pluck] for r in ra]
+		return ra[:limit_page_length] if limit_page_length else ra
+
+
 def _cau(ma, **k):
 	c = {"ma": ma, "bat": 1, "ma_mau": "659376" if ma == "sau_mua" else "659377", "mau_trang_thai": "ENABLE",
 		"mau_tham_so": json.dumps(TS_SAU_MUA if ma == "sau_mua" else TS_VC), "mau_gia": "400", "ctkm": "" if ma == "sau_mua" else "KM-SN",
@@ -499,14 +541,14 @@ def _tim_tin():
 	goi = []
 
 	def ga(dt_, **k):
-		if dt_ == zk.DT_TIN:
+		if dt_ == zk.DT_TIN and not k.get("group_by"):
 			goi.append(k)
 		return []
 	with um.patch.object(zk, "_quyen", lambda xem=True: None), um.patch.object(fr, "get_all", ga):
 		zk.ds_tin("sau_mua", "", 0, "HDB-1")
 		zk.ds_tin("sau_mua", "", 0, "")
 	la("có tìm thì gửi or_filters", bool(goi[0].get("or_filters")), True)
-	la("lọc kịch bản vẫn giữ", goi[0]["filters"], {"kich_ban": "sau_mua"})
+	dung("lọc kịch bản vẫn giữ", ["kich_ban", "=", "sau_mua"] in goi[0]["filters"])
 	la("không tìm thì không or_filters", goi[1].get("or_filters"), None)
 
 
@@ -514,7 +556,6 @@ def _tim_tin():
 def _tim_dong_cho():
 	# Tái hiện finding Codex trên eb38b1f: dòng Chờ gửi chỉ có mã khách, chưa
 	# có ten_khach/sdt; tìm theo tên hay số của khách thì không ra dòng đó.
-	import re as _re
 	fr = zk.frappe
 	so_tin = [D(name="T1", kich_ban="sau_mua", khach="KH-1", ten_khach=None, sdt=None, hoa_don="HDB-9", voucher=None,
 		trang_thai="Chờ gửi", loi="", creation="2026-10-29 10:00:00", luc_gui=None),
@@ -527,23 +568,8 @@ def _tim_dong_cho():
 		"KH-3": D(name="KH-3", customer_name="Cúc", mobile_no="0912345678")}
 	ho_so = {"KH-1": D(name="KH-1", sdt="84901486556"), "KH-2": D(name="KH-2", sdt="84900000002")}
 
-	def khop(r, dk):
-		cot, toan, gt = dk
-		v = r.get(cot)
-		if toan == "in":
-			return v in gt
-		mau = "^" + _re.escape(gt).replace("%", ".*") + "$"
-		return v is not None and _re.match(mau, str(v), _re.I) is not None
-
-	def ga(dt_, filters=None, or_filters=None, fields=None, pluck=None, limit_page_length=None, **k):
-		ds = {zk.DT_TIN: so_tin, "Customer": list(khach.values()), "Vagabond Ho So CRM": list(ho_so.values())}[dt_]
-		ra = [r for r in ds if all((r.get(c) in v[1]) if isinstance(v, list) else r.get(c) == v for c, v in (filters or {}).items())]
-		if or_filters:
-			ra = [r for r in ra if any(khop(r, d) for d in or_filters)]
-		if pluck:
-			return [r[pluck] for r in ra]
-		return ra[:limit_page_length] if limit_page_length else ra
-	with um.patch.object(zk, "_quyen", lambda xem=True: None), um.patch.object(fr, "get_all", ga):
+	ga = SoGia({zk.DT_TIN: so_tin, "Customer": list(khach.values()), "Vagabond Ho So CRM": list(ho_so.values())})
+	with um.patch.object(zk, "_quyen", lambda xem=True: None), um.patch.object(fr, "get_all", ga), um.patch.object(zk, "_bay_gio", lambda: BAY_GIO):
 		la("tìm tên ra dòng chờ", [x["khach"] for x in zk.ds_tin("sau_mua", "", 0, "Lan Anh")["ds"]], ["KH-1"])
 		la("tìm số 09 ra dòng chờ", [x["khach"] for x in zk.ds_tin("sau_mua", "", 0, "0901486556")["ds"]], ["KH-1"])
 		la("tìm 4 số cuối", [x["khach"] for x in zk.ds_tin("sau_mua", "", 0, "6556")["ds"]], ["KH-1"])
@@ -551,6 +577,30 @@ def _tim_dong_cho():
 		la("dòng chờ hiện tên từ hồ sơ khách", zk.ds_tin("sau_mua", "", 0, "Lan Anh")["ds"][0]["ten_khach"], "Lan Anh")
 		la("tìm hoá đơn vẫn chạy", [x["khach"] for x in zk.ds_tin("sau_mua", "", 0, "HDB-8")["ds"]], ["KH-2"])
 		la("không khớp thì rỗng", zk.ds_tin("sau_mua", "", 0, "Không có ai")["ds"], [])
+
+
+@ca("PR517 Codex vòng 6: sổ tin lọc khoảng ngày ở máy chủ trước phân trang, trả số đếm trạng thái theo đúng phạm vi lọc")
+def _so_tin_ngay_dem():
+	# Tái hiện finding Codex trên 87c3551: ds_tin không nhận khoảng ngày và
+	# không trả số đếm; chip trạng thái không có số, không lọc được theo ngày.
+	fr = zk.frappe
+	so_tin = [D(name="T1", kich_ban="sau_mua", khach="KH-1", ten_khach="An", sdt=None, hoa_don="HDB-1", voucher=None,
+		trang_thai="Lỗi", loi="x", creation="2026-10-29 10:00:00", luc_gui=None),
+		D(name="T2", kich_ban="sau_mua", khach="KH-2", ten_khach="Bình", sdt=None, hoa_don="HDB-2", voucher=None,
+		trang_thai="Đã gửi", loi="", creation="2026-10-29 08:00:00", luc_gui="2026-10-29 08:01:00"),
+		D(name="T3", kich_ban="sau_mua", khach="KH-3", ten_khach="Cúc", sdt=None, hoa_don="HDB-3", voucher=None,
+		trang_thai="Lỗi", loi="y", creation="2026-10-20 09:00:00", luc_gui=None),
+		D(name="T4", kich_ban="sinh_nhat", khach="KH-4", ten_khach="Dũng", sdt=None, hoa_don=None, voucher=None,
+		trang_thai="Lỗi", loi="z", creation="2026-10-29 09:00:00", luc_gui=None)]
+	ga = SoGia({zk.DT_TIN: so_tin, "Customer": [], "Vagabond Ho So CRM": []})
+	with um.patch.object(zk, "_quyen", lambda xem=True: None), um.patch.object(fr, "get_all", ga), um.patch.object(zk, "_bay_gio", lambda: BAY_GIO):
+		kq = zk.ds_tin("sau_mua", "Lỗi", 0, "", "hom_nay")
+		la("hôm nay, Lỗi: chỉ T1", [x["khach"] for x in kq["ds"]], ["KH-1"])
+		la("số đếm theo phạm vi hôm nay của kịch bản, không tính chip trạng thái", kq["dem"], {"Lỗi": 1, "Đã gửi": 1, "tat_ca": 2})
+		kq = zk.ds_tin("sau_mua", "", 0, "", "tuy_chon", "2026-10-21", "2026-10-19")
+		la("tuỳ chọn gõ ngược vẫn ra 20/10", [x["khach"] for x in kq["ds"]], ["KH-3"])
+		kq = zk.ds_tin("sau_mua", "", 0, "")
+		la("mọi ngày: đủ 3 dòng, đếm đủ", (len(kq["ds"]), kq["dem"]["tat_ca"]), (3, 3))
 
 
 @ca("PR517 Codex vòng 4: mời quay lại kiểm lại lần mua cuối ngay trước khi gửi; khách vừa mua lại thì bỏ, không phát mã")
