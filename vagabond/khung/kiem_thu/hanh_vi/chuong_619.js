@@ -57,7 +57,9 @@ var TIN = {
       luc: '2026-10-26 10:00:00.000001', moi: 0 },
   ], co_phong_ban: 1, so_ngay: 14, con_nua: 1, moc_moi: '2026-10-28 08:00:05.000001',
 };
-var TRANG2 = { ds: [{ ten: 't4', ma_tin: 'bh_dat_ban', tieu_de: 'Tin cũ hơn', than: '', link: '', luc: '2026-10-20 10:00:00.000001', moi: 0 }],
+/* Codex 4407978626: trang sau mở đầu bằng bản sao (gửi nhóm khác) của tin cuối trang trước. */
+var TRANG2 = { ds: [{ ten: 't3b', ma_tin: 'bh_dat_ban', tieu_de: '✅ VIỆC CẦN LÀM: Đặt bàn mới', than: '- 4 khách', link: '',
+      luc: '2026-10-26 09:59:58.000001', moi: 0 }, { ten: 't4', ma_tin: 'bh_dat_ban', tieu_de: 'Tin cũ hơn', than: '', link: '', luc: '2026-10-20 10:00:00.000001', moi: 0 }],
   co_phong_ban: 1, so_ngay: 14, con_nua: 0, moc_moi: '2026-10-20 10:00:00.000001' };
 
 function napApp(nguoi, traTin) {
@@ -139,6 +141,7 @@ function bamTrong(a, el) { return a.tl.getElementById('vgbBody').onclick({ targe
   await cuHon.onclick(); await nghi();
   la('bấm là hỏi trang trước tin cuối đang hiện', a.ve.ts.filter(function (x) { return x[0] === 'vagabond.chuong.thong_bao'; }).pop(),
     ['vagabond.chuong.thong_bao', JSON.stringify({ truoc: '2026-10-26 10:00:00.000001' })]);
+  la('tin gửi nhiều nhóm nằm hai bên ranh trang chỉ hiện một lần', a.tl.getElementById('vgbBody').textContent.split('Đặt bàn mới').length - 1, 1);
   la('tin cũ hơn nối vào cuối, hết thì mất nút', [a.tl.querySelectorAll('[data-chi]').length,
     a.tl.getElementById('vgbBody').textContent.indexOf('Tin cũ hơn') >= 0, !!a.tl.getElementById('chCuHon')], [4, true, false]);
   la('thân dài thì thu gọn', [chu.indexOf('- d') < 0, a.tl.querySelectorAll('[data-chxem]').length], [true, 1]);
