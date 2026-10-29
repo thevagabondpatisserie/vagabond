@@ -4,6 +4,7 @@
  "module": "Vagabond",
  "engine": "InnoDB",
  "autoname": "format:DW-{YY}{MM}-{#####}",
+ "modified": "2026-10-29 14:30:00.000000",
  "track_changes": 1,
  "sort_field": "creation",
  "sort_order": "DESC",
@@ -267,13 +268,13 @@
   },
   {
    "fieldname": "fbp",
-   "fieldtype": "Data",
+   "fieldtype": "Small Text",
    "label": "Cookie _fbp",
    "read_only": 1
   },
   {
    "fieldname": "fbc",
-   "fieldtype": "Data",
+   "fieldtype": "Small Text",
    "label": "Cookie _fbc",
    "read_only": 1
   },
