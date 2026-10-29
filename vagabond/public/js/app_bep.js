@@ -63628,8 +63628,8 @@ var CH_MO = {};
 function vgbNutChuong() {
   if (!S.user || S.user === 'Guest') return '<span class="ic"></span>';
   return '<button class="ic" id="vgbChuong" aria-label="Thông báo và việc cần làm" style="position:relative">' +
-    '&#128276;<span id="vgbChuongSo" style="display:none;position:absolute;top:2px;right:0;min-width:17px;height:17px;' +
-    'padding:0 4px;border-radius:9px;background:#dc2626;color:#fff;font-size:10.5px;font-weight:800;line-height:17px;' +
+    '&#128276;<span id="vgbChuongSo" style="display:none;position:absolute;top:0;right:-4px;min-width:20px;height:20px;' +
+    'padding:0 5px;border-radius:10px;background:#dc2626;color:#fff;font-size:13px;font-weight:800;line-height:20px;' +
     'text-align:center;box-sizing:border-box"></span></button>';
 }
 window.vgbNutChuong = vgbNutChuong;
@@ -63679,7 +63679,7 @@ function chVe(kq, viec) {
   var body = '<div style="display:flex;gap:8px;padding:12px 12px 4px">' +
     '<button class="chip on" style="flex:1;margin:0">🔔 Thông báo' + (moi ? ' · ' + moi + ' mới' : '') + '</button>' +
     '<button class="chip" id="chViec" style="flex:1;margin:0">📌 Việc cần làm' + (viec ? ' · ' + viec : '') + '</button></div>' +
-    '<div style="padding:4px 14px 6px;font-size:12px;color:#8a90a0">Tin Zalo đã gửi cho bộ phận của bạn trong ' +
+    '<div style="padding:4px 14px 6px;font-size:13px;color:#8a90a0">Tin Zalo đã gửi cho bộ phận của bạn trong ' +
     (kq.so_ngay || 14) + ' ngày gần nhất. Bấm Mở để vào đúng màn.</div>';
   if (!kq.co_phong_ban) {
     body += '<div class="emp"><div class="e1">🏷️</div><div class="e2">Tài khoản của bạn chưa gắn phòng ban, nên máy chưa biết tin nào là của bạn. ' +
@@ -63695,7 +63695,7 @@ function chVe(kq, viec) {
       body += '<div class="card" data-chi="' + i + '" style="padding:12px 14px;' + (x.moi ? 'border-left:4px solid #0f766e;' : '') + '">' +
         '<div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline">' +
         '<b style="font-size:14px;line-height:1.35">' + h(x.tieu_de) + '</b>' +
-        '<span style="font-size:11.5px;color:#98a2b3;white-space:nowrap">' + h(chLuc(x.luc)) + '</span></div>' +
+        '<span style="font-size:13px;color:#98a2b3;white-space:nowrap">' + h(chLuc(x.luc)) + '</span></div>' +
         (hien ? '<div style="font-size:13px;color:#475467;white-space:pre-line;margin-top:6px;line-height:1.5">' + h(hien) + '</div>' : '') +
         '<div style="display:flex;gap:8px;margin-top:8px">' +
         (dai ? '<button class="chip" data-chxem="' + i + '" style="margin:0">' + (mo ? 'Thu gọn' : 'Xem hết') + '</button>' : '') +
