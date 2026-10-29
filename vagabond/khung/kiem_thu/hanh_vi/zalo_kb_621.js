@@ -32,7 +32,7 @@ function layHam(src, ten) {
   }
   throw new Error('Ham ' + ten + ' khong dong ngoac');
 }
-var HAM = ['h', 'money', 'today', 'vgbChuan', 'vgbKhop', 'anhMon'].map(function (t) { return layHam(NEN, t); })
+var HAM = ['h', 'money', 'today', 'vgbChuan', 'vgbKhop', 'anhMon', 'sheet'].map(function (t) { return layHam(NEN, t); })
   .concat([layHam(POS, 'posChipNut')])
   .concat(['dsccHang', 'dsCongCu', 'dsCongCuNoi', 'veBuoc'].map(function (t) { return layHam(KHUON, t); }))
   .concat(['var scanBarcode = function () { return Promise.resolve(null); };'])
@@ -181,6 +181,53 @@ function mot(el, chon) { return el.querySelectorAll(chon)[0]; }
     var dat = JSON.parse(goiTen(m, 'luu_kich_ban')[0].ts.dat);
     bang('ô lưu', [dat.ctkm, dat.tran_ngay, dat.so_ngay, dat.ten_uu_dai, dat.ma_mau, dat.gio_tu, dat.gio_den],
       ['KM-SN', '150', '5', 'Quà sinh nhật', '659377', '8', '20']);
+  });
+
+  await ca('PR517 Codex: hơn 8 chương trình thì hiện thẻ chọn, mở tấm có ô tìm; gõ tìm, chọn, số vừa gõ còn nguyên, lưu đúng chương trình', async function () {
+    /* Tái hiện finding Codex trên 5ed80e8: 12 chương trình đổ thành 12 chip,
+       không có ô tìm (AGENTS.md mục 2b.2: hơn 8 lựa chọn phải mở tấm có ô tìm). */
+    var nhieu = [];
+    for (var i = 1; i <= 12; i++) nhieu.push({ name: 'KM-' + i, ten: 'Chương trình ' + i, phu: 'Đến hết 30/11/2026' });
+    nhieu.push({ name: 'KM-SN', ten: 'Quà sinh nhật 10%', phu: 'Không giới hạn ngày' });
+    var m = dungMoi(QL, { ds_kich_ban: dlMau({ ctkm: nhieu }) });
+    await m.g.scrCrmZalo();
+    bam(m, mot(m.khung, '[data-crmzlcd="sinh_nhat"]'));
+    var sh = sheet(m);
+    bang('không đổ chip', sh.querySelectorAll('[data-crmzlkm]').length, 0);
+    var the = mot(sh, '[data-crmzlkmchon]');
+    dung('có thẻ chọn', !!the);
+    dung('thẻ mời chọn khi chưa chọn', chu(the).indexOf('Chọn chương trình') >= 0);
+    mot(sh, '#crmZlTran').value = '120';
+    bam(m, the);
+    var tam = sheet(m);
+    var o = mot(tam, 'input');
+    dung('tấm có ô tìm', !!o);
+    bang('tấm liệt kê đủ', tam.querySelectorAll('.shi').length, 13);
+    o.value = 'sinh nhat';
+    o.oninput();
+    var hang = tam.querySelectorAll('.shi');
+    bang('gõ không dấu vẫn tìm ra', hang.map(function (x) { return chu(x).indexOf('Quà sinh nhật 10%') >= 0; }), [true]);
+    bam(m, hang[0]);
+    var sh2 = sheet(m);
+    dung('thẻ hiện chương trình vừa chọn', chu(mot(sh2, '[data-crmzlkmchon]')).indexOf('Quà sinh nhật 10%') >= 0);
+    bang('số vừa gõ còn nguyên', mot(sh2, '#crmZlTran').value, '120');
+    bam(m, mot(sh2, '[data-crmzlluu]'));
+    await choDen(function () { return goiTen(m, 'luu_kich_ban').length; });
+    var dat = JSON.parse(goiTen(m, 'luu_kich_ban')[0].ts.dat);
+    bang('lưu đúng', [dat.ctkm, dat.tran_ngay], ['KM-SN', '120']);
+  });
+
+  await ca('PR517: chương trình đã chọn không còn trong danh sách (hết hạn, đã tắt) thì nói rõ phải chọn lại', async function () {
+    var m = dungMoi(QL);
+    await m.g.scrCrmZalo();
+    bam(m, mot(m.khung, '[data-crmzlcd="quay_lai"]'));
+    dung('không cảnh báo khi còn', chu(sheet(m)).indexOf('chọn lại') < 0);
+    var d = dlMau(); d.ds[2].ctkm = 'KM-CU';
+    m = dungMoi(QL, { ds_kich_ban: d });
+    await m.g.scrCrmZalo();
+    bam(m, mot(m.khung, '[data-crmzlcd="quay_lai"]'));
+    dung('có câu chọn lại', chu(sheet(m)).indexOf('đã hết hạn hoặc đã tắt, chọn lại') >= 0);
+    dung('không hiện mã nội bộ', chu(sheet(m)).indexOf('KM-CU') < 0);
   });
 
   await ca('cài đặt sau mua: không có ô chương trình, voucher, số ngày', async function () {
