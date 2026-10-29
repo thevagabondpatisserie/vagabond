@@ -167,6 +167,8 @@ class Moi:
 		self.ma_sinh = iter(["VC1", "VC2", "VC3", "VC4"])
 		# Đồng hồ: mặc định đứng yên; ca giờ gửi cho nó chạy theo số tin đã gửi.
 		self.dong_ho = lambda: BAY_GIO
+		# Kết quả câu sql thô (mặc định rỗng); ca mời quay lại đặt lần mua cuối.
+		self.sql_tra = []
 
 	def get_value(self, dt_, n, cot=None, as_dict=False, **k):
 		if dt_ == "Sales Invoice":
@@ -215,7 +217,7 @@ class Moi:
 				um.patch.object(fr.db, "get_value", self.get_value), \
 				um.patch.object(fr.db, "get_all", self.get_all), \
 				um.patch.object(fr.db, "set_value", self.set_value), \
-				um.patch.object(fr.db, "sql", lambda *a, **k: []), \
+				um.patch.object(fr.db, "sql", lambda *a, **k: list(self.sql_tra)), \
 				um.patch.object(fr, "get_doc", self.get_doc):
 			return ham()
 
@@ -424,10 +426,10 @@ def _doi_mau():
 		def get_doc_before_save(self):
 			return D(ma_mau="659377")
 	doc = Doc(_cau("sinh_nhat", ma_mau="700002"))
-	zk.doi_mau_tren_form(doc)
+	zk.truoc_luu_form(doc)
 	la("Desk: xoá trạng thái cũ", (doc.get("mau_trang_thai"), doc.get("mau_tham_so")), ("", "[]"))
 	doc = Doc(_cau("sinh_nhat", ma_mau="659377"))
-	zk.doi_mau_tren_form(doc)
+	zk.truoc_luu_form(doc)
 	la("Desk: không đổi mã thì giữ", doc.get("mau_trang_thai"), "ENABLE")
 
 
@@ -549,6 +551,57 @@ def _tim_dong_cho():
 		la("dòng chờ hiện tên từ hồ sơ khách", zk.ds_tin("sau_mua", "", 0, "Lan Anh")["ds"][0]["ten_khach"], "Lan Anh")
 		la("tìm hoá đơn vẫn chạy", [x["khach"] for x in zk.ds_tin("sau_mua", "", 0, "HDB-8")["ds"]], ["KH-2"])
 		la("không khớp thì rỗng", zk.ds_tin("sau_mua", "", 0, "Không có ai")["ds"], [])
+
+
+@ca("PR517 Codex vòng 4: mời quay lại kiểm lại lần mua cuối ngay trước khi gửi; khách vừa mua lại thì bỏ, không phát mã")
+def _quay_lai_vua_mua():
+	# Tái hiện finding Codex trên 1efc6e5: dòng quay_lai tạo từ lan_cuoi của
+	# đêm trước; khách mua lại hôm qua vẫn được phát VC1 và gửi lời mời.
+	km = D(name="KM-QL", ten="Mời quay lại", cach_ma="Ma dung mot lan", bat=1, kieu_giam="Phan tram", gia_tri=10, hd_toi_thieu=0)
+	rows = [D(name="T1", khach="K1", khoa="quay_lai:K1:2026-08-30", trang_thai="Chờ gửi")]
+	m = Moi(_cau("quay_lai", ma_mau="659378", ctkm="KM-QL", so_ngay=60), rows, {"K1": _hs()}, [], ctkm=km)
+	m.sql_tra = [(D8(2026, 10, 28),)]
+	m.chay(zk.gui_hang_doi)
+	la("khách vừa mua: không gọi Zalo, không phát mã", (m.goi, m.voucher_moi()), ([], []))
+	la("dòng Bỏ qua", m.tt(), {"T1": "Bỏ qua"})
+	dung("lý do nói khách đã quay lại", any("đã quay lại" in (v.get("loi") or "") for d, n, v in m.sv))
+	# Vẫn vắng đủ 60 ngày (mua cuối 30/08) thì gửi bình thường.
+	rows = [D(name="T1", khach="K1", khoa="quay_lai:K1:2026-08-30", trang_thai="Chờ gửi")]
+	m = Moi(_cau("quay_lai", ma_mau="659378", ctkm="KM-QL", so_ngay=60), rows, {"K1": _hs()}, [], ctkm=km)
+	m.sql_tra = [(D8(2026, 8, 30),)]
+	m.chay(zk.gui_hang_doi)
+	la("còn vắng mặt thì gửi", (len(m.goi), m.tt()), (1, {"T1": "Đã gửi"}))
+	la("con_vang_mat thuần", (zk.con_vang_mat(D8(2026, 10, 28), D8(2026, 10, 29), 60), zk.con_vang_mat(D8(2026, 8, 30), D8(2026, 10, 29), 60),
+		zk.con_vang_mat(None, D8(2026, 10, 29), 60)), (False, True, True))
+
+
+@ca("PR517 Codex vòng 4: bật kịch bản trên Desk cũng ghi lúc bật; thiếu lúc bật thì quét sau mua chỉ tính từ bây giờ, không gửi bù")
+def _bat_tren_desk():
+	# Tái hiện finding Codex trên 1efc6e5: bật trên form Desk thì bat_luc
+	# rỗng, quét sau mua lùi 48 giờ, gửi bù hoá đơn trước lúc bật.
+	class Doc(D):
+		def get_doc_before_save(self):
+			return D(ma_mau="659376", bat=0)
+	doc = Doc(_cau("sau_mua", bat=1, bat_luc=None))
+	with um.patch.object(zk, "_bay_gio", lambda: BAY_GIO):
+		zk.truoc_luu_form(doc)
+	la("Desk bật: ghi lúc bật", doc.get("bat_luc"), BAY_GIO)
+	class DocDangBat(D):
+		def get_doc_before_save(self):
+			return D(ma_mau="659376", bat=1)
+	doc = DocDangBat(_cau("sau_mua", bat=1, bat_luc=BAY_GIO - dt.timedelta(days=3)))
+	with um.patch.object(zk, "_bay_gio", lambda: BAY_GIO):
+		zk.truoc_luu_form(doc)
+	la("đang bật sẵn: giữ lúc bật cũ", doc.get("bat_luc"), BAY_GIO - dt.timedelta(days=3))
+	fr = zk.frappe
+	sv, cau = [], []
+	with um.patch.object(zk, "_cau_hinh", lambda ma: {"ma": ma, "bat": 1, "bat_luc": None}), \
+			um.patch.object(zk, "_bay_gio", lambda: BAY_GIO), um.patch.object(zk, "get_datetime", _gd), \
+			um.patch.object(fr.db, "sql", lambda q, ts=None, *a, **k: cau.append(ts) or [D(khach="K1", diem=1, hoa_don="HDB-CU")]), \
+			um.patch.object(fr.db, "set_value", lambda dt_, n, v, *a, **k: sv.append((n, v, a))):
+		n = zk.quet_sau_mua()
+	la("thiếu lúc bật: không quét, không dòng nào", (n, cau), (0, []))
+	dung("ghi lúc bật là bây giờ", any(x[0] == "sau_mua" and (x[1] == "bat_luc" and x[2][:1] == (BAY_GIO,) or (isinstance(x[1], dict) and x[1].get("bat_luc") == BAY_GIO)) for x in sv))
 
 
 @ca("v621 quét sau mua: chỉ lượt tích điểm từ lúc bật (không gửi bù hoá đơn cũ), mỗi hoá đơn một dòng, quét lại không thêm")
