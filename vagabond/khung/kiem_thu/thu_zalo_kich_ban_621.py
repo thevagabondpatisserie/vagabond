@@ -454,6 +454,59 @@ def _ds_ctkm():
 	la("thẻ quay lại sẵn sàng", the["quay_lai"]["san_sang"], 1)
 
 
+@ca("PR517 Codex vòng 2: mất kết nối Zalo (-1) thì dừng lượt, dòng để chờ, lượt sau gửi lại; không loại vĩnh viễn")
+def _mat_mang():
+	# Tái hiện finding Codex trên 87c103b: hai phản hồi -1 làm cả hai dòng
+	# thành Lỗi, lượt sau không gửi lại; khoá chống trùng chặn quét lại.
+	si = {"HDB-%d" % i: D(docstatus=1, posting_date=D8(2026, 10, 29), posting_time="", grand_total=1) for i in (1, 2)}
+	rows = [D(name="T%d" % i, khach="K1", hoa_don="HDB-%d" % i, diem=1, khoa="sau_mua:HDB-%d" % i, trang_thai="Chờ gửi") for i in (1, 2)]
+	m = Moi(_cau("sau_mua"), rows, {"K1": _hs()}, [{"error": -1, "message": "Không gọi được Zalo"}, {"error": -1, "message": "Không gọi được Zalo"}], si=si)
+	tom = m.chay(zk.gui_hang_doi)
+	la("gọi một lần rồi dừng", len(m.goi), 1)
+	la("cả hai dòng vẫn chờ", m.tt(), {"T1": "Chờ gửi", "T2": "Chờ gửi"})
+	dung("tóm tắt có dừng lượt", "Dừng lượt" in tom["sau_mua"])
+	m.tra = []
+	m.chay(zk.gui_hang_doi)
+	la("lượt sau có mạng thì gửi cả hai", m.tt(), {"T1": "Đã gửi", "T2": "Đã gửi"})
+	# Phản hồi không đọc được (không có mã) cũng là lỗi cả lượt.
+	rows = [D(name="T1", khach="K1", hoa_don="HDB-1", diem=1, khoa="sau_mua:HDB-1", trang_thai="Chờ gửi")]
+	m = Moi(_cau("sau_mua"), rows, {"K1": _hs()}, ["<html>502</html>"], si=si)
+	m.chay(zk.gui_hang_doi)
+	la("phản hồi lạ: dòng vẫn chờ", m.tt(), {"T1": "Chờ gửi"})
+	# Tin khuyến mãi: mã vừa phát bị huỷ, lượt sau phát mã mới.
+	rows = [D(name="T1", khach="K1", khoa="sinh_nhat:K1:2026", trang_thai="Chờ gửi")]
+	m = Moi(_cau("sinh_nhat"), rows, {"K1": _hs()}, [{"error": -1}])
+	m.chay(zk.gui_hang_doi)
+	la("huỷ mã của tin không đi", m.voucher_huy(), ["VC1"])
+	la("dòng khuyến mãi vẫn chờ", m.tt(), {"T1": "Chờ gửi"})
+
+
+@ca("PR517 Codex vòng 2: sổ tin tìm ở máy chủ theo tên khách, số điện thoại, hoá đơn, voucher (tìm được cả dòng chưa tải)")
+def _tim_tin():
+	la("rỗng thì không lọc", zk.dk_tim_tin("  "), [])
+	dk = zk.dk_tim_tin("HDB-26-0012")
+	dung("tìm hoá đơn", ["hoa_don", "like", "%HDB-26-0012%"] in dk)
+	dung("tìm voucher", ["voucher", "like", "%HDB-26-0012%"] in dk)
+	dk = zk.dk_tim_tin("0901 486 556")
+	dung("số điện thoại gõ kiểu 09 tìm theo 84", ["sdt", "like", "%84901486556%"] in dk)
+	dk = zk.dk_tim_tin("6556")
+	dung("bốn số cuối", ["sdt", "like", "%6556%"] in dk)
+	dung("tên có dấu", ["ten_khach", "like", "%Lan Anh%"] in zk.dk_tim_tin("Lan Anh"))
+	la("bỏ dấu % người gõ", zk.dk_tim_tin("50%")[0], ["ten_khach", "like", "%50%"])
+	fr = zk.frappe
+	goi = []
+
+	def ga(dt_, **k):
+		goi.append(k)
+		return []
+	with um.patch.object(zk, "_quyen", lambda xem=True: None), um.patch.object(fr, "get_all", ga):
+		zk.ds_tin("sau_mua", "", 0, "HDB-1")
+		zk.ds_tin("sau_mua", "", 0, "")
+	la("có tìm thì gửi or_filters", bool(goi[0].get("or_filters")), True)
+	la("lọc kịch bản vẫn giữ", goi[0]["filters"], {"kich_ban": "sau_mua"})
+	la("không tìm thì không or_filters", goi[1].get("or_filters"), None)
+
+
 @ca("v621 quét sau mua: chỉ lượt tích điểm từ lúc bật (không gửi bù hoá đơn cũ), mỗi hoá đơn một dòng, quét lại không thêm")
 def _quet_sau_mua():
 	fr = zk.frappe
