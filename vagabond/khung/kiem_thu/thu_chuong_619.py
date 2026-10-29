@@ -22,8 +22,10 @@ from vagabond import kenh_zalo as kz  # noqa: E402
 APP = "https://app.thevagabondpatisserie.com"
 
 
-def _tin(name, ma, noi_dung, luc, trang_thai="Đã gửi"):
-	return {"name": name, "ma_tin": ma, "noi_dung": noi_dung, "creation": luc, "trang_thai": trang_thai}
+def _tin(name, ma, noi_dung, luc, trang_thai="Đã gửi", luc_gui=None):
+	"""luc là lúc tạo dòng sổ; luc_gui là lúc gửi thật (mặc định gửi ngay khi tạo)."""
+	return {"name": name, "ma_tin": ma, "noi_dung": noi_dung, "creation": luc, "trang_thai": trang_thai,
+		"luc_gui": luc_gui or luc}
 
 
 PHEP = {"in": lambda a, b: a in b, ">=": lambda a, b: a >= b, ">": lambda a, b: a > b,
@@ -57,9 +59,11 @@ def _chay(ham, phong_ban, vai=(), da_xem="", viec=2, so=None, ts=None):
 	luu = {"vgb_chuong_xem": da_xem}
 
 	def get_all(dt, filters=None, fields=None, order_by=None, limit_page_length=None):
-		assert dt == "Vagabond Tin Kenh" and order_by == "creation desc"
-		ra = [dict(r, luc=r["creation"]) for r in (so or SO) if _loc(r, filters)]
-		ra.sort(key=lambda r: r["creation"], reverse=True)
+		assert dt == "Vagabond Tin Kenh"
+		cot = order_by.split()[0]
+		assert order_by == cot + " desc" and cot + " as luc" in fields, (order_by, fields)
+		ra = [dict(r, luc=r[cot]) for r in (so or SO) if _loc(r, filters)]
+		ra.sort(key=lambda r: r[cot], reverse=True)
 		return ra[:limit_page_length] if limit_page_length else ra
 
 	fr = types.SimpleNamespace(
@@ -167,6 +171,29 @@ def _trang():
 	la("tin mới đứng đầu, rồi tin cũ", [x["moi"] for x in kq["ds"]], [1, 1, 1, 0, 0, 0, 0, 0])
 	_, ghi = _chay("da_xem", "Kế toán - TV", so=so, da_xem="2026-10-28 08:00:00.000000", ts={"den": so[0]["creation"]})
 	la("mốc không lùi", ghi, {})
+
+
+@ca("v619 chuông: tin hoãn giờ im gửi SAU lúc mở màn vẫn là tin mới; tin gửi nhiều nhóm nằm hai bên ranh trang")
+def _gio_gui_va_trang():
+	# Codex 4407978621 (64872c35): tin tạo 07:00 bị hoãn, gửi 08:30. Người dùng đã đọc tới tin
+	# 08:00. Bản cũ so theo lúc tạo nên tin 08:30 thành đã đọc mà chưa từng hiện.
+	so = [_tin("t8", "kt_du_lieu_hao_hut", "Tin 8 giờ\nx", "2026-10-28 08:00:00.000001"),
+		_tin("hoan", "kt_du_lieu_hao_hut", "Tin hoãn\ny", "2026-10-28 07:00:00.000001", "Đã gửi gộp", "2026-10-28 08:30:00.000001")]
+	moc = "2026-10-28 08:00:00.000001"
+	la("tin gửi sau mốc vẫn đếm là mới", _chay("dem", "Kế toán - TV", so=so, viec=0, da_xem=moc)[0], {"viec": 0, "tin": 1, "tong": 1})
+	kq, _ = _chay("thong_bao", "Kế toán - TV", so=so, da_xem=moc)
+	la("tin gửi sau đứng đầu, là tin mới, giờ hiện là giờ gửi", [(x["ten"], x["moi"], x["luc"]) for x in kq["ds"]],
+		[("hoan", 1, "2026-10-28 08:30:00.000001"), ("t8", 0, "2026-10-28 08:00:00.000001")])
+	# Codex 4407978626 (64872c35): tin gửi hai nhóm, bản sao nằm ngay sau ranh trang. Mỗi trang máy chủ
+	# gộp riêng nên trang sau có lại bản sao; màn gộp khi nối trang (hanh_vi/chuong_619.js). Ca này chốt
+	# đúng điều kiện đó trên máy chủ thật để ca hành vi không kiểm một tình huống không có.
+	so = _nhieu(61)
+	so.append(_tin("n001b", "kt_du_lieu_hao_hut", so[1]["noi_dung"], str(so[1]["creation"])[:-1] + "0"))
+	moc = so[-2]["creation"]
+	kq, _ = _chay("thong_bao", "Kế toán - TV", so=so, da_xem=moc)
+	kq2, _ = _chay("thong_bao", "Kế toán - TV", so=so, da_xem=moc, ts={"truoc": kq["ds"][-1]["luc"]})
+	la("trang đầu dừng ở Tin 001, trang sau mở đầu bằng bản sao của nó", [kq["ds"][-1]["tieu_de"], len(kq["ds"]), kq2["ds"][0]["tieu_de"]],
+		["Tin 001", 60, "Tin 001"])
 
 
 @ca("v619 chuông: Việc cần làm lỗi thì vẫn đếm tin, không ném lỗi ra trang chủ")
