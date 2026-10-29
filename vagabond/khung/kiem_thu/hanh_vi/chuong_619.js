@@ -62,7 +62,7 @@ var TRANG2 = { ds: [{ ten: 't3b', ma_tin: 'bh_dat_ban', tieu_de: '✅ VIỆC C�
       luc: '2026-10-26 09:59:58.000001', moi: 0 }, { ten: 't4', ma_tin: 'bh_dat_ban', tieu_de: 'Tin cũ hơn', than: '', link: '', luc: '2026-10-20 10:00:00.000001', moi: 0 }],
   co_phong_ban: 1, so_ngay: 14, con_nua: 0, moc_moi: '2026-10-20 10:00:00.000001' };
 
-function napApp(nguoi, traTin) {
+function napApp(nguoi, traTin, trangSau) {
   var tl = dg.taiLieuGia();
   tl.head = new dg.ElementGia('head');
   var vgb = tl.createElement('div'); vgb.id = 'vgb'; tl.body.appendChild(vgb);
@@ -82,7 +82,7 @@ function napApp(nguoi, traTin) {
     api: function (m, ts) {
       ve.api.push(m); ve.ts.push([m, JSON.stringify(ts || {})]);
       if (m === 'vagabond.chuong.dem') return Promise.resolve({ viec: 3, tin: 2, tong: 5 });
-      if (m === 'vagabond.chuong.thong_bao') return Promise.resolve(JSON.parse(JSON.stringify(ts && ts.truoc ? TRANG2 : (traTin || TIN))));
+      if (m === 'vagabond.chuong.thong_bao') return Promise.resolve(JSON.parse(JSON.stringify(ts && ts.truoc ? (trangSau ? trangSau(ts.truoc) : TRANG2) : (traTin || TIN))));
       if (m === 'vagabond.chuong.da_xem') return Promise.resolve({ luc: 'x' });
       return Promise.reject(new Error('api la ' + m));
     },
@@ -183,6 +183,26 @@ function bamTrong(a, el) { return a.tl.getElementById('vgbBody').onclick({ targe
   bam(d, d.tl.getElementById('vgbChuong')); await nghi();
   bamTrong(d, d.tl.querySelectorAll('[data-chmo]')[0]); await nghi();
   la('đường ngoài mở thẻ mới', [d.ve.mo_tab, d.ve.href], [['https://maps.google.com/?q=1'], []]);
+
+  // Codex 4408086813: trang sau chỉ toàn bản sao tin đã hiện. Màn gộp hết, nhưng mốc phải theo
+  // máy chủ để lần bấm sau đi tiếp, không hỏi lại đúng trang cũ mãi.
+  var mot = function (ten, luc) { return { ten: ten, ma_tin: 'bh_dat_ban', tieu_de: 'Tin ' + ten, than: '', link: '', luc: luc, moi: 0 }; };
+  var hoi = [];
+  var e = napApp('kt@vagabond.vn', { ds: [mot('a', '2026-10-28 10:00:00.000001'), mot('b', '2026-10-28 09:00:00.000001')],
+    co_phong_ban: 1, so_ngay: 14, con_nua: 1, moc_moi: '2026-10-28 10:00:00.000001', tiep: '2026-10-28 09:00:00.000001' },
+    function (truoc) {
+      hoi.push(truoc);
+      if (truoc === '2026-10-28 09:00:00.000001') return { ds: [mot('a', '2026-10-28 08:59:00.000001'), mot('b', '2026-10-28 08:58:00.000001')],
+        con_nua: 1, tiep: '2026-10-28 08:58:00.000001' };
+      return { ds: [mot('c', '2026-10-27 08:00:00.000001')], con_nua: 0, tiep: '2026-10-27 08:00:00.000001' };
+    });
+  await e.g.reset(e.g.scrHome); await nghi();
+  bam(e, e.tl.getElementById('vgbChuong')); await nghi();
+  await e.tl.getElementById('chCuHon').onclick(); await nghi();
+  la('trang toàn bản sao: không thêm tin, vẫn còn nút', [e.tl.querySelectorAll('[data-chi]').length, !!e.tl.getElementById('chCuHon')], [2, true]);
+  await e.tl.getElementById('chCuHon').onclick(); await nghi();
+  la('lần bấm sau đi tiếp theo mốc máy chủ, tới được tin cũ hơn', [hoi, e.tl.querySelectorAll('[data-chi]').length, !!e.tl.getElementById('chCuHon')],
+    [['2026-10-28 09:00:00.000001', '2026-10-28 08:58:00.000001'], 3, false]);
 
   console.log('\n' + dat + ' ca đạt, ' + hong + ' ca hỏng.');
   process.exit(hong ? 1 : 0);
