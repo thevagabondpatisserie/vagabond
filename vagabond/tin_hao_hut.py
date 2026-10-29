@@ -96,16 +96,31 @@ def mon_ban_chua_lenh(ban, da_lam):
 		"tong_cai": sum(v["sl"] for v in gom.values() if v["sl"] > LECH), "ds": thieu}
 
 
-def lenh_khong_can(phieu):
-	"""THUẦN: phiếu hoàn tất lệnh có số thực tế bằng đúng số làm.
+def ghi_bang_so_lenh(p):
+	"""THUẦN: phiếu hoàn tất có số nhập kho trùng đúng số của LỆNH (dấu hiệu không cân).
 
-	phieu: [{"kho","lam","thuc_te"}] với lam = số làm theo lệnh, thuc_te = số nhập kho.
+	p: {"lam","thuc_te","ke_hoach"}: lam = fg_completed_qty, thuc_te = số nhập kho của
+	dòng thành phẩm, ke_hoach = số lượng của lệnh sản xuất (Work Order).
+
+	Codex 4404477889: kho_san_xuat.so_hoan_tat cân DƯ thì ghi số cân vào cả hai ô (kế
+	hoạch 100, cân 110 lưu 110 và 110), nên "hai ô bằng nhau" không phân biệt được mẻ cân
+	thật với mẻ chép số. Số của lệnh thì không bị ghi đè: chỉ tính khi số nhập kho trùng
+	luôn số của lệnh, đúng con số ô cân điền sẵn. Cân dư (110 > 100), cân thiếu, mẻ lẻ của
+	lệnh nhiều mẻ, phiếu không gắn lệnh: không tính, thà sót còn hơn trách nhầm bếp."""
+	lam, tt, kh = _f(p.get("lam")), _f(p.get("thuc_te")), _f(p.get("ke_hoach"))
+	return lam > LECH and kh > LECH and abs(lam - tt) <= LECH and abs(tt - kh) <= LECH
+
+
+def lenh_khong_can(phieu):
+	"""THUẦN: phiếu hoàn tất lệnh có số nhập kho trùng đúng số của lệnh (ghi_bang_so_lenh).
+
+	phieu: [{"kho","lam","thuc_te","ke_hoach"}] (xem ghi_bang_so_lenh).
 	Trả None khi chưa đủ dấu hiệu (dưới SO_LENH_TOI_THIEU lệnh, hay dưới TY_LE_KHONG_CAN):
 	vài mẻ đủ số là chuyện thường. Có thì {"bang","tong","theo_bep":[(bếp, số)]}."""
 	ds = [p for p in phieu or [] if _f(p.get("lam")) > LECH]
 	if len(ds) < SO_LENH_TOI_THIEU:
 		return None
-	bang = [p for p in ds if abs(_f(p.get("lam")) - _f(p.get("thuc_te"))) <= LECH]
+	bang = [p for p in ds if ghi_bang_so_lenh(p)]
 	if len(bang) < TY_LE_KHONG_CAN * len(ds):
 		return None
 	dem = {}
@@ -266,7 +281,7 @@ def soan_bep(bep, tu, den, ban, khong_can, chua_dem, link=None):
 			ten_gon(["%s %s" % (t, so(s)) for t, s in ban["ds"]], 3)))
 	if khong_can:
 		dong.append("Khi bấm Hoàn tất, ô \"Thực tế cân được\" ghi số cân thật, không chép lại số làm theo lệnh. "
-			"Tuần qua %d/%d lệnh chép số." % (khong_can["bang"], khong_can["tong"]))
+			"Tuần qua %d/%d lệnh ghi số cân trùng đúng số của lệnh." % (khong_can["bang"], khong_can["tong"]))
 	if chua_dem:
 		dong.append("Kiểm kê nguyên liệu đắt (bơ, kem, sô cô la, phô mai, hạt, trái cây) mỗi tuần: %s." % "; ".join(chua_dem))
 	if not dong:
@@ -314,7 +329,7 @@ def dong_bao_cao(d, den):
 		b = ten_bep_kho(p.get("kho")) or "Khác"
 		o = dem.setdefault(b, [0, 0])
 		o[1] += 1
-		if abs(_f(p.get("lam")) - _f(p.get("thuc_te"))) <= LECH:
+		if ghi_bang_so_lenh(p):
 			o[0] += 1
 	for b, (bang, tong) in sorted(dem.items()):
 		ra.append({"muc": "Lệnh ghi số cân bằng đúng số làm", "chi_tiet": "%d/%d lệnh" % (bang, tong), "so": bang,
@@ -355,8 +370,9 @@ def _doc_du_lieu(tu, den):
 		join `tabStock Entry` s on s.name = d.parent
 		where s.docstatus = 1 and s.purpose = 'Manufacture' and d.is_finished_item = 1
 			and s.posting_date between %(tu)s and %(den)s""", {"tu": add_days(den, -(NGAY_SX_XET - 1)), "den": den}))
-	phieu = frappe.db.sql("""select d.t_warehouse kho, s.fg_completed_qty lam, d.transfer_qty thuc_te
+	phieu = frappe.db.sql("""select d.t_warehouse kho, s.fg_completed_qty lam, d.transfer_qty thuc_te, wo.qty ke_hoach
 		from `tabStock Entry` s join `tabStock Entry Detail` d on d.parent = s.name and d.is_finished_item = 1
+			left join `tabWork Order` wo on wo.name = s.work_order
 		where s.docstatus = 1 and s.purpose = 'Manufacture' and s.posting_date between %(tu)s and %(den)s""",
 		{"tu": tu, "den": den}, as_dict=True)
 	kho_bep = [k for k in frappe.get_all("Warehouse", filters={"is_group": 0, "disabled": 0}, pluck="name")

@@ -17,12 +17,19 @@ Lọc ở MÁY CHỦ, máy khách chỉ vẽ.
 Một tin gửi vào hai nhóm thì sổ có hai dòng cùng nội dung: gộp lại thành một.
 "Đã đọc" là mốc thời gian lưu riêng từng người (giá trị mặc định của người dùng),
 mở thẻ Thông báo là cập nhật mốc.
+
+Codex 4404477923: mốc là MỘT thời điểm, nên tin chưa đọc phải luôn được trả về HẾT (không
+cắt ở TOI_DA), mốc chỉ đẩy tới tin mới nhất đã hiện chứ không tới "bây giờ". Tin đã đọc thì
+mỗi lượt TOI_DA tin, có nút xem tin cũ hơn.
 """
 
 import re
 
 SO_NGAY = 14
 TOI_DA = 60
+# Codex 4404477900: chỉ tin ĐÃ GỬI THẬT (gửi riêng hay gửi gộp giờ im). Tin chờ, đang gửi,
+# hoãn, lỗi, chưa rõ, và tin "Bỏ qua (đã xử lý)" vì việc đã xong trước giờ gửi: không hiện.
+DA_GUI = ("Đã gửi", "Đã gửi gộp")
 KHOA_DA_XEM = "vgb_chuong_xem"
 TAT_CA = "*"
 
@@ -119,11 +126,20 @@ def _ma_tin_cua_toi():
 	return bp, ma_tin_duoc_xem(bp, kenh_zalo.TIN)
 
 
-def _doc_tin(ma, gioi_han):
+def _doc_tin(ma, gioi_han=0, sau=None, truoc=None, den=None):
+	"""Dòng sổ tin đã gửi thật, mới nhất trước. sau: chỉ tin tạo SAU mốc (chưa đọc);
+	den: tạo tới mốc (đã đọc); truoc: tạo trước mốc (trang cũ hơn). gioi_han 0 là không cắt."""
 	if not ma:
 		return []
-	return frappe.get_all("Vagabond Tin Kenh",
-		filters={"ma_tin": ["in", ma], "creation": [">=", add_days(now_datetime(), -SO_NGAY)]},
+	moc = str(add_days(now_datetime(), -SO_NGAY))
+	dk = [["ma_tin", "in", ma], ["trang_thai", "in", list(DA_GUI)], ["creation", ">=", moc]]
+	if sau:
+		dk.append(["creation", ">", str(sau)])
+	if truoc:
+		dk.append(["creation", "<", str(truoc)])
+	if den:
+		dk.append(["creation", "<=", str(den)])
+	return frappe.get_all("Vagabond Tin Kenh", filters=dk,
 		fields=["name", "ma_tin", "noi_dung", "creation as luc"], order_by="creation desc",
 		limit_page_length=gioi_han)
 
@@ -145,23 +161,56 @@ def dem():
 	tin = 0
 	try:
 		_, ma = _ma_tin_cua_toi()
-		tin = sum(1 for x in gop_tin(_doc_tin(ma, TOI_DA * 4), _da_xem()) if x["moi"])
+		moc = _da_xem()
+		tin = sum(1 for x in gop_tin(_doc_tin(ma, sau=moc or None), moc) if x["moi"])
 	except Exception:
 		tin = 0
 	return {"viec": viec, "tin": tin, "tong": viec + tin}
 
 
+def chia_trang(moi, cu, toi_da=TOI_DA):
+	"""THUẦN: một trang của màn. moi: mọi tin chưa đọc (đã gộp), hiện HẾT; cu: tin đã đọc
+	(đã gộp, mới nhất trước), hiện tới toi_da. Trả (ds, còn tin cũ hơn không)."""
+	thay = {(x["ma_tin"], x["tieu_de"], x["than"], x["link"]) for x in moi}
+	cu = [x for x in cu if (x["ma_tin"], x["tieu_de"], x["than"], x["link"]) not in thay]
+	return list(moi) + cu[:toi_da], len(cu) > toi_da
+
+
 @frappe.whitelist()
-def thong_bao():
-	"""CHỈ ĐỌC: tin Zalo 14 ngày gần nhất của bộ phận mình, mới nhất trước, đã gộp."""
+def thong_bao(truoc=None):
+	"""CHỈ ĐỌC: tin Zalo đã gửi 14 ngày gần nhất của bộ phận mình, mới nhất trước, đã gộp.
+
+	Lượt đầu (truoc trống): MỌI tin chưa đọc, rồi tới TOI_DA tin đã đọc. Lượt sau (truoc =
+	thời điểm tin cuối đang hiện): TOI_DA tin cũ hơn nữa. moc_moi là thời điểm tin mới
+	nhất đã hiện, để da_xem chỉ đánh dấu tới đó."""
 	bp, ma = _ma_tin_cua_toi()
-	ds = gop_tin(_doc_tin(ma, TOI_DA * 4), _da_xem())[:TOI_DA]
-	return {"ds": ds, "co_phong_ban": 1 if bp else 0, "so_ngay": SO_NGAY}
+	moc = _da_xem()
+	gioi_han = TOI_DA * 4 + 1
+	if truoc:
+		dong = _doc_tin(ma, gioi_han, truoc=truoc)
+		ds, con = chia_trang([], gop_tin(dong, moc))
+	elif moc:
+		dong = _doc_tin(ma, gioi_han, den=moc)
+		ds, con = chia_trang(gop_tin(_doc_tin(ma, sau=moc), moc), gop_tin(dong, moc))
+	else:
+		# Chưa đọc lần nào: mọi tin là chưa đọc, hiện hết.
+		dong = []
+		ds, con = chia_trang(gop_tin(_doc_tin(ma), moc), [])
+	con = con or len(dong) >= gioi_han
+	moc_moi = max([x["luc"] for x in ds] or [""])
+	return {"ds": ds, "co_phong_ban": 1 if bp else 0, "so_ngay": SO_NGAY, "con_nua": 1 if con else 0,
+		"moc_moi": moc_moi}
 
 
 @frappe.whitelist()
-def da_xem():
-	"""Đánh dấu đã đọc hết tới lúc này (mở thẻ Thông báo)."""
-	luc = str(now_datetime())
+def da_xem(den=None):
+	"""Đánh dấu đã đọc tới tin mới nhất ĐÃ HIỆN (den, do thong_bao trả về). Không lùi mốc,
+	không vượt quá bây giờ. Thiếu den (bản app cũ) thì giữ cách cũ: tới bây giờ."""
+	bay_gio = str(now_datetime())
+	luc = str(den or "").strip() or bay_gio
+	luc = min(luc, bay_gio)
+	cu = _da_xem()
+	if cu and cu >= luc:
+		return {"luc": cu}
 	frappe.defaults.set_user_default(KHOA_DA_XEM, luc, user=frappe.session.user)
 	return {"luc": luc}
