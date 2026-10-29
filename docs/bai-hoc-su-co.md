@@ -2818,3 +2818,11 @@ Khách bấm quảng cáo Facebook vào web thì đường dẫn có `fbclid` d�
 
 - Mọi ô Data nhận chuỗi từ bên ngoài (cookie, mã của dịch vụ khác, đường dẫn) phải có sức chứa không nhỏ hơn số ký tự mã cắt, hoặc dùng Small Text. Ca `thu_fbc_620` tính sức chứa từ chính tệp doctype theo luật Frappe và cho đi giá trị dài nhất bộ lọc nhận.
 - Lỗi độ dài cột không vào Error Log: khách báo "không gửi được" mà Error Log trống thì thử gửi lại đúng gói của khách và đọc mã HTTP, đừng kết luận là mạng.
+
+## 29/10/2026 (v621): Zalo đổi luật gửi tin từ 01/03/2026, mã cũ âm thầm hỏng
+
+- ZNS gộp vào ZBS Template Message (01/01/2026). Từ 01/03/2026 tin UID Giao dịch và Truyền thông kiểu cũ ngừng: mọi tin gửi qua API phải theo MẪU đã duyệt, trừ tin tư vấn trong 7 ngày sau tương tác. Kênh "Zalo OA" của Chiến dịch (v617) gọi `message/promotion` kiểu cũ nên không gửi được nữa; đổi sang mẫu là PR riêng.
+- `GET /template/info` trả -106 "Method unsupported"; đường đúng là `/template/info/v2` (trả thêm `price_sdt`, `price_uid`, `reason`). Đọc trạng thái mẫu và bộ tham số từ đây rồi mới điền dữ liệu: sai kiểu hay dài quá một tham số là Zalo từ chối CẢ tin.
+- Tin khuyến mãi (tag 3, có voucher) cần hạn mức tháng của OA (`/message/quota`, `monthlyPromotionQuota`), bằng 1/6 số tin tag 1 và 2 đã gửi hai tháng trước; site 29/10 là 0. Hạn mức 0 thì KHÔNG phát voucher rồi mới gửi, vì mã sẽ nằm im mà khách không biết.
+- Mẫu voucher sinh nhật để tag 2 bị từ chối ("Nội dung gửi thông tin ưu đãi - tag 3"): nội dung ưu đãi luôn là tag 3.
+- Tạo mẫu qua API được (`/template/create`, cần ảnh logo 400x96 tải lên `/upload/image` trước), không cần đăng nhập trang quản lý.
