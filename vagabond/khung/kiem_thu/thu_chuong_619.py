@@ -22,8 +22,18 @@ from vagabond import kenh_zalo as kz  # noqa: E402
 APP = "https://app.thevagabondpatisserie.com"
 
 
-def _tin(name, ma, noi_dung, luc):
-	return {"name": name, "ma_tin": ma, "noi_dung": noi_dung, "creation": luc}
+def _tin(name, ma, noi_dung, luc, trang_thai="Đã gửi"):
+	return {"name": name, "ma_tin": ma, "noi_dung": noi_dung, "creation": luc, "trang_thai": trang_thai}
+
+
+PHEP = {"in": lambda a, b: a in b, ">=": lambda a, b: a >= b, ">": lambda a, b: a > b,
+	"<": lambda a, b: a < b, "<=": lambda a, b: a <= b}
+
+
+def _loc(r, filters):
+	"""Lọc như frappe.get_all: dict {trường: [phép, giá trị]} hay danh sách [trường, phép, giá trị]."""
+	ds = filters.items() if isinstance(filters, dict) else [(f[0], f[1:]) for f in filters]
+	return all(PHEP[ph](r[tr], (list(gt) if ph == "in" else str(gt))) for tr, (ph, gt) in ds)
 
 
 SO = [
@@ -41,18 +51,16 @@ SO = [
 ]
 
 
-def _chay(ham, phong_ban, vai=(), da_xem="", viec=2, so=None):
+def _chay(ham, phong_ban, vai=(), da_xem="", viec=2, so=None, ts=None):
 	"""Gọi một hàm mở ra ngoài của chuong.py với sổ tin giả. Trả (kết quả, mốc đã ghi)."""
 	ghi = {}
 	luu = {"vgb_chuong_xem": da_xem}
 
 	def get_all(dt, filters=None, fields=None, order_by=None, limit_page_length=None):
-		assert dt == "Vagabond Tin Kenh"
-		ma = set(filters["ma_tin"][1])
-		moc = str(filters["creation"][1])
-		ra = [dict(r, luc=r["creation"]) for r in (so or SO) if r["ma_tin"] in ma and r["creation"] >= moc]
+		assert dt == "Vagabond Tin Kenh" and order_by == "creation desc"
+		ra = [dict(r, luc=r["creation"]) for r in (so or SO) if _loc(r, filters)]
 		ra.sort(key=lambda r: r["creation"], reverse=True)
-		return ra[:limit_page_length]
+		return ra[:limit_page_length] if limit_page_length else ra
 
 	fr = types.SimpleNamespace(
 		session=types.SimpleNamespace(user="nv@vagabond.vn"),
@@ -71,7 +79,7 @@ def _chay(ham, phong_ban, vai=(), da_xem="", viec=2, so=None):
 		cu = getattr(vagabond, "viec_can_lam", None)
 		vagabond.viec_can_lam = vcl
 		try:
-			return getattr(ch, ham)(), ghi
+			return getattr(ch, ham)(**(ts or {})), ghi
 		finally:
 			if cu is not None:
 				vagabond.viec_can_lam = cu
@@ -109,6 +117,56 @@ def _dem():
 	la("mở thẻ là ghi mốc", ghi, {"vgb_chuong_xem": "2026-10-28 09:00:00.000000"})
 	kq, _ = _chay("dem", "Kế toán - TV", viec=0, da_xem=ghi["vgb_chuong_xem"])
 	la("sau khi đọc", kq, {"viec": 0, "tin": 0, "tong": 0})
+
+
+@ca("v619 chuông: chỉ tin đã gửi thật (cả gửi gộp); tin bỏ qua vì đã xử lý, chờ, hoãn, lỗi không hiện, không đếm")
+def _chi_tin_da_gui():
+	# Codex 4404477900 (81dfbe70): bản cũ hiện và đếm cả các tin bo, loi, cho, hoan.
+	so = [_tin("gui", "kt_du_lieu_hao_hut", "A\nđã gửi", "2026-10-28 08:00:00.000001"),
+		_tin("gop", "kt_du_lieu_hao_hut", "B\ngửi gộp giờ im", "2026-10-28 07:30:00.000001", "Đã gửi gộp"),
+		_tin("bo", "kt_du_lieu_hao_hut", "C\nviệc đã xong", "2026-10-28 07:00:00.000001", "Bỏ qua (đã xử lý)"),
+		_tin("loi", "kt_du_lieu_hao_hut", "D\ngửi lỗi", "2026-10-28 06:00:00.000001", "Lỗi"),
+		_tin("cho", "kt_du_lieu_hao_hut", "E\nđang chờ", "2026-10-28 05:00:00.000001", "Chờ gửi"),
+		_tin("hoan", "kt_du_lieu_hao_hut", "F\nhoãn giờ im", "2026-10-28 04:00:00.000001", "Hoãn giờ im")]
+	la("màn chỉ có tin đã gửi", [x["ten"] for x in _chay("thong_bao", "Kế toán - TV", so=so)[0]["ds"]], ["gui", "gop"])
+	la("số đỏ chỉ đếm tin đã gửi", _chay("dem", "Kế toán - TV", so=so, viec=0)[0], {"viec": 0, "tin": 2, "tong": 2})
+
+
+def _nhieu(n, dau="2026-10-20 00:00:00", ma="kt_du_lieu_hao_hut"):
+	from datetime import datetime, timedelta
+	g = datetime.fromisoformat(dau)
+	return [_tin("n%03d" % i, ma, "Tin %03d\nthân" % i, str(g + timedelta(minutes=7 * i)) + ".000001") for i in range(n)]
+
+
+@ca("v619 chuông: hơn 60 tin chưa đọc thì hiện hết, chỉ đánh dấu tới tin đã hiện; tin đã đọc có trang cũ hơn")
+def _trang():
+	# Codex 4404477923 (81dfbe70): 61 tin chưa đọc, bản cũ chỉ hiện 60 và mở màn là tin thứ 61 thành đã đọc.
+	so = _nhieu(61)
+	kq, _ = _chay("thong_bao", "Kế toán - TV", so=so)
+	la("61 tin chưa đọc hiện đủ 61", [len(kq["ds"]), sum(x["moi"] for x in kq["ds"])], [61, 61])
+	la("mốc mới là tin mới nhất đã hiện", kq["moc_moi"], so[-1]["creation"])
+	_, ghi = _chay("da_xem", "Kế toán - TV", so=so, ts={"den": kq["moc_moi"]})
+	la("đánh dấu tới tin đã hiện, không tới bây giờ", ghi, {"vgb_chuong_xem": so[-1]["creation"]})
+	la("đọc xong không còn tin mới", _chay("dem", "Kế toán - TV", so=so, viec=0, da_xem=ghi["vgb_chuong_xem"])[0],
+		{"viec": 0, "tin": 0, "tong": 0})
+	so2 = so + [_tin("sau", "kt_du_lieu_hao_hut", "Tin tới sau\nx", "2026-10-28 08:59:00.000001")]
+	la("tin tới sau lúc mở màn vẫn là tin mới", _chay("dem", "Kế toán - TV", so=so2, viec=0, da_xem=ghi["vgb_chuong_xem"])[0],
+		{"viec": 0, "tin": 1, "tong": 1})
+	# Đã đọc 70 tin: trang đầu 60, còn nút xem cũ hơn; trang sau 10 tin còn lại, hết.
+	so = _nhieu(70)
+	moc = so[-1]["creation"]
+	kq, _ = _chay("thong_bao", "Kế toán - TV", so=so, da_xem=moc)
+	la("trang đầu 60 tin đã đọc, còn tin cũ hơn", [len(kq["ds"]), kq["con_nua"], sum(x["moi"] for x in kq["ds"])], [60, 1, 0])
+	kq2, _ = _chay("thong_bao", "Kế toán - TV", so=so, da_xem=moc, ts={"truoc": kq["ds"][-1]["luc"]})
+	la("trang sau đủ 10 tin còn lại, hết", [len(kq2["ds"]), kq2["con_nua"], kq2["ds"][0]["ten"], kq2["ds"][-1]["ten"]],
+		[10, 0, "n009", "n000"])
+	la("không trùng tin giữa hai trang", len({x["ten"] for x in kq["ds"] + kq2["ds"]}), 70)
+	# Đã đọc 5, có 3 mới: 3 mới đứng đầu rồi tới 5 cũ.
+	so = _nhieu(8)
+	kq, _ = _chay("thong_bao", "Kế toán - TV", so=so, da_xem=so[4]["creation"])
+	la("tin mới đứng đầu, rồi tin cũ", [x["moi"] for x in kq["ds"]], [1, 1, 1, 0, 0, 0, 0, 0])
+	_, ghi = _chay("da_xem", "Kế toán - TV", so=so, da_xem="2026-10-28 08:00:00.000000", ts={"den": so[0]["creation"]})
+	la("mốc không lùi", ghi, {})
 
 
 @ca("v619 chuông: Việc cần làm lỗi thì vẫn đếm tin, không ném lỗi ra trang chủ")

@@ -49,11 +49,11 @@ def _du_lieu_tuan():
 	ban += [{"ma": "KL%02d" % i, "ten": "Món khác %02d" % i, "sl": 12, "bep": "Baker" if i < 12 else ""} for i in range(22)]
 	ban += [{"ma": "CL%02d" % i, "ten": "Món có lệnh %02d" % i, "sl": 56 if i < 21 else 57, "bep": "Baker"} for i in range(26)]
 	da_lam = {"CL%02d" % i for i in range(26)}
-	phieu = ([{"kho": "Baker - Thành phẩm - TV", "lam": 20, "thuc_te": 20}] * 54
-		+ [{"kho": "Kho D1 - TV", "lam": 6, "thuc_te": 6}] * 7
-		+ [{"kho": "Pastry - Nguyên liệu - TV", "lam": 1000, "thuc_te": 1000}] * 5
-		+ [{"kho": "Pastry - Thành phẩm - TV", "lam": 12, "thuc_te": 12}]
-		+ [{"kho": "Kho Lab - TV", "lam": 2, "thuc_te": 2}] * 2)
+	phieu = ([{"kho": "Baker - Thành phẩm - TV", "lam": 20, "thuc_te": 20, "ke_hoach": 20}] * 54
+		+ [{"kho": "Kho D1 - TV", "lam": 6, "thuc_te": 6, "ke_hoach": 6}] * 7
+		+ [{"kho": "Pastry - Nguyên liệu - TV", "lam": 1000, "thuc_te": 1000, "ke_hoach": 1000}] * 5
+		+ [{"kho": "Pastry - Thành phẩm - TV", "lam": 12, "thuc_te": 12, "ke_hoach": 12}]
+		+ [{"kho": "Kho Lab - TV", "lam": 2, "thuc_te": 2, "ke_hoach": 2}] * 2)
 	kho_bep = ["Baker - Nguyên liệu - TV", "Baker - Thành phẩm - TV", "Kho Lab - TV",
 		"Pastry - Nguyên liệu - TV", "Pastry - Thành phẩm - TV"]
 	lan_cuoi = {"Baker - Nguyên liệu - TV": {"ngay": date(2026, 10, 20), "dong": 1},
@@ -150,7 +150,7 @@ def _chuoi_mau():
 def _du():
 	d = _du_lieu_tuan()
 	d.update(ban=[{"ma": "CL00", "ten": "Món có lệnh", "sl": 10}], da_lam={"CL00"},
-		phieu=[{"kho": "Baker - Thành phẩm - TV", "lam": 20, "thuc_te": 18}] * 6,
+		phieu=[{"kho": "Baker - Thành phẩm - TV", "lam": 20, "thuc_te": 18, "ke_hoach": 20}] * 6,
 		lan_cuoi={k: {"ngay": date(2026, 10, 25), "dong": 30} for k in d["kho_bep"]},
 		bins=[], btp=[], co_hh=424)
 	ghi = _chay_gui(d, NHOM_KT)
@@ -185,7 +185,7 @@ def _ban():
 
 @ca("v619 hao hụt: lệnh không cân chỉ báo khi từ 5 lệnh và từ 90% ghi bằng số làm")
 def _khong_can():
-	p = lambda kho, lam, tt: {"kho": kho, "lam": lam, "thuc_te": tt}  # noqa: E731
+	p = lambda kho, lam, tt, kh=None: {"kho": kho, "lam": lam, "thuc_te": tt, "ke_hoach": lam if kh is None else kh}  # noqa: E731
 	la("4 lệnh: chưa đủ dấu hiệu", th.lenh_khong_can([p("Kho D1 - TV", 5, 5)] * 4), None)
 	la("5/5 bằng: báo", th.lenh_khong_can([p("Kho D1 - TV", 5, 5)] * 5), {"bang": 5, "tong": 5, "theo_bep": [("D1", 5)]})
 	la("9/10 bằng: báo (đúng 90%)", th.lenh_khong_can([p("Baker - Thành phẩm - TV", 5, 5)] * 9 + [p("Kho D1 - TV", 5, 4)])["bang"], 9)
@@ -194,6 +194,22 @@ def _khong_can():
 	la("hai kho Pastry gộp một bếp", th.lenh_khong_can([p("Pastry - Nguyên liệu - TV", 1, 1)] * 3
 		+ [p("Pastry - Thành phẩm - TV", 1, 1)] * 3)["theo_bep"], [("Pastry", 6)])
 	la("lệnh số làm 0 không tính", th.lenh_khong_can([p("Kho D1 - TV", 0, 0)] * 9), None)
+	# Codex 4404477889 (81dfbe70): cân DƯ thì so_hoan_tat ghi số cân vào cả hai ô. Chạy đúng
+	# hàm thật: kế hoạch 100, cân 110, năm mẻ. Bản cũ báo "5/5" dù mẻ nào cũng cân thật.
+	from vagabond import kho_san_xuat
+	fg, tp = kho_san_xuat.so_hoan_tat(100, 110)
+	la("so_hoan_tat cân dư ghi số cân vào cả hai ô (điều kiện của ca)", (fg, tp), (110.0, 110.0))
+	la("cân dư năm mẻ: không trách bếp", th.lenh_khong_can([p("Pastry - Thành phẩm - TV", fg, tp, 100)] * 5), None)
+	fg, tp = kho_san_xuat.so_hoan_tat(100, 100)
+	la("để nguyên ô cân năm mẻ: vẫn báo", th.lenh_khong_can([p("Pastry - Thành phẩm - TV", fg, tp, 100)] * 5)["bang"], 5)
+	la("mẻ lẻ của lệnh nhiều mẻ (số dưới số lệnh): không tính", th.lenh_khong_can([p("Kho D1 - TV", 40, 40, 100)] * 5), None)
+	la("phiếu không gắn lệnh: không tính", th.lenh_khong_can([p("Kho D1 - TV", 5, 5, 0)] * 5), None)
+	# Đúng đường đọc của tin: câu đọc phiếu phải mang số của lệnh về.
+	fg, tp = kho_san_xuat.so_hoan_tat(100, 110)
+	d = _doc_that(sx=[(fg, tp, 100)] * 5)
+	la("đọc dữ liệu thật: cân dư năm mẻ không báo", th.lenh_khong_can(d["phieu"]), None)
+	d = _doc_that(sx=[(100, 100, 100)] * 5)
+	la("đọc dữ liệu thật: để nguyên ô cân vẫn báo", (th.lenh_khong_can(d["phieu"]) or {}).get("bang"), 5)
 
 
 @ca("v619 hao hụt: kho bếp chưa đếm (quá 7 ngày, dưới 5 dòng, chưa lần nào), kho khác không xét")
@@ -245,7 +261,7 @@ class _Dong(dict):
 	__getattr__ = dict.get
 
 
-def _doc_that(phieu=PKK_CA, sr=SR_CA, co_pkk=True):
+def _doc_that(phieu=PKK_CA, sr=SR_CA, co_pkk=True, sx=()):
 	"""Chạy ĐÚNG _doc_du_lieu với cơ sở dữ liệu giả trả đúng các bảng. Trả lan_cuoi."""
 
 	def sql(q, v=None, as_dict=False):
@@ -256,6 +272,11 @@ def _doc_that(phieu=PKK_CA, sr=SR_CA, co_pkk=True):
 		if "`tabStock Reconciliation`" in q:
 			ra = [_Dong(kho=k, name=t, ngay=date.fromisoformat(n), dong=c) for t, k, n, c in sr if n <= str(v["den"])]
 			return sorted(ra, key=lambda r: (r.ngay, r.name))
+		if "s.fg_completed_qty lam" in q:
+			# sx: [(fg_completed_qty, số nhập kho, số của lệnh)]; số lệnh chỉ có khi câu thật nối Work Order.
+			co_kh = "left join `tabWork Order` wo on wo.name = s.work_order" in q and "wo.qty ke_hoach" in q
+			return [_Dong(kho="Pastry - Thành phẩm - TV", lam=a, thuc_te=b, **({"ke_hoach": c} if co_kh else {}))
+				for a, b, c in sx]
 		if "count(*), sum(case" in q:
 			return [(0, 0)]
 		return []
@@ -349,7 +370,7 @@ TIN_PASTRY = "\n".join([
 	"✅ VIỆC CẦN LÀM: Bếp Pastry ghi đủ lệnh sản xuất và số cân tuần 21/10 - 27/10",
 	"- Bánh bán ra tuần qua chưa có lệnh sản xuất: 6 món, 229 cái. Nhiều nhất: Bánh Griotte 57, Bánh MICHEALMAS 50, "
 	"Hũ Earl Grey Flan Kasutera Verrine 38 và 3 món khác. Làm xong mẻ nào thì hoàn tất lệnh mẻ đó.",
-	"- Khi bấm Hoàn tất, ô \"Thực tế cân được\" ghi số cân thật, không chép lại số làm theo lệnh. Tuần qua 6/6 lệnh chép số.",
+	"- Khi bấm Hoàn tất, ô \"Thực tế cân được\" ghi số cân thật, không chép lại số làm theo lệnh. Tuần qua 6/6 lệnh ghi số cân trùng đúng số của lệnh.",
 	"- Kiểm kê nguyên liệu đắt (bơ, kem, sô cô la, phô mai, hạt, trái cây) mỗi tuần: Pastry thành phẩm chưa kiểm lần nào; "
 	"Pastry nguyên liệu từ 13/10.",
 	"Hạn: Chủ nhật này",
