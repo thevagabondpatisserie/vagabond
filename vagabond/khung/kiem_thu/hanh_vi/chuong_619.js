@@ -118,6 +118,7 @@ function bamTrong(a, el) { return a.tl.getElementById('vgbBody').onclick({ targe
   await a.g.reset(a.g.scrHome); await nghi();
   var nut = a.tl.getElementById('vgbChuong');
   la('trang chủ có chuông', !!nut, true);
+  la('số đỏ của chuông chữ từ 13 trở lên', (a.tl.getElementById('vgb').innerHTML.match(/id="vgbChuongSo" style="[^"]*font-size:\s*([\d.]+)px/) || [])[1] >= 13, true);
   la('chuông đeo số việc + tin chưa đọc', [a.tl.getElementById('vgbChuongSo').textContent, a.tl.getElementById('vgbChuongSo').style.display], ['5', '']);
 
   // Vẽ lại trang chủ trong một phút: không hỏi máy chủ lần nữa, số vẫn còn.
@@ -132,6 +133,14 @@ function bamTrong(a, el) { return a.tl.getElementById('vgbBody').onclick({ targe
   var chu = a.tl.getElementById('vgbBody').textContent;
   la('thẻ Thông báo nói 2 mới, thẻ Việc nói 3', [chu.indexOf('🔔 Thông báo · 2 mới') >= 0, chu.indexOf('📌 Việc cần làm · 3') >= 0], [true, true]);
   la('ba tin', a.tl.querySelectorAll('[data-chi]').length, 3);
+  // Codex 4408181761: AGENTS.md 2b.13, chữ tối thiểu 13 điểm trên màn mới (cả số đỏ của chuông).
+  var coChu = function () {
+    var html = a.tl.getElementById('vgb').innerHTML, ra = [], m, re = /font-size:\s*([\d.]+)px/g;
+    while ((m = re.exec(html))) ra.push(+m[1]);
+    return ra;
+  };
+  la('màn có ghi cỡ chữ (điều kiện của ca)', coChu().length > 3, true);
+  la('mọi cỡ chữ trên màn Chuông từ 13 trở lên', coChu().filter(function (x) { return x < 13; }), []);
   la('hai nút Mở (tin không đường thì không có)', a.tl.querySelectorAll('[data-chmo]').length, 2);
   la('mở thẻ là đánh dấu đã đọc, chỉ tới tin mới nhất đã hiện', a.ve.ts.filter(function (x) { return x[0] === 'vagabond.chuong.da_xem'; }),
     [['vagabond.chuong.da_xem', JSON.stringify({ den: '2026-10-28 08:00:05.000001' })]]);
