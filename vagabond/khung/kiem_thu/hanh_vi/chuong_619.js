@@ -55,14 +55,16 @@ var TIN = {
       link: APP + '/hang-chuyen-ve-kho-toi?mo=PDC-1', luc: '2026-10-27 19:06:00.000001', moi: 1 },
     { ten: 't3', ma_tin: 'bh_dat_ban', tieu_de: '✅ VIỆC CẦN LÀM: Đặt bàn mới', than: '- 4 khách', link: '',
       luc: '2026-10-26 10:00:00.000001', moi: 0 },
-  ], co_phong_ban: 1, so_ngay: 14,
+  ], co_phong_ban: 1, so_ngay: 14, con_nua: 1, moc_moi: '2026-10-28 08:00:05.000001',
 };
+var TRANG2 = { ds: [{ ten: 't4', ma_tin: 'bh_dat_ban', tieu_de: 'Tin cũ hơn', than: '', link: '', luc: '2026-10-20 10:00:00.000001', moi: 0 }],
+  co_phong_ban: 1, so_ngay: 14, con_nua: 0, moc_moi: '2026-10-20 10:00:00.000001' };
 
 function napApp(nguoi, traTin) {
   var tl = dg.taiLieuGia();
   tl.head = new dg.ElementGia('head');
   var vgb = tl.createElement('div'); vgb.id = 'vgb'; tl.body.appendChild(vgb);
-  var ve = { api: [], mo: [], href: [], mo_tab: [] };
+  var ve = { api: [], ts: [], mo: [], href: [], mo_tab: [] };
   var loc = { href: APP + '/bep', pathname: '/bep', hostname: 'app.thevagabondpatisserie.com', search: '', hash: '' };
   Object.defineProperty(loc, 'href', { get: function () { return APP + this.pathname + this.search; },
     set: function (v) { ve.href.push(String(v)); } });
@@ -76,9 +78,9 @@ function napApp(nguoi, traTin) {
     setTimeout: function (f) { f(); return 0; }, clearTimeout: function () {},
     open: function (u) { ve.mo_tab.push(u); },
     api: function (m, ts) {
-      ve.api.push(m);
+      ve.api.push(m); ve.ts.push([m, JSON.stringify(ts || {})]);
       if (m === 'vagabond.chuong.dem') return Promise.resolve({ viec: 3, tin: 2, tong: 5 });
-      if (m === 'vagabond.chuong.thong_bao') return Promise.resolve(JSON.parse(JSON.stringify(traTin || TIN)));
+      if (m === 'vagabond.chuong.thong_bao') return Promise.resolve(JSON.parse(JSON.stringify(ts && ts.truoc ? TRANG2 : (traTin || TIN))));
       if (m === 'vagabond.chuong.da_xem') return Promise.resolve({ luc: 'x' });
       return Promise.reject(new Error('api la ' + m));
     },
@@ -129,7 +131,16 @@ function bamTrong(a, el) { return a.tl.getElementById('vgbBody').onclick({ targe
   la('thẻ Thông báo nói 2 mới, thẻ Việc nói 3', [chu.indexOf('🔔 Thông báo · 2 mới') >= 0, chu.indexOf('📌 Việc cần làm · 3') >= 0], [true, true]);
   la('ba tin', a.tl.querySelectorAll('[data-chi]').length, 3);
   la('hai nút Mở (tin không đường thì không có)', a.tl.querySelectorAll('[data-chmo]').length, 2);
-  la('mở thẻ là đánh dấu đã đọc', a.ve.api.indexOf('vagabond.chuong.da_xem') >= 0, true);
+  la('mở thẻ là đánh dấu đã đọc, chỉ tới tin mới nhất đã hiện', a.ve.ts.filter(function (x) { return x[0] === 'vagabond.chuong.da_xem'; }),
+    [['vagabond.chuong.da_xem', JSON.stringify({ den: '2026-10-28 08:00:05.000001' })]]);
+  // Codex 4404477923: còn tin cũ hơn thì có nút tải thêm, không cắt mất.
+  var cuHon = a.tl.getElementById('chCuHon');
+  la('còn tin cũ hơn thì có nút Xem tin cũ hơn', !!cuHon, true);
+  await cuHon.onclick(); await nghi();
+  la('bấm là hỏi trang trước tin cuối đang hiện', a.ve.ts.filter(function (x) { return x[0] === 'vagabond.chuong.thong_bao'; }).pop(),
+    ['vagabond.chuong.thong_bao', JSON.stringify({ truoc: '2026-10-26 10:00:00.000001' })]);
+  la('tin cũ hơn nối vào cuối, hết thì mất nút', [a.tl.querySelectorAll('[data-chi]').length,
+    a.tl.getElementById('vgbBody').textContent.indexOf('Tin cũ hơn') >= 0, !!a.tl.getElementById('chCuHon')], [4, true, false]);
   la('thân dài thì thu gọn', [chu.indexOf('- d') < 0, a.tl.querySelectorAll('[data-chxem]').length], [true, 1]);
   bamTrong(a, a.tl.querySelectorAll('[data-chxem]')[0]); await nghi();
   la('bấm Xem hết thì hiện đủ', a.tl.getElementById('vgbBody').textContent.indexOf('- d') >= 0, true);
