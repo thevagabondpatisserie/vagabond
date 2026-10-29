@@ -1273,7 +1273,7 @@ async function scrCrmZalo(dl) {
     if ((t = e.target.closest('[data-crmzlbat]'))) return crmZlBat(t.getAttribute('data-crmzlbat'));
     if ((t = e.target.closest('[data-crmzlcd]'))) return crmZlSheetCaiDat(crmZlTim(t.getAttribute('data-crmzlcd')));
     if ((t = e.target.closest('[data-crmzlthu]'))) return crmZlSheetThu(crmZlTim(t.getAttribute('data-crmzlthu')));
-    if ((t = e.target.closest('[data-crmzltin]'))) { var ma = t.getAttribute('data-crmzltin'); return go(function () { return scrCrmZaloTin(ma); }); }
+    if ((t = e.target.closest('[data-crmzltin]'))) { var ma = t.getAttribute('data-crmzltin'); crmZlTinTt = ''; crmZlTinTim = ''; return go(function () { return scrCrmZaloTin(ma); }); }
     if ((t = e.target.closest('[data-crmzlkiem]'))) {
       busy(true);
       try { var d = await api('vagabond.zalo_kich_ban.kiem_mau_zalo', { ma: t.getAttribute('data-crmzlkiem') }); busy(false); toast('Đã hỏi lại Zalo.', 2200); return scrCrmZalo(d); }
@@ -1382,29 +1382,34 @@ function crmZlSheetThu(k) {
   };
 }
 
-var crmZlTinDong = [], crmZlTinCon = 0, crmZlTinTt = '';
+var crmZlTinDong = [], crmZlTinCon = 0, crmZlTinTt = '', crmZlTinTim = '';
 async function scrCrmZaloTin(ma, them) {
   var k = crmZlTim(ma);
   var tieuDe = 'Tin đã gửi: ' + (k.ten || '');
   var bat = them === true ? crmZlTinDong.length : 0;
   if (bat) busy(true); else frame(tieuDe, '<div class="emp"><div class="e1">⏳</div><div>Đang đọc sổ tin...</div></div>');
   var d;
-  try { d = await api('vagabond.zalo_kich_ban.ds_tin', { ma: ma, trang_thai: crmZlTinTt, bat_dau: bat }); }
+  try { d = await api('vagabond.zalo_kich_ban.ds_tin', { ma: ma, trang_thai: crmZlTinTt, bat_dau: bat, tim: crmZlTinTim }); }
   catch (e) { if (bat) { busy(false); return toast(errMsg(e), 5000); } return frame(tieuDe, crmTrong('⚠️', h(errMsg(e)))); }
   if (bat) busy(false);
   crmZlTinDong = bat ? crmZlTinDong.concat(d.ds || []) : (d.ds || []);
   crmZlTinCon = +d.con_nua ? 1 : 0;
-  var cc = { ma: 'crmZlTin', chang: { ds: ['Đã gửi', 'Chờ gửi', 'Lỗi', 'Bỏ qua'].map(function (t) { return { k: t, ten: t }; }), dem: null, chon: crmZlTinTt, tatCa: 'Tất cả' } };
+  var cc = { ma: 'crmZlTin', chang: { ds: ['Đã gửi', 'Chờ gửi', 'Lỗi', 'Bỏ qua'].map(function (t) { return { k: t, ten: t }; }), dem: null, chon: crmZlTinTt, tatCa: 'Tất cả' },
+    /* Codex PR #517 vòng 2: tìm ở máy chủ, ra cả dòng chưa tải (AGENTS.md 2b.5). */
+    tim: { goiY: 'Tìm tên khách, số điện thoại, hoá đơn, voucher', gt: crmZlTinTim, quet: true } };
   var mauTt = { 'Đã gửi': 'xanh', 'Chờ gửi': 'vang', 'Lỗi': 'do', 'Bỏ qua': 'xam' };
   var html = dsCongCu(cc) + (crmZlTinDong.length ? '<div class="card">' + crmZlTinDong.map(function (r) {
     return '<div data-crmzltinkh="' + h(r.khach) + '" style="padding:12px 14px;border-bottom:1px solid #f0f2f6;cursor:pointer">' +
       '<div style="display:flex;justify-content:space-between;gap:8px"><b style="font-size:14.5px">' + h(r.ten_khach) + '</b>' + crmTag(r.trang_thai, mauTt[r.trang_thai]) + '</div>' +
       '<div style="font-size:12.5px;color:#8a8f9c">' + h([r.sdt, r.hoa_don, r.voucher ? 'voucher ' + r.voucher : ''].filter(Boolean).join(' · ')) + ' · ' + crmGioNgay(r.luc) + '</div>' +
       (r.loi ? '<div style="font-size:12.5px;color:' + (r.trang_thai === 'Lỗi' ? '#b42318' : '#667085') + ';margin-top:2px">' + h(r.loi) + '</div>' : '') + '</div>';
-  }).join('') + '</div>' : crmTrong('📭', 'Chưa có tin nào' + (crmZlTinTt ? ' ở trạng thái này.' : '. Bật kịch bản rồi tin đầu tiên hiện ở đây.')));
+  }).join('') + '</div>' : crmTrong('📭', crmZlTinTim ? 'Không thấy tin nào khớp "' + h(crmZlTinTim) + '".' : 'Chưa có tin nào' + (crmZlTinTt ? ' ở trạng thái này.' : '. Bật kịch bản rồi tin đầu tiên hiện ở đây.')));
   if (crmZlTinCon) html += '<button class="btn gh" data-crmzltinthem="1" style="margin:0">Xem thêm tin cũ hơn</button>';
   var b = frame(tieuDe, html);
-  dsCongCuNoi(b, cc, function (ho, v) { if (ho === 'chang') { crmZlTinTt = v; scrCrmZaloTin(ma); } });
+  dsCongCuNoi(b, cc, function (ho, v) {
+    if (ho === 'chang') { crmZlTinTt = v; scrCrmZaloTin(ma); }
+    if (ho === 'tim') { crmZlTinTim = v; scrCrmZaloTin(ma); }
+  });
   b.onclick = function (e) {
     if (e.target.closest('[data-crmzltinthem]')) return scrCrmZaloTin(ma, true);
     var kh = e.target.closest('[data-crmzltinkh]');
