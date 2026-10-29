@@ -497,7 +497,8 @@ def _tim_tin():
 	goi = []
 
 	def ga(dt_, **k):
-		goi.append(k)
+		if dt_ == zk.DT_TIN:
+			goi.append(k)
 		return []
 	with um.patch.object(zk, "_quyen", lambda xem=True: None), um.patch.object(fr, "get_all", ga):
 		zk.ds_tin("sau_mua", "", 0, "HDB-1")
@@ -505,6 +506,49 @@ def _tim_tin():
 	la("có tìm thì gửi or_filters", bool(goi[0].get("or_filters")), True)
 	la("lọc kịch bản vẫn giữ", goi[0]["filters"], {"kich_ban": "sau_mua"})
 	la("không tìm thì không or_filters", goi[1].get("or_filters"), None)
+
+
+@ca("PR517 Codex vòng 3: tìm tên hay số điện thoại ra cả dòng chờ gửi, bỏ qua (sổ chưa ghi tên, số); tìm trước khi phân trang")
+def _tim_dong_cho():
+	# Tái hiện finding Codex trên eb38b1f: dòng Chờ gửi chỉ có mã khách, chưa
+	# có ten_khach/sdt; tìm theo tên hay số của khách thì không ra dòng đó.
+	import re as _re
+	fr = zk.frappe
+	so_tin = [D(name="T1", kich_ban="sau_mua", khach="KH-1", ten_khach=None, sdt=None, hoa_don="HDB-9", voucher=None,
+		trang_thai="Chờ gửi", loi="", creation="2026-10-29 10:00:00", luc_gui=None),
+		D(name="T2", kich_ban="sau_mua", khach="KH-2", ten_khach="Bình", sdt="84900000002", hoa_don="HDB-8", voucher=None,
+		trang_thai="Đã gửi", loi="", creation="2026-10-29 09:00:00", luc_gui="2026-10-29 09:01:00"),
+		D(name="T3", kich_ban="sau_mua", khach="KH-3", ten_khach=None, sdt=None, hoa_don="HDB-7", voucher=None,
+		trang_thai="Bỏ qua", loi="", creation="2026-10-29 08:00:00", luc_gui=None)]
+	# KH-3 chưa có hồ sơ CRM: số chỉ nằm ở Customer.
+	khach = {"KH-1": D(name="KH-1", customer_name="Lan Anh", mobile_no="0901486556"), "KH-2": D(name="KH-2", customer_name="Bình", mobile_no="0900000002"),
+		"KH-3": D(name="KH-3", customer_name="Cúc", mobile_no="0912345678")}
+	ho_so = {"KH-1": D(name="KH-1", sdt="84901486556"), "KH-2": D(name="KH-2", sdt="84900000002")}
+
+	def khop(r, dk):
+		cot, toan, gt = dk
+		v = r.get(cot)
+		if toan == "in":
+			return v in gt
+		mau = "^" + _re.escape(gt).replace("%", ".*") + "$"
+		return v is not None and _re.match(mau, str(v), _re.I) is not None
+
+	def ga(dt_, filters=None, or_filters=None, fields=None, pluck=None, limit_page_length=None, **k):
+		ds = {zk.DT_TIN: so_tin, "Customer": list(khach.values()), "Vagabond Ho So CRM": list(ho_so.values())}[dt_]
+		ra = [r for r in ds if all((r.get(c) in v[1]) if isinstance(v, list) else r.get(c) == v for c, v in (filters or {}).items())]
+		if or_filters:
+			ra = [r for r in ra if any(khop(r, d) for d in or_filters)]
+		if pluck:
+			return [r[pluck] for r in ra]
+		return ra[:limit_page_length] if limit_page_length else ra
+	with um.patch.object(zk, "_quyen", lambda xem=True: None), um.patch.object(fr, "get_all", ga):
+		la("tìm tên ra dòng chờ", [x["khach"] for x in zk.ds_tin("sau_mua", "", 0, "Lan Anh")["ds"]], ["KH-1"])
+		la("tìm số 09 ra dòng chờ", [x["khach"] for x in zk.ds_tin("sau_mua", "", 0, "0901486556")["ds"]], ["KH-1"])
+		la("tìm 4 số cuối", [x["khach"] for x in zk.ds_tin("sau_mua", "", 0, "6556")["ds"]], ["KH-1"])
+		la("khách chưa có hồ sơ CRM: số ở Customer vẫn ra dòng Bỏ qua", [x["khach"] for x in zk.ds_tin("sau_mua", "", 0, "0912 345 678")["ds"]], ["KH-3"])
+		la("dòng chờ hiện tên từ hồ sơ khách", zk.ds_tin("sau_mua", "", 0, "Lan Anh")["ds"][0]["ten_khach"], "Lan Anh")
+		la("tìm hoá đơn vẫn chạy", [x["khach"] for x in zk.ds_tin("sau_mua", "", 0, "HDB-8")["ds"]], ["KH-2"])
+		la("không khớp thì rỗng", zk.ds_tin("sau_mua", "", 0, "Không có ai")["ds"], [])
 
 
 @ca("v621 quét sau mua: chỉ lượt tích điểm từ lúc bật (không gửi bù hoá đơn cũ), mỗi hoá đơn một dòng, quét lại không thêm")
