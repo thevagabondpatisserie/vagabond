@@ -86,10 +86,22 @@ function chVe(kq, viec) {
         (x.link ? '<button class="chip on" data-chmo="' + i + '" style="margin:0">Mở</button>' : '') +
         '</div></div>';
     });
+    /* Codex 4404477923: tin cũ hơn không bị cắt mất, bấm là tải thêm. */
+    if (kq.con_nua) body += '<div style="padding:4px 12px 16px"><button class="chip" id="chCuHon" style="margin:0;width:100%">Xem tin cũ hơn</button></div>';
   }
   var b = frame('Chuông thông báo', body);
   var nv = document.getElementById('chViec');
   if (nv) nv.onclick = function () { vgbGo('VCL'); };
+  var nc = document.getElementById('chCuHon');
+  if (nc) nc.onclick = async function () {
+    nc.disabled = true;
+    try {
+      var r = await api('vagabond.chuong.thong_bao', { truoc: ds[ds.length - 1].luc });
+      kq.ds = ds.concat(r.ds || []);
+      kq.con_nua = r.con_nua;
+    } catch (e) { kq.con_nua = 1; }
+    chVe(kq, viec);
+  };
   b.onclick = function (e) {
     var t = e.target.closest('[data-chmo]');
     if (t) { chMo(ds[+t.getAttribute('data-chmo')].link); return; }
@@ -114,9 +126,10 @@ async function scrChuong() {
     return;
   }
   chVe(kq, (dem && dem.viec) || 0);
-  /* Đã mở thẻ Thông báo là đã đọc: lần sau số đỏ chỉ còn việc đang chờ. */
+  /* Đã mở thẻ Thông báo là đã đọc, nhưng chỉ tới tin mới nhất ĐÃ HIỆN (máy chủ luôn
+     trả hết tin chưa đọc); tin tới sau lúc mở màn vẫn là tin mới. */
   try {
-    await api('vagabond.chuong.da_xem', {});
+    await api('vagabond.chuong.da_xem', { den: kq.moc_moi || '' });
     CH_SO = { luc: Date.now(), kq: { tong: (dem && dem.viec) || 0, viec: (dem && dem.viec) || 0, tin: 0 } };
   } catch (e) { }
 }
