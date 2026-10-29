@@ -2811,3 +2811,10 @@ ERPNext bỏ các món khớp sổ khỏi Stock Reconciliation (`remove_items_wi
 - Sổ "Vagabond Tin Kenh" giữ cả tin chờ, hoãn, lỗi, chưa rõ và "Bỏ qua (đã xử lý)". Màn nào nói "tin đã gửi" thì phải lọc `Đã gửi` và `Đã gửi gộp`.
 - "Đã đọc" lưu bằng MỘT mốc thời gian thì không được cắt danh sách tin chưa đọc, và mốc chỉ đẩy tới tin mới nhất đã hiện, không tới "bây giờ": cắt ở 60 rồi đẩy mốc là tin thứ 61 thành đã đọc mà không ai thấy.
 - Mốc đã đọc của tin Zalo phải so theo LÚC GỬI (`luc_gui`), không theo lúc tạo dòng: tin hoãn giờ im tạo 07:00 gửi 08:30 sẽ thành đã đọc nếu mốc là 08:00 (Codex 4407978621). Tin gửi nhiều nhóm có nhiều dòng sổ; chia trang theo dòng thì bản sao rơi sang trang sau, nên gộp lại khi nối trang (Codex 4407978626). Gộp ở màn thì mốc trang sau phải lấy từ máy chủ (dòng sổ cũ nhất đã đọc), không từ tin cuối đang hiện: trang chỉ toàn bản sao bị gộp hết sẽ giữ nguyên mốc và kẹt mãi một trang (Codex 4408086813).
+
+## 29/10/2026 (v620): cookie Facebook dài hơn ô Data, đơn web không gửi được
+
+Khách bấm quảng cáo Facebook vào web thì đường dẫn có `fbclid` dài; web ghép thành `_fbc` khoảng 180 đến 222 ký tự. Bộ lọc `don_web.fb_hop_le` nhận tới 222 ký tự và `tao_don` cắt ở 250, nhưng ô `fbp`, `fbc` của Vagabond Don Web là Data (varchar 140). Frappe ném `CharacterLengthExceededError` (mã 417, không vào Error Log), cả giao dịch lùi, khách chỉ thấy "Không gửi được đơn lúc này", dãy số đơn nhảy (05714 tới 05737 là các lần hỏng).
+
+- Mọi ô Data nhận chuỗi từ bên ngoài (cookie, mã của dịch vụ khác, đường dẫn) phải có sức chứa không nhỏ hơn số ký tự mã cắt, hoặc dùng Small Text. Ca `thu_fbc_620` tính sức chứa từ chính tệp doctype theo luật Frappe và cho đi giá trị dài nhất bộ lọc nhận.
+- Lỗi độ dài cột không vào Error Log: khách báo "không gửi được" mà Error Log trống thì thử gửi lại đúng gói của khách và đọc mã HTTP, đừng kết luận là mạng.
