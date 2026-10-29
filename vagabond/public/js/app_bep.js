@@ -63713,7 +63713,12 @@ function chVe(kq, viec) {
     nc.disabled = true;
     try {
       var r = await api('vagabond.chuong.thong_bao', { truoc: ds[ds.length - 1].luc });
-      kq.ds = ds.concat(r.ds || []);
+      /* Codex 4407978626: máy chủ gộp từng trang riêng, tin gửi nhiều nhóm có thể nằm hai bên
+         ranh trang. Gộp lại khi nối, cùng khoá với máy chủ (mã tin, tiêu đề, thân, đường mở). */
+      var khoa = function (x) { return [x.ma_tin, x.tieu_de, x.than, x.link].join('\u0001'); };
+      var da = {};
+      ds.forEach(function (x) { da[khoa(x)] = 1; });
+      kq.ds = ds.concat((r.ds || []).filter(function (x) { var k = khoa(x); if (da[k]) return false; da[k] = 1; return true; }));
       kq.con_nua = r.con_nua;
     } catch (e) { kq.con_nua = 1; }
     chVe(kq, viec);
