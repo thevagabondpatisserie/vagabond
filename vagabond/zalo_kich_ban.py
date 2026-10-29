@@ -1094,18 +1094,42 @@ def kiem_mau_zalo(ma=None):
 	return ds_kich_ban()
 
 
+def dk_loc_tin(ma, ky, tu, den, hom_nay):
+	"""Điều kiện phạm vi của sổ tin (kịch bản, khoảng ngày tạo dòng). THUẦN.
+
+	Chip ngày dùng chung `khoang_ky` của mọi màn danh sách; hai đầu đều tính.
+	Chip trạng thái KHÔNG nằm ở đây, để số đếm trạng thái tính trên đúng phạm
+	vi đang lọc (Codex PR #517 vòng 6).
+	"""
+	from vagabond.khung.cong_cu_ds import khoang_ky
+
+	loc = [["kich_ban", "=", ma]] if ma in MA_KB else []
+	a, b = khoang_ky(ky, hom_nay, tu, den)
+	if a:
+		loc.append(["creation", ">=", a + " 00:00:00"])
+	if b:
+		loc.append(["creation", "<", (ngay_cua(b) + timedelta(days=1)).isoformat() + " 00:00:00"])
+	return loc
+
+
 @frappe.whitelist()
-def ds_tin(ma=None, trang_thai="", bat_dau=0, tim=""):
+def ds_tin(ma=None, trang_thai="", bat_dau=0, tim="", ky="", tu="", den=""):
 	"""Các tin gần nhất của một kịch bản, mới nhất trước, mỗi trang 50.
-	Có ô tìm thì tìm ở máy chủ, ra cả dòng chưa tải (Codex PR #517 vòng 2)."""
+	Tìm chữ và lọc ngày làm ở máy chủ trước phân trang, ra cả dòng chưa tải
+	(Codex PR #517 vòng 2, 6); kèm số đếm từng trạng thái trong phạm vi lọc."""
 	_quyen()
-	loc = {"kich_ban": ma} if ma in MA_KB else {}
+	pham_vi = dk_loc_tin(ma, ky, tu, den, _bay_gio().date())
+	loc = list(pham_vi)
 	if trang_thai in TT_TIN:
-		loc["trang_thai"] = trang_thai
+		loc.append(["trang_thai", "=", trang_thai])
 	them = {}
 	dk = dk_tim_tin(tim, _khach_khop(tim))
 	if dk:
 		them["or_filters"] = dk
+	dem = {"tat_ca": 0}
+	for r in frappe.get_all(DT_TIN, filters=pham_vi, fields=["trang_thai", "count(name) as n"], group_by="trang_thai", **them):
+		dem[r.get("trang_thai")] = int(r.get("n") or 0)
+		dem["tat_ca"] += int(r.get("n") or 0)
 	rows = frappe.get_all(DT_TIN, filters=loc, fields=["name", "kich_ban", "khach", "ten_khach", "sdt", "hoa_don", "voucher",
 		"trang_thai", "loi", "creation", "luc_gui"], order_by="creation desc", limit_start=so_nguyen(bat_dau), limit_page_length=51, **them)
 	ten = {}
@@ -1116,7 +1140,7 @@ def ds_tin(ma=None, trang_thai="", bat_dau=0, tim=""):
 	ds = [{"kich_ban": r.kich_ban, "khach": r.khach, "ten_khach": r.ten_khach or ten.get(r.khach) or r.khach,
 		"sdt": che_sdt(r.sdt), "hoa_don": r.hoa_don or "", "voucher": r.voucher or "", "trang_thai": r.trang_thai,
 		"loi": r.loi or "", "luc": str(r.luc_gui or r.creation)} for r in rows[:50]]
-	return {"ds": ds, "con_nua": 1 if len(rows) > 50 else 0}
+	return {"ds": ds, "con_nua": 1 if len(rows) > 50 else 0, "dem": dem}
 
 
 MAU_THU = {
