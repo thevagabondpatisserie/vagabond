@@ -217,7 +217,7 @@ class Moi:
 				um.patch.object(fr.db, "get_value", self.get_value), \
 				um.patch.object(fr.db, "get_all", self.get_all), \
 				um.patch.object(fr.db, "set_value", self.set_value), \
-				um.patch.object(fr.db, "sql", lambda *a, **k: list(self.sql_tra)), \
+				um.patch.object(fr.db, "sql", lambda *a, **k: list(self.sql_tra(*a) if callable(self.sql_tra) else self.sql_tra)), \
 				um.patch.object(fr, "get_doc", self.get_doc):
 			return ham()
 
@@ -239,8 +239,8 @@ def _cau(ma, **k):
 	return c
 
 
-def _hs(dong_y=True, sdt="84901486556", ten="Lan Anh"):
-	return {"ten": ten, "sdt84": sdt, "dong_y": dong_y, "diem": 25400, "hang": "EXPLORER"}
+def _hs(dong_y=True, sdt="84901486556", ten="Lan Anh", sinh_nhat=D8(1990, 11, 1)):
+	return {"ten": ten, "sdt84": sdt, "dong_y": dong_y, "diem": 25400, "hang": "EXPLORER", "sinh_nhat": sinh_nhat}
 
 
 @ca("v621 cảm ơn sau mua: điền đúng bảy tham số đúng kiểu, ghi Đã gửi kèm phí và nhật ký liên hệ; hoá đơn đã huỷ thì bỏ, không gọi Zalo")
@@ -602,6 +602,62 @@ def _bat_tren_desk():
 		n = zk.quet_sau_mua()
 	la("thiếu lúc bật: không quét, không dòng nào", (n, cau), (0, []))
 	dung("ghi lúc bật là bây giờ", any(x[0] == "sau_mua" and (x[1] == "bat_luc" and x[2][:1] == (BAY_GIO,) or (isinstance(x[1], dict) and x[1].get("bat_luc") == BAY_GIO)) for x in sv))
+
+
+@ca("PR517 Codex vòng 5: lần mua cuối bỏ hoá đơn trả hàng và hoá đơn huỷ, cùng một điều kiện với hồ sơ CRM")
+def _tra_hang():
+	# Tái hiện finding Codex trên 436603f: khách mua 30/08, trả hàng 28/10;
+	# câu đọc lần mua cuối tính cả hoá đơn trả hàng nên lời mời bị bỏ qua.
+	from vagabond import crm
+
+	km = D(name="KM-QL", ten="Mời quay lại", cach_ma="Ma dung mot lan", bat=1, kieu_giam="Phan tram", gia_tri=10, hd_toi_thieu=0)
+	rows = [D(name="T1", khach="K1", khoa="quay_lai:K1:2026-08-30", trang_thai="Chờ gửi")]
+	m = Moi(_cau("quay_lai", ma_mau="659378", ctkm="KM-QL", so_ngay=60), rows, {"K1": _hs()}, [], ctkm=km)
+	cau = []
+
+	def sql(q="", *a):
+		cau.append(q)
+		if "Sales Invoice" not in q:
+			return []
+		return [(D8(2026, 8, 30),)] if "is_return" in q else [(D8(2026, 10, 28),)]
+	m.sql_tra = sql
+	m.chay(zk.gui_hang_doi)
+	la("khách chỉ trả hàng, vẫn vắng 60 ngày: gửi lời mời", (len(m.goi), m.tt()), (1, {"T1": "Đã gửi"}))
+	q = [x for x in cau if "Sales Invoice" in x][0]
+	dung("câu đọc dùng đúng điều kiện chung", crm.DK_HD_MUA in q)
+	# Một nguồn: hồ sơ CRM cũng dùng hằng này, không còn chỗ tự viết lại điều kiện.
+	import inspect
+	nguon = inspect.getsource(crm.tinh_nhom_dem)
+	dung("hồ sơ CRM dùng DK_HD_MUA", "DK_HD_MUA" in nguon and "is_return, 0) = 0" not in nguon)
+
+
+@ca("PR517 Codex vòng 5: tin sinh nhật để chờ qua ngày sinh nhật thì bỏ, không phát mã, không chúc muộn")
+def _sinh_nhat_muon():
+	# Tái hiện finding Codex trên 436603f: so_ngay = 0, dòng tạo hôm sinh nhật
+	# 28/10 mà mất mạng cả ngày; 29/10 máy vẫn phát mã và gửi lời chúc muộn.
+	rows = [D(name="T1", khach="K1", khoa="sinh_nhat:K1:2026", trang_thai="Chờ gửi")]
+	m = Moi(_cau("sinh_nhat", so_ngay=0), rows, {"K1": _hs(sinh_nhat=D8(1990, 10, 28))}, [])
+	m.chay(zk.gui_hang_doi)
+	la("qua sinh nhật: không gọi Zalo, không phát mã", (m.goi, m.voucher_moi()), ([], []))
+	la("dòng Bỏ qua", m.tt(), {"T1": "Bỏ qua"})
+	dung("lý do nói đã qua sinh nhật", any("đã qua sinh nhật" in (v.get("loi") or "") for d, n, v in m.sv))
+	# Đúng ngày sinh nhật thì vẫn gửi; khoá năm 2027 cho người sinh 02/01 gửi từ cuối năm.
+	rows = [D(name="T1", khach="K1", khoa="sinh_nhat:K1:2026", trang_thai="Chờ gửi")]
+	m = Moi(_cau("sinh_nhat", so_ngay=0), rows, {"K1": _hs(sinh_nhat=D8(1990, 10, 29))}, [])
+	m.chay(zk.gui_hang_doi)
+	la("đúng ngày: gửi", m.tt(), {"T1": "Đã gửi"})
+	la("thuần", (zk.qua_sinh_nhat(D8(1990, 10, 28), 2026, D8(2026, 10, 29)), zk.qua_sinh_nhat(D8(1990, 1, 2), 2027, D8(2026, 12, 30)),
+		zk.qua_sinh_nhat(D8(1992, 2, 29), 2026, D8(2026, 2, 28)), zk.qua_sinh_nhat(None, 2026, D8(2026, 10, 29))), (True, False, False, True))
+	# Hồ sơ gửi đọc ngày sinh thật từ Customer (lớp giả Moi thay _ho_so nên chốt riêng ở đây).
+	fr = zk.frappe
+
+	def gv(dt_, n, cot=None, as_dict=False, **k):
+		if dt_ == "Customer":
+			return D({c: {"customer_name": "LAN ANH", "mobile_no": "0901486556", "vgb_diem": 5, "vgb_hang": "EXPLORER",
+				"vgb_sinh_nhat": D8(1990, 10, 28)}.get(c) for c in cot})
+		return D(sdt="84901486556", dy_zalo="Đồng ý", khong_quang_cao=0)
+	with um.patch.object(fr.db, "get_value", gv):
+		la("hồ sơ có ngày sinh", zk._ho_so("K1").get("sinh_nhat"), D8(1990, 10, 28))
 
 
 @ca("v621 quét sau mua: chỉ lượt tích điểm từ lúc bật (không gửi bù hoá đơn cũ), mỗi hoá đơn một dòng, quét lại không thêm")
