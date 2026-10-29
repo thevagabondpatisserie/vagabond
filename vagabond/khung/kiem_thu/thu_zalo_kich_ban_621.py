@@ -165,6 +165,8 @@ class Moi:
 		self.han_muc, self.da_gui = han_muc, da_gui
 		self.goi, self.sv, self.chen, self.lay = [], [], [], []
 		self.ma_sinh = iter(["VC1", "VC2", "VC3", "VC4"])
+		# Đồng hồ: mặc định đứng yên; ca giờ gửi cho nó chạy theo số tin đã gửi.
+		self.dong_ho = lambda: BAY_GIO
 
 	def get_value(self, dt_, n, cot=None, as_dict=False, **k):
 		if dt_ == "Sales Invoice":
@@ -205,7 +207,7 @@ class Moi:
 				um.patch.object(zk, "_ho_so", lambda kh: self.hs[kh]), \
 				um.patch.object(zk, "_da_gui_hom_nay", lambda ma: self.da_gui), \
 				um.patch.object(zk, "_han_muc_km", lambda: self.han_muc), \
-				um.patch.object(zk, "_bay_gio", lambda: BAY_GIO), \
+				um.patch.object(zk, "_bay_gio", lambda: self.dong_ho()), \
 				um.patch.object(zk, "get_datetime", _gd), \
 				um.patch.object(zk, "_cfg", lambda: {}), \
 				um.patch.object(zk, "_gui_mau", self.gui_mau), \
@@ -338,13 +340,118 @@ def _thieu():
 	dung("câu nêu tên tham số", any("so_ban" in (v.get("loi") or "") for d, n, v in m.sv))
 
 
-@ca("v621 chương trình không phát mã dùng một lần hay đang tắt: không phát mã, dòng Lỗi chỉ đúng việc cần sửa")
+@ca("v621 chương trình không phát mã dùng một lần hay đang tắt: không phát mã, dòng để chờ, tóm tắt chỉ đúng việc cần sửa")
 def _ctkm_sai():
+	# Từ vòng sửa PR #517: chương trình chưa hợp lệ thì giữ cả kịch bản chờ
+	# (sửa chương trình xong lượt sau gửi tiếp), không đánh Lỗi từng khách.
 	rows = [D(name="T1", khach="K1", khoa="sinh_nhat:K1:2026", trang_thai="Chờ gửi")]
 	m = Moi(_cau("sinh_nhat"), rows, {"K1": _hs()}, [], ctkm=D(name="KM-X", ten="Tết", cach_ma="Ma co dinh", bat=1))
-	m.chay(zk.gui_hang_doi)
+	tom = m.chay(zk.gui_hang_doi)
 	la("không gọi Zalo, không phát mã", (m.goi, m.voucher_moi()), ([], []))
-	dung("câu nói cần Mã dùng một lần", any("Mã dùng một lần" in (v.get("loi") or "") for d, n, v in m.sv))
+	la("dòng để chờ", m.tt(), {"T1": "Chờ gửi"})
+	dung("câu nói cần Mã dùng một lần", "Mã dùng một lần" in (tom.get("sinh_nhat") or ""))
+
+
+@ca("PR517 Codex: chương trình đã hết hạn hay chưa bắt đầu thì không phát mã, không gửi, dòng để chờ; hạn voucher kẹp theo ngày kết thúc")
+def _ctkm_het_han():
+	# Tái hiện finding Codex trên 5ed80e8: CTKM vẫn bật nhưng qua den_ngay thì
+	# máy vẫn phát mã và gửi tin, trong khi quầy (khuyen_mai._hop_thoi_gian)
+	# từ chối chương trình hết hạn: khách nhận quà không dùng được.
+	km = dict(name="KM-SN", ten="Quà sinh nhật", cach_ma="Ma dung mot lan", bat=1, kieu_giam="Phan tram", gia_tri=10, hd_toi_thieu=0)
+	for them, chu in ((dict(den_ngay=D8(2026, 10, 28)), "hết hạn"), (dict(tu_ngay=D8(2026, 11, 1)), "chưa tới ngày bắt đầu")):
+		rows = [D(name="T1", khach="K1", khoa="sinh_nhat:K1:2026", trang_thai="Chờ gửi")]
+		m = Moi(_cau("sinh_nhat"), rows, {"K1": _hs()}, [], ctkm=D(km, **them))
+		tom = m.chay(zk.gui_hang_doi)
+		la("%s: không gọi Zalo, không phát mã" % chu, (m.goi, m.voucher_moi()), ([], []))
+		la("%s: dòng vẫn chờ" % chu, m.tt(), {"T1": "Chờ gửi"})
+		dung("%s: tóm tắt nói rõ" % chu, chu in (tom.get("sinh_nhat") or ""))
+	# Chương trình còn 5 ngày, voucher đặt 14 ngày: hạn trên mã và trên tin là ngày kết thúc chương trình.
+	rows = [D(name="T1", khach="K1", khoa="sinh_nhat:K1:2026", trang_thai="Chờ gửi")]
+	m = Moi(_cau("sinh_nhat"), rows, {"K1": _hs()}, [], ctkm=D(km, den_ngay=D8(2026, 11, 3)))
+	m.chay(zk.gui_hang_doi)
+	vc = [x for x in m.chen if x.get("doctype") == "Vagabond Voucher"][0]
+	la("hạn mã kẹp theo chương trình", str(vc["han_dung"]), "2026-11-03")
+	la("hạn trên tin", m.goi[0][2]["han_dung"], "03/11/2026")
+	# Hạn mã mặc định của chương trình (han_ma) ngắn hơn cũng kẹp.
+	rows = [D(name="T1", khach="K1", khoa="sinh_nhat:K1:2026", trang_thai="Chờ gửi")]
+	m = Moi(_cau("sinh_nhat"), rows, {"K1": _hs()}, [], ctkm=D(km, han_ma=D8(2026, 11, 1)))
+	m.chay(zk.gui_hang_doi)
+	la("kẹp theo hạn mã", m.goi[0][2]["han_dung"], "01/11/2026")
+
+
+@ca("PR517 Codex: lượt bắt đầu sát giờ đóng thì dừng đúng giờ, các dòng còn lại để chờ")
+def _het_gio_giua_luot():
+	# Tái hiện finding Codex trên 5ed80e8: trong_gio chỉ kiểm một lần trước
+	# vòng gửi; lượt bắt đầu 19:59 với nhiều dòng chờ vẫn gửi qua 20:00.
+	si = {"HDB-%d" % i: D(docstatus=1, posting_date=D8(2026, 10, 29), posting_time="", grand_total=1) for i in range(1, 6)}
+	rows = [D(name="T%d" % i, khach="K1", hoa_don="HDB-%d" % i, diem=1, khoa="sau_mua:HDB-%d" % i, trang_thai="Chờ gửi") for i in range(1, 6)]
+	m = Moi(_cau("sau_mua"), rows, {"K1": _hs()}, [], si=si)
+	dau = dt.datetime(2026, 10, 29, 19, 59, 0)
+	m.dong_ho = lambda: dau + dt.timedelta(seconds=40 * len(m.goi))
+	tom = m.chay(zk.gui_hang_doi)
+	la("chỉ gửi trước 20:00", len(m.goi), 2)
+	la("còn lại để chờ", m.tt(), {"T1": "Đã gửi", "T2": "Đã gửi", "T3": "Chờ gửi", "T4": "Chờ gửi", "T5": "Chờ gửi"})
+	dung("tóm tắt nói hết giờ", "Hết giờ gửi" in (tom.get("sau_mua") or ""))
+
+
+@ca("PR517 Codex: đổi mã mẫu thì xoá trạng thái duyệt và tham số cũ ngay khi lưu; Zalo chưa trả lời thì không gửi")
+def _doi_mau():
+	# Tái hiện finding Codex trên 5ed80e8: đổi 659377 sang mã khác mà lần hỏi
+	# Zalo lỗi mạng thì dòng giữ ENABLE và tham số mẫu cũ, máy gửi bằng mẫu mới
+	# với tham số cũ trong sáu giờ.
+	from vagabond import crm
+
+	fr = zk.frappe
+	db = _cau("sinh_nhat")
+
+	def sv(dt_, n, v, *a, **k):
+		if isinstance(v, dict):
+			db.update(v)
+		else:
+			db[v] = a[0] if a else None
+	with um.patch.object(crm, "_kiem", lambda vai, viec: None), \
+			um.patch.object(zk, "_dam_bao", lambda: None), um.patch.object(zk, "_cau_hinh", lambda ma: dict(db)), \
+			um.patch.object(zk, "ds_kich_ban", lambda: "ds"), um.patch.object(zk, "_bay_gio", lambda: BAY_GIO), \
+			um.patch.object(zk, "_doc_mau", lambda mau: {"ok": 0, "loi": "Không kết nối được Zalo."}), \
+			um.patch.object(fr.db, "set_value", sv):
+		zk.luu_kich_ban("sinh_nhat", json.dumps({"ma_mau": "700001"}))
+	la("mã mới đã lưu", db["ma_mau"], "700001")
+	la("không còn trạng thái duyệt và tham số của mẫu cũ", (db.get("mau_trang_thai"), zk.doc_tham_so(db.get("mau_tham_so"))), ("", []))
+	la("không gửi được tới khi Zalo trả lời", zk.mau_san_sang(db)[0], False)
+	dung("lý do nói rõ", "Không kết nối được Zalo" in (db.get("mau_ly_do") or ""))
+	# Sửa thẳng trên Desk (form doctype) cũng phải xoá như vậy.
+	class Doc(D):
+		def get_doc_before_save(self):
+			return D(ma_mau="659377")
+	doc = Doc(_cau("sinh_nhat", ma_mau="700002"))
+	zk.doi_mau_tren_form(doc)
+	la("Desk: xoá trạng thái cũ", (doc.get("mau_trang_thai"), doc.get("mau_tham_so")), ("", "[]"))
+	doc = Doc(_cau("sinh_nhat", ma_mau="659377"))
+	zk.doi_mau_tren_form(doc)
+	la("Desk: không đổi mã thì giữ", doc.get("mau_trang_thai"), "ENABLE")
+
+
+@ca("PR517 Codex: danh sách chọn chương trình bỏ cái đã hết hạn, ghi ngày kết thúc; thẻ kịch bản nói rõ khi chương trình đã chọn hết hạn")
+def _ds_ctkm():
+	fr = zk.frappe
+	ds_km = [D(name="KM-HET", ten="Hè 2026", cach_ma="Ma dung mot lan", bat=1, den_ngay=D8(2026, 9, 30)),
+		D(name="KM-CON", ten="Thu 2026", cach_ma="Ma dung mot lan", bat=1, den_ngay=D8(2026, 11, 30)),
+		D(name="KM-MAI", ten="Noel", cach_ma="Ma dung mot lan", bat=1, tu_ngay=D8(2026, 12, 1)),
+		D(name="KM-MO", ten="Thành viên", cach_ma="Ma dung mot lan", bat=1)]
+	cau = {"sau_mua": _cau("sau_mua"), "sinh_nhat": _cau("sinh_nhat", ctkm="KM-HET"), "quay_lai": _cau("quay_lai", ctkm="KM-CON")}
+	with um.patch.object(zk, "_quyen", lambda xem=True: None), um.patch.object(zk, "_dam_bao", lambda: None), \
+			um.patch.object(zk, "_cau_hinh", lambda ma: dict(cau[ma])), um.patch.object(zk, "_bay_gio", lambda: BAY_GIO), \
+			um.patch.object(zk, "_han_muc", lambda: {}), um.patch.object(zk, "_co_lap", lambda: True), \
+			um.patch.object(zk, "_doc_ctkm", lambda ten: {d.name: d for d in ds_km}.get(ten)), \
+			um.patch.object(fr.db, "sql", lambda *a, **k: []), \
+			um.patch.object(fr, "get_all", lambda *a, **k: [D(x) for x in ds_km]):
+		kq = zk.ds_kich_ban()
+	la("bỏ chương trình hết hạn", [x["name"] for x in kq["ctkm"]], ["KM-CON", "KM-MAI", "KM-MO"])
+	la("dòng phụ", [x["phu"] for x in kq["ctkm"]], ["Đến hết 30/11/2026", "Bắt đầu 01/12/2026, không giới hạn ngày", "Không giới hạn ngày"])
+	the = {t["ma"]: t for t in kq["ds"]}
+	la("thẻ sinh nhật không sẵn sàng", the["sinh_nhat"]["san_sang"], 0)
+	dung("lý do nói hết hạn", "đã hết hạn" in the["sinh_nhat"]["ly_do"])
+	la("thẻ quay lại sẵn sàng", the["quay_lai"]["san_sang"], 1)
 
 
 @ca("v621 quét sau mua: chỉ lượt tích điểm từ lúc bật (không gửi bù hoá đơn cũ), mỗi hoá đơn một dòng, quét lại không thêm")
