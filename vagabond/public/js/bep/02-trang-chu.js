@@ -1817,6 +1817,7 @@ var VGB_DUONG = {
   'canh-bao-thanh-toan': 'CBTT',
   'chi-phi-van-don': 'CPX',
   'chien-dich': 'CRMCD',
+  'chuong-thong-bao': 'CHUONG',
   'chuyen-phantom': 'PTCH',
   'cong-no': 'CN',
   'cong-no-phai-tra': 'CNPT',
@@ -1835,6 +1836,7 @@ var VGB_DUONG = {
   'don-da-huy': 'DHUY',
   'don-mua-hang': 'PO',
   'don-tiec': 'TIEC',
+  'du-lieu-hao-hut': 'BCHH',
   'duyet-don-hang-tang': 'DUYETTANG',
   'duyet-yeu-cau': 'DUYETYC',
   'gia-von-tam-tinh': 'GVT',
@@ -1969,6 +1971,50 @@ function vgbApDiaChi(slug) {
 }
 window.vgbApDiaChi = vgbApDiaChi;
 
+/* v619 (Codex 4402066952): ĐÍCH SAU ĐĂNG NHẬP.
+
+   Link trong tin Zalo (vd /hang-chuyen-ve-kho-toi?mo=PDC-2026-00602) mà máy
+   chưa đăng nhập thì __boot hiện màn đăng nhập; reset() đặt lại địa chỉ về
+   /bep, và đăng nhập xong app tải lại /bep nên nhân viên mất phiếu. Phiên hết
+   giữa chừng (sessionGone) cũng vậy: đăng nhập lại là về trang chủ.
+
+   Cách giữ: ngay TRƯỚC khi khung app đổi địa chỉ để vẽ màn đăng nhập, ghi
+   địa chỉ đang mở vào kho phiên của thẻ; đăng nhập xong đọc ra, xoá, rồi tải
+   lại đúng chỗ đó. Chỉ nhận đường của chính app (một màn trong VGB_DUONG trên
+   cùng máy), nên giá trị lạ trong kho phiên không dẫn được đi đâu. */
+function vgbDichHopLe(dia) {
+  var s = String(dia || '');
+  if (s.charAt(0) !== '/' || s.charAt(1) === '/' || s.charAt(1) === '\\') return '';
+  var q = s.indexOf('?');
+  var p = q >= 0 ? s.slice(0, q) : s, tim = q >= 0 ? s.slice(q + 1) : '';
+  var d = p.replace(/^\/+|\/+$/g, '');
+  if (!d || !Object.prototype.hasOwnProperty.call(VGB_DUONG, d)) return '';
+  var con = '';
+  try {
+    var ts = new URLSearchParams(tim);
+    ts.delete('v'); ts.delete('t');
+    con = ts.toString();
+  } catch (e) { con = ''; }
+  return '/' + d + (con ? '?' + con : '');
+}
+function vgbGhiDich() {
+  try {
+    var d = vgbDichHopLe(String(location.pathname || '') + String(location.search || ''));
+    if (d) sessionStorage.setItem('vgb_dich', d);
+    else sessionStorage.removeItem('vgb_dich');
+  } catch (e) { }
+}
+function vgbLayDich() {
+  var d = '';
+  try {
+    d = vgbDichHopLe(sessionStorage.getItem('vgb_dich') || '');
+    sessionStorage.removeItem('vgb_dich');
+  } catch (e) { d = ''; }
+  return d;
+}
+window.vgbGhiDich = vgbGhiDich;
+window.vgbLayDich = vgbLayDich;
+
 /* Khoa man sap mo. vgbGo dat truoc khi goi go(), go() doc mot lan roi xoa.
 
    Vi sao khong truyen thang khoa vao go(): go() duoc goi tu hang tram cho
@@ -2008,6 +2054,10 @@ function vgbGo(k) {
     return go(function () { scrNhom(nhx); });
   }
   if (k === 'VCL') return go(scrVclList);
+  /* v619: chuông thông báo (59-chuong.js) và đủ danh sách của tin Dữ liệu hao hụt
+     (báo cáo BC18, mở sẵn tuần trước vì tin gửi sáng thứ Hai cho tuần đó). */
+  if (k === 'CHUONG') return go(scrChuong);
+  if (k === 'BCHH') { bcMa = 'BC18'; bcKy = 'tuan'; bcMoc = addDays(today(), -7); return go(scrBaoCaoXem); }
   if (k === 'SOTAY') return go(scrSoTay);
   if (k === 'KBD') { location.href = '/kiem-banh'; return; }
   if (k === 'KBM') return go(scrMuaVuDs);

@@ -3791,6 +3791,9 @@ function vgbXuLyPopstate(ev) {
 function reset(fn) {
   var slug = '';
   try { if (window.vgbSlugSapMo) slug = window.vgbSlugSapMo(); } catch (e) { }
+  /* v619: sắp vẽ màn đăng nhập thì ghi địa chỉ đang mở TRƯỚC khi vgbApNac
+     đổi nó về /bep, để đăng nhập xong quay lại đúng chỗ (Codex 4402066952). */
+  try { if (typeof scrLogin === 'function' && fn === scrLogin && window.vgbGhiDich) window.vgbGhiDich(); } catch (e) { }
   vgbBoChuaLuu();
   S.stack = [fn];
   S.duong = [slug];
@@ -3898,7 +3901,9 @@ function frame(title, bodyHtml, opt) {
   var showBack = S.stack.length > 1;
   root.innerHTML =
     '<div class="vh">' +
-      (showBack ? '<button class="ic" id="vgbBack">&#8249;</button>' : '<span class="ic"></span>') +
+      (showBack ? '<button class="ic" id="vgbBack">&#8249;</button>' :
+        /* v619: màn gốc đeo chuông thông báo ở góc trái (59-chuong.js). */
+        (window.vgbNutChuong ? window.vgbNutChuong() : '<span class="ic"></span>')) +
       (showBack ? '<button class="ic" id="vgbHome" aria-label="Ve trang chu">&#127968;</button>' : '') +
       '<b>' + h(title) + '</b>' +
       (opt.action ? '<button class="ic" id="vgbAct">' + opt.action + '</button>' : '') +
@@ -3917,6 +3922,7 @@ function frame(title, bodyHtml, opt) {
     document.documentElement.style.setProperty('--vgb-vf', vgbVf ? vgbVf.offsetHeight + 'px' : '0px');
   } catch (e) { }
   var b = document.getElementById('vgbBack'); if (b) b.onclick = back;
+  try { if (!showBack && window.vgbGanChuong) window.vgbGanChuong(); } catch (e) { }
   var hb = document.getElementById('vgbHome'); if (hb) hb.onclick = function () {
     /* v596 Codex #480: nut nha cat ca chong, nen cung qua cua hoi chung. */
     var cau = vgbCauRoi(-1);
@@ -5933,6 +5939,7 @@ var VGB_DUONG = {
   'canh-bao-thanh-toan': 'CBTT',
   'chi-phi-van-don': 'CPX',
   'chien-dich': 'CRMCD',
+  'chuong-thong-bao': 'CHUONG',
   'chuyen-phantom': 'PTCH',
   'cong-no': 'CN',
   'cong-no-phai-tra': 'CNPT',
@@ -5951,6 +5958,7 @@ var VGB_DUONG = {
   'don-da-huy': 'DHUY',
   'don-mua-hang': 'PO',
   'don-tiec': 'TIEC',
+  'du-lieu-hao-hut': 'BCHH',
   'duyet-don-hang-tang': 'DUYETTANG',
   'duyet-yeu-cau': 'DUYETYC',
   'gia-von-tam-tinh': 'GVT',
@@ -6085,6 +6093,50 @@ function vgbApDiaChi(slug) {
 }
 window.vgbApDiaChi = vgbApDiaChi;
 
+/* v619 (Codex 4402066952): ĐÍCH SAU ĐĂNG NHẬP.
+
+   Link trong tin Zalo (vd /hang-chuyen-ve-kho-toi?mo=PDC-2026-00602) mà máy
+   chưa đăng nhập thì __boot hiện màn đăng nhập; reset() đặt lại địa chỉ về
+   /bep, và đăng nhập xong app tải lại /bep nên nhân viên mất phiếu. Phiên hết
+   giữa chừng (sessionGone) cũng vậy: đăng nhập lại là về trang chủ.
+
+   Cách giữ: ngay TRƯỚC khi khung app đổi địa chỉ để vẽ màn đăng nhập, ghi
+   địa chỉ đang mở vào kho phiên của thẻ; đăng nhập xong đọc ra, xoá, rồi tải
+   lại đúng chỗ đó. Chỉ nhận đường của chính app (một màn trong VGB_DUONG trên
+   cùng máy), nên giá trị lạ trong kho phiên không dẫn được đi đâu. */
+function vgbDichHopLe(dia) {
+  var s = String(dia || '');
+  if (s.charAt(0) !== '/' || s.charAt(1) === '/' || s.charAt(1) === '\\') return '';
+  var q = s.indexOf('?');
+  var p = q >= 0 ? s.slice(0, q) : s, tim = q >= 0 ? s.slice(q + 1) : '';
+  var d = p.replace(/^\/+|\/+$/g, '');
+  if (!d || !Object.prototype.hasOwnProperty.call(VGB_DUONG, d)) return '';
+  var con = '';
+  try {
+    var ts = new URLSearchParams(tim);
+    ts.delete('v'); ts.delete('t');
+    con = ts.toString();
+  } catch (e) { con = ''; }
+  return '/' + d + (con ? '?' + con : '');
+}
+function vgbGhiDich() {
+  try {
+    var d = vgbDichHopLe(String(location.pathname || '') + String(location.search || ''));
+    if (d) sessionStorage.setItem('vgb_dich', d);
+    else sessionStorage.removeItem('vgb_dich');
+  } catch (e) { }
+}
+function vgbLayDich() {
+  var d = '';
+  try {
+    d = vgbDichHopLe(sessionStorage.getItem('vgb_dich') || '');
+    sessionStorage.removeItem('vgb_dich');
+  } catch (e) { d = ''; }
+  return d;
+}
+window.vgbGhiDich = vgbGhiDich;
+window.vgbLayDich = vgbLayDich;
+
 /* Khoa man sap mo. vgbGo dat truoc khi goi go(), go() doc mot lan roi xoa.
 
    Vi sao khong truyen thang khoa vao go(): go() duoc goi tu hang tram cho
@@ -6124,6 +6176,10 @@ function vgbGo(k) {
     return go(function () { scrNhom(nhx); });
   }
   if (k === 'VCL') return go(scrVclList);
+  /* v619: chuông thông báo (59-chuong.js) và đủ danh sách của tin Dữ liệu hao hụt
+     (báo cáo BC18, mở sẵn tuần trước vì tin gửi sáng thứ Hai cho tuần đó). */
+  if (k === 'CHUONG') return go(scrChuong);
+  if (k === 'BCHH') { bcMa = 'BC18'; bcKy = 'tuan'; bcMoc = addDays(today(), -7); return go(scrBaoCaoXem); }
   if (k === 'SOTAY') return go(scrSoTay);
   if (k === 'KBD') { location.href = '/kiem-banh'; return; }
   if (k === 'KBM') return go(scrMuaVuDs);
@@ -7539,6 +7595,23 @@ lý nhận thiếu (chênh lệch sinh bút toán hao hụt) đụng vào giá v
 chờ anh Việt duyệt phương án trước - em để trong bảng mapping luồng kho. */
 var HVK = { ngay: 14, mo: '' };
 
+/* v619 (anh Viet 28/10/2026): tin Zalo "Da chuyen hang giua kho" mo thang
+   dung phieu tren man nay: /hang-chuyen-ve-kho-toi?mo=PDC-2026-00602.
+   Chi doc tham so khi dung duong cua man nay, ma phieu chi gom chu, so,
+   gach noi. Phieu tu tin co the cu hon 14 ngay nen mo rong ra 30 ngay. */
+function hvkTuDiaChi(tim, duong) {
+  if (String(duong || '').replace(/\/+$/, '') !== '/hang-chuyen-ve-kho-toi') return null;
+  var mo = '';
+  try { mo = new URLSearchParams(String(tim || '')).get('mo') || ''; } catch (e) { return null; }
+  mo = mo.trim();
+  if (!mo || !/^[A-Za-z0-9-]{3,40}$/.test(mo)) return null;
+  return { mo: mo, ngay: 30 };
+}
+try {
+  var hvkDau = hvkTuDiaChi(location.search, location.pathname);
+  if (hvkDau) { HVK.mo = hvkDau.mo; HVK.ngay = hvkDau.ngay; }
+} catch (eHvk) { }
+
 async function scrHangVeKho() {
   vgbCss();
   frame('Hàng chuyển về kho tôi', '<div class="emp"><div class="e1">⏳</div><div>Đang xem hàng về kho...</div></div>');
@@ -7600,6 +7673,13 @@ async function scrHangVeKho() {
   }
 
   var b = frame('Hàng chuyển về kho tôi', html);
+  /* Mo tu tin Zalo: cuon toi dung phieu dang mo. */
+  if (HVK.mo) {
+    try {
+      var hvkDong = b.querySelector('[data-hvm="' + HVK.mo + '"]');
+      if (hvkDong && hvkDong.scrollIntoView) hvkDong.scrollIntoView({ block: 'center' });
+    } catch (eCuon) { }
+  }
   b.querySelectorAll('[data-hvn]').forEach(function (n) {
     n.onclick = function () { HVK.ngay = +n.getAttribute('data-hvn'); HVK.mo = ''; go(scrHangVeKho, true); };
   });
@@ -11848,7 +11928,7 @@ function scrLogin() {
       try { if (window.frappe && frappe.csrf_token) hd['X-Frappe-CSRF-Token'] = frappe.csrf_token; } catch (e) { }
       var r = await fetch('/api/method/login', { method: 'POST', headers: hd, credentials: 'same-origin', body: JSON.stringify({ usr: usr, pwd: pwd }) });
       running = 0; busy(0);
-      if (r.ok) { clearFresh(); hardNav(); return; }
+      if (r.ok) { clearFresh(); hardNavDich(); return; }
       if (r.status === 401) return fail('Sai tài khoản hoặc mật khẩu.');
       if (r.status === 417) return fail('Tài khoản đang bị khoá hoặc chưa được kích hoạt.');
       fail('Không đăng nhập được (mã ' + r.status + ').');
@@ -26099,11 +26179,20 @@ async function scrVdChiPhi() {
   };
 }
 
-var APPVER = '618';
+var APPVER = '619';
 function freshN() { try { return parseInt(sessionStorage.getItem('vgb_fresh') || '0', 10) || 0; } catch (e) { return 0; } }
 function setFreshN(n) { try { sessionStorage.setItem('vgb_fresh', String(n)); } catch (e) { } }
 function clearFresh() { try { sessionStorage.removeItem('vgb_fresh'); } catch (e) { } }
 function hardNav() { window.location.replace(location.pathname + '?v=' + APPVER + '&t=' + (new Date()).getTime()); }
+/* v619: đăng nhập xong thì tải lại ĐÚNG chỗ nhân viên định mở (link trong tin
+   Zalo, màn đang dùng khi phiên hết), giữ cả tham số như ?mo=<mã phiếu>.
+   Không có đích hợp lệ thì như cũ. */
+function hardNavDich() {
+  var d = '';
+  try { if (window.vgbLayDich) d = window.vgbLayDich(); } catch (e) { d = ''; }
+  if (!d) return hardNav();
+  window.location.replace(d + (d.indexOf('?') >= 0 ? '&' : '?') + 'v=' + APPVER + '&t=' + (new Date()).getTime());
+}
 function goFresh() {
   var n = freshN();
   if (n >= 2) return false;
@@ -63524,6 +63613,150 @@ async function scrCrmHieuQua(name) {
     }).join('') + '</div>';
   }
   frame(tieuDe, html);
+}
+/* ---------- Chuông thông báo (v619) ----------
+
+Anh Việt 28/10/2026 chọn "một chuông gộp cả hai": chuông ở góc trên trang chủ, số
+đỏ là việc đang chờ mình cộng tin chưa đọc. Bấm vào mở màn có hai thẻ: Thông báo
+(chính các tin Zalo đã gửi cho bộ phận mình, xem lại không phải lục Zalo, bấm tin
+là mở đúng màn) và Việc cần làm (màn đã có). Máy chủ lọc tin theo bộ phận, màn chỉ
+vẽ: vagabond/chuong.py. */
+var CH_SO = { luc: 0, kq: null };
+var CH_MO = {};
+
+/* Nút chuông trên thanh đầu màn gốc. Chỉ người đã đăng nhập mới có. */
+function vgbNutChuong() {
+  if (!S.user || S.user === 'Guest') return '<span class="ic"></span>';
+  return '<button class="ic" id="vgbChuong" aria-label="Thông báo và việc cần làm" style="position:relative">' +
+    '&#128276;<span id="vgbChuongSo" style="display:none;position:absolute;top:0;right:-4px;min-width:20px;height:20px;' +
+    'padding:0 5px;border-radius:10px;background:#dc2626;color:#fff;font-size:13px;font-weight:800;line-height:20px;' +
+    'text-align:center;box-sizing:border-box"></span></button>';
+}
+window.vgbNutChuong = vgbNutChuong;
+
+function chVeSo(kq) {
+  var o = document.getElementById('vgbChuongSo');
+  if (!o) return;
+  var n = (kq && kq.tong) || 0;
+  o.textContent = n > 99 ? '99+' : String(n);
+  o.style.display = n ? '' : 'none';
+}
+
+/* Gắn nút và đeo số. Hỏi máy chủ tối đa một lần mỗi phút; hỏng thì im lặng. */
+async function vgbGanChuong() {
+  var nut = document.getElementById('vgbChuong');
+  if (!nut) return;
+  nut.onclick = function () { vgbGo('CHUONG'); };
+  if (CH_SO.kq && Date.now() - CH_SO.luc < 60000) { chVeSo(CH_SO.kq); return; }
+  try {
+    var kq = await api('vagabond.chuong.dem', {});
+    CH_SO = { luc: Date.now(), kq: kq };
+    chVeSo(kq);
+  } catch (e) { }
+}
+window.vgbGanChuong = vgbGanChuong;
+
+function chLuc(s) {
+  var t = String(s || '');
+  return t.length >= 16 ? t.slice(8, 10) + '/' + t.slice(5, 7) + ' ' + t.slice(11, 16) : t;
+}
+
+/* Bấm "Mở" của một tin. Đường của chính app thì mở trong app; có tham số
+   (vd ?mo=<mã phiếu>) thì tải lại đúng địa chỉ để màn đọc được tham số. */
+function chMo(link) {
+  var u;
+  try { u = new URL(link, location.href); } catch (e) { return; }
+  var cung = u.hostname === location.hostname || /(^|\.)thevagabondpatisserie\.com$/.test(u.hostname);
+  if (!cung) { window.open(u.href, '_blank'); return; }
+  var d = u.pathname.replace(/^\/+|\/+$/g, '');
+  if (!u.search && VGB_DUONG[d]) { vgbGo(VGB_DUONG[d]); return; }
+  location.href = u.pathname + u.search;
+}
+
+function chVe(kq, viec) {
+  var ds = kq.ds || [];
+  var moi = ds.filter(function (x) { return x.moi; }).length;
+  var body = '<div style="display:flex;gap:8px;padding:12px 12px 4px">' +
+    '<button class="chip on" style="flex:1;margin:0">🔔 Thông báo' + (moi ? ' · ' + moi + ' mới' : '') + '</button>' +
+    '<button class="chip" id="chViec" style="flex:1;margin:0">📌 Việc cần làm' + (viec ? ' · ' + viec : '') + '</button></div>' +
+    '<div style="padding:4px 14px 6px;font-size:13px;color:#8a90a0">Tin Zalo đã gửi cho bộ phận của bạn trong ' +
+    (kq.so_ngay || 14) + ' ngày gần nhất. Bấm Mở để vào đúng màn.</div>';
+  if (!kq.co_phong_ban) {
+    body += '<div class="emp"><div class="e1">🏷️</div><div class="e2">Tài khoản của bạn chưa gắn phòng ban, nên máy chưa biết tin nào là của bạn. ' +
+      'Nhờ quản trị gắn phòng ban ở màn Người dùng.</div></div>';
+  } else if (!ds.length) {
+    body += '<div class="emp"><div class="e1">📭</div><div class="e2">Chưa có tin nào cho bộ phận của bạn.</div></div>';
+  } else {
+    ds.forEach(function (x, i) {
+      var mo = !!CH_MO[x.ten];
+      var than = String(x.than || '');
+      var dai = than.split('\n').length > 3 || than.length > 240;
+      var hien = mo || !dai ? than : than.split('\n').slice(0, 3).join('\n').slice(0, 240) + '…';
+      body += '<div class="card" data-chi="' + i + '" style="padding:12px 14px;' + (x.moi ? 'border-left:4px solid #0f766e;' : '') + '">' +
+        '<div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline">' +
+        '<b style="font-size:14px;line-height:1.35">' + h(x.tieu_de) + '</b>' +
+        '<span style="font-size:13px;color:#98a2b3;white-space:nowrap">' + h(chLuc(x.luc)) + '</span></div>' +
+        (hien ? '<div style="font-size:13px;color:#475467;white-space:pre-line;margin-top:6px;line-height:1.5">' + h(hien) + '</div>' : '') +
+        '<div style="display:flex;gap:8px;margin-top:8px">' +
+        (dai ? '<button class="chip" data-chxem="' + i + '" style="margin:0">' + (mo ? 'Thu gọn' : 'Xem hết') + '</button>' : '') +
+        (x.link ? '<button class="chip on" data-chmo="' + i + '" style="margin:0">Mở</button>' : '') +
+        '</div></div>';
+    });
+    /* Codex 4404477923: tin cũ hơn không bị cắt mất, bấm là tải thêm. */
+    if (kq.con_nua) body += '<div style="padding:4px 12px 16px"><button class="chip" id="chCuHon" style="margin:0;width:100%">Xem tin cũ hơn</button></div>';
+  }
+  var b = frame('Chuông thông báo', body);
+  var nv = document.getElementById('chViec');
+  if (nv) nv.onclick = function () { vgbGo('VCL'); };
+  var nc = document.getElementById('chCuHon');
+  if (nc) nc.onclick = async function () {
+    nc.disabled = true;
+    try {
+      /* Codex 4408086813: mốc trang sau lấy từ máy chủ (dòng cũ nhất đã đọc), không từ tin cuối
+         đang hiện, để trang chỉ toàn bản sao vẫn đi tiếp. Mốc không lùi được thì thôi tải. */
+      var truoc = kq.tiep || ds[ds.length - 1].luc;
+      var r = await api('vagabond.chuong.thong_bao', { truoc: truoc });
+      /* Codex 4407978626: máy chủ gộp từng trang riêng, tin gửi nhiều nhóm có thể nằm hai bên
+         ranh trang. Gộp lại khi nối, cùng khoá với máy chủ (mã tin, tiêu đề, thân, đường mở). */
+      var khoa = function (x) { return [x.ma_tin, x.tieu_de, x.than, x.link].join('\u0001'); };
+      var da = {};
+      ds.forEach(function (x) { da[khoa(x)] = 1; });
+      kq.ds = ds.concat((r.ds || []).filter(function (x) { var k = khoa(x); if (da[k]) return false; da[k] = 1; return true; }));
+      kq.tiep = r.tiep || '';
+      kq.con_nua = r.con_nua && kq.tiep && kq.tiep < truoc ? 1 : 0;
+    } catch (e) { kq.con_nua = 1; }
+    chVe(kq, viec);
+  };
+  b.onclick = function (e) {
+    var t = e.target.closest('[data-chmo]');
+    if (t) { chMo(ds[+t.getAttribute('data-chmo')].link); return; }
+    t = e.target.closest('[data-chxem]');
+    if (t) {
+      var x = ds[+t.getAttribute('data-chxem')];
+      CH_MO[x.ten] = !CH_MO[x.ten];
+      chVe(kq, viec);
+    }
+  };
+}
+
+async function scrChuong() {
+  frame('Chuông thông báo', '<div class="emp"><div class="e1">⏳</div><div class="e2">Đang gom tin của bạn...</div></div>');
+  var kq, dem = null;
+  try {
+    var r = await Promise.all([api('vagabond.chuong.thong_bao', {}), api('vagabond.chuong.dem', {}).catch(function () { return null; })]);
+    kq = r[0]; dem = r[1];
+  } catch (e) {
+    frame('Chuông thông báo', '<div class="emp"><div class="e1">⚠️</div><div class="e2">' +
+      h((e && e.message) || 'Không gom được tin') + '</div></div>');
+    return;
+  }
+  chVe(kq, (dem && dem.viec) || 0);
+  /* Đã mở thẻ Thông báo là đã đọc, nhưng chỉ tới tin mới nhất ĐÃ HIỆN (máy chủ luôn
+     trả hết tin chưa đọc); tin tới sau lúc mở màn vẫn là tin mới. */
+  try {
+    await api('vagabond.chuong.da_xem', { den: kq.moc_moi || '' });
+    CH_SO = { luc: Date.now(), kq: { tong: (dem && dem.viec) || 0, viec: (dem && dem.viec) || 0, tin: 0 } };
+  } catch (e) { }
 }
 })();
 

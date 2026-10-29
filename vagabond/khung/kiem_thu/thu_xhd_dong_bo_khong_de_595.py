@@ -34,6 +34,8 @@ TEN_NAP = (
 	"_text_don", "_bo_dau", "_chuan_mst", "_so_hop_le", "_tach_mst", "_tach_email",
 	"_thong_tin_xhd", "TRUONG_XHD", "nguoi_mua_con_trong", "gop_nguoi_mua_dong_bo",
 	"_upsert_hoa_don",
+	# v619: _upsert_hoa_don gọi giu_ten_dong khi thêm lại bảng món.
+	"giu_ten_dong",
 )
 MAC_DINH = "Bán cho người tiêu dùng"
 

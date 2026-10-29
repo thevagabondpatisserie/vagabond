@@ -107,6 +107,147 @@ KHONG_DUOC_DON = {
 }
 
 
+# LỊCH SỬ SỬA CỦA MÀN KHÔNG PHẢI CHỨNG TỪ, GIỮ NGẮN (anh Việt chọn 28/10/2026).
+#
+# Ngày 28/10/2026 cơ sở dữ liệu ở 1,62 GB trên trần 2 GB của gói Frappe
+# Cloud. Lịch sử sửa trang web (mỗi lần lưu chụp lại cả trang HTML) và mùa
+# vụ chiếm gần 190 MB dù không phải chứng từ. Giữ 30 ngày là đủ để truy ai
+# vừa đổi gì; quá đó thì xoá theo lô như ba bảng ở trên.
+VERSION_NGAN = {
+	"Web Page": 30,
+	"Vagabond Mua Vu": 30,
+	"Vagabond Noi Dung Web": 30,
+}
+
+# GỌN LỊCH SỬ DO MÁY GHI TRÊN CHỨNG TỪ (anh Việt chọn 28/10/2026).
+#
+# Lịch sử sửa hoá đơn bán chiếm hơn 1 GB dữ liệu thô, 97% do máy ghi: nhịp
+# đồng bộ Pancake 30 phút một lần dựng lại bảng món của hoá đơn nháp, và
+# ERPNext tự dựng lại bảng thuế theo dòng mỗi lần lưu. Mỗi lần như vậy lịch sử
+# chụp lại TOÀN BỘ dòng cũ (removed) và dòng mới (added), dù nội dung y hệt.
+#
+# Quá số ngày dưới đây, lịch sử do máy ghi chỉ bỏ từng CẶP dòng thêm/bớt có
+# nội dung y hệt (dòng dựng lại), và ghi lại số cặp đã bỏ. Dòng đổi thật (thay
+# món, đổi số lượng, đổi tiền thuế) giữ nguyên trong added/removed; ai đổi, lúc
+# nào, trường nào đổi (changed, row_changed) giữ nguyên. Lịch sử do NGƯỜI sửa
+# không đụng tới. Không xoá dòng lịch sử nào, nên chứng từ vẫn nằm trong
+# KHONG_DUOC_DON. Từ v619 nhịp đồng bộ giữ tên dòng món cũ nên dòng món dựng
+# lại không còn sinh cặp mới; bảng thuế theo dòng do ERPNext tự dựng thì vẫn.
+GON_MAY_GHI = {
+	"Sales Invoice": 30,
+}
+# Tài khoản mà các nhịp tự động chạy dưới tên. Người thật có email riêng.
+NGUOI_MAY = ("Administrator",)
+# Chỉ hai khoá này được bỏ. Đây là hàng rào chạy thật trong gon_du_lieu.
+KHOA_BO = ("added", "removed")
+# Dấu ghi vào dữ liệu đã gọn, để lần sau không chọn lại.
+DAU_GON = "vgb_da_gon"
+# Lịch sử ngắn hơn ngưỡng này không đáng mở ra đọc.
+NGUONG_BYTE = 4000
+LO_GON = 500
+TRAN_GON = 30000
+# Con trỏ gọn lưu giữa các đêm (bảng giá trị chung của Frappe), mỗi chứng từ một khoá.
+CON_TRO = "vgb_gon_lich_su_may_%s"
+CON_TRO_DAU = ("2000-01-01 00:00:00", "")
+
+
+def _doc_con_tro(gt):
+	"""Đọc con trỏ "giờ tạo|tên"; trống hay hỏng thì bắt đầu từ đầu."""
+	if not gt or not isinstance(gt, str) or "|" not in gt:
+		return CON_TRO_DAU
+	tao, ten = gt.split("|", 1)
+	return (tao or CON_TRO_DAU[0], ten)
+
+
+# Gọn bớt được chừng này byte trở lên thì thu tệp bảng lại.
+NGUONG_GON_BYTE = 20 * 1024 * 1024
+
+
+# Trường máy tự sinh lại mỗi lần lưu, không phải nội dung dòng. Hai dòng chỉ
+# khác nhau ở những trường này là cùng một dòng được dựng lại.
+TRUONG_MAY_SINH = frozenset((
+	"name", "idx", "creation", "modified", "modified_by", "owner",
+	"parent", "parenttype", "parentfield", "docstatus", "doctype",
+	"__islocal", "__unsaved",
+))
+CHO_TEN_DONG = "<dòng>"
+
+
+def _noi_dung_dong(bang, dong, ten_dong):
+	"""Khoá so sánh nội dung một dòng con, bỏ trường máy tự sinh.
+
+	Giá trị nào là tên của một dòng con trong cùng lịch sử (ví dụ dòng thuế trỏ
+	tới dòng món) thì thay bằng một chỗ chung, vì dòng dựng lại mang tên mới.
+	"""
+	import json
+
+	if not isinstance(dong, dict):
+		return json.dumps([bang, dong], sort_keys=True, default=str)
+	nd = {k: (CHO_TEN_DONG if isinstance(v, str) and v in ten_dong else v)
+		for k, v in dong.items() if k not in TRUONG_MAY_SINH}
+	return json.dumps([bang, nd], sort_keys=True, ensure_ascii=False, default=str)
+
+
+def gon_du_lieu(data, ngay=None):
+	"""Bỏ ảnh chụp dòng con dựng lại y hệt khỏi dữ liệu một lịch sử sửa.
+
+	Góp ý Codex 4400115947 (P1): máy đồng bộ có khi đổi món thật (thay món A
+	bằng món B), lúc đó cặp added/removed là dấu vết DUY NHẤT của nội dung cũ
+	và mới. Nên chỉ bỏ từng CẶP dòng thêm và dòng bớt cùng bảng có nội dung
+	trùng khớp sau khi bỏ trường máy tự sinh; dòng nào không có cặp thì giữ
+	nguyên trong added/removed.
+
+	Trả về (chuỗi mới, số byte bớt được), hoặc (None, 0) khi không có cặp nào để
+	bỏ hoặc dữ liệu không đọc được. Không bao giờ đụng khoá nào ngoài KHOA_BO;
+	dữ liệu đã gọn thì để nguyên.
+	"""
+	import json
+
+	if not data or not isinstance(data, str):
+		return None, 0
+	try:
+		d = json.loads(data)
+	except (TypeError, ValueError):
+		return None, 0
+	if not isinstance(d, dict) or DAU_GON in d:
+		return None, 0
+	them, bot_ra = d.get("added"), d.get("removed")
+	if not (isinstance(them, list) and them and isinstance(bot_ra, list) and bot_ra):
+		return None, 0
+	ten_dong = set()
+	for x in them + bot_ra:
+		if isinstance(x, list) and len(x) == 2 and isinstance(x[1], dict) and isinstance(x[1].get("name"), str):
+			ten_dong.add(x[1]["name"])
+
+	def khoa(x):
+		if isinstance(x, list) and len(x) == 2:
+			return _noi_dung_dong(x[0], x[1], ten_dong)
+		return None
+
+	cho = {}
+	for i, x in enumerate(bot_ra):
+		k = khoa(x)
+		if k is not None:
+			cho.setdefault(k, []).append(i)
+	bo_bot, bo_them = set(), set()
+	for i, x in enumerate(them):
+		k = khoa(x)
+		if k is not None and cho.get(k):
+			bo_bot.add(cho[k].pop(0))
+			bo_them.add(i)
+	if not bo_them:
+		return None, 0
+	moi = dict(d)
+	moi["added"] = [x for i, x in enumerate(them) if i not in bo_them]
+	moi["removed"] = [x for i, x in enumerate(bot_ra) if i not in bo_bot]
+	moi[DAU_GON] = {"added": len(bo_them), "removed": len(bo_bot), "ngay": str(ngay or "")}
+	chuoi = json.dumps(moi, ensure_ascii=False, separators=(",", ":"), default=str)
+	bot = len(data.encode("utf-8")) - len(chuoi.encode("utf-8"))
+	if bot <= 0:
+		return None, 0
+	return chuoi, bot
+
+
 def kiem_an_toan(bang=None):
 	"""Chặn cứng: không doctype nghiệp vụ nào được lọt vào diện dọn.
 
@@ -117,6 +258,13 @@ def kiem_an_toan(bang=None):
 	pham = sorted(set(bang) & KHONG_DUOC_DON)
 	if pham:
 		raise ValueError("doctype nghiep vu khong duoc don: " + ", ".join(pham))
+	# Lịch sử của chứng từ không bao giờ bị XOÁ theo mốc ngắn; chứng từ chỉ
+	# được gọn lịch sử máy ghi qua GON_MAY_GHI.
+	pham = sorted(set(VERSION_NGAN) & KHONG_DUOC_DON)
+	if pham:
+		raise ValueError("lich su chung tu khong duoc xoa: " + ", ".join(pham))
+	if tuple(KHOA_BO) != ("added", "removed"):
+		raise ValueError("chi duoc bo anh chup dong con")
 	return True
 
 
@@ -224,6 +372,86 @@ def gon_tep(bang):
 		return False
 
 
+def don_version_ngan(dt, so_ngay=None, lo=None, tran=None):
+	"""Xoá dần lịch sử sửa quá hạn của MỘT màn không phải chứng từ."""
+	kiem_an_toan()
+	if dt not in VERSION_NGAN:
+		raise ValueError("doctype chua khai trong VERSION_NGAN: %r" % (dt,))
+	moc = _moc(VERSION_NGAN[dt] if so_ngay is None else so_ngay)
+	lo = int(lo or LO)
+	tran = int(tran or TRAN_MOI_BANG)
+	da_xoa = 0
+	while da_xoa < tran:
+		con = min(lo, tran - da_xoa)
+		try:
+			frappe.db.sql(
+				"delete from `tabVersion` where ref_doctype = %s and creation < %s limit %s",
+				(dt, moc, con),
+			)
+			xoa = _so_dong_vua_xoa()
+			frappe.db.commit()
+		except Exception:
+			frappe.db.rollback()
+			raise
+		da_xoa += xoa
+		if xoa < con:
+			break
+	return da_xoa
+
+
+def gon_lich_su_may(dt, so_ngay=None, lo=None, tran=None):
+	"""Gọn lịch sử do máy ghi của MỘT loại chứng từ. Không xoá dòng nào.
+
+	Trả về {"so_dong": số lịch sử đã gọn, "byte": số byte bớt được}.
+	"""
+	from frappe.utils import nowdate
+
+	kiem_an_toan()
+	if dt not in GON_MAY_GHI:
+		raise ValueError("doctype chua khai trong GON_MAY_GHI: %r" % (dt,))
+	moc = _moc(GON_MAY_GHI[dt] if so_ngay is None else so_ngay)
+	lo = int(lo or LO_GON)
+	tran = int(tran or TRAN_GON)
+	hom_nay = nowdate()
+	so_dong = byte = 0
+	# Góp ý Codex 4400115951 (P2): dòng đã gọn mà vẫn dài, hay dòng chỉ có thay
+	# đổi thật không gọn được, không được chiếm trần mỗi đêm. Con trỏ (giờ tạo,
+	# tên) của dòng cuối đã đọc lưu lại giữa các đêm, cùng giao dịch với lô vừa
+	# gọn, nên mỗi dòng chỉ đọc một lần và đêm sau đọc tiếp từ chỗ dừng.
+	khoa_con_tro = CON_TRO % dt
+	tao, ten = _doc_con_tro(frappe.db.get_global(khoa_con_tro))
+	da_doc = 0
+	while da_doc < tran:
+		ds = frappe.db.sql(
+			"select name, data, creation from `tabVersion` where ref_doctype = %s and owner in %s"
+			" and creation < %s and length(data) > %s and (creation > %s or (creation = %s and name > %s))"
+			" order by creation, name limit %s",
+			(dt, tuple(NGUOI_MAY), moc, NGUONG_BYTE, tao, tao, ten, min(lo, tran - da_doc)),
+			as_dict=True,
+		)
+		if not ds:
+			break
+		try:
+			for r in ds:
+				moi, bot = gon_du_lieu(r.data, hom_nay)
+				if moi is None:
+					continue
+				frappe.db.sql(
+					"update `tabVersion` set data = %s where name = %s and ref_doctype = %s and owner in %s",
+					(moi, r.name, dt, tuple(NGUOI_MAY)),
+				)
+				so_dong += 1
+				byte += bot
+			tao, ten = str(ds[-1].creation), ds[-1].name
+			frappe.db.set_global(khoa_con_tro, "%s|%s" % (tao, ten))
+			frappe.db.commit()
+		except Exception:
+			frappe.db.rollback()
+			raise
+		da_doc += len(ds)
+	return {"so_dong": so_dong, "byte": byte}
+
+
 def don_dep_hang_ngay():
 	"""Nhịp đêm 03:20. KHÔNG whitelist: chỉ scheduler gọi.
 
@@ -238,6 +466,28 @@ def don_dep_hang_ngay():
 		except Exception:
 			ket[dt] = None  # Không biết kết quả đầy đủ, khác với thành công xóa 0.
 			frappe.log_error(frappe.get_traceback(), "don_dep_db: don %s" % dt)
+	xoa_ngan = byte = 0
+	for dt in VERSION_NGAN:
+		khoa = "Lịch sử %s" % dt
+		try:
+			ket[khoa] = don_version_ngan(dt)
+			xoa_ngan += ket[khoa]
+		except Exception:
+			ket[khoa] = None
+			frappe.log_error(frappe.get_traceback(), "don_dep_db: lich su %s" % dt)
+	for dt in GON_MAY_GHI:
+		khoa = "Gọn lịch sử máy ghi %s" % dt
+		try:
+			r = gon_lich_su_may(dt)
+			ket[khoa] = r["so_dong"]
+			byte += r["byte"]
+		except Exception:
+			ket[khoa] = None
+			frappe.log_error(frappe.get_traceback(), "don_dep_db: gon %s" % dt)
+	# Xoá và gọn chỉ trả chỗ trống lại cho chính tệp bảng; phải dựng lại
+	# bảng thì con số trên Frappe Cloud mới tụt.
+	if can_gon(xoa_ngan) or byte >= NGUONG_GON_BYTE:
+		gon_tep("tabVersion")
 	return ket
 
 

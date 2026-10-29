@@ -441,6 +441,8 @@ CUA_NGO = {
 	# Man Viec can lam, them 20/08/2026: gom viec va LOC THEO VAI o may chu.
 	# Truoc do man nay gom viec ngay tren may khach va phan lon khong loc vai.
 	"viec_can_lam.py": ["danh_sach", "dem"],
+	# v619: chuông thông báo trong app.
+	"chuong.py": ["da_xem", "dem", "thong_bao"],
 	# Gan Assignee that, them 21/08/2026. Chi mot duong DOC, va no chi doc
 	# viec cua CHINH nguoi dang dang nhap - khong co tham so nguoi nhan.
 	"giao_viec.py": ["cua_toi"],

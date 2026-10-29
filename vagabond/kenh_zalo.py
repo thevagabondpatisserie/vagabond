@@ -112,6 +112,9 @@ TIN = {
 		"Kế toán xác nhận đã chuyển tiền, phiếu chi đã ghi sổ.", "thong_bao", "cong_no"),
 	"kt_de_nghi_chi_da_chi": ("Hoá đơn, kế toán", "Đề nghị chi đã chi xong",
 		"Khoản chi của đề nghị chi đã khớp sao kê ngân hàng, người lập biết tiền đã đi.", "thong_bao", "cong_no"),
+	# v619 (anh Việt duyệt mẫu 28/10/2026): dữ liệu còn thiếu để tính hao hụt (tin_hao_hut.py).
+	"kt_du_lieu_hao_hut": ("Hoá đơn, kế toán", "Dữ liệu để tính hao hụt (thứ Hai 08:00)",
+		"Thứ Hai 08:00: bánh bán chưa có lệnh, lệnh không cân, kho bếp lâu chưa kiểm kê, giá lệch kho.", "ban_tin", "kho"),
 	"bh_don_web_treo": ("Bán hàng, cửa hàng", "Đơn web treo quá 30 phút chưa vào Pancake",
 		"Đơn đặt bánh trên web quá 30 phút mà chưa tạo được trên Pancake.", "viec", "don_web"),
 	"bh_ton_web_loi": ("Bán hàng, cửa hàng", "Lỗi kiểm tồn khi khách đặt web",
@@ -154,6 +157,9 @@ TIN = {
 		"21:00 mỗi tối, một ảnh mỗi bếp: yêu cầu hôm nay, số đã làm, món còn thiếu.", "ban_tin", "san_xuat"),
 	"bep_lenh_chua_xong": ("Bếp", "Lệnh sản xuất quá ngày chưa ghi hoàn tất (08:00)",
 		"08:00 mỗi sáng: lệnh sản xuất từ hôm qua trở về trước chưa ghi làm xong, kho chưa có hàng.", "viec", "san_xuat"),
+	# v619 (anh Việt chọn 28/10/2026): mỗi bếp một tin việc cần làm cho dữ liệu hao hụt (tin_hao_hut.py).
+	"bep_du_lieu_hao_hut": ("Bếp", "Dữ liệu sản xuất cần ghi đủ (thứ Hai 08:00)",
+		"Thứ Hai 08:00, từng bếp: bánh bán chưa có lệnh, lệnh không ghi số cân thật, kho bếp lâu chưa kiểm kê.", "viec", "san_xuat"),
 	"tm_yeu_cau_mua": ("Thu mua", "Yêu cầu mua hàng mới",
 		"Bộ phận vừa lập yêu cầu mua: tên hàng, số lượng, ngày cần.", "viec", "kho"),
 	"tm_don_mua_moi": ("Thu mua", "Đơn mua hàng vừa đặt",
@@ -1022,8 +1028,14 @@ def _ghi_hop_thu(tin):
 
 	Mỗi dòng có savepoint riêng: trùng khoá (sự kiện đã ghi) hay lỗi lẻ thì lùi
 	đúng dòng đó, không đụng tới chứng từ đang lưu."""
-	noi_dung = tin_soan_san(tin.get("noi_dung")) or soan_tin(tin.get("loai"), tin.get("tieu_de"),
-		tin.get("dong"), tin.get("link"), tin.get("nguoi"), tin.get("han"))
+	# v619 (anh Việt 28/10/2026): mọi đường mở trong tin đi vào APP, không vào Desk.
+	# Đổi TRƯỚC khi soạn để phần cắt độ dài tính trên đường đã đổi.
+	from vagabond import lien_ket_app
+
+	link = lien_ket_app.doi_mot_link(tin.get("link")) if tin.get("link") else tin.get("link")
+	dong = [lien_ket_app.doi_tin(x) if isinstance(x, str) else x for x in (tin.get("dong") or [])]
+	noi_dung = tin_soan_san(lien_ket_app.doi_tin(tin.get("noi_dung"))) or soan_tin(tin.get("loai"),
+		tin.get("tieu_de"), dong, link, tin.get("nguoi"), tin.get("han"))
 	if khong_duoc_tien(tin.get("ma_tin")):
 		noi_dung, bo = bo_dong_tien(noi_dung)
 		if bo:

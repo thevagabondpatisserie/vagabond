@@ -172,7 +172,7 @@ def _mot_bang_hong():
 		ket = dd.don_dep_hang_ngay()
 	la("bảng hỏng báo chưa biết, không phải 0", ket["Notification Log"], None)
 	dung("hai bảng kia vẫn chạy", ket["Version"] > 0 or ket["Deleted Document"] > 0)
-	la("đủ ba bảng trong kết quả", sorted(ket), sorted(dd.BANG_DON))
+	dung("đủ ba bảng trong kết quả", set(dd.BANG_DON) <= set(ket))
 
 
 @ca("#284 hai cửa mở ra ngoài đều tự kiểm System Manager ở dòng đầu")

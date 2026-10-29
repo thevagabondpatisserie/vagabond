@@ -1513,6 +1513,30 @@ def giu_khach_cua_don(cu, khach_dang_co, la_gop):
 	return bool(cu) and bool(k) and not la_gop(k)
 
 
+def giu_ten_dong(rows, ten_cu):
+	"""Gắn tên dòng món cũ cho dòng món mới cùng vị trí. Phép thuần.
+
+	v619 (anh Việt chọn 28/10/2026). Nhịp đồng bộ Pancake 30 phút một lần dựng
+	lại bảng món của hoá đơn nháp. Dòng dựng lại mang tên mới, nên lịch sử sửa
+	của ERPNext coi là xoá hết dòng cũ rồi thêm dòng mới và chụp lại TOÀN BỘ cả
+	hai bên, dù món y hệt: đo trên site 111 trên 111 lần dựng lại có nội dung
+	món không đổi, lịch sử hoá đơn bán phình hơn 1 GB dữ liệu thô.
+
+	Giữ tên dòng cũ theo vị trí thì ERPNext cập nhật đúng dòng đó: món không đổi
+	thì lịch sử không ghi gì, món đổi thì chỉ ghi trường đổi. Nội dung hoá đơn
+	sau khi lưu y hệt cách cũ, vì dòng được ghi lại toàn bộ từ dữ liệu mới. Dòng
+	thừa của bản mới thì lấy tên mới; dòng thừa của bản cũ thì ERPNext xoá như
+	trước. Dòng đã mang sẵn tên thì để nguyên.
+	"""
+	ten_cu = [t for t in (ten_cu or []) if t]
+	ra = []
+	for i, r in enumerate(rows or []):
+		if i < len(ten_cu) and isinstance(r, dict) and not r.get("name"):
+			r = dict(r, name=ten_cu[i])
+		ra.append(r)
+	return ra
+
+
 def _upsert_hoa_don(o, ngay, cong_ty, khach):
 	"""Mot don Pancake = mot Sales Invoice nhap. Tra (trang_thai, ghi_chu)."""
 	pid = str(o.get("id") or "")
@@ -1563,8 +1587,11 @@ def _upsert_hoa_don(o, ngay, cong_ty, khach):
 	giam_don = flt(o.get("total_discount") or o.get("discount") or 0)
 	lech_pk = _lech_pancake(o, rows, giam_don)
 
+	ten_dong_cu = []
 	if cu:
 		si = frappe.get_doc("Sales Invoice", cu.name)
+		# Nhớ tên dòng món cũ để dòng dựng lại dùng lại (xem giu_ten_dong).
+		ten_dong_cu = [d.name for d in (si.get("items") or [])]
 		si.items = []
 		# Phai xoa lich thanh toan cu truoc khi doi ngay. Bang payment_schedule
 		# van giu han thanh toan cua ngay dong bo truoc; khach doi ngay giao
@@ -1727,7 +1754,7 @@ def _upsert_hoa_don(o, ngay, cong_ty, khach):
 		doi = {}
 	for truong, gt in doi.items():
 		si.set(truong, gt)
-	for r in rows:
+	for r in giu_ten_dong(rows, ten_dong_cu):
 		si.append("items", r)
 	si.flags.ignore_permissions = True
 	si.save()

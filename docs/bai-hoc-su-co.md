@@ -2743,3 +2743,71 @@ chạy một chuỗi thật trên sandbox trước khi bàn giao, không chỉ k
   mặc định cũ. Nay luật viết: thẻ `.card` khai display:flex ghi rõ
   flex-direction, nút `.btn` khai flex:none ghi rõ chiều rộng (ca
   thu_the_flex_618 soát toàn bộ bep/).
+
+## 28/10/2026 (v619): lịch sử sửa phình vì máy dựng lại bảng con
+
+Cơ sở dữ liệu 1,62 GB trên trần 2 GB. Bảng lịch sử sửa (Version) chiếm 545 MB,
+riêng hoá đơn bán hơn 1 GB dữ liệu thô, 97% do Administrator ghi. Nguyên nhân:
+nhịp đồng bộ Pancake 30 phút một lần gán `si.items = []` rồi thêm lại mọi món
+của hoá đơn nháp, và ERPNext dựng lại bảng thuế theo dòng mỗi lần lưu. Dòng mới
+mang tên mới, nên mỗi lần lưu lịch sử chụp lại TOÀN BỘ dòng cũ (removed) lẫn dòng
+mới (added) dù nội dung y hệt (đo 111 trên 111 lần dựng lại có bảng món giống
+hệt). Lệnh dọn đêm vẫn chạy đều nhưng không thấy, vì lịch sử chứng từ nằm trong
+diện bảo vệ không xoá.
+
+Sửa tận gốc (cùng PR): nhịp đồng bộ gắn tên dòng món cũ cho dòng dựng lại cùng
+vị trí (`giu_ten_dong`), nên ERPNext cập nhật đúng dòng đó và lịch sử chỉ ghi
+trường đổi. Bảng thuế theo dòng do ERPNext tự dựng lại thì vẫn chụp; nhịp gọn
+đêm lo phần đó.
+
+Cách phòng: đo dung lượng theo `ref_doctype` và theo khoá trong `data` trước
+khi đề xuất dọn. Muốn bớt mà vẫn giữ dấu vết thì gọn đúng phần chụp lặp lại,
+giữ ai đổi, lúc nào, trường nào. Bản giả lập cơ sở dữ liệu phải đọc chính câu
+lệnh chứ không tự lọc theo tham số: đột biến đổi "and" thành "or" trong câu xoá
+đã lọt qua bản giả lập tự lọc. Ảnh và tệp nằm ở ổ đĩa (trần riêng 50 GB), xoá
+ảnh không làm tụt con số cơ sở dữ liệu.
+
+Link trong tin Zalo (cùng PR v619, anh Việt 28/10/2026): hơn bốn mươi nơi phát
+tin tự ghép "/app/<loại>/<mã>" bằng `get_url`, nên tin ra link Desk trên tên
+miền mặc định của site, nhân viên bấm trên điện thoại vào nhầm bản desktop.
+Cửa ghi tin (`kenh_zalo._ghi_hop_thu`) nay đổi mọi đường Desk sang màn app qua
+`lien_ket_app` (một bảng loại chứng từ -> màn). Tham số `link` đổi nguyên cả
+chuỗi (có đường mang dấu cách như "Stock Balance"); chữ trong nội dung thì đổi
+theo từng đường. Phiếu xuất PXD dùng chung tiền tố cho xuất huỷ và xuất dùng
+nội bộ, nên nơi phát hai tin đó tự ghi màn đúng. Nơi phát tin mới chỉ cần đưa
+đường Desk hay đường app đều được, cửa ghi tin lo phần còn lại; loại chưa có
+màn app thì về trang chủ app, thêm dòng vào bảng `BANG` khi có màn mới.
+
+Link sâu mất khi phải đăng nhập (cùng PR v619, Codex 4402066952): `reset()`
+của khung app tự đặt lại địa chỉ theo màn đang vẽ, nên `reset(scrLogin)` đổi
+`/hang-chuyen-ve-kho-toi?mo=...` thành `/bep` TRƯỚC khi nhân viên kịp đăng nhập;
+đăng nhập xong `hardNav()` tải lại `location.pathname` (lúc đó là `/bep`), mất cả
+màn lẫn phiếu. Phiên hết giữa chừng cũng vậy. Nay `reset(scrLogin)` ghi địa chỉ
+đang mở vào kho phiên ngay trước khi đổi, đăng nhập xong `hardNavDich()` đọc ra,
+xoá rồi tải lại đúng chỗ. Chỉ nhận đường của một màn trong `VGB_DUONG`. Bài học:
+link vào app phải kiểm cả nhánh CHƯA đăng nhập; ca hành vi phải nạp app hai lần
+(lần khách, lần sau đăng nhập) theo đúng địa chỉ mà lần một tải lại.
+
+Tin "Dữ liệu hao hụt" (cùng PR v619): hoàn tất lệnh trừ nguyên liệu ĐÚNG theo
+công thức, nên phiếu sản xuất không bao giờ cho thấy hao hụt nguyên liệu; chỉ
+kiểm kê kho bếp mới đo được thực dùng. Đừng dựng báo cáo hao hụt từ phiếu sản
+xuất. Mã tin truyền vào `bao()` phải là chuỗi viết thẳng, không qua hằng số:
+ca v604 dò mã nguồn để chốt mỗi tin có nơi phát.
+
+DOM giả: `innerHTML` của thẻ con nằm trong HTML đã đọc luôn RỖNG (cùng PR v619).
+`dom_gia.js` chỉ giữ chuỗi `_html` ở thẻ được gán `innerHTML` trực tiếp (thường là
+`#vgb`); thẻ con như `#vgbBody` đọc `innerHTML` ra chuỗi rỗng. Ca kiểm "không thấy
+chữ X" trên chuỗi rỗng sẽ xanh mà không kiểm gì. Đọc chữ trên màn bằng
+`textContent` (hoặc `outerHTML`), và với mỗi khẳng định "không thấy" phải có một
+khẳng định "thấy" đi cặp trên cùng nguồn đọc.
+
+### Đếm "lần kiểm kê" phải đọc phiếu kiểm kê, không đọc Stock Reconciliation (v619, Codex 4403241208)
+
+ERPNext bỏ các món khớp sổ khỏi Stock Reconciliation (`remove_items_with_no_change`); kiểm khớp hết thì `kiem_ke.ghi_so` không tạo Stock Reconciliation nào mà phiếu kiểm kê vẫn "Đã ghi sổ". Site 28/10/2026: Pastry nguyên liệu 13/10 đếm 15 món, Stock Reconciliation chỉ còn 9 dòng. Muốn biết bếp đã đếm bao nhiêu và khi nào thì đọc `Phieu Kiem Ke` (dòng `da_dem`), điều chỉnh tồn làm thẳng trên Desk vẫn tính, nhưng cùng ngày với phiếu thì lấy số lớn hơn chứ không cộng.
+
+### Ba bẫy của chuông thông báo và tin hao hụt (v619, Codex 4404477889, 4404477900, 4404477923, 4407978621, 4407978626, 4408086813)
+
+- Hai ô của phiếu hoàn tất lệnh bằng nhau KHÔNG có nghĩa là bếp chép số: `kho_san_xuat.so_hoan_tat` cân dư thì ghi số cân vào cả hai ô (kế hoạch 100, cân 110 lưu 110 và 110). Muốn biết bếp có cân không thì so số nhập kho với số của lệnh (Work Order), con số không bị ghi đè.
+- Sổ "Vagabond Tin Kenh" giữ cả tin chờ, hoãn, lỗi, chưa rõ và "Bỏ qua (đã xử lý)". Màn nào nói "tin đã gửi" thì phải lọc `Đã gửi` và `Đã gửi gộp`.
+- "Đã đọc" lưu bằng MỘT mốc thời gian thì không được cắt danh sách tin chưa đọc, và mốc chỉ đẩy tới tin mới nhất đã hiện, không tới "bây giờ": cắt ở 60 rồi đẩy mốc là tin thứ 61 thành đã đọc mà không ai thấy.
+- Mốc đã đọc của tin Zalo phải so theo LÚC GỬI (`luc_gui`), không theo lúc tạo dòng: tin hoãn giờ im tạo 07:00 gửi 08:30 sẽ thành đã đọc nếu mốc là 08:00 (Codex 4407978621). Tin gửi nhiều nhóm có nhiều dòng sổ; chia trang theo dòng thì bản sao rơi sang trang sau, nên gộp lại khi nối trang (Codex 4407978626). Gộp ở màn thì mốc trang sau phải lấy từ máy chủ (dòng sổ cũ nhất đã đọc), không từ tin cuối đang hiện: trang chỉ toàn bản sao bị gộp hết sẽ giữ nguyên mốc và kẹt mãi một trang (Codex 4408086813).

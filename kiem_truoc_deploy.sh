@@ -257,3 +257,9 @@ node vagabond/khung/kiem_thu/hanh_vi/goi_xe_greensm_612.js
 node vagabond/khung/kiem_thu/hanh_vi/khach_ds_617.js
 # v618: man Hoa don hom nay cua quay (10-bill-quay.js that): the flex ghi huong, bien ngay khac, Bo loc.
 node vagabond/khung/kiem_thu/hanh_vi/ds_hoa_don_618.js
+# v619: tin Zalo mo thang dung phieu dieu chuyen tren man Hang chuyen ve kho toi (?mo=).
+node vagabond/khung/kiem_thu/hanh_vi/hang_ve_kho_619.js
+# v619 (Codex 4402066952): link tin Zalo qua man dang nhap van toi dung man, dung phieu.
+node vagabond/khung/kiem_thu/hanh_vi/dang_nhap_giu_dich_619.js
+# v619: chuong thong bao tren trang chu (59-chuong.js that), so do, hai the, mo dung man.
+node vagabond/khung/kiem_thu/hanh_vi/chuong_619.js
