@@ -263,3 +263,5 @@ node vagabond/khung/kiem_thu/hanh_vi/hang_ve_kho_619.js
 node vagabond/khung/kiem_thu/hanh_vi/dang_nhap_giu_dich_619.js
 # v619: chuong thong bao tren trang chu (59-chuong.js that), so do, hai the, mo dung man.
 node vagabond/khung/kiem_thu/hanh_vi/chuong_619.js
+# v621: man Tin Zalo tu dong (58-crm.js that): the kich ban, cong tac, cai dat, gui thu, tin da gui.
+node vagabond/khung/kiem_thu/hanh_vi/zalo_kb_621.js
