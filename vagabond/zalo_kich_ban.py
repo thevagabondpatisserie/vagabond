@@ -82,6 +82,7 @@ CHO_TOI_DA_GIO = 48
 
 # Mã lỗi Zalo hay gặp -> câu cho người đọc màn. Nguồn: bảng mã lỗi ZNS/ZBS.
 LOI_ZALO = {
+	-1: "Không gọi được Zalo (mất mạng hoặc khoá truy cập lỗi), tin để chờ lượt sau.",
 	-108: "Số điện thoại không hợp lệ.",
 	-114: "Khách không nhận được tin (tài khoản Zalo không hoạt động, tắt nhận tin, hoặc Zalo bản cũ).",
 	-115: "Tài khoản gửi tin Zalo hết tiền. Nạp thêm trên Zalo Cloud Account.",
@@ -101,7 +102,10 @@ LOI_ZALO = {
 	-1471: "Khách đã nhận đủ tin khuyến mãi trong tháng.",
 }
 # Lỗi của cả lượt (không phải của riêng khách): gặp là dừng lượt, để dòng chờ.
-LOI_DUNG_LUOT = {-115, -124, -131, -137, -144, -1441, -146, -147, -133}
+# -1 là mã của chính máy (zalo.gui_mau: mất mạng, không lấy được khoá, phản
+# hồi không đọc được): loại vĩnh viễn từng dòng thì một lần mất mạng làm mất
+# cả hàng đợi, vì khoá chống trùng chặn quét lại (Codex PR #517 vòng 2).
+LOI_DUNG_LUOT = {-1, -115, -124, -131, -137, -144, -1441, -146, -147, -133}
 
 TRANG_THAI_MAU = {
 	"ENABLE": "Đã duyệt",
@@ -335,6 +339,25 @@ def y_nghia_loi(j):
 		return 0, ""
 	cau = LOI_ZALO.get(ma) or (j.get("message") or "Zalo từ chối tin")
 	return ma, ("%s (mã %s)" % (cau, ma))[:300]
+
+
+def dk_tim_tin(tim):
+	"""Ô tìm của sổ tin -> điều kiện hoặc cho frappe.get_all. THUẦN.
+
+	Tìm theo tên khách, mã khách, hoá đơn, voucher; chuỗi gần như toàn số thì
+	tìm thêm số điện thoại (gõ 09... thì đổi sang 84... như số đã lưu).
+	"""
+	t = re.sub(r"\s+", " ", str(tim or "")).replace("%", "").strip()
+	if not t:
+		return []
+	g = "%" + t + "%"
+	dk = [["ten_khach", "like", g], ["khach", "like", g], ["hoa_don", "like", g], ["voucher", "like", g]]
+	so = re.sub(r"\D", "", t)
+	if len(so) >= 4 and len(so) >= len(re.sub(r"[\s.\-+]", "", t)) - 1:
+		if so.startswith("0") and len(so) >= 9:
+			so = "84" + so[1:]
+		dk.append(["sdt", "like", "%" + so + "%"])
+	return dk
 
 
 def con_duoc_gui(tran_ngay, da_gui_hom_nay):
@@ -987,14 +1010,19 @@ def kiem_mau_zalo(ma=None):
 
 
 @frappe.whitelist()
-def ds_tin(ma=None, trang_thai="", bat_dau=0):
-	"""Các tin gần nhất của một kịch bản, mới nhất trước, mỗi trang 50."""
+def ds_tin(ma=None, trang_thai="", bat_dau=0, tim=""):
+	"""Các tin gần nhất của một kịch bản, mới nhất trước, mỗi trang 50.
+	Có ô tìm thì tìm ở máy chủ, ra cả dòng chưa tải (Codex PR #517 vòng 2)."""
 	_quyen()
 	loc = {"kich_ban": ma} if ma in MA_KB else {}
 	if trang_thai in TT_TIN:
 		loc["trang_thai"] = trang_thai
+	them = {}
+	dk = dk_tim_tin(tim)
+	if dk:
+		them["or_filters"] = dk
 	rows = frappe.get_all(DT_TIN, filters=loc, fields=["name", "kich_ban", "khach", "ten_khach", "sdt", "hoa_don", "voucher",
-		"trang_thai", "loi", "creation", "luc_gui"], order_by="creation desc", limit_start=so_nguyen(bat_dau), limit_page_length=51)
+		"trang_thai", "loi", "creation", "luc_gui"], order_by="creation desc", limit_start=so_nguyen(bat_dau), limit_page_length=51, **them)
 	ten = {}
 	kh = list({r.khach for r in rows if r.khach and not r.ten_khach})
 	if kh:
