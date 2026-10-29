@@ -51,6 +51,11 @@ GIAI_THICH_NHOM = {
 THANG_LE = {8, 9, 12, 1, 2}
 
 KENH = ("Zalo", "Gọi điện", "Email")
+# Hoá đơn tính là một lần MUA (lần mua cuối, số đơn, chi tiêu): đã ghi sổ,
+# không huỷ, không phải hoá đơn trả hàng. Một nguồn cho hồ sơ CRM và tin Zalo
+# mời quay lại (zalo_kich_ban._lan_mua_cuoi), Codex PR #517 vòng 5.
+DK_HD_MUA = "docstatus = 1 and ifnull(vgb_huy, 0) = 0 and ifnull(is_return, 0) = 0"
+
 COT_DONG_Y = {"Zalo": "dy_zalo", "Gọi điện": "dy_goi", "Email": "dy_email"}
 TT_DONG_Y = ("Chưa hỏi", "Đồng ý", "Từ chối")
 NOI_GHI = ("Quầy", "Web", "Sales gọi", "Hồ sơ khách", "Desk", "Zalo OA")
@@ -1655,9 +1660,9 @@ def tinh_nhom_dem(luu=True):
 		"""
 		select customer, count(*) so_don, sum(grand_total) tien, min(posting_date) lan_dau, max(posting_date) lan_cuoi
 		from `tabSales Invoice`
-		where docstatus = 1 and ifnull(vgb_huy, 0) = 0 and ifnull(is_return, 0) = 0
+		where %s
 		group by customer
-		""", as_dict=True):
+		""" % DK_HD_MUA, as_dict=True):
 		erp[r.customer] = r
 	co = frappe.get_meta("Customer").get_valid_columns()
 	cot_fabi = [c for c in ("vgb_so_don_cu", "vgb_chi_tieu_cu", "vgb_lan_dau_cu", "vgb_lan_cuoi_cu") if c in co]

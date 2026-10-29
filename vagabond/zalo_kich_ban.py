@@ -207,6 +207,18 @@ def vang_mat_du(lan_cuoi, hom_nay, so_ngay, bien=3):
 	return n <= vang < n + max(1, so_nguyen(bien, 3))
 
 
+def qua_sinh_nhat(ngay_sinh, nam, hom_nay):
+	"""Sinh nhật của dòng chờ (năm `nam` trong khoá) đã qua chưa. THUẦN.
+
+	Dòng chờ hết hạn chung sau 48 giờ, nhưng lời chúc sinh nhật gửi muộn một
+	ngày là sai (Codex PR #517 vòng 5). Không còn ngày sinh thì coi như qua.
+	"""
+	d, hn = sinh_nhat_nam(ngay_sinh, so_nguyen(nam)) if so_nguyen(nam) else None, ngay_cua(hom_nay)
+	if not d or not hn:
+		return True
+	return hn > d
+
+
 def con_vang_mat(lan_mua_cuoi, hom_nay, so_ngay):
 	"""Ngay lúc gửi: khách còn vắng đủ `so_ngay` không. THUẦN.
 
@@ -621,7 +633,10 @@ def truoc_luu_form(doc):
 def _lan_mua_cuoi(khach):
 	"""Ngày hoá đơn đã ghi sổ mới nhất của khách, đọc thẳng từ hoá đơn (không
 	chờ hồ sơ CRM cập nhật lúc 02:30)."""
-	r = frappe.db.sql("""select max(posting_date) from `tabSales Invoice` where customer = %s and docstatus = 1""", (khach,))
+	from vagabond.crm import DK_HD_MUA
+
+	# Cùng điều kiện với hồ sơ CRM: bỏ hoá đơn huỷ và hoá đơn trả hàng.
+	r = frappe.db.sql("""select max(posting_date) from `tabSales Invoice` where customer = %s and """ + DK_HD_MUA, (khach,))
 	return r[0][0] if r and r[0] else None
 
 
@@ -629,7 +644,7 @@ def _ho_so(khach):
 	"""Thông tin khách cần để gửi: tên, số Zalo, đồng ý, điểm, hạng."""
 	from vagabond.lib import sdt84
 
-	cu = frappe.db.get_value("Customer", khach, ["customer_name", "mobile_no", "vgb_diem", "vgb_hang"], as_dict=True) or {}
+	cu = frappe.db.get_value("Customer", khach, ["customer_name", "mobile_no", "vgb_diem", "vgb_hang", "vgb_sinh_nhat"], as_dict=True) or {}
 	hs = frappe.db.get_value("Vagabond Ho So CRM", khach, ["sdt", "dy_zalo", "khong_quang_cao"], as_dict=True) or {}
 	return {
 		"ten": ten_goi(cu.get("customer_name") or khach),
@@ -637,6 +652,7 @@ def _ho_so(khach):
 		"dong_y": (hs.get("dy_zalo") or "") == "Đồng ý" and not int(hs.get("khong_quang_cao") or 0),
 		"diem": cu.get("vgb_diem") or 0,
 		"hang": cu.get("vgb_hang") or "",
+		"sinh_nhat": cu.get("vgb_sinh_nhat"),
 	}
 
 
@@ -790,6 +806,9 @@ def _gui_mot(c, row):
 		# Đọc lại đồng ý NGAY TRƯỚC khi gửi: khách rút đồng ý sau lúc quét thì thôi.
 		if not kh["dong_y"]:
 			_xong(row.name, TT_BO, "Khách không còn đồng ý nhận tin Zalo.")
+			return None
+		if ma_kb == "sinh_nhat" and qua_sinh_nhat(kh.get("sinh_nhat"), str(row.khoa or "").rsplit(":", 1)[-1], _bay_gio().date()):
+			_xong(row.name, TT_BO, "Khách đã qua sinh nhật, không gửi lời chúc muộn.")
 			return None
 		if ma_kb == "quay_lai" and not con_vang_mat(_lan_mua_cuoi(row.khach), _bay_gio().date(), c.get("so_ngay")):
 			_xong(row.name, TT_BO, "Khách đã quay lại mua, không gửi lời mời.")
