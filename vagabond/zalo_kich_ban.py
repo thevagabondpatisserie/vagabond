@@ -372,6 +372,45 @@ def mau_san_sang(cau_hinh):
 	return True, ""
 
 
+def ctkm_phat_duoc(km, hom_nay, han_ngay):
+	"""Chương trình có phát được mã dùng một lần hôm nay không, và hạn mã. THUẦN.
+
+	Trả (hạn, lý do). Hạn là None khi không phát được. Quầy và web
+	(khuyen_mai._hop_thoi_gian) từ chối chương trình chưa bắt đầu hay đã qua
+	den_ngay, nên phát mã lúc đó là gửi quà không dùng được (Codex PR #517).
+	Hạn mã kẹp theo ngày kết thúc chương trình và hạn mã mặc định (han_ma)
+	để tin không hứa một ngày quầy sẽ từ chối.
+	"""
+	km = km or {}
+	ten = km.get("ten") or km.get("name") or ""
+	if not km.get("name"):
+		return None, "Không còn chương trình khuyến mãi đã chọn."
+	if km.get("cach_ma") != "Ma dung mot lan" or not int(km.get("bat") or 0):
+		return None, "Chương trình %s phải đang bật và để cách phát mã là Mã dùng một lần." % ten
+	hom_nay = ngay_cua(hom_nay)
+	tu, den, han_ma = ngay_cua(km.get("tu_ngay")), ngay_cua(km.get("den_ngay")), ngay_cua(km.get("han_ma"))
+	if tu and hom_nay < tu:
+		return None, "Chương trình %s chưa tới ngày bắt đầu %s." % (ten, ngay_vn(tu))
+	if den and hom_nay > den:
+		return None, "Chương trình %s đã hết hạn ngày %s." % (ten, ngay_vn(den))
+	han = hom_nay + timedelta(days=max(1, so_nguyen(han_ngay, MAC_DINH["han_ngay"])))
+	for tran in (den, han_ma):
+		if tran and han > tran:
+			han = tran
+	if han < hom_nay:
+		return None, "Hạn mã của chương trình %s đã qua (%s)." % (ten, ngay_vn(han))
+	return han, ""
+
+
+def xoa_kiem_mau(ly_do="Đang hỏi Zalo mẫu mới."):
+	"""Các ô kết quả kiểm mẫu phải xoá khi đổi mã mẫu. THUẦN.
+
+	Trạng thái duyệt và bộ tham số là của mẫu CŨ; giữ lại thì máy gửi mẫu mới
+	bằng tham số cũ tới lần kiểm sau (Codex PR #517).
+	"""
+	return {"mau_trang_thai": "", "mau_tham_so": "[]", "mau_gia": "", "mau_ly_do": ly_do, "mau_kiem_luc": None}
+
+
 def ngay_sinh_can_quet(dich):
 	"""Các cặp (tháng, ngày) sinh cần quét để gửi đúng ngày `dich`. THUẦN.
 
@@ -495,6 +534,15 @@ def kiem_mau(ma):
 	return _cau_hinh(ma)
 
 
+def doi_mau_tren_form(doc):
+	"""Sửa mã mẫu thẳng trên form Desk cũng xoá kết quả kiểm của mẫu cũ."""
+	truoc = doc.get_doc_before_save() if hasattr(doc, "get_doc_before_save") else None
+	if truoc is not None and str(truoc.get("ma_mau") or "") != str(doc.get("ma_mau") or ""):
+		dat = doc.__setitem__ if isinstance(doc, dict) else doc.set
+		for k, x in xoa_kiem_mau().items():
+			dat(k, x)
+
+
 def _ho_so(khach):
 	"""Thông tin khách cần để gửi: tên, số Zalo, đồng ý, điểm, hạng."""
 	from vagabond.lib import sdt84
@@ -605,15 +653,22 @@ def _gia_tri_sau_mua(row, kh):
 	}, ""
 
 
+COT_CTKM = ["name", "ten", "cach_ma", "bat", "kieu_giam", "gia_tri", "hd_toi_thieu", "tu_ngay", "den_ngay", "han_ma"]
+
+
+def _doc_ctkm(ten):
+	if not ten:
+		return None
+	return frappe.db.get_value("Vagabond CTKM", ten, COT_CTKM, as_dict=True)
+
+
 def _phat_voucher(c, kh, khach, ma_kb):
 	"""Một mã dùng một lần cho đúng khách, hạn theo số ngày đã đặt.
 	Trả (mã, hạn, câu lỗi)."""
-	km = frappe.db.get_value("Vagabond CTKM", c.get("ctkm"), ["name", "ten", "cach_ma", "bat", "kieu_giam", "gia_tri", "hd_toi_thieu"], as_dict=True)
-	if not km:
-		return None, None, "Không còn chương trình khuyến mãi đã chọn."
-	if km.cach_ma != "Ma dung mot lan" or not int(km.bat or 0):
-		return None, None, "Chương trình %s phải đang bật và để cách phát mã là Mã dùng một lần." % (km.ten or km.name)
-	han = _bay_gio().date() + timedelta(days=max(1, so_nguyen(c.get("han_ngay"), MAC_DINH["han_ngay"])))
+	km = _doc_ctkm(c.get("ctkm"))
+	han, loi = ctkm_phat_duoc(km, _bay_gio().date(), c.get("han_ngay"))
+	if not han:
+		return None, None, loi
 	ma = _sinh_ma()
 	frappe.get_doc({"doctype": "Vagabond Voucher", "ma": ma, "ctkm": km.name, "ten_ctkm": cat(km.ten, 140),
 		"trang_thai": "Chua dung", "han_dung": han, "khach": cat(kh["ten"], 140), "sdt": kh["sdt84"], "danh_cho": khach,
@@ -654,7 +709,7 @@ def _gui_mot(c, row):
 		if loi:
 			_xong(row.name, TT_LOI, loi)
 			return None
-		km = frappe.db.get_value("Vagabond CTKM", c.get("ctkm"), ["ten", "kieu_giam", "gia_tri", "hd_toi_thieu"], as_dict=True) or {}
+		km = _doc_ctkm(c.get("ctkm")) or {}
 		ten_ud, dk = mo_ta_uu_dai(km, c.get("ten_uu_dai"), c.get("dieu_kien"))
 		gt = {"ten_khach": kh["ten"], "ten_uu_dai": ten_ud, "dieu_kien": dk, "han_dung": ngay_vn(han), "ma_voucher": ma_v}
 	else:
@@ -723,6 +778,13 @@ def gui_hang_doi():
 		if not trong_gio(luc, c.get("gio_tu"), c.get("gio_den")):
 			tom[kb["ma"]] = "Ngoài giờ gửi."
 			continue
+		if kb["km"]:
+			# Chương trình hết hạn hay chưa bắt đầu: giữ dòng chờ, không phát mã
+			# (Codex PR #517). Sửa chương trình xong thì lượt sau gửi tiếp.
+			han, ly_do = ctkm_phat_duoc(_doc_ctkm(c.get("ctkm")), luc.date(), c.get("han_ngay"))
+			if not han:
+				tom[kb["ma"]] = ly_do + " Tin để chờ."
+				continue
 		con = con_duoc_gui(c.get("tran_ngay"), _da_gui_hom_nay(kb["ma"]))
 		if kb["km"] and con:
 			con = min(con, _han_muc_km())
@@ -736,7 +798,13 @@ def gui_hang_doi():
 			fields=["name", "khach", "hoa_don", "diem", "khoa"], order_by="creation asc", limit_page_length=con)
 		gui = 0
 		dung = None
+		het_gio = False
 		for r in rows:
+			# Mỗi tin là một lời gọi mạng: đọc lại đồng hồ trước từng tin, qua
+			# giờ đóng thì dừng, các dòng còn lại để chờ (Codex PR #517).
+			if not trong_gio(_bay_gio(), c.get("gio_tu"), c.get("gio_den")):
+				het_gio = True
+				break
 			try:
 				m = _gui_mot(c, r)
 			except Exception:
@@ -749,7 +817,8 @@ def gui_hang_doi():
 			elif m:
 				dung = m
 				break
-		tom[kb["ma"]] = "Đã gửi %d tin." % gui + ((" Dừng lượt: " + (LOI_ZALO.get(dung) or str(dung))) if dung else "")
+		tom[kb["ma"]] = "Đã gửi %d tin." % gui + ((" Dừng lượt: " + (LOI_ZALO.get(dung) or str(dung))) if dung else "") + \
+			(" Hết giờ gửi, các tin còn lại để chờ." if het_gio else "")
 	for ma, chu in tom.items():
 		frappe.db.set_value(DT_KB, ma, "ket_qua_luot", cat("%s %s" % (luc.strftime("%H:%M %d/%m"), chu), 300), update_modified=False)
 	frappe.db.commit()
@@ -800,9 +869,14 @@ def _quyen(xem=True):
 	crm._kiem(crm.CRM_XEM if xem else crm.CRM_LAP, "xem tin Zalo tự động" if xem else "sửa tin Zalo tự động")
 
 
-def _the(c, dem):
+def _the(c, dem, hom_nay=None):
 	kb = kich_ban(c["ma"]) or {}
 	duoc, ly_do = mau_san_sang(c)
+	if duoc and kb.get("km") and hom_nay:
+		# Thẻ nói luôn khi chương trình đã chọn hết hạn: máy sẽ giữ tin chờ.
+		han, ly = ctkm_phat_duoc(_doc_ctkm(c.get("ctkm")), hom_nay, c.get("han_ngay"))
+		if not han:
+			duoc, ly_do = False, ly
 	return {
 		"ma": c["ma"], "ten": kb.get("ten"), "giai_thich": kb.get("giai_thich"), "km": kb.get("km"),
 		"bat": int(c.get("bat") or 0), "san_sang": 1 if duoc else 0, "ly_do": ly_do,
@@ -834,8 +908,18 @@ def ds_kich_ban():
 		d["hom_nay"][r.trang_thai] = int(r.hn or 0)
 		d["ba_muoi"][r.trang_thai] = int(r.n or 0)
 		d["phi"] += float(r.phi or 0)
-	ds = [_the(_cau_hinh(k["ma"]), dem) for k in KICH_BAN]
-	ctkm = frappe.get_all("Vagabond CTKM", filters={"cach_ma": "Ma dung mot lan", "bat": 1}, fields=["name", "ten"], order_by="modified desc", limit_page_length=100)
+	ds = [_the(_cau_hinh(k["ma"]), dem, luc.date()) for k in KICH_BAN]
+	ctkm = []
+	for km in frappe.get_all("Vagabond CTKM", filters={"cach_ma": "Ma dung mot lan", "bat": 1}, fields=COT_CTKM,
+			order_by="modified desc", limit_page_length=200):
+		# Bỏ chương trình đã hết hạn; chương trình sắp bắt đầu vẫn chọn trước được.
+		tu, den = ngay_cua(km.get("tu_ngay")), ngay_cua(km.get("den_ngay"))
+		if den and den < luc.date():
+			continue
+		phu = ("Đến hết %s" % ngay_vn(den)) if den else "Không giới hạn ngày"
+		if tu and tu > luc.date():
+			phu = "Bắt đầu %s, %s" % (ngay_vn(tu), phu[0].lower() + phu[1:])
+		ctkm.append({"name": km.get("name"), "ten": km.get("ten") or km.get("name"), "phu": phu})
 	q = _han_muc() or {}
 	return {"ds": ds, "ctkm": ctkm, "han_muc": q, "sua": 1 if _co_lap() else 0}
 
@@ -879,9 +963,12 @@ def luu_kich_ban(ma=None, dat=None):
 		v["gio_tu"], v["gio_den"] = gio_hop_le(v.get("gio_tu", cu.get("gio_tu")), v.get("gio_den", cu.get("gio_den")))
 	if v.get("bat") and not int(cu.get("bat") or 0):
 		v["bat_luc"] = _bay_gio()
+	doi_mau = "ma_mau" in v and v["ma_mau"] != (cu.get("ma_mau") or "")
+	if doi_mau:
+		v.update(xoa_kiem_mau())
 	frappe.db.set_value(DT_KB, ma, v)
 	frappe.db.commit()
-	if "ma_mau" in v and v["ma_mau"] != (cu.get("ma_mau") or ""):
+	if doi_mau:
 		kiem_mau(ma)
 		frappe.db.commit()
 	return ds_kich_ban()
