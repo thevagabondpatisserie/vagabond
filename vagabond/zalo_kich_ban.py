@@ -341,23 +341,58 @@ def y_nghia_loi(j):
 	return ma, ("%s (mã %s)" % (cau, ma))[:300]
 
 
-def dk_tim_tin(tim):
+def chu_tim(tim):
+	"""Chữ người gõ vào ô tìm, đã gọn khoảng trắng và bỏ dấu %. THUẦN."""
+	return re.sub(r"\s+", " ", str(tim or "")).replace("%", "").strip()
+
+
+def mau_sdt_tim(tim):
+	"""Chữ tìm gần như toàn số -> các mẫu like cho số điện thoại. THUẦN.
+
+	Số lưu nơi thì 09..., nơi thì 84...: gõ kiểu nào cũng ra cả hai.
+	Không phải số (vd mã hoá đơn có vài chữ số) thì rỗng.
+	"""
+	t = chu_tim(tim)
+	so = re.sub(r"\D", "", t)
+	if len(so) < 4 or len(so) < len(re.sub(r"[\s.\-+]", "", t)) - 1:
+		return []
+	ds = [so]
+	if so.startswith("0") and len(so) >= 9:
+		ds.append("84" + so[1:])
+	elif so.startswith("84") and len(so) >= 10:
+		ds.append("0" + so[2:])
+	return ["%" + x + "%" for x in ds]
+
+
+def dk_tim_tin(tim, khach_khop=None):
 	"""Ô tìm của sổ tin -> điều kiện hoặc cho frappe.get_all. THUẦN.
 
-	Tìm theo tên khách, mã khách, hoá đơn, voucher; chuỗi gần như toàn số thì
-	tìm thêm số điện thoại (gõ 09... thì đổi sang 84... như số đã lưu).
+	Tìm theo tên khách, mã khách, hoá đơn, voucher, số điện thoại trên sổ;
+	`khach_khop` là các mã khách mà tên hay số trong hồ sơ khớp chữ tìm, để
+	ra cả dòng Chờ gửi, Bỏ qua chưa ghi tên và số (Codex PR #517 vòng 3).
 	"""
-	t = re.sub(r"\s+", " ", str(tim or "")).replace("%", "").strip()
+	t = chu_tim(tim)
 	if not t:
 		return []
 	g = "%" + t + "%"
 	dk = [["ten_khach", "like", g], ["khach", "like", g], ["hoa_don", "like", g], ["voucher", "like", g]]
-	so = re.sub(r"\D", "", t)
-	if len(so) >= 4 and len(so) >= len(re.sub(r"[\s.\-+]", "", t)) - 1:
-		if so.startswith("0") and len(so) >= 9:
-			so = "84" + so[1:]
-		dk.append(["sdt", "like", "%" + so + "%"])
+	dk += [["sdt", "like", m] for m in mau_sdt_tim(t)]
+	if khach_khop:
+		dk.append(["khach", "in", list(khach_khop)])
 	return dk
+
+
+def _khach_khop(tim):
+	"""Mã khách có tên hay số điện thoại (Customer, hồ sơ CRM) khớp chữ tìm."""
+	t = chu_tim(tim)
+	if not t:
+		return []
+	sdt = mau_sdt_tim(t)
+	ma = set(frappe.get_all("Customer", or_filters=[["customer_name", "like", "%" + t + "%"]] + [["mobile_no", "like", m] for m in sdt],
+		pluck="name", limit_page_length=300))
+	if sdt:
+		ma.update(frappe.get_all("Vagabond Ho So CRM", or_filters=[["sdt", "like", m] for m in sdt], pluck="name", limit_page_length=300))
+	return sorted(ma)[:500]
 
 
 def con_duoc_gui(tran_ngay, da_gui_hom_nay):
@@ -1018,7 +1053,7 @@ def ds_tin(ma=None, trang_thai="", bat_dau=0, tim=""):
 	if trang_thai in TT_TIN:
 		loc["trang_thai"] = trang_thai
 	them = {}
-	dk = dk_tim_tin(tim)
+	dk = dk_tim_tin(tim, _khach_khop(tim))
 	if dk:
 		them["or_filters"] = dk
 	rows = frappe.get_all(DT_TIN, filters=loc, fields=["name", "kich_ban", "khach", "ten_khach", "sdt", "hoa_don", "voucher",
