@@ -36,6 +36,7 @@ var HAM = ['h', 'money', 'today', 'vgbChuan', 'vgbKhop', 'anhMon', 'sheet'].map(
   .concat([layHam(POS, 'posChipNut')])
   .concat(['dsccHang', 'dsCongCu', 'dsCongCuNoi', 'veBuoc'].map(function (t) { return layHam(KHUON, t); }))
   .concat(['var scanBarcode = function () { return Promise.resolve(null); };'])
+  .concat([KHUON.match(/var DS_KY = [\s\S]*?\]\];/)[0]])
   .concat([layHam(KM, 'kmHangChip'), layHam(KHO, 'errMsg')]).join('\n');
 
 var QL = ['Sales Manager'];
@@ -300,6 +301,33 @@ function mot(el, chon) { return el.querySelectorAll(chon)[0]; }
     await choDen(function () { return goiTen(m, 'ds_tin').length >= 3; });
     var g2 = goiTen(m, 'ds_tin');
     bang('mở kịch bản khác: không tìm, không lọc', [g2[g2.length - 1].ts.ma, g2[g2.length - 1].ts.tim, g2[g2.length - 1].ts.trang_thai], ['sinh_nhat', '', '']);
+  });
+
+  await ca('PR517 Codex vòng 6: sổ tin có chip khoảng ngày và số đếm trên chip trạng thái; chọn ngày hỏi máy chủ; mở kịch bản khác thì về Mọi ngày', async function () {
+    /* Tái hiện finding Codex trên 87c3551: chip trạng thái không có số đếm
+       (dem: null), không có chip ngày (AGENTS.md mục 3). */
+    var m = dungMoi(QL, { ds_tin: function (ts) {
+      return { ds: [{ kich_ban: 'sau_mua', khach: 'KH-1', ten_khach: 'Lan Anh', sdt: '•••• 6556', hoa_don: 'HDB-1', voucher: '', trang_thai: 'Lỗi', loi: 'x', luc: '2026-10-29 10:05:00' }],
+        con_nua: 0, dem: ts.ky === 'hom_nay' ? { 'Lỗi': 1, tat_ca: 1 } : { 'Lỗi': 4, 'Đã gửi': 12, tat_ca: 16 } }; } });
+    await m.g.scrCrmZalo();
+    bam(m, mot(m.khung, '[data-crmzltin="sau_mua"]'));
+    await choDen(function () { return chu(m.khung).indexOf('Lan Anh') >= 0; });
+    var t = chu(m.khung);
+    dung('chip Lỗi có số 4', /Lỗi\s*4/.test(t));
+    dung('chip Tất cả có số 16', /Tất cả\s*16/.test(t));
+    var hn = m.khung.querySelectorAll('[data-dscc]').filter(function (b) { return b.getAttribute('data-dscc') === 'ky|hom_nay'; })[0];
+    dung('có chip Hôm nay', !!hn);
+    bam(m, hn);
+    await choDen(function () { var g = goiTen(m, 'ds_tin'); return g.length >= 2; });
+    var g = goiTen(m, 'ds_tin');
+    bang('hỏi máy chủ theo Hôm nay', [g[g.length - 1].ts.ky, g[g.length - 1].ts.bat_dau], ['hom_nay', 0]);
+    await choDen(function () { return /Lỗi\s*1/.test(chu(m.khung)); });
+    dung('số đếm đổi theo ngày', /Lỗi\s*1/.test(chu(m.khung)));
+    await m.g.scrCrmZalo();
+    bam(m, mot(m.khung, '[data-crmzltin="sinh_nhat"]'));
+    await choDen(function () { return goiTen(m, 'ds_tin').length >= 3; });
+    var g2 = goiTen(m, 'ds_tin');
+    bang('mở kịch bản khác: Mọi ngày', g2[g2.length - 1].ts.ky, '');
   });
 
   await ca('đường vào: thẻ Tin Zalo tự động có trong phân hệ Khách hàng, đường dẫn tin-zalo-tu-dong mở màn này', async function () {
