@@ -275,6 +275,33 @@ function mot(el, chon) { return el.querySelectorAll(chon)[0]; }
     bang('mở hồ sơ', m.g._moKh, 'KH-1');
   });
 
+  await ca('PR517 Codex vòng 2: sổ tin có ô tìm (tên, số, hoá đơn, voucher); tìm hỏi máy chủ; mở kịch bản khác thì ô tìm trống', async function () {
+    /* Tái hiện finding Codex trên 87c103b: màn sổ tin chỉ có chip trạng thái
+       và nút tải thêm 50 dòng, không có ô tìm (AGENTS.md 2b.5). */
+    var m = dungMoi(QL, { ds_tin: function (ts) {
+      var ds = ts.tim ? [{ kich_ban: 'sau_mua', khach: 'KH-9', ten_khach: 'Bảo Ngọc', sdt: '•••• 1234', hoa_don: 'HDB-26-0012', voucher: '', trang_thai: 'Đã gửi', loi: '', luc: '2026-10-20 10:05:00' }]
+        : [{ kich_ban: 'sau_mua', khach: 'KH-1', ten_khach: 'Lan Anh', sdt: '•••• 6556', hoa_don: 'HDB-1', voucher: '', trang_thai: 'Đã gửi', loi: '', luc: '2026-10-29 10:05:00' }];
+      return { ds: ds, con_nua: ts.tim ? 0 : 1 }; } });
+    await m.g.scrCrmZalo();
+    bam(m, mot(m.khung, '[data-crmzltin="sau_mua"]'));
+    await choDen(function () { return chu(m.khung).indexOf('Lan Anh') >= 0; });
+    var o = mot(m.khung, '#crmZlTinDsTim');
+    dung('có ô tìm', !!o);
+    dung('gợi ý nói tìm được gì', (o.getAttribute('placeholder') || '').indexOf('hoá đơn') >= 0);
+    o.value = 'HDB-26-0012';
+    o.dispatchEvent(dg.suKien('change', {}, o));
+    await choDen(function () { return chu(m.khung).indexOf('Bảo Ngọc') >= 0; });
+    var g = goiTen(m, 'ds_tin');
+    bang('hỏi máy chủ đúng chữ tìm, từ đầu', [g[g.length - 1].ts.tim, g[g.length - 1].ts.bat_dau], ['HDB-26-0012', 0]);
+    dung('ra dòng cũ chưa tải', chu(m.khung).indexOf('HDB-26-0012') >= 0);
+    bang('ô tìm giữ chữ', mot(m.khung, '#crmZlTinDsTim').value, 'HDB-26-0012');
+    await m.g.scrCrmZalo();
+    bam(m, mot(m.khung, '[data-crmzltin="sinh_nhat"]'));
+    await choDen(function () { return goiTen(m, 'ds_tin').length >= 3; });
+    var g2 = goiTen(m, 'ds_tin');
+    bang('mở kịch bản khác: không tìm, không lọc', [g2[g2.length - 1].ts.ma, g2[g2.length - 1].ts.tim, g2[g2.length - 1].ts.trang_thai], ['sinh_nhat', '', '']);
+  });
+
   await ca('đường vào: thẻ Tin Zalo tự động có trong phân hệ Khách hàng, đường dẫn tin-zalo-tu-dong mở màn này', async function () {
     var nhom = TC.slice(TC.indexOf("k: 'KHG'"), TC.indexOf("k: 'KHG'") + 600);
     dung('có trong danh sách khoá của phân hệ', /keys: \[[^\]]*'CRMZL'/.test(nhom));
