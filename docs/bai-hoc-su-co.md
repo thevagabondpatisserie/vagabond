@@ -2805,9 +2805,9 @@ khẳng định "thấy" đi cặp trên cùng nguồn đọc.
 
 ERPNext bỏ các món khớp sổ khỏi Stock Reconciliation (`remove_items_with_no_change`); kiểm khớp hết thì `kiem_ke.ghi_so` không tạo Stock Reconciliation nào mà phiếu kiểm kê vẫn "Đã ghi sổ". Site 28/10/2026: Pastry nguyên liệu 13/10 đếm 15 món, Stock Reconciliation chỉ còn 9 dòng. Muốn biết bếp đã đếm bao nhiêu và khi nào thì đọc `Phieu Kiem Ke` (dòng `da_dem`), điều chỉnh tồn làm thẳng trên Desk vẫn tính, nhưng cùng ngày với phiếu thì lấy số lớn hơn chứ không cộng.
 
-### Ba bẫy của chuông thông báo và tin hao hụt (v619, Codex 4404477889, 4404477900, 4404477923, 4407978621, 4407978626)
+### Ba bẫy của chuông thông báo và tin hao hụt (v619, Codex 4404477889, 4404477900, 4404477923, 4407978621, 4407978626, 4408086813)
 
 - Hai ô của phiếu hoàn tất lệnh bằng nhau KHÔNG có nghĩa là bếp chép số: `kho_san_xuat.so_hoan_tat` cân dư thì ghi số cân vào cả hai ô (kế hoạch 100, cân 110 lưu 110 và 110). Muốn biết bếp có cân không thì so số nhập kho với số của lệnh (Work Order), con số không bị ghi đè.
 - Sổ "Vagabond Tin Kenh" giữ cả tin chờ, hoãn, lỗi, chưa rõ và "Bỏ qua (đã xử lý)". Màn nào nói "tin đã gửi" thì phải lọc `Đã gửi` và `Đã gửi gộp`.
 - "Đã đọc" lưu bằng MỘT mốc thời gian thì không được cắt danh sách tin chưa đọc, và mốc chỉ đẩy tới tin mới nhất đã hiện, không tới "bây giờ": cắt ở 60 rồi đẩy mốc là tin thứ 61 thành đã đọc mà không ai thấy.
-- Mốc đã đọc của tin Zalo phải so theo LÚC GỬI (`luc_gui`), không theo lúc tạo dòng: tin hoãn giờ im tạo 07:00 gửi 08:30 sẽ thành đã đọc nếu mốc là 08:00 (Codex 4407978621). Tin gửi nhiều nhóm có nhiều dòng sổ; chia trang theo dòng thì bản sao rơi sang trang sau, nên gộp lại khi nối trang (Codex 4407978626).
+- Mốc đã đọc của tin Zalo phải so theo LÚC GỬI (`luc_gui`), không theo lúc tạo dòng: tin hoãn giờ im tạo 07:00 gửi 08:30 sẽ thành đã đọc nếu mốc là 08:00 (Codex 4407978621). Tin gửi nhiều nhóm có nhiều dòng sổ; chia trang theo dòng thì bản sao rơi sang trang sau, nên gộp lại khi nối trang (Codex 4407978626). Gộp ở màn thì mốc trang sau phải lấy từ máy chủ (dòng sổ cũ nhất đã đọc), không từ tin cuối đang hiện: trang chỉ toàn bản sao bị gộp hết sẽ giữ nguyên mốc và kẹt mãi một trang (Codex 4408086813).
