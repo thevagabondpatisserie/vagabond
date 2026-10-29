@@ -179,6 +179,17 @@ def chia_trang(moi, cu, toi_da=TOI_DA):
 	return list(moi) + cu[:toi_da], len(cu) > toi_da
 
 
+def con_tro_tiep(ds, dong, cat):
+	"""THUẦN: mốc cho trang cũ hơn kế tiếp (Codex 4408086813). Trang bị cắt ở TOI_DA thì là tin
+	cuối đã trả; không cắt thì là dòng sổ CŨ NHẤT đã đọc, kể cả bản sao đã gộp. Như vậy trang chỉ
+	toàn bản sao (màn gộp hết, không thêm tin nào) vẫn đẩy mốc lùi, không kẹt ở một trang."""
+	if cat and ds:
+		return str(ds[-1]["luc"])
+	if dong:
+		return str(dong[-1].get("luc") or "")
+	return str(ds[-1]["luc"]) if ds else ""
+
+
 @frappe.whitelist()
 def thong_bao(truoc=None):
 	"""CHỈ ĐỌC: tin Zalo đã gửi 14 ngày gần nhất của bộ phận mình, mới nhất trước, đã gộp.
@@ -199,10 +210,11 @@ def thong_bao(truoc=None):
 		# Chưa đọc lần nào: mọi tin là chưa đọc, hiện hết.
 		dong = []
 		ds, con = chia_trang(gop_tin(_doc_tin(ma), moc), [])
+	cat = con
 	con = con or len(dong) >= gioi_han
 	moc_moi = max([x["luc"] for x in ds] or [""])
 	return {"ds": ds, "co_phong_ban": 1 if bp else 0, "so_ngay": SO_NGAY, "con_nua": 1 if con else 0,
-		"moc_moi": moc_moi}
+		"moc_moi": moc_moi, "tiep": con_tro_tiep(ds, dong, cat)}
 
 
 @frappe.whitelist()
