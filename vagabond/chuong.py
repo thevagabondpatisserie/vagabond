@@ -127,20 +127,23 @@ def _ma_tin_cua_toi():
 
 
 def _doc_tin(ma, gioi_han=0, sau=None, truoc=None, den=None):
-	"""Dòng sổ tin đã gửi thật, mới nhất trước. sau: chỉ tin tạo SAU mốc (chưa đọc);
-	den: tạo tới mốc (đã đọc); truoc: tạo trước mốc (trang cũ hơn). gioi_han 0 là không cắt."""
+	"""Dòng sổ tin đã gửi thật, mới gửi nhất trước. Mọi mốc so theo LÚC GỬI (luc_gui), không
+	theo lúc tạo dòng (Codex 4407978621: tin tạo 07:00 hoãn giờ im, gửi 08:30, mà mốc đã đọc là
+	08:00 thì so theo lúc tạo sẽ thành đã đọc dù chưa từng hiện). Cả hai đường gửi đều ghi luc_gui.
+	sau: gửi SAU mốc (chưa đọc); den: gửi tới mốc (đã đọc); truoc: gửi trước mốc (trang cũ hơn).
+	gioi_han 0 là không cắt."""
 	if not ma:
 		return []
 	moc = str(add_days(now_datetime(), -SO_NGAY))
-	dk = [["ma_tin", "in", ma], ["trang_thai", "in", list(DA_GUI)], ["creation", ">=", moc]]
+	dk = [["ma_tin", "in", ma], ["trang_thai", "in", list(DA_GUI)], ["luc_gui", ">=", moc]]
 	if sau:
-		dk.append(["creation", ">", str(sau)])
+		dk.append(["luc_gui", ">", str(sau)])
 	if truoc:
-		dk.append(["creation", "<", str(truoc)])
+		dk.append(["luc_gui", "<", str(truoc)])
 	if den:
-		dk.append(["creation", "<=", str(den)])
+		dk.append(["luc_gui", "<=", str(den)])
 	return frappe.get_all("Vagabond Tin Kenh", filters=dk,
-		fields=["name", "ma_tin", "noi_dung", "creation as luc"], order_by="creation desc",
+		fields=["name", "ma_tin", "noi_dung", "luc_gui as luc"], order_by="luc_gui desc",
 		limit_page_length=gioi_han)
 
 
