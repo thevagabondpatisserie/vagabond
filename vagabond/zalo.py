@@ -76,19 +76,20 @@ def token(c):
 	return tok
 
 
-def gui_tin(c, sdt84, template_id, du_lieu, dau_vet=None):
-	"""Gui mot tin ZNS. Tra ve (thanh_cong, loi).
+def gui_mau(c, sdt84, template_id, du_lieu, dau_vet=None):
+	"""Gui mot tin theo mau qua so dien thoai. Tra NGUYEN phan hoi Zalo (dict).
 
-	KHONG nem loi ra ngoai khi Zalo tu choi - cho ben goi tu quyet dinh, vi co
-	cho chi can bao "khong gui duoc" chu khong duoc lam hong ca nghiep vu.
+	Ben goi can ma loi (vd -140 khach chua du dieu kien nhan tin khuyen mai,
+	-1441 het han muc thang) de quyet dung ca luot hay chi bo mot khach, nen
+	ham nay khong rut gon thanh (dung, sai). Loi mang tra {"error": -1}.
 	"""
 	# Bộ kiểm thử tích hợp đang chạy thì TUYỆT ĐỐI không bắn tin ra ngoài.
 	#
-	# Vì sao cửa này đặt ở ĐÂY chứ không đặt ở từng nơi gọi: có ba đường đang
-	# gọi hàm này (dang_nhap.py mã đăng nhập, diem_otp.py mã duyệt sửa hoá
-	# đơn, thanh_toan.py tin yêu cầu khách chuyển tiền). Chặn ở một chỗ thì
-	# che cả ba, và che sẵn cho đường thứ tư mai mốt ai đó viết thêm. Chặn ở
-	# từng nơi gọi thì hôm nào thêm đường mới là lại quên.
+	# Vì sao cửa này đặt ở ĐÂY chứ không đặt ở từng nơi gọi: có nhiều đường
+	# gọi (dang_nhap.py mã đăng nhập, diem_otp.py mã duyệt sửa hoá đơn,
+	# thanh_toan.py tin yêu cầu khách chuyển tiền, zalo_kich_ban.py tin tự
+	# động, zalo_oa.py tin chiến dịch). Chặn ở một chỗ thì che tất cả, và che
+	# sẵn cho đường mai mốt ai đó viết thêm.
 	#
 	# Vì sao nghiêm trọng: điểm lưu của cơ sở dữ liệu lùi lại được một chứng
 	# từ ảo, nhưng KHÔNG lùi lại được một tin nhắn đã nằm trong máy khách
@@ -97,13 +98,13 @@ def gui_tin(c, sdt84, template_id, du_lieu, dau_vet=None):
 	#
 	# Cùng cách làm với thong_bao.gui. Xem vagabond/khung/kiem_that/nen.py.
 	if frappe.flags.get("vagabond_kiem_that"):
-		return False, "đang chạy kiểm thử tích hợp, không gửi tin ra ngoài"
+		return {"error": -1, "message": "đang chạy kiểm thử tích hợp, không gửi tin ra ngoài"}
 	if not template_id:
-		return False, "Chưa khai mã mẫu ZNS trong Vagabond Settings"
+		return {"error": -1, "message": "Chưa khai mã mẫu ZNS trong Vagabond Settings"}
 	try:
 		tok = token(c)
 	except Exception as e:
-		return False, str(e)
+		return {"error": -1, "message": str(e)}
 	try:
 		r = requests.post(
 			"%s/message/template" % ZALO_OA,
@@ -119,11 +120,94 @@ def gui_tin(c, sdt84, template_id, du_lieu, dau_vet=None):
 		j = r.json() if r.content else {}
 	except Exception:
 		frappe.log_error(title="Vagabond: ZNS loi mang", message=frappe.get_traceback())
-		return False, "Không gọi được Zalo"
+		return {"error": -1, "message": "Không gọi được Zalo"}
 	if j.get("error") not in (0, None):
 		frappe.log_error(title="Vagabond: ZNS khong gui duoc", message=json.dumps(j)[:1000])
+	return j if isinstance(j, dict) else {"error": -1, "message": "Zalo không trả lời rõ ràng"}
+
+
+def gui_tin(c, sdt84, template_id, du_lieu, dau_vet=None):
+	"""Gui mot tin ZNS. Tra ve (thanh_cong, loi).
+
+	KHONG nem loi ra ngoai khi Zalo tu choi - cho ben goi tu quyet dinh, vi co
+	cho chi can bao "khong gui duoc" chu khong duoc lam hong ca nghiep vu.
+	"""
+	# Cửa cờ kiểm thật đặt ở gui_mau (mọi đường gửi đi qua đó). Nhắc lại ở đây
+	# để gui_tin tự đứng được nếu mai mốt ai đó tách gui_mau ra.
+	if frappe.flags.get("vagabond_kiem_that"):
+		return False, "đang chạy kiểm thử tích hợp, không gửi tin ra ngoài"
+	if not template_id:
+		return False, "Chưa khai mã mẫu ZNS trong Vagabond Settings"
+	j = gui_mau(c, sdt84, template_id, du_lieu, dau_vet)
+	if j.get("error") not in (0, None):
 		return False, j.get("message") or "Zalo từ chối tin"
 	return True, ""
+
+
+def doc_mau(template_id):
+	"""CHI DOC: trang thai va bo tham so cua mot mau (template/info/v2).
+
+	Duong cu /template/info tra -106 "Method unsupported" tu khi ZNS gop vao
+	ZBS (kiem 29/10/2026). Khong gui tin nao, khong ton tien.
+	"""
+	from vagabond.lib import cfg
+
+	try:
+		tok = token(cfg())
+	except Exception as e:
+		return {"ok": 0, "loi": str(e)}
+	try:
+		r = requests.get(
+			"%s/template/info/v2" % ZALO_OA,
+			headers={"access_token": tok},
+			params={"template_id": str(template_id or "").strip()},
+			timeout=TIMEOUT,
+		)
+		j = r.json() if r.content else {}
+	except Exception:
+		frappe.log_error(title="Vagabond: doc mau ZNS loi mang", message=frappe.get_traceback())
+		return {"ok": 0, "loi": "Không gọi được Zalo"}
+	if j.get("error") not in (0, None):
+		return {"ok": 0, "loi": j.get("message") or "Zalo từ chối", "tho": j}
+	d = j.get("data") or {}
+	return {
+		"ok": 1,
+		"template_id": str(d.get("templateId") or template_id),
+		"ten": d.get("templateName") or "",
+		"trang_thai": d.get("status") or "",
+		"ly_do": d.get("reason") or "",
+		"tag": d.get("templateTag") or "",
+		"gia_sdt": d.get("price_sdt") or d.get("price") or "",
+		"xem_truoc": d.get("previewUrl") or "",
+		"tham_so": [
+			{"name": p.get("name"), "type": p.get("type"), "maxLength": p.get("maxLength"), "require": bool(p.get("require", True))}
+			for p in (d.get("listParams") or [])
+		],
+	}
+
+
+def han_muc():
+	"""CHI DOC: han muc gui tin cua OA hom nay va tin khuyen mai thang nay."""
+	from vagabond.lib import cfg
+
+	try:
+		tok = token(cfg())
+		r = requests.get("%s/message/quota" % ZALO_OA, headers={"access_token": tok}, timeout=TIMEOUT)
+		j = r.json() if r.content else {}
+	except Exception as e:
+		return {"ok": 0, "loi": str(e)[:200]}
+	if j.get("error") not in (0, None):
+		return {"ok": 0, "loi": j.get("message") or "Zalo từ chối"}
+	d = j.get("data") or {}
+	return {
+		"ok": 1,
+		"ngay": d.get("dailyQuota") or 0,
+		"con_ngay": d.get("remainingQuota") or 0,
+		"km_thang": d.get("monthlyPromotionQuota") or 0,
+		"con_km_thang": d.get("remainingMonthlyPromotionQuota") or 0,
+		"con_km_ngay": d.get("remainingQuotaPromotion") or 0,
+		"km_thang_sau": d.get("estimatedNextMonthPromotionQuota") or 0,
+	}
 
 
 @frappe.whitelist()
@@ -153,7 +237,8 @@ def thu_mau(template_id=None):
 		return {"ok": 0, "loi": str(e)}
 	try:
 		r = requests.get(
-			"%s/template/info" % ZALO_OA,
+			# Đường cũ /template/info trả -106 từ khi ZNS gộp vào ZBS (29/10/2026).
+			"%s/template/info/v2" % ZALO_OA,
 			headers={"access_token": tok},
 			params={"template_id": ma},
 			timeout=TIMEOUT,

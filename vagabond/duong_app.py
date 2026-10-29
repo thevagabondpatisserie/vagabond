@@ -121,6 +121,8 @@ MAN = (
 	("CRMDY", "Sổ đồng ý nhận tin", None),
 	("CRMCD", "Chiến dịch", None),
 	("CRMHQ", "Hiệu quả chiến dịch", None),
+	# v621 Tin Zalo tự động (zalo_kich_ban.py, 58-crm.js).
+	("CRMZL", "Tin Zalo tự động", None),
 	("TRUKHO", "Hoá đơn chưa trừ kho", None),
 	# --- Nhan su (HRM). Anh Viet chot 01/09/2026, lam trong app Vagabond
 	# chu chua cai phan he HR cua Frappe.
