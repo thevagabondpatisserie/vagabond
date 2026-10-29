@@ -4,7 +4,8 @@ from frappe.model.document import Document
 
 class VagabondKichBanZalo(Document):
 	def validate(self):
-		# Sửa mã mẫu trên Desk: xoá trạng thái duyệt và tham số của mẫu cũ.
-		from vagabond.zalo_kich_ban import doi_mau_tren_form
+		# Lưu trên Desk theo đúng luật màn app: đổi mã mẫu thì xoá kết quả kiểm
+		# cũ, bật thì ghi lúc bật.
+		from vagabond.zalo_kich_ban import truoc_luu_form
 
-		doi_mau_tren_form(self)
+		truoc_luu_form(self)
