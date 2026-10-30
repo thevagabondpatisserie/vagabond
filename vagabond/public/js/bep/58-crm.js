@@ -1302,6 +1302,18 @@ function crmZlO(id, nhan, giai, gt, kieu, them) {
     '<div style="font-size:12.5px;color:#667085;margin-top:3px;line-height:1.4">' + giai + '</div>';
 }
 
+/* Nhãn chip chương trình tối đa 16 ký tự nhìn thấy (AGENTS.md 2b.18), cắt ở
+   ranh giới từ và thêm dấu ba chấm; tên đầy đủ nằm trong title của chip
+   (Codex PR #517 vòng 12: "Quà chào mừng thành viên" tràn chip). */
+function crmZlChipGon(ten) {
+  ten = String(ten || '').replace(/\s+/g, ' ').trim();
+  if (ten.length <= 16) return ten;
+  var cat = ten.slice(0, 15);
+  var cach = cat.lastIndexOf(' ');
+  if (cach >= 8) cat = cat.slice(0, cach);
+  return cat.replace(/[\s,.;:-]+$/, '') + '\u2026';
+}
+
 function crmZlSheetCaiDat(k) {
   var ov = crmMoSheet('');
   var box = ov.querySelector('.shb');
@@ -1321,7 +1333,7 @@ function crmZlSheetCaiDat(k) {
           : ds.length > 8 ? '<div data-crmzlkmchon="1" style="display:flex;align-items:center;gap:10px;border:1px solid #d0d5dd;border-radius:12px;padding:10px 12px;min-height:48px;cursor:pointer;background:#fff">' +
               '<span style="font-size:20px">&#127873;</span><span style="flex:1;min-width:0"><b style="font-size:15px">' + h(chon ? (chon.ten || chon.name) : 'Chọn chương trình') + '</b>' +
               '<div style="font-size:12.5px;color:#667085;margin-top:2px">' + h(chon ? (chon.phu || '') : 'Chạm để tìm trong ' + ds.length + ' chương trình') + '</div></span><span style="color:#98a2b3;font-size:20px">&#8250;</span></div>'
-          : kmHangChip(ds.map(function (c) { return posChipNut('data-crmzlkm="' + h(c.name) + '"', h(c.ten || c.name), c.name === ctkm); }).join(''))) +
+          : kmHangChip(ds.map(function (c) { return posChipNut('data-crmzlkm="' + h(c.name) + '" title="' + h(c.ten || c.name) + '"', h(crmZlChipGon(c.ten || c.name)), c.name === ctkm); }).join(''))) +
         (ctkm && !chon ? '<div style="font-size:13px;color:#b42318;margin-top:4px">Chương trình đã chọn trước đây đã hết hạn hoặc đã tắt, chọn lại chương trình khác.</div>' : '') +
         (chon && chon.doi_tuong ? '<div data-crmzldt="1" style="font-size:13px;color:#b54708;margin-top:4px">' + h(chon.doi_tuong) + ', không phát mã cho họ.</div>' : '') +
         '<div style="font-size:12.5px;color:#667085;margin-top:3px;line-height:1.4">Mỗi khách nhận một mã riêng dùng một lần của chương trình này, dùng được ở quầy và trên web.</div>' +
