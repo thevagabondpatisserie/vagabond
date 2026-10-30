@@ -265,3 +265,7 @@ node vagabond/khung/kiem_thu/hanh_vi/dang_nhap_giu_dich_619.js
 node vagabond/khung/kiem_thu/hanh_vi/chuong_619.js
 # v621: man Tin Zalo tu dong (58-crm.js that): the kich ban, cong tac, cai dat, gui thu, tin da gui.
 node vagabond/khung/kiem_thu/hanh_vi/zalo_kb_621.js
+# v621: ma qua chao mung tai quay (13-khuyen-mai.js that): gan nguoi nhan, khong ap cho khach khac.
+node vagabond/khung/kiem_thu/hanh_vi/qua_quay_621.js
+# v621: trang thanh vien moi va qua chao mung tai quay (www/thanh-vien.html + thanh-vien.js that).
+node vagabond/khung/kiem_thu/hanh_vi/thanh_vien_621.js
