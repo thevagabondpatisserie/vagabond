@@ -129,6 +129,8 @@ MAN = (
 	("KPI", "KPI và hoa hồng", "kpi"),
 	("KPICD", "Bảng chỉ tiêu và bậc hoa hồng", "kpi-bang-chi-tieu"),
 	("KPITOI", "KPI của tôi", "kpi-cua-toi"),
+	# v622: phân hệ Tuyển dụng (tuyen_dung.py, 60-tuyen-dung.js).
+	("TD", "Tuyển dụng", None),
 	("VD", "Vận đơn", None),
 	("CPX", "Chi phí vận đơn", None),
 	("DSCOD", "Đối soát COD", None),

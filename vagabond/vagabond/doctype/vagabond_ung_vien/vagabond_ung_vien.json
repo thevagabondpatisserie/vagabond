@@ -1,0 +1,346 @@
+{
+ "doctype": "DocType",
+ "name": "Vagabond Ung Vien",
+ "module": "Vagabond",
+ "engine": "InnoDB",
+ "modified": "2026-10-31 15:00:00.000000",
+ "autoname": "UV-.YY.-.MM.-.####",
+ "track_changes": 0,
+ "title_field": "ho_ten",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "search_fields": "ho_ten,sdt,ten_vi_tri",
+ "fields": [
+  {
+   "fieldname": "ho_ten",
+   "fieldtype": "Data",
+   "label": "Họ tên",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "sdt",
+   "fieldtype": "Data",
+   "label": "Số điện thoại",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "vi_tri",
+   "fieldtype": "Link",
+   "label": "Vị trí",
+   "options": "Vagabond Vi Tri Tuyen",
+   "reqd": 1
+  },
+  {
+   "fieldname": "ten_vi_tri",
+   "fieldtype": "Data",
+   "label": "Tên vị trí",
+   "fetch_from": "vi_tri.tieu_de",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "trang_thai",
+   "fieldtype": "Select",
+   "label": "Trạng thái",
+   "options": "Mới nhận\nĐã liên hệ\nHẹn phỏng vấn\nLàm thử\nĐề nghị nhận việc\nĐã nhận việc\nDừng",
+   "default": "Mới nhận",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "ly_do_dung",
+   "fieldtype": "Data",
+   "label": "Lý do dừng",
+   "depends_on": "eval:doc.trang_thai=='Dừng'"
+  },
+  {
+   "fieldname": "lich_hen",
+   "fieldtype": "Datetime",
+   "label": "Lịch hẹn phỏng vấn hoặc làm thử"
+  },
+  {
+   "fieldname": "nguon",
+   "fieldtype": "Select",
+   "label": "Nguồn",
+   "options": "Web Vagabond\nQR tại cửa hàng\nTopCV\nTrang việc làm khác\nFacebook, Zalo\nNgười quen giới thiệu\nĐến trực tiếp",
+   "default": "Web Vagabond",
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "nguoi_gioi_thieu",
+   "fieldtype": "Data",
+   "label": "Người giới thiệu"
+  },
+  {
+   "fieldname": "sec_hs",
+   "fieldtype": "Section Break",
+   "label": "Hồ sơ ứng viên gửi"
+  },
+  {
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "label": "Email"
+  },
+  {
+   "fieldname": "khu_vuc",
+   "fieldtype": "Data",
+   "label": "Đang ở khu vực"
+  },
+  {
+   "fieldname": "ca_ranh",
+   "fieldtype": "Data",
+   "label": "Ca có thể làm"
+  },
+  {
+   "fieldname": "kinh_nghiem",
+   "fieldtype": "Small Text",
+   "label": "Kinh nghiệm"
+  },
+  {
+   "fieldname": "gioi_thieu",
+   "fieldtype": "Small Text",
+   "label": "Lời nhắn của ứng viên"
+  },
+  {
+   "fieldname": "lien_ket_cv",
+   "fieldtype": "Small Text",
+   "label": "Đường dẫn CV",
+   "description": "Đường dẫn https tới CV (Drive, TopCV...), tối đa 500 ký tự."
+  },
+  {
+   "fieldname": "sec_cham",
+   "fieldtype": "Section Break",
+   "label": "Phỏng vấn, làm thử"
+  },
+  {
+   "fieldname": "danh_gia",
+   "fieldtype": "Table",
+   "label": "Phiếu chấm",
+   "options": "Vagabond Ung Vien Danh Gia"
+  },
+  {
+   "fieldname": "gio_lam_thu",
+   "fieldtype": "Float",
+   "label": "Số giờ làm thử"
+  },
+  {
+   "fieldname": "tien_cong_thu",
+   "fieldtype": "Currency",
+   "label": "Công làm thử (đ)",
+   "options": "VND"
+  },
+  {
+   "fieldname": "da_tra_cong",
+   "fieldtype": "Check",
+   "label": "Đã trả công làm thử"
+  },
+  {
+   "fieldname": "tra_cong_boi",
+   "fieldtype": "Data",
+   "label": "Người trả công",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tra_cong_luc",
+   "fieldtype": "Datetime",
+   "label": "Lúc trả công",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_vet",
+   "fieldtype": "Section Break",
+   "label": "Dấu vết"
+  },
+  {
+   "fieldname": "lien_he_luc",
+   "fieldtype": "Datetime",
+   "label": "Liên hệ lần đầu lúc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "dung_tu",
+   "fieldtype": "Data",
+   "label": "Dừng khi đang ở",
+   "read_only": 1,
+   "depends_on": "eval:doc.trang_thai=='Dừng'",
+   "description": "Trạng thái ngay trước khi dừng, để thanh tiến độ biết dừng ở bước nào."
+  },
+  {
+   "fieldname": "xu_ly_boi",
+   "fieldtype": "Data",
+   "label": "Người xử lý gần nhất",
+   "read_only": 1
+  },
+  {
+   "fieldname": "xu_ly_luc",
+   "fieldtype": "Datetime",
+   "label": "Lúc xử lý gần nhất",
+   "read_only": 1
+  },
+  {
+   "fieldname": "nhat_ky",
+   "fieldtype": "Small Text",
+   "label": "Nhật ký xử lý",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_dl",
+   "fieldtype": "Section Break",
+   "label": "Đồng ý lưu hồ sơ"
+  },
+  {
+   "fieldname": "dong_y",
+   "fieldtype": "Check",
+   "label": "Ứng viên đồng ý xử lý và lưu hồ sơ",
+   "read_only": 1
+  },
+  {
+   "fieldname": "dong_y_luc",
+   "fieldtype": "Datetime",
+   "label": "Đồng ý lúc",
+   "read_only": 1
+  },
+  {
+   "fieldname": "han_luu",
+   "fieldtype": "Date",
+   "label": "Hạn lưu hồ sơ",
+   "read_only": 1,
+   "description": "Qua ngày này máy xoá thông tin cá nhân nếu ứng viên không được nhận."
+  },
+  {
+   "fieldname": "da_an_danh",
+   "fieldtype": "Check",
+   "label": "Đã xoá thông tin theo hạn lưu",
+   "read_only": 1
+  },
+  {
+   "fieldname": "bam_lan_gui",
+   "fieldtype": "Data",
+   "label": "Mã lần gửi",
+   "hidden": 1,
+   "read_only": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "bam_noi_dung",
+   "fieldtype": "Data",
+   "label": "Dấu nội dung",
+   "hidden": 1,
+   "read_only": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Giám đốc",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "AP Giám đốc",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "VGB - Quản lý cửa hàng",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Manufacturing Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Stock Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Purchase Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Thu mua",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Accounts Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "report": 1,
+   "export": 1
+  }
+ ],
+ "field_order": [
+  "ho_ten",
+  "sdt",
+  "vi_tri",
+  "ten_vi_tri",
+  "trang_thai",
+  "ly_do_dung",
+  "lich_hen",
+  "nguon",
+  "nguoi_gioi_thieu",
+  "sec_hs",
+  "email",
+  "khu_vuc",
+  "ca_ranh",
+  "kinh_nghiem",
+  "gioi_thieu",
+  "lien_ket_cv",
+  "sec_cham",
+  "danh_gia",
+  "gio_lam_thu",
+  "tien_cong_thu",
+  "da_tra_cong",
+  "tra_cong_boi",
+  "tra_cong_luc",
+  "sec_vet",
+  "lien_he_luc",
+  "dung_tu",
+  "xu_ly_boi",
+  "xu_ly_luc",
+  "nhat_ky",
+  "sec_dl",
+  "dong_y",
+  "dong_y_luc",
+  "han_luu",
+  "da_an_danh",
+  "bam_lan_gui",
+  "bam_noi_dung"
+ ]
+}

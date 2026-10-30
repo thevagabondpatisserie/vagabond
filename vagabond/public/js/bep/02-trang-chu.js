@@ -315,13 +315,19 @@ async function scrHome() {
      O "KPI cua toi" nam NGOAI dieu kien do: ai cung phai xem duoc diem cua
      chinh minh. Cuoi ky moi cho biet thi KPI chi la bang cham diem, khong
      phai cong cu dieu hanh. */
-  if (coQuyenHRM()) {
+  /* v622 (anh Việt 30/10/2026): ô Tuyển dụng cho mọi quản lý bộ phận; số trên
+     ô là hồ sơ mới chưa ai liên hệ, máy chủ đếm (tuyen_dung.dem_cho_goi). */
+  var tdn = 0;
+  if (coQuyenTuyenDung()) { try { tdn = (await api('vagabond.tuyen_dung.dem_cho_goi', {})).so || 0; } catch (e) { } }
+  if (coQuyenHRM() || coQuyenTuyenDung()) {
     html += '<div class="sec">Nhân sự</div><div class="card">' +
-      card('📊', 'Duyệt KPI và hoa hồng',
+      (coQuyenTuyenDung() ? card('🧑‍💼', 'Tuyển dụng',
+        'Hồ sơ ứng viên từ web và mã QR, hẹn phỏng vấn, chấm phiếu, bật tắt vị trí trên web', tdn, 'TD') : '') +
+      (coQuyenHRM() ? card('📊', 'Duyệt KPI và hoa hồng',
         'Chấm điểm theo kỳ tháng, tính hoa hồng bậc thang, duyệt ba cấp rồi đẩy sang đề nghị chi',
         0, 'KPI') +
       card('🎯', 'Bảng chỉ tiêu và bậc hoa hồng',
-        'Trọng số từng vai, sàn, mốc, trần và ô thử tính trước khi chốt', 0, 'KPICD') + '</div>';
+        'Trọng số từng vai, sàn, mốc, trần và ô thử tính trước khi chốt', 0, 'KPICD') : '') + '</div>';
   }
   html += '<div class="sec">KPI của tôi</div><div class="card">' +
     card('🙋', 'Điểm KPI của tôi',
@@ -642,7 +648,7 @@ var VGB_NHOM = [
   /* Nhan su (anh Viet chot 01/09/2026). Nhom nay CHI hien voi quan ly, ke
      toan va giam doc - dieu kien coQuyenHRM() dung o scrHome. O "KPI cua
      toi" thi nguoc lai, ai cung vao duoc, vi do la diem cua chinh ho. */
-  { k: 'NS', ten: 'Nhân sự', icon: '👥', keys: ['KPI', 'KPICD', 'KPITOI'] },
+  { k: 'NS', ten: 'Nhân sự', icon: '👥', keys: ['TD', 'KPI', 'KPICD', 'KPITOI'] },
   /* Danh mục nằm ngay trên Cài đặt (anh Việt chốt 18/08/2026). Khoá của
      các ô mang tiền tố DM: nên vgbGo bắt bằng MỘT nhánh tiền tố, không phải
      16 nhánh chép tay. */
@@ -1926,6 +1932,7 @@ var VGB_DUONG = {
   'tra-cuu-thue-mua-vao': 'DM:DMTHUEM',
   'trang-dat-banh-web': 'CDWEB',
   'tro-ly': 'CDTL',
+  'tuyen-dung': 'TD',
   'van-don': 'VD',
   'viec-can-lam': 'VCL',
   'viec-hom-nay': 'BCSANG',
@@ -2141,6 +2148,7 @@ function vgbGo(k) {
      gõ nhầm một mã, và đó đúng là lỗi dead link ngày 16/08. */
   if (k.indexOf('DM:') === 0) return kgMo(k.slice(3));
   if (k === 'DNC') return go(scrTTNB);
+  if (k === 'TD') return go(scrTuyenDung);
   if (k === 'KPI') return go(scrKPI);
   if (k === 'KPICD') return go(scrKPICau);
   if (k === 'KPITOI') return go(scrKPIToi);

@@ -53,10 +53,12 @@ LOAI = {
 # v597: "he_thong" cho còi báo động thư hỏng (thay webhook Lark nhóm quản trị).
 # v602: "hoa_don" tách khỏi "ban_hang" để chuông kẹt ghi sổ, kẹt hoá đơn điện tử
 # vào đúng nhóm kế toán chọn, không đổ hết vào nhóm Sales (anh Việt 18/10/2026).
-CHU_DE = ("kho", "san_xuat", "cong_no", "ban_hang", "hoa_don", "don_web", "dat_ban", "phat_hanh", "he_thong")
+# v622: "tuyen_dung" cho tin hồ sơ ứng tuyển (tuyen_dung.py).
+CHU_DE = ("kho", "san_xuat", "cong_no", "ban_hang", "hoa_don", "don_web", "dat_ban", "tuyen_dung", "phat_hanh", "he_thong")
 # Tên có dấu của chủ đề, khớp hộp chọn ở Cài đặt lõi (cai_dat_loi_chung.js).
 TEN_CHU_DE = {"kho": "Kho", "san_xuat": "Sản xuất", "cong_no": "Công nợ", "ban_hang": "Bán hàng",
-	"hoa_don": "Hoá đơn", "don_web": "Đơn web", "dat_ban": "Đặt bàn", "phat_hanh": "Phát hành app", "he_thong": "Hệ thống"}
+	"hoa_don": "Hoá đơn", "don_web": "Đơn web", "dat_ban": "Đặt bàn", "tuyen_dung": "Tuyển dụng", "phat_hanh": "Phát hành app",
+	"he_thong": "Hệ thống"}
 
 # v604: anh Việt 18/10/2026 bỏ hẳn thư cảnh báo nội bộ, mọi tin nhắc việc và báo sự
 # cố cho nhân viên đi qua nhóm Zalo. Mỗi nhóm trong Cài đặt có ô "Tin nhận": anh
@@ -67,7 +69,8 @@ TEN_CHU_DE = {"kho": "Kho", "san_xuat": "Sản xuất", "cong_no": "Công nợ",
 # Mã -> (bộ phận, tên, giải thích một dòng, loại, chủ đề). Loại và chủ đề giữ cho
 # nhóm chưa chọn Tin nhận (lọc kiểu cũ) và cho giờ im (chỉ Cảnh báo vượt giờ im).
 # v609: thêm "Thu mua" và "Kho" (anh Việt duyệt mẫu tin 22/10/2026).
-BO_PHAN = ("Ban giám đốc", "Hoá đơn, kế toán", "Bán hàng, cửa hàng", "Bếp", "Thu mua", "Kho", "Hệ thống")
+# v622: thêm "Nhân sự" (tin tuyển dụng, anh Việt 30/10/2026).
+BO_PHAN = ("Ban giám đốc", "Hoá đơn, kế toán", "Bán hàng, cửa hàng", "Bếp", "Thu mua", "Kho", "Nhân sự", "Hệ thống")
 TIN = {
 	"bgd_bao_cao_ngay": ("Ban giám đốc", "Báo cáo cuối ngày (23:30)",
 		"23:30 mỗi tối: doanh thu, giảm giá, sửa huỷ, điểm cần để ý. Nhóm nhận đừng đặt giờ im lúc 23:30.", "ban_tin", "ban_hang"),
@@ -206,6 +209,12 @@ TIN = {
 		"08:00 mỗi sáng: món đang âm kho, tức còn phiếu nhập hay sản xuất chưa ghi.", "viec", "kho"),
 	"kho_hang_nam_im": ("Kho", "Hàng nằm im 30 ngày (Thứ Hai 08:05)",
 		"Thứ Hai hằng tuần: nguyên liệu, bao bì còn tồn mà 30 ngày không xuất lần nào.", "thong_bao", "kho"),
+	# v622 (anh Việt 30/10/2026): phân hệ Tuyển dụng (tuyen_dung.py). Người tốt nộp nhiều
+	# nơi cùng lúc, nên tin quan trọng nhất là hồ sơ quá 24 giờ chưa ai gọi.
+	"ns_ung_vien_moi": ("Nhân sự", "Hồ sơ ứng tuyển mới",
+		"Có người vừa nộp hồ sơ (web, mã QR hoặc quản lý thêm tay): tên, số điện thoại, vị trí, ca rảnh.", "viec", "tuyen_dung"),
+	"ns_ung_vien_qua_han": ("Nhân sự", "Hồ sơ quá 24 giờ chưa ai gọi",
+		"Mỗi giờ: hồ sơ còn Mới nhận đã nộp quá 24 giờ, mỗi hồ sơ nhắc một lần.", "viec", "tuyen_dung"),
 	"ht_email_loi": ("Hệ thống", "Email của tiệm không gửi được",
 		"Trong một giờ có từ 5 thư lỗi; báo lại sau 3 giờ nếu còn lỗi.", "canh_bao", "he_thong"),
 	"ht_phat_hanh": ("Hệ thống", "Bản tin cập nhật app sau mỗi deploy",
@@ -220,6 +229,8 @@ DIEU_KIEN = {
 	# v597: đặt bàn, đăng ký tiệc đã có người xác nhận hoặc huỷ thì không nhắc nữa.
 	"dat_ban_cho": "vagabond.dat_ban.con_cho_xac_nhan",
 	"tiec_cho": "vagabond.tiec_web.con_cho_xac_nhan",
+	# v622: hồ sơ đã có người liên hệ thì không nhắc nữa.
+	"ung_vien_moi": "vagabond.tuyen_dung.con_moi_nhan",
 }
 BO_QUA = "Bỏ qua (đã xử lý)"
 CHO_GUI = "Chờ gửi"

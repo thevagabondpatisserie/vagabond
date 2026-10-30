@@ -74,6 +74,11 @@ echo "      xong, khong loi cu phap."
 echo "[2/10] Doc lai JavaScript cua app..."
 node --check vagabond/public/js/app_bep.js
 echo "      xong, $(grep -c '' vagabond/public/js/app_bep.js) dong doc duoc."
+# v622: trang khach (web_order) cung phai doc duoc. Ban dau ung-tuyen.js khai
+# trung mot bien const trong cung ham: trinh duyet bo ca tep, trang trang tron,
+# ma cong nay truoc day chi doc app_bep.js nen van xanh.
+for f in vagabond/public/web_order/*.js; do node --check "$f"; done
+echo "      va $(ls vagabond/public/web_order/*.js | wc -l | tr -d ' ') tep trang khach doc duoc."
 
 echo "[3/10] Bo kiem thu tang khung..."
 python3 vagabond/khung/kiem_thu/chay.py -im
@@ -250,6 +255,8 @@ node vagabond/khung/kiem_thu/hanh_vi/gia_von_tam_482.js
 node vagabond/khung/kiem_thu/hanh_vi/doi_soat_ck_610.js
 # v611: man Thong tin dat ban (57-dat-ban.js that): loc, tim, Xac nhan, Huy, Khach da den.
 node vagabond/khung/kiem_thu/hanh_vi/dat_ban_611.js
+node vagabond/khung/kiem_thu/hanh_vi/tuyen_dung_622.js
+node vagabond/khung/kiem_thu/hanh_vi/ung_tuyen_622.js
 # v614: phan he Khach hang (58-crm.js that): hoi dong y o quay, danh sach goi, chien dich, hieu qua.
 node vagabond/khung/kiem_thu/hanh_vi/crm_614.js
 node vagabond/khung/kiem_thu/hanh_vi/goi_xe_greensm_612.js

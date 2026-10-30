@@ -186,8 +186,8 @@ def _danh_muc():
 	# v611: thêm 11 tin đặt bàn, hoá đơn sai, tiền chưa gắn, sản xuất, điều chuyển (25/10/2026).
 	# v613: thêm 12 tin tồn kho, sản xuất, duyệt chi (27/10/2026).
 	# v619: thêm tin dữ liệu hao hụt cho kế toán và cho từng bếp (28/10/2026).
-	la("đủ 69 tin (23 tới v606, 21 tin kho và thu mua v609, 11 tin v611, 12 tin v613, 2 tin v619)", len(kz.TIN), 69)
-	la("bảy bộ phận đúng thứ tự", kz.BO_PHAN, ("Ban giám đốc", "Hoá đơn, kế toán", "Bán hàng, cửa hàng", "Bếp", "Thu mua", "Kho", "Hệ thống"))
+	la("đủ 71 tin (23 tới v606, 21 tin kho và thu mua v609, 11 tin v611, 12 tin v613, 2 tin v619, 2 tin v622)", len(kz.TIN), 71)
+	la("tám bộ phận đúng thứ tự (v622 thêm Nhân sự)", kz.BO_PHAN, ("Ban giám đốc", "Hoá đơn, kế toán", "Bán hàng, cửa hàng", "Bếp", "Thu mua", "Kho", "Nhân sự", "Hệ thống"))
 	# Luật tiền (anh Việt 22/10/2026): tin Kho, Bếp không nói tiền; chỉ Thu mua, Kế toán.
 	for ma, v in kz.TIN.items():
 		if v[0] in ("Kho", "Bếp"):

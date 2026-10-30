@@ -38,6 +38,7 @@ MAN_LAP_PHIEU = [
 	"hoanMoForm", "hoanMoFormDu", "hoanMoFormHuy", "dhMo", "kmSheetCtkm",
 	"scrSoDuNap",  # v607 Codex #493 vòng 3: phiếu nạp số dư trả trước, tên không theo mẫu Tao/New
 	"scrCrmCd",  # v614 Codex #505: lập chiến dịch CRM (kịch bản, khách, món, Sales), tên không theo mẫu Tao/New
+	"scrTdViTri", "scrTdThemHs",  # v622: thêm, sửa vị trí tuyển dụng; thêm hồ sơ ứng viên tay
 ]
 # Man lap phieu nam o phan SAU 48, duoc duyet tung ten (v600 Codex #486).
 # So phan 00-47 da het cho, ma man Phieu tinh gia thu thuoc 53-gia-von-tam.js.
@@ -52,7 +53,10 @@ SAU_48_DUOC_BOC = {"gvtManPhieu": "53-gia-von-tam.js",
 	"scrSoDuNap": "55-so-du-tra-truoc.js",
 	# v614 Codex #505: màn Chiến dịch ở 58, cùng điều kiện. Không móc sdGhep
 	# (luật phần sau 48): ghép bản nháp bằng dat() vào crmCdKhoiPhuc.
-	"scrCrmCd": "58-crm.js"}
+	"scrCrmCd": "58-crm.js",
+	# v622: hai màn lập phiếu của Tuyển dụng ở 60, cùng điều kiện như scrCrmCd:
+	# ghép bản nháp bằng dat() vào tdVtKhoiPhuc, tdHsKhoiPhuc, không móc sdGhep.
+	"scrTdViTri": "60-tuyen-dung.js", "scrTdThemHs": "60-tuyen-dung.js"}
 # Man ten giong man lap phieu nhung CO Y khong boc, kem ly do.
 MIEN = {
 	"scrKkNew": "kiểm kê đã tự lưu lên máy chủ mỗi 3 giây",
@@ -191,7 +195,7 @@ def _thu_tu():
 	# v610: 56-doi-soat-ck.js (màn Đối soát chuyển khoản, chỉ đọc và mở bảng Dò tiền) không lập phiếu nháp, qua đủ ba điều kiện trên.
 	# v611: 57-dat-ban.js (màn Thông tin đặt bàn, đổi trạng thái phiếu có sẵn, không lập phiếu nháp) qua đủ ba điều kiện trên.
 	# v619: 59-chuong.js (màn Chuông thông báo, chỉ đọc tin đã gửi và ghi mốc đã đọc, không lập phiếu nháp) qua đủ ba điều kiện trên.
-	la("chỉ phần được duyệt đứng giữa 48 và 99", sau[:-1], ["49-tru-kho-bu.js", "50-so-tay.js", "51-cai-dat-loi.js", "52-doi-soat-vendor.js", "53-gia-von-tam.js", "54-ly-do-tang.js", "55-so-du-tra-truoc.js", "56-doi-soat-ck.js", "57-dat-ban.js", "58-crm.js", "59-chuong.js"])
+	la("chỉ phần được duyệt đứng giữa 48 và 99", sau[:-1], ["49-tru-kho-bu.js", "50-so-tay.js", "51-cai-dat-loi.js", "52-doi-soat-vendor.js", "53-gia-von-tam.js", "54-ly-do-tang.js", "55-so-du-tra-truoc.js", "56-doi-soat-ck.js", "57-dat-ban.js", "58-crm.js", "59-chuong.js", "60-tuyen-dung.js"])
 	for t in _boc():
 		tep = [n for n, ma in CAC_PHAN.items() if re.search(r"^(?:async )?function %s\(" % t, ma, re.M)]
 		if t in SAU_48_DUOC_BOC:

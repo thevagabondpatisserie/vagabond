@@ -751,7 +751,8 @@ async function chayHet() {
     /* v600 Codex #486: them gia_thu (phieu tinh gia thu R&D). */
     /* v607 Codex #493 vong 3: them phieu nap tra truoc (nap_tra_truoc). */
     /* v614 Codex #505: them chien_dich (lap chien dich CRM, 58-crm.js). */
-    bang('du 44 loai phieu', Object.keys(k.SD_MAN).length, 44);
+    /* v622: them vi_tri_tuyen va ho_so_ung_vien (Tuyen dung, 60-tuyen-dung.js). */
+    bang('du 46 loai phieu', Object.keys(k.SD_MAN).length, 46);
   });
 
   console.log('ban_soan_do_533: dat ' + ket.dat + ', hong ' + ket.hong);

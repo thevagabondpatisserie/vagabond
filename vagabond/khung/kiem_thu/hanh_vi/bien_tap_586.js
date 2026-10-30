@@ -60,6 +60,12 @@ function duLieu() {
       { id: 'erp-SN10', ma_ctkm: 'SN10', loai: 'uu_dai', tieu_de: 'Giảm 10% sinh nhật', ma_uu_dai: 'SN10', don_toi_thieu: 500000, bat_dau: '2026-09-25', ket_thuc: '2026-10-20', gio_bat_dau: '07:00', gio_ket_thuc: '21:00', dung_web: 1, khach_thay: 1, trang_thai_erp: 'Khách đang thấy' },
       { id: 'erp-TANG', ma_ctkm: 'TANG', loai: 'uu_dai', tieu_de: 'Tặng ly trà', dung_web: 0, khach_thay: 0, trang_thai_erp: 'Đang tắt trên ERP, khách không thấy' },
     ],
+    /* v622: vị trí tuyển dụng lấy từ app (tuyen_dung.ds_web_bien_tap). Hai mục
+       td1, td2 gõ tay ở trên vẫn nằm trong dữ liệu cũ nhưng thẻ không còn hiện. */
+    tuyen_dung_erp: [
+      { id: 'erp-td-VTT-0001', ma_vi_tri: 'VTT-0001', loai: 'tuyen_dung', tieu_de: 'Thu ngân ca tối', noi_lam: 'The Vagabond District 1', hinh_thuc: 'Bán thời gian', ket_thuc: '', khach_thay: 1, trang_thai_erp: 'Khách đang thấy' },
+      { id: 'erp-td-VTT-0002', ma_vi_tri: 'VTT-0002', loai: 'tuyen_dung', tieu_de: 'Phụ bếp Pastry', noi_lam: '', hinh_thuc: 'Toàn thời gian', ket_thuc: '2026-10-31', khach_thay: 0, trang_thai_erp: 'Đang tắt trên app, khách không thấy' },
+    ],
   };
   khoi.forEach(function (k) { B.dau[k.id] = dau(k); });
   return B;
@@ -143,57 +149,43 @@ function appMoi(tuy) {
     bang('co duong sang ERP', app.tim('[href="/khuyen-mai"]').length, 1);
   });
 
-  await ca('Them vi tri tuyen dung: chon noi lam, hinh thuc nhieu, email dien san, luu goi luu_muc dung', async function () {
+  /* v622 (anh Việt 30/10/2026): tuyển dụng lấy từ app như ưu đãi. Ba ca cũ của
+     form tuyển dụng (thêm vị trí, giữ hình thức gõ tay, bật tắt) bỏ vì form
+     không còn mở được; ca cơ chế lưu (công tắc, xoá, rời form, lỗi máy chủ)
+     chuyển sang mục tiệc, loại duy nhất còn gõ tay, cơ chế lưu y hệt. */
+  await ca('The Tuyen dung chi doc tu app ERP: dem, trang thai, khong co nut them sua xoa, co duong sang app', async function () {
     var app = appMoi(); await nghi();
+    dung('dem vi tri tu app', String(app.mot('[data-the="tuyen_dung"]').textContent).indexOf('Tuyển dụng2') === 0);
     await app.the('tuyen_dung');
-    await app.bam(app.mot('[data-them="tuyen_dung"]'));
-    bang('email dien san tu the Lien he', app.oTen('email').value, 'hello@thevagabondpatisserie.com');
-    await app.go(app.oTen('tieu_de'), 'Barista');
-    await app.bam(app.tim('[data-chip="Cửa hàng Sài Gòn"]')[0]);
-    await app.bam(app.mot('[data-chip="Bán thời gian"]'));
-    await app.go(app.oTen('yeu_cau'), 'Thân thiện\nĐược ăn bánh');
-    await app.luu();
-    bang('goi mot lan', app.dem('luu_muc'), 1);
-    var a = app.cuoi('luu_muc');
-    bang('muc moi', [a.dau_cu, a.muc.loai, a.muc.tieu_de, a.muc.noi_lam, a.muc.hinh_thuc, a.muc.hien], ['', 'tuyen_dung', 'Barista', 'Cửa hàng Sài Gòn', 'Toàn thời gian / Bán thời gian', true]);
-    dung('ve lai danh sach', app.tim('.bt-form').length === 0 && app.tim('[data-muc]').length === 3);
-    dung('bao da luu', app.bao().indexOf('Đã lưu vị trí "Barista"') === 0);
-  });
-
-  await ca('Hinh thuc cu go tay khong mat khi bam chip', async function () {
-    var app = appMoi(); await nghi();
-    await app.the('tuyen_dung');
-    var d0 = app.B().dau.td1;
-    await app.bam(app.mot('[data-sua="td1"]'));
-    bang('chu cu nam o o ghi them', app.oTen('hinh_thuc_khac').value, 'Toàn thời gian, ca sáng sớm');
-    await app.bam(app.mot('[data-chip="Bán thời gian"]'));
-    await app.luu();
-    var a = app.cuoi('luu_muc');
-    bang('giu chu cu', a.muc.hinh_thuc, 'Bán thời gian / Toàn thời gian, ca sáng sớm');
-    bang('dau cu la dau luc mo form', a.dau_cu, d0);
+    bang('khong hien vi tri go tay', app.tim('[data-muc]').length, 0);
+    var v1 = String(app.mot('[data-muc-erp="VTT-0001"]').textContent);
+    dung('khach dang thay', v1.indexOf('Khách đang thấy') >= 0 && v1.indexOf('The Vagabond District 1') >= 0);
+    dung('dang tat tren app', String(app.mot('[data-muc-erp="VTT-0002"]').textContent).indexOf('Đang tắt trên app') >= 0);
+    bang('khong co nut them, sua, xoa, cong tac', [app.tim('[data-them="tuyen_dung"]').length, app.tim('[data-sua]').length, app.tim('[data-xoa]').length, app.tim('[data-cong-tac]').length], [0, 0, 0, 0]);
+    bang('co duong sang app', app.tim('[href="/tuyen-dung"]').length, 1);
   });
 
   await ca('Cong tac Hien tren web luu ngay voi dau cu cua muc', async function () {
     var app = appMoi(); await nghi();
-    await app.the('tuyen_dung');
-    var d0 = app.B().dau.td1;
-    var i = app.mot('[data-cong-tac="td1"]').querySelector('input');
+    await app.the('tiec');
+    var d0 = app.B().dau['tiec-1'];
+    var i = app.mot('[data-cong-tac="tiec-1"]').querySelector('input');
     i.checked = false; i.onchange(); await nghi();
     var a = app.cuoi('luu_muc');
-    bang('tat hien', [a.muc.id, a.muc.hien, a.dau_cu], ['td1', false, d0]);
-    dung('ve lai thanh dang an', String(app.mot('[data-muc="td1"]').textContent).indexOf('Đang ẩn') >= 0);
+    bang('tat hien', [a.muc.id, a.muc.hien, a.dau_cu], ['tiec-1', false, d0]);
+    dung('ve lai thanh dang an', String(app.mot('[data-muc="tiec-1"]').textContent).indexOf('Đang ẩn') >= 0);
   });
 
   await ca('Xoa: hoi lai, bam Thoi khong xoa, bam Xoa moi goi may chu', async function () {
     var app = appMoi(); await nghi();
-    await app.the('tuyen_dung');
-    await app.bam(app.mot('[data-xoa="td1"]'));
+    await app.the('tiec');
+    await app.bam(app.mot('[data-xoa="tiec-1"]'));
     await app.bam(app.mot('[data-hop-thoi]'));
     bang('khong xoa', app.dem('xoa_muc_web'), 0);
-    await app.bam(app.mot('[data-xoa="td1"]'));
+    await app.bam(app.mot('[data-xoa="tiec-1"]'));
     await app.bam(app.mot('[data-hop-co]'));
-    bang('xoa dung muc', [app.dem('xoa_muc_web'), app.cuoi('xoa_muc_web').id_muc], [1, 'td1']);
-    bang('con mot vi tri', app.tim('[data-muc]').length, 1);
+    bang('xoa dung muc', [app.dem('xoa_muc_web'), app.cuoi('xoa_muc_web').id_muc], [1, 'tiec-1']);
+    bang('khong con tiec nao', app.tim('[data-muc]').length, 0);
   });
 
   await ca('Thieu mot o gio thi chan ngay o may khach, khong goi may chu', async function () {
@@ -210,16 +202,16 @@ function appMoi(tuy) {
 
   await ca('Dang sua chua luu ma doi the: hoi lai, Thoi thi o lai form', async function () {
     var app = appMoi(); await nghi();
-    await app.the('tuyen_dung');
-    await app.bam(app.mot('[data-sua="td1"]'));
-    await app.go(app.oTen('tieu_de'), 'Đổi tên');
     await app.the('tiec');
+    await app.bam(app.mot('[data-sua="tiec-1"]'));
+    await app.go(app.oTen('tieu_de'), 'Đổi tên');
+    await app.the('cua_hang');
     dung('co hop hoi', app.tim('[data-hop-thoi]').length === 1);
     await app.bam(app.mot('[data-hop-thoi]'));
     dung('van o form', app.tim('.bt-form').length === 1 && app.oTen('tieu_de').value === 'Đổi tên');
-    await app.the('tiec');
+    await app.the('cua_hang');
     await app.bam(app.mot('[data-hop-co]'));
-    dung('sang the Tiec', app.tim('[data-muc="tiec-1"]').length === 1);
+    dung('sang the Cua hang', app.tim('[data-sua="cua-hang-sai-gon"]').length === 1);
   });
 
   await ca('Tiec: dong tom tat co ngay, gio, gia, so ve da dang ky', async function () {
@@ -231,8 +223,8 @@ function appMoi(tuy) {
 
   await ca('Loi may chu hien nguyen cau, form giu nguyen chu dang go', async function () {
     var app = appMoi({ loi: { luu_muc: 'Có người vừa sửa hoặc xoá mục này. Tải lại để xem bản mới rồi sửa tiếp.' } }); await nghi();
-    await app.the('tuyen_dung');
-    await app.bam(app.mot('[data-sua="td1"]'));
+    await app.the('tiec');
+    await app.bam(app.mot('[data-sua="tiec-1"]'));
     await app.go(app.oTen('tieu_de'), 'Tên mới');
     await app.luu();
     dung('cau bao', app.bao().indexOf('Có người vừa sửa') === 0);
