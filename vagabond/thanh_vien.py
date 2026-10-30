@@ -687,6 +687,47 @@ def ma_vi_trong_ky(km, khach, hom_nay):
 	return [v for v in ds if da_nhan_trong_ky([v], moc)]
 
 
+LY_VI = {
+	"chua_co_sinh_nhat": "khách chưa khai ngày sinh",
+	"chua_toi_thang_sinh_nhat": "chưa tới tháng sinh nhật của khách",
+}
+
+
+def xet_vi(km, khach, sinh_nhat, sdt, hom_nay, la_nv=None):
+	"""Khách có đủ điều kiện nhận mã Ví quà của chương trình hôm nay không,
+	CHƯA xét đã nhận trong kỳ. Trả (hạn mã, lý do). Một nguồn cho trang thành
+	viên (cap_vi_tv) và tin Zalo cùng chương trình (Codex PR #520): dịp phát,
+	số nhân viên, đối tượng như quầy, hạn kẹp theo dịp và chương trình."""
+	from vagabond import khuyen_mai
+
+	ok, ly, cuoi = ky_vi(km, sinh_nhat, hom_nay)
+	if not ok:
+		return None, LY_VI.get(ly, ly)
+	if la_nv is None:
+		la_nv = khuyen_mai._la_sdt_nhan_vien(sdt)
+	# Số nhân viên không nhận quà khách (giống quà chào mừng), trừ chương
+	# trình cài cho đúng đối tượng Nhân viên.
+	if la_nv and (km.get("doi_tuong") or "Moi khach") != "Nhan vien":
+		return None, "số điện thoại của nhân viên"
+	ok_dt, ly_dt = khuyen_mai._hop_doi_tuong(km, khach, sdt)
+	if not ok_dt:
+		return None, ly_dt
+	han = han_ma_vi(km, hom_nay, cuoi)
+	if not han:
+		return None, "chương trình chưa tới ngày, đã hết hoặc đang tắt"
+	return han, ""
+
+
+def khoa_ho_so(khach):
+	"""Khoá dòng hồ sơ CRM của khách tới hết giao dịch. Trang thành viên và
+	tin Zalo cùng khoá đúng dòng này trước khi xét "đã nhận trong kỳ" nên hai
+	kênh chạy cùng lúc không ra hai mã (Codex PR #520)."""
+	from vagabond import crm
+
+	crm._ho_so(khach, tao=True)
+	frappe.db.sql("select name from `tabVagabond Ho So CRM` where name = %s for update", (khach,))
+
+
 def vi_du_dieu_kien(kh, noi_dia, hom_nay):
 	"""Các chương trình Ví quà khách đủ điều kiện mà chưa nhận trong kỳ.
 	Trả [(chương trình, hạn mã)]. Cùng phép kiểm đối tượng với quầy."""
@@ -698,17 +739,7 @@ def vi_du_dieu_kien(kh, noi_dia, hom_nay):
 	la_nv = khuyen_mai._la_sdt_nhan_vien(noi_dia)
 	ra = []
 	for km in ds:
-		ok, _, cuoi = ky_vi(km, kh.get("vgb_sinh_nhat"), hom_nay)
-		if not ok:
-			continue
-		# Số nhân viên không nhận quà khách (giống quà chào mừng), trừ chương
-		# trình cài cho đúng đối tượng Nhân viên.
-		if la_nv and (km.get("doi_tuong") or "Moi khach") != "Nhan vien":
-			continue
-		ok_dt, _ = khuyen_mai._hop_doi_tuong(km, kh["name"], noi_dia)
-		if not ok_dt:
-			continue
-		han = han_ma_vi(km, hom_nay, cuoi)
+		han, _ = xet_vi(km, kh["name"], kh.get("vgb_sinh_nhat"), noi_dia, hom_nay, la_nv)
 		if not han:
 			continue
 		if ma_vi_trong_ky(km, kh["name"], hom_nay):
@@ -727,7 +758,7 @@ def cap_vi_tv():
 	so = _so_phien()
 	if not so:
 		return {'ok':0, 'ly_do':'chua_dang_nhap'}
-	from vagabond import crm, khuyen_mai
+	from vagabond import khuyen_mai
 	from vagabond.zalo_kich_ban import cat, mo_ta_uu_dai, ngay_vn
 
 	noi_dia = _dn()._sdt_noi_dia(so)
@@ -735,8 +766,7 @@ def cap_vi_tv():
 	if ly or not kh:
 		return {'ok':1, 'moi':[]}
 	khach = kh["name"]
-	crm._ho_so(khach, tao=True)
-	frappe.db.sql("select name from `tabVagabond Ho So CRM` where name = %s for update", (khach,))
+	khoa_ho_so(khach)
 	tv = _ho_so_tv(khach)
 	moi = []
 	for km, han in vi_du_dieu_kien(kh, noi_dia, _hom_nay()):
