@@ -1,0 +1,196 @@
+{
+ "doctype": "DocType",
+ "name": "Vagabond Vi Tri Tuyen",
+ "module": "Vagabond",
+ "engine": "InnoDB",
+ "modified": "2026-10-30 20:00:00.000000",
+ "autoname": "VTT-.####",
+ "track_changes": 1,
+ "title_field": "tieu_de",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "search_fields": "tieu_de,bo_phan,noi_lam",
+ "fields": [
+  {
+   "fieldname": "tieu_de",
+   "fieldtype": "Data",
+   "label": "Tên vị trí",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "dang_tuyen",
+   "fieldtype": "Check",
+   "label": "Đang tuyển (hiện trên web)",
+   "default": "1",
+   "in_list_view": 1,
+   "description": "Bật là web hiện vị trí và nhận hồ sơ. Tắt là web ẩn ngay."
+  },
+  {
+   "fieldname": "bo_phan",
+   "fieldtype": "Link",
+   "label": "Bộ phận",
+   "options": "Department",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "noi_lam",
+   "fieldtype": "Data",
+   "label": "Nơi làm"
+  },
+  {
+   "fieldname": "hinh_thuc",
+   "fieldtype": "Select",
+   "label": "Hình thức",
+   "options": "Toàn thời gian\nBán thời gian\nThời vụ\nThực tập",
+   "default": "Toàn thời gian"
+  },
+  {
+   "fieldname": "so_can",
+   "fieldtype": "Int",
+   "label": "Số người cần",
+   "default": "1"
+  },
+  {
+   "fieldname": "ket_thuc",
+   "fieldtype": "Date",
+   "label": "Hạn nhận hồ sơ",
+   "description": "Qua ngày này web tự ẩn. Để trống là nhận tới khi đủ người."
+  },
+  {
+   "fieldname": "cot_1",
+   "fieldtype": "Section Break",
+   "label": "Nội dung trên web"
+  },
+  {
+   "fieldname": "noi_dung",
+   "fieldtype": "Small Text",
+   "label": "Mô tả công việc"
+  },
+  {
+   "fieldname": "yeu_cau",
+   "fieldtype": "Small Text",
+   "label": "Yêu cầu và quyền lợi",
+   "description": "Mỗi dòng một ý, web hiện thành danh sách."
+  },
+  {
+   "fieldname": "muc_luong",
+   "fieldtype": "Data",
+   "label": "Mức lương (hiện trên web)"
+  },
+  {
+   "fieldname": "cot_2",
+   "fieldtype": "Section Break",
+   "label": "Phỏng vấn và làm thử"
+  },
+  {
+   "fieldname": "tieu_chi",
+   "fieldtype": "Small Text",
+   "label": "Tiêu chí chấm",
+   "description": "Mỗi dòng một tiêu chí, tối đa 8. Để trống thì dùng bộ mặc định."
+  },
+  {
+   "fieldname": "gio_lam_thu",
+   "fieldtype": "Float",
+   "label": "Số giờ làm thử",
+   "default": "4"
+  },
+  {
+   "fieldname": "cong_lam_thu",
+   "fieldtype": "Currency",
+   "label": "Công buổi làm thử (đ)",
+   "options": "VND"
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Giám đốc",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "AP Giám đốc",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "VGB - Quản lý cửa hàng",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Manufacturing Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Stock Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Purchase Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Thu mua",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Accounts Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "report": 1,
+   "export": 1
+  }
+ ],
+ "field_order": [
+  "tieu_de",
+  "dang_tuyen",
+  "bo_phan",
+  "noi_lam",
+  "hinh_thuc",
+  "so_can",
+  "ket_thuc",
+  "cot_1",
+  "noi_dung",
+  "yeu_cau",
+  "muc_luong",
+  "cot_2",
+  "tieu_chi",
+  "gio_lam_thu",
+  "cong_lam_thu"
+ ]
+}
