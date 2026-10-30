@@ -176,11 +176,16 @@ class _Site:
 						ok = False
 					if op == "in" and v not in gt:
 						ok = False
+					if op == "is" and (gt == "set") != bool(v):
+						ok = False
 				elif (v or 0) != y and v != y:
 					ok = False
 			if ok:
 				ra.append(_fr._dict({f: r.get(f) for f in (fields or r.keys())}))
-		return ra
+		# Giữ đúng giới hạn trang như Frappe thật (Codex #518: lọc sau khi đã cắt trang).
+		dau = int(k.get("limit_start") or 0)
+		tran = k.get("limit_page_length")
+		return ra[dau:dau + tran] if tran else ra[dau:]
 
 	def vao(self, vai=("System Manager",)):
 		"""Các bản vá để tuyen_dung chạy trên site này."""
@@ -685,3 +690,92 @@ def _codex_khoa_doc_lai():
 	la("không bỏ nhận xét, lịch sử", [x[0] for x in site.ghi if x[0] in ("sql", "xoa_lich_su")], [])
 	dung("đọc lại có khoá dòng", "for_update=True" in _doc_tep("tuyen_dung.py").split("def xoa_het_han")[1].split("def ")[0])
 
+
+
+# ------------------------------------------------------------ thanh tiến độ (30/10/2026)
+
+@ca("v622 thanh tiến độ: mỗi trạng thái trừ Dừng thuộc đúng một trong bốn bước; Dừng nhớ bước đang ở")
+def _thanh_buoc():
+	la("bốn bước đúng thứ tự", [b["ten"] for b in td.buoc_app()], ["Liên hệ", "Phỏng vấn", "Làm thử", "Nhận việc"])
+	gom = [t for b in td.buoc_app() for t in b["tt"]]
+	la("mọi trạng thái trừ Dừng có đúng một bước", sorted(gom), sorted(t for t in td.TRANG_THAI if t != td.DUNG))
+	la("từng trạng thái", [td.buoc_cua({"trang_thai": t}) for t in (td.MOI, td.LIEN_HE, td.HEN_PV, td.LAM_THU, td.DE_NGHI, td.NHAN_VIEC)],
+		[{"so": 1, "xong": 0, "dung": 0}, {"so": 1, "xong": 0, "dung": 0}, {"so": 2, "xong": 0, "dung": 0},
+		{"so": 3, "xong": 0, "dung": 0}, {"so": 4, "xong": 0, "dung": 0}, {"so": 4, "xong": 1, "dung": 0}])
+	la("dừng khi đang làm thử là dừng ở bước 3", td.buoc_cua({"trang_thai": td.DUNG, "dung_tu": td.LAM_THU}), {"so": 3, "xong": 0, "dung": 1})
+	la("hồ sơ dừng cũ chưa có ô dung_tu thì ở bước 1", td.buoc_cua({"trang_thai": td.DUNG}), {"so": 1, "xong": 0, "dung": 1})
+	# Chuỗi thao tác thật của quản lý: hẹn phỏng vấn, làm thử, rồi ứng viên rút.
+	uv = dict(_hs(), name="UV-1", sdt="0909123456", trang_thai=td.MOI, da_an_danh=0, nhat_ky="")
+	site = _Site(vt=[_vt()], uv=[uv])
+	_chay(site, lambda: td.cap_nhat("UV-1", td.HEN_PV, lich_hen="2026-08-16T14:30"))
+	_chay(site, lambda: td.cap_nhat("UV-1", td.LAM_THU, lich_hen="2026-08-17T08:00"))
+	_chay(site, lambda: td.cap_nhat("UV-1", td.DUNG, ly_do="Ứng viên rút"))
+	r = site.lay(td.UV, "UV-1")
+	la("nhớ dừng khi đang Làm thử", r.get("dung_tu"), td.LAM_THU)
+	la("thanh tiến độ: dừng ở bước 3", td.buoc_cua(r), {"so": 3, "xong": 0, "dung": 1})
+	_chay(site, lambda: td.cap_nhat("UV-1", td.DUNG, ly_do="Đã đủ người"))
+	la("bấm Dừng lần nữa không đổi bước dừng", r.get("dung_tu"), td.LAM_THU)
+	_chay(site, lambda: td.cap_nhat("UV-1", td.LIEN_HE))
+	la("gọi lại người đã dừng thì bỏ dấu dừng, về bước 1", (r.get("dung_tu"), td.buoc_cua(r)), ("", {"so": 1, "xong": 0, "dung": 0}))
+	# Màn app đọc qua tong_quan: chạy thật, xem app nhận bốn bước và bước của hồ sơ.
+	r["creation"] = "2026-08-14 09:00:00"
+	_chay(site, lambda: td.cap_nhat("UV-1", td.DUNG, ly_do="Ứng viên rút"))
+	kq = _chay(site, td.tong_quan)
+	la("app nhận bốn bước từ máy chủ", [(b["so"], b["ten"]) for b in kq["buoc"]], [(1, "Liên hệ"), (2, "Phỏng vấn"), (3, "Làm thử"), (4, "Nhận việc")])
+	la("app nhận bước của hồ sơ (dừng khi đang Liên hệ)", [x["buoc"] for x in kq["rows"]], [{"so": 1, "xong": 0, "dung": 1}])
+	dung("ô dung_tu nằm trong danh sách ô màn app đọc", "dung_tu" in td.TRUONG_UV)
+
+
+# ------------------------------------------------------------ Codex #518 vòng 2 (rà b1929c448f)
+
+@ca("v622 Codex #518 vòng 2: hết hạn lưu xoá luôn bản chép tên, số trong sổ tin Zalo tuyển dụng")
+def _codex2_so_tin():
+	site = _Site(uv=[dict(_hs(), name="UV-1", trang_thai=td.DUNG, han_luu="2026-08-14", da_an_danh=0)])
+	_chay(site, td.xoa_het_han)
+	lenh = [x for x in site.ghi if x[0] == "sql" and "Tin Kenh" in x[1]]
+	la("một lệnh xoá bản chép trong sổ tin", len(lenh), 1)
+	la("đúng hồ sơ, đúng hai loại tin tuyển dụng", lenh[0][2][1:], ("UV-1", ("ns_ung_vien_moi", "ns_ung_vien_qua_han")))
+	dung("nội dung thay bằng câu không có tên, số", "UV-1" not in lenh[0][2][0] and "Nguyễn" not in lenh[0][2][0])
+	la("hai loại tin này đúng là tin tuyển dụng trong danh mục", [kz.TIN[m][4] for m in td.MA_TIN_TUYEN_DUNG], ["tuyen_dung", "tuyen_dung"])
+
+
+@ca("v622 Codex #518 vòng 2: phiếu chấm mở từ trước khi hồ sơ bị xoá theo hạn thì không lưu được")
+def _codex2_cham_da_xoa():
+	site = _Site(vt=[_vt()], uv=[dict(_hs(), name="UV-1", trang_thai=td.DUNG, da_an_danh=1, nhat_ky="", danh_gia=[])])
+	diem = json.dumps({t: 3 for t in td.TIEU_CHI_MAC_DINH}, ensure_ascii=False)
+	dung("báo rõ đã xoá theo hạn", "đã xoá thông tin theo hạn lưu" in _loi(lambda: _chay(site,
+		lambda: td.cham("UV-1", "Phỏng vấn", diem, "Nên nhận", "Nhà ở Thủ Đức"))))
+	la("không thêm dòng chấm nào", site.lay(td.UV, "UV-1").get("danh_gia") or [], [])
+
+
+@ca("v622 Codex #518 vòng 2: 200 hồ sơ đã gọi không nghe máy không che người chưa ai gọi; đọc đủ mọi trang")
+def _codex2_nhac_trang():
+	goi = []
+	zalo = types.SimpleNamespace(bao=lambda *a, **kw: goi.append(kw["nguon"]), bao_hoac_ghi_loi=lambda *a, **kw: None)
+
+	doc = []
+
+	def chay(ds):
+		del goi[:]
+		del doc[:]
+		site = _Site(uv=ds)
+		goc = site.get_all
+
+		def dem_trang(*a, **k):
+			ra = goc(*a, **k)
+			doc.append(len(ra))
+			return ra
+		site.get_all = dem_trang
+		with um.patch.dict(sys.modules, {"vagabond.kenh_zalo": zalo}), um.patch.object(td.frappe.utils, "now_datetime", lambda: BAY_GIO):
+			import vagabond
+			with um.patch.object(vagabond, "kenh_zalo", zalo, create=True):
+				_chay(site, td.nhac_qua_han)
+	da_goi = [dict(_hs(), name="UV-%03d" % i, sdt="0909%06d" % i, trang_thai=td.MOI, da_an_danh=0,
+		creation=dt.datetime(2026, 8, 10, 8, 0), lien_he_luc="2026-08-11 09:00:00") for i in range(200)]
+	chua = dict(_hs(), name="UV-MOI", sdt="0909999999", trang_thai=td.MOI, da_an_danh=0, creation=dt.datetime(2026, 8, 13, 8, 0))
+	chay(da_goi + [chua])
+	la("người chưa ai gọi được nhắc, người đã gọi không", goi, ["UV-MOI"])
+	la("máy chủ chỉ trả người chưa ai gọi, không đọc lại 200 hồ sơ đã gọi mỗi giờ", doc, [1])
+	nhieu = [dict(chua, name="UV-%03d" % i, sdt="0908%06d" % i) for i in range(450)]
+	chay(nhieu)
+	la("450 hồ sơ chưa ai gọi: đủ 450 tin, qua ba trang", len(set(goi)), 450)
