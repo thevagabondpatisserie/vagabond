@@ -657,9 +657,9 @@ def _codex_dong_y_desk():
 		d = _D(dong_y=1, dong_y_luc="2026-01-31 10:00:00")
 		d.validate()
 		la("hạn tính từ lúc đồng ý ghi sẵn", d["han_luu"], "2027-01-31")
-		d = _D(dong_y=0, da_an_danh=1)
+		d = _D(td.an_danh({}), dong_y=0)
 		d.validate()
-		la("hồ sơ đã xoá thông tin thì không bắt lại", dict(d), {"dong_y": 0, "da_an_danh": 1})
+		la("hồ sơ đã xoá thông tin thì không bắt lại đồng ý", dict(d), dict(td.an_danh({}), dong_y=0))
 
 
 @ca("v622 Codex #518: xoá theo hạn bỏ cả lý do dừng gõ tay và lịch sử sửa; lưu lịch sử sửa đã tắt")
@@ -779,3 +779,31 @@ def _codex2_nhac_trang():
 	nhieu = [dict(chua, name="UV-%03d" % i, sdt="0908%06d" % i) for i in range(450)]
 	chay(nhieu)
 	la("450 hồ sơ chưa ai gọi: đủ 450 tin, qua ba trang", len(set(goi)), 450)
+
+
+# ------------------------------------------------------------ Codex #518 vòng 3 (rà 39bcc579fb)
+
+@ca("v622 Codex #518 vòng 3: Desk, API không ghi lại thông tin cá nhân vào hồ sơ đã xoá theo hạn, không mở lại cờ")
+def _codex3_desk_an_danh():
+	from vagabond.vagabond.doctype.vagabond_ung_vien.vagabond_ung_vien import VagabondUngVien
+
+	class _D(VagabondUngVien, dict):
+		truoc = None
+
+		def set(self, k, v):
+			self[k] = v
+
+		def get_doc_before_save(self):
+			return self.truoc
+	da_xoa = dict(td.an_danh({}), trang_thai=td.DUNG, han_luu="2026-08-14", dong_y=0)
+	d = _D(da_xoa, sdt="0909123456")
+	dung("ghi lại số điện thoại: chặn", "không ghi lại thông tin cá nhân" in _loi(d.validate))
+	d = _D(da_xoa, danh_gia=[{"nhan_xet": "Nhà ở Thủ Đức"}])
+	dung("thêm nhận xét chữ vào phiếu chấm: chặn", "không ghi lại thông tin cá nhân" in _loi(d.validate))
+	d = _D(dict(da_xoa, da_an_danh=0, ho_ten="Nguyễn Văn An", dong_y=1, dong_y_luc="2026-01-31 10:00:00"))
+	d.truoc = {"da_an_danh": 1}
+	dung("bỏ tích cờ đã xoá: chặn", "không mở lại được" in _loi(d.validate))
+	d = _D(da_xoa, trang_thai=td.LIEN_HE, danh_gia=[{"nhan_xet": ""}])
+	d.validate()
+	la("đổi ô không phải thông tin cá nhân vẫn lưu được", d["trang_thai"], td.LIEN_HE)
+	la("phép thuần: hồ sơ chưa xoá thì không xét", td.kiem_an_danh({"da_an_danh": 0, "sdt": "0909"}), "")
