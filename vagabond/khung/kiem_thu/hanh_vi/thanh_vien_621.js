@@ -63,6 +63,49 @@ function hoSoDu(them) {
     bang('nút tab đánh dấu', t.tl.querySelectorAll('[data-tab]').filter(function (b) { return b.getAttribute('aria-pressed') === 'true'; }).map(function (b) { return b.getAttribute('data-tab'); }), ['ho-so']);
   });
 
+  await ca('trang thành viên (không qua quầy): bấm Cập nhật ngay, khai ngày sinh và đồng ý rồi Lưu là nhận voucher đã hứa (Codex PR #517 vòng 10)', async function () {
+    // Đúng chuỗi Codex tái hiện: san_sang -> toi -> luu_ho_so -> toi. Trước khi
+    // sửa: không có nhan_qua, ví rỗng, khung mời biến mất.
+    var da = { luu: false, nhan: false };
+    var thieu = hoSoDu({ ho_so: { ten: 'Lan Anh', sinh_nhat: { ngay: '', thang: '', nam: '' }, email: '', so_thich: [], dong_y_zalo: 0, anh_mau: '' },
+      muc: { du: 1, tong: 5, thieu_qua: ['sinh_nhat', 'dong_y'] }, qua: { mo: 1, uu_dai: 'Giảm 20.000đ', han: '06/11/2026', so_ngay: 7, da_nhan: 0 }, vi: [] });
+    var du = hoSoDu({ muc: { du: 3, tong: 5, thieu_qua: [] }, qua: { mo: 1, uu_dai: 'Giảm 20.000đ', han: '06/11/2026', so_ngay: 7, da_nhan: 0 }, vi: [] });
+    var t = await K.dungTrang({
+      san_sang: SS,
+      toi: function () { return da.nhan ? hoSoDu() : da.luu ? du : thieu; },
+      luu_ho_so: function () { da.luu = true; return { ok: 1 }; },
+      nhan_qua: function () { da.nhan = true; return { ok: 1, cu: 0, ma: 'QK7M2P', uu_dai: 'Giảm 20.000đ', han: '06/11/2026', trang_thai: 'dung_duoc' }; },
+    });
+    dung('có khung mời', !K.an(t.tim('moi-ho-so')));
+    bam(t.tim('moi-ho-so').querySelector('[data-di]'));
+    var f = t.tim('form-ho-so');
+    f.querySelector('#o-ngay').value = '14';
+    f.querySelector('#o-thang').value = '11';
+    f.querySelector('#o-dong-y').checked = true;
+    f.onsubmit({ preventDefault: function () {} });
+    await K.nghi(4);
+    bang('lưu một lần', t.cac('luu_ho_so').length, 1);
+    bang('nhận quà đúng một lần, không gắn quầy', t.cac('nhan_qua').map(function (x) { return x.a.quay; }), ['']);
+    dung('ví có mã quà', t.tim('vi').querySelectorAll('[data-vc]').map(function (v) { return v.getAttribute('data-vc'); }).indexOf('QK7M2P') >= 0);
+    dung('báo khách đã nhận', chuOf(t.tim('trang-thai')).indexOf('Giảm 20.000đ') >= 0);
+  });
+
+  await ca('hồ sơ đã đủ mà chưa nhận quà: khung mời đổi thành nút Nhận voucher, bấm là nhận', async function () {
+    var nhan = false;
+    var t = await K.dungTrang({
+      san_sang: SS,
+      toi: function () { return nhan ? hoSoDu() : hoSoDu({ muc: { du: 3, tong: 5, thieu_qua: [] }, qua: { mo: 1, uu_dai: 'Giảm 20.000đ', han: '06/11/2026', so_ngay: 7, da_nhan: 0 }, vi: [] }); },
+      nhan_qua: function () { nhan = true; return { ok: 1, cu: 0, ma: 'QK7M2P', uu_dai: 'Giảm 20.000đ', han: '06/11/2026', trang_thai: 'dung_duoc' }; },
+    });
+    dung('vẫn có khung mời', !K.an(t.tim('moi-ho-so')));
+    dung('nút Nhận voucher hiện, nút Cập nhật ẩn', !K.an(t.tim('nut-moi-nhan')) && K.an(t.tim('moi-ho-so').querySelector('[data-di]')));
+    await bam(t.tim('nut-moi-nhan'));
+    await K.nghi(4);
+    bang('gọi nhận quà', t.cac('nhan_qua').length, 1);
+    dung('mở Ví quà có mã', !K.an(t.tim('tab-vi')) && t.tim('vi').querySelectorAll('[data-vc]').map(function (v) { return v.getAttribute('data-vc'); }).indexOf('QK7M2P') >= 0);
+    dung('đã nhận thì khung mời tắt', K.an(t.tim('moi-ho-so')));
+  });
+
   await ca('đã nhận quà mà hồ sơ còn thiếu (rút đồng ý sau đó): không mời nhận quà lần nữa', async function () {
     var t = await K.dungTrang({ san_sang: SS, toi: hoSoDu({ muc: { du: 2, tong: 5, thieu_qua: ['dong_y'] } }) });
     dung('không có khung mời', K.an(t.tim('moi-ho-so')));
@@ -101,6 +144,7 @@ function hoSoDu(them) {
     bang('đúng dữ liệu', l[0].a.dat, { ten: 'Lan Anh Nguyễn', ngay: '14', thang: '11', nam: '1990', email: '', so_thich: ['tart'], dong_y_zalo: false });
     dung('có mã chống giả mạo', l[0].csrf === 'csrf-gia');
     dung('đọc lại hồ sơ', lan >= 2);
+    bang('đã nhận quà rồi: lưu hồ sơ không gọi nhận quà', t.cac('nhan_qua').length, 0);
     bam(t.tim('anh-mau').querySelectorAll('[data-anh-mau]')[1]);
     await K.nghi(3);
     bang('chọn hình bánh', t.cac('luu_ho_so')[1].a.dat.anh_mau, 'entremet');
