@@ -269,3 +269,5 @@ node vagabond/khung/kiem_thu/hanh_vi/zalo_kb_621.js
 node vagabond/khung/kiem_thu/hanh_vi/qua_quay_621.js
 # v621: trang thanh vien moi va qua chao mung tai quay (www/thanh-vien.html + thanh-vien.js that).
 node vagabond/khung/kiem_thu/hanh_vi/thanh_vien_621.js
+# v623: voucher danh cho thanh vien: phieu chuong trinh (13-khuyen-mai.js that) va trang thanh vien tu cap vao Vi qua.
+node vagabond/khung/kiem_thu/hanh_vi/voucher_tv_623.js
