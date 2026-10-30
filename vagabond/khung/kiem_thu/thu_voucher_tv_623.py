@@ -431,3 +431,61 @@ def _validate():
 	d = doc(vi_phat=0, cach_ma="Ma co dinh", ma_co_dinh="vgb10")
 	VagabondCTKM.validate(d)
 	la("không bật Ví quà: mã cố định vẫn lưu được", d.ma_co_dinh, "VGB10")
+
+
+@ca("v623 tắt Phát vào Ví quà sau khi đã phát: mã cũ trong ví vẫn chỉ dùng cho chính người nhận (Codex PR #520 vòng 4)")
+def _tat_vi_giu_rang_buoc():
+	# Chuỗi thật: trang thành viên cấp mã vào ví, rồi quản lý tắt Ví quà (vi_phat 0),
+	# rồi thu ngân tra mã cho hoá đơn khách khác.
+	m = Moi()
+	m.chay(tv.cap_vi_tv)
+	v = m.vc["VT0001"]
+	la("mã ví mang dấu chỉ người nhận ngay lúc phát", v.get("chi_nguoi_nhan"), 1)
+	tat = dict(_ct("KMML01"), vi_phat=0, bat=1, name="KMML01")
+	fr = km.frappe
+	dong = dict(v, han_dung=None)
+	vas = [um.patch.object(fr.db, "exists", lambda d, n=None, *a, **k: d == "Vagabond Voucher"),
+		um.patch.object(fr.db, "get_value", lambda d, ten, cot=None, as_dict=False, **k:
+			(D({c: dong.get(c) for c in cot}) if d == "Vagabond Voucher" else None)),
+		um.patch.object(km, "_doc_ctkm", lambda t: tat),
+		um.patch.object(km, "_hop_thoi_gian", lambda k: (True, "")),
+		um.patch.object(km, "_hop_kenh", lambda k, n, q: (True, ""))]
+	for x in vas:
+		x.start()
+	try:
+		tt = km._tra_ma("VT0001")
+	finally:
+		for x in reversed(vas):
+			x.stop()
+	la("tắt Ví quà rồi tra mã cũ: vẫn ràng buộc", tt["rang_buoc"], 1)
+	dung("hoá đơn khách khác KL9999: vẫn từ chối", bool(km.kiem_nguoi_nhan(tt, "KL9999", "")[1]))
+	la("phép thuần: chương trình đã tắt Ví quà, mã không mang dấu thì không ràng buộc",
+		km.ma_rang_buoc({"name": "KMLO01", "vi_phat": 0}, {"chi_nguoi_nhan": 0}), 0)
+
+
+@ca("v623 tin Zalo phát mã: chương trình Ví quà thì mã mang dấu chỉ người nhận; chương trình thường thì không")
+def _zalo_dau_rang_buoc():
+	ghi = []
+	for ct, mong in ((_ct("KMML01"), 1), (_ct("KMLO01", vi_phat=0), 0)):
+		del ghi[:]
+		vas = [um.patch.object(zk, "_doc_ctkm", lambda t, ct=ct: D(ct, name=ct["name"], ten="Chương trình")),
+			um.patch.object(zk, "_sinh_ma", lambda: "ZM0001"),
+			um.patch.object(zk, "kich_ban", lambda m: {"ten": "Chào mừng"}),
+			um.patch.object(zk.frappe, "get_doc", lambda d: (ghi.append(d), D(d, insert=lambda **k: None))[1])]
+		for x in vas:
+			x.start()
+		try:
+			zk._phat_voucher(D(ctkm=ct["name"]), {"ten": "Lan Anh", "sdt84": "84909123412"}, "KL0412", "chao_mung", han=D8(2026, 12, 12))
+		finally:
+			for x in reversed(vas):
+				x.stop()
+		la("%s: dấu chỉ người nhận" % ct["name"], ghi[0].get("chi_nguoi_nhan"), mong)
+
+
+@ca("v623 phiếu mã: có ô Chỉ dùng cho người nhận (chỉ đọc), máy đọc ô này khi tra mã")
+def _json_voucher():
+	d = json.loads((GOC / "vagabond/doctype/vagabond_voucher/vagabond_voucher.json").read_text())
+	f = [x for x in d["fields"] if x["fieldname"] == "chi_nguoi_nhan"]
+	la("ô có, kiểu Check, chỉ đọc", [(x["fieldtype"], x.get("read_only")) for x in f], [("Check", 1)])
+	dung("thứ tự ô đủ", d["field_order"] == [x["fieldname"] for x in d["fields"]])
+	dung("mốc modified đã đẩy", d["modified"] >= "2026-10-31")
