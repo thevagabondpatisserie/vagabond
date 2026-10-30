@@ -54,6 +54,9 @@ CUA_NGO = {
 	# v621 Tin Zalo tự động: năm cửa của màn, chặn vai CRM ở máy chủ. Nhịp
 	# chay_tu_dong và các hàm quét, gửi KHÔNG được mở ra ngoài.
 	"zalo_kich_ban.py": ["ds_kich_ban", "luu_kich_ban", "kiem_mau_zalo", "ds_tin", "gui_thu"],
+	# v621: trang thành viên. Mọi hàm mở cho khách vãng lai, tự xác thực bằng
+	# cookie phiên OTP; luu_ho_so, doi_anh, nhan_qua chỉ sửa hồ sơ của số đã xác thực.
+	"thanh_vien.py": ["san_sang", "gui_ma", "xac_thuc", "thoat", "toi", "luu_ho_so", "doi_anh", "nhan_qua"],
 	# v614 phân hệ Khách hàng (CRM), 58-crm.js.
 	"crm.py": ["dong_y_cua", "ghi_dong_y", "dat_khong_quang_cao", "so_dong_y", "ho_so_crm", "ghi_lien_he", "nhom_khach", "ds_khach_loc", "luu_bo_loc", "an_bo_loc", "ds_chien_dich", "doc_chien_dich", "luu_chien_dich", "duyet_kich_ban", "chot_chien_dich", "ket_thuc_chien_dich", "ds_sales", "ds_ctkm_ma", "tong_quan", "ds_goi_cua_toi", "ghi_ket_qua", "hieu_qua_chien_dich"],
 	# #296: chốt cả danh sách để cửa Lưu đơn không mất whitelist.

@@ -423,6 +423,50 @@ def _ctkm_het_han():
 	la("kẹp theo hạn mã", m.goi[0][2]["han_dung"], "01/11/2026")
 
 
+@ca("PR517 Codex vòng 7: chương trình giới hạn đối tượng thì khách ngoài phạm vi bị bỏ qua, không phát mã, không gửi; khách trong phạm vi vẫn nhận")
+def _doi_tuong_ctkm():
+	# Tái hiện finding Codex trên 455adcd: CTKM "Khach chi dinh" chỉ có K2,
+	# vậy mà K1 vẫn nhận VC1 và dòng thành Đã gửi; quầy (khuyen_mai.tinh gọi
+	# _hop_doi_tuong) sẽ từ chối mã đó.
+	fr = zk.frappe
+	km = D(name="KM-SN", ten="Quà sinh nhật", cach_ma="Ma dung mot lan", bat=1, kieu_giam="Phan tram", gia_tri=10,
+		hd_toi_thieu=0, doi_tuong="Khach chi dinh")
+	rows = [D(name="T1", khach="K1", khoa="sinh_nhat:K1:2026", trang_thai="Chờ gửi"),
+		D(name="T2", khach="K2", khoa="sinh_nhat:K2:2026", trang_thai="Chờ gửi")]
+	m = Moi(_cau("sinh_nhat"), rows, {"K1": _hs(), "K2": _hs(ten="Bình")}, [], ctkm=km)
+	chi_dinh = {("Vagabond CTKM Khach", "KM-SN", "K2")}
+
+	def co(dt_, dk=None, *a, **k):
+		return (dt_, (dk or {}).get("parent"), (dk or {}).get("khach")) in chi_dinh if isinstance(dk, dict) else False
+	with um.patch.object(fr.db, "exists", co):
+		m.chay(zk.gui_hang_doi)
+	la("trạng thái", m.tt(), {"T1": "Bỏ qua", "T2": "Đã gửi"})
+	la("chỉ phát mã cho khách được chỉ định", m.voucher_moi(), ["VC1"])
+	la("tin chỉ tới khách được chỉ định", [g[2]["ten_khach"] for g in m.goi], ["Bình"])
+	ly = [v.get("loi") for d, n, v in m.sv if n == "T1" and v.get("trang_thai") == "Bỏ qua"][0]
+	dung("lý do nói rõ đối tượng", "đối tượng" in ly and "danh sách chỉ định" in ly)
+	# Chương trình theo hạng: khách hạng khác bị bỏ, đúng hạng nhận.
+	km2 = D(km, doi_tuong="Theo hang khach", hang_khach="VOYAGER")
+	rows = [D(name="T1", khach="K1", khoa="sinh_nhat:K1:2026", trang_thai="Chờ gửi"),
+		D(name="T2", khach="K2", khoa="sinh_nhat:K2:2026", trang_thai="Chờ gửi")]
+	m = Moi(_cau("sinh_nhat"), rows, {"K1": _hs(), "K2": _hs(ten="Bình")}, [], ctkm=km2)
+	goc = m.get_value
+
+	def gv(dt_, n, cot=None, *a, **k):
+		if dt_ == "Customer" and cot == "vgb_hang":
+			return {"K1": "EXPLORER", "K2": "VOYAGER"}.get(n)
+		return goc(dt_, n, cot, *a, **k)
+	m.get_value = gv
+	m.chay(zk.gui_hang_doi)
+	la("theo hạng: trạng thái", m.tt(), {"T1": "Bỏ qua", "T2": "Đã gửi"})
+	la("theo hạng: một mã", m.voucher_moi(), ["VC1"])
+	# Câu cho màn chọn chương trình: người cài biết trước ai bị bỏ qua.
+	la("mọi khách không ghi", zk.ghi_doi_tuong(D(doi_tuong="Moi khach")), "")
+	la("theo hạng", zk.ghi_doi_tuong(D(doi_tuong="Theo hang khach", hang_khach="VOYAGER\nVAGABONDER")),
+		"Chỉ áp cho khách hạng VOYAGER, VAGABONDER, khách khác được bỏ qua")
+	la("chỉ định", zk.ghi_doi_tuong(D(doi_tuong="Khach chi dinh")), "Chỉ áp cho khách trong danh sách chỉ định, khách khác được bỏ qua")
+
+
 @ca("PR517 Codex: lượt bắt đầu sát giờ đóng thì dừng đúng giờ, các dòng còn lại để chờ")
 def _het_gio_giua_luot():
 	# Tái hiện finding Codex trên 5ed80e8: trong_gio chỉ kiểm một lần trước
@@ -481,7 +525,8 @@ def _ds_ctkm():
 	ds_km = [D(name="KM-HET", ten="Hè 2026", cach_ma="Ma dung mot lan", bat=1, den_ngay=D8(2026, 9, 30)),
 		D(name="KM-CON", ten="Thu 2026", cach_ma="Ma dung mot lan", bat=1, den_ngay=D8(2026, 11, 30)),
 		D(name="KM-MAI", ten="Noel", cach_ma="Ma dung mot lan", bat=1, tu_ngay=D8(2026, 12, 1)),
-		D(name="KM-MO", ten="Thành viên", cach_ma="Ma dung mot lan", bat=1)]
+		D(name="KM-MO", ten="Thành viên", cach_ma="Ma dung mot lan", bat=1),
+		D(name="KM-VG", ten="Voyager", cach_ma="Ma dung mot lan", bat=1, doi_tuong="Theo hang khach", hang_khach="VOYAGER")]
 	cau = {"sau_mua": _cau("sau_mua"), "sinh_nhat": _cau("sinh_nhat", ctkm="KM-HET"), "quay_lai": _cau("quay_lai", ctkm="KM-CON")}
 	with um.patch.object(zk, "_quyen", lambda xem=True: None), um.patch.object(zk, "_dam_bao", lambda: None), \
 			um.patch.object(zk, "_cau_hinh", lambda ma: dict(cau[ma])), um.patch.object(zk, "_bay_gio", lambda: BAY_GIO), \
@@ -490,8 +535,9 @@ def _ds_ctkm():
 			um.patch.object(fr.db, "sql", lambda *a, **k: []), \
 			um.patch.object(fr, "get_all", lambda *a, **k: [D(x) for x in ds_km]):
 		kq = zk.ds_kich_ban()
-	la("bỏ chương trình hết hạn", [x["name"] for x in kq["ctkm"]], ["KM-CON", "KM-MAI", "KM-MO"])
-	la("dòng phụ", [x["phu"] for x in kq["ctkm"]], ["Đến hết 30/11/2026", "Bắt đầu 01/12/2026, không giới hạn ngày", "Không giới hạn ngày"])
+	la("bỏ chương trình hết hạn", [x["name"] for x in kq["ctkm"]], ["KM-CON", "KM-MAI", "KM-MO", "KM-VG"])
+	la("dòng phụ", [x["phu"] for x in kq["ctkm"]], ["Đến hết 30/11/2026", "Bắt đầu 01/12/2026, không giới hạn ngày", "Không giới hạn ngày",
+		"Không giới hạn ngày · Chỉ áp cho khách hạng VOYAGER, khách khác được bỏ qua"])
 	the = {t["ma"]: t for t in kq["ds"]}
 	la("thẻ sinh nhật không sẵn sàng", the["sinh_nhat"]["san_sang"], 0)
 	dung("lý do nói hết hạn", "đã hết hạn" in the["sinh_nhat"]["ly_do"])
