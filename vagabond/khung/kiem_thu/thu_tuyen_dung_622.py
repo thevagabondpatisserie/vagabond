@@ -160,26 +160,35 @@ class _Site:
 			return o
 		return r.get(truong)
 
+	@staticmethod
+	def _khop(r, x, y):
+		v = r.get(x)
+		if isinstance(y, list):
+			op, gt = y
+			if op == "<=" and not (v is not None and v <= gt):
+				return False
+			if op == "<" and not (v is not None and str(v) < str(gt)):
+				return False
+			if op == ">=" and not (v is not None and str(v) >= str(gt)):
+				return False
+			if op == ">" and not (v is not None and float(v or 0) > float(gt)):
+				return False
+			if op == "!=" and v == gt:
+				return False
+			if op == "in" and v not in gt:
+				return False
+			if op == "is" and (gt == "set") != bool(v):
+				return False
+			return True
+		return not ((v or 0) != y and v != y)
+
 	def get_all(self, d, filters=None, fields=None, **k):
 		ra = []
 		for r in self.bang(d):
-			ok = True
-			for x, y in (filters or {}).items():
-				v = r.get(x)
-				if isinstance(y, list):
-					op, gt = y
-					if op == "<=" and not (v is not None and v <= gt):
-						ok = False
-					if op == "<" and not (v is not None and str(v) < str(gt)):
-						ok = False
-					if op == "!=" and v == gt:
-						ok = False
-					if op == "in" and v not in gt:
-						ok = False
-					if op == "is" and (gt == "set") != bool(v):
-						ok = False
-				elif (v or 0) != y and v != y:
-					ok = False
+			ok = all(self._khop(r, x, y) for x, y in (filters or {}).items())
+			# Giữ đúng or_filters như Frappe thật (Codex #518 vòng 4: hồ sơ cũ bị lọc mất).
+			if ok and k.get("or_filters"):
+				ok = any(self._khop(r, x, y) for x, y in k["or_filters"].items())
 			if ok:
 				ra.append(_fr._dict({f: r.get(f) for f in (fields or r.keys())}))
 		# Giữ đúng giới hạn trang như Frappe thật (Codex #518: lọc sau khi đã cắt trang).
@@ -807,3 +816,23 @@ def _codex3_desk_an_danh():
 	d.validate()
 	la("đổi ô không phải thông tin cá nhân vẫn lưu được", d["trang_thai"], td.LIEN_HE)
 	la("phép thuần: hồ sơ chưa xoá thì không xét", td.kiem_an_danh({"da_an_danh": 0, "sdt": "0909"}), "")
+
+
+# ------------------------------------------------------------ Codex #518 vòng 4 (rà 62f6005e18)
+
+@ca("v622 Codex #518 vòng 4: hồ sơ cũ còn nợ công làm thử vẫn hiện và vẫn đếm, kể cả khi đã Dừng hay Đã nhận việc")
+def _codex4_cong_chua_tra():
+	cu = dict(_hs(), name="UV-CU", sdt="0909123456", trang_thai=td.LAM_THU, da_an_danh=0, nhat_ky="",
+		creation="2026-03-01 08:00:00", tien_cong_thu=100000, da_tra_cong=0, lich_hen="2026-03-05 08:00:00")
+	da_tra = dict(cu, name="UV-DA-TRA", sdt="0909000001", trang_thai=td.DUNG, da_tra_cong=1)
+	gan = dict(cu, name="UV-GAN", sdt="0909000002", creation="2026-08-10 08:00:00")
+	site = _Site(vt=[_vt()], uv=[cu, da_tra, gan])
+	with um.patch.object(td.frappe.utils, "now_datetime", lambda: BAY_GIO):
+		_chay(site, lambda: td.cap_nhat("UV-CU", td.DUNG, ly_do="Không phù hợp"))
+		kq = _chay(site, td.tong_quan)
+		la("dừng hồ sơ cũ: vẫn đếm công chưa trả (cũ và gần đây)", kq["tom_tat"]["cong_chua_tra"], 2)
+		la("vẫn hiện để bấm ghi đã trả, mỗi hồ sơ một lần; hồ sơ cũ đã trả công thì không kéo về",
+			sorted(r["name"] for r in kq["rows"]), ["UV-CU", "UV-GAN"])
+		_chay(site, lambda: td.ghi_cong_thu("UV-CU", 4, 100000, da_tra=1))
+		kq = _chay(site, td.tong_quan)
+		la("trả xong thì hồ sơ cũ rời màn", ([r["name"] for r in kq["rows"]], kq["tom_tat"]["cong_chua_tra"]), (["UV-GAN"], 1))
