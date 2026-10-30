@@ -64,6 +64,45 @@ class LoiNhap(ValueError):
 	"""Dữ liệu người dùng gửi lên không hợp lệ; câu lỗi đọc được, nói việc làm tiếp."""
 
 
+# Liên hệ ứng viên ngay từ app, như chăm sóc khách hàng (anh Việt 30/10/2026,
+# chọn "mẫu tin + nhật ký"): quản lý gọi, nhắn Zalo hoặc SMS từ điện thoại của
+# mình với tin soạn sẵn; mỗi lần liên hệ ghi vào nhật ký hồ sơ. Không tốn phí
+# tin, không cần Zalo duyệt mẫu. Đây là NGUỒN DUY NHẤT của mẫu tin và kết quả
+# cuộc gọi: app nhận qua tong_quan, chỉ điền chỗ trống.
+HOTLINE = "0931 224 334"
+KENH_LIEN_HE = ("Gọi", "Zalo", "SMS")
+# (giá trị lưu, một dòng giải thích hiện dưới nút)
+KET_QUA_GOI = (
+	("Nghe máy", "Đã nói chuyện với ứng viên, hồ sơ chuyển sang Đã liên hệ."),
+	("Hẹn gọi lại", "Ứng viên bận, hẹn gọi lại sau, hồ sơ chuyển sang Đã liên hệ."),
+	("Không nghe máy", "Hồ sơ giữ Mới nhận, nhật ký ghi thêm một lần gọi."),
+	("Sai số", "Số không liên lạc được. Bấm Cập nhật, chọn Dừng nếu không tìm được số khác."),
+)
+CHUYEN_SAU_GOI = ("Nghe máy", "Hẹn gọi lại")
+CHO_TRONG = ("ten", "vi_tri", "gio", "noi_lam", "cong", "hotline")
+# (mã, tên nút, một dòng giải thích, nội dung có chỗ trống {ten} {vi_tri} {gio} {noi_lam} {cong} {hotline})
+MAU_TIN = (
+	("da_nhan", "Đã nhận hồ sơ", "Báo đã nhận hồ sơ, quản lý sẽ gọi hẹn lịch.",
+		"Chào {ten}, The Vagabond Pâtisserie đã nhận hồ sơ ứng tuyển vị trí {vi_tri} của bạn. "
+		"Quản lý sẽ gọi bạn để hẹn lịch phỏng vấn trong 1 đến 2 ngày tới. Cần hỏi thêm, bạn gọi {hotline} nhé."),
+	("hen_pv", "Hẹn phỏng vấn", "Gửi giờ và nơi phỏng vấn đã hẹn.",
+		"Chào {ten}, The Vagabond Pâtisserie hẹn bạn phỏng vấn vị trí {vi_tri} lúc {gio} tại {noi_lam}. "
+		"Bạn trả lời tin này để xác nhận giúp mình nhé. Cần đổi lịch, bạn gọi {hotline}."),
+	("lam_thu", "Hẹn làm thử", "Gửi giờ, nơi làm thử và công buổi làm thử.",
+		"Chào {ten}, mời bạn làm thử vị trí {vi_tri} lúc {gio} tại {noi_lam}. Buổi làm thử có trả công {cong}. "
+		"Bạn tới sớm 10 phút nhé. Cần đổi lịch, bạn gọi {hotline}."),
+	("nhan_viec", "Mời nhận việc", "Báo ứng viên đạt, quản lý sẽ gọi chốt ngày bắt đầu.",
+		"Chào {ten}, chúc mừng bạn đã đạt vị trí {vi_tri} tại The Vagabond Pâtisserie. Quản lý sẽ gọi bạn "
+		"để thống nhất ngày bắt đầu và giấy tờ cần mang. Cần hỏi thêm, bạn gọi {hotline}."),
+	("cam_on", "Cảm ơn, chưa phù hợp", "Báo lịch sự khi lần này chưa nhận.",
+		"Chào {ten}, cảm ơn bạn đã dành thời gian ứng tuyển vị trí {vi_tri} tại The Vagabond Pâtisserie. "
+		"Lần này chúng mình chưa thể mời bạn tiếp. Khi có vị trí phù hợp, chúng mình sẽ liên hệ lại bạn."),
+)
+# Mẫu gợi ý sẵn theo trạng thái hồ sơ (quản lý vẫn đổi được).
+MAU_THEO_TRANG_THAI = {"Mới nhận": "da_nhan", "Đã liên hệ": "da_nhan", "Hẹn phỏng vấn": "hen_pv",
+	"Làm thử": "lam_thu", "Đề nghị nhận việc": "nhan_viec", "Đã nhận việc": "nhan_viec", "Dừng": "cam_on"}
+
+
 def chuan_sdt(s):
 	"""THUẦN: '+84 909.123.456' -> '0909123456'. '' nếu không phải số di động VN."""
 	x = re.sub(r"[\s.()+-]", "", str(s or ""))
@@ -260,8 +299,11 @@ def kiem_chuyen(cu, moi, lich_hen=None, ly_do=None):
 
 
 def qua_han_goi(row, bay_gio, gio=GIO_GOI_LAI):
-	"""THUẦN: hồ sơ còn Mới nhận mà đã nộp quá `gio` giờ."""
-	if row.get("trang_thai") != MOI:
+	"""THUẦN: hồ sơ còn Mới nhận, CHƯA AI liên hệ lần nào, mà đã nộp quá `gio` giờ.
+
+	Đã gọi mà ứng viên không nghe máy thì hồ sơ vẫn Mới nhận nhưng đã có người
+	gọi (lien_he_luc), không nhắc "chưa ai gọi" nữa."""
+	if row.get("trang_thai") != MOI or row.get("lien_he_luc"):
 		return False
 	luc = row.get("creation")
 	if isinstance(luc, str):
@@ -270,6 +312,48 @@ def qua_han_goi(row, bay_gio, gio=GIO_GOI_LAI):
 		except ValueError:
 			return False
 	return bool(luc) and luc <= bay_gio - timedelta(hours=gio)
+
+
+def kiem_lien_he(kenh, ket_qua=None, mau=None):
+	"""THUẦN: câu lỗi nếu một lần liên hệ ghi không hợp lệ, '' nếu được."""
+	if kenh not in KENH_LIEN_HE:
+		return "Chọn cách liên hệ: Gọi, Zalo hoặc SMS."
+	if kenh == "Gọi" and ket_qua not in [k for k, _p in KET_QUA_GOI]:
+		return "Chọn kết quả cuộc gọi."
+	if mau and mau not in [m[0] for m in MAU_TIN]:
+		return "Mẫu tin không có trong danh sách. Tải lại màn rồi chọn lại."
+	return ""
+
+
+def sau_lien_he(trang_thai, kenh, ket_qua=None):
+	"""THUẦN: trạng thái hồ sơ sau một lần liên hệ.
+
+	Chỉ đẩy Mới nhận sang Đã liên hệ, khi chắc ứng viên đã nhận được: nghe máy,
+	hẹn gọi lại, hoặc quản lý đã gửi tin. Gọi không nghe hay sai số thì giữ
+	nguyên. Hồ sơ đã ở vòng sau không bị kéo lùi."""
+	if trang_thai != MOI:
+		return trang_thai
+	if kenh == "Gọi" and ket_qua not in CHUYEN_SAU_GOI:
+		return MOI
+	return LIEN_HE
+
+
+def cau_lien_he(kenh, ket_qua=None, mau=None):
+	"""THUẦN: một dòng nhật ký, ví dụ 'Gọi: Không nghe máy', 'Nhắn Zalo mẫu Hẹn phỏng vấn'."""
+	if kenh == "Gọi":
+		return "Gọi: %s" % ket_qua
+	ten = dict((m[0], m[1]) for m in MAU_TIN).get(mau or "")
+	return "Nhắn %s%s" % (kenh, " mẫu " + ten if ten else "")
+
+
+def mau_tin_app():
+	"""THUẦN: mẫu tin và kết quả cuộc gọi gửi cho app (app chỉ điền chỗ trống)."""
+	return {
+		"mau_tin": [{"k": m[0], "ten": m[1], "p": m[2], "noi_dung": m[3]} for m in MAU_TIN],
+		"mau_theo_trang_thai": dict(MAU_THEO_TRANG_THAI),
+		"ket_qua_goi": [{"k": k, "p": p} for k, p in KET_QUA_GOI],
+		"hotline": HOTLINE,
+	}
 
 
 def diem_tb(diem):
@@ -312,8 +396,32 @@ def an_danh(row):
 	return {
 		"ho_ten": "Hồ sơ đã xoá theo hạn lưu", "sdt": "", "email": "", "khu_vuc": "",
 		"kinh_nghiem": "", "gioi_thieu": "", "lien_ket_cv": "", "nguoi_gioi_thieu": "",
-		"ca_ranh": "", "nhat_ky": "", "da_an_danh": 1,
+		"ca_ranh": "", "nhat_ky": "", "ly_do_dung": "", "da_an_danh": 1,
 	}
+
+
+def kiem_luu_tru(row, bay_gio):
+	"""THUẦN: mọi đường tạo, sửa hồ sơ (app, web, Desk, API) phải có đồng ý lưu và
+	hạn lưu, không thì nhịp xoá theo hạn không bao giờ chọn tới (Codex #518).
+
+	Trả (câu lỗi, các ô cần điền thêm). Hồ sơ đã xoá thông tin thì bỏ qua."""
+	if int(row.get("da_an_danh") or 0):
+		return "", {}
+	if not int(row.get("dong_y") or 0):
+		return ("Hồ sơ ứng viên phải có xác nhận ứng viên đồng ý lưu hồ sơ. Thêm hồ sơ ở app: "
+			"Nhân sự, Tuyển dụng, Thêm hồ sơ."), {}
+	them = {}
+	luc = row.get("dong_y_luc") or bay_gio
+	if not row.get("dong_y_luc"):
+		them["dong_y_luc"] = luc
+	if not row.get("han_luu"):
+		if isinstance(luc, str):
+			try:
+				luc = datetime.strptime(luc[:19], "%Y-%m-%d %H:%M:%S")
+			except ValueError:
+				luc = bay_gio
+		them["han_luu"] = str(han_luu(luc))
+	return "", them
 
 
 def can_xoa(row, hom_nay):
@@ -328,7 +436,8 @@ def can_xoa(row, hom_nay):
 def tom_tat(rows, hom_nay, bay_gio):
 	"""THUẦN: ba con số đầu màn: mới chưa gọi (và số quá 24 giờ), hẹn hôm nay,
 	công làm thử chưa trả."""
-	moi = [r for r in rows if r.get("trang_thai") == MOI]
+	# "Chưa gọi": Mới nhận và chưa ai liên hệ lần nào (cùng điều kiện ô trang chủ).
+	moi = [r for r in rows if r.get("trang_thai") == MOI and not r.get("lien_he_luc")]
 	return {
 		"moi": len(moi),
 		"qua_han": len([r for r in moi if qua_han_goi(r, bay_gio)]),
@@ -530,8 +639,10 @@ def bao_moi(doc, method=None):
 
 
 def con_moi_nhan(ten):
-	"""Tin việc hỏi lại ngay trước khi gửi: hồ sơ còn chưa ai liên hệ không."""
-	return frappe.db.get_value(UV, ten, "trang_thai") == MOI
+	"""Tin việc hỏi lại ngay trước khi gửi: hồ sơ còn chưa ai liên hệ không
+	(còn Mới nhận và chưa ai gọi hay nhắn lần nào)."""
+	r = frappe.db.get_value(UV, ten, ["trang_thai", "lien_he_luc"], as_dict=True) or {}
+	return r.get("trang_thai") == MOI and not r.get("lien_he_luc")
 
 
 def nhac_qua_han():
@@ -541,7 +652,8 @@ def nhac_qua_han():
 		bay_gio = frappe.utils.now_datetime()
 		rows = frappe.get_all(UV, filters={"trang_thai": MOI, "da_an_danh": 0,
 			"creation": ["<=", bay_gio - timedelta(hours=GIO_GOI_LAI)]},
-			fields=["name", "ho_ten", "sdt", "vi_tri", "ten_vi_tri", "creation", "trang_thai"], limit_page_length=200)
+			fields=["name", "ho_ten", "sdt", "vi_tri", "ten_vi_tri", "creation", "trang_thai", "lien_he_luc"],
+			limit_page_length=200)
 		for r in rows:
 			if not qua_han_goi(r, bay_gio):
 				continue
@@ -561,10 +673,19 @@ def xoa_het_han():
 		rows = frappe.get_all(UV, filters={"da_an_danh": 0, "han_luu": ["<", hn], "trang_thai": ["!=", NHAN_VIEC]},
 			fields=["name", "trang_thai", "han_luu", "da_an_danh"], limit_page_length=500)
 		for r in rows:
-			if can_xoa(r, hn):
-				frappe.db.set_value(UV, r["name"], an_danh(r), update_modified=False)
-				# Bảng chấm giữ điểm số nhưng bỏ nhận xét chữ (có thể nhắc tên, đời tư).
-				frappe.db.sql("update `tabVagabond Ung Vien Danh Gia` set nhan_xet='' where parent=%s", r["name"])
+			# Khoá và đọc lại ngay trước khi xoá (Codex #518): quản lý có thể vừa
+			# chốt Đã nhận việc sau khi nhịp đêm chọn lô; xét theo bản cũ là xoá
+			# mất thông tin người vừa được nhận.
+			moi = frappe.db.get_value(UV, r["name"], ["name", "trang_thai", "han_luu", "da_an_danh"],
+				as_dict=True, for_update=True)
+			if not moi or not can_xoa(moi, hn):
+				continue
+			frappe.db.set_value(UV, r["name"], an_danh(moi), update_modified=False)
+			# Bảng chấm giữ điểm số nhưng bỏ nhận xét chữ (có thể nhắc tên, đời tư).
+			frappe.db.sql("update `tabVagabond Ung Vien Danh Gia` set nhan_xet='' where parent=%s", r["name"])
+			# Doctype đã tắt lưu lịch sử sửa (track_changes 0); bản ghi lịch sử nào
+			# còn sót (ai đó bật lại) cũng chứa bản cũ của tên, số, nên bỏ luôn.
+			frappe.db.delete("Version", {"ref_doctype": UV, "docname": r["name"]})
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "tuyen_dung: xoa het han")
 
@@ -607,7 +728,7 @@ def tong_quan():
 		r["xu_ly_luc"] = str(r.get("xu_ly_luc") or "")
 		r["tra_cong_luc"] = str(r.get("tra_cong_luc") or "")
 		r["han_luu"] = str(r.get("han_luu") or "")
-		r["qua_han"] = 1 if qua_han_goi(dict(r, creation=r["creation"]), bay_gio) else 0
+		r["qua_han"] = 1 if qua_han_goi(r, bay_gio) else 0
 		r["lan_nop"] = dem_sdt.get(r["sdt"], 1)
 		r["cham"] = ten_cham.get(r["name"], [])
 	so_hs = {}
@@ -621,13 +742,15 @@ def tong_quan():
 	bo_phan = [{"k": d["name"], "ten": _ten_bo_phan(d["name"])} for d in frappe.get_all("Department",
 		filters={"disabled": 0, "is_group": 0}, fields=["name"], order_by="name", limit_page_length=100)
 		if d["name"] != "All Departments"]
-	return {
+	kq = {
 		"vi_tri": vt, "rows": rows, "hom_nay": hn, "bay_gio": str(bay_gio)[:19],
 		"tom_tat": tom_tat(rows, hn, bay_gio), "nguon": list(NGUON), "ly_do_dung": list(LY_DO_DUNG),
 		"hinh_thuc": list(HINH_THUC), "ca_ranh": list(CA_RANH), "noi_lam": _noi_lam_mau(),
 		"bo_phan": bo_phan, "tieu_chi_mac_dinh": list(TIEU_CHI_MAC_DINH), "cau_dong_y": CAU_DONG_Y,
 		"gio_goi_lai": GIO_GOI_LAI, "thang_luu": THANG_LUU, "link_ung_tuyen": _link_ung_tuyen(),
 	}
+	kq.update(mau_tin_app())
+	return kq
 
 
 def _link_ung_tuyen():
@@ -645,7 +768,7 @@ def dem_cho_goi():
 	"""Số trên ô Tuyển dụng ở trang chủ: hồ sơ mới chưa ai liên hệ."""
 	if not co_quyen():
 		return {"so": 0}
-	return {"so": frappe.db.count(UV, {"trang_thai": MOI, "da_an_danh": 0})}
+	return {"so": frappe.db.count(UV, {"trang_thai": MOI, "da_an_danh": 0, "lien_he_luc": ["is", "not set"]})}
 
 
 def _ai():
@@ -743,6 +866,36 @@ def cap_nhat(name, trang_thai, lich_hen=None, ly_do=None, ghi_chu=None):
 	if ghi:
 		cau += ". " + ghi
 	doc.trang_thai = trang_thai
+	_ghi_vet(doc, cau)
+	doc.flags.ignore_permissions = True
+	doc.save()
+	return {"ok": 1, "trang_thai": doc.trang_thai}
+
+
+@frappe.whitelist(methods=["POST"])
+def ghi_lien_he(name, kenh, ket_qua=None, mau=None):
+	"""Ghi một lần gọi, nhắn Zalo hoặc SMS vào nhật ký hồ sơ (anh Việt 30/10/2026).
+
+	Gửi tin thì máy không biết ứng viên đã đọc chưa; ghi đúng việc quản lý đã
+	làm: đã mở Zalo hoặc SMS với mẫu nào. Lần liên hệ đầu tiên đặt lien_he_luc,
+	từ đó hồ sơ không còn bị nhắc "chưa ai gọi"."""
+	_kiem_quyen()
+	ket_qua = str(ket_qua or "").strip() or None
+	mau = str(mau or "").strip() or None
+	loi = kiem_lien_he(kenh, ket_qua, mau)
+	if loi:
+		frappe.throw(loi)
+	doc = frappe.get_doc(UV, name, for_update=True)
+	if int(doc.da_an_danh or 0):
+		frappe.throw("Hồ sơ này đã xoá thông tin theo hạn lưu, không liên hệ được nữa.")
+	cu = doc.trang_thai
+	moi = sau_lien_he(cu, kenh, ket_qua)
+	cau = cau_lien_he(kenh, ket_qua, mau)
+	if moi != cu:
+		cau += ", " + cu + " -> " + moi
+		doc.trang_thai = moi
+	if not doc.lien_he_luc:
+		doc.lien_he_luc = frappe.utils.now_datetime()
 	_ghi_vet(doc, cau)
 	doc.flags.ignore_permissions = True
 	doc.save()
