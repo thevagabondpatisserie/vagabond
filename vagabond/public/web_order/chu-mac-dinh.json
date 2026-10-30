@@ -3675,6 +3675,12 @@
     "mac_dinh": "Đã nhận voucher {uu_dai}. Mã nằm trong Ví quà, dùng ngay hoặc đến hết {han}.",
     "nhieu_dong": true
   },
+  "tv6_vi_moi": {
+    "ten": "Quý khách vừa nhận {so} quà mới trong Ví quà, đưa mã cho thu ngân khi thanh toán.",
+    "nhom": "thanh_vien",
+    "mac_dinh": "Quý khách vừa nhận {so} quà mới trong Ví quà, đưa mã cho thu ngân khi thanh toán.",
+    "nhieu_dong": true
+  },
   "tv6_o_ten_goi": {
     "ten": "Tên gọi",
     "nhom": "thanh_vien",
