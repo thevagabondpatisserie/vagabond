@@ -396,3 +396,64 @@ def _crm_dem():
 		dung("hồ sơ CRM có ô %s" % c, c in co and c in js["field_order"])
 		dung("ô %s chỉ đọc trên Desk" % c, co.get(c, {}).get("read_only") == 1)
 	dung("đẩy mốc modified", js["modified"] >= "2026-10-30")
+
+
+@ca("v621 khách đăng nhập OTP là Guest: trang thành viên đọc được tiến độ hạng mà KHÔNG cần quyền bán hàng (Codex PR #517 vòng 8)")
+def _khach_guest():
+	# Chạy THẬT tv._tien_do -> khach_hang (cổng _kiem_quyen_ban thật, vai Guest).
+	# Không vá _kiem_quyen_ban: chính nó là thứ làm trang thành viên đổ.
+	# CI không có requests mà ban_hang.py nạp cứng ở đầu tệp: chỉ thay bằng bản
+	# rỗng khi máy thiếu, và chỉ trong ca này.
+	try:
+		import requests as rq
+	except ImportError:
+		rq = types.ModuleType("requests")
+	with um.patch.dict(sys.modules, {"requests": rq}):
+		_khach_guest_chay()
+
+
+def _khach_guest_chay():
+	from vagabond import khach_hang
+	fr = tv.frappe
+	bang = [D(name="EXPLORER", ten_hang="Explorer", loai="Theo chi tieu", chi_tieu_tu=0, so_thang_xet=12),
+		D(name="VOYAGER", ten_hang="Voyager", loai="Theo chi tieu", chi_tieu_tu=10000000, so_thang_xet=12)]
+
+	def get_all(dt_, **k):
+		return [D(h) for h in bang] if dt_ == "Vagabond Hang Khach" else []
+
+	def sql(q, *a, **k):
+		return [D(customer="KL0412", tien=4000000, so_don=3, gan_nhat=HN)] if "Sales Invoice" in q else []
+	with um.patch.object(fr, "get_roles", lambda *a: ["Guest"]), um.patch.object(fr, "get_all", get_all), \
+			um.patch.object(fr.db, "sql", sql), \
+			um.patch.object(fr.db, "get_value", lambda dt_, ten=None, cot=None, *a, **k: "Voyager"):
+		try:
+			kq = tv._tien_do("KL0412")
+		except Exception as e:  # noqa: BLE001
+			kq = {"loi": str(e)}
+		la("Guest đọc được tiến độ", kq, {"da_mua": 4000000.0, "so_thang": 12, "hang_tiep": "Voyager",
+			"con_thieu": 6000000.0, "ty_le": 0.4})
+		# Màn nhân viên vẫn giữ cổng quyền bán hàng.
+		try:
+			khach_hang.ds_hang()
+			chan = False
+		except Exception:
+			chan = True
+		dung("API bảng hạng cho nhân viên vẫn chặn Guest", chan)
+	# Chốt cả lối: trang thành viên (khách là Guest) không gọi hàm nào của mô đun
+	# khác mà thân hàm có cổng quyền nhân viên.
+	cay = ast.parse((GOC / "thanh_vien.py").read_text())
+	goi = {(ast.unparse(n.func.value), n.func.attr) for n in ast.walk(cay)
+		if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and isinstance(n.func.value, ast.Name)}
+	# Cả hàm nạp thẳng tên: from vagabond.zalo_kich_ban import ctkm_phat_duoc.
+	goi |= {(n.module.split(".")[-1], a.name) for n in ast.walk(cay)
+		if isinstance(n, ast.ImportFrom) and (n.module or "").startswith("vagabond.") for a in n.names}
+	dung("dò được cả lời gọi nạp thẳng tên", ("zalo_kich_ban", "ctkm_phat_duoc") in goi)
+	co_cong = []
+	for mo, ham in sorted(goi):
+		tep = GOC / (mo + ".py")
+		if mo in ("frappe", "tv", "self") or not tep.exists():
+			continue
+		for n in ast.parse(tep.read_text()).body:
+			if isinstance(n, ast.FunctionDef) and n.name == ham and "_kiem_quyen" in ast.unparse(n):
+				co_cong.append("%s.%s" % (mo, ham))
+	la("không gọi API có cổng quyền nhân viên", co_cong, [])
