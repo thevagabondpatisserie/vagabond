@@ -1,0 +1,66 @@
+{
+ "doctype": "DocType",
+ "name": "Vagabond Ung Vien Danh Gia",
+ "module": "Vagabond",
+ "engine": "InnoDB",
+ "modified": "2026-10-30 20:00:00.000000",
+ "istable": 1,
+ "editable_grid": 0,
+ "fields": [
+  {
+   "fieldname": "vong",
+   "fieldtype": "Select",
+   "label": "Vòng",
+   "options": "Phỏng vấn\nLàm thử",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "nguoi",
+   "fieldtype": "Data",
+   "label": "Người chấm",
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "luc",
+   "fieldtype": "Datetime",
+   "label": "Lúc chấm",
+   "read_only": 1
+  },
+  {
+   "fieldname": "diem_tb",
+   "fieldtype": "Float",
+   "label": "Điểm trung bình (1 đến 4)",
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "ket_luan",
+   "fieldtype": "Select",
+   "label": "Kết luận",
+   "options": "Nên nhận\nCân nhắc\nKhông nên nhận",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "diem",
+   "fieldtype": "Small Text",
+   "label": "Điểm từng tiêu chí",
+   "read_only": 1
+  },
+  {
+   "fieldname": "nhan_xet",
+   "fieldtype": "Small Text",
+   "label": "Nhận xét"
+  }
+ ],
+ "permissions": [],
+ "field_order": [
+  "vong",
+  "nguoi",
+  "luc",
+  "diem_tb",
+  "ket_luan",
+  "diem",
+  "nhan_xet"
+ ]
+}
