@@ -231,6 +231,23 @@ function mot(el, chon) { return el.querySelectorAll(chon)[0]; }
     dung('không hiện mã nội bộ', chu(sheet(m)).indexOf('KM-CU') < 0);
   });
 
+  await ca('PR517 Codex vòng 12: chip chương trình gọn tối đa 16 ký tự, tên đầy đủ trong title; bấm chip vẫn lưu đúng chương trình', async function () {
+    var d = dlMau(); d.ctkm = [{ name: 'QUA-CHAO-MUNG', ten: 'Quà chào mừng thành viên' }, { name: 'KM-SN', ten: 'Quà sinh nhật 10%' }, { name: 'KM-QL', ten: 'Mời quay lại 50k' }];
+    var m = dungMoi(QL, { ds_kich_ban: d });
+    await m.g.scrCrmZalo();
+    bam(m, mot(m.khung, '[data-crmzlcd="quay_lai"]'));
+    var chip = sheet(m).querySelectorAll('[data-crmzlkm]');
+    bang('đủ ba chip', chip.length, 3);
+    chip.forEach(function (c) { dung('chip "' + chu(c) + '" tối đa 16 ký tự', chu(c).trim().length <= 16); });
+    var dai = mot(sheet(m), '[data-crmzlkm="QUA-CHAO-MUNG"]');
+    bang('tên dài để trong title', dai.getAttribute('title'), 'Quà chào mừng thành viên');
+    bang('tên ngắn giữ nguyên', chu(mot(sheet(m), '[data-crmzlkm="KM-QL"]')).trim(), 'Mời quay lại 50k');
+    bam(m, dai);
+    bam(m, mot(sheet(m), '[data-crmzlluu]'));
+    await choDen(function () { return goiTen(m, 'luu_kich_ban').length; });
+    bang('lưu đúng mã chương trình', JSON.parse(goiTen(m, 'luu_kich_ban')[0].ts.dat).ctkm, 'QUA-CHAO-MUNG');
+  });
+
   await ca('PR517 Codex vòng 7: chương trình giới hạn đối tượng thì thẻ cài đặt nói rõ khách ngoài phạm vi được bỏ qua', async function () {
     var m = dungMoi(QL);
     await m.g.scrCrmZalo();
