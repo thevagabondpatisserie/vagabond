@@ -479,3 +479,46 @@ def _bench_du_cot():
 					can.add(x.value)
 	dung("dò ra ô ngày sinh", "vgb_sinh_nhat" in can)
 	la("ô bench còn thiếu", sorted(can - co), [])
+
+
+@ca("v621 ví quà: mã còn dùng được luôn có trong ví dù khách có nhiều mã cũ đã dùng hay đã huỷ (Codex PR #517 vòng 11)")
+def _vi_giu_ma_dung_duoc():
+	# 20 mã đã dùng/đã huỷ mới hơn và một mã quà cũ còn hạn. Trước khi sửa: lấy
+	# 20 mã mới nhất rồi mới xếp, nên mã còn hạn bị loại khỏi ví.
+	fr = tv.frappe
+	kho = []
+	for i in range(20):
+		kho.append(D(ma="DD%02d" % i, ctkm="KM-A", ten_ctkm="Tin Zalo", trang_thai="Da huy" if i % 2 else "Da dung",
+			han_dung=D8(2026, 11, 1), ngay_dung=None, danh_cho="KL0412", creation="2026-10-%02d 10:00" % (10 + i)))
+	kho.append(D(ma="QK7M2P", ctkm=km.CTKM_QUA, ten_ctkm="Quà chào mừng", trang_thai="Chua dung", han_dung=D8(2026, 11, 6),
+		ngay_dung=None, danh_cho="KL0412", creation="2026-10-01 09:00"))
+	kho.append(D(ma="HH0001", ctkm="KM-A", ten_ctkm="Tin Zalo", trang_thai="Chua dung", han_dung=D8(2026, 10, 2),
+		ngay_dung=None, danh_cho="KL0412", creation="2026-09-25 09:00"))
+
+	def khop(v, dk):
+		for c, x in (dk or {}).items():
+			if isinstance(x, (list, tuple)):
+				op, gt = x[0], x[1]
+				if op == "!=" and v.get(c) == gt:
+					return False
+				if op == "in" and v.get(c) not in gt:
+					return False
+			elif v.get(c) != x:
+				return False
+		return True
+
+	def get_all(dt_, filters=None, fields=None, order_by=None, limit_page_length=None, **k):
+		ra = [v for v in kho if khop(v, filters)]
+		cot, _, chieu = (order_by or "creation desc").partition(" ")
+		ra.sort(key=lambda v: str(v.get(cot) or ""), reverse=chieu.strip().lower() == "desc")
+		return ra[:limit_page_length] if limit_page_length else ra
+
+	def get_value(dt_, ten=None, cot=None, as_dict=False, **k):
+		return D(name=ten, ten=ten, kieu_giam="So tien", gia_tri=20000, hd_toi_thieu=0)
+	with um.patch.object(fr, "get_all", get_all), um.patch.object(fr.db, "get_value", get_value):
+		vi = tv._vi("KL0412", HN)
+	ma = [v["ma"] for v in vi]
+	dung("mã quà còn hạn có trong ví", "QK7M2P" in ma)
+	la("mã dùng được đứng đầu", ma[0], "QK7M2P")
+	la("chỉ một mã dùng được", [v["ma"] for v in vi if v["trang_thai"] == "dung_duoc"], ["QK7M2P"])
+	dung("lịch sử vẫn có giới hạn", len(vi) <= 21)
