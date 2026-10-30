@@ -48,6 +48,10 @@ CUA_NGO = {
 	# v611: đặt bàn web. cau_hinh và gửi yêu cầu mở cho khách; năm hàm của màn
 	# Thông tin đặt bàn chặn quyền ở máy chủ (QUYEN_DAT_BAN).
 	"dat_ban.py": ["cau_hinh", "gui", "ds_dat_ban", "dem_cho_xac_nhan", "xac_nhan", "huy", "da_den"],
+	# v622 phân hệ Tuyển dụng: vi_tri_cong_khai và ung_tuyen mở cho khách vãng lai
+	# (form /ung-tuyen); tám hàm của màn Tuyển dụng chặn quyền QUYEN_TUYEN_DUNG.
+	"tuyen_dung.py": ["vi_tri_cong_khai", "ung_tuyen", "tong_quan", "dem_cho_goi", "luu_vi_tri", "bat_tat_vi_tri",
+		"them_ho_so", "cap_nhat", "cham", "ghi_cong_thu", "ghi_lien_he"],
 	# v617 Zalo OA: nhan_su_kien là điểm nhận sự kiện của Zalo (allow_guest, tự xác
 	# thực bằng chữ ký X-ZEvent-Signature); hai hàm gửi chặn vai CRM_LAP ở máy chủ.
 	"zalo_oa.py": ["nhan_su_kien", "gui_thu_oa", "gui_chien_dich_oa"],

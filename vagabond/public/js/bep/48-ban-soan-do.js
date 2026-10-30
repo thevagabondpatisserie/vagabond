@@ -832,6 +832,16 @@ sdKhai('chien_dich', 'scrCrmCd', {
   ten: 'Chiến dịch', lay: function () { return crmCdNhap(); }, dat: function (v) { crmCdKhoiPhuc = v; },
   ma: function (a) { return a[0] || ''; }, tieuDe: sdTieuDe('ten'), luu: ['vagabond.crm.luu_chien_dich']
 });
+/* v622: hai màn lập phiếu của Tuyển dụng (60-tuyen-dung.js, đứng sau 48 nên
+   ghép bằng dat() vào biến khôi phục, màn tự ghép lúc dựng trạng thái). */
+sdKhai('vi_tri_tuyen', 'scrTdViTri', {
+  ten: 'Vị trí tuyển dụng', phat: 1, lay: function () { return tdVtTay; }, dat: function (v) { tdVtKhoiPhuc = v; },
+  ma: function (a) { return a[0] || ''; }, tieuDe: sdTieuDe('tieu_de', '#tdTen'), luu: ['vagabond.tuyen_dung.luu_vi_tri']
+});
+sdKhai('ho_so_ung_vien', 'scrTdThemHs', {
+  ten: 'Hồ sơ ứng viên', phat: 1, lay: function () { return tdHsTay; }, dat: function (v) { tdHsKhoiPhuc = v; },
+  ma: function () { return ''; }, tieuDe: sdTieuDe('ho_ten', '#tdHsTen'), luu: ['vagabond.tuyen_dung.them_ho_so']
+});
 sdKhai('ctkm', 'kmSheetCtkm', {
   ten: 'Chương trình khuyến mãi', laHop: 1, lay: function () { return kmSua; },
   ghep: function (moi, v) { return v || moi; },
@@ -898,6 +908,8 @@ scrMfgDeclare = sdBoc('khai_sx', 'scrMfgDeclare', scrMfgDeclare);
 gvtManPhieu = sdBoc('gia_thu', 'gvtManPhieu', gvtManPhieu);
 scrSoDuNap = sdBoc('nap_tra_truoc', 'scrSoDuNap', scrSoDuNap);
 scrCrmCd = sdBoc('chien_dich', 'scrCrmCd', scrCrmCd);
+scrTdViTri = sdBoc('vi_tri_tuyen', 'scrTdViTri', scrTdViTri);
+scrTdThemHs = sdBoc('ho_so_ung_vien', 'scrTdThemHs', scrTdThemHs);
 hoanMoForm = sdBocHop('hoan_tien', 'hoanMoForm', hoanMoForm);
 hoanMoFormDu = sdBocHop('hoan_du', 'hoanMoFormDu', hoanMoFormDu);
 hoanMoFormHuy = sdBocHop('hoan_huy', 'hoanMoFormHuy', hoanMoFormHuy);

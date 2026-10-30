@@ -1,0 +1,8 @@
+/* v622: form ứng tuyển. Kế thừa thanh-vien.css (trang dịch vụ), chỉ thêm phần riêng. */
+.trang-dich-vu .vt-the{display:block;width:100%;text-align:left;padding:14px 16px;margin:0 0 10px;background:var(--bg-2);color:var(--paper);font-size:15px;line-height:1.45}
+.trang-dich-vu .vt-the small{display:block;color:var(--fog);font-size:13px;margin-top:4px}
+.trang-dich-vu .vt-the[aria-pressed=true] small{color:var(--bg)}
+.trang-dich-vu .dong-y{display:flex;gap:12px;align-items:flex-start;margin:22px 0 6px;font-size:14px;line-height:1.55}
+.trang-dich-vu .dong-y input{flex:0 0 22px;width:22px;height:22px;min-height:22px;margin:2px 0 0;padding:0}
+.trang-dich-vu .bay{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.trang-dich-vu .vt-chi-tiet{white-space:pre-line;color:var(--fog);font-size:14px;line-height:1.6;margin:6px 0 0}

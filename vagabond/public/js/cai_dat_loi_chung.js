@@ -19,7 +19,7 @@ if (typeof VGB_CD === 'undefined' || !VGB_CD || !VGB_CD.tinTheoBoPhan) {
 // read_only, không gõ tay được); máy chủ vẫn kiểm lại lúc lưu.
 var VGB_ZALO_DANH_MUC = {
 	loai_tin: ['thong_bao', 'viec', 'canh_bao', 'ban_tin', 'phat_hanh'],
-	chu_de: ['kho', 'san_xuat', 'cong_no', 'ban_hang', 'hoa_don', 'don_web', 'dat_ban', 'phat_hanh', 'he_thong'],
+	chu_de: ['kho', 'san_xuat', 'cong_no', 'ban_hang', 'hoa_don', 'don_web', 'dat_ban', 'tuyen_dung', 'phat_hanh', 'he_thong'],
 };
 // v568: anh Việt 04/10/2026, kèm ảnh hộp Chọn loại tin chỉ có mã ban_tin,
 // canh_bao...: *"không có subtext để biết tin đó là tin gì"*. Mã vẫn là giá trị
@@ -42,6 +42,8 @@ var VGB_ZALO_NHAN = {
 		hoa_don: ['🧾', 'Hoá đơn', 'Đơn chưa ghi sổ được, hoá đơn điện tử chưa xuất. Nên chọn kèm loại Cảnh báo.'],
 		don_web: ['🌐', 'Đơn web', 'Đơn đặt bánh trên trang web.'],
 		dat_ban: ['🪑', 'Đặt bàn', 'Khách đặt bàn tại cửa hàng.'],
+		// v622: hồ sơ ứng tuyển từ web, mã QR, quản lý thêm tay.
+		tuyen_dung: ['🧑‍💼', 'Tuyển dụng', 'Hồ sơ ứng tuyển mới, hồ sơ quá 24 giờ chưa ai gọi.'],
 		phat_hanh: ['🚀', 'Phát hành app', 'Tin bản mới của app.'],
 		// v597: còi báo động thư hỏng đi Zalo thay webhook Lark nhóm quản trị.
 		he_thong: ['🛠️', 'Hệ thống', 'Sự cố máy chủ, ví dụ thư không gửi được. Nên chọn kèm loại Cảnh báo.'],
@@ -51,7 +53,7 @@ var VGB_ZALO_NHAN = {
 // tích đúng những tin cần nhận. Bản sao của kenh_zalo.TIN (mã -> [bộ phận, tên,
 // giải thích]); ca thu_tin_zalo_604 so từng chữ với bản Python, sửa một bên phải
 // sửa bên kia. Mã chỉ là giá trị lưu, người dùng chỉ thấy tên và giải thích.
-var VGB_ZALO_BO_PHAN = ['Ban giám đốc', 'Hoá đơn, kế toán', 'Bán hàng, cửa hàng', 'Bếp', 'Thu mua', 'Kho', 'Hệ thống'];
+var VGB_ZALO_BO_PHAN = ['Ban giám đốc', 'Hoá đơn, kế toán', 'Bán hàng, cửa hàng', 'Bếp', 'Thu mua', 'Kho', 'Nhân sự', 'Hệ thống'];
 var VGB_ZALO_TIN = {
 	bgd_bao_cao_ngay: ['Ban giám đốc', 'Báo cáo cuối ngày (23:30)', '23:30 mỗi tối: doanh thu, giảm giá, sửa huỷ, điểm cần để ý. Nhóm nhận đừng đặt giờ im lúc 23:30.'],
 	bgd_app_cho_duyet: ['Ban giám đốc', 'Phiếu chi chờ giám đốc duyệt', 'Kế toán đã kiểm phiếu chi trả nhà cung cấp, chờ giám đốc duyệt.'],
@@ -120,6 +122,8 @@ var VGB_ZALO_TIN = {
 	kho_ton_quay_cuoi_ngay: ['Kho', 'Tồn bánh cuối ngày từng chi nhánh, kèm ảnh bảng (23:00)', '23:00 mỗi tối, một ảnh mỗi chi nhánh: đầu ngày, nhập, bán, hỏng, còn lại của từng bánh.'],
 	kho_ton_am: ['Kho', 'Tồn âm trên máy (08:00)', '08:00 mỗi sáng: món đang âm kho, tức còn phiếu nhập hay sản xuất chưa ghi.'],
 	kho_hang_nam_im: ['Kho', 'Hàng nằm im 30 ngày (Thứ Hai 08:05)', 'Thứ Hai hằng tuần: nguyên liệu, bao bì còn tồn mà 30 ngày không xuất lần nào.'],
+	ns_ung_vien_moi: ['Nhân sự', 'Hồ sơ ứng tuyển mới', 'Có người vừa nộp hồ sơ (web, mã QR hoặc quản lý thêm tay): tên, số điện thoại, vị trí, ca rảnh.'],
+	ns_ung_vien_qua_han: ['Nhân sự', 'Hồ sơ quá 24 giờ chưa ai gọi', 'Mỗi giờ: hồ sơ còn Mới nhận đã nộp quá 24 giờ, mỗi hồ sơ nhắc một lần.'],
 	ht_email_loi: ['Hệ thống', 'Email của tiệm không gửi được', 'Trong một giờ có từ 5 thư lỗi; báo lại sau 3 giờ nếu còn lỗi.'],
 	ht_phat_hanh: ['Hệ thống', 'Bản tin cập nhật app sau mỗi deploy', 'App vừa lên bản mới: thêm gì, bộ phận cần làm gì.'],
 };
