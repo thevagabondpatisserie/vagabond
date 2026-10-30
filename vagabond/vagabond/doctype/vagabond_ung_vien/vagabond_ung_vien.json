@@ -3,7 +3,7 @@
  "name": "Vagabond Ung Vien",
  "module": "Vagabond",
  "engine": "InnoDB",
- "modified": "2026-10-31 09:00:00.000000",
+ "modified": "2026-10-31 15:00:00.000000",
  "autoname": "UV-.YY.-.MM.-.####",
  "track_changes": 0,
  "title_field": "ho_ten",
@@ -158,6 +158,14 @@
    "fieldtype": "Datetime",
    "label": "Liên hệ lần đầu lúc",
    "read_only": 1
+  },
+  {
+   "fieldname": "dung_tu",
+   "fieldtype": "Data",
+   "label": "Dừng khi đang ở",
+   "read_only": 1,
+   "depends_on": "eval:doc.trang_thai=='Dừng'",
+   "description": "Trạng thái ngay trước khi dừng, để thanh tiến độ biết dừng ở bước nào."
   },
   {
    "fieldname": "xu_ly_boi",
@@ -323,6 +331,7 @@
   "tra_cong_luc",
   "sec_vet",
   "lien_he_luc",
+  "dung_tu",
   "xu_ly_boi",
   "xu_ly_luc",
   "nhat_ky",
