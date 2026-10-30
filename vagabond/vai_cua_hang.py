@@ -96,6 +96,10 @@ BANG_VAI = (
 	{"vai": VAI_QLCT, "ho_so": "VGB - Kế toán giá thành", "them_san": ()},
 	{"vai": VAI_MARKETING, "ho_so": "", "them_san": ()},
 	{"vai": VAI_BAR, "ho_so": "", "them_san": ()},
+	# v622 (anh Việt 30/10/2026): phân hệ Tuyển dụng mở cho mọi quản lý bộ phận;
+	# vai riêng này để gán thêm người khác mà không phải cho cả gói quản lý.
+	# Tên khớp tuyen_dung.VAI_TUYEN_DUNG (ca thu_tuyen_dung_622 chốt).
+	{"vai": "VGB - Tuyển dụng", "ho_so": "", "them_san": ()},
 )
 
 

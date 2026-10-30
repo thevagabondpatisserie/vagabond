@@ -630,6 +630,9 @@ def cong_khai():
     # v589 (anh Việt 09/10/2026): ưu đãi lấy từ ERP, nguồn duy nhất. Ưu đãi gõ
     # tay cũ vẫn nằm trong dữ liệu (khôi phục được) nhưng không ra trang khách.
     ra["khoi"] = thay_uu_dai_erp(ra.get("khoi") or [], _the_uu_dai_erp())
+    # v622 (anh Việt 30/10/2026): tuyển dụng cũng lấy từ ERP, bật tắt vị trí trên
+    # app là web đổi theo; nút Ứng tuyển mở form /ung-tuyen ghi thẳng vào app.
+    ra["khoi"] = thay_khoi_erp(ra.get("khoi") or [], _the_tuyen_dung_erp(), "tuyen_dung")
     # v532: trang luôn nhận bộ nhãn đầy đủ, không tự ghép mặc định ở phía khách.
     ra["nhan"] = nhan_day_du(ra)
     # v586: cửa hàng, liên hệ và số vé tiệc đã đăng ký, cùng một lượt tải.
@@ -642,30 +645,51 @@ def cong_khai():
     return ra
 
 
-def thay_uu_dai_erp(khoi, the_erp):
-    """THUẦN. Bỏ mọi khối ưu đãi gõ tay, chèn thẻ ưu đãi từ ERP vào đúng chỗ
-    khối ưu đãi đầu tiên từng đứng (không có thì nối cuối)."""
-    vi_tri = next((i for i, k in enumerate(khoi) if k.get("loai") == "uu_dai"), None)
-    con = [k for k in khoi if k.get("loai") != "uu_dai"]
+def thay_khoi_erp(khoi, the_erp, loai):
+    """THUẦN. Bỏ mọi khối `loai` gõ tay, chèn thẻ từ ERP vào đúng chỗ khối
+    `loai` đầu tiên từng đứng (không có thì nối cuối). v622 dùng chung cho
+    ưu đãi và tuyển dụng."""
+    vi_tri = next((i for i, k in enumerate(khoi) if k.get("loai") == loai), None)
+    con = [k for k in khoi if k.get("loai") != loai]
     if vi_tri is None:
         return con + list(the_erp)
-    truoc = sum(1 for k in khoi[:vi_tri] if k.get("loai") != "uu_dai")
+    truoc = sum(1 for k in khoi[:vi_tri] if k.get("loai") != loai)
     return con[:truoc] + list(the_erp) + con[truoc:]
 
 
-def giu_uu_dai_da_luu(khoi_moi, khoi_cu):
-    """THUẦN. Codex #460: ưu đãi nay chỉ đọc từ ERP, nên khi lưu cả bản (mục
-    Nâng cao) bỏ mọi khối ưu đãi gửi lên và đặt lại đúng các khối ưu đãi đã
-    lưu. Chỗ đặt: chỗ khối ưu đãi đầu tiên trong bản gửi lên, không có thì
-    theo chỗ cũ (tính bằng số khối khác đứng trước)."""
-    cu_uu = [k for k in khoi_cu if k.get("loai") == "uu_dai"]
-    con = [k for k in khoi_moi if k.get("loai") != "uu_dai"]
+def thay_uu_dai_erp(khoi, the_erp):
+    """THUẦN. Bỏ mọi khối ưu đãi gõ tay, chèn thẻ ưu đãi từ ERP vào đúng chỗ
+    khối ưu đãi đầu tiên từng đứng (không có thì nối cuối)."""
+    return thay_khoi_erp(khoi, the_erp, "uu_dai")
+
+
+def giu_khoi_da_luu(khoi_moi, khoi_cu, loai):
+    """THUẦN. Khối `loai` chỉ đọc từ ERP, nên khi lưu cả bản (mục Nâng cao)
+    bỏ mọi khối `loai` gửi lên và đặt lại đúng các khối đã lưu. Chỗ đặt: chỗ
+    khối `loai` đầu tiên trong bản gửi lên, không có thì theo chỗ cũ (tính
+    bằng số khối khác đứng trước)."""
+    cu_uu = [k for k in khoi_cu if k.get("loai") == loai]
+    con = [k for k in khoi_moi if k.get("loai") != loai]
     if not cu_uu:
         return con
-    nguon = khoi_moi if any(k.get("loai") == "uu_dai" for k in khoi_moi) else khoi_cu
-    vi_tri = next(i for i, k in enumerate(nguon) if k.get("loai") == "uu_dai")
-    truoc = sum(1 for k in nguon[:vi_tri] if k.get("loai") != "uu_dai")
+    nguon = khoi_moi if any(k.get("loai") == loai for k in khoi_moi) else khoi_cu
+    vi_tri = next(i for i, k in enumerate(nguon) if k.get("loai") == loai)
+    truoc = sum(1 for k in nguon[:vi_tri] if k.get("loai") != loai)
     return con[:truoc] + copy.deepcopy(cu_uu) + con[truoc:]
+
+
+def giu_uu_dai_da_luu(khoi_moi, khoi_cu):
+    """THUẦN. Codex #460: ưu đãi nay chỉ đọc từ ERP (xem giu_khoi_da_luu)."""
+    return giu_khoi_da_luu(khoi_moi, khoi_cu, "uu_dai")
+
+
+def _the_tuyen_dung_erp():
+    try:
+        from vagabond import tuyen_dung
+        return tuyen_dung.the_web_dang_hien()
+    except Exception:
+        frappe.log_error(title="Vagabond: tuyển dụng web từ ERP", message=frappe.get_traceback())
+        return []
 
 
 def _the_uu_dai_erp():
@@ -856,6 +880,16 @@ def doc_bang():
             "nhan_mau": copy.deepcopy(NHAN), "so_khoi_toi_da": SO_KHOI_TOI_DA}
 
 
+def _tuyen_dung_erp_bien_tap():
+    """v622: thẻ Tuyển dụng của trình biên tập chỉ đọc, lấy từ ERP."""
+    try:
+        from vagabond import tuyen_dung
+        return tuyen_dung.ds_web_bien_tap()
+    except Exception:
+        frappe.log_error(title="Vagabond: tuyển dụng web cho biên tập", message=frappe.get_traceback())
+        return []
+
+
 def _uu_dai_erp_bien_tap():
     """v589: thẻ Ưu đãi của trình biên tập chỉ đọc, lấy từ ERP."""
     try:
@@ -914,7 +948,10 @@ def luu(noi_dung, phien_ban, hanh_dong="nhap"):
         frappe.throw("Có người vừa sửa trang. Sao chép phần đang viết rồi tải lại trước khi lưu.")
     # Codex #460: ưu đãi chỉ tạo, sửa, bật tắt trên ERP. Lưu cả bản cũng không
     # thêm, sửa, xoá được khối ưu đãi gõ tay; giữ nguyên khối đã lưu.
-    nd["khoi"] = giu_uu_dai_da_luu(nd.get("khoi") or [], json.loads(d.ban_nhap or "{}").get("khoi") or [])
+    khoi_cu = json.loads(d.ban_nhap or "{}").get("khoi") or []
+    nd["khoi"] = giu_uu_dai_da_luu(nd.get("khoi") or [], khoi_cu)
+    # v622: tuyển dụng cũng chỉ sửa trên ERP, lưu cả bản không đổi được khối này.
+    nd["khoi"] = giu_khoi_da_luu(nd["khoi"], khoi_cu, "tuyen_dung")
     if hanh_dong == "xuat_ban" and loi_xuat_ban(nd):
         frappe.throw(loi_xuat_ban(nd))
     d.ban_nhap = json.dumps(nd, ensure_ascii=False)
@@ -992,6 +1029,8 @@ def bang_moi():
         "phien_ban": pb,
         # v589: thẻ Ưu đãi chỉ đọc, lấy từ ERP (nguồn duy nhất).
         "uu_dai_erp": _uu_dai_erp_bien_tap(),
+        # v622: thẻ Tuyển dụng chỉ đọc, lấy từ ERP (nguồn duy nhất).
+        "tuyen_dung_erp": _tuyen_dung_erp_bien_tap(),
     }
 
 
@@ -1048,6 +1087,9 @@ def luu_muc(muc, dau_cu=""):
     if isinstance(muc, dict) and muc.get("loai") == "uu_dai":
         # v589: ưu đãi chỉ tạo và bật tắt trên ERP, web đồng bộ theo.
         frappe.throw("Ưu đãi nay tạo, sửa và bật tắt trên app ERP: Bán hàng, Chương trình khuyến mãi, mục Website.")
+    if isinstance(muc, dict) and muc.get("loai") == "tuyen_dung":
+        # v622: vị trí tuyển dụng chỉ tạo và bật tắt trên app, web đồng bộ theo.
+        frappe.throw("Vị trí tuyển dụng nay tạo, sửa và bật tắt trên app ERP: Nhân sự, Tuyển dụng.")
     return _ghi_ca_hai(lambda nd: ap_muc(nd, muc, dau_cu or ""), lambda nd: ap_muc(nd, muc, None))
 
 
