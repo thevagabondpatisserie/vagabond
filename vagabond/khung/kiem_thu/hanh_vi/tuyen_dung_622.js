@@ -56,6 +56,9 @@ function duLieu() {
     hotline: '0931 224 334',
     ket_qua_goi: [{ k: 'Nghe máy', p: 'Đã nói chuyện' }, { k: 'Hẹn gọi lại', p: 'Hẹn gọi lại sau' },
       { k: 'Không nghe máy', p: 'Giữ Mới nhận' }, { k: 'Sai số', p: 'Số không liên lạc được' }],
+    /* Bản chép của tuyen_dung.buoc_app() (máy chủ chia trạng thái vào bước). */
+    buoc: [{ so: 1, ten: 'Liên hệ', tt: ['Mới nhận', 'Đã liên hệ'] }, { so: 2, ten: 'Phỏng vấn', tt: ['Hẹn phỏng vấn'] },
+      { so: 3, ten: 'Làm thử', tt: ['Làm thử'] }, { so: 4, ten: 'Nhận việc', tt: ['Đề nghị nhận việc', 'Đã nhận việc'] }],
     mau_theo_trang_thai: { 'Mới nhận': 'da_nhan', 'Hẹn phỏng vấn': 'hen_pv', 'Làm thử': 'lam_thu', 'Dừng': 'cam_on' },
     mau_tin: [
       { k: 'da_nhan', ten: 'Đã nhận hồ sơ', p: 'x', noi_dung: 'Chào {ten}, đã nhận hồ sơ vị trí {vi_tri}. Gọi {hotline}.' },
@@ -71,18 +74,19 @@ function duLieu() {
         so_can: 1, dang_tuyen: 0, khach_thay: 0, trang_thai_web: 'Đang tắt trên app, khách không thấy', so_ho_so: 1, ket_thuc: '' },
     ],
     rows: [
-      { name: 'UV-1', vi_tri: 'VTT-0001', ten_vi_tri: 'Thu ngân ca tối', ho_ten: 'Nguyễn Văn An', sdt: '0909123456', nguon: 'Web Vagabond',
+      { name: 'UV-1', buoc: { so: 1, xong: 0, dung: 0 }, vi_tri: 'VTT-0001', ten_vi_tri: 'Thu ngân ca tối', ho_ten: 'Nguyễn Văn An', sdt: '0909123456', nguon: 'Web Vagabond',
         trang_thai: 'Mới nhận', creation: '2026-10-29 07:00:00', qua_han: 1, lan_nop: 2, ca_ranh: 'Tối', khu_vuc: 'Quận 3', cham: [] },
-      { name: 'UV-2', vi_tri: 'VTT-0001', ten_vi_tri: 'Thu ngân ca tối', ho_ten: 'Trần Thị Bình', sdt: '0912345678', nguon: 'QR tại cửa hàng',
+      { name: 'UV-2', buoc: { so: 1, xong: 0, dung: 0 }, vi_tri: 'VTT-0001', ten_vi_tri: 'Thu ngân ca tối', ho_ten: 'Trần Thị Bình', sdt: '0912345678', nguon: 'QR tại cửa hàng',
         trang_thai: 'Mới nhận', creation: '2026-10-30 08:00:00', qua_han: 0, lan_nop: 1, cham: [] },
-      { name: 'UV-3', vi_tri: 'VTT-0001', ten_vi_tri: 'Thu ngân ca tối', ho_ten: 'Lê Cường', sdt: '0987654321', nguon: 'TopCV',
+      { name: 'UV-3', buoc: { so: 2, xong: 0, dung: 0 }, vi_tri: 'VTT-0001', ten_vi_tri: 'Thu ngân ca tối', ho_ten: 'Lê Cường', sdt: '0987654321', nguon: 'TopCV',
         trang_thai: 'Hẹn phỏng vấn', lich_hen: HOM + ' 14:00:00', creation: '2026-10-28 08:00:00', qua_han: 0, lan_nop: 1,
         cham: [{ vong: 'Phỏng vấn', nguoi: 'Dễ', ket_luan: 'Cân nhắc', diem_tb: 2.5, nhan_xet: '' }] },
-      { name: 'UV-4', vi_tri: 'VTT-0002', ten_vi_tri: 'Phụ bếp Pastry', ho_ten: 'Phạm Dũng', sdt: '0901111222', nguon: 'Đến trực tiếp',
+      { name: 'UV-4', buoc: { so: 3, xong: 0, dung: 0 }, vi_tri: 'VTT-0002', ten_vi_tri: 'Phụ bếp Pastry', ho_ten: 'Phạm Dũng', sdt: '0901111222', nguon: 'Đến trực tiếp',
         trang_thai: 'Làm thử', lich_hen: '2026-10-31 08:00:00', tien_cong_thu: 100000, da_tra_cong: 0, creation: '2026-10-27 08:00:00', qua_han: 0, lan_nop: 1, cham: [] },
-    ],
+    ].concat(THEM_HS),
   };
 }
+var THEM_HS = [];
 var QL = ['VGB - Quản lý cửa hàng'];
 var QUAY = ['Sales User'];
 var QR = [];
@@ -255,6 +259,8 @@ async function mo(vai, loi, dat) {
     bam(nut(the(m, 'UV-4'), 'data-tdcong'));
     var s = sheet(m);
     bang('giờ gợi ý', s.querySelectorAll('#tdGio')[0].value, '4');
+    /* Ảnh duyệt 31/10: bảng nằm ngoài #vgb, ô nhập phải tự tính lề trong để không tràn mép phải. */
+    bang('ô nhập không tràn', [s.querySelectorAll('#tdGio')[0].style.boxSizing, s.querySelectorAll('#tdTien')[0].style.boxSizing], ['border-box', 'border-box']);
     bang('tiền đã ghi', s.querySelectorAll('#tdTien')[0].value, '100000');
     dung('đã có tiền thì không còn nút trả sau', !s.querySelectorAll('[data-tdghi]').length);
     bam(s.querySelectorAll('[data-tdtra]')[0]);
@@ -284,6 +290,10 @@ async function mo(vai, loi, dat) {
     await tick();
     bang('nội dung mã', QR, ['https://order.thevagabondpatisserie.com/ung-tuyen?nguon=qr']);
     dung('có ảnh', !!sheet(m).querySelectorAll('img')[0]);
+    /* Ảnh duyệt 31/10: anh cần in mã ra giấy, nên có nút lưu ảnh. */
+    var luu = sheet(m).querySelectorAll('[data-tdqrluu]')[0];
+    bang('nút lưu ảnh để in', [!!luu && luu.getAttribute('download'), luu && luu.getAttribute('href')], ['ma-qr-ung-tuyen-vagabond.png', 'data:image/png;base64,AA']);
+    dung('đường dẫn hiện đúng như mã', chu(sheet(m)).indexOf('ung-tuyen?nguon=qr') >= 0);
   });
 
   await ca('Thêm vị trí: chưa có tên thì nhắc; điền tên rồi lưu gửi đúng dữ liệu, mặc định đang tuyển', async function () {
@@ -402,6 +412,41 @@ async function mo(vai, loi, dat) {
     m.g.tdKq = duLieu(); m.g.tdHsKhoiPhuc = null;
     await m.g.scrTdThemHs();
     bang('8 vị trí trở xuống vẫn là chip', m.khung.querySelectorAll('[data-tdhsvt2]').length, 2);
+  });
+
+  await ca('Thanh tiến độ 1-2-3-4: bước đã qua có dấu ✓, bước đang ở viền xanh, dừng là ✕ đúng bước, nhận việc là xong cả bốn', async function () {
+    THEM_HS = [
+      { name: 'UV-5', buoc: { so: 3, xong: 0, dung: 1 }, vi_tri: 'VTT-0002', ten_vi_tri: 'Phụ bếp Pastry', ho_ten: 'Võ Em', sdt: '0901000005',
+        nguon: 'TopCV', trang_thai: 'Dừng', ly_do_dung: 'Ứng viên rút', creation: '2026-10-20 08:00:00', qua_han: 0, lan_nop: 1, cham: [] },
+      { name: 'UV-6', buoc: { so: 4, xong: 1, dung: 0 }, vi_tri: 'VTT-0001', ten_vi_tri: 'Thu ngân ca tối', ho_ten: 'Đỗ Giang', sdt: '0901000006',
+        nguon: 'Web Vagabond', trang_thai: 'Đã nhận việc', creation: '2026-10-10 08:00:00', qua_han: 0, lan_nop: 1, cham: [] }];
+    try {
+      var m = await mo();
+      function trang(ten) {
+        return the(m, ten).querySelectorAll('[data-tdbuoc]').map(function (x) { return x.getAttribute('data-tdbuoctt'); });
+      }
+      function nhan(ten) { return the(m, ten).querySelectorAll('[data-tdthanh]')[0].getAttribute('aria-label'); }
+      bang('Mới nhận: đang ở bước 1', trang('UV-1'), ['dang', 'chua', 'chua', 'chua']);
+      bang('Hẹn phỏng vấn: qua bước 1, đang bước 2', trang('UV-3'), ['qua', 'dang', 'chua', 'chua']);
+      bang('Làm thử: đang bước 3', trang('UV-4'), ['qua', 'qua', 'dang', 'chua']);
+      bang('Dừng khi đang làm thử: ✕ ở bước 3', trang('UV-5'), ['qua', 'qua', 'dung', 'chua']);
+      bang('Đã nhận việc: xong cả bốn', trang('UV-6'), ['qua', 'qua', 'qua', 'qua']);
+      bang('nhãn đọc màn', [nhan('UV-3'), nhan('UV-5'), nhan('UV-6')],
+        ['Bước 2 trên 4: Phỏng vấn', 'Dừng ở bước 3: Làm thử', 'Đã xong cả 4 bước: Nhận việc']);
+      dung('tên bước hiện trên thẻ', ['Liên hệ', 'Phỏng vấn', 'Làm thử', 'Nhận việc'].every(function (t) { return chu(the(m, 'UV-1')).indexOf(t) >= 0; }));
+      var tron = the(m, 'UV-5').querySelectorAll('[data-tdbuoc="3"]')[0];
+      dung('bước dừng có dấu ✕', chu(tron).indexOf('✕') >= 0);
+      dung('dòng thanh tiến độ có hướng flex', the(m, 'UV-1').querySelectorAll('[data-tdthanh]')[0].style.flexDirection === 'row');
+      // Mở Cập nhật: thanh tiến độ ở đầu bảng, lựa chọn xếp theo bước, Dừng để riêng cuối.
+      bam(nut(the(m, 'UV-3'), 'data-tdcn'));
+      var s = sheet(m), c = chu(s);
+      dung('bảng Cập nhật có thanh tiến độ', !!s.querySelectorAll('[data-tdthanh]')[0]);
+      var vt = ['Bước 1 · Liên hệ', 'Đã liên hệ', 'Bước 2 · Phỏng vấn', 'Hẹn phỏng vấn', 'Bước 3 · Làm thử', 'Bước 4 · Nhận việc',
+        'Đề nghị nhận việc', 'Đã nhận việc', 'Không tiếp tục', 'Dừng'].map(function (t) { return c.indexOf(t); });
+      dung('lựa chọn theo đúng thứ tự bước, Dừng cuối: ' + vt.join(','), vt.every(function (x, k) { return x >= 0 && (!k || x > vt[k - 1]); }));
+      bang('không có lựa chọn Mới nhận', s.querySelectorAll('[data-tdchon="Mới nhận"]').length, 0);
+      bang('đủ 6 lựa chọn', s.querySelectorAll('[data-tdchon]').length, 6);
+    } finally { THEM_HS = []; }
   });
 
   console.log('\n' + ket.dat + ' ca đạt, ' + ket.hong + ' ca hỏng.');
