@@ -64236,10 +64236,13 @@ function tdKhoiGhi(ghi, i) {
     '<div data-tdghi="' + i + '" hidden style="' + khung + 'display:none;white-space:pre-line;word-break:break-word">' + day + '</div>';
 }
 
+/* Công tắc: vệt màu 46x28 nhưng vùng bấm 52x44 (AGENTS 2b.13, Codex #518 vòng 3). */
 function tdCongTac(attr, bat) {
-  return '<button type="button" role="switch" ' + attr + ' aria-checked="' + (bat ? 'true' : 'false') + '" style="flex:0 0 46px;width:46px;height:28px;' +
-    'border-radius:14px;border:0;padding:0;position:relative;cursor:pointer;margin:0;background:' + (bat ? '#0d9488' : '#d0d5dd') + '">' +
-    '<span style="position:absolute;top:3px;' + (bat ? 'right:3px' : 'left:3px') + ';width:22px;height:22px;border-radius:50%;background:#fff"></span></button>';
+  return '<button type="button" role="switch" ' + attr + ' aria-checked="' + (bat ? 'true' : 'false') + '" style="flex:0 0 52px;width:52px;' +
+    'min-height:44px;height:44px;border:0;padding:0 3px;margin:0;background:transparent;cursor:pointer;display:flex;flex-direction:row;' +
+    'align-items:center;justify-content:center"><span style="position:relative;display:block;width:46px;height:28px;border-radius:14px;' +
+    'background:' + (bat ? '#0d9488' : '#d0d5dd') + '"><span style="position:absolute;top:3px;' + (bat ? 'right:3px' : 'left:3px') +
+    ';width:22px;height:22px;border-radius:50%;background:#fff"></span></span></button>';
 }
 function tdTheVt(v, i) {
   var phu = [v.ten_bo_phan, v.noi_lam, v.hinh_thuc, 'cần ' + (v.so_can || 1) + ' người'].filter(Boolean).map(h).join(' · ');
