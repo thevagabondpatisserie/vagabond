@@ -436,6 +436,23 @@ def an_danh(row):
 	}
 
 
+def kiem_an_danh(row, cu_da_an_danh=0):
+	"""THUẦN: hồ sơ đã xoá thông tin theo hạn thì không đường nào (Desk, API) được
+	ghi lại thông tin nhận ra được người, cũng không mở lại cờ đã xoá (Codex #518
+	vòng 3: các lượt xoá sau bỏ qua hồ sơ có cờ, thông tin ghi lại sẽ nằm mãi).
+
+	Trả câu lỗi, '' nếu được lưu. Ô không phải thông tin cá nhân (trạng thái, vị
+	trí, nguồn) vẫn sửa được."""
+	if int(cu_da_an_danh or 0) and not int(row.get("da_an_danh") or 0):
+		return "Hồ sơ này đã xoá thông tin theo hạn lưu, không mở lại được."
+	if not int(row.get("da_an_danh") or 0):
+		return ""
+	khac = [k for k, v in an_danh({}).items() if k != "da_an_danh" and str(row.get(k) or "") != v]
+	if khac or any(str((d or {}).get("nhan_xet") or "").strip() for d in (row.get("danh_gia") or [])):
+		return "Hồ sơ này đã xoá thông tin theo hạn lưu, không ghi lại thông tin cá nhân được."
+	return ""
+
+
 def kiem_luu_tru(row, bay_gio):
 	"""THUẦN: mọi đường tạo, sửa hồ sơ (app, web, Desk, API) phải có đồng ý lưu và
 	hạn lưu, không thì nhịp xoá theo hạn không bao giờ chọn tới (Codex #518).
